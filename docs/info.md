@@ -1,20 +1,16 @@
-<!---
-
-This file is used to generate your project datasheet. Please fill in the information below and delete any unused
-sections.
-
-You can also include images in this folder and reference them in the markdown. Each image must be less than
-512 kb in size, and the combined size of all images must be less than 1 MB.
--->
-
 ## How it works
 
-Explain how your project works
+A small programmable core that bit-bangs pins with cycle-exact timing, so
+protocols like UART, SPI and I2C are firmware rather than fixed logic. The host
+loads a program over SPI and talks to it through a pair of FIFOs.
+
+Work in progress. The design is written in Hardcaml; the Verilog in `src` is generated.
 
 ## How to test
 
-Explain how to use your project
+Load a program over the SPI port from the demo board's RP2040, then watch the
+protocol pins with a logic analyzer or connect a peripheral.
 
 ## External hardware
 
-List external hardware used in your project (e.g. PMOD, LED display, etc), if any
+Anything that speaks UART, SPI or I2C. A USB to UART adapter is the easiest start.
