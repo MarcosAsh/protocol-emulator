@@ -2,12 +2,7 @@ open! Core
 open Protocol_emulator
 
 let tx_pin = 5
-
-let assemble ?(side_set_count = 0) program =
-  List.map program ~f:(fun t -> Isa.to_word ~side_set_count t |> ok_exn)
-;;
-
-let op ?(delay = 0) ?(side_set = 0) op : Isa.t = Op { op; delay; side_set }
+let assemble source = Asm.assemble source |> ok_exn |> Asm.Program.words |> ok_exn
 
 let run t ~cycles ~inputs =
   let rec loop t n acc =
@@ -43,23 +38,27 @@ let decode_uart levels ~period =
   frames 0 []
 ;;
 
-let uart_tx ~period : Isa.t list =
-  [ op (Set { dest = P; value = period })
-  ; op (Set { dest = Pins; value = 1 })
-  ; op (Wait (Fifo Tx_not_empty))
-  ; op (Sys Pull)
-  ; op (Set { dest = X; value = 7 })
-  ; op (Mov { dest = T; op = Copy; source = Now })
-  ; op (Set { dest = Pins; value = 0 })
-  ; op (Alu { dest = T; op = Add; operand = Reg P })
-  ; op (Wait (Deadline { advance = true }))
-  ; op (Out { dest = Pins; count = 1 })
-  ; Jmp { cond = X_dec; target = 8 }
-  ; op (Wait (Deadline { advance = true }))
-  ; op (Set { dest = Pins; value = 1 })
-  ; op (Wait (Deadline { advance = false }))
-  ; Jmp { cond = Always; target = 2 }
-  ]
+let uart_tx ~period =
+  [%string
+    {|
+    set p, %{period#Int}
+    set pins, 1              ; idle high
+idle:
+    wait tx
+    pull
+    set x, 7
+    mov t, now               ; anchor the frame
+    set pins, 0              ; start bit
+    add t, p
+bit:
+    wait t+
+    out pins, 1
+    jmp x--, bit
+    wait t+
+    set pins, 1              ; stop bit
+    wait t
+    jmp idle
+|}]
 ;;
 
 let%expect_test "uart tx sends two bytes with exact bit periods" =
@@ -87,13 +86,11 @@ let%expect_test "uart tx sends two bytes with exact bit periods" =
 ;;
 
 let%expect_test "a deadline that is already past releases at once and is a fault" =
-  let program =
-    assemble
-      [ op (Mov { dest = T; op = Copy; source = Now })
-      ; op (Wait (Deadline { advance = false }))
-      ; op (Sys Halt)
-      ]
-  in
+  let program = assemble {|
+    mov t, now
+    wait t
+    halt
+|} in
   let t = Machine.create ~config:Program_config.default ~program |> ok_exn in
   let t, _ = run t ~cycles:6 ~inputs:0 in
   print_s [%message (t.fault : Machine.Fault.t) (t.halted : bool) (t.now : int)];
@@ -106,7 +103,10 @@ let%expect_test "a deadline that is already past releases at once and is a fault
 ;;
 
 let%expect_test "pull from an empty fifo faults instead of stalling" =
-  let program = assemble [ op (Sys Pull); op (Sys Halt) ] in
+  let program = assemble {|
+    pull
+    halt
+|} in
   let t = Machine.create ~config:Program_config.default ~program |> ok_exn in
   let t, _ = run t ~cycles:4 ~inputs:0 in
   print_s [%message (t.fault : Machine.Fault.t) (t.halted : bool)];
@@ -121,12 +121,13 @@ let%expect_test "pull from an empty fifo faults instead of stalling" =
 let%expect_test "input capture timestamps a rising edge" =
   let program =
     assemble
-      [ op (Sys Capture_arm)
-      ; op (Wait (Pin_edge { pin = 0; rising = true }))
-      ; op (Mov { dest = X; op = Copy; source = Capture })
-      ; op (Mov { dest = Y; op = Copy; source = Now })
-      ; op (Sys Halt)
-      ]
+      {|
+    capture_arm
+    wait rise pin 0
+    mov x, capture
+    mov y, now
+    halt
+|}
   in
   let t = Machine.create ~config:Program_config.default ~program |> ok_exn in
   let t, _ = run t ~cycles:10 ~inputs:0 in
