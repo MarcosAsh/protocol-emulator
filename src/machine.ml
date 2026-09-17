@@ -380,7 +380,13 @@ let issue t ~sample =
     ; stall = Isa.jmp_cycles - 1
     }
   | Ok (Op { op; delay; side_set }) ->
-    let t = write_pins t ~base:c.side_set_base ~count:c.side_set_count ~value:side_set in
+    let t =
+      (if c.side_set_pindirs then write_pindirs else write_pins)
+        t
+        ~base:c.side_set_base
+        ~count:c.side_set_count
+        ~value:side_set
+    in
     (match op with
      | Wait wait ->
        (match wait_ready t wait ~sample with

@@ -14,6 +14,7 @@ end
 type t =
   { side_set_count : int
   ; side_set_base : int
+  ; side_set_pindirs : bool (** Side-set writes pin directions instead of values. *)
   ; in_base : int
   ; out_base : int (** Base of [out pins] and of [mov pins]. *)
   ; out_count : int (** Number of pins written by [mov pins] and [mov pindirs]. *)

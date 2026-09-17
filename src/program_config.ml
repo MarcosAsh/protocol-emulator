@@ -10,6 +10,7 @@ end
 type t =
   { side_set_count : int
   ; side_set_base : int
+  ; side_set_pindirs : bool
   ; in_base : int
   ; out_base : int
   ; out_count : int
@@ -30,6 +31,7 @@ type t =
 let default =
   { side_set_count = 0
   ; side_set_base = 5
+  ; side_set_pindirs = false
   ; in_base = 0
   ; out_base = 5
   ; out_count = 1
