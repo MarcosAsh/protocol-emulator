@@ -5,44 +5,52 @@ let listing source =
   let program = Asm.assemble source |> ok_exn in
   let words = Asm.Program.words program |> ok_exn in
   List.iteri (List.zip_exn words program.instructions) ~f:(fun address (word, t) ->
-    printf "%3d  %04x  %s\n" address word (Asm.to_string t))
+    printf
+      "%3d  %04x  %s\n"
+      address
+      word
+      (Asm.to_string ~side_set_count:program.side_set_count t))
 ;;
 
 let%expect_test "listing of a spi master" =
   listing
     {|
     .side_set 1                ; side-set drives SCK
-    set pindirs, 1             ; MOSI out
-    set p, 8
+    set p, 8 side 0
 idle:
-    wait tx
-    pull
-    set x, 7
-    mov t, now
+    wait tx side 0
+    pull side 0
+    set x, 7 side 0
+    mov t, now side 0
+    add t, p side 0
+    wait t+ side 0
+    out pins, 1 side 0         ; first bit
 bit:
-    out pins, 1 side 0         ; data changes on the falling edge
-    add t, p
-    wait t+ side 1             ; sample edge
-    in pins, 1
+    wait t+ side 0
+    in pins, 1 side 1          ; rising edge, data sampled
+    wait t+ side 1
+    out pins, 1 side 0         ; falling edge, data changes
     jmp x--, bit
-    push
+    push side 0
     jmp idle
 |};
   [%expect
     {|
-     0  a061  set pindirs, 1
-     1  a088  set p, 8
-     2  20e0  wait tx
-     3  e004  pull
-     4  a027  set x, 7
-     5  80e6  mov t, now
-     6  6001  out pins, 1
-     7  c0ca  add t, p
-     8  30c0  wait t+ side 1
-     9  4001  in pins, 1
-    10  0406  jmp x--, 6
-    11  e003  push
-    12  0002  jmp 2
+     0  a088  set p, 8 side 0
+     1  20e0  wait tx side 0
+     2  e004  pull side 0
+     3  a027  set x, 7 side 0
+     4  80e6  mov t, now side 0
+     5  c0ca  add t, p side 0
+     6  20c0  wait t+ side 0
+     7  6001  out pins, 1 side 0
+     8  20c0  wait t+ side 0
+     9  5001  in pins, 1 side 1
+    10  30c0  wait t+ side 1
+    11  6001  out pins, 1 side 0
+    12  0408  jmp x--, 8
+    13  e003  push side 0
+    14  0001  jmp 1
     |}]
 ;;
 
@@ -143,6 +151,7 @@ let%expect_test "errors name the line" =
   try_ "loop:\nloop:";
   try_ ".origin 4";
   try_ "out pins, 1 side 1";
+  try_ ".side_set 1\nout pins, 1";
   [%expect
     {|
     (Error ((line 1 "jmp nowhere") ("unknown label" nowhere)))
@@ -158,6 +167,9 @@ let%expect_test "errors name the line" =
     (Error
      ((line 1 "out pins, 1 side 1")
       (side_set "out of range" (value 1) (lo 0) (hi 0))))
+    (Error
+     ((line 2 "out pins, 1")
+      "side-set is enabled, so every instruction needs a side"))
     |}]
 ;;
 
@@ -168,7 +180,9 @@ let%expect_test "an instruction survives printing and parsing" =
       ~sexp_of:[%sexp_of: Isa.t]
       (Test_isa.Generator.instruction ~side_set_count)
       ~f:(fun t ->
-        let source = [%string ".side_set %{side_set_count#Int}\n%{Asm.to_string t}"] in
+        let source =
+          [%string ".side_set %{side_set_count#Int}\n%{Asm.to_string ~side_set_count t}"]
+        in
         match Asm.assemble source with
         | Error e -> raise_s [%message "did not assemble" source (e : Error.t)]
         | Ok program ->

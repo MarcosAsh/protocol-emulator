@@ -15,6 +15,9 @@
         jmp idle
     v}
 
+    With side-set enabled every instruction except [jmp] drives the side-set pins, so the
+    assembler insists on a [side] modifier on each of them.
+
     A [;] starts a comment. Labels end in [:]. Numbers are decimal, [0x] or [0b]. Register
     and pin operand names are the lower case constructor names from [Isa]: [pins],
     [pindirs], [x], [y], [p], [t], [isr], [osr], [null], [now], [capture], [crc]. [mov]
@@ -39,4 +42,4 @@ end
 val assemble : string -> Program.t Or_error.t
 
 (** The inverse of [assemble] for one instruction, with a numeric jump target. *)
-val to_string : Isa.t -> string
+val to_string : side_set_count:int -> Isa.t -> string

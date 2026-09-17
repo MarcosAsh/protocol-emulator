@@ -73,7 +73,7 @@ let rec split_modifiers tokens ~side_set ~delay =
   | [] -> Ok ([], side_set, delay)
   | "side" :: value :: rest ->
     let%bind side_set = int_of_token value in
-    split_modifiers rest ~side_set ~delay
+    split_modifiers rest ~side_set:(Some side_set) ~delay
   | [ "side" ] -> Or_error.error_s [%message "side needs a value"]
   | token :: rest
     when String.is_prefix token ~prefix:"[" && String.is_suffix token ~suffix:"]" ->
@@ -187,15 +187,25 @@ let parse_jmp args ~labels =
 
 let parse_instruction tokens ~labels ~side_set_count =
   let open Or_error.Let_syntax in
-  let%bind args, side_set, delay = split_modifiers tokens ~side_set:0 ~delay:0 in
+  let%bind args, side_set, delay = split_modifiers tokens ~side_set:None ~delay:0 in
   match args with
   | [] -> Or_error.error_s [%message "modifiers without an instruction"]
   | "jmp" :: args ->
-    if side_set <> 0 || delay <> 0
+    if Option.is_some side_set || delay <> 0
     then Or_error.error_s [%message "jmp takes no side-set or delay"]
     else parse_jmp args ~labels
   | mnemonic :: args ->
     let%bind op = parse_op mnemonic args in
+    let%bind side_set =
+      match side_set with
+      | Some side_set -> Ok side_set
+      | None ->
+        if side_set_count = 0
+        then Ok 0
+        else
+          Or_error.error_s
+            [%message "side-set is enabled, so every instruction needs a side"]
+    in
     let t = Isa.Op { op; delay; side_set } in
     let%map (_ : int) = Isa.to_word ~side_set_count t in
     t
@@ -258,7 +268,7 @@ let assemble source =
   { Program.side_set_count; instructions }
 ;;
 
-let to_string (t : Isa.t) =
+let to_string ~side_set_count (t : Isa.t) =
   let name (type a) (module Cases : Isa.Cases with type t = a) case =
     case_name (module Cases) case
   in
@@ -309,7 +319,7 @@ let to_string (t : Isa.t) =
            dest}, %{operand}"]
       | Sys op -> name (module Isa.Sys_op.Cases) op
     in
-    let side = if side_set = 0 then "" else [%string " side %{side_set#Int}"] in
+    let side = if side_set_count = 0 then "" else [%string " side %{side_set#Int}"] in
     let delay = if delay = 0 then "" else [%string " [%{delay#Int}]"] in
     body ^ side ^ delay
 ;;
