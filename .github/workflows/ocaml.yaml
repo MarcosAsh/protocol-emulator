@@ -1,0 +1,22 @@
+name: ocaml
+on: [push, workflow_dispatch]
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Set up OxCaml
+        uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: ocaml-variants.5.2.0+ox
+          opam-repositories: |
+            ox: https://github.com/oxcaml/opam-repository.git
+            default: https://github.com/ocaml/opam-repository.git
+
+      - name: Install dependencies
+        run: opam install . --deps-only --with-test
+
+      - name: Run tests
+        run: opam exec -- dune build @runtest

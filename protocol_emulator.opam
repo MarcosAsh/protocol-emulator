@@ -18,6 +18,7 @@ depends: [
   "hardcaml_test_harness"
   "hardcaml_verify"
   "hardcaml_waveterm"
+  "jane_rope"
   "ppx_hardcaml"
   "ppx_jane"
   "re"
