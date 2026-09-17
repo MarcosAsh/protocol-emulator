@@ -1,0 +1,5 @@
+(library
+ (name protocol_emulator)
+ (libraries core hardcaml)
+ (preprocess
+  (pps ppx_hardcaml ppx_jane)))

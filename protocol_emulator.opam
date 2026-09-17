@@ -1,0 +1,30 @@
+opam-version: "2.0"
+maintainer: "Marcos Ashton"
+authors: ["Marcos Ashton"]
+homepage: "https://github.com/MarcosAsh/protocol-emulator"
+bug-reports: "https://github.com/MarcosAsh/protocol-emulator/issues"
+dev-repo: "git+https://github.com/MarcosAsh/protocol-emulator.git"
+license: "Apache-2.0"
+x-maintenance-intent: ["(latest)"]
+build: [
+  ["dune" "build" "-p" name "-j" jobs]
+]
+depends: [
+  "ocaml" {>= "5.1.0"}
+  "dune" {>= "3.17.0"}
+  "core"
+  "core_unix"
+  "hardcaml"
+  "hardcaml_test_harness"
+  "hardcaml_verify"
+  "hardcaml_waveterm"
+  "ppx_hardcaml"
+  "ppx_jane"
+  "re"
+]
+available: arch != "x86_32"
+synopsis: "Programmable protocol emulator for Tiny Tapeout"
+description: "
+A small core that bit-bangs pins with cycle-exact timing, so serial protocols
+are firmware rather than fixed logic. Written in Hardcaml.
+"

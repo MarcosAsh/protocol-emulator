@@ -11,3 +11,10 @@ test/sim_build
 test/__pycache__/
 test/results.xml
 test/gate_level_netlist.v
+
+_build
+*.install
+*.merlin
+_opam
+bin/*.exe
+bin/*.bc
