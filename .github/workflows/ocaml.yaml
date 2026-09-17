@@ -13,7 +13,7 @@ jobs:
           ocaml-compiler: ocaml-variants.5.2.0+ox
           opam-repositories: |
             ox: https://github.com/oxcaml/opam-repository.git
-            default: https://github.com/ocaml/opam-repository.git
+            default: https://opam.ocaml.org
 
       - name: Install dependencies
         run: opam install . --deps-only --with-test
