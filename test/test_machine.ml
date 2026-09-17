@@ -200,6 +200,141 @@ let%expect_test "a missing stop bit raises the interrupt" =
     |}]
 ;;
 
+(* SPI mode 0 master, MSB first. SCK is the side-set pin, so every clock edge lands on the
+   instruction right after a deadline release. Each wait carries the level the clock
+   already has, because a stalled wait drives its side-set at issue, and the jump sits
+   after the falling edge where two extra cycles do not matter. MOSI changes on the
+   falling edge and MISO is sampled on the rising edge. The pulled word is 16 bits, so the
+   top byte is discarded before shifting. *)
+let spi_master ~half_period =
+  [%string
+    {|
+    .side_set 1
+    set p, %{half_period#Int} side 0
+idle:
+    wait tx side 0
+    pull side 0
+    out null, 8 side 0
+    set x, 7 side 0
+    mov t, now side 0
+    add t, p side 0
+    wait t+ side 0
+    out pins, 1 side 0       ; first bit, half a period before the first edge
+bit:
+    wait t+ side 0
+    in pins, 1 side 1        ; rising edge
+    wait t+ side 1
+    out pins, 1 side 0       ; falling edge, next bit
+    jmp x--, bit
+    push side 0
+    jmp idle
+|}]
+;;
+
+let sck_pin = 6
+let mosi_pin = 5
+let miso_pin = 0
+
+let spi_config =
+  { Program_config.default with
+    side_set_count = 1
+  ; side_set_base = sck_pin
+  ; out_base = mosi_pin
+  ; in_base = miso_pin
+  ; out_shift = Left
+  ; in_shift = Left
+  }
+;;
+
+(* A mode 0 slave: samples MOSI on the rising edge, presents the next MISO bit on the
+   falling edge, and loads the next reply once a byte is complete. *)
+module Spi_slave = struct
+  type t =
+    { sck : int
+    ; shift_in : int
+    ; bits : int
+    ; shift_out : int
+    ; replies : int list
+    ; received : int list
+    }
+
+  let create replies =
+    let shift_out, replies =
+      match replies with
+      | [] -> 0, []
+      | r :: rest -> r, rest
+    in
+    { sck = 0; shift_in = 0; bits = 0; shift_out; replies; received = [] }
+  ;;
+
+  let miso t = (t.shift_out lsr 7) land 1
+
+  let step t ~sck ~mosi =
+    let t' = { t with sck } in
+    if sck = 1 && t.sck = 0
+    then (
+      let shift_in = (t.shift_in lsl 1) lor mosi land 0xff in
+      if t.bits = 7
+      then { t' with shift_in = 0; bits = 8; received = shift_in :: t.received }
+      else { t' with shift_in; bits = t.bits + 1 })
+    else if sck = 0 && t.sck = 1
+    then
+      if t.bits = 8
+      then (
+        match t.replies with
+        | [] -> { t' with bits = 0; shift_out = 0 }
+        | r :: replies -> { t' with bits = 0; shift_out = r; replies })
+      else { t' with shift_out = (t.shift_out lsl 1) land 0xff }
+    else t'
+  ;;
+end
+
+let%expect_test "spi master exchanges bytes with a mode 0 slave" =
+  let half_period = 8 in
+  let t =
+    Machine.create ~config:spi_config ~program:(assemble (spi_master ~half_period))
+    |> ok_exn
+  in
+  let t = Machine.write_tx t 0xa5 |> ok_exn in
+  let t = Machine.write_tx t 0x3c |> ok_exn in
+  let slave = Spi_slave.create [ 0x81; 0x7e ] in
+  let rec loop t slave n received sck =
+    if n = 0
+    then t, slave, List.rev received, List.rev sck
+    else (
+      let t = Machine.step t ~inputs:(Spi_slave.miso slave lsl miso_pin) in
+      let slave =
+        Spi_slave.step
+          slave
+          ~sck:((t.pin_out lsr sck_pin) land 1)
+          ~mosi:((t.pin_out lsr mosi_pin) land 1)
+      in
+      let received, t =
+        match Machine.read_rx t with
+        | Some (byte, t) -> byte :: received, t
+        | None -> received, t
+      in
+      loop t slave (n - 1) received (((t.pin_out lsr sck_pin) land 1) :: sck))
+  in
+  let t, slave, master_received, sck = loop t slave 400 [] [] in
+  print_s
+    [%message
+      (master_received : int list)
+        (List.rev slave.received : int list)
+        (runs sck : (int * int) list)
+        (t.fault : Machine.Fault.t)];
+  [%expect
+    {|
+    ((master_received (129 126)) ("List.rev slave.received" (165 60))
+     ("runs sck"
+      ((0 22) (1 8) (0 8) (1 8) (0 8) (1 8) (0 8) (1 8) (0 8) (1 8) (0 8)
+       (1 8) (0 8) (1 8) (0 8) (1 8) (0 27) (1 8) (0 8) (1 8) (0 8) (1 8)
+       (0 8) (1 8) (0 8) (1 8) (0 8) (1 8) (0 8) (1 8) (0 8) (1 8) (0 111)))
+     (t.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    |}]
+;;
+
 let%expect_test "a deadline that is already past releases at once and is a fault" =
   let program = assemble {|
     mov t, now
