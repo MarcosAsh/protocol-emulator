@@ -85,6 +85,116 @@ let%expect_test "uart tx sends two bytes with exact bit periods" =
     |}]
 ;;
 
+(* Receive on IN0, sampling mid bit from a deadline anchored to the captured start edge.
+   The byte is shifted in LSB first, so after eight bits it sits in the top of the isr and
+   [in null, 8] moves it down. *)
+let uart_rx ~period =
+  [%string
+    {|
+    set p, %{period#Int}
+    set y, %{period / 2#Int}
+idle:
+    capture_arm
+    wait fall pin 0          ; start bit
+    mov t, capture           ; anchor on the exact edge cycle
+    add t, y
+    add t, p                 ; middle of bit 0
+    set x, 7
+bit:
+    wait t+
+    in pins, 1
+    jmp x--, bit
+    in null, 8
+    push
+    wait t                   ; middle of the stop bit
+    jmp pin, idle
+    irq                      ; framing error
+    wait 1 pin 0
+    jmp idle
+|}]
+;;
+
+let rx_config =
+  { Program_config.default with
+    in_base = 0
+  ; jmp_pin = 0
+  ; capture_pin = 0
+  ; capture_rising = false
+  }
+;;
+
+(* Idle high, then each byte as start, eight data bits LSB first and a stop bit. *)
+let serial_levels bytes ~period ~stop =
+  let bit b = List.init period ~f:(fun _ -> b) in
+  List.init 20 ~f:(fun _ -> 1)
+  @ List.concat_map bytes ~f:(fun byte ->
+    List.concat_map
+      ((0 :: List.init 8 ~f:(fun i -> (byte lsr i) land 1)) @ [ stop ])
+      ~f:bit)
+  @ List.init (4 * period) ~f:(fun _ -> 1)
+;;
+
+let receive levels ~period =
+  let t =
+    Machine.create ~config:rx_config ~program:(assemble (uart_rx ~period)) |> ok_exn
+  in
+  let t, received =
+    List.fold levels ~init:(t, []) ~f:(fun (t, received) level ->
+      let t = Machine.step t ~inputs:level in
+      match Machine.read_rx t with
+      | Some (byte, t) -> t, byte :: received
+      | None -> t, received)
+  in
+  print_s
+    [%message
+      (List.rev received : int list)
+        (t.fault : Machine.Fault.t)
+        (t.irq : bool)
+        (t.pc : int)]
+;;
+
+let%expect_test "uart rx receives bytes sampled mid bit" =
+  let period = 16 in
+  receive (serial_levels [ 0x55; 0xa3; 0xff; 0x00 ] ~period ~stop:1) ~period;
+  [%expect
+    {|
+    (("List.rev received" (85 163 255 0))
+     (t.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+     (t.irq false) (t.pc 3))
+    |}]
+;;
+
+(* 8N1 must survive a baud error of a few percent. The sample lands one cycle after the
+   release, so the receiver already leans late and a fast sender is the harder direction. *)
+let%expect_test "uart rx tolerates the sender being four percent off" =
+  List.iter [ 24; 26 ] ~f:(fun sender_period ->
+    receive (serial_levels [ 0x55; 0xa3; 0x0f ] ~period:sender_period ~stop:1) ~period:25);
+  [%expect
+    {|
+    (("List.rev received" (85 180))
+     (t.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+     (t.irq false) (t.pc 11))
+    (("List.rev received" (85 163 15))
+     (t.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+     (t.irq false) (t.pc 3))
+    |}]
+;;
+
+let%expect_test "a missing stop bit raises the interrupt" =
+  let period = 16 in
+  receive (serial_levels [ 0x42 ] ~period ~stop:0) ~period;
+  [%expect
+    {|
+    (("List.rev received" (66))
+     (t.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+     (t.irq true) (t.pc 3))
+    |}]
+;;
+
 let%expect_test "a deadline that is already past releases at once and is a fault" =
   let program = assemble {|
     mov t, now
