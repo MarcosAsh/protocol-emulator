@@ -1,7 +1,14 @@
 (library
  (name protocol_emulator_test)
- (libraries core hardcaml protocol_emulator hardcaml_test_harness
-   hardcaml_waveterm re)
+ (libraries
+  core
+  hardcaml
+  protocol_emulator
+  hardcaml_test_harness
+  hardcaml_waveterm
+  re)
  (preprocess
   (pps ppx_hardcaml ppx_jane))
- (inline_tests))
+ (inline_tests
+  (flags
+   (-source-tree-root .))))
