@@ -86,17 +86,20 @@ let%expect_test "uart tx sends two bytes with exact bit periods" =
 ;;
 
 (* Receive on IN0, sampling mid bit from a deadline anchored to the captured start edge.
-   The byte is shifted in LSB first, so after eight bits it sits in the top of the isr and
-   [in null, 8] moves it down. *)
+   The capture unit is armed again right after the last data bit, so a start edge that
+   arrives while the core is still checking the stop bit is not lost. The sample lands one
+   cycle after the deadline releases, so the half period is one short. The byte is shifted
+   in LSB first and [in null, 8] moves it down from the top of the isr. *)
 let uart_rx ~period =
   [%string
     {|
     set p, %{period#Int}
-    set y, %{period / 2#Int}
-idle:
+    set y, %{(period / 2) - 1#Int}
+    wait 1 pin 0             ; line idle
     capture_arm
-    wait fall pin 0          ; start bit
-    mov t, capture           ; anchor on the exact edge cycle
+idle:
+    wait 0 pin 0             ; start bit, its edge cycle is in capture
+    mov t, capture
     add t, y
     add t, p                 ; middle of bit 0
     set x, 7
@@ -104,12 +107,14 @@ bit:
     wait t+
     in pins, 1
     jmp x--, bit
+    capture_arm              ; watch for the next start edge from here on
     in null, 8
     push
     wait t                   ; middle of the stop bit
     jmp pin, idle
     irq                      ; framing error
     wait 1 pin 0
+    capture_arm
     jmp idle
 |}]
 ;;
@@ -161,7 +166,7 @@ let%expect_test "uart rx receives bytes sampled mid bit" =
     (("List.rev received" (85 163 255 0))
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false)))
-     (t.irq false) (t.pc 3))
+     (t.irq false) (t.pc 4))
     |}]
 ;;
 
@@ -172,14 +177,14 @@ let%expect_test "uart rx tolerates the sender being four percent off" =
     receive (serial_levels [ 0x55; 0xa3; 0x0f ] ~period:sender_period ~stop:1) ~period:25);
   [%expect
     {|
-    (("List.rev received" (85 180))
-     (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
-     (t.irq false) (t.pc 11))
     (("List.rev received" (85 163 15))
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false)))
-     (t.irq false) (t.pc 3))
+     (t.irq false) (t.pc 4))
+    (("List.rev received" (85 163 15))
+     (t.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+     (t.irq false) (t.pc 4))
     |}]
 ;;
 
@@ -191,7 +196,7 @@ let%expect_test "a missing stop bit raises the interrupt" =
     (("List.rev received" (66))
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false)))
-     (t.irq true) (t.pc 3))
+     (t.irq true) (t.pc 4))
     |}]
 ;;
 
