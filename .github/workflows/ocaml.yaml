@@ -16,7 +16,7 @@ jobs:
             default: https://opam.ocaml.org
 
       - name: Install dependencies
-        run: opam install . --deps-only --with-test
+        run: opam install . --deps-only --with-test --locked
 
       - name: Run tests
         run: opam exec -- dune build @runtest
