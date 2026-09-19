@@ -2,40 +2,39 @@ open! Core
 open! Hardcaml
 open! Protocol_emulator
 
-let generate_engine_rtl ~memory =
-  let module C = Circuit.With_interface (Engine.I) (Engine.O) in
+let print_rtl ~name create_circuit =
   let scope = Scope.create ~auto_label_hierarchical_ports:true () in
-  let circuit = C.create_exn ~name:"engine_top" (Engine.hierarchical ~memory scope) in
-  let rtl_circuits =
-    Rtl.create ~database:(Scope.circuit_database scope) Verilog [ circuit ]
-  in
-  print_endline (Rtl.full_hierarchy rtl_circuits |> Rope.to_string)
+  let circuit = create_circuit ~name scope in
+  let rtl = Rtl.create ~database:(Scope.circuit_database scope) Verilog [ circuit ] in
+  print_endline (Rtl.full_hierarchy rtl |> Rope.to_string)
+;;
+
+let memory =
+  [%map_open.Command
+    let sram = flag "-sram" no_arg ~doc:" use the IHP SRAM macro for program memory" in
+    if sram then Engine.Memory.Ihp_sram else Flops]
 ;;
 
 let engine_rtl_command =
   Command.basic
     ~summary:"Verilog for the core"
     [%map_open.Command
-      let sram = flag "-sram" no_arg ~doc:" use the IHP SRAM macro for program memory" in
-      fun () -> generate_engine_rtl ~memory:(if sram then Ihp_sram else Flops)]
-;;
-
-let generate_top_rtl ~memory =
-  let module C = Circuit.With_interface (Top.I) (Top.O) in
-  let scope = Scope.create ~auto_label_hierarchical_ports:true () in
-  let circuit = C.create_exn ~name:"protocol_emulator" (Top.hierarchical ~memory scope) in
-  let rtl_circuits =
-    Rtl.create ~database:(Scope.circuit_database scope) Verilog [ circuit ]
-  in
-  print_endline (Rtl.full_hierarchy rtl_circuits |> Rope.to_string)
+      let memory = memory in
+      fun () ->
+        let module C = Circuit.With_interface (Engine.I) (Engine.O) in
+        print_rtl ~name:"engine_top" (fun ~name scope ->
+          C.create_exn ~name (Engine.hierarchical ~memory scope))]
 ;;
 
 let top_rtl_command =
   Command.basic
     ~summary:"Verilog for the tiny tapeout top"
     [%map_open.Command
-      let sram = flag "-sram" no_arg ~doc:" use the IHP SRAM macro for program memory" in
-      fun () -> generate_top_rtl ~memory:(if sram then Ihp_sram else Flops)]
+      let memory = memory in
+      fun () ->
+        let module C = Circuit.With_interface (Top.I) (Top.O) in
+        print_rtl ~name:"protocol_emulator" (fun ~name scope ->
+          C.create_exn ~name (Top.hierarchical ~memory scope))]
 ;;
 
 let assemble_command =
