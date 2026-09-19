@@ -42,10 +42,10 @@
       },
       "gds": ["dir::../macro/RM_IHPSG13_1P_512x16_c2_bm_bist/RM_IHPSG13_1P_512x16_c2_bm_bist.gds"],
       "lef": ["dir::../macro/RM_IHPSG13_1P_512x16_c2_bm_bist/RM_IHPSG13_1P_512x16_c2_bm_bist.lef"],
+      "//": "Corner names are nom_slow_..., nom_typ_..., nom_fast_...; match on the process part",
       "lib": {
-        "nom_*": ["dir::../macro/RM_IHPSG13_1P_512x16_c2_bm_bist/RM_IHPSG13_1P_512x16_c2_bm_bist_typ_1p20V_25C.lib"],
-        "min_*": ["dir::../macro/RM_IHPSG13_1P_512x16_c2_bm_bist/RM_IHPSG13_1P_512x16_c2_bm_bist_fast_1p32V_m55C.lib"],
-        "max_*": ["dir::../macro/RM_IHPSG13_1P_512x16_c2_bm_bist/RM_IHPSG13_1P_512x16_c2_bm_bist_slow_1p08V_125C.lib"],
+        "*_slow_*": ["dir::../macro/RM_IHPSG13_1P_512x16_c2_bm_bist/RM_IHPSG13_1P_512x16_c2_bm_bist_slow_1p08V_125C.lib"],
+        "*_fast_*": ["dir::../macro/RM_IHPSG13_1P_512x16_c2_bm_bist/RM_IHPSG13_1P_512x16_c2_bm_bist_fast_1p32V_m55C.lib"],
         "*": ["dir::../macro/RM_IHPSG13_1P_512x16_c2_bm_bist/RM_IHPSG13_1P_512x16_c2_bm_bist_typ_1p20V_25C.lib"]
       },
       "nl": ["dir::./RM_IHPSG13_1P_512x16_c2_bm_bist.v"],
