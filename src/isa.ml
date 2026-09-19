@@ -11,6 +11,7 @@ let num_pins = 20
 let first_output_pin = 5
 let first_bidir_pin = 12
 let max_shift_count = 16
+let count_bits = Bits.num_bits_to_represent data_bits
 let jmp_cycles = 2
 
 module Field = struct

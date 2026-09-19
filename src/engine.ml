@@ -14,7 +14,7 @@ module Config = struct
     ; side_set_pindirs : 'a
     ; in_base : 'a [@bits pin_bits]
     ; out_base : 'a [@bits pin_bits]
-    ; out_count : 'a [@bits 5]
+    ; out_count : 'a [@bits Isa.count_bits]
     ; set_base : 'a [@bits pin_bits]
     ; set_count : 'a [@bits 3]
     ; jmp_pin : 'a [@bits pin_bits]
@@ -23,9 +23,9 @@ module Config = struct
     ; in_shift_right : 'a
     ; out_shift_right : 'a
     ; autopush : 'a
-    ; push_threshold : 'a [@bits 5]
+    ; push_threshold : 'a [@bits Isa.count_bits]
     ; autopull : 'a
-    ; pull_threshold : 'a [@bits 5]
+    ; pull_threshold : 'a [@bits Isa.count_bits]
     }
   [@@deriving hardcaml]
 
@@ -42,7 +42,7 @@ module Config = struct
     ; side_set_pindirs = bool c.side_set_pindirs
     ; in_base = int pin_bits c.in_base
     ; out_base = int pin_bits c.out_base
-    ; out_count = int 5 c.out_count
+    ; out_count = int Isa.count_bits c.out_count
     ; set_base = int pin_bits c.set_base
     ; set_count = int 3 c.set_count
     ; jmp_pin = int pin_bits c.jmp_pin
@@ -51,9 +51,9 @@ module Config = struct
     ; in_shift_right = right c.in_shift
     ; out_shift_right = right c.out_shift
     ; autopush = bool c.autopush
-    ; push_threshold = int 5 c.push_threshold
+    ; push_threshold = int Isa.count_bits c.push_threshold
     ; autopull = bool c.autopull
-    ; pull_threshold = int 5 c.pull_threshold
+    ; pull_threshold = int Isa.count_bits c.pull_threshold
     }
   ;;
 end
@@ -108,11 +108,11 @@ module O = struct
     ; p : 'a [@bits Isa.data_bits]
     ; t : 'a [@bits Isa.timer_bits]
     ; osr : 'a [@bits Isa.data_bits]
-    ; osr_count : 'a [@bits 5]
+    ; osr_count : 'a [@bits Isa.count_bits]
     ; isr : 'a [@bits Isa.data_bits]
-    ; isr_count : 'a [@bits 5]
+    ; isr_count : 'a [@bits Isa.count_bits]
     ; now : 'a [@bits Isa.timer_bits]
-    ; stall : 'a [@bits 5]
+    ; stall : 'a [@bits Isa.count_bits]
     ; halted : 'a
     ; irq : 'a
     ; fault : 'a Fault.t
@@ -129,6 +129,7 @@ end
 let data_bits = Isa.data_bits
 let timer_bits = Isa.timer_bits
 let pc_bits = Isa.pc_bits
+let count_bits = Isa.count_bits
 
 let pin_index base j =
   let s = uresize base ~width:(pin_bits + 1) +:. j in
@@ -163,7 +164,6 @@ let count_mask count = ~:(log_shift ~f:sll (ones data_bits) ~by:count)
 let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   let spec = Clocking.to_spec i.clocking in
   let c = i.config in
-  let count_bits = num_bits_to_represent data_bits in
   (* Architectural state. Each register takes a next value computed below. *)
   let%hw pc = wire pc_bits in
   let%hw x = wire data_bits in

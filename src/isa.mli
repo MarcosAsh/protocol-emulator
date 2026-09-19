@@ -28,6 +28,7 @@ val num_pins : int
 val first_output_pin : int
 val first_bidir_pin : int
 val max_shift_count : int
+val count_bits : int
 val jmp_cycles : int
 
 (** Bit fields of an instruction word. The same constants drive the software encoder and
