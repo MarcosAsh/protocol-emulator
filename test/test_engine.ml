@@ -105,7 +105,7 @@ module Host = struct
   let idle = { tx = None; pop_rx = false }
 end
 
-let lockstep
+let run
   ?(cycles = 400)
   ?(preload = [])
   ?(host = fun _ -> Host.idle)
@@ -174,12 +174,16 @@ let lockstep
           react !model;
           Int.incr cycle_number)
       done;
-      (match !mismatch with
-       | None -> print_s [%message "lockstep held" (cycles : int)]
-       | Some (cycle, expected, actual) ->
-         print_s
-           [%message "MISMATCH" (cycle : int) (expected : State.t) (actual : State.t)]);
-      !model)
+      !model, !mismatch)
+;;
+
+let lockstep ?(cycles = 400) ?preload ?host ?react ~config ~program ~inputs () =
+  let model, mismatch = run ~cycles ?preload ?host ?react ~config ~program ~inputs () in
+  (match mismatch with
+   | None -> print_s [%message "lockstep held" (cycles : int)]
+   | Some (cycle, expected, actual) ->
+     print_s [%message "MISMATCH" (cycle : int) (expected : State.t) (actual : State.t)]);
+  model
 ;;
 
 let%expect_test "uart tx" =
@@ -403,4 +407,72 @@ loop:
     │                  ││──────────────────────┴───────┴───────┴───────┴───────┴───────┴─              │
     └──────────────────┘└──────────────────────────────────────────────────────────────────────────────┘
     |}]
+;;
+
+let%expect_test "random programs" =
+  let random = Splittable_random.of_int 1 in
+  let int hi = Splittable_random.int random ~lo:0 ~hi in
+  let bool () = Splittable_random.bool random in
+  let pin () = int (Isa.num_pins - 1) in
+  let shift () : Program_config.Shift_direction.t = if bool () then Left else Right in
+  let config () =
+    { Program_config.side_set_count = int Isa.max_side_set
+    ; side_set_base = pin ()
+    ; side_set_pindirs = bool ()
+    ; in_base = pin ()
+    ; out_base = pin ()
+    ; out_count = 1 + int 15
+    ; set_base = pin ()
+    ; set_count = 1 + int 4
+    ; jmp_pin = pin ()
+    ; capture_pin = pin ()
+    ; capture_rising = bool ()
+    ; in_shift = shift ()
+    ; out_shift = shift ()
+    ; autopush = bool ()
+    ; push_threshold = 1 + int 15
+    ; autopull = bool ()
+    ; pull_threshold = 1 + int 15
+    }
+  in
+  let rec word ~side_set_count =
+    let w = int 0xffff in
+    match Isa.of_word ~side_set_count w with
+    | Ok (Op { op = Sys Halt; _ }) | Error _ -> word ~side_set_count
+    | Ok _ -> w
+  in
+  let programs = 16 in
+  let failed =
+    List.init programs ~f:(fun seed ->
+      let config = config () in
+      let program =
+        List.init (1 lsl Isa.pc_bits) ~f:(fun _ ->
+          word ~side_set_count:config.side_set_count)
+      in
+      let level = ref 0 in
+      let host _ =
+        { Host.tx =
+            (if !level < Machine.fifo_depth && int 3 = 0 then Some (int 0xffff) else None)
+        ; pop_rx = int 3 = 0
+        }
+      in
+      let react (m : Machine.t) = level := List.length m.tx_fifo in
+      match
+        run ~cycles:200 ~config ~program ~inputs:(fun _ -> int 0xfffff) ~host ~react ()
+      with
+      | _, None -> None
+      | _, Some (cycle, expected, actual) ->
+        print_s
+          [%message
+            "MISMATCH"
+              (seed : int)
+              (cycle : int)
+              (config : Program_config.t)
+              (expected : State.t)
+              (actual : State.t)];
+        Some seed)
+    |> List.filter_opt
+  in
+  print_s [%message (programs : int) (failed : int list)];
+  [%expect {| ((programs 16) (failed ())) |}]
 ;;
