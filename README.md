@@ -1,42 +1,55 @@
-![](../../workflows/gds/badge.svg) ![](../../workflows/docs/badge.svg) ![](../../workflows/test/badge.svg) ![](../../workflows/fpga/badge.svg)
+# protocol-emulator
 
-# Tiny Tapeout Verilog Project Template
+An entry for Jane Street's protocol emulator ASIC competition, on IHP CMOS5L through
+Tiny Tapeout. Written in Hardcaml.
 
-- [Read the documentation for project](docs/info.md)
+One small core runs firmware that bit-bangs the pins. Instructions are 16-bit words with
+eight opcodes (jmp, wait, in, out, mov, set, alu, sys). A 24-bit cycle counter, a deadline
+register `t` and a period `p` make the timing explicit: `wait t+` releases on the exact
+cycle and then moves the deadline on by one period, so a frame never drifts. Programs
+read like PIO:
 
-## What is Tiny Tapeout?
+```
+    set p, 434
+    set pins, 1
+idle:
+    wait tx
+    pull
+    set x, 7
+    mov t, now
+    set pins, 0
+    add t, p
+bit:
+    wait t+
+    out pins, 1
+    jmp x--, bit
+    wait t+
+    set pins, 1
+    wait t
+    jmp idle
+```
 
-Tiny Tapeout is an educational project that aims to make it easier and cheaper than ever to get your digital and analog designs manufactured on a real chip.
+The host talks SPI on `ui[2:0]` and `uo[0]`: a register map for control, configuration and
+program load, and two fifos for data. The program lives in an IHP SRAM macro.
 
-To learn more and get started, visit https://tinytapeout.com.
+## Layout
 
-## Set up your Verilog project
+- `src/` the ISA, a cycle-accurate model that serves as the spec, the assembler, the
+  decoder, the engine, the host port and the top level. `analyser.ml` bounds firmware
+  timing by abstract interpretation so a program can be checked before it runs.
+- `test/` expect tests. The engine runs in lockstep with the model for every firmware.
+  `test.py` drives the generated Verilog with cocotb through the Python host library.
+- `formal/` a SymbiYosys proof of the issue timing.
+- `python/` the host library and a demo script for the dev board.
 
-1. Add your Verilog files to the `src` folder.
-2. Edit the [info.yaml](info.yaml) and update information about your project, paying special attention to the `source_files` and `top_module` properties. If you are upgrading an existing Tiny Tapeout project, check out our [online info.yaml migration tool](https://tinytapeout.github.io/tt-yaml-upgrade-tool/).
-3. Edit [docs/info.md](docs/info.md) and add a description of your project.
-4. Adapt the testbench to your design. See [test/README.md](test/README.md) for more information.
+## Build
 
-The GitHub action will automatically build the ASIC files using [LibreLane](https://www.zerotoasiccourse.com/terminology/librelane/).
+```
+opam install . --deps-only --with-test --locked
+dune build @runtest
+dune exec -- bin/generate.exe top -sram > src/protocol_emulator.v
+make -C formal
+```
 
-## Enable GitHub actions to build the results page
-
-- [Enabling GitHub Pages](https://tinytapeout.com/faq/#my-github-action-is-failing-on-the-pages-part)
-
-## Resources
-
-- [FAQ](https://tinytapeout.com/faq/)
-- [Digital design lessons](https://tinytapeout.com/digital_design/)
-- [Learn how semiconductors work](https://tinytapeout.com/siliwiz/)
-- [Join the community](https://tinytapeout.com/discord)
-- [Build your design locally](https://www.tinytapeout.com/guides/local-hardening/)
-
-## What next?
-
-- [Submit your design to the next shuttle](https://app.tinytapeout.com/).
-- Edit [this README](README.md) and explain your design, how it works, and how to test it.
-- Share your project on your social network of choice:
-  - LinkedIn [#tinytapeout](https://www.linkedin.com/search/results/content/?keywords=%23tinytapeout) [@TinyTapeout](https://www.linkedin.com/company/100708654/)
-  - Mastodon [#tinytapeout](https://chaos.social/tags/tinytapeout) [@matthewvenn](https://chaos.social/@matthewvenn)
-  - X (formerly Twitter) [#tinytapeout](https://twitter.com/hashtag/tinytapeout) [@tinytapeout](https://twitter.com/tinytapeout)
-  - Bluesky [@tinytapeout.com](https://bsky.app/profile/tinytapeout.com)
+Hardening uses the Tiny Tapeout flow: `tt/tt_tool.py --create-user-config --ihp` then
+`--harden --ihp`, with a LibreLane plugin that runs the power stripes over the SRAM pins.
