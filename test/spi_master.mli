@@ -11,6 +11,7 @@ val create
   -> half:int
   -> t
 
+val byte : t -> watch:(int -> unit) @ local -> int -> int
 val frame : t -> watch:(int -> unit) @ local -> int list -> int list
 val write : t -> watch:(int -> unit) @ local -> int -> int list -> unit
 val read : t -> watch:(int -> unit) @ local -> int -> count:int -> int list
