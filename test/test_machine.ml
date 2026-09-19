@@ -41,6 +41,25 @@ let%expect_test "uart tx sends two bytes with exact bit periods" =
     |}]
 ;;
 
+let%expect_test "uart tx at 115200 baud from a 50 MHz clock" =
+  let period = 434 in
+  let t =
+    Machine.create ~config:Program_config.default ~program:(assemble uart_tx_host_rate)
+    |> ok_exn
+  in
+  let t =
+    List.fold [ period; 0x55; 0xa3 ] ~init:t ~f:(fun t w ->
+      Machine.write_tx t w |> ok_exn)
+  in
+  let t, levels = run t ~cycles:(24 * period) ~inputs:0 in
+  print_s [%message (decode_uart levels ~period : int list) (t.fault : Machine.Fault.t)];
+  [%expect {|
+    (("decode_uart levels ~period" (85 163))
+     (t.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    |}]
+;;
+
 let receive levels ~period =
   let t =
     Machine.create ~config:rx_config ~program:(assemble (uart_rx ~period)) |> ok_exn

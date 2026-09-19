@@ -195,6 +195,19 @@ let%expect_test "uart tx" =
   [%expect {| ("lockstep held" (cycles 400)) |}]
 ;;
 
+let%expect_test "uart tx at 115200 baud" =
+  let (_ : Machine.t) =
+    lockstep
+      ~cycles:(24 * 434)
+      ~config:Program_config.default
+      ~program:(assemble uart_tx_host_rate)
+      ~preload:[ 434; 0x55; 0xa3 ]
+      ~inputs:(fun _ -> 0)
+      ()
+  in
+  [%expect {| ("lockstep held" (cycles 10416)) |}]
+;;
+
 let%expect_test "uart rx" =
   let period = 16 in
   let levels =

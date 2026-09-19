@@ -3,10 +3,8 @@ open Protocol_emulator
 
 let assemble source = Asm.assemble source |> ok_exn |> Asm.Program.words |> ok_exn
 
-let uart_tx ~period =
-  [%string
-    {|
-    set p, %{period#Int}
+let uart_tx_frame =
+  {|
     set pins, 1              ; idle high
 idle:
     wait tx
@@ -23,8 +21,13 @@ bit:
     set pins, 1              ; stop bit
     wait t
     jmp idle
-|}]
+|}
 ;;
+
+let uart_tx ~period = [%string "    set p, %{period#Int}%{uart_tx_frame}"]
+
+(* the first word from the host is the bit period *)
+let uart_tx_host_rate = [%string "    pull\n    mov p, osr%{uart_tx_frame}"]
 
 (* half period one short: the sample lands a cycle after the release *)
 let uart_rx ~period =

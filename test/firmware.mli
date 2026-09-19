@@ -3,6 +3,7 @@ open Protocol_emulator
 
 val assemble : string -> int list
 val uart_tx : period:int -> string
+val uart_tx_host_rate : string
 val uart_rx : period:int -> string
 val rx_config : Program_config.t
 val spi_master : half_period:int -> string
