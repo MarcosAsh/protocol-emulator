@@ -5,7 +5,10 @@
     not stalled; it then stalls for its delay, or for [Isa.jmp_cycles - 1] cycles after a
     [jmp]. A [wait] whose condition is false issues again on the next cycle, so a stalled
     [wait] re-applies its side-set every cycle. [now] counts every cycle, including while
-    halted.
+    halted. State written in a cycle is visible from the next cycle, so an instruction
+    reads the capture register as it was before any edge in the same cycle. Autopull
+    happens before an [out] whose shift count has reached the threshold and never after
+    it, so a cycle touches each fifo at most once.
 
     Pins 0 to 4 are input only, 5 to 11 are output only and 12 to 19 are bidirectional. A
     read of an output pin returns the driven value; a read of a bidirectional pin returns

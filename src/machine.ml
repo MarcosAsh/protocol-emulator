@@ -150,13 +150,6 @@ let pull t =
   | osr :: tx_fifo -> { t with osr; osr_count = 0; tx_fifo }
 ;;
 
-let refill_if_ready t =
-  let c = t.config in
-  if c.autopull && t.osr_count >= c.pull_threshold && not (List.is_empty t.tx_fifo)
-  then pull t
-  else t
-;;
-
 let autopull_before_out t =
   let c = t.config in
   if c.autopull && t.osr_count >= c.pull_threshold then pull t else t
@@ -179,9 +172,7 @@ let capture_edge t ~sample =
   let c = t.config in
   let prev = bit t.pins_sampled c.capture_pin = 1 in
   let cur = bit sample c.capture_pin = 1 in
-  if t.capture_armed && Bool.( <> ) prev cur && Bool.equal cur c.capture_rising
-  then { t with capture = t.now; capture_armed = false }
-  else t
+  t.capture_armed && Bool.( <> ) prev cur && Bool.equal cur c.capture_rising
 ;;
 
 let jmp_taken t (cond : Isa.Jmp_cond.Cases.t) ~sample =
@@ -354,7 +345,7 @@ let execute t (op : Isa.Op.t) ~sample =
   | Out { dest; count } ->
     let t = autopull_before_out t in
     let value, t = shift_out t ~count in
-    out_dest t dest ~count ~value |> refill_if_ready
+    out_dest t dest ~count ~value
   | Mov { dest; op; source } ->
     let width =
       match dest with
@@ -397,7 +388,8 @@ let issue t ~sample =
 
 let step t ~inputs =
   let sample = sample_pins t ~inputs in
-  let t = capture_edge t ~sample in
+  let captured = capture_edge t ~sample in
+  let now = t.now in
   let t =
     if t.halted
     then t
@@ -405,5 +397,6 @@ let step t ~inputs =
     then { t with stall = t.stall - 1 }
     else issue t ~sample
   in
-  { t with now = (t.now + 1) land timer_mask; pins_sampled = sample }
+  let t = if captured then { t with capture = now; capture_armed = false } else t in
+  { t with now = (now + 1) land timer_mask; pins_sampled = sample }
 ;;
