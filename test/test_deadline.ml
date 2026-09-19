@@ -13,9 +13,11 @@ let prove name ~claim =
   | Ok Unsat -> print_s [%message "QED" name]
   | Ok (Sat model) ->
     let value name =
-      List.find_exn model ~f:(fun (m : Cnf.Model_with_vectors.input) ->
-        String.equal m.name name)
-      |> fun m -> Int.of_string ("0b" ^ m.value)
+      let m =
+        List.find_exn model ~f:(fun (m : Cnf.Model_with_vectors.input) ->
+          String.equal m.name name)
+      in
+      Int.of_string ("0b" ^ m.value)
     in
     let phase = (value "now" - value "t") land ((1 lsl Isa.timer_bits) - 1) in
     print_s [%message "counterexample" name (phase : int)]
@@ -40,9 +42,5 @@ let%expect_test "t - now <= 0 is not the same test" =
   prove
     "release = t - now <= 0 signed"
     ~claim:G.(Deadline.release ~now ~t ==: (t -: now <=+ zero Isa.timer_bits));
-  [%expect
-    {|
-    (counterexample "release = t - now <= 0 signed"
-     (model ((now 000111011011000011110111) (t 100111011011000011110111))))
-    |}]
+  [%expect {| (counterexample "release = t - now <= 0 signed" (phase 8388608)) |}]
 ;;
