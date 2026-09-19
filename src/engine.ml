@@ -135,12 +135,10 @@ let pin_index base j =
   mux2 (s >=:. num_pins) (s -:. num_pins) s |> sel_bottom ~width:pin_bits
 ;;
 
-let bits_of v = List.init (width v) ~f:(fun i -> v.:(i))
-
 let read_pins sample ~base ~count =
   List.init data_bits ~f:(fun j ->
     let hit = of_unsigned_int ~width:(width count) j <: count in
-    hit &: mux (pin_index base j) (bits_of sample))
+    hit &: mux (pin_index base j) (bits_lsb sample))
   |> concat_lsb
 ;;
 
@@ -156,7 +154,7 @@ let write_pins old ~base ~count ~value ~writable =
         (of_unsigned_int ~width:(pin_bits + 1) i -: uresize base ~width:(pin_bits + 1))
     in
     let hit = j <: uresize count ~width:(pin_bits + 1) &: of_bool (writable i) in
-    mux2 hit (mux (sel_bottom j ~width:4) (bits_of value)) old.:(i))
+    mux2 hit (mux (sel_bottom j ~width:4) (bits_lsb value)) old.:(i))
   |> concat_lsb
 ;;
 
@@ -208,19 +206,20 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
       ; pop = i.rx_pop
       }
   in
+  let memory_in =
+    { Program_memory.I.clock = i.clocking.clock
+    ; men = vdd
+    ; wen = i.program_write.valid
+    ; ren = vdd
+    ; addr = mux2 i.program_write.valid i.program_write.addr fetch_addr.value
+    ; din = i.program_write.data
+    ; bm = ones Isa.word_bits
+    }
+  in
   let memory =
-    (match memory with
-     | Flops -> Program_memory.hierarchical
-     | Ihp_sram -> Sram_macro.hierarchical)
-      scope
-      { Program_memory.I.clock = i.clocking.clock
-      ; men = vdd
-      ; wen = i.program_write.valid
-      ; ren = vdd
-      ; addr = mux2 i.program_write.valid i.program_write.addr fetch_addr.value
-      ; din = i.program_write.data
-      ; bm = ones Isa.word_bits
-      }
+    match memory with
+    | Flops -> Program_memory.hierarchical scope memory_in
+    | Ihp_sram -> Sram_macro.hierarchical scope memory_in
   in
   let%hw word = memory.dout in
   let%hw sample =
@@ -235,33 +234,37 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
       mux2 driven pin_out.value.:(n) i.inputs.:(n))
     |> concat_lsb
   in
-  let pin_of sig_ idx = mux idx (bits_of sig_) in
+  let pin_of sig_ idx = mux idx (bits_lsb sig_) in
   let module D = Decoder.Make (Signal) in
   let%hw.Decoder.Decoded.Of_signal d = D.decode ~side_set_count:c.side_set_count word in
-  let opcode = d.opcode in
+  let%tydi { Decoder.Decoded.valid = decode_ok
+           ; opcode
+           ; delay
+           ; side_set
+           ; jmp_cond
+           ; jmp_target
+           ; wait_polarity
+           ; wait_source
+           ; wait_index
+           ; shift_count
+           ; in_source
+           ; out_dest
+           ; mov_dest
+           ; mov_op
+           ; mov_source
+           ; set_dest
+           ; set_value
+           ; alu_dest
+           ; alu_op
+           ; alu_is_reg
+           ; alu_imm
+           ; alu_reg
+           ; sys_op
+           }
+    =
+    d
+  in
   let is op = Isa.Opcode.Of_signal.is opcode op in
-  let delay = d.delay in
-  let side_set = d.side_set in
-  let jmp_cond = d.jmp_cond in
-  let jmp_target = d.jmp_target in
-  let wait_polarity = d.wait_polarity in
-  let wait_source = d.wait_source in
-  let wait_index = d.wait_index in
-  let shift_count = d.shift_count in
-  let in_source = d.in_source in
-  let out_dest = d.out_dest in
-  let mov_dest = d.mov_dest in
-  let mov_op = d.mov_op in
-  let mov_source = d.mov_source in
-  let set_dest = d.set_dest in
-  let set_value = d.set_value in
-  let alu_dest = d.alu_dest in
-  let alu_op = d.alu_op in
-  let alu_is_reg = d.alu_is_reg in
-  let alu_imm = d.alu_imm in
-  let alu_reg = d.alu_reg in
-  let sys_op = d.sys_op in
-  let decode_ok = d.valid in
   let module Deadline = Deadline.Make (Signal) in
   let%hw deadline_ready = Deadline.release ~now:now.value ~t:t.value in
   let%hw deadline_late = Deadline.late ~now:now.value ~t:t.value in
