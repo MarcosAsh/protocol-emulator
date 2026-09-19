@@ -34,7 +34,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let%hw sck_fall = ~:sck &: reg spec sck in
   let%hw frame_start = selected &: ~:(reg spec selected) in
   let%hw frame_end = ~:selected &: reg spec selected in
-  let%hw_var bit = Always.Variable.reg spec ~width:3 in
+  let%hw_var count = Always.Variable.reg spec ~width:3 in
   let%hw_var shift_in = Always.Variable.reg spec ~width:8 in
   let%hw_var shift_out = Always.Variable.reg spec ~width:8 in
   let%hw_var rx_byte = Always.Variable.reg spec ~width:8 in
@@ -42,19 +42,19 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   Always.(
     compile
       [ rx_valid <-- gnd
-      ; when_ frame_start [ bit <-- zero 3; shift_out <-- i.tx_byte ]
+      ; when_ frame_start [ count <-- zero 3; shift_out <-- i.tx_byte ]
       ; when_
           (selected &: sck_rise)
           [ shift_in <-- shift_in.value.:[6, 0] @: mosi
-          ; bit <-- bit.value +:. 1
+          ; count <-- count.value +:. 1
           ; when_
-              (bit.value ==:. 7)
+              (count.value ==:. 7)
               [ rx_byte <-- shift_in.value.:[6, 0] @: mosi; rx_valid <-- vdd ]
           ]
       ; when_
           (selected &: sck_fall)
           [ if_
-              (bit.value ==:. 0)
+              (count.value ==:. 0)
               [ shift_out <-- i.tx_byte ]
               [ shift_out <-- shift_out.value.:[6, 0] @: gnd ]
           ]
