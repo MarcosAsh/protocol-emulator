@@ -156,11 +156,6 @@ let write_pins old ~base ~count ~value ~writable =
   |> concat_lsb
 ;;
 
-let valid_code (type a) (module E : Isa.Enum with type Cases.t = a) raw =
-  let n = List.length E.Cases.all in
-  if n = 1 lsl width raw then vdd else raw <:. n
-;;
-
 let count_mask count = ~:(log_shift ~f:sll (ones data_bits) ~by:count)
 
 let create (scope : Scope.t) (i : Signal.t I.t) =
@@ -239,88 +234,32 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   in
   let pin_of sig_ idx = mux idx (bits_of sig_) in
   (* Decode. *)
-  let field f = Isa.Field.select (module Signal) f word in
-  let%hw.Isa.Opcode.Of_signal opcode = Isa.Opcode.Of_signal.of_raw (field Isa.Field.op) in
+  let module D = Decoder.Make (Signal) in
+  let%hw.Decoder.Decoded.Of_signal d = D.decode ~side_set_count:c.side_set_count word in
+  let opcode = d.opcode in
   let is op = Isa.Opcode.Of_signal.is opcode op in
-  let%hw delay_side = field Isa.Field.delay_side in
-  let%hw delay =
-    mux
-      c.side_set_count
-      [ delay_side; delay_side &:. 0xf; delay_side &:. 0x7; delay_side &:. 0x7 ]
-  in
-  let%hw side_set =
-    mux
-      c.side_set_count
-      [ zero 2
-      ; uresize delay_side.:[4, 4] ~width:2
-      ; delay_side.:[4, 3]
-      ; delay_side.:[4, 3]
-      ]
-  in
-  let%hw.Isa.Jmp_cond.Of_signal jmp_cond =
-    Isa.Jmp_cond.Of_signal.of_raw (field Isa.Field.jmp_cond)
-  in
-  let%hw jmp_target = field Isa.Field.jmp_target in
-  let%hw jmp_reserved_clear = ~:(word.:(Isa.Field.jmp_target.width)) in
-  let%hw wait_polarity = field Isa.Field.wait_polarity in
-  let%hw.Isa.Wait_source.Of_signal wait_source =
-    Isa.Wait_source.Of_signal.of_raw (field Isa.Field.wait_source)
-  in
-  let%hw wait_index = field Isa.Field.wait_index in
-  let%hw shift_target = field Isa.Field.shift_target in
-  let%hw shift_count = field Isa.Field.shift_count in
-  let%hw.Isa.In_source.Of_signal in_source =
-    Isa.In_source.Of_signal.of_raw shift_target
-  in
-  let%hw.Isa.Out_dest.Of_signal out_dest = Isa.Out_dest.Of_signal.of_raw shift_target in
-  let%hw.Isa.Mov_dest.Of_signal mov_dest =
-    Isa.Mov_dest.Of_signal.of_raw (field Isa.Field.mov_dest)
-  in
-  let%hw mov_op_raw = field Isa.Field.mov_op in
-  let%hw.Isa.Mov_op.Of_signal mov_op = Isa.Mov_op.Of_signal.of_raw mov_op_raw in
-  let%hw.Isa.Mov_source.Of_signal mov_source =
-    Isa.Mov_source.Of_signal.of_raw (field Isa.Field.mov_source)
-  in
-  let%hw set_dest_raw = field Isa.Field.set_dest in
-  let%hw.Isa.Set_dest.Of_signal set_dest = Isa.Set_dest.Of_signal.of_raw set_dest_raw in
-  let%hw set_value = field Isa.Field.set_value in
-  let%hw.Isa.Alu_dest.Of_signal alu_dest =
-    Isa.Alu_dest.Of_signal.of_raw (field Isa.Field.alu_dest)
-  in
-  let%hw alu_op_raw = field Isa.Field.alu_op in
-  let%hw.Isa.Alu_op.Of_signal alu_op = Isa.Alu_op.Of_signal.of_raw alu_op_raw in
-  let%hw alu_is_reg = field Isa.Field.alu_is_reg in
-  let%hw alu_operand_raw = field Isa.Field.alu_operand in
-  let%hw.Isa.Alu_reg.Of_signal alu_reg = Isa.Alu_reg.Of_signal.of_raw alu_operand_raw in
-  let%hw.Isa.Sys_op.Of_signal sys_op =
-    Isa.Sys_op.Of_signal.of_raw (field Isa.Field.sys_op)
-  in
-  let%hw sys_reserved_clear = word.:[7, Isa.Field.sys_op.width] ==:. 0 in
-  let%hw count_ok = shift_count >=:. 1 &: (shift_count <=:. Isa.max_shift_count) in
-  let%hw wait_index_ok =
-    Isa.Wait_source.Of_signal.match_
-      wait_source
-      [ Pin_level, wait_index <:. num_pins
-      ; Pin_edge, wait_index <:. num_pins
-      ; Deadline, wait_index ==:. 0
-      ; Fifo, wait_index ==:. 0
-      ]
-  in
-  let%hw decode_ok =
-    Isa.Opcode.Of_signal.match_
-      opcode
-      [ Jmp, jmp_reserved_clear
-      ; Wait, wait_index_ok
-      ; In, count_ok
-      ; Out, count_ok
-      ; Mov, valid_code (module Isa.Mov_op) mov_op_raw
-      ; Set, valid_code (module Isa.Set_dest) set_dest_raw
-      ; ( Alu
-        , valid_code (module Isa.Alu_op) alu_op_raw
-          &: (~:alu_is_reg |: valid_code (module Isa.Alu_reg) alu_operand_raw) )
-      ; Sys, sys_reserved_clear
-      ]
-  in
+  let delay = d.delay in
+  let side_set = d.side_set in
+  let jmp_cond = d.jmp_cond in
+  let jmp_target = d.jmp_target in
+  let wait_polarity = d.wait_polarity in
+  let wait_source = d.wait_source in
+  let wait_index = d.wait_index in
+  let shift_count = d.shift_count in
+  let in_source = d.in_source in
+  let out_dest = d.out_dest in
+  let mov_dest = d.mov_dest in
+  let mov_op = d.mov_op in
+  let mov_source = d.mov_source in
+  let set_dest = d.set_dest in
+  let set_value = d.set_value in
+  let alu_dest = d.alu_dest in
+  let alu_op = d.alu_op in
+  let alu_is_reg = d.alu_is_reg in
+  let alu_imm = d.alu_imm in
+  let alu_reg = d.alu_reg in
+  let sys_op = d.sys_op in
+  let decode_ok = d.valid in
   (* Conditions. *)
   let%hw phase = now.value -: t.value in
   let%hw deadline_ready = ~:(msb phase) in
@@ -430,7 +369,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
          ~default:(zero data_bits)
          alu_reg
          [ X, x.value; Y, y.value; P, p.value; Isr, isr.value; Osr, osr.value ])
-      (uresize alu_operand_raw ~width:data_bits)
+      (uresize alu_imm ~width:data_bits)
   in
   let alu_apply v =
     let operand = uresize alu_operand ~width:(width v) in
