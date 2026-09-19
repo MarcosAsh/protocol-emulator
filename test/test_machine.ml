@@ -52,12 +52,10 @@ let receive levels ~period =
       | Some (byte, t) -> t, byte :: received
       | None -> t, received)
   in
+  let received = List.rev received in
   print_s
     [%message
-      (List.rev received : int list)
-        (t.fault : Machine.Fault.t)
-        (t.irq : bool)
-        (t.pc : int)]
+      (received : int list) (t.fault : Machine.Fault.t) (t.irq : bool) (t.pc : int)]
 ;;
 
 let%expect_test "uart rx receives bytes sampled mid bit" =
@@ -65,7 +63,7 @@ let%expect_test "uart rx receives bytes sampled mid bit" =
   receive (serial_levels [ 0x55; 0xa3; 0xff; 0x00 ] ~period ~stop:1) ~period;
   [%expect
     {|
-    (("List.rev received" (85 163 255 0))
+    ((received (85 163 255 0))
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false)))
      (t.irq false) (t.pc 4))
@@ -77,11 +75,11 @@ let%expect_test "uart rx tolerates the sender being four percent off" =
     receive (serial_levels [ 0x55; 0xa3; 0x0f ] ~period:sender_period ~stop:1) ~period:25);
   [%expect
     {|
-    (("List.rev received" (85 163 15))
+    ((received (85 163 15))
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false)))
      (t.irq false) (t.pc 4))
-    (("List.rev received" (85 163 15))
+    ((received (85 163 15))
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false)))
      (t.irq false) (t.pc 4))
@@ -93,7 +91,7 @@ let%expect_test "a missing stop bit raises the interrupt" =
   receive (serial_levels [ 0x42 ] ~period ~stop:0) ~period;
   [%expect
     {|
-    (("List.rev received" (66))
+    ((received (66))
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false)))
      (t.irq true) (t.pc 4))

@@ -107,11 +107,12 @@ let%expect_test "the decoder agrees with the spec on every word" =
         Int.incr accepted;
         expected t d
     done;
-    print_s [%message (side_set_count : int) (!accepted : int)]);
+    let accepted = !accepted in
+    print_s [%message (side_set_count : int) (accepted : int)]);
   [%expect
     {|
-    ((side_set_count 0) (!accepted 31488))
-    ((side_set_count 1) (!accepted 31488))
-    ((side_set_count 2) (!accepted 31488))
+    ((side_set_count 0) (accepted 31488))
+    ((side_set_count 1) (accepted 31488))
+    ((side_set_count 2) (accepted 31488))
     |}]
 ;;

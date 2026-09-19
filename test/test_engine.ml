@@ -222,11 +222,12 @@ let%expect_test "spi master" =
              ~mosi:((m.pin_out lsr mosi_pin) land 1))
       ()
   in
-  print_s [%message (Spi_slave.received !slave : int list)];
+  let received = Spi_slave.received !slave in
+  print_s [%message (received : int list)];
   [%expect
     {|
     ("lockstep held" (cycles 400))
-    ("Spi_slave.received (!slave)" (165 60))
+    (received (165 60))
     |}]
 ;;
 
@@ -266,12 +267,12 @@ let%expect_test "i2c master" =
         model := Some m)
       ()
   in
-  print_s [%message (I2c_slave.log !slave : string list) (memory : int array)];
+  let log = I2c_slave.log !slave in
+  print_s [%message (log : string list) (memory : int array)];
   [%expect
     {|
     ("lockstep held" (cycles 1500))
-    (("I2c_slave.log (!slave)"
-      (start "address 80 write" "pointer 3" "write 170" stop))
+    ((log (start "address 80 write" "pointer 3" "write 170" stop))
      (memory (0 0 0 170 0 0 0 0 0 0 0 0 0 0 0 0)))
     |}]
 ;;
