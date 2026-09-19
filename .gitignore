@@ -18,3 +18,5 @@ _build
 _opam
 bin/*.exe
 bin/*.bc
+formal/engine.v
+formal/*_*/

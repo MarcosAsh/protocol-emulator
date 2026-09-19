@@ -1,0 +1,21 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode prove
+prove: depth 6
+cover: mode cover
+cover: depth 8
+
+[engines]
+smtbmc boolector
+
+[script]
+read -formal engine.v
+read -formal -sv issue_timing.sv
+prep -top issue_timing
+
+[files]
+engine.v
+issue_timing.sv
