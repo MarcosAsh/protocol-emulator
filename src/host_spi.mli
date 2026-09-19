@@ -1,6 +1,6 @@
-(** SPI slave byte layer, mode 0, MSB first, oversampled in the core clock so [sck] must
-    be at most a quarter of it. [tx_byte] is latched when [cs_n] falls and at the first
-    falling [sck] edge of every byte after that. *)
+(** SPI slave byte layer, mode 0, MSB first, oversampled in the core clock. [sck] must be
+    at most an eighth of it for the register layer to answer in time. [tx_byte] is latched
+    when [cs_n] falls and at the first falling [sck] edge of every byte after. *)
 
 open! Core
 open! Hardcaml

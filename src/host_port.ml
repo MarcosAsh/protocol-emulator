@@ -84,7 +84,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
       ]
   in
   let config_words = Engine.Config.to_list config_value in
-  let%hw read_value =
+  let read_at addr =
     let reg16 x = uresize x ~width:Isa.data_bits in
     mux
       addr
@@ -111,6 +111,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
            then reg16 (List.nth_exn config_words (n - Reg.config))
            else zero Isa.data_bits))
   in
+  let%hw read_value = read_at addr in
   let%hw tx_word = mux2 (at Reg.rx) s.rx_head word.value in
   let spi =
     Host_spi.hierarchical
@@ -122,6 +123,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
       ; tx_byte = mux2 low_byte.value tx_word.:[7, 0] tx_word.:[15, 8]
       }
   in
+  let%hw first_read = read_at spi.rx_byte.:[6, 0] in
   let%hw_var write = Always.Variable.wire ~default:gnd () in
   let%hw_var read_done = Always.Variable.wire ~default:gnd () in
   let%hw value = high.value @: spi.rx_byte in
@@ -139,7 +141,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
           spi.rx_valid
           [ if_
               ~:(have_cmd.value)
-              [ cmd <-- spi.rx_byte; have_cmd <-- vdd; word <-- read_value ]
+              [ cmd <-- spi.rx_byte; have_cmd <-- vdd; word <-- first_read ]
               [ if_
                   ~:(low_byte.value)
                   [ high <-- spi.rx_byte; low_byte <-- vdd ]
