@@ -1,7 +1,5 @@
-(** Program memory with the port semantics of the IHP single port SRAM macro, built from
-    flops for simulation and the FPGA. A read returns the word one cycle later and holds
-    it until the next read. A write with [ren] also set is a write-through: the new word
-    appears on [dout] the next cycle. [bm] is the bit mask for writes. *)
+(** Flop stand-in for the IHP single port SRAM: registered read, write-through when [ren]
+    and [wen] are both set, [bm] masks writes. *)
 
 open! Core
 open! Hardcaml

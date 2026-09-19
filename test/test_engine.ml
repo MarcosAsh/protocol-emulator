@@ -102,9 +102,6 @@ module Host = struct
   let idle = { tx = None; pop_rx = false }
 end
 
-(* Hold the hardware and the model in lockstep for [cycles] after loading and starting
-   [program]. A host pop takes the word visible at the start of the cycle and a host push
-   is visible from the next cycle, in both. *)
 let lockstep
   ?(cycles = 400)
   ?(preload = [])

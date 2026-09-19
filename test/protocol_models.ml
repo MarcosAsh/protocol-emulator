@@ -5,7 +5,6 @@ let runs levels =
   |> List.map ~f:(fun g -> List.hd_exn g, List.length g)
 ;;
 
-(* 8N1 at [period] cycles per bit, LSB first, sampled mid bit. *)
 let decode_uart levels ~period =
   let levels = Array.of_list levels in
   let rec frames i acc =
@@ -75,7 +74,6 @@ module Spi_slave = struct
   ;;
 end
 
-(* Register-pointer slave: the first byte of a write sets the pointer. *)
 module I2c_slave = struct
   module Phase = struct
     type t =

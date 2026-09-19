@@ -122,7 +122,6 @@ let data_bits = Isa.data_bits
 let timer_bits = Isa.timer_bits
 let pc_bits = Isa.pc_bits
 
-(* Pin [base + j] modulo the number of pins, for a constant [j]. *)
 let pin_index base j =
   let s = uresize base ~width:(pin_bits + 1) +:. j in
   mux2 (s >=:. num_pins) (s -:. num_pins) s |> sel_bottom ~width:pin_bits
@@ -130,7 +129,6 @@ let pin_index base j =
 
 let bits_of v = List.init (width v) ~f:(fun i -> v.:(i))
 
-(* The [count] pins starting at [base], as a value with pin [base] in bit 0. *)
 let read_pins sample ~base ~count =
   List.init data_bits ~f:(fun j ->
     let hit = of_unsigned_int ~width:(width count) j <: count in
@@ -138,8 +136,6 @@ let read_pins sample ~base ~count =
   |> concat_lsb
 ;;
 
-(* [value] written to the [count] pins starting at [base], bit 0 to pin [base]. Pins
-   outside [writable] keep their value. *)
 let write_pins old ~base ~count ~value ~writable =
   let value = uresize value ~width:data_bits in
   List.init num_pins ~f:(fun i ->
@@ -189,7 +185,6 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let%hw_var rx_push_data = Always.Variable.wire ~default:(zero data_bits) () in
   let%hw_var tx_pop = Always.Variable.wire ~default:gnd () in
   let%hw_var fetch_addr = Always.Variable.wire ~default:pc.value () in
-  (* Fifos. *)
   let tx =
     Host_fifo.hierarchical
       ~instance:"tx"
@@ -205,7 +200,6 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
       ; pop = i.rx_pop
       }
   in
-  (* Program memory, read every cycle at the address of the next issue. *)
   let memory =
     Program_memory.hierarchical
       scope
@@ -219,7 +213,6 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
       }
   in
   let%hw word = memory.dout in
-  (* Pins as the instructions see them. *)
   let%hw sample =
     List.init num_pins ~f:(fun n ->
       let driven =
@@ -233,7 +226,6 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
     |> concat_lsb
   in
   let pin_of sig_ idx = mux idx (bits_of sig_) in
-  (* Decode. *)
   let module D = Decoder.Make (Signal) in
   let%hw.Decoder.Decoded.Of_signal d = D.decode ~side_set_count:c.side_set_count word in
   let opcode = d.opcode in
@@ -260,7 +252,6 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let alu_reg = d.alu_reg in
   let sys_op = d.sys_op in
   let decode_ok = d.valid in
-  (* Conditions. *)
   let%hw phase = now.value -: t.value in
   let%hw deadline_ready = ~:(msb phase) in
   let%hw deadline_late = deadline_ready &: (phase <>:. 0) in
@@ -291,7 +282,6 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let%hw issue = ~:(halted.value) &: (stall.value ==:. 0) in
   let%hw pc_next = pc.value +:. 1 in
   let%hw wait_holds = is Wait &: ~:wait_ready in
-  (* Datapath for the shift and move instructions. *)
   let%hw mask = count_mask shift_count in
   let%hw in_value =
     Isa.In_source.Of_signal.match_
@@ -382,11 +372,10 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let%hw alu_y = alu_apply y.value in
   let%hw alu_p = alu_apply p.value in
   let%hw alu_t = alu_apply t.value in
-  (* Pin writes. *)
   let output_pin n = n >= first_output_pin in
   let bidir_pin n = n >= first_bidir_pin in
   let side_count = uresize c.side_set_count ~width:5 in
-  (* Side-set lands first; the instruction's own pin write builds on it. *)
+  (* side-set first, then the instruction's own pin write *)
   let%hw pin_out_side =
     write_pins
       pin_out.value

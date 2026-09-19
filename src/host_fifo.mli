@@ -1,6 +1,4 @@
-(** A four deep fifo between the host and the core. A push into a full fifo and a pop from
-    an empty one are ignored; the core turns those into fault bits. [head] is the oldest
-    word and is valid when [empty] is low. *)
+(** Four deep. Push when full and pop when empty are ignored. *)
 
 open! Core
 open! Hardcaml

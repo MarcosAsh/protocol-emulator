@@ -3,7 +3,6 @@ open Protocol_emulator
 
 let assemble source = Asm.assemble source |> ok_exn |> Asm.Program.words |> ok_exn
 
-(* UART on OUT0, 8N1, LSB first, one deadline per bit. *)
 let uart_tx ~period =
   [%string
     {|
@@ -27,10 +26,7 @@ bit:
 |}]
 ;;
 
-(* UART on IN0. The deadline is anchored on the captured start edge and every bit is
-   sampled mid bit; the half period is one short because the sample lands a cycle after
-   the release. Capture is re-armed before the stop bit so the next start edge is not lost
-   while the stop bit is checked. *)
+(* half period one short: the sample lands a cycle after the release *)
 let uart_rx ~period =
   [%string
     {|
@@ -69,9 +65,7 @@ let rx_config =
   }
 ;;
 
-(* SPI mode 0 master, MSB first, SCK on the side-set pin. Each wait carries the level SCK
-   already has and the jump sits after the falling edge, so every edge lands one cycle
-   after a deadline release. *)
+(* each wait carries the level SCK already has *)
 let spi_master ~half_period =
   [%string
     {|
@@ -112,13 +106,10 @@ let spi_config =
   }
 ;;
 
-(* I2C master on IO0 (SDA) and IO1 (SCL), open drain through pin directions, SCL on the
-   side-set pin. Each word from the host is one bus byte: start[15] read[14] data[13:6]
-   stop[5]. The core pushes the ack bit, or the byte read, per word. [p] is a quarter of
-   the SCL period. *)
 let sda = 12
 let scl = 13
 
+(* host word: start[15] read[14] data[13:6] stop[5]; p is a quarter period *)
 let i2c_master ~quarter =
   [%string
     {|

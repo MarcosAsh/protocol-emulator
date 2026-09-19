@@ -1,12 +1,8 @@
-(** The core in hardware. It implements [Isa] with the semantics of [Machine], and the
-    tests hold the two in lockstep cycle by cycle.
+(** The core. Same semantics as [Machine]; the tests keep them in lockstep.
 
-    Program memory is read every cycle at the address of the next issue, so the word for
-    the current instruction is on the memory output during the cycle it issues; the
-    memory's one cycle read latency is the instruction register. The host writes the
-    program through [program_write] while the core is halted. [start] then sets [pc] to
-    zero, clears [halted] and restarts the timer, so the first instruction issues one
-    cycle later at [now = 0]. Faults are sticky until [clear]. *)
+    Memory is read at the next issue address every cycle, so its registered output is the
+    instruction register. [program_write] only while halted. [start] resets [pc] and the
+    timer; the first instruction issues a cycle later at [now = 0]. *)
 
 open! Core
 open! Hardcaml

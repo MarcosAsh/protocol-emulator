@@ -1,7 +1,5 @@
-(** Instruction decode as a pure function of the word and the side-set count, over any
-    combinational domain so the same circuit runs as signals in the core and as bit
-    vectors in tests. [valid] is low for every word that [Isa.of_word] rejects. The enum
-    fields carry the raw codes; the core only reads the ones its opcode uses. *)
+(** Decode over any [Comb], so the core and the tests share one circuit. [valid] is low
+    exactly when [Isa.of_word] fails. *)
 
 open! Core
 open! Hardcaml
