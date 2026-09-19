@@ -1,5 +1,6 @@
 open! Core
 open! Hardcaml
+open Hardcaml_lws
 open Protocol_emulator
 module Harness = Hardcaml_test_harness.Lws_harness.Make (Host_port.I) (Host_port.O)
 module Reg = Host_port.Reg
@@ -7,42 +8,45 @@ module Reg = Host_port.Reg
 let ( <--. ) = Bits.( <--. )
 
 let run ~half f =
-  Harness.run ~create:Host_port.hierarchical (fun (h @ local) ~inputs ~outputs ->
-    let cycle ?n () = Hardcaml_lws.Lws.cycle ?n h in
-    let o = Before_and_after_edge.after_edge outputs in
-    let events = ref [] in
-    let note e = events := e :: !events in
-    let watch n =
-      for _ = 1 to n do
-        cycle ();
-        let int r = Bits.to_unsigned_int !r in
-        if Bits.to_bool !(o.start) then note "start";
-        if Bits.to_bool !(o.clear_irq) then note "clear_irq";
-        if Bits.to_bool !(o.program_write.valid)
-        then
-          note
-            [%string
-              "program[%{int o.program_write.addr#Int}] <- %{int \
-               o.program_write.data#Int}"];
-        if Bits.to_bool !(o.tx.valid) then note [%string "tx <- %{int o.tx.value#Int}"];
-        if Bits.to_bool !(o.rx_pop) then note "rx_pop"
-      done
-    in
-    inputs.clocking.clear := Bits.vdd;
-    cycle ();
-    inputs.clocking.clear := Bits.gnd;
-    let master =
-      Spi_master.create
-        ~sck:inputs.sck
-        ~mosi:inputs.mosi
-        ~cs_n:inputs.cs_n
-        ~miso:o.miso
-        ~half
-    in
-    cycle ~n:2 ();
-    f master ~watch inputs o;
-    let events = List.rev !events in
-    print_s [%message (events : string list)])
+  Harness.run
+    ~random_initial_state:`All
+    ~create:Host_port.hierarchical
+    (fun (h @ local) ~inputs ~outputs ->
+       let cycle ?n () = Lws.step ?n h in
+       let o = Before_and_after_edge.after_edge outputs in
+       let events = ref [] in
+       let note e = events := e :: !events in
+       let watch n =
+         for _ = 1 to n do
+           cycle ();
+           let int r = Bits.to_unsigned_int !r in
+           if Bits.to_bool !(o.start) then note "start";
+           if Bits.to_bool !(o.clear_irq) then note "clear_irq";
+           if Bits.to_bool !(o.program_write.valid)
+           then
+             note
+               [%string
+                 "program[%{int o.program_write.addr#Int}] <- %{int \
+                  o.program_write.data#Int}"];
+           if Bits.to_bool !(o.tx.valid) then note [%string "tx <- %{int o.tx.value#Int}"];
+           if Bits.to_bool !(o.rx_pop) then note "rx_pop"
+         done
+       in
+       inputs.clocking.clear := Bits.vdd;
+       cycle ();
+       inputs.clocking.clear := Bits.gnd;
+       let master =
+         Spi_master.create
+           ~sck:inputs.sck
+           ~mosi:inputs.mosi
+           ~cs_n:inputs.cs_n
+           ~miso:o.miso
+           ~half
+       in
+       cycle ~n:2 ();
+       f master ~watch inputs o;
+       let events = List.rev !events in
+       print_s [%message (events : string list)])
 ;;
 
 let%expect_test "program load, control and fifo strobes" =

@@ -1,11 +1,14 @@
 open! Core
 open! Hardcaml
+open Hardcaml_lws
+open! Hardcaml_test_harness
 open! Hardcaml_waveterm
 open Protocol_emulator
 open Firmware
 open Protocol_models
 module Harness = Hardcaml_test_harness.Lws_harness.Make (Engine.I) (Engine.O)
 
+let debug = false
 let ( <--. ) = Bits.( <--. )
 
 module State = struct
@@ -113,67 +116,70 @@ let lockstep
   ()
   =
   Harness.run
+    ~waves_config:
+      (if debug then Waves_config.to_home_subdirectory () else Waves_config.no_waves)
+    ~random_initial_state:`All
     ~create:(Engine.hierarchical ~memory:Flops)
     (fun (h @ local) ~inputs:i ~outputs ->
-       let cycle () = Hardcaml_lws.Lws.cycle h in
-       let after () = Before_and_after_edge.after_edge outputs in
-       i.clocking.clear := Bits.vdd;
-       cycle ();
-       i.clocking.clear := Bits.gnd;
-       Engine.Config.iter2 i.config (Engine.Config.of_program_config config) ~f:( := );
-       List.iteri program ~f:(fun addr word ->
-         i.program_write.valid := Bits.vdd;
-         i.program_write.addr <--. addr;
-         i.program_write.data <--. word;
-         cycle ());
-       i.program_write.valid := Bits.gnd;
-       let model = ref (Machine.create ~config ~program |> ok_exn) in
-       List.iter preload ~f:(fun word ->
-         i.tx.valid := Bits.vdd;
-         i.tx.value <--. word;
-         cycle ();
-         model := Machine.write_tx !model word |> ok_exn);
-       i.tx.valid := Bits.gnd;
-       i.start := Bits.vdd;
-       cycle ();
-       i.start := Bits.gnd;
-       let mismatch = ref None in
-       let cycle_number = ref 0 in
-       while !cycle_number < cycles && Option.is_none !mismatch do
-         let n = !cycle_number in
-         let expected = State.of_machine !model in
-         let actual = State.of_outputs (after ()) in
-         if not (State.equal expected actual)
-         then mismatch := Some (n, expected, actual)
-         else (
-           let levels = inputs n in
-           let action = host n in
-           i.inputs <--. levels;
-           (match action.tx with
-            | Some word ->
-              i.tx.valid := Bits.vdd;
-              i.tx.value <--. word
-            | None -> i.tx.valid := Bits.gnd);
-           i.rx_pop := Bits.of_bool action.pop_rx;
-           if action.pop_rx
-           then (
-             match Machine.read_rx !model with
-             | Some (_, m) -> model := m
-             | None -> ());
-           cycle ();
-           model := Machine.step !model ~inputs:levels;
-           (match action.tx with
-            | Some word -> model := Machine.write_tx !model word |> ok_exn
+      let cycle () = Hardcaml_lws.Lws.cycle h in
+      let after () = Before_and_after_edge.after_edge outputs in
+      i.clocking.clear := Bits.vdd;
+      cycle ();
+      i.clocking.clear := Bits.gnd;
+      Engine.Config.iter2 i.config (Engine.Config.of_program_config config) ~f:( := );
+      List.iteri program ~f:(fun addr word ->
+        i.program_write.valid := Bits.vdd;
+        i.program_write.addr <--. addr;
+        i.program_write.data <--. word;
+        cycle ());
+      i.program_write.valid := Bits.gnd;
+      let model = ref (Machine.create ~config ~program |> ok_exn) in
+      List.iter preload ~f:(fun word ->
+        i.tx.valid := Bits.vdd;
+        i.tx.value <--. word;
+        cycle ();
+        model := Machine.write_tx !model word |> ok_exn);
+      i.tx.valid := Bits.gnd;
+      i.start := Bits.vdd;
+      cycle ();
+      i.start := Bits.gnd;
+      let mismatch = ref None in
+      let cycle_number = ref 0 in
+      while !cycle_number < cycles && Option.is_none !mismatch do
+        let n = !cycle_number in
+        let expected = State.of_machine !model in
+        let actual = State.of_outputs (after ()) in
+        if not (State.equal expected actual)
+        then mismatch := Some (n, expected, actual)
+        else (
+          let levels = inputs n in
+          let action = host n in
+          i.inputs <--. levels;
+          (match action.tx with
+           | Some word ->
+             i.tx.valid := Bits.vdd;
+             i.tx.value <--. word
+           | None -> i.tx.valid := Bits.gnd);
+          i.rx_pop := Bits.of_bool action.pop_rx;
+          if action.pop_rx
+          then (
+            match Machine.read_rx !model with
+            | Some (_, m) -> model := m
             | None -> ());
-           react !model;
-           Int.incr cycle_number)
-       done;
-       (match !mismatch with
-        | None -> print_s [%message "lockstep held" (cycles : int)]
-        | Some (cycle, expected, actual) ->
-          print_s
-            [%message "MISMATCH" (cycle : int) (expected : State.t) (actual : State.t)]);
-       !model)
+          cycle ();
+          model := Machine.step !model ~inputs:levels;
+          (match action.tx with
+           | Some word -> model := Machine.write_tx !model word |> ok_exn
+           | None -> ());
+          react !model;
+          Int.incr cycle_number)
+      done;
+      (match !mismatch with
+       | None -> print_s [%message "lockstep held" (cycles : int)]
+       | Some (cycle, expected, actual) ->
+         print_s
+           [%message "MISMATCH" (cycle : int) (expected : State.t) (actual : State.t)]);
+      !model)
 ;;
 
 let%expect_test "uart tx" =
@@ -224,8 +230,7 @@ let%expect_test "spi master" =
   in
   let received = Spi_slave.received !slave in
   print_s [%message (received : int list)];
-  [%expect
-    {|
+  [%expect {|
     ("lockstep held" (cycles 400))
     (received (165 60))
     |}]
@@ -344,7 +349,7 @@ loop:
         ~wave_width:0
         waves)
     (fun (h @ local) ~inputs:i ~outputs:_ ->
-      let cycle ?n () = Hardcaml_lws.Lws.cycle ?n h in
+      let cycle ?n () = Lws.step ?n h in
       i.clocking.clear := Bits.vdd;
       cycle ();
       i.clocking.clear := Bits.gnd;

@@ -1,5 +1,6 @@
 open! Core
 open! Hardcaml
+open Hardcaml_lws
 open Protocol_emulator
 open Firmware
 open Protocol_models
@@ -9,9 +10,10 @@ module Reg = Host_port.Reg
 let%expect_test "the host loads and runs the uart transmitter over spi" =
   let period = 16 in
   Harness.run
+    ~random_initial_state:`All
     ~create:(Top.hierarchical ~memory:Flops)
     (fun (h @ local) ~inputs ~outputs ->
-       let cycle ?n () = Hardcaml_lws.Lws.cycle ?n h in
+       let cycle ?n () = Lws.step ?n h in
        let o = Before_and_after_edge.after_edge outputs in
        let tx_levels = ref [] in
        let sck = ref Bits.gnd
