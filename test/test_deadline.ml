@@ -12,10 +12,13 @@ let prove name ~claim =
   match Solver.solve ~solver:(Solver.z3 ~parallel:false ()) (G.cnf G.(~:claim)) with
   | Ok Unsat -> print_s [%message "QED" name]
   | Ok (Sat model) ->
-    let model =
-      List.map model ~f:(fun (m : Cnf.Model_with_vectors.input) -> m.name, m.value)
+    let value name =
+      List.find_exn model ~f:(fun (m : Cnf.Model_with_vectors.input) ->
+        String.equal m.name name)
+      |> fun m -> Int.of_string ("0b" ^ m.value)
     in
-    print_s [%message "counterexample" name (model : (string * string) list)]
+    let phase = (value "now" - value "t") land ((1 lsl Isa.timer_bits) - 1) in
+    print_s [%message "counterexample" name (phase : int)]
   | Error e -> print_s [%message "solver failed" name (e : Error.t)]
 ;;
 
