@@ -8,6 +8,7 @@ let create (_ : Scope.t) (i : Signal.t Program_memory.I.t) =
   let inst =
     Instantiation.create
       ()
+      ~instance:"sram"
       ~name
       ~inputs:
         [ "A_CLK", i.clock

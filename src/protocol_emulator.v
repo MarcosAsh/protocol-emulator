@@ -43,7 +43,7 @@ module sram_macro (
     assign signal_wire_5 = men;
     assign signal_wire_6 = clock;
     RM_IHPSG13_1P_512x16_c2_bm_bist
-        the_RM_IHPSG13_1P_512x16_c2_bm_bist
+        sram
         ( .A_CLK(signal_wire_6),
           .A_MEN(signal_wire_5),
           .A_WEN(signal_wire_4),

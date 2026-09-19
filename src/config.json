@@ -35,7 +35,7 @@
   "MACROS": {
     "RM_IHPSG13_1P_512x16_c2_bm_bist": {
       "instances": {
-        "sram": {
+        "core.top.engine.sram_macro.sram": {
           "location": [42, 42],
           "orientation": "R90"
         }
@@ -52,8 +52,8 @@
     }
   },
   "PDN_MACRO_CONNECTIONS": [
-    "sram VPWR VGND VDD! VSS!",
-    "sram VPWR VGND VDDARRAY! VSS!"
+    "core.top.engine.sram_macro.sram VPWR VGND VDD! VSS!",
+    "core.top.engine.sram_macro.sram VPWR VGND VDDARRAY! VSS!"
   ],
   "//": "SRAM power pins are on Metal4 and need a Metal4 to TopMetal1 connection",
   "PDN_CFG": "dir::pdn_cfg.tcl",
