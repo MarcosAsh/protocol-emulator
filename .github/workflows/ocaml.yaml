@@ -16,7 +16,9 @@ jobs:
             default: https://opam.ocaml.org
 
       - name: Install dependencies
-        run: opam install . --deps-only --with-test --locked
+        run: |
+          sudo apt-get install -y z3
+          opam install . --deps-only --with-test --locked
 
       - name: Run tests
         run: opam exec -- dune build @runtest
