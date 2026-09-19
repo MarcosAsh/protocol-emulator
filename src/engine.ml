@@ -163,55 +163,46 @@ let count_mask count = ~:(log_shift ~f:sll (ones data_bits) ~by:count)
 let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   let spec = Clocking.to_spec i.clocking in
   let c = i.config in
-  let%hw_var pc = Always.Variable.reg spec ~width:pc_bits in
-  let%hw_var x = Always.Variable.reg spec ~width:data_bits in
-  let%hw_var y = Always.Variable.reg spec ~width:data_bits in
-  let%hw_var p = Always.Variable.reg spec ~width:data_bits in
-  let%hw_var t = Always.Variable.reg spec ~width:timer_bits in
-  let%hw_var osr = Always.Variable.reg spec ~width:data_bits in
-  let%hw_var osr_count =
-    Always.Variable.reg spec ~clear_to:(of_unsigned_int ~width:5 data_bits) ~width:5
-  in
-  let%hw_var isr = Always.Variable.reg spec ~width:data_bits in
-  let%hw_var isr_count = Always.Variable.reg spec ~width:5 in
-  let%hw_var now = Always.Variable.reg spec ~width:timer_bits in
-  let%hw_var pin_out = Always.Variable.reg spec ~width:num_pins in
-  let%hw_var pin_dir = Always.Variable.reg spec ~width:num_pins in
-  let%hw_var pins_sampled = Always.Variable.reg spec ~width:num_pins in
-  let%hw_var stall = Always.Variable.reg spec ~width:5 in
-  let%hw_var halted = Always.Variable.reg spec ~clear_to:vdd ~width:1 in
-  let%hw_var irq = Always.Variable.reg spec ~width:1 in
-  let%hw_var capture = Always.Variable.reg spec ~width:timer_bits in
-  let%hw_var capture_armed = Always.Variable.reg spec ~width:1 in
-  let%hw_var fault_underflow = Always.Variable.reg spec ~width:1 in
-  let%hw_var fault_overflow = Always.Variable.reg spec ~width:1 in
-  let%hw_var fault_missed = Always.Variable.reg spec ~width:1 in
-  let%hw_var fault_decode = Always.Variable.reg spec ~width:1 in
-  let%hw_var rx_push = Always.Variable.wire ~default:gnd () in
-  let%hw_var rx_push_data = Always.Variable.wire ~default:(zero data_bits) () in
-  let%hw_var tx_pop = Always.Variable.wire ~default:gnd () in
-  let%hw_var fetch_addr = Always.Variable.wire ~default:pc.value () in
+  let count_bits = num_bits_to_represent data_bits in
+  (* Architectural state. Each register takes a next value computed below. *)
+  let%hw pc = wire pc_bits in
+  let%hw x = wire data_bits in
+  let%hw y = wire data_bits in
+  let%hw p = wire data_bits in
+  let%hw t = wire timer_bits in
+  let%hw osr = wire data_bits in
+  let%hw osr_count = wire count_bits in
+  let%hw isr = wire data_bits in
+  let%hw isr_count = wire count_bits in
+  let%hw now = wire timer_bits in
+  let%hw pin_out = wire num_pins in
+  let%hw pin_dir = wire num_pins in
+  let%hw pins_sampled = wire num_pins in
+  let%hw stall = wire count_bits in
+  let%hw halted = wire 1 in
+  let%hw capture = wire timer_bits in
+  let%hw capture_armed = wire 1 in
+  let%hw fetch_addr = wire pc_bits in
+  let%hw tx_pop = wire 1 in
+  let rx_push = { With_valid.valid = wire 1; value = wire data_bits } in
   let tx =
     Host_fifo.hierarchical
       ~instance:"tx"
       scope
-      { clocking = i.clocking; push = i.tx; pop = tx_pop.value }
+      { clocking = i.clocking; push = i.tx; pop = tx_pop }
   in
   let rx =
     Host_fifo.hierarchical
       ~instance:"rx"
       scope
-      { clocking = i.clocking
-      ; push = { valid = rx_push.value; value = rx_push_data.value }
-      ; pop = i.rx_pop
-      }
+      { clocking = i.clocking; push = rx_push; pop = i.rx_pop }
   in
   let memory_in =
     { Program_memory.I.clock = i.clocking.clock
     ; men = vdd
     ; wen = i.program_write.valid
     ; ren = vdd
-    ; addr = mux2 i.program_write.valid i.program_write.addr fetch_addr.value
+    ; addr = mux2 i.program_write.valid i.program_write.addr fetch_addr
     ; din = i.program_write.data
     ; bm = ones Isa.word_bits
     }
@@ -229,12 +220,12 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
         then gnd
         else if n < first_bidir_pin
         then vdd
-        else pin_dir.value.:(n)
+        else pin_dir.:(n)
       in
-      mux2 driven pin_out.value.:(n) i.inputs.:(n))
+      mux2 driven pin_out.:(n) i.inputs.:(n))
     |> concat_lsb
   in
-  let pin_of sig_ idx = mux idx (bits_lsb sig_) in
+  let pin_of v idx = mux idx (bits_lsb v) in
   let module D = Decoder.Make (Signal) in
   let%hw.Decoder.Decoded.Of_signal d = D.decode ~side_set_count:c.side_set_count word in
   let%tydi { Decoder.Decoded.valid = decode_ok
@@ -265,10 +256,11 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
     d
   in
   let is op = Isa.Opcode.Of_signal.is opcode op in
+  let is_sys op = is Sys &: Isa.Sys_op.Of_signal.is sys_op op in
   let module Deadline = Deadline.Make (Signal) in
-  let%hw deadline_ready = Deadline.release ~now:now.value ~t:t.value in
-  let%hw deadline_late = Deadline.late ~now:now.value ~t:t.value in
-  let%hw wait_pin_prev = pin_of pins_sampled.value wait_index in
+  let%hw deadline_ready = Deadline.release ~now ~t in
+  let%hw deadline_late = Deadline.late ~now ~t in
+  let%hw wait_pin_prev = pin_of pins_sampled wait_index in
   let%hw wait_pin_cur = pin_of sample wait_index in
   let%hw wait_ready =
     Isa.Wait_source.Of_signal.match_
@@ -283,51 +275,59 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
     Isa.Jmp_cond.Of_signal.match_
       jmp_cond
       [ Always, vdd
-      ; X_dec, x.value <>:. 0
-      ; Y_dec, y.value <>:. 0
-      ; X_ne_y, x.value <>: y.value
+      ; X_dec, x <>:. 0
+      ; Y_dec, y <>:. 0
+      ; X_ne_y, x <>: y
       ; Pin, pin_of sample c.jmp_pin
       ; Not_pin, ~:(pin_of sample c.jmp_pin)
-      ; Osr_not_empty, osr_count.value <: c.pull_threshold
+      ; Osr_not_empty, osr_count <: c.pull_threshold
       ; Stuff_pending, gnd
       ]
   in
-  let%hw issue = ~:(halted.value) &: (stall.value ==:. 0) in
-  let%hw pc_next = pc.value +:. 1 in
+  let%hw issue = ~:halted &: (stall ==:. 0) in
+  let%hw go = issue &: decode_ok in
+  let%hw jmp_go = go &: is Jmp in
+  let%hw op_go = go &: ~:(is Jmp) in
   let%hw wait_holds = is Wait &: ~:wait_ready in
+  let%hw advance = op_go &: ~:wait_holds in
+  let%hw pc_next = pc +:. 1 in
+  let%hw jmp_target_or_next = mux2 jmp_taken jmp_target pc_next in
+  (* Shifts and moves. *)
   let%hw mask = count_mask shift_count in
   let%hw in_value =
     Isa.In_source.Of_signal.match_
       in_source
       [ Pins, read_pins sample ~base:c.in_base ~count:shift_count
-      ; X, x.value
-      ; Y, y.value
+      ; X, x
+      ; Y, y
       ; Null, zero data_bits
-      ; Isr, isr.value
-      ; Osr, osr.value
+      ; Isr, isr
+      ; Osr, osr
       ; Crc, zero data_bits
-      ; Capture, sel_bottom capture.value ~width:data_bits
+      ; Capture, sel_bottom capture ~width:data_bits
       ]
     &: mask
   in
-  let%hw shift_back = of_unsigned_int ~width:5 data_bits -: shift_count in
+  let%hw shift_back = of_unsigned_int ~width:count_bits data_bits -: shift_count in
   let%hw isr_shifted =
     mux2
       c.in_shift_right
-      (log_shift ~f:srl isr.value ~by:shift_count
-       |: log_shift ~f:sll in_value ~by:shift_back)
-      (log_shift ~f:sll isr.value ~by:shift_count |: in_value)
+      (log_shift ~f:srl isr ~by:shift_count |: log_shift ~f:sll in_value ~by:shift_back)
+      (log_shift ~f:sll isr ~by:shift_count |: in_value)
   in
   let saturate a b =
-    let s = uresize a ~width:6 +: uresize b ~width:6 in
-    mux2 (s >:. data_bits) (of_unsigned_int ~width:5 data_bits) (sel_bottom s ~width:5)
+    let s = uresize a ~width:(count_bits + 1) +: uresize b ~width:(count_bits + 1) in
+    mux2
+      (s >:. data_bits)
+      (of_unsigned_int ~width:count_bits data_bits)
+      (sel_bottom s ~width:count_bits)
   in
-  let%hw isr_count_next = saturate isr_count.value shift_count in
+  let%hw isr_count_next = saturate isr_count shift_count in
   let%hw autopush_now = c.autopush &: (isr_count_next >=: c.push_threshold) in
-  let%hw pull_now = c.autopull &: (osr_count.value >=: c.pull_threshold) in
+  let%hw pull_now = c.autopull &: (osr_count >=: c.pull_threshold) in
   let%hw pull_ok = pull_now &: ~:(tx.empty) in
-  let%hw osr_before = mux2 pull_ok tx.head osr.value in
-  let%hw osr_count_before = mux2 pull_now (zero 5) osr_count.value in
+  let%hw osr_before = mux2 pull_ok tx.head osr in
+  let%hw osr_count_before = mux2 pull_now (zero count_bits) osr_count in
   let%hw out_value =
     mux2
       c.out_shift_right
@@ -346,15 +346,18 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
       mov_source
       [ ( Pins
         , uresize
-            (read_pins sample ~base:c.in_base ~count:(of_unsigned_int ~width:5 data_bits))
+            (read_pins
+               sample
+               ~base:c.in_base
+               ~count:(of_unsigned_int ~width:count_bits data_bits))
             ~width:timer_bits )
-      ; X, uresize x.value ~width:timer_bits
-      ; Y, uresize y.value ~width:timer_bits
+      ; X, uresize x ~width:timer_bits
+      ; Y, uresize y ~width:timer_bits
       ; Null, zero timer_bits
-      ; Isr, uresize isr.value ~width:timer_bits
-      ; Osr, uresize osr.value ~width:timer_bits
-      ; Now, now.value
-      ; Capture, capture.value
+      ; Isr, uresize isr ~width:timer_bits
+      ; Osr, uresize osr ~width:timer_bits
+      ; Now, now
+      ; Capture, capture
       ]
   in
   let mov_apply v =
@@ -371,7 +374,7 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
       (Isa.Alu_reg.Of_signal.match_
          ~default:(zero data_bits)
          alu_reg
-         [ X, x.value; Y, y.value; P, p.value; Isr, isr.value; Osr, osr.value ])
+         [ X, x; Y, y; P, p; Isr, isr; Osr, osr ])
       (uresize alu_imm ~width:data_bits)
   in
   let alu_apply v =
@@ -381,17 +384,14 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
       alu_op
       [ Add, v +: operand; Sub, v -: operand; Xor, v ^: operand ]
   in
-  let%hw alu_x = alu_apply x.value in
-  let%hw alu_y = alu_apply y.value in
-  let%hw alu_p = alu_apply p.value in
-  let%hw alu_t = alu_apply t.value in
+  (* Pin writes: side-set first, then the instruction's own write. *)
   let output_pin n = n >= first_output_pin in
   let bidir_pin n = n >= first_bidir_pin in
-  let side_count = uresize c.side_set_count ~width:5 in
-  (* side-set first, then the instruction's own pin write *)
+  let side_count = uresize c.side_set_count ~width:count_bits in
+  let set_count = uresize c.set_count ~width:count_bits in
   let%hw pin_out_side =
     write_pins
-      pin_out.value
+      pin_out
       ~base:c.side_set_base
       ~count:side_count
       ~value:side_set
@@ -399,228 +399,242 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   in
   let%hw pin_dir_side =
     write_pins
-      pin_dir.value
+      pin_dir
       ~base:c.side_set_base
       ~count:side_count
       ~value:side_set
       ~writable:bidir_pin
   in
-  let%hw pin_out_base = mux2 c.side_set_pindirs pin_out.value pin_out_side in
-  let%hw pin_dir_base = mux2 c.side_set_pindirs pin_dir_side pin_dir.value in
-  let write_out ~base ~count ~value =
-    Always.(pin_out <-- write_pins pin_out_base ~base ~count ~value ~writable:output_pin)
+  let%hw pin_out_base = mux2 c.side_set_pindirs pin_out pin_out_side in
+  let%hw pin_dir_base = mux2 c.side_set_pindirs pin_dir_side pin_dir in
+  let out_to ~base ~count ~value =
+    write_pins pin_out_base ~base ~count ~value ~writable:output_pin
   in
-  let write_dir ~base ~count ~value =
-    Always.(pin_dir <-- write_pins pin_dir_base ~base ~count ~value ~writable:bidir_pin)
+  let dir_to ~base ~count ~value =
+    write_pins pin_dir_base ~base ~count ~value ~writable:bidir_pin
   in
-  let set_count = uresize c.set_count ~width:5 in
-  let push_isr value =
-    Always.
-      [ if_ rx.full [ fault_overflow <-- vdd ] [ rx_push <-- vdd; rx_push_data <-- value ]
-      ; isr <-- zero data_bits
-      ; isr_count <-- zero 5
+  let%hw pin_out_next =
+    Isa.Opcode.Of_signal.match_
+      ~default:pin_out_base
+      opcode
+      [ ( Out
+        , mux2
+            (Isa.Out_dest.Of_signal.is out_dest Pins)
+            (out_to ~base:c.out_base ~count:shift_count ~value:out_value)
+            pin_out_base )
+      ; ( Mov
+        , mux2
+            (Isa.Mov_dest.Of_signal.is mov_dest Pins)
+            (out_to ~base:c.out_base ~count:c.out_count ~value:mov_value)
+            pin_out_base )
+      ; ( Set
+        , mux2
+            (Isa.Set_dest.Of_signal.is set_dest Pins)
+            (out_to ~base:c.set_base ~count:set_count ~value:set_value)
+            pin_out_base )
       ]
   in
-  let pull_osr =
-    Always.
-      [ if_ tx.empty [ fault_underflow <-- vdd ] [ osr <-- tx.head; tx_pop <-- vdd ]
-      ; osr_count <-- zero 5
+  let%hw pin_dir_next =
+    Isa.Opcode.Of_signal.match_
+      ~default:pin_dir_base
+      opcode
+      [ ( Out
+        , mux2
+            (Isa.Out_dest.Of_signal.is out_dest Pindirs)
+            (dir_to ~base:c.out_base ~count:shift_count ~value:out_value)
+            pin_dir_base )
+      ; ( Mov
+        , mux2
+            (Isa.Mov_dest.Of_signal.is mov_dest Pindirs)
+            (dir_to ~base:c.out_base ~count:c.out_count ~value:mov_value)
+            pin_dir_base )
+      ; ( Set
+        , mux2
+            (Isa.Set_dest.Of_signal.is set_dest Pindirs)
+            (dir_to ~base:c.set_base ~count:set_count ~value:set_value)
+            pin_dir_base )
       ]
   in
-  let advance = Always.[ pc <-- pc_next; stall <-- delay ] in
+  (* Register next values, one selector per architectural register. *)
+  let by_opcode ~default cases = Isa.Opcode.Of_signal.match_ ~default opcode cases in
+  let%hw x_next =
+    by_opcode
+      ~default:x
+      [ Jmp, mux2 (Isa.Jmp_cond.Of_signal.is jmp_cond X_dec) (x -:. 1) x
+      ; Out, mux2 (Isa.Out_dest.Of_signal.is out_dest X) out_value x
+      ; Mov, mux2 (Isa.Mov_dest.Of_signal.is mov_dest X) mov_value x
+      ; ( Set
+        , mux2
+            (Isa.Set_dest.Of_signal.is set_dest X)
+            (uresize set_value ~width:data_bits)
+            x )
+      ; Alu, mux2 (Isa.Alu_dest.Of_signal.is alu_dest X) (alu_apply x) x
+      ]
+  in
+  let%hw y_next =
+    by_opcode
+      ~default:y
+      [ Jmp, mux2 (Isa.Jmp_cond.Of_signal.is jmp_cond Y_dec) (y -:. 1) y
+      ; Out, mux2 (Isa.Out_dest.Of_signal.is out_dest Y) out_value y
+      ; Mov, mux2 (Isa.Mov_dest.Of_signal.is mov_dest Y) mov_value y
+      ; ( Set
+        , mux2
+            (Isa.Set_dest.Of_signal.is set_dest Y)
+            (uresize set_value ~width:data_bits)
+            y )
+      ; Alu, mux2 (Isa.Alu_dest.Of_signal.is alu_dest Y) (alu_apply y) y
+      ]
+  in
+  let%hw p_next =
+    by_opcode
+      ~default:p
+      [ Out, mux2 (Isa.Out_dest.Of_signal.is out_dest P) out_value p
+      ; Mov, mux2 (Isa.Mov_dest.Of_signal.is mov_dest P) mov_value p
+      ; ( Set
+        , mux2
+            (Isa.Set_dest.Of_signal.is set_dest P)
+            (uresize set_value ~width:data_bits)
+            p )
+      ; Alu, mux2 (Isa.Alu_dest.Of_signal.is alu_dest P) (alu_apply p) p
+      ]
+  in
+  let%hw releases_deadline =
+    is Wait &: Isa.Wait_source.Of_signal.is wait_source Deadline &: wait_ready
+  in
+  let%hw t_next =
+    by_opcode
+      ~default:t
+      [ ( Wait
+        , mux2 (releases_deadline &: wait_polarity) (t +: uresize p ~width:timer_bits) t )
+      ; ( Out
+        , mux2
+            (Isa.Out_dest.Of_signal.is out_dest T)
+            (uresize out_value ~width:timer_bits)
+            t )
+      ; Mov, mux2 (Isa.Mov_dest.Of_signal.is mov_dest T) mov_value_t t
+      ; Alu, mux2 (Isa.Alu_dest.Of_signal.is alu_dest T) (alu_apply t) t
+      ]
+  in
+  let%hw pushes = is In &: autopush_now |: is_sys Push in
+  let%hw pulls = is_sys Pull in
+  let%hw osr_next =
+    by_opcode
+      ~default:osr
+      [ Out, osr_shifted
+      ; Mov, mux2 (Isa.Mov_dest.Of_signal.is mov_dest Osr) mov_value osr
+      ; Sys, mux2 (pulls &: ~:(tx.empty)) tx.head osr
+      ]
+  in
+  let%hw osr_count_zero = zero count_bits in
+  let%hw osr_count_next_value =
+    by_opcode
+      ~default:osr_count
+      [ Out, osr_count_next
+      ; Mov, mux2 (Isa.Mov_dest.Of_signal.is mov_dest Osr) osr_count_zero osr_count
+      ; Sys, mux2 pulls osr_count_zero osr_count
+      ]
+  in
+  let%hw isr_next =
+    by_opcode
+      ~default:isr
+      [ In, mux2 autopush_now (zero data_bits) isr_shifted
+      ; Out, mux2 (Isa.Out_dest.Of_signal.is out_dest Isr) out_value isr
+      ; Mov, mux2 (Isa.Mov_dest.Of_signal.is mov_dest Isr) mov_value isr
+      ; Sys, mux2 (is_sys Push) (zero data_bits) isr
+      ]
+  in
+  let%hw isr_count_next_value =
+    by_opcode
+      ~default:isr_count
+      [ In, mux2 autopush_now osr_count_zero isr_count_next
+      ; Out, mux2 (Isa.Out_dest.Of_signal.is out_dest Isr) shift_count isr_count
+      ; Mov, mux2 (Isa.Mov_dest.Of_signal.is mov_dest Isr) osr_count_zero isr_count
+      ; Sys, mux2 (is_sys Push) osr_count_zero isr_count
+      ]
+  in
   let%hw captured =
-    capture_armed.value
-    &: (pin_of sample c.capture_pin <>: pin_of pins_sampled.value c.capture_pin)
+    capture_armed
+    &: (pin_of sample c.capture_pin <>: pin_of pins_sampled c.capture_pin)
     &: (pin_of sample c.capture_pin ==: c.capture_rising)
   in
-  Always.(
-    compile
-      [ now <-- now.value +:. 1
-      ; pins_sampled <-- sample
-      ; when_ i.clear_irq [ irq <-- gnd ]
-      ; when_ (stall.value <>:. 0) [ stall <-- stall.value -:. 1 ]
-      ; when_
-          issue
-          [ if_
-              ~:decode_ok
-              [ fault_decode <-- vdd; halted <-- vdd ]
-              [ if_
-                  (is Jmp)
-                  [ pc <-- mux2 jmp_taken jmp_target pc_next
-                  ; fetch_addr <-- mux2 jmp_taken jmp_target pc_next
-                  ; stall <-- of_unsigned_int ~width:5 (Isa.jmp_cycles - 1)
-                  ; Isa.Jmp_cond.Of_always.match_
-                      ~default:[]
-                      jmp_cond
-                      [ X_dec, [ x <-- x.value -:. 1 ]; Y_dec, [ y <-- y.value -:. 1 ] ]
-                  ]
-                  [ pin_out <-- pin_out_base
-                  ; pin_dir <-- pin_dir_base
-                  ; fetch_addr <-- mux2 wait_holds pc.value pc_next
-                  ; Isa.Opcode.Of_always.match_
-                      ~default:[]
-                      opcode
-                      [ ( Wait
-                        , [ when_
-                              wait_ready
-                              (advance
-                               @ [ Isa.Wait_source.Of_always.match_
-                                     ~default:[]
-                                     wait_source
-                                     [ ( Deadline
-                                       , [ when_ deadline_late [ fault_missed <-- vdd ]
-                                         ; when_
-                                             wait_polarity
-                                             [ t
-                                               <-- t.value
-                                                   +: uresize p.value ~width:timer_bits
-                                             ]
-                                         ] )
-                                     ]
-                                 ])
-                          ] )
-                      ; ( In
-                        , advance
-                          @ [ if_
-                                autopush_now
-                                (push_isr isr_shifted)
-                                [ isr <-- isr_shifted; isr_count <-- isr_count_next ]
-                            ] )
-                      ; ( Out
-                        , advance
-                          @ [ when_ pull_ok [ tx_pop <-- vdd ]
-                            ; when_ (pull_now &: tx.empty) [ fault_underflow <-- vdd ]
-                            ; osr <-- osr_shifted
-                            ; osr_count <-- osr_count_next
-                            ; Isa.Out_dest.Of_always.match_
-                                ~default:[]
-                                out_dest
-                                [ ( Pins
-                                  , [ write_out
-                                        ~base:c.out_base
-                                        ~count:shift_count
-                                        ~value:out_value
-                                    ] )
-                                ; X, [ x <-- out_value ]
-                                ; Y, [ y <-- out_value ]
-                                ; ( Pindirs
-                                  , [ write_dir
-                                        ~base:c.out_base
-                                        ~count:shift_count
-                                        ~value:out_value
-                                    ] )
-                                ; Isr, [ isr <-- out_value; isr_count <-- shift_count ]
-                                ; P, [ p <-- out_value ]
-                                ; T, [ t <-- uresize out_value ~width:timer_bits ]
-                                ]
-                            ] )
-                      ; ( Mov
-                        , advance
-                          @ [ Isa.Mov_dest.Of_always.match_
-                                ~default:[]
-                                mov_dest
-                                [ ( Pins
-                                  , [ write_out
-                                        ~base:c.out_base
-                                        ~count:c.out_count
-                                        ~value:mov_value
-                                    ] )
-                                ; X, [ x <-- mov_value ]
-                                ; Y, [ y <-- mov_value ]
-                                ; ( Pindirs
-                                  , [ write_dir
-                                        ~base:c.out_base
-                                        ~count:c.out_count
-                                        ~value:mov_value
-                                    ] )
-                                ; Isr, [ isr <-- mov_value; isr_count <-- zero 5 ]
-                                ; Osr, [ osr <-- mov_value; osr_count <-- zero 5 ]
-                                ; P, [ p <-- mov_value ]
-                                ; T, [ t <-- mov_value_t ]
-                                ]
-                            ] )
-                      ; ( Set
-                        , advance
-                          @ [ Isa.Set_dest.Of_always.match_
-                                ~default:[]
-                                set_dest
-                                [ ( Pins
-                                  , [ write_out
-                                        ~base:c.set_base
-                                        ~count:set_count
-                                        ~value:set_value
-                                    ] )
-                                ; X, [ x <-- uresize set_value ~width:data_bits ]
-                                ; Y, [ y <-- uresize set_value ~width:data_bits ]
-                                ; ( Pindirs
-                                  , [ write_dir
-                                        ~base:c.set_base
-                                        ~count:set_count
-                                        ~value:set_value
-                                    ] )
-                                ; P, [ p <-- uresize set_value ~width:data_bits ]
-                                ]
-                            ] )
-                      ; ( Alu
-                        , advance
-                          @ [ Isa.Alu_dest.Of_always.match_
-                                ~default:[]
-                                alu_dest
-                                [ X, [ x <-- alu_x ]
-                                ; Y, [ y <-- alu_y ]
-                                ; P, [ p <-- alu_p ]
-                                ; T, [ t <-- alu_t ]
-                                ]
-                            ] )
-                      ; ( Sys
-                        , advance
-                          @ [ Isa.Sys_op.Of_always.match_
-                                ~default:[]
-                                sys_op
-                                [ Halt, [ halted <-- vdd ]
-                                ; Irq, [ irq <-- vdd ]
-                                ; Push, push_isr isr.value
-                                ; Pull, pull_osr
-                                ; Capture_arm, [ capture_armed <-- vdd ]
-                                ]
-                            ] )
-                      ]
-                  ]
-              ]
-          ]
-      ; when_ captured [ capture <-- now.value; capture_armed <-- gnd ]
-      ; when_
-          i.start
-          [ pc <-- zero pc_bits
-          ; fetch_addr <-- zero pc_bits
-          ; halted <-- gnd
-          ; stall <-- zero 5
-          ; now <-- zero timer_bits
-          ]
-      ]);
-  { O.pin_out = pin_out.value
-  ; pin_dir = pin_dir.value
-  ; pc = pc.value
-  ; x = x.value
-  ; y = y.value
-  ; p = p.value
-  ; t = t.value
-  ; osr = osr.value
-  ; osr_count = osr_count.value
-  ; isr = isr.value
-  ; isr_count = isr_count.value
-  ; now = now.value
-  ; stall = stall.value
-  ; halted = halted.value
-  ; irq = irq.value
-  ; fault =
-      { underflow = fault_underflow.value
-      ; overflow = fault_overflow.value
-      ; missed_deadline = fault_missed.value
-      ; decode = fault_decode.value
-      }
-  ; capture = capture.value
-  ; capture_armed = capture_armed.value
+  (* Control. *)
+  let%hw halted_next =
+    mux2 i.start gnd
+    @@ mux2 (issue &: ~:decode_ok) vdd
+    @@ mux2 (op_go &: is_sys Halt) vdd halted
+  in
+  let%hw stall_next =
+    mux2 i.start (zero count_bits)
+    @@ mux2 jmp_go (of_unsigned_int ~width:count_bits (Isa.jmp_cycles - 1))
+    @@ mux2 advance delay
+    @@ mux2 (stall <>:. 0) (stall -:. 1) stall
+  in
+  let%hw pc_value_next =
+    mux2 i.start (zero pc_bits)
+    @@ mux2 jmp_go jmp_target_or_next
+    @@ mux2 advance pc_next pc
+  in
+  fetch_addr
+  <-- mux2 i.start (zero pc_bits)
+      @@ mux2 jmp_go jmp_target_or_next
+      @@ mux2 (op_go &: ~:wait_holds) pc_next pc;
+  let sticky set = reg spec ~enable:set vdd in
+  let fault =
+    { Fault.underflow =
+        sticky (op_go &: (is Out &: pull_now &: tx.empty |: (pulls &: tx.empty)))
+    ; overflow = sticky (op_go &: pushes &: rx.full)
+    ; missed_deadline = sticky (op_go &: releases_deadline &: deadline_late)
+    ; decode = sticky (issue &: ~:decode_ok)
+    }
+  in
+  rx_push.valid <-- (op_go &: pushes &: ~:(rx.full));
+  rx_push.value <-- mux2 (is In) isr_shifted isr;
+  tx_pop <-- (op_go &: (is Out &: pull_ok |: (pulls &: ~:(tx.empty))));
+  pc <-- reg spec pc_value_next;
+  x <-- reg spec ~enable:go x_next;
+  y <-- reg spec ~enable:go y_next;
+  p <-- reg spec ~enable:go p_next;
+  t <-- reg spec ~enable:go t_next;
+  osr <-- reg spec ~enable:go osr_next;
+  osr_count
+  <-- reg
+        spec
+        ~enable:go
+        ~clear_to:(of_unsigned_int ~width:count_bits data_bits)
+        osr_count_next_value;
+  isr <-- reg spec ~enable:go isr_next;
+  isr_count <-- reg spec ~enable:go isr_count_next_value;
+  now <-- reg spec (mux2 i.start (zero timer_bits) (now +:. 1));
+  pin_out <-- reg spec ~enable:op_go pin_out_next;
+  pin_dir <-- reg spec ~enable:op_go pin_dir_next;
+  pins_sampled <-- reg spec sample;
+  stall <-- reg spec stall_next;
+  halted <-- reg spec ~clear_to:vdd halted_next;
+  capture <-- reg spec ~enable:captured now;
+  capture_armed
+  <-- reg spec (mux2 captured gnd @@ mux2 (op_go &: is_sys Capture_arm) vdd capture_armed);
+  let%hw irq =
+    reg_fb spec ~width:1 ~f:(fun d ->
+      mux2 (op_go &: is_sys Irq) vdd @@ mux2 i.clear_irq gnd d)
+  in
+  { O.pin_out
+  ; pin_dir
+  ; pc
+  ; x
+  ; y
+  ; p
+  ; t
+  ; osr
+  ; osr_count
+  ; isr
+  ; isr_count
+  ; now
+  ; stall
+  ; halted
+  ; irq
+  ; fault
+  ; capture
+  ; capture_armed
   ; tx_level = tx.level
   ; rx_level = rx.level
   ; rx_head = rx.head
