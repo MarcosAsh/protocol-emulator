@@ -62,8 +62,6 @@ end
 
 let max_passes = 32
 
-(* Successors of [pc] with the state after the instruction. A wait on a pin or a fifo can
-   take any time, so the phase only gets a lower bound. *)
 let captures (c : Program_config.t) (wait : Isa.Wait.t) =
   match wait with
   | Pin_level { pin; level } -> pin = c.capture_pin && Bool.equal level c.capture_rising
@@ -71,6 +69,8 @@ let captures (c : Program_config.t) (wait : Isa.Wait.t) =
   | Deadline _ | Fifo _ -> false
 ;;
 
+(* Successors of [pc] with the state after the instruction. A wait on a pin or a fifo can
+   take any time, so the phase only gets a lower bound. *)
 let step ~config (s : State.t) pc (t : Isa.t) =
   match t with
   | Jmp { cond; target } ->
@@ -98,8 +98,7 @@ let step ~config (s : State.t) pc (t : Isa.t) =
        let unbounded (i : Interval.t) = { i with hi = None } in
        let since_arm =
          match s.since_arm with
-         | Some since when captures config wait ->
-           Some { Interval.lo = Some 0; hi = Option.map since.hi ~f:(( + ) 0) }
+         | Some since when captures config wait -> Some { since with lo = Some 0 }
          | since -> Option.map since ~f:unbounded
        in
        after { s with phase = unbounded s.phase; since_arm }
