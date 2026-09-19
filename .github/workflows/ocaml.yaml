@@ -22,3 +22,13 @@ jobs:
 
       - name: Run tests
         run: opam exec -- dune build @runtest
+
+      - name: Install OSS CAD Suite
+        run: |
+          curl -sL https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz | tar xz -C "$HOME"
+          echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
+
+      - name: Prove
+        run: |
+          opam exec -- dune exec -- bin/generate.exe engine > formal/engine.v
+          make -C formal issue_timing
