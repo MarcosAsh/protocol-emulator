@@ -121,6 +121,7 @@ module O = struct
     ; tx_level : 'a [@bits Host_fifo.level_bits]
     ; rx_level : 'a [@bits Host_fifo.level_bits]
     ; rx_head : 'a [@bits Isa.data_bits]
+    ; instruction : 'a [@bits Isa.word_bits]
     }
   [@@deriving hardcaml]
 end
@@ -620,6 +621,7 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   ; tx_level = tx.level
   ; rx_level = rx.level
   ; rx_head = rx.head
+  ; instruction = word
   }
 ;;
 

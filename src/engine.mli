@@ -95,6 +95,7 @@ module O : sig
     ; tx_level : 'a
     ; rx_level : 'a
     ; rx_head : 'a
+    ; instruction : 'a
     }
   [@@deriving hardcaml]
 end

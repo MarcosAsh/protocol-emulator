@@ -295,7 +295,8 @@ module engine (
     capture_armed,
     tx_level,
     rx_level,
-    rx_head
+    rx_head,
+    instruction
 );
 
     input clock;
@@ -350,6 +351,7 @@ module engine (
     output [2:0] tx_level;
     output [2:0] rx_level;
     output [15:0] rx_head;
+    output [15:0] instruction;
 
     wire [15:0] signal_select;
     wire [2:0] signal_select_1;
@@ -15627,6 +15629,7 @@ module engine (
     assign tx_level = signal_select_2;
     assign rx_level = signal_select_1;
     assign rx_head = signal_select;
+    assign instruction = word;
 
 endmodule
 module host_spi (
@@ -16966,7 +16969,7 @@ module top (
     reg reset_done;
     wire signal_not_1;
     wire signal_wire_15;
-    wire [244:0] signal_inst_1;
+    wire [260:0] signal_inst_1;
     wire [19:0] signal_select_45;
     wire [6:0] signal_select_46;
     wire [7:0] signal_cat;
@@ -17175,7 +17178,8 @@ module top (
           .capture_armed(signal_inst_1[222:222]),
           .tx_level(signal_inst_1[225:223]),
           .rx_level(signal_inst_1[228:226]),
-          .rx_head(signal_inst_1[244:229]) );
+          .rx_head(signal_inst_1[244:229]),
+          .instruction(signal_inst_1[260:245]) );
     assign signal_select_45 = signal_inst_1[19:0];
     assign signal_select_46 = signal_select_45[11:5];
     assign signal_cat = { signal_select_46,
