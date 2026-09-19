@@ -31,6 +31,39 @@
   "//": "https://tinytapeout.com/faq/#how-can-i-map-an-additional-external-clock-to-one-of-the-gpios",
   "CLOCK_PORT": "clk",
 
+  "//": "SRAM macro integration",
+  "MACROS": {
+    "RM_IHPSG13_1P_512x16_c2_bm_bist": {
+      "instances": {
+        "sram": {
+          "location": [42, 42],
+          "orientation": "R90"
+        }
+      },
+      "gds": ["dir::../macro/RM_IHPSG13_1P_512x16_c2_bm_bist/RM_IHPSG13_1P_512x16_c2_bm_bist.gds"],
+      "lef": ["dir::../macro/RM_IHPSG13_1P_512x16_c2_bm_bist/RM_IHPSG13_1P_512x16_c2_bm_bist.lef"],
+      "lib": {
+        "nom_*": ["dir::../macro/RM_IHPSG13_1P_512x16_c2_bm_bist/RM_IHPSG13_1P_512x16_c2_bm_bist_typ_1p20V_25C.lib"],
+        "min_*": ["dir::../macro/RM_IHPSG13_1P_512x16_c2_bm_bist/RM_IHPSG13_1P_512x16_c2_bm_bist_fast_1p32V_m55C.lib"],
+        "max_*": ["dir::../macro/RM_IHPSG13_1P_512x16_c2_bm_bist/RM_IHPSG13_1P_512x16_c2_bm_bist_slow_1p08V_125C.lib"],
+        "*": ["dir::../macro/RM_IHPSG13_1P_512x16_c2_bm_bist/RM_IHPSG13_1P_512x16_c2_bm_bist_typ_1p20V_25C.lib"]
+      },
+      "nl": ["dir::./RM_IHPSG13_1P_512x16_c2_bm_bist.v"],
+      "spice": ["dir::../macro/RM_IHPSG13_1P_512x16_c2_bm_bist/RM_IHPSG13_1P_512x16_c2_bm_bist.cdl"]
+    }
+  },
+  "PDN_MACRO_CONNECTIONS": [
+    "sram VPWR VGND VDD! VSS!",
+    "sram VPWR VGND VDDARRAY! VSS!"
+  ],
+  "//": "SRAM power pins are on Metal4 and need a Metal4 to TopMetal1 connection",
+  "PDN_CFG": "dir::pdn_cfg.tcl",
+  "//": "The macro GDS has no PR boundary layer, so Magic reads the full GDS",
+  "MAGIC_MACRO_STD_CELL_SOURCE": "PDK",
+  "//": "The macro internals trip Magic DRC; blackbox the macro for LVS",
+  "ERROR_ON_MAGIC_DRC": false,
+  "MAGIC_EXT_ABSTRACT_CELLS": ["RM_IHPSG13_.*"],
+
   "//": "Configuration docs: https://librelane.readthedocs.io/en/latest/reference/configuration.html",
 
   "//": "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",

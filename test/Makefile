@@ -12,7 +12,8 @@ ifneq ($(GATES),yes)
 
 # RTL simulation:
 SIM_BUILD				= sim_build/rtl
-VERILOG_SOURCES += $(addprefix $(SRC_DIR)/,$(PROJECT_SOURCES))
+COMPILE_ARGS    += -DFUNCTIONAL
+VERILOG_SOURCES += $(addprefix $(SRC_DIR)/,$(PROJECT_SOURCES)) models/RM_IHPSG13_1P_core_behavioral_bm_bist.v models/RM_IHPSG13_1P_512x16_c2_bm_bist.v
 
 else
 
@@ -23,6 +24,7 @@ COMPILE_ARGS    += -DFUNCTIONAL
 COMPILE_ARGS    += -DSIM
 VERILOG_SOURCES += $(PDK_ROOT)/ihp-sg13g2/libs.ref/sg13g2_io/verilog/sg13g2_io.v
 VERILOG_SOURCES += $(PDK_ROOT)/ihp-sg13g2/libs.ref/sg13g2_stdcell/verilog/sg13g2_stdcell.v
+VERILOG_SOURCES += models/RM_IHPSG13_1P_core_behavioral_bm_bist.v models/RM_IHPSG13_1P_512x16_c2_bm_bist.v
 
 # this gets copied in by the GDS action workflow
 VERILOG_SOURCES += $(PWD)/gate_level_netlist.v
