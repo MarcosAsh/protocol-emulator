@@ -30,41 +30,26 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let%hw sck = sync i.sck in
   let%hw mosi = sync i.mosi in
   let%hw selected = ~:(sync i.cs_n) in
-  let%hw sck_rise = sck &: ~:(reg spec sck) in
-  let%hw sck_fall = ~:sck &: reg spec sck in
+  let%hw sck_rise = selected &: sck &: ~:(reg spec sck) in
+  let%hw sck_fall = selected &: ~:sck &: reg spec sck in
   let%hw frame_start = selected &: ~:(reg spec selected) in
   let%hw frame_end = ~:selected &: reg spec selected in
-  let%hw_var count = Always.Variable.reg spec ~width:3 in
-  let%hw_var shift_in = Always.Variable.reg spec ~width:8 in
-  let%hw_var shift_out = Always.Variable.reg spec ~width:8 in
-  let%hw_var rx_byte = Always.Variable.reg spec ~width:8 in
-  let%hw_var rx_valid = Always.Variable.reg spec ~width:1 in
-  Always.(
-    compile
-      [ rx_valid <-- gnd
-      ; when_ frame_start [ count <-- zero 3; shift_out <-- i.tx_byte ]
-      ; when_
-          (selected &: sck_rise)
-          [ shift_in <-- shift_in.value.:[6, 0] @: mosi
-          ; count <-- count.value +:. 1
-          ; when_
-              (count.value ==:. 7)
-              [ rx_byte <-- shift_in.value.:[6, 0] @: mosi; rx_valid <-- vdd ]
-          ]
-      ; when_
-          (selected &: sck_fall)
-          [ if_
-              (count.value ==:. 0)
-              [ shift_out <-- i.tx_byte ]
-              [ shift_out <-- shift_out.value.:[6, 0] @: gnd ]
-          ]
-      ]);
-  { O.miso = selected &: msb shift_out.value
-  ; rx_byte = rx_byte.value
-  ; rx_valid = rx_valid.value
-  ; frame_start
-  ; frame_end
-  }
+  let%hw count =
+    reg_fb spec ~width:3 ~f:(fun d ->
+      mux2 frame_start (zero 3) @@ mux2 sck_rise (d +:. 1) d)
+  in
+  let%hw shift_in =
+    reg_fb spec ~width:8 ~f:(fun d -> mux2 sck_rise (d.:[6, 0] @: mosi) d)
+  in
+  let%hw last_bit = sck_rise &: (count ==:. 7) in
+  let%hw rx_byte = reg spec ~enable:last_bit (shift_in.:[6, 0] @: mosi) in
+  let%hw rx_valid = reg spec last_bit in
+  let%hw shift_out =
+    reg_fb spec ~width:8 ~f:(fun d ->
+      mux2 (frame_start |: (sck_fall &: (count ==:. 0))) i.tx_byte
+      @@ mux2 sck_fall (d.:[6, 0] @: gnd) d)
+  in
+  { O.miso = selected &: msb shift_out; rx_byte; rx_valid; frame_start; frame_end }
 ;;
 
 let hierarchical ?instance scope i =
