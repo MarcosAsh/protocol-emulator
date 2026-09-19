@@ -20,3 +20,4 @@ bin/*.exe
 bin/*.bc
 formal/engine.v
 formal/*_*/
+__pycache__/
