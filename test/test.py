@@ -4,22 +4,19 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles
 
-HALF = 4
-REG_CONTROL = 0x00
-REG_STATUS = 0x01
-REG_TX = 0x07
-REG_PROGRAM_ADDR = 0x09
-REG_PROGRAM = 0x0A
-REG_CONFIG = 0x10
+import sys
 
-# Program_config.default, in field order
-CONFIG = [0, 5, 0, 0, 5, 1, 5, 1, 0, 0, 1, 1, 1, 0, 16, 0, 16]
+sys.path.insert(0, "../python")
+from protocol_emulator import CONFIG, CONFIG_FIELDS, CONTROL, DEFAULT_CONFIG, PROGRAM_ADDR, PROGRAM as PROGRAM_REG, STATUS, TX, Host
+
+HALF = 4
 
 # uart tx at 16 cycles per bit, assembled from test/firmware.ml
-PROGRAM = [0xa090,0xa001,0x20e0,0xe004,0xa027,0x80e6,0xa000,0xc0ca,0x20c0,0x6001,0x0408,0x20c0,0xa001,0x2040,0x0002]
+PROGRAM = [0xa090, 0xa001, 0x20e0, 0xe004, 0xa027, 0x80e6, 0xa000, 0xc0ca, 0x20c0, 0x6001,
+           0x0408, 0x20c0, 0xa001, 0x2040, 0x0002]
 
 
-class Host:
+class Pins:
     def __init__(self, dut):
         self.dut = dut
         self.sck = 0
@@ -45,7 +42,7 @@ class Host:
             acc = (acc << 1) | bit
         return acc
 
-    async def frame(self, data):
+    async def transfer(self, data):
         self.cs_n = 0
         await self.wait(HALF)
         replies = [await self.byte(b) for b in data]
@@ -54,15 +51,19 @@ class Host:
         await self.wait(3)
         return replies
 
+
+class AsyncHost(Host):
+    """The library is synchronous; under cocotb every call becomes an await."""
+
     async def write(self, reg, words):
         data = [0x80 | reg]
         for w in words:
-            data += [w >> 8, w & 0xFF]
-        await self.frame(data)
+            data += [(w >> 8) & 0xFF, w & 0xFF]
+        await self.transfer(data)
 
-    async def read(self, reg):
-        hi, lo = (await self.frame([reg, 0, 0]))[1:]
-        return (hi << 8) | lo
+    async def read(self, reg, count=1):
+        reply = (await self.transfer([reg] + [0] * (2 * count)))[1:]
+        return [(reply[i] << 8) | reply[i + 1] for i in range(0, 2 * count, 2)]
 
 
 def decode_uart(levels, period):
@@ -93,17 +94,17 @@ async def test_uart_over_spi(dut):
     await ClockCycles(dut.clk, 5)
     assert int(dut.uio_oe.value) == 0
 
-    host = Host(dut)
-    for n, value in enumerate(CONFIG):
-        await host.write(REG_CONFIG + n, [value])
-    await host.write(REG_PROGRAM_ADDR, [0])
-    await host.write(REG_PROGRAM, PROGRAM)
-    await host.write(REG_TX, [0x55, 0xA3])
-    await host.write(REG_CONTROL, [1])
+    host = AsyncHost(Pins(dut).transfer)
+    for n, name in enumerate(CONFIG_FIELDS):
+        await host.write(CONFIG + n, [DEFAULT_CONFIG.get(name, 0)])
+    await host.write(PROGRAM_ADDR, [0])
+    await host.write(PROGRAM_REG, PROGRAM)
+    await host.write(TX, [0x55, 0xA3])
+    await host.write(CONTROL, [1])
 
     levels = []
     for _ in range(400):
         await ClockCycles(dut.clk, 1)
         levels.append((int(dut.uo_out.value) >> 1) & 1)
     assert decode_uart(levels, 16) == [0x55, 0xA3], levels
-    assert await host.read(REG_STATUS) == 0
+    assert (await host.read(STATUS))[0] == 0
