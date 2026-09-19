@@ -77,6 +77,13 @@ module Program_write = struct
   [@@deriving hardcaml]
 end
 
+module Memory = struct
+  type t =
+    | Flops
+    | Ihp_sram
+  [@@deriving sexp_of, enumerate]
+end
+
 module I = struct
   type 'a t =
     { clocking : 'a Clocking.t
@@ -154,7 +161,7 @@ let write_pins old ~base ~count ~value ~writable =
 
 let count_mask count = ~:(log_shift ~f:sll (ones data_bits) ~by:count)
 
-let create (scope : Scope.t) (i : Signal.t I.t) =
+let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   let spec = Clocking.to_spec i.clocking in
   let c = i.config in
   let%hw_var pc = Always.Variable.reg spec ~width:pc_bits in
@@ -201,9 +208,11 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
       }
   in
   let memory =
-    Program_memory.hierarchical
+    (match memory with
+     | Flops -> Program_memory.hierarchical
+     | Ihp_sram -> Sram_macro.hierarchical)
       scope
-      { clock = i.clocking.clock
+      { Program_memory.I.clock = i.clocking.clock
       ; men = vdd
       ; wen = i.program_write.valid
       ; ren = vdd
@@ -614,7 +623,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   }
 ;;
 
-let hierarchical ?instance scope i =
+let hierarchical ?instance ~memory scope i =
   let module H = Hierarchy.In_scope (I) (O) in
-  H.hierarchical ?instance ~scope ~name:"engine" create i
+  H.hierarchical ?instance ~scope ~name:"engine" (create ~memory) i
 ;;

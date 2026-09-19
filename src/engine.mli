@@ -7,6 +7,13 @@
 open! Core
 open! Hardcaml
 
+module Memory : sig
+  type t =
+    | Flops
+    | Ihp_sram
+  [@@deriving sexp_of, enumerate]
+end
+
 module Config : sig
   type 'a t =
     { side_set_count : 'a
@@ -92,4 +99,9 @@ module O : sig
   [@@deriving hardcaml]
 end
 
-val hierarchical : ?instance:string -> Scope.t -> Signal.t I.t -> Signal.t O.t
+val hierarchical
+  :  ?instance:string
+  -> memory:Memory.t
+  -> Scope.t
+  -> Signal.t I.t
+  -> Signal.t O.t
