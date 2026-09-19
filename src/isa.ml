@@ -8,6 +8,8 @@ let pc_bits = 9
 let delay_bits = 5
 let max_side_set = 2
 let num_pins = 20
+let first_output_pin = 5
+let first_bidir_pin = 12
 let max_shift_count = 16
 let jmp_cycles = 2
 

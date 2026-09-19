@@ -25,6 +25,8 @@ val pc_bits : int
 val delay_bits : int
 val max_side_set : int
 val num_pins : int
+val first_output_pin : int
+val first_bidir_pin : int
 val max_shift_count : int
 val jmp_cycles : int
 
@@ -368,6 +370,7 @@ type t =
 (** [side_set_count] is the number of side-set pins in the program configuration, from 0
     to [max_side_set]. Both functions reject anything that would not survive a round trip:
     out of range fields, reserved codes and set reserved bits. *)
-val to_word : side_set_count:int -> t -> int Or_error.t
+val in_range : string -> int -> lo:int -> hi:int -> unit Or_error.t
 
+val to_word : side_set_count:int -> t -> int Or_error.t
 val of_word : side_set_count:int -> int -> t Or_error.t

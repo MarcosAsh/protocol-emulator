@@ -4,8 +4,8 @@ open! Signal
 
 let num_pins = Isa.num_pins
 let pin_bits = Int.ceil_log2 num_pins
-let first_output_pin = 5
-let first_bidir_pin = 12
+let first_output_pin = Isa.first_output_pin
+let first_bidir_pin = Isa.first_bidir_pin
 
 module Config = struct
   type 'a t =

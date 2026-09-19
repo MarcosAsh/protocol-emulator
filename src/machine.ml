@@ -5,8 +5,8 @@ let data_mask = (1 lsl Isa.data_bits) - 1
 let timer_mask = (1 lsl Isa.timer_bits) - 1
 let pc_mask = (1 lsl Isa.pc_bits) - 1
 let program_size = 1 lsl Isa.pc_bits
-let first_output_pin = 5
-let first_bidir_pin = 12
+let first_output_pin = Isa.first_output_pin
+let first_bidir_pin = Isa.first_bidir_pin
 let writable_pins = ((1 lsl Isa.num_pins) - 1) land lnot ((1 lsl first_output_pin) - 1)
 let bidir_pins = ((1 lsl Isa.num_pins) - 1) land lnot ((1 lsl first_bidir_pin) - 1)
 
