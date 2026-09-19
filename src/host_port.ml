@@ -56,20 +56,30 @@ module Reg = struct
   let config = 0x10
 end
 
+module State = struct
+  type t =
+    | Command
+    | High
+    | Low
+  [@@deriving sexp_of, compare ~localize, enumerate]
+end
+
 let create (scope : Scope.t) (i : Signal.t I.t) =
   let spec = Clocking.to_spec i.clocking in
   let s = i.status in
+  let%hw.Always.State_machine sm = Always.State_machine.create (module State) spec in
   let%hw_var cmd = Always.Variable.reg spec ~width:8 in
-  let%hw_var have_cmd = Always.Variable.reg spec ~width:1 in
-  let%hw_var low_byte = Always.Variable.reg spec ~width:1 in
   let%hw_var high = Always.Variable.reg spec ~width:8 in
   let%hw_var word = Always.Variable.reg spec ~width:Isa.data_bits in
   let%hw_var program_addr = Always.Variable.reg spec ~width:Isa.pc_bits in
+  let%hw_var write = Always.Variable.wire ~default:gnd () in
+  let%hw_var read_done = Always.Variable.wire ~default:gnd () in
   let config = Engine.Config.Of_always.reg spec in
   let config_value = Engine.Config.Of_always.value config in
   let%hw is_write = msb cmd.value in
   let%hw addr = cmd.value.:[6, 0] in
   let at n = addr ==:. n in
+  let reg16 x = uresize x ~width:Isa.data_bits in
   let status_word =
     concat_msb
       [ zero 4
@@ -85,31 +95,20 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   in
   let config_words = Engine.Config.to_list config_value in
   let read_at addr =
-    let reg16 x = uresize x ~width:Isa.data_bits in
-    mux
-      addr
-      (List.init
-         (Reg.config + List.length config_words)
-         ~f:(fun n ->
-           if n = Reg.status
-           then status_word
-           else if n = Reg.pc
-           then reg16 s.pc
-           else if n = Reg.now_lo
-           then sel_bottom s.now ~width:Isa.data_bits
-           else if n = Reg.now_hi
-           then reg16 (sel_top s.now ~width:(Isa.timer_bits - Isa.data_bits))
-           else if n = Reg.capture_lo
-           then sel_bottom s.capture ~width:Isa.data_bits
-           else if n = Reg.capture_hi
-           then reg16 (sel_top s.capture ~width:(Isa.timer_bits - Isa.data_bits))
-           else if n = Reg.rx
-           then s.rx_head
-           else if n = Reg.program_addr
-           then reg16 program_addr.value
-           else if n >= Reg.config
-           then reg16 (List.nth_exn config_words (n - Reg.config))
-           else zero Isa.data_bits))
+    let key n = of_unsigned_int ~width:(width addr) n in
+    List.map
+      ~f:(fun (n, v) -> key n, v)
+      ([ Reg.status, status_word
+       ; Reg.pc, reg16 s.pc
+       ; Reg.now_lo, sel_bottom s.now ~width:Isa.data_bits
+       ; Reg.now_hi, reg16 (sel_top s.now ~width:(Isa.timer_bits - Isa.data_bits))
+       ; Reg.capture_lo, sel_bottom s.capture ~width:Isa.data_bits
+       ; Reg.capture_hi, reg16 (sel_top s.capture ~width:(Isa.timer_bits - Isa.data_bits))
+       ; Reg.rx, s.rx_head
+       ; Reg.program_addr, reg16 program_addr.value
+       ]
+       @ List.mapi config_words ~f:(fun n w -> Reg.config + n, reg16 w))
+    |> cases ~default:(zero Isa.data_bits) addr
   in
   let%hw read_value = read_at addr in
   let%hw tx_word = mux2 (at Reg.rx) s.rx_head word.value in
@@ -120,12 +119,11 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
       ; sck = i.sck
       ; mosi = i.mosi
       ; cs_n = i.cs_n
-      ; tx_byte = mux2 low_byte.value tx_word.:[7, 0] tx_word.:[15, 8]
+      ; tx_byte = mux2 (sm.is Low) tx_word.:[7, 0] tx_word.:[15, 8]
       }
   in
+  (* The register named by the command byte is read while that byte is still arriving. *)
   let%hw first_read = read_at spi.rx_byte.:[6, 0] in
-  let%hw_var write = Always.Variable.wire ~default:gnd () in
-  let%hw_var read_done = Always.Variable.wire ~default:gnd () in
   let%hw value = high.value @: spi.rx_byte in
   let config_writes =
     List.mapi
@@ -136,18 +134,16 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   in
   Always.(
     compile
-      [ when_ spi.frame_start [ have_cmd <-- gnd; low_byte <-- gnd ]
+      [ when_ spi.frame_start [ sm.set_next Command ]
       ; when_
           spi.rx_valid
-          [ if_
-              ~:(have_cmd.value)
-              [ cmd <-- spi.rx_byte; have_cmd <-- vdd; word <-- first_read ]
-              [ if_
-                  ~:(low_byte.value)
-                  [ high <-- spi.rx_byte; low_byte <-- vdd ]
-                  [ low_byte <-- gnd
-                  ; if_ is_write [ write <-- vdd ] [ read_done <-- vdd ]
-                  ]
+          [ sm.switch
+              [ Command, [ cmd <-- spi.rx_byte; word <-- first_read; sm.set_next High ]
+              ; High, [ high <-- spi.rx_byte; sm.set_next Low ]
+              ; ( Low
+                , [ if_ is_write [ write <-- vdd ] [ read_done <-- vdd ]
+                  ; sm.set_next High
+                  ] )
               ]
           ]
       ; when_ read_done.value [ word <-- read_value ]
