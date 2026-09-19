@@ -138,6 +138,7 @@ start:                           ; bus idle, both lines high
     set pindirs, 1 side 0        ; SDA low while SCL high
     wait t+ side 0
     nop side 1
+    add t, p side 1              ; a quarter of slack before the dispatch
     jmp send_or_read
 restart:                         ; SCL low after a byte
     set pindirs, 0 side 1        ; release SDA
@@ -147,6 +148,7 @@ restart:                         ; SCL low after a byte
     set pindirs, 1 side 0        ; SDA low while SCL high
     wait t+ side 0
     nop side 1
+    add t, p side 1
 send_or_read:
     out y, 1 side 1
     set x, 7 side 1
