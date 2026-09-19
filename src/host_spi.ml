@@ -37,15 +37,19 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let%hw_var bit = Always.Variable.reg spec ~width:3 in
   let%hw_var shift_in = Always.Variable.reg spec ~width:8 in
   let%hw_var shift_out = Always.Variable.reg spec ~width:8 in
-  let%hw_var rx_valid = Always.Variable.wire ~default:gnd () in
+  let%hw_var rx_byte = Always.Variable.reg spec ~width:8 in
+  let%hw_var rx_valid = Always.Variable.reg spec ~width:1 in
   Always.(
     compile
-      [ when_ frame_start [ bit <-- zero 3; shift_out <-- i.tx_byte ]
+      [ rx_valid <-- gnd
+      ; when_ frame_start [ bit <-- zero 3; shift_out <-- i.tx_byte ]
       ; when_
           (selected &: sck_rise)
           [ shift_in <-- shift_in.value.:[6, 0] @: mosi
           ; bit <-- bit.value +:. 1
-          ; when_ (bit.value ==:. 7) [ rx_valid <-- vdd ]
+          ; when_
+              (bit.value ==:. 7)
+              [ rx_byte <-- shift_in.value.:[6, 0] @: mosi; rx_valid <-- vdd ]
           ]
       ; when_
           (selected &: sck_fall)
@@ -56,7 +60,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
           ]
       ]);
   { O.miso = selected &: msb shift_out.value
-  ; rx_byte = shift_in.value
+  ; rx_byte = rx_byte.value
   ; rx_valid = rx_valid.value
   ; frame_start
   ; frame_end
