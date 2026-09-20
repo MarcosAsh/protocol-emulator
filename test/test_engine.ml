@@ -254,6 +254,28 @@ let%expect_test "spi master" =
     |}]
 ;;
 
+let%expect_test "spi slave" =
+  let master = ref (Spi_peer.create ~half_period:4 [ 0xa5; 0x3c; 0xf0 ]) in
+  let (_ : Machine.t) =
+    lockstep
+      ~config:spi_slave_config
+      ~program:(assemble spi_slave)
+      ~preload:(List.map [ 0x81; 0x7e; 0x11; 0 ] ~f:(fun reply -> reply lsl 8))
+      ~inputs:(fun _ ->
+        (Spi_peer.sck !master lsl slave_sck_pin)
+        lor (Spi_peer.mosi !master lsl slave_mosi_pin))
+      ~react:(fun m ->
+        master := Spi_peer.step !master ~miso:((m.pin_out lsr slave_miso_pin) land 1))
+      ()
+  in
+  let received = Spi_peer.received !master in
+  print_s [%message (received : int list)];
+  [%expect {|
+    ("lockstep held" (cycles 400))
+    (received (129 126 17))
+    |}]
+;;
+
 let%expect_test "i2c master" =
   let memory = Array.create ~len:16 0 in
   let slave = ref (I2c_slave.create ~address:0x50 ~memory) in
