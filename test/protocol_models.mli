@@ -13,6 +13,19 @@ module Spi_slave : sig
   val received : t -> int list
 end
 
+(** Mode 0 master. [create] queues the bytes to send; the clock runs while any are left,
+    with [gap] idle cycles between bytes. *)
+module Spi_peer : sig
+  type t
+
+  val create : ?gap:int -> half_period:int -> int list -> t
+  val sck : t -> int
+  val mosi : t -> int
+  val step : t -> miso:int -> t
+  val received : t -> int list
+  val idle : t -> bool
+end
+
 module I2c_slave : sig
   type t
 

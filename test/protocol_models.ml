@@ -74,6 +74,89 @@ module Spi_slave = struct
   ;;
 end
 
+(* Mode 0: sck idles low, mosi changes on the falling edge, both sides sample on the
+   rising edge. Bytes go out back to back, or [gap] cycles apart. *)
+module Spi_peer = struct
+  type t =
+    { half_period : int
+    ; gap : int
+    ; countdown : int
+    ; edges : int
+    ; sck : int
+    ; mosi : int
+    ; shift_out : int
+    ; shift_in : int
+    ; queue : int list
+    ; received : int list
+    }
+
+  let begin_byte t =
+    match t.queue with
+    | [] -> t
+    | byte :: queue ->
+      { t with
+        edges = 0
+      ; countdown = t.half_period
+      ; mosi = (byte lsr 7) land 1
+      ; shift_out = (byte lsl 1) land 0xff
+      ; queue
+      }
+  ;;
+
+  let create ?(gap = 0) ~half_period bytes =
+    begin_byte
+      { half_period
+      ; gap
+      ; countdown = 0
+      ; edges = 16
+      ; sck = 0
+      ; mosi = 0
+      ; shift_out = 0
+      ; shift_in = 0
+      ; queue = bytes
+      ; received = []
+      }
+  ;;
+
+  let sck t = t.sck
+  let mosi t = t.mosi
+  let received t = List.rev t.received
+  let idle t = t.edges = 16 && List.is_empty t.queue
+
+  let step t ~miso =
+    if idle t
+    then t
+    else if t.countdown > 1
+    then { t with countdown = t.countdown - 1 }
+    else if t.edges = 16
+    then begin_byte t
+    else if t.sck = 0
+    then
+      { t with
+        sck = 1
+      ; countdown = t.half_period
+      ; edges = t.edges + 1
+      ; shift_in = (t.shift_in lsl 1) lor miso land 0xff
+      }
+    else (
+      let edges = t.edges + 1 in
+      let t =
+        { t with
+          sck = 0
+        ; countdown = t.half_period
+        ; edges
+        ; mosi = (t.shift_out lsr 7) land 1
+        ; shift_out = (t.shift_out lsl 1) land 0xff
+        }
+      in
+      if edges < 16
+      then t
+      else (
+        let t = { t with received = t.shift_in :: t.received; shift_in = 0 } in
+        if t.gap = 0 then begin_byte t else { t with mosi = 0; countdown = t.gap }))
+  ;;
+end
+
 module I2c_slave = struct
   module Phase = struct
     type t =
