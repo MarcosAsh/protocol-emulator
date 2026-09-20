@@ -26,7 +26,7 @@ let%expect_test "the host loads and runs the uart transmitter over spi" =
            cycle ();
            tx_levels := ((Bits.to_unsigned_int !(o.uo_out) lsr 1) land 1) :: !tx_levels
          done;
-         miso := Bits.select !(o.uo_out) ~high:0 ~low:0
+         miso := Bits.lsb !(o.uo_out)
        in
        inputs.rst_n := Bits.gnd;
        inputs.ena := Bits.vdd;
