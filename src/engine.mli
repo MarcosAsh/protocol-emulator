@@ -22,6 +22,7 @@ module Config : sig
     ; side_set_base : 'a
     ; side_set_pindirs : 'a
     ; in_base : 'a
+    ; in_count : 'a
     ; out_base : 'a
     ; out_count : 'a
     ; set_base : 'a

@@ -12,6 +12,7 @@ type t =
   ; side_set_base : int
   ; side_set_pindirs : bool
   ; in_base : int
+  ; in_count : int
   ; out_base : int
   ; out_count : int
   ; set_base : int
@@ -39,6 +40,7 @@ let default =
   ; side_set_base = 5
   ; side_set_pindirs = false
   ; in_base = 0
+  ; in_count = Isa.data_bits
   ; out_base = 5
   ; out_count = 1
   ; set_base = 5
@@ -68,6 +70,7 @@ let validate t =
     [ range "side_set_count" t.side_set_count ~lo:0 ~hi:Isa.max_side_set
     ; pin "side_set_base" t.side_set_base
     ; pin "in_base" t.in_base
+    ; range "in_count" t.in_count ~lo:1 ~hi:Isa.data_bits
     ; pin "out_base" t.out_base
     ; range "out_count" t.out_count ~lo:1 ~hi:Isa.data_bits
     ; pin "set_base" t.set_base

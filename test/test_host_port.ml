@@ -122,12 +122,12 @@ let%expect_test "config registers read back" =
     {|
     ((read_back
       ((side_set_count 1) (side_set_base 2) (side_set_pindirs 1) (in_base 4)
-       (out_base 5) (out_count 6) (set_base 7) (set_count 0) (jmp_pin 9)
-       (capture_pin 10) (capture_rising 1) (in_shift_right 0) (out_shift_right 1)
-       (autopush 0) (push_threshold 15) (autopull 0) (pull_threshold 17)
-       (crc_width 18) (crc_poly 19) (crc_init 20) (crc_reflect 1)
-       (stuff_threshold 22) (stuff_level 1)))
-     (live (1 2 1 4 5 6 7 0 9 10 1 0 1 0 15 0 17 18 19 20 1 22 1)))
+       (in_count 5) (out_base 6) (out_count 7) (set_base 8) (set_count 1)
+       (jmp_pin 10) (capture_pin 11) (capture_rising 0) (in_shift_right 1)
+       (out_shift_right 0) (autopush 1) (push_threshold 16) (autopull 1)
+       (pull_threshold 18) (crc_width 19) (crc_poly 20) (crc_init 21)
+       (crc_reflect 0) (stuff_threshold 23) (stuff_level 0)))
+     (live (1 2 1 4 5 6 7 8 1 10 11 0 1 0 1 16 1 18 19 20 21 0 23 0)))
     (events ())
     |}]
 ;;

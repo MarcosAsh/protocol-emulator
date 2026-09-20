@@ -375,7 +375,7 @@ let%expect_test "host timing never reaches the pins" =
   let disagree = count `Disagree in
   let words_pulled = !words_pulled in
   print_s [%message (programs : int) (words_pulled : int) (agree : int) (disagree : int)];
-  [%expect {| ((programs 64) (words_pulled 663) (agree 64) (disagree 0)) |}]
+  [%expect {| ((programs 64) (words_pulled 622) (agree 64) (disagree 0)) |}]
 ;;
 
 (* the check values of CRC-16/USB and CRC-5/USB over "123456789" are 0xb4c8 and 0x19, both
@@ -561,7 +561,8 @@ let%expect_test "usb tx builds the crc and stuffs the get descriptor packet" =
   print_s
     [%message
       (Usb_ls.Sniffer.packets sniffer : int list list) (t.fault : Machine.Fault.t)];
-  [%expect {|
+  [%expect
+    {|
     (("Usb_ls.Sniffer.packets sniffer"
       ((195 128 6 0 1 0 0 64 0 221 148) (195 255 0 255)))
      (t.fault

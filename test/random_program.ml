@@ -10,6 +10,7 @@ let config random =
   ; side_set_base = pin ()
   ; side_set_pindirs = bool ()
   ; in_base = pin ()
+  ; in_count = 1 + int 15
   ; out_base = pin ()
   ; out_count = 1 + int 15
   ; set_base = pin ()

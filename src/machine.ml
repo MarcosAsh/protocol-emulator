@@ -280,7 +280,7 @@ let out_dest t (dest : Isa.Out_dest.Cases.t) ~count ~value =
 
 let mov_source t (source : Isa.Mov_source.Cases.t) ~sample =
   match source with
-  | Pins -> get_pins sample ~base:t.config.in_base ~count:Isa.data_bits
+  | Pins -> get_pins sample ~base:t.config.in_base ~count:t.config.in_count
   | X -> t.x
   | Y -> t.y
   | Null -> 0
@@ -365,20 +365,12 @@ let execute t (op : Isa.Op.t) ~sample =
   | Wait _ -> raise_s [%message "BUG: wait is handled by the issue logic"]
   | In { source; count } ->
     let value = in_source t source ~count ~sample in
-    let t =
-      match source, count with
-      | Pins, 1 -> bit_crosses t value
-      | _ -> t
-    in
+    let t = if count = 1 then bit_crosses t (value land 1) else t in
     shift_in t ~value ~count |> autopush_after_in
   | Out { dest; count } ->
     let t = autopull_before_out t in
     let value, t = shift_out t ~count in
-    let t =
-      match dest, count with
-      | (Pins | Pindirs), 1 -> bit_crosses t value
-      | _ -> t
-    in
+    let t = if count = 1 then bit_crosses t value else t in
     out_dest t dest ~count ~value
   | Mov { dest; op; source } ->
     let width =

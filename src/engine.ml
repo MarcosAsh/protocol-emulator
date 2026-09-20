@@ -13,6 +13,7 @@ module Config = struct
     ; side_set_base : 'a [@bits pin_bits]
     ; side_set_pindirs : 'a
     ; in_base : 'a [@bits pin_bits]
+    ; in_count : 'a [@bits Isa.count_bits]
     ; out_base : 'a [@bits pin_bits]
     ; out_count : 'a [@bits Isa.count_bits]
     ; set_base : 'a [@bits pin_bits]
@@ -47,6 +48,7 @@ module Config = struct
     ; side_set_base = int pin_bits c.side_set_base
     ; side_set_pindirs = bool c.side_set_pindirs
     ; in_base = int pin_bits c.in_base
+    ; in_count = int Isa.count_bits c.in_count
     ; out_base = int pin_bits c.out_base
     ; out_count = int Isa.count_bits c.out_count
     ; set_base = int pin_bits c.set_base
@@ -368,16 +370,8 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
       (log_shift ~f:sll osr_before ~by:shift_count)
   in
   let%hw osr_count_next = saturate osr_count_before shift_count in
-  (* The assist units see the bit of every single-bit shift through the pins. *)
-  let%hw bit_crosses =
-    shift_count
-    ==:. 1
-    &: (is In
-        &: Isa.In_source.Of_signal.is in_source Pins
-        |: (is Out
-            &: (Isa.Out_dest.Of_signal.is out_dest Pins
-                |: Isa.Out_dest.Of_signal.is out_dest Pindirs)))
-  in
+  (* The assist units see the bit of every single-bit shift, whatever it moves between. *)
+  let%hw bit_crosses = shift_count ==:. 1 &: (is In |: is Out) in
   let%hw crossing_bit = mux2 (is In) in_value.:(0) out_value.:(0) in
   let module Crc_step = Crc.Make (Signal) in
   let%hw crc_stepped =
@@ -406,12 +400,7 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
     Isa.Mov_source.Of_signal.match_
       mov_source
       [ ( Pins
-        , uresize
-            (read_pins
-               sample
-               ~base:c.in_base
-               ~count:(of_unsigned_int ~width:count_bits data_bits))
-            ~width:timer_bits )
+        , uresize (read_pins sample ~base:c.in_base ~count:c.in_count) ~width:timer_bits )
       ; X, uresize x ~width:timer_bits
       ; Y, uresize y ~width:timer_bits
       ; Null, zero timer_bits
