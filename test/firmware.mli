@@ -46,4 +46,12 @@ val usb_scratch_pin : int
 val usb_dp_pin : int
 val usb_dm_pin : int
 val usb_config : Program_config.t
+
+(** Receives low speed packets on [usb_rx_dp_pin] and [usb_rx_dm_pin]: one host word per
+    byte, the byte in the high half, then the CRC register as a final word. *)
+val usb_rx : half_period:int -> string
+
+val usb_rx_dm_pin : int
+val usb_rx_dp_pin : int
+val usb_rx_config : Program_config.t
 val i2c_word : ?start:bool -> ?read:bool -> ?stop:bool -> int -> int

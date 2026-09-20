@@ -570,6 +570,73 @@ let usb_config =
   }
 ;;
 
+(* USB low speed receiver. The host sends the bit period; the half period is assembled in
+   as immediates so the analyser can follow it. The first K of SYNC is captured and the
+   line is sampled half a bit later and every bit after: an unchanged line is a one, a
+   change is a zero, and SE0 ends the packet. Decoded bits go through [in] one at a time
+   so the CRC and the stuff counter see them and autopush hands each byte to the host;
+   after the EOP the CRC register follows as one more word for the host to check. A forced
+   zero after six ones is consumed without being recorded. *)
+let usb_rx ~half_period =
+  let rec adds n = if n <= 7 then [ n ] else 7 :: adds (n - 7) in
+  let anchor =
+    List.map (adds half_period) ~f:(fun n -> [%string "    add t, %{n#Int}"])
+    |> String.concat ~sep:"\n"
+  in
+  [%string
+    {|
+    pull
+    mov p, osr
+idle:
+    set y, 1                 ; J
+    crc_init
+    stuff_reset
+    capture_arm
+    wait 1 pin 4             ; D+ rises: the first K of SYNC
+    mov t, capture
+%{anchor}
+bit:
+    jmp stuff, stuffed
+    wait t+
+    mov x, pins
+    jmp x!=y, changed
+    set x, 1
+    in x, 1                  ; the line held: a one
+    jmp bit
+changed:
+    mov y, x
+    jmp x--, zero
+    in crc, 16               ; SE0: the packet is over
+    jmp idle
+zero:
+    in null, 1
+    jmp bit
+stuffed:
+    wait t+
+    mov x, pins
+    mov y, x
+    stuff_reset
+    jmp bit
+|}]
+;;
+
+let usb_rx_dm_pin = 3
+let usb_rx_dp_pin = 4
+
+let usb_rx_config =
+  { Program_config.default with
+    in_base = usb_rx_dm_pin
+  ; in_count = 2
+  ; capture_pin = usb_rx_dp_pin
+  ; capture_rising = true
+  ; in_shift = Right
+  ; autopush = true
+  ; push_threshold = 8
+  ; stuff_threshold = 6
+  ; stuff_level = true
+  }
+;;
+
 let i2c_word ?(start = false) ?(read = false) ?(stop = false) data =
   (Bool.to_int start lsl 15)
   lor (Bool.to_int read lsl 14)
