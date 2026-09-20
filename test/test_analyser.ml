@@ -264,7 +264,8 @@ let%expect_test "a quarter of 5 is too short for the i2c dispatch" =
 
 let%expect_test "i2c logger" =
   report ~config:i2c_logger_config i2c_logger;
-  [%expect {|
+  [%expect
+    {|
      0  mov pins, !null side 0       phase ?..?  edge ?..?  jitter ?
      1  set pindirs, 0 side 0        phase ?..?  edge ?..?  jitter ?
      2  set p, 8 side 0              phase ?..?

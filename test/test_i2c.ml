@@ -201,7 +201,8 @@ let%expect_test "one core polls the slave over i2c and logs over uart" =
       (decode_uart levels ~period:16 : int list)
         (I2c_slave.log slave : string list)
         (t.fault : Machine.Fault.t)];
-  [%expect {|
+  [%expect
+    {|
     (("decode_uart levels ~period:16" (16 33 50))
      ("I2c_slave.log slave"
       (start "address 80 read" nack stop start "address 80 read" nack stop start

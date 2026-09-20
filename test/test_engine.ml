@@ -396,7 +396,8 @@ let%expect_test "i2c logger" =
   in
   let logged = decode_uart (List.rev !levels) ~period:16 in
   print_s [%message (logged : int list) (I2c_slave.log !slave : string list)];
-  [%expect {|
+  [%expect
+    {|
     ("lockstep held" (cycles 3000))
     ((logged (16 33 50))
      ("I2c_slave.log (!slave)"
