@@ -322,6 +322,49 @@ let%expect_test "i2c master" =
     |}]
 ;;
 
+let%expect_test "i2c slave" =
+  let master =
+    ref
+      (I2c_peer.create
+         ~quarter:8
+         [ Start
+         ; Write 0xa0
+         ; Write 3
+         ; Start
+         ; Write 0xa1
+         ; Read { ack = true }
+         ; Read { ack = false }
+         ; Stop
+         ])
+  in
+  let bus_sda (m : Machine.t) =
+    I2c_peer.sda !master land (1 - ((m.pin_dir lsr sda) land 1))
+  in
+  let last_sda = ref 1 in
+  let model =
+    lockstep
+      ~cycles:3000
+      ~config:i2c_slave_config
+      ~program:(assemble i2c_slave)
+      ~preload:[ 0x50 lsl 1; 0x12; 0x34 ]
+      ~inputs:(fun _ -> (!last_sda lsl sda) lor (I2c_peer.scl !master lsl scl))
+      ~react:(fun m ->
+        last_sda := bus_sda m;
+        master := I2c_peer.step !master ~sda:!last_sda)
+      ()
+  in
+  print_s
+    [%message
+      (I2c_peer.log !master : string list)
+        (List.length model.rx_fifo : int)
+        (model.pc : int)];
+  [%expect {|
+    ("lockstep held" (cycles 3000))
+    (("I2c_peer.log (!master)" (ack ack ack "read 18" "read 52"))
+     ("List.length model.rx_fifo" 3) (model.pc 4))
+    |}]
+;;
+
 let%expect_test "faults and halt" =
   let program = assemble {|
     pull
