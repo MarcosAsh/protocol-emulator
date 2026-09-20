@@ -53,7 +53,8 @@ let%expect_test "uart tx at 115200 baud from a 50 MHz clock" =
   in
   let t, levels = run t ~cycles:(24 * period) ~inputs:0 in
   print_s [%message (decode_uart levels ~period : int list) (t.fault : Machine.Fault.t)];
-  [%expect {|
+  [%expect
+    {|
     (("decode_uart levels ~period" (85 163))
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
