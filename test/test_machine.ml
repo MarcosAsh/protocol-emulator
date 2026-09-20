@@ -488,3 +488,44 @@ stuff:
      (t.crc 0x0))
     |}]
 ;;
+
+let%expect_test "usb low speed packets survive the wire" =
+  (* the SETUP token to address 0, endpoint 0, and a DATA0 packet with its crc *)
+  let setup = [ 0x2d; 0x00; 0x10 ] in
+  let data = [ 0x80; 0x06; 0x00; 0x01; 0x00; 0x00; 0x40; 0x00 ] in
+  let crc = Usb_ls.crc16 (Usb_ls.bits_of_bytes data) in
+  let data0 = (0xc3 :: data) @ [ crc land 0xff; crc lsr 8 ] in
+  let token_crc = Usb_ls.crc5 (List.take (Usb_ls.bits_of_bytes [ 0x00; 0x10 ]) 11) in
+  let bit_period = 32 in
+  let sniffer =
+    List.fold
+      [ setup; data0 ]
+      ~init:(Usb_ls.Sniffer.create ~bit_period)
+      ~f:(fun sniffer packet ->
+        let idle = List.init 3 ~f:(fun _ -> Usb_ls.Line.J) in
+        List.fold
+          (Usb_ls.encode packet @ idle)
+          ~init:sniffer
+          ~f:(fun sniffer line ->
+            let dp, dm =
+              match line with
+              | J -> 0, 1
+              | K -> 1, 0
+              | Se0 -> 0, 0
+            in
+            Fn.apply_n_times
+              ~n:bit_period
+              (fun s -> Usb_ls.Sniffer.step s ~dp ~dm)
+              sniffer))
+  in
+  print_s
+    [%message
+      (token_crc : Int.Hex.t)
+        (crc : Int.Hex.t)
+        (Usb_ls.Sniffer.packets sniffer : int list list)];
+  [%expect {|
+    ((token_crc 0x2) (crc 0x94dd)
+     ("Usb_ls.Sniffer.packets sniffer"
+      ((45 0 16) (195 128 6 0 1 0 0 64 0 221 148))))
+    |}]
+;;
