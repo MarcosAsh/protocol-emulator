@@ -22,6 +22,15 @@ OPERATORS = [
     ("shift direction", r"~f:sll", "~f:srl"),
     ("not", r"~:\(", "("),
     ("equal", r" ==: ", " <>: "),
+    ("not equal", r" <>: ", " ==: "),
+    ("add to subtract", r" \+: ", " -: "),
+    ("xor to or", r" \^: ", " |: "),
+    ("bit zero", r"\.:\(0\)", ".:(1)"),
+    ("constant one", r"\bvdd\b", "gnd"),
+    ("constant zero", r"\bgnd\b", "vdd"),
+    ("jump cycles", r"Isa\.jmp_cycles - 1", "Isa.jmp_cycles"),
+    ("greater", r" >:\. ", " >=:. "),
+    ("not equal immediate", r" <>:\. ", " ==:. "),
 ]
 
 
