@@ -53,8 +53,8 @@ let%expect_test "the host loads and runs the uart transmitter over spi" =
   [%expect
     {|
     (("runs levels"
-      ((0 15) (1 16) (0 16) (1 16) (0 16) (1 16) (0 16) (1 16) (0 16) (1 22)
-       (0 16) (1 32) (0 48) (1 16) (0 16) (1 107)))
+      ((0 16) (1 16) (0 16) (1 16) (0 16) (1 16) (0 16) (1 16) (0 16) (1 22)
+       (0 16) (1 32) (0 48) (1 16) (0 16) (1 106)))
      ("decode_uart levels ~period" (85 163)) (status (0)))
     |}]
 ;;

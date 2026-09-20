@@ -1,8 +1,10 @@
 (** The core. Same semantics as [Machine]; the tests keep them in lockstep.
 
-    Memory is read at the next issue address every cycle, so its registered output is the
-    instruction register. [program_write] only while halted. [start] resets [pc] and the
-    timer; the first instruction issues a cycle later at [now = 0]. *)
+    The word at [pc] sits in an instruction register and the memory reads one address
+    ahead of it, so a jump spends its second cycle refilling. [program_write] only while
+    halted, and never in the same cycle as [start]. [start] spends one cycle fetching
+    address 0, then resets [pc] and the timer; the first instruction issues two cycles
+    after [start] at [now = 0]. A [start] while one is in flight starts over. *)
 
 open! Core
 open! Hardcaml

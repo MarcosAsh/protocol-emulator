@@ -183,6 +183,8 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   let%hw capture = wire timer_bits in
   let%hw capture_armed = wire 1 in
   let%hw fetch_addr = wire pc_bits in
+  let%hw ir_load = wire 1 in
+  let%hw start = reg spec i.start in
   let%hw tx_pop = wire 1 in
   let rx_push = { With_valid.valid = wire 1; value = wire data_bits } in
   let tx =
@@ -212,7 +214,9 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
     | Flops -> Program_memory.hierarchical scope memory_in
     | Ihp_sram -> Sram_macro.hierarchical scope memory_in
   in
-  let%hw word = memory.dout in
+  (* The memory runs a cycle ahead of the instruction register and is refilled after a
+     jump or a start, which is where the second cycle of a jump goes. *)
+  let%hw word = reg spec ~enable:ir_load memory.dout in
   let%hw sample =
     List.init num_pins ~f:(fun n ->
       let driven =
@@ -284,7 +288,7 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
       ; Stuff_pending, gnd
       ]
   in
-  let%hw issue = ~:halted &: (stall ==:. 0) in
+  let%hw issue = ~:halted &: (stall ==:. 0) &: ~:start in
   let%hw go = issue &: decode_ok in
   let%hw jmp_go = go &: is Jmp in
   let%hw op_go = go &: ~:(is Jmp) in
@@ -559,25 +563,23 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   in
   (* Control. *)
   let%hw halted_next =
-    mux2 i.start gnd
+    mux2 start gnd
     @@ mux2 (issue &: ~:decode_ok) vdd
     @@ mux2 (op_go &: is_sys Halt) vdd halted
   in
   let%hw stall_next =
-    mux2 i.start (zero count_bits)
+    mux2 start (zero count_bits)
     @@ mux2 jmp_go (of_unsigned_int ~width:count_bits (Isa.jmp_cycles - 1))
     @@ mux2 advance delay
     @@ mux2 (stall <>:. 0) (stall -:. 1) stall
   in
   let%hw pc_value_next =
-    mux2 i.start (zero pc_bits)
-    @@ mux2 jmp_go jmp_target_or_next
-    @@ mux2 advance pc_next pc
+    mux2 start (zero pc_bits) @@ mux2 jmp_go jmp_target_or_next @@ mux2 advance pc_next pc
   in
   fetch_addr
-  <-- mux2 i.start (zero pc_bits)
-      @@ mux2 jmp_go jmp_target_or_next
-      @@ mux2 (op_go &: ~:wait_holds) pc_next pc;
+  <-- mux2 i.start (zero pc_bits) @@ mux2 jmp_go jmp_target_or_next (pc_value_next +:. 1);
+  let%hw refill = reg spec (jmp_go |: i.start) in
+  ir_load <-- (advance |: refill);
   let sticky set = reg spec ~enable:set vdd in
   let fault =
     { Fault.underflow =
@@ -604,7 +606,7 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
         osr_count_next_value;
   isr <-- reg spec ~enable:go isr_next;
   isr_count <-- reg spec ~enable:go isr_count_next_value;
-  now <-- reg spec (mux2 i.start (zero timer_bits) (now +:. 1));
+  now <-- reg spec (mux2 start (zero timer_bits) (now +:. 1));
   pin_out <-- reg spec ~enable:op_go pin_out_next;
   pin_dir <-- reg spec ~enable:op_go pin_dir_next;
   pins_sampled <-- reg spec sample;

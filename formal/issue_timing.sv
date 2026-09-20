@@ -49,7 +49,9 @@ module issue_timing (input clk);
     assume(!program_write_valid || halted);
   end
 
-  wire issue = !halted && stall == 0;
+  reg started = 0;
+  always @(posedge clk) started <= start;
+  wire issue = !halted && stall == 0 && !started;
   wire [2:0] opcode = instruction[15:13];
   wire [4:0] ds = instruction[12:8];
   wire [4:0] delay = side_set_count == 0 ? ds : side_set_count == 1 ? ds[3:0] : ds[2:0];
