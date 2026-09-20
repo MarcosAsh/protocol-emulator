@@ -375,5 +375,5 @@ let%expect_test "host timing never reaches the pins" =
   let disagree = count `Disagree in
   let words_pulled = !words_pulled in
   print_s [%message (programs : int) (words_pulled : int) (agree : int) (disagree : int)];
-  [%expect {| ((programs 64) (words_pulled 723) (agree 64) (disagree 0)) |}]
+  [%expect {| ((programs 64) (words_pulled 663) (agree 64) (disagree 0)) |}]
 ;;

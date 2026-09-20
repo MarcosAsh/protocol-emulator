@@ -25,6 +25,12 @@ type t =
   ; push_threshold : int
   ; autopull : bool
   ; pull_threshold : int
+  ; crc_width : int
+  ; crc_poly : int
+  ; crc_init : int
+  ; crc_reflect : bool
+  ; stuff_threshold : int
+  ; stuff_level : bool
   }
 [@@deriving sexp_of, compare, equal]
 
@@ -46,6 +52,12 @@ let default =
   ; push_threshold = Isa.data_bits
   ; autopull = false
   ; pull_threshold = Isa.data_bits
+  ; crc_width = Isa.data_bits
+  ; crc_poly = 0x8005
+  ; crc_init = 0xffff
+  ; crc_reflect = true
+  ; stuff_threshold = 0
+  ; stuff_level = true
   }
 ;;
 
@@ -64,5 +76,9 @@ let validate t =
     ; pin "capture_pin" t.capture_pin
     ; range "push_threshold" t.push_threshold ~lo:1 ~hi:Isa.data_bits
     ; range "pull_threshold" t.pull_threshold ~lo:1 ~hi:Isa.data_bits
+    ; range "crc_width" t.crc_width ~lo:1 ~hi:Isa.data_bits
+    ; range "crc_poly" t.crc_poly ~lo:0 ~hi:0xffff
+    ; range "crc_init" t.crc_init ~lo:0 ~hi:0xffff
+    ; range "stuff_threshold" t.stuff_threshold ~lo:0 ~hi:31
     ]
 ;;

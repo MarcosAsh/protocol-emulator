@@ -35,6 +35,12 @@ module Config : sig
     ; push_threshold : 'a
     ; autopull : 'a
     ; pull_threshold : 'a
+    ; crc_width : 'a
+    ; crc_poly : 'a
+    ; crc_init : 'a
+    ; crc_reflect : 'a
+    ; stuff_threshold : 'a
+    ; stuff_level : 'a
     }
   [@@deriving hardcaml]
 

@@ -26,6 +26,12 @@ module Config = struct
     ; push_threshold : 'a [@bits Isa.count_bits]
     ; autopull : 'a
     ; pull_threshold : 'a [@bits Isa.count_bits]
+    ; crc_width : 'a [@bits Isa.count_bits]
+    ; crc_poly : 'a [@bits Isa.data_bits]
+    ; crc_init : 'a [@bits Isa.data_bits]
+    ; crc_reflect : 'a
+    ; stuff_threshold : 'a [@bits Isa.count_bits]
+    ; stuff_level : 'a
     }
   [@@deriving hardcaml]
 
@@ -54,6 +60,12 @@ module Config = struct
     ; push_threshold = int Isa.count_bits c.push_threshold
     ; autopull = bool c.autopull
     ; pull_threshold = int Isa.count_bits c.pull_threshold
+    ; crc_width = int Isa.count_bits c.crc_width
+    ; crc_poly = int Isa.data_bits c.crc_poly
+    ; crc_init = int Isa.data_bits c.crc_init
+    ; crc_reflect = bool c.crc_reflect
+    ; stuff_threshold = int Isa.count_bits c.stuff_threshold
+    ; stuff_level = bool c.stuff_level
     }
   ;;
 end

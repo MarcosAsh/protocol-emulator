@@ -23,6 +23,12 @@ let config random =
   ; push_threshold = 1 + int 15
   ; autopull = bool ()
   ; pull_threshold = 1 + int 15
+  ; crc_width = 1 + int 15
+  ; crc_poly = int 0xffff
+  ; crc_init = int 0xffff
+  ; crc_reflect = bool ()
+  ; stuff_threshold = int 31
+  ; stuff_level = bool ()
   }
 ;;
 

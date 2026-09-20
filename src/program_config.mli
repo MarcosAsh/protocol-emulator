@@ -29,10 +29,19 @@ type t =
   ; push_threshold : int
   ; autopull : bool
   ; pull_threshold : int
+  ; crc_width : int (** 1 to 16. *)
+  ; crc_poly : int (** Right-aligned; the top bit is implicit. *)
+  ; crc_init : int
+  ; crc_reflect : bool
+  (** Data LSB first, as USB does: the register shifts right and the polynomial is given
+      reflected. Otherwise data MSB first with the register shifting left. *)
+  ; stuff_threshold : int (** Run length that raises [stuff_pending]; 0 turns it off. *)
+  ; stuff_level : bool (** The level whose runs are counted. *)
   }
 [@@deriving sexp_of, compare, equal]
 
-(** One output pin at OUT0, shifting right, no side-set, no autopush or autopull. *)
+(** One output pin at OUT0, shifting right, no side-set, no autopush or autopull. The CRC
+    is CRC-16/USB (reflected 0x8005, init 0xffff) and stuffing is off. *)
 val default : t
 
 val validate : t -> unit Or_error.t
