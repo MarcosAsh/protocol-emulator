@@ -27,8 +27,18 @@ module Row : sig
   [@@deriving sexp_of]
 end
 
-(** [period] is the value every run-time load of [p] is assumed to carry, for firmware
-    that takes its bit period from the host. *)
-val analyse : ?period:int -> config:Program_config.t -> Isa.t list -> Row.t list
+(** Assumptions about the world, each named so a report can say what it rests on. [period]
+    is the value every run-time load of [p] carries, for firmware that takes its bit
+    period from the host. [single_capture_edge] says the capture pin is at the other level
+    when [capture_arm] issues and holds the captured level until the wait for it releases,
+    which is what a start bit gives a receiver that arms in time; without it a wait on the
+    capture pin proves nothing about the capture register, and [mov t, capture] leaves the
+    phase unbounded. *)
+val analyse
+  :  ?period:int
+  -> ?single_capture_edge:bool
+  -> config:Program_config.t
+  -> Isa.t list
+  -> Row.t list
 
 val to_string : side_set_count:int -> Row.t list -> string

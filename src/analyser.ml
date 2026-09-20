@@ -94,7 +94,7 @@ let captures (c : Program_config.t) (wait : Isa.Wait.t) =
 
 (* Successors of [pc] with the state after the instruction. A wait on a pin or a fifo can
    take any time, so the phase only gets a lower bound. *)
-let step ?period ~config (s : State.t) pc (t : Isa.t) =
+let step ?period ?(single_capture_edge = false) ~config (s : State.t) pc (t : Isa.t) =
   let loaded_period = Option.value_map period ~default:Interval.top ~f:Interval.exactly in
   match t with
   | Jmp { cond; target } ->
@@ -120,19 +120,22 @@ let step ?period ~config (s : State.t) pc (t : Isa.t) =
        after { s with phase; since_arm }
      | Wait ((Pin_level _ | Pin_edge _ | Fifo _) as wait) ->
        let unbounded (i : Interval.t) = { i with hi = None } in
+       (* The capture is the edge the wait releases on, or an earlier one since the arm,
+          but only if the line made one edge; otherwise it can be any age. *)
        let since_arm =
          match s.since_arm with
-         | Some since when captures config wait -> Some { since with lo = Some 0 }
+         | Some since when single_capture_edge && captures config wait ->
+           Some { since with lo = Some 0 }
          | since -> Option.map since ~f:unbounded
        in
        after { s with phase = unbounded s.phase; since_arm }
      | Mov { dest = T; op = Copy; source = Now } ->
        after { s with phase = Interval.exactly 0 }
      | Mov { dest = T; op = Copy; source = Capture } ->
+       (* the capture is at least a cycle old, since a register shows the cycle after it
+          is written, and at most as old as the arm when the line made one edge *)
        let phase =
-         match s.since_arm with
-         | Some since -> Interval.clamp_low since 0
-         | None -> Interval.at_least 0
+         { Interval.lo = Some 1; hi = Option.bind s.since_arm ~f:(fun since -> since.hi) }
        in
        after { s with phase }
      | Mov { dest = T; _ } | Out { dest = T; _ } -> after { s with phase = Interval.top }
@@ -162,7 +165,7 @@ let step ?period ~config (s : State.t) pc (t : Isa.t) =
      | _ -> after s)
 ;;
 
-let analyse ?period ~config (program : Isa.t list) =
+let analyse ?period ?single_capture_edge ~config (program : Isa.t list) =
   let program = Array.of_list program in
   let n = Array.length program in
   let entry = Array.create ~len:n None in
@@ -188,7 +191,9 @@ let analyse ?period ~config (program : Isa.t list) =
   while not (Queue.is_empty work) do
     let pc = Queue.dequeue_exn work in
     let s = Option.value_exn entry.(pc) in
-    List.iter (step ?period ~config s pc program.(pc)) ~f:(fun (pc, s) -> visit pc s)
+    List.iter
+      (step ?period ?single_capture_edge ~config s pc program.(pc))
+      ~f:(fun (pc, s) -> visit pc s)
   done;
   Array.to_list program
   |> List.filter_mapi ~f:(fun pc instruction ->
