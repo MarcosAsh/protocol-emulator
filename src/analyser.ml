@@ -49,6 +49,28 @@ module State = struct
   ;;
 end
 
+module Pin_event = struct
+  type t =
+    | Edge of Interval.t
+    | Sample of Interval.t
+  [@@deriving sexp_of]
+
+  let to_string t =
+    let with_jitter name (i : Interval.t) =
+      let jitter =
+        match i.lo, i.hi with
+        | Some lo, Some hi when hi = lo -> ""
+        | Some lo, Some hi -> [%string "  jitter %{hi - lo#Int}"]
+        | _ -> "  jitter ?"
+      in
+      [%string "  %{name} %{Interval.to_string i}%{jitter}"]
+    in
+    match t with
+    | Edge i -> with_jitter "edge" i
+    | Sample i -> with_jitter "sample" i
+  ;;
+end
+
 module Row = struct
   type t =
     { pc : int
@@ -56,6 +78,7 @@ module Row = struct
     ; phase : Interval.t
     ; slack : Interval.t option
     ; may_miss : bool
+    ; pin_event : Pin_event.t option
     }
   [@@deriving sexp_of]
 end
@@ -176,7 +199,22 @@ let analyse ~config (program : Isa.t list) =
           , Option.value_map s.phase.hi ~default:true ~f:(fun hi -> hi > 0) )
         | _ -> None, false
       in
-      { Row.pc; instruction; phase = s.phase; slack; may_miss }))
+      (* a pin write shows on the pin the cycle after it issues; a read samples the pins
+         in the cycle it issues *)
+      let pin_event =
+        match instruction with
+        | Op
+            { op =
+                ( Set { dest = Pins | Pindirs; _ }
+                | Out { dest = Pins | Pindirs; _ }
+                | Mov { dest = Pins | Pindirs; _ } )
+            ; _
+            } -> Some (Pin_event.Edge (Interval.shift s.phase 1))
+        | Op { op = In { source = Pins; _ } | Mov { source = Pins; _ }; _ } ->
+          Some (Pin_event.Sample s.phase)
+        | _ -> None
+      in
+      { Row.pc; instruction; phase = s.phase; slack; may_miss; pin_event }))
 ;;
 
 let to_string ~side_set_count rows =
@@ -189,6 +227,13 @@ let to_string ~side_set_count rows =
         [%string
           "  slack %{Interval.to_string s}%{if r.may_miss then \"  MAY MISS\" else \"\"}"]
     in
-    sprintf "%3d  %-28s phase %s%s" r.pc text (Interval.to_string r.phase) slack)
+    let pin_event = Option.value_map r.pin_event ~default:"" ~f:Pin_event.to_string in
+    sprintf
+      "%3d  %-28s phase %s%s%s"
+      r.pc
+      text
+      (Interval.to_string r.phase)
+      slack
+      pin_event)
   |> String.concat ~sep:"\n"
 ;;
