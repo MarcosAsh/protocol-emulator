@@ -366,6 +366,102 @@ let i2c_slave_config =
   }
 ;;
 
+(* Two protocols on one core: read a byte from the I2C slave at 0x50, then log it over
+   UART on OUT0, forever. Quarter and bit periods are immediates so the timing is fixed at
+   assembly. The I2C data bit goes through [set pindirs] on either branch of a jump, so
+   that an edge lands the same number of cycles after its release whichever way the bit
+   falls. *)
+let i2c_logger =
+  {|
+    .side_set 1
+    mov pins, !null side 0       ; UART idle high
+    set pindirs, 0 side 0        ; SDA released
+loop:
+    set p, 8 side 0
+    mov t, now side 0
+    add t, p side 0
+    wait t+ side 0               ; START
+    set pindirs, 1 side 0
+    wait t+ side 0
+    nop side 1
+    add t, p side 1              ; a quarter of slack to build the address
+    set x, 20 side 1             ; address 0x50, read: 0xa1
+    add x, x side 1
+    add x, x side 1
+    add x, x side 1
+    add x, 1 side 1
+    mov osr, x side 1
+    out null, 8 side 1
+    set x, 7 side 1
+sbit:
+    wait t+ side 1
+    out y, 1 side 1
+    jmp y--, sone
+    set pindirs, 1 side 1        ; a zero drives SDA low
+    jmp sdone
+sone:
+    set pindirs, 0 side 1        ; a one releases it
+sdone:
+    wait t+ side 1
+    nop side 0                   ; SCL high
+    wait t+ side 0
+    wait t+ side 0
+    nop side 1                   ; SCL low
+    jmp x--, sbit
+    wait t+ side 1               ; the slave's ack
+    set pindirs, 0 side 1
+    wait t+ side 1
+    nop side 0
+    wait t+ side 0
+    wait t+ side 0
+    nop side 1
+    set x, 7 side 1
+    mov isr, null side 1
+rbit:
+    wait t+ side 1
+    wait t+ side 1
+    nop side 0
+    wait t+ side 0
+    in pins, 1 side 0
+    wait t+ side 0
+    nop side 1
+    jmp x--, rbit
+    wait t+ side 1               ; nack, SDA stays released
+    wait t+ side 1
+    nop side 0
+    wait t+ side 0
+    wait t+ side 0
+    nop side 1
+    wait t+ side 1               ; STOP
+    set pindirs, 1 side 1
+    wait t+ side 1
+    nop side 0
+    wait t+ side 0
+    set pindirs, 0 side 0
+    wait t+ side 0
+    set p, 16 side 0             ; UART frame, LSB first from the reversed byte
+    mov osr, ::isr side 0
+    set x, 7 side 0
+    mov t, now side 0
+    mov pins, null side 0        ; start bit
+    add t, p side 0
+ubit:
+    wait t+ side 0
+    out pins, 1 side 0
+    jmp x--, ubit
+    wait t+ side 0
+    mov pins, !null side 0       ; stop bit
+    wait t side 0
+    jmp loop
+|}
+;;
+
+let logger_uart_pin = 5
+
+let i2c_logger_config =
+  { i2c_config with out_base = logger_uart_pin; out_count = 1; out_shift = Left }
+;;
+
 let i2c_word ?(start = false) ?(read = false) ?(stop = false) data =
   (Bool.to_int start lsl 15)
   lor (Bool.to_int read lsl 14)

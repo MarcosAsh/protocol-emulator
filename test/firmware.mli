@@ -30,4 +30,11 @@ val i2c_config : Program_config.t
 val i2c_slave : string
 
 val i2c_slave_config : Program_config.t
+
+(** Reads bytes from the slave at 0x50 and logs each one over UART on [logger_uart_pin], a
+    quarter period of 8 and a bit period of 16. *)
+val i2c_logger : string
+
+val logger_uart_pin : int
+val i2c_logger_config : Program_config.t
 val i2c_word : ?start:bool -> ?read:bool -> ?stop:bool -> int -> int
