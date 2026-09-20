@@ -34,6 +34,9 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let%hw sck_fall = selected &: ~:sck &: reg spec sck in
   let%hw frame_start = selected &: ~:(reg spec selected) in
   let%hw frame_end = ~:selected &: reg spec selected in
+  (* Mode 0: the master changes mosi on the falling edge and samples miso on the rising
+     one, so we take bits on [sck_rise] and shift out on [sck_fall], reloading [tx_byte]
+     when the count wraps at a byte boundary. *)
   let%hw count =
     reg_fb spec ~width:3 ~f:(fun d ->
       mux2 frame_start (zero 3) @@ mux2 sck_rise (d +:. 1) d)
