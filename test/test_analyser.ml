@@ -261,3 +261,82 @@ let%expect_test "a quarter of 5 is too short for the i2c dispatch" =
     82  jmp 1                        phase -4
     |}]
 ;;
+
+let%expect_test "i2c logger" =
+  report ~config:i2c_logger_config i2c_logger;
+  [%expect {|
+     0  mov pins, !null side 0       phase ?..?  edge ?..?  jitter ?
+     1  set pindirs, 0 side 0        phase ?..?  edge ?..?  jitter ?
+     2  set p, 8 side 0              phase ?..?
+     3  mov t, now side 0            phase ?..?
+     4  add t, p side 0              phase 1
+     5  wait t+ side 0               phase -6  slack 6
+     6  set pindirs, 1 side 0        phase -7  edge -6
+     7  wait t+ side 0               phase -6  slack 6
+     8  nop side 1                   phase -7
+     9  add t, p side 1              phase -6
+    10  set x, 20 side 1             phase -13
+    11  add x, x side 1              phase -12
+    12  add x, x side 1              phase -11
+    13  add x, x side 1              phase -10
+    14  add x, 1 side 1              phase -9
+    15  mov osr, x side 1            phase -8
+    16  out null, 8 side 1           phase -7
+    17  set x, 7 side 1              phase -6
+    18  wait t+ side 1               phase -5..-4  slack 4..5
+    19  out y, 1 side 1              phase -7
+    20  jmp y--, 23                  phase -6
+    21  set pindirs, 1 side 1        phase -4  edge -3
+    22  jmp 24                       phase -3
+    23  set pindirs, 0 side 1        phase -4  edge -3
+    24  wait t+ side 1               phase -3..-1  slack 1..3
+    25  nop side 0                   phase -7
+    26  wait t+ side 0               phase -6  slack 6
+    27  wait t+ side 0               phase -7  slack 7
+    28  nop side 1                   phase -7
+    29  jmp x--, 18                  phase -6
+    30  wait t+ side 1               phase -4  slack 4
+    31  set pindirs, 0 side 1        phase -7  edge -6
+    32  wait t+ side 1               phase -6  slack 6
+    33  nop side 0                   phase -7
+    34  wait t+ side 0               phase -6  slack 6
+    35  wait t+ side 0               phase -7  slack 7
+    36  nop side 1                   phase -7
+    37  set x, 7 side 1              phase -6
+    38  mov isr, null side 1         phase -5
+    39  wait t+ side 1               phase -4  slack 4
+    40  wait t+ side 1               phase -7  slack 7
+    41  nop side 0                   phase -7
+    42  wait t+ side 0               phase -6  slack 6
+    43  in pins, 1 side 0            phase -7  sample -7
+    44  wait t+ side 0               phase -6  slack 6
+    45  nop side 1                   phase -7
+    46  jmp x--, 39                  phase -6
+    47  wait t+ side 1               phase -4  slack 4
+    48  wait t+ side 1               phase -7  slack 7
+    49  nop side 0                   phase -7
+    50  wait t+ side 0               phase -6  slack 6
+    51  wait t+ side 0               phase -7  slack 7
+    52  nop side 1                   phase -7
+    53  wait t+ side 1               phase -6  slack 6
+    54  set pindirs, 1 side 1        phase -7  edge -6
+    55  wait t+ side 1               phase -6  slack 6
+    56  nop side 0                   phase -7
+    57  wait t+ side 0               phase -6  slack 6
+    58  set pindirs, 0 side 0        phase -7  edge -6
+    59  wait t+ side 0               phase -6  slack 6
+    60  set p, 16 side 0             phase -7
+    61  mov osr, ::isr side 0        phase -6
+    62  set x, 7 side 0              phase -5
+    63  mov t, now side 0            phase -4
+    64  mov pins, null side 0        phase 1  edge 2
+    65  add t, p side 0              phase 2
+    66  wait t+ side 0               phase -13..-12  slack 12..13
+    67  out pins, 1 side 0           phase -15  edge -14
+    68  jmp x--, 66                  phase -14
+    69  wait t+ side 0               phase -12  slack 12
+    70  mov pins, !null side 0       phase -15  edge -14
+    71  wait t side 0                phase -14  slack 14
+    72  jmp 2                        phase 1
+    |}]
+;;
