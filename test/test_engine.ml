@@ -372,6 +372,39 @@ let%expect_test "i2c slave" =
     |}]
 ;;
 
+let%expect_test "i2c logger" =
+  let memory = Array.init 16 ~f:(fun i -> 0x10 + (0x11 * i)) in
+  let slave = ref (I2c_slave.create ~address:0x50 ~memory) in
+  let levels = ref [] in
+  let bus_sda (m : Machine.t) =
+    if I2c_slave.drive_low !slave then 0 else 1 - ((m.pin_dir lsr sda) land 1)
+  in
+  let last_sda = ref 1 in
+  let last_scl = ref 1 in
+  let (_ : Machine.t) =
+    lockstep
+      ~cycles:3000
+      ~config:i2c_logger_config
+      ~program:(assemble i2c_logger)
+      ~inputs:(fun _ -> (!last_sda lsl sda) lor (!last_scl lsl scl))
+      ~react:(fun m ->
+        last_sda := bus_sda m;
+        last_scl := 1 - ((m.pin_dir lsr scl) land 1);
+        slave := I2c_slave.step !slave ~sda:!last_sda ~scl:!last_scl;
+        levels := ((m.pin_out lsr logger_uart_pin) land 1) :: !levels)
+      ()
+  in
+  let logged = decode_uart (List.rev !levels) ~period:16 in
+  print_s [%message (logged : int list) (I2c_slave.log !slave : string list)];
+  [%expect {|
+    ("lockstep held" (cycles 3000))
+    ((logged (16 33 50))
+     ("I2c_slave.log (!slave)"
+      (start "address 80 read" nack stop start "address 80 read" nack stop start
+       "address 80 read" nack stop start "address 80 read" nack)))
+    |}]
+;;
+
 let%expect_test "faults and halt" =
   let program = assemble {|
     pull
