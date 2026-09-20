@@ -226,3 +226,80 @@ let%expect_test "a word that does not decode halts with a fault" =
      (t.halted true) (t.pc 0))
     |}]
 ;;
+
+(* P3: the host reaches the pins through the words it sends, never through when it sends
+   them. Two runs of one program get the same words in the same order, one whenever the
+   fifo has room and one at random, and pop the rx fifo on different schedules. Their pins
+   agree every cycle unless the random schedule starved or flooded a fifo, which the fault
+   register reports. Programs with [wait tx] or [wait rx] block on the host on purpose and
+   are left out. *)
+let%expect_test "host timing never reaches the pins" =
+  let random = Splittable_random.of_int 3 in
+  let int hi = Splittable_random.int random ~lo:0 ~hi in
+  let cycles = 2000 in
+  let words_pulled = ref 0 in
+  let trial () =
+    let config = Random_program.config random in
+    let program = Random_program.program ~waits:`Input_pins random ~config in
+    let inputs = List.init cycles ~f:(fun _ -> int 0xfffff) in
+    let words = Array.init (cycles + Machine.fifo_depth) ~f:(fun _ -> int 0xffff) in
+    let run ~push ~pop =
+      let next = ref 0 in
+      let feed (t : Machine.t) =
+        if push (List.length t.tx_fifo)
+        then (
+          let t = Machine.write_tx t words.(!next) |> ok_exn in
+          Int.incr next;
+          t)
+        else t
+      in
+      let preload (t : Machine.t) =
+        if List.length t.tx_fifo < Machine.fifo_depth
+        then Machine.write_tx t words.(!next) |> ok_exn
+        else t
+      in
+      let t = Machine.create ~config ~program |> ok_exn in
+      let t =
+        Fn.apply_n_times
+          ~n:Machine.fifo_depth
+          (fun t ->
+            Int.incr next;
+            preload t)
+          t
+      in
+      let t, trace =
+        List.fold_map inputs ~init:t ~f:(fun t levels ->
+          let t =
+            match Machine.read_rx t with
+            | Some (_, popped) when pop () -> popped
+            | _ -> t
+          in
+          let t = Machine.step t ~inputs:levels |> feed in
+          t, (t.pin_out, t.pin_dir))
+      in
+      t, trace, !next - Machine.fifo_depth
+    in
+    let _, eager, pulled =
+      run ~push:(fun level -> level < Machine.fifo_depth) ~pop:(fun () -> true)
+    in
+    words_pulled := !words_pulled + pulled;
+    let (t : Machine.t), lazily, _ =
+      run
+        ~push:(fun level -> level < Machine.fifo_depth && int 3 > 0)
+        ~pop:(fun () -> int 1 = 0)
+    in
+    if t.fault.underflow || t.fault.overflow
+    then `Inconclusive
+    else if List.equal [%equal: int * int] eager lazily
+    then `Agree
+    else `Disagree
+  in
+  let programs = 64 in
+  let results = List.init programs ~f:(fun _ -> trial ()) in
+  let count outcome = List.count results ~f:(fun r -> Poly.equal r outcome) in
+  let agree = count `Agree in
+  let disagree = count `Disagree in
+  let words_pulled = !words_pulled in
+  print_s [%message (programs : int) (words_pulled : int) (agree : int) (disagree : int)];
+  [%expect {| ((programs 64) (words_pulled 723) (agree 64) (disagree 0)) |}]
+;;
