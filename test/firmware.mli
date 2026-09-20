@@ -37,4 +37,13 @@ val i2c_logger : string
 
 val logger_uart_pin : int
 val i2c_logger_config : Program_config.t
+
+(** Low speed USB packets with the core's CRC and stuff counter. Host words: the bit
+    period once, then per packet SYNC, PID, data bytes less one, the data. *)
+val usb_tx : string
+
+val usb_scratch_pin : int
+val usb_dp_pin : int
+val usb_dm_pin : int
+val usb_config : Program_config.t
 val i2c_word : ?start:bool -> ?read:bool -> ?stop:bool -> int -> int

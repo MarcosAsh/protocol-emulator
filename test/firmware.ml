@@ -462,6 +462,114 @@ let i2c_logger_config =
   { i2c_config with out_base = logger_uart_pin; out_count = 1; out_shift = Left }
 ;;
 
+(* USB low speed transmitter. The host sends the bit period, then per packet the SYNC
+   byte, the PID, the number of data bytes less one, and the data; the core appends the
+   CRC-16 and the EOP. Every data bit goes out on a scratch pin first, which is how the
+   CRC and the stuff counter see it and how [jmp pin] reads it back; a zero toggles D+ and
+   D- for NRZI, and after six ones a forced zero goes in. Each toggle lands four cycles
+   after its deadline whichever path it takes. *)
+let usb_tx =
+  {|
+    pull
+    mov p, osr
+    set pins, 2              ; idle J
+packet:
+    wait tx
+    mov t, now
+    add t, p
+    set y, 1                 ; SYNC and PID
+hbyte:
+    pull
+    set x, 7
+hbit:
+    jmp stuff, hstuff
+    wait t+
+    out pins, 1
+    jmp pin, hkeep
+    mov pins, !pins
+hkeep:
+    jmp x--, hbit
+    jmp y--, hbyte
+    crc_init
+    pull
+    mov y, osr               ; data bytes less one
+dbyte:
+    pull
+    set x, 7
+dbit:
+    jmp stuff, dstuff
+    wait t+
+    out pins, 1
+    jmp pin, dkeep
+    mov pins, !pins
+dkeep:
+    jmp x--, dbit
+    jmp y--, dbyte
+    in crc, 16
+    mov osr, !isr
+    set x, 15
+cbit:
+    jmp stuff, cstuff
+    wait t+
+    out pins, 1
+    jmp pin, ckeep
+    mov pins, !pins
+ckeep:
+    jmp x--, cbit
+    jmp stuff, estuff
+eop:
+    wait t+
+    set pins, 0              ; SE0
+    wait t+
+    wait t+
+    set pins, 2              ; J
+    wait t+
+    jmp packet
+hstuff:
+    wait t+
+    nop [2]
+    mov pins, !pins
+    stuff_reset
+    jmp hbit
+dstuff:
+    wait t+
+    nop [2]
+    mov pins, !pins
+    stuff_reset
+    jmp dbit
+cstuff:
+    wait t+
+    nop [2]
+    mov pins, !pins
+    stuff_reset
+    jmp cbit
+estuff:
+    wait t+
+    nop [2]
+    mov pins, !pins
+    stuff_reset
+    jmp eop
+|}
+;;
+
+let usb_scratch_pin = 5
+let usb_dp_pin = 6
+let usb_dm_pin = 7
+
+let usb_config =
+  { Program_config.default with
+    in_base = usb_scratch_pin
+  ; out_base = usb_scratch_pin
+  ; out_count = 3
+  ; set_base = usb_dp_pin
+  ; set_count = 2
+  ; jmp_pin = usb_scratch_pin
+  ; out_shift = Right
+  ; stuff_threshold = 6
+  ; stuff_level = true
+  }
+;;
+
 let i2c_word ?(start = false) ?(read = false) ?(stop = false) data =
   (Bool.to_int start lsl 15)
   lor (Bool.to_int read lsl 14)
