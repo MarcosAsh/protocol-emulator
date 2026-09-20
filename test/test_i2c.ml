@@ -92,3 +92,85 @@ let%expect_test "a slave at another address does not answer" =
      (t.pc 1))
     |}]
 ;;
+
+let run_slave ?(replies = []) ops ~cycles =
+  let t =
+    Machine.create ~config:i2c_slave_config ~program:(assemble i2c_slave) |> ok_exn
+  in
+  let t =
+    List.fold ((0x50 lsl 1) :: replies) ~init:t ~f:(fun t w ->
+      Machine.write_tx t w |> ok_exn)
+  in
+  let master = I2c_peer.create ~quarter:8 ops in
+  let rec loop (t : Machine.t) master n received =
+    if n = 0
+    then t, master, List.rev received
+    else (
+      let slave_sda = 1 - ((t.pin_dir lsr sda) land 1) in
+      let bus_sda = I2c_peer.sda master land slave_sda in
+      let bus_scl = I2c_peer.scl master in
+      let t = Machine.step t ~inputs:((bus_sda lsl sda) lor (bus_scl lsl scl)) in
+      let master = I2c_peer.step master ~sda:bus_sda in
+      let received, t =
+        match Machine.read_rx t with
+        | Some (r, t) -> r :: received, t
+        | None -> received, t
+      in
+      loop t master (n - 1) received)
+  in
+  let t, master, received = loop t master cycles [] in
+  print_s
+    [%message
+      (received : int list)
+        (I2c_peer.log master : string list)
+        (I2c_peer.idle master : bool)
+        (t.fault : Machine.Fault.t)
+        (t.pc : int)]
+;;
+
+let%expect_test "slave takes a write" =
+  run_slave [ Start; Write 0xa0; Write 3; Write 0xaa; Stop ] ~cycles:1500;
+  [%expect {|
+    ((received (160 3 170)) ("I2c_peer.log master" (ack ack ack))
+     ("I2c_peer.idle master" true)
+     (t.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+     (t.pc 4))
+    |}]
+;;
+
+let%expect_test "slave answers a read after a repeated start" =
+  run_slave
+    ~replies:[ 0x12; 0x34 ]
+    [ Start
+    ; Write 0xa0
+    ; Write 3
+    ; Start
+    ; Write 0xa1
+    ; Read { ack = true }
+    ; Read { ack = false }
+    ; Stop
+    ]
+    ~cycles:3000;
+  [%expect {|
+    ((received (160 3 161))
+     ("I2c_peer.log master" (ack ack ack "read 18" "read 52"))
+     ("I2c_peer.idle master" true)
+     (t.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+     (t.pc 4))
+    |}]
+;;
+
+let%expect_test "slave ignores another address" =
+  run_slave
+    [ Start; Write 0x42; Write 3; Stop; Start; Write 0xa0; Write 7; Stop ]
+    ~cycles:2500;
+  [%expect {|
+    ((received (160 7)) ("I2c_peer.log master" (nack nack ack ack))
+     ("I2c_peer.idle master" true)
+     (t.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+     (t.pc 4))
+    |}]
+;;
