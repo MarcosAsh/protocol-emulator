@@ -8,7 +8,7 @@ module I : sig
   type 'a t =
     { clk : 'a
     ; rst_n : 'a
-    ; ena : 'a
+    ; ena : 'a (** Required by Tiny Tapeout and always high in silicon; unused here. *)
     ; ui_in : 'a
     ; uio_in : 'a
     }

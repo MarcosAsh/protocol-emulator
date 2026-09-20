@@ -69,21 +69,23 @@ end
 module I : sig
   type 'a t =
     { clocking : 'a Clocking.t
-    ; config : 'a Config.t
-    ; start : 'a
-    ; program_write : 'a Program_write.t
-    ; tx : 'a With_valid.t
-    ; rx_pop : 'a
+    ; config : 'a Config.t (** Held constant while running. *)
+    ; start : 'a (** Pulse while halted. *)
+    ; program_write : 'a Program_write.t (** Only while halted. *)
+    ; tx : 'a With_valid.t (** A word for the core's tx fifo. *)
+    ; rx_pop : 'a (** Pops the rx fifo; [rx_head] is the word popped. *)
     ; clear_irq : 'a
-    ; inputs : 'a
+    ; inputs : 'a (** The external level of every pin in the flat pin space. *)
     }
   [@@deriving hardcaml]
 end
 
+(** Besides the pins and the host's view, the architectural state comes out so the tests
+    can hold it against the model every cycle and the formal proof can read it. *)
 module O : sig
   type 'a t =
     { pin_out : 'a
-    ; pin_dir : 'a
+    ; pin_dir : 'a (** Set for a bidirectional pin the core drives. *)
     ; pc : 'a
     ; x : 'a
     ; y : 'a
@@ -94,7 +96,7 @@ module O : sig
     ; isr : 'a
     ; isr_count : 'a
     ; now : 'a
-    ; stall : 'a
+    ; stall : 'a (** Cycles until the next issue. *)
     ; halted : 'a
     ; irq : 'a
     ; fault : 'a Fault.t
@@ -103,7 +105,7 @@ module O : sig
     ; tx_level : 'a
     ; rx_level : 'a
     ; rx_head : 'a
-    ; instruction : 'a
+    ; instruction : 'a (** The word at [pc]. *)
     ; crc : 'a
     ; stuff_run : 'a
     }
