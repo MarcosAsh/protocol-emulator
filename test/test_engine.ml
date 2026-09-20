@@ -434,7 +434,8 @@ let%expect_test "usb tx" =
       ()
   in
   print_s [%message (Usb_ls.Sniffer.packets !sniffer : int list list)];
-  [%expect {|
+  [%expect
+    {|
     ("lockstep held" (cycles 4160))
     ("Usb_ls.Sniffer.packets (!sniffer)" ((195 128 6 0 1 0 0 64 0 221 148)))
     |}]

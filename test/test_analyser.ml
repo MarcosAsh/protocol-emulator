@@ -344,7 +344,8 @@ let%expect_test "i2c logger" =
 
 let%expect_test "usb tx" =
   report ~config:usb_config ~period:32 usb_tx;
-  [%expect {|
+  [%expect
+    {|
      0  pull                         phase ?..?
      1  mov p, osr                   phase ?..?
      2  set pins, 2                  phase ?..?  edge ?..?  jitter ?
