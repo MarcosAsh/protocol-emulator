@@ -414,43 +414,11 @@ loop:
 let%expect_test "random programs" =
   let random = Splittable_random.of_int 1 in
   let int hi = Splittable_random.int random ~lo:0 ~hi in
-  let bool () = Splittable_random.bool random in
-  let pin () = int (Isa.num_pins - 1) in
-  let shift () : Program_config.Shift_direction.t = if bool () then Left else Right in
-  let config () =
-    { Program_config.side_set_count = int Isa.max_side_set
-    ; side_set_base = pin ()
-    ; side_set_pindirs = bool ()
-    ; in_base = pin ()
-    ; out_base = pin ()
-    ; out_count = 1 + int 15
-    ; set_base = pin ()
-    ; set_count = 1 + int 4
-    ; jmp_pin = pin ()
-    ; capture_pin = pin ()
-    ; capture_rising = bool ()
-    ; in_shift = shift ()
-    ; out_shift = shift ()
-    ; autopush = bool ()
-    ; push_threshold = 1 + int 15
-    ; autopull = bool ()
-    ; pull_threshold = 1 + int 15
-    }
-  in
-  let rec word ~side_set_count =
-    let w = int 0xffff in
-    match Isa.of_word ~side_set_count w with
-    | Ok (Op { op = Sys Halt; _ }) | Error _ -> word ~side_set_count
-    | Ok _ -> w
-  in
   let programs = 16 in
   let failed =
     List.init programs ~f:(fun seed ->
-      let config = config () in
-      let program =
-        List.init (1 lsl Isa.pc_bits) ~f:(fun _ ->
-          word ~side_set_count:config.side_set_count)
-      in
+      let config = Random_program.config random in
+      let program = Random_program.program random ~config in
       let level = ref 0 in
       let host _ =
         { Host.tx =
