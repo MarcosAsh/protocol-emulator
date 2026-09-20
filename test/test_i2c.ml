@@ -177,3 +177,36 @@ let%expect_test "slave ignores another address" =
      (t.pc 4))
     |}]
 ;;
+
+let%expect_test "one core polls the slave over i2c and logs over uart" =
+  let memory = Array.init 16 ~f:(fun i -> 0x10 + (0x11 * i)) in
+  let t =
+    Machine.create ~config:i2c_logger_config ~program:(assemble i2c_logger) |> ok_exn
+  in
+  let slave = I2c_slave.create ~address:0x50 ~memory in
+  let rec loop (t : Machine.t) slave n levels =
+    if n = 0
+    then t, slave, List.rev levels
+    else (
+      let master_sda = 1 - ((t.pin_dir lsr sda) land 1) in
+      let bus_sda = if I2c_slave.drive_low slave then 0 else master_sda in
+      let bus_scl = 1 - ((t.pin_dir lsr scl) land 1) in
+      let t = Machine.step t ~inputs:((bus_sda lsl sda) lor (bus_scl lsl scl)) in
+      let slave = I2c_slave.step slave ~sda:bus_sda ~scl:bus_scl in
+      loop t slave (n - 1) (((t.pin_out lsr logger_uart_pin) land 1) :: levels))
+  in
+  let t, slave, levels = loop t slave 3000 [] in
+  print_s
+    [%message
+      (decode_uart levels ~period:16 : int list)
+        (I2c_slave.log slave : string list)
+        (t.fault : Machine.Fault.t)];
+  [%expect {|
+    (("decode_uart levels ~period:16" (16 33 50))
+     ("I2c_slave.log slave"
+      (start "address 80 read" nack stop start "address 80 read" nack stop start
+       "address 80 read" nack stop start "address 80 read" nack))
+     (t.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    |}]
+;;
