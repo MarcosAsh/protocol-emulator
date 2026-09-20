@@ -18,7 +18,12 @@
     The fifos are [fifo_depth] deep. Nothing that touches a fifo ever stalls: a push into
     a full fifo drops the data and sets [overflow], a pull from an empty fifo leaves [osr]
     alone and sets [underflow]. A deadline wait that releases late sets [missed_deadline].
-    A word that does not decode halts the core and sets [decode]. *)
+    A word that does not decode halts the core and sets [decode].
+
+    The CRC and the stuff counter see every bit that a single-bit [out pins],
+    [out pindirs] or [in pins] moves; wider shifts leave them alone. [in crc] reads the
+    CRC, [crc_init] reloads it, [stuff_reset] clears the run and [jmp stuff_pending] tests
+    it against the threshold. *)
 
 open! Core
 
@@ -60,6 +65,8 @@ type t = private
   ; fault : Fault.t
   ; capture : int
   ; capture_armed : bool
+  ; crc : int
+  ; stuff_run : int
   }
 [@@deriving sexp_of, compare, equal]
 

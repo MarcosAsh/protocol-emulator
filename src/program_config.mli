@@ -41,7 +41,7 @@ type t =
 [@@deriving sexp_of, compare, equal]
 
 (** One output pin at OUT0, shifting right, no side-set, no autopush or autopull. The CRC
-    is CRC-16/USB (reflected 0x8005, init 0xffff) and stuffing is off. *)
+    is CRC-16/USB (0x8005 given reflected as 0xa001, init 0xffff) and stuffing is off. *)
 val default : t
 
 val validate : t -> unit Or_error.t

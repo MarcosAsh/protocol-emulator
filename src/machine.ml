@@ -48,6 +48,8 @@ type t =
   ; fault : Fault.t
   ; capture : int
   ; capture_armed : bool
+  ; crc : int
+  ; stuff_run : int
   }
 [@@deriving sexp_of, compare, equal]
 
@@ -86,6 +88,8 @@ let create ~config ~program =
   ; fault = Fault.none
   ; capture = 0
   ; capture_armed = false
+  ; crc = config.crc_init
+  ; stuff_run = 0
   }
 ;;
 
@@ -175,6 +179,26 @@ let capture_edge t ~sample =
   t.capture_armed && Bool.( <> ) prev cur && Bool.equal cur c.capture_rising
 ;;
 
+let stuff_run_max = 31
+
+(* The assist units see every bit that crosses a pin one at a time. *)
+let bit_crosses t bit =
+  let c = t.config in
+  let crc =
+    Crc.step ~width:c.crc_width ~poly:c.crc_poly ~reflect:c.crc_reflect t.crc ~bit
+  in
+  let stuff_run =
+    if Bool.equal (bit = 1) c.stuff_level
+    then Int.min stuff_run_max (t.stuff_run + 1)
+    else 0
+  in
+  { t with crc; stuff_run }
+;;
+
+let stuff_pending t =
+  t.config.stuff_threshold > 0 && t.stuff_run >= t.config.stuff_threshold
+;;
+
 let jmp_taken t (cond : Isa.Jmp_cond.Cases.t) ~sample =
   match cond with
   | Always -> true, t
@@ -184,7 +208,7 @@ let jmp_taken t (cond : Isa.Jmp_cond.Cases.t) ~sample =
   | Pin -> bit sample t.config.jmp_pin = 1, t
   | Not_pin -> bit sample t.config.jmp_pin = 0, t
   | Osr_not_empty -> t.osr_count < t.config.pull_threshold, t
-  | Stuff_pending -> false, t
+  | Stuff_pending -> stuff_pending t, t
 ;;
 
 let wait_ready t (wait : Isa.Wait.t) ~sample =
@@ -238,7 +262,7 @@ let in_source t (source : Isa.In_source.Cases.t) ~count ~sample =
   | Null -> 0
   | Isr -> t.isr
   | Osr -> t.osr
-  | Crc -> 0
+  | Crc -> t.crc
   | Capture -> t.capture land data_mask
 ;;
 
@@ -331,8 +355,8 @@ let sys t (op : Isa.Sys_op.Cases.t) =
   | Irq -> { t with irq = true }
   | Push -> push t
   | Pull -> pull t
-  | Crc_init -> t
-  | Stuff_reset -> t
+  | Crc_init -> { t with crc = t.config.crc_init }
+  | Stuff_reset -> { t with stuff_run = 0 }
   | Capture_arm -> { t with capture_armed = true }
 ;;
 
@@ -341,10 +365,20 @@ let execute t (op : Isa.Op.t) ~sample =
   | Wait _ -> raise_s [%message "BUG: wait is handled by the issue logic"]
   | In { source; count } ->
     let value = in_source t source ~count ~sample in
+    let t =
+      match source, count with
+      | Pins, 1 -> bit_crosses t value
+      | _ -> t
+    in
     shift_in t ~value ~count |> autopush_after_in
   | Out { dest; count } ->
     let t = autopull_before_out t in
     let value, t = shift_out t ~count in
+    let t =
+      match dest, count with
+      | (Pins | Pindirs), 1 -> bit_crosses t value
+      | _ -> t
+    in
     out_dest t dest ~count ~value
   | Mov { dest; op; source } ->
     let width =
