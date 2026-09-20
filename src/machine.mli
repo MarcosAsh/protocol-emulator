@@ -20,10 +20,10 @@
     alone and sets [underflow]. A deadline wait that releases late sets [missed_deadline].
     A word that does not decode halts the core and sets [decode].
 
-    The CRC and the stuff counter see every bit that a single-bit [out pins],
-    [out pindirs] or [in pins] moves; wider shifts leave them alone. [in crc] reads the
-    CRC, [crc_init] reloads it, [stuff_reset] clears the run and [jmp stuff_pending] tests
-    it against the threshold. *)
+    The CRC and the stuff counter see the bit of every single-bit [in] or [out], whatever
+    it moves between; wider shifts leave them alone. [in crc] reads the CRC, [crc_init]
+    reloads it, [stuff_reset] clears the run and [jmp stuff_pending] tests it against the
+    threshold. *)
 
 open! Core
 
