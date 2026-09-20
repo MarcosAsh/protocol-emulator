@@ -109,6 +109,39 @@ let spi_config =
   }
 ;;
 
+(* Mode 0 slave, no chip select: sample mosi on the rising edge, shift the next miso bit
+   out on the falling edge. Replies come from the host as [byte lsl 8] and autopull at 8
+   bits; received bytes autopush at 8. The loop needs sck half periods of at least four
+   cycles. *)
+let spi_slave =
+  {|
+    out pins, 1              ; first bit of the first reply
+bit:
+    wait 1 pin 1             ; rising edge
+    in pins, 1
+    wait 0 pin 1             ; falling edge
+    out pins, 1
+    jmp bit
+|}
+;;
+
+let slave_sck_pin = 1
+let slave_mosi_pin = 2
+let slave_miso_pin = 5
+
+let spi_slave_config =
+  { Program_config.default with
+    in_base = slave_mosi_pin
+  ; out_base = slave_miso_pin
+  ; in_shift = Left
+  ; out_shift = Left
+  ; autopush = true
+  ; push_threshold = 8
+  ; autopull = true
+  ; pull_threshold = 8
+  }
+;;
+
 let sda = 12
 let scl = 13
 

@@ -11,6 +11,15 @@ val sck_pin : int
 val mosi_pin : int
 val miso_pin : int
 val spi_config : Program_config.t
+
+(** Mode 0 slave without chip select. Replies are host words [byte lsl 8]; sck half
+    periods of four cycles or more. *)
+val spi_slave : string
+
+val slave_sck_pin : int
+val slave_mosi_pin : int
+val slave_miso_pin : int
+val spi_slave_config : Program_config.t
 val sda : int
 val scl : int
 val i2c_master : quarter:int -> string
