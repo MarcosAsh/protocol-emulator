@@ -531,7 +531,8 @@ let%expect_test "every firmware stays inside its analysis under random stimulus"
     in
     let violations = List.take violations 3 in
     print_s [%message name (issues : int) (violations : (int * int * int * int) list)]);
-  [%expect {|
+  [%expect
+    {|
     ("uart tx" (issues 4962) (violations ()))
     ("uart tx host rate" (issues 224) (violations ()))
     ("uart rx" (issues 5774) (violations ()))
