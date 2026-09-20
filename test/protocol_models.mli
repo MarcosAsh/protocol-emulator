@@ -57,3 +57,32 @@ module I2c_peer : sig
   val log : t -> string list
   val idle : t -> bool
 end
+
+(** USB low speed at the bit level: CRCs, bit stuffing, NRZI, and a sniffer that turns the
+    D+ and D- levels sampled every cycle back into packets. *)
+module Usb_ls : sig
+  val crc5 : int list -> int
+  val crc16 : int list -> int
+  val bits_of_bytes : int list -> int list
+
+  module Line : sig
+    type t =
+      | J
+      | K
+      | Se0
+    [@@deriving sexp_of, equal]
+  end
+
+  (** The line states of one packet, one per bit time, SYNC and EOP included. *)
+  val encode : int list -> Line.t list
+
+  module Sniffer : sig
+    type t
+
+    val create : bit_period:int -> t
+    val step : t -> dp:int -> dm:int -> t
+
+    (** Packets seen so far, bytes after SYNC, PID first. *)
+    val packets : t -> int list list
+  end
+end

@@ -1,4 +1,5 @@
 open! Core
+open Protocol_emulator
 
 let runs levels =
   List.group levels ~break:(fun a b -> a <> b)
@@ -369,4 +370,140 @@ module I2c_peer = struct
         { t with log = (if sda = 0 then "ack" else "nack") :: t.log }
       | { sample = `No; _ } :: _ | [] -> t)
   ;;
+end
+
+(* USB low speed on the wire: J is D- high, K is D+ high, SE0 both low. NRZI with a
+   transition for every zero, a zero stuffed after six ones, SYNC then bytes LSB first,
+   EOP is two bits of SE0 and one of J. *)
+module Usb_ls = struct
+  let crc5 bits =
+    List.fold bits ~init:0x1f ~f:(fun crc bit ->
+      Crc.step ~width:5 ~poly:0x14 ~reflect:true crc ~bit)
+    lxor 0x1f
+  ;;
+
+  let crc16 bits =
+    List.fold bits ~init:0xffff ~f:(fun crc bit ->
+      Crc.step ~width:16 ~poly:0xa001 ~reflect:true crc ~bit)
+    lxor 0xffff
+  ;;
+
+  let bits_of_bytes bytes =
+    List.concat_map bytes ~f:(fun byte -> List.init 8 ~f:(fun i -> (byte lsr i) land 1))
+  ;;
+
+  let bytes_of_bits bits =
+    List.chunks_of bits ~length:8
+    |> List.filter ~f:(fun chunk -> List.length chunk = 8)
+    |> List.map ~f:(fun chunk ->
+      List.foldi chunk ~init:0 ~f:(fun i acc b -> acc lor (b lsl i)))
+  ;;
+
+  let stuff bits =
+    let rec go bits ones acc =
+      match bits with
+      | [] -> List.rev acc
+      | 1 :: rest when ones = 5 -> go rest 0 (0 :: 1 :: acc)
+      | 1 :: rest -> go rest (ones + 1) (1 :: acc)
+      | _ :: rest -> go rest 0 (0 :: acc)
+    in
+    go bits 0 []
+  ;;
+
+  let unstuff bits =
+    let rec go bits ones acc =
+      match bits with
+      | [] -> List.rev acc
+      | 0 :: rest when ones = 6 -> go rest 0 acc
+      | 1 :: rest -> go rest (ones + 1) (1 :: acc)
+      | _ :: rest -> go rest 0 (0 :: acc)
+    in
+    go bits 0 []
+  ;;
+
+  module Line = struct
+    type t =
+      | J
+      | K
+      | Se0
+    [@@deriving sexp_of, equal]
+
+    let of_pins ~dp ~dm =
+      match dp, dm with
+      | 0, 1 -> Some J
+      | 1, 0 -> Some K
+      | 0, 0 -> Some Se0
+      | _ -> None
+    ;;
+  end
+
+  (* The line states of a whole packet, one per bit time, from the bus idle. *)
+  let encode bytes =
+    let bits = stuff (bits_of_bytes (0x80 :: bytes)) in
+    let _, states =
+      List.fold_map bits ~init:Line.J ~f:(fun line bit ->
+        let line : Line.t =
+          match bit, line with
+          | 1, l -> l
+          | _, J -> K
+          | _, (K | Se0) -> J
+        in
+        line, line)
+    in
+    states @ [ Se0; Se0; J ]
+  ;;
+
+  module Sniffer = struct
+    type t =
+      { bit_period : int
+      ; line : Line.t
+      ; since_change : int
+      ; symbols : Line.t list
+      ; packets : int list list
+      }
+
+    let create ~bit_period =
+      { bit_period; line = J; since_change = 0; symbols = []; packets = [] }
+    ;;
+
+    let packets t = List.rev t.packets
+
+    let decode symbols =
+      let symbols = List.drop_while (List.rev symbols) ~f:(Line.equal J) in
+      let _, bits =
+        List.fold_map symbols ~init:Line.J ~f:(fun prev s ->
+          s, if Line.equal prev s then 1 else 0)
+      in
+      match bytes_of_bits (unstuff bits) with
+      | 0x80 :: bytes -> Some bytes
+      | _ -> None
+    ;;
+
+    (* Each line state lasts a whole number of bit times; a run of [n] periods is [n]
+       symbols. SE0 ends the packet. *)
+    let step t ~dp ~dm =
+      match Line.of_pins ~dp ~dm with
+      | None -> t
+      | Some line when Line.equal line t.line ->
+        { t with since_change = t.since_change + 1 }
+      | Some line ->
+        let n = (t.since_change + (t.bit_period / 2)) / t.bit_period in
+        let symbols = List.init n ~f:(fun _ -> t.line) @ t.symbols in
+        (match line with
+         | Se0 ->
+           let packets =
+             match decode symbols with
+             | Some bytes -> bytes :: t.packets
+             | None -> t.packets
+           in
+           { t with line; since_change = 1; symbols = []; packets }
+         | J | K ->
+           let symbols =
+             match t.line with
+             | Se0 -> []
+             | J | K -> symbols
+           in
+           { t with line; since_change = 1; symbols })
+    ;;
+  end
 end
