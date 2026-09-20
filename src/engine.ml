@@ -175,6 +175,13 @@ let write_pins old ~base ~count ~value ~writable =
 
 let count_mask count = ~:(log_shift ~f:sll (ones data_bits) ~by:count)
 
+(* Schedule. The memory reads one address ahead of the instruction register [word], which
+   holds the word at [pc]. An instruction issues when the core is neither halted nor
+   stalled and no start is in flight, and then stalls for its delay field. A jump issues,
+   redirects the fetch and stalls one cycle while the register refills, so it always takes
+   two cycles whichever way it goes. A wait whose condition is false issues again the next
+   cycle and re-applies its side-set. Registers written in a cycle are visible from the
+   next one, and a pin write shows on the pin the cycle after it issues. *)
 let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   let spec = Clocking.to_spec i.clocking in
   let c = i.config in
