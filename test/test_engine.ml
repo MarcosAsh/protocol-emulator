@@ -410,7 +410,9 @@ let%expect_test "usb tx" =
   let bit_period = 32 in
   let data = [ 0x80; 0x06; 0x00; 0x01; 0x00; 0x00; 0x40; 0x00 ] in
   let sniffer = ref (Usb_ls.Sniffer.create ~bit_period) in
-  let pending = ref (0x80 :: 0xc3 :: (List.length data - 1) :: data) in
+  let pending =
+    ref ((0x80 :: 0xc3 :: (List.length data - 1) :: data) @ [ 0x80; 0xc3; 0; 0xff ])
+  in
   let level = ref 0 in
   let host _ =
     match !pending with
@@ -421,7 +423,7 @@ let%expect_test "usb tx" =
   in
   let (_ : Machine.t) =
     lockstep
-      ~cycles:(bit_period * 130)
+      ~cycles:(bit_period * 200)
       ~config:usb_config
       ~program:(assemble usb_tx)
       ~preload:[ bit_period ]
@@ -436,8 +438,9 @@ let%expect_test "usb tx" =
   print_s [%message (Usb_ls.Sniffer.packets !sniffer : int list list)];
   [%expect
     {|
-    ("lockstep held" (cycles 4160))
-    ("Usb_ls.Sniffer.packets (!sniffer)" ((195 128 6 0 1 0 0 64 0 221 148)))
+    ("lockstep held" (cycles 6400))
+    ("Usb_ls.Sniffer.packets (!sniffer)"
+     ((195 128 6 0 1 0 0 64 0 221 148) (195 255 0 255)))
     |}]
 ;;
 
@@ -483,6 +486,27 @@ let%expect_test "usb rx" =
     ("lockstep held" (cycles 3336))
     (bytes (128 195 128 6 0 1 0 0 64 0 221 148 140))
     |}]
+;;
+
+let%expect_test "wait rx blocks on a full fifo" =
+  let program =
+    assemble {|
+loop:
+    wait rx
+    push
+    add x, 1
+    mov isr, x
+    jmp loop
+|}
+  in
+  let random = Splittable_random.of_int 9 in
+  let host _ =
+    { Host.tx = None; pop_rx = Splittable_random.int random ~lo:0 ~hi:3 = 0 }
+  in
+  let (_ : Machine.t) =
+    lockstep ~config:Program_config.default ~program ~inputs:(fun _ -> 0) ~host ()
+  in
+  [%expect {| ("lockstep held" (cycles 400)) |}]
 ;;
 
 let%expect_test "faults and halt" =
