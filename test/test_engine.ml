@@ -406,6 +406,40 @@ let%expect_test "i2c logger" =
     |}]
 ;;
 
+let%expect_test "usb tx" =
+  let bit_period = 32 in
+  let data = [ 0x80; 0x06; 0x00; 0x01; 0x00; 0x00; 0x40; 0x00 ] in
+  let sniffer = ref (Usb_ls.Sniffer.create ~bit_period) in
+  let pending = ref (0x80 :: 0xc3 :: (List.length data - 1) :: data) in
+  let level = ref 0 in
+  let host _ =
+    match !pending with
+    | w :: rest when !level < Machine.fifo_depth ->
+      pending := rest;
+      { Host.tx = Some w; pop_rx = false }
+    | _ -> Host.idle
+  in
+  let (_ : Machine.t) =
+    lockstep
+      ~cycles:(bit_period * 130)
+      ~config:usb_config
+      ~program:(assemble usb_tx)
+      ~preload:[ bit_period ]
+      ~inputs:(fun _ -> 0)
+      ~host
+      ~react:(fun m ->
+        level := List.length m.tx_fifo;
+        let pin p = (m.pin_out lsr p) land 1 in
+        sniffer := Usb_ls.Sniffer.step !sniffer ~dp:(pin usb_dp_pin) ~dm:(pin usb_dm_pin))
+      ()
+  in
+  print_s [%message (Usb_ls.Sniffer.packets !sniffer : int list list)];
+  [%expect {|
+    ("lockstep held" (cycles 4160))
+    ("Usb_ls.Sniffer.packets (!sniffer)" ((195 128 6 0 1 0 0 64 0 221 148)))
+    |}]
+;;
+
 let%expect_test "faults and halt" =
   let program = assemble {|
     pull
