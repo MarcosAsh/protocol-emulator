@@ -164,6 +164,77 @@ let%expect_test "spi master exchanges bytes with a mode 0 slave" =
     |}]
 ;;
 
+(* the slave shifts the next reply out as each byte ends, so the host queues one more
+   reply than there are bytes or the last edge pulls from an empty fifo *)
+let run_spi_slave ~half_period ?gap ~replies bytes =
+  let t =
+    Machine.create ~config:spi_slave_config ~program:(assemble spi_slave) |> ok_exn
+  in
+  let t =
+    List.fold replies ~init:t ~f:(fun t reply ->
+      Machine.write_tx t (reply lsl 8) |> ok_exn)
+  in
+  let master = Spi_peer.create ?gap ~half_period bytes in
+  let rec loop t master n received =
+    if n = 0
+    then t, master, List.rev received
+    else (
+      let inputs =
+        (Spi_peer.sck master lsl slave_sck_pin)
+        lor (Spi_peer.mosi master lsl slave_mosi_pin)
+      in
+      let t = Machine.step t ~inputs in
+      let master = Spi_peer.step master ~miso:((t.pin_out lsr slave_miso_pin) land 1) in
+      let received, t =
+        match Machine.read_rx t with
+        | Some (byte, t) -> byte :: received, t
+        | None -> received, t
+      in
+      loop t master (n - 1) received)
+  in
+  let t, master, slave_received = loop t master 400 [] in
+  print_s
+    [%message
+      (slave_received : int list)
+        (Spi_peer.received master : int list)
+        (Spi_peer.idle master : bool)
+        (t.fault : Machine.Fault.t)]
+;;
+
+let%expect_test "spi slave exchanges bytes with a mode 0 master" =
+  run_spi_slave ~half_period:8 ~replies:[ 0x81; 0x7e; 0x11; 0 ] [ 0xa5; 0x3c; 0xf0 ];
+  [%expect {|
+    ((slave_received (165 60 240)) ("Spi_peer.received master" (129 126 17))
+     ("Spi_peer.idle master" true)
+     (t.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    |}]
+;;
+
+let%expect_test "spi slave keeps up with back to back bytes at four cycles a half period" =
+  run_spi_slave ~half_period:4 ~replies:[ 0x81; 0x7e; 0x11; 0 ] [ 0xa5; 0x3c; 0xf0 ];
+  [%expect {|
+    ((slave_received (165 60 240)) ("Spi_peer.received master" (129 126 17))
+     ("Spi_peer.idle master" true)
+     (t.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    |}]
+;;
+
+let%expect_test "spi slave with gaps between bytes" =
+  run_spi_slave
+    ~half_period:4
+    ~gap:13
+    ~replies:[ 0x81; 0x7e; 0x11; 0 ]
+    [ 0xa5; 0x3c; 0xf0 ];
+  [%expect {|
+    ((slave_received (165 60 240)) ("Spi_peer.received master" (129 126 17))
+     ("Spi_peer.idle master" true)
+     (t.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    |}]
+;;
+
 let%expect_test "a deadline that is already past releases at once and is a fault" =
   let program = assemble {|
     mov t, now
