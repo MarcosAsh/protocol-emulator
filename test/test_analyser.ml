@@ -2,9 +2,9 @@ open! Core
 open Protocol_emulator
 open Firmware
 
-let report ?(config = Program_config.default) ?period source =
+let report ?(config = Program_config.default) ?period ?single_capture_edge source =
   let program = Asm.assemble source |> ok_exn in
-  Analyser.analyse ?period ~config program.instructions
+  Analyser.analyse ?period ?single_capture_edge ~config program.instructions
   |> Analyser.to_string ~side_set_count:program.side_set_count
   |> print_endline
 ;;
@@ -32,7 +32,7 @@ let%expect_test "uart tx" =
 ;;
 
 let%expect_test "uart rx" =
-  report ~config:rx_config (uart_rx ~period:16);
+  report ~config:rx_config ~single_capture_edge:true (uart_rx ~period:16);
   [%expect
     {|
      0  set p, 16                    phase ?..?
@@ -415,8 +415,13 @@ let%expect_test "usb tx" =
 ;;
 
 let%expect_test "usb rx" =
-  report ~config:usb_rx_config ~period:32 (usb_rx ~half_period:16);
-  [%expect {|
+  report
+    ~config:usb_rx_config
+    ~period:32
+    ~single_capture_edge:true
+    (usb_rx ~half_period:16);
+  [%expect
+    {|
      0  pull                         phase ?..?
      1  mov p, osr                   phase ?..?
      2  set y, 1                     phase ?..?
@@ -447,4 +452,109 @@ let%expect_test "usb rx" =
     27  stuff_reset                  phase -29
     28  jmp 11                       phase -28
     |}]
+;;
+
+(* The analyser is only worth anything if its intervals hold on every execution. Random
+   pin levels and random host traffic push each firmware well off its happy path; the
+   phase at every issue must still fall inside the row's interval, and no issue may land
+   on a pc the analyser calls unreachable. Random pins break every assumption about the
+   world, so the analysis here makes none. A wait that stalls issues again every cycle,
+   and only its first issue counts as an entry. *)
+let phase (m : Machine.t) =
+  let d = (m.now - m.t) land ((1 lsl Isa.timer_bits) - 1) in
+  if d >= 1 lsl (Isa.timer_bits - 1) then d - (1 lsl Isa.timer_bits) else d
+;;
+
+let soundness ?period ?(preload = []) ~config ~cycles ~seeds words =
+  let instructions =
+    List.map words ~f:(fun w ->
+      Isa.of_word ~side_set_count:config.Program_config.side_set_count w |> ok_exn)
+  in
+  let rows = Array.create ~len:(List.length words) None in
+  List.iter (Analyser.analyse ?period ~config instructions) ~f:(fun row ->
+    rows.(row.pc) <- Some row);
+  let issues = ref 0 in
+  let violations = ref [] in
+  for seed = 1 to seeds do
+    let random = Splittable_random.of_int seed in
+    let int hi = Splittable_random.int random ~lo:0 ~hi in
+    let m = ref (Machine.create ~config ~program:words |> ok_exn) in
+    List.iter preload ~f:(fun w -> m := Machine.write_tx !m w |> ok_exn);
+    let last = ref None in
+    for cycle = 0 to cycles - 1 do
+      let t = !m in
+      if (not t.halted) && t.stall = 0
+      then (
+        let entry =
+          not (Option.equal [%equal: int * int] !last (Some (cycle - 1, t.pc)))
+        in
+        last := Some (cycle, t.pc);
+        if entry
+        then (
+          Int.incr issues;
+          let ok =
+            match rows.(t.pc) with
+            | Some row -> Interval.contains row.phase (phase t)
+            | None -> false
+          in
+          if not ok then violations := (seed, cycle, t.pc, phase t) :: !violations));
+      if int 3 = 0 && List.length t.tx_fifo < Machine.fifo_depth
+      then m := Machine.write_tx t (int 0xffff) |> ok_exn;
+      if int 3 = 0
+      then (
+        match Machine.read_rx !m with
+        | Some (_, popped) -> m := popped
+        | None -> ());
+      m := Machine.step !m ~inputs:(int 0xfffff)
+    done
+  done;
+  !issues, List.rev !violations
+;;
+
+let%expect_test "every firmware stays inside its analysis under random stimulus" =
+  let corpus =
+    [ "uart tx", Program_config.default, uart_tx ~period:16, None, []
+    ; "uart tx host rate", Program_config.default, uart_tx_host_rate, Some 434, [ 434 ]
+    ; "uart rx", rx_config, uart_rx ~period:16, None, []
+    ; "spi master", spi_config, spi_master ~half_period:8, None, []
+    ; "spi slave", spi_slave_config, spi_slave, None, []
+    ; "i2c master", i2c_config, i2c_master ~quarter:8, None, []
+    ; "i2c slave", i2c_slave_config, i2c_slave, None, [ 0x50 lsl 1 ]
+    ; "i2c logger", i2c_logger_config, i2c_logger, None, []
+    ; "usb tx", usb_config, usb_tx, Some 32, [ 32 ]
+    ; "usb rx", usb_rx_config, usb_rx ~half_period:16, Some 32, [ 32 ]
+    ]
+  in
+  List.iter corpus ~f:(fun (name, config, source, period, preload) ->
+    let issues, violations =
+      soundness ?period ~preload ~config ~cycles:3000 ~seeds:8 (assemble source)
+    in
+    let violations = List.take violations 3 in
+    print_s [%message name (issues : int) (violations : (int * int * int * int) list)]);
+  [%expect {|
+    ("uart tx" (issues 4962) (violations ()))
+    ("uart tx host rate" (issues 224) (violations ()))
+    ("uart rx" (issues 5774) (violations ()))
+    ("spi master" (issues 8172) (violations ()))
+    ("spi slave" (issues 15003) (violations ()))
+    ("i2c master" (issues 7109) (violations ()))
+    ("i2c slave" (issues 13953) (violations ()))
+    ("i2c logger" (issues 6752) (violations ()))
+    ("usb tx" (issues 4462) (violations ()))
+    ("usb rx" (issues 8270) (violations ()))
+    |}]
+;;
+
+let%expect_test "random programs stay inside their analysis" =
+  let random = Splittable_random.of_int 5 in
+  let results =
+    List.init 32 ~f:(fun _ ->
+      let config = Random_program.config random in
+      let words = Random_program.program random ~config in
+      soundness ~config ~cycles:1000 ~seeds:2 words)
+  in
+  let issues = List.sum (module Int) results ~f:fst in
+  let violations = List.sum (module Int) results ~f:(fun (_, v) -> List.length v) in
+  print_s [%message (issues : int) (violations : int)];
+  [%expect {| ((issues 3679) (violations 0)) |}]
 ;;
