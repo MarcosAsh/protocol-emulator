@@ -1,4 +1,5 @@
-(** Four deep. Push when full and pop when empty are ignored. *)
+(** Four deep. Push when full and pop when empty are ignored; [full] is low in a cycle
+    that pops, so a push can land then. *)
 
 open! Core
 open! Hardcaml
