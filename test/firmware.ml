@@ -261,6 +261,111 @@ let i2c_config =
   }
 ;;
 
+(* Slave at the address the host sends first as [address lsl 1]. Every byte the master
+   writes, the address byte included, goes to the host; bytes the master reads come from
+   the host. The first bit of each written byte is watched for a start or stop condition
+   while SCL is high. Never stretches the clock. *)
+let i2c_slave =
+  {|
+    pull
+    mov p, osr               ; address << 1
+idle:
+    set pindirs, 0           ; release SDA
+    wait 1 pin 13
+    wait fall pin 12
+    jmp pin, start           ; SCL still high: a start
+    jmp idle
+start:
+    wait 0 pin 13
+    mov isr, null
+    set x, 7
+abit:
+    wait 1 pin 13
+    in pins, 1
+    wait 0 pin 13
+    jmp x--, abit
+    mov x, isr
+    set y, 0
+    add y, p
+    jmp x!=y, maybe_read
+    push
+    set pindirs, 1           ; ack
+    wait 1 pin 13
+    wait 0 pin 13
+    set pindirs, 0
+first:                       ; a data bit, or SDA moving while SCL is high
+    wait 1 pin 13
+    in pins, 2               ; SCL and SDA together
+    mov x, isr
+watch:
+    mov isr, null
+    in pins, 2
+    mov y, isr
+    jmp x!=y, changed
+    jmp watch
+changed:
+    jmp pin, control
+    sub x, 2                 ; SCL fell: keep the bit
+    mov isr, x
+    set x, 6
+dbit:
+    wait 1 pin 13
+    in pins, 1
+    wait 0 pin 13
+    jmp x--, dbit
+    push
+    set pindirs, 1           ; ack
+    wait 1 pin 13
+    wait 0 pin 13
+    set pindirs, 0
+    jmp first
+control:
+    mov isr, null
+    in pins, 1
+    mov x, isr
+    jmp x--, idle            ; SDA rose: stop
+    jmp start                ; SDA fell: repeated start
+maybe_read:
+    add y, 1
+    jmp x!=y, idle           ; another address
+    push
+    set pindirs, 1           ; ack
+    wait 1 pin 13
+    wait 0 pin 13
+rbyte:
+    pull
+    out null, 8
+    set x, 7
+rbit:
+    out y, 1
+    mov pindirs, !y          ; SDA follows the bit
+    wait 1 pin 13
+    wait 0 pin 13
+    jmp x--, rbit
+    set pindirs, 0           ; release SDA for the master's ack
+    mov isr, null
+    wait 1 pin 13
+    in pins, 1
+    wait 0 pin 13
+    mov x, isr
+    jmp x--, idle            ; nack: the master is done
+    jmp rbyte
+|}
+;;
+
+let i2c_slave_config =
+  { Program_config.default with
+    jmp_pin = scl
+  ; out_base = sda
+  ; out_count = 1
+  ; set_base = sda
+  ; set_count = 1
+  ; in_base = sda
+  ; out_shift = Left
+  ; in_shift = Left
+  }
+;;
+
 let i2c_word ?(start = false) ?(read = false) ?(stop = false) data =
   (Bool.to_int start lsl 15)
   lor (Bool.to_int read lsl 14)

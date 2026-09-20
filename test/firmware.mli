@@ -24,4 +24,10 @@ val sda : int
 val scl : int
 val i2c_master : quarter:int -> string
 val i2c_config : Program_config.t
+
+(** Slave. The host sends [address lsl 1] first, then reads every byte the master writes
+    to that address and supplies every byte it reads. *)
+val i2c_slave : string
+
+val i2c_slave_config : Program_config.t
 val i2c_word : ?start:bool -> ?read:bool -> ?stop:bool -> int -> int
