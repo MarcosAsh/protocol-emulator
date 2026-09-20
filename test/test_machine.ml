@@ -523,9 +523,48 @@ let%expect_test "usb low speed packets survive the wire" =
       (token_crc : Int.Hex.t)
         (crc : Int.Hex.t)
         (Usb_ls.Sniffer.packets sniffer : int list list)];
-  [%expect {|
+  [%expect
+    {|
     ((token_crc 0x2) (crc 0x94dd)
      ("Usb_ls.Sniffer.packets sniffer"
       ((45 0 16) (195 128 6 0 1 0 0 64 0 221 148))))
+    |}]
+;;
+
+let%expect_test "usb tx builds the crc and stuffs the get descriptor packet" =
+  let bit_period = 32 in
+  let data = [ 0x80; 0x06; 0x00; 0x01; 0x00; 0x00; 0x40; 0x00 ] in
+  let words =
+    (bit_period :: 0x80 :: 0xc3 :: (List.length data - 1) :: data)
+    @ [ 0x80; 0xc3; 0; 0xff ]
+  in
+  let t = Machine.create ~config:usb_config ~program:(assemble usb_tx) |> ok_exn in
+  let feed (t : Machine.t) words =
+    match words with
+    | w :: rest when List.length t.tx_fifo < Machine.fifo_depth ->
+      Machine.write_tx t w |> ok_exn, rest
+    | words -> t, words
+  in
+  let rec loop (t : Machine.t) words sniffer n =
+    if n = 0
+    then t, sniffer
+    else (
+      let t, words = feed t words in
+      let t = Machine.step t ~inputs:0 in
+      let pin p = (t.pin_out lsr p) land 1 in
+      let sniffer =
+        Usb_ls.Sniffer.step sniffer ~dp:(pin usb_dp_pin) ~dm:(pin usb_dm_pin)
+      in
+      loop t words sniffer (n - 1))
+  in
+  let t, sniffer = loop t words (Usb_ls.Sniffer.create ~bit_period) (bit_period * 200) in
+  print_s
+    [%message
+      (Usb_ls.Sniffer.packets sniffer : int list list) (t.fault : Machine.Fault.t)];
+  [%expect {|
+    (("Usb_ls.Sniffer.packets sniffer"
+      ((195 128 6 0 1 0 0 64 0 221 148) (195 255 0 255)))
+     (t.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
     |}]
 ;;
