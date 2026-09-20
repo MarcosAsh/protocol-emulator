@@ -562,7 +562,8 @@ let%expect_test "random programs stay inside their analysis" =
 
 let%expect_test "edge meter" =
   report ~config:edge_meter_config (edge_meter ~period:16);
-  [%expect {|
+  [%expect
+    {|
      0  set p, 16                    phase ?..?
      1  set pins, 0                  phase ?..?  edge ?..?  jitter ?
      2  mov t, now                   phase ?..?

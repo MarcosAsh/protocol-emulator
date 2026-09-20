@@ -654,7 +654,8 @@ let%expect_test "the core measures its own edges" =
   print_s
     [%message
       (List.hd_exn stamps : int) (intervals : int list) (t.fault : Machine.Fault.t)];
-  [%expect {|
+  [%expect
+    {|
     (("List.hd_exn stamps" 20) (intervals (32 32 32 32 32 32 32 32 32 32 32))
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
