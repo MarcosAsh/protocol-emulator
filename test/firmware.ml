@@ -637,6 +637,41 @@ let usb_rx_config =
   }
 ;;
 
+(* The core measures itself: OUT0 is wired back to IN0, every rising edge it makes is
+   captured, and the timestamp goes to the host. The intervals between timestamps are what
+   the analyser predicts for the toggle, so predicted and measured jitter can sit side by
+   side, on the FPGA and later on silicon. *)
+let edge_meter ~period =
+  [%string
+    {|
+    set p, %{period#Int}
+    set pins, 0
+    mov t, now
+    add t, p
+loop:
+    capture_arm
+    wait t+
+    mov pins, !pins
+    wait t+
+    mov pins, !pins          ; one of the two is the rising edge
+    nop [3]                  ; it comes back and is captured
+    in capture, 16
+    jmp loop
+|}]
+;;
+
+let edge_meter_config =
+  { Program_config.default with
+    in_base = 0
+  ; out_base = 5
+  ; out_count = 1
+  ; capture_pin = 0
+  ; capture_rising = true
+  ; autopush = true
+  ; push_threshold = 16
+  }
+;;
+
 let i2c_word ?(start = false) ?(read = false) ?(stop = false) data =
   (Bool.to_int start lsl 15)
   lor (Bool.to_int read lsl 14)

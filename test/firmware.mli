@@ -54,4 +54,10 @@ val usb_rx : half_period:int -> string
 val usb_rx_dm_pin : int
 val usb_rx_dp_pin : int
 val usb_rx_config : Program_config.t
+
+(** Toggles OUT0 every [period] cycles and pushes the capture time of each rising edge on
+    IN0, which is wired back to OUT0. *)
+val edge_meter : period:int -> string
+
+val edge_meter_config : Program_config.t
 val i2c_word : ?start:bool -> ?read:bool -> ?stop:bool -> int -> int
