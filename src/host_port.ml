@@ -62,6 +62,13 @@ module State = struct
     | High
     | Low
   [@@deriving sexp_of, compare ~localize, enumerate]
+
+  let names =
+    List.map all ~f:(function
+      | Command -> "C"
+      | High -> "H"
+      | Low -> "L")
+  ;;
 end
 
 let create (scope : Scope.t) (i : Signal.t I.t) =

@@ -48,6 +48,14 @@ module O : sig
   [@@deriving hardcaml]
 end
 
+(** The frame state machine, named for waveforms: [C] awaiting the command byte, then the
+    high and low byte of each word. *)
+module State : sig
+  type t
+
+  val names : string list
+end
+
 module Reg : sig
   val control : int
   val status : int
