@@ -26,16 +26,20 @@ let config random =
   }
 ;;
 
-let rec word ?(fifo_waits = true) random ~side_set_count =
+let rec word ?(waits = `Any) random ~side_set_count =
   let w = Splittable_random.int random ~lo:0 ~hi:0xffff in
-  match Isa.of_word ~side_set_count w with
-  | Ok (Op { op = Sys Halt; _ }) | Error _ -> word ~fifo_waits random ~side_set_count
-  | Ok (Op { op = Wait (Fifo _); _ }) when not fifo_waits ->
-    word ~fifo_waits random ~side_set_count
-  | Ok _ -> w
+  let input_pin pin = pin < Isa.first_output_pin in
+  match Isa.of_word ~side_set_count w, waits with
+  | (Ok (Op { op = Sys Halt; _ }) | Error _), _ -> word ~waits random ~side_set_count
+  | Ok (Op { op = Wait wait; _ }), `Input_pins ->
+    (match wait with
+     | (Pin_level { pin; _ } | Pin_edge { pin; _ }) when input_pin pin -> w
+     | Pin_level _ | Pin_edge _ | Deadline _ | Fifo _ ->
+       word ~waits random ~side_set_count)
+  | Ok _, _ -> w
 ;;
 
-let program ?fifo_waits random ~(config : Program_config.t) =
+let program ?waits random ~(config : Program_config.t) =
   List.init (1 lsl Isa.pc_bits) ~f:(fun _ ->
-    word ?fifo_waits random ~side_set_count:config.side_set_count)
+    word ?waits random ~side_set_count:config.side_set_count)
 ;;

@@ -6,12 +6,18 @@ open Protocol_emulator
 
 val config : Splittable_random.t -> Program_config.t
 
-(** Never [halt]. With [fifo_waits] false, never [wait tx] or [wait rx] either. *)
-val word : ?fifo_waits:bool -> Splittable_random.t -> side_set_count:int -> int
+(** Never [halt]. With [waits] [`Input_pins] the only waits are on input pins, which
+    random inputs release within a few cycles; a deadline wait on a random [t] or a fifo
+    wait would hold the core for the rest of a run. *)
+val word
+  :  ?waits:[ `Any | `Input_pins ]
+  -> Splittable_random.t
+  -> side_set_count:int
+  -> int
 
 (** A full program memory of [word]s. *)
 val program
-  :  ?fifo_waits:bool
+  :  ?waits:[ `Any | `Input_pins ]
   -> Splittable_random.t
   -> config:Program_config.t
   -> int list
