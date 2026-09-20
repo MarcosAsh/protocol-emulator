@@ -94,7 +94,8 @@ let captures (c : Program_config.t) (wait : Isa.Wait.t) =
 
 (* Successors of [pc] with the state after the instruction. A wait on a pin or a fifo can
    take any time, so the phase only gets a lower bound. *)
-let step ~config (s : State.t) pc (t : Isa.t) =
+let step ?period ~config (s : State.t) pc (t : Isa.t) =
+  let loaded_period = Option.value_map period ~default:Interval.top ~f:Interval.exactly in
   match t with
   | Jmp { cond; target } ->
     let s = State.elapse s Isa.jmp_cycles in
@@ -151,7 +152,7 @@ let step ~config (s : State.t) pc (t : Isa.t) =
      | Set { dest = X; value } -> after { s with x = Interval.exactly value }
      | Set { dest = Y; value } -> after { s with y = Interval.exactly value }
      | Mov { dest = P; _ } | Out { dest = P; _ } | Alu { dest = P; _ } ->
-       after { s with period = Interval.top }
+       after { s with period = loaded_period }
      | Mov { dest = X; _ } | Out { dest = X; _ } | Alu { dest = X; _ } ->
        after { s with x = Interval.top }
      | Mov { dest = Y; _ } | Out { dest = Y; _ } | Alu { dest = Y; _ } ->
@@ -161,7 +162,7 @@ let step ~config (s : State.t) pc (t : Isa.t) =
      | _ -> after s)
 ;;
 
-let analyse ~config (program : Isa.t list) =
+let analyse ?period ~config (program : Isa.t list) =
   let program = Array.of_list program in
   let n = Array.length program in
   let entry = Array.create ~len:n None in
@@ -187,7 +188,7 @@ let analyse ~config (program : Isa.t list) =
   while not (Queue.is_empty work) do
     let pc = Queue.dequeue_exn work in
     let s = Option.value_exn entry.(pc) in
-    List.iter (step ~config s pc program.(pc)) ~f:(fun (pc, s) -> visit pc s)
+    List.iter (step ?period ~config s pc program.(pc)) ~f:(fun (pc, s) -> visit pc s)
   done;
   Array.to_list program
   |> List.filter_mapi ~f:(fun pc instruction ->

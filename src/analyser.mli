@@ -27,5 +27,8 @@ module Row : sig
   [@@deriving sexp_of]
 end
 
-val analyse : config:Program_config.t -> Isa.t list -> Row.t list
+(** [period] is the value every run-time load of [p] is assumed to carry, for firmware
+    that takes its bit period from the host. *)
+val analyse : ?period:int -> config:Program_config.t -> Isa.t list -> Row.t list
+
 val to_string : side_set_count:int -> Row.t list -> string
