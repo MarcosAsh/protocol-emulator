@@ -130,7 +130,8 @@ let run_slave ?(replies = []) ops ~cycles =
 
 let%expect_test "slave takes a write" =
   run_slave [ Start; Write 0xa0; Write 3; Write 0xaa; Stop ] ~cycles:1500;
-  [%expect {|
+  [%expect
+    {|
     ((received (160 3 170)) ("I2c_peer.log master" (ack ack ack))
      ("I2c_peer.idle master" true)
      (t.fault
@@ -152,7 +153,8 @@ let%expect_test "slave answers a read after a repeated start" =
     ; Stop
     ]
     ~cycles:3000;
-  [%expect {|
+  [%expect
+    {|
     ((received (160 3 161))
      ("I2c_peer.log master" (ack ack ack "read 18" "read 52"))
      ("I2c_peer.idle master" true)
@@ -166,7 +168,8 @@ let%expect_test "slave ignores another address" =
   run_slave
     [ Start; Write 0x42; Write 3; Stop; Start; Write 0xa0; Write 7; Stop ]
     ~cycles:2500;
-  [%expect {|
+  [%expect
+    {|
     ((received (160 7)) ("I2c_peer.log master" (nack nack ack ack))
      ("I2c_peer.idle master" true)
      (t.fault

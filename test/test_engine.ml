@@ -358,7 +358,8 @@ let%expect_test "i2c slave" =
       (I2c_peer.log !master : string list)
         (List.length model.rx_fifo : int)
         (model.pc : int)];
-  [%expect {|
+  [%expect
+    {|
     ("lockstep held" (cycles 3000))
     (("I2c_peer.log (!master)" (ack ack ack "read 18" "read 52"))
      ("List.length model.rx_fifo" 3) (model.pc 4))
