@@ -103,7 +103,8 @@ let%expect_test "waveform of reset and the first command" =
       Spi_master.write m ~watch Reg.control [ 1 ];
       watch 4;
       ());
-  [%expect {|
+  [%expect
+    {|
     ┌Signals─────────────┐┌Waves─────────────────────────────────────────────────────────────┐
     │rst_n               ││   ┌───────────────────────────────────────────────────────────── │
     │                    ││───┘                                                              │

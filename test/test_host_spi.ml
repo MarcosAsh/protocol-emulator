@@ -108,7 +108,8 @@ let%expect_test "waveform of one byte each way" =
       inputs.cs_n := Bits.vdd;
       watch 4;
       ());
-  [%expect {|
+  [%expect
+    {|
     ┌Signals───────────┐┌Waves───────────────────────────────────────────────────────────────┐
     │host_spi$sck      ││                ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐                     │
     │                  ││────────────────┘ └─┘ └─┘ └─┘ └─┘ └─┘ └─┘ └─┘ └─────────            │

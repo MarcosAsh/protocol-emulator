@@ -169,7 +169,8 @@ let%expect_test "waveform of a control write" =
       Spi_master.write master ~watch Reg.control [ 1 ];
       watch 4;
       ());
-  [%expect {|
+  [%expect
+    {|
     ┌Signals───────────┐┌Waves───────────────────────────────────────────────────────────────┐
     │                  ││───────────────────────┬───────────────┬───────────────┬─────       │
     │host_port$sm      ││ C                     │H              │L              │H           │
