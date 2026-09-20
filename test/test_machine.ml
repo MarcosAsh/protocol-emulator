@@ -203,7 +203,8 @@ let run_spi_slave ~half_period ?gap ~replies bytes =
 
 let%expect_test "spi slave exchanges bytes with a mode 0 master" =
   run_spi_slave ~half_period:8 ~replies:[ 0x81; 0x7e; 0x11; 0 ] [ 0xa5; 0x3c; 0xf0 ];
-  [%expect {|
+  [%expect
+    {|
     ((slave_received (165 60 240)) ("Spi_peer.received master" (129 126 17))
      ("Spi_peer.idle master" true)
      (t.fault
@@ -213,7 +214,8 @@ let%expect_test "spi slave exchanges bytes with a mode 0 master" =
 
 let%expect_test "spi slave keeps up with back to back bytes at four cycles a half period" =
   run_spi_slave ~half_period:4 ~replies:[ 0x81; 0x7e; 0x11; 0 ] [ 0xa5; 0x3c; 0xf0 ];
-  [%expect {|
+  [%expect
+    {|
     ((slave_received (165 60 240)) ("Spi_peer.received master" (129 126 17))
      ("Spi_peer.idle master" true)
      (t.fault
@@ -227,7 +229,8 @@ let%expect_test "spi slave with gaps between bytes" =
     ~gap:13
     ~replies:[ 0x81; 0x7e; 0x11; 0 ]
     [ 0xa5; 0x3c; 0xf0 ];
-  [%expect {|
+  [%expect
+    {|
     ((slave_received (165 60 240)) ("Spi_peer.received master" (129 126 17))
      ("Spi_peer.idle master" true)
      (t.fault
