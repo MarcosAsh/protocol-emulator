@@ -1,6 +1,7 @@
 open! Core
 open! Hardcaml
 open Hardcaml_lws
+open! Hardcaml_waveterm
 open Protocol_emulator
 module Harness = Hardcaml_test_harness.Lws_harness.Make (Host_port.I) (Host_port.O)
 module Reg = Host_port.Reg
@@ -128,5 +129,58 @@ let%expect_test "config registers read back" =
        (stuff_threshold 22) (stuff_level 1)))
      (live (1 2 1 4 5 6 7 0 9 10 1 0 1 0 15 0 17 18 19 20 1 22 1)))
     (events ())
+    |}]
+;;
+
+let%expect_test "waveform of a control write" =
+  let display_rules =
+    [ Display_rule.port_name_is "host_port$sm" ~wave_format:(Index Host_port.State.names)
+    ]
+    @ List.map [ "cmd"; "write" ] ~f:(fun name ->
+      Display_rule.port_name_is ("host_port$" ^ name) ~wave_format:(Bit_or Unsigned_int))
+    @ [ Display_rule.port_name_is "start" ~wave_format:Bit ]
+  in
+  Harness.run
+    ~create:Host_port.hierarchical
+    ~trace:`All_named
+    ~print_waves_after_test:(fun waves ->
+      Waveform.print
+        ~display_rules
+        ~signals_width:20
+        ~display_width:90
+        ~wave_width:(-1)
+        waves)
+    (fun (h @ local) ~inputs ~outputs ->
+      let cycle ?n () = Lws.step ?n h in
+      let o = Before_and_after_edge.after_edge outputs in
+      let watch n = cycle ~n () in
+      inputs.clocking.clear := Bits.vdd;
+      cycle ();
+      inputs.clocking.clear := Bits.gnd;
+      let master =
+        Spi_master.create
+          ~sck:inputs.sck
+          ~mosi:inputs.mosi
+          ~cs_n:inputs.cs_n
+          ~miso:o.miso
+          ~half:1
+      in
+      cycle ~n:2 ();
+      Spi_master.write master ~watch Reg.control [ 1 ];
+      watch 4;
+      ());
+  [%expect {|
+    ┌Signals───────────┐┌Waves───────────────────────────────────────────────────────────────┐
+    │                  ││───────────────────────┬───────────────┬───────────────┬─────       │
+    │host_port$sm      ││ C                     │H              │L              │H           │
+    │                  ││───────────────────────┴───────────────┴───────────────┴─────       │
+    │                  ││───────────────────────┬─────────────────────────────────────       │
+    │host_port$cmd     ││ 0                     │128                                         │
+    │                  ││───────────────────────┴─────────────────────────────────────       │
+    │host_port$write   ││                                                      ┌┐            │
+    │                  ││──────────────────────────────────────────────────────┘└─────       │
+    │start             ││                                                      ┌┐            │
+    │                  ││──────────────────────────────────────────────────────┘└─────       │
+    └──────────────────┘└────────────────────────────────────────────────────────────────────┘
     |}]
 ;;
