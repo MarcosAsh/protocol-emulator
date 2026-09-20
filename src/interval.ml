@@ -50,3 +50,8 @@ let to_string t =
   | Some a, Some b when a = b -> Int.to_string a
   | lo, hi -> [%string "%{b lo}..%{b hi}"]
 ;;
+
+let contains t n =
+  Option.value_map t.lo ~default:true ~f:(fun lo -> n >= lo)
+  && Option.value_map t.hi ~default:true ~f:(fun hi -> n <= hi)
+;;

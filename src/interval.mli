@@ -20,4 +20,5 @@ val minus : t -> t -> t
 val clamp_low : t -> int -> t
 
 val widen : old:t -> t -> t
+val contains : t -> int -> bool
 val to_string : t -> string
