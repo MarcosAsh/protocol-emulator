@@ -392,6 +392,15 @@ module Usb_ls = struct
     List.concat_map bytes ~f:(fun byte -> List.init 8 ~f:(fun i -> (byte lsr i) land 1))
   ;;
 
+  (* the CRC register after every bit of a packet, SYNC and PID included, which is what
+     the receiver hands the host to check *)
+  let residual bytes =
+    List.fold
+      (bits_of_bytes (0x80 :: bytes))
+      ~init:0xffff
+      ~f:(fun crc bit -> Crc.step ~width:16 ~poly:0xa001 ~reflect:true crc ~bit)
+  ;;
+
   let bytes_of_bits bits =
     List.chunks_of bits ~length:8
     |> List.filter ~f:(fun chunk -> List.length chunk = 8)

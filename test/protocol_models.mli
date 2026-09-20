@@ -65,6 +65,9 @@ module Usb_ls : sig
   val crc16 : int list -> int
   val bits_of_bytes : int list -> int list
 
+  (** The CRC register a receiver ends a packet with, SYNC and PID included. *)
+  val residual : int list -> int
+
   module Line : sig
     type t =
       | J
