@@ -413,3 +413,38 @@ let%expect_test "usb tx" =
     64  jmp 38                       phase -26
     |}]
 ;;
+
+let%expect_test "usb rx" =
+  report ~config:usb_rx_config ~period:32 (usb_rx ~half_period:16);
+  [%expect {|
+     0  pull                         phase ?..?
+     1  mov p, osr                   phase ?..?
+     2  set y, 1                     phase ?..?
+     3  crc_init                     phase ?..?
+     4  stuff_reset                  phase ?..?
+     5  capture_arm                  phase ?..?
+     6  wait 1 pin 4                 phase ?..?
+     7  mov t, capture               phase ?..?
+     8  add t, 7                     phase 2..3
+     9  add t, 7                     phase -4..-3
+    10  add t, 2                     phase -10..-9
+    11  jmp stuff, 24                phase -26..-10
+    12  wait t+                      phase -24..-8  slack 8..24
+    13  mov x, pins                  phase -31  sample -31
+    14  jmp x!=y, 18                 phase -30
+    15  set x, 1                     phase -28
+    16  in x, 1                      phase -27
+    17  jmp 11                       phase -26
+    18  mov y, x                     phase -28
+    19  jmp x--, 22                  phase -27
+    20  in crc, 16                   phase -25
+    21  jmp 2                        phase -24
+    22  in null, 1                   phase -25
+    23  jmp 11                       phase -24
+    24  wait t+                      phase -24..-8  slack 8..24
+    25  mov x, pins                  phase -31  sample -31
+    26  mov y, x                     phase -30
+    27  stuff_reset                  phase -29
+    28  jmp 11                       phase -28
+    |}]
+;;
