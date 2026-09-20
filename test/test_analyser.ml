@@ -2,9 +2,9 @@ open! Core
 open Protocol_emulator
 open Firmware
 
-let report ?(config = Program_config.default) source =
+let report ?(config = Program_config.default) ?period source =
   let program = Asm.assemble source |> ok_exn in
-  Analyser.analyse ~config program.instructions
+  Analyser.analyse ?period ~config program.instructions
   |> Analyser.to_string ~side_set_count:program.side_set_count
   |> print_endline
 ;;
@@ -339,5 +339,76 @@ let%expect_test "i2c logger" =
     70  mov pins, !null side 0       phase -15  edge -14
     71  wait t side 0                phase -14  slack 14
     72  jmp 2                        phase 1
+    |}]
+;;
+
+let%expect_test "usb tx" =
+  report ~config:usb_config ~period:32 usb_tx;
+  [%expect {|
+     0  pull                         phase ?..?
+     1  mov p, osr                   phase ?..?
+     2  set pins, 2                  phase ?..?  edge ?..?  jitter ?
+     3  wait tx                      phase ?..?
+     4  mov t, now                   phase ?..?
+     5  add t, p                     phase 1
+     6  set y, 1                     phase -30
+     7  pull                         phase -29..-23
+     8  set x, 7                     phase -28..-22
+     9  jmp stuff, 45                phase -27..-21
+    10  wait t+                      phase -25..-19  slack 19..25
+    11  out pins, 1                  phase -31  edge -30
+    12  jmp pin, 14                  phase -30
+    13  mov pins, !pins              phase -28  edge -27
+    14  jmp x--, 9                   phase -28..-27
+    15  jmp y--, 7                   phase -26..-25
+    16  crc_init                     phase -24..-23
+    17  pull                         phase -23..-22
+    18  mov y, osr                   phase -22..-21
+    19  pull                         phase -24..-20
+    20  set x, 7                     phase -23..-19
+    21  jmp stuff, 50                phase -26..-18
+    22  wait t+                      phase -24..-16  slack 16..24
+    23  out pins, 1                  phase -31  edge -30
+    24  jmp pin, 26                  phase -30
+    25  mov pins, !pins              phase -28  edge -27
+    26  jmp x--, 21                  phase -28..-27
+    27  jmp y--, 19                  phase -26..-25
+    28  in crc, 16                   phase -24..-23
+    29  mov osr, !isr                phase -23..-22
+    30  set x, 15                    phase -22..-21
+    31  jmp stuff, 55                phase -26..-20
+    32  wait t+                      phase -24..-18  slack 18..24
+    33  out pins, 1                  phase -31  edge -30
+    34  jmp pin, 36                  phase -30
+    35  mov pins, !pins              phase -28  edge -27
+    36  jmp x--, 31                  phase -28..-27
+    37  jmp stuff, 60                phase -26..-25
+    38  wait t+                      phase -24..-23  slack 23..24
+    39  set pins, 0                  phase -31  edge -30
+    40  wait t+                      phase -30  slack 30
+    41  wait t+                      phase -31  slack 31
+    42  set pins, 2                  phase -31  edge -30
+    43  wait t+                      phase -30  slack 30
+    44  jmp 3                        phase -31
+    45  wait t+                      phase -25..-19  slack 19..25
+    46  nop [2]                      phase -31
+    47  mov pins, !pins              phase -28  edge -27
+    48  stuff_reset                  phase -27
+    49  jmp 9                        phase -26
+    50  wait t+                      phase -24..-16  slack 16..24
+    51  nop [2]                      phase -31
+    52  mov pins, !pins              phase -28  edge -27
+    53  stuff_reset                  phase -27
+    54  jmp 21                       phase -26
+    55  wait t+                      phase -24..-18  slack 18..24
+    56  nop [2]                      phase -31
+    57  mov pins, !pins              phase -28  edge -27
+    58  stuff_reset                  phase -27
+    59  jmp 31                       phase -26
+    60  wait t+                      phase -24..-23  slack 23..24
+    61  nop [2]                      phase -31
+    62  mov pins, !pins              phase -28  edge -27
+    63  stuff_reset                  phase -27
+    64  jmp 38                       phase -26
     |}]
 ;;
