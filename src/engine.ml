@@ -134,6 +134,8 @@ module O = struct
     ; rx_level : 'a [@bits Host_fifo.level_bits]
     ; rx_head : 'a [@bits Isa.data_bits]
     ; instruction : 'a [@bits Isa.word_bits]
+    ; crc : 'a [@bits Isa.data_bits]
+    ; stuff_run : 'a [@bits Isa.count_bits]
     }
   [@@deriving hardcaml]
 end
@@ -194,6 +196,8 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   let%hw halted = wire 1 in
   let%hw capture = wire timer_bits in
   let%hw capture_armed = wire 1 in
+  let%hw crc = wire data_bits in
+  let%hw stuff_run = wire count_bits in
   let%hw fetch_addr = wire pc_bits in
   let%hw ir_load = wire 1 in
   let%hw start = reg spec i.start in
@@ -297,7 +301,7 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
       ; Pin, pin_of sample c.jmp_pin
       ; Not_pin, ~:(pin_of sample c.jmp_pin)
       ; Osr_not_empty, osr_count <: c.pull_threshold
-      ; Stuff_pending, gnd
+      ; Stuff_pending, c.stuff_threshold <>:. 0 &: (stuff_run >=: c.stuff_threshold)
       ]
   in
   let%hw issue = ~:halted &: (stall ==:. 0) &: ~:start in
@@ -319,7 +323,7 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
       ; Null, zero data_bits
       ; Isr, isr
       ; Osr, osr
-      ; Crc, zero data_bits
+      ; Crc, crc
       ; Capture, sel_bottom capture ~width:data_bits
       ]
     &: mask
@@ -357,6 +361,40 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
       (log_shift ~f:sll osr_before ~by:shift_count)
   in
   let%hw osr_count_next = saturate osr_count_before shift_count in
+  (* The assist units see the bit of every single-bit shift through the pins. *)
+  let%hw bit_crosses =
+    shift_count
+    ==:. 1
+    &: (is In
+        &: Isa.In_source.Of_signal.is in_source Pins
+        |: (is Out
+            &: (Isa.Out_dest.Of_signal.is out_dest Pins
+                |: Isa.Out_dest.Of_signal.is out_dest Pindirs)))
+  in
+  let%hw crossing_bit = mux2 (is In) in_value.:(0) out_value.:(0) in
+  let module Crc_step = Crc.Make (Signal) in
+  let%hw crc_stepped =
+    Crc_step.step
+      ~width:c.crc_width
+      ~poly:c.crc_poly
+      ~reflect:c.crc_reflect
+      crc
+      ~bit:crossing_bit
+  in
+  let%hw crc_next =
+    mux2 (is_sys Crc_init) c.crc_init @@ mux2 bit_crosses crc_stepped crc
+  in
+  let%hw stuff_run_max = of_unsigned_int ~width:count_bits 31 in
+  let%hw stuff_run_next =
+    mux2 (is_sys Stuff_reset) (zero count_bits)
+    @@ mux2
+         bit_crosses
+         (mux2
+            (crossing_bit ==: c.stuff_level)
+            (mux2 (stuff_run ==: stuff_run_max) stuff_run (stuff_run +:. 1))
+            (zero count_bits))
+         stuff_run
+  in
   let%hw mov_value24 =
     Isa.Mov_source.Of_signal.match_
       mov_source
@@ -625,6 +663,8 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   stall <-- reg spec stall_next;
   halted <-- reg spec ~clear_to:vdd halted_next;
   capture <-- reg spec ~enable:captured now;
+  crc <-- reg spec (mux2 start c.crc_init @@ mux2 go crc_next crc);
+  stuff_run <-- reg spec (mux2 start (zero count_bits) @@ mux2 go stuff_run_next stuff_run);
   capture_armed
   <-- reg spec (mux2 captured gnd @@ mux2 (op_go &: is_sys Capture_arm) vdd capture_armed);
   let%hw irq =
@@ -653,6 +693,8 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   ; rx_level = rx.level
   ; rx_head = rx.head
   ; instruction = word
+  ; crc
+  ; stuff_run
   }
 ;;
 

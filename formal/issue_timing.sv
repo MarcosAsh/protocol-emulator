@@ -16,9 +16,9 @@ module issue_timing (input clk);
 
   wire [19:0] pin_out, pin_dir;
   wire [8:0] pc;
-  wire [15:0] x, y, p, osr, isr, rx_head, instruction;
+  wire [15:0] x, y, p, osr, isr, rx_head, instruction, crc;
   wire [23:0] t, now, capture;
-  wire [4:0] osr_count, isr_count, stall;
+  wire [4:0] osr_count, isr_count, stall, stuff_run;
   wire halted, irq, underflow, overflow, missed_deadline, decode, capture_armed;
   wire [2:0] tx_level, rx_level;
 
@@ -41,7 +41,7 @@ module issue_timing (input clk);
     .halted(halted), .irq(irq), .fault$underflow(underflow), .fault$overflow(overflow),
     .fault$missed_deadline(missed_deadline), .fault$decode(decode), .capture(capture),
     .capture_armed(capture_armed), .tx_level(tx_level), .rx_level(rx_level),
-    .rx_head(rx_head), .instruction(instruction));
+    .rx_head(rx_head), .instruction(instruction), .crc(crc), .stuff_run(stuff_run));
 
   always @(*) begin
     assume(side_set_count <= 2);

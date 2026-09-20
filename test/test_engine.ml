@@ -34,6 +34,8 @@ module State = struct
     ; tx_level : int
     ; rx_level : int
     ; rx_head : int option
+    ; crc : int
+    ; stuff_run : int
     }
   [@@deriving sexp_of, compare, equal]
 
@@ -59,6 +61,8 @@ module State = struct
     ; tx_level = List.length m.tx_fifo
     ; rx_level = List.length m.rx_fifo
     ; rx_head = List.hd m.rx_fifo
+    ; crc = m.crc
+    ; stuff_run = m.stuff_run
     }
   ;;
 
@@ -92,6 +96,8 @@ module State = struct
     ; tx_level = int o.tx_level
     ; rx_level
     ; rx_head = (if rx_level = 0 then None else Some (int o.rx_head))
+    ; crc = int o.crc
+    ; stuff_run = int o.stuff_run
     }
   ;;
 end
