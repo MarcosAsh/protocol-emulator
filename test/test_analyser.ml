@@ -559,3 +559,21 @@ let%expect_test "random programs stay inside their analysis" =
   print_s [%message (issues : int) (violations : int)];
   [%expect {| ((issues 3679) (violations 0)) |}]
 ;;
+
+let%expect_test "edge meter" =
+  report ~config:edge_meter_config (edge_meter ~period:16);
+  [%expect {|
+     0  set p, 16                    phase ?..?
+     1  set pins, 0                  phase ?..?  edge ?..?  jitter ?
+     2  mov t, now                   phase ?..?
+     3  add t, p                     phase 1
+     4  capture_arm                  phase -14..-7
+     5  wait t+                      phase -13..-6  slack 6..13
+     6  mov pins, !pins              phase -15  edge -14
+     7  wait t+                      phase -14  slack 14
+     8  mov pins, !pins              phase -15  edge -14
+     9  nop [3]                      phase -14
+    10  in capture, 16               phase -10
+    11  jmp 4                        phase -9
+    |}]
+;;
