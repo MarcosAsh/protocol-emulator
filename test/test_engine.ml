@@ -106,9 +106,10 @@ module Host = struct
   type t =
     { tx : int option
     ; pop_rx : bool
+    ; clear_irq : bool
     }
 
-  let idle = { tx = None; pop_rx = false }
+  let idle = { tx = None; pop_rx = false; clear_irq = false }
 end
 
 let run
@@ -168,6 +169,8 @@ let run
              i.tx.value <--. word
            | None -> i.tx.valid := Bits.gnd);
           i.rx_pop := Bits.of_bool action.pop_rx;
+          i.clear_irq := Bits.of_bool action.clear_irq;
+          if action.clear_irq then model := Machine.clear_irq !model;
           if action.pop_rx
           then (
             match Machine.read_rx !model with
@@ -310,7 +313,7 @@ let%expect_test "i2c master" =
         match !words with
         | w :: rest ->
           words := rest;
-          { Host.tx = Some w; pop_rx = true }
+          { Host.idle with tx = Some w; pop_rx = true }
         | [] -> { Host.idle with pop_rx = true })
       ~react:(fun m ->
         let bus_sda, bus_scl = bus m in
@@ -418,7 +421,7 @@ let%expect_test "usb tx" =
     match !pending with
     | w :: rest when !level < Machine.fifo_depth ->
       pending := rest;
-      { Host.tx = Some w; pop_rx = false }
+      { Host.idle with tx = Some w; pop_rx = false }
     | _ -> Host.idle
   in
   let (_ : Machine.t) =
@@ -472,7 +475,7 @@ let%expect_test "usb rx" =
       ~program:(assemble (usb_rx ~half_period:(bit_period / 2)))
       ~preload:[ bit_period ]
       ~inputs:(fun n -> levels.(n))
-      ~host:(fun _ -> { Host.tx = None; pop_rx = true })
+      ~host:(fun _ -> { Host.idle with tx = None; pop_rx = true })
       ~react:(fun m ->
         match m.rx_fifo with
         | w :: _ -> words := w :: !words
@@ -501,7 +504,7 @@ loop:
   in
   let random = Splittable_random.of_int 9 in
   let host _ =
-    { Host.tx = None; pop_rx = Splittable_random.int random ~lo:0 ~hi:3 = 0 }
+    { Host.idle with tx = None; pop_rx = Splittable_random.int random ~lo:0 ~hi:3 = 0 }
   in
   let (_ : Machine.t) =
     lockstep ~config:Program_config.default ~program ~inputs:(fun _ -> 0) ~host ()
@@ -517,7 +520,7 @@ let%expect_test "edge meter" =
       ~config:edge_meter_config
       ~program:(assemble (edge_meter ~period:16))
       ~inputs:(fun _ -> !last)
-      ~host:(fun _ -> { Host.tx = None; pop_rx = true })
+      ~host:(fun _ -> { Host.idle with tx = None; pop_rx = true })
       ~react:(fun m ->
         last := (m.pin_out lsr 5) land 1;
         match m.rx_fifo with
@@ -531,10 +534,33 @@ let%expect_test "edge meter" =
     |> List.map ~f:(fun (a, b) -> a - b)
   in
   print_s [%message (intervals : int list)];
-  [%expect {|
+  [%expect
+    {|
     ("lockstep held" (cycles 400))
     (intervals (32 32 32 32 32 32 32 32 32 32 32))
     |}]
+;;
+
+let%expect_test "the host clears the interrupt" =
+  let program = assemble {|
+loop:
+    irq [7]
+    jmp loop
+|} in
+  let random = Splittable_random.of_int 4 in
+  let host _ =
+    { Host.idle with clear_irq = Splittable_random.int random ~lo:0 ~hi:5 = 0 }
+  in
+  let (_ : Machine.t) =
+    lockstep
+      ~cycles:200
+      ~config:Program_config.default
+      ~program
+      ~inputs:(fun _ -> 0)
+      ~host
+      ()
+  in
+  [%expect {| ("lockstep held" (cycles 200)) |}]
 ;;
 
 let%expect_test "faults and halt" =
@@ -658,7 +684,8 @@ let%expect_test "random programs" =
       let program = Random_program.program random ~config in
       let level = ref 0 in
       let host _ =
-        { Host.tx =
+        { Host.idle with
+          tx =
             (if !level < Machine.fifo_depth && int 3 = 0 then Some (int 0xffff) else None)
         ; pop_rx = int 3 = 0
         }
