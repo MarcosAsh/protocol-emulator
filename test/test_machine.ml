@@ -377,3 +377,114 @@ let%expect_test "host timing never reaches the pins" =
   print_s [%message (programs : int) (words_pulled : int) (agree : int) (disagree : int)];
   [%expect {| ((programs 64) (words_pulled 663) (agree 64) (disagree 0)) |}]
 ;;
+
+(* the check values of CRC-16/USB and CRC-5/USB over "123456789" are 0xb4c8 and 0x19, both
+   after the final inversion the firmware does with [mov] *)
+let crc_of_bytes ~config bytes =
+  let program =
+    assemble
+      {|
+byte:
+    wait tx
+    pull
+    set x, 7
+bit:
+    out pins, 1
+    jmp x--, bit
+    jmp byte
+|}
+  in
+  let t = Machine.create ~config ~program |> ok_exn in
+  let feed t bytes =
+    match bytes with
+    | b :: rest when List.length t.Machine.tx_fifo < Machine.fifo_depth ->
+      Machine.write_tx t b |> ok_exn, rest
+    | bytes -> t, bytes
+  in
+  let rec loop t bytes n =
+    if n = 0
+    then t
+    else (
+      let t, bytes = feed t bytes in
+      loop (Machine.step t ~inputs:0) bytes (n - 1))
+  in
+  let t = loop t bytes (50 * List.length bytes) in
+  t.crc, t.fault
+;;
+
+let check_bytes = String.to_list "123456789" |> List.map ~f:Char.to_int
+
+let%expect_test "crc-16/usb over the check string" =
+  let crc, fault = crc_of_bytes ~config:Program_config.default check_bytes in
+  print_s [%message (crc lxor 0xffff : Int.Hex.t) (fault : Machine.Fault.t)];
+  [%expect
+    {|
+    (("crc lxor 0xffff" 0xb4c8)
+     (fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    |}]
+;;
+
+let%expect_test "crc-5/usb over the check string" =
+  let config =
+    { Program_config.default with crc_width = 5; crc_poly = 0x14; crc_init = 0x1f }
+  in
+  let crc, fault = crc_of_bytes ~config check_bytes in
+  print_s [%message (crc lxor 0x1f : Int.Hex.t) (fault : Machine.Fault.t)];
+  [%expect
+    {|
+    (("crc lxor 0x1f" 0x19)
+     (fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    |}]
+;;
+
+let%expect_test "crc-16/xmodem shifts the other way" =
+  let config =
+    { Program_config.default with
+      out_shift = Left
+    ; crc_poly = 0x1021
+    ; crc_init = 0
+    ; crc_reflect = false
+    }
+  in
+  let crc, fault = crc_of_bytes ~config (List.map check_bytes ~f:(fun b -> b lsl 8)) in
+  print_s [%message (crc : Int.Hex.t) (fault : Machine.Fault.t)];
+  [%expect
+    {|
+    ((crc 0x31c3)
+     (fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    |}]
+;;
+
+let%expect_test "a stuffed zero follows every six ones" =
+  let config = { Program_config.default with stuff_threshold = 6 } in
+  let program =
+    assemble
+      {|
+    pull
+    set x, 15
+bit:
+    out pins, 1
+    jmp stuff, stuff
+    jmp x--, bit
+    halt
+stuff:
+    set pins, 0
+    stuff_reset
+    jmp x--, bit
+    halt
+|}
+  in
+  let t = Machine.create ~config ~program |> ok_exn in
+  let t = Machine.write_tx t 0xffff |> ok_exn in
+  let t, levels = run t ~cycles:120 ~inputs:0 in
+  print_s
+    [%message (runs levels : (int * int) list) (t.halted : bool) (t.crc : Int.Hex.t)];
+  [%expect
+    {|
+    (("runs levels" ((0 2) (1 28) (0 4) (1 28) (0 4) (1 54))) (t.halted true)
+     (t.crc 0x0))
+    |}]
+;;
