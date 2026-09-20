@@ -478,7 +478,8 @@ let%expect_test "usb rx" =
   in
   let bytes = List.rev_map !words ~f:(fun w -> w lsr 8) in
   print_s [%message (bytes : int list)];
-  [%expect {|
+  [%expect
+    {|
     ("lockstep held" (cycles 3336))
     (bytes (128 195 128 6 0 1 0 0 64 0 221 148 140))
     |}]

@@ -619,7 +619,8 @@ let%expect_test "usb rx decodes, unstuffs and checks two packets" =
         (residuals : Int.Hex.t list)
         (expected : Int.Hex.t list)
         (t.fault : Machine.Fault.t)];
-  [%expect {|
+  [%expect
+    {|
     ((bytes (128 195 128 6 0 1 0 0 64 0 221 148 140 128 195 255 0 255 234))
      (residuals (0x8ce4 0xea69)) (expected (0x8ce4 0xea69))
      (t.fault
