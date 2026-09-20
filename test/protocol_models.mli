@@ -34,3 +34,26 @@ module I2c_slave : sig
   val step : t -> sda:int -> scl:int -> t
   val log : t -> string list
 end
+
+(** Master at the pins, driving a scripted transaction with a quarter bit period of
+    [quarter] cycles. [sda] and [scl] are 0 when it drives the line low. Its log holds the
+    bytes it read and the acks it saw. *)
+module I2c_peer : sig
+  module Op : sig
+    type t =
+      | Start
+      | Write of int
+      | Read of { ack : bool }
+      | Stop
+    [@@deriving sexp_of]
+  end
+
+  type t
+
+  val create : quarter:int -> Op.t list -> t
+  val sda : t -> int
+  val scl : t -> int
+  val step : t -> sda:int -> t
+  val log : t -> string list
+  val idle : t -> bool
+end

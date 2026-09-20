@@ -283,3 +283,90 @@ module I2c_slave = struct
     else t'
   ;;
 end
+
+(* Each quarter of a bit period is a frame; the master samples the bus a quarter into the
+   high half of SCL. *)
+module I2c_peer = struct
+  module Op = struct
+    type t =
+      | Start
+      | Write of int
+      | Read of { ack : bool }
+      | Stop
+    [@@deriving sexp_of]
+  end
+
+  module Frame = struct
+    type t =
+      { sda : int
+      ; scl : int
+      ; sample : [ `No | `Bit | `Ack ]
+      }
+
+    let quiet sda scl = { sda; scl; sample = `No }
+
+    let bit ~sda ~sample =
+      [ quiet sda 0; quiet sda 1; { sda; scl = 1; sample }; quiet sda 0 ]
+    ;;
+
+    let of_op ~first (op : Op.t) =
+      match op with
+      | Start ->
+        (if first then [ quiet 1 1 ] else [ quiet 1 0; quiet 1 1 ])
+        @ [ quiet 0 1; quiet 0 0 ]
+      | Write byte ->
+        List.concat_map
+          (List.init 8 ~f:(fun i -> (byte lsr (7 - i)) land 1))
+          ~f:(fun b -> bit ~sda:b ~sample:`No)
+        @ bit ~sda:1 ~sample:`Ack
+      | Read { ack } ->
+        List.concat (List.init 8 ~f:(fun _ -> bit ~sda:1 ~sample:`Bit))
+        @ bit ~sda:(if ack then 0 else 1) ~sample:`No
+      | Stop -> [ quiet 0 0; quiet 0 1; quiet 1 1 ]
+    ;;
+  end
+
+  type t =
+    { quarter : int
+    ; frames : Frame.t list
+    ; countdown : int
+    ; shift : int
+    ; bits : int
+    ; log : string list
+    }
+
+  let create ~quarter ops =
+    let frames = List.concat_mapi ops ~f:(fun i op -> Frame.of_op ~first:(i = 0) op) in
+    { quarter; frames; countdown = quarter; shift = 0; bits = 0; log = [] }
+  ;;
+
+  let current t =
+    match t.frames with
+    | [] -> Frame.quiet 1 1
+    | frame :: _ -> frame
+  ;;
+
+  let sda t = (current t).sda
+  let scl t = (current t).scl
+  let log t = List.rev t.log
+  let idle t = List.is_empty t.frames
+
+  let step t ~sda =
+    if idle t
+    then t
+    else if t.countdown > 1
+    then { t with countdown = t.countdown - 1 }
+    else (
+      let frames = List.tl_exn t.frames in
+      let t = { t with frames; countdown = t.quarter } in
+      match frames with
+      | { sample = `Bit; _ } :: _ ->
+        let shift = (t.shift lsl 1) lor sda land 0xff in
+        if t.bits = 7
+        then { t with shift = 0; bits = 0; log = [%string "read %{shift#Int}"] :: t.log }
+        else { t with shift; bits = t.bits + 1 }
+      | { sample = `Ack; _ } :: _ ->
+        { t with log = (if sda = 0 then "ack" else "nack") :: t.log }
+      | { sample = `No; _ } :: _ | [] -> t)
+  ;;
+end
