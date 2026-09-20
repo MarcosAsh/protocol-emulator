@@ -37,8 +37,9 @@ program load, and two fifos for data. The program lives in an IHP SRAM macro.
 - `src/` the ISA, a cycle-accurate model that serves as the spec, the assembler, the
   decoder, the engine, the host port and the top level. `analyser.ml` bounds firmware
   timing by abstract interpretation so a program can be checked before it runs.
-- `test/` expect tests. `firmware.ml` holds UART tx and rx, SPI master and slave and
-  I2C master and slave; each runs against a protocol model and in lockstep with the
+- `test/` expect tests. `firmware.ml` holds UART tx and rx, SPI master and slave, I2C
+  master and slave, and a low speed USB transmitter and receiver that lean on the CRC
+  and bit-stuff units; each runs against a protocol model and in lockstep with the
   hardware. `test.py` drives the generated Verilog with cocotb through the Python host
   library.
 - `formal/` a SymbiYosys proof of the issue timing.
