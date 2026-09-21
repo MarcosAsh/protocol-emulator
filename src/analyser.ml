@@ -96,6 +96,10 @@ let captures (c : Program_config.t) (wait : Isa.Wait.t) =
    take any time, so the phase only gets a lower bound. *)
 let step ?period ?(single_capture_edge = false) ~config (s : State.t) pc (t : Isa.t) =
   let loaded_period = Option.value_map period ~default:Interval.top ~f:Interval.exactly in
+  (* the wrap is an edge of the graph like any other and takes no cycles *)
+  let following =
+    if pc = config.Program_config.wrap_top then config.wrap_bottom else pc + 1
+  in
   match t with
   | Jmp { cond; target } ->
     let s = State.elapse s Isa.jmp_cycles in
@@ -103,14 +107,14 @@ let step ?period ?(single_capture_edge = false) ~config (s : State.t) pc (t : Is
      | Always -> [ target, s ]
      | X_dec ->
        let s = { s with x = Interval.shift s.x (-1) } in
-       [ target, s; pc + 1, s ]
+       [ target, s; following, s ]
      | Y_dec ->
        let s = { s with y = Interval.shift s.y (-1) } in
-       [ target, s; pc + 1, s ]
-     | _ -> [ target, s; pc + 1, s ])
+       [ target, s; following, s ]
+     | _ -> [ target, s; following, s ])
   | Op { op; delay; _ } ->
     let next = delay + 1 in
-    let after (s : State.t) = [ pc + 1, State.elapse s next ] in
+    let after (s : State.t) = [ following, State.elapse s next ] in
     (match op with
      | Wait (Deadline { advance }) ->
        let stall = Interval.clamp_low (Interval.minus (Interval.exactly 0) s.phase) 0 in
