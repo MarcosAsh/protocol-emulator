@@ -72,6 +72,12 @@ jobs:
       - name: GL test
         uses: TinyTapeout/tt-gds-action/gl_test@ihp-cmos5l
 
+      # the action leaves the netlist, the PDK and cocotb in place
+      - name: Replay the pin traces on the gate level
+        run: |
+          cd test
+          make replay GATES=yes
+
   viewer:
     needs: gds
     runs-on: ubuntu-24.04
