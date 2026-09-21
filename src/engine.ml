@@ -33,6 +33,8 @@ module Config = struct
     ; crc_reflect : 'a
     ; stuff_threshold : 'a [@bits Isa.count_bits]
     ; stuff_level : 'a
+    ; wrap_bottom : 'a [@bits Isa.pc_bits]
+    ; wrap_top : 'a [@bits Isa.pc_bits]
     }
   [@@deriving hardcaml]
 
@@ -68,6 +70,8 @@ module Config = struct
     ; crc_reflect = bool c.crc_reflect
     ; stuff_threshold = int Isa.count_bits c.stuff_threshold
     ; stuff_level = bool c.stuff_level
+    ; wrap_bottom = int Isa.pc_bits c.wrap_bottom
+    ; wrap_top = int Isa.pc_bits c.wrap_top
     }
   ;;
 end
@@ -334,7 +338,11 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   let%hw op_go = go &: ~:(is Jmp) in
   let%hw wait_holds = is Wait &: ~:wait_ready in
   let%hw advance = op_go &: ~:wait_holds in
-  let%hw pc_next = pc +:. 1 in
+  (* The wrap: the address after [wrap_top] is [wrap_bottom]. It comes off the pc register
+     and the configuration alone, so the memory can read ahead across it and the loop
+     costs nothing. *)
+  let after addr = mux2 (addr ==: c.wrap_top) c.wrap_bottom (addr +:. 1) in
+  let%hw pc_next = after pc in
   let%hw jmp_target_or_next = mux2 jmp_taken jmp_target pc_next in
   (* Shifts and moves. *)
   let%hw mask = count_mask shift_count in
@@ -639,7 +647,9 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   in
   (* The address after the next instruction, picked from sums made off the register so
      that no adder follows the control logic on the way to the memory. *)
-  let%hw pc_after_next = mux2 start (one pc_bits) @@ mux2 advance (pc +:. 2) pc_next in
+  let%hw pc_after_next =
+    mux2 start (after (zero pc_bits)) @@ mux2 advance (after pc_next) pc_next
+  in
   fetch_addr
   <-- mux2 i.start (zero pc_bits) @@ mux2 jmp_go jmp_target_or_next pc_after_next;
   let%hw refill = reg spec (jmp_go |: i.start) in

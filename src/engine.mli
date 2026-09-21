@@ -42,6 +42,8 @@ module Config : sig
     ; crc_reflect : 'a
     ; stuff_threshold : 'a
     ; stuff_level : 'a
+    ; wrap_bottom : 'a
+    ; wrap_top : 'a
     }
   [@@deriving hardcaml]
 
