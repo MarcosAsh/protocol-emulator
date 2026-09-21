@@ -21,6 +21,7 @@ module step (
 
   wire tx_pop;
   wire [15:0] instruction;
+  wire [7:0] opcode_onehot;
 
   engine_top dut (
     .clock(clock), .clear(clear),
@@ -39,7 +40,7 @@ module step (
     .start(start), .program_write$valid(1'b0), .program_write$addr(9'b0),
     .program_write$data(16'b0), .tx$valid(1'b0), .tx$value(16'b0), .rx_pop(1'b0),
     .clear_irq(clear_irq), .inputs(inputs),
-    .pin_out(pin_out), .pin_dir(pin_dir), .instruction(instruction),
+    .pin_out(pin_out), .pin_dir(pin_dir), .instruction(instruction), .opcode_onehot(opcode_onehot),
     .fault$underflow(underflow), .fault$overflow(overflow),
     .sram_addr(sram_addr), .sram_men(sram_men), .sram_ren(sram_ren), .sram_wen(sram_wen),
     .sram_dout(fetched),
@@ -48,6 +49,9 @@ module step (
     .rx_fifo_head(rx_head), .rx_fifo_level(rx_level), .rx_fifo_empty(rx_empty),
     .rx_fifo_full(rx_full));
 
+  // the core acts on the opcode it registered beside the instruction; issue_timing
+  // proves the two always agree, so only such states are considered
+  always @(*) assume(opcode_onehot == 8'b1 << instruction[15:13]);
   assign fifo_wait = instruction[15:13] == 1 && instruction[6:5] == 3;
 endmodule
 

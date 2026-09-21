@@ -21,6 +21,8 @@ module issue_timing (input clk);
   wire [4:0] osr_count, isr_count, stall, stuff_run;
   wire halted, irq, underflow, overflow, missed_deadline, decode, capture_armed;
   wire [2:0] tx_level, rx_level;
+  wire decode_ok;
+  wire [7:0] opcode_onehot;
 
   engine_top dut (
     .clock(clk), .clear(clear),
@@ -41,7 +43,8 @@ module issue_timing (input clk);
     .halted(halted), .irq(irq), .fault$underflow(underflow), .fault$overflow(overflow),
     .fault$missed_deadline(missed_deadline), .fault$decode(decode), .capture(capture),
     .capture_armed(capture_armed), .tx_level(tx_level), .rx_level(rx_level),
-    .rx_head(rx_head), .instruction(instruction), .crc(crc), .stuff_run(stuff_run));
+    .rx_head(rx_head), .instruction(instruction), .crc(crc), .stuff_run(stuff_run),
+    .decode_ok(decode_ok), .opcode_onehot(opcode_onehot));
 
   always @(*) begin
     assume(side_set_count <= 2);
@@ -63,6 +66,15 @@ module issue_timing (input clk);
    || (opcode == 5 && instruction[7:5] < 5)         // set
    || (opcode == 6 && instruction[5:4] != 3 && (!instruction[3] || instruction[2:0] < 5)); // alu
   wire jump = opcode == 0 && !instruction[9];
+  wire waits = opcode == 1 && (instruction[6] ? count == 0 : count < 20);
+  wire sys = opcode == 7 && instruction[7:3] == 0;
+
+  // what the core registers beside the instruction always agrees with it
+  always @(posedge clk)
+    if (!clear) begin
+      assert(decode_ok == (plain || jump || waits || sys));
+      assert(opcode_onehot == 8'b1 << opcode);
+    end
 
   reg armed = 0;
   reg [4:0] remaining = 0;
