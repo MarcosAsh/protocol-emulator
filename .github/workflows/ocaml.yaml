@@ -33,3 +33,16 @@ jobs:
           opam exec -- dune exec -- bin/generate.exe engine > formal/engine.v
           opam exec -- dune exec -- bin/generate.exe engine -sram > formal/engine_sram.v
           make -C formal issue_timing host_timing fifo_order
+
+      - name: Setup python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Build for the FPGA kit and simulate the netlist
+        run: |
+          pip install -r test/requirements.txt
+          cd test
+          opam exec -- make fpga_fit
+          make FPGA=yes
+          ! grep failure results.xml
