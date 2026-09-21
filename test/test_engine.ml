@@ -31,6 +31,50 @@ loop:
   [%expect {| ("lockstep held" (cycles 400)) |}]
 ;;
 
+let%expect_test "a jump tests the fifos without stalling or faulting" =
+  let program =
+    assemble
+      {|
+poll:
+    jmp tx, take
+    mov pins, !pins
+    jmp poll
+take:
+    pull
+    jmp !rx, poll
+    mov isr, osr
+    push
+    jmp poll
+|}
+  in
+  let random = Splittable_random.of_int 7 in
+  let level = ref 0 in
+  let host _ =
+    let int hi = Splittable_random.int random ~lo:0 ~hi in
+    { Host.idle with
+      tx = (if !level < Machine.fifo_depth && int 9 = 0 then Some (int 0xffff) else None)
+    ; pop_rx = int 5 = 0
+    }
+  in
+  let m =
+    lockstep
+      ~cycles:600
+      ~config:{ Program_config.default with in_base = 5 }
+      ~program
+      ~inputs:(fun _ -> 0)
+      ~host
+      ~react:(fun m -> level := List.length m.tx_fifo)
+      ()
+  in
+  print_s [%message (m.fault : Machine.Fault.t)];
+  [%expect
+    {|
+    ("lockstep held" (cycles 600))
+    (m.fault
+     ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+    |}]
+;;
+
 let%expect_test "the host clears the interrupt" =
   let program = assemble {|
 loop:
