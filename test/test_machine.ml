@@ -254,3 +254,28 @@ stuff:
      (t.crc 0x0))
     |}]
 ;;
+
+let%expect_test "a wrapped loop costs no cycles" =
+  let program =
+    assemble
+      {|
+    set p, 2
+    mov t, now
+    add t, p
+    wait t+
+    mov pins, !pins
+|}
+  in
+  let config =
+    { Program_config.default with in_base = 5; wrap_bottom = 3; wrap_top = 4 }
+  in
+  let t = Machine.create ~config ~program |> ok_exn in
+  let t, levels = run t ~cycles:20 ~inputs:0 in
+  print_s [%message (runs levels : (int * int) list) (t.fault : Machine.Fault.t)];
+  [%expect
+    {|
+    (("runs levels" ((0 4) (1 2) (0 2) (1 2) (0 2) (1 2) (0 2) (1 2) (0 2)))
+     (t.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    |}]
+;;
