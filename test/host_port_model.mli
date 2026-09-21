@@ -23,12 +23,17 @@ end
 
 type t [@@deriving sexp_of]
 
-val create : unit -> t
+val create : ?engines:int -> unit -> t
 
-(** The config fields in register order. *)
-val config : t -> int list
+(** The config fields of every engine in register order. *)
+val configs : t -> int list list
 
-val write : t -> reg:int -> int -> t * Event.t list
+(** What a write does, with the engine each event reaches. *)
+val write : t -> reg:int -> int -> t * (int * Event.t) list
 
-(** The word a read returns given the core's [status], and what the read does. *)
-val read : t -> status:int Host_port.Status.t -> reg:int -> int * Event.t list
+(** The word a read returns given every engine's status, and what the read does. *)
+val read
+  :  t
+  -> statuses:int Host_port.Status.t list
+  -> reg:int
+  -> int * (int * Event.t) list

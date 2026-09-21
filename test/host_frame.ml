@@ -20,8 +20,10 @@ type t =
 let complete_words t = if t.bits < 8 then 0 else (t.bits - 8) / 16
 
 let mapped =
-  List.init (Reg.program + 1) ~f:Fn.id
-  @ List.init (List.length (Model.config (Model.create ()))) ~f:(fun n -> Reg.config + n)
+  List.init (Reg.select + 1) ~f:Fn.id
+  @ List.init
+      (List.length (List.hd_exn (Model.configs (Model.create ()))))
+      ~f:(fun n -> Reg.config + n)
 ;;
 
 (* the registers that strobe the core come up more often than their share of the map *)

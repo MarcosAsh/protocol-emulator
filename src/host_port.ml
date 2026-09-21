@@ -109,9 +109,18 @@ module Make (Config : Config) = struct
       match select_value with
       | None -> List.hd_exn i.status, List.hd_exn config_values, List.hd_exn other_irqs
       | Some select ->
-        ( Status.Of_signal.mux select i.status
-        , Engine.Config.Of_signal.mux select config_values
-        , mux select other_irqs )
+        (* a select past the last engine reads zeros rather than the last engine again *)
+        let spare = (1 lsl select_bits) - engines in
+        let pad values ~zero = values @ List.init spare ~f:(fun _ -> zero) in
+        ( Status.Of_signal.mux
+            select
+            (pad i.status ~zero:(Status.map Status.port_widths ~f:zero))
+        , Engine.Config.Of_signal.mux
+            select
+            (pad
+               config_values
+               ~zero:(Engine.Config.map Engine.Config.port_widths ~f:zero))
+        , mux select (pad other_irqs ~zero:gnd) )
     in
     let%hw.Always.State_machine sm = Always.State_machine.create (module State) spec in
     let%hw_var cmd = Always.Variable.reg spec ~width:8 in

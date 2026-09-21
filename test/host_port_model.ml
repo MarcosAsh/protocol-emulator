@@ -18,15 +18,30 @@ module Event = struct
 end
 
 type t =
-  { program_addr : int
-  ; config : int list
+  { engines : int
+  ; select : int
+  ; program_addr : int
+  ; configs : int list list
   }
 [@@deriving sexp_of]
 
 let config_widths = Engine.Config.to_list Engine.Config.port_widths
-let create () = { program_addr = 0; config = List.map config_widths ~f:(fun _ -> 0) }
-let config t = t.config
+
+let create ?(engines = 1) () =
+  { engines
+  ; select = 0
+  ; program_addr = 0
+  ; configs = List.init engines ~f:(fun _ -> List.map config_widths ~f:(fun _ -> 0))
+  }
+;;
+
+let configs t = t.configs
 let mask width = (1 lsl width) - 1
+
+(* strobes and config writes reach the selected engine, or none past the last *)
+let reached t events =
+  if t.select < t.engines then List.map events ~f:(fun e -> t.select, e) else []
+;;
 
 let write t ~reg value =
   let index = reg - Reg.config in
@@ -38,26 +53,32 @@ let write t ~reg value =
         ; Option.some_if (value land 2 = 2) Event.Clear_irq
         ; Option.some_if (value land 4 = 4) Event.Stop
         ; Option.some_if (value land 8 = 8) Event.Flush
-        ] )
+        ]
+      |> reached t )
   else if reg = Reg.tx
-  then t, [ Tx value ]
+  then t, reached t [ Event.Tx value ]
   else if reg = Reg.program_addr
   then { t with program_addr = value land mask Isa.pc_bits }, []
   else if reg = Reg.program
   then
     ( { t with program_addr = (t.program_addr + 1) land mask Isa.pc_bits }
-    , [ Program_write { addr = t.program_addr; data = value } ] )
+    , reached t [ Event.Program_write { addr = t.program_addr; data = value } ] )
+  else if reg = Reg.select && t.engines > 1
+  then { t with select = value land mask (Int.ceil_log2 t.engines) }, []
   else if index >= 0 && index < List.length config_widths
   then (
-    let config =
-      List.mapi t.config ~f:(fun n old ->
-        if n = index then value land mask (List.nth_exn config_widths n) else old)
+    let configs =
+      List.mapi t.configs ~f:(fun engine config ->
+        List.mapi config ~f:(fun n old ->
+          if engine = t.select && n = index
+          then value land mask (List.nth_exn config_widths n)
+          else old))
     in
-    { t with config }, [])
+    { t with configs }, [])
   else t, []
 ;;
 
-let status_word (s : int Host_port.Status.t) =
+let status_word (s : int Host_port.Status.t) ~other_irq =
   let levels = (s.rx_level lsl Host_fifo.level_bits) lor s.tx_level in
   List.foldi
     [ s.halted
@@ -68,16 +89,33 @@ let status_word (s : int Host_port.Status.t) =
     ; s.fault.decode
     ; levels
     ]
-    ~init:0
+    ~init:(Bool.to_int other_irq lsl (Isa.data_bits - 1))
     ~f:(fun bit word flag -> word lor (flag lsl bit))
 ;;
 
-let read t ~(status : int Host_port.Status.t) ~reg =
+let read t ~(statuses : int Host_port.Status.t list) ~reg =
   let index = reg - Reg.config in
   let low x = x land mask Isa.data_bits in
   let high x = x lsr Isa.data_bits in
-  if reg = Reg.status
-  then status_word status, []
+  let engine = t.select in
+  let status =
+    List.nth statuses engine
+    |> Option.value
+         ~default:(Host_port.Status.map Host_port.Status.port_widths ~f:(Fn.const 0))
+  in
+  if reg = Reg.program_addr
+  then t.program_addr, []
+  else if reg = Reg.select && t.engines > 1
+  then t.select, []
+  else if engine >= t.engines
+  then 0, []
+  else if reg = Reg.status
+  then (
+    let other_irq =
+      List.existsi statuses ~f:(fun n (s : _ Host_port.Status.t) ->
+        n <> engine && s.irq = 1)
+    in
+    status_word status ~other_irq, [])
   else if reg = Reg.pc
   then status.pc, []
   else if reg = Reg.now_lo
@@ -89,10 +127,8 @@ let read t ~(status : int Host_port.Status.t) ~reg =
   else if reg = Reg.capture_hi
   then high status.capture, []
   else if reg = Reg.rx
-  then status.rx_head, [ Event.Rx_pop ]
-  else if reg = Reg.program_addr
-  then t.program_addr, []
+  then status.rx_head, reached t [ Event.Rx_pop ]
   else if index >= 0 && index < List.length config_widths
-  then List.nth_exn t.config index, []
+  then List.nth_exn (List.nth_exn t.configs engine) index, []
   else 0, []
 ;;

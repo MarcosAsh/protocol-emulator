@@ -12,8 +12,8 @@
     With more than one engine, select names the engine that every other register but the
     program address reaches: control, status, pc, now, capture, both fifos, the program
     window and the config fields, which each engine has for itself. It resets to 0, and a
-    number past the last engine reaches none. Status bit 15 says some other engine has its
-    irq up. With one engine there is no select and the bit stays low. *)
+    number past the last engine reaches none and reads as zero. Status bit 15 says some
+    other engine has its irq up. With one engine there is no select and the bit stays low. *)
 
 open! Core
 open! Hardcaml
