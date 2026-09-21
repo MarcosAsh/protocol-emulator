@@ -624,7 +624,7 @@ let%expect_test "usb device" =
   List.iter interesting ~f:print_endline;
   [%expect
     {|
-    ("List.length report" 466)
+    ("List.length report" 435)
       0  pull                         phase ?..?
       1  mov p, osr                   phase ?..?
       2  set pins, 2                  phase ?..?  edge ?..?  jitter ?
@@ -636,27 +636,33 @@ let%expect_test "usb device" =
       8  in y, 3                      phase ?..?
       9  set y, 0                     phase ?..?
      10  in y, 5                      phase ?..?
-     11  mov osr, isr                 phase ?..?
-     12  mov isr, null                phase ?..?
-     13  stuff_reset                  phase ?..?
-     14  capture_arm                  phase ?..?
-     15  wait 1 pin 12                phase ?..?
-     16  mov t, capture               phase ?..?
-    107  set pins, 6                  phase -27  edge -26
-    109  set pins, 2                  phase -27  edge -26
-    111  set pins, 6                  phase -25  edge -24
-    113  set pins, 2                  phase -25  edge -24
-    389  mov t, capture               phase -24..?
-    403  set pins, 6                  phase -31  edge -30
-    408  set pins, 2                  phase -31  edge -30
-    409  set pindirs, 7               phase -30..-28  edge -29..-27  jitter 2
-    414  mov pins, !pins              phase -28  edge -27
-    419  set pins, 4                  phase -28  edge -27
-    423  set pins, 6                  phase -28  edge -27
-    436  mov pins, !pins              phase -28  edge -27
-    441  mov pins, !pins              phase -28  edge -27
-    448  mov pins, !pins              phase -28  edge -27
-    453  mov pins, !pins              phase -28  edge -27
-    465  mov pins, !pins              phase -28  edge -27
+     11  set y, 8                     phase ?..?
+     12  in y, 5                      phase ?..?
+     13  mov osr, isr                 phase ?..?
+     14  mov isr, null                phase ?..?
+     15  stuff_reset                  phase ?..?
+     16  capture_arm                  phase ?..?
+     17  wait 1 pin 12                phase ?..?
+     18  mov t, capture               phase ?..?
+    109  set pins, 6                  phase -27  edge -26
+    111  set pins, 2                  phase -27  edge -26
+    113  set pins, 6                  phase -25  edge -24
+    115  set pins, 2                  phase -25  edge -24
+    361  mov t, capture               phase -9..?
+    366  wait t+                      phase -28..?  slack ?..28  MAY MISS
+    367  mov x, pins                  phase -31..?  sample -31..?  jitter ?
+    368  jmp x--, 366                 phase -30..?
+    369  jmp 2                        phase -28..?
+    375  set pins, 6                  phase -31  edge -30
+    380  set pins, 2                  phase -31  edge -30
+    381  set pindirs, 7               phase -30..-28  edge -29..-27  jitter 2
+    386  mov pins, !pins              phase -28  edge -27
+    391  set pins, 4                  phase -28  edge -27
+    395  set pins, 6                  phase -28  edge -27
+    408  mov pins, !pins              phase -28  edge -27
+    413  mov pins, !pins              phase -28  edge -27
+    420  mov pins, !pins              phase -28  edge -27
+    425  mov pins, !pins              phase -28  edge -27
+    437  mov pins, !pins              phase -28  edge -27
     |}]
 ;;

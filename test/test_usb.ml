@@ -330,20 +330,26 @@ let%expect_test "usb device answers an IN for its address with NAK" =
     |}]
 ;;
 
-let usb_token ~pid ~address =
-  let bits = List.init 11 ~f:(fun i -> if i < 7 then (address lsr i) land 1 else 0) in
-  [ pid; address; Usb_ls.crc5 bits lsl 3 ]
+let usb_token ?(endpoint = 0) ~pid ~address () =
+  let bits =
+    List.init 11 ~f:(fun i ->
+      if i < 7 then (address lsr i) land 1 else (endpoint lsr (i - 7)) land 1)
+  in
+  [ pid
+  ; address lor ((endpoint land 1) lsl 7)
+  ; (endpoint lsr 1) lor (Usb_ls.crc5 bits lsl 3)
+  ]
 ;;
 
 let%expect_test "usb device ignores other addresses, bad token crcs and SETUP tokens" =
   let in_pid = 0x69 in
-  run_usb_device ~address:0 [ usb_token ~pid:in_pid ~address:5 ] ~idle:40;
-  run_usb_device ~address:5 [ usb_token ~pid:in_pid ~address:5 ] ~idle:40;
+  run_usb_device ~address:0 [ usb_token ~pid:in_pid ~address:5 () ] ~idle:40;
+  run_usb_device ~address:5 [ usb_token ~pid:in_pid ~address:5 () ] ~idle:40;
   run_usb_device ~address:0 [ [ in_pid; 0x00; 0x18 ] ] ~idle:40;
-  run_usb_device ~address:0 [ usb_token ~pid:0x2d ~address:0 ] ~idle:40;
+  run_usb_device ~address:0 [ usb_token ~pid:0x2d ~address:0 () ] ~idle:40;
   run_usb_device
     ~address:0
-    [ usb_token ~pid:in_pid ~address:0; usb_token ~pid:in_pid ~address:0 ]
+    [ usb_token ~pid:in_pid ~address:0 (); usb_token ~pid:in_pid ~address:0 () ]
     ~idle:40;
   [%expect
     {|
@@ -374,7 +380,7 @@ let%expect_test "usb device in lockstep" =
   let bit_period = 32 in
   let levels =
     List.concat_map
-      [ usb_token ~pid:0x69 ~address:3; usb_token ~pid:0x69 ~address:0 ]
+      [ usb_token ~pid:0x69 ~address:3 (); usb_token ~pid:0x69 ~address:0 () ]
       ~f:(fun packet ->
         List.init 8 ~f:(fun _ -> Usb_ls.Line.J)
         @ Usb_ls.encode packet
@@ -413,7 +419,7 @@ let get_descriptor = [ 0x80; 0x06; 0x00; 0x01; 0x00; 0x00; 0x40; 0x00 ]
 let%expect_test "usb device takes a SETUP and its data and acknowledges" =
   run_usb_device
     ~address:0
-    [ usb_token ~pid:0x2d ~address:0; usb_data ~pid:0xc3 get_descriptor ]
+    [ usb_token ~pid:0x2d ~address:0 (); usb_data ~pid:0xc3 get_descriptor ]
     ~idle:40;
   [%expect
     {|
@@ -431,16 +437,16 @@ let%expect_test "usb device stays silent on a bad data crc, a status packet is f
     List.mapi (usb_data ~pid:0xc3 get_descriptor) ~f:(fun i b ->
       if i = 3 then b lxor 0x10 else b)
   in
-  run_usb_device ~address:0 [ usb_token ~pid:0x2d ~address:0; corrupt ] ~idle:40;
+  run_usb_device ~address:0 [ usb_token ~pid:0x2d ~address:0 (); corrupt ] ~idle:40;
   run_usb_device
     ~address:0
-    [ usb_token ~pid:0xe1 ~address:0; usb_data ~pid:0x4b [] ]
+    [ usb_token ~pid:0xe1 ~address:0 (); usb_data ~pid:0x4b [] ]
     ~idle:40;
   run_usb_device
     ~address:0
-    [ usb_token ~pid:0x2d ~address:9
+    [ usb_token ~pid:0x2d ~address:9 ()
     ; usb_data ~pid:0xc3 get_descriptor
-    ; usb_token ~pid:0x69 ~address:0
+    ; usb_token ~pid:0x69 ~address:0 ()
     ]
     ~idle:40;
   [%expect
@@ -467,9 +473,9 @@ let%expect_test "usb device takes a SETUP in lockstep" =
   let bit_period = 32 in
   let levels =
     List.concat_map
-      [ usb_token ~pid:0x2d ~address:0
+      [ usb_token ~pid:0x2d ~address:0 ()
       ; usb_data ~pid:0xc3 get_descriptor
-      ; usb_token ~pid:0x69 ~address:0
+      ; usb_token ~pid:0x69 ~address:0 ()
       ]
       ~f:(fun packet ->
         List.init 8 ~f:(fun _ -> Usb_ls.Line.J)
@@ -500,7 +506,7 @@ let%expect_test "usb device takes a SETUP in lockstep" =
   print_s [%message "program" ~words:(List.length program : int)];
   [%expect {|
     ("lockstep held" (cycles 10016))
-    (program (words 467))
+    (program (words 439))
     |}]
 ;;
 
@@ -516,7 +522,7 @@ let usb_reply ~pid payload =
 ;;
 
 let%expect_test "usb device answers an IN with the data the host queued" =
-  let in_token = usb_token ~pid:0x69 ~address:0 in
+  let in_token = usb_token ~pid:0x69 ~address:0 () in
   let descriptor = [ 18; 1; 0x10; 1; 0; 0; 0; 8 ] in
   List.iter
     [ descriptor; [ 0xff; 0xff; 0xff; 0x7f ]; [ 0x2a ]; [] ]
@@ -559,7 +565,7 @@ let%expect_test "usb device answers an IN with queued data in lockstep" =
   let bit_period = 32 in
   let levels =
     List.concat_map
-      [ usb_token ~pid:0x69 ~address:0; [ 0xd2 ]; usb_token ~pid:0x69 ~address:0 ]
+      [ usb_token ~pid:0x69 ~address:0 (); [ 0xd2 ]; usb_token ~pid:0x69 ~address:0 () ]
       ~f:(fun packet ->
         List.init 8 ~f:(fun _ -> Usb_ls.Line.J)
         @ Usb_ls.encode packet
@@ -586,4 +592,30 @@ let%expect_test "usb device answers an IN with queued data in lockstep" =
       ()
   in
   [%expect {| ("lockstep held" (cycles 13216)) |}]
+;;
+
+let%expect_test "usb device answers on endpoint 1 and on no other" =
+  let report = [ 2; 0; 5; 0xfb ] in
+  List.iter [ 1; 2; 9 ] ~f:(fun endpoint ->
+    run_usb_device
+      ~queue:(usb_reply ~pid:0xc3 report)
+      ~address:6
+      [ usb_token ~endpoint ~pid:0x69 ~address:6 (); [ 0xd2 ] ]
+      ~idle:100);
+  [%expect
+    {|
+    (("Usb_ls.Sniffer.packets sniffer"
+      ((105 134 32) (195 2 0 5 251 188 176) (210)))
+     (reply_after_bit_times (2.625)) (tag (3)) (bytes ()) (t.irq false)
+     (t.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    (("Usb_ls.Sniffer.packets sniffer" ((105 6 185) (210)))
+     (reply_after_bit_times ()) (tag (3)) (bytes ()) (t.irq false)
+     (t.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    (("Usb_ls.Sniffer.packets sniffer" ((105 134 132) (210)))
+     (reply_after_bit_times ()) (tag (3)) (bytes ()) (t.irq false)
+     (t.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    |}]
 ;;
