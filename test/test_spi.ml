@@ -122,3 +122,49 @@ let%expect_test "spi slave with gaps between bytes" =
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
     |}]
 ;;
+
+let%expect_test "spi master in lockstep" =
+  let slave = ref (Spi_slave.create [ 0x81; 0x7e ]) in
+  let (_ : Machine.t) =
+    Lockstep.lockstep
+      ~config:spi_config
+      ~program:(assemble (spi_master ~half_period:8))
+      ~preload:[ 0xa5; 0x3c ]
+      ~inputs:(fun _ -> Spi_slave.miso !slave lsl miso_pin)
+      ~react:(fun m ->
+        slave
+        := Spi_slave.step
+             !slave
+             ~sck:((m.pin_out lsr sck_pin) land 1)
+             ~mosi:((m.pin_out lsr mosi_pin) land 1))
+      ()
+  in
+  let received = Spi_slave.received !slave in
+  print_s [%message (received : int list)];
+  [%expect {|
+    ("lockstep held" (cycles 400))
+    (received (165 60))
+    |}]
+;;
+
+let%expect_test "spi slave in lockstep" =
+  let master = ref (Spi_peer.create ~half_period:4 [ 0xa5; 0x3c; 0xf0 ]) in
+  let (_ : Machine.t) =
+    Lockstep.lockstep
+      ~config:spi_slave_config
+      ~program:(assemble spi_slave)
+      ~preload:(List.map [ 0x81; 0x7e; 0x11; 0 ] ~f:(fun reply -> reply lsl 8))
+      ~inputs:(fun _ ->
+        (Spi_peer.sck !master lsl slave_sck_pin)
+        lor (Spi_peer.mosi !master lsl slave_mosi_pin))
+      ~react:(fun m ->
+        master := Spi_peer.step !master ~miso:((m.pin_out lsr slave_miso_pin) land 1))
+      ()
+  in
+  let received = Spi_peer.received !master in
+  print_s [%message (received : int list)];
+  [%expect {|
+    ("lockstep held" (cycles 400))
+    (received (129 126 17))
+    |}]
+;;
