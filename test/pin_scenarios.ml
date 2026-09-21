@@ -18,9 +18,9 @@ let uart_tx =
   }
 ;;
 
-(* An rx read that empties the fifo ends with the next head on miso, and the fifo's RAM is
-   undefined in the Verilog until a fifth word has gone through it. The host leaves a word
-   behind until then. *)
+(* A read frame ends with the next rx head on miso. When the read has emptied the fifo
+   that is a RAM word nothing has written: zero here, X in the Verilog. So the host always
+   leaves a word behind, whatever the fifo depth. *)
 let uart_rx =
   let period = 16 in
   let drive bytes =
@@ -35,7 +35,6 @@ let uart_rx =
         ; Read (Reg.rx, 3)
         ; drive [ 0x0f; 0xf0; 0x5a ]
         ; Read (Reg.rx, 3)
-        ; Read (Reg.rx, 1)
         ; Read (Reg.status, 1)
         ]
   }
@@ -43,7 +42,7 @@ let uart_rx =
 
 let spi_master =
   let peer () =
-    let slave = ref (Spi_slave.create [ 0x81; 0x7e ]) in
+    let slave = ref (Spi_slave.create [ 0x81; 0x7e; 0x42 ]) in
     { Peer.inputs = (fun () -> Spi_slave.miso !slave lsl miso_pin)
     ; step =
         (fun ~pin_out ~pin_dir:_ ->
@@ -55,9 +54,9 @@ let spi_master =
   ; peer
   ; script =
       Scenario.load ~config:spi_config ~program:(assemble (spi_master ~half_period:8))
-      @ [ Write (Reg.tx, [ 0xa5; 0x3c ])
+      @ [ Write (Reg.tx, [ 0xa5; 0x3c; 0x0f ])
         ; Scenario.start
-        ; Run 400
+        ; Run 600
         ; Read (Reg.rx, 2)
         ; Read (Reg.status, 1)
         ]
@@ -137,7 +136,7 @@ take:
       @ traffic [ 0x1234; 0xbeef; 0x0001 ]
       @ [ Step.Read (Reg.rx, 2) ]
       @ traffic [ 0xffff; 0x8000; 0x7a5c; 0x0ff0 ]
-      @ [ Read (Reg.rx, 4); Write (Reg.tx, [ 1; 2 ]); Read (Reg.rx, 2); Read (Reg.pc, 1) ]
+      @ [ Read (Reg.rx, 3); Write (Reg.tx, [ 1; 2 ]); Read (Reg.rx, 2); Read (Reg.pc, 1) ]
   }
 ;;
 

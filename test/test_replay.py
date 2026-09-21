@@ -5,8 +5,11 @@
 # Alignment: cycle 0 of a trace is the first rising edge after rst_n is released. rst_n
 # is held low for RESET_CYCLES clocks first, which clears every register that has a
 # clear, so the comparison starts at cycle 0 and nothing is masked: an X on an output
-# is a mismatch. Inputs change on the falling edge and outputs are sampled on the next
-# falling edge, half a cycle after the rising edge they belong to.
+# is a mismatch. An X late in a trace is storage nothing has written, which the OCaml
+# simulation reads as zero: test/pin_scenarios.ml keeps the scenarios clear of the one
+# known case, an rx read that empties the fifo. Inputs change on the falling edge and
+# outputs are sampled on the next falling edge, half a cycle after the rising edge they
+# belong to.
 
 from pathlib import Path
 
