@@ -1,0 +1,65 @@
+(executable
+ (name write_trace)
+ (libraries core protocol_emulator_test)
+ (preprocess
+  (pps ppx_jane)))
+
+(rule
+ (with-stdout-to
+  uart_tx.trace.gen
+  (run ./write_trace.exe uart_tx)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff uart_tx.trace uart_tx.trace.gen)))
+
+(rule
+ (with-stdout-to
+  uart_rx.trace.gen
+  (run ./write_trace.exe uart_rx)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff uart_rx.trace uart_rx.trace.gen)))
+
+(rule
+ (with-stdout-to
+  spi_master.trace.gen
+  (run ./write_trace.exe spi_master)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff spi_master.trace spi_master.trace.gen)))
+
+(rule
+ (with-stdout-to
+  i2c_logger.trace.gen
+  (run ./write_trace.exe i2c_logger)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff i2c_logger.trace i2c_logger.trace.gen)))
+
+(rule
+ (with-stdout-to
+  wrapped_loop.trace.gen
+  (run ./write_trace.exe wrapped_loop)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff wrapped_loop.trace wrapped_loop.trace.gen)))
+
+(rule
+ (with-stdout-to
+  fifo_poll.trace.gen
+  (run ./write_trace.exe fifo_poll)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff fifo_poll.trace fifo_poll.trace.gen)))
