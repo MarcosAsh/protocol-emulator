@@ -113,6 +113,7 @@ let run
   ?(preload = [])
   ?(host = fun _ -> Host.idle)
   ?(react = fun (_ : Machine.t) -> ())
+  ?coverage
   ~config
   ~program
   ~inputs
@@ -173,7 +174,9 @@ let run
             | Some (_, m) -> model := m
             | None -> ());
           cycle ();
-          model := Machine.step !model ~inputs:levels;
+          let before = !model in
+          model := Machine.step before ~inputs:levels;
+          Option.iter coverage ~f:(fun c -> Coverage.record c ~before ~after:!model);
           (match action.tx with
            | Some word -> model := Machine.write_tx !model word |> ok_exn
            | None -> ());
@@ -183,8 +186,10 @@ let run
       !model, !mismatch)
 ;;
 
-let lockstep ?(cycles = 400) ?preload ?host ?react ~config ~program ~inputs () =
-  let model, mismatch = run ~cycles ?preload ?host ?react ~config ~program ~inputs () in
+let lockstep ?(cycles = 400) ?preload ?host ?react ?coverage ~config ~program ~inputs () =
+  let model, mismatch =
+    run ~cycles ?preload ?host ?react ?coverage ~config ~program ~inputs ()
+  in
   (match mismatch with
    | None -> print_s [%message "lockstep held" (cycles : int)]
    | Some (cycle, expected, actual) ->
