@@ -5,7 +5,7 @@ cover
 [options]
 prove: mode prove
 cover: mode cover
-cover: depth 12
+cover: depth 24
 
 [engines]
 prove: abc pdr

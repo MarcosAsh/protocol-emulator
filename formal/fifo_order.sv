@@ -9,7 +9,7 @@ module fifo_order (input clk);
   always @(posedge clk) clear <= 0;
 
   wire [15:0] head;
-  wire [2:0] level;
+  wire [3:0] level;
   wire empty, full;
 
   host_fifo dut (
@@ -20,7 +20,7 @@ module fifo_order (input clk);
   wire popped = pop && !empty;
 
   reg following = 0;
-  reg [2:0] ahead = 0;
+  reg [3:0] ahead = 0;
   always @(posedge clk)
     if (clear) following <= 0;
     else if (!following && follow && pushed && push_value == word) begin
@@ -33,14 +33,14 @@ module fifo_order (input clk);
 
   always @(posedge clk)
     if (!clear) begin
-      assert(level <= 4);
+      assert(level <= 8);
       assert(empty == (level == 0));
       if (following) assert(!empty && ahead < level);
       if (following && ahead == 0) assert(head == word);
     end
 
   always @(posedge clk) begin
-    cover(following && ahead == 3);
-    cover(following && ahead == 0 && popped && level == 4);
+    cover(following && ahead == 7);
+    cover(following && ahead == 0 && popped && level == 8);
   end
 endmodule

@@ -16,7 +16,7 @@ module step (
   output underflow, overflow, fifo_wait
 );
   (* anyseq *) wire tx_full, tx_empty, rx_full, rx_empty;
-  (* anyseq *) wire [2:0] tx_level, rx_level;
+  (* anyseq *) wire [3:0] tx_level, rx_level;
   (* anyseq *) wire [15:0] tx_idle_head, rx_head;
 
   wire tx_pop;

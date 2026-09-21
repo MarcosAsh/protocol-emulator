@@ -21,7 +21,7 @@ module issue_timing (input clk);
   wire [23:0] t, now, capture;
   wire [4:0] osr_count, isr_count, stall, stuff_run;
   wire halted, irq, underflow, overflow, missed_deadline, decode, capture_armed;
-  wire [2:0] tx_level, rx_level;
+  wire [3:0] tx_level, rx_level;
   wire decode_ok;
   wire [7:0] opcode_onehot;
 
