@@ -6515,6 +6515,7 @@ module top (
     output [7:0] uio_oe;
 
     wire [19:0] signal_select;
+    wire [19:0] signal_wire;
     wire [7:0] signal_select_1;
     wire [7:0] signal_select_2;
     wire signal_select_3;
@@ -6524,7 +6525,7 @@ module top (
     reg [4:0] signal_reg_1;
     wire [6:0] signal_const_2;
     wire [7:0] signal_const_3;
-    wire [7:0] signal_wire;
+    wire [7:0] signal_wire_1;
     reg [7:0] signal_reg_2;
     reg [7:0] signal_reg_3;
     wire [19:0] inputs;
@@ -6564,60 +6565,62 @@ module top (
     wire signal_select_38;
     wire [4:0] signal_select_39;
     wire [15:0] signal_select_40;
-    wire [15:0] signal_wire_1;
+    wire [15:0] signal_wire_2;
     wire [3:0] signal_select_41;
-    wire [3:0] signal_wire_2;
-    wire [3:0] signal_select_42;
     wire [3:0] signal_wire_3;
+    wire [3:0] signal_select_42;
+    wire [3:0] signal_wire_4;
     wire signal_select_43;
-    wire signal_wire_4;
-    wire signal_select_44;
     wire signal_wire_5;
-    wire signal_select_45;
+    wire signal_select_44;
     wire signal_wire_6;
-    wire signal_select_46;
+    wire signal_select_45;
     wire signal_wire_7;
-    wire signal_select_47;
+    wire signal_select_46;
     wire signal_wire_8;
-    wire signal_select_48;
+    wire signal_select_47;
     wire signal_wire_9;
+    wire signal_select_48;
+    wire signal_wire_10;
     wire [23:0] signal_select_49;
-    wire [23:0] signal_wire_10;
-    wire [23:0] signal_select_50;
     wire [23:0] signal_wire_11;
+    wire [23:0] signal_select_50;
+    wire [23:0] signal_wire_12;
     wire [8:0] signal_select_51;
-    wire [8:0] signal_wire_12;
+    wire [8:0] signal_wire_13;
     wire signal_select_52;
     wire signal_select_53;
-    wire [7:0] signal_wire_13;
+    wire [7:0] signal_wire_14;
     wire signal_select_54;
     wire [171:0] signal_inst;
     wire [1:0] signal_select_55;
     wire signal_const_5;
-    wire signal_wire_14;
+    wire signal_wire_15;
     wire signal_not;
     wire vdd;
     reg signal_reg_4;
     reg reset_done;
     wire signal_not_1;
-    wire signal_wire_15;
+    wire signal_wire_16;
     wire [292:0] signal_inst_1;
     wire [19:0] signal_select_56;
+    wire [19:0] signal_wire_17;
     wire [6:0] signal_select_57;
     wire [7:0] signal_cat;
     assign signal_select = signal_inst_1[39:20];
-    assign signal_select_1 = signal_select[19:12];
-    assign signal_select_2 = signal_select_56[19:12];
+    assign signal_wire = signal_select;
+    assign signal_select_1 = signal_wire[19:12];
+    assign signal_select_2 = signal_wire_17[19:12];
     assign signal_select_3 = signal_inst[0:0];
     assign signal_const = 5'b00000;
-    assign signal_select_4 = signal_wire_13[7:3];
-    always @(posedge signal_wire_15) begin
+    assign signal_select_4 = signal_wire_14[7:3];
+    always @(posedge signal_wire_16) begin
         if (signal_not_1)
             signal_reg <= signal_const;
         else
             signal_reg <= signal_select_4;
     end
-    always @(posedge signal_wire_15) begin
+    always @(posedge signal_wire_16) begin
         if (signal_not_1)
             signal_reg_1 <= signal_const;
         else
@@ -6625,14 +6628,14 @@ module top (
     end
     assign signal_const_2 = 7'b0000000;
     assign signal_const_3 = 8'b00000000;
-    assign signal_wire = uio_in;
-    always @(posedge signal_wire_15) begin
+    assign signal_wire_1 = uio_in;
+    always @(posedge signal_wire_16) begin
         if (signal_not_1)
             signal_reg_2 <= signal_const_3;
         else
-            signal_reg_2 <= signal_wire;
+            signal_reg_2 <= signal_wire_1;
     end
-    always @(posedge signal_wire_15) begin
+    always @(posedge signal_wire_16) begin
         if (signal_not_1)
             signal_reg_3 <= signal_const_3;
         else
@@ -6677,52 +6680,52 @@ module top (
     assign signal_select_38 = signal_inst[56:56];
     assign signal_select_39 = signal_inst[55:51];
     assign signal_select_40 = signal_inst_1[246:231];
-    assign signal_wire_1 = signal_select_40;
+    assign signal_wire_2 = signal_select_40;
     assign signal_select_41 = signal_inst_1[230:227];
-    assign signal_wire_2 = signal_select_41;
+    assign signal_wire_3 = signal_select_41;
     assign signal_select_42 = signal_inst_1[226:223];
-    assign signal_wire_3 = signal_select_42;
+    assign signal_wire_4 = signal_select_42;
     assign signal_select_43 = signal_inst_1[197:197];
-    assign signal_wire_4 = signal_select_43;
+    assign signal_wire_5 = signal_select_43;
     assign signal_select_44 = signal_inst_1[196:196];
-    assign signal_wire_5 = signal_select_44;
+    assign signal_wire_6 = signal_select_44;
     assign signal_select_45 = signal_inst_1[195:195];
-    assign signal_wire_6 = signal_select_45;
+    assign signal_wire_7 = signal_select_45;
     assign signal_select_46 = signal_inst_1[194:194];
-    assign signal_wire_7 = signal_select_46;
+    assign signal_wire_8 = signal_select_46;
     assign signal_select_47 = signal_inst_1[193:193];
-    assign signal_wire_8 = signal_select_47;
+    assign signal_wire_9 = signal_select_47;
     assign signal_select_48 = signal_inst_1[192:192];
-    assign signal_wire_9 = signal_select_48;
+    assign signal_wire_10 = signal_select_48;
     assign signal_select_49 = signal_inst_1[221:198];
-    assign signal_wire_10 = signal_select_49;
+    assign signal_wire_11 = signal_select_49;
     assign signal_select_50 = signal_inst_1[186:163];
-    assign signal_wire_11 = signal_select_50;
+    assign signal_wire_12 = signal_select_50;
     assign signal_select_51 = signal_inst_1[48:40];
-    assign signal_wire_12 = signal_select_51;
-    assign signal_select_52 = signal_wire_13[2:2];
-    assign signal_select_53 = signal_wire_13[1:1];
-    assign signal_wire_13 = ui_in;
-    assign signal_select_54 = signal_wire_13[0:0];
+    assign signal_wire_13 = signal_select_51;
+    assign signal_select_52 = signal_wire_14[2:2];
+    assign signal_select_53 = signal_wire_14[1:1];
+    assign signal_wire_14 = ui_in;
+    assign signal_select_54 = signal_wire_14[0:0];
     host_port
         host_port
-        ( .clock(signal_wire_15),
+        ( .clock(signal_wire_16),
           .clear(signal_not_1),
           .sck(signal_select_54),
           .mosi(signal_select_53),
           .cs_n(signal_select_52),
-          .status$pc(signal_wire_12),
-          .status$now(signal_wire_11),
-          .status$capture(signal_wire_10),
-          .status$halted(signal_wire_9),
-          .status$irq(signal_wire_8),
-          .status$fault$underflow(signal_wire_7),
-          .status$fault$overflow(signal_wire_6),
-          .status$fault$missed_deadline(signal_wire_5),
-          .status$fault$decode(signal_wire_4),
-          .status$tx_level(signal_wire_3),
-          .status$rx_level(signal_wire_2),
-          .status$rx_head(signal_wire_1),
+          .status$pc(signal_wire_13),
+          .status$now(signal_wire_12),
+          .status$capture(signal_wire_11),
+          .status$halted(signal_wire_10),
+          .status$irq(signal_wire_9),
+          .status$fault$underflow(signal_wire_8),
+          .status$fault$overflow(signal_wire_7),
+          .status$fault$missed_deadline(signal_wire_6),
+          .status$fault$decode(signal_wire_5),
+          .status$tx_level(signal_wire_4),
+          .status$rx_level(signal_wire_3),
+          .status$rx_head(signal_wire_2),
           .miso(signal_inst[0:0]),
           .start(signal_inst[1:1]),
           .clear_irq(signal_inst[2:2]),
@@ -6762,26 +6765,26 @@ module top (
           .config$wrap_top(signal_inst[171:163]) );
     assign signal_select_55 = signal_inst[50:49];
     assign signal_const_5 = 1'b0;
-    assign signal_wire_14 = rst_n;
-    assign signal_not = ~ signal_wire_14;
+    assign signal_wire_15 = rst_n;
+    assign signal_not = ~ signal_wire_15;
     assign vdd = 1'b1;
-    always @(posedge signal_wire_15 or posedge signal_not) begin
+    always @(posedge signal_wire_16 or posedge signal_not) begin
         if (signal_not)
             signal_reg_4 <= signal_const_5;
         else
             signal_reg_4 <= vdd;
     end
-    always @(posedge signal_wire_15 or posedge signal_not) begin
+    always @(posedge signal_wire_16 or posedge signal_not) begin
         if (signal_not)
             reset_done <= signal_const_5;
         else
             reset_done <= signal_reg_4;
     end
     assign signal_not_1 = ~ reset_done;
-    assign signal_wire_15 = clk;
+    assign signal_wire_16 = clk;
     engine
-        engine
-        ( .clock(signal_wire_15),
+        engine_0
+        ( .clock(signal_wire_16),
           .clear(signal_not_1),
           .config$side_set_count(signal_select_55),
           .config$side_set_base(signal_select_39),
@@ -6850,7 +6853,8 @@ module top (
           .crc(signal_inst_1[287:272]),
           .stuff_run(signal_inst_1[292:288]) );
     assign signal_select_56 = signal_inst_1[19:0];
-    assign signal_select_57 = signal_select_56[11:5];
+    assign signal_wire_17 = signal_select_56;
+    assign signal_select_57 = signal_wire_17[11:5];
     assign signal_cat = { signal_select_57,
                           signal_select_3 };
     assign uo_out = signal_cat;

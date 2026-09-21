@@ -15,6 +15,11 @@ let memory =
     if sram then Engine.Memory.Ihp_sram else Flops]
 ;;
 
+let engines =
+  Command.Param.(
+    flag "-engines" (optional_with_default 1 int) ~doc:"N cores, each with its own memory")
+;;
+
 let engine_rtl_command =
   Command.basic
     ~summary:"Verilog for the core"
@@ -30,11 +35,12 @@ let top_rtl_command =
   Command.basic
     ~summary:"Verilog for the tiny tapeout top"
     [%map_open.Command
-      let memory = memory in
+      let memory = memory
+      and engines = engines in
       fun () ->
         let module C = Circuit.With_interface (Top.I) (Top.O) in
         print_rtl ~name:"protocol_emulator" (fun ~name scope ->
-          C.create_exn ~name (Top.hierarchical ~memory scope))]
+          C.create_exn ~name (Top.hierarchical ~memory ~engines scope))]
 ;;
 
 let assemble_command =

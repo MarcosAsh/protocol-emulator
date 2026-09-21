@@ -41,7 +41,7 @@
   "MACROS": {
     "RM_IHPSG13_1P_512x16_c2_bm_bist": {
       "instances": {
-        "core.top.engine.sram_macro.sram": {
+        "core.top.engine_0.sram_macro.sram": {
           "location": [42, 37.8],
           "orientation": "R0"
         }
@@ -58,8 +58,8 @@
     }
   },
   "PDN_MACRO_CONNECTIONS": [
-    "core.top.engine.sram_macro.sram VPWR VGND VDD! VSS!",
-    "core.top.engine.sram_macro.sram VPWR VGND VDDARRAY! VSS!"
+    "core.top.engine_0.sram_macro.sram VPWR VGND VDD! VSS!",
+    "core.top.engine_0.sram_macro.sram VPWR VGND VDDARRAY! VSS!"
   ],
   "PDN_CFG": "dir::pdn_cfg.tcl",
   "PDN_VERTICAL_LAYER": "Metal4",

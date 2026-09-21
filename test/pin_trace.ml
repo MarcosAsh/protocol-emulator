@@ -63,7 +63,7 @@ end
 
 let run (scenario : Scenario.t) =
   Harness.run
-    ~create:(Top.hierarchical ~memory:Flops)
+    ~create:(Top.hierarchical ~memory:Flops ~engines:1)
     (fun (h @ local) ~inputs ~outputs ->
        let o = Before_and_after_edge.after_edge outputs in
        let peer = scenario.peer () in

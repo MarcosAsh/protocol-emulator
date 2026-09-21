@@ -12,7 +12,7 @@ let%expect_test "the host loads and runs the uart transmitter over spi" =
   let period = 16 in
   Harness.run
     ~random_initial_state:`All
-    ~create:(Top.hierarchical ~memory:Flops)
+    ~create:(Top.hierarchical ~memory:Flops ~engines:1)
     (fun (h @ local) ~inputs ~outputs ->
        let cycle ?n () = Lws.step ?n h in
        let o = Before_and_after_edge.after_edge outputs in
@@ -69,11 +69,11 @@ let%expect_test "waveform of reset and the first command" =
         "top$host_port$sm"
         ~wave_format:(Index Host_port.State.names)
     ; Display_rule.port_name_is "top$host_port$cmd" ~wave_format:Unsigned_int
-    ; Display_rule.port_name_is "top$engine$halted" ~wave_format:Bit
+    ; Display_rule.port_name_is "top$engine_0$halted" ~wave_format:Bit
     ]
   in
   Harness.run
-    ~create:(Top.hierarchical ~memory:Flops)
+    ~create:(Top.hierarchical ~memory:Flops ~engines:1)
     ~trace:`All_named
     ~print_waves_after_test:(fun waves ->
       Waveform.print
@@ -119,7 +119,7 @@ let%expect_test "waveform of reset and the first command" =
     │                    ││───────────────────────────┬───────────────────────────────────── │
     │top$host_port$cmd   ││ 0                         │128                                   │
     │                    ││───────────────────────────┴───────────────────────────────────── │
-    │top$engine$halted   ││ ┌──────────────────────────────────────────────────────────┐     │
+    │top$engine_0$halted ││ ┌──────────────────────────────────────────────────────────┐     │
     │                    ││─┘                                                          └──── │
     └────────────────────┘└──────────────────────────────────────────────────────────────────┘
     |}]
