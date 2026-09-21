@@ -54,7 +54,8 @@ let%expect_test "a jump tests the fifos without stalling or faulting" =
         ()
     in
     print_s [%message (m.fault : Machine.Fault.t)]);
-  [%expect {|
+  [%expect
+    {|
     ("lockstep held" (cycles 600))
     (m.fault
      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
