@@ -109,21 +109,7 @@ let wrapped_loop =
 ;;
 
 let fifo_poll =
-  let program =
-    assemble
-      {|
-poll:
-    jmp tx, take
-    mov pins, !pins
-    jmp poll
-take:
-    pull
-    jmp !rx, poll
-    mov isr, osr
-    push
-    jmp poll
-|}
-  in
+  let program = assemble (List.hd_exn Fifo_poll.programs) in
   let traffic words =
     List.concat_map words ~f:(fun word ->
       [ Step.Write (Reg.tx, [ word ]); Run (word land 7); Read (Reg.status, 1) ])
