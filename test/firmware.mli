@@ -66,8 +66,12 @@ val i2c_word : ?start:bool -> ?read:bool -> ?stop:bool -> int -> int
     token that is not ours is ignored together with the data that follows it. After a
     SETUP or OUT that is ours the data goes to the host, a tag word first (1 for DATA0, 2
     for DATA1), and is acknowledged if its CRC is good; a bad one raises the interrupt. An
-    IN that is ours gets a NAK two and a half bit times after the end of its EOP. D+ is
-    IO0, D- is IO1, and IO2 is a flag the program keeps for itself. *)
+    IN that is ours gets a NAK two and a half bit times after the end of its EOP, or, when
+    the host has queued a reply, that reply: a word with SYNC in the low byte and the PID
+    in the high byte, a word with the number of data bits, then the data two bytes a word,
+    the first byte low, all of it in the fifo before the token arrives. The CRC-16 and the
+    bit stuffing are added here. The host's ACK comes back as tag 3. D+ is IO0, D- is IO1,
+    and IO2 is a flag the program keeps for itself. *)
 val usb_device : address:int -> half_period:int -> string
 
 val usb_device_dp_pin : int

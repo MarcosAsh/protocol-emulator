@@ -730,7 +730,10 @@ end
    [jmp pin]. A SETUP or OUT for us is followed by its data: a tag word (1 for DATA0, 2
    for DATA1), then the bytes and their CRC sixteen bits a word, first bit on top, then
    whatever is left of a word; ACK if the CRC register ends where a good packet leaves it,
-   the interrupt and silence if not. Every IN for us is answered with NAK. *)
+   the interrupt and silence if not. An IN for us is answered with what the host has
+   queued: the SYNC and PID word, the number of data bits, then the data; the CRC-16 and
+   the bit stuffing are added here. With nothing queued the answer is NAK. Any handshake
+   from the host is its ACK and reaches the host as tag 3. *)
 let usb_device ~address ~half_period =
   let open Usb_line in
   let label name line = [%string "%{name}_%{suffix line}"] in
