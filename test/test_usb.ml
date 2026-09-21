@@ -436,3 +436,44 @@ let%expect_test "usb device stays silent on a bad data crc, a status packet is f
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
     |}]
 ;;
+
+let%expect_test "usb device takes a SETUP in lockstep" =
+  let bit_period = 32 in
+  let levels =
+    List.concat_map
+      [ usb_token ~pid:0x2d ~address:0
+      ; usb_data ~pid:0xc3 get_descriptor
+      ; usb_token ~pid:0x69 ~address:0
+      ]
+      ~f:(fun packet ->
+        List.init 8 ~f:(fun _ -> Usb_ls.Line.J)
+        @ Usb_ls.encode packet
+        @ List.init 40 ~f:(fun _ -> Usb_ls.Line.J))
+    |> List.concat_map ~f:(fun line ->
+      let dp, dm =
+        match (line : Usb_ls.Line.t) with
+        | J -> 0, 1
+        | K -> 1, 0
+        | Se0 -> 0, 0
+      in
+      List.init bit_period ~f:(fun _ ->
+        (dp lsl usb_device_dp_pin) lor (dm lsl usb_device_dm_pin)))
+    |> Array.of_list
+  in
+  let program = assemble (usb_device ~address:0 ~half_period:(bit_period / 2)) in
+  let (_ : Machine.t) =
+    Lockstep.lockstep
+      ~cycles:(Array.length levels)
+      ~config:usb_device_config
+      ~program
+      ~preload:[ bit_period ]
+      ~inputs:(fun n -> levels.(n))
+      ~host:(fun _ -> { Lockstep.Host.idle with pop_rx = true })
+      ()
+  in
+  print_s [%message "program" ~words:(List.length program : int)];
+  [%expect {|
+    ("lockstep held" (cycles 10016))
+    (program (words 409))
+    |}]
+;;
