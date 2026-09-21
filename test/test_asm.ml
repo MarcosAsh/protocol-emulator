@@ -225,11 +225,14 @@ let%expect_test "the words committed for the cocotb test are current" =
     |> List.map ~f:(fun w -> Int.of_string ("0x" ^ w))
   in
   let assembled name = In_channel.read_all (name ^ ".asm") |> Firmware.assemble in
-  List.iter [ "uart_tx"; "wrapped_loop" ] ~f:(fun name ->
+  List.iter [ "uart_tx"; "wrapped_loop"; "uart_rx_wire" ] ~f:(fun name ->
     [%test_result: int list] ~message:name (committed name) ~expect:(assembled name));
-  (* uart_tx.asm is a copy, because the command line assembles files *)
+  (* uart_tx.asm and uart_rx_wire.asm are copies, because the command line assembles files *)
   [%test_result: int list]
     (assembled "uart_tx")
     ~expect:(Firmware.assemble (Firmware.uart_tx ~period:16));
+  [%test_result: int list]
+    (assembled "uart_rx_wire")
+    ~expect:(Firmware.assemble (Firmware.uart_rx_on ~pin:Isa.num_pins ~period:16));
   [%expect {| |}]
 ;;

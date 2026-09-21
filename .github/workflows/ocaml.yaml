@@ -72,3 +72,9 @@ jobs:
           make FPGA=yes
           ! grep failure results.xml
           make replay FPGA=yes
+
+      # the committed chip has one engine; the generator's two get a simulation of their own
+      - name: Simulate a top with two engines
+        run: |
+          cd test
+          opam exec -- make two_engines

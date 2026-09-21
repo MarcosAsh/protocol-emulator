@@ -102,6 +102,7 @@ class Wire:
 
 async def load(host, address):
     await host.write(CONTROL, [4])
+    await host.write(CONTROL, [8])
     for n, name in enumerate(CONFIG_FIELDS):
         await host.write(CONFIG + n, [firmware.CONFIG[name]])
     await host.write(PROGRAM_ADDR, [0])
