@@ -104,3 +104,46 @@ let%expect_test "a missing stop bit raises the interrupt" =
      (t.irq true) (t.pc 4))
     |}]
 ;;
+
+let%expect_test "uart tx in lockstep" =
+  let program = assemble (uart_tx ~period:16) in
+  let (_ : Machine.t) =
+    Lockstep.lockstep
+      ~config:Program_config.default
+      ~program
+      ~preload:[ 0x55; 0xa3 ]
+      ~inputs:(fun _ -> 0)
+      ()
+  in
+  [%expect {| ("lockstep held" (cycles 400)) |}]
+;;
+
+let%expect_test "uart tx at 115200 baud in lockstep" =
+  let (_ : Machine.t) =
+    Lockstep.lockstep
+      ~cycles:(24 * 434)
+      ~config:Program_config.default
+      ~program:(assemble uart_tx_host_rate)
+      ~preload:[ 434; 0x55; 0xa3 ]
+      ~inputs:(fun _ -> 0)
+      ()
+  in
+  [%expect {| ("lockstep held" (cycles 10416)) |}]
+;;
+
+let%expect_test "uart rx in lockstep" =
+  let period = 16 in
+  let levels =
+    serial_levels [ 0x55; 0xa3; 0xff; 0x00 ] ~period ~stop:1 |> Array.of_list
+  in
+  let (_ : Machine.t) =
+    Lockstep.lockstep
+      ~cycles:(Array.length levels)
+      ~config:rx_config
+      ~program:(assemble (uart_rx ~period))
+      ~inputs:(fun n -> levels.(n))
+      ~host:(fun _ -> { Lockstep.Host.idle with pop_rx = true })
+      ()
+  in
+  [%expect {| ("lockstep held" (cycles 724)) |}]
+;;
