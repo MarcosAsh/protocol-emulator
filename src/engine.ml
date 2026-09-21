@@ -637,8 +637,11 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   let%hw pc_value_next =
     mux2 start (zero pc_bits) @@ mux2 jmp_go jmp_target_or_next @@ mux2 advance pc_next pc
   in
+  (* The address after the next instruction, picked from sums made off the register so
+     that no adder follows the control logic on the way to the memory. *)
+  let%hw pc_after_next = mux2 start (one pc_bits) @@ mux2 advance (pc +:. 2) pc_next in
   fetch_addr
-  <-- mux2 i.start (zero pc_bits) @@ mux2 jmp_go jmp_target_or_next (pc_value_next +:. 1);
+  <-- mux2 i.start (zero pc_bits) @@ mux2 jmp_go jmp_target_or_next pc_after_next;
   let%hw refill = reg spec (jmp_go |: i.start) in
   ir_load <-- (advance |: refill);
   let sticky set = reg spec ~enable:set vdd in
