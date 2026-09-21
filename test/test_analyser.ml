@@ -604,3 +604,53 @@ let%expect_test "a wrapped loop toggles every two cycles with no jitter" =
     4  mov pins, !pins              phase -1  edge 0
     |}]
 ;;
+
+let%expect_test "usb device" =
+  let program = Asm.assemble (usb_device ~address:0 ~half_period:16) |> ok_exn in
+  let rows =
+    Analyser.analyse
+      ~period:32
+      ~single_capture_edge:true
+      ~config:(Asm.Program.configure program usb_device_config)
+      program.instructions
+  in
+  let report = Analyser.to_string ~side_set_count:0 rows |> String.split_lines in
+  let interesting =
+    List.filter report ~f:(fun line ->
+      List.exists [ "MAY MISS"; "edge"; "?" ] ~f:(fun s ->
+        String.is_substring line ~substring:s))
+  in
+  print_s [%message (List.length report : int)];
+  List.iter interesting ~f:print_endline;
+  [%expect
+    {|
+    ("List.length report" 408)
+      0  pull                         phase ?..?
+      1  mov p, osr                   phase ?..?
+      2  set pins, 2                  phase ?..?  edge ?..?  jitter ?
+      3  set pindirs, 4               phase ?..?  edge ?..?  jitter ?
+      4  mov isr, null                phase ?..?
+      5  set y, 0                     phase ?..?
+      6  in y, 3                      phase ?..?
+      7  set y, 0                     phase ?..?
+      8  in y, 3                      phase ?..?
+      9  set y, 0                     phase ?..?
+     10  in y, 5                      phase ?..?
+     11  mov osr, isr                 phase ?..?
+     12  mov isr, null                phase ?..?
+     13  stuff_reset                  phase ?..?
+     14  capture_arm                  phase ?..?
+     15  wait 1 pin 12                phase ?..?
+     16  mov t, capture               phase ?..?
+    107  set pins, 6                  phase -27  edge -26
+    109  set pins, 2                  phase -27  edge -26
+    111  set pins, 6                  phase -25  edge -24
+    113  set pins, 2                  phase -25  edge -24
+    380  mov t, capture               phase -24..?
+    392  set pins, 2                  phase -31  edge -30
+    393  set pindirs, 7               phase -30  edge -29
+    398  mov pins, !pins              phase -28  edge -27
+    402  set pins, 4                  phase -28  edge -27
+    406  set pins, 6                  phase -28  edge -27
+    |}]
+;;
