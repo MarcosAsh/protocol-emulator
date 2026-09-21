@@ -189,3 +189,32 @@ let%expect_test "an instruction survives printing and parsing" =
           [%test_result: Isa.t list] ~message:source ~expect:[ t ] program.instructions));
   [%expect {| |}]
 ;;
+
+let%expect_test "wrap directives mark the loop" =
+  let wrap source =
+    let program = Asm.assemble source |> ok_exn in
+    print_s [%message (program.wrap_bottom : int) (program.wrap_top : int)]
+  in
+  wrap {|
+    set p, 2
+.wrap_target
+    wait t+
+    mov pins, !pins
+.wrap
+    halt
+|};
+  wrap {|
+    set p, 2
+.wrap_target
+    wait t+
+|};
+  wrap "    nop";
+  print_s [%sexp (Asm.assemble ".wrap\n    nop" : Asm.Program.t Or_error.t)];
+  [%expect
+    {|
+    ((program.wrap_bottom 1) (program.wrap_top 2))
+    ((program.wrap_bottom 1) (program.wrap_top 1))
+    ((program.wrap_bottom 0) (program.wrap_top 511))
+    (Error ((line 1 .wrap) ".wrap before any instruction"))
+    |}]
+;;
