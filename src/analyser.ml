@@ -83,7 +83,7 @@ module Row = struct
   [@@deriving sexp_of]
 end
 
-let max_passes = 32
+let max_passes = 256
 
 let captures (c : Program_config.t) (wait : Isa.Wait.t) =
   match wait with
