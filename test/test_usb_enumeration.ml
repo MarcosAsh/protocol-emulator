@@ -116,7 +116,7 @@ let descriptors =
 ;;
 
 let%expect_test "a host enumerates the keyboard and mouse and reads reports" =
-  let t = create ~descriptors ~latency:6000 in
+  let t = create ~descriptors ~latency:6000 () in
   let read name request expected =
     let bytes = control_in t request in
     print_s
@@ -210,5 +210,57 @@ let%expect_test "a host enumerates the keyboard and mouse and reads reports" =
      (naks_so_far 39))
     ("faults t"
      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+    |}]
+;;
+
+(* The same conversation against the hardware: every load of the core is run again in the
+   lockstep harness with the pins and the fifo writes the model saw, cycle for cycle, and
+   the Hardcaml core has to agree with the model on all of its state after every edge. *)
+let%expect_test "the enumeration in lockstep with the hardware" =
+  let t = create ~reset_cycles:4000 ~descriptors ~latency:3000 () in
+  reset t;
+  let (_ : int list) = control_in t (Request.get_descriptor ~kind:1 ~length:8 ()) in
+  reset t;
+  control_out t (Request.set_address 7);
+  let (_ : int list) = control_in t (Request.get_descriptor ~kind:1 ~length:18 ()) in
+  let (_ : int list) = control_in t (Request.get_descriptor ~kind:2 ~length:34 ()) in
+  control_out t (Request.set_configuration 1);
+  report t [ 2; 1; 0; 0 ];
+  let (_ : int list) = control_in t (Request.get_descriptor ~kind:1 ~length:8 ()) in
+  let rec until_data tries =
+    match interrupt_in t ~endpoint:1 with
+    | Some bytes -> bytes
+    | None when tries > 0 -> until_data (tries - 1)
+    | None -> []
+  in
+  print_s [%message "report" ~_:(until_data 20 : int list)];
+  List.iter (recording t) ~f:(fun (address, cycles) ->
+    let cycles = Array.of_list cycles in
+    let program =
+      Firmware.assemble (Firmware.usb_device ~address ~half_period:(bit_period / 2))
+    in
+    let (_ : Protocol_emulator.Machine.t), mismatch =
+      Lockstep.run
+        ~cycles:(Array.length cycles)
+        ~config:Firmware.usb_device_config
+        ~program
+        ~preload:[ bit_period ]
+        ~inputs:(fun n -> fst cycles.(n))
+        ~host:(fun n -> { Lockstep.Host.idle with tx = snd cycles.(n); pop_rx = true })
+        ()
+    in
+    print_s
+      [%message
+        "load"
+          (address : int)
+          ~cycles:(Array.length cycles : int)
+          ~held:(Option.is_none mismatch : bool)]);
+  [%expect
+    {|
+    (report (2 1 0 0))
+    (load (address 0) (cycles 5441) (held true))
+    (load (address 0) (cycles 28000) (held true))
+    (load (address 0) (cycles 21215) (held true))
+    (load (address 7) (cycles 168032) (held true))
     |}]
 ;;

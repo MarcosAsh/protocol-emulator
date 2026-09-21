@@ -225,6 +225,10 @@ type t =
   ; mutable ends : int
   ; mutable se0 : bool
   ; mutable se0_cycles : int
+  ; reset_cycles : int
+  ; mutable address_loaded : int
+  ; mutable cycles : (int * int option) list
+  ; mutable loads : (int * (int * int option) list) list
   ; mutable address : int
   ; mutable naks : int
   ; board : Board.t
@@ -245,6 +249,16 @@ let load ~address =
 let reset_cycles = 120_000
 let faults t = t.machine.fault
 let naks t = t.naks
+
+(* a fresh core; what the old one saw is kept, one list of cycles per load *)
+let reload t ~address =
+  t.loads <- (t.address_loaded, List.rev t.cycles) :: t.loads;
+  t.cycles <- [];
+  t.address_loaded <- address;
+  t.machine <- load ~address
+;;
+
+let recording t = List.rev ((t.address_loaded, List.rev t.cycles) :: t.loads)
 
 (* one clock: the host's level where the device does not drive, the board's turn, and the
    sniffer's *)
@@ -275,15 +289,26 @@ let cycle t (line : Usb_ls.Line.t) =
      t.machine <- machine;
      Board.word t.board word
    | None -> ());
-  (match t.board.due with
-   | (0, words) :: rest ->
-     if List.length t.machine.tx_fifo + List.length words <= Machine.fifo_depth
-     then (
-       t.machine
-       <- List.fold words ~init:t.machine ~f:(fun m w -> Machine.write_tx m w |> ok_exn);
-       t.board.due <- rest)
-   | (n, words) :: rest -> t.board.due <- (n - 1, words) :: rest
-   | [] -> Board.requeue t.board);
+  (* one word a cycle, as a host on SPI could at best, and only a whole reply at a time *)
+  let written =
+    match t.board.due with
+    | (0, []) :: rest ->
+      t.board.due <- rest;
+      None
+    | (0, word :: words) :: rest
+      when List.length t.machine.tx_fifo + 1 + List.length words <= Machine.fifo_depth ->
+      t.machine <- Machine.write_tx t.machine word |> ok_exn;
+      t.board.due <- (0, words) :: rest;
+      Some word
+    | (0, _) :: _ -> None
+    | (n, words) :: rest ->
+      t.board.due <- (n - 1, words) :: rest;
+      None
+    | [] ->
+      Board.requeue t.board;
+      None
+  in
+  t.cycles <- (inputs, written) :: t.cycles;
   let pin n level =
     if (t.machine.pin_dir lsr n) land 1 = 1
     then (t.machine.pin_out lsr n) land 1
@@ -298,9 +323,9 @@ let cycle t (line : Usb_ls.Line.t) =
     t.ends <- t.ends + 1;
     (* the board sits on the same two pins: an SE0 of two and a half milliseconds is a bus
        reset, and the device answers to address 0 again with nothing pending *)
-    if t.se0_cycles >= reset_cycles
+    if t.se0_cycles >= t.reset_cycles
     then (
-      t.machine <- load ~address:0;
+      reload t ~address:0;
       Board.reset t.board));
   t.se0_cycles <- (if se0 then t.se0_cycles + 1 else 0);
   t.se0 <- se0;
@@ -311,13 +336,17 @@ let bits t line ~count =
   Fn.apply_n_times ~n:(count * bit_period) (fun () -> cycle t line) ()
 ;;
 
-let create ~descriptors ~latency =
+let create ?(reset_cycles = reset_cycles) ~descriptors ~latency () =
   let t =
     { machine = load ~address:0
     ; sniffer = Usb_ls.Sniffer.create ~bit_period
     ; ends = 0
     ; se0 = false
     ; se0_cycles = 0
+    ; reset_cycles
+    ; address_loaded = 0
+    ; cycles = []
+    ; loads = []
     ; address = 0
     ; naks = 0
     ; board = Board.create ~descriptors ~latency
@@ -429,7 +458,7 @@ let control_out t request =
   match t.board.reload with
   | Some address ->
     t.board.reload <- None;
-    t.machine <- load ~address;
+    reload t ~address;
     t.address <- address;
     bits t J ~count:20
   | None -> ()
@@ -437,7 +466,7 @@ let control_out t request =
 
 (* a host resets the bus for ten milliseconds or more; three are enough here *)
 let reset t =
-  Fn.apply_n_times ~n:(reset_cycles + (reset_cycles / 5)) (fun () -> cycle t Se0) ();
+  Fn.apply_n_times ~n:(t.reset_cycles + (t.reset_cycles / 5)) (fun () -> cycle t Se0) ();
   t.address <- 0;
   bits t J ~count:40
 ;;

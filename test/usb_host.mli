@@ -23,8 +23,16 @@ end
 
 type t
 
+(** Cycles to a bit: 48 MHz. *)
+val bit_period : int
+
 (** [descriptors] by descriptor type. *)
-val create : descriptors:(int * int list) list -> latency:int -> t
+val create
+  :  ?reset_cycles:int
+  -> descriptors:(int * int list) list
+  -> latency:int
+  -> unit
+  -> t
 
 (** The host holds SE0 long enough for a bus reset. The board sees it on the wire and
     reloads the core for address 0. *)
@@ -41,6 +49,11 @@ val report : t -> int list -> unit
 
 (** One IN; [None] is a NAK. *)
 val interrupt_in : t -> endpoint:int -> int list option
+
+(** What each load of the core saw, in order: the address it was assembled for and, per
+    cycle, the input pins and the word the board wrote, if any. Enough to run the same
+    thing again somewhere else. *)
+val recording : t -> (int * (int * int option) list) list
 
 val naks : t -> int
 val faults : t -> Machine.Fault.t
