@@ -1,21 +1,8 @@
 open! Core
 open Protocol_emulator
-
-let tx_pin = 5
-
 open Firmware
 open Protocol_models
-
-let run t ~cycles ~inputs =
-  let rec loop t n acc =
-    if n = 0
-    then t, List.rev acc
-    else (
-      let t = Machine.step t ~inputs in
-      loop t (n - 1) (((t.pin_out lsr tx_pin) land 1) :: acc))
-  in
-  loop t cycles []
-;;
+open Machine_run
 
 let%expect_test "uart tx sends two bytes with exact bit periods" =
   let period = 16 in
