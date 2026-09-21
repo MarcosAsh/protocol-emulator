@@ -218,3 +218,18 @@ let%expect_test "wrap directives mark the loop" =
     (Error ((line 1 .wrap) ".wrap before any instruction"))
     |}]
 ;;
+
+let%expect_test "the words committed for the cocotb test are current" =
+  let committed name =
+    In_channel.read_lines (name ^ ".hex")
+    |> List.map ~f:(fun w -> Int.of_string ("0x" ^ w))
+  in
+  let assembled name = In_channel.read_all (name ^ ".asm") |> Firmware.assemble in
+  List.iter [ "uart_tx"; "wrapped_loop" ] ~f:(fun name ->
+    [%test_result: int list] ~message:name (committed name) ~expect:(assembled name));
+  (* uart_tx.asm is a copy, because the command line assembles files *)
+  [%test_result: int list]
+    (assembled "uart_tx")
+    ~expect:(Firmware.assemble (Firmware.uart_tx ~period:16));
+  [%expect {| |}]
+;;
