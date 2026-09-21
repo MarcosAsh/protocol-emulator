@@ -3,6 +3,8 @@ open! Core
 module Program = struct
   type t =
     { side_set_count : int
+    ; wrap_bottom : int
+    ; wrap_top : int
     ; instructions : Isa.t list
     }
   [@@deriving sexp_of, compare, equal]
@@ -10,6 +12,14 @@ module Program = struct
   let words t =
     List.map t.instructions ~f:(Isa.to_word ~side_set_count:t.side_set_count)
     |> Or_error.all
+  ;;
+
+  let configure t (config : Program_config.t) =
+    { config with
+      side_set_count = t.side_set_count
+    ; wrap_bottom = t.wrap_bottom
+    ; wrap_top = t.wrap_top
+    }
   ;;
 end
 
@@ -229,6 +239,20 @@ module Line = struct
   ;;
 end
 
+module First_pass = struct
+  type t =
+    { side_set_count : int
+    ; labels : (string * int) list
+    ; address : int
+    ; wrap_bottom : int option
+    ; wrap_top : int option
+    }
+
+  let empty =
+    { side_set_count = 0; labels = []; address = 0; wrap_bottom = None; wrap_top = None }
+  ;;
+end
+
 let assemble source =
   let open Or_error.Let_syntax in
   let lines =
@@ -237,25 +261,34 @@ let assemble source =
       List.map (Line.parse line) ~f:(fun parsed -> i + 1, line, parsed))
   in
   let tag number line = Or_error.tag_s ~tag:[%message "line" ~_:(number : int) line] in
-  let%bind side_set_count, labels, _ =
+  let%bind first =
     List.fold_result
       lines
-      ~init:(0, [], 0)
-      ~f:(fun (side_set_count, labels, address) (number, line, parsed) ->
+      ~init:First_pass.empty
+      ~f:(fun (first : First_pass.t) (number, line, parsed) ->
         tag
           number
           line
           (match parsed with
            | Directive ("side_set", [ count ]) ->
-             let%map count = int_of_token count in
-             count, labels, address
+             let%map side_set_count = int_of_token count in
+             { first with side_set_count }
+           | Directive ("wrap_target", []) ->
+             Ok { first with wrap_bottom = Some first.address }
+           | Directive ("wrap", []) ->
+             if first.address = 0
+             then Or_error.error_s [%message ".wrap before any instruction"]
+             else Ok { first with wrap_top = Some (first.address - 1) }
            | Directive (name, args) ->
              Or_error.error_s [%message "unknown directive" name (args : string list)]
            | Label label ->
-             if List.Assoc.mem labels label ~equal:String.equal
+             if List.Assoc.mem first.labels label ~equal:String.equal
              then Or_error.error_s [%message "duplicate label" label]
-             else Ok (side_set_count, (label, address) :: labels, address)
-           | Instruction _ -> Ok (side_set_count, labels, address + 1)))
+             else Ok { first with labels = (label, first.address) :: first.labels }
+           | Instruction _ -> Ok { first with address = first.address + 1 }))
+  in
+  let { First_pass.side_set_count; labels; address = length; wrap_bottom; wrap_top } =
+    first
   in
   let%map instructions =
     List.filter_map lines ~f:(fun (number, line, parsed) ->
@@ -265,7 +298,18 @@ let assemble source =
       | Directive _ | Label _ -> None)
     |> Or_error.all
   in
-  { Program.side_set_count; instructions }
+  (* as in the PIO assembler, a loop that is opened and not closed ends with the program *)
+  let wrap_top =
+    match wrap_top, wrap_bottom with
+    | Some top, _ -> top
+    | None, Some _ -> length - 1
+    | None, None -> Program_config.default.wrap_top
+  in
+  { Program.side_set_count
+  ; wrap_bottom = Option.value wrap_bottom ~default:Program_config.default.wrap_bottom
+  ; wrap_top
+  ; instructions
+  }
 ;;
 
 let to_string ~side_set_count (t : Isa.t) =

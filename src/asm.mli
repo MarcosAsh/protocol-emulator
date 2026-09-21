@@ -15,6 +15,11 @@
         jmp idle
     v}
 
+    [.wrap_target] before an instruction and [.wrap] after one close a loop that costs no
+    cycles: after the instruction above [.wrap] comes the one below [.wrap_target].
+    Without [.wrap] the loop ends with the program. The addresses go to the program
+    config.
+
     With side-set enabled every instruction except [jmp] drives the side-set pins, so the
     assembler insists on a [side] modifier on each of them.
 
@@ -31,11 +36,16 @@ open! Core
 module Program : sig
   type t =
     { side_set_count : int
+    ; wrap_bottom : int
+    ; wrap_top : int
     ; instructions : Isa.t list
     }
   [@@deriving sexp_of, compare, equal]
 
   val words : t -> int list Or_error.t
+
+  (** The config with the program's side-set count and wrap addresses filled in. *)
+  val configure : t -> Program_config.t -> Program_config.t
 end
 
 (** Errors carry the line number and the offending line. *)
