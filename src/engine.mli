@@ -1,10 +1,11 @@
 (** The core. Same semantics as [Machine]; the tests keep them in lockstep.
 
     The word at [pc] sits in an instruction register and the memory reads one address
-    ahead of it, so a jump spends its second cycle refilling. [program_write] only while
-    halted, and never in the same cycle as [start]. [start] spends one cycle fetching
-    address 0, then resets [pc] and the timer; the first instruction issues two cycles
-    after [start] at [now = 0]. A [start] while one is in flight starts over. *)
+    ahead of it, so a jump spends its second cycle refilling. [program_write] is ignored
+    unless the core is halted, and never comes in the same cycle as [start]. [start]
+    spends one cycle fetching address 0, then resets [pc] and the timer; the first
+    instruction issues two cycles after [start] at [now = 0]. A [start] while one is in
+    flight starts over. *)
 
 open! Core
 open! Hardcaml
@@ -78,6 +79,7 @@ module I : sig
     ; tx : 'a With_valid.t (** A word for the core's tx fifo. *)
     ; rx_pop : 'a (** Pops the rx fifo; [rx_head] is the word popped. *)
     ; clear_irq : 'a
+    ; stop : 'a (** Halts the core; the pins keep what they have. [start] wins. *)
     ; inputs : 'a (** The external level of every pin in the flat pin space. *)
     }
   [@@deriving hardcaml]

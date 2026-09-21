@@ -60,6 +60,7 @@ let create ~memory (scope : Scope.t) (i : Signal.t I.t) =
       ; tx = host.tx
       ; rx_pop = host.rx_pop
       ; clear_irq = host.clear_irq
+      ; stop = host.stop
       ; inputs
       }
   in

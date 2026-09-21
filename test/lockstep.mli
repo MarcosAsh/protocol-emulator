@@ -14,6 +14,7 @@ module Host : sig
     { tx : int option
     ; pop_rx : bool
     ; clear_irq : bool
+    ; stop : bool
     }
 
   val idle : t

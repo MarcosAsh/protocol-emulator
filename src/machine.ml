@@ -106,6 +106,7 @@ let read_rx t =
 ;;
 
 let clear_irq t = { t with irq = false }
+let stop t = { t with halted = true }
 let bit v i = (v lsr i) land 1
 let set_bit v i b = if b then v lor (1 lsl i) else v land lnot (1 lsl i)
 let pin i = i % Isa.num_pins
@@ -422,10 +423,11 @@ let step t ~inputs =
   let captured = capture_edge t ~sample in
   let now = t.now in
   let t =
-    if t.halted
-    then t
-    else if t.stall > 0
+    (* a delay runs out whether or not the core has been halted in the meantime *)
+    if t.stall > 0
     then { t with stall = t.stall - 1 }
+    else if t.halted
+    then t
     else issue t ~sample
   in
   let t = if captured then { t with capture = now; capture_armed = false } else t in

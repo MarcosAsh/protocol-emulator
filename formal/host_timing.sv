@@ -9,7 +9,7 @@
 // Each teeth task in host_timing.sby defines one of the names tested below, which takes
 // one part of the statement away, and the proof must then fail: every part is needed.
 module step (
-  input clock, clear, start, clear_irq,
+  input clock, clear, start, stop, clear_irq,
   input [122:0] config_bits,
   input [19:0] inputs,
   input [15:0] fetched, pulled,
@@ -48,7 +48,7 @@ module step (
     .config$wrap_bottom(config_bits[113:105]), .config$wrap_top(config_bits[122:114]),
     .start(start), .program_write$valid(1'b0), .program_write$addr(9'b0),
     .program_write$data(16'b0), .tx$valid(1'b0), .tx$value(16'b0), .rx_pop(1'b0),
-    .clear_irq(clear_irq), .inputs(inputs),
+    .clear_irq(clear_irq), .stop(stop), .inputs(inputs),
     .pin_out(pin_out), .pin_dir(pin_dir), .instruction(instruction), .opcode_onehot(opcode_onehot),
     .fault$underflow(underflow), .fault$overflow(overflow),
     .sram_addr(sram_addr), .sram_men(sram_men), .sram_ren(sram_ren), .sram_wen(sram_wen),

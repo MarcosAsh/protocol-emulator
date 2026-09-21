@@ -33,6 +33,7 @@ module O = struct
     { miso : 'a
     ; start : 'a
     ; clear_irq : 'a
+    ; stop : 'a
     ; program_write : 'a Engine.Program_write.t
     ; tx : 'a With_valid.t [@bits Isa.data_bits]
     ; rx_pop : 'a
@@ -167,6 +168,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   { O.miso = spi.miso
   ; start = strobe Reg.control &: value.:(0)
   ; clear_irq = strobe Reg.control &: value.:(1)
+  ; stop = strobe Reg.control &: value.:(2)
   ; program_write =
       { valid = strobe Reg.program; addr = program_addr.value; data = value }
   ; tx = { valid = strobe Reg.tx; value }

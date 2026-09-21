@@ -65,6 +65,29 @@ let%expect_test "a jump tests the fifos without stalling or faulting" =
     |}]
 ;;
 
+let%expect_test "the host stops the core and starts it again" =
+  let program = assemble {|
+loop:
+    mov pins, !pins [3]
+    add x, 1
+    jmp loop
+|} in
+  let m =
+    lockstep
+      ~cycles:60
+      ~config:{ Program_config.default with in_base = 5 }
+      ~program
+      ~inputs:(fun _ -> 0)
+      ~host:(fun n -> { Host.idle with stop = n = 21 || n = 22 || n = 40 })
+      ()
+  in
+  print_s [%message (m.halted : bool) (m.x : int)];
+  [%expect {|
+    ("lockstep held" (cycles 60))
+    ((m.halted true) (m.x 3))
+    |}]
+;;
+
 let%expect_test "the host clears the interrupt" =
   let program = assemble {|
 loop:

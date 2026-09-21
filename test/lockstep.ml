@@ -103,9 +103,10 @@ module Host = struct
     { tx : int option
     ; pop_rx : bool
     ; clear_irq : bool
+    ; stop : bool
     }
 
-  let idle = { tx = None; pop_rx = false; clear_irq = false }
+  let idle = { tx = None; pop_rx = false; clear_irq = false; stop = false }
 end
 
 let run
@@ -167,6 +168,7 @@ let run
            | None -> i.tx.valid := Bits.gnd);
           i.rx_pop := Bits.of_bool action.pop_rx;
           i.clear_irq := Bits.of_bool action.clear_irq;
+          i.stop := Bits.of_bool action.stop;
           if action.clear_irq then model := Machine.clear_irq !model;
           if action.pop_rx
           then (
@@ -176,6 +178,7 @@ let run
           cycle ();
           let before = !model in
           model := Machine.step before ~inputs:levels;
+          if action.stop then model := Machine.stop !model;
           Option.iter coverage ~f:(fun c -> Coverage.record c ~before ~after:!model);
           (match action.tx with
            | Some word -> model := Machine.write_tx !model word |> ok_exn

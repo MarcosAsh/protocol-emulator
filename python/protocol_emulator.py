@@ -57,6 +57,10 @@ class Host:
     def start(self):
         self.write(CONTROL, [1])
 
+    def stop(self):
+        """Halt the core; the program can only be written while it is halted."""
+        self.write(CONTROL, [4])
+
     def clear_irq(self):
         self.write(CONTROL, [2])
 

@@ -111,6 +111,7 @@ module I = struct
     ; tx : 'a With_valid.t [@bits Isa.data_bits]
     ; rx_pop : 'a
     ; clear_irq : 'a
+    ; stop : 'a
     ; inputs : 'a [@bits num_pins]
     }
   [@@deriving hardcaml]
@@ -206,12 +207,14 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
       scope
       { clocking = i.clocking; push = rx_push; pop = i.rx_pop }
   in
+  (* a write while the core runs would take the memory from the fetch *)
+  let%hw program_write = i.program_write.valid &: halted in
   let memory_in =
     { Program_memory.I.clock = i.clocking.clock
     ; men = vdd
-    ; wen = i.program_write.valid
+    ; wen = program_write
     ; ren = vdd
-    ; addr = mux2 i.program_write.valid i.program_write.addr fetch_addr
+    ; addr = mux2 program_write i.program_write.addr fetch_addr
     ; din = i.program_write.data
     ; bm = ones Isa.word_bits
     }
@@ -613,6 +616,7 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   (* Control. *)
   let%hw halted_next =
     mux2 start gnd
+    @@ mux2 i.stop vdd
     @@ mux2 (issue &: ~:decode_ok) vdd
     @@ mux2 (op_go &: is_sys Halt) vdd halted
   in

@@ -65,8 +65,9 @@ let%expect_test "the head of a trace file" =
     |}]
 ;;
 
-(* engine.mli asks for program writes only while halted, but nothing in the host port
-   holds the host to that. The write takes the memory's address for a cycle. *)
+(* A program write takes the memory's address for a cycle, which used to make a running
+   core fetch the wrong word. The core now ignores the write unless it is halted, so the
+   pins of a running core show nothing. *)
 let%expect_test "the host writes program memory while the core runs" =
   let loop =
     List.find_exn Pin_scenarios.all ~f:(fun s -> String.equal s.name "wrapped_loop")
@@ -110,11 +111,7 @@ let%expect_test "the host writes program memory while the core runs" =
     {|
     ((phase 0) (first_difference ()) (quiet ()) (written ()))
     ((phase 1) (first_difference ()) (quiet ()) (written ()))
-    ((phase 2) (first_difference (6825))
-     (quiet (((0 2) (1 2) (0 2) (1 2) (0 2) (1 2) (0 2) (1 2))))
-     (written (((0 2) (1 2) (0 4) (1 2) (0 2) (1 2) (0 2)))))
-    ((phase 3) (first_difference (6826))
-     (quiet (((0 1) (1 2) (0 2) (1 2) (0 2) (1 2) (0 2) (1 2) (0 1))))
-     (written (((0 1) (1 2) (0 2) (1 1) (0 1) (1 2) (0 2) (1 2) (0 2) (1 1)))))
+    ((phase 2) (first_difference ()) (quiet ()) (written ()))
+    ((phase 3) (first_difference ()) (quiet ()) (written ()))
     |}]
 ;;
