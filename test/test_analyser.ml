@@ -624,7 +624,7 @@ let%expect_test "usb device" =
   List.iter interesting ~f:print_endline;
   [%expect
     {|
-    ("List.length report" 408)
+    ("List.length report" 466)
       0  pull                         phase ?..?
       1  mov p, osr                   phase ?..?
       2  set pins, 2                  phase ?..?  edge ?..?  jitter ?
@@ -646,11 +646,17 @@ let%expect_test "usb device" =
     109  set pins, 2                  phase -27  edge -26
     111  set pins, 6                  phase -25  edge -24
     113  set pins, 2                  phase -25  edge -24
-    380  mov t, capture               phase -24..?
-    392  set pins, 2                  phase -31  edge -30
-    393  set pindirs, 7               phase -30  edge -29
-    398  mov pins, !pins              phase -28  edge -27
-    402  set pins, 4                  phase -28  edge -27
-    406  set pins, 6                  phase -28  edge -27
+    389  mov t, capture               phase -24..?
+    403  set pins, 6                  phase -31  edge -30
+    408  set pins, 2                  phase -31  edge -30
+    409  set pindirs, 7               phase -30..-28  edge -29..-27  jitter 2
+    414  mov pins, !pins              phase -28  edge -27
+    419  set pins, 4                  phase -28  edge -27
+    423  set pins, 6                  phase -28  edge -27
+    436  mov pins, !pins              phase -28  edge -27
+    441  mov pins, !pins              phase -28  edge -27
+    448  mov pins, !pins              phase -28  edge -27
+    453  mov pins, !pins              phase -28  edge -27
+    465  mov pins, !pins              phase -28  edge -27
     |}]
 ;;

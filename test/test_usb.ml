@@ -230,7 +230,7 @@ let usb_bus (t : Machine.t) ~host =
   pin usb_device_dp_pin, pin usb_device_dm_pin
 ;;
 
-let run_usb_device ~address packets ~idle =
+let run_usb_device ?(queue = []) ~address packets ~idle =
   let bit_period = 32 in
   let t =
     Machine.create
@@ -238,7 +238,10 @@ let run_usb_device ~address packets ~idle =
       ~program:(assemble (usb_device ~address ~half_period:(bit_period / 2)))
     |> ok_exn
   in
-  let t = Machine.write_tx t bit_period |> ok_exn in
+  let t =
+    List.fold (bit_period :: queue) ~init:t ~f:(fun t word ->
+      Machine.write_tx t word |> ok_exn)
+  in
   let words = ref [] in
   let lines =
     List.concat_map packets ~f:(fun packet ->
@@ -259,7 +262,8 @@ let run_usb_device ~address packets ~idle =
   (* the reply delay the specification bounds: from the end of the host's SE0 to the first
      K the device drives, two to six and a half bit times *)
   let host_se0_ends = ref 0 in
-  let reply_starts = ref None in
+  let replied = ref true in
+  let reply_delays = ref [] in
   let cycle = ref 0 in
   let t, sniffer =
     List.fold
@@ -270,7 +274,7 @@ let run_usb_device ~address packets ~idle =
         if dp = 0 && dm = 0
         then (
           host_se0_ends := !cycle + 1;
-          reply_starts := None);
+          replied := false);
         let host n = if n = usb_device_dp_pin then dp else dm in
         let inputs = (dp lsl usb_device_dp_pin) lor (dm lsl usb_device_dm_pin) in
         let t = Machine.step t ~inputs in
@@ -283,13 +287,15 @@ let run_usb_device ~address packets ~idle =
         in
         let dp, dm = usb_bus t ~host in
         let drives = (t.pin_dir lsr usb_device_dp_pin) land 1 = 1 in
-        if drives && dp = 1 && Option.is_none !reply_starts
-        then reply_starts := Some !cycle;
+        if drives && dp = 1 && not !replied
+        then (
+          replied := true;
+          reply_delays := (!cycle - !host_se0_ends) :: !reply_delays);
         t, Usb_ls.Sniffer.step sniffer ~dp ~dm)
   in
   let reply_after_bit_times =
-    Option.map !reply_starts ~f:(fun start ->
-      Float.of_int (start - !host_se0_ends) /. Float.of_int bit_period)
+    List.rev_map !reply_delays ~f:(fun cycles ->
+      Float.of_int cycles /. Float.of_int bit_period)
   in
   (* the first bit received is the top bit of a word *)
   let reverse byte =
@@ -306,7 +312,7 @@ let run_usb_device ~address packets ~idle =
   print_s
     [%message
       (Usb_ls.Sniffer.packets sniffer : int list list)
-        (reply_after_bit_times : float option)
+        (reply_after_bit_times : float list)
         (tag : int option)
         (bytes : int list)
         (t.irq : bool)
@@ -358,7 +364,7 @@ let%expect_test "usb device ignores other addresses, bad token crcs and SETUP to
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
     (("Usb_ls.Sniffer.packets sniffer" ((105 0 16) (90) (105 0 16) (90)))
-     (reply_after_bit_times (2.625)) (tag ()) (bytes ()) (t.irq false)
+     (reply_after_bit_times (2.625 2.625)) (tag ()) (bytes ()) (t.irq false)
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
     |}]
@@ -494,6 +500,57 @@ let%expect_test "usb device takes a SETUP in lockstep" =
   print_s [%message "program" ~words:(List.length program : int)];
   [%expect {|
     ("lockstep held" (cycles 10016))
-    (program (words 409))
+    (program (words 467))
+    |}]
+;;
+
+(* what the host queues for an IN: SYNC and PID, the number of data bits, then the data
+   two bytes a word, the first byte low *)
+let usb_reply ~pid payload =
+  let rec words = function
+    | [] -> []
+    | [ a ] -> [ a ]
+    | a :: b :: rest -> (a lor (b lsl 8)) :: words rest
+  in
+  (0x80 lor (pid lsl 8)) :: (8 * List.length payload) :: words payload
+;;
+
+let%expect_test "usb device answers an IN with the data the host queued" =
+  let in_token = usb_token ~pid:0x69 ~address:0 in
+  let descriptor = [ 18; 1; 0x10; 1; 0; 0; 0; 8 ] in
+  List.iter
+    [ descriptor; [ 0xff; 0xff; 0xff; 0x7f ]; [ 0x2a ]; [] ]
+    ~f:(fun payload ->
+      run_usb_device
+        ~queue:(usb_reply ~pid:0x4b payload)
+        ~address:0
+        [ in_token; [ 0xd2 ] ]
+        ~idle:140;
+      let crc = Usb_ls.crc16 (Usb_ls.bits_of_bytes payload) in
+      print_s [%message "expected" ~crc:([ crc land 0xff; crc lsr 8 ] : int list)]);
+  [%expect
+    {|
+    (("Usb_ls.Sniffer.packets sniffer"
+      ((105 0 16) (75 18 1 16 1 0 0 0 8 17 119) (210)))
+     (reply_after_bit_times (2.625)) (tag (3)) (bytes ()) (t.irq false)
+     (t.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    (expected (crc (17 119)))
+    (("Usb_ls.Sniffer.packets sniffer"
+      ((105 0 16) (75 255 255 255 127 255 239) (210)))
+     (reply_after_bit_times (2.625)) (tag (3)) (bytes ()) (t.irq false)
+     (t.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    (expected (crc (255 239)))
+    (("Usb_ls.Sniffer.packets sniffer" ((105 0 16) (75 42 193 96) (210)))
+     (reply_after_bit_times (2.625)) (tag (3)) (bytes ()) (t.irq false)
+     (t.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    (expected (crc (193 96)))
+    (("Usb_ls.Sniffer.packets sniffer" ((105 0 16) (75 0 0) (210)))
+     (reply_after_bit_times (2.625)) (tag (3)) (bytes ()) (t.irq false)
+     (t.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    (expected (crc (0 0)))
     |}]
 ;;
