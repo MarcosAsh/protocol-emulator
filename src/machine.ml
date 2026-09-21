@@ -384,7 +384,11 @@ let execute t (op : Isa.Op.t) ~sample =
   | Sys op -> sys t op
 ;;
 
-let next t ~stall = { t with pc = (t.pc + 1) land pc_mask; stall }
+let pc_after t =
+  if t.pc = t.config.wrap_top then t.config.wrap_bottom else (t.pc + 1) land pc_mask
+;;
+
+let next t ~stall = { t with pc = pc_after t; stall }
 
 let issue t ~sample =
   let c = t.config in
@@ -392,10 +396,7 @@ let issue t ~sample =
   | Error _ -> fault { t with halted = true } (fun f -> { f with decode = true })
   | Ok (Jmp { cond; target }) ->
     let taken, t = jmp_taken t cond ~sample in
-    { t with
-      pc = (if taken then target else (t.pc + 1) land pc_mask)
-    ; stall = Isa.jmp_cycles - 1
-    }
+    { t with pc = (if taken then target else pc_after t); stall = Isa.jmp_cycles - 1 }
   | Ok (Op { op; delay; side_set }) ->
     let t =
       (if c.side_set_pindirs then write_pindirs else write_pins)
