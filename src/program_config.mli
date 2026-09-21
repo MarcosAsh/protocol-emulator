@@ -38,6 +38,11 @@ type t =
       reflected. Otherwise data MSB first with the register shifting left. *)
   ; stuff_threshold : int (** Run length that raises [stuff_pending]; 0 turns it off. *)
   ; stuff_level : bool (** The level whose runs are counted. *)
+  ; wrap_bottom : int
+  ; wrap_top : int
+  (** After the instruction at [wrap_top], unless it is a jump that is taken, the next one
+      is at [wrap_bottom], at no cost in cycles. The defaults, the last address and 0, are
+      what the program counter does anyway. *)
   }
 [@@deriving sexp_of, compare, equal]
 

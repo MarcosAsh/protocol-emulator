@@ -32,6 +32,8 @@ type t =
   ; crc_reflect : bool
   ; stuff_threshold : int
   ; stuff_level : bool
+  ; wrap_bottom : int
+  ; wrap_top : int
   }
 [@@deriving sexp_of, compare, equal]
 
@@ -60,6 +62,8 @@ let default =
   ; crc_reflect = true
   ; stuff_threshold = 0
   ; stuff_level = true
+  ; wrap_bottom = 0
+  ; wrap_top = (1 lsl Isa.pc_bits) - 1
   }
 ;;
 
@@ -83,5 +87,7 @@ let validate t =
     ; range "crc_poly" t.crc_poly ~lo:0 ~hi:0xffff
     ; range "crc_init" t.crc_init ~lo:0 ~hi:0xffff
     ; range "stuff_threshold" t.stuff_threshold ~lo:0 ~hi:31
+    ; range "wrap_bottom" t.wrap_bottom ~lo:0 ~hi:((1 lsl Isa.pc_bits) - 1)
+    ; range "wrap_top" t.wrap_top ~lo:0 ~hi:((1 lsl Isa.pc_bits) - 1)
     ]
 ;;
