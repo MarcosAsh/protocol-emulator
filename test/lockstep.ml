@@ -196,3 +196,42 @@ let lockstep ?(cycles = 400) ?preload ?host ?react ?coverage ~config ~program ~i
      print_s [%message "MISMATCH" (cycle : int) (expected : State.t) (actual : State.t)]);
   model
 ;;
+
+let random_programs ?coverage ?(wrap = true) ~programs ~cycles program =
+  let random = Splittable_random.of_int 1 in
+  let int hi = Splittable_random.int random ~lo:0 ~hi in
+  let failed =
+    List.init programs ~f:(fun seed ->
+      let config = Random_program.config random in
+      let config =
+        if wrap
+        then config
+        else { config with wrap_bottom = 0; wrap_top = (1 lsl Isa.pc_bits) - 1 }
+      in
+      let program = program random ~config in
+      let level = ref 0 in
+      let host _ =
+        { Host.idle with
+          tx =
+            (if !level < Machine.fifo_depth && int 3 = 0 then Some (int 0xffff) else None)
+        ; pop_rx = int 3 = 0
+        }
+      in
+      let react (m : Machine.t) = level := List.length m.tx_fifo in
+      let inputs _ = int 0xfffff in
+      match run ~cycles ?coverage ~config ~program ~inputs ~host ~react () with
+      | _, None -> None
+      | _, Some (cycle, expected, actual) ->
+        print_s
+          [%message
+            "MISMATCH"
+              (seed : int)
+              (cycle : int)
+              (config : Program_config.t)
+              (expected : State.t)
+              (actual : State.t)];
+        Some seed)
+    |> List.filter_opt
+  in
+  print_s [%message (programs : int) (failed : int list)]
+;;

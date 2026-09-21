@@ -47,3 +47,14 @@ val lockstep
   -> inputs:(int -> int)
   -> unit
   -> Machine.t
+
+(** [programs] runs of [run], each under a random configuration, random pins and a host
+    that writes and reads at random; prints the seeds that did not hold. Without [wrap]
+    the program counter only wraps at the end of memory. *)
+val random_programs
+  :  ?coverage:Coverage.t
+  -> ?wrap:bool
+  -> programs:int
+  -> cycles:int
+  -> (Splittable_random.t -> config:Program_config.t -> int list)
+  -> unit
