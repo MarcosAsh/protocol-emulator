@@ -83,7 +83,7 @@ module host_fifo (
     input [15:0] push$value;
     input pop;
     output [15:0] head;
-    output [2:0] level;
+    output [3:0] level;
     output empty;
     output full;
 
@@ -92,27 +92,27 @@ module host_fifo (
     reg [15:0] data_before_collision;
     wire [15:0] signal_wire;
     (* RAM_STYLE="block" *)
-    reg [15:0] signal_multiport_mem[0:3];
+    reg [15:0] signal_multiport_mem[0:7];
     wire [15:0] signal_mem_read_port;
     reg [15:0] ram_rbw_data;
-    wire [1:0] signal_const_1;
-    wire [1:0] signal_const_2;
-    wire [1:0] READ_ADDRESS_NEXT;
+    wire [2:0] signal_const_1;
+    wire [2:0] signal_const_2;
+    wire [2:0] READ_ADDRESS_NEXT;
     (* extract_reset="FALSE" *)
-    reg [1:0] READ_ADDRESS;
-    wire [1:0] signal_wire_1;
+    reg [2:0] READ_ADDRESS;
+    wire [2:0] signal_wire_1;
     wire signal_and;
-    wire [1:0] RA;
-    wire [1:0] WRITE_ADDRESS_NEXT;
+    wire [2:0] RA;
+    wire [2:0] WRITE_ADDRESS_NEXT;
     (* extract_reset="FALSE" *)
-    reg [1:0] WRITE_ADDRESS;
-    wire [1:0] signal_wire_2;
+    reg [2:0] WRITE_ADDRESS;
+    wire [2:0] signal_wire_2;
     wire signal_eq;
     wire signal_not;
     wire signal_and_1;
     wire signal_xor;
     wire signal_const_5;
-    wire [2:0] signal_const_6;
+    wire [3:0] signal_const_6;
     wire signal_lt;
     reg used_gt_one;
     wire signal_or_1;
@@ -125,18 +125,18 @@ module host_fifo (
     reg used_is_one;
     wire signal_and_4;
     wire signal_and_5;
-    wire [2:0] signal_const_10;
-    wire [2:0] signal_const_11;
-    wire [2:0] signal_sub;
-    reg [2:0] USED_MINUS_1 = 3'b111;
-    wire [2:0] signal_wire_3;
-    wire [2:0] signal_add;
-    reg [2:0] USED_PLUS_1 = 3'b001;
-    wire [2:0] signal_wire_4;
-    wire [2:0] signal_mux;
-    reg [2:0] USED;
-    wire [2:0] signal_wire_5;
-    wire [2:0] signal_const_17;
+    wire [3:0] signal_const_10;
+    wire [3:0] signal_const_11;
+    wire [3:0] signal_sub;
+    reg [3:0] USED_MINUS_1 = 4'b1111;
+    wire [3:0] signal_wire_3;
+    wire [3:0] signal_add;
+    reg [3:0] USED_PLUS_1 = 4'b0001;
+    wire [3:0] signal_wire_4;
+    wire [3:0] signal_mux;
+    reg [3:0] USED;
+    wire [3:0] signal_wire_5;
+    wire [3:0] signal_const_17;
     wire signal_eq_2;
     reg full_0;
     wire signal_wire_6;
@@ -145,7 +145,7 @@ module host_fifo (
     wire signal_not_2;
     wire signal_wire_8;
     wire signal_wire_9;
-    wire [2:0] signal_const_19;
+    wire [3:0] signal_const_19;
     wire signal_lt_1;
     wire signal_not_3;
     reg nearly_full;
@@ -160,7 +160,7 @@ module host_fifo (
     wire signal_wire_12;
     wire RD_INT;
     wire signal_xor_2;
-    wire [2:0] USED_NEXT;
+    wire [3:0] USED_NEXT;
     wire signal_eq_3;
     wire signal_not_6;
     reg not_empty;
@@ -184,8 +184,8 @@ module host_fifo (
     always @(posedge signal_wire_9) begin
         ram_rbw_data <= signal_mem_read_port;
     end
-    assign signal_const_1 = 2'b00;
-    assign signal_const_2 = 2'b01;
+    assign signal_const_1 = 3'b000;
+    assign signal_const_2 = 3'b001;
     assign READ_ADDRESS_NEXT = signal_wire_1 + signal_const_2;
     always @(posedge signal_wire_9) begin
         if (signal_wire_8)
@@ -211,7 +211,7 @@ module host_fifo (
     assign signal_and_1 = used_is_one & signal_not;
     assign signal_xor = RD_INT ^ WR_INT;
     assign signal_const_5 = 1'b0;
-    assign signal_const_6 = 3'b001;
+    assign signal_const_6 = 4'b0001;
     assign signal_lt = signal_const_6 < USED_NEXT;
     always @(posedge signal_wire_9) begin
         if (signal_wire_8)
@@ -238,8 +238,8 @@ module host_fifo (
     end
     assign signal_and_4 = used_is_one & WR_INT;
     assign signal_and_5 = signal_and_4 & RD_INT;
-    assign signal_const_10 = 3'b000;
-    assign signal_const_11 = 3'b111;
+    assign signal_const_10 = 4'b0000;
+    assign signal_const_11 = 4'b1111;
     assign signal_sub = USED_NEXT - signal_const_6;
     always @(posedge signal_wire_9) begin
         if (signal_wire_8)
@@ -267,7 +267,7 @@ module host_fifo (
                 USED <= USED_NEXT;
     end
     assign signal_wire_5 = USED;
-    assign signal_const_17 = 3'b101;
+    assign signal_const_17 = 4'b1001;
     assign signal_eq_2 = USED_NEXT == signal_const_17;
     always @(posedge signal_wire_9) begin
         if (signal_wire_8)
@@ -282,7 +282,7 @@ module host_fifo (
     assign signal_not_2 = ~ signal_wire_12;
     assign signal_wire_8 = clear;
     assign signal_wire_9 = clock;
-    assign signal_const_19 = 3'b100;
+    assign signal_const_19 = 4'b1000;
     assign signal_lt_1 = USED_NEXT < signal_const_19;
     assign signal_not_3 = ~ signal_lt_1;
     always @(posedge signal_wire_9) begin
@@ -458,8 +458,8 @@ module engine (
     output fault$decode;
     output [23:0] capture;
     output capture_armed;
-    output [2:0] tx_level;
-    output [2:0] rx_level;
+    output [3:0] tx_level;
+    output [3:0] rx_level;
     output [15:0] rx_head;
     output [15:0] instruction;
     output decode_ok;
@@ -478,8 +478,8 @@ module engine (
     reg is_opcode$6;
     wire [7:0] signal_cat;
     wire [15:0] signal_select;
-    wire [2:0] signal_select_1;
-    wire [2:0] signal_select_2;
+    wire [3:0] signal_select_1;
+    wire [3:0] signal_select_2;
     wire signal_not;
     wire signal_and;
     wire signal_const_3;
@@ -966,7 +966,7 @@ module engine (
     wire signal_and_32;
     wire signal_and_33;
     wire signal_wire_11;
-    wire [20:0] signal_inst;
+    wire [21:0] signal_inst;
     wire signal_select_196;
     wire signal_not_23;
     wire signal_mux_82;
@@ -1806,7 +1806,7 @@ module engine (
     wire tx_pop;
     wire [15:0] signal_wire_27;
     wire signal_wire_28;
-    wire [20:0] signal_inst_1;
+    wire [21:0] signal_inst_1;
     wire signal_select_596;
     wire signal_not_38;
     wire [4:0] signal_wire_29;
@@ -2124,8 +2124,8 @@ module engine (
                           is_opcode$1,
                           is_opcode$0 };
     assign signal_select = signal_inst[15:0];
-    assign signal_select_1 = signal_inst[18:16];
-    assign signal_select_2 = signal_inst_1[18:16];
+    assign signal_select_1 = signal_inst[19:16];
+    assign signal_select_2 = signal_inst_1[19:16];
     assign signal_not = ~ decode_ok_0;
     assign signal_and = issue & signal_not;
     assign signal_const_3 = 1'b0;
@@ -2855,10 +2855,10 @@ module engine (
           .push$value(signal_wire_10),
           .pop(signal_wire_9),
           .head(signal_inst[15:0]),
-          .level(signal_inst[18:16]),
-          .empty(signal_inst[19:19]),
-          .full(signal_inst[20:20]) );
-    assign signal_select_196 = signal_inst[20:20];
+          .level(signal_inst[19:16]),
+          .empty(signal_inst[20:20]),
+          .full(signal_inst[21:21]) );
+    assign signal_select_196 = signal_inst[21:21];
     assign signal_not_23 = ~ signal_select_196;
     assign signal_mux_82 = d$wait_polarity ? signal_not_21 : signal_not_23;
     assign signal_xor = t_0 ^ signal_cat_63;
@@ -4366,10 +4366,10 @@ module engine (
           .push$value(signal_wire_27),
           .pop(tx_pop),
           .head(signal_inst_1[15:0]),
-          .level(signal_inst_1[18:16]),
-          .empty(signal_inst_1[19:19]),
-          .full(signal_inst_1[20:20]) );
-    assign signal_select_596 = signal_inst_1[19:19];
+          .level(signal_inst_1[19:16]),
+          .empty(signal_inst_1[20:20]),
+          .full(signal_inst_1[21:21]) );
+    assign signal_select_596 = signal_inst_1[20:20];
     assign signal_not_38 = ~ signal_select_596;
     assign signal_wire_29 = config$pull_threshold;
     assign d$sys_op$binary_variant = word[2:0];
@@ -5251,8 +5251,8 @@ module host_port (
     input status$fault$overflow;
     input status$fault$missed_deadline;
     input status$fault$decode;
-    input [2:0] status$tx_level;
-    input [2:0] status$rx_level;
+    input [3:0] status$tx_level;
+    input [3:0] status$rx_level;
     input [15:0] status$rx_head;
     output miso;
     output start;
@@ -5595,9 +5595,8 @@ module host_port (
     wire signal_wire_35;
     wire signal_wire_36;
     wire signal_wire_37;
-    wire [2:0] signal_wire_38;
-    wire [2:0] signal_wire_39;
-    wire [3:0] signal_const_188;
+    wire [3:0] signal_wire_38;
+    wire [3:0] signal_wire_39;
     wire [15:0] signal_cat_56;
     wire [6:0] signal_select_36;
     reg [15:0] first_read;
@@ -6232,8 +6231,7 @@ module host_port (
     assign signal_wire_37 = status$fault$decode;
     assign signal_wire_38 = status$tx_level;
     assign signal_wire_39 = status$rx_level;
-    assign signal_const_188 = 4'b0000;
-    assign signal_cat_56 = { signal_const_188,
+    assign signal_cat_56 = { signal_const_168,
                              signal_wire_39,
                              signal_wire_38,
                              signal_wire_37,
@@ -6521,10 +6519,10 @@ module top (
     wire [4:0] signal_select_37;
     wire [15:0] signal_select_38;
     wire [15:0] signal_wire_1;
-    wire [2:0] signal_select_39;
-    wire [2:0] signal_wire_2;
-    wire [2:0] signal_select_40;
-    wire [2:0] signal_wire_3;
+    wire [3:0] signal_select_39;
+    wire [3:0] signal_wire_2;
+    wire [3:0] signal_select_40;
+    wire [3:0] signal_wire_3;
     wire signal_select_41;
     wire signal_wire_4;
     wire signal_select_42;
@@ -6557,7 +6555,7 @@ module top (
     reg reset_done;
     wire signal_not_1;
     wire signal_wire_15;
-    wire [290:0] signal_inst_1;
+    wire [292:0] signal_inst_1;
     wire [19:0] signal_select_54;
     wire [6:0] signal_select_55;
     wire [7:0] signal_cat;
@@ -6630,11 +6628,11 @@ module top (
     assign signal_select_35 = signal_inst[59:55];
     assign signal_select_36 = signal_inst[54:54];
     assign signal_select_37 = signal_inst[53:49];
-    assign signal_select_38 = signal_inst_1[244:229];
+    assign signal_select_38 = signal_inst_1[246:231];
     assign signal_wire_1 = signal_select_38;
-    assign signal_select_39 = signal_inst_1[228:226];
+    assign signal_select_39 = signal_inst_1[230:227];
     assign signal_wire_2 = signal_select_39;
-    assign signal_select_40 = signal_inst_1[225:223];
+    assign signal_select_40 = signal_inst_1[226:223];
     assign signal_wire_3 = signal_select_40;
     assign signal_select_41 = signal_inst_1[197:197];
     assign signal_wire_4 = signal_select_41;
@@ -6791,14 +6789,14 @@ module top (
           .fault$decode(signal_inst_1[197:197]),
           .capture(signal_inst_1[221:198]),
           .capture_armed(signal_inst_1[222:222]),
-          .tx_level(signal_inst_1[225:223]),
-          .rx_level(signal_inst_1[228:226]),
-          .rx_head(signal_inst_1[244:229]),
-          .instruction(signal_inst_1[260:245]),
-          .decode_ok(signal_inst_1[261:261]),
-          .opcode_onehot(signal_inst_1[269:262]),
-          .crc(signal_inst_1[285:270]),
-          .stuff_run(signal_inst_1[290:286]) );
+          .tx_level(signal_inst_1[226:223]),
+          .rx_level(signal_inst_1[230:227]),
+          .rx_head(signal_inst_1[246:231]),
+          .instruction(signal_inst_1[262:247]),
+          .decode_ok(signal_inst_1[263:263]),
+          .opcode_onehot(signal_inst_1[271:264]),
+          .crc(signal_inst_1[287:272]),
+          .stuff_run(signal_inst_1[292:288]) );
     assign signal_select_54 = signal_inst_1[19:0];
     assign signal_select_55 = signal_select_54[11:5];
     assign signal_cat = { signal_select_55,
