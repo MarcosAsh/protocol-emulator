@@ -53,12 +53,14 @@ module step (
   // the core acts on the opcode it registered beside the instruction; issue_timing
   // proves the two always agree, so only such states are considered
   always @(*) assume(opcode_onehot == 8'b1 << instruction[15:13]);
-  assign fifo_wait = instruction[15:13] == 1 && instruction[6:5] == 3;
+  assign fifo_wait = (instruction[15:13] == 1 && instruction[6:5] == 3)
+                  || (instruction[15:13] == 0 && instruction[12:9] >= 8);
 endmodule
 
 // From the same state, every register and every output of the two copies is the same
-// after the clock edge, unless a copy is about to set underflow or overflow or the
-// instruction is a fifo wait, which are the two ways the ISA lets host timing in.
+// after the clock edge, unless a copy is about to set underflow or overflow, or the
+// instruction is a fifo wait or a jump on a fifo test. Those are the doors the ISA
+// opens for host timing, and there are no others.
 module host_timing;
   wire trigger, fifo_wait;
   wire [1:0] underflow, overflow;

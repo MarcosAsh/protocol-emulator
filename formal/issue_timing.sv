@@ -67,7 +67,7 @@ module issue_timing (input clk);
    || (opcode == 4 && instruction[4:3] != 3)        // mov
    || (opcode == 5 && instruction[7:5] < 5)         // set
    || (opcode == 6 && instruction[5:4] != 3 && (!instruction[3] || instruction[2:0] < 5)); // alu
-  wire jump = opcode == 0 && !instruction[9];
+  wire jump = opcode == 0 && instruction[12:9] < 12;
   wire waits = opcode == 1 && (instruction[6] ? count == 0 : count < 20);
   wire sys = opcode == 7 && instruction[7:3] == 0;
 
