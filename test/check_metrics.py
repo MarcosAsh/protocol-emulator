@@ -2,8 +2,10 @@
 # The Tiny Tapeout flow has no setup checker and goes green on negative slack, so this
 # reads LibreLane's metrics and fails when the chip misses timing or signoff.
 # Usage: python3 test/check_metrics.py [--csv] runs/wokwi/final/metrics.json
+#        python3 test/check_metrics.py --fpga test/fpga_kit.log
 import argparse
 import json
+import re
 import subprocess
 import sys
 
@@ -53,11 +55,25 @@ def csv(metrics):
     print(commit + "," + ",".join(str(v) for v in values))
 
 
+def fpga(log):
+    """The kit build's size and clock; nextpnr prints the routed frequency last."""
+    cells = re.findall(r"ICESTORM_LC:\s*(\d+)/\s*(\d+)", log)
+    clocks = re.findall(r"Max frequency for clock .*: ([\d.]+) MHz", log)
+    if not cells or not clocks:
+        sys.exit("no cell count or max frequency in the nextpnr log")
+    used, available = cells[-1]
+    print(f"iCE40 kit build: {used} of {available} LCs, {clocks[-1]} MHz")
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--csv", action="store_true", help="print the numbers, check nothing")
+    p.add_argument("--fpga", action="store_true", help="read a nextpnr log instead")
     p.add_argument("metrics")
     args = p.parse_args()
+    if args.fpga:
+        with open(args.metrics) as f:
+            return fpga(f.read())
     with open(args.metrics) as f:
         metrics = json.load(f)
     if args.csv:
