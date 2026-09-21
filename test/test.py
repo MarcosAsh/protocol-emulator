@@ -81,8 +81,7 @@ def decode_uart(levels, period):
     return frames
 
 
-@cocotb.test()
-async def test_uart_over_spi(dut):
+async def reset(dut):
     clock = Clock(dut.clk, 20, unit="ns")
     cocotb.start_soon(clock.start())
     dut.ena.value = 1
@@ -93,6 +92,11 @@ async def test_uart_over_spi(dut):
     dut.rst_n.value = 1
     await ClockCycles(dut.clk, 5)
     assert int(dut.uio_oe.value) == 0
+
+
+@cocotb.test()
+async def test_uart_over_spi(dut):
+    await reset(dut)
 
     host = AsyncHost(Pins(dut).transfer)
     for n, name in enumerate(CONFIG_FIELDS):
@@ -107,4 +111,29 @@ async def test_uart_over_spi(dut):
         await ClockCycles(dut.clk, 1)
         levels.append((int(dut.uo_out.value) >> 1) & 1)
     assert decode_uart(levels, 16) == [0x55, 0xA3], levels
+    assert (await host.read(STATUS))[0] == 0
+
+
+# set p, 2 / mov t, now / add t, p / .wrap_target / wait t+ / mov pins, !pins / .wrap
+WRAPPED_LOOP = [0xa082, 0x80e6, 0xc0ca, 0x20c0, 0x8008]
+
+
+@cocotb.test()
+async def test_wrapped_loop(dut):
+    await reset(dut)
+
+    host = AsyncHost(Pins(dut).transfer)
+    config = dict(DEFAULT_CONFIG, in_base=5, wrap_bottom=3, wrap_top=4)
+    for n, name in enumerate(CONFIG_FIELDS):
+        await host.write(CONFIG + n, [config.get(name, 0)])
+    await host.write(PROGRAM_ADDR, [0])
+    await host.write(PROGRAM_REG, WRAPPED_LOOP)
+    await host.write(CONTROL, [1])
+
+    await ClockCycles(dut.clk, 20)
+    levels = []
+    for _ in range(40):
+        await ClockCycles(dut.clk, 1)
+        levels.append((int(dut.uo_out.value) >> 1) & 1)
+    assert levels in ([0, 0, 1, 1] * 10, [0, 1, 1, 0] * 10, [1, 1, 0, 0] * 10, [1, 0, 0, 1] * 10), levels
     assert (await host.read(STATUS))[0] == 0
