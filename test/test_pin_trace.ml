@@ -1,4 +1,5 @@
 open! Core
+open Protocol_emulator
 open Protocol_models
 
 let out0 (line : Pin_trace.Line.t) = (line.uo_out lsr 1) land 1
@@ -61,5 +62,59 @@ let%expect_test "the head of a trace file" =
     4 00 00 00 00 00
     4 01 00 00 00 00
     4 02 00 00 00 00
+    |}]
+;;
+
+(* engine.mli asks for program writes only while halted, but nothing in the host port
+   holds the host to that. The write takes the memory's address for a cycle. *)
+let%expect_test "the host writes program memory while the core runs" =
+  let loop =
+    List.find_exn Pin_scenarios.all ~f:(fun s -> String.equal s.name "wrapped_loop")
+  in
+  let script =
+    List.filter loop.script ~f:(function
+      | Run _ | Read _ -> false
+      | Write _ | Drive _ -> true)
+  in
+  let out0 script =
+    let lines, (_ : int list list) = Pin_trace.run { loop with script } in
+    List.map lines ~f:out0
+  in
+  let quiet = out0 (script @ [ Run 1000 ]) in
+  List.iter (List.range 0 4) ~f:(fun phase ->
+    let written =
+      out0
+        (script
+         @ [ Run (20 + phase)
+           ; Write (Host_port.Reg.program_addr, [ 100 ])
+           ; Write (Host_port.Reg.program, [ 0xa000 ])
+           ; Run 100
+           ])
+    in
+    let first_difference =
+      List.zip_exn (List.take quiet (List.length written)) written
+      |> List.findi ~f:(fun (_ : int) (a, b) -> a <> b)
+      |> Option.map ~f:fst
+    in
+    let around levels =
+      Option.map first_difference ~f:(fun n ->
+        runs (List.sub levels ~pos:(n - 6) ~len:16))
+    in
+    print_s
+      [%message
+        (phase : int)
+          (first_difference : int option)
+          ~quiet:(around quiet : (int * int) list option)
+          ~written:(around written : (int * int) list option)]);
+  [%expect
+    {|
+    ((phase 0) (first_difference ()) (quiet ()) (written ()))
+    ((phase 1) (first_difference ()) (quiet ()) (written ()))
+    ((phase 2) (first_difference (6825))
+     (quiet (((0 2) (1 2) (0 2) (1 2) (0 2) (1 2) (0 2) (1 2))))
+     (written (((0 2) (1 2) (0 4) (1 2) (0 2) (1 2) (0 2)))))
+    ((phase 3) (first_difference (6826))
+     (quiet (((0 1) (1 2) (0 2) (1 2) (0 2) (1 2) (0 2) (1 2) (0 1))))
+     (written (((0 1) (1 2) (0 2) (1 1) (0 1) (1 2) (0 2) (1 2) (0 2) (1 1)))))
     |}]
 ;;
