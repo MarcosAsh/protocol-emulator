@@ -16,7 +16,8 @@ fifo_order: engine.v
 	sby -f fifo_order.sby prove cover
 
 # weakened statements, which pass only by failing
-teeth: engine_sram.v
+teeth: engine.v engine_sram.v
+	sby -f fifo_order.sby stale_ahead
 	sby -f host_timing.sby private_pull no_wait_excuse no_jump_excuse no_underflow_excuse no_overflow_excuse
 
 .PHONY: all issue_timing host_timing fifo_order teeth

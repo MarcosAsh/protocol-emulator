@@ -25,7 +25,12 @@ module fifo_order (input clk);
     if (clear) following <= 0;
     else if (!following && follow && pushed && push_value == word) begin
       following <= 1;
+`ifdef STALE_AHEAD
+      // the teeth task: forget a pop in the cycle of the push, and the proof must fail
+      ahead <= level;
+`else
       ahead <= level - popped;
+`endif
     end else if (following && popped) begin
       if (ahead == 0) following <= 0;
       else ahead <= ahead - 1;

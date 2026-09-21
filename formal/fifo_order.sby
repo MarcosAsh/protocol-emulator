@@ -1,18 +1,25 @@
 [tasks]
 prove
 cover
+stale_ahead
 
 [options]
 prove: mode prove
 cover: mode cover
 cover: depth 24
+stale_ahead: mode bmc
+stale_ahead: depth 12
+stale_ahead: expect fail
 
 [engines]
 prove: abc pdr
 cover: smtbmc boolector
+# abc pdr reports ERROR for a counterexample it cannot replay, bmc reports FAIL
+stale_ahead: smtbmc boolector
 
 [script]
 read -formal engine.v
+stale_ahead: read -define STALE_AHEAD
 read -formal -sv fifo_order.sv
 prep -top fifo_order
 
