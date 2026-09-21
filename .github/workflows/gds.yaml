@@ -18,6 +18,10 @@ jobs:
         with:
           pdk: ihp-sg13cmos5l
 
+      # the flow has no setup checker and goes green on negative slack
+      - name: Check timing and signoff
+        run: python3 test/check_metrics.py runs/wokwi/final/metrics.json
+
   precheck:
     needs: gds
     runs-on: ubuntu-24.04
