@@ -14,6 +14,7 @@ test/results_replay.xml
 test/gate_level_netlist.v
 
 _build
+_mutation
 *.install
 *.merlin
 _opam
