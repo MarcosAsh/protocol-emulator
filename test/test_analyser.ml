@@ -561,7 +561,7 @@ let%expect_test "random programs stay inside their analysis" =
   let issues = List.sum (module Int) results ~f:fst in
   let violations = List.sum (module Int) results ~f:(fun (_, v) -> List.length v) in
   print_s [%message (issues : int) (violations : int)];
-  [%expect {| ((issues 2917) (violations 0)) |}]
+  [%expect {| ((issues 2854) (violations 0)) |}]
 ;;
 
 let%expect_test "edge meter" =

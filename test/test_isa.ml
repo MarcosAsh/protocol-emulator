@@ -33,8 +33,8 @@ let%expect_test "encoding of representative instructions" =
   [%expect
     {|
     0000  (Jmp (cond Always) (target 0))
-    05ff  (Jmp (cond X_dec) (target 511))
-    1c2a  (Jmp (cond Stuff_pending) (target 42))
+    03ff  (Jmp (cond X_dec) (target 511))
+    0e2a  (Jmp (cond Stuff_pending) (target 42))
     2003  (Op (op (Wait (Pin_level (pin 3) (level false)))) (delay 0) (side_set 0))
     21b3  (Op (op (Wait (Pin_edge (pin 19) (rising true)))) (delay 1) (side_set 0))
     30c0  (Op (op (Wait (Deadline (advance true)))) (delay 0) (side_set 1))
@@ -77,7 +77,7 @@ let%expect_test "rejected instructions" =
 let%expect_test "rejected words" =
   let side_set_count = 0 in
   let try_ word = print_s [%sexp (Isa.of_word ~side_set_count word : Isa.t Or_error.t)] in
-  try_ 0x0200;
+  try_ 0x1800;
   try_ 0x2041;
   try_ 0x4000;
   try_ 0x4011;
@@ -88,7 +88,7 @@ let%expect_test "rejected words" =
   try_ 0x10000;
   [%expect
     {|
-    (Error ("reserved bits set" (word 512) (mask 512)))
+    (Error ("no such enum code" (i 12)))
     (Error (index "out of range" (value 1) (lo 0) (hi 0)))
     (Error (count "out of range" (value 0) (lo 1) (hi 16)))
     (Error (count "out of range" (value 17) (lo 1) (hi 16)))
@@ -205,8 +205,8 @@ let%expect_test "every word that decodes encodes back to itself" =
     print_s [%message (side_set_count : int) (valid : int)]);
   [%expect
     {|
-    ((side_set_count 0) (valid 31488))
-    ((side_set_count 1) (valid 31488))
-    ((side_set_count 2) (valid 31488))
+    ((side_set_count 0) (valid 33536))
+    ((side_set_count 1) (valid 33536))
+    ((side_set_count 2) (valid 33536))
     |}]
 ;;

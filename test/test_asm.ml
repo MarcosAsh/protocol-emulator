@@ -48,7 +48,7 @@ bit:
      9  5001  in pins, 1 side 1
     10  30c0  wait t+ side 1
     11  6001  out pins, 1 side 0
-    12  0408  jmp x--, 8
+    12  0208  jmp x--, 8
     13  e003  push side 0
     14  0001  jmp 1
     |}]
@@ -100,13 +100,13 @@ let%expect_test "every operand form" =
   [%expect
     {|
      0  0000  jmp 0
-     1  05ff  jmp x--, 511
-     2  0803  jmp y--, 3
-     3  0c05  jmp x!=y, 5
-     4  1005  jmp pin, 5
-     5  1405  jmp !pin, 5
-     6  1805  jmp !osre, 5
-     7  1c05  jmp stuff, 5
+     1  03ff  jmp x--, 511
+     2  0403  jmp y--, 3
+     3  0605  jmp x!=y, 5
+     4  0805  jmp pin, 5
+     5  0a05  jmp !pin, 5
+     6  0c05  jmp !osre, 5
+     7  0e05  jmp stuff, 5
      8  2003  wait 0 pin 3
      9  2193  wait 1 pin 19 [1]
     10  20a0  wait rise pin 0
