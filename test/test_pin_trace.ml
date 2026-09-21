@@ -14,14 +14,14 @@ let%expect_test "what the host reads back in every scenario" =
   [%expect
     {|
     (uart_tx (cycles 8617) (reads ((0000))))
-    (uart_rx (cycles 10860) (reads ((0055 00a3 00ff) (0000 000f 00f0) (0200))))
-    (spi_master (cycles 9404) (reads ((0081 007e) (0200))))
+    (uart_rx (cycles 10860) (reads ((0055 00a3 00ff) (0000 000f 00f0) (0400))))
+    (spi_master (cycles 9404) (reads ((0081 007e) (0400))))
     (i2c_logger (cycles 18310) (reads ((0000))))
     (wrapped_loop (cycles 6666) (reads ((0000))))
     (fifo_poll (cycles 11307)
      (reads
-      ((0200) (0400) (0600) (1234 beef) (0400) (0600) (0800) (0800)
-       (0001 ffff 8000) (7a5c 0001) (0002))))
+      ((0400) (0800) (0c00) (1234 beef) (0800) (0c00) (1000) (1400)
+       (0001 ffff 8000) (7a5c 0ff0) (0000))))
     |}]
 ;;
 
