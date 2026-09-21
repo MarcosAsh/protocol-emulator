@@ -763,7 +763,7 @@ let usb_device ~address ~half_period =
     in
     "    mov isr, null" :: chunks bits
   in
-  let sample name line ~one ~zero ~se0 =
+  let sample ?se0 name line ~one ~zero =
     let same, changed =
       match line with
       | J -> label one J, label zero K
@@ -774,22 +774,27 @@ let usb_device ~address ~half_period =
       | J -> same, changed
       | K -> changed, same
     in
-    [ [%string "%{label name line}:"]
-    ; "    wait t+"
-    ; "    mov x, pins"
-    ; [%string "    jmp x--, %{label name line}_nz"]
-    ; [%string "    jmp %{se0}"]
-    ; [%string "%{label name line}_nz:"]
-    ; [%string "    jmp x--, %{stays}"]
-    ; [%string "    jmp %{moves}"]
-    ]
+    (* an end of packet is only looked for where one can be; elsewhere SE0 reads as J and
+       the packet fails a later check *)
+    let first =
+      match se0 with
+      | Some se0 ->
+        [ [%string "    jmp x--, %{label name line}_nz"]
+        ; [%string "    jmp %{se0}"]
+        ; [%string "%{label name line}_nz:"]
+        ]
+      | None -> [ "    sub x, 1" ]
+    in
+    [ [%string "%{label name line}:"]; "    wait t+"; "    mov x, pins" ]
+    @ first
+    @ [ [%string "    jmp x--, %{stays}"]; [%string "    jmp %{moves}"] ]
   in
-  let node name ~one ~zero = both (fun line -> sample name line ~one ~zero ~se0:"idle") in
+  let node name ~one ~zero = both (fun line -> sample name line ~one ~zero) in
   (* [count] bits that are only counted *)
   let skip name ~count ~next =
     both (fun line ->
       [ [%string "%{label name line}:"]; [%string "    set y, %{count - 1#Int}"] ]
-      @ sample (name ^ "_s") line ~one:(name ^ "_n") ~zero:(name ^ "_n") ~se0:"idle"
+      @ sample (name ^ "_s") line ~one:(name ^ "_n") ~zero:(name ^ "_n")
       @ [ [%string "%{label (name ^ \"_n\") line}:"]
         ; [%string "    jmp y--, %{label (name ^ \"_s\") line}"]
         ; [%string "    jmp %{label next line}"]
@@ -803,7 +808,7 @@ let usb_device ~address ~half_period =
       ; [%string "%{label (name ^ \"_b\") line}:"]
       ; [%string "    jmp stuff, %{label (name ^ \"_f\") line}"]
       ]
-      @ sample (name ^ "_s") line ~one:(name ^ "_1") ~zero:(name ^ "_0") ~se0:"idle"
+      @ sample (name ^ "_s") line ~one:(name ^ "_1") ~zero:(name ^ "_0")
       @ [ [%string "%{label (name ^ \"_1\") line}:"]
         ; "    set x, 1"
         ; "    in x, 1"
@@ -830,18 +835,7 @@ let usb_device ~address ~half_period =
   let anchor =
     List.map (adds half_period) ~f:(fun n -> [%string "    add t, %{n#Int}"])
   in
-  let handshake word =
-    [ "    wait t+" ]
-    @ load_isr word ~bits:16
-    @ [ "    mov osr, isr"
-      ; "    wait t+"
-      ; "    wait t+"
-      ; "    set pins, 2"
-      ; "    set pindirs, 7"
-      ; "    set y, 15"
-      ; "    jmp hs_bit"
-      ]
-  in
+  let handshake word = [ "    wait t+" ] @ load_isr word ~bits:16 @ [ "    jmp hs" ] in
   List.concat
     [ [ "    pull"; "    mov p, osr"; "idle:"; "    set pins, 2"; "    set pindirs, 4" ]
     ; load_isr (msb_first token) ~bits:11
@@ -956,7 +950,14 @@ let usb_device ~address ~half_period =
     ; [ "    jmp skip" ]
     ; join "ignore"
     ; [ "skip:"; "    wait t+"; "    mov x, pins"; "    jmp x--, skip"; "    jmp idle" ]
-    ; [ "hs_bit:"
+    ; [ "hs:"
+      ; "    mov osr, isr"
+      ; "    wait t+"
+      ; "    wait t+"
+      ; "    set pins, 2"
+      ; "    set pindirs, 7"
+      ; "    set y, 15"
+      ; "hs_bit:"
       ; "    wait t+"
       ; "    out x, 1"
       ; "    jmp x--, hs_keep"
