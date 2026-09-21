@@ -239,6 +239,7 @@ let run_usb_device ~address packets ~idle =
     |> ok_exn
   in
   let t = Machine.write_tx t bit_period |> ok_exn in
+  let words = ref [] in
   let lines =
     List.concat_map packets ~f:(fun packet ->
       List.init 8 ~f:(fun _ -> Usb_ls.Line.J)
@@ -263,19 +264,43 @@ let run_usb_device ~address packets ~idle =
         let host n = if n = usb_device_dp_pin then dp else dm in
         let inputs = (dp lsl usb_device_dp_pin) lor (dm lsl usb_device_dm_pin) in
         let t = Machine.step t ~inputs in
+        let t =
+          match Machine.read_rx t with
+          | Some (word, t) ->
+            words := word :: !words;
+            t
+          | None -> t
+        in
         let dp, dm = usb_bus t ~host in
         t, Usb_ls.Sniffer.step sniffer ~dp ~dm)
   in
+  (* the first bit received is the top bit of a word *)
+  let reverse byte =
+    List.init 8 ~f:(fun i -> ((byte lsr i) land 1) lsl (7 - i))
+    |> List.sum (module Int) ~f:Fn.id
+  in
+  let tag, bytes =
+    match List.rev !words with
+    | [] -> None, []
+    | tag :: words ->
+      ( Some tag
+      , List.concat_map words ~f:(fun w -> [ reverse (w lsr 8); reverse (w land 0xff) ]) )
+  in
   print_s
     [%message
-      (Usb_ls.Sniffer.packets sniffer : int list list) (t.fault : Machine.Fault.t)]
+      (Usb_ls.Sniffer.packets sniffer : int list list)
+        (tag : int option)
+        (bytes : int list)
+        (t.irq : bool)
+        (t.fault : Machine.Fault.t)]
 ;;
 
 let%expect_test "usb device answers an IN for its address with NAK" =
   run_usb_device ~address:0 [ [ 0x69; 0x00; 0x10 ] ] ~idle:40;
   [%expect
     {|
-    (("Usb_ls.Sniffer.packets sniffer" ((105 0 16) (90)))
+    (("Usb_ls.Sniffer.packets sniffer" ((105 0 16) (90))) (tag ()) (bytes ())
+     (t.irq false)
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
     |}]
@@ -298,19 +323,24 @@ let%expect_test "usb device ignores other addresses, bad token crcs and SETUP to
     ~idle:40;
   [%expect
     {|
-    (("Usb_ls.Sniffer.packets sniffer" ((105 5 208)))
+    (("Usb_ls.Sniffer.packets sniffer" ((105 5 208))) (tag ()) (bytes ())
+     (t.irq false)
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
-    (("Usb_ls.Sniffer.packets sniffer" ((105 5 208) (90)))
+    (("Usb_ls.Sniffer.packets sniffer" ((105 5 208) (90))) (tag ()) (bytes ())
+     (t.irq false)
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
-    (("Usb_ls.Sniffer.packets sniffer" ((105 0 24)))
+    (("Usb_ls.Sniffer.packets sniffer" ((105 0 24))) (tag ()) (bytes ())
+     (t.irq false)
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
-    (("Usb_ls.Sniffer.packets sniffer" ((45 0 16)))
+    (("Usb_ls.Sniffer.packets sniffer" ((45 0 16))) (tag ()) (bytes ())
+     (t.irq false)
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
     (("Usb_ls.Sniffer.packets sniffer" ((105 0 16) (90) (105 0 16) (90)))
+     (tag ()) (bytes ()) (t.irq false)
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
     |}]
@@ -346,4 +376,63 @@ let%expect_test "usb device in lockstep" =
       ()
   in
   [%expect {| ("lockstep held" (cycles 5312)) |}]
+;;
+
+(* a data packet: PID, payload, CRC-16 low byte first *)
+let usb_data ~pid payload =
+  let crc = Usb_ls.crc16 (Usb_ls.bits_of_bytes payload) in
+  (pid :: payload) @ [ crc land 0xff; crc lsr 8 ]
+;;
+
+let get_descriptor = [ 0x80; 0x06; 0x00; 0x01; 0x00; 0x00; 0x40; 0x00 ]
+
+let%expect_test "usb device takes a SETUP and its data and acknowledges" =
+  run_usb_device
+    ~address:0
+    [ usb_token ~pid:0x2d ~address:0; usb_data ~pid:0xc3 get_descriptor ]
+    ~idle:40;
+  [%expect
+    {|
+    (("Usb_ls.Sniffer.packets sniffer"
+      ((45 0 16) (195 128 6 0 1 0 0 64 0 221 148) (210)))
+     (tag (1)) (bytes (128 6 0 1 0 0 64 0 221 148 0 0)) (t.irq false)
+     (t.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    |}]
+;;
+
+let%expect_test "usb device stays silent on a bad data crc, a status packet is fine" =
+  let corrupt =
+    List.mapi (usb_data ~pid:0xc3 get_descriptor) ~f:(fun i b ->
+      if i = 3 then b lxor 0x10 else b)
+  in
+  run_usb_device ~address:0 [ usb_token ~pid:0x2d ~address:0; corrupt ] ~idle:40;
+  run_usb_device
+    ~address:0
+    [ usb_token ~pid:0xe1 ~address:0; usb_data ~pid:0x4b [] ]
+    ~idle:40;
+  run_usb_device
+    ~address:0
+    [ usb_token ~pid:0x2d ~address:9
+    ; usb_data ~pid:0xc3 get_descriptor
+    ; usb_token ~pid:0x69 ~address:0
+    ]
+    ~idle:40;
+  [%expect
+    {|
+    (("Usb_ls.Sniffer.packets sniffer"
+      ((45 0 16) (195 128 6 16 1 0 0 64 0 221 148)))
+     (tag (1)) (bytes (128 6 16 1 0 0 64 0 221 148 0 0)) (t.irq true)
+     (t.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    (("Usb_ls.Sniffer.packets sniffer" ((225 0 16) (75 0 0) (210))) (tag (2))
+     (bytes (0 0 0 0)) (t.irq false)
+     (t.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    (("Usb_ls.Sniffer.packets sniffer"
+      ((45 9 152) (195 128 6 0 1 0 0 64 0 221 148) (105 0 16) (90)))
+     (tag ()) (bytes ()) (t.irq false)
+     (t.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    |}]
 ;;
