@@ -93,7 +93,7 @@ let%expect_test "status and fifo reads" =
     ());
   [%expect
     {|
-    (status (words (1681)))
+    (status (words (3217)))
     (pc (words (427)))
     (now_lo (words (13398)))
     (now_hi (words (18)))

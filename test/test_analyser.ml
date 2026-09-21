@@ -539,14 +539,14 @@ let%expect_test "every firmware stays inside its analysis under random stimulus"
     {|
     ("uart tx" (issues 4962) (violations ()))
     ("uart tx host rate" (issues 224) (violations ()))
-    ("uart rx" (issues 5774) (violations ()))
+    ("uart rx" (issues 5756) (violations ()))
     ("spi master" (issues 8172) (violations ()))
-    ("spi slave" (issues 15003) (violations ()))
-    ("i2c master" (issues 7109) (violations ()))
-    ("i2c slave" (issues 13953) (violations ()))
+    ("spi slave" (issues 14940) (violations ()))
+    ("i2c master" (issues 7129) (violations ()))
+    ("i2c slave" (issues 13883) (violations ()))
     ("i2c logger" (issues 6752) (violations ()))
-    ("usb tx" (issues 4462) (violations ()))
-    ("usb rx" (issues 8270) (violations ()))
+    ("usb tx" (issues 4466) (violations ()))
+    ("usb rx" (issues 8302) (violations ()))
     |}]
 ;;
 
@@ -561,7 +561,7 @@ let%expect_test "random programs stay inside their analysis" =
   let issues = List.sum (module Int) results ~f:fst in
   let violations = List.sum (module Int) results ~f:(fun (_, v) -> List.length v) in
   print_s [%message (issues : int) (violations : int)];
-  [%expect {| ((issues 2854) (violations 0)) |}]
+  [%expect {| ((issues 2835) (violations 0)) |}]
 ;;
 
 let%expect_test "edge meter" =
