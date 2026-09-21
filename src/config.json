@@ -37,6 +37,11 @@
   "//": "https://tinytapeout.com/faq/#how-can-i-map-an-additional-external-clock-to-one-of-the-gpios",
   "CLOCK_PORT": "clk",
 
+  "//": "RUN_ANTENNA_REPAIR - the step crashes FastRoute with GRT-0183 on the clock delay nets,",
+  "//": "depending on placement, and has never found anything to repair. The detailed router still",
+  "//": "repairs antennas and CI fails on any antenna violation.",
+  "RUN_ANTENNA_REPAIR": false,
+
   "//": "SRAM macro integration, see odb_sram_stripes.py",
   "MACROS": {
     "RM_IHPSG13_1P_512x16_c2_bm_bist": {
