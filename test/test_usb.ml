@@ -345,5 +345,5 @@ let%expect_test "usb device in lockstep" =
       ~inputs:(fun n -> levels.(n))
       ()
   in
-  [%expect {| |}]
+  [%expect {| ("lockstep held" (cycles 5312)) |}]
 ;;
