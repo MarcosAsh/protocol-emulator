@@ -19,5 +19,6 @@ _opam
 bin/*.exe
 bin/*.bc
 formal/engine.v
+formal/engine_sram.v
 formal/*_*/
 __pycache__/

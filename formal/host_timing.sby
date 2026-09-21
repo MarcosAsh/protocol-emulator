@@ -1,0 +1,45 @@
+[options]
+mode bmc
+depth 1
+
+[engines]
+smtbmc boolector
+
+[script]
+read_verilog -lib RM_IHPSG13_1P_512x16_c2_bm_bist.v
+read_verilog engine_sram.v
+setattr -mod -set blackbox 1 host_fifo
+hierarchy -top engine_top
+proc
+flatten
+expose -evert -sep __ engine_top/t:RM_IHPSG13_1P_512x16_c2_bm_bist engine_top/t:host_fifo
+cd engine_top
+rename engine.sram_macro.sram__A_ADDR sram_addr
+rename engine.sram_macro.sram__A_MEN sram_men
+rename engine.sram_macro.sram__A_REN sram_ren
+rename engine.sram_macro.sram__A_WEN sram_wen
+rename engine.sram_macro.sram__A_DOUT sram_dout
+rename engine.tx__pop tx_fifo_pop
+rename engine.tx__head tx_fifo_head
+rename engine.tx__level tx_fifo_level
+rename engine.tx__empty tx_fifo_empty
+rename engine.tx__full tx_fifo_full
+rename engine.rx__head rx_fifo_head
+rename engine.rx__level rx_fifo_level
+rename engine.rx__empty rx_fifo_empty
+rename engine.rx__full rx_fifo_full
+cd ..
+read_verilog -formal -sv host_timing.sv
+proc
+flatten step
+opt_clean step
+dffunmap step
+expose -evert-dff -sep __ step/t:$dff
+copy step step_again
+miter -equiv -flatten -make_outputs -make_outcmp step step_again step_miter
+prep -top host_timing
+
+[files]
+engine_sram.v
+host_timing.sv
+../src/RM_IHPSG13_1P_512x16_c2_bm_bist.v
