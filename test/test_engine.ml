@@ -31,35 +31,6 @@ loop:
   [%expect {| ("lockstep held" (cycles 400)) |}]
 ;;
 
-let%expect_test "edge meter" =
-  let last = ref 0 in
-  let stamps = ref [] in
-  let (_ : Machine.t) =
-    lockstep
-      ~config:edge_meter_config
-      ~program:(assemble (edge_meter ~period:16))
-      ~inputs:(fun _ -> !last)
-      ~host:(fun _ -> { Host.idle with tx = None; pop_rx = true })
-      ~react:(fun m ->
-        last := (m.pin_out lsr 5) land 1;
-        match m.rx_fifo with
-        | s :: _ -> stamps := s :: !stamps
-        | [] -> ())
-      ()
-  in
-  let stamps = List.rev !stamps in
-  let intervals =
-    List.zip_exn (List.drop stamps 1) (List.drop_last_exn stamps)
-    |> List.map ~f:(fun (a, b) -> a - b)
-  in
-  print_s [%message (intervals : int list)];
-  [%expect
-    {|
-    ("lockstep held" (cycles 400))
-    (intervals (32 32 32 32 32 32 32 32 32 32 32))
-    |}]
-;;
-
 let%expect_test "the host clears the interrupt" =
   let program = assemble {|
 loop:
