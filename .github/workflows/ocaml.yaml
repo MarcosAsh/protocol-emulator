@@ -23,6 +23,15 @@ jobs:
       - name: Run tests
         run: opam exec -- dune build @runtest
 
+      # the chip is hardened from the committed file, not from the OCaml
+      - name: Check the committed Verilog is current
+        run: |
+          opam exec -- dune exec -- bin/generate.exe top -sram > src/protocol_emulator.v
+          if ! git diff --stat --exit-code src/protocol_emulator.v; then
+            echo "::error file=src/protocol_emulator.v::stale, regenerate it: dune exec -- bin/generate.exe top -sram > src/protocol_emulator.v"
+            exit 1
+          fi
+
       - name: Install OSS CAD Suite
         run: |
           curl -sL https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz | tar xz -C "$HOME"
