@@ -167,6 +167,20 @@ let%expect_test "a host enumerates the keyboard and mouse and reads reports" =
         | None -> []
       in
       print_s [%message "report" ~_:(until_data 20 : int list)]);
+  (* a report is waiting when the host starts a control transfer: the core takes it out of
+     the way, the board hears of it and puts it back afterwards *)
+  report t [ 2; 1; 0; 0 ];
+  read
+    "device descriptor with a report in the way"
+    (Request.get_descriptor ~kind:1 ~length:18 ())
+    device_descriptor;
+  let rec until_data tries =
+    match poll () with
+    | Some bytes -> bytes
+    | None when tries > 0 -> until_data (tries - 1)
+    | None -> []
+  in
+  print_s [%message "the report afterwards" ~_:(until_data 20 : int list)];
   print_s [%message (faults t : Protocol_emulator.Machine.Fault.t)];
   [%expect
     {|
@@ -181,6 +195,9 @@ let%expect_test "a host enumerates the keyboard and mouse and reads reports" =
     (report (1 0 11 0 0 0 0 0))
     (report (1 0 0 0 0 0 0 0))
     (report (2 0 5 253))
+    ("device descriptor with a report in the way" (bytes 18) (correct true)
+     (naks_so_far 38))
+    ("the report afterwards" (2 1 0 0))
     ("faults t"
      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
     |}]

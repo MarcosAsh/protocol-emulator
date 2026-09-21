@@ -77,9 +77,11 @@ module Board = struct
     ; mutable chunks : int list list
     ; mutable toggle : int
     ; mutable report_toggle : int
-    ; mutable due : (int * int list) option
+    ; mutable due : (int * int list) list
     ; mutable new_address : int option
     ; mutable reload : int option
+    ; mutable report : int list option
+    ; mutable dropped : bool
     }
 
   let create ~descriptors ~latency =
@@ -89,29 +91,36 @@ module Board = struct
     ; chunks = []
     ; toggle = data1
     ; report_toggle = data0
-    ; due = None
+    ; due = []
     ; new_address = None
     ; reload = None
+    ; report = None
+    ; dropped = false
     }
   ;;
 
-  let reply ~pid payload =
+  let reply ~endpoint ~pid payload =
     let rec words = function
       | [] -> []
       | [ a ] -> [ a ]
       | a :: b :: rest -> (a lor (b lsl 8)) :: words rest
     in
-    (0x80 lor (pid lsl 8)) :: (8 * List.length payload) :: words payload
+    let data = words payload in
+    (endpoint lor (pid lsl 8))
+    :: (8 * List.length payload lor (List.length data lsl 8))
+    :: data
   ;;
 
-  let queue t ~pid payload = t.due <- Some (t.latency, reply ~pid payload)
+  let queue t ~endpoint ~pid payload =
+    t.due <- t.due @ [ t.latency, reply ~endpoint ~pid payload ]
+  ;;
 
   let next_chunk t =
     match t.chunks with
     | [] -> ()
     | chunk :: rest ->
       t.chunks <- rest;
-      queue t ~pid:t.toggle chunk;
+      queue t ~endpoint:0 ~pid:t.toggle chunk;
       t.toggle <- (if t.toggle = data1 then data0 else data1)
   ;;
 
@@ -155,11 +164,19 @@ module Board = struct
        | 1 -> t.parse <- Words { tag = 1; left = 6; words = [] }
        | 2 -> t.parse <- Words { tag = 2; left = 2; words = [] }
        | 3 ->
-         if List.is_empty t.chunks
+         if not (List.is_empty t.chunks)
+         then next_chunk t
+         else if Option.is_some t.report
+                 && (not t.dropped)
+                 && Option.is_none t.new_address
          then (
+           (* the report went out *)
+           t.report <- None;
+           t.report_toggle <- (if t.report_toggle = data0 then data1 else data0))
+         else (
            t.reload <- t.new_address;
            t.new_address <- None)
-         else next_chunk t
+       | 4 -> t.dropped <- true
        | tag -> raise_s [%message "unknown tag" (tag : int)])
     | Words { tag; left; words } ->
       let words = w :: words in
@@ -173,9 +190,20 @@ module Board = struct
           setup t (Request.of_bytes (List.take bytes 8))))
   ;;
 
+  let send_report t payload = queue t ~endpoint:1 ~pid:t.report_toggle payload
+
   let report t payload =
-    queue t ~pid:t.report_toggle payload;
-    t.report_toggle <- (if t.report_toggle = data0 then data1 else data0)
+    t.report <- Some payload;
+    send_report t payload
+  ;;
+
+  (* a report the core had to drop goes back in once the control transfer is through *)
+  let requeue t =
+    match t.report with
+    | Some payload when t.dropped && List.is_empty t.chunks && List.is_empty t.due ->
+      t.dropped <- false;
+      send_report t payload
+    | _ -> ()
   ;;
 end
 
@@ -233,12 +261,14 @@ let cycle t (line : Usb_ls.Line.t) =
      Board.word t.board word
    | None -> ());
   (match t.board.due with
-   | Some (0, words) ->
-     t.machine
-     <- List.fold words ~init:t.machine ~f:(fun m w -> Machine.write_tx m w |> ok_exn);
-     t.board.due <- None
-   | Some (n, words) -> t.board.due <- Some (n - 1, words)
-   | None -> ());
+   | (0, words) :: rest ->
+     if List.length t.machine.tx_fifo + List.length words <= Machine.fifo_depth
+     then (
+       t.machine
+       <- List.fold words ~init:t.machine ~f:(fun m w -> Machine.write_tx m w |> ok_exn);
+       t.board.due <- rest)
+   | (n, words) :: rest -> t.board.due <- (n - 1, words) :: rest
+   | [] -> Board.requeue t.board);
   let pin n level =
     if (t.machine.pin_dir lsr n) land 1 = 1
     then (t.machine.pin_out lsr n) land 1

@@ -732,9 +732,12 @@ end
    data: a tag word (1 for DATA0, 2 for DATA1), then the bytes and their CRC sixteen bits
    a word, first bit on top, then whatever is left of a word; ACK if the CRC register ends
    where a good packet leaves it, the interrupt and silence if not. An IN for us is
-   answered with what the host has queued: the SYNC and PID word, the number of data bits,
-   then the data; the CRC-16 and the bit stuffing are added here. With nothing queued the
-   answer is NAK. Any handshake from the host is its ACK and reaches the host as tag 3. *)
+   answered with what the host has queued: a word with the endpoint low and the PID high,
+   a word with the number of data bits low and of data words high, then the data; a reply
+   queued for the other endpoint is pulled out of the way, which the host hears of as tag
+   4, and the answer is NAK; the CRC-16 and the bit stuffing are added here. With nothing
+   queued the answer is NAK. Any handshake from the host is its ACK and reaches the host
+   as tag 3. *)
 let usb_device ~address ~half_period =
   let open Usb_line in
   let label name line = [%string "%{name}_%{suffix line}"] in
@@ -890,6 +893,7 @@ let usb_device ~address ~half_period =
       ; "    mov x, pins"
       ; "    jmp x--, eop"
       ; "    jmp y--, endpoint_1"
+      ; "    set y, 0"
       ; "ours:"
       ; "    jmp pin, in_reply"
       ; "    jmp idle"
@@ -899,9 +903,11 @@ let usb_device ~address ~half_period =
     ; [ "    mov x, isr"
       ; "    mov isr, null"
       ; "    jmp x!=y, other_kind"
+      ; "    set y, 1"
       ; "    jmp ours"
       ; "in_reply:"
       ; "    jmp tx, send"
+      ; "nak:"
       ]
     ; handshake 0x5a80
     ; both (fun line ->
@@ -971,17 +977,49 @@ let usb_device ~address ~half_period =
     ; [ "send:"
       ; "    wait t+"
       ; "    pull"
+      ; "    out x, 8"
+      ; "    jmp x!=y, wrong_endpoint"
       ; "    stuff_reset"
       ; "    wait t+"
       ; "    wait t+"
       ; "    set pins, 6"
-      ; "    jmp hs_go"
+      ; "    set pindirs, 7"
+      ; "    set y, 6"
+      ; "sync_bit:"
+      ; "    wait t+"
+      ; "    nop [2]"
+      ; "    mov pins, !pins"
+      ; "    jmp y--, sync_bit"
+      ; "    wait t+"
+      ; "    set y, 7"
+      ; "    jmp hs_bit"
+      ; "wrong_endpoint:"
+      ; "    pull"
+      ; "    out null, 8"
+      ; "    out x, 8"
+      ]
+      (* at most four data words, one pull each: a loop on a count the host supplies would
+         have no bound the analyser could see *)
+    ; List.concat_map [ 1; 2; 3 ] ~f:(fun n ->
+        [ [%string "    jmp x--, drain_%{n#Int}"]
+        ; "    jmp drained"
+        ; [%string "drain_%{n#Int}:"]
+        ; "    pull"
+        ])
+    ; [ "    jmp x--, drain_4"
+      ; "    jmp drained"
+      ; "drain_4:"
+      ; "    pull"
+      ; "drained:"
+      ; "    set x, 4"
+      ; "    mov isr, x"
+      ; "    push"
+      ; "    jmp nak"
       ; "hs:"
       ; "    mov osr, isr"
       ; "    wait t+"
       ; "    wait t+"
       ; "    set pins, 2"
-      ; "hs_go:"
       ; "    set pindirs, 7"
       ; "    set y, 15"
       ; "hs_bit:"
@@ -1004,7 +1042,7 @@ let usb_device ~address ~half_period =
       ; "    jmp idle"
       ; "payload_tx:"
       ; "    pull"
-      ; "    mov y, osr"
+      ; "    out y, 8"
       ; "    out null, 16"
       ; "    crc_init"
       ; "    jmp y--, tx_bit"

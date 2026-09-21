@@ -624,7 +624,7 @@ let%expect_test "usb device" =
   List.iter interesting ~f:print_endline;
   [%expect
     {|
-    ("List.length report" 435)
+    ("List.length report" 466)
       0  pull                         phase ?..?
       1  mov p, osr                   phase ?..?
       2  set pins, 2                  phase ?..?  edge ?..?  jitter ?
@@ -648,21 +648,19 @@ let%expect_test "usb device" =
     111  set pins, 2                  phase -27  edge -26
     113  set pins, 6                  phase -25  edge -24
     115  set pins, 2                  phase -25  edge -24
-    361  mov t, capture               phase -9..?
-    366  wait t+                      phase -28..?  slack ?..28  MAY MISS
-    367  mov x, pins                  phase -31..?  sample -31..?  jitter ?
-    368  jmp x--, 366                 phase -30..?
-    369  jmp 2                        phase -28..?
-    375  set pins, 6                  phase -31  edge -30
-    380  set pins, 2                  phase -31  edge -30
-    381  set pindirs, 7               phase -30..-28  edge -29..-27  jitter 2
-    386  mov pins, !pins              phase -28  edge -27
-    391  set pins, 4                  phase -28  edge -27
-    395  set pins, 6                  phase -28  edge -27
-    408  mov pins, !pins              phase -28  edge -27
-    413  mov pins, !pins              phase -28  edge -27
-    420  mov pins, !pins              phase -28  edge -27
-    425  mov pins, !pins              phase -28  edge -27
-    437  mov pins, !pins              phase -28  edge -27
+    363  mov t, capture               phase -9..?
+    379  set pins, 6                  phase -31  edge -30
+    380  set pindirs, 7               phase -30  edge -29
+    384  mov pins, !pins              phase -28  edge -27
+    411  set pins, 2                  phase -31  edge -30
+    412  set pindirs, 7               phase -30  edge -29
+    417  mov pins, !pins              phase -28  edge -27
+    422  set pins, 4                  phase -28  edge -27
+    426  set pins, 6                  phase -28  edge -27
+    439  mov pins, !pins              phase -28  edge -27
+    444  mov pins, !pins              phase -28  edge -27
+    451  mov pins, !pins              phase -28  edge -27
+    456  mov pins, !pins              phase -28  edge -27
+    468  mov pins, !pins              phase -28  edge -27
     |}]
 ;;

@@ -506,19 +506,22 @@ let%expect_test "usb device takes a SETUP in lockstep" =
   print_s [%message "program" ~words:(List.length program : int)];
   [%expect {|
     ("lockstep held" (cycles 10016))
-    (program (words 439))
+    (program (words 470))
     |}]
 ;;
 
-(* what the host queues for an IN: SYNC and PID, the number of data bits, then the data
-   two bytes a word, the first byte low *)
-let usb_reply ~pid payload =
+(* what the host queues for an IN: the endpoint and the PID, the number of data bits and
+   of data words, then the data two bytes a word, the first byte low *)
+let usb_reply ?(endpoint = 0) ~pid payload =
   let rec words = function
     | [] -> []
     | [ a ] -> [ a ]
     | a :: b :: rest -> (a lor (b lsl 8)) :: words rest
   in
-  (0x80 lor (pid lsl 8)) :: (8 * List.length payload) :: words payload
+  let data = words payload in
+  (endpoint lor (pid lsl 8))
+  :: (8 * List.length payload lor (List.length data lsl 8))
+  :: data
 ;;
 
 let%expect_test "usb device answers an IN with the data the host queued" =
@@ -598,7 +601,7 @@ let%expect_test "usb device answers on endpoint 1 and on no other" =
   let report = [ 2; 0; 5; 0xfb ] in
   List.iter [ 1; 2; 9 ] ~f:(fun endpoint ->
     run_usb_device
-      ~queue:(usb_reply ~pid:0xc3 report)
+      ~queue:(usb_reply ~endpoint:1 ~pid:0xc3 report)
       ~address:6
       [ usb_token ~endpoint ~pid:0x69 ~address:6 (); [ 0xd2 ] ]
       ~idle:100);
