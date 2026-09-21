@@ -126,10 +126,12 @@ let%expect_test "a host enumerates the keyboard and mouse and reads reports" =
           ~correct:([%equal: int list] bytes expected : bool)
           ~naks_so_far:(naks t : int)]
   in
+  reset t;
   read
     "first eight bytes of the device descriptor"
     (Request.get_descriptor ~kind:1 ~length:8 ())
     (List.take device_descriptor 8);
+  reset t;
   control_out t (Request.set_address 7);
   print_s [%message "address set" ~naks_so_far:(naks t : int)];
   read
@@ -181,6 +183,12 @@ let%expect_test "a host enumerates the keyboard and mouse and reads reports" =
     | None -> []
   in
   print_s [%message "the report afterwards" ~_:(until_data 20 : int list)];
+  (* after a bus reset the device is back at address 0 *)
+  reset t;
+  read
+    "device descriptor at address 0 after a reset"
+    (Request.get_descriptor ~kind:1 ~length:8 ())
+    (List.take device_descriptor 8);
   print_s [%message (faults t : Protocol_emulator.Machine.Fault.t)];
   [%expect
     {|
@@ -198,6 +206,8 @@ let%expect_test "a host enumerates the keyboard and mouse and reads reports" =
     ("device descriptor with a report in the way" (bytes 18) (correct true)
      (naks_so_far 38))
     ("the report afterwards" (2 1 0 0))
+    ("device descriptor at address 0 after a reset" (bytes 8) (correct true)
+     (naks_so_far 39))
     ("faults t"
      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
     |}]

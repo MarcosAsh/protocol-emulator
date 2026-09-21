@@ -26,6 +26,10 @@ type t
 (** [descriptors] by descriptor type. *)
 val create : descriptors:(int * int list) list -> latency:int -> t
 
+(** The host holds SE0 long enough for a bus reset. The board sees it on the wire and
+    reloads the core for address 0. *)
+val reset : t -> unit
+
 (** A control read: SETUP, IN until the data is complete, the status OUT. *)
 val control_in : t -> Request.t -> int list
 

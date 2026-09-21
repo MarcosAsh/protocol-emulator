@@ -190,6 +190,18 @@ module Board = struct
           setup t (Request.of_bytes (List.take bytes 8))))
   ;;
 
+  let reset t =
+    t.parse <- Tag;
+    t.chunks <- [];
+    t.toggle <- data1;
+    t.report_toggle <- data0;
+    t.due <- [];
+    t.new_address <- None;
+    t.reload <- None;
+    t.report <- None;
+    t.dropped <- false
+  ;;
+
   let send_report t payload = queue t ~endpoint:1 ~pid:t.report_toggle payload
 
   let report t payload =
@@ -212,6 +224,7 @@ type t =
   ; mutable sniffer : Usb_ls.Sniffer.t
   ; mutable ends : int
   ; mutable se0 : bool
+  ; mutable se0_cycles : int
   ; mutable address : int
   ; mutable naks : int
   ; board : Board.t
@@ -228,6 +241,8 @@ let load ~address =
   Machine.write_tx machine bit_period |> ok_exn
 ;;
 
+(* two and a half milliseconds at 48 MHz *)
+let reset_cycles = 120_000
 let faults t = t.machine.fault
 let naks t = t.naks
 
@@ -278,7 +293,16 @@ let cycle t (line : Usb_ls.Line.t) =
   let dm = pin Firmware.usb_device_dm_pin dm in
   (* a packet is over when the line comes back from SE0 *)
   let se0 = dp = 0 && dm = 0 in
-  if t.se0 && not se0 then t.ends <- t.ends + 1;
+  if t.se0 && not se0
+  then (
+    t.ends <- t.ends + 1;
+    (* the board sits on the same two pins: an SE0 of two and a half milliseconds is a bus
+       reset, and the device answers to address 0 again with nothing pending *)
+    if t.se0_cycles >= reset_cycles
+    then (
+      t.machine <- load ~address:0;
+      Board.reset t.board));
+  t.se0_cycles <- (if se0 then t.se0_cycles + 1 else 0);
   t.se0 <- se0;
   t.sniffer <- Usb_ls.Sniffer.step t.sniffer ~dp ~dm
 ;;
@@ -293,6 +317,7 @@ let create ~descriptors ~latency =
     ; sniffer = Usb_ls.Sniffer.create ~bit_period
     ; ends = 0
     ; se0 = false
+    ; se0_cycles = 0
     ; address = 0
     ; naks = 0
     ; board = Board.create ~descriptors ~latency
@@ -408,6 +433,13 @@ let control_out t request =
     t.address <- address;
     bits t J ~count:20
   | None -> ()
+;;
+
+(* a host resets the bus for ten milliseconds or more; three are enough here *)
+let reset t =
+  Fn.apply_n_times ~n:(reset_cycles + (reset_cycles / 5)) (fun () -> cycle t Se0) ();
+  t.address <- 0;
+  bits t J ~count:40
 ;;
 
 let report t payload = Board.report t.board payload
