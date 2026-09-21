@@ -36,7 +36,7 @@ module Field = struct
 
   let op = { lsb = 13; width = 3 }
   let delay_side = { lsb = 8; width = 5 }
-  let jmp_cond = { lsb = 10; width = 3 }
+  let jmp_cond = { lsb = 9; width = 4 }
   let jmp_target = { lsb = 0; width = 9 }
   let wait_polarity = { lsb = 7; width = 1 }
   let wait_source = { lsb = 5; width = 2 }
@@ -109,6 +109,10 @@ module Jmp_cond = struct
       | Not_pin
       | Osr_not_empty
       | Stuff_pending
+      | Tx_not_empty
+      | Tx_empty
+      | Rx_not_full
+      | Rx_full
     [@@deriving sexp_of, compare ~localize, enumerate, equal]
   end
 
@@ -513,13 +517,6 @@ let decode_body (opcode : Opcode.Cases.t) body =
     Op.Sys sys
 ;;
 
-let jmp_reserved_mask =
-  Field.mask { lsb = 0; width = word_bits }
-  land lnot (Field.mask Field.op lsl Field.op.lsb)
-  land lnot (Field.mask Field.jmp_cond lsl Field.jmp_cond.lsb)
-  land lnot (Field.mask Field.jmp_target lsl Field.jmp_target.lsb)
-;;
-
 let to_word ~side_set_count t =
   let open Or_error.Let_syntax in
   match t with
@@ -543,7 +540,6 @@ let of_word ~side_set_count word =
   let%bind opcode = Opcode.of_int (Field.extract Field.op word) in
   match (opcode : Opcode.Cases.t) with
   | Jmp ->
-    let%bind () = reserved_bits_clear word ~mask:jmp_reserved_mask in
     let%map cond = Jmp_cond.of_int (Field.extract Field.jmp_cond word) in
     Jmp { cond; target = Field.extract Field.jmp_target word }
   | opcode ->

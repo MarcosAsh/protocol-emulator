@@ -27,9 +27,11 @@
     and pin operand names are the lower case constructor names from [Isa]: [pins],
     [pindirs], [x], [y], [p], [t], [isr], [osr], [null], [now], [capture], [crc]. [mov]
     sources take a [!] prefix to invert or [::] to reverse. Jump conditions are [x--],
-    [y--], [x!=y], [pin], [!pin], [!osre] and [stuff]. Waits are [wait 0 pin N],
-    [wait 1 pin N], [wait rise pin N], [wait fall pin N], [wait t], [wait t+], [wait tx]
-    and [wait rx]. The ALU is [add], [sub] and [xor] with a register or an immediate. *)
+    [y--], [x!=y], [pin], [!pin], [!osre], [stuff], and the fifo tests [tx] (the host has
+    written a word), [!tx], [rx] (there is room for a push) and [!rx]. Waits are
+    [wait 0 pin N], [wait 1 pin N], [wait rise pin N], [wait fall pin N], [wait t],
+    [wait t+], [wait tx] and [wait rx]. The ALU is [add], [sub] and [xor] with a register
+    or an immediate. *)
 
 open! Core
 

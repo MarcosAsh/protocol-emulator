@@ -92,7 +92,7 @@ module Make (Comb : Comb.S) = struct
     let valid =
       Opcode.match_
         opcode
-        [ Jmp, ~:(word.:(Isa.Field.jmp_target.width))
+        [ Jmp, valid_code (module Isa.Jmp_cond) (field Isa.Field.jmp_cond)
         ; Wait, wait_index_ok
         ; In, count_ok
         ; Out, count_ok

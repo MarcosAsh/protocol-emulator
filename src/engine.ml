@@ -306,6 +306,10 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
       ; Not_pin, ~:(pin_of sample c.jmp_pin)
       ; Osr_not_empty, osr_count <: c.pull_threshold
       ; Stuff_pending, c.stuff_threshold <>:. 0 &: (stuff_run >=: c.stuff_threshold)
+      ; Tx_not_empty, ~:(tx.empty)
+      ; Tx_empty, tx.empty
+      ; Rx_not_full, ~:(rx.full)
+      ; Rx_full, rx.full
       ]
   in
   let%hw issue = ~:halted &: (stall ==:. 0) &: ~:start in

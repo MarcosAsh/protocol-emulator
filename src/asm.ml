@@ -45,6 +45,10 @@ let jmp_conds : (string * Isa.Jmp_cond.Cases.t) list =
   ; "!pin", Not_pin
   ; "!osre", Osr_not_empty
   ; "stuff", Stuff_pending
+  ; "tx", Tx_not_empty
+  ; "!tx", Tx_empty
+  ; "rx", Rx_not_full
+  ; "!rx", Rx_full
   ]
 ;;
 

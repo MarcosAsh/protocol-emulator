@@ -209,6 +209,10 @@ let jmp_taken t (cond : Isa.Jmp_cond.Cases.t) ~sample =
   | Not_pin -> bit sample t.config.jmp_pin = 0, t
   | Osr_not_empty -> t.osr_count < t.config.pull_threshold, t
   | Stuff_pending -> stuff_pending t, t
+  | Tx_not_empty -> not (List.is_empty t.tx_fifo), t
+  | Tx_empty -> List.is_empty t.tx_fifo, t
+  | Rx_not_full -> List.length t.rx_fifo < fifo_depth, t
+  | Rx_full -> List.length t.rx_fifo >= fifo_depth, t
 ;;
 
 let wait_ready t (wait : Isa.Wait.t) ~sample =

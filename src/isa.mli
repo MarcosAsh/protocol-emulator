@@ -103,7 +103,9 @@ end
 
 (** [X_dec] and [Y_dec] jump if the register is non-zero and then decrement it, so a
     register loaded with [n] runs a loop body [n + 1] times. [Pin] tests the jump pin from
-    the program configuration. [Stuff_pending] is set by the bit stuffing counter. *)
+    the program configuration. [Stuff_pending] is set by the bit stuffing counter. The
+    four fifo tests look without touching the fifo or stalling, which is the one way
+    besides [wait] on a fifo that when the host talks can change what the program does. *)
 module Jmp_cond : sig
   module Cases : sig
     type t =
@@ -115,6 +117,10 @@ module Jmp_cond : sig
       | Not_pin
       | Osr_not_empty
       | Stuff_pending
+      | Tx_not_empty
+      | Tx_empty
+      | Rx_not_full
+      | Rx_full
     [@@deriving sexp_of, compare ~localize, enumerate, equal]
   end
 
