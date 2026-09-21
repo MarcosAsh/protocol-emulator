@@ -678,3 +678,237 @@ let i2c_word ?(start = false) ?(read = false) ?(stop = false) data =
   lor (data lsl 6)
   lor (Bool.to_int stop lsl 5)
 ;;
+
+let usb_device_dp_pin = 12
+let usb_device_dm_pin = 13
+let usb_device_flag_pin = 14
+
+let usb_device_config =
+  { Program_config.default with
+    in_base = usb_device_dp_pin
+  ; in_count = 2
+  ; out_base = usb_device_dp_pin
+  ; out_count = 2
+  ; set_base = usb_device_dp_pin
+  ; set_count = 3
+  ; jmp_pin = usb_device_flag_pin
+  ; capture_pin = usb_device_dp_pin
+  ; capture_rising = true
+  ; in_shift = Left
+  ; out_shift = Right
+  ; autopull = true
+  ; stuff_threshold = 6
+  ; stuff_level = true
+  }
+;;
+
+module Usb_line = struct
+  type t =
+    | J
+    | K
+
+  let other = function
+    | J -> K
+    | K -> J
+  ;;
+
+  let suffix = function
+    | J -> "j"
+    | K -> "k"
+  ;;
+
+  let both f = List.concat_map [ J; K ] ~f
+end
+
+(* USB low speed device. With [mov x, pins] over D+ and D-, J reads 2, K reads 1 and SE0
+   reads 0, so two [jmp x--] tell the three apart. The line state before a sample lives in
+   the program counter: every piece that samples exists once for J and once for K, which
+   leaves y free to count bits. The first PID nibble is walked as a tree, one node a bit,
+   so telling the packets apart costs no cycles. The token's address and endpoint are
+   compared with a constant assembled in for [address], and its CRC5 with another, so the
+   CRC unit stays on CRC-16. The kind of token is kept on a pin of its own, read back with
+   [jmp pin]. Stage one: every IN for us is answered with NAK. *)
+let usb_device ~address ~half_period =
+  let open Usb_line in
+  let label name line = [%string "%{name}_%{suffix line}"] in
+  let bits_of value ~count = List.init count ~f:(fun i -> (value lsr i) land 1) in
+  let msb_first bits = List.fold bits ~init:0 ~f:(fun acc bit -> (acc lsl 1) lor bit) in
+  let token = bits_of address ~count:7 @ bits_of 0 ~count:4 in
+  let crc5 =
+    List.fold token ~init:0x1f ~f:(fun crc bit ->
+      Crc.step ~width:5 ~poly:0x14 ~reflect:true crc ~bit)
+    lxor 0x1f
+  in
+  (* a constant in isr, most significant chunk first; more than a bit at a time, so the
+     CRC and the stuff counter do not see it *)
+  let load_isr value ~bits =
+    let rec chunks left =
+      if left = 0
+      then []
+      else (
+        let n =
+          if left <= 5
+          then left
+          else if left % 5 = 1
+          then 3
+          else if left % 5 = 0
+          then 5
+          else left % 5
+        in
+        let chunk = (value lsr (left - n)) land ((1 lsl n) - 1) in
+        [%string "    set y, %{chunk#Int}\n    in y, %{n#Int}"] :: chunks (left - n))
+    in
+    "    mov isr, null" :: chunks bits
+  in
+  let sample name line ~one ~zero ~se0 =
+    let same, changed =
+      match line with
+      | J -> label one J, label zero K
+      | K -> label one K, label zero J
+    in
+    let stays, moves =
+      match line with
+      | J -> same, changed
+      | K -> changed, same
+    in
+    [ [%string "%{label name line}:"]
+    ; "    wait t+"
+    ; "    mov x, pins"
+    ; [%string "    jmp x--, %{label name line}_nz"]
+    ; [%string "    jmp %{se0}"]
+    ; [%string "%{label name line}_nz:"]
+    ; [%string "    jmp x--, %{stays}"]
+    ; [%string "    jmp %{moves}"]
+    ]
+  in
+  let node name ~one ~zero = both (fun line -> sample name line ~one ~zero ~se0:"idle") in
+  (* [count] bits that are only counted *)
+  let skip name ~count ~next =
+    both (fun line ->
+      [ [%string "%{label name line}:"]; [%string "    set y, %{count - 1#Int}"] ]
+      @ sample (name ^ "_s") line ~one:(name ^ "_n") ~zero:(name ^ "_n") ~se0:"idle"
+      @ [ [%string "%{label (name ^ \"_n\") line}:"]
+        ; [%string "    jmp y--, %{label (name ^ \"_s\") line}"]
+        ; [%string "    jmp %{label next line}"]
+        ])
+  in
+  (* [count] bits shifted into isr, past the CRC and the stuff counter *)
+  let field name ~count ~next =
+    both (fun line ->
+      [ [%string "%{label name line}:"]
+      ; [%string "    set y, %{count - 1#Int}"]
+      ; [%string "%{label (name ^ \"_b\") line}:"]
+      ; [%string "    jmp stuff, %{label (name ^ \"_f\") line}"]
+      ]
+      @ sample (name ^ "_s") line ~one:(name ^ "_1") ~zero:(name ^ "_0") ~se0:"idle"
+      @ [ [%string "%{label (name ^ \"_1\") line}:"]
+        ; "    set x, 1"
+        ; "    in x, 1"
+        ; [%string "    jmp y--, %{label (name ^ \"_b\") line}"]
+        ; [%string "    jmp %{label next line}"]
+        ; [%string "%{label (name ^ \"_0\") line}:"]
+        ; "    in null, 1"
+        ; [%string "    jmp y--, %{label (name ^ \"_b\") line}"]
+        ; [%string "    jmp %{label next line}"]
+        ; [%string "%{label (name ^ \"_f\") line}:"]
+        ; "    wait t+"
+        ; "    stuff_reset"
+        ; [%string "    jmp %{label (name ^ \"_b\") (other line)}"]
+        ])
+  in
+  (* what follows a field does not sample, so one copy serves both line states *)
+  let join name = both (fun line -> [ [%string "%{label name line}:"] ]) in
+  let rec adds n = if n <= 7 then [ n ] else 7 :: adds (n - 7) in
+  let anchor =
+    List.map (adds half_period) ~f:(fun n -> [%string "    add t, %{n#Int}"])
+  in
+  let handshake word =
+    [ "    wait t+" ]
+    @ load_isr word ~bits:16
+    @ [ "    mov osr, isr"
+      ; "    wait t+"
+      ; "    wait t+"
+      ; "    set pins, 2"
+      ; "    set pindirs, 7"
+      ; "    set y, 15"
+      ; "    jmp hs_bit"
+      ]
+  in
+  List.concat
+    [ [ "    pull"; "    mov p, osr"; "idle:"; "    set pins, 2"; "    set pindirs, 4" ]
+    ; load_isr (msb_first token) ~bits:11
+    ; [ "    mov osr, isr"
+      ; "    mov isr, null"
+      ; "    stuff_reset"
+      ; "    capture_arm"
+      ; [%string "    wait 1 pin %{usb_device_dp_pin#Int}"]
+      ; "    mov t, capture"
+      ]
+    ; anchor
+    ; [ "    jmp sync_j" ]
+    ; skip "sync" ~count:8 ~next:"pid0"
+    ; node "pid0" ~one:"pid1" ~zero:"ignore"
+    ; node "pid1" ~one:"ignore" ~zero:"pid2"
+    ; node "pid2" ~one:"tok_setup3" ~zero:"tok_inout3"
+    ; node "tok_setup3" ~one:"out_token" ~zero:"ignore"
+    ; node "tok_inout3" ~one:"in_token" ~zero:"out_token"
+    ; both (fun line ->
+        [ [%string "%{label \"in_token\" line}:"]
+        ; "    set pins, 6"
+        ; [%string "    jmp %{label \"check\" line}"]
+        ; [%string "%{label \"out_token\" line}:"]
+        ; "    set pins, 2"
+        ; [%string "    jmp %{label \"check\" line}"]
+        ])
+    ; field "check" ~count:4 ~next:"clear"
+    ; both (fun line ->
+        [ [%string "%{label \"clear\" line}:"]
+        ; "    mov isr, null"
+        ; [%string "    jmp %{label \"token\" line}"]
+        ])
+    ; field "token" ~count:11 ~next:"match"
+    ; both (fun line ->
+        [ [%string "%{label \"match\" line}:"]
+        ; "    mov x, isr"
+        ; "    mov isr, null"
+        ; "    xor x, osr"
+        ; "    jmp x--, ignore_j"
+        ; [%string "    jmp %{label \"crc\" line}"]
+        ])
+    ; field "crc" ~count:5 ~next:"crc_match"
+    ; join "crc_match"
+    ; [ "    mov x, isr"
+      ; "    mov isr, null"
+      ; [%string "    set y, %{msb_first (bits_of crc5 ~count:5)#Int}"]
+      ; "    jmp x!=y, ignore_j"
+      ; "eop:"
+      ; "    wait t+"
+      ; "    mov x, pins"
+      ; "    jmp x--, eop"
+      ; "    jmp pin, nak"
+      ; "    jmp idle"
+      ; "nak:"
+      ]
+    ; handshake 0x5a80
+    ; join "ignore"
+    ; [ "skip:"; "    wait t+"; "    mov x, pins"; "    jmp x--, skip"; "    jmp idle" ]
+    ; [ "hs_bit:"
+      ; "    wait t+"
+      ; "    out x, 1"
+      ; "    jmp x--, hs_keep"
+      ; "    mov pins, !pins"
+      ; "hs_keep:"
+      ; "    jmp y--, hs_bit"
+      ; "    wait t+"
+      ; "    nop [2]"
+      ; "    set pins, 4"
+      ; "    wait t+"
+      ; "    wait t+"
+      ; "    nop [2]"
+      ; "    set pins, 6"
+      ; "    wait t+"
+      ; "    jmp idle"
+      ]
+    ]
+  |> String.concat ~sep:"\n"
+;;
