@@ -62,10 +62,12 @@ val edge_meter : period:int -> string
 val edge_meter_config : Program_config.t
 val i2c_word : ?start:bool -> ?read:bool -> ?stop:bool -> int -> int
 
-(** USB low speed device for [address], endpoint 0. The host sends the bit period first.
-    Stage one: a token that is not ours is ignored, and an IN that is ours gets a NAK two
-    and a half bit times after the end of its EOP. D+ is IO0, D- is IO1, and IO2 is a flag
-    the program keeps for itself. *)
+(** USB low speed device for [address], endpoint 0. The host sends the bit period first. A
+    token that is not ours is ignored together with the data that follows it. After a
+    SETUP or OUT that is ours the data goes to the host, a tag word first (1 for DATA0, 2
+    for DATA1), and is acknowledged if its CRC is good; a bad one raises the interrupt. An
+    IN that is ours gets a NAK two and a half bit times after the end of its EOP. D+ is
+    IO0, D- is IO1, and IO2 is a flag the program keeps for itself. *)
 val usb_device : address:int -> half_period:int -> string
 
 val usb_device_dp_pin : int

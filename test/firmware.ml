@@ -727,7 +727,10 @@ end
    so telling the packets apart costs no cycles. The token's address and endpoint are
    compared with a constant assembled in for [address], and its CRC5 with another, so the
    CRC unit stays on CRC-16. The kind of token is kept on a pin of its own, read back with
-   [jmp pin]. Stage one: every IN for us is answered with NAK. *)
+   [jmp pin]. A SETUP or OUT for us is followed by its data: a tag word (1 for DATA0, 2
+   for DATA1), then the bytes and their CRC sixteen bits a word, first bit on top, then
+   whatever is left of a word; ACK if the CRC register ends where a good packet leaves it,
+   the interrupt and silence if not. Every IN for us is answered with NAK. *)
 let usb_device ~address ~half_period =
   let open Usb_line in
   let label name line = [%string "%{name}_%{suffix line}"] in
@@ -818,6 +821,11 @@ let usb_device ~address ~half_period =
   in
   (* what follows a field does not sample, so one copy serves both line states *)
   let join name = both (fun line -> [ [%string "%{label name line}:"] ]) in
+  (* what a good packet leaves in the CRC register: the register over its own complement *)
+  let residual =
+    List.fold (bits_of 0 ~count:16) ~init:0xffff ~f:(fun crc bit ->
+      Crc.step ~width:16 ~poly:0xa001 ~reflect:true crc ~bit)
+  in
   let rec adds n = if n <= 7 then [ n ] else 7 :: adds (n - 7) in
   let anchor =
     List.map (adds half_period) ~f:(fun n -> [%string "    add t, %{n#Int}"])
@@ -848,7 +856,9 @@ let usb_device ~address ~half_period =
     ; [ "    jmp sync_j" ]
     ; skip "sync" ~count:8 ~next:"pid0"
     ; node "pid0" ~one:"pid1" ~zero:"ignore"
-    ; node "pid1" ~one:"ignore" ~zero:"pid2"
+    ; node "pid1" ~one:"data2" ~zero:"pid2"
+    ; node "data2" ~one:"ignore" ~zero:"data3"
+    ; node "data3" ~one:"data1" ~zero:"data0"
     ; node "pid2" ~one:"tok_setup3" ~zero:"tok_inout3"
     ; node "tok_setup3" ~one:"out_token" ~zero:"ignore"
     ; node "tok_inout3" ~one:"in_token" ~zero:"out_token"
@@ -872,7 +882,7 @@ let usb_device ~address ~half_period =
         ; "    mov x, isr"
         ; "    mov isr, null"
         ; "    xor x, osr"
-        ; "    jmp x--, ignore_j"
+        ; "    jmp x--, other_j"
         ; [%string "    jmp %{label \"crc\" line}"]
         ])
     ; field "crc" ~count:5 ~next:"crc_match"
@@ -880,7 +890,7 @@ let usb_device ~address ~half_period =
     ; [ "    mov x, isr"
       ; "    mov isr, null"
       ; [%string "    set y, %{msb_first (bits_of crc5 ~count:5)#Int}"]
-      ; "    jmp x!=y, ignore_j"
+      ; "    jmp x!=y, other_j"
       ; "eop:"
       ; "    wait t+"
       ; "    mov x, pins"
@@ -890,6 +900,60 @@ let usb_device ~address ~half_period =
       ; "nak:"
       ]
     ; handshake 0x5a80
+    ; both (fun line ->
+        List.concat_map
+          [ "data0", 1; "data1", 2 ]
+          ~f:(fun (name, tag) ->
+            [ [%string "%{label name line}:"]
+            ; [%string "    set x, %{tag#Int}"]
+            ; "    mov isr, x"
+            ; "    push"
+            ; [%string "    jmp %{label \"dcheck\" line}"]
+            ]))
+    ; field "dcheck" ~count:4 ~next:"payload"
+    ; both (fun line ->
+        [ [%string "%{label \"payload\" line}:"]
+        ; "    mov isr, null"
+        ; "    crc_init"
+        ; [%string "%{label \"word\" line}:"]
+        ; "    set y, 15"
+        ; [%string "%{label \"data_b\" line}:"]
+        ; [%string "    jmp stuff, %{label \"data_f\" line}"]
+        ]
+        @ sample "data_s" line ~one:"data_1" ~zero:"data_0" ~se0:"data_end"
+        @ [ [%string "%{label \"data_1\" line}:"]
+          ; "    set x, 1"
+          ; "    in x, 1"
+          ; [%string "    jmp y--, %{label \"data_b\" line}"]
+          ; "    push"
+          ; [%string "    jmp %{label \"word\" line}"]
+          ; [%string "%{label \"data_0\" line}:"]
+          ; "    in null, 1"
+          ; [%string "    jmp y--, %{label \"data_b\" line}"]
+          ; "    push"
+          ; [%string "    jmp %{label \"word\" line}"]
+          ; [%string "%{label \"data_f\" line}:"]
+          ; "    wait t+"
+          ; "    stuff_reset"
+          ; [%string "    jmp %{label \"data_b\" (other line)}"]
+          ])
+    ; [ "data_end:"; "    push"; "    in crc, 16"; "    mov x, isr"; "    wait t+" ]
+    ; load_isr residual ~bits:16
+    ; [ "    mov y, isr"; "    mov isr, null"; "    jmp x!=y, bad_crc" ]
+    ; handshake 0xd280
+    ; [ "bad_crc:"; "    irq"; "    jmp idle" ]
+    ; join "other"
+    ; [ "other_eop:"
+      ; "    wait t+"
+      ; "    mov x, pins"
+      ; "    jmp x--, other_eop"
+      ; "    jmp pin, idle"
+      ; "    capture_arm"
+      ; [%string "    wait 1 pin %{usb_device_dp_pin#Int}"]
+      ; "    mov t, capture"
+      ]
+    ; anchor
+    ; [ "    jmp skip" ]
     ; join "ignore"
     ; [ "skip:"; "    wait t+"; "    mov x, pins"; "    jmp x--, skip"; "    jmp idle" ]
     ; [ "hs_bit:"
