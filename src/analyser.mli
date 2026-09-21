@@ -42,3 +42,25 @@ val analyse
   -> Row.t list
 
 val to_string : side_set_count:int -> Row.t list -> string
+
+module Verdict : sig
+  type t =
+    { words : int
+    ; deadline_waits : int
+    ; worst_slack : int option
+    }
+  [@@deriving sexp_of]
+
+  val to_string : t -> string
+end
+
+(** Analyses a program under its own side-set count and wrap addresses and refuses it if
+    any deadline wait can be reached with a phase above zero, which includes a phase with
+    no upper bound. The error lists every such wait as [to_string] prints it: address,
+    instruction, phase and slack. Only deadline waits the program can reach are counted. *)
+val check
+  :  ?period:int
+  -> ?single_capture_edge:bool
+  -> config:Program_config.t
+  -> Asm.Program.t
+  -> Verdict.t Or_error.t

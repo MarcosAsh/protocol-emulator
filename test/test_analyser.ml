@@ -458,6 +458,80 @@ let%expect_test "usb rx" =
     |}]
 ;;
 
+let check ?(config = Program_config.default) ?period ?single_capture_edge source =
+  let program = Asm.assemble source |> ok_exn in
+  match Analyser.check ?period ?single_capture_edge ~config program with
+  | Ok verdict -> print_endline (Analyser.Verdict.to_string verdict)
+  | Error e -> print_endline (Error.to_string_hum e)
+;;
+
+let%expect_test "firmware that can miss a deadline is refused" =
+  check ~config:i2c_config (i2c_master ~quarter:8);
+  [%expect {| 83 words, 25 deadline waits, worst slack 0 |}];
+  check ~config:i2c_config (i2c_master ~quarter:5);
+  [%expect
+    {|
+    4 of 25 deadline waits may be missed
+     34  wait t+ side 1               phase -3..2  slack -2..3  MAY MISS
+     54  wait t+ side 1               phase -2..3  slack -3..2  MAY MISS
+     64  wait t+ side 1               phase 1  slack -1  MAY MISS
+     75  wait t+ side 1               phase 1..3  slack -3..-1  MAY MISS
+    |}];
+  (* a program with no deadline to miss *)
+  check ~config:spi_slave_config spi_slave;
+  [%expect {| 6 words, 0 deadline waits |}]
+;;
+
+let%expect_test "a deadline is only as good as what is assumed about the world" =
+  check ~config:rx_config (uart_rx ~period:16);
+  [%expect
+    {|
+    2 of 2 deadline waits may be missed
+      9  wait t+                      phase -18..?  slack ?..18  MAY MISS
+     15  wait t                       phase -9..?  slack ?..9  MAY MISS
+    a bound of ? means none: the way here has a wait for a pin or a fifo, a capture nothing is assumed about, a period the host loads, or a loop that falls further behind on every pass
+    |}];
+  check ~config:rx_config ~single_capture_edge:true (uart_rx ~period:16);
+  [%expect {| 21 words, 2 deadline waits, worst slack 3 |}];
+  check usb_tx;
+  [%expect
+    {|
+    11 of 11 deadline waits may be missed
+     10  wait t+                      phase ?..?  slack ?..?  MAY MISS
+     22  wait t+                      phase ?..?  slack ?..?  MAY MISS
+     32  wait t+                      phase ?..?  slack ?..?  MAY MISS
+     38  wait t+                      phase ?..?  slack ?..?  MAY MISS
+     40  wait t+                      phase ?..?  slack ?..?  MAY MISS
+     41  wait t+                      phase ?..?  slack ?..?  MAY MISS
+     43  wait t+                      phase ?..?  slack ?..?  MAY MISS
+     45  wait t+                      phase ?..?  slack ?..?  MAY MISS
+     50  wait t+                      phase ?..?  slack ?..?  MAY MISS
+     55  wait t+                      phase ?..?  slack ?..?  MAY MISS
+     60  wait t+                      phase ?..?  slack ?..?  MAY MISS
+    a bound of ? means none: the way here has a wait for a pin or a fifo, a capture nothing is assumed about, a period the host loads, or a loop that falls further behind on every pass
+    |}];
+  check ~config:usb_config ~period:32 usb_tx;
+  [%expect {| 65 words, 11 deadline waits, worst slack 16 |}];
+  (* the same firmware at twelve cycles a bit, which its longest path does not fit *)
+  check ~config:usb_config ~period:12 usb_tx;
+  [%expect
+    {|
+    11 of 11 deadline waits may be missed
+     10  wait t+                      phase -5..?  slack ?..5  MAY MISS
+     22  wait t+                      phase -4..?  slack ?..4  MAY MISS
+     32  wait t+                      phase -4..?  slack ?..4  MAY MISS
+     38  wait t+                      phase -4..?  slack ?..4  MAY MISS
+     40  wait t+                      phase -10..?  slack ?..10  MAY MISS
+     41  wait t+                      phase -11..?  slack ?..11  MAY MISS
+     43  wait t+                      phase -10..?  slack ?..10  MAY MISS
+     45  wait t+                      phase -5..?  slack ?..5  MAY MISS
+     50  wait t+                      phase -4..?  slack ?..4  MAY MISS
+     55  wait t+                      phase -4..?  slack ?..4  MAY MISS
+     60  wait t+                      phase -4..?  slack ?..4  MAY MISS
+    a bound of ? means none: the way here has a wait for a pin or a fifo, a capture nothing is assumed about, a period the host loads, or a loop that falls further behind on every pass
+    |}]
+;;
+
 (* The analyser is only worth anything if its intervals hold on every execution. Random
    pin levels and random host traffic push each firmware well off its happy path; the
    phase at every issue must still fall inside the row's interval, and no issue may land

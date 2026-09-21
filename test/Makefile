@@ -53,21 +53,16 @@ ifneq ($(FPGA),yes)
 COCOTB_TEST_MODULES := $(COCOTB_TEST_MODULES),test_two_engines
 endif
 
-# The firmware words are committed, because the workflows that simulate have no OCaml.
-# Where there is a dune they are reassembled first, so an encoding change reaches them.
-FIRMWARE = $(patsubst %.asm,%.hex,$(wildcard *.asm))
+# Where there is a dune the firmware words are reassembled first, so an encoding change
+# reaches them. The default stays cocotb's, though firmware.mk brings the first rule.
+.DEFAULT_GOAL := all
+include firmware.mk
 ifneq ($(shell command -v dune),)
 CUSTOM_SIM_DEPS += $(FIRMWARE)
 endif
 
 # include cocotb's make rules to take care of the simulator setup
 include $(shell cocotb-config --makefiles)/Makefile.sim
-
-firmware: $(FIRMWARE)
-%.hex: %.asm FORCE
-	cd .. && dune exec -- bin/generate.exe assemble test/$< > test/$@
-FORCE:
-.PHONY: firmware
 
 # The kit has no SRAM macro, so the program memory is the flop variant, which yosys
 # maps to block RAM.

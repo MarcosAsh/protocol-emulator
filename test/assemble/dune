@@ -1,0 +1,38 @@
+; The command line on a source file: the verdict goes to stderr, and firmware that can
+; miss a deadline leaves no words and a failing exit code.
+
+(rule
+ (with-outputs-to
+  uart_tx.gen
+  (run %{exe:../../bin/generate.exe} assemble %{dep:../uart_tx.asm})))
+
+(rule
+ (alias runtest)
+ (action
+  (diff uart_tx.expected uart_tx.gen)))
+
+(rule
+ (with-outputs-to
+  too_tight.gen
+  (with-accepted-exit-codes
+   1
+   (run %{exe:../../bin/generate.exe} assemble %{dep:too_tight.asm}))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff too_tight.expected too_tight.gen)))
+
+(rule
+ (with-outputs-to
+  too_tight_unchecked.gen
+  (run
+   %{exe:../../bin/generate.exe}
+   assemble
+   -no-timing-check
+   %{dep:too_tight.asm})))
+
+(rule
+ (alias runtest)
+ (action
+  (diff too_tight_unchecked.expected too_tight_unchecked.gen)))

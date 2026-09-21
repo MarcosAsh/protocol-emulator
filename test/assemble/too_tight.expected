@@ -1,0 +1,5 @@
+too_tight.asm: 3 of 3 deadline waits may be missed
+  8  wait t+                      phase -1..?  slack ?..1  MAY MISS
+ 11  wait t+                      phase 1..?  slack ?..-1  MAY MISS
+ 13  wait t                       phase -1..?  slack ?..1  MAY MISS
+a bound of ? means none: the way here has a wait for a pin or a fifo, a capture nothing is assumed about, a period the host loads, or a loop that falls further behind on every pass

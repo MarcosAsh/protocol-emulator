@@ -10,9 +10,21 @@ let bit_period = 32
 let addresses = 128
 
 let () =
+  (* a board runs these words, so they pass the check the command line makes, under the
+     assumptions the certificate in test_analyser is printed with *)
   let program address =
-    Firmware.assemble (Firmware.usb_device ~address ~half_period:(bit_period / 2))
-    |> Array.of_list
+    let program =
+      Asm.assemble (Firmware.usb_device ~address ~half_period:(bit_period / 2)) |> ok_exn
+    in
+    let (_ : Analyser.Verdict.t) =
+      Analyser.check
+        ~period:bit_period
+        ~single_capture_edge:true
+        ~config:Firmware.usb_device_config
+        program
+      |> ok_exn
+    in
+    Asm.Program.words program |> ok_exn |> Array.of_list
   in
   let programs = Array.init addresses ~f:program in
   let base = programs.(0) in

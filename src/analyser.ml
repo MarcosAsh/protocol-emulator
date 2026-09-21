@@ -247,3 +247,61 @@ let to_string ~side_set_count rows =
       pin_event)
   |> String.concat ~sep:"\n"
 ;;
+
+module Verdict = struct
+  type t =
+    { words : int
+    ; deadline_waits : int
+    ; worst_slack : int option
+    }
+  [@@deriving sexp_of]
+
+  let to_string t =
+    let slack =
+      Option.value_map t.worst_slack ~default:"" ~f:(fun s ->
+        [%string ", worst slack %{s#Int}"])
+    in
+    let waits = if t.deadline_waits = 1 then "wait" else "waits" in
+    [%string "%{t.words#Int} words, %{t.deadline_waits#Int} deadline %{waits}%{slack}"]
+  ;;
+end
+
+let check ?period ?single_capture_edge ~config (program : Asm.Program.t) =
+  let rows =
+    analyse
+      ?period
+      ?single_capture_edge
+      ~config:(Asm.Program.configure program config)
+      program.instructions
+  in
+  let waits = List.filter rows ~f:(fun r -> Option.is_some r.slack) in
+  match List.filter waits ~f:(fun r -> r.may_miss) with
+  | [] ->
+    let worst_slack =
+      List.filter_map waits ~f:(fun r -> Option.bind r.slack ~f:(fun s -> s.lo))
+      |> List.min_elt ~compare:Int.compare
+    in
+    Ok
+      { Verdict.words = List.length program.instructions
+      ; deadline_waits = List.length waits
+      ; worst_slack
+      }
+  | misses ->
+    let unbounded = List.exists misses ~f:(fun r -> Option.is_none r.phase.hi) in
+    [ [ [%string
+          "%{List.length misses#Int} of %{List.length waits#Int} deadline waits may be \
+           missed"]
+      ; to_string ~side_set_count:program.side_set_count misses
+      ]
+    ; (if unbounded
+       then
+         [ "a bound of ? means none: the way here has a wait for a pin or a fifo, a \
+            capture nothing is assumed about, a period the host loads, or a loop that \
+            falls further behind on every pass"
+         ]
+       else [])
+    ]
+    |> List.concat
+    |> String.concat ~sep:"\n"
+    |> Or_error.error_string
+;;

@@ -43,17 +43,65 @@ let top_rtl_command =
           C.create_exn ~name (Top.hierarchical ~memory ~engines scope))]
 ;;
 
+(* The assumptions are the analyser's, under its names. The capture pin belongs to the
+   configuration, which the host loads and a source file does not carry. *)
+let timing_check =
+  [%map_open.Command
+    let period =
+      flag
+        "-period"
+        (optional int)
+        ~doc:"N cycles every run-time load of p is assumed to carry"
+    and single_capture_edge =
+      flag
+        "-single-capture-edge"
+        no_arg
+        ~doc:" assume the capture pin makes one edge from capture_arm to the wait for it"
+    and capture_pin =
+      flag
+        "-capture-pin"
+        (optional_with_default Program_config.default.capture_pin int)
+        ~doc:"N the capture pin that assumption is about"
+    and capture_falling =
+      flag "-capture-falling" no_arg ~doc:" the capture is of a falling edge"
+    and no_timing_check =
+      flag "-no-timing-check" no_arg ~doc:" assemble firmware that may miss a deadline"
+    in
+    fun program ->
+      if no_timing_check
+      then Ok ()
+      else (
+        let config =
+          { Program_config.default with
+            capture_pin
+          ; capture_rising = not capture_falling
+          }
+        in
+        Analyser.check ?period ~single_capture_edge ~config program
+        |> Or_error.map ~f:(fun verdict ->
+          eprintf "%s\n" (Analyser.Verdict.to_string verdict)))]
+;;
+
 let assemble_command =
   Command.basic
     ~summary:"Assemble a source file and print the words in hex"
+    ~readme:(fun () ->
+      "Firmware that can reach a deadline wait late is refused, with the waits at fault.")
     [%map_open.Command
-      let file = anon ("FILE" %: string) in
+      let file = anon ("FILE" %: string)
+      and timing_check = timing_check in
       fun () ->
-        In_channel.read_all file
-        |> Asm.assemble
-        |> Or_error.bind ~f:Asm.Program.words
-        |> ok_exn
-        |> List.iter ~f:(printf "%04x\n")]
+        let words =
+          let open Or_error.Let_syntax in
+          let%bind program = In_channel.read_all file |> Asm.assemble in
+          let%bind () = timing_check program in
+          Asm.Program.words program
+        in
+        match words with
+        | Ok words -> List.iter words ~f:(printf "%04x\n")
+        | Error e ->
+          eprintf "%s: %s\n" file (Error.to_string_hum e);
+          exit 1]
 ;;
 
 let () =
