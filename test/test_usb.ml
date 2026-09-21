@@ -256,11 +256,21 @@ let run_usb_device ~address packets ~idle =
       in
       List.init bit_period ~f:(fun _ -> level))
   in
+  (* the reply delay the specification bounds: from the end of the host's SE0 to the first
+     K the device drives, two to six and a half bit times *)
+  let host_se0_ends = ref 0 in
+  let reply_starts = ref None in
+  let cycle = ref 0 in
   let t, sniffer =
     List.fold
       levels
       ~init:(t, Usb_ls.Sniffer.create ~bit_period)
       ~f:(fun (t, sniffer) (dp, dm) ->
+        Int.incr cycle;
+        if dp = 0 && dm = 0
+        then (
+          host_se0_ends := !cycle + 1;
+          reply_starts := None);
         let host n = if n = usb_device_dp_pin then dp else dm in
         let inputs = (dp lsl usb_device_dp_pin) lor (dm lsl usb_device_dm_pin) in
         let t = Machine.step t ~inputs in
@@ -272,7 +282,14 @@ let run_usb_device ~address packets ~idle =
           | None -> t
         in
         let dp, dm = usb_bus t ~host in
+        let drives = (t.pin_dir lsr usb_device_dp_pin) land 1 = 1 in
+        if drives && dp = 1 && Option.is_none !reply_starts
+        then reply_starts := Some !cycle;
         t, Usb_ls.Sniffer.step sniffer ~dp ~dm)
+  in
+  let reply_after_bit_times =
+    Option.map !reply_starts ~f:(fun start ->
+      Float.of_int (start - !host_se0_ends) /. Float.of_int bit_period)
   in
   (* the first bit received is the top bit of a word *)
   let reverse byte =
@@ -289,6 +306,7 @@ let run_usb_device ~address packets ~idle =
   print_s
     [%message
       (Usb_ls.Sniffer.packets sniffer : int list list)
+        (reply_after_bit_times : float option)
         (tag : int option)
         (bytes : int list)
         (t.irq : bool)
@@ -299,8 +317,8 @@ let%expect_test "usb device answers an IN for its address with NAK" =
   run_usb_device ~address:0 [ [ 0x69; 0x00; 0x10 ] ] ~idle:40;
   [%expect
     {|
-    (("Usb_ls.Sniffer.packets sniffer" ((105 0 16) (90))) (tag ()) (bytes ())
-     (t.irq false)
+    (("Usb_ls.Sniffer.packets sniffer" ((105 0 16) (90)))
+     (reply_after_bit_times (2.625)) (tag ()) (bytes ()) (t.irq false)
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
     |}]
@@ -323,24 +341,24 @@ let%expect_test "usb device ignores other addresses, bad token crcs and SETUP to
     ~idle:40;
   [%expect
     {|
-    (("Usb_ls.Sniffer.packets sniffer" ((105 5 208))) (tag ()) (bytes ())
-     (t.irq false)
+    (("Usb_ls.Sniffer.packets sniffer" ((105 5 208))) (reply_after_bit_times ())
+     (tag ()) (bytes ()) (t.irq false)
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
-    (("Usb_ls.Sniffer.packets sniffer" ((105 5 208) (90))) (tag ()) (bytes ())
-     (t.irq false)
+    (("Usb_ls.Sniffer.packets sniffer" ((105 5 208) (90)))
+     (reply_after_bit_times (2.625)) (tag ()) (bytes ()) (t.irq false)
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
-    (("Usb_ls.Sniffer.packets sniffer" ((105 0 24))) (tag ()) (bytes ())
-     (t.irq false)
+    (("Usb_ls.Sniffer.packets sniffer" ((105 0 24))) (reply_after_bit_times ())
+     (tag ()) (bytes ()) (t.irq false)
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
-    (("Usb_ls.Sniffer.packets sniffer" ((45 0 16))) (tag ()) (bytes ())
-     (t.irq false)
+    (("Usb_ls.Sniffer.packets sniffer" ((45 0 16))) (reply_after_bit_times ())
+     (tag ()) (bytes ()) (t.irq false)
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
     (("Usb_ls.Sniffer.packets sniffer" ((105 0 16) (90) (105 0 16) (90)))
-     (tag ()) (bytes ()) (t.irq false)
+     (reply_after_bit_times (2.625)) (tag ()) (bytes ()) (t.irq false)
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
     |}]
@@ -395,7 +413,8 @@ let%expect_test "usb device takes a SETUP and its data and acknowledges" =
     {|
     (("Usb_ls.Sniffer.packets sniffer"
       ((45 0 16) (195 128 6 0 1 0 0 64 0 221 148) (210)))
-     (tag (1)) (bytes (128 6 0 1 0 0 64 0 221 148 0 0)) (t.irq false)
+     (reply_after_bit_times (3.625)) (tag (1))
+     (bytes (128 6 0 1 0 0 64 0 221 148 0 0)) (t.irq false)
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
     |}]
@@ -422,16 +441,17 @@ let%expect_test "usb device stays silent on a bad data crc, a status packet is f
     {|
     (("Usb_ls.Sniffer.packets sniffer"
       ((45 0 16) (195 128 6 16 1 0 0 64 0 221 148)))
-     (tag (1)) (bytes (128 6 16 1 0 0 64 0 221 148 0 0)) (t.irq true)
+     (reply_after_bit_times ()) (tag (1))
+     (bytes (128 6 16 1 0 0 64 0 221 148 0 0)) (t.irq true)
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
-    (("Usb_ls.Sniffer.packets sniffer" ((225 0 16) (75 0 0) (210))) (tag (2))
-     (bytes (0 0 0 0)) (t.irq false)
+    (("Usb_ls.Sniffer.packets sniffer" ((225 0 16) (75 0 0) (210)))
+     (reply_after_bit_times (3.625)) (tag (2)) (bytes (0 0 0 0)) (t.irq false)
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
     (("Usb_ls.Sniffer.packets sniffer"
       ((45 9 152) (195 128 6 0 1 0 0 64 0 221 148) (105 0 16) (90)))
-     (tag ()) (bytes ()) (t.irq false)
+     (reply_after_bit_times (2.625)) (tag ()) (bytes ()) (t.irq false)
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
     |}]
