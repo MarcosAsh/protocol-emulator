@@ -97,6 +97,37 @@ loop:
   [%expect {| ("lockstep held" (cycles 200)) |}]
 ;;
 
+let%expect_test "the osr is empty once the pull threshold has gone out" =
+  let program =
+    assemble
+      {|
+    pull
+    out null, 7
+    jmp !osre, more
+    halt
+more:
+    out null, 1
+    jmp !osre, more
+    halt
+|}
+  in
+  let m =
+    lockstep
+      ~cycles:12
+      ~config:{ Program_config.default with pull_threshold = 8 }
+      ~program
+      ~preload:[ 0xa5 ]
+      ~inputs:(fun _ -> 0)
+      ()
+  in
+  print_s [%message (m.pc : int) (m.osr_count : int) (m.halted : bool)];
+  [%expect
+    {|
+    ("lockstep held" (cycles 12))
+    ((m.pc 7) (m.osr_count 8) (m.halted true))
+    |}]
+;;
+
 let%expect_test "faults and halt" =
   let program = assemble {|
     pull
