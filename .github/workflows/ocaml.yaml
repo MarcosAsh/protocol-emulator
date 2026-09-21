@@ -20,6 +20,17 @@ jobs:
           sudo apt-get install -y z3
           opam install . --deps-only --with-test --locked
 
+      # the workflows that run the cocotb test have no assembler and read these
+      - name: Check the committed firmware words are current
+        run: |
+          for f in test/*.asm; do
+            opam exec -- dune exec -- bin/generate.exe assemble "$f" > "${f%.asm}.hex"
+          done
+          if ! git diff --exit-code test/*.hex; then
+            echo "::error::test/*.hex are stale, reassemble them: cd test && make firmware"
+            exit 1
+          fi
+
       - name: Run tests
         run: opam exec -- dune build @runtest
 
