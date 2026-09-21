@@ -81,7 +81,7 @@ let%expect_test "host timing never reaches the pins" =
   let trial () =
     let config = Random_program.config random in
     let program = Random_program.program ~waits:`Input_pins random ~config in
-    let inputs = List.init cycles ~f:(fun _ -> int 0xfffff) in
+    let inputs = List.init cycles ~f:(fun _ -> int ((1 lsl Isa.pin_space) - 1)) in
     let words = Array.init (cycles + Machine.fifo_depth) ~f:(fun _ -> int 0xffff) in
     let run ~push ~pop =
       let next = ref 0 in
@@ -141,7 +141,7 @@ let%expect_test "host timing never reaches the pins" =
   let disagree = count `Disagree in
   let words_pulled = !words_pulled in
   print_s [%message (programs : int) (words_pulled : int) (agree : int) (disagree : int)];
-  [%expect {| ((programs 64) (words_pulled 786) (agree 64) (disagree 0)) |}]
+  [%expect {| ((programs 64) (words_pulled 603) (agree 64) (disagree 0)) |}]
 ;;
 
 (* the check values of CRC-16/USB and CRC-5/USB over "123456789" are 0xb4c8 and 0x19, both

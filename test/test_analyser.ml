@@ -509,7 +509,7 @@ let soundness ?period ?(preload = []) ~config ~cycles ~seeds words =
         match Machine.read_rx !m with
         | Some (_, popped) -> m := popped
         | None -> ());
-      m := Machine.step !m ~inputs:(int 0xfffff)
+      m := Machine.step !m ~inputs:(int ((1 lsl Isa.pin_space) - 1))
     done
   done;
   !issues, List.rev !violations
@@ -561,7 +561,7 @@ let%expect_test "random programs stay inside their analysis" =
   let issues = List.sum (module Int) results ~f:fst in
   let violations = List.sum (module Int) results ~f:(fun (_, v) -> List.length v) in
   print_s [%message (issues : int) (violations : int)];
-  [%expect {| ((issues 2835) (violations 0)) |}]
+  [%expect {| ((issues 3867) (violations 0)) |}]
 ;;
 
 let%expect_test "edge meter" =

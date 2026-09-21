@@ -135,6 +135,51 @@ loop:
     |}]
 ;;
 
+let%expect_test "a program signals itself over the wires" =
+  let program =
+    assemble
+      {|
+    set pins, 1
+    wait 1 pin 20
+    set pins, 2
+    wait 0 pin 20
+    jmp pin, seen
+    halt
+seen:
+    in pins, 3
+    push
+    wait 1 pin 22
+    add x, 1
+    halt
+|}
+  in
+  let m =
+    lockstep
+      ~cycles:60
+      ~config:
+        { Program_config.default with
+          set_base = 20
+        ; set_count = 2
+        ; in_base = 20
+        ; jmp_pin = 21
+        }
+      ~program
+      ~inputs:(fun n -> if n >= 30 then 1 lsl 22 else 0)
+      ()
+  in
+  print_s
+    [%message
+      (m.rx_fifo : int list)
+        (m.x : int)
+        ~wires:(m.pin_out lsr Isa.num_pins : int)
+        ~pin_dir:(m.pin_dir : int)];
+  [%expect
+    {|
+    ("lockstep held" (cycles 60))
+    ((m.rx_fifo (16384)) (m.x 1) (wires 2) (pin_dir 0))
+    |}]
+;;
+
 let%expect_test "the host clears the interrupt" =
   let program = assemble {|
 loop:

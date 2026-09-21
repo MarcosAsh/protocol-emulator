@@ -2,7 +2,7 @@ open! Core
 open! Hardcaml
 open! Signal
 
-let num_pins = Isa.num_pins
+let num_pins = Isa.pin_space
 let pin_bits = Int.ceil_log2 num_pins
 let first_output_pin = Isa.first_output_pin
 let first_bidir_pin = Isa.first_bidir_pin
@@ -232,14 +232,17 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   let%hw word = reg spec ~enable:ir_load memory.dout in
   let%hw sample =
     List.init num_pins ~f:(fun n ->
-      let driven =
-        if n < first_output_pin
-        then gnd
-        else if n < first_bidir_pin
-        then vdd
-        else pin_dir.:(n)
-      in
-      mux2 driven pin_out.:(n) i.inputs.:(n))
+      if n >= Isa.num_pins
+      then pin_out.:(n) |: i.inputs.:(n)
+      else (
+        let driven =
+          if n < first_output_pin
+          then gnd
+          else if n < first_bidir_pin
+          then vdd
+          else pin_dir.:(n)
+        in
+        mux2 driven pin_out.:(n) i.inputs.:(n)))
     |> concat_lsb
   in
   let pin_of v idx = mux idx (bits_lsb v) in
@@ -445,7 +448,7 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   in
   (* Pin writes: side-set first, then the instruction's own write. *)
   let output_pin n = n >= first_output_pin in
-  let bidir_pin n = n >= first_bidir_pin in
+  let bidir_pin n = n >= first_bidir_pin && n < Isa.num_pins in
   let side_count = uresize c.side_set_count ~width:count_bits in
   let set_count = uresize c.set_count ~width:count_bits in
   let%hw pin_out_side =

@@ -11,9 +11,9 @@
 module step (
   input clock, clear, start, stop, clear_irq,
   input [122:0] config_bits,
-  input [19:0] inputs,
+  input [27:0] inputs,
   input [15:0] fetched, pulled,
-  output [19:0] pin_out, pin_dir,
+  output [27:0] pin_out, pin_dir,
   output [8:0] sram_addr,
   output sram_men, sram_ren, sram_wen,
   output underflow, overflow, fifo_wait

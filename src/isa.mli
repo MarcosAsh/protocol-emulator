@@ -12,8 +12,10 @@
     land on cycles that are computable from the program alone.
 
     Pins are numbered in one flat space: inputs first, then outputs, then the
-    bidirectional pins. Shift operations on pins start at a base pin held in the program
-    configuration, as in the RP2040 PIO. *)
+    bidirectional pins, then [num_wires] wires that never leave the chip. A wire is high
+    while any engine drives it high and every engine reads it, so engines signal each
+    other with the instructions they use on pins. Shift operations on pins start at a base
+    pin held in the program configuration, as in the RP2040 PIO. *)
 
 open! Core
 open! Hardcaml
@@ -25,6 +27,11 @@ val pc_bits : int
 val delay_bits : int
 val max_side_set : int
 val num_pins : int
+val num_wires : int
+
+(** Pins and wires together: what a pin index can name. *)
+val pin_space : int
+
 val first_output_pin : int
 val first_bidir_pin : int
 val max_shift_count : int

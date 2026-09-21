@@ -11,12 +11,12 @@ module issue_timing (input clk);
   (* anyseq *) wire start, program_write_valid, tx_valid, rx_pop, clear_irq;
   (* anyseq *) wire [8:0] program_write_addr;
   (* anyseq *) wire [15:0] program_write_data, tx_value;
-  (* anyseq *) wire [19:0] inputs;
+  (* anyseq *) wire [27:0] inputs;
 
   reg clear = 1;
   always @(posedge clk) clear <= 0;
 
-  wire [19:0] pin_out, pin_dir;
+  wire [27:0] pin_out, pin_dir;
   wire [8:0] pc;
   wire [15:0] x, y, p, osr, isr, rx_head, instruction, crc;
   wire [23:0] t, now, capture;
@@ -70,7 +70,7 @@ module issue_timing (input clk);
    || (opcode == 5 && instruction[7:5] < 5)         // set
    || (opcode == 6 && instruction[5:4] != 3 && (!instruction[3] || instruction[2:0] < 5)); // alu
   wire jump = opcode == 0 && instruction[12:9] < 12;
-  wire waits = opcode == 1 && (instruction[6] ? count == 0 : count < 20);
+  wire waits = opcode == 1 && (instruction[6] ? count == 0 : count < 28);
   wire sys = opcode == 7 && instruction[7:3] == 0;
 
   // what the core registers beside the instruction always agrees with it

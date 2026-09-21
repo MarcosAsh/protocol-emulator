@@ -82,8 +82,8 @@ module Make (Comb : Comb.S) = struct
     let wait_index_ok =
       Wait_source.match_
         wait_source
-        [ Pin_level, wait_index <:. Isa.num_pins
-        ; Pin_edge, wait_index <:. Isa.num_pins
+        [ Pin_level, wait_index <:. Isa.pin_space
+        ; Pin_edge, wait_index <:. Isa.pin_space
         ; Deadline, wait_index ==:. 0
         ; Fifo, wait_index ==:. 0
         ]

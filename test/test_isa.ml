@@ -58,7 +58,7 @@ let%expect_test "rejected instructions" =
   let side_set_count = 1 in
   let try_ t = print_s [%sexp (Isa.to_word ~side_set_count t : int Or_error.t)] in
   try_ (Jmp { cond = Always; target = 512 });
-  try_ (Op { op = Wait (Pin_level { pin = 20; level = true }); delay = 0; side_set = 0 });
+  try_ (Op { op = Wait (Pin_level { pin = 28; level = true }); delay = 0; side_set = 0 });
   try_ (Op { op = In { source = Pins; count = 0 }; delay = 0; side_set = 0 });
   try_ (Op { op = Sys Nop; delay = 16; side_set = 0 });
   try_ (Op { op = Sys Nop; delay = 0; side_set = 2 });
@@ -66,7 +66,7 @@ let%expect_test "rejected instructions" =
   [%expect
     {|
     (Error (target "out of range" (value 512) (lo 0) (hi 511)))
-    (Error (pin "out of range" (value 20) (lo 0) (hi 19)))
+    (Error (pin "out of range" (value 28) (lo 0) (hi 27)))
     (Error (count "out of range" (value 0) (lo 1) (hi 16)))
     (Error (delay "out of range" (value 16) (lo 0) (hi 15)))
     (Error (side_set "out of range" (value 2) (lo 0) (hi 1)))
@@ -105,7 +105,7 @@ module Generator = struct
   open Let_syntax
 
   let enum all = of_list all
-  let pin = Int.gen_incl 0 (Isa.num_pins - 1)
+  let pin = Int.gen_incl 0 (Isa.pin_space - 1)
   let count = Int.gen_incl 1 Isa.max_shift_count
 
   let wait =
@@ -205,8 +205,8 @@ let%expect_test "every word that decodes encodes back to itself" =
     print_s [%message (side_set_count : int) (valid : int)]);
   [%expect
     {|
-    ((side_set_count 0) (valid 33536))
-    ((side_set_count 1) (valid 33536))
-    ((side_set_count 2) (valid 33536))
+    ((side_set_count 0) (valid 34560))
+    ((side_set_count 1) (valid 34560))
+    ((side_set_count 2) (valid 34560))
     |}]
 ;;

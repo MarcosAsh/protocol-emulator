@@ -7,7 +7,7 @@ let pc_mask = (1 lsl Isa.pc_bits) - 1
 let program_size = 1 lsl Isa.pc_bits
 let first_output_pin = Isa.first_output_pin
 let first_bidir_pin = Isa.first_bidir_pin
-let writable_pins = ((1 lsl Isa.num_pins) - 1) land lnot ((1 lsl first_output_pin) - 1)
+let writable_pins = ((1 lsl Isa.pin_space) - 1) land lnot ((1 lsl first_output_pin) - 1)
 let bidir_pins = ((1 lsl Isa.num_pins) - 1) land lnot ((1 lsl first_bidir_pin) - 1)
 
 module Fault = struct
@@ -110,7 +110,7 @@ let stop t = { t with halted = true }
 let flush t = if t.halted then { t with tx_fifo = []; rx_fifo = [] } else t
 let bit v i = (v lsr i) land 1
 let set_bit v i b = if b then v lor (1 lsl i) else v land lnot (1 lsl i)
-let pin i = i % Isa.num_pins
+let pin i = i % Isa.pin_space
 
 let get_pins v ~base ~count =
   List.init count ~f:(fun j -> bit v (pin (base + j)) lsl j)
@@ -123,10 +123,15 @@ let set_pins v ~base ~count ~value =
 ;;
 
 let sample_pins t ~inputs =
-  List.init Isa.num_pins ~f:Fn.id
+  List.init Isa.pin_space ~f:Fn.id
   |> List.fold ~init:0 ~f:(fun v i ->
     let driven = i >= first_output_pin && (i < first_bidir_pin || bit t.pin_dir i = 1) in
-    set_bit v i (bit (if driven then t.pin_out else inputs) i = 1))
+    let level =
+      if i >= Isa.num_pins
+      then bit t.pin_out i lor bit inputs i
+      else bit (if driven then t.pin_out else inputs) i
+    in
+    set_bit v i (level = 1))
 ;;
 
 let reverse_bits v ~width =

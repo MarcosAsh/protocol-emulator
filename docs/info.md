@@ -48,7 +48,8 @@ bit:
 ```
 
 The pins form one flat index space for firmware: 0 to 4 are `IN0` to `IN4`, 5 to 11 are
-`OUT0` to `OUT6`, and 12 to 19 are `IO0` to `IO7`, whose directions firmware sets.
+`OUT0` to `OUT6`, and 12 to 19 are `IO0` to `IO7`, whose directions firmware sets. 20 to
+27 are wires that stay inside the chip: firmware drives and reads them like pins.
 
 The host port is an SPI slave on `ui[0]` (SCK), `ui[1]` (MOSI), `ui[2]` (CS_N) and
 `uo[0]` (MISO), SCK at most one eighth of the clock. A frame is a command byte, write

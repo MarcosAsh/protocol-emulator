@@ -69,7 +69,7 @@ let default =
 
 let validate t =
   let range = Isa.in_range in
-  let pin name value = range name value ~lo:0 ~hi:(Isa.num_pins - 1) in
+  let pin name value = range name value ~lo:0 ~hi:(Isa.pin_space - 1) in
   Or_error.all_unit
     [ range "side_set_count" t.side_set_count ~lo:0 ~hi:Isa.max_side_set
     ; pin "side_set_base" t.side_set_base

@@ -23,18 +23,17 @@ module O = struct
 end
 
 (* What an engine finds on the pins besides itself: the pads, except where another engine
-   drives a bidirectional pin. Its own outputs it reads back by itself. *)
+   drives a bidirectional pin, and on the wires what the other engines drive. Its own
+   outputs it reads back by itself. Only a bidirectional pin has a direction bit to set. *)
 let seen ~pads ~(others : Signal.t Engine.O.t list) =
   match others with
   | [] -> pads
   | others ->
     let any f = List.map others ~f |> reduce ~f:( |: ) in
-    let bidir =
-      concat_msb [ ones (Isa.num_pins - Isa.first_bidir_pin); zero Isa.first_bidir_pin ]
-    in
-    let driven = any (fun e -> e.pin_dir) &: bidir in
-    let level = any (fun e -> e.pin_out &: e.pin_dir) in
-    pads &: ~:driven |: (level &: driven)
+    let wires = concat_msb [ ones Isa.num_wires; zero Isa.num_pins ] in
+    let driven = any (fun e -> e.pin_dir) in
+    let level = any (fun e -> e.pin_out &: (e.pin_dir |: wires)) in
+    pads &: ~:driven |: level
 ;;
 
 let create ~memory ~engines (scope : Scope.t) (i : Signal.t I.t) =
@@ -43,7 +42,9 @@ let create ~memory ~engines (scope : Scope.t) (i : Signal.t I.t) =
   let%hw reset_done = pipeline async ~n:2 vdd in
   let clocking = { Clocking.clock = i.clk; clear = ~:reset_done } in
   let sync x = Clocking.pipeline clocking ~n:2 x in
-  let%hw inputs = concat_msb [ sync i.uio_in; zero 7; sync i.ui_in.:[7, 3] ] in
+  let%hw inputs =
+    concat_msb [ zero Isa.num_wires; sync i.uio_in; zero 7; sync i.ui_in.:[7, 3] ]
+  in
   let engine_outs = List.init engines ~f:(fun _ -> Engine.O.Of_signal.wires ()) in
   (* the host talks to the first engine *)
   let engine_out = List.hd_exn engine_outs in

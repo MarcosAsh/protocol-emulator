@@ -16,7 +16,9 @@
     Pins 0 to 4 are input only, 5 to 11 are output only and 12 to 19 are bidirectional. A
     read of an output pin returns the driven value; a read of a bidirectional pin returns
     the driven value when its direction bit is set and the external input otherwise.
-    Writes to input-only pins are dropped.
+    Writes to input-only pins are dropped. Pins 20 to 27 are the wires: a write sets what
+    this core drives, there is no direction to set, and a read returns that ORed with what
+    [inputs] says the other cores drive.
 
     The fifos are [fifo_depth] deep. Nothing that touches a fifo ever stalls: a push into
     a full fifo drops the data and sets [overflow], a pull from an empty fifo leaves [osr]
@@ -77,8 +79,9 @@ type t = private
     reads as zero, which decodes as [jmp always 0]. *)
 val create : config:Program_config.t -> program:int list -> t Or_error.t
 
-(** [inputs] carries the external level of every pin in the flat pin space. Bits for
-    output-only pins and for bidirectional pins driven by the core are ignored. *)
+(** [inputs] carries the external level of every pin in the flat pin space, and for a wire
+    what the other cores drive. Bits for output-only pins and for bidirectional pins
+    driven by the core are ignored. *)
 val step : t -> inputs:int -> t
 
 (** Host side of the fifos and the interrupt flag. *)

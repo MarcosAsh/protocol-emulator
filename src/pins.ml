@@ -4,7 +4,7 @@ open! Hardcaml
 module Make (Comb : Comb.S) = struct
   open Comb
 
-  let num_pins = Isa.num_pins
+  let num_pins = Isa.pin_space
   let data_bits = Isa.data_bits
 
   (* A rotate by [base] in one stage per bit of it. The pins are not a power of two wide,

@@ -227,7 +227,7 @@ let random_programs ?coverage ?(wrap = true) ~programs ~cycles program =
         }
       in
       let react (m : Machine.t) = level := List.length m.tx_fifo in
-      let inputs _ = int 0xfffff in
+      let inputs _ = int ((1 lsl Isa.pin_space) - 1) in
       match run ~cycles ?coverage ~config ~program ~inputs ~host ~react () with
       | _, None -> None
       | _, Some (cycle, expected, actual) ->

@@ -8,6 +8,8 @@ let pc_bits = 9
 let delay_bits = 5
 let max_side_set = 2
 let num_pins = 20
+let num_wires = 8
+let pin_space = num_pins + num_wires
 let first_output_pin = 5
 let first_bidir_pin = 12
 let max_shift_count = 16
@@ -382,7 +384,7 @@ let decode_delay_side ~side_set_count ds =
   ds land ((1 lsl delay_width) - 1), ds lsr delay_width
 ;;
 
-let pin_index pin = in_range "pin" pin ~lo:0 ~hi:(num_pins - 1)
+let pin_index pin = in_range "pin" pin ~lo:0 ~hi:(pin_space - 1)
 let shift_count count = in_range "count" count ~lo:1 ~hi:max_shift_count
 
 let encode_wait (wait : Wait.t) =

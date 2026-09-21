@@ -9,11 +9,11 @@ module Pins = Pins.Make (G)
 module Reference = struct
   open G
 
-  let pin_bits = Int.ceil_log2 Isa.num_pins
+  let pin_bits = Int.ceil_log2 Isa.pin_space
 
   let pin_index base j =
     let s = uresize base ~width:(pin_bits + 1) +:. j in
-    mux2 (s >=:. Isa.num_pins) (s -:. Isa.num_pins) s |> sel_bottom ~width:pin_bits
+    mux2 (s >=:. Isa.pin_space) (s -:. Isa.pin_space) s |> sel_bottom ~width:pin_bits
   ;;
 
   let read sample ~base ~count =
@@ -24,7 +24,7 @@ module Reference = struct
   ;;
 
   let write old ~base ~count ~value ~writable =
-    List.init Isa.num_pins ~f:(fun i ->
+    List.init Isa.pin_space ~f:(fun i ->
       let hits =
         List.init Isa.data_bits ~f:(fun j ->
           let hit =
@@ -40,11 +40,11 @@ module Reference = struct
   ;;
 end
 
-let pins = G.input "pins" Isa.num_pins
+let pins = G.input "pins" Isa.pin_space
 let base = G.input "base" Reference.pin_bits
 let count = G.input "count" Isa.count_bits
 let value = G.input "value" Isa.data_bits
-let in_range = G.(base <:. Isa.num_pins &: (count <=:. Isa.data_bits))
+let in_range = G.(base <:. Isa.pin_space &: (count <=:. Isa.data_bits))
 
 let prove name ~claim =
   match
@@ -60,7 +60,7 @@ let%expect_test "rotating the pins is the same as indexing each one" =
   List.iter
     [ "write any pin", Fn.const true
     ; ("write output pins", fun i -> i >= Isa.first_output_pin)
-    ; ("write bidirectional pins", fun i -> i >= Isa.first_bidir_pin)
+    ; ("write bidirectional pins", fun i -> i >= Isa.first_bidir_pin && i < Isa.num_pins)
     ]
     ~f:(fun (name, writable) ->
       prove

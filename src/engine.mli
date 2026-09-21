@@ -83,7 +83,9 @@ module I : sig
     ; flush : 'a
     (** Empties both fifos. Ignored unless the core is halted, so not in the cycle of the
         [stop] that halts it. *)
-    ; inputs : 'a (** The external level of every pin in the flat pin space. *)
+    ; inputs : 'a
+    (** The external level of every pin in the flat pin space, and for a wire what the
+        other engines drive. *)
     }
   [@@deriving hardcaml]
 end

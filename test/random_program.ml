@@ -4,7 +4,7 @@ open Protocol_emulator
 let config random =
   let int hi = Splittable_random.int random ~lo:0 ~hi in
   let bool () = Splittable_random.bool random in
-  let pin () = int (Isa.num_pins - 1) in
+  let pin () = int (Isa.pin_space - 1) in
   let shift () : Program_config.Shift_direction.t = if bool () then Left else Right in
   { Program_config.side_set_count = int Isa.max_side_set
   ; side_set_base = pin ()
