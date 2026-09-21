@@ -5,6 +5,9 @@
 // pull takes. What the fifos report is left free, so two copies of [step] see different
 // levels and flags. The script then turns every register into an input and an output
 // and compares two copies, which makes this one step of an induction from any state.
+//
+// Each teeth task in host_timing.sby defines one of the names tested below, which takes
+// one part of the statement away, and the proof must then fail: every part is needed.
 module step (
   input clock, clear, start, clear_irq,
   input [122:0] config_bits,
@@ -20,6 +23,11 @@ module step (
   (* anyseq *) wire [15:0] tx_idle_head, rx_head;
 
   wire tx_pop;
+`ifdef PRIVATE_PULL
+  wire [15:0] tx_head = tx_idle_head;
+`else
+  wire [15:0] tx_head = tx_pop ? pulled : tx_idle_head;
+`endif
   wire [15:0] instruction;
   wire [7:0] opcode_onehot;
 
@@ -45,7 +53,7 @@ module step (
     .fault$underflow(underflow), .fault$overflow(overflow),
     .sram_addr(sram_addr), .sram_men(sram_men), .sram_ren(sram_ren), .sram_wen(sram_wen),
     .sram_dout(fetched),
-    .tx_fifo_pop(tx_pop), .tx_fifo_head(tx_pop ? pulled : tx_idle_head),
+    .tx_fifo_pop(tx_pop), .tx_fifo_head(tx_head),
     .tx_fifo_level(tx_level), .tx_fifo_empty(tx_empty), .tx_fifo_full(tx_full),
     .rx_fifo_head(rx_head), .rx_fifo_level(rx_level), .rx_fifo_empty(rx_empty),
     .rx_fifo_full(rx_full));
@@ -53,8 +61,14 @@ module step (
   // the core acts on the opcode it registered beside the instruction; issue_timing
   // proves the two always agree, so only such states are considered
   always @(*) assume(opcode_onehot == 8'b1 << instruction[15:13]);
-  assign fifo_wait = (instruction[15:13] == 1 && instruction[6:5] == 3)
-                  || (instruction[15:13] == 0 && instruction[12:9] >= 8);
+  assign fifo_wait = 0
+`ifndef NO_WAIT_EXCUSE
+    || (instruction[15:13] == 1 && instruction[6:5] == 3)
+`endif
+`ifndef NO_JUMP_EXCUSE
+    || (instruction[15:13] == 0 && instruction[12:9] >= 8)
+`endif
+    ;
 endmodule
 
 // From the same state, every register and every output of the two copies is the same
@@ -68,5 +82,12 @@ module host_timing;
     .trigger(trigger), .gold_fifo_wait(fifo_wait),
     .gold_underflow__d(underflow[0]), .gate_underflow__d(underflow[1]),
     .gold_overflow__d(overflow[0]), .gate_overflow__d(overflow[1]));
-  always @(*) assert(!trigger || fifo_wait || underflow != 0 || overflow != 0);
+  always @(*) assert(!trigger || fifo_wait
+`ifndef NO_UNDERFLOW_EXCUSE
+    || underflow != 0
+`endif
+`ifndef NO_OVERFLOW_EXCUSE
+    || overflow != 0
+`endif
+    );
 endmodule

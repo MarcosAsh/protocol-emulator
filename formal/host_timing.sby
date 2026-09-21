@@ -1,6 +1,15 @@
+[tasks]
+prove
+private_pull teeth
+no_wait_excuse teeth
+no_jump_excuse teeth
+no_underflow_excuse teeth
+no_overflow_excuse teeth
+
 [options]
 mode bmc
 depth 1
+teeth: expect fail
 
 [engines]
 smtbmc boolector
@@ -29,6 +38,11 @@ rename engine.rx__level rx_fifo_level
 rename engine.rx__empty rx_fifo_empty
 rename engine.rx__full rx_fifo_full
 cd ..
+private_pull: verilog_defines -DPRIVATE_PULL
+no_wait_excuse: verilog_defines -DNO_WAIT_EXCUSE
+no_jump_excuse: verilog_defines -DNO_JUMP_EXCUSE
+no_underflow_excuse: verilog_defines -DNO_UNDERFLOW_EXCUSE
+no_overflow_excuse: verilog_defines -DNO_OVERFLOW_EXCUSE
 read_verilog -formal -sv host_timing.sv
 proc
 flatten step
