@@ -64,5 +64,6 @@ jobs:
           pip install -r test/requirements.txt
           cd test
           opam exec -- make fpga_fit
+          python3 check_metrics.py --fpga fpga_kit.log >> "$GITHUB_STEP_SUMMARY"
           make FPGA=yes
           ! grep failure results.xml
