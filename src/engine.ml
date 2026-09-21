@@ -153,35 +153,11 @@ let timer_bits = Isa.timer_bits
 let pc_bits = Isa.pc_bits
 let count_bits = Isa.count_bits
 
-let pin_index base j =
-  let s = uresize base ~width:(pin_bits + 1) +:. j in
-  mux2 (s >=:. num_pins) (s -:. num_pins) s |> sel_bottom ~width:pin_bits
-;;
+module Pins = Pins.Make (Signal)
 
-let read_pins sample ~base ~count =
-  List.init data_bits ~f:(fun j ->
-    let hit = of_unsigned_int ~width:(width count) j <: count in
-    hit &: mux (pin_index base j) (bits_lsb sample))
-  |> concat_lsb
-;;
-
-let write_pins old ~base ~count ~value ~writable =
-  let value = uresize value ~width:data_bits in
-  List.init num_pins ~f:(fun i ->
-    let below = base >:. i in
-    let j =
-      mux2
-        below
-        (of_unsigned_int ~width:(pin_bits + 1) (i + num_pins)
-         -: uresize base ~width:(pin_bits + 1))
-        (of_unsigned_int ~width:(pin_bits + 1) i -: uresize base ~width:(pin_bits + 1))
-    in
-    let hit = j <: uresize count ~width:(pin_bits + 1) &: of_bool (writable i) in
-    mux2 hit (mux (sel_bottom j ~width:4) (bits_lsb value)) old.:(i))
-  |> concat_lsb
-;;
-
-let count_mask count = ~:(log_shift ~f:sll (ones data_bits) ~by:count)
+let read_pins = Pins.read
+let write_pins = Pins.write
+let count_mask = Pins.count_mask
 
 (* Schedule. The memory reads one address ahead of the instruction register [word], which
    holds the word at [pc]. An instruction issues when the core is neither halted nor
