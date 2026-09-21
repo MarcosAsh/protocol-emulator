@@ -6,6 +6,7 @@ module issue_timing (input clk);
   (* anyconst *) wire [2:0] set_count;
   (* anyconst *) wire [4:0] jmp_pin, capture_pin, push_threshold, pull_threshold;
   (* anyconst *) wire side_set_pindirs, capture_rising, in_shift_right, out_shift_right, autopush, autopull;
+  (* anyconst *) wire [8:0] wrap_bottom, wrap_top;
   (* anyseq *) wire start, program_write_valid, tx_valid, rx_pop, clear_irq;
   (* anyseq *) wire [8:0] program_write_addr;
   (* anyseq *) wire [15:0] program_write_data, tx_value;
@@ -34,6 +35,7 @@ module issue_timing (input clk);
     .config$out_shift_right(out_shift_right), .config$autopush(autopush),
     .config$push_threshold(push_threshold), .config$autopull(autopull),
     .config$pull_threshold(pull_threshold),
+    .config$wrap_bottom(wrap_bottom), .config$wrap_top(wrap_top),
     .start(start), .program_write$valid(program_write_valid),
     .program_write$addr(program_write_addr), .program_write$data(program_write_data),
     .tx$valid(tx_valid), .tx$value(tx_value), .rx_pop(rx_pop), .clear_irq(clear_irq),

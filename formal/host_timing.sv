@@ -7,7 +7,7 @@
 // and compares two copies, which makes this one step of an induction from any state.
 module step (
   input clock, clear, start, clear_irq,
-  input [104:0] config_bits,
+  input [122:0] config_bits,
   input [19:0] inputs,
   input [15:0] fetched, pulled,
   output [19:0] pin_out, pin_dir,
@@ -37,6 +37,7 @@ module step (
     .config$crc_width(config_bits[65:61]), .config$crc_poly(config_bits[81:66]),
     .config$crc_init(config_bits[97:82]), .config$crc_reflect(config_bits[98]),
     .config$stuff_threshold(config_bits[103:99]), .config$stuff_level(config_bits[104]),
+    .config$wrap_bottom(config_bits[113:105]), .config$wrap_top(config_bits[122:114]),
     .start(start), .program_write$valid(1'b0), .program_write$addr(9'b0),
     .program_write$data(16'b0), .tx$valid(1'b0), .tx$value(16'b0), .rx_pop(1'b0),
     .clear_irq(clear_irq), .inputs(inputs),
