@@ -146,6 +146,16 @@ loop:
     push
     jmp loop
 |};
+  run ~words {|
+    pull
+    out null, 7
+    jmp !osre, more
+    halt
+more:
+    out null, 1
+    jmp !osre, more
+    halt
+|};
   run {|
     pull
     halt
