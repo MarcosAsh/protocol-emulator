@@ -59,3 +59,8 @@ end
 
 (** The pins on every cycle, and the words each [Read] returned. *)
 val run : Scenario.t -> Line.t list * int list list
+
+(** One line per run of identical cycles: the run length in decimal, then [ui_in],
+    [uio_in], [uo_out], [uio_out] and [uio_oe] in hex. Lines starting with [#] are
+    comments. *)
+val to_string : Scenario.t -> Line.t list -> string

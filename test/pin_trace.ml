@@ -16,6 +16,10 @@ module Line = struct
     ; uio_oe : int
     }
   [@@deriving sexp_of, equal]
+
+  let to_string t =
+    sprintf "%02x %02x %02x %02x %02x" t.ui_in t.uio_in t.uo_out t.uio_out t.uio_oe
+  ;;
 end
 
 module Peer = struct
@@ -124,4 +128,18 @@ let run (scenario : Scenario.t) =
              None)
        in
        List.rev !lines, reads)
+;;
+
+let to_string (scenario : Scenario.t) lines =
+  let runs =
+    List.group lines ~break:(fun a b -> not (Line.equal a b))
+    |> List.map ~f:(fun run ->
+      sprintf "%d %s\n" (List.length run) (Line.to_string (List.hd_exn run)))
+  in
+  String.concat
+    ([ sprintf "# %s, from test/pin_trace.ml: do not edit\n" scenario.name
+     ; "# cycles ui_in uio_in uo_out uio_out uio_oe; cycle 0 is the first rising edge\n"
+     ; "# after rst_n rises, outputs are the values after the edge\n"
+     ]
+     @ runs)
 ;;
