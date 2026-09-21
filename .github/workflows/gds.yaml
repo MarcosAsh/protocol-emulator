@@ -39,6 +39,20 @@ jobs:
       - name: Check timing and signoff
         run: python3 test/check_metrics.py runs/wokwi/final/metrics.json
 
+      # a failed check is when the numbers matter most
+      - name: Log the metrics
+        if: success() || failure()
+        run: |
+          python3 test/check_metrics.py --csv runs/wokwi/final/metrics.json > metrics.csv
+          { echo '```'; cat metrics.csv; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish the metrics
+        if: success() || failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: metrics
+          path: metrics.csv
+
   precheck:
     needs: gds
     runs-on: ubuntu-24.04
