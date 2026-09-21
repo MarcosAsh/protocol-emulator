@@ -2,7 +2,7 @@ open! Core
 open! Hardcaml
 open! Signal
 
-let depth = 4
+let depth = 8
 let level_bits = Int.ceil_log2 (depth + 1)
 
 module I = struct

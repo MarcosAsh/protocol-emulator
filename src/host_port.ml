@@ -89,7 +89,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let reg16 x = uresize x ~width:Isa.data_bits in
   let status_word =
     concat_msb
-      [ zero 4
+      [ zero (Isa.data_bits - 6 - (2 * Host_fifo.level_bits))
       ; s.rx_level
       ; s.tx_level
       ; s.fault.decode

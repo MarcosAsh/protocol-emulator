@@ -71,7 +71,7 @@ class Host:
         return {
             "halted": s & 1, "irq": (s >> 1) & 1, "underflow": (s >> 2) & 1,
             "overflow": (s >> 3) & 1, "missed_deadline": (s >> 4) & 1,
-            "decode": (s >> 5) & 1, "tx_level": (s >> 6) & 7, "rx_level": (s >> 9) & 7,
+            "decode": (s >> 5) & 1, "tx_level": (s >> 6) & 15, "rx_level": (s >> 10) & 15,
         }
 
     def now(self):
