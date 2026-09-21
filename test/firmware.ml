@@ -849,7 +849,7 @@ let usb_device ~address ~half_period =
     ; anchor
     ; [ "    jmp sync_j" ]
     ; skip "sync" ~count:8 ~next:"pid0"
-    ; node "pid0" ~one:"pid1" ~zero:"ignore"
+    ; node "pid0" ~one:"pid1" ~zero:"acked"
     ; node "pid1" ~one:"data2" ~zero:"pid2"
     ; node "data2" ~one:"ignore" ~zero:"data3"
     ; node "data3" ~one:"data1" ~zero:"data0"
@@ -889,9 +889,10 @@ let usb_device ~address ~half_period =
       ; "    wait t+"
       ; "    mov x, pins"
       ; "    jmp x--, eop"
-      ; "    jmp pin, nak"
+      ; "    jmp pin, in_reply"
       ; "    jmp idle"
-      ; "nak:"
+      ; "in_reply:"
+      ; "    jmp tx, send"
       ]
     ; handshake 0x5a80
     ; both (fun line ->
@@ -936,6 +937,13 @@ let usb_device ~address ~half_period =
     ; [ "    mov y, isr"; "    mov isr, null"; "    jmp x!=y, bad_crc" ]
     ; handshake 0xd280
     ; [ "bad_crc:"; "    irq"; "    jmp idle" ]
+    ; both (fun line ->
+        [ [%string "%{label \"acked\" line}:"]
+        ; "    set x, 3"
+        ; "    mov isr, x"
+        ; "    push"
+        ; "    jmp skip"
+        ])
     ; join "other"
     ; [ "other_eop:"
       ; "    wait t+"
@@ -950,11 +958,20 @@ let usb_device ~address ~half_period =
     ; [ "    jmp skip" ]
     ; join "ignore"
     ; [ "skip:"; "    wait t+"; "    mov x, pins"; "    jmp x--, skip"; "    jmp idle" ]
-    ; [ "hs:"
+    ; [ "send:"
+      ; "    wait t+"
+      ; "    pull"
+      ; "    stuff_reset"
+      ; "    wait t+"
+      ; "    wait t+"
+      ; "    set pins, 6"
+      ; "    jmp hs_go"
+      ; "hs:"
       ; "    mov osr, isr"
       ; "    wait t+"
       ; "    wait t+"
       ; "    set pins, 2"
+      ; "hs_go:"
       ; "    set pindirs, 7"
       ; "    set y, 15"
       ; "hs_bit:"
@@ -964,6 +981,8 @@ let usb_device ~address ~half_period =
       ; "    mov pins, !pins"
       ; "hs_keep:"
       ; "    jmp y--, hs_bit"
+      ; "    jmp pin, payload_tx"
+      ; "eop_tx:"
       ; "    wait t+"
       ; "    nop [2]"
       ; "    set pins, 4"
@@ -973,6 +992,47 @@ let usb_device ~address ~half_period =
       ; "    set pins, 6"
       ; "    wait t+"
       ; "    jmp idle"
+      ; "payload_tx:"
+      ; "    pull"
+      ; "    mov y, osr"
+      ; "    out null, 16"
+      ; "    crc_init"
+      ; "    jmp y--, tx_bit"
+      ; "    jmp tx_crc"
+      ]
+    ; List.concat_map
+        [ "tx", "tx_crc"; "crc", "crc_done" ]
+        ~f:(fun (name, next) ->
+          [ [%string "%{name}_bit:"]
+          ; [%string "    jmp stuff, %{name}_stuff"]
+          ; "    wait t+"
+          ; "    out x, 1"
+          ; [%string "    jmp x--, %{name}_keep"]
+          ; "    mov pins, !pins"
+          ; [%string "%{name}_keep:"]
+          ; [%string "    jmp y--, %{name}_bit"]
+          ; [%string "    jmp %{next}"]
+          ; [%string "%{name}_stuff:"]
+          ; "    wait t+"
+          ; "    nop [2]"
+          ; "    mov pins, !pins"
+          ; "    stuff_reset"
+          ; [%string "    jmp %{name}_bit"]
+          ])
+    ; [ "tx_crc:"
+      ; "    in crc, 16"
+      ; "    mov osr, !isr"
+      ; "    mov isr, null"
+      ; "    set y, 15"
+      ; "    jmp crc_bit"
+      ; "crc_done:"
+      ; "    jmp stuff, last_stuff"
+      ; "    jmp eop_tx"
+      ; "last_stuff:"
+      ; "    wait t+"
+      ; "    nop [2]"
+      ; "    mov pins, !pins"
+      ; "    jmp eop_tx"
       ]
     ]
   |> String.concat ~sep:"\n"
