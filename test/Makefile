@@ -79,3 +79,9 @@ fpga_fit: fpga_netlist.v
 	yosys -q -p "read_verilog -sv fpga_kit_top.v $(SRC_DIR)/project.v fpga_top.v; synth_ice40 -top tt_fpga_top -json fpga_kit.json"
 	nextpnr-ice40 --up5k --package sg48 --json fpga_kit.json --pcf ../tt/fpga/tt_fpga_top.pcf --pcf-allow-unconstrained --freq $(FPGA_MHZ) --seed 1 -q --log fpga_kit.log
 	grep -h "ICESTORM_LC:\|Max frequency" fpga_kit.log | tail -3
+
+# Replays the pin traces in traces/, recorded from the OCaml simulation of the top, on
+# whichever netlist the mode selects: make replay, make replay GATES=yes or FPGA=yes.
+replay:
+	$(MAKE) sim COCOTB_TEST_MODULES=test_replay COCOTB_RESULTS_FILE=results_replay.xml
+	$(PYTHON_BIN) -m cocotb_tools.check_results results_replay.xml
