@@ -56,3 +56,6 @@ module Scenario : sig
 
   val start : Step.t
 end
+
+(** The pins on every cycle, and the words each [Read] returned. *)
+val run : Scenario.t -> Line.t list * int list list
