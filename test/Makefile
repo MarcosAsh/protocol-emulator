@@ -47,7 +47,7 @@ VERILOG_SOURCES += $(PWD)/tb.v
 TOPLEVEL = tb
 
 # List test modules to run, separated by commas and without the .py suffix:
-COCOTB_TEST_MODULES = test
+COCOTB_TEST_MODULES = test,test_usb_board
 
 # The firmware words are committed, because the workflows that simulate have no OCaml.
 # Where there is a dune they are reassembled first, so an encoding change reaches them.

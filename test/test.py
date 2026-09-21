@@ -40,7 +40,8 @@ class Pins:
         for b in range(7, -1, -1):
             self.mosi = (out >> b) & 1
             await self.wait(HALF)
-            bit = int(self.dut.uo_out.value) & 1
+            # MISO alone: the other outputs may not have been driven yet
+            bit = 1 if str(self.dut.uo_out.value)[-1] == "1" else 0
             self.sck = 1
             await self.wait(HALF)
             self.sck = 0

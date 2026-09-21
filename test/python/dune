@@ -1,0 +1,15 @@
+(executable
+ (name write_usb_firmware)
+ (libraries core hardcaml protocol_emulator protocol_emulator_test)
+ (preprocess
+  (pps ppx_jane)))
+
+(rule
+ (with-stdout-to
+  usb_device_firmware.py.gen
+  (run ./write_usb_firmware.exe)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff ../../python/usb_device_firmware.py usb_device_firmware.py.gen)))
