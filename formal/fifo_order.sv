@@ -1,0 +1,46 @@
+// The other half of P3: a fifo hands over the words it was given, in order, whenever
+// they were pushed and popped. One pushed word is followed from the push to the head.
+module fifo_order (input clk);
+  (* anyconst *) wire [15:0] word;
+  (* anyseq *) wire push_valid, pop, follow;
+  (* anyseq *) wire [15:0] push_value;
+
+  reg clear = 1;
+  always @(posedge clk) clear <= 0;
+
+  wire [15:0] head;
+  wire [2:0] level;
+  wire empty, full;
+
+  host_fifo dut (
+    .clock(clk), .clear(clear), .push$valid(push_valid), .push$value(push_value),
+    .pop(pop), .head(head), .level(level), .empty(empty), .full(full));
+
+  wire pushed = push_valid && !full;
+  wire popped = pop && !empty;
+
+  reg following = 0;
+  reg [2:0] ahead = 0;
+  always @(posedge clk)
+    if (clear) following <= 0;
+    else if (!following && follow && pushed && push_value == word) begin
+      following <= 1;
+      ahead <= level - popped;
+    end else if (following && popped) begin
+      if (ahead == 0) following <= 0;
+      else ahead <= ahead - 1;
+    end
+
+  always @(posedge clk)
+    if (!clear) begin
+      assert(level <= 4);
+      assert(empty == (level == 0));
+      if (following) assert(!empty && ahead < level);
+      if (following && ahead == 0) assert(head == word);
+    end
+
+  always @(posedge clk) begin
+    cover(following && ahead == 3);
+    cover(following && ahead == 0 && popped && level == 4);
+  end
+endmodule
