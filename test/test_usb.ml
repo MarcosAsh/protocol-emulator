@@ -315,3 +315,35 @@ let%expect_test "usb device ignores other addresses, bad token crcs and SETUP to
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
     |}]
 ;;
+
+let%expect_test "usb device in lockstep" =
+  let bit_period = 32 in
+  let levels =
+    List.concat_map
+      [ usb_token ~pid:0x69 ~address:3; usb_token ~pid:0x69 ~address:0 ]
+      ~f:(fun packet ->
+        List.init 8 ~f:(fun _ -> Usb_ls.Line.J)
+        @ Usb_ls.encode packet
+        @ List.init 40 ~f:(fun _ -> Usb_ls.Line.J))
+    |> List.concat_map ~f:(fun line ->
+      let dp, dm =
+        match (line : Usb_ls.Line.t) with
+        | J -> 0, 1
+        | K -> 1, 0
+        | Se0 -> 0, 0
+      in
+      List.init bit_period ~f:(fun _ ->
+        (dp lsl usb_device_dp_pin) lor (dm lsl usb_device_dm_pin)))
+    |> Array.of_list
+  in
+  let (_ : Machine.t) =
+    Lockstep.lockstep
+      ~cycles:(Array.length levels)
+      ~config:usb_device_config
+      ~program:(assemble (usb_device ~address:3 ~half_period:(bit_period / 2)))
+      ~preload:[ bit_period ]
+      ~inputs:(fun n -> levels.(n))
+      ()
+  in
+  [%expect {| |}]
+;;
