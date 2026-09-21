@@ -4,7 +4,11 @@ open Firmware
 
 let report ?(config = Program_config.default) ?period ?single_capture_edge source =
   let program = Asm.assemble source |> ok_exn in
-  Analyser.analyse ?period ?single_capture_edge ~config program.instructions
+  Analyser.analyse
+    ?period
+    ?single_capture_edge
+    ~config:(Asm.Program.configure program config)
+    program.instructions
   |> Analyser.to_string ~side_set_count:program.side_set_count
   |> print_endline
 ;;
@@ -576,5 +580,27 @@ let%expect_test "edge meter" =
      9  nop [3]                      phase -14
     10  in capture, 16               phase -10
     11  jmp 4                        phase -9
+    |}]
+;;
+
+let%expect_test "a wrapped loop toggles every two cycles with no jitter" =
+  report
+    ~config:{ Program_config.default with in_base = 5 }
+    {|
+    set p, 2
+    mov t, now
+    add t, p
+.wrap_target
+    wait t+
+    mov pins, !pins
+.wrap
+|};
+  [%expect
+    {|
+    0  set p, 2                     phase ?..?
+    1  mov t, now                   phase ?..?
+    2  add t, p                     phase 1
+    3  wait t+                      phase 0  slack 0
+    4  mov pins, !pins              phase -1  edge 0
     |}]
 ;;
