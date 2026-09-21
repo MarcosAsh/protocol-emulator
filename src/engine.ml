@@ -136,6 +136,8 @@ module O = struct
     ; rx_level : 'a [@bits Host_fifo.level_bits]
     ; rx_head : 'a [@bits Isa.data_bits]
     ; instruction : 'a [@bits Isa.word_bits]
+    ; decode_ok : 'a
+    ; opcode_onehot : 'a [@bits List.length Isa.Opcode.Cases.all]
     ; crc : 'a [@bits Isa.data_bits]
     ; stuff_run : 'a [@bits Isa.count_bits]
     }
@@ -257,7 +259,7 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   let pin_of v idx = mux idx (bits_lsb v) in
   let module D = Decoder.Make (Signal) in
   let%hw.Decoder.Decoded.Of_signal d = D.decode ~side_set_count:c.side_set_count word in
-  let%tydi { Decoder.Decoded.valid = decode_ok
+  let%tydi { Decoder.Decoded.valid = _
            ; opcode
            ; delay
            ; side_set
@@ -284,7 +286,20 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
     =
     d
   in
-  let is op = Isa.Opcode.Of_signal.is opcode op in
+  (* Whether the word decodes and which opcode it is are worked out on the memory's output
+     and registered with the word, so the enables that gate every register start from a
+     flop and not from the decoder. Neither depends on the configuration. *)
+  let fetched = D.decode ~side_set_count:c.side_set_count memory.dout in
+  let%hw decode_ok = reg spec ~enable:ir_load ~clear_to:vdd fetched.valid in
+  let%hw_list is_opcode =
+    List.map Isa.Opcode.Cases.all ~f:(fun op ->
+      reg
+        spec
+        ~enable:ir_load
+        ~clear_to:(of_bool (Isa.Opcode.to_int op = 0))
+        (Isa.Opcode.Of_signal.is fetched.opcode op))
+  in
+  let is op = List.nth_exn is_opcode (Isa.Opcode.to_int op) in
   let is_sys op = is Sys &: Isa.Sys_op.Of_signal.is sys_op op in
   let module Deadline = Deadline.Make (Signal) in
   let%hw deadline_ready = Deadline.release ~now ~t in
@@ -689,6 +704,8 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   ; rx_level = rx.level
   ; rx_head = rx.head
   ; instruction = word
+  ; decode_ok
+  ; opcode_onehot = concat_lsb is_opcode
   ; crc
   ; stuff_run
   }

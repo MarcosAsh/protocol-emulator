@@ -107,6 +107,8 @@ module O : sig
     ; rx_level : 'a
     ; rx_head : 'a
     ; instruction : 'a (** The word at [pc]. *)
+    ; decode_ok : 'a (** Registered with [instruction]: whether it decodes. *)
+    ; opcode_onehot : 'a (** Registered with [instruction]: bit [n] for opcode [n]. *)
     ; crc : 'a
     ; stuff_run : 'a
     }
