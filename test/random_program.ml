@@ -30,8 +30,8 @@ let config random =
   ; crc_reflect = bool ()
   ; stuff_threshold = int 31
   ; stuff_level = bool ()
-  ; wrap_bottom = Program_config.default.wrap_bottom
-  ; wrap_top = Program_config.default.wrap_top
+  ; wrap_bottom = int ((1 lsl Isa.pc_bits) - 1)
+  ; wrap_top = int ((1 lsl Isa.pc_bits) - 1)
   }
 ;;
 
