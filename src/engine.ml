@@ -95,6 +95,20 @@ module Program_write = struct
   [@@deriving hardcaml]
 end
 
+module Host = struct
+  type 'a t =
+    { config : 'a Config.t
+    ; start : 'a
+    ; program_write : 'a Program_write.t
+    ; tx : 'a With_valid.t [@bits Isa.data_bits]
+    ; rx_pop : 'a
+    ; clear_irq : 'a
+    ; stop : 'a
+    ; flush : 'a
+    }
+  [@@deriving hardcaml]
+end
+
 module Memory = struct
   type t =
     | Flops

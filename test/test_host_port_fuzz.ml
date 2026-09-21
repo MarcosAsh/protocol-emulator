@@ -2,7 +2,12 @@ open! Core
 open! Hardcaml
 open Hardcaml_lws
 open Protocol_emulator
-module Harness = Hardcaml_test_harness.Lws_harness.Make (Host_port.I) (Host_port.O)
+
+module Dut = Host_port.Make (struct
+    let engines = 1
+  end)
+
+module Harness = Hardcaml_test_harness.Lws_harness.Make (Dut.I) (Dut.O)
 module Model = Host_port_model
 module Reg = Host_port.Reg
 module Status = Host_port.Status
@@ -16,7 +21,7 @@ let random_status random =
     Splittable_random.int random ~lo:0 ~hi:((1 lsl width) - 1))
 ;;
 
-let events (o : Bits.t ref Host_port.O.t) =
+let events (o : Bits.t ref Engine.Host.t) =
   let int r = Bits.to_unsigned_int !r in
   let on r (event : Model.Event.t) = Option.some_if (Bits.to_bool !r) event in
   List.filter_opt
@@ -54,9 +59,11 @@ let fuzz ?(halves = [ 4; 4; 5; 7; 12 ]) ?(edge = 1) ~seed ~frames () =
   let random = Splittable_random.of_int seed in
   Harness.run
     ~random_initial_state:`All
-    ~create:Host_port.hierarchical
+    ~create:Dut.hierarchical
     (fun (h @ local) ~inputs ~outputs ->
        let o = Before_and_after_edge.after_edge outputs in
+       let engine = List.hd_exn o.engines in
+       let status_in = List.hd_exn inputs.status in
        let seen = ref [] in
        let rx = ref (List.init 200 ~f:(fun n -> 0x4000 + n)) in
        let popped = ref false in
@@ -64,9 +71,9 @@ let fuzz ?(halves = [ 4; 4; 5; 7; 12 ]) ?(edge = 1) ~seed ~frames () =
        let miso_high_when_idle = ref false in
        let cycle () =
          if !popped then rx := List.drop !rx 1;
-         inputs.status.rx_head <--. Option.value (List.hd !rx) ~default:empty_rx;
+         status_in.rx_head <--. Option.value (List.hd !rx) ~default:empty_rx;
          Lws.step h;
-         let now = events o in
+         let now = events engine in
          popped := List.mem now Rx_pop ~equal:Model.Event.equal;
          seen := List.rev_append now !seen;
          idle := if Bits.to_bool !(inputs.cs_n) then !idle + 1 else 0;
@@ -89,7 +96,7 @@ let fuzz ?(halves = [ 4; 4; 5; 7; 12 ]) ?(edge = 1) ~seed ~frames () =
        let judge = ref (fun () -> ()) in
        let run frame_number (frame : Frame.t) =
          let status = random_status random in
-         Status.iter2 inputs.status status ~f:(fun port value -> port <--. value);
+         Status.iter2 status_in status ~f:(fun port value -> port <--. value);
          let words = List.take frame.words (Frame.complete_words frame) in
          let expected_events, expected_replies =
            if frame.write
@@ -154,7 +161,7 @@ let fuzz ?(halves = [ 4; 4; 5; 7; 12 ]) ?(edge = 1) ~seed ~frames () =
               words_read := !words_read + List.length replies;
               let config =
                 Engine.Config.to_list
-                  (Engine.Config.map o.config ~f:(fun r -> Bits.to_unsigned_int !r))
+                  (Engine.Config.map engine.config ~f:(fun r -> Bits.to_unsigned_int !r))
               in
               if Option.is_none !failure
                  && not

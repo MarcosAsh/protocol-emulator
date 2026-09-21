@@ -2,10 +2,14 @@
     state after every clock edge. *)
 
 open! Core
+open! Hardcaml
 open Protocol_emulator
 
 module State : sig
-  type t [@@deriving sexp_of]
+  type t [@@deriving sexp_of, equal]
+
+  val of_machine : Machine.t -> t
+  val of_outputs : Bits.t ref Engine.O.t -> t
 end
 
 (** What the host does in one cycle. *)

@@ -70,6 +70,21 @@ module Program_write : sig
   [@@deriving hardcaml]
 end
 
+(** What the host port hands one engine: the fields of [I] by the same names. *)
+module Host : sig
+  type 'a t =
+    { config : 'a Config.t
+    ; start : 'a
+    ; program_write : 'a Program_write.t
+    ; tx : 'a With_valid.t
+    ; rx_pop : 'a
+    ; clear_irq : 'a
+    ; stop : 'a
+    ; flush : 'a
+    }
+  [@@deriving hardcaml]
+end
+
 module I : sig
   type 'a t =
     { clocking : 'a Clocking.t

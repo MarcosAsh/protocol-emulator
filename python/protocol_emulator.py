@@ -12,6 +12,7 @@ TX = 0x07
 RX = 0x08
 PROGRAM_ADDR = 0x09
 PROGRAM = 0x0A
+SELECT = 0x0B
 CONFIG = 0x10
 
 CONFIG_FIELDS = [
@@ -45,6 +46,10 @@ class Host:
     def read(self, reg, count=1):
         reply = self.transfer([reg] + [0] * (2 * count))[1:]
         return [(reply[i] << 8) | reply[i + 1] for i in range(0, 2 * count, 2)]
+
+    def select(self, engine):
+        """Every call after this reaches that engine; a chip with one engine ignores it."""
+        self.write(SELECT, [engine])
 
     def configure(self, config):
         for n, name in enumerate(CONFIG_FIELDS):
@@ -80,6 +85,7 @@ class Host:
             "halted": s & 1, "irq": (s >> 1) & 1, "underflow": (s >> 2) & 1,
             "overflow": (s >> 3) & 1, "missed_deadline": (s >> 4) & 1,
             "decode": (s >> 5) & 1, "tx_level": (s >> 6) & 15, "rx_level": (s >> 10) & 15,
+            "other_irq": (s >> 15) & 1,
         }
 
     def now(self):

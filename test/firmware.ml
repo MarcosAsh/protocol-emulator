@@ -30,15 +30,15 @@ let uart_tx ~period = [%string "    set p, %{period#Int}%{uart_tx_frame}"]
 let uart_tx_host_rate = [%string "    pull\n    mov p, osr%{uart_tx_frame}"]
 
 (* half period one short: the sample lands a cycle after the release *)
-let uart_rx ~period =
+let uart_rx_on ~pin ~period =
   [%string
     {|
     set p, %{period#Int}
     set y, %{(period / 2) - 1#Int}
-    wait 1 pin 0             ; line idle
+    wait 1 pin %{pin#Int}             ; line idle
     capture_arm
 idle:
-    wait 0 pin 0             ; start bit, its edge cycle is in capture
+    wait 0 pin %{pin#Int}             ; start bit, its edge cycle is in capture
     mov t, capture
     add t, y
     add t, p                 ; middle of bit 0
@@ -53,11 +53,13 @@ bit:
     wait t                   ; middle of the stop bit
     jmp pin, idle
     irq                      ; framing error
-    wait 1 pin 0
+    wait 1 pin %{pin#Int}
     capture_arm
     jmp idle
 |}]
 ;;
+
+let uart_rx ~period = uart_rx_on ~pin:0 ~period
 
 let rx_config =
   { Program_config.default with

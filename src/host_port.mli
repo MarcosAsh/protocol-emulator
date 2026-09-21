@@ -6,7 +6,14 @@
     fifos; the program can only be written and the fifos only flushed while the core is
     halted, so a flush takes a write of its own after the stop), 1 status, 2 pc, 3 and 4
     now, 5 and 6 capture, 7 tx fifo, 8 rx fifo (a read pops), 9 program address, 10
-    program word (a write increments the address), 16 onwards the config fields in order. *)
+    program word (a write increments the address), 11 select, 16 onwards the config fields
+    in order.
+
+    With more than one engine, select names the engine that every other register but the
+    program address reaches: control, status, pc, now, capture, both fifos, the program
+    window and the config fields, which each engine has for itself. It resets to 0, and a
+    number past the last engine reaches none. Status bit 15 says some other engine has its
+    irq up. With one engine there is no select and the bit stays low. *)
 
 open! Core
 open! Hardcaml
@@ -22,32 +29,6 @@ module Status : sig
     ; tx_level : 'a
     ; rx_level : 'a
     ; rx_head : 'a
-    }
-  [@@deriving hardcaml]
-end
-
-module I : sig
-  type 'a t =
-    { clocking : 'a Clocking.t
-    ; sck : 'a
-    ; mosi : 'a
-    ; cs_n : 'a
-    ; status : 'a Status.t
-    }
-  [@@deriving hardcaml]
-end
-
-module O : sig
-  type 'a t =
-    { miso : 'a
-    ; start : 'a
-    ; clear_irq : 'a
-    ; stop : 'a
-    ; flush : 'a
-    ; program_write : 'a Engine.Program_write.t
-    ; tx : 'a With_valid.t
-    ; rx_pop : 'a
-    ; config : 'a Engine.Config.t
     }
   [@@deriving hardcaml]
 end
@@ -72,7 +53,33 @@ module Reg : sig
   val rx : int
   val program_addr : int
   val program : int
+  val select : int
   val config : int
 end
 
-val hierarchical : ?instance:string -> Scope.t -> Signal.t I.t -> Signal.t O.t
+module type Config = sig
+  val engines : int
+end
+
+module Make (_ : Config) : sig
+  module I : sig
+    type 'a t =
+      { clocking : 'a Clocking.t
+      ; sck : 'a
+      ; mosi : 'a
+      ; cs_n : 'a
+      ; status : 'a Status.t list
+      }
+    [@@deriving hardcaml]
+  end
+
+  module O : sig
+    type 'a t =
+      { miso : 'a
+      ; engines : 'a Engine.Host.t list
+      }
+    [@@deriving hardcaml]
+  end
+
+  val hierarchical : ?instance:string -> Scope.t -> Signal.t I.t -> Signal.t O.t
+end

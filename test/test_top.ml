@@ -60,6 +60,66 @@ let%expect_test "the host loads and runs the uart transmitter over spi" =
     |}]
 ;;
 
+(* the chip's own self-test: the host loads a transmitter into engine 0 and a receiver
+   into engine 1, they talk over a wire, and the host reads what arrived from engine 1 *)
+let%expect_test "two engines talk over a wire and the host reads the result" =
+  let period = 16 in
+  let wire = Isa.num_pins in
+  Harness.run
+    ~random_initial_state:`All
+    ~create:(Top.hierarchical ~memory:Flops ~engines:2)
+    (fun (h @ local) ~inputs ~outputs ->
+       let cycle ?n () = Lws.step ?n h in
+       let o = Before_and_after_edge.after_edge outputs in
+       let sck = ref Bits.gnd
+       and mosi = ref Bits.gnd
+       and cs_n = ref Bits.vdd
+       and miso = ref Bits.gnd in
+       let watch n =
+         inputs.ui_in := Bits.concat_msb [ Bits.zero 5; !cs_n; !mosi; !sck ];
+         cycle ~n ();
+         miso := Bits.lsb !(o.uo_out)
+       in
+       inputs.rst_n := Bits.gnd;
+       inputs.ena := Bits.vdd;
+       cycle ~n:3 ();
+       inputs.rst_n := Bits.vdd;
+       cycle ~n:4 ();
+       let m = Spi_master.create ~sck ~mosi ~cs_n ~miso ~half:4 in
+       let load engine ~config ~program =
+         Spi_master.write m ~watch Reg.select [ engine ];
+         Engine.Config.of_program_config config
+         |> Engine.Config.map ~f:Bits.to_unsigned_int
+         |> Engine.Config.to_list
+         |> List.iteri ~f:(fun n v -> Spi_master.write m ~watch (Reg.config + n) [ v ]);
+         Spi_master.write m ~watch Reg.program_addr [ 0 ];
+         Spi_master.write m ~watch Reg.program (assemble program)
+       in
+       load
+         1
+         ~config:{ rx_config with in_base = wire; jmp_pin = wire; capture_pin = wire }
+         ~program:(uart_rx_on ~pin:wire ~period);
+       Spi_master.write m ~watch Reg.control [ 1 ];
+       load
+         0
+         ~config:{ Program_config.default with set_base = wire; out_base = wire }
+         ~program:(uart_tx ~period);
+       Spi_master.write m ~watch Reg.tx [ 0x55; 0xa3 ];
+       Spi_master.write m ~watch Reg.control [ 1 ];
+       watch 400;
+       let sender = Spi_master.read m ~watch Reg.status ~count:1 in
+       Spi_master.write m ~watch Reg.select [ 1 ];
+       let receiver = Spi_master.read m ~watch Reg.status ~count:1 in
+       let received = Spi_master.read m ~watch Reg.rx ~count:2 in
+       print_s
+         [%message
+           (sender : int list)
+             (receiver : int list)
+             (received : int list)
+             ~pins:(Bits.to_unsigned_int !(o.uo_out) lsr 1 : int)]);
+  [%expect {| ((sender (0)) (receiver (2048)) (received (85 163)) (pins 0)) |}]
+;;
+
 let%expect_test "waveform of reset and the first command" =
   let display_rules =
     [ Display_rule.port_name_is "rst_n" ~wave_format:Bit
@@ -69,7 +129,7 @@ let%expect_test "waveform of reset and the first command" =
         "top$host_port$sm"
         ~wave_format:(Index Host_port.State.names)
     ; Display_rule.port_name_is "top$host_port$cmd" ~wave_format:Unsigned_int
-    ; Display_rule.port_name_is "top$engine_0$halted" ~wave_format:Bit
+    ; Display_rule.port_name_is "top$engines$engine_0$halted" ~wave_format:Bit
     ]
   in
   Harness.run
@@ -78,8 +138,8 @@ let%expect_test "waveform of reset and the first command" =
     ~print_waves_after_test:(fun waves ->
       Waveform.print
         ~display_rules
-        ~signals_width:22
-        ~display_width:90
+        ~signals_width:30
+        ~display_width:98
         ~wave_width:(-1)
         waves)
     (fun (h @ local) ~inputs ~outputs ->
@@ -105,22 +165,22 @@ let%expect_test "waveform of reset and the first command" =
       ());
   [%expect
     {|
-    ┌Signals─────────────┐┌Waves─────────────────────────────────────────────────────────────┐
-    │rst_n               ││   ┌───────────────────────────────────────────────────────────── │
-    │                    ││───┘                                                              │
-    │top$reset_done      ││  ┌────────────────────────────────────────────────────────────── │
-    │                    ││──┘                                                               │
-    │                    ││────────┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬─────── │
-    │ui_in               ││ 0      ││││││││││││││││││││││││││││││││││││││││││││││││││6       │
-    │                    ││────────┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴─────── │
-    │                    ││───────────────────────────┬───────────────┬───────────────┬───── │
-    │top$host_port$sm    ││ C                         │H              │L              │H     │
-    │                    ││───────────────────────────┴───────────────┴───────────────┴───── │
-    │                    ││───────────────────────────┬───────────────────────────────────── │
-    │top$host_port$cmd   ││ 0                         │128                                   │
-    │                    ││───────────────────────────┴───────────────────────────────────── │
-    │top$engine_0$halted ││ ┌──────────────────────────────────────────────────────────┐     │
-    │                    ││─┘                                                          └──── │
-    └────────────────────┘└──────────────────────────────────────────────────────────────────┘
+    ┌Signals─────────────────────┐┌Waves─────────────────────────────────────────────────────────────┐
+    │rst_n                       ││   ┌───────────────────────────────────────────────────────────── │
+    │                            ││───┘                                                              │
+    │top$reset_done              ││  ┌────────────────────────────────────────────────────────────── │
+    │                            ││──┘                                                               │
+    │                            ││────────┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬┬─────── │
+    │ui_in                       ││ 0      ││││││││││││││││││││││││││││││││││││││││││││││││││6       │
+    │                            ││────────┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴─────── │
+    │                            ││───────────────────────────┬───────────────┬───────────────┬───── │
+    │top$host_port$sm            ││ C                         │H              │L              │H     │
+    │                            ││───────────────────────────┴───────────────┴───────────────┴───── │
+    │                            ││───────────────────────────┬───────────────────────────────────── │
+    │top$host_port$cmd           ││ 0                         │128                                   │
+    │                            ││───────────────────────────┴───────────────────────────────────── │
+    │top$engines$engine_0$halted ││ ┌──────────────────────────────────────────────────────────┐     │
+    │                            ││─┘                                                          └──── │
+    └────────────────────────────┘└──────────────────────────────────────────────────────────────────┘
     |}]
 ;;

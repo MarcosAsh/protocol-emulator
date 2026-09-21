@@ -5,6 +5,11 @@ val assemble : string -> int list
 val uart_tx : period:int -> string
 val uart_tx_host_rate : string
 val uart_rx : period:int -> string
+
+(** [uart_rx] on another line, which the configuration has to name as well: [in_base],
+    [jmp_pin] and [capture_pin]. *)
+val uart_rx_on : pin:int -> period:int -> string
+
 val rx_config : Program_config.t
 val spi_master : half_period:int -> string
 val sck_pin : int

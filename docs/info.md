@@ -67,6 +67,7 @@ words in one frame repeat the access, which streams the fifos and the program wi
 | 8 | rx fifo | read pops a word from the core |
 | 9 | program address | |
 | 10 | program word | write increments the address |
+| 11 | select | with more than one engine, the engine every register but the program address reaches; status bit 15 says another engine has its irq up |
 | 16 on | config | pin bases and counts, side-set, shift directions, autopush and autopull |
 
 The design is written in Hardcaml. The same OCaml model of the core is the executable
