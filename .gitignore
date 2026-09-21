@@ -24,3 +24,6 @@ formal/*_*/
 __pycache__/
 test/fpga_netlist.v
 test/fpga_top.v
+test/fpga_kit_top.v
+test/fpga_kit.json
+test/fpga_kit.log
