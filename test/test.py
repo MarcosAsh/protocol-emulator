@@ -11,9 +11,14 @@ from protocol_emulator import CONFIG, CONFIG_FIELDS, CONTROL, DEFAULT_CONFIG, PR
 
 HALF = 4
 
-# uart tx at 16 cycles per bit, assembled from test/firmware.ml
-PROGRAM = [0xa090, 0xa001, 0x20e0, 0xe004, 0xa027, 0x80e6, 0xa000, 0xc0ca, 0x20c0, 0x6001,
-           0x0208, 0x20c0, 0xa001, 0x2040, 0x0002]
+
+def assembled(name):
+    """The words `make firmware` assembles from the .asm of the same name."""
+    with open(f"{name}.hex") as f:
+        return [int(line, 16) for line in f]
+
+
+PROGRAM = assembled("uart_tx")
 
 
 class Pins:
@@ -114,8 +119,7 @@ async def test_uart_over_spi(dut):
     assert (await host.read(STATUS))[0] == 0
 
 
-# set p, 2 / mov t, now / add t, p / .wrap_target / wait t+ / mov pins, !pins / .wrap
-WRAPPED_LOOP = [0xa082, 0x80e6, 0xc0ca, 0x20c0, 0x8008]
+WRAPPED_LOOP = assembled("wrapped_loop")
 
 
 @cocotb.test()
