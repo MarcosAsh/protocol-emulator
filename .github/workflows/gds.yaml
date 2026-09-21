@@ -1,7 +1,20 @@
 name: gds
 
+# A run is two hours, so only what reaches the chip or its gate level test starts one.
+# The OCaml reaches it through the committed Verilog, which the ocaml workflow keeps current.
 on:
   push:
+    paths:
+      - src/**
+      - macro/**
+      - info.yaml
+      - librelane_plugin_sram_pdn.py
+      - odb_sram_stripes.py
+      - test/**
+      - .github/workflows/gds.yaml
+      - '!**.ml'
+      - '!**.mli'
+      - '!**/dune'
   workflow_dispatch:
 
 jobs:
