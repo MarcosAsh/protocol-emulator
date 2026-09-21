@@ -1,0 +1,21 @@
+[tasks]
+prove
+cover
+
+[options]
+prove: mode prove
+cover: mode cover
+cover: depth 12
+
+[engines]
+prove: abc pdr
+cover: smtbmc boolector
+
+[script]
+read -formal engine.v
+read -formal -sv fifo_order.sv
+prep -top fifo_order
+
+[files]
+engine.v
+fifo_order.sv

@@ -1,4 +1,4 @@
-all: issue_timing host_timing
+all: issue_timing host_timing fifo_order
 
 engine.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe engine > formal/engine.v
@@ -12,4 +12,7 @@ issue_timing: engine.v
 host_timing: engine_sram.v
 	sby -f host_timing.sby
 
-.PHONY: all issue_timing host_timing
+fifo_order: engine.v
+	sby -f fifo_order.sby prove cover
+
+.PHONY: all issue_timing host_timing fifo_order
