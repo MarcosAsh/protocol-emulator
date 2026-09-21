@@ -8,7 +8,14 @@ TOPLEVEL_LANG ?= verilog
 SRC_DIR = $(PWD)/../src
 PROJECT_SOURCES = project.v protocol_emulator.v
 
-ifneq ($(GATES),yes)
+ifeq ($(FPGA),yes)
+
+# The netlist yosys synthesises for the FPGA kit's iCE40, from `make fpga_netlist.v`:
+SIM_BUILD				= sim_build/fpga
+VERILOG_SOURCES += $(shell yosys-config --datdir)/ice40/cells_sim.v
+VERILOG_SOURCES += $(PWD)/fpga_netlist.v
+
+else ifneq ($(GATES),yes)
 
 # RTL simulation:
 SIM_BUILD				= sim_build/rtl
@@ -44,3 +51,9 @@ COCOTB_TEST_MODULES = test
 
 # include cocotb's make rules to take care of the simulator setup
 include $(shell cocotb-config --makefiles)/Makefile.sim
+
+# The kit has no SRAM macro, so the program memory is the flop variant, which yosys
+# maps to block RAM.
+fpga_netlist.v: $(SRC_DIR)/project.v $(SRC_DIR)/../bin/generate.ml
+	cd .. && dune exec -- bin/generate.exe top > test/fpga_top.v
+	yosys -q -p "read_verilog $(SRC_DIR)/project.v fpga_top.v; synth_ice40 -top tt_um_marcosash_protocol_emulator; write_verilog -noattr fpga_netlist.v"

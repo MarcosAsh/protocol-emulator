@@ -22,3 +22,5 @@ formal/engine.v
 formal/engine_sram.v
 formal/*_*/
 __pycache__/
+test/fpga_netlist.v
+test/fpga_top.v
