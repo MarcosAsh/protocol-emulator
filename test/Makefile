@@ -49,8 +49,21 @@ TOPLEVEL = tb
 # List test modules to run, separated by commas and without the .py suffix:
 COCOTB_TEST_MODULES = test
 
+# The firmware words are committed, because the workflows that simulate have no OCaml.
+# Where there is a dune they are reassembled first, so an encoding change reaches them.
+FIRMWARE = $(patsubst %.asm,%.hex,$(wildcard *.asm))
+ifneq ($(shell command -v dune),)
+CUSTOM_SIM_DEPS += $(FIRMWARE)
+endif
+
 # include cocotb's make rules to take care of the simulator setup
 include $(shell cocotb-config --makefiles)/Makefile.sim
+
+firmware: $(FIRMWARE)
+%.hex: %.asm FORCE
+	cd .. && dune exec -- bin/generate.exe assemble test/$< > test/$@
+FORCE:
+.PHONY: firmware
 
 # The kit has no SRAM macro, so the program memory is the flop variant, which yosys
 # maps to block RAM.
