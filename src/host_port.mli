@@ -2,10 +2,11 @@
     seven bit register number, followed by 16-bit words high byte first. Several words in
     one frame repeat the access, which streams the fifos and the program window.
 
-    Registers: 0 control (bit 0 start, bit 1 clear irq, bit 2 stop; the program can only
-    be written while the core is halted), 1 status, 2 pc, 3 and 4 now, 5 and 6 capture, 7
-    tx fifo, 8 rx fifo (a read pops), 9 program address, 10 program word (a write
-    increments the address), 16 onwards the config fields in order. *)
+    Registers: 0 control (bit 0 start, bit 1 clear irq, bit 2 stop, bit 3 flush both
+    fifos; the program can only be written and the fifos only flushed while the core is
+    halted, so a flush takes a write of its own after the stop), 1 status, 2 pc, 3 and 4
+    now, 5 and 6 capture, 7 tx fifo, 8 rx fifo (a read pops), 9 program address, 10
+    program word (a write increments the address), 16 onwards the config fields in order. *)
 
 open! Core
 open! Hardcaml
@@ -42,6 +43,7 @@ module O : sig
     ; start : 'a
     ; clear_irq : 'a
     ; stop : 'a
+    ; flush : 'a
     ; program_write : 'a Engine.Program_write.t
     ; tx : 'a With_valid.t
     ; rx_pop : 'a

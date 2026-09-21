@@ -6,6 +6,8 @@ module Event = struct
   type t =
     | Start
     | Clear_irq
+    | Stop
+    | Flush
     | Program_write of
         { addr : int
         ; data : int
@@ -34,6 +36,8 @@ let write t ~reg value =
     , List.filter_opt
         [ Option.some_if (value land 1 = 1) Event.Start
         ; Option.some_if (value land 2 = 2) Event.Clear_irq
+        ; Option.some_if (value land 4 = 4) Event.Stop
+        ; Option.some_if (value land 8 = 8) Event.Flush
         ] )
   else if reg = Reg.tx
   then t, [ Tx value ]

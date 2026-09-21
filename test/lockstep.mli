@@ -15,6 +15,7 @@ module Host : sig
     ; pop_rx : bool
     ; clear_irq : bool
     ; stop : bool
+    ; flush : bool
     }
 
   val idle : t

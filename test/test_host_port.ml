@@ -23,6 +23,8 @@ let run ~half f =
            let int r = Bits.to_unsigned_int !r in
            if Bits.to_bool !(o.start) then note "start";
            if Bits.to_bool !(o.clear_irq) then note "clear_irq";
+           if Bits.to_bool !(o.stop) then note "stop";
+           if Bits.to_bool !(o.flush) then note "flush";
            if Bits.to_bool !(o.program_write.valid)
            then
              note
@@ -58,13 +60,15 @@ let%expect_test "program load, control and fifo strobes" =
     print_s [%message (program_addr : int list)];
     Spi_master.write m ~watch Reg.tx [ 0x55; 0xa3 ];
     Spi_master.write m ~watch Reg.control [ 1 ];
-    Spi_master.write m ~watch Reg.control [ 2 ]);
+    Spi_master.write m ~watch Reg.control [ 2 ];
+    Spi_master.write m ~watch Reg.control [ 4 ];
+    Spi_master.write m ~watch Reg.control [ 8 ]);
   [%expect
     {|
     (program_addr (6))
     (events
      ("program[3] <- 40976" "program[4] <- 8416" "program[5] <- 1" "tx <- 85"
-      "tx <- 163" start clear_irq))
+      "tx <- 163" start clear_irq stop flush))
     |}]
 ;;
 

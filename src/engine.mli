@@ -80,6 +80,9 @@ module I : sig
     ; rx_pop : 'a (** Pops the rx fifo; [rx_head] is the word popped. *)
     ; clear_irq : 'a
     ; stop : 'a (** Halts the core; the pins keep what they have. [start] wins. *)
+    ; flush : 'a
+    (** Empties both fifos. Ignored unless the core is halted, so not in the cycle of the
+        [stop] that halts it. *)
     ; inputs : 'a (** The external level of every pin in the flat pin space. *)
     }
   [@@deriving hardcaml]

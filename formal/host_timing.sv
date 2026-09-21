@@ -21,6 +21,8 @@ module step (
   (* anyseq *) wire tx_full, tx_empty, rx_full, rx_empty;
   (* anyseq *) wire [3:0] tx_level, rx_level;
   (* anyseq *) wire [15:0] tx_idle_head, rx_head;
+  // a flush is the host at a fifo, so each copy has its own
+  (* anyseq *) wire flush;
 
   wire tx_pop;
 `ifdef PRIVATE_PULL
@@ -48,7 +50,7 @@ module step (
     .config$wrap_bottom(config_bits[113:105]), .config$wrap_top(config_bits[122:114]),
     .start(start), .program_write$valid(1'b0), .program_write$addr(9'b0),
     .program_write$data(16'b0), .tx$valid(1'b0), .tx$value(16'b0), .rx_pop(1'b0),
-    .clear_irq(clear_irq), .stop(stop), .inputs(inputs),
+    .clear_irq(clear_irq), .stop(stop), .flush(flush), .inputs(inputs),
     .pin_out(pin_out), .pin_dir(pin_dir), .instruction(instruction), .opcode_onehot(opcode_onehot),
     .fault$underflow(underflow), .fault$overflow(overflow),
     .sram_addr(sram_addr), .sram_men(sram_men), .sram_ren(sram_ren), .sram_wen(sram_wen),

@@ -104,9 +104,10 @@ module Host = struct
     ; pop_rx : bool
     ; clear_irq : bool
     ; stop : bool
+    ; flush : bool
     }
 
-  let idle = { tx = None; pop_rx = false; clear_irq = false; stop = false }
+  let idle = { tx = None; pop_rx = false; clear_irq = false; stop = false; flush = false }
 end
 
 let run
@@ -169,20 +170,25 @@ let run
           i.rx_pop := Bits.of_bool action.pop_rx;
           i.clear_irq := Bits.of_bool action.clear_irq;
           i.stop := Bits.of_bool action.stop;
+          i.flush := Bits.of_bool action.flush;
           if action.clear_irq then model := Machine.clear_irq !model;
           if action.pop_rx
           then (
             match Machine.read_rx !model with
             | Some (_, m) -> model := m
             | None -> ());
+          (* the hardware looks at [halted] as it is before the edge, and a word written
+             in the cycle of a flush goes with the rest *)
+          let flushed = action.flush && !model.halted in
+          if flushed then model := Machine.flush !model;
           cycle ();
           let before = !model in
           model := Machine.step before ~inputs:levels;
           if action.stop then model := Machine.stop !model;
           Option.iter coverage ~f:(fun c -> Coverage.record c ~before ~after:!model);
           (match action.tx with
-           | Some word -> model := Machine.write_tx !model word |> ok_exn
-           | None -> ());
+           | Some word when not flushed -> model := Machine.write_tx !model word |> ok_exn
+           | Some _ | None -> ());
           react !model;
           Int.incr cycle_number)
       done;

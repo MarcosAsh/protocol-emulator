@@ -2,7 +2,7 @@
 // they were pushed and popped. One pushed word is followed from the push to the head.
 module fifo_order (input clk);
   (* anyconst *) wire [15:0] word;
-  (* anyseq *) wire push_valid, pop, follow;
+  (* anyseq *) wire push_valid, pop, flush, follow;
   (* anyseq *) wire [15:0] push_value;
 
   reg clear = 1;
@@ -14,15 +14,15 @@ module fifo_order (input clk);
 
   host_fifo dut (
     .clock(clk), .clear(clear), .push$valid(push_valid), .push$value(push_value),
-    .pop(pop), .head(head), .level(level), .empty(empty), .full(full));
+    .pop(pop), .flush(flush), .head(head), .level(level), .empty(empty), .full(full));
 
-  wire pushed = push_valid && !full;
+  wire pushed = push_valid && !full && !flush;
   wire popped = pop && !empty;
 
   reg following = 0;
   reg [3:0] ahead = 0;
   always @(posedge clk)
-    if (clear) following <= 0;
+    if (clear || flush) following <= 0;
     else if (!following && follow && pushed && push_value == word) begin
       following <= 1;
 `ifdef STALE_AHEAD
@@ -42,6 +42,7 @@ module fifo_order (input clk);
       assert(empty == (level == 0));
       if (following) assert(!empty && ahead < level);
       if (following && ahead == 0) assert(head == word);
+      if ($past(flush)) assert(empty);
     end
 
   always @(posedge clk) begin

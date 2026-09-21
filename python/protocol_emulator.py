@@ -61,6 +61,10 @@ class Host:
         """Halt the core; the program can only be written while it is halted."""
         self.write(CONTROL, [4])
 
+    def flush(self):
+        """Empty both fifos; ignored unless the core is halted."""
+        self.write(CONTROL, [8])
+
     def clear_irq(self):
         self.write(CONTROL, [2])
 

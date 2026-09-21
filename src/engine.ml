@@ -112,6 +112,7 @@ module I = struct
     ; rx_pop : 'a
     ; clear_irq : 'a
     ; stop : 'a
+    ; flush : 'a
     ; inputs : 'a [@bits num_pins]
     }
   [@@deriving hardcaml]
@@ -195,17 +196,19 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   let%hw start = reg spec i.start in
   let%hw tx_pop = wire 1 in
   let rx_push = { With_valid.valid = wire 1; value = wire data_bits } in
+  (* a halted core touches neither fifo, so a flush can never race the program *)
+  let%hw flush = i.flush &: halted in
   let tx =
     Host_fifo.hierarchical
       ~instance:"tx"
       scope
-      { clocking = i.clocking; push = i.tx; pop = tx_pop }
+      { clocking = i.clocking; push = i.tx; pop = tx_pop; flush }
   in
   let rx =
     Host_fifo.hierarchical
       ~instance:"rx"
       scope
-      { clocking = i.clocking; push = rx_push; pop = i.rx_pop }
+      { clocking = i.clocking; push = rx_push; pop = i.rx_pop; flush }
   in
   (* a write while the core runs would take the memory from the fetch *)
   let%hw program_write = i.program_write.valid &: halted in

@@ -10,6 +10,8 @@ module Event : sig
   type t =
     | Start
     | Clear_irq
+    | Stop
+    | Flush
     | Program_write of
         { addr : int
         ; data : int

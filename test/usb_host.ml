@@ -234,7 +234,8 @@ type t =
   ; board : Board.t
   }
 
-let load ~address =
+(* the program's first instruction pulls the bit period, behind whatever is [queued] *)
+let load ~queued ~address =
   let machine =
     Machine.create
       ~config:Firmware.usb_device_config
@@ -242,7 +243,8 @@ let load ~address =
         (Firmware.assemble (Firmware.usb_device ~address ~half_period:(bit_period / 2)))
     |> ok_exn
   in
-  Machine.write_tx machine bit_period |> ok_exn
+  List.fold (queued @ [ bit_period ]) ~init:machine ~f:(fun machine word ->
+    Machine.write_tx machine word |> ok_exn)
 ;;
 
 (* two and a half milliseconds at 48 MHz *)
@@ -250,12 +252,15 @@ let reset_cycles = 120_000
 let faults t = t.machine.fault
 let naks t = t.naks
 
-(* a fresh core; what the old one saw is kept, one list of cycles per load *)
+(* The board stops its one core, flushes, programs it and starts it. A start leaves the
+   fifos alone, so a reply the flush left behind would reach the new program first. What
+   the old program saw is kept, one list of cycles per load. *)
 let reload t ~address =
+  let halted = Machine.flush (Machine.stop t.machine) in
   t.loads <- (t.address_loaded, List.rev t.cycles) :: t.loads;
   t.cycles <- [];
   t.address_loaded <- address;
-  t.machine <- load ~address
+  t.machine <- load ~queued:halted.tx_fifo ~address
 ;;
 
 let recording t = List.rev ((t.address_loaded, List.rev t.cycles) :: t.loads)
@@ -338,7 +343,7 @@ let bits t line ~count =
 
 let create ?(reset_cycles = reset_cycles) ~descriptors ~latency () =
   let t =
-    { machine = load ~address:0
+    { machine = load ~queued:[] ~address:0
     ; sniffer = Usb_ls.Sniffer.create ~bit_period
     ; ends = 0
     ; se0 = false

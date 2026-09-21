@@ -90,3 +90,7 @@ val clear_irq : t -> t
 (** The host halts the core. What issued this cycle still takes effect and the pins keep
     what they have. *)
 val stop : t -> t
+
+(** The host empties both fifos. Ignored unless the core is halted, so a running program
+    never loses a word to it. *)
+val flush : t -> t

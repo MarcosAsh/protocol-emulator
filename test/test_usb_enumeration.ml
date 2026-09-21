@@ -213,6 +213,29 @@ let%expect_test "a host enumerates the keyboard and mouse and reads reports" =
     |}]
 ;;
 
+let%expect_test "a bus reset with a report still queued" =
+  let t = create ~descriptors ~latency:6000 () in
+  reset t;
+  control_out t (Request.set_address 7);
+  control_out t (Request.set_configuration 1);
+  (* nobody polls, so the report is in the tx fifo when the reset ends *)
+  report t [ 1; 0; 0x0b; 0; 0; 0; 0; 0 ];
+  reset t;
+  let bytes = control_in t (Request.get_descriptor ~kind:1 ~length:18 ()) in
+  print_s
+    [%message
+      "device descriptor at address 0"
+        ~correct:([%equal: int list] bytes device_descriptor : bool)
+        ~nothing_to_report:(interrupt_in t ~endpoint:1 : int list option)
+        (faults t : Protocol_emulator.Machine.Fault.t)];
+  [%expect
+    {|
+    ("device descriptor at address 0" (correct true) (nothing_to_report ())
+     ("faults t"
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    |}]
+;;
+
 (* The same conversation against the hardware: every load of the core is run again in the
    lockstep harness with the pins and the fifo writes the model saw, cycle for cycle, and
    the Hardcaml core has to agree with the model on all of its state after every edge. *)

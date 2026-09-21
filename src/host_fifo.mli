@@ -1,5 +1,6 @@
-(** Four deep. Push when full and pop when empty are ignored; [full] is low in a cycle
-    that pops, so a push can land then. *)
+(** Eight deep. Push when full and pop when empty are ignored; [full] is low in a cycle
+    that pops, so a push can land then. [flush] empties the fifo, and a word pushed in the
+    same cycle is lost with the rest. *)
 
 open! Core
 open! Hardcaml
@@ -12,6 +13,7 @@ module I : sig
     { clocking : 'a Clocking.t
     ; push : 'a With_valid.t
     ; pop : 'a
+    ; flush : 'a
     }
   [@@deriving hardcaml]
 end

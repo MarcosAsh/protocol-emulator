@@ -88,6 +88,53 @@ loop:
     |}]
 ;;
 
+let%expect_test "a flush empties both fifos of a halted core and no others" =
+  let program =
+    assemble {|
+loop:
+    add x, 1
+    mov isr, x
+    push [3]
+    jmp loop
+|}
+  in
+  let levels = Queue.create () in
+  let watch = [ 10; 11; 31; 32; 33; 34; 36 ] in
+  let cycle = ref 0 in
+  let m =
+    lockstep
+      ~cycles:60
+      ~config:Program_config.default
+      ~program
+      ~inputs:(fun _ -> 0)
+      ~host:(fun n ->
+        { Host.idle with
+          tx = (if n < 3 || n = 32 || n = 35 then Some (0x100 + n) else None)
+        ; stop = n = 30
+        ; flush = n = 10 || n = 30 || n = 32
+        })
+      ~react:(fun m ->
+        if List.mem watch !cycle ~equal:Int.equal
+        then
+          Queue.enqueue
+            levels
+            (!cycle, m.halted, List.length m.tx_fifo, List.length m.rx_fifo);
+        Int.incr cycle)
+      ()
+  in
+  print_s
+    [%message
+      (levels : (int * bool * int * int) Queue.t) (m.tx_fifo : int list) (m.x : int)];
+  [%expect
+    {|
+    ("lockstep held" (cycles 60))
+    ((levels
+      ((10 false 3 2) (11 false 3 2) (31 true 3 4) (32 true 0 0) (33 true 0 0)
+       (34 true 0 0) (36 true 1 0)))
+     (m.tx_fifo (291)) (m.x 4))
+    |}]
+;;
+
 let%expect_test "the host clears the interrupt" =
   let program = assemble {|
 loop:

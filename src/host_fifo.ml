@@ -10,6 +10,7 @@ module I = struct
     { clocking : 'a Clocking.t
     ; push : 'a With_valid.t [@bits Isa.data_bits]
     ; pop : 'a
+    ; flush : 'a
     }
   [@@deriving hardcaml]
 end
@@ -37,7 +38,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
       ()
       ~capacity:depth
       ~clock:i.clocking.clock
-      ~clear:i.clocking.clear
+      ~clear:(i.clocking.clear |: i.flush)
       ~wr:(i.push.valid &: ~:full)
       ~d:i.push.value
       ~rd:i.pop

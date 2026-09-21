@@ -22,6 +22,8 @@ let events (o : Bits.t ref Host_port.O.t) =
   List.filter_opt
     [ on o.start Start
     ; on o.clear_irq Clear_irq
+    ; on o.stop Stop
+    ; on o.flush Flush
     ; on
         o.program_write.valid
         (Program_write
@@ -195,11 +197,11 @@ let%expect_test "random frames, whole and cut short, against the register map" =
   List.iter [ 1; 2; 3 ] ~f:(fun seed -> fuzz ~seed ~frames:300 ());
   [%expect
     {|
-    ((seed 1) (frames 300) (cut 122) (!strobes 78) (!words_read 203)
+    ((seed 1) (frames 300) (cut 122) (!strobes 91) (!words_read 203)
      (!miso_high_when_idle false) (!failure ()))
-    ((seed 2) (frames 300) (cut 110) (!strobes 111) (!words_read 204)
+    ((seed 2) (frames 300) (cut 110) (!strobes 136) (!words_read 204)
      (!miso_high_when_idle false) (!failure ()))
-    ((seed 3) (frames 300) (cut 124) (!strobes 79) (!words_read 183)
+    ((seed 3) (frames 300) (cut 124) (!strobes 89) (!words_read 183)
      (!miso_high_when_idle false) (!failure ()))
     |}]
 ;;
@@ -210,9 +212,9 @@ let%expect_test "outside what the interface allows" =
   fuzz ~edge:0 ~seed:4 ~frames:300 ();
   [%expect
     {|
-    ((seed 4) (frames 300) (cut 148) (!strobes 63) (!words_read 170)
+    ((seed 4) (frames 300) (cut 148) (!strobes 79) (!words_read 170)
      (!miso_high_when_idle false) (!failure ()))
-    ((seed 4) (frames 300) (cut 148) (!strobes 4) (!words_read 5)
+    ((seed 4) (frames 300) (cut 148) (!strobes 6) (!words_read 5)
      (!miso_high_when_idle false)
      (!failure
       (((frame_number 7)
@@ -222,7 +224,7 @@ let%expect_test "outside what the interface allows" =
         (expected_events ()) (events ()) (expected_replies (2 2)) (replies (1 1))
         (expected_config (0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0))
         (config (0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0))))))
-    ((seed 4) (frames 300) (cut 148) (!strobes 63) (!words_read 170)
+    ((seed 4) (frames 300) (cut 148) (!strobes 79) (!words_read 170)
      (!miso_high_when_idle false) (!failure ()))
     |}]
 ;;

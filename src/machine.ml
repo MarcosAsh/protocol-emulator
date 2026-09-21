@@ -107,6 +107,7 @@ let read_rx t =
 
 let clear_irq t = { t with irq = false }
 let stop t = { t with halted = true }
+let flush t = if t.halted then { t with tx_fifo = []; rx_fifo = [] } else t
 let bit v i = (v lsr i) land 1
 let set_bit v i b = if b then v lor (1 lsl i) else v land lnot (1 lsl i)
 let pin i = i % Isa.num_pins

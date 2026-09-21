@@ -118,6 +118,8 @@ class Board:
 def load(host, address):
     """Halt the core and start it again with the firmware for this address."""
     host.stop()
+    # a reply still queued would be pulled by the new program as its bit period
+    host.flush()
     host.configure(firmware.CONFIG)
     host.load(firmware.words(address))
     # the program's first instruction pulls the bit period, so it has to be there already
