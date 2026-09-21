@@ -203,3 +203,26 @@ let%expect_test "random frames, whole and cut short, against the register map" =
      (!miso_high_when_idle false) (!failure ()))
     |}]
 ;;
+
+let%expect_test "outside what the interface allows" =
+  fuzz ~halves:[ 3 ] ~seed:4 ~frames:300 ();
+  fuzz ~halves:[ 2 ] ~seed:4 ~frames:300 ();
+  fuzz ~edge:0 ~seed:4 ~frames:300 ();
+  [%expect
+    {|
+    ((seed 4) (frames 300) (cut 148) (!strobes 63) (!words_read 170)
+     (!miso_high_when_idle false) (!failure ()))
+    ((seed 4) (frames 300) (cut 148) (!strobes 4) (!words_read 5)
+     (!miso_high_when_idle false)
+     (!failure
+      (((frame_number 7)
+        (frame
+         ((write false) (reg 9) (words (63371 60329)) (bits 40)
+          (release_high false) (stray 1) (half 2) (lead 2) (trail 2) (gap 3)))
+        (expected_events ()) (events ()) (expected_replies (2 2)) (replies (1 1))
+        (expected_config (0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0))
+        (config (0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0))))))
+    ((seed 4) (frames 300) (cut 148) (!strobes 63) (!words_read 170)
+     (!miso_high_when_idle false) (!failure ()))
+    |}]
+;;
