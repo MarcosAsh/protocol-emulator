@@ -59,6 +59,14 @@ jobs:
         with:
           python-version: '3.11'
 
+      # the kit's top and pin file; tt is not part of this repository
+      - name: Checkout tt-support-tools
+        uses: actions/checkout@v6
+        with:
+          repository: TinyTapeout/tt-support-tools
+          ref: ihp-sg13cmos5l
+          path: tt
+
       - name: Build for the FPGA kit and simulate the netlist
         run: |
           pip install -r test/requirements.txt
