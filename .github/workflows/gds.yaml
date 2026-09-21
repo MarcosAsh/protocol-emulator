@@ -17,6 +17,10 @@ on:
       - '!**/dune'
   workflow_dispatch:
 
+concurrency:
+  group: gds-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   gds:
     runs-on: ubuntu-24.04
