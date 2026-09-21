@@ -725,29 +725,34 @@ end
    the program counter: every piece that samples exists once for J and once for K, which
    leaves y free to count bits. The first PID nibble is walked as a tree, one node a bit,
    so telling the packets apart costs no cycles. The token's address and endpoint are
-   compared with a constant assembled in for [address], and its CRC5 with another, so the
-   CRC unit stays on CRC-16. The kind of token is kept on a pin of its own, read back with
-   [jmp pin]. A SETUP or OUT for us is followed by its data: a tag word (1 for DATA0, 2
-   for DATA1), then the bytes and their CRC sixteen bits a word, first bit on top, then
-   whatever is left of a word; ACK if the CRC register ends where a good packet leaves it,
-   the interrupt and silence if not. An IN for us is answered with what the host has
-   queued: the SYNC and PID word, the number of data bits, then the data; the CRC-16 and
-   the bit stuffing are added here. With nothing queued the answer is NAK. Any handshake
-   from the host is its ACK and reaches the host as tag 3. *)
+   compared, CRC5 and all, with a constant assembled in for [address] and endpoint 0, so
+   the CRC unit stays on CRC-16; what is left of the compare waits in y until the token
+   has ended, and endpoint 1 is the one other value it may have. The kind of token is kept
+   on a pin of its own, read back with [jmp pin]. A SETUP or OUT for us is followed by its
+   data: a tag word (1 for DATA0, 2 for DATA1), then the bytes and their CRC sixteen bits
+   a word, first bit on top, then whatever is left of a word; ACK if the CRC register ends
+   where a good packet leaves it, the interrupt and silence if not. An IN for us is
+   answered with what the host has queued: the SYNC and PID word, the number of data bits,
+   then the data; the CRC-16 and the bit stuffing are added here. With nothing queued the
+   answer is NAK. Any handshake from the host is its ACK and reaches the host as tag 3. *)
 let usb_device ~address ~half_period =
   let open Usb_line in
   let label name line = [%string "%{name}_%{suffix line}"] in
   let bits_of value ~count = List.init count ~f:(fun i -> (value lsr i) land 1) in
   let msb_first bits = List.fold bits ~init:0 ~f:(fun acc bit -> (acc lsl 1) lor bit) in
-  let token = bits_of address ~count:7 @ bits_of 0 ~count:4 in
-  let crc5 =
-    List.fold token ~init:0x1f ~f:(fun crc bit ->
-      Crc.step ~width:5 ~poly:0x14 ~reflect:true crc ~bit)
-    lxor 0x1f
+  (* the sixteen bits after a token's PID, for one of our endpoints *)
+  let token endpoint =
+    let bits = bits_of address ~count:7 @ bits_of endpoint ~count:4 in
+    let crc5 =
+      List.fold bits ~init:0x1f ~f:(fun crc bit ->
+        Crc.step ~width:5 ~poly:0x14 ~reflect:true crc ~bit)
+      lxor 0x1f
+    in
+    msb_first (bits @ bits_of crc5 ~count:5)
   in
   (* a constant in isr, most significant chunk first; more than a bit at a time, so the
      CRC and the stuff counter do not see it *)
-  let load_isr value ~bits =
+  let load_isr ?(through = "y") value ~bits =
     let rec chunks left =
       if left = 0
       then []
@@ -762,7 +767,8 @@ let usb_device ~address ~half_period =
           else left % 5
         in
         let chunk = (value lsr (left - n)) land ((1 lsl n) - 1) in
-        [%string "    set y, %{chunk#Int}\n    in y, %{n#Int}"] :: chunks (left - n))
+        [%string "    set %{through}, %{chunk#Int}\n    in %{through}, %{n#Int}"]
+        :: chunks (left - n))
     in
     "    mov isr, null" :: chunks bits
   in
@@ -841,7 +847,7 @@ let usb_device ~address ~half_period =
   let handshake word = [ "    wait t+" ] @ load_isr word ~bits:16 @ [ "    jmp hs" ] in
   List.concat
     [ [ "    pull"; "    mov p, osr"; "idle:"; "    set pins, 2"; "    set pindirs, 4" ]
-    ; load_isr (msb_first token) ~bits:11
+    ; load_isr (token 0) ~bits:16
     ; [ "    mov osr, isr"
       ; "    mov isr, null"
       ; "    stuff_reset"
@@ -873,27 +879,27 @@ let usb_device ~address ~half_period =
         ; "    mov isr, null"
         ; [%string "    jmp %{label \"token\" line}"]
         ])
-    ; field "token" ~count:11 ~next:"match"
-    ; both (fun line ->
-        [ [%string "%{label \"match\" line}:"]
-        ; "    mov x, isr"
-        ; "    mov isr, null"
-        ; "    xor x, osr"
-        ; "    jmp x--, other_j"
-        ; [%string "    jmp %{label \"crc\" line}"]
-        ])
-    ; field "crc" ~count:5 ~next:"crc_match"
-    ; join "crc_match"
+    ; field "token" ~count:16 ~next:"match"
+    ; join "match"
     ; [ "    mov x, isr"
       ; "    mov isr, null"
-      ; [%string "    set y, %{msb_first (bits_of crc5 ~count:5)#Int}"]
-      ; "    jmp x!=y, other_j"
+      ; "    xor x, osr"
+      ; "    mov y, x"
       ; "eop:"
       ; "    wait t+"
       ; "    mov x, pins"
       ; "    jmp x--, eop"
+      ; "    jmp y--, endpoint_1"
+      ; "ours:"
       ; "    jmp pin, in_reply"
       ; "    jmp idle"
+      ; "endpoint_1:"
+      ]
+    ; load_isr ~through:"x" ((token 0 lxor token 1) - 1) ~bits:16
+    ; [ "    mov x, isr"
+      ; "    mov isr, null"
+      ; "    jmp x!=y, other_kind"
+      ; "    jmp ours"
       ; "in_reply:"
       ; "    jmp tx, send"
       ]
@@ -952,6 +958,7 @@ let usb_device ~address ~half_period =
       ; "    wait t+"
       ; "    mov x, pins"
       ; "    jmp x--, other_eop"
+      ; "other_kind:"
       ; "    jmp pin, idle"
       ; "    capture_arm"
       ; [%string "    wait 1 pin %{usb_device_dp_pin#Int}"]
