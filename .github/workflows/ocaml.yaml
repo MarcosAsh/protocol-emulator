@@ -54,11 +54,6 @@ jobs:
           opam exec -- dune exec -- bin/generate.exe engine -sram > formal/engine_sram.v
           make -C formal issue_timing host_timing fifo_order teeth
 
-      - name: Setup python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.11'
-
       # the kit's top and pin file; tt is not part of this repository
       - name: Checkout tt-support-tools
         uses: actions/checkout@v6
@@ -69,9 +64,11 @@ jobs:
 
       - name: Build for the FPGA kit and simulate the netlist
         run: |
-          pip install -r test/requirements.txt
+          # the simulator loads the cocotb that ships with the OSS CAD Suite, so its
+          # makefiles have to be the ones in charge too: no pip cocotb beside it
           cd test
           opam exec -- make fpga_fit
           python3 check_metrics.py --fpga fpga_kit.log >> "$GITHUB_STEP_SUMMARY"
           make FPGA=yes
           ! grep failure results.xml
+          make replay FPGA=yes
