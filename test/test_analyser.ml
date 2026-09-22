@@ -584,7 +584,7 @@ let%expect_test "every firmware stays inside its analysis under random stimulus"
   [%expect
     {|
     ("uart tx" (issues 4962) (reached 15/15) (side_edges 0) (violations ()))
-    ("uart tx host rate" (issues 224) (reached 12/16) (side_edges 0)
+    ("uart tx host rate" (issues 232) (reached 13/17) (side_edges 0)
      (violations ()))
     ("uart rx" (issues 5756) (reached 21/21) (side_edges 0) (violations ()))
     ("spi master" (issues 8172) (reached 16/16) (side_edges 2598)

@@ -108,11 +108,12 @@ module Opcode : sig
   include Enum with module Cases := Cases
 end
 
-(** [X_dec] and [Y_dec] jump if the register is non-zero and then decrement it, so a
-    register loaded with [n] runs a loop body [n + 1] times. [Pin] tests the jump pin from
-    the program configuration. [Stuff_pending] is set by the bit stuffing counter. The
-    four fifo tests look without touching the fifo or stalling, which is the one way
-    besides [wait] on a fifo that when the host talks can change what the program does. *)
+(** [X_dec] and [Y_dec] jump if the register was non-zero and decrement it either way, so
+    a register loaded with [n] runs a loop body [n + 1] times and ends at all ones. [Pin]
+    tests the jump pin from the program configuration. [Stuff_pending] is set by the bit
+    stuffing counter. The four fifo tests look without touching the fifo or stalling,
+    which is the one way besides [wait] on a fifo that when the host talks can change what
+    the program does. *)
 module Jmp_cond : sig
   module Cases : sig
     type t =

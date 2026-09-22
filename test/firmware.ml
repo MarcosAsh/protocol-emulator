@@ -27,7 +27,7 @@ bit:
 let uart_tx ~period = [%string "    set p, %{period#Int}%{uart_tx_frame}"]
 
 (* the first word from the host is the bit period *)
-let uart_tx_host_rate = [%string "    pull\n    mov p, osr%{uart_tx_frame}"]
+let uart_tx_host_rate = [%string "    wait tx\n    pull\n    mov p, osr%{uart_tx_frame}"]
 
 (* half period one short: the sample lands a cycle after the release *)
 let uart_rx_on ~pin ~period =
