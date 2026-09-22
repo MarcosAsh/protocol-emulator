@@ -67,7 +67,7 @@ let%expect_test "spi master" =
   report ~config:spi_config (spi_master ~half_period:8);
   [%expect
     {|
-     0  set p, 8 side 0              phase ?..?
+     0  set p, 8 side 0              phase ?..?  side ?..?  jitter ?
      1  wait tx side 0               phase ?..?
      2  pull side 0                  phase ?..?
      3  out null, 8 side 0           phase ?..?
@@ -77,9 +77,9 @@ let%expect_test "spi master" =
      7  wait t+ side 0               phase -6  slack 6
      8  out pins, 1 side 0           phase -7  edge -6
      9  wait t+ side 0               phase -6..-4  slack 4..6
-    10  in pins, 1 side 1            phase -7  sample -7
+    10  in pins, 1 side 1            phase -7  sample -7  side -6
     11  wait t+ side 1               phase -6  slack 6
-    12  out pins, 1 side 0           phase -7  edge -6
+    12  out pins, 1 side 0           phase -7  edge -6  side -6
     13  jmp x--, 9                   phase -6
     14  push side 0                  phase -4
     15  jmp 1                        phase -3
@@ -90,7 +90,7 @@ let%expect_test "i2c master" =
   report ~config:i2c_config (i2c_master ~quarter:8);
   [%expect
     {|
-     0  set p, 8 side 0              phase ?..?
+     0  set p, 8 side 0              phase ?..?  side ?..?  jitter ?
      1  wait tx side 0               phase ?..?
      2  pull side 0                  phase ?..?
      3  mov t, now side 0            phase ?..?
@@ -110,57 +110,57 @@ let%expect_test "i2c master" =
     17  wait t+ side 0               phase -10  slack 10
     18  set pindirs, 1 side 0        phase -7  edge -6
     19  wait t+ side 0               phase -6  slack 6
-    20  nop side 1                   phase -7
+    20  nop side 1                   phase -7  side -6
     21  add t, p side 1              phase -6
     22  jmp 31                       phase -13
     23  set pindirs, 0 side 1        phase -10  edge -9
     24  wait t+ side 1               phase -9  slack 9
-    25  nop side 0                   phase -7
+    25  nop side 0                   phase -7  side -6
     26  wait t+ side 0               phase -6  slack 6
     27  set pindirs, 1 side 0        phase -7  edge -6
     28  wait t+ side 0               phase -6  slack 6
-    29  nop side 1                   phase -7
+    29  nop side 1                   phase -7  side -6
     30  add t, p side 1              phase -6
-    31  out y, 1 side 1              phase -13..-8
+    31  out y, 1 side 1              phase -13..-8  side -7
     32  set x, 7 side 1              phase -12..-7
     33  jmp y--, 53                  phase -11..-6
     34  wait t+ side 1               phase -9..-4  slack 4..9
     35  out y, 1 side 1              phase -7
     36  mov pindirs, !y side 1       phase -6  edge -5
     37  wait t+ side 1               phase -5  slack 5
-    38  nop side 0                   phase -7
+    38  nop side 0                   phase -7  side -6
     39  wait t+ side 0               phase -6  slack 6
     40  wait t+ side 0               phase -7  slack 7
-    41  nop side 1                   phase -7
+    41  nop side 1                   phase -7  side -6
     42  jmp x--, 34                  phase -6
     43  wait t+ side 1               phase -4  slack 4
     44  set pindirs, 0 side 1        phase -7  edge -6
     45  wait t+ side 1               phase -6  slack 6
-    46  nop side 0                   phase -7
+    46  nop side 0                   phase -7  side -6
     47  wait t+ side 0               phase -6  slack 6
     48  in pins, 1 side 0            phase -7  sample -7
     49  wait t+ side 0               phase -6  slack 6
-    50  nop side 1                   phase -7
+    50  nop side 1                   phase -7  side -6
     51  out x, 1 side 1              phase -6
     52  jmp 72                       phase -5
     53  set pindirs, 0 side 1        phase -9..-4  edge -8..-3  jitter 5
     54  wait t+ side 1               phase -8..-3  slack 3..8
     55  wait t+ side 1               phase -7  slack 7
-    56  nop side 0                   phase -7
+    56  nop side 0                   phase -7  side -6
     57  wait t+ side 0               phase -6  slack 6
     58  in pins, 1 side 0            phase -7  sample -7
     59  wait t+ side 0               phase -6  slack 6
-    60  nop side 1                   phase -7
+    60  nop side 1                   phase -7  side -6
     61  jmp x--, 54                  phase -6
     62  out null, 8 side 1           phase -4
     63  out x, 1 side 1              phase -3
     64  wait t+ side 1               phase -2  slack 2
     65  mov pindirs, !x side 1       phase -7  edge -6
     66  wait t+ side 1               phase -6  slack 6
-    67  nop side 0                   phase -7
+    67  nop side 0                   phase -7  side -6
     68  wait t+ side 0               phase -6  slack 6
     69  wait t+ side 0               phase -7  slack 7
-    70  nop side 1                   phase -7
+    70  nop side 1                   phase -7  side -6
     71  set pindirs, 0 side 1        phase -6  edge -5
     72  push side 1                  phase -5..-3
     73  jmp x--, 75                  phase -4..-2
@@ -168,7 +168,7 @@ let%expect_test "i2c master" =
     75  wait t+ side 1               phase -2..0  slack 0..2
     76  set pindirs, 1 side 1        phase -7  edge -6
     77  wait t+ side 1               phase -6  slack 6
-    78  nop side 0                   phase -7
+    78  nop side 0                   phase -7  side -6
     79  wait t+ side 0               phase -6  slack 6
     80  set pindirs, 0 side 0        phase -7  edge -6
     81  wait t+ side 0               phase -6  slack 6
@@ -180,7 +180,7 @@ let%expect_test "a quarter of 5 is too short for the i2c dispatch" =
   report ~config:i2c_config (i2c_master ~quarter:5);
   [%expect
     {|
-     0  set p, 5 side 0              phase ?..?
+     0  set p, 5 side 0              phase ?..?  side ?..?  jitter ?
      1  wait tx side 0               phase ?..?
      2  pull side 0                  phase ?..?
      3  mov t, now side 0            phase ?..?
@@ -200,57 +200,57 @@ let%expect_test "a quarter of 5 is too short for the i2c dispatch" =
     17  wait t+ side 0               phase -4  slack 4
     18  set pindirs, 1 side 0        phase -4  edge -3
     19  wait t+ side 0               phase -3  slack 3
-    20  nop side 1                   phase -4
+    20  nop side 1                   phase -4  side -3
     21  add t, p side 1              phase -3
     22  jmp 31                       phase -7
     23  set pindirs, 0 side 1        phase -4  edge -3
     24  wait t+ side 1               phase -3  slack 3
-    25  nop side 0                   phase -4
+    25  nop side 0                   phase -4  side -3
     26  wait t+ side 0               phase -3  slack 3
     27  set pindirs, 1 side 0        phase -4  edge -3
     28  wait t+ side 0               phase -3  slack 3
-    29  nop side 1                   phase -4
+    29  nop side 1                   phase -4  side -3
     30  add t, p side 1              phase -3
-    31  out y, 1 side 1              phase -7..-2
+    31  out y, 1 side 1              phase -7..-2  side -1
     32  set x, 7 side 1              phase -6..-1
     33  jmp y--, 53                  phase -5..0
     34  wait t+ side 1               phase -3..2  slack -2..3  MAY MISS
     35  out y, 1 side 1              phase -4..-2
     36  mov pindirs, !y side 1       phase -3..-1  edge -2..0  jitter 2
     37  wait t+ side 1               phase -2..0  slack 0..2
-    38  nop side 0                   phase -4
+    38  nop side 0                   phase -4  side -3
     39  wait t+ side 0               phase -3  slack 3
     40  wait t+ side 0               phase -4  slack 4
-    41  nop side 1                   phase -4
+    41  nop side 1                   phase -4  side -3
     42  jmp x--, 34                  phase -3
     43  wait t+ side 1               phase -1  slack 1
     44  set pindirs, 0 side 1        phase -4  edge -3
     45  wait t+ side 1               phase -3  slack 3
-    46  nop side 0                   phase -4
+    46  nop side 0                   phase -4  side -3
     47  wait t+ side 0               phase -3  slack 3
     48  in pins, 1 side 0            phase -4  sample -4
     49  wait t+ side 0               phase -3  slack 3
-    50  nop side 1                   phase -4
+    50  nop side 1                   phase -4  side -3
     51  out x, 1 side 1              phase -3
     52  jmp 72                       phase -2
     53  set pindirs, 0 side 1        phase -3..2  edge -2..3  jitter 5
     54  wait t+ side 1               phase -2..3  slack -3..2  MAY MISS
     55  wait t+ side 1               phase -4..-1  slack 1..4
-    56  nop side 0                   phase -4
+    56  nop side 0                   phase -4  side -3
     57  wait t+ side 0               phase -3  slack 3
     58  in pins, 1 side 0            phase -4  sample -4
     59  wait t+ side 0               phase -3  slack 3
-    60  nop side 1                   phase -4
+    60  nop side 1                   phase -4  side -3
     61  jmp x--, 54                  phase -3
     62  out null, 8 side 1           phase -1
     63  out x, 1 side 1              phase 0
     64  wait t+ side 1               phase 1  slack -1  MAY MISS
     65  mov pindirs, !x side 1       phase -3  edge -2
     66  wait t+ side 1               phase -2  slack 2
-    67  nop side 0                   phase -4
+    67  nop side 0                   phase -4  side -3
     68  wait t+ side 0               phase -3  slack 3
     69  wait t+ side 0               phase -4  slack 4
-    70  nop side 1                   phase -4
+    70  nop side 1                   phase -4  side -3
     71  set pindirs, 0 side 1        phase -3  edge -2
     72  push side 1                  phase -2..0
     73  jmp x--, 75                  phase -1..1
@@ -258,7 +258,7 @@ let%expect_test "a quarter of 5 is too short for the i2c dispatch" =
     75  wait t+ side 1               phase 1..3  slack -3..-1  MAY MISS
     76  set pindirs, 1 side 1        phase -3..-1  edge -2..0  jitter 2
     77  wait t+ side 1               phase -2..0  slack 0..2
-    78  nop side 0                   phase -4
+    78  nop side 0                   phase -4  side -3
     79  wait t+ side 0               phase -3  slack 3
     80  set pindirs, 0 side 0        phase -4  edge -3
     81  wait t+ side 0               phase -3  slack 3
@@ -270,7 +270,7 @@ let%expect_test "i2c logger" =
   report ~config:i2c_logger_config i2c_logger;
   [%expect
     {|
-     0  mov pins, !null side 0       phase ?..?  edge ?..?  jitter ?
+     0  mov pins, !null side 0       phase ?..?  edge ?..?  jitter ?  side ?..?  jitter ?
      1  set pindirs, 0 side 0        phase ?..?  edge ?..?  jitter ?
      2  set p, 8 side 0              phase ?..?
      3  mov t, now side 0            phase ?..?
@@ -278,7 +278,7 @@ let%expect_test "i2c logger" =
      5  wait t+ side 0               phase -6  slack 6
      6  set pindirs, 1 side 0        phase -7  edge -6
      7  wait t+ side 0               phase -6  slack 6
-     8  nop side 1                   phase -7
+     8  nop side 1                   phase -7  side -6
      9  add t, p side 1              phase -6
     10  set x, 20 side 1             phase -13
     11  add x, x side 1              phase -12
@@ -295,38 +295,38 @@ let%expect_test "i2c logger" =
     22  jmp 24                       phase -3
     23  set pindirs, 0 side 1        phase -4  edge -3
     24  wait t+ side 1               phase -3..-1  slack 1..3
-    25  nop side 0                   phase -7
+    25  nop side 0                   phase -7  side -6
     26  wait t+ side 0               phase -6  slack 6
     27  wait t+ side 0               phase -7  slack 7
-    28  nop side 1                   phase -7
+    28  nop side 1                   phase -7  side -6
     29  jmp x--, 18                  phase -6
     30  wait t+ side 1               phase -4  slack 4
     31  set pindirs, 0 side 1        phase -7  edge -6
     32  wait t+ side 1               phase -6  slack 6
-    33  nop side 0                   phase -7
+    33  nop side 0                   phase -7  side -6
     34  wait t+ side 0               phase -6  slack 6
     35  wait t+ side 0               phase -7  slack 7
-    36  nop side 1                   phase -7
+    36  nop side 1                   phase -7  side -6
     37  set x, 7 side 1              phase -6
     38  mov isr, null side 1         phase -5
     39  wait t+ side 1               phase -4  slack 4
     40  wait t+ side 1               phase -7  slack 7
-    41  nop side 0                   phase -7
+    41  nop side 0                   phase -7  side -6
     42  wait t+ side 0               phase -6  slack 6
     43  in pins, 1 side 0            phase -7  sample -7
     44  wait t+ side 0               phase -6  slack 6
-    45  nop side 1                   phase -7
+    45  nop side 1                   phase -7  side -6
     46  jmp x--, 39                  phase -6
     47  wait t+ side 1               phase -4  slack 4
     48  wait t+ side 1               phase -7  slack 7
-    49  nop side 0                   phase -7
+    49  nop side 0                   phase -7  side -6
     50  wait t+ side 0               phase -6  slack 6
     51  wait t+ side 0               phase -7  slack 7
-    52  nop side 1                   phase -7
+    52  nop side 1                   phase -7  side -6
     53  wait t+ side 1               phase -6  slack 6
     54  set pindirs, 1 side 1        phase -7  edge -6
     55  wait t+ side 1               phase -6  slack 6
-    56  nop side 0                   phase -7
+    56  nop side 0                   phase -7  side -6
     57  wait t+ side 0               phase -6  slack 6
     58  set pindirs, 0 side 0        phase -7  edge -6
     59  wait t+ side 0               phase -6  slack 6
@@ -537,21 +537,42 @@ let%expect_test "a deadline is only as good as what is assumed about the world" 
    phase at every issue must still fall inside the row's interval, and no issue may land
    on a pc the analyser calls unreachable. Random pins break every assumption about the
    world, so the analysis here makes none. A wait that stalls issues again every cycle,
-   and only its first issue counts as an entry. *)
+   and only its first issue counts as an entry.
+
+   Side-set is checked on its own: an issue that finds its side-set pins at another level
+   moves them, and the row must claim a side edge that covers the cycle they show it. *)
 let phase (m : Machine.t) =
   let d = (m.now - m.t) land ((1 lsl Isa.timer_bits) - 1) in
   if d >= 1 lsl (Isa.timer_bits - 1) then d - (1 lsl Isa.timer_bits) else d
+;;
+
+(* Only the pins side-set can move: outputs, bidirectionals and wires for levels, the
+   bidirectionals for directions. *)
+let side_set_moves (c : Program_config.t) (m : Machine.t) value =
+  let level = if c.side_set_pindirs then m.pin_dir else m.pin_out in
+  List.init c.side_set_count ~f:Fn.id
+  |> List.exists ~f:(fun j ->
+    let pin = (c.side_set_base + j) % Isa.pin_space in
+    let movable =
+      if c.side_set_pindirs
+      then pin >= Isa.first_bidir_pin && pin < Isa.num_pins
+      else pin >= Isa.first_output_pin
+    in
+    movable && (level lsr pin) land 1 <> (value lsr j) land 1)
 ;;
 
 let soundness ?period ?(preload = []) ~config ~cycles ~seeds words =
   let instructions =
     List.map words ~f:(fun w ->
       Isa.of_word ~side_set_count:config.Program_config.side_set_count w |> ok_exn)
+    |> Array.of_list
   in
-  let rows = Array.create ~len:(List.length words) None in
-  List.iter (Analyser.analyse ?period ~config instructions) ~f:(fun row ->
-    rows.(row.pc) <- Some row);
+  let rows = Array.create ~len:(Array.length instructions) None in
+  List.iter
+    (Analyser.analyse ?period ~config (Array.to_list instructions))
+    ~f:(fun row -> rows.(row.pc) <- Some row);
   let issues = ref 0 in
+  let side_edges = ref 0 in
   let violations = ref [] in
   for seed = 1 to seeds do
     let random = Splittable_random.of_int seed in
@@ -575,7 +596,18 @@ let soundness ?period ?(preload = []) ~config ~cycles ~seeds words =
             | Some row -> Interval.contains row.phase (phase t)
             | None -> false
           in
-          if not ok then violations := (seed, cycle, t.pc, phase t) :: !violations));
+          if not ok then violations := (seed, cycle, t.pc, phase t) :: !violations);
+        match instructions.(t.pc) with
+        | Op { side_set; _ } when side_set_moves config t side_set ->
+          Int.incr side_edges;
+          let ok =
+            match rows.(t.pc) with
+            | Some { side_event = Some { at; changes = true }; _ } ->
+              Interval.contains at (phase t + 1)
+            | _ -> false
+          in
+          if not ok then violations := (seed, cycle, t.pc, phase t + 1) :: !violations
+        | _ -> ());
       if int 3 = 0 && List.length t.tx_fifo < Machine.fifo_depth
       then m := Machine.write_tx t (int 0xffff) |> ok_exn;
       if int 3 = 0
@@ -586,7 +618,7 @@ let soundness ?period ?(preload = []) ~config ~cycles ~seeds words =
       m := Machine.step !m ~inputs:(int ((1 lsl Isa.pin_space) - 1))
     done
   done;
-  !issues, List.rev !violations
+  !issues, !side_edges, List.rev !violations
 ;;
 
 let%expect_test "every firmware stays inside its analysis under random stimulus" =
@@ -604,23 +636,25 @@ let%expect_test "every firmware stays inside its analysis under random stimulus"
     ]
   in
   List.iter corpus ~f:(fun (name, config, source, period, preload) ->
-    let issues, violations =
+    let issues, side_edges, violations =
       soundness ?period ~preload ~config ~cycles:3000 ~seeds:8 (assemble source)
     in
     let violations = List.take violations 3 in
-    print_s [%message name (issues : int) (violations : (int * int * int * int) list)]);
+    print_s
+      [%message
+        name (issues : int) (side_edges : int) (violations : (int * int * int * int) list)]);
   [%expect
     {|
-    ("uart tx" (issues 4962) (violations ()))
-    ("uart tx host rate" (issues 224) (violations ()))
-    ("uart rx" (issues 5756) (violations ()))
-    ("spi master" (issues 8172) (violations ()))
-    ("spi slave" (issues 14940) (violations ()))
-    ("i2c master" (issues 7129) (violations ()))
-    ("i2c slave" (issues 13883) (violations ()))
-    ("i2c logger" (issues 6752) (violations ()))
-    ("usb tx" (issues 4466) (violations ()))
-    ("usb rx" (issues 8302) (violations ()))
+    ("uart tx" (issues 4962) (side_edges 0) (violations ()))
+    ("uart tx host rate" (issues 224) (side_edges 0) (violations ()))
+    ("uart rx" (issues 5756) (side_edges 0) (violations ()))
+    ("spi master" (issues 8172) (side_edges 2598) (violations ()))
+    ("spi slave" (issues 14940) (side_edges 0) (violations ()))
+    ("i2c master" (issues 7129) (side_edges 1391) (violations ()))
+    ("i2c slave" (issues 13883) (side_edges 0) (violations ()))
+    ("i2c logger" (issues 6752) (side_edges 1200) (violations ()))
+    ("usb tx" (issues 4466) (side_edges 0) (violations ()))
+    ("usb rx" (issues 8302) (side_edges 0) (violations ()))
     |}]
 ;;
 
@@ -632,10 +666,56 @@ let%expect_test "random programs stay inside their analysis" =
       let words = Random_program.program random ~config in
       soundness ~config ~cycles:1000 ~seeds:2 words)
   in
-  let issues = List.sum (module Int) results ~f:fst in
-  let violations = List.sum (module Int) results ~f:(fun (_, v) -> List.length v) in
-  print_s [%message (issues : int) (violations : int)];
-  [%expect {| ((issues 3867) (violations 0)) |}]
+  let issues = List.sum (module Int) results ~f:(fun (i, _, _) -> i) in
+  let side_edges = List.sum (module Int) results ~f:(fun (_, e, _) -> e) in
+  let violations = List.sum (module Int) results ~f:(fun (_, _, v) -> List.length v) in
+  print_s [%message (issues : int) (side_edges : int) (violations : int)];
+  [%expect {| ((issues 3867) (side_edges 969) (violations 0)) |}]
+;;
+
+(* Random programs rarely write a side-set pin any other way, so this one does it on
+   purpose: [set pins] and side-set share a pin, the set wins, and the next [side 0] moves
+   the pin back. *)
+let%expect_test "side-set moves a pin back after a write to it" =
+  let config =
+    { Program_config.default with
+      side_set_count = 1
+    ; side_set_base = 5
+    ; set_base = 5
+    ; set_count = 1
+    }
+  in
+  let source =
+    {|
+    .side_set 1
+    set p, 10 side 0
+    mov t, now side 0
+    add t, p side 0
+loop:
+    wait t+ side 0
+    set pins, 1 side 0
+    nop side 0
+    jmp loop
+|}
+  in
+  report ~config source;
+  let issues, side_edges, violations =
+    soundness ~config ~cycles:300 ~seeds:1 (assemble source)
+  in
+  print_s
+    [%message
+      (issues : int) (side_edges : int) (violations : (int * int * int * int) list)];
+  [%expect
+    {|
+      0  set p, 10 side 0             phase ?..?  side ?..?  jitter ?
+      1  mov t, now side 0            phase ?..?
+      2  add t, p side 0              phase 1
+      3  wait t+ side 0               phase -8..-5  slack 5..8
+      4  set pins, 1 side 0           phase -9  edge -8
+      5  nop side 0                   phase -8  side -7
+      6  jmp 3                        phase -7
+    ((issues 120) (side_edges 29) (violations ()))
+    |}]
 ;;
 
 let%expect_test "edge meter" =

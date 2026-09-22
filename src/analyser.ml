@@ -7,6 +7,7 @@ module State = struct
     ; x : Interval.t
     ; y : Interval.t
     ; since_arm : Interval.t option
+    ; side_set : int option
     }
   [@@deriving sexp_of, compare, equal]
 
@@ -16,6 +17,7 @@ module State = struct
     ; x = Interval.top
     ; y = Interval.top
     ; since_arm = None
+    ; side_set = None
     }
   ;;
 
@@ -28,6 +30,9 @@ module State = struct
         (match a.since_arm, b.since_arm with
          | Some a, Some b -> Some (Interval.join a b)
          | _ -> None)
+    ; side_set =
+        Option.bind a.side_set ~f:(fun a ->
+          Option.some_if ([%equal: int option] (Some a) b.side_set) a)
     }
   ;;
 
@@ -38,6 +43,7 @@ module State = struct
     ; y = Interval.widen ~old:old.y t.y
     ; since_arm =
         Option.map2 old.since_arm t.since_arm ~f:(fun old t -> Interval.widen ~old t)
+    ; side_set = t.side_set
     }
   ;;
 
@@ -55,20 +61,28 @@ module Pin_event = struct
     | Sample of Interval.t
   [@@deriving sexp_of]
 
-  let to_string t =
-    let with_jitter name (i : Interval.t) =
-      let jitter =
-        match i.lo, i.hi with
-        | Some lo, Some hi when hi = lo -> ""
-        | Some lo, Some hi -> [%string "  jitter %{hi - lo#Int}"]
-        | _ -> "  jitter ?"
-      in
-      [%string "  %{name} %{Interval.to_string i}%{jitter}"]
+  let with_jitter name (i : Interval.t) =
+    let jitter =
+      match i.lo, i.hi with
+      | Some lo, Some hi when hi = lo -> ""
+      | Some lo, Some hi -> [%string "  jitter %{hi - lo#Int}"]
+      | _ -> "  jitter ?"
     in
-    match t with
+    [%string "  %{name} %{Interval.to_string i}%{jitter}"]
+  ;;
+
+  let to_string = function
     | Edge i -> with_jitter "edge" i
     | Sample i -> with_jitter "sample" i
   ;;
+end
+
+module Side_event = struct
+  type t =
+    { at : Interval.t
+    ; changes : bool
+    }
+  [@@deriving sexp_of]
 end
 
 module Row = struct
@@ -79,6 +93,7 @@ module Row = struct
     ; slack : Interval.t option
     ; may_miss : bool
     ; pin_event : Pin_event.t option
+    ; side_event : Side_event.t option
     }
   [@@deriving sexp_of]
 end
@@ -90,6 +105,28 @@ let captures (c : Program_config.t) (wait : Isa.Wait.t) =
   | Pin_level { pin; level } -> pin = c.capture_pin && Bool.equal level c.capture_rising
   | Pin_edge { pin; rising } -> pin = c.capture_pin && Bool.equal rising c.capture_rising
   | Deadline _ | Fifo _ -> false
+;;
+
+(* A write to the pins side-set drives leaves them at a level the analysis does not
+   follow. *)
+let writes_side_set (c : Program_config.t) (op : Isa.Op.t) =
+  let overlaps ~base ~count =
+    List.exists (List.range 0 count) ~f:(fun i ->
+      List.exists (List.range 0 c.side_set_count) ~f:(fun j ->
+        (base + i) % Isa.pin_space = (c.side_set_base + j) % Isa.pin_space))
+  in
+  let to_pins = not c.side_set_pindirs in
+  match op with
+  | Set { dest = Pins; _ } -> to_pins && overlaps ~base:c.set_base ~count:c.set_count
+  | Set { dest = Pindirs; _ } ->
+    c.side_set_pindirs && overlaps ~base:c.set_base ~count:c.set_count
+  | Out { dest = Pins; count } -> to_pins && overlaps ~base:c.out_base ~count
+  | Out { dest = Pindirs; count } ->
+    c.side_set_pindirs && overlaps ~base:c.out_base ~count
+  | Mov { dest = Pins; _ } -> to_pins && overlaps ~base:c.out_base ~count:c.out_count
+  | Mov { dest = Pindirs; _ } ->
+    c.side_set_pindirs && overlaps ~base:c.out_base ~count:c.out_count
+  | _ -> false
 ;;
 
 (* Successors of [pc] with the state after the instruction. A wait on a pin or a fifo can
@@ -112,7 +149,12 @@ let step ?period ?(single_capture_edge = false) ~config (s : State.t) pc (t : Is
        let s = { s with y = Interval.shift s.y (-1) } in
        [ target, s; following, s ]
      | _ -> [ target, s; following, s ])
-  | Op { op; delay; _ } ->
+  | Op { op; delay; side_set } ->
+    let s =
+      if config.side_set_count = 0
+      then s
+      else { s with side_set = Option.some_if (not (writes_side_set config op)) side_set }
+    in
     let next = delay + 1 in
     let after (s : State.t) = [ following, State.elapse s next ] in
     (match op with
@@ -199,6 +241,23 @@ let analyse ?period ?single_capture_edge ~config (program : Isa.t list) =
       (step ?period ?single_capture_edge ~config s pc program.(pc))
       ~f:(fun (pc, s) -> visit pc s)
   done;
+  (* Side-set makes an edge only on the ways in that leave its pins at another level, so
+     the edge is placed by those ways alone and not by the join of all of them. *)
+  let side_edge = Array.create ~len:n None in
+  let arrive pc (s : State.t) =
+    match program.(pc) with
+    | Op { side_set; _ }
+      when config.Program_config.side_set_count > 0
+           && not ([%equal: int option] s.side_set (Some side_set)) ->
+      side_edge.(pc) <- Some (Option.fold side_edge.(pc) ~init:s.phase ~f:Interval.join)
+    | _ -> ()
+  in
+  arrive 0 State.initial;
+  Array.iteri entry ~f:(fun pc s ->
+    Option.iter s ~f:(fun s ->
+      List.iter
+        (step ?period ?single_capture_edge ~config s pc program.(pc))
+        ~f:(fun (pc, s) -> if pc < n then arrive pc s)));
   Array.to_list program
   |> List.filter_mapi ~f:(fun pc instruction ->
     Option.map entry.(pc) ~f:(fun (s : State.t) ->
@@ -224,7 +283,19 @@ let analyse ?period ?single_capture_edge ~config (program : Isa.t list) =
           Some (Pin_event.Sample s.phase)
         | _ -> None
       in
-      { Row.pc; instruction; phase = s.phase; slack; may_miss; pin_event }))
+      (* side-set is driven when the instruction issues, which for a wait is when it is
+         reached and not when it releases, and shows on the pin the cycle after *)
+      let side_event =
+        match instruction with
+        | Op _ when config.side_set_count > 0 ->
+          Some
+            { Side_event.at =
+                Interval.shift (Option.value side_edge.(pc) ~default:s.phase) 1
+            ; changes = Option.is_some side_edge.(pc)
+            }
+        | _ -> None
+      in
+      { Row.pc; instruction; phase = s.phase; slack; may_miss; pin_event; side_event }))
 ;;
 
 let to_string ~side_set_count rows =
@@ -238,13 +309,19 @@ let to_string ~side_set_count rows =
           "  slack %{Interval.to_string s}%{if r.may_miss then \"  MAY MISS\" else \"\"}"]
     in
     let pin_event = Option.value_map r.pin_event ~default:"" ~f:Pin_event.to_string in
+    let side_event =
+      match r.side_event with
+      | Some { at; changes = true } -> Pin_event.with_jitter "side" at
+      | _ -> ""
+    in
     sprintf
-      "%3d  %-28s phase %s%s%s"
+      "%3d  %-28s phase %s%s%s%s"
       r.pc
       text
       (Interval.to_string r.phase)
       slack
-      pin_event)
+      pin_event
+      side_event)
   |> String.concat ~sep:"\n"
 ;;
 

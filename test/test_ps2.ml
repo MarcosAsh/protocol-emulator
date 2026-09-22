@@ -200,7 +200,7 @@ let%expect_test "every edge and every sample is placed by a deadline" =
      56  set pindirs, 1               phase -999  edge -998
      59  set pindirs, 0               phase -999  edge -998
      62  mov pindirs, null            phase -997  edge -996
-    ((words 65) (edge_jitter 0) (sample_jitter 0) (may_miss 0))
+    ((words 65) (edge_jitter 0) (sample_jitter 0) (side_jitter 0) (may_miss 0))
     |}]
 ;;
 
@@ -220,7 +220,7 @@ let%expect_test "the shortest quarter the program keeps up with" =
      56  set pindirs, 1               phase -7  edge -6
      59  set pindirs, 0               phase -7  edge -6
      62  mov pindirs, null            phase -5  edge -4
-    ((words 65) (edge_jitter 0) (sample_jitter 0) (may_miss 0))
+    ((words 65) (edge_jitter 0) (sample_jitter 0) (side_jitter 0) (may_miss 0))
     |}]
 ;;
 
@@ -241,7 +241,7 @@ let%expect_test "a quarter of seven cycles is too short" =
      56  set pindirs, 1               phase -6  edge -5
      59  set pindirs, 0               phase -6  edge -5
      62  mov pindirs, null            phase -4  edge -3
-    ((words 65) (edge_jitter 1) (sample_jitter 0) (may_miss 1))
+    ((words 65) (edge_jitter 1) (sample_jitter 0) (side_jitter 0) (may_miss 1))
     |}]
 ;;
 

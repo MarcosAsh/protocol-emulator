@@ -4,7 +4,8 @@
     edge bounds the capture anchor by the time since [capture_arm].
 
     Every pin write is an edge, placed at the phase the change shows on the pin, and every
-    pin read a sample; the width of the interval is the jitter in cycles. *)
+    pin read a sample; the width of the interval is the jitter in cycles. Side-set makes
+    an edge too, which is how SPI and I2C drive their clocks. *)
 
 open! Core
 
@@ -12,6 +13,20 @@ module Pin_event : sig
   type t =
     | Edge of Interval.t
     | Sample of Interval.t
+  [@@deriving sexp_of]
+end
+
+(** What side-set does to its pins, on every instruction that carries it: [at] is the
+    phase the level shows on the pins. A wait drives them when it is reached and holds
+    them while it stalls, so [at] is the wait's own phase and not its release. [changes]
+    is false when the pins hold that level already on every way in, which makes the
+    instruction a hold and not an edge; otherwise [at] covers only the ways in that can
+    change the level, which after a plain write to the same pins is any of them. *)
+module Side_event : sig
+  type t =
+    { at : Interval.t
+    ; changes : bool
+    }
   [@@deriving sexp_of]
 end
 
@@ -23,6 +38,7 @@ module Row : sig
     ; slack : Interval.t option
     ; may_miss : bool
     ; pin_event : Pin_event.t option
+    ; side_event : Side_event.t option
     }
   [@@deriving sexp_of]
 end
@@ -41,6 +57,9 @@ val analyse
   -> Isa.t list
   -> Row.t list
 
+(** A line per row: address, instruction, phase, the slack of a deadline wait, [edge] or
+    [sample] for what the instruction does to the pins and [side] where side-set changes
+    its pins, each with its jitter when there is any. *)
 val to_string : side_set_count:int -> Row.t list -> string
 
 module Verdict : sig

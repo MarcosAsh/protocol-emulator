@@ -139,7 +139,7 @@ let%expect_test "every edge and every sample is placed by a deadline" =
      27  set pindirs, 1               phase -299  edge -298
      34  set pindirs, 0               phase -297  edge -296
      38  in pins, 1                   phase -297  sample -297
-    ((words 48) (edge_jitter 0) (sample_jitter 0) (may_miss 0))
+    ((words 48) (edge_jitter 0) (sample_jitter 0) (side_jitter 0) (may_miss 0))
     |}]
 ;;
 
@@ -154,7 +154,7 @@ let%expect_test "the shortest unit the program keeps up with" =
      27  set pindirs, 1               phase -4  edge -3
      34  set pindirs, 0               phase -2  edge -1
      38  in pins, 1                   phase -2  sample -2
-    ((words 48) (edge_jitter 0) (sample_jitter 0) (may_miss 0))
+    ((words 48) (edge_jitter 0) (sample_jitter 0) (side_jitter 0) (may_miss 0))
     |}]
 ;;
 
@@ -172,7 +172,7 @@ let%expect_test "a unit of four cycles is too short" =
      36  wait t+                      phase -1..1  slack -1..1  MAY MISS
      38  in pins, 1                   phase -1..0  sample -1..0  jitter 1
      40  wait t+                      phase -1..2  slack -2..1  MAY MISS
-    ((words 48) (edge_jitter 1) (sample_jitter 1) (may_miss 3))
+    ((words 48) (edge_jitter 1) (sample_jitter 1) (side_jitter 0) (may_miss 3))
     |}]
 ;;
 

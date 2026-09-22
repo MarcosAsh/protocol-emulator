@@ -124,7 +124,7 @@ let%expect_test "every edge is placed by a deadline" =
      19  set pins, 1                  phase -19  edge -18
      21  out pins, 1                  phase -19  edge -18
      23  set pins, 0                  phase -19  edge -18
-    ((words 32) (edge_jitter 0) (sample_jitter 0) (may_miss 0))
+    ((words 32) (edge_jitter 0) (sample_jitter 0) (side_jitter 0) (may_miss 0))
     |}]
 ;;
 
@@ -136,7 +136,7 @@ let%expect_test "the shortest bit the structure can make" =
      19  set pins, 1                  phase -5  edge -4
      21  out pins, 1                  phase -5  edge -4
      23  set pins, 0                  phase -5  edge -4
-    ((words 32) (edge_jitter 0) (sample_jitter 0) (may_miss 0))
+    ((words 32) (edge_jitter 0) (sample_jitter 0) (side_jitter 0) (may_miss 0))
     |}]
 ;;
 
@@ -152,7 +152,7 @@ let%expect_test "a bit too short for the end of a word" =
      19  set pins, 1                  phase -5..-4  edge -4..-3  jitter 1
      21  out pins, 1                  phase -5  edge -4
      23  set pins, 0                  phase -5  edge -4
-    ((words 32) (edge_jitter 1) (sample_jitter 0) (may_miss 1))
+    ((words 32) (edge_jitter 1) (sample_jitter 0) (side_jitter 0) (may_miss 1))
     |}];
   let (_ : Strip.t), fault = run source in
   print_s [%message (fault : Machine.Fault.t)];
