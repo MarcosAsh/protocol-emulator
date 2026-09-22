@@ -46,6 +46,8 @@ module Config : sig
     ; wrap_bottom : 'a
     ; wrap_top : 'a
     ; period_fraction : 'a
+    ; break_enable : 'a
+    ; break_pc : 'a
     }
   [@@deriving hardcaml]
 
@@ -82,6 +84,8 @@ module Host : sig
     ; clear_irq : 'a
     ; stop : 'a
     ; flush : 'a
+    ; resume : 'a
+    ; single_step : 'a
     }
   [@@deriving hardcaml]
 end
@@ -99,6 +103,10 @@ module I : sig
     ; flush : 'a
     (** Empties both fifos. Ignored unless the core is halted, so not in the cycle of the
         [stop] that halts it. *)
+    ; resume : 'a
+    (** Pulse while halted: go on from the pc with nothing reset. The next cycle fetches
+        the word at the pc again and the core runs from the one after. *)
+    ; single_step : 'a (** [resume], and halt again when an instruction completes. *)
     ; inputs : 'a
     (** The external level of every pin in the flat pin space, and for a wire what the
         other engines drive. *)
@@ -125,6 +133,8 @@ module O : sig
     ; now : 'a
     ; stall : 'a (** Cycles until the next issue. *)
     ; halted : 'a
+    ; resumed : 'a
+    ; stepping : 'a
     ; irq : 'a
     ; fault : 'a Fault.t
     ; capture : 'a

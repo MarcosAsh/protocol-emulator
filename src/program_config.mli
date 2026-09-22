@@ -48,6 +48,11 @@ type t =
       a loop on [wait t+] makes edges [p + period_fraction / 65536] cycles apart on
       average, each within a cycle of the exact line. Any other write to [t] clears what
       has built up below the cycle. *)
+  ; break_enable : bool
+  ; break_pc : int
+  (** With [break_enable] the core halts when it comes to [break_pc], before the
+      instruction there issues. The first instruction after a resume or a step issues even
+      at [break_pc], so a resume leaves the breakpoint it stopped at. *)
   }
 [@@deriving sexp_of, compare, equal]
 

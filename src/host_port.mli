@@ -3,11 +3,13 @@
     one frame repeat the access, which streams the fifos and the program window.
 
     Registers: 0 control (bit 0 start, bit 1 clear irq, bit 2 stop, bit 3 flush both
-    fifos; the program and the config fields can only be written and the fifos only
-    flushed while the core is halted, so a flush takes a write of its own after the stop),
-    1 status, 2 pc, 3 and 4 now, 5 and 6 capture, 7 tx fifo, 8 rx fifo (a read pops), 9
-    program address, 10 program word (a write increments the address), 11 select, 16
-    onwards the config fields in order.
+    fifos, bit 4 resume, bit 5 single step; the program and the config fields can only be
+    written and the fifos only flushed while the core is halted, so a flush takes a write
+    of its own after the stop), 1 status, 2 pc, 3 and 4 now, 5 and 6 capture, 7 tx fifo, 8
+    rx fifo (a read pops), 9 program address, 10 program word (a write increments the
+    address), 11 select, 16 onwards the config fields in order, and for a debugger 0x40 x,
+    0x41 y, 0x42 p, 0x43 and 0x44 t, 0x45 isr, 0x46 osr, 0x47 the isr count and the osr
+    count shifted up by 8.
 
     With more than one engine, select names the engine that every other register but the
     program address reaches: control, status, pc, now, capture, both fifos, the program
@@ -29,6 +31,14 @@ module Status : sig
     ; tx_level : 'a
     ; rx_level : 'a
     ; rx_head : 'a
+    ; x : 'a
+    ; y : 'a
+    ; p : 'a
+    ; t : 'a
+    ; isr : 'a
+    ; osr : 'a
+    ; isr_count : 'a
+    ; osr_count : 'a
     }
   [@@deriving hardcaml]
 end
@@ -55,6 +65,14 @@ module Reg : sig
   val program : int
   val select : int
   val config : int
+  val x : int
+  val y : int
+  val p : int
+  val t_lo : int
+  val t_hi : int
+  val isr : int
+  val osr : int
+  val counts : int
 end
 
 module type Config = sig

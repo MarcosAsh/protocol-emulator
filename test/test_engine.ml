@@ -350,6 +350,12 @@ let%expect_test "random programs" =
   [%expect {| ((programs 64) (failed ())) |}]
 ;;
 
+let%expect_test "random programs under a debugger" =
+  random_programs ~debugger:true ~programs:32 ~cycles:1000 (fun random ~config ->
+    Random_program.program random ~config);
+  [%expect {| ((programs 32) (failed ())) |}]
+;;
+
 let%expect_test "every mov and alu form" =
   random_programs ~wrap:false ~programs:4 ~cycles:300 (fun _ ~config:_ ->
     Sweep_program.words);

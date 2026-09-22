@@ -8,6 +8,8 @@ module Event = struct
     | Clear_irq
     | Stop
     | Flush
+    | Resume
+    | Single_step
     | Program_write of
         { addr : int
         ; data : int
@@ -53,6 +55,8 @@ let write t ~(statuses : int Host_port.Status.t list) ~reg value =
         ; Option.some_if (value land 2 = 2) Event.Clear_irq
         ; Option.some_if (value land 4 = 4) Event.Stop
         ; Option.some_if (value land 8 = 8) Event.Flush
+        ; Option.some_if (value land 16 = 16) Event.Resume
+        ; Option.some_if (value land 32 = 32) Event.Single_step
         ]
       |> reached t )
   else if reg = Reg.tx
@@ -130,6 +134,22 @@ let read t ~(statuses : int Host_port.Status.t list) ~reg =
   then high status.capture, []
   else if reg = Reg.rx
   then status.rx_head, reached t [ Event.Rx_pop ]
+  else if reg = Reg.x
+  then status.x, []
+  else if reg = Reg.y
+  then status.y, []
+  else if reg = Reg.p
+  then status.p, []
+  else if reg = Reg.t_lo
+  then low status.t, []
+  else if reg = Reg.t_hi
+  then high status.t, []
+  else if reg = Reg.isr
+  then status.isr, []
+  else if reg = Reg.osr
+  then status.osr, []
+  else if reg = Reg.counts
+  then (status.osr_count lsl 8) lor status.isr_count, []
   else if index >= 0 && index < List.length config_widths
   then List.nth_exn (List.nth_exn t.configs engine) index, []
   else 0, []

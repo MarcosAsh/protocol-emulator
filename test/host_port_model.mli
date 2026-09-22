@@ -12,6 +12,8 @@ module Event : sig
     | Clear_irq
     | Stop
     | Flush
+    | Resume
+    | Single_step
     | Program_write of
         { addr : int
         ; data : int

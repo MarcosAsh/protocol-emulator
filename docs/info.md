@@ -62,7 +62,7 @@ words in one frame repeat the access, which streams the fifos and the program wi
 
 | Register | Name | Notes |
 |---|---|---|
-| 0 | control | bit 0 start, bit 1 clear irq, bit 2 stop, bit 3 flush both fifos; the program and the config are only written, and the fifos only flushed, while the core is halted |
+| 0 | control | bit 0 start, bit 1 clear irq, bit 2 stop, bit 3 flush both fifos, bit 4 resume from the pc, bit 5 single step; the program and the config are only written, and the fifos only flushed, while the core is halted |
 | 1 | status | pc, halted, irq, fault bits, fifo levels |
 | 2 | pc | |
 | 3, 4 | now | low and high words of the counter |
@@ -72,7 +72,8 @@ words in one frame repeat the access, which streams the fifos and the program wi
 | 9 | program address | |
 | 10 | program word | write increments the address |
 | 11 | select | 0 or 1, the core every register but the program address reaches; status bit 15 says the other core has its irq up |
-| 16 on | config | pin bases and counts, side-set, shift directions, autopush and autopull, CRC, stuffing, wrap, period fraction |
+| 16 on | config | pin bases and counts, side-set, shift directions, autopush and autopull, CRC, stuffing, wrap, period fraction, breakpoint |
+| 64 to 71 | debug | read only: x, y, p, t low and high, isr, osr, and the isr count with the osr count shifted up 8 |
 
 The design is written in Hardcaml. The same OCaml model of the core is the executable
 specification, the reference the hardware runs against in lockstep, and the input to a

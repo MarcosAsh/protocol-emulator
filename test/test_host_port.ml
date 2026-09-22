@@ -33,6 +33,8 @@ module Bench (Config : Host_port.Config) = struct
                if Bits.to_bool !(o.clear_irq) then note "clear_irq";
                if Bits.to_bool !(o.stop) then note "stop";
                if Bits.to_bool !(o.flush) then note "flush";
+               if Bits.to_bool !(o.resume) then note "resume";
+               if Bits.to_bool !(o.single_step) then note "single_step";
                if Bits.to_bool !(o.program_write.valid)
                then
                  note
@@ -154,8 +156,9 @@ let%expect_test "config registers read back" =
        (out_shift_right 0) (autopush 1) (push_threshold 16) (autopull 1)
        (pull_threshold 18) (crc_width 19) (crc_poly 20) (crc_init 21)
        (crc_reflect 0) (stuff_threshold 23) (stuff_level 0) (wrap_bottom 25)
-       (wrap_top 26) (period_fraction 27)))
-     (live (1 2 1 4 5 6 7 8 1 10 11 0 1 0 1 16 1 18 19 20 21 0 23 0 25 26 27)))
+       (wrap_top 26) (period_fraction 27) (break_enable 0) (break_pc 29)))
+     (live
+      (1 2 1 4 5 6 7 8 1 10 11 0 1 0 1 16 1 18 19 20 21 0 23 0 25 26 27 0 29)))
     (events ())
     |}]
 ;;

@@ -46,6 +46,8 @@ type t =
   ; rx_fifo : int list
   ; stall : int
   ; halted : bool
+  ; resumed : bool
+  ; stepping : bool
   ; irq : bool
   ; fault : Fault.t
   ; capture : int
@@ -87,6 +89,8 @@ let create ~config ~program =
   ; rx_fifo = []
   ; stall = 0
   ; halted = false
+  ; resumed = false
+  ; stepping = false
   ; irq = false
   ; fault = Fault.none
   ; capture = 0
@@ -111,6 +115,12 @@ let read_rx t =
 let clear_irq t = { t with irq = false }
 let stop t = { t with halted = true }
 let flush t = if t.halted then { t with tx_fifo = []; rx_fifo = [] } else t
+
+let resume t =
+  if t.halted then { t with halted = false; resumed = true; stepping = false } else t
+;;
+
+let single_step t = if t.halted then { (resume t) with stepping = true } else t
 let bit v i = (v lsr i) land 1
 let set_bit v i b = if b then v lor (1 lsl i) else v land lnot (1 lsl i)
 let pin i = i % Isa.pin_space
@@ -411,7 +421,10 @@ let pc_after t =
   if t.pc = t.config.wrap_top then t.config.wrap_bottom else (t.pc + 1) land pc_mask
 ;;
 
-let next t ~stall = { t with pc = pc_after t; stall }
+(* an instruction that completes ends a step and leaves the breakpoint it resumed at *)
+let next t ~pc ~stall =
+  { t with pc; stall; resumed = false; halted = t.halted || t.stepping; stepping = false }
+;;
 
 let issue t ~sample =
   let c = t.config in
@@ -419,7 +432,7 @@ let issue t ~sample =
   | Error _ -> fault { t with halted = true } (fun f -> { f with decode = true })
   | Ok (Jmp { cond; target }) ->
     let taken, t = jmp_taken t cond ~sample in
-    { t with pc = (if taken then target else pc_after t); stall = Isa.jmp_cycles - 1 }
+    next t ~pc:(if taken then target else pc_after t) ~stall:(Isa.jmp_cycles - 1)
   | Ok (Op { op; delay; side_set }) ->
     let t =
       (if c.side_set_pindirs then write_pindirs else write_pins)
@@ -432,8 +445,8 @@ let issue t ~sample =
      | Wait wait ->
        (match wait_ready t wait ~sample with
         | None -> t
-        | Some t -> next t ~stall:delay)
-     | op -> next (execute t op ~sample) ~stall:delay)
+        | Some t -> next t ~pc:(pc_after t) ~stall:delay)
+     | op -> next (execute t op ~sample) ~pc:(pc_after t) ~stall:delay)
 ;;
 
 let step t ~inputs =
@@ -446,6 +459,8 @@ let step t ~inputs =
     then { t with stall = t.stall - 1 }
     else if t.halted
     then t
+    else if t.config.break_enable && t.pc = t.config.break_pc && not t.resumed
+    then { t with halted = true }
     else issue t ~sample
   in
   let t = if captured then { t with capture = now; capture_armed = false } else t in

@@ -67,6 +67,10 @@ type t = private
   ; rx_fifo : int list
   ; stall : int
   ; halted : bool
+  ; resumed : bool
+  (** Set by a resume or a step until an instruction completes, so a breakpoint does not
+      stop the core again where it resumed. *)
+  ; stepping : bool (** Halt when the next instruction completes. *)
   ; irq : bool
   ; fault : Fault.t
   ; capture : int
@@ -98,3 +102,13 @@ val stop : t -> t
 (** The host empties both fifos. Ignored unless the core is halted, so a running program
     never loses a word to it. *)
 val flush : t -> t
+
+(** A halted core goes on from its pc with nothing reset, as the hardware does at the edge
+    after the cycle that follows the host's request: it spends that cycle fetching the
+    word at the pc again. So a request only counts if the core was halted when it came,
+    and the model takes it a cycle later. Ignored while running. *)
+val resume : t -> t
+
+(** [resume], and halt again when the next instruction completes: a jump, or an
+    instruction whose effects are done, which for a wait is when it releases. *)
+val single_step : t -> t

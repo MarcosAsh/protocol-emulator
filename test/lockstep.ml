@@ -24,6 +24,8 @@ module State = struct
     ; pin_dir : int
     ; stall : int
     ; halted : bool
+    ; resumed : bool
+    ; stepping : bool
     ; irq : bool
     ; fault : Machine.Fault.t
     ; capture : int
@@ -52,6 +54,8 @@ module State = struct
     ; pin_dir = m.pin_dir
     ; stall = m.stall
     ; halted = m.halted
+    ; resumed = m.resumed
+    ; stepping = m.stepping
     ; irq = m.irq
     ; fault = m.fault
     ; capture = m.capture
@@ -83,6 +87,8 @@ module State = struct
     ; pin_dir = int o.pin_dir
     ; stall = int o.stall
     ; halted = bool o.halted
+    ; resumed = bool o.resumed
+    ; stepping = bool o.stepping
     ; irq = bool o.irq
     ; fault =
         { underflow = bool o.fault.underflow
@@ -108,9 +114,20 @@ module Host = struct
     ; clear_irq : bool
     ; stop : bool
     ; flush : bool
+    ; resume : bool
+    ; single_step : bool
     }
 
-  let idle = { tx = None; pop_rx = false; clear_irq = false; stop = false; flush = false }
+  let idle =
+    { tx = None
+    ; pop_rx = false
+    ; clear_irq = false
+    ; stop = false
+    ; flush = false
+    ; resume = false
+    ; single_step = false
+    }
+  ;;
 end
 
 let run
@@ -155,6 +172,8 @@ let run
       cycle ();
       let mismatch = ref None in
       let cycle_number = ref 0 in
+      (* a resume asked for while halted reaches the core after the next cycle *)
+      let resuming = ref None in
       while !cycle_number < cycles && Option.is_none !mismatch do
         let n = !cycle_number in
         let expected = State.of_machine !model in
@@ -174,6 +193,16 @@ let run
           i.clear_irq := Bits.of_bool action.clear_irq;
           i.stop := Bits.of_bool action.stop;
           i.flush := Bits.of_bool action.flush;
+          i.resume := Bits.of_bool action.resume;
+          i.single_step := Bits.of_bool action.single_step;
+          let resumes_now = !resuming in
+          let asks = !model.halted && Option.is_none resumes_now in
+          resuming
+          := if asks && action.single_step
+             then Some Machine.single_step
+             else if asks && action.resume
+             then Some Machine.resume
+             else None;
           if action.clear_irq then model := Machine.clear_irq !model;
           if action.pop_rx
           then (
@@ -188,6 +217,7 @@ let run
           let before = !model in
           model := Machine.step before ~inputs:levels;
           if action.stop then model := Machine.stop !model;
+          Option.iter resumes_now ~f:(fun resume -> model := resume !model);
           Option.iter coverage ~f:(fun c -> Coverage.record c ~before ~after:!model);
           (match action.tx with
            | Some word when not flushed -> model := Machine.write_tx !model word |> ok_exn
@@ -209,7 +239,8 @@ let lockstep ?(cycles = 400) ?preload ?host ?react ?coverage ~config ~program ~i
   model
 ;;
 
-let random_programs ?coverage ?(wrap = true) ~programs ~cycles program =
+let random_programs ?coverage ?(wrap = true) ?(debugger = false) ~programs ~cycles program
+  =
   let random = Splittable_random.of_int 1 in
   let int hi = Splittable_random.int random ~lo:0 ~hi in
   let failed =
@@ -221,12 +252,27 @@ let random_programs ?coverage ?(wrap = true) ~programs ~cycles program =
         else { config with wrap_bottom = 0; wrap_top = (1 lsl Isa.pc_bits) - 1 }
       in
       let program = program random ~config in
+      (* a debugger of its own, so the programs are the same with it or without *)
+      let debug = Splittable_random.of_int (1000 + seed) in
+      let chance n = debugger && Splittable_random.int debug ~lo:0 ~hi:(n - 1) = 0 in
+      let config =
+        if debugger
+        then
+          { config with
+            break_enable = Splittable_random.bool debug
+          ; break_pc = Splittable_random.int debug ~lo:0 ~hi:(List.length program - 1)
+          }
+        else config
+      in
       let level = ref 0 in
       let host _ =
         { Host.idle with
           tx =
             (if !level < Machine.fifo_depth && int 3 = 0 then Some (int 0xffff) else None)
         ; pop_rx = int 3 = 0
+        ; stop = chance 50
+        ; resume = chance 8
+        ; single_step = chance 8
         }
       in
       let react (m : Machine.t) = level := List.length m.tx_fifo in

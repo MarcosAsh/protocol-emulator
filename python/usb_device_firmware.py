@@ -31,6 +31,8 @@ CONFIG = {
     "wrap_bottom": 0,
     "wrap_top": 511,
     "period_fraction": 0,
+    "break_enable": 0,
+    "break_pc": 0,
 }
 
 WORDS = [

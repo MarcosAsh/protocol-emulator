@@ -66,6 +66,8 @@ module Make (Config : Config) = struct
         ; clear_irq = host.clear_irq
         ; stop = host.stop
         ; flush = host.flush
+        ; resume = host.resume
+        ; single_step = host.single_step
         ; inputs = seen ~pads:i.pads ~others
         }
       |> Engine.O.Of_signal.assign out);

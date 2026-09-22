@@ -13,6 +13,14 @@ module Status = struct
     ; tx_level : 'a [@bits Host_fifo.level_bits]
     ; rx_level : 'a [@bits Host_fifo.level_bits]
     ; rx_head : 'a [@bits Isa.data_bits]
+    ; x : 'a [@bits Isa.data_bits]
+    ; y : 'a [@bits Isa.data_bits]
+    ; p : 'a [@bits Isa.data_bits]
+    ; t : 'a [@bits Isa.timer_bits]
+    ; isr : 'a [@bits Isa.data_bits]
+    ; osr : 'a [@bits Isa.data_bits]
+    ; isr_count : 'a [@bits Isa.count_bits]
+    ; osr_count : 'a [@bits Isa.count_bits]
     }
   [@@deriving hardcaml]
 end
@@ -31,6 +39,14 @@ module Reg = struct
   let program = 0x0a
   let select = 0x0b
   let config = 0x10
+  let x = 0x40
+  let y = 0x41
+  let p = 0x42
+  let t_lo = 0x43
+  let t_hi = 0x44
+  let isr = 0x45
+  let osr = 0x46
+  let counts = 0x47
 end
 
 module State = struct
@@ -161,6 +177,14 @@ module Make (Config : Config) = struct
            , reg16 (sel_top s.capture ~width:(Isa.timer_bits - Isa.data_bits)) )
          ; Reg.rx, s.rx_head
          ; Reg.program_addr, reg16 program_addr.value
+         ; Reg.x, s.x
+         ; Reg.y, s.y
+         ; Reg.p, s.p
+         ; Reg.t_lo, sel_bottom s.t ~width:Isa.data_bits
+         ; Reg.t_hi, reg16 (sel_top s.t ~width:(Isa.timer_bits - Isa.data_bits))
+         ; Reg.isr, s.isr
+         ; Reg.osr, s.osr
+         ; Reg.counts, reg16 (s.osr_count @: zero 3 @: s.isr_count)
          ]
          @ (Option.map select_value ~f:(fun select -> Reg.select, reg16 select)
             |> Option.to_list)
@@ -236,6 +260,8 @@ module Make (Config : Config) = struct
           ; clear_irq = mine (strobe Reg.control &: value.:(1))
           ; stop = mine (strobe Reg.control &: value.:(2))
           ; flush = mine (strobe Reg.control &: value.:(3))
+          ; resume = mine (strobe Reg.control &: value.:(4))
+          ; single_step = mine (strobe Reg.control &: value.:(5))
           ; program_write =
               { valid = mine (strobe Reg.program)
               ; addr = program_addr.value

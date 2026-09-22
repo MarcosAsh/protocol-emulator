@@ -226,7 +226,13 @@ let%expect_test "the words committed for the cocotb test are current" =
   in
   let assembled name = In_channel.read_all (name ^ ".asm") |> Firmware.assemble in
   List.iter
-    [ "uart_tx"; "wrapped_loop"; "uart_rx_wire"; "uart_tx_host_rate"; "edge_logger_wire" ]
+    [ "uart_tx"
+    ; "wrapped_loop"
+    ; "uart_rx_wire"
+    ; "uart_tx_host_rate"
+    ; "edge_logger_wire"
+    ; "debug_loop"
+    ]
     ~f:(fun name ->
       [%test_result: int list] ~message:name (committed name) ~expect:(assembled name));
   (* the programs with a twin in firmware.ml are copies, because the command line

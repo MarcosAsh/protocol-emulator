@@ -14,6 +14,14 @@ PROGRAM_ADDR = 0x09
 PROGRAM = 0x0A
 SELECT = 0x0B
 CONFIG = 0x10
+X = 0x40
+Y = 0x41
+P = 0x42
+T_LO = 0x43
+T_HI = 0x44
+ISR = 0x45
+OSR = 0x46
+COUNTS = 0x47
 
 CONFIG_FIELDS = [
     "side_set_count", "side_set_base", "side_set_pindirs", "in_base", "in_count", "out_base",
@@ -21,6 +29,7 @@ CONFIG_FIELDS = [
     "in_shift_right", "out_shift_right", "autopush", "push_threshold", "autopull",
     "pull_threshold", "crc_width", "crc_poly", "crc_init", "crc_reflect",
     "stuff_threshold", "stuff_level", "wrap_bottom", "wrap_top", "period_fraction",
+    "break_enable", "break_pc",
 ]
 
 DEFAULT_CONFIG = {
@@ -73,6 +82,28 @@ class Host:
 
     def clear_irq(self):
         self.write(CONTROL, [2])
+
+    def resume(self):
+        """Go on from the pc of a halted core, with nothing reset."""
+        self.write(CONTROL, [16])
+
+    def single_step(self):
+        """Run a halted core until one instruction completes."""
+        self.write(CONTROL, [32])
+
+    def set_breakpoint(self, pc):
+        """Halt the core when it comes to pc; only while it is halted. None clears it."""
+        self.write(CONFIG + CONFIG_FIELDS.index("break_pc"), [pc or 0])
+        self.write(CONFIG + CONFIG_FIELDS.index("break_enable"), [int(pc is not None)])
+
+    def registers(self):
+        read = lambda reg: self.read(reg)[0]
+        counts = read(COUNTS)
+        return {
+            "pc": read(PC), "x": read(X), "y": read(Y), "p": read(P),
+            "t": (read(T_HI) << 16) | read(T_LO), "isr": read(ISR), "osr": read(OSR),
+            "isr_count": counts & 0xFF, "osr_count": counts >> 8,
+        }
 
     def push(self, words):
         self.write(TX, words)

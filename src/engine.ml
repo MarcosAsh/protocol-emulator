@@ -36,6 +36,8 @@ module Config = struct
     ; wrap_bottom : 'a [@bits Isa.pc_bits]
     ; wrap_top : 'a [@bits Isa.pc_bits]
     ; period_fraction : 'a [@bits Isa.fraction_bits]
+    ; break_enable : 'a
+    ; break_pc : 'a [@bits Isa.pc_bits]
     }
   [@@deriving hardcaml]
 
@@ -74,6 +76,8 @@ module Config = struct
     ; wrap_bottom = int Isa.pc_bits c.wrap_bottom
     ; wrap_top = int Isa.pc_bits c.wrap_top
     ; period_fraction = int Isa.fraction_bits c.period_fraction
+    ; break_enable = bool c.break_enable
+    ; break_pc = int Isa.pc_bits c.break_pc
     }
   ;;
 end
@@ -107,6 +111,8 @@ module Host = struct
     ; clear_irq : 'a
     ; stop : 'a
     ; flush : 'a
+    ; resume : 'a
+    ; single_step : 'a
     }
   [@@deriving hardcaml]
 end
@@ -129,6 +135,8 @@ module I = struct
     ; clear_irq : 'a
     ; stop : 'a
     ; flush : 'a
+    ; resume : 'a
+    ; single_step : 'a
     ; inputs : 'a [@bits num_pins]
     }
   [@@deriving hardcaml]
@@ -151,6 +159,8 @@ module O = struct
     ; now : 'a [@bits Isa.timer_bits]
     ; stall : 'a [@bits Isa.count_bits]
     ; halted : 'a
+    ; resumed : 'a
+    ; stepping : 'a
     ; irq : 'a
     ; fault : 'a Fault.t
     ; capture : 'a [@bits Isa.timer_bits]
@@ -206,6 +216,9 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   let%hw pins_sampled = wire num_pins in
   let%hw stall = wire count_bits in
   let%hw halted = wire 1 in
+  let%hw resumed = wire 1 in
+  let%hw stepping = wire 1 in
+  let%hw at_break = wire 1 in
   let%hw capture = wire timer_bits in
   let%hw capture_armed = wire 1 in
   let%hw crc = wire data_bits in
@@ -213,6 +226,12 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   let%hw fetch_addr = wire pc_bits in
   let%hw ir_load = wire 1 in
   let%hw start = reg spec i.start in
+  (* a resume or a step fetches the word at the pc again, as a start does at 0; a second
+     one while the first is in flight would fetch it once more over the next *)
+  let%hw resume = wire 1 in
+  let%hw resume_asked = i.resume |: i.single_step &: halted &: ~:resume in
+  resume <-- reg spec resume_asked;
+  let%hw step_asked = reg spec (i.single_step &: halted &: ~:resume) in
   let%hw tx_pop = wire 1 in
   let rx_push = { With_valid.valid = wire 1; value = wire data_bits } in
   (* a halted core touches neither fifo, so a flush can never race the program *)
@@ -340,7 +359,11 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
       ; Rx_full, rx.full
       ]
   in
-  let%hw issue = ~:halted &: (stall ==:. 0) &: ~:start in
+  let%hw ready = ~:halted &: (stall ==:. 0) &: ~:start in
+  (* a breakpoint stops the core where it arrives, but lets go the instruction it resumed
+     at *)
+  let%hw breaks = ready &: c.break_enable &: at_break &: ~:resumed in
+  let%hw issue = ready &: ~:breaks in
   let%hw go = issue &: decode_ok in
   let%hw jmp_go = go &: is Jmp in
   let%hw op_go = go &: ~:(is Jmp) in
@@ -657,10 +680,14 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
     &: (pin_of sample c.capture_pin ==: c.capture_rising)
   in
   (* Control. *)
+  let%hw completes = jmp_go |: advance in
   let%hw halted_next =
     mux2 start gnd
+    @@ mux2 resume gnd
     @@ mux2 i.stop vdd
+    @@ mux2 breaks vdd
     @@ mux2 (issue &: ~:decode_ok) vdd
+    @@ mux2 (stepping &: completes) vdd
     @@ mux2 (op_go &: is_sys Halt) vdd halted
   in
   let%hw stall_next =
@@ -678,8 +705,15 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
     mux2 start (after (zero pc_bits)) @@ mux2 advance (after pc_next) pc_next
   in
   fetch_addr
-  <-- mux2 i.start (zero pc_bits) @@ mux2 jmp_go jmp_target_or_next pc_after_next;
-  let%hw refill = reg spec (jmp_go |: i.start) in
+  <-- mux2 i.start (zero pc_bits)
+      @@ mux2 resume_asked pc
+      @@ mux2 jmp_go jmp_target_or_next pc_after_next;
+  let%hw refill = reg spec (jmp_go |: i.start |: resume_asked) in
+  (* the compare is registered off the next pc, so it stays off the issue path *)
+  at_break <-- reg spec (pc_value_next ==: c.break_pc);
+  resumed <-- reg spec (mux2 start gnd @@ mux2 resume vdd @@ mux2 completes gnd resumed);
+  stepping
+  <-- reg spec (mux2 start gnd @@ mux2 resume step_asked @@ mux2 completes gnd stepping);
   ir_load <-- (advance |: refill);
   let sticky set = reg spec ~enable:set vdd in
   let fault =
@@ -738,6 +772,8 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   ; now
   ; stall
   ; halted
+  ; resumed
+  ; stepping
   ; irq
   ; fault
   ; capture

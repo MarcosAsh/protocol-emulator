@@ -35,6 +35,8 @@ type t =
   ; wrap_bottom : int
   ; wrap_top : int
   ; period_fraction : int
+  ; break_enable : bool
+  ; break_pc : int
   }
 [@@deriving sexp_of, compare, equal]
 
@@ -66,6 +68,8 @@ let default =
   ; wrap_bottom = 0
   ; wrap_top = (1 lsl Isa.pc_bits) - 1
   ; period_fraction = 0
+  ; break_enable = false
+  ; break_pc = 0
   }
 ;;
 
@@ -92,5 +96,6 @@ let validate t =
     ; range "wrap_bottom" t.wrap_bottom ~lo:0 ~hi:((1 lsl Isa.pc_bits) - 1)
     ; range "wrap_top" t.wrap_top ~lo:0 ~hi:((1 lsl Isa.pc_bits) - 1)
     ; range "period_fraction" t.period_fraction ~lo:0 ~hi:((1 lsl Isa.fraction_bits) - 1)
+    ; range "break_pc" t.break_pc ~lo:0 ~hi:((1 lsl Isa.pc_bits) - 1)
     ]
 ;;

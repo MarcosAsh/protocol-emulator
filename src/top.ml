@@ -53,6 +53,14 @@ let create ~memory ~engines (scope : Scope.t) (i : Signal.t I.t) =
             ; tx_level = engine.tx_level
             ; rx_level = engine.rx_level
             ; rx_head = engine.rx_head
+            ; x = engine.x
+            ; y = engine.y
+            ; p = engine.p
+            ; t = engine.t
+            ; isr = engine.isr
+            ; osr = engine.osr
+            ; isr_count = engine.isr_count
+            ; osr_count = engine.osr_count
             })
       }
   in
