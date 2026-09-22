@@ -51,6 +51,15 @@ let to_string t =
   | lo, hi -> [%string "%{b lo}..%{b hi}"]
 ;;
 
+let disjoint a b =
+  let below hi lo =
+    match hi, lo with
+    | Some hi, Some lo -> hi < lo
+    | _ -> false
+  in
+  below a.hi b.lo || below b.hi a.lo
+;;
+
 let contains t n =
   Option.value_map t.lo ~default:true ~f:(fun lo -> n >= lo)
   && Option.value_map t.hi ~default:true ~f:(fun hi -> n <= hi)

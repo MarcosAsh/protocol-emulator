@@ -21,4 +21,8 @@ val clamp_low : t -> int -> t
 
 val widen : old:t -> t -> t
 val contains : t -> int -> bool
+
+(** No integer lies in both. *)
+val disjoint : t -> t -> bool
+
 val to_string : t -> string

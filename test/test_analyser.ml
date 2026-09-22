@@ -626,6 +626,71 @@ let%expect_test "random programs stay inside their analysis" =
     {| ((issues 3867) (reached 1432) (words 16384) (side_edges 969) (violations 0)) |}]
 ;;
 
+(* A counter that runs out goes to all ones, and a deadline built on it is that far off. *)
+let%expect_test "x-- leaves all ones when it falls through" =
+  let source =
+    {|
+    set p, 10
+    set x, 0
+    mov t, now
+    jmp x--, 0
+    add t, x
+    add t, p
+    wait t
+    jmp 0
+|}
+  in
+  report source;
+  let { Soundness.issues; violations; _ } =
+    soundness ~config:Program_config.default ~cycles:300 ~seeds:1 (assemble source)
+  in
+  print_s [%message (issues : int) (violations : (int * int * int * int) list)];
+  [%expect
+    {|
+      0  set p, 10                    phase ?..?
+      1  set x, 0                     phase ?..?
+      2  mov t, now                   phase ?..?
+      3  jmp x--, 0                   phase 1
+      4  add t, x                     phase 3
+      5  add t, p                     phase -65531
+      6  wait t                       phase -65540  slack 65540
+      7  jmp 0                        phase 1
+    ((issues 7) (violations ()))
+    |}]
+;;
+
+let%expect_test "a jump on registers the analysis knows goes one way" =
+  let source =
+    {|
+    set x, 2
+    set y, 2
+    jmp x!=y, 7
+    set x, 0
+    jmp x--, 7
+    set pins, 1
+    jmp 0
+    set pins, 0
+    jmp 0
+|}
+  in
+  report source;
+  let { Soundness.issues; violations; _ } =
+    soundness ~config:Program_config.default ~cycles:100 ~seeds:1 (assemble source)
+  in
+  print_s [%message (issues : int) (violations : (int * int * int * int) list)];
+  [%expect
+    {|
+      0  set x, 2                     phase ?..?
+      1  set y, 2                     phase ?..?
+      2  jmp x!=y, 7                  phase ?..?
+      3  set x, 0                     phase ?..?
+      4  jmp x--, 7                   phase ?..?
+      5  set pins, 1                  phase ?..?  edge ?..?  jitter ?
+      6  jmp 0                        phase ?..?
+    ((issues 70) (violations ()))
+    |}]
+;;
+
 (* Random programs rarely write a side-set pin any other way, so this one does it on
    purpose: [set pins] and side-set share a pin, the set wins, and the next [side 0] moves
    the pin back. *)

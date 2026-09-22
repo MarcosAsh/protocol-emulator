@@ -129,6 +129,23 @@ let writes_side_set (c : Program_config.t) (op : Isa.Op.t) =
   | _ -> false
 ;;
 
+(* [jmp x--] jumps on a register that is not zero and leaves zero at all ones: the
+   register after the jump, and after falling through, where each can happen. *)
+let count_down (r : Interval.t) =
+  let nonzero =
+    if [%equal: int option] r.lo (Some 0) then { r with lo = Some 1 } else r
+  in
+  let taken =
+    Option.some_if
+      (not ([%equal: Interval.t] r (Interval.exactly 0)))
+      (Interval.shift nonzero (-1))
+  in
+  let falls =
+    Option.some_if (Interval.contains r 0) (Interval.exactly ((1 lsl Isa.data_bits) - 1))
+  in
+  taken, falls
+;;
+
 (* Successors of [pc] with the state after the instruction. A wait on a pin or a fifo can
    take any time, so the phase only gets a lower bound. *)
 let step ?period ?(single_capture_edge = false) ~config (s : State.t) pc (t : Isa.t) =
@@ -143,11 +160,19 @@ let step ?period ?(single_capture_edge = false) ~config (s : State.t) pc (t : Is
     (match cond with
      | Always -> [ target, s ]
      | X_dec ->
-       let s = { s with x = Interval.shift s.x (-1) } in
-       [ target, s; following, s ]
+       let taken, falls = count_down s.x in
+       Option.to_list (Option.map taken ~f:(fun x -> target, { s with x }))
+       @ Option.to_list (Option.map falls ~f:(fun x -> following, { s with x }))
      | Y_dec ->
-       let s = { s with y = Interval.shift s.y (-1) } in
-       [ target, s; following, s ]
+       let taken, falls = count_down s.y in
+       Option.to_list (Option.map taken ~f:(fun y -> target, { s with y }))
+       @ Option.to_list (Option.map falls ~f:(fun y -> following, { s with y }))
+     | X_ne_y ->
+       (match s.x, s.y with
+        | { lo = Some a; hi = Some b }, { lo = Some c; hi = Some d } when a = b && c = d
+          -> [ (if a = c then following else target), s ]
+        | x, y when Interval.disjoint x y -> [ target, s ]
+        | _ -> [ target, s; following, s ])
      | _ -> [ target, s; following, s ])
   | Op { op; delay; side_set } ->
     let s =
