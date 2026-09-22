@@ -27,14 +27,19 @@ teeth: engine.v engine_sram.v
 # why the reached ones are printed. Only the properties failing is a failure here.
 CERTIFIED = uart_tx spi_master ws2812
 certificates: engine.v
-	for name in $(CERTIFIED); do \
-	  (cd .. && dune exec -- test/certify/write_certificate.exe $$name) > certificate.sv && \
-	  sby -f -d certificate_$${name}_bmc certificate.sby bmc || exit 1; \
-	  sby -f -d certificate_$${name}_cover certificate.sby cover; \
-	  rows=$$(grep -c 'cover (entry' certificate.sv); \
-	  missed=$$(grep -A99 'unreached cover statements' certificate_$${name}_cover/logfile.txt \
-	    | grep -c 'certificate.sv:'); \
-	  echo "$$name: $$((rows - missed)) of $$rows certified rows reached at this depth"; \
-	done
+	for name in $(CERTIFIED); do $(MAKE) certificate NAME=$$name || exit 1; done
 
-.PHONY: all issue_timing host_timing fifo_order teeth certificates
+# One firmware, at the depth in SBY. A firmware slow enough to need more than the depth
+# certificate.sby carries is run on its own, which takes the better part of an hour:
+#   make certificate NAME=uart_tx16 SBY=deep_certificate.sby
+SBY = certificate.sby
+certificate: engine.v
+	(cd .. && dune exec -- test/certify/write_certificate.exe $(NAME)) > certificate.sv
+	sby -f -d certificate_$(NAME)_bmc $(SBY) bmc
+	-sby -f -d certificate_$(NAME)_cover $(SBY) cover
+	@rows=$$(grep -c 'cover (entry' certificate.sv); \
+	 missed=$$(grep -A99 'unreached cover statements' certificate_$(NAME)_cover/logfile.txt \
+	   | grep -c 'certificate.sv:'); \
+	 echo "$(NAME): $$((rows - missed)) of $$rows certified rows reached at this depth"
+
+.PHONY: all issue_timing host_timing fifo_order teeth certificates certificate

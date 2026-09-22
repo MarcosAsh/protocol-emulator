@@ -7,6 +7,8 @@ open Protocol_emulator_test
    assumption about the world, so the pins and the host can do anything. *)
 let firmwares =
   [ "uart_tx", Firmware.uart_tx ~period:8, Program_config.default
+    (* the same UART at the slower bit period the tests use, for the deep run *)
+  ; "uart_tx16", Firmware.uart_tx ~period:16, Program_config.default
   ; "spi_master", Firmware.spi_master ~half_period:8, Firmware.spi_config
   ; "ws2812", Ws2812.firmware ~third:6 ~tail:7, Ws2812.config
   ]
