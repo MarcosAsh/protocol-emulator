@@ -67,7 +67,7 @@ let%expect_test "random programs on two engines in lockstep" =
   let random = Splittable_random.of_int 5 in
   let int hi = Splittable_random.int random ~lo:0 ~hi in
   let failed =
-    List.init 12 ~f:(fun seed ->
+    List.init 32 ~f:(fun seed ->
       let setups =
         List.init 2 ~f:(fun _ ->
           let config = Random_program.config random in
@@ -89,7 +89,7 @@ let%expect_test "random programs on two engines in lockstep" =
         levels := List.map system.engines ~f:(fun m -> List.length m.tx_fifo)
       in
       let pads _ = int ((1 lsl Isa.num_pins) - 1) in
-      match System_lockstep.run ~cycles:200 ~host ~react ~pads setups with
+      match System_lockstep.run ~cycles:1000 ~host ~react ~pads setups with
       | _, None -> None
       | _, Some mismatch ->
         print_s [%message "MISMATCH" (seed : int) (mismatch : System_lockstep.Mismatch.t)];

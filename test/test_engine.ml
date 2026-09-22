@@ -345,9 +345,9 @@ loop:
 ;;
 
 let%expect_test "random programs" =
-  random_programs ~programs:16 ~cycles:200 (fun random ~config ->
+  random_programs ~programs:64 ~cycles:1000 (fun random ~config ->
     Random_program.program random ~config);
-  [%expect {| ((programs 16) (failed ())) |}]
+  [%expect {| ((programs 64) (failed ())) |}]
 ;;
 
 let%expect_test "every mov and alu form" =
