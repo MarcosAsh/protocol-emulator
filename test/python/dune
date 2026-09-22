@@ -1,5 +1,5 @@
-(executable
- (name write_usb_firmware)
+(executables
+ (names write_usb_firmware write_ethernet_firmware)
  (libraries core hardcaml protocol_emulator protocol_emulator_test)
  (preprocess
   (pps ppx_jane)))
@@ -13,3 +13,13 @@
  (alias runtest)
  (action
   (diff ../../python/usb_device_firmware.py usb_device_firmware.py.gen)))
+
+(rule
+ (with-stdout-to
+  ethernet_firmware.py.gen
+  (run ./write_ethernet_firmware.exe)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff ../../python/ethernet_firmware.py ethernet_firmware.py.gen)))

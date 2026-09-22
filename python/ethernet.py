@@ -3,10 +3,16 @@
 # preamble to FCS, and loads it into the data memory; the core only times it onto the
 # wire. Works on CPython and MicroPython.
 
-from protocol_emulator import CONTROL, DATA, DATA_ADDR, TX
+from protocol_emulator import CONTROL, DATA, DATA_ADDR, DEFAULT_CONFIG, TX
 
 PREAMBLE = [0x55] * 7 + [0xD5]
 LINK_TENTH = 64000  # cycles in a tenth of the 16 ms between link pulses
+
+# TD+ on IO0 and TD- on IO1, driven as a Manchester pair; the frame comes from the data
+# memory by autopull, and the host's words through the tx fifo
+CONFIG = dict(
+    DEFAULT_CONFIG, out_base=12, set_base=12, set_count=2, manchester=1, autopull=1,
+    autopull_data=1)
 
 
 def crc32(data):
