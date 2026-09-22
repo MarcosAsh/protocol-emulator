@@ -41,13 +41,16 @@ SRAM macro.
   refuses firmware that can miss a deadline.
 - `test/` expect tests. `firmware.ml` holds UART, SPI and I2C masters and slaves and a
   low speed USB device that enumerates as a keyboard and mouse; `ws2812.ml`,
-  `one_wire.ml` and `ps2.ml` hold more. Each runs against a protocol model, in lockstep
-  with the hardware, and inside its timing analysis. `test.py` drives the generated
-  Verilog with cocotb through the Python host library.
+  `one_wire.ml`, `ps2.ml` and `ethernet.ml` (10BASE-T transmit of a UDP datagram) hold
+  more. Each runs against a protocol model, in lockstep with the hardware, and inside its
+  timing analysis. `test.py` drives the generated Verilog with cocotb through the Python
+  host library.
 - `formal/` SymbiYosys proofs that issue timing depends only on the delay field, that
   when the host talks never reaches the pins, and that the fifos keep their order, each
-  with weakened copies that have to fail.
-- `python/` the host library and demo scripts for the dev board.
+  with weakened copies that have to fail; and `make certificates`, which checks firmware
+  certificates from the analyser on the RTL for every input and every host.
+- `python/` the host library, with a debugger (breakpoint, step, registers) and a
+  10BASE-T frame builder, and demo scripts for the dev board.
 
 ## Build
 

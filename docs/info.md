@@ -95,8 +95,12 @@ and `push` two bytes; the frames appear on `uo[1]` (`OUT0`) at 115200 baud.
 
 `test/test.py` is the same sequence under cocotb against the Verilog, and the OCaml
 tests under `test/` run UART, SPI and I2C masters and slaves, a low speed USB keyboard
-and mouse, WS2812, 1-Wire and PS/2 firmware against protocol models and against the
-hardware.
+and mouse, WS2812, 1-Wire, PS/2 and 10BASE-T transmit firmware against protocol models
+and against the hardware.
+
+To debug firmware on the chip, set `break_enable` and `break_pc` while the core is
+halted, start it, and when status shows it halted read the registers at 64 to 71; bit 5
+of control runs one instruction, bit 4 goes on.
 
 ## External hardware
 
