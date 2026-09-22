@@ -17,7 +17,7 @@ from queue import Queue
 
 FILES = ["src/engine.ml", "src/decoder.ml", "src/pins.ml", "src/host_port.ml"]
 ALLOW = Path(__file__).with_name("mutation_allow.txt")
-COPIED = ["src", "test", "bin", "dune-project", ".ocamlformat"]
+COPIED = ["src", "test", "bin", "python", "dune-project", ".ocamlformat"]
 SKIPPED = shutil.ignore_patterns("sim_build", "__pycache__", "*.fst", "*.vcd", "*.xml", "*.v", "*.json")
 
 OPERATORS = [
