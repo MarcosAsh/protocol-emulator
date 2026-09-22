@@ -5,6 +5,7 @@ FIRMWARE = $(patsubst %.asm,%.hex,$(wildcard *.asm))
 # The assembler refuses firmware that can miss a deadline. What a program has to assume
 # about the world to pass goes here, beside the configuration its test loads it with.
 uart_rx_wire.hex: ASSUME = -single-capture-edge -capture-pin 20 -capture-falling
+uart_tx_host_rate.hex: ASSUME = -period 434
 
 firmware: $(FIRMWARE)
 %.hex: %.asm FORCE

@@ -225,14 +225,23 @@ let%expect_test "the words committed for the cocotb test are current" =
     |> List.map ~f:(fun w -> Int.of_string ("0x" ^ w))
   in
   let assembled name = In_channel.read_all (name ^ ".asm") |> Firmware.assemble in
-  List.iter [ "uart_tx"; "wrapped_loop"; "uart_rx_wire" ] ~f:(fun name ->
-    [%test_result: int list] ~message:name (committed name) ~expect:(assembled name));
-  (* uart_tx.asm and uart_rx_wire.asm are copies, because the command line assembles files *)
+  List.iter
+    [ "uart_tx"; "wrapped_loop"; "uart_rx_wire"; "uart_tx_host_rate"; "edge_logger_wire" ]
+    ~f:(fun name ->
+      [%test_result: int list] ~message:name (committed name) ~expect:(assembled name));
+  (* the programs with a twin in firmware.ml are copies, because the command line
+     assembles files *)
   [%test_result: int list]
     (assembled "uart_tx")
     ~expect:(Firmware.assemble (Firmware.uart_tx ~period:16));
   [%test_result: int list]
     (assembled "uart_rx_wire")
     ~expect:(Firmware.assemble (Firmware.uart_rx_on ~pin:Isa.num_pins ~period:16));
+  [%test_result: int list]
+    (assembled "uart_tx_host_rate")
+    ~expect:(Firmware.assemble Firmware.uart_tx_host_rate);
+  [%test_result: int list]
+    (assembled "edge_logger_wire")
+    ~expect:(Firmware.assemble (Firmware.edge_logger ~pin:Isa.num_pins));
   [%expect {| |}]
 ;;
