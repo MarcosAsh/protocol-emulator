@@ -15,13 +15,6 @@ SIM_BUILD				= sim_build/fpga
 VERILOG_SOURCES += $(shell yosys-config --datdir)/ice40/cells_sim.v
 VERILOG_SOURCES += $(PWD)/fpga_netlist.v
 
-else ifeq ($(ENGINES),2)
-
-# RTL simulation of a top generated with two engines, from `make two_engines`:
-SIM_BUILD				= sim_build/rtl2
-COMPILE_ARGS    += -DFUNCTIONAL
-VERILOG_SOURCES += $(SRC_DIR)/project.v $(PWD)/two_engines.v models/RM_IHPSG13_1P_core_behavioral_bm_bist.v models/RM_IHPSG13_1P_512x16_c2_bm_bist.v
-
 else ifneq ($(GATES),yes)
 
 # RTL simulation:
@@ -55,6 +48,10 @@ TOPLEVEL = tb
 
 # List test modules to run, separated by commas and without the .py suffix:
 COCOTB_TEST_MODULES = test,test_usb_board
+# the kit build has one engine, the chip two
+ifneq ($(FPGA),yes)
+COCOTB_TEST_MODULES := $(COCOTB_TEST_MODULES),test_two_engines
+endif
 
 # The firmware words are committed, because the workflows that simulate have no OCaml.
 # Where there is a dune they are reassembled first, so an encoding change reaches them.
@@ -92,10 +89,3 @@ fpga_fit: fpga_netlist.v
 replay:
 	$(MAKE) sim COCOTB_TEST_MODULES=test_replay COCOTB_RESULTS_FILE=results_replay.xml
 	$(PYTHON_BIN) -m cocotb_tools.check_results results_replay.xml
-
-# The committed chip has one engine. This generates the top with two, runs the usual tests
-# on it, which only ever talk to engine 0, and then the one that needs both.
-two_engines:
-	cd .. && dune exec -- bin/generate.exe top -sram -engines 2 > test/two_engines.v
-	$(MAKE) sim ENGINES=2 COCOTB_TEST_MODULES=test,test_two_engines COCOTB_RESULTS_FILE=results_two_engines.xml
-	$(PYTHON_BIN) -m cocotb_tools.check_results results_two_engines.xml

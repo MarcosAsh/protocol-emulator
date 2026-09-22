@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Two engines and nothing outside the chip: a UART transmitter on engine 0, a receiver on
 # engine 1, wire 20 between them, and the host reading from engine 1 what it gave engine 0.
-# Runs on a top generated with two engines: make two_engines.
 
 import cocotb
 from cocotb.triggers import ClockCycles

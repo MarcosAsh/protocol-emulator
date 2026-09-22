@@ -37,9 +37,9 @@ jobs:
       # the chip is hardened from the committed file, not from the OCaml
       - name: Check the committed Verilog is current
         run: |
-          opam exec -- dune exec -- bin/generate.exe top -sram > src/protocol_emulator.v
+          opam exec -- dune exec -- bin/generate.exe top -sram -engines 2 > src/protocol_emulator.v
           if ! git diff --stat --exit-code src/protocol_emulator.v; then
-            echo "::error file=src/protocol_emulator.v::stale, regenerate it: dune exec -- bin/generate.exe top -sram > src/protocol_emulator.v"
+            echo "::error file=src/protocol_emulator.v::stale, regenerate it: dune exec -- bin/generate.exe top -sram -engines 2 > src/protocol_emulator.v"
             exit 1
           fi
 
@@ -72,9 +72,3 @@ jobs:
           make FPGA=yes
           ! grep failure results.xml
           make replay FPGA=yes
-
-      # the committed chip has one engine; the generator's two get a simulation of their own
-      - name: Simulate a top with two engines
-        run: |
-          cd test
-          opam exec -- make two_engines

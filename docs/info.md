@@ -9,9 +9,9 @@ You can also include images in this folder and reference them in the markdown. E
 
 ## How it works
 
-A small programmable core bit-bangs the pins with cycle-exact timing, so UART, SPI and
-I2C are programs, not fixed logic. Firmware lives in a 512-word IHP SRAM macro and is
-loaded at runtime by the host over SPI.
+Two small programmable cores bit-bang the pins with cycle-exact timing, so UART, SPI
+and I2C are programs, not fixed logic. Each core's firmware lives in its own 512-word IHP
+SRAM macro and is loaded at runtime by the host over SPI.
 
 Instructions are 16-bit words with eight opcodes: `jmp`, `wait`, `in`, `out`, `mov`,
 `set`, `alu` and `sys`. Each takes one cycle plus its delay field; a jump always takes
@@ -19,7 +19,7 @@ two. Timing comes from a 24-bit free-running counter `now` and a deadline regist
 `wait t` stalls until `now` reaches `t`, and `wait t+` also moves `t` on by the period
 register `p`, so a loop makes edges at exact multiples of `p` however many instructions
 run in between. An input capture unit latches `now` on a chosen pin edge so a receiver
-can anchor its deadlines to the incoming signal. Two 4-deep fifos carry data to and
+can anchor its deadlines to the incoming signal. Two 8-deep fifos carry data to and
 from the host; they never stall the core, and a sticky fault register records an
 underflow, an overflow, a missed deadline or a word that does not decode. Side-set
 drives up to two pins on every instruction, which gives an SPI clock for free and, in
@@ -49,7 +49,9 @@ bit:
 
 The pins form one flat index space for firmware: 0 to 4 are `IN0` to `IN4`, 5 to 11 are
 `OUT0` to `OUT6`, and 12 to 19 are `IO0` to `IO7`, whose directions firmware sets. 20 to
-27 are wires that stay inside the chip: firmware drives and reads them like pins.
+27 are wires that stay inside the chip: firmware drives and reads them like pins, and
+the two cores talk to each other over them. A pin or wire both cores drive carries the OR
+of the two.
 
 The host port is an SPI slave on `ui[0]` (SCK), `ui[1]` (MOSI), `ui[2]` (CS_N) and
 `uo[0]` (MISO), SCK at most one eighth of the clock. A frame is a command byte, write
@@ -67,7 +69,7 @@ words in one frame repeat the access, which streams the fifos and the program wi
 | 8 | rx fifo | read pops a word from the core |
 | 9 | program address | |
 | 10 | program word | write increments the address |
-| 11 | select | with more than one engine, the engine every register but the program address reaches; status bit 15 says another engine has its irq up |
+| 11 | select | 0 or 1, the core every register but the program address reaches; status bit 15 says the other core has its irq up |
 | 16 on | config | pin bases and counts, side-set, shift directions, autopush and autopull |
 
 The design is written in Hardcaml. The same OCaml model of the core is the executable

@@ -3,7 +3,7 @@
 An entry for Jane Street's protocol emulator ASIC competition, on IHP CMOS5L through
 Tiny Tapeout. Written in Hardcaml.
 
-One small core runs firmware that bit-bangs the pins. Instructions are 16-bit words with
+Two small cores run firmware that bit-bangs the pins. Instructions are 16-bit words with
 eight opcodes (jmp, wait, in, out, mov, set, alu, sys). A 24-bit cycle counter, a deadline
 register `t` and a period `p` make the timing explicit: `wait t+` releases on the exact
 cycle and then moves the deadline on by one period, so a frame never drifts. Programs
@@ -30,7 +30,8 @@ bit:
 ```
 
 The host talks SPI on `ui[2:0]` and `uo[0]`: a register map for control, configuration and
-program load, and two fifos for data. The program lives in an IHP SRAM macro.
+program load, and two fifos per core for data. Each core's program lives in its own IHP
+SRAM macro.
 
 ## Layout
 
@@ -50,7 +51,7 @@ program load, and two fifos for data. The program lives in an IHP SRAM macro.
 ```
 opam install . --deps-only --with-test --locked
 dune build @runtest
-dune exec -- bin/generate.exe top -sram > src/protocol_emulator.v
+dune exec -- bin/generate.exe top -sram -engines 2 > src/protocol_emulator.v
 make -C formal
 ```
 
