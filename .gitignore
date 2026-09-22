@@ -22,6 +22,7 @@ bin/*.exe
 bin/*.bc
 formal/engine.v
 formal/engine_sram.v
+formal/certificate.sv
 formal/*_*/
 __pycache__/
 test/fpga_netlist.v

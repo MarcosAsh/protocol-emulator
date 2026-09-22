@@ -1,0 +1,21 @@
+[tasks]
+bmc
+cover
+
+[options]
+bmc: mode bmc
+bmc: depth 120
+cover: mode cover
+cover: depth 120
+
+[engines]
+smtbmc boolector
+
+[script]
+read -formal engine.v
+read -formal -sv certificate.sv
+prep -top certificate
+
+[files]
+engine.v
+certificate.sv

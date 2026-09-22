@@ -1,0 +1,5 @@
+(executable
+ (name write_certificate)
+ (libraries core hardcaml protocol_emulator protocol_emulator_test)
+ (preprocess
+  (pps ppx_jane)))

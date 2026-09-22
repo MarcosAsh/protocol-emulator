@@ -21,4 +21,20 @@ teeth: engine.v engine_sram.v
 	sby -f fifo_order.sby stale_ahead
 	sby -f host_timing.sby private_pull no_wait_excuse no_jump_excuse no_underflow_excuse no_overflow_excuse
 
-.PHONY: all issue_timing host_timing fifo_order teeth
+# Each firmware's certificate from the analyser, as properties of the RTL for every input
+# and every host, to the depth in certificate.sby. The cover run says how far into the
+# firmware that depth reaches: a row it does not reach is not proven of that row, which is
+# why the reached ones are printed. Only the properties failing is a failure here.
+CERTIFIED = uart_tx spi_master ws2812
+certificates: engine.v
+	for name in $(CERTIFIED); do \
+	  (cd .. && dune exec -- test/certify/write_certificate.exe $$name) > certificate.sv && \
+	  sby -f -d certificate_$${name}_bmc certificate.sby bmc || exit 1; \
+	  sby -f -d certificate_$${name}_cover certificate.sby cover; \
+	  rows=$$(grep -c 'cover (entry' certificate.sv); \
+	  missed=$$(grep -A99 'unreached cover statements' certificate_$${name}_cover/logfile.txt \
+	    | grep -c 'certificate.sv:'); \
+	  echo "$$name: $$((rows - missed)) of $$rows certified rows reached at this depth"; \
+	done
+
+.PHONY: all issue_timing host_timing fifo_order teeth certificates
