@@ -1,0 +1,6 @@
+  0  a023  set x, 3
+  1  a001  set pins, 1
+  2  a000  set pins, 0
+  3  0201  jmp x--, 1
+  4  e001  halt
+5 words, 0 deadline waits

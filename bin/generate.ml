@@ -89,16 +89,34 @@ let assemble_command =
       "Firmware that can reach a deadline wait late is refused, with the waits at fault.")
     [%map_open.Command
       let file = anon ("FILE" %: string)
-      and timing_check = timing_check in
+      and timing_check = timing_check
+      and listing =
+        flag
+          "-listing"
+          no_arg
+          ~doc:" each word with its address and the instruction, for a debugger to show"
+      in
       fun () ->
-        let words =
+        let assembled =
           let open Or_error.Let_syntax in
           let%bind program = In_channel.read_all file |> Asm.assemble in
           let%bind () = timing_check program in
-          Asm.Program.words program
+          let%map words = Asm.Program.words program in
+          program, words
         in
-        match words with
-        | Ok words -> List.iter words ~f:(printf "%04x\n")
+        match assembled with
+        | Ok (program, words) ->
+          List.iteri
+            (List.zip_exn words program.instructions)
+            ~f:(fun address (word, instruction) ->
+              if listing
+              then
+                printf
+                  "%3d  %04x  %s\n"
+                  address
+                  word
+                  (Asm.to_string ~side_set_count:program.side_set_count instruction)
+              else printf "%04x\n" word)
         | Error e ->
           eprintf "%s: %s\n" file (Error.to_string_hum e);
           exit 1]

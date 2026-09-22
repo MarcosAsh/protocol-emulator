@@ -36,3 +36,17 @@
  (alias runtest)
  (action
   (diff too_tight_unchecked.expected too_tight_unchecked.gen)))
+
+(rule
+ (with-outputs-to
+  debug_loop.gen
+  (run
+   %{exe:../../bin/generate.exe}
+   assemble
+   -listing
+   %{dep:../debug_loop.asm})))
+
+(rule
+ (alias runtest)
+ (action
+  (diff debug_loop.expected debug_loop.gen)))
