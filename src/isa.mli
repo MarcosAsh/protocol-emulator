@@ -29,6 +29,10 @@ val timer_bits : int
 val fraction_bits : int
 
 val pc_bits : int
+
+(** The data memory is the same macro as the program memory, 512 words. *)
+val data_addr_bits : int
+
 val delay_bits : int
 val max_side_set : int
 val num_pins : int
@@ -292,7 +296,7 @@ end
 
 (** [Push] and [Pull] never stall. On a full or empty fifo they set a fault bit instead,
     so the host can never perturb pin timing. Firmware that needs to block does so with
-    [wait fifo]. *)
+    [wait fifo]. [Seek] points the data memory at [x], for the autopull that reads it. *)
 module Sys_op : sig
   module Cases : sig
     type t =
@@ -304,6 +308,7 @@ module Sys_op : sig
       | Crc_init
       | Stuff_reset
       | Capture_arm
+      | Seek
     [@@deriving sexp_of, compare ~localize, enumerate, equal]
   end
 

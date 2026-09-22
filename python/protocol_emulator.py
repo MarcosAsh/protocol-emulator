@@ -13,6 +13,8 @@ RX = 0x08
 PROGRAM_ADDR = 0x09
 PROGRAM = 0x0A
 SELECT = 0x0B
+DATA_ADDR = 0x0C
+DATA = 0x0D
 CONFIG = 0x10
 X = 0x40
 Y = 0x41
@@ -29,7 +31,7 @@ CONFIG_FIELDS = [
     "in_shift_right", "out_shift_right", "autopush", "push_threshold", "autopull",
     "pull_threshold", "crc_width", "crc_poly", "crc_init", "crc_reflect",
     "stuff_threshold", "stuff_level", "wrap_bottom", "wrap_top", "period_fraction",
-    "break_enable", "break_pc",
+    "break_enable", "break_pc", "autopull_data",
 ]
 
 DEFAULT_CONFIG = {
@@ -68,6 +70,11 @@ class Host:
     def load(self, words, address=0):
         self.write(PROGRAM_ADDR, [address])
         self.write(PROGRAM, words)
+
+    def load_data(self, words, address=0):
+        """Fill the data memory, for autopull_data; only while the core is halted."""
+        self.write(DATA_ADDR, [address])
+        self.write(DATA, words)
 
     def start(self):
         self.write(CONTROL, [1])

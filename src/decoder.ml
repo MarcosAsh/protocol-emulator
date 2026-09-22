@@ -101,7 +101,10 @@ module Make (Comb : Comb.S) = struct
         ; ( Alu
           , valid_code (module Isa.Alu_op) alu_op_raw
             &: (~:alu_is_reg |: valid_code (module Isa.Alu_reg) alu_operand_raw) )
-        ; Sys, word.:[7, Isa.Field.sys_op.width] ==:. 0
+        ; ( Sys
+          , word.:[7, Isa.Field.sys_op.width]
+            ==:. 0
+            &: valid_code (module Isa.Sys_op) (field Isa.Field.sys_op) )
         ]
     in
     { Decoded.valid

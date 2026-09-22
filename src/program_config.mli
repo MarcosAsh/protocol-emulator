@@ -53,6 +53,9 @@ type t =
   (** With [break_enable] the core halts when it comes to [break_pc], before the
       instruction there issues. The first instruction after a resume or a step issues even
       at [break_pc], so a resume leaves the breakpoint it stopped at. *)
+  ; autopull_data : bool
+  (** Autopull takes the next word of the data memory instead of the tx fifo, which never
+      runs dry: a [pull] still reads the fifo, so the host can still send words. *)
   }
 [@@deriving sexp_of, compare, equal]
 

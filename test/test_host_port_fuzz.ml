@@ -29,6 +29,9 @@ let events (o : Bits.t ref Engine.Host.t) =
         o.program_write.valid
         (Program_write
            { addr = int o.program_write.addr; data = int o.program_write.data })
+    ; on
+        o.data_write.valid
+        (Data_write { addr = int o.data_write.addr; data = int o.data_write.data })
     ; on o.tx.valid (Tx (int o.tx.value))
     ; on o.rx_pop Rx_pop
     ]
@@ -238,9 +241,9 @@ let%expect_test "random frames, whole and cut short, against the register map" =
     {|
     ((seed 1) (frames 300) (cut 122) (!strobes 99) (!words_read 203)
      (!miso_high_when_idle false) (!failure ()))
-    ((seed 2) (frames 300) (cut 110) (!strobes 151) (!words_read 204)
+    ((seed 2) (frames 300) (cut 110) (!strobes 153) (!words_read 204)
      (!miso_high_when_idle false) (!failure ()))
-    ((seed 3) (frames 300) (cut 124) (!strobes 102) (!words_read 183)
+    ((seed 3) (frames 300) (cut 124) (!strobes 114) (!words_read 183)
      (!miso_high_when_idle false) (!failure ()))
     |}]
 ;;
@@ -250,9 +253,9 @@ let%expect_test "random frames with a select register in the map" =
   Three.fuzz ~seed:6 ~frames:400 ();
   [%expect
     {|
-    ((seed 5) (frames 400) (cut 163) (!strobes 193) (!words_read 270)
+    ((seed 5) (frames 400) (cut 163) (!strobes 195) (!words_read 270)
      (!miso_high_when_idle false) (!failure ()))
-    ((seed 6) (frames 400) (cut 157) (!strobes 147) (!words_read 260)
+    ((seed 6) (frames 400) (cut 157) (!strobes 160) (!words_read 260)
      (!miso_high_when_idle false) (!failure ()))
     |}]
 ;;
@@ -263,7 +266,7 @@ let%expect_test "outside what the interface allows" =
   fuzz ~edge:0 ~seed:4 ~frames:300 ();
   [%expect
     {|
-    ((seed 4) (frames 300) (cut 148) (!strobes 92) (!words_read 170)
+    ((seed 4) (frames 300) (cut 148) (!strobes 98) (!words_read 170)
      (!miso_high_when_idle false) (!failure ()))
     ((seed 4) (frames 300) (cut 148) (!strobes 8) (!words_read 5)
      (!miso_high_when_idle false)
@@ -274,10 +277,9 @@ let%expect_test "outside what the interface allows" =
           (release_high false) (stray 1) (half 2) (lead 2) (trail 2) (gap 3)))
         (expected_events ()) (events ()) (expected_replies (2 2)) (replies (1 1))
         (expected_configs
-         ((0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 5892 0 0)))
-        (configs
-         ((0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 5892 0 0)))))))
-    ((seed 4) (frames 300) (cut 148) (!strobes 92) (!words_read 170)
+         ((0 0 0 0 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)))
+        (configs ((0 0 0 0 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)))))))
+    ((seed 4) (frames 300) (cut 148) (!strobes 98) (!words_read 170)
      (!miso_high_when_idle false) (!failure ()))
     |}]
 ;;

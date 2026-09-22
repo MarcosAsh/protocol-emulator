@@ -111,8 +111,8 @@ let%expect_test "the decoder agrees with the spec on every word" =
     print_s [%message (side_set_count : int) (accepted : int)]);
   [%expect
     {|
-    ((side_set_count 0) (accepted 34560))
-    ((side_set_count 1) (accepted 34560))
-    ((side_set_count 2) (accepted 34560))
+    ((side_set_count 0) (accepted 34592))
+    ((side_set_count 1) (accepted 34592))
+    ((side_set_count 2) (accepted 34592))
     |}]
 ;;

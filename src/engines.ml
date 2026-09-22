@@ -61,6 +61,7 @@ module Make (Config : Config) = struct
         ; config = host.config
         ; start = host.start
         ; program_write = host.program_write
+        ; data_write = host.data_write
         ; tx = host.tx
         ; rx_pop = host.rx_pop
         ; clear_irq = host.clear_irq

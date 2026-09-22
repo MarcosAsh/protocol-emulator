@@ -130,7 +130,16 @@ let directed coverage =
     ~inputs:(fun () -> !out0)
     ~react:(fun m -> out0 := bit m.pin_out 5)
     ~config:edge_meter_config
-    (edge_meter ~period:16)
+    (edge_meter ~period:16);
+  run
+    ~config:{ Program_config.default with autopull = true; autopull_data = true }
+    {|
+    set x, 5
+    seek
+loop:
+    out pins, 16
+    jmp loop
+|}
 ;;
 
 (* The short programs of test_engine.ml. *)
@@ -170,8 +179,9 @@ more:
     {|
 loop:
     wait rise pin 0
+    jmp !pin, loop
     wait fall pin 0
-    jmp loop
+    jmp !pin, loop
 |}
 ;;
 
@@ -199,7 +209,7 @@ let%expect_test "what the directed firmwares and the random programs never issue
     mov      192 of 192
     set        5 of   5
     alu       72 of  72
-    sys        8 of   8
+    sys        9 of   9
     delay      7 of   7
     side-set   7 of   7
     never, by construction:

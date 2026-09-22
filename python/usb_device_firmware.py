@@ -33,6 +33,7 @@ CONFIG = {
     "period_fraction": 0,
     "break_enable": 0,
     "break_pc": 0,
+    "autopull_data": 0,
 }
 
 WORDS = [

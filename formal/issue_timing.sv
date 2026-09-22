@@ -18,6 +18,9 @@ module issue_timing (input clk);
   (* anyseq *) wire [15:0] period_fraction;
   (* anyseq *) wire break_enable, resume, single_step;
   (* anyseq *) wire [8:0] break_pc;
+  (* anyseq *) wire autopull_data, data_write_valid;
+  (* anyseq *) wire [8:0] data_write_addr;
+  (* anyseq *) wire [15:0] data_write_data;
   (* anyseq *) wire stop, flush;
   (* anyseq *) wire start, program_write_valid, tx_valid, rx_pop, clear_irq;
   (* anyseq *) wire [8:0] program_write_addr;
@@ -54,9 +57,12 @@ module issue_timing (input clk);
     .config$wrap_bottom(wrap_bottom), .config$wrap_top(wrap_top),
     .config$period_fraction(period_fraction),
     .config$break_enable(break_enable), .config$break_pc(break_pc),
+    .config$autopull_data(autopull_data),
     .stop(stop), .flush(flush), .resume(resume), .single_step(single_step),
     .start(start), .program_write$valid(program_write_valid),
     .program_write$addr(program_write_addr), .program_write$data(program_write_data),
+    .data_write$valid(data_write_valid), .data_write$addr(data_write_addr),
+    .data_write$data(data_write_data),
     .tx$valid(tx_valid), .tx$value(tx_value), .rx_pop(rx_pop), .clear_irq(clear_irq),
     .inputs(inputs),
     .pin_out(pin_out), .pin_dir(pin_dir), .pc(pc), .x(x), .y(y), .p(p), .t(t), .osr(osr),
@@ -96,7 +102,7 @@ module issue_timing (input clk);
    || (opcode == 5 && instruction[7:5] < 5)         // set
    || (opcode == 6 && instruction[5:4] != 3 && (!instruction[3] || instruction[2:0] < 5)); // alu
   wire jump = opcode == 0 && instruction[12:9] < 12;
-  wire sys = opcode == 7 && instruction[7:3] == 0;
+  wire sys = opcode == 7 && (instruction[7:3] == 0 || instruction[7:0] == 8);
 
   // what the core registers beside the instruction always agrees with it, and with no
   // debugger nothing is waiting to halt it after a step

@@ -1,8 +1,8 @@
 // P3: when the host talks to the core never reaches the pins.
 //
-// [step] is one core with its fifos and its program memory pulled out by the script.
-// What two runs share is a port: configuration, pins, the fetched word and the word a
-// pull takes. What the fifos report is left free, so two copies of [step] see different
+// [step] is one core with its fifos and its memories pulled out by the script. What two
+// runs share is a port: configuration, pins, the fetched word, the data word and the word
+// a pull takes. What the fifos report is left free, so two copies of [step] see different
 // levels and flags. The script then turns every register into an input and an output
 // and compares two copies, which makes this one step of an induction from any state.
 //
@@ -10,12 +10,14 @@
 // one part of the statement away, and the proof must then fail: every part is needed.
 module step (
   input clock, clear, start, stop, clear_irq, resume, single_step,
-  input [148:0] config_bits,
+  input [149:0] config_bits,
   input [27:0] inputs,
-  input [15:0] fetched, pulled,
+  input [15:0] fetched, pulled, data_word,
   output [27:0] pin_out, pin_dir,
   output [8:0] sram_addr,
   output sram_men, sram_ren, sram_wen,
+  output [8:0] data_addr,
+  output data_men, data_ren, data_wen,
   output underflow, overflow, fifo_wait
 );
   (* anyseq *) wire tx_full, tx_empty, rx_full, rx_empty;
@@ -50,6 +52,7 @@ module step (
     .config$wrap_bottom(config_bits[113:105]), .config$wrap_top(config_bits[122:114]),
     .config$period_fraction(config_bits[138:123]),
     .config$break_enable(config_bits[139]), .config$break_pc(config_bits[148:140]),
+    .config$autopull_data(config_bits[149]),
     .start(start), .program_write$valid(1'b0), .program_write$addr(9'b0),
     .program_write$data(16'b0), .tx$valid(1'b0), .tx$value(16'b0), .rx_pop(1'b0),
     .clear_irq(clear_irq), .stop(stop), .flush(flush), .resume(resume),
@@ -58,6 +61,9 @@ module step (
     .fault$underflow(underflow), .fault$overflow(overflow),
     .sram_addr(sram_addr), .sram_men(sram_men), .sram_ren(sram_ren), .sram_wen(sram_wen),
     .sram_dout(fetched),
+    .data_addr(data_addr), .data_men(data_men), .data_ren(data_ren), .data_wen(data_wen),
+    .data_dout(data_word), .data_write$valid(1'b0), .data_write$addr(9'b0),
+    .data_write$data(16'b0),
     .tx_fifo_pop(tx_pop), .tx_fifo_head(tx_head),
     .tx_fifo_level(tx_level), .tx_fifo_empty(tx_empty), .tx_fifo_full(tx_full),
     .rx_fifo_head(rx_head), .rx_fifo_level(rx_level), .rx_fifo_empty(rx_empty),

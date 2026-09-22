@@ -632,7 +632,7 @@ let%expect_test "random programs stay inside their analysis" =
     [%message
       (issues : int) (reached : int) (words : int) (side_edges : int) (violations : int)];
   [%expect
-    {| ((issues 3627) (reached 1378) (words 16384) (side_edges 1243) (violations 0)) |}]
+    {| ((issues 3719) (reached 1375) (words 16384) (side_edges 743) (violations 0)) |}]
 ;;
 
 (* With a fraction each [wait t+] moves the deadline a whole period or one cycle more, so

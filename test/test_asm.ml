@@ -232,6 +232,7 @@ let%expect_test "the words committed for the cocotb test are current" =
     ; "uart_tx_host_rate"
     ; "edge_logger_wire"
     ; "debug_loop"
+    ; "data_stream"
     ]
     ~f:(fun name ->
       [%test_result: int list] ~message:name (committed name) ~expect:(assembled name));

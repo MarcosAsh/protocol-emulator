@@ -49,6 +49,8 @@ end
 type t = private
   { config : Program_config.t
   ; program : int array
+  ; data : int array (** Loaded by the host while the core is halted. *)
+  ; data_ptr : int (** The word the next data autopull takes. *)
   ; pc : int
   ; x : int
   ; y : int
@@ -81,8 +83,13 @@ type t = private
 [@@deriving sexp_of, compare, equal]
 
 (** [program] is a list of encoded words starting at address 0. The rest of program memory
-    reads as zero, which decodes as [jmp always 0]. *)
+    reads as zero, which decodes as [jmp always 0]. The data memory starts at zero here;
+    in silicon it holds nothing defined until the host writes it. *)
 val create : config:Program_config.t -> program:int list -> t Or_error.t
+
+(** The host fills the data memory from address 0, before a run or while halted, and the
+    rest reads as zero. *)
+val load_data : t -> int list -> t Or_error.t
 
 (** [inputs] carries the external level of every pin in the flat pin space, and for a wire
     what the other cores drive. Bits for output-only pins and for bidirectional pins

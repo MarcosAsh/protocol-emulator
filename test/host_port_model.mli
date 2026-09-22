@@ -18,6 +18,10 @@ module Event : sig
         { addr : int
         ; data : int
         }
+    | Data_write of
+        { addr : int
+        ; data : int
+        }
     | Tx of int
     | Rx_pop
   [@@deriving sexp_of, equal]

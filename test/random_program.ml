@@ -35,6 +35,7 @@ let config random =
   ; period_fraction = (if bool () then 0 else int ((1 lsl Isa.fraction_bits) - 1))
   ; break_enable = false
   ; break_pc = 0
+  ; autopull_data = bool ()
   }
 ;;
 

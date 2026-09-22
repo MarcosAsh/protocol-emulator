@@ -27,13 +27,15 @@ module Host : sig
   val idle : t
 end
 
-(** [preload] is pushed into the tx fifo before the start pulse. [inputs] and [host] are
-    asked once per cycle; [react] sees the model after each step, which is where a peer on
-    the pins advances. Stops at the first mismatch and returns it with the cycle.
-    [coverage] is told about every step of the model. *)
+(** [preload] is pushed into the tx fifo and [data] written into the data memory from
+    address 0 before the start pulse. [inputs] and [host] are asked once per cycle;
+    [react] sees the model after each step, which is where a peer on the pins advances.
+    Stops at the first mismatch and returns it with the cycle. [coverage] is told about
+    every step of the model. *)
 val run
   :  ?cycles:int
   -> ?preload:int list
+  -> ?data:int list
   -> ?host:(int -> Host.t)
   -> ?react:(Machine.t -> unit)
   -> ?coverage:Coverage.t
@@ -47,6 +49,7 @@ val run
 val lockstep
   :  ?cycles:int
   -> ?preload:int list
+  -> ?data:int list
   -> ?host:(int -> Host.t)
   -> ?react:(Machine.t -> unit)
   -> ?coverage:Coverage.t

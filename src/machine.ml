@@ -6,6 +6,7 @@ let timer_mask = (1 lsl Isa.timer_bits) - 1
 let fraction_mask = (1 lsl Isa.fraction_bits) - 1
 let pc_mask = (1 lsl Isa.pc_bits) - 1
 let program_size = 1 lsl Isa.pc_bits
+let data_size = 1 lsl Isa.data_addr_bits
 let first_output_pin = Isa.first_output_pin
 let first_bidir_pin = Isa.first_bidir_pin
 let writable_pins = ((1 lsl Isa.pin_space) - 1) land lnot ((1 lsl first_output_pin) - 1)
@@ -28,6 +29,8 @@ end
 type t =
   { config : Program_config.t
   ; program : int array
+  ; data : int array
+  ; data_ptr : int
   ; pc : int
   ; x : int
   ; y : int
@@ -57,20 +60,20 @@ type t =
   }
 [@@deriving sexp_of, compare, equal]
 
+let fill name words ~size =
+  if List.length words > size
+  then Or_error.error_s [%message "too long" name (List.length words : int)]
+  else Ok (Array.of_list (words @ List.init (size - List.length words) ~f:(fun _ -> 0)))
+;;
+
 let create ~config ~program =
   let open Or_error.Let_syntax in
   let%bind () = Program_config.validate config in
-  let%map () =
-    if List.length program > program_size
-    then Or_error.error_s [%message "program too long" (List.length program : int)]
-    else Ok ()
-  in
-  let program =
-    Array.of_list
-      (program @ List.init (program_size - List.length program) ~f:(fun _ -> 0))
-  in
+  let%map program = fill "program" program ~size:program_size in
   { config
   ; program
+  ; data = Array.create ~len:data_size 0
+  ; data_ptr = 0
   ; pc = 0
   ; x = 0
   ; y = 0
@@ -98,6 +101,10 @@ let create ~config ~program =
   ; crc = config.crc_init
   ; stuff_run = 0
   }
+;;
+
+let load_data t words =
+  Or_error.map (fill "data" words ~size:data_size) ~f:(fun data -> { t with data })
 ;;
 
 let write_tx t value =
@@ -176,7 +183,16 @@ let pull t =
 
 let autopull_before_out t =
   let c = t.config in
-  if c.autopull && t.osr_count >= c.pull_threshold then pull t else t
+  if not (c.autopull && t.osr_count >= c.pull_threshold)
+  then t
+  else if c.autopull_data
+  then
+    { t with
+      osr = t.data.(t.data_ptr)
+    ; osr_count = 0
+    ; data_ptr = (t.data_ptr + 1) % data_size
+    }
+  else pull t
 ;;
 
 let autopush_after_in t =
@@ -391,6 +407,7 @@ let sys t (op : Isa.Sys_op.Cases.t) =
   | Crc_init -> { t with crc = t.config.crc_init }
   | Stuff_reset -> { t with stuff_run = 0 }
   | Capture_arm -> { t with capture_armed = true }
+  | Seek -> { t with data_ptr = t.x % data_size }
 ;;
 
 let execute t (op : Isa.Op.t) ~sample =

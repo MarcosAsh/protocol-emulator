@@ -10,6 +10,7 @@ let ( <--. ) = Bits.( <--. )
 module State = struct
   type t =
     { pc : int
+    ; data_ptr : int
     ; x : int
     ; y : int
     ; p : int
@@ -40,6 +41,7 @@ module State = struct
 
   let of_machine (m : Machine.t) =
     { pc = m.pc
+    ; data_ptr = m.data_ptr
     ; x = m.x
     ; y = m.y
     ; p = m.p
@@ -73,6 +75,7 @@ module State = struct
     let bool r = Bits.to_bool !r in
     let rx_level = int o.rx_level in
     { pc = int o.pc
+    ; data_ptr = int o.data_ptr
     ; x = int o.x
     ; y = int o.y
     ; p = int o.p
@@ -133,6 +136,7 @@ end
 let run
   ?(cycles = 400)
   ?(preload = [])
+  ?(data = [])
   ?(host = fun _ -> Host.idle)
   ?(react = fun (_ : Machine.t) -> ())
   ?coverage
@@ -159,7 +163,26 @@ let run
         i.program_write.data <--. word;
         cycle ());
       i.program_write.valid := Bits.gnd;
-      let model = ref (Machine.create ~config ~program |> ok_exn) in
+      (* the hardware's data memory holds whatever it held, so a program that can read it
+         gets it all written *)
+      let data =
+        if config.autopull_data
+        then
+          data @ List.init ((1 lsl Isa.data_addr_bits) - List.length data) ~f:(fun _ -> 0)
+        else data
+      in
+      List.iteri data ~f:(fun addr word ->
+        i.data_write.valid := Bits.vdd;
+        i.data_write.addr <--. addr;
+        i.data_write.data <--. word;
+        cycle ());
+      i.data_write.valid := Bits.gnd;
+      let model =
+        ref
+          (Machine.create ~config ~program
+           |> Or_error.bind ~f:(fun m -> Machine.load_data m data)
+           |> ok_exn)
+      in
       List.iter preload ~f:(fun word ->
         i.tx.valid := Bits.vdd;
         i.tx.value <--. word;
@@ -228,9 +251,20 @@ let run
       !model, !mismatch)
 ;;
 
-let lockstep ?(cycles = 400) ?preload ?host ?react ?coverage ~config ~program ~inputs () =
+let lockstep
+  ?(cycles = 400)
+  ?preload
+  ?data
+  ?host
+  ?react
+  ?coverage
+  ~config
+  ~program
+  ~inputs
+  ()
+  =
   let model, mismatch =
-    run ~cycles ?preload ?host ?react ?coverage ~config ~program ~inputs ()
+    run ~cycles ?preload ?data ?host ?react ?coverage ~config ~program ~inputs ()
   in
   (match mismatch with
    | None -> print_s [%message "lockstep held" (cycles : int)]
@@ -277,7 +311,10 @@ let random_programs ?coverage ?(wrap = true) ?(debugger = false) ~programs ~cycl
       in
       let react (m : Machine.t) = level := List.length m.tx_fifo in
       let inputs _ = int ((1 lsl Isa.pin_space) - 1) in
-      match run ~cycles ?coverage ~config ~program ~inputs ~host ~react () with
+      let data =
+        List.init 16 ~f:(fun _ -> Splittable_random.int debug ~lo:0 ~hi:0xffff)
+      in
+      match run ~cycles ?coverage ~data ~config ~program ~inputs ~host ~react () with
       | _, None -> None
       | _, Some (cycle, expected, actual) ->
         print_s

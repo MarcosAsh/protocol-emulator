@@ -48,6 +48,7 @@ module Config : sig
     ; period_fraction : 'a
     ; break_enable : 'a
     ; break_pc : 'a
+    ; autopull_data : 'a
     }
   [@@deriving hardcaml]
 
@@ -79,6 +80,7 @@ module Host : sig
     { config : 'a Config.t
     ; start : 'a
     ; program_write : 'a Program_write.t
+    ; data_write : 'a Program_write.t
     ; tx : 'a With_valid.t
     ; rx_pop : 'a
     ; clear_irq : 'a
@@ -96,6 +98,7 @@ module I : sig
     ; config : 'a Config.t (** Held constant while running. *)
     ; start : 'a (** Pulse while halted. *)
     ; program_write : 'a Program_write.t (** Only while halted. *)
+    ; data_write : 'a Program_write.t (** Into the data memory, only while halted. *)
     ; tx : 'a With_valid.t (** A word for the core's tx fifo. *)
     ; rx_pop : 'a (** Pops the rx fifo; [rx_head] is the word popped. *)
     ; clear_irq : 'a
@@ -121,6 +124,7 @@ module O : sig
     { pin_out : 'a
     ; pin_dir : 'a (** Set for a bidirectional pin the core drives. *)
     ; pc : 'a
+    ; data_ptr : 'a
     ; x : 'a
     ; y : 'a
     ; p : 'a

@@ -11,7 +11,9 @@ You can also include images in this folder and reference them in the markdown. E
 
 Two small programmable cores bit-bang the pins with cycle-exact timing, so UART, SPI
 and I2C are programs, not fixed logic. Each core's firmware lives in its own 512-word IHP
-SRAM macro and is loaded at runtime by the host over SPI.
+SRAM macro and is loaded at runtime by the host over SPI. A second 512-word macro per
+core holds data the host loads, a frame or a string of pixels, which autopull streams
+out as fast as a word a cycle from wherever `seek` points it.
 
 Instructions are 16-bit words with eight opcodes: `jmp`, `wait`, `in`, `out`, `mov`,
 `set`, `alu` and `sys`. Each takes one cycle plus its delay field; a jump always takes
@@ -71,8 +73,10 @@ words in one frame repeat the access, which streams the fifos and the program wi
 | 8 | rx fifo | read pops a word from the core |
 | 9 | program address | |
 | 10 | program word | write increments the address |
-| 11 | select | 0 or 1, the core every register but the program address reaches; status bit 15 says the other core has its irq up |
-| 16 on | config | pin bases and counts, side-set, shift directions, autopush and autopull, CRC, stuffing, wrap, period fraction, breakpoint |
+| 11 | select | 0 or 1, the core every register but the program and data addresses reaches; status bit 15 says the other core has its irq up |
+| 12 | data address | |
+| 13 | data word | write increments the address; only while the core is halted |
+| 16 on | config | pin bases and counts, side-set, shift directions, autopush and autopull, CRC, stuffing, wrap, period fraction, breakpoint, autopull from data |
 | 64 to 71 | debug | read only: x, y, p, t low and high, isr, osr, and the isr count with the osr count shifted up 8 |
 
 The design is written in Hardcaml. The same OCaml model of the core is the executable

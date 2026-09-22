@@ -7,15 +7,17 @@
     written and the fifos only flushed while the core is halted, so a flush takes a write
     of its own after the stop), 1 status, 2 pc, 3 and 4 now, 5 and 6 capture, 7 tx fifo, 8
     rx fifo (a read pops), 9 program address, 10 program word (a write increments the
-    address), 11 select, 16 onwards the config fields in order, and for a debugger 0x40 x,
+    address), 11 select, 12 data address, 13 data word (a write increments the address,
+    only while halted), 16 onwards the config fields in order, and for a debugger 0x40 x,
     0x41 y, 0x42 p, 0x43 and 0x44 t, 0x45 isr, 0x46 osr, 0x47 the isr count and the osr
     count shifted up by 8.
 
     With more than one engine, select names the engine that every other register but the
-    program address reaches: control, status, pc, now, capture, both fifos, the program
-    window and the config fields, which each engine has for itself. It resets to 0, and a
-    number past the last engine reaches none and reads as zero. Status bit 15 says some
-    other engine has its irq up. With one engine there is no select and the bit stays low. *)
+    program and data addresses reaches: control, status, pc, now, capture, both fifos, the
+    program and data windows and the config fields, which each engine has for itself. It
+    resets to 0, and a number past the last engine reaches none and reads as zero. Status
+    bit 15 says some other engine has its irq up. With one engine there is no select and
+    the bit stays low. *)
 
 open! Core
 open! Hardcaml
@@ -64,6 +66,8 @@ module Reg : sig
   val program_addr : int
   val program : int
   val select : int
+  val data_addr : int
+  val data : int
   val config : int
   val x : int
   val y : int

@@ -14,6 +14,10 @@ module Event = struct
         { addr : int
         ; data : int
         }
+    | Data_write of
+        { addr : int
+        ; data : int
+        }
     | Tx of int
     | Rx_pop
   [@@deriving sexp_of, equal]
@@ -23,6 +27,7 @@ type t =
   { engines : int
   ; select : int
   ; program_addr : int
+  ; data_addr : int
   ; configs : int list list
   }
 [@@deriving sexp_of]
@@ -33,6 +38,7 @@ let create ?(engines = 1) () =
   { engines
   ; select = 0
   ; program_addr = 0
+  ; data_addr = 0
   ; configs = List.init engines ~f:(fun _ -> List.map config_widths ~f:(fun _ -> 0))
   }
 ;;
@@ -67,6 +73,12 @@ let write t ~(statuses : int Host_port.Status.t list) ~reg value =
   then
     ( { t with program_addr = (t.program_addr + 1) land mask Isa.pc_bits }
     , reached t [ Event.Program_write { addr = t.program_addr; data = value } ] )
+  else if reg = Reg.data_addr
+  then { t with data_addr = value land mask Isa.data_addr_bits }, []
+  else if reg = Reg.data
+  then
+    ( { t with data_addr = (t.data_addr + 1) land mask Isa.data_addr_bits }
+    , reached t [ Event.Data_write { addr = t.data_addr; data = value } ] )
   else if reg = Reg.select && t.engines > 1
   then { t with select = value land mask (Int.ceil_log2 t.engines) }, []
   else if index >= 0 && index < List.length config_widths
@@ -111,6 +123,8 @@ let read t ~(statuses : int Host_port.Status.t list) ~reg =
   in
   if reg = Reg.program_addr
   then t.program_addr, []
+  else if reg = Reg.data_addr
+  then t.data_addr, []
   else if reg = Reg.select && t.engines > 1
   then t.select, []
   else if engine >= t.engines

@@ -38,6 +38,8 @@ module Reg = struct
   let program_addr = 0x09
   let program = 0x0a
   let select = 0x0b
+  let data_addr = 0x0c
+  let data = 0x0d
   let config = 0x10
   let x = 0x40
   let y = 0x41
@@ -143,6 +145,7 @@ module Make (Config : Config) = struct
     let%hw_var high = Always.Variable.reg spec ~width:8 in
     let%hw_var word = Always.Variable.reg spec ~width:Isa.data_bits in
     let%hw_var program_addr = Always.Variable.reg spec ~width:Isa.pc_bits in
+    let%hw_var data_addr = Always.Variable.reg spec ~width:Isa.data_addr_bits in
     let%hw_var write = Always.Variable.wire ~default:gnd () in
     let%hw_var read_done = Always.Variable.wire ~default:gnd () in
     let%hw is_write = msb cmd.value in
@@ -177,6 +180,7 @@ module Make (Config : Config) = struct
            , reg16 (sel_top s.capture ~width:(Isa.timer_bits - Isa.data_bits)) )
          ; Reg.rx, s.rx_head
          ; Reg.program_addr, reg16 program_addr.value
+         ; Reg.data_addr, reg16 data_addr.value
          ; Reg.x, s.x
          ; Reg.y, s.y
          ; Reg.p, s.p
@@ -246,6 +250,10 @@ module Make (Config : Config) = struct
                  (at Reg.program_addr)
                  [ program_addr <-- sel_bottom value ~width:Isa.pc_bits ]
              ; when_ (at Reg.program) [ program_addr <-- program_addr.value +:. 1 ]
+             ; when_
+                 (at Reg.data_addr)
+                 [ data_addr <-- sel_bottom value ~width:Isa.data_addr_bits ]
+             ; when_ (at Reg.data) [ data_addr <-- data_addr.value +:. 1 ]
              ]
              @ select_write
              @ config_writes)
@@ -262,6 +270,8 @@ module Make (Config : Config) = struct
           ; flush = mine (strobe Reg.control &: value.:(3))
           ; resume = mine (strobe Reg.control &: value.:(4))
           ; single_step = mine (strobe Reg.control &: value.:(5))
+          ; data_write =
+              { valid = mine (strobe Reg.data); addr = data_addr.value; data = value }
           ; program_write =
               { valid = mine (strobe Reg.program)
               ; addr = program_addr.value

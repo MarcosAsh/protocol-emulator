@@ -28,6 +28,11 @@ rename engine.sram_macro.sram__A_MEN sram_men
 rename engine.sram_macro.sram__A_REN sram_ren
 rename engine.sram_macro.sram__A_WEN sram_wen
 rename engine.sram_macro.sram__A_DOUT sram_dout
+rename engine.data_memory.sram__A_ADDR data_addr
+rename engine.data_memory.sram__A_MEN data_men
+rename engine.data_memory.sram__A_REN data_ren
+rename engine.data_memory.sram__A_WEN data_wen
+rename engine.data_memory.sram__A_DOUT data_dout
 rename engine.tx__pop tx_fifo_pop
 rename engine.tx__head tx_fifo_head
 rename engine.tx__level tx_fifo_level

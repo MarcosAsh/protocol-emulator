@@ -7,7 +7,7 @@ from cocotb.triggers import ClockCycles
 import sys
 
 sys.path.insert(0, "../python")
-from protocol_emulator import CONFIG, CONFIG_FIELDS, CONTROL, COUNTS, DEFAULT_CONFIG, PC, PROGRAM_ADDR, PROGRAM as PROGRAM_REG, STATUS, TX, X, Host
+from protocol_emulator import CONFIG, CONFIG_FIELDS, CONTROL, COUNTS, DATA, DATA_ADDR, DEFAULT_CONFIG, PC, PROGRAM_ADDR, PROGRAM as PROGRAM_REG, STATUS, TX, X, Host
 
 HALF = 4
 
@@ -183,6 +183,35 @@ async def test_debugger(dut):
     await host.write(CONTROL, [16])
     assert await stopped() == (1, 5, 0xFFFF), "past the halt, the counter run out"
     assert (await host.read(STATUS))[0] & 0x3E == 0, "no fault and no irq"
+
+
+@cocotb.test()
+async def test_data_memory(dut):
+    """The host fills the data memory and the program streams it out with autopull."""
+    await reset(dut)
+
+    host = AsyncHost(Pins(dut).transfer)
+    config = dict(DEFAULT_CONFIG, out_base=12, out_count=8, autopull=1, autopull_data=1)
+    for n, name in enumerate(CONFIG_FIELDS):
+        await host.write(CONFIG + n, [config.get(name, 0)])
+    await host.write(PROGRAM_ADDR, [0])
+    await host.write(PROGRAM_REG, assembled("data_stream"))
+    await host.write(DATA_ADDR, [0])
+    await host.write(DATA, [0x2211, 0x4433, 0x6655, 0x8877])
+    assert (await host.read(DATA_ADDR))[0] == 4, "the address counts the words written"
+    await host.write(CONTROL, [1])
+
+    # a byte every six cycles; past the four words written the memory holds nothing
+    shown = []
+    for _ in range(100):
+        if len(shown) == 8:
+            break
+        await ClockCycles(dut.clk, 1)
+        byte = int(dut.uio_out.value)
+        if not shown or shown[-1] != byte:
+            shown.append(byte)
+    assert shown == [0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88], shown
+    assert (await host.read(STATUS))[0] & 0x3D == 0, "running, no fault"
 
 
 WRAPPED_LOOP = assembled("wrapped_loop")

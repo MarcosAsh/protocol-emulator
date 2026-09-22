@@ -37,6 +37,7 @@ type t =
   ; period_fraction : int
   ; break_enable : bool
   ; break_pc : int
+  ; autopull_data : bool
   }
 [@@deriving sexp_of, compare, equal]
 
@@ -70,6 +71,7 @@ let default =
   ; period_fraction = 0
   ; break_enable = false
   ; break_pc = 0
+  ; autopull_data = false
   }
 ;;
 

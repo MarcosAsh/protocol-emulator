@@ -84,6 +84,17 @@ let run
          ~write:(fun port addr word ->
            port.program_write.addr <--. addr;
            port.program_write.data <--. word);
+       (* the hardware's data memory holds whatever it held, so a program that can read it
+          gets it all written *)
+       feed
+         ~words:(fun s ->
+           if s.config.autopull_data
+           then List.init (1 lsl Isa.data_addr_bits) ~f:(fun _ -> 0)
+           else [])
+         ~valid:(fun port -> port.data_write.valid)
+         ~write:(fun port addr word ->
+           port.data_write.addr <--. addr;
+           port.data_write.data <--. word);
        feed
          ~words:(fun s -> s.preload)
          ~valid:(fun port -> port.tx.valid)

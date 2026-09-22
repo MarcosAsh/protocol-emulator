@@ -95,7 +95,7 @@ let%expect_test "rejected words" =
     (Error ("no such enum code" (i 3)))
     (Error ("no such enum code" (i 5)))
     (Error ("no such enum code" (i 3)))
-    (Error ("reserved bits set" (word 16) (mask -8)))
+    (Error ("reserved bits set" (word 16) (mask -16)))
     (Error (word "out of range" (value 65536) (lo 0) (hi 65535)))
     |}]
 ;;
@@ -205,8 +205,8 @@ let%expect_test "every word that decodes encodes back to itself" =
     print_s [%message (side_set_count : int) (valid : int)]);
   [%expect
     {|
-    ((side_set_count 0) (valid 34560))
-    ((side_set_count 1) (valid 34560))
-    ((side_set_count 2) (valid 34560))
+    ((side_set_count 0) (valid 34592))
+    ((side_set_count 1) (valid 34592))
+    ((side_set_count 2) (valid 34592))
     |}]
 ;;

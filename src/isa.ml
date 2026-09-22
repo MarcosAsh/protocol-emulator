@@ -6,6 +6,7 @@ let data_bits = 16
 let timer_bits = 24
 let fraction_bits = 16
 let pc_bits = 9
+let data_addr_bits = 9
 let delay_bits = 5
 let max_side_set = 2
 let num_pins = 20
@@ -55,7 +56,7 @@ module Field = struct
   let alu_op = { lsb = 4; width = 2 }
   let alu_is_reg = { lsb = 3; width = 1 }
   let alu_operand = { lsb = 0; width = 3 }
-  let sys_op = { lsb = 0; width = 3 }
+  let sys_op = { lsb = 0; width = 4 }
 end
 
 module type Cases = sig
@@ -279,6 +280,7 @@ module Sys_op = struct
       | Crc_init
       | Stuff_reset
       | Capture_arm
+      | Seek
     [@@deriving sexp_of, compare ~localize, enumerate, equal]
   end
 
