@@ -116,9 +116,9 @@ endmodule
    - the instruction register holds the word at the pc and the memory's output the word
      after it, but in the second cycle of a jump, when the output is the word at the new
      pc and the register still the jump;
-   - the opcode and the decode flag, which are registered beside the word, say what the
-     word says: they are state of their own, and induction would start them disagreeing
-     with it and let a wait retire before its deadline;
+   - the opcode and the decode flag, which the core registers beside the word, say what
+     the word says: they are state of their own, and induction would start them
+     disagreeing with it and let a wait retire before its deadline;
    - what is left of a delay brings the next issue to the phase its row allows;
    - a wait that stalls has reached its row and, on a deadline, not yet the deadline;
    - x, y and p hold what the analyser says they hold on the way into the pc. *)
@@ -217,9 +217,9 @@ module certificate (input clk);
   always @(posedge clk) fetched <= rom(sram_addr);
   wire [23:0] t, now;
   wire [15:0] x, y, p, instruction;
-  wire [7:0] eng_opcode;
+  wire [7:0] opcode_onehot;
   wire [4:0] stall;
-  wire halted, stepping, eng_issue, eng_jmp_go, eng_decode_ok;
+  wire halted, stepping, decode_ok, eng_issue, eng_jmp_go;
   engine_top dut (
     .clock(clk), .clear(clear),
     %{config_ports},
@@ -229,8 +229,8 @@ module certificate (input clk);
     .clear_irq(1'b0), .stop(1'b0), .flush(1'b0), .resume(1'b0), .single_step(1'b0),
     .inputs(inputs), .sram_addr(sram_addr), .sram_dout(fetched), .data_dout(16'b0),
     .pc(pc), .t(t), .now(now), .x(x), .y(y), .p(p), .stall(stall), .halted(halted),
-    .stepping(stepping), .instruction(instruction), .eng_opcode(eng_opcode),
-    .eng_issue(eng_issue), .eng_jmp_go(eng_jmp_go), .eng_decode_ok(eng_decode_ok));
+    .stepping(stepping), .instruction(instruction), .decode_ok(decode_ok),
+    .opcode_onehot(opcode_onehot), .eng_issue(eng_issue), .eng_jmp_go(eng_jmp_go));
 
   // the engine's own signals, not a shadow of them worked out from the delay left: in the
   // state induction starts from the two come apart
@@ -255,7 +255,7 @@ module certificate (input clk);
   always @(*)
     if (running) begin
       assert (!halted && !stepping && !started);
-      assert (eng_decode_ok && eng_opcode == (8'd1 << instruction[15:13]));
+      assert (decode_ok && opcode_onehot == (8'd1 << instruction[15:13]));
       if (!jumped) assert (instruction == rom(pc) && fetched == rom(after(pc)));
       if (jumped) assert (stall == 1 && fetched == rom(pc));
       if (stalled) assert (instruction[15:13] == 1);

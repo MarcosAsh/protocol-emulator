@@ -20,11 +20,12 @@ proc
 flatten
 expose -evert -sep __ engine_top/t:RM_IHPSG13_1P_512x16_c2_bm_bist
 cd engine_top
-expose w:engine.opcode_onehot w:engine.issue w:engine.jmp_go w:engine.decode_ok
-rename engine.opcode_onehot eng_opcode
+# the core's own notion of issuing and of taking a jump, which the interface does not
+# carry out but induction needs, since the state it starts from has no history to infer
+# them from
+expose w:engine.issue w:engine.jmp_go
 rename engine.issue eng_issue
 rename engine.jmp_go eng_jmp_go
-rename engine.decode_ok eng_decode_ok
 rename engine.sram_macro.sram__A_ADDR sram_addr
 rename engine.sram_macro.sram__A_DOUT sram_dout
 rename engine.data_memory.sram__A_DOUT data_dout
