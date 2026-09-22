@@ -99,3 +99,93 @@ let%expect_test "random programs on two engines in lockstep" =
   print_s [%message (failed : int list)];
   [%expect {| (failed ()) |}]
 ;;
+
+(* The chip checks its own timing: engine 0 sends two bytes at 115200 baud over a wire,
+   engine 1 stamps every edge on it, and the host pops the stamps whenever it likes. The
+   certificate says every edge of the transmitter lands a fixed number of cycles after a
+   deadline with no jitter, and the deadlines move by the bit period, so each edge of a
+   frame is a whole number of bit periods after its start bit: what the table predicts.
+   The one unbounded edge is the line going idle, before there is a deadline at all. *)
+let%expect_test "one engine times the other's uart edges" =
+  let line = Isa.num_pins in
+  let period = 434 in
+  let bytes = [ 0x55; 0xa3 ] in
+  let transmitter = { Program_config.default with set_base = line; out_base = line } in
+  Timing_report.print ~config:transmitter ~period uart_tx_host_rate;
+  let random = Splittable_random.of_int 1 in
+  let fifo = ref [] in
+  let stamps = ref [] in
+  let host _ =
+    let pop = (not (List.is_empty !fifo)) && Splittable_random.bool random in
+    if pop then stamps := List.hd_exn !fifo :: !stamps;
+    [ Lockstep.Host.idle; { Lockstep.Host.idle with pop_rx = pop } ]
+  in
+  let react (system : System.t) = fifo := (List.nth_exn system.engines 1).rx_fifo in
+  let (_ : System.t) =
+    System_lockstep.lockstep
+      ~cycles:10_000
+      ~host
+      ~react
+      ~pads:(fun _ -> 0)
+      [ { config = transmitter
+        ; program = assemble uart_tx_host_rate
+        ; preload = period :: bytes
+        }
+      ; { config = edge_logger_config ~pin:line
+        ; program = assemble (edge_logger ~pin:line)
+        ; preload = []
+        }
+      ]
+  in
+  (* the first stamp is the line going idle; then each frame, start bit first *)
+  let frame byte =
+    let levels = (0 :: List.init 8 ~f:(fun i -> (byte lsr i) land 1)) @ [ 1 ] in
+    List.filter_mapi levels ~f:(fun bit level ->
+      let before = if bit = 0 then 1 else List.nth_exn levels (bit - 1) in
+      Option.some_if (level <> before) (level, bit * period))
+  in
+  let rec table stamps = function
+    | [] -> ()
+    | byte :: rest ->
+      let edges = frame byte in
+      let #(measured, stamps) = List.split_n stamps (List.length edges) in
+      let start = List.hd_exn measured in
+      List.iter2_exn edges measured ~f:(fun (level, predicted) stamp ->
+        printf
+          "0x%02x  %s  %9d  %8d\n"
+          byte
+          (if level = 1 then "rise" else "fall")
+          predicted
+          ((stamp - start) land 0xffff));
+      table stamps rest
+  in
+  print_endline "byte  edge  predicted  measured";
+  table (List.drop (List.rev !stamps) 1) bytes;
+  [%expect
+    {|
+      3  set pins, 1                  phase ?..?  edge ?..?  jitter ?
+      8  set pins, 0                  phase 1  edge 2
+     11  out pins, 1                  phase -433  edge -432
+     14  set pins, 1                  phase -433  edge -432
+    ((words 17) (edge_jitter unbounded) (sample_jitter 0) (side_jitter 0)
+     (may_miss 0))
+    ("lockstep held" (cycles 10000))
+    byte  edge  predicted  measured
+    0x55  fall          0         0
+    0x55  rise        434       434
+    0x55  fall        868       868
+    0x55  rise       1302      1302
+    0x55  fall       1736      1736
+    0x55  rise       2170      2170
+    0x55  fall       2604      2604
+    0x55  rise       3038      3038
+    0x55  fall       3472      3472
+    0x55  rise       3906      3906
+    0xa3  fall          0         0
+    0xa3  rise        434       434
+    0xa3  fall       1302      1302
+    0xa3  rise       2604      2604
+    0xa3  fall       3038      3038
+    0xa3  rise       3472      3472
+    |}]
+;;

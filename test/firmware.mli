@@ -65,6 +65,12 @@ val usb_rx_config : Program_config.t
 val edge_meter : period:int -> string
 
 val edge_meter_config : Program_config.t
+
+(** Pushes the low 16 bits of [now] for every edge on [pin], rising and falling, starting
+    with the first edge after it starts. Edges have to come at least five cycles apart. *)
+val edge_logger : pin:int -> string
+
+val edge_logger_config : pin:int -> Program_config.t
 val i2c_word : ?start:bool -> ?read:bool -> ?stop:bool -> int -> int
 
 (** USB low speed device for [address], endpoints 0 and 1. The host sends the bit period

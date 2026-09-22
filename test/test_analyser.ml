@@ -562,6 +562,7 @@ let%expect_test "every firmware stays inside its analysis under random stimulus"
       , Some 32
       , [ 32 ] )
     ; "edge meter", edge_meter_config, edge_meter ~period:16, None, []
+    ; "edge logger", edge_logger_config ~pin:0, edge_logger ~pin:0, None, []
     ; "ws2812", Ws2812.config, Ws2812.firmware ~third:6 ~tail:7, None, []
     ; "1-wire", One_wire.config, One_wire.firmware, Some 8, [ 8 ]
     ; "ps/2", Ps2.config, Ps2.firmware, Some 10, [ 10 ]
@@ -599,6 +600,7 @@ let%expect_test "every firmware stays inside its analysis under random stimulus"
     ("usb rx" (issues 8302) (reached 24/29) (side_edges 0) (violations ()))
     ("usb device" (issues 5809) (reached 271/470) (side_edges 0) (violations ()))
     ("edge meter" (issues 6016) (reached 12/12) (side_edges 0) (violations ()))
+    ("edge logger" (issues 16848) (reached 8/8) (side_edges 0) (violations ()))
     (ws2812 (issues 7128) (reached 31/32) (side_edges 0) (violations ()))
     (1-wire (issues 4929) (reached 48/48) (side_edges 0) (violations ()))
     (ps/2 (issues 6973) (reached 64/65) (side_edges 0) (violations ()))

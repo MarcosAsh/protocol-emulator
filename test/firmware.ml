@@ -674,6 +674,28 @@ let edge_meter_config =
   }
 ;;
 
+(* Every wait on a pin releases the same number of cycles after the edge it waits for, so
+   the differences between the stamps are the differences between the edges. *)
+let edge_logger ~pin =
+  [%string
+    {|
+    jmp pin, high
+low:
+    wait 1 pin %{pin#Int}
+    mov x, now
+    in x, 16
+high:
+    wait 0 pin %{pin#Int}
+    mov x, now
+    in x, 16
+    jmp low
+|}]
+;;
+
+let edge_logger_config ~pin =
+  { Program_config.default with jmp_pin = pin; autopush = true; push_threshold = 16 }
+;;
+
 let i2c_word ?(start = false) ?(read = false) ?(stop = false) data =
   (Bool.to_int start lsl 15)
   lor (Bool.to_int read lsl 14)
