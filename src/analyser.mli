@@ -47,6 +47,11 @@ module Row : sig
         edge before it, for each instruction it can follow: a timing that needs no
         deadline, so it holds inside a loop with none, like one sending a bit every four
         cycles, where the first bit's gap back to the idle line is another matter. *)
+    ; x : Interval.t
+    ; y : Interval.t
+    ; period : Interval.t
+    (** What the registers hold on the way in, which is what a proof by induction needs to
+        tell one turn of a loop from the next. *)
     }
   [@@deriving sexp_of]
 end

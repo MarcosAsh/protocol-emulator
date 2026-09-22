@@ -107,6 +107,9 @@ module Row = struct
     ; side_event : Side_event.t option
     ; flip : Interval.t option
     ; gaps : (int * Interval.t) list
+    ; x : Interval.t
+    ; y : Interval.t
+    ; period : Interval.t
     }
   [@@deriving sexp_of]
 end
@@ -418,6 +421,9 @@ let analyse ?period ?single_capture_edge ~config (program : Isa.t list) =
       ; side_event
       ; flip
       ; gaps
+      ; x = s.x
+      ; y = s.y
+      ; period = s.period
       }))
 ;;
 

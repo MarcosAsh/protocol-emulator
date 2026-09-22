@@ -1,0 +1,42 @@
+[tasks]
+prove
+teeth
+
+[options]
+mode prove
+depth 20
+# induction answers a false claim with a counterexample to the step and nothing from
+# reset, which is sby's unknown, and that is the answer the teeth run has to get
+teeth: expect fail,unknown
+
+[engines]
+smtbmc boolector
+
+[script]
+read_verilog -lib RM_IHPSG13_1P_512x16_c2_bm_bist.v
+read_verilog engine_sram.v
+hierarchy -top engine_top
+proc
+flatten
+expose -evert -sep __ engine_top/t:RM_IHPSG13_1P_512x16_c2_bm_bist
+cd engine_top
+expose w:engine.opcode_onehot w:engine.issue w:engine.jmp_go w:engine.decode_ok
+rename engine.opcode_onehot eng_opcode
+rename engine.issue eng_issue
+rename engine.jmp_go eng_jmp_go
+rename engine.decode_ok eng_decode_ok
+rename engine.sram_macro.sram__A_ADDR sram_addr
+rename engine.sram_macro.sram__A_DOUT sram_dout
+rename engine.data_memory.sram__A_DOUT data_dout
+cd ..
+prove: read_verilog -formal -sv certificate.sv
+teeth: read_verilog -formal -sv -DTEETH certificate.sv
+prep -top certificate
+# the rom the harness reads is inferred as a memory, and a memory's contents and its read
+# port are state that induction starts anywhere: as logic it is part of the design again
+memory_map
+
+[files]
+engine_sram.v
+certificate.sv
+../src/RM_IHPSG13_1P_512x16_c2_bm_bist.v
