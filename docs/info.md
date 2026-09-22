@@ -60,7 +60,7 @@ words in one frame repeat the access, which streams the fifos and the program wi
 
 | Register | Name | Notes |
 |---|---|---|
-| 0 | control | bit 0 start, bit 1 clear irq, bit 2 stop, bit 3 flush both fifos; the program is only written and the fifos only flushed while the core is halted |
+| 0 | control | bit 0 start, bit 1 clear irq, bit 2 stop, bit 3 flush both fifos; the program and the config are only written, and the fifos only flushed, while the core is halted |
 | 1 | status | pc, halted, irq, fault bits, fifo levels |
 | 2 | pc | |
 | 3, 4 | now | low and high words of the counter |

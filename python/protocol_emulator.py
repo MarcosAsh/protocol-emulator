@@ -52,6 +52,7 @@ class Host:
         self.write(SELECT, [engine])
 
     def configure(self, config):
+        """Only while the core is halted: a running core ignores it."""
         for n, name in enumerate(CONFIG_FIELDS):
             self.write(CONFIG + n, [int(config.get(name, 0))])
 

@@ -43,7 +43,7 @@ let reached t events =
   if t.select < t.engines then List.map events ~f:(fun e -> t.select, e) else []
 ;;
 
-let write t ~reg value =
+let write t ~(statuses : int Host_port.Status.t list) ~reg value =
   let index = reg - Reg.config in
   if reg = Reg.control
   then
@@ -67,10 +67,12 @@ let write t ~reg value =
   then { t with select = value land mask (Int.ceil_log2 t.engines) }, []
   else if index >= 0 && index < List.length config_widths
   then (
+    (* a running engine keeps its configuration *)
+    let halted engine = (List.nth_exn statuses engine).halted = 1 in
     let configs =
       List.mapi t.configs ~f:(fun engine config ->
         List.mapi config ~f:(fun n old ->
-          if engine = t.select && n = index
+          if engine = t.select && n = index && halted engine
           then value land mask (List.nth_exn config_widths n)
           else old))
     in

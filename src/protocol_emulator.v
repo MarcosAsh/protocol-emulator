@@ -6727,6 +6727,7 @@ module host_port (
     wire [6:0] signal_const_97;
     wire signal_eq_29;
     wire signal_and_36;
+    wire signal_and_37;
     wire [8:0] signal_mux;
     wire [8:0] signal_mux_1;
     wire [8:0] signal_wire;
@@ -6734,7 +6735,8 @@ module host_port (
     wire [8:0] signal_select_14;
     wire signal_eq_30;
     wire signal_eq_31;
-    wire signal_and_37;
+    wire signal_and_38;
+    wire signal_and_39;
     wire [8:0] signal_mux_2;
     wire [8:0] signal_mux_3;
     wire [8:0] signal_wire_1;
@@ -6745,7 +6747,8 @@ module host_port (
     wire signal_eq_32;
     wire [6:0] signal_const_105;
     wire signal_eq_33;
-    wire signal_and_38;
+    wire signal_and_40;
+    wire signal_and_41;
     wire [8:0] signal_mux_5;
     wire [8:0] signal_mux_6;
     wire [8:0] signal_wire_2;
@@ -6753,7 +6756,8 @@ module host_port (
     wire [8:0] signal_select_16;
     wire signal_eq_34;
     wire signal_eq_35;
-    wire signal_and_39;
+    wire signal_and_42;
+    wire signal_and_43;
     wire [8:0] signal_mux_7;
     wire [8:0] signal_mux_8;
     wire [8:0] signal_wire_3;
@@ -6764,7 +6768,8 @@ module host_port (
     wire signal_eq_36;
     wire [6:0] signal_const_113;
     wire signal_eq_37;
-    wire signal_and_40;
+    wire signal_and_44;
+    wire signal_and_45;
     wire signal_mux_10;
     wire signal_mux_11;
     wire signal_wire_4;
@@ -6772,7 +6777,8 @@ module host_port (
     wire signal_select_18;
     wire signal_eq_38;
     wire signal_eq_39;
-    wire signal_and_41;
+    wire signal_and_46;
+    wire signal_and_47;
     wire signal_mux_12;
     wire signal_mux_13;
     wire signal_wire_5;
@@ -6784,7 +6790,8 @@ module host_port (
     wire signal_eq_40;
     wire [6:0] signal_const_121;
     wire signal_eq_41;
-    wire signal_and_42;
+    wire signal_and_48;
+    wire signal_and_49;
     wire [4:0] signal_mux_15;
     wire [4:0] signal_mux_16;
     wire [4:0] signal_wire_6;
@@ -6792,7 +6799,8 @@ module host_port (
     wire [4:0] signal_select_20;
     wire signal_eq_42;
     wire signal_eq_43;
-    wire signal_and_43;
+    wire signal_and_50;
+    wire signal_and_51;
     wire [4:0] signal_mux_17;
     wire [4:0] signal_mux_18;
     wire [4:0] signal_wire_7;
@@ -6803,7 +6811,8 @@ module host_port (
     wire signal_eq_44;
     wire [6:0] signal_const_129;
     wire signal_eq_45;
-    wire signal_and_44;
+    wire signal_and_52;
+    wire signal_and_53;
     wire signal_mux_20;
     wire signal_mux_21;
     wire signal_wire_8;
@@ -6811,7 +6820,8 @@ module host_port (
     wire signal_select_22;
     wire signal_eq_46;
     wire signal_eq_47;
-    wire signal_and_45;
+    wire signal_and_54;
+    wire signal_and_55;
     wire signal_mux_22;
     wire signal_mux_23;
     wire signal_wire_9;
@@ -6821,14 +6831,16 @@ module host_port (
     wire signal_eq_48;
     wire [6:0] signal_const_137;
     wire signal_eq_49;
-    wire signal_and_46;
+    wire signal_and_56;
+    wire signal_and_57;
     wire [15:0] signal_mux_25;
     wire [15:0] signal_mux_26;
     wire [15:0] signal_wire_10;
     reg [15:0] signal_reg_10;
     wire signal_eq_50;
     wire signal_eq_51;
-    wire signal_and_47;
+    wire signal_and_58;
+    wire signal_and_59;
     wire [15:0] signal_mux_27;
     wire [15:0] signal_mux_28;
     wire [15:0] signal_wire_11;
@@ -6837,14 +6849,16 @@ module host_port (
     wire signal_eq_52;
     wire [6:0] signal_const_144;
     wire signal_eq_53;
-    wire signal_and_48;
+    wire signal_and_60;
+    wire signal_and_61;
     wire [15:0] signal_mux_30;
     wire [15:0] signal_mux_31;
     wire [15:0] signal_wire_12;
     reg [15:0] signal_reg_12;
     wire signal_eq_54;
     wire signal_eq_55;
-    wire signal_and_49;
+    wire signal_and_62;
+    wire signal_and_63;
     wire [15:0] signal_mux_32;
     wire [15:0] signal_mux_33;
     wire [15:0] signal_wire_13;
@@ -6854,7 +6868,8 @@ module host_port (
     wire signal_eq_56;
     wire [6:0] signal_const_151;
     wire signal_eq_57;
-    wire signal_and_50;
+    wire signal_and_64;
+    wire signal_and_65;
     wire [4:0] signal_mux_35;
     wire [4:0] signal_mux_36;
     wire [4:0] signal_wire_14;
@@ -6862,7 +6877,8 @@ module host_port (
     wire [4:0] signal_select_24;
     wire signal_eq_58;
     wire signal_eq_59;
-    wire signal_and_51;
+    wire signal_and_66;
+    wire signal_and_67;
     wire [4:0] signal_mux_37;
     wire [4:0] signal_mux_38;
     wire [4:0] signal_wire_15;
@@ -6873,7 +6889,8 @@ module host_port (
     wire signal_eq_60;
     wire [6:0] signal_const_159;
     wire signal_eq_61;
-    wire signal_and_52;
+    wire signal_and_68;
+    wire signal_and_69;
     wire [4:0] signal_mux_40;
     wire [4:0] signal_mux_41;
     wire [4:0] signal_wire_16;
@@ -6881,7 +6898,8 @@ module host_port (
     wire [4:0] signal_select_26;
     wire signal_eq_62;
     wire signal_eq_63;
-    wire signal_and_53;
+    wire signal_and_70;
+    wire signal_and_71;
     wire [4:0] signal_mux_42;
     wire [4:0] signal_mux_43;
     wire [4:0] signal_wire_17;
@@ -6892,7 +6910,8 @@ module host_port (
     wire signal_eq_64;
     wire [6:0] signal_const_167;
     wire signal_eq_65;
-    wire signal_and_54;
+    wire signal_and_72;
+    wire signal_and_73;
     wire signal_mux_45;
     wire signal_mux_46;
     wire signal_wire_18;
@@ -6900,7 +6919,8 @@ module host_port (
     wire signal_select_28;
     wire signal_eq_66;
     wire signal_eq_67;
-    wire signal_and_55;
+    wire signal_and_74;
+    wire signal_and_75;
     wire signal_mux_47;
     wire signal_mux_48;
     wire signal_wire_19;
@@ -6911,7 +6931,8 @@ module host_port (
     wire signal_eq_68;
     wire [6:0] signal_const_175;
     wire signal_eq_69;
-    wire signal_and_56;
+    wire signal_and_76;
+    wire signal_and_77;
     wire [4:0] signal_mux_50;
     wire [4:0] signal_mux_51;
     wire [4:0] signal_wire_20;
@@ -6919,7 +6940,8 @@ module host_port (
     wire [4:0] signal_select_30;
     wire signal_eq_70;
     wire signal_eq_71;
-    wire signal_and_57;
+    wire signal_and_78;
+    wire signal_and_79;
     wire [4:0] signal_mux_52;
     wire [4:0] signal_mux_53;
     wire [4:0] signal_wire_21;
@@ -6930,7 +6952,8 @@ module host_port (
     wire signal_eq_72;
     wire [6:0] signal_const_183;
     wire signal_eq_73;
-    wire signal_and_58;
+    wire signal_and_80;
+    wire signal_and_81;
     wire signal_mux_55;
     wire signal_mux_56;
     wire signal_wire_22;
@@ -6938,7 +6961,8 @@ module host_port (
     wire signal_select_32;
     wire signal_eq_74;
     wire signal_eq_75;
-    wire signal_and_59;
+    wire signal_and_82;
+    wire signal_and_83;
     wire signal_mux_57;
     wire signal_mux_58;
     wire signal_wire_23;
@@ -6949,7 +6973,8 @@ module host_port (
     wire signal_eq_76;
     wire [6:0] signal_const_191;
     wire signal_eq_77;
-    wire signal_and_60;
+    wire signal_and_84;
+    wire signal_and_85;
     wire signal_mux_60;
     wire signal_mux_61;
     wire signal_wire_24;
@@ -6957,7 +6982,8 @@ module host_port (
     wire signal_select_34;
     wire signal_eq_78;
     wire signal_eq_79;
-    wire signal_and_61;
+    wire signal_and_86;
+    wire signal_and_87;
     wire signal_mux_62;
     wire signal_mux_63;
     wire signal_wire_25;
@@ -6968,7 +6994,8 @@ module host_port (
     wire signal_eq_80;
     wire [6:0] signal_const_199;
     wire signal_eq_81;
-    wire signal_and_62;
+    wire signal_and_88;
+    wire signal_and_89;
     wire signal_mux_65;
     wire signal_mux_66;
     wire signal_wire_26;
@@ -6976,7 +7003,8 @@ module host_port (
     wire signal_select_36;
     wire signal_eq_82;
     wire signal_eq_83;
-    wire signal_and_63;
+    wire signal_and_90;
+    wire signal_and_91;
     wire signal_mux_67;
     wire signal_mux_68;
     wire signal_wire_27;
@@ -6987,7 +7015,8 @@ module host_port (
     wire signal_eq_84;
     wire [6:0] signal_const_207;
     wire signal_eq_85;
-    wire signal_and_64;
+    wire signal_and_92;
+    wire signal_and_93;
     wire signal_mux_70;
     wire signal_mux_71;
     wire signal_wire_28;
@@ -6995,7 +7024,8 @@ module host_port (
     wire signal_select_38;
     wire signal_eq_86;
     wire signal_eq_87;
-    wire signal_and_65;
+    wire signal_and_94;
+    wire signal_and_95;
     wire signal_mux_72;
     wire signal_mux_73;
     wire signal_wire_29;
@@ -7006,7 +7036,8 @@ module host_port (
     wire signal_eq_88;
     wire [6:0] signal_const_215;
     wire signal_eq_89;
-    wire signal_and_66;
+    wire signal_and_96;
+    wire signal_and_97;
     wire [4:0] signal_mux_75;
     wire [4:0] signal_mux_76;
     wire [4:0] signal_wire_30;
@@ -7014,7 +7045,8 @@ module host_port (
     wire [4:0] signal_select_40;
     wire signal_eq_90;
     wire signal_eq_91;
-    wire signal_and_67;
+    wire signal_and_98;
+    wire signal_and_99;
     wire [4:0] signal_mux_77;
     wire [4:0] signal_mux_78;
     wire [4:0] signal_wire_31;
@@ -7025,7 +7057,8 @@ module host_port (
     wire signal_eq_92;
     wire [6:0] signal_const_223;
     wire signal_eq_93;
-    wire signal_and_68;
+    wire signal_and_100;
+    wire signal_and_101;
     wire [4:0] signal_mux_80;
     wire [4:0] signal_mux_81;
     wire [4:0] signal_wire_32;
@@ -7033,7 +7066,8 @@ module host_port (
     wire [4:0] signal_select_42;
     wire signal_eq_94;
     wire signal_eq_95;
-    wire signal_and_69;
+    wire signal_and_102;
+    wire signal_and_103;
     wire [4:0] signal_mux_82;
     wire [4:0] signal_mux_83;
     wire [4:0] signal_wire_33;
@@ -7045,7 +7079,8 @@ module host_port (
     wire signal_eq_96;
     wire [6:0] signal_const_231;
     wire signal_eq_97;
-    wire signal_and_70;
+    wire signal_and_104;
+    wire signal_and_105;
     wire [2:0] signal_mux_85;
     wire [2:0] signal_mux_86;
     wire [2:0] signal_wire_34;
@@ -7053,7 +7088,8 @@ module host_port (
     wire [2:0] signal_select_44;
     wire signal_eq_98;
     wire signal_eq_99;
-    wire signal_and_71;
+    wire signal_and_106;
+    wire signal_and_107;
     wire [2:0] signal_mux_87;
     wire [2:0] signal_mux_88;
     wire [2:0] signal_wire_35;
@@ -7064,7 +7100,8 @@ module host_port (
     wire signal_eq_100;
     wire [6:0] signal_const_239;
     wire signal_eq_101;
-    wire signal_and_72;
+    wire signal_and_108;
+    wire signal_and_109;
     wire [4:0] signal_mux_90;
     wire [4:0] signal_mux_91;
     wire [4:0] signal_wire_36;
@@ -7072,7 +7109,8 @@ module host_port (
     wire [4:0] signal_select_46;
     wire signal_eq_102;
     wire signal_eq_103;
-    wire signal_and_73;
+    wire signal_and_110;
+    wire signal_and_111;
     wire [4:0] signal_mux_92;
     wire [4:0] signal_mux_93;
     wire [4:0] signal_wire_37;
@@ -7083,7 +7121,8 @@ module host_port (
     wire signal_eq_104;
     wire [6:0] signal_const_247;
     wire signal_eq_105;
-    wire signal_and_74;
+    wire signal_and_112;
+    wire signal_and_113;
     wire [4:0] signal_mux_95;
     wire [4:0] signal_mux_96;
     wire [4:0] signal_wire_38;
@@ -7091,7 +7130,8 @@ module host_port (
     wire [4:0] signal_select_48;
     wire signal_eq_106;
     wire signal_eq_107;
-    wire signal_and_75;
+    wire signal_and_114;
+    wire signal_and_115;
     wire [4:0] signal_mux_97;
     wire [4:0] signal_mux_98;
     wire [4:0] signal_wire_39;
@@ -7102,7 +7142,8 @@ module host_port (
     wire signal_eq_108;
     wire [6:0] signal_const_255;
     wire signal_eq_109;
-    wire signal_and_76;
+    wire signal_and_116;
+    wire signal_and_117;
     wire [4:0] signal_mux_100;
     wire [4:0] signal_mux_101;
     wire [4:0] signal_wire_40;
@@ -7110,7 +7151,8 @@ module host_port (
     wire [4:0] signal_select_50;
     wire signal_eq_110;
     wire signal_eq_111;
-    wire signal_and_77;
+    wire signal_and_118;
+    wire signal_and_119;
     wire [4:0] signal_mux_102;
     wire [4:0] signal_mux_103;
     wire [4:0] signal_wire_41;
@@ -7121,7 +7163,8 @@ module host_port (
     wire signal_eq_112;
     wire [6:0] signal_const_263;
     wire signal_eq_113;
-    wire signal_and_78;
+    wire signal_and_120;
+    wire signal_and_121;
     wire [4:0] signal_mux_105;
     wire [4:0] signal_mux_106;
     wire [4:0] signal_wire_42;
@@ -7129,7 +7172,8 @@ module host_port (
     wire [4:0] signal_select_52;
     wire signal_eq_114;
     wire signal_eq_115;
-    wire signal_and_79;
+    wire signal_and_122;
+    wire signal_and_123;
     wire [4:0] signal_mux_107;
     wire [4:0] signal_mux_108;
     wire [4:0] signal_wire_43;
@@ -7140,7 +7184,8 @@ module host_port (
     wire signal_eq_116;
     wire [6:0] signal_const_271;
     wire signal_eq_117;
-    wire signal_and_80;
+    wire signal_and_124;
+    wire signal_and_125;
     wire [4:0] signal_mux_110;
     wire [4:0] signal_mux_111;
     wire [4:0] signal_wire_44;
@@ -7148,7 +7193,8 @@ module host_port (
     wire [4:0] signal_select_54;
     wire signal_eq_118;
     wire signal_eq_119;
-    wire signal_and_81;
+    wire signal_and_126;
+    wire signal_and_127;
     wire [4:0] signal_mux_112;
     wire [4:0] signal_mux_113;
     wire [4:0] signal_wire_45;
@@ -7159,7 +7205,8 @@ module host_port (
     wire signal_eq_120;
     wire [6:0] signal_const_279;
     wire signal_eq_121;
-    wire signal_and_82;
+    wire signal_and_128;
+    wire signal_and_129;
     wire signal_mux_115;
     wire signal_mux_116;
     wire signal_wire_46;
@@ -7167,7 +7214,8 @@ module host_port (
     wire signal_select_56;
     wire signal_eq_122;
     wire signal_eq_123;
-    wire signal_and_83;
+    wire signal_and_130;
+    wire signal_and_131;
     wire signal_mux_117;
     wire signal_mux_118;
     wire signal_wire_47;
@@ -7178,7 +7226,8 @@ module host_port (
     wire signal_eq_124;
     wire [6:0] signal_const_287;
     wire signal_eq_125;
-    wire signal_and_84;
+    wire signal_and_132;
+    wire signal_and_133;
     wire [4:0] signal_mux_120;
     wire [4:0] signal_mux_121;
     wire [4:0] signal_wire_48;
@@ -7186,7 +7235,8 @@ module host_port (
     wire [4:0] signal_select_58;
     wire signal_eq_126;
     wire signal_eq_127;
-    wire signal_and_85;
+    wire signal_and_134;
+    wire signal_and_135;
     wire [4:0] signal_mux_122;
     wire [4:0] signal_mux_123;
     wire [4:0] signal_wire_49;
@@ -7198,7 +7248,8 @@ module host_port (
     wire signal_eq_128;
     wire [6:0] signal_const_295;
     wire signal_eq_129;
-    wire signal_and_86;
+    wire signal_and_136;
+    wire signal_and_137;
     wire [1:0] signal_mux_125;
     wire [1:0] signal_mux_126;
     wire [1:0] signal_wire_50;
@@ -7206,7 +7257,8 @@ module host_port (
     wire [1:0] signal_select_60;
     wire signal_eq_130;
     wire signal_eq_131;
-    wire signal_and_87;
+    wire signal_and_138;
+    wire signal_and_139;
     wire [1:0] signal_mux_127;
     wire [1:0] signal_mux_128;
     wire [1:0] signal_wire_51;
@@ -7558,7 +7610,8 @@ module host_port (
     assign signal_const_97 = 7'b0101001;
     assign signal_eq_29 = addr == signal_const_97;
     assign signal_and_36 = signal_eq_29 & signal_eq_28;
-    assign signal_mux = signal_and_36 ? signal_select_13 : signal_reg;
+    assign signal_and_37 = signal_and_36 & signal_wire_61;
+    assign signal_mux = signal_and_37 ? signal_select_13 : signal_reg;
     assign signal_mux_1 = write ? signal_mux : signal_reg;
     assign signal_wire = signal_mux_1;
     always @(posedge signal_wire_86) begin
@@ -7570,8 +7623,9 @@ module host_port (
     assign signal_select_14 = value[8:0];
     assign signal_eq_30 = select == signal_const_14;
     assign signal_eq_31 = addr == signal_const_97;
-    assign signal_and_37 = signal_eq_31 & signal_eq_30;
-    assign signal_mux_2 = signal_and_37 ? signal_select_14 : signal_reg_1;
+    assign signal_and_38 = signal_eq_31 & signal_eq_30;
+    assign signal_and_39 = signal_and_38 & signal_wire_62;
+    assign signal_mux_2 = signal_and_39 ? signal_select_14 : signal_reg_1;
     assign signal_mux_3 = write ? signal_mux_2 : signal_reg_1;
     assign signal_wire_1 = signal_mux_3;
     always @(posedge signal_wire_86) begin
@@ -7587,8 +7641,9 @@ module host_port (
     assign signal_eq_32 = select == signal_const;
     assign signal_const_105 = 7'b0101000;
     assign signal_eq_33 = addr == signal_const_105;
-    assign signal_and_38 = signal_eq_33 & signal_eq_32;
-    assign signal_mux_5 = signal_and_38 ? signal_select_15 : signal_reg_2;
+    assign signal_and_40 = signal_eq_33 & signal_eq_32;
+    assign signal_and_41 = signal_and_40 & signal_wire_61;
+    assign signal_mux_5 = signal_and_41 ? signal_select_15 : signal_reg_2;
     assign signal_mux_6 = write ? signal_mux_5 : signal_reg_2;
     assign signal_wire_2 = signal_mux_6;
     always @(posedge signal_wire_86) begin
@@ -7600,8 +7655,9 @@ module host_port (
     assign signal_select_16 = value[8:0];
     assign signal_eq_34 = select == signal_const_14;
     assign signal_eq_35 = addr == signal_const_105;
-    assign signal_and_39 = signal_eq_35 & signal_eq_34;
-    assign signal_mux_7 = signal_and_39 ? signal_select_16 : signal_reg_3;
+    assign signal_and_42 = signal_eq_35 & signal_eq_34;
+    assign signal_and_43 = signal_and_42 & signal_wire_62;
+    assign signal_mux_7 = signal_and_43 ? signal_select_16 : signal_reg_3;
     assign signal_mux_8 = write ? signal_mux_7 : signal_reg_3;
     assign signal_wire_3 = signal_mux_8;
     always @(posedge signal_wire_86) begin
@@ -7617,8 +7673,9 @@ module host_port (
     assign signal_eq_36 = select == signal_const;
     assign signal_const_113 = 7'b0100111;
     assign signal_eq_37 = addr == signal_const_113;
-    assign signal_and_40 = signal_eq_37 & signal_eq_36;
-    assign signal_mux_10 = signal_and_40 ? signal_select_17 : signal_reg_4;
+    assign signal_and_44 = signal_eq_37 & signal_eq_36;
+    assign signal_and_45 = signal_and_44 & signal_wire_61;
+    assign signal_mux_10 = signal_and_45 ? signal_select_17 : signal_reg_4;
     assign signal_mux_11 = write ? signal_mux_10 : signal_reg_4;
     assign signal_wire_4 = signal_mux_11;
     always @(posedge signal_wire_86) begin
@@ -7630,8 +7687,9 @@ module host_port (
     assign signal_select_18 = value[0:0];
     assign signal_eq_38 = select == signal_const_14;
     assign signal_eq_39 = addr == signal_const_113;
-    assign signal_and_41 = signal_eq_39 & signal_eq_38;
-    assign signal_mux_12 = signal_and_41 ? signal_select_18 : signal_reg_5;
+    assign signal_and_46 = signal_eq_39 & signal_eq_38;
+    assign signal_and_47 = signal_and_46 & signal_wire_62;
+    assign signal_mux_12 = signal_and_47 ? signal_select_18 : signal_reg_5;
     assign signal_mux_13 = write ? signal_mux_12 : signal_reg_5;
     assign signal_wire_5 = signal_mux_13;
     always @(posedge signal_wire_86) begin
@@ -7648,8 +7706,9 @@ module host_port (
     assign signal_eq_40 = select == signal_const;
     assign signal_const_121 = 7'b0100110;
     assign signal_eq_41 = addr == signal_const_121;
-    assign signal_and_42 = signal_eq_41 & signal_eq_40;
-    assign signal_mux_15 = signal_and_42 ? signal_select_19 : signal_reg_6;
+    assign signal_and_48 = signal_eq_41 & signal_eq_40;
+    assign signal_and_49 = signal_and_48 & signal_wire_61;
+    assign signal_mux_15 = signal_and_49 ? signal_select_19 : signal_reg_6;
     assign signal_mux_16 = write ? signal_mux_15 : signal_reg_6;
     assign signal_wire_6 = signal_mux_16;
     always @(posedge signal_wire_86) begin
@@ -7661,8 +7720,9 @@ module host_port (
     assign signal_select_20 = value[4:0];
     assign signal_eq_42 = select == signal_const_14;
     assign signal_eq_43 = addr == signal_const_121;
-    assign signal_and_43 = signal_eq_43 & signal_eq_42;
-    assign signal_mux_17 = signal_and_43 ? signal_select_20 : signal_reg_7;
+    assign signal_and_50 = signal_eq_43 & signal_eq_42;
+    assign signal_and_51 = signal_and_50 & signal_wire_62;
+    assign signal_mux_17 = signal_and_51 ? signal_select_20 : signal_reg_7;
     assign signal_mux_18 = write ? signal_mux_17 : signal_reg_7;
     assign signal_wire_7 = signal_mux_18;
     always @(posedge signal_wire_86) begin
@@ -7678,8 +7738,9 @@ module host_port (
     assign signal_eq_44 = select == signal_const;
     assign signal_const_129 = 7'b0100101;
     assign signal_eq_45 = addr == signal_const_129;
-    assign signal_and_44 = signal_eq_45 & signal_eq_44;
-    assign signal_mux_20 = signal_and_44 ? signal_select_21 : signal_reg_8;
+    assign signal_and_52 = signal_eq_45 & signal_eq_44;
+    assign signal_and_53 = signal_and_52 & signal_wire_61;
+    assign signal_mux_20 = signal_and_53 ? signal_select_21 : signal_reg_8;
     assign signal_mux_21 = write ? signal_mux_20 : signal_reg_8;
     assign signal_wire_8 = signal_mux_21;
     always @(posedge signal_wire_86) begin
@@ -7691,8 +7752,9 @@ module host_port (
     assign signal_select_22 = value[0:0];
     assign signal_eq_46 = select == signal_const_14;
     assign signal_eq_47 = addr == signal_const_129;
-    assign signal_and_45 = signal_eq_47 & signal_eq_46;
-    assign signal_mux_22 = signal_and_45 ? signal_select_22 : signal_reg_9;
+    assign signal_and_54 = signal_eq_47 & signal_eq_46;
+    assign signal_and_55 = signal_and_54 & signal_wire_62;
+    assign signal_mux_22 = signal_and_55 ? signal_select_22 : signal_reg_9;
     assign signal_mux_23 = write ? signal_mux_22 : signal_reg_9;
     assign signal_wire_9 = signal_mux_23;
     always @(posedge signal_wire_86) begin
@@ -7707,8 +7769,9 @@ module host_port (
     assign signal_eq_48 = select == signal_const;
     assign signal_const_137 = 7'b0100100;
     assign signal_eq_49 = addr == signal_const_137;
-    assign signal_and_46 = signal_eq_49 & signal_eq_48;
-    assign signal_mux_25 = signal_and_46 ? value : signal_reg_10;
+    assign signal_and_56 = signal_eq_49 & signal_eq_48;
+    assign signal_and_57 = signal_and_56 & signal_wire_61;
+    assign signal_mux_25 = signal_and_57 ? value : signal_reg_10;
     assign signal_mux_26 = write ? signal_mux_25 : signal_reg_10;
     assign signal_wire_10 = signal_mux_26;
     always @(posedge signal_wire_86) begin
@@ -7719,8 +7782,9 @@ module host_port (
     end
     assign signal_eq_50 = select == signal_const_14;
     assign signal_eq_51 = addr == signal_const_137;
-    assign signal_and_47 = signal_eq_51 & signal_eq_50;
-    assign signal_mux_27 = signal_and_47 ? value : signal_reg_11;
+    assign signal_and_58 = signal_eq_51 & signal_eq_50;
+    assign signal_and_59 = signal_and_58 & signal_wire_62;
+    assign signal_mux_27 = signal_and_59 ? value : signal_reg_11;
     assign signal_mux_28 = write ? signal_mux_27 : signal_reg_11;
     assign signal_wire_11 = signal_mux_28;
     always @(posedge signal_wire_86) begin
@@ -7733,8 +7797,9 @@ module host_port (
     assign signal_eq_52 = select == signal_const;
     assign signal_const_144 = 7'b0100011;
     assign signal_eq_53 = addr == signal_const_144;
-    assign signal_and_48 = signal_eq_53 & signal_eq_52;
-    assign signal_mux_30 = signal_and_48 ? value : signal_reg_12;
+    assign signal_and_60 = signal_eq_53 & signal_eq_52;
+    assign signal_and_61 = signal_and_60 & signal_wire_61;
+    assign signal_mux_30 = signal_and_61 ? value : signal_reg_12;
     assign signal_mux_31 = write ? signal_mux_30 : signal_reg_12;
     assign signal_wire_12 = signal_mux_31;
     always @(posedge signal_wire_86) begin
@@ -7745,8 +7810,9 @@ module host_port (
     end
     assign signal_eq_54 = select == signal_const_14;
     assign signal_eq_55 = addr == signal_const_144;
-    assign signal_and_49 = signal_eq_55 & signal_eq_54;
-    assign signal_mux_32 = signal_and_49 ? value : signal_reg_13;
+    assign signal_and_62 = signal_eq_55 & signal_eq_54;
+    assign signal_and_63 = signal_and_62 & signal_wire_62;
+    assign signal_mux_32 = signal_and_63 ? value : signal_reg_13;
     assign signal_mux_33 = write ? signal_mux_32 : signal_reg_13;
     assign signal_wire_13 = signal_mux_33;
     always @(posedge signal_wire_86) begin
@@ -7760,8 +7826,9 @@ module host_port (
     assign signal_eq_56 = select == signal_const;
     assign signal_const_151 = 7'b0100010;
     assign signal_eq_57 = addr == signal_const_151;
-    assign signal_and_50 = signal_eq_57 & signal_eq_56;
-    assign signal_mux_35 = signal_and_50 ? signal_select_23 : signal_reg_14;
+    assign signal_and_64 = signal_eq_57 & signal_eq_56;
+    assign signal_and_65 = signal_and_64 & signal_wire_61;
+    assign signal_mux_35 = signal_and_65 ? signal_select_23 : signal_reg_14;
     assign signal_mux_36 = write ? signal_mux_35 : signal_reg_14;
     assign signal_wire_14 = signal_mux_36;
     always @(posedge signal_wire_86) begin
@@ -7773,8 +7840,9 @@ module host_port (
     assign signal_select_24 = value[4:0];
     assign signal_eq_58 = select == signal_const_14;
     assign signal_eq_59 = addr == signal_const_151;
-    assign signal_and_51 = signal_eq_59 & signal_eq_58;
-    assign signal_mux_37 = signal_and_51 ? signal_select_24 : signal_reg_15;
+    assign signal_and_66 = signal_eq_59 & signal_eq_58;
+    assign signal_and_67 = signal_and_66 & signal_wire_62;
+    assign signal_mux_37 = signal_and_67 ? signal_select_24 : signal_reg_15;
     assign signal_mux_38 = write ? signal_mux_37 : signal_reg_15;
     assign signal_wire_15 = signal_mux_38;
     always @(posedge signal_wire_86) begin
@@ -7790,8 +7858,9 @@ module host_port (
     assign signal_eq_60 = select == signal_const;
     assign signal_const_159 = 7'b0100001;
     assign signal_eq_61 = addr == signal_const_159;
-    assign signal_and_52 = signal_eq_61 & signal_eq_60;
-    assign signal_mux_40 = signal_and_52 ? signal_select_25 : signal_reg_16;
+    assign signal_and_68 = signal_eq_61 & signal_eq_60;
+    assign signal_and_69 = signal_and_68 & signal_wire_61;
+    assign signal_mux_40 = signal_and_69 ? signal_select_25 : signal_reg_16;
     assign signal_mux_41 = write ? signal_mux_40 : signal_reg_16;
     assign signal_wire_16 = signal_mux_41;
     always @(posedge signal_wire_86) begin
@@ -7803,8 +7872,9 @@ module host_port (
     assign signal_select_26 = value[4:0];
     assign signal_eq_62 = select == signal_const_14;
     assign signal_eq_63 = addr == signal_const_159;
-    assign signal_and_53 = signal_eq_63 & signal_eq_62;
-    assign signal_mux_42 = signal_and_53 ? signal_select_26 : signal_reg_17;
+    assign signal_and_70 = signal_eq_63 & signal_eq_62;
+    assign signal_and_71 = signal_and_70 & signal_wire_62;
+    assign signal_mux_42 = signal_and_71 ? signal_select_26 : signal_reg_17;
     assign signal_mux_43 = write ? signal_mux_42 : signal_reg_17;
     assign signal_wire_17 = signal_mux_43;
     always @(posedge signal_wire_86) begin
@@ -7820,8 +7890,9 @@ module host_port (
     assign signal_eq_64 = select == signal_const;
     assign signal_const_167 = 7'b0100000;
     assign signal_eq_65 = addr == signal_const_167;
-    assign signal_and_54 = signal_eq_65 & signal_eq_64;
-    assign signal_mux_45 = signal_and_54 ? signal_select_27 : signal_reg_18;
+    assign signal_and_72 = signal_eq_65 & signal_eq_64;
+    assign signal_and_73 = signal_and_72 & signal_wire_61;
+    assign signal_mux_45 = signal_and_73 ? signal_select_27 : signal_reg_18;
     assign signal_mux_46 = write ? signal_mux_45 : signal_reg_18;
     assign signal_wire_18 = signal_mux_46;
     always @(posedge signal_wire_86) begin
@@ -7833,8 +7904,9 @@ module host_port (
     assign signal_select_28 = value[0:0];
     assign signal_eq_66 = select == signal_const_14;
     assign signal_eq_67 = addr == signal_const_167;
-    assign signal_and_55 = signal_eq_67 & signal_eq_66;
-    assign signal_mux_47 = signal_and_55 ? signal_select_28 : signal_reg_19;
+    assign signal_and_74 = signal_eq_67 & signal_eq_66;
+    assign signal_and_75 = signal_and_74 & signal_wire_62;
+    assign signal_mux_47 = signal_and_75 ? signal_select_28 : signal_reg_19;
     assign signal_mux_48 = write ? signal_mux_47 : signal_reg_19;
     assign signal_wire_19 = signal_mux_48;
     always @(posedge signal_wire_86) begin
@@ -7850,8 +7922,9 @@ module host_port (
     assign signal_eq_68 = select == signal_const;
     assign signal_const_175 = 7'b0011111;
     assign signal_eq_69 = addr == signal_const_175;
-    assign signal_and_56 = signal_eq_69 & signal_eq_68;
-    assign signal_mux_50 = signal_and_56 ? signal_select_29 : signal_reg_20;
+    assign signal_and_76 = signal_eq_69 & signal_eq_68;
+    assign signal_and_77 = signal_and_76 & signal_wire_61;
+    assign signal_mux_50 = signal_and_77 ? signal_select_29 : signal_reg_20;
     assign signal_mux_51 = write ? signal_mux_50 : signal_reg_20;
     assign signal_wire_20 = signal_mux_51;
     always @(posedge signal_wire_86) begin
@@ -7863,8 +7936,9 @@ module host_port (
     assign signal_select_30 = value[4:0];
     assign signal_eq_70 = select == signal_const_14;
     assign signal_eq_71 = addr == signal_const_175;
-    assign signal_and_57 = signal_eq_71 & signal_eq_70;
-    assign signal_mux_52 = signal_and_57 ? signal_select_30 : signal_reg_21;
+    assign signal_and_78 = signal_eq_71 & signal_eq_70;
+    assign signal_and_79 = signal_and_78 & signal_wire_62;
+    assign signal_mux_52 = signal_and_79 ? signal_select_30 : signal_reg_21;
     assign signal_mux_53 = write ? signal_mux_52 : signal_reg_21;
     assign signal_wire_21 = signal_mux_53;
     always @(posedge signal_wire_86) begin
@@ -7880,8 +7954,9 @@ module host_port (
     assign signal_eq_72 = select == signal_const;
     assign signal_const_183 = 7'b0011110;
     assign signal_eq_73 = addr == signal_const_183;
-    assign signal_and_58 = signal_eq_73 & signal_eq_72;
-    assign signal_mux_55 = signal_and_58 ? signal_select_31 : signal_reg_22;
+    assign signal_and_80 = signal_eq_73 & signal_eq_72;
+    assign signal_and_81 = signal_and_80 & signal_wire_61;
+    assign signal_mux_55 = signal_and_81 ? signal_select_31 : signal_reg_22;
     assign signal_mux_56 = write ? signal_mux_55 : signal_reg_22;
     assign signal_wire_22 = signal_mux_56;
     always @(posedge signal_wire_86) begin
@@ -7893,8 +7968,9 @@ module host_port (
     assign signal_select_32 = value[0:0];
     assign signal_eq_74 = select == signal_const_14;
     assign signal_eq_75 = addr == signal_const_183;
-    assign signal_and_59 = signal_eq_75 & signal_eq_74;
-    assign signal_mux_57 = signal_and_59 ? signal_select_32 : signal_reg_23;
+    assign signal_and_82 = signal_eq_75 & signal_eq_74;
+    assign signal_and_83 = signal_and_82 & signal_wire_62;
+    assign signal_mux_57 = signal_and_83 ? signal_select_32 : signal_reg_23;
     assign signal_mux_58 = write ? signal_mux_57 : signal_reg_23;
     assign signal_wire_23 = signal_mux_58;
     always @(posedge signal_wire_86) begin
@@ -7910,8 +7986,9 @@ module host_port (
     assign signal_eq_76 = select == signal_const;
     assign signal_const_191 = 7'b0011101;
     assign signal_eq_77 = addr == signal_const_191;
-    assign signal_and_60 = signal_eq_77 & signal_eq_76;
-    assign signal_mux_60 = signal_and_60 ? signal_select_33 : signal_reg_24;
+    assign signal_and_84 = signal_eq_77 & signal_eq_76;
+    assign signal_and_85 = signal_and_84 & signal_wire_61;
+    assign signal_mux_60 = signal_and_85 ? signal_select_33 : signal_reg_24;
     assign signal_mux_61 = write ? signal_mux_60 : signal_reg_24;
     assign signal_wire_24 = signal_mux_61;
     always @(posedge signal_wire_86) begin
@@ -7923,8 +8000,9 @@ module host_port (
     assign signal_select_34 = value[0:0];
     assign signal_eq_78 = select == signal_const_14;
     assign signal_eq_79 = addr == signal_const_191;
-    assign signal_and_61 = signal_eq_79 & signal_eq_78;
-    assign signal_mux_62 = signal_and_61 ? signal_select_34 : signal_reg_25;
+    assign signal_and_86 = signal_eq_79 & signal_eq_78;
+    assign signal_and_87 = signal_and_86 & signal_wire_62;
+    assign signal_mux_62 = signal_and_87 ? signal_select_34 : signal_reg_25;
     assign signal_mux_63 = write ? signal_mux_62 : signal_reg_25;
     assign signal_wire_25 = signal_mux_63;
     always @(posedge signal_wire_86) begin
@@ -7940,8 +8018,9 @@ module host_port (
     assign signal_eq_80 = select == signal_const;
     assign signal_const_199 = 7'b0011100;
     assign signal_eq_81 = addr == signal_const_199;
-    assign signal_and_62 = signal_eq_81 & signal_eq_80;
-    assign signal_mux_65 = signal_and_62 ? signal_select_35 : signal_reg_26;
+    assign signal_and_88 = signal_eq_81 & signal_eq_80;
+    assign signal_and_89 = signal_and_88 & signal_wire_61;
+    assign signal_mux_65 = signal_and_89 ? signal_select_35 : signal_reg_26;
     assign signal_mux_66 = write ? signal_mux_65 : signal_reg_26;
     assign signal_wire_26 = signal_mux_66;
     always @(posedge signal_wire_86) begin
@@ -7953,8 +8032,9 @@ module host_port (
     assign signal_select_36 = value[0:0];
     assign signal_eq_82 = select == signal_const_14;
     assign signal_eq_83 = addr == signal_const_199;
-    assign signal_and_63 = signal_eq_83 & signal_eq_82;
-    assign signal_mux_67 = signal_and_63 ? signal_select_36 : signal_reg_27;
+    assign signal_and_90 = signal_eq_83 & signal_eq_82;
+    assign signal_and_91 = signal_and_90 & signal_wire_62;
+    assign signal_mux_67 = signal_and_91 ? signal_select_36 : signal_reg_27;
     assign signal_mux_68 = write ? signal_mux_67 : signal_reg_27;
     assign signal_wire_27 = signal_mux_68;
     always @(posedge signal_wire_86) begin
@@ -7970,8 +8050,9 @@ module host_port (
     assign signal_eq_84 = select == signal_const;
     assign signal_const_207 = 7'b0011011;
     assign signal_eq_85 = addr == signal_const_207;
-    assign signal_and_64 = signal_eq_85 & signal_eq_84;
-    assign signal_mux_70 = signal_and_64 ? signal_select_37 : signal_reg_28;
+    assign signal_and_92 = signal_eq_85 & signal_eq_84;
+    assign signal_and_93 = signal_and_92 & signal_wire_61;
+    assign signal_mux_70 = signal_and_93 ? signal_select_37 : signal_reg_28;
     assign signal_mux_71 = write ? signal_mux_70 : signal_reg_28;
     assign signal_wire_28 = signal_mux_71;
     always @(posedge signal_wire_86) begin
@@ -7983,8 +8064,9 @@ module host_port (
     assign signal_select_38 = value[0:0];
     assign signal_eq_86 = select == signal_const_14;
     assign signal_eq_87 = addr == signal_const_207;
-    assign signal_and_65 = signal_eq_87 & signal_eq_86;
-    assign signal_mux_72 = signal_and_65 ? signal_select_38 : signal_reg_29;
+    assign signal_and_94 = signal_eq_87 & signal_eq_86;
+    assign signal_and_95 = signal_and_94 & signal_wire_62;
+    assign signal_mux_72 = signal_and_95 ? signal_select_38 : signal_reg_29;
     assign signal_mux_73 = write ? signal_mux_72 : signal_reg_29;
     assign signal_wire_29 = signal_mux_73;
     always @(posedge signal_wire_86) begin
@@ -8000,8 +8082,9 @@ module host_port (
     assign signal_eq_88 = select == signal_const;
     assign signal_const_215 = 7'b0011010;
     assign signal_eq_89 = addr == signal_const_215;
-    assign signal_and_66 = signal_eq_89 & signal_eq_88;
-    assign signal_mux_75 = signal_and_66 ? signal_select_39 : signal_reg_30;
+    assign signal_and_96 = signal_eq_89 & signal_eq_88;
+    assign signal_and_97 = signal_and_96 & signal_wire_61;
+    assign signal_mux_75 = signal_and_97 ? signal_select_39 : signal_reg_30;
     assign signal_mux_76 = write ? signal_mux_75 : signal_reg_30;
     assign signal_wire_30 = signal_mux_76;
     always @(posedge signal_wire_86) begin
@@ -8013,8 +8096,9 @@ module host_port (
     assign signal_select_40 = value[4:0];
     assign signal_eq_90 = select == signal_const_14;
     assign signal_eq_91 = addr == signal_const_215;
-    assign signal_and_67 = signal_eq_91 & signal_eq_90;
-    assign signal_mux_77 = signal_and_67 ? signal_select_40 : signal_reg_31;
+    assign signal_and_98 = signal_eq_91 & signal_eq_90;
+    assign signal_and_99 = signal_and_98 & signal_wire_62;
+    assign signal_mux_77 = signal_and_99 ? signal_select_40 : signal_reg_31;
     assign signal_mux_78 = write ? signal_mux_77 : signal_reg_31;
     assign signal_wire_31 = signal_mux_78;
     always @(posedge signal_wire_86) begin
@@ -8030,8 +8114,9 @@ module host_port (
     assign signal_eq_92 = select == signal_const;
     assign signal_const_223 = 7'b0011001;
     assign signal_eq_93 = addr == signal_const_223;
-    assign signal_and_68 = signal_eq_93 & signal_eq_92;
-    assign signal_mux_80 = signal_and_68 ? signal_select_41 : signal_reg_32;
+    assign signal_and_100 = signal_eq_93 & signal_eq_92;
+    assign signal_and_101 = signal_and_100 & signal_wire_61;
+    assign signal_mux_80 = signal_and_101 ? signal_select_41 : signal_reg_32;
     assign signal_mux_81 = write ? signal_mux_80 : signal_reg_32;
     assign signal_wire_32 = signal_mux_81;
     always @(posedge signal_wire_86) begin
@@ -8043,8 +8128,9 @@ module host_port (
     assign signal_select_42 = value[4:0];
     assign signal_eq_94 = select == signal_const_14;
     assign signal_eq_95 = addr == signal_const_223;
-    assign signal_and_69 = signal_eq_95 & signal_eq_94;
-    assign signal_mux_82 = signal_and_69 ? signal_select_42 : signal_reg_33;
+    assign signal_and_102 = signal_eq_95 & signal_eq_94;
+    assign signal_and_103 = signal_and_102 & signal_wire_62;
+    assign signal_mux_82 = signal_and_103 ? signal_select_42 : signal_reg_33;
     assign signal_mux_83 = write ? signal_mux_82 : signal_reg_33;
     assign signal_wire_33 = signal_mux_83;
     always @(posedge signal_wire_86) begin
@@ -8061,8 +8147,9 @@ module host_port (
     assign signal_eq_96 = select == signal_const;
     assign signal_const_231 = 7'b0011000;
     assign signal_eq_97 = addr == signal_const_231;
-    assign signal_and_70 = signal_eq_97 & signal_eq_96;
-    assign signal_mux_85 = signal_and_70 ? signal_select_43 : signal_reg_34;
+    assign signal_and_104 = signal_eq_97 & signal_eq_96;
+    assign signal_and_105 = signal_and_104 & signal_wire_61;
+    assign signal_mux_85 = signal_and_105 ? signal_select_43 : signal_reg_34;
     assign signal_mux_86 = write ? signal_mux_85 : signal_reg_34;
     assign signal_wire_34 = signal_mux_86;
     always @(posedge signal_wire_86) begin
@@ -8074,8 +8161,9 @@ module host_port (
     assign signal_select_44 = value[2:0];
     assign signal_eq_98 = select == signal_const_14;
     assign signal_eq_99 = addr == signal_const_231;
-    assign signal_and_71 = signal_eq_99 & signal_eq_98;
-    assign signal_mux_87 = signal_and_71 ? signal_select_44 : signal_reg_35;
+    assign signal_and_106 = signal_eq_99 & signal_eq_98;
+    assign signal_and_107 = signal_and_106 & signal_wire_62;
+    assign signal_mux_87 = signal_and_107 ? signal_select_44 : signal_reg_35;
     assign signal_mux_88 = write ? signal_mux_87 : signal_reg_35;
     assign signal_wire_35 = signal_mux_88;
     always @(posedge signal_wire_86) begin
@@ -8091,8 +8179,9 @@ module host_port (
     assign signal_eq_100 = select == signal_const;
     assign signal_const_239 = 7'b0010111;
     assign signal_eq_101 = addr == signal_const_239;
-    assign signal_and_72 = signal_eq_101 & signal_eq_100;
-    assign signal_mux_90 = signal_and_72 ? signal_select_45 : signal_reg_36;
+    assign signal_and_108 = signal_eq_101 & signal_eq_100;
+    assign signal_and_109 = signal_and_108 & signal_wire_61;
+    assign signal_mux_90 = signal_and_109 ? signal_select_45 : signal_reg_36;
     assign signal_mux_91 = write ? signal_mux_90 : signal_reg_36;
     assign signal_wire_36 = signal_mux_91;
     always @(posedge signal_wire_86) begin
@@ -8104,8 +8193,9 @@ module host_port (
     assign signal_select_46 = value[4:0];
     assign signal_eq_102 = select == signal_const_14;
     assign signal_eq_103 = addr == signal_const_239;
-    assign signal_and_73 = signal_eq_103 & signal_eq_102;
-    assign signal_mux_92 = signal_and_73 ? signal_select_46 : signal_reg_37;
+    assign signal_and_110 = signal_eq_103 & signal_eq_102;
+    assign signal_and_111 = signal_and_110 & signal_wire_62;
+    assign signal_mux_92 = signal_and_111 ? signal_select_46 : signal_reg_37;
     assign signal_mux_93 = write ? signal_mux_92 : signal_reg_37;
     assign signal_wire_37 = signal_mux_93;
     always @(posedge signal_wire_86) begin
@@ -8121,8 +8211,9 @@ module host_port (
     assign signal_eq_104 = select == signal_const;
     assign signal_const_247 = 7'b0010110;
     assign signal_eq_105 = addr == signal_const_247;
-    assign signal_and_74 = signal_eq_105 & signal_eq_104;
-    assign signal_mux_95 = signal_and_74 ? signal_select_47 : signal_reg_38;
+    assign signal_and_112 = signal_eq_105 & signal_eq_104;
+    assign signal_and_113 = signal_and_112 & signal_wire_61;
+    assign signal_mux_95 = signal_and_113 ? signal_select_47 : signal_reg_38;
     assign signal_mux_96 = write ? signal_mux_95 : signal_reg_38;
     assign signal_wire_38 = signal_mux_96;
     always @(posedge signal_wire_86) begin
@@ -8134,8 +8225,9 @@ module host_port (
     assign signal_select_48 = value[4:0];
     assign signal_eq_106 = select == signal_const_14;
     assign signal_eq_107 = addr == signal_const_247;
-    assign signal_and_75 = signal_eq_107 & signal_eq_106;
-    assign signal_mux_97 = signal_and_75 ? signal_select_48 : signal_reg_39;
+    assign signal_and_114 = signal_eq_107 & signal_eq_106;
+    assign signal_and_115 = signal_and_114 & signal_wire_62;
+    assign signal_mux_97 = signal_and_115 ? signal_select_48 : signal_reg_39;
     assign signal_mux_98 = write ? signal_mux_97 : signal_reg_39;
     assign signal_wire_39 = signal_mux_98;
     always @(posedge signal_wire_86) begin
@@ -8151,8 +8243,9 @@ module host_port (
     assign signal_eq_108 = select == signal_const;
     assign signal_const_255 = 7'b0010101;
     assign signal_eq_109 = addr == signal_const_255;
-    assign signal_and_76 = signal_eq_109 & signal_eq_108;
-    assign signal_mux_100 = signal_and_76 ? signal_select_49 : signal_reg_40;
+    assign signal_and_116 = signal_eq_109 & signal_eq_108;
+    assign signal_and_117 = signal_and_116 & signal_wire_61;
+    assign signal_mux_100 = signal_and_117 ? signal_select_49 : signal_reg_40;
     assign signal_mux_101 = write ? signal_mux_100 : signal_reg_40;
     assign signal_wire_40 = signal_mux_101;
     always @(posedge signal_wire_86) begin
@@ -8164,8 +8257,9 @@ module host_port (
     assign signal_select_50 = value[4:0];
     assign signal_eq_110 = select == signal_const_14;
     assign signal_eq_111 = addr == signal_const_255;
-    assign signal_and_77 = signal_eq_111 & signal_eq_110;
-    assign signal_mux_102 = signal_and_77 ? signal_select_50 : signal_reg_41;
+    assign signal_and_118 = signal_eq_111 & signal_eq_110;
+    assign signal_and_119 = signal_and_118 & signal_wire_62;
+    assign signal_mux_102 = signal_and_119 ? signal_select_50 : signal_reg_41;
     assign signal_mux_103 = write ? signal_mux_102 : signal_reg_41;
     assign signal_wire_41 = signal_mux_103;
     always @(posedge signal_wire_86) begin
@@ -8181,8 +8275,9 @@ module host_port (
     assign signal_eq_112 = select == signal_const;
     assign signal_const_263 = 7'b0010100;
     assign signal_eq_113 = addr == signal_const_263;
-    assign signal_and_78 = signal_eq_113 & signal_eq_112;
-    assign signal_mux_105 = signal_and_78 ? signal_select_51 : signal_reg_42;
+    assign signal_and_120 = signal_eq_113 & signal_eq_112;
+    assign signal_and_121 = signal_and_120 & signal_wire_61;
+    assign signal_mux_105 = signal_and_121 ? signal_select_51 : signal_reg_42;
     assign signal_mux_106 = write ? signal_mux_105 : signal_reg_42;
     assign signal_wire_42 = signal_mux_106;
     always @(posedge signal_wire_86) begin
@@ -8194,8 +8289,9 @@ module host_port (
     assign signal_select_52 = value[4:0];
     assign signal_eq_114 = select == signal_const_14;
     assign signal_eq_115 = addr == signal_const_263;
-    assign signal_and_79 = signal_eq_115 & signal_eq_114;
-    assign signal_mux_107 = signal_and_79 ? signal_select_52 : signal_reg_43;
+    assign signal_and_122 = signal_eq_115 & signal_eq_114;
+    assign signal_and_123 = signal_and_122 & signal_wire_62;
+    assign signal_mux_107 = signal_and_123 ? signal_select_52 : signal_reg_43;
     assign signal_mux_108 = write ? signal_mux_107 : signal_reg_43;
     assign signal_wire_43 = signal_mux_108;
     always @(posedge signal_wire_86) begin
@@ -8211,8 +8307,9 @@ module host_port (
     assign signal_eq_116 = select == signal_const;
     assign signal_const_271 = 7'b0010011;
     assign signal_eq_117 = addr == signal_const_271;
-    assign signal_and_80 = signal_eq_117 & signal_eq_116;
-    assign signal_mux_110 = signal_and_80 ? signal_select_53 : signal_reg_44;
+    assign signal_and_124 = signal_eq_117 & signal_eq_116;
+    assign signal_and_125 = signal_and_124 & signal_wire_61;
+    assign signal_mux_110 = signal_and_125 ? signal_select_53 : signal_reg_44;
     assign signal_mux_111 = write ? signal_mux_110 : signal_reg_44;
     assign signal_wire_44 = signal_mux_111;
     always @(posedge signal_wire_86) begin
@@ -8224,8 +8321,9 @@ module host_port (
     assign signal_select_54 = value[4:0];
     assign signal_eq_118 = select == signal_const_14;
     assign signal_eq_119 = addr == signal_const_271;
-    assign signal_and_81 = signal_eq_119 & signal_eq_118;
-    assign signal_mux_112 = signal_and_81 ? signal_select_54 : signal_reg_45;
+    assign signal_and_126 = signal_eq_119 & signal_eq_118;
+    assign signal_and_127 = signal_and_126 & signal_wire_62;
+    assign signal_mux_112 = signal_and_127 ? signal_select_54 : signal_reg_45;
     assign signal_mux_113 = write ? signal_mux_112 : signal_reg_45;
     assign signal_wire_45 = signal_mux_113;
     always @(posedge signal_wire_86) begin
@@ -8241,8 +8339,9 @@ module host_port (
     assign signal_eq_120 = select == signal_const;
     assign signal_const_279 = 7'b0010010;
     assign signal_eq_121 = addr == signal_const_279;
-    assign signal_and_82 = signal_eq_121 & signal_eq_120;
-    assign signal_mux_115 = signal_and_82 ? signal_select_55 : signal_reg_46;
+    assign signal_and_128 = signal_eq_121 & signal_eq_120;
+    assign signal_and_129 = signal_and_128 & signal_wire_61;
+    assign signal_mux_115 = signal_and_129 ? signal_select_55 : signal_reg_46;
     assign signal_mux_116 = write ? signal_mux_115 : signal_reg_46;
     assign signal_wire_46 = signal_mux_116;
     always @(posedge signal_wire_86) begin
@@ -8254,8 +8353,9 @@ module host_port (
     assign signal_select_56 = value[0:0];
     assign signal_eq_122 = select == signal_const_14;
     assign signal_eq_123 = addr == signal_const_279;
-    assign signal_and_83 = signal_eq_123 & signal_eq_122;
-    assign signal_mux_117 = signal_and_83 ? signal_select_56 : signal_reg_47;
+    assign signal_and_130 = signal_eq_123 & signal_eq_122;
+    assign signal_and_131 = signal_and_130 & signal_wire_62;
+    assign signal_mux_117 = signal_and_131 ? signal_select_56 : signal_reg_47;
     assign signal_mux_118 = write ? signal_mux_117 : signal_reg_47;
     assign signal_wire_47 = signal_mux_118;
     always @(posedge signal_wire_86) begin
@@ -8271,8 +8371,9 @@ module host_port (
     assign signal_eq_124 = select == signal_const;
     assign signal_const_287 = 7'b0010001;
     assign signal_eq_125 = addr == signal_const_287;
-    assign signal_and_84 = signal_eq_125 & signal_eq_124;
-    assign signal_mux_120 = signal_and_84 ? signal_select_57 : signal_reg_48;
+    assign signal_and_132 = signal_eq_125 & signal_eq_124;
+    assign signal_and_133 = signal_and_132 & signal_wire_61;
+    assign signal_mux_120 = signal_and_133 ? signal_select_57 : signal_reg_48;
     assign signal_mux_121 = write ? signal_mux_120 : signal_reg_48;
     assign signal_wire_48 = signal_mux_121;
     always @(posedge signal_wire_86) begin
@@ -8284,8 +8385,9 @@ module host_port (
     assign signal_select_58 = value[4:0];
     assign signal_eq_126 = select == signal_const_14;
     assign signal_eq_127 = addr == signal_const_287;
-    assign signal_and_85 = signal_eq_127 & signal_eq_126;
-    assign signal_mux_122 = signal_and_85 ? signal_select_58 : signal_reg_49;
+    assign signal_and_134 = signal_eq_127 & signal_eq_126;
+    assign signal_and_135 = signal_and_134 & signal_wire_62;
+    assign signal_mux_122 = signal_and_135 ? signal_select_58 : signal_reg_49;
     assign signal_mux_123 = write ? signal_mux_122 : signal_reg_49;
     assign signal_wire_49 = signal_mux_123;
     always @(posedge signal_wire_86) begin
@@ -8302,8 +8404,9 @@ module host_port (
     assign signal_eq_128 = select == signal_const;
     assign signal_const_295 = 7'b0010000;
     assign signal_eq_129 = addr == signal_const_295;
-    assign signal_and_86 = signal_eq_129 & signal_eq_128;
-    assign signal_mux_125 = signal_and_86 ? signal_select_59 : signal_reg_50;
+    assign signal_and_136 = signal_eq_129 & signal_eq_128;
+    assign signal_and_137 = signal_and_136 & signal_wire_61;
+    assign signal_mux_125 = signal_and_137 ? signal_select_59 : signal_reg_50;
     assign signal_mux_126 = write ? signal_mux_125 : signal_reg_50;
     assign signal_wire_50 = signal_mux_126;
     always @(posedge signal_wire_86) begin
@@ -8315,8 +8418,9 @@ module host_port (
     assign signal_select_60 = value[1:0];
     assign signal_eq_130 = select == signal_const_14;
     assign signal_eq_131 = addr == signal_const_295;
-    assign signal_and_87 = signal_eq_131 & signal_eq_130;
-    assign signal_mux_127 = signal_and_87 ? signal_select_60 : signal_reg_51;
+    assign signal_and_138 = signal_eq_131 & signal_eq_130;
+    assign signal_and_139 = signal_and_138 & signal_wire_62;
+    assign signal_mux_127 = signal_and_139 ? signal_select_60 : signal_reg_51;
     assign signal_mux_128 = write ? signal_mux_127 : signal_reg_51;
     assign signal_wire_51 = signal_mux_128;
     always @(posedge signal_wire_86) begin

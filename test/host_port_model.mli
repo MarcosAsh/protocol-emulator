@@ -28,8 +28,14 @@ val create : ?engines:int -> unit -> t
 (** The config fields of every engine in register order. *)
 val configs : t -> int list list
 
-(** What a write does, with the engine each event reaches. *)
-val write : t -> reg:int -> int -> t * (int * Event.t) list
+(** What a write does given every engine's status, with the engine each event reaches.
+    Config fields change only on a halted engine. *)
+val write
+  :  t
+  -> statuses:int Host_port.Status.t list
+  -> reg:int
+  -> int
+  -> t * (int * Event.t) list
 
 (** The word a read returns given every engine's status, and what the read does. *)
 val read

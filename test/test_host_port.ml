@@ -130,7 +130,8 @@ let%expect_test "status and fifo reads" =
 ;;
 
 let%expect_test "config registers read back" =
-  run ~half:4 (fun m ~watch _ o ->
+  run ~half:4 (fun m ~watch inputs o ->
+    (List.hd_exn inputs.status).halted := Bits.vdd;
     let fields = Engine.Config.to_list Engine.Config.port_names in
     List.iteri fields ~f:(fun n _ -> Spi_master.write m ~watch (Reg.config + n) [ n + 1 ]);
     let back =
@@ -159,9 +160,33 @@ let%expect_test "config registers read back" =
     |}]
 ;;
 
+(* the program a core runs was checked against the configuration it started with *)
+let%expect_test "config writes wait until the core is halted" =
+  run ~half:4 (fun m ~watch inputs o ->
+    let status = List.hd_exn inputs.status in
+    let write ~halted value =
+      status.halted := Bits.of_bool halted;
+      Spi_master.write m ~watch (Reg.config + 1) [ value ];
+      let read_back = Spi_master.read m ~watch (Reg.config + 1) ~count:1 in
+      let live = Bits.to_unsigned_int !((List.hd_exn o.engines).config.side_set_base) in
+      print_s [%message (halted : bool) (value : int) (read_back : int list) (live : int)]
+    in
+    write ~halted:true 7;
+    write ~halted:false 9;
+    write ~halted:true 9 [@nontail]);
+  [%expect
+    {|
+    ((halted true) (value 7) (read_back (7)) (live 7))
+    ((halted false) (value 9) (read_back (7)) (live 7))
+    ((halted true) (value 9) (read_back (9)) (live 9))
+    (events ())
+    |}]
+;;
+
 let%expect_test "select routes every register but the program address" =
   Two.run ~half:4 (fun m ~watch inputs o ->
     List.iteri inputs.status ~f:(fun n status ->
+      status.halted := Bits.vdd;
       status.pc <--. 0x100 + n;
       status.rx_head <--. 0xbe00 + n);
     (List.nth_exn inputs.status 1).irq := Bits.vdd;
@@ -194,12 +219,12 @@ let%expect_test "select routes every register but the program address" =
     {|
     (select (words (0)))
     (side_set_base (words (12)))
-    (status (words (32768)))
+    (status (words (32769)))
     (pc (words (256)))
     (rx (words (48640)))
     (select (words (1)))
     (side_set_base (words (13)))
-    (status (words (2)))
+    (status (words (3)))
     (pc (words (257)))
     (rx (words (48641)))
     ("side_set_base of engine 0 again" (words (12)))

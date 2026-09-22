@@ -182,14 +182,19 @@ module Make (Config : Config) = struct
     (* The register named by the command byte is read while that byte is still arriving. *)
     let%hw first_read = read_at spi.rx_byte.:[6, 0] in
     let%hw value = high.value @: spi.rx_byte in
+    (* a running engine keeps the configuration its program was loaded and checked with *)
     let config_writes =
-      List.concat_mapi configs ~f:(fun engine config ->
-        List.mapi
-          (Engine.Config.to_list
-             (Engine.Config.map2 Engine.Config.port_widths config ~f:(fun w v -> w, v)))
-          ~f:(fun n (width, v) ->
-            Always.(
-              when_ (mine engine (at (Reg.config + n))) [ v <-- sel_bottom value ~width ])))
+      List.concat_mapi
+        (List.zip_exn configs i.status)
+        ~f:(fun engine (config, (status : _ Status.t)) ->
+          List.mapi
+            (Engine.Config.to_list
+               (Engine.Config.map2 Engine.Config.port_widths config ~f:(fun w v -> w, v)))
+            ~f:(fun n (width, v) ->
+              Always.(
+                when_
+                  (mine engine (at (Reg.config + n)) &: status.halted)
+                  [ v <-- sel_bottom value ~width ])))
     in
     let select_write =
       Option.map select ~f:(fun select ->

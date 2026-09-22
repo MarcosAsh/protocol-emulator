@@ -106,7 +106,7 @@ module Fuzz (Config : Host_port.Config) = struct
              if frame.write
              then
                ( List.concat_map words ~f:(fun word ->
-                   let next, events = Model.write !model ~reg:frame.reg word in
+                   let next, events = Model.write !model ~statuses ~reg:frame.reg word in
                    model := next;
                    events)
                , [] )

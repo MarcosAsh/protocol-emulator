@@ -3,11 +3,11 @@
     one frame repeat the access, which streams the fifos and the program window.
 
     Registers: 0 control (bit 0 start, bit 1 clear irq, bit 2 stop, bit 3 flush both
-    fifos; the program can only be written and the fifos only flushed while the core is
-    halted, so a flush takes a write of its own after the stop), 1 status, 2 pc, 3 and 4
-    now, 5 and 6 capture, 7 tx fifo, 8 rx fifo (a read pops), 9 program address, 10
-    program word (a write increments the address), 11 select, 16 onwards the config fields
-    in order.
+    fifos; the program and the config fields can only be written and the fifos only
+    flushed while the core is halted, so a flush takes a write of its own after the stop),
+    1 status, 2 pc, 3 and 4 now, 5 and 6 capture, 7 tx fifo, 8 rx fifo (a read pops), 9
+    program address, 10 program word (a write increments the address), 11 select, 16
+    onwards the config fields in order.
 
     With more than one engine, select names the engine that every other register but the
     program address reaches: control, status, pc, now, capture, both fifos, the program
