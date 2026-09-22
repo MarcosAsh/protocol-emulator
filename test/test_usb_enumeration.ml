@@ -236,10 +236,9 @@ let%expect_test "a bus reset with a report still queued" =
     |}]
 ;;
 
-(* The same conversation against the hardware: every load of the core is run again in the
-   lockstep harness with the pins and the fifo writes the model saw, cycle for cycle, and
-   the Hardcaml core has to agree with the model on all of its state after every edge. *)
-let%expect_test "the enumeration in lockstep with the hardware" =
+(* A shorter enumeration, with a report on endpoint 1 at the end, for the tests that run
+   every load of the core again somewhere else. *)
+let conversation () =
   let t = create ~reset_cycles:4000 ~descriptors ~latency:3000 () in
   reset t;
   let (_ : int list) = control_in t (Request.get_descriptor ~kind:1 ~length:8 ()) in
@@ -256,7 +255,15 @@ let%expect_test "the enumeration in lockstep with the hardware" =
     | None when tries > 0 -> until_data (tries - 1)
     | None -> []
   in
-  print_s [%message "report" ~_:(until_data 20 : int list)];
+  t, until_data 20
+;;
+
+(* The same conversation against the hardware: every load of the core is run again in the
+   lockstep harness with the pins and the fifo writes the model saw, cycle for cycle, and
+   the Hardcaml core has to agree with the model on all of its state after every edge. *)
+let%expect_test "the enumeration in lockstep with the hardware" =
+  let t, report = conversation () in
+  print_s [%message (report : int list)];
   List.iter (recording t) ~f:(fun (address, cycles) ->
     let cycles = Array.of_list cycles in
     let program =
@@ -285,5 +292,58 @@ let%expect_test "the enumeration in lockstep with the hardware" =
     (load (address 0) (cycles 28000) (held true))
     (load (address 0) (cycles 21215) (held true))
     (load (address 7) (cycles 168032) (held true))
+    |}]
+;;
+
+(* The same conversation against the analyser. The certificate the device is published
+   with rests on [single_capture_edge], which a host that keeps to the standard gives it,
+   so the analysis here assumes it too, and every issue of every load has to fall inside
+   it. *)
+let%expect_test "the enumeration stays inside the analysis of the device" =
+  let t, (_ : int list) = conversation () in
+  List.iter (recording t) ~f:(fun (address, cycles) ->
+    let cycles = Array.of_list cycles in
+    let words =
+      Firmware.assemble (Firmware.usb_device ~address ~half_period:(bit_period / 2))
+    in
+    (* as the lockstep harness has it: a word goes in after an edge, a pop before one *)
+    let host n m =
+      let m =
+        if n = 0
+        then m
+        else
+          Option.fold
+            (snd cycles.(n - 1))
+            ~init:m
+            ~f:(fun m word -> Protocol_emulator.Machine.write_tx m word |> ok_exn)
+      in
+      match Protocol_emulator.Machine.read_rx m with
+      | Some (_, m) -> m
+      | None -> m
+    in
+    let { Soundness.issues; reached; violations; _ } =
+      Soundness.check
+        ~period:bit_period
+        ~single_capture_edge:true
+        ~preload:[ bit_period ]
+        ~config:Firmware.usb_device_config
+        [ { cycles = Array.length cycles; inputs = (fun n -> fst cycles.(n)); host } ]
+        words
+    in
+    let reached = [%string "%{reached#Int}/%{List.length words#Int}"] in
+    let violations = List.take violations 3 in
+    print_s
+      [%message
+        "load"
+          (address : int)
+          (issues : int)
+          (reached : string)
+          (violations : (int * int * int * int) list)]);
+  [%expect
+    {|
+    (load (address 0) (issues 18) (reached 18/470) (violations ()))
+    (load (address 0) (issues 3073) (reached 312/470) (violations ()))
+    (load (address 0) (issues 2070) (reached 294/470) (violations ()))
+    (load (address 7) (issues 19333) (reached 353/470) (violations ()))
     |}]
 ;;
