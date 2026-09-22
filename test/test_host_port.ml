@@ -72,6 +72,10 @@ module Two = Bench (struct
     let engines = 2
   end)
 
+module Three = Bench (struct
+    let engines = 3
+  end)
+
 let run = One.run
 
 let%expect_test "program load, control and fifo strobes" =
@@ -182,6 +186,25 @@ let%expect_test "config writes wait until the core is halted" =
     ((halted true) (value 7) (read_back (7)) (live 7))
     ((halted false) (value 9) (read_back (7)) (live 7))
     ((halted true) (value 9) (read_back (9)) (live 9))
+    (events ())
+    |}]
+;;
+
+(* select has room for a fourth engine that is not there: it reads as nothing at all, not
+   even the irq of another engine *)
+let%expect_test "a select past the last engine reads zeros" =
+  Three.run ~half:4 (fun m ~watch inputs _ ->
+    List.iter inputs.status ~f:(fun status ->
+      status.halted := Bits.vdd;
+      status.irq := Bits.vdd;
+      status.pc <--. 0x1ff);
+    Spi_master.write m ~watch Reg.select [ 3 ];
+    let status = Spi_master.read m ~watch Reg.status ~count:1 in
+    let pc = Spi_master.read m ~watch Reg.pc ~count:1 in
+    let side_set_base = Spi_master.read m ~watch (Reg.config + 1) ~count:1 in
+    print_s [%message (status : int list) (pc : int list) (side_set_base : int list)]);
+  [%expect {|
+    ((status (0)) (pc (0)) (side_set_base (0)))
     (events ())
     |}]
 ;;
