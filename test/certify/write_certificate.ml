@@ -122,7 +122,7 @@ endmodule
    - what is left of a delay brings the next issue to the phase its row allows;
    - a wait that stalls has reached its row and, on a deadline, not yet the deadline;
    - x, y and p hold what the analyser says they hold on the way into the pc. *)
-let inductive ~config source =
+let inductive ?(no_wrap = false) ~config source =
   let program = Asm.assemble source |> ok_exn in
   let config = Asm.Program.configure program config in
   let words = Asm.Program.words program |> ok_exn in
@@ -186,6 +186,20 @@ let inductive ~config source =
      no run reaches inside the base case's depth, so what fails is the induction step and
      the failure says the invariant is one some state satisfies. *)
   let teeth_pc = (List.last_exn rows).pc in
+  (* The only thing a certificate ever assumes of the world. A loop that anchors no
+     deadline has no floor under its phase: intervals cannot say that the loop's counter
+     runs out, so the analyser lets the core fall arbitrarily far behind its deadline and
+     24 bits of the difference wrap. The core's own release compares the same 24 bits, so
+     this is a bound the hardware keeps as well: a deadline older than about 168 ms at
+     50 MHz is a deadline it reads the wrong way round. *)
+  let no_wrap =
+    if not no_wrap
+    then ""
+    else
+      "  // the certificate of a loop that anchors no deadline holds while the core is\n\
+      \  // within 84 ms of it, which is the half of what its 24 bits can tell apart\n\
+      \  always @(*) assume (phase >= -24'sd4194304 && phase <= 24'sd4194304);\n\n"
+  in
   let wrap_top = config.wrap_top in
   let wrap_bottom = config.wrap_bottom in
   [%string
@@ -252,7 +266,7 @@ module certificate (input clk);
   // the phase the pending instruction issues at, once the delay runs out
   wire signed [23:0] ahead = now - t + {19'b0, stall};
 
-  always @(*)
+%{no_wrap}  always @(*)
     if (running) begin
       assert (!halted && !stepping && !started);
       assert (decode_ok && opcode_onehot == (8'd1 << instruction[15:13]));
@@ -271,9 +285,11 @@ endmodule
 let () =
   let args = Sys.get_argv () in
   let inductive_mode = Array.exists args ~f:(String.equal "-inductive") in
+  let no_wrap = Array.exists args ~f:(String.equal "-no-wrap") in
   let name = Array.last_exn args in
   match List.find firmwares ~f:(fun (n, _, _) -> String.equal n name) with
   | None -> raise_s [%message "no such firmware" (name : string)]
   | Some (_, source, config) ->
-    print_string ((if inductive_mode then inductive else harness) ~config source)
+    print_string
+      (if inductive_mode then inductive ~no_wrap ~config source else harness ~config source)
 ;;

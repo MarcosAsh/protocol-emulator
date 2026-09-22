@@ -46,18 +46,22 @@ certificate: engine.v
 # all time and not only to a depth: make inductive_certificate NAME=uart_tx16. The teeth
 # run adds one claim that is false in any run, because induction proves anything from an
 # invariant no state satisfies, so it has to fail.
+ASSUME =
 inductive_certificate: engine_sram.v
-	(cd .. && dune exec -- test/certify/write_certificate.exe -inductive $(NAME)) > certificate.sv
+	(cd .. && dune exec -- test/certify/write_certificate.exe -inductive $(ASSUME) $(NAME)) > certificate.sv
 	sby -f -d certificate_$(NAME)_inductive certificate_inductive.sby prove
 	sby -f -d certificate_$(NAME)_teeth certificate_inductive.sby teeth
 
-# The firmware whose certificates close as an invariant. ws2812 is not among them: the
-# rows of a loop with no deadline are one sided, so what one row says of the phase says
-# nothing of the next and the invariant does not close. That one wants the analyser's
-# edge-to-edge gaps as invariants as well.
+# The firmware whose certificates close as an invariant, which rests on nothing at all,
+# and the firmware that needs the one assumption: ws2812's reset gap is a loop anchoring
+# no deadline, so the analyser leaves its phase without a floor and 24 bits of it wrap.
 INDUCTIVE = uart_tx uart_tx16 spi_master
+INDUCTIVE_ASSUMING_NO_WRAP = ws2812
 inductive_certificates: engine_sram.v
 	for name in $(INDUCTIVE); do $(MAKE) inductive_certificate NAME=$$name || exit 1; done
+	for name in $(INDUCTIVE_ASSUMING_NO_WRAP); do \
+	  $(MAKE) inductive_certificate NAME=$$name ASSUME=-no-wrap || exit 1; \
+	done
 
 .PHONY: all issue_timing host_timing fifo_order teeth certificates certificate \
   inductive_certificate inductive_certificates
