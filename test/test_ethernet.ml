@@ -127,13 +127,14 @@ let%expect_test "the frame in lockstep with the hardware" =
     |}]
 ;;
 
-(* The link pulse and TP_IDL sit a fixed distance from deadlines; the bits of a frame run
-   from the start of the frame with no deadline among them, so here the certificate can
-   say only that they come after it. The model keeps to it with a short link interval, so
-   that random host words start frames of random lengths within the run. *)
+(* The link pulse and TP_IDL sit a fixed distance from deadlines. The bits of a frame have
+   no deadline among them, so their phase is only bounded from the start of the frame, but
+   every edge of the frame is exactly two cycles after the one before: the gap from 18 to
+   17 and from 17 to 18. The model keeps to it with a short link interval, so that random
+   host words start frames of random lengths within the run. *)
 let%expect_test "the certificate" =
   Timing_report.print ~config ~period:link_tenth firmware;
-  let { Soundness.issues; flips; violations; _ } =
+  let { Soundness.issues; flips; gaps; violations; _ } =
     Soundness.check
       ~period:50
       ~preload:[ 50 ]
@@ -142,18 +143,22 @@ let%expect_test "the certificate" =
       (Firmware.assemble firmware)
   in
   print_s
-    [%message (issues : int) (flips : int) (violations : (int * int * int * int) list)];
+    [%message
+      (issues : int)
+        (flips : int)
+        (gaps : int)
+        (violations : (int * int * int * int) list)];
   [%expect
     {|
-      2  set pindirs, 3               phase ?..?  edge ?..?  jitter ?
-      9  set pins, 1 [3]              phase -63995  edge -63994
-     10  set pins, 0                  phase -63991  edge -63990
-     17  out pins, 1 [1]              phase -63992..?  edge -63991..?  jitter ?
-     18  jmp y--, 17                  phase -63990..?  flip -63989..?  jitter ?
-     19  set pins, 1 [10]             phase -63988..?  edge -63987..?  jitter ?
-     20  set pins, 0                  phase -63977..?  edge -63976..?  jitter ?
+      2  set pindirs, 3               phase ?..?  edge ?..?  jitter ?  gap ?..?
+      9  set pins, 1 [3]              phase -63995  edge -63994  gap 63996..?
+     10  set pins, 0                  phase -63991  edge -63990  gap 4
+     17  out pins, 1 [1]              phase -63992..?  edge -63991..?  jitter ?  gap 2 from 18, 63999..? from 16
+     18  jmp y--, 17                  phase -63990..?  flip -63989..?  jitter ?  gap 2
+     19  set pins, 1 [10]             phase -63988..?  edge -63987..?  jitter ?  gap 2
+     20  set pins, 0                  phase -63977..?  edge -63976..?  jitter ?  gap 11
     ((words 24) (edge_jitter unbounded) (sample_jitter 0) (side_jitter 0)
      (may_miss 0))
-    ((issues 5932) (flips 2940) (violations ()))
+    ((issues 5932) (flips 2940) (gaps 5880) (violations ()))
     |}]
 ;;

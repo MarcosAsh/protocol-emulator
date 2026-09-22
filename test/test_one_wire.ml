@@ -132,12 +132,12 @@ let%expect_test "every edge and every sample is placed by a deadline" =
   Timing_report.print ~config ~period:standard_unit firmware;
   [%expect
     {|
-     11  set pindirs, 1               phase -299  edge -298
-     14  mov pindirs, !y              phase -299  edge -298
+     11  set pindirs, 1               phase -299  edge -298  gap ?..?
+     14  mov pindirs, !y              phase -299  edge -298  gap 300
      16  in pins, 1                   phase -299  sample -299
-     21  set pindirs, 0               phase -299  edge -298
-     27  set pindirs, 1               phase -299  edge -298
-     34  set pindirs, 0               phase -297  edge -296
+     21  set pindirs, 0               phase -299  edge -298  gap 900..?
+     27  set pindirs, 1               phase -299  edge -298  gap ?..?
+     34  set pindirs, 0               phase -297  edge -296  gap 1202..?
      38  in pins, 1                   phase -297  sample -297
     ((words 48) (edge_jitter 0) (sample_jitter 0) (side_jitter 0) (may_miss 0))
     |}]
@@ -147,12 +147,12 @@ let%expect_test "the shortest unit the program keeps up with" =
   Timing_report.print ~config ~period:5 firmware;
   [%expect
     {|
-     11  set pindirs, 1               phase -4  edge -3
-     14  mov pindirs, !y              phase -4  edge -3
+     11  set pindirs, 1               phase -4  edge -3  gap ?..?
+     14  mov pindirs, !y              phase -4  edge -3  gap 5
      16  in pins, 1                   phase -4  sample -4
-     21  set pindirs, 0               phase -4  edge -3
-     27  set pindirs, 1               phase -4  edge -3
-     34  set pindirs, 0               phase -2  edge -1
+     21  set pindirs, 0               phase -4  edge -3  gap 15..?
+     27  set pindirs, 1               phase -4  edge -3  gap ?..?
+     34  set pindirs, 0               phase -2  edge -1  gap 22..?
      38  in pins, 1                   phase -2  sample -2
     ((words 48) (edge_jitter 0) (sample_jitter 0) (side_jitter 0) (may_miss 0))
     |}]
@@ -163,12 +163,12 @@ let%expect_test "a unit of four cycles is too short" =
   [%expect
     {|
      10  wait t+                      phase 0..1  slack -1..0  MAY MISS
-     11  set pindirs, 1               phase -3..-2  edge -2..-1  jitter 1
-     14  mov pindirs, !y              phase -3  edge -2
+     11  set pindirs, 1               phase -3..-2  edge -2..-1  jitter 1  gap ?..?
+     14  mov pindirs, !y              phase -3  edge -2  gap 3..4
      16  in pins, 1                   phase -3  sample -3
-     21  set pindirs, 0               phase -3  edge -2
-     27  set pindirs, 1               phase -3  edge -2
-     34  set pindirs, 0               phase -1  edge 0
+     21  set pindirs, 0               phase -3  edge -2  gap 12..?
+     27  set pindirs, 1               phase -3  edge -2  gap ?..?
+     34  set pindirs, 0               phase -1  edge 0  gap 18..?
      36  wait t+                      phase -1..1  slack -1..1  MAY MISS
      38  in pins, 1                   phase -1..0  sample -1..0  jitter 1
      40  wait t+                      phase -1..2  slack -2..1  MAY MISS

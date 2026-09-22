@@ -7,6 +7,7 @@ module State = struct
     ; x : Interval.t
     ; y : Interval.t
     ; since_arm : Interval.t option
+    ; since_edge : Interval.t (** Cycles since the last pin edge showed. *)
     ; side_set : int option
     ; flip : bool option (** Whether a Manchester bit waits for its second half. *)
     }
@@ -18,6 +19,7 @@ module State = struct
     ; x = Interval.top
     ; y = Interval.top
     ; since_arm = None
+    ; since_edge = Interval.top
     ; side_set = None
     ; flip = Some false
     }
@@ -32,6 +34,7 @@ module State = struct
         (match a.since_arm, b.since_arm with
          | Some a, Some b -> Some (Interval.join a b)
          | _ -> None)
+    ; since_edge = Interval.join a.since_edge b.since_edge
     ; side_set =
         Option.bind a.side_set ~f:(fun a ->
           Option.some_if ([%equal: int option] (Some a) b.side_set) a)
@@ -48,6 +51,7 @@ module State = struct
     ; y = Interval.widen ~old:old.y t.y
     ; since_arm =
         Option.map2 old.since_arm t.since_arm ~f:(fun old t -> Interval.widen ~old t)
+    ; since_edge = Interval.widen ~old:old.since_edge t.since_edge
     ; side_set = t.side_set
     ; flip = t.flip
     }
@@ -57,6 +61,7 @@ module State = struct
     { t with
       phase = Interval.shift t.phase n
     ; since_arm = Option.map t.since_arm ~f:(fun s -> Interval.shift s n)
+    ; since_edge = Interval.shift t.since_edge n
     }
   ;;
 end
@@ -101,11 +106,13 @@ module Row = struct
     ; pin_event : Pin_event.t option
     ; side_event : Side_event.t option
     ; flip : Interval.t option
+    ; gaps : (int * Interval.t) list
     }
   [@@deriving sexp_of]
 end
 
 let max_passes = 256
+let program_size = 1 lsl Isa.pc_bits
 
 let captures (c : Program_config.t) (wait : Isa.Wait.t) =
   match wait with
@@ -134,6 +141,30 @@ let writes_side_set (c : Program_config.t) (op : Isa.Op.t) =
   | Mov { dest = Pindirs; _ } ->
     c.side_set_pindirs && overlaps ~base:c.out_base ~count:c.out_count
   | _ -> false
+;;
+
+let writes_pins (op : Isa.Op.t) =
+  match op with
+  | Set { dest = Pins | Pindirs; _ }
+  | Out { dest = Pins | Pindirs; _ }
+  | Mov { dest = Pins | Pindirs; _ } -> true
+  | _ -> false
+;;
+
+(* Whether an instruction arriving in [s] makes a pin edge, the cycle after it issues: a
+   pin write always does, and so does the second half of a Manchester bit it brings. *)
+let makes_edge (s : State.t) (t : Isa.t) =
+  match t, s.flip with
+  | Op { op; _ }, _ when writes_pins op -> Some true
+  | _, flip -> flip
+;;
+
+(* The edge shows the cycle after the issue, so from then on the count starts at -1. *)
+let at_issue (s : State.t) (t : Isa.t) =
+  match makes_edge s t with
+  | Some true -> { s with since_edge = Interval.exactly (-1) }
+  | None -> { s with since_edge = Interval.join (Interval.exactly (-1)) s.since_edge }
+  | Some false -> s
 ;;
 
 (* A Manchester [out] leaves its second half to the next instruction to issue. *)
@@ -168,8 +199,11 @@ let step ?period ?(single_capture_edge = false) ~config (s : State.t) pc (t : Is
   let loaded_period = Option.value_map period ~default:Interval.top ~f:Interval.exactly in
   (* the wrap is an edge of the graph like any other and takes no cycles *)
   let following =
-    if pc = config.Program_config.wrap_top then config.wrap_bottom else pc + 1
+    if pc = config.Program_config.wrap_top
+    then config.wrap_bottom
+    else (pc + 1) % program_size
   in
+  let s = at_issue s t in
   match t with
   | Jmp { cond; target } ->
     let s = State.elapse { s with flip = Some false } Isa.jmp_cycles in
@@ -211,7 +245,7 @@ let step ?period ?(single_capture_edge = false) ~config (s : State.t) pc (t : Is
        in
        let phase = if advance then Interval.minus released period else released in
        let since_arm = Option.map s.since_arm ~f:(fun a -> Interval.plus a stall) in
-       after { s with phase; since_arm }
+       after { s with phase; since_arm; since_edge = Interval.plus s.since_edge stall }
      | Wait ((Pin_level _ | Pin_edge _ | Fifo _) as wait) ->
        let unbounded (i : Interval.t) = { i with hi = None } in
        (* The capture is the edge the wait releases on, or an earlier one since the arm,
@@ -222,7 +256,12 @@ let step ?period ?(single_capture_edge = false) ~config (s : State.t) pc (t : Is
            Some { since with lo = Some 0 }
          | since -> Option.map since ~f:unbounded
        in
-       after { s with phase = unbounded s.phase; since_arm }
+       after
+         { s with
+           phase = unbounded s.phase
+         ; since_arm
+         ; since_edge = unbounded s.since_edge
+         }
      | Mov { dest = T; op = Copy; source = Now } ->
        after { s with phase = Interval.exactly 0 }
      | Mov { dest = T; op = Copy; source = Capture } ->
@@ -243,7 +282,9 @@ let step ?period ?(single_capture_edge = false) ~config (s : State.t) pc (t : Is
          | Reg (Isr | Osr) -> Interval.top
        in
        after { s with phase = Interval.minus s.phase amount }
-     | Alu { dest = T; op = Sub; operand = Imm n } -> after (State.elapse s n)
+     (* an earlier deadline, not time passing: only the phase moves *)
+     | Alu { dest = T; op = Sub; operand = Imm n } ->
+       after { s with phase = Interval.shift s.phase n }
      | Alu { dest = T; _ } -> after { s with phase = Interval.top }
      | Set { dest = P; value } -> after { s with period = Interval.exactly value }
      | Set { dest = X; value } -> after { s with x = Interval.exactly value }
@@ -260,7 +301,14 @@ let step ?period ?(single_capture_edge = false) ~config (s : State.t) pc (t : Is
 ;;
 
 let analyse ?period ?single_capture_edge ~config (program : Isa.t list) =
-  let program = Array.of_list program in
+  (* past the program the memory reads zero, [jmp 0], and the pc wraps at its end *)
+  let program =
+    Array.of_list
+      (program
+       @ List.init
+           (program_size - List.length program)
+           ~f:(fun _ -> Isa.Jmp { cond = Always; target = 0 }))
+  in
   let n = Array.length program in
   let entry = Array.create ~len:n None in
   let passes = Array.create ~len:n 0 in
@@ -294,10 +342,20 @@ let analyse ?period ?single_capture_edge ~config (program : Isa.t list) =
   let side_edge = Array.create ~len:n None in
   (* likewise the second half of a Manchester bit, on the ways in that bring one *)
   let flip_edge = Array.create ~len:n None in
-  let arrive pc (s : State.t) =
+  (* and the cycles since the edge before, for each instruction a way in comes from *)
+  let gaps = Array.create ~len:n [] in
+  let arrive ?from pc (s : State.t) =
     let add edges =
       edges.(pc) <- Some (Option.fold edges.(pc) ~init:s.phase ~f:Interval.join)
     in
+    Option.iter from ~f:(fun from ->
+      if not ([%equal: bool option] (makes_edge s program.(pc)) (Some false))
+      then (
+        let gap = Interval.shift s.since_edge 1 in
+        let before = List.Assoc.find gaps.(pc) from ~equal:Int.equal in
+        gaps.(pc)
+        <- (from, Option.fold before ~init:gap ~f:Interval.join)
+           :: List.Assoc.remove gaps.(pc) from ~equal:Int.equal));
     (match program.(pc) with
      | Op { side_set; _ }
        when config.Program_config.side_set_count > 0
@@ -310,7 +368,7 @@ let analyse ?period ?single_capture_edge ~config (program : Isa.t list) =
     Option.iter s ~f:(fun s ->
       List.iter
         (step ?period ?single_capture_edge ~config s pc program.(pc))
-        ~f:(fun (pc, s) -> if pc < n then arrive pc s)));
+        ~f:(fun (next, s) -> if next < n then arrive ~from:pc next s)));
   Array.to_list program
   |> List.filter_mapi ~f:(fun pc instruction ->
     Option.map entry.(pc) ~f:(fun (s : State.t) ->
@@ -350,6 +408,7 @@ let analyse ?period ?single_capture_edge ~config (program : Isa.t list) =
       in
       (* it shows the cycle after the next instruction issues, as the out's own half did *)
       let flip = Option.map flip_edge.(pc) ~f:(fun at -> Interval.shift at 1) in
+      let gaps = List.sort gaps.(pc) ~compare:(fun (a, _) (b, _) -> Int.compare b a) in
       { Row.pc
       ; instruction
       ; phase = s.phase
@@ -358,6 +417,7 @@ let analyse ?period ?single_capture_edge ~config (program : Isa.t list) =
       ; pin_event
       ; side_event
       ; flip
+      ; gaps
       }))
 ;;
 
@@ -378,15 +438,28 @@ let to_string ~side_set_count rows =
       | _ -> ""
     in
     let flip = Option.value_map r.flip ~default:"" ~f:(Pin_event.with_jitter "flip") in
+    (* one gap when every way in agrees, else each with where it comes from *)
+    let gap =
+      match List.dedup_and_sort (List.map r.gaps ~f:snd) ~compare:Interval.compare with
+      | [] -> ""
+      | [ gap ] -> [%string "  gap %{Interval.to_string gap}"]
+      | _ ->
+        "  gap "
+        ^ String.concat
+            ~sep:", "
+            (List.map r.gaps ~f:(fun (from, gap) ->
+               [%string "%{Interval.to_string gap} from %{from#Int}"]))
+    in
     sprintf
-      "%3d  %-28s phase %s%s%s%s%s"
+      "%3d  %-28s phase %s%s%s%s%s%s"
       r.pc
       text
       (Interval.to_string r.phase)
       slack
       pin_event
       side_event
-      flip)
+      flip
+      gap)
   |> String.concat ~sep:"\n"
 ;;
 

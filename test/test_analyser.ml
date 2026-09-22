@@ -18,18 +18,18 @@ let%expect_test "uart tx" =
   [%expect
     {|
      0  set p, 16                    phase ?..?
-     1  set pins, 1                  phase ?..?  edge ?..?  jitter ?
+     1  set pins, 1                  phase ?..?  edge ?..?  jitter ?  gap ?..?
      2  wait tx                      phase ?..?
      3  pull                         phase ?..?
      4  set x, 7                     phase ?..?
      5  mov t, now                   phase ?..?
-     6  set pins, 0                  phase 1  edge 2
+     6  set pins, 0                  phase 1  edge 2  gap 5..?
      7  add t, p                     phase 2
      8  wait t+                      phase -13..-12  slack 12..13
-     9  out pins, 1                  phase -15  edge -14
+     9  out pins, 1                  phase -15  edge -14  gap 15..17
     10  jmp x--, 8                   phase -14
     11  wait t+                      phase -12  slack 12
-    12  set pins, 1                  phase -15  edge -14
+    12  set pins, 1                  phase -15  edge -14  gap 16
     13  wait t                       phase -14  slack 14
     14  jmp 2                        phase 1
     |}]
@@ -75,11 +75,11 @@ let%expect_test "spi master" =
      5  mov t, now side 0            phase ?..?
      6  add t, p side 0              phase 1
      7  wait t+ side 0               phase -6  slack 6
-     8  out pins, 1 side 0           phase -7  edge -6
+     8  out pins, 1 side 0           phase -7  edge -6  gap ?..?
      9  wait t+ side 0               phase -6..-4  slack 4..6
     10  in pins, 1 side 1            phase -7  sample -7  side -6
     11  wait t+ side 1               phase -6  slack 6
-    12  out pins, 1 side 0           phase -7  edge -6  side -6
+    12  out pins, 1 side 0           phase -7  edge -6  side -6  gap 14..18
     13  jmp x--, 9                   phase -6
     14  push side 0                  phase -4
     15  jmp 1                        phase -3
@@ -108,16 +108,16 @@ let%expect_test "i2c master" =
     15  jmp x--, 23                  phase -12
     16  jmp 31                       phase -10
     17  wait t+ side 0               phase -10  slack 10
-    18  set pindirs, 1 side 0        phase -7  edge -6
+    18  set pindirs, 1 side 0        phase -7  edge -6  gap ?..?
     19  wait t+ side 0               phase -6  slack 6
     20  nop side 1                   phase -7  side -6
     21  add t, p side 1              phase -6
     22  jmp 31                       phase -13
-    23  set pindirs, 0 side 1        phase -10  edge -9
+    23  set pindirs, 0 side 1        phase -10  edge -9  gap 14..?
     24  wait t+ side 1               phase -9  slack 9
     25  nop side 0                   phase -7  side -6
     26  wait t+ side 0               phase -6  slack 6
-    27  set pindirs, 1 side 0        phase -7  edge -6
+    27  set pindirs, 1 side 0        phase -7  edge -6  gap 19
     28  wait t+ side 0               phase -6  slack 6
     29  nop side 1                   phase -7  side -6
     30  add t, p side 1              phase -6
@@ -126,7 +126,7 @@ let%expect_test "i2c master" =
     33  jmp y--, 53                  phase -11..-6
     34  wait t+ side 1               phase -9..-4  slack 4..9
     35  out y, 1 side 1              phase -7
-    36  mov pindirs, !y side 1       phase -6  edge -5
+    36  mov pindirs, !y side 1       phase -6  edge -5  gap ?..?
     37  wait t+ side 1               phase -5  slack 5
     38  nop side 0                   phase -7  side -6
     39  wait t+ side 0               phase -6  slack 6
@@ -134,7 +134,7 @@ let%expect_test "i2c master" =
     41  nop side 1                   phase -7  side -6
     42  jmp x--, 34                  phase -6
     43  wait t+ side 1               phase -4  slack 4
-    44  set pindirs, 0 side 1        phase -7  edge -6
+    44  set pindirs, 0 side 1        phase -7  edge -6  gap 31
     45  wait t+ side 1               phase -6  slack 6
     46  nop side 0                   phase -7  side -6
     47  wait t+ side 0               phase -6  slack 6
@@ -143,7 +143,7 @@ let%expect_test "i2c master" =
     50  nop side 1                   phase -7  side -6
     51  out x, 1 side 1              phase -6
     52  jmp 72                       phase -5
-    53  set pindirs, 0 side 1        phase -9..-4  edge -8..-3  jitter 5
+    53  set pindirs, 0 side 1        phase -9..-4  edge -8..-3  jitter 5  gap ?..?
     54  wait t+ side 1               phase -8..-3  slack 3..8
     55  wait t+ side 1               phase -7  slack 7
     56  nop side 0                   phase -7  side -6
@@ -155,22 +155,22 @@ let%expect_test "i2c master" =
     62  out null, 8 side 1           phase -4
     63  out x, 1 side 1              phase -3
     64  wait t+ side 1               phase -2  slack 2
-    65  mov pindirs, !x side 1       phase -7  edge -6
+    65  mov pindirs, !x side 1       phase -7  edge -6  gap 37..?
     66  wait t+ side 1               phase -6  slack 6
     67  nop side 0                   phase -7  side -6
     68  wait t+ side 0               phase -6  slack 6
     69  wait t+ side 0               phase -7  slack 7
     70  nop side 1                   phase -7  side -6
-    71  set pindirs, 0 side 1        phase -6  edge -5
+    71  set pindirs, 0 side 1        phase -6  edge -5  gap 25
     72  push side 1                  phase -5..-3
     73  jmp x--, 75                  phase -4..-2
     74  jmp 9                        phase -2..0
     75  wait t+ side 1               phase -2..0  slack 0..2
-    76  set pindirs, 1 side 1        phase -7  edge -6
+    76  set pindirs, 1 side 1        phase -7  edge -6  gap 5..34
     77  wait t+ side 1               phase -6  slack 6
     78  nop side 0                   phase -7  side -6
     79  wait t+ side 0               phase -6  slack 6
-    80  set pindirs, 0 side 0        phase -7  edge -6
+    80  set pindirs, 0 side 0        phase -7  edge -6  gap 16
     81  wait t+ side 0               phase -6  slack 6
     82  jmp 1                        phase -7
     |}]
@@ -198,16 +198,16 @@ let%expect_test "a quarter of 5 is too short for the i2c dispatch" =
     15  jmp x--, 23                  phase -6
     16  jmp 31                       phase -4
     17  wait t+ side 0               phase -4  slack 4
-    18  set pindirs, 1 side 0        phase -4  edge -3
+    18  set pindirs, 1 side 0        phase -4  edge -3  gap ?..?
     19  wait t+ side 0               phase -3  slack 3
     20  nop side 1                   phase -4  side -3
     21  add t, p side 1              phase -3
     22  jmp 31                       phase -7
-    23  set pindirs, 0 side 1        phase -4  edge -3
+    23  set pindirs, 0 side 1        phase -4  edge -3  gap 14..?
     24  wait t+ side 1               phase -3  slack 3
     25  nop side 0                   phase -4  side -3
     26  wait t+ side 0               phase -3  slack 3
-    27  set pindirs, 1 side 0        phase -4  edge -3
+    27  set pindirs, 1 side 0        phase -4  edge -3  gap 10
     28  wait t+ side 0               phase -3  slack 3
     29  nop side 1                   phase -4  side -3
     30  add t, p side 1              phase -3
@@ -216,7 +216,7 @@ let%expect_test "a quarter of 5 is too short for the i2c dispatch" =
     33  jmp y--, 53                  phase -5..0
     34  wait t+ side 1               phase -3..2  slack -2..3  MAY MISS
     35  out y, 1 side 1              phase -4..-2
-    36  mov pindirs, !y side 1       phase -3..-1  edge -2..0  jitter 2
+    36  mov pindirs, !y side 1       phase -3..-1  edge -2..0  jitter 2  gap ?..?
     37  wait t+ side 1               phase -2..0  slack 0..2
     38  nop side 0                   phase -4  side -3
     39  wait t+ side 0               phase -3  slack 3
@@ -224,7 +224,7 @@ let%expect_test "a quarter of 5 is too short for the i2c dispatch" =
     41  nop side 1                   phase -4  side -3
     42  jmp x--, 34                  phase -3
     43  wait t+ side 1               phase -1  slack 1
-    44  set pindirs, 0 side 1        phase -4  edge -3
+    44  set pindirs, 0 side 1        phase -4  edge -3  gap 17..19
     45  wait t+ side 1               phase -3  slack 3
     46  nop side 0                   phase -4  side -3
     47  wait t+ side 0               phase -3  slack 3
@@ -233,7 +233,7 @@ let%expect_test "a quarter of 5 is too short for the i2c dispatch" =
     50  nop side 1                   phase -4  side -3
     51  out x, 1 side 1              phase -3
     52  jmp 72                       phase -2
-    53  set pindirs, 0 side 1        phase -3..2  edge -2..3  jitter 5
+    53  set pindirs, 0 side 1        phase -3..2  edge -2..3  jitter 5  gap ?..?
     54  wait t+ side 1               phase -2..3  slack -3..2  MAY MISS
     55  wait t+ side 1               phase -4..-1  slack 1..4
     56  nop side 0                   phase -4  side -3
@@ -245,22 +245,22 @@ let%expect_test "a quarter of 5 is too short for the i2c dispatch" =
     62  out null, 8 side 1           phase -1
     63  out x, 1 side 1              phase 0
     64  wait t+ side 1               phase 1  slack -1  MAY MISS
-    65  mov pindirs, !x side 1       phase -3  edge -2
+    65  mov pindirs, !x side 1       phase -3  edge -2  gap 20..?
     66  wait t+ side 1               phase -2  slack 2
     67  nop side 0                   phase -4  side -3
     68  wait t+ side 0               phase -3  slack 3
     69  wait t+ side 0               phase -4  slack 4
     70  nop side 1                   phase -4  side -3
-    71  set pindirs, 0 side 1        phase -3  edge -2
+    71  set pindirs, 0 side 1        phase -3  edge -2  gap 15
     72  push side 1                  phase -2..0
     73  jmp x--, 75                  phase -1..1
     74  jmp 9                        phase 1..3
     75  wait t+ side 1               phase 1..3  slack -3..-1  MAY MISS
-    76  set pindirs, 1 side 1        phase -3..-1  edge -2..0  jitter 2
+    76  set pindirs, 1 side 1        phase -3..-1  edge -2..0  jitter 2  gap 5..23
     77  wait t+ side 1               phase -2..0  slack 0..2
     78  nop side 0                   phase -4  side -3
     79  wait t+ side 0               phase -3  slack 3
-    80  set pindirs, 0 side 0        phase -4  edge -3
+    80  set pindirs, 0 side 0        phase -4  edge -3  gap 7..9
     81  wait t+ side 0               phase -3  slack 3
     82  jmp 1                        phase -4
     |}]
@@ -271,12 +271,12 @@ let%expect_test "i2c logger" =
   [%expect
     {|
      0  mov pins, !null side 0       phase ?..?  edge ?..?  jitter ?  side ?..?  jitter ?
-     1  set pindirs, 0 side 0        phase ?..?  edge ?..?  jitter ?
+     1  set pindirs, 0 side 0        phase ?..?  edge ?..?  jitter ?  gap 1
      2  set p, 8 side 0              phase ?..?
      3  mov t, now side 0            phase ?..?
      4  add t, p side 0              phase 1
      5  wait t+ side 0               phase -6  slack 6
-     6  set pindirs, 1 side 0        phase -7  edge -6
+     6  set pindirs, 1 side 0        phase -7  edge -6  gap 11..28
      7  wait t+ side 0               phase -6  slack 6
      8  nop side 1                   phase -7  side -6
      9  add t, p side 1              phase -6
@@ -291,9 +291,9 @@ let%expect_test "i2c logger" =
     18  wait t+ side 1               phase -5..-4  slack 4..5
     19  out y, 1 side 1              phase -7
     20  jmp y--, 23                  phase -6
-    21  set pindirs, 1 side 1        phase -4  edge -3
+    21  set pindirs, 1 side 1        phase -4  edge -3  gap 26..35
     22  jmp 24                       phase -3
-    23  set pindirs, 0 side 1        phase -4  edge -3
+    23  set pindirs, 0 side 1        phase -4  edge -3  gap 26..35
     24  wait t+ side 1               phase -3..-1  slack 1..3
     25  nop side 0                   phase -7  side -6
     26  wait t+ side 0               phase -6  slack 6
@@ -301,7 +301,7 @@ let%expect_test "i2c logger" =
     28  nop side 1                   phase -7  side -6
     29  jmp x--, 18                  phase -6
     30  wait t+ side 1               phase -4  slack 4
-    31  set pindirs, 0 side 1        phase -7  edge -6
+    31  set pindirs, 0 side 1        phase -7  edge -6  gap 27..31
     32  wait t+ side 1               phase -6  slack 6
     33  nop side 0                   phase -7  side -6
     34  wait t+ side 0               phase -6  slack 6
@@ -324,23 +324,23 @@ let%expect_test "i2c logger" =
     51  wait t+ side 0               phase -7  slack 7
     52  nop side 1                   phase -7  side -6
     53  wait t+ side 1               phase -6  slack 6
-    54  set pindirs, 1 side 1        phase -7  edge -6
+    54  set pindirs, 1 side 1        phase -7  edge -6  gap 96..?
     55  wait t+ side 1               phase -6  slack 6
     56  nop side 0                   phase -7  side -6
     57  wait t+ side 0               phase -6  slack 6
-    58  set pindirs, 0 side 0        phase -7  edge -6
+    58  set pindirs, 0 side 0        phase -7  edge -6  gap 16
     59  wait t+ side 0               phase -6  slack 6
     60  set p, 16 side 0             phase -7
     61  mov osr, ::isr side 0        phase -6
     62  set x, 7 side 0              phase -5
     63  mov t, now side 0            phase -4
-    64  mov pins, null side 0        phase 1  edge 2
+    64  mov pins, null side 0        phase 1  edge 2  gap 12
     65  add t, p side 0              phase 2
     66  wait t+ side 0               phase -13..-12  slack 12..13
-    67  out pins, 1 side 0           phase -15  edge -14
+    67  out pins, 1 side 0           phase -15  edge -14  gap 15..17
     68  jmp x--, 66                  phase -14
     69  wait t+ side 0               phase -12  slack 12
-    70  mov pins, !null side 0       phase -15  edge -14
+    70  mov pins, !null side 0       phase -15  edge -14  gap 16
     71  wait t side 0                phase -14  slack 14
     72  jmp 2                        phase 1
     |}]
@@ -352,7 +352,7 @@ let%expect_test "usb tx" =
     {|
      0  pull                         phase ?..?
      1  mov p, osr                   phase ?..?
-     2  set pins, 2                  phase ?..?  edge ?..?  jitter ?
+     2  set pins, 2                  phase ?..?  edge ?..?  jitter ?  gap ?..?
      3  wait tx                      phase ?..?
      4  mov t, now                   phase ?..?
      5  add t, p                     phase 1
@@ -361,9 +361,9 @@ let%expect_test "usb tx" =
      8  set x, 7                     phase -28..-22
      9  jmp stuff, 45                phase -27..-21
     10  wait t+                      phase -25..-19  slack 19..25
-    11  out pins, 1                  phase -31  edge -30
+    11  out pins, 1                  phase -31  edge -30  gap 25..?
     12  jmp pin, 14                  phase -30
-    13  mov pins, !pins              phase -28  edge -27
+    13  mov pins, !pins              phase -28  edge -27  gap 3
     14  jmp x--, 9                   phase -28..-27
     15  jmp y--, 7                   phase -26..-25
     16  crc_init                     phase -24..-23
@@ -373,9 +373,9 @@ let%expect_test "usb tx" =
     20  set x, 7                     phase -23..-19
     21  jmp stuff, 50                phase -26..-18
     22  wait t+                      phase -24..-16  slack 16..24
-    23  out pins, 1                  phase -31  edge -30
+    23  out pins, 1                  phase -31  edge -30  gap 22..39
     24  jmp pin, 26                  phase -30
-    25  mov pins, !pins              phase -28  edge -27
+    25  mov pins, !pins              phase -28  edge -27  gap 3
     26  jmp x--, 21                  phase -28..-27
     27  jmp y--, 19                  phase -26..-25
     28  in crc, 16                   phase -24..-23
@@ -383,36 +383,36 @@ let%expect_test "usb tx" =
     30  set x, 15                    phase -22..-21
     31  jmp stuff, 55                phase -26..-20
     32  wait t+                      phase -24..-18  slack 18..24
-    33  out pins, 1                  phase -31  edge -30
+    33  out pins, 1                  phase -31  edge -30  gap 24..37
     34  jmp pin, 36                  phase -30
-    35  mov pins, !pins              phase -28  edge -27
+    35  mov pins, !pins              phase -28  edge -27  gap 3
     36  jmp x--, 31                  phase -28..-27
     37  jmp stuff, 60                phase -26..-25
     38  wait t+                      phase -24..-23  slack 23..24
-    39  set pins, 0                  phase -31  edge -30
+    39  set pins, 0                  phase -31  edge -30  gap 28..32
     40  wait t+                      phase -30  slack 30
     41  wait t+                      phase -31  slack 31
-    42  set pins, 2                  phase -31  edge -30
+    42  set pins, 2                  phase -31  edge -30  gap 64
     43  wait t+                      phase -30  slack 30
     44  jmp 3                        phase -31
     45  wait t+                      phase -25..-19  slack 19..25
     46  nop [2]                      phase -31
-    47  mov pins, !pins              phase -28  edge -27
+    47  mov pins, !pins              phase -28  edge -27  gap 28..?
     48  stuff_reset                  phase -27
     49  jmp 9                        phase -26
     50  wait t+                      phase -24..-16  slack 16..24
     51  nop [2]                      phase -31
-    52  mov pins, !pins              phase -28  edge -27
+    52  mov pins, !pins              phase -28  edge -27  gap 25..42
     53  stuff_reset                  phase -27
     54  jmp 21                       phase -26
     55  wait t+                      phase -24..-18  slack 18..24
     56  nop [2]                      phase -31
-    57  mov pins, !pins              phase -28  edge -27
+    57  mov pins, !pins              phase -28  edge -27  gap 27..40
     58  stuff_reset                  phase -27
     59  jmp 31                       phase -26
     60  wait t+                      phase -24..-23  slack 23..24
     61  nop [2]                      phase -31
-    62  mov pins, !pins              phase -28  edge -27
+    62  mov pins, !pins              phase -28  edge -27  gap 32..35
     63  stuff_reset                  phase -27
     64  jmp 38                       phase -26
     |}]
@@ -649,27 +649,27 @@ let%expect_test "a fractional period" =
     uart_tx_host_rate;
   [%expect
     {|
-      3  set pins, 1                  phase ?..?  edge ?..?  jitter ?
-      8  set pins, 0                  phase 1  edge 2
-     11  out pins, 1                  phase -416..-415  edge -415..-414  jitter 1
-     14  set pins, 1                  phase -416..-415  edge -415..-414  jitter 1
+      3  set pins, 1                  phase ?..?  edge ?..?  jitter ?  gap ?..?
+      8  set pins, 0                  phase 1  edge 2  gap 5..?
+     11  out pins, 1                  phase -416..-415  edge -415..-414  jitter 1  gap 415..417
+     14  set pins, 1                  phase -416..-415  edge -415..-414  jitter 1  gap 416..417
     ((words 17) (edge_jitter unbounded) (sample_jitter 0) (side_jitter 0)
      (may_miss 0))
       0  wait tx                      phase ?..?
       1  pull                         phase ?..?
       2  mov p, osr                   phase ?..?
-      3  set pins, 1                  phase ?..?  edge ?..?  jitter ?
+      3  set pins, 1                  phase ?..?  edge ?..?  jitter ?  gap ?..?
       4  wait tx                      phase ?..?
       5  pull                         phase ?..?
       6  set x, 7                     phase ?..?
       7  mov t, now                   phase ?..?
-      8  set pins, 0                  phase 1  edge 2
+      8  set pins, 0                  phase 1  edge 2  gap 5..?
       9  add t, p                     phase 2
      10  wait t+                      phase -413..-412  slack 412..413
-     11  out pins, 1                  phase -416..-415  edge -415..-414  jitter 1
+     11  out pins, 1                  phase -416..-415  edge -415..-414  jitter 1  gap 415..417
      12  jmp x--, 10                  phase -415..-414
      13  wait t+                      phase -413..-412  slack 412..413
-     14  set pins, 1                  phase -416..-415  edge -415..-414  jitter 1
+     14  set pins, 1                  phase -416..-415  edge -415..-414  jitter 1  gap 416..417
      15  wait t                       phase -415..-414  slack 414..415
      16  jmp 4                        phase 1
     |}]
@@ -734,7 +734,7 @@ let%expect_test "a jump on registers the analysis knows goes one way" =
       2  jmp x!=y, 7                  phase ?..?
       3  set x, 0                     phase ?..?
       4  jmp x--, 7                   phase ?..?
-      5  set pins, 1                  phase ?..?  edge ?..?  jitter ?
+      5  set pins, 1                  phase ?..?  edge ?..?  jitter ?  gap ?..?
       6  jmp 0                        phase ?..?
     ((issues 70) (violations ()))
     |}]
@@ -778,7 +778,7 @@ loop:
       1  mov t, now side 0            phase ?..?
       2  add t, p side 0              phase 1
       3  wait t+ side 0               phase -8..-5  slack 5..8
-      4  set pins, 1 side 0           phase -9  edge -8
+      4  set pins, 1 side 0           phase -9  edge -8  gap ?..?
       5  nop side 0                   phase -8  side -7
       6  jmp 3                        phase -7
     ((issues 120) (side_edges 29) (violations ()))
@@ -790,14 +790,14 @@ let%expect_test "edge meter" =
   [%expect
     {|
      0  set p, 16                    phase ?..?
-     1  set pins, 0                  phase ?..?  edge ?..?  jitter ?
+     1  set pins, 0                  phase ?..?  edge ?..?  jitter ?  gap ?..?
      2  mov t, now                   phase ?..?
      3  add t, p                     phase 1
      4  capture_arm                  phase -14..-7
      5  wait t+                      phase -13..-6  slack 6..13
-     6  mov pins, !pins              phase -15  edge -14
+     6  mov pins, !pins              phase -15  edge -14  gap 11..23
      7  wait t+                      phase -14  slack 14
-     8  mov pins, !pins              phase -15  edge -14
+     8  mov pins, !pins              phase -15  edge -14  gap 16
      9  nop [3]                      phase -14
     10  in capture, 16               phase -10
     11  jmp 4                        phase -9
@@ -822,7 +822,7 @@ let%expect_test "a wrapped loop toggles every two cycles with no jitter" =
     1  mov t, now                   phase ?..?
     2  add t, p                     phase 1
     3  wait t+                      phase 0  slack 0
-    4  mov pins, !pins              phase -1  edge 0
+    4  mov pins, !pins              phase -1  edge 0  gap ?..?
     |}]
 ;;
 
@@ -848,8 +848,8 @@ let%expect_test "usb device" =
     ("List.length report" 466)
       0  pull                         phase ?..?
       1  mov p, osr                   phase ?..?
-      2  set pins, 2                  phase ?..?  edge ?..?  jitter ?
-      3  set pindirs, 4               phase ?..?  edge ?..?  jitter ?
+      2  set pins, 2                  phase ?..?  edge ?..?  jitter ?  gap 31 from 428, 85..? from 371, 107..? from 360, 269..? from 348, 97..? from 199, ?..? from 1
+      3  set pindirs, 4               phase ?..?  edge ?..?  jitter ?  gap 1
       4  mov isr, null                phase ?..?
       5  set y, 0                     phase ?..?
       6  in y, 3                      phase ?..?
@@ -865,23 +865,23 @@ let%expect_test "usb device" =
      16  capture_arm                  phase ?..?
      17  wait 1 pin 12                phase ?..?
      18  mov t, capture               phase ?..?
-    109  set pins, 6                  phase -27  edge -26
-    111  set pins, 2                  phase -27  edge -26
-    113  set pins, 6                  phase -25  edge -24
-    115  set pins, 2                  phase -25  edge -24
+    109  set pins, 6                  phase -27  edge -26  gap 162..?
+    111  set pins, 2                  phase -27  edge -26  gap 162..?
+    113  set pins, 6                  phase -25  edge -24  gap 164..?
+    115  set pins, 2                  phase -25  edge -24  gap 164..?
     363  mov t, capture               phase -9..?
-    379  set pins, 6                  phase -31  edge -30
-    380  set pindirs, 7               phase -30  edge -29
-    384  mov pins, !pins              phase -28  edge -27
-    411  set pins, 2                  phase -31  edge -30
-    412  set pindirs, 7               phase -30  edge -29
-    417  mov pins, !pins              phase -28  edge -27
-    422  set pins, 4                  phase -28  edge -27
-    426  set pins, 6                  phase -28  edge -27
-    439  mov pins, !pins              phase -28  edge -27
-    444  mov pins, !pins              phase -28  edge -27
-    451  mov pins, !pins              phase -28  edge -27
-    456  mov pins, !pins              phase -28  edge -27
-    468  mov pins, !pins              phase -28  edge -27
+    379  set pins, 6                  phase -31  edge -30  gap 168..?
+    380  set pindirs, 7               phase -30  edge -29  gap 1
+    384  mov pins, !pins              phase -28  edge -27  gap 31..35
+    411  set pins, 2                  phase -31  edge -30  gap 168..?
+    412  set pindirs, 7               phase -30  edge -29  gap 1
+    417  mov pins, !pins              phase -28  edge -27  gap 31..?
+    422  set pins, 4                  phase -28  edge -27  gap 26..?
+    426  set pins, 6                  phase -28  edge -27  gap 64
+    439  mov pins, !pins              phase -28  edge -27  gap 24..?
+    444  mov pins, !pins              phase -28  edge -27  gap 24..?
+    451  mov pins, !pins              phase -28  edge -27  gap 16..?
+    456  mov pins, !pins              phase -28  edge -27  gap 16..?
+    468  mov pins, !pins              phase -28  edge -27  gap 32..?
     |}]
 ;;

@@ -42,6 +42,11 @@ module Row : sig
     ; flip : Interval.t option
     (** Where the second half of a Manchester bit shows, which is where this instruction
         issues when it is the next after a Manchester [out]. *)
+    ; gaps : (int * Interval.t) list
+    (** For an instruction that makes a pin edge, a write or a flip, the cycles since the
+        edge before it, for each instruction it can follow: a timing that needs no
+        deadline, so it holds inside a loop with none, like one sending a bit every four
+        cycles, where the first bit's gap back to the idle line is another matter. *)
     }
   [@@deriving sexp_of]
 end

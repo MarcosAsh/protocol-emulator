@@ -27,6 +27,7 @@ type t =
   { issues : int
   ; side_edges : int
   ; flips : int (** Second halves of Manchester bits, each checked like a side edge. *)
+  ; gaps : int (** Edges whose distance from the edge before was checked. *)
   ; reached : int (** Rows issued at least once. *)
   ; violations : (int * int * int * int) list
   (** The stimulus, the cycle, the pc and the phase, first to last. *)

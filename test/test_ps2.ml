@@ -189,17 +189,17 @@ let%expect_test "every edge and every sample is placed by a deadline" =
   [%expect
     {|
       9  in pins, 1                   phase 2  sample 2
-     15  set pindirs, 1               phase -999  edge -998
-     18  set pindirs, 0               phase -999  edge -998
+     15  set pindirs, 1               phase -999  edge -998  gap ?..?
+     18  set pindirs, 0               phase -999  edge -998  gap 2000
      20  in pins, 1                   phase -999  sample -999
-     22  mov pindirs, !null           phase -996  edge -995
-     24  set pindirs, 1               phase -999  edge -998
-     27  set pindirs, 0               phase -999  edge -998
-     29  mov pindirs, null            phase -999  edge -998
-     54  mov pindirs, !y              phase -997  edge -996
-     56  set pindirs, 1               phase -999  edge -998
-     59  set pindirs, 0               phase -999  edge -998
-     62  mov pindirs, null            phase -997  edge -996
+     22  mov pindirs, !null           phase -996  edge -995  gap 1003
+     24  set pindirs, 1               phase -999  edge -998  gap 997
+     27  set pindirs, 0               phase -999  edge -998  gap 2000
+     29  mov pindirs, null            phase -999  edge -998  gap 1000
+     54  mov pindirs, !y              phase -997  edge -996  gap ?..?
+     56  set pindirs, 1               phase -999  edge -998  gap 998
+     59  set pindirs, 0               phase -999  edge -998  gap 2000
+     62  mov pindirs, null            phase -997  edge -996  gap ?..?
     ((words 65) (edge_jitter 0) (sample_jitter 0) (side_jitter 0) (may_miss 0))
     |}]
 ;;
@@ -209,17 +209,17 @@ let%expect_test "the shortest quarter the program keeps up with" =
   [%expect
     {|
       9  in pins, 1                   phase 2  sample 2
-     15  set pindirs, 1               phase -7  edge -6
-     18  set pindirs, 0               phase -7  edge -6
+     15  set pindirs, 1               phase -7  edge -6  gap ?..?
+     18  set pindirs, 0               phase -7  edge -6  gap 16
      20  in pins, 1                   phase -7  sample -7
-     22  mov pindirs, !null           phase -4  edge -3
-     24  set pindirs, 1               phase -7  edge -6
-     27  set pindirs, 0               phase -7  edge -6
-     29  mov pindirs, null            phase -7  edge -6
-     54  mov pindirs, !y              phase -5  edge -4
-     56  set pindirs, 1               phase -7  edge -6
-     59  set pindirs, 0               phase -7  edge -6
-     62  mov pindirs, null            phase -5  edge -4
+     22  mov pindirs, !null           phase -4  edge -3  gap 11
+     24  set pindirs, 1               phase -7  edge -6  gap 5
+     27  set pindirs, 0               phase -7  edge -6  gap 16
+     29  mov pindirs, null            phase -7  edge -6  gap 8
+     54  mov pindirs, !y              phase -5  edge -4  gap ?..?
+     56  set pindirs, 1               phase -7  edge -6  gap 6
+     59  set pindirs, 0               phase -7  edge -6  gap 16
+     62  mov pindirs, null            phase -5  edge -4  gap ?..?
     ((words 65) (edge_jitter 0) (sample_jitter 0) (side_jitter 0) (may_miss 0))
     |}]
 ;;
@@ -230,17 +230,17 @@ let%expect_test "a quarter of seven cycles is too short" =
     {|
       9  in pins, 1                   phase 2  sample 2
      14  wait t+                      phase -3..1  slack -1..3  MAY MISS
-     15  set pindirs, 1               phase -6..-5  edge -5..-4  jitter 1
-     18  set pindirs, 0               phase -6  edge -5
+     15  set pindirs, 1               phase -6..-5  edge -5..-4  jitter 1  gap ?..?
+     18  set pindirs, 0               phase -6  edge -5  gap 13..14
      20  in pins, 1                   phase -6  sample -6
-     22  mov pindirs, !null           phase -3  edge -2
-     24  set pindirs, 1               phase -6  edge -5
-     27  set pindirs, 0               phase -6  edge -5
-     29  mov pindirs, null            phase -6  edge -5
-     54  mov pindirs, !y              phase -4  edge -3
-     56  set pindirs, 1               phase -6  edge -5
-     59  set pindirs, 0               phase -6  edge -5
-     62  mov pindirs, null            phase -4  edge -3
+     22  mov pindirs, !null           phase -3  edge -2  gap 10
+     24  set pindirs, 1               phase -6  edge -5  gap 4
+     27  set pindirs, 0               phase -6  edge -5  gap 14
+     29  mov pindirs, null            phase -6  edge -5  gap 7
+     54  mov pindirs, !y              phase -4  edge -3  gap ?..?
+     56  set pindirs, 1               phase -6  edge -5  gap 5
+     59  set pindirs, 0               phase -6  edge -5  gap 14
+     62  mov pindirs, null            phase -4  edge -3  gap ?..?
     ((words 65) (edge_jitter 1) (sample_jitter 0) (side_jitter 0) (may_miss 1))
     |}]
 ;;

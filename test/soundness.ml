@@ -32,6 +32,7 @@ type t =
   { issues : int
   ; side_edges : int
   ; flips : int
+  ; gaps : int
   ; reached : int
   ; violations : (int * int * int * int) list
   }
@@ -57,8 +58,10 @@ let side_set_moves (c : Program_config.t) (m : Machine.t) value =
 ;;
 
 let check ?period ?single_capture_edge ?(preload = []) ~config stimuli words =
+  (* the memory past the program reads zero, as the machine's does *)
   let instructions =
-    List.map words ~f:(fun w ->
+    words @ List.init ((1 lsl Isa.pc_bits) - List.length words) ~f:(fun _ -> 0)
+    |> List.map ~f:(fun w ->
       Isa.of_word ~side_set_count:config.Program_config.side_set_count w |> ok_exn)
     |> Array.of_list
   in
@@ -69,16 +72,48 @@ let check ?period ?single_capture_edge ?(preload = []) ~config stimuli words =
   let issues = ref 0 in
   let side_edges = ref 0 in
   let flips = ref 0 in
+  let gaps = ref 0 in
   let reached = Array.create ~len:(Array.length instructions) false in
   let violations = ref [] in
   List.iteri stimuli ~f:(fun run (stimulus : Stimulus.t) ->
     let m = ref (Machine.create ~config ~program:words |> ok_exn) in
     List.iter preload ~f:(fun w -> m := Machine.write_tx !m w |> ok_exn);
     let last = ref None in
+    let came_from = ref None in
+    let last_edge = ref None in
     for cycle = 0 to stimulus.cycles - 1 do
       let t = !m in
       if (not t.halted) && t.stall = 0
       then (
+        (* an edge shows the cycle after the issue that makes it, a write or a flip, and
+           has to be as far from the edge before as the row says for where it came from *)
+        let new_pc =
+          not (Option.equal [%equal: int * int] !last (Some (cycle - 1, t.pc)))
+        in
+        let edge =
+          Option.is_some t.flip
+          ||
+          match instructions.(t.pc) with
+          | Op { op = Set { dest = Pins | Pindirs; _ }; _ }
+          | Op { op = Out { dest = Pins | Pindirs; _ }; _ }
+          | Op { op = Mov { dest = Pins | Pindirs; _ }; _ } -> new_pc
+          | _ -> false
+        in
+        if edge
+        then (
+          (match !came_from, !last_edge, rows.(t.pc) with
+           | Some from, Some at, Some row ->
+             Int.incr gaps;
+             let ok =
+               match List.Assoc.find row.gaps from ~equal:Int.equal with
+               | Some gap -> Interval.contains gap (cycle + 1 - at)
+               | None -> false
+             in
+             if not ok
+             then violations := (run, cycle, t.pc, cycle + 1 - at) :: !violations
+           | _ -> ());
+          last_edge := Some (cycle + 1));
+        if new_pc then came_from := Some t.pc;
         (* the second half of a Manchester bit comes with this issue *)
         (match t.flip with
          | Some _ when not (config.break_enable && t.pc = config.break_pc && not t.resumed)
@@ -124,6 +159,7 @@ let check ?period ?single_capture_edge ?(preload = []) ~config stimuli words =
   { issues = !issues
   ; side_edges = !side_edges
   ; flips = !flips
+  ; gaps = !gaps
   ; reached = Array.count reached ~f:Fn.id
   ; violations = List.rev !violations
   }

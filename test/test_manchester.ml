@@ -46,10 +46,9 @@ bit:
 ;;
 
 (* The certificate for the same loop names both halves of every bit: the [out] puts the
-   first on the pins and the jump the second. No deadline wait fits in four cycles, and
-   the analyser counts from the deadline, so it can only say the bits come after the
-   start, not that they come four cycles apart; that needs it to measure from edge to
-   edge. The model under random pins and host traffic keeps inside what it does say. *)
+   first on the pins and the jump the second. No deadline wait fits in four cycles, so the
+   phase is only bounded from the start, but each edge is exactly two cycles after the one
+   before. The model under random pins and host traffic keeps inside what it says. *)
 let%expect_test "the certificate names both halves of every bit" =
   let config =
     { Program_config.default with out_base = Isa.first_bidir_pin; manchester = true }
@@ -80,8 +79,8 @@ bit:
     [%message (issues : int) (flips : int) (violations : (int * int * int * int) list)];
   [%expect
     {|
-      7  out pins, 1 [1]              phase 1..?  edge 2..?  jitter ?
-      8  jmp y--, 7                   phase 3..?  flip 4..?  jitter ?
+      7  out pins, 1 [1]              phase 1..?  edge 2..?  jitter ?  gap 2 from 8, ?..? from 6
+      8  jmp y--, 7                   phase 3..?  flip 4..?  jitter ?  gap 2
     ((words 10) (edge_jitter unbounded) (sample_jitter 0) (side_jitter 0)
      (may_miss 0))
     ((issues 96) (flips 32) (violations ()))

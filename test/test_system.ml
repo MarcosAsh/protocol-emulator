@@ -163,10 +163,10 @@ let%expect_test "one engine times the other's uart edges" =
   table (List.drop (List.rev !stamps) 1) bytes;
   [%expect
     {|
-      3  set pins, 1                  phase ?..?  edge ?..?  jitter ?
-      8  set pins, 0                  phase 1  edge 2
-     11  out pins, 1                  phase -433  edge -432
-     14  set pins, 1                  phase -433  edge -432
+      3  set pins, 1                  phase ?..?  edge ?..?  jitter ?  gap ?..?
+      8  set pins, 0                  phase 1  edge 2  gap 5..?
+     11  out pins, 1                  phase -433  edge -432  gap 433..435
+     14  set pins, 1                  phase -433  edge -432  gap 434
     ((words 17) (edge_jitter unbounded) (sample_jitter 0) (side_jitter 0)
      (may_miss 0))
     ("lockstep held" (cycles 10000))

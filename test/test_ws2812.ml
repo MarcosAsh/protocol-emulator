@@ -120,10 +120,10 @@ let%expect_test "every edge is placed by a deadline" =
   Timing_report.print ~config standard;
   [%expect
     {|
-      1  set pins, 0                  phase 1  edge 2
-     19  set pins, 1                  phase -19  edge -18
-     21  out pins, 1                  phase -19  edge -18
-     23  set pins, 0                  phase -19  edge -18
+      1  set pins, 0                  phase 1  edge 2  gap ?..?
+     19  set pins, 1                  phase -19  edge -18  gap 14..?
+     21  out pins, 1                  phase -19  edge -18  gap 20
+     23  set pins, 0                  phase -19  edge -18  gap 20
     ((words 32) (edge_jitter 0) (sample_jitter 0) (side_jitter 0) (may_miss 0))
     |}]
 ;;
@@ -132,10 +132,10 @@ let%expect_test "the shortest bit the structure can make" =
   Timing_report.print ~config (firmware ~third:6 ~tail:7);
   [%expect
     {|
-      1  set pins, 0                  phase 1  edge 2
-     19  set pins, 1                  phase -5  edge -4
-     21  out pins, 1                  phase -5  edge -4
-     23  set pins, 0                  phase -5  edge -4
+      1  set pins, 0                  phase 1  edge 2  gap ?..?
+     19  set pins, 1                  phase -5  edge -4  gap 5..?
+     21  out pins, 1                  phase -5  edge -4  gap 6
+     23  set pins, 0                  phase -5  edge -4  gap 6
     ((words 32) (edge_jitter 0) (sample_jitter 0) (side_jitter 0) (may_miss 0))
     |}]
 ;;
@@ -147,11 +147,11 @@ let%expect_test "a bit too short for the end of a word" =
   Timing_report.print ~config source;
   [%expect
     {|
-      1  set pins, 0                  phase 1  edge 2
+      1  set pins, 0                  phase 1  edge 2  gap ?..?
      18  wait t+                      phase -7..1  slack -1..7  MAY MISS
-     19  set pins, 1                  phase -5..-4  edge -4..-3  jitter 1
-     21  out pins, 1                  phase -5  edge -4
-     23  set pins, 0                  phase -5  edge -4
+     19  set pins, 1                  phase -5..-4  edge -4..-3  jitter 1  gap 5..?
+     21  out pins, 1                  phase -5  edge -4  gap 5..6
+     23  set pins, 0                  phase -5  edge -4  gap 6
     ((words 32) (edge_jitter 1) (sample_jitter 0) (side_jitter 0) (may_miss 1))
     |}];
   let (_ : Strip.t), fault = run source in
