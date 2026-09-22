@@ -1,12 +1,19 @@
 // P1: the gap between one issue and the next depends only on the instruction's
-// delay field, never on data. A jump always takes two cycles.
+// delay field, never on data. A jump always takes two cycles. The host may write the
+// configuration at any time, so here it can change in every cycle.
+//
+// Each teeth task in issue_timing.sby defines one of the names tested below, which gets
+// one part of the statement wrong, and the proof must then fail.
 module issue_timing (input clk);
-  (* anyconst *) wire [1:0] side_set_count;
-  (* anyconst *) wire [4:0] side_set_base, in_base, out_base, out_count, set_base;
-  (* anyconst *) wire [2:0] set_count;
-  (* anyconst *) wire [4:0] jmp_pin, capture_pin, push_threshold, pull_threshold;
-  (* anyconst *) wire side_set_pindirs, capture_rising, in_shift_right, out_shift_right, autopush, autopull;
-  (* anyconst *) wire [8:0] wrap_bottom, wrap_top;
+  (* anyseq *) wire [1:0] side_set_count;
+  (* anyseq *) wire [4:0] side_set_base, in_base, in_count, out_base, out_count, set_base;
+  (* anyseq *) wire [2:0] set_count;
+  (* anyseq *) wire [4:0] jmp_pin, capture_pin, push_threshold, pull_threshold;
+  (* anyseq *) wire side_set_pindirs, capture_rising, in_shift_right, out_shift_right, autopush, autopull;
+  (* anyseq *) wire [4:0] crc_width, stuff_threshold;
+  (* anyseq *) wire [15:0] crc_poly, crc_init;
+  (* anyseq *) wire crc_reflect, stuff_level;
+  (* anyseq *) wire [8:0] wrap_bottom, wrap_top;
   (* anyseq *) wire stop, flush;
   (* anyseq *) wire start, program_write_valid, tx_valid, rx_pop, clear_irq;
   (* anyseq *) wire [8:0] program_write_addr;
@@ -30,12 +37,15 @@ module issue_timing (input clk);
     .clock(clk), .clear(clear),
     .config$side_set_count(side_set_count), .config$side_set_base(side_set_base),
     .config$side_set_pindirs(side_set_pindirs), .config$in_base(in_base),
-    .config$out_base(out_base), .config$out_count(out_count), .config$set_base(set_base),
-    .config$set_count(set_count), .config$jmp_pin(jmp_pin), .config$capture_pin(capture_pin),
+    .config$in_count(in_count), .config$out_base(out_base), .config$out_count(out_count),
+    .config$set_base(set_base), .config$set_count(set_count), .config$jmp_pin(jmp_pin), .config$capture_pin(capture_pin),
     .config$capture_rising(capture_rising), .config$in_shift_right(in_shift_right),
     .config$out_shift_right(out_shift_right), .config$autopush(autopush),
     .config$push_threshold(push_threshold), .config$autopull(autopull),
     .config$pull_threshold(pull_threshold),
+    .config$crc_width(crc_width), .config$crc_poly(crc_poly), .config$crc_init(crc_init),
+    .config$crc_reflect(crc_reflect), .config$stuff_threshold(stuff_threshold),
+    .config$stuff_level(stuff_level),
     .config$wrap_bottom(wrap_bottom), .config$wrap_top(wrap_top),
     .stop(stop), .flush(flush),
     .start(start), .program_write$valid(program_write_valid),
@@ -61,16 +71,23 @@ module issue_timing (input clk);
   wire issue = !halted && stall == 0 && !started;
   wire [2:0] opcode = instruction[15:13];
   wire [4:0] ds = instruction[12:8];
+`ifdef DELAY_IGNORES_SIDE_SET
+  wire [4:0] delay = ds;
+`else
   wire [4:0] delay = side_set_count == 0 ? ds : side_set_count == 1 ? ds[3:0] : ds[2:0];
+`endif
   wire [4:0] count = instruction[4:0];
+  wire waits = opcode == 1 && (instruction[6] ? count == 0 : count < 28);
   wire plain =
+`ifdef WAITS_ARE_PLAIN
+      waits ||
+`endif
       (opcode == 2 && count >= 1 && count <= 16)   // in
    || (opcode == 3 && count >= 1 && count <= 16)   // out
    || (opcode == 4 && instruction[4:3] != 3)        // mov
    || (opcode == 5 && instruction[7:5] < 5)         // set
    || (opcode == 6 && instruction[5:4] != 3 && (!instruction[3] || instruction[2:0] < 5)); // alu
   wire jump = opcode == 0 && instruction[12:9] < 12;
-  wire waits = opcode == 1 && (instruction[6] ? count == 0 : count < 28);
   wire sys = opcode == 7 && instruction[7:3] == 0;
 
   // what the core registers beside the instruction always agrees with it
@@ -85,7 +102,11 @@ module issue_timing (input clk);
   always @(posedge clk)
     if (clear || start || stop) armed <= 0;
     else if (issue && plain) begin armed <= 1; remaining <= delay; end
+`ifdef JUMP_IN_ONE
+    else if (issue && jump) begin armed <= 1; remaining <= 0; end
+`else
     else if (issue && jump) begin armed <= 1; remaining <= 1; end
+`endif
     else if (issue) armed <= 0;
     else if (armed && remaining != 0) remaining <= remaining - 1;
 

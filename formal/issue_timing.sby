@@ -1,18 +1,27 @@
 [tasks]
 prove
 cover
+jump_in_one teeth
+delay_ignores_side_set teeth
+waits_are_plain teeth
 
 [options]
 prove: mode prove
 prove: depth 6
 cover: mode cover
 cover: depth 8
+teeth: mode bmc
+teeth: depth 8
+teeth: expect fail
 
 [engines]
 smtbmc boolector
 
 [script]
 read -formal engine.v
+jump_in_one: read -define JUMP_IN_ONE
+delay_ignores_side_set: read -define DELAY_IGNORES_SIDE_SET
+waits_are_plain: read -define WAITS_ARE_PLAIN
 read -formal -sv issue_timing.sv
 prep -top issue_timing
 

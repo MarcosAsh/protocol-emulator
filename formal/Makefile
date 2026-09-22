@@ -17,6 +17,7 @@ fifo_order: engine.v
 
 # weakened statements, which pass only by failing
 teeth: engine.v engine_sram.v
+	sby -f issue_timing.sby jump_in_one delay_ignores_side_set waits_are_plain
 	sby -f fifo_order.sby stale_ahead
 	sby -f host_timing.sby private_pull no_wait_excuse no_jump_excuse no_underflow_excuse no_overflow_excuse
 
