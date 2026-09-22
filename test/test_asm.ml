@@ -233,6 +233,7 @@ let%expect_test "the words committed for the cocotb test are current" =
     ; "edge_logger_wire"
     ; "debug_loop"
     ; "data_stream"
+    ; "ethernet"
     ]
     ~f:(fun name ->
       [%test_result: int list] ~message:name (committed name) ~expect:(assembled name));
@@ -247,6 +248,9 @@ let%expect_test "the words committed for the cocotb test are current" =
   [%test_result: int list]
     (assembled "uart_tx_host_rate")
     ~expect:(Firmware.assemble Firmware.uart_tx_host_rate);
+  [%test_result: int list]
+    (assembled "ethernet")
+    ~expect:(Firmware.assemble Ethernet.firmware);
   [%test_result: int list]
     (assembled "edge_logger_wire")
     ~expect:(Firmware.assemble (Firmware.edge_logger ~pin:Isa.num_pins));

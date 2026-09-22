@@ -47,7 +47,7 @@ VERILOG_SOURCES += $(PWD)/tb.v
 TOPLEVEL = tb
 
 # List test modules to run, separated by commas and without the .py suffix:
-COCOTB_TEST_MODULES = test,test_usb_board
+COCOTB_TEST_MODULES = test,test_usb_board,test_ethernet
 # the kit build has one engine, the chip two
 ifneq ($(FPGA),yes)
 COCOTB_TEST_MODULES := $(COCOTB_TEST_MODULES),test_two_engines
