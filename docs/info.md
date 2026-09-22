@@ -18,8 +18,10 @@ Instructions are 16-bit words with eight opcodes: `jmp`, `wait`, `in`, `out`, `m
 two. Timing comes from a 24-bit free-running counter `now` and a deadline register `t`:
 `wait t` stalls until `now` reaches `t`, and `wait t+` also moves `t` on by the period
 register `p`, so a loop makes edges at exact multiples of `p` however many instructions
-run in between. An input capture unit latches `now` on a chosen pin edge so a receiver
-can anchor its deadlines to the incoming signal. Two 8-deep fifos carry data to and
+run in between. A period that is not a whole number of cycles, 416 2/3 for 115200 baud
+at 48 MHz, takes its fraction from the configuration and never drifts. An input capture
+unit latches `now` on a chosen pin edge so a receiver can anchor its deadlines to the
+incoming signal. Two 8-deep fifos carry data to and
 from the host; they never stall the core, and a sticky fault register records an
 underflow, an overflow, a missed deadline or a word that does not decode. Side-set
 drives up to two pins on every instruction, which gives an SPI clock for free and, in
@@ -70,7 +72,7 @@ words in one frame repeat the access, which streams the fifos and the program wi
 | 9 | program address | |
 | 10 | program word | write increments the address |
 | 11 | select | 0 or 1, the core every register but the program address reaches; status bit 15 says the other core has its irq up |
-| 16 on | config | pin bases and counts, side-set, shift directions, autopush and autopull |
+| 16 on | config | pin bases and counts, side-set, shift directions, autopush and autopull, CRC, stuffing, wrap, period fraction |
 
 The design is written in Hardcaml. The same OCaml model of the core is the executable
 specification, the reference the hardware runs against in lockstep, and the input to a

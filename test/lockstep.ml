@@ -14,6 +14,7 @@ module State = struct
     ; y : int
     ; p : int
     ; t : int
+    ; t_fraction : int
     ; osr : int
     ; osr_count : int
     ; isr : int
@@ -41,6 +42,7 @@ module State = struct
     ; y = m.y
     ; p = m.p
     ; t = m.t
+    ; t_fraction = m.t_fraction
     ; osr = m.osr
     ; osr_count = m.osr_count
     ; isr = m.isr
@@ -71,6 +73,7 @@ module State = struct
     ; y = int o.y
     ; p = int o.p
     ; t = int o.t
+    ; t_fraction = int o.t_fraction
     ; osr = int o.osr
     ; osr_count = int o.osr_count
     ; isr = int o.isr

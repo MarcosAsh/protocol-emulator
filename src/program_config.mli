@@ -43,11 +43,17 @@ type t =
   (** After the instruction at [wrap_top], unless it is a jump that is taken, the next one
       is at [wrap_bottom], at no cost in cycles. The defaults, the last address and 0, are
       what the program counter does anyway. *)
+  ; period_fraction : int
+  (** Added below the cycle to the deadline at every [wait t+], in 65536ths of a cycle, so
+      a loop on [wait t+] makes edges [p + period_fraction / 65536] cycles apart on
+      average, each within a cycle of the exact line. Any other write to [t] clears what
+      has built up below the cycle. *)
   }
 [@@deriving sexp_of, compare, equal]
 
 (** One output pin at OUT0, shifting right, no side-set, no autopush or autopull. The CRC
-    is CRC-16/USB (0x8005 given reflected as 0xa001, init 0xffff) and stuffing is off. *)
+    is CRC-16/USB (0x8005 given reflected as 0xa001, init 0xffff), stuffing is off and the
+    period is a whole number of cycles. *)
 val default : t
 
 val validate : t -> unit Or_error.t

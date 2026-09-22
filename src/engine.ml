@@ -35,6 +35,7 @@ module Config = struct
     ; stuff_level : 'a
     ; wrap_bottom : 'a [@bits Isa.pc_bits]
     ; wrap_top : 'a [@bits Isa.pc_bits]
+    ; period_fraction : 'a [@bits Isa.fraction_bits]
     }
   [@@deriving hardcaml]
 
@@ -72,6 +73,7 @@ module Config = struct
     ; stuff_level = bool c.stuff_level
     ; wrap_bottom = int Isa.pc_bits c.wrap_bottom
     ; wrap_top = int Isa.pc_bits c.wrap_top
+    ; period_fraction = int Isa.fraction_bits c.period_fraction
     }
   ;;
 end
@@ -141,6 +143,7 @@ module O = struct
     ; y : 'a [@bits Isa.data_bits]
     ; p : 'a [@bits Isa.data_bits]
     ; t : 'a [@bits Isa.timer_bits]
+    ; t_fraction : 'a [@bits Isa.fraction_bits]
     ; osr : 'a [@bits Isa.data_bits]
     ; osr_count : 'a [@bits Isa.count_bits]
     ; isr : 'a [@bits Isa.data_bits]
@@ -166,6 +169,7 @@ end
 
 let data_bits = Isa.data_bits
 let timer_bits = Isa.timer_bits
+let fraction_bits = Isa.fraction_bits
 let pc_bits = Isa.pc_bits
 let count_bits = Isa.count_bits
 
@@ -191,6 +195,7 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   let%hw y = wire data_bits in
   let%hw p = wire data_bits in
   let%hw t = wire timer_bits in
+  let%hw t_fraction = wire fraction_bits in
   let%hw osr = wire data_bits in
   let%hw osr_count = wire count_bits in
   let%hw isr = wire data_bits in
@@ -577,11 +582,19 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   let%hw releases_deadline =
     is Wait &: Isa.Wait_source.Of_signal.is wait_source Deadline &: wait_ready
   in
+  (* the part of the period below the cycle builds up under [t] and carries into it *)
+  let%hw fraction_sum =
+    let wide x = uresize x ~width:(fraction_bits + 1) in
+    wide t_fraction +: wide c.period_fraction
+  in
+  let%hw advances_deadline = releases_deadline &: wait_polarity in
+  let%hw t_advanced =
+    t +: uresize p ~width:timer_bits +: uresize (msb fraction_sum) ~width:timer_bits
+  in
   let%hw t_next =
     by_opcode
       ~default:t
-      [ ( Wait
-        , mux2 (releases_deadline &: wait_polarity) (t +: uresize p ~width:timer_bits) t )
+      [ Wait, mux2 advances_deadline t_advanced t
       ; ( Out
         , mux2
             (Isa.Out_dest.Of_signal.is out_dest T)
@@ -589,6 +602,16 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
             t )
       ; Mov, mux2 (Isa.Mov_dest.Of_signal.is mov_dest T) mov_value_t t
       ; Alu, mux2 (Isa.Alu_dest.Of_signal.is alu_dest T) (alu_apply t) t
+      ]
+  in
+  (* any other write to [t] starts it on a whole cycle *)
+  let%hw t_fraction_next =
+    by_opcode
+      ~default:t_fraction
+      [ Wait, mux2 advances_deadline (lsbs fraction_sum) t_fraction
+      ; Out, mux2 (Isa.Out_dest.Of_signal.is out_dest T) (zero fraction_bits) t_fraction
+      ; Mov, mux2 (Isa.Mov_dest.Of_signal.is mov_dest T) (zero fraction_bits) t_fraction
+      ; Alu, mux2 (Isa.Alu_dest.Of_signal.is alu_dest T) (zero fraction_bits) t_fraction
       ]
   in
   let%hw pushes = is In &: autopush_now |: is_sys Push in
@@ -675,6 +698,7 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   y <-- reg spec ~enable:go y_next;
   p <-- reg spec ~enable:go p_next;
   t <-- reg spec ~enable:go t_next;
+  t_fraction <-- reg spec ~enable:go t_fraction_next;
   osr <-- reg spec ~enable:go osr_next;
   osr_count
   <-- reg
@@ -706,6 +730,7 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   ; y
   ; p
   ; t
+  ; t_fraction
   ; osr
   ; osr_count
   ; isr

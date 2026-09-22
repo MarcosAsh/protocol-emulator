@@ -10,7 +10,7 @@
 // one part of the statement away, and the proof must then fail: every part is needed.
 module step (
   input clock, clear, start, stop, clear_irq,
-  input [122:0] config_bits,
+  input [138:0] config_bits,
   input [27:0] inputs,
   input [15:0] fetched, pulled,
   output [27:0] pin_out, pin_dir,
@@ -48,6 +48,7 @@ module step (
     .config$crc_init(config_bits[97:82]), .config$crc_reflect(config_bits[98]),
     .config$stuff_threshold(config_bits[103:99]), .config$stuff_level(config_bits[104]),
     .config$wrap_bottom(config_bits[113:105]), .config$wrap_top(config_bits[122:114]),
+    .config$period_fraction(config_bits[138:123]),
     .start(start), .program_write$valid(1'b0), .program_write$addr(9'b0),
     .program_write$data(16'b0), .tx$valid(1'b0), .tx$value(16'b0), .rx_pop(1'b0),
     .clear_irq(clear_irq), .stop(stop), .flush(flush), .inputs(inputs),

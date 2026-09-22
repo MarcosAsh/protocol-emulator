@@ -563,6 +563,11 @@ let%expect_test "every firmware stays inside its analysis under random stimulus"
       , [ 32 ] )
     ; "edge meter", edge_meter_config, edge_meter ~period:16, None, []
     ; "edge logger", edge_logger_config ~pin:0, edge_logger ~pin:0, None, []
+    ; ( "uart tx, fractional period"
+      , { Program_config.default with period_fraction = 43691 }
+      , uart_tx_host_rate
+      , Some 16
+      , [ 16 ] )
     ; "ws2812", Ws2812.config, Ws2812.firmware ~third:6 ~tail:7, None, []
     ; "1-wire", One_wire.config, One_wire.firmware, Some 8, [ 8 ]
     ; "ps/2", Ps2.config, Ps2.firmware, Some 10, [ 10 ]
@@ -601,6 +606,8 @@ let%expect_test "every firmware stays inside its analysis under random stimulus"
     ("usb device" (issues 5809) (reached 271/470) (side_edges 0) (violations ()))
     ("edge meter" (issues 6016) (reached 12/12) (side_edges 0) (violations ()))
     ("edge logger" (issues 16848) (reached 8/8) (side_edges 0) (violations ()))
+    ("uart tx, fractional period" (issues 4796) (reached 17/17) (side_edges 0)
+     (violations ()))
     (ws2812 (issues 7128) (reached 31/32) (side_edges 0) (violations ()))
     (1-wire (issues 4929) (reached 48/48) (side_edges 0) (violations ()))
     (ps/2 (issues 6973) (reached 64/65) (side_edges 0) (violations ()))
@@ -625,7 +632,47 @@ let%expect_test "random programs stay inside their analysis" =
     [%message
       (issues : int) (reached : int) (words : int) (side_edges : int) (violations : int)];
   [%expect
-    {| ((issues 3867) (reached 1432) (words 16384) (side_edges 969) (violations 0)) |}]
+    {| ((issues 3627) (reached 1378) (words 16384) (side_edges 1243) (violations 0)) |}]
+;;
+
+(* With a fraction each [wait t+] moves the deadline a whole period or one cycle more, so
+   against the next deadline everything after a wait has a cycle of play: the edges show a
+   cycle of jitter, which is the exact line rounded to whole cycles, not the program. *)
+let%expect_test "a fractional period" =
+  Timing_report.print
+    ~config:{ Program_config.default with period_fraction = 43691 }
+    ~period:416
+    uart_tx_host_rate;
+  report
+    ~config:{ Program_config.default with period_fraction = 43691 }
+    ~period:416
+    uart_tx_host_rate;
+  [%expect
+    {|
+      3  set pins, 1                  phase ?..?  edge ?..?  jitter ?
+      8  set pins, 0                  phase 1  edge 2
+     11  out pins, 1                  phase -416..-415  edge -415..-414  jitter 1
+     14  set pins, 1                  phase -416..-415  edge -415..-414  jitter 1
+    ((words 17) (edge_jitter unbounded) (sample_jitter 0) (side_jitter 0)
+     (may_miss 0))
+      0  wait tx                      phase ?..?
+      1  pull                         phase ?..?
+      2  mov p, osr                   phase ?..?
+      3  set pins, 1                  phase ?..?  edge ?..?  jitter ?
+      4  wait tx                      phase ?..?
+      5  pull                         phase ?..?
+      6  set x, 7                     phase ?..?
+      7  mov t, now                   phase ?..?
+      8  set pins, 0                  phase 1  edge 2
+      9  add t, p                     phase 2
+     10  wait t+                      phase -413..-412  slack 412..413
+     11  out pins, 1                  phase -416..-415  edge -415..-414  jitter 1
+     12  jmp x--, 10                  phase -415..-414
+     13  wait t+                      phase -413..-412  slack 412..413
+     14  set pins, 1                  phase -416..-415  edge -415..-414  jitter 1
+     15  wait t                       phase -415..-414  slack 414..415
+     16  jmp 4                        phase 1
+    |}]
 ;;
 
 (* A counter that runs out goes to all ones, and a deadline built on it is that far off. *)

@@ -14,6 +14,7 @@ module issue_timing (input clk);
   (* anyseq *) wire [15:0] crc_poly, crc_init;
   (* anyseq *) wire crc_reflect, stuff_level;
   (* anyseq *) wire [8:0] wrap_bottom, wrap_top;
+  (* anyseq *) wire [15:0] period_fraction;
   (* anyseq *) wire stop, flush;
   (* anyseq *) wire start, program_write_valid, tx_valid, rx_pop, clear_irq;
   (* anyseq *) wire [8:0] program_write_addr;
@@ -47,6 +48,7 @@ module issue_timing (input clk);
     .config$crc_reflect(crc_reflect), .config$stuff_threshold(stuff_threshold),
     .config$stuff_level(stuff_level),
     .config$wrap_bottom(wrap_bottom), .config$wrap_top(wrap_top),
+    .config$period_fraction(period_fraction),
     .stop(stop), .flush(flush),
     .start(start), .program_write$valid(program_write_valid),
     .program_write$addr(program_write_addr), .program_write$data(program_write_data),

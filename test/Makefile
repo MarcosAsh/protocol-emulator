@@ -66,7 +66,7 @@ include $(shell cocotb-config --makefiles)/Makefile.sim
 
 # The kit has no SRAM macro, so the program memory is the flop variant, which yosys
 # maps to block RAM.
-fpga_netlist.v: $(SRC_DIR)/project.v $(SRC_DIR)/../bin/generate.ml
+fpga_netlist.v: $(SRC_DIR)/project.v $(wildcard $(SRC_DIR)/*.ml) $(SRC_DIR)/../bin/generate.ml
 	cd .. && dune exec -- bin/generate.exe top > test/fpga_top.v
 	yosys -q -p "read_verilog $(SRC_DIR)/project.v fpga_top.v; synth_ice40 -top tt_um_marcosash_protocol_emulator; write_verilog -noattr fpga_netlist.v"
 

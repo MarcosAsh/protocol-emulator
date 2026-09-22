@@ -186,7 +186,13 @@ let step ?period ?(single_capture_edge = false) ~config (s : State.t) pc (t : Is
      | Wait (Deadline { advance }) ->
        let stall = Interval.clamp_low (Interval.minus (Interval.exactly 0) s.phase) 0 in
        let released = Interval.clamp_low s.phase 0 in
-       let phase = if advance then Interval.minus released s.period else released in
+       (* a fractional period carries a cycle into some of the steps and not others *)
+       let period =
+         if config.period_fraction = 0
+         then s.period
+         else Interval.plus s.period { lo = Some 0; hi = Some 1 }
+       in
+       let phase = if advance then Interval.minus released period else released in
        let since_arm = Option.map s.since_arm ~f:(fun a -> Interval.plus a stall) in
        after { s with phase; since_arm }
      | Wait ((Pin_level _ | Pin_edge _ | Fifo _) as wait) ->

@@ -20,7 +20,7 @@ CONFIG_FIELDS = [
     "out_count", "set_base", "set_count", "jmp_pin", "capture_pin", "capture_rising",
     "in_shift_right", "out_shift_right", "autopush", "push_threshold", "autopull",
     "pull_threshold", "crc_width", "crc_poly", "crc_init", "crc_reflect",
-    "stuff_threshold", "stuff_level", "wrap_bottom", "wrap_top",
+    "stuff_threshold", "stuff_level", "wrap_bottom", "wrap_top", "period_fraction",
 ]
 
 DEFAULT_CONFIG = {

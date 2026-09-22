@@ -161,6 +161,17 @@ more:
   run {|
     pull
     halt
+|};
+  let cycle = ref 0 in
+  run
+    ~inputs:(fun () ->
+      Int.incr cycle;
+      !cycle / 5 land 1)
+    {|
+loop:
+    wait rise pin 0
+    wait fall pin 0
+    jmp loop
 |}
 ;;
 

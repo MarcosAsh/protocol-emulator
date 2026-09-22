@@ -3,6 +3,7 @@ open! Core
 let fifo_depth = 8
 let data_mask = (1 lsl Isa.data_bits) - 1
 let timer_mask = (1 lsl Isa.timer_bits) - 1
+let fraction_mask = (1 lsl Isa.fraction_bits) - 1
 let pc_mask = (1 lsl Isa.pc_bits) - 1
 let program_size = 1 lsl Isa.pc_bits
 let first_output_pin = Isa.first_output_pin
@@ -32,6 +33,7 @@ type t =
   ; y : int
   ; p : int
   ; t : int
+  ; t_fraction : int
   ; osr : int
   ; osr_count : int
   ; isr : int
@@ -72,6 +74,7 @@ let create ~config ~program =
   ; y = 0
   ; p = 0
   ; t = 0
+  ; t_fraction = 0
   ; osr = 0
   ; osr_count = Isa.data_bits
   ; isr = 0
@@ -222,6 +225,15 @@ let jmp_taken t (cond : Isa.Jmp_cond.Cases.t) ~sample =
   | Rx_full -> List.length t.rx_fifo >= fifo_depth, t
 ;;
 
+(* the part of the period below the cycle builds up under [t] and carries into it *)
+let advance_deadline t =
+  let fraction = t.t_fraction + t.config.period_fraction in
+  { t with
+    t = (t.t + t.p + (fraction lsr Isa.fraction_bits)) land timer_mask
+  ; t_fraction = fraction land fraction_mask
+  }
+;;
+
 let wait_ready t (wait : Isa.Wait.t) ~sample =
   match wait with
   | Pin_level { pin; level } ->
@@ -238,7 +250,7 @@ let wait_ready t (wait : Isa.Wait.t) ~sample =
       let t =
         if phase > 0 then fault t (fun f -> { f with missed_deadline = true }) else t
       in
-      Some (if advance then { t with t = (t.t + t.p) land timer_mask } else t))
+      Some (if advance then advance_deadline t else t))
   | Fifo Tx_not_empty -> if List.is_empty t.tx_fifo then None else Some t
   | Fifo Rx_not_full -> if List.length t.rx_fifo < fifo_depth then Some t else None
 ;;
@@ -286,7 +298,7 @@ let out_dest t (dest : Isa.Out_dest.Cases.t) ~count ~value =
   | Pindirs -> write_pindirs t ~base:t.config.out_base ~count ~value
   | Isr -> { t with isr = value; isr_count = count }
   | P -> { t with p = value }
-  | T -> { t with t = value }
+  | T -> { t with t = value; t_fraction = 0 }
 ;;
 
 let mov_source t (source : Isa.Mov_source.Cases.t) ~sample =
@@ -310,7 +322,7 @@ let mov_dest t (dest : Isa.Mov_dest.Cases.t) ~value =
   | Isr -> { t with isr = value; isr_count = 0 }
   | Osr -> { t with osr = value; osr_count = 0 }
   | P -> { t with p = value }
-  | T -> { t with t = value }
+  | T -> { t with t = value; t_fraction = 0 }
 ;;
 
 let mov_op (op : Isa.Mov_op.Cases.t) ~value ~width =
@@ -356,7 +368,7 @@ let alu
   | X -> { t with x = apply t.x ~mask:data_mask }
   | Y -> { t with y = apply t.y ~mask:data_mask }
   | P -> { t with p = apply t.p ~mask:data_mask }
-  | T -> { t with t = apply t.t ~mask:timer_mask }
+  | T -> { t with t = apply t.t ~mask:timer_mask; t_fraction = 0 }
 ;;
 
 let sys t (op : Isa.Sys_op.Cases.t) =

@@ -23,6 +23,11 @@ open! Hardcaml
 val word_bits : int
 val data_bits : int
 val timer_bits : int
+
+(** The deadline [t] carries this many bits below the cycle, which a fractional period
+    fills. *)
+val fraction_bits : int
+
 val pc_bits : int
 val delay_bits : int
 val max_side_set : int

@@ -45,6 +45,7 @@ module Config : sig
     ; stuff_level : 'a
     ; wrap_bottom : 'a
     ; wrap_top : 'a
+    ; period_fraction : 'a
     }
   [@@deriving hardcaml]
 
@@ -116,6 +117,7 @@ module O : sig
     ; y : 'a
     ; p : 'a
     ; t : 'a
+    ; t_fraction : 'a
     ; osr : 'a
     ; osr_count : 'a
     ; isr : 'a

@@ -120,6 +120,38 @@ async def test_uart_over_spi(dut):
     assert (await host.read(STATUS))[0] == 0
 
 
+@cocotb.test()
+async def test_fractional_period(dut):
+    """115200 baud from 48 MHz is 416 2/3 cycles a bit: 416 and a fraction of 43691/65536.
+
+    The start bit is a whole period; after it the fraction carries a cycle into two bits
+    in three, the lengths the OCaml model gives.
+    """
+    await reset(dut)
+
+    host = AsyncHost(Pins(dut).transfer)
+    config = dict(DEFAULT_CONFIG, period_fraction=43691)
+    for n, name in enumerate(CONFIG_FIELDS):
+        await host.write(CONFIG + n, [config.get(name, 0)])
+    await host.write(PROGRAM_ADDR, [0])
+    await host.write(PROGRAM_REG, assembled("uart_tx_host_rate"))
+    await host.write(TX, [416, 0x55])
+    await host.write(CONTROL, [1])
+
+    edges = []
+    previous = 0
+    for cycle in range(12 * 417):
+        await ClockCycles(dut.clk, 1)
+        level = (int(dut.uo_out.value) >> 1) & 1
+        if level != previous:
+            edges.append(cycle)
+        previous = level
+    # the line going idle, then the start bit and the eight data bits of 0x55
+    lengths = [b - a for a, b in zip(edges[1:], edges[2:])]
+    assert lengths == [416, 416, 417, 417, 416, 417, 417, 416, 417], lengths
+    assert (await host.read(STATUS))[0] == 0
+
+
 WRAPPED_LOOP = assembled("wrapped_loop")
 
 

@@ -30,6 +30,7 @@ CONFIG = {
     "stuff_level": 1,
     "wrap_bottom": 0,
     "wrap_top": 511,
+    "period_fraction": 0,
 }
 
 WORDS = [

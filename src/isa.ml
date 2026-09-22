@@ -4,6 +4,7 @@ open! Hardcaml
 let word_bits = 16
 let data_bits = 16
 let timer_bits = 24
+let fraction_bits = 16
 let pc_bits = 9
 let delay_bits = 5
 let max_side_set = 2

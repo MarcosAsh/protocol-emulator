@@ -32,6 +32,7 @@ let config random =
   ; stuff_level = bool ()
   ; wrap_bottom = int ((1 lsl Isa.pc_bits) - 1)
   ; wrap_top = int ((1 lsl Isa.pc_bits) - 1)
+  ; period_fraction = (if bool () then 0 else int ((1 lsl Isa.fraction_bits) - 1))
   }
 ;;
 

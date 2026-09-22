@@ -54,6 +54,7 @@ type t = private
   ; y : int
   ; p : int
   ; t : int
+  ; t_fraction : int (** What a fractional period has built up below [t]. *)
   ; osr : int
   ; osr_count : int
   ; isr : int
