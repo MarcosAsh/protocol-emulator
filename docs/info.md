@@ -85,8 +85,9 @@ board. To see the UART transmitter above: assemble it with
 and `push` two bytes; the frames appear on `uo[1]` (`OUT0`) at 115200 baud.
 
 `test/test.py` is the same sequence under cocotb against the Verilog, and the OCaml
-tests under `test/` run UART, SPI master and slave, and I2C master and slave firmware
-against protocol models and against the hardware.
+tests under `test/` run UART, SPI and I2C masters and slaves, a low speed USB keyboard
+and mouse, WS2812, 1-Wire and PS/2 firmware against protocol models and against the
+hardware.
 
 ## External hardware
 
