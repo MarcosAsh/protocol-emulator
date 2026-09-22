@@ -18,7 +18,7 @@ module issue_timing (input clk);
   (* anyseq *) wire [15:0] period_fraction;
   (* anyseq *) wire break_enable, resume, single_step;
   (* anyseq *) wire [8:0] break_pc;
-  (* anyseq *) wire autopull_data, data_write_valid;
+  (* anyseq *) wire autopull_data, manchester, data_write_valid;
   (* anyseq *) wire [8:0] data_write_addr;
   (* anyseq *) wire [15:0] data_write_data;
   (* anyseq *) wire stop, flush;
@@ -57,7 +57,7 @@ module issue_timing (input clk);
     .config$wrap_bottom(wrap_bottom), .config$wrap_top(wrap_top),
     .config$period_fraction(period_fraction),
     .config$break_enable(break_enable), .config$break_pc(break_pc),
-    .config$autopull_data(autopull_data),
+    .config$autopull_data(autopull_data), .config$manchester(manchester),
     .stop(stop), .flush(flush), .resume(resume), .single_step(single_step),
     .start(start), .program_write$valid(program_write_valid),
     .program_write$addr(program_write_addr), .program_write$data(program_write_data),

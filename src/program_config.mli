@@ -56,6 +56,11 @@ type t =
   ; autopull_data : bool
   (** Autopull takes the next word of the data memory instead of the tx fifo, which never
       runs dry: a [pull] still reads the fifo, so the host can still send words. *)
+  ; manchester : bool
+  (** An [out pins, 1] drives the bit as a Manchester pair: [out_base] shows its
+      complement and [out_base + 1] the bit itself until the next instruction issues, when
+      both flip. So the length of the [out], delay included, is the first half of the bit
+      and what runs until the next [out] the second. *)
   }
 [@@deriving sexp_of, compare, equal]
 

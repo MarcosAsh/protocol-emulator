@@ -38,6 +38,7 @@ type t =
   ; break_enable : bool
   ; break_pc : int
   ; autopull_data : bool
+  ; manchester : bool
   }
 [@@deriving sexp_of, compare, equal]
 
@@ -72,6 +73,7 @@ let default =
   ; break_enable = false
   ; break_pc = 0
   ; autopull_data = false
+  ; manchester = false
   }
 ;;
 

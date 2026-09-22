@@ -49,6 +49,7 @@ module Config : sig
     ; break_enable : 'a
     ; break_pc : 'a
     ; autopull_data : 'a
+    ; manchester : 'a
     }
   [@@deriving hardcaml]
 
@@ -151,6 +152,8 @@ module O : sig
     ; opcode_onehot : 'a (** Registered with [instruction]: bit [n] for opcode [n]. *)
     ; crc : 'a
     ; stuff_run : 'a
+    ; flip_pending : 'a
+    ; flip_bit : 'a
     }
   [@@deriving hardcaml]
 end

@@ -79,6 +79,9 @@ type t = private
   ; capture_armed : bool
   ; crc : int
   ; stuff_run : int
+  ; flip : int option
+  (** The bit of a Manchester [out] whose second half starts when the next instruction
+      issues. *)
   }
 [@@deriving sexp_of, compare, equal]
 

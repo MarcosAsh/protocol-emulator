@@ -166,9 +166,9 @@ let%expect_test "config registers read back" =
        (pull_threshold 18) (crc_width 19) (crc_poly 20) (crc_init 21)
        (crc_reflect 0) (stuff_threshold 23) (stuff_level 0) (wrap_bottom 25)
        (wrap_top 26) (period_fraction 27) (break_enable 0) (break_pc 29)
-       (autopull_data 0)))
+       (autopull_data 0) (manchester 1)))
      (live
-      (1 2 1 4 5 6 7 8 1 10 11 0 1 0 1 16 1 18 19 20 21 0 23 0 25 26 27 0 29 0)))
+      (1 2 1 4 5 6 7 8 1 10 11 0 1 0 1 16 1 18 19 20 21 0 23 0 25 26 27 0 29 0 1)))
     (events ())
     |}]
 ;;

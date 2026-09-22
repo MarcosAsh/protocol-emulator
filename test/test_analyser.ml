@@ -575,7 +575,7 @@ let%expect_test "every firmware stays inside its analysis under random stimulus"
   in
   List.iter corpus ~f:(fun (name, config, source, period, preload) ->
     let words = assemble source in
-    let { Soundness.issues; side_edges; reached; violations } =
+    let { Soundness.issues; side_edges; reached; violations; _ } =
       soundness ?period ~preload ~config ~cycles:3000 ~seeds:8 words
     in
     let reached = [%string "%{reached#Int}/%{List.length words#Int}"] in
@@ -632,7 +632,7 @@ let%expect_test "random programs stay inside their analysis" =
     [%message
       (issues : int) (reached : int) (words : int) (side_edges : int) (violations : int)];
   [%expect
-    {| ((issues 3719) (reached 1375) (words 16384) (side_edges 743) (violations 0)) |}]
+    {| ((issues 4647) (reached 1657) (words 16384) (side_edges 1390) (violations 0)) |}]
 ;;
 
 (* With a fraction each [wait t+] moves the deadline a whole period or one cycle more, so

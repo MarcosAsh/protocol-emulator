@@ -39,6 +39,9 @@ module Row : sig
     ; may_miss : bool
     ; pin_event : Pin_event.t option
     ; side_event : Side_event.t option
+    ; flip : Interval.t option
+    (** Where the second half of a Manchester bit shows, which is where this instruction
+        issues when it is the next after a Manchester [out]. *)
     }
   [@@deriving sexp_of]
 end

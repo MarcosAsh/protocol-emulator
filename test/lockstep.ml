@@ -36,6 +36,7 @@ module State = struct
     ; rx_head : int option
     ; crc : int
     ; stuff_run : int
+    ; flip : int option
     }
   [@@deriving sexp_of, compare, equal]
 
@@ -67,6 +68,7 @@ module State = struct
     ; rx_head = List.hd m.rx_fifo
     ; crc = m.crc
     ; stuff_run = m.stuff_run
+    ; flip = m.flip
     }
   ;;
 
@@ -106,6 +108,7 @@ module State = struct
     ; rx_head = (if rx_level = 0 then None else Some (int o.rx_head))
     ; crc = int o.crc
     ; stuff_run = int o.stuff_run
+    ; flip = Option.some_if (bool o.flip_pending) (int o.flip_bit)
     }
   ;;
 end

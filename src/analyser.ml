@@ -8,6 +8,7 @@ module State = struct
     ; y : Interval.t
     ; since_arm : Interval.t option
     ; side_set : int option
+    ; flip : bool option (** Whether a Manchester bit waits for its second half. *)
     }
   [@@deriving sexp_of, compare, equal]
 
@@ -18,6 +19,7 @@ module State = struct
     ; y = Interval.top
     ; since_arm = None
     ; side_set = None
+    ; flip = Some false
     }
   ;;
 
@@ -33,6 +35,9 @@ module State = struct
     ; side_set =
         Option.bind a.side_set ~f:(fun a ->
           Option.some_if ([%equal: int option] (Some a) b.side_set) a)
+    ; flip =
+        Option.bind a.flip ~f:(fun a ->
+          Option.some_if ([%equal: bool option] (Some a) b.flip) a)
     }
   ;;
 
@@ -44,6 +49,7 @@ module State = struct
     ; since_arm =
         Option.map2 old.since_arm t.since_arm ~f:(fun old t -> Interval.widen ~old t)
     ; side_set = t.side_set
+    ; flip = t.flip
     }
   ;;
 
@@ -94,6 +100,7 @@ module Row = struct
     ; may_miss : bool
     ; pin_event : Pin_event.t option
     ; side_event : Side_event.t option
+    ; flip : Interval.t option
     }
   [@@deriving sexp_of]
 end
@@ -129,6 +136,15 @@ let writes_side_set (c : Program_config.t) (op : Isa.Op.t) =
   | _ -> false
 ;;
 
+(* A Manchester [out] leaves its second half to the next instruction to issue. *)
+let starts_flip (c : Program_config.t) (op : Isa.Op.t) =
+  c.manchester
+  &&
+  match op with
+  | Out { dest = Pins; count = 1 } -> true
+  | _ -> false
+;;
+
 (* [jmp x--] jumps on a register that is not zero and leaves zero at all ones: the
    register after the jump, and after falling through, where each can happen. *)
 let count_down (r : Interval.t) =
@@ -156,7 +172,7 @@ let step ?period ?(single_capture_edge = false) ~config (s : State.t) pc (t : Is
   in
   match t with
   | Jmp { cond; target } ->
-    let s = State.elapse s Isa.jmp_cycles in
+    let s = State.elapse { s with flip = Some false } Isa.jmp_cycles in
     (match cond with
      | Always -> [ target, s ]
      | X_dec ->
@@ -180,6 +196,7 @@ let step ?period ?(single_capture_edge = false) ~config (s : State.t) pc (t : Is
       then s
       else { s with side_set = Option.some_if (not (writes_side_set config op)) side_set }
     in
+    let s = { s with flip = Some (starts_flip config op) } in
     let next = delay + 1 in
     let after (s : State.t) = [ following, State.elapse s next ] in
     (match op with
@@ -275,13 +292,18 @@ let analyse ?period ?single_capture_edge ~config (program : Isa.t list) =
   (* Side-set makes an edge only on the ways in that leave its pins at another level, so
      the edge is placed by those ways alone and not by the join of all of them. *)
   let side_edge = Array.create ~len:n None in
+  (* likewise the second half of a Manchester bit, on the ways in that bring one *)
+  let flip_edge = Array.create ~len:n None in
   let arrive pc (s : State.t) =
-    match program.(pc) with
-    | Op { side_set; _ }
-      when config.Program_config.side_set_count > 0
-           && not ([%equal: int option] s.side_set (Some side_set)) ->
-      side_edge.(pc) <- Some (Option.fold side_edge.(pc) ~init:s.phase ~f:Interval.join)
-    | _ -> ()
+    let add edges =
+      edges.(pc) <- Some (Option.fold edges.(pc) ~init:s.phase ~f:Interval.join)
+    in
+    (match program.(pc) with
+     | Op { side_set; _ }
+       when config.Program_config.side_set_count > 0
+            && not ([%equal: int option] s.side_set (Some side_set)) -> add side_edge
+     | _ -> ());
+    if not ([%equal: bool option] s.flip (Some false)) then add flip_edge
   in
   arrive 0 State.initial;
   Array.iteri entry ~f:(fun pc s ->
@@ -326,7 +348,17 @@ let analyse ?period ?single_capture_edge ~config (program : Isa.t list) =
             }
         | _ -> None
       in
-      { Row.pc; instruction; phase = s.phase; slack; may_miss; pin_event; side_event }))
+      (* it shows the cycle after the next instruction issues, as the out's own half did *)
+      let flip = Option.map flip_edge.(pc) ~f:(fun at -> Interval.shift at 1) in
+      { Row.pc
+      ; instruction
+      ; phase = s.phase
+      ; slack
+      ; may_miss
+      ; pin_event
+      ; side_event
+      ; flip
+      }))
 ;;
 
 let to_string ~side_set_count rows =
@@ -345,14 +377,16 @@ let to_string ~side_set_count rows =
       | Some { at; changes = true } -> Pin_event.with_jitter "side" at
       | _ -> ""
     in
+    let flip = Option.value_map r.flip ~default:"" ~f:(Pin_event.with_jitter "flip") in
     sprintf
-      "%3d  %-28s phase %s%s%s%s"
+      "%3d  %-28s phase %s%s%s%s%s"
       r.pc
       text
       (Interval.to_string r.phase)
       slack
       pin_event
-      side_event)
+      side_event
+      flip)
   |> String.concat ~sep:"\n"
 ;;
 

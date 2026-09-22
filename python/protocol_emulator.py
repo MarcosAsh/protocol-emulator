@@ -31,7 +31,7 @@ CONFIG_FIELDS = [
     "in_shift_right", "out_shift_right", "autopush", "push_threshold", "autopull",
     "pull_threshold", "crc_width", "crc_poly", "crc_init", "crc_reflect",
     "stuff_threshold", "stuff_level", "wrap_bottom", "wrap_top", "period_fraction",
-    "break_enable", "break_pc", "autopull_data",
+    "break_enable", "break_pc", "autopull_data", "manchester",
 ]
 
 DEFAULT_CONFIG = {

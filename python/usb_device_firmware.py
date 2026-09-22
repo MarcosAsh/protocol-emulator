@@ -34,6 +34,7 @@ CONFIG = {
     "break_enable": 0,
     "break_pc": 0,
     "autopull_data": 0,
+    "manchester": 0,
 }
 
 WORDS = [

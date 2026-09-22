@@ -57,6 +57,7 @@ type t =
   ; capture_armed : bool
   ; crc : int
   ; stuff_run : int
+  ; flip : int option
   }
 [@@deriving sexp_of, compare, equal]
 
@@ -100,6 +101,7 @@ let create ~config ~program =
   ; capture_armed = false
   ; crc = config.crc_init
   ; stuff_run = 0
+  ; flip = None
   }
 ;;
 
@@ -315,8 +317,15 @@ let in_source t (source : Isa.In_source.Cases.t) ~count ~sample =
   | Capture -> t.capture land data_mask
 ;;
 
+(* the two pins of a Manchester bit: the complement on [out_base], the bit beside it *)
+let manchester_pair bit = bit lxor 1 lor (bit lsl 1)
+
 let out_dest t (dest : Isa.Out_dest.Cases.t) ~count ~value =
   match dest with
+  | Pins when t.config.manchester && count = 1 ->
+    { (write_pins t ~base:t.config.out_base ~count:2 ~value:(manchester_pair value)) with
+      flip = Some value
+    }
   | Pins -> write_pins t ~base:t.config.out_base ~count ~value
   | X -> { t with x = value }
   | Y -> { t with y = value }
@@ -445,6 +454,15 @@ let next t ~pc ~stall =
 
 let issue t ~sample =
   let c = t.config in
+  (* the second half of a Manchester bit starts with the next instruction *)
+  let t =
+    match t.flip with
+    | None -> t
+    | Some bit ->
+      { (write_pins t ~base:c.out_base ~count:2 ~value:(manchester_pair (bit lxor 1))) with
+        flip = None
+      }
+  in
   match Isa.of_word ~side_set_count:c.side_set_count t.program.(t.pc) with
   | Error _ -> fault { t with halted = true } (fun f -> { f with decode = true })
   | Ok (Jmp { cond; target }) ->

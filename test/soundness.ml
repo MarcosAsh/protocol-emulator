@@ -31,6 +31,7 @@ end
 type t =
   { issues : int
   ; side_edges : int
+  ; flips : int
   ; reached : int
   ; violations : (int * int * int * int) list
   }
@@ -67,6 +68,7 @@ let check ?period ?single_capture_edge ?(preload = []) ~config stimuli words =
     ~f:(fun row -> rows.(row.pc) <- Some row);
   let issues = ref 0 in
   let side_edges = ref 0 in
+  let flips = ref 0 in
   let reached = Array.create ~len:(Array.length instructions) false in
   let violations = ref [] in
   List.iteri stimuli ~f:(fun run (stimulus : Stimulus.t) ->
@@ -77,6 +79,18 @@ let check ?period ?single_capture_edge ?(preload = []) ~config stimuli words =
       let t = !m in
       if (not t.halted) && t.stall = 0
       then (
+        (* the second half of a Manchester bit comes with this issue *)
+        (match t.flip with
+         | Some _ when not (config.break_enable && t.pc = config.break_pc && not t.resumed)
+           ->
+           Int.incr flips;
+           let ok =
+             match rows.(t.pc) with
+             | Some { flip = Some at; _ } -> Interval.contains at (phase t + 1)
+             | _ -> false
+           in
+           if not ok then violations := (run, cycle, t.pc, phase t + 1) :: !violations
+         | _ -> ());
         let entry =
           not (Option.equal [%equal: int * int] !last (Some (cycle - 1, t.pc)))
         in
@@ -109,6 +123,7 @@ let check ?period ?single_capture_edge ?(preload = []) ~config stimuli words =
     done);
   { issues = !issues
   ; side_edges = !side_edges
+  ; flips = !flips
   ; reached = Array.count reached ~f:Fn.id
   ; violations = List.rev !violations
   }

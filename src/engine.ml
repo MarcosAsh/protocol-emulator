@@ -39,6 +39,7 @@ module Config = struct
     ; break_enable : 'a
     ; break_pc : 'a [@bits Isa.pc_bits]
     ; autopull_data : 'a
+    ; manchester : 'a
     }
   [@@deriving hardcaml]
 
@@ -80,6 +81,7 @@ module Config = struct
     ; break_enable = bool c.break_enable
     ; break_pc = int Isa.pc_bits c.break_pc
     ; autopull_data = bool c.autopull_data
+    ; manchester = bool c.manchester
     }
   ;;
 end
@@ -178,6 +180,8 @@ module O = struct
     ; opcode_onehot : 'a [@bits List.length Isa.Opcode.Cases.all]
     ; crc : 'a [@bits Isa.data_bits]
     ; stuff_run : 'a [@bits Isa.count_bits]
+    ; flip_pending : 'a
+    ; flip_bit : 'a
     }
   [@@deriving hardcaml]
 end
@@ -224,6 +228,8 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   let%hw resumed = wire 1 in
   let%hw stepping = wire 1 in
   let%hw at_break = wire 1 in
+  let%hw flip_pending = wire 1 in
+  let%hw flip_bit = wire 1 in
   let%hw capture = wire timer_bits in
   let%hw capture_armed = wire 1 in
   let%hw crc = wire data_bits in
@@ -515,14 +521,29 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
       alu_op
       [ Add, v +: operand; Sub, v -: operand; Xor, v ^: operand ]
   in
-  (* Pin writes: side-set first, then the instruction's own write. *)
+  (* Pin writes: the second half of a Manchester bit, then side-set, then the
+     instruction's own write. *)
   let output_pin n = n >= first_output_pin in
   let bidir_pin n = n >= first_bidir_pin && n < Isa.num_pins in
   let side_count = uresize c.side_set_count ~width:count_bits in
   let set_count = uresize c.set_count ~width:count_bits in
+  let two = of_unsigned_int ~width:count_bits 2 in
+  (* the complement on [out_base] and the bit beside it *)
+  let manchester_pair bit = uresize (bit @: ~:bit) ~width:data_bits in
+  let%hw pin_out_flipped =
+    mux2
+      flip_pending
+      (write_pins
+         pin_out
+         ~base:c.out_base
+         ~count:two
+         ~value:(manchester_pair ~:flip_bit)
+         ~writable:output_pin)
+      pin_out
+  in
   let%hw pin_out_side =
     write_pins
-      pin_out
+      pin_out_flipped
       ~base:c.side_set_base
       ~count:side_count
       ~value:side_set
@@ -536,7 +557,7 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
       ~value:side_set
       ~writable:bidir_pin
   in
-  let%hw pin_out_base = mux2 c.side_set_pindirs pin_out pin_out_side in
+  let%hw pin_out_base = mux2 c.side_set_pindirs pin_out_flipped pin_out_side in
   let%hw pin_dir_base = mux2 c.side_set_pindirs pin_dir_side pin_dir in
   let out_to ~base ~count ~value =
     write_pins pin_out_base ~base ~count ~value ~writable:output_pin
@@ -544,6 +565,7 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   let dir_to ~base ~count ~value =
     write_pins pin_dir_base ~base ~count ~value ~writable:bidir_pin
   in
+  let%hw manchester_out = c.manchester &: (shift_count ==:. 1) in
   let%hw pin_out_next =
     Isa.Opcode.Of_signal.match_
       ~default:pin_out_base
@@ -551,7 +573,13 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
       [ ( Out
         , mux2
             (Isa.Out_dest.Of_signal.is out_dest Pins)
-            (out_to ~base:c.out_base ~count:shift_count ~value:out_value)
+            (mux2
+               manchester_out
+               (out_to
+                  ~base:c.out_base
+                  ~count:two
+                  ~value:(manchester_pair out_value.:(0)))
+               (out_to ~base:c.out_base ~count:shift_count ~value:out_value))
             pin_out_base )
       ; ( Mov
         , mux2
@@ -775,7 +803,20 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   isr <-- reg spec ~enable:go isr_next;
   isr_count <-- reg spec ~enable:go isr_count_next_value;
   now <-- reg spec (mux2 start (zero timer_bits) (now +:. 1));
-  pin_out <-- reg spec ~enable:op_go pin_out_next;
+  (* a jump carries no side-set, so all it does to the pins is the flip *)
+  pin_out
+  <-- reg
+        spec
+        ~enable:(op_go |: (issue &: flip_pending))
+        (mux2 op_go pin_out_next pin_out_flipped);
+  let%hw starts_manchester_bit =
+    op_go &: is Out &: Isa.Out_dest.Of_signal.is out_dest Pins &: manchester_out
+  in
+  flip_pending
+  <-- reg
+        spec
+        (mux2 start gnd @@ mux2 starts_manchester_bit vdd @@ mux2 issue gnd flip_pending);
+  flip_bit <-- reg spec ~enable:starts_manchester_bit out_value.:(0);
   pin_dir <-- reg spec ~enable:op_go pin_dir_next;
   pins_sampled <-- reg spec sample;
   stall <-- reg spec stall_next;
@@ -819,6 +860,8 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   ; opcode_onehot = concat_lsb is_opcode
   ; crc
   ; stuff_run
+  ; flip_pending
+  ; flip_bit
   }
 ;;
 

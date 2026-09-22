@@ -24,17 +24,22 @@ let print ?period ?single_capture_edge ~config source =
   in
   let judged =
     List.filter rows ~f:(fun r ->
-      r.may_miss || Option.is_some r.pin_event || Option.is_some (side_edge r))
+      r.may_miss
+      || Option.is_some r.pin_event
+      || Option.is_some (side_edge r)
+      || Option.is_some r.flip)
   in
   print_endline (Analyser.to_string ~side_set_count:program.side_set_count judged);
   let pin_events ~f =
     List.filter_map rows ~f:(fun (r : Analyser.Row.t) -> Option.bind r.pin_event ~f)
   in
+  (* the second half of a Manchester bit is an edge like any other *)
   let edge_jitter =
     worst_jitter
       (pin_events ~f:(function
-        | Edge i -> Some i
-        | Sample _ -> None))
+         | Edge i -> Some i
+         | Sample _ -> None)
+       @ List.filter_map rows ~f:(fun r -> r.flip))
   in
   let sample_jitter =
     worst_jitter

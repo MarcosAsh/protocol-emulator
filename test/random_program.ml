@@ -36,6 +36,7 @@ let config random =
   ; break_enable = false
   ; break_pc = 0
   ; autopull_data = bool ()
+  ; manchester = bool ()
   }
 ;;
 
