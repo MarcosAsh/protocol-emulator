@@ -561,6 +561,15 @@ let side_set_moves (c : Program_config.t) (m : Machine.t) value =
     movable && (level lsr pin) land 1 <> (value lsr j) land 1)
 ;;
 
+module Checked = struct
+  type t =
+    { issues : int
+    ; side_edges : int
+    ; reached : int (** Rows issued at least once. *)
+    ; violations : (int * int * int * int) list
+    }
+end
+
 let soundness ?period ?(preload = []) ~config ~cycles ~seeds words =
   let instructions =
     List.map words ~f:(fun w ->
@@ -573,6 +582,7 @@ let soundness ?period ?(preload = []) ~config ~cycles ~seeds words =
     ~f:(fun row -> rows.(row.pc) <- Some row);
   let issues = ref 0 in
   let side_edges = ref 0 in
+  let reached = Array.create ~len:(Array.length instructions) false in
   let violations = ref [] in
   for seed = 1 to seeds do
     let random = Splittable_random.of_int seed in
@@ -591,6 +601,7 @@ let soundness ?period ?(preload = []) ~config ~cycles ~seeds words =
         if entry
         then (
           Int.incr issues;
+          reached.(t.pc) <- true;
           let ok =
             match rows.(t.pc) with
             | Some row -> Interval.contains row.phase (phase t)
@@ -618,7 +629,11 @@ let soundness ?period ?(preload = []) ~config ~cycles ~seeds words =
       m := Machine.step !m ~inputs:(int ((1 lsl Isa.pin_space) - 1))
     done
   done;
-  !issues, !side_edges, List.rev !violations
+  { Checked.issues = !issues
+  ; side_edges = !side_edges
+  ; reached = Array.count reached ~f:Fn.id
+  ; violations = List.rev !violations
+  }
 ;;
 
 let%expect_test "every firmware stays inside its analysis under random stimulus" =
@@ -633,28 +648,52 @@ let%expect_test "every firmware stays inside its analysis under random stimulus"
     ; "i2c logger", i2c_logger_config, i2c_logger, None, []
     ; "usb tx", usb_config, usb_tx, Some 32, [ 32 ]
     ; "usb rx", usb_rx_config, usb_rx ~half_period:16, Some 32, [ 32 ]
+    ; ( "usb device"
+      , usb_device_config
+      , usb_device ~address:0 ~half_period:16
+      , Some 32
+      , [ 32 ] )
+    ; "edge meter", edge_meter_config, edge_meter ~period:16, None, []
+    ; "ws2812", Ws2812.config, Ws2812.firmware ~third:6 ~tail:7, None, []
+    ; "1-wire", One_wire.config, One_wire.firmware, Some 8, [ 8 ]
+    ; "ps/2", Ps2.config, Ps2.firmware, Some 10, [ 10 ]
     ]
   in
   List.iter corpus ~f:(fun (name, config, source, period, preload) ->
-    let issues, side_edges, violations =
-      soundness ?period ~preload ~config ~cycles:3000 ~seeds:8 (assemble source)
+    let words = assemble source in
+    let { Checked.issues; side_edges; reached; violations } =
+      soundness ?period ~preload ~config ~cycles:3000 ~seeds:8 words
     in
+    let reached = [%string "%{reached#Int}/%{List.length words#Int}"] in
     let violations = List.take violations 3 in
     print_s
       [%message
-        name (issues : int) (side_edges : int) (violations : (int * int * int * int) list)]);
+        name
+          (issues : int)
+          (reached : string)
+          (side_edges : int)
+          (violations : (int * int * int * int) list)]);
   [%expect
     {|
-    ("uart tx" (issues 4962) (side_edges 0) (violations ()))
-    ("uart tx host rate" (issues 224) (side_edges 0) (violations ()))
-    ("uart rx" (issues 5756) (side_edges 0) (violations ()))
-    ("spi master" (issues 8172) (side_edges 2598) (violations ()))
-    ("spi slave" (issues 14940) (side_edges 0) (violations ()))
-    ("i2c master" (issues 7129) (side_edges 1391) (violations ()))
-    ("i2c slave" (issues 13883) (side_edges 0) (violations ()))
-    ("i2c logger" (issues 6752) (side_edges 1200) (violations ()))
-    ("usb tx" (issues 4466) (side_edges 0) (violations ()))
-    ("usb rx" (issues 8302) (side_edges 0) (violations ()))
+    ("uart tx" (issues 4962) (reached 15/15) (side_edges 0) (violations ()))
+    ("uart tx host rate" (issues 224) (reached 12/16) (side_edges 0)
+     (violations ()))
+    ("uart rx" (issues 5756) (reached 21/21) (side_edges 0) (violations ()))
+    ("spi master" (issues 8172) (reached 16/16) (side_edges 2598)
+     (violations ()))
+    ("spi slave" (issues 14940) (reached 6/6) (side_edges 0) (violations ()))
+    ("i2c master" (issues 7129) (reached 83/83) (side_edges 1391)
+     (violations ()))
+    ("i2c slave" (issues 13883) (reached 59/72) (side_edges 0) (violations ()))
+    ("i2c logger" (issues 6752) (reached 73/73) (side_edges 1200)
+     (violations ()))
+    ("usb tx" (issues 4466) (reached 38/65) (side_edges 0) (violations ()))
+    ("usb rx" (issues 8302) (reached 24/29) (side_edges 0) (violations ()))
+    ("usb device" (issues 5809) (reached 271/470) (side_edges 0) (violations ()))
+    ("edge meter" (issues 6016) (reached 12/12) (side_edges 0) (violations ()))
+    (ws2812 (issues 7128) (reached 31/32) (side_edges 0) (violations ()))
+    (1-wire (issues 4929) (reached 48/48) (side_edges 0) (violations ()))
+    (ps/2 (issues 6973) (reached 64/65) (side_edges 0) (violations ()))
     |}]
 ;;
 
@@ -664,13 +703,19 @@ let%expect_test "random programs stay inside their analysis" =
     List.init 32 ~f:(fun _ ->
       let config = Random_program.config random in
       let words = Random_program.program random ~config in
-      soundness ~config ~cycles:1000 ~seeds:2 words)
+      List.length words, soundness ~config ~cycles:1000 ~seeds:2 words)
   in
-  let issues = List.sum (module Int) results ~f:(fun (i, _, _) -> i) in
-  let side_edges = List.sum (module Int) results ~f:(fun (_, e, _) -> e) in
-  let violations = List.sum (module Int) results ~f:(fun (_, _, v) -> List.length v) in
-  print_s [%message (issues : int) (side_edges : int) (violations : int)];
-  [%expect {| ((issues 3867) (side_edges 969) (violations 0)) |}]
+  let sum f = List.sum (module Int) results ~f in
+  let words = sum fst in
+  let issues = sum (fun (_, r) -> r.issues) in
+  let reached = sum (fun (_, r) -> r.reached) in
+  let side_edges = sum (fun (_, r) -> r.side_edges) in
+  let violations = sum (fun (_, r) -> List.length r.violations) in
+  print_s
+    [%message
+      (issues : int) (reached : int) (words : int) (side_edges : int) (violations : int)];
+  [%expect
+    {| ((issues 3867) (reached 1432) (words 16384) (side_edges 969) (violations 0)) |}]
 ;;
 
 (* Random programs rarely write a side-set pin any other way, so this one does it on
@@ -699,7 +744,7 @@ loop:
 |}
   in
   report ~config source;
-  let issues, side_edges, violations =
+  let { Checked.issues; side_edges; violations; _ } =
     soundness ~config ~cycles:300 ~seeds:1 (assemble source)
   in
   print_s
