@@ -533,107 +533,15 @@ let%expect_test "a deadline is only as good as what is assumed about the world" 
 ;;
 
 (* The analyser is only worth anything if its intervals hold on every execution. Random
-   pin levels and random host traffic push each firmware well off its happy path; the
-   phase at every issue must still fall inside the row's interval, and no issue may land
-   on a pc the analyser calls unreachable. Random pins break every assumption about the
-   world, so the analysis here makes none. A wait that stalls issues again every cycle,
-   and only its first issue counts as an entry.
-
-   Side-set is checked on its own: an issue that finds its side-set pins at another level
-   moves them, and the row must claim a side edge that covers the cycle they show it. *)
-let phase (m : Machine.t) =
-  let d = (m.now - m.t) land ((1 lsl Isa.timer_bits) - 1) in
-  if d >= 1 lsl (Isa.timer_bits - 1) then d - (1 lsl Isa.timer_bits) else d
-;;
-
-(* Only the pins side-set can move: outputs, bidirectionals and wires for levels, the
-   bidirectionals for directions. *)
-let side_set_moves (c : Program_config.t) (m : Machine.t) value =
-  let level = if c.side_set_pindirs then m.pin_dir else m.pin_out in
-  List.init c.side_set_count ~f:Fn.id
-  |> List.exists ~f:(fun j ->
-    let pin = (c.side_set_base + j) % Isa.pin_space in
-    let movable =
-      if c.side_set_pindirs
-      then pin >= Isa.first_bidir_pin && pin < Isa.num_pins
-      else pin >= Isa.first_output_pin
-    in
-    movable && (level lsr pin) land 1 <> (value lsr j) land 1)
-;;
-
-module Checked = struct
-  type t =
-    { issues : int
-    ; side_edges : int
-    ; reached : int (** Rows issued at least once. *)
-    ; violations : (int * int * int * int) list
-    }
-end
-
-let soundness ?period ?(preload = []) ~config ~cycles ~seeds words =
-  let instructions =
-    List.map words ~f:(fun w ->
-      Isa.of_word ~side_set_count:config.Program_config.side_set_count w |> ok_exn)
-    |> Array.of_list
-  in
-  let rows = Array.create ~len:(Array.length instructions) None in
-  List.iter
-    (Analyser.analyse ?period ~config (Array.to_list instructions))
-    ~f:(fun row -> rows.(row.pc) <- Some row);
-  let issues = ref 0 in
-  let side_edges = ref 0 in
-  let reached = Array.create ~len:(Array.length instructions) false in
-  let violations = ref [] in
-  for seed = 1 to seeds do
-    let random = Splittable_random.of_int seed in
-    let int hi = Splittable_random.int random ~lo:0 ~hi in
-    let m = ref (Machine.create ~config ~program:words |> ok_exn) in
-    List.iter preload ~f:(fun w -> m := Machine.write_tx !m w |> ok_exn);
-    let last = ref None in
-    for cycle = 0 to cycles - 1 do
-      let t = !m in
-      if (not t.halted) && t.stall = 0
-      then (
-        let entry =
-          not (Option.equal [%equal: int * int] !last (Some (cycle - 1, t.pc)))
-        in
-        last := Some (cycle, t.pc);
-        if entry
-        then (
-          Int.incr issues;
-          reached.(t.pc) <- true;
-          let ok =
-            match rows.(t.pc) with
-            | Some row -> Interval.contains row.phase (phase t)
-            | None -> false
-          in
-          if not ok then violations := (seed, cycle, t.pc, phase t) :: !violations);
-        match instructions.(t.pc) with
-        | Op { side_set; _ } when side_set_moves config t side_set ->
-          Int.incr side_edges;
-          let ok =
-            match rows.(t.pc) with
-            | Some { side_event = Some { at; changes = true }; _ } ->
-              Interval.contains at (phase t + 1)
-            | _ -> false
-          in
-          if not ok then violations := (seed, cycle, t.pc, phase t + 1) :: !violations
-        | _ -> ());
-      if int 3 = 0 && List.length t.tx_fifo < Machine.fifo_depth
-      then m := Machine.write_tx t (int 0xffff) |> ok_exn;
-      if int 3 = 0
-      then (
-        match Machine.read_rx !m with
-        | Some (_, popped) -> m := popped
-        | None -> ());
-      m := Machine.step !m ~inputs:(int ((1 lsl Isa.pin_space) - 1))
-    done
-  done;
-  { Checked.issues = !issues
-  ; side_edges = !side_edges
-  ; reached = Array.count reached ~f:Fn.id
-  ; violations = List.rev !violations
-  }
+   pin levels and random host traffic push each firmware well off its happy path, and make
+   no assumption about the world true, so the analysis here makes none. *)
+let soundness ?period ?preload ~config ~cycles ~seeds words =
+  Soundness.check
+    ?period
+    ?preload
+    ~config
+    (List.init seeds ~f:(fun n -> Soundness.Stimulus.random ~seed:(n + 1) ~cycles))
+    words
 ;;
 
 let%expect_test "every firmware stays inside its analysis under random stimulus" =
@@ -661,7 +569,7 @@ let%expect_test "every firmware stays inside its analysis under random stimulus"
   in
   List.iter corpus ~f:(fun (name, config, source, period, preload) ->
     let words = assemble source in
-    let { Checked.issues; side_edges; reached; violations } =
+    let { Soundness.issues; side_edges; reached; violations } =
       soundness ?period ~preload ~config ~cycles:3000 ~seeds:8 words
     in
     let reached = [%string "%{reached#Int}/%{List.length words#Int}"] in
@@ -744,7 +652,7 @@ loop:
 |}
   in
   report ~config source;
-  let { Checked.issues; side_edges; violations; _ } =
+  let { Soundness.issues; side_edges; violations; _ } =
     soundness ~config ~cycles:300 ~seeds:1 (assemble source)
   in
   print_s
