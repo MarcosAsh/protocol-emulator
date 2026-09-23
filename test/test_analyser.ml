@@ -571,6 +571,7 @@ let%expect_test "every firmware stays inside its analysis under random stimulus"
     ; "ws2812", Ws2812.config, Ws2812.firmware ~third:6 ~tail:7, None, []
     ; "1-wire", One_wire.config, One_wire.firmware, Some 8, [ 8 ]
     ; "ps/2", Ps2.config, Ps2.firmware, Some 10, [ 10 ]
+    ; "jtag", Jtag.config, Jtag.firmware ~half_period:Jtag.shortest_half, None, []
     ]
   in
   List.iter corpus ~f:(fun (name, config, source, period, preload) ->
@@ -611,6 +612,7 @@ let%expect_test "every firmware stays inside its analysis under random stimulus"
     (ws2812 (issues 7128) (reached 31/32) (side_edges 0) (violations ()))
     (1-wire (issues 4929) (reached 48/48) (side_edges 0) (violations ()))
     (ps/2 (issues 6973) (reached 64/65) (side_edges 0) (violations ()))
+    (jtag (issues 15071) (reached 15/15) (side_edges 4909) (violations ()))
     |}]
 ;;
 

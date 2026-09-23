@@ -12,6 +12,7 @@ let firmwares =
   ; "spi_master", Firmware.spi_master ~half_period:8, Firmware.spi_config
   ; "ws2812", Ws2812.firmware ~third:6 ~tail:7, Ws2812.config
   ; "ethernet", Ethernet.firmware, Ethernet.config
+  ; "jtag", Jtag.firmware ~half_period:Jtag.shortest_half, Jtag.config
   ]
 ;;
 
