@@ -112,7 +112,6 @@ let status_word (s : int Host_port.Status.t) ~other_irq =
 ;;
 
 let read t ~(statuses : int Host_port.Status.t list) ~reg =
-  let index = reg - Reg.config in
   let low x = x land mask Isa.data_bits in
   let high x = x lsr Isa.data_bits in
   let engine = t.select in
@@ -164,7 +163,5 @@ let read t ~(statuses : int Host_port.Status.t list) ~reg =
   then status.osr, []
   else if reg = Reg.counts
   then (status.osr_count lsl 8) lor status.isr_count, []
-  else if index >= 0 && index < List.length config_widths
-  then List.nth_exn (List.nth_exn t.configs engine) index, []
   else 0, []
 ;;

@@ -8,9 +8,9 @@
     of its own after the stop), 1 status, 2 pc, 3 and 4 now, 5 and 6 capture, 7 tx fifo, 8
     rx fifo (a read pops), 9 program address, 10 program word (a write increments the
     address), 11 select, 12 data address, 13 data word (a write increments the address,
-    only while halted), 16 onwards the config fields in order, and for a debugger 0x40 x,
-    0x41 y, 0x42 p, 0x43 and 0x44 t, 0x45 isr, 0x46 osr, 0x47 the isr count and the osr
-    count shifted up by 8.
+    only while halted), 16 onwards the config fields in order, which can only be written
+    and read as zero, and for a debugger 0x40 x, 0x41 y, 0x42 p, 0x43 and 0x44 t, 0x45
+    isr, 0x46 osr, 0x47 the isr count and the osr count shifted up by 8.
 
     With more than one engine, select names the engine that every other register but the
     program and data addresses reaches: control, status, pc, now, capture, both fifos, the

@@ -147,7 +147,7 @@ module Make (Config : Config) = struct
     let key n = of_unsigned_int ~width:(width addr) n in
     (* Each engine's registers are read beside it, so what crosses the chip to the host is
        one word from each engine and not every register of every engine. *)
-    let engine_read read_addr ((s : _ Status.t), config, other_irq) =
+    let engine_read read_addr ((s : _ Status.t), other_irq) =
       let status_word =
         concat_msb
           [ other_irq
@@ -178,7 +178,6 @@ module Make (Config : Config) = struct
       ; Reg.osr, s.osr
       ; Reg.counts, reg16 (s.osr_count @: zero 3 @: s.isr_count)
       ]
-      @ List.mapi (Engine.Config.to_list config) ~f:(fun n w -> Reg.config + n, reg16 w)
       |> List.map ~f:(fun (n, v) -> key n, v)
       |> cases ~default:(zero Isa.data_bits) read_addr
     in
@@ -194,8 +193,8 @@ module Make (Config : Config) = struct
       |> cases
            ~default:
              (pick
-                (List.map3_exn i.status config_values other_irqs ~f:(fun s c irq ->
-                   engine_read read_addr (s, c, irq)))
+                (List.map2_exn i.status other_irqs ~f:(fun s irq ->
+                   engine_read read_addr (s, irq)))
                 ~zero:(zero Isa.data_bits))
            read_addr
     in

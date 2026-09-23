@@ -140,7 +140,8 @@ let%expect_test "status and fifo reads" =
     |}]
 ;;
 
-let%expect_test "config registers read back" =
+(* the fields reach the engine and read as zero, since nothing on the host reads them *)
+let%expect_test "config registers are write only" =
   run ~half:4 (fun m ~watch inputs o ->
     (List.hd_exn inputs.status).halted := Bits.vdd;
     let fields = Engine.Config.to_list Engine.Config.port_names in
@@ -159,14 +160,14 @@ let%expect_test "config registers read back" =
   [%expect
     {|
     ((read_back
-      ((side_set_count 1) (side_set_base 2) (side_set_pindirs 1) (in_base 4)
-       (in_count 5) (out_base 6) (out_count 7) (set_base 8) (set_count 1)
-       (jmp_pin 10) (capture_pin 11) (capture_rising 0) (in_shift_right 1)
-       (out_shift_right 0) (autopush 1) (push_threshold 16) (autopull 1)
-       (pull_threshold 18) (crc_width 19) (crc_poly 20) (crc_init 21)
-       (crc_reflect 0) (stuff_threshold 23) (stuff_level 0) (wrap_bottom 25)
-       (wrap_top 26) (period_fraction 27) (break_enable 0) (break_pc 29)
-       (autopull_data 0) (manchester 1)))
+      ((side_set_count 0) (side_set_base 0) (side_set_pindirs 0) (in_base 0)
+       (in_count 0) (out_base 0) (out_count 0) (set_base 0) (set_count 0)
+       (jmp_pin 0) (capture_pin 0) (capture_rising 0) (in_shift_right 0)
+       (out_shift_right 0) (autopush 0) (push_threshold 0) (autopull 0)
+       (pull_threshold 0) (crc_width 0) (crc_poly 0) (crc_init 0) (crc_reflect 0)
+       (stuff_threshold 0) (stuff_level 0) (wrap_bottom 0) (wrap_top 0)
+       (period_fraction 0) (break_enable 0) (break_pc 0) (autopull_data 0)
+       (manchester 0)))
      (live
       (1 2 1 4 5 6 7 8 1 10 11 0 1 0 1 16 1 18 19 20 21 0 23 0 25 26 27 0 29 0 1)))
     (events ())
@@ -180,18 +181,17 @@ let%expect_test "config writes wait until the core is halted" =
     let write ~halted value =
       status.halted := Bits.of_bool halted;
       Spi_master.write m ~watch (Reg.config + 1) [ value ];
-      let read_back = Spi_master.read m ~watch (Reg.config + 1) ~count:1 in
       let live = Bits.to_unsigned_int !((List.hd_exn o.engines).config.side_set_base) in
-      print_s [%message (halted : bool) (value : int) (read_back : int list) (live : int)]
+      print_s [%message (halted : bool) (value : int) (live : int)]
     in
     write ~halted:true 7;
     write ~halted:false 9;
     write ~halted:true 9 [@nontail]);
   [%expect
     {|
-    ((halted true) (value 7) (read_back (7)) (live 7))
-    ((halted false) (value 9) (read_back (7)) (live 7))
-    ((halted true) (value 9) (read_back (9)) (live 9))
+    ((halted true) (value 7) (live 7))
+    ((halted false) (value 9) (live 7))
+    ((halted true) (value 9) (live 9))
     (events ())
     |}]
 ;;
@@ -234,15 +234,12 @@ let%expect_test "select routes every register but the program address" =
       Spi_master.write m ~watch Reg.tx [ 0x55 + n ];
       Spi_master.write m ~watch Reg.control [ 0xf ];
       Spi_master.write m ~watch (Reg.config + 1) [ 12 + n ];
-      read "side_set_base" (Reg.config + 1);
       read "status" Reg.status;
       read "pc" Reg.pc;
       read "rx" Reg.rx
     in
     to_engine 0;
     to_engine 1;
-    Spi_master.write m ~watch Reg.select [ 0 ];
-    read "side_set_base of engine 0 again" (Reg.config + 1);
     let live =
       List.map o.engines ~f:(fun e -> Bits.to_unsigned_int !(e.config.side_set_base))
     in
@@ -250,16 +247,13 @@ let%expect_test "select routes every register but the program address" =
   [%expect
     {|
     (select (words (0)))
-    (side_set_base (words (12)))
     (status (words (32769)))
     (pc (words (256)))
     (rx (words (48640)))
     (select (words (1)))
-    (side_set_base (words (13)))
     (status (words (3)))
     (pc (words (257)))
     (rx (words (48641)))
-    ("side_set_base of engine 0 again" (words (12)))
     (live (12 13))
     (events
      ("0: program[8] <- 40976" "0: tx <- 85" "0: start" "0: clear_irq" "0: stop"
