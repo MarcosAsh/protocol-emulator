@@ -123,22 +123,14 @@ module Make (Config : Config) = struct
         List.filteri i.status ~f:(fun m _ -> m <> n)
         |> List.fold ~init:gnd ~f:(fun irq (s : _ Status.t) -> irq |: s.irq))
     in
-    let s, config_value, other_irq =
+    (* the engine select picks, and a select past the last engine reads zeros rather than
+       the last engine again *)
+    let pick values ~zero =
       match select_value with
-      | None -> List.hd_exn i.status, List.hd_exn config_values, List.hd_exn other_irqs
+      | None -> List.hd_exn values
       | Some select ->
-        (* a select past the last engine reads zeros rather than the last engine again *)
         let spare = (1 lsl select_bits) - engines in
-        let pad values ~zero = values @ List.init spare ~f:(fun _ -> zero) in
-        ( Status.Of_signal.mux
-            select
-            (pad i.status ~zero:(Status.map Status.port_widths ~f:zero))
-        , Engine.Config.Of_signal.mux
-            select
-            (pad
-               config_values
-               ~zero:(Engine.Config.map Engine.Config.port_widths ~f:zero))
-        , mux select (pad other_irqs ~zero:gnd) )
+        mux select (values @ List.init spare ~f:(fun _ -> zero))
     in
     let%hw.Always.State_machine sm = Always.State_machine.create (module State) spec in
     let%hw_var cmd = Always.Variable.reg spec ~width:8 in
@@ -152,51 +144,65 @@ module Make (Config : Config) = struct
     let%hw addr = cmd.value.:[6, 0] in
     let at n = addr ==:. n in
     let reg16 x = uresize x ~width:Isa.data_bits in
-    let status_word =
-      concat_msb
-        [ other_irq
-        ; zero (Isa.data_bits - 7 - (2 * Host_fifo.level_bits))
-        ; s.rx_level
-        ; s.tx_level
-        ; s.fault.decode
-        ; s.fault.missed_deadline
-        ; s.fault.overflow
-        ; s.fault.underflow
-        ; s.irq
-        ; s.halted
-        ]
+    let key n = of_unsigned_int ~width:(width addr) n in
+    (* Each engine's registers are read beside it, so what crosses the chip to the host is
+       one word from each engine and not every register of every engine. *)
+    let engine_read read_addr ((s : _ Status.t), config, other_irq) =
+      let status_word =
+        concat_msb
+          [ other_irq
+          ; zero (Isa.data_bits - 7 - (2 * Host_fifo.level_bits))
+          ; s.rx_level
+          ; s.tx_level
+          ; s.fault.decode
+          ; s.fault.missed_deadline
+          ; s.fault.overflow
+          ; s.fault.underflow
+          ; s.irq
+          ; s.halted
+          ]
+      in
+      [ Reg.status, status_word
+      ; Reg.pc, reg16 s.pc
+      ; Reg.now_lo, sel_bottom s.now ~width:Isa.data_bits
+      ; Reg.now_hi, reg16 (sel_top s.now ~width:(Isa.timer_bits - Isa.data_bits))
+      ; Reg.capture_lo, sel_bottom s.capture ~width:Isa.data_bits
+      ; Reg.capture_hi, reg16 (sel_top s.capture ~width:(Isa.timer_bits - Isa.data_bits))
+      ; Reg.rx, s.rx_head
+      ; Reg.x, s.x
+      ; Reg.y, s.y
+      ; Reg.p, s.p
+      ; Reg.t_lo, sel_bottom s.t ~width:Isa.data_bits
+      ; Reg.t_hi, reg16 (sel_top s.t ~width:(Isa.timer_bits - Isa.data_bits))
+      ; Reg.isr, s.isr
+      ; Reg.osr, s.osr
+      ; Reg.counts, reg16 (s.osr_count @: zero 3 @: s.isr_count)
+      ]
+      @ List.mapi (Engine.Config.to_list config) ~f:(fun n w -> Reg.config + n, reg16 w)
+      |> List.map ~f:(fun (n, v) -> key n, v)
+      |> cases ~default:(zero Isa.data_bits) read_addr
     in
-    let config_words = Engine.Config.to_list config_value in
-    let read_at addr =
-      let key n = of_unsigned_int ~width:(width addr) n in
-      List.map
-        ~f:(fun (n, v) -> key n, v)
-        ([ Reg.status, status_word
-         ; Reg.pc, reg16 s.pc
-         ; Reg.now_lo, sel_bottom s.now ~width:Isa.data_bits
-         ; Reg.now_hi, reg16 (sel_top s.now ~width:(Isa.timer_bits - Isa.data_bits))
-         ; Reg.capture_lo, sel_bottom s.capture ~width:Isa.data_bits
-         ; ( Reg.capture_hi
-           , reg16 (sel_top s.capture ~width:(Isa.timer_bits - Isa.data_bits)) )
-         ; Reg.rx, s.rx_head
-         ; Reg.program_addr, reg16 program_addr.value
-         ; Reg.data_addr, reg16 data_addr.value
-         ; Reg.x, s.x
-         ; Reg.y, s.y
-         ; Reg.p, s.p
-         ; Reg.t_lo, sel_bottom s.t ~width:Isa.data_bits
-         ; Reg.t_hi, reg16 (sel_top s.t ~width:(Isa.timer_bits - Isa.data_bits))
-         ; Reg.isr, s.isr
-         ; Reg.osr, s.osr
-         ; Reg.counts, reg16 (s.osr_count @: zero 3 @: s.isr_count)
-         ]
-         @ (Option.map select_value ~f:(fun select -> Reg.select, reg16 select)
-            |> Option.to_list)
-         @ List.mapi config_words ~f:(fun n w -> Reg.config + n, reg16 w))
-      |> cases ~default:(zero Isa.data_bits) addr
+    (* the register named by the command byte is read while that byte is still arriving,
+       and the one named by [addr] for every word after it *)
+    let%hw spi_rx_byte = wire 8 in
+    let%hw read_addr = mux2 (sm.is Command) spi_rx_byte.:[6, 0] addr in
+    let%hw read_value =
+      [ Reg.program_addr, reg16 program_addr.value; Reg.data_addr, reg16 data_addr.value ]
+      @ (Option.map select_value ~f:(fun select -> Reg.select, reg16 select)
+         |> Option.to_list)
+      |> List.map ~f:(fun (n, v) -> key n, v)
+      |> cases
+           ~default:
+             (pick
+                (List.map3_exn i.status config_values other_irqs ~f:(fun s c irq ->
+                   engine_read read_addr (s, c, irq)))
+                ~zero:(zero Isa.data_bits))
+           read_addr
     in
-    let%hw read_value = read_at addr in
-    let%hw tx_word = mux2 (at Reg.rx) s.rx_head word.value in
+    let%hw rx_head =
+      pick (List.map i.status ~f:(fun s -> s.rx_head)) ~zero:(zero Isa.data_bits)
+    in
+    let%hw tx_word = mux2 (at Reg.rx) rx_head word.value in
     let spi =
       Host_spi.hierarchical
         scope
@@ -207,8 +213,7 @@ module Make (Config : Config) = struct
         ; tx_byte = mux2 (sm.is Low) tx_word.:[7, 0] tx_word.:[15, 8]
         }
     in
-    (* The register named by the command byte is read while that byte is still arriving. *)
-    let%hw first_read = read_at spi.rx_byte.:[6, 0] in
+    spi_rx_byte <-- spi.rx_byte;
     let%hw value = high.value @: spi.rx_byte in
     (* a running engine keeps the configuration its program was loaded and checked with *)
     let config_writes =
@@ -235,7 +240,7 @@ module Make (Config : Config) = struct
         ; when_
             spi.rx_valid
             [ sm.switch
-                [ Command, [ cmd <-- spi.rx_byte; word <-- first_read; sm.set_next High ]
+                [ Command, [ cmd <-- spi.rx_byte; word <-- read_value; sm.set_next High ]
                 ; High, [ high <-- spi.rx_byte; sm.set_next Low ]
                 ; ( Low
                   , [ if_ is_write [ write <-- vdd ] [ read_done <-- vdd ]
