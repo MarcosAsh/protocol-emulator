@@ -11,6 +11,7 @@ let firmwares =
   ; "uart_tx16", Firmware.uart_tx ~period:16, Program_config.default
   ; "spi_master", Firmware.spi_master ~half_period:8, Firmware.spi_config
   ; "ws2812", Ws2812.firmware ~third:6 ~tail:7, Ws2812.config
+  ; "ethernet", Ethernet.firmware, Ethernet.config
   ]
 ;;
 
@@ -121,7 +122,13 @@ endmodule
      disagreeing with it and let a wait retire before its deadline;
    - what is left of a delay brings the next issue to the phase its row allows;
    - a wait that stalls has reached its row and, on a deadline, not yet the deadline;
-   - x, y and p hold what the analyser says they hold on the way into the pc. *)
+   - x, y and p hold what the analyser says they hold on the way into the pc;
+   - the pc is one the analyser reaches, and the instruction that issued last is one it
+     says the pc can follow;
+   - a Manchester bit's second half is pending only where the analyser says it can be;
+   - the cycles since the last pin edge are what the analyser says for the way in from
+     that instruction, on the way in and while a delay or a wait holds the core, which is
+     what makes the gaps between edges hold in a loop that anchors no deadline. *)
 let inductive ?(no_wrap = false) ~config source =
   let program = Asm.assemble source |> ok_exn in
   let config = Asm.Program.configure program config in
@@ -150,6 +157,137 @@ let inductive ?(no_wrap = false) ~config source =
     | Op { op = Wait (Deadline _); _ } -> true
     | _ -> false
   in
+  let is_wait (t : Isa.t) =
+    match t with
+    | Op { op = Wait _; _ } -> true
+    | _ -> false
+  in
+  let writes_pins (t : Isa.t) =
+    match t with
+    | Op
+        { op =
+            ( Set { dest = Pins | Pindirs; _ }
+            | Out { dest = Pins | Pindirs; _ }
+            | Mov { dest = Pins | Pindirs; _ } )
+        ; _
+        } -> true
+    | _ -> false
+  in
+  let any = function
+    | [] -> "0"
+    | cases -> String.concat ~sep:" || " cases
+  in
+  let pin_writers =
+    List.filter_map rows ~f:(fun row ->
+      Option.some_if (writes_pins row.instruction) (sprintf "a == %d" row.pc))
+    |> any
+  in
+  (* a count is unsigned, so a floor at or below zero says nothing and is left out *)
+  let count (i : Interval.t) = { i with lo = Option.filter i.lo ~f:(fun lo -> lo > 0) } in
+  let reachable = List.map rows ~f:(fun row -> sprintf "pc == %d" row.pc) |> any in
+  let edges =
+    List.concat_map rows ~f:(fun (row : Analyser.Row.t) ->
+      let conj = String.concat ~sep:" && " in
+      let came_from =
+        List.map row.since_edge ~f:(fun (from, _) -> sprintf "came == %d" from)
+      in
+      let ways_in =
+        [ sprintf
+            "      if (came_valid && !stalled && pc == %d) assert (%s);"
+            row.pc
+            (any came_from)
+        ]
+      in
+      let per_way =
+        List.concat_map row.since_edge ~f:(fun (from, since) ->
+          let at_entry =
+            match within "since" (count since) with
+            | [] -> []
+            | c ->
+              [ sprintf
+                  "      if (entry && came_valid && pc == %d && came == %d) assert (%s);"
+                  row.pc
+                  from
+                  (conj c)
+              ]
+          in
+          let pending =
+            match within "since_ahead" (count since) with
+            | [] -> []
+            | c ->
+              [ sprintf
+                  "      if (stall != 0 && came_valid && pc == %d && came == %d) assert \
+                   (%s);"
+                  row.pc
+                  from
+                  (conj c)
+              ]
+          in
+          at_entry @ pending)
+      in
+      let gaps =
+        List.map row.gaps ~f:(fun (from, gap) -> from, within "since + 1" (count gap))
+        |> List.filter_map ~f:(fun (from, c) ->
+          Option.some_if (not (List.is_empty c)) (from, c))
+        |> List.map ~f:(fun (from, c) ->
+          sprintf
+            "      if (entry && came_valid && pc == %d && came == %d) assert (%s);"
+            row.pc
+            from
+            (conj c))
+      in
+      (* while a wait stalls the count runs on from its entry, which a Manchester flip the
+         wait brings starts again *)
+      let stalled =
+        if not (is_wait row.instruction)
+        then []
+        else (
+          let since =
+            List.map row.since_edge ~f:snd
+            |> List.reduce ~f:Interval.join
+            |> Option.value ~default:Interval.top
+          in
+          let since =
+            if Option.is_some row.flip
+            then Interval.join since (Interval.exactly (-1))
+            else since
+          in
+          let floor =
+            Option.filter since.lo ~f:(fun lo -> lo + 1 > 0)
+            |> Option.map ~f:(fun lo ->
+              sprintf
+                "      if (stalled && pc == %d) assert (since >= %d);"
+                row.pc
+                (lo + 1))
+            |> Option.to_list
+          in
+          let behind =
+            if not (is_deadline_wait row.instruction)
+            then []
+            else (
+              let bound lo hi =
+                Option.bind lo ~f:(fun a -> Option.map hi ~f:(fun b -> a - b))
+              in
+              match
+                within
+                  "since_behind"
+                  { lo = bound since.lo row.phase.hi; hi = bound since.hi row.phase.lo }
+              with
+              | [] -> []
+              | c ->
+                [ sprintf "      if (stalled && pc == %d) assert (%s);" row.pc (conj c) ])
+          in
+          floor @ behind)
+      in
+      (* only the instruction after a Manchester out finds its second half pending *)
+      let flip =
+        if Option.is_some row.flip
+        then []
+        else [ sprintf "      if (pc == %d) assert (!flip_pending);" row.pc ]
+      in
+      ways_in @ flip @ per_way @ gaps @ stalled)
+    |> String.concat ~sep:"\n"
+  in
   let claims =
     List.concat_map rows ~f:(fun (row : Analyser.Row.t) ->
       let conj = String.concat ~sep:" && " in
@@ -160,7 +298,8 @@ let inductive ?(no_wrap = false) ~config source =
       let pending =
         match within "ahead" row.phase with
         | [] -> []
-        | c -> [ sprintf "      if (pc == %d && stall != 0) assert (%s);" row.pc (conj c) ]
+        | c ->
+          [ sprintf "      if (pc == %d && stall != 0) assert (%s);" row.pc (conj c) ]
       in
       let entry =
         match within "phase" row.phase with
@@ -190,8 +329,8 @@ let inductive ?(no_wrap = false) ~config source =
      deadline has no floor under its phase: intervals cannot say that the loop's counter
      runs out, so the analyser lets the core fall arbitrarily far behind its deadline and
      24 bits of the difference wrap. The core's own release compares the same 24 bits, so
-     this is a bound the hardware keeps as well: a deadline older than about 168 ms at
-     50 MHz is a deadline it reads the wrong way round. *)
+     this is a bound the hardware keeps as well: a deadline older than about 168 ms at 50
+     MHz is a deadline it reads the wrong way round. *)
   let no_wrap =
     if not no_wrap
     then ""
@@ -226,6 +365,10 @@ module certificate (input clk);
   wire start = boot == 1;
   wire running = boot == 3;
 
+  function writes_pins(input [8:0] a);
+    writes_pins = %{pin_writers};
+  endfunction
+
   wire [8:0] sram_addr, pc;
   reg [15:0] fetched;
   always @(posedge clk) fetched <= rom(sram_addr);
@@ -233,7 +376,7 @@ module certificate (input clk);
   wire [15:0] x, y, p, instruction;
   wire [7:0] opcode_onehot;
   wire [4:0] stall;
-  wire halted, stepping, decode_ok, eng_issue, eng_jmp_go;
+  wire halted, stepping, decode_ok, eng_issue, eng_jmp_go, flip_pending;
   engine_top dut (
     .clock(clk), .clear(clear),
     %{config_ports},
@@ -244,7 +387,8 @@ module certificate (input clk);
     .inputs(inputs), .sram_addr(sram_addr), .sram_dout(fetched), .data_sram_dout(16'b0),
     .pc(pc), .t(t), .now(now), .x(x), .y(y), .p(p), .stall(stall), .halted(halted),
     .stepping(stepping), .instruction(instruction), .decode_ok(decode_ok),
-    .opcode_onehot(opcode_onehot), .eng_issue(eng_issue), .eng_jmp_go(eng_jmp_go));
+    .opcode_onehot(opcode_onehot), .flip_pending(flip_pending), .eng_issue(eng_issue),
+    .eng_jmp_go(eng_jmp_go));
 
   // the engine's own signals, not a shadow of them worked out from the delay left: in the
   // state induction starts from the two come apart
@@ -266,6 +410,23 @@ module certificate (input clk);
   // the phase the pending instruction issues at, once the delay runs out
   wire signed [23:0] ahead = now - t + {19'b0, stall};
 
+  // cycles since the last pin edge showed, which is the cycle after a pin write issues
+  // or the instruction after a Manchester out, whose second half comes with it
+  wire edge_now = issue && (writes_pins(pc) || flip_pending);
+  reg [23:0] since = 0;
+  always @(posedge clk) since <= edge_now ? 24'd0 : since == 24'hffffff ? since : since + 1;
+  wire [24:0] since_ahead = since + stall;
+  wire signed [25:0] since_behind = $signed({2'b0, since}) - phase;
+  // the instruction that issued last, the one the analyser calls the way in
+  reg came_valid = 0;
+  reg [8:0] came = 0;
+  always @(posedge clk)
+    if (start) came_valid <= 0;
+    else if (entry) begin
+      came_valid <= 1;
+      came <= pc;
+    end
+
 %{no_wrap}  always @(*)
     if (running) begin
       assert (!halted && !stepping && !started);
@@ -273,7 +434,13 @@ module certificate (input clk);
       if (!jumped) assert (instruction == rom(pc) && fetched == rom(after(pc)));
       if (jumped) assert (stall == 1 && fetched == rom(pc));
       if (stalled) assert (instruction[15:13] == 1);
+      assert (%{reachable});
+      // until the first issue after the start, nothing has issued to come from
+      if (!came_valid) assert (pc == 0 && stall == 0);
+      // and a wait that stalls came last itself
+      if (stalled) assert (came_valid && came == pc);
 %{claims}
+%{edges}
 `ifdef TEETH
       assert (pc != %{teeth_pc#Int});
 `endif
@@ -291,5 +458,7 @@ let () =
   | None -> raise_s [%message "no such firmware" (name : string)]
   | Some (_, source, config) ->
     print_string
-      (if inductive_mode then inductive ~no_wrap ~config source else harness ~config source)
+      (if inductive_mode
+       then inductive ~no_wrap ~config source
+       else harness ~config source)
 ;;

@@ -55,7 +55,7 @@ inductive_certificate: engine_sram.v
 # The firmware whose certificates close as an invariant, which rests on nothing at all,
 # and the firmware that needs the one assumption: ws2812's reset gap is a loop anchoring
 # no deadline, so the analyser leaves its phase without a floor and 24 bits of it wrap.
-INDUCTIVE = uart_tx uart_tx16 spi_master
+INDUCTIVE = uart_tx uart_tx16 spi_master ethernet
 INDUCTIVE_ASSUMING_NO_WRAP = ws2812
 inductive_certificates: engine_sram.v
 	for name in $(INDUCTIVE); do $(MAKE) inductive_certificate NAME=$$name || exit 1; done

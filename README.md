@@ -47,8 +47,10 @@ SRAM macro.
   host library.
 - `formal/` SymbiYosys proofs that issue timing depends only on the delay field, that
   when the host talks never reaches the pins, and that the fifos keep their order, each
-  with weakened copies that have to fail; and `make certificates`, which checks firmware
-  certificates from the analyser on the RTL for every input and every host.
+  with weakened copies that have to fail; `make certificates`, which checks firmware
+  certificates from the analyser on the RTL for every input and every host; and
+  `make inductive_certificates`, which proves them by induction for all time, the gaps
+  between the 10BASE-T firmware's edges included.
 - `python/` the host library, with a debugger (breakpoint, step, registers) and a
   10BASE-T frame builder, and demo scripts for the dev board.
 

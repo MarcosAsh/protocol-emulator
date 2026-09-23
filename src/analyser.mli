@@ -47,6 +47,9 @@ module Row : sig
         edge before it, for each instruction it can follow: a timing that needs no
         deadline, so it holds inside a loop with none, like one sending a bit every four
         cycles, where the first bit's gap back to the idle line is another matter. *)
+    ; since_edge : (int * Interval.t) list
+    (** For every instruction, the cycles on the way in since the last pin edge showed,
+        for each instruction it can follow; [gaps] is this plus the cycle to its own edge. *)
     ; may_underrun : bool
     (** An [out] that may take a data autopull sooner than [Isa.data_settle] cycles after
         the data pointer moved. *)

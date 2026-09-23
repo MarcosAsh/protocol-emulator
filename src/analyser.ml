@@ -116,6 +116,7 @@ module Row = struct
     ; side_event : Side_event.t option
     ; flip : Interval.t option
     ; gaps : (int * Interval.t) list
+    ; since_edge : (int * Interval.t) list
     ; may_underrun : bool
     ; x : Interval.t
     ; y : Interval.t
@@ -418,18 +419,21 @@ let analyse ?period ?single_capture_edge ~config (program : Isa.t list) =
   let flip_edge = Array.create ~len:n None in
   (* and the cycles since the edge before, for each instruction a way in comes from *)
   let gaps = Array.create ~len:n [] in
+  let since_edge = Array.create ~len:n [] in
+  let add_from table pc from value =
+    let before = List.Assoc.find table.(pc) from ~equal:Int.equal in
+    table.(pc)
+    <- (from, Option.fold before ~init:value ~f:Interval.join)
+       :: List.Assoc.remove table.(pc) from ~equal:Int.equal
+  in
   let arrive ?from pc (s : State.t) =
     let add edges =
       edges.(pc) <- Some (Option.fold edges.(pc) ~init:s.phase ~f:Interval.join)
     in
     Option.iter from ~f:(fun from ->
+      add_from since_edge pc from s.since_edge;
       if not ([%equal: bool option] (makes_edge s program.(pc)) (Some false))
-      then (
-        let gap = Interval.shift s.since_edge 1 in
-        let before = List.Assoc.find gaps.(pc) from ~equal:Int.equal in
-        gaps.(pc)
-        <- (from, Option.fold before ~init:gap ~f:Interval.join)
-           :: List.Assoc.remove gaps.(pc) from ~equal:Int.equal));
+      then add_from gaps pc from (Interval.shift s.since_edge 1));
     (match program.(pc) with
      | Op { side_set; _ }
        when config.Program_config.side_set_count > 0
@@ -482,7 +486,9 @@ let analyse ?period ?single_capture_edge ~config (program : Isa.t list) =
       in
       (* it shows the cycle after the next instruction issues, as the out's own half did *)
       let flip = Option.map flip_edge.(pc) ~f:(fun at -> Interval.shift at 1) in
-      let gaps = List.sort gaps.(pc) ~compare:(fun (a, _) (b, _) -> Int.compare b a) in
+      let by_from = List.sort ~compare:(fun (a, _) (b, _) -> Int.compare b a) in
+      let gaps = by_from gaps.(pc) in
+      let since_edge = by_from since_edge.(pc) in
       let may_underrun =
         match instruction with
         | Op { op; _ } when may_pull_data config s op ->
@@ -499,6 +505,7 @@ let analyse ?period ?single_capture_edge ~config (program : Isa.t list) =
       ; side_event
       ; flip
       ; gaps
+      ; since_edge
       ; may_underrun
       ; x = s.x
       ; y = s.y
