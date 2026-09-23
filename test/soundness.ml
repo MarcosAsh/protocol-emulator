@@ -140,6 +140,20 @@ let check ?period ?single_capture_edge ?(preload = []) ~config stimuli words =
             | None -> false
           in
           if not ok then violations := (run, cycle, t.pc, phase t) :: !violations);
+        (* a data pull the machine is about to refuse must be one the row warns of *)
+        (match instructions.(t.pc) with
+         | Op { op = Out _; _ }
+           when config.autopull
+                && config.autopull_data
+                && t.osr_count >= config.pull_threshold
+                && t.data_age + 1 < Isa.data_settle ->
+           let ok =
+             match rows.(t.pc) with
+             | Some row -> row.may_underrun
+             | None -> false
+           in
+           if not ok then violations := (run, cycle, t.pc, phase t) :: !violations
+         | _ -> ());
         match instructions.(t.pc) with
         | Op { side_set; _ } when side_set_moves config t side_set ->
           Int.incr side_edges;

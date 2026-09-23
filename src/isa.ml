@@ -7,6 +7,7 @@ let timer_bits = 24
 let fraction_bits = 16
 let pc_bits = 9
 let data_addr_bits = 9
+let data_settle = 2
 let delay_bits = 5
 let max_side_set = 2
 let num_pins = 20

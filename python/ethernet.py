@@ -67,7 +67,7 @@ def words(data):
 
 def writes(frame, link_tenth=LINK_TENTH):
     """The register writes that send [frame]: stop the core and empty its fifos, load the
-    frame and start it again. The data memory is only written while the core is halted,
+    frame and start it again. The data memory is only written while every core is halted,
     and a start begins the firmware from the top, which reads the link interval and then
     the frame's length in bits less one."""
     data = wire(frame)

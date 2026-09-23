@@ -31,6 +31,7 @@ type t =
   ; program : int array
   ; data : int array
   ; data_ptr : int
+  ; data_age : int
   ; pc : int
   ; x : int
   ; y : int
@@ -75,6 +76,7 @@ let create ~config ~program =
   ; program
   ; data = Array.create ~len:data_size 0
   ; data_ptr = 0
+  ; data_age = Isa.data_settle
   ; pc = 0
   ; x = 0
   ; y = 0
@@ -189,11 +191,15 @@ let autopull_before_out t =
   then t
   else if c.autopull_data
   then
-    { t with
-      osr = t.data.(t.data_ptr)
-    ; osr_count = 0
-    ; data_ptr = (t.data_ptr + 1) % data_size
-    }
+    if t.data_age < Isa.data_settle
+    then fault { t with osr_count = 0 } (fun f -> { f with underflow = true })
+    else
+      { t with
+        osr = t.data.(t.data_ptr)
+      ; osr_count = 0
+      ; data_ptr = (t.data_ptr + 1) % data_size
+      ; data_age = 0
+      }
   else pull t
 ;;
 
@@ -416,7 +422,7 @@ let sys t (op : Isa.Sys_op.Cases.t) =
   | Crc_init -> { t with crc = t.config.crc_init }
   | Stuff_reset -> { t with stuff_run = 0 }
   | Capture_arm -> { t with capture_armed = true }
-  | Seek -> { t with data_ptr = t.x % data_size }
+  | Seek -> { t with data_ptr = t.x % data_size; data_age = 0 }
 ;;
 
 let execute t (op : Isa.Op.t) ~sample =
@@ -488,6 +494,7 @@ let step t ~inputs =
   let sample = sample_pins t ~inputs in
   let captured = capture_edge t ~sample in
   let now = t.now in
+  let t = { t with data_age = Int.min Isa.data_settle (t.data_age + 1) } in
   let t =
     (* a delay runs out whether or not the core has been halted in the meantime *)
     if t.stall > 0

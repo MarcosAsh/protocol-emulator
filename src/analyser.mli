@@ -47,6 +47,9 @@ module Row : sig
         edge before it, for each instruction it can follow: a timing that needs no
         deadline, so it holds inside a loop with none, like one sending a bit every four
         cycles, where the first bit's gap back to the idle line is another matter. *)
+    ; may_underrun : bool
+    (** An [out] that may take a data autopull sooner than [Isa.data_settle] cycles after
+        the data pointer moved. *)
     ; x : Interval.t
     ; y : Interval.t
     ; period : Interval.t
@@ -72,7 +75,8 @@ val analyse
 
 (** A line per row: address, instruction, phase, the slack of a deadline wait, [edge] or
     [sample] for what the instruction does to the pins and [side] where side-set changes
-    its pins, each with its jitter when there is any. *)
+    its pins, each with its jitter when there is any, and [MAY UNDERRUN] on a data pull
+    that may come too soon. *)
 val to_string : side_set_count:int -> Row.t list -> string
 
 module Verdict : sig
@@ -88,8 +92,9 @@ end
 
 (** Analyses a program under its own side-set count and wrap addresses and refuses it if
     any deadline wait can be reached with a phase above zero, which includes a phase with
-    no upper bound. The error lists every such wait as [to_string] prints it: address,
-    instruction, phase and slack. Only deadline waits the program can reach are counted. *)
+    no upper bound, or any data autopull may come too soon. The error lists every such row
+    as [to_string] prints it: address, instruction, phase and slack. Only rows the program
+    can reach are counted. *)
 val check
   :  ?period:int
   -> ?single_capture_edge:bool

@@ -241,7 +241,7 @@ module certificate (input clk);
     .program_write$data(16'b0), .data_write$valid(1'b0), .data_write$addr(9'b0),
     .data_write$data(16'b0), .tx$valid(tx_valid), .tx$value(tx_value), .rx_pop(rx_pop),
     .clear_irq(1'b0), .stop(1'b0), .flush(1'b0), .resume(1'b0), .single_step(1'b0),
-    .inputs(inputs), .sram_addr(sram_addr), .sram_dout(fetched), .data_dout(16'b0),
+    .inputs(inputs), .sram_addr(sram_addr), .sram_dout(fetched), .data_sram_dout(16'b0),
     .pc(pc), .t(t), .now(now), .x(x), .y(y), .p(p), .stall(stall), .halted(halted),
     .stepping(stepping), .instruction(instruction), .decode_ok(decode_ok),
     .opcode_onehot(opcode_onehot), .eng_issue(eng_issue), .eng_jmp_go(eng_jmp_go));

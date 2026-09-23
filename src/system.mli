@@ -3,7 +3,8 @@
     A pin carries the OR of what the engines drive onto it. An engine reads its own
     outputs back by itself; of the others it sees a bidirectional pin that one of them
     drives instead of the pad, and on a wire what any of them drives. All of this is taken
-    from the state before the step, as the pins are registers in the hardware. *)
+    from the state before the step, as the pins are registers in the hardware. The engines
+    share one data memory, so every [Machine] is given the same data. *)
 
 open! Core
 

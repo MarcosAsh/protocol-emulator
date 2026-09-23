@@ -17,7 +17,10 @@ let memory =
 
 let engines =
   Command.Param.(
-    flag "-engines" (optional_with_default 1 int) ~doc:"N cores, each with its own memory")
+    flag
+      "-engines"
+      (optional_with_default 1 int)
+      ~doc:"N cores, each with its own program memory")
 ;;
 
 let engine_rtl_command =
@@ -26,9 +29,9 @@ let engine_rtl_command =
     [%map_open.Command
       let memory = memory in
       fun () ->
-        let module C = Circuit.With_interface (Engine.I) (Engine.O) in
+        let module C = Circuit.With_interface (Solo.I) (Solo.O) in
         print_rtl ~name:"engine_top" (fun ~name scope ->
-          C.create_exn ~name (Engine.hierarchical ~memory scope))]
+          C.create_exn ~name (Solo.hierarchical ~memory scope))]
 ;;
 
 let top_rtl_command =
@@ -43,8 +46,8 @@ let top_rtl_command =
           C.create_exn ~name (Top.hierarchical ~memory ~engines scope))]
 ;;
 
-(* The assumptions are the analyser's, under its names. The capture pin belongs to the
-   configuration, which the host loads and a source file does not carry. *)
+(* The assumptions are the analyser's, under its names. The capture pin and autopull
+   belong to the configuration, which the host loads and a source file does not carry. *)
 let timing_check =
   [%map_open.Command
     let period =
@@ -64,6 +67,11 @@ let timing_check =
         ~doc:"N the capture pin that assumption is about"
     and capture_falling =
       flag "-capture-falling" no_arg ~doc:" the capture is of a falling edge"
+    and autopull_data =
+      flag
+        "-autopull-data"
+        (optional int)
+        ~doc:"N every out autopulls from the data memory once N bits are shifted out"
     and no_timing_check =
       flag "-no-timing-check" no_arg ~doc:" assemble firmware that may miss a deadline"
     in
@@ -75,6 +83,10 @@ let timing_check =
           { Program_config.default with
             capture_pin
           ; capture_rising = not capture_falling
+          ; autopull = Option.is_some autopull_data
+          ; autopull_data = Option.is_some autopull_data
+          ; pull_threshold =
+              Option.value autopull_data ~default:Program_config.default.pull_threshold
           }
         in
         Analyser.check ?period ~single_capture_edge ~config program

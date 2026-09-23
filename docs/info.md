@@ -11,9 +11,11 @@ You can also include images in this folder and reference them in the markdown. E
 
 Two small programmable cores bit-bang the pins with cycle-exact timing, so UART, SPI
 and I2C are programs, not fixed logic. Each core's firmware lives in its own 512-word IHP
-SRAM macro and is loaded at runtime by the host over SPI. A second 512-word macro per
-core holds data the host loads, a frame or a string of pixels, which autopull streams
-out as fast as a word a cycle from wherever `seek` points it. In Manchester mode an
+SRAM macro and is loaded at runtime by the host over SPI. A third 512-word macro, shared
+by the two cores, holds data the host loads, a frame or a string of pixels, which
+autopull streams out as fast as a word every other cycle from wherever `seek` points it.
+The cores take turns at it a cycle each, so a pull sooner than that is refused, and the
+assembler refuses firmware that can make one. In Manchester mode an
 `out pins, 1` drives a bit as a pair of pins, complement first, and the pair flips when
 the next instruction issues, which is what lets a four-cycle loop send 10BASE-T.
 

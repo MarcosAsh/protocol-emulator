@@ -32,6 +32,8 @@ module Make (Config : Config) = struct
     [@@deriving hardcaml]
   end
 
+  module Data_memory = Data_memory.Make (Config)
+
   let any (outs : Signal.t Engine.O.t list) ~f = List.map outs ~f |> reduce ~f:( |: )
 
   (* What an engine finds on the pins besides itself: the pads, except where another
@@ -51,27 +53,39 @@ module Make (Config : Config) = struct
 
   let create ~memory (scope : Scope.t) (i : Signal.t I.t) =
     let outs = List.init engines ~f:(fun _ -> Engine.O.Of_signal.wires ()) in
-    List.iteri (List.zip_exn i.hosts outs) ~f:(fun n ((host : _ Engine.Host.t), out) ->
-      let others = List.filteri outs ~f:(fun m _ -> m <> n) in
-      Engine.hierarchical
-        ~instance:[%string "engine_%{n#Int}"]
+    let data =
+      Data_memory.hierarchical
         ~memory
         scope
         { clocking = i.clocking
-        ; config = host.config
-        ; start = host.start
-        ; program_write = host.program_write
-        ; data_write = host.data_write
-        ; tx = host.tx
-        ; rx_pop = host.rx_pop
-        ; clear_irq = host.clear_irq
-        ; stop = host.stop
-        ; flush = host.flush
-        ; resume = host.resume
-        ; single_step = host.single_step
-        ; inputs = seen ~pads:i.pads ~others
+        ; halted = List.map outs ~f:(fun e -> e.halted)
+        ; writes = List.map i.hosts ~f:(fun h -> h.data_write)
+        ; reads = List.map outs ~f:(fun e -> e.data_addr)
         }
-      |> Engine.O.Of_signal.assign out);
+    in
+    List.iteri
+      (List.zip_exn (List.zip_exn i.hosts outs) data.words)
+      ~f:(fun n (((host : _ Engine.Host.t), out), data_word) ->
+        let others = List.filteri outs ~f:(fun m _ -> m <> n) in
+        Engine.hierarchical
+          ~instance:[%string "engine_%{n#Int}"]
+          ~memory
+          scope
+          { clocking = i.clocking
+          ; config = host.config
+          ; start = host.start
+          ; program_write = host.program_write
+          ; data_word
+          ; tx = host.tx
+          ; rx_pop = host.rx_pop
+          ; clear_irq = host.clear_irq
+          ; stop = host.stop
+          ; flush = host.flush
+          ; resume = host.resume
+          ; single_step = host.single_step
+          ; inputs = seen ~pads:i.pads ~others
+          }
+        |> Engine.O.Of_signal.assign out);
     let pin_out =
       match outs with
       (* with one engine the pad's output enable does this, and the chip stays as it was *)

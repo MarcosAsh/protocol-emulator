@@ -8,6 +8,8 @@ module State = struct
     ; y : Interval.t
     ; since_arm : Interval.t option
     ; since_edge : Interval.t (** Cycles since the last pin edge showed. *)
+    ; since_data : Interval.t (** Cycles since the data pointer last moved. *)
+    ; osr_count : Interval.t (** Bits shifted out since the last pull. *)
     ; side_set : int option
     ; flip : bool option (** Whether a Manchester bit waits for its second half. *)
     }
@@ -20,6 +22,8 @@ module State = struct
     ; y = Interval.top
     ; since_arm = None
     ; since_edge = Interval.top
+    ; since_data = { lo = Some Isa.data_settle; hi = None }
+    ; osr_count = Interval.exactly Isa.data_bits
     ; side_set = None
     ; flip = Some false
     }
@@ -35,6 +39,8 @@ module State = struct
          | Some a, Some b -> Some (Interval.join a b)
          | _ -> None)
     ; since_edge = Interval.join a.since_edge b.since_edge
+    ; since_data = Interval.join a.since_data b.since_data
+    ; osr_count = Interval.join a.osr_count b.osr_count
     ; side_set =
         Option.bind a.side_set ~f:(fun a ->
           Option.some_if ([%equal: int option] (Some a) b.side_set) a)
@@ -52,6 +58,8 @@ module State = struct
     ; since_arm =
         Option.map2 old.since_arm t.since_arm ~f:(fun old t -> Interval.widen ~old t)
     ; since_edge = Interval.widen ~old:old.since_edge t.since_edge
+    ; since_data = Interval.widen ~old:old.since_data t.since_data
+    ; osr_count = t.osr_count
     ; side_set = t.side_set
     ; flip = t.flip
     }
@@ -62,6 +70,7 @@ module State = struct
       phase = Interval.shift t.phase n
     ; since_arm = Option.map t.since_arm ~f:(fun s -> Interval.shift s n)
     ; since_edge = Interval.shift t.since_edge n
+    ; since_data = Interval.shift t.since_data n
     }
   ;;
 end
@@ -107,6 +116,7 @@ module Row = struct
     ; side_event : Side_event.t option
     ; flip : Interval.t option
     ; gaps : (int * Interval.t) list
+    ; may_underrun : bool
     ; x : Interval.t
     ; y : Interval.t
     ; period : Interval.t
@@ -168,6 +178,43 @@ let at_issue (s : State.t) (t : Isa.t) =
   | Some true -> { s with since_edge = Interval.exactly (-1) }
   | None -> { s with since_edge = Interval.join (Interval.exactly (-1)) s.since_edge }
   | Some false -> s
+;;
+
+(* Whether an [out] autopulls before it shifts, on every way in or on some. *)
+let autopulls (c : Program_config.t) (s : State.t) (op : Isa.Op.t) =
+  match op with
+  | Out _ when c.autopull ->
+    if Option.value_map s.osr_count.lo ~default:false ~f:(fun lo ->
+         lo >= c.pull_threshold)
+    then `Always
+    else if Option.value_map s.osr_count.hi ~default:true ~f:(fun hi ->
+              hi >= c.pull_threshold)
+    then `Sometimes
+    else `Never
+  | _ -> `Never
+;;
+
+let may_pull_data (c : Program_config.t) s op =
+  c.autopull_data
+  &&
+  match autopulls c s op with
+  | `Always | `Sometimes -> true
+  | `Never -> false
+;;
+
+(* the shift count saturates at a word *)
+let shift_out (c : Program_config.t) (s : State.t) (op : Isa.Op.t) ~count =
+  let before =
+    match autopulls c s op with
+    | `Always -> Interval.exactly 0
+    | `Sometimes -> Interval.join (Interval.exactly 0) s.osr_count
+    | `Never -> s.osr_count
+  in
+  let full n = Int.min n Isa.data_bits in
+  let after = Interval.shift before count in
+  { Interval.lo = Some (full (Option.value after.lo ~default:0))
+  ; hi = Some (full (Option.value after.hi ~default:Isa.data_bits))
+  }
 ;;
 
 (* A Manchester [out] leaves its second half to the next instruction to issue. *)
@@ -234,6 +281,23 @@ let step ?period ?(single_capture_edge = false) ~config (s : State.t) pc (t : Is
       else { s with side_set = Option.some_if (not (writes_side_set config op)) side_set }
     in
     let s = { s with flip = Some (starts_flip config op) } in
+    let s =
+      match op with
+      | Sys Seek -> { s with since_data = Interval.exactly 0 }
+      | Out _ when config.autopull_data ->
+        (match autopulls config s op with
+         | `Always -> { s with since_data = Interval.exactly 0 }
+         | `Sometimes ->
+           { s with since_data = Interval.join (Interval.exactly 0) s.since_data }
+         | `Never -> s)
+      | _ -> s
+    in
+    let s =
+      match op with
+      | Out { count; _ } -> { s with osr_count = shift_out config s op ~count }
+      | Sys Pull | Mov { dest = Osr; _ } -> { s with osr_count = Interval.exactly 0 }
+      | _ -> s
+    in
     let next = delay + 1 in
     let after (s : State.t) = [ following, State.elapse s next ] in
     (match op with
@@ -248,7 +312,13 @@ let step ?period ?(single_capture_edge = false) ~config (s : State.t) pc (t : Is
        in
        let phase = if advance then Interval.minus released period else released in
        let since_arm = Option.map s.since_arm ~f:(fun a -> Interval.plus a stall) in
-       after { s with phase; since_arm; since_edge = Interval.plus s.since_edge stall }
+       after
+         { s with
+           phase
+         ; since_arm
+         ; since_edge = Interval.plus s.since_edge stall
+         ; since_data = Interval.plus s.since_data stall
+         }
      | Wait ((Pin_level _ | Pin_edge _ | Fifo _) as wait) ->
        let unbounded (i : Interval.t) = { i with hi = None } in
        (* The capture is the edge the wait releases on, or an earlier one since the arm,
@@ -264,6 +334,7 @@ let step ?period ?(single_capture_edge = false) ~config (s : State.t) pc (t : Is
            phase = unbounded s.phase
          ; since_arm
          ; since_edge = unbounded s.since_edge
+         ; since_data = unbounded s.since_data
          }
      | Mov { dest = T; op = Copy; source = Now } ->
        after { s with phase = Interval.exactly 0 }
@@ -412,6 +483,13 @@ let analyse ?period ?single_capture_edge ~config (program : Isa.t list) =
       (* it shows the cycle after the next instruction issues, as the out's own half did *)
       let flip = Option.map flip_edge.(pc) ~f:(fun at -> Interval.shift at 1) in
       let gaps = List.sort gaps.(pc) ~compare:(fun (a, _) (b, _) -> Int.compare b a) in
+      let may_underrun =
+        match instruction with
+        | Op { op; _ } when may_pull_data config s op ->
+          Option.value_map s.since_data.lo ~default:true ~f:(fun lo ->
+            lo < Isa.data_settle)
+        | _ -> false
+      in
       { Row.pc
       ; instruction
       ; phase = s.phase
@@ -421,6 +499,7 @@ let analyse ?period ?single_capture_edge ~config (program : Isa.t list) =
       ; side_event
       ; flip
       ; gaps
+      ; may_underrun
       ; x = s.x
       ; y = s.y
       ; period = s.period
@@ -456,8 +535,9 @@ let to_string ~side_set_count rows =
             (List.map r.gaps ~f:(fun (from, gap) ->
                [%string "%{Interval.to_string gap} from %{from#Int}"]))
     in
+    let underrun = if r.may_underrun then "  MAY UNDERRUN" else "" in
     sprintf
-      "%3d  %-28s phase %s%s%s%s%s%s"
+      "%3d  %-28s phase %s%s%s%s%s%s%s"
       r.pc
       text
       (Interval.to_string r.phase)
@@ -465,7 +545,8 @@ let to_string ~side_set_count rows =
       pin_event
       side_event
       flip
-      gap)
+      gap
+      underrun)
   |> String.concat ~sep:"\n"
 ;;
 
@@ -496,8 +577,9 @@ let check ?period ?single_capture_edge ~config (program : Asm.Program.t) =
       program.instructions
   in
   let waits = List.filter rows ~f:(fun r -> Option.is_some r.slack) in
-  match List.filter waits ~f:(fun r -> r.may_miss) with
-  | [] ->
+  let underruns = List.filter rows ~f:(fun r -> r.may_underrun) in
+  match List.filter waits ~f:(fun r -> r.may_miss), underruns with
+  | [], [] ->
     let worst_slack =
       List.filter_map waits ~f:(fun r -> Option.bind r.slack ~f:(fun s -> s.lo))
       |> List.min_elt ~compare:Int.compare
@@ -507,13 +589,26 @@ let check ?period ?single_capture_edge ~config (program : Asm.Program.t) =
       ; deadline_waits = List.length waits
       ; worst_slack
       }
-  | misses ->
+  | misses, underruns ->
     let unbounded = List.exists misses ~f:(fun r -> Option.is_none r.phase.hi) in
-    [ [ [%string
-          "%{List.length misses#Int} of %{List.length waits#Int} deadline waits may be \
-           missed"]
-      ; to_string ~side_set_count:program.side_set_count misses
-      ]
+    let rows = to_string ~side_set_count:program.side_set_count in
+    [ (if List.is_empty misses
+       then []
+       else
+         [ [%string
+             "%{List.length misses#Int} of %{List.length waits#Int} deadline waits may \
+              be missed"]
+         ; rows misses
+         ])
+    ; (if List.is_empty underruns
+       then []
+       else
+         [ (let pulls = if List.length underruns = 1 then "pull" else "pulls" in
+            [%string
+              "%{List.length underruns#Int} data %{pulls} may come within \
+               %{Isa.data_settle - 1#Int} cycle of the pointer moving"])
+         ; rows underruns
+         ])
     ; (if unbounded
        then
          [ "a bound of ? means none: the way here has a wait for a pin or a fifo, a \

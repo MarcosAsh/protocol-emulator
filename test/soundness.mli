@@ -5,7 +5,8 @@
 
     Side-set is checked on its own: an issue that finds its side-set pins at another level
     moves them, and the row must claim a side edge that covers the cycle they show it. So
-    is the second half of a Manchester bit, which the issue after the [out] brings. *)
+    is the second half of a Manchester bit, which the issue after the [out] brings, and
+    every data pull the model refuses must be on a row that says it may be. *)
 
 open! Core
 open Protocol_emulator

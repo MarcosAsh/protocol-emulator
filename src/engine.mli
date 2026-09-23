@@ -99,7 +99,7 @@ module I : sig
     ; config : 'a Config.t (** Held constant while running. *)
     ; start : 'a (** Pulse while halted. *)
     ; program_write : 'a Program_write.t (** Only while halted. *)
-    ; data_write : 'a Program_write.t (** Into the data memory, only while halted. *)
+    ; data_word : 'a (** The data memory's word at [data_ptr], see [Data_memory]. *)
     ; tx : 'a With_valid.t (** A word for the core's tx fifo. *)
     ; rx_pop : 'a (** Pops the rx fifo; [rx_head] is the word popped. *)
     ; clear_irq : 'a
@@ -126,6 +126,7 @@ module O : sig
     ; pin_dir : 'a (** Set for a bidirectional pin the core drives. *)
     ; pc : 'a
     ; data_ptr : 'a
+    ; data_addr : 'a (** Where [data_ptr] will be next cycle. *)
     ; x : 'a
     ; y : 'a
     ; p : 'a

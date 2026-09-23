@@ -51,6 +51,10 @@ type t = private
   ; program : int array
   ; data : int array (** Loaded by the host while the core is halted. *)
   ; data_ptr : int (** The word the next data autopull takes. *)
+  ; data_age : int
+  (** Cycles since a data pull or a seek moved [data_ptr], counted up to
+      [Isa.data_settle]. A data pull any sooner is refused as a pull from an empty fifo
+      is. *)
   ; pc : int
   ; x : int
   ; y : int

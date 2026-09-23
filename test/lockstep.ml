@@ -2,7 +2,7 @@ open! Core
 open! Hardcaml
 open! Hardcaml_test_harness
 open Protocol_emulator
-module Harness = Lws_harness.Make (Engine.I) (Engine.O)
+module Harness = Lws_harness.Make (Solo.I) (Solo.O)
 
 let debug = false
 let ( <--. ) = Bits.( <--. )
@@ -152,7 +152,7 @@ let run
     ~waves_config:
       (if debug then Waves_config.to_home_subdirectory () else Waves_config.no_waves)
     ~random_initial_state:`All
-    ~create:(Engine.hierarchical ~memory:Flops)
+    ~create:(Solo.hierarchical ~memory:Flops)
     (fun (h @ local) ~inputs:i ~outputs ->
       let cycle () = Hardcaml_lws.Lws.cycle h in
       let after () = Before_and_after_edge.after_edge outputs in

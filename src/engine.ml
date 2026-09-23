@@ -135,7 +135,7 @@ module I = struct
     ; config : 'a Config.t
     ; start : 'a
     ; program_write : 'a Program_write.t
-    ; data_write : 'a Program_write.t
+    ; data_word : 'a [@bits Isa.data_bits]
     ; tx : 'a With_valid.t [@bits Isa.data_bits]
     ; rx_pop : 'a
     ; clear_irq : 'a
@@ -154,6 +154,7 @@ module O = struct
     ; pin_dir : 'a [@bits num_pins]
     ; pc : 'a [@bits Isa.pc_bits]
     ; data_ptr : 'a [@bits Isa.data_addr_bits]
+    ; data_addr : 'a [@bits Isa.data_addr_bits]
     ; x : 'a [@bits Isa.data_bits]
     ; y : 'a [@bits Isa.data_bits]
     ; p : 'a [@bits Isa.data_bits]
@@ -237,6 +238,7 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   let%hw fetch_addr = wire pc_bits in
   let%hw data_ptr = wire Isa.data_addr_bits in
   let%hw data_ptr_next = wire Isa.data_addr_bits in
+  let%hw data_moved = wire 1 in
   let%hw ir_load = wire 1 in
   let%hw start = reg spec i.start in
   (* a resume or a step fetches the word at the pc again, as a start does at 0; a second
@@ -273,27 +275,10 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
     ; bm = ones Isa.word_bits
     }
   in
-  let memory_of memory_in ?instance () =
+  let memory =
     match memory with
-    | Flops -> Program_memory.hierarchical ?instance scope memory_in
-    | Ihp_sram -> Sram_macro.hierarchical ?instance scope memory_in
-  in
-  let memory = memory_of memory_in () in
-  (* The data memory reads ahead at the pointer's next value, so its output is always the
-     word at the pointer, the one a data autopull takes. The host writes it while halted. *)
-  let%hw data_write = i.data_write.valid &: halted in
-  let data_memory =
-    memory_of
-      { Program_memory.I.clock = i.clocking.clock
-      ; men = vdd
-      ; wen = data_write
-      ; ren = vdd
-      ; addr = mux2 data_write i.data_write.addr data_ptr_next
-      ; din = i.data_write.data
-      ; bm = ones Isa.data_bits
-      }
-      ~instance:"data_memory"
-      ()
+    | Flops -> Program_memory.hierarchical scope memory_in
+    | Ihp_sram -> Sram_macro.hierarchical scope memory_in
   in
   (* The memory runs a cycle ahead of the instruction register and is refilled after a
      jump or a start, which is where the second cycle of a jump goes. *)
@@ -438,11 +423,13 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   let%hw isr_count_next = saturate isr_count shift_count in
   let%hw autopush_now = c.autopush &: (isr_count_next >=: c.push_threshold) in
   let%hw pull_now = c.autopull &: (osr_count >=: c.pull_threshold) in
-  (* the data memory never runs dry, the tx fifo can *)
+  (* The data memory is shared, so the word at a pointer that moved last cycle may not
+     have arrived: that pull is refused as a pull from an empty fifo is. *)
   let%hw pull_data = pull_now &: c.autopull_data in
+  let%hw pull_data_ok = pull_data &: ~:data_moved in
   let%hw pull_fifo = pull_now &: ~:(c.autopull_data) in
   let%hw pull_ok = pull_fifo &: ~:(tx.empty) in
-  let%hw osr_before = mux2 pull_data data_memory.dout @@ mux2 pull_ok tx.head osr in
+  let%hw osr_before = mux2 pull_data_ok i.data_word @@ mux2 pull_ok tx.head osr in
   let%hw osr_count_before = mux2 pull_now (zero count_bits) osr_count in
   let%hw out_value =
     mux2
@@ -773,7 +760,11 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   let sticky set = reg spec ~enable:set vdd in
   let fault =
     { Fault.underflow =
-        sticky (op_go &: (is Out &: pull_fifo &: tx.empty |: (pulls &: tx.empty)))
+        sticky
+          (op_go
+           &: (is Out
+               &: (pull_fifo &: tx.empty |: (pull_data &: data_moved))
+               |: (pulls &: tx.empty)))
     ; overflow = sticky (op_go &: pushes &: rx.full)
     ; missed_deadline = sticky (op_go &: releases_deadline &: deadline_late)
     ; decode = sticky (issue &: ~:decode_ok)
@@ -788,11 +779,15 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   p <-- reg spec ~enable:go p_next;
   t <-- reg spec ~enable:go t_next;
   t_fraction <-- reg spec ~enable:go t_fraction_next;
+  let%hw seeks = op_go &: is_sys Seek in
+  let%hw pulls_data = op_go &: is Out &: pull_data_ok in
+  (* the pointer is at 0 from the start pulse on, so the word is there by the first issue *)
   data_ptr_next
-  <-- mux2 start (zero Isa.data_addr_bits)
-      @@ mux2 (op_go &: is_sys Seek) (sel_bottom x ~width:Isa.data_addr_bits)
-      @@ mux2 (op_go &: is Out &: pull_data) (data_ptr +:. 1) data_ptr;
+  <-- mux2 (i.start |: start) (zero Isa.data_addr_bits)
+      @@ mux2 seeks (sel_bottom x ~width:Isa.data_addr_bits)
+      @@ mux2 pulls_data (data_ptr +:. 1) data_ptr;
   data_ptr <-- reg spec data_ptr_next;
+  data_moved <-- reg spec (mux2 start gnd (seeks |: pulls_data));
   osr <-- reg spec ~enable:go osr_next;
   osr_count
   <-- reg
@@ -834,6 +829,7 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   ; pin_dir
   ; pc
   ; data_ptr
+  ; data_addr = data_ptr_next
   ; x
   ; y
   ; p

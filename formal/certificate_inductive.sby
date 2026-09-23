@@ -23,12 +23,12 @@ cd engine_top
 # the core's own notion of issuing and of taking a jump, which the interface does not
 # carry out but induction needs, since the state it starts from has no history to infer
 # them from
-expose w:engine.issue w:engine.jmp_go
-rename engine.issue eng_issue
-rename engine.jmp_go eng_jmp_go
-rename engine.sram_macro.sram__A_ADDR sram_addr
-rename engine.sram_macro.sram__A_DOUT sram_dout
-rename engine.data_memory.sram__A_DOUT data_dout
+expose w:solo.engine.issue w:solo.engine.jmp_go
+rename solo.engine.issue eng_issue
+rename solo.engine.jmp_go eng_jmp_go
+rename solo.engine.sram_macro.sram__A_ADDR sram_addr
+rename solo.engine.sram_macro.sram__A_DOUT sram_dout
+rename solo.data_memory.sram_macro.sram__A_DOUT data_sram_dout
 cd ..
 prove: read_verilog -formal -sv certificate.sv
 teeth: read_verilog -formal -sv -DTEETH certificate.sv

@@ -33,6 +33,11 @@ val pc_bits : int
 (** The data memory is the same macro as the program memory, 512 words. *)
 val data_addr_bits : int
 
+(** The engines share the data memory and take turns at it, so after a data autopull or a
+    [Seek] moves an engine's pointer the next data autopull waits this many cycles, or it
+    is refused and sets [underflow]. *)
+val data_settle : int
+
 val delay_bits : int
 val max_side_set : int
 val num_pins : int

@@ -1,5 +1,6 @@
 (** The cores of the chip and the pins between them. Each engine is an instance [engine_n]
-    with its own program memory and its own host port fields.
+    with its own program memory and its own host port fields, and they share one
+    [Data_memory], which any engine's host fields write while every engine is halted.
 
     A pin carries the OR of what the engines drive onto it: an output pin what they hold,
     a bidirectional pin what those with its direction bit set hold. Where another engine

@@ -72,7 +72,8 @@ class Host:
         self.write(PROGRAM, words)
 
     def load_data(self, words, address=0):
-        """Fill the data memory, for autopull_data; only while the core is halted."""
+        """Fill the data memory, for autopull_data. The cores share it, so the words land
+        only while every core is halted."""
         self.write(DATA_ADDR, [address])
         self.write(DATA, words)
 
