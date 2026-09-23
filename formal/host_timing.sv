@@ -34,6 +34,8 @@ module step (
 `endif
   wire [15:0] instruction;
   wire [7:0] opcode_onehot;
+  wire [27:0] wait_select;
+  wire [27:0] wait_pin = 28'd1 << instruction[4:0];
 
   engine_top dut (
     .clock(clock), .clear(clear),
@@ -58,6 +60,7 @@ module step (
     .clear_irq(clear_irq), .stop(stop), .flush(flush), .resume(resume),
     .single_step(single_step), .inputs(inputs),
     .pin_out(pin_out), .pin_dir(pin_dir), .instruction(instruction), .opcode_onehot(opcode_onehot),
+    .wait_select(wait_select),
     .fault$underflow(underflow), .fault$overflow(overflow),
     .sram_addr(sram_addr), .sram_men(sram_men), .sram_ren(sram_ren), .sram_wen(sram_wen),
     .sram_dout(fetched),
@@ -70,9 +73,10 @@ module step (
     .rx_fifo_head(rx_head), .rx_fifo_level(rx_level), .rx_fifo_empty(rx_empty),
     .rx_fifo_full(rx_full));
 
-  // the core acts on the opcode it registered beside the instruction; issue_timing
-  // proves the two always agree, so only such states are considered
+  // the core acts on the opcode and the wait pin it registered beside the instruction;
+  // issue_timing proves they always agree with it, so only such states are considered
   always @(*) assume(opcode_onehot == 8'b1 << instruction[15:13]);
+  always @(*) assume(wait_select == wait_pin);
   assign fifo_wait = 0
 `ifndef NO_WAIT_EXCUSE
     || (instruction[15:13] == 1 && instruction[6:5] == 3)

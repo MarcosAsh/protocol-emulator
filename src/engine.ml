@@ -179,6 +179,7 @@ module O = struct
     ; instruction : 'a [@bits Isa.word_bits]
     ; decode_ok : 'a
     ; opcode_onehot : 'a [@bits List.length Isa.Opcode.Cases.all]
+    ; wait_select : 'a [@bits num_pins]
     ; crc : 'a [@bits Isa.data_bits]
     ; stuff_run : 'a [@bits Isa.count_bits]
     ; flip_pending : 'a
@@ -309,7 +310,7 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
            ; jmp_target
            ; wait_polarity
            ; wait_source
-           ; wait_index
+           ; wait_index = _
            ; shift_count
            ; in_source
            ; out_dest
@@ -341,13 +342,23 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
         ~clear_to:(of_bool (Isa.Opcode.to_int op = 0))
         (Isa.Opcode.Of_signal.is fetched.opcode op))
   in
+  (* The pin a wait watches, one-hot and registered with the word: the pin it picks comes
+     off flops of its own and not through the instruction register's fanout, which was the
+     start of the slowest path to the memory. *)
+  let%hw wait_select =
+    reg
+      spec
+      ~enable:ir_load
+      ~clear_to:(of_unsigned_int ~width:num_pins 1)
+      (binary_to_onehot fetched.wait_index |> sel_bottom ~width:num_pins)
+  in
   let is op = List.nth_exn is_opcode (Isa.Opcode.to_int op) in
   let is_sys op = is Sys &: Isa.Sys_op.Of_signal.is sys_op op in
   let module Deadline = Deadline.Make (Signal) in
   let%hw deadline_ready = Deadline.release ~now ~t in
   let%hw deadline_late = Deadline.late ~now ~t in
-  let%hw wait_pin_prev = pin_of pins_sampled wait_index in
-  let%hw wait_pin_cur = pin_of sample wait_index in
+  let%hw wait_pin_prev = pins_sampled &: wait_select <>:. 0 in
+  let%hw wait_pin_cur = sample &: wait_select <>:. 0 in
   let%hw wait_ready =
     Isa.Wait_source.Of_signal.match_
       wait_source
@@ -854,6 +865,7 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   ; instruction = word
   ; decode_ok
   ; opcode_onehot = concat_lsb is_opcode
+  ; wait_select
   ; crc
   ; stuff_run
   ; flip_pending

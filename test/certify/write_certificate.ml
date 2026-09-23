@@ -117,9 +117,9 @@ endmodule
    - the instruction register holds the word at the pc and the memory's output the word
      after it, but in the second cycle of a jump, when the output is the word at the new
      pc and the register still the jump;
-   - the opcode and the decode flag, which the core registers beside the word, say what
-     the word says: they are state of their own, and induction would start them
-     disagreeing with it and let a wait retire before its deadline;
+   - the opcode, the decode flag and the wait pin, which the core registers beside the
+     word, say what the word says: they are state of their own, and induction would start
+     them disagreeing with it and let a wait retire before its deadline;
    - what is left of a delay brings the next issue to the phase its row allows;
    - a wait that stalls has reached its row and, on a deadline, not yet the deadline;
    - x, y and p hold what the analyser says they hold on the way into the pc;
@@ -375,6 +375,8 @@ module certificate (input clk);
   wire [23:0] t, now;
   wire [15:0] x, y, p, instruction;
   wire [7:0] opcode_onehot;
+  wire [27:0] wait_select;
+  wire [27:0] wait_pin = 28'd1 << instruction[4:0];
   wire [4:0] stall;
   wire halted, stepping, decode_ok, eng_issue, eng_jmp_go, flip_pending;
   engine_top dut (
@@ -387,7 +389,8 @@ module certificate (input clk);
     .inputs(inputs), .sram_addr(sram_addr), .sram_dout(fetched), .data_sram_dout(16'b0),
     .pc(pc), .t(t), .now(now), .x(x), .y(y), .p(p), .stall(stall), .halted(halted),
     .stepping(stepping), .instruction(instruction), .decode_ok(decode_ok),
-    .opcode_onehot(opcode_onehot), .flip_pending(flip_pending), .eng_issue(eng_issue),
+    .opcode_onehot(opcode_onehot), .wait_select(wait_select), .flip_pending(flip_pending),
+    .eng_issue(eng_issue),
     .eng_jmp_go(eng_jmp_go));
 
   // the engine's own signals, not a shadow of them worked out from the delay left: in the
@@ -431,6 +434,7 @@ module certificate (input clk);
     if (running) begin
       assert (!halted && !stepping && !started);
       assert (decode_ok && opcode_onehot == (8'd1 << instruction[15:13]));
+      assert (wait_select == wait_pin);
       if (!jumped) assert (instruction == rom(pc) && fetched == rom(after(pc)));
       if (jumped) assert (stall == 1 && fetched == rom(pc));
       if (stalled) assert (instruction[15:13] == 1);

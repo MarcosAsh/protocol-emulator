@@ -151,6 +151,8 @@ module O : sig
     ; instruction : 'a (** The word at [pc]. *)
     ; decode_ok : 'a (** Registered with [instruction]: whether it decodes. *)
     ; opcode_onehot : 'a (** Registered with [instruction]: bit [n] for opcode [n]. *)
+    ; wait_select : 'a
+    (** Registered with [instruction]: bit [n] for the pin its wait field names. *)
     ; crc : 'a
     ; stuff_run : 'a
     ; flip_pending : 'a
