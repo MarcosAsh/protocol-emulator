@@ -46,24 +46,20 @@ certificate: engine.v
 # all time and not only to a depth: make inductive_certificate NAME=uart_tx16. The teeth
 # run adds one claim that is false in any run, because induction proves anything from an
 # invariant no state satisfies, so it has to fail.
-ASSUME =
 inductive_certificate: engine_sram.v
-	(cd .. && dune exec -- test/certify/write_certificate.exe -inductive $(ASSUME) $(NAME)) > certificate.sv
+	(cd .. && dune exec -- test/certify/write_certificate.exe -inductive $(NAME)) > certificate.sv
 	sby -f -d certificate_$(NAME)_inductive certificate_inductive.sby prove
 	sby -f -d certificate_$(NAME)_teeth certificate_inductive.sby teeth
 
-# The firmware whose certificates close as an invariant, which rests on nothing at all,
-# and the firmware that needs the one assumption: ws2812's reset gap is a loop anchoring
-# no deadline, so the analyser leaves its phase without a floor and 24 bits of it wrap;
-# the others wait on the host or anchor on a captured edge, which can lie as far back.
-INDUCTIVE = uart_tx uart_tx16 spi_master ethernet jtag spi_slave i2c_slave i2c_logger \
-  usb_tx edge_meter one_wire ps2
-INDUCTIVE_ASSUMING_NO_WRAP = ws2812 uart_tx_host_rate uart_rx usb_rx usb_device i2c_master
+# Every firmware in test/certified.ml, each under what its entry there says it assumes,
+# which the certificate prints: nothing for most; for ws2812, whose reset gap is a loop
+# anchoring no deadline, and for the firmware that waits on the host or anchors on a
+# captured edge, that the core is within 84 ms of its deadline and of that edge, since
+# 24 bits of the difference wrap beyond it.
+INDUCTIVE = uart_tx uart_tx16 uart_tx_host_rate uart_rx spi_master spi_slave i2c_master \
+  i2c_slave i2c_logger usb_tx usb_rx usb_device edge_meter ws2812 ethernet one_wire ps2 jtag
 inductive_certificates: engine_sram.v
 	for name in $(INDUCTIVE); do $(MAKE) inductive_certificate NAME=$$name || exit 1; done
-	for name in $(INDUCTIVE_ASSUMING_NO_WRAP); do \
-	  $(MAKE) inductive_certificate NAME=$$name ASSUME=-no-wrap || exit 1; \
-	done
 
 .PHONY: all issue_timing host_timing fifo_order teeth certificates certificate \
   inductive_certificate inductive_certificates

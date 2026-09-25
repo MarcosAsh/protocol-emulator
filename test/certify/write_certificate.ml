@@ -3,33 +3,6 @@ open! Hardcaml
 open Protocol_emulator
 open Protocol_emulator_test
 
-(* The firmware whose certificates are checked on the RTL: each is analysed with no
-   assumption about the world, so the pins and the host can do anything. *)
-let firmwares =
-  [ "uart_tx", Firmware.uart_tx ~period:8, Program_config.default
-    (* the same UART at the slower bit period the tests use, for the deep run *)
-  ; "uart_tx16", Firmware.uart_tx ~period:16, Program_config.default
-  ; "spi_master", Firmware.spi_master ~half_period:8, Firmware.spi_config
-  ; "ws2812", Ws2812.firmware ~third:6 ~tail:7, Ws2812.config
-  ; "ethernet", Ethernet.firmware, Ethernet.config
-  ; "jtag", Jtag.firmware ~half_period:Jtag.shortest_half, Jtag.config
-  ; "uart_rx", Firmware.uart_rx ~period:16, Firmware.rx_config
-  ; "spi_slave", Firmware.spi_slave, Firmware.spi_slave_config
-  ; "i2c_master", Firmware.i2c_master ~quarter:10, Firmware.i2c_config
-  ; "i2c_slave", Firmware.i2c_slave, Firmware.i2c_slave_config
-  ; "i2c_logger", Firmware.i2c_logger, Firmware.i2c_logger_config
-  ; "usb_tx", Firmware.usb_tx, Firmware.usb_config
-  ; "usb_rx", Firmware.usb_rx ~half_period:16, Firmware.usb_rx_config
-  ; ( "usb_device"
-    , Firmware.usb_device ~address:0 ~half_period:16
-    , Firmware.usb_device_config )
-  ; "edge_meter", Firmware.edge_meter ~period:16, Firmware.edge_meter_config
-  ; "one_wire", One_wire.firmware, One_wire.config
-  ; "ps2", Ps2.firmware, Ps2.config
-  ; "uart_tx_host_rate", Firmware.uart_tx_host_rate, Program_config.default
-  ]
-;;
-
 let harness ~config source =
   let program = Asm.assemble source |> ok_exn in
   let config = Asm.Program.configure program config in
@@ -496,13 +469,9 @@ endmodule
 let () =
   let args = Sys.get_argv () in
   let inductive_mode = Array.exists args ~f:(String.equal "-inductive") in
-  let no_wrap = Array.exists args ~f:(String.equal "-no-wrap") in
-  let name = Array.last_exn args in
-  match List.find firmwares ~f:(fun (n, _, _) -> String.equal n name) with
-  | None -> raise_s [%message "no such firmware" (name : string)]
-  | Some (_, source, config) ->
-    print_string
-      (if inductive_mode
-       then inductive ~no_wrap ~config source
-       else harness ~config source)
+  let { Certified.source; config; no_wrap; _ } =
+    Certified.find_exn (Array.last_exn args)
+  in
+  print_string
+    (if inductive_mode then inductive ~no_wrap ~config source else harness ~config source)
 ;;
