@@ -13,6 +13,20 @@ let firmwares =
   ; "ws2812", Ws2812.firmware ~third:6 ~tail:7, Ws2812.config
   ; "ethernet", Ethernet.firmware, Ethernet.config
   ; "jtag", Jtag.firmware ~half_period:Jtag.shortest_half, Jtag.config
+  ; "uart_rx", Firmware.uart_rx ~period:16, Firmware.rx_config
+  ; "spi_slave", Firmware.spi_slave, Firmware.spi_slave_config
+  ; "i2c_master", Firmware.i2c_master ~quarter:10, Firmware.i2c_config
+  ; "i2c_slave", Firmware.i2c_slave, Firmware.i2c_slave_config
+  ; "i2c_logger", Firmware.i2c_logger, Firmware.i2c_logger_config
+  ; "usb_tx", Firmware.usb_tx, Firmware.usb_config
+  ; "usb_rx", Firmware.usb_rx ~half_period:16, Firmware.usb_rx_config
+  ; ( "usb_device"
+    , Firmware.usb_device ~address:0 ~half_period:16
+    , Firmware.usb_device_config )
+  ; "edge_meter", Firmware.edge_meter ~period:16, Firmware.edge_meter_config
+  ; "one_wire", One_wire.firmware, One_wire.config
+  ; "ps2", Ps2.firmware, Ps2.config
+  ; "uart_tx_host_rate", Firmware.uart_tx_host_rate, Program_config.default
   ]
 ;;
 
@@ -127,6 +141,9 @@ endmodule
    - the pc is one the analyser reaches, and the instruction that issued last is one it
      says the pc can follow;
    - a Manchester bit's second half is pending only where the analyser says it can be;
+   - where the program reads the capture, the captured edge is a cycle that has passed,
+     which is what the analyser takes [mov t, capture] to load; the clock and the capture
+     start together at zero and the clock has moved on by the first issue;
    - the cycles since the last pin edge are what the analyser says for the way in from
      that instruction, on the way in and while a delay or a wait holds the core, which is
      what makes the gaps between edges hold in a loop that anchors no deadline. *)
@@ -177,6 +194,19 @@ let inductive ?(no_wrap = false) ~config source =
   let any = function
     | [] -> "0"
     | cases -> String.concat ~sep:" || " cases
+  in
+  let reads_capture (t : Isa.t) =
+    match t with
+    | Op { op = Mov { source = Capture; _ } | In { source = Capture; _ }; _ } -> true
+    | _ -> false
+  in
+  let anchors_on_capture =
+    List.exists rows ~f:(fun row -> reads_capture row.instruction)
+  in
+  let captured_has_passed =
+    if not anchors_on_capture
+    then ""
+    else "      assert ($signed(now - capture) >= (came_valid ? 24'sd1 : 24'sd0));\n"
   in
   let pin_writers =
     List.filter_map rows ~f:(fun row ->
@@ -331,14 +361,22 @@ let inductive ?(no_wrap = false) ~config source =
      runs out, so the analyser lets the core fall arbitrarily far behind its deadline and
      24 bits of the difference wrap. The core's own release compares the same 24 bits, so
      this is a bound the hardware keeps as well: a deadline older than about 168 ms at 50
-     MHz is a deadline it reads the wrong way round. *)
+     MHz is a deadline it reads the wrong way round. A wait for the host or for a pin can
+     stall for as long, and the captured edge a receiver anchors on can lie as far back on
+     a line that stays idle, so the same window covers those. *)
   let no_wrap =
     if not no_wrap
     then ""
     else
       "  // the certificate of a loop that anchors no deadline holds while the core is\n\
       \  // within 84 ms of it, which is the half of what its 24 bits can tell apart\n\
-      \  always @(*) assume (phase >= -24'sd4194304 && phase <= 24'sd4194304);\n\n"
+      \  always @(*) assume (phase >= -24'sd4194304 && phase <= 24'sd4194304);\n"
+      ^ (if not anchors_on_capture
+         then ""
+         else
+           "  // and as far from the edge it last captured\n\
+           \  always @(*) assume ($signed(now - capture) <= 24'sd4194304);\n")
+      ^ "\n"
   in
   let wrap_top = config.wrap_top in
   let wrap_bottom = config.wrap_bottom in
@@ -373,7 +411,7 @@ module certificate (input clk);
   wire [8:0] sram_addr, pc;
   reg [15:0] fetched;
   always @(posedge clk) fetched <= rom(sram_addr);
-  wire [23:0] t, now;
+  wire [23:0] t, now, capture;
   wire [15:0] x, y, p, instruction;
   wire [7:0] opcode_onehot;
   wire [27:0] wait_select;
@@ -388,7 +426,8 @@ module certificate (input clk);
     .data_write$data(16'b0), .tx$valid(tx_valid), .tx$value(tx_value), .rx_pop(rx_pop),
     .clear_irq(1'b0), .stop(1'b0), .flush(1'b0), .resume(1'b0), .single_step(1'b0),
     .inputs(inputs), .sram_addr(sram_addr), .sram_dout(fetched), .data_sram_dout(16'b0),
-    .pc(pc), .t(t), .now(now), .x(x), .y(y), .p(p), .stall(stall), .halted(halted),
+    .pc(pc), .t(t), .now(now), .capture(capture), .x(x), .y(y), .p(p), .stall(stall),
+    .halted(halted),
     .stepping(stepping), .instruction(instruction), .decode_ok(decode_ok),
     .opcode_onehot(opcode_onehot), .wait_select(wait_select), .flip_pending(flip_pending),
     .eng_issue(eng_issue),
@@ -434,7 +473,7 @@ module certificate (input clk);
 %{no_wrap}  always @(*)
     if (running) begin
       assert (!halted && !stepping && !started);
-      assert (decode_ok && opcode_onehot == (8'd1 << instruction[15:13]));
+%{captured_has_passed}      assert (decode_ok && opcode_onehot == (8'd1 << instruction[15:13]));
       assert (wait_select == wait_pin);
       if (!jumped) assert (instruction == rom(pc) && fetched == rom(after(pc)));
       if (jumped) assert (stall == 1 && fetched == rom(pc));
