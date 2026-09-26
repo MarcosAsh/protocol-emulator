@@ -7,6 +7,9 @@ module State = struct
     ; x : Interval.t
     ; y : Interval.t
     ; since_arm : Interval.t option
+    ; captured : bool
+    (** A wait for the captured edge has released since the last [capture_arm], on every
+        way in; until then the capture register holds an older edge. *)
     ; since_edge : Interval.t (** Cycles since the last pin edge showed. *)
     ; since_data : Interval.t (** Cycles since the data pointer last moved. *)
     ; osr_count : Interval.t (** Bits shifted out since the last pull. *)
@@ -21,6 +24,7 @@ module State = struct
     ; x = Interval.top
     ; y = Interval.top
     ; since_arm = None
+    ; captured = false
     ; since_edge = Interval.top
     ; since_data = { lo = Some Isa.data_settle; hi = None }
     ; osr_count = Interval.exactly Isa.data_bits
@@ -38,6 +42,7 @@ module State = struct
         (match a.since_arm, b.since_arm with
          | Some a, Some b -> Some (Interval.join a b)
          | _ -> None)
+    ; captured = a.captured && b.captured
     ; since_edge = Interval.join a.since_edge b.since_edge
     ; since_data = Interval.join a.since_data b.since_data
     ; osr_count = Interval.join a.osr_count b.osr_count
@@ -57,6 +62,7 @@ module State = struct
     ; y = Interval.widen ~old:old.y t.y
     ; since_arm =
         Option.map2 old.since_arm t.since_arm ~f:(fun old t -> Interval.widen ~old t)
+    ; captured = t.captured
     ; since_edge = Interval.widen ~old:old.since_edge t.since_edge
     ; since_data = Interval.widen ~old:old.since_data t.since_data
     ; osr_count = t.osr_count
@@ -324,16 +330,17 @@ let step ?period ?(single_capture_edge = false) ~config (s : State.t) pc (t : Is
        let unbounded (i : Interval.t) = { i with hi = None } in
        (* The capture is the edge the wait releases on, or an earlier one since the arm,
           but only if the line made one edge; otherwise it can be any age. *)
+       let capturing = single_capture_edge && captures config wait in
        let since_arm =
          match s.since_arm with
-         | Some since when single_capture_edge && captures config wait ->
-           Some { since with lo = Some 0 }
+         | Some since when capturing -> Some { since with lo = Some 0 }
          | since -> Option.map since ~f:unbounded
        in
        after
          { s with
            phase = unbounded s.phase
          ; since_arm
+         ; captured = s.captured || (capturing && Option.is_some s.since_arm)
          ; since_edge = unbounded s.since_edge
          ; since_data = unbounded s.since_data
          }
@@ -343,7 +350,11 @@ let step ?period ?(single_capture_edge = false) ~config (s : State.t) pc (t : Is
        (* the capture is at least a cycle old, since a register shows the cycle after it
           is written, and at most as old as the arm when the line made one edge *)
        let phase =
-         { Interval.lo = Some 1; hi = Option.bind s.since_arm ~f:(fun since -> since.hi) }
+         { Interval.lo = Some 1
+         ; hi =
+             Option.bind s.since_arm ~f:(fun since ->
+               Option.bind (Option.some_if s.captured since) ~f:(fun since -> since.hi))
+         }
        in
        after { s with phase }
      | Mov { dest = T; _ } | Out { dest = T; _ } -> after { s with phase = Interval.top }
@@ -370,7 +381,8 @@ let step ?period ?(single_capture_edge = false) ~config (s : State.t) pc (t : Is
        after { s with x = Interval.top }
      | Mov { dest = Y; _ } | Out { dest = Y; _ } | Alu { dest = Y; _ } ->
        after { s with y = Interval.top }
-     | Sys Capture_arm -> after { s with since_arm = Some (Interval.exactly 0) }
+     | Sys Capture_arm ->
+       after { s with since_arm = Some (Interval.exactly 0); captured = false }
      | Sys Halt -> []
      | _ -> after s)
 ;;

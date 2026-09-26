@@ -887,3 +887,37 @@ let%expect_test "usb device" =
     468  mov pins, !pins              phase -28  edge -27  gap 32..?
     |}]
 ;;
+
+let%expect_test "a capture is only as young as the arm once a wait has seen the edge" =
+  let source =
+    "    capture_arm\n\
+    \    mov t, capture\n\
+    \    add t, 7\n\
+    \    add t, 7\n\
+    \    wait t\n\
+    \    jmp 0\n"
+  in
+  let program = Asm.assemble source |> ok_exn in
+  let config = Asm.Program.configure program Firmware.rx_config in
+  print_s
+    [%message
+      (Analyser.check ~single_capture_edge:true ~config program
+       : Analyser.Verdict.t Or_error.t)];
+  let words = Asm.Program.words program |> ok_exn in
+  let t = ref (Machine.create ~config ~program:words |> ok_exn) in
+  for cycle = 0 to 200 do
+    (* one short low pulse; the line is high at every capture_arm *)
+    t := Machine.step !t ~inputs:(if cycle >= 3 && cycle < 10 then 0 else 1)
+  done;
+  print_s [%message (!t.fault : Machine.Fault.t)];
+  [%expect
+    {|
+    ("Analyser.check ~single_capture_edge:true ~config program"
+     (Error
+       "1 of 1 deadline waits may be missed\
+      \n  4  wait t                       phase -10..?  slack ?..10  MAY MISS\
+      \na bound of ? means none: the way here has a wait for a pin or a fifo, a capture nothing is assumed about, a period the host loads, or a loop that falls further behind on every pass"))
+    ("(!t).fault"
+     ((underflow false) (overflow false) (missed_deadline true) (decode false)))
+    |}]
+;;
