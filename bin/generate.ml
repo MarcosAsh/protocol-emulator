@@ -110,7 +110,14 @@ let timing_check =
         let rows =
           Analyser.analyse ?period ~single_capture_edge ~config program.instructions
         in
-        match Kernel.check ?period ~config ~words (Kernel.Table.of_analyser rows) with
+        match
+          Kernel.check
+            ?period
+            ~single_capture_edge
+            ~config
+            ~words
+            (Kernel.Table.of_analyser rows)
+        with
         | Ok () ->
           eprintf "kernel: accepted, so no deadline is missed by the step lemma\n"
         | Error e -> eprintf "kernel: not accepted (%s)\n" (Error.to_string_hum e))]
