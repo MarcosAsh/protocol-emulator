@@ -97,6 +97,184 @@ endmodule
 |}]
 ;;
 
+let writes_pins (t : Isa.t) =
+  match t with
+  | Op
+      { op =
+          ( Set { dest = Pins | Pindirs; _ }
+          | Out { dest = Pins | Pindirs; _ }
+          | Mov { dest = Pins | Pindirs; _ } )
+      ; _
+      } -> true
+  | _ -> false
+;;
+
+(* The departure time in a stamped frame, for a transmitter shaped like
+   [Firmware.uart_tx_stamped]: [mov y, now] starts the stamp, a [set pins, 0] sends the
+   start bit, [mov osr, y] loads the stamp and [wait t+; out pins, 1; jmp x--] sends it
+   LSB first. The claims:
+
+   - in the first cycle the start bit shows, the line was high the cycle before and [y]
+     holds the low 16 bits of [now];
+   - [y] keeps that stamp until [mov osr, y], and the bits of [osr] still to go are the
+     stamp's, from the next one to send;
+   - from each [out] to the next, the pin shows the stamp bit it sent.
+
+   What makes the first inductive is the line's level where the program knows it, since
+   every instruction after a [set pins] finds the level it set up to the next pin write,
+   and the delay left at each pc, which is no more than its ways in leave.
+
+   It assumes no more than the certificate: inputs and the host's fifo traffic are free,
+   and the host never halts the core. No bound on the clock is needed, since the stamp is
+   [now] modulo 2^16 and so wraps with it; a receiver that wants the whole cycle unwraps
+   it, which takes frames less than 65536 cycles apart or a count of its own. The pin is
+   the engine's [pin_out] register, and each flop between it and the pad adds one cycle.
+
+   Two claims made wrong on purpose have to fail: OFF_BY_ONE puts the stamp a cycle after
+   the edge, which a run from reset contradicts, and NEXT_BIT says the pin shows the bit
+   after the one sent, which the invariant must not imply. *)
+let stamp_claims ~(config : Program_config.t) (rows : Analyser.Row.t list) =
+  if config.side_set_count <> 0
+     || config.manchester
+     || config.set_base <> config.out_base
+     || not (Program_config.Shift_direction.equal config.out_shift Right)
+  then raise_s [%message "BUG: a stamped frame goes out on one plain pin, LSB first"];
+  let find ?(after = -1) what ~f =
+    match List.find rows ~f:(fun row -> row.pc > after && f row.instruction) with
+    | Some row -> row.pc
+    | None -> raise_s [%message "BUG: not a stamped transmitter" (what : string)]
+  in
+  let read_now =
+    find "mov y, now" ~f:(function
+      | Op { op = Mov { dest = Y; op = Copy; source = Now }; _ } -> true
+      | _ -> false)
+  in
+  let start =
+    find "start bit" ~after:read_now ~f:(function
+      | Op { op = Set { dest = Pins; value = 0 }; _ } -> true
+      | _ -> false)
+  in
+  let load =
+    find "mov osr, y" ~after:start ~f:(function
+      | Op { op = Mov { dest = Osr; op = Copy; source = Y }; _ } -> true
+      | _ -> false)
+  in
+  let shift =
+    find "out pins, 1" ~after:load ~f:(function
+      | Op { op = Out { dest = Pins; count = 1 }; _ } -> true
+      | _ -> false)
+  in
+  let wait = shift - 1 in
+  let jmp = shift + 1 in
+  let instruction pc = (List.nth_exn rows pc).instruction in
+  (match instruction (load + 1), instruction wait, instruction jmp with
+   | ( Op { op = Set { dest = X; value = 15 }; _ }
+     , Op { op = Wait (Deadline { advance = true }); _ }
+     , Jmp { cond = X_dec; target } )
+     when wait = load + 2 && target = wait -> ()
+   | _ -> raise_s [%message "BUG: the stamp is not sent as sixteen bits"]);
+  (* the level each pc finds the line at, where every way in agrees; [None] is unknown *)
+  let level_after (row : Analyser.Row.t) level_in =
+    match row.instruction with
+    | Op { op = Set { dest = Pins; value }; _ } -> Some (value land 1)
+    | i when writes_pins i -> None
+    | _ -> level_in
+  in
+  let rec settle levels =
+    let next =
+      List.fold rows ~init:levels ~f:(fun levels (row : Analyser.Row.t) ->
+        (* the start is a way in to pc 0 at a level nothing set *)
+        let start = if row.pc = 0 then [ None ] else [] in
+        let ways_in =
+          start
+          @ List.filter_map row.since_edge ~f:(fun (from, _) ->
+            Map.find levels from |> Option.map ~f:(level_after (List.nth_exn rows from)))
+        in
+        match ways_in with
+        | [] -> levels
+        | first :: rest ->
+          let data =
+            if List.for_all rest ~f:([%equal: int option] first) then first else None
+          in
+          Map.set levels ~key:row.pc ~data)
+    in
+    if Map.equal [%equal: int option] next levels then levels else settle next
+  in
+  let levels =
+    settle Int.Map.empty
+    |> Map.to_alist
+    |> List.filter_map ~f:(fun (pc, level) ->
+      Option.map level ~f:(fun level ->
+        sprintf
+          "      if (pc == %d%s) assert (tx == %d);"
+          pc
+          (if writes_pins (instruction pc) then " && entry" else "")
+          level))
+    |> String.concat ~sep:"\n"
+  in
+  (* without this induction holds the start bit back with a delay nothing left it *)
+  let delays =
+    List.map rows ~f:(fun (row : Analyser.Row.t) ->
+      let left (from : int) =
+        match instruction from with
+        | Jmp _ -> Isa.jmp_cycles - 1
+        | Op { delay; _ } -> delay
+      in
+      List.map row.since_edge ~f:(fun (from, _) -> left from)
+      |> List.max_elt ~compare
+      |> Option.value ~default:0
+      |> sprintf "      if (pc == %d && !jumped) assert (stall <= %d);" row.pc)
+    |> String.concat ~sep:"\n"
+  in
+  let tx_pin = config.out_base in
+  let monitor =
+    [%string
+      {|  // the stamp: the low 16 bits of the cycle the start bit first shows
+  wire tx = pin_out[%{tx_pin#Int}];
+  reg last_tx = 0;
+  reg shown = 0;
+  reg [15:0] stamp = 0;
+  always @(posedge clk) begin
+    last_tx <= tx;
+    shown <= entry && pc == %{start#Int};
+    if (shown) stamp <= now[15:0];
+  end
+  // the stamp bits sent at the out and at the jump after it
+  wire [4:0] sent_at_out = 5'd15 - x[4:0];
+  wire [4:0] sent_at_jmp = 5'd16 - x[4:0];
+
+|}]
+  in
+  let claims =
+    [%string
+      {|      // the delay left where the program can leave one
+%{delays}
+      // the line where the program knows it
+%{levels}
+      // the stamp is the cycle the start bit shows, and the line fell there
+`ifdef OFF_BY_ONE
+      if (shown) assert (y == now[15:0] + 16'd1);
+`else
+      if (shown) assert (!tx && last_tx && y == now[15:0]);
+`endif
+      if (!shown && pc > %{start#Int} && pc <= %{load#Int}) assert (y == stamp);
+      if (pc == %{load + 1#Int}) assert (osr == stamp);
+      if (pc == %{wait#Int} || pc == %{shift#Int})
+        assert (x <= 15 && ((osr ^ (stamp >> sent_at_out)) & (16'hffff >> sent_at_out)) == 0);
+      if (pc == %{jmp#Int})
+        assert (x <= 15 && ((osr ^ (stamp >> sent_at_jmp)) & (16'hffff >> sent_at_jmp)) == 0);
+      // and the pin shows each bit from its out to the next
+      if (pc == %{jmp#Int}) assert (tx == stamp[4'd15 - x[3:0]]);
+      if ((pc == %{wait#Int} || pc == %{shift#Int}) && x != 15) assert (tx == stamp[4'd14 - x[3:0]]);
+      if (pc == %{jmp + 1#Int}) assert (tx == stamp[15]);
+`ifdef NEXT_BIT
+      if (pc == %{jmp#Int} && x != 0) assert (tx == stamp[4'd16 - x[3:0]]);
+`endif
+|}]
+  in
+  monitor, claims
+;;
+
 (* The same certificate as an invariant for induction, which holds for all time rather
    than to a depth. The program is a ROM behind the macro's port, read a cycle late as the
    macro is, so nothing about it can be wrong in the state induction starts from. At every
@@ -120,7 +298,7 @@ endmodule
    - the cycles since the last pin edge are what the analyser says for the way in from
      that instruction, on the way in and while a delay or a wait holds the core, which is
      what makes the gaps between edges hold in a loop that anchors no deadline. *)
-let inductive ?(no_wrap = false) ~config source =
+let inductive ?(no_wrap = false) ?(stamped = false) ~config source =
   let program = Asm.assemble source |> ok_exn in
   let config = Asm.Program.configure program config in
   let words = Asm.Program.words program |> ok_exn in
@@ -151,17 +329,6 @@ let inductive ?(no_wrap = false) ~config source =
   let is_wait (t : Isa.t) =
     match t with
     | Op { op = Wait _; _ } -> true
-    | _ -> false
-  in
-  let writes_pins (t : Isa.t) =
-    match t with
-    | Op
-        { op =
-            ( Set { dest = Pins | Pindirs; _ }
-            | Out { dest = Pins | Pindirs; _ }
-            | Mov { dest = Pins | Pindirs; _ } )
-        ; _
-        } -> true
     | _ -> false
   in
   let any = function
@@ -351,6 +518,9 @@ let inductive ?(no_wrap = false) ~config source =
            \  always @(*) assume ($signed(now - capture) <= 24'sd4194304);\n")
       ^ "\n"
   in
+  let stamp_monitor, stamp_claims =
+    if stamped then stamp_claims ~config rows else "", ""
+  in
   let wrap_top = config.wrap_top in
   let wrap_bottom = config.wrap_bottom in
   [%string
@@ -385,7 +555,8 @@ module certificate (input clk);
   reg [15:0] fetched;
   always @(posedge clk) fetched <= rom(sram_addr);
   wire [23:0] t, now, capture;
-  wire [15:0] x, y, p, instruction;
+  wire [15:0] x, y, p, osr, instruction;
+  wire [27:0] pin_out;
   wire [7:0] opcode_onehot;
   wire [27:0] wait_select;
   wire [27:0] wait_pin = 28'd1 << instruction[4:0];
@@ -399,7 +570,8 @@ module certificate (input clk);
     .data_write$data(16'b0), .tx$valid(tx_valid), .tx$value(tx_value), .rx_pop(rx_pop),
     .clear_irq(1'b0), .stop(1'b0), .flush(1'b0), .resume(1'b0), .single_step(1'b0),
     .inputs(inputs), .sram_addr(sram_addr), .sram_dout(fetched), .data_sram_dout(16'b0),
-    .pc(pc), .t(t), .now(now), .capture(capture), .x(x), .y(y), .p(p), .stall(stall),
+    .pin_out(pin_out), .pc(pc), .t(t), .now(now), .capture(capture), .x(x), .y(y), .p(p),
+    .osr(osr), .stall(stall),
     .halted(halted),
     .stepping(stepping), .instruction(instruction), .decode_ok(decode_ok),
     .opcode_onehot(opcode_onehot), .wait_select(wait_select), .flip_pending(flip_pending),
@@ -443,7 +615,7 @@ module certificate (input clk);
       came <= pc;
     end
 
-%{no_wrap}  always @(*)
+%{stamp_monitor}%{no_wrap}  always @(*)
     if (running) begin
       assert (!halted && !stepping && !started);
 %{captured_has_passed}      assert (decode_ok && opcode_onehot == (8'd1 << instruction[15:13]));
@@ -458,7 +630,7 @@ module certificate (input clk);
       if (stalled) assert (came_valid && came == pc);
 %{claims}
 %{edges}
-`ifdef TEETH
+%{stamp_claims}`ifdef TEETH
       assert (pc != %{teeth_pc#Int});
 `endif
     end
@@ -469,9 +641,12 @@ endmodule
 let () =
   let args = Sys.get_argv () in
   let inductive_mode = Array.exists args ~f:(String.equal "-inductive") in
+  let stamped = Array.exists args ~f:(String.equal "-stamped") in
   let { Certified.source; config; no_wrap; _ } =
     Certified.find_exn (Array.last_exn args)
   in
   print_string
-    (if inductive_mode then inductive ~no_wrap ~config source else harness ~config source)
+    (if inductive_mode
+     then inductive ~no_wrap ~stamped ~config source
+     else harness ~config source)
 ;;

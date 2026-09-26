@@ -65,6 +65,15 @@ inductive_certificate: engine_sram.v
 	sby -f -d certificate_$(NAME)_inductive certificate_inductive.sby prove
 	sby -f -d certificate_$(NAME)_teeth certificate_inductive.sby teeth
 
+# Every frame uart_tx_stamped sends carries the low 16 bits of the cycle its start bit
+# shows on the pin, and the pin shows those bits: its certificate as above with that
+# claim added. Teeth: the stamp a cycle late has to fail from reset, and the pin showing
+# the next bit has to fail the step.
+stamped_certificate: engine_sram.v
+	(cd .. && dune exec -- test/certify/write_certificate.exe -inductive -stamped uart_tx_stamped) > certificate.sv
+	sby -f -d certificate_stamped_inductive certificate_inductive.sby prove
+	sby -f --prefix certificate_stamped certificate_inductive.sby teeth off_by_one next_bit
+
 # Every firmware in test/certified.ml, each under what its entry there says it assumes,
 # which the certificate prints: nothing for most; for ws2812, whose reset gap is a loop
 # anchoring no deadline, and for the firmware that waits on the host or anchors on a
@@ -77,4 +86,4 @@ inductive_certificates: engine_sram.v
 	for name in $(INDUCTIVE); do $(MAKE) inductive_certificate NAME=$$name || exit 1; done
 
 .PHONY: all issue_timing host_timing late_host fifo_order teeth certificates certificate \
-  inductive_certificate inductive_certificates
+  inductive_certificate inductive_certificates stamped_certificate
