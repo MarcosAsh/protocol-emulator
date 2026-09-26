@@ -37,6 +37,11 @@ let prove name ~claim =
 let%expect_test "an accepted row maps into its successors and meets its deadline" =
   let side_set_count = G.input "side_set_count" 2 in
   let fraction = G.input "fraction" 1 in
+  let loaded =
+    { With_valid.valid = G.input "loads_period" 1
+    ; value = G.input "loaded_period" Isa.data_bits
+    }
+  in
   let word = G.input "word" Isa.data_bits in
   let phase = G.input "phase" Isa.timer_bits in
   let period = G.input "period" Isa.data_bits in
@@ -46,7 +51,7 @@ let%expect_test "an accepted row maps into its successors and meets its deadline
   let row = row_input "row" in
   let next = row_input "next" in
   let target = row_input "target" in
-  let s = K.step ~side_set_count ~fraction ~word ~phase ~period in
+  let s = K.step ~side_set_count ~fraction ~loaded ~word ~phase ~period in
   let d = Decoder.decode ~side_set_count word in
   let is op = Opcode.is d.opcode op in
   let deadline = G.(is Wait &: Wait_source.is d.wait_source Deadline) in
@@ -60,7 +65,7 @@ let%expect_test "an accepted row maps into its successors and meets its deadline
   let period' = G.mux2 s.period_known s.next_period any_period in
   let hypothesis =
     G.(
-      K.accepts ~side_set_count ~fraction ~word ~row ~next ~target
+      K.accepts ~side_set_count ~fraction ~loaded ~word ~row ~next ~target
       &: within row ~phase ~period
       &: (side_set_count <=:. 2)
       &: ~:(s.halts))
@@ -83,25 +88,23 @@ let%expect_test "the kernel on the firmware library, from the analyser's rows" =
     let program = Asm.assemble c.source |> ok_exn in
     let config = Asm.Program.configure program c.config in
     let words = Asm.Program.words program |> ok_exn in
-    let rows = Analyser.analyse ~config program.instructions in
-    let verdict = Kernel.check ~config ~words (Kernel.Table.of_analyser rows) in
+    let rows = Analyser.analyse ?period:c.period ~config program.instructions in
+    let verdict =
+      Kernel.check ?period:c.period ~config ~words (Kernel.Table.of_analyser rows)
+    in
     print_s [%message c.name (verdict : unit Or_error.t)]);
   [%expect
     {|
     (uart_tx (verdict (Ok ())))
     (uart_tx16 (verdict (Ok ())))
-    (uart_tx_host_rate
-     (verdict (Error ("rows the kernel rejects" (pcs (10 13 15))))))
+    (uart_tx_host_rate (verdict (Ok ())))
     (uart_rx (verdict (Error ("rows the kernel rejects" (pcs (9 15))))))
     (spi_master (verdict (Ok ())))
     (spi_slave (verdict (Ok ())))
     (i2c_master (verdict (Ok ())))
     (i2c_slave (verdict (Ok ())))
     (i2c_logger (verdict (Ok ())))
-    (usb_tx
-     (verdict
-      (Error
-       ("rows the kernel rejects" (pcs (10 22 32 38 40 41 43 45 50 55 60))))))
+    (usb_tx (verdict (Ok ())))
     (usb_rx (verdict (Error ("rows the kernel rejects" (pcs (12 24))))))
     (usb_device
      (verdict
@@ -113,16 +116,9 @@ let%expect_test "the kernel on the firmware library, from the analyser's rows" =
           378 382 386 409 410 414 420 423 424 427 436 442 448 454 466))))))
     (edge_meter (verdict (Ok ())))
     (ws2812 (verdict (Error ("rows the kernel rejects" (pcs (11))))))
-    (ethernet (verdict (Error ("rows the kernel rejects" (pcs (6))))))
-    (one_wire
-     (verdict
-      (Error
-       ("rows the kernel rejects"
-        (pcs (10 13 15 18 20 26 29 30 31 32 36 40 41 42 43))))))
-    (ps2
-     (verdict
-      (Error
-       ("rows the kernel rejects" (pcs (14 16 17 19 23 25 26 28 52 55 57 58))))))
+    (ethernet (verdict (Ok ())))
+    (one_wire (verdict (Ok ())))
+    (ps2 (verdict (Ok ())))
     (jtag (verdict (Ok ())))
     |}]
 ;;

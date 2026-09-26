@@ -105,7 +105,7 @@ module Make (Comb : Comb.S) = struct
     ;;
   end
 
-  let step ~side_set_count ~fraction ~word ~phase ~period =
+  let step ~side_set_count ~fraction ~(loaded : _ With_valid.t) ~word ~phase ~period =
     let c = Class.of_word ~side_set_count word in
     let released = mux2 (msb phase) (zero Isa.timer_bits) phase in
     let next_phase =
@@ -122,8 +122,8 @@ module Make (Comb : Comb.S) = struct
     { Step.next_phase
     ; bounded = c.bounded
     ; may_carry = c.advance &: fraction
-    ; next_period = mux2 c.set_p c.set_value period
-    ; period_known = ~:(c.writes_p)
+    ; next_period = mux2 c.set_p c.set_value @@ mux2 c.writes_p loaded.value period
+    ; period_known = ~:(c.writes_p) |: loaded.valid
     ; halts = c.halts
     }
   ;;
@@ -140,7 +140,15 @@ module Make (Comb : Comb.S) = struct
     wide r.phase_lo ==: timer_min &: (wide r.phase_hi ==: timer_max)
   ;;
 
-  let accepts ~side_set_count ~fraction ~word ~(row : _ Row.t) ~(next : _ Row.t) ~target =
+  let accepts
+    ~side_set_count
+    ~fraction
+    ~(loaded : _ With_valid.t)
+    ~word
+    ~(row : _ Row.t)
+    ~(next : _ Row.t)
+    ~target
+    =
     let c = Class.of_word ~side_set_count word in
     let lo = wide row.phase_lo in
     let hi = wide row.phase_hi in
@@ -166,8 +174,12 @@ module Make (Comb : Comb.S) = struct
       base_lo +: cycles -: less_lo, base_hi +: cycles -: less_hi
     in
     let fits = image_lo >=+ timer_min &: (image_hi <=+ timer_max) in
-    let period_lo = mux2 c.set_p c.set_value row.period_lo in
-    let period_hi = mux2 c.set_p c.set_value row.period_hi in
+    let period_lo =
+      mux2 c.set_p c.set_value @@ mux2 c.writes_p loaded.value row.period_lo
+    in
+    let period_hi =
+      mux2 c.set_p c.set_value @@ mux2 c.writes_p loaded.value row.period_hi
+    in
     let holds (s : _ Row.t) =
       let phase =
         is_full s
@@ -178,7 +190,7 @@ module Make (Comb : Comb.S) = struct
       in
       let period =
         mux2
-          c.writes_p
+          (c.writes_p &: ~:(loaded.valid))
           (s.period_lo ==:. 0 &: (s.period_hi ==: ones Isa.data_bits))
           (s.period_lo <=: period_lo &: (period_hi <=: s.period_hi))
       in
@@ -233,7 +245,7 @@ end
 
 module K = Make (Bits)
 
-let check ~(config : Program_config.t) ~words (table : Table.t) =
+let check ?period ~(config : Program_config.t) ~words (table : Table.t) =
   let size = 1 lsl Isa.pc_bits in
   let words = Array.of_list words in
   let word pc =
@@ -243,6 +255,11 @@ let check ~(config : Program_config.t) ~words (table : Table.t) =
   in
   let side_set_count = Bits.of_unsigned_int ~width:2 config.side_set_count in
   let fraction = Bits.of_bool (config.period_fraction <> 0) in
+  let loaded =
+    { With_valid.valid = Bits.of_bool (Option.is_some period)
+    ; value = Bits.of_unsigned_int ~width:Isa.data_bits (Option.value period ~default:0)
+    }
+  in
   let starts_open =
     Bits.to_bool (K.is_full table.(0))
     && Bits.to_unsigned_int table.(0).period_lo = 0
@@ -262,6 +279,7 @@ let check ~(config : Program_config.t) ~words (table : Table.t) =
            (K.accepts
               ~side_set_count
               ~fraction
+              ~loaded
               ~word:w
               ~row:table.(pc)
               ~next:table.(following pc)
@@ -277,6 +295,7 @@ module I = struct
   type 'a t =
     { side_set_count : 'a [@bits 2]
     ; fraction : 'a
+    ; loaded : 'a With_valid.t [@bits Isa.data_bits]
     ; word : 'a [@bits Isa.data_bits]
     ; phase : 'a [@bits Isa.timer_bits]
     ; period : 'a [@bits Isa.data_bits]
@@ -291,6 +310,7 @@ let create (_scope : Scope.t) (i : Signal.t I.t) =
   K.step
     ~side_set_count:i.side_set_count
     ~fraction:i.fraction
+    ~loaded:i.loaded
     ~word:i.word
     ~phase:i.phase
     ~period:i.period

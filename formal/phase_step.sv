@@ -15,6 +15,9 @@ module phase_step (input clk);
   (* anyconst *) wire [8:0] wrap_bottom, wrap_top;
   (* anyconst *) wire [15:0] period_fraction;
   (* anyconst *) wire autopull_data, manchester;
+  // the assumption the kernel may take: every run-time write to p carries loaded_period
+  (* anyconst *) wire loads_period;
+  (* anyconst *) wire [15:0] loaded_period;
   (* anyseq *) wire data_write_valid;
   (* anyseq *) wire [8:0] data_write_addr;
   (* anyseq *) wire [15:0] data_write_data;
@@ -174,16 +177,22 @@ module phase_step (input clk);
   wire [15:0] next_period;
   wire bounded, carries, period_known;
   kernel_step e_step_of (
-    .side_set_count(side_set_count), .fraction(period_fraction != 0), .word(e_word),
+    .side_set_count(side_set_count), .fraction(period_fraction != 0),
+    .loaded$valid(loads_period), .loaded$value(loaded_period), .word(e_word),
     .phase(e_phase), .period(e_p), .next_phase(next_phase), .bounded(bounded),
     .may_carry(carries), .next_period(next_period), .period_known(period_known),
     .halts());
   // whether the word at an entry has a next one
-  wire halts;
+  wire halts, keeps_period;
   kernel_step halts_of (
-    .side_set_count(side_set_count), .fraction(1'b0), .word(instruction), .phase(24'd0),
-    .period(16'd0), .next_phase(), .bounded(), .may_carry(), .next_period(),
-    .period_known(), .halts(halts));
+    .side_set_count(side_set_count), .fraction(1'b0), .loaded$valid(1'b0),
+    .loaded$value(16'd0), .word(instruction), .phase(24'd0), .period(16'd0),
+    .next_phase(), .bounded(), .may_carry(), .next_period(),
+    .period_known(keeps_period), .halts(halts));
+
+  reg wrote_p = 0;
+  always @(posedge clk) wrote_p <= !clear && completes && !keeps_period;
+  always @(*) if (loads_period && wrote_p) assume(p == loaded_period);
 
   // each teeth task gets one part of the step wrong
   wire [23:0] e_expected =
@@ -247,5 +256,6 @@ module phase_step (input clk);
   always @(posedge clk) begin
     cover(pending && entry && e_may_carry && phase == e_expected - 24'd1);
     cover(pending && entry && !e_unbounded && e_deadline_wait && e_in_time);
+    cover(loads_period && pending && entry && wrote_p && p == loaded_period && loaded_period > 3);
   end
 endmodule

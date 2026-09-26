@@ -22,7 +22,8 @@ module Row : sig
 end
 
 (** The next entry's phase: anything unless [bounded], one less too if [may_carry].
-    [next_period] holds when [period_known]. [halts]: no next entry. *)
+    [next_period] holds when [period_known]. [loaded], when valid, is the assumption that
+    every run-time write to [p] carries its value. [halts]: no next entry. *)
 module Step : sig
   type 'a t =
     { next_phase : 'a
@@ -39,6 +40,7 @@ module Make (Comb : Comb.S) : sig
   val step
     :  side_set_count:Comb.t
     -> fraction:Comb.t
+    -> loaded:Comb.t With_valid.t
     -> word:Comb.t
     -> phase:Comb.t
     -> period:Comb.t
@@ -48,6 +50,7 @@ module Make (Comb : Comb.S) : sig
   val accepts
     :  side_set_count:Comb.t
     -> fraction:Comb.t
+    -> loaded:Comb.t With_valid.t
     -> word:Comb.t
     -> row:Comb.t Row.t
     -> next:Comb.t Row.t
@@ -65,14 +68,20 @@ module Table : sig
   val of_analyser : Analyser.Row.t list -> t
 end
 
-(** Checks every pc; words past the program read zero. *)
-val check : config:Program_config.t -> words:int list -> Table.t -> unit Or_error.t
+(** Checks every pc; words past the program read zero. [period] is [loaded]. *)
+val check
+  :  ?period:int
+  -> config:Program_config.t
+  -> words:int list
+  -> Table.t
+  -> unit Or_error.t
 
 (** [step] as a circuit, for the RTL proof to use the same definition. *)
 module I : sig
   type 'a t =
     { side_set_count : 'a
     ; fraction : 'a
+    ; loaded : 'a With_valid.t
     ; word : 'a
     ; phase : 'a
     ; period : 'a
