@@ -18,6 +18,8 @@ module phase_step (input clk);
   (* anyconst *) wire autopull_data, manchester;
   // the assumption the kernel may take: every run-time write to p carries loaded_period
   (* anyconst *) wire loads_period;
+  // and that the capture pin makes one edge from capture_arm to the wait for it
+  (* anyconst *) wire single_edge;
   (* anyconst *) wire [15:0] loaded_period;
   // the data memory is shared between engines, so its word is free in every cycle
   (* anyseq *) wire [15:0] data_word;
@@ -43,6 +45,8 @@ module phase_step (input clk);
   wire [27:0] wait_select;
   wire [27:0] wait_pin = 28'd1 << instruction[4:0];
   wire completes;
+  wire [27:0] sample;
+  wire captured_now;
 
   engine dut (
     .clock(clk), .clear(clear),
@@ -74,7 +78,8 @@ module phase_step (input clk);
     .capture_armed(capture_armed), .tx_level(tx_level), .rx_level(rx_level),
     .rx_head(rx_head), .instruction(instruction), .crc(crc), .stuff_run(stuff_run),
     .decode_ok(decode_ok), .opcode_onehot(opcode_onehot), .wait_select(wait_select),
-    .eng_completes(completes));
+    .eng_completes(completes), .eng_sample(sample),
+    .eng_captured(captured_now));
 
   always @(*) begin
     assume(side_set_count <= 2);
@@ -91,6 +96,8 @@ module phase_step (input clk);
   always @(posedge clk)
     if (!clear) begin
       assert(opcode_onehot == 8'b1 << opcode);
+      // the core's registered decode flag agrees with the kernel's decoder
+      assert(decode_ok == !(halts && !(opcode == 7 && instruction[7:0] == 8'd1)));
       assert(wait_select == wait_pin);
       assert(!stepping && !resumed);
     end
@@ -127,6 +134,7 @@ module phase_step (input clk);
   wire [7:0] body = instruction[7:0];
   wire [23:0] t_after =
       opcode == 4 && body == 8'b11100110 ? now
+    : opcode == 4 && body == 8'b11100111 ? capture
     : opcode == 6 && body[7:3] == 5'b11000 ? t + operand
     : opcode == 6 && body == 8'b11001010 ? t + {8'd0, p}
     : opcode == 6 && body == 8'b11001000 ? t + {8'd0, x}
@@ -134,6 +142,23 @@ module phase_step (input clk);
     : opcode == 6 && body[7:3] == 5'b11010 ? t - operand
     : deadline_wait && body[7] ? t + {8'd0, p}
     : t;
+
+  // The kernel's ghost count of cycles since capture_arm, as it stands at an entry.
+  wire [23:0] next_arm;
+  wire arm_known_next, captured_next, capture_bounded;
+  wire [23:0] g = pending ? next_arm : 24'd0;
+  wire g_known = pending && arm_known_next;
+  wire g_captured = pending && captured_next;
+  wire awaiting_next;
+  wire g_awaiting = pending && awaiting_next;
+  reg [23:0] e_g, e_release;
+  reg [24:0] e_capture_age;
+  // cycles since the entry, saturating
+  reg [24:0] elapsed = 25'h1000000;
+  always @(posedge clk)
+    if (entry) elapsed <= 1;
+    else if (!elapsed[24]) elapsed <= elapsed + 1;
+  reg e_g_known, e_g_captured, e_g_awaiting;
 
   // Record of the last entry. Before completion the core holds the same word, pc and t;
   // after, [now + stall] is the next entry's cycle and t what the instruction left.
@@ -163,6 +188,12 @@ module phase_step (input clk);
       e_phase <= phase;
       e_next_now <= now + step;
       e_t_after <= t_after;
+      e_g <= g;
+      e_g_known <= g_known;
+      e_g_captured <= g_captured;
+      e_g_awaiting <= g_awaiting;
+      e_release <= now;
+      e_capture_age <= capture_age;
 `ifdef ONE_LATE_CYCLE_IS_SAFE
       e_safe <= !missed_deadline && (!deadline_wait || phase[23] || phase <= 1);
 `else
@@ -171,6 +202,7 @@ module phase_step (input clk);
     end
     else if (pending && !done && completes) begin
       done <= 1;
+      e_release <= now;
       e_next_now <= now + step;
       e_t_after <= t_after;
     end
@@ -178,20 +210,30 @@ module phase_step (input clk);
   // the kernel's step, the definition the checker uses
   wire [23:0] next_phase;
   wire [15:0] next_period, next_x, next_y;
+  wire e_halts;
   wire x_known, y_known, taken, taken_known;
   wire bounded, carries, period_known;
   kernel_step e_step_of (
     .side_set_count(side_set_count), .fraction(period_fraction != 0),
     .loaded$valid(loads_period), .loaded$value(loaded_period), .word(e_word),
+    .capture$pin(capture_pin), .capture$rising(capture_rising),
+    .capture$single_edge(single_edge), .arm(e_g), .arm_known(e_g_known),
+    .captured(e_g_captured), .awaiting(e_g_awaiting), .next_awaiting(awaiting_next),
+    .next_arm(next_arm), .next_arm_known(arm_known_next),
+    .next_captured(captured_next), .capture_bounded(capture_bounded),
     .phase(e_phase), .period(e_p), .x(e_x), .y(e_y), .next_phase(next_phase),
     .bounded(bounded), .may_carry(carries), .next_period(next_period),
     .period_known(period_known), .next_x(next_x), .x_known(x_known), .next_y(next_y),
-    .y_known(y_known), .taken(taken), .taken_known(taken_known), .halts());
+    .y_known(y_known), .taken(taken), .taken_known(taken_known), .halts(e_halts));
   // whether the word at an entry has a next one
   wire halts, keeps_period;
   kernel_step halts_of (
     .side_set_count(side_set_count), .fraction(1'b0), .loaded$valid(1'b0),
-    .loaded$value(16'd0), .word(instruction), .phase(24'd0), .period(16'd0), .x(16'd0),
+    .loaded$value(16'd0), .capture$pin(5'd0), .capture$rising(1'b0),
+    .capture$single_edge(1'b0), .arm(24'd0), .arm_known(1'b0), .captured(1'b0),
+    .awaiting(1'b0), .next_awaiting(),
+    .next_arm(), .next_arm_known(), .next_captured(), .capture_bounded(),
+    .word(instruction), .phase(24'd0), .period(16'd0), .x(16'd0),
     .y(16'd0), .next_phase(), .bounded(), .may_carry(), .next_period(),
     .period_known(keeps_period), .next_x(), .x_known(), .next_y(), .y_known(), .taken(),
     .taken_known(), .halts(halts));
@@ -238,11 +280,111 @@ module phase_step (input clk);
         else assert(pc == e_following);
         if (x_known) assert(x == next_x);
         if (y_known) assert(y == next_y);
-        if (!e_unbounded) begin
-          assert(t_ok);
-          assert(e_next_now - e_t_after == e_expected);
-        end
+        if (!e_unbounded || capture_bounded) assert(t_ok);
+        if (capture_bounded) assert(e_t_after == capture);
+        if (!e_unbounded) assert(e_next_now - e_t_after == e_expected);
       end
+    end
+
+  // The single-edge assumption, on the level the core sees: the capture pin is at the other
+  // level when capture_arm issues, and once at the captured level it stays there until a
+  // wait for it releases.
+  wire arms = entry && opcode == 7 && instruction[7:0] == 8'd7;
+  wire capturing = opcode == 1 && !instruction[6] && instruction[4:0] == capture_pin
+    && instruction[4:0] < 28 && instruction[7] == capture_rising;
+  // the core reads pin 27 for a capture pin past the pin space, as its mux does
+  wire [4:0] seen_pin = capture_pin > 27 ? 5'd27 : capture_pin;
+  wire level = sample[seen_pin] == capture_rising;
+  reg holding = 0, seen = 0;
+  reg [23:0] arm_now;
+  // cycles since the arm, saturating, since a wait can outlast the timer's wrap
+  reg [24:0] arm_age = 25'h1000000;
+  wire young = !arm_age[24];
+  // and since the core last captured, which the capture register holds
+  reg [24:0] capture_age = 25'h1000000;
+  wire capture_young = !capture_age[24];
+  always @(posedge clk)
+    if (clear || start || started) capture_age <= 25'h1000000;
+    else if (captured_now) capture_age <= 1;
+    else if (capture_young) capture_age <= capture_age + 1;
+  always @(posedge clk)
+    if (!clear && capture_young) assert(capture_age[23:0] == now - capture);
+  wire capture_after_arm = capture_young ? !young || capture_age < arm_age : !young;
+  always @(posedge clk)
+    if (clear || start || started) arm_age <= 25'h1000000;
+    else if (arms) arm_age <= 1;
+    else if (young) arm_age <= arm_age + 1;
+  always @(posedge clk) if (!clear && young) assert(arm_age[23:0] == now - arm_now);
+  always @(posedge clk)
+    if (clear || start) begin
+      holding <= 0;
+      seen <= 0;
+    end else if (arms) begin
+      holding <= 1;
+      seen <= 0;
+      arm_now <= now;
+    end else if (completes && capturing && single_edge) holding <= 0;
+    else if (holding && level) seen <= 1;
+  always @(*)
+    if (single_edge) begin
+      if (arms) assume(!level);
+      if (holding && seen) assume(level);
+    end
+
+  // what the ghost count stands for: while awaiting the edge, the cycles since the arm;
+  // once captured, a bound on the capture's age
+  always @(posedge clk)
+    if (!clear && entry) begin
+      if (pending) assert(g_awaiting == holding);
+      if (g_known) assert(!g[23]);
+      if (g_known && g_awaiting) assert(young && arm_age[23:0] == g);
+      if (g_known && g_captured) begin
+        assert(!g_awaiting && !capture_armed);
+        assert(capture_young && capture_age >= 1 && capture_age <= {1'b0, g});
+      end
+    end
+
+  // the same between entries, for induction
+  wire e_arms = e_word[15:13] == 7 && e_word[7:0] == 8'd7;
+  wire e_capturing = e_word[15:13] == 1 && !e_word[6] && e_word[4:0] == capture_pin
+    && e_word[4:0] < 28 && e_word[7] == capture_rising;
+  // while holding, the edge has either not come and the capture is armed, or come once
+  always @(posedge clk)
+    if (!clear && single_edge && holding)
+      assert(seen ? !capture_armed && capture_after_arm : capture_armed);
+
+  // running with no record is only the stretch from a start to its first entry
+  always @(posedge clk) if (!clear && !halted && !pending) assert(!holding);
+  always @(posedge clk)
+    if (!clear && pending && !entry) begin
+      assert(!e_halts);
+      if (done) assert(e_next_now == e_release + e_step && stall < e_step);
+      if (done && !elapsed[24])
+        assert(elapsed[23:0] == e_release - e_now + e_step - {19'd0, stall});
+      if (done && e_deadline_wait)
+        assert(e_release - e_now == (e_in_time ? -e_phase : 24'd0) && !elapsed[24]);
+      if (e_word[15:13] != 1) assert(done && e_release == e_now && elapsed <= e_step);
+      if (!elapsed[24]) assert(elapsed[23:0] == now - e_now);
+      if (e_deadline_wait && !done) assert(!elapsed[24] && elapsed[23:0] <= -e_phase);
+      assert(holding == (e_arms || (e_g_awaiting && !(single_edge && e_capturing && done))));
+      if (e_g_known) assert(!e_g[23]);
+      if (e_arms) assert(arm_now == e_now && young && arm_age == elapsed);
+      else if (e_g_known && e_g_awaiting) begin
+        assert(e_now - arm_now == e_g);
+        if (!elapsed[24] && {1'b0, e_g} + elapsed < 25'h1000000)
+          assert(young && arm_age == {1'b0, e_g} + elapsed);
+      end
+      if (e_g_known && e_g_captured && !e_arms) begin
+        assert(!e_g_awaiting && !capture_armed);
+        assert(!e_capture_age[24] && e_capture_age >= 1 && e_capture_age <= {1'b0, e_g});
+        if (!elapsed[24] && e_capture_age + elapsed < 25'h1000000)
+          assert(capture_young && capture_age == e_capture_age + elapsed);
+        if (e_word[15:13] != 1) assert(capture_young);
+      end
+      if (single_edge && e_g_known && e_g_awaiting && !e_arms)
+        if (e_capturing && done)
+          assert(!capture_armed && capture_young && e_release - capture <= e_g);
+        else if (e_capturing && !e_word[5]) assert(!seen);
     end
 
   // a deadline wait entered in time releases on its deadline
@@ -254,6 +396,8 @@ module phase_step (input clk);
   always @(posedge clk)
     if (!clear && pending && entry) begin
       if (!e_unbounded) assert(phase == e_expected || (e_may_carry && phase == e_expected - 24'd1));
+      // the age of the captured edge and a cycle or more: unsigned
+      if (capture_bounded) assert(now - t >= e_step + 24'd1 && now - t <= next_phase);
 `ifdef TAKEN_BACKWARDS
       if (e_is_jmp && taken_known) assert(pc == (taken ? e_following : e_word[8:0]));
 `else

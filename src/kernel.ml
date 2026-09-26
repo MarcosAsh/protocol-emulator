@@ -11,6 +11,19 @@ module Row = struct
     ; x_hi : 'a [@bits Isa.data_bits]
     ; y_lo : 'a [@bits Isa.data_bits]
     ; y_hi : 'a [@bits Isa.data_bits]
+    ; arm_lo : 'a [@bits Isa.timer_bits]
+    ; arm_hi : 'a [@bits Isa.timer_bits]
+    ; captured : 'a
+    ; awaiting : 'a
+    }
+  [@@deriving hardcaml]
+end
+
+module Capture = struct
+  type 'a t =
+    { pin : 'a [@bits Isa.Field.wait_index.width]
+    ; rising : 'a
+    ; single_edge : 'a
     }
   [@@deriving hardcaml]
 end
@@ -28,6 +41,11 @@ module Step = struct
     ; y_known : 'a
     ; taken : 'a
     ; taken_known : 'a
+    ; next_arm : 'a [@bits Isa.timer_bits]
+    ; next_arm_known : 'a
+    ; next_captured : 'a
+    ; next_awaiting : 'a
+    ; capture_bounded : 'a
     ; halts : 'a
     }
   [@@deriving hardcaml]
@@ -78,9 +96,13 @@ module Make (Comb : Comb.S) = struct
       ; writes_x : Comb.t
       ; set_y : Comb.t
       ; writes_y : Comb.t
+      ; arm : Comb.t
+      ; capturing : Comb.t (** a wait for the captured edge, under the assumption *)
+      ; pin_or_fifo_wait : Comb.t
+      ; from_capture : Comb.t (** [mov t, capture] *)
       }
 
-    let of_word ~side_set_count word =
+    let of_word ~side_set_count ~(capture : _ Capture.t) word =
       let d = Decoder.decode ~side_set_count word in
       let is op = Opcode.is d.opcode op in
       let jump = is Jmp in
@@ -106,6 +128,16 @@ module Make (Comb : Comb.S) = struct
         |: (is Alu &: Alu_dest.is d.alu_dest alu)
       in
       let cond c = jump &: Jmp_cond.is d.jmp_cond c in
+      let pin_wait =
+        is Wait
+        &: (Wait_source.is d.wait_source Pin_level |: Wait_source.is d.wait_source Pin_edge)
+      in
+      let capturing =
+        pin_wait
+        &: capture.single_edge
+        &: (d.wait_index ==: capture.pin)
+        &: (d.wait_polarity ==: capture.rising)
+      in
       { cycles =
           mux2 jump (of_unsigned_int ~width:Isa.timer_bits Isa.jmp_cycles)
           @@ (timer d.delay +:. 1)
@@ -132,18 +164,52 @@ module Make (Comb : Comb.S) = struct
       ; writes_x = writes X X X
       ; set_y = is Set &: Set_dest.is d.set_dest Y
       ; writes_y = writes Y Y Y
+      ; arm = is Sys &: Sys_op.is d.sys_op Capture_arm
+      ; capturing
+      ; pin_or_fifo_wait = is Wait &: ~:deadline
+      ; from_capture =
+          mov_t &: Mov_op.is d.mov_op Copy &: Mov_source.is d.mov_source Capture
       }
     ;;
   end
 
-  let step ~side_set_count ~fraction ~(loaded : _ With_valid.t) ~word ~phase ~period ~x ~y
+  (* Past this, a count of cycles since the arm is taken as lost, so it never wraps. *)
+  let arm_limit = 1 lsl (Isa.timer_bits - 1)
+
+  let step
+    ~side_set_count
+    ~fraction
+    ~(loaded : _ With_valid.t)
+    ~capture
+    ~word
+    ~phase
+    ~period
+    ~x
+    ~y
+    ~arm
+    ~arm_known
+    ~captured
+    ~awaiting
     =
-    let c = Class.of_word ~side_set_count word in
+    let c = Class.of_word ~side_set_count ~capture word in
+    (* only the first wait for the edge since the arm sees it *)
+    let capturing = c.capturing &: awaiting in
+    let other_wait = c.pin_or_fifo_wait &: ~:capturing in
     let released = mux2 (msb phase) (zero Isa.timer_bits) phase in
+    (* a bit wider, so a count that passes [arm_limit] is seen before it wraps *)
+    let wide_arm =
+      let wide x = uresize x ~width:(Isa.timer_bits + 1) in
+      mux2 c.arm (wide c.cycles)
+      @@ mux2 c.deadline (wide arm +: wide (released -: phase) +: wide c.cycles)
+      @@ (wide arm +: wide c.cycles)
+    in
+    let next_arm = sel_bottom wide_arm ~width:Isa.timer_bits in
+    let capture_bounded = c.from_capture &: captured &: arm_known in
     let next_phase =
       priority_select_with_default
         ~default:(phase +: c.cycles)
         [ { With_valid.valid = c.anchor; value = c.cycles }
+        ; { valid = c.from_capture; value = arm +: c.cycles }
         ; { valid = c.advance; value = released +: c.cycles -: timer period }
         ; { valid = c.deadline; value = released +: c.cycles }
         ; { valid = c.add_imm; value = phase +: c.cycles -: c.imm }
@@ -168,6 +234,11 @@ module Make (Comb : Comb.S) = struct
         |: (c.y_dec &: (y <>:. 0))
         |: (c.x_ne_y &: (x <>: y))
     ; taken_known = c.always |: c.x_dec |: c.y_dec |: c.x_ne_y
+    ; next_arm
+    ; next_arm_known = c.arm |: (arm_known &: ~:other_wait &: (wide_arm <:. arm_limit))
+    ; next_captured = mux2 c.arm gnd (captured |: (capturing &: arm_known))
+    ; next_awaiting = mux2 c.arm vdd (awaiting &: ~:(c.capturing))
+    ; capture_bounded
     ; halts = c.halts
     }
   ;;
@@ -186,7 +257,10 @@ module Make (Comb : Comb.S) = struct
     |: (r.period_lo >: r.period_hi)
     |: (r.x_lo >: r.x_hi)
     |: (r.y_lo >: r.y_hi)
+    |: (r.arm_lo >: r.arm_hi)
   ;;
+
+  let arm_is_full (r : _ Row.t) = r.arm_lo ==:. 0 &: (r.arm_hi ==: ones Isa.timer_bits)
 
   let is_full (r : _ Row.t) =
     wide r.phase_lo ==: timer_min &: (wide r.phase_hi ==: timer_max)
@@ -202,12 +276,18 @@ module Make (Comb : Comb.S) = struct
     ~side_set_count
     ~fraction
     ~(loaded : _ With_valid.t)
+    ~capture
     ~word
     ~(row : _ Row.t)
     ~(next : _ Row.t)
     ~target
     =
-    let c = Class.of_word ~side_set_count word in
+    let c = Class.of_word ~side_set_count ~capture word in
+    let arm_known = ~:(arm_is_full row) in
+    let capturing = c.capturing &: row.awaiting in
+    let other_wait = c.pin_or_fifo_wait &: ~:capturing in
+    let capture_bounded = c.from_capture &: row.captured &: arm_known in
+    let wide_arm x = uresize x ~width:wide_bits in
     let lo = wide row.phase_lo in
     let hi = wide row.phase_hi in
     let released x = mux2 (x <+ zero wide_bits) (zero wide_bits) x in
@@ -218,8 +298,16 @@ module Make (Comb : Comb.S) = struct
       mux2 (c.advance |: c.add_p) p @@ mux2 c.add_x x @@ mux2 c.add_y y @@ otherwise
     in
     let image_lo, image_hi =
-      let base_lo = mux2 c.anchor (zero wide_bits) @@ mux2 c.deadline (released lo) lo in
-      let base_hi = mux2 c.anchor (zero wide_bits) @@ mux2 c.deadline (released hi) hi in
+      let base_lo =
+        mux2 c.anchor (zero wide_bits)
+        @@ mux2 capture_bounded (one wide_bits)
+        @@ mux2 c.deadline (released lo) lo
+      in
+      let base_hi =
+        mux2 c.anchor (zero wide_bits)
+        @@ mux2 capture_bounded (wide_arm row.arm_hi)
+        @@ mux2 c.deadline (released hi) hi
+      in
       let fixed = mux2 c.add_imm imm @@ mux2 c.sub_imm (negate imm) (zero wide_bits) in
       let less_lo =
         by_register
@@ -238,6 +326,18 @@ module Make (Comb : Comb.S) = struct
       base_lo +: cycles -: less_lo, base_hi +: cycles -: less_hi
     in
     let fits = image_lo >=+ timer_min &: (image_hi <=+ timer_max) in
+    (* the cycles since the arm; a deadline wait adds its stall, a capturing wait not *)
+    let arm_lo, arm_hi =
+      let from ~stall a =
+        mux2 c.arm cycles
+        @@ mux2 c.deadline (wide_arm a +: stall +: cycles) (wide_arm a +: cycles)
+      in
+      ( from ~stall:(released (negate hi)) row.arm_lo
+      , from ~stall:(released (negate lo)) row.arm_hi )
+    in
+    let arm_image_known = c.arm |: (arm_known &: ~:other_wait &: (arm_hi <:. arm_limit)) in
+    let captured_image = mux2 c.arm gnd (row.captured |: (capturing &: arm_known)) in
+    let awaiting_image = mux2 c.arm vdd (row.awaiting &: ~:(c.capturing)) in
     let period_image v = mux2 c.set_p c.set_value @@ mux2 c.writes_p loaded.value v in
     (* a register's image on one way out: a counted jump decrements it on both *)
     let counter ~set ~dec ~(taken : bool) lo hi =
@@ -251,7 +351,7 @@ module Make (Comb : Comb.S) = struct
       let y_lo, y_hi = counter ~set:c.set_y ~dec:c.y_dec ~taken row.y_lo row.y_hi in
       let phase =
         is_full s
-        |: (c.bounded
+        |: ((c.bounded |: capture_bounded)
             &: fits
             &: (wide s.phase_lo <=+ image_lo)
             &: (image_hi <=+ wide s.phase_hi))
@@ -265,6 +365,12 @@ module Make (Comb : Comb.S) = struct
            ~image_hi:(period_image row.period_hi)
       &: contains ~lo:s.x_lo ~hi:s.x_hi ~any:c.writes_x ~image_lo:x_lo ~image_hi:x_hi
       &: contains ~lo:s.y_lo ~hi:s.y_hi ~any:c.writes_y ~image_lo:y_lo ~image_hi:y_hi
+      &: (arm_is_full s
+          |: (arm_image_known
+              &: (wide_arm s.arm_lo <=: arm_lo)
+              &: (arm_hi <=: wide_arm s.arm_hi)))
+      &: (~:(s.captured) |: captured_image)
+      &: (~:(s.awaiting) |: awaiting_image)
     in
     let singleton lo hi = lo ==: hi in
     let may_take =
@@ -301,7 +407,14 @@ module Table = struct
 
   let full_phase = Interval.top
 
-  let row ~(phase : Interval.t) ~(period : Interval.t) ~(x : Interval.t) ~(y : Interval.t)
+  let row
+    ~(phase : Interval.t)
+    ~(period : Interval.t)
+    ~(x : Interval.t)
+    ~(y : Interval.t)
+    ~(since_arm : Interval.t option)
+    ~captured
+    ~awaiting
     =
     let signed n = Bits.of_signed_int ~width:Isa.timer_bits n in
     let data_max = (1 lsl Isa.data_bits) - 1 in
@@ -312,6 +425,13 @@ module Table = struct
         (Int.clamp_exn (Option.value bound ~default) ~min:0 ~max:data_max)
     in
     let half = 1 lsl (Isa.timer_bits - 1) in
+    let arm_lo, arm_hi =
+      let unsigned n = Bits.of_unsigned_int ~width:Isa.timer_bits n in
+      match since_arm with
+      | Some { lo = Some lo; hi = Some hi } when lo >= 0 && hi < half ->
+        unsigned lo, unsigned hi
+      | _ -> unsigned 0, Bits.ones Isa.timer_bits
+    in
     (* an open end is the whole range, since the timer wraps *)
     let phase_lo, phase_hi =
       match phase.lo, phase.hi with
@@ -326,6 +446,10 @@ module Table = struct
     ; x_hi = data x.hi ~default:data_max
     ; y_lo = data y.lo ~default:0
     ; y_hi = data y.hi ~default:data_max
+    ; arm_lo = arm_lo
+    ; arm_hi = arm_hi
+    ; captured = Bits.of_bool captured
+    ; awaiting = Bits.of_bool awaiting
     }
   ;;
 
@@ -338,22 +462,41 @@ module Table = struct
     ; x_hi = Bits.zero Isa.data_bits
     ; y_lo = Bits.zero Isa.data_bits
     ; y_hi = Bits.zero Isa.data_bits
+    ; arm_lo = Bits.zero Isa.timer_bits
+    ; arm_hi = Bits.zero Isa.timer_bits
+    ; captured = Bits.gnd
+    ; awaiting = Bits.gnd
     }
   ;;
 
   let of_analyser (rows : Analyser.Row.t list) =
     let table = Array.create ~len:(1 lsl Isa.pc_bits) unreached in
     List.iter rows ~f:(fun r ->
-      table.(r.pc) <- row ~phase:r.phase ~period:r.period ~x:r.x ~y:r.y);
+      table.(r.pc)
+      <- row
+           ~phase:r.phase
+           ~period:r.period
+           ~x:r.x
+           ~y:r.y
+           ~since_arm:r.since_arm
+           ~captured:r.captured
+           ~awaiting:r.awaiting);
     table.(0)
-    <- row ~phase:full_phase ~period:Interval.top ~x:Interval.top ~y:Interval.top;
+    <- row
+         ~phase:full_phase
+         ~period:Interval.top
+         ~x:Interval.top
+         ~y:Interval.top
+         ~since_arm:None
+         ~captured:false
+         ~awaiting:false;
     table
   ;;
 end
 
 module K = Make (Bits)
 
-let check ?period ~(config : Program_config.t) ~words (table : Table.t) =
+let check ?period ?(single_capture_edge = false) ~(config : Program_config.t) ~words (table : Table.t) =
   let size = 1 lsl Isa.pc_bits in
   let words = Array.of_list words in
   let word pc =
@@ -368,6 +511,12 @@ let check ?period ~(config : Program_config.t) ~words (table : Table.t) =
     ; value = Bits.of_unsigned_int ~width:Isa.data_bits (Option.value period ~default:0)
     }
   in
+  let capture =
+    { Capture.pin = Bits.of_unsigned_int ~width:Isa.Field.wait_index.width config.capture_pin
+    ; rising = Bits.of_bool config.capture_rising
+    ; single_edge = Bits.of_bool single_capture_edge
+    }
+  in
   let starts_open =
     let r = table.(0) in
     let full lo hi =
@@ -377,6 +526,9 @@ let check ?period ~(config : Program_config.t) ~words (table : Table.t) =
     && full r.period_lo r.period_hi
     && full r.x_lo r.x_hi
     && full r.y_lo r.y_hi
+    && Bits.to_bool (K.arm_is_full r)
+    && not (Bits.to_bool r.captured)
+    && not (Bits.to_bool r.awaiting)
   in
   let following pc =
     if pc = config.wrap_top then config.wrap_bottom else (pc + 1) % size
@@ -393,6 +545,7 @@ let check ?period ~(config : Program_config.t) ~words (table : Table.t) =
               ~side_set_count
               ~fraction
               ~loaded
+              ~capture
               ~word:w
               ~row:table.(pc)
               ~next:table.(following pc)
@@ -409,11 +562,16 @@ module I = struct
     { side_set_count : 'a [@bits 2]
     ; fraction : 'a
     ; loaded : 'a With_valid.t [@bits Isa.data_bits]
+    ; capture : 'a Capture.t
     ; word : 'a [@bits Isa.data_bits]
     ; phase : 'a [@bits Isa.timer_bits]
     ; period : 'a [@bits Isa.data_bits]
     ; x : 'a [@bits Isa.data_bits]
     ; y : 'a [@bits Isa.data_bits]
+    ; arm : 'a [@bits Isa.timer_bits]
+    ; arm_known : 'a
+    ; captured : 'a
+    ; awaiting : 'a
     }
   [@@deriving hardcaml]
 end
@@ -426,11 +584,16 @@ let create (_scope : Scope.t) (i : Signal.t I.t) =
     ~side_set_count:i.side_set_count
     ~fraction:i.fraction
     ~loaded:i.loaded
+    ~capture:i.capture
     ~word:i.word
     ~phase:i.phase
     ~period:i.period
     ~x:i.x
     ~y:i.y
+    ~arm:i.arm
+    ~arm_known:i.arm_known
+    ~captured:i.captured
+    ~awaiting:i.awaiting
 ;;
 
 let hierarchical ?instance scope i =

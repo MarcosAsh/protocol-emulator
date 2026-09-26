@@ -133,6 +133,9 @@ module Row = struct
     ; x : Interval.t
     ; y : Interval.t
     ; period : Interval.t
+    ; since_arm : Interval.t option
+    ; captured : bool
+    ; awaiting : bool
     }
   [@@deriving sexp_of]
 end
@@ -390,11 +393,7 @@ let step ?period ?(single_capture_edge = false) ~config (s : State.t) pc (t : Is
        after { s with y = Interval.top }
      | Sys Capture_arm ->
        after
-         { s with
-           since_arm = Some (Interval.exactly 0)
-         ; captured = false
-         ; awaiting = true
-         }
+         { s with since_arm = Some (Interval.exactly 0); captured = false; awaiting = true }
      | Sys Halt -> []
      | _ -> after s)
 ;;
@@ -534,6 +533,9 @@ let analyse ?period ?single_capture_edge ~config (program : Isa.t list) =
       ; x = s.x
       ; y = s.y
       ; period = s.period
+      ; since_arm = s.since_arm
+      ; captured = s.captured
+      ; awaiting = s.awaiting
       }))
 ;;
 

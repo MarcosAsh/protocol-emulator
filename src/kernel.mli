@@ -21,6 +21,22 @@ module Row : sig
     ; x_hi : 'a
     ; y_lo : 'a
     ; y_hi : 'a
+    ; arm_lo : 'a
+    ; arm_hi : 'a
+    ; captured : 'a
+    ; awaiting : 'a
+    }
+  [@@deriving hardcaml]
+end
+
+(** The capture pin and edge, and whether the single-edge assumption is taken: the pin is
+    at the other level when [capture_arm] issues and, once at the captured level, stays
+    there until the wait for it releases. *)
+module Capture : sig
+  type 'a t =
+    { pin : 'a
+    ; rising : 'a
+    ; single_edge : 'a
     }
   [@@deriving hardcaml]
 end
@@ -28,7 +44,12 @@ end
 (** The next entry's phase: anything unless [bounded], one less too if [may_carry].
     [next_period] holds when [period_known]. [loaded], when valid, is the assumption that
     every run-time write to [p] carries its value. The same for [x] and [y]. A jump goes
-    to its target when [taken], if [taken_known]. [halts]: no next entry. *)
+    to its target when [taken], if [taken_known]. [next_arm] counts the cycles since
+    [capture_arm], leaving out a capturing wait's own wait, when [next_arm_known]; once
+    [next_captured], the capture is at most that old. Only the first wait for the edge
+    after the arm, while [awaiting], captures. [capture_bounded]: this is [mov t,
+    capture] with a captured edge, so the next phase lies in [cycles + 1, next_phase].
+    [halts]: no next entry. *)
 module Step : sig
   type 'a t =
     { next_phase : 'a
@@ -42,6 +63,11 @@ module Step : sig
     ; y_known : 'a
     ; taken : 'a
     ; taken_known : 'a
+    ; next_arm : 'a
+    ; next_arm_known : 'a
+    ; next_captured : 'a
+    ; next_awaiting : 'a
+    ; capture_bounded : 'a
     ; halts : 'a
     }
   [@@deriving hardcaml]
@@ -52,11 +78,16 @@ module Make (Comb : Comb.S) : sig
     :  side_set_count:Comb.t
     -> fraction:Comb.t
     -> loaded:Comb.t With_valid.t
+    -> capture:Comb.t Capture.t
     -> word:Comb.t
     -> phase:Comb.t
     -> period:Comb.t
     -> x:Comb.t
     -> y:Comb.t
+    -> arm:Comb.t
+    -> arm_known:Comb.t
+    -> captured:Comb.t
+    -> awaiting:Comb.t
     -> Comb.t Step.t
 
   (** [next] is the row after this one, [target] the jump's. *)
@@ -64,6 +95,7 @@ module Make (Comb : Comb.S) : sig
     :  side_set_count:Comb.t
     -> fraction:Comb.t
     -> loaded:Comb.t With_valid.t
+    -> capture:Comb.t Capture.t
     -> word:Comb.t
     -> row:Comb.t Row.t
     -> next:Comb.t Row.t
@@ -72,6 +104,7 @@ module Make (Comb : Comb.S) : sig
 
   val following : wrap_top:Comb.t -> wrap_bottom:Comb.t -> Comb.t -> Comb.t
   val is_full : Comb.t Row.t -> Comb.t
+  val arm_is_full : Comb.t Row.t -> Comb.t
 end
 
 module Table : sig
@@ -84,6 +117,7 @@ end
 (** Checks every pc; words past the program read zero. [period] is [loaded]. *)
 val check
   :  ?period:int
+  -> ?single_capture_edge:bool
   -> config:Program_config.t
   -> words:int list
   -> Table.t
@@ -95,11 +129,16 @@ module I : sig
     { side_set_count : 'a
     ; fraction : 'a
     ; loaded : 'a With_valid.t
+    ; capture : 'a Capture.t
     ; word : 'a
     ; phase : 'a
     ; period : 'a
     ; x : 'a
     ; y : 'a
+    ; arm : 'a
+    ; arm_known : 'a
+    ; captured : 'a
+    ; awaiting : 'a
     }
   [@@deriving hardcaml]
 end

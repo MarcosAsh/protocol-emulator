@@ -14,7 +14,8 @@ let row_input name =
     G.input (name ^ "_" ^ field) width)
 ;;
 
-let within (r : _ Kernel.Row.t) ~phase ~period ~x ~y =
+(* A row holds the core when every bound in it does; a full arm range says nothing. *)
+let within (r : _ Kernel.Row.t) ~phase ~period ~x ~y ~arm ~arm_known ~captured ~awaiting =
   let inside lo hi v = G.(lo <=: v &: (v <=: hi)) in
   G.(
     r.phase_lo
@@ -22,7 +23,10 @@ let within (r : _ Kernel.Row.t) ~phase ~period ~x ~y =
     &: (phase <=+ r.phase_hi)
     &: inside r.period_lo r.period_hi period
     &: inside r.x_lo r.x_hi x
-    &: inside r.y_lo r.y_hi y)
+    &: inside r.y_lo r.y_hi y
+    &: (K.arm_is_full r |: (arm_known &: inside r.arm_lo r.arm_hi arm))
+    &: (~:(r.captured) |: captured)
+    &: (~:(r.awaiting) |: awaiting))
 ;;
 
 let prove name ~claim =
@@ -44,27 +48,56 @@ let%expect_test "an accepted row maps into its successors and meets its deadline
     ; value = G.input "loaded_period" Isa.data_bits
     }
   in
+  let capture =
+    { Kernel.Capture.pin = G.input "capture_pin" Isa.Field.wait_index.width
+    ; rising = G.input "capture_rising" 1
+    ; single_edge = G.input "single_edge" 1
+    }
+  in
   let word = G.input "word" Isa.data_bits in
   let phase = G.input "phase" Isa.timer_bits in
   let period = G.input "period" Isa.data_bits in
   let x = G.input "x" Isa.data_bits in
   let y = G.input "y" Isa.data_bits in
+  let arm = G.input "arm" Isa.timer_bits in
+  let arm_known = G.input "arm_known" 1 in
+  let captured = G.input "captured" 1 in
+  let awaiting = G.input "awaiting" 1 in
   let carry = G.input "carry" 1 in
   let any name width = G.input ("any_" ^ name) width in
   let row = row_input "row" in
   let next = row_input "next" in
   let target = row_input "target" in
-  let s = K.step ~side_set_count ~fraction ~loaded ~word ~phase ~period ~x ~y in
+  let s =
+    K.step
+      ~side_set_count
+      ~fraction
+      ~loaded
+      ~capture
+      ~word
+      ~phase
+      ~period
+      ~x
+      ~y
+      ~arm
+      ~arm_known
+      ~captured
+      ~awaiting
+  in
   let d = Decoder.decode ~side_set_count word in
   let is op = Opcode.is d.opcode op in
   let deadline = G.(is Wait &: Wait_source.is d.wait_source Deadline) in
-  (* what the core holds at the next entry, by the step lemma *)
+  (* what the core holds at the next entry, by the step lemma; after [mov t, capture]
+     that is only a range, from a cycle past the instruction up to the step *)
+  let free_phase = any "phase" Isa.timer_bits in
+  let cycles = G.(uresize d.delay ~width:Isa.timer_bits +:. 1) in
+  let in_capture_range = G.(cycles +:. 1 <=: free_phase &: (free_phase <=: s.next_phase)) in
   let phase' =
     G.(
       mux2
         s.bounded
         (s.next_phase -: uresize (carry &: s.may_carry) ~width:Isa.timer_bits)
-        (any "phase" Isa.timer_bits))
+        free_phase)
   in
   let known k v name = G.mux2 k v (any name Isa.data_bits) in
   let within' r =
@@ -74,13 +107,18 @@ let%expect_test "an accepted row maps into its successors and meets its deadline
       ~period:(known s.period_known s.next_period "period")
       ~x:(known s.x_known s.next_x "x")
       ~y:(known s.y_known s.next_y "y")
+      ~arm:s.next_arm
+      ~arm_known:s.next_arm_known
+      ~captured:s.next_captured
+      ~awaiting:s.next_awaiting
   in
   let hypothesis =
     G.(
-      K.accepts ~side_set_count ~fraction ~loaded ~word ~row ~next ~target
-      &: within row ~phase ~period ~x ~y
+      K.accepts ~side_set_count ~fraction ~loaded ~capture ~word ~row ~next ~target
+      &: within row ~phase ~period ~x ~y ~arm ~arm_known ~captured ~awaiting
       &: (side_set_count <=:. 2)
-      &: ~:(s.halts))
+      &: ~:(s.halts)
+      &: (~:(s.capture_bounded) |: in_capture_range))
   in
   let arrives =
     G.(
@@ -102,9 +140,17 @@ let%expect_test "the kernel on the firmware library, from the analyser's rows" =
     let program = Asm.assemble c.source |> ok_exn in
     let config = Asm.Program.configure program c.config in
     let words = Asm.Program.words program |> ok_exn in
-    let rows = Analyser.analyse ?period:c.period ~config program.instructions in
+    let single_capture_edge = c.single_capture_edge in
+    let rows =
+      Analyser.analyse ?period:c.period ~single_capture_edge ~config program.instructions
+    in
     let verdict =
-      Kernel.check ?period:c.period ~config ~words (Kernel.Table.of_analyser rows)
+      Kernel.check
+        ?period:c.period
+        ~single_capture_edge
+        ~config
+        ~words
+        (Kernel.Table.of_analyser rows)
     in
     print_s [%message c.name (verdict : unit Or_error.t)]);
   [%expect
@@ -112,22 +158,15 @@ let%expect_test "the kernel on the firmware library, from the analyser's rows" =
     (uart_tx (verdict (Ok ())))
     (uart_tx16 (verdict (Ok ())))
     (uart_tx_host_rate (verdict (Ok ())))
-    (uart_rx (verdict (Error ("rows the kernel rejects" (pcs (9 15))))))
+    (uart_rx (verdict (Ok ())))
     (spi_master (verdict (Ok ())))
     (spi_slave (verdict (Ok ())))
     (i2c_master (verdict (Ok ())))
     (i2c_slave (verdict (Ok ())))
     (i2c_logger (verdict (Ok ())))
     (usb_tx (verdict (Ok ())))
-    (usb_rx (verdict (Error ("rows the kernel rejects" (pcs (12 24))))))
-    (usb_device
-     (verdict
-      (Error
-       ("rows the kernel rejects"
-        (pcs
-         (24 32 39 44 49 54 59 64 69 74 79 84 89 94 99 104 119 131 136 148 157
-          169 174 186 193 215 244 256 261 273 280 295 302 317 323 336 368 372 377
-          378 382 386 409 410 414 420 423 424 427 436 442 448 454 466))))))
+    (usb_rx (verdict (Ok ())))
+    (usb_device (verdict (Ok ())))
     (edge_meter (verdict (Ok ())))
     (ws2812 (verdict (Error ("rows the kernel rejects" (pcs (11))))))
     (ethernet (verdict (Ok ())))
