@@ -46,6 +46,18 @@ let top_rtl_command =
           C.create_exn ~name (Top.hierarchical ~memory ~engines scope))]
 ;;
 
+let kernel_rtl_command =
+  Command.basic
+    ~summary:
+      "Verilog for the kernel's step, which formal/phase_step.sv proves the core keeps"
+    [%map_open.Command
+      let () = return () in
+      fun () ->
+        let module C = Circuit.With_interface (Kernel.I) (Kernel.O) in
+        print_rtl ~name:"kernel_step_top" (fun ~name scope ->
+          C.create_exn ~name (Kernel.hierarchical scope))]
+;;
+
 (* The assumptions are the analyser's, under its names. The capture pin and autopull
    belong to the configuration, which the host loads and a source file does not carry. *)
 let timing_check =
@@ -140,6 +152,7 @@ let () =
        ~summary:""
        [ "engine", engine_rtl_command
        ; "top", top_rtl_command
+       ; "kernel", kernel_rtl_command
        ; "assemble", assemble_command
        ])
 ;;
