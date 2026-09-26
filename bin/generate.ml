@@ -101,9 +101,19 @@ let timing_check =
               Option.value autopull_data ~default:Program_config.default.pull_threshold
           }
         in
-        Analyser.check ?period ~single_capture_edge ~config program
-        |> Or_error.map ~f:(fun verdict ->
-          eprintf "%s\n" (Analyser.Verdict.to_string verdict)))]
+        let open Or_error.Let_syntax in
+        let%bind verdict = Analyser.check ?period ~single_capture_edge ~config program in
+        eprintf "%s\n" (Analyser.Verdict.to_string verdict);
+        let%map words = Asm.Program.words program in
+        (* the kernel needs no per-firmware proof, but covers less than the analyser *)
+        let config = Asm.Program.configure program config in
+        let rows =
+          Analyser.analyse ?period ~single_capture_edge ~config program.instructions
+        in
+        match Kernel.check ?period ~config ~words (Kernel.Table.of_analyser rows) with
+        | Ok () ->
+          eprintf "kernel: accepted, so no deadline is missed by the step lemma\n"
+        | Error e -> eprintf "kernel: not accepted (%s)\n" (Error.to_string_hum e))]
 ;;
 
 let assemble_command =
