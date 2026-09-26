@@ -21,12 +21,12 @@ smtbmc boolector
 
 [script]
 read_verilog engine.v
-hierarchy -top engine_top
+hierarchy -top engine
 proc
 flatten
-cd engine_top
-expose w:solo.engine.completes
-rename solo.engine.completes eng_completes
+cd engine
+expose w:completes
+rename completes eng_completes
 cd ..
 jump_in_one: read -define JUMP_IN_ONE
 late_wait_waits: read -define LATE_WAIT_WAITS

@@ -1,6 +1,8 @@
 // Step lemma for the universal certificate. For any program, from one instruction's entry
 // to the next, the core does what the kernel's step says: the phase [now - t], p, x, y and
 // the pc. A deadline wait entered at phase <= 0 does not fault. Equalities are mod 2^24.
+// The engine is the one on the chip with every input free, so this holds for each engine
+// of several; its program memory is the flop stand-in for the SRAM macro.
 
 module phase_step (input clk);
   (* anyconst *) wire [1:0] side_set_count;
@@ -17,9 +19,8 @@ module phase_step (input clk);
   // the assumption the kernel may take: every run-time write to p carries loaded_period
   (* anyconst *) wire loads_period;
   (* anyconst *) wire [15:0] loaded_period;
-  (* anyseq *) wire data_write_valid;
-  (* anyseq *) wire [8:0] data_write_addr;
-  (* anyseq *) wire [15:0] data_write_data;
+  // the data memory is shared between engines, so its word is free in every cycle
+  (* anyseq *) wire [15:0] data_word;
   (* anyseq *) wire stop, flush;
   (* anyseq *) wire start, program_write_valid, tx_valid, rx_pop, clear_irq;
   (* anyseq *) wire [8:0] program_write_addr;
@@ -43,7 +44,7 @@ module phase_step (input clk);
   wire [27:0] wait_pin = 28'd1 << instruction[4:0];
   wire completes;
 
-  engine_top dut (
+  engine dut (
     .clock(clk), .clear(clear),
     .config$side_set_count(side_set_count), .config$side_set_base(side_set_base),
     .config$side_set_pindirs(side_set_pindirs), .config$in_base(in_base),
@@ -63,8 +64,7 @@ module phase_step (input clk);
     .stop(stop), .flush(flush), .resume(1'b0), .single_step(1'b0),
     .start(start), .program_write$valid(program_write_valid),
     .program_write$addr(program_write_addr), .program_write$data(program_write_data),
-    .data_write$valid(data_write_valid), .data_write$addr(data_write_addr),
-    .data_write$data(data_write_data),
+    .data_word(data_word),
     .tx$valid(tx_valid), .tx$value(tx_value), .rx_pop(rx_pop), .clear_irq(clear_irq),
     .inputs(inputs),
     .pin_out(pin_out), .pin_dir(pin_dir), .pc(pc), .x(x), .y(y), .p(p), .t(t), .osr(osr),
