@@ -19,10 +19,10 @@ val time_triggered : Asm.Program.t -> unit Or_error.t
     on, as the hardware has it. [inputs] are the pin levels on every cycle, low unless
     given.
 
-    Runs the model with the fifo kept as full as the host can keep it, which is a run with
-    no fault; by the proof it is the run every host that meets the schedule sees. Refuses
-    a program that is not time-triggered, that faults, or that has not taken [words] words
-    within [max_cycles]. *)
+    Runs the model with the tx fifo kept as full as the host can keep it and every reply
+    read as soon as it is there, which is a run with no fault; by the proof it is the run
+    every host that meets the schedule sees. Refuses a program that is not time-triggered,
+    that faults, or that has not taken [words] words within [max_cycles]. *)
 val schedule
   :  ?inputs:int
   -> ?max_cycles:int

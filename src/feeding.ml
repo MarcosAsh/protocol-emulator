@@ -21,7 +21,13 @@ let schedule ?(inputs = 0) ?(max_cycles = 1_000_000) ~config program ~words =
   let%bind () = time_triggered program in
   let%bind encoded = Asm.Program.words program in
   let%bind machine = Machine.create ~config ~program:encoded in
-  (* the host tops the fifo up after every cycle, which is as early as it can be *)
+  (* after every cycle the host reads every reply and tops the tx fifo up, which is as
+     early as it can do either *)
+  let rec drain machine =
+    match Machine.read_rx machine with
+    | Some (_, machine) -> drain machine
+    | None -> machine
+  in
   let rec top_up (machine : Machine.t) ~sent =
     if sent < words && List.length machine.tx_fifo < Machine.fifo_depth
     then (
@@ -51,7 +57,7 @@ let schedule ?(inputs = 0) ?(max_cycles = 1_000_000) ~config program ~words =
           then (cycle - 1) :: deadlines
           else deadlines
         in
-        let%bind machine, sent = top_up machine ~sent in
+        let%bind machine, sent = top_up (drain machine) ~sent in
         run machine ~sent ~deadlines))
   in
   let%bind machine, sent = top_up machine ~sent:0 in
