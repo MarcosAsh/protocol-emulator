@@ -14,3 +14,4 @@ a001
 2040
 0002
 15 words, 3 deadline waits, worst slack 12
+kernel: accepted, so no deadline is missed by the step lemma
