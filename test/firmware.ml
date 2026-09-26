@@ -26,6 +26,40 @@ bit:
 
 let uart_tx ~period = [%string "    set p, %{period#Int}%{uart_tx_frame}"]
 
+(* A frame of 26 bits: start, the host's byte, then the low 16 bits of the cycle the start
+   bit shows on the pin, both LSB first, then stop. [mov y, now] reads the cycle four
+   before that edge: two to the anchor, one to the start bit and one for it to show. *)
+let uart_tx_stamped ~period =
+  [%string
+    {|
+    set p, %{period#Int}
+    set pins, 1              ; idle high
+idle:
+    wait tx
+    pull
+    set x, 7
+    mov y, now
+    add y, 4                 ; the cycle the start bit shows
+    mov t, now               ; anchor the frame
+    set pins, 0              ; start bit
+    add t, p
+byte:
+    wait t+
+    out pins, 1
+    jmp x--, byte
+    mov osr, y               ; then the stamp
+    set x, 15
+stamp:
+    wait t+
+    out pins, 1
+    jmp x--, stamp
+    wait t+
+    set pins, 1              ; stop bit
+    wait t
+    jmp idle
+|}]
+;;
+
 (* the first word from the host is the bit period *)
 let uart_tx_host_rate = [%string "    wait tx\n    pull\n    mov p, osr%{uart_tx_frame}"]
 

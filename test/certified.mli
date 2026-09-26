@@ -20,9 +20,13 @@ type t =
 
 val all : t list
 
+(** [Firmware.uart_tx_stamped], whose proof adds that the stamp in each frame is the cycle
+    its start bit shows. Kept out of [all] until the kernel's tests take it in. *)
+val stamped : t
+
 (** Firmware that never waits on the host, so a late word can fault it but not move an
     edge ([formal/late_host.sv]); [Feeding.schedule] gives the host its deadlines. *)
 val time_triggered : t list
 
-(** Searches [all] and [time_triggered]. *)
+(** Searches [all], [stamped] and [time_triggered]. *)
 val find_exn : string -> t

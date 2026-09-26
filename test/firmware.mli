@@ -11,6 +11,11 @@ val uart_tx_host_rate : string
 val uart_tx_stream : period:int -> string
 
 val stream_config : Program_config.t
+
+(** Each host word goes out as a 26-bit frame: start bit, the low byte, the low 16 bits of
+    [now] in the cycle the start bit first shows on the pin, stop bit, all LSB first. *)
+val uart_tx_stamped : period:int -> string
+
 val uart_rx : period:int -> string
 
 (** [uart_rx] on another line, which the configuration has to name as well: [in_base],

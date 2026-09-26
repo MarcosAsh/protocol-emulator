@@ -57,8 +57,14 @@ let time_triggered =
   ]
 ;;
 
+let stamped =
+  plain "uart_tx_stamped" (Firmware.uart_tx_stamped ~period:8) Program_config.default
+;;
+
 let find_exn name =
-  match List.find (all @ time_triggered) ~f:(fun t -> String.equal t.name name) with
+  match
+    List.find ((stamped :: all) @ time_triggered) ~f:(fun t -> String.equal t.name name)
+  with
   | Some t -> t
   | None -> raise_s [%message "no such firmware" (name : string)]
 ;;
