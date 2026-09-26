@@ -122,6 +122,27 @@ bit:
 |}]
 ;;
 
+(* Time-triggered: one anchor, then SCK runs for ever, a byte every eight bits with no
+   gap. The out on each falling edge autopulls the next byte when the last one is done,
+   and the in on each rising edge autopushes every eighth bit. *)
+let spi_master_stream ~half_period =
+  [%string
+    {|
+    .side_set 1
+    set p, %{half_period#Int} side 0
+    mov t, now side 0        ; the only anchor
+    add t, p side 0
+    wait t+ side 0
+    out pins, 1 side 0       ; first bit, half a period before the first edge
+bit:
+    wait t+ side 0
+    in pins, 1 side 1        ; rising edge
+    wait t+ side 1
+    out pins, 1 side 0       ; falling edge, next bit
+    jmp bit
+|}]
+;;
+
 let sck_pin = 6
 let mosi_pin = 5
 let miso_pin = 0
@@ -134,6 +155,15 @@ let spi_config =
   ; in_base = miso_pin
   ; out_shift = Left
   ; in_shift = Left
+  }
+;;
+
+let spi_stream_config =
+  { spi_config with
+    autopull = true
+  ; pull_threshold = 8
+  ; autopush = true
+  ; push_threshold = 8
   }
 ;;
 

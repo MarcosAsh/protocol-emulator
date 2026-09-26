@@ -49,7 +49,12 @@ let all =
 ;;
 
 let time_triggered =
-  [ plain "uart_tx_stream" (Firmware.uart_tx_stream ~period:8) Firmware.stream_config ]
+  [ plain "uart_tx_stream" (Firmware.uart_tx_stream ~period:8) Firmware.stream_config
+  ; plain
+      "spi_master_stream"
+      (Firmware.spi_master_stream ~half_period:8)
+      Firmware.spi_stream_config
+  ]
 ;;
 
 let find_exn name =

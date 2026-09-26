@@ -24,6 +24,14 @@ val mosi_pin : int
 val miso_pin : int
 val spi_config : Program_config.t
 
+(** [spi_master] with no wait on the host: SCK runs from one anchor for ever, bytes back
+    to back, each sent from the high half of a host word by autopull and each received
+    byte pushed by autopush. A byte that is late sets the underflow fault, a reply the
+    host has not read in time the overflow fault. *)
+val spi_master_stream : half_period:int -> string
+
+val spi_stream_config : Program_config.t
+
 (** Mode 0 slave without chip select. Replies are host words [byte lsl 8]; sck half
     periods of four cycles or more. *)
 val spi_slave : string
