@@ -4,6 +4,13 @@ open Protocol_emulator
 val assemble : string -> int list
 val uart_tx : period:int -> string
 val uart_tx_host_rate : string
+
+(** [uart_tx] with no wait on the host: frames back to back from one anchor, a byte a
+    frame by autopull in the low half of each host word. The host has to keep up; a byte
+    that is late sets the underflow fault and the line sends what [osr] holds instead. *)
+val uart_tx_stream : period:int -> string
+
+val stream_config : Program_config.t
 val uart_rx : period:int -> string
 
 (** [uart_rx] on another line, which the configuration has to name as well: [in_base],

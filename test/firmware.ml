@@ -29,6 +29,32 @@ let uart_tx ~period = [%string "    set p, %{period#Int}%{uart_tx_frame}"]
 (* the first word from the host is the bit period *)
 let uart_tx_host_rate = [%string "    wait tx\n    pull\n    mov p, osr%{uart_tx_frame}"]
 
+(* Time-triggered: one anchor, then a frame every ten periods for ever. Each byte comes by
+   autopull at the first out of its frame, a cycle fixed from the anchor, so a byte the
+   host sends late sets the underflow fault and moves no edge. *)
+let uart_tx_stream ~period =
+  [%string
+    {|
+    set p, %{period#Int}
+    set pins, 1              ; idle high
+    mov t, now               ; the only anchor
+    add t, p
+frame:
+    wait t+
+    set pins, 0              ; start bit
+    set x, 7
+bit:
+    wait t+
+    out pins, 1              ; autopull takes the byte before its first bit
+    jmp x--, bit
+    wait t+
+    set pins, 1              ; stop bit
+    jmp frame
+|}]
+;;
+
+let stream_config = { Program_config.default with autopull = true; pull_threshold = 8 }
+
 (* half period one short: the sample lands a cycle after the release *)
 let uart_rx_on ~pin ~period =
   [%string

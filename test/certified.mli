@@ -19,4 +19,10 @@ type t =
   }
 
 val all : t list
+
+(** Firmware that never waits on the host, so a late word can fault it but not move an
+    edge ([formal/late_host.sv]); [Feeding.schedule] gives the host its deadlines. *)
+val time_triggered : t list
+
+(** Searches [all] and [time_triggered]. *)
 val find_exn : string -> t
