@@ -1,0 +1,66 @@
+[tasks]
+prove
+never_pushes
+admit_fifo_wait teeth
+admit_fifo_jump teeth
+private_pull teeth
+no_underflow_excuse teeth
+no_overflow_excuse teeth
+
+[options]
+mode bmc
+depth 1
+teeth: expect fail
+
+[engines]
+smtbmc boolector
+
+[script]
+read_verilog -lib RM_IHPSG13_1P_512x16_c2_bm_bist.v
+read_verilog engine_sram.v
+setattr -mod -set blackbox 1 host_fifo
+hierarchy -top engine_top
+proc
+flatten
+expose -evert -sep __ engine_top/t:RM_IHPSG13_1P_512x16_c2_bm_bist engine_top/t:host_fifo
+cd engine_top
+rename solo.engine.sram_macro.sram__A_ADDR sram_addr
+rename solo.engine.sram_macro.sram__A_MEN sram_men
+rename solo.engine.sram_macro.sram__A_REN sram_ren
+rename solo.engine.sram_macro.sram__A_WEN sram_wen
+rename solo.engine.sram_macro.sram__A_DOUT sram_dout
+rename solo.data_memory.sram_macro.sram__A_ADDR data_sram_addr
+rename solo.data_memory.sram_macro.sram__A_MEN data_sram_men
+rename solo.data_memory.sram_macro.sram__A_REN data_sram_ren
+rename solo.data_memory.sram_macro.sram__A_WEN data_sram_wen
+rename solo.data_memory.sram_macro.sram__A_DOUT data_sram_dout
+rename solo.engine.tx__pop tx_fifo_pop
+rename solo.engine.tx__head tx_fifo_head
+rename solo.engine.tx__level tx_fifo_level
+rename solo.engine.tx__empty tx_fifo_empty
+rename solo.engine.tx__full tx_fifo_full
+rename solo.engine.rx__head rx_fifo_head
+rename solo.engine.rx__level rx_fifo_level
+rename solo.engine.rx__empty rx_fifo_empty
+rename solo.engine.rx__full rx_fifo_full
+cd ..
+private_pull: verilog_defines -DPRIVATE_PULL
+never_pushes: verilog_defines -DNEVER_PUSHES -DNO_OVERFLOW_EXCUSE
+admit_fifo_wait: verilog_defines -DADMIT_FIFO_WAIT
+admit_fifo_jump: verilog_defines -DADMIT_FIFO_JUMP
+no_underflow_excuse: verilog_defines -DNO_UNDERFLOW_EXCUSE
+no_overflow_excuse: verilog_defines -DNO_OVERFLOW_EXCUSE
+read_verilog -formal -sv late_host.sv
+proc
+flatten late_step
+opt_clean late_step
+dffunmap late_step
+expose -evert-dff -sep __ late_step/t:$dff
+copy late_step late_step_again
+miter -equiv -flatten -make_outputs -make_outcmp late_step late_step_again late_step_miter
+prep -top late_host
+
+[files]
+engine_sram.v
+late_host.sv
+../src/RM_IHPSG13_1P_512x16_c2_bm_bist.v

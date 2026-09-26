@@ -1,4 +1,4 @@
-all: issue_timing host_timing fifo_order phase_step teeth
+all: issue_timing host_timing late_host fifo_order phase_step teeth
 
 engine.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe engine > formal/engine.v
@@ -11,6 +11,10 @@ issue_timing: engine.v
 
 host_timing: engine_sram.v
 	sby -f host_timing.sby prove
+
+# a late host word can make a time-triggered program fault, never move a pin
+late_host: engine_sram.v
+	sby -f late_host.sby prove never_pushes
 
 fifo_order: engine.v
 	sby -f fifo_order.sby prove cover
@@ -28,6 +32,8 @@ teeth: engine.v engine_sram.v kernel_step.v
 	sby -f fifo_order.sby stale_ahead
 	sby -f phase_step.sby jump_in_one late_wait_waits no_carry one_late_cycle_is_safe taken_backwards
 	sby -f host_timing.sby private_pull no_wait_excuse no_jump_excuse no_underflow_excuse no_overflow_excuse
+	sby -f late_host.sby admit_fifo_wait admit_fifo_jump private_pull no_underflow_excuse \
+	  no_overflow_excuse
 
 # Each firmware's certificate from the analyser, as properties of the RTL for every input
 # and every host, to the depth in certificate.sby. The cover run says how far into the
@@ -69,5 +75,5 @@ INDUCTIVE = uart_tx uart_tx16 uart_tx_host_rate uart_rx spi_master spi_slave i2c
 inductive_certificates: engine_sram.v
 	for name in $(INDUCTIVE); do $(MAKE) inductive_certificate NAME=$$name || exit 1; done
 
-.PHONY: all issue_timing host_timing fifo_order teeth certificates certificate \
+.PHONY: all issue_timing host_timing late_host fifo_order teeth certificates certificate \
   inductive_certificate inductive_certificates
