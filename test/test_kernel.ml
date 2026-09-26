@@ -168,7 +168,11 @@ let%expect_test "the kernel on the firmware library, from the analyser's rows" =
     (usb_rx (verdict (Ok ())))
     (usb_device (verdict (Ok ())))
     (edge_meter (verdict (Ok ())))
-    (ws2812 (verdict (Error ("rows the kernel rejects" (pcs (11))))))
+    (ws2812
+     (verdict
+      (Error
+       ("rows the kernel rejects"
+        (rejected (((pc 11) (fails ("in time" "next phase")))))))))
     (ethernet (verdict (Ok ())))
     (one_wire (verdict (Ok ())))
     (ps2 (verdict (Ok ())))

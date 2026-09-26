@@ -28,6 +28,28 @@ module Capture = struct
   [@@deriving hardcaml]
 end
 
+module Holds = struct
+  type 'a t =
+    { phase : 'a
+    ; period : 'a
+    ; x : 'a
+    ; y : 'a
+    ; arm : 'a
+    ; captured : 'a
+    ; awaiting : 'a
+    }
+  [@@deriving hardcaml]
+end
+
+module Conjuncts = struct
+  type 'a t =
+    { in_time : 'a
+    ; next : 'a Holds.t
+    ; target : 'a Holds.t
+    }
+  [@@deriving hardcaml]
+end
+
 module Step = struct
   type 'a t =
     { next_phase : 'a [@bits Isa.timer_bits]
@@ -272,7 +294,7 @@ module Make (Comb : Comb.S) = struct
     mux2 any (lo ==:. 0 &: (hi ==: data_max)) (lo <=: image_lo &: (image_hi <=: hi))
   ;;
 
-  let accepts
+  let conjuncts
     ~side_set_count
     ~fraction
     ~(loaded : _ With_valid.t)
@@ -349,28 +371,29 @@ module Make (Comb : Comb.S) = struct
     let holds ~taken (s : _ Row.t) =
       let x_lo, x_hi = counter ~set:c.set_x ~dec:c.x_dec ~taken row.x_lo row.x_hi in
       let y_lo, y_hi = counter ~set:c.set_y ~dec:c.y_dec ~taken row.y_lo row.y_hi in
-      let phase =
-        is_full s
-        |: ((c.bounded |: capture_bounded)
-            &: fits
-            &: (wide s.phase_lo <=+ image_lo)
-            &: (image_hi <=+ wide s.phase_hi))
-      in
-      phase
-      &: contains
-           ~lo:s.period_lo
-           ~hi:s.period_hi
-           ~any:(c.writes_p &: ~:(loaded.valid))
-           ~image_lo:(period_image row.period_lo)
-           ~image_hi:(period_image row.period_hi)
-      &: contains ~lo:s.x_lo ~hi:s.x_hi ~any:c.writes_x ~image_lo:x_lo ~image_hi:x_hi
-      &: contains ~lo:s.y_lo ~hi:s.y_hi ~any:c.writes_y ~image_lo:y_lo ~image_hi:y_hi
-      &: (arm_is_full s
+      { Holds.phase =
+          is_full s
+          |: ((c.bounded |: capture_bounded)
+              &: fits
+              &: (wide s.phase_lo <=+ image_lo)
+              &: (image_hi <=+ wide s.phase_hi))
+      ; period =
+          contains
+            ~lo:s.period_lo
+            ~hi:s.period_hi
+            ~any:(c.writes_p &: ~:(loaded.valid))
+            ~image_lo:(period_image row.period_lo)
+            ~image_hi:(period_image row.period_hi)
+      ; x = contains ~lo:s.x_lo ~hi:s.x_hi ~any:c.writes_x ~image_lo:x_lo ~image_hi:x_hi
+      ; y = contains ~lo:s.y_lo ~hi:s.y_hi ~any:c.writes_y ~image_lo:y_lo ~image_hi:y_hi
+      ; arm =
+          arm_is_full s
           |: (arm_image_known
               &: (wide_arm s.arm_lo <=: arm_lo)
-              &: (arm_hi <=: wide_arm s.arm_hi)))
-      &: (~:(s.captured) |: captured_image)
-      &: (~:(s.awaiting) |: awaiting_image)
+              &: (arm_hi <=: wide_arm s.arm_hi))
+      ; captured = ~:(s.captured) |: captured_image
+      ; awaiting = ~:(s.awaiting) |: awaiting_image
+      }
     in
     let singleton lo hi = lo ==: hi in
     let may_take =
@@ -390,13 +413,20 @@ module Make (Comb : Comb.S) = struct
       @@ mux2 c.y_dec (row.y_lo ==:. 0)
       @@ mux2 c.x_ne_y (row.x_lo <=: row.y_hi &: (row.y_lo <=: row.x_hi)) vdd
     in
-    let in_time = ~:(c.deadline) |: (row.phase_hi <=+ zero Isa.timer_bits) in
-    is_empty row
-    |: c.halts
-    |: (in_time
-        &: (~:(c.jump) |: ~:may_fall |: holds ~taken:false next)
-        &: (c.jump |: holds ~taken:false next)
-        &: (~:(c.jump) |: ~:may_take |: holds ~taken:true target))
+    (* an empty row or a halt asks nothing; each conjunct holds or does not apply *)
+    let asks = ~:(is_empty row) &: ~:(c.halts) in
+    let only_if needed holds = Holds.map holds ~f:(fun h -> ~:needed |: h) in
+    { Conjuncts.in_time =
+        ~:asks |: ~:(c.deadline) |: (row.phase_hi <=+ zero Isa.timer_bits)
+    ; next = only_if (asks &: (~:(c.jump) |: may_fall)) (holds ~taken:false next)
+    ; target = only_if (asks &: c.jump &: may_take) (holds ~taken:true target)
+    }
+  ;;
+
+  let accepts ~side_set_count ~fraction ~loaded ~capture ~word ~row ~next ~target =
+    conjuncts ~side_set_count ~fraction ~loaded ~capture ~word ~row ~next ~target
+    |> Conjuncts.to_list
+    |> reduce ~f:( &: )
   ;;
 
   let following ~wrap_top ~wrap_bottom pc = mux2 (pc ==: wrap_top) wrap_bottom (pc +:. 1)
@@ -496,6 +526,14 @@ end
 
 module K = Make (Bits)
 
+module Rejection = struct
+  type t =
+    { pc : int
+    ; fails : string list
+    }
+  [@@deriving sexp_of]
+end
+
 let check ?period ?(single_capture_edge = false) ~(config : Program_config.t) ~words (table : Table.t) =
   let size = 1 lsl Isa.pc_bits in
   let words = Array.of_list words in
@@ -533,28 +571,39 @@ let check ?period ?(single_capture_edge = false) ~(config : Program_config.t) ~w
   let following pc =
     if pc = config.wrap_top then config.wrap_bottom else (pc + 1) % size
   in
+  let names =
+    let way name = Holds.map Holds.port_names ~f:(fun field -> name ^ " " ^ field) in
+    { Conjuncts.in_time = "in time"; next = way "next"; target = way "target" }
+  in
   let rejected =
-    List.filter (List.range 0 size) ~f:(fun pc ->
+    List.filter_map (List.range 0 size) ~f:(fun pc ->
       let w = word pc in
       let target =
         Bits.to_unsigned_int (Isa.Field.select (module Bits) Isa.Field.jmp_target w)
       in
-      not
-        (Bits.to_bool
-           (K.accepts
-              ~side_set_count
-              ~fraction
-              ~loaded
-              ~capture
-              ~word:w
-              ~row:table.(pc)
-              ~next:table.(following pc)
-              ~target:table.(target))))
+      let conjuncts =
+        K.conjuncts
+          ~side_set_count
+          ~fraction
+          ~loaded
+          ~capture
+          ~word:w
+          ~row:table.(pc)
+          ~next:table.(following pc)
+          ~target:table.(target)
+      in
+      let fails =
+        List.filter_map
+          (Conjuncts.to_list (Conjuncts.zip names conjuncts))
+          ~f:(fun (name, holds) -> Option.some_if (not (Bits.to_bool holds)) name)
+      in
+      Option.some_if (not (List.is_empty fails)) { Rejection.pc; fails })
   in
   match starts_open, rejected with
   | true, [] -> Ok ()
   | false, _ -> Or_error.error_s [%message "the row at pc 0 must be the full range"]
-  | true, pcs -> Or_error.error_s [%message "rows the kernel rejects" (pcs : int list)]
+  | true, rejected ->
+    Or_error.error_s [%message "rows the kernel rejects" (rejected : Rejection.t list)]
 ;;
 
 module I = struct

@@ -41,6 +41,34 @@ module Capture : sig
   [@@deriving hardcaml]
 end
 
+(** What a row asks of the row it steps to: its phase, registers and capture state each
+    land inside that row's. *)
+module Holds : sig
+  type 'a t =
+    { phase : 'a
+    ; period : 'a
+    ; x : 'a
+    ; y : 'a
+    ; arm : 'a
+    ; captured : 'a
+    ; awaiting : 'a
+    }
+  [@@deriving hardcaml]
+end
+
+(** [accepts] one conjunct at a time, so a rejection says which fails. [in_time]: a
+    deadline wait is entered at phase zero or below. [next] and [target]: the row maps
+    into the next pc's, and into the jump target's, on each way out the instruction may
+    take. A conjunct that does not apply, as for an empty row or a halt, holds. *)
+module Conjuncts : sig
+  type 'a t =
+    { in_time : 'a
+    ; next : 'a Holds.t
+    ; target : 'a Holds.t
+    }
+  [@@deriving hardcaml]
+end
+
 (** The next entry's phase: anything unless [bounded], one less too if [may_carry].
     [next_period] holds when [period_known]. [loaded], when valid, is the assumption that
     every run-time write to [p] carries its value. The same for [x] and [y]. A jump goes
@@ -91,6 +119,18 @@ module Make (Comb : Comb.S) : sig
     -> Comb.t Step.t
 
   (** [next] is the row after this one, [target] the jump's. *)
+  val conjuncts
+    :  side_set_count:Comb.t
+    -> fraction:Comb.t
+    -> loaded:Comb.t With_valid.t
+    -> capture:Comb.t Capture.t
+    -> word:Comb.t
+    -> row:Comb.t Row.t
+    -> next:Comb.t Row.t
+    -> target:Comb.t Row.t
+    -> Comb.t Conjuncts.t
+
+  (** Every one of [conjuncts]. *)
   val accepts
     :  side_set_count:Comb.t
     -> fraction:Comb.t
@@ -114,7 +154,8 @@ module Table : sig
   val of_analyser : Analyser.Row.t list -> t
 end
 
-(** Checks every pc; words past the program read zero. [period] is [loaded]. *)
+(** Checks every pc; words past the program read zero. [period] is [loaded]. A rejection
+    names each pc and the conjuncts that fail there. *)
 val check
   :  ?period:int
   -> ?single_capture_edge:bool
