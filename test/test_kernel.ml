@@ -14,13 +14,15 @@ let row_input name =
     G.input (name ^ "_" ^ field) width)
 ;;
 
-let within (r : _ Kernel.Row.t) ~phase ~period =
+let within (r : _ Kernel.Row.t) ~phase ~period ~x ~y =
+  let inside lo hi v = G.(lo <=: v &: (v <=: hi)) in
   G.(
     r.phase_lo
     <=+ phase
     &: (phase <=+ r.phase_hi)
-    &: (r.period_lo <=: period)
-    &: (period <=: r.period_hi))
+    &: inside r.period_lo r.period_hi period
+    &: inside r.x_lo r.x_hi x
+    &: inside r.y_lo r.y_hi y)
 ;;
 
 let prove name ~claim =
@@ -45,40 +47,52 @@ let%expect_test "an accepted row maps into its successors and meets its deadline
   let word = G.input "word" Isa.data_bits in
   let phase = G.input "phase" Isa.timer_bits in
   let period = G.input "period" Isa.data_bits in
+  let x = G.input "x" Isa.data_bits in
+  let y = G.input "y" Isa.data_bits in
   let carry = G.input "carry" 1 in
-  let any_phase = G.input "any_phase" Isa.timer_bits in
-  let any_period = G.input "any_period" Isa.data_bits in
+  let any name width = G.input ("any_" ^ name) width in
   let row = row_input "row" in
   let next = row_input "next" in
   let target = row_input "target" in
-  let s = K.step ~side_set_count ~fraction ~loaded ~word ~phase ~period in
+  let s = K.step ~side_set_count ~fraction ~loaded ~word ~phase ~period ~x ~y in
   let d = Decoder.decode ~side_set_count word in
   let is op = Opcode.is d.opcode op in
   let deadline = G.(is Wait &: Wait_source.is d.wait_source Deadline) in
+  (* what the core holds at the next entry, by the step lemma *)
   let phase' =
     G.(
       mux2
         s.bounded
         (s.next_phase -: uresize (carry &: s.may_carry) ~width:Isa.timer_bits)
-        any_phase)
+        (any "phase" Isa.timer_bits))
   in
-  let period' = G.mux2 s.period_known s.next_period any_period in
+  let known k v name = G.mux2 k v (any name Isa.data_bits) in
+  let within' r =
+    within
+      r
+      ~phase:phase'
+      ~period:(known s.period_known s.next_period "period")
+      ~x:(known s.x_known s.next_x "x")
+      ~y:(known s.y_known s.next_y "y")
+  in
   let hypothesis =
     G.(
       K.accepts ~side_set_count ~fraction ~loaded ~word ~row ~next ~target
-      &: within row ~phase ~period
+      &: within row ~phase ~period ~x ~y
       &: (side_set_count <=:. 2)
       &: ~:(s.halts))
   in
-  let claim =
+  let arrives =
     G.(
-      ~:deadline
-      |: (phase <=+ zero Isa.timer_bits)
-      &: (is Jmp
-          &: Jmp_cond.is d.jmp_cond Always
-          |: within next ~phase:phase' ~period:period')
-      &: (~:(is Jmp) |: within target ~phase:phase' ~period:period'))
+      mux2
+        (is Jmp)
+        (mux2
+           s.taken_known
+           (mux2 s.taken (within' target) (within' next))
+           (within' target &: within' next))
+        (within' next))
   in
+  let claim = G.(~:deadline |: (phase <=+ zero Isa.timer_bits) &: arrives) in
   prove "accepts => step stays in the rows" ~claim:G.(~:hypothesis |: claim);
   [%expect {| (QED "accepts => step stays in the rows") |}]
 ;;

@@ -5,6 +5,7 @@ jump_in_one teeth
 late_wait_waits teeth
 no_carry teeth
 one_late_cycle_is_safe teeth
+taken_backwards teeth
 
 [options]
 prove: mode prove
@@ -31,6 +32,7 @@ jump_in_one: read -define JUMP_IN_ONE
 late_wait_waits: read -define LATE_WAIT_WAITS
 no_carry: read -define NO_CARRY
 one_late_cycle_is_safe: read -define ONE_LATE_CYCLE_IS_SAFE
+taken_backwards: read -define TAKEN_BACKWARDS
 read_verilog kernel_step.v
 read_verilog -formal -sv phase_step.sv
 prep -top phase_step

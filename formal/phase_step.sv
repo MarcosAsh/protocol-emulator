@@ -1,7 +1,6 @@
 // Step lemma for the universal certificate. For any program, from one instruction's entry
-// to the next: the phase [now - t] moves as the analyser's transfer function says, the pc
-// goes to a successor, p changes only as written, and a deadline wait entered at phase <= 0 does not fault.
-// Equalities are modulo 2^24.
+// to the next, the core does what the kernel's step says: the phase [now - t], p, x, y and
+// the pc. A deadline wait entered at phase <= 0 does not fault. Equalities are mod 2^24.
 
 module phase_step (input clk);
   (* anyconst *) wire [1:0] side_set_count;
@@ -130,6 +129,8 @@ module phase_step (input clk);
       opcode == 4 && body == 8'b11100110 ? now
     : opcode == 6 && body[7:3] == 5'b11000 ? t + operand
     : opcode == 6 && body == 8'b11001010 ? t + {8'd0, p}
+    : opcode == 6 && body == 8'b11001000 ? t + {8'd0, x}
+    : opcode == 6 && body == 8'b11001001 ? t + {8'd0, y}
     : opcode == 6 && body[7:3] == 5'b11010 ? t - operand
     : deadline_wait && body[7] ? t + {8'd0, p}
     : t;
@@ -138,7 +139,7 @@ module phase_step (input clk);
   // after, [now + stall] is the next entry's cycle and t what the instruction left.
   reg pending = 0;
   reg done = 0;
-  reg [15:0] e_word, e_p;
+  reg [15:0] e_word, e_p, e_x, e_y;
   reg [8:0] e_pc;
   reg [23:0] e_t, e_now, e_phase, e_next_now, e_t_after;
   wire [23:0] e_step = step_of(e_word);
@@ -154,6 +155,8 @@ module phase_step (input clk);
       done <= completes;
       e_word <= instruction;
       e_p <= p;
+      e_x <= x;
+      e_y <= y;
       e_pc <= pc;
       e_t <= t;
       e_now <= now;
@@ -174,21 +177,24 @@ module phase_step (input clk);
 
   // the kernel's step, the definition the checker uses
   wire [23:0] next_phase;
-  wire [15:0] next_period;
+  wire [15:0] next_period, next_x, next_y;
+  wire x_known, y_known, taken, taken_known;
   wire bounded, carries, period_known;
   kernel_step e_step_of (
     .side_set_count(side_set_count), .fraction(period_fraction != 0),
     .loaded$valid(loads_period), .loaded$value(loaded_period), .word(e_word),
-    .phase(e_phase), .period(e_p), .next_phase(next_phase), .bounded(bounded),
-    .may_carry(carries), .next_period(next_period), .period_known(period_known),
-    .halts());
+    .phase(e_phase), .period(e_p), .x(e_x), .y(e_y), .next_phase(next_phase),
+    .bounded(bounded), .may_carry(carries), .next_period(next_period),
+    .period_known(period_known), .next_x(next_x), .x_known(x_known), .next_y(next_y),
+    .y_known(y_known), .taken(taken), .taken_known(taken_known), .halts());
   // whether the word at an entry has a next one
   wire halts, keeps_period;
   kernel_step halts_of (
     .side_set_count(side_set_count), .fraction(1'b0), .loaded$valid(1'b0),
-    .loaded$value(16'd0), .word(instruction), .phase(24'd0), .period(16'd0),
-    .next_phase(), .bounded(), .may_carry(), .next_period(),
-    .period_known(keeps_period), .halts(halts));
+    .loaded$value(16'd0), .word(instruction), .phase(24'd0), .period(16'd0), .x(16'd0),
+    .y(16'd0), .next_phase(), .bounded(), .may_carry(), .next_period(),
+    .period_known(keeps_period), .next_x(), .x_known(), .next_y(), .y_known(), .taken(),
+    .taken_known(), .halts(halts));
 
   reg wrote_p = 0;
   always @(posedge clk) wrote_p <= !clear && completes && !keeps_period;
@@ -215,7 +221,7 @@ module phase_step (input clk);
     if (!clear && pending && !entry) begin
       assert(!halted);
       assert(e_phase == e_now - e_t);
-      if (!done) assert(p == e_p);
+      if (!done) assert(p == e_p && x == e_x && y == e_y);
       else if (period_known) assert(p == next_period);
       if (e_safe) assert(!missed_deadline);
       if (!done) begin
@@ -227,9 +233,11 @@ module phase_step (input clk);
       end else begin
         assert(fresh && stall != 0);
         assert(now + stall == e_next_now);
-        if (e_is_jmp && e_word[12:9] == 0) assert(pc == e_word[8:0]);
+        if (e_is_jmp && taken_known) assert(pc == (taken ? e_word[8:0] : e_following));
         else if (e_is_jmp) assert(pc == e_word[8:0] || pc == e_following);
         else assert(pc == e_following);
+        if (x_known) assert(x == next_x);
+        if (y_known) assert(y == next_y);
         if (!e_unbounded) begin
           assert(t_ok);
           assert(e_next_now - e_t_after == e_expected);
@@ -246,9 +254,15 @@ module phase_step (input clk);
   always @(posedge clk)
     if (!clear && pending && entry) begin
       if (!e_unbounded) assert(phase == e_expected || (e_may_carry && phase == e_expected - 24'd1));
-      if (e_is_jmp && e_word[12:9] == 0) assert(pc == e_word[8:0]);
+`ifdef TAKEN_BACKWARDS
+      if (e_is_jmp && taken_known) assert(pc == (taken ? e_following : e_word[8:0]));
+`else
+      if (e_is_jmp && taken_known) assert(pc == (taken ? e_word[8:0] : e_following));
+`endif
       else if (e_is_jmp) assert(pc == e_word[8:0] || pc == e_following);
       else assert(pc == e_following);
+      if (x_known) assert(x == next_x);
+      if (y_known) assert(y == next_y);
       if (period_known) assert(p == next_period);
       if (e_safe) assert(!missed_deadline);
     end

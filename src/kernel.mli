@@ -1,5 +1,5 @@
 (** Checks a timing certificate one instruction at a time. A certificate is a row per pc:
-    the phase [now - t] on entry as a signed interval, the period [p] as an unsigned one.
+    the phase [now - t] on entry as a signed interval, [p], [x] and [y] as unsigned ones.
     The analyser proposes it and is not trusted.
 
     [formal/phase_step.sv] proves the core moves from one entry to the next as [step]
@@ -17,13 +17,18 @@ module Row : sig
     ; phase_hi : 'a
     ; period_lo : 'a
     ; period_hi : 'a
+    ; x_lo : 'a
+    ; x_hi : 'a
+    ; y_lo : 'a
+    ; y_hi : 'a
     }
   [@@deriving hardcaml]
 end
 
 (** The next entry's phase: anything unless [bounded], one less too if [may_carry].
     [next_period] holds when [period_known]. [loaded], when valid, is the assumption that
-    every run-time write to [p] carries its value. [halts]: no next entry. *)
+    every run-time write to [p] carries its value. The same for [x] and [y]. A jump goes
+    to its target when [taken], if [taken_known]. [halts]: no next entry. *)
 module Step : sig
   type 'a t =
     { next_phase : 'a
@@ -31,6 +36,12 @@ module Step : sig
     ; may_carry : 'a
     ; next_period : 'a
     ; period_known : 'a
+    ; next_x : 'a
+    ; x_known : 'a
+    ; next_y : 'a
+    ; y_known : 'a
+    ; taken : 'a
+    ; taken_known : 'a
     ; halts : 'a
     }
   [@@deriving hardcaml]
@@ -44,6 +55,8 @@ module Make (Comb : Comb.S) : sig
     -> word:Comb.t
     -> phase:Comb.t
     -> period:Comb.t
+    -> x:Comb.t
+    -> y:Comb.t
     -> Comb.t Step.t
 
   (** [next] is the row after this one, [target] the jump's. *)
@@ -85,6 +98,8 @@ module I : sig
     ; word : 'a
     ; phase : 'a
     ; period : 'a
+    ; x : 'a
+    ; y : 'a
     }
   [@@deriving hardcaml]
 end

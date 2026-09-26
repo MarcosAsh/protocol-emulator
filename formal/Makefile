@@ -26,7 +26,7 @@ phase_step: engine.v kernel_step.v
 teeth: engine.v engine_sram.v kernel_step.v
 	sby -f issue_timing.sby jump_in_one delay_ignores_side_set waits_are_plain
 	sby -f fifo_order.sby stale_ahead
-	sby -f phase_step.sby jump_in_one late_wait_waits no_carry one_late_cycle_is_safe
+	sby -f phase_step.sby jump_in_one late_wait_waits no_carry one_late_cycle_is_safe taken_backwards
 	sby -f host_timing.sby private_pull no_wait_excuse no_jump_excuse no_underflow_excuse no_overflow_excuse
 
 # Each firmware's certificate from the analyser, as properties of the RTL for every input
