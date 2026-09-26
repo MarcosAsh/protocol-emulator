@@ -921,3 +921,44 @@ let%expect_test "a capture is only as young as the arm once a wait has seen the 
      ((underflow false) (overflow false) (missed_deadline true) (decode false)))
     |}]
 ;;
+
+let%expect_test "only the first wait after the arm sees the captured edge" =
+  let source =
+    "    capture_arm\n\
+    \    wait 0 pin 0 [31]\n\
+    \    wait 0 pin 0\n\
+    \    mov t, capture\n\
+    \    add t, 7\n\
+    \    add t, 7\n\
+    \    add t, 7\n\
+    \    add t, 7\n\
+    \    add t, 7\n\
+    \    add t, 7\n\
+    \    wait t\n\
+    \    jmp 0\n"
+  in
+  let program = Asm.assemble source |> ok_exn in
+  let config = Asm.Program.configure program Firmware.rx_config in
+  print_s
+    [%message
+      (Analyser.check ~single_capture_edge:true ~config program
+       : Analyser.Verdict.t Or_error.t)];
+  let words = Asm.Program.words program |> ok_exn in
+  let t = ref (Machine.create ~config ~program:words |> ok_exn) in
+  for cycle = 0 to 400 do
+    (* the line falls, rises during the first wait's delay, and falls again much later *)
+    let low = (cycle >= 3 && cycle < 10) || cycle >= 300 in
+    t := Machine.step !t ~inputs:(if low then 0 else 1)
+  done;
+  print_s [%message (!t.fault : Machine.Fault.t)];
+  [%expect
+    {|
+    ("Analyser.check ~single_capture_edge:true ~config program"
+     (Error
+       "1 of 1 deadline waits may be missed\
+      \n 10  wait t                       phase -34..?  slack ?..34  MAY MISS\
+      \na bound of ? means none: the way here has a wait for a pin or a fifo, a capture nothing is assumed about, a period the host loads, or a loop that falls further behind on every pass"))
+    ("(!t).fault"
+     ((underflow false) (overflow false) (missed_deadline true) (decode false)))
+    |}]
+;;

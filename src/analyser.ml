@@ -10,6 +10,9 @@ module State = struct
     ; captured : bool
     (** A wait for the captured edge has released since the last [capture_arm], on every
         way in; until then the capture register holds an older edge. *)
+    ; awaiting : bool
+    (** Armed and no wait for the edge has released since, on every way in: only such a
+        wait sees the edge the assumption is about. *)
     ; since_edge : Interval.t (** Cycles since the last pin edge showed. *)
     ; since_data : Interval.t (** Cycles since the data pointer last moved. *)
     ; osr_count : Interval.t (** Bits shifted out since the last pull. *)
@@ -25,6 +28,7 @@ module State = struct
     ; y = Interval.top
     ; since_arm = None
     ; captured = false
+    ; awaiting = false
     ; since_edge = Interval.top
     ; since_data = { lo = Some Isa.data_settle; hi = None }
     ; osr_count = Interval.exactly Isa.data_bits
@@ -43,6 +47,7 @@ module State = struct
          | Some a, Some b -> Some (Interval.join a b)
          | _ -> None)
     ; captured = a.captured && b.captured
+    ; awaiting = a.awaiting && b.awaiting
     ; since_edge = Interval.join a.since_edge b.since_edge
     ; since_data = Interval.join a.since_data b.since_data
     ; osr_count = Interval.join a.osr_count b.osr_count
@@ -63,6 +68,7 @@ module State = struct
     ; since_arm =
         Option.map2 old.since_arm t.since_arm ~f:(fun old t -> Interval.widen ~old t)
     ; captured = t.captured
+    ; awaiting = t.awaiting
     ; since_edge = Interval.widen ~old:old.since_edge t.since_edge
     ; since_data = Interval.widen ~old:old.since_data t.since_data
     ; osr_count = t.osr_count
@@ -330,7 +336,7 @@ let step ?period ?(single_capture_edge = false) ~config (s : State.t) pc (t : Is
        let unbounded (i : Interval.t) = { i with hi = None } in
        (* The capture is the edge the wait releases on, or an earlier one since the arm,
           but only if the line made one edge; otherwise it can be any age. *)
-       let capturing = single_capture_edge && captures config wait in
+       let capturing = single_capture_edge && captures config wait && s.awaiting in
        let since_arm =
          match s.since_arm with
          | Some since when capturing -> Some { since with lo = Some 0 }
@@ -341,6 +347,7 @@ let step ?period ?(single_capture_edge = false) ~config (s : State.t) pc (t : Is
            phase = unbounded s.phase
          ; since_arm
          ; captured = s.captured || (capturing && Option.is_some s.since_arm)
+         ; awaiting = s.awaiting && not (single_capture_edge && captures config wait)
          ; since_edge = unbounded s.since_edge
          ; since_data = unbounded s.since_data
          }
@@ -382,7 +389,12 @@ let step ?period ?(single_capture_edge = false) ~config (s : State.t) pc (t : Is
      | Mov { dest = Y; _ } | Out { dest = Y; _ } | Alu { dest = Y; _ } ->
        after { s with y = Interval.top }
      | Sys Capture_arm ->
-       after { s with since_arm = Some (Interval.exactly 0); captured = false }
+       after
+         { s with
+           since_arm = Some (Interval.exactly 0)
+         ; captured = false
+         ; awaiting = true
+         }
      | Sys Halt -> []
      | _ -> after s)
 ;;
