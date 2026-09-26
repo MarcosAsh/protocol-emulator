@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="220" viewBox="0 0 1120 220" font-family="-apple-system, Helvetica, Arial, sans-serif">
+  <rect width="1120" height="220" fill="#ffffff"/>
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#4a6fa5"/></marker></defs>
+  <g font-size="13" fill="#1f2933" text-anchor="middle">
+    <text x="560" y="30" font-size="15" font-weight="600">a timing bug is a compile error, and the hardware checks that claim on itself</text>
+    <rect x="16" y="60" width="140" height="64" rx="6" fill="#eef3fa" stroke="#4a6fa5" stroke-width="1.5"/>
+    <text x="86" y="87" font-weight="600">firmware</text>
+    <text x="86" y="106" font-size="11" fill="#52606d">wait t+ names the cycle</text>
+    <line x1="156" y1="92" x2="174" y2="92" stroke="#4a6fa5" stroke-width="1.5" marker-end="url(#a)"/>
+    <rect x="174" y="60" width="140" height="64" rx="6" fill="#eef3fa" stroke="#4a6fa5" stroke-width="1.5"/>
+    <text x="244" y="87" font-weight="600">analyser</text>
+    <text x="244" y="106" font-size="11" fill="#52606d">an interval per edge</text>
+    <line x1="314" y1="92" x2="332" y2="92" stroke="#4a6fa5" stroke-width="1.5" marker-end="url(#a)"/>
+    <rect x="332" y="60" width="140" height="64" rx="6" fill="#eef3fa" stroke="#4a6fa5" stroke-width="1.5"/>
+    <text x="402" y="87" font-weight="600">certificate</text>
+    <text x="402" y="106" font-size="11" fill="#52606d">or a refusal, by row</text>
+    <line x1="472" y1="92" x2="490" y2="92" stroke="#4a6fa5" stroke-width="1.5" marker-end="url(#a)"/>
+    <rect x="490" y="60" width="140" height="64" rx="6" fill="#eef3fa" stroke="#4a6fa5" stroke-width="1.5"/>
+    <text x="560" y="87" font-weight="600">induction</text>
+    <text x="560" y="106" font-size="11" fill="#52606d">on the RTL, for all time</text>
+    <line x1="630" y1="92" x2="648" y2="92" stroke="#4a6fa5" stroke-width="1.5" marker-end="url(#a)"/>
+    <rect x="648" y="60" width="140" height="64" rx="6" fill="#eef3fa" stroke="#4a6fa5" stroke-width="1.5"/>
+    <text x="718" y="87" font-weight="600">lockstep</text>
+    <text x="718" y="106" font-size="11" fill="#52606d">model vs RTL, each cycle</text>
+    <line x1="788" y1="92" x2="806" y2="92" stroke="#4a6fa5" stroke-width="1.5" marker-end="url(#a)"/>
+    <rect x="806" y="60" width="140" height="64" rx="6" fill="#eef3fa" stroke="#4a6fa5" stroke-width="1.5"/>
+    <text x="876" y="87" font-weight="600">gate level</text>
+    <text x="876" y="106" font-size="11" fill="#52606d">the netlist replays runs</text>
+    <line x1="946" y1="92" x2="964" y2="92" stroke="#4a6fa5" stroke-width="1.5" marker-end="url(#a)"/>
+    <rect x="964" y="60" width="140" height="64" rx="6" fill="#ffffff" stroke="#4a6fa5" stroke-width="1.5" stroke-dasharray="5 3"/>
+    <text x="1034" y="87" font-weight="600">silicon</text>
+    <text x="1034" y="106" font-size="11" fill="#52606d">measures its own edges</text>
+    <text x="560" y="170" font-size="12" fill="#52606d">every stage takes the firmware as it is; the certificate is a file, and the proof reads it</text>
+    <text x="1034" y="190" font-size="11" fill="#52606d">dashed: on the bench next</text>
+  </g>
+</svg>
