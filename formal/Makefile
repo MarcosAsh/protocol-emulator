@@ -1,4 +1,4 @@
-all: issue_timing host_timing fifo_order teeth
+all: issue_timing host_timing fifo_order phase_step teeth
 
 engine.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe engine > formal/engine.v
@@ -15,10 +15,18 @@ host_timing: engine_sram.v
 fifo_order: engine.v
 	sby -f fifo_order.sby prove cover
 
+kernel_step.v: ../src/*.ml
+	cd .. && dune exec -- bin/generate.exe kernel > formal/kernel_step.v
+
+# the step lemma under the universal certificate, for any program
+phase_step: engine.v kernel_step.v
+	sby -f phase_step.sby prove cover
+
 # weakened statements, which pass only by failing
-teeth: engine.v engine_sram.v
+teeth: engine.v engine_sram.v kernel_step.v
 	sby -f issue_timing.sby jump_in_one delay_ignores_side_set waits_are_plain
 	sby -f fifo_order.sby stale_ahead
+	sby -f phase_step.sby jump_in_one late_wait_waits no_carry one_late_cycle_is_safe
 	sby -f host_timing.sby private_pull no_wait_excuse no_jump_excuse no_underflow_excuse no_overflow_excuse
 
 # Each firmware's certificate from the analyser, as properties of the RTL for every input
