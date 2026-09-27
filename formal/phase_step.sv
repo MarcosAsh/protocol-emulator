@@ -146,7 +146,12 @@ module phase_step (input clk);
   // The kernel's ghost count of cycles since capture_arm, as it stands at an entry.
   wire [23:0] next_arm;
   wire arm_known_next, captured_next, capture_bounded;
+`ifdef ARM_ONE_SHORT
+  // the step counting the arm's own cycles one short
+  wire [23:0] g = pending ? next_arm - {23'd0, e_arms} : 24'd0;
+`else
   wire [23:0] g = pending ? next_arm : 24'd0;
+`endif
   wire g_known = pending && arm_known_next;
   wire g_captured = pending && captured_next;
   wire awaiting_next;
@@ -207,6 +212,14 @@ module phase_step (input clk);
       e_t_after <= t_after;
     end
 
+`ifdef LATER_EDGE_CAPTURED
+  // every wait for the edge counts as the one that captures it, not only the first since
+  // the arm, so a later edge stands for the one the register took
+  wire e_awaiting = e_g_awaiting || single_edge && e_capturing;
+`else
+  wire e_awaiting = e_g_awaiting;
+`endif
+
   // the kernel's step, the definition the checker uses
   wire [23:0] next_phase;
   wire [15:0] next_period, next_x, next_y;
@@ -218,7 +231,7 @@ module phase_step (input clk);
     .loaded$valid(loads_period), .loaded$value(loaded_period), .word(e_word),
     .capture$pin(capture_pin), .capture$rising(capture_rising),
     .capture$single_edge(single_edge), .arm(e_g), .arm_known(e_g_known),
-    .captured(e_g_captured), .awaiting(e_g_awaiting), .next_awaiting(awaiting_next),
+    .captured(e_g_captured), .awaiting(e_awaiting), .next_awaiting(awaiting_next),
     .next_arm(next_arm), .next_arm_known(arm_known_next),
     .next_captured(captured_next), .capture_bounded(capture_bounded),
     .phase(e_phase), .period(e_p), .x(e_x), .y(e_y), .next_phase(next_phase),
@@ -257,8 +270,24 @@ module phase_step (input clk);
   wire e_may_carry = carries;
 `endif
   wire e_unbounded = !bounded;
+  // the least phase after [mov t, capture]: an edge a cycle old and the instruction's cycles
+`ifdef CAPTURE_A_CYCLE_OLDER
+  wire [23:0] capture_lo = e_step + 24'd2;
+`else
+  wire [23:0] capture_lo = e_step + 24'd1;
+`endif
   wire t_ok = t == e_t_after || (e_may_carry && t == e_t_after + 24'd1);
 
+  // The teeth that drop half the single-edge assumption keep only the claims at entries. The
+  // invariants between entries are there for induction and lean on the assumption too, so
+  // they would fail first whether or not the claims need it.
+`ifdef SECOND_EDGE
+`define ENTRIES_ONLY
+`elsif LEVEL_AT_ARM
+`define ENTRIES_ONLY
+`endif
+
+`ifndef ENTRIES_ONLY
   always @(posedge clk)
     if (!clear && pending && !entry) begin
       assert(!halted);
@@ -285,10 +314,11 @@ module phase_step (input clk);
         if (!e_unbounded) assert(e_next_now - e_t_after == e_expected);
       end
     end
+`endif
 
   // The single-edge assumption, on the level the core sees: the capture pin is at the other
   // level when capture_arm issues, and once at the captured level it stays there until a
-  // wait for it releases.
+  // wait for it releases. The teeth level_at_arm and second_edge drop one half each.
   wire arms = entry && opcode == 7 && instruction[7:0] == 8'd7;
   wire capturing = opcode == 1 && !instruction[6] && instruction[4:0] == capture_pin
     && instruction[4:0] < 28 && instruction[7] == capture_rising;
@@ -327,8 +357,12 @@ module phase_step (input clk);
     else if (holding && level) seen <= 1;
   always @(*)
     if (single_edge) begin
+`ifndef LEVEL_AT_ARM
       if (arms) assume(!level);
+`endif
+`ifndef SECOND_EDGE
       if (holding && seen) assume(level);
+`endif
     end
 
   // what the ghost count stands for: while awaiting the edge, the cycles since the arm;
@@ -348,6 +382,7 @@ module phase_step (input clk);
   wire e_arms = e_word[15:13] == 7 && e_word[7:0] == 8'd7;
   wire e_capturing = e_word[15:13] == 1 && !e_word[6] && e_word[4:0] == capture_pin
     && e_word[4:0] < 28 && e_word[7] == capture_rising;
+`ifndef ENTRIES_ONLY
   // while holding, the edge has either not come and the capture is armed, or come once
   always @(posedge clk)
     if (!clear && single_edge && holding)
@@ -391,13 +426,14 @@ module phase_step (input clk);
   always @(posedge clk)
     if (!clear && pending && !done && completes && e_deadline_wait && e_in_time)
       assert(now == e_t);
+`endif
 
   // the lemma
   always @(posedge clk)
     if (!clear && pending && entry) begin
       if (!e_unbounded) assert(phase == e_expected || (e_may_carry && phase == e_expected - 24'd1));
       // the age of the captured edge and a cycle or more: unsigned
-      if (capture_bounded) assert(now - t >= e_step + 24'd1 && now - t <= next_phase);
+      if (capture_bounded) assert(now - t >= capture_lo && now - t <= next_phase);
 `ifdef TAKEN_BACKWARDS
       if (e_is_jmp && taken_known) assert(pc == (taken ? e_following : e_word[8:0]));
 `else

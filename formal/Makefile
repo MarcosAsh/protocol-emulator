@@ -38,7 +38,8 @@ frame_step: engine.v
 teeth: engine.v engine_sram.v kernel_step.v
 	sby -f issue_timing.sby jump_in_one delay_ignores_side_set waits_are_plain
 	sby -f fifo_order.sby stale_ahead
-	sby -f phase_step.sby jump_in_one late_wait_waits no_carry one_late_cycle_is_safe taken_backwards
+	sby -f phase_step.sby jump_in_one late_wait_waits no_carry one_late_cycle_is_safe taken_backwards \
+	  second_edge level_at_arm later_edge_captured capture_a_cycle_older arm_one_short
 	sby -f edge_step.sby pins_never_change side_set_only one_cycle_later flip_off_issue no_flip
 	sby -f frame_step.sby narrow_side narrow_set narrow_out narrow_mov no_pair side_dirs_on_out \
 	  no_wrap

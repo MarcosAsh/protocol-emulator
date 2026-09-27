@@ -29,18 +29,26 @@ let within (r : _ Kernel.Row.t) ~phase ~period ~x ~y ~arm ~arm_known ~captured ~
     &: (~:(r.awaiting) |: awaiting))
 ;;
 
-let prove name ~claim =
+(* A counterexample prints the inputs in [show], or all of them. *)
+let prove ?show name ~claim =
   match Solver.solve ~solver:(Solver.z3 ~parallel:false ()) (G.cnf G.(~:claim)) with
   | Ok Unsat -> print_s [%message "QED" name]
   | Ok (Sat model) ->
+    let shown name =
+      Option.for_all show ~f:(fun names -> List.mem names name ~equal:String.equal)
+    in
     let model =
-      List.map model ~f:(fun (m : Cnf.Model_with_vectors.input) -> m.name, m.value)
+      List.filter_map model ~f:(fun (m : Cnf.Model_with_vectors.input) ->
+        Option.some_if (shown m.name) (m.name, m.value))
     in
     print_s [%message "counterexample" name (model : (string * string) list)]
   | Error e -> print_s [%message "solver failed" name (e : Error.t)]
 ;;
 
-let%expect_test "an accepted row maps into its successors and meets its deadline" =
+(* An accepted row maps into its successors and meets its deadline. The kernel accepts
+   under the single-edge assumption as the input [single_edge] sets it, and the step takes
+   [step_edge] of that. *)
+let accepted_rows_hold ?show name ~step_edge =
   let side_set_count = G.input "side_set_count" 2 in
   let fraction = G.input "fraction" 1 in
   let loaded =
@@ -73,7 +81,7 @@ let%expect_test "an accepted row maps into its successors and meets its deadline
       ~side_set_count
       ~fraction
       ~loaded
-      ~capture
+      ~capture:{ capture with single_edge = step_edge capture.single_edge }
       ~word
       ~phase
       ~period
@@ -131,8 +139,27 @@ let%expect_test "an accepted row maps into its successors and meets its deadline
         (within' next))
   in
   let claim = G.(~:deadline |: (phase <=+ zero Isa.timer_bits) &: arrives) in
-  prove "accepts => step stays in the rows" ~claim:G.(~:hypothesis |: claim);
+  prove ?show name ~claim:G.(~:hypothesis |: claim)
+;;
+
+let%expect_test "an accepted row maps into its successors and meets its deadline" =
+  accepted_rows_hold "accepts => step stays in the rows" ~step_edge:Fn.id;
   [%expect {| (QED "accepts => step stays in the rows") |}]
+;;
+
+(* Teeth for the single-edge assumption: a row the kernel accepts under it need not hold a
+   core whose capture pin may make a second edge, which is the step without it. Any
+   counterexample has the kernel assuming one edge while the core awaits it. *)
+let%expect_test "the rows hold only under the single-edge assumption" =
+  accepted_rows_hold
+    "accepts => step stays in the rows, with a second edge"
+    ~step_edge:(Fn.const G.gnd)
+    ~show:[ "single_edge"; "awaiting" ];
+  [%expect
+    {|
+    (counterexample "accepts => step stays in the rows, with a second edge"
+     (model ((awaiting 1) (single_edge 1))))
+    |}]
 ;;
 
 let assemble (c : Certified.t) =
