@@ -1,20 +1,33 @@
 (** Checks a timing certificate one instruction at a time. A certificate is a row per pc:
-    the phase [now - t] on entry as a signed interval, [p], [x] and [y] as unsigned ones.
-    The analyser proposes it and is not trusted.
+    the phase [now - t] on entry as a signed interval, [p], [x] and [y] as unsigned ones,
+    and the phase less a multiple of [x] as another signed interval. The analyser proposes
+    it and is not trusted.
 
     [formal/phase_step.sv] proves the core moves from one entry to the next as [step]
     says, for any program; [test/test_kernel.ml] proves by SAT that [accepts] keeps [step]
-    inside the rows and a deadline wait at or below zero. So a program whose rows all
-    pass, with the full range at pc 0, never misses a deadline. An empty row is a pc never
-    reached; the full range is an unknown phase. *)
+    inside the rows and a deadline wait at or below zero. SAT cannot follow a
+    multiplication, so that proof takes the offsets as free inputs under axioms of modular
+    arithmetic, which it states and rests on. So a program whose rows all pass, with the
+    full range at pc 0, never misses a deadline. An empty row is a pc never reached; the
+    full range is an unknown phase. *)
 
 open! Core
 open! Hardcaml
 
+(** [slope] is signed. [offset_lo] and [offset_hi] bound [phase - slope * x], taken modulo
+    the timer and read as signed, and their full range bounds nothing. A counted loop that
+    moves [t] by the same amount on every pass keeps it: its phase has no bound short of
+    the full range, but where [jmp x--] falls through, x is zero and the phase lies inside
+    the offset. The kernel follows it across [set x] and across a step that adds to the
+    phase and leaves x alone or counts it down, with the slope the same on both rows; on
+    any other step the next row's offset has to be full. *)
 module Row : sig
   type 'a t =
     { phase_lo : 'a
     ; phase_hi : 'a
+    ; slope : 'a
+    ; offset_lo : 'a
+    ; offset_hi : 'a
     ; period_lo : 'a
     ; period_hi : 'a
     ; x_lo : 'a
@@ -41,11 +54,12 @@ module Capture : sig
   [@@deriving hardcaml]
 end
 
-(** What a row asks of the row it steps to: its phase, registers and capture state each
-    land inside that row's. *)
+(** What a row asks of the row it steps to: its phase, offset, registers and capture state
+    each land inside that row's. *)
 module Holds : sig
   type 'a t =
     { phase : 'a
+    ; offset : 'a
     ; period : 'a
     ; x : 'a
     ; y : 'a
@@ -144,6 +158,7 @@ module Make (Comb : Comb.S) : sig
 
   val following : wrap_top:Comb.t -> wrap_bottom:Comb.t -> Comb.t -> Comb.t
   val is_full : Comb.t Row.t -> Comb.t
+  val offset_is_full : Comb.t Row.t -> Comb.t
   val arm_is_full : Comb.t Row.t -> Comb.t
 end
 

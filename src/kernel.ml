@@ -5,6 +5,9 @@ module Row = struct
   type 'a t =
     { phase_lo : 'a [@bits Isa.timer_bits]
     ; phase_hi : 'a [@bits Isa.timer_bits]
+    ; slope : 'a [@bits Isa.timer_bits]
+    ; offset_lo : 'a [@bits Isa.timer_bits]
+    ; offset_hi : 'a [@bits Isa.timer_bits]
     ; period_lo : 'a [@bits Isa.data_bits]
     ; period_hi : 'a [@bits Isa.data_bits]
     ; x_lo : 'a [@bits Isa.data_bits]
@@ -31,6 +34,7 @@ end
 module Holds = struct
   type 'a t =
     { phase : 'a
+    ; offset : 'a
     ; period : 'a
     ; x : 'a
     ; y : 'a
@@ -269,6 +273,9 @@ module Make (Comb : Comb.S) = struct
   let wide_bits = Isa.timer_bits + 2
   let wide x = sresize x ~width:wide_bits
   let wide_data x = uresize x ~width:wide_bits
+
+  (* wide enough again for an offset less a slope times what [set x] loads *)
+  let offset_bits = wide_bits + Isa.Field.set_value.width
   let timer_min = of_signed_int ~width:wide_bits (-(1 lsl (Isa.timer_bits - 1)))
   let timer_max = of_signed_int ~width:wide_bits ((1 lsl (Isa.timer_bits - 1)) - 1)
   let data_max = ones Isa.data_bits
@@ -286,6 +293,10 @@ module Make (Comb : Comb.S) = struct
 
   let is_full (r : _ Row.t) =
     wide r.phase_lo ==: timer_min &: (wide r.phase_hi ==: timer_max)
+  ;;
+
+  let offset_is_full (r : _ Row.t) =
+    wide r.offset_lo ==: timer_min &: (wide r.offset_hi ==: timer_max)
   ;;
 
   (* An unsigned interval that a register's image must fall in, or [any] for a write the
@@ -319,17 +330,8 @@ module Make (Comb : Comb.S) = struct
     let by_register ~p ~x ~y ~otherwise =
       mux2 (c.advance |: c.add_p) p @@ mux2 c.add_x x @@ mux2 c.add_y y @@ otherwise
     in
-    let image_lo, image_hi =
-      let base_lo =
-        mux2 c.anchor (zero wide_bits)
-        @@ mux2 capture_bounded (one wide_bits)
-        @@ mux2 c.deadline (released lo) lo
-      in
-      let base_hi =
-        mux2 c.anchor (zero wide_bits)
-        @@ mux2 capture_bounded (wide_arm row.arm_hi)
-        @@ mux2 c.deadline (released hi) hi
-      in
+    (* what the step adds to the phase, on top of where it starts from *)
+    let delta_lo, delta_hi =
       let fixed = mux2 c.add_imm imm @@ mux2 c.sub_imm (negate imm) (zero wide_bits) in
       let less_lo =
         by_register
@@ -345,9 +347,31 @@ module Make (Comb : Comb.S) = struct
           ~y:(wide_data row.y_lo)
           ~otherwise:fixed
       in
-      base_lo +: cycles -: less_lo, base_hi +: cycles -: less_hi
+      cycles -: less_lo, cycles -: less_hi
     in
-    let fits = image_lo >=+ timer_min &: (image_hi <=+ timer_max) in
+    (* the next phase, from a phase in [lo, hi] *)
+    let image ~lo ~hi =
+      let base_lo =
+        mux2 c.anchor (zero wide_bits)
+        @@ mux2 capture_bounded (one wide_bits)
+        @@ mux2 c.deadline (released lo) lo
+      in
+      let base_hi =
+        mux2 c.anchor (zero wide_bits)
+        @@ mux2 capture_bounded (wide_arm row.arm_hi)
+        @@ mux2 c.deadline (released hi) hi
+      in
+      base_lo +: delta_lo, base_hi +: delta_hi
+    in
+    let image_lo, image_hi = image ~lo ~hi in
+    let offset_lo = wide row.offset_lo in
+    let offset_hi = wide row.offset_hi in
+    (* falling through [jmp x--] leaves x = 0, where the phase lies in the offset too *)
+    let fallen_lo, fallen_hi =
+      image
+        ~lo:(mux2 (lo >+ offset_lo) lo offset_lo)
+        ~hi:(mux2 (hi <+ offset_hi) hi offset_hi)
+    in
     (* the cycles since the arm; a deadline wait adds its stall, a capturing wait not *)
     let arm_lo, arm_hi =
       let from ~stall a =
@@ -374,15 +398,50 @@ module Make (Comb : Comb.S) = struct
       ( mux2 set c.set_value @@ mux2 dec dec_lo kept_lo
       , mux2 set c.set_value @@ mux2 dec dec_hi kept_hi )
     in
+    let phase_known = c.bounded |: capture_bounded in
+    (* a step that adds to the phase moves the offset by as much *)
+    let adds = c.bounded &: ~:(c.anchor) &: ~:(c.deadline) in
+    let moved_lo = offset_lo +: delta_lo in
+    let moved_hi = offset_hi +: delta_hi in
+    let small_value =
+      uresize
+        (sel_bottom c.set_value ~width:Isa.Field.set_value.width)
+        ~width:(Isa.Field.set_value.width + 1)
+    in
     let holds ~taken (s : _ Row.t) =
       let x_lo, x_hi = counter ~set:c.set_x ~dec:c.x_dec ~taken row.x_lo row.x_hi in
       let y_lo, y_hi = counter ~set:c.set_y ~dec:c.y_dec ~taken row.y_lo row.y_hi in
+      let image_lo, image_hi =
+        if taken
+        then image_lo, image_hi
+        else mux2 c.x_dec fallen_lo image_lo, mux2 c.x_dec fallen_hi image_hi
+      in
+      let fits = image_lo >=+ timer_min &: (image_hi <=+ timer_max) in
+      (* The offset's image, where [s.slope * x] is known on this way out: after [set x],
+         from the phase's image; with the slope the same and x the same, or one less on
+         the way a counted jump takes, from this row's offset. *)
+      let offset_known, offset_image_lo, offset_image_hi =
+        let wider x = sresize x ~width:offset_bits in
+        let product = wider (s.slope *+ small_value) in
+        let counted moved =
+          if taken then mux2 c.x_dec (moved +: wide row.slope) moved else moved
+        in
+        let follows_x = if taken then ~:(c.writes_x) else ~:(c.writes_x |: c.x_dec) in
+        ( mux2 c.set_x phase_known (adds &: follows_x &: (s.slope ==: row.slope))
+        , mux2 c.set_x (wider image_lo -: product) (wider (counted moved_lo))
+        , mux2 c.set_x (wider image_hi -: product) (wider (counted moved_hi)) )
+      in
       { Holds.phase =
           is_full s
-          |: ((c.bounded |: capture_bounded)
+          |: (phase_known
               &: fits
               &: (wide s.phase_lo <=+ image_lo)
               &: (image_hi <=+ wide s.phase_hi))
+      ; offset =
+          offset_is_full s
+          |: (offset_known
+              &: (sresize s.offset_lo ~width:offset_bits <=+ offset_image_lo)
+              &: (offset_image_hi <=+ sresize s.offset_hi ~width:offset_bits))
       ; period =
           contains
             ~lo:s.period_lo
@@ -443,6 +502,9 @@ module Table = struct
 
   let full_phase = Interval.top
 
+  (* the timer's signed values are [-half, half - 1] *)
+  let half = 1 lsl (Isa.timer_bits - 1)
+
   let row
     ~(phase : Interval.t)
     ~(period : Interval.t)
@@ -460,7 +522,6 @@ module Table = struct
         ~width:Isa.data_bits
         (Int.clamp_exn (Option.value bound ~default) ~min:0 ~max:data_max)
     in
-    let half = 1 lsl (Isa.timer_bits - 1) in
     let arm_lo, arm_hi =
       let unsigned n = Bits.of_unsigned_int ~width:Isa.timer_bits n in
       match since_arm with
@@ -476,6 +537,9 @@ module Table = struct
     in
     { Row.phase_lo = signed phase_lo
     ; phase_hi = signed phase_hi
+    ; slope = signed 0
+    ; offset_lo = signed (-half)
+    ; offset_hi = signed (half - 1)
     ; period_lo = data period.lo ~default:0
     ; period_hi = data period.hi ~default:data_max
     ; x_lo = data x.lo ~default:0
@@ -492,6 +556,9 @@ module Table = struct
   let unreached =
     { Row.phase_lo = Bits.of_signed_int ~width:Isa.timer_bits 1
     ; phase_hi = Bits.zero Isa.timer_bits
+    ; slope = Bits.zero Isa.timer_bits
+    ; offset_lo = Bits.of_signed_int ~width:Isa.timer_bits (-half)
+    ; offset_hi = Bits.of_signed_int ~width:Isa.timer_bits (half - 1)
     ; period_lo = Bits.zero Isa.data_bits
     ; period_hi = Bits.zero Isa.data_bits
     ; x_lo = Bits.zero Isa.data_bits
@@ -567,6 +634,7 @@ let check ?period ?(single_capture_edge = false) ~(config : Program_config.t) ~w
       Bits.to_unsigned_int lo = 0 && Bits.to_unsigned_int hi = (1 lsl Isa.data_bits) - 1
     in
     Bits.to_bool (K.is_full r)
+    && Bits.to_bool (K.offset_is_full r)
     && full r.period_lo r.period_hi
     && full r.x_lo r.x_hi
     && full r.y_lo r.y_hi

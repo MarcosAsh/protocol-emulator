@@ -2,38 +2,85 @@ open! Core
 open! Hardcaml
 open! Hardcaml_verify
 open Protocol_emulator
-module G = Comb_gates
+
+(* [Comb_gates], with each product built once: the kernel's product of a slope and the
+   value [set x] loads and the proof's product of the same two vectors are then the same
+   gates. They are the same function either way, but SAT cannot see that two multipliers
+   agree. *)
+module G = struct
+  include Comb_gates
+
+  let products = Hashtbl.create (module String)
+
+  let ( *+ ) a b =
+    let key =
+      List.map [ a; b ] ~f:(fun bits ->
+        List.map bits ~f:(fun bit -> Basic_gates.Uid.to_string (Basic_gates.uid bit))
+        |> String.concat ~sep:" ")
+      |> String.concat ~sep:" * "
+    in
+    Hashtbl.find_or_add products key ~default:(fun () -> Comb_gates.( *+ ) a b)
+  ;;
+end
+
 module K = Kernel.Make (G)
 module Decoder = Decoder.Make (G)
 module Opcode = Isa.Opcode.Make_comb (G)
 module Wait_source = Isa.Wait_source.Make_comb (G)
 module Jmp_cond = Isa.Jmp_cond.Make_comb (G)
+module Set_dest = Isa.Set_dest.Make_comb (G)
 
 let row_input name =
   Kernel.Row.map2 Kernel.Row.port_names Kernel.Row.port_widths ~f:(fun field width ->
     G.input (name ^ "_" ^ field) width)
 ;;
 
-(* A row holds the core when every bound in it does; a full arm range says nothing. *)
-let within (r : _ Kernel.Row.t) ~phase ~period ~x ~y ~arm ~arm_known ~captured ~awaiting =
+(* Whether the core lies inside a row, bound by bound, in the shape of what the kernel
+   asks of a row; a full arm range says nothing. [offset] is the core's
+   [phase - r.slope * x] modulo the timer. *)
+let lies_in
+  (r : _ Kernel.Row.t)
+  ~phase
+  ~offset
+  ~period
+  ~x
+  ~y
+  ~arm
+  ~arm_known
+  ~captured
+  ~awaiting
+  =
   let inside lo hi v = G.(lo <=: v &: (v <=: hi)) in
-  G.(
-    r.phase_lo
-    <=+ phase
-    &: (phase <=+ r.phase_hi)
-    &: inside r.period_lo r.period_hi period
-    &: inside r.x_lo r.x_hi x
-    &: inside r.y_lo r.y_hi y
-    &: (K.arm_is_full r |: (arm_known &: inside r.arm_lo r.arm_hi arm))
-    &: (~:(r.captured) |: captured)
-    &: (~:(r.awaiting) |: awaiting))
+  { Kernel.Holds.phase = G.(r.phase_lo <=+ phase &: (phase <=+ r.phase_hi))
+  ; offset = G.(r.offset_lo <=+ offset &: (offset <=+ r.offset_hi))
+  ; period = inside r.period_lo r.period_hi period
+  ; x = inside r.x_lo r.x_hi x
+  ; y = inside r.y_lo r.y_hi y
+  ; arm = G.(K.arm_is_full r |: (arm_known &: inside r.arm_lo r.arm_hi arm))
+  ; captured = G.(~:(r.captured) |: captured)
+  ; awaiting = G.(~:(r.awaiting) |: awaiting)
+  }
 ;;
 
-(* A counterexample prints the inputs in [show], or all of them. *)
-let prove ?show name ~claim =
-  match Solver.solve ~solver:(Solver.z3 ~parallel:false ()) (G.cnf G.(~:claim)) with
-  | Ok Unsat -> print_s [%message "QED" name]
-  | Ok (Sat model) ->
+let all (h : _ Kernel.Holds.t) = Kernel.Holds.to_list h |> G.reduce ~f:G.( &: )
+let all_but_offset (h : _ Kernel.Holds.t) = all { h with offset = G.vdd }
+
+(* One case at a time, which SAT finds far easier than all at once. The proof rests on the
+   cases covering every input, so SAT is asked that first. A counterexample prints the
+   inputs in [show], or all of them. *)
+let prove ?show name ~cases ~claim =
+  let covered = G.reduce ~f:G.( |: ) cases in
+  let queries = G.(~:covered) :: List.map cases ~f:(fun case -> G.(case &: ~:claim)) in
+  let failure =
+    List.find_map queries ~f:(fun query ->
+      match Solver.solve ~solver:(Solver.z3 ~parallel:false ()) (G.cnf query) with
+      | Ok Unsat -> None
+      | Ok (Sat model) -> Some (Ok model)
+      | Error e -> Some (Error e))
+  in
+  match failure with
+  | None -> print_s [%message "QED" name]
+  | Some (Ok model) ->
     let shown name =
       Option.for_all show ~f:(fun names -> List.mem names name ~equal:String.equal)
     in
@@ -42,13 +89,24 @@ let prove ?show name ~claim =
         Option.some_if (shown m.name) (m.name, m.value))
     in
     print_s [%message "counterexample" name (model : (string * string) list)]
-  | Error e -> print_s [%message "solver failed" name (e : Error.t)]
+  | Some (Error e) -> print_s [%message "solver failed" name (e : Error.t)]
 ;;
 
-(* An accepted row maps into its successors and meets its deadline. The kernel accepts
-   under the single-edge assumption as the input [single_edge] sets it, and the step takes
-   [step_edge] of that. *)
-let accepted_rows_hold ?show name ~step_edge =
+(* That an accepted row maps into its successors and meets its deadline, as two claims,
+   which SAT finds far easier than one: [bounds], that the conjuncts other than the offset
+   keep the core inside every other bound of the row it steps to and a deadline wait in
+   time, and [offset], that the offset conjuncts keep its offset inside that row's.
+   [accepts] is every conjunct, so it implies both. Each is proved one of [cases] at a
+   time. *)
+type claims =
+  { cases : G.t list
+  ; bounds : G.t
+  ; offset : G.t
+  }
+
+(* The kernel accepts under the single-edge assumption as the input [single_edge] sets it,
+   and the step takes [step_edge] of that. *)
+let accepted_rows_hold ~step_edge =
   let side_set_count = G.input "side_set_count" 2 in
   let fraction = G.input "fraction" 1 in
   let loaded =
@@ -108,53 +166,125 @@ let accepted_rows_hold ?show name ~step_edge =
         free_phase)
   in
   let known k v name = G.mux2 k v (any name Isa.data_bits) in
-  let within' r =
-    within
+  let x' = known s.x_known s.next_x "x" in
+  (* SAT cannot follow a multiplication, so [offset], the core's [phase - row.slope * x]
+     modulo the timer, and [next_offset] and [target_offset], [phase' - slope * x'] under
+     each successor's slope, are free inputs, under axioms that hold of the true offsets
+     in that arithmetic: after [set x, v] the offset is [phase' - slope * v]; where x is
+     zero it is the phase; and with the slope the same, the offset moves as the phase does
+     where x stays, and a slope further where x is one less. The proof is sound only
+     because they hold. Each is stated only where the kernel needs it, which leaves it
+     true and SAT finds far easier. *)
+  let offset = G.input "offset" Isa.timer_bits in
+  let next_offset = G.input "next_offset" Isa.timer_bits in
+  let target_offset = G.input "target_offset" Isa.timer_bits in
+  let set_x = G.(is Set &: Set_dest.is d.set_dest X) in
+  let x_dec = G.(is Jmp &: Jmp_cond.is d.jmp_cond X_dec) in
+  let steady = G.(s.bounded &: ~:deadline) in
+  let moved = G.(offset +: (phase' -: phase)) in
+  let axioms (r : _ Kernel.Row.t) r_offset =
+    let same_slope = G.(r.slope ==: row.slope) in
+    let set_value = G.uresize d.set_value ~width:(Isa.Field.set_value.width + 1) in
+    G.(
+      ~:set_x
+      |: (r_offset ==: phase' -: sel_bottom (r.slope *+ set_value) ~width:Isa.timer_bits)
+      &: (~:(steady &: s.x_known &: (x' ==: x) &: same_slope) |: (r_offset ==: moved))
+      &: (~:(x_dec &: (x <>:. 0) &: (x' ==: x -:. 1) &: same_slope)
+          |: (r_offset ==: moved +: row.slope)))
+  in
+  let lies_in' r ~offset =
+    lies_in
       r
       ~phase:phase'
+      ~offset
       ~period:(known s.period_known s.next_period "period")
-      ~x:(known s.x_known s.next_x "x")
+      ~x:x'
       ~y:(known s.y_known s.next_y "y")
       ~arm:s.next_arm
       ~arm_known:s.next_arm_known
       ~captured:s.next_captured
       ~awaiting:s.next_awaiting
   in
+  let arrives =
+    Kernel.Holds.map2
+      (lies_in' target ~offset:target_offset)
+      (lies_in' next ~offset:next_offset)
+      ~f:(fun target next ->
+        G.(
+          mux2
+            (is Jmp)
+            (mux2 s.taken_known (mux2 s.taken target next) (target &: next))
+            next))
+  in
+  let conjuncts =
+    K.conjuncts ~side_set_count ~fraction ~loaded ~capture ~word ~row ~next ~target
+  in
   let hypothesis =
     G.(
-      K.accepts ~side_set_count ~fraction ~loaded ~capture ~word ~row ~next ~target
-      &: within row ~phase ~period ~x ~y ~arm ~arm_known ~captured ~awaiting
+      all (lies_in row ~phase ~offset ~period ~x ~y ~arm ~arm_known ~captured ~awaiting)
+      &: (~:x_dec |: (x <>:. 0) |: (offset ==: phase))
       &: (side_set_count <=:. 2)
       &: ~:(s.halts)
       &: (~:(s.capture_bounded) |: in_capture_range))
   in
-  let arrives =
-    G.(
-      mux2
-        (is Jmp)
-        (mux2
-           s.taken_known
-           (mux2 s.taken (within' target) (within' next))
-           (within' target &: within' next))
-        (within' next))
+  (* a jump one condition at a time and an ALU instruction one destination and operation
+     at a time *)
+  let cases =
+    let values (field : Isa.Field.t) =
+      List.init (1 lsl field.width) ~f:(fun v ->
+        G.(Isa.Field.select (module G) field word ==:. v))
+    in
+    List.concat_map Isa.Opcode.Cases.all ~f:(fun op ->
+      let parts =
+        match op with
+        | Jmp -> values Isa.Field.jmp_cond
+        | Alu ->
+          List.cartesian_product (values Isa.Field.alu_dest) (values Isa.Field.alu_op)
+          |> List.map ~f:(fun (dest, op) -> G.(dest &: op))
+        | Wait | In | Out | Mov | Set | Sys -> [ G.vdd ]
+      in
+      List.map parts ~f:(fun part -> G.(is op &: part)))
   in
-  let claim = G.(~:deadline |: (phase <=+ zero Isa.timer_bits) &: arrives) in
-  prove ?show name ~claim:G.(~:hypothesis |: claim)
+  { cases
+  ; bounds =
+      G.(
+        ~:(hypothesis
+           &: conjuncts.in_time
+           &: all_but_offset conjuncts.next
+           &: all_but_offset conjuncts.target)
+        |: (~:deadline |: (phase <=+ zero Isa.timer_bits) &: all_but_offset arrives))
+  ; offset =
+      G.(
+        ~:(hypothesis
+           &: axioms next next_offset
+           &: axioms target target_offset
+           &: conjuncts.next.offset
+           &: conjuncts.target.offset)
+        |: arrives.offset)
+  }
 ;;
 
 let%expect_test "an accepted row maps into its successors and meets its deadline" =
-  accepted_rows_hold "accepts => step stays in the rows" ~step_edge:Fn.id;
-  [%expect {| (QED "accepts => step stays in the rows") |}]
+  let { cases; bounds; offset } = accepted_rows_hold ~step_edge:Fn.id in
+  prove "accepts => step stays in the rows" ~cases ~claim:bounds;
+  prove "accepts => offset stays in the rows" ~cases ~claim:offset;
+  [%expect
+    {|
+    (QED "accepts => step stays in the rows")
+    (QED "accepts => offset stays in the rows")
+    |}]
 ;;
 
 (* Teeth for the single-edge assumption: a row the kernel accepts under it need not hold a
    core whose capture pin may make a second edge, which is the step without it. Any
    counterexample has the kernel assuming one edge while the core awaits it. *)
 let%expect_test "the rows hold only under the single-edge assumption" =
-  accepted_rows_hold
+  let { cases; bounds; _ } = accepted_rows_hold ~step_edge:(Fn.const G.gnd) in
+  prove
     "accepts => step stays in the rows, with a second edge"
-    ~step_edge:(Fn.const G.gnd)
-    ~show:[ "single_edge"; "awaiting" ];
+    ~show:[ "single_edge"; "awaiting" ]
+    ~cases
+    ~claim:bounds;
   [%expect
     {|
     (counterexample "accepts => step stays in the rows, with a second edge"
@@ -167,18 +297,21 @@ let assemble (c : Certified.t) =
   program, Asm.Program.configure program c.config
 ;;
 
-let check (c : Certified.t) =
+(* The kernel on the analyser's rows, with [at_pc_0] of the row it puts at pc 0. *)
+let check ?(at_pc_0 = Fn.id) (c : Certified.t) =
   let program, config = assemble c in
   let single_capture_edge = c.single_capture_edge in
   let rows =
     Analyser.analyse ?period:c.period ~single_capture_edge ~config program.instructions
   in
+  let table = Kernel.Table.of_analyser rows in
+  table.(0) <- at_pc_0 table.(0);
   Kernel.check
     ?period:c.period
     ~single_capture_edge
     ~config
     ~words:(Asm.Program.words program |> ok_exn)
-    (Kernel.Table.of_analyser rows)
+    table
 ;;
 
 let%expect_test "the kernel on the firmware library, from the analyser's rows" =
@@ -208,21 +341,68 @@ let%expect_test "the kernel on the firmware library, from the analyser's rows" =
     |}]
 ;;
 
-(* Whether some table of interval rows passes the kernel, with pc 0 held to the full range
-   as [Kernel.check] holds it and every other row free. The analyser's rows play no part,
-   so when no table passes, a rejection is a limit of the kernel's rows and not of the
-   analyser's. Like [Kernel.check], it checks every pc, reading words past the program as
-   zero. *)
-let some_table_passes (c : Certified.t) =
+(* At reset the phase, the offset, every register and the capture state are anything, and
+   the proof of [accepts] takes the row at pc 0 to hold of them, so [Kernel.check] refuses
+   a table whose row there bounds any of them: here uart_tx's, which it accepts, with one
+   bound added at pc 0. *)
+let%expect_test "the row at pc 0 bounds nothing" =
+  let c = Certified.find_exn "uart_tx" in
+  let signed n = Bits.of_signed_int ~width:Isa.timer_bits n in
+  let data n = Bits.of_unsigned_int ~width:Isa.data_bits n in
+  List.iter
+    [ "nothing", Fn.id
+    ; ("phase", fun (r : _ Kernel.Row.t) -> { r with phase_hi = signed 0 })
+    ; ( "offset"
+      , fun r -> { r with slope = signed 1; offset_lo = signed 0; offset_hi = signed 0 }
+      )
+    ; ("period", fun r -> { r with period_hi = data 0 })
+    ; ("x", fun r -> { r with x_hi = data 0 })
+    ; ("y", fun r -> { r with y_hi = data 0 })
+    ; ("arm", fun r -> { r with arm_hi = Bits.zero Isa.timer_bits })
+    ; ("captured", fun r -> { r with captured = Bits.vdd })
+    ; ("awaiting", fun r -> { r with awaiting = Bits.vdd })
+    ]
+    ~f:(fun (bound, at_pc_0) ->
+      let verdict = check c ~at_pc_0 in
+      print_s [%message bound (verdict : unit Or_error.t)]);
+  [%expect
+    {|
+    (nothing (verdict (Ok ())))
+    (phase (verdict (Error "the row at pc 0 must be the full range")))
+    (offset (verdict (Error "the row at pc 0 must be the full range")))
+    (period (verdict (Error "the row at pc 0 must be the full range")))
+    (x (verdict (Error "the row at pc 0 must be the full range")))
+    (y (verdict (Error "the row at pc 0 must be the full range")))
+    (arm (verdict (Error "the row at pc 0 must be the full range")))
+    (captured (verdict (Error "the row at pc 0 must be the full range")))
+    (awaiting (verdict (Error "the row at pc 0 must be the full range")))
+    |}]
+;;
+
+(* Whether some table of rows passes the kernel, with pc 0 held to the full range as
+   [Kernel.check] holds it and every other row free. The analyser's rows play no part, so
+   when no table passes, a rejection is a limit of the kernel's rows and not of the
+   analyser's. Without [offsets] every offset is full, which leaves rows of intervals
+   alone. Like [Kernel.check], it checks every pc, reading words past the program as zero. *)
+let some_table_passes ?(offsets = true) (c : Certified.t) =
   let program, config = assemble c in
   let words = Asm.Program.words program |> ok_exn |> Array.of_list in
   let constant b = G.of_constant (Bits.to_constant b) in
   let size = 1 lsl Isa.pc_bits in
+  let full = Kernel.Row.map (Kernel.Table.of_analyser []).(0) ~f:constant in
   let table =
     Array.init size ~f:(fun pc ->
+      let row = row_input [%string "pc%{pc#Int}"] in
       if pc = 0
-      then Kernel.Row.map (Kernel.Table.of_analyser []).(0) ~f:constant
-      else row_input [%string "pc%{pc#Int}"])
+      then full
+      else if offsets
+      then row
+      else
+        { row with
+          slope = full.slope
+        ; offset_lo = full.offset_lo
+        ; offset_hi = full.offset_hi
+        })
   in
   let word pc =
     Bits.of_unsigned_int
@@ -275,8 +455,9 @@ let some_table_passes (c : Certified.t) =
 (* ws2812 as it was first written, with the wait of its reset gap after the loop rather
    than in it. The line stays low as long, but each pass moves [t] 23 cycles further ahead
    of [now], so the row at the head of the loop, which has to hold its own image one pass
-   on, has no lower bound short of the full range, and the wait after the loop is not
-   known to be in time. It is the kind of loop the kernel's interval rows cannot certify. *)
+   on, has no bound on the phase short of the full range. Rows of intervals alone do not
+   know the wait after the loop to be in time; the offset does, since the phase less 23
+   times x holds still round the loop and x is zero where it falls through. *)
 let ws2812_waiting_after_gap =
   let c = Certified.find_exn "ws2812" in
   { c with
@@ -289,6 +470,20 @@ let ws2812_waiting_after_gap =
   }
 ;;
 
+(* [ws2812_waiting_after_gap] with the last [add t, p] of its gap loop made [add t, x]:
+   each pass moves [t] ahead by an amount that changes from pass to pass, so neither the
+   phase nor the phase less any multiple of x holds still round the loop. *)
+let gap_adding_x =
+  { ws2812_waiting_after_gap with
+    name = "gap_adding_x"
+  ; source =
+      String.substr_replace_first
+        ws2812_waiting_after_gap.source
+        ~pattern:"add t, p\n    jmp x--, gap"
+        ~with_:"add t, x\n    jmp x--, gap"
+  }
+;;
+
 let print_rejection (c : Certified.t) =
   match check c with
   | Ok () -> ()
@@ -296,14 +491,19 @@ let print_rejection (c : Certified.t) =
     if some_table_passes c
     then
       print_s [%message c.name "some table passes, so the analyser's rows are at fault"]
-    else print_s [%message c.name "no table of intervals passes"]
+    else print_s [%message c.name "no table passes"]
 ;;
 
 let%expect_test "a rejection is the kernel's or the analyser's" =
   List.iter Certified.all ~f:print_rejection;
   [%expect {| |}];
-  print_rejection ws2812_waiting_after_gap;
-  [%expect {| (ws2812_waiting_after_gap "no table of intervals passes") |}]
+  List.iter [ ws2812_waiting_after_gap; gap_adding_x ] ~f:print_rejection;
+  [%expect
+    {|
+    (ws2812_waiting_after_gap
+     "some table passes, so the analyser's rows are at fault")
+    (gap_adding_x "no table passes")
+    |}]
 ;;
 
 (* The analyser's rows are one table that passes, so the query must find some for the
@@ -350,17 +550,20 @@ let%expect_test "the way through jmp x!=y knows x is y" =
 ;;
 
 (* The library's ws2812 waits inside its gap loop instead, which holds the line low for
-   the same 160 thirds, and a table passes. *)
-let%expect_test "ws2812 passes once the wait after its gap loop moves into the loop" =
+   the same 160 thirds and needs no offset. [accepted] is the kernel's verdict on the
+   analyser's rows. *)
+let%expect_test "ws2812's gap loop needs an offset, or its wait moved into the loop" =
   List.iter
     [ ws2812_waiting_after_gap; Certified.find_exn "ws2812" ]
     ~f:(fun c ->
-      let passes = some_table_passes c in
-      print_s [%message c.name (passes : bool)]);
+      let intervals = some_table_passes ~offsets:false c in
+      let offsets = some_table_passes c in
+      let accepted = Result.is_ok (check c) in
+      print_s [%message c.name (intervals : bool) (offsets : bool) (accepted : bool)]);
   [%expect
     {|
-    (ws2812_waiting_after_gap (passes false))
-    (ws2812 (passes true))
+    (ws2812_waiting_after_gap (intervals false) (offsets true) (accepted false))
+    (ws2812 (intervals true) (offsets true) (accepted true))
     |}]
 ;;
 
