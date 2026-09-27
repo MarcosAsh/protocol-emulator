@@ -292,7 +292,7 @@ let stamp_claims ~(config : Program_config.t) (rows : Analyser.Row.t list) =
    - the pc is one the analyser reaches, and the instruction that issued last is one it
      says the pc can follow;
    - a Manchester bit's second half is pending only where the analyser says it can be;
-   - where the program reads the capture, the captured edge is a cycle that has passed,
+   - where the program moves the capture, the captured edge is a cycle that has passed,
      which is what the analyser takes [mov t, capture] to load; the clock and the capture
      start together at zero and the clock has moved on by the first issue;
    - the cycles since the last pin edge are what the analyser says for the way in from
@@ -335,13 +335,16 @@ let inductive ?(no_wrap = false) ?(stamped = false) ~config source =
     | [] -> "0"
     | cases -> String.concat ~sep:" || " cases
   in
-  let reads_capture (t : Isa.t) =
+  (* only a move can anchor a deadline on the capture: [in capture] passes the stamp to
+     the host and the analyser takes nothing from it, and on a line that stays idle the
+     stamp grows older than 24 bits can tell, so nothing is claimed of it there *)
+  let moves_capture (t : Isa.t) =
     match t with
-    | Op { op = Mov { source = Capture; _ } | In { source = Capture; _ }; _ } -> true
+    | Op { op = Mov { source = Capture; _ }; _ } -> true
     | _ -> false
   in
   let anchors_on_capture =
-    List.exists rows ~f:(fun row -> reads_capture row.instruction)
+    List.exists rows ~f:(fun row -> moves_capture row.instruction)
   in
   let captured_has_passed =
     if not anchors_on_capture
