@@ -3,6 +3,8 @@ open! Core
 module State = struct
   type t =
     { phase : Interval.t
+    ; offset : Interval.t
+    (** The phase less [slope * x], for the slope of the pc: see [slopes]. *)
     ; period : Interval.t
     ; x : Interval.t
     ; y : Interval.t
@@ -23,6 +25,7 @@ module State = struct
 
   let initial =
     { phase = Interval.top
+    ; offset = Interval.top
     ; period = Interval.top
     ; x = Interval.top
     ; y = Interval.top
@@ -39,6 +42,7 @@ module State = struct
 
   let join a b =
     { phase = Interval.join a.phase b.phase
+    ; offset = Interval.join a.offset b.offset
     ; period = Interval.join a.period b.period
     ; x = Interval.join a.x b.x
     ; y = Interval.join a.y b.y
@@ -62,6 +66,7 @@ module State = struct
 
   let widen ~old t =
     { phase = Interval.widen ~old:old.phase t.phase
+    ; offset = Interval.widen ~old:old.offset t.offset
     ; period = Interval.widen ~old:old.period t.period
     ; x = Interval.widen ~old:old.x t.x
     ; y = Interval.widen ~old:old.y t.y
@@ -80,6 +85,7 @@ module State = struct
   let elapse t n =
     { t with
       phase = Interval.shift t.phase n
+    ; offset = Interval.shift t.offset n
     ; since_arm = Option.map t.since_arm ~f:(fun s -> Interval.shift s n)
     ; since_edge = Interval.shift t.since_edge n
     ; since_data = Interval.shift t.since_data n
@@ -122,6 +128,8 @@ module Row = struct
     { pc : int
     ; instruction : Isa.t
     ; phase : Interval.t
+    ; slope : int
+    ; offset : Interval.t
     ; slack : Interval.t option
     ; may_miss : bool
     ; pin_event : Pin_event.t option
@@ -260,8 +268,17 @@ let count_down (r : Interval.t) =
 ;;
 
 (* Successors of [pc] with the state after the instruction. A wait on a pin or a fifo can
-   take any time, so the phase only gets a lower bound. *)
-let step ?period ?(single_capture_edge = false) ~config (s : State.t) pc (t : Isa.t) =
+   take any time, so the phase only gets a lower bound. [slope_at] gives each pc's slope,
+   which the offset on the way into it is taken against: see [slopes]. *)
+let step
+  ?period
+  ?(single_capture_edge = false)
+  ~config
+  ~slope_at
+  (s : State.t)
+  pc
+  (t : Isa.t)
+  =
   let loaded_period = Option.value_map period ~default:Interval.top ~f:Interval.exactly in
   (* the wrap is an edge of the graph like any other and takes no cycles *)
   let following =
@@ -277,8 +294,17 @@ let step ?period ?(single_capture_edge = false) ~config (s : State.t) pc (t : Is
      | Always -> [ target, s ]
      | X_dec ->
        let taken, falls = count_down s.x in
-       Option.to_list (Option.map taken ~f:(fun x -> target, { s with x }))
-       @ Option.to_list (Option.map falls ~f:(fun x -> following, { s with x }))
+       (* one less x adds a slope to the offset; where x runs out, the offset is the phase *)
+       let taken =
+         Option.map taken ~f:(fun x ->
+           target, { s with x; offset = Interval.shift s.offset (slope_at pc) })
+       in
+       let falls =
+         Option.map falls ~f:(fun x ->
+           ( following
+           , { s with x; phase = Interval.meet s.phase s.offset; offset = Interval.top } ))
+       in
+       Option.to_list taken @ Option.to_list falls
      | Y_dec ->
        let taken, falls = count_down s.y in
        Option.to_list (Option.map taken ~f:(fun y -> target, { s with y }))
@@ -334,6 +360,7 @@ let step ?period ?(single_capture_edge = false) ~config (s : State.t) pc (t : Is
        after
          { s with
            phase
+         ; offset = Interval.top
          ; since_arm
          ; since_edge = Interval.plus s.since_edge stall
          ; since_data = Interval.plus s.since_data stall
@@ -351,6 +378,7 @@ let step ?period ?(single_capture_edge = false) ~config (s : State.t) pc (t : Is
        after
          { s with
            phase = unbounded s.phase
+         ; offset = Interval.top
          ; since_arm
          ; captured = s.captured || (capturing && Option.is_some s.since_arm)
          ; awaiting = s.awaiting && not (single_capture_edge && captures config wait)
@@ -358,7 +386,7 @@ let step ?period ?(single_capture_edge = false) ~config (s : State.t) pc (t : Is
          ; since_data = unbounded s.since_data
          }
      | Mov { dest = T; op = Copy; source = Now } ->
-       after { s with phase = Interval.exactly 0 }
+       after { s with phase = Interval.exactly 0; offset = Interval.top }
      | Mov { dest = T; op = Copy; source = Capture } ->
        (* the capture is at least a cycle old, since a register shows the cycle after it
           is written, and at most as old as the arm when the line made one edge *)
@@ -369,8 +397,9 @@ let step ?period ?(single_capture_edge = false) ~config (s : State.t) pc (t : Is
                Option.bind (Option.some_if s.captured since) ~f:(fun since -> since.hi))
          }
        in
-       after { s with phase }
-     | Mov { dest = T; _ } | Out { dest = T; _ } -> after { s with phase = Interval.top }
+       after { s with phase; offset = Interval.top }
+     | Mov { dest = T; _ } | Out { dest = T; _ } ->
+       after { s with phase = Interval.top; offset = Interval.top }
      | Alu { dest = T; op = Add; operand } ->
        let amount =
          match operand with
@@ -380,18 +409,26 @@ let step ?period ?(single_capture_edge = false) ~config (s : State.t) pc (t : Is
          | Reg Y -> s.y
          | Reg (Isr | Osr) -> Interval.top
        in
-       after { s with phase = Interval.minus s.phase amount }
+       after
+         { s with
+           phase = Interval.minus s.phase amount
+         ; offset = Interval.minus s.offset amount
+         }
      (* an earlier deadline, not time passing: only the phase moves *)
      | Alu { dest = T; op = Sub; operand = Imm n } ->
-       after { s with phase = Interval.shift s.phase n }
-     | Alu { dest = T; _ } -> after { s with phase = Interval.top }
+       after
+         { s with phase = Interval.shift s.phase n; offset = Interval.shift s.offset n }
+     | Alu { dest = T; _ } -> after { s with phase = Interval.top; offset = Interval.top }
      | Set { dest = P; value } -> after { s with period = Interval.exactly value }
-     | Set { dest = X; value } -> after { s with x = Interval.exactly value }
+     | Set { dest = X; value } ->
+       (* against the slope of the pc it goes on to *)
+       let offset = Interval.shift s.phase (-(slope_at following * value)) in
+       after { s with x = Interval.exactly value; offset }
      | Set { dest = Y; value } -> after { s with y = Interval.exactly value }
      | Mov { dest = P; _ } | Out { dest = P; _ } | Alu { dest = P; _ } ->
        after { s with period = loaded_period }
      | Mov { dest = X; _ } | Out { dest = X; _ } | Alu { dest = X; _ } ->
-       after { s with x = Interval.top }
+       after { s with x = Interval.top; offset = Interval.top }
      | Mov { dest = Y; _ } | Out { dest = Y; _ } | Alu { dest = Y; _ } ->
        after { s with y = Interval.top }
      | Sys Capture_arm ->
@@ -399,6 +436,77 @@ let step ?period ?(single_capture_edge = false) ~config (s : State.t) pc (t : Is
          { s with since_arm = Some (Interval.exactly 0); captured = false; awaiting = true }
      | Sys Halt -> []
      | _ -> after s)
+;;
+
+(* The offset goes on only to a pc with the same slope, which [set x] alone can change,
+   and not to one with none. *)
+let relate ~slope_at pc (t : Isa.t) successors =
+  let sets_x =
+    match t with
+    | Op { op = Set { dest = X; _ }; _ } -> true
+    | _ -> false
+  in
+  List.map successors ~f:(fun (next, (s : State.t)) ->
+    if slope_at next <> 0 && (sets_x || slope_at next = slope_at pc)
+    then next, s
+    else next, { s with offset = Interval.top })
+;;
+
+(* What an instruction adds to the phase alike on every pass through it, in the state the
+   analysis joins over all of them: nothing known for a jump, a wait, a write to x, or a
+   write to t other than adding a known amount. *)
+let drift (s : State.t) (t : Isa.t) =
+  let known (i : Interval.t) =
+    match i.lo, i.hi with
+    | Some lo, Some hi when lo = hi -> Some lo
+    | _ -> None
+  in
+  match t with
+  | Jmp _ -> None
+  | Op { op; delay; _ } ->
+    let next = delay + 1 in
+    (match op with
+     | Alu { dest = T; op = Add; operand = Imm n } -> Some (next - n)
+     | Alu { dest = T; op = Add; operand = Reg P } ->
+       Option.map (known s.period) ~f:(fun p -> next - p)
+     | Alu { dest = T; op = Add; operand = Reg Y } ->
+       Option.map (known s.y) ~f:(fun y -> next - y)
+     | Alu { dest = T; op = Sub; operand = Imm n } -> Some (next + n)
+     | Wait _
+     | Sys Halt
+     | Set { dest = X; _ }
+     | Mov { dest = T | X; _ }
+     | Out { dest = T | X; _ }
+     | Alu { dest = T | X; _ } -> None
+     | _ -> Some next)
+;;
+
+(* A counted loop is a [jmp x--] back over a straight run of instructions that each move
+   the phase alike on every pass. If a pass moves it by [d] while x counts down by one,
+   [phase + d * x] holds still round the loop: its slope is [-d]. The analysis keeps the
+   phase less the slope times x as the offset at every pc of the loop, and where the loop
+   falls through, x is zero and the phase lies in the offset. A loop that overlaps one
+   found before it gets no slope. *)
+let slopes ~(config : Program_config.t) (program : Isa.t array) entry =
+  let slopes = Array.create ~len:(Array.length program) 0 in
+  Array.iteri program ~f:(fun pc t ->
+    match t with
+    | Jmp { cond = X_dec; target } when target <= pc ->
+      let drifts =
+        List.map (List.range target pc) ~f:(fun b ->
+          if b = config.wrap_top
+          then None
+          else Option.bind entry.(b) ~f:(fun s -> drift s program.(b)))
+      in
+      let loop = List.range target pc ~stop:`inclusive in
+      (match Option.all drifts with
+       | Some drifts ->
+         let slope = -(List.sum (module Int) drifts ~f:Fn.id + Isa.jmp_cycles) in
+         if slope <> 0 && List.for_all loop ~f:(fun b -> slopes.(b) = 0)
+         then List.iter loop ~f:(fun b -> slopes.(b) <- slope)
+       | None -> ())
+    | _ -> ());
+  slopes
 ;;
 
 let analyse ?period ?single_capture_edge ~config (program : Isa.t list) =
@@ -411,33 +519,45 @@ let analyse ?period ?single_capture_edge ~config (program : Isa.t list) =
            ~f:(fun _ -> Isa.Jmp { cond = Always; target = 0 }))
   in
   let n = Array.length program in
-  let entry = Array.create ~len:n None in
-  let passes = Array.create ~len:n 0 in
-  let work = Queue.create () in
-  let visit pc s =
-    if pc < n
-    then (
-      let s' =
-        match entry.(pc) with
-        | None -> s
-        | Some old ->
-          let joined = State.join old s in
-          if passes.(pc) > max_passes then State.widen ~old joined else joined
-      in
-      if not (Option.equal State.equal entry.(pc) (Some s'))
-      then (
-        entry.(pc) <- Some s';
-        passes.(pc) <- passes.(pc) + 1;
-        Queue.enqueue work pc))
+  let successors ~slope_at pc s =
+    step ?period ?single_capture_edge ~config ~slope_at s pc program.(pc)
+    |> relate ~slope_at pc program.(pc)
   in
-  visit 0 State.initial;
-  while not (Queue.is_empty work) do
-    let pc = Queue.dequeue_exn work in
-    let s = Option.value_exn entry.(pc) in
-    List.iter
-      (step ?period ?single_capture_edge ~config s pc program.(pc))
-      ~f:(fun (pc, s) -> visit pc s)
-  done;
+  let fixpoint ~slope_at =
+    let entry = Array.create ~len:n None in
+    let passes = Array.create ~len:n 0 in
+    let work = Queue.create () in
+    let visit pc s =
+      if pc < n
+      then (
+        let s' =
+          match entry.(pc) with
+          | None -> s
+          | Some old ->
+            let joined = State.join old s in
+            if passes.(pc) > max_passes then State.widen ~old joined else joined
+        in
+        if not (Option.equal State.equal entry.(pc) (Some s'))
+        then (
+          entry.(pc) <- Some s';
+          passes.(pc) <- passes.(pc) + 1;
+          Queue.enqueue work pc))
+    in
+    visit 0 State.initial;
+    while not (Queue.is_empty work) do
+      let pc = Queue.dequeue_exn work in
+      let s = Option.value_exn entry.(pc) in
+      List.iter (successors ~slope_at pc s) ~f:(fun (pc, s) -> visit pc s)
+    done;
+    entry
+  in
+  (* the counted loops are found in a first analysis without them *)
+  let entry = fixpoint ~slope_at:(Fn.const 0) in
+  let slopes = slopes ~config program entry in
+  let slope_at pc = slopes.(pc) in
+  let entry =
+    if Array.for_all slopes ~f:(fun slope -> slope = 0) then entry else fixpoint ~slope_at
+  in
   (* Side-set makes an edge only on the ways in that leave its pins at another level, so
      the edge is placed by those ways alone and not by the join of all of them. *)
   let side_edge = Array.create ~len:n None in
@@ -470,9 +590,8 @@ let analyse ?period ?single_capture_edge ~config (program : Isa.t list) =
   arrive 0 State.initial;
   Array.iteri entry ~f:(fun pc s ->
     Option.iter s ~f:(fun s ->
-      List.iter
-        (step ?period ?single_capture_edge ~config s pc program.(pc))
-        ~f:(fun (next, s) -> if next < n then arrive ~from:pc next s)));
+      List.iter (successors ~slope_at pc s) ~f:(fun (next, s) ->
+        if next < n then arrive ~from:pc next s)));
   Array.to_list program
   |> List.filter_mapi ~f:(fun pc instruction ->
     Option.map entry.(pc) ~f:(fun (s : State.t) ->
@@ -525,6 +644,8 @@ let analyse ?period ?single_capture_edge ~config (program : Isa.t list) =
       { Row.pc
       ; instruction
       ; phase = s.phase
+      ; slope = slope_at pc
+      ; offset = s.offset
       ; slack
       ; may_miss
       ; pin_event

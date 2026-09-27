@@ -505,8 +505,19 @@ module Table = struct
   (* the timer's signed values are [-half, half - 1] *)
   let half = 1 lsl (Isa.timer_bits - 1)
 
+  (* an offset, or a slope, that the timer's width cannot hold says nothing *)
+  let offset_bounds ~slope (offset : Interval.t) =
+    let fits n = n >= -half && n < half in
+    match offset.lo, offset.hi with
+    | Some lo, Some hi when slope <> 0 && fits slope && fits lo && fits hi ->
+      Some (slope, lo, hi)
+    | _ -> None
+  ;;
+
   let row
     ~(phase : Interval.t)
+    ~slope
+    ~(offset : Interval.t)
     ~(period : Interval.t)
     ~(x : Interval.t)
     ~(y : Interval.t)
@@ -535,11 +546,14 @@ module Table = struct
       | Some lo, Some hi -> lo, hi
       | _ -> -half, half - 1
     in
+    let slope, offset_lo, offset_hi =
+      offset_bounds ~slope offset |> Option.value ~default:(0, -half, half - 1)
+    in
     { Row.phase_lo = signed phase_lo
     ; phase_hi = signed phase_hi
-    ; slope = signed 0
-    ; offset_lo = signed (-half)
-    ; offset_hi = signed (half - 1)
+    ; slope = signed slope
+    ; offset_lo = signed offset_lo
+    ; offset_hi = signed offset_hi
     ; period_lo = data period.lo ~default:0
     ; period_hi = data period.hi ~default:data_max
     ; x_lo = data x.lo ~default:0
@@ -578,6 +592,8 @@ module Table = struct
       table.(r.pc)
       <- row
            ~phase:r.phase
+           ~slope:r.slope
+           ~offset:r.offset
            ~period:r.period
            ~x:r.x
            ~y:r.y
@@ -587,6 +603,8 @@ module Table = struct
     table.(0)
     <- row
          ~phase:full_phase
+         ~slope:0
+         ~offset:Interval.top
          ~period:Interval.top
          ~x:Interval.top
          ~y:Interval.top

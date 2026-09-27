@@ -498,12 +498,7 @@ let%expect_test "a rejection is the kernel's or the analyser's" =
   List.iter Certified.all ~f:print_rejection;
   [%expect {| |}];
   List.iter [ ws2812_waiting_after_gap; gap_adding_x ] ~f:print_rejection;
-  [%expect
-    {|
-    (ws2812_waiting_after_gap
-     "some table passes, so the analyser's rows are at fault")
-    (gap_adding_x "no table passes")
-    |}]
+  [%expect {| (gap_adding_x "no table passes") |}]
 ;;
 
 (* The analyser's rows are one table that passes, so the query must find some for the
@@ -562,7 +557,7 @@ let%expect_test "ws2812's gap loop needs an offset, or its wait moved into the l
       print_s [%message c.name (intervals : bool) (offsets : bool) (accepted : bool)]);
   [%expect
     {|
-    (ws2812_waiting_after_gap (intervals false) (offsets true) (accepted false))
+    (ws2812_waiting_after_gap (intervals false) (offsets true) (accepted true))
     (ws2812 (intervals true) (offsets true) (accepted true))
     |}]
 ;;

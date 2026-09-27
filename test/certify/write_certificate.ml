@@ -287,6 +287,8 @@ let stamp_claims ~(config : Program_config.t) (rows : Analyser.Row.t list) =
      word, say what the word says: they are state of their own, and induction would start
      them disagreeing with it and let a wait retire before its deadline;
    - what is left of a delay brings the next issue to the phase its row allows;
+   - in a counted loop, the phase less the loop's slope times x lies in the row's offset,
+     which is what carries the phase to where the loop falls through;
    - a wait that stalls has reached its row and, on a deadline, not yet the deadline;
    - x, y and p hold what the analyser says they hold on the way into the pc;
    - the pc is one the analyser reaches, and the instruction that issued last is one it
@@ -491,7 +493,29 @@ let inductive ?(no_wrap = false) ?(stamped = false) ~config source =
               (if is_deadline_wait row.instruction then " && phase <= 0" else "")
           ]
       in
-      registers @ pending @ entry @ stalled)
+      (* the offsets the kernel's table keeps, taken modulo the timer, as the core's own
+         arithmetic is *)
+      let offset =
+        match Kernel.Table.offset_bounds ~slope:row.slope row.offset with
+        | None -> []
+        | Some (slope, lo, hi) ->
+          let offset_of value =
+            let offset =
+              sprintf
+                "$signed(%s - 24'd%d * x)"
+                value
+                (slope land ((1 lsl Isa.timer_bits) - 1))
+            in
+            sprintf "%s >= %d && %s <= %d" offset lo offset hi
+          in
+          [ sprintf
+              "      if (pc == %d && stall != 0) assert (%s);"
+              row.pc
+              (offset_of "ahead")
+          ; sprintf "      if (pc == %d && entry) assert (%s);" row.pc (offset_of "phase")
+          ]
+      in
+      registers @ pending @ entry @ offset @ stalled)
     |> String.concat ~sep:"\n"
   in
   (* induction proves anything from an invariant no state satisfies, so the teeth task

@@ -1,5 +1,6 @@
-; ws2812 waiting after its gap: no interval row bounds the phase round the gap loop, but
-; the phase less 23 times x holds still there, so the kernel accepts it
+; ws2812 waiting after its gap, with the last add t, p of the gap made add t, x: each
+; pass moves t ahead by a different amount, so the analyser accepts it but no row the
+; kernel has bounds the phase round the loop, and it fails
     mov t, now
     set pins, 0
     set p, 6
@@ -11,10 +12,10 @@ gap:
     add t, p
     add t, p
     add t, p
-    add t, p
+    add t, x
     jmp x--, gap
     wait t
-    wait tx                  ; the line has been low for 160 thirds
+    wait tx
     mov t, now
     add t, p
 pixel:

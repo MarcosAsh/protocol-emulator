@@ -35,6 +35,12 @@ module Row : sig
     { pc : int
     ; instruction : Isa.t
     ; phase : Interval.t
+    ; slope : int
+    ; offset : Interval.t
+    (** The phase less [slope * x] on the way in. In a counted loop, a [jmp x--] back over
+        instructions that move the phase alike on every pass, the phase drifts and has no
+        bound, but this holds still; where the loop falls through, x is zero and the phase
+        lies in it. [slope] is zero and [offset] unbounded outside such loops. *)
     ; slack : Interval.t option
     ; may_miss : bool
     ; pin_event : Pin_event.t option

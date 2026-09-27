@@ -41,17 +41,27 @@
 (rule
  (with-outputs-to
   ws2812_waiting_after_gap.gen
-  (with-accepted-exit-codes
-   1
-   (run
-    %{exe:../../bin/generate.exe}
-    assemble
-    %{dep:ws2812_waiting_after_gap.asm}))))
+  (run
+   %{exe:../../bin/generate.exe}
+   assemble
+   %{dep:ws2812_waiting_after_gap.asm})))
 
 (rule
  (alias runtest)
  (action
   (diff ws2812_waiting_after_gap.expected ws2812_waiting_after_gap.gen)))
+
+(rule
+ (with-outputs-to
+  gap_adding_x.gen
+  (with-accepted-exit-codes
+   1
+   (run %{exe:../../bin/generate.exe} assemble %{dep:gap_adding_x.asm}))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff gap_adding_x.expected gap_adding_x.gen)))
 
 (rule
  (with-outputs-to

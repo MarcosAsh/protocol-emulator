@@ -167,6 +167,11 @@ module Table : sig
 
   (** The analyser's rows; pcs it does not reach are empty. *)
   val of_analyser : Analyser.Row.t list -> t
+
+  (** The slope and the ends of the offset that [of_analyser] keeps of an analyser row's,
+      if any: it keeps them when the slope is not zero and it and both ends are values of
+      the timer read as signed, and otherwise makes the offset full. *)
+  val offset_bounds : slope:int -> Interval.t -> (int * int * int) option
 end
 
 (** Checks every pc; words past the program read zero. [period] is [loaded]. A rejection
