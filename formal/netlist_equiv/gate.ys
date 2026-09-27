@@ -1,0 +1,50 @@
+# The implementation side: the hardened netlist, netlist.v in the Makefile's work
+# directory, through the IHP standard cell models in cells.v (see primitives.v), cut at
+# the same three macros as gold.ys. Run from that directory.
+#
+# Vacuity: the cut must not hide logic. Every standard cell left after the fill, decap
+# and antenna cells go has to lie in the fan-in of a compared bit, a primary output or a
+# macro input, or else drive no net at all, like the clock tree's dummy loads; the counts
+# land in *.count.
+
+read_verilog -noblackbox ../netlist_equiv/primitives.v cells.v ../../src/RM_IHPSG13_1P_512x16_c2_bm_bist.v
+# a powered netlist ties every cell to the rails, which carry no logic; the fan-ins below
+# do not follow them
+add -inout VDD 1 sg13cmos5l_*
+add -inout VSS 1 sg13cmos5l_*
+add -inout \VDD! 1 RM_IHPSG13_1P_512x16_c2_bm_bist
+add -inout \VSS! 1 RM_IHPSG13_1P_512x16_c2_bm_bist
+add -inout \VDDARRAY! 1 RM_IHPSG13_1P_512x16_c2_bm_bist
+setattr -mod -set blackbox 1 RM_IHPSG13_1P_512x16_c2_bm_bist
+read_verilog netlist.v
+hierarchy -check -top tt_um_marcosash_protocol_emulator
+delete -port tt_um_marcosash_protocol_emulator/VPWR tt_um_marcosash_protocol_emulator/VGND
+
+select -assert-count 3 t:RM_IHPSG13_1P_512x16_c2_bm_bist
+expose -evert t:RM_IHPSG13_1P_512x16_c2_bm_bist
+# the macros' rails would be ports now, which gold.ys has not
+delete w:*.VDD! w:*.VSS! w:*.VDDARRAY!
+
+tee -q -o physical.count select -count t:sg13cmos5l_fill_* t:sg13cmos5l_decap_* %u t:sg13cmos5l_antennanp %u
+delete t:sg13cmos5l_fill_* t:sg13cmos5l_decap_* t:sg13cmos5l_antennanp
+tee -q -o logic.count select -count t:sg13cmos5l_*
+tee -q -o covered.count select -count o:* %ci*:-[VDD,VSS] t:sg13cmos5l_* %i
+select -assert-none t:sg13cmos5l_* o:* %ci*:-[VDD,VSS] %d %co:-[VDD,VSS] w:* %i
+
+proc
+flatten
+opt_clean
+delete t:$scopeinfo
+# no used net without a driver, which miter -flatten would make an x (see aig.ys); the
+# rails, left dangling by the ports deleted above, are used by no cell's logic
+check -assert
+
+# one clock: every flop takes the rising edge of clk, through the clock tree's buffers
+select -assert-none t:$*latch* t:$sr %u
+select -assert-none t:$*ff* w:clk %co:+[CLK] %d
+select -assert-none t:$*ff* r:CLK_POLARITY=1 r:CLK_POLARITY=1'1 %u %d
+
+rename tt_um_marcosash_protocol_emulator gate
+hierarchy -top gate
+delete =A:blackbox
+write_rtlil gate.il

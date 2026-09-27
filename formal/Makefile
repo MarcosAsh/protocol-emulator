@@ -128,6 +128,66 @@ inductive_certificates: engine_sram.v
 inductive_names:
 	@echo $(INDUCTIVE)
 
+# the hardened netlist equals the RTL, macros cut (netlist_equiv/miter.ys); about 2 min:
+#   make netlist_equiv NETLIST=../runs/wokwi/final/nl/tt_um_marcosash_protocol_emulator.nl.v
+STDCELL = $(PDK_ROOT)/ihp-sg13cmos5l/libs.ref/sg13cmos5l_stdcell
+EQUIV = netlist_equiv_run
+EXPECT = 1
+WRITTEN = ../src/protocol_emulator.v
+FSM_STEP = timeout 600 yosys-abc -c 'read_aiger fsm_step.aig; print_stats; pdr; print_status'
+netlist_equiv:
+	rm -rf $(EQUIV) && mkdir $(EQUIV)
+	cp $(NETLIST) $(EQUIV)/netlist.v
+	cp $(WRITTEN) $(EQUIV)/written.v
+	sed -e '/^\s*specify/,/^\s*endspecify/d' -e 's/delayed_//g' \
+	  -e 's/^\(\s*\)\(ihp_[a-z0-9_]*\) *(\([A-Za-z0-9_]*\),/\1\2 u_\3 (\3,/' \
+	  $(STDCELL)/verilog/sg13cmos5l_stdcell.v > $(EQUIV)/cells.v
+	cp $(STDCELL)/lib/sg13cmos5l_stdcell_typ_1p20V_25C.lib $(EQUIV)/cells.lib
+	cp netlist_equiv/cells.ys $(EQUIV)
+	for cell in $$(grep -oE '^ *sg13cmos5l_[a-z0-9_]+ ' $(EQUIV)/netlist.v | sort -u | grep -vE 'fill|decap|antenna'); do \
+	  printf '%s\n' "design -reset" "design -copy-from liberty -as liberty $$cell" \
+	    "design -copy-from model -as model $$cell" \
+	    "select -assert-none t:\$$_DFF_N* t:\$$_DFFE_N* %u t:\$$_DFFSR_N* %u t:\$$_DLATCH* %u" \
+	    "equiv_make liberty model equiv" "hierarchy -top equiv" "async2sync" \
+	    "equiv_simple -seq 2" "equiv_status -assert"; \
+	done >> $(EQUIV)/cells.ys
+	cd $(EQUIV) && yosys -q -l cells.log cells.ys
+	cd $(EQUIV) && yosys -q -l gold.log ../netlist_equiv/gold.ys
+	cd $(EQUIV) && yosys -q -l gate.log ../netlist_equiv/gate.ys
+	cd $(EQUIV) && yosys -q -l miter.log ../netlist_equiv/miter.ys
+	cd $(EQUIV) && $(FSM_STEP) > fsm_step.log
+	grep 'Status = 1 ' $(EQUIV)/fsm_step.log
+	cd $(EQUIV) && timeout 1200 yosys-abc \
+	  -c 'read_aiger miter.aig; print_stats; scorr; print_stats; dprove; print_status' > proof.log
+	@cd $(EQUIV) && echo "netlist: $$(cut -d' ' -f1 logic.count) logic cells, $$(cut -d' ' -f1 covered.count)" \
+	  "in the fan-in of a compared bit and the rest driving no net;" \
+	  "$$(cut -d' ' -f1 physical.count) fill, decap and antenna cells"
+	grep 'Status = $(EXPECT) ' $(EQUIV)/proof.log
+
+# mutants that must be refuted: macro enables swapped, uio_oe[0] inverted, a reset
+# synchroniser untied (its counterexample must pass the first cycle), and the written
+# host port's state held, against fsm_step
+netlist_equiv_teeth:
+	mkdir -p netlist_equiv_teeth
+	sed -E '/^module host_port /,/^endmodule/s/^( *sm <= )signal_wire_[0-9]+;/\1sm;/' \
+	  ../src/protocol_emulator.v > netlist_equiv_teeth/written.v
+	! cmp -s ../src/protocol_emulator.v netlist_equiv_teeth/written.v
+	rm -rf netlist_equiv_written && mkdir netlist_equiv_written
+	cp netlist_equiv_teeth/written.v netlist_equiv_written
+	cd netlist_equiv_written && yosys -q -l gold.log ../netlist_equiv/gold.ys
+	cd netlist_equiv_written && $(FSM_STEP) > fsm_step.log
+	grep 'Status = 0 ' netlist_equiv_written/fsm_step.log
+	sed '/ RM_IHPSG13_1P_512x16_c2_bm_bist \\core\.top\.engines\.data_memory\.sram_macro\.sram /,/;$$/'\
+	'{s/\.A_REN(/.A_SWAP(/;s/\.A_WEN(/.A_REN(/;s/\.A_SWAP(/.A_WEN(/}' $(NETLIST) > netlist_equiv_teeth/swap.v
+	! cmp -s $(NETLIST) netlist_equiv_teeth/swap.v
+	awk -v 'net=uio_oe[0]' -f netlist_equiv/flip.awk $(NETLIST) > netlist_equiv_teeth/flip.v
+	awk -f netlist_equiv/unreset.awk $(NETLIST) $(NETLIST) > netlist_equiv_teeth/unreset.v
+	$(MAKE) netlist_equiv NETLIST=netlist_equiv_teeth/swap.v EQUIV=netlist_equiv_swap EXPECT=0
+	$(MAKE) netlist_equiv NETLIST=netlist_equiv_teeth/flip.v EQUIV=netlist_equiv_flip EXPECT=0
+	$(MAKE) netlist_equiv NETLIST=netlist_equiv_teeth/unreset.v EQUIV=netlist_equiv_unreset EXPECT=0
+	grep -E 'CEX: .* Frame = +[1-9]' netlist_equiv_unreset/proof.log
+
 .PHONY: all issue_timing host_timing late_host fifo_order phase_step edge_step frame_step \
   value_step chip_frame teeth certificates certificate inductive_certificate inductive_proof \
-  inductive_certificates inductive_names stamped_certificate stamped_proof
+  inductive_certificates inductive_names stamped_certificate stamped_proof netlist_equiv \
+  netlist_equiv_teeth

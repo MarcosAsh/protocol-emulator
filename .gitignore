@@ -25,6 +25,7 @@ formal/engine_sram.v
 formal/engines.v
 formal/certificate*.sv
 formal/*_*/
+!formal/netlist_equiv/
 __pycache__/
 test/fpga_netlist.v
 test/fpga_top.v

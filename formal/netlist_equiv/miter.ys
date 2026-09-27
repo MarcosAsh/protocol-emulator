@@ -1,0 +1,24 @@
+# The hardened netlist equals the RTL for all time. From all flops 0, for every input
+# sequence on the pins and the three macros' outputs, the 24 outputs and the 276 macro
+# inputs agree every cycle. The Makefile proves the miter 0 with ABC scorr + dprove, which
+# match flops by function, not name; a retimed flop would not match, and the flow does
+# not retime.
+#
+# Trusted: yosys's Verilog frontend, proc, flatten and memory_map (synthesis uses them
+# too); the IHP cell models, each proved equal to its Liberty function in cells.ys; the
+# macros as shared cut points; one rising-edge clock (asserted in gold.ys and gate.ys);
+# an asynchronous reset acting in the cycle it is asserted, on both sides; timing, which
+# is signoff STA's. The host port's recoded state machine is proved on its own (fsm_step,
+# gold.ys). Not covered: power-up states other than all 0.
+# Vacuity and teeth: gate.ys and make netlist_equiv_teeth.
+
+read_rtlil gold.il
+read_rtlil gate.il
+miter -equiv -flatten gold gate miter
+hierarchy -top miter
+delete t:$scopeinfo
+script ../netlist_equiv/aig.ys
+# the RTL has no x left after gold.ys and the netlist none at all, so the only inputs are
+# the ports and the macros' outputs, never an x made free
+select -assert-none t:$anyseq t:$anyconst %u
+write_aiger miter.aig

@@ -1,0 +1,69 @@
+# The reference side: src/project.v around src/protocol_emulator.v, as the flow reads it,
+# with the three macros cut. Synthesis recodes the host port's state machine to one-hot,
+# which no signal correspondence can match, so gold.il carries the recoded host port and
+# fsm_step.aig proves it equal to the host port as written, for every value of the x's the
+# recoding leaves. The other x's, on the address and data of disabled memory writes,
+# write nothing, so folding them with -mux_undef is safe.
+
+# the host port as written, read on its own from written.v, the copy of
+# src/protocol_emulator.v the Makefile makes, so a tooth can mutate this side alone
+read_verilog written.v
+hierarchy -check -top host_port
+proc
+flatten
+design -save written
+
+design -reset
+read_verilog ../../src/project.v ../../src/protocol_emulator.v
+read_verilog -lib ../../src/RM_IHPSG13_1P_512x16_c2_bm_bist.v
+hierarchy -check -top tt_um_marcosash_protocol_emulator
+proc
+
+# the host port's is the only state machine the RTL marks for recoding
+select -assert-count 1 a:fsm_encoding
+select -assert-count 1 host_port/a:fsm_encoding
+flatten host_port
+opt_expr host_port
+opt_clean host_port
+opt -nodffe -nosdff host_port
+fsm host_port
+opt host_port
+design -save recoded
+
+design -reset
+design -copy-from written -as written host_port
+design -copy-from recoded -as recoded host_port
+# a used net with no driver would reach the miter as an x on both sides, and pass
+check -assert
+miter -equiv -flatten written recoded fsm_step
+hierarchy -top fsm_step
+delete t:$scopeinfo
+script ../netlist_equiv/aig.ys
+write_aiger fsm_step.aig
+
+design -load recoded
+flatten
+memory_collect
+memory_map
+opt_expr -mux_undef
+opt_clean
+delete t:$scopeinfo
+
+# the macros' inputs become outputs to compare and their outputs inputs both sides share
+select -assert-count 3 t:RM_IHPSG13_1P_512x16_c2_bm_bist
+expose -evert t:RM_IHPSG13_1P_512x16_c2_bm_bist
+select -assert-count 51 o:*
+select -assert-count 8 i:*
+
+# one clock: every flop takes the rising edge of clk
+select -assert-none t:$*latch* t:$sr %u
+select -assert-none t:$*ff* w:clk %co:+[CLK] %d
+select -assert-none t:$*ff* r:CLK_POLARITY=1 r:CLK_POLARITY=1'1 %u %d
+
+# no used net without a driver, which miter -flatten would make an x (see aig.ys)
+check -assert
+
+rename tt_um_marcosash_protocol_emulator gold
+hierarchy -top gold
+delete =A:blackbox
+write_rtlil gold.il

@@ -1,0 +1,15 @@
+# Each standard cell the netlist uses, its Verilog model as gate.ys reads it against the
+# function the Liberty file gives it, the file the flow synthesised against: two views of
+# the cell from different sources, which have to agree for the gate model to mean the
+# chip. The Makefile appends one block per cell after these lines. equiv_simple steps a
+# flop without looking at which clock edge moves it, so the Liberty flops are asserted
+# to take the rising edge there and the model's in gate.ys.
+
+read_liberty -ignore_miss_func cells.lib
+design -stash liberty
+
+read_verilog ../netlist_equiv/primitives.v cells.v
+hierarchy
+proc
+flatten
+design -stash model

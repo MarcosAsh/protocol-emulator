@@ -78,6 +78,44 @@ jobs:
           cd test
           make replay GATES=yes
 
+  # the hardened netlist equals the RTL (formal/netlist_equiv); on IHP tt_submission
+  # carries the unpowered final/nl, so that is what this proves
+  netlist_equiv:
+    needs: gds
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v6
+
+      - name: Download the netlist
+        uses: actions/download-artifact@v7
+        with:
+          name: tt_submission
+          path: hardened
+
+      - name: Install OSS CAD Suite
+        run: |
+          curl -sL https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz | tar xz -C "$HOME"
+          echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
+
+      # the cell models and Liberty of the PDK revision the netlist was hardened with
+      - name: Fetch the standard cells
+        run: |
+          rev=$(jq -r .PDK_VERSION hardened/tt_submission/pdk.json)
+          cells=ihp-sg13cmos5l/libs.ref/sg13cmos5l_stdcell
+          url=https://raw.githubusercontent.com/IHP-GmbH/IHP-Open-PDK/$rev/$cells
+          mkdir -p "$HOME/pdk/$cells/verilog" "$HOME/pdk/$cells/lib"
+          curl -sfL "$url/verilog/sg13cmos5l_stdcell.v" -o "$HOME/pdk/$cells/verilog/sg13cmos5l_stdcell.v"
+          curl -sfL "$url/lib/sg13cmos5l_stdcell_typ_1p20V_25C.lib" \
+            -o "$HOME/pdk/$cells/lib/sg13cmos5l_stdcell_typ_1p20V_25C.lib"
+          echo "PDK_ROOT=$HOME/pdk" >> "$GITHUB_ENV"
+
+      - name: Prove the netlist equal to the RTL, and fail on four mutants
+        run: |
+          make -C formal netlist_equiv netlist_equiv_teeth \
+            NETLIST="$GITHUB_WORKSPACE/hardened/tt_submission/tt_um_marcosash_protocol_emulator.v"
+
   viewer:
     needs: gds
     runs-on: ubuntu-24.04
