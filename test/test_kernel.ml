@@ -620,7 +620,7 @@ let%expect_test "a bound on the jitter of every pin edge, in firmware the kernel
     (uart_rx "writes no pins")
     (spi_master (pc 9) (jitter_bound 2) (untimed (0 1 2 3 4 5)))
     (spi_slave "no edge has a deadline" (untimed (0 4)))
-    (i2c_master (pc 34) (jitter_bound 7) (untimed (0 1 2 3 10 11)))
+    (i2c_master (pc 34) (jitter_bound 10) (untimed (0 1 2 3 10 11)))
     (i2c_slave "no edge has a deadline" (untimed (2 19 22 40 43 53 60 64)))
     (i2c_logger (pc 24) (jitter_bound 2) (untimed (0 1 2 3)))
     (usb_tx (pc 11) (jitter_bound 0) (untimed (2)))

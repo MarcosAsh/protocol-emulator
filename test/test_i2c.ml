@@ -335,3 +335,124 @@ let%expect_test "i2c logger in lockstep" =
        "address 80 read" nack stop start "address 80 read" nack)))
     |}]
 ;;
+
+(* The certified master against Fast-mode Plus at 50 MHz, from the analyser's certificate:
+   the smallest quarter the analyser accepts that keeps every timing in UM10204's table,
+   and the bounds at it over every run and every host. These are the edges as the pins
+   drive them; the master does not wait to see SCL high, so a bus that rises slowly takes
+   its rise time off tHIGH, tSU;STA and tSU;STO, and at this quarter the last two are
+   exactly at their limits. A line that rises in Fm+'s 120 ns reaches 0.7 VDD some 170 ns
+   after its release, which would need a quarter of 22. Then the model, writing a register
+   and reading it back through the slave at that quarter, holds SCL low and high no
+   shorter than the bounds. *)
+let%expect_test "the certified master's pins keep to fast-mode plus at 50 MHz" =
+  let clock_mhz = 50 in
+  let bounds quarter =
+    let program = Asm.assemble (i2c_master ~quarter) |> ok_exn in
+    match Analyser.check ~config:(Asm.Program.configure program i2c_config) program with
+    | Error _ -> None
+    | Ok (_ : Analyser.Verdict.t) ->
+      Some
+        (I2c_timing.check ~clock_mhz ~config:i2c_config program I2c_timing.fast_mode_plus)
+  in
+  let failing bounds =
+    List.filter_map bounds ~f:(fun ({ timing; cycles; met } : I2c_timing.Bound.t) ->
+      Option.some_if
+        (not met)
+        [%string
+          "%{timing.name} %{Option.value_map cycles ~default:\"never\" \
+           ~f:Interval.to_string}"])
+  in
+  List.iter (List.range 10 13) ~f:(fun quarter ->
+    printf
+      "quarter %d is short: %s\n"
+      quarter
+      (Option.value_map (bounds quarter) ~default:"refused" ~f:(fun bounds ->
+         String.concat ~sep:", " (failing bounds))));
+  let quarter, bounds =
+    List.find_map_exn (List.range 1 64) ~f:(fun quarter ->
+      Option.bind (bounds quarter) ~f:(fun bounds ->
+        Option.some_if (List.is_empty (failing bounds)) (quarter, bounds)))
+  in
+  let certified = Certified.find_exn "i2c_master" in
+  print_s
+    [%message
+      (quarter : int)
+        ~certified:(String.equal certified.source (i2c_master ~quarter) : bool)
+        ~scl_khz:(clock_mhz * 1000 / (4 * quarter) : int)];
+  printf "%-10s %8s  %-9s %s\n" "timing" "Fm+ ns" "cycles" "ns";
+  List.iter bounds ~f:(fun { timing; cycles; met } ->
+    let ns n = n * 1000 / clock_mhz in
+    printf
+      "%-10s %8s  %-9s %s%s\n"
+      timing.name
+      (sprintf ">= %d" timing.min_ns)
+      (Option.value_map cycles ~default:"never" ~f:Interval.to_string)
+      (Option.value_map cycles ~default:"-" ~f:(fun (c : Interval.t) ->
+         Interval.to_string { lo = Option.map c.lo ~f:ns; hi = Option.map c.hi ~f:ns }))
+      (if met then "" else "  SHORT"));
+  let program = assemble certified.source in
+  let t = Machine.create ~config:i2c_config ~program |> ok_exn in
+  let t =
+    List.fold
+      [ i2c_word ~start:true 0xa0
+      ; i2c_word 3
+      ; i2c_word ~stop:true 0xaa
+      ; i2c_word ~start:true 0xa0
+      ; i2c_word 3
+      ; i2c_word ~start:true 0xa1
+      ; i2c_word ~read:true ~stop:true 0
+      ]
+      ~init:t
+      ~f:(fun t word -> Machine.write_tx t word |> ok_exn)
+  in
+  let slave = ref (I2c_slave.create ~address:0x50 ~memory:(Array.create ~len:16 0)) in
+  let bus_scl (m : Machine.t) = 1 - ((m.pin_dir lsr scl) land 1) in
+  let bus_sda (m : Machine.t) =
+    if I2c_slave.drive_low !slave then 0 else 1 - ((m.pin_dir lsr sda) land 1)
+  in
+  let t, levels =
+    List.fold
+      (List.range 0 (320 * quarter))
+      ~init:(t, [])
+      ~f:(fun (t, levels) _ ->
+        let t = Machine.step t ~inputs:((bus_sda t lsl sda) lor (bus_scl t lsl scl)) in
+        slave := I2c_slave.step !slave ~sda:(bus_sda t) ~scl:(bus_scl t);
+        t, bus_scl t :: levels)
+  in
+  (* the runs between the first and the last, which are the idle bus *)
+  let runs = List.drop (List.drop_last_exn (runs (List.rev levels))) 1 in
+  let shortest level =
+    List.filter_map runs ~f:(fun (l, n) -> Option.some_if (l = level) n)
+    |> List.min_elt ~compare
+  in
+  print_s
+    [%message
+      (I2c_slave.log !slave : string list)
+        ~shortest_low:(shortest 0 : int option)
+        ~shortest_high:(shortest 1 : int option)
+        (t.fault : Machine.Fault.t)];
+  [%expect
+    {|
+    quarter 10 is short: SCL period 40..?, tLOW 20..?, tHD;STA 10, tSU;STA 10, tSU;STO 10
+    quarter 11 is short: SCL period 44..?, tLOW 22..?, tHD;STA 11, tSU;STA 11, tSU;STO 11
+    quarter 12 is short: SCL period 48..?, tLOW 24..?, tHD;STA 12, tSU;STA 12, tSU;STO 12
+    ((quarter 13) (certified true) (scl_khz 961))
+    timing       Fm+ ns  cycles    ns
+    SCL period  >= 1000  52..?     1040..?
+    tLOW         >= 500  26..?     520..?
+    tHIGH        >= 260  26..?     520..?
+    tHD;STA      >= 260  13        260
+    tSU;STA      >= 260  13        260
+    tHD;DAT        >= 0  1..?      20..?
+    tSU;DAT       >= 50  12..33    240..660
+    tSU;STO      >= 260  13        260
+    tBUF         >= 500  44..?     880..?
+    (("I2c_slave.log (!slave)"
+      (start "address 80 write" "pointer 3" "write 170" stop start
+       "address 80 write" "pointer 3" start "address 80 read" nack stop))
+     (shortest_low (26)) (shortest_high (26))
+     (t.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    |}]
+;;
