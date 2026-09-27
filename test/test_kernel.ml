@@ -293,3 +293,75 @@ let%expect_test "ws2812 passes once the wait after its gap loop moves into the l
   print_s [%message (passes : bool)];
   [%expect {| (passes true) |}]
 ;;
+
+(* The kernel's row is the phase [now - t] an instruction enters at
+   ([formal/phase_step.sv]), and a pin edge shows the cycle after the entry of an
+   instruction that writes pins ([formal/edge_step.sv]): a set, out or mov to pins or
+   pindirs, any instruction that carries side-set, and the one that lands the second half
+   of a Manchester bit, all as the analyser's rows mark them. So the widest of those rows,
+   in cycles, bounds the jitter of every edge against its deadline; the first pc with it
+   is named. It is a bound and not the jitter of any one edge: side-set counts even where
+   it drives the level the pins already hold, which neither lemma knows. A row the kernel
+   leaves unbounded, before the first [mov t, now], after a wait on a pin or the host, or
+   in a loop as long as its data, has no deadline, and its pc is listed as untimed. *)
+let%expect_test "a bound on the jitter of every pin edge, in firmware the kernel accepts" =
+  let module Kernel_bits = Kernel.Make (Bits) in
+  List.iter Certified.all ~f:(fun (c : Certified.t) ->
+    if Result.is_ok (check c)
+    then (
+      let program, config = assemble c in
+      let rows =
+        Analyser.analyse
+          ?period:c.period
+          ~single_capture_edge:c.single_capture_edge
+          ~config
+          program.instructions
+      in
+      let table = Kernel.Table.of_analyser rows in
+      let writes_pins (r : Analyser.Row.t) =
+        Option.is_some r.flip
+        || Option.is_some r.side_event
+        ||
+        match r.pin_event with
+        | Some (Edge _) -> true
+        | Some (Sample _) | None -> false
+      in
+      let width_at pc =
+        let row = table.(pc) in
+        Bits.to_signed_int row.phase_hi - Bits.to_signed_int row.phase_lo
+      in
+      let untimed, timed =
+        List.filter_map rows ~f:(fun r -> Option.some_if (writes_pins r) r.pc)
+        |> List.partition_tf ~f:(fun pc -> Bits.to_bool (Kernel_bits.is_full table.(pc)))
+      in
+      let widest =
+        List.max_elt timed ~compare:(Comparable.lift Int.compare ~f:width_at)
+      in
+      match widest, untimed with
+      | Some pc, _ ->
+        print_s
+          [%message
+            c.name (pc : int) ~jitter_bound:(width_at pc : int) (untimed : int list)]
+      | None, [] -> print_s [%message c.name "writes no pins"]
+      | None, _ -> print_s [%message c.name "no edge has a deadline" (untimed : int list)]));
+  [%expect
+    {|
+    (uart_tx (pc 6) (jitter_bound 0) (untimed (1)))
+    (uart_tx16 (pc 6) (jitter_bound 0) (untimed (1)))
+    (uart_tx_host_rate (pc 8) (jitter_bound 0) (untimed (3)))
+    (uart_rx "writes no pins")
+    (spi_master (pc 9) (jitter_bound 2) (untimed (0 1 2 3 4 5)))
+    (spi_slave "no edge has a deadline" (untimed (0 4)))
+    (i2c_master (pc 34) (jitter_bound 7) (untimed (0 1 2 3 10 11)))
+    (i2c_slave "no edge has a deadline" (untimed (2 19 22 40 43 53 60 64)))
+    (i2c_logger (pc 24) (jitter_bound 2) (untimed (0 1 2 3)))
+    (usb_tx (pc 11) (jitter_bound 0) (untimed (2)))
+    (usb_rx "writes no pins")
+    (usb_device (pc 109) (jitter_bound 0) (untimed (2 3)))
+    (edge_meter (pc 6) (jitter_bound 0) (untimed (1)))
+    (ethernet (pc 9) (jitter_bound 0) (untimed (2 17 18 19 20)))
+    (one_wire (pc 11) (jitter_bound 0) (untimed ()))
+    (ps2 (pc 15) (jitter_bound 0) (untimed ()))
+    (jtag (pc 8) (jitter_bound 2) (untimed (0 1 2 3 4)))
+    |}]
+;;
