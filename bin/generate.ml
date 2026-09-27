@@ -104,30 +104,33 @@ let timing_check =
         let open Or_error.Let_syntax in
         let%bind verdict = Analyser.check ?period ~single_capture_edge ~config program in
         eprintf "%s\n" (Analyser.Verdict.to_string verdict);
-        let%map words = Asm.Program.words program in
-        (* the kernel needs no per-firmware proof, but covers less than the analyser *)
+        let%bind words = Asm.Program.words program in
+        (* The analyser is not trusted: the kernel, which is proved, checks its rows and
+           has the last word. It covers less than the analyser, so it can refuse firmware
+           the analyser passes. *)
         let config = Asm.Program.configure program config in
         let rows =
           Analyser.analyse ?period ~single_capture_edge ~config program.instructions
         in
-        match
+        let%map () =
           Kernel.check
             ?period
             ~single_capture_edge
             ~config
             ~words
             (Kernel.Table.of_analyser rows)
-        with
-        | Ok () ->
-          eprintf "kernel: accepted, so no deadline is missed by the step lemma\n"
-        | Error e -> eprintf "kernel: not accepted (%s)\n" (Error.to_string_hum e))]
+        in
+        eprintf "kernel: accepted, so no deadline is missed by the step lemma\n")]
 ;;
 
 let assemble_command =
   Command.basic
     ~summary:"Assemble a source file and print the words in hex"
     ~readme:(fun () ->
-      "Firmware that can reach a deadline wait late is refused, with the waits at fault.")
+      "Firmware that can reach a deadline wait late is refused, with the waits at fault. \
+       Firmware the analyser passes is assembled only if the kernel accepts the \
+       analyser's rows for it; otherwise it is refused with each pc and the conjuncts \
+       that fail there. -no-timing-check turns off both.")
     [%map_open.Command
       let file = anon ("FILE" %: string)
       and timing_check = timing_check

@@ -1,5 +1,6 @@
-; The command line on a source file: the verdict goes to stderr, and firmware that can
-; miss a deadline leaves no words and a failing exit code.
+; The command line on a source file: the verdicts go to stderr, and firmware that the
+; analyser finds can miss a deadline, or whose rows the kernel does not accept, leaves no
+; words and a failing exit code.
 
 (rule
  (with-outputs-to
@@ -36,6 +37,21 @@
  (alias runtest)
  (action
   (diff too_tight_unchecked.expected too_tight_unchecked.gen)))
+
+(rule
+ (with-outputs-to
+  ws2812_waiting_after_gap.gen
+  (with-accepted-exit-codes
+   1
+   (run
+    %{exe:../../bin/generate.exe}
+    assemble
+    %{dep:ws2812_waiting_after_gap.asm}))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff ws2812_waiting_after_gap.expected ws2812_waiting_after_gap.gen)))
 
 (rule
  (with-outputs-to
