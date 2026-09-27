@@ -200,11 +200,7 @@ let%expect_test "the kernel on the firmware library, from the analyser's rows" =
     (usb_rx (verdict (Ok ())))
     (usb_device (verdict (Ok ())))
     (edge_meter (verdict (Ok ())))
-    (ws2812
-     (verdict
-      (Error
-       ("rows the kernel rejects"
-        (rejected (((pc 11) (fails ("in time" "next phase")))))))))
+    (ws2812 (verdict (Ok ())))
     (ethernet (verdict (Ok ())))
     (one_wire (verdict (Ok ())))
     (ps2 (verdict (Ok ())))
@@ -276,16 +272,38 @@ let some_table_passes (c : Certified.t) =
   | Sat _ -> true
 ;;
 
+(* ws2812 as it was first written, with the wait of its reset gap after the loop rather
+   than in it. The line stays low as long, but each pass moves [t] 23 cycles further ahead
+   of [now], so the row at the head of the loop, which has to hold its own image one pass
+   on, has no lower bound short of the full range, and the wait after the loop is not
+   known to be in time. It is the kind of loop the kernel's interval rows cannot certify. *)
+let ws2812_waiting_after_gap =
+  let c = Certified.find_exn "ws2812" in
+  { c with
+    name = "ws2812_waiting_after_gap"
+  ; source =
+      String.substr_replace_first
+        c.source
+        ~pattern:"wait t\n    jmp x--, gap"
+        ~with_:"jmp x--, gap\n    wait t"
+  }
+;;
+
+let print_rejection (c : Certified.t) =
+  match check c with
+  | Ok () -> ()
+  | Error _ ->
+    if some_table_passes c
+    then
+      print_s [%message c.name "some table passes, so the analyser's rows are at fault"]
+    else print_s [%message c.name "no table of intervals passes"]
+;;
+
 let%expect_test "a rejection is the kernel's or the analyser's" =
-  List.iter Certified.all ~f:(fun (c : Certified.t) ->
-    match check c with
-    | Ok () -> ()
-    | Error _ ->
-      if some_table_passes c
-      then
-        print_s [%message c.name "some table passes, so the analyser's rows are at fault"]
-      else print_s [%message c.name "no table of intervals passes"]);
-  [%expect {| (ws2812 "no table of intervals passes") |}]
+  List.iter Certified.all ~f:print_rejection;
+  [%expect {| |}];
+  print_rejection ws2812_waiting_after_gap;
+  [%expect {| (ws2812_waiting_after_gap "no table of intervals passes") |}]
 ;;
 
 (* The analyser's rows are one table that passes, so the query must find some for the
@@ -303,22 +321,19 @@ let%expect_test "some table passes for firmware the kernel accepts" =
     |}]
 ;;
 
-(* Each pass of ws2812's gap loop moves [t] 23 cycles further ahead of [now], so the row
-   at the head of the loop, which has to hold its own image one pass on, has no lower
-   bound short of the full range, and the wait after the loop is not known to be in time.
-   Moving that wait into the loop still holds the line low for 160 thirds, and a table
-   passes. *)
+(* The library's ws2812 waits inside its gap loop instead, which holds the line low for
+   the same 160 thirds, and a table passes. *)
 let%expect_test "ws2812 passes once the wait after its gap loop moves into the loop" =
-  let c = Certified.find_exn "ws2812" in
-  let source =
-    String.substr_replace_first
-      c.source
-      ~pattern:"jmp x--, gap\n    wait t"
-      ~with_:"wait t\n    jmp x--, gap"
-  in
-  let passes = some_table_passes { c with source } in
-  print_s [%message (passes : bool)];
-  [%expect {| (passes true) |}]
+  List.iter
+    [ ws2812_waiting_after_gap; Certified.find_exn "ws2812" ]
+    ~f:(fun c ->
+      let passes = some_table_passes c in
+      print_s [%message c.name (passes : bool)]);
+  [%expect
+    {|
+    (ws2812_waiting_after_gap (passes false))
+    (ws2812 (passes true))
+    |}]
 ;;
 
 (* The kernel's row is the phase [now - t] an instruction enters at
@@ -386,6 +401,7 @@ let%expect_test "a bound on the jitter of every pin edge, in firmware the kernel
     (usb_rx "writes no pins")
     (usb_device (pc 109) (jitter_bound 0) (untimed (2 3)))
     (edge_meter (pc 6) (jitter_bound 0) (untimed (1)))
+    (ws2812 (pc 1) (jitter_bound 0) (untimed ()))
     (ethernet (pc 9) (jitter_bound 0) (untimed (2 17 18 19 20)))
     (one_wire (pc 11) (jitter_bound 0) (untimed ()))
     (ps2 (pc 15) (jitter_bound 0) (untimed ()))

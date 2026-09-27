@@ -496,20 +496,23 @@ let inductive ?(no_wrap = false) ?(stamped = false) ~config source =
      no run reaches inside the base case's depth, so what fails is the induction step and
      the failure says the invariant is one some state satisfies. *)
   let teeth_pc = (List.last_exn rows).pc in
-  (* The only thing a certificate ever assumes of the world. A loop that anchors no
-     deadline has no floor under its phase: intervals cannot say that the loop's counter
-     runs out, so the analyser lets the core fall arbitrarily far behind its deadline and
-     24 bits of the difference wrap. The core's own release compares the same 24 bits, so
-     this is a bound the hardware keeps as well: a deadline older than about 168 ms at 50
-     MHz is a deadline it reads the wrong way round. A wait for the host or for a pin can
-     stall for as long, and the captured edge a receiver anchors on can lie as far back on
-     a line that stays idle, so the same window covers those. *)
+  (* The only thing a certificate ever assumes of the world. A wait for the host or for a
+     pin can stall for as long as the world likes, so the rows after it have a floor under
+     their phase and no ceiling: the core can fall arbitrarily far behind its deadline and
+     24 bits of the difference wrap. A loop that anchors no deadline does the same from
+     the other side, since intervals cannot say that its counter runs out, and the
+     captured edge a receiver anchors on can lie as far back on a line that stays idle.
+     The core's own release compares the same 24 bits, so this is a bound the hardware
+     keeps as well: a deadline more than about 168 ms away at 50 MHz is one it reads the
+     wrong way round. Keeping the core within 84 ms of its deadline, and of that edge,
+     covers all three. *)
   let no_wrap =
     if not no_wrap
     then ""
     else
-      "  // the certificate of a loop that anchors no deadline holds while the core is\n\
-      \  // within 84 ms of it, which is the half of what its 24 bits can tell apart\n\
+      "  // a wait for the host or a pin, or a loop that anchors no deadline, leaves\n\
+      \  // rows with one side of the phase unbounded; the certificate holds while the\n\
+      \  // core is within 84 ms of its deadline, half of what its 24 bits tell apart\n\
       \  always @(*) assume (phase >= -24'sd4194304 && phase <= 24'sd4194304);\n"
       ^ (if not anchors_on_capture
          then ""
