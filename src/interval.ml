@@ -17,6 +17,16 @@ let join a b =
   { lo = min a.lo b.lo; hi = max a.hi b.hi }
 ;;
 
+let meet a b =
+  let pick f a b =
+    match a, b with
+    | Some a, Some b -> Some (f a b)
+    | a, None -> a
+    | None, b -> b
+  in
+  { lo = pick Int.max a.lo b.lo; hi = pick Int.min a.hi b.hi }
+;;
+
 let plus a b =
   { lo = Option.bind a.lo ~f:(fun a -> Option.map b.lo ~f:(( + ) a))
   ; hi = Option.bind a.hi ~f:(fun a -> Option.map b.hi ~f:(( + ) a))

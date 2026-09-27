@@ -13,6 +13,10 @@ val top : t
 val at_least : int -> t
 val shift : t -> int -> t
 val join : t -> t -> t
+
+(** The integers in both, which is empty, [lo] above [hi], when they are [disjoint]. *)
+val meet : t -> t -> t
+
 val plus : t -> t -> t
 val minus : t -> t -> t
 

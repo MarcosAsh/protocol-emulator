@@ -361,12 +361,18 @@ module Make (Comb : Comb.S) = struct
     let captured_image = mux2 c.arm gnd (row.captured |: (capturing &: arm_known)) in
     let awaiting_image = mux2 c.arm vdd (row.awaiting &: ~:(c.capturing)) in
     let period_image v = mux2 c.set_p c.set_value @@ mux2 c.writes_p loaded.value v in
-    (* a register's image on one way out: a counted jump decrements it on both *)
+    let common_lo = mux2 (row.x_lo >: row.y_lo) row.x_lo row.y_lo in
+    let common_hi = mux2 (row.x_hi <: row.y_hi) row.x_hi row.y_hi in
+    (* a register's image on one way out: a counted jump decrements it on both, and
+       falling through [jmp x!=y] leaves x = y, so each lies in both intervals *)
     let counter ~set ~dec ~(taken : bool) lo hi =
       let taken_lo = mux2 (lo ==:. 0) (zero Isa.data_bits) (lo -:. 1) in
       let dec_lo, dec_hi = if taken then taken_lo, hi -:. 1 else data_max, data_max in
-      ( mux2 set c.set_value @@ mux2 dec dec_lo lo
-      , mux2 set c.set_value @@ mux2 dec dec_hi hi )
+      let kept_lo, kept_hi =
+        if taken then lo, hi else mux2 c.x_ne_y common_lo lo, mux2 c.x_ne_y common_hi hi
+      in
+      ( mux2 set c.set_value @@ mux2 dec dec_lo kept_lo
+      , mux2 set c.set_value @@ mux2 dec dec_hi kept_hi )
     in
     let holds ~taken (s : _ Row.t) =
       let x_lo, x_hi = counter ~set:c.set_x ~dec:c.x_dec ~taken row.x_lo row.x_hi in

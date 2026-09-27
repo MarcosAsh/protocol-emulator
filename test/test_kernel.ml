@@ -321,6 +321,34 @@ let%expect_test "some table passes for firmware the kernel accepts" =
     |}]
 ;;
 
+(* Falling through [jmp x!=y] leaves x = y, so the wait timed by x after it is in time
+   although x comes from the isr. *)
+let%expect_test "the way through jmp x!=y knows x is y" =
+  let c =
+    { Certified.name = "x_is_y"
+    ; source =
+        {|
+    start:
+        mov t, now
+        mov x, isr
+        set y, 12
+        jmp x!=y, start
+        add t, x
+        wait t
+        jmp start
+    |}
+    ; config = Program_config.default
+    ; period = None
+    ; single_capture_edge = false
+    ; no_wrap = false
+    }
+  in
+  let verdict = check c in
+  let passes = some_table_passes c in
+  print_s [%message (verdict : unit Or_error.t) (passes : bool)];
+  [%expect {| ((verdict (Ok ())) (passes true)) |}]
+;;
+
 (* The library's ws2812 waits inside its gap loop instead, which holds the line low for
    the same 160 thirds, and a table passes. *)
 let%expect_test "ws2812 passes once the wait after its gap loop moves into the loop" =

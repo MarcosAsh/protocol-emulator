@@ -288,7 +288,10 @@ let step ?period ?(single_capture_edge = false) ~config (s : State.t) pc (t : Is
         | { lo = Some a; hi = Some b }, { lo = Some c; hi = Some d } when a = b && c = d
           -> [ (if a = c then following else target), s ]
         | x, y when Interval.disjoint x y -> [ target, s ]
-        | _ -> [ target, s; following, s ])
+        | x, y ->
+          (* falling through, x = y *)
+          let both = Interval.meet x y in
+          [ target, s; following, { s with x = both; y = both } ])
      | _ -> [ target, s; following, s ])
   | Op { op; delay; side_set } ->
     let s =
