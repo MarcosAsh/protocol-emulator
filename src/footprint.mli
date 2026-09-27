@@ -60,6 +60,8 @@ val of_config : Program_config.t -> t
 
 (** The pins both can move, on [pin_out] or on [pin_dir]. By the frame lemma, each of two
     engines keeps 0 on the pins only the other can move, as long as neither is given a new
-    config without a clear. That two engines sharing none never drive one pad of the
-    two-engine top is still to be proved there. *)
+    config without a clear. [formal/chip_frame.sv] proves it again on the two-engine top,
+    and that two engines sharing no pad each drive their pads as they would alone and each
+    reads as it would alone on every pin the other cannot move. A shared wire is how two
+    engines talk and takes nothing from either's pads. *)
 val shared : t -> t -> int list

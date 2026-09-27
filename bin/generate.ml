@@ -34,6 +34,23 @@ let engine_rtl_command =
           C.create_exn ~name (Solo.hierarchical ~memory scope))]
 ;;
 
+let engines_rtl_command =
+  Command.basic
+    ~summary:"Verilog for the cores and the pins between them, with no host port"
+    [%map_open.Command
+      let memory = memory
+      and engines = engines in
+      fun () ->
+        let module Engines =
+          Engines.Make (struct
+            let engines = engines
+          end)
+        in
+        let module C = Circuit.With_interface (Engines.I) (Engines.O) in
+        print_rtl ~name:"engines_top" (fun ~name scope ->
+          C.create_exn ~name (Engines.hierarchical ~memory scope))]
+;;
+
 let top_rtl_command =
   Command.basic
     ~summary:"Verilog for the tiny tapeout top"
@@ -171,6 +188,7 @@ let () =
     (Command.group
        ~summary:""
        [ "engine", engine_rtl_command
+       ; "engines", engines_rtl_command
        ; "top", top_rtl_command
        ; "kernel", kernel_rtl_command
        ; "assemble", assemble_command

@@ -1,11 +1,14 @@
 all: issue_timing host_timing late_host fifo_order phase_step edge_step frame_step value_step \
-  teeth
+  chip_frame teeth
 
 engine.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe engine > formal/engine.v
 
 engine_sram.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe engine -sram > formal/engine_sram.v
+
+engines.v: ../src/*.ml
+	cd .. && dune exec -- bin/generate.exe engines -engines 2 > formal/engines.v
 
 issue_timing: engine.v
 	sby -f issue_timing.sby prove cover
@@ -40,8 +43,14 @@ frame_step: engine.v
 value_step: engine.v
 	sby -f value_step.sby prove cover
 
+# and on the two-engine chip: two engines whose footprints share no pad each drive their
+# pads as they would alone, and each reads as it would alone but where the other drives a
+# bidirectional pad or can move a wire, and there reads what the other drives
+chip_frame: engines.v
+	sby -f chip_frame.sby prove pads_shared cover
+
 # weakened statements, which pass only by failing
-teeth: engine.v engine_sram.v kernel_step.v
+teeth: engine.v engine_sram.v engines.v kernel_step.v
 	sby -f issue_timing.sby jump_in_one delay_ignores_side_set waits_are_plain
 	sby -f fifo_order.sby stale_ahead
 	sby -f phase_step.sby jump_in_one late_wait_waits no_carry one_late_cycle_is_safe taken_backwards \
@@ -52,6 +61,7 @@ teeth: engine.v engine_sram.v kernel_step.v
 	sby -f value_step.sby wrong_direction one_short no_invert reverse_wrong_width \
 	  pull_past_threshold data_never_refused in_wrong_direction push_before_shift \
 	  flip_at_outs_base flip_same_half
+	sby -f chip_frame.sby overlap unbound read_everywhere
 	sby -f host_timing.sby private_pull no_wait_excuse no_jump_excuse no_underflow_excuse no_overflow_excuse
 	sby -f late_host.sby admit_fifo_wait admit_fifo_jump private_pull no_underflow_excuse \
 	  no_overflow_excuse
@@ -119,5 +129,5 @@ inductive_names:
 	@echo $(INDUCTIVE)
 
 .PHONY: all issue_timing host_timing late_host fifo_order phase_step edge_step frame_step \
-  value_step teeth certificates certificate inductive_certificate inductive_proof \
+  value_step chip_frame teeth certificates certificate inductive_certificate inductive_proof \
   inductive_certificates inductive_names stamped_certificate stamped_proof

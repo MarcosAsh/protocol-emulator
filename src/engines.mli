@@ -7,7 +7,11 @@
     drives a bidirectional pin an engine reads that level instead of the pad's, and on a
     wire it reads what any engine drives, so engines can talk over a pin or a wire with
     nothing connected outside. Two engines driving one pin is a mistake in the
-    configuration; the OR keeps it defined. *)
+    configuration; the OR keeps it defined. With two engines whose [Footprint]s share no
+    pad, each drives its pads as it would alone and reads as it would alone but where the
+    other drives a bidirectional pad or can move a wire, and there reads what the other
+    drives, as long as neither is given a new config without a clear:
+    [formal/chip_frame.sv]. *)
 
 open! Core
 open! Hardcaml

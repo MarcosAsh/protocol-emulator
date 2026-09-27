@@ -1,0 +1,46 @@
+[tasks]
+prove
+pads_shared
+cover
+overlap teeth
+unbound teeth
+read_everywhere teeth
+
+[options]
+prove: mode prove
+prove: depth 4
+pads_shared: mode prove
+pads_shared: depth 4
+cover: mode cover
+cover: depth 12
+teeth: mode bmc
+teeth: depth 12
+teeth: expect fail
+
+[engines]
+smtbmc boolector
+
+[script]
+read_verilog engines.v
+hierarchy -top engines_top
+proc
+flatten
+cd engines_top
+expose w:engines.engine_0.op_go w:engines.engine_1.op_go
+expose w:engines.engine_0.sample w:engines.engine_1.sample
+rename engines.engine_0.op_go op_go_0
+rename engines.engine_1.op_go op_go_1
+rename engines.engine_0.sample sample_0
+rename engines.engine_1.sample sample_1
+cd ..
+teeth: read -define TEETH
+overlap: read -define OVERLAP
+pads_shared: read -define OVERLAP -define PADS_SHARED
+unbound: read -define UNBOUND
+read_everywhere: read -define READ_EVERYWHERE
+read_verilog -formal -sv chip_frame.sv
+prep -top chip_frame
+
+[files]
+engines.v
+chip_frame.sv
