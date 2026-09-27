@@ -51,7 +51,7 @@ jobs:
           opam exec -- dune exec -- bin/generate.exe engine > formal/engine.v
           opam exec -- dune exec -- bin/generate.exe engine -sram > formal/engine_sram.v
           opam exec -- dune exec -- bin/generate.exe kernel > formal/kernel_step.v
-          make -C formal issue_timing host_timing fifo_order phase_step edge_step frame_step teeth
+          make -C formal issue_timing host_timing late_host fifo_order phase_step edge_step frame_step teeth
 
       # the kit's top and pin file; tt is not part of this repository
       - name: Checkout tt-support-tools

@@ -71,9 +71,14 @@ certificate: engine.v
 # The certificate of one firmware as an invariant proved by induction, which holds for
 # all time and not only to a depth: make inductive_certificate NAME=uart_tx16. The teeth
 # run adds one claim that is false in any run, because induction proves anything from an
-# invariant no state satisfies, so it has to fail.
+# invariant no state satisfies, so it has to fail. inductive_proof runs the proof alone,
+# on a certificate_$(NAME).sv written already, for CI, where make has no dune.
 inductive_certificate: engine_sram.v
-	(cd .. && dune exec -- test/certify/write_certificate.exe -inductive $(NAME)) > certificate.sv
+	(cd .. && dune exec -- test/certify/write_certificate.exe -inductive $(NAME)) > certificate_$(NAME).sv
+	$(MAKE) inductive_proof NAME=$(NAME)
+
+inductive_proof:
+	cp certificate_$(NAME).sv certificate.sv
 	sby -f -d certificate_$(NAME)_inductive certificate_inductive.sby prove
 	sby -f -d certificate_$(NAME)_teeth certificate_inductive.sby teeth
 
@@ -82,7 +87,11 @@ inductive_certificate: engine_sram.v
 # claim added. Teeth: the stamp a cycle late has to fail from reset, and the pin showing
 # the next bit has to fail the step.
 stamped_certificate: engine_sram.v
-	(cd .. && dune exec -- test/certify/write_certificate.exe -inductive -stamped uart_tx_stamped) > certificate.sv
+	(cd .. && dune exec -- test/certify/write_certificate.exe -inductive -stamped uart_tx_stamped) > certificate_stamped.sv
+	$(MAKE) stamped_proof
+
+stamped_proof:
+	cp certificate_stamped.sv certificate.sv
 	sby -f -d certificate_stamped_inductive certificate_inductive.sby prove
 	sby -f --prefix certificate_stamped certificate_inductive.sby teeth off_by_one next_bit
 
@@ -97,4 +106,5 @@ inductive_certificates: engine_sram.v
 	for name in $(INDUCTIVE); do $(MAKE) inductive_certificate NAME=$$name || exit 1; done
 
 .PHONY: all issue_timing host_timing late_host fifo_order phase_step edge_step frame_step teeth \
-  certificates certificate inductive_certificate inductive_certificates stamped_certificate
+  certificates certificate inductive_certificate inductive_proof inductive_certificates \
+  stamped_certificate stamped_proof
