@@ -33,10 +33,13 @@ underflow, an overflow, a missed deadline or a word that does not decode. Side-s
 drives up to two pins on every instruction, which gives an SPI clock for free and, in
 pin-direction mode, an open-drain I2C bus.
 
-A UART transmitter at 115200 baud from the 50 MHz clock:
+A UART transmitter at 115200 baud from the 50 MHz clock. The host sends the bit period,
+434 cycles, as its first word:
 
 ```
-    set p, 434
+    wait tx
+    pull
+    mov p, osr
     set pins, 1
 idle:
     wait tx
@@ -68,7 +71,7 @@ words in one frame repeat the access, which streams the fifos and the program wi
 
 | Register | Name | Notes |
 |---|---|---|
-| 0 | control | bit 0 start, bit 1 clear irq, bit 2 stop, bit 3 flush both fifos, bit 4 resume from the pc, bit 5 single step; the program and the config are only written, and the fifos only flushed, while the core is halted |
+| 0 | control | bit 0 start, bit 1 clear irq, bit 2 stop, bit 3 flush both fifos; the program and the config are only written, and the fifos only flushed, while the core is halted; a stopped core runs again only from a start, at address 0 |
 | 1 | status | pc, halted, irq, fault bits, fifo levels |
 | 2 | pc | |
 | 3, 4 | now | low and high words of the counter |
@@ -80,8 +83,8 @@ words in one frame repeat the access, which streams the fifos and the program wi
 | 11 | select | 0 or 1, the core every register but the program and data addresses reaches; status bit 15 says the other core has its irq up |
 | 12 | data address | |
 | 13 | data word | write increments the address; only while the core is halted |
-| 16 on | config | pin bases and counts, side-set, shift directions, autopush and autopull, CRC, stuffing, wrap, period fraction, breakpoint, autopull from data, Manchester |
-| 64 to 71 | debug | read only: x, y, p, t low and high, isr, osr, and the isr count with the osr count shifted up 8 |
+| 16 on | config | pin bases and counts, side-set, shift directions, autopush and autopull, CRC, stuffing, wrap, period fraction, autopull from data (45), Manchester (46) |
+| 43, 44, 64 to 71 | reserved | read as zero and take no write |
 
 The design is written in Hardcaml. The same OCaml model of the core is the executable
 specification, the reference the hardware runs against in lockstep, and the input to a
@@ -92,17 +95,14 @@ static timing analyser that bounds every pin edge of a program before it runs.
 `python/protocol_emulator.py` runs on CPython and MicroPython and needs only a function
 that exchanges one SPI frame. `python/demo_board.py` does that on the Tiny Tapeout demo
 board. To see the UART transmitter above: assemble it with
-`dune exec -- bin/generate.exe assemble uart.asm`, then `configure`, `load`, `start`
-and `push` two bytes; the frames appear on `uo[1]` (`OUT0`) at 115200 baud.
+`dune exec -- bin/generate.exe assemble -period 434 uart.asm`, then `configure`, `load`,
+`start`, `push` 434 and then two bytes. The frames appear on `uo[1]` (`OUT0`) at 115200
+baud.
 
 `test/test.py` is the same sequence under cocotb against the Verilog, and the OCaml
 tests under `test/` run UART, SPI and I2C masters and slaves, a low speed USB keyboard
 and mouse, WS2812, 1-Wire, PS/2 and 10BASE-T transmit firmware against protocol models
 and against the hardware.
-
-To debug firmware on the chip, set `break_enable` and `break_pc` while the core is
-halted, start it, and when status shows it halted read the registers at 64 to 71; bit 5
-of control runs one instruction, bit 4 goes on.
 
 ## External hardware
 
