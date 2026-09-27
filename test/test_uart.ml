@@ -197,19 +197,28 @@ let%expect_test "uart tx at 115200 baud in lockstep" =
   [%expect {| ("lockstep held" (cycles 10416)) |}]
 ;;
 
+(* with the premise the certificate rests on watched at every arm *)
 let%expect_test "uart rx in lockstep" =
   let period = 16 in
   let levels =
     serial_levels [ 0x55; 0xa3; 0xff; 0x00 ] ~period ~stop:1 |> Array.of_list
   in
+  let premise = Premise.create () in
   let (_ : Machine.t) =
     Lockstep.lockstep
       ~cycles:(Array.length levels)
+      ~premise
       ~config:rx_config
       ~program:(assemble (uart_rx ~period))
       ~inputs:(fun n -> levels.(n))
       ~host:(fun _ -> { Lockstep.Host.idle with pop_rx = true })
       ()
   in
-  [%expect {| ("lockstep held" (cycles 724)) |}]
+  print_s [%message (Premise.count premise : Premise.Count.t)];
+  [%expect
+    {|
+    ("lockstep held" (cycles 724))
+    ("Premise.count premise"
+     ((arms 5) (at_captured_level 0) (left_captured_level 0)))
+    |}]
 ;;

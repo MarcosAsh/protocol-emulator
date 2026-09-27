@@ -42,7 +42,7 @@ let%expect_test "the firmware library and its certificates" =
     uart_tx               15         3      4
     uart_tx16             15         3     12
     uart_tx_host_rate     17         3    430  period 434, no wrap
-    uart_rx               21         2      3  one edge before capture, no wrap
+    uart_rx               19         2      7  one edge before capture, no wrap
     spi_master            16         3      4
     spi_slave              6         0      -
     i2c_master            83        25      2  no wrap

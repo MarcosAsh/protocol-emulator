@@ -260,7 +260,9 @@ let conversation () =
 
 (* The same conversation against the hardware: every load of the core is run again in the
    lockstep harness with the pins and the fifo writes the model saw, cycle for cycle, and
-   the Hardcaml core has to agree with the model on all of its state after every edge. *)
+   the Hardcaml core has to agree with the model on all of its state after every edge. The
+   host keeps to the single-edge premise the device's certificate rests on at every arm:
+   none of them finds D+ already high or sees it fall again before the wait. *)
 let%expect_test "the enumeration in lockstep with the hardware" =
   let t, report = conversation () in
   print_s [%message (report : int list)];
@@ -269,9 +271,11 @@ let%expect_test "the enumeration in lockstep with the hardware" =
     let program =
       Firmware.assemble (Firmware.usb_device ~address ~half_period:(bit_period / 2))
     in
+    let premise = Premise.create () in
     let (_ : Protocol_emulator.Machine.t), mismatch =
       Lockstep.run
         ~cycles:(Array.length cycles)
+        ~premise
         ~config:Firmware.usb_device_config
         ~program
         ~preload:[ bit_period ]
@@ -284,14 +288,19 @@ let%expect_test "the enumeration in lockstep with the hardware" =
         "load"
           (address : int)
           ~cycles:(Array.length cycles : int)
-          ~held:(Option.is_none mismatch : bool)]);
+          ~held:(Option.is_none mismatch : bool)
+          ~premise:(Premise.count premise : Premise.Count.t)]);
   [%expect
     {|
     (report (2 1 0 0))
-    (load (address 0) (cycles 5441) (held true))
-    (load (address 0) (cycles 28000) (held true))
-    (load (address 0) (cycles 21215) (held true))
-    (load (address 7) (cycles 168032) (held true))
+    (load (address 0) (cycles 5441) (held true)
+     (premise ((arms 1) (at_captured_level 0) (left_captured_level 0))))
+    (load (address 0) (cycles 28000) (held true)
+     (premise ((arms 8) (at_captured_level 0) (left_captured_level 0))))
+    (load (address 0) (cycles 21215) (held true)
+     (premise ((arms 6) (at_captured_level 0) (left_captured_level 0))))
+    (load (address 7) (cycles 168032) (held true)
+     (premise ((arms 47) (at_captured_level 0) (left_captured_level 0))))
     |}]
 ;;
 

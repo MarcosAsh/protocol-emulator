@@ -45,21 +45,19 @@ let%expect_test "uart rx" =
      3  capture_arm                  phase ?..?
      4  wait 0 pin 0                 phase ?..?
      5  mov t, capture               phase ?..?
-     6  add t, y                     phase 2..17
-     7  add t, p                     phase -4..11
-     8  set x, 7                     phase -19..-4
-     9  wait t+                      phase -18..-3  slack 3..18
+     6  add t, y                     phase 2..3
+     7  add t, p                     phase -4..-3
+     8  set x, 7                     phase -19..-18
+     9  wait t+                      phase -18..-12  slack 12..18
     10  in pins, 1                   phase -15  sample -15
     11  jmp x--, 9                   phase -14
-    12  capture_arm                  phase -12
-    13  in null, 8                   phase -11
-    14  push                         phase -10
-    15  wait t                       phase -9  slack 9
-    16  jmp pin, 4                   phase 1
+    12  in null, 8                   phase -12
+    13  push                         phase -11
+    14  sub t, 2                     phase -10
+    15  wait t                       phase -7  slack 7
+    16  jmp pin, 3                   phase 1
     17  irq                          phase 3
-    18  wait 1 pin 0                 phase 4
-    19  capture_arm                  phase 5..?
-    20  jmp 4                        phase 6..?
+    18  jmp 2                        phase 4
     |}]
 ;;
 
@@ -488,11 +486,11 @@ let%expect_test "a deadline is only as good as what is assumed about the world" 
     {|
     2 of 2 deadline waits may be missed
       9  wait t+                      phase -18..?  slack ?..18  MAY MISS
-     15  wait t                       phase -9..?  slack ?..9  MAY MISS
+     15  wait t                       phase -7..?  slack ?..7  MAY MISS
     a bound of ? means none: the way here has a wait for a pin or a fifo, a capture nothing is assumed about, a period the host loads, or a loop that falls further behind on every pass
     |}];
   check ~config:rx_config ~single_capture_edge:true (uart_rx ~period:16);
-  [%expect {| 21 words, 2 deadline waits, worst slack 3 |}];
+  [%expect {| 19 words, 2 deadline waits, worst slack 7 |}];
   check usb_tx;
   [%expect
     {|
@@ -593,7 +591,7 @@ let%expect_test "every firmware stays inside its analysis under random stimulus"
     ("uart tx" (issues 4962) (reached 15/15) (side_edges 0) (violations ()))
     ("uart tx host rate" (issues 232) (reached 13/17) (side_edges 0)
      (violations ()))
-    ("uart rx" (issues 5756) (reached 21/21) (side_edges 0) (violations ()))
+    ("uart rx" (issues 6312) (reached 19/19) (side_edges 0) (violations ()))
     ("spi master" (issues 8172) (reached 16/16) (side_edges 2598)
      (violations ()))
     ("spi slave" (issues 14940) (reached 6/6) (side_edges 0) (violations ()))

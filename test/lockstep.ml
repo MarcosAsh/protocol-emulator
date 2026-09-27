@@ -126,6 +126,7 @@ let run
   ?(host = fun _ -> Host.idle)
   ?(react = fun (_ : Machine.t) -> ())
   ?coverage
+  ?premise
   ~config
   ~program
   ~inputs
@@ -215,6 +216,7 @@ let run
           model := Machine.step before ~inputs:levels;
           if action.stop then model := Machine.stop !model;
           Option.iter coverage ~f:(fun c -> Coverage.record c ~before ~after:!model);
+          Option.iter premise ~f:(fun p -> Premise.record p ~before ~after:!model);
           (match action.tx with
            | Some word when not flushed -> model := Machine.write_tx !model word |> ok_exn
            | Some _ | None -> ());
@@ -231,13 +233,14 @@ let lockstep
   ?host
   ?react
   ?coverage
+  ?premise
   ~config
   ~program
   ~inputs
   ()
   =
   let model, mismatch =
-    run ~cycles ?preload ?data ?host ?react ?coverage ~config ~program ~inputs ()
+    run ~cycles ?preload ?data ?host ?react ?coverage ?premise ~config ~program ~inputs ()
   in
   (match mismatch with
    | None -> print_s [%message "lockstep held" (cycles : int)]

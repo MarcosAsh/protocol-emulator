@@ -14,7 +14,7 @@ let%expect_test "what the host reads back in every scenario" =
   [%expect
     {|
     (uart_tx (cycles 9226) (reads ((0000))))
-    (uart_rx (cycles 11469) (reads ((0055 00a3 00ff) (0000 000f 00f0) (0400))))
+    (uart_rx (cycles 11213) (reads ((0055 00a3 00ff) (0000 000f 00f0) (0400))))
     (spi_master (cycles 10013) (reads ((0081 007e) (0400))))
     (i2c_logger (cycles 18919) (reads ((0000))))
     (wrapped_loop (cycles 7275) (reads ((0000))))

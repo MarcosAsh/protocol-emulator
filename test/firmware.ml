@@ -89,15 +89,28 @@ bit:
 
 let stream_config = { Program_config.default with autopull = true; pull_threshold = 8 }
 
-(* half period one short: the sample lands a cycle after the release *)
+(* Half period one short: the sample lands a cycle after the release. The capture is armed
+   only while the line is high, as the certificate assumes of every arm: once the stop bit
+   has been seen high, or after a framing error once the line is high again. The stop bit
+   is checked [check] cycles into it, as the receiver times it from the captured edge, and
+   the arm comes two cycles later. A slow sender's stop bit has to have begun by the
+   check, nine of its bits after the start edge. A fast sender's next start edge has to
+   come after the arm, ten of its bits after a start edge the capture can have caught up
+   to a cycle late, so three cycles after the check. The two tolerances are equal
+   (9p - 27) / 19 cycles in, which [check] rounds. At 16 cycles a bit that is two cycles
+   before the middle, and a sender's bit may be from just over 15.3 cycles to 16 2/3, 4.3%
+   fast to 4.1% slow. From 16 cycles up it takes 4% either way, where two before the
+   middle at every period would not at 17. *)
 let uart_rx_on ~pin ~period =
+  let check = ((9 * period) - 18) / 19 in
   [%string
     {|
     set p, %{period#Int}
     set y, %{(period / 2) - 1#Int}
-    wait 1 pin %{pin#Int}             ; line idle
-    capture_arm
 idle:
+    wait 1 pin %{pin#Int}             ; line idle
+arm:
+    capture_arm
     wait 0 pin %{pin#Int}             ; start bit, its edge cycle is in capture
     mov t, capture
     add t, y
@@ -107,14 +120,12 @@ bit:
     wait t+
     in pins, 1
     jmp x--, bit
-    capture_arm              ; watch for the next start edge from here on
     in null, 8
     push
-    wait t                   ; middle of the stop bit
-    jmp pin, idle
+    sub t, %{(period / 2) - check#Int}
+    wait t                   ; the check, a slow sender's stop bit has begun
+    jmp pin, arm             ; high: arm before a fast sender's next start edge
     irq                      ; framing error
-    wait 1 pin %{pin#Int}
-    capture_arm
     jmp idle
 |}]
 ;;

@@ -28,8 +28,8 @@ end
 (** [preload] is pushed into the tx fifo and [data] written into the data memory from
     address 0 before the start pulse. [inputs] and [host] are asked once per cycle;
     [react] sees the model after each step, which is where a peer on the pins advances.
-    Stops at the first mismatch and returns it with the cycle. [coverage] is told about
-    every step of the model. *)
+    Stops at the first mismatch and returns it with the cycle. [coverage] and [premise]
+    are told about every step of the model. *)
 val run
   :  ?cycles:int
   -> ?preload:int list
@@ -37,6 +37,7 @@ val run
   -> ?host:(int -> Host.t)
   -> ?react:(Machine.t -> unit)
   -> ?coverage:Coverage.t
+  -> ?premise:Premise.t
   -> config:Program_config.t
   -> program:int list
   -> inputs:(int -> int)
@@ -51,6 +52,7 @@ val lockstep
   -> ?host:(int -> Host.t)
   -> ?react:(Machine.t -> unit)
   -> ?coverage:Coverage.t
+  -> ?premise:Premise.t
   -> config:Program_config.t
   -> program:int list
   -> inputs:(int -> int)
