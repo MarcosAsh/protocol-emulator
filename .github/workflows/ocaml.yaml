@@ -3,6 +3,8 @@ on: [push, workflow_dispatch]
 jobs:
   test:
     runs-on: ubuntu-24.04
+    outputs:
+      certificates: ${{ steps.certificates.outputs.names }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v6
@@ -53,6 +55,25 @@ jobs:
           opam exec -- dune exec -- bin/generate.exe kernel > formal/kernel_step.v
           make -C formal issue_timing host_timing late_host fifo_order phase_step edge_step frame_step teeth
 
+      # each inductive certificate, the stamped one too, is proved in a job of its own below
+      - name: Write the certificates
+        id: certificates
+        run: |
+          names=$(make -s -C formal inductive_names)
+          for name in $names; do
+            opam exec -- dune exec -- test/certify/write_certificate.exe -inductive $name > formal/certificate_$name.sv
+          done
+          opam exec -- dune exec -- test/certify/write_certificate.exe -inductive -stamped uart_tx_stamped > formal/certificate_stamped.sv
+          echo "names=$(echo $names stamped | jq -Rc 'split(" ")')" >> "$GITHUB_OUTPUT"
+
+      - name: Upload the certificates
+        uses: actions/upload-artifact@v7
+        with:
+          name: certificates
+          path: |
+            formal/engine_sram.v
+            formal/certificate_*.sv
+
       # the kit's top and pin file; tt is not part of this repository
       - name: Checkout tt-support-tools
         uses: actions/checkout@v6
@@ -71,3 +92,35 @@ jobs:
           make FPGA=yes
           ! grep failure results.xml
           make replay FPGA=yes
+
+  inductive_certificate:
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        name: ${{ fromJSON(needs.test.outputs.certificates) }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Download the certificates
+        uses: actions/download-artifact@v8
+        with:
+          name: certificates
+          path: formal
+
+      - name: Install OSS CAD Suite
+        run: |
+          curl -sL https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz | tar xz -C "$HOME"
+          echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
+
+      # the invariant by induction, then the teeth runs, which have to fail
+      - name: Prove
+        run: |
+          if [ ${{ matrix.name }} = stamped ]; then
+            make -C formal stamped_proof
+          else
+            make -C formal inductive_proof NAME=${{ matrix.name }}
+          fi

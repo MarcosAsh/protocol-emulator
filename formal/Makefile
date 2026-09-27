@@ -105,6 +105,10 @@ INDUCTIVE = uart_tx uart_tx16 uart_tx_host_rate uart_rx spi_master spi_slave i2c
 inductive_certificates: engine_sram.v
 	for name in $(INDUCTIVE); do $(MAKE) inductive_certificate NAME=$$name || exit 1; done
 
+# CI writes each of these and proves it in a job of its own
+inductive_names:
+	@echo $(INDUCTIVE)
+
 .PHONY: all issue_timing host_timing late_host fifo_order phase_step edge_step frame_step teeth \
   certificates certificate inductive_certificate inductive_proof inductive_certificates \
-  stamped_certificate stamped_proof
+  inductive_names stamped_certificate stamped_proof
