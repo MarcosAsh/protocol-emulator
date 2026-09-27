@@ -16,14 +16,7 @@ SELECT = 0x0B
 DATA_ADDR = 0x0C
 DATA = 0x0D
 CONFIG = 0x10
-X = 0x40
-Y = 0x41
-P = 0x42
-T_LO = 0x43
-T_HI = 0x44
-ISR = 0x45
-OSR = 0x46
-COUNTS = 0x47
+# 0x40 to 0x47 are reserved and read as zero.
 
 # The config fields in Engine.Config order, the nth at CONFIG + n. None is a reserved
 # register, which keeps the fields after it where existing hosts write them.
@@ -88,7 +81,8 @@ class Host:
         self.write(CONTROL, [1])
 
     def stop(self):
-        """Halt the core; the program can only be written while it is halted."""
+        """Halt the core; the program can only be written while it is halted. It runs
+        again only from a start, at address 0."""
         self.write(CONTROL, [4])
 
     def flush(self):
@@ -97,28 +91,6 @@ class Host:
 
     def clear_irq(self):
         self.write(CONTROL, [2])
-
-    def resume(self):
-        """Go on from the pc of a halted core, with nothing reset."""
-        self.write(CONTROL, [16])
-
-    def single_step(self):
-        """Run a halted core until one instruction completes."""
-        self.write(CONTROL, [32])
-
-    def set_breakpoint(self, pc):
-        """Halt the core when it comes to pc; only while it is halted. None clears it."""
-        self.write(CONFIG + CONFIG_FIELDS.index("break_pc"), [pc or 0])
-        self.write(CONFIG + CONFIG_FIELDS.index("break_enable"), [int(pc is not None)])
-
-    def registers(self):
-        read = lambda reg: self.read(reg)[0]
-        counts = read(COUNTS)
-        return {
-            "pc": read(PC), "x": read(X), "y": read(Y), "p": read(P),
-            "t": (read(T_HI) << 16) | read(T_LO), "isr": read(ISR), "osr": read(OSR),
-            "isr_count": counts & 0xFF, "osr_count": counts >> 8,
-        }
 
     def push(self, words):
         self.write(TX, words)
