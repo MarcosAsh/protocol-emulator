@@ -20,8 +20,6 @@ module Host : sig
     ; clear_irq : bool
     ; stop : bool
     ; flush : bool
-    ; resume : bool (** Asked while halted, the model takes it a cycle later. *)
-    ; single_step : bool
     }
 
   val idle : t
@@ -61,13 +59,12 @@ val lockstep
 
 (** [programs] runs of [run], each under a random configuration, random pins and a host
     that writes and reads at random; prints the seeds that did not hold. Without [wrap]
-    the program counter only wraps at the end of memory. With [debugger] each run also has
-    a breakpoint at a random place, on or off, and a host that stops, resumes and single
-    steps the core at random; the programs are the same either way. *)
+    the program counter only wraps at the end of memory. With [stops] the host also stops
+    the core at random, about once in a hundred cycles. *)
 val random_programs
   :  ?coverage:Coverage.t
   -> ?wrap:bool
-  -> ?debugger:bool
+  -> ?stops:bool
   -> programs:int
   -> cycles:int
   -> (Splittable_random.t -> config:Program_config.t -> int list)

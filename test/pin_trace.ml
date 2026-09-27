@@ -53,8 +53,10 @@ module Scenario = struct
 
   let load ~config ~program =
     let config = Engine.Config.of_program_config config in
-    (Engine.Config.to_list (Engine.Config.map config ~f:Bits.to_unsigned_int)
-     |> List.mapi ~f:(fun n v -> Step.Write (Reg.config + n, [ v ])))
+    List.map2_exn
+      Reg.configs
+      (Engine.Config.to_list (Engine.Config.map config ~f:Bits.to_unsigned_int))
+      ~f:(fun reg v -> Step.Write (reg, [ v ]))
     @ [ Write (Reg.program_addr, [ 0 ]); Write (Reg.program, program) ]
   ;;
 

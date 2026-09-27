@@ -37,7 +37,7 @@ let%expect_test "the host loads and runs the uart transmitter over spi" =
        let m = Spi_master.create ~sck ~mosi ~cs_n ~miso ~half:4 in
        let config = Engine.Config.of_program_config Program_config.default in
        Engine.Config.to_list (Engine.Config.map config ~f:Bits.to_unsigned_int)
-       |> List.iteri ~f:(fun n v -> Spi_master.write m ~watch (Reg.config + n) [ v ]);
+       |> List.iter2_exn Reg.configs ~f:(fun reg v -> Spi_master.write m ~watch reg [ v ]);
        Spi_master.write m ~watch Reg.program_addr [ 0 ];
        Spi_master.write m ~watch Reg.program (assemble (uart_tx ~period));
        Spi_master.write m ~watch Reg.tx [ 0x55; 0xa3 ];
@@ -91,7 +91,8 @@ let%expect_test "two engines talk over a wire and the host reads the result" =
          Engine.Config.of_program_config config
          |> Engine.Config.map ~f:Bits.to_unsigned_int
          |> Engine.Config.to_list
-         |> List.iteri ~f:(fun n v -> Spi_master.write m ~watch (Reg.config + n) [ v ]);
+         |> List.iter2_exn Reg.configs ~f:(fun reg v ->
+           Spi_master.write m ~watch reg [ v ]);
          Spi_master.write m ~watch Reg.program_addr [ 0 ];
          Spi_master.write m ~watch Reg.program (assemble program)
        in

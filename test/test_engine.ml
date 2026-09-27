@@ -350,10 +350,10 @@ let%expect_test "random programs" =
   [%expect {| ((programs 64) (failed ())) |}]
 ;;
 
-let%expect_test "random programs under a debugger" =
-  random_programs ~debugger:true ~programs:32 ~cycles:1000 (fun random ~config ->
+let%expect_test "random programs with the host stopping the core" =
+  random_programs ~stops:true ~programs:64 ~cycles:400 (fun random ~config ->
     Random_program.program random ~config);
-  [%expect {| ((programs 32) (failed ())) |}]
+  [%expect {| ((programs 64) (failed ())) |}]
 ;;
 
 let%expect_test "every mov and alu form" =

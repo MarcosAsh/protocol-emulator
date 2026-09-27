@@ -13,14 +13,6 @@ module Status = struct
     ; tx_level : 'a [@bits Host_fifo.level_bits]
     ; rx_level : 'a [@bits Host_fifo.level_bits]
     ; rx_head : 'a [@bits Isa.data_bits]
-    ; x : 'a [@bits Isa.data_bits]
-    ; y : 'a [@bits Isa.data_bits]
-    ; p : 'a [@bits Isa.data_bits]
-    ; t : 'a [@bits Isa.timer_bits]
-    ; isr : 'a [@bits Isa.data_bits]
-    ; osr : 'a [@bits Isa.data_bits]
-    ; isr_count : 'a [@bits Isa.count_bits]
-    ; osr_count : 'a [@bits Isa.count_bits]
     }
   [@@deriving hardcaml]
 end
@@ -41,14 +33,17 @@ module Reg = struct
   let data_addr = 0x0c
   let data = 0x0d
   let config = 0x10
-  let x = 0x40
-  let y = 0x41
-  let p = 0x42
-  let t_lo = 0x43
-  let t_hi = 0x44
-  let isr = 0x45
-  let osr = 0x46
-  let counts = 0x47
+
+  (* kept out of use, so the config fields after 0x2b and 0x2c stay where existing hosts
+     write them *)
+  let reserved = [ 0x2b; 0x2c ] @ List.range 0x40 0x48
+
+  let configs =
+    List.take
+      (List.filter (List.range config 0x80) ~f:(fun reg ->
+         not (List.mem reserved reg ~equal:Int.equal)))
+      (List.length (Engine.Config.to_list Engine.Config.port_names))
+  ;;
 end
 
 module State = struct
@@ -169,14 +164,6 @@ module Make (Config : Config) = struct
       ; Reg.capture_lo, sel_bottom s.capture ~width:Isa.data_bits
       ; Reg.capture_hi, reg16 (sel_top s.capture ~width:(Isa.timer_bits - Isa.data_bits))
       ; Reg.rx, s.rx_head
-      ; Reg.x, s.x
-      ; Reg.y, s.y
-      ; Reg.p, s.p
-      ; Reg.t_lo, sel_bottom s.t ~width:Isa.data_bits
-      ; Reg.t_hi, reg16 (sel_top s.t ~width:(Isa.timer_bits - Isa.data_bits))
-      ; Reg.isr, s.isr
-      ; Reg.osr, s.osr
-      ; Reg.counts, reg16 (s.osr_count @: zero 3 @: s.isr_count)
       ]
       |> List.map ~f:(fun (n, v) -> key n, v)
       |> cases ~default:(zero Isa.data_bits) read_addr
@@ -219,13 +206,14 @@ module Make (Config : Config) = struct
       List.concat_mapi
         (List.zip_exn configs i.status)
         ~f:(fun engine (config, (status : _ Status.t)) ->
-          List.mapi
+          List.map2_exn
             (Engine.Config.to_list
                (Engine.Config.map2 Engine.Config.port_widths config ~f:(fun w v -> w, v)))
-            ~f:(fun n (width, v) ->
+            Reg.configs
+            ~f:(fun (width, v) reg ->
               Always.(
                 when_
-                  (mine engine (at (Reg.config + n)) &: status.halted)
+                  (mine engine (at reg) &: status.halted)
                   [ v <-- sel_bottom value ~width ])))
     in
     let select_write =
@@ -272,8 +260,6 @@ module Make (Config : Config) = struct
           ; clear_irq = mine (strobe Reg.control &: value.:(1))
           ; stop = mine (strobe Reg.control &: value.:(2))
           ; flush = mine (strobe Reg.control &: value.:(3))
-          ; resume = mine (strobe Reg.control &: value.:(4))
-          ; single_step = mine (strobe Reg.control &: value.:(5))
           ; data_write =
               { valid = mine (strobe Reg.data); addr = data_addr.value; data = value }
           ; program_write =

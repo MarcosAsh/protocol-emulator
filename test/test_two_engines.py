@@ -6,15 +6,15 @@ import cocotb
 from cocotb.triggers import ClockCycles
 
 from test import AsyncHost, Pins, assembled, reset
-from protocol_emulator import CONFIG, CONFIG_FIELDS, CONTROL, DEFAULT_CONFIG, PROGRAM, PROGRAM_ADDR, RX, SELECT, STATUS, TX
+from protocol_emulator import CONTROL, DEFAULT_CONFIG, PROGRAM, PROGRAM_ADDR, RX, SELECT, STATUS, TX, config_writes
 
 WIRE = 20
 
 
 async def load(host, engine, config, words):
     await host.write(SELECT, [engine])
-    for n, name in enumerate(CONFIG_FIELDS):
-        await host.write(CONFIG + n, [config.get(name, 0)])
+    for reg, word in config_writes(config):
+        await host.write(reg, [word])
     await host.write(PROGRAM_ADDR, [0])
     await host.write(PROGRAM, words)
 

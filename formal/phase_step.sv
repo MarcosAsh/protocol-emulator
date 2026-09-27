@@ -38,13 +38,12 @@ module phase_step (input clk);
   wire [23:0] t, now, capture;
   wire [4:0] osr_count, isr_count, stall, stuff_run;
   wire halted, irq, underflow, overflow, missed_deadline, decode, capture_armed;
-  wire resumed, stepping;
   wire [3:0] tx_level, rx_level;
   wire decode_ok;
   wire [7:0] opcode_onehot;
   wire [27:0] wait_select;
   wire [27:0] wait_pin = 28'd1 << instruction[4:0];
-  wire completes;
+  wire jmp_go, advance;
   wire [27:0] sample;
   wire captured_now;
 
@@ -63,9 +62,8 @@ module phase_step (input clk);
     .config$stuff_level(stuff_level),
     .config$wrap_bottom(wrap_bottom), .config$wrap_top(wrap_top),
     .config$period_fraction(period_fraction),
-    .config$break_enable(1'b0), .config$break_pc(9'd0),
     .config$autopull_data(autopull_data), .config$manchester(manchester),
-    .stop(stop), .flush(flush), .resume(1'b0), .single_step(1'b0),
+    .stop(stop), .flush(flush),
     .start(start), .program_write$valid(program_write_valid),
     .program_write$addr(program_write_addr), .program_write$data(program_write_data),
     .data_word(data_word),
@@ -73,13 +71,15 @@ module phase_step (input clk);
     .inputs(inputs),
     .pin_out(pin_out), .pin_dir(pin_dir), .pc(pc), .x(x), .y(y), .p(p), .t(t), .osr(osr),
     .osr_count(osr_count), .isr(isr), .isr_count(isr_count), .now(now), .stall(stall),
-    .halted(halted), .resumed(resumed), .stepping(stepping), .irq(irq), .fault$underflow(underflow), .fault$overflow(overflow),
+    .halted(halted), .irq(irq), .fault$underflow(underflow), .fault$overflow(overflow),
     .fault$missed_deadline(missed_deadline), .fault$decode(decode), .capture(capture),
     .capture_armed(capture_armed), .tx_level(tx_level), .rx_level(rx_level),
     .rx_head(rx_head), .instruction(instruction), .crc(crc), .stuff_run(stuff_run),
     .decode_ok(decode_ok), .opcode_onehot(opcode_onehot), .wait_select(wait_select),
-    .eng_completes(completes), .eng_sample(sample),
+    .eng_jmp_go(jmp_go), .eng_advance(advance), .eng_sample(sample),
     .eng_captured(captured_now));
+  // an instruction completes when a jump issues, or anything else issues and goes on
+  wire completes = jmp_go || advance;
 
   always @(*) begin
     assume(side_set_count <= 2);
@@ -99,7 +99,6 @@ module phase_step (input clk);
       // the core's registered decode flag agrees with the kernel's decoder
       assert(decode_ok == !(halts && !(opcode == 7 && instruction[7:0] == 8'd1)));
       assert(wait_select == wait_pin);
-      assert(!stepping && !resumed);
     end
 
   // an entry is the first issue after a start or after a completion

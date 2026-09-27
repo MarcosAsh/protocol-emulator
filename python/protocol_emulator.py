@@ -25,13 +25,15 @@ ISR = 0x45
 OSR = 0x46
 COUNTS = 0x47
 
+# The config fields in Engine.Config order, the nth at CONFIG + n. None is a reserved
+# register, which keeps the fields after it where existing hosts write them.
 CONFIG_FIELDS = [
     "side_set_count", "side_set_base", "side_set_pindirs", "in_base", "in_count", "out_base",
     "out_count", "set_base", "set_count", "jmp_pin", "capture_pin", "capture_rising",
     "in_shift_right", "out_shift_right", "autopush", "push_threshold", "autopull",
     "pull_threshold", "crc_width", "crc_poly", "crc_init", "crc_reflect",
     "stuff_threshold", "stuff_level", "wrap_bottom", "wrap_top", "period_fraction",
-    "break_enable", "break_pc", "autopull_data", "manchester",
+    None, None, "autopull_data", "manchester",
 ]
 
 DEFAULT_CONFIG = {
@@ -40,6 +42,11 @@ DEFAULT_CONFIG = {
     "crc_width": 16, "crc_poly": 0xA001, "crc_init": 0xFFFF, "crc_reflect": 1,
     "stuff_level": 1, "wrap_top": 511,
 }
+
+
+def config_writes(config):
+    """(register, word) for every config field, 0 for a field config leaves out."""
+    return [(CONFIG + n, int(config.get(name, 0))) for n, name in enumerate(CONFIG_FIELDS) if name]
 
 
 class Host:
@@ -64,8 +71,8 @@ class Host:
 
     def configure(self, config):
         """Only while the core is halted: a running core ignores it."""
-        for n, name in enumerate(CONFIG_FIELDS):
-            self.write(CONFIG + n, [int(config.get(name, 0))])
+        for reg, word in config_writes(config):
+            self.write(reg, [word])
 
     def load(self, words, address=0):
         self.write(PROGRAM_ADDR, [address])

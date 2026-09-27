@@ -30,8 +30,9 @@ hierarchy -top engine
 proc
 flatten
 cd engine
-expose w:completes w:sample w:captured
-rename completes eng_completes
+expose w:jmp_go w:advance w:sample w:captured
+rename jmp_go eng_jmp_go
+rename advance eng_advance
 rename sample eng_sample
 rename captured eng_captured
 cd ..

@@ -33,8 +33,6 @@ module Bench (Config : Host_port.Config) = struct
                if Bits.to_bool !(o.clear_irq) then note "clear_irq";
                if Bits.to_bool !(o.stop) then note "stop";
                if Bits.to_bool !(o.flush) then note "flush";
-               if Bits.to_bool !(o.resume) then note "resume";
-               if Bits.to_bool !(o.single_step) then note "single_step";
                if Bits.to_bool !(o.program_write.valid)
                then
                  note
@@ -145,31 +143,61 @@ let%expect_test "config registers are write only" =
   run ~half:4 (fun m ~watch inputs o ->
     (List.hd_exn inputs.status).halted := Bits.vdd;
     let fields = Engine.Config.to_list Engine.Config.port_names in
-    List.iteri fields ~f:(fun n _ -> Spi_master.write m ~watch (Reg.config + n) [ n + 1 ]);
+    List.iteri Reg.configs ~f:(fun n reg -> Spi_master.write m ~watch reg [ n + 1 ]);
     let back =
-      List.mapi fields ~f:(fun n _ ->
-        List.hd_exn (Spi_master.read m ~watch (Reg.config + n) ~count:1))
+      List.map Reg.configs ~f:(fun reg ->
+        List.hd_exn (Spi_master.read m ~watch reg ~count:1))
     in
     let live =
       Engine.Config.to_list
         (Engine.Config.map (List.hd_exn o.engines).config ~f:(fun r ->
            Bits.to_unsigned_int !r))
     in
-    let read_back = List.zip_exn fields back in
-    print_s [%message (read_back : (string * int) list) (live : int list)]);
+    let read_back =
+      List.map3_exn fields Reg.configs back ~f:(fun field (reg : Int.Hex.t) back ->
+        field, reg, back)
+    in
+    print_s [%message (read_back : (string * Int.Hex.t * int) list) (live : int list)]);
   [%expect
     {|
     ((read_back
-      ((side_set_count 0) (side_set_base 0) (side_set_pindirs 0) (in_base 0)
-       (in_count 0) (out_base 0) (out_count 0) (set_base 0) (set_count 0)
-       (jmp_pin 0) (capture_pin 0) (capture_rising 0) (in_shift_right 0)
-       (out_shift_right 0) (autopush 0) (push_threshold 0) (autopull 0)
-       (pull_threshold 0) (crc_width 0) (crc_poly 0) (crc_init 0) (crc_reflect 0)
-       (stuff_threshold 0) (stuff_level 0) (wrap_bottom 0) (wrap_top 0)
-       (period_fraction 0) (break_enable 0) (break_pc 0) (autopull_data 0)
-       (manchester 0)))
+      ((side_set_count 0x10 0) (side_set_base 0x11 0) (side_set_pindirs 0x12 0)
+       (in_base 0x13 0) (in_count 0x14 0) (out_base 0x15 0) (out_count 0x16 0)
+       (set_base 0x17 0) (set_count 0x18 0) (jmp_pin 0x19 0) (capture_pin 0x1a 0)
+       (capture_rising 0x1b 0) (in_shift_right 0x1c 0) (out_shift_right 0x1d 0)
+       (autopush 0x1e 0) (push_threshold 0x1f 0) (autopull 0x20 0)
+       (pull_threshold 0x21 0) (crc_width 0x22 0) (crc_poly 0x23 0)
+       (crc_init 0x24 0) (crc_reflect 0x25 0) (stuff_threshold 0x26 0)
+       (stuff_level 0x27 0) (wrap_bottom 0x28 0) (wrap_top 0x29 0)
+       (period_fraction 0x2a 0) (autopull_data 0x2d 0) (manchester 0x2e 0)))
      (live
-      (1 2 1 4 5 6 7 8 1 10 11 0 1 0 1 16 1 18 19 20 21 0 23 0 25 26 27 0 29 0 1)))
+      (1 2 1 4 5 6 7 8 1 10 11 0 1 0 1 16 1 18 19 20 21 0 23 0 25 26 27 0 1)))
+    (events ())
+    |}]
+;;
+
+(* the reserved registers take no write and read as zero whatever the core holds, and bits
+   4 and 5 of control do nothing *)
+let%expect_test "the reserved registers and control bits do nothing" =
+  run ~half:4 (fun m ~watch inputs o ->
+    Host_port.Status.iter (List.hd_exn inputs.status) ~f:(fun port ->
+      port := Bits.ones (Bits.width !port));
+    List.iter Reg.reserved ~f:(fun reg -> Spi_master.write m ~watch reg [ 0xffff ]);
+    Spi_master.write m ~watch Reg.control [ 0x30 ];
+    let back =
+      List.map Reg.reserved ~f:(fun reg ->
+        List.hd_exn (Spi_master.read m ~watch reg ~count:1))
+    in
+    let live =
+      Engine.Config.to_list
+        (Engine.Config.map (List.hd_exn o.engines).config ~f:(fun r ->
+           Bits.to_unsigned_int !r))
+    in
+    print_s [%message (back : int list) (live : int list)]);
+  [%expect
+    {|
+    ((back (0 0 0 0 0 0 0 0 0 0))
+     (live (0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)))
     (events ())
     |}]
 ;;

@@ -14,8 +14,6 @@ module I = struct
     ; clear_irq : 'a
     ; stop : 'a
     ; flush : 'a
-    ; resume : 'a
-    ; single_step : 'a
     ; inputs : 'a [@bits Isa.pin_space]
     }
   [@@deriving hardcaml]
@@ -52,8 +50,6 @@ let create ~memory (scope : Scope.t) (i : Signal.t I.t) =
     ; clear_irq = i.clear_irq
     ; stop = i.stop
     ; flush = i.flush
-    ; resume = i.resume
-    ; single_step = i.single_step
     ; inputs = i.inputs
     }
   |> Engine.O.Of_signal.assign out;

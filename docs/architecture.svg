@@ -17,9 +17,8 @@
     <text x="227" y="122" font-size="11" fill="#52606d">register map</text>
     <text x="227" y="140" font-size="11" fill="#52606d">program load</text>
     <text x="227" y="158" font-size="11" fill="#52606d">tx and rx fifos per engine</text>
-    <text x="227" y="176" font-size="11" fill="#52606d">debug: break, step, read back</text>
-    <text x="227" y="194" font-size="11" fill="#52606d">config: side set, shifts,</text>
-    <text x="227" y="210" font-size="11" fill="#52606d">CRC, stuffing, Manchester</text>
+    <text x="227" y="176" font-size="11" fill="#52606d">config: side set, shifts,</text>
+    <text x="227" y="192" font-size="11" fill="#52606d">CRC, stuffing, Manchester</text>
     <line x1="310" y1="115" x2="340" y2="115" stroke="#4a6fa5" stroke-width="1.5" marker-start="url(#c)" marker-end="url(#b)"/>
     <line x1="310" y1="205" x2="340" y2="205" stroke="#4a6fa5" stroke-width="1.5" marker-start="url(#c)" marker-end="url(#b)"/>
     <rect x="342" y="20" width="230" height="130" rx="6" fill="#eef3fa" stroke="#4a6fa5" stroke-width="1.5"/>

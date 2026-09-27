@@ -116,8 +116,7 @@ let check ?period ?single_capture_edge ?(preload = []) ~config stimuli words =
         if new_pc then came_from := Some t.pc;
         (* the second half of a Manchester bit comes with this issue *)
         (match t.flip with
-         | Some _ when not (config.break_enable && t.pc = config.break_pc && not t.resumed)
-           ->
+         | Some _ ->
            Int.incr flips;
            let ok =
              match rows.(t.pc) with

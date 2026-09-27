@@ -17,10 +17,10 @@
 // count says, whatever out_count is, so the footprint takes from the program how wide its
 // outs are and which of set and mov it uses on pins and on pindirs. That every word the
 // core goes with keeps to this is the one thing assumed; outs 16 wide and every writer
-// used assume nothing, which is the lemma for any program. The host, the debugger, the
-// fifos, the data memory's word and the input pins are free in every cycle, the clear
-// too, as in edge_step.sv. The config holds from one clear to the next: a new one without
-// a clear leaves the pins the last program drove where they were.
+// used assume nothing, which is the lemma for any program. The host, the fifos, the data
+// memory's word and the input pins are free in every cycle, the clear too, as in
+// edge_step.sv, and the chip has no debugger. The config holds from one clear to the
+// next: a new one without a clear leaves the pins the last program drove where they were.
 
 module frame_step (input clk);
   (* anyconst *) wire [1:0] side_set_count;
@@ -33,14 +33,13 @@ module frame_step (input clk);
   (* anyconst *) wire crc_reflect, stuff_level;
   (* anyconst *) wire [8:0] wrap_bottom, wrap_top;
   (* anyconst *) wire [15:0] period_fraction;
-  (* anyconst *) wire autopull_data, manchester, break_enable;
-  (* anyconst *) wire [8:0] break_pc;
+  (* anyconst *) wire autopull_data, manchester;
   // what the program writes: its widest out to pins and to pindirs, 0 for none, and
   // whether it sets or moves to either
   (* anyconst *) wire [4:0] out_pins_width, out_dirs_width;
   (* anyconst *) wire sets_pins, sets_dirs, movs_pins, movs_dirs;
   (* anyseq *) wire [15:0] data_word;
-  (* anyseq *) wire stop, flush, resume, single_step;
+  (* anyseq *) wire stop, flush;
   (* anyseq *) wire start, program_write_valid, tx_valid, rx_pop, clear_irq;
   (* anyseq *) wire [8:0] program_write_addr;
   (* anyseq *) wire [15:0] program_write_data, tx_value;
@@ -57,7 +56,7 @@ module frame_step (input clk);
   wire [23:0] t, now, capture;
   wire [4:0] osr_count, isr_count, stall, stuff_run;
   wire halted, irq, underflow, overflow, missed_deadline, decode, capture_armed;
-  wire resumed, stepping, flip_pending, flip_bit;
+  wire flip_pending, flip_bit;
   wire [3:0] tx_level, rx_level;
   wire decode_ok;
   wire [7:0] opcode_onehot;
@@ -79,9 +78,8 @@ module frame_step (input clk);
     .config$stuff_level(stuff_level),
     .config$wrap_bottom(wrap_bottom), .config$wrap_top(wrap_top),
     .config$period_fraction(period_fraction),
-    .config$break_enable(break_enable), .config$break_pc(break_pc),
     .config$autopull_data(autopull_data), .config$manchester(manchester),
-    .stop(stop), .flush(flush), .resume(resume), .single_step(single_step),
+    .stop(stop), .flush(flush),
     .start(start), .program_write$valid(program_write_valid),
     .program_write$addr(program_write_addr), .program_write$data(program_write_data),
     .data_word(data_word),
@@ -89,7 +87,7 @@ module frame_step (input clk);
     .inputs(inputs),
     .pin_out(pin_out), .pin_dir(pin_dir), .pc(pc), .x(x), .y(y), .p(p), .t(t), .osr(osr),
     .osr_count(osr_count), .isr(isr), .isr_count(isr_count), .now(now), .stall(stall),
-    .halted(halted), .resumed(resumed), .stepping(stepping), .irq(irq), .fault$underflow(underflow), .fault$overflow(overflow),
+    .halted(halted), .irq(irq), .fault$underflow(underflow), .fault$overflow(overflow),
     .fault$missed_deadline(missed_deadline), .fault$decode(decode), .capture(capture),
     .capture_armed(capture_armed), .tx_level(tx_level), .rx_level(rx_level),
     .rx_head(rx_head), .instruction(instruction), .crc(crc), .stuff_run(stuff_run),

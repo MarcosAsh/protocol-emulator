@@ -16,8 +16,6 @@ module I : sig
     ; clear_irq : 'a
     ; stop : 'a
     ; flush : 'a
-    ; resume : 'a
-    ; single_step : 'a
     ; inputs : 'a
     }
   [@@deriving hardcaml]

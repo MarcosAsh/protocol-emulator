@@ -55,14 +55,14 @@
 
 (rule
  (with-outputs-to
-  debug_loop.gen
+  wrapped_loop.gen
   (run
    %{exe:../../bin/generate.exe}
    assemble
    -listing
-   %{dep:../debug_loop.asm})))
+   %{dep:../wrapped_loop.asm})))
 
 (rule
  (alias runtest)
  (action
-  (diff debug_loop.expected debug_loop.gen)))
+  (diff wrapped_loop.expected wrapped_loop.gen)))

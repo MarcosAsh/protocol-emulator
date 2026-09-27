@@ -1,0 +1,7 @@
+  0  a082  set p, 2
+  1  80e6  mov t, now
+  2  c0ca  add t, p
+  3  20c0  wait t+
+  4  8008  mov pins, !pins
+5 words, 1 deadline wait, worst slack 0
+kernel: accepted, so no deadline is missed by the step lemma

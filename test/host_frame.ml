@@ -1,6 +1,5 @@
 open! Core
 open Protocol_emulator
-module Model = Host_port_model
 module Reg = Host_port.Reg
 
 type t =
@@ -18,13 +17,7 @@ type t =
 [@@deriving sexp_of]
 
 let complete_words t = if t.bits < 8 then 0 else (t.bits - 8) / 16
-
-let mapped =
-  List.init (Reg.select + 1) ~f:Fn.id
-  @ List.init
-      (List.length (List.hd_exn (Model.configs (Model.create ()))))
-      ~f:(fun n -> Reg.config + n)
-;;
+let mapped = List.init (Reg.select + 1) ~f:Fn.id @ Reg.configs
 
 (* the registers that strobe the core come up more often than their share of the map *)
 let strobing = [ Reg.control; Reg.tx; Reg.rx; Reg.program_addr; Reg.program ]

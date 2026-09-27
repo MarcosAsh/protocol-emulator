@@ -13,10 +13,9 @@
 //
 // Nothing is assumed of the host: stop, flush, start, program writes, the fifos and the
 // data memory's word are free in every cycle, even while the core runs, and none moves a
-// pin. The clear is free too, at power-on and in any cycle after, and zeroes both. The
-// debugger sits still, as in phase_step.sv. For out and mov the data is the value the
-// core shifts or moves in the issue cycle; which value that is belongs to the engine's
-// tests, and here only when it shows.
+// pin. The clear is free too, at power-on and in any cycle after, and zeroes both. For
+// out and mov the data is the value the core shifts or moves in the issue cycle; which
+// value that is belongs to the engine's tests, and here only when it shows.
 
 module edge_step (input clk);
   (* anyconst *) wire [1:0] side_set_count;
@@ -48,12 +47,12 @@ module edge_step (input clk);
   wire [23:0] t, now, capture;
   wire [4:0] osr_count, isr_count, stall, stuff_run;
   wire halted, irq, underflow, overflow, missed_deadline, decode, capture_armed;
-  wire resumed, stepping, flip_pending, flip_bit;
+  wire flip_pending, flip_bit;
   wire [3:0] tx_level, rx_level;
   wire decode_ok;
   wire [7:0] opcode_onehot;
   wire [27:0] wait_select;
-  wire completes;
+  wire jmp_go, advance;
   wire [15:0] out_value, mov_value;
 
   engine dut (
@@ -71,9 +70,8 @@ module edge_step (input clk);
     .config$stuff_level(stuff_level),
     .config$wrap_bottom(wrap_bottom), .config$wrap_top(wrap_top),
     .config$period_fraction(period_fraction),
-    .config$break_enable(1'b0), .config$break_pc(9'd0),
     .config$autopull_data(autopull_data), .config$manchester(manchester),
-    .stop(stop), .flush(flush), .resume(1'b0), .single_step(1'b0),
+    .stop(stop), .flush(flush),
     .start(start), .program_write$valid(program_write_valid),
     .program_write$addr(program_write_addr), .program_write$data(program_write_data),
     .data_word(data_word),
@@ -81,13 +79,16 @@ module edge_step (input clk);
     .inputs(inputs),
     .pin_out(pin_out), .pin_dir(pin_dir), .pc(pc), .x(x), .y(y), .p(p), .t(t), .osr(osr),
     .osr_count(osr_count), .isr(isr), .isr_count(isr_count), .now(now), .stall(stall),
-    .halted(halted), .resumed(resumed), .stepping(stepping), .irq(irq), .fault$underflow(underflow), .fault$overflow(overflow),
+    .halted(halted), .irq(irq), .fault$underflow(underflow), .fault$overflow(overflow),
     .fault$missed_deadline(missed_deadline), .fault$decode(decode), .capture(capture),
     .capture_armed(capture_armed), .tx_level(tx_level), .rx_level(rx_level),
     .rx_head(rx_head), .instruction(instruction), .crc(crc), .stuff_run(stuff_run),
     .decode_ok(decode_ok), .opcode_onehot(opcode_onehot), .wait_select(wait_select),
     .flip_pending(flip_pending), .flip_bit(flip_bit),
-    .eng_completes(completes), .eng_out_value(out_value), .eng_mov_value(mov_value));
+    .eng_jmp_go(jmp_go), .eng_advance(advance), .eng_out_value(out_value),
+    .eng_mov_value(mov_value));
+  // an instruction completes when a jump issues, or anything else issues and goes on
+  wire completes = jmp_go || advance;
 
   // an entry is the first issue after a start or after a completion, as in phase_step.sv
   reg started = 0;
@@ -274,14 +275,13 @@ module edge_step (input clk);
 `endif
 
   // What the core holds between entries, for induction: its decode flags agree with the
-  // word, no debugger is stepping, the flip owed is the one the core has pending, the
-  // pair shows the first half and the out's stall counts down the rest of its step, and a
-  // wait that holds already drives its side-set.
+  // word, the flip owed is the one the core has pending, the pair shows the first half
+  // and the out's stall counts down the rest of its step, and a wait that holds already
+  // drives its side-set.
   wire [27:0] first_half_held = place({14'd0, flip_bit, !flip_bit}, out_base) & OUTPUTS;
   always @(posedge clk)
     if (!clear) begin
       assert(opcode_onehot == 8'b1 << opcode);
-      assert(!stepping && !resumed);
       assert(flip_pending == flip_owed);
       if (flip_owed) assert((pin_out & pair) == first_half_held);
       if (flip_owed && !halted)

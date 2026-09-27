@@ -7,7 +7,7 @@ from cocotb.triggers import ClockCycles
 import sys
 
 sys.path.insert(0, "../python")
-from protocol_emulator import CONFIG, CONFIG_FIELDS, CONTROL, PROGRAM_ADDR, PROGRAM as PROGRAM_REG, RX, STATUS, TX
+from protocol_emulator import CONFIG_FIELDS, CONTROL, PROGRAM_ADDR, PROGRAM as PROGRAM_REG, RX, STATUS, TX, config_writes
 import usb_board
 import usb_device_firmware as firmware
 from test import AsyncHost, Pins, reset
@@ -101,10 +101,12 @@ class Wire:
 
 
 async def load(host, address):
+    fields = {name for name in CONFIG_FIELDS if name}
+    assert set(firmware.CONFIG) == fields, "the firmware sets every config field"
     await host.write(CONTROL, [4])
     await host.write(CONTROL, [8])
-    for n, name in enumerate(CONFIG_FIELDS):
-        await host.write(CONFIG + n, [firmware.CONFIG[name]])
+    for reg, word in config_writes(firmware.CONFIG):
+        await host.write(reg, [word])
     await host.write(PROGRAM_ADDR, [0])
     await host.write(PROGRAM_REG, firmware.words(address))
     await host.write(TX, [firmware.BIT_PERIOD])

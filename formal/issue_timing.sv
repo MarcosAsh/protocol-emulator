@@ -1,7 +1,6 @@
 // P1: the gap between one issue and the next depends only on the instruction's
 // delay field, never on data. A jump always takes two cycles. The host may write the
-// configuration at any time, so here it can change in every cycle. A debugger that
-// breaks, resumes or steps decides the gaps itself, so it sits still here.
+// configuration at any time, so here it can change in every cycle.
 //
 // Each teeth task in issue_timing.sby defines one of the names tested below, which gets
 // one part of the statement wrong, and the proof must then fail.
@@ -16,8 +15,6 @@ module issue_timing (input clk);
   (* anyseq *) wire crc_reflect, stuff_level;
   (* anyseq *) wire [8:0] wrap_bottom, wrap_top;
   (* anyseq *) wire [15:0] period_fraction;
-  (* anyseq *) wire break_enable, resume, single_step;
-  (* anyseq *) wire [8:0] break_pc;
   (* anyseq *) wire autopull_data, manchester, data_write_valid;
   (* anyseq *) wire [8:0] data_write_addr;
   (* anyseq *) wire [15:0] data_write_data;
@@ -36,7 +33,6 @@ module issue_timing (input clk);
   wire [23:0] t, now, capture;
   wire [4:0] osr_count, isr_count, stall, stuff_run;
   wire halted, irq, underflow, overflow, missed_deadline, decode, capture_armed;
-  wire resumed, stepping;
   wire [3:0] tx_level, rx_level;
   wire decode_ok;
   wire [7:0] opcode_onehot;
@@ -58,9 +54,8 @@ module issue_timing (input clk);
     .config$stuff_level(stuff_level),
     .config$wrap_bottom(wrap_bottom), .config$wrap_top(wrap_top),
     .config$period_fraction(period_fraction),
-    .config$break_enable(break_enable), .config$break_pc(break_pc),
     .config$autopull_data(autopull_data), .config$manchester(manchester),
-    .stop(stop), .flush(flush), .resume(resume), .single_step(single_step),
+    .stop(stop), .flush(flush),
     .start(start), .program_write$valid(program_write_valid),
     .program_write$addr(program_write_addr), .program_write$data(program_write_data),
     .data_write$valid(data_write_valid), .data_write$addr(data_write_addr),
@@ -69,7 +64,7 @@ module issue_timing (input clk);
     .inputs(inputs),
     .pin_out(pin_out), .pin_dir(pin_dir), .pc(pc), .x(x), .y(y), .p(p), .t(t), .osr(osr),
     .osr_count(osr_count), .isr(isr), .isr_count(isr_count), .now(now), .stall(stall),
-    .halted(halted), .resumed(resumed), .stepping(stepping), .irq(irq), .fault$underflow(underflow), .fault$overflow(overflow),
+    .halted(halted), .irq(irq), .fault$underflow(underflow), .fault$overflow(overflow),
     .fault$missed_deadline(missed_deadline), .fault$decode(decode), .capture(capture),
     .capture_armed(capture_armed), .tx_level(tx_level), .rx_level(rx_level),
     .rx_head(rx_head), .instruction(instruction), .crc(crc), .stuff_run(stuff_run),
@@ -79,7 +74,6 @@ module issue_timing (input clk);
     assume(side_set_count <= 2);
     assume(!start || halted);
     assume(!program_write_valid || halted);
-    assume(!break_enable && !resume && !single_step);
   end
 
   reg started = 0;
@@ -106,14 +100,12 @@ module issue_timing (input clk);
   wire jump = opcode == 0 && instruction[12:9] < 12;
   wire sys = opcode == 7 && (instruction[7:3] == 0 || instruction[7:0] == 8);
 
-  // what the core registers beside the instruction always agrees with it, and with no
-  // debugger nothing is waiting to halt it after a step
+  // what the core registers beside the instruction always agrees with it
   always @(posedge clk)
     if (!clear) begin
       assert(decode_ok == (plain || jump || waits || sys));
       assert(opcode_onehot == 8'b1 << opcode);
       assert(wait_select == wait_pin);
-      assert(!stepping);
     end
 
   reg armed = 0;

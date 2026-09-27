@@ -68,7 +68,7 @@ module certificate (input clk);
     .start(start), .program_write$valid(writing), .program_write$addr(boot - 10'd1),
     .program_write$data(word), .data_write$valid(1'b0), .data_write$addr(9'b0),
     .data_write$data(16'b0), .tx$valid(tx_valid), .tx$value(tx_value), .rx_pop(rx_pop),
-    .clear_irq(1'b0), .stop(1'b0), .flush(1'b0), .resume(1'b0), .single_step(1'b0),
+    .clear_irq(1'b0), .stop(1'b0), .flush(1'b0),
     .inputs(inputs), .pc(pc), .t(t), .now(now), .stall(stall), .halted(halted));
 
   // an instruction issues when the core runs and no delay is left; a wait that stalls
@@ -567,19 +567,18 @@ module certificate (input clk);
   wire [27:0] wait_select;
   wire [27:0] wait_pin = 28'd1 << instruction[4:0];
   wire [4:0] stall;
-  wire halted, stepping, decode_ok, eng_issue, eng_jmp_go, flip_pending;
+  wire halted, decode_ok, eng_issue, eng_jmp_go, flip_pending;
   engine_top dut (
     .clock(clk), .clear(clear),
     %{config_ports},
     .start(start), .program_write$valid(1'b0), .program_write$addr(9'b0),
     .program_write$data(16'b0), .data_write$valid(1'b0), .data_write$addr(9'b0),
     .data_write$data(16'b0), .tx$valid(tx_valid), .tx$value(tx_value), .rx_pop(rx_pop),
-    .clear_irq(1'b0), .stop(1'b0), .flush(1'b0), .resume(1'b0), .single_step(1'b0),
+    .clear_irq(1'b0), .stop(1'b0), .flush(1'b0),
     .inputs(inputs), .sram_addr(sram_addr), .sram_dout(fetched), .data_sram_dout(16'b0),
     .pin_out(pin_out), .pc(pc), .t(t), .now(now), .capture(capture), .x(x), .y(y), .p(p),
     .osr(osr), .stall(stall),
-    .halted(halted),
-    .stepping(stepping), .instruction(instruction), .decode_ok(decode_ok),
+    .halted(halted), .instruction(instruction), .decode_ok(decode_ok),
     .opcode_onehot(opcode_onehot), .wait_select(wait_select), .flip_pending(flip_pending),
     .eng_issue(eng_issue),
     .eng_jmp_go(eng_jmp_go));
@@ -623,7 +622,7 @@ module certificate (input clk);
 
 %{stamp_monitor}%{no_wrap}  always @(*)
     if (running) begin
-      assert (!halted && !stepping && !started);
+      assert (!halted && !started);
 %{captured_has_passed}      assert (decode_ok && opcode_onehot == (8'd1 << instruction[15:13]));
       assert (wait_select == wait_pin);
       if (!jumped) assert (instruction == rom(pc) && fetched == rom(after(pc)));

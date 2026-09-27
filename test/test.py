@@ -7,7 +7,7 @@ from cocotb.triggers import ClockCycles
 import sys
 
 sys.path.insert(0, "../python")
-from protocol_emulator import CONFIG, CONFIG_FIELDS, CONTROL, COUNTS, DATA, DATA_ADDR, DEFAULT_CONFIG, PC, PROGRAM_ADDR, PROGRAM as PROGRAM_REG, STATUS, TX, X, Host
+from protocol_emulator import CONTROL, DATA, DATA_ADDR, DEFAULT_CONFIG, PROGRAM_ADDR, PROGRAM as PROGRAM_REG, STATUS, TX, Host, config_writes
 
 HALF = 4
 
@@ -105,8 +105,8 @@ async def test_uart_over_spi(dut):
     await reset(dut)
 
     host = AsyncHost(Pins(dut).transfer)
-    for n, name in enumerate(CONFIG_FIELDS):
-        await host.write(CONFIG + n, [DEFAULT_CONFIG.get(name, 0)])
+    for reg, word in config_writes(DEFAULT_CONFIG):
+        await host.write(reg, [word])
     await host.write(PROGRAM_ADDR, [0])
     await host.write(PROGRAM_REG, PROGRAM)
     await host.write(TX, [0x55, 0xA3])
@@ -131,8 +131,8 @@ async def test_fractional_period(dut):
 
     host = AsyncHost(Pins(dut).transfer)
     config = dict(DEFAULT_CONFIG, period_fraction=43691)
-    for n, name in enumerate(CONFIG_FIELDS):
-        await host.write(CONFIG + n, [config.get(name, 0)])
+    for reg, word in config_writes(config):
+        await host.write(reg, [word])
     await host.write(PROGRAM_ADDR, [0])
     await host.write(PROGRAM_REG, assembled("uart_tx_host_rate"))
     await host.write(TX, [416, 0x55])
@@ -153,47 +153,14 @@ async def test_fractional_period(dut):
 
 
 @cocotb.test()
-async def test_debugger(dut):
-    """Run to a breakpoint, look at the registers, step once, run to it again, then clear
-    it and run to the halt at the end, all over SPI."""
-    await reset(dut)
-
-    host = AsyncHost(Pins(dut).transfer)
-    config = dict(DEFAULT_CONFIG, break_enable=1, break_pc=2)
-    for n, name in enumerate(CONFIG_FIELDS):
-        await host.write(CONFIG + n, [config.get(name, 0)])
-    await host.write(PROGRAM_ADDR, [0])
-    await host.write(PROGRAM_REG, assembled("debug_loop"))
-    await host.write(CONTROL, [1])
-
-    async def stopped():
-        status = (await host.read(STATUS))[0]
-        return status & 1, (await host.read(PC))[0], (await host.read(X))[0]
-
-    out0 = lambda: (int(dut.uo_out.value) >> 1) & 1
-    assert await stopped() == (1, 2, 3), "at the breakpoint before the first pass"
-    assert out0() == 1
-    await host.write(CONTROL, [32])
-    assert await stopped() == (1, 3, 3), "one step on, past the breakpoint"
-    assert out0() == 0
-    await host.write(CONTROL, [16])
-    assert await stopped() == (1, 2, 2), "round the loop to the breakpoint again"
-    assert (await host.read(COUNTS))[0] == 16 << 8, "osr full, isr empty"
-    await host.write(CONFIG + CONFIG_FIELDS.index("break_enable"), [0])
-    await host.write(CONTROL, [16])
-    assert await stopped() == (1, 5, 0xFFFF), "past the halt, the counter run out"
-    assert (await host.read(STATUS))[0] & 0x3E == 0, "no fault and no irq"
-
-
-@cocotb.test()
 async def test_data_memory(dut):
     """The host fills the data memory and the program streams it out with autopull."""
     await reset(dut)
 
     host = AsyncHost(Pins(dut).transfer)
     config = dict(DEFAULT_CONFIG, out_base=12, out_count=8, autopull=1, autopull_data=1)
-    for n, name in enumerate(CONFIG_FIELDS):
-        await host.write(CONFIG + n, [config.get(name, 0)])
+    for reg, word in config_writes(config):
+        await host.write(reg, [word])
     await host.write(PROGRAM_ADDR, [0])
     await host.write(PROGRAM_REG, assembled("data_stream"))
     await host.write(DATA_ADDR, [0])
@@ -223,8 +190,8 @@ async def test_wrapped_loop(dut):
 
     host = AsyncHost(Pins(dut).transfer)
     config = dict(DEFAULT_CONFIG, in_base=5, wrap_bottom=3, wrap_top=4)
-    for n, name in enumerate(CONFIG_FIELDS):
-        await host.write(CONFIG + n, [config.get(name, 0)])
+    for reg, word in config_writes(config):
+        await host.write(reg, [word])
     await host.write(PROGRAM_ADDR, [0])
     await host.write(PROGRAM_REG, WRAPPED_LOOP)
     await host.write(CONTROL, [1])

@@ -6,7 +6,7 @@ import cocotb
 from cocotb.triggers import ClockCycles
 
 from test import AsyncHost, Pins, assembled, reset
-from protocol_emulator import CONFIG, CONFIG_FIELDS, PROGRAM, PROGRAM_ADDR, STATUS
+from protocol_emulator import PROGRAM, PROGRAM_ADDR, STATUS, config_writes
 import ethernet
 
 
@@ -14,8 +14,8 @@ import ethernet
 async def test_udp_datagram(dut):
     await reset(dut)
     host = AsyncHost(Pins(dut).transfer)
-    for n, name in enumerate(CONFIG_FIELDS):
-        await host.write(CONFIG + n, [ethernet.CONFIG.get(name, 0)])
+    for reg, word in config_writes(ethernet.CONFIG):
+        await host.write(reg, [word])
     await host.write(PROGRAM_ADDR, [0])
     await host.write(PROGRAM, assembled("ethernet"))
     frame = ethernet.udp(b"hello from the chip")

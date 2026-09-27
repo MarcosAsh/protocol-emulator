@@ -25,8 +25,9 @@ hierarchy -top engine
 proc
 flatten
 cd engine
-expose w:completes w:out_value w:mov_value
-rename completes eng_completes
+expose w:jmp_go w:advance w:out_value w:mov_value
+rename jmp_go eng_jmp_go
+rename advance eng_advance
 rename out_value eng_out_value
 rename mov_value eng_mov_value
 cd ..

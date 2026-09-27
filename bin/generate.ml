@@ -138,7 +138,7 @@ let assemble_command =
         flag
           "-listing"
           no_arg
-          ~doc:" each word with its address and the instruction, for a debugger to show"
+          ~doc:" print each word with its address and the instruction"
       in
       fun () ->
         let assembled =
