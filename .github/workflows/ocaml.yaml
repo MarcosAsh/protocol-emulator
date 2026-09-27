@@ -53,7 +53,7 @@ jobs:
           opam exec -- dune exec -- bin/generate.exe engine > formal/engine.v
           opam exec -- dune exec -- bin/generate.exe engine -sram > formal/engine_sram.v
           opam exec -- dune exec -- bin/generate.exe kernel > formal/kernel_step.v
-          make -C formal issue_timing host_timing late_host fifo_order phase_step edge_step frame_step teeth
+          make -C formal issue_timing host_timing late_host fifo_order phase_step edge_step frame_step value_step teeth
 
       # each inductive certificate, the stamped one too, is proved in a job of its own below
       - name: Write the certificates

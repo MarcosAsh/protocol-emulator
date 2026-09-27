@@ -1,4 +1,5 @@
-all: issue_timing host_timing late_host fifo_order phase_step edge_step frame_step teeth
+all: issue_timing host_timing late_host fifo_order phase_step edge_step frame_step value_step \
+  teeth
 
 engine.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe engine > formal/engine.v
@@ -34,6 +35,11 @@ edge_step: engine.v
 frame_step: engine.v
 	sby -f frame_step.sby prove cover
 
+# the value lemma: what an out, a mov, an in, a push or a pull writes is the ISA's function
+# of the shift registers, which hold what the ISA says from the clear on
+value_step: engine.v
+	sby -f value_step.sby prove cover
+
 # weakened statements, which pass only by failing
 teeth: engine.v engine_sram.v kernel_step.v
 	sby -f issue_timing.sby jump_in_one delay_ignores_side_set waits_are_plain
@@ -43,6 +49,9 @@ teeth: engine.v engine_sram.v kernel_step.v
 	sby -f edge_step.sby pins_never_change side_set_only one_cycle_later flip_off_issue no_flip
 	sby -f frame_step.sby narrow_side narrow_set narrow_out narrow_mov no_pair side_dirs_on_out \
 	  no_wrap
+	sby -f value_step.sby wrong_direction one_short no_invert reverse_wrong_width \
+	  pull_past_threshold data_never_refused in_wrong_direction push_before_shift \
+	  flip_at_outs_base flip_same_half
 	sby -f host_timing.sby private_pull no_wait_excuse no_jump_excuse no_underflow_excuse no_overflow_excuse
 	sby -f late_host.sby admit_fifo_wait admit_fifo_jump private_pull no_underflow_excuse \
 	  no_overflow_excuse
@@ -109,6 +118,6 @@ inductive_certificates: engine_sram.v
 inductive_names:
 	@echo $(INDUCTIVE)
 
-.PHONY: all issue_timing host_timing late_host fifo_order phase_step edge_step frame_step teeth \
-  certificates certificate inductive_certificate inductive_proof inductive_certificates \
-  inductive_names stamped_certificate stamped_proof
+.PHONY: all issue_timing host_timing late_host fifo_order phase_step edge_step frame_step \
+  value_step teeth certificates certificate inductive_certificate inductive_proof \
+  inductive_certificates inductive_names stamped_certificate stamped_proof

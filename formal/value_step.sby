@@ -1,0 +1,57 @@
+[tasks]
+prove
+cover
+wrong_direction teeth
+one_short teeth
+no_invert teeth
+reverse_wrong_width teeth
+pull_past_threshold teeth
+data_never_refused teeth
+in_wrong_direction teeth
+push_before_shift teeth
+flip_at_outs_base teeth
+flip_same_half teeth
+
+[options]
+prove: mode prove
+prove: depth 3
+cover: mode cover
+cover: depth 12
+teeth: mode bmc
+teeth: depth 12
+teeth: expect fail
+
+[engines]
+smtbmc boolector
+
+[script]
+read_verilog engine.v
+hierarchy -top engine
+proc
+flatten
+cd engine
+expose w:tx.head w:tx.empty w:tx.pop w:rx.full w:rx.push$valid w:rx.push$value w:data_moved
+rename tx.head eng_tx_head
+rename tx.empty eng_tx_empty
+rename tx.pop eng_tx_pop
+rename rx.full eng_rx_full
+rename rx.push$valid eng_rx_push
+rename rx.push$value eng_rx_push_value
+rename data_moved eng_data_moved
+cd ..
+wrong_direction: read -define WRONG_DIRECTION
+one_short: read -define ONE_SHORT
+no_invert: read -define NO_INVERT
+reverse_wrong_width: read -define REVERSE_WRONG_WIDTH
+pull_past_threshold: read -define PULL_PAST_THRESHOLD
+data_never_refused: read -define DATA_NEVER_REFUSED
+in_wrong_direction: read -define IN_WRONG_DIRECTION
+push_before_shift: read -define PUSH_BEFORE_SHIFT
+flip_at_outs_base: read -define FLIP_AT_OUTS_BASE
+flip_same_half: read -define FLIP_SAME_HALF
+read_verilog -formal -sv value_step.sv
+prep -top value_step
+
+[files]
+engine.v
+value_step.sv

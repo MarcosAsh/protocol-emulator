@@ -14,8 +14,8 @@
 // Nothing is assumed of the host: stop, flush, start, program writes, the fifos and the
 // data memory's word are free in every cycle, even while the core runs, and none moves a
 // pin. The clear is free too, at power-on and in any cycle after, and zeroes both. For
-// out and mov the data is the value the core shifts or moves in the issue cycle; which
-// value that is belongs to the engine's tests, and here only when it shows.
+// out and mov the data is the value the core shifts or moves in the issue cycle, here
+// only when it shows; value_step.sv proves it is the ISA's.
 
 module edge_step (input clk);
   (* anyconst *) wire [1:0] side_set_count;
