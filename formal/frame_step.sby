@@ -1,0 +1,45 @@
+[tasks]
+prove
+cover
+narrow_side teeth
+narrow_set teeth
+narrow_out teeth
+narrow_mov teeth
+no_pair teeth
+side_dirs_on_out teeth
+no_wrap teeth
+
+[options]
+prove: mode prove
+prove: depth 4
+cover: mode cover
+cover: depth 12
+teeth: mode bmc
+teeth: depth 12
+teeth: expect fail
+
+[engines]
+smtbmc boolector
+
+[script]
+read_verilog engine.v
+hierarchy -top engine
+proc
+flatten
+cd engine
+expose w:op_go
+rename op_go eng_op_go
+cd ..
+narrow_side: read -define NARROW_SIDE
+narrow_set: read -define NARROW_SET
+narrow_out: read -define NARROW_OUT
+narrow_mov: read -define NARROW_MOV
+no_pair: read -define NO_PAIR
+side_dirs_on_out: read -define SIDE_DIRS_ON_OUT
+no_wrap: read -define NO_WRAP
+read_verilog -formal -sv frame_step.sv
+prep -top frame_step
+
+[files]
+engine.v
+frame_step.sv
