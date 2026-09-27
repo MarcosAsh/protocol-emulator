@@ -1,4 +1,4 @@
-all: issue_timing host_timing late_host fifo_order phase_step teeth
+all: issue_timing host_timing late_host fifo_order phase_step edge_step teeth
 
 engine.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe engine > formal/engine.v
@@ -26,11 +26,16 @@ kernel_step.v: ../src/*.ml
 phase_step: engine.v kernel_step.v
 	sby -f phase_step.sby prove cover
 
+# the edge lemma beside it: the pins change only the cycle after an entry that writes them
+edge_step: engine.v
+	sby -f edge_step.sby prove cover
+
 # weakened statements, which pass only by failing
 teeth: engine.v engine_sram.v kernel_step.v
 	sby -f issue_timing.sby jump_in_one delay_ignores_side_set waits_are_plain
 	sby -f fifo_order.sby stale_ahead
 	sby -f phase_step.sby jump_in_one late_wait_waits no_carry one_late_cycle_is_safe taken_backwards
+	sby -f edge_step.sby pins_never_change side_set_only one_cycle_later flip_off_issue no_flip
 	sby -f host_timing.sby private_pull no_wait_excuse no_jump_excuse no_underflow_excuse no_overflow_excuse
 	sby -f late_host.sby admit_fifo_wait admit_fifo_jump private_pull no_underflow_excuse \
 	  no_overflow_excuse
@@ -85,5 +90,5 @@ INDUCTIVE = uart_tx uart_tx16 uart_tx_host_rate uart_rx spi_master spi_slave i2c
 inductive_certificates: engine_sram.v
 	for name in $(INDUCTIVE); do $(MAKE) inductive_certificate NAME=$$name || exit 1; done
 
-.PHONY: all issue_timing host_timing late_host fifo_order teeth certificates certificate \
-  inductive_certificate inductive_certificates stamped_certificate
+.PHONY: all issue_timing host_timing late_host fifo_order phase_step edge_step teeth \
+  certificates certificate inductive_certificate inductive_certificates stamped_certificate
