@@ -324,21 +324,27 @@ let assemble (c : Certified.t) =
   program, Asm.Program.configure program c.config
 ;;
 
-(* The kernel on the analyser's rows, with [at_pc_0] of the row it puts at pc 0. *)
-let check ?(at_pc_0 = Fn.id) (c : Certified.t) =
+(* The kernel on the analyser's rows, with [at_pc_0] of the row it puts at pc 0 and, for a
+   [spacing], the edge bounds [Kernel.Table.with_edges] adds. *)
+let check ?(at_pc_0 = Fn.id) ?spacing (c : Certified.t) =
   let program, config = assemble c in
   let single_capture_edge = c.single_capture_edge in
+  let words = Asm.Program.words program |> ok_exn in
   let rows =
     Analyser.analyse ?period:c.period ~single_capture_edge ~config program.instructions
   in
   let table = Kernel.Table.of_analyser rows in
   table.(0) <- at_pc_0 table.(0);
-  Kernel.check
-    ?period:c.period
-    ~single_capture_edge
-    ~config
-    ~words:(Asm.Program.words program |> ok_exn)
-    table
+  let table =
+    Option.value_map spacing ~default:table ~f:(fun spec ->
+      Kernel.Table.with_edges
+        ~single_capture_edge
+        table
+        ~config
+        ~spacing:(Kernel.Spacing.of_spec config spec)
+        ~words)
+  in
+  Kernel.check ?period:c.period ~single_capture_edge ?spacing ~config ~words table
 ;;
 
 let%expect_test "the kernel on the firmware library, from the analyser's rows" =
@@ -366,6 +372,104 @@ let%expect_test "the kernel on the firmware library, from the analyser's rows" =
     (ps2 (verdict (Ok ())))
     (jtag (verdict (Ok ())))
     (can (verdict (Ok ())))
+    |}]
+;;
+
+(* UM10204's Fast-mode Plus timings a master drives, in cycles at 50 MHz, as a spacing of
+   i2c_master's pins: SCL is [a] and SDA [b], each its pindirs bit, where 1 pulls the line
+   low. tLOW and tHIGH hold SCL, and tBUF holds SDA high before any START, a repeated one
+   too, which UM10204 does not ask; tSU;DAT and tHD;STA part SCL's edges from SDA's, and
+   tSU;STA and tSU;STO SDA's from SCL's rise. fSCL, two edges back, is not a spacing. *)
+let fast_mode_plus =
+  let cycles ns = ((ns * 50) + 999) / 1000 in
+  { Kernel.Spacing.Spec.a = Firmware.scl
+  ; b = Firmware.sda
+  ; dirs = true
+  ; hold_a = (fun ~own ~other:_ -> if own then cycles 500 else cycles 260)
+  ; apart_a = (fun ~own ~other:_ -> if own then cycles 50 else cycles 260)
+  ; hold_b = (fun ~own ~other -> if (not own) && not other then cycles 500 else 0)
+  ; apart_b = (fun ~own:_ ~other -> if other then 0 else cycles 260)
+  }
+;;
+
+(* The SCL low before a repeated START cut short, and the quarter one cycle short, which
+   holds SCL low 24 cycles to Fm+'s 25: each keeps every deadline, and the kernel refuses
+   each once it spaces the edges. *)
+let%expect_test "i2c_master keeps Fast-mode Plus spacing, and a short SCL low is refused" =
+  let c = Certified.find_exn "i2c_master" in
+  let short_low =
+    { c with
+      name = "i2c_master_short_low"
+    ; source =
+        String.substr_replace_first
+          c.source
+          ~pattern:"release SDA\n    wait t+ side 1\n"
+          ~with_:"release SDA\n"
+    }
+  in
+  let short_quarter =
+    { c with name = "i2c_master_quarter_12"; source = Firmware.i2c_master ~quarter:12 }
+  in
+  List.iter [ c; short_low; short_quarter ] ~f:(fun c ->
+    print_s
+      [%message
+        c.name
+          ~deadlines:(check c : unit Or_error.t)
+          ~spaced:(check ~spacing:fast_mode_plus c : unit Or_error.t)]);
+  [%expect
+    {|
+    (i2c_master (deadlines (Ok ())) (spaced (Ok ())))
+    (i2c_master_short_low (deadlines (Ok ()))
+     (spaced
+      (Error
+       ("rows the kernel rejects" (rejected (((pc 24) (fails ("a spaced")))))))))
+    (i2c_master_quarter_12 (deadlines (Ok ()))
+     (spaced
+      (Error
+       ("rows the kernel rejects"
+        (rejected
+         (((pc 20) (fails ("a spaced"))) ((pc 27) (fails ("b spaced")))
+          ((pc 29) (fails ("a spaced"))) ((pc 38) (fails ("a spaced")))
+          ((pc 46) (fails ("a spaced"))) ((pc 56) (fails ("a spaced")))
+          ((pc 67) (fails ("a spaced"))) ((pc 78) (fails ("a spaced")))
+          ((pc 80) (fails ("b spaced")))))))))
+    |}]
+;;
+
+(* The kernel's bound is i2c_master's exact width: it holds SCL low two quarters, 26
+   cycles, and SCL high a quarter before SDA moves for a repeated START or a STOP, 13; a
+   cycle more of either is refused. *)
+let%expect_test "the spacing i2c_master passes is its own, to the cycle" =
+  let c = Certified.find_exn "i2c_master" in
+  let low n =
+    { fast_mode_plus with hold_a = (fun ~own ~other:_ -> if own then n else 13) }
+  in
+  let before_sda n =
+    { fast_mode_plus with apart_b = (fun ~own:_ ~other -> if other then 0 else n) }
+  in
+  List.iter
+    [ "tLOW", 26, low 26
+    ; "tLOW", 27, low 27
+    ; "tSU;STA, tSU;STO", 13, before_sda 13
+    ; "tSU;STA, tSU;STO", 14, before_sda 14
+    ]
+    ~f:(fun (timing, cycles, spacing) ->
+      print_s [%message timing (cycles : int) ~_:(check ~spacing c : unit Or_error.t)]);
+  [%expect
+    {|
+    (tLOW (cycles 26) (Ok ()))
+    (tLOW (cycles 27)
+     (Error
+      ("rows the kernel rejects"
+       (rejected
+        (((pc 38) (fails ("a spaced"))) ((pc 46) (fails ("a spaced")))
+         ((pc 56) (fails ("a spaced"))) ((pc 67) (fails ("a spaced")))
+         ((pc 78) (fails ("a spaced"))))))))
+    ("tSU;STA, tSU;STO" (cycles 13) (Ok ()))
+    ("tSU;STA, tSU;STO" (cycles 14)
+     (Error
+      ("rows the kernel rejects"
+       (rejected (((pc 27) (fails ("b spaced"))) ((pc 80) (fails ("b spaced"))))))))
     |}]
 ;;
 
@@ -608,6 +712,33 @@ let%expect_test "the library's tables are rows of intervals" =
     (ws2812_waiting_after_gap (pc 8))
     (ws2812_waiting_after_gap (pc 9))
     (ws2812_waiting_after_gap (pc 10))
+    |}]
+;;
+
+(* [Kernel.check] spaces edges only where formal/phase_table.sby proves it: two pins,
+   Manchester off and a table of intervals. *)
+let%expect_test "a spacing is checked only where it is proved" =
+  let i2c = Certified.find_exn "i2c_master" in
+  List.iter
+    [ "one pin", i2c, { fast_mode_plus with b = Firmware.scl }
+    ; ( "manchester"
+      , { i2c with config = { i2c.config with manchester = true } }
+      , fast_mode_plus )
+    ; "offsets", ws2812_waiting_after_gap, fast_mode_plus
+    ]
+    ~f:(fun (why, c, spacing) ->
+      print_s [%message why ~_:(check ~spacing c : unit Or_error.t)]);
+  [%expect
+    {|
+    ("one pin"
+     (Error
+      "edges are spaced only for two pins, Manchester off and a table of intervals"))
+    (manchester
+     (Error
+      "edges are spaced only for two pins, Manchester off and a table of intervals"))
+    (offsets
+     (Error
+      "edges are spaced only for two pins, Manchester off and a table of intervals"))
     |}]
 ;;
 
