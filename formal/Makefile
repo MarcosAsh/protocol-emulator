@@ -1,5 +1,5 @@
 all: issue_timing host_timing late_host fifo_order phase_step edge_step frame_step value_step \
-  chip_frame data_step teeth
+  chip_frame data_step teeth fsm_miter
 
 engine.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe engine > formal/engine.v
@@ -157,6 +157,17 @@ inductive_certificates: engine_sram.v
 inductive_names:
 	@echo $(INDUCTIVE)
 
+# the fsm compiler's miter (write_certificate.ml -fsm): Uart.Tx of hardcaml_hobby_boards,
+# unmodified, beside the engine running its compiled firmware; proof ~20 s, teeth ~1.5 min.
+# fsm_miter_proof runs on files written already, for CI.
+fsm_miter: engine_sram.v
+	(cd .. && dune exec -- test/certify/write_certificate.exe -fsm) > fsm_miter.sv
+	(cd .. && dune exec -- test/certify/write_certificate.exe -fsm -mutant) > fsm_miter_mutant.sv
+	$(MAKE) fsm_miter_proof
+
+fsm_miter_proof:
+	sby -f fsm_miter.sby prove short_gap early mutant
+
 # the hardened netlist equals the RTL, macros cut (netlist_equiv/miter.ys); about 2 min:
 #   make netlist_equiv NETLIST=../runs/wokwi/final/nl/tt_um_marcosash_protocol_emulator.nl.v
 STDCELL = $(PDK_ROOT)/ihp-sg13cmos5l/libs.ref/sg13cmos5l_stdcell
@@ -219,4 +230,5 @@ netlist_equiv_teeth:
 .PHONY: all issue_timing host_timing late_host fifo_order phase_step edge_step frame_step \
   value_step chip_frame data_step teeth certificates certificate inductive_certificate \
   inductive_proof inductive_certificates inductive_names stamped_certificate stamped_proof \
-  data_certificate data_proof data_certificates data_names netlist_equiv netlist_equiv_teeth
+  data_certificate data_proof data_certificates data_names netlist_equiv netlist_equiv_teeth \
+  fsm_miter fsm_miter_proof

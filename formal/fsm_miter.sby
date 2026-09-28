@@ -1,0 +1,66 @@
+[tasks]
+prove
+# teeth, each run from the clear with the coupling invariants left out, so what fails is
+# the pin claim: a byte a cycle sooner, the pin a cycle early, the compiler a bit short
+short_gap
+early
+mutant
+
+[options]
+prove: mode prove
+prove: depth 10
+short_gap: mode bmc
+short_gap: depth 60
+short_gap: expect fail
+early: mode bmc
+early: depth 60
+early: expect fail
+mutant: mode bmc
+mutant: depth 60
+mutant: expect fail
+
+[engines]
+smtbmc boolector
+
+[script]
+read_verilog -lib RM_IHPSG13_1P_512x16_c2_bm_bist.v
+read_verilog engine_sram.v
+hierarchy -top engine_top
+proc
+flatten
+expose -evert -sep __ engine_top/t:RM_IHPSG13_1P_512x16_c2_bm_bist
+cd engine_top
+expose w:solo.engine.issue w:solo.engine.jmp_go w:solo.engine.tx.head w:solo.engine.tx.empty
+rename solo.engine.issue eng_issue
+rename solo.engine.jmp_go eng_jmp_go
+rename solo.engine.tx.head eng_tx_head
+rename solo.engine.tx.empty eng_tx_empty
+rename solo.engine.sram_macro.sram__A_ADDR sram_addr
+rename solo.engine.sram_macro.sram__A_DOUT sram_dout
+rename solo.data_memory.sram_macro.sram__A_DOUT data_sram_dout
+# the tx fifo's redundant counters, which the invariants tie to its level
+expose w:solo.engine.tx.USED w:solo.engine.tx.USED_MINUS_1
+expose w:solo.engine.tx.USED_PLUS_1 w:solo.engine.tx.used_is_one w:solo.engine.tx.used_gt_one
+expose w:solo.engine.tx.not_empty w:solo.engine.tx.full_0 w:solo.engine.tx.nearly_full
+rename solo.engine.tx.USED fifo_used
+rename solo.engine.tx.USED_MINUS_1 fifo_used_minus_1
+rename solo.engine.tx.USED_PLUS_1 fifo_used_plus_1
+rename solo.engine.tx.used_is_one fifo_used_is_one
+rename solo.engine.tx.used_gt_one fifo_used_gt_one
+rename solo.engine.tx.not_empty fifo_not_empty
+rename solo.engine.tx.full_0 fifo_full
+rename solo.engine.tx.nearly_full fifo_nearly_full
+cd ..
+prove: read_verilog -formal -sv fsm_miter.sv
+short_gap: read_verilog -formal -sv -DCLAIM_ONLY -DSHORT_GAP fsm_miter.sv
+early: read_verilog -formal -sv -DCLAIM_ONLY -DEARLY fsm_miter.sv
+mutant: read_verilog -formal -sv -DCLAIM_ONLY fsm_miter_mutant.sv
+prep -top certificate
+# as a memory, the harness rom is state induction starts anywhere; as logic it is fixed
+memory_map
+
+[files]
+engine_sram.v
+fsm_miter.sv
+fsm_miter_mutant.sv
+../src/RM_IHPSG13_1P_512x16_c2_bm_bist.v

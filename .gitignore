@@ -24,6 +24,7 @@ formal/engine.v
 formal/engine_sram.v
 formal/engines.v
 formal/certificate*.sv
+formal/fsm_miter*.sv
 formal/*_*/
 !formal/netlist_equiv/
 __pycache__/
