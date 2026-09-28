@@ -91,6 +91,87 @@ let kernel_rtl_command =
           C.create_exn ~name (Kernel.hierarchical scope))]
 ;;
 
+(* The same wiring as [Kernel.hierarchical] and [Kernel.Accepts.hierarchical], over gates. *)
+let kernel_gates_command =
+  Command.basic
+    ~summary:
+      "The kernel's step, or its check of a row, as the gates its SAT proofs build, \
+       which formal/kernel_equiv proves equal to the Verilog"
+    [%map_open.Command
+      let accepts =
+        flag "-accepts" no_arg ~doc:" the kernel's check of a row, as kernel-accepts"
+      in
+      fun () ->
+        let module A = Aig.Make () in
+        let module K = Kernel.Make (A) in
+        let outputs =
+          if accepts
+          then
+            let module Accepts = Kernel.Accepts in
+            let module Row = Kernel.Row.Make_comb (A) in
+            let i =
+              Accepts.I.map2 Accepts.I.port_names Accepts.I.port_widths ~f:A.input
+            in
+            let row = Row.unpack ~rev:true i.row in
+            let next_pc, target_pc =
+              K.successors
+                ~wrap_top:i.wrap_top
+                ~wrap_bottom:i.wrap_bottom
+                ~pc:i.pc
+                ~word:i.word
+            in
+            { Accepts.O.next_pc
+            ; target_pc
+            ; accepts =
+                K.accepts
+                  ~side_set_count:i.side_set_count
+                  ~fraction:i.fraction
+                  ~loaded:i.loaded
+                  ~capture:i.capture
+                  ~word:i.word
+                  ~row
+                  ~next:(Row.unpack ~rev:true i.next)
+                  ~target:(Row.unpack ~rev:true i.target)
+            ; within =
+                K.within
+                  row
+                  ~phase:i.phase
+                  ~offset:i.offset
+                  ~period:i.period
+                  ~x:i.x
+                  ~y:i.y
+                  ~arm:i.arm
+                  ~arm_known:i.arm_known
+                  ~captured:i.captured
+                  ~awaiting:i.awaiting
+                |> Kernel.Holds.to_list
+                |> A.reduce ~f:A.( &: )
+            ; starts_open = K.starts_open row
+            }
+            |> Accepts.O.zip Accepts.O.port_names
+            |> Accepts.O.to_list
+          else (
+            let i = Kernel.I.map2 Kernel.I.port_names Kernel.I.port_widths ~f:A.input in
+            K.step
+              ~side_set_count:i.side_set_count
+              ~fraction:i.fraction
+              ~loaded:i.loaded
+              ~capture:i.capture
+              ~word:i.word
+              ~phase:i.phase
+              ~period:i.period
+              ~x:i.x
+              ~y:i.y
+              ~arm:i.arm
+              ~arm_known:i.arm_known
+              ~captured:i.captured
+              ~awaiting:i.awaiting
+            |> Kernel.O.zip Kernel.O.port_names
+            |> Kernel.O.to_list)
+        in
+        print_string (A.to_aiger outputs)]
+;;
+
 let osr_rtl_command =
   Command.basic
     ~summary:
@@ -233,6 +314,7 @@ let () =
        ; "top", top_rtl_command
        ; "memory", memory_rtl_command
        ; "kernel", kernel_rtl_command
+       ; "kernel-gates", kernel_gates_command
        ; "osr", osr_rtl_command
        ; "kernel-accepts", kernel_accepts_rtl_command
        ; "assemble", assemble_command
