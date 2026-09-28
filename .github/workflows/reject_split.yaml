@@ -20,9 +20,21 @@ jobs:
             default: https://opam.ocaml.org
 
       - name: Install dependencies
+        run: opam install . --deps-only --with-test --locked
+
+      # cadical and cake_lpr check each UNSAT behind No_table (test/checked_unsat.ml), at
+      # the pins formal/Makefile names
+      - name: Cache the SAT tools
+        id: sat_tools
+        uses: actions/cache@v4
+        with:
+          path: formal/sat_tools/bin
+          key: sat-tools-${{ hashFiles('formal/Makefile') }}
+
+      - name: Build the SAT tools
         run: |
-          sudo apt-get install -y z3
-          opam install . --deps-only --with-test --locked
+          [ "${{ steps.sat_tools.outputs.cache-hit }}" = true ] || make -C formal sat_tools
+          echo "$PWD/formal/sat_tools/bin" >> "$GITHUB_PATH"
 
       # every one-field variant of the library that is not a receiver
       - name: Split the kernel's verdicts

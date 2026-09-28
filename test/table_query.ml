@@ -23,7 +23,15 @@ let of_model model ~pc =
       |> Bits.of_unsigned_int ~width)
 ;;
 
-let witness ?(offsets = true) ?period ~single_capture_edge ~config ~words () =
+let witness
+  ?(solver = Checked_unsat.solver)
+  ?(offsets = true)
+  ?period
+  ~single_capture_edge
+  ~config
+  ~words
+  ()
+  =
   let words = Array.of_list words in
   let constant b = G.of_constant (Bits.to_constant b) in
   let size = 1 lsl Isa.pc_bits in
@@ -85,12 +93,7 @@ let witness ?(offsets = true) ?period ~single_capture_edge ~config ~words () =
         ~next:table.(following pc)
         ~target:table.(target))
   in
-  match
-    Solver.solve
-      ~solver:(Solver.z3 ~parallel:false ())
-      (G.cnf (G.reduce ~f:G.( &: ) passes))
-    |> ok_exn
-  with
+  match Solver.solve ~solver (G.cnf (G.reduce ~f:G.( &: ) passes)) |> ok_exn with
   | Unsat -> None
   | Sat model ->
     Some

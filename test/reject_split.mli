@@ -28,8 +28,8 @@ module Verdict : sig
     | Missed (** Refused, and a run missed a deadline. *)
     | Analyser_limit (** Refused, no miss found, and a SAT table passes [Kernel.check]. *)
     | No_table
-    (** Refused, no miss found, and z3 (unchecked) finds no table of the kernel's shape: a
-        limit of its rows, or a miss the runs did not reach. *)
+    (** Refused, no miss found, and no table of the kernel's shape passes (an UNSAT
+        cake_lpr checks): a limit of its rows, or a miss the runs did not reach. *)
     | Accepted_but_missed (** A run missed a deadline the kernel says it meets. Never. *)
     | Witness_refused
     (** SAT found a table [Kernel.check] refuses. Never, and reachable only where SAT
