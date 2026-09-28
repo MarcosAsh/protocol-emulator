@@ -7,7 +7,8 @@
   hardcaml_test_harness
   hardcaml_waveterm
   hardcaml_verify
-  re)
+  re
+  hardcaml_hobby_boards)
  (preprocess
   (pps ppx_hardcaml ppx_jane))
  (inline_tests

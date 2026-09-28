@@ -2,13 +2,15 @@ open! Core
 open! Hardcaml
 open Hardcaml_lws
 open Protocol_emulator
-module Harness = Hardcaml_test_harness.Lws_harness.Make (Uart_tx_fsm.I) (Uart_tx_fsm.O)
+
+module Harness =
+  Hardcaml_test_harness.Lws_harness.Make (Hobby_uart_tx.I) (Hobby_uart_tx.O)
 
 let ( <--. ) = Bits.( <--. )
 
 let uart ~clocks_per_bit =
   let module Uart =
-    Uart_tx_fsm.Make (struct
+    Hobby_uart_tx.Make (struct
       let clocks_per_bit = clocks_per_bit
     end)
   in
@@ -16,9 +18,14 @@ let uart ~clocks_per_bit =
 ;;
 
 let circuit ~clocks_per_bit =
+  let module Uart =
+    Hobby_uart_tx.Make (struct
+      let clocks_per_bit = clocks_per_bit
+    end)
+  in
   let scope = Scope.create ~flatten_design:true () in
-  let module C = Circuit.With_interface (Uart_tx_fsm.I) (Uart_tx_fsm.O) in
-  C.create_exn ~name:"uart_tx_fsm" (uart ~clocks_per_bit scope)
+  let module C = Circuit.With_interface (Hobby_uart_tx.I) (Hobby_uart_tx.Pin) in
+  C.create_exn ~name:"hobby_uart_tx" (Uart.pin scope)
 ;;
 
 let compile ~clocks_per_bit = Fsm_compiler.compile (circuit ~clocks_per_bit)
@@ -30,20 +37,20 @@ let%expect_test "the uart state machine compiles to firmware" =
     {|
     ; enable_rate counts to 16: the tick is wait t+
     ; txd is pin OUT0
-    ; txdata is osr
+    ; _38 is osr
     ; data_count is x, counting down
         set p, 16
         set pins, 1     ; txd clears to 1
     start:
         wait tx         ; until data_in_valid
-        pull            ; txdata <- data_in
+        pull            ; _38 <- data_in
         mov t, now      ; restart the tick
         set pins, 0     ; txd <- 0
         add t, p
         set x, 7        ; data_count <- 0, leaving at 7
     data:
         wait t+         ; the tick
-        out pins, 1     ; txd <- txdata[0], txdata <- txdata >> 1
+        out pins, 1     ; txd <- _38[0], _38 <- _38 >> 1
         jmp x--, data   ; data_count <- data_count + 1
     stop:
         wait t+         ; the tick
