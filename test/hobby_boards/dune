@@ -1,0 +1,7 @@
+; Uart from github.com/janestreet/hardcaml_hobby_boards at 9e6aeca, copied unmodified (MIT, see LICENSE).
+
+(library
+ (name hardcaml_hobby_boards)
+ (libraries base hardcaml)
+ (preprocess
+  (pps ppx_hardcaml ppx_jane)))
