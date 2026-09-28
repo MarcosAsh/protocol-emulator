@@ -1,0 +1,51 @@
+[tasks]
+jmp prove
+wait prove
+in prove
+out prove
+mov prove
+set prove
+alu_x prove
+alu_y prove
+alu_p prove
+alu_t prove
+sys prove
+no_axioms teeth
+no_offset_check teeth
+x_unfollowed teeth
+
+[options]
+prove: mode prove
+prove: depth 1
+teeth: mode bmc
+teeth: depth 1
+teeth: expect fail
+
+[engines]
+smtbmc boolector
+
+[script]
+read -define ROW_STEP
+jmp: read -define OPCODE=0
+wait: read -define OPCODE=1
+in: read -define OPCODE=2
+out: read -define OPCODE=3
+mov: read -define OPCODE=4
+set: read -define OPCODE=5
+alu_x: read -define OPCODE=6 ALU_DEST=0
+alu_y: read -define OPCODE=6 ALU_DEST=1
+alu_p: read -define OPCODE=6 ALU_DEST=2
+alu_t: read -define OPCODE=6 ALU_DEST=3
+sys: read -define OPCODE=7
+no_axioms: read -define NO_AXIOMS
+no_offset_check: read -define NO_OFFSET_CHECK
+x_unfollowed: read -define X_UNFOLLOWED
+read_verilog kernel_step.v
+read_verilog kernel_accepts.v
+read_verilog -formal -sv row_step.sv
+prep -flatten -top row_step_proof
+
+[files]
+kernel_step.v
+kernel_accepts.v
+row_step.sv
