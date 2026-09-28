@@ -68,6 +68,9 @@ jobs:
           opam exec -- dune exec -- bin/generate.exe engine -sram > formal/engine_sram.v
           opam exec -- dune exec -- bin/generate.exe kernel > formal/kernel_step.v
           opam exec -- dune exec -- bin/generate.exe engines -engines 2 > formal/engines.v
+          opam exec -- dune exec -- bin/generate.exe engines -engines 2 -sram > formal/engines_sram.v
+          opam exec -- dune exec -- test/certify/write_link.exe > formal/link.sv
+          opam exec -- dune exec -- test/certify/write_link.exe -rx-period 11 > formal/link_baud.sv
           opam exec -- dune exec -- bin/generate.exe osr > formal/osr_step.v
           opam exec -- dune exec -- test/certify/write_certificate.exe -fsm > formal/fsm_miter.sv
           opam exec -- dune exec -- test/certify/write_certificate.exe -fsm -mutant > formal/fsm_miter_mutant.sv
@@ -102,6 +105,15 @@ jobs:
           path: |
             formal/engine_sram.v
             formal/certificate_*.sv
+
+      - name: Upload the Verilog of the uart link
+        uses: actions/upload-artifact@v7
+        with:
+          name: link
+          path: |
+            formal/engines_sram.v
+            formal/link.sv
+            formal/link_baud.sv
 
       - name: Upload the Verilog of the one-run theorem
         uses: actions/upload-artifact@v7
@@ -184,3 +196,26 @@ jobs:
 
       - name: Prove
         run: make -C formal phase_table_proof
+
+  # the uart link between two engines by induction, its cover and teeth
+  link:
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Download the Verilog
+        uses: actions/download-artifact@v8
+        with:
+          name: link
+          path: formal
+
+      - name: Install OSS CAD Suite
+        run: |
+          curl -sL https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz | tar xz -C "$HOME"
+          echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
+
+      - name: Prove
+        run: make -C formal link_proof
