@@ -21,9 +21,9 @@ let kernel scope =
 
 let allow : Timer_lint.Allowance.t list =
   let arm_known =
-    "mux2(_, uresize(mux2(_, 2, _ +: 1), 25), mux2(_, uresize(arm, 25) +: uresize(_ -: \
-     phase, 25) +: uresize(mux2(_, 2, _ +: 1), 25), uresize(arm, 25) +: uresize(mux2(_, \
-     2, _ +: 1), 25))) <: 0x800000"
+    "mux2(_, uresize(mux2(_, 2, _ +: 1), 26), mux2(_, uresize(arm, 26) +: uresize(_ -: \
+     phase, 26) +: uresize(mux2(_, 2, _ +: 1), 26), uresize(arm, 26) +: uresize(mux2(_, \
+     2, _ +: 1), 26))) <: 0x800000"
   in
   [ { name = "phase_is_now_minus_t"
     ; circuit = "kernel_step"
@@ -38,17 +38,6 @@ let allow : Timer_lint.Allowance.t list =
     ; reason =
         "released is 0 where phase is negative and phase otherwise, so the stall is \
          -phase or 0, never negative"
-    }
-  ; { name = "stall_below_half"
-    ; circuit = "kernel_step"
-    ; compare = arm_known
-    ; fault =
-        May_wrap
-          "uresize(arm, 25) +: uresize(mux2(msb(phase), 0, phase) -: phase, 25) +: \
-           uresize(mux2(_, 2, _ +: 1), 25)"
-    ; reason =
-        "released - phase is 0 or -phase, at most 2^23, and cycles at most 32, so the \
-         sum of the three stays below 2^25"
     }
   ]
 ;;
@@ -87,18 +76,17 @@ let%expect_test "every compare of timer values in the core and the kernel's step
            "the port is the core's now - t, so its sign is that difference's")))))
       ((at (next_arm_known))
        (compare
-        "mux2(_, uresize(mux2(_, 2, _ +: 1), 25), mux2(_, uresize(arm, 25) +: uresize(_ -: phase, 25) +: uresize(mux2(_, 2, _ +: 1), 25), uresize(arm, 25) +: uresize(mux2(_, 2, _ +: 1), 25))) <: 0x800000")
+        "mux2(_, uresize(mux2(_, 2, _ +: 1), 26), mux2(_, uresize(arm, 26) +: uresize(_ -: phase, 26) +: uresize(mux2(_, 2, _ +: 1), 26), uresize(arm, 26) +: uresize(mux2(_, 2, _ +: 1), 26))) <: 0x800000")
        (verdict
         (Allowed
-         ((stall_below_half
-           "released - phase is 0 or -phase, at most 2^23, and cycles at most 32, so the sum of the three stays below 2^25")
-          (stall_is_minus_phase
+         ((stall_is_minus_phase
            "released is 0 where phase is negative and phase otherwise, so the stall is -phase or 0, never negative")))))))
     |}]
 ;;
 
-(* The kernel's old 24-bit count since [capture_arm], its fix, and the other shapes a
-   timer compare takes. *)
+(* The kernel's old 24-bit count since [capture_arm], its fix, a sum of three counts a bit
+   wider, as the count since the arm once was, and two bits wider, as it is now, and the
+   other shapes a timer compare takes. *)
 module Shapes = struct
   module I = struct
     type 'a t =
@@ -118,6 +106,8 @@ module Shapes = struct
       ; signed_known : 'a
       ; wider_signed_known : 'a
       ; stalled_known : 'a
+      ; three_known : 'a
+      ; three_wider_known : 'a
       ; status : 'a [@bits 2]
       ; released : 'a
       ; before : 'a
@@ -140,6 +130,8 @@ module Shapes = struct
     ; signed_known = wide i.arm +: wide i.cycles <+. limit
     ; wider_signed_known = wider i.arm +: wider i.cycles <+. limit
     ; stalled_known = wide (i.now -: i.t) +: wide i.cycles <:. limit
+    ; three_known = wide i.arm +: wide i.now +: wide i.cycles <:. limit
+    ; three_wider_known = wider i.arm +: wider i.now +: wider i.cycles <:. limit
     ; status = msb (i.arm +: i.cycles) @: msb (i.now -: i.t)
     ; released = i.now -: i.t >=+. 0
     ; before = i.now <: i.t
@@ -178,6 +170,17 @@ let%expect_test "the lint flags the wrapped count, however tested, and passes it
        (verdict (Flagged ((May_wrap "arm +: cycles")))))
       ((at (status)) (compare "msb(now -: t)")
        (verdict (Safe Difference_against_constant)))
+      ((at (three_known))
+       (compare
+        "(uresize(arm, 25) +: uresize(now, 25) +: uresize(cycles, 25)) <: 0x800000")
+       (verdict
+        (Flagged
+         ((May_wrap
+           "uresize(arm, 25) +: uresize(now, 25) +: uresize(cycles, 25)")))))
+      ((at (three_wider_known))
+       (compare
+        "(uresize(arm, 26) +: uresize(now, 26) +: uresize(cycles, 26)) <: 0x800000")
+       (verdict (Safe Wide_sum)))
       ((at (wide_known))
        (compare "(uresize(arm, 25) +: uresize(cycles, 25)) <: 0x800000")
        (verdict (Safe Wide_sum)))

@@ -222,9 +222,9 @@ module Make (Comb : Comb.S) = struct
     let capturing = c.capturing &: awaiting in
     let other_wait = c.pin_or_fifo_wait &: ~:capturing in
     let released = mux2 (msb phase) (zero Isa.timer_bits) phase in
-    (* a bit wider, so a count that passes [arm_limit] is seen before it wraps *)
+    (* two bits wider, so the count, a stall and the cycles, each under 2^24, cannot wrap *)
     let wide_arm =
-      let wide x = uresize x ~width:(Isa.timer_bits + 1) in
+      let wide x = uresize x ~width:(Isa.timer_bits + 2) in
       mux2 c.arm (wide c.cycles)
       @@ mux2 c.deadline (wide arm +: wide (released -: phase) +: wide c.cycles)
       @@ (wide arm +: wide c.cycles)
