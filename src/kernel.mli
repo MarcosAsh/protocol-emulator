@@ -160,6 +160,34 @@ module Make (Comb : Comb.S) : sig
   val is_full : Comb.t Row.t -> Comb.t
   val offset_is_full : Comb.t Row.t -> Comb.t
   val arm_is_full : Comb.t Row.t -> Comb.t
+
+  (** The pcs of the rows [accepts] reads as [next] and [target] for the word at [pc]. *)
+  val successors
+    :  wrap_top:Comb.t
+    -> wrap_bottom:Comb.t
+    -> pc:Comb.t
+    -> word:Comb.t
+    -> Comb.t * Comb.t
+
+  (** Whether the core lies inside a row, bound by bound. [offset] is the core's
+      [phase - row.slope * x] modulo the timer; a full arm range says nothing of [arm],
+      and [captured] and [awaiting] bound only when the row sets them. *)
+  val within
+    :  Comb.t Row.t
+    -> phase:Comb.t
+    -> offset:Comb.t
+    -> period:Comb.t
+    -> x:Comb.t
+    -> y:Comb.t
+    -> arm:Comb.t
+    -> arm_known:Comb.t
+    -> captured:Comb.t
+    -> awaiting:Comb.t
+    -> Comb.t Holds.t
+
+  (** The row bounds nothing, which [check] asks of the row at pc 0: the core starts there
+      with every register and the capture state anything. *)
+  val starts_open : Comb.t Row.t -> Comb.t
 end
 
 module Table : sig

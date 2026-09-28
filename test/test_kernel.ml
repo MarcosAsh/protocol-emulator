@@ -35,33 +35,6 @@ let row_input name =
     G.input (name ^ "_" ^ field) width)
 ;;
 
-(* Whether the core lies inside a row, bound by bound, in the shape of what the kernel
-   asks of a row; a full arm range says nothing. [offset] is the core's
-   [phase - r.slope * x] modulo the timer. *)
-let lies_in
-  (r : _ Kernel.Row.t)
-  ~phase
-  ~offset
-  ~period
-  ~x
-  ~y
-  ~arm
-  ~arm_known
-  ~captured
-  ~awaiting
-  =
-  let inside lo hi v = G.(lo <=: v &: (v <=: hi)) in
-  { Kernel.Holds.phase = G.(r.phase_lo <=+ phase &: (phase <=+ r.phase_hi))
-  ; offset = G.(r.offset_lo <=+ offset &: (offset <=+ r.offset_hi))
-  ; period = inside r.period_lo r.period_hi period
-  ; x = inside r.x_lo r.x_hi x
-  ; y = inside r.y_lo r.y_hi y
-  ; arm = G.(K.arm_is_full r |: (arm_known &: inside r.arm_lo r.arm_hi arm))
-  ; captured = G.(~:(r.captured) |: captured)
-  ; awaiting = G.(~:(r.awaiting) |: awaiting)
-  }
-;;
-
 let all (h : _ Kernel.Holds.t) = Kernel.Holds.to_list h |> G.reduce ~f:G.( &: )
 let all_but_offset (h : _ Kernel.Holds.t) = all { h with offset = G.vdd }
 
@@ -193,7 +166,7 @@ let accepted_rows_hold ~step_edge =
           |: (r_offset ==: moved +: row.slope)))
   in
   let lies_in' r ~offset =
-    lies_in
+    K.within
       r
       ~phase:phase'
       ~offset
@@ -221,7 +194,7 @@ let accepted_rows_hold ~step_edge =
   in
   let hypothesis =
     G.(
-      all (lies_in row ~phase ~offset ~period ~x ~y ~arm ~arm_known ~captured ~awaiting)
+      all (K.within row ~phase ~offset ~period ~x ~y ~arm ~arm_known ~captured ~awaiting)
       &: (~:x_dec |: (x <>:. 0) |: (offset ==: phase))
       &: (side_set_count <=:. 2)
       &: ~:(s.halts)

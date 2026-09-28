@@ -299,10 +299,12 @@ module Make (Comb : Comb.S) = struct
     wide r.offset_lo ==: timer_min &: (wide r.offset_hi ==: timer_max)
   ;;
 
+  let is_all lo hi = lo ==:. 0 &: (hi ==: data_max)
+
   (* An unsigned interval that a register's image must fall in, or [any] for a write the
      kernel does not follow. *)
   let contains ~lo ~hi ~any ~image_lo ~image_hi =
-    mux2 any (lo ==:. 0 &: (hi ==: data_max)) (lo <=: image_lo &: (image_hi <=: hi))
+    mux2 any (is_all lo hi) (lo <=: image_lo &: (image_hi <=: hi))
   ;;
 
   let conjuncts
@@ -495,6 +497,46 @@ module Make (Comb : Comb.S) = struct
   ;;
 
   let following ~wrap_top ~wrap_bottom pc = mux2 (pc ==: wrap_top) wrap_bottom (pc +:. 1)
+
+  let successors ~wrap_top ~wrap_bottom ~pc ~word =
+    ( following ~wrap_top ~wrap_bottom pc
+    , Isa.Field.select (module Comb) Isa.Field.jmp_target word )
+  ;;
+
+  let within
+    (r : _ Row.t)
+    ~phase
+    ~offset
+    ~period
+    ~x
+    ~y
+    ~arm
+    ~arm_known
+    ~captured
+    ~awaiting
+    =
+    let inside lo hi v = lo <=: v &: (v <=: hi) in
+    { Holds.phase = r.phase_lo <=+ phase &: (phase <=+ r.phase_hi)
+    ; offset = r.offset_lo <=+ offset &: (offset <=+ r.offset_hi)
+    ; period = inside r.period_lo r.period_hi period
+    ; x = inside r.x_lo r.x_hi x
+    ; y = inside r.y_lo r.y_hi y
+    ; arm = arm_is_full r |: (arm_known &: inside r.arm_lo r.arm_hi arm)
+    ; captured = ~:(r.captured) |: captured
+    ; awaiting = ~:(r.awaiting) |: awaiting
+    }
+  ;;
+
+  let starts_open (r : _ Row.t) =
+    is_full r
+    &: offset_is_full r
+    &: is_all r.period_lo r.period_hi
+    &: is_all r.x_lo r.x_hi
+    &: is_all r.y_lo r.y_hi
+    &: arm_is_full r
+    &: ~:(r.captured)
+    &: ~:(r.awaiting)
+  ;;
 end
 
 module Table = struct
@@ -646,23 +688,10 @@ let check ?period ?(single_capture_edge = false) ~(config : Program_config.t) ~w
     ; single_edge = Bits.of_bool single_capture_edge
     }
   in
-  let starts_open =
-    let r = table.(0) in
-    let full lo hi =
-      Bits.to_unsigned_int lo = 0 && Bits.to_unsigned_int hi = (1 lsl Isa.data_bits) - 1
-    in
-    Bits.to_bool (K.is_full r)
-    && Bits.to_bool (K.offset_is_full r)
-    && full r.period_lo r.period_hi
-    && full r.x_lo r.x_hi
-    && full r.y_lo r.y_hi
-    && Bits.to_bool (K.arm_is_full r)
-    && not (Bits.to_bool r.captured)
-    && not (Bits.to_bool r.awaiting)
-  in
-  let following pc =
-    if pc = config.wrap_top then config.wrap_bottom else (pc + 1) % size
-  in
+  let starts_open = Bits.to_bool (K.starts_open table.(0)) in
+  let pc_bits n = Bits.of_unsigned_int ~width:Isa.pc_bits n in
+  let wrap_top = pc_bits config.wrap_top in
+  let wrap_bottom = pc_bits config.wrap_bottom in
   let names =
     let way name = Holds.map Holds.port_names ~f:(fun field -> name ^ " " ^ field) in
     { Conjuncts.in_time = "in time"; next = way "next"; target = way "target" }
@@ -670,9 +699,8 @@ let check ?period ?(single_capture_edge = false) ~(config : Program_config.t) ~w
   let rejected =
     List.filter_map (List.range 0 size) ~f:(fun pc ->
       let w = word pc in
-      let target =
-        Bits.to_unsigned_int (Isa.Field.select (module Bits) Isa.Field.jmp_target w)
-      in
+      let next, target = K.successors ~wrap_top ~wrap_bottom ~pc:(pc_bits pc) ~word:w in
+      let row pc = table.(Bits.to_unsigned_int pc) in
       let conjuncts =
         K.conjuncts
           ~side_set_count
@@ -681,8 +709,8 @@ let check ?period ?(single_capture_edge = false) ~(config : Program_config.t) ~w
           ~capture
           ~word:w
           ~row:table.(pc)
-          ~next:table.(following pc)
-          ~target:table.(target)
+          ~next:(row next)
+          ~target:(row target)
       in
       let fails =
         List.filter_map
