@@ -1,0 +1,43 @@
+name: reject split
+on:
+  schedule:
+    - cron: '0 3 * * 3'
+  workflow_dispatch:
+jobs:
+  split:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Set up OxCaml
+        uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: ocaml-variants.5.2.0+ox
+          opam-repositories: |
+            ox: https://github.com/oxcaml/opam-repository.git
+            default: https://opam.ocaml.org
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get install -y z3
+          opam install . --deps-only --with-test --locked
+
+      # every one-field variant of the library that is not a receiver
+      - name: Split the kernel's verdicts
+        run: opam exec -- dune exec -- test/split/split.exe | tee split.log
+
+      - name: Summary
+        if: always()
+        run: |
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat split.log >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      # a run that misses where the kernel accepts, or a table SAT finds that the kernel
+      # refuses, is a bug in one of them
+      - name: Check
+        run: |
+          grep -q '((verdict Accepted_but_missed) (count 0))' split.log
+          grep -q '((verdict Witness_refused) (count 0))' split.log
