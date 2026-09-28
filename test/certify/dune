@@ -1,5 +1,5 @@
-(executable
- (name write_certificate)
+(executables
+ (names write_certificate write_link)
  (libraries core hardcaml protocol_emulator protocol_emulator_test)
  (preprocess
   (pps ppx_jane)))

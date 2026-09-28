@@ -1,6 +1,6 @@
 all: issue_timing host_timing late_host fifo_order phase_step edge_step frame_step value_step \
   chip_frame data_step teeth fsm_miter sram_equiv \
-  kernel_equiv
+  kernel_equiv link
 
 engine.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe engine > formal/engine.v
@@ -10,6 +10,9 @@ engine_sram.v: ../src/*.ml
 
 engines.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe engines -engines 2 > formal/engines.v
+
+engines_sram.v: ../src/*.ml
+	cd .. && dune exec -- bin/generate.exe engines -engines 2 -sram > formal/engines_sram.v
 
 issue_timing: engine.v
 	sby -f issue_timing.sby prove cover
@@ -62,6 +65,20 @@ value_step: engine.v
 # bidirectional pad or can move a wire, and there reads what the other drives
 chip_frame: engines.v
 	sby -f chip_frame.sby prove pads_shared cover
+
+# A UART from engine 0 to engine 1 over a wire, by induction on the two-engine chip: each
+# word engine 1 pushes is the byte engine 0 sent in that frame, once a frame, and each
+# sample lies half a bit from the wire's edges. The proof takes about 2 min, the covers
+# (a push, and a second pull right behind a frame) 12. Teeth: a claim no run keeps,
+# the next bit pushed, a margin one wider and a receiver at 11 cycles a bit have to fail.
+# link_proof runs on files written already, for CI.
+link: engines_sram.v
+	(cd .. && dune exec -- test/certify/write_link.exe) > link.sv
+	(cd .. && dune exec -- test/certify/write_link.exe -rx-period 11) > link_baud.sv
+	$(MAKE) link_proof
+
+link_proof:
+	sby -f link.sby prove cover never_pushes next_bit wider baud
 
 osr_step.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe osr > formal/osr_step.v
@@ -343,7 +360,7 @@ sat_tools:
 	cd sat_tools/cake_lpr-$(CAKE_LPR) && rm -f cake_lpr && $(MAKE) cake_lpr
 	cp sat_tools/cake_lpr-$(CAKE_LPR)/cake_lpr sat_tools/bin/
 
-.PHONY: all issue_timing host_timing late_host fifo_order phase_step phase_table \
+.PHONY: all link link_proof issue_timing host_timing late_host fifo_order phase_step phase_table \
   phase_table_proof edge_step frame_step value_step chip_frame data_step teeth certificates \
   certificate inductive_certificate inductive_proof inductive_certificates inductive_names \
   stamped_certificate stamped_proof data_certificate data_proof data_certificates data_names \

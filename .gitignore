@@ -23,6 +23,8 @@ bin/*.bc
 formal/engine.v
 formal/engine_sram.v
 formal/engines.v
+formal/engines_sram.v
+formal/link*.sv
 formal/certificate*.sv
 formal/fsm_miter*.sv
 formal/*_*/

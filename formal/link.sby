@@ -1,0 +1,70 @@
+[tasks]
+prove
+cover
+never_pushes teeth
+next_bit teeth
+wider teeth
+baud teeth
+
+[options]
+prove: mode prove
+prove: depth 4
+cover: mode cover
+cover: depth 115
+teeth: mode prove
+teeth: depth 4
+# a false claim fails the induction step with no trace from reset: sby says unknown
+teeth: expect fail,unknown
+
+[engines]
+smtbmc boolector
+
+[script]
+read_verilog -lib RM_IHPSG13_1P_512x16_c2_bm_bist.v
+read_verilog engines_sram.v
+hierarchy -top engines_top
+proc
+flatten
+expose -evert -sep __ engines_top/t:RM_IHPSG13_1P_512x16_c2_bm_bist
+cd engines_top
+expose w:engines.engine_0.tx.head w:engines.engine_0.tx.empty w:engines.engine_1.pins_sampled
+# the tx fifo's registers, which the induction has to be told agree
+expose w:engines.engine_0.tx.USED w:engines.engine_0.tx.USED_MINUS_1
+expose w:engines.engine_0.tx.USED_PLUS_1 w:engines.engine_0.tx.used_is_one
+expose w:engines.engine_0.tx.used_gt_one w:engines.engine_0.tx.full_0
+expose w:engines.engine_0.tx.nearly_full
+rename engines.engine_0.tx.USED fifo_used
+rename engines.engine_0.tx.USED_MINUS_1 fifo_used_minus_1
+rename engines.engine_0.tx.USED_PLUS_1 fifo_used_plus_1
+rename engines.engine_0.tx.used_is_one fifo_used_is_one
+rename engines.engine_0.tx.used_gt_one fifo_used_gt_one
+rename engines.engine_0.tx.full_0 fifo_full_0
+rename engines.engine_0.tx.nearly_full fifo_nearly_full
+rename engines.engine_0.tx.head tx_head
+rename engines.engine_0.tx.empty tx_empty
+rename engines.engine_1.pins_sampled pins_sampled_1
+rename engines.engine_0.sram_macro.sram__A_ADDR sram_addr_0
+rename engines.engine_0.sram_macro.sram__A_MEN sram_men_0
+rename engines.engine_0.sram_macro.sram__A_REN sram_ren_0
+rename engines.engine_0.sram_macro.sram__A_DOUT sram_dout_0
+rename engines.engine_1.sram_macro.sram__A_ADDR sram_addr_1
+rename engines.engine_1.sram_macro.sram__A_MEN sram_men_1
+rename engines.engine_1.sram_macro.sram__A_REN sram_ren_1
+rename engines.engine_1.sram_macro.sram__A_DOUT sram_dout_1
+rename engines.data_memory.sram_macro.sram__A_DOUT data_sram_dout
+cd ..
+prove: read_verilog -formal -sv link.sv
+cover: read_verilog -formal -sv link.sv
+never_pushes: read_verilog -formal -sv -DNEVER_PUSHES link.sv
+next_bit: read_verilog -formal -sv -DNEXT_BIT link.sv
+wider: read_verilog -formal -sv -DWIDER link.sv
+baud: read_verilog -formal -sv link_baud.sv
+prep -top link
+# as memories, the rom and the tables are state induction starts anywhere; as logic, fixed
+memory_map
+
+[files]
+engines_sram.v
+link.sv
+link_baud.sv
+../src/RM_IHPSG13_1P_512x16_c2_bm_bist.v
