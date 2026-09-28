@@ -196,6 +196,29 @@ jobs:
       - name: Prove
         run: make -C formal phase_table_proof
 
+  # the same for rows that bound the offset too, on row_step's lemma, and its teeth
+  phase_table_affine:
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Download the Verilog
+        uses: actions/download-artifact@v8
+        with:
+          name: phase_table
+          path: formal
+
+      - name: Install OSS CAD Suite
+        run: |
+          curl -sL https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz | tar xz -C "$HOME"
+          echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
+
+      - name: Prove
+        run: make -C formal phase_table_affine_proof
+
   # the uart link between two engines by induction, its cover and teeth
   link:
     needs: test
