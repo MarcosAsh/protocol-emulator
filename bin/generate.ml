@@ -102,8 +102,18 @@ let kernel_rtl_command =
     ~summary:
       "Verilog for the kernel's step, which formal/phase_step.sv proves the core keeps"
     [%map_open.Command
-      let () = return () in
+      let timer_bits =
+        flag
+          "-timer-bits"
+          (optional_with_default Isa.timer_bits int)
+          ~doc:"N for a core whose timer is N bits wide, as engine -timer-bits"
+      in
       fun () ->
+        let module Kernel =
+          Kernel.Make_timer (struct
+            let timer_bits = timer_bits
+          end)
+        in
         let module C = Circuit.With_interface (Kernel.I) (Kernel.O) in
         print_rtl ~name:"kernel_step_top" (fun ~name scope ->
           C.create_exn ~name (Kernel.hierarchical scope))]
