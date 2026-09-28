@@ -22,6 +22,20 @@ jobs:
           sudo apt-get install -y z3
           opam install . --deps-only --with-test --locked
 
+      # cadical and cake_lpr for the checked QEDs (test/checked_unsat.ml), at the pins
+      # formal/Makefile names
+      - name: Cache the SAT tools
+        id: sat_tools
+        uses: actions/cache@v4
+        with:
+          path: formal/sat_tools/bin
+          key: sat-tools-${{ hashFiles('formal/Makefile') }}
+
+      - name: Build the SAT tools
+        run: |
+          [ "${{ steps.sat_tools.outputs.cache-hit }}" = true ] || make -C formal sat_tools
+          echo "$PWD/formal/sat_tools/bin" >> "$GITHUB_PATH"
+
       # the workflows that run the cocotb test have no assembler and read these
       - name: Check the committed firmware words are current
         run: |
