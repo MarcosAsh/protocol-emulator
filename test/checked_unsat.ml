@@ -37,18 +37,43 @@ let check ~dimacs ~proof =
   | Ok () | Error _ -> error_s [%message "cake_lpr rejects the proof" verdict]
 ;;
 
-let solver ~dimacs_in ~result_out () =
+let negate_first_lemma lines =
+  let lemma line =
+    match String.split line ~on:' ' with
+    | id :: literal :: rest when not (List.mem [ "d"; "0" ] literal ~equal:String.equal)
+      -> Some (id, Int.of_string literal, rest)
+    | _ -> None
+  in
+  let first, (id, literal, rest) =
+    List.find_mapi_exn lines ~f:(fun i line -> Option.map (lemma line) ~f:(fun l -> i, l))
+  in
+  List.mapi lines ~f:(fun i line ->
+    if i = first
+    then String.concat ~sep:" " (id :: Int.to_string (-literal) :: rest)
+    else line)
+;;
+
+let solve ~bad_proof ~dimacs_in ~result_out () =
   let proof = Stdlib.Filename.temp_file "cadical" "lrat" in
   let checked =
-    let%bind.Or_error () = cadical ~dimacs:dimacs_in ~proof ~result:result_out () in
+    let%bind.Or_error () =
+      cadical ~binary:(not bad_proof) ~dimacs:dimacs_in ~proof ~result:result_out ()
+    in
     (* any answer but SAT needs the proof, so none reads as UNSAT unchecked *)
     match In_channel.read_lines result_out with
     | "s SATISFIABLE" :: _ -> Ok ()
-    | _ -> check ~dimacs:dimacs_in ~proof
+    | _ ->
+      if bad_proof
+      then
+        Out_channel.write_lines proof (negate_first_lemma (In_channel.read_lines proof));
+      check ~dimacs:dimacs_in ~proof
   in
   Stdlib.Sys.remove proof;
   checked
 ;;
+
+let solver = solve ~bad_proof:false
+let solver_with_a_bad_proof = solve ~bad_proof:true
 
 let prove ?show name ~cases ~claim =
   let covered = Comb_gates.reduce ~f:Comb_gates.( |: ) cases in

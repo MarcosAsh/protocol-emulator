@@ -24,6 +24,14 @@ val check : dimacs:string -> proof:string -> unit Or_error.t
     unchecked. *)
 val solver : Solver.run_solver
 
+(** A text LRAT proof with its first lemma's first literal negated, which the lemma's
+    hints no longer derive. *)
+val negate_first_lemma : string list -> string list
+
+(** [solver], but writing a text proof with [negate_first_lemma] applied: teeth, on which
+    a QED's UNSAT must fail [check]. *)
+val solver_with_a_bad_proof : Solver.run_solver
+
 (** Prints QED when every case holds [claim] and the cases cover every input, one query at
     a time, which SAT finds far easier than all at once. A counterexample prints the
     inputs in [show], or all of them. *)

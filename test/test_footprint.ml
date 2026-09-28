@@ -56,31 +56,59 @@ module Frame_step = struct
   ;;
 end
 
-let prove name ~claim =
-  match Solver.solve ~solver:(Solver.z3 ~parallel:false ()) (G.cnf G.(~:claim)) with
+let prove ?(solver = Checked_unsat.solver) name ~claim =
+  match Solver.solve ~solver (G.cnf G.(~:claim)) with
   | Ok Unsat -> print_s [%message "QED" name]
   | Ok (Sat _) -> print_s [%message "counterexample" name]
   | Error e -> print_s [%message "solver failed" name (e : Error.t)]
 ;;
 
+let config =
+  Engine.Config.map Engine.Config.port_names_and_widths ~f:(fun (name, width) ->
+    G.input name width)
+;;
+
+let writes =
+  Footprint.Writes.map Footprint.Writes.port_names_and_widths ~f:(fun (name, width) ->
+    G.input name width)
+;;
+
+let claims =
+  [ ( "pin_out"
+    , G.(Footprint_gates.pin_out config writes ==: Frame_step.pin_out config writes) )
+  ; ( "pin_dir"
+    , G.(Footprint_gates.pin_dir config writes ==: Frame_step.pin_dir config writes) )
+  ]
+;;
+
 let%expect_test "the footprint is the one the frame lemma proves, for every config" =
-  let config =
-    Engine.Config.map Engine.Config.port_names_and_widths ~f:(fun (name, width) ->
-      G.input name width)
-  in
-  let writes =
-    Footprint.Writes.map Footprint.Writes.port_names_and_widths ~f:(fun (name, width) ->
-      G.input name width)
-  in
-  prove
-    "pin_out"
-    ~claim:G.(Footprint_gates.pin_out config writes ==: Frame_step.pin_out config writes);
-  prove
-    "pin_dir"
-    ~claim:G.(Footprint_gates.pin_dir config writes ==: Frame_step.pin_dir config writes);
+  List.iter claims ~f:(fun (name, claim) -> prove name ~claim);
   [%expect {|
     (QED pin_out)
     (QED pin_dir)
+    |}]
+;;
+
+let%expect_test "no QED once cake_lpr refuses the proof, or for a false claim" =
+  List.iter claims ~f:(fun (name, claim) ->
+    prove ~solver:Checked_unsat.solver_with_a_bad_proof name ~claim);
+  prove
+    "pin_out without Manchester's second pin"
+    ~claim:
+      G.(
+        Footprint_gates.pin_out config writes
+        ==: Frame_step.pin_out { config with manchester = gnd } writes);
+  [%expect
+    {|
+    ("solver failed" pin_out
+     (e
+      ("cake_lpr rejects the proof"
+       "c Checking failed at line: 1. Reason: clause index has no reduction sequence: 5\n")))
+    ("solver failed" pin_dir
+     (e
+      ("cake_lpr rejects the proof"
+       "c Checking failed at line: 1. Reason: clause index has no reduction sequence: 5\n")))
+    (counterexample "pin_out without Manchester's second pin")
     |}]
 ;;
 

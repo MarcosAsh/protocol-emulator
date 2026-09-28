@@ -24,25 +24,8 @@ let solve_and_check ?corrupt query =
 let a = Comb_gates.input "a" 8
 let b = Comb_gates.input "b" 8
 
-(* The first lemma with its first literal negated, which its hints no longer derive. *)
-let negate_first_lemma lines =
-  let lemma line =
-    match String.split line ~on:' ' with
-    | id :: literal :: rest when not (List.mem [ "d"; "0" ] literal ~equal:String.equal)
-      -> Some (id, Int.of_string literal, rest)
-    | _ -> None
-  in
-  let first, (id, literal, rest) =
-    List.find_mapi_exn lines ~f:(fun i line -> Option.map (lemma line) ~f:(fun l -> i, l))
-  in
-  List.mapi lines ~f:(fun i line ->
-    if i = first
-    then String.concat ~sep:" " (id :: Int.to_string (-literal) :: rest)
-    else line)
-;;
-
 let%expect_test "cake_lpr accepts cadical's proof, and not with one line corrupted" =
-  solve_and_check ~corrupt:negate_first_lemma Comb_gates.(a +: b <>: b +: a);
+  solve_and_check ~corrupt:Checked_unsat.negate_first_lemma Comb_gates.(a +: b <>: b +: a);
   [%expect
     {|
     ("s UNSATISFIABLE" (checked (Ok ())))
