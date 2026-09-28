@@ -495,8 +495,12 @@ let anyseq_host =
      start together at zero and the clock has moved on by the first issue;
    - the cycles since the last pin edge are what the analyser says for the way in from
      that instruction, on the way in and while a delay or a wait holds the core, which is
-     what makes the gaps between edges hold in a loop that anchors no deadline. *)
+     what makes the gaps between edges hold in a loop that anchors no deadline;
+   - under the single-edge assumption, the capture is armed until the edge, which comes
+     after the arm, and after the wait for it is as old as the analyser says. *)
 let inductive
+  ?period
+  ?(single_capture_edge = false)
   ?(no_wrap = false)
   ?(stamped = false)
   ?(data = false)
@@ -509,7 +513,15 @@ let inductive
   let program = Asm.assemble source |> ok_exn in
   let config = Asm.Program.configure program config in
   let words = Asm.Program.words program |> ok_exn in
-  let rows = Analyser.analyse ~config program.instructions in
+  let rows = Analyser.analyse ?period ~single_capture_edge ~config program.instructions in
+  (* each deadline wait's entry bound is the claim that it is on time *)
+  (match List.filter rows ~f:(fun row -> row.may_miss) with
+   | [] -> ()
+   | late ->
+     raise_s
+       [%message
+         "BUG: deadline waits the certificate cannot show on time"
+           ~pcs:(List.map late ~f:(fun row -> row.pc) : int list)]);
   let config_ports =
     Engine.Config.(
       to_list
@@ -566,9 +578,43 @@ let inductive
   (* a count is unsigned, so a floor at or below zero says nothing and is left out *)
   let count (i : Interval.t) = { i with lo = Option.filter i.lo ~f:(fun lo -> lo > 0) } in
   let reachable = List.map rows ~f:(fun row -> sprintf "pc == %d" row.pc) |> any in
+  let assert_when cond = function
+    | [] -> []
+    | c -> [ sprintf "      if (%s) assert (%s);" cond (String.concat ~sep:" && " c) ]
+  in
+  (* An age on the way into a row, at the entry and while a delay holds the core, where
+     [_ahead] is the age it issues at *)
+  let entering name ~way (since : Interval.t) =
+    assert_when ("entry && " ^ way) (within name (count since))
+    @ assert_when ("stall != 0 && " ^ way) (within (name ^ "_ahead") (count since))
+  in
+  (* The same age while a wait stalls, where a deadline wait keeps [_behind], the age less
+     the phase, still *)
+  let stalling name (row : Analyser.Row.t) (since : Interval.t) =
+    if not (is_wait row.instruction)
+    then []
+    else (
+      let at = sprintf "stalled && pc == %d" row.pc in
+      let floor =
+        Option.filter since.lo ~f:(fun lo -> lo + 1 > 0)
+        |> Option.map ~f:(fun lo -> sprintf "%s >= %d" name (lo + 1))
+        |> Option.to_list
+      in
+      let behind =
+        if not (is_deadline_wait row.instruction)
+        then []
+        else (
+          let bound lo hi =
+            Option.bind lo ~f:(fun a -> Option.map hi ~f:(fun b -> a - b))
+          in
+          within
+            (name ^ "_behind")
+            { lo = bound since.lo row.phase.hi; hi = bound since.hi row.phase.lo })
+      in
+      assert_when at floor @ assert_when at behind)
+  in
   let edges =
     List.concat_map rows ~f:(fun (row : Analyser.Row.t) ->
-      let conj = String.concat ~sep:" && " in
       let came_from =
         List.map row.since_edge ~f:(fun (from, _) -> sprintf "came == %d" from)
       in
@@ -579,86 +625,29 @@ let inductive
             (any came_from)
         ]
       in
+      let way from = sprintf "came_valid && pc == %d && came == %d" row.pc from in
       let per_way =
         List.concat_map row.since_edge ~f:(fun (from, since) ->
-          let at_entry =
-            match within "since" (count since) with
-            | [] -> []
-            | c ->
-              [ sprintf
-                  "      if (entry && came_valid && pc == %d && came == %d) assert (%s);"
-                  row.pc
-                  from
-                  (conj c)
-              ]
-          in
-          let pending =
-            match within "since_ahead" (count since) with
-            | [] -> []
-            | c ->
-              [ sprintf
-                  "      if (stall != 0 && came_valid && pc == %d && came == %d) assert \
-                   (%s);"
-                  row.pc
-                  from
-                  (conj c)
-              ]
-          in
-          at_entry @ pending)
+          entering "since" ~way:(way from) since)
       in
       let gaps =
-        List.map row.gaps ~f:(fun (from, gap) -> from, within "since + 1" (count gap))
-        |> List.filter_map ~f:(fun (from, c) ->
-          Option.some_if (not (List.is_empty c)) (from, c))
-        |> List.map ~f:(fun (from, c) ->
-          sprintf
-            "      if (entry && came_valid && pc == %d && came == %d) assert (%s);"
-            row.pc
-            from
-            (conj c))
+        List.concat_map row.gaps ~f:(fun (from, gap) ->
+          assert_when ("entry && " ^ way from) (within "since + 1" (count gap)))
       in
       (* while a wait stalls the count runs on from its entry, which a Manchester flip the
          wait brings starts again *)
       let stalled =
-        if not (is_wait row.instruction)
-        then []
-        else (
-          let since =
-            List.map row.since_edge ~f:snd
-            |> List.reduce ~f:Interval.join
-            |> Option.value ~default:Interval.top
-          in
-          let since =
-            if Option.is_some row.flip
-            then Interval.join since (Interval.exactly (-1))
-            else since
-          in
-          let floor =
-            Option.filter since.lo ~f:(fun lo -> lo + 1 > 0)
-            |> Option.map ~f:(fun lo ->
-              sprintf
-                "      if (stalled && pc == %d) assert (since >= %d);"
-                row.pc
-                (lo + 1))
-            |> Option.to_list
-          in
-          let behind =
-            if not (is_deadline_wait row.instruction)
-            then []
-            else (
-              let bound lo hi =
-                Option.bind lo ~f:(fun a -> Option.map hi ~f:(fun b -> a - b))
-              in
-              match
-                within
-                  "since_behind"
-                  { lo = bound since.lo row.phase.hi; hi = bound since.hi row.phase.lo }
-              with
-              | [] -> []
-              | c ->
-                [ sprintf "      if (stalled && pc == %d) assert (%s);" row.pc (conj c) ])
-          in
-          floor @ behind)
+        let since =
+          List.map row.since_edge ~f:snd
+          |> List.reduce ~f:Interval.join
+          |> Option.value ~default:Interval.top
+        in
+        stalling
+          "since"
+          row
+          (if Option.is_some row.flip
+           then Interval.join since (Interval.exactly (-1))
+           else since)
       in
       (* only the instruction after a Manchester out finds its second half pending *)
       let flip =
@@ -668,6 +657,54 @@ let inductive
       in
       ways_in @ flip @ per_way @ gaps @ stalled)
     |> String.concat ~sep:"\n"
+  in
+  let ages name (row : Analyser.Row.t) since =
+    entering name ~way:(sprintf "pc == %d" row.pc) since @ stalling name row since
+  in
+  (* Under the single-edge assumption: from the arm to the wait for the edge the core
+     holds the capture armed until the edge and after it an edge younger than the arm;
+     from that wait on, the capture is the edge, as old as the row says. *)
+  let edge_claims (row : Analyser.Row.t) =
+    let awaiting =
+      if not row.awaiting
+      then []
+      else (
+        let waits_for_level =
+          match row.instruction with
+          | Op { op = Wait (Pin_level _ as wait); _ } -> Analyser.captures config wait
+          | _ -> false
+        in
+        let bounded =
+          match row.since_arm with
+          | Some { hi = Some _; _ } ->
+            (not (is_wait row.instruction))
+            || waits_for_level
+            || is_deadline_wait row.instruction
+          | _ -> false
+        in
+        [ sprintf "      if (pc == %d) assert (holding);" row.pc ]
+        @ (if waits_for_level
+           then [ sprintf "      if (pc == %d && stalled) assert (!seen);" row.pc ]
+           else [])
+        @ Option.value_map row.since_arm ~default:[] ~f:(ages "arm_age" row)
+        @
+        if bounded
+        then
+          [ sprintf "      if (pc == %d && seen) assert (capture_age < arm_age);" row.pc ]
+        else [])
+    in
+    (* the capture's age wraps with the clock unless [no_wrap] keeps it close *)
+    let captured =
+      if not row.captured
+      then []
+      else
+        sprintf "      if (pc == %d) assert (!capture_armed);" row.pc
+        ::
+        (if no_wrap && anchors_on_capture
+         then Option.value_map row.since_arm ~default:[] ~f:(ages "capture_age" row)
+         else [])
+    in
+    awaiting @ captured
   in
   let claims =
     List.concat_map rows ~f:(fun (row : Analyser.Row.t) ->
@@ -720,7 +757,8 @@ let inductive
           ; sprintf "      if (pc == %d && entry) assert (%s);" row.pc (offset_of "phase")
           ]
       in
-      registers @ pending @ entry @ offset @ stalled)
+      let edge = if single_capture_edge then edge_claims row else [] in
+      registers @ pending @ entry @ offset @ stalled @ edge)
     |> String.concat ~sep:"\n"
   in
   (* induction proves anything from an invariant no state satisfies, so the teeth task
@@ -728,7 +766,7 @@ let inductive
      no run reaches inside the base case's depth, so what fails is the induction step and
      the failure says the invariant is one some state satisfies. *)
   let teeth_pc = (List.last_exn rows).pc in
-  (* The only thing a certificate ever assumes of the world. A wait for the host or for a
+  (* The one thing a certificate assumes of time, [no_wrap]. A wait for the host or for a
      pin can stall for as long as the world likes, so the rows after it have a floor under
      their phase and no ceiling: the core can fall arbitrarily far behind its deadline and
      24 bits of the difference wrap. A loop that anchors no deadline does the same from
@@ -752,6 +790,92 @@ let inductive
            "  // and as far from the edge it last captured\n\
            \  always @(*) assume ($signed(now - capture) <= 24'sd4194304);\n")
       ^ "\n"
+  in
+  (* What the firmware's entry in [Certified] assumes, as phase_step.sv takes it *)
+  let loads_period =
+    match period with
+    | None -> ""
+    | Some period ->
+      let writers =
+        List.filter_map rows ~f:(fun row ->
+          match row.instruction with
+          | Op { op = Mov { dest = P; _ } | Out { dest = P; _ } | Alu { dest = P; _ }; _ }
+            -> Some (sprintf "pc == %d" row.pc)
+          | _ -> None)
+        |> any
+      in
+      [%string
+        {|  // the period the host loads: every run-time write to p carries it
+  reg wrote_p = 0;
+  always @(posedge clk) wrote_p <= issue && (%{writers});
+`ifndef NO_PERIOD
+  always @(*) if (wrote_p) assume (p == 16'd%{period#Int});
+`endif
+
+|}]
+  in
+  let single_edge =
+    if not single_capture_edge
+    then ""
+    else (
+      let at ~f =
+        List.filter_map rows ~f:(fun row ->
+          Option.some_if (f row.instruction) (sprintf "pc == %d" row.pc))
+        |> any
+      in
+      let arms =
+        at ~f:(function
+          | Op { op = Sys Capture_arm; _ } -> true
+          | _ -> false)
+      in
+      let waits_for_edge =
+        at ~f:(function
+          | Op { op = Wait wait; _ } -> Analyser.captures config wait
+          | _ -> false)
+      in
+      [%string
+        {|  // the single-edge assumption, on the level the core sees: the capture pin is at the
+  // other level when capture_arm issues, and once at the captured level it stays there
+  // until a wait for it releases
+  wire level = eng_sample[%{config.capture_pin#Int}] == %{Bool.to_int config.capture_rising#Int};
+  wire arms = issue && (%{arms});
+  reg holding = 0, seen = 0;
+  always @(posedge clk)
+    if (start) begin
+      holding <= 0;
+      seen <= 0;
+    end else if (arms) begin
+      holding <= 1;
+      seen <= 0;
+    end else if (issue && eng_advance && (%{waits_for_edge})) holding <= 0;
+    else if (holding && level) seen <= 1;
+  always @(*) begin
+`ifndef LEVEL_AT_ARM
+    if (arms) assume (!level);
+`endif
+    if (holding && seen) assume (level);
+  end
+  // cycles since the arm, and since the edge the core last captured
+  reg [23:0] arm_age = 0;
+  always @(posedge clk)
+    arm_age <= arms ? 24'd1 : arm_age == 24'hffffff ? arm_age : arm_age + 24'd1;
+  wire [24:0] arm_age_ahead = arm_age + stall;
+  wire signed [25:0] arm_age_behind = $signed({2'b0, arm_age}) - phase;
+  wire [23:0] capture_age = now - capture;
+  wire [24:0] capture_age_ahead = capture_age + stall;
+  wire signed [25:0] capture_age_behind = $signed({2'b0, capture_age}) - phase;
+
+|}])
+  in
+  let edge_wires, edge_ports, holds_capture =
+    if not single_capture_edge
+    then "", "", ""
+    else
+      ( "  wire eng_advance, capture_armed;\n  wire [27:0] eng_sample;\n"
+      , ".eng_advance(eng_advance), .eng_sample(eng_sample), \
+         .capture_armed(capture_armed),\n\
+        \    "
+      , "      if (holding) assert (seen ? !capture_armed : capture_armed);\n" )
   in
   let stamp_monitor, stamp_claims =
     if stamped then stamp_claims ~config rows else "", ""
@@ -805,7 +929,7 @@ module certificate (input clk);
   wire [27:0] wait_pin = 28'd1 << instruction[4:0];
   wire [4:0] stall;
   wire halted, decode_ok, eng_issue, eng_jmp_go, flip_pending;
-  engine_top dut (
+%{edge_wires}  engine_top dut (
     .clock(clk), .clear(clear),
     %{config_ports},
     .start(start), .program_write$valid(1'b0), .program_write$addr(9'b0),
@@ -817,7 +941,7 @@ module certificate (input clk);
     .osr(osr), .osr_count(osr_count), .stall(stall),
     .fault$underflow(underflow), .halted(halted), .instruction(instruction), .decode_ok(decode_ok),
     .opcode_onehot(opcode_onehot), .wait_select(wait_select), .flip_pending(flip_pending),
-    %{ports}.eng_issue(eng_issue),
+    %{ports}%{edge_ports}.eng_issue(eng_issue),
     .eng_jmp_go(eng_jmp_go), .eng_tx_head(tx_head),
     .eng_tx_empty(tx_empty));
 
@@ -858,10 +982,10 @@ module certificate (input clk);
       came <= pc;
     end
 
-%{stamp_monitor}%{data_monitor}%{extra_monitor}%{no_wrap}  always @(*)
+%{loads_period}%{single_edge}%{stamp_monitor}%{data_monitor}%{extra_monitor}%{no_wrap}  always @(*)
     if (running) begin
       assert (!halted && !started);
-%{captured_has_passed}      assert (decode_ok && opcode_onehot == (8'd1 << instruction[15:13]));
+%{captured_has_passed}%{holds_capture}      assert (decode_ok && opcode_onehot == (8'd1 << instruction[15:13]));
       assert (wait_select == wait_pin);
       if (!jumped) assert (instruction == rom(pc) && fetched == rom(after(pc)));
       if (jumped) assert (stall == 1 && fetched == rom(pc));
@@ -1064,12 +1188,19 @@ let () =
   if flag "-fsm"
   then print_string (fsm_miter ~mutant:(flag "-mutant"))
   else (
-    let { Certified.source; config; no_wrap; _ } =
+    let { Certified.source; config; period; single_capture_edge; no_wrap; _ } =
       Certified.find_exn (Array.last_exn args)
     in
     print_string
       (if flag "-inductive"
        then
-         inductive ~no_wrap ~stamped:(flag "-stamped") ~data:(flag "-data") ~config source
+         inductive
+           ?period
+           ~single_capture_edge
+           ~no_wrap
+           ~stamped:(flag "-stamped")
+           ~data:(flag "-data")
+           ~config
+           source
        else harness ~config source))
 ;;

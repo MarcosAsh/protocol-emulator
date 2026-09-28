@@ -72,6 +72,9 @@ module Row : sig
   [@@deriving sexp_of]
 end
 
+(** A wait for the captured edge: on the capture pin, for the captured level or edge. *)
+val captures : Program_config.t -> Isa.Wait.t -> bool
+
 (** Assumptions about the world, each named so a report can say what it rests on. [period]
     is the value every run-time load of [p] carries, for firmware that takes its bit
     period from the host. [single_capture_edge] says the capture pin is at the other level

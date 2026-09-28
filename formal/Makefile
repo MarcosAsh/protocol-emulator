@@ -140,6 +140,10 @@ inductive_proof:
 	cp certificate_$(NAME).sv certificate.sv
 	sby -f -d certificate_$(NAME)_inductive certificate_inductive.sby prove
 	sby -f -d certificate_$(NAME)_teeth certificate_inductive.sby teeth
+	! grep -q NO_PERIOD certificate.sv || \
+	  sby -f --prefix certificate_$(NAME) certificate_inductive.sby no_period
+	! grep -q LEVEL_AT_ARM certificate.sv || \
+	  sby -f --prefix certificate_$(NAME) certificate_inductive.sby level_at_arm
 
 # Every frame uart_tx_stamped sends carries the low 16 bits of the cycle its start bit
 # shows on the pin, and the pin shows those bits: its certificate as above with that
@@ -175,9 +179,11 @@ data_names:
 	@echo $(DATA)
 
 # Every firmware in test/certified.ml, each under what its entry there says it assumes,
-# which the certificate prints: nothing for most; for the firmware that waits on the host
-# or anchors on a captured edge, that the core is within 84 ms of its deadline and of that
-# edge, since 24 bits of the difference wrap beyond it.
+# which the certificate prints: nothing for most; the period the host loads; one edge from
+# the arm to the wait for it; for the firmware that waits on the host or anchors on a
+# captured edge, that the core is within 84 ms of its deadline and of that edge, since 24
+# bits of the difference wrap beyond it. With the period, or the line's level at the arm,
+# left free it has to fail.
 INDUCTIVE = uart_tx uart_tx16 uart_tx_host_rate uart_rx spi_master spi_slave i2c_master \
   i2c_slave i2c_logger usb_tx usb_rx usb_device edge_meter ws2812 ethernet one_wire ps2 jtag \
   uart_tx_stream spi_master_stream

@@ -5,10 +5,17 @@ teeth
 # next_bit also for one written with -data
 off_by_one
 next_bit
+# only for a certificate that takes the period or the single-edge assumption, with the
+# period, or the line's level at the arm, left free; bmc, so what fails is a run from reset
+no_period assumption
+level_at_arm assumption
 
 [options]
-mode prove
-depth 20
+~assumption: mode prove
+~assumption: depth 20
+assumption: mode bmc
+assumption: depth 40
+assumption: expect fail
 # a false claim fails the induction step with no trace from reset: sby says unknown
 teeth: expect fail,unknown
 off_by_one: expect fail
@@ -27,8 +34,12 @@ expose -evert -sep __ engine_top/t:RM_IHPSG13_1P_512x16_c2_bm_bist
 cd engine_top
 # induction starts from no history, so it needs the core's own issue and jump
 expose w:solo.engine.issue w:solo.engine.jmp_go w:solo.engine.tx.head w:solo.engine.tx.empty
+# and, for the single-edge assumption, the level the core sees and a wait's release
+expose w:solo.engine.advance w:solo.engine.sample
 rename solo.engine.issue eng_issue
 rename solo.engine.jmp_go eng_jmp_go
+rename solo.engine.advance eng_advance
+rename solo.engine.sample eng_sample
 rename solo.engine.tx.head eng_tx_head
 rename solo.engine.tx.empty eng_tx_empty
 rename solo.engine.sram_macro.sram__A_ADDR sram_addr
@@ -39,6 +50,8 @@ prove: read_verilog -formal -sv certificate.sv
 teeth: read_verilog -formal -sv -DTEETH certificate.sv
 off_by_one: read_verilog -formal -sv -DOFF_BY_ONE certificate.sv
 next_bit: read_verilog -formal -sv -DNEXT_BIT certificate.sv
+no_period: read_verilog -formal -sv -DNO_PERIOD certificate.sv
+level_at_arm: read_verilog -formal -sv -DLEVEL_AT_ARM certificate.sv
 prep -top certificate
 # as a memory, the harness rom is state induction starts anywhere; as logic it is fixed
 memory_map

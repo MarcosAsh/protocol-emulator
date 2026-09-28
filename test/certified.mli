@@ -3,8 +3,9 @@
     firmware that takes it from the fifo; [single_capture_edge] says the line makes one
     edge between arming the capture and waiting for it, which is what a start bit gives a
     receiver that arms in time; [no_wrap] says the proof by induction holds while the core
-    is within 84 ms of its deadline and of the edge it last captured, which is what a
-    program that can wait forever needs said of its 24-bit clock. *)
+    is within 84 ms of its deadline and of the edge it last captured, which a program
+    needs said of its 24-bit clock when a wait, or a loop as long as the host says, can
+    leave it arbitrarily far behind either. *)
 
 open! Core
 open Protocol_emulator

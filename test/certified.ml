@@ -43,7 +43,12 @@ let all =
       Firmware.usb_device_config
   ; plain "edge_meter" (Firmware.edge_meter ~period:16) Firmware.edge_meter_config
   ; plain ~no_wrap:true "ws2812" (Ws2812.firmware ~third:6 ~tail:7) Ws2812.config
-  ; plain ~period:Ethernet.link_tenth "ethernet" Ethernet.firmware Ethernet.config
+  ; plain
+      ~period:Ethernet.link_tenth
+      ~no_wrap:true
+      "ethernet"
+      Ethernet.firmware
+      Ethernet.config
   ; plain ~period:One_wire.standard_unit "one_wire" One_wire.firmware One_wire.config
   ; plain ~period:Ps2.standard_quarter "ps2" Ps2.firmware Ps2.config
   ; plain "jtag" (Jtag.firmware ~half_period:Jtag.shortest_half) Jtag.config
