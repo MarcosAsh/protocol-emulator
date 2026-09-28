@@ -241,3 +241,43 @@ jobs:
 
       - name: Prove
         run: make -C formal link_proof
+
+  # each step lemma's Certifaiger witness, every check's LRAT proof verified by cake_lpr,
+  # and its teeth, whose models have to fail
+  witness:
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        lemma: [phase_step, edge_step]
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Download the Verilog
+        uses: actions/download-artifact@v8
+        with:
+          name: phase_table
+          path: formal
+
+      - name: Install OSS CAD Suite
+        run: |
+          curl -sL https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz | tar xz -C "$HOME"
+          echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
+
+      - name: Cache the SAT tools
+        id: sat_tools
+        uses: actions/cache@v4
+        with:
+          path: formal/sat_tools/bin
+          key: sat-tools-${{ hashFiles('formal/Makefile') }}
+
+      - name: Build the SAT tools
+        run: |
+          [ "${{ steps.sat_tools.outputs.cache-hit }}" = true ] || make -C formal sat_tools
+          echo "$PWD/formal/sat_tools/bin" >> "$GITHUB_PATH"
+
+      - name: Prove
+        run: make -C formal witness_proof LEMMA=${{ matrix.lemma }}
