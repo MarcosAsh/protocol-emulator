@@ -253,6 +253,24 @@ let%expect_test "faults and halt" =
     |}]
 ;;
 
+let%expect_test "a deadline wait carries the fraction once while a delay holds it" =
+  let program = assemble {|
+    set p, 4
+    set x, 0 [3]
+    wait t+
+    halt
+|} in
+  let (_ : Machine.t) =
+    lockstep
+      ~cycles:12
+      ~config:{ Program_config.default with period_fraction = 0x8000 }
+      ~program
+      ~inputs:(fun _ -> 0)
+      ()
+  in
+  [%expect {| ("lockstep held" (cycles 12)) |}]
+;;
+
 let%expect_test "a decode fault halts the core" =
   let m =
     lockstep
