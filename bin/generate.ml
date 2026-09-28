@@ -27,11 +27,29 @@ let engine_rtl_command =
   Command.basic
     ~summary:"Verilog for the core"
     [%map_open.Command
-      let memory = memory in
+      let memory = memory
+      and timer_bits =
+        flag
+          "-timer-bits"
+          (optional int)
+          ~doc:
+            "N the core alone, its timer N bits wide, so a bounded proof reaches the wrap"
+      in
       fun () ->
-        let module C = Circuit.With_interface (Solo.I) (Solo.O) in
-        print_rtl ~name:"engine_top" (fun ~name scope ->
-          C.create_exn ~name (Solo.hierarchical ~memory scope))]
+        match timer_bits with
+        | None ->
+          let module C = Circuit.With_interface (Solo.I) (Solo.O) in
+          print_rtl ~name:"engine_top" (fun ~name scope ->
+            C.create_exn ~name (Solo.hierarchical ~memory scope))
+        | Some timer_bits ->
+          let module Narrow =
+            Engine.Make (struct
+              let timer_bits = timer_bits
+            end)
+          in
+          let module C = Circuit.With_interface (Engine.I) (Narrow.O) in
+          print_rtl ~name:"engine_top" (fun ~name scope ->
+            C.create_exn ~name (Narrow.hierarchical ~memory scope))]
 ;;
 
 let engines_rtl_command =

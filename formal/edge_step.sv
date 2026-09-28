@@ -9,6 +9,11 @@
 // are free every cycle, even while running. Out and mov data is the core's value in the
 // issue cycle; value_step.sv proves it the ISA's.
 
+// the timer's width, narrower in the narrow tasks
+`ifndef TIMER_BITS
+`define TIMER_BITS 24
+`endif
+
 module edge_step (input clk);
   (* anyconst *) wire [1:0] side_set_count;
   (* anyconst *) wire [4:0] side_set_base, in_base, in_count, out_base, out_count, set_base;
@@ -36,7 +41,7 @@ module edge_step (input clk);
   wire [27:0] pin_out, pin_dir;
   wire [8:0] pc;
   wire [15:0] x, y, p, osr, isr, rx_head, instruction, crc;
-  wire [23:0] t, now, capture;
+  wire [`TIMER_BITS-1:0] t, now, capture;
   wire [4:0] osr_count, isr_count, stall, stuff_run;
   wire halted, irq, underflow, overflow, missed_deadline, decode, capture_armed;
   wire flip_pending, flip_bit;

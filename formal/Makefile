@@ -1,5 +1,5 @@
 all: issue_timing host_timing late_host fifo_order phase_step edge_step frame_step value_step \
-  chip_frame data_step teeth fsm_miter sram_equiv \
+  narrow chip_frame data_step teeth fsm_miter sram_equiv \
   kernel_equiv link
 
 engine.v: ../src/*.ml
@@ -7,6 +7,11 @@ engine.v: ../src/*.ml
 
 engine_sram.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe engine -sram > formal/engine_sram.v
+
+# the core with a 7-bit timer, which wraps 128 cycles after a start; the narrow tasks read
+# it with TIMER_BITS=7
+engine_narrow.v: ../src/*.ml
+	cd .. && dune exec -- bin/generate.exe engine -timer-bits 7 > formal/engine_narrow.v
 
 engines.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe engines -engines 2 > formal/engines.v
@@ -88,6 +93,17 @@ frame_step: engine.v
 # of the shift registers, which hold what the ISA says from the clear on
 value_step: engine.v
 	sby -f value_step.sby prove cover
+
+# the three lemmas above on the narrow core, each with a tooth; narrow_proof runs on the
+# file written already, for CI
+narrow: engine_narrow.v
+	$(MAKE) narrow_proof
+
+narrow_proof:
+	sby -f edge_step.sby narrow_timer_prove narrow_timer_cover narrow_timer_pins_never_change
+	sby -f frame_step.sby narrow_timer_prove narrow_timer_cover narrow_timer_no_pair
+	sby -f value_step.sby narrow_timer_prove narrow_timer_cover \
+	  narrow_timer_reverse_wrong_width
 
 # and on the two-engine chip: two engines whose footprints share no pad each drive their
 # pads as they would alone, and each reads as it would alone but where the other drives a
@@ -508,13 +524,16 @@ witness_unsat:
 # Each weakened copy the .sby expects to fail, through the same script: rIC3 has to find a
 # counterexample within the task's depth that aigsim replays to a bad state, so model.ys
 # cannot have made the model vacuous, and Certifaiger has to reject the lemma's witness.
-# At least WITNESS_TEETH_<lemma> of them, so none go missing unnoticed.
+# At least WITNESS_TEETH_<lemma> of them, so none go missing unnoticed. A copy of other
+# files than the prove task's, as the narrow core's, is another model and not a tooth here.
 WITNESS_TEETH_phase_step = 12
 WITNESS_TEETH_edge_step = 5
 WITNESS_TEETH_phase_table = 5
 witness_teeth:
 	teeth=0; for task in $$(sby --dumptasks $(LEMMA).sby); do \
 	  sby --dumpcfg $(LEMMA).sby $$task | grep -qx 'expect fail' || continue; \
+	  [ "$$(sby --dumpfiles $(LEMMA).sby $$task | sort)" \
+	    = "$$(sby --dumpfiles $(LEMMA).sby prove | sort)" ] || continue; \
 	  $(MAKE) witness_tooth TASK=$$task W=$(LEMMA)_witness_$$task || exit 1; \
 	  teeth=$$((teeth + 1)); \
 	done; \
@@ -547,4 +566,5 @@ witness_reject:
   stamped_certificate stamped_proof data_certificate data_proof data_certificates data_names \
   netlist_equiv netlist_equiv_teeth sync_rtl sync_gate sync_rtl_teeth sync_gate_teeth \
   fsm_miter fsm_miter_proof sram_equiv sram_equiv_proof \
-  sram_equiv_step sram_equiv_teeth kernel_equiv kernel_equiv_proof kernel_miter sat_tools
+  sram_equiv_step sram_equiv_teeth kernel_equiv kernel_equiv_proof kernel_miter sat_tools \
+  narrow narrow_proof

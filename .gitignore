@@ -22,6 +22,7 @@ bin/*.exe
 bin/*.bc
 formal/engine.v
 formal/engine_sram.v
+formal/engine_narrow.v
 formal/engines.v
 formal/engines_sram.v
 formal/link*.sv

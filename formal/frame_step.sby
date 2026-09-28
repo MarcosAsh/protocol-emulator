@@ -1,6 +1,9 @@
 [tasks]
 prove
 cover
+narrow_timer_prove narrow_timer
+narrow_timer_cover narrow_timer
+narrow_timer_no_pair narrow_timer teeth no_pair
 narrow_side teeth
 narrow_set teeth
 narrow_out teeth
@@ -14,6 +17,10 @@ prove: mode prove
 prove: depth 4
 cover: mode cover
 cover: depth 12
+narrow_timer_prove: mode prove
+narrow_timer_prove: depth 4
+narrow_timer_cover: mode cover
+narrow_timer_cover: depth 12
 teeth: mode bmc
 teeth: depth 12
 teeth: expect fail
@@ -37,9 +44,11 @@ narrow_mov: read -define NARROW_MOV
 no_pair: read -define NO_PAIR
 side_dirs_on_out: read -define SIDE_DIRS_ON_OUT
 no_wrap: read -define NO_WRAP
+narrow_timer: read -define TIMER_BITS=7
 read_verilog -formal -sv frame_step.sv
 prep -top frame_step
 
 [files]
-engine.v
+~narrow_timer: engine.v
+narrow_timer: engine.v engine_narrow.v
 frame_step.sv

@@ -11,7 +11,15 @@
 // pins, clear and config are otherwise free every cycle, and the chip has no debugger. A
 // count above 16 acts as 16, as in Pins.
 
+// the timer's width, narrower in the narrow tasks
+`ifndef TIMER_BITS
+`define TIMER_BITS 24
+`endif
+
 module value_step (input clk);
+  localparam T = `TIMER_BITS;
+  // a mov's source, as wide as t or the data registers, whichever is wider
+  localparam M = T > 16 ? T : 16;
   (* anyseq *) wire [1:0] side_set_count;
   (* anyseq *) wire [4:0] side_set_base, in_base, in_count, out_base, out_count, set_base;
   (* anyseq *) wire [2:0] set_count;
@@ -38,7 +46,7 @@ module value_step (input clk);
   wire [27:0] pin_out, pin_dir;
   wire [8:0] pc, data_ptr;
   wire [15:0] x, y, p, t_fraction, osr, isr, rx_head, instruction, crc;
-  wire [23:0] t, now, capture;
+  wire [T-1:0] t, now, capture;
   wire [4:0] osr_count, isr_count, stall, stuff_run;
   wire halted, irq, underflow, overflow, missed_deadline, decode, capture_armed;
   wire flip_pending, flip_bit;
@@ -136,9 +144,9 @@ module value_step (input clk);
     integer i;
     for (i = 0; i < 16; i = i + 1) reverse16[i] = v[15 - i];
   endfunction
-  function [23:0] reverse24(input [23:0] v);
+  function [T-1:0] reverse_t(input [T-1:0] v);
     integer i;
-    for (i = 0; i < 24; i = i + 1) reverse24[i] = v[23 - i];
+    for (i = 0; i < T; i = i + 1) reverse_t[i] = v[T - 1 - i];
   endfunction
 
   // a read of the pins; a wire sees what any core drives
@@ -183,34 +191,38 @@ module value_step (input clk);
   wire [15:0] osr_shifted = out_right ? osr_from >> out_n : osr_from << out_n;
   wire [4:0] osr_count_shifted = count_from + out_n > 16 ? 5'd16 : count_from + out_n;
 
-  // mov: the source, then the op over the destination's width
-  wire [23:0] mov_from =
-      mov_source == 0 ? {8'd0, pick(level, in_base) & mask(in_count)}
-    : mov_source == 1 ? {8'd0, x}
-    : mov_source == 2 ? {8'd0, y}
-    : mov_source == 3 ? 24'd0
-    : mov_source == 4 ? {8'd0, isr}
-    : mov_source == 5 ? {8'd0, osr}
+  // mov: the source zero-extended, then the op over the destination's width
+  wire [M-1:0] mov_from =
+      mov_source == 0 ? pick(level, in_base) & mask(in_count)
+    : mov_source == 1 ? x
+    : mov_source == 2 ? y
+    : mov_source == 3 ? {M{1'b0}}
+    : mov_source == 4 ? isr
+    : mov_source == 5 ? osr
     : mov_source == 6 ? now
     : capture;
-  wire [23:0] reversed_wide = reverse24(mov_from);
+  wire [T-1:0] reversed_over_t = reverse_t(mov_from[T-1:0]);
+  wire [15:0] reversed_over_data = reverse16(mov_from[15:0]);
+  // assignment cuts or zero-extends to the other width
 `ifdef REVERSE_WRONG_WIDTH
-  wire [15:0] reversed = reversed_wide[15:0];
-  wire [23:0] reversed_t = {8'd0, reverse16(mov_from[15:0])};
+  wire [15:0] reversed = reversed_over_t;
+  wire [T-1:0] reversed_t = reversed_over_data;
 `else
-  wire [15:0] reversed = reverse16(mov_from[15:0]);
-  wire [23:0] reversed_t = reversed_wide;
+  wire [15:0] reversed = reversed_over_data;
+  wire [T-1:0] reversed_t = reversed_over_t;
 `endif
 `ifdef NO_INVERT
-  wire [23:0] inverted = mov_from;
+  wire [M-1:0] inverted = mov_from;
 `else
-  wire [23:0] inverted = ~mov_from;
+  wire [M-1:0] inverted = ~mov_from;
 `endif
   wire [15:0] mov_bits =
     mov_op == 0 ? mov_from[15:0] : mov_op == 1 ? inverted[15:0] : reversed;
-  wire [23:0] mov_bits_t = mov_op == 0 ? mov_from : mov_op == 1 ? inverted : reversed_t;
+  wire [T-1:0] mov_bits_t =
+    mov_op == 0 ? mov_from[T-1:0] : mov_op == 1 ? inverted[T-1:0] : reversed_t;
 
   // in: the low n bits of the source into the isr, then the autopush
+  wire [M-1:0] capture_wide = capture;
   wire [15:0] in_from =
       target == 0 ? pick(level, in_base)
     : target == 1 ? x
@@ -219,7 +231,7 @@ module value_step (input clk);
     : target == 4 ? isr
     : target == 5 ? osr
     : target == 6 ? crc
-    : capture[15:0];
+    : capture_wide[15:0];
   wire [15:0] in_bits = in_from & mask(n);
 `ifdef IN_WRONG_DIRECTION
   wire in_right = !in_shift_right;
@@ -271,7 +283,7 @@ module value_step (input clk);
   wire writes_p = (outs || movs) && target == 6;
   wire writes_t = (outs || movs) && target == 7;
   wire [15:0] value = outs ? out_bits : mov_bits;
-  wire [23:0] t_value = outs ? {8'd0, out_bits} : mov_bits_t;
+  wire [T-1:0] t_value = outs ? out_bits : mov_bits_t;
   // Pins.write takes only pins that drive (5 and up) or turn around (12 to 19)
   localparam [27:0] OUTPUTS = 28'hfffffe0;
   wire manchester_bit = outs && target == 0 && manchester && n == 1;
@@ -325,7 +337,7 @@ module value_step (input clk);
   reg [8:0] last_want_data_ptr;
   reg last_want_underflow, last_want_overflow;
   reg last_writes_x, last_writes_y, last_writes_p, last_writes_t;
-  reg [23:0] last_t_value;
+  reg [T-1:0] last_t_value, last_reversed_over_data;
   reg [27:0] last_run_out, last_run_dir, last_shown, last_flip_run, last_flip_shown;
   always @(posedge clk) begin
     powered <= 1;
@@ -342,6 +354,7 @@ module value_step (input clk);
     last_writes_t <= writes_t;
     last_value <= value;
     last_t_value <= t_value;
+    last_reversed_over_data <= reversed_over_data;
     last_run_out <= run_out;
     last_run_dir <= run_dir;
     last_shown <= shown;
@@ -436,9 +449,9 @@ module value_step (input clk);
       cover(last_outs && last_data_pull && out_pins && moved_out);
       cover(last_outs && last_misses_pull && !last_autopull_data);
       cover(last_outs && last_misses_pull && last_autopull_data);
-      // a mov to t reversed from a 16-bit source, where the wider width shows
+      // a mov to t reversed from a 16-bit source, where t's width shows
       cover(last_movs && last_target == 7 && last_mov_op == 2 && last_mov_source < 6
-            && t[23:16] != 0);
+            && t != last_reversed_over_data);
       // a mov to pindirs, which reads the count from out_count
       cover(last_movs && last_target == 3 && moved_dir);
       // an in each way, the autopush, and push and pull on their own
