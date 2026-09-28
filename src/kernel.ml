@@ -235,7 +235,7 @@ module Make (Comb : Comb.S) = struct
       priority_select_with_default
         ~default:(phase +: c.cycles)
         [ { With_valid.valid = c.anchor; value = c.cycles }
-        ; { valid = c.from_capture; value = arm +: c.cycles }
+        ; { valid = c.from_capture; value = arm +: c.cycles -:. 1 }
         ; { valid = c.advance; value = released +: c.cycles -: timer period }
         ; { valid = c.deadline; value = released +: c.cycles }
         ; { valid = c.add_imm; value = phase +: c.cycles -: c.imm }
@@ -360,7 +360,7 @@ module Make (Comb : Comb.S) = struct
       in
       let base_hi =
         mux2 c.anchor (zero wide_bits)
-        @@ mux2 capture_bounded (wide_arm row.arm_hi)
+        @@ mux2 capture_bounded (wide_arm row.arm_hi -:. 1)
         @@ mux2 c.deadline (released hi) hi
       in
       base_lo +: delta_lo, base_hi +: delta_hi

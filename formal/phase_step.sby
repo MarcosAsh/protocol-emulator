@@ -10,6 +10,7 @@ second_edge teeth
 level_at_arm teeth
 later_edge_captured teeth
 capture_a_cycle_older teeth
+capture_a_cycle_younger teeth
 arm_one_short teeth
 
 [options]
@@ -45,6 +46,7 @@ second_edge: read -define SECOND_EDGE
 level_at_arm: read -define LEVEL_AT_ARM
 later_edge_captured: read -define LATER_EDGE_CAPTURED
 capture_a_cycle_older: read -define CAPTURE_A_CYCLE_OLDER
+capture_a_cycle_younger: read -define CAPTURE_A_CYCLE_YOUNGER
 arm_one_short: read -define ARM_ONE_SHORT
 read_verilog kernel_step.v
 read_verilog -formal -sv phase_step.sv

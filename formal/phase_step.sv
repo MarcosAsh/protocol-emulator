@@ -275,6 +275,12 @@ module phase_step (input clk);
 `else
   wire [23:0] capture_lo = e_step + 24'd1;
 `endif
+  // and the most, the step's; the tooth takes a cycle off it
+`ifdef CAPTURE_A_CYCLE_YOUNGER
+  wire [23:0] capture_hi = next_phase - 24'd1;
+`else
+  wire [23:0] capture_hi = next_phase;
+`endif
   wire t_ok = t == e_t_after || (e_may_carry && t == e_t_after + 24'd1);
 
   // The teeth that drop half the single-edge assumption keep only the claims at entries. The
@@ -370,10 +376,10 @@ module phase_step (input clk);
     if (!clear && entry) begin
       if (pending) assert(g_awaiting == holding);
       if (g_known) assert(!g[23]);
-      if (g_known && g_awaiting) assert(young && arm_age[23:0] == g);
+      if (g_known && g_awaiting) assert(young && arm_age[23:0] == g && g != 0);
       if (g_known && g_captured) begin
         assert(!g_awaiting && !capture_armed);
-        assert(capture_young && capture_age >= 1 && capture_age <= {1'b0, g});
+        assert(capture_young && capture_age >= 1 && capture_age < {1'b0, g});
       end
     end
 
@@ -404,20 +410,20 @@ module phase_step (input clk);
       if (e_g_known) assert(!e_g[23]);
       if (e_arms) assert(arm_now == e_now && young && arm_age == elapsed);
       else if (e_g_known && e_g_awaiting) begin
-        assert(e_now - arm_now == e_g);
+        assert(e_now - arm_now == e_g && e_g != 0);
         if (!elapsed[24] && {1'b0, e_g} + elapsed < 25'h1000000)
           assert(young && arm_age == {1'b0, e_g} + elapsed);
       end
       if (e_g_known && e_g_captured && !e_arms) begin
         assert(!e_g_awaiting && !capture_armed);
-        assert(!e_capture_age[24] && e_capture_age >= 1 && e_capture_age <= {1'b0, e_g});
+        assert(!e_capture_age[24] && e_capture_age >= 1 && e_capture_age < {1'b0, e_g});
         if (!elapsed[24] && e_capture_age + elapsed < 25'h1000000)
           assert(capture_young && capture_age == e_capture_age + elapsed);
         if (e_word[15:13] != 1) assert(capture_young);
       end
       if (single_edge && e_g_known && e_g_awaiting && !e_arms)
         if (e_capturing && done)
-          assert(!capture_armed && capture_young && e_release - capture <= e_g);
+          assert(!capture_armed && capture_young && e_release - capture < e_g);
         else if (e_capturing && !e_word[5]) assert(!seen);
     end
 
@@ -432,7 +438,7 @@ module phase_step (input clk);
     if (!clear && pending && entry) begin
       if (!e_unbounded) assert(phase == e_expected || (e_may_carry && phase == e_expected - 24'd1));
       // the age of the captured edge and a cycle or more: unsigned
-      if (capture_bounded) assert(now - t >= capture_lo && now - t <= next_phase);
+      if (capture_bounded) assert(now - t >= capture_lo && now - t <= capture_hi);
 `ifdef TAKEN_BACKWARDS
       if (e_is_jmp && taken_known) assert(pc == (taken ? e_following : e_word[8:0]));
 `else

@@ -88,10 +88,10 @@ end
     every run-time write to [p] carries its value. The same for [x] and [y]. A jump goes
     to its target when [taken], if [taken_known]. [next_arm] counts the cycles since
     [capture_arm], leaving out a capturing wait's own wait, when [next_arm_known]; once
-    [next_captured], the capture is at most that old. Only the first wait for the edge
-    after the arm, while [awaiting], captures. [capture_bounded]: this is [mov t,
-    capture] with a captured edge, so the next phase lies in [cycles + 1, next_phase].
-    [halts]: no next entry. *)
+    [next_captured], the capture is younger than that, as the arm takes effect a cycle
+    late. Only the first wait for the edge after the arm, while [awaiting], captures.
+    [capture_bounded]: this is [mov t, capture] with a captured edge, so the next phase
+    lies in [cycles + 1, next_phase]. [halts]: no next entry. *)
 module Step : sig
   type 'a t =
     { next_phase : 'a
