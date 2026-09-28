@@ -63,6 +63,22 @@ let top_rtl_command =
           C.create_exn ~name (Top.hierarchical ~memory ~engines scope))]
 ;;
 
+let memory_rtl_command =
+  Command.basic
+    ~summary:
+      "Verilog for one program memory, which formal/sram_equiv proves the same either way"
+    [%map_open.Command
+      let memory = memory in
+      fun () ->
+        let module C = Circuit.With_interface (Program_memory.I) (Program_memory.O) in
+        print_rtl ~name:"memory_top" (fun ~name scope ->
+          C.create_exn
+            ~name
+            (match memory with
+             | Flops -> Program_memory.hierarchical scope
+             | Ihp_sram -> Sram_macro.hierarchical scope))]
+;;
+
 let kernel_rtl_command =
   Command.basic
     ~summary:
@@ -215,6 +231,7 @@ let () =
        [ "engine", engine_rtl_command
        ; "engines", engines_rtl_command
        ; "top", top_rtl_command
+       ; "memory", memory_rtl_command
        ; "kernel", kernel_rtl_command
        ; "osr", osr_rtl_command
        ; "kernel-accepts", kernel_accepts_rtl_command
