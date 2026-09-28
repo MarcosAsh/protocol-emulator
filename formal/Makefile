@@ -123,6 +123,26 @@ stamped_proof:
 	sby -f -d certificate_stamped_inductive certificate_inductive.sby prove
 	sby -f --prefix certificate_stamped certificate_inductive.sby teeth off_by_one next_bit
 
+# Which bits of which host word the pins carry, for the transmitters that pull each word by
+# hand and send it through the osr alone: their certificate as above with the data claims
+# of write_certificate.ml added. Teeth: the pins showing the bit after the one sent has to
+# fail.
+DATA = uart_tx uart_tx16 uart_tx_host_rate spi_master jtag
+data_certificate: engine_sram.v
+	(cd .. && dune exec -- test/certify/write_certificate.exe -inductive -data $(NAME)) > certificate_data_$(NAME).sv
+	$(MAKE) data_proof NAME=$(NAME)
+
+data_proof:
+	cp certificate_data_$(NAME).sv certificate.sv
+	sby -f -d certificate_data_$(NAME)_inductive certificate_inductive.sby prove
+	sby -f --prefix certificate_data_$(NAME) certificate_inductive.sby teeth next_bit
+
+data_certificates: engine_sram.v
+	for name in $(DATA); do $(MAKE) data_certificate NAME=$$name || exit 1; done
+
+data_names:
+	@echo $(DATA)
+
 # Every firmware in test/certified.ml, each under what its entry there says it assumes,
 # which the certificate prints: nothing for most; for the firmware that waits on the host
 # or anchors on a captured edge, that the core is within 84 ms of its deadline and of that
@@ -198,5 +218,5 @@ netlist_equiv_teeth:
 
 .PHONY: all issue_timing host_timing late_host fifo_order phase_step edge_step frame_step \
   value_step chip_frame data_step teeth certificates certificate inductive_certificate \
-  inductive_proof inductive_certificates inductive_names stamped_certificate stamped_proof netlist_equiv \
-  netlist_equiv_teeth
+  inductive_proof inductive_certificates inductive_names stamped_certificate stamped_proof \
+  data_certificate data_proof data_certificates data_names netlist_equiv netlist_equiv_teeth

@@ -1,7 +1,8 @@
 [tasks]
 prove
 teeth
-# only for a certificate written with -stamped, whose departure times they break
+# only for a certificate written with -stamped, whose departure times they break;
+# next_bit also for one written with -data
 off_by_one
 next_bit
 
@@ -25,9 +26,11 @@ flatten
 expose -evert -sep __ engine_top/t:RM_IHPSG13_1P_512x16_c2_bm_bist
 cd engine_top
 # induction starts from no history, so it needs the core's own issue and jump
-expose w:solo.engine.issue w:solo.engine.jmp_go
+expose w:solo.engine.issue w:solo.engine.jmp_go w:solo.engine.tx.head w:solo.engine.tx.empty
 rename solo.engine.issue eng_issue
 rename solo.engine.jmp_go eng_jmp_go
+rename solo.engine.tx.head eng_tx_head
+rename solo.engine.tx.empty eng_tx_empty
 rename solo.engine.sram_macro.sram__A_ADDR sram_addr
 rename solo.engine.sram_macro.sram__A_DOUT sram_dout
 rename solo.data_memory.sram_macro.sram__A_DOUT data_sram_dout

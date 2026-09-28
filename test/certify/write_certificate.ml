@@ -275,6 +275,198 @@ let stamp_claims ~(config : Program_config.t) (rows : Analyser.Row.t list) =
   monitor, claims
 ;;
 
+(* Which bits of the host word the pins carry, for firmware that pulls by hand and outs
+   to the pins, n bits at a time. From the osr kernel's rows: osr_count and the osr follow
+   the count since the pull; a pulled row holds a word or has set underflow; while an out
+   to the pins was the last write to them or the osr, the pins show its bits [c - n, c),
+   and where a row's sum S is one value, bits [S - n - x, S - x). Bits count from the end
+   the osr shifts from; the word is the tx fifo's head at the pull (fifo_order.sv). *)
+let data_claims ~(config : Program_config.t) ~words (rows : Analyser.Row.t list) =
+  if config.autopull || config.manchester
+  then raise_s [%message "BUG: data claims are for firmware that pulls by hand"];
+  let kernel = Kernel.Table.of_analyser rows in
+  let osr = Osr_kernel.Table.propose ~config ~words kernel in
+  Osr_kernel.check ~config ~words ~kernel osr |> ok_exn;
+  let n =
+    List.filter_map rows ~f:(fun row ->
+      match row.instruction with
+      | Op { op = Out { dest = Pins; count }; _ } -> Some count
+      | _ -> None)
+    |> List.dedup_and_sort ~compare
+    |> function
+    | [ n ] -> n
+    | counts -> raise_s [%message "BUG: one count of out to the pins" (counts : int list)]
+  in
+  let overlaps base count =
+    count > 0 && base < config.out_base + n && config.out_base < base + count
+  in
+  if overlaps config.side_set_base config.side_set_count
+  then raise_s [%message "BUG: side-set drives the pins the outs send on"];
+  (* at each issue, what the count, the word and the last write to the out pins do *)
+  let count_on = sprintf "shifted <= shifted + 6'd%d > 32 ? 6'd32 : shifted + 6'd%d;" in
+  let actions =
+    List.filter_map rows ~f:(fun row ->
+      let action =
+        match row.instruction with
+        | Op { op = Out { dest = Pins; count }; _ } ->
+          Some (count_on count count ^ " sent <= 1;")
+        | Op { op = Out { count; _ }; _ } -> Some (count_on count count ^ " sent <= 0;")
+        | Op { op = Sys Pull; _ } ->
+          Some
+            "shifted <= 0; holds_word <= !tx_empty; sent <= 0;\n\
+            \          if (!tx_empty) word <= tx_head;"
+        | Op { op = Mov { dest = Osr; _ }; _ } ->
+          Some "shifted <= 0; holds_word <= 0; sent <= 0;"
+        | i when writes_pins i -> Some "sent <= 0;"
+        | _ -> None
+      in
+      Option.map action ~f:(fun action ->
+        sprintf "        %d: begin\n          %s\n        end" row.pc action))
+    |> String.concat ~sep:"\n"
+  in
+  (* whether every way in, and whether some way in, had an out to the pins last *)
+  let sent_after (row : Analyser.Row.t) sent_in =
+    match row.instruction with
+    | Op { op = Out { dest = Pins; _ }; _ } -> true
+    | Op { op = Out _ | Sys Pull | Mov { dest = Osr; _ }; _ } -> false
+    | i when writes_pins i -> false
+    | _ -> sent_in
+  in
+  let settle ~combine =
+    let rec go sent =
+      let next =
+        List.fold rows ~init:sent ~f:(fun sent (row : Analyser.Row.t) ->
+          let start = if row.pc = 0 then [ false ] else [] in
+          let ways_in =
+            start
+            @ List.filter_map row.since_edge ~f:(fun (from, _) ->
+              Map.find sent from |> Option.map ~f:(sent_after (List.nth_exn rows from)))
+          in
+          match ways_in with
+          | [] -> sent
+          | first :: rest ->
+            Map.set sent ~key:row.pc ~data:(List.fold rest ~init:first ~f:combine))
+      in
+      if Map.equal Bool.equal next sent then sent else go next
+    in
+    go Int.Map.empty
+  in
+  let must_send = settle ~combine:( && ) in
+  let may_send = settle ~combine:( || ) in
+  let pins = sprintf "pin_out[%d +: %d]" config.out_base n in
+  let row_claims =
+    List.concat_map rows ~f:(fun (row : Analyser.Row.t) ->
+      let r = Osr_kernel.Row.map osr.(row.pc) ~f:Bits.to_unsigned_int in
+      if r.shifted_lo > r.shifted_hi
+      then []
+      else (
+        (* a bound at either end of what the ghost can hold says nothing *)
+        let bound value lo hi ~max =
+          List.filter_opt
+            [ Option.some_if (lo > 0) (sprintf "%s >= %d" value lo)
+            ; Option.some_if (hi < max) (sprintf "%s <= %d" value hi)
+            ]
+        in
+        let count =
+          match
+            bound "shifted" r.shifted_lo r.shifted_hi ~max:Osr_kernel.shift_limit
+            @ bound "sum" r.sum_lo r.sum_hi ~max:((1 lsl (Isa.data_bits + 1)) - 1)
+          with
+          | [] -> []
+          | c ->
+            [ sprintf
+                "      if (pc == %d) assert (%s);"
+                row.pc
+                (String.concat ~sep:" && " c)
+            ]
+        in
+        let holds =
+          if r.pulled = 0
+          then []
+          else [ sprintf "      if (pc == %d) assert (holds_word || underflow);" row.pc ]
+        in
+        let sent =
+          if Map.find must_send row.pc |> Option.value ~default:false
+          then [ sprintf "      if (pc == %d) assert (sent);" row.pc ]
+          else []
+        in
+        (* which bits, by x, where the sum is one value and the count is not *)
+        let which =
+          if r.sum_lo <> r.sum_hi
+             || r.shifted_lo = r.shifted_hi
+             || r.pulled = 0
+             || not (Map.find may_send row.pc |> Option.value ~default:false)
+          then []
+          else (
+            let first = r.sum_lo - n in
+            [ sprintf
+                "      if (pc == %d && sent && holds_word)\n\
+                \        assert (x <= %d && %s == bits(word, 17'd%d - {1'b0, x}, %d));"
+                row.pc
+                first
+                pins
+                first
+                n
+            ])
+        in
+        count @ holds @ sent @ which))
+    |> String.concat ~sep:"\n"
+  in
+  let right = Program_config.Shift_direction.equal config.out_shift Right in
+  let shift = if right then "w >> c" else "w << c" in
+  (* the first n bits the osr shifts out, from c on *)
+  let from c =
+    if right
+    then sprintf "shifted_by(w, %s)" c
+    else sprintf "(shifted_by(w, %s) >> (5'd16 - n))" c
+  in
+  let monitor =
+    [%string
+      {|  // the word the osr last took from the host, and how many bits of it have gone out
+  // since, on past 16; and whether the last write to the out pins or to the osr was an
+  // out to the pins
+  reg [5:0] shifted = 16;
+  reg holds_word = 0;
+  reg [15:0] word = 0;
+  reg sent = 0;
+  wire [16:0] sum = shifted + x;
+  always @(posedge clk)
+    if (clear) begin
+      shifted <= 16;
+      holds_word <= 0;
+      sent <= 0;
+    end else if (issue)
+      case (pc)
+%{actions}
+      endcase
+  function [15:0] shifted_by(input [15:0] w, input [5:0] c);
+    shifted_by = %{shift};
+  endfunction
+  // the n bits of w from c on, counted from the end the osr shifts from, low bit first
+  function [15:0] bits(input [15:0] w, input [5:0] c, input [4:0] n);
+`ifdef NEXT_BIT
+    bits = %{from "c + n"} & ((16'd1 << n) - 16'd1);
+`else
+    bits = %{from "c"} & ((16'd1 << n) - 16'd1);
+`endif
+  endfunction
+
+|}]
+  in
+  let claims =
+    [%string
+      {|      // the count is the core's, stopped at 16, and the osr holds the word it last took
+      assert (shifted <= 32 && osr_count == (shifted > 16 ? 5'd16 : shifted[4:0]));
+      if (holds_word) assert (osr == shifted_by(word, shifted));
+      // the pins show the bits the last out sent
+      if (sent && holds_word) assert (%{pins} == bits(word, shifted - 6'd%{n#Int}, %{n#Int}));
+      // the count, and which bits, at each pc
+%{row_claims}
+|}]
+  in
+  monitor, claims
+;;
+
 (* The same certificate as an invariant for induction, which holds for all time rather
    than to a depth. The program is a ROM behind the macro's port, read a cycle late as the
    macro is, so nothing about it can be wrong in the state induction starts from. At every
@@ -300,7 +492,7 @@ let stamp_claims ~(config : Program_config.t) (rows : Analyser.Row.t list) =
    - the cycles since the last pin edge are what the analyser says for the way in from
      that instruction, on the way in and while a delay or a wait holds the core, which is
      what makes the gaps between edges hold in a loop that anchors no deadline. *)
-let inductive ?(no_wrap = false) ?(stamped = false) ~config source =
+let inductive ?(no_wrap = false) ?(stamped = false) ?(data = false) ~config source =
   let program = Asm.assemble source |> ok_exn in
   let config = Asm.Program.configure program config in
   let words = Asm.Program.words program |> ok_exn in
@@ -551,6 +743,9 @@ let inductive ?(no_wrap = false) ?(stamped = false) ~config source =
   let stamp_monitor, stamp_claims =
     if stamped then stamp_claims ~config rows else "", ""
   in
+  let data_monitor, data_claims =
+    if data then data_claims ~config ~words rows else "", ""
+  in
   let wrap_top = config.wrap_top in
   let wrap_bottom = config.wrap_bottom in
   [%string
@@ -585,7 +780,9 @@ module certificate (input clk);
   reg [15:0] fetched;
   always @(posedge clk) fetched <= rom(sram_addr);
   wire [23:0] t, now, capture;
-  wire [15:0] x, y, p, osr, instruction;
+  wire [15:0] x, y, p, osr, instruction, tx_head;
+  wire [4:0] osr_count;
+  wire underflow, tx_empty;
   wire [27:0] pin_out;
   wire [7:0] opcode_onehot;
   wire [27:0] wait_select;
@@ -601,11 +798,12 @@ module certificate (input clk);
     .clear_irq(1'b0), .stop(1'b0), .flush(1'b0),
     .inputs(inputs), .sram_addr(sram_addr), .sram_dout(fetched), .data_sram_dout(16'b0),
     .pin_out(pin_out), .pc(pc), .t(t), .now(now), .capture(capture), .x(x), .y(y), .p(p),
-    .osr(osr), .stall(stall),
-    .halted(halted), .instruction(instruction), .decode_ok(decode_ok),
+    .osr(osr), .osr_count(osr_count), .stall(stall),
+    .fault$underflow(underflow), .halted(halted), .instruction(instruction), .decode_ok(decode_ok),
     .opcode_onehot(opcode_onehot), .wait_select(wait_select), .flip_pending(flip_pending),
     .eng_issue(eng_issue),
-    .eng_jmp_go(eng_jmp_go));
+    .eng_jmp_go(eng_jmp_go), .eng_tx_head(tx_head),
+    .eng_tx_empty(tx_empty));
 
   // the engine's own signals, not a shadow of them worked out from the delay left: in the
   // state induction starts from the two come apart
@@ -644,7 +842,7 @@ module certificate (input clk);
       came <= pc;
     end
 
-%{stamp_monitor}%{no_wrap}  always @(*)
+%{stamp_monitor}%{data_monitor}%{no_wrap}  always @(*)
     if (running) begin
       assert (!halted && !started);
 %{captured_has_passed}      assert (decode_ok && opcode_onehot == (8'd1 << instruction[15:13]));
@@ -659,7 +857,7 @@ module certificate (input clk);
       if (stalled) assert (came_valid && came == pc);
 %{claims}
 %{edges}
-%{stamp_claims}`ifdef TEETH
+%{stamp_claims}%{data_claims}`ifdef TEETH
       assert (pc != %{teeth_pc#Int});
 `endif
     end
@@ -671,11 +869,12 @@ let () =
   let args = Sys.get_argv () in
   let inductive_mode = Array.exists args ~f:(String.equal "-inductive") in
   let stamped = Array.exists args ~f:(String.equal "-stamped") in
+  let data = Array.exists args ~f:(String.equal "-data") in
   let { Certified.source; config; no_wrap; _ } =
     Certified.find_exn (Array.last_exn args)
   in
   print_string
     (if inductive_mode
-     then inductive ~no_wrap ~stamped ~config source
+     then inductive ~no_wrap ~stamped ~data ~config source
      else harness ~config source)
 ;;

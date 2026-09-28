@@ -57,7 +57,8 @@ jobs:
           opam exec -- dune exec -- bin/generate.exe osr > formal/osr_step.v
           make -C formal issue_timing host_timing late_host fifo_order phase_step edge_step frame_step value_step chip_frame data_step teeth
 
-      # each inductive certificate, the stamped one too, is proved in a job of its own below
+      # each inductive certificate, the stamped one and the ones with data claims too, is
+      # proved in a job of its own below
       - name: Write the certificates
         id: certificates
         run: |
@@ -66,7 +67,12 @@ jobs:
             opam exec -- dune exec -- test/certify/write_certificate.exe -inductive $name > formal/certificate_$name.sv
           done
           opam exec -- dune exec -- test/certify/write_certificate.exe -inductive -stamped uart_tx_stamped > formal/certificate_stamped.sv
-          echo "names=$(echo $names stamped | jq -Rc 'split(" ")')" >> "$GITHUB_OUTPUT"
+          data=""
+          for name in $(make -s -C formal data_names); do
+            opam exec -- dune exec -- test/certify/write_certificate.exe -inductive -data $name > formal/certificate_data_$name.sv
+            data="$data data_$name"
+          done
+          echo "names=$(echo $names stamped $data | jq -Rc 'split(" ")')" >> "$GITHUB_OUTPUT"
 
       - name: Upload the certificates
         uses: actions/upload-artifact@v7
@@ -120,8 +126,8 @@ jobs:
       # the invariant by induction, then the teeth runs, which have to fail
       - name: Prove
         run: |
-          if [ ${{ matrix.name }} = stamped ]; then
-            make -C formal stamped_proof
-          else
-            make -C formal inductive_proof NAME=${{ matrix.name }}
-          fi
+          case ${{ matrix.name }} in
+            stamped) make -C formal stamped_proof ;;
+            data_*) make -C formal data_proof NAME=$(echo ${{ matrix.name }} | sed 's/^data_//') ;;
+            *) make -C formal inductive_proof NAME=${{ matrix.name }} ;;
+          esac
