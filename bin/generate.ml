@@ -75,6 +75,18 @@ let kernel_rtl_command =
           C.create_exn ~name (Kernel.hierarchical scope))]
 ;;
 
+let osr_rtl_command =
+  Command.basic
+    ~summary:
+      "Verilog for the osr kernel's step, which formal/data_step.sv proves the core keeps"
+    [%map_open.Command
+      let () = return () in
+      fun () ->
+        let module C = Circuit.With_interface (Osr_kernel.I) (Osr_kernel.O) in
+        print_rtl ~name:"osr_step_top" (fun ~name scope ->
+          C.create_exn ~name (Osr_kernel.hierarchical scope))]
+;;
+
 (* The assumptions are the analyser's, under its names. The capture pin and autopull
    belong to the configuration, which the host loads and a source file does not carry. *)
 let timing_check =
@@ -191,6 +203,7 @@ let () =
        ; "engines", engines_rtl_command
        ; "top", top_rtl_command
        ; "kernel", kernel_rtl_command
+       ; "osr", osr_rtl_command
        ; "assemble", assemble_command
        ])
 ;;

@@ -1,5 +1,5 @@
 all: issue_timing host_timing late_host fifo_order phase_step edge_step frame_step value_step \
-  chip_frame teeth
+  chip_frame data_step teeth
 
 engine.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe engine > formal/engine.v
@@ -49,8 +49,16 @@ value_step: engine.v
 chip_frame: engines.v
 	sby -f chip_frame.sby prove pads_shared cover
 
+osr_step.v: ../src/*.ml
+	cd .. && dune exec -- bin/generate.exe osr > formal/osr_step.v
+
+# the data lemma: each out sends the bits of the word the osr last took that the osr
+# kernel's count says, or the underflow fault is set
+data_step: engine.v osr_step.v
+	sby -f data_step.sby prove cover
+
 # weakened statements, which pass only by failing
-teeth: engine.v engine_sram.v engines.v kernel_step.v
+teeth: engine.v engine_sram.v engines.v kernel_step.v osr_step.v
 	sby -f issue_timing.sby jump_in_one delay_ignores_side_set waits_are_plain
 	sby -f fifo_order.sby stale_ahead
 	sby -f phase_step.sby jump_in_one late_wait_waits no_carry one_late_cycle_is_safe taken_backwards \
@@ -62,6 +70,7 @@ teeth: engine.v engine_sram.v engines.v kernel_step.v
 	  pull_past_threshold data_never_refused in_wrong_direction push_before_shift \
 	  flip_at_outs_base flip_same_half
 	sby -f chip_frame.sby overlap unbound read_everywhere
+	sby -f data_step.sby wrong_way off_by_one stale_word
 	sby -f host_timing.sby private_pull no_wait_excuse no_jump_excuse no_underflow_excuse no_overflow_excuse
 	sby -f late_host.sby admit_fifo_wait admit_fifo_jump private_pull no_underflow_excuse \
 	  no_overflow_excuse
@@ -188,6 +197,6 @@ netlist_equiv_teeth:
 	grep -E 'CEX: .* Frame = +[1-9]' netlist_equiv_unreset/proof.log
 
 .PHONY: all issue_timing host_timing late_host fifo_order phase_step edge_step frame_step \
-  value_step chip_frame teeth certificates certificate inductive_certificate inductive_proof \
-  inductive_certificates inductive_names stamped_certificate stamped_proof netlist_equiv \
+  value_step chip_frame data_step teeth certificates certificate inductive_certificate \
+  inductive_proof inductive_certificates inductive_names stamped_certificate stamped_proof netlist_equiv \
   netlist_equiv_teeth
