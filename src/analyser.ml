@@ -272,6 +272,7 @@ let count_down (r : Interval.t) =
    which the offset on the way into it is taken against: see [slopes]. *)
 let step
   ?period
+  ?period_floor
   ?(single_capture_edge = false)
   ~config
   ~slope_at
@@ -279,7 +280,13 @@ let step
   pc
   (t : Isa.t)
   =
-  let loaded_period = Option.value_map period ~default:Interval.top ~f:Interval.exactly in
+  let loaded_period =
+    match period, period_floor with
+    | Some period, _ -> Interval.exactly period
+    | None, Some floor ->
+      { Interval.lo = Some floor; hi = Some ((1 lsl Isa.data_bits) - 1) }
+    | None, None -> Interval.top
+  in
   (* the wrap is an edge of the graph like any other and takes no cycles *)
   let following =
     if pc = config.Program_config.wrap_top
@@ -509,7 +516,9 @@ let slopes ~(config : Program_config.t) (program : Isa.t array) entry =
   slopes
 ;;
 
-let analyse ?period ?single_capture_edge ~config (program : Isa.t list) =
+let analyse ?period ?period_floor ?single_capture_edge ~config (program : Isa.t list) =
+  if Option.is_some period && Option.is_some period_floor
+  then raise_s [%message "BUG: a period or a floor, not both"];
   (* past the program the memory reads zero, [jmp 0], and the pc wraps at its end *)
   let program =
     Array.of_list
@@ -520,7 +529,7 @@ let analyse ?period ?single_capture_edge ~config (program : Isa.t list) =
   in
   let n = Array.length program in
   let successors ~slope_at pc s =
-    step ?period ?single_capture_edge ~config ~slope_at s pc program.(pc)
+    step ?period ?period_floor ?single_capture_edge ~config ~slope_at s pc program.(pc)
     |> relate ~slope_at pc program.(pc)
   in
   let fixpoint ~slope_at =

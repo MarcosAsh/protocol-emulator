@@ -58,3 +58,80 @@ let%expect_test "the firmware library and its certificates" =
     jtag                  15         3      0
     |}]
 ;;
+
+module G = Hardcaml_verify.Comb_gates
+
+(* That the kernel accepts [table] at every run-time load of [floor] or more, the loaded
+   period an input and the rest constant. *)
+let every_load_from ~floor ~single_capture_edge ~config ~words (table : Kernel.Table.t) =
+  let loaded =
+    { Hardcaml.With_valid.valid = G.vdd; value = G.input "loaded" Isa.data_bits }
+  in
+  let accepts =
+    Array.map
+      table
+      ~f:(Kernel.Row.map ~f:(fun b -> G.of_constant (Hardcaml.Bits.to_constant b)))
+    |> Table_query.accepts ~loaded ~single_capture_edge ~config ~words
+  in
+  let below = G.(loaded.value <:. floor) in
+  G.(below |: accepts)
+;;
+
+(* Where the host picks the rate, the least period it may load. The analyser's table for
+   loads of the floor or more passes the kernel at every such load, by checked SAT; at the
+   floor less one the kernel refuses its table. With phase_step.sv, whose loaded period is
+   any constant, no deadline is missed at any constant period from the floor up. *)
+let%expect_test "the least period the host may load" =
+  List.iter Certified.all ~f:(fun t ->
+    Option.iter t.period_floor ~f:(fun floor ->
+      let program = Asm.assemble t.source |> ok_exn in
+      let config = Asm.Program.configure program t.config in
+      let words = Asm.Program.words program |> ok_exn in
+      let single_capture_edge = t.single_capture_edge in
+      let table floor =
+        Analyser.analyse
+          ~period_floor:floor
+          ~single_capture_edge
+          ~config
+          program.instructions
+        |> Kernel.Table.of_analyser
+      in
+      let passes floor =
+        Kernel.check ~period:floor ~single_capture_edge ~config ~words (table floor)
+        |> Result.is_ok
+      in
+      let loads_from least =
+        every_load_from ~floor:least ~single_capture_edge ~config ~words (table floor)
+      in
+      print_s
+        [%message
+          t.name
+            ~period:(t.period : int option)
+            (floor : int)
+            ~passes:(passes floor : bool)
+            ~one_less:(passes (floor - 1) : bool)];
+      Checked_unsat.prove
+        [%string "%{t.name}: every load of %{floor#Int} or more"]
+        ~cases:[ G.vdd ]
+        ~claim:(loads_from floor);
+      (* the tooth: one less than the table allows *)
+      Checked_unsat.prove
+        ~show:[ "loaded" ]
+        [%string "%{t.name}: every load of %{floor - 1#Int} or more"]
+        ~cases:[ G.vdd ]
+        ~claim:(loads_from (floor - 1))));
+  [%expect {|
+    (uart_tx_host_rate (period (434)) (floor 4) (passes true) (one_less false))
+    (QED "uart_tx_host_rate: every load of 4 or more")
+    (counterexample "uart_tx_host_rate: every load of 3 or more"
+     (model ((loaded 0000000000000011))))
+    (one_wire (period (300)) (floor 5) (passes true) (one_less false))
+    (QED "one_wire: every load of 5 or more")
+    (counterexample "one_wire: every load of 4 or more"
+     (model ((loaded 0000000000000100))))
+    (ps2 (period (1000)) (floor 8) (passes true) (one_less false))
+    (QED "ps2: every load of 8 or more")
+    (counterexample "ps2: every load of 7 or more"
+     (model ((loaded 0000000000000111))))
+    |}]
+;;

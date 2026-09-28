@@ -6,12 +6,21 @@ type t =
   ; source : string
   ; config : Program_config.t
   ; period : int option
+  ; period_floor : int option
   ; single_capture_edge : bool
   ; no_wrap : bool
   }
 
-let plain ?period ?(single_capture_edge = false) ?(no_wrap = false) name source config =
-  { name; source; config; period; single_capture_edge; no_wrap }
+let plain
+  ?period
+  ?period_floor
+  ?(single_capture_edge = false)
+  ?(no_wrap = false)
+  name
+  source
+  config
+  =
+  { name; source; config; period; period_floor; single_capture_edge; no_wrap }
 ;;
 
 let receiver = plain ~single_capture_edge:true ~no_wrap:true
@@ -22,6 +31,7 @@ let all =
   ; plain "uart_tx16" (Firmware.uart_tx ~period:16) Program_config.default
   ; plain
       ~period:434
+      ~period_floor:4
       ~no_wrap:true
       "uart_tx_host_rate"
       Firmware.uart_tx_host_rate
@@ -49,8 +59,13 @@ let all =
       "ethernet"
       Ethernet.firmware
       Ethernet.config
-  ; plain ~period:One_wire.standard_unit "one_wire" One_wire.firmware One_wire.config
-  ; plain ~period:Ps2.standard_quarter "ps2" Ps2.firmware Ps2.config
+  ; plain
+      ~period:One_wire.standard_unit
+      ~period_floor:5
+      "one_wire"
+      One_wire.firmware
+      One_wire.config
+  ; plain ~period:Ps2.standard_quarter ~period_floor:8 "ps2" Ps2.firmware Ps2.config
   ; plain "jtag" (Jtag.firmware ~half_period:Jtag.shortest_half) Jtag.config
   ]
 ;;

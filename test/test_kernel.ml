@@ -407,6 +407,7 @@ let%expect_test "the way through jmp x!=y knows x is y" =
     |}
     ; config = Program_config.default
     ; period = None
+    ; period_floor = None
     ; single_capture_edge = false
     ; no_wrap = false
     }

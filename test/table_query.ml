@@ -23,6 +23,44 @@ let of_model model ~pc =
       |> Bits.of_unsigned_int ~width)
 ;;
 
+let constant b = G.of_constant (Bits.to_constant b)
+let size = 1 lsl Isa.pc_bits
+
+let accepts ~loaded ~single_capture_edge ~(config : Program_config.t) ~words table =
+  let words = Array.of_list words in
+  let word pc =
+    Bits.of_unsigned_int
+      ~width:Isa.data_bits
+      (if pc < Array.length words then words.(pc) else 0)
+  in
+  let following pc =
+    if pc = config.wrap_top then config.wrap_bottom else (pc + 1) % size
+  in
+  let side_set_count = G.of_unsigned_int ~width:2 config.side_set_count in
+  let fraction = G.of_bool (config.period_fraction <> 0) in
+  let capture =
+    { Kernel.Capture.pin =
+        G.of_unsigned_int ~width:Isa.Field.wait_index.width config.capture_pin
+    ; rising = G.of_bool config.capture_rising
+    ; single_edge = G.of_bool single_capture_edge
+    }
+  in
+  List.init size ~f:(fun pc ->
+    let target =
+      Bits.to_unsigned_int (Isa.Field.select (module Bits) Isa.Field.jmp_target (word pc))
+    in
+    K.accepts
+      ~side_set_count
+      ~fraction
+      ~loaded
+      ~capture
+      ~word:(constant (word pc))
+      ~row:table.(pc)
+      ~next:table.(following pc)
+      ~target:table.(target))
+  |> G.reduce ~f:G.( &: )
+;;
+
 let witness
   ?(solver = Checked_unsat.solver)
   ?(offsets = true)
@@ -32,9 +70,6 @@ let witness
   ~words
   ()
   =
-  let words = Array.of_list words in
-  let constant b = G.of_constant (Bits.to_constant b) in
-  let size = 1 lsl Isa.pc_bits in
   let table =
     Array.init size ~f:(fun pc ->
       let row =
@@ -55,45 +90,15 @@ let witness
         ; offset_hi = full.offset_hi
         })
   in
-  let word pc =
-    Bits.of_unsigned_int
-      ~width:Isa.data_bits
-      (if pc < Array.length words then words.(pc) else 0)
-  in
-  let following pc =
-    if pc = config.Program_config.wrap_top then config.wrap_bottom else (pc + 1) % size
-  in
-  let side_set_count = G.of_unsigned_int ~width:2 config.side_set_count in
-  let fraction = G.of_bool (config.period_fraction <> 0) in
   let loaded =
     { With_valid.valid = G.of_bool (Option.is_some period)
     ; value = G.of_unsigned_int ~width:Isa.data_bits (Option.value period ~default:0)
     }
   in
-  let capture =
-    { Kernel.Capture.pin =
-        G.of_unsigned_int ~width:Isa.Field.wait_index.width config.capture_pin
-    ; rising = G.of_bool config.capture_rising
-    ; single_edge = G.of_bool single_capture_edge
-    }
-  in
-  let passes =
-    List.init size ~f:(fun pc ->
-      let target =
-        Bits.to_unsigned_int
-          (Isa.Field.select (module Bits) Isa.Field.jmp_target (word pc))
-      in
-      K.accepts
-        ~side_set_count
-        ~fraction
-        ~loaded
-        ~capture
-        ~word:(constant (word pc))
-        ~row:table.(pc)
-        ~next:table.(following pc)
-        ~target:table.(target))
-  in
-  match Solver.solve ~solver (G.cnf (G.reduce ~f:G.( &: ) passes)) |> ok_exn with
+  match
+    Solver.solve ~solver (G.cnf (accepts ~loaded ~single_capture_edge ~config ~words table))
+    |> ok_exn
+  with
   | Unsat -> None
   | Sat model ->
     Some

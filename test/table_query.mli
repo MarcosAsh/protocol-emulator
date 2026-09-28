@@ -7,6 +7,16 @@
 open! Core
 open Protocol_emulator
 
+(** That the kernel accepts [table] at every pc, with [loaded] as the run-time load of
+    [p]. *)
+val accepts
+  :  loaded:Hardcaml_verify.Comb_gates.t Hardcaml.With_valid.t
+  -> single_capture_edge:bool
+  -> config:Program_config.t
+  -> words:int list
+  -> Hardcaml_verify.Comb_gates.t Kernel.Row.t array
+  -> Hardcaml_verify.Comb_gates.t
+
 (** The solver's model as a table, a row input it leaves out read as zero. Only
     [Kernel.check] on it is a verdict. Without [offsets] every offset is full. Raises if
     [solver] (default [Checked_unsat.solver]) fails. *)

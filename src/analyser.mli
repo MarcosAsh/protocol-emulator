@@ -81,9 +81,11 @@ val captures : Program_config.t -> Isa.Wait.t -> bool
     when [capture_arm] issues and holds the captured level until the wait for it releases,
     which is what a start bit gives a receiver that arms in time; without it a wait on the
     capture pin proves nothing about the capture register, and [mov t, capture] leaves the
-    phase unbounded. *)
+    phase unbounded. [period_floor], in place of [period], assumes only that every load
+    carries at least it. *)
 val analyse
   :  ?period:int
+  -> ?period_floor:int
   -> ?single_capture_edge:bool
   -> config:Program_config.t
   -> Isa.t list
