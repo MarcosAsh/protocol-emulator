@@ -367,10 +367,13 @@ netlist_equiv_teeth:
 	$(MAKE) netlist_equiv NETLIST=netlist_equiv_teeth/unreset.v EQUIV=netlist_equiv_unreset EXPECT=0
 	grep -E 'CEX: .* Frame = +[1-9]' netlist_equiv_unreset/proof.log
 
-# cadical (rel-3.0.1) and cake_lpr at pinned commits, for the kernel's checked QEDs
-# (test/checked_unsat.ml), in sat_tools/bin; CI caches it. About 1 min.
+# cadical (rel-3.0.1), cake_lpr, and Certifaiger on the aiger library, at pinned commits,
+# for the kernel's checked QEDs (test/checked_unsat.ml) and the witnesses below, in
+# sat_tools/bin; CI caches it. About 1 min.
 CADICAL = c60730422e758ef1cebe7aeddf2dda31c996bf04
 CAKE_LPR = a36874a8b750b43fe4b385b8ddbf5b033e46a3fa
+CERTIFAIGER = 079dc0e8477059cea8f4b168676f2dde4568829c
+AIGER = 1876b273dc603d000d11da8ebbc099353ac42c6f
 CAKE_LPR_ARCH = $(if $(filter arm64 aarch64,$(shell uname -m)),cake_lpr_arm8,cake_lpr)
 sat_tools:
 	rm -rf sat_tools && mkdir -p sat_tools/bin
@@ -380,6 +383,12 @@ sat_tools:
 	curl -fsSL https://github.com/tanyongkiam/cake_lpr/archive/$(CAKE_LPR).tar.gz | tar xz -C sat_tools
 	cd sat_tools/cake_lpr-$(CAKE_LPR) && rm -f cake_lpr && $(MAKE) $(CAKE_LPR_ARCH)
 	cp sat_tools/cake_lpr-$(CAKE_LPR)/cake_lpr sat_tools/bin/
+	curl -fsSL https://github.com/arminbiere/aiger/archive/$(AIGER).tar.gz | tar xz -C sat_tools
+	curl -fsSL https://github.com/Froleyks/certifaiger/archive/$(CERTIFAIGER).tar.gz \
+	  | tar xz -C sat_tools
+	cd sat_tools && $(CC) -O3 -c aiger-$(AIGER)/aiger.c -o aiger.o
+	cd sat_tools && $(CXX) -std=c++23 -O3 -DNDEBUG -DVERSION='"10.3.1"' -DGITID='"$(CERTIFAIGER)"' \
+	  -iquote aiger-$(AIGER) certifaiger-$(CERTIFAIGER)/src/certifaiger.cpp aiger.o -o bin/certifaiger
 
 .PHONY: all link link_proof issue_timing host_timing late_host fifo_order phase_step phase_table \
   phase_table_proof phase_table_affine phase_table_affine_proof edge_step frame_step value_step \
