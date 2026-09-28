@@ -27,6 +27,7 @@ formal/certificate*.sv
 formal/fsm_miter*.sv
 formal/*_*/
 !formal/netlist_equiv/
+!formal/sram_equiv/
 __pycache__/
 test/fpga_netlist.v
 test/fpga_top.v
@@ -36,3 +37,5 @@ test/fpga_kit.log
 formal/kernel_step.v
 formal/osr_step.v
 formal/kernel_accepts.v
+formal/memory_flops.v
+formal/memory_sram.v

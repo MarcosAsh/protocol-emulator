@@ -1,0 +1,10 @@
+# Each flop's q becomes an input and its d an output, once its words are named mem_i:
+# 512 words and dout's register, and no state left.
+
+select -assert-count 512 t:$dff %x:+[Q] w:mem_* %i
+select -assert-count 1 t:$dff %x:+[Q] w:dout %i
+expose -evert-dff t:$dff
+# the flops are left driving nothing
+opt_clean
+select -assert-none t:$*ff* t:$*latch* %u t:$*sr* %u t:$mem* %u
+check -assert

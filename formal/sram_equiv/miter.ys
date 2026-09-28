@@ -1,0 +1,17 @@
+# One step of each side, from the same state and inputs. The ports must match, so each
+# word and the output register pair with one of the other side's. An x made free is an
+# input of the AIG.
+
+design -copy-from flops -as flops memory_top
+design -copy-from macro -as macro memory_top
+miter -equiv -flatten flops macro miter
+hierarchy -top miter
+techmap
+aigmap
+opt_clean -purge
+write_aiger step.aig
+
+# for cases.ys
+design -copy-from macro -as macro memory_top
+hierarchy -top macro
+write_rtlil macro.il

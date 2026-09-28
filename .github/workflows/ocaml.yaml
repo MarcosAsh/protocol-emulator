@@ -58,7 +58,9 @@ jobs:
           opam exec -- dune exec -- test/certify/write_certificate.exe -fsm > formal/fsm_miter.sv
           opam exec -- dune exec -- test/certify/write_certificate.exe -fsm -mutant > formal/fsm_miter_mutant.sv
           opam exec -- dune exec -- bin/generate.exe kernel-accepts > formal/kernel_accepts.v
-          make -C formal issue_timing host_timing late_host fifo_order phase_step edge_step frame_step value_step chip_frame data_step teeth fsm_miter_proof
+          opam exec -- dune exec -- bin/generate.exe memory > formal/memory_flops.v
+          opam exec -- dune exec -- bin/generate.exe memory -sram > formal/memory_sram.v
+          make -C formal issue_timing host_timing late_host fifo_order phase_step edge_step frame_step value_step chip_frame data_step teeth fsm_miter_proof sram_equiv_proof
 
       # each inductive certificate, the stamped one and the ones with data claims too, is
       # proved in a job of its own below

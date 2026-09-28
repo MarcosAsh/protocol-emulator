@@ -1,0 +1,17 @@
+# What the macro's model does in one step, with word 5 holding 1234 and dout 5555: a
+# read, a write through to dout under the mask, a write that leaves dout, and nothing
+# with men low. Each value is the only one the step can give. Run
+# where step.tcl ran.
+
+read_rtlil macro.il
+sat -set men 1 -set wen 0 -set ren 1 -set addr 5 -set mem_5.q 16'h1234 -set dout.q 16'h5555 \
+  -prove dout.d 16'h1234 -prove mem_5.d 16'h1234 -verify macro
+sat -set men 1 -set wen 1 -set ren 1 -set addr 5 -set din 16'habcd -set bm 16'h00ff \
+  -set mem_5.q 16'h1234 -set dout.q 16'h5555 \
+  -prove dout.d 16'h12cd -prove mem_5.d 16'h12cd -prove mem_6.d mem_6.q -verify macro
+sat -set men 1 -set wen 1 -set ren 0 -set addr 5 -set din 16'habcd -set bm 16'h00ff \
+  -set mem_5.q 16'h1234 -set dout.q 16'h5555 \
+  -prove dout.d 16'h5555 -prove mem_5.d 16'h12cd -verify macro
+sat -set men 0 -set wen 1 -set ren 1 -set addr 5 -set din 16'habcd -set bm 16'hffff \
+  -set mem_5.q 16'h1234 -set dout.q 16'h5555 \
+  -prove dout.d 16'h5555 -prove mem_5.d 16'h1234 -verify macro

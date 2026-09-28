@@ -1,0 +1,18 @@
+# One memory_top as step.tcl reads it, down to 513 flops on one rising clock and logic;
+# an x becomes free, on each side on its own.
+
+hierarchy -check -top memory_top
+proc
+flatten
+setundef -anyseq
+opt_expr
+opt_clean
+memory_collect
+memory_map
+dffunmap
+opt_clean -purge
+delete t:$scopeinfo
+select -assert-count 513 t:$dff
+select -assert-none t:$*ff* t:$*latch* %u t:$*sr* %u t:$mem* %u t:$dff %d
+select -assert-none t:$dff w:clock %co:+[CLK] %d
+select -assert-none t:$dff r:CLK_POLARITY=1 r:CLK_POLARITY=1'1 %u %d

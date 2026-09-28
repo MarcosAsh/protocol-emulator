@@ -1,5 +1,5 @@
 all: issue_timing host_timing late_host fifo_order phase_step edge_step frame_step value_step \
-  chip_frame data_step teeth fsm_miter
+  chip_frame data_step teeth fsm_miter sram_equiv
 
 engine.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe engine > formal/engine.v
@@ -181,6 +181,63 @@ fsm_miter: engine_sram.v
 fsm_miter_proof:
 	sby -f fsm_miter.sby prove short_gap early mutant
 
+memory_flops.v: ../src/*.ml
+	cd .. && dune exec -- bin/generate.exe memory > formal/memory_flops.v
+
+memory_sram.v: ../src/*.ml
+	cd .. && dune exec -- bin/generate.exe memory -sram > formal/memory_sram.v
+
+# the flop program memory is IHP's model of the macro, step for step from any equal state
+# (sram_equiv/step.tcl), which is what lets the lemmas and netlist_equiv cut the macro;
+# then the model's own cases and the teeth. About 45 s; sram_equiv_proof runs on files
+# written already.
+MODELS = ../test/models
+CORE = $(MODELS)/RM_IHPSG13_1P_core_behavioral_bm_bist.v
+STEP = sram_equiv_run
+SIDES = FLOPS=../memory_flops.v MACRO=../memory_sram.v \
+  MODEL=../$(MODELS)/RM_IHPSG13_1P_512x16_c2_bm_bist.v CORE=../$(CORE)
+sram_equiv: memory_flops.v memory_sram.v
+	$(MAKE) sram_equiv_proof
+
+sram_equiv_proof:
+	$(MAKE) sram_equiv_step
+	cd $(STEP) && yosys -q -l cases.log ../sram_equiv/cases.ys
+	$(MAKE) sram_equiv_teeth
+
+sram_equiv_step:
+	rm -rf $(STEP) && mkdir $(STEP)
+	cd $(STEP) && $(SIDES) yosys -q -l step.log -c ../sram_equiv/step.tcl
+	cd $(STEP) && timeout 600 yosys-abc \
+	  -c 'read_aiger step.aig; print_stats; dprove; print_status' > proof.log
+	grep 'Status = $(EXPECT) ' $(STEP)/proof.log
+
+# mutants of the model that must be refuted: dout reading the word before the write, not
+# through it; bit 0 of the mask dropped from the write; and each word stored with bit 15
+# flipped when bit 0 is set, which is the model again from all-zero contents and so passes
+# there (sram_equiv/zero.tcl), but not from any
+TEETH = sram_equiv_teeth
+SCRAMBLE = function [P_DATA_WIDTH-1:0] scramble(input [P_DATA_WIDTH-1:0] v); \
+  scramble = v ^ {v[0], {(P_DATA_WIDTH-1){1'b0}}}; endfunction
+sram_equiv_teeth:
+	rm -rf $(TEETH) && mkdir $(TEETH)
+	sed 's/dr_r<= (memory\[ADDR_MUX\] & ~BM_MUX) | (DIN_MUX & BM_MUX);/dr_r<= memory[ADDR_MUX];/' \
+	  $(CORE) > $(TEETH)/read_first.v
+	sed '/^\s*memory\[ADDR_MUX\] <=/s/BM_MUX/(BM_MUX \& ~1)/g' $(CORE) > $(TEETH)/mask_bit.v
+	sed -e 's/(memory\[ADDR_MUX\] & ~BM_MUX)/(scramble(memory[ADDR_MUX]) \& ~BM_MUX)/g' \
+	  -e 's/^\(\s*memory\[ADDR_MUX\] <= \)\(.*\);/\1scramble(\2);/' \
+	  -e 's/dr_r<=memory\[ADDR_MUX\];/dr_r<=scramble(memory[ADDR_MUX]);/' \
+	  -e "/^reg \[P_DATA_WIDTH-1:0\] *dr_r;/a $(SCRAMBLE)" $(CORE) > $(TEETH)/scrambled.v
+	for tooth in read_first mask_bit scrambled; do \
+	  ! cmp -s $(CORE) $(TEETH)/$$tooth.v || exit 1; \
+	  $(MAKE) sram_equiv_step CORE=$(TEETH)/$$tooth.v STEP=sram_equiv_$$tooth EXPECT=0 || exit 1; \
+	done
+	rm -rf sram_equiv_zero && mkdir sram_equiv_zero
+	cd sram_equiv_zero && $(SIDES) CORE=../$(TEETH)/scrambled.v \
+	  yosys -q -l build.log -c ../sram_equiv/zero.tcl
+	cd sram_equiv_zero && timeout 600 yosys-abc \
+	  -c 'read_aiger zero.aig; print_stats; dprove; print_status' > proof.log
+	grep 'Status = 1 ' sram_equiv_zero/proof.log
+
 # the hardened netlist equals the RTL, macros cut (netlist_equiv/miter.ys); about 2 min:
 #   make netlist_equiv NETLIST=../runs/wokwi/final/nl/tt_um_marcosash_protocol_emulator.nl.v
 STDCELL = $(PDK_ROOT)/ihp-sg13cmos5l/libs.ref/sg13cmos5l_stdcell
@@ -244,4 +301,5 @@ netlist_equiv_teeth:
   phase_table_proof edge_step frame_step value_step chip_frame data_step teeth certificates \
   certificate inductive_certificate inductive_proof inductive_certificates inductive_names \
   stamped_certificate stamped_proof data_certificate data_proof data_certificates data_names \
-  netlist_equiv netlist_equiv_teeth fsm_miter fsm_miter_proof
+  netlist_equiv netlist_equiv_teeth fsm_miter fsm_miter_proof sram_equiv sram_equiv_proof \
+  sram_equiv_step sram_equiv_teeth
