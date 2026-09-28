@@ -1,5 +1,5 @@
 all: issue_timing host_timing late_host fifo_order phase_step edge_step frame_step value_step \
-  narrow chip_frame data_step teeth fsm_miter sram_equiv \
+  narrow saturating chip_frame data_step teeth fsm_miter sram_equiv \
   kernel_equiv link
 
 engine.v: ../src/*.ml
@@ -8,10 +8,13 @@ engine.v: ../src/*.ml
 engine_sram.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe engine -sram > formal/engine_sram.v
 
-# the core with a 7-bit timer, which wraps 128 cycles after a start; the narrow tasks read
-# it with TIMER_BITS=7
+# the core with a 7-bit timer, which wraps 128 cycles after a start, and the kernel for
+# it; the narrow tasks read them with TIMER_BITS=7
 engine_narrow.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe engine -timer-bits 7 > formal/engine_narrow.v
+
+kernel_step_narrow.v: ../src/*.ml
+	cd .. && dune exec -- bin/generate.exe kernel -timer-bits 7 > formal/kernel_step_narrow.v
 
 engines.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe engines -engines 2 > formal/engines.v
@@ -94,9 +97,9 @@ frame_step: engine.v
 value_step: engine.v
 	sby -f value_step.sby prove cover
 
-# the three lemmas above on the narrow core, each with a tooth; narrow_proof runs on the
-# file written already, for CI
-narrow: engine_narrow.v
+# the four lemmas on the narrow core, the first three each with a tooth, the step lemma's
+# the wrap's below; narrow_proof runs on files written already, for CI
+narrow: engine_narrow.v kernel_step_narrow.v
 	$(MAKE) narrow_proof
 
 narrow_proof:
@@ -104,6 +107,25 @@ narrow_proof:
 	sby -f frame_step.sby narrow_timer_prove narrow_timer_cover narrow_timer_no_pair
 	sby -f value_step.sby narrow_timer_prove narrow_timer_cover \
 	  narrow_timer_reverse_wrong_width
+	sby -f phase_step.sby narrow_timer_prove narrow_timer_cover
+
+# The wrap's tooth: a timer that stops at its top instead of wrapping, on one run of jmp 0
+# (ONE_RUN in phase_step.sv). The narrow core's bounded run reaches the top and fails the
+# step lemma there; the chip's, as deep, never reaches it and passes (saturating_chip).
+# saturating_proof runs on files written already, in a CI job of its own.
+SATURATE = s/^\(\s*assign signal_add_[0-9]* = \)now_0 + \(signal_const_[0-9]*\);/\1\&now_0 ? now_0 : now_0 + \2;/
+saturating: engine_narrow.v kernel_step_narrow.v
+	$(MAKE) saturating_proof
+
+saturating_proof:
+	sed '$(SATURATE)' engine_narrow.v > engine_narrow_saturating.v
+	! cmp -s engine_narrow.v engine_narrow_saturating.v
+	sby -f phase_step.sby saturating_narrow
+
+saturating_chip: engine.v kernel_step.v
+	sed '$(SATURATE)' engine.v > engine_saturating.v
+	! cmp -s engine.v engine_saturating.v
+	sby -f phase_step.sby saturating_chip
 
 # and on the two-engine chip: two engines whose footprints share no pad each drive their
 # pads as they would alone, and each reads as it would alone but where the other drives a
@@ -567,4 +589,4 @@ witness_reject:
   netlist_equiv netlist_equiv_teeth sync_rtl sync_gate sync_rtl_teeth sync_gate_teeth \
   fsm_miter fsm_miter_proof sram_equiv sram_equiv_proof \
   sram_equiv_step sram_equiv_teeth kernel_equiv kernel_equiv_proof kernel_miter sat_tools \
-  narrow narrow_proof
+  narrow narrow_proof saturating saturating_proof saturating_chip

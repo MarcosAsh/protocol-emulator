@@ -1,9 +1,14 @@
 // Step lemma for the universal certificate. For any program, from one instruction's entry
 // to the next, the core does what the kernel's step says: the phase [now - t], p, x, y, the
 // pc and, with Manchester off and edge_step.sv's lemma assumed, a watched pair's edges. A
-// deadline wait entered at phase <= 0 does not fault. Equalities are mod 2^24. The engine is
-// the chip's with every input free, so this holds for each engine of several; its program
-// memory is the flop stand-in for the SRAM macro.
+// deadline wait entered at phase <= 0 does not fault. Equalities are mod 2^T, T the
+// timer's width: 24, or 7 in the narrow tasks, which reach the wrap in a bounded run. The
+// engine is the chip's with every input free, so this holds for each engine of several;
+// its program memory is the flop stand-in for the SRAM macro.
+
+`ifndef TIMER_BITS
+`define TIMER_BITS 24
+`endif
 
 // the pair is followed by the step lemma and the spacing proof, not the one-run theorem
 `ifndef TABLE
@@ -13,6 +18,9 @@
 `endif
 
 module phase_step (input clk);
+  localparam T = `TIMER_BITS;
+  // a count of cycles past the timer's range, where it stops
+  localparam [T:0] SATURATED = 1 << T;
   (* anyconst *) wire [1:0] side_set_count;
   (* anyconst *) wire [4:0] side_set_base, in_base, in_count, out_base, out_count, set_base;
   (* anyconst *) wire [2:0] set_count;
@@ -49,7 +57,7 @@ module phase_step (input clk);
   wire [27:0] pin_out, pin_dir;
   wire [8:0] pc;
   wire [15:0] x, y, p, osr, isr, rx_head, instruction, crc;
-  wire [23:0] t, now, capture;
+  wire [T-1:0] t, now, capture;
   wire [4:0] osr_count, isr_count, stall, stuff_run;
   wire halted, irq, underflow, overflow, missed_deadline, decode, capture_armed;
   wire [3:0] tx_level, rx_level;
@@ -101,6 +109,17 @@ module phase_step (input clk);
     assume(!start || halted);
     assume(!program_write_valid || halted);
   end
+`ifdef ONE_RUN
+  // one of the runs above, so a failure in it is the lemma's: jmp 0 written at 0, then one
+  // start and no stop; the wrap's tooth takes it to reach the timer's top in few choices
+  reg [1:0] setup = 0;
+  always @(posedge clk) if (setup != 3) setup <= setup + 2'd1;
+  always @(*) begin
+    assume(!stop && !flush && start == (setup == 2));
+    assume(program_write_valid == (setup == 1));
+    if (setup == 1) assume(program_write_addr == 0 && program_write_data == 0);
+  end
+`endif
 
   wire [2:0] opcode = instruction[15:13];
   wire [4:0] ds = instruction[12:8];
@@ -125,7 +144,7 @@ module phase_step (input clk);
     if (clear || start || completes) fresh <= 1;
     else if (issue) fresh <= 0;
   wire entry = issue && fresh;
-  wire signed [23:0] phase = now - t;
+  wire signed [T-1:0] phase = now - t;
 
   // the analyser's instruction classes
   function is_deadline_wait(input [15:0] w);
@@ -134,49 +153,52 @@ module phase_step (input clk);
   function [8:0] following_of(input [8:0] a);
     following_of = a == wrap_top ? wrap_bottom : a + 9'd1;
   endfunction
-  function [23:0] step_of(input [15:0] w);
-    step_of = w[15:13] == 0 ? 24'd2 : delay_of(w[12:8]) + 24'd1;
+  function [T-1:0] step_of(input [15:0] w);
+    step_of = w[15:13] == 0 ? 2'd2 : delay_of(w[12:8]) + 1'd1;
   endfunction
 
   wire is_jmp = opcode == 0;
   wire deadline_wait = is_deadline_wait(instruction);
   wire [2:0] operand = instruction[2:0];
-  wire [23:0] step = step_of(instruction);
+  wire [T-1:0] step = step_of(instruction);
 
 
   // what t holds after the instruction; a wait moves it at the release
   wire [7:0] body = instruction[7:0];
-  wire [23:0] t_after =
+  wire [T-1:0] t_after =
       opcode == 4 && body == 8'b11100110 ? now
     : opcode == 4 && body == 8'b11100111 ? capture
     : opcode == 6 && body[7:3] == 5'b11000 ? t + operand
-    : opcode == 6 && body == 8'b11001010 ? t + {8'd0, p}
-    : opcode == 6 && body == 8'b11001000 ? t + {8'd0, x}
-    : opcode == 6 && body == 8'b11001001 ? t + {8'd0, y}
+    : opcode == 6 && body == 8'b11001010 ? t + p
+    : opcode == 6 && body == 8'b11001000 ? t + x
+    : opcode == 6 && body == 8'b11001001 ? t + y
     : opcode == 6 && body[7:3] == 5'b11010 ? t - operand
-    : deadline_wait && body[7] ? t + {8'd0, p}
+    : deadline_wait && body[7] ? t + p
     : t;
 
   // The kernel's ghost count of cycles since capture_arm, as it stands at an entry.
-  wire [23:0] next_arm;
+  wire [T-1:0] next_arm;
   wire arm_known_next, captured_next, capture_bounded;
 `ifdef ARM_ONE_SHORT
   // the step counting the arm's own cycles one short
-  wire [23:0] g = pending ? next_arm - {23'd0, e_arms} : 24'd0;
+  wire [T-1:0] g = pending ? next_arm - e_arms : {T{1'b0}};
 `else
-  wire [23:0] g = pending ? next_arm : 24'd0;
+  wire [T-1:0] g = pending ? next_arm : {T{1'b0}};
 `endif
   wire g_known = pending && arm_known_next;
   wire g_captured = pending && captured_next;
   wire awaiting_next;
   wire g_awaiting = pending && awaiting_next;
-  reg [23:0] e_g, e_release;
-  reg [24:0] e_capture_age;
-  // cycles since the entry, saturating
-  reg [24:0] elapsed = 25'h1000000;
+  reg [T-1:0] e_g, e_release;
+  reg [T:0] e_capture_age;
+  // cycles since the entry, saturating past the timer's range and past a pin's 16-bit
+  // count; and saturating at the timer's range
+  localparam W = T > 17 ? T : 17;
+  reg [W:0] elapsed_wide = 1 << W;
   always @(posedge clk)
-    if (entry) elapsed <= 1;
-    else if (!elapsed[24]) elapsed <= elapsed + 1;
+    if (entry) elapsed_wide <= 1;
+    else if (!elapsed_wide[W]) elapsed_wide <= elapsed_wide + 1;
+  wire [T:0] elapsed = elapsed_wide >= SATURATED ? SATURATED : elapsed_wide[T:0];
   reg e_g_known, e_g_captured, e_g_awaiting;
 
   // The kernel's ghost of the pair at an entry: each pin's cycles since its last edge in
@@ -199,13 +221,13 @@ module phase_step (input clk);
   reg done = 0;
   reg [15:0] e_word, e_p, e_x, e_y, e_loaded;
   reg [8:0] e_pc;
-  reg [23:0] e_t, e_now, e_phase, e_next_now, e_t_after;
-  wire [23:0] e_step = step_of(e_word);
+  reg [T-1:0] e_t, e_now, e_phase, e_next_now, e_t_after;
+  wire [T-1:0] e_step = step_of(e_word);
   reg e_safe;
   wire e_is_jmp = e_word[15:13] == 0;
   wire e_deadline_wait = is_deadline_wait(e_word);
   wire [8:0] e_following = following_of(e_pc);
-  wire e_in_time = e_phase[23] || e_phase == 0;
+  wire e_in_time = e_phase[T-1] || e_phase == 0;
   // an entry is recorded even as a stop clears the record, for the pair's claim
   always @(posedge clk) begin
     if (entry) begin
@@ -241,9 +263,9 @@ module phase_step (input clk);
       e_release <= now;
       e_capture_age <= capture_age;
 `ifdef ONE_LATE_CYCLE_IS_SAFE
-      e_safe <= !missed_deadline && (!deadline_wait || phase[23] || phase <= 1);
+      e_safe <= !missed_deadline && (!deadline_wait || phase[T-1] || phase <= 1);
 `else
-      e_safe <= !missed_deadline && (!deadline_wait || phase[23] || phase == 0);
+      e_safe <= !missed_deadline && (!deadline_wait || phase[T-1] || phase == 0);
 `endif
     end
     if (clear || start || stop) pending <= 0;
@@ -268,7 +290,7 @@ module phase_step (input clk);
 `endif
 
   // the kernel's step, the definition the checker uses
-  wire [23:0] next_phase;
+  wire [T-1:0] next_phase;
   wire [15:0] next_period, next_x, next_y;
   wire e_halts;
   wire x_known, y_known, taken, taken_known;
@@ -320,10 +342,10 @@ module phase_step (input clk);
     .next_a$fresh(), .next_b$since(), .next_b$level(), .next_b$fresh(), .wide_a(),
     .wide_b(), .loaded$valid(1'b0),
     .loaded$value(16'd0), .capture$pin(5'd0), .capture$rising(1'b0),
-    .capture$single_edge(1'b0), .arm(24'd0), .arm_known(1'b0), .captured(1'b0),
+    .capture$single_edge(1'b0), .arm({T{1'b0}}), .arm_known(1'b0), .captured(1'b0),
     .awaiting(1'b0), .next_awaiting(),
     .next_arm(), .next_arm_known(), .next_captured(), .capture_bounded(),
-    .word(instruction), .phase(24'd0), .period(16'd0), .x(16'd0),
+    .word(instruction), .phase({T{1'b0}}), .period(16'd0), .x(16'd0),
     .y(16'd0), .next_phase(), .bounded(), .may_carry(), .next_period(),
     .period_known(keeps_period), .next_x(), .x_known(), .next_y(), .y_known(), .taken(),
     .taken_known(), .halts(halts));
@@ -341,9 +363,9 @@ module phase_step (input clk);
     end
 
   // each teeth task gets one part of the step wrong
-  wire [23:0] e_expected =
+  wire [T-1:0] e_expected =
 `ifdef JUMP_IN_ONE
-    e_is_jmp ? next_phase - 24'd1 :
+    e_is_jmp ? next_phase - 1'd1 :
 `endif
 `ifdef LATE_WAIT_WAITS
     e_deadline_wait && !e_in_time ? next_phase - e_phase :
@@ -357,17 +379,17 @@ module phase_step (input clk);
   wire e_unbounded = !bounded;
   // the least phase after [mov t, capture]: an edge a cycle old and the instruction's cycles
 `ifdef CAPTURE_A_CYCLE_OLDER
-  wire [23:0] capture_lo = e_step + 24'd2;
+  wire [T-1:0] capture_lo = e_step + 2'd2;
 `else
-  wire [23:0] capture_lo = e_step + 24'd1;
+  wire [T-1:0] capture_lo = e_step + 1'd1;
 `endif
   // and the most, the step's; the tooth takes a cycle off it
 `ifdef CAPTURE_A_CYCLE_YOUNGER
-  wire [23:0] capture_hi = next_phase - 24'd1;
+  wire [T-1:0] capture_hi = next_phase - 1'd1;
 `else
-  wire [23:0] capture_hi = next_phase;
+  wire [T-1:0] capture_hi = next_phase;
 `endif
-  wire t_ok = t == e_t_after || (e_may_carry && t == e_t_after + 24'd1);
+  wire t_ok = t == e_t_after || (e_may_carry && t == e_t_after + 1'd1);
 
   // The teeth that drop half the single-edge assumption keep only the claims at entries. The
   // invariants between entries are there for induction and lean on the assumption too, so
@@ -389,7 +411,7 @@ module phase_step (input clk);
       if (!done) begin
         assert(!fresh && !e_is_jmp);
         assert(instruction == e_word && pc == e_pc && stall == 0 && t == e_t);
-        if (e_deadline_wait && e_in_time && !completes) assert(phase[23]);
+        if (e_deadline_wait && e_in_time && !completes) assert(phase[T-1]);
         assert(e_word[15:13] == 1 && decode_ok);
         if (e_deadline_wait) assert(e_in_time);
       end else begin
@@ -417,25 +439,25 @@ module phase_step (input clk);
   wire [4:0] seen_pin = capture_pin > 27 ? 5'd27 : capture_pin;
   wire level = sample[seen_pin] == capture_rising;
   reg holding = 0, seen = 0;
-  reg [23:0] arm_now;
+  reg [T-1:0] arm_now;
   // cycles since the arm, saturating, since a wait can outlast the timer's wrap
-  reg [24:0] arm_age = 25'h1000000;
-  wire young = !arm_age[24];
+  reg [T:0] arm_age = SATURATED;
+  wire young = !arm_age[T];
   // and since the core last captured, which the capture register holds
-  reg [24:0] capture_age = 25'h1000000;
-  wire capture_young = !capture_age[24];
+  reg [T:0] capture_age = SATURATED;
+  wire capture_young = !capture_age[T];
   always @(posedge clk)
-    if (clear || start || started) capture_age <= 25'h1000000;
+    if (clear || start || started) capture_age <= SATURATED;
     else if (captured_now) capture_age <= 1;
     else if (capture_young) capture_age <= capture_age + 1;
   always @(posedge clk)
-    if (!clear && capture_young) assert(capture_age[23:0] == now - capture);
+    if (!clear && capture_young) assert(capture_age[T-1:0] == now - capture);
   wire capture_after_arm = capture_young ? !young || capture_age < arm_age : !young;
   always @(posedge clk)
-    if (clear || start || started) arm_age <= 25'h1000000;
+    if (clear || start || started) arm_age <= SATURATED;
     else if (arms) arm_age <= 1;
     else if (young) arm_age <= arm_age + 1;
-  always @(posedge clk) if (!clear && young) assert(arm_age[23:0] == now - arm_now);
+  always @(posedge clk) if (!clear && young) assert(arm_age[T-1:0] == now - arm_now);
   always @(posedge clk)
     if (clear || start) begin
       holding <= 0;
@@ -461,8 +483,8 @@ module phase_step (input clk);
   always @(posedge clk)
     if (!clear && entry) begin
       if (pending) assert(g_awaiting == holding);
-      if (g_known) assert(!g[23]);
-      if (g_known && g_awaiting) assert(young && arm_age[23:0] == g && g != 0);
+      if (g_known) assert(!g[T-1]);
+      if (g_known && g_awaiting) assert(young && arm_age[T-1:0] == g && g != 0);
       if (g_known && g_captured) begin
         assert(!g_awaiting && !capture_armed);
         assert(capture_young && capture_age >= 1 && capture_age < {1'b0, g});
@@ -485,25 +507,25 @@ module phase_step (input clk);
     if (!clear && pending && !entry) begin
       assert(!e_halts);
       if (done) assert(e_next_now == e_release + e_step && stall < e_step);
-      if (done && !elapsed[24])
-        assert(elapsed[23:0] == e_release - e_now + e_step - {19'd0, stall});
+      if (done && !elapsed[T])
+        assert(elapsed[T-1:0] == e_release - e_now + e_step - stall);
       if (done && e_deadline_wait)
-        assert(e_release - e_now == (e_in_time ? -e_phase : 24'd0) && !elapsed[24]);
+        assert(e_release - e_now == (e_in_time ? -e_phase : {T{1'b0}}) && !elapsed[T]);
       if (e_word[15:13] != 1) assert(done && e_release == e_now && elapsed <= e_step);
-      if (!elapsed[24]) assert(elapsed[23:0] == now - e_now);
-      if (e_deadline_wait && !done) assert(!elapsed[24] && elapsed[23:0] <= -e_phase);
+      if (!elapsed[T]) assert(elapsed[T-1:0] == now - e_now);
+      if (e_deadline_wait && !done) assert(!elapsed[T] && elapsed[T-1:0] <= -e_phase);
       assert(holding == (e_arms || (e_g_awaiting && !(single_edge && e_capturing && done))));
-      if (e_g_known) assert(!e_g[23]);
+      if (e_g_known) assert(!e_g[T-1]);
       if (e_arms) assert(arm_now == e_now && young && arm_age == elapsed);
       else if (e_g_known && e_g_awaiting) begin
         assert(e_now - arm_now == e_g && e_g != 0);
-        if (!elapsed[24] && {1'b0, e_g} + elapsed < 25'h1000000)
+        if (!elapsed[T] && {1'b0, e_g} + elapsed < SATURATED)
           assert(young && arm_age == {1'b0, e_g} + elapsed);
       end
       if (e_g_known && e_g_captured && !e_arms) begin
         assert(!e_g_awaiting && !capture_armed);
-        assert(!e_capture_age[24] && e_capture_age >= 1 && e_capture_age < {1'b0, e_g});
-        if (!elapsed[24] && e_capture_age + elapsed < 25'h1000000)
+        assert(!e_capture_age[T] && e_capture_age >= 1 && e_capture_age < {1'b0, e_g});
+        if (!elapsed[T] && e_capture_age + elapsed < SATURATED)
           assert(capture_young && capture_age == e_capture_age + elapsed);
         if (e_word[15:13] != 1) assert(capture_young);
       end
@@ -651,9 +673,8 @@ module phase_step (input clk);
       if (moves_a) since_entry_a <= 1;
       if (moves_b) since_entry_b <= 1;
     end
-  function [16:0] quiet_after(input [16:0] quiet, input [24:0] cycles);
-    quiet_after = cycles[24] || {8'd0, quiet} + cycles >= 25'h10000 ? 17'h10000
-      : quiet + cycles[16:0];
+  function [16:0] quiet_after(input [16:0] quiet, input [W:0] cycles);
+    quiet_after = cycles[W] || quiet + cycles >= 17'h10000 ? 17'h10000 : quiet + cycles;
   endfunction
   always @(posedge clk)
     if (!clear && pending && !entry && !manchester) begin
@@ -666,14 +687,16 @@ module phase_step (input clk);
       assert(moved_a == (e_moved_a || since_entry_a && !e_fresh_a));
       assert(moved_b == (e_moved_b || since_entry_b && !e_fresh_b));
       // the release came after the entry, and the step's cycles after the release
-      if (done && !elapsed[24])
-        assert(e_release - e_now <= elapsed[23:0] && elapsed[23:0] >= e_step - {19'd0, stall});
+      if (done && !elapsed[T])
+        assert(e_release - e_now <= elapsed[T-1:0] && elapsed[T-1:0] >= e_step - stall);
       if (e_moved_a) assert(e_quiet_a + 17'd1 >= {1'b0, e_since_a});
       if (e_moved_b) assert(e_quiet_b + 17'd1 >= {1'b0, e_since_b});
-      if (!since_entry_a && !moves_a) assert(quiet_a_now == quiet_after(e_quiet_a, elapsed));
-      else assert(quiet_a_now == quiet_after(17'd0, elapsed - 25'd1));
-      if (!since_entry_b && !moves_b) assert(quiet_b_now == quiet_after(e_quiet_b, elapsed));
-      else assert(quiet_b_now == quiet_after(17'd0, elapsed - 25'd1));
+      if (!since_entry_a && !moves_a)
+        assert(quiet_a_now == quiet_after(e_quiet_a, elapsed_wide));
+      else assert(quiet_a_now == quiet_after(17'd0, elapsed_wide - 1'd1));
+      if (!since_entry_b && !moves_b)
+        assert(quiet_b_now == quiet_after(e_quiet_b, elapsed_wide));
+      else assert(quiet_b_now == quiet_after(17'd0, elapsed_wide - 1'd1));
     end
   always @(posedge clk)
     if (!clear) begin
@@ -696,7 +719,7 @@ module phase_step (input clk);
   // the lemma
   always @(posedge clk)
     if (!clear && pending && entry) begin
-      if (!e_unbounded) assert(phase == e_expected || (e_may_carry && phase == e_expected - 24'd1));
+      if (!e_unbounded) assert(phase == e_expected || (e_may_carry && phase == e_expected - 1'd1));
       // the age of the captured edge and a cycle or more: unsigned
       if (capture_bounded) assert(now - t >= capture_lo && now - t <= capture_hi);
 `ifdef TAKEN_BACKWARDS
@@ -713,7 +736,7 @@ module phase_step (input clk);
     end
 
   always @(posedge clk) begin
-    cover(pending && entry && e_may_carry && phase == e_expected - 24'd1);
+    cover(pending && entry && e_may_carry && phase == e_expected - 1'd1);
     cover(pending && entry && !e_unbounded && e_deadline_wait && e_in_time);
     cover(loads_period && pending && entry && wrote_p && p == e_loaded && e_loaded > 3);
     cover(loads_period && wrote_p && loaded_before && p != last_load);

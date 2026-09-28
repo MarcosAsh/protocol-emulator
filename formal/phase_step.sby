@@ -1,6 +1,10 @@
 [tasks]
 prove
 cover
+narrow_timer_prove narrow_timer
+narrow_timer_cover narrow_timer
+saturating_narrow narrow_timer saturating
+saturating_chip saturating
 jump_in_one teeth
 late_wait_waits teeth
 no_carry teeth
@@ -19,6 +23,14 @@ prove: mode prove
 prove: depth 8
 cover: mode cover
 cover: depth 24
+narrow_timer_prove: mode prove
+narrow_timer_prove: depth 8
+narrow_timer_cover: mode cover
+narrow_timer_cover: depth 24
+saturating: mode bmc
+saturating: depth 136
+saturating: skip 135
+saturating_narrow: expect fail
 teeth: mode bmc
 teeth: depth 24
 teeth: expect fail
@@ -52,11 +64,21 @@ capture_a_cycle_older: read -define CAPTURE_A_CYCLE_OLDER
 capture_a_cycle_younger: read -define CAPTURE_A_CYCLE_YOUNGER
 arm_one_short: read -define ARM_ONE_SHORT
 edge_one_short: read -define EDGE_ONE_SHORT
+narrow_timer: read -define TIMER_BITS=7
+saturating: read -define ONE_RUN
 read_verilog kernel_step.v
 read_verilog -formal -sv phase_step.sv
 prep -top phase_step
 
 [files]
-engine.v
-kernel_step.v
+~saturating:
+~narrow_timer: engine.v
+narrow_timer: engine.v engine_narrow.v
+--
+saturating:
+~narrow_timer: engine.v engine_saturating.v
+narrow_timer: engine.v engine_narrow_saturating.v
+--
+~narrow_timer: kernel_step.v
+narrow_timer: kernel_step.v kernel_step_narrow.v
 phase_step.sv

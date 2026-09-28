@@ -22,7 +22,8 @@ bin/*.exe
 bin/*.bc
 formal/engine.v
 formal/engine_sram.v
-formal/engine_narrow.v
+formal/engine_narrow*.v
+formal/engine_saturating.v
 formal/engines.v
 formal/engines_sram.v
 formal/link*.sv
@@ -39,6 +40,7 @@ test/fpga_kit_top.v
 test/fpga_kit.json
 test/fpga_kit.log
 formal/kernel_step.v
+formal/kernel_step_narrow.v
 formal/osr_step.v
 formal/kernel_accepts.v
 formal/memory_flops.v
