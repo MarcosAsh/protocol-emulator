@@ -38,33 +38,6 @@ let row_input name =
 let all (h : _ Kernel.Holds.t) = Kernel.Holds.to_list h |> G.reduce ~f:G.( &: )
 let all_but_offset (h : _ Kernel.Holds.t) = all { h with offset = G.vdd }
 
-(* One case at a time, which SAT finds far easier than all at once. The proof rests on the
-   cases covering every input, so SAT is asked that first. A counterexample prints the
-   inputs in [show], or all of them. *)
-let prove ?show name ~cases ~claim =
-  let covered = G.reduce ~f:G.( |: ) cases in
-  let queries = G.(~:covered) :: List.map cases ~f:(fun case -> G.(case &: ~:claim)) in
-  let failure =
-    List.find_map queries ~f:(fun query ->
-      match Solver.solve ~solver:(Solver.z3 ~parallel:false ()) (G.cnf query) with
-      | Ok Unsat -> None
-      | Ok (Sat model) -> Some (Ok model)
-      | Error e -> Some (Error e))
-  in
-  match failure with
-  | None -> print_s [%message "QED" name]
-  | Some (Ok model) ->
-    let shown name =
-      Option.for_all show ~f:(fun names -> List.mem names name ~equal:String.equal)
-    in
-    let model =
-      List.filter_map model ~f:(fun (m : Cnf.Model_with_vectors.input) ->
-        Option.some_if (shown m.name) (m.name, m.value))
-    in
-    print_s [%message "counterexample" name (model : (string * string) list)]
-  | Some (Error e) -> print_s [%message "solver failed" name (e : Error.t)]
-;;
-
 (* That an accepted row maps into its successors and meets its deadline, as two claims,
    which SAT finds far easier than one: [bounds], that the conjuncts other than the offset
    keep the core inside every other bound of the row it steps to and a deadline wait in
@@ -239,8 +212,8 @@ let accepted_rows_hold ~step_edge =
 
 let%expect_test "an accepted row maps into its successors and meets its deadline" =
   let { cases; bounds; offset } = accepted_rows_hold ~step_edge:Fn.id in
-  prove "accepts => step stays in the rows" ~cases ~claim:bounds;
-  prove "accepts => offset stays in the rows" ~cases ~claim:offset;
+  Checked_unsat.prove "accepts => step stays in the rows" ~cases ~claim:bounds;
+  Checked_unsat.prove "accepts => offset stays in the rows" ~cases ~claim:offset;
   [%expect
     {|
     (QED "accepts => step stays in the rows")
@@ -253,7 +226,7 @@ let%expect_test "an accepted row maps into its successors and meets its deadline
    counterexample has the kernel assuming one edge while the core awaits it. *)
 let%expect_test "the rows hold only under the single-edge assumption" =
   let { cases; bounds; _ } = accepted_rows_hold ~step_edge:(Fn.const G.gnd) in
-  prove
+  Checked_unsat.prove
     "accepts => step stays in the rows, with a second edge"
     ~show:[ "single_edge"; "awaiting" ]
     ~cases

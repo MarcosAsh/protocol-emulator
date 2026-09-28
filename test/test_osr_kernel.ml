@@ -28,29 +28,6 @@ let lies_in (r : _ Osr_kernel.Row.t) ~shifted ~x ~pulled =
 
 let all (h : _ Osr_kernel.Holds.t) = Osr_kernel.Holds.to_list h |> G.reduce ~f:G.( &: )
 
-(* One case at a time, as in [Test_kernel]; the cases cover every input, which SAT is
-   asked first. A counterexample prints the inputs in [show]. *)
-let prove ~show name ~cases ~claim =
-  let covered = G.reduce ~f:G.( |: ) cases in
-  let queries = G.(~:covered) :: List.map cases ~f:(fun case -> G.(case &: ~:claim)) in
-  let failure =
-    List.find_map queries ~f:(fun query ->
-      match Solver.solve ~solver:(Solver.z3 ~parallel:false ()) (G.cnf query) with
-      | Ok Unsat -> None
-      | Ok (Sat model) -> Some (Ok model)
-      | Error e -> Some (Error e))
-  in
-  match failure with
-  | None -> print_s [%message "QED" name]
-  | Some (Ok model) ->
-    let model =
-      List.filter_map model ~f:(fun (m : Cnf.Model_with_vectors.input) ->
-        Option.some_if (List.mem show m.name ~equal:String.equal) (m.name, m.value))
-    in
-    print_s [%message "counterexample" name (model : (string * string) list)]
-  | Some (Error e) -> print_s [%message "solver failed" name (e : Error.t)]
-;;
-
 (* An accepted row maps into the row the core steps to. x and the way out are the kernel's
    step (phase_step.sv), and x on the way in lies in the kernel's row, which the kernel's
    proof gives for a program it accepts. [with_kernel] false drops that. A write to x the
@@ -149,7 +126,11 @@ let accepted_rows_hold ~with_kernel =
 let%expect_test "an accepted osr row maps into the row the core steps to" =
   let cases, claims = accepted_rows_hold ~with_kernel:true in
   Osr_kernel.Holds.iter2 Osr_kernel.Holds.port_names claims ~f:(fun bound claim ->
-    prove ~show:[] [%string "accepts => %{bound} stays in the rows"] ~cases ~claim);
+    Checked_unsat.prove
+      ~show:[]
+      [%string "accepts => %{bound} stays in the rows"]
+      ~cases
+      ~claim);
   [%expect {|
     (QED "accepts => shifted stays in the rows")
     (QED "accepts => sum stays in the rows")
@@ -160,7 +141,7 @@ let%expect_test "an accepted osr row maps into the row the core steps to" =
 (* Teeth: the kernel's x is what bounds the count in a loop. *)
 let%expect_test "the rows hold only with the kernel's x" =
   let cases, claims = accepted_rows_hold ~with_kernel:false in
-  prove
+  Checked_unsat.prove
     ~show:[]
     "accepts => shifted stays in the rows, x anything"
     ~cases
