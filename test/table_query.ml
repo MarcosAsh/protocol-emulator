@@ -1,0 +1,123 @@
+open! Core
+open! Hardcaml
+open! Hardcaml_verify
+open Protocol_emulator
+module G = Comb_gates
+module K = Kernel.Make (G)
+
+let full = (Kernel.Table.of_analyser []).(0)
+let row_name pc field = [%string "pc%{pc#Int}_%{field}"]
+
+(* The model spells a vector msb first, with a [-] for a bit the CNF does not use and
+   nothing for the bits above the highest it does. *)
+let of_model model ~pc =
+  Kernel.Row.map2 Kernel.Row.port_names Kernel.Row.port_widths ~f:(fun field width ->
+    match
+      List.find model ~f:(fun (m : Cnf.Model_with_vectors.input) ->
+        String.equal m.name (row_name pc field))
+    with
+    | None -> Bits.zero width
+    | Some m ->
+      String.fold m.value ~init:0 ~f:(fun value bit ->
+        (2 * value) + Bool.to_int (Char.equal bit '1'))
+      |> Bits.of_unsigned_int ~width)
+;;
+
+let witness ?(offsets = true) ?period ~single_capture_edge ~config ~words () =
+  let words = Array.of_list words in
+  let constant b = G.of_constant (Bits.to_constant b) in
+  let size = 1 lsl Isa.pc_bits in
+  let table =
+    Array.init size ~f:(fun pc ->
+      let row =
+        Kernel.Row.map2
+          Kernel.Row.port_names
+          Kernel.Row.port_widths
+          ~f:(fun field width -> G.input (row_name pc field) width)
+      in
+      let full = Kernel.Row.map full ~f:constant in
+      if pc = 0
+      then full
+      else if offsets
+      then row
+      else
+        { row with
+          slope = full.slope
+        ; offset_lo = full.offset_lo
+        ; offset_hi = full.offset_hi
+        })
+  in
+  let word pc =
+    Bits.of_unsigned_int
+      ~width:Isa.data_bits
+      (if pc < Array.length words then words.(pc) else 0)
+  in
+  let following pc =
+    if pc = config.Program_config.wrap_top then config.wrap_bottom else (pc + 1) % size
+  in
+  let side_set_count = G.of_unsigned_int ~width:2 config.side_set_count in
+  let fraction = G.of_bool (config.period_fraction <> 0) in
+  let loaded =
+    { With_valid.valid = G.of_bool (Option.is_some period)
+    ; value = G.of_unsigned_int ~width:Isa.data_bits (Option.value period ~default:0)
+    }
+  in
+  let capture =
+    { Kernel.Capture.pin =
+        G.of_unsigned_int ~width:Isa.Field.wait_index.width config.capture_pin
+    ; rising = G.of_bool config.capture_rising
+    ; single_edge = G.of_bool single_capture_edge
+    }
+  in
+  let passes =
+    List.init size ~f:(fun pc ->
+      let target =
+        Bits.to_unsigned_int
+          (Isa.Field.select (module Bits) Isa.Field.jmp_target (word pc))
+      in
+      K.accepts
+        ~side_set_count
+        ~fraction
+        ~loaded
+        ~capture
+        ~word:(constant (word pc))
+        ~row:table.(pc)
+        ~next:table.(following pc)
+        ~target:table.(target))
+  in
+  match
+    Solver.solve
+      ~solver:(Solver.z3 ~parallel:false ())
+      (G.cnf (G.reduce ~f:G.( &: ) passes))
+    |> ok_exn
+  with
+  | Unsat -> None
+  | Sat model ->
+    Some
+      (Array.init size ~f:(fun pc ->
+         if pc = 0
+         then full
+         else (
+           let row = of_model model ~pc in
+           if offsets
+           then row
+           else
+             { row with
+               slope = full.slope
+             ; offset_lo = full.offset_lo
+             ; offset_hi = full.offset_hi
+             })))
+;;
+
+let some_table_passes ?offsets (c : Certified.t) =
+  let program = Asm.assemble c.source |> ok_exn in
+  let config = Asm.Program.configure program c.config in
+  witness
+    ?offsets
+    ?period:c.period
+    ~single_capture_edge:c.single_capture_edge
+    ~config
+    ~words:(Asm.Program.words program |> ok_exn)
+    ()
+  |> Option.is_some
+;;

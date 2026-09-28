@@ -379,79 +379,6 @@ let%expect_test "the row at pc 0 bounds nothing" =
     |}]
 ;;
 
-(* Whether some table of rows passes the kernel, with pc 0 held to the full range as
-   [Kernel.check] holds it and every other row free. The analyser's rows play no part, so
-   when no table passes, a rejection is a limit of the kernel's rows and not of the
-   analyser's. Without [offsets] every offset is full, which leaves rows of intervals
-   alone. Like [Kernel.check], it checks every pc, reading words past the program as zero. *)
-let some_table_passes ?(offsets = true) (c : Certified.t) =
-  let program, config = assemble c in
-  let words = Asm.Program.words program |> ok_exn |> Array.of_list in
-  let constant b = G.of_constant (Bits.to_constant b) in
-  let size = 1 lsl Isa.pc_bits in
-  let full = Kernel.Row.map (Kernel.Table.of_analyser []).(0) ~f:constant in
-  let table =
-    Array.init size ~f:(fun pc ->
-      let row = row_input [%string "pc%{pc#Int}"] in
-      if pc = 0
-      then full
-      else if offsets
-      then row
-      else
-        { row with
-          slope = full.slope
-        ; offset_lo = full.offset_lo
-        ; offset_hi = full.offset_hi
-        })
-  in
-  let word pc =
-    Bits.of_unsigned_int
-      ~width:Isa.data_bits
-      (if pc < Array.length words then words.(pc) else 0)
-  in
-  let following pc =
-    if pc = config.wrap_top then config.wrap_bottom else (pc + 1) % size
-  in
-  let side_set_count = G.of_unsigned_int ~width:2 config.side_set_count in
-  let fraction = G.of_bool (config.period_fraction <> 0) in
-  let loaded =
-    { With_valid.valid = G.of_bool (Option.is_some c.period)
-    ; value = G.of_unsigned_int ~width:Isa.data_bits (Option.value c.period ~default:0)
-    }
-  in
-  let capture =
-    { Kernel.Capture.pin =
-        G.of_unsigned_int ~width:Isa.Field.wait_index.width config.capture_pin
-    ; rising = G.of_bool config.capture_rising
-    ; single_edge = G.of_bool c.single_capture_edge
-    }
-  in
-  let passes =
-    List.init size ~f:(fun pc ->
-      let target =
-        Bits.to_unsigned_int
-          (Isa.Field.select (module Bits) Isa.Field.jmp_target (word pc))
-      in
-      K.accepts
-        ~side_set_count
-        ~fraction
-        ~loaded
-        ~capture
-        ~word:(constant (word pc))
-        ~row:table.(pc)
-        ~next:table.(following pc)
-        ~target:table.(target))
-  in
-  match
-    Solver.solve
-      ~solver:(Solver.z3 ~parallel:false ())
-      (G.cnf (G.reduce ~f:G.( &: ) passes))
-    |> ok_exn
-  with
-  | Unsat -> false
-  | Sat _ -> true
-;;
-
 (* ws2812 as it was first written, with the wait of its reset gap after the loop rather
    than in it. The line stays low as long, but each pass moves [t] 23 cycles further ahead
    of [now], so the row at the head of the loop, which has to hold its own image one pass
@@ -488,7 +415,7 @@ let print_rejection (c : Certified.t) =
   match check c with
   | Ok () -> ()
   | Error _ ->
-    if some_table_passes c
+    if Table_query.some_table_passes c
     then
       print_s [%message c.name "some table passes, so the analyser's rows are at fault"]
     else print_s [%message c.name "no table passes"]
@@ -505,7 +432,7 @@ let%expect_test "a rejection is the kernel's or the analyser's" =
    firmware the kernel accepts: a receiver and a loaded period among them. *)
 let%expect_test "some table passes for firmware the kernel accepts" =
   List.iter [ "uart_tx"; "uart_rx"; "ethernet"; "jtag" ] ~f:(fun name ->
-    let passes = some_table_passes (Certified.find_exn name) in
+    let passes = Table_query.some_table_passes (Certified.find_exn name) in
     print_s [%message name (passes : bool)]);
   [%expect
     {|
@@ -539,7 +466,7 @@ let%expect_test "the way through jmp x!=y knows x is y" =
     }
   in
   let verdict = check c in
-  let passes = some_table_passes c in
+  let passes = Table_query.some_table_passes c in
   print_s [%message (verdict : unit Or_error.t) (passes : bool)];
   [%expect {| ((verdict (Ok ())) (passes true)) |}]
 ;;
@@ -551,8 +478,8 @@ let%expect_test "ws2812's gap loop needs an offset, or its wait moved into the l
   List.iter
     [ ws2812_waiting_after_gap; Certified.find_exn "ws2812" ]
     ~f:(fun c ->
-      let intervals = some_table_passes ~offsets:false c in
-      let offsets = some_table_passes c in
+      let intervals = Table_query.some_table_passes ~offsets:false c in
+      let offsets = Table_query.some_table_passes c in
       let accepted = Result.is_ok (check c) in
       print_s [%message c.name (intervals : bool) (offsets : bool) (accepted : bool)]);
   [%expect
