@@ -1,0 +1,42 @@
+# The lemma as SBY's aiger engines see it: read.ys is the task's [script] from its .sby,
+# then SBY's own base, prep and aiger steps, unchanged but for one line (marked below).
+script read.ys
+hierarchy -smtcheck
+rename -witness
+
+scc -select; simplemap; select -clear
+memory_nordff
+async2sync
+chformal -assume -early
+opt_clean
+formalff -setundef -clk2ff -ff2anyinit -hierarchy
+chformal -live -fair -cover -remove
+opt_clean
+check
+setundef -undriven -anyseq
+opt -fast
+rename -witness
+opt_clean
+
+delete */t:$print
+hierarchy -simcheck
+formalff -assume
+flatten
+setundef -undriven -anyseq
+setattr -unset keep
+delete -output
+opt -full
+techmap
+opt -fast
+memory_map -formal
+formalff -clk2ff -ff2anyinit
+simplemap
+dffunmap
+aigmap
+opt_clean
+# techmap leaves an x bit where an index can pass a vector's end, as phase_step's
+# sample[seen_pin] can for values it never takes, and write_aiger refuses x: each becomes a
+# free input, which only adds behaviours (this line is not SBY's)
+setundef -anyseq
+stat
+write_aiger -I -B -zinit -no-startoffset model.aig

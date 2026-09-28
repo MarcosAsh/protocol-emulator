@@ -390,6 +390,46 @@ sat_tools:
 	cd sat_tools && $(CXX) -std=c++23 -O3 -DNDEBUG -DVERSION='"10.3.1"' -DGITID='"$(CERTIFAIGER)"' \
 	  -iquote aiger-$(AIGER) certifaiger-$(CERTIFAIGER)/src/certifaiger.cpp aiger.o -o bin/certifaiger
 
+# Certifaiger witnesses for the step lemmas. The model is the lemma's prove task through
+# SBY's own aiger flow (witness/model.ys); rIC3 proves it by k-induction and writes a
+# witness circuit; each SAT check Certifaiger makes of the pair must be UNSAT by an LRAT
+# proof cake_lpr accepts. Trusted: the .sby and the Verilog it reads, SBY's --dumpfiles and
+# --dumpcfg, Yosys from parsing to write_aiger, model.ys, Certifaiger's checks and the aiger
+# library under it, aigsplit, aigtocnf, cake_lpr's verified build, the C compilers, make and
+# the shell; not rIC3 or cadical. Needs make sat_tools. witness_proof runs on files written
+# already.
+WITNESSED = phase_step edge_step
+witness: engine.v kernel_step.v
+	for lemma in $(WITNESSED); do $(MAKE) witness_proof LEMMA=$$lemma || exit 1; done
+
+CHECKS = Reset Safety Base Transition Liveness Decrease Closure Consistent Inductive
+witness_proof:
+	$(MAKE) witness_model TASK=prove W=$(LEMMA)_witness
+	cd $(LEMMA)_witness && rIC3 -e kind model.aig witness.aig > ric3.log 2>&1; [ $$? = 20 ]
+	cd $(LEMMA)_witness && certifaiger model.aig witness.aig check.aig > certifaiger.log
+	cd $(LEMMA)_witness && aigsplit -n check.aig
+	for check in $(CHECKS); do $(MAKE) witness_unsat W=$(LEMMA)_witness CHECK=$$check || exit 1; done
+
+# the task's [script] and [files] from the .sby, through witness/model.ys, in $(W)
+witness_model:
+	rm -rf $(W) && mkdir $(W)
+	cp $$(sby --dumpfiles $(LEMMA).sby $(TASK)) $(W)
+	sby --dumpcfg $(LEMMA).sby $(TASK) > $(W)/task.sby
+	awk '/^\[/ { on = $$0 == "[script]"; next } on' $(W)/task.sby > $(W)/read.ys
+	cd $(W) && yosys -q -l model.log ../witness/model.ys
+
+# one check, UNSAT only if cake_lpr verifies the LRAT proof cadical streams to it through a
+# fifo; Inductive's would take GBs on disk
+witness_unsat:
+	cd $(W) && aigtocnf $(CHECK).aig $(CHECK).cnf && rm -f $(CHECK).lrat && mkfifo $(CHECK).lrat
+	cd $(W) && { cadical -q --unsat --lrat=true $(CHECK).cnf $(CHECK).lrat > $(CHECK).cadical & \
+	  cake_lpr $(CHECK).cnf $(CHECK).lrat > $(CHECK).cake 2>&1; wait $$!; }; [ $$? = 20 ]
+	[ "$$(cat $(W)/$(CHECK).cake)" = "s VERIFIED UNSAT" ]
+	rm -f $(W)/$(CHECK).lrat $(W)/$(CHECK).cnf
+	@echo "$(W): $(CHECK) verified"
+
+.PHONY: witness witness_proof witness_model witness_unsat
+
 .PHONY: all link link_proof issue_timing host_timing late_host fifo_order phase_step phase_table \
   phase_table_proof phase_table_affine phase_table_affine_proof edge_step frame_step value_step \
   chip_frame data_step teeth certificates \
