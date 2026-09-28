@@ -1,0 +1,5 @@
+(executable
+ (name split)
+ (libraries core protocol_emulator protocol_emulator_test)
+ (preprocess
+  (pps ppx_jane)))
