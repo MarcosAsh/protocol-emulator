@@ -1,0 +1,51 @@
+[tasks]
+prove
+cover
+no_accepts teeth
+no_open teeth
+next_no_wrap teeth
+target_is_next teeth
+rows_while_running teeth
+
+[options]
+prove: mode prove
+prove: depth 8
+cover: mode cover
+cover: depth 24
+teeth: mode bmc
+teeth: depth 24
+teeth: expect fail
+
+[engines]
+smtbmc boolector
+
+[script]
+read_verilog engine.v
+hierarchy -top engine
+proc
+flatten
+cd engine
+expose w:jmp_go w:advance w:sample w:captured
+rename jmp_go eng_jmp_go
+rename advance eng_advance
+rename sample eng_sample
+rename captured eng_captured
+cd ..
+read -define TABLE
+no_accepts: read -define NO_ACCEPTS
+no_open: read -define NO_OPEN
+next_no_wrap: read -define NEXT_NO_WRAP
+target_is_next: read -define TARGET_IS_NEXT
+rows_while_running: read -define ROWS_WHILE_RUNNING
+read_verilog kernel_step.v
+read_verilog kernel_accepts.v
+read_verilog -formal -sv phase_step.sv
+prep -flatten -top phase_step
+# a tooth has to fail on a missed deadline, so every other claim is dropped
+teeth: chformal -assert -remove c:* c:deadline %d
+
+[files]
+engine.v
+kernel_step.v
+kernel_accepts.v
+phase_step.sv

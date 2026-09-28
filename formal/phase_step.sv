@@ -451,4 +451,84 @@ module phase_step (input clk);
     cover(pending && entry && !e_unbounded && e_deadline_wait && e_in_time);
     cover(loads_period && pending && entry && wrote_p && p == loaded_period && loaded_period > 3);
   end
+`ifdef TABLE
+  // The theorem in one run. For any table of intervals loaded while halted, as the program
+  // is, assume the kernel's accepts at every pc entered, with the next and target rows it
+  // picks, and a start at a row that bounds nothing; then the core lies in the row of every
+  // entry and no deadline is missed. Rows have no slope and the full offset, as every
+  // library table does; a bounded offset rests on accepts' SAT proof and the lemma, on paper.
+  reg [193:0] rows [0:511];
+  (* anyseq *) wire rows_write;
+  (* anyseq *) wire [8:0] rows_addr;
+  (* anyseq *) wire [193:0] rows_data;
+`ifdef ROWS_WHILE_RUNNING
+  always @(posedge clk) if (rows_write) rows[rows_addr] <= rows_data;
+`else
+  always @(posedge clk) if (halted && rows_write) rows[rows_addr] <= rows_data;
+`endif
+  // a row as kernel_accepts reads it: the phase, no slope, the full offset, then the rest
+  function [265:0] row_of(input [193:0] r);
+    row_of = {r[193:146], 24'd0, 24'h800000, 24'h7fffff, r[145:0]};
+  endfunction
+
+  wire [8:0] next_pc, target_pc, e_next_pc, e_target_pc;
+`ifdef NEXT_NO_WRAP
+  // the row after this one read without the wrap
+  wire [265:0] row = row_of(rows[pc]), next_row = row_of(rows[pc + 9'd1]);
+  wire [265:0] e_row = row_of(rows[e_pc]), e_next_row = row_of(rows[e_pc + 9'd1]);
+`else
+  wire [265:0] row = row_of(rows[pc]), next_row = row_of(rows[next_pc]);
+  wire [265:0] e_row = row_of(rows[e_pc]), e_next_row = row_of(rows[e_next_pc]);
+`endif
+`ifdef TARGET_IS_NEXT
+  // a jump's target read as the row after it
+  wire [265:0] target_row = next_row, e_target_row = e_next_row;
+`else
+  wire [265:0] target_row = row_of(rows[target_pc]), e_target_row = row_of(rows[e_target_pc]);
+`endif
+
+  // at an entry, and at the last one, which the core keeps to between them; with no slope
+  // the offset is the phase
+  wire accepts, within, starts_open, e_accepts, e_within;
+  kernel_accepts check_now (
+    .side_set_count(side_set_count), .fraction(period_fraction != 0),
+    .loaded$valid(loads_period), .loaded$value(loaded_period),
+    .capture$pin(capture_pin), .capture$rising(capture_rising),
+    .capture$single_edge(single_edge), .wrap_top(wrap_top), .wrap_bottom(wrap_bottom),
+    .pc(pc), .word(instruction), .row(row), .next(next_row), .target(target_row),
+    .phase(phase), .offset(phase), .period(p), .x(x), .y(y), .arm(g),
+    .arm_known(g_known), .captured(g_captured), .awaiting(g_awaiting),
+    .next_pc(next_pc), .target_pc(target_pc), .accepts(accepts), .within(within),
+    .starts_open(starts_open));
+  kernel_accepts check_last (
+    .side_set_count(side_set_count), .fraction(period_fraction != 0),
+    .loaded$valid(loads_period), .loaded$value(loaded_period),
+    .capture$pin(capture_pin), .capture$rising(capture_rising),
+    .capture$single_edge(single_edge), .wrap_top(wrap_top), .wrap_bottom(wrap_bottom),
+    .pc(e_pc), .word(e_word), .row(e_row), .next(e_next_row), .target(e_target_row),
+    .phase(e_phase), .offset(e_phase), .period(e_p), .x(e_x),
+    .y(e_y), .arm(e_g), .arm_known(e_g_known), .captured(e_g_captured),
+    .awaiting(e_g_awaiting), .next_pc(e_next_pc), .target_pc(e_target_pc),
+    .accepts(e_accepts), .within(e_within), .starts_open());
+
+  always @(*) begin
+`ifndef NO_ACCEPTS
+    if (entry) assume(accepts);
+`endif
+`ifndef NO_OPEN
+    if (entry && !pending) assume(starts_open);
+`endif
+  end
+  always @(posedge clk)
+    if (!clear) begin
+      if (entry) assert(within);
+      if (pending && !entry) assert(e_within && e_accepts);
+      // running with no record is the stretch from a start to its first entry, at pc 0
+      if (!halted && !pending) assert(pc == 9'd0 && fresh && stall == 0);
+      // the teeth keep this one alone
+      deadline: assert(!missed_deadline);
+    end
+
+  always @(posedge clk) cover(pending && entry && e_deadline_wait && e_phase == 0);
+`endif
 endmodule
