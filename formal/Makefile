@@ -419,14 +419,15 @@ witness_model:
 	awk '/^\[/ { on = $$0 == "[script]"; next } on' $(W)/task.sby > $(W)/read.ys
 	cd $(W) && yosys -q -l model.log ../witness/model.ys
 
-# one check, UNSAT only if cake_lpr verifies the LRAT proof cadical streams to it through a
-# fifo; Inductive's would take GBs on disk
+# One check, UNSAT only if cake_lpr verifies the LRAT proof cadical pipes to it; on disk
+# Inductive's would take GBs. Either side dying ends the other, with SIGPIPE or at EOF.
 witness_unsat:
-	cd $(W) && aigtocnf $(CHECK).aig $(CHECK).cnf && rm -f $(CHECK).lrat && mkfifo $(CHECK).lrat
-	cd $(W) && { cadical -q --unsat --lrat=true $(CHECK).cnf $(CHECK).lrat > $(CHECK).cadical & \
-	  cake_lpr $(CHECK).cnf $(CHECK).lrat > $(CHECK).cake 2>&1; wait $$!; }; [ $$? = 20 ]
+	cd $(W) && aigtocnf $(CHECK).aig $(CHECK).cnf
+	cd $(W) && { cadical -q --unsat --lrat=true -w $(CHECK).cadical $(CHECK).cnf -; \
+	  echo $$? >> $(CHECK).cadical; } | cake_lpr $(CHECK).cnf /dev/stdin > $(CHECK).cake 2>&1
+	[ "$$(tail -n 1 $(W)/$(CHECK).cadical)" = 20 ]
 	[ "$$(cat $(W)/$(CHECK).cake)" = "s VERIFIED UNSAT" ]
-	rm -f $(W)/$(CHECK).lrat $(W)/$(CHECK).cnf
+	rm $(W)/$(CHECK).cnf
 	@echo "$(W): $(CHECK) verified"
 
 # Each weakened copy the .sby expects to fail, through the same script: rIC3 has to find a
