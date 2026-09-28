@@ -235,3 +235,47 @@ end
 module O = Step
 
 val hierarchical : ?instance:string -> Scope.t -> Signal.t I.t -> Signal.t O.t
+
+(** [accepts], [within] and [starts_open] of [row] and the pcs of [next] and [target], as
+    a circuit for [formal/phase_table.sby]. Each row is packed, its first field at the
+    top. *)
+module Accepts : sig
+  module I : sig
+    type 'a t =
+      { side_set_count : 'a
+      ; fraction : 'a
+      ; loaded : 'a With_valid.t
+      ; capture : 'a Capture.t
+      ; wrap_top : 'a
+      ; wrap_bottom : 'a
+      ; pc : 'a
+      ; word : 'a
+      ; row : 'a
+      ; next : 'a
+      ; target : 'a
+      ; phase : 'a
+      ; offset : 'a
+      ; period : 'a
+      ; x : 'a
+      ; y : 'a
+      ; arm : 'a
+      ; arm_known : 'a
+      ; captured : 'a
+      ; awaiting : 'a
+      }
+    [@@deriving hardcaml]
+  end
+
+  module O : sig
+    type 'a t =
+      { next_pc : 'a
+      ; target_pc : 'a
+      ; accepts : 'a
+      ; within : 'a
+      ; starts_open : 'a
+      }
+    [@@deriving hardcaml]
+  end
+
+  val hierarchical : ?instance:string -> Scope.t -> Signal.t I.t -> Signal.t O.t
+end

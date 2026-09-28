@@ -35,3 +35,4 @@ test/fpga_kit.json
 test/fpga_kit.log
 formal/kernel_step.v
 formal/osr_step.v
+formal/kernel_accepts.v

@@ -87,6 +87,19 @@ let osr_rtl_command =
           C.create_exn ~name (Osr_kernel.hierarchical scope))]
 ;;
 
+let kernel_accepts_rtl_command =
+  Command.basic
+    ~summary:
+      "Verilog for the kernel's check of a row, which formal/phase_step.sv with TABLE \
+       proves keeps every deadline"
+    [%map_open.Command
+      let () = return () in
+      fun () ->
+        let module C = Circuit.With_interface (Kernel.Accepts.I) (Kernel.Accepts.O) in
+        print_rtl ~name:"kernel_accepts_top" (fun ~name scope ->
+          C.create_exn ~name (Kernel.Accepts.hierarchical scope))]
+;;
+
 (* The assumptions are the analyser's, under its names. The capture pin and autopull
    belong to the configuration, which the host loads and a source file does not carry. *)
 let timing_check =
@@ -204,6 +217,7 @@ let () =
        ; "top", top_rtl_command
        ; "kernel", kernel_rtl_command
        ; "osr", osr_rtl_command
+       ; "kernel-accepts", kernel_accepts_rtl_command
        ; "assemble", assemble_command
        ])
 ;;

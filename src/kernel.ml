@@ -769,3 +769,83 @@ let hierarchical ?instance scope i =
   let module H = Hierarchy.In_scope (I) (O) in
   H.hierarchical ?instance ~scope ~name:"kernel_step" create i
 ;;
+
+module Accepts = struct
+  module I = struct
+    type 'a t =
+      { side_set_count : 'a [@bits 2]
+      ; fraction : 'a
+      ; loaded : 'a With_valid.t [@bits Isa.data_bits]
+      ; capture : 'a Capture.t
+      ; wrap_top : 'a [@bits Isa.pc_bits]
+      ; wrap_bottom : 'a [@bits Isa.pc_bits]
+      ; pc : 'a [@bits Isa.pc_bits]
+      ; word : 'a [@bits Isa.data_bits]
+      ; row : 'a [@bits Row.sum_of_port_widths]
+      ; next : 'a [@bits Row.sum_of_port_widths]
+      ; target : 'a [@bits Row.sum_of_port_widths]
+      ; phase : 'a [@bits Isa.timer_bits]
+      ; offset : 'a [@bits Isa.timer_bits]
+      ; period : 'a [@bits Isa.data_bits]
+      ; x : 'a [@bits Isa.data_bits]
+      ; y : 'a [@bits Isa.data_bits]
+      ; arm : 'a [@bits Isa.timer_bits]
+      ; arm_known : 'a
+      ; captured : 'a
+      ; awaiting : 'a
+      }
+    [@@deriving hardcaml]
+  end
+
+  module O = struct
+    type 'a t =
+      { next_pc : 'a [@bits Isa.pc_bits]
+      ; target_pc : 'a [@bits Isa.pc_bits]
+      ; accepts : 'a
+      ; within : 'a
+      ; starts_open : 'a
+      }
+    [@@deriving hardcaml]
+  end
+
+  let create (_scope : Scope.t) (i : Signal.t I.t) =
+    let module K = Make (Signal) in
+    let row = Row.Of_signal.unpack ~rev:true i.row in
+    let next_pc, target_pc =
+      K.successors ~wrap_top:i.wrap_top ~wrap_bottom:i.wrap_bottom ~pc:i.pc ~word:i.word
+    in
+    { O.next_pc
+    ; target_pc
+    ; accepts =
+        K.accepts
+          ~side_set_count:i.side_set_count
+          ~fraction:i.fraction
+          ~loaded:i.loaded
+          ~capture:i.capture
+          ~word:i.word
+          ~row
+          ~next:(Row.Of_signal.unpack ~rev:true i.next)
+          ~target:(Row.Of_signal.unpack ~rev:true i.target)
+    ; within =
+        K.within
+          row
+          ~phase:i.phase
+          ~offset:i.offset
+          ~period:i.period
+          ~x:i.x
+          ~y:i.y
+          ~arm:i.arm
+          ~arm_known:i.arm_known
+          ~captured:i.captured
+          ~awaiting:i.awaiting
+        |> Holds.to_list
+        |> Signal.reduce ~f:Signal.( &: )
+    ; starts_open = K.starts_open row
+    }
+  ;;
+
+  let hierarchical ?instance scope i =
+    let module H = Hierarchy.In_scope (I) (O) in
+    H.hierarchical ?instance ~scope ~name:"kernel_accepts" create i
+  ;;
+end
