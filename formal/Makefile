@@ -330,9 +330,22 @@ netlist_equiv_teeth:
 	$(MAKE) netlist_equiv NETLIST=netlist_equiv_teeth/unreset.v EQUIV=netlist_equiv_unreset EXPECT=0
 	grep -E 'CEX: .* Frame = +[1-9]' netlist_equiv_unreset/proof.log
 
+# cadical (rel-3.0.1) and cake_lpr at pinned commits, for the kernel's checked QEDs
+# (test/checked_unsat.ml), in sat_tools/bin; CI caches it. About 1 min.
+CADICAL = c60730422e758ef1cebe7aeddf2dda31c996bf04
+CAKE_LPR = a36874a8b750b43fe4b385b8ddbf5b033e46a3fa
+sat_tools:
+	rm -rf sat_tools && mkdir -p sat_tools/bin
+	curl -fsSL https://github.com/arminbiere/cadical/archive/$(CADICAL).tar.gz | tar xz -C sat_tools
+	cd sat_tools/cadical-$(CADICAL) && ./configure && $(MAKE) -j4
+	cp sat_tools/cadical-$(CADICAL)/build/cadical sat_tools/bin/
+	curl -fsSL https://github.com/tanyongkiam/cake_lpr/archive/$(CAKE_LPR).tar.gz | tar xz -C sat_tools
+	cd sat_tools/cake_lpr-$(CAKE_LPR) && rm -f cake_lpr && $(MAKE) cake_lpr
+	cp sat_tools/cake_lpr-$(CAKE_LPR)/cake_lpr sat_tools/bin/
+
 .PHONY: all issue_timing host_timing late_host fifo_order phase_step phase_table \
   phase_table_proof edge_step frame_step value_step chip_frame data_step teeth certificates \
   certificate inductive_certificate inductive_proof inductive_certificates inductive_names \
   stamped_certificate stamped_proof data_certificate data_proof data_certificates data_names \
   netlist_equiv netlist_equiv_teeth fsm_miter fsm_miter_proof sram_equiv sram_equiv_proof \
-  sram_equiv_step sram_equiv_teeth kernel_equiv kernel_equiv_proof kernel_miter
+  sram_equiv_step sram_equiv_teeth kernel_equiv kernel_equiv_proof kernel_miter sat_tools
