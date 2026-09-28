@@ -65,7 +65,9 @@ jobs:
         run: |
           opam exec -- dune exec -- bin/generate.exe engine > formal/engine.v
           opam exec -- dune exec -- bin/generate.exe engine -sram > formal/engine_sram.v
+          opam exec -- dune exec -- bin/generate.exe engine -timer-bits 7 > formal/engine_narrow.v
           opam exec -- dune exec -- bin/generate.exe kernel > formal/kernel_step.v
+          opam exec -- dune exec -- bin/generate.exe kernel -timer-bits 7 > formal/kernel_step_narrow.v
           opam exec -- dune exec -- bin/generate.exe engines -engines 2 > formal/engines.v
           opam exec -- dune exec -- bin/generate.exe engines -engines 2 -sram > formal/engines_sram.v
           opam exec -- dune exec -- test/certify/write_link.exe > formal/link.sv
@@ -78,7 +80,7 @@ jobs:
           opam exec -- dune exec -- bin/generate.exe memory -sram > formal/memory_sram.v
           opam exec -- dune exec -- bin/generate.exe kernel-gates > formal/kernel_gates.aag
           opam exec -- dune exec -- bin/generate.exe kernel-gates -accepts > formal/kernel_accepts_gates.aag
-          make -C formal issue_timing host_timing late_host fifo_order phase_step edge_step frame_step value_step chip_frame data_step teeth fsm_miter_proof sram_equiv_proof kernel_equiv_proof sync_rtl sync_rtl_teeth
+          make -C formal issue_timing host_timing late_host fifo_order phase_step edge_step frame_step value_step narrow_proof chip_frame data_step teeth fsm_miter_proof sram_equiv_proof kernel_equiv_proof sync_rtl sync_rtl_teeth
 
       # each inductive certificate, the stamped one and the ones with data claims too, is
       # proved in a job of its own below
@@ -113,6 +115,14 @@ jobs:
             formal/engines_sram.v
             formal/link.sv
             formal/link_baud.sv
+
+      - name: Upload the Verilog of the narrow core
+        uses: actions/upload-artifact@v7
+        with:
+          name: narrow
+          path: |
+            formal/engine_narrow.v
+            formal/kernel_step_narrow.v
 
       - name: Upload the Verilog of the one-run theorem
         uses: actions/upload-artifact@v7
@@ -253,6 +263,29 @@ jobs:
 
       - name: Prove
         run: make -C formal phase_spacing_proof
+
+  # the step lemma on the narrow core, where a timer that stops at its top has to fail
+  saturating:
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Download the Verilog
+        uses: actions/download-artifact@v8
+        with:
+          name: narrow
+          path: formal
+
+      - name: Install OSS CAD Suite
+        run: |
+          curl -sL https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz | tar xz -C "$HOME"
+          echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
+
+      - name: Prove
+        run: make -C formal saturating_proof
 
   # the uart link between two engines by induction, its cover and teeth
   link:
