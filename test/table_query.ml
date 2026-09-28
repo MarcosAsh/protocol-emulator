@@ -54,6 +54,7 @@ let accepts ~loaded ~single_capture_edge ~(config : Program_config.t) ~words tab
       ~fraction
       ~loaded
       ~capture
+      ~spacing:K.no_spacing
       ~word:(constant (word pc))
       ~row:table.(pc)
       ~next:table.(following pc)

@@ -9,10 +9,89 @@
     multiplication, so that proof takes the offsets as free inputs under axioms of modular
     arithmetic, which it states and rests on. So a program whose rows all pass, with the
     full range at pc 0, never misses a deadline. An empty row is a pc never reached; the
-    full range is an unknown phase. *)
+    full range is an unknown phase. Rows also bound a pair of pins' edges, so that with a
+    [Spacing] no edge comes too soon: [formal/phase_table.sby] proves that on the RTL for
+    tables of intervals, taking the edge lemma [formal/edge_step.sv] proves. *)
 
 open! Core
 open! Hardcaml
+
+(** One pin of a watched pair at an entry: the cycles since its last edge in this run,
+    saturating, all ones before the first; its bit; and [fresh] until the run first writes
+    it, which sets it and is not counted as an edge. *)
+module Edge : sig
+  type 'a t =
+    { since : 'a
+    ; level : 'a
+    ; fresh : 'a
+    }
+  [@@deriving hardcaml]
+end
+
+(** A row's bound on a pin at one bit: whether it [may] hold it, and then the least
+    [since], and the least [since] less the phase, [mark], which is [t] less the edge's
+    entry and so keeps through jitter. A saturated [since] keeps any mark. *)
+module Held : sig
+  type 'a t =
+    { may : 'a
+    ; since : 'a
+    ; mark : 'a
+    }
+  [@@deriving hardcaml]
+end
+
+(** A row's bounds on a pin, at each bit, and [fresh] where it is not yet written. *)
+module Pin : sig
+  type 'a t =
+    { at0 : 'a Held.t
+    ; at1 : 'a Held.t
+    ; fresh : 'a
+    }
+  [@@deriving hardcaml]
+end
+
+(** A pair of pins whose edges must be spaced, each its [pindirs] bit if [dirs] else its
+    [pins] bit; the config that writes them; and the least cycles, indexed
+    [2 * own + other] by the two bits before an edge, from [a]'s last edge ([hold_a]) and
+    [b]'s ([apart_a]), and the same for [b]. Moving at once is 0 apart. An edge is a move
+    after the pin's first write in the run. Out and mov data is not followed, so a pin
+    they write may move. *)
+module Spacing : sig
+  type 'a t =
+    { a : 'a
+    ; b : 'a
+    ; dirs : 'a
+    ; side_set_base : 'a
+    ; side_set_pindirs : 'a
+    ; set_base : 'a
+    ; set_count : 'a
+    ; out_base : 'a
+    ; out_count : 'a
+    ; hold_a : 'a list
+    ; apart_a : 'a list
+    ; hold_b : 'a list
+    ; apart_b : 'a list
+    }
+  [@@deriving hardcaml]
+
+  (** The same, the config apart, keyed by the bits before the edge. *)
+  module Spec : sig
+    type t =
+      { a : int
+      ; b : int
+      ; dirs : bool
+      ; hold_a : own:bool -> other:bool -> int
+      ; apart_a : own:bool -> other:bool -> int
+      ; hold_b : own:bool -> other:bool -> int
+      ; apart_b : own:bool -> other:bool -> int
+      }
+  end
+
+  val of_spec : Program_config.t -> Spec.t -> Bits.t t
+end
+
+(** No spacing asks nothing. *)
+module Spaced : With_valid.Wrap.S with type 'a value = 'a Spacing.t
 
 (** [slope] is signed. [offset_lo] and [offset_hi] bound [phase - slope * x], taken modulo
     the timer and read as signed, and their full range bounds nothing. A counted loop that
@@ -38,6 +117,8 @@ module Row : sig
     ; arm_hi : 'a
     ; captured : 'a
     ; awaiting : 'a
+    ; a : 'a Pin.t
+    ; b : 'a Pin.t
     }
   [@@deriving hardcaml]
 end
@@ -66,17 +147,22 @@ module Holds : sig
     ; arm : 'a
     ; captured : 'a
     ; awaiting : 'a
+    ; edge_a : 'a
+    ; edge_b : 'a
     }
   [@@deriving hardcaml]
 end
 
 (** [accepts] one conjunct at a time, so a rejection says which fails. [in_time]: a
-    deadline wait is entered at phase zero or below. [next] and [target]: the row maps
-    into the next pc's, and into the jump target's, on each way out the instruction may
-    take. A conjunct that does not apply, as for an empty row or a halt, holds. *)
+    deadline wait is entered at phase zero or below. [wide_a] and [wide_b]: an edge the
+    word may make keeps the pin's spacing. [next] and [target]: the row maps into the next
+    pc's, and into the jump target's, on each way out the instruction may take. A conjunct
+    that does not apply, as for an empty row or a halt, holds. *)
 module Conjuncts : sig
   type 'a t =
     { in_time : 'a
+    ; wide_a : 'a
+    ; wide_b : 'a
     ; next : 'a Holds.t
     ; target : 'a Holds.t
     }
@@ -91,7 +177,10 @@ end
     [next_captured], the capture is younger than that, as the arm takes effect a cycle
     late. Only the first wait for the edge after the arm, while [awaiting], captures.
     [capture_bounded]: this is [mov t, capture] with a captured edge, so the next phase
-    lies in [cycles + 1, next_phase]. [halts]: no next entry. *)
+    lies in [cycles + 1, next_phase]. [next_a] and [next_b]: the pair's edge states, an
+    edge showing the cycle after the entry, where out or mov data puts [data_a] and
+    [data_b] on them; [wide_a] and [wide_b]: each keeps its spacing. [halts]: no next
+    entry. *)
 module Step : sig
   type 'a t =
     { next_phase : 'a
@@ -110,6 +199,10 @@ module Step : sig
     ; next_captured : 'a
     ; next_awaiting : 'a
     ; capture_bounded : 'a
+    ; next_a : 'a Edge.t
+    ; next_b : 'a Edge.t
+    ; wide_a : 'a
+    ; wide_b : 'a
     ; halts : 'a
     }
   [@@deriving hardcaml]
@@ -121,6 +214,7 @@ module Make (Comb : Comb.S) : sig
     -> fraction:Comb.t
     -> loaded:Comb.t With_valid.t
     -> capture:Comb.t Capture.t
+    -> spacing:Comb.t Spaced.t
     -> word:Comb.t
     -> phase:Comb.t
     -> period:Comb.t
@@ -130,6 +224,10 @@ module Make (Comb : Comb.S) : sig
     -> arm_known:Comb.t
     -> captured:Comb.t
     -> awaiting:Comb.t
+    -> a:Comb.t Edge.t
+    -> b:Comb.t Edge.t
+    -> data_a:Comb.t
+    -> data_b:Comb.t
     -> Comb.t Step.t
 
   (** [next] is the row after this one, [target] the jump's. *)
@@ -138,6 +236,7 @@ module Make (Comb : Comb.S) : sig
     -> fraction:Comb.t
     -> loaded:Comb.t With_valid.t
     -> capture:Comb.t Capture.t
+    -> spacing:Comb.t Spaced.t
     -> word:Comb.t
     -> row:Comb.t Row.t
     -> next:Comb.t Row.t
@@ -150,11 +249,17 @@ module Make (Comb : Comb.S) : sig
     -> fraction:Comb.t
     -> loaded:Comb.t With_valid.t
     -> capture:Comb.t Capture.t
+    -> spacing:Comb.t Spaced.t
     -> word:Comb.t
     -> row:Comb.t Row.t
     -> next:Comb.t Row.t
     -> target:Comb.t Row.t
     -> Comb.t
+
+  val no_spacing : Comb.t Spaced.t
+
+  (** An edge state at the start of a run, not yet written. *)
+  val starting : level:Comb.t -> Comb.t Edge.t
 
   val following : wrap_top:Comb.t -> wrap_bottom:Comb.t -> Comb.t -> Comb.t
   val is_full : Comb.t Row.t -> Comb.t
@@ -183,10 +288,12 @@ module Make (Comb : Comb.S) : sig
     -> arm_known:Comb.t
     -> captured:Comb.t
     -> awaiting:Comb.t
+    -> a:Comb.t Edge.t
+    -> b:Comb.t Edge.t
     -> Comb.t Holds.t
 
   (** The row bounds nothing, which [check] asks of the row at pc 0: the core starts there
-      with every register and the capture state anything. *)
+      with every register and the capture state anything, and no edge yet. *)
   val starts_open : Comb.t Row.t -> Comb.t
 end
 
@@ -200,13 +307,26 @@ module Table : sig
       if any: it keeps them when the slope is not zero and it and both ends are values of
       the timer read as signed, and otherwise makes the offset full. *)
   val offset_bounds : slope:int -> Interval.t -> (int * int * int) option
+
+  (** The edge states of the pair, from pc 0 on over every way the table reaches; not
+      trusted. *)
+  val with_edges
+    :  ?single_capture_edge:bool
+    -> t
+    -> config:Program_config.t
+    -> spacing:Bits.t Spacing.t
+    -> words:int list
+    -> t
 end
 
-(** Checks every pc; words past the program read zero. [period] is [loaded]. A rejection
-    names each pc and the conjuncts that fail there. *)
+(** Checks every pc; words past the program read zero. [period] is [loaded]. [spacing] is
+    refused unless its pins differ and lie in the pin space, Manchester is off and every
+    row has no slope and the full offset, as [formal/phase_table.sby] proves it. A
+    rejection names each pc and the conjuncts that fail there. *)
 val check
   :  ?period:int
   -> ?single_capture_edge:bool
+  -> ?spacing:Spacing.Spec.t
   -> config:Program_config.t
   -> words:int list
   -> Table.t
@@ -219,6 +339,7 @@ module I : sig
     ; fraction : 'a
     ; loaded : 'a With_valid.t
     ; capture : 'a Capture.t
+    ; spacing : 'a Spaced.t
     ; word : 'a
     ; phase : 'a
     ; period : 'a
@@ -228,6 +349,10 @@ module I : sig
     ; arm_known : 'a
     ; captured : 'a
     ; awaiting : 'a
+    ; a : 'a Edge.t
+    ; b : 'a Edge.t
+    ; data_a : 'a
+    ; data_b : 'a
     }
   [@@deriving hardcaml]
 end
@@ -246,6 +371,7 @@ module Accepts : sig
       ; fraction : 'a
       ; loaded : 'a With_valid.t
       ; capture : 'a Capture.t
+      ; spacing : 'a Spaced.t
       ; wrap_top : 'a
       ; wrap_bottom : 'a
       ; pc : 'a
@@ -262,6 +388,8 @@ module Accepts : sig
       ; arm_known : 'a
       ; captured : 'a
       ; awaiting : 'a
+      ; a : 'a Edge.t
+      ; b : 'a Edge.t
       }
     [@@deriving hardcaml]
   end

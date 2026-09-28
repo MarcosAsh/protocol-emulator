@@ -53,6 +53,7 @@ let accepted_rows_hold ~with_kernel =
         ; rising = G.input "capture_rising" 1
         ; single_edge = G.input "single_edge" 1
         }
+      ~spacing:K.no_spacing
       ~word
       ~phase:(G.input "phase" Isa.timer_bits)
       ~period:(G.input "period" Isa.data_bits)
@@ -62,6 +63,10 @@ let accepted_rows_hold ~with_kernel =
       ~arm_known:(G.input "arm_known" 1)
       ~captured:(G.input "captured" 1)
       ~awaiting:(G.input "awaiting" 1)
+      ~a:(K.starting ~level:G.gnd)
+      ~b:(K.starting ~level:G.gnd)
+      ~data_a:G.gnd
+      ~data_b:G.gnd
   in
   let o = O.step ~side_set_count ~autopull ~pull_threshold ~word ~shifted ~pulled in
   let x' = G.mux2 s.x_known s.next_x (G.input "any_x" Isa.data_bits) in

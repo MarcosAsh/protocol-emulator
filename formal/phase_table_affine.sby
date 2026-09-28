@@ -26,11 +26,13 @@ hierarchy -top engine
 proc
 flatten
 cd engine
-expose w:jmp_go w:advance w:sample w:captured
+expose w:jmp_go w:advance w:sample w:captured w:out_value w:mov_value
 rename jmp_go eng_jmp_go
 rename advance eng_advance
 rename sample eng_sample
 rename captured eng_captured
+rename out_value eng_out_value
+rename mov_value eng_mov_value
 cd ..
 read -define TABLE AFFINE
 offset_unchecked: read -define OFFSET_UNCHECKED

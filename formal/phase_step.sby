@@ -12,6 +12,7 @@ later_edge_captured teeth
 capture_a_cycle_older teeth
 capture_a_cycle_younger teeth
 arm_one_short teeth
+edge_one_short teeth
 
 [options]
 prove: mode prove
@@ -31,11 +32,13 @@ hierarchy -top engine
 proc
 flatten
 cd engine
-expose w:jmp_go w:advance w:sample w:captured
+expose w:jmp_go w:advance w:sample w:captured w:out_value w:mov_value
 rename jmp_go eng_jmp_go
 rename advance eng_advance
 rename sample eng_sample
 rename captured eng_captured
+rename out_value eng_out_value
+rename mov_value eng_mov_value
 cd ..
 jump_in_one: read -define JUMP_IN_ONE
 late_wait_waits: read -define LATE_WAIT_WAITS
@@ -48,6 +51,7 @@ later_edge_captured: read -define LATER_EDGE_CAPTURED
 capture_a_cycle_older: read -define CAPTURE_A_CYCLE_OLDER
 capture_a_cycle_younger: read -define CAPTURE_A_CYCLE_YOUNGER
 arm_one_short: read -define ARM_ONE_SHORT
+edge_one_short: read -define EDGE_ONE_SHORT
 read_verilog kernel_step.v
 read_verilog -formal -sv phase_step.sv
 prep -top phase_step

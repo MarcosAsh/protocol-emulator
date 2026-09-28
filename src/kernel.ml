@@ -1,6 +1,92 @@
 open! Core
 open! Hardcaml
 
+module Edge = struct
+  type 'a t =
+    { since : 'a [@bits Isa.data_bits]
+    ; level : 'a
+    ; fresh : 'a
+    }
+  [@@deriving hardcaml]
+end
+
+let mark_bits = Isa.timer_bits + 2
+
+module Held = struct
+  type 'a t =
+    { may : 'a
+    ; since : 'a [@bits Isa.data_bits]
+    ; mark : 'a [@bits mark_bits]
+    }
+  [@@deriving hardcaml]
+end
+
+module Pin = struct
+  type 'a t =
+    { at0 : 'a Held.t
+    ; at1 : 'a Held.t
+    ; fresh : 'a
+    }
+  [@@deriving hardcaml]
+end
+
+module Spacing = struct
+  type 'a t =
+    { a : 'a [@bits Isa.Field.wait_index.width]
+    ; b : 'a [@bits Isa.Field.wait_index.width]
+    ; dirs : 'a
+    ; side_set_base : 'a [@bits Isa.Field.wait_index.width]
+    ; side_set_pindirs : 'a
+    ; set_base : 'a [@bits Isa.Field.wait_index.width]
+    ; set_count : 'a [@bits 3]
+    ; out_base : 'a [@bits Isa.Field.wait_index.width]
+    ; out_count : 'a [@bits Isa.count_bits]
+    ; hold_a : 'a list [@length 4] [@bits Isa.data_bits]
+    ; apart_a : 'a list [@length 4] [@bits Isa.data_bits]
+    ; hold_b : 'a list [@length 4] [@bits Isa.data_bits]
+    ; apart_b : 'a list [@length 4] [@bits Isa.data_bits]
+    }
+  [@@deriving hardcaml]
+
+  module Spec = struct
+    type t =
+      { a : int
+      ; b : int
+      ; dirs : bool
+      ; hold_a : own:bool -> other:bool -> int
+      ; apart_a : own:bool -> other:bool -> int
+      ; hold_b : own:bool -> other:bool -> int
+      ; apart_b : own:bool -> other:bool -> int
+      }
+  end
+
+  let of_spec (config : Program_config.t) (spec : Spec.t) =
+    let pin n = Bits.of_unsigned_int ~width:Isa.Field.wait_index.width n in
+    let cycles f =
+      List.init 4 ~f:(fun i ->
+        Bits.of_unsigned_int
+          ~width:Isa.data_bits
+          (f ~own:(i lsr 1 = 1) ~other:(i land 1 = 1)))
+    in
+    { a = pin spec.a
+    ; b = pin spec.b
+    ; dirs = Bits.of_bool spec.dirs
+    ; side_set_base = pin config.side_set_base
+    ; side_set_pindirs = Bits.of_bool config.side_set_pindirs
+    ; set_base = pin config.set_base
+    ; set_count = Bits.of_unsigned_int ~width:3 config.set_count
+    ; out_base = pin config.out_base
+    ; out_count = Bits.of_unsigned_int ~width:Isa.count_bits config.out_count
+    ; hold_a = cycles spec.hold_a
+    ; apart_a = cycles spec.apart_a
+    ; hold_b = cycles spec.hold_b
+    ; apart_b = cycles spec.apart_b
+    }
+  ;;
+end
+
+module Spaced = With_valid.Wrap.Make (Spacing)
+
 module Row = struct
   type 'a t =
     { phase_lo : 'a [@bits Isa.timer_bits]
@@ -18,6 +104,8 @@ module Row = struct
     ; arm_hi : 'a [@bits Isa.timer_bits]
     ; captured : 'a
     ; awaiting : 'a
+    ; a : 'a Pin.t
+    ; b : 'a Pin.t
     }
   [@@deriving hardcaml]
 end
@@ -41,6 +129,8 @@ module Holds = struct
     ; arm : 'a
     ; captured : 'a
     ; awaiting : 'a
+    ; edge_a : 'a
+    ; edge_b : 'a
     }
   [@@deriving hardcaml]
 end
@@ -48,6 +138,8 @@ end
 module Conjuncts = struct
   type 'a t =
     { in_time : 'a
+    ; wide_a : 'a
+    ; wide_b : 'a
     ; next : 'a Holds.t
     ; target : 'a Holds.t
     }
@@ -72,10 +164,16 @@ module Step = struct
     ; next_captured : 'a
     ; next_awaiting : 'a
     ; capture_bounded : 'a
+    ; next_a : 'a Edge.t
+    ; next_b : 'a Edge.t
+    ; wide_a : 'a
+    ; wide_b : 'a
     ; halts : 'a
     }
   [@@deriving hardcaml]
 end
+
+module Decoded = Decoder.Decoded
 
 module Make (Comb : Comb.S) = struct
   open Comb
@@ -126,6 +224,7 @@ module Make (Comb : Comb.S) = struct
       ; capturing : Comb.t (** a wait for the captured edge, under the assumption *)
       ; pin_or_fifo_wait : Comb.t
       ; from_capture : Comb.t (** [mov t, capture] *)
+      ; decoded : Comb.t Decoded.t
       }
 
     let of_word ~side_set_count ~(capture : _ Capture.t) word =
@@ -195,9 +294,143 @@ module Make (Comb : Comb.S) = struct
       ; pin_or_fifo_wait = is Wait &: ~:deadline
       ; from_capture =
           mov_t &: Mov_op.is d.mov_op Copy &: Mov_source.is d.mov_source Capture
+      ; decoded = d
       }
     ;;
   end
+
+  (* Whether [pin] is in the run of [count] pins from [base], wrapping at the pin space as
+     [Pins.write] does, and the bit of [value] it takes there. *)
+  let in_run ~pin ~base ~count ~value =
+    let space = Isa.pin_space in
+    let six x = uresize x ~width:6 in
+    let base = mux2 (base >=:. space) (base -:. space) base in
+    let offset =
+      mux2 (pin >=: base) (six pin -: six base) (six pin +:. space -: six base)
+    in
+    ( offset <: six count &: (offset <:. Isa.data_bits)
+    , mux offset (bits_lsb (uresize value ~width:Isa.data_bits)) )
+  ;;
+
+  (* What the word does to the watched bit of [pin], as the core's pin writes do:
+     side-set, then a set, out or mov, where the pin takes that register. [data]: out or
+     mov data writes it. *)
+  module Watched = struct
+    type t =
+      { written : Comb.t
+      ; bit : Comb.t
+      ; data : Comb.t
+      }
+
+    let of_word ~side_set_count ~(spacing : _ Spacing.t) (d : _ Decoded.t) ~pin =
+      let is op = Opcode.is d.opcode op in
+      let takes =
+        mux2
+          spacing.dirs
+          (pin >=:. Isa.first_bidir_pin &: (pin <:. Isa.num_pins))
+          (pin >=:. Isa.first_output_pin &: (pin <:. Isa.pin_space))
+      in
+      let run = in_run ~pin in
+      let side_hit, side_bit =
+        run ~base:spacing.side_set_base ~count:side_set_count ~value:d.side_set
+      in
+      let set_hit, set_bit =
+        run ~base:spacing.set_base ~count:spacing.set_count ~value:d.set_value
+      in
+      let out_hit, _ = run ~base:spacing.out_base ~count:d.shift_count ~value:gnd in
+      let mov_hit, _ = run ~base:spacing.out_base ~count:spacing.out_count ~value:gnd in
+      let to_dirs dirs pins = mux2 spacing.dirs dirs pins in
+      let sided = ~:(is Jmp) &: (spacing.side_set_pindirs ==: spacing.dirs) &: side_hit in
+      let set =
+        is Set
+        &: to_dirs (Set_dest.is d.set_dest Pindirs) (Set_dest.is d.set_dest Pins)
+        &: set_hit
+      in
+      let out = to_dirs (Out_dest.is d.out_dest Pindirs) (Out_dest.is d.out_dest Pins) in
+      let mov = to_dirs (Mov_dest.is d.mov_dest Pindirs) (Mov_dest.is d.mov_dest Pins) in
+      let data = is Out &: out &: out_hit |: (is Mov &: mov &: mov_hit) in
+      { written = d.valid &: takes &: (sided |: set)
+      ; bit = mux2 set set_bit side_bit
+      ; data = d.valid &: takes &: data
+      }
+    ;;
+  end
+
+  let since_limit = ones Isa.data_bits
+
+  let saturate since =
+    let width = width since in
+    mux2
+      (since >: uresize since_limit ~width)
+      since_limit
+      (sel_bottom since ~width:Isa.data_bits)
+  ;;
+
+  (* A pin's edge state after the word, [duration] or more cycles on, where out or mov
+     data puts [data] on it: the cycles since its last edge count on, or restart where it
+     moves. Its first write in a run sets it and is not counted as an edge. *)
+  let edge_after (w : Watched.t) (e : _ Edge.t) ~data ~duration =
+    let level = mux2 w.data data @@ mux2 w.written w.bit e.level in
+    let changes = level <>: e.level in
+    let counted = changes &: ~:(e.fresh) in
+    let width = width duration in
+    ( changes
+    , counted
+    , { Edge.since =
+          saturate (mux2 counted (zero width) (uresize e.since ~width) +: duration)
+      ; level
+      ; fresh = e.fresh &: ~:(w.written |: w.data)
+      } )
+  ;;
+
+  (* A counted edge of [own] keeps the spacing its bit and [other]'s before it pick;
+     [other] moving with it is no time apart. *)
+  let spaced ~(spacing : _ Spaced.t) ~hold ~apart ~own ~own_counted ~other ~other_changes =
+    let index = own.Edge.level @: other.Edge.level in
+    let apart_by = mux2 other_changes (zero Isa.data_bits) other.since in
+    ~:(spacing.valid)
+    |: ~:own_counted
+    |: (own.since >=: mux index hold &: (apart_by >=: mux index apart))
+  ;;
+
+  (* Both pins after the word, and whether each keeps its spacing. *)
+  let edges
+    ~side_set_count
+    ~(spacing : _ Spaced.t)
+    ~d
+    ~(a : _ Edge.t)
+    ~b
+    ~data_a
+    ~data_b
+    ~duration
+    =
+    let v = spacing.value in
+    let watched pin = Watched.of_word ~side_set_count ~spacing:v d ~pin in
+    let a_changes, a_counted, next_a =
+      edge_after (watched v.a) a ~data:data_a ~duration
+    in
+    let b_changes, b_counted, next_b =
+      edge_after (watched v.b) b ~data:data_b ~duration
+    in
+    ( next_a
+    , next_b
+    , spaced
+        ~spacing
+        ~hold:v.hold_a
+        ~apart:v.apart_a
+        ~own:a
+        ~own_counted:a_counted
+        ~other:b
+        ~other_changes:b_changes
+    , spaced
+        ~spacing
+        ~hold:v.hold_b
+        ~apart:v.apart_b
+        ~own:b
+        ~own_counted:b_counted
+        ~other:a
+        ~other_changes:a_changes )
+  ;;
 
   (* Past this, a count of cycles since the arm is taken as lost, so it never wraps. *)
   let arm_limit = 1 lsl (Isa.timer_bits - 1)
@@ -207,6 +440,7 @@ module Make (Comb : Comb.S) = struct
     ~fraction
     ~(loaded : _ With_valid.t)
     ~capture
+    ~spacing
     ~word
     ~phase
     ~period
@@ -216,6 +450,10 @@ module Make (Comb : Comb.S) = struct
     ~arm_known
     ~captured
     ~awaiting
+    ~a
+    ~b
+    ~data_a
+    ~data_b
     =
     let c = Class.of_word ~side_set_count ~capture word in
     (* only the first wait for the edge since the arm sees it *)
@@ -230,6 +468,14 @@ module Make (Comb : Comb.S) = struct
       @@ (wide arm +: wide c.cycles)
     in
     let next_arm = sel_bottom wide_arm ~width:Isa.timer_bits in
+    (* the cycles to the next entry, at least *)
+    let duration =
+      let wide x = uresize x ~width:(Isa.timer_bits + 2) in
+      mux2 c.deadline (wide (released -: phase) +: wide c.cycles) (wide c.cycles)
+    in
+    let next_a, next_b, wide_a, wide_b =
+      edges ~side_set_count ~spacing ~d:c.decoded ~a ~b ~data_a ~data_b ~duration
+    in
     let capture_bounded = c.from_capture &: captured &: arm_known in
     let next_phase =
       priority_select_with_default
@@ -265,6 +511,10 @@ module Make (Comb : Comb.S) = struct
     ; next_captured = mux2 c.arm gnd (captured |: (capturing &: arm_known))
     ; next_awaiting = mux2 c.arm vdd (awaiting &: ~:(c.capturing))
     ; capture_bounded
+    ; next_a
+    ; next_b
+    ; wide_a
+    ; wide_b
     ; halts = c.halts
     }
   ;;
@@ -307,24 +557,113 @@ module Make (Comb : Comb.S) = struct
     mux2 any (is_all lo hi) (lo <=: image_lo &: (image_hi <=: hi))
   ;;
 
-  let conjuncts
-    ~side_set_count
-    ~fraction
-    ~(loaded : _ With_valid.t)
-    ~capture
-    ~word
-    ~(row : _ Row.t)
-    ~(next : _ Row.t)
-    ~target
+  (* A row bounds a pin at each bit it may hold by the least cycles since its last edge
+     and by [mark], the least of those cycles less the phase, [t] less the edge's entry,
+     which the phase's jitter leaves alone. [mark_none] bounds nothing; a mark above
+     [mark_max] only a saturated count keeps. *)
+  let mark_none = of_signed_int ~width:mark_bits (-(1 lsl (mark_bits - 1)))
+  let mark_max = of_signed_int ~width:mark_bits ((1 lsl (Isa.timer_bits - 1)) + 0xffff)
+  let mark_wide x = sresize x ~width:(mark_bits + 2)
+
+  let clamp_mark x =
+    mux2 (x <+ mark_wide mark_none) mark_none
+    @@ mux2 (x >+ mark_wide mark_max) mark_max
+    @@ sel_bottom x ~width:mark_bits
+  ;;
+
+  (* the least cycles since the last edge, at a phase of [phase_lo] or more *)
+  let least_since (h : _ Held.t) ~phase_lo =
+    let by_mark = mark_wide h.mark +: phase_lo in
+    let by_mark =
+      mux2 (by_mark <+ zero (width by_mark)) (zero Isa.data_bits) (saturate by_mark)
+    in
+    mux2 (by_mark >: h.since) by_mark h.since
+  ;;
+
+  (* The least of [cases] that apply, each a bound the pin may land in. *)
+  let join_held cases =
+    let applies (enable, (h : _ Held.t)) = enable &: h.may in
+    let least ~lt ~top ~f =
+      List.fold cases ~init:top ~f:(fun acc case ->
+        let v = f (snd case) in
+        mux2 (applies case &: lt v acc) v acc)
+    in
+    { Held.may = List.map cases ~f:applies |> reduce ~f:( |: )
+    ; since = least ~lt:( <: ) ~top:since_limit ~f:(fun h -> h.since)
+    ; mark = least ~lt:( <+ ) ~top:mark_max ~f:(fun h -> h.mark)
+    }
+  ;;
+
+  (* A pin's bounds after the word: at the bit it keeps, the counts go on by the least
+     [duration] and the mark by the least move of [t], if known; at the bit it moves to,
+     they restart. *)
+  let pin_image (w : Watched.t) (r : _ Pin.t) ~duration ~dt_lo ~dt_known ~phase_hi =
+    let kept (h : _ Held.t) =
+      { h with
+        since = saturate (uresize h.since ~width:(width duration) +: duration)
+      ; mark =
+          mux2
+            (dt_known &: (h.mark <>: mark_none))
+            (clamp_mark (mark_wide h.mark +: dt_lo))
+            mark_none
+      }
+    in
+    (* a first write is no edge, so a pin not yet written counts on *)
+    let moved (h : _ Held.t) =
+      let kept = kept h in
+      { h with
+        since = mux2 r.fresh kept.since (saturate duration)
+      ; mark =
+          mux2 r.fresh kept.mark
+          @@ mux2 dt_known (clamp_mark (dt_lo -: phase_hi)) mark_none
+      }
+    in
+    let keeps bit = w.data |: ~:(w.written) |: (w.bit ==: bit) in
+    let moves bit = w.data |: (w.written &: (w.bit <>: bit)) in
+    { Pin.at0 = join_held [ keeps gnd, kept r.at0; moves vdd, moved r.at1 ]
+    ; at1 = join_held [ keeps vdd, kept r.at1; moves gnd, moved r.at0 ]
+    ; fresh = r.fresh &: ~:(w.written |: w.data)
+    }
+  ;;
+
+  (* Every counted edge [own] may make keeps the spacing at each pair of bits the two may
+     hold before it. *)
+  let row_spaced
+    ~(spacing : _ Spaced.t)
+    ~hold
+    ~apart
+    ~own_w
+    ~own
+    ~other_w
+    ~other
+    ~phase_lo
     =
-    let c = Class.of_word ~side_set_count ~capture word in
-    let arm_known = ~:(arm_is_full row) in
-    let capturing = c.capturing &: row.awaiting in
-    let other_wait = c.pin_or_fifo_wait &: ~:capturing in
-    let capture_bounded = c.from_capture &: row.captured &: arm_known in
+    let ok own_bit other_bit =
+      let held (p : _ Pin.t) bit = if bit then p.at1 else p.at0 in
+      let h = held own own_bit in
+      let g = held other other_bit in
+      let moves (w : Watched.t) bit = w.data |: (w.written &: (w.bit <>: of_bool bit)) in
+      let i = (2 * Bool.to_int own_bit) + Bool.to_int other_bit in
+      let hold = List.nth_exn hold i in
+      let apart = List.nth_exn apart i in
+      ~:(h.may &: moves own_w own_bit &: g.may)
+      |: (least_since h ~phase_lo
+          >=: hold
+          &: mux2
+               (moves other_w other_bit)
+               (apart ==:. 0)
+               (least_since g ~phase_lo >=: apart))
+    in
+    ~:(spacing.valid)
+    |: own.Pin.fresh
+    |: (List.cartesian_product [ false; true ] [ false; true ]
+        |> List.map ~f:(fun (own_bit, other_bit) -> ok own_bit other_bit)
+        |> reduce ~f:( &: ))
+  ;;
+
+  (* The next phase from a phase in [lo, hi], and what the step adds to it. *)
+  let phase_image ~fraction ~(c : Class.t) ~(row : _ Row.t) ~capture_bounded =
     let wide_arm x = uresize x ~width:wide_bits in
-    let lo = wide row.phase_lo in
-    let hi = wide row.phase_hi in
     let released x = mux2 (x <+ zero wide_bits) (zero wide_bits) x in
     let cycles = uresize c.cycles ~width:wide_bits in
     let imm = uresize c.imm ~width:wide_bits in
@@ -365,6 +704,137 @@ module Make (Comb : Comb.S) = struct
       in
       base_lo +: delta_lo, base_hi +: delta_hi
     in
+    image, delta_lo, delta_hi
+  ;;
+
+  (* whether the next phase is bounded and does not wrap *)
+  let phase_fits ~fraction ~(c : Class.t) ~(row : _ Row.t) ~capture_bounded =
+    let image, _, _ = phase_image ~fraction ~c ~row ~capture_bounded in
+    let image_lo, image_hi = image ~lo:(wide row.phase_lo) ~hi:(wide row.phase_hi) in
+    c.bounded &: (image_lo >=+ timer_min) &: (image_hi <=+ timer_max)
+  ;;
+
+  (* Both pins' bounds after the word from the row's, and whether each keeps its spacing:
+     the least duration is the cycles and a deadline wait's least stall, and [t] moves by
+     the analyser's classes. A mark follows only where [phase_fits]: the next phase is
+     bounded and does not wrap. *)
+  let row_edges
+    ~side_set_count
+    ~(spacing : _ Spaced.t)
+    ~(c : Class.t)
+    ~(row : _ Row.t)
+    ~phase_fits
+    =
+    let v = spacing.value in
+    let hi = wide row.phase_hi in
+    let stall = negate hi in
+    let stall = mux2 (stall <+ zero wide_bits) (zero wide_bits) stall in
+    let duration =
+      uresize c.cycles ~width:wide_bits +: mux2 c.deadline stall (zero wide_bits)
+    in
+    let data x = uresize x ~width:(mark_bits + 2) in
+    let phase_lo = mark_wide row.phase_lo in
+    let dt_lo =
+      mux2 c.anchor phase_lo
+      @@ mux2 (c.advance |: c.add_p) (data row.period_lo)
+      @@ mux2 c.add_x (data row.x_lo)
+      @@ mux2 c.add_y (data row.y_lo)
+      @@ mux2 c.add_imm (data c.imm)
+      @@ mux2 c.sub_imm (negate (data c.imm)) (zero (mark_bits + 2))
+    in
+    let watched pin = Watched.of_word ~side_set_count ~spacing:v c.decoded ~pin in
+    let wa = watched v.a in
+    let wb = watched v.b in
+    let image w r =
+      pin_image
+        w
+        r
+        ~duration
+        ~dt_lo
+        ~dt_known:phase_fits
+        ~phase_hi:(mark_wide row.phase_hi)
+    in
+    ( image wa row.a
+    , image wb row.b
+    , row_spaced
+        ~spacing
+        ~hold:v.hold_a
+        ~apart:v.apart_a
+        ~own_w:wa
+        ~own:row.a
+        ~other_w:wb
+        ~other:row.b
+        ~phase_lo
+    , row_spaced
+        ~spacing
+        ~hold:v.hold_b
+        ~apart:v.apart_b
+        ~own_w:wb
+        ~own:row.b
+        ~other_w:wa
+        ~other:row.a
+        ~phase_lo )
+  ;;
+
+  (* the pair's bounds after the word, as [conjuncts] makes them, for [Table.with_edges] *)
+  let edge_images ~side_set_count ~fraction ~capture ~spacing ~word ~(row : _ Row.t) =
+    let c = Class.of_word ~side_set_count ~capture word in
+    let capture_bounded = c.from_capture &: row.captured &: ~:(arm_is_full row) in
+    let a, b, _, _ =
+      row_edges
+        ~side_set_count
+        ~spacing
+        ~c
+        ~row
+        ~phase_fits:(phase_fits ~fraction ~c ~row ~capture_bounded)
+    in
+    a, b
+  ;;
+
+  (* A row's bounds hold of the bounds [image], bit by bit. *)
+  let pin_holds (s : _ Pin.t) (image : _ Pin.t) =
+    let held (s : _ Held.t) (i : _ Held.t) =
+      ~:(i.may) |: (s.may &: (s.since <=: i.since) &: (s.mark <=+ i.mark))
+    in
+    held s.at0 image.at0 &: held s.at1 image.at1 &: (~:(s.fresh) |: image.fresh)
+  ;;
+
+  (* The core's edge state inside a row's bounds, at a phase of [phase]; a saturated count
+     keeps any mark. *)
+  let pin_within (r : _ Pin.t) (e : _ Edge.t) ~phase =
+    let inside (h : _ Held.t) =
+      h.may
+      &: (h.since <=: e.since)
+      &: (e.since
+          ==: since_limit
+          |: (uresize e.since ~width:(mark_bits + 2) -: mark_wide phase
+              >=+ mark_wide h.mark))
+    in
+    mux2 e.level (inside r.at1) (inside r.at0) &: (~:(r.fresh) |: e.fresh)
+  ;;
+
+  let conjuncts
+    ~side_set_count
+    ~fraction
+    ~(loaded : _ With_valid.t)
+    ~capture
+    ~spacing
+    ~word
+    ~(row : _ Row.t)
+    ~(next : _ Row.t)
+    ~target
+    =
+    let c = Class.of_word ~side_set_count ~capture word in
+    let arm_known = ~:(arm_is_full row) in
+    let capturing = c.capturing &: row.awaiting in
+    let other_wait = c.pin_or_fifo_wait &: ~:capturing in
+    let capture_bounded = c.from_capture &: row.captured &: arm_known in
+    let wide_arm x = uresize x ~width:wide_bits in
+    let lo = wide row.phase_lo in
+    let hi = wide row.phase_hi in
+    let released x = mux2 (x <+ zero wide_bits) (zero wide_bits) x in
+    let cycles = uresize c.cycles ~width:wide_bits in
+    let image, delta_lo, delta_hi = phase_image ~fraction ~c ~row ~capture_bounded in
     let image_lo, image_hi = image ~lo ~hi in
     let offset_lo = wide row.offset_lo in
     let offset_hi = wide row.offset_hi in
@@ -384,6 +854,14 @@ module Make (Comb : Comb.S) = struct
       , from ~stall:(released (negate lo)) row.arm_hi )
     in
     let arm_image_known = c.arm |: (arm_known &: ~:other_wait &: (arm_hi <:. arm_limit)) in
+    let edge_a, edge_b, wide_a, wide_b =
+      row_edges
+        ~side_set_count
+        ~spacing
+        ~c
+        ~row
+        ~phase_fits:(c.bounded &: (image_lo >=+ timer_min) &: (image_hi <=+ timer_max))
+    in
     let captured_image = mux2 c.arm gnd (row.captured |: (capturing &: arm_known)) in
     let awaiting_image = mux2 c.arm vdd (row.awaiting &: ~:(c.capturing)) in
     let period_image v = mux2 c.set_p c.set_value @@ mux2 c.writes_p loaded.value v in
@@ -460,6 +938,8 @@ module Make (Comb : Comb.S) = struct
               &: (arm_hi <=: wide_arm s.arm_hi))
       ; captured = ~:(s.captured) |: captured_image
       ; awaiting = ~:(s.awaiting) |: awaiting_image
+      ; edge_a = pin_holds s.a edge_a
+      ; edge_b = pin_holds s.b edge_b
       }
     in
     let singleton lo hi = lo ==: hi in
@@ -483,15 +963,19 @@ module Make (Comb : Comb.S) = struct
     (* an empty row or a halt asks nothing; each conjunct holds or does not apply *)
     let asks = ~:(is_empty row) &: ~:(c.halts) in
     let only_if needed holds = Holds.map holds ~f:(fun h -> ~:needed |: h) in
+    (* a halt's side-set moves the pins too *)
     { Conjuncts.in_time =
         ~:asks |: ~:(c.deadline) |: (row.phase_hi <=+ zero Isa.timer_bits)
+    ; wide_a = is_empty row |: wide_a
+    ; wide_b = is_empty row |: wide_b
     ; next = only_if (asks &: (~:(c.jump) |: may_fall)) (holds ~taken:false next)
     ; target = only_if (asks &: c.jump &: may_take) (holds ~taken:true target)
     }
   ;;
 
-  let accepts ~side_set_count ~fraction ~loaded ~capture ~word ~row ~next ~target =
-    conjuncts ~side_set_count ~fraction ~loaded ~capture ~word ~row ~next ~target
+  let accepts ~side_set_count ~fraction ~loaded ~capture ~spacing ~word ~row ~next ~target
+    =
+    conjuncts ~side_set_count ~fraction ~loaded ~capture ~spacing ~word ~row ~next ~target
     |> Conjuncts.to_list
     |> reduce ~f:( &: )
   ;;
@@ -514,6 +998,8 @@ module Make (Comb : Comb.S) = struct
     ~arm_known
     ~captured
     ~awaiting
+    ~a
+    ~b
     =
     let inside lo hi v = lo <=: v &: (v <=: hi) in
     { Holds.phase = r.phase_lo <=+ phase &: (phase <=+ r.phase_hi)
@@ -524,8 +1010,17 @@ module Make (Comb : Comb.S) = struct
     ; arm = arm_is_full r |: (arm_known &: inside r.arm_lo r.arm_hi arm)
     ; captured = ~:(r.captured) |: captured
     ; awaiting = ~:(r.awaiting) |: awaiting
+    ; edge_a = pin_within r.a a ~phase
+    ; edge_b = pin_within r.b b ~phase
     }
   ;;
+
+  let no_spacing =
+    let module Spaced = Spaced.Make_comb (Comb) in
+    Spaced.zero ()
+  ;;
+
+  let starting ~level = { Edge.since = since_limit; level; fresh = vdd }
 
   let starts_open (r : _ Row.t) =
     is_full r
@@ -536,11 +1031,25 @@ module Make (Comb : Comb.S) = struct
     &: arm_is_full r
     &: ~:(r.captured)
     &: ~:(r.awaiting)
+    &: r.a.at0.may
+    &: r.a.at1.may
+    &: r.b.at0.may
+    &: r.b.at1.may
   ;;
 end
 
+module K = Make (Bits)
+
 module Table = struct
   type t = Bits.t Row.t array
+
+  (* bounds nothing *)
+  let no_edge =
+    let held =
+      { Held.may = Bits.vdd; since = Bits.zero Isa.data_bits; mark = K.mark_none }
+    in
+    { Pin.at0 = held; at1 = held; fresh = Bits.gnd }
+  ;;
 
   let full_phase = Interval.top
 
@@ -606,6 +1115,8 @@ module Table = struct
     ; arm_hi = arm_hi
     ; captured = Bits.of_bool captured
     ; awaiting = Bits.of_bool awaiting
+    ; a = no_edge
+    ; b = no_edge
     }
   ;;
 
@@ -625,6 +1136,8 @@ module Table = struct
     ; arm_hi = Bits.zero Isa.timer_bits
     ; captured = Bits.gnd
     ; awaiting = Bits.gnd
+    ; a = no_edge
+    ; b = no_edge
     }
   ;;
 
@@ -655,9 +1168,120 @@ module Table = struct
          ~awaiting:false;
     table
   ;;
-end
 
-module K = Make (Bits)
+  (* Where either may be: the least of their counts and marks at each bit. A bit it may
+     not hold reads the top of both, so that joining comes to a fixed point. *)
+  let join (p : _ Pin.t) (q : _ Pin.t) =
+    let held (h : _ Held.t) (g : _ Held.t) =
+      let top = { Held.may = Bits.gnd; since = K.since_limit; mark = K.mark_max } in
+      let h = if Bits.to_bool h.may then h else top in
+      let g = if Bits.to_bool g.may then g else top in
+      { Held.may = Bits.(h.may |: g.may)
+      ; since = (if Bits.(to_bool (h.since <: g.since)) then h.since else g.since)
+      ; mark = (if Bits.(to_bool (h.mark <+ g.mark)) then h.mark else g.mark)
+      }
+    in
+    { Pin.at0 = held p.at0 q.at0
+    ; at1 = held p.at1 q.at1
+    ; fresh = Bits.(p.fresh &: q.fresh)
+    }
+  ;;
+
+  (* after this many joins at a pc, its marks bound nothing, so a mark that falls round a
+     loop cannot keep it going *)
+  let widen_after = 64
+
+  let with_edges
+    ?(single_capture_edge = false)
+    (table : t)
+    ~(config : Program_config.t)
+    ~spacing
+    ~words
+    =
+    let size = Array.length table in
+    let words = Array.of_list words in
+    let word pc =
+      Bits.of_unsigned_int
+        ~width:Isa.data_bits
+        (if pc < Array.length words then words.(pc) else 0)
+    in
+    let side_set_count = Bits.of_unsigned_int ~width:2 config.side_set_count in
+    let fraction = Bits.of_bool (config.period_fraction <> 0) in
+    let capture =
+      { Capture.pin =
+          Bits.of_unsigned_int ~width:Isa.Field.wait_index.width config.capture_pin
+      ; rising = Bits.of_bool config.capture_rising
+      ; single_edge = Bits.of_bool single_capture_edge
+      }
+    in
+    let spacing = { With_valid.valid = Bits.vdd; value = spacing } in
+    let reached pc = not (Bits.to_bool (K.is_empty table.(pc))) in
+    let state = Array.create ~len:size None in
+    let joins = Array.create ~len:size 0 in
+    let starting =
+      let held = { Held.may = Bits.vdd; since = K.since_limit; mark = K.mark_max } in
+      { Pin.at0 = held; at1 = held; fresh = Bits.vdd }
+    in
+    state.(0) <- Some (starting, starting);
+    let queue = Queue.of_list [ 0 ] in
+    while not (Queue.is_empty queue) do
+      let pc = Queue.dequeue_exn queue in
+      match state.(pc) with
+      | None -> ()
+      | Some (a, b) when reached pc ->
+        let w = word pc in
+        let a, b =
+          K.edge_images
+            ~side_set_count
+            ~fraction
+            ~capture
+            ~spacing
+            ~word:w
+            ~row:{ (table.(pc)) with a; b }
+        in
+        let target = Isa.Field.select (module Bits) Isa.Field.jmp_target w in
+        let following =
+          if pc = config.wrap_top then config.wrap_bottom else (pc + 1) % size
+        in
+        let successors =
+          match
+            Isa.of_word ~side_set_count:config.side_set_count (Bits.to_unsigned_int w)
+          with
+          | Error _ | Ok (Op { op = Sys Halt; _ }) -> []
+          | Ok (Jmp { cond = Always; _ }) -> [ Bits.to_unsigned_int target ]
+          | Ok (Jmp _) -> [ Bits.to_unsigned_int target; following ]
+          | Ok (Op _) -> [ following ]
+        in
+        List.iter successors ~f:(fun next ->
+          let joined =
+            match state.(next) with
+            | None -> join a a, join b b
+            | Some (a', b') -> join a a', join b b'
+          in
+          let joined =
+            if joins.(next) < widen_after
+            then joined
+            else (
+              let widen (p : _ Pin.t) =
+                let held (h : _ Held.t) = { h with mark = K.mark_none } in
+                { p with at0 = held p.at0; at1 = held p.at1 }
+              in
+              widen (fst joined), widen (snd joined))
+          in
+          if not
+               ([%equal: (Bits.t Pin.t * Bits.t Pin.t) option] (Some joined) state.(next))
+          then (
+            joins.(next) <- joins.(next) + 1;
+            state.(next) <- Some joined;
+            Queue.enqueue queue next))
+      | Some _ -> ()
+    done;
+    Array.mapi table ~f:(fun pc row ->
+      match state.(pc) with
+      | Some (a, b) when reached pc -> { row with a; b }
+      | _ -> row)
+  ;;
+end
 
 module Rejection = struct
   type t =
@@ -667,7 +1291,14 @@ module Rejection = struct
   [@@deriving sexp_of]
 end
 
-let check ?period ?(single_capture_edge = false) ~(config : Program_config.t) ~words (table : Table.t) =
+let check
+  ?period
+  ?(single_capture_edge = false)
+  ?spacing:spec
+  ~(config : Program_config.t)
+  ~words
+  (table : Table.t)
+  =
   let size = 1 lsl Isa.pc_bits in
   let words = Array.of_list words in
   let word pc =
@@ -688,13 +1319,22 @@ let check ?period ?(single_capture_edge = false) ~(config : Program_config.t) ~w
     ; single_edge = Bits.of_bool single_capture_edge
     }
   in
+  let spacing =
+    Option.value_map spec ~default:K.no_spacing ~f:(fun spec ->
+      { With_valid.valid = Bits.vdd; value = Spacing.of_spec config spec })
+  in
   let starts_open = Bits.to_bool (K.starts_open table.(0)) in
   let pc_bits n = Bits.of_unsigned_int ~width:Isa.pc_bits n in
   let wrap_top = pc_bits config.wrap_top in
   let wrap_bottom = pc_bits config.wrap_bottom in
   let names =
     let way name = Holds.map Holds.port_names ~f:(fun field -> name ^ " " ^ field) in
-    { Conjuncts.in_time = "in time"; next = way "next"; target = way "target" }
+    { Conjuncts.in_time = "in time"
+    ; wide_a = "a spaced"
+    ; wide_b = "b spaced"
+    ; next = way "next"
+    ; target = way "target"
+    }
   in
   let rejected =
     List.filter_map (List.range 0 size) ~f:(fun pc ->
@@ -707,6 +1347,7 @@ let check ?period ?(single_capture_edge = false) ~(config : Program_config.t) ~w
           ~fraction
           ~loaded
           ~capture
+          ~spacing
           ~word:w
           ~row:table.(pc)
           ~next:(row next)
@@ -719,7 +1360,21 @@ let check ?period ?(single_capture_edge = false) ~(config : Program_config.t) ~w
       in
       Option.some_if (not (List.is_empty fails)) { Rejection.pc; fails })
   in
+  (* what formal/phase_table.sby proves the spacing for *)
+  let proved_spacing =
+    Option.for_all spec ~f:(fun { a; b; _ } ->
+      a <> b
+      && a < Isa.pin_space
+      && b < Isa.pin_space
+      && (not config.manchester)
+      && Array.for_all table ~f:(fun r ->
+        Bits.to_bool Bits.(K.offset_is_full r &: (r.slope ==:. 0))))
+  in
   match starts_open, rejected with
+  | _ when not proved_spacing ->
+    Or_error.error_s
+      [%message
+        "edges are spaced only for two pins, Manchester off and a table of intervals"]
   | true, [] -> Ok ()
   | false, _ -> Or_error.error_s [%message "the row at pc 0 must be the full range"]
   | true, rejected ->
@@ -732,6 +1387,7 @@ module I = struct
     ; fraction : 'a
     ; loaded : 'a With_valid.t [@bits Isa.data_bits]
     ; capture : 'a Capture.t
+    ; spacing : 'a Spaced.t
     ; word : 'a [@bits Isa.data_bits]
     ; phase : 'a [@bits Isa.timer_bits]
     ; period : 'a [@bits Isa.data_bits]
@@ -741,6 +1397,10 @@ module I = struct
     ; arm_known : 'a
     ; captured : 'a
     ; awaiting : 'a
+    ; a : 'a Edge.t
+    ; b : 'a Edge.t
+    ; data_a : 'a
+    ; data_b : 'a
     }
   [@@deriving hardcaml]
 end
@@ -754,6 +1414,7 @@ let create (_scope : Scope.t) (i : Signal.t I.t) =
     ~fraction:i.fraction
     ~loaded:i.loaded
     ~capture:i.capture
+    ~spacing:i.spacing
     ~word:i.word
     ~phase:i.phase
     ~period:i.period
@@ -763,6 +1424,10 @@ let create (_scope : Scope.t) (i : Signal.t I.t) =
     ~arm_known:i.arm_known
     ~captured:i.captured
     ~awaiting:i.awaiting
+    ~a:i.a
+    ~b:i.b
+    ~data_a:i.data_a
+    ~data_b:i.data_b
 ;;
 
 let hierarchical ?instance scope i =
@@ -777,6 +1442,7 @@ module Accepts = struct
       ; fraction : 'a
       ; loaded : 'a With_valid.t [@bits Isa.data_bits]
       ; capture : 'a Capture.t
+      ; spacing : 'a Spaced.t
       ; wrap_top : 'a [@bits Isa.pc_bits]
       ; wrap_bottom : 'a [@bits Isa.pc_bits]
       ; pc : 'a [@bits Isa.pc_bits]
@@ -793,6 +1459,8 @@ module Accepts = struct
       ; arm_known : 'a
       ; captured : 'a
       ; awaiting : 'a
+      ; a : 'a Edge.t
+      ; b : 'a Edge.t
       }
     [@@deriving hardcaml]
   end
@@ -822,6 +1490,7 @@ module Accepts = struct
           ~fraction:i.fraction
           ~loaded:i.loaded
           ~capture:i.capture
+          ~spacing:i.spacing
           ~word:i.word
           ~row
           ~next:(Row.Of_signal.unpack ~rev:true i.next)
@@ -838,6 +1507,8 @@ module Accepts = struct
           ~arm_known:i.arm_known
           ~captured:i.captured
           ~awaiting:i.awaiting
+          ~a:i.a
+          ~b:i.b
         |> Holds.to_list
         |> Signal.reduce ~f:Signal.( &: )
     ; starts_open = K.starts_open row

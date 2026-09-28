@@ -25,6 +25,11 @@ let allow : Timer_lint.Allowance.t list =
      phase, 26) +: uresize(mux2(_, 2, _ +: 1), 26), uresize(arm, 26) +: uresize(mux2(_, \
      2, _ +: 1), 26))) <: 0x800000"
   in
+  let since_saturates =
+    "0xffff <: (mux2(_, 0, uresize(since, 26)) +: mux2(_, uresize(mux2(msb(phase), 0, \
+     phase) -: phase, 26) +: uresize(mux2(_, 2, _ +: 1), 26), uresize(mux2(_, 2, _ +: \
+     1), 26)))"
+  in
   [ { name = "phase_is_now_minus_t"
     ; circuit = "kernel_step"
     ; compare = "msb(phase)"
@@ -38,6 +43,12 @@ let allow : Timer_lint.Allowance.t list =
     ; reason =
         "released is 0 where phase is negative and phase otherwise, so the stall is \
          -phase or 0, never negative"
+    }
+  ; { name = "since_stall_is_minus_phase"
+    ; circuit = "kernel_step"
+    ; compare = since_saturates
+    ; fault = Unsigned_difference "mux2(msb(phase), 0, phase) -: phase"
+    ; reason = "the same stall, added to the cycles since a pin's last edge"
     }
   ]
 ;;
@@ -69,7 +80,7 @@ let%expect_test "every compare of timer values in the core and the kernel's step
        (verdict (Safe Difference_against_constant)))))
     (circuits (kernel_step_top kernel_step))
     (kernel_step
-     (((at (next_arm next_arm_known next_phase)) (compare "msb(phase)")
+     (((at (next_arm next_arm_known next_phase since)) (compare "msb(phase)")
        (verdict
         (Allowed
          ((phase_is_now_minus_t
@@ -80,7 +91,21 @@ let%expect_test "every compare of timer values in the core and the kernel's step
        (verdict
         (Allowed
          ((stall_is_minus_phase
-           "released is 0 where phase is negative and phase otherwise, so the stall is -phase or 0, never negative")))))))
+           "released is 0 where phase is negative and phase otherwise, so the stall is -phase or 0, never negative")))))
+      ((at (since))
+       (compare
+        "0xffff <: (mux2(_, 0, uresize(since, 26)) +: mux2(_, uresize(mux2(msb(phase), 0, phase) -: phase, 26) +: uresize(mux2(_, 2, _ +: 1), 26), uresize(mux2(_, 2, _ +: 1), 26)))")
+       (verdict
+        (Allowed
+         ((since_stall_is_minus_phase
+           "the same stall, added to the cycles since a pin's last edge")))))
+      ((at (since))
+       (compare
+        "0xffff <: (mux2(_, 0, uresize(since, 26)) +: mux2(_, uresize(mux2(msb(phase), 0, phase) -: phase, 26) +: uresize(mux2(_, 2, _ +: 1), 26), uresize(mux2(_, 2, _ +: 1), 26)))")
+       (verdict
+        (Allowed
+         ((since_stall_is_minus_phase
+           "the same stall, added to the cycles since a pin's last edge")))))))
     |}]
 ;;
 

@@ -128,6 +128,7 @@ let kernel_gates_command =
                   ~fraction:i.fraction
                   ~loaded:i.loaded
                   ~capture:i.capture
+                  ~spacing:i.spacing
                   ~word:i.word
                   ~row
                   ~next:(Row.unpack ~rev:true i.next)
@@ -144,6 +145,8 @@ let kernel_gates_command =
                   ~arm_known:i.arm_known
                   ~captured:i.captured
                   ~awaiting:i.awaiting
+                  ~a:i.a
+                  ~b:i.b
                 |> Kernel.Holds.to_list
                 |> A.reduce ~f:A.( &: )
             ; starts_open = K.starts_open row
@@ -157,6 +160,7 @@ let kernel_gates_command =
               ~fraction:i.fraction
               ~loaded:i.loaded
               ~capture:i.capture
+              ~spacing:i.spacing
               ~word:i.word
               ~phase:i.phase
               ~period:i.period
@@ -166,6 +170,10 @@ let kernel_gates_command =
               ~arm_known:i.arm_known
               ~captured:i.captured
               ~awaiting:i.awaiting
+              ~a:i.a
+              ~b:i.b
+              ~data_a:i.data_a
+              ~data_b:i.data_b
             |> Kernel.O.zip Kernel.O.port_names
             |> Kernel.O.to_list)
         in

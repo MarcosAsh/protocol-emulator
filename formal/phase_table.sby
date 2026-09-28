@@ -6,6 +6,7 @@ no_open teeth
 next_no_wrap teeth
 target_is_next teeth
 rows_while_running teeth
+no_spacing spaced_teeth
 
 [options]
 prove: mode prove
@@ -15,6 +16,9 @@ cover: depth 24
 teeth: mode bmc
 teeth: depth 24
 teeth: expect fail
+spaced_teeth: mode bmc
+spaced_teeth: depth 24
+spaced_teeth: expect fail
 
 [engines]
 smtbmc boolector
@@ -25,11 +29,13 @@ hierarchy -top engine
 proc
 flatten
 cd engine
-expose w:jmp_go w:advance w:sample w:captured
+expose w:jmp_go w:advance w:sample w:captured w:out_value w:mov_value
 rename jmp_go eng_jmp_go
 rename advance eng_advance
 rename sample eng_sample
 rename captured eng_captured
+rename out_value eng_out_value
+rename mov_value eng_mov_value
 cd ..
 read -define TABLE
 no_accepts: read -define NO_ACCEPTS
@@ -37,12 +43,14 @@ no_open: read -define NO_OPEN
 next_no_wrap: read -define NEXT_NO_WRAP
 target_is_next: read -define TARGET_IS_NEXT
 rows_while_running: read -define ROWS_WHILE_RUNNING
+no_spacing: read -define NO_SPACING
 read_verilog kernel_step.v
 read_verilog kernel_accepts.v
 read_verilog -formal -sv phase_step.sv
 prep -flatten -top phase_step
-# a tooth has to fail on a missed deadline, so every other claim is dropped
+# a tooth has to fail on a missed deadline, or a spacing, so every other claim is dropped
 teeth: chformal -assert -remove c:* c:deadline %d
+spaced_teeth: chformal -assert -remove c:* c:spacing_a c:spacing_b %u %d
 
 [files]
 engine.v

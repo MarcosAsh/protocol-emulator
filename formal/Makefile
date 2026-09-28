@@ -37,15 +37,17 @@ phase_step: engine.v kernel_step.v
 kernel_accepts.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe kernel-accepts > formal/kernel_accepts.v
 
-# The step lemma and the kernel's check in one run: no deadline is missed, for any program
-# and any table of intervals the kernel accepts. About 20 min, so CI runs it in a job of
-# its own on Verilog written already (phase_table_proof); each tooth must miss a deadline.
+# The step lemma and the kernel's check in one run: no deadline is missed, and a watched
+# pair's edges keep their spacing, for any program and any table of intervals the kernel
+# accepts. Over two hours, so CI runs it in a job of its own on Verilog written already
+# (phase_table_proof); each tooth must miss a deadline, and no_spacing space an edge short.
 phase_table: engine.v kernel_step.v kernel_accepts.v
 	$(MAKE) phase_table_proof
 
 phase_table_proof:
 	sby -f phase_table.sby prove cover
-	sby -f phase_table.sby no_accepts no_open next_no_wrap target_is_next rows_while_running
+	sby -f phase_table.sby no_accepts no_open next_no_wrap target_is_next rows_while_running \
+	  no_spacing
 
 # The same for tables whose rows bound phase - slope * x too: row_step's lemma, the kernel's
 # check of one step, for all inputs and an opcode at a time; then the run, which assumes it;
@@ -108,7 +110,7 @@ teeth: engine.v engine_sram.v engines.v kernel_step.v osr_step.v
 	sby -f fifo_order.sby stale_ahead
 	sby -f phase_step.sby jump_in_one late_wait_waits no_carry one_late_cycle_is_safe taken_backwards \
 	  second_edge level_at_arm later_edge_captured capture_a_cycle_older capture_a_cycle_younger \
-	  arm_one_short
+	  arm_one_short edge_one_short
 	sby -f edge_step.sby pins_never_change side_set_only one_cycle_later flip_off_issue no_flip
 	sby -f frame_step.sby narrow_side narrow_set narrow_out narrow_mov no_pair side_dirs_on_out \
 	  no_wrap

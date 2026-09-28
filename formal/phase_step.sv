@@ -1,8 +1,9 @@
 // Step lemma for the universal certificate. For any program, from one instruction's entry
-// to the next, the core does what the kernel's step says: the phase [now - t], p, x, y and
-// the pc. A deadline wait entered at phase <= 0 does not fault. Equalities are mod 2^24.
-// The engine is the one on the chip with every input free, so this holds for each engine
-// of several; its program memory is the flop stand-in for the SRAM macro.
+// to the next, the core does what the kernel's step says: the phase [now - t], p, x, y, the
+// pc and, with Manchester off and edge_step.sv's lemma assumed, a watched pair's edges. A
+// deadline wait entered at phase <= 0 does not fault. Equalities are mod 2^24. The engine is
+// the chip's with every input free, so this holds for each engine of several; its program
+// memory is the flop stand-in for the SRAM macro.
 
 module phase_step (input clk);
   (* anyconst *) wire [1:0] side_set_count;
@@ -21,6 +22,11 @@ module phase_step (input clk);
   // and that the capture pin makes one edge from capture_arm to the wait for it
   (* anyconst *) wire single_edge;
   (* anyconst *) wire [15:0] loaded_period;
+  // a pair of pins whose edges the kernel spaces, each its pindirs bit if pair_dirs, and
+  // the least cycles, four entries each, indexed by the two bits before an edge
+  (* anyconst *) wire [4:0] pin_a, pin_b;
+  (* anyconst *) wire pair_dirs, spaced;
+  (* anyconst *) wire [63:0] hold_a, apart_a, hold_b, apart_b;
   // the data memory is shared between engines, so its word is free in every cycle
   (* anyseq *) wire [15:0] data_word;
   (* anyseq *) wire stop, flush;
@@ -46,6 +52,7 @@ module phase_step (input clk);
   wire jmp_go, advance;
   wire [27:0] sample;
   wire captured_now;
+  wire [15:0] out_value, mov_value;
 
   engine dut (
     .clock(clk), .clear(clear),
@@ -77,7 +84,7 @@ module phase_step (input clk);
     .rx_head(rx_head), .instruction(instruction), .crc(crc), .stuff_run(stuff_run),
     .decode_ok(decode_ok), .opcode_onehot(opcode_onehot), .wait_select(wait_select),
     .eng_jmp_go(jmp_go), .eng_advance(advance), .eng_sample(sample),
-    .eng_captured(captured_now));
+    .eng_captured(captured_now), .eng_out_value(out_value), .eng_mov_value(mov_value));
   // an instruction completes when a jump issues, or anything else issues and goes on
   wire completes = jmp_go || advance;
 
@@ -164,6 +171,20 @@ module phase_step (input clk);
     else if (!elapsed[24]) elapsed <= elapsed + 1;
   reg e_g_known, e_g_captured, e_g_awaiting;
 
+  // The kernel's ghost of the pair at an entry: each pin's cycles since its last edge in
+  // this run, all ones before the first; its bit, the pin's at the run's first entry; and
+  // whether the run has yet to write it.
+  wire [27:0] watched = pair_dirs ? pin_dir : pin_out;
+  wire bit_a = watched[pin_a], bit_b = watched[pin_b];
+  wire [15:0] next_since_a, next_since_b;
+  wire next_level_a, next_level_b, next_fresh_a, next_fresh_b, wide_a, wide_b;
+  wire [15:0] since_a = pending ? next_since_a : 16'hffff;
+  wire [15:0] since_b = pending ? next_since_b : 16'hffff;
+  wire level_a = pending ? next_level_a : bit_a, level_b = pending ? next_level_b : bit_b;
+  wire fresh_a = !pending || next_fresh_a, fresh_b = !pending || next_fresh_b;
+  reg [15:0] e_since_a, e_since_b;
+  reg e_level_a, e_level_b, e_fresh_a, e_fresh_b, e_data_a, e_data_b;
+
   // Record of the last entry. Before completion the core holds the same word, pc and t;
   // after, [now + stall] is the next entry's cycle and t what the instruction left.
   reg pending = 0;
@@ -196,6 +217,18 @@ module phase_step (input clk);
       e_g_known <= g_known;
       e_g_captured <= g_captured;
       e_g_awaiting <= g_awaiting;
+      e_since_a <= since_a;
+      e_since_b <= since_b;
+      e_level_a <= level_a;
+      e_level_b <= level_b;
+      e_fresh_a <= fresh_a;
+      e_fresh_b <= fresh_b;
+      e_data_a <= w_data_value[pin_a];
+      e_data_b <= w_data_value[pin_b];
+      e_quiet_a <= quiet_a_now;
+      e_quiet_b <= quiet_b_now;
+      e_moved_a <= moved_a || counts_a;
+      e_moved_b <= moved_b || counts_b;
       e_release <= now;
       e_capture_age <= capture_age;
 `ifdef ONE_LATE_CYCLE_IS_SAFE
@@ -225,8 +258,28 @@ module phase_step (input clk);
   wire e_halts;
   wire x_known, y_known, taken, taken_known;
   wire bounded, carries, period_known;
+`define SPACING(valid) \
+    .spacing$valid(valid), .spacing$value$a(pin_a), .spacing$value$b(pin_b), \
+    .spacing$value$dirs(pair_dirs), .spacing$value$side_set_base(side_set_base), \
+    .spacing$value$side_set_pindirs(side_set_pindirs), .spacing$value$set_base(set_base), \
+    .spacing$value$set_count(set_count), .spacing$value$out_base(out_base), \
+    .spacing$value$out_count(out_count), \
+    .spacing$value$hold_a_0(hold_a[15:0]), .spacing$value$hold_a_1(hold_a[31:16]), \
+    .spacing$value$hold_a_2(hold_a[47:32]), .spacing$value$hold_a_3(hold_a[63:48]), \
+    .spacing$value$apart_a_0(apart_a[15:0]), .spacing$value$apart_a_1(apart_a[31:16]), \
+    .spacing$value$apart_a_2(apart_a[47:32]), .spacing$value$apart_a_3(apart_a[63:48]), \
+    .spacing$value$hold_b_0(hold_b[15:0]), .spacing$value$hold_b_1(hold_b[31:16]), \
+    .spacing$value$hold_b_2(hold_b[47:32]), .spacing$value$hold_b_3(hold_b[63:48]), \
+    .spacing$value$apart_b_0(apart_b[15:0]), .spacing$value$apart_b_1(apart_b[31:16]), \
+    .spacing$value$apart_b_2(apart_b[47:32]), .spacing$value$apart_b_3(apart_b[63:48])
   kernel_step e_step_of (
     .side_set_count(side_set_count), .fraction(period_fraction != 0),
+    `SPACING(spaced), .a$since(e_since_a), .a$level(e_level_a), .a$fresh(e_fresh_a),
+    .b$since(e_since_b), .b$level(e_level_b), .b$fresh(e_fresh_b), .data_a(e_data_a),
+    .data_b(e_data_b), .next_a$since(next_since_a), .next_a$level(next_level_a),
+    .next_a$fresh(next_fresh_a), .next_b$since(next_since_b),
+    .next_b$level(next_level_b), .next_b$fresh(next_fresh_b), .wide_a(wide_a),
+    .wide_b(wide_b),
     .loaded$valid(loads_period), .loaded$value(loaded_period), .word(e_word),
     .capture$pin(capture_pin), .capture$rising(capture_rising),
     .capture$single_edge(single_edge), .arm(e_g), .arm_known(e_g_known),
@@ -240,7 +293,11 @@ module phase_step (input clk);
   // whether the word at an entry has a next one
   wire halts, keeps_period;
   kernel_step halts_of (
-    .side_set_count(side_set_count), .fraction(1'b0), .loaded$valid(1'b0),
+    .side_set_count(side_set_count), .fraction(1'b0), `SPACING(1'b0),
+    .a$since(16'd0), .a$level(1'b0), .a$fresh(1'b0), .b$since(16'd0), .b$level(1'b0),
+    .b$fresh(1'b0), .data_a(1'b0), .data_b(1'b0), .next_a$since(), .next_a$level(),
+    .next_a$fresh(), .next_b$since(), .next_b$level(), .next_b$fresh(), .wide_a(),
+    .wide_b(), .loaded$valid(1'b0),
     .loaded$value(16'd0), .capture$pin(5'd0), .capture$rising(1'b0),
     .capture$single_edge(1'b0), .arm(24'd0), .arm_known(1'b0), .captured(1'b0),
     .awaiting(1'b0), .next_awaiting(),
@@ -433,6 +490,178 @@ module phase_step (input clk);
       assert(now == e_t);
 `endif
 
+  // The spacing of the pair's edges, with Manchester off. Each pin's cycles since it last
+  // moved, saturating, and whether it has made a counted edge in this run: one after the
+  // run's first write of it.
+  always @(*) assume(pin_a < 28 && pin_b < 28 && pin_a != pin_b);
+  reg c3_last_clear = 1, c3_last_entry = 0, last_a = 0, last_b = 0;
+  always @(posedge clk) begin
+    c3_last_clear <= clear;
+    c3_last_entry <= entry;
+    last_a <= bit_a;
+    last_b <= bit_b;
+  end
+  wire moves_a = !c3_last_clear && bit_a != last_a;
+  wire moves_b = !c3_last_clear && bit_b != last_b;
+  reg [16:0] quiet_a = 0, quiet_b = 0;
+  wire [16:0] quiet_a_now = moves_a ? 17'd0 : quiet_a;
+  wire [16:0] quiet_b_now = moves_b ? 17'd0 : quiet_b;
+  // written: an entry of this run has written the pin; counted: its edge came after that
+  reg wrote_a = 0, wrote_b = 0, l_wrote_a = 0, l_wrote_b = 0, moved_a = 0, moved_b = 0;
+  wire counts_a = moves_a && l_wrote_a, counts_b = moves_b && l_wrote_b;
+  always @(posedge clk) begin
+    quiet_a <= quiet_a_now[16] ? quiet_a_now : quiet_a_now + 17'd1;
+    quiet_b <= quiet_b_now[16] ? quiet_b_now : quiet_b_now + 17'd1;
+    l_wrote_a <= wrote_a;
+    l_wrote_b <= wrote_b;
+    if (clear || start) begin
+      wrote_a <= 0;
+      wrote_b <= 0;
+      moved_a <= 0;
+      moved_b <= 0;
+    end else begin
+      if (entry && w_writes[pin_a]) wrote_a <= 1;
+      if (entry && w_writes[pin_b]) wrote_b <= 1;
+      if (counts_a) moved_a <= 1;
+      if (counts_b) moved_b <= 1;
+    end
+  end
+
+  // What an entry's word writes to the watched bits, as edge_step.sv's Pins.write, and the
+  // edge lemma for them, assumed: proved there for any host, clear and program.
+  localparam [27:0] OUTPUTS = 28'hfffffe0;
+  localparam [27:0] BIDIRS = 28'h00ff000;
+  function [27:0] place(input [15:0] v, input [4:0] base);
+    reg [55:0] twice;
+    begin
+      twice = {12'd0, v, 12'd0, v} << (base >= 28 ? base - 5'd28 : base);
+      place = twice[55:28];
+    end
+  endfunction
+  function [15:0] mask(input [4:0] n);
+    mask = n >= 16 ? 16'hffff : (16'd1 << n) - 16'd1;
+  endfunction
+  wire [2:0] w_dest = instruction[7:5];
+  wire w_runs = decode_ok && opcode != 0;
+  wire [27:0] w_takes = pair_dirs ? BIDIRS : OUTPUTS;
+  wire w_sides = w_runs && side_set_count != 0 && side_set_pindirs == pair_dirs;
+  wire w_sets = w_runs && opcode == 5 && w_dest == (pair_dirs ? 3'd3 : 3'd0);
+  wire w_outs = w_runs && opcode == 3 && w_dest == (pair_dirs ? 3'd4 : 3'd0);
+  wire w_movs = w_runs && opcode == 4 && w_dest == (pair_dirs ? 3'd3 : 3'd0);
+  wire [27:0] w_side = w_sides ? place(mask({3'd0, side_set_count}), side_set_base) & w_takes
+    : 28'd0;
+  wire [27:0] w_set = w_sets ? place(mask({2'd0, set_count}), set_base) & w_takes : 28'd0;
+  wire [27:0] w_data = w_outs ? place(mask(instruction[4:0]), out_base) & w_takes
+    : w_movs ? place(mask(out_count), out_base) & w_takes : 28'd0;
+  wire [27:0] w_writes = w_side | w_set | w_data;
+  wire [15:0] w_side_value =
+    side_set_count == 1 ? {15'd0, instruction[12]} : {14'd0, instruction[12:11]};
+  wire [27:0] w_data_value = w_outs ? place(out_value, out_base) : place(mov_value, out_base);
+  wire [27:0] w_want = w_data & w_data_value
+    | ~w_data & w_set & place({11'd0, instruction[4:0]}, set_base)
+    | ~w_data & ~w_set & place(w_side_value, side_set_base);
+  reg l_writes_a = 0, l_writes_b = 0, l_want_a = 0, l_want_b = 0;
+  always @(posedge clk) begin
+    l_writes_a <= entry && w_writes[pin_a];
+    l_writes_b <= entry && w_writes[pin_b];
+    l_want_a <= w_want[pin_a];
+    l_want_b <= w_want[pin_b];
+  end
+  always @(*)
+    if (!manchester && !clear && !c3_last_clear) begin
+      assume(bit_a == (l_writes_a ? l_want_a : last_a));
+      assume(bit_b == (l_writes_b ? l_want_b : last_b));
+    end
+
+  // the ghost at an entry: its bit is the pin's, and a pin with a counted edge in this run
+  // has held its bit at least the ghost's cycles less one, as its next edge shows a cycle
+  // after the entry
+  always @(posedge clk)
+    if (!clear && entry && pending && !manchester) begin
+      assert(level_a == bit_a && level_b == bit_b);
+      assert(fresh_a == !wrote_a && fresh_b == !wrote_b);
+`ifdef EDGE_ONE_SHORT
+      if (moved_a || counts_a) assert(quiet_a_now >= {1'b0, since_a});
+`else
+      if (moved_a || counts_a) assert(quiet_a_now + 17'd1 >= {1'b0, since_a});
+`endif
+      if (moved_b || counts_b) assert(quiet_b_now + 17'd1 >= {1'b0, since_b});
+    end
+
+  // A counted edge the cycle after an entry keeps the spacing, picked by the bits before
+  // it: from the pin's last counted edge, and from the other's last edge, if counted, or
+  // none where it moves too. The step's claim; the theorem in TABLE.
+  function [15:0] pick(input [63:0] cycles, input [1:0] i);
+    pick = cycles >> {i, 4'd0};
+  endfunction
+  wire [15:0] hold_a_now = pick(hold_a, {last_a, last_b});
+  wire [15:0] apart_a_now = pick(apart_a, {last_a, last_b});
+  wire [15:0] hold_b_now = pick(hold_b, {last_b, last_a});
+  wire [15:0] apart_b_now = pick(apart_b, {last_b, last_a});
+  wire spaced_a = !counts_a || (!moved_a || quiet_a >= {1'b0, hold_a_now})
+    && (moves_b ? apart_a_now == 0 : !moved_b || quiet_b_now >= {1'b0, apart_a_now});
+  wire spaced_b = !counts_b || (!moved_b || quiet_b >= {1'b0, hold_b_now})
+    && (moves_a ? apart_b_now == 0 : !moved_a || quiet_a_now >= {1'b0, apart_b_now});
+  reg c3_recorded = 0;
+  always @(posedge clk) c3_recorded <= entry && !(clear || start || stop);
+  always @(posedge clk)
+    if (!clear && c3_recorded && spaced && !manchester) begin
+      if (wide_a) assert(spaced_a);
+      if (wide_b) assert(spaced_b);
+    end
+
+  // between entries, for induction
+  reg [16:0] e_quiet_a, e_quiet_b;
+  reg e_moved_a, e_moved_b, since_entry_a = 0, since_entry_b = 0;
+  always @(posedge clk)
+    if (entry) begin
+      since_entry_a <= 0;
+      since_entry_b <= 0;
+    end else begin
+      if (moves_a) since_entry_a <= 1;
+      if (moves_b) since_entry_b <= 1;
+    end
+  function [16:0] quiet_after(input [16:0] quiet, input [24:0] cycles);
+    quiet_after = cycles[24] || {8'd0, quiet} + cycles >= 25'h10000 ? 17'h10000
+      : quiet + cycles[16:0];
+  endfunction
+  always @(posedge clk)
+    if (!clear && pending && !entry && !manchester) begin
+      if (moves_a || moves_b) assert(c3_last_entry && elapsed == 1);
+      // the one edge since the entry, if any, left the entry's bit
+      assert(bit_a == (since_entry_a || moves_a ? !e_level_a : e_level_a));
+      assert(bit_b == (since_entry_b || moves_b ? !e_level_b : e_level_b));
+      assert(level_a == bit_a && level_b == bit_b);
+      assert(fresh_a == !wrote_a && fresh_b == !wrote_b);
+      assert(moved_a == (e_moved_a || since_entry_a && !e_fresh_a));
+      assert(moved_b == (e_moved_b || since_entry_b && !e_fresh_b));
+      // the release came after the entry, and the step's cycles after the release
+      if (done && !elapsed[24])
+        assert(e_release - e_now <= elapsed[23:0] && elapsed[23:0] >= e_step - {19'd0, stall});
+      if (e_moved_a) assert(e_quiet_a + 17'd1 >= {1'b0, e_since_a});
+      if (e_moved_b) assert(e_quiet_b + 17'd1 >= {1'b0, e_since_b});
+      if (!since_entry_a && !moves_a) assert(quiet_a_now == quiet_after(e_quiet_a, elapsed));
+      else assert(quiet_a_now == quiet_after(17'd0, elapsed - 25'd1));
+      if (!since_entry_b && !moves_b) assert(quiet_b_now == quiet_after(e_quiet_b, elapsed));
+      else assert(quiet_b_now == quiet_after(17'd0, elapsed - 25'd1));
+    end
+  always @(posedge clk)
+    if (!clear) begin
+      // a run's first entry has seen no write and no edge of either pin
+      if (!halted && !pending) assert(!wrote_a && !wrote_b && !moved_a && !moved_b);
+      // an edge counts only after a write
+      assert((wrote_a || !moved_a) && (wrote_b || !moved_b));
+      if (pending && !manchester) assert((!e_fresh_a || !e_moved_a) && (!e_fresh_b || !e_moved_b));
+      assert(quiet_a <= 17'h10000 && quiet_b <= 17'h10000);
+      if (pending) assert(e_quiet_a <= 17'h10000 && e_quiet_b <= 17'h10000);
+    end
+
+  always @(posedge clk) begin
+    cover(c3_recorded && spaced && wide_a && counts_a && moved_a && hold_a_now > 3
+      && quiet_a == {1'b0, hold_a_now});
+    cover(c3_recorded && spaced && wide_b && counts_b && moves_a && apart_b_now == 0);
+  end
+
   // the lemma
   always @(posedge clk)
     if (!clear && pending && entry) begin
@@ -461,12 +690,13 @@ module phase_step (input clk);
   // The theorem in one run. For any table of intervals loaded while halted, as the program
   // is, assume the kernel's accepts at every pc entered, with the next and target rows it
   // picks, and a start at a row that bounds nothing; then the core lies in the row of every
-  // entry and no deadline is missed. Rows have no slope and the full offset, as every
-  // library table does. With AFFINE they are whole rows, and the run rests on row_step.
+  // entry, no deadline is missed and, with Manchester off, each counted edge of the pair is
+  // spaced. Rows have no slope and the full offset, as every library table does. With
+  // AFFINE they are whole rows with no pair, and the run rests on row_step.
 `ifdef AFFINE
   localparam ROW_BITS = 266;
 `else
-  localparam ROW_BITS = 194;
+  localparam ROW_BITS = 368;
 `endif
   reg [ROW_BITS-1:0] rows [0:511];
   (* anyseq *) wire rows_write;
@@ -477,29 +707,30 @@ module phase_step (input clk);
 `else
   always @(posedge clk) if (halted && rows_write) rows[rows_addr] <= rows_data;
 `endif
-  // a row as kernel_accepts reads it: the phase, the slope, the offset, then the rest
-  function [265:0] row_of(input [ROW_BITS-1:0] r);
+  // a row as kernel_accepts reads it: the phase, the slope, the offset, then the rest, the
+  // pair's bounds last
+  function [439:0] row_of(input [ROW_BITS-1:0] r);
 `ifdef AFFINE
-    row_of = r;
+    row_of = {r, 174'd0};
 `else
-    row_of = {r[193:146], 24'd0, 24'h800000, 24'h7fffff, r[145:0]};
+    row_of = {r[367:320], 24'd0, 24'h800000, 24'h7fffff, r[319:0]};
 `endif
   endfunction
 
   wire [8:0] next_pc, target_pc, e_next_pc, e_target_pc;
 `ifdef NEXT_NO_WRAP
   // the row after this one read without the wrap
-  wire [265:0] row = row_of(rows[pc]), next_row = row_of(rows[pc + 9'd1]);
-  wire [265:0] e_row = row_of(rows[e_pc]), e_next_row = row_of(rows[e_pc + 9'd1]);
+  wire [439:0] row = row_of(rows[pc]), next_row = row_of(rows[pc + 9'd1]);
+  wire [439:0] e_row = row_of(rows[e_pc]), e_next_row = row_of(rows[e_pc + 9'd1]);
 `else
-  wire [265:0] row = row_of(rows[pc]), next_row = row_of(rows[next_pc]);
-  wire [265:0] e_row = row_of(rows[e_pc]), e_next_row = row_of(rows[e_next_pc]);
+  wire [439:0] row = row_of(rows[pc]), next_row = row_of(rows[next_pc]);
+  wire [439:0] e_row = row_of(rows[e_pc]), e_next_row = row_of(rows[e_next_pc]);
 `endif
 `ifdef TARGET_IS_NEXT
   // a jump's target read as the row after it
-  wire [265:0] target_row = next_row, e_target_row = e_next_row;
+  wire [439:0] target_row = next_row, e_target_row = e_next_row;
 `else
-  wire [265:0] target_row = row_of(rows[target_pc]), e_target_row = row_of(rows[e_target_pc]);
+  wire [439:0] target_row = row_of(rows[target_pc]), e_target_row = row_of(rows[e_target_pc]);
 `endif
 
 `ifdef AFFINE
@@ -517,11 +748,11 @@ module phase_step (input clk);
     .side_set_count(side_set_count), .fraction(period_fraction != 0),
     .loads_period(loads_period), .loaded_period(loaded_period), .capture_pin(capture_pin),
     .capture_rising(capture_rising), .single_edge(single_edge), .word(e_word),
-    .row(e_row), .next(e_next_row), .target(e_target_row), .phase(e_phase),
-    .offset(e_offset), .arm(e_g), .period(e_p), .x(e_x), .y(e_y), .arm_known(e_g_known),
-    .captured(e_g_captured), .awaiting(e_g_awaiting), .phase_after(phase),
-    .next_offset(next_offset), .target_offset(target_offset), .period_after(p),
-    .x_after(x), .y_after(y), .axioms(axioms), .holds(steps_into));
+    .row(e_row[439:174]), .next(e_next_row[439:174]), .target(e_target_row[439:174]),
+    .phase(e_phase), .offset(e_offset), .arm(e_g), .period(e_p), .x(e_x), .y(e_y),
+    .arm_known(e_g_known), .captured(e_g_captured), .awaiting(e_g_awaiting),
+    .phase_after(phase), .next_offset(next_offset), .target_offset(target_offset),
+    .period_after(p), .x_after(x), .y_after(y), .axioms(axioms), .holds(steps_into));
   always @(*) begin
     assume(steps_into);
     if (entry && x == 0) assume(product == 0);
@@ -531,13 +762,13 @@ module phase_step (input clk);
       if (pc == e_target_pc) assume(target_offset == offset);
     end
   end
-  wire [23:0] slope = row[217:194], e_slope = e_row[217:194];
+  wire [23:0] slope = row[391:368], e_slope = e_row[391:368];
   wire [47:0] full = 48'h8000007fffff;
 `ifdef OFFSET_UNCHECKED
   // accepts reads the rows it steps to with the full offset, so it checks no offset
 `define NO_ACCEPTS
-  function [265:0] unchecked(input [265:0] r);
-    unchecked = {r[265:194], full, r[145:0]};
+  function [439:0] unchecked(input [439:0] r);
+    unchecked = {r[439:368], full, r[319:0]};
   endfunction
   wire unchecked_accepts;
   kernel_accepts check_unchecked (
@@ -545,15 +776,24 @@ module phase_step (input clk);
     .loaded$valid(loads_period), .loaded$value(loaded_period),
     .capture$pin(capture_pin), .capture$rising(capture_rising),
     .capture$single_edge(single_edge), .wrap_top(wrap_top), .wrap_bottom(wrap_bottom),
+    `SPACING(1'b0), .a$since(16'd0), .a$level(1'b0), .a$fresh(1'b0), .b$since(16'd0),
+    .b$level(1'b0), .b$fresh(1'b0),
     .pc(pc), .word(instruction), .row(row), .next(unchecked(next_row)),
     .target(unchecked(target_row)), .phase(phase), .offset(offset), .period(p), .x(x),
     .y(y), .arm(g), .arm_known(g_known), .captured(g_captured), .awaiting(g_awaiting),
     .next_pc(), .target_pc(), .accepts(unchecked_accepts), .within(), .starts_open());
   always @(*) if (entry) assume(unchecked_accepts);
 `endif
+  // the pair is spaced only for tables of intervals
+  wire pair = 0;
 `else
   // with no slope the offset is the phase
   wire [23:0] offset = phase, e_offset = e_phase;
+`ifdef NO_SPACING
+  wire pair = 0;
+`else
+  wire pair = spaced;
+`endif
 `endif
 
   // at an entry, and at the last one, which the core keeps to between them
@@ -563,6 +803,8 @@ module phase_step (input clk);
     .loaded$valid(loads_period), .loaded$value(loaded_period),
     .capture$pin(capture_pin), .capture$rising(capture_rising),
     .capture$single_edge(single_edge), .wrap_top(wrap_top), .wrap_bottom(wrap_bottom),
+    `SPACING(pair), .a$since(since_a), .a$level(level_a), .a$fresh(fresh_a),
+    .b$since(since_b), .b$level(level_b), .b$fresh(fresh_b),
     .pc(pc), .word(instruction), .row(row), .next(next_row), .target(target_row),
     .phase(phase), .offset(offset), .period(p), .x(x), .y(y), .arm(g),
     .arm_known(g_known), .captured(g_captured), .awaiting(g_awaiting),
@@ -573,6 +815,8 @@ module phase_step (input clk);
     .loaded$valid(loads_period), .loaded$value(loaded_period),
     .capture$pin(capture_pin), .capture$rising(capture_rising),
     .capture$single_edge(single_edge), .wrap_top(wrap_top), .wrap_bottom(wrap_bottom),
+    `SPACING(pair), .a$since(e_since_a), .a$level(e_level_a), .a$fresh(e_fresh_a),
+    .b$since(e_since_b), .b$level(e_level_b), .b$fresh(e_fresh_b),
     .pc(e_pc), .word(e_word), .row(e_row), .next(e_next_row), .target(e_target_row),
     .phase(e_phase), .offset(e_offset), .period(e_p), .x(e_x),
     .y(e_y), .arm(e_g), .arm_known(e_g_known), .captured(e_g_captured),
@@ -596,6 +840,14 @@ module phase_step (input clk);
       // the teeth keep this one alone
       deadline: assert(!missed_deadline);
     end
+`ifndef AFFINE
+  // and every counted edge of the pair keeps its spacing; the tooth keeps these alone
+  always @(posedge clk)
+    if (!clear && c3_last_entry && spaced && !manchester) begin
+      spacing_a: assert(spaced_a);
+      spacing_b: assert(spaced_b);
+    end
+`endif
 
   always @(posedge clk) begin
     cover(pending && entry && e_deadline_wait && e_phase == 0);
@@ -604,11 +856,11 @@ module phase_step (input clk);
     // and one falling through at x = 0 from such a row to a deadline wait whose bounded
     // phase that offset gives; both words decode and do not halt
     cover(pending && entry && !halts && e_is_jmp && e_word[12:9] == 1 && e_x != 0
-      && pc == e_word[8:0] && row[265:218] == full && slope != 0 && slope == e_slope
-      && row[193:146] != full);
+      && pc == e_word[8:0] && row[439:392] == full && slope != 0 && slope == e_slope
+      && row[367:320] != full);
     cover(pending && entry && !halts && deadline_wait && e_is_jmp && e_word[12:9] == 1
-      && e_x == 0 && e_row[265:218] == full && e_slope != 0 && e_row[193:146] != full
-      && row[265:218] != full);
+      && e_x == 0 && e_row[439:392] == full && e_slope != 0 && e_row[367:320] != full
+      && row[439:392] != full);
 `endif
   end
 `endif

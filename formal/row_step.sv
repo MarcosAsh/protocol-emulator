@@ -4,6 +4,23 @@
 // true phase - slope * x modulo 2^24, each guarded by the x it needs. row_step.sby proves
 // it for every input; phase_step.sv's AFFINE table assumes it.
 
+// no pair: the kernel spaces edges only for tables of intervals
+`define UNPAIRED \
+    .spacing$valid(1'b0), .spacing$value$a(5'd0), .spacing$value$b(5'd0), \
+    .spacing$value$dirs(1'b0), .spacing$value$side_set_base(5'd0), \
+    .spacing$value$side_set_pindirs(1'b0), .spacing$value$set_base(5'd0), \
+    .spacing$value$set_count(3'd0), .spacing$value$out_base(5'd0), \
+    .spacing$value$out_count(5'd0), .spacing$value$hold_a_0(16'd0), \
+    .spacing$value$hold_a_1(16'd0), .spacing$value$hold_a_2(16'd0), \
+    .spacing$value$hold_a_3(16'd0), .spacing$value$apart_a_0(16'd0), \
+    .spacing$value$apart_a_1(16'd0), .spacing$value$apart_a_2(16'd0), \
+    .spacing$value$apart_a_3(16'd0), .spacing$value$hold_b_0(16'd0), \
+    .spacing$value$hold_b_1(16'd0), .spacing$value$hold_b_2(16'd0), \
+    .spacing$value$hold_b_3(16'd0), .spacing$value$apart_b_0(16'd0), \
+    .spacing$value$apart_b_1(16'd0), .spacing$value$apart_b_2(16'd0), \
+    .spacing$value$apart_b_3(16'd0), .a$since(16'd0), .a$level(1'b0), .a$fresh(1'b0), \
+    .b$since(16'd0), .b$level(1'b0), .b$fresh(1'b0)
+
 module row_step (
   input [1:0] side_set_count,
   input fraction, loads_period,
@@ -25,7 +42,8 @@ module row_step (
   wire bounded, may_carry, period_known, x_known, y_known, taken, taken_known;
   wire next_arm_known, next_captured, next_awaiting, capture_bounded, halts;
   kernel_step step (
-    .side_set_count(side_set_count), .fraction(fraction),
+    .side_set_count(side_set_count), .fraction(fraction), `UNPAIRED, .data_a(1'b0),
+    .data_b(1'b0),
     .loaded$valid(loads_period), .loaded$value(loaded_period), .word(word),
     .capture$pin(capture_pin), .capture$rising(capture_rising),
     .capture$single_edge(single_edge), .arm(arm), .arm_known(arm_known),
@@ -52,8 +70,9 @@ module row_step (
     .side_set_count(side_set_count), .fraction(fraction),
     .loaded$valid(loads_period), .loaded$value(loaded_period),
     .capture$pin(capture_pin), .capture$rising(capture_rising),
-    .capture$single_edge(single_edge), .wrap_top(9'd0), .wrap_bottom(9'd0),
-    .pc(9'd0), .word(word), .row(row), .next(checked(next)), .target(checked(target)),
+    .capture$single_edge(single_edge), .wrap_top(9'd0), .wrap_bottom(9'd0), `UNPAIRED,
+    .pc(9'd0), .word(word), .row({row, 174'd0}), .next({checked(next), 174'd0}),
+    .target({checked(target), 174'd0}),
     .phase(phase), .offset(offset), .period(period), .x(x), .y(y), .arm(arm),
     .arm_known(arm_known), .captured(captured), .awaiting(awaiting),
     .next_pc(), .target_pc(), .accepts(accepts), .within(within), .starts_open());
@@ -62,8 +81,9 @@ module row_step (
     .side_set_count(side_set_count), .fraction(fraction),
     .loaded$valid(loads_period), .loaded$value(loaded_period),
     .capture$pin(capture_pin), .capture$rising(capture_rising),
-    .capture$single_edge(single_edge), .wrap_top(9'd0), .wrap_bottom(9'd0),
-    .pc(9'd0), .word(word), .row(next), .next(next), .target(next),
+    .capture$single_edge(single_edge), .wrap_top(9'd0), .wrap_bottom(9'd0), `UNPAIRED,
+    .pc(9'd0), .word(word), .row({next, 174'd0}), .next({next, 174'd0}),
+    .target({next, 174'd0}),
     .phase(phase_after), .offset(next_offset), .period(period_after), .x(x_after),
     .y(y_after), .arm(next_arm), .arm_known(next_arm_known), .captured(next_captured),
     .awaiting(next_awaiting), .next_pc(), .target_pc(), .accepts(), .within(into_next),
@@ -72,8 +92,9 @@ module row_step (
     .side_set_count(side_set_count), .fraction(fraction),
     .loaded$valid(loads_period), .loaded$value(loaded_period),
     .capture$pin(capture_pin), .capture$rising(capture_rising),
-    .capture$single_edge(single_edge), .wrap_top(9'd0), .wrap_bottom(9'd0),
-    .pc(9'd0), .word(word), .row(target), .next(target), .target(target),
+    .capture$single_edge(single_edge), .wrap_top(9'd0), .wrap_bottom(9'd0), `UNPAIRED,
+    .pc(9'd0), .word(word), .row({target, 174'd0}), .next({target, 174'd0}),
+    .target({target, 174'd0}),
     .phase(phase_after), .offset(target_offset), .period(period_after), .x(x_after),
     .y(y_after), .arm(next_arm), .arm_known(next_arm_known), .captured(next_captured),
     .awaiting(next_awaiting), .next_pc(), .target_pc(), .accepts(), .within(into_target),

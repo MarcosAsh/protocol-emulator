@@ -36,23 +36,42 @@ let row_input name =
 ;;
 
 let all (h : _ Kernel.Holds.t) = Kernel.Holds.to_list h |> G.reduce ~f:G.( &: )
-let all_but_offset (h : _ Kernel.Holds.t) = all { h with offset = G.vdd }
 
-(* That an accepted row maps into its successors and meets its deadline, as two claims,
-   which SAT finds far easier than one: [bounds], that the conjuncts other than the offset
+let all_but_offset_and_edges (h : _ Kernel.Holds.t) =
+  all { h with offset = G.vdd; edge_a = G.vdd; edge_b = G.vdd }
+;;
+
+(* That an accepted row maps into its successors and meets its deadline, as claims SAT
+   finds far easier apart: [bounds], that the conjuncts but the offset's and the edges'
    keep the core inside every other bound of the row it steps to and a deadline wait in
-   time, and [offset], that the offset conjuncts keep its offset inside that row's.
-   [accepts] is every conjunct, so it implies both. Each is proved one of [cases] at a
-   time. *)
+   time; [offset], that the offset conjuncts keep its offset inside that row's; and for
+   each pin of the pair, that an edge it may make is spaced. [accepts] implies each. Each
+   is proved one of [cases] at a time. That the edge bounds carry to the next row is too
+   much arithmetic for SAT; formal/phase_table.sby proves it on the RTL. *)
 type claims =
   { cases : G.t list
   ; bounds : G.t
   ; offset : G.t
+  ; spaced_a : G.t
+  ; spaced_b : G.t
   }
 
+let spacing_input name =
+  Kernel.Spaced.map2
+    Kernel.Spaced.port_names
+    Kernel.Spaced.port_widths
+    ~f:(fun field width -> G.input (name ^ "_" ^ field) width)
+;;
+
+let edge_input name =
+  Kernel.Edge.map2 Kernel.Edge.port_names Kernel.Edge.port_widths ~f:(fun field width ->
+    G.input (name ^ "_" ^ field) width)
+;;
+
 (* The kernel accepts under the single-edge assumption as the input [single_edge] sets it,
-   and the step takes [step_edge] of that. *)
-let accepted_rows_hold ~step_edge =
+   and the step takes [step_edge] of that; it checks the spacing [check_spacing] makes of
+   the step's. *)
+let accepted_rows_hold ?(check_spacing = Fn.id) ~step_edge () =
   let side_set_count = G.input "side_set_count" 2 in
   let fraction = G.input "fraction" 1 in
   let loaded =
@@ -66,6 +85,7 @@ let accepted_rows_hold ~step_edge =
     ; single_edge = G.input "single_edge" 1
     }
   in
+  let spacing = spacing_input "spacing" in
   let word = G.input "word" Isa.data_bits in
   let phase = G.input "phase" Isa.timer_bits in
   let period = G.input "period" Isa.data_bits in
@@ -75,6 +95,8 @@ let accepted_rows_hold ~step_edge =
   let arm_known = G.input "arm_known" 1 in
   let captured = G.input "captured" 1 in
   let awaiting = G.input "awaiting" 1 in
+  let a = edge_input "a" in
+  let b = edge_input "b" in
   let carry = G.input "carry" 1 in
   let any name width = G.input ("any_" ^ name) width in
   let row = row_input "row" in
@@ -86,6 +108,7 @@ let accepted_rows_hold ~step_edge =
       ~fraction
       ~loaded
       ~capture:{ capture with single_edge = step_edge capture.single_edge }
+      ~spacing
       ~word
       ~phase
       ~period
@@ -95,6 +118,10 @@ let accepted_rows_hold ~step_edge =
       ~arm_known
       ~captured
       ~awaiting
+      ~a
+      ~b
+      ~data_a:(G.input "data_a" 1)
+      ~data_b:(G.input "data_b" 1)
   in
   let d = Decoder.decode ~side_set_count word in
   let is op = Opcode.is d.opcode op in
@@ -150,6 +177,8 @@ let accepted_rows_hold ~step_edge =
       ~arm_known:s.next_arm_known
       ~captured:s.next_captured
       ~awaiting:s.next_awaiting
+      ~a:s.next_a
+      ~b:s.next_b
   in
   let arrives =
     Kernel.Holds.map2
@@ -163,16 +192,38 @@ let accepted_rows_hold ~step_edge =
             next))
   in
   let conjuncts =
-    K.conjuncts ~side_set_count ~fraction ~loaded ~capture ~word ~row ~next ~target
+    K.conjuncts
+      ~side_set_count
+      ~fraction
+      ~loaded
+      ~capture
+      ~spacing:(check_spacing spacing)
+      ~word
+      ~row
+      ~next
+      ~target
   in
-  let hypothesis =
+  let inside =
     G.(
-      all (K.within row ~phase ~offset ~period ~x ~y ~arm ~arm_known ~captured ~awaiting)
+      all
+        (K.within
+           row
+           ~phase
+           ~offset
+           ~period
+           ~x
+           ~y
+           ~arm
+           ~arm_known
+           ~captured
+           ~awaiting
+           ~a
+           ~b)
       &: (~:x_dec |: (x <>:. 0) |: (offset ==: phase))
       &: (side_set_count <=:. 2)
-      &: ~:(s.halts)
       &: (~:(s.capture_bounded) |: in_capture_range))
   in
+  let hypothesis = G.(inside &: ~:(s.halts)) in
   (* a jump one condition at a time and an ALU instruction one destination and operation
      at a time *)
   let cases =
@@ -191,14 +242,18 @@ let accepted_rows_hold ~step_edge =
       in
       List.map parts ~f:(fun part -> G.(is op &: part)))
   in
+  (* a halt has no next entry, but its side-set still moves the pins *)
+  let spaced ~wide ~step = G.(~:(inside &: wide) |: step) in
   { cases
   ; bounds =
       G.(
         ~:(hypothesis
            &: conjuncts.in_time
-           &: all_but_offset conjuncts.next
-           &: all_but_offset conjuncts.target)
-        |: (~:deadline |: (phase <=+ zero Isa.timer_bits) &: all_but_offset arrives))
+           &: all_but_offset_and_edges conjuncts.next
+           &: all_but_offset_and_edges conjuncts.target)
+        |: (~:deadline
+            |: (phase <=+ zero Isa.timer_bits)
+            &: all_but_offset_and_edges arrives))
   ; offset =
       G.(
         ~:(hypothesis
@@ -207,17 +262,25 @@ let accepted_rows_hold ~step_edge =
            &: conjuncts.next.offset
            &: conjuncts.target.offset)
         |: arrives.offset)
+  ; spaced_a = spaced ~wide:conjuncts.wide_a ~step:s.wide_a
+  ; spaced_b = spaced ~wide:conjuncts.wide_b ~step:s.wide_b
   }
 ;;
 
 let%expect_test "an accepted row maps into its successors and meets its deadline" =
-  let { cases; bounds; offset } = accepted_rows_hold ~step_edge:Fn.id in
+  let { cases; bounds; offset; spaced_a; spaced_b } =
+    accepted_rows_hold ~step_edge:Fn.id ()
+  in
   Checked_unsat.prove "accepts => step stays in the rows" ~cases ~claim:bounds;
   Checked_unsat.prove "accepts => offset stays in the rows" ~cases ~claim:offset;
+  Checked_unsat.prove "accepts => pin a's edges spaced" ~cases ~claim:spaced_a;
+  Checked_unsat.prove "accepts => pin b's edges spaced" ~cases ~claim:spaced_b;
   [%expect
     {|
     (QED "accepts => step stays in the rows")
     (QED "accepts => offset stays in the rows")
+    (QED "accepts => pin a's edges spaced")
+    (QED "accepts => pin b's edges spaced")
     |}]
 ;;
 
@@ -225,7 +288,7 @@ let%expect_test "an accepted row maps into its successors and meets its deadline
    core whose capture pin may make a second edge, which is the step without it. Any
    counterexample has the kernel assuming one edge while the core awaits it. *)
 let%expect_test "the rows hold only under the single-edge assumption" =
-  let { cases; bounds; _ } = accepted_rows_hold ~step_edge:(Fn.const G.gnd) in
+  let { cases; bounds; _ } = accepted_rows_hold ~step_edge:(Fn.const G.gnd) () in
   Checked_unsat.prove
     "accepts => step stays in the rows, with a second edge"
     ~show:[ "single_edge"; "awaiting" ]
@@ -235,6 +298,24 @@ let%expect_test "the rows hold only under the single-edge assumption" =
     {|
     (counterexample "accepts => step stays in the rows, with a second edge"
      (model ((awaiting 1) (single_edge 1))))
+    |}]
+;;
+
+(* Teeth for the spacing: rows the kernel accepts with no spacing to keep need not keep
+   the step's. *)
+let%expect_test "an edge is spaced only where the kernel checks the spacing" =
+  let { cases; spaced_a; _ } =
+    accepted_rows_hold ~check_spacing:(Fn.const K.no_spacing) ~step_edge:Fn.id ()
+  in
+  Checked_unsat.prove
+    "accepts with no spacing => pin a's edges spaced"
+    ~show:[ "spacing_valid" ]
+    ~cases
+    ~claim:spaced_a;
+  [%expect
+    {|
+    (counterexample "accepts with no spacing => pin a's edges spaced"
+     (model ((spacing_valid 1))))
     |}]
 ;;
 
@@ -288,10 +369,10 @@ let%expect_test "the kernel on the firmware library, from the analyser's rows" =
     |}]
 ;;
 
-(* At reset the phase, the offset, every register and the capture state are anything, and
-   the proof of [accepts] takes the row at pc 0 to hold of them, so [Kernel.check] refuses
-   a table whose row there bounds any of them: here uart_tx's, which it accepts, with one
-   bound added at pc 0. *)
+(* At reset the phase, the offset, every register, the capture state and the pins are
+   anything, and the proof of [accepts] takes the row at pc 0 to hold of them, so
+   [Kernel.check] refuses a table whose row there bounds any of them: here uart_tx's,
+   which it accepts, with one bound added at pc 0. *)
 let%expect_test "the row at pc 0 bounds nothing" =
   let c = Certified.find_exn "uart_tx" in
   let signed n = Bits.of_signed_int ~width:Isa.timer_bits n in
@@ -308,6 +389,7 @@ let%expect_test "the row at pc 0 bounds nothing" =
     ; ("arm", fun r -> { r with arm_hi = Bits.zero Isa.timer_bits })
     ; ("captured", fun r -> { r with captured = Bits.vdd })
     ; ("awaiting", fun r -> { r with awaiting = Bits.vdd })
+    ; ("edge", fun r -> { r with a = { r.a with at1 = { r.a.at1 with may = Bits.gnd } } })
     ]
     ~f:(fun (bound, at_pc_0) ->
       let verdict = check c ~at_pc_0 in
@@ -323,6 +405,7 @@ let%expect_test "the row at pc 0 bounds nothing" =
     (arm (verdict (Error "the row at pc 0 must be the full range")))
     (captured (verdict (Error "the row at pc 0 must be the full range")))
     (awaiting (verdict (Error "the row at pc 0 must be the full range")))
+    (edge (verdict (Error "the row at pc 0 must be the full range")))
     |}]
 ;;
 
