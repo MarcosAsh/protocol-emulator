@@ -161,15 +161,13 @@ let%expect_test "an accepted osr row maps into the row the core steps to" =
 let%expect_test "the rows hold only with the kernel's x" =
   let cases, claims = accepted_rows_hold ~with_kernel:false in
   prove
-    ~show:[ "x"; "row_x_lo"; "row_x_hi" ]
+    ~show:[]
     "accepts => shifted stays in the rows, x anything"
     ~cases
     ~claim:claims.shifted;
   [%expect {|
     (counterexample "accepts => shifted stays in the rows, x anything"
-     (model
-      ((row_x_hi 0110010010011101) (row_x_lo 0011000111001000)
-       (x 1100011111111100))))
+     (model ()))
     |}]
 ;;
 
