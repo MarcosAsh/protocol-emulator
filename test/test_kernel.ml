@@ -462,6 +462,34 @@ let%expect_test "ws2812's gap loop needs an offset, or its wait moved into the l
     |}]
 ;;
 
+(* Every row the analyser gives the library has no slope and the full offset, so each
+   table is one of the tables of intervals that formal/phase_table.sby covers. The old
+   ws2812's gap loop is the one that is not. *)
+let%expect_test "the library's tables are rows of intervals" =
+  let module Kernel_bits = Kernel.Make (Bits) in
+  List.iter (Certified.all @ [ ws2812_waiting_after_gap ]) ~f:(fun (c : Certified.t) ->
+    let program, config = assemble c in
+    let rows =
+      Analyser.analyse
+        ?period:c.period
+        ~single_capture_edge:c.single_capture_edge
+        ~config
+        program.instructions
+    in
+    Array.iteri (Kernel.Table.of_analyser rows) ~f:(fun pc row ->
+      if Bits.to_bool Bits.(row.slope <>:. 0 |: ~:(Kernel_bits.offset_is_full row))
+      then print_s [%message c.name (pc : int)]));
+  [%expect
+    {|
+    (ws2812_waiting_after_gap (pc 5))
+    (ws2812_waiting_after_gap (pc 6))
+    (ws2812_waiting_after_gap (pc 7))
+    (ws2812_waiting_after_gap (pc 8))
+    (ws2812_waiting_after_gap (pc 9))
+    (ws2812_waiting_after_gap (pc 10))
+    |}]
+;;
+
 (* The kernel's row is the phase [now - t] an instruction enters at
    ([formal/phase_step.sv]), and a pin edge shows the cycle after the entry of an
    instruction that writes pins ([formal/edge_step.sv]): a set, out or mov to pins or
