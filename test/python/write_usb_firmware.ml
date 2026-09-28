@@ -3,15 +3,13 @@ open Hardcaml
 open Protocol_emulator
 open Protocol_emulator_test
 
-(* The USB device firmware for the board's Python: the words for address 0, where the
-   words that depend on the address sit, and those words for every address, so the Python
-   never has to assemble anything or know how the constants are built. *)
+(* The USB device firmware for the board's Python: address 0's words and the
+   address-dependent ones for every address, so the Python never assembles. *)
 let bit_period = 32
 let addresses = 128
 
 let () =
-  (* a board runs these words, so they pass the check the command line makes, under the
-     assumptions the certificate in test_analyser is printed with *)
+  (* checked as the command line does, under test_analyser's certificate assumptions *)
   let program address =
     let program =
       Asm.assemble (Firmware.usb_device ~address ~half_period:(bit_period / 2)) |> ok_exn

@@ -5,8 +5,8 @@ open Protocol_emulator
 module G = Comb_gates
 module Footprint_gates = Footprint.Make (G)
 
-(* The footprint as formal/frame_step.sv writes it, over gates: the window of [n] pins
-   from [base] is the top half of the word twice over, shifted up by [base] mod 28. *)
+(* formal/frame_step.sv's footprint over gates: the window of [n] pins from [base] is the
+   top half of the doubled word, shifted up by [base] mod 28. *)
 module Frame_step = struct
   open G
 
@@ -106,10 +106,9 @@ let footprint (t : Certified.t) =
   Footprint.of_program config program.instructions
 ;;
 
-(* What formal/frame_step.sv holds a word the core goes with to, read off its fields as it
-   reads them: out, mov and set are opcodes 3, 4 and 5 in [15:13], and in [7:5] pins is
-   destination 0 and pindirs 4 for an out and 3 otherwise. An out's width is its count, as
-   much of it as a word of data covers. *)
+(* The writes formal/frame_step.sv holds a word to, decoded as it decodes them: out, mov,
+   set are opcodes 3, 4, 5; pins is destination 0, pindirs 4 for out and 3 otherwise. An
+   out's width is its count, capped at what a data word covers. *)
 let frame_step_writes word =
   let opcode = (word lsr 13) land 0x7 in
   let dest = (word lsr 5) land 0x7 in
@@ -125,10 +124,8 @@ let frame_step_writes word =
   }
 ;;
 
-(* The lemma for a firmware assumes each word the core goes with keeps to the program's
-   [Writes]. Were the harness to count a word as a writer [Writes.of_program] does not,
-   that assumption would rule the firmware's own runs out and the lemma would hold of
-   nothing. *)
+(* The lemma assumes each word keeps to [Writes.of_program]. A word that writes more would
+   make the assumption rule out the firmware's own runs, and the lemma vacuous. *)
 let%expect_test "the frame lemma counts each word as the writer Writes counts it" =
   let fields writes =
     Footprint.Writes.(to_list (map2 port_names writes ~f:(fun name n -> name, n)))
@@ -212,8 +209,7 @@ let%expect_test "the footprint of each firmware, and of its config under any pro
     |}]
 ;;
 
-(* The model, run on each firmware with the pins and the host's words at random, never
-   moves a pin outside the footprint. What it does move shows how much of it is used. *)
+(* Under random pins and host words, no firmware moves a pin outside its footprint. *)
 let%expect_test "each firmware stays inside its footprint" =
   let random = Random.State.make [| 7 |] in
   let cycles = 4000 in
@@ -285,8 +281,8 @@ let%expect_test "each firmware stays inside its footprint" =
     |}]
 ;;
 
-(* Pairs one might run on the two engines at once, each as the library configures it: the
-   pins both can move, which have to be none for the chip to show each one's edges. *)
+(* Pins both engines of a pair can move; must be none for the chip to show each one's
+   edges. *)
 let%expect_test "which pairs of firmware write disjoint pins" =
   List.iter
     [ "uart_tx", "uart_rx"

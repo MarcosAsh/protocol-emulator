@@ -1,9 +1,8 @@
 open! Core
 open Protocol_emulator
 
-(* The table the README quotes: every firmware in the library, what the analyser says of
-   it and what that rests on. The proofs that check each certificate on the RTL are
-   [make -C formal certificates] and [make -C formal inductive_certificates]. *)
+(* The README's table: each firmware's certificate and what it rests on. Proved on the RTL
+   by [make -C formal certificates] and [make -C formal inductive_certificates]. *)
 let%expect_test "the firmware library and its certificates" =
   printf "%-18s %5s  %8s  %5s  %s\n" "firmware" "words" "deadline" "slack" "assumes";
   List.iter Certified.all ~f:(fun t ->

@@ -18,9 +18,8 @@ let uart_tx =
   }
 ;;
 
-(* A read frame ends with the next rx head on miso. When the read has emptied the fifo
-   that is a RAM word nothing has written: zero here, X in the Verilog. So the host always
-   leaves a word behind, whatever the fifo depth. *)
+(* A read frame ends with the next rx head on miso; after emptying the fifo that is
+   unwritten RAM, zero here but X in Verilog. So the host always leaves a word behind. *)
 let uart_rx =
   let period = 16 in
   let drive bytes =

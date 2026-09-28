@@ -1,21 +1,10 @@
-(** The instruction set of the protocol emulator core, as an executable specification.
-
-    Instructions are 16-bit words fetched from program memory. The machine has two 16-bit
-    scratch registers [x] and [y], a 16-bit period register [p], a 24-bit deadline
-    register [t], and the output and input shift registers [osr] and [isr]. A free running
-    24-bit counter [now] is the clock the deadline is compared against.
-
-    Every instruction other than [jmp] occupies [1 + delay] cycles, plus however long a
-    [wait] stalls. A [jmp] always occupies [jmp_cycles] cycles whether or not it is taken,
-    so the time between instruction issues never depends on data. Timing is anchored to
-    the deadline: firmware sets [t], waits on it, and advances it by [p], so pin edges
-    land on cycles that are computable from the program alone.
-
-    Pins are numbered in one flat space: inputs first, then outputs, then the
-    bidirectional pins, then [num_wires] wires that never leave the chip. A wire is high
-    while any engine drives it high and every engine reads it, so engines signal each
-    other with the instructions they use on pins. Shift operations on pins start at a base
-    pin held in the program configuration, as in the RP2040 PIO. *)
+(** The core's instruction set: 16-bit words; registers [x], [y], [p] (16 bits), deadline
+    [t] and free-running [now] (24 bits), shift registers [osr] and [isr]. An instruction
+    takes [1 + delay] cycles plus any [wait] stall; a [jmp] always takes [jmp_cycles],
+    taken or not, so issue timing never depends on data. Firmware sets [t], waits on it
+    and advances it by [p], so pin edges are computable from the program alone. Pins are
+    one flat space: inputs, outputs, bidirectional, then [num_wires] wires ORed across
+    engines. Pin shifts start at a configured base pin, as in the RP2040 PIO. *)
 
 open! Core
 open! Hardcaml
@@ -24,18 +13,16 @@ val word_bits : int
 val data_bits : int
 val timer_bits : int
 
-(** The deadline [t] carries this many bits below the cycle, which a fractional period
-    fills. *)
+(** Bits of [t] below the cycle, filled by a fractional period. *)
 val fraction_bits : int
 
 val pc_bits : int
 
-(** The data memory is the same macro as the program memory, 512 words. *)
+(** Same 512-word macro as program memory. *)
 val data_addr_bits : int
 
-(** The engines share the data memory and take turns at it, so after a data autopull or a
-    [Seek] moves an engine's pointer the next data autopull waits this many cycles, or it
-    is refused and sets [underflow]. *)
+(** The engines time-share data memory: after a data autopull or [Seek], a data autopull
+    sooner than this many cycles is refused and sets [underflow]. *)
 val data_settle : int
 
 val delay_bits : int
@@ -43,7 +30,7 @@ val max_side_set : int
 val num_pins : int
 val num_wires : int
 
-(** Pins and wires together: what a pin index can name. *)
+(** Pins plus wires. *)
 val pin_space : int
 
 val first_output_pin : int
@@ -52,8 +39,7 @@ val max_shift_count : int
 val count_bits : int
 val jmp_cycles : int
 
-(** Bit fields of an instruction word. The same constants drive the software encoder and
-    the hardware decoder. *)
+(** Instruction word fields, shared by the encoder and the hardware decoder. *)
 module Field : sig
   type t =
     { lsb : int
@@ -67,8 +53,8 @@ module Field : sig
   val select : (module Comb.S with type t = 'a) -> t -> 'a -> 'a
   val op : t
 
-  (** Delay and side-set share five bits. The program configuration says how many of the
-      top bits are side-set; the rest are delay. Not present on [jmp]. *)
+  (** Five bits: the configured number of top bits are side-set, the rest delay. Absent on
+      [jmp]. *)
   val delay_side : t
 
   val jmp_cond : t
@@ -94,8 +80,7 @@ module type Cases = sig
   type t [@@deriving sexp_of, compare ~localize, enumerate, equal]
 end
 
-(** An enumeration encoded as the binary rank of its constructor. The Hardcaml enum
-    interface is included so the decoder can match on the same codes. *)
+(** Encoded as the constructor's rank. *)
 module type Enum = sig
   module Cases : Cases
   include Hardcaml.Enum.S_enum with module Cases := Cases
@@ -122,12 +107,10 @@ module Opcode : sig
   include Enum with module Cases := Cases
 end
 
-(** [X_dec] and [Y_dec] jump if the register was non-zero and decrement it either way, so
-    a register loaded with [n] runs a loop body [n + 1] times and ends at all ones. [Pin]
-    tests the jump pin from the program configuration. [Stuff_pending] is set by the bit
-    stuffing counter. The four fifo tests look without touching the fifo or stalling,
-    which is the one way besides [wait] on a fifo that when the host talks can change what
-    the program does. *)
+(** [X_dec]/[Y_dec] jump if non-zero and decrement either way: [n] runs a loop [n + 1]
+    times and ends at all ones. [Pin] tests the configured jump pin. The fifo tests
+    neither stall nor touch the fifo; with [wait fifo] they are the only way host timing
+    can change what a program does. *)
 module Jmp_cond : sig
   module Cases : sig
     type t =
@@ -162,8 +145,7 @@ module Wait_source : sig
   include Enum with module Cases := Cases
 end
 
-(** [Crc] reads the running CRC of the bits shifted so far. [Capture] reads the low bits
-    of the timestamp latched by the last armed input capture. *)
+(** [Capture] reads the low bits of the timestamp latched by the last armed capture. *)
 module In_source : sig
   module Cases : sig
     type t =
@@ -227,8 +209,8 @@ module Mov_op : sig
   include Enum with module Cases := Cases
 end
 
-(** Writes to [t] are absolute: [mov t, now] anchors the deadline to the current cycle and
-    [mov t, capture] anchors it to an input edge. Arithmetic on [t] goes through [alu]. *)
+(** Writes to [t] are absolute ([mov t, now], [mov t, capture]); arithmetic on [t] goes
+    through [alu]. *)
 module Mov_source : sig
   module Cases : sig
     type t =
@@ -299,9 +281,8 @@ module Alu_reg : sig
   include Enum with module Cases := Cases
 end
 
-(** [Push] and [Pull] never stall. On a full or empty fifo they set a fault bit instead,
-    so the host can never perturb pin timing. Firmware that needs to block does so with
-    [wait fifo]. [Seek] points the data memory at [x], for the autopull that reads it. *)
+(** [Push] and [Pull] never stall, so the host cannot perturb pin timing; on a full or
+    empty fifo they set a fault bit. [Seek] points data autopull at [x]. *)
 module Sys_op : sig
   module Cases : sig
     type t =
@@ -327,9 +308,9 @@ module Fifo_wait : sig
   [@@deriving sexp_of, compare, equal]
 end
 
-(** [Deadline] releases when [now - t], taken as a signed 24-bit number, is zero or
-    positive, so a deadline that has already passed releases immediately rather than
-    waiting for the counter to wrap. With [advance] the release also does [t <- t + p]. *)
+(** [Deadline] releases when [now - t], as a signed 24-bit number, is >= 0, so a passed
+    deadline releases at once instead of after wrap-around. [advance] also does
+    [t <- t + p]. *)
 module Wait : sig
   type t =
     | Pin_level of
@@ -352,8 +333,7 @@ module Alu_operand : sig
   [@@deriving sexp_of, compare, equal]
 end
 
-(** Shift counts are 1 to 16 and are encoded directly. [Mov] into [isr] or [osr] resets
-    the corresponding shift counter. *)
+(** Shift counts are 1 to 16. [Mov] into [isr] or [osr] resets its shift counter. *)
 module Op : sig
   type t =
     | Wait of Wait.t
@@ -383,8 +363,7 @@ module Op : sig
   [@@deriving sexp_of, compare, equal]
 end
 
-(** A [jmp] carries a nine bit target and no delay or side-set. Everything else carries a
-    delay and a side-set value whose widths depend on [side_set_count]. *)
+(** A [jmp] has no delay or side-set; elsewhere their widths follow [side_set_count]. *)
 type t =
   | Jmp of
       { cond : Jmp_cond.Cases.t
@@ -397,9 +376,8 @@ type t =
       }
 [@@deriving sexp_of, compare, equal]
 
-(** [side_set_count] is the number of side-set pins in the program configuration, from 0
-    to [max_side_set]. Both functions reject anything that would not survive a round trip:
-    out of range fields, reserved codes and set reserved bits. *)
+(** [side_set_count] is 0 to [max_side_set]. The codecs reject whatever would not
+    round-trip: out-of-range fields, reserved codes, set reserved bits. *)
 val in_range : string -> int -> lo:int -> hi:int -> unit Or_error.t
 
 val to_word : side_set_count:int -> t -> int Or_error.t

@@ -169,8 +169,7 @@ let%expect_test "a host enumerates the keyboard and mouse and reads reports" =
         | None -> []
       in
       print_s [%message "report" ~_:(until_data 20 : int list)]);
-  (* a report is waiting when the host starts a control transfer: the core takes it out of
-     the way, the board hears of it and puts it back afterwards *)
+  (* a report pending when a control transfer starts is dropped; the board requeues it *)
   report t [ 2; 1; 0; 0 ];
   read
     "device descriptor with a report in the way"
@@ -236,8 +235,7 @@ let%expect_test "a bus reset with a report still queued" =
     |}]
 ;;
 
-(* A shorter enumeration, with a report on endpoint 1 at the end, for the tests that run
-   every load of the core again somewhere else. *)
+(* A shorter enumeration ending in an endpoint 1 report, for the replay tests below. *)
 let conversation () =
   let t = create ~reset_cycles:4000 ~descriptors ~latency:3000 () in
   reset t;
@@ -258,11 +256,9 @@ let conversation () =
   t, until_data 20
 ;;
 
-(* The same conversation against the hardware: every load of the core is run again in the
-   lockstep harness with the pins and the fifo writes the model saw, cycle for cycle, and
-   the Hardcaml core has to agree with the model on all of its state after every edge. The
-   host keeps to the single-edge premise the device's certificate rests on at every arm:
-   none of them finds D+ already high or sees it fall again before the wait. *)
+(* Every load replayed in the lockstep harness: the Hardcaml core must match the model's
+   state after every edge. The host keeps to the single-edge premise the certificate rests
+   on: no arm finds D+ already high or sees it fall again before the wait. *)
 let%expect_test "the enumeration in lockstep with the hardware" =
   let t, report = conversation () in
   print_s [%message (report : int list)];
@@ -304,10 +300,8 @@ let%expect_test "the enumeration in lockstep with the hardware" =
     |}]
 ;;
 
-(* The same conversation against the analyser. The certificate the device is published
-   with rests on [single_capture_edge], which a host that keeps to the standard gives it,
-   so the analysis here assumes it too, and every issue of every load has to fall inside
-   it. *)
+(* Every load against the analyser, assuming [single_capture_edge] as the published
+   certificate does (a standard host gives it); every issue must fall inside the analysis. *)
 let%expect_test "the enumeration stays inside the analysis of the device" =
   let t, (_ : int list) = conversation () in
   List.iter (recording t) ~f:(fun (address, cycles) ->
@@ -315,7 +309,7 @@ let%expect_test "the enumeration stays inside the analysis of the device" =
     let words =
       Firmware.assemble (Firmware.usb_device ~address ~half_period:(bit_period / 2))
     in
-    (* as the lockstep harness has it: a word goes in after an edge, a pop before one *)
+    (* as in the lockstep harness: push after an edge, pop before one *)
     let host n m =
       let m =
         if n = 0

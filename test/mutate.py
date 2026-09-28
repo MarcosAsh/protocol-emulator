@@ -1,11 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# Mutation score of the OCaml test suite: apply one textual mutation to a source file at
-# a time, run the tests, count the mutants that a test kills.
+# Mutation score of the OCaml tests: one textual mutation at a time, in copies under
+# _mutation/. A survivor not in test/mutation_allow.txt exits 1.
 # Usage: python3 test/mutate.py [--file src/pins.ml ...] [--operator NAME ...]
 #        [--max-per-operator N] [--jobs N]
-# The mutants are made in copies of the repository under _mutation/, which dune ignores,
-# so the checkout itself is never touched. A mutant that survives and is not listed in
-# test/mutation_allow.txt makes the exit code 1.
 import argparse
 import re
 import shutil

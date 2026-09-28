@@ -21,8 +21,7 @@ let schedule ?(inputs = 0) ?(max_cycles = 1_000_000) ~config program ~words =
   let%bind () = time_triggered program in
   let%bind encoded = Asm.Program.words program in
   let%bind machine = Machine.create ~config ~program:encoded in
-  (* after every cycle the host reads every reply and tops the tx fifo up, which is as
-     early as it can do either *)
+  (* the host drains replies and tops up tx after every cycle, as early as it can *)
   let rec drain machine =
     match Machine.read_rx machine with
     | Some (_, machine) -> drain machine

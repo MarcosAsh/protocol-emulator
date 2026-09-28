@@ -80,8 +80,8 @@ module Make (Comb : Comb.S) = struct
 
   let only_if used pins = mux2 used pins (zero Isa.pin_space)
 
-  (* a word carries [Isa.max_side_set] bits of side-set; a wider window writes 0 above
-     them, and a pin only ever written 0 never moves *)
+  (* a side-set window wider than [Isa.max_side_set] writes 0 above it, and a pin only
+     ever written 0 never moves *)
   let side_set_reach (c : Comb.t Engine.Config.t) =
     let most = of_unsigned_int ~width:(width c.side_set_count) Isa.max_side_set in
     mux2 (c.side_set_count >:. Isa.max_side_set) most c.side_set_count

@@ -372,9 +372,8 @@ module I2c_peer = struct
   ;;
 end
 
-(* USB low speed on the wire: J is D- high, K is D+ high, SE0 both low. NRZI with a
-   transition for every zero, a zero stuffed after six ones, SYNC then bytes LSB first,
-   EOP is two bits of SE0 and one of J. *)
+(* USB low speed: J is D- high, K is D+ high, SE0 both low. NRZI, a zero stuffed after six
+   ones, bytes LSB first, EOP is two bits of SE0 and one of J. *)
 module Usb_ls = struct
   let crc5 bits =
     List.fold bits ~init:0x1f ~f:(fun crc bit ->
@@ -392,8 +391,7 @@ module Usb_ls = struct
     List.concat_map bytes ~f:(fun byte -> List.init 8 ~f:(fun i -> (byte lsr i) land 1))
   ;;
 
-  (* the CRC register after every bit of a packet, SYNC and PID included, which is what
-     the receiver hands the host to check *)
+  (* the CRC register over every bit, SYNC and PID included, as the receiver hands it on *)
   let residual bytes =
     List.fold
       (bits_of_bytes (0x80 :: bytes))
@@ -488,8 +486,7 @@ module Usb_ls = struct
       | _ -> None
     ;;
 
-    (* Each line state lasts a whole number of bit times; a run of [n] periods is [n]
-       symbols. SE0 ends the packet. *)
+    (* a run of [n] bit times is [n] symbols; SE0 ends the packet *)
     let step t ~dp ~dm =
       match Line.of_pins ~dp ~dm with
       | None -> t

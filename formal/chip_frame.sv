@@ -1,30 +1,11 @@
-// The frame lemma of frame_step.sv carried to the two-engine chip: the cores and the pins
-// between them as Engines builds them. The chip's pin_out is the OR of what each engine
-// holds where it drives, its pin_dir the OR of theirs, and each engine reads the pads but
-// where the other drives a bidirectional pin, and on a wire what the other drives. For any
-// two programs under any two configs whose footprints share no pad, from the clear on:
-//
-//   (a) on a pad in one engine's footprint the chip shows what that engine would alone:
-//       on an output pad its pin_out, on a bidirectional pad its pin_dir as the output
-//       enable and its pin_out where that is set. Outside both footprints the chip's
-//       pin_out and pin_dir are 0.
-//   (b) an engine reads what it would alone on every pin but where it hears the other: a
-//       wire the other can move, and a bidirectional pad whose direction the other sets and
-//       its own does not. Alone it reads its own level on an output, on a wire and on a
-//       bidirectional pin whose direction it sets, and the pad elsewhere.
-//   (c) where it hears the other, an engine reads what the other drives, on a wire together
-//       with what it drives itself. This is how engines talk.
-//
-// All three rest on each engine keeping to its footprint, which is proved again here of the
-// two in the chip, with frame_step.sv's footprint and its one assumption, that every word a
-// core goes with writes no more than its program says. Only the first half of (a), what the
-// chip shows on each engine's pads, needs the footprints apart on the pads as well; the
-// pads_shared task drops that and proves the rest without it. The wires are not pads and
-// two engines may both write one.
-//
-// The host's fields, the pads and the clear are free in every cycle; the data memory is the
-// chip's, shared by time slice, which no claim here reads. Each config holds from one clear
-// to the next, as in frame_step.sv.
+// frame_step.sv's frame lemma on the two-engine chip. For two programs whose footprints
+// share no pad, from the clear on: (a) each engine's pads show what it would drive alone,
+// and pads outside both footprints stay 0; (b) each engine reads what it would alone,
+// except where it hears the other; (c) there it reads what the other drives. The
+// pads_shared task drops the disjoint-pads assumption, which only (a) needs. Assumes, as
+// frame_step.sv does, that each word a core runs writes no more than its program says.
+// Wires are not pads: both engines may write one.
+// Host fields, pads and clear are free every cycle; each config holds between clears.
 
 module chip_frame (input clk);
   (* anyconst *) wire [1:0] side_set_count_0, side_set_count_1;
@@ -131,8 +112,7 @@ module chip_frame (input clk);
     .op_go(op_go_0), .instruction(instruction_0), .opcode_onehot(opcode_onehot_0),
     .flip_pending(flip_pending_0), .pin_out(pin_out_0), .pin_dir(pin_dir_0),
     .footprint_out(footprint_out_0), .footprint_dir(footprint_dir_0));
-  // the second tooth: engine 1's words write where its program does not say, so it can
-  // drive a pin of engine 0's
+  // tooth 2: engine 1 writes beyond its program, so it can drive engine 0's pins
 `ifdef UNBOUND
   engine_frame #(.KEEPS_TO(0)) frame_1 (
 `else
@@ -151,15 +131,12 @@ module chip_frame (input clk);
   wire [27:0] moves_1 = footprint_out_1 | footprint_dir_1;
   wire [19:0] pads_0 = moves_0[19:0];
   wire [19:0] pads_1 = moves_1[19:0];
-  // the first tooth lets the footprints share a pad, and so does pads_shared, which leaves
-  // out the half of (a) that needs them apart
+  // tooth 1 and pads_shared let the footprints share a pad
 `ifndef OVERLAP
   always @(*) assume ((pads_0 & pads_1) == 0);
 `endif
 
-  // A pad as the chip's top drives it: an output pad always, a bidirectional pad where
-  // pin_dir is set, and the level where it drives. A lone engine's top is the same with
-  // its own pin_out and pin_dir.
+  // a pad as the top drives it, for the chip and for each engine alone
   localparam [19:0] OUTPUT_PADS = 20'h00fe0;
   localparam [19:0] BIDIR_PADS = 20'hff000;
   wire [19:0] oe = OUTPUT_PADS | (pin_dir & BIDIR_PADS);
@@ -169,9 +146,8 @@ module chip_frame (input clk);
   wire [19:0] alone_oe_1 = OUTPUT_PADS | (pin_dir_1[19:0] & BIDIR_PADS);
   wire [19:0] alone_level_1 = pin_out_1[19:0] & alone_oe_1;
 
-  // What an engine reads alone: its own level where it drives, which on an output and on a
-  // wire is always, since a lone engine finds nothing else on a wire, and on a
-  // bidirectional pin is where its direction is set; the pad everywhere else.
+  // what an engine reads alone: its own level where it drives (a lone engine always
+  // drives its wires), the pad elsewhere
   localparam [27:0] OWN = 28'hff00fe0;
   localparam [27:0] BIDIRS = 28'h00ff000;
   localparam [27:0] WIRES = 28'hff00000;
@@ -179,13 +155,12 @@ module chip_frame (input clk);
   wire [27:0] own_1 = OWN | (pin_dir_1 & BIDIRS);
   wire [27:0] alone_sample_0 = (pin_out_0 & own_0) | ({8'd0, pads} & ~own_0);
   wire [27:0] alone_sample_1 = (pin_out_1 & own_1) | ({8'd0, pads} & ~own_1);
-  // Where an engine hears the other, and what it hears there: the other's level, and on a
-  // wire its own as well.
+  // where an engine hears the other: its level, on a wire ORed with the engine's own
   wire [27:0] hears_0 = (WIRES & moves_1) | (pin_dir_1 & BIDIRS & ~pin_dir_0);
   wire [27:0] hears_1 = (WIRES & moves_0) | (pin_dir_0 & BIDIRS & ~pin_dir_1);
   wire [27:0] heard_0 = pin_out_1 | (pin_out_0 & WIRES);
   wire [27:0] heard_1 = pin_out_0 | (pin_out_1 & WIRES);
-  // the third tooth has each engine read alone on every pin, the other's too
+  // tooth 3: each engine reads alone on every pin
 `ifdef READ_EVERYWHERE
   wire [27:0] apart_0 = 28'hfffffff;
   wire [27:0] apart_1 = 28'hfffffff;
@@ -194,8 +169,7 @@ module chip_frame (input clk);
   wire [27:0] apart_1 = ~hears_1;
 `endif
 
-  // the second tooth keeps only engine 0's half of (a), which is where engine 1 driving a
-  // pad of engine 0's has to show
+  // tooth 2 keeps only engine 0's half of (a), where engine 1's stray drive shows
   always @(posedge clk)
     if (cleared) begin
       // (a)
@@ -219,10 +193,6 @@ module chip_frame (input clk);
 `endif
     end
 
-  // The covers: both engines move a pad of their own in one cycle; both drive a
-  // bidirectional pad at once; an engine reads a pad of its own as the pad has it while
-  // the other drives a bidirectional pad high; and one engine reads a wire the other
-  // writes, which is (c).
   reg last_clear = 1, last_cleared = 0;
   reg [19:0] last_oe, last_level;
   always @(posedge clk) begin
@@ -244,9 +214,8 @@ module chip_frame (input clk);
     end
 endmodule
 
-// One engine of the chip as frame_step.sv takes it: what its program writes, every word
-// its core goes with keeping to that, and the footprint they make under its config, which
-// it proves the engine's pins keep to, with frame_step.sv's two invariants for induction.
+// One engine as frame_step.sv takes it: the program's writes, the assumption that every
+// word keeps to them, and the footprint its pins are proved to keep to.
 module engine_frame #(parameter KEEPS_TO = 1) (
   input clk, input cleared,
   input [1:0] side_set_count, input [4:0] side_set_base, input side_set_pindirs,
@@ -255,13 +224,12 @@ module engine_frame #(parameter KEEPS_TO = 1) (
   input op_go, input [15:0] instruction, input [7:0] opcode_onehot, input flip_pending,
   input [27:0] pin_out, input [27:0] pin_dir,
   output [27:0] footprint_out, output [27:0] footprint_dir);
-  // what the program writes: its widest out to pins and to pindirs, 0 for none, and
+  // what the program writes: its widest out to pins and pindirs (0 for none), and
   // whether it sets or moves to either
   (* anyconst *) wire [4:0] out_pins_width, out_dirs_width;
   (* anyconst *) wire sets_pins, sets_dirs, movs_pins, movs_dirs;
 
-  // Pins.write, as in frame_step.sv: the low [n] bits of a word onto the pins from [base]
-  // up, around the 28 of them, on the pins that take them
+  // Pins.write, as in frame_step.sv
   localparam [27:0] OUTPUTS = 28'hfffffe0;
   localparam [27:0] BIDIRS = 28'h00ff000;
   function [27:0] place(input [15:0] v, input [4:0] base);

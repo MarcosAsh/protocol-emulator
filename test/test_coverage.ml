@@ -5,8 +5,7 @@ open Protocol_models
 
 let bit levels pin = (levels lsr pin) land 1
 
-(* The host of the directed runs: it writes [words] as the tx fifo has room and reads
-   whatever arrives, unless [pop] is false and the rx fifo is left to fill. *)
+(* Writes [words] as the tx fifo has room; reads everything unless [pop] is false. *)
 let run
   coverage
   ?(cycles = 400)

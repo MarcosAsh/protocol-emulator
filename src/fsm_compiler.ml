@@ -481,8 +481,8 @@ let goto ~after target =
 
 let cost lines = List.sum (module Int) lines ~f:(fun (l : Line.t) -> l.cycles)
 
-(* A state's code, and for each way out, the cycles from its anchor to the state it goes
-   to: the anchor is [wait t+] in a state on the tick and [mov t, now] in one that polls. *)
+(* A state's code and, per exit, the cycles from its anchor: [wait t+] on the tick,
+   [mov t, now] when polling. *)
 let emit c (roles : Roles.t) ~label_of ~after (s : State.t) =
   let open Or_error.Let_syntax in
   let effect reg = List.Assoc.find s.effects reg ~equal:String.equal in
@@ -601,8 +601,7 @@ let emit c (roles : Roles.t) ~label_of ~after (s : State.t) =
   return (waits @ anchored @ leaving, paths)
 ;;
 
-(* [set] takes five bits; a longer period comes from the host, as the analyser can then
-   still bound it. *)
+(* [set] takes five bits; longer periods come from the host, which the analyser bounds *)
 let period_from_host period = period >= 1 lsl Isa.Field.set_value.width
 
 let set_period period =

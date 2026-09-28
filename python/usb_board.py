@@ -1,14 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """The demo board's half of the USB device.
 
-The core answers inside the bus's turnaround time: it matches tokens, takes data and
-checks its CRC, sends ACK, and sends NAK for as long as nothing is queued. Everything
-that can wait is here: what a SETUP means, which descriptor goes back, the data toggles,
-and loading the core again when the address changes. Runs on MicroPython and CPython.
+The core does what must meet the turnaround time (tokens, CRC, ACK, NAK); this does
+the rest: SETUPs, descriptors, data toggles, reloading on a new address.
 
-`Board` does no I/O. `feed` takes the words the core pushed, `replies` are the word lists
-to write to its tx fifo, one whole list at a time, and `reload` is the address to load the
-core for. `service` is one round of that I/O over a `protocol_emulator.Host`.
+`Board` does no I/O: `feed` takes the words the core pushed, `reload` is the address to
+load the core for, and each list in `replies` must be written to the tx fifo whole.
+`service` is one round of that I/O over a `protocol_emulator.Host`.
 """
 
 import usb_device_firmware as firmware
@@ -91,7 +89,7 @@ class Board:
         if request == 6:  # GET_DESCRIPTOR
             data = self.descriptors.get(value >> 8, [])[:length]
             self.chunks = [data[i:i + MAX_PACKET] for i in range(0, len(data), MAX_PACKET)]
-            # stopping short of what was asked on a full packet takes an empty one
+            # a short answer ending on a full packet needs an empty one
             if len(data) < length and len(data) % MAX_PACKET == 0:
                 self.chunks.append([])
         else:
@@ -122,7 +120,7 @@ def load(host, address):
     host.flush()
     host.configure(firmware.CONFIG)
     host.load(firmware.words(address))
-    # the program's first instruction pulls the bit period, so it has to be there already
+    # the first instruction pulls the bit period, so it must be queued before start
     host.push([firmware.BIT_PERIOD])
     host.start()
 

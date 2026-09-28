@@ -49,8 +49,7 @@ let%expect_test "spi master exchanges bytes with a mode 0 slave" =
     |}]
 ;;
 
-(* the slave shifts the next reply out as each byte ends, so the host queues one more
-   reply than there are bytes or the last edge pulls from an empty fifo *)
+(* one reply more than bytes, or the last edge pulls from an empty fifo *)
 let run_spi_slave ~half_period ?gap ~replies bytes =
   let t =
     Machine.create ~config:spi_slave_config ~program:(assemble spi_slave) |> ok_exn

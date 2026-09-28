@@ -7,8 +7,7 @@ module Make (Comb : Comb.S) = struct
   let num_pins = Isa.pin_space
   let data_bits = Isa.data_bits
 
-  (* A rotate by [base] in one stage per bit of it. The pins are not a power of two wide,
-     which a rotate by constants does not mind. *)
+  (* one stage per bit of [base]; constant rotates cope with the non-power-of-two width *)
   let rotate v ~f ~base =
     List.foldi (bits_lsb base) ~init:v ~f:(fun k v bit -> mux2 bit (f v ~by:(1 lsl k)) v)
   ;;

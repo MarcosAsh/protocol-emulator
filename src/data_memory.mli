@@ -1,12 +1,8 @@
-(** The one data memory every engine streams from.
-
-    The engines take turns at the read port, engine [n] on every cycle whose count modulo
-    the number of engines is [n], and each keeps the last word it read. [reads] is the
-    address each engine's pointer holds next cycle and [words] the word at its pointer
-    now. After the pointer moves the word is there within two cycles whichever turn it
-    moved on, which is why an engine refuses a data pull the cycle after a pull or a seek
-    rather than read a word that may not have arrived. Writes land only while every engine
-    is halted, so no running engine ever loses its turn. At most two engines. *)
+(** The one data memory every engine streams from. Engine [n] reads on cycles [n] modulo
+    the engine count and keeps its last word; [reads] is each pointer's next address,
+    [words] the word at it now. A moved pointer's word arrives within two cycles, hence
+    the data-pull refusal after a pull or seek. Writes land only while all engines are
+    halted. At most two engines. *)
 
 open! Core
 open! Hardcaml

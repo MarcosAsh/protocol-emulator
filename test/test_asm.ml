@@ -236,8 +236,7 @@ let%expect_test "the words committed for the cocotb test are current" =
     ]
     ~f:(fun name ->
       [%test_result: int list] ~message:name (committed name) ~expect:(assembled name));
-  (* the programs with a twin in firmware.ml are copies, because the command line
-     assembles files *)
+  (* copies of firmware.ml's, since the command line assembles files *)
   [%test_result: int list]
     (assembled "uart_tx")
     ~expect:(Firmware.assemble (Firmware.uart_tx ~period:16));

@@ -27,8 +27,7 @@ let rec interleave a b =
   | x :: a, y :: b -> x :: y :: interleave a b
 ;;
 
-(* The lockstep harness randomises the hardware's memory, so the rest of it is filled with
-   [jmp 0] rather than left alone. *)
+(* the harness randomises the hardware's memory, so fill the rest with [jmp 0] *)
 let words =
   let jmp = Isa.to_word ~side_set_count:0 (Jmp { cond = Always; target = 0 }) |> ok_exn in
   let body =

@@ -18,8 +18,8 @@ DATA = 0x0D
 CONFIG = 0x10
 # 0x40 to 0x47 are reserved and read as zero.
 
-# The config fields in Engine.Config order, the nth at CONFIG + n. None is a reserved
-# register, which keeps the fields after it where existing hosts write them.
+# Engine.Config order, the nth at CONFIG + n. None is a reserved register, kept so later
+# fields stay where existing hosts write them.
 CONFIG_FIELDS = [
     "side_set_count", "side_set_base", "side_set_pindirs", "in_base", "in_count", "out_base",
     "out_count", "set_base", "set_count", "jmp_pin", "capture_pin", "capture_rising",
@@ -72,8 +72,7 @@ class Host:
         self.write(PROGRAM, words)
 
     def load_data(self, words, address=0):
-        """Fill the data memory, for autopull_data. The cores share it, so the words land
-        only while every core is halted."""
+        """Fill the shared data memory; words land only while every core is halted."""
         self.write(DATA_ADDR, [address])
         self.write(DATA, words)
 
@@ -81,8 +80,7 @@ class Host:
         self.write(CONTROL, [1])
 
     def stop(self):
-        """Halt the core; the program can only be written while it is halted. It runs
-        again only from a start, at address 0."""
+        """Halt the core, as program writes need. It resumes only from a start, at 0."""
         self.write(CONTROL, [4])
 
     def flush(self):

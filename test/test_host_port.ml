@@ -176,8 +176,7 @@ let%expect_test "config registers are write only" =
     |}]
 ;;
 
-(* the reserved registers take no write and read as zero whatever the core holds, and bits
-   4 and 5 of control do nothing *)
+(* reserved registers ignore writes and read zero; control bits 4 and 5 do nothing *)
 let%expect_test "the reserved registers and control bits do nothing" =
   run ~half:4 (fun m ~watch inputs o ->
     Host_port.Status.iter (List.hd_exn inputs.status) ~f:(fun port ->
@@ -224,8 +223,7 @@ let%expect_test "config writes wait until the core is halted" =
     |}]
 ;;
 
-(* select has room for a fourth engine that is not there: it reads as nothing at all, not
-   even the irq of another engine *)
+(* a select of the absent fourth engine reads nothing, not even another engine's irq *)
 let%expect_test "a select past the last engine reads zeros" =
   Three.run ~half:4 (fun m ~watch inputs _ ->
     List.iter inputs.status ~f:(fun status ->

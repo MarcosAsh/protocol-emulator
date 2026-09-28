@@ -25,9 +25,8 @@ module O = struct
   [@@deriving hardcaml]
 end
 
-(* A showahead [Fifo] holds one word more than its capacity, so [full] comes from the
-   [nearly_full] flag at [depth] and gates the push. A pop in the same cycle makes room,
-   which is how the model sees a host pop: before the instruction. *)
+(* A showahead [Fifo] holds one more than its capacity, so [full] is [nearly_full] at
+   [depth]. A same-cycle pop makes room, as the model pops before the instruction. *)
 let create (scope : Scope.t) (i : Signal.t I.t) =
   let%hw full = wire 1 in
   let fifo =

@@ -97,9 +97,8 @@ let%expect_test "every compare of timer values in the core and the kernel's step
     |}]
 ;;
 
-(* The kernel's count of cycles since [capture_arm] as it was before 2026-09-26, summed in
-   24 bits, next to the fix, the same count tested other ways, and the other shapes a
-   compare of timer values takes. *)
+(* The kernel's old 24-bit count since [capture_arm], its fix, and the other shapes a
+   timer compare takes. *)
 module Shapes = struct
   module I = struct
     type 'a t =

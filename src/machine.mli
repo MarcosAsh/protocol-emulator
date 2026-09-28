@@ -1,33 +1,22 @@
-(** A cycle accurate model of the core, used as the executable specification that the
-    simulator, the static timing analyser and the hardware tests all compare against.
+(** Cycle-accurate model of the core: the specification the simulator, the timing analyser
+    and the hardware tests compare against.
 
-    [step] advances one clock cycle. An instruction issues when the core is not halted and
-    not stalled; it then stalls for its delay, or for [Isa.jmp_cycles - 1] cycles after a
-    [jmp]. A [wait] whose condition is false issues again on the next cycle, so a stalled
-    [wait] re-applies its side-set every cycle. After the instruction at the config's
-    [wrap_top] the next one is at [wrap_bottom], unless a jump there is taken; the wrap
-    itself takes no cycles. [now] counts every cycle, including while halted, and a delay
-    that has begun runs out even if the host halts the core meanwhile. State written in a
-    cycle is visible from the next cycle, so an instruction reads the capture register as
-    it was before any edge in the same cycle. Autopull happens before an [out] whose shift
-    count has reached the threshold and never after it, so a cycle touches each fifo at
-    most once.
+    An instruction issues when not halted or stalled, then stalls for its delay (or
+    [Isa.jmp_cycles - 1] after a [jmp]). A false [wait] reissues next cycle, re-applying
+    its side-set. The wrap from [wrap_top] to [wrap_bottom], unless a jump is taken, takes
+    no cycles. [now] counts every cycle, halted or not, and a begun delay runs out even if
+    halted. State written in a cycle is visible from the next, so a read of capture misses
+    a same-cycle edge. Autopull precedes an [out] at threshold, never follows it, so a
+    cycle touches each fifo once.
 
-    Pins 0 to 4 are input only, 5 to 11 are output only and 12 to 19 are bidirectional. A
-    read of an output pin returns the driven value; a read of a bidirectional pin returns
-    the driven value when its direction bit is set and the external input otherwise.
-    Writes to input-only pins are dropped. Pins 20 to 27 are the wires: a write sets what
-    this core drives, there is no direction to set, and a read returns that ORed with what
-    [inputs] says the other cores drive.
+    Pins 0-4 are inputs, 5-11 outputs, 12-19 bidirectional (reading the driven value when
+    the direction bit is set), 20-27 wires (read ORed with what [inputs] says others
+    drive). Writes to inputs are dropped.
 
-    The fifos are [fifo_depth] deep. Nothing that touches a fifo ever stalls: a push into
-    a full fifo drops the data and sets [overflow], a pull from an empty fifo leaves [osr]
-    alone and sets [underflow]. A deadline wait that releases late sets [missed_deadline].
-    A word that does not decode halts the core and sets [decode].
-
-    The CRC and the stuff counter see the bit of every single-bit [in] or [out], whatever
-    it moves between; wider shifts leave them alone. [in crc] reads the CRC, [crc_init]
-    reloads it, [stuff_reset] clears the run and [jmp stuff_pending] tests it against the
+    Nothing touching a fifo stalls: a push into a full fifo drops and sets [overflow], a
+    pull from an empty one leaves [osr] and sets [underflow]. A late deadline release sets
+    [missed_deadline]; an undecodable word halts and sets [decode]. CRC and stuff counter
+    see only single-bit [in]/[out]; [jmp stuff_pending] compares the run with the
     threshold. *)
 
 open! Core
@@ -52,9 +41,8 @@ type t = private
   ; data : int array (** Loaded by the host while the core is halted. *)
   ; data_ptr : int (** The word the next data autopull takes. *)
   ; data_age : int
-  (** Cycles since a data pull or a seek moved [data_ptr], counted up to
-      [Isa.data_settle]. A data pull any sooner is refused as a pull from an empty fifo
-      is. *)
+  (** Cycles since [data_ptr] moved, saturating at [Isa.data_settle]; a data pull sooner
+      is refused like an empty-fifo pull. *)
   ; pc : int
   ; x : int
   ; y : int
@@ -80,23 +68,19 @@ type t = private
   ; crc : int
   ; stuff_run : int
   ; flip : int option
-  (** The bit of a Manchester [out] whose second half starts when the next instruction
-      issues. *)
+  (** Manchester [out] bit whose second half starts at the next issue. *)
   }
 [@@deriving sexp_of, compare, equal]
 
-(** [program] is a list of encoded words starting at address 0. The rest of program memory
-    reads as zero, which decodes as [jmp always 0]. The data memory starts at zero here;
-    in silicon it holds nothing defined until the host writes it. *)
+(** [program] is encoded words from address 0; the rest reads zero, [jmp always 0]. Data
+    memory starts at zero here but is undefined in silicon until the host writes it. *)
 val create : config:Program_config.t -> program:int list -> t Or_error.t
 
-(** The host fills the data memory from address 0, before a run or while halted, and the
-    rest reads as zero. *)
+(** Fills data memory from address 0, before a run or while halted; the rest is zero. *)
 val load_data : t -> int list -> t Or_error.t
 
-(** [inputs] carries the external level of every pin in the flat pin space, and for a wire
-    what the other cores drive. Bits for output-only pins and for bidirectional pins
-    driven by the core are ignored. *)
+(** [inputs]: external pin levels, and for wires what other cores drive. Bits of pins the
+    core drives are ignored. *)
 val step : t -> inputs:int -> t
 
 (** Host side of the fifos and the interrupt flag. *)
@@ -105,10 +89,8 @@ val write_tx : t -> int -> t Or_error.t
 val read_rx : t -> (int * t) option
 val clear_irq : t -> t
 
-(** The host halts the core. What issued this cycle still takes effect and the pins keep
-    what they have. *)
+(** Halts the core; this cycle's issue still takes effect and pins hold. *)
 val stop : t -> t
 
-(** The host empties both fifos. Ignored unless the core is halted, so a running program
-    never loses a word to it. *)
+(** Empties both fifos; ignored unless halted. *)
 val flush : t -> t

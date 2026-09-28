@@ -157,8 +157,8 @@ let may_carry (s : Signal.t) =
   | _ -> false
 ;;
 
-(* The outermost sum in [s] that may carry out of its width, through the muxes and resizes
-   between them. A difference is modular on purpose, so it is not looked into. *)
+(* The outermost sum in [s] that may carry out of its width. Differences are modular on
+   purpose and not looked into. *)
 let rec wrapping_sum (s : Signal.t) =
   let d = behind_wires s in
   match d with
@@ -219,8 +219,7 @@ module Text = struct
     | Infix (_, s) -> "(" ^ s ^ ")"
   ;;
 
-  (* Hardcaml's infix operators associate to the left, so a chain of sums needs no
-     parentheses on its left. *)
+  (* infix operators associate left, so a sum's left operand needs no parentheses *)
   let left_operand ~op t =
     let additive op = List.mem [ "+:"; "-:" ] op ~equal:String.equal in
     match t with
@@ -243,7 +242,7 @@ let operator (op : Signal.Type.Op.t) =
 ;;
 
 (* Names, constants and arithmetic to [depth] operators down; a mux shows its cases, not
-   the control that picks one, and anything with nothing to show is [_]. *)
+   its control, and anything else is [_]. *)
 let rec text ~depth (s : Signal.t) : Text.t =
   let under ~f args =
     let args = List.map args ~f:(text ~depth:(depth - 1)) in
@@ -261,8 +260,7 @@ let rec text ~depth (s : Signal.t) : Text.t =
   | Wire _, None, _ ->
     Option.value_map (Signal.Type.wire_driver s) ~default:Text.hole ~f:(text ~depth)
   | Cat { args = top :: _; _ }, None, Some x ->
-    (* A resize costs no depth, since it only says the width, and a narrower value shows
-       only by name. *)
+    (* a resize costs no depth; a value narrower than a timer shows only by name *)
     let resize = if is_zero top then "uresize" else "sresize" in
     let depth = if Signal.width x < timer_bits then 0 else depth in
     (match text ~depth x with
@@ -347,7 +345,7 @@ let all_constant s =
 
 let half width = 1 lsl (width - 1)
 
-(* The differences a sum adds up, through the muxes, resizes and sums under it. *)
+(* The differences a sum adds up. *)
 let rec differences_in (sum : Signal.t) =
   match sum with
   | Op2 { op = Add; arg_a; arg_b; _ } ->
@@ -385,9 +383,9 @@ let as_count ~raw s =
     | _ -> [ raw (render source) ])
 ;;
 
-(* A value compared against a constant, or tested by its sign. A difference of two timer
-   values wraps on purpose, so it needs nothing more; a difference with a constant is a
-   threshold on its other side, which is judged as the value would be; a sum is a count. *)
+(* A value compared against a constant or tested by its sign. A difference of two timer
+   values wraps on purpose; a difference with a constant is judged as the value would be;
+   a sum is a count. *)
 let rec against_constant ~signed s : Safe.t list * Fault.t list =
   let judged =
     List.map (sources s) ~f:(fun (source : Signal.t) ->
@@ -445,9 +443,8 @@ let compares circuit =
     |> Option.value_map ~default:[] ~f:Set.to_list
     |> List.filter_map ~f:(Map.find signals)
   in
-  (* The sign bit [s] of [x] is not a test where it only goes into a sign extension of
-     [x], into the flip that [<+] makes of [x] for [<:], or into a reordering of all the
-     bits of [x]. *)
+  (* Not a sign test where [s] only feeds a sign extension of [x], the flip [<+] makes, or
+     a reordering of all of [x]'s bits. *)
   let untested (s : Signal.t) x =
     let is_x (a : Signal.t) = uid a = uid x in
     let rec into_extension (c : Signal.t) =

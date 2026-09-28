@@ -29,9 +29,8 @@ let all =
   ; receiver "uart_rx" (Firmware.uart_rx ~period:16) Firmware.rx_config
   ; plain "spi_master" (Firmware.spi_master ~half_period:8) Firmware.spi_config
   ; plain "spi_slave" Firmware.spi_slave Firmware.spi_slave_config
-    (* the smallest quarter whose pins keep to Fast-mode Plus at 50 MHz, from test_i2c.ml:
-       with no time for the bus to rise, and tHD;STA, tSU;STA and tSU;STO exactly at their
-       limits *)
+    (* the smallest Fast-mode Plus quarter at 50 MHz (test_i2c.ml): assumes zero rise
+       time, with tHD;STA, tSU;STA and tSU;STO exactly at their limits *)
   ; plain ~no_wrap:true "i2c_master" (Firmware.i2c_master ~quarter:13) Firmware.i2c_config
   ; plain "i2c_slave" Firmware.i2c_slave Firmware.i2c_slave_config
   ; plain "i2c_logger" Firmware.i2c_logger Firmware.i2c_logger_config

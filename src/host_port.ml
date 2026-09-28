@@ -34,8 +34,7 @@ module Reg = struct
   let data = 0x0d
   let config = 0x10
 
-  (* kept out of use, so the config fields after 0x2b and 0x2c stay where existing hosts
-     write them *)
+  (* unused, so the fields after 0x2b and 0x2c stay where existing hosts write them *)
   let reserved = [ 0x2b; 0x2c ] @ List.range 0x40 0x48
 
   let configs =
@@ -118,8 +117,7 @@ module Make (Config : Config) = struct
         List.filteri i.status ~f:(fun m _ -> m <> n)
         |> List.fold ~init:gnd ~f:(fun irq (s : _ Status.t) -> irq |: s.irq))
     in
-    (* the engine select picks, and a select past the last engine reads zeros rather than
-       the last engine again *)
+    (* a select past the last engine reads zeros, not the last engine again *)
     let pick values ~zero =
       match select_value with
       | None -> List.hd_exn values
@@ -140,8 +138,7 @@ module Make (Config : Config) = struct
     let at n = addr ==:. n in
     let reg16 x = uresize x ~width:Isa.data_bits in
     let key n = of_unsigned_int ~width:(width addr) n in
-    (* Each engine's registers are read beside it, so what crosses the chip to the host is
-       one word from each engine and not every register of every engine. *)
+    (* read beside each engine, so one word per engine crosses the chip *)
     let engine_read read_addr ((s : _ Status.t), other_irq) =
       let status_word =
         concat_msb
@@ -168,8 +165,7 @@ module Make (Config : Config) = struct
       |> List.map ~f:(fun (n, v) -> key n, v)
       |> cases ~default:(zero Isa.data_bits) read_addr
     in
-    (* the register named by the command byte is read while that byte is still arriving,
-       and the one named by [addr] for every word after it *)
+    (* the command byte's register is read while the byte arrives, [addr]'s after it *)
     let%hw spi_rx_byte = wire 8 in
     let%hw read_addr = mux2 (sm.is Command) spi_rx_byte.:[6, 0] addr in
     let%hw read_value =

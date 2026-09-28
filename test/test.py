@@ -122,10 +122,9 @@ async def test_uart_over_spi(dut):
 
 @cocotb.test()
 async def test_fractional_period(dut):
-    """115200 baud from 48 MHz is 416 2/3 cycles a bit: 416 and a fraction of 43691/65536.
+    """115200 baud at 48 MHz: 416 and 43691/65536 cycles a bit, as the OCaml model gives.
 
-    The start bit is a whole period; after it the fraction carries a cycle into two bits
-    in three, the lengths the OCaml model gives.
+    The start bit is a whole period; the fraction carries a cycle into two bits in three.
     """
     await reset(dut)
 

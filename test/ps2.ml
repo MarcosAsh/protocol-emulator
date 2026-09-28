@@ -6,9 +6,9 @@ let clock_pin = 13
 let cycle_ns = 20
 let standard_quarter = 20_000 / cycle_ns
 
-(* [set] is the clock and [mov pindirs] the data; a direction bit of 1 pulls the line low.
-   The frame is put together in isr, shifting right: the byte, then the parity out of the
-   CRC, then the stop bit, then five places more so that the start bit is bit 0. *)
+(* [set] is the clock and [mov pindirs] the data; a direction bit of 1 pulls low. isr
+   builds the frame shifting right: byte, parity from the CRC, stop, then five more so the
+   start bit is bit 0. *)
 let firmware =
   {|
     wait tx

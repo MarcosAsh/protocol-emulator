@@ -79,8 +79,7 @@ let%expect_test "reset, read rom, eight bytes and a good crc" =
     |}]
 ;;
 
-(* the same program with a unit of 20 cycles, as if the clock were 3.3 MHz, so that the
-   hardware simulation stays short; the slave is told that a cycle is 300 ns *)
+(* a unit of 20 cycles (a 3.3 MHz clock) keeps the simulation short *)
 let%expect_test "one wire in lockstep" =
   let slave = ref (Slave.create ~cycle_ns:300 ~rom:device_rom) in
   let pending = ref (20 :: read_rom) in
@@ -176,8 +175,8 @@ let%expect_test "a unit of four cycles is too short" =
     |}]
 ;;
 
-(* with a unit of 8 us every time the master drives is still legal, but the sample is at
-   16 us and the slave lets go of a zero after 15: the rom reads as ones *)
+(* at 8 us the master's timing is legal, but it samples at 16 us, after the slave lets go
+   of a zero at 15: the rom reads as ones *)
 let%expect_test "a sample after 15 us misses the zeros" =
   run
     ~words:[ reset; byte 0x33; byte 0xff; byte 0xff ]
@@ -197,7 +196,7 @@ let%expect_test "a sample after 15 us misses the zeros" =
     |}]
 ;;
 
-(* and with 5 us the reset is 400 us and a zero 50 us, which the slave will not have *)
+(* at 5 us the reset is 400 us and a zero 50 us, which the slave rejects *)
 let%expect_test "a unit of 5 us is out of the standard" =
   run ~words:[ reset; byte 0x33 ] ~unit:(5_000 / cycle_ns) ~cycles:80_000 ();
   [%expect

@@ -1,8 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-# A USB keyboard and mouse on the Tiny Tapeout demo board (MicroPython, ttboard).
-# D+ is uio[0], D- is uio[1], with a 1.5 k pull-up from D- to 3.3 V as low speed asks.
-# Untested until the board is here; test/test_usb_board.py runs the same Board and the
-# same firmware through the RTL, the gates and the FPGA netlist.
+# A USB keyboard and mouse on the demo board (MicroPython, ttboard). D+ is uio[0], D- is
+# uio[1], 1.5 k pull-up from D- to 3.3 V for low speed. Untested on the board;
+# test/test_usb_board.py runs the same code through RTL, gates and FPGA netlist.
 
 import time
 

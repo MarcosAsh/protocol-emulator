@@ -2,8 +2,7 @@ open! Core
 open Protocol_emulator
 open Protocol_emulator_test
 
-(* The 10BASE-T firmware's words for the board's Python, checked as the command line
-   checks them, under the link interval the board uses. *)
+(* The 10BASE-T firmware for the board's Python, checked at the board's link interval. *)
 let () =
   let program = Asm.assemble Ethernet.firmware |> ok_exn in
   let (_ : Analyser.Verdict.t) =

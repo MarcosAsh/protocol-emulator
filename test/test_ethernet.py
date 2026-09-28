@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# A UDP datagram in 10BASE-T: the frame built by python/ethernet.py, loaded into the data
-# memory over SPI, and read back off TD+ and TD- (IO0, IO1) four cycles a bit.
+# A UDP datagram from python/ethernet.py through the data memory, read back off TD+ and
+# TD- (IO0, IO1) at four cycles a bit.
 
 import cocotb
 from cocotb.triggers import ClockCycles

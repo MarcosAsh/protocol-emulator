@@ -1,15 +1,14 @@
 [tasks]
 prove
 teeth
-# only for a certificate written with -stamped, whose departure time claims they break
+# only for a certificate written with -stamped, whose departure times they break
 off_by_one
 next_bit
 
 [options]
 mode prove
 depth 20
-# induction answers a false claim with a counterexample to the step and nothing from
-# reset, which is sby's unknown, and that is the answer the teeth run has to get
+# a false claim fails the induction step with no trace from reset: sby says unknown
 teeth: expect fail,unknown
 off_by_one: expect fail
 next_bit: expect fail,unknown
@@ -25,9 +24,7 @@ proc
 flatten
 expose -evert -sep __ engine_top/t:RM_IHPSG13_1P_512x16_c2_bm_bist
 cd engine_top
-# the core's own notion of issuing and of taking a jump, which the interface does not
-# carry out but induction needs, since the state it starts from has no history to infer
-# them from
+# induction starts from no history, so it needs the core's own issue and jump
 expose w:solo.engine.issue w:solo.engine.jmp_go
 rename solo.engine.issue eng_issue
 rename solo.engine.jmp_go eng_jmp_go
@@ -40,8 +37,7 @@ teeth: read_verilog -formal -sv -DTEETH certificate.sv
 off_by_one: read_verilog -formal -sv -DOFF_BY_ONE certificate.sv
 next_bit: read_verilog -formal -sv -DNEXT_BIT certificate.sv
 prep -top certificate
-# the rom the harness reads is inferred as a memory, and a memory's contents and its read
-# port are state that induction starts anywhere: as logic it is part of the design again
+# as a memory, the harness rom is state induction starts anywhere; as logic it is fixed
 memory_map
 
 [files]

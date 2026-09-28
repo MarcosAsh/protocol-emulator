@@ -26,9 +26,8 @@ bit:
 
 let uart_tx ~period = [%string "    set p, %{period#Int}%{uart_tx_frame}"]
 
-(* A frame of 26 bits: start, the host's byte, then the low 16 bits of the cycle the start
-   bit shows on the pin, both LSB first, then stop. [mov y, now] reads the cycle four
-   before that edge: two to the anchor, one to the start bit and one for it to show. *)
+(* 26-bit frame: start, the host's byte, the low 16 bits of the cycle the start bit shows,
+   both LSB first, stop. [mov y, now] reads four cycles before that edge. *)
 let uart_tx_stamped ~period =
   [%string
     {|
@@ -63,9 +62,8 @@ stamp:
 (* the first word from the host is the bit period *)
 let uart_tx_host_rate = [%string "    wait tx\n    pull\n    mov p, osr%{uart_tx_frame}"]
 
-(* Time-triggered: one anchor, then a frame every ten periods for ever. Each byte comes by
-   autopull at the first out of its frame, a cycle fixed from the anchor, so a byte the
-   host sends late sets the underflow fault and moves no edge. *)
+(* Time-triggered: a frame every ten periods from one anchor. Each byte autopulls at a
+   cycle fixed from the anchor, so a late byte sets the underflow fault and moves no edge. *)
 let uart_tx_stream ~period =
   [%string
     {|
@@ -90,17 +88,11 @@ bit:
 let stream_config = { Program_config.default with autopull = true; pull_threshold = 8 }
 
 (* Half period one short: the sample lands a cycle after the release. The capture is armed
-   only while the line is high, as the certificate assumes of every arm: once the stop bit
-   has been seen high, or after a framing error once the line is high again. The stop bit
-   is checked [check] cycles into it, as the receiver times it from the captured edge, and
-   the arm comes two cycles later. A slow sender's stop bit has to have begun by the
-   check, nine of its bits after the start edge. A fast sender's next start edge has to
-   come after the arm, ten of its bits after a start edge the capture can have caught up
-   to a cycle late, so three cycles after the check. The two tolerances are equal
-   (9p - 27) / 19 cycles in, which [check] rounds. At 16 cycles a bit that is two cycles
-   before the middle, and a sender's bit may be from just over 15.3 cycles to 16 2/3, 4.3%
-   fast to 4.1% slow. From 16 cycles up it takes 4% either way, where two before the
-   middle at every period would not at 17. *)
+   only while the line is high, as the certificate assumes of every arm: after the stop
+   bit is seen high, or after a framing error once the line is high again, two cycles
+   after [check]. [check] (rounded (9p - 27) / 19 cycles into the stop bit) balances a
+   slow sender's stop bit against a fast sender's next start edge; from 16 cycles a bit up
+   that tolerates 4% either way (at 16, 4.3% fast to 4.1% slow). *)
 let uart_rx_on ~pin ~period =
   let check = ((9 * period) - 18) / 19 in
   [%string
@@ -167,9 +159,8 @@ bit:
 |}]
 ;;
 
-(* Time-triggered: one anchor, then SCK runs for ever, a byte every eight bits with no
-   gap. The out on each falling edge autopulls the next byte when the last one is done,
-   and the in on each rising edge autopushes every eighth bit. *)
+(* Time-triggered: SCK runs from one anchor, a byte every eight bits with no gap, by
+   autopull on falling edges and autopush on rising ones. *)
 let spi_master_stream ~half_period =
   [%string
     {|
@@ -212,10 +203,8 @@ let spi_stream_config =
   }
 ;;
 
-(* Mode 0 slave, no chip select: sample mosi on the rising edge, shift the next miso bit
-   out on the falling edge. Replies come from the host as [byte lsl 8] and autopull at 8
-   bits; received bytes autopush at 8. The loop needs sck half periods of at least four
-   cycles. *)
+(* Mode 0 slave, no chip select. Replies come from the host as [byte lsl 8]. Needs sck
+   half periods of at least four cycles. *)
 let spi_slave =
   {|
     out pins, 1              ; first bit of the first reply
@@ -364,10 +353,9 @@ let i2c_config =
   }
 ;;
 
-(* Slave at the address the host sends first as [address lsl 1]. Every byte the master
-   writes, the address byte included, goes to the host; bytes the master reads come from
-   the host. The first bit of each written byte is watched for a start or stop condition
-   while SCL is high. Never stretches the clock. *)
+(* Slave at the address the host sends first as [address lsl 1]. Written bytes, address
+   included, go to the host; read bytes come from it. Start and stop are only watched for
+   on the first bit of a byte. Never stretches the clock. *)
 let i2c_slave =
   {|
     pull
@@ -469,11 +457,9 @@ let i2c_slave_config =
   }
 ;;
 
-(* Two protocols on one core: read a byte from the I2C slave at 0x50, then log it over
-   UART on OUT0, forever. Quarter and bit periods are immediates so the timing is fixed at
-   assembly. The I2C data bit goes through [set pindirs] on either branch of a jump, so
-   that an edge lands the same number of cycles after its release whichever way the bit
-   falls. *)
+(* Two protocols on one core: read a byte from the I2C slave at 0x50, log it over UART on
+   OUT0, forever. Periods are immediates so the timing is fixed at assembly. The data bit
+   is set on both branches of a jump so its edge lands at the same cycle either way. *)
 let i2c_logger =
   {|
     .side_set 1
@@ -565,12 +551,10 @@ let i2c_logger_config =
   { i2c_config with out_base = logger_uart_pin; out_count = 1; out_shift = Left }
 ;;
 
-(* USB low speed transmitter. The host sends the bit period, then per packet the SYNC
-   byte, the PID, the number of data bytes less one, and the data; the core appends the
-   CRC-16 and the EOP. Every data bit goes out on a scratch pin first, which is how the
-   CRC and the stuff counter see it and how [jmp pin] reads it back; a zero toggles D+ and
-   D- for NRZI, and after six ones a forced zero goes in. Each toggle lands four cycles
-   after its deadline whichever path it takes. *)
+(* USB low speed transmitter. The host sends the bit period, then per packet SYNC, PID,
+   data length less one and the data; the core adds CRC-16, bit stuffing and EOP. Each
+   data bit goes out on a scratch pin first so the CRC sees it and [jmp pin] reads it
+   back. Every toggle lands four cycles after its deadline on either path. *)
 let usb_tx =
   {|
     pull
@@ -673,13 +657,10 @@ let usb_config =
   }
 ;;
 
-(* USB low speed receiver. The host sends the bit period; the half period is assembled in
-   as immediates so the analyser can follow it. The first K of SYNC is captured and the
-   line is sampled half a bit later and every bit after: an unchanged line is a one, a
-   change is a zero, and SE0 ends the packet. Decoded bits go through [in] one at a time
-   so the CRC and the stuff counter see them and autopush hands each byte to the host;
-   after the EOP the CRC register follows as one more word for the host to check. A forced
-   zero after six ones is consumed without being recorded. *)
+(* USB low speed receiver. The host sends the bit period; the half period is an immediate
+   so the analyser can follow it. Sampling starts half a bit after the first K of SYNC.
+   Bits go through [in] one at a time so the CRC sees them; after the EOP the CRC register
+   follows as one more word for the host to check. Stuffed zeros are dropped. *)
 let usb_rx ~half_period =
   let rec adds n = if n <= 7 then [ n ] else 7 :: adds (n - 7) in
   let anchor =
@@ -740,10 +721,8 @@ let usb_rx_config =
   }
 ;;
 
-(* The core measures itself: OUT0 is wired back to IN0, every rising edge it makes is
-   captured, and the timestamp goes to the host. The intervals between timestamps are what
-   the analyser predicts for the toggle, so predicted and measured jitter can sit side by
-   side, on the FPGA and later on silicon. *)
+(* Self-measurement: OUT0 is wired back to IN0 and every rising edge is timestamped, so
+   measured intervals can be set against the analyser's prediction. *)
 let edge_meter ~period =
   [%string
     {|
@@ -775,8 +754,8 @@ let edge_meter_config =
   }
 ;;
 
-(* Every wait on a pin releases the same number of cycles after the edge it waits for, so
-   the differences between the stamps are the differences between the edges. *)
+(* Every pin wait releases a fixed number of cycles after its edge, so stamp differences
+   are edge differences. *)
 let edge_logger ~pin =
   [%string
     {|
@@ -845,24 +824,16 @@ module Usb_line = struct
   let both f = List.concat_map [ J; K ] ~f
 end
 
-(* USB low speed device. With [mov x, pins] over D+ and D-, J reads 2, K reads 1 and SE0
-   reads 0, so two [jmp x--] tell the three apart. The line state before a sample lives in
-   the program counter: every piece that samples exists once for J and once for K, which
-   leaves y free to count bits. The first PID nibble is walked as a tree, one node a bit,
-   so telling the packets apart costs no cycles. The token's address and endpoint are
-   compared, CRC5 and all, with a constant assembled in for [address] and endpoint 0, so
-   the CRC unit stays on CRC-16; what is left of the compare waits in y until the token
-   has ended, and endpoint 1 is the one other value it may have. The kind of token is kept
-   on a pin of its own, read back with [jmp pin]. A SETUP or OUT for us is followed by its
-   data: a tag word (1 for DATA0, 2 for DATA1), then the bytes and their CRC sixteen bits
-   a word, first bit on top, then whatever is left of a word; ACK if the CRC register ends
-   where a good packet leaves it, the interrupt and silence if not. An IN for us is
-   answered with what the host has queued: a word with the endpoint low and the PID high,
-   a word with the number of data bits low and of data words high, then the data; a reply
-   queued for the other endpoint is pulled out of the way, which the host hears of as tag
-   4, and the answer is NAK; the CRC-16 and the bit stuffing are added here. With nothing
-   queued the answer is NAK. Any handshake from the host is its ACK and reaches the host
-   as tag 3. *)
+(* USB low speed device. [mov x, pins] reads J as 2, K as 1, SE0 as 0. The previous line
+   state lives in the program counter (each sampling piece exists for J and for K),
+   leaving y to count bits. Token address and endpoint are compared, CRC5 included,
+   against a constant for [address] endpoint 0, so the CRC unit stays on CRC-16; endpoint
+   1 is the only other match. The first PID nibble is walked as a tree, so telling packets
+   apart costs no cycles. To the host: SETUP/OUT data as tag 1 (DATA0) or 2 (DATA1), then
+   16-bit words, first bit on top; ACK if the CRC checks, else the interrupt and silence.
+   A host ACK is tag 3; a reply queued for the other endpoint is dropped as tag 4 and
+   answered NAK. From the host, per IN reply: endpoint low / PID high, data bits low /
+   data words high, then the data. Nothing queued: NAK. *)
 let usb_device ~address ~half_period =
   let open Usb_line in
   let label name line = [%string "%{name}_%{suffix line}"] in
@@ -879,7 +850,7 @@ let usb_device ~address ~half_period =
     msb_first (bits @ bits_of crc5 ~count:5)
   in
   (* a constant in isr, most significant chunk first; more than a bit at a time, so the
-     CRC and the stuff counter do not see it *)
+     CRC and stuff counter do not see it *)
   let load_isr ?(through = "y") value ~bits =
     let rec chunks left =
       if left = 0
@@ -911,8 +882,8 @@ let usb_device ~address ~half_period =
       | J -> same, changed
       | K -> changed, same
     in
-    (* an end of packet is only looked for where one can be; elsewhere SE0 reads as J and
-       the packet fails a later check *)
+    (* EOP is looked for only where one can be; elsewhere SE0 reads as J and the packet
+       fails a later check *)
     let first =
       match se0 with
       | Some se0 ->
@@ -963,7 +934,7 @@ let usb_device ~address ~half_period =
   in
   (* what follows a field does not sample, so one copy serves both line states *)
   let join name = both (fun line -> [ [%string "%{label name line}:"] ]) in
-  (* what a good packet leaves in the CRC register: the register over its own complement *)
+  (* the CRC-16 residue of a good packet *)
   let residual =
     List.fold (bits_of 0 ~count:16) ~init:0xffff ~f:(fun crc bit ->
       Crc.step ~width:16 ~poly:0xa001 ~reflect:true crc ~bit)
@@ -1123,8 +1094,8 @@ let usb_device ~address ~half_period =
       ; "    out null, 8"
       ; "    out x, 8"
       ]
-      (* at most four data words, one pull each: a loop on a count the host supplies would
-         have no bound the analyser could see *)
+      (* at most four data words, unrolled: a loop on a host count has no bound the
+         analyser can see *)
     ; List.concat_map [ 1; 2; 3 ] ~f:(fun n ->
         [ [%string "    jmp x--, drain_%{n#Int}"]
         ; "    jmp drained"

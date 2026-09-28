@@ -28,7 +28,7 @@ jobs:
           cd test
           make clean
           make
-          # make will return success even if the test fails, so check for failure in the results.xml
+          # make succeeds even when a test fails, so check results.xml
           ! grep failure results.xml
           make replay
 

@@ -3,12 +3,11 @@ open Protocol_emulator
 open Firmware
 open Protocol_models
 
-(* A sender whose bit lasts [num / den] of the receiver's: four percent fast, exact, four
-   percent slow. *)
+(* A sender's bit as [num / den] of the receiver's: 4% fast, exact, 4% slow. *)
 let rates = [ "4% fast", 24, 25; "exact", 1, 1; "4% slow", 26, 25 ]
 
-(* A level a cycle from a level a bit, each bit starting on the first cycle at or after
-   the time it is due, so the edges of a sender that is off drift across the cycles. *)
+(* Per-bit levels to per-cycle levels, each bit starting on the first cycle at or after
+   it is due, so an off-rate sender's edges drift. *)
 let clocked bits ~period ~num ~den =
   let start k = ((k * period * num) + den - 1) / den in
   List.concat_mapi bits ~f:(fun k level ->
@@ -24,9 +23,8 @@ module Run = struct
     }
 end
 
-(* The model a cycle at a time while [next] gives it levels, with the monitor beside it
-   and a host that reads every word and clears every interrupt. [react] sees the model
-   after every step. *)
+(* Steps the model and monitor while [next] gives levels; the host reads every word and
+   clears every interrupt. *)
 let watch_while ?(preload = []) ?(react = ignore) (firmware : Certified.t) ~next =
   let premise = Premise.create () in
   let t =
@@ -89,8 +87,8 @@ let intact ~expected (run : Run.t) =
 
 let every_byte = List.init 256 ~f:Fn.id
 
-(* Every byte, frame after frame with no idle between them. [broken] frames lose their
-   stop bit and a bit of idle follows, so the receiver takes the next start edge again. *)
+(* Every byte, back to back. [broken] frames lose their stop bit and are followed by a bit
+   of idle, so the receiver takes the next start edge again. *)
 let uart ?(broken = fun _ -> false) ~period ?(name = "uart_rx") firmware =
   let bits =
     List.concat_map every_byte ~f:(fun byte ->
@@ -133,8 +131,7 @@ let token ~pid ~address =
 
 let chunks = List.chunks_of every_byte ~length:8
 
-(* DATA0 packets carrying every byte, each after the one before by the two bit times of
-   idle a host has to leave. *)
+(* DATA0 packets carrying every byte, two bit times of idle apart. *)
 let usb_rx_packets ~bit_period firmware =
   let packets = List.map chunks ~f:(data ~pid:0xc3) in
   let lines =
@@ -158,10 +155,8 @@ let usb_rx_packets ~bit_period firmware =
     print_row "usb_rx" ~sender run ~received:(intact ~expected run))
 ;;
 
-(* For every eight bytes: a SETUP and its DATA0 for the device, which acknowledges; an IN
-   for it, which it answers with NAK; an IN, an OUT and its data for another address; an
-   ACK from the host. Two bit times of idle after each packet, and room for the answer
-   after the two that get one. *)
+(* Per eight bytes: SETUP + DATA0 (ACKed), IN (NAKed), IN, OUT + data for another
+   address, and a host ACK, two bit times apart plus room for answers. *)
 let usb_device_transactions ~bit_period firmware =
   let dp = usb_device_dp_pin in
   let dm = usb_device_dm_pin in
@@ -205,10 +200,8 @@ let usb_device_transactions ~bit_period firmware =
       ~received:(sprintf "%d ACK and %d NAK of 32 each" (answers 0xd2) (answers 0x5a)))
 ;;
 
-(* The tightest arm the device makes: after its own handshake, with the host's next packet
-   at once, the two bit times after the device's EOP that a host has to leave at the
-   least. For every eight bytes, a SETUP and its DATA0, which the device acknowledges; an
-   IN at once, which it answers with NAK; at once the next SETUP. *)
+(* The device's tightest arm: the host's next packet the minimum two bit times after the
+   device's handshake. Per eight bytes: SETUP + DATA0, IN, next SETUP, each at once. *)
 let usb_device_at_once ~bit_period firmware =
   let dp = usb_device_dp_pin in
   let dm = usb_device_dm_pin in
@@ -273,17 +266,12 @@ let usb_device_at_once ~bit_period firmware =
     ~received:(sprintf "%d ACK and %d NAK of 32 each" (answers 0xd2) (answers 0x5a))
 ;;
 
-(* Every receiver whose certificate assumes the single-edge premise, the program it is
-   certified as, under a sender that keeps to its protocol but for its rate: at every
-   [capture_arm], is the capture pin already at the captured level, and does it leave that
-   level again before the wait for it releases? Either one is a frame the certificate does
-   not cover.
-
-   The UART runs again at the 25 cycles a bit the tolerance test uses, at 17, where the
-   stop bit's check moves a cycle to keep to 4% either way, and with every eighth frame
-   missing its stop bit, which takes the framing error's way to the arm. USB allows a
-   sender 1.5% off, and these two take the timing of a whole packet from its first edge,
-   so a sender 4% off garbles the packet; what the rows are for is the arms. *)
+(* Every receiver whose certificate assumes the single-edge premise, run as certified
+   under a sender off only in rate: at each [capture_arm], is the pin already at the
+   captured level, or does it leave it before the wait releases? Either is a frame the
+   certificate does not cover. UART also runs at 25 and 17 cycles a bit, and with every
+   eighth stop bit missing to reach the arm after a framing error. USB packets garble at
+   4% off (USB allows 1.5%); only the arms matter. *)
 let%expect_test "the receivers keep the premise their certificates rest on" =
   printf
     "%-18s %-8s %5s  %8s  %10s  %s\n"
@@ -333,9 +321,8 @@ let%expect_test "the receivers keep the premise their certificates rest on" =
     |}]
 ;;
 
-(* A halt is not a release. The certified UART, armed and waiting for the start edge, is
-   stopped by the host, and the line falls and rises again: a second edge before the wait
-   has released. *)
+(* A halt is not a release: the host stops the armed UART and the line falls and rises
+   again, a second edge before the wait released. *)
 let%expect_test "a halted wait for the edge has not released" =
   let firmware = Certified.find_exn "uart_rx" in
   let program = assemble firmware.source in

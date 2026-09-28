@@ -60,8 +60,7 @@ let%expect_test "the host loads and runs the uart transmitter over spi" =
     |}]
 ;;
 
-(* the chip's own self-test: the host loads a transmitter into engine 0 and a receiver
-   into engine 1, they talk over a wire, and the host reads what arrived from engine 1 *)
+(* self-test: a transmitter on engine 0 and a receiver on engine 1 over a wire *)
 let%expect_test "two engines talk over a wire and the host reads the result" =
   let period = 16 in
   let wire = Isa.num_pins in

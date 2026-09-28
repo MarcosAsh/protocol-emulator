@@ -530,9 +530,8 @@ let%expect_test "a deadline is only as good as what is assumed about the world" 
     |}]
 ;;
 
-(* The analyser is only worth anything if its intervals hold on every execution. Random
-   pin levels and random host traffic push each firmware well off its happy path, and make
-   no assumption about the world true, so the analysis here makes none. *)
+(* The intervals must hold on every execution. Random pins and host traffic satisfy no
+   assumption, so the analysis here makes none. *)
 let soundness ?period ?preload ~config ~cycles ~seeds words =
   Soundness.check
     ?period
@@ -635,9 +634,8 @@ let%expect_test "random programs stay inside their analysis" =
     {| ((issues 4647) (reached 1657) (words 16384) (side_edges 1390) (violations 0)) |}]
 ;;
 
-(* With a fraction each [wait t+] moves the deadline a whole period or one cycle more, so
-   against the next deadline everything after a wait has a cycle of play: the edges show a
-   cycle of jitter, which is the exact line rounded to whole cycles, not the program. *)
+(* With a fractional period each [wait t+] moves the deadline by the period or one more,
+   so the edges show a cycle of jitter: the exact line rounded to cycles. *)
 let%expect_test "a fractional period" =
   Timing_report.print
     ~config:{ Program_config.default with period_fraction = 43691 }
@@ -740,9 +738,8 @@ let%expect_test "a jump on registers the analysis knows goes one way" =
     |}]
 ;;
 
-(* Random programs rarely write a side-set pin any other way, so this one does it on
-   purpose: [set pins] and side-set share a pin, the set wins, and the next [side 0] moves
-   the pin back. *)
+(* Random programs rarely do this: [set pins] and side-set share a pin, the set wins, and
+   the next [side 0] moves it back. *)
 let%expect_test "side-set moves a pin back after a write to it" =
   let config =
     { Program_config.default with

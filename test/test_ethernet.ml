@@ -8,8 +8,7 @@ let%expect_test "the frame check sequence is the standard CRC-32" =
   [%expect {| (crc 0xcbf43926) |}]
 ;;
 
-(* The model with the far end of the cable on TD+ and TD-: a pin the core does not drive
-   reads as idle. *)
+(* The model with the far end on TD+ and TD-; an undriven pin reads idle. *)
 let run ~cycles ~host ~data =
   let t =
     Machine.create ~config ~program:(Firmware.assemble firmware)
@@ -69,8 +68,7 @@ let%expect_test "a UDP datagram goes out in 10BASE-T" =
     |}]
 ;;
 
-(* Nothing to send for 50 ms: a link pulse every 16 ms, which is what keeps the far end
-   believing in the link. *)
+(* Idle for 50 ms: a link pulse every 16 ms keeps the link up. *)
 let%expect_test "link pulses while idle" =
   let t, receiver = run ~cycles:2_000_000 ~host:[ link_tenth ] ~data:[] in
   let us =
@@ -90,8 +88,7 @@ let%expect_test "link pulses while idle" =
     |}]
 ;;
 
-(* The frame again, the hardware beside the model every cycle, with a link interval short
-   enough that the frame starts soon. *)
+(* The frame in lockstep, with a short link interval so the frame starts soon. *)
 let%expect_test "the frame in lockstep with the hardware" =
   let bits = 8 * List.length wire in
   let receiver = ref (Receiver.create ()) in
@@ -127,11 +124,9 @@ let%expect_test "the frame in lockstep with the hardware" =
     |}]
 ;;
 
-(* The link pulse and TP_IDL sit a fixed distance from deadlines. The bits of a frame have
-   no deadline among them, so their phase is only bounded from the start of the frame, but
-   every edge of the frame is exactly two cycles after the one before: the gap from 18 to
-   17 and from 17 to 18. The model keeps to it with a short link interval, so that random
-   host words start frames of random lengths within the run. *)
+(* The link pulse and TP_IDL sit a fixed distance from deadlines. A frame's bits have no
+   deadline, so their phase is only bounded from the frame start, but each edge is exactly
+   two cycles after the last. A short link interval lets random host words start frames. *)
 let%expect_test "the certificate" =
   Timing_report.print ~config ~period:link_tenth firmware;
   let { Soundness.issues; flips; gaps; violations; _ } =

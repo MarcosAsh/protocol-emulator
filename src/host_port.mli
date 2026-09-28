@@ -1,25 +1,17 @@
-(** The host's view of the core over SPI. A frame is a command byte, write bit then a
-    seven bit register number, followed by 16-bit words high byte first. Several words in
-    one frame repeat the access, which streams the fifos and the program window.
+(** The host's SPI view of the core. A frame is a command byte (write bit, 7-bit register)
+    then 16-bit words high byte first; more words repeat the access.
 
-    Registers: 0 control (bit 0 start, bit 1 clear irq, bit 2 stop, bit 3 flush both
-    fifos; the program and the config fields can only be written and the fifos only
-    flushed while the core is halted, so a flush takes a write of its own after the stop),
-    1 status, 2 pc, 3 and 4 now, 5 and 6 capture, 7 tx fifo, 8 rx fifo (a read pops), 9
-    program address, 10 program word (a write increments the address), 11 select, 12 data
-    address, 13 data word (a write increments the address, only while halted), and 16
-    onwards the config fields in order, which can only be written and read as zero.
+    Registers: 0 control (bit 0 start, 1 clear irq, 2 stop, 3 flush), 1 status, 2 pc, 3-4
+    now, 5-6 capture, 7 tx, 8 rx (read pops), 9 program address, 10 program word, 11
+    select, 12 data address, 13 data word (writes to 10 and 13 increment the address), 16
+    on the config fields, write-only and reading zero. Control bits 4-5 do nothing.
+    Program, data, config and flush take effect only while halted, so a flush needs its
+    own write after the stop. 43, 44 and 64-71 are reserved and read zero; config skips
+    43-44 to keep [autopull_data] and [manchester] at 45-46 for existing hosts.
 
-    Bits 4 and 5 of control do nothing, and 43, 44 and 64 to 71 are reserved: they read as
-    zero and take no write. The config fields step over 43 and 44, so [autopull_data] and
-    [manchester] stay at 45 and 46 for existing hosts.
-
-    With more than one engine, select names the engine that every other register but the
-    program and data addresses reaches: control, status, pc, now, capture, both fifos, the
-    program and data windows and the config fields, which each engine has for itself. It
-    resets to 0, and a number past the last engine reaches none and reads as zero. Status
-    bit 15 says some other engine has its irq up. With one engine there is no select and
-    the bit stays low. *)
+    Select picks the engine for every register but the two addresses; it resets to 0 and
+    past the last engine reaches none and reads zero. Status bit 15 flags another engine's
+    irq. With one engine there is no select and bit 15 stays low. *)
 
 open! Core
 open! Hardcaml
@@ -39,8 +31,7 @@ module Status : sig
   [@@deriving hardcaml]
 end
 
-(** The frame state machine, named for waveforms: [C] awaiting the command byte, then the
-    high and low byte of each word. *)
+(** Frame states, named for waveforms: [C] awaits the command byte. *)
 module State : sig
   type t
 
@@ -64,11 +55,10 @@ module Reg : sig
   val data : int
   val config : int
 
-  (** The register of each [Engine.Config] field in order, from [config] on and past the
-      reserved ones. *)
+  (** Each [Engine.Config] field's register, skipping the reserved ones. *)
   val configs : int list
 
-  (** Registers that read as zero and take no write, and are kept out of use. *)
+  (** Read zero, take no write. *)
   val reserved : int list
 end
 

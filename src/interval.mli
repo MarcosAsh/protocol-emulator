@@ -14,7 +14,7 @@ val at_least : int -> t
 val shift : t -> int -> t
 val join : t -> t -> t
 
-(** The integers in both, which is empty, [lo] above [hi], when they are [disjoint]. *)
+(** The integers in both; empty ([lo] above [hi]) when [disjoint]. *)
 val meet : t -> t -> t
 
 val plus : t -> t -> t

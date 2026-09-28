@@ -1,26 +1,14 @@
-// Frame lemma, beside the edge lemma in edge_step.sv: a pin outside the engine's footprint
-// never moves. From the clear on, its bit of pin_out and of pin_dir stays 0, whatever the
-// host and the pins do. The footprint is what the program's writers can reach under the
-// config, each over the pins its write takes (5 and up drive, 12 to 19 turn around) and
-// around the 28 of them as Pins.write goes:
-//
-//   side-set    [side_set_base, + side_set_count), on pin_dir with side_set_pindirs and
-//               on pin_out otherwise, for every word but a jump; a word carries two bits
-//               of it, so a count of 3 writes only 0 to the third pin, which never moves
-//   set         [set_base, + set_count)
-//   out         [out_base, + the widest out the program has), two wide at least for an
-//               out pins of one bit under manchester, whose pair is out_base and the pin
-//               above it, and whose second half flips them both
-//   mov         [out_base, + out_count)
-//
-// each on pin_out for pins and on pin_dir for pindirs. An out writes as many pins as its
-// count says, whatever out_count is, so the footprint takes from the program how wide its
-// outs are and which of set and mov it uses on pins and on pindirs. That every word the
-// core goes with keeps to this is the one thing assumed; outs 16 wide and every writer
-// used assume nothing, which is the lemma for any program. The host, the fifos, the data
-// memory's word and the input pins are free in every cycle, the clear too, as in
-// edge_step.sv, and the chip has no debugger. The config holds from one clear to the
-// next: a new one without a clear leaves the pins the last program drove where they were.
+// Frame lemma, beside edge_step.sv: from the clear on, a pin outside the engine's
+// footprint never moves in pin_out or pin_dir, whatever the host and the pins do. The
+// footprint is what the program's writers reach under the config, on the pins each write
+// takes (5 and up drive, 12 to 19 turn around), wrapping at 28 as Pins.write does:
+// side-set on every word but a jump (a count of 3 carries two bits, so its third pin only
+// gets 0); set; out to the widest out the program has (an out writes its own count,
+// whatever out_count is), two wide for a one-bit Manchester out; mov to out_count. The
+// one assumption is that every word the core runs writes no more than the program says;
+// outs 16 wide with every writer used assume nothing. The host, fifos, data word, inputs
+// and clear are free every cycle, and the chip has no debugger. The config holds between
+// clears: a new one without a clear leaves the last program's pins driven.
 
 module frame_step (input clk);
   (* anyconst *) wire [1:0] side_set_count;
@@ -34,7 +22,7 @@ module frame_step (input clk);
   (* anyconst *) wire [8:0] wrap_bottom, wrap_top;
   (* anyconst *) wire [15:0] period_fraction;
   (* anyconst *) wire autopull_data, manchester;
-  // what the program writes: its widest out to pins and to pindirs, 0 for none, and
+  // what the program writes: its widest out to pins and pindirs (0 for none), and
   // whether it sets or moves to either
   (* anyconst *) wire [4:0] out_pins_width, out_dirs_width;
   (* anyconst *) wire sets_pins, sets_dirs, movs_pins, movs_dirs;
@@ -95,8 +83,7 @@ module frame_step (input clk);
     .flip_pending(flip_pending), .flip_bit(flip_bit),
     .eng_op_go(op_go));
 
-  // Pins.write, as in edge_step.sv: the low [n] bits of a word onto the pins from [base]
-  // up, around the 28 of them, on the pins that take them
+  // Pins.write, as in edge_step.sv
   localparam [27:0] OUTPUTS = 28'hfffffe0;
   localparam [27:0] BIDIRS = 28'h00ff000;
   function [27:0] place(input [15:0] v, input [4:0] base);
@@ -117,8 +104,7 @@ module frame_step (input clk);
     window = place(mask(n), base) & takes;
   endfunction
 
-  // the word the core goes with, by its fields; op_go is never a jump nor a word that
-  // fails to decode
+  // the word the core runs; op_go excludes jumps and undecoded words
   wire [2:0] opcode = instruction[15:13];
   wire [2:0] dest = instruction[7:5];
   wire [4:0] count = instruction[4:0];
@@ -129,7 +115,7 @@ module frame_step (input clk);
   wire mov_pins = opcode == 4 && dest == 0;
   wire mov_dirs = opcode == 4 && dest == 3;
 
-  // the program: every word that goes writes no more than it says
+  // the one assumption: every word that runs writes no more than the program says
   always @(*)
     if (op_go) begin
       assume(!set_pins || sets_pins);
@@ -195,15 +181,13 @@ module frame_step (input clk);
     if (cleared) begin
       assert((pin_out & ~footprint_out) == 0);
       assert((pin_dir & ~footprint_dir) == 0);
-      // for induction: the core's opcode agrees with its word, and a second half is owed
-      // only to a Manchester out the program has
+      // for induction
       assert(opcode_onehot == 8'b1 << opcode);
       assert(!flip_pending || (manchester && out_pins_width != 0));
     end
 
-  // The covers: each writer on its own moves a pin of its window while the pin just above
-  // the window takes a write and is outside the footprint, so it stays put, by the lemma,
-  // beside a pin that moves. The second pin of a Manchester pair moves on an out of one bit.
+  // covers: each writer moves a pin of its window while the pin just above, written but
+  // outside the footprint, stays put; a one-bit out moves a Manchester pair's second pin
   function [27:0] pin_at(input [4:0] base, input [4:0] n);
     reg [5:0] k;
     begin

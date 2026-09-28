@@ -59,8 +59,7 @@ module Request = struct
   ;;
 end
 
-(* The demo board's side: what the RP2040 does with the words the core hands it. It is
-   slow, which the latency stands for; the core covers for it with NAKs. *)
+(* The demo board (RP2040) side. [latency] models its slowness; the core covers with NAKs. *)
 module Board = struct
   type parse =
     | Tag
@@ -134,8 +133,7 @@ module Board = struct
       in
       let data = List.take descriptor r.length in
       let chunks = List.chunks_of data ~length:max_packet in
-      (* a transfer that stops short of what was asked on a full packet ends with an empty
-         one *)
+      (* a short transfer ending on a full packet ends with an empty one *)
       let short = List.length data < r.length && List.length data % max_packet = 0 in
       t.chunks <- (if short then chunks @ [ [] ] else chunks);
       next_chunk t
@@ -252,9 +250,8 @@ let reset_cycles = 120_000
 let faults t = t.machine.fault
 let naks t = t.naks
 
-(* The board stops its one core, flushes, programs it and starts it. A start leaves the
-   fifos alone, so a reply the flush left behind would reach the new program first. What
-   the old program saw is kept, one list of cycles per load. *)
+(* Stop, flush, program, start. A start leaves the fifos alone, so a reply the flush left
+   behind would reach the new program first. Keeps one list of cycles per load. *)
 let reload t ~address =
   let halted = Machine.flush (Machine.stop t.machine) in
   t.loads <- (t.address_loaded, List.rev t.cycles) :: t.loads;
@@ -265,8 +262,7 @@ let reload t ~address =
 
 let recording t = List.rev ((t.address_loaded, List.rev t.cycles) :: t.loads)
 
-(* one clock: the host's level where the device does not drive, the board's turn, and the
-   sniffer's *)
+(* one clock of host, board and sniffer *)
 let cycle t (line : Usb_ls.Line.t) =
   let dp, dm =
     match line with
@@ -294,7 +290,7 @@ let cycle t (line : Usb_ls.Line.t) =
      t.machine <- machine;
      Board.word t.board word
    | None -> ());
-  (* one word a cycle, as a host on SPI could at best, and only a whole reply at a time *)
+  (* at most one word a cycle, as over SPI, whole replies only *)
   let written =
     match t.board.due with
     | (0, []) :: rest ->
@@ -326,8 +322,7 @@ let cycle t (line : Usb_ls.Line.t) =
   if t.se0 && not se0
   then (
     t.ends <- t.ends + 1;
-    (* the board sits on the same two pins: an SE0 of two and a half milliseconds is a bus
-       reset, and the device answers to address 0 again with nothing pending *)
+    (* an SE0 of 2.5 ms is a bus reset: back to address 0, nothing pending *)
     if t.se0_cycles >= t.reset_cycles
     then (
       reload t ~address:0;
@@ -357,15 +352,15 @@ let create ?(reset_cycles = reset_cycles) ~descriptors ~latency () =
     ; board = Board.create ~descriptors ~latency
     }
   in
-  (* a host leaves a new device alone for a while; the core needs a few cycles of it *)
+  (* settle time after attach; the core needs a few cycles *)
   bits t J ~count:20;
   t
 ;;
 
 let send t packet = List.iter (Usb_ls.encode packet) ~f:(fun line -> bits t line ~count:1)
 
-(* the bus released until the device has ended a packet; a real host gives up after
-   eighteen bit times of silence, this one after the longest packet there can be *)
+(* bus released until the device ends a packet; times out after the longest packet, not
+   the standard's eighteen bit times *)
 let listen t =
   let ends = t.ends in
   let rec wait left =
@@ -458,7 +453,7 @@ let control_out t request =
   (match in_ t ~endpoint:0 ~tries:50 with
    | Some [] -> ()
    | other -> raise_s [%message "no status packet" (other : int list option)]);
-  (* the board reloads the core with its new address once the status is acknowledged *)
+  (* reload with the new address once the status stage is acknowledged *)
   bits t J ~count:((t.board.latency / bit_period) + 10);
   match t.board.reload with
   | Some address ->

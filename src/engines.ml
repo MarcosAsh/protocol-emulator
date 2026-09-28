@@ -36,10 +36,9 @@ module Make (Config : Config) = struct
 
   let any (outs : Signal.t Engine.O.t list) ~f = List.map outs ~f |> reduce ~f:( |: )
 
-  (* What an engine finds on the pins besides itself: the pads, except where another
-     engine drives a bidirectional pin, and on the wires what the other engines drive. Its
-     own outputs it reads back by itself. Only a bidirectional pin has a direction bit to
-     set. *)
+  (* The pads, except bidirectional pins another engine drives, and on wires what the
+     others drive. An engine reads its own outputs back itself. Only a bidirectional pin
+     has a direction bit. *)
   let seen ~pads ~(others : Signal.t Engine.O.t list) =
     let pads = uresize pads ~width:Isa.pin_space in
     match others with

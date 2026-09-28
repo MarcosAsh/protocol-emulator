@@ -1,6 +1,4 @@
-(** Per-program settings that the host writes before starting the core. They fix how the
-    pin-addressed instructions map onto the flat pin space and how the shift registers
-    behave, in the manner of the RP2040 PIO. *)
+(** Per-program settings the host writes before a start, as in the RP2040 PIO. *)
 
 open! Core
 
@@ -14,10 +12,10 @@ end
 type t =
   { side_set_count : int
   ; side_set_base : int
-  ; side_set_pindirs : bool (** Side-set writes pin directions instead of values. *)
+  ; side_set_pindirs : bool
   ; in_base : int
   ; in_count : int (** Number of pins read by [mov x, pins]. *)
-  ; out_base : int (** Base of [out pins] and of [mov pins]. *)
+  ; out_base : int (** Base of [out pins] and [mov pins]. *)
   ; out_count : int (** Number of pins written by [mov pins] and [mov pindirs]. *)
   ; set_base : int
   ; set_count : int
@@ -34,34 +32,26 @@ type t =
   ; crc_poly : int (** Right-aligned; the top bit is implicit. *)
   ; crc_init : int
   ; crc_reflect : bool
-  (** Data LSB first, as USB does: the register shifts right and the polynomial is given
-      reflected. Otherwise data MSB first with the register shifting left. *)
+  (** LSB first, as USB, with the polynomial given reflected; else MSB first. *)
   ; stuff_threshold : int (** Run length that raises [stuff_pending]; 0 turns it off. *)
-  ; stuff_level : bool (** The level whose runs are counted. *)
+  ; stuff_level : bool (** The level whose runs count. *)
   ; wrap_bottom : int
   ; wrap_top : int
-  (** After the instruction at [wrap_top], unless it is a jump that is taken, the next one
-      is at [wrap_bottom], at no cost in cycles. The defaults, the last address and 0, are
-      what the program counter does anyway. *)
+  (** After [wrap_top], unless a jump is taken, go to [wrap_bottom] in zero cycles. The
+      defaults, last address and 0, change nothing. *)
   ; period_fraction : int
-  (** Added below the cycle to the deadline at every [wait t+], in 65536ths of a cycle, so
-      a loop on [wait t+] makes edges [p + period_fraction / 65536] cycles apart on
-      average, each within a cycle of the exact line. Any other write to [t] clears what
-      has built up below the cycle. *)
+  (** 65536ths of a cycle added to [t] at each [wait t+]: edges average [p + f / 65536]
+      apart, each within a cycle. Any other write to [t] clears the fraction. *)
   ; autopull_data : bool
-  (** Autopull takes the next word of the data memory instead of the tx fifo, which never
-      runs dry: a [pull] still reads the fifo, so the host can still send words. *)
+  (** Autopull reads data memory instead of the tx fifo; [pull] still reads the fifo. *)
   ; manchester : bool
-  (** An [out pins, 1] drives the bit as a Manchester pair: [out_base] shows its
-      complement and [out_base + 1] the bit itself until the next instruction issues, when
-      both flip. So the length of the [out], delay included, is the first half of the bit
-      and what runs until the next [out] the second. *)
+  (** [out pins, 1] drives a Manchester pair: [out_base] the complement, [out_base + 1]
+      the bit, both flipping at the next issue. The [out]'s length is the first half. *)
   }
 [@@deriving sexp_of, compare, equal]
 
-(** One output pin at OUT0, shifting right, no side-set, no autopush or autopull. The CRC
-    is CRC-16/USB (0x8005 given reflected as 0xa001, init 0xffff), stuffing is off and the
-    period is a whole number of cycles. *)
+(** One output at OUT0, shift right, no side-set or autopush/pull, stuffing off, whole
+    cycle period. CRC is CRC-16/USB (0x8005 reflected as 0xa001, init 0xffff). *)
 val default : t
 
 val validate : t -> unit Or_error.t

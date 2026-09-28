@@ -336,15 +336,10 @@ let%expect_test "i2c logger in lockstep" =
     |}]
 ;;
 
-(* The certified master against Fast-mode Plus at 50 MHz, from the analyser's certificate:
-   the smallest quarter the analyser accepts that keeps every timing in UM10204's table,
-   and the bounds at it over every run and every host. These are the edges as the pins
-   drive them; the master does not wait to see SCL high, so a bus that rises slowly takes
-   its rise time off tHIGH, tSU;STA and tSU;STO, and at this quarter the last two are
-   exactly at their limits. A line that rises in Fm+'s 120 ns reaches 0.7 VDD some 170 ns
-   after its release, which would need a quarter of 22. Then the model, writing a register
-   and reading it back through the slave at that quarter, holds SCL low and high no
-   shorter than the bounds. *)
+(* The smallest quarter at which the certified master meets UM10204 Fast-mode Plus at 50
+   MHz, and its bounds. These are edges at the pins: the master does not wait for SCL
+   high, so rise time comes off tHIGH, tSU;STA and tSU;STO, the last two exactly at their
+   limits here. A full 120 ns Fm+ rise would need a quarter of 22. *)
 let%expect_test "the certified master's pins keep to fast-mode plus at 50 MHz" =
   let clock_mhz = 50 in
   let bounds quarter =

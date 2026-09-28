@@ -10,8 +10,8 @@ module Count = struct
   [@@deriving sexp_of]
 end
 
-(* [holding] and [seen] are the registers of the same names in phase_step.sv: armed and
-   not yet released by a wait for the edge, and at the captured level since the arm *)
+(* phase_step.sv's registers: [holding] is armed and not yet released, [seen] is at the
+   captured level since the arm *)
 type t =
   { mutable count : Count.t
   ; mutable holding : bool

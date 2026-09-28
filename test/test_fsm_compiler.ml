@@ -126,8 +126,8 @@ let falling_edges trace =
   |> List.filter_mapi ~f:(fun i (was, level) -> Option.some_if (was = 1 && level = 0) i)
 ;;
 
-(* How many cycles the engine's pin trails the circuit's, and the first cycle after the
-   prologue where it then differs. *)
+(* The engine pin's lag behind the circuit's, and the first cycle after the prologue where
+   it then differs. *)
 let compare_traces ~clocks_per_bit ~cycles ~arrivals =
   let firmware = compile ~clocks_per_bit |> ok_exn in
   let circuit = circuit_trace ~clocks_per_bit ~cycles ~arrivals in

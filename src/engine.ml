@@ -190,17 +190,13 @@ let read_pins = Pins.read
 let write_pins = Pins.write
 let count_mask = Pins.count_mask
 
-(* Schedule. The memory reads one address ahead of the instruction register [word], which
-   holds the word at [pc]. An instruction issues when the core is neither halted nor
-   stalled and no start is in flight, and then stalls for its delay field. A jump issues,
-   redirects the fetch and stalls one cycle while the register refills, so it always takes
-   two cycles whichever way it goes. A wait whose condition is false issues again the next
-   cycle and re-applies its side-set. Registers written in a cycle are visible from the
-   next one, and a pin write shows on the pin the cycle after it issues. *)
+(* The memory reads one address ahead of [word], the word at [pc]. An instruction issues
+   unless halted, stalled or starting, then stalls for its delay. A jump always takes two
+   cycles, taken or not. A false wait reissues and re-applies its side-set. Register
+   writes show the next cycle, pin writes the cycle after issue. *)
 let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   let spec = Clocking.to_spec i.clocking in
   let c = i.config in
-  (* Architectural state. Each register takes a next value computed below. *)
   let%hw pc = wire pc_bits in
   let%hw x = wire data_bits in
   let%hw y = wire data_bits in
@@ -262,8 +258,7 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
     | Flops -> Program_memory.hierarchical scope memory_in
     | Ihp_sram -> Sram_macro.hierarchical scope memory_in
   in
-  (* The memory runs a cycle ahead of the instruction register and is refilled after a
-     jump or a start, which is where the second cycle of a jump goes. *)
+  (* refilled after a jump or start, which is the jump's second cycle *)
   let%hw word = reg spec ~enable:ir_load memory.dout in
   let%hw sample =
     List.init num_pins ~f:(fun n ->
@@ -310,9 +305,8 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
     =
     d
   in
-  (* Whether the word decodes and which opcode it is are worked out on the memory's output
-     and registered with the word, so the enables that gate every register start from a
-     flop and not from the decoder. Neither depends on the configuration. *)
+  (* decoded off the memory and registered, so register enables start from a flop; neither
+     depends on the config *)
   let fetched = D.decode ~side_set_count:c.side_set_count memory.dout in
   let%hw decode_ok = reg spec ~enable:ir_load ~clear_to:vdd fetched.valid in
   let%hw_list is_opcode =
@@ -323,9 +317,7 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
         ~clear_to:(of_bool (Isa.Opcode.to_int op = 0))
         (Isa.Opcode.Of_signal.is fetched.opcode op))
   in
-  (* The pin a wait watches, one-hot and registered with the word: the pin it picks comes
-     off flops of its own and not through the instruction register's fanout, which was the
-     start of the slowest path to the memory. *)
+  (* on flops of its own, away from [word]'s fanout, once the slowest path to memory *)
   let%hw wait_select =
     reg
       spec
@@ -372,13 +364,10 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   let%hw op_go = go &: ~:(is Jmp) in
   let%hw wait_holds = is Wait &: ~:wait_ready in
   let%hw advance = op_go &: ~:wait_holds in
-  (* The wrap: the address after [wrap_top] is [wrap_bottom]. It comes off the pc register
-     and the configuration alone, so the memory can read ahead across it and the loop
-     costs nothing. *)
+  (* off [pc] and the config alone, so the fetch reads ahead across the wrap for free *)
   let after addr = mux2 (addr ==: c.wrap_top) c.wrap_bottom (addr +:. 1) in
   let%hw pc_next = after pc in
   let%hw jmp_target_or_next = mux2 jmp_taken jmp_target pc_next in
-  (* Shifts and moves. *)
   let%hw mask = count_mask shift_count in
   let%hw in_value =
     Isa.In_source.Of_signal.match_
@@ -411,8 +400,8 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   let%hw isr_count_next = saturate isr_count shift_count in
   let%hw autopush_now = c.autopush &: (isr_count_next >=: c.push_threshold) in
   let%hw pull_now = c.autopull &: (osr_count >=: c.pull_threshold) in
-  (* The data memory is shared, so the word at a pointer that moved last cycle may not
-     have arrived: that pull is refused as a pull from an empty fifo is. *)
+  (* shared memory: a pointer moved last cycle may not have its word yet, so refuse as if
+     the fifo were empty *)
   let%hw pull_data = pull_now &: c.autopull_data in
   let%hw pull_data_ok = pull_data &: ~:data_moved in
   let%hw pull_fifo = pull_now &: ~:(c.autopull_data) in
@@ -432,7 +421,7 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
       (log_shift ~f:sll osr_before ~by:shift_count)
   in
   let%hw osr_count_next = saturate osr_count_before shift_count in
-  (* The assist units see the bit of every single-bit shift, whatever it moves between. *)
+  (* assist units see every single-bit shift *)
   let%hw bit_crosses = shift_count ==:. 1 &: (is In |: is Out) in
   let%hw crossing_bit = mux2 (is In) in_value.:(0) out_value.:(0) in
   let module Crc_step = Crc.Make (Signal) in
@@ -496,8 +485,7 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
       alu_op
       [ Add, v +: operand; Sub, v -: operand; Xor, v ^: operand ]
   in
-  (* Pin writes: the second half of a Manchester bit, then side-set, then the
-     instruction's own write. *)
+  (* Manchester second half, then side-set, then the instruction's write *)
   let output_pin n = n >= first_output_pin in
   let bidir_pin n = n >= first_bidir_pin && n < Isa.num_pins in
   let side_count = uresize c.side_set_count ~width:count_bits in
@@ -589,7 +577,6 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
             pin_dir_base )
       ]
   in
-  (* Register next values, one selector per architectural register. *)
   let by_opcode ~default cases = Isa.Opcode.Of_signal.match_ ~default opcode cases in
   let%hw x_next =
     by_opcode
@@ -709,7 +696,6 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
     &: (pin_of sample c.capture_pin <>: pin_of pins_sampled c.capture_pin)
     &: (pin_of sample c.capture_pin ==: c.capture_rising)
   in
-  (* Control. *)
   let%hw halted_next =
     mux2 start gnd
     @@ mux2 i.stop vdd
@@ -725,8 +711,7 @@ let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
   let%hw pc_value_next =
     mux2 start (zero pc_bits) @@ mux2 jmp_go jmp_target_or_next @@ mux2 advance pc_next pc
   in
-  (* The address after the next instruction, picked from sums made off the register so
-     that no adder follows the control logic on the way to the memory. *)
+  (* sums taken off the register, so no adder follows control on the way to memory *)
   let%hw pc_after_next =
     mux2 start (after (zero pc_bits)) @@ mux2 advance (after pc_next) pc_next
   in

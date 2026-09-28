@@ -63,8 +63,7 @@ module Make (Config : Config) = struct
     in
     let words =
       List.mapi i.reads ~f:(fun n _ ->
-        (* on this engine's turn the memory reads where its pointer will be, so the next
-           cycle's output is the word at the pointer *)
+        (* reads where the pointer will be, so next cycle's output is the word at it *)
         let%hw mine = reg spec (turn ==:. n &: ~:write) in
         let%hw last = reg spec ~enable:mine dout in
         mux2 mine dout last)

@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Two engines and nothing outside the chip: a UART transmitter on engine 0, a receiver on
-# engine 1, wire 20 between them, and the host reading from engine 1 what it gave engine 0.
+# UART transmitter on engine 0, receiver on engine 1, over wire 20.
 
 import cocotb
 from cocotb.triggers import ClockCycles
@@ -46,13 +45,8 @@ async def test_uart_between_engines(dut):
 
 @cocotb.test()
 async def test_one_engine_times_the_other(dut):
-    """Engine 0 sends two bytes at 115200 baud over wire 20 and engine 1 stamps every edge.
-
-    The timing analyser proves every edge of the transmitter lands a fixed number of cycles
-    after a deadline, and the deadlines move by the bit period, so each edge of a frame is a
-    whole number of bit periods after its start bit. The host reads the stamps whenever it
-    gets round to it, which moves none of them.
-    """
+    """Engine 1 stamps engine 0's edges: each a whole number of bit periods after its
+    start bit, as the certificate says. When the host reads the stamps moves none."""
     await reset(dut)
     host = AsyncHost(Pins(dut).transfer)
     period = 434

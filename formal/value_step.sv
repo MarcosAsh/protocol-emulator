@@ -1,62 +1,15 @@
-// Value lemma, beside the edge lemma in edge_step.sv. That one proves when the pins move
-// and that an out or a mov puts on them, where Pins.write places it, the value the core
-// shifts or moves; this one proves that value is the ISA's, restated here from ISA.md and
-// the model in machine.ml and not from the core. For any program, at every issue of a
-// word the ISA decodes:
-//
-//   out d, n      the next n bits of the osr in the configured direction, the low n
-//                 shifting right and the high n shifting left, after the autopull the ISA
-//                 does first: with autopull on and osr_count at pull_threshold or past it,
-//                 the osr takes the tx fifo's head, or with autopull_data the data
-//                 memory's word, and osr_count starts again from 0. An empty fifo, or a
-//                 data pointer that moved the cycle before, leaves the osr as it was and
-//                 sets underflow. The osr then shifts by n and osr_count goes up by n, to
-//                 16 at most.
-//   mov d, op, s  the source, one of pins (in_count of them from in_base), x, y, 0, isr,
-//                 osr, now and capture, with op applied over the destination's width, 24
-//                 bits for t and 16 for the rest: copy, invert every bit, or reverse their
-//                 order.
-//   in s, n       the low n bits of the source, one of pins (n of them from in_base), x,
-//                 y, 0, isr, osr, crc and capture, shifted into the isr from the top
-//                 shifting right and from the bottom shifting left. isr_count goes up by
-//                 n, to 16 at most, and with autopush on and isr_count then at
-//                 push_threshold or past it the isr goes to the rx fifo and both go to 0.
-//   push, pull    the isr to the rx fifo, and it and isr_count to 0; the tx fifo's head
-//                 to the osr if there is one, else underflow, and osr_count to 0.
-//   seek          the data pointer to the low bits of x.
-//
-// The value shows where the word sends it: on the pins or pindirs Pins.write takes, the
-// run from out_base n long for an out and out_count long for a mov, where a Manchester
-// out of one bit shows the bit on the pin above out_base and its complement on out_base;
-// on x, y, p or t, t on a whole cycle; in the isr, with isr_count n for an out and 0 for a
-// mov; in the osr, with osr_count 0. osr and osr_count move at nothing else, nor isr and
-// isr_count, nor the data pointer but for a start, which puts it at 0, and the clear puts
-// them all at 0, osr_count at 16, as the model starts. The tx fifo pops exactly when the
-// ISA pulls from it, the rx fifo takes the ISA's word exactly when it pushes and is not
-// full, and underflow and overflow are set by exactly the pulls and pushes that miss. So
-// from the clear on the shift registers hold what the ISA says through every pull, push
-// and shift, and the pins carry the ISA's function of them.
-//
-// The second half of a Manchester bit shows at the next issue, whatever the word, as
-// Machine.issue writes it: the bit on out_base and its complement on the pin above, at the
-// out_base of that issue and not of the out's, on the pins its side-set and its own write
-// leave alone. A start or a clear before then drops it. With edge_step.sv, which gives the
-// rest of the pins off the run, the pins after an out or a mov are Pins.write of the ISA's
-// value, but only while the config holds still: edge_step.sv takes every config field as
-// a constant, so a side-set or a set under a config the host changes mid-run is proved
-// nowhere. The core's own decode flag is the ISA's table too, for any side-set count the
-// config allows.
-//
-// Taken as they stand: x, y, now, capture and crc where a mov or an in reads them, whose
-// other updates belong to the engine's tests; the fifos' head, empty and full, which
-// fifo_order.sv proves hand over the words pushed, in order; data_word, the data memory's
-// word at data_ptr by its contract; and when the core issues, from its own halted, stall
-// and the word at pc, which phase_step.sv and edge_step.sv hold to the ISA for a constant
-// config. That these registers move at no time the ISA's do not rests on those two as
-// well. Nothing else is assumed of the host or the pins: stop, flush, start, program
-// writes, the fifos, the data memory's word, the inputs, the clear and every config field
-// are free in every cycle, and the chip has no debugger. Past what the ISA's configs
-// allow, a count above 16 reads and writes 16 pins, as Pins does.
+// Value lemma, beside edge_step.sv: at every issue of a word the ISA decodes, the ISA's
+// value (ISA.md and machine.ml, restated here, not taken from the core) reaches the osr,
+// isr, their counts, the data pointer, underflow, overflow, the fifo pops and pushes, and
+// the pins, pindirs, x, y, p or t the word writes, as does a Manchester bit's second half
+// at the next issue. Pins.write of that value on the pins holds only for a constant
+// config, which edge_step.sv takes; a side-set or set under a config changed mid-run is
+// proved nowhere. Trusted: x, y, now, capture and crc where read (their other updates
+// are left to the engine's tests); the fifos' head, empty and full (fifo_order.sv);
+// data_word as the memory's word at data_ptr; and when the core issues, and that these
+// registers move at no other time (phase_step.sv, edge_step.sv, constant config). Host,
+// pins, clear and config are otherwise free every cycle, and the chip has no debugger. A
+// count above 16 acts as 16, as in Pins.
 
 module value_step (input clk);
   (* anyseq *) wire [1:0] side_set_count;
@@ -137,10 +90,7 @@ module value_step (input clk);
   always @(posedge clk) started <= !clear && start;
   wire issue = !clear && !halted && stall == 0 && !started;
 
-  // the ISA's decode table, field by field: jmp conditions to rx_full; a wait on a pin
-  // names one of the 28, on the deadline or a fifo none; shift counts 1 to 16; mov ops to
-  // reverse; set destinations to p; alu ops to xor and registers to osr; sys ops to seek
-  // with the rest of the body clear
+  // the ISA's decode table
   function decodes(input [15:0] w);
     case (w[15:13])
       0: decodes = w[12:9] < 12;
@@ -154,8 +104,6 @@ module value_step (input clk);
   endfunction
   wire go = issue && decodes(instruction);
   wire [2:0] opcode = instruction[15:13];
-  // the in source, out destination or mov destination, the shift count, the mov's op and
-  // source, and the sys op
   wire [2:0] target = instruction[7:5];
   wire [4:0] n = instruction[4:0];
   wire [1:0] mov_op = instruction[4:3];
@@ -166,7 +114,7 @@ module value_step (input clk);
   wire movs = go && opcode == 4;
   wire syss = go && opcode == 7;
 
-  // Pins: a run of pins from [base] up, around the 28 of them, the low [n] bits of it
+  // Pins: the low [n] bits on a run from [base] up, wrapping at 28
   function [15:0] mask(input [4:0] count);
     mask = count >= 16 ? 16'hffff : (16'd1 << count) - 16'd1;
   endfunction
@@ -193,9 +141,7 @@ module value_step (input clk);
     for (i = 0; i < 24; i = i + 1) reverse24[i] = v[23 - i];
   endfunction
 
-  // what a read of the pins sees: an input its level, an output what the core drives, a
-  // bidirectional pin what the core drives while its direction is set, and a wire what
-  // this core or any other drives
+  // a read of the pins; a wire sees what any core drives
   localparam [27:0] INPUTS = 28'h000001f;
   localparam [27:0] OUTS = 28'h0000fe0;
   localparam [27:0] BIDIRS = 28'h00ff000;
@@ -221,8 +167,8 @@ module value_step (input clk);
 `else
   wire pull_due = autopull && osr_count >= pull_threshold;
 `endif
-  // the data memory takes turns between the engines, so a pointer that moved the cycle
-  // before has no word yet: the model's data_age below data_settle
+  // the data memory is time-sliced, so a pointer moved last cycle has no word yet
+  // (the model's data_age below data_settle)
   reg moved = 0;
 `ifdef DATA_NEVER_REFUSED
   wire refused = 0;
@@ -288,7 +234,6 @@ module value_step (input clk);
   wire push_due = autopush && isr_count_shifted >= push_threshold;
 `endif
 
-  // the fifos and the data pointer
   wire pulls = syss && sys_op == 4;
   wire pushes = ins && push_due || syss && sys_op == 3;
   wire seeks = syss && sys_op == 8;
@@ -327,8 +272,7 @@ module value_step (input clk);
   wire writes_t = (outs || movs) && target == 7;
   wire [15:0] value = outs ? out_bits : mov_bits;
   wire [23:0] t_value = outs ? {8'd0, out_bits} : mov_bits_t;
-  // and the pins the word writes, which Pins.write takes to be those that drive (5 and
-  // up) or turn around (12 to 19), with what it shows on them
+  // Pins.write takes only pins that drive (5 and up) or turn around (12 to 19)
   localparam [27:0] OUTPUTS = 28'hfffffe0;
   wire manchester_bit = outs && target == 0 && manchester && n == 1;
   wire [27:0] run_out =
@@ -343,8 +287,7 @@ module value_step (input clk);
   wire [27:0] shown =
     place(manchester_bit ? {14'd0, out_bits[0], !out_bits[0]} : value, out_base);
 
-  // the second half of a Manchester bit, owed from the out to the next issue; each teeth
-  // task gets one part of it wrong
+  // a Manchester bit's second half, owed from the out to the next issue
   reg owed = 0, owed_bit = 0;
   reg [4:0] owed_base = 0;
   always @(posedge clk)
@@ -354,6 +297,7 @@ module value_step (input clk);
       owed_bit <= out_bits[0];
       owed_base <= out_base;
     end else if (issue) owed <= 0;
+  // the flip lands at the out_base of the issue that shows it, not of the out
 `ifdef FLIP_AT_OUTS_BASE
   wire [4:0] flip_base = owed_base;
 `else
@@ -364,8 +308,7 @@ module value_step (input clk);
 `else
   wire [15:0] second_half = {14'd0, !owed_bit, owed_bit};
 `endif
-  // over it the side-set, which a jump and a word that fails to decode do not have, a set
-  // and the word's own run
+  // the flip yields to side-set (none on a jump or undecoded word), set and the run
   wire [27:0] side_run =
       go && opcode != 0 && !side_set_pindirs
     ? place(mask({3'd0, side_set_count}), side_set_base) : 28'd0;
@@ -432,8 +375,7 @@ module value_step (input clk);
       if (rx_push) assert(rx_push_value == push_word);
     end
 
-  // What the core holds, for induction: its decode flags are the word's, its note of a
-  // moved pointer is the one kept here, and neither count passes 16.
+  // invariants for induction
   always @(posedge clk)
     if (powered) begin
       assert(decode_ok == decodes(instruction));
@@ -444,8 +386,7 @@ module value_step (input clk);
       assert(osr_count <= 16 && isr_count <= 16);
     end
 
-  // each source, op, destination and direction on its own moves something, so no part of
-  // the lemma is vacuous
+  // no part of the lemma is vacuous
   reg last_clear = 1, last_outs, last_movs, last_ins, last_pulls, last_pushes, last_push_due;
   reg last_manchester_bit, last_fifo_pull, last_data_pull, last_misses_pull, last_rx_push;
   reg last_out_shift_right, last_in_shift_right, last_autopull_data;

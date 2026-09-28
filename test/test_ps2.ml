@@ -2,9 +2,8 @@ open! Core
 open Protocol_emulator
 open Ps2
 
-(* The host of the core. It answers the byte 0xed from the PS/2 host with 0xfa, as a
-   keyboard does, and when the interrupt says a frame was dropped it writes the last byte
-   again, which is enough for tests that have one byte in flight. *)
+(* The core's host: answers 0xed with 0xfa as a keyboard does, and resends the last byte
+   on a dropped-frame interrupt (enough with one byte in flight). *)
 module Driver = struct
   type t =
     { pending : int list
@@ -66,8 +65,7 @@ let print_run host (driver : Driver.t) (fault : Machine.Fault.t) =
         (fault : Machine.Fault.t)]
 ;;
 
-(* the host of the core acts on the model as the last cycle left it, in the order the
-   lockstep harness does *)
+(* the host acts on the model as the last cycle left it, in the lockstep harness's order *)
 let run ?(script = []) ~quarter ~bytes ~cycles () =
   let rec loop (m : Machine.t) host driver n =
     if n = 0
@@ -137,9 +135,8 @@ let%expect_test "the host takes the clock in the middle of a frame" =
     |}]
 ;;
 
-(* the same program with a quarter of 40 cycles, as if the clock were 2 MHz, so that the
-   hardware simulation stays short; the host is told that a cycle is 500 ns. It takes the
-   clock in the middle of the answer, which has to be sent again. *)
+(* a quarter of 40 cycles (a 2 MHz clock) keeps the simulation short. The host takes the
+   clock mid-answer, which must be resent. *)
 let%expect_test "ps2 in lockstep" =
   let host = ref (Host.create ~cycle_ns:500 [ 2_080, Send 0xed; 5_000, Inhibit ]) in
   let driver = ref (Driver.create ~quarter:40 [ 0x1c ]) in
@@ -245,8 +242,7 @@ let%expect_test "a quarter of seven cycles is too short" =
     |}]
 ;;
 
-(* a quarter of 10 us keeps every deadline and makes a 25 kHz clock, which the host will
-   not have *)
+(* a 10 us quarter keeps every deadline but makes a 25 kHz clock the host rejects *)
 let%expect_test "a clock of 25 kHz is out of the standard" =
   run ~quarter:(10_000 / cycle_ns) ~bytes:[ 0x1c ] ~cycles:26_000 ();
   [%expect

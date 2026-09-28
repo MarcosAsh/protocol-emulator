@@ -1,13 +1,8 @@
-// P3: when the host talks to the core never reaches the pins.
-//
-// [step] is one core with its fifos and its memories pulled out by the script. What two
-// runs share is a port: configuration, pins, the fetched word, the data word and the word
-// a pull takes. What the fifos report is left free, so two copies of [step] see different
-// levels and flags. The script then turns every register into an input and an output
-// and compares two copies, which makes this one step of an induction from any state.
-//
-// Each teeth task in host_timing.sby defines one of the names tested below, which takes
-// one part of the statement away, and the proof must then fail: every part is needed.
+// P3: when the host talks to the core never reaches the pins. [step] is one core with
+// its fifos and memories pulled out; two copies share configuration, pins, the fetched
+// word, the data word and the pulled word, while what the fifos report is free in each.
+// The script makes every register an input and an output, so this is one induction step
+// from any state. Each teeth task in host_timing.sby removes one part, and must fail.
 module step (
   input clock, clear, start, stop, clear_irq,
   input [140:0] config_bits,
@@ -71,8 +66,7 @@ module step (
     .rx_fifo_head(rx_head), .rx_fifo_level(rx_level), .rx_fifo_empty(rx_empty),
     .rx_fifo_full(rx_full));
 
-  // the core acts on the opcode and the wait pin it registered beside the instruction;
-  // issue_timing proves they always agree with it, so only such states are considered
+  // trusted from issue_timing: the registered opcode and wait pin agree with the word
   always @(*) assume(opcode_onehot == 8'b1 << instruction[15:13]);
   always @(*) assume(wait_select == wait_pin);
   assign fifo_wait = 0
@@ -85,10 +79,8 @@ module step (
     ;
 endmodule
 
-// From the same state, every register and every output of the two copies is the same
-// after the clock edge, unless a copy is about to set underflow or overflow, or the
-// instruction is a fifo wait or a jump on a fifo test. Those are the doors the ISA
-// opens for host timing, and there are no others.
+// From the same state the two copies agree on every register and output after the edge,
+// unless one is about to fault or the word is a fifo wait or a jump on a fifo test.
 module host_timing;
   wire trigger, fifo_wait;
   wire [1:0] underflow, overflow;

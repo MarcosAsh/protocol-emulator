@@ -1,30 +1,13 @@
-// A late message can make the core fault, never make it jitter.
-//
-// Theorem: for a program with no fifo wait and no jump on a fifo test, two runs of the
-// core from the same start, whose host sends the same words at different times and reads
-// the replies at different times, drive the same pins on every cycle until one of them
-// sets its underflow or overflow fault.
-//
-// The proof is host_timing's step with that restriction on the program, so the only doors
-// left open are the two faults. [late_step] is one core with its fifos and memories pulled
-// out: what the fifos report is free in each copy, so the two see any levels, any arrival
-// times. Every register becomes an input and an output and two copies are compared, so
-// this is the step of an induction from any state; the base is the reset both runs share.
-// The pops are compared as well: while neither faults, both copies pop in the same cycles,
-// so the k-th pop of each is the k-th word the host sent, which fifo_order proves of the
-// fifo. That is why the word a pull takes is one port shared by the two.
-//
-// For a program that never pushes, the only fault left is underflow (the never_pushes
-// task): the host is late, the core finds the fifo empty at the cycle its certificate
-// fixed for the pull, and says so.
-//
-// Prior art: the temporal firewall of Kopetz's time-triggered architecture, and the
-// logical execution time of Giotto (Henzinger, Horowitz and Kirsch, 2001), where inputs are
-// read and outputs written at fixed instants whatever the computation does in between.
-// What is new here is that it is proved of the RTL.
-//
-// Each teeth task in late_host.sby takes one part of the statement away, and the proof must
-// then fail.
+// A late message can make the core fault, never make it jitter. For a program with no
+// fifo wait and no jump on a fifo test, two runs from the same start whose host sends and
+// reads the same words at different times drive the same pins every cycle until one sets
+// underflow or overflow. This is host_timing's induction step, fifo reports free in each
+// copy, under that restriction; the base is the shared reset. Pops are compared too, so
+// the k-th pull of each takes the k-th word sent (fifo_order proves the fifo keeps
+// order), hence one shared pull port. With no pushes (never_pushes) only underflow
+// remains. Prior art: Kopetz's temporal firewall and Giotto's logical execution time
+// (Henzinger, Horowitz, Kirsch 2001); new here is the proof on RTL. Each teeth task in
+// late_host.sby removes one part, and must fail.
 module late_step (
   input clock, clear, start, stop, clear_irq,
   input [140:0] config_bits,
@@ -90,12 +73,11 @@ module late_step (
     .rx_fifo_head(rx_head), .rx_fifo_level(rx_level), .rx_fifo_empty(rx_empty),
     .rx_fifo_full(rx_full));
 
-  // as in host_timing: issue_timing proves these registers agree with the instruction
+  // trusted from issue_timing, as in host_timing
   always @(*) assume(opcode_onehot == 8'b1 << instruction[15:13]);
   always @(*) assume(wait_select == wait_pin);
 
-  // the program: every word the core can act on is one the time-triggered check admits,
-  // no wait on a fifo and no jump on a fifo test
+  // the program, as the time-triggered check admits: no fifo wait, no jump on a fifo test
 `ifndef ADMIT_FIFO_WAIT
   always @(*) assume(!(instruction[15:13] == 1 && instruction[6:5] == 3));
 `endif
@@ -108,8 +90,8 @@ module late_step (
 `endif
 endmodule
 
-// From the same state, every register, every output and the pop of the two copies are the
-// same after the clock edge, unless a copy is about to set underflow or overflow.
+// From the same state the copies agree on every register, output and pop after the edge,
+// unless one is about to fault.
 module late_host;
   wire trigger;
   wire [1:0] underflow, overflow;

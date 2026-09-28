@@ -1,5 +1,5 @@
-(** Release when [now - t] is non-negative as a signed number. Over any [Comb] so the same
-    circuit can be proven and used. *)
+(** Release when [now - t] is non-negative as a signed number. Over any [Comb] so the
+    proven circuit is the one used. *)
 
 open! Core
 open! Hardcaml

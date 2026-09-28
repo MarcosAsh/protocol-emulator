@@ -85,8 +85,7 @@ jobs:
 
       - name: Build for the FPGA kit and simulate the netlist
         run: |
-          # the simulator loads the cocotb that ships with the OSS CAD Suite, so its
-          # makefiles have to be the ones in charge too: no pip cocotb beside it
+          # the simulator loads OSS CAD Suite's cocotb, so no pip cocotb beside it
           cd test
           opam exec -- make fpga_fit
           python3 check_metrics.py --fpga fpga_kit.log >> "$GITHUB_STEP_SUMMARY"

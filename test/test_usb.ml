@@ -259,8 +259,7 @@ let run_usb_device ?(queue = []) ~address packets ~idle =
       in
       List.init bit_period ~f:(fun _ -> level))
   in
-  (* the reply delay the specification bounds: from the end of the host's SE0 to the first
-     K the device drives, two to six and a half bit times *)
+  (* reply delay per spec: host SE0 end to device's first K, 2 to 6.5 bit times *)
   let host_se0_ends = ref 0 in
   let replied = ref true in
   let reply_delays = ref [] in
@@ -510,8 +509,8 @@ let%expect_test "usb device takes a SETUP in lockstep" =
     |}]
 ;;
 
-(* what the host queues for an IN: the endpoint and the PID, the number of data bits and
-   of data words, then the data two bytes a word, the first byte low *)
+(* an IN reply: endpoint and PID, data bits and words, then data two bytes a word, first
+   byte low *)
 let usb_reply ?(endpoint = 0) ~pid payload =
   let rec words = function
     | [] -> []

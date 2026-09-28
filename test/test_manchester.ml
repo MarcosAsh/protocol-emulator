@@ -2,9 +2,8 @@ open! Core
 open Protocol_emulator
 open Firmware
 
-(* One byte, least significant bit first, through the Manchester assist on IO0 and IO1:
-   the [out] and its delay are the first half of each bit, the jump the second, so every
-   bit is four cycles and every half two, with an edge in the middle of every bit. *)
+(* One byte LSB first through the Manchester assist on IO0 and IO1: the [out] is the first
+   half-bit and the jump the second, two cycles each. *)
 let%expect_test "a byte in Manchester, four cycles a bit" =
   let config =
     { Program_config.default with out_base = Isa.first_bidir_pin; manchester = true }
@@ -45,10 +44,9 @@ bit:
     |}]
 ;;
 
-(* The certificate for the same loop names both halves of every bit: the [out] puts the
-   first on the pins and the jump the second. No deadline wait fits in four cycles, so the
-   phase is only bounded from the start, but each edge is exactly two cycles after the one
-   before. The model under random pins and host traffic keeps inside what it says. *)
+(* No deadline wait fits in four cycles, so the phase is only bounded from the start, but
+   each edge is exactly two cycles after the last. The model under random pins and host
+   traffic stays inside the certificate. *)
 let%expect_test "the certificate names both halves of every bit" =
   let config =
     { Program_config.default with out_base = Isa.first_bidir_pin; manchester = true }

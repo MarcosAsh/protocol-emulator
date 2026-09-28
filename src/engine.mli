@@ -1,11 +1,8 @@
-(** The core. Same semantics as [Machine]; the tests keep them in lockstep.
-
-    The word at [pc] sits in an instruction register and the memory reads one address
-    ahead of it, so a jump spends its second cycle refilling. [program_write] is ignored
-    unless the core is halted, and never comes in the same cycle as [start]. [start]
-    spends one cycle fetching address 0, then resets [pc] and the timer; the first
-    instruction issues two cycles after [start] at [now = 0]. A [start] while one is in
-    flight starts over. *)
+(** The core, with [Machine]'s semantics; the tests keep them in lockstep. Memory reads
+    one address ahead of [pc], so a jump spends its second cycle refilling.
+    [program_write] counts only while halted and never with [start]. [start] fetches
+    address 0 for a cycle, so the first instruction issues two cycles later at [now = 0];
+    a second [start] restarts. *)
 
 open! Core
 open! Hardcaml
@@ -73,7 +70,7 @@ module Program_write : sig
   [@@deriving hardcaml]
 end
 
-(** What the host port hands one engine: the fields of [I] by the same names. *)
+(** The host port's fields of [I], by the same names. *)
 module Host : sig
   type 'a t =
     { config : 'a Config.t
@@ -95,23 +92,19 @@ module I : sig
     ; config : 'a Config.t (** Held constant while running. *)
     ; start : 'a (** Pulse while halted. *)
     ; program_write : 'a Program_write.t (** Only while halted. *)
-    ; data_word : 'a (** The data memory's word at [data_ptr], see [Data_memory]. *)
-    ; tx : 'a With_valid.t (** A word for the core's tx fifo. *)
-    ; rx_pop : 'a (** Pops the rx fifo; [rx_head] is the word popped. *)
+    ; data_word : 'a (** The word at [data_ptr], from [Data_memory]. *)
+    ; tx : 'a With_valid.t
+    ; rx_pop : 'a (** [rx_head] is the word popped. *)
     ; clear_irq : 'a
-    ; stop : 'a (** Halts the core; the pins keep what they have. [start] wins. *)
+    ; stop : 'a (** Pins hold. [start] wins. *)
     ; flush : 'a
-    (** Empties both fifos. Ignored unless the core is halted, so not in the cycle of the
-        [stop] that halts it. *)
-    ; inputs : 'a
-    (** The external level of every pin in the flat pin space, and for a wire what the
-        other engines drive. *)
+    (** Empties both fifos. Ignored unless already halted, so not in the [stop] cycle. *)
+    ; inputs : 'a (** External pin levels, and for wires what other engines drive. *)
     }
   [@@deriving hardcaml]
 end
 
-(** Besides the pins and the host's view, the architectural state comes out so the tests
-    can hold it against the model every cycle and the formal proof can read it. *)
+(** Exposes architectural state for lockstep tests and formal proofs. *)
 module O : sig
   type 'a t =
     { pin_out : 'a
@@ -139,10 +132,9 @@ module O : sig
     ; rx_level : 'a
     ; rx_head : 'a
     ; instruction : 'a (** The word at [pc]. *)
-    ; decode_ok : 'a (** Registered with [instruction]: whether it decodes. *)
-    ; opcode_onehot : 'a (** Registered with [instruction]: bit [n] for opcode [n]. *)
-    ; wait_select : 'a
-    (** Registered with [instruction]: bit [n] for the pin its wait field names. *)
+    ; decode_ok : 'a (** Registered with [instruction], as are the next two. *)
+    ; opcode_onehot : 'a
+    ; wait_select : 'a (** Bit [n] for the pin the wait field names. *)
     ; crc : 'a
     ; stuff_run : 'a
     ; flip_pending : 'a

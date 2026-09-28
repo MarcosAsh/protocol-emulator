@@ -1,15 +1,13 @@
 # SPDX-License-Identifier: Apache-2.0
-# 10BASE-T frames for the Ethernet firmware, at 40 MHz. The host builds the whole frame,
-# preamble to FCS, and loads it into the data memory; the core only times it onto the
-# wire. Works on CPython and MicroPython.
+# 10BASE-T frames at 40 MHz. The host builds the whole frame, preamble to FCS; the core
+# only times it onto the wire. CPython and MicroPython.
 
 from protocol_emulator import CONTROL, DATA, DATA_ADDR, DEFAULT_CONFIG, TX
 
 PREAMBLE = [0x55] * 7 + [0xD5]
 LINK_TENTH = 64000  # cycles in a tenth of the 16 ms between link pulses
 
-# TD+ on IO0 and TD- on IO1, driven as a Manchester pair; the frame comes from the data
-# memory by autopull, and the host's words through the tx fifo
+# TD+ on IO0, TD- on IO1, a Manchester pair
 CONFIG = dict(
     DEFAULT_CONFIG, out_base=12, set_base=12, set_count=2, manchester=1, autopull=1,
     autopull_data=1)
@@ -66,10 +64,9 @@ def words(data):
 
 
 def writes(frame, link_tenth=LINK_TENTH):
-    """The register writes that send [frame]: stop the core and empty its fifos, load the
-    frame and start it again. The data memory is only written while every core is halted,
-    and a start begins the firmware from the top, which reads the link interval and then
-    the frame's length in bits less one."""
+    """The register writes that send [frame]. The data memory takes writes only while
+    every core is halted; a start runs the firmware from the top, which reads the link
+    interval and then the frame's length in bits less one."""
     data = wire(frame)
     return [
         (CONTROL, [4]), (CONTROL, [8]), (DATA_ADDR, [0]), (DATA, words(data)),

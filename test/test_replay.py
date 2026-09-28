@@ -1,15 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
-# Replays the pin traces in test/traces, recorded from the OCaml simulation of the top
-# by test/pin_trace.ml, and compares every output bit on every cycle.
-#
-# Alignment: cycle 0 of a trace is the first rising edge after rst_n is released. rst_n
-# is held low for RESET_CYCLES clocks first, which clears every register that has a
-# clear, so the comparison starts at cycle 0 and nothing is masked: an X on an output
-# is a mismatch. An X late in a trace is storage nothing has written, which the OCaml
-# simulation reads as zero: test/pin_scenarios.ml keeps the scenarios clear of the one
-# known case, an rx read that empties the fifo. Inputs change on the falling edge and
-# outputs are sampled on the next falling edge, half a cycle after the rising edge they
-# belong to.
+# Replays test/traces (from test/pin_trace.ml) and compares every output bit every cycle.
+# Cycle 0 is the first rising edge after RESET_CYCLES of reset, which clears every
+# register with a clear; nothing is masked, so an X is a mismatch.
+# Unwritten storage is X here but zero in OCaml: test/pin_scenarios.ml avoids the one
+# known case, an rx read that empties the fifo. Inputs change on the falling edge;
+# outputs are sampled on the next falling edge.
 
 from pathlib import Path
 

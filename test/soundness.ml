@@ -85,8 +85,7 @@ let check ?period ?single_capture_edge ?(preload = []) ~config stimuli words =
       let t = !m in
       if (not t.halted) && t.stall = 0
       then (
-        (* an edge shows the cycle after the issue that makes it, a write or a flip, and
-           has to be as far from the edge before as the row says for where it came from *)
+        (* an edge shows the cycle after its issue, as far from the last as the row says *)
         let new_pc =
           not (Option.equal [%equal: int * int] !last (Some (cycle - 1, t.pc)))
         in

@@ -63,8 +63,8 @@ let run ~cycles ~writes =
   loop t 0 []
 ;;
 
-(* A falling edge from the idle line starts a frame. Its cycle is [now] in the first step
-   that shows it, and the bits are read in the middle of each period. *)
+(* A frame starts at a falling edge from idle, stamped with [now] of the first step that
+   shows it; bits are read mid-period. *)
 let frames samples =
   let level i = snd samples.(i) in
   let field i ~first ~width =

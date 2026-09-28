@@ -48,11 +48,9 @@ let%expect_test "uart tx at 115200 baud from a 50 MHz clock" =
     |}]
 ;;
 
-(* 48 MHz over 115200 is 416 2/3 cycles a bit: the period is 416 and the fraction two
-   thirds of a cycle, which [wait t+] carries into two bits in three. How far each edge of
-   a frame lands from n * 416 2/3 cycles after its start edge: with the fraction the error
-   stays inside a band narrower than a cycle, which the whole start bit from [add t, p]
-   puts two thirds of a cycle early; a whole period drifts a little every bit. *)
+(* 48 MHz / 115200 is 416 2/3 cycles a bit. Each edge's error from n * 416 2/3: with the
+   fraction it stays in a band under a cycle (two thirds early, from the start bit's
+   [add t, p]); a whole period drifts every bit. *)
 let fractional = { Program_config.default with period_fraction = 43691 }
 
 let%expect_test "uart tx at 115200 baud from a 48 MHz clock" =

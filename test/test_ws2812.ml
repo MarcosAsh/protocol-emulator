@@ -4,8 +4,8 @@ open Ws2812
 
 let pixel red green blue = { Pixel.red; green; blue }
 
-(* six pixels are twelve words, more than the fifo holds, so the host tops it up while the
-   string is going out; the second frame comes after the first has latched *)
+(* six pixels are twelve words, more than the fifo holds, so the host tops it up; the
+   second frame follows the latch *)
 let first_frame =
   [ pixel 0xff 0x00 0x00
   ; pixel 0x00 0xff 0x00
@@ -140,8 +140,7 @@ let%expect_test "the shortest bit the structure can make" =
     |}]
 ;;
 
-(* one cycle less and the thirteen cycles round the end of a word no longer fit: the
-   analyser says so and the core raises the fault *)
+(* one cycle less and the thirteen cycles round a word's end no longer fit *)
 let%expect_test "a bit too short for the end of a word" =
   let source = firmware ~third:6 ~tail:6 in
   Timing_report.print ~config source;

@@ -13,8 +13,7 @@ let config =
   }
 ;;
 
-(* Runs [source] with [data] in the data memory, in lockstep with the hardware, and prints
-   every word that shows on the sixteen pins. *)
+(* Runs [source] with [data] in lockstep and prints every word on the sixteen pins. *)
 let stream ?(preload = []) ~cycles source =
   let shown = ref [] in
   let react (m : Machine.t) =
@@ -74,8 +73,8 @@ let%expect_test "every other cycle takes the next word from where seek pointed" 
     |}]
 ;;
 
-(* A word asked for the cycle after the pointer moved may not have arrived, so the pull is
-   refused, the pointer stays and the next one takes the word. *)
+(* A pull the cycle after the pointer moved is refused, since the word may not have
+   arrived; the next one takes it. *)
 let%expect_test "a data pull the cycle after a seek or a pull is refused" =
   stream ~cycles:12 {|
     set x, 3
@@ -95,8 +94,7 @@ let%expect_test "a data pull the cycle after a seek or a pull is refused" =
     |}]
 ;;
 
-(* The host's word comes through the fifo, with [pull], and says how many data words to
-   send; the data comes through autopull. *)
+(* The host's word gives the count; the data comes through autopull. *)
 let%expect_test "a pull reads the host while autopull reads the data" =
   stream
     ~preload:[ 3 ]

@@ -1,17 +1,10 @@
-(** The cores of the chip and the pins between them. Each engine is an instance [engine_n]
-    with its own program memory and its own host port fields, and they share one
-    [Data_memory], which any engine's host fields write while every engine is halted.
-
-    A pin carries the OR of what the engines drive onto it: an output pin what they hold,
-    a bidirectional pin what those with its direction bit set hold. Where another engine
-    drives a bidirectional pin an engine reads that level instead of the pad's, and on a
-    wire it reads what any engine drives, so engines can talk over a pin or a wire with
-    nothing connected outside. Two engines driving one pin is a mistake in the
-    configuration; the OR keeps it defined. With two engines whose [Footprint]s share no
-    pad, each drives its pads as it would alone and reads as it would alone but where the
-    other drives a bidirectional pad or can move a wire, and there reads what the other
-    drives, as long as neither is given a new config without a clear:
-    [formal/chip_frame.sv]. *)
+(** The chip's cores ([engine_n], each with its own program memory and host fields) and
+    the pins between them; they share one [Data_memory], written only while all are
+    halted. A pin is the OR of what engines drive, which keeps a mis-configured double
+    drive defined. An engine reads another's driven bidirectional pin instead of the pad,
+    and any engine's drive on a wire. [formal/chip_frame.sv] proves two engines sharing no
+    pad drive and read as alone, except reading the other's bidirectional pads and wires,
+    provided neither gets a new config without a clear. *)
 
 open! Core
 open! Hardcaml
@@ -25,7 +18,7 @@ module Make (_ : Config) : sig
     type 'a t =
       { clocking : 'a Clocking.t
       ; hosts : 'a Engine.Host.t list
-      ; pads : 'a (** The level at the pad of every pin. *)
+      ; pads : 'a
       }
     [@@deriving hardcaml]
   end

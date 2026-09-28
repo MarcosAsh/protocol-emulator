@@ -114,7 +114,7 @@ async def load(host, address):
 
 
 async def serve(dut, host, board, faults, loads):
-    """usb_board.service, with awaits, and as unhurried as MicroPython is."""
+    """usb_board.service with awaits, at MicroPython's pace."""
     while True:
         await ClockCycles(dut.clk, 5000)
         status = (await host.read(STATUS))[0]

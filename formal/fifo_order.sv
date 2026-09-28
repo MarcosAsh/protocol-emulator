@@ -1,5 +1,5 @@
-// The other half of P3: a fifo hands over the words it was given, in order, whenever
-// they were pushed and popped. One pushed word is followed from the push to the head.
+// The other half of P3: a fifo hands over the words it was given, in order, whenever they
+// were pushed and popped. One pushed word is followed from the push to the head.
 module fifo_order (input clk);
   (* anyconst *) wire [15:0] word;
   (* anyseq *) wire push_valid, pop, flush, follow;
@@ -26,7 +26,7 @@ module fifo_order (input clk);
     else if (!following && follow && pushed && push_value == word) begin
       following <= 1;
 `ifdef STALE_AHEAD
-      // the teeth task: forget a pop in the cycle of the push, and the proof must fail
+      // teeth: forget a pop in the cycle of the push
       ahead <= level;
 `else
       ahead <= level - popped;

@@ -1,5 +1,4 @@
-(** One engine with the data memory to itself: the engine as the tests and the proofs
-    drive it, with the ports it had before the engines shared a data memory. *)
+(** One engine with a private data memory, as the tests and proofs drive it. *)
 
 open! Core
 open! Hardcaml

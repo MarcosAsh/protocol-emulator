@@ -1,21 +1,13 @@
-// Edge lemma, beside the step lemma in phase_step.sv and on its cycles: an entry is the
-// first issue after a start or after a completion. For any program, pin_out and pin_dir
-// change only in the cycle after an entry whose word writes them, and then to what it
-// writes, in this order: the second half of a Manchester bit the word before left owed,
-// side-set, then the word's own set, out or mov to pins or pindirs. So a word entered at
-// phase q shows its edge at q + 1, and the pins hold it until the cycle after the next
-// entry. A wait that holds issues again every cycle and drives the same side-set, which
-// moves nothing. The second half of a Manchester bit shows the cycle after the next
-// word's entry, whatever that word is, a jump, a wait or a word that fails to decode, and
-// that entry comes one step of the out, its delay plus one, after the out's own, so the
-// second half shows one step after the first. A start or a clear before then drops it; a
-// stop holds it, and the core goes again only by a start, which drops it.
-//
-// Nothing is assumed of the host: stop, flush, start, program writes, the fifos and the
-// data memory's word are free in every cycle, even while the core runs, and none moves a
-// pin. The clear is free too, at power-on and in any cycle after, and zeroes both. For
-// out and mov the data is the value the core shifts or moves in the issue cycle, here
-// only when it shows; value_step.sv proves it is the ISA's.
+// Edge lemma, on phase_step.sv's cycles; an entry is the first issue after a start or a
+// completion. For any program and constant config, pin_out and pin_dir change only the
+// cycle after an entry whose word writes them, and then to its writes in order: a
+// Manchester second half owed by the word before, side-set, then the word's set, out or
+// mov. A held wait reissues the same side-set and moves nothing. The second half shows
+// one step (the out's delay + 1) after the first, whatever the next word; a start or
+// clear drops it, a stop holds it until then. Nothing is assumed of the host: stop,
+// flush, start, program writes, fifos, the data word and the clear, which zeroes both,
+// are free every cycle, even while running. Out and mov data is the core's value in the
+// issue cycle; value_step.sv proves it the ISA's.
 
 module edge_step (input clk);
   (* anyconst *) wire [1:0] side_set_count;
@@ -90,7 +82,7 @@ module edge_step (input clk);
   // an instruction completes when a jump issues, or anything else issues and goes on
   wire completes = jmp_go || advance;
 
-  // an entry is the first issue after a start or after a completion, as in phase_step.sv
+  // an entry, as in phase_step.sv
   reg started = 0;
   always @(posedge clk) started <= start;
   wire issue = !clear && !halted && stall == 0 && !started;
@@ -100,8 +92,7 @@ module edge_step (input clk);
     else if (issue) fresh <= 0;
   wire entry = issue && fresh;
 
-  // the pin writers, by the word in the instruction register; a jump or a word that fails
-  // to decode writes nothing of its own
+  // the pin writers; a jump or an undecoded word writes nothing of its own
   wire [2:0] opcode = instruction[15:13];
   wire [2:0] dest = instruction[7:5];
   wire [4:0] count = instruction[4:0];
@@ -118,12 +109,12 @@ module edge_step (input clk);
   wire writes_out = side_pins || set_pins || out_pins || mov_pins;
   wire writes_dir = side_dirs || set_dirs || out_dirs || mov_dirs;
 
-  // the second half of a Manchester bit is owed from the out's entry to the next entry
+  // a Manchester second half, owed from the out's entry to the next entry
   reg flip_owed = 0;
   always @(posedge clk)
     if (clear || started) flip_owed <= 0;
     else if (entry) flip_owed <= manchester_bit;
-  // and the cycles since that entry, beside the out's step, its delay plus one
+  // and the cycles since, beside the out's step, its delay plus one
   wire [4:0] ds = instruction[12:8];
   wire [4:0] delay = side_set_count == 0 ? ds : side_set_count == 1 ? ds[3:0] : ds[2:0];
   reg [5:0] since_out = 0, out_step = 0;
@@ -133,8 +124,8 @@ module edge_step (input clk);
       out_step <= delay + 6'd1;
     end else if (since_out != 63) since_out <= since_out + 6'd1;
 
-  // Pins.write: the low [n] bits of [v] onto the pins from [base] up, around the 28 of
-  // them, on the pins that take them: 5 and up drive, 12 to 19 turn around
+  // Pins.write: the low [n] bits of [v] from [base] up, wrapping at 28, on the pins that
+  // take them: 5 and up drive, 12 to 19 turn around
   localparam [27:0] OUTPUTS = 28'hfffffe0;
   localparam [27:0] BIDIRS = 28'h00ff000;
   function [27:0] place(input [15:0] v, input [4:0] base);
@@ -163,7 +154,7 @@ module edge_step (input clk);
   wire [15:0] first_half = {14'd0, out_value[0], !out_value[0]};
   wire [27:0] pair = place(16'd3, out_base) & OUTPUTS;
 
-  // what the pins hold the cycle after an entry, from what they hold at it
+  // the pins the cycle after an entry
 `ifdef NO_FLIP
   wire [27:0] flipped = pin_out;
 `else
@@ -187,7 +178,6 @@ module edge_step (input clk);
     : mov_dirs ? write(sided_dir, out_base, out_count, mov_value, BIDIRS)
     : sided_dir;
 
-  // the last cycle, for the check in this one
   reg last_clear = 1, last_entry = 0, last_flip_owed = 0;
   reg last_writes_out, last_writes_dir, last_side_pins, last_side_dirs;
   reg last_set_pins, last_set_dirs, last_out_pins, last_out_dirs;
@@ -214,8 +204,7 @@ module edge_step (input clk);
     last_want_dir <= want_dir;
   end
 
-  // the entry whose writes the pins show in this cycle, by the claim; each teeth task
-  // gets one part of it wrong
+  // the entry whose writes the pins show now; each teeth task gets one part wrong
 `ifdef ONE_CYCLE_LATER
   reg shown_entry = 0, shown_flip_owed = 0, shown_writes_out, shown_writes_dir;
   reg [27:0] shown_want_out, shown_want_dir;
@@ -251,18 +240,17 @@ module edge_step (input clk);
     if (!clear) begin
       if (last_clear) assert(pin_out == 0 && pin_dir == 0);
       else begin
-        // when: only the cycle after an entry whose word writes them
+        // when
         if (!moves_out) assert(pin_out == last_out);
         if (!moves_dir) assert(pin_dir == last_dir);
-        // what: that word's writes, over the flip, side-set and the pins before
+        // what
         if (shown_entry) assert(pin_out == shown_want_out && pin_dir == shown_want_dir);
       end
-      // and the entry a second half is owed to comes one step of the out after the out's
+      // the second half comes one step of the out after the first
       if (entry && flip_owed) assert(since_out == out_step);
     end
 `ifdef FLIP_OFF_ISSUE
-  // the second half by the clock instead, the cycle after the out's step ends, whether or
-  // not the core issues then
+  // teeth: the second half by the clock, whether or not the core issues then
   reg [5:0] last_since_out = 0, last_out_step = 0;
   always @(posedge clk) begin
     last_since_out <= since_out;
@@ -274,10 +262,7 @@ module edge_step (input clk);
       assert((pin_out & pair) == ((last_out & pair) ^ pair));
 `endif
 
-  // What the core holds between entries, for induction: its decode flags agree with the
-  // word, the flip owed is the one the core has pending, the pair shows the first half
-  // and the out's stall counts down the rest of its step, and a wait that holds already
-  // drives its side-set.
+  // invariants for induction
   wire [27:0] first_half_held = place({14'd0, flip_bit, !flip_bit}, out_base) & OUTPUTS;
   always @(posedge clk)
     if (!clear) begin

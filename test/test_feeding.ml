@@ -1,9 +1,8 @@
 open! Core
 open Protocol_emulator
 
-(* A late message can make you fault, never make you jitter: formal/late_host.sv proves it
-   of the RTL for any time-triggered program. These tests show it on the streaming
-   firmware, with the deadline of every word from [Feeding.schedule]. *)
+(* A late message can fault, never jitter (proved in formal/late_host.sv); shown here on
+   the streaming firmware with deadlines from [Feeding.schedule]. *)
 
 let assemble (t : Certified.t) =
   let program = Asm.assemble t.source |> ok_exn in
@@ -75,10 +74,8 @@ let deadlines (t : Certified.t) ~words =
   Feeding.schedule ~config program ~words:(List.length words) |> ok_exn
 ;;
 
-(* The RTL and the model side by side, the host writing word [k] in cycle [at k] and
-   reading every reply at once. Returns the pins after every cycle and the cycle in which
-   the underflow fault was set. The run stops before the pull after the last word, which
-   no host feeds. *)
+(* RTL and model with word [k] written in cycle [at k]. Returns the pins per cycle and the
+   cycle the underflow fault set. Stops before the pull after the last word. *)
 let run (t : Certified.t) ~words ~frame ~at =
   let _, config = assemble t in
   let program = Firmware.assemble t.source in
@@ -108,9 +105,8 @@ let first_difference a b =
   List.zip_exn a b |> List.findi ~f:(fun _ (a, b) -> a <> b) |> Option.map ~f:fst
 ;;
 
-(* Every word on time, then every word a frame early, then one word at a time a cycle
-   late. On time never faults and sends what early sends, cycle for cycle; a cycle late
-   faults in the cycle the core takes the word, and the pins are the same up to it. *)
+(* On time matches early cycle for cycle and never faults; a word a cycle late faults when
+   taken, with the same pins up to then. *)
 let feed (t : Certified.t) ~words =
   let deadlines = deadlines t ~words in
   let deadline = List.nth_exn deadlines in

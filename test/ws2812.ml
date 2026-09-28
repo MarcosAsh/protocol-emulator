@@ -4,12 +4,9 @@ open Protocol_emulator
 let pin = 5
 let cycle_ns = 20
 
-(* y is the number of bits in the word less one: 15 for the first word of a pixel, 7 for
-   the second. Both ways round the end of a word take the same thirteen cycles.
-
-   The reset gap waits on every pass of its loop rather than once after it, so [t] is
-   never more than five thirds ahead of [now]: the phase has a bound at every pass, and
-   the kernel accepts the loop. *)
+(* y is bits in the word less one: 15 then 7 per pixel. Both paths round a word's end take
+   thirteen cycles. The reset gap waits on every pass of its loop, not once after, so [t]
+   is never more than five thirds ahead of [now] and the kernel accepts the loop. *)
 let firmware ~third ~tail =
   [%string
     {|

@@ -51,8 +51,8 @@ module Bound = struct
     }
 end
 
-(* What an instruction does to the bus, with SCL at [scl] before it, and SCL after it. The
-   edges show together, the cycle after it issues. *)
+(* An instruction's bus edges given SCL before it, and SCL after. Edges show the cycle
+   after issue. *)
 let bus_edges (instruction : Isa.t) ~scl =
   match instruction with
   | Jmp _ -> [], scl
@@ -154,8 +154,8 @@ let check ~clock_mhz ~config (program : Asm.Program.t) timings =
     visit 0 ~scl:true;
     Hash_set.to_list seen
   in
-  (* The cycles from [timing.from] at [pc] to each [timing.until] a way from it reaches,
-     joined, and whether some way was left before it got there because it came round. *)
+  (* Cycles from [timing.from] at [pc] to each [timing.until] reached, joined, and whether
+     some path looped before getting there. *)
   let from (timing : Timing.t) pc ~scl =
     let row = Option.value_exn rows.(pc) in
     let edges, _ = bus_edges instructions.(pc) ~scl in

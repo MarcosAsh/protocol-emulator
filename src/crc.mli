@@ -7,7 +7,7 @@ open! Hardcaml
 
 val step : width:int -> poly:int -> reflect:bool -> int -> bit:int -> int
 
-(** The same over signals, with the width and polynomial chosen at run time. *)
+(** Width and polynomial chosen at run time. *)
 module Make (Comb : Comb.S) : sig
   val step
     :  width:Comb.t

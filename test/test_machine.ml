@@ -67,12 +67,9 @@ let%expect_test "a word that does not decode halts with a fault" =
     |}]
 ;;
 
-(* P3: the host reaches the pins through the words it sends, never through when it sends
-   them. Two runs of one program get the same words in the same order, one whenever the
-   fifo has room and one at random, and pop the rx fifo on different schedules. Their pins
-   agree every cycle unless the random schedule starved or flooded a fifo, which the fault
-   register reports. Programs with [wait tx] or [wait rx] block on the host on purpose and
-   are left out. *)
+(* P3: the pins depend on the host's words, never on when it sends them. Two runs with
+   different fifo schedules agree every cycle unless a fifo starved or flooded (the fault
+   register says). Programs with [wait tx] or [wait rx] are left out. *)
 let%expect_test "host timing never reaches the pins" =
   let random = Splittable_random.of_int 3 in
   let int hi = Splittable_random.int random ~lo:0 ~hi in
@@ -144,8 +141,7 @@ let%expect_test "host timing never reaches the pins" =
   [%expect {| ((programs 64) (words_pulled 344) (agree 63) (disagree 0)) |}]
 ;;
 
-(* the check values of CRC-16/USB and CRC-5/USB over "123456789" are 0xb4c8 and 0x19, both
-   after the final inversion the firmware does with [mov] *)
+(* CRC-16/USB and CRC-5/USB check values over "123456789", after the final inversion *)
 let crc_of_bytes ~config bytes =
   let program =
     assemble

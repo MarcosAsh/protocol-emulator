@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# The Tiny Tapeout flow has no setup checker and goes green on negative slack, so this
-# reads LibreLane's metrics and fails when the chip misses timing or signoff.
+# Fails when LibreLane's metrics miss timing or signoff; the flow itself goes green on
+# negative slack.
 # Usage: python3 test/check_metrics.py [--csv] runs/wokwi/final/metrics.json
 #        python3 test/check_metrics.py --fpga test/fpga_kit.log
 import argparse

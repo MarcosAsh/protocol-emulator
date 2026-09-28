@@ -1,9 +1,6 @@
-// P1: the gap between one issue and the next depends only on the instruction's
-// delay field, never on data. A jump always takes two cycles. The host may write the
-// configuration at any time, so here it can change in every cycle.
-//
-// Each teeth task in issue_timing.sby defines one of the names tested below, which gets
-// one part of the statement wrong, and the proof must then fail.
+// P1: the gap between one issue and the next depends only on the word's delay field,
+// never on data, and a jump always takes two cycles, with the config free every cycle.
+// Each teeth task in issue_timing.sby gets one part wrong, and the proof must then fail.
 module issue_timing (input clk);
   (* anyseq *) wire [1:0] side_set_count;
   (* anyseq *) wire [4:0] side_set_base, in_base, in_count, out_base, out_count, set_base;

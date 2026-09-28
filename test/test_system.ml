@@ -61,8 +61,7 @@ let%expect_test "uart from one engine to the other over a wire" =
     |}]
 ;;
 
-(* random programs on both engines, random pads and both hosts busy: whatever the engines
-   do to each other's pins and wires, the chip and the model agree *)
+(* random programs, pads and host traffic on both engines: chip and model agree *)
 let%expect_test "random programs on two engines in lockstep" =
   let random = Splittable_random.of_int 5 in
   let int hi = Splittable_random.int random ~lo:0 ~hi in
@@ -100,12 +99,10 @@ let%expect_test "random programs on two engines in lockstep" =
   [%expect {| (failed ()) |}]
 ;;
 
-(* The chip checks its own timing: engine 0 sends two bytes at 115200 baud over a wire,
-   engine 1 stamps every edge on it, and the host pops the stamps whenever it likes. The
-   certificate says every edge of the transmitter lands a fixed number of cycles after a
-   deadline with no jitter, and the deadlines move by the bit period, so each edge of a
-   frame is a whole number of bit periods after its start bit: what the table predicts.
-   The one unbounded edge is the line going idle, before there is a deadline at all. *)
+(* Engine 0 sends two bytes at 115200 baud over a wire and engine 1 stamps every edge; the
+   host pops the stamps whenever it likes. The certificate puts each edge a whole number
+   of bit periods after its start bit. The one unbounded edge is the line going idle,
+   before any deadline. *)
 let%expect_test "one engine times the other's uart edges" =
   let line = Isa.num_pins in
   let period = 434 in
