@@ -19,10 +19,9 @@ jobs:
             ox: https://github.com/oxcaml/opam-repository.git
             default: https://opam.ocaml.org
 
+      # no z3: every QED in the tests is cadical's, checked by cake_lpr
       - name: Install dependencies
-        run: |
-          sudo apt-get install -y z3
-          opam install . --deps-only --with-test --locked
+        run: opam install . --deps-only --with-test --locked
 
       # cadical and cake_lpr for the checked QEDs (test/checked_unsat.ml), at the pins
       # formal/Makefile names
