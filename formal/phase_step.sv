@@ -456,19 +456,28 @@ module phase_step (input clk);
   // is, assume the kernel's accepts at every pc entered, with the next and target rows it
   // picks, and a start at a row that bounds nothing; then the core lies in the row of every
   // entry and no deadline is missed. Rows have no slope and the full offset, as every
-  // library table does; a bounded offset rests on accepts' SAT proof and the lemma, on paper.
-  reg [193:0] rows [0:511];
+  // library table does. With AFFINE they are whole rows, and the run rests on row_step.
+`ifdef AFFINE
+  localparam ROW_BITS = 266;
+`else
+  localparam ROW_BITS = 194;
+`endif
+  reg [ROW_BITS-1:0] rows [0:511];
   (* anyseq *) wire rows_write;
   (* anyseq *) wire [8:0] rows_addr;
-  (* anyseq *) wire [193:0] rows_data;
+  (* anyseq *) wire [ROW_BITS-1:0] rows_data;
 `ifdef ROWS_WHILE_RUNNING
   always @(posedge clk) if (rows_write) rows[rows_addr] <= rows_data;
 `else
   always @(posedge clk) if (halted && rows_write) rows[rows_addr] <= rows_data;
 `endif
-  // a row as kernel_accepts reads it: the phase, no slope, the full offset, then the rest
-  function [265:0] row_of(input [193:0] r);
+  // a row as kernel_accepts reads it: the phase, the slope, the offset, then the rest
+  function [265:0] row_of(input [ROW_BITS-1:0] r);
+`ifdef AFFINE
+    row_of = r;
+`else
     row_of = {r[193:146], 24'd0, 24'h800000, 24'h7fffff, r[145:0]};
+`endif
   endfunction
 
   wire [8:0] next_pc, target_pc, e_next_pc, e_target_pc;
@@ -487,8 +496,61 @@ module phase_step (input clk);
   wire [265:0] target_row = row_of(rows[target_pc]), e_target_row = row_of(rows[e_target_pc]);
 `endif
 
-  // at an entry, and at the last one, which the core keeps to between them; with no slope
-  // the offset is the phase
+`ifdef AFFINE
+  // The offset is the phase less the row's slope times x, modulo 2^24. SMT does not follow
+  // a product of two variables, so the product and each successor's offset are free, held
+  // to what the true ones satisfy: no product where x is zero, the core's offset where it
+  // is at that successor's pc, and row_step's axioms. row_step's lemma holds for any
+  // inputs, so assuming it drops no run.
+  (* anyseq *) wire [23:0] product, next_offset, target_offset;
+  reg [23:0] e_product;
+  always @(posedge clk) if (entry) e_product <= product;
+  wire [23:0] offset = phase - product, e_offset = e_phase - e_product;
+  wire axioms, steps_into;
+  row_step lemma (
+    .side_set_count(side_set_count), .fraction(period_fraction != 0),
+    .loads_period(loads_period), .loaded_period(loaded_period), .capture_pin(capture_pin),
+    .capture_rising(capture_rising), .single_edge(single_edge), .word(e_word),
+    .row(e_row), .next(e_next_row), .target(e_target_row), .phase(e_phase),
+    .offset(e_offset), .arm(e_g), .period(e_p), .x(e_x), .y(e_y), .arm_known(e_g_known),
+    .captured(e_g_captured), .awaiting(e_g_awaiting), .phase_after(phase),
+    .next_offset(next_offset), .target_offset(target_offset), .period_after(p),
+    .x_after(x), .y_after(y), .axioms(axioms), .holds(steps_into));
+  always @(*) begin
+    assume(steps_into);
+    if (entry && x == 0) assume(product == 0);
+    if (entry && pending) begin
+      assume(axioms);
+      if (pc == e_next_pc) assume(next_offset == offset);
+      if (pc == e_target_pc) assume(target_offset == offset);
+    end
+  end
+  wire [23:0] slope = row[217:194], e_slope = e_row[217:194];
+  wire [47:0] full = 48'h8000007fffff;
+`ifdef OFFSET_UNCHECKED
+  // accepts reads the rows it steps to with the full offset, so it checks no offset
+`define NO_ACCEPTS
+  function [265:0] unchecked(input [265:0] r);
+    unchecked = {r[265:194], full, r[145:0]};
+  endfunction
+  wire unchecked_accepts;
+  kernel_accepts check_unchecked (
+    .side_set_count(side_set_count), .fraction(period_fraction != 0),
+    .loaded$valid(loads_period), .loaded$value(loaded_period),
+    .capture$pin(capture_pin), .capture$rising(capture_rising),
+    .capture$single_edge(single_edge), .wrap_top(wrap_top), .wrap_bottom(wrap_bottom),
+    .pc(pc), .word(instruction), .row(row), .next(unchecked(next_row)),
+    .target(unchecked(target_row)), .phase(phase), .offset(offset), .period(p), .x(x),
+    .y(y), .arm(g), .arm_known(g_known), .captured(g_captured), .awaiting(g_awaiting),
+    .next_pc(), .target_pc(), .accepts(unchecked_accepts), .within(), .starts_open());
+  always @(*) if (entry) assume(unchecked_accepts);
+`endif
+`else
+  // with no slope the offset is the phase
+  wire [23:0] offset = phase, e_offset = e_phase;
+`endif
+
+  // at an entry, and at the last one, which the core keeps to between them
   wire accepts, within, starts_open, e_accepts, e_within;
   kernel_accepts check_now (
     .side_set_count(side_set_count), .fraction(period_fraction != 0),
@@ -496,7 +558,7 @@ module phase_step (input clk);
     .capture$pin(capture_pin), .capture$rising(capture_rising),
     .capture$single_edge(single_edge), .wrap_top(wrap_top), .wrap_bottom(wrap_bottom),
     .pc(pc), .word(instruction), .row(row), .next(next_row), .target(target_row),
-    .phase(phase), .offset(phase), .period(p), .x(x), .y(y), .arm(g),
+    .phase(phase), .offset(offset), .period(p), .x(x), .y(y), .arm(g),
     .arm_known(g_known), .captured(g_captured), .awaiting(g_awaiting),
     .next_pc(next_pc), .target_pc(target_pc), .accepts(accepts), .within(within),
     .starts_open(starts_open));
@@ -506,7 +568,7 @@ module phase_step (input clk);
     .capture$pin(capture_pin), .capture$rising(capture_rising),
     .capture$single_edge(single_edge), .wrap_top(wrap_top), .wrap_bottom(wrap_bottom),
     .pc(e_pc), .word(e_word), .row(e_row), .next(e_next_row), .target(e_target_row),
-    .phase(e_phase), .offset(e_phase), .period(e_p), .x(e_x),
+    .phase(e_phase), .offset(e_offset), .period(e_p), .x(e_x),
     .y(e_y), .arm(e_g), .arm_known(e_g_known), .captured(e_g_captured),
     .awaiting(e_g_awaiting), .next_pc(e_next_pc), .target_pc(e_target_pc),
     .accepts(e_accepts), .within(e_within), .starts_open());
@@ -529,6 +591,19 @@ module phase_step (input clk);
       deadline: assert(!missed_deadline);
     end
 
-  always @(posedge clk) cover(pending && entry && e_deadline_wait && e_phase == 0);
+  always @(posedge clk) begin
+    cover(pending && entry && e_deadline_wait && e_phase == 0);
+`ifdef AFFINE
+    // a taken jmp x-- into a row of its slope with the full phase and a bounded offset,
+    // and one falling through at x = 0 from such a row to a deadline wait whose bounded
+    // phase that offset gives; both words decode and do not halt
+    cover(pending && entry && !halts && e_is_jmp && e_word[12:9] == 1 && e_x != 0
+      && pc == e_word[8:0] && row[265:218] == full && slope != 0 && slope == e_slope
+      && row[193:146] != full);
+    cover(pending && entry && !halts && deadline_wait && e_is_jmp && e_word[12:9] == 1
+      && e_x == 0 && e_row[265:218] == full && e_slope != 0 && e_row[193:146] != full
+      && row[265:218] != full);
+`endif
+  end
 `endif
 endmodule

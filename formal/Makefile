@@ -47,6 +47,20 @@ phase_table_proof:
 	sby -f phase_table.sby prove cover
 	sby -f phase_table.sby no_accepts no_open next_no_wrap target_is_next rows_while_running
 
+# The same for tables whose rows bound phase - slope * x too: row_step's lemma, the kernel's
+# check of one step, for all inputs and an opcode at a time; then the run, which assumes it;
+# each tooth must fail. About 8 min; phase_table_affine_proof runs on Verilog written
+# already, for CI.
+phase_table_affine: engine.v kernel_step.v kernel_accepts.v
+	$(MAKE) phase_table_affine_proof
+
+phase_table_affine_proof:
+	sby -f row_step.sby jmp wait in out mov set alu_x alu_y alu_p alu_t sys
+	sby -f row_step.sby no_axioms no_offset_check x_unfollowed
+	sby -f phase_table_affine.sby prove cover
+	sby -f phase_table_affine.sby offset_unchecked no_accepts no_open next_no_wrap \
+	  target_is_next rows_while_running
+
 # the edge lemma beside it: the pins change only the cycle after an entry that writes them
 edge_step: engine.v
 	sby -f edge_step.sby prove cover
@@ -367,7 +381,8 @@ sat_tools:
 	cp sat_tools/cake_lpr-$(CAKE_LPR)/cake_lpr sat_tools/bin/
 
 .PHONY: all link link_proof issue_timing host_timing late_host fifo_order phase_step phase_table \
-  phase_table_proof edge_step frame_step value_step chip_frame data_step teeth certificates \
+  phase_table_proof phase_table_affine phase_table_affine_proof edge_step frame_step value_step \
+  chip_frame data_step teeth certificates \
   certificate inductive_certificate inductive_proof inductive_certificates inductive_names \
   stamped_certificate stamped_proof data_certificate data_proof data_certificates data_names \
   netlist_equiv netlist_equiv_teeth fsm_miter fsm_miter_proof sram_equiv sram_equiv_proof \
