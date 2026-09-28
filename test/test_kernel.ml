@@ -486,6 +486,18 @@ module Reaction = struct
   ;;
 end
 
+let reaction (c : Certified.t) =
+  let program, config = assemble c in
+  let rows =
+    Analyser.analyse
+      ?period:c.period
+      ~single_capture_edge:c.single_capture_edge
+      ~config
+      program.instructions
+  in
+  Reaction.of_rows rows ~table:(Kernel.Table.of_analyser rows) |> Option.value_exn
+;;
+
 (* Every row the analyser gives the library has no slope and the full offset, so each
    table is one of the tables of intervals that formal/phase_table.sby covers. The old
    ws2812's gap loop is the one that is not. *)
@@ -593,5 +605,149 @@ let%expect_test "a bound on the jitter of every pin edge, in firmware the kernel
     (jtag (pc 8) (jitter_bound 2) (untimed (0 1 2 3 4)))
     (spi_slave_captured "no edge has a deadline" (untimed (0 5))
      (reaction ((pc 5) (at_most 3))))
+    |}]
+;;
+
+(* Watches miso answer the falling edges of sck, every reply bit the other level to the
+   one before so that each answer moves miso: [worst] is the most cycles from the core
+   first sampling sck low to miso changing. *)
+module Answers = struct
+  type t =
+    { mutable sck : int
+    ; mutable fall : int option
+    ; mutable miso : int option
+    ; mutable worst : int
+    ; mutable count : int
+    }
+
+  let create () = { sck = 0; fall = None; miso = None; worst = 0; count = 0 }
+
+  let record t (m : Machine.t) ~sck =
+    if t.sck = 1 && sck = 0 then t.fall <- Some (m.now - 1);
+    t.sck <- sck;
+    let miso = (m.pin_out lsr Firmware.slave_miso_pin) land 1 in
+    (match t.miso, t.fall with
+     | Some before, Some fall when before <> miso ->
+       t.worst <- Int.max t.worst (m.now - fall);
+       t.count <- t.count + 1
+     | _ -> ());
+    t.miso <- Some miso
+  ;;
+
+  (* [c] in lockstep with the RTL, the master's pins as [sck] and [mosi] give them each
+     cycle and [step] told miso after it *)
+  let run t (c : Certified.t) ~premise ~cycles ~sck ~mosi ~step =
+    let program, config = assemble c in
+    let sampled = ref 0 in
+    Lockstep.run
+      ~cycles
+      ~preload:(List.init Machine.fifo_depth ~f:(fun _ -> 0x55 lsl 8))
+      ~premise
+      ~config
+      ~program:(Asm.Program.words program |> ok_exn)
+      ~inputs:(fun n ->
+        sampled := sck n;
+        (!sampled lsl Firmware.slave_sck_pin) lor (mosi n lsl Firmware.slave_mosi_pin))
+      ~react:(fun m ->
+        record t m ~sck:!sampled;
+        step ((m.pin_out lsr Firmware.slave_miso_pin) land 1))
+      ()
+  ;;
+end
+
+(* [spi_slave_captured] answering [cycles] later, after a nop. *)
+let answering_later cycles =
+  { spi_slave_captured with
+    name = [%string "answering_%{cycles#Int}_later"]
+  ; source =
+      String.substr_replace_first
+        spi_slave_captured.source
+        ~pattern:"    out pins, 1\n    jmp bit"
+        ~with_:[%string "    nop [%{cycles - 1#Int}]\n    out pins, 1\n    jmp bit"]
+  }
+;;
+
+(* Each firmware against a mode 0 master over half periods and byte gaps, in lockstep with
+   the RTL. [worst] comes one under the bound, which counts the arm's own cycle, where the
+   capture cannot fall. *)
+let%expect_test "every answer to a captured edge comes within the reaction bound" =
+  let module Spi_peer = Protocol_models.Spi_peer in
+  List.iter
+    [ spi_slave_captured, [ 4; 5; 6; 8 ]
+    ; answering_later 1, [ 6; 8 ]
+    ; answering_later 4, [ 8; 10 ]
+    ]
+    ~f:(fun ((c : Certified.t), half_periods) ->
+      let answers = Answers.create () in
+      let premise = Premise.create () in
+      let bytes = [ 0xa5; 0x3c; 0xf0 ] in
+      let exchanged =
+        List.for_all half_periods ~f:(fun half_period ->
+          List.for_all [ 0; 1; 3 ] ~f:(fun gap ->
+            let master = ref (Spi_peer.create ~gap ~half_period bytes) in
+            let m, mismatch =
+              Answers.run
+                answers
+                c
+                ~premise
+                ~cycles:((64 * half_period) + 32)
+                ~sck:(fun _ -> Spi_peer.sck !master)
+                ~mosi:(fun _ -> Spi_peer.mosi !master)
+                ~step:(fun miso -> master := Spi_peer.step !master ~miso)
+            in
+            Option.is_none mismatch
+            && [%equal: int list] m.rx_fifo bytes
+            && [%equal: int list]
+                 (Spi_peer.received !master)
+                 (List.map bytes ~f:(fun _ -> 0x55))))
+      in
+      print_s
+        [%message
+          c.name
+            ~reaction:(reaction c : Reaction.t)
+            ~worst:(answers.worst : int)
+            ~answers:(answers.count : int)
+            (exchanged : bool)
+            ~premise:(Premise.count premise : Premise.Count.t)]);
+  [%expect
+    {|
+    (spi_slave_captured (reaction ((pc 5) (at_most 3))) (worst 2) (answers 288)
+     (exchanged true)
+     (premise ((arms 288) (at_captured_level 0) (left_captured_level 0))))
+    (answering_1_later (reaction ((pc 6) (at_most 4))) (worst 3) (answers 144)
+     (exchanged true)
+     (premise ((arms 144) (at_captured_level 0) (left_captured_level 0))))
+    (answering_4_later (reaction ((pc 6) (at_most 7))) (worst 6) (answers 144)
+     (exchanged true)
+     (premise ((arms 144) (at_captured_level 0) (left_captured_level 0))))
+    |}]
+;;
+
+(* Teeth: sck high for one cycle only, so the arm finds it low already and the capture
+   misses the edge. The answer then comes later after the edge than the bound. *)
+let%expect_test "the reaction bound rests on the single-edge assumption" =
+  let answers = Answers.create () in
+  let premise = Premise.create () in
+  let _, mismatch =
+    Answers.run
+      answers
+      spi_slave_captured
+      ~premise
+      ~cycles:240
+      ~sck:(fun n -> Bool.to_int (n % 12 = 0))
+      ~mosi:(Fn.const 0)
+      ~step:ignore
+  in
+  print_s
+    [%message
+      spi_slave_captured.name
+        ~reaction:(reaction spi_slave_captured : Reaction.t)
+        ~worst:(answers.worst : int)
+        (mismatch : (int * Lockstep.State.t * Lockstep.State.t) option)
+        ~premise:(Premise.count premise : Premise.Count.t)];
+  [%expect
+    {|
+    (spi_slave_captured (reaction ((pc 5) (at_most 3))) (worst 4) (mismatch ())
+     (premise ((arms 19) (at_captured_level 19) (left_captured_level 0))))
     |}]
 ;;
