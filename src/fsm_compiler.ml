@@ -343,6 +343,60 @@ let find_tick c =
        ~error:(Error.of_string "no register counts to a constant to make the tick")
 ;;
 
+let rec reads (term : Term.t) =
+  match term with
+  | Const _ | Input _ -> []
+  | Reg r -> [ r ]
+  | Op2 (_, a, b) -> reads a @ reads b
+  | Not a | Select (a, _, _) -> reads a
+  | Cat ts -> List.concat_map ts ~f:reads
+  | Mux (c, ts) -> List.concat_map (c :: ts) ~f:reads
+;;
+
+(* With the constants folded, a register neither the pin nor the state reads in any state
+   cannot move the pin, so it is left out. *)
+let keep_live c =
+  let next_values (s : Signal.t) =
+    List.map c.states ~f:(fun (state, _) -> next_value c ~state s)
+  in
+  let rec grow live =
+    let read =
+      List.filter c.regs ~f:(fun r -> Set.mem live r.name)
+      |> List.concat_map ~f:(fun r -> next_values r.signal)
+      |> List.append (next_values c.state_reg)
+      |> List.concat_map ~f:reads
+    in
+    let live' = Set.union live (String.Set.of_list read) in
+    if Set.equal live live' then live else grow live'
+  in
+  let live = grow (String.Set.singleton c.line.name) in
+  { c with regs = List.filter c.regs ~f:(fun r -> Set.mem live r.name) }
+;;
+
+(* The states the clear value reaches, by the constants a next state can take. A next
+   state that is not a mux of constants may be any state. *)
+let reachable c =
+  let rec targets (term : Term.t) =
+    match term with
+    | Const b -> Some [ b ]
+    | Mux (_, cases) ->
+      List.map cases ~f:targets |> Option.all |> Option.map ~f:List.concat
+    | _ -> None
+  in
+  let rec go seen = function
+    | [] -> Some seen
+    | state :: rest when List.mem seen state ~equal:Bits.equal -> go seen rest
+    | state :: rest ->
+      Option.bind
+        (targets (next_value c ~state c.state_reg))
+        ~f:(fun next -> go (state :: seen) (next @ rest))
+  in
+  match go [] [ c.initial ] with
+  | None -> c.states
+  | Some seen ->
+    List.filter c.states ~f:(fun (state, _) -> List.mem seen state ~equal:Bits.equal)
+;;
+
 let read_state c ~(tick : Tick.t) ~state ~name =
   let open Or_error.Let_syntax in
   let next = next_value c ~state in
@@ -628,9 +682,10 @@ let compile circuit =
   let open Or_error.Let_syntax in
   Or_error.try_with_join (fun () ->
     let%bind c = read_circuit circuit in
+    let c = keep_live c in
     let%bind tick = find_tick c in
     let%bind states =
-      List.map c.states ~f:(fun (state, name) -> read_state c ~tick ~state ~name)
+      List.map (reachable c) ~f:(fun (state, name) -> read_state c ~tick ~state ~name)
       |> Or_error.all
     in
     let label_of v =

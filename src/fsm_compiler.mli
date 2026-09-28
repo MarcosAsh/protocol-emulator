@@ -4,7 +4,8 @@
     refused with the state and assignment at fault:
 
     - One [Always.State_machine] (waveform state names) and plain regs with constant
-      clears and no enables.
+      clears and no enables. Regs the pin and state never read, and states the clear never
+      reaches once constants fold, are dropped.
     - A tick counting to a constant and back to zero, as [enable_rate] in
       hardcaml_hobby_boards' [Uart.Tx]: becomes [p].
     - One 1-bit output register, pin OUT0, taking constants or bit 0 of the shift
