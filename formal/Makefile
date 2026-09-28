@@ -371,13 +371,14 @@ netlist_equiv_teeth:
 # (test/checked_unsat.ml), in sat_tools/bin; CI caches it. About 1 min.
 CADICAL = c60730422e758ef1cebe7aeddf2dda31c996bf04
 CAKE_LPR = a36874a8b750b43fe4b385b8ddbf5b033e46a3fa
+CAKE_LPR_ARCH = $(if $(filter arm64 aarch64,$(shell uname -m)),cake_lpr_arm8,cake_lpr)
 sat_tools:
 	rm -rf sat_tools && mkdir -p sat_tools/bin
 	curl -fsSL https://github.com/arminbiere/cadical/archive/$(CADICAL).tar.gz | tar xz -C sat_tools
 	cd sat_tools/cadical-$(CADICAL) && ./configure && $(MAKE) -j4
 	cp sat_tools/cadical-$(CADICAL)/build/cadical sat_tools/bin/
 	curl -fsSL https://github.com/tanyongkiam/cake_lpr/archive/$(CAKE_LPR).tar.gz | tar xz -C sat_tools
-	cd sat_tools/cake_lpr-$(CAKE_LPR) && rm -f cake_lpr && $(MAKE) cake_lpr
+	cd sat_tools/cake_lpr-$(CAKE_LPR) && rm -f cake_lpr && $(MAKE) $(CAKE_LPR_ARCH)
 	cp sat_tools/cake_lpr-$(CAKE_LPR)/cake_lpr sat_tools/bin/
 
 .PHONY: all link link_proof issue_timing host_timing late_host fifo_order phase_step phase_table \
