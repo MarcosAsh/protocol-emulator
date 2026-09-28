@@ -421,10 +421,14 @@ witness_model:
 
 # One check, UNSAT only if cake_lpr verifies the LRAT proof cadical pipes to it; on disk
 # Inductive's would take GBs. Either side dying ends the other, with SIGPIPE or at EOF.
+# HEAP is cake_lpr's in MB: phase_step's checks pass in 2048; phase_table's Transition
+# exhausts 4096 and passes in 12288.
+HEAP = 4096
 witness_unsat:
 	cd $(W) && aigtocnf $(CHECK).aig $(CHECK).cnf
 	cd $(W) && { cadical -q --unsat --lrat=true -w $(CHECK).cadical $(CHECK).cnf -; \
-	  echo $$? >> $(CHECK).cadical; } | cake_lpr $(CHECK).cnf /dev/stdin > $(CHECK).cake 2>&1
+	  echo $$? >> $(CHECK).cadical; } \
+	  | cake_lpr --CML_HEAP_SIZE=$(HEAP) $(CHECK).cnf /dev/stdin > $(CHECK).cake 2>&1
 	[ "$$(tail -n 1 $(W)/$(CHECK).cadical)" = 20 ]
 	[ "$$(cat $(W)/$(CHECK).cake)" = "s VERIFIED UNSAT" ]
 	rm $(W)/$(CHECK).cnf
