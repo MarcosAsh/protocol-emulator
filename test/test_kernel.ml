@@ -435,6 +435,57 @@ let%expect_test "ws2812's gap loop needs an offset, or its wait moved into the l
     |}]
 ;;
 
+(* spi_slave arming the capture once sck is high, so the falling edge it answers is the
+   captured one. The single-edge assumption asks that sck is still high when the arm
+   issues, two cycles after the wait for it to rise releases. *)
+let spi_slave_captured =
+  let c = Certified.find_exn "spi_slave" in
+  { c with
+    name = "spi_slave_captured"
+  ; source =
+      String.substr_replace_first
+        c.source
+        ~pattern:"in pins, 1\n"
+        ~with_:"in pins, 1\n    capture_arm\n"
+  ; config =
+      { c.config with capture_pin = Firmware.slave_sck_pin; capture_rising = false }
+  ; single_capture_edge = true
+  }
+;;
+
+(* the rows that write pins, as the jitter bound below counts them *)
+let writes_pins (r : Analyser.Row.t) =
+  Option.is_some r.flip
+  || Option.is_some r.side_event
+  ||
+  match r.pin_event with
+  | Some (Edge _) -> true
+  | Some (Sample _) | None -> false
+;;
+
+module Reaction = struct
+  type t =
+    { pc : int
+    ; at_most : int
+    }
+  [@@deriving sexp_of]
+
+  (* the widest of [rows], as [table] holds them, that writes pins, has seen the captured
+     edge and bounds the arm *)
+  let of_rows rows ~(table : Kernel.Table.t) =
+    let module Kernel_bits = Kernel.Make (Bits) in
+    let arm_hi pc = Bits.to_unsigned_int table.(pc).arm_hi in
+    List.filter_map rows ~f:(fun (r : Analyser.Row.t) ->
+      let row = table.(r.pc) in
+      Option.some_if
+        (writes_pins r
+         && Bits.to_bool Bits.(row.captured &: ~:(Kernel_bits.arm_is_full row)))
+        r.pc)
+    |> List.max_elt ~compare:(Comparable.lift Int.compare ~f:arm_hi)
+    |> Option.map ~f:(fun pc -> { pc; at_most = arm_hi pc + 1 })
+  ;;
+end
+
 (* Every row the analyser gives the library has no slope and the full offset, so each
    table is one of the tables of intervals that formal/phase_table.sby covers. The old
    ws2812's gap loop is the one that is not. *)
@@ -472,10 +523,14 @@ let%expect_test "the library's tables are rows of intervals" =
    is named. It is a bound and not the jitter of any one edge: side-set counts even where
    it drives the level the pins already hold, which neither lemma knows. A row the kernel
    leaves unbounded, before the first [mov t, now], after a wait on a pin or the host, or
-   in a loop as long as its data, has no deadline, and its pc is listed as untimed. *)
+   in a loop as long as its data, has no deadline, and its pc is listed as untimed.
+
+   Reaction: a row that writes pins, has seen the captured edge and bounds the arm enters
+   within [arm_hi] cycles of the core sampling the edge ([formal/phase_step.sv]); its edge
+   shows within [arm_hi + 1]. Single-edge assumption; [Top]'s synchroniser adds two. *)
 let%expect_test "a bound on the jitter of every pin edge, in firmware the kernel accepts" =
   let module Kernel_bits = Kernel.Make (Bits) in
-  List.iter Certified.all ~f:(fun (c : Certified.t) ->
+  List.iter (Certified.all @ [ spi_slave_captured ]) ~f:(fun (c : Certified.t) ->
     if Result.is_ok (check c)
     then (
       let program, config = assemble c in
@@ -487,14 +542,6 @@ let%expect_test "a bound on the jitter of every pin edge, in firmware the kernel
           program.instructions
       in
       let table = Kernel.Table.of_analyser rows in
-      let writes_pins (r : Analyser.Row.t) =
-        Option.is_some r.flip
-        || Option.is_some r.side_event
-        ||
-        match r.pin_event with
-        | Some (Edge _) -> true
-        | Some (Sample _) | None -> false
-      in
       let width_at pc =
         let row = table.(pc) in
         Bits.to_signed_int row.phase_hi - Bits.to_signed_int row.phase_lo
@@ -506,13 +553,24 @@ let%expect_test "a bound on the jitter of every pin edge, in firmware the kernel
       let widest =
         List.max_elt timed ~compare:(Comparable.lift Int.compare ~f:width_at)
       in
+      let reaction = Reaction.of_rows rows ~table in
       match widest, untimed with
       | Some pc, _ ->
         print_s
           [%message
-            c.name (pc : int) ~jitter_bound:(width_at pc : int) (untimed : int list)]
+            c.name
+              (pc : int)
+              ~jitter_bound:(width_at pc : int)
+              (untimed : int list)
+              (reaction : (Reaction.t option[@sexp.option]))]
       | None, [] -> print_s [%message c.name "writes no pins"]
-      | None, _ -> print_s [%message c.name "no edge has a deadline" (untimed : int list)]));
+      | None, _ ->
+        print_s
+          [%message
+            c.name
+              "no edge has a deadline"
+              (untimed : int list)
+              (reaction : (Reaction.t option[@sexp.option]))]));
   [%expect
     {|
     (uart_tx (pc 6) (jitter_bound 0) (untimed (1)))
@@ -533,5 +591,7 @@ let%expect_test "a bound on the jitter of every pin edge, in firmware the kernel
     (one_wire (pc 11) (jitter_bound 0) (untimed ()))
     (ps2 (pc 15) (jitter_bound 0) (untimed ()))
     (jtag (pc 8) (jitter_bound 2) (untimed (0 1 2 3 4)))
+    (spi_slave_captured "no edge has a deadline" (untimed (0 5))
+     (reaction ((pc 5) (at_most 3))))
     |}]
 ;;
