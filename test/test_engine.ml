@@ -379,3 +379,76 @@ let%expect_test "every mov and alu form" =
     Sweep_program.words);
   [%expect {| ((programs 4) (failed ())) |}]
 ;;
+
+module Narrow = Engine.Make (struct
+    let timer_bits = 7
+  end)
+
+module Narrow_harness = Hardcaml_test_harness.Lws_harness.Make (Engine.I) (Narrow.O)
+
+let%expect_test "a 7-bit timer wraps and its deadlines keep their spacing" =
+  let program =
+    assemble
+      {|
+    set p, 20
+    mov t, now
+    add t, p
+loop:
+    wait t+
+    set pins, 1
+    wait t+
+    set pins, 0
+    jmp loop
+|}
+  in
+  Narrow_harness.run
+    ~random_initial_state:`All
+    ~create:(Narrow.hierarchical ~memory:Flops)
+    (fun (h @ local) ~inputs:i ~outputs ->
+       let cycle () = Lws.cycle h in
+       let after () = Before_and_after_edge.after_edge outputs in
+       i.clocking.clear := Bits.vdd;
+       cycle ();
+       i.clocking.clear := Bits.gnd;
+       Engine.Config.iter2
+         i.config
+         (Engine.Config.of_program_config Program_config.default)
+         ~f:( := );
+       List.iteri program ~f:(fun addr word ->
+         i.program_write.valid := Bits.vdd;
+         i.program_write.addr <--. addr;
+         i.program_write.data <--. word;
+         cycle ());
+       i.program_write.valid := Bits.gnd;
+       i.start := Bits.vdd;
+       cycle ();
+       i.start := Bits.gnd;
+       (* each edge of the pin, with the cycle since the start and [now] then *)
+       let edges =
+         List.range 1 300
+         |> List.filter_map ~f:(fun n ->
+           let before = Bits.to_unsigned_int !((after ()).pin_out) in
+           cycle ();
+           let o = after () in
+           Option.some_if
+             (Bits.to_unsigned_int !(o.pin_out) <> before)
+             (n, Bits.to_unsigned_int !(o.now)))
+       in
+       let gaps =
+         List.map2_exn
+           (List.drop_last_exn edges)
+           (List.tl_exn edges)
+           ~f:(fun (a, _) (b, _) -> b - a)
+         |> List.dedup_and_sort ~compare:Int.compare
+       in
+       let missed_deadline = Bits.to_bool !((after ()).fault.missed_deadline) in
+       print_s
+         [%message (edges : (int * int) list) (gaps : int list) (missed_deadline : bool)]);
+  [%expect
+    {|
+    ((edges
+      ((24 23) (44 43) (64 63) (84 83) (104 103) (124 123) (144 15) (164 35)
+       (184 55) (204 75) (224 95) (244 115) (264 7) (284 27)))
+     (gaps (20)) (missed_deadline false))
+    |}]
+;;

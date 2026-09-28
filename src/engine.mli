@@ -104,48 +104,60 @@ module I : sig
   [@@deriving hardcaml]
 end
 
-(** Exposes architectural state for lockstep tests and formal proofs. *)
-module O : sig
-  type 'a t =
-    { pin_out : 'a
-    ; pin_dir : 'a (** Set for a bidirectional pin the core drives. *)
-    ; pc : 'a
-    ; data_ptr : 'a
-    ; data_addr : 'a (** Where [data_ptr] will be next cycle. *)
-    ; x : 'a
-    ; y : 'a
-    ; p : 'a
-    ; t : 'a
-    ; t_fraction : 'a
-    ; osr : 'a
-    ; osr_count : 'a
-    ; isr : 'a
-    ; isr_count : 'a
-    ; now : 'a
-    ; stall : 'a (** Cycles until the next issue. *)
-    ; halted : 'a
-    ; irq : 'a
-    ; fault : 'a Fault.t
-    ; capture : 'a
-    ; capture_armed : 'a
-    ; tx_level : 'a
-    ; rx_level : 'a
-    ; rx_head : 'a
-    ; instruction : 'a (** The word at [pc]. *)
-    ; decode_ok : 'a (** Registered with [instruction], as are the next two. *)
-    ; opcode_onehot : 'a
-    ; wait_select : 'a (** Bit [n] for the pin the wait field names. *)
-    ; crc : 'a
-    ; stuff_run : 'a
-    ; flip_pending : 'a
-    ; flip_bit : 'a
-    }
-  [@@deriving hardcaml]
+(** The timer's width, [Isa.timer_bits] on the chip. A narrower one wraps within reach of
+    a bounded proof; [t], [now] and [capture] narrow with it, and a mov or an in of one
+    reads it zero-extended. *)
+module type Timer = sig
+  val timer_bits : int
 end
 
-val hierarchical
-  :  ?instance:string
-  -> memory:Memory.t
-  -> Scope.t
-  -> Signal.t I.t
-  -> Signal.t O.t
+module Make (_ : Timer) : sig
+  (** Exposes architectural state for lockstep tests and formal proofs. *)
+  module O : sig
+    type 'a t =
+      { pin_out : 'a
+      ; pin_dir : 'a (** Set for a bidirectional pin the core drives. *)
+      ; pc : 'a
+      ; data_ptr : 'a
+      ; data_addr : 'a (** Where [data_ptr] will be next cycle. *)
+      ; x : 'a
+      ; y : 'a
+      ; p : 'a
+      ; t : 'a
+      ; t_fraction : 'a
+      ; osr : 'a
+      ; osr_count : 'a
+      ; isr : 'a
+      ; isr_count : 'a
+      ; now : 'a
+      ; stall : 'a (** Cycles until the next issue. *)
+      ; halted : 'a
+      ; irq : 'a
+      ; fault : 'a Fault.t
+      ; capture : 'a
+      ; capture_armed : 'a
+      ; tx_level : 'a
+      ; rx_level : 'a
+      ; rx_head : 'a
+      ; instruction : 'a (** The word at [pc]. *)
+      ; decode_ok : 'a (** Registered with [instruction], as are the next two. *)
+      ; opcode_onehot : 'a
+      ; wait_select : 'a (** Bit [n] for the pin the wait field names. *)
+      ; crc : 'a
+      ; stuff_run : 'a
+      ; flip_pending : 'a
+      ; flip_bit : 'a
+      }
+    [@@deriving hardcaml]
+  end
+
+  val hierarchical
+    :  ?instance:string
+    -> memory:Memory.t
+    -> Scope.t
+    -> Signal.t I.t
+    -> Signal.t O.t
+end
+
+(** The chip's core. *)
+include module type of Make (Isa)
