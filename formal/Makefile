@@ -409,6 +409,7 @@ witness_proof:
 	cd $(LEMMA)_witness && certifaiger model.aig witness.aig check.aig > certifaiger.log
 	cd $(LEMMA)_witness && aigsplit -n check.aig
 	for check in $(CHECKS); do $(MAKE) witness_unsat W=$(LEMMA)_witness CHECK=$$check || exit 1; done
+	$(MAKE) witness_teeth
 
 # the task's [script] and [files] from the .sby, through witness/model.ys, in $(W)
 witness_model:
@@ -428,7 +429,40 @@ witness_unsat:
 	rm -f $(W)/$(CHECK).lrat $(W)/$(CHECK).cnf
 	@echo "$(W): $(CHECK) verified"
 
-.PHONY: witness witness_proof witness_model witness_unsat
+# Each weakened copy the .sby expects to fail, through the same script: rIC3 has to find a
+# counterexample within the task's depth that aigsim replays to a bad state, so model.ys
+# cannot have made the model vacuous, and Certifaiger has to reject the lemma's witness.
+# At least WITNESS_TEETH_<lemma> of them, so none go missing unnoticed.
+WITNESS_TEETH_phase_step = 10
+WITNESS_TEETH_edge_step = 5
+WITNESS_TEETH_phase_table = 5
+witness_teeth:
+	teeth=0; for task in $$(sby --dumptasks $(LEMMA).sby); do \
+	  sby --dumpcfg $(LEMMA).sby $$task | grep -qx 'expect fail' || continue; \
+	  $(MAKE) witness_tooth TASK=$$task W=$(LEMMA)_witness_$$task || exit 1; \
+	  teeth=$$((teeth + 1)); \
+	done; \
+	[ $$teeth -ge "$(WITNESS_TEETH_$(LEMMA))" ] \
+	  || { echo "$(LEMMA): $$teeth teeth, want $(WITNESS_TEETH_$(LEMMA))"; exit 1; }
+
+witness_tooth:
+	$(MAKE) witness_model
+	cd $(W) && rIC3 -e bmc --end $$(awk '$$1 == "depth" { print $$2 }' task.sby) --witness model.aig \
+	  > ric3.log; [ $$? = 10 ]
+	cd $(W) && sed -n '/^1$$/,/^\.$$/p' ric3.log > cex.aiw && aigsim -c model.aig cex.aiw
+	$(MAKE) witness_reject
+
+# One of the witness's checks is satisfiable, cheapest first. Anything else failing, a
+# missing witness or a tool erroring out, is an error, not a rejection.
+witness_reject:
+	cd $(W) && certifaiger model.aig ../$(LEMMA)_witness/witness.aig check.aig > certifaiger.log
+	cd $(W) && aigsplit -n check.aig && for check in $(CHECKS); do \
+	    aigtocnf $$check.aig $$check.cnf && cadical -q $$check.cnf > $$check.cadical; \
+	    case $$? in 10) echo "$(W): $$check fails"; exit 0 ;; 20) ;; *) exit 1 ;; esac; \
+	  done; exit 1
+
+.PHONY: witness witness_proof witness_model witness_unsat witness_teeth witness_tooth \
+  witness_reject
 
 .PHONY: all link link_proof issue_timing host_timing late_host fifo_order phase_step phase_table \
   phase_table_proof phase_table_affine phase_table_affine_proof edge_step frame_step value_step \
