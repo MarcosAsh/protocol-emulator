@@ -1,0 +1,24 @@
+# The kernel's Verilog, which the RTL proofs read, equals the gates its SAT proofs build
+# (generate.exe kernel-gates: Kernel.Make over Bits_list, the construction Comb_gates
+# uses), every output for every input. The Makefile copies in rtl.v and gates.aag, for
+# the step or the check of a row. Trusted: yosys's frontend, proc, aigmap; ABC.
+
+read_verilog rtl.v
+hierarchy -check -auto-top
+proc
+flatten
+opt_clean
+# an x in the Verilog would be free here, and there is none
+setundef -anyseq
+select -assert-none t:$anyseq
+check -assert
+# one-bit ports, as read_aiger makes them
+splitnets -ports
+rename -top rtl
+read_aiger -module_name gates gates.aag
+miter -equiv -flatten rtl gates miter
+hierarchy -top miter
+techmap
+aigmap
+opt_clean -purge
+write_aiger miter.aig

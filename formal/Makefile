@@ -1,5 +1,6 @@
 all: issue_timing host_timing late_host fifo_order phase_step edge_step frame_step value_step \
-  chip_frame data_step teeth fsm_miter sram_equiv
+  chip_frame data_step teeth fsm_miter sram_equiv \
+  kernel_equiv
 
 engine.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe engine > formal/engine.v
@@ -238,6 +239,38 @@ sram_equiv_teeth:
 	  -c 'read_aiger zero.aig; print_stats; dprove; print_status' > proof.log
 	grep 'Status = 1 ' sram_equiv_zero/proof.log
 
+kernel_gates.aag: ../src/*.ml
+	cd .. && dune exec -- bin/generate.exe kernel-gates > formal/kernel_gates.aag
+
+kernel_accepts_gates.aag: ../src/*.ml
+	cd .. && dune exec -- bin/generate.exe kernel-gates -accepts > formal/kernel_accepts_gates.aag
+
+# the kernel's step and its check of a row, as the Verilog the RTL proofs read, are the
+# gates its SAT proofs build (kernel_equiv/miter.ys); each with one gate flipped must
+# fail. About 15 s; kernel_equiv_proof runs on files written already.
+kernel_equiv: kernel_step.v kernel_gates.aag kernel_accepts.v kernel_accepts_gates.aag
+	$(MAKE) kernel_equiv_proof
+
+kernel_equiv_proof:
+	$(MAKE) kernel_miter RTL=kernel_step.v GATES=kernel_gates.aag KERNEL=kernel_equiv_step
+	$(MAKE) kernel_miter RTL=kernel_accepts.v GATES=kernel_accepts_gates.aag \
+	  KERNEL=kernel_equiv_accepts
+	$(MAKE) kernel_miter RTL=kernel_step.v GATES=kernel_gates.aag KERNEL=kernel_equiv_step_flip \
+	  FLIP='awk -f kernel_equiv/flip.awk' EXPECT=0
+	$(MAKE) kernel_miter RTL=kernel_accepts.v GATES=kernel_accepts_gates.aag \
+	  KERNEL=kernel_equiv_accepts_flip FLIP='awk -f kernel_equiv/flip.awk' EXPECT=0
+
+FLIP = cat
+kernel_miter:
+	rm -rf $(KERNEL) && mkdir $(KERNEL)
+	cp $(RTL) $(KERNEL)/rtl.v
+	$(FLIP) $(GATES) > $(KERNEL)/gates.aag
+	[ "$(FLIP)" = cat ] || ! cmp -s $(GATES) $(KERNEL)/gates.aag
+	cd $(KERNEL) && yosys -q -l miter.log ../kernel_equiv/miter.ys
+	cd $(KERNEL) && timeout 600 yosys-abc \
+	  -c 'read_aiger miter.aig; print_stats; dprove; print_status' > proof.log
+	grep 'Status = $(EXPECT) ' $(KERNEL)/proof.log
+
 # the hardened netlist equals the RTL, macros cut (netlist_equiv/miter.ys); about 2 min:
 #   make netlist_equiv NETLIST=../runs/wokwi/final/nl/tt_um_marcosash_protocol_emulator.nl.v
 STDCELL = $(PDK_ROOT)/ihp-sg13cmos5l/libs.ref/sg13cmos5l_stdcell
@@ -302,4 +335,4 @@ netlist_equiv_teeth:
   certificate inductive_certificate inductive_proof inductive_certificates inductive_names \
   stamped_certificate stamped_proof data_certificate data_proof data_certificates data_names \
   netlist_equiv netlist_equiv_teeth fsm_miter fsm_miter_proof sram_equiv sram_equiv_proof \
-  sram_equiv_step sram_equiv_teeth
+  sram_equiv_step sram_equiv_teeth kernel_equiv kernel_equiv_proof kernel_miter

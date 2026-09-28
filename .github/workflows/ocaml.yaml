@@ -60,7 +60,9 @@ jobs:
           opam exec -- dune exec -- bin/generate.exe kernel-accepts > formal/kernel_accepts.v
           opam exec -- dune exec -- bin/generate.exe memory > formal/memory_flops.v
           opam exec -- dune exec -- bin/generate.exe memory -sram > formal/memory_sram.v
-          make -C formal issue_timing host_timing late_host fifo_order phase_step edge_step frame_step value_step chip_frame data_step teeth fsm_miter_proof sram_equiv_proof
+          opam exec -- dune exec -- bin/generate.exe kernel-gates > formal/kernel_gates.aag
+          opam exec -- dune exec -- bin/generate.exe kernel-gates -accepts > formal/kernel_accepts_gates.aag
+          make -C formal issue_timing host_timing late_host fifo_order phase_step edge_step frame_step value_step chip_frame data_step teeth fsm_miter_proof sram_equiv_proof kernel_equiv_proof
 
       # each inductive certificate, the stamped one and the ones with data claims too, is
       # proved in a job of its own below
