@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Firmware Timing Playground</title>
+<style>
+  :root { --bg: #fff; --fg: #1a1a1a; --muted: #666; --code: #f4f4f4; --ok: #1a7f37; --bad: #c62828; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #161616; --fg: #e8e8e8; --muted: #9a9a9a; --code: #232323; --ok: #57c27a; --bad: #ef6a6a; }
+  }
+  :root[data-theme="dark"] { --bg: #161616; --fg: #e8e8e8; --muted: #9a9a9a; --code: #232323; --ok: #57c27a; --bad: #ef6a6a; }
+  body { font: 14px/1.4 system-ui, sans-serif; margin: 0 auto; padding: 16px; max-width: 60rem; background: var(--bg); color: var(--fg); }
+  textarea, pre { font: 13px/1.4 ui-monospace, monospace; width: 100%; box-sizing: border-box; background: var(--code); color: var(--fg); border: 0; padding: 8px; }
+  textarea { height: 20rem; }
+  pre { overflow-x: auto; white-space: pre; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin: 8px 0; }
+  input[type=number] { width: 5rem; }
+  #verdict { font-size: 1.2rem; font-weight: 600; }
+  .accepted { color: var(--ok); }
+  .refused { color: var(--bad); }
+  .muted { color: var(--muted); }
+</style>
+</head>
+<body>
+<h1>Firmware timing playground</h1>
+<p class="muted">The assembler, the timing analyser and the kernel, compiled to JavaScript
+with js_of_ocaml. The kernel checks the analyser's rows one instruction at a time; the
+proofs that its check is sound run in CI, not here.</p>
+<div class="controls">
+  <label>Example <select id="example"></select></label>
+  <label>Period <input id="period" type="number" min="1" placeholder="none"></label>
+  <label>Capture pin <input id="capture-pin" type="number" min="0" value="0"></label>
+  <label><input id="capture-falling" type="checkbox"> Falling</label>
+  <label><input id="single-edge" type="checkbox"> Single capture edge</label>
+  <button id="check">Check</button>
+</div>
+<textarea id="source" spellcheck="false"></textarea>
+<p id="verdict"></p>
+<pre id="detail"></pre>
+<h2>Listing</h2>
+<pre id="listing"></pre>
+<h2>Analyser rows</h2>
+<pre id="rows"></pre>
+<script src="playground.bc.js"></script>
+<script>
+  const pe = protocolEmulator;
+  const $ = (id) => document.getElementById(id);
+  pe.examples.forEach(([name], i) => $("example").add(new Option(name, i)));
+  const load = () => { $("source").value = pe.examples[$("example").value][1]; };
+  const run = () => {
+    const period = $("period").value === "" ? null : Number($("period").value);
+    const pin = Number($("capture-pin").value) || 0;
+    const r = pe.check($("source").value, period, $("single-edge").checked, pin,
+      $("capture-falling").checked);
+    $("verdict").textContent = r.verdict;
+    $("verdict").className = r.verdict === "accepted" ? "accepted" : "refused";
+    $("detail").textContent = r.detail;
+    $("listing").textContent = r.listing;
+    $("rows").textContent = r.rows;
+  };
+  $("example").onchange = () => { load(); run(); };
+  $("check").onclick = run;
+  load();
+  run();
+</script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-; Needs js_of_ocaml, which the locked switch lacks: PLAYGROUND=yes dune build ./playground/playground.bc.js
+; Needs js_of_ocaml, which the locked switch lacks: PLAYGROUND=yes dune build @playground/page
 
 (executable
  (name playground)
@@ -22,3 +22,9 @@
    (echo "|}\n  ; \"gap_adding_x\", {|")
    (cat %{dep:gap_adding_x.asm})
    (echo "|}\n  ]\n"))))
+
+(alias
+ (name page)
+ (enabled_if
+  (= %{env:PLAYGROUND=no} yes))
+ (deps index.html playground.bc.js))
