@@ -64,8 +64,8 @@ module G = Hardcaml_verify.Comb_gates
 
 (* Where the host picks the rate, the least period it may load. The analyser's table for
    loads of the floor or more passes the kernel at every such load, by checked SAT; at the
-   floor less one the kernel refuses its table. With phase_step.sv, whose loaded period is
-   any constant, no deadline is missed at any constant period from the floor up. *)
+   floor less one the kernel refuses its table. With phase_step.sv, whose load is free at
+   each entry, no deadline is missed however the loads from the floor up vary. *)
 let%expect_test "the least period the host may load" =
   List.iter Certified.all ~f:(fun t ->
     Option.iter t.period_floor ~f:(fun floor ->

@@ -24,11 +24,12 @@ module phase_step (input clk);
   (* anyconst *) wire [8:0] wrap_bottom, wrap_top;
   (* anyconst *) wire [15:0] period_fraction;
   (* anyconst *) wire autopull_data, manchester;
-  // the assumption the kernel may take: every run-time write to p carries loaded_period
+  // the assumption the kernel may take: a run-time write to p carries loaded_period as it
+  // stood at the entry of the instruction that writes it, free at each entry
   (* anyconst *) wire loads_period;
+  (* anyseq *) wire [15:0] loaded_period;
   // and that the capture pin makes one edge from capture_arm to the wait for it
   (* anyconst *) wire single_edge;
-  (* anyconst *) wire [15:0] loaded_period;
   // a pair of pins whose edges the kernel spaces, each its pindirs bit if pair_dirs, and
   // the least cycles, four entries each, indexed by the two bits before an edge
   (* anyconst *) wire [4:0] pin_a, pin_b;
@@ -196,7 +197,7 @@ module phase_step (input clk);
   // after, [now + stall] is the next entry's cycle and t what the instruction left.
   reg pending = 0;
   reg done = 0;
-  reg [15:0] e_word, e_p, e_x, e_y;
+  reg [15:0] e_word, e_p, e_x, e_y, e_loaded;
   reg [8:0] e_pc;
   reg [23:0] e_t, e_now, e_phase, e_next_now, e_t_after;
   wire [23:0] e_step = step_of(e_word);
@@ -210,6 +211,7 @@ module phase_step (input clk);
     if (entry) begin
       e_word <= instruction;
       e_p <= p;
+      e_loaded <= loaded_period;
       e_x <= x;
       e_y <= y;
       e_pc <= pc;
@@ -299,7 +301,7 @@ module phase_step (input clk);
     .next_a$fresh(next_fresh_a), .next_b$since(next_since_b),
     .next_b$level(next_level_b), .next_b$fresh(next_fresh_b), .wide_a(wide_a),
     .wide_b(wide_b),
-    .loaded$valid(loads_period), .loaded$value(loaded_period), .word(e_word),
+    .loaded$valid(loads_period), .loaded$value(e_loaded), .word(e_word),
     .capture$pin(capture_pin), .capture$rising(capture_rising),
     .capture$single_edge(single_edge), .arm(e_g), .arm_known(e_g_known),
     .captured(e_g_captured), .awaiting(e_awaiting), .next_awaiting(awaiting_next),
@@ -328,7 +330,15 @@ module phase_step (input clk);
 
   reg wrote_p = 0;
   always @(posedge clk) wrote_p <= !clear && completes && !keeps_period;
-  always @(*) if (loads_period && wrote_p) assume(p == loaded_period);
+  always @(*) if (loads_period && wrote_p) assume(p == e_loaded);
+  // the last load, for a cover of two that differ in one run
+  reg [15:0] last_load;
+  reg loaded_before = 0;
+  always @(posedge clk)
+    if (loads_period && wrote_p) begin
+      last_load <= p;
+      loaded_before <= 1;
+    end
 
   // each teeth task gets one part of the step wrong
   wire [23:0] e_expected =
@@ -705,7 +715,8 @@ module phase_step (input clk);
   always @(posedge clk) begin
     cover(pending && entry && e_may_carry && phase == e_expected - 24'd1);
     cover(pending && entry && !e_unbounded && e_deadline_wait && e_in_time);
-    cover(loads_period && pending && entry && wrote_p && p == loaded_period && loaded_period > 3);
+    cover(loads_period && pending && entry && wrote_p && p == e_loaded && e_loaded > 3);
+    cover(loads_period && wrote_p && loaded_before && p != last_load);
   end
 `ifdef TABLE
   // The theorem in one run. For any table of intervals loaded while halted, as the program
@@ -758,9 +769,9 @@ module phase_step (input clk);
   wire [439:0] target_row = row_of(rows[target_pc]), e_target_row = row_of(rows[e_target_pc]);
 `endif
 
-`define CONFIG \
+`define CONFIG(load) \
     .side_set_count(side_set_count), .fraction(period_fraction != 0), \
-    .loaded$valid(loads_period), .loaded$value(loaded_period), \
+    .loaded$valid(loads_period), .loaded$value(load), \
     .capture$pin(capture_pin), .capture$rising(capture_rising), \
     .capture$single_edge(single_edge), .wrap_top(wrap_top), .wrap_bottom(wrap_bottom)
 `define NO_PAIR \
@@ -779,7 +790,7 @@ module phase_step (input clk);
   wire axioms, steps_into;
   row_step lemma (
     .side_set_count(side_set_count), .fraction(period_fraction != 0),
-    .loads_period(loads_period), .loaded_period(loaded_period), .capture_pin(capture_pin),
+    .loads_period(loads_period), .loaded_period(e_loaded), .capture_pin(capture_pin),
     .capture_rising(capture_rising), .single_edge(single_edge), .word(e_word),
     .row(e_row[439:174]), .next(e_next_row[439:174]), .target(e_target_row[439:174]),
     .phase(e_phase), .offset(e_offset), .arm(e_g), .period(e_p), .x(e_x), .y(e_y),
@@ -804,7 +815,7 @@ module phase_step (input clk);
     unchecked = {r[439:368], full, r[319:0]};
   endfunction
   wire unchecked_accepts;
-  kernel_accepts check_unchecked (`CONFIG, `NO_PAIR,
+  kernel_accepts check_unchecked (`CONFIG(loaded_period), `NO_PAIR,
     .pc(pc), .word(instruction), .row(row), .next(unchecked(next_row)),
     .target(unchecked(target_row)), .phase(phase), .offset(offset), .period(p), .x(x),
     .y(y), .arm(g), .arm_known(g_known), .captured(g_captured), .awaiting(g_awaiting),
@@ -835,15 +846,16 @@ module phase_step (input clk);
 `else
   wire spacing = spaced;
 `endif
-  kernel_accepts check_now (`CONFIG, `PAIR(spacing), .a$since(since_a), .a$level(level_a),
-    .a$fresh(fresh_a), .b$since(since_b), .b$level(level_b), .b$fresh(fresh_b), `NOW,
+  kernel_accepts check_now (`CONFIG(loaded_period), `PAIR(spacing), .a$since(since_a),
+    .a$level(level_a), .a$fresh(fresh_a), .b$since(since_b), .b$level(level_b),
+    .b$fresh(fresh_b), `NOW,
     .next_pc(next_pc), .target_pc(target_pc), .accepts(accepts), .within(within),
     .starts_open(starts_open));
   assign e_next_pc = e_following, e_target_pc = e_word[8:0];
   wire e_inside, steps_into;
   pair_step lemma (
     .side_set_count(side_set_count), .fraction(period_fraction != 0),
-    .loads_period(loads_period), .loaded_period(loaded_period), .capture_pin(capture_pin),
+    .loads_period(loads_period), .loaded_period(e_loaded), .capture_pin(capture_pin),
     .capture_rising(capture_rising), .single_edge(single_edge), .spaced(spaced),
     .pair_dirs(pair_dirs), .side_set_pindirs(side_set_pindirs), .pin_a(pin_a),
     .pin_b(pin_b), .side_set_base(side_set_base), .set_base(set_base),
@@ -858,9 +870,9 @@ module phase_step (input clk);
   always @(*) assume(steps_into);
 `else
   wire e_accepts, e_within;
-  kernel_accepts check_now (`CONFIG, `NO_PAIR, `NOW, .next_pc(next_pc),
+  kernel_accepts check_now (`CONFIG(loaded_period), `NO_PAIR, `NOW, .next_pc(next_pc),
     .target_pc(target_pc), .accepts(accepts), .within(within), .starts_open(starts_open));
-  kernel_accepts check_last (`CONFIG, `NO_PAIR, `LAST, .next_pc(e_next_pc),
+  kernel_accepts check_last (`CONFIG(e_loaded), `NO_PAIR, `LAST, .next_pc(e_next_pc),
     .target_pc(e_target_pc), .accepts(e_accepts), .within(e_within), .starts_open());
 `endif
 
