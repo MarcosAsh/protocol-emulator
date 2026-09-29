@@ -5,7 +5,7 @@ import cocotb
 from cocotb.triggers import ClockCycles
 
 from test import AsyncHost, Pins, assembled, reset
-from protocol_emulator import CONTROL, DEFAULT_CONFIG, PROGRAM, PROGRAM_ADDR, RX, SELECT, STATUS, TX, config_writes
+from protocol_emulator import CONTROL, DATA, DATA_ADDR, DEFAULT_CONFIG, PROGRAM, PROGRAM_ADDR, RX, SELECT, STATUS, TX, config_writes
 
 WIRE = 20
 
@@ -90,3 +90,38 @@ async def test_one_engine_times_the_other(dut):
         predicted = [bit * period for bit in edges]
         dut._log.info(f"0x{byte:02x} predicted {predicted} measured {offsets}")
         assert offsets == predicted
+
+
+async def self_check(dut, period):
+    """Engine 1 checks engine 0's frames against the certificate's rows in the data memory
+    and says whether it raised its irq, which it does only with a halt."""
+    await reset(dut)
+    host = AsyncHost(Pins(dut).transfer)
+    await host.write(DATA_ADDR, [0])
+    await host.write(DATA, assembled("uart_tx_host_rate_rows"))
+    checker = dict(
+        DEFAULT_CONFIG, in_base=WIRE, in_count=1, jmp_pin=WIRE, capture_pin=WIRE, in_shift_right=0,
+        autopull=1, pull_threshold=16, autopull_data=1,
+    )
+    await load(host, 1, checker, assembled("self_check_wire"))
+    await host.write(CONTROL, [1])
+    transmitter = dict(DEFAULT_CONFIG, set_base=WIRE, out_base=WIRE)
+    await load(host, 0, transmitter, assembled("uart_tx_host_rate"))
+    await host.write(TX, [period, 0x55, 0xA3])
+    await host.write(CONTROL, [1])
+
+    await ClockCycles(dut.clk, 3 * 11 * period)
+    caught = (await host.read(STATUS))[0] >> 15
+    await host.write(SELECT, [1])
+    assert (await host.read(STATUS))[0] & 0x3F == 3 * caught, "halted with the irq, no fault"
+    return caught
+
+
+@cocotb.test()
+async def test_the_chip_passes_its_certified_edges(dut):
+    assert not await self_check(dut, 434)
+
+
+@cocotb.test()
+async def test_the_chip_catches_a_bit_period_a_cycle_long(dut):
+    assert await self_check(dut, 435)
