@@ -1,0 +1,9 @@
+# Icepi Zero v1.1, from gateware/v1.1/icepi-zero-v1_1.lpf upstream.
+# The pull balls are unconnected; this board's only USB pull (F16) is 15 k on both lines,
+# left alone, so low speed needs 1.5 k from D- to 3.3 V.
+
+SYSCONFIG CONFIG_IOVOLTAGE=3.3 COMPRESS_CONFIG=ON MCCLK_FREQ=62 MASTER_SPI_PORT=ENABLE SLAVE_SPI_PORT=DISABLE SLAVE_PARALLEL_PORT=DISABLE;
+
+LOCATE COMP "clk" SITE "M2";
+IOBUF PORT "clk" IO_TYPE=LVCMOS33 PULLMODE=NONE;
+FREQUENCY PORT "clk" 50 MHZ;
