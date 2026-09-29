@@ -271,6 +271,6 @@ let%expect_test "the words committed for the cocotb test are current" =
     ~expect:(Firmware.assemble (Firmware.i2c_master ~quarter:30));
   [%test_result: int list]
     (assembled "self_check_wire")
-    ~expect:(Firmware.assemble (Self_check.checker ~pin:Isa.num_pins));
+    ~expect:(Firmware.assemble (Self_check.checker ~pin:Isa.num_pins ~base:256));
   [%expect {| |}]
 ;;

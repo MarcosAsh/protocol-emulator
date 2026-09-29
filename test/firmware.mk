@@ -12,10 +12,11 @@ data_stream.hex: ASSUME = -autopull-data 16
 # constant; test_self_check.ml has the analyser check it from its least period up.
 self_check_wire.hex: ASSUME = -no-timing-check
 
-# What self_check_wire checks uart_tx_host_rate's frames against, start bit to stop bit.
+# What self_check_wire checks uart_tx_host_rate's frames against, start bit to stop bit,
+# above the data memory's low half.
 ROWS = uart_tx_host_rate_rows.hex
 uart_tx_host_rate_rows.hex: uart_tx_host_rate.asm FORCE
-	cd .. && dune exec -- bin/generate.exe self-check -period 434 -first 8 -last 14 test/$< > test/$@.new
+	cd .. && dune exec -- bin/generate.exe self-check -period 434 -first 8 -last 14 -base 256 test/$< > test/$@.new
 	mv $@.new $@
 
 firmware: $(FIRMWARE) $(ROWS)

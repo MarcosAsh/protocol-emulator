@@ -93,11 +93,14 @@ async def test_one_engine_times_the_other(dut):
 
 
 async def self_check(dut, period):
-    """Engine 1 checks engine 0's frames against the certificate's rows in the data memory
-    and says whether it raised its irq, which it does only with a halt."""
+    """Engine 1 checks engine 0's frames against the certificate's rows at 256 in the data
+    memory, above words another program could stream from 0, and says whether it raised its
+    irq, which it does only with a halt."""
     await reset(dut)
     host = AsyncHost(Pins(dut).transfer)
     await host.write(DATA_ADDR, [0])
+    await host.write(DATA, [0x0101] * 16)
+    await host.write(DATA_ADDR, [256])
     await host.write(DATA, assembled("uart_tx_host_rate_rows"))
     checker = dict(
         DEFAULT_CONFIG, in_base=WIRE, in_count=1, jmp_pin=WIRE, capture_pin=WIRE, in_shift_right=0,

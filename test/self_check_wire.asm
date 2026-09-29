@@ -1,8 +1,13 @@
-; checks each uart frame on wire 20; the twin of Self_check.checker ~pin:20
+; checks each uart frame on wire 20 against rows at 256; the twin of
+; Self_check.checker ~pin:20 ~base:256
+    set x, 16
+    in x, 5
+    set x, 0
+    in x, 4
+    mov x, isr               ; the rows' base
     wait 1 pin 20            ; the line idles high
     capture_arm
 frame:
-    set x, 0
     seek                     ; the rows from the top
     wait 0 pin 20            ; a first edge, stamped by the capture
     mov t, capture
@@ -33,6 +38,8 @@ next:
     out p, 15
     add t, p
     jmp y--, edge
+    set x, 0                 ; the last row holds the base
+    add x, p
     jmp frame
 fault:
     irq

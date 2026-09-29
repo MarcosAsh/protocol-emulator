@@ -323,7 +323,8 @@ let self_check_command =
     ~summary:"Print the rows a checker checks a firmware's frames against, in hex"
     ~readme:(fun () ->
       "The frame runs from the pin write at -first to the one at -last; the words go \
-       into the data memory from address 0 for the engine that runs Self_check.checker.")
+       into the data memory from -base, for the engine that runs Self_check.checker with \
+       the same base.")
     [%map_open.Command
       let file = anon ("FILE" %: string)
       and period =
@@ -332,7 +333,13 @@ let self_check_command =
           (optional int)
           ~doc:"N cycles every run-time load of p is assumed to carry"
       and first = flag "-first" (required int) ~doc:"PC the frame's first pin write"
-      and last = flag "-last" (required int) ~doc:"PC the frame's last pin write" in
+      and last = flag "-last" (required int) ~doc:"PC the frame's last pin write"
+      and base =
+        flag
+          "-base"
+          (optional_with_default 0 int)
+          ~doc:"ADDRESS where the rows go in the data memory (default 0)"
+      in
       fun () ->
         let rows =
           let open Or_error.Let_syntax in
@@ -340,7 +347,7 @@ let self_check_command =
           let%bind edges =
             Self_check.edges ?period ~config:Program_config.default program ~first ~last
           in
-          Self_check.rows edges
+          Self_check.rows ~base edges
         in
         match rows with
         | Ok rows -> List.iter rows ~f:(printf "%04x\n")

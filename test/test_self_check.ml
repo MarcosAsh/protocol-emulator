@@ -5,11 +5,15 @@ let wire = Isa.num_pins
 let period = 434
 let sender = Asm.assemble Firmware.uart_tx_host_rate |> ok_exn
 let sender_config = { Program_config.default with set_base = wire; out_base = wire }
-let checker ~pin = Asm.assemble (Self_check.checker ~pin) |> ok_exn
+let checker ?(base = 0) ~pin () = Asm.assemble (Self_check.checker ~pin ~base) |> ok_exn
 
 (* the start bit's write and the stop bit's *)
 let frame = Self_check.edges ~period ~config:sender_config sender ~first:8 ~last:14
-let rows = Or_error.bind frame ~f:Self_check.rows |> ok_exn
+let rows ~base = Or_error.bind frame ~f:(Self_check.rows ~base) |> ok_exn
+
+(* what engine 0 might keep under rows at [base]: read as rows, the sender's first data
+   edge falls between two checks *)
+let under ~base = List.init base ~f:(fun _ -> 0x0101)
 
 let machine ~config program ~data =
   let config = Asm.Program.configure program config in
@@ -20,15 +24,16 @@ let machine ~config program ~data =
 ;;
 
 (* Engine 0 sends [bytes] at the bit period the host gives it, engine 1 checks it against
-   [rows]; the checker's irq, which it raises only with a halt. *)
-let caught ?(sender = sender) ?(host_period = period) ~rows bytes =
+   [rows] read from [base], with [under] below them; the checker's irq, which it raises
+   only with a halt. *)
+let caught ?(sender = sender) ?(host_period = period) ?(base = 0) ~rows bytes =
   let system =
     System.create
       [ machine ~config:sender_config sender ~data:[]
       ; machine
           ~config:(Self_check.checker_config ~pin:wire)
-          (checker ~pin:wire)
-          ~data:rows
+          (checker ~pin:wire ~base ())
+          ~data:(under ~base @ rows)
       ]
   in
   let system =
@@ -45,7 +50,7 @@ let caught ?(sender = sender) ?(host_period = period) ~rows bytes =
 let bytes = [ 0x55; 0xa3; 0x00; 0xff ]
 
 let%expect_test "the checker keeps its own deadlines when every gap is at least min_gap" =
-  let checker = checker ~pin:wire in
+  let checker = checker ~pin:wire () in
   let config = Asm.Program.configure checker (Self_check.checker_config ~pin:wire) in
   List.iter
     [ Self_check.min_gap - 1; Self_check.min_gap ]
@@ -61,12 +66,13 @@ let%expect_test "the checker keeps its own deadlines when every gap is at least 
       in
       print_s [%message (floor : int) (late : int list)]);
   [%expect {|
-    ((floor 27) (late (12)))
-    ((floor 28) (late ()))
+    ((floor 28) (late (16)))
+    ((floor 29) (late ()))
     |}]
 ;;
 
 let%expect_test "a uart frame's edges and rows" =
+  let rows = rows ~base:256 in
   print_s [%message (frame : int list Or_error.t) (rows : int list)];
   [%test_result: int list]
     ~message:"the rows committed for the cocotb test"
@@ -76,7 +82,7 @@ let%expect_test "a uart frame's edges and rows" =
   [%expect
     {|
     ((frame (Ok (434 868 1302 1736 2170 2604 3038 3472 3906 4346)))
-     (rows (431 869 869 869 869 869 869 869 869 881 0)))
+     (rows (431 869 869 869 869 869 869 869 869 881 512)))
     |}]
 ;;
 
@@ -91,18 +97,27 @@ let%expect_test "frames the checker cannot take are refused" =
   edges ~first:3 ~last:14;
   (* a frame cut inside its bit loop *)
   edges ~first:8 ~last:11;
-  print_s [%sexp (Self_check.rows [ 31; 59 ] : int list Or_error.t)];
-  print_s [%sexp (Self_check.rows [ 30; 57 ] : int list Or_error.t)];
+  let rows ~base edges =
+    print_s [%sexp (Self_check.rows ~base edges : int list Or_error.t)]
+  in
+  rows ~base:0 [ 32; 61 ];
+  rows ~base:0 [ 31; 59 ];
+  (* three words, the last at 511 *)
+  rows ~base:509 [ 32; 61 ];
+  rows ~base:510 [ 32; 61 ];
   [%expect
     {|
     (Error ("not exact" (what edge) (pc 3)))
     (Error ("branch after the frame" (pc 12)))
-    (Ok (28 57 0))
-    (Error (("gap out of range" (p 27)) ("gap out of range" (p 27))))
+    (Ok (29 59 0))
+    (Error (("gap out of range" (p 28)) ("gap out of range" (p 28))))
+    (Ok (29 59 1018))
+    (Error ("rows past the data memory" (base 510)))
     |}]
 ;;
 
 let%expect_test "an edge a cycle early or late is caught" =
+  let rows = rows ~base:0 in
   print_s [%message "on time" ~caught:(caught ~rows bytes : bool)];
   (* a row's gap one cycle out moves the check by a cycle; the last row is the least to
      the next frame, so later is allowed there *)
@@ -130,6 +145,7 @@ let%expect_test "an edge a cycle early or late is caught" =
 ;;
 
 let%expect_test "a firmware or bit period other than the certificate's is caught" =
+  let rows = rows ~base:0 in
   let slower = caught ~rows ~host_period:(period + 1) bytes in
   let delayed =
     let source =
@@ -144,6 +160,16 @@ let%expect_test "a firmware or bit period other than the certificate's is caught
   [%expect {| ((slower true) (delayed true)) |}]
 ;;
 
+let%expect_test "rows above what engine 0 keeps in the data memory" =
+  let rows = rows ~base:256 in
+  let from_256 = caught ~base:256 ~rows bytes in
+  let late_from_256 = caught ~base:256 ~host_period:(period + 1) ~rows bytes in
+  (* the same memory, read from 0 *)
+  let from_0 = caught ~rows:(under ~base:256 @ rows) bytes in
+  print_s [%message (from_256 : bool) (late_from_256 : bool) (from_0 : bool)];
+  [%expect {| ((from_256 false) (late_from_256 true) (from_0 true)) |}]
+;;
+
 (* A frame on an input pad: low from 0, high from 100, low from 200, high from 300, and
    the next no sooner than 400. One cycle of the other level at [glitch] from a frame's
    start, or the edge at 200 moved by [shift]. *)
@@ -154,8 +180,8 @@ let pad ?glitch ?(shift = 0) () =
   let checker =
     machine
       ~config:(Self_check.checker_config ~pin)
-      (checker ~pin)
-      ~data:(Self_check.rows [ 100; 200; 300; 400 ] |> ok_exn)
+      (checker ~pin ())
+      ~data:(Self_check.rows ~base:0 [ 100; 200; 300; 400 ] |> ok_exn)
   in
   let level cycle =
     if cycle < start
@@ -191,7 +217,9 @@ let%expect_test "what the checker sees on a pad" =
     |}]
 ;;
 
-let%expect_test "the rtl checks as the model does" =
+let%expect_test "the rtl checks as the model does, rows above other data" =
+  let base = 256 in
+  let checker = checker ~pin:wire ~base () in
   let run ~host_period =
     let system =
       System_lockstep.lockstep
@@ -202,13 +230,10 @@ let%expect_test "the rtl checks as the model does" =
           ; preload = [ host_period; 0x55; 0xa3 ]
           ; data = []
           }
-        ; { config =
-              Asm.Program.configure
-                (checker ~pin:wire)
-                (Self_check.checker_config ~pin:wire)
-          ; program = Asm.Program.words (checker ~pin:wire) |> ok_exn
+        ; { config = Asm.Program.configure checker (Self_check.checker_config ~pin:wire)
+          ; program = Asm.Program.words checker |> ok_exn
           ; preload = []
-          ; data = rows
+          ; data = under ~base @ rows ~base
           }
         ]
     in
@@ -217,8 +242,7 @@ let%expect_test "the rtl checks as the model does" =
   in
   run ~host_period:period;
   run ~host_period:(period + 1);
-  [%expect
-    {|
+  [%expect {|
     ("lockstep held" (cycles 14322))
     ((host_period 434) (checker.irq false) (checker.halted false))
     ("lockstep held" (cycles 14322))

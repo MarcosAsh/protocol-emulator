@@ -161,10 +161,11 @@ let edges ?period ~config (program : Asm.Program.t) ~first ~last =
 
 (* [checker]'s wait for a check ends [lead] cycles before the edge. *)
 let lead = 3
-let min_gap = 28
+let min_gap = 29
 let capture_span = 1 lsl 14
+let data_words = 1 lsl Isa.data_addr_bits
 
-let rows edges =
+let rows ~base edges =
   let open Or_error.Let_syntax in
   let%bind first =
     match edges with
@@ -173,23 +174,36 @@ let rows edges =
   in
   let gaps = List.zip_exn (List.drop_last_exn edges) (List.tl_exn edges) in
   let loaded = (first - lead) :: List.map gaps ~f:(fun (a, b) -> b - a) in
-  let%map () =
+  let%bind () =
     List.map loaded ~f:(fun p ->
       if p < min_gap || p >= capture_span
       then Or_error.error_s [%message "gap out of range" (p : int)]
       else Ok ())
     |> Or_error.combine_errors_unit
   in
-  List.mapi loaded ~f:(fun n p -> if n = 0 then p else (p lsl 1) lor 1) @ [ 0 ]
+  let%map () =
+    if base < 0 || base + List.length loaded + 1 > data_words
+    then Or_error.error_s [%message "rows past the data memory" (base : int)]
+    else Ok ()
+  in
+  List.mapi loaded ~f:(fun n p -> if n = 0 then p else (p lsl 1) lor 1) @ [ base lsl 1 ]
 ;;
 
-let checker ~pin =
+let checker ~pin ~base =
+  if base < 0 || base >= data_words
+  then raise_s [%message "base past the data memory" (base : int)];
+  let high = base lsr 4 in
+  let low = base land 0xf in
   [%string
     {|
+    set x, %{high#Int}
+    in x, 5
+    set x, %{low#Int}
+    in x, 4
+    mov x, isr               ; the rows' base
     wait 1 pin %{pin#Int}            ; the line idles high
     capture_arm
 frame:
-    set x, 0
     seek                     ; the rows from the top
     wait 0 pin %{pin#Int}            ; a first edge, stamped by the capture
     mov t, capture
@@ -220,6 +234,8 @@ next:
     out p, 15
     add t, p
     jmp y--, edge
+    set x, 0                 ; the last row holds the base
+    add x, p
     jmp frame
 fault:
     irq
