@@ -428,6 +428,9 @@ def row(claim):
         passes += f", {result.wrong} failed" if passes else f"{result.wrong} failed"
     if result.note:
         passes = f"{passes}; {result.note}" if passes else result.note
+    if not passes and not result.teeth and claim.read is not green:
+        # a green job that never ran the check, as before the check was added
+        passes, result.time = "**none in the log**", None
     if result.teeth:
         teeth = f"{result.teeth}, all failed as expected"
     else:
