@@ -141,6 +141,18 @@ jobs:
           ! grep failure results.xml
           make replay FPGA=yes
 
+      # the chip's own Verilog, two engines and all, on the Icepi Zero's ECP5 at 48 MHz;
+      # nextpnr fails the build if timing does
+      - name: Build for the Icepi Zero and simulate the netlist
+        run: |
+          make -C icepi
+          grep -h "TRELLIS_COMB:\|TRELLIS_FF:\|DP16KD:\|Max frequency" icepi/build/v1.4.log | tail -4 >> "$GITHUB_STEP_SUMMARY"
+          cd test
+          make icepi_netlist.v
+          make ICEPI=yes
+          ! grep failure results.xml
+          make replay ICEPI=yes
+
   inductive_certificate:
     needs: test
     runs-on: ubuntu-24.04
