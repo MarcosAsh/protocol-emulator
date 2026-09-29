@@ -1,0 +1,24 @@
+; Needs js_of_ocaml, which the locked switch lacks: PLAYGROUND=yes dune build ./playground/playground.bc.js
+
+(executable
+ (name playground)
+ (modes js)
+ (enabled_if
+  (= %{env:PLAYGROUND=no} yes))
+ (libraries core js_of_ocaml protocol_emulator)
+ (preprocess
+  (pps ppx_jane)))
+
+(rule
+ (with-stdout-to
+  example.ml
+  (progn
+   (echo "let all =\n  [ \"uart_tx\", {|")
+   (cat %{dep:../test/uart_tx.asm})
+   (echo "|}\n  ; \"uart_rx_wire\", {|")
+   (cat %{dep:../test/uart_rx_wire.asm})
+   (echo "|}\n  ; \"i2c_master_marked\", {|")
+   (cat %{dep:../test/i2c_master_marked.asm})
+   (echo "|}\n  ; \"gap_adding_x\", {|")
+   (cat %{dep:gap_adding_x.asm})
+   (echo "|}\n  ]\n"))))
