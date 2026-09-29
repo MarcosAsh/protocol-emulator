@@ -233,6 +233,8 @@ let%expect_test "the words committed for the cocotb test are current" =
     ; "edge_logger_wire"
     ; "data_stream"
     ; "ethernet"
+    ; "i2c_master_marked"
+    ; "scl_rise"
     ]
     ~f:(fun name ->
       [%test_result: int list] ~message:name (committed name) ~expect:(assembled name));
@@ -252,5 +254,18 @@ let%expect_test "the words committed for the cocotb test are current" =
   [%test_result: int list]
     (assembled "edge_logger_wire")
     ~expect:(Firmware.assemble (Firmware.edge_logger ~pin:Isa.num_pins));
+  (* the marked master is firmware.ml's with each SCL move copied onto the wire *)
+  let unmarked =
+    In_channel.read_lines "i2c_master_marked.asm"
+    |> List.filter ~f:(fun line ->
+      not (String.is_substring line ~substring:"the wire says so"))
+    |> List.map ~f:(fun line ->
+      String.substr_replace_all line ~pattern:"set pins, 2" ~with_:"nop"
+      |> String.substr_replace_all ~pattern:"set pins, 0" ~with_:"nop")
+    |> String.concat ~sep:"\n"
+  in
+  [%test_result: int list]
+    (Firmware.assemble unmarked)
+    ~expect:(Firmware.assemble (Firmware.i2c_master ~quarter:30));
   [%expect {| |}]
 ;;
