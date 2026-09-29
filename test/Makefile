@@ -65,7 +65,7 @@ TOPLEVEL = tb
 COCOTB_TEST_MODULES = test,test_usb_board,test_ethernet
 # the kit build has one engine, the chip two
 ifneq ($(FPGA),yes)
-COCOTB_TEST_MODULES := $(COCOTB_TEST_MODULES),test_two_engines
+COCOTB_TEST_MODULES := $(COCOTB_TEST_MODULES),test_two_engines,test_board_blame
 endif
 
 # Where there is a dune the firmware words are reassembled first, so an encoding change
