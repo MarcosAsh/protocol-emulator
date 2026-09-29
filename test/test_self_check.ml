@@ -71,6 +71,33 @@ let%expect_test "the checker keeps its own deadlines when every gap is at least 
     |}]
 ;;
 
+(* the last row loads its base above the data memory, which seek wraps *)
+let%expect_test "every p the rows load is at least min_gap" =
+  let loads rows = List.mapi rows ~f:(fun n word -> if n = 0 then word else word lsr 1) in
+  let edges_and_base =
+    let open Quickcheck.Generator.Let_syntax in
+    let%bind first = Int.gen_incl 0 (1 lsl 14) in
+    let%bind gaps =
+      List.gen_non_empty (Int.gen_incl Self_check.min_gap ((1 lsl 14) - 1))
+    in
+    let%map base = Int.gen_incl 0 511 in
+    first :: List.folding_map gaps ~init:first ~f:(fun at gap -> at + gap, at + gap), base
+  in
+  let accepted = ref 0 in
+  Quickcheck.test
+    ~trials:1000
+    ~sexp_of:[%sexp_of: int list * int]
+    edges_and_base
+    ~f:(fun (edges, base) ->
+      Or_error.iter (Self_check.rows ~base edges) ~f:(fun rows ->
+        incr accepted;
+        List.iter (loads rows) ~f:(fun p ->
+          if p < Self_check.min_gap
+          then raise_s [%message "a row loads p under min_gap" (p : int)])));
+  print_s [%message (!accepted : int)];
+  [%expect {| (!accepted 887) |}]
+;;
+
 let%expect_test "a uart frame's edges and rows" =
   let rows = rows ~base:256 in
   print_s [%message (frame : int list Or_error.t) (rows : int list)];
@@ -82,7 +109,7 @@ let%expect_test "a uart frame's edges and rows" =
   [%expect
     {|
     ((frame (Ok (434 868 1302 1736 2170 2604 3038 3472 3906 4346)))
-     (rows (431 869 869 869 869 869 869 869 869 881 512)))
+     (rows (431 869 869 869 869 869 869 869 869 881 1536)))
     |}]
 ;;
 
@@ -109,9 +136,9 @@ let%expect_test "frames the checker cannot take are refused" =
     {|
     (Error ("not exact" (what edge) (pc 3)))
     (Error ("branch after the frame" (pc 12)))
-    (Ok (29 59 0))
+    (Ok (29 59 1024))
     (Error (("gap out of range" (p 28)) ("gap out of range" (p 28))))
-    (Ok (29 59 1018))
+    (Ok (29 59 2042))
     (Error ("rows past the data memory" (base 510)))
     |}]
 ;;

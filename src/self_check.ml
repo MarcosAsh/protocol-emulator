@@ -186,7 +186,9 @@ let rows ~base edges =
     then Or_error.error_s [%message "rows past the data memory" (base : int)]
     else Ok ()
   in
-  List.mapi loaded ~f:(fun n p -> if n = 0 then p else (p lsl 1) lor 1) @ [ base lsl 1 ]
+  (* [seek] wraps the base, so the last row's [p] is not under [min_gap] either *)
+  List.mapi loaded ~f:(fun n p -> if n = 0 then p else (p lsl 1) lor 1)
+  @ [ (base + data_words) lsl 1 ]
 ;;
 
 let checker ~pin ~base =

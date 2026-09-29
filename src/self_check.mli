@@ -19,9 +19,10 @@ val edges
 
 (** [edges] as data memory words for [checker] to read from [base]: the cycles from the
     first edge to the first check, then a word per edge with the cycles to the next in
-    bits 15 to 1 and whether one follows in bit 0, [base] in the last. Refused if a gap,
-    or the first edge less three cycles, is under [min_gap] or over the 14 bits of capture
-    [checker] compares, or if the rows run past the data memory. *)
+    bits 15 to 1 and whether one follows in bit 0, [base] above the data memory in the
+    last, so no row loads [p] under [min_gap]. Refused if a gap, or the first edge less
+    three cycles, is under [min_gap] or over the 14 bits of capture [checker] compares, or
+    if the rows run past the data memory. *)
 val rows : base:int -> int list -> int list Or_error.t
 
 (** The least [p] [checker] loads without missing a deadline of its own. *)
