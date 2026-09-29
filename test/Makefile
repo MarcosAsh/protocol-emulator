@@ -15,6 +15,17 @@ SIM_BUILD				= sim_build/fpga
 VERILOG_SOURCES += $(shell yosys-config --datdir)/ice40/cells_sim.v
 VERILOG_SOURCES += $(PWD)/fpga_netlist.v
 
+else ifeq ($(ICEPI),yes)
+
+# The Icepi Zero's top synthesised for its ECP5, from `make icepi_netlist.v`, on yosys'
+# cell models. Its block RAM model is empty, so models/ has one, and a PLL that passes the
+# testbench's clock through:
+SIM_BUILD				= sim_build/icepi
+ECP5_SIM = $(shell yosys-config --datdir)/ecp5
+COMPILE_ARGS    += -I$(ECP5_SIM)
+VERILOG_SOURCES += $(ECP5_SIM)/common_sim.vh $(ECP5_SIM)/ccu2c_sim.vh
+VERILOG_SOURCES += $(PWD)/models/DP16KD.v $(PWD)/models/EHXPLLL.v $(PWD)/icepi_netlist.v
+
 else ifneq ($(GATES),yes)
 
 # RTL simulation:
@@ -43,7 +54,11 @@ endif
 COMPILE_ARGS 		+= -I$(SRC_DIR)
 
 # Include the testbench sources:
+ifeq ($(ICEPI),yes)
+VERILOG_SOURCES += $(PWD)/tb_icepi.v
+else
 VERILOG_SOURCES += $(PWD)/tb.v
+endif
 TOPLEVEL = tb
 
 # List test modules to run, separated by commas and without the .py suffix:
@@ -79,8 +94,14 @@ fpga_fit: fpga_netlist.v
 	nextpnr-ice40 --up5k --package sg48 --json fpga_kit.json --pcf ../tt/fpga/tt_fpga_top.pcf --pcf-allow-unconstrained --freq $(FPGA_MHZ) --seed 1 -q --log fpga_kit.log
 	grep -h "ICESTORM_LC:\|Max frequency" fpga_kit.log | tail -3
 
+# The Icepi Zero's netlist, as its own flow in ../icepi synthesises it.
+icepi_netlist.v: $(SRC_DIR)/project.v $(SRC_DIR)/protocol_emulator.v ../icepi/icepi_top.v
+	$(MAKE) -C ../icepi build/usb1.json
+	yosys -q -p "read_json ../icepi/build/usb1.json; write_verilog -noattr icepi_netlist.v"
+
 # Replays the pin traces in traces/, recorded from the OCaml simulation of the top, on
-# whichever netlist the mode selects: make replay, make replay GATES=yes or FPGA=yes.
+# whichever netlist the mode selects: make replay, make replay GATES=yes, FPGA=yes or
+# ICEPI=yes.
 replay:
 	$(MAKE) sim COCOTB_TEST_MODULES=test_replay COCOTB_RESULTS_FILE=results_replay.xml
 	$(PYTHON_BIN) -m cocotb_tools.check_results results_replay.xml

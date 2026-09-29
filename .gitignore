@@ -44,4 +44,5 @@ formal/memory_flops.v
 formal/memory_sram.v
 formal/kernel_gates.aag
 formal/kernel_accepts_gates.aag
+test/icepi_netlist.v
 icepi/build
