@@ -16,6 +16,7 @@ SELECT = 0x0B
 DATA_ADDR = 0x0C
 DATA = 0x0D
 CONFIG = 0x10
+PROGRAM_WORDS = 512
 # 0x40 to 0x47 are reserved and read as zero.
 
 # Engine.Config order, the nth at CONFIG + n. None is a reserved register, kept so later
@@ -68,8 +69,10 @@ class Host:
             self.write(reg, [word])
 
     def load(self, words, address=0):
+        """Zeros fill the memory after the program: the kernel reads it as zero, and the
+        SRAM powers up with arbitrary contents."""
         self.write(PROGRAM_ADDR, [address])
-        self.write(PROGRAM, words)
+        self.write(PROGRAM, list(words) + [0] * (PROGRAM_WORDS - address - len(words)))
 
     def load_data(self, words, address=0):
         """Fill the shared data memory; words land only while every core is halted."""
