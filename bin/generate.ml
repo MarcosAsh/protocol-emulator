@@ -216,6 +216,11 @@ let timing_check =
         "-period"
         (optional int)
         ~doc:"N cycles every run-time load of p is assumed to carry"
+    and period_floor =
+      flag
+        "-period-floor"
+        (optional int)
+        ~doc:"N the least cycles every run-time load of p is assumed to carry"
     and single_capture_edge =
       flag
         "-single-capture-edge"
@@ -251,6 +256,7 @@ let timing_check =
       let rows =
         Analyser.analyse
           ?period
+          ?period_floor
           ~single_capture_edge
           ~config:configured
           program.instructions
@@ -259,19 +265,31 @@ let timing_check =
       then Ok rows
       else
         let open Or_error.Let_syntax in
-        let%bind verdict = Analyser.check ?period ~single_capture_edge ~config program in
+        let%bind verdict =
+          Analyser.check ?period ?period_floor ~single_capture_edge ~config program
+        in
         eprintf "%s\n" (Analyser.Verdict.to_string verdict);
         let%bind words = Asm.Program.words program in
         (* The analyser is not trusted: the kernel, which is proved, checks its rows and
            has the last word. It covers less than the analyser, so it can refuse firmware
            the analyser passes. *)
-        let%map () =
+        let kernel period =
           Kernel.check
             ?period
             ~single_capture_edge
             ~config:configured
             ~words
             (Kernel.Table.of_analyser rows)
+        in
+        (* A load enters [accepts] only as a value some row's period interval must hold,
+           so the loads it accepts are an interval, and a floor needs only its two ends;
+           test_self_check.ml proves every load between by checked SAT. *)
+        let%map () =
+          match period_floor with
+          | None -> kernel period
+          | Some floor ->
+            Or_error.combine_errors_unit
+              [ kernel (Some floor); kernel (Some ((1 lsl Isa.data_bits) - 1)) ]
         in
         eprintf "kernel: accepted, so no deadline is missed by the step lemma\n";
         rows]

@@ -112,9 +112,10 @@ end
     any deadline wait can be reached with a phase above zero, which includes a phase with
     no upper bound, or any data autopull may come too soon. The error lists every such row
     as [to_string] prints it: address, instruction, phase and slack. Only rows the program
-    can reach are counted. *)
+    can reach are counted. The assumptions are [analyse]'s. *)
 val check
   :  ?period:int
+  -> ?period_floor:int
   -> ?single_capture_edge:bool
   -> config:Program_config.t
   -> Asm.Program.t

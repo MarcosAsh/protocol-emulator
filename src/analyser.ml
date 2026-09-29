@@ -734,10 +734,11 @@ module Verdict = struct
   ;;
 end
 
-let check ?period ?single_capture_edge ~config (program : Asm.Program.t) =
+let check ?period ?period_floor ?single_capture_edge ~config (program : Asm.Program.t) =
   let rows =
     analyse
       ?period
+      ?period_floor
       ?single_capture_edge
       ~config:(Asm.Program.configure program config)
       program.instructions
