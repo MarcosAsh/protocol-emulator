@@ -232,6 +232,7 @@ let%expect_test "the words committed for the cocotb test are current" =
     ; "uart_tx_host_rate"
     ; "edge_logger_wire"
     ; "self_check_wire"
+    ; "edge_logger_echo"
     ; "data_stream"
     ; "ethernet"
     ; "i2c_master_marked"
