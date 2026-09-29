@@ -67,6 +67,10 @@ COCOTB_TEST_MODULES = test,test_usb_board,test_ethernet
 ifneq ($(FPGA),yes)
 COCOTB_TEST_MODULES := $(COCOTB_TEST_MODULES),test_two_engines,test_board_blame
 endif
+# the bench demos' rehearsals simulate milliseconds, so on the RTL alone
+ifeq ($(FPGA)$(GATES)$(ICEPI),)
+COCOTB_TEST_MODULES := $(COCOTB_TEST_MODULES),test_demo
+endif
 
 # Where there is a dune the firmware words are reassembled first, so an encoding change
 # reaches them. The default stays cocotb's, though firmware.mk brings the first rule.
