@@ -318,6 +318,37 @@ let assemble_command =
           exit 1]
 ;;
 
+let self_check_command =
+  Command.basic
+    ~summary:"Print the rows a checker checks a firmware's frames against, in hex"
+    ~readme:(fun () ->
+      "The frame runs from the pin write at -first to the one at -last; the words go \
+       into the data memory from address 0 for the engine that runs Self_check.checker.")
+    [%map_open.Command
+      let file = anon ("FILE" %: string)
+      and period =
+        flag
+          "-period"
+          (optional int)
+          ~doc:"N cycles every run-time load of p is assumed to carry"
+      and first = flag "-first" (required int) ~doc:"PC the frame's first pin write"
+      and last = flag "-last" (required int) ~doc:"PC the frame's last pin write" in
+      fun () ->
+        let rows =
+          let open Or_error.Let_syntax in
+          let%bind program = In_channel.read_all file |> Asm.assemble in
+          let%bind edges =
+            Self_check.edges ?period ~config:Program_config.default program ~first ~last
+          in
+          Self_check.rows edges
+        in
+        match rows with
+        | Ok rows -> List.iter rows ~f:(printf "%04x\n")
+        | Error e ->
+          eprintf "%s: %s\n" file (Error.to_string_hum e);
+          exit 1]
+;;
+
 let () =
   Command_unix.run
     (Command.group
@@ -331,5 +362,6 @@ let () =
        ; "osr", osr_rtl_command
        ; "kernel-accepts", kernel_accepts_rtl_command
        ; "assemble", assemble_command
+       ; "self-check", self_check_command
        ])
 ;;

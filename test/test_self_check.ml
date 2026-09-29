@@ -68,6 +68,11 @@ let%expect_test "the checker keeps its own deadlines when every gap is at least 
 
 let%expect_test "a uart frame's edges and rows" =
   print_s [%message (frame : int list Or_error.t) (rows : int list)];
+  [%test_result: int list]
+    ~message:"the rows committed for the cocotb test"
+    (In_channel.read_lines "uart_tx_host_rate_rows.hex"
+     |> List.map ~f:(fun w -> Int.of_string ("0x" ^ w)))
+    ~expect:rows;
   [%expect
     {|
     ((frame (Ok (434 868 1302 1736 2170 2604 3038 3472 3906 4346)))

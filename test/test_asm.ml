@@ -231,6 +231,7 @@ let%expect_test "the words committed for the cocotb test are current" =
     ; "uart_rx_wire"
     ; "uart_tx_host_rate"
     ; "edge_logger_wire"
+    ; "self_check_wire"
     ; "data_stream"
     ; "ethernet"
     ; "i2c_master_marked"
@@ -267,5 +268,8 @@ let%expect_test "the words committed for the cocotb test are current" =
   [%test_result: int list]
     (Firmware.assemble unmarked)
     ~expect:(Firmware.assemble (Firmware.i2c_master ~quarter:30));
+  [%test_result: int list]
+    (assembled "self_check_wire")
+    ~expect:(Firmware.assemble (Self_check.checker ~pin:Isa.num_pins));
   [%expect {| |}]
 ;;
