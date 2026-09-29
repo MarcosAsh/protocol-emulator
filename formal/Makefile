@@ -408,6 +408,8 @@ witness_proof:
 	cd $(LEMMA)_witness && rIC3 -e kind model.aig witness.aig > ric3.log 2>&1; [ $$? = 20 ]
 	cd $(LEMMA)_witness && certifaiger model.aig witness.aig check.aig > certifaiger.log
 	cd $(LEMMA)_witness && aigsplit -n check.aig
+	cd $(LEMMA)_witness && [ "$$(ls *.aig | grep -vx 'model.aig\|witness.aig\|check.aig' | sort | xargs)" \
+	  = "$$(printf '%s.aig\n' $(CHECKS) | sort | xargs)" ]
 	for check in $(CHECKS); do $(MAKE) witness_unsat W=$(LEMMA)_witness CHECK=$$check || exit 1; done
 	$(MAKE) witness_teeth
 
