@@ -1,0 +1,12 @@
+# The hardened netlist, netlist.v in the Makefile's work directory, through the IHP cell
+# models as netlist_equiv/gate.ys reads them, with the macros black boxes, through
+# check.tcl. Every cell stays, the ones driving nothing included.
+
+read_verilog -noblackbox ../netlist_equiv/primitives.v ../sync/latch.v cells.v
+read_verilog -lib ../../src/RM_IHPSG13_1P_512x16_c2_bm_bist.v
+read_verilog netlist.v
+hierarchy -check -top tt_um_marcosash_protocol_emulator
+proc
+flatten
+delete t:$scopeinfo
+tcl ../sync/check.tcl

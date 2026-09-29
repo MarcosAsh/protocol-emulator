@@ -314,14 +314,16 @@ STDCELL = $(PDK_ROOT)/ihp-sg13cmos5l/libs.ref/sg13cmos5l_stdcell
 EQUIV = netlist_equiv_run
 EXPECT = 1
 WRITTEN = ../src/protocol_emulator.v
+# the cell models at zero delay (netlist_equiv/primitives.v)
+CELL_MODELS = sed -e '/^\s*specify/,/^\s*endspecify/d' -e 's/delayed_//g' \
+  -e 's/^\(\s*\)\(ihp_[a-z0-9_]*\) *(\([A-Za-z0-9_]*\),/\1\2 u_\3 (\3,/' \
+  $(STDCELL)/verilog/sg13cmos5l_stdcell.v
 FSM_STEP = timeout 600 yosys-abc -c 'read_aiger fsm_step.aig; print_stats; pdr; print_status'
 netlist_equiv:
 	rm -rf $(EQUIV) && mkdir $(EQUIV)
 	cp $(NETLIST) $(EQUIV)/netlist.v
 	cp $(WRITTEN) $(EQUIV)/written.v
-	sed -e '/^\s*specify/,/^\s*endspecify/d' -e 's/delayed_//g' \
-	  -e 's/^\(\s*\)\(ihp_[a-z0-9_]*\) *(\([A-Za-z0-9_]*\),/\1\2 u_\3 (\3,/' \
-	  $(STDCELL)/verilog/sg13cmos5l_stdcell.v > $(EQUIV)/cells.v
+	$(CELL_MODELS) > $(EQUIV)/cells.v
 	cp $(STDCELL)/lib/sg13cmos5l_stdcell_typ_1p20V_25C.lib $(EQUIV)/cells.lib
 	cp netlist_equiv/cells.ys $(EQUIV)
 	for cell in $$(grep -oE '^ *sg13cmos5l_[a-z0-9_]+ ' $(EQUIV)/netlist.v | sort -u | grep -vE 'fill|decap|antenna'); do \
@@ -366,6 +368,27 @@ netlist_equiv_teeth:
 	$(MAKE) netlist_equiv NETLIST=netlist_equiv_teeth/flip.v EQUIV=netlist_equiv_flip EXPECT=0
 	$(MAKE) netlist_equiv NETLIST=netlist_equiv_teeth/unreset.v EQUIV=netlist_equiv_unreset EXPECT=0
 	grep -E 'CEX: .* Frame = +[1-9]' netlist_equiv_unreset/proof.log
+
+# one clock, and every other pin through one two-flop synchroniser (sync/check.tcl), on
+# the RTL and on the hardened netlist; about 3 min:
+#   make sync_rtl sync_gate NETLIST=../runs/wokwi/final/nl/tt_um_marcosash_protocol_emulator.nl.v
+# With FAILS set, the run must fail at the check it names instead.
+SYNC = sync_run
+PROJECT = ../src/project.v
+FAILS =
+SYNC_RUN = if [ -z '$(FAILS)' ]; then yosys -q -l $(1).log ../sync/$(1).ys; else \
+  ! yosys -q -l $(1).log ../sync/$(1).ys > /dev/null 2>&1 \
+  && [ "$$(grep '^sync: ' $(1).log | tail -n 1)" = 'sync: $(FAILS)' ]; fi
+sync_rtl:
+	rm -rf $(SYNC)_rtl && mkdir $(SYNC)_rtl
+	cp $(PROJECT) $(SYNC)_rtl/project.v
+	cd $(SYNC)_rtl && $(call SYNC_RUN,rtl)
+
+sync_gate:
+	rm -rf $(SYNC)_gate && mkdir $(SYNC)_gate
+	cp $(NETLIST) $(SYNC)_gate/netlist.v
+	$(CELL_MODELS) > $(SYNC)_gate/cells.v
+	cd $(SYNC)_gate && $(call SYNC_RUN,gate)
 
 # cadical (rel-3.0.1), cake_lpr, and Certifaiger on the aiger library, at pinned commits,
 # for the kernel's checked QEDs (test/checked_unsat.ml) and the witnesses below, in
@@ -476,5 +499,6 @@ witness_reject:
   chip_frame data_step teeth certificates \
   certificate inductive_certificate inductive_proof inductive_certificates inductive_names \
   stamped_certificate stamped_proof data_certificate data_proof data_certificates data_names \
-  netlist_equiv netlist_equiv_teeth fsm_miter fsm_miter_proof sram_equiv sram_equiv_proof \
+  netlist_equiv netlist_equiv_teeth sync_rtl sync_gate \
+  fsm_miter fsm_miter_proof sram_equiv sram_equiv_proof \
   sram_equiv_step sram_equiv_teeth kernel_equiv kernel_equiv_proof kernel_miter sat_tools

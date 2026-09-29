@@ -1,0 +1,12 @@
+# The RTL as the flow reads it, project.v in the Makefile's work directory (a copy of
+# src/project.v) around src/protocol_emulator.v, flattened to flops and gates with the
+# macros black boxes, through check.tcl.
+
+read_verilog project.v ../../src/protocol_emulator.v
+read_verilog -lib ../../src/RM_IHPSG13_1P_512x16_c2_bm_bist.v
+hierarchy -check -top tt_um_marcosash_protocol_emulator
+proc
+flatten
+memory_map
+delete t:$scopeinfo
+tcl ../sync/check.tcl
