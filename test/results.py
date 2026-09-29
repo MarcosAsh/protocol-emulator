@@ -57,10 +57,16 @@ def jobs(run_id):
 
 
 @cache
+def raw_flags():
+    # newer gh refuses a response with escape codes, as colored logs have, without this
+    return [f for f in ["--allow-escape-sequences"] if f in gh("api", "--help")]
+
+
+@cache
 def log(job_id):
     """(time, text) for each line of the job's log."""
     lines = []
-    for raw in gh("api", f"repos/{REPO}/actions/jobs/{job_id}/logs").splitlines():
+    for raw in gh("api", *raw_flags(), f"repos/{REPO}/actions/jobs/{job_id}/logs").splitlines():
         m = STAMP.match(raw)
         if m:
             lines.append((datetime.fromisoformat(m[1] + "+00:00"), m[2]))
