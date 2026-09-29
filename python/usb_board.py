@@ -44,6 +44,7 @@ class Board:
 
     def reset(self):
         """A bus reset: address 0 again and nothing pending."""
+        self.address = 0
         self.expect = 0
         self.tag = None
         self.words = []
@@ -105,7 +106,8 @@ class Board:
             self.pending_report = None
             self.report_toggle = DATA1 if self.report_toggle == DATA0 else DATA0
         elif self.new_address is not None:
-            self.reload, self.new_address = self.new_address, None
+            self.address = self.reload = self.new_address
+            self.new_address = None
 
     def _requeue(self):
         if self.dropped and self.pending_report is not None and not self.chunks and not self.replies:
