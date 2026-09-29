@@ -22,6 +22,7 @@ SBY_DONE = re.compile(r"^DONE \((\w+), rc=(\d+)\)")
 ABC_GREP = re.compile(r"^grep 'Status = ([01]) ' (\w+)/")
 ABC_STATUS = re.compile(r"^Status = ([01]) ")
 WITNESS = re.compile(r"^(\w+): (\w+) (verified|fails)$")
+SYNC_RUN = re.compile(r"^cd sync_\w+ && if \[ -z '(.*?)' \]")
 COCOTB = re.compile(r"\*\* TESTS=(\d+) PASS=(\d+) FAIL=(\d+)")
 
 
@@ -156,6 +157,22 @@ def abc(*prefixes):
                 r.passes += 1
         return r
     return read
+
+
+def sync(lines):
+    """formal/sync/check.tcl runs through the Makefile, which echoes each one's FAILS:
+    empty is the check, a name is a mutant that must fail there."""
+    r, touched = Result(), []
+    for i, (t, text) in enumerate(lines):
+        m = SYNC_RUN.match(text)
+        if m:
+            touched += [t, lines[min(i + 1, len(lines) - 1)][0]]
+            if m[1]:
+                r.teeth += 1
+            else:
+                r.passes += 1
+    r.time = span([(min(touched), max(touched))]) if touched else None
+    return r
 
 
 def witness(lines):
@@ -339,7 +356,14 @@ CLAIMS = [
         Claim("The hardened netlist equals the RTL for all time from all flops 0",
               "gds", exactly("netlist_equiv"), "netlist_equiv netlist_equiv_teeth",
               both(abc("netlist_equiv_"),
-                   matching(r"netlist: (\d+) logic cells", "{} logic cells compared"))),
+                   matching(r"netlist: (\d+) logic cells", "{} logic cells compared")),
+              step="Prove the netlist equal to the RTL, and fail on four mutants"),
+        Claim("One clock, and every other pin read by one two-flop synchroniser, on the RTL",
+              "ocaml", exactly("test"), "sync_rtl sync_rtl_teeth", sync, step="Prove"),
+        Claim("The same on the hardened netlist", "gds", exactly("netlist_equiv"),
+              "sync_gate sync_gate_teeth", sync,
+              step="Check one clock and a two-flop synchroniser on every pin, and fail on "
+              "five mutants"),
         Claim("The hardened design passes Tiny Tapeout's precheck", "gds",
               exactly("precheck"), "tt-gds-action/precheck", green,
               teeth_note="none, a check"),
