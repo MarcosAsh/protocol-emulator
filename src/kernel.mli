@@ -10,8 +10,9 @@
     arithmetic, which it states and rests on. So a program whose rows all pass, with the
     full range at pc 0, never misses a deadline. An empty row is a pc never reached; the
     full range is an unknown phase. Rows also bound a pair of pins' edges, so that with a
-    [Spacing] no edge comes too soon: [formal/phase_table.sby] proves that on the RTL for
-    tables of intervals, taking the edge lemma [formal/edge_step.sv] proves. *)
+    [Spacing] no edge comes too soon: [formal/phase_spacing.sby] proves that on the RTL
+    for tables of intervals, taking the one-run theorem, the step lemmas and
+    [pair_step.sby]'s as their own runs prove them. *)
 
 open! Core
 open! Hardcaml
@@ -276,9 +277,11 @@ module Make (Comb : Comb.S) : sig
 
   (** Whether the core lies inside a row, bound by bound. [offset] is the core's
       [phase - row.slope * x] modulo the timer; a full arm range says nothing of [arm],
-      and [captured] and [awaiting] bound only when the row sets them. *)
+      [captured] and [awaiting] bound only when the row sets them, and the pins only with
+      a [spacing]. *)
   val within
     :  Comb.t Row.t
+    -> spacing:Comb.t Spaced.t
     -> phase:Comb.t
     -> offset:Comb.t
     -> period:Comb.t
@@ -294,7 +297,7 @@ module Make (Comb : Comb.S) : sig
 
   (** The row bounds nothing, which [check] asks of the row at pc 0: the core starts there
       with every register and the capture state anything, and no edge yet. *)
-  val starts_open : Comb.t Row.t -> Comb.t
+  val starts_open : Comb.t Row.t -> spacing:Comb.t Spaced.t -> Comb.t
 end
 
 module Table : sig
@@ -321,7 +324,7 @@ end
 
 (** Checks every pc; words past the program read zero. [period] is [loaded]. [spacing] is
     refused unless its pins differ and lie in the pin space, Manchester is off and every
-    row has no slope and the full offset, as [formal/phase_table.sby] proves it. A
+    row has no slope and the full offset, as [formal/phase_spacing.sby] proves it. A
     rejection names each pc and the conjuncts that fail there. *)
 val check
   :  ?period:int
@@ -362,8 +365,8 @@ module O = Step
 val hierarchical : ?instance:string -> Scope.t -> Signal.t I.t -> Signal.t O.t
 
 (** [accepts], [within] and [starts_open] of [row] and the pcs of [next] and [target], as
-    a circuit for [formal/phase_table.sby]. Each row is packed, its first field at the
-    top. *)
+    a circuit for [formal/phase_table.sby] and [formal/phase_spacing.sby]. Each row is
+    packed, its first field at the top. *)
 module Accepts : sig
   module I : sig
     type 'a t =

@@ -938,8 +938,8 @@ module Make (Comb : Comb.S) = struct
               &: (arm_hi <=: wide_arm s.arm_hi))
       ; captured = ~:(s.captured) |: captured_image
       ; awaiting = ~:(s.awaiting) |: awaiting_image
-      ; edge_a = pin_holds s.a edge_a
-      ; edge_b = pin_holds s.b edge_b
+      ; edge_a = ~:(spacing.valid) |: pin_holds s.a edge_a
+      ; edge_b = ~:(spacing.valid) |: pin_holds s.b edge_b
       }
     in
     let singleton lo hi = lo ==: hi in
@@ -989,6 +989,7 @@ module Make (Comb : Comb.S) = struct
 
   let within
     (r : _ Row.t)
+    ~(spacing : _ Spaced.t)
     ~phase
     ~offset
     ~period
@@ -1010,8 +1011,8 @@ module Make (Comb : Comb.S) = struct
     ; arm = arm_is_full r |: (arm_known &: inside r.arm_lo r.arm_hi arm)
     ; captured = ~:(r.captured) |: captured
     ; awaiting = ~:(r.awaiting) |: awaiting
-    ; edge_a = pin_within r.a a ~phase
-    ; edge_b = pin_within r.b b ~phase
+    ; edge_a = ~:(spacing.valid) |: pin_within r.a a ~phase
+    ; edge_b = ~:(spacing.valid) |: pin_within r.b b ~phase
     }
   ;;
 
@@ -1022,7 +1023,10 @@ module Make (Comb : Comb.S) = struct
 
   let starting ~level = { Edge.since = since_limit; level; fresh = vdd }
 
-  let starts_open (r : _ Row.t) =
+  let starts_open (r : _ Row.t) ~(spacing : _ Spaced.t) =
+    let edges_open =
+      r.a.at0.may &: r.a.at1.may &: r.b.at0.may &: r.b.at1.may |: ~:(spacing.valid)
+    in
     is_full r
     &: offset_is_full r
     &: is_all r.period_lo r.period_hi
@@ -1031,10 +1035,7 @@ module Make (Comb : Comb.S) = struct
     &: arm_is_full r
     &: ~:(r.captured)
     &: ~:(r.awaiting)
-    &: r.a.at0.may
-    &: r.a.at1.may
-    &: r.b.at0.may
-    &: r.b.at1.may
+    &: edges_open
   ;;
 end
 
@@ -1323,7 +1324,7 @@ let check
     Option.value_map spec ~default:K.no_spacing ~f:(fun spec ->
       { With_valid.valid = Bits.vdd; value = Spacing.of_spec config spec })
   in
-  let starts_open = Bits.to_bool (K.starts_open table.(0)) in
+  let starts_open = Bits.to_bool (K.starts_open table.(0) ~spacing) in
   let pc_bits n = Bits.of_unsigned_int ~width:Isa.pc_bits n in
   let wrap_top = pc_bits config.wrap_top in
   let wrap_bottom = pc_bits config.wrap_bottom in
@@ -1360,7 +1361,7 @@ let check
       in
       Option.some_if (not (List.is_empty fails)) { Rejection.pc; fails })
   in
-  (* what formal/phase_table.sby proves the spacing for *)
+  (* what formal/phase_spacing.sby proves the spacing for *)
   let proved_spacing =
     Option.for_all spec ~f:(fun { a; b; _ } ->
       a <> b
@@ -1498,6 +1499,7 @@ module Accepts = struct
     ; within =
         K.within
           row
+          ~spacing:i.spacing
           ~phase:i.phase
           ~offset:i.offset
           ~period:i.period
@@ -1511,7 +1513,7 @@ module Accepts = struct
           ~b:i.b
         |> Holds.to_list
         |> Signal.reduce ~f:Signal.( &: )
-    ; starts_open = K.starts_open row
+    ; starts_open = K.starts_open row ~spacing:i.spacing
     }
   ;;
 

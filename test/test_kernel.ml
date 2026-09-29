@@ -47,7 +47,7 @@ let all_but_offset_and_edges (h : _ Kernel.Holds.t) =
    time; [offset], that the offset conjuncts keep its offset inside that row's; and for
    each pin of the pair, that an edge it may make is spaced. [accepts] implies each. Each
    is proved one of [cases] at a time. That the edge bounds carry to the next row is too
-   much arithmetic for SAT; formal/phase_table.sby proves it on the RTL. *)
+   much arithmetic for SAT; formal/pair_step.sby proves it on the RTL. *)
 type claims =
   { cases : G.t list
   ; bounds : G.t
@@ -168,6 +168,7 @@ let accepted_rows_hold ?(check_spacing = Fn.id) ~step_edge () =
   let lies_in' r ~offset =
     K.within
       r
+      ~spacing
       ~phase:phase'
       ~offset
       ~period:(known s.period_known s.next_period "period")
@@ -208,6 +209,7 @@ let accepted_rows_hold ?(check_spacing = Fn.id) ~step_edge () =
       all
         (K.within
            row
+           ~spacing
            ~phase
            ~offset
            ~period
@@ -333,17 +335,16 @@ let check ?(at_pc_0 = Fn.id) ?spacing (c : Certified.t) =
   let rows =
     Analyser.analyse ?period:c.period ~single_capture_edge ~config program.instructions
   in
-  let table = Kernel.Table.of_analyser rows in
-  table.(0) <- at_pc_0 table.(0);
   let table =
-    Option.value_map spacing ~default:table ~f:(fun spec ->
+    Option.value_map spacing ~default:(Kernel.Table.of_analyser rows) ~f:(fun spec ->
       Kernel.Table.with_edges
         ~single_capture_edge
-        table
+        (Kernel.Table.of_analyser rows)
         ~config
         ~spacing:(Kernel.Spacing.of_spec config spec)
         ~words)
   in
+  table.(0) <- at_pc_0 table.(0);
   Kernel.check ?period:c.period ~single_capture_edge ?spacing ~config ~words table
 ;;
 
@@ -473,10 +474,23 @@ let%expect_test "the spacing i2c_master passes is its own, to the cycle" =
     |}]
 ;;
 
-(* At reset the phase, the offset, every register, the capture state and the pins are
-   anything, and the proof of [accepts] takes the row at pc 0 to hold of them, so
-   [Kernel.check] refuses a table whose row there bounds any of them: here uart_tx's,
-   which it accepts, with one bound added at pc 0. *)
+(* With a spacing a run starts with the pins at either level too, so the row at pc 0 must
+   bound neither. *)
+let%expect_test "with a spacing, the row at pc 0 bounds no pin" =
+  let at_pc_0 (r : _ Kernel.Row.t) =
+    { r with a = { r.a with at1 = { r.a.at1 with may = Bits.gnd } } }
+  in
+  let verdict =
+    check (Certified.find_exn "i2c_master") ~at_pc_0 ~spacing:fast_mode_plus
+  in
+  print_s [%message (verdict : unit Or_error.t)];
+  [%expect {| (verdict (Error "the row at pc 0 must be the full range")) |}]
+;;
+
+(* At reset the phase, the offset, every register and the capture state are anything, and
+   the proof of [accepts] takes the row at pc 0 to hold of them, so [Kernel.check] refuses
+   a table whose row there bounds any of them: here uart_tx's, which it accepts, with one
+   bound added at pc 0. *)
 let%expect_test "the row at pc 0 bounds nothing" =
   let c = Certified.find_exn "uart_tx" in
   let signed n = Bits.of_signed_int ~width:Isa.timer_bits n in
@@ -493,7 +507,6 @@ let%expect_test "the row at pc 0 bounds nothing" =
     ; ("arm", fun r -> { r with arm_hi = Bits.zero Isa.timer_bits })
     ; ("captured", fun r -> { r with captured = Bits.vdd })
     ; ("awaiting", fun r -> { r with awaiting = Bits.vdd })
-    ; ("edge", fun r -> { r with a = { r.a with at1 = { r.a.at1 with may = Bits.gnd } } })
     ]
     ~f:(fun (bound, at_pc_0) ->
       let verdict = check c ~at_pc_0 in
@@ -509,7 +522,6 @@ let%expect_test "the row at pc 0 bounds nothing" =
     (arm (verdict (Error "the row at pc 0 must be the full range")))
     (captured (verdict (Error "the row at pc 0 must be the full range")))
     (awaiting (verdict (Error "the row at pc 0 must be the full range")))
-    (edge (verdict (Error "the row at pc 0 must be the full range")))
     |}]
 ;;
 
@@ -715,7 +727,7 @@ let%expect_test "the library's tables are rows of intervals" =
     |}]
 ;;
 
-(* [Kernel.check] spaces edges only where formal/phase_table.sby proves it: two pins,
+(* [Kernel.check] spaces edges only where formal/phase_spacing.sby proves it: two pins,
    Manchester off and a table of intervals. *)
 let%expect_test "a spacing is checked only where it is proved" =
   let i2c = Certified.find_exn "i2c_master" in

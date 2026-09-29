@@ -136,6 +136,7 @@ let kernel_gates_command =
             ; within =
                 K.within
                   row
+                  ~spacing:i.spacing
                   ~phase:i.phase
                   ~offset:i.offset
                   ~period:i.period
@@ -149,7 +150,7 @@ let kernel_gates_command =
                   ~b:i.b
                 |> Kernel.Holds.to_list
                 |> A.reduce ~f:A.( &: )
-            ; starts_open = K.starts_open row
+            ; starts_open = K.starts_open row ~spacing:i.spacing
             }
             |> Accepts.O.zip Accepts.O.port_names
             |> Accepts.O.to_list

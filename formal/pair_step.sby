@@ -1,0 +1,72 @@
+[tasks]
+jmp prove
+wait_0 prove
+wait_1 prove
+wait_2_0 prove
+wait_2_1 prove
+wait_2_2 prove
+wait_2_3 prove
+wait_3 prove
+in prove
+out prove
+mov prove
+set prove
+alu_x prove
+alu_y prove
+alu_p prove
+alu_t_0_0 prove
+alu_t_0_1 prove
+alu_t_0_2 prove
+alu_t_0_3 prove
+alu_t_1 prove
+alu_t_2 prove
+alu_t_3 prove
+sys prove
+unspaced teeth
+
+[options]
+# the lemma is combinational over constants, so step 0 is every input
+prove: mode bmc
+prove: depth 1
+teeth: mode bmc
+teeth: depth 1
+teeth: expect fail
+
+[engines]
+smtbmc boolector
+
+[script]
+read -define PAIR_STEP
+jmp: read -define OPCODE=0
+wait_0: read -define OPCODE=1 WAIT_SOURCE=0
+wait_1: read -define OPCODE=1 WAIT_SOURCE=1
+wait_2_0: read -define OPCODE=1 WAIT_SOURCE=2 SIDE_SET=0
+wait_2_1: read -define OPCODE=1 WAIT_SOURCE=2 SIDE_SET=1
+wait_2_2: read -define OPCODE=1 WAIT_SOURCE=2 SIDE_SET=2
+wait_2_3: read -define OPCODE=1 WAIT_SOURCE=2 SIDE_SET=3
+wait_3: read -define OPCODE=1 WAIT_SOURCE=3
+in: read -define OPCODE=2
+out: read -define OPCODE=3
+mov: read -define OPCODE=4
+set: read -define OPCODE=5
+alu_x: read -define OPCODE=6 ALU_DEST=0
+alu_y: read -define OPCODE=6 ALU_DEST=1
+alu_p: read -define OPCODE=6 ALU_DEST=2
+alu_t_0_0: read -define OPCODE=6 ALU_DEST=3 ALU_OP=0 SIDE_SET=0
+alu_t_0_1: read -define OPCODE=6 ALU_DEST=3 ALU_OP=0 SIDE_SET=1
+alu_t_0_2: read -define OPCODE=6 ALU_DEST=3 ALU_OP=0 SIDE_SET=2
+alu_t_0_3: read -define OPCODE=6 ALU_DEST=3 ALU_OP=0 SIDE_SET=3
+alu_t_1: read -define OPCODE=6 ALU_DEST=3 ALU_OP=1
+alu_t_2: read -define OPCODE=6 ALU_DEST=3 ALU_OP=2
+alu_t_3: read -define OPCODE=6 ALU_DEST=3 ALU_OP=3
+sys: read -define OPCODE=7
+unspaced: read -define UNSPACED
+read_verilog kernel_step.v
+read_verilog kernel_accepts.v
+read_verilog -formal -sv pair_step.sv
+prep -flatten -top pair_step_proof
+
+[files]
+kernel_step.v
+kernel_accepts.v
+pair_step.sv

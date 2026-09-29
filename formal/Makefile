@@ -37,17 +37,30 @@ phase_step: engine.v kernel_step.v
 kernel_accepts.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe kernel-accepts > formal/kernel_accepts.v
 
-# The step lemma and the kernel's check in one run: no deadline is missed, and a watched
-# pair's edges keep their spacing, for any program and any table of intervals the kernel
-# accepts. Over two hours, so CI runs it in a job of its own on Verilog written already
-# (phase_table_proof); each tooth must miss a deadline, and no_spacing space an edge short.
+# The step lemma and the kernel's check in one run: no deadline is missed, for any program
+# and any table of intervals the kernel accepts. About 20 min, so CI runs it in a job of
+# its own on Verilog written already (phase_table_proof); each tooth must miss a deadline.
 phase_table: engine.v kernel_step.v kernel_accepts.v
 	$(MAKE) phase_table_proof
 
 phase_table_proof:
 	sby -f phase_table.sby prove cover
-	sby -f phase_table.sby no_accepts no_open next_no_wrap target_is_next rows_while_running \
-	  no_spacing
+	sby -f phase_table.sby no_accepts no_open next_no_wrap target_is_next rows_while_running
+
+# The pair's spacing: pair_step's lemma, the kernel's check of one step carrying the pair,
+# for all inputs and an opcode at a time; then the run, which takes it, the step lemma and
+# the run above as assumptions: each counted edge of a watched pair is spaced, for any
+# program and any table of intervals the kernel accepts with a spacing. About 3 h, two
+# pair tasks near 2 h each; phase_spacing_proof runs on Verilog written already. Each
+# tooth, a check without the spacing, must fail.
+phase_spacing: engine.v kernel_step.v kernel_accepts.v
+	$(MAKE) phase_spacing_proof
+
+phase_spacing_proof:
+	sby -f pair_step.sby jmp wait_0 wait_1 wait_2_0 wait_2_1 wait_2_2 wait_2_3 wait_3 in out \
+	  mov set alu_x alu_y alu_p alu_t_0_0 alu_t_0_1 alu_t_0_2 alu_t_0_3 alu_t_1 alu_t_2 alu_t_3 sys
+	sby -f pair_step.sby unspaced
+	sby -f phase_spacing.sby prove cover no_spacing
 
 # The same for tables whose rows bound phase - slope * x too: row_step's lemma, the kernel's
 # check of one step, for all inputs and an opcode at a time; then the run, which assumes it;
@@ -496,7 +509,7 @@ witness_unsat:
 # counterexample within the task's depth that aigsim replays to a bad state, so model.ys
 # cannot have made the model vacuous, and Certifaiger has to reject the lemma's witness.
 # At least WITNESS_TEETH_<lemma> of them, so none go missing unnoticed.
-WITNESS_TEETH_phase_step = 10
+WITNESS_TEETH_phase_step = 12
 WITNESS_TEETH_edge_step = 5
 WITNESS_TEETH_phase_table = 5
 witness_teeth:
@@ -528,8 +541,8 @@ witness_reject:
   witness_reject
 
 .PHONY: all link link_proof issue_timing host_timing late_host fifo_order phase_step phase_table \
-  phase_table_proof phase_table_affine phase_table_affine_proof edge_step frame_step value_step \
-  chip_frame data_step teeth certificates \
+  phase_table_proof phase_table_affine phase_table_affine_proof phase_spacing \
+  phase_spacing_proof edge_step frame_step value_step chip_frame data_step teeth certificates \
   certificate inductive_certificate inductive_proof inductive_certificates inductive_names \
   stamped_certificate stamped_proof data_certificate data_proof data_certificates data_names \
   netlist_equiv netlist_equiv_teeth sync_rtl sync_gate sync_rtl_teeth sync_gate_teeth \
