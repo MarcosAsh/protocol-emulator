@@ -312,6 +312,9 @@ def plot_compare(args):
         % sample_ns,
         rows=2,
     )
+    # the start edge is 0 by construction, so the data edges' spread is the jitter and their
+    # least offset is MicroPython's fixed call delay
+    pico_data = pico_off[pico_slot != 0]
     both = np.concatenate([off, pico_off]) / 1e3
     bins = bins_for(both * 1e3, sample_ns) / 1e3
     for ax, data, color, label in (
@@ -333,8 +336,15 @@ def plot_compare(args):
             bottom,
             pico_off / 1e3,
             PICO,
-            "MicroPython on a Pico, %d baud from a ticks_us deadline loop: %d edges, spread %.1f us"
-            % (args.baud, len(pico_off), np.ptp(pico_off) / 1e3),
+            "MicroPython on a Pico, %d baud, ticks_us loop: %d edges; data edges %.1f us late,"
+            " 99.9%% within %.1f us more, worst %.1f us"
+            % (
+                args.baud,
+                len(pico_off),
+                np.min(pico_data) / 1e3,
+                (np.percentile(pico_data, 99.9) - np.min(pico_data)) / 1e3,
+                np.max(pico_data) / 1e3,
+            ),
         ),
     ):
         ax.hist(data, bins=bins, color=color)
