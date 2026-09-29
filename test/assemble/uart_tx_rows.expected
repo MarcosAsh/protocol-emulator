@@ -1,0 +1,15 @@
+  0  set p, 16                    phase ?..?
+  1  set pins, 1                  phase ?..?  edge ?..?  jitter ?  gap ?..?
+  2  wait tx                      phase ?..?
+  3  pull                         phase ?..?
+  4  set x, 7                     phase ?..?
+  5  mov t, now                   phase ?..?
+  6  set pins, 0                  phase 1  edge 2  gap 5..?
+  7  add t, p                     phase 2
+  8  wait t+                      phase -13..-12  slack 12..13
+  9  out pins, 1                  phase -15  edge -14  gap 15..17
+ 10  jmp x--, 8                   phase -14
+ 11  wait t+                      phase -12  slack 12
+ 12  set pins, 1                  phase -15  edge -14  gap 16
+ 13  wait t                       phase -14  slack 14
+ 14  jmp 2                        phase 1

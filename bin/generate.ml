@@ -198,7 +198,8 @@ let kernel_accepts_rtl_command =
 ;;
 
 (* The assumptions are the analyser's, under its names. The capture pin and autopull
-   belong to the configuration, which the host loads and a source file does not carry. *)
+   belong to the configuration, which the host loads and a source file does not carry.
+   Gives the analyser's rows under them, checked unless [-no-timing-check]. *)
 let timing_check =
   [%map_open.Command
     let period =
@@ -227,19 +228,27 @@ let timing_check =
       flag "-no-timing-check" no_arg ~doc:" assemble firmware that may miss a deadline"
     in
     fun program ->
+      let config =
+        { Program_config.default with
+          capture_pin
+        ; capture_rising = not capture_falling
+        ; autopull = Option.is_some autopull_data
+        ; autopull_data = Option.is_some autopull_data
+        ; pull_threshold =
+            Option.value autopull_data ~default:Program_config.default.pull_threshold
+        }
+      in
+      let configured = Asm.Program.configure program config in
+      let rows =
+        Analyser.analyse
+          ?period
+          ~single_capture_edge
+          ~config:configured
+          program.instructions
+      in
       if no_timing_check
-      then Ok ()
-      else (
-        let config =
-          { Program_config.default with
-            capture_pin
-          ; capture_rising = not capture_falling
-          ; autopull = Option.is_some autopull_data
-          ; autopull_data = Option.is_some autopull_data
-          ; pull_threshold =
-              Option.value autopull_data ~default:Program_config.default.pull_threshold
-          }
-        in
+      then Ok rows
+      else
         let open Or_error.Let_syntax in
         let%bind verdict = Analyser.check ?period ~single_capture_edge ~config program in
         eprintf "%s\n" (Analyser.Verdict.to_string verdict);
@@ -247,19 +256,16 @@ let timing_check =
         (* The analyser is not trusted: the kernel, which is proved, checks its rows and
            has the last word. It covers less than the analyser, so it can refuse firmware
            the analyser passes. *)
-        let config = Asm.Program.configure program config in
-        let rows =
-          Analyser.analyse ?period ~single_capture_edge ~config program.instructions
-        in
         let%map () =
           Kernel.check
             ?period
             ~single_capture_edge
-            ~config
+            ~config:configured
             ~words
             (Kernel.Table.of_analyser rows)
         in
-        eprintf "kernel: accepted, so no deadline is missed by the step lemma\n")]
+        eprintf "kernel: accepted, so no deadline is missed by the step lemma\n";
+        rows]
 ;;
 
 let assemble_command =
@@ -278,17 +284,24 @@ let assemble_command =
           "-listing"
           no_arg
           ~doc:" print each word with its address and the instruction"
+      and print_rows =
+        flag
+          "-rows"
+          no_arg
+          ~doc:" print the analyser's rows, each edge's phase to the deadline, not words"
       in
       fun () ->
         let assembled =
           let open Or_error.Let_syntax in
           let%bind program = In_channel.read_all file |> Asm.assemble in
-          let%bind () = timing_check program in
+          let%bind rows = timing_check program in
           let%map words = Asm.Program.words program in
-          program, words
+          program, words, rows
         in
         match assembled with
-        | Ok (program, words) ->
+        | Ok (program, _, rows) when print_rows ->
+          print_endline (Analyser.to_string ~side_set_count:program.side_set_count rows)
+        | Ok (program, words, _) ->
           List.iteri
             (List.zip_exn words program.instructions)
             ~f:(fun address (word, instruction) ->

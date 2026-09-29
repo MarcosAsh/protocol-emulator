@@ -76,3 +76,15 @@
  (alias runtest)
  (action
   (diff wrapped_loop.expected wrapped_loop.gen)))
+
+; the rows the overlay in demo/ reads the proved edges from
+
+(rule
+ (with-stdout-to
+  uart_tx_rows.gen
+  (run %{exe:../../bin/generate.exe} assemble -rows %{dep:../uart_tx.asm})))
+
+(rule
+ (alias runtest)
+ (action
+  (diff uart_tx_rows.expected uart_tx_rows.gen)))
