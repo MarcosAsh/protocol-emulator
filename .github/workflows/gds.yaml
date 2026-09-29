@@ -116,6 +116,12 @@ jobs:
           make -C formal netlist_equiv netlist_equiv_teeth \
             NETLIST="$GITHUB_WORKSPACE/hardened/tt_submission/tt_um_marcosash_protocol_emulator.v"
 
+      # formal/sync/check.tcl
+      - name: Check one clock and a two-flop synchroniser on every pin, and fail on five mutants
+        run: |
+          make -C formal sync_gate sync_gate_teeth \
+            NETLIST="$GITHUB_WORKSPACE/hardened/tt_submission/tt_um_marcosash_protocol_emulator.v"
+
   viewer:
     needs: gds
     runs-on: ubuntu-24.04
