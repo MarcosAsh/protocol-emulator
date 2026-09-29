@@ -138,7 +138,7 @@ module Make (_ : Timer) : sig
       ; capture_armed : 'a
       ; tx_level : 'a
       ; rx_level : 'a
-      ; rx_head : 'a
+      ; rx_head : 'a (** 0 while [rx_level] is. *)
       ; instruction : 'a (** The word at [pc]. *)
       ; decode_ok : 'a (** Registered with [instruction], as are the next two. *)
       ; opcode_onehot : 'a
