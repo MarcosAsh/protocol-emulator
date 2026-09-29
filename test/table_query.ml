@@ -61,6 +61,16 @@ let accepts ~loaded ~single_capture_edge ~(config : Program_config.t) ~words tab
   |> G.reduce ~f:G.( &: )
 ;;
 
+let every_load_from ~floor ~single_capture_edge ~config ~words (table : Kernel.Table.t) =
+  let loaded = { With_valid.valid = G.vdd; value = G.input "loaded" Isa.data_bits } in
+  let accepts =
+    Array.map table ~f:(Kernel.Row.map ~f:constant)
+    |> accepts ~loaded ~single_capture_edge ~config ~words
+  in
+  let below = G.(loaded.value <:. floor) in
+  G.(below |: accepts)
+;;
+
 let witness
   ?(solver = Checked_unsat.solver)
   ?(offsets = true)

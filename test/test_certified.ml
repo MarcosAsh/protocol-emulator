@@ -61,22 +61,6 @@ let%expect_test "the firmware library and its certificates" =
 
 module G = Hardcaml_verify.Comb_gates
 
-(* That the kernel accepts [table] at every run-time load of [floor] or more, the loaded
-   period an input and the rest constant. *)
-let every_load_from ~floor ~single_capture_edge ~config ~words (table : Kernel.Table.t) =
-  let loaded =
-    { Hardcaml.With_valid.valid = G.vdd; value = G.input "loaded" Isa.data_bits }
-  in
-  let accepts =
-    Array.map
-      table
-      ~f:(Kernel.Row.map ~f:(fun b -> G.of_constant (Hardcaml.Bits.to_constant b)))
-    |> Table_query.accepts ~loaded ~single_capture_edge ~config ~words
-  in
-  let below = G.(loaded.value <:. floor) in
-  G.(below |: accepts)
-;;
-
 (* Where the host picks the rate, the least period it may load. The analyser's table for
    loads of the floor or more passes the kernel at every such load, by checked SAT; at the
    floor less one the kernel refuses its table. With phase_step.sv, whose loaded period is
@@ -101,7 +85,12 @@ let%expect_test "the least period the host may load" =
         |> Result.is_ok
       in
       let loads_from least =
-        every_load_from ~floor:least ~single_capture_edge ~config ~words (table floor)
+        Table_query.every_load_from
+          ~floor:least
+          ~single_capture_edge
+          ~config
+          ~words
+          (table floor)
       in
       print_s
         [%message

@@ -17,6 +17,16 @@ val accepts
   -> Hardcaml_verify.Comb_gates.t Kernel.Row.t array
   -> Hardcaml_verify.Comb_gates.t
 
+(** That the kernel accepts [table] at every run-time load of [floor] or more, the load an
+    input named [loaded] and the rest constant. *)
+val every_load_from
+  :  floor:int
+  -> single_capture_edge:bool
+  -> config:Program_config.t
+  -> words:int list
+  -> Kernel.Table.t
+  -> Hardcaml_verify.Comb_gates.t
+
 (** The solver's model as a table, a row input it leaves out read as zero. Only
     [Kernel.check] on it is a verdict. Without [offsets] every offset is full. Raises if
     [solver] (default [Checked_unsat.solver]) fails. *)
