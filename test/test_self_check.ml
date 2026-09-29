@@ -49,25 +49,69 @@ let caught ?(sender = sender) ?(host_period = period) ?(base = 0) ~rows bytes =
 
 let bytes = [ 0x55; 0xa3; 0x00; 0xff ]
 
-let%expect_test "the checker keeps its own deadlines when every gap is at least min_gap" =
+module G = Hardcaml_verify.Comb_gates
+
+(* Each edge loads p from its row, so the analyser's table is for every load of min_gap or
+   more, and the kernel accepts it at each, by checked SAT; phase_step.sv's load is free
+   at each entry, so no deadline is missed however the rows' loads vary. At one less the
+   kernel refuses. *)
+let%expect_test "the kernel accepts the checker at every load from min_gap" =
   let checker = checker ~pin:wire () in
-  let config = Asm.Program.configure checker (Self_check.checker_config ~pin:wire) in
-  List.iter
-    [ Self_check.min_gap - 1; Self_check.min_gap ]
-    ~f:(fun floor ->
-      let late =
-        Analyser.analyse
-          ~period_floor:floor
-          ~single_capture_edge:true
-          ~config
-          checker.instructions
-        |> List.filter ~f:(fun r -> r.may_miss || r.may_underrun)
-        |> List.map ~f:(fun r -> r.pc)
-      in
-      print_s [%message (floor : int) (late : int list)]);
-  [%expect {|
-    ((floor 28) (late (16)))
-    ((floor 29) (late ()))
+  let checker_config = Self_check.checker_config ~pin:wire in
+  let config = Asm.Program.configure checker checker_config in
+  let words = Asm.Program.words checker |> ok_exn in
+  let table ~floor =
+    Analyser.analyse
+      ~period_floor:floor
+      ~single_capture_edge:true
+      ~config
+      checker.instructions
+    |> Kernel.Table.of_analyser
+  in
+  let check ~floor =
+    Kernel.check ~period:floor ~single_capture_edge:true ~config ~words (table ~floor)
+  in
+  let floor = Self_check.min_gap in
+  print_s
+    [%message
+      ""
+        ~analyser:
+          (Analyser.check
+             ~period_floor:floor
+             ~single_capture_edge:true
+             ~config:checker_config
+             checker
+           : Analyser.Verdict.t Or_error.t)
+        ~kernel:(check ~floor : unit Or_error.t)
+        ~one_less:(check ~floor:(floor - 1) : unit Or_error.t)];
+  let loads_from least =
+    Table_query.every_load_from
+      ~floor:least
+      ~single_capture_edge:true
+      ~config
+      ~words
+      (table ~floor)
+  in
+  Checked_unsat.prove
+    [%string "checker: every load of %{floor#Int} or more"]
+    ~cases:[ G.vdd ]
+    ~claim:(loads_from floor);
+  (* the tooth: one less than the table allows *)
+  Checked_unsat.prove
+    ~show:[ "loaded" ]
+    [%string "checker: every load of %{floor - 1#Int} or more"]
+    ~cases:[ G.vdd ]
+    ~claim:(loads_from (floor - 1));
+  [%expect
+    {|
+    ((analyser (Ok ((words 39) (deadline_waits 1) (worst_slack (0)))))
+     (kernel (Ok ()))
+     (one_less
+      (Error
+       ("rows the kernel rejects" (rejected (((pc 16) (fails ("in time")))))))))
+    (QED "checker: every load of 29 or more")
+    (counterexample "checker: every load of 28 or more"
+     (model ((loaded 0000000000011100))))
     |}]
 ;;
 

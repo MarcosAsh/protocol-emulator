@@ -8,9 +8,9 @@ uart_rx_wire.hex: ASSUME = -single-capture-edge -capture-pin 20 -capture-falling
 uart_tx_host_rate.hex: ASSUME = -period 434
 ethernet.hex: ASSUME = -period 64000 -autopull-data 16
 data_stream.hex: ASSUME = -autopull-data 16
-# The checker loads its bit periods from the data memory, where the kernel takes one
-# constant; test_self_check.ml has the analyser check it from its least period up.
-self_check_wire.hex: ASSUME = -no-timing-check
+# The checker loads a bit period per edge from its rows, each min_gap or more.
+self_check_wire.hex: ASSUME = -period-floor 29 -single-capture-edge -capture-pin 20 \
+  -capture-falling -autopull-data 16
 
 # What self_check_wire checks uart_tx_host_rate's frames against, start bit to stop bit,
 # above the data memory's low half.
