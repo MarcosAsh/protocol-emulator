@@ -284,6 +284,7 @@ let%expect_test "the kernel on the firmware library, from the analyser's rows" =
     (one_wire (verdict (Ok ())))
     (ps2 (verdict (Ok ())))
     (jtag (verdict (Ok ())))
+    (can (verdict (Ok ())))
     |}]
 ;;
 
@@ -604,6 +605,7 @@ let%expect_test "a bound on the jitter of every pin edge, in firmware the kernel
     (one_wire (pc 11) (jitter_bound 0) (untimed ()))
     (ps2 (pc 15) (jitter_bound 0) (untimed ()))
     (jtag (pc 8) (jitter_bound 2) (untimed (0 1 2 3 4)))
+    (can (pc 6) (jitter_bound 0) (untimed ()))
     (spi_slave_captured "no edge has a deadline" (untimed (0 5))
      (reaction ((pc 5) (at_most 3))))
     |}]

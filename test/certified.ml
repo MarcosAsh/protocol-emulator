@@ -67,6 +67,13 @@ let all =
       One_wire.config
   ; plain ~period:Ps2.standard_quarter ~period_floor:8 "ps2" Ps2.firmware Ps2.config
   ; plain "jtag" (Jtag.firmware ~half_period:Jtag.shortest_half) Jtag.config
+  ; plain
+      ~period:Can.period
+      ~period_floor:Can.shortest_period
+      ~no_wrap:true
+      "can"
+      Can.firmware
+      Can.config
   ]
 ;;
 

@@ -226,6 +226,10 @@ let%expect_test "what each out sends, in the firmware library" =
     (one_wire (verdict (Ok ())) (sends ()))
     (ps2 (verdict (Ok ())) (sends ()))
     (jtag (verdict (Ok ())) (sends ((7 "bits 7 - x on") (11 "bits 2 to 32 on"))))
+    (can (verdict (Ok ()))
+     (sends
+      ((19 "bit 1 to 32") (23 "bit 1 to 32") (37 "not a pulled word")
+       (41 "not a pulled word"))))
     (uart_tx_stream (verdict (Ok ())) (sends ((8 "not a pulled word"))))
     (spi_master_stream (verdict (Ok ()))
      (sends ((4 "not a pulled word") (8 "not a pulled word"))))

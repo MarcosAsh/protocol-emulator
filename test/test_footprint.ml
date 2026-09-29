@@ -234,6 +234,7 @@ let%expect_test "the footprint of each firmware, and of its config under any pro
     one_wire           -            12         12-27          12-19
     ps2                -            12-13      12-27          12-19
     jtag               5-7          -          5-21           12-19
+    can                6            -          6-21           12-19
     |}]
 ;;
 
@@ -306,6 +307,7 @@ let%expect_test "each firmware stays inside its footprint" =
     one_wire           -            -
     ps2                -            -
     jtag               5-7          -
+    can                -            -
     |}]
 ;;
 
