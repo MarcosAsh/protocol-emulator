@@ -9,6 +9,9 @@ module Setup : sig
     { config : Program_config.t
     ; program : int list
     ; preload : int list (** Pushed into the tx fifo before the start. *)
+    ; data : int list
+    (** Written into the data memory from address 0 before the start, zeros after, when
+        the program autopulls from it. *)
     }
 end
 

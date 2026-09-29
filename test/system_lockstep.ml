@@ -10,6 +10,7 @@ module Setup = struct
     { config : Program_config.t
     ; program : int list
     ; preload : int list
+    ; data : int list
     }
 end
 
@@ -89,7 +90,9 @@ let run
        feed
          ~words:(fun s ->
            if s.config.autopull_data
-           then List.init (1 lsl Isa.data_addr_bits) ~f:(fun _ -> 0)
+           then
+             List.init (1 lsl Isa.data_addr_bits) ~f:(fun n ->
+               List.nth s.data n |> Option.value ~default:0)
            else [])
          ~valid:(fun port -> port.data_write.valid)
          ~write:(fun port addr word ->
@@ -102,6 +105,7 @@ let run
        let model =
          List.map setups ~f:(fun s ->
            let machine = Machine.create ~config:s.config ~program:s.program |> ok_exn in
+           let machine = Machine.load_data machine s.data |> ok_exn in
            List.fold s.preload ~init:machine ~f:(fun m word ->
              Machine.write_tx m word |> ok_exn))
          |> System.create

@@ -14,10 +14,12 @@ let cross_wired ~line ~transmitter =
       [ { config = { Program_config.default with set_base = line; out_base = line }
         ; program = assemble transmitter
         ; preload = [ 0x55; 0xa3 ]
+        ; data = []
         }
       ; { config = rx_config
         ; program = assemble (uart_rx_on ~pin:line ~period)
         ; preload = []
+        ; data = []
         }
       ]
   in
@@ -73,6 +75,7 @@ let%expect_test "random programs on two engines in lockstep" =
           { System_lockstep.Setup.config
           ; program = Random_program.program ~waits:`Input_pins random ~config
           ; preload = []
+          ; data = []
           })
       in
       let levels = ref [ 0; 0 ] in
@@ -127,10 +130,12 @@ let%expect_test "one engine times the other's uart edges" =
       [ { config = transmitter
         ; program = assemble uart_tx_host_rate
         ; preload = period :: bytes
+        ; data = []
         }
       ; { config = edge_logger_config ~pin:line
         ; program = assemble (edge_logger ~pin:line)
         ; preload = []
+        ; data = []
         }
       ]
   in
