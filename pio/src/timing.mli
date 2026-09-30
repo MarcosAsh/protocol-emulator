@@ -5,7 +5,8 @@
     For every output pin edge we give the width of the pulse it ends: the cycles since the
     last instruction that may have made the opposite edge, a lower bound on the true
     width. [phase] is the cycles since the last [wait] released, which is where a receiver
-    locks to its input. *)
+    locks to its input. A [wait] on an output's own pin (a stretched clock) may release on
+    another driver's later edge, so the next pulse is timed from the release. *)
 
 open! Core
 

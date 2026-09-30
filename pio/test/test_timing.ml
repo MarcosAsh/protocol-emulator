@@ -257,7 +257,9 @@ let check_i2c ~hold program =
       }
 ;;
 
-let%expect_test "pico-examples i2c misses Standard-mode START, STOP and SCL low times" =
+let%expect_test "pico-examples i2c misses Standard-mode START, STOP and SCL low times, \
+                 and SCL high after a stretched ACK clock"
+  =
   vendored "i2c.pio" "i2c" |> check_i2c ~hold:1;
   [%expect
     {|
@@ -267,13 +269,13 @@ let%expect_test "pico-examples i2c misses Standard-mode START, STOP and SCL low 
       2  set x, 7                          1  -,14..?,48..?,61..?
       3  out pindirs, 1 [7]               8+  -,15..?,21..?,49..?,62..? sda- -,13..?,31..?,32..?  sda+ 26..?,31..?,32..?
       4  nop side 1 [2]                    3  -,23..?,29..?,57..? scl+ 15..?,16..?,24..?
-      5  wait 1 pin, 1 [4]                5+  -,26..?,32..?  samples scl (scl+ -,3..?, scl- -,18..?,19..?,27..?)  anchor
+      5  wait 1 pin, 1 [4]                5+  -,26..?,32..?  samples scl (scl+ -,3..?, scl- -,18..?,19..?,27..?)  sees scl+  anchor
       6  in pins, 1 [7]                   8+  5              samples sda (sda+ -,16..?, sda- 16..?)
-      7  jmp x-- bitloop side 0 [7]        8  13..?          scl- -,16..?
+      7  jmp x-- bitloop side 0 [7]        8  13..?          scl- 13..?
       8  out pindirs, 1 [7]               8+  21..?          sda- 32..?  sda+ 32..?
       9  nop side 1 [7]                    8  29..?          scl+ 16..?
-     10  wait 1 pin, 1 [7]                8+  37..?          samples scl (scl+ 8..?, scl- 24..?)  anchor
-     11  jmp pin do_nack side 0 [2]        3  8              scl- 16..?  samples sda (sda+ 24..?, sda- 24..?)
+     10  wait 1 pin, 1 [7]                8+  37..?          samples scl (scl+ 8..?, scl- 24..?)  sees scl+  anchor
+     11  jmp pin do_nack side 0 [2]        3  8              scl- 8  samples sda (sda+ 24..?, sda- 24..?)
      12  out x, 6                         1+  -,11..12,45..?,58..?
      13  out y, 1                         1+  -,12..?,46..?,59..?
      14  jmp !x do_byte                    1  -,13..?,47..?,60..?
@@ -292,7 +294,7 @@ let%expect_test "pico-examples i2c misses Standard-mode START, STOP and SCL low 
      16    exec mov isr, null              1  -,56..?
      17  jmp x-- do_exec                   1  24..?
     t_low: scl- -> scl+ >= 4.7us: FAIL, 15 cycles (4680ns) at pc 4
-    t_high: scl+ -> scl- >= 4us: ok, 16 cycles (5000ns) at pc 7
+    t_high: scl+ -> scl- >= 4us: FAIL, 8 cycles (2496ns) at pc 11
     t_hd_sta: sda- -> scl- >= 4us: FAIL, 10 cycles (3120ns) at pc 16 exec set pindirs, 0 side 0 [7]
     t_su_sta: scl+ -> sda- >= 4.7us: FAIL, 10 cycles (3120ns) at pc 16 exec set pindirs, 0 side 1 [7]
     t_su_sto: scl+ -> sda+ >= 4us: FAIL, 10 cycles (3120ns) at pc 16 exec set pindirs, 1 side 1 [7]
@@ -302,7 +304,7 @@ let%expect_test "pico-examples i2c misses Standard-mode START, STOP and SCL low 
 ;;
 
 let%expect_test "one more cycle after ACK, and each START and STOP step sent twice, meet \
-                 them"
+                 them all but a stretched ACK clock's high"
   =
   In_channel.read_all "pico_examples/i2c.pio"
   |> String.substr_replace_first
@@ -319,13 +321,13 @@ let%expect_test "one more cycle after ACK, and each START and STOP step sent twi
       2  set x, 7                          1  -,15..?,59..?,82..?
       3  out pindirs, 1 [7]               8+  -,16..?,21..?,60..?,83..? sda- -,13..?,32..?  sda+ 32..?,36..?
       4  nop side 1 [2]                    3  -,24..?,29..?,68..? scl+ 16..?,24..?
-      5  wait 1 pin, 1 [4]                5+  -,27..?,32..?  samples scl (scl+ -,3..?, scl- -,19..?,27..?)  anchor
+      5  wait 1 pin, 1 [4]                5+  -,27..?,32..?  samples scl (scl+ -,3..?, scl- -,19..?,27..?)  sees scl+  anchor
       6  in pins, 1 [7]                   8+  5              samples sda (sda+ -,16..?, sda- 16..?)
-      7  jmp x-- bitloop side 0 [7]        8  13..?          scl- -,16..?
+      7  jmp x-- bitloop side 0 [7]        8  13..?          scl- 13..?
       8  out pindirs, 1 [7]               8+  21..?          sda- 32..?  sda+ 32..?
       9  nop side 1 [7]                    8  29..?          scl+ 16..?
-     10  wait 1 pin, 1 [7]                8+  37..?          samples scl (scl+ 8..?, scl- 24..?)  anchor
-     11  jmp pin do_nack side 0 [3]        4  8              scl- 16..?  samples sda (sda+ 24..?, sda- 24..?)
+     10  wait 1 pin, 1 [7]                8+  37..?          samples scl (scl+ 8..?, scl- 24..?)  sees scl+  anchor
+     11  jmp pin do_nack side 0 [3]        4  8              scl- 8  samples sda (sda+ 24..?, sda- 24..?)
      12  out x, 6                         1+  -,12..13,56..?,79..?
      13  out y, 1                         1+  -,13..?,57..?,80..?
      14  jmp !x do_byte                    1  -,14..?,58..?,81..?
@@ -348,12 +350,12 @@ let%expect_test "one more cycle after ACK, and each START and STOP step sent twi
      16    exec mov isr, null              1  -,77..?
      17  jmp x-- do_exec                   1  25..?
     t_low: scl- -> scl+ >= 4.7us: ok, 16 cycles (5000ns) at pc 4
-    t_high: scl+ -> scl- >= 4us: ok, 16 cycles (5000ns) at pc 7
+    t_high: scl+ -> scl- >= 4us: FAIL, 8 cycles (2496ns) at pc 11
     t_hd_sta: sda- -> scl- >= 4us: ok, 20 cycles (6248ns) at pc 16 exec set pindirs, 0 side 0 [7]
-    t_su_sta: scl+ -> sda- >= 4.7us: ok, 20 cycles (6248ns) at pc 16 exec set pindirs, 0 side 1 [7]
-    t_su_sto: scl+ -> sda+ >= 4us: ok, 20 cycles (6248ns) at pc 16 exec set pindirs, 1 side 1 [7]
+    t_su_sta: scl+ -> sda- >= 4.7us: ok, 16 cycles (5000ns) at pc 3
+    t_su_sto: scl+ -> sda+ >= 4us: ok, 16 cycles (5000ns) at pc 3
     t_su_dat: sda -> scl+ >= 250ns: ok, 8 cycles (2496ns) at pc 4
-    (passed true)
+    (passed false)
     |}]
 ;;
 
@@ -602,6 +604,35 @@ let%expect_test "a rule that never fires is never checked, and fails" =
      15  jmp x-- loop_d side 1 [15]       16  -
      16  in null, 1 side 0 [8]             9  -
     reset: dq- -> dq+ >= 480 cycles: FAIL, never checked
+    (passed false)
+    |}]
+;;
+
+(* Another driver may hold [scl] low past the side-set, so it may rise just before the
+   wait releases; the high time counts from there. *)
+let%expect_test "a wait on an output's own pin may see a later edge from another driver" =
+  programs
+    {|
+.program stretch
+.side_set 1 opt pindirs
+    nop side 1 [7]
+    wait 1 pin 0 [3]
+    nop side 0 [7]
+|}
+  |> List.hd_exn
+  |> check
+       ~config:
+         { Timing.Config.default with
+           pins = pins [ "scl=side0:dir,in0" ] |> initially true
+         ; rules = rules [ "t_high: scl+ -> scl- >= 8" ]
+         };
+  [%expect
+    {|
+    stretch
+      0  nop side 1 [7]                    8  -,12           scl+ 8
+      1  wait 1 pin 0 [3]                 4+  -,20           samples scl (scl+ -,8..?, scl- -,16..?)  sees scl+  anchor
+      2  nop side 0 [7]                    8  4              scl- 4
+    t_high: scl+ -> scl- >= 8 cycles: FAIL, 4 cycles at pc 2
     (passed false)
     |}]
 ;;

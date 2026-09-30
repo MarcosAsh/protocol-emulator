@@ -382,6 +382,10 @@ module Event = struct
         (** Cycles since the last rise and fall of an output of the same name. *)
         }
     | Anchor
+    | Seen of
+        { pin : string
+        ; rising : bool
+        }
     | Unmodelled of string
     | Rule of
         { rule : int
@@ -480,6 +484,12 @@ module Report = struct
           let fall = values Since.to_string (List.map owns ~f:snd) in
           [%string "samples %{pin} (%{pin}+ %{rise}, %{pin}- %{fall})"])
     in
+    let seen =
+      List.filter_map row.events ~f:(function
+        | Seen { pin; rising } ->
+          Some [%string "sees %{pin}%{if rising then \"+\" else \"-\"}"]
+        | _ -> None)
+    in
     let anchor =
       if List.exists row.events ~f:(function
            | Anchor -> true
@@ -498,7 +508,7 @@ module Report = struct
       text
       row.cycles
       (values Since.to_string phases)
-      (String.concat ~sep:"  " (edges @ samples @ anchor))
+      (String.concat ~sep:"  " (edges @ samples @ seen @ anchor))
     |> String.rstrip
   ;;
 
@@ -794,6 +804,28 @@ let sample ?(locks = false) ctx ~row (timing : Timing.t) pin_ref =
     ctx.emit row (Sample { pin; phase = timing.phase; locks; own }))
 ;;
 
+(* A wait on an output's own pin (I2C's SCL, stretched by a slave) releases on an edge
+   another driver may have made after ours. Taking it at the release is a lower bound for
+   what follows it, but not for what it ends, so it starts pulses and checks no rule. *)
+let see ctx ~row ~rising pin_ref ((key : Key.t), (timing : Timing.t)) =
+  let levels = Array.of_list key.levels in
+  let rise = Array.of_list timing.rise in
+  let fall = Array.of_list timing.fall in
+  Array.iteri ctx.outputs ~f:(fun i (pin : Pin.t) ->
+    if List.exists pin.bindings ~f:(fun (bound, drive) ->
+         Pin_ref.equal bound pin_ref
+         &&
+         match drive with
+         | Input -> true
+         | Level | Dir | Dir_low -> false)
+    then (
+      ctx.emit row (Seen { pin = pin.name; rising });
+      levels.(i) <- (if rising then High else Low);
+      if rising then rise.(i) <- Since.zero else fall.(i) <- Since.zero));
+  ( { key with levels = Array.to_list levels }
+  , { timing with rise = Array.to_list rise; fall = Array.to_list fall } )
+;;
+
 let may_stall ctx (op : Pioasm.Op.t) =
   match op with
   | Wait _ | Irq { mode = Raise_and_wait; _ } -> true
@@ -862,12 +894,19 @@ let rec execute ctx ~row (instruction : Pioasm.Instruction.t) state =
        sample ctx ~row timing Jmp_pin;
        go key true @ go key false
      | Osr_not_empty -> go key true @ go key false)
-  | Wait { source; _ } ->
-    (match source with
-     | Pin index -> sample ~locks:true ctx ~row timing (In index)
-     | Gpio index -> sample ~locks:true ctx ~row timing (Gpio index)
-     | Jmp_pin -> sample ~locks:true ctx ~row timing Jmp_pin
-     | Irq _ -> ());
+  | Wait { polarity; source } ->
+    let pin_ref : Pin_ref.t option =
+      match source with
+      | Pin index -> Some (In index)
+      | Gpio index -> Some (Gpio index)
+      | Jmp_pin -> Some Jmp_pin
+      | Irq _ -> None
+    in
+    Option.iter pin_ref ~f:(sample ~locks:true ctx ~row timing);
+    let key, timing =
+      Option.value_map pin_ref ~default:(key, timing) ~f:(fun pin_ref ->
+        see ctx ~row ~rising:polarity pin_ref (key, timing))
+    in
     ctx.emit row Anchor;
     finish key { timing with phase = Since.zero } Next
   | In { source = Pins; bits } ->
