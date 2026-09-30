@@ -202,12 +202,12 @@ let certified_phase (table : Kernel.Table.t) ~pc =
 let pad_lateness rows =
   List.filter_map rows ~f:(fun (r : Analyser.Row.t) ->
     if is_pad r.instruction then r.phase.hi else None)
-  |> List.max_elt ~compare
+  |> List.max_elt ~compare:Int.compare
 ;;
 
-let fits_set name value =
+let fits_set ~latency name value =
   if value >= 1 lsl Isa.Field.set_value.width
-  then refuse "%s of %d is above what set holds" name value
+  then refuse "latency %d needs %s of %d, above what set holds" latency name value
   else Ok ()
 ;;
 
@@ -272,7 +272,7 @@ let compile_event ~config ~verdict_pin ~latency t ~edge ~guard =
   let to_anchor = cycles_between instructions ~first:event_pc ~last:anchor_pc in
   (* released at the deadline, the verdict issues the cycle after *)
   let budget = latency - to_anchor - 1 in
-  let%bind () = fits_set "a budget" budget in
+  let%bind () = fits_set ~latency "a budget" budget in
   let%bind source, program = assemble ~budget:(Int.max 0 budget) in
   let config = Asm.Program.configure program config in
   let%bind phase = certify t ~config ~latency ~budget program in
@@ -321,14 +321,14 @@ let compile_quiet ~config ~verdict_pin ~latency t ~pin =
   let to_anchor = Isa.jmp_cycles in
   let verdict_phase = cycles_between instructions ~first:pad ~last:verdict in
   let budget = latency - to_anchor - verdict_phase in
-  let%bind () = fits_set "a budget" budget in
+  let%bind () = fits_set ~latency "a budget" budget in
   let%bind pad_at_zero =
     match pad_lateness (Analyser.analyse ~config probe.instructions) with
     | Some late -> Ok late
     | None -> refuse "BUG: the pad wait has no bound"
   in
   let loops = Int.max 0 ((budget - pad_at_zero) / loop_period) in
-  let%bind () = fits_set "a count of polls" loops in
+  let%bind () = fits_set ~latency "a count of polls" loops in
   (* where the pin is sampled, in cycles from the anchor *)
   let first_poll = cycles_between instructions ~first:anchor ~last:poll in
   let last_loop_poll = first_poll + (loops * loop_period) in

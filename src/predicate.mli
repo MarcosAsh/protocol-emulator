@@ -1,8 +1,8 @@
 (** Compiles a predicate over input pin events to firmware that pulses a verdict pin a
     certified number of cycles after each match. A deadline wait pads each match to the
-    latency, so the kernel's acceptance fixes it and a latency the code cannot meet
-    is refused, short by the wait's lateness. [formal/event_step.sby] proves the event
-    wait releases in the cycle that samples the event. *)
+    latency, so the kernel's acceptance fixes it and a latency the code cannot meet is
+    refused, short by the wait's lateness. [formal/event_step.sby] proves the event wait
+    releases in the cycle that samples the event. *)
 
 open! Core
 
@@ -37,9 +37,9 @@ type t =
 val to_string : t -> string
 
 (** How the firmware sees events. [Waits]: in the cycle they are sampled, but for
-    [blind_after_match] or [blind_after_reject] cycles after one. [Polls]: an edge shows up
-    to [min_run - 1] cycles late, and a run of the pin shorter than [min_run], or an edge
-    in the last [unseen_before_verdict] cycles before a verdict, may go unseen. *)
+    [blind_after_match] or [blind_after_reject] cycles after one. [Polls]: an edge shows
+    up to [min_run - 1] cycles late, and a run of the pin shorter than [min_run], or an
+    edge in the last [unseen_before_verdict] cycles before a verdict, may go unseen. *)
 module Sampling : sig
   type t =
     | Waits of

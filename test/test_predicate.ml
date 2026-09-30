@@ -29,8 +29,10 @@ let%expect_test "an i2c start compiles, with its latency certified" =
         set pins, 1         ; the verdict
         set pins, 0
         jmp watch
-    ((latency 10) (guard_at (1)) (blind_after_match 13) (blind_after_reject (2))
-     (verdict_pc 7))
+    ((latency 10) (jitter 0)
+     (sampling
+      (Waits (guard_at (1)) (blind_after_match 13) (blind_after_reject (2))))
+     (verdict_pcs (7)))
     |}]
 ;;
 
@@ -78,7 +80,7 @@ let%expect_test "pins that cannot be read, or a budget too long to set, are refu
     ("compiled predicate ~latency"
      (Error "guard pin 11 is not an input, a bidirectional pin or a wire"))
     ("compiled predicate ~latency"
-     (Error "latency 40 needs a budget of 38 cycles, above what set holds"))
+     (Error "latency 40 needs a budget of 38, above what set holds"))
     |}]
 ;;
 
@@ -105,11 +107,18 @@ let machine_verdicts (firmware : Predicate.Firmware.t) samples =
 let expected_verdicts (firmware : Predicate.Firmware.t) predicate samples =
   let samples = Array.of_list samples in
   let bit cycle pin = (samples.(cycle) lsr pin) land 1 = 1 in
-  let c = firmware.certificate in
+  let latency = firmware.certificate.latency in
+  let guard_at, blind_after_match, blind_after_reject =
+    match firmware.certificate.sampling with
+    | Waits { guard_at; blind_after_match; blind_after_reject } ->
+      guard_at, blind_after_match, blind_after_reject
+    | Polls _ -> raise_s [%message "polls, not waits"]
+  in
   let edge, guard =
     match predicate with
     | Predicate.Edge edge -> edge, None
     | Edge_while { edge; guard } -> edge, Some guard
+    | Quiet _ -> raise_s [%message "not an edge"]
   in
   (* the prologue: set p, set pins *)
   let watching_from = 2 in
@@ -125,15 +134,15 @@ let expected_verdicts (firmware : Predicate.Firmware.t) predicate samples =
       then ready, verdicts
       else (
         let matches =
-          match guard, c.guard_at with
+          match guard, guard_at with
           | Some g, Some at ->
             cycle + at < Array.length samples
             && Bool.equal (bit (cycle + at) g.pin) g.high
           | _ -> true
         in
         if matches
-        then cycle + c.blind_after_match + 1, (cycle + c.latency) :: verdicts
-        else cycle + Option.value_exn c.blind_after_reject + 1, verdicts))
+        then cycle + blind_after_match + 1, (cycle + latency) :: verdicts
+        else cycle + Option.value_exn blind_after_reject + 1, verdicts))
   in
   List.rev verdicts |> List.filter ~f:(fun v -> v < Array.length samples)
 ;;
@@ -205,4 +214,151 @@ let%expect_test "the watch cocotb runs on the chip is the compiler's" =
           (String.equal firmware.source (In_channel.read_all "i2c_start_watch.asm")
            : bool)];
   [%expect {| (same true) |}]
+;;
+
+let quiet = Predicate.Quiet { pin = 2 }
+
+let%expect_test "a pin that stops moving compiles to a poll per level" =
+  let firmware = Predicate.compile ~latency:20 quiet |> ok_exn in
+  print_string firmware.source;
+  print_s [%sexp (firmware.certificate : Predicate.Certificate.t)];
+  [%expect {|
+    ; pin 2 stops moving: pin 5 pulses 20 to 25 cycles on
+        set p, 15           ; the budget
+        set pins, 0
+        jmp pin, high
+        jmp low
+    low_wait:
+        wait 0 pin 2 [1]
+    low:
+        mov t, now          ; the anchor
+        add t, p
+        set x, 2
+    low_poll:
+        jmp pin, high       ; an edge
+        jmp x--, low_poll
+        wait t              ; pads the verdict to the latency
+        jmp pin, high
+        set pins, 1         ; the verdict
+        set pins, 0
+        wait 1 pin 2 [1]
+    high:
+        mov t, now          ; the anchor
+        add t, p
+        set x, 2
+    high_poll:
+        jmp !pin, low       ; an edge
+        jmp x--, high_poll
+        wait t              ; pads the verdict to the latency
+        jmp !pin, low
+        set pins, 1         ; the verdict
+        set pins, 0
+        jmp low_wait
+    ((latency 20) (jitter 5)
+     (sampling (Polls (min_run 6) (unseen_before_verdict 2)))
+     (verdict_pcs (12 22)))
+    |}]
+;;
+
+let%expect_test "a quiet latency the polls cannot meet is refused" =
+  List.iter [ 11; 12; 36; 37 ] ~f:(fun latency ->
+    print_s [%message (latency : int) (compiled quiet ~latency : int Or_error.t)]);
+  [%expect {|
+    ((latency 11)
+     ("compiled quiet ~latency"
+      (Error "latency 11 exceeded by 1 cycle: pin 2 stops moving needs 12")))
+    ((latency 12) ("compiled quiet ~latency" (Ok 12)))
+    ((latency 36) ("compiled quiet ~latency" (Ok 36)))
+    ((latency 37)
+     ("compiled quiet ~latency"
+      (Error "latency 37 needs a budget of 32, above what set holds")))
+    |}]
+;;
+
+(* The cycles whose sample of [pin] differs from the cycle before's. *)
+let changes samples ~pin =
+  List.filter_mapi
+    (List.zip_exn (List.drop_last_exn samples) (List.tl_exn samples))
+    ~f:(fun i (was, is) -> Option.some_if (((was lxor is) lsr pin) land 1 = 1) (i + 1))
+;;
+
+(* Runs of the pin at least [min_run] long, some ending before a verdict is due and some
+   after, from a first run long enough to leave the prologue behind. *)
+let quiet_samples ~min_run ~due =
+  let open Quickcheck.Generator.Let_syntax in
+  let%map runs =
+    List.gen_with_length
+      30
+      (Quickcheck.Generator.union
+         [ Int.gen_incl min_run due; Int.gen_incl (due + 1) (2 * due) ])
+  in
+  List.concat_mapi ((2 * due) :: runs) ~f:(fun i cycles ->
+    List.init cycles ~f:(fun _ -> (i % 2) lsl 2))
+;;
+
+let%expect_test "on the model, a quiet verdict comes latency to latency + jitter after \
+                 the last edge, and each quiet run gets one"
+  =
+  List.iter [ 12; 20; 36 ] ~f:(fun latency ->
+    let firmware = Predicate.compile quiet ~latency |> ok_exn in
+    let { Predicate.Certificate.jitter; sampling; _ } = firmware.certificate in
+    let min_run, unseen =
+      match sampling with
+      | Polls { min_run; unseen_before_verdict } -> min_run, unseen_before_verdict
+      | Waits _ -> raise_s [%message "waits, not polls"]
+    in
+    let due = latency + jitter in
+    let verdicts = ref 0 in
+    Quickcheck.test ~trials:100 (quiet_samples ~min_run ~due) ~f:(fun samples ->
+      let length = List.length samples in
+      let seen = machine_verdicts firmware samples in
+      let changes = changes samples ~pin:2 in
+      verdicts := !verdicts + List.length seen;
+      (* each verdict answers the last edge the polls could see, and no other verdict *)
+      let answered =
+        List.map seen ~f:(fun v ->
+          match List.last (List.filter changes ~f:(fun c -> c <= v - unseen)) with
+          | None -> None
+          | Some edge ->
+            if v - edge < latency || v - edge > due
+            then raise_s [%message "verdict out of its window" (v : int) (edge : int)];
+            Some edge)
+        |> List.filter_opt
+      in
+      if List.contains_dup answered ~compare
+      then raise_s [%message "two verdicts for one edge" (answered : int list)];
+      List.iteri changes ~f:(fun i edge ->
+        let next = Option.value (List.nth changes (i + 1)) ~default:length in
+        if next > edge + due && edge + due < length && not (List.mem answered edge ~equal)
+        then raise_s [%message "a quiet run without a verdict" (edge : int) (next : int)]));
+    print_s [%message "" (latency : int) (jitter : int) ~verdicts:(!verdicts : int)]);
+  [%expect {|
+    ((latency 12) (jitter 5) (verdicts 2339))
+    ((latency 20) (jitter 5) (verdicts 2104))
+    ((latency 36) (jitter 5) (verdicts 1911))
+    |}]
+;;
+
+let%expect_test "the engine runs the quiet firmware as the model does" =
+  let firmware = Predicate.compile quiet ~latency:20 |> ok_exn in
+  let samples =
+    Quickcheck.random_value
+      ~seed:(`Deterministic "quiet")
+      (quiet_samples ~min_run:8 ~due:27)
+    |> Array.of_list
+  in
+  let machine =
+    Lockstep.lockstep
+      ~cycles:(Array.length samples)
+      ~config:firmware.config
+      ~program:(Asm.Program.words firmware.program |> ok_exn)
+      ~inputs:(fun cycle -> samples.(cycle))
+      ()
+  in
+  print_s [%message (machine.fault : Machine.Fault.t)];
+  [%expect {|
+    ("lockstep held" (cycles 947))
+    (machine.fault
+     ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+    |}]
 ;;
