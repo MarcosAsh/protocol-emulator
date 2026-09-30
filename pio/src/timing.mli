@@ -33,7 +33,9 @@ module Pin : sig
   type t =
     { name : string
     ; bindings : (Pin_ref.t * Drive.t) list
-    ; initial : bool option (** Output level on entry; unknown when [None]. *)
+    ; initial : bool option
+    (** Output level on entry; unknown when [None]. An open-drain pin unknown at entry may
+        already be held low by another driver, and its first rise is not tracked. *)
     }
   [@@deriving sexp_of]
 
