@@ -447,6 +447,10 @@ module Report = struct
     |> List.min_elt ~compare:(fun (a, _) (b, _) -> Int.compare a b)
   ;;
 
+  let rule_bounds t =
+    List.mapi t.rules ~f:(fun index _ -> Option.map (lowest (rule_values t index)) ~f:fst)
+  ;;
+
   let rule_verdict t index (rule : Rule.t) =
     match lowest (rule_values t index) with
     | None -> Ok None

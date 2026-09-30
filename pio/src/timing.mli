@@ -139,6 +139,9 @@ module Report : sig
       with a [cell] every sample lands in its cell with a sender at the rate asked for. *)
   val passed : t -> bool
 
+  (** Each rule's fewest cycles over every path, [None] where it is never checked. *)
+  val rule_bounds : t -> int option list
+
   (** A row per instruction (and per [exec]'d instruction): address, text, cycles ([+]
       where it may stall), phase at issue, then edges ([pin+ width], [pin- width]),
       samples and [anchor] where a wait releases. Then each rule's worst case. *)
