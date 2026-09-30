@@ -527,6 +527,21 @@ let one_wire ?(low = cycles 1_000) ?(recovery = cycles 1_000) () =
   holding ~pin:One_wire.pin ~dirs:true ~at0:recovery ~at1:low
 ;;
 
+(* WS2812B: T0H 400 ns +-150 ns, so highs of 250 ns or more. T1H's 650 ns is left out: the
+   spacing bounds every high, not the bit it carries. The lows, 300 ns or more, are left
+   out too: past the latch's wait for the host the kernel bounds them at 14 cycles, not
+   their 22. *)
+let ws2812 ~high = holding ~pin:Ws2812.pin ~dirs:false ~at0:0 ~at1:high
+
+(* ws2812 with [third] cycles a third and [Ws2812.standard]'s tail. The standard's third
+   is 20; the library's is 6, a T0H of 120 ns, which no WS2812B takes. *)
+let ws2812_at third =
+  { (Certified.find_exn "ws2812") with
+    name = [%string "ws2812_third_%{third#Int}"]
+  ; source = Ws2812.firmware ~third ~tail:2
+  }
+;;
+
 (* Each at its standard's rate keeps the least widths taken above from its standard; one
    cycle outside, it keeps every deadline and the kernel refuses it. *)
 let%expect_test "a standard's least widths are kept, and one cycle outside is refused" =
@@ -537,6 +552,7 @@ let%expect_test "a standard's least widths are kept, and one cycle outside is re
     ; can_bits can_bit, at_period "can" 400, at_period "can" 393
     ; ps2 (), at_period "ps2" 1000, at_period "ps2" 749
     ; one_wire (), at_period "one_wire" 300, at_period "one_wire" 49
+    ; ws2812 ~high:(cycles 250), ws2812_at 20, ws2812_at 12
     ]
     ~f:(fun (spacing, firmware, outside) ->
       List.iter [ firmware; outside ] ~f:(fun (c : Certified.t) ->
@@ -579,6 +595,11 @@ let%expect_test "a standard's least widths are kept, and one cycle outside is re
        ("rows the kernel rejects"
         (rejected
          (((pc 11) (fails ("a spaced"))) ((pc 14) (fails ("a spaced")))))))))
+    (ws2812_third_20 (deadlines (Ok ())) (spaced (Ok ())))
+    (ws2812_third_12 (deadlines (Ok ()))
+     (spaced
+      (Error
+       ("rows the kernel rejects" (rejected (((pc 21) (fails ("a spaced")))))))))
     |}]
 ;;
 
@@ -595,6 +616,7 @@ let%expect_test "the kernel's bound on each width, to the cycle" =
     ; ("PS/2 T2", at_period "ps2" 1000, 1000, fun t2 -> ps2 ~t2 ())
     ; ("1-Wire tLOW1", at_period "one_wire" 300, 300, fun low -> one_wire ~low ())
     ; ("1-Wire tREC", at_period "one_wire" 300, 299, fun recovery -> one_wire ~recovery ())
+    ; ("WS2812 T0H", ws2812_at 20, 20, fun high -> ws2812 ~high)
     ]
     ~f:(fun (timing, c, own, spacing) ->
       List.map [ own; own + 1 ] ~f:(fun cycles -> timing, c, cycles, spacing cycles))
@@ -639,6 +661,10 @@ let%expect_test "the kernel's bound on each width, to the cycle" =
     ("1-Wire tREC" (cycles 300)
      (Error
       ("rows the kernel rejects" (rejected (((pc 11) (fails ("a spaced"))))))))
+    ("WS2812 T0H" (cycles 20) (Ok ()))
+    ("WS2812 T0H" (cycles 21)
+     (Error
+      ("rows the kernel rejects" (rejected (((pc 21) (fails ("a spaced"))))))))
     |}]
 ;;
 
