@@ -91,7 +91,10 @@ empty rx fifo's head (proof, 5cd6e6c on branch `powerup`) and an `add t, x` afte
 
 ## Build
 
-Needs the OxCaml switch, and OSS CAD Suite and cocotb for `formal/` and `test/`.
+Needs the OxCaml switch, and OSS CAD Suite and cocotb for `formal/` and `test/`. Without
+OCaml, the [playground](https://marcosash.github.io/protocol-emulator/playground/) shows the
+kernel accept or refuse pasted firmware, and the [latest release](https://github.com/MarcosAsh/protocol-emulator/releases/latest)
+has `generate-linux-x86_64` (Ubuntu 24.04 or newer).
 
 ```
 opam install . --deps-only --with-test --locked
