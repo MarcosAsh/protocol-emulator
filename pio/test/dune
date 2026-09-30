@@ -3,11 +3,12 @@
 
 (library
  (name pio_test)
- (libraries core pio)
+ (libraries core core_unix.sys_unix pio)
  (preprocess
   (pps ppx_jane))
  (inline_tests
   (deps
+   ../bin/pio_check.exe
    (glob_files pico_examples/*.pio))
   (flags
    (-source-tree-root .))))
