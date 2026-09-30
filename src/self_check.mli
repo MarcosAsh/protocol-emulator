@@ -7,8 +7,8 @@ open! Core
 (** The cycles from a frame's first edge, the write at [first], to every later pin write
     up to [last], and last the least to the next frame's first edge. Each is exact: a
     write whose row has jitter, a wait on the world, a write to [t] or [p] inside the
-    frame, or a write between the frame and the next is refused. Refused too unless the
-    kernel accepts the rows. *)
+    frame, or a write between the frame and the next is refused. Refused too if the write
+    at [first] does not say it leaves the pin low, and unless the kernel accepts the rows. *)
 val edges
   :  ?period:int
   -> config:Program_config.t

@@ -180,6 +180,38 @@ let%expect_test "frames the checker cannot take are refused" =
     |}]
 ;;
 
+(* The checker takes a frame's first edge for a fall, so one that starts with a rise is
+   refused. *)
+let%expect_test "a frame that starts with a rise is refused" =
+  let edges source =
+    let program = Asm.assemble source |> ok_exn in
+    print_s
+      [%sexp
+        (Self_check.edges ~config:Program_config.default program ~first:4 ~last:6
+         : int list Or_error.t)]
+  in
+  let frame ~first ~last =
+    [%string
+      {|
+    set p, 20
+top:
+    wait tx
+    pull
+    mov t, now
+    set pins, %{first#Int}
+    nop [31]
+    set pins, %{last#Int}
+    jmp top
+|}]
+  in
+  edges (frame ~first:0 ~last:1);
+  edges (frame ~first:1 ~last:0);
+  [%expect {|
+    (Ok (33 39))
+    (Error ("frame starts with a rise" (pc 4)))
+    |}]
+;;
+
 let%expect_test "an edge a cycle early or late is caught" =
   let rows = rows ~base:0 in
   print_s [%message "on time" ~caught:(caught ~rows bytes : bool)];

@@ -14,6 +14,19 @@ let write_at (row : Analyser.Row.t) =
   | _ -> None
 ;;
 
+(* The level a row's pin write leaves on the first pin it writes, where the instruction
+   alone says. *)
+let written_level (row : Analyser.Row.t) =
+  match row.instruction, row.pin_event, row.side_event with
+  | Op { op = Set { dest = Pins; value }; _ }, Some (Edge _), _ -> Some (value land 1)
+  | Op { op = Mov { dest = Pins; op = Copy; source = Null }; _ }, Some (Edge _), _ ->
+    Some 0
+  | Op { op = Mov { dest = Pins; op = Invert; source = Null }; _ }, Some (Edge _), _ ->
+    Some 1
+  | Op { side_set; _ }, None, Some { changes = true; _ } -> Some (side_set land 1)
+  | _ -> None
+;;
+
 (* Longer than any path without a loop, and than any frame worth checking. *)
 let max_steps = 100_000
 
@@ -51,6 +64,12 @@ let edges ?period ~config (program : Asm.Program.t) ~first ~last =
     match write_at start with
     | Some at -> exactly "edge" first at
     | None -> refuse "no pin write" first
+  in
+  let%bind () =
+    match written_level start with
+    | Some 0 -> Ok ()
+    | Some _ -> refuse "frame starts with a rise" first
+    | None -> refuse "first edge's level not known" first
   in
   let%bind p = exactly "period" first start.period in
   (* [dt] is how far [t] has moved since [first]; each row's phase is from [t]. *)
