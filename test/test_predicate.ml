@@ -314,6 +314,38 @@ let%expect_test "a pin that stops moving compiles to a poll per level" =
     |}]
 ;;
 
+(* The host's budget takes three instructions where [set] took one, moving every pc on. *)
+let%expect_test "a budget from the host moves the anchors and verdicts it certifies" =
+  List.iter
+    [ i2c_start, 300; quiet, 100 ]
+    ~f:(fun (predicate, latency) ->
+      let firmware = Predicate.compile predicate ~latency |> ok_exn in
+      let anchor_pcs =
+        List.filter_mapi firmware.program.instructions ~f:(fun pc -> function
+          | Op { op = Mov { dest = T; source = Now; _ }; _ } -> Some pc
+          | _ -> None)
+      in
+      print_s
+        [%message
+          (latency : int)
+            ~budget_from_host:(firmware.budget_from_host : int option)
+            (anchor_pcs : int list)
+            ~certificate:(firmware.certificate : Predicate.Certificate.t)]);
+  [%expect {|
+    ((latency 300) (budget_from_host (296)) (anchor_pcs (6))
+     (certificate
+      ((latency 300) (jitter 0)
+       (sampling
+        (Waits (guard_at (1)) (blind_after_match 303) (blind_after_reject (2))))
+       (verdict_pcs (9)))))
+    ((latency 100) (budget_from_host (95)) (anchor_pcs (5 15))
+     (certificate
+      ((latency 100) (jitter 4)
+       (sampling (Polls (min_run 5) (unseen_before_verdict 2)))
+       (verdict_pcs (12 22)))))
+    |}]
+;;
+
 let%expect_test "a quiet latency the polls cannot meet is refused" =
   List.iter [ 11; 12; 1000; 5000 ] ~f:(fun latency ->
     print_s [%message (latency : int) (compiled quiet ~latency : int Or_error.t)]);
@@ -366,7 +398,8 @@ let%expect_test "a quiet layout that samples the wrong pin or level is a bug" =
       , check (mutated ~from:"wait 0 pin 2 [1]" ~into:"wait 0 pin 2") )
     ]
     ~f:(fun (name, result) -> print_s [%message name ~_:(result : unit Or_error.t)]);
-  [%expect {|
+  [%expect
+    {|
     ("as compiled" (Ok ()))
     ("jmp_pin 3"
      (Error
