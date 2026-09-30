@@ -435,3 +435,47 @@ let%expect_test "engine 0 streams data while the journal writes" =
         ((code Pads) (pads 1) (delta 16)) ((code Disarm) (pads 1) (delta 32))))))
     |}]
 ;;
+
+(* The dump on one engine, in lockstep with the model: the host pops the top half, word by
+   word, from the ring's base. *)
+let%expect_test "the dump firmware reads the ring out through the rx fifo" =
+  let data = List.init (1 lsl Isa.data_addr_bits) ~f:(fun n -> n * 0x9e37 land 0xffff) in
+  let program = Asm.assemble (In_channel.read_all "journal_dump.asm") |> ok_exn in
+  let config =
+    Asm.Program.configure
+      program
+      { Program_config.default with autopull = true; autopull_data = true }
+  in
+  let popped = Queue.create () in
+  let head = ref None in
+  let host _ =
+    match !head with
+    | Some word ->
+      Queue.enqueue popped word;
+      head := None;
+      { Lockstep.Host.idle with pop_rx = true }
+    | None -> Lockstep.Host.idle
+  in
+  let react (m : Machine.t) = head := List.hd m.rx_fifo in
+  let m =
+    Lockstep.lockstep
+      ~cycles:2000
+      ~data
+      ~host
+      ~react
+      ~config
+      ~program:(Asm.Program.words program |> ok_exn)
+      ~inputs:(fun _ -> 0)
+      ()
+  in
+  let ring = List.take (Queue.to_list popped) Journal.words in
+  [%test_result: int list] ring ~expect:(List.drop data Journal.base);
+  print_s [%message "" ~popped:(Queue.length popped : int) (m.fault : Machine.Fault.t)];
+  [%expect
+    {|
+    ("lockstep held" (cycles 2000))
+    ((popped 398)
+     (m.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    |}]
+;;

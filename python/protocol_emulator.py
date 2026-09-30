@@ -16,6 +16,7 @@ SELECT = 0x0B
 DATA_ADDR = 0x0C
 DATA = 0x0D
 CONFIG = 0x10
+JOURNAL = 0x2B
 PROGRAM_WORDS = 512
 # 0x40 to 0x47 are reserved and read as zero.
 
@@ -108,10 +109,34 @@ class Host:
             "other_irq": (s >> 15) & 1,
         }
 
+    def journal(self, on):
+        """Arm the journal, which restarts it, or disarm it, on a chip built with one."""
+        self.write(JOURNAL, [1 if on else 0])
+
     def now(self):
         lo = self.read(NOW_LO)[0]
         hi = self.read(NOW_HI)[0]
         return (hi << 16) | lo
+
+
+# A journal entry is two words from JOURNAL_BASE: the pads (IN0-4 low, then IO0-7) above
+# a 3-bit code, then the cycles since the entry before.
+JOURNAL_BASE = 256
+JOURNAL_WORDS = 256
+JOURNAL_CODES = ["pads", "control", "tx", "rx_pop", "arm", "disarm", "fault", "lost"]
+
+
+def decode_journal(ring):
+    """(from_arm, [(code, pads, delta)]) of an ended journal from its ring's words.
+    Without the arm the ring wrapped and holds the last entries only."""
+    pairs = [(JOURNAL_CODES[ring[k] & 7], ring[k] >> 3, ring[k + 1]) for k in range(0, len(ring), 2)]
+    ends = [k for k, (code, _, _) in enumerate(pairs) if code in ("disarm", "fault", "lost")]
+    if not ends:
+        raise ValueError("the journal has not ended")
+    if pairs[0][0] == "arm":
+        return True, pairs[: ends[0] + 1]
+    last = ends[0]
+    return False, pairs[last + 1 :] + pairs[: last + 1]
 
 
 def hex_words(text):
