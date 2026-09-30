@@ -96,7 +96,7 @@ let%expect_test "uart_rx: samples 12 + 8k after the start edge's wait, the next 
       6  wait 1 pin 0                     1+  78             samples rx  anchor
       7  jmp start                         1  1
       8  push                              1  77
-    cells of 8 cycles from each anchor: sender may run 3.75% fast or 5.56% slow
+    cells of 8 cycles from each anchor: sender may run 2.50% fast or 5.56% slow
     (passed true)
     |}]
 ;;
@@ -122,10 +122,10 @@ let%expect_test "uart_rx tolerates less sender error as the divider nears 1" =
     printf "%10.0f baud, clkdiv %8.4f: %s\n" baud clkdiv receiver);
   [%expect
     {|
-      115200 baud, clkdiv 135.6337: cells of 8 cycles from each anchor: sender may run 3.73% fast or 5.54% slow
-     3000000 baud, clkdiv   5.2083: cells of 8 cycles from each anchor: sender may run 3.28% fast or 5.07% slow
-    12000000 baud, clkdiv   1.3021: cells of 8 cycles from each anchor: sender may run 1.60% fast or 3.47% slow
-    15625000 baud, clkdiv   1.0000: cells of 8 cycles from each anchor: sender may run 2.50% fast or 4.17% slow
+      115200 baud, clkdiv 135.6337: cells of 8 cycles from each anchor: sender may run 2.49% fast or 5.54% slow
+     3000000 baud, clkdiv   5.2083: cells of 8 cycles from each anchor: sender may run 2.08% fast or 5.07% slow
+    12000000 baud, clkdiv   1.3021: cells of 8 cycles from each anchor: sender may run 1.12% fast or 3.47% slow
+    15625000 baud, clkdiv   1.0000: cells of 8 cycles from each anchor: sender may run 1.25% fast or 4.17% slow
     |}]
 ;;
 

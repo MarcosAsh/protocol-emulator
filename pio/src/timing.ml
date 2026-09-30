@@ -524,14 +524,18 @@ module Report = struct
      sample is where the receiver locks, so it is left out; any other sample must have a
      bounded phase. *)
   let receiver t cell =
-    let earliest, latest, cell_length =
+    let earliest, latest, armed_slack, cell_length =
       match t.clock with
       | None ->
-        (fun lo -> Float.of_int lo), (fun hi -> Float.of_int (hi + 1)), Float.of_int cell
+        ( (fun lo -> Float.of_int lo)
+        , (fun hi -> Float.of_int (hi + 1))
+        , 1.
+        , Float.of_int cell )
       | Some clock ->
         let div = Clock.effective_div clock in
         ( (fun lo -> Float.round_down (Float.of_int lo *. div) -. 1.)
         , (fun hi -> Float.round_up (Float.of_int hi *. div) +. Float.round_up div +. 1.)
+        , Float.round_up div
         , Float.of_int cell *. clock.clkdiv )
     in
     let samples =
@@ -558,11 +562,37 @@ module Report = struct
         Option.some_if (k > 0) (earliest lo /. (Float.of_int k *. cell_length)))
       |> List.min_elt ~compare:Float.compare
     in
+    (* Back to back, the next frame's edge may come as soon as the last sampled cell ends,
+       and each locking wait must be armed by then, or it locks late. *)
+    let arms =
+      List.concat_map t.rows ~f:(fun row ->
+        if List.exists row.events ~f:(function
+             | Anchor -> true
+             | _ -> false)
+        then
+          List.filter_map row.events ~f:(function
+            | Phase (Some phase) -> Some phase.hi
+            | _ -> None)
+        else [])
+    in
+    let fast =
+      match List.max_elt (List.map samples ~f:snd) ~compare:Int.compare with
+      | None -> fast
+      | Some last ->
+        let frame = Float.of_int ((last / cell) + 1) *. cell_length in
+        List.filter_opt arms
+        |> List.map ~f:(fun hi -> (latest hi -. armed_slack) /. frame)
+        |> List.fold ~init:fast ~f:(fun fast arm ->
+          Option.value_map fast ~default:(Some arm) ~f:(fun fast ->
+            Some (Float.max fast arm)))
+    in
     let percent ratio = sprintf "%.2f%%" (ratio *. 100.) in
     let tolerance, ok =
       match fast, slow with
       | _, _ when not (List.is_empty unbounded) ->
         "FAIL, a sample follows a stall, or no wait", false
+      | _, _ when List.exists arms ~f:Option.is_none ->
+        "FAIL, a wait re-arms after a stall", false
       | _, _ when not (List.is_empty straddles) ->
         "FAIL, a sample straddles a cell boundary", false
       | Some fast, Some slow ->
