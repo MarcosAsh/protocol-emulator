@@ -33,8 +33,11 @@ type t =
   | Quiet of { pin : int }
 [@@deriving sexp_of, compare, equal]
 
-(** As in ["pin 0 falls while pin 1 is high"]. *)
+(** As in ["pin 0 falls while pin 1 is high"] or ["pin 2 stops moving"]. *)
 val to_string : t -> string
+
+(** The inverse of [to_string], words separated by any number of spaces. *)
+val of_string : string -> t Or_error.t
 
 (** How the firmware sees events. [Waits]: in the cycle they are sampled, but for
     [blind_after_match] or [blind_after_reject] cycles after one. [Polls]: an edge shows

@@ -205,15 +205,40 @@ let%expect_test "the engine runs the compiled firmware as the model does" =
     |}]
 ;;
 
-let%expect_test "the watch cocotb runs on the chip is the compiler's" =
-  let firmware = Predicate.compile i2c_start ~latency:10 |> ok_exn in
-  print_s
-    [%message
-      ""
-        ~same:
-          (String.equal firmware.source (In_channel.read_all "i2c_start_watch.asm")
-           : bool)];
-  [%expect {| (same true) |}]
+let%expect_test "the language reads what to_string writes, and says what it expects" =
+  let predicates =
+    let open Quickcheck.Generator.Let_syntax in
+    let pin = Int.gen_incl 0 27 in
+    let edge =
+      let%map pin
+      and rising = Bool.quickcheck_generator in
+      { Predicate.Edge.pin; rising }
+    in
+    Quickcheck.Generator.union
+      [ (edge >>| fun edge -> Predicate.Edge edge)
+      ; (let%map edge
+         and pin
+         and high = Bool.quickcheck_generator in
+         Predicate.Edge_while { edge; guard = { pin; high } })
+      ; (pin >>| fun pin -> Predicate.Quiet { pin })
+      ]
+  in
+  Quickcheck.test ~trials:200 predicates ~f:(fun predicate ->
+    [%test_result: Predicate.t Or_error.t]
+      (Predicate.of_string (Predicate.to_string predicate))
+      ~expect:(Ok predicate));
+  List.iter
+    [ "pin  0   rises"; "pin 0 falls while pin one is high"; "sda falls" ]
+    ~f:(fun text ->
+      print_s [%message text ~_:(Predicate.of_string text : Predicate.t Or_error.t)]);
+  [%expect
+    {|
+    ("pin  0   rises" (Ok (Edge ((pin 0) (rising true)))))
+    ("pin 0 falls while pin one is high" (Error "\"one\" is not a pin number"))
+    ("sda falls"
+     (Error
+      "\"sda falls\": expected pin N rises|falls, then perhaps while pin M is high|low, or pin N stops moving"))
+    |}]
 ;;
 
 let quiet = Predicate.Quiet { pin = 2 }
@@ -222,7 +247,8 @@ let%expect_test "a pin that stops moving compiles to a poll per level" =
   let firmware = Predicate.compile ~latency:20 quiet |> ok_exn in
   print_string firmware.source;
   print_s [%sexp (firmware.certificate : Predicate.Certificate.t)];
-  [%expect {|
+  [%expect
+    {|
     ; pin 2 stops moving: pin 5 pulses 20 to 25 cycles on
         set p, 15           ; the budget
         set pins, 0
@@ -263,7 +289,8 @@ let%expect_test "a pin that stops moving compiles to a poll per level" =
 let%expect_test "a quiet latency the polls cannot meet is refused" =
   List.iter [ 11; 12; 36; 37 ] ~f:(fun latency ->
     print_s [%message (latency : int) (compiled quiet ~latency : int Or_error.t)]);
-  [%expect {|
+  [%expect
+    {|
     ((latency 11)
      ("compiled quiet ~latency"
       (Error "latency 11 exceeded by 1 cycle: pin 2 stops moving needs 12")))
@@ -332,7 +359,8 @@ let%expect_test "on the model, a quiet verdict comes latency to latency + jitter
         if next > edge + due && edge + due < length && not (List.mem answered edge ~equal)
         then raise_s [%message "a quiet run without a verdict" (edge : int) (next : int)]));
     print_s [%message "" (latency : int) (jitter : int) ~verdicts:(!verdicts : int)]);
-  [%expect {|
+  [%expect
+    {|
     ((latency 12) (jitter 5) (verdicts 2339))
     ((latency 20) (jitter 5) (verdicts 2104))
     ((latency 36) (jitter 5) (verdicts 1911))
@@ -356,7 +384,8 @@ let%expect_test "the engine runs the quiet firmware as the model does" =
       ()
   in
   print_s [%message (machine.fault : Machine.Fault.t)];
-  [%expect {|
+  [%expect
+    {|
     ("lockstep held" (cycles 947))
     (machine.fault
      ((underflow false) (overflow false) (missed_deadline false) (decode false)))

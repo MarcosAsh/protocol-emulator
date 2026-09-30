@@ -84,6 +84,43 @@ let readable name pin =
   else Ok ()
 ;;
 
+let of_string text =
+  let open Or_error.Let_syntax in
+  let pin s =
+    match Int.of_string_opt s with
+    | Some pin -> Ok pin
+    | None -> refuse "%S is not a pin number" s
+  in
+  let edge p moves =
+    let%map pin = pin p in
+    { Edge.pin; rising = String.equal moves "rises" }
+  in
+  match String.split text ~on:' ' |> List.filter ~f:(Fn.non String.is_empty) with
+  | [ "pin"; p; (("rises" | "falls") as moves) ] ->
+    let%map edge = edge p moves in
+    Edge edge
+  | [ "pin"
+    ; p
+    ; (("rises" | "falls") as moves)
+    ; "while"
+    ; "pin"
+    ; g
+    ; "is"
+    ; (("high" | "low") as level)
+    ] ->
+    let%map edge = edge p moves
+    and guard = pin g in
+    Edge_while { edge; guard = { pin = guard; high = String.equal level "high" } }
+  | [ "pin"; p; "stops"; "moving" ] ->
+    let%map pin = pin p in
+    Quiet { pin }
+  | _ ->
+    refuse
+      "%S: expected pin N rises|falls, then perhaps while pin M is high|low, or pin N \
+       stops moving"
+      text
+;;
+
 let line ?comment text =
   let text = "    " ^ text in
   match comment with

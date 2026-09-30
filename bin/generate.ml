@@ -411,6 +411,34 @@ let self_check_command =
           exit 1]
 ;;
 
+let predicate_command =
+  Command.basic
+    ~summary:"Compile a predicate over pin events to firmware and print its source"
+    ~readme:(fun () ->
+      "As in \"pin 0 falls while pin 1 is high\" or \"pin 2 stops moving\". The \
+       certificate goes to stderr. A latency the code cannot meet is refused with the \
+       cycles it is short by.")
+    [%map_open.Command
+      let text = anon ("PREDICATE" %: string)
+      and latency =
+        flag "-latency" (required int) ~doc:"N cycles from the event to the verdict"
+      and verdict_pin =
+        flag "-verdict-pin" (optional int) ~doc:"N the pin that pulses (default OUT0)"
+      in
+      fun () ->
+        match
+          Or_error.bind
+            (Predicate.of_string text)
+            ~f:(Predicate.compile ?verdict_pin ~latency)
+        with
+        | Ok firmware ->
+          print_string firmware.source;
+          eprint_s [%sexp (firmware.certificate : Predicate.Certificate.t)]
+        | Error e ->
+          eprintf "%s\n" (Error.to_string_hum e);
+          exit 1]
+;;
+
 let () =
   Command_unix.run
     (Command.group
@@ -425,5 +453,6 @@ let () =
        ; "kernel-accepts", kernel_accepts_rtl_command
        ; "assemble", assemble_command
        ; "self-check", self_check_command
+       ; "predicate", predicate_command
        ])
 ;;

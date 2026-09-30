@@ -88,3 +88,38 @@
  (alias runtest)
  (action
   (diff uart_tx_rows.expected uart_tx_rows.gen)))
+
+; The predicate compiler's firmware is the watch cocotb runs, and a latency one cycle short
+; is refused.
+
+(rule
+ (with-stdout-to
+  i2c_start_watch.gen
+  (run
+   %{exe:../../bin/generate.exe}
+   predicate
+   -latency
+   10
+   "pin 0 falls while pin 1 is high")))
+
+(rule
+ (alias runtest)
+ (action
+  (diff ../i2c_start_watch.asm i2c_start_watch.gen)))
+
+(rule
+ (with-outputs-to
+  i2c_start_short.gen
+  (with-accepted-exit-codes
+   1
+   (run
+    %{exe:../../bin/generate.exe}
+    predicate
+    -latency
+    5
+    "pin 0 falls while pin 1 is high"))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff i2c_start_short.expected i2c_start_short.gen)))
