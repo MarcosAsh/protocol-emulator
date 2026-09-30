@@ -206,6 +206,37 @@ let%expect_test "the decoder's bounds on the pause and on every low" =
     |}]
 ;;
 
+(* Two frames at a tick of 64 cycles then [next], or the second its sync alone, closed by
+   a last fall: J2716 lets successive syncs differ by 1/64 at most. *)
+let%expect_test "the decoder refuses a sync more than 1/64 from the last" =
+  let decoded ?(cut = false) next =
+    let frame tick =
+      let data = [ 1; 2; 3; 4; 5; 6 ] in
+      let nibbles = (5 :: data) @ [ crc4 data ] in
+      (56 :: List.map nibbles ~f:(fun n -> 12 + n)) @ [ 12 ]
+      |> List.concat_map ~f:(fun ticks ->
+        List.init (ticks * tick) ~f:(fun i -> i >= 5 * tick))
+    in
+    let second =
+      if cut then List.init (56 * next) ~f:(fun i -> i >= 5 * next) else frame next
+    in
+    (true :: frame 64) @ second @ [ false ]
+    |> decode ~cycle_ns
+    |> Or_error.map ~f:(fun (decoded, _) -> List.length decoded)
+  in
+  print_s
+    [%message
+      ""
+        ~at_65:(decoded 65 : int Or_error.t)
+        ~at_66:(decoded 66 : int Or_error.t)
+        ~cut_at_66:(decoded ~cut:true 66 : int Or_error.t)];
+  [%expect
+    {|
+    ((at_65 (Ok 2)) (at_66 (Error ("sync drifts" (sync 3696) (previous 3584))))
+     (cut_at_66 (Error ("sync drifts" (sync 3696) (previous 3584)))))
+    |}]
+;;
+
 (* At the shortest tick, so the run is short. *)
 let%expect_test "sent in lockstep" =
   let tick = shortest_tick + 1 in

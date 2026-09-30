@@ -111,8 +111,10 @@ def sent_words(status, data):
 
 
 def decode_sent(levels):
-    """SAE J2716 pulses from their falling edges: sync 56 ticks, every pulse low 4 ticks
-    or more, nibbles 12 to 27 ticks and whole to an eighth of a tick, a pause 12 to 768."""
+    """SAE J2716 pulses from their falling edges: sync 56 ticks and within 1/64 of the
+    last, every pulse low 4 ticks or more, nibbles 12 to 27 ticks and whole to an eighth
+    of a tick, a pause 12 to 768. A trailing frame cut short has its sync checked, as
+    test/sent.ml's decoder does, and does not count."""
     falls = [i for i in range(1, len(levels)) if levels[i - 1] and not levels[i]]
     rises = [i for i in range(1, len(levels)) if not levels[i - 1] and levels[i]]
     pulses = []
@@ -120,9 +122,14 @@ def decode_sent(levels):
         rise = next(r for r in rises if r > fall)
         pulses.append((nxt - fall, rise - fall))
     frames = []
-    while len(pulses) >= 9:
+    previous = None
+    while pulses:
         sync, sync_low = pulses[0]
         assert 56 * sync_low >= 4 * sync, ("sync low", sync_low)
+        assert previous is None or abs(sync - previous) * 64 <= previous, ("sync drifts", sync)
+        previous = sync
+        if len(pulses) < 9:
+            break
         nibbles = []
         for length, low in pulses[1:9]:
             ticks = round(56 * length / sync)
@@ -312,3 +319,31 @@ async def test_cec_follower_free_time(dut):
             assert str(e).startswith("free of"), e
             verdict = False
         assert verdict == passes, (sends, verdict)
+
+
+def sent_levels(frames):
+    """A line drawn from (tick in cycles, status, data) frames, each pulse low 5 ticks,
+    a 12-tick pause after each, and a last fall to close the last pulse. A frame with no
+    data is its sync alone."""
+    levels = [True]
+    for tick, status, data in frames:
+        nibbles = [status] + data + [sent_crc(data)] if data else []
+        for ticks in [56] + [12 + n for n in nibbles] + ([12] if data else []):
+            levels += [i >= 5 * tick for i in range(ticks * tick)]
+    return levels + [False]
+
+
+@cocotb.test()
+async def test_sent_decoder_sync_drift(dut):
+    """J2716 lets successive syncs differ by 1/64 at most, a trailing sync with no frame
+    after it too; a tick of 64 then 65 cycles is at the bound, 64 then 66 past it."""
+    data = [1, 2, 3, 4, 5, 6]
+    assert decode_sent(sent_levels([(64, 5, data), (65, 5, data)])) == [(5, data)] * 2
+    for frames in ([(64, 5, data), (66, 5, data)], [(64, 5, data), (66, 5, [])]):
+        levels = sent_levels(frames)
+        try:
+            decode_sent(levels)
+        except AssertionError as e:
+            assert "sync drifts" in str(e), e
+        else:
+            assert False, ("accepted", frames)
