@@ -1,10 +1,8 @@
-; pin 2 stops moving: pin 5 pulses 20 to 25 cycles on
+; pin 2 stops moving: pin 5 pulses 20 to 24 cycles on
     set p, 15           ; the budget
     set pins, 0
     jmp pin, high
-    jmp low
-low_wait:
-    wait 0 pin 2 [1]
+.wrap_target
 low:
     mov t, now          ; the anchor
     add t, p
@@ -28,4 +26,5 @@ high_poll:
     jmp !pin, low
     set pins, 1         ; the verdict
     set pins, 0
-    jmp low_wait
+    wait 0 pin 2 [1]
+.wrap

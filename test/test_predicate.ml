@@ -263,13 +263,11 @@ let%expect_test "a pin that stops moving compiles to a poll per level" =
   print_s [%sexp (firmware.certificate : Predicate.Certificate.t)];
   [%expect
     {|
-    ; pin 2 stops moving: pin 5 pulses 20 to 25 cycles on
+    ; pin 2 stops moving: pin 5 pulses 20 to 24 cycles on
         set p, 15           ; the budget
         set pins, 0
         jmp pin, high
-        jmp low
-    low_wait:
-        wait 0 pin 2 [1]
+    .wrap_target
     low:
         mov t, now          ; the anchor
         add t, p
@@ -293,10 +291,11 @@ let%expect_test "a pin that stops moving compiles to a poll per level" =
         jmp !pin, low
         set pins, 1         ; the verdict
         set pins, 0
-        jmp low_wait
-    ((latency 20) (jitter 5)
-     (sampling (Polls (min_run 6) (unseen_before_verdict 2)))
-     (verdict_pcs (12 22)))
+        wait 0 pin 2 [1]
+    .wrap
+    ((latency 20) (jitter 4)
+     (sampling (Polls (min_run 5) (unseen_before_verdict 2)))
+     (verdict_pcs (10 20)))
     |}]
 ;;
 
@@ -337,50 +336,116 @@ let quiet_samples ~min_run ~due =
     List.init cycles ~f:(fun _ -> (i % 2) lsl 2))
 ;;
 
+let polls (firmware : Predicate.Firmware.t) =
+  match firmware.certificate.sampling with
+  | Polls { min_run; unseen_before_verdict } -> min_run, unseen_before_verdict
+  | Waits _ -> raise_s [%message "waits, not polls"]
+;;
+
+(* Raises unless each verdict answers the last edge the polls could see, inside the
+   window, no edge twice, and every run longer than the window gets one. Gives the
+   verdicts. *)
+let check_quiet (firmware : Predicate.Firmware.t) samples =
+  let { Predicate.Certificate.latency; jitter; _ } = firmware.certificate in
+  let _, unseen = polls firmware in
+  let due = latency + jitter in
+  let length = List.length samples in
+  let seen = machine_verdicts firmware samples in
+  let changes = changes samples ~pin:2 in
+  let answered =
+    List.map seen ~f:(fun v ->
+      match List.last (List.filter changes ~f:(fun c -> c <= v - unseen)) with
+      | None -> None
+      | Some edge ->
+        if v - edge < latency || v - edge > due
+        then raise_s [%message "verdict out of its window" (v : int) (edge : int)];
+        Some edge)
+    |> List.filter_opt
+  in
+  if List.contains_dup answered ~compare
+  then raise_s [%message "two verdicts for one edge" (answered : int list)];
+  List.iteri changes ~f:(fun i edge ->
+    let next = Option.value (List.nth changes (i + 1)) ~default:length in
+    if next > edge + due && edge + due < length && not (List.mem answered edge ~equal)
+    then raise_s [%message "a quiet run without a verdict" (edge : int) (next : int)]);
+  List.length seen
+;;
+
 let%expect_test "on the model, a quiet verdict comes latency to latency + jitter after \
                  the last edge, and each quiet run gets one"
   =
   List.iter [ 12; 20; 36; 200; 1000 ] ~f:(fun latency ->
     let firmware = Predicate.compile quiet ~latency |> ok_exn in
-    let { Predicate.Certificate.jitter; sampling; _ } = firmware.certificate in
-    let min_run, unseen =
-      match sampling with
-      | Polls { min_run; unseen_before_verdict } -> min_run, unseen_before_verdict
-      | Waits _ -> raise_s [%message "waits, not polls"]
-    in
-    let due = latency + jitter in
+    let jitter = firmware.certificate.jitter in
+    let min_run, _ = polls firmware in
     let verdicts = ref 0 in
     let trials = if latency > 100 then 10 else 100 in
-    Quickcheck.test ~trials (quiet_samples ~min_run ~due) ~f:(fun samples ->
-      let length = List.length samples in
-      let seen = machine_verdicts firmware samples in
-      let changes = changes samples ~pin:2 in
-      verdicts := !verdicts + List.length seen;
-      (* each verdict answers the last edge the polls could see, and no other verdict *)
-      let answered =
-        List.map seen ~f:(fun v ->
-          match List.last (List.filter changes ~f:(fun c -> c <= v - unseen)) with
-          | None -> None
-          | Some edge ->
-            if v - edge < latency || v - edge > due
-            then raise_s [%message "verdict out of its window" (v : int) (edge : int)];
-            Some edge)
-        |> List.filter_opt
-      in
-      if List.contains_dup answered ~compare
-      then raise_s [%message "two verdicts for one edge" (answered : int list)];
-      List.iteri changes ~f:(fun i edge ->
-        let next = Option.value (List.nth changes (i + 1)) ~default:length in
-        if next > edge + due && edge + due < length && not (List.mem answered edge ~equal)
-        then raise_s [%message "a quiet run without a verdict" (edge : int) (next : int)]));
+    Quickcheck.test
+      ~trials
+      (quiet_samples ~min_run ~due:(latency + jitter))
+      ~f:(fun samples -> verdicts := !verdicts + check_quiet firmware samples);
     print_s [%message "" (latency : int) (jitter : int) ~verdicts:(!verdicts : int)]);
   [%expect
     {|
-    ((latency 12) (jitter 5) (verdicts 2228))
-    ((latency 20) (jitter 5) (verdicts 1995))
-    ((latency 36) (jitter 5) (verdicts 1808))
+    ((latency 12) (jitter 4) (verdicts 2132))
+    ((latency 20) (jitter 4) (verdicts 1949))
+    ((latency 36) (jitter 4) (verdicts 1768))
     ((latency 200) (jitter 6) (verdicts 157))
     ((latency 1000) (jitter 31) (verdicts 159))
+    |}]
+;;
+
+(* One pulse off a steady level, or a step, starting at every cycle through the prologue
+   and a whole half. A pulse [min_run] long is always seen; one a cycle shorter is missed
+   at some start, so [min_run] is tight. *)
+let%expect_test "a pulse of min_run is seen from every start, one shorter is not" =
+  List.iter [ 12; 20; 36; 200 ] ~f:(fun latency ->
+    let firmware = Predicate.compile quiet ~latency |> ok_exn in
+    let min_run, _ = polls firmware in
+    let due = latency + firmware.certificate.jitter in
+    List.iter [ 0; 1 ] ~f:(fun background ->
+      let other = 1 - background in
+      let samples ~start ~pulse =
+        List.init
+          (start + pulse + (3 * due))
+          ~f:(fun cycle ->
+            (if cycle >= start && cycle < start + pulse then other else background) lsl 2)
+      in
+      let holds samples =
+        Result.is_ok (Result.try_with (fun () -> check_quiet firmware samples))
+      in
+      let starts = List.range 1 (due + 20) in
+      let failing pulse =
+        List.filter starts ~f:(fun start -> not (holds (samples ~start ~pulse)))
+      in
+      let step_failing =
+        List.filter starts ~f:(fun start -> not (holds (samples ~start ~pulse:(4 * due))))
+      in
+      print_s
+        [%message
+          ""
+            (latency : int)
+            (background : int)
+            ~min_run_missed:(failing min_run : int list)
+            ~step_missed:(step_failing : int list)
+            ~shorter_missed_somewhere:(not (List.is_empty (failing (min_run - 1))) : bool)]));
+  [%expect {|
+    ((latency 12) (background 0) (min_run_missed ()) (step_missed ())
+     (shorter_missed_somewhere true))
+    ((latency 12) (background 1) (min_run_missed ()) (step_missed ())
+     (shorter_missed_somewhere true))
+    ((latency 20) (background 0) (min_run_missed ()) (step_missed ())
+     (shorter_missed_somewhere true))
+    ((latency 20) (background 1) (min_run_missed ()) (step_missed ())
+     (shorter_missed_somewhere true))
+    ((latency 36) (background 0) (min_run_missed ()) (step_missed ())
+     (shorter_missed_somewhere true))
+    ((latency 36) (background 1) (min_run_missed ()) (step_missed ())
+     (shorter_missed_somewhere true))
+    ((latency 200) (background 0) (min_run_missed ()) (step_missed ())
+     (shorter_missed_somewhere true))
+    ((latency 200) (background 1) (min_run_missed ()) (step_missed ())
+     (shorter_missed_somewhere true))
     |}]
 ;;
 

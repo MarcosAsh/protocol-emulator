@@ -252,9 +252,9 @@ async def test_i2c_start_watch(dut):
 
 QUIET_WATCH = assembled("quiet_watch")
 # Predicate.compile's window for "pin 2 stops moving" at latency 20: the verdict issues 20
-# to 25 cycles after the core samples the last edge, or 23 to 28 at the pads, if every run
-# of the pin lasts 6 cycles; an edge in the last 2 cycles, 5 at the pads, goes unseen.
-QUIET_WINDOW = (20 + 3, 25 + 3)
+# to 24 cycles after the core samples the last edge, or 23 to 27 at the pads, if every run
+# of the pin lasts 5 cycles; an edge in the last 2 cycles, 5 at the pads, goes unseen.
+QUIET_WINDOW = (20 + 3, 24 + 3)
 QUIET_UNSEEN = 2 + 3
 
 
@@ -264,14 +264,14 @@ async def test_quiet_watch(dut):
     await reset(dut)
 
     host = AsyncHost(Pins(dut).transfer)
-    config = dict(DEFAULT_CONFIG, jmp_pin=2)
+    config = dict(DEFAULT_CONFIG, jmp_pin=2, wrap_bottom=3, wrap_top=22)
     for reg, word in config_writes(config):
         await host.write(reg, [word])
     await host.write(PROGRAM_ADDR, [0])
     await host.write(PROGRAM_REG, QUIET_WATCH)
     await host.write(CONTROL, [1])
 
-    runs = [40, 10, 6, 30, 22, 50, 7, 26, 60, 9, 23, 28, 45, 6, 6, 33]
+    runs = [40, 10, 5, 30, 22, 50, 7, 26, 60, 9, 23, 28, 45, 5, 6, 33]
     changes, verdicts = [], []
     cycle, level, previous = 0, 0, 0
     for n, length in enumerate(runs):

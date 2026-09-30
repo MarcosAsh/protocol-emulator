@@ -180,8 +180,9 @@ let event_source ~(edge : Edge.t) ~(guard : Level.t option) ~header ~budget =
 ;;
 
 (* A half per level of the pin: it anchors, polls in a counted loop, pads to the latency,
-   polls once more and pulses the verdict, then waits for the level to change. The wait's
-   delay anchors an edge it sees as far on as a poll's jump does. *)
+   polls once more and pulses the verdict, then waits for the level to change. Every way
+   into an anchor, the first poll's fall through and the wrap included, is a sample
+   [to_anchor] cycles before. *)
 let quiet_source ~pin ~header ~budget ~loops ~stretch =
   let half ~name ~other ~high =
     let leave = [%string "jmp %{if high then \"!pin\" else \"pin\"}, %{other}"] in
@@ -203,16 +204,11 @@ let quiet_source ~pin ~header ~budget ~loops ~stretch =
   in
   [ header ]
   @ set_budget budget
-  @ [ line "set pins, 0"
-    ; line "jmp pin, high"
-    ; line "jmp low"
-    ; "low_wait:"
-    ; line [%string "wait 0 pin %{pin#Int} [1]"]
-    ]
+  @ [ line "set pins, 0"; line "jmp pin, high"; ".wrap_target" ]
   @ half ~name:"low" ~other:"high" ~high:false
   @ [ line [%string "wait 1 pin %{pin#Int} [1]"] ]
   @ half ~name:"high" ~other:"low" ~high:true
-  @ [ line "jmp low_wait" ]
+  @ [ line [%string "wait 0 pin %{pin#Int} [1]"]; ".wrap" ]
   |> String.concat_lines
 ;;
 
@@ -385,11 +381,45 @@ let compile_event ~config ~verdict_pin ~latency t ~edge ~guard =
     }
 ;;
 
+(* Where [pc] may go next: its fall through, across the wrap, and a jump's target. *)
+let successors (config : Program_config.t) (instructions : Isa.t array) pc =
+  let following = if pc = config.wrap_top then config.wrap_bottom else pc + 1 in
+  let following =
+    List.filter [ following ] ~f:(fun pc -> pc < Array.length instructions)
+  in
+  match instructions.(pc) with
+  | Jmp { cond = Always; target } -> [ target ]
+  | Jmp { target; _ } -> target :: following
+  | Op _ -> following
+;;
+
+let samples_pin : Isa.t -> bool = function
+  | Jmp { cond = Pin | Not_pin; _ } | Op { op = Wait (Pin_level _); _ } -> true
+  | _ -> false
+;;
+
+(* Every way into an anchor is a sample of the pin [to_anchor] cycles before. *)
+let anchored_by_samples config (instructions : Isa.t array) ~to_anchor =
+  let enters_anchor pc =
+    List.exists (successors config instructions pc) ~f:(fun next ->
+      is_anchor instructions.(next))
+  in
+  match
+    List.find
+      (List.init (Array.length instructions) ~f:Fn.id)
+      ~f:(fun pc ->
+        enters_anchor pc
+        && not (samples_pin instructions.(pc) && cycles instructions.(pc) = to_anchor))
+  with
+  | None -> Ok ()
+  | Some pc -> bug "pc %d enters an anchor but not %d cycles after a sample" pc to_anchor
+;;
+
 (* A half's samples of the pin in cycles from its deadline, all read from the kernel's
    table: its loop's polls [-slope] apart down to the offset, the poll after the pad and
    the level wait from its issue on. Gives the longest gap between samples, counting from
    the one that anchored the half, and the cycles from the last poll to the verdict. *)
-let polled_half table (instructions : Isa.t array) ~anchor ~to_anchor =
+let polled_half config table (instructions : Isa.t array) ~anchor ~to_anchor =
   let open Or_error.Let_syntax in
   let poll = anchor + 3 in
   let row : _ Kernel.Row.t = table.(poll) in
@@ -410,35 +440,27 @@ let polled_half table (instructions : Isa.t array) ~anchor ~to_anchor =
   let pad = List.find_exn (pcs instructions ~f:is_pad) ~f:(fun pc -> pc > anchor) in
   let final = pad + 1 in
   let verdict = pad + 2 in
-  let after = verdict + 2 in
-  let%bind level_wait =
-    match instructions.(after) with
-    | Jmp { cond = Always; target } -> Ok target
-    | Op { op = Wait (Pin_level _); _ } -> Ok after
-    | _ -> bug "no level wait after the verdict at pc %d" verdict
-  in
+  let level_wait = verdict + 2 in
   let%bind () =
-    let anchors_at pc = pc < Array.length instructions && is_anchor instructions.(pc) in
     let jumps_to_anchor pc =
       match instructions.(pc) with
-      | Jmp { cond = Pin | Not_pin; target } -> anchors_at target
+      | Jmp { cond = Pin | Not_pin; target } -> is_anchor instructions.(target)
       | _ -> false
     in
     if jumps_to_anchor poll
        && jumps_to_anchor final
        && is_verdict instructions.(verdict)
-       && anchors_at (level_wait + 1)
-       && cycles instructions.(level_wait) = to_anchor
+       && level_wait < Array.length instructions
+       && samples_pin instructions.(level_wait)
+       && List.for_all (successors config instructions level_wait) ~f:(fun next ->
+         is_anchor instructions.(next))
     then Ok ()
     else bug "the half at pc %d is not laid out as polls" anchor
   in
   let%bind period = certified_period table ~pc:(anchor + 1)
   and final_phase = certified_phase table ~pc:final
   and verdict_phase = certified_phase table ~pc:verdict
-  and level_phase = certified_phase table ~pc:after in
-  let level_phase =
-    if level_wait = after then level_phase else level_phase + Isa.jmp_cycles
-  in
+  and level_phase = certified_phase table ~pc:level_wait in
   let anchored = -period - to_anchor in
   let gaps =
     [ offset + (slope * count) - anchored
@@ -504,9 +526,11 @@ let compile_quiet ~config ~verdict_pin ~latency t ~pin =
   let%bind () = check_latency table ~anchor ~to_anchor ~verdict_phase ~latency in
   let%bind min_run, unseen_before_verdict =
     let instructions = Array.of_list program.instructions in
+    let%bind () = anchored_by_samples config instructions ~to_anchor in
     let%map halves =
       pcs instructions ~f:is_anchor
-      |> List.map ~f:(fun anchor -> polled_half table instructions ~anchor ~to_anchor)
+      |> List.map ~f:(fun anchor ->
+        polled_half config table instructions ~anchor ~to_anchor)
       |> Or_error.all
     in
     List.fold halves ~init:(0, 0) ~f:(fun (run, unseen) (run', unseen') ->
