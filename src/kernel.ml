@@ -1347,7 +1347,8 @@ module Make_timer (Timer : Engine.Timer) = struct
     [@@deriving sexp_of]
   end
 
-  let check
+  (* Whether the row at pc 0 starts open, and the pcs whose conjuncts fail. *)
+  let verdicts
     ?period
     ?(single_capture_edge = false)
     ?spacing:spec
@@ -1416,6 +1417,24 @@ module Make_timer (Timer : Engine.Timer) = struct
             ~f:(fun (name, holds) -> Option.some_if (not (Bits.to_bool holds)) name)
         in
         Option.some_if (not (List.is_empty fails)) { Rejection.pc; fails })
+    in
+    starts_open, rejected
+  ;;
+
+  let rejections ?period ?single_capture_edge ?spacing ~config ~words table =
+    snd (verdicts ?period ?single_capture_edge ?spacing ~config ~words table)
+  ;;
+
+  let check
+    ?period
+    ?single_capture_edge
+    ?spacing:spec
+    ~(config : Program_config.t)
+    ~words
+    (table : Table.t)
+    =
+    let starts_open, rejected =
+      verdicts ?period ?single_capture_edge ?spacing:spec ~config ~words table
     in
     (* what formal/phase_spacing.sby proves the spacing for *)
     let proved_spacing =

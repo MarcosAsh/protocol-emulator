@@ -325,6 +325,27 @@ module Make_timer (_ : Engine.Timer) : sig
       -> t
   end
 
+  (** A pc [check] rejects and the conjuncts that fail there: ["in time"], ["a spaced"],
+      ["b spaced"], or ["next"] or ["target"] and a [Holds] field, as ["next phase"]. *)
+  module Rejection : sig
+    type t =
+      { pc : int
+      ; fails : string list
+      }
+    [@@deriving sexp_of]
+  end
+
+  (** [check]'s rejections, empty when every row passes; the row at pc 0 and the spacing's
+      scope aside. *)
+  val rejections
+    :  ?period:int
+    -> ?single_capture_edge:bool
+    -> ?spacing:Spacing.Spec.t
+    -> config:Program_config.t
+    -> words:int list
+    -> Table.t
+    -> Rejection.t list
+
   (** Checks every pc; words past the program read zero. [period] is [loaded]. [spacing]
       is refused unless its pins differ and lie in the pin space, Manchester is off and
       every row has no slope and the full offset, as [formal/phase_spacing.sby] proves it.
