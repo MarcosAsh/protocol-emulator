@@ -79,6 +79,16 @@ board has run it yet; `make -C test TESTCASE=test_uart_over_spi` runs it under c
   we wrote; USB enumeration, which the board does in `python/usb_board.py`.
 - Nothing has run on a board or on silicon yet.
 
+## What the checks found
+
+The tests kill 111 of 114 valid mutants of the engine, decoder, pins and host port
+(mutation run 36642527804, 2026-09-29); 3 are equivalent, see `test/mutation_allow.txt`.
+Of 13 bugs fixed in commits of their own, model tests found 3, the analyser's soundness
+check 3, AI review 3, proofs 2, the analyser 1 and a mutant 1, among them a showahead
+`Fifo` holding one word over its capacity (mutant, a67aa23), a stale power-up word at an
+empty rx fifo's head (proof, 5cd6e6c on branch `powerup`) and an `add t, x` after a spent
+`jmp x--` certified 65536 cycles wrong (soundness check, 99d55ee).
+
 ## Build
 
 Needs the OxCaml switch, and OSS CAD Suite and cocotb for `formal/` and `test/`.
