@@ -116,7 +116,8 @@ module Config : sig
     ; out_count : int
     ; exec : Exec_sequence.t list
     (** The sequences [out exec] and [mov exec] run, each whole and in order, any one
-        whose guard the pins may meet after any other. *)
+        whose guard the pins may meet after any other. An exec where no guard may hold,
+        and a guard on anything but [x], [y] or an output, are errors. *)
     ; clock : Clock.t option
     ; rules : Rule.t list
     ; cell : int option

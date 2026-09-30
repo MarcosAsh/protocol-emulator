@@ -437,3 +437,34 @@ let%expect_test "side-set and set edges in one instruction are 0 cycles apart, e
     (passed false)
     |}]
 ;;
+
+let%expect_test "an exec no sequence may start at, or a guard on no pin, is an error" =
+  let program =
+    programs {|
+.program e
+.side_set 1 opt
+    out exec, 16 side 1
+|} |> List.hd_exn
+  in
+  List.iter [ "p=0: nop side 0 [3]"; "q=1: nop side 0 [3]" ] ~f:(fun sequence ->
+    check
+      program
+      ~config:
+        { Timing.Config.default with
+          pins = pins [ "p=side0" ]
+        ; exec = [ Timing.Exec_sequence.of_string program sequence |> ok_exn ]
+        ; rules = rules [ "high: p+ -> p- >= 8" ]
+        });
+  [%expect
+    {|
+    e
+      0  out exec, 16 side 1               1  -              p+
+    high: p+ -> p- >= 8 cycles: never happens
+    ERROR pc 0: exec where no sequence's guard may hold
+    (passed false)
+    e
+    high: p+ -> p- >= 8 cycles: never happens
+    ERROR exec guard: q is neither x, y nor an output
+    (passed false)
+    |}]
+;;

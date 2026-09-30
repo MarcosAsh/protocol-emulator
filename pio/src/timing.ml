@@ -909,6 +909,10 @@ and exec ctx ~(row : Row_id.t) (key : Key.t) timing =
   then (
     ctx.emit row (Unmodelled "exec without an exec table");
     [])
+  else if List.is_empty starts
+  then (
+    ctx.emit row (Unmodelled "exec where no sequence's guard may hold");
+    [])
   else
     List.concat_map starts ~f:(fun ((i, j), key) ->
       let sequence = sequences.(i) in
@@ -956,6 +960,13 @@ let analyse (config : Config.t) (program : Pioasm.Program.t) =
         Option.some_if
           (Option.is_none (output_index pin))
           [%string "rule %{rule.name}: %{pin} is not an output"]))
+    @ List.concat_map config.exec ~f:(fun sequence ->
+      List.filter_map sequence.guard ~f:(fun (name, _) ->
+        Option.some_if
+          (not
+             (List.mem [ "x"; "y" ] name ~equal:String.equal
+              || Option.is_some (output_index name)))
+          [%string "exec guard: %{name} is neither x, y nor an output"]))
     @
     match config.entry with
     | Some label when not (List.Assoc.mem program.labels label ~equal:String.equal) ->
