@@ -7,9 +7,9 @@ from cocotb.task import bridge, resume
 from cocotb.triggers import ClockCycles
 from cocotb.utils import get_sim_time
 
-from test import Pins, reset
+from test import AsyncHost, Pins, reset
 from test_usb_board import J, SE0, Wire, data_packet, token
-from protocol_emulator import CONTROL, Host
+from protocol_emulator import CONTROL, SELECT, STATUS, Host
 import demo_self_timing
 import demo_usb
 import usb_board
@@ -68,23 +68,46 @@ class Done(Exception):
     """Ends `serve`, which runs forever on the Pico."""
 
 
+def uart_frames(edges, period):
+    """(start, byte) for each frame in a line's (cycle, level) edges, the first of which is
+    it going idle. Every edge must be a whole number of periods after its start bit."""
+    assert edges[0][1] == 1, "idle high"
+    frames, rest = [], edges[1:]
+    while rest:
+        start = rest[0][0]
+        frame = [(at - start, level) for at, level in rest if at < start + 10 * period]
+        assert all(offset % period == 0 for offset, _ in frame), frame
+        levels = {offset // period: level for offset, level in frame}
+        bits = [0]
+        for bit in range(1, 10):
+            bits.append(levels.get(bit, bits[-1]))
+        assert bits[9] == 1, "stop bit"
+        frames.append((start, sum(b << n for n, b in enumerate(bits[1:9]))))
+        rest = rest[len(frame):]
+    return frames
+
+
 @cocotb.test()
 async def test_keyboard(dut):
-    """demo_usb.serve as the Pico runs it, against a host that resets the bus, sets
-    address 3 and polls the keyboard's endpoint."""
+    """Act 3 as the Pico runs it: demo_usb.serve against a host that resets the bus, reads
+    the device descriptor, sets address 3, configures it and polls the keyboard, while
+    engine 1 sends each key the host took out of OUT0, every edge on its certified cycle."""
     await reset(dut)
     dut.uio_in.value = 2
     pins = Pins(dut)
     wire = Wire(dut)
     board = usb_board.Board(demo_usb.DESCRIPTORS)
-    starts, done = [], False
+    # engine 0's starts, as engine 1's start comes first
+    starts, selected, done = [], [0], False
 
     @resume
     async def transfer(data):
         if done:
             raise Done
         replies = await pins.transfer(data)
-        if data == [0x80 | CONTROL, 0, 1]:
+        if data[:2] == [0x80 | SELECT, 0]:
+            selected.append(data[2])
+        if data == [0x80 | CONTROL, 0, 1] and selected[-1] == 0:
             starts.append(get_sim_time("ns") // 20)
         return replies
 
@@ -97,9 +120,24 @@ async def test_keyboard(dut):
     async def ms():
         return get_sim_time("ns") // 20_000
 
+    # OUT0 from each cycle it changes
+    out0 = [(0, 0)]
+
+    async def watch():
+        while True:
+            await dut.uo_out.value_change
+            level = 1 if str(dut.uo_out.value)[-2] == "1" else 0
+            if level != out0[-1][1]:
+                out0.append((int(get_sim_time("ns")) // 20, level))
+
+    watcher = cocotb.start_soon(watch())
+
     def serve():
+        host = Host(transfer)
+        # the testbench's 50 MHz, so 434 cycles a bit
+        log = demo_usb.start_log(host, demo_usb.words("uart_tx_host_rate"), 50_000_000)
         try:
-            demo_usb.serve(Host(transfer), board, demo_usb.reports("hi"), demo_usb.se0_reset(lines, ms))
+            demo_usb.serve(host, board, demo_usb.reports("hi"), demo_usb.se0_reset(lines, ms), log)
         except Done:
             pass
 
@@ -112,6 +150,15 @@ async def test_keyboard(dut):
             await ClockCycles(dut.clk, 100)
         raise AssertionError("timed out")
 
+    async def setup(address, request):
+        await wire.send(token(0x2D, address, 0))
+        await wire.drive(J, 3)
+        await wire.send(data_packet(0xC3, request))
+        assert await wire.listen() == [0xD2]
+
+    # the cycle each IN's ACK starts
+    acked = []
+
     async def poll_in(address, endpoint):
         """An IN's data packet, asked again after each NAK, and acknowledged."""
         for _ in range(100):
@@ -120,9 +167,16 @@ async def test_keyboard(dut):
             if packet != [0x5A]:
                 break
             await wire.drive(J, 200)
+        acked.append(int(get_sim_time("ns")) // 20)
         await wire.send([0xD2])
         await wire.drive(J, 4)
         return packet
+
+    async def status_out():
+        await wire.send(token(0xE1, 0, 0))
+        await wire.drive(J, 3)
+        await wire.send(data_packet(0x4B, []))
+        assert await wire.listen() == [0xD2]
 
     await until(lambda: starts)
     await wire.drive(SE0, 150)
@@ -131,22 +185,45 @@ async def test_keyboard(dut):
     await until(lambda: len(starts) == 2)
     await wire.drive(J, 40)
 
-    await wire.send(token(0x2D, 0, 0))
-    await wire.drive(J, 3)
-    await wire.send(data_packet(0xC3, [0x00, 5, 3, 0, 0, 0, 0, 0]))
-    assert await wire.listen() == [0xD2]
+    await setup(0, [0x80, 6, 0, 1, 0, 0, 8, 0])
+    assert await poll_in(0, 0) == data_packet(0x4B, demo_usb.DEVICE[:8])
+    await status_out()
+
+    await setup(0, [0x00, 5, 3, 0, 0, 0, 0, 0])
     assert await poll_in(0, 0) == data_packet(0x4B, [])
     await until(lambda: len(starts) == 3)
 
+    # SET_CONFIGURATION with h's report in the fifo. The status packet queues behind it,
+    # the status IN drops the report, and the ACK after that is the status packet's.
+    await until(lambda: board.pending_report is not None and not board.replies)
+    await setup(3, [0x00, 9, 1, 0, 0, 0, 0, 0])
+    await wire.drive(J, 100)
+    assert await poll_in(3, 0) == data_packet(0x4B, [])
+
     h, i = demo_usb.KEYS["h"], demo_usb.KEYS["i"]
-    received = [await poll_in(3, 1) for _ in range(4)]
+    # the fifth, i's release, is queued only once i is logged
+    received = [await poll_in(3, 1) for _ in range(5)]
+    taken = acked[-5:]
     done = True
     await wire.drive(J, 400)
     await server
+    watcher.cancel()
     assert received == [
         data_packet(0xC3, [1, 0, h, 0, 0, 0, 0, 0]),
         data_packet(0x4B, [1, 0, 0, 0, 0, 0, 0, 0]),
         data_packet(0xC3, [2, 0, 3, 0]),
         data_packet(0x4B, [1, 0, i, 0, 0, 0, 0, 0]),
+        data_packet(0xC3, [1, 0, 0, 0, 0, 0, 0, 0]),
     ], received
     assert board.address == 3
+
+    frames = uart_frames(out0[1:], 434)
+    dut._log.info(f"OUT0 frames at {[start for start, _ in frames]}, report ACKs at {taken}")
+    assert bytes(byte for _, byte in frames) == b"hi", frames
+    # each key goes out once the host acknowledges its report, before the next report
+    assert taken[0] < frames[0][0] < taken[1], "h out of step with its report"
+    assert taken[3] < frames[1][0] < taken[4], "i out of step with its report"
+    host = AsyncHost(pins.transfer)
+    for engine in (0, 1):
+        await host.write(SELECT, [engine])
+        assert (await host.read(STATUS))[0] & 0x3C == 0, f"engine {engine} faulted"
