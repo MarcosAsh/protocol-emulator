@@ -62,7 +62,7 @@ endif
 TOPLEVEL = tb
 
 # List test modules to run, separated by commas and without the .py suffix:
-COCOTB_TEST_MODULES = test,test_usb_board,test_ethernet
+COCOTB_TEST_MODULES = test,test_usb_board,test_ethernet,test_dshot_sent_cec
 # the kit build has one engine, the chip two
 ifneq ($(FPGA),yes)
 COCOTB_TEST_MODULES := $(COCOTB_TEST_MODULES),test_two_engines,test_board_blame
