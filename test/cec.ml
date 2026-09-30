@@ -137,6 +137,16 @@ module Follower = struct
     [@@deriving sexp_of]
   end
 
+  (* the last frame, to its EOM or as far as it came before its initiator gave it up *)
+  module Previous = struct
+    type t =
+      { initiator : int option
+      ; blocks : int list
+      ; whole : bool
+      ; went_through : bool
+      }
+  end
+
   type t =
     { cycle_ns : int
     ; address : int
@@ -148,7 +158,7 @@ module Follower = struct
     ; acks : bool list
     ; in_frame : bool
     ; free_ns : int option (* before this frame, checked at its EOM *)
-    ; previous : (Frame.t * bool) option (* and if it went through *)
+    ; previous : Previous.t option
     ; driving_until : int option
     ; frames : (Frame.t * bool list) list
     ; measured : Measured.t
@@ -230,13 +240,19 @@ module Follower = struct
      frame again, as Linux's cec-adap.c takes it *)
   let check_free t (frame : Frame.t) =
     match t.free_ns, t.previous with
-    | Some ns, Some (previous, went_through) ->
+    | Some ns, Some previous ->
+      let blocks = ((frame.initiator lsl 4) lor frame.destination) :: frame.data in
+      let retry =
+        (not previous.went_through)
+        &&
+        if previous.whole
+        then [%equal: int list] previous.blocks blocks
+        else List.is_prefix blocks ~prefix:previous.blocks ~equal:Int.equal
+      in
       let periods =
-        if previous.initiator <> frame.initiator
-        then 5
-        else if (not went_through) && Frame.equal previous frame
-        then 3
-        else 7
+        match previous.initiator with
+        | Some initiator when initiator = frame.initiator -> if retry then 3 else 7
+        | Some _ | None -> 5
       in
       checked t ~name:"free" ~ns ~lo:(periods * 24 * ms / 10) ~hi:Int.max_value
     | _ -> t
@@ -285,7 +301,13 @@ module Follower = struct
           let t = check_free t frame in
           { t with
             in_frame = false
-          ; previous = Some (frame, went_through ~destination:frame.destination acks)
+          ; previous =
+              Some
+                { initiator = Some frame.initiator
+                ; blocks = header :: data
+                ; whole = true
+                ; went_through = went_through ~destination:frame.destination acks
+                }
           ; frames = (frame, acks) :: t.frames
           }
         | [] -> raise_s [%message "BUG: a block is in"])
@@ -323,7 +345,27 @@ module Follower = struct
     in
     let t =
       if aborted t ~low
-      then { t with in_frame = false; bits = []; bytes = []; acks = [] }
+      then (
+        let initiator =
+          match List.last t.bytes, List.rev t.bits with
+          | Some header, _ -> Some (header lsr 4)
+          | None, bits when List.length bits >= 4 -> Some (byte (List.take bits 4))
+          | None, _ -> None
+        in
+        let previous =
+          { Previous.initiator
+          ; blocks = List.rev t.bytes
+          ; whole = false
+          ; went_through = false
+          }
+        in
+        { t with
+          in_frame = false
+        ; bits = []
+        ; bytes = []
+        ; acks = []
+        ; previous = Some previous
+        })
       else t
     in
     { t with low; now = t.now + 1 }

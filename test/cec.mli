@@ -48,7 +48,8 @@ val words : Frame.t -> int list
     a broadcast refused, when the next is the same frame again, 5, 12 ms, before a new
     initiator's, and 7 before any other frame of the same initiator's; checked at the next
     frame's EOM. A frame whose line stays high past a bit's 2.75 ms, or a start bit's 4.7,
-    is given up and not counted. *)
+    is given up and not counted, but failed: the next may retry it if it begins with the
+    blocks it got to. *)
 module Follower : sig
   type t
 

@@ -132,8 +132,9 @@ let%expect_test "the follower refuses five bit periods free before the same init
 (* A line driven by an initiator drawn in 50 us units, a cycle each, with the followers at
    [addresses] on it. Each frame comes [free] bit periods after the last one's final bit,
    and is [from] an initiator to [to_]. The initiator holds its ACK slots low for
-   [ack_units], and the first frame is cut to its first [cut] units, the line high after. *)
-let followers_see ?(addresses = [ 0 ]) ?(ack_units = 12) ?cut sends =
+   [ack_units], and the frame at each index in [cuts] is cut to its first so many units,
+   the initiator giving it up. *)
+let followers_see ?(addresses = [ 0 ]) ?(ack_units = 12) ?(cuts = []) sends =
   let bit one = List.init 48 ~f:(fun i -> i < if one then 12 else 30) in
   let lows =
     List.concat_mapi sends ~f:(fun n (free, from, to_, data) ->
@@ -149,10 +150,9 @@ let followers_see ?(addresses = [ 0 ]) ?(ack_units = 12) ?cut sends =
       in
       List.init (free * 48) ~f:(fun _ -> false)
       @
-      match cut with
-      | Some cut when n = 0 ->
-        List.take frame cut @ List.init (List.length frame - cut) ~f:(fun _ -> false)
-      | _ -> frame)
+      match List.Assoc.find cuts n ~equal:Int.equal with
+      | Some cut -> List.take frame cut
+      | None -> frame)
   in
   let followers =
     List.fold
@@ -223,8 +223,18 @@ let%expect_test "the follower times the ACK slot as a one or a zero" =
 (* The first frame stops after its start bit and 5 bits, so the next start bit comes long
    after the last fall; the follower drops the frame and takes the next whole. *)
 let%expect_test "a frame cut short is dropped" =
-  followers_see ~cut:(90 + (5 * 48)) [ 0, 4, 0, [ 0x04 ]; 7, 4, 0, [] ];
+  followers_see ~cuts:[ 0, 90 + (5 * 48) ] [ 0, 4, 0, [ 0x04 ]; 7, 4, 0, [] ];
   [%expect {| ((frames 1) (violations ())) |}]
+;;
+
+(* A frame given up after its header is still the frame before the next: 4's header to 5
+   goes unanswered and 4 stops there, as Linux does, so 4 may send it whole 3 bit periods
+   on. The header is 90 units of start bit and 10 bit periods. *)
+let%expect_test "a retry after a frame given up at a NACK" =
+  followers_see
+    ~cuts:[ 1, 90 + 480 ]
+    [ 0, 4, 0, []; 7, 4, 5, [ 0x04 ]; 3, 4, 5, [ 0x04 ] ];
+  [%expect {| ((frames 2) (violations ())) |}]
 ;;
 
 let%expect_test "cec in lockstep" =

@@ -173,7 +173,8 @@ class CecFollower:
     zero 26 to 34, a bit 41 to 55 (CEC 1.4, in 50 us units). Before a frame the line is
     free for 5 bit periods of 48 units if its initiator is new, 3 if it retries a frame
     that failed, and 7 otherwise (CEC 9.1), checked at its EOM. A frame whose line stays
-    high past a bit's 55 units, or a start bit's 94, is given up."""
+    high past a bit's 55 units, or a start bit's 94, is given up, and failed: the next
+    may retry it if it begins with the blocks it got to."""
 
     def __init__(self, unit, address=0):
         self.unit = unit
@@ -199,10 +200,10 @@ class CecFollower:
     def check_free(self, frame):
         if self.free is None or self.previous is None:
             return
-        previous, went_through = self.previous
-        if previous[0] >> 4 != frame[0] >> 4:
+        initiator, blocks, whole, went_through = self.previous
+        if initiator != frame[0] >> 4:
             periods = 5
-        elif not went_through and previous == frame:
+        elif not went_through and (blocks == frame if whole else frame[:len(blocks)] == blocks):
             periods = 3
         else:
             periods = 7
@@ -241,7 +242,7 @@ class CecFollower:
                     destination = self.frame[0] & 0xF
                     went_through = (not any(self.acks)) if destination == 0xF else all(self.acks)
                     self.check_free(self.frame)
-                    self.previous = (self.frame, went_through)
+                    self.previous = (self.frame[0] >> 4, self.frame, True, went_through)
                     self.frames.append((self.frame, self.acks))
                     self.frame, self.acks, self.kind = [], [], None
             else:
@@ -252,6 +253,13 @@ class CecFollower:
         # past a start bit's 94 units or a bit's 55 high, the initiator gave the frame up
         limit = 94 if self.kind == "start" else 55
         if self.kind is not None and not low and self.cycle - self.fall > limit * self.unit:
+            if self.frame:
+                initiator = self.frame[0] >> 4
+            elif len(self.bits) >= 4:
+                initiator = int("".join(map(str, self.bits[:4])), 2)
+            else:
+                initiator = None
+            self.previous = (initiator, self.frame, False, False)
             self.bits, self.frame, self.acks, self.kind = [], [], [], None
         self.low = low
         self.cycle += 1
@@ -284,10 +292,11 @@ async def test_cec(dut):
     assert (await host.read(STATUS))[0] & 0x3D == 0, "running, no fault"
 
 
-def cec_lows(sends, ack_units=12, cut=None):
+def cec_lows(sends, ack_units=12, cuts=None):
     """An initiator's line in units, a cycle each: per frame the bit periods free before
     it, its initiator, its destination and its data, each ACK slot [ack_units] low, and
-    the first frame cut to its first [cut] units, the line high after."""
+    the frame at each index in [cuts] cut to its first so many units, the initiator
+    giving it up."""
     def bit(one):
         return [i < (12 if one else 30) for i in range(48)]
 
@@ -299,8 +308,8 @@ def cec_lows(sends, ack_units=12, cut=None):
             for b in range(7, -1, -1):
                 frame += bit((block >> b) & 1)
             frame += bit(i == len(blocks) - 1) + [j < ack_units for j in range(48)]
-        if n == 0 and cut is not None:
-            frame = frame[:cut] + [False] * (len(frame) - cut)
+        if cuts and n in cuts:
+            frame = frame[:cuts[n]]
         lows += [False] * (free * 48) + frame
     return lows
 
@@ -374,9 +383,9 @@ async def test_sent_decoder_low(dut):
         assert False, "a low of 4 ticks accepted"
 
 
-def cec_followers_see(sends, addresses=(0,), ack_units=12, cut=None):
+def cec_followers_see(sends, addresses=(0,), ack_units=12, cuts=None):
     followers = [CecFollower(1, address) for address in addresses]
-    for low in cec_lows(sends, ack_units, cut):
+    for low in cec_lows(sends, ack_units, cuts):
         low = low or any(f.drives() for f in followers)
         for f in followers:
             f.step(low)
@@ -402,5 +411,15 @@ async def test_cec_follower_ack_slot(dut):
 async def test_cec_follower_cut_frame(dut):
     """The first frame stops after its start bit and 5 bits, so the next start bit comes
     long after the last fall; the follower drops the frame and takes the next whole."""
-    [follower] = cec_followers_see([(0, 4, 0, [0x04]), (7, 4, 0, [])], cut=90 + 5 * 48)
+    [follower] = cec_followers_see([(0, 4, 0, [0x04]), (7, 4, 0, [])], cuts={0: 90 + 5 * 48})
     assert follower.frames == [([0x40], [1])], follower.frames
+
+
+@cocotb.test()
+async def test_cec_follower_retry_after_nack(dut):
+    """A frame given up after its header is still the frame before the next: 4's header to
+    5 goes unanswered and 4 stops there, as Linux does, so 4 may send it whole 3 bit
+    periods on."""
+    [follower] = cec_followers_see(
+        [(0, 4, 0, []), (7, 4, 5, [0x04]), (3, 4, 5, [0x04])], cuts={1: 90 + 480})
+    assert [frame for frame, _ in follower.frames] == [[0x40], [0x45, 0x04]]
