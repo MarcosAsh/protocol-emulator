@@ -331,22 +331,26 @@ let compile_event ~config ~verdict_pin ~latency t ~edge ~guard =
     let%map program = Asm.assemble source in
     source, program
   in
-  (* the layout does not depend on the budget, so a probe at zero finds it *)
-  let%bind _, probe = assemble ~budget:0 in
-  let instructions = Array.of_list probe.instructions in
-  let event_pc =
-    pcs instructions ~f:(function
-      | Op { op = Wait (Pin_edge _); _ } -> true
-      | _ -> false)
-    |> List.hd_exn
+  let layout (program : Asm.Program.t) =
+    let instructions = Array.of_list program.instructions in
+    let first f = List.hd_exn (pcs instructions ~f) in
+    let event_pc =
+      first (function
+        | Op { op = Wait (Pin_edge _); _ } -> true
+        | _ -> false)
+    in
+    instructions, event_pc, first is_anchor, first is_verdict
   in
-  let anchor_pc = List.hd_exn (pcs instructions ~f:is_anchor) in
-  let verdict_pc = List.hd_exn (pcs instructions ~f:is_verdict) in
+  (* the cycles from the event to the anchor do not depend on the budget, so a probe at
+     zero counts them; a budget from the host moves every pc *)
+  let%bind _, probe = assemble ~budget:0 in
+  let instructions, event_pc, anchor_pc, _ = layout probe in
   let to_anchor = cycles_between instructions ~first:event_pc ~last:anchor_pc in
   (* released at the deadline, the verdict issues the cycle after *)
   let budget = latency - to_anchor - 1 in
   let%bind () = fits_budget ~latency budget in
   let%bind source, program = assemble ~budget:(Int.max 0 budget) in
+  let instructions, event_pc, anchor_pc, verdict_pc = layout program in
   let config = Asm.Program.configure program config in
   let%bind table, verdict_phase = certify t ~config ~latency ~budget program in
   let%bind () =
@@ -373,11 +377,7 @@ let compile_event ~config ~verdict_pin ~latency t ~edge ~guard =
     ; config
     ; budget_from_host = Option.some_if (from_host budget) budget
     ; certificate =
-        { latency
-        ; jitter = 0
-        ; sampling
-        ; verdict_pcs = pcs (Array.of_list program.instructions) ~f:is_verdict
-        }
+        { latency; jitter = 0; sampling; verdict_pcs = pcs instructions ~f:is_verdict }
     }
 ;;
 
@@ -481,7 +481,8 @@ let compile_quiet ~config ~verdict_pin ~latency t ~pin =
     let%map program = Asm.assemble source in
     source, program
   in
-  (* the layout does not depend on the budget or the count, so a probe at zero finds it *)
+  (* the distances between pcs do not depend on the budget or the count, so a probe at
+     zero finds them; a budget from the host moves every pc *)
   let probe stretch =
     let%bind _, probe = assemble ~header:"" ~budget:0 ~loops:0 ~stretch in
     let instructions = Array.of_list probe.instructions in
@@ -523,9 +524,16 @@ let compile_quiet ~config ~verdict_pin ~latency t ~pin =
   let%bind _, program = assemble ~header:"" ~budget:(Int.max 0 budget) ~loops ~stretch in
   let config = Asm.Program.configure program config in
   let%bind table, verdict_phase = certify t ~config ~latency ~budget program in
-  let%bind () = check_latency table ~anchor ~to_anchor ~verdict_phase ~latency in
+  let instructions = Array.of_list program.instructions in
+  let%bind () =
+    check_latency
+      table
+      ~anchor:(List.hd_exn (pcs instructions ~f:is_anchor))
+      ~to_anchor
+      ~verdict_phase
+      ~latency
+  in
   let%bind min_run, unseen_before_verdict =
-    let instructions = Array.of_list program.instructions in
     let%bind () = anchored_by_samples config instructions ~to_anchor in
     let%map halves =
       pcs instructions ~f:is_anchor
@@ -549,7 +557,7 @@ let compile_quiet ~config ~verdict_pin ~latency t ~pin =
         { latency
         ; jitter
         ; sampling = Polls { min_run; unseen_before_verdict }
-        ; verdict_pcs = pcs (Array.of_list program.instructions) ~f:is_verdict
+        ; verdict_pcs = pcs instructions ~f:is_verdict
         }
     }
 ;;
