@@ -4,6 +4,7 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles
 
+import random
 import sys
 
 sys.path.insert(0, "../python")
@@ -213,7 +214,8 @@ def predicate_settings(name):
 
 async def load_watch(host, name):
     settings = predicate_settings(name)
-    config = dict(DEFAULT_CONFIG, **{k: v for k, v in settings.items() if k in CONFIG_FIELDS})
+    # every field from the settings, so a missing one fails rather than falls back
+    config = {k: settings[k] for k in CONFIG_FIELDS if k}
     for reg, word in config_writes(config):
         await host.write(reg, [word])
     await host.write(PROGRAM_ADDR, [0])
@@ -265,22 +267,30 @@ async def test_i2c_start_watch(dut):
     assert (await host.read(STATUS))[0] & 0x3D == 0, "running, no fault"
 
 
-@cocotb.test()
-async def test_quiet_watch(dut):
-    """A verdict for every run of pin 2 longer than the window, in it, and for no other."""
+def quiet_runs(settings, seed, count=40):
+    """Seeded runs of the pin from min_run to about twice the window, a third of them as
+    short as allowed so some edges come just after another."""
+    rng = random.Random(seed)
+    shortest = settings["min_run"]
+    longest = 2 * (settings["latency"] + settings["jitter"] + PAD_DELAY)
+    return [rng.randint(shortest, shortest + 2) if rng.random() < 1 / 3
+            else rng.randint(shortest, longest) for _ in range(count)]
+
+
+async def watch_quiet(dut, name, runs):
+    """Drives pin 2 in runs and checks each verdict against the window the settings give:
+    latency to latency + jitter after the last edge the core could see, one per edge, and
+    one for every run longer than the window."""
     await reset(dut)
 
     host = AsyncHost(Pins(dut).transfer)
-    # "pin 2 stops moving" at latency 20: the verdict comes latency to latency + jitter
-    # after the core samples the last edge, if every run lasts min_run cycles; an edge in
-    # the last unseen_before_verdict cycles goes unseen
-    settings = await load_watch(host, "quiet_watch")
+    settings = await load_watch(host, name)
     low = settings["latency"] + PAD_DELAY
     high = low + settings["jitter"]
     unseen = settings["unseen_before_verdict"] + PAD_DELAY
-    assert settings["min_run"] <= 5
+    assert min(runs) >= settings["min_run"], runs
+    runs = runs + quiet_runs(settings, seed=len(runs))
 
-    runs = [40, 10, 5, 30, 22, 50, 7, 26, 60, 9, 23, 28, 45, 5, 6, 33]
     changes, verdicts = [], []
     cycle, level, previous = 0, 0, 0
     for n, length in enumerate(runs):
@@ -307,3 +317,9 @@ async def test_quiet_watch(dut):
             assert c in answered, (c, verdicts)
     assert len(answered) >= 6, verdicts
     assert (await host.read(STATUS))[0] & 0x3D == 0, "running, no fault"
+
+
+@cocotb.test()
+async def test_quiet_watch(dut):
+    """A verdict for every run of pin 2 longer than the window, in it, and for no other."""
+    await watch_quiet(dut, "quiet_watch", [40, 10, 5, 30, 22, 50, 7, 26, 60, 9, 23, 28, 45, 5, 6, 33])
