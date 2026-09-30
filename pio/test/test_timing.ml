@@ -152,7 +152,8 @@ let%expect_test "ws2812: T1 = 3 high for a 0, T1 + T2 = 6 for a 1, low at least 
 ;;
 
 (* 1 us a cycle as onewire_library.c sets it; Maxim's standard-speed slot is A = 6, C =
-   60, D = 10, E = 9, H = 480, I = 70 us. *)
+   60, D = 10, E = 9, H = 480, I = 70 us. These are the master's own times, so the slave
+   is taken not to hold dq low past them. *)
 let%expect_test "onewire: the slots match Maxim's recommended timings" =
   vendored "onewire_library.pio" "onewire"
   |> check
@@ -160,6 +161,7 @@ let%expect_test "onewire: the slots match Maxim's recommended timings" =
          { Timing.Config.default with
            fifo_ready = true
          ; pins = pins [ "dq=side0:!dir,in0" ] |> initially true
+         ; no_stretch = [ "dq" ]
          ; clock = Some { sys_hz = 125e6; clkdiv = 125. }
          ; rules = rules [ "t_rec: dq+ -> dq- >= 1us"; "t_low1: dq- -> dq+ >= 1us" ]
          };
@@ -229,8 +231,10 @@ let i2c_sequences ~hold =
   ]
 ;;
 
-(* UM10204 table 10, Standard-mode, at the 100 kHz pio_i2c.pio sets on a 125 MHz clock. *)
-let check_i2c ~hold program =
+(* UM10204 table 10, Standard-mode, at the 100 kHz pio_i2c.pio sets on a 125 MHz clock. A
+   slave drives sda only where the machine does not time it; it may stretch scl unless
+   [no_stretch]. *)
+let check_i2c ?(no_stretch = []) ~hold program =
   check
     program
     ~config:
@@ -241,6 +245,7 @@ let check_i2c ~hold program =
       ; autopush = true
       ; irq_wait_halts = true
       ; entry = Some "entry_point"
+      ; no_stretch = "sda" :: no_stretch
       ; exec =
           List.map (i2c_sequences ~hold) ~f:(fun sequence ->
             Timing.Exec_sequence.of_string program sequence |> ok_exn)
@@ -258,7 +263,7 @@ let check_i2c ~hold program =
 ;;
 
 let%expect_test "pico-examples i2c misses Standard-mode START, STOP and SCL low times, \
-                 and SCL high after a stretched ACK clock"
+                 and more when a slave stretches SCL"
   =
   vendored "i2c.pio" "i2c" |> check_i2c ~hold:1;
   [%expect
@@ -269,12 +274,12 @@ let%expect_test "pico-examples i2c misses Standard-mode START, STOP and SCL low 
       2  set x, 7                          1  -,14..?,48..?,61..?
       3  out pindirs, 1 [7]               8+  -,15..?,21..?,49..?,62..? sda- -,13..?,14..?,31..?,32..?,33..?  sda+ 26..?,27..?,31..?,32..?,33..?
       4  nop side 1 [2]                    3  -,23..?,29..?,57..? scl+ 15..?,16..?,24..?
-      5  wait 1 pin, 1 [4]                5+  -,26..?,32..?  samples scl (scl+ -,3..?, scl- -,18..?,19..?,27..?)  sees scl+  anchor
+      5  wait 1 pin, 1 [4]                5+  -,26..?,32..?  samples scl (scl+ -,0..?, scl- -,18..?,19..?,27..?)  sees scl+  anchor
       6  in pins, 1 [7]                   8+  5              samples sda (sda+ -,16..?, sda- 16..?)
       7  jmp x-- bitloop side 0 [7]        8  13..?          scl- 13..?
       8  out pindirs, 1 [7]               8+  21..?          sda- 32..?,33..?  sda+ 32..?,33..?
       9  nop side 1 [7]                    8  29..?          scl+ 16..?
-     10  wait 1 pin, 1 [7]                8+  37..?          samples scl (scl+ 8..?, scl- 24..?)  sees scl+  anchor
+     10  wait 1 pin, 1 [7]                8+  37..?          samples scl (scl+ 0..?, scl- 24..?)  sees scl+  anchor
      11  jmp pin do_nack side 0 [2]        3  8              scl- 8  samples sda (sda+ 24..?, sda- 24..?)
      12  out x, 6                         1+  -,11..12,45..?,58..?
      13  out y, 1                         1+  -,12..?,46..?,59..?
@@ -282,7 +287,7 @@ let%expect_test "pico-examples i2c misses Standard-mode START, STOP and SCL low 
      15  out null, 32                     1+  -,14..?,48..?,61..?
      16  out exec, 16                     1+  15..?
      16    exec set pindirs, 0 side 1 [7]    8  -,50..?        sda- -,14..?
-     16    exec set pindirs, 0 side 0 [7]    8  -,60..?        scl- -,34..?
+     16    exec set pindirs, 0 side 0 [7]    8  -,60..?        scl- -,0..?
      16    exec mov isr, null              1  -,70..?
      16    exec set pindirs, 0 side 0 [7]    8  -,16..?,63..?  sda- 32..?
      16    exec set pindirs, 0 side 1 [7]    8  -,26..?        scl+ 18..?,27..?
@@ -290,21 +295,21 @@ let%expect_test "pico-examples i2c misses Standard-mode START, STOP and SCL low 
      16    exec set pindirs, 1 side 0 [7]    8  -,16..?,63..?  sda+ 27..?,32..?
      16    exec set pindirs, 1 side 1 [7]    8  -,26..?        scl+ 18..?,27..?
      16    exec set pindirs, 0 side 1 [7]    8  -,36..?        sda- 20..?
-     16    exec set pindirs, 0 side 0 [7]    8  -,46..?        scl- 20..?
+     16    exec set pindirs, 0 side 0 [7]    8  -,46..?        scl- 0..?
      16    exec mov isr, null              1  -,56..?
      17  jmp x-- do_exec                   1  24..?
     t_low: scl- -> scl+ >= 4.7us: FAIL, 15 cycles (4680ns) at pc 4
-    t_high: scl+ -> scl- >= 4us: FAIL, 8 cycles (2496ns) at pc 11
+    t_high: scl+ -> scl- >= 4us: FAIL, 0 cycles (0ns) at pc 16 exec set pindirs, 0 side 0 [7]
     t_hd_sta: sda- -> scl- >= 4us: FAIL, 10 cycles (3120ns) at pc 16 exec set pindirs, 0 side 0 [7]
-    t_su_sta: scl+ -> sda- >= 4.7us: FAIL, 10 cycles (3120ns) at pc 16 exec set pindirs, 0 side 1 [7]
-    t_su_sto: scl+ -> sda+ >= 4us: FAIL, 10 cycles (3120ns) at pc 16 exec set pindirs, 1 side 1 [7]
+    t_su_sta: scl+ -> sda- >= 4.7us: FAIL, 0 cycles (0ns) at pc 3
+    t_su_sto: scl+ -> sda+ >= 4us: FAIL, 0 cycles (0ns) at pc 16 exec set pindirs, 1 side 1 [7]
     t_su_dat: sda -> scl+ >= 250ns: ok, 8 cycles (2496ns) at pc 4
     (passed false)
     |}]
 ;;
 
 let%expect_test "one more cycle after ACK, and each START and STOP step sent twice, meet \
-                 them all but a stretched ACK clock's high"
+                 them if no slave stretches SCL"
   =
   In_channel.read_all "pico_examples/i2c.pio"
   |> String.substr_replace_first
@@ -312,7 +317,7 @@ let%expect_test "one more cycle after ACK, and each START and STOP step sent twi
        ~with_:"jmp pin do_nack side 0 [3]"
   |> programs
   |> List.hd_exn
-  |> check_i2c ~hold:2;
+  |> check_i2c ~no_stretch:[ "scl" ] ~hold:2;
   [%expect
     {|
     i2c
@@ -321,13 +326,13 @@ let%expect_test "one more cycle after ACK, and each START and STOP step sent twi
       2  set x, 7                          1  -,15..?,59..?,82..?
       3  out pindirs, 1 [7]               8+  -,16..?,21..?,60..?,83..? sda- -,13..?,14..?,32..?,33..?  sda+ 32..?,33..?,36..?,37..?
       4  nop side 1 [2]                    3  -,24..?,29..?,68..? scl+ 16..?,24..?
-      5  wait 1 pin, 1 [4]                5+  -,27..?,32..?  samples scl (scl+ -,3..?, scl- -,19..?,27..?)  sees scl+  anchor
+      5  wait 1 pin, 1 [4]                5+  -,27..?,32..?  samples scl (scl+ -,3..?, scl- -,19..?,27..?)  anchor
       6  in pins, 1 [7]                   8+  5              samples sda (sda+ -,16..?, sda- 16..?)
-      7  jmp x-- bitloop side 0 [7]        8  13..?          scl- 13..?
+      7  jmp x-- bitloop side 0 [7]        8  13..?          scl- -,16..?
       8  out pindirs, 1 [7]               8+  21..?          sda- 32..?,33..?  sda+ 32..?,33..?
       9  nop side 1 [7]                    8  29..?          scl+ 16..?
-     10  wait 1 pin, 1 [7]                8+  37..?          samples scl (scl+ 8..?, scl- 24..?)  sees scl+  anchor
-     11  jmp pin do_nack side 0 [3]        4  8              scl- 8  samples sda (sda+ 24..?, sda- 24..?)
+     10  wait 1 pin, 1 [7]                8+  37..?          samples scl (scl+ 8..?, scl- 24..?)  anchor
+     11  jmp pin do_nack side 0 [3]        4  8              scl- 16..?  samples sda (sda+ 24..?, sda- 24..?)
      12  out x, 6                         1+  -,12..13,56..?,79..?
      13  out y, 1                         1+  -,13..?,57..?,80..?
      14  jmp !x do_byte                    1  -,14..?,58..?,81..?
@@ -350,12 +355,12 @@ let%expect_test "one more cycle after ACK, and each START and STOP step sent twi
      16    exec mov isr, null              1  -,77..?
      17  jmp x-- do_exec                   1  25..?
     t_low: scl- -> scl+ >= 4.7us: ok, 16 cycles (5000ns) at pc 4
-    t_high: scl+ -> scl- >= 4us: FAIL, 8 cycles (2496ns) at pc 11
+    t_high: scl+ -> scl- >= 4us: ok, 16 cycles (5000ns) at pc 7
     t_hd_sta: sda- -> scl- >= 4us: ok, 20 cycles (6248ns) at pc 16 exec set pindirs, 0 side 0 [7]
-    t_su_sta: scl+ -> sda- >= 4.7us: ok, 16 cycles (5000ns) at pc 3
-    t_su_sto: scl+ -> sda+ >= 4us: ok, 16 cycles (5000ns) at pc 3
+    t_su_sta: scl+ -> sda- >= 4.7us: ok, 20 cycles (6248ns) at pc 16 exec set pindirs, 0 side 1 [7]
+    t_su_sto: scl+ -> sda+ >= 4us: ok, 20 cycles (6248ns) at pc 16 exec set pindirs, 1 side 1 [7]
     t_su_dat: sda -> scl+ >= 250ns: ok, 8 cycles (2496ns) at pc 4
-    (passed false)
+    (passed true)
     |}]
 ;;
 
@@ -433,7 +438,7 @@ let%expect_test "side-set and set edges in one instruction are 0 cycles apart, e
     {|
     start
       0  set pindirs, 1 side 1 [7]         8  -              scl+ 8  sda+ 8
-      1  set pindirs, 0 side 0 [7]         8  -              scl- -,8  sda- -,8
+      1  set pindirs, 0 side 0 [7]         8  -              scl- -,0..8  sda- -,0..8
     t_hd_sta: sda- -> scl- >= 4 cycles: FAIL, 0 cycles at pc 1
     back: scl- -> sda- >= 4 cycles: FAIL, 0 cycles at pc 1
     (passed false)
@@ -630,7 +635,7 @@ let%expect_test "a wait on an output's own pin may see a later edge from another
     {|
     stretch
       0  nop side 1 [7]                    8  -,12           scl+ 8
-      1  wait 1 pin 0 [3]                 4+  -,20           samples scl (scl+ -,8..?, scl- -,16..?)  sees scl+  anchor
+      1  wait 1 pin 0 [3]                 4+  -,20           samples scl (scl+ -,0..?, scl- -,16..?)  sees scl+  anchor
       2  nop side 0 [7]                    8  4              scl- 4
     t_high: scl+ -> scl- >= 8 cycles: FAIL, 4 cycles at pc 2
     (passed false)
@@ -689,7 +694,7 @@ let%expect_test "a wait within the synchroniser delay of our own edge may see th
   programs
     {|
 .program ce2
-.side_set 1 opt pindirs
+.side_set 1 opt
 .wrap_target
     nop side 1 [7]
     wait 1 pin 0 side 0 [7]
@@ -701,7 +706,7 @@ let%expect_test "a wait within the synchroniser delay of our own edge may see th
   |> check
        ~config:
          { Timing.Config.default with
-           pins = pins [ "scl=side0:dir,in0" ] |> initially true
+           pins = pins [ "scl=side0,in0" ] |> initially true
          ; rules = rules [ "t_high: scl+ -> scl- >= 8" ]
          };
   [%expect
@@ -746,5 +751,45 @@ let%expect_test "a wait on an irq locks to no input edge" =
       4  push                              1  -
     cells of 8 cycles from each anchor: FAIL, a sample follows a stall, or no wait
     (passed false)
+    |}]
+;;
+
+(* A slave may hold SCL low past our release, so the rise is late by an unknown time until
+   a wait sees it; a pin nobody else pulls low rises at once. *)
+let%expect_test "an open-drain release with no wait after it rises at an unknown time" =
+  let program =
+    programs
+      {|
+.program stop
+.side_set 1 opt pindirs
+    set pindirs, 0 side 0 [7]
+    set pindirs, 0 side 1 [7]
+    set pindirs, 1 side 1 [7]
+|}
+    |> List.hd_exn
+  in
+  List.iter [ []; [ "scl" ] ] ~f:(fun no_stretch ->
+    check
+      program
+      ~config:
+        { Timing.Config.default with
+          pins = pins [ "sda=set0:dir"; "scl=side0:dir" ] |> initially true
+        ; no_stretch
+        ; rules = rules [ "t_su_sto: scl+ -> sda+ >= 8" ]
+        });
+  [%expect
+    {|
+    stop
+      0  set pindirs, 0 side 0 [7]         8  -              scl- -,0..16  sda- -,0..8
+      1  set pindirs, 0 side 1 [7]         8  -              scl+ 8
+      2  set pindirs, 1 side 1 [7]         8  -              sda+ 16
+    t_su_sto: scl+ -> sda+ >= 8 cycles: FAIL, 0 cycles at pc 2
+    (passed false)
+    stop
+      0  set pindirs, 0 side 0 [7]         8  -              scl- -,16  sda- -,0..8
+      1  set pindirs, 0 side 1 [7]         8  -              scl+ 8
+      2  set pindirs, 1 side 1 [7]         8  -              sda+ 16
+    t_su_sto: scl+ -> sda+ >= 8 cycles: ok, 8 cycles at pc 2
+    (passed true)
     |}]
 ;;

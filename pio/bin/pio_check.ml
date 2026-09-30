@@ -40,7 +40,13 @@ let command =
          (optional float)
          ~doc:"DIV clock divider (default .clock_div, else 1)"
      and cell = flag "cell" (optional int) ~doc:"N cycles per bit of a locked input"
-     and entry = flag "entry" (optional string) ~doc:"LABEL start address" in
+     and entry = flag "entry" (optional string) ~doc:"LABEL start address"
+     and no_stretch =
+       flag
+         "no-stretch"
+         (listed string)
+         ~doc:"NAME an open-drain output no other driver holds low"
+     in
      fun () ->
        let usage_error error =
          eprintf "%s\n" (Error.to_string_hum error);
@@ -94,6 +100,7 @@ let command =
              ; rules
              ; cell
              ; entry
+             ; no_stretch
              }
            in
            let report = analyse config program in

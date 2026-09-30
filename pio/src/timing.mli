@@ -126,6 +126,9 @@ module Config : sig
     (** Cycles per bit cell of an input locked at each [wait]; gives the sender clock
         error every sample tolerates, in system clocks when [clock] is known. *)
     ; entry : string option (** The label the state machine starts at; else address 0. *)
+    ; no_stretch : string list
+    (** Open-drain outputs no other driver holds low, so a release rises at once. Any
+        other release rises at an unknown later time, until a [wait] sees it high. *)
     }
   [@@deriving sexp_of]
 

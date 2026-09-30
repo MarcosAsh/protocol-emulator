@@ -241,6 +241,7 @@ module Config = struct
     ; rules : Rule.t list
     ; cell : int option
     ; entry : string option
+    ; no_stretch : string list
     }
   [@@deriving sexp_of]
 
@@ -257,6 +258,7 @@ module Config = struct
     ; rules = []
     ; cell = None
     ; entry = None
+    ; no_stretch = []
     }
   ;;
 end
@@ -265,6 +267,7 @@ module Level = struct
   type t =
     | Low
     | High
+    | Released (** Let go by us, high once any other driver lets go too. *)
     | Unknown
   [@@deriving sexp_of, compare, equal, hash]
 
@@ -272,6 +275,11 @@ module Level = struct
     | Some true -> High
     | Some false -> Low
     | None -> Unknown
+  ;;
+
+  let is_high = function
+    | High | Released -> true
+    | Low | Unknown -> false
   ;;
 end
 
@@ -753,9 +761,14 @@ let level_of_write (pin : Pin.t) (write : Write.t) =
     if not (Pin_ref.equal pin_ref write.pin)
     then None
     else (
+      let released = function
+        | Some true -> Level.Released
+        | high -> Level.of_bool high
+      in
       match drive, write.dir with
-      | Level, false | Dir, true -> Some (Level.of_bool write.value)
-      | Dir_low, true -> Some (Level.of_bool (Option.map write.value ~f:not))
+      | Level, false -> Some (Level.of_bool write.value)
+      | Dir, true -> Some (released write.value)
+      | Dir_low, true -> Some (released (Option.map write.value ~f:not))
       | (Level | Dir | Dir_low | Input), _ -> None))
 ;;
 
@@ -778,10 +791,16 @@ let write ctx ~row writes ((key : Key.t), (timing : Timing.t)) =
     Array.to_list ctx.outputs
     |> List.filter_mapi ~f:(fun i pin ->
       List.find_map writes ~f:(level_of_write pin)
-      |> Option.map ~f:(fun level ->
+      |> Option.map ~f:(fun (level : Level.t) ->
+        let level =
+          match level with
+          | Released when List.mem ctx.config.no_stretch pin.name ~equal:String.equal ->
+            Level.High
+          | level -> level
+        in
         let old = levels.(i) in
-        let may_rise = (not (Level.equal level Low)) && not (Level.equal old High) in
-        let may_fall = (not (Level.equal level High)) && not (Level.equal old Low) in
+        let may_rise = (not (Level.equal level Low)) && not (Level.is_high old) in
+        let may_fall = (not (Level.is_high level)) && not (Level.equal old Low) in
         levels.(i) <- level;
         i, may_rise, may_fall))
   in
@@ -849,7 +868,8 @@ let see ctx ~row ~rising pin_ref ((key : Key.t), (timing : Timing.t)) =
   let rise = Array.of_list timing.rise in
   let fall = Array.of_list timing.fall in
   Array.iteri ctx.outputs ~f:(fun i (pin : Pin.t) ->
-    if List.exists pin.bindings ~f:(fun (bound, drive) ->
+    if (not (List.mem ctx.config.no_stretch pin.name ~equal:String.equal))
+       && List.exists pin.bindings ~f:(fun (bound, drive) ->
          Pin_ref.equal bound pin_ref
          &&
          match drive with
@@ -888,6 +908,18 @@ type control =
   | Next
   | Jump of int
 
+(* A released pin may rise at any time until a wait sees it, so its rise stays recent. *)
+let advance (key : Key.t) timing cycles =
+  let (timing : Timing.t) = Timing.shift timing cycles in
+  { timing with
+    rise =
+      List.map2_exn key.levels timing.rise ~f:(fun (level : Level.t) rise ->
+        match level with
+        | Released -> Option.map rise ~f:(fun rise -> { rise with lo = Some 0 })
+        | Low | High | Unknown -> rise)
+  }
+;;
+
 (* One instruction from issue to the next issue: side-set, stall, execute, delay. Side-set
    lands on the first cycle and the data writes on the last (datasheet 3.2.4, 3.5.1), so
    they coincide, side-set winning, unless the instruction stalls. *)
@@ -921,7 +953,7 @@ let rec execute ctx ~row (instruction : Pioasm.Instruction.t) state =
 
 and finish_execute ctx ~row (instruction : Pioasm.Instruction.t) key (timing : Timing.t) =
   let finish ?(delay = instruction.delay) key timing control =
-    [ key, Timing.shift timing (1 + delay), control ]
+    [ key, advance key timing (1 + delay), control ]
   in
   let unmodelled why =
     ctx.emit row (Unmodelled why);
@@ -1008,7 +1040,7 @@ and finish_execute ctx ~row (instruction : Pioasm.Instruction.t) key (timing : T
 
 (* The executee runs on the next cycle; the delay of the [out] or [mov] is ignored. *)
 and exec ctx ~(row : Row_id.t) (key : Key.t) timing =
-  let timing = Timing.shift timing 1 in
+  let timing = advance key timing 1 in
   let sequences =
     List.map ctx.config.exec ~f:(fun sequence -> sequence.instructions) |> List.to_array
   in
@@ -1031,8 +1063,8 @@ and exec ctx ~(row : Row_id.t) (key : Key.t) timing =
             Array.findi ctx.outputs ~f:(fun _ (pin : Pin.t) -> String.equal pin.name name)
             |> Option.bind ~f:(fun (i, _) ->
               match List.nth_exn key.levels i, value with
-              | Unknown, _ | High, 1 | Low, 0 -> Some key
-              | (High | Low), _ -> None)))
+              | Unknown, _ | (High | Released), 1 | Low, 0 -> Some key
+              | (High | Released | Low), _ -> None)))
   in
   let starts =
     match key.exec with
@@ -1096,6 +1128,10 @@ let analyse (config : Config.t) (program : Pioasm.Program.t) =
         Option.some_if
           (Option.is_none (output_index pin))
           [%string "rule %{rule.name}: %{pin} is not an output"]))
+    @ List.filter_map config.no_stretch ~f:(fun name ->
+      Option.some_if
+        (Option.is_none (output_index name))
+        [%string "no-stretch: %{name} is not an output"])
     @ List.concat_map config.exec ~f:(fun sequence ->
       List.filter_map sequence.guard ~f:(fun (name, _) ->
         Option.some_if
