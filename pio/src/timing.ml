@@ -524,13 +524,8 @@ module Report = struct
     |> String.rstrip
   ;;
 
-  (* A sample at phase [p] lands [p, p + 1) cycles after the edge its wait saw, since a
-     wait releases on the first tick after the edge. With a clock this is in system
-     clocks: the release also waits for the synchroniser's clock, [n] ticks of a
-     fractional divider span the floor to the ceiling of [n] times it, and the divider is
-     the one the SDK programs while the sender runs at the one asked for. A wait's own
-     sample is where the receiver locks, so it is left out; any other sample must have a
-     bounded phase. *)
+  (* A sample at phase [p] reads the pin [p, p + 1) ticks after its anchor's edge, the
+     synchroniser delay cancelling, with a system clock either way for metastability. *)
   let receiver t cell =
     let earliest, latest, armed_slack, cell_length =
       match t.clock with

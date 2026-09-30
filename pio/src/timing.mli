@@ -1,12 +1,8 @@
-(** Static timing of a PIO program, in state machine cycles, over every path. Each
-    instruction issues, applies side-set, may stall (a [wait], a blocking FIFO access, an
-    autopull or autopush, [irq wait]), executes, then delays. A stall has no upper bound.
-
-    For every output pin edge we give the width of the pulse it ends: the cycles since the
-    last instruction that may have made the opposite edge, a lower bound on the true
-    width. [phase] is the cycles since the last [wait] released, which is where a receiver
-    locks to its input. A [wait] on an output's own pin (a stretched clock) may release on
-    another driver's later edge, so the next pulse is timed from the release. *)
+(** Static timing of a PIO program over every path, in state machine cycles. Each edge
+    gets a lower bound on the pulse it ends and each rule its worst case; [phase] counts
+    from the last [wait] on a pin, where a receiver locks. Times are at the pin driver,
+    not at the bus's 30% and 70% levels: rise and fall times are the caller's to subtract.
+    Other drivers may hold a released open-drain pin low, unless [no_stretch]. *)
 
 open! Core
 
