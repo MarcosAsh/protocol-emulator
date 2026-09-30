@@ -1,11 +1,14 @@
 # SPDX-License-Identifier: Apache-2.0
-# Act 3: a USB keyboard and mouse that types TEXT (MicroPython). D+ is uio[0], D- uio[1],
-# pulled up from D- for low speed. On the Icepi Zero a Pico is the host over pico_board's
-# pins and watches the bus on header 29 (D+) -> GP6 and 31 (D-) -> GP7; the TT demo board
-# reads uio_out itself. Untested on a board; test/test_demo.py runs `serve` on the RTL.
+# Act 3: engine 0 is a USB keyboard and mouse that types TEXT (MicroPython). D+ is uio[0],
+# D- uio[1], pulled up from D- for low speed. On the Icepi Zero a Pico is the host over
+# pico_board's pins and watches the bus on header 29 (D+) -> GP6 and 31 (D-) -> GP7; the
+# TT demo board reads uio_out itself. Meanwhile engine 1 sends each key the laptop took
+# out of OUT0 at 115200 baud, for pico_listener. Needs uart_tx_host_rate.hex on the Pico.
+# Untested on a board; test/test_demo.py runs `start_log` and `serve` on the RTL.
 
 import time
 
+import protocol_emulator as pe
 import usb_board
 
 REPORT = [
@@ -29,6 +32,11 @@ DESCRIPTORS = {1: DEVICE, 2: CONFIGURATION, 0x22: REPORT}
 
 KEYS = {c: 4 + i for i, c in enumerate("abcdefghijklmnopqrstuvwxyz")}
 KEYS[" "] = 0x2C
+CHARS = {code: ord(c) for c, code in KEYS.items()}
+
+BAUD = 115_200
+# uart_tx_host_rate on OUT0, the default set and out pin
+LOGGER = pe.DEFAULT_CONFIG
 
 
 def reports(text):
@@ -56,14 +64,45 @@ def se0_reset(lines, ms, least=2):
     return bus_reset
 
 
-def serve(host, board, queue, bus_reset):
-    """Forever. Typing waits for an address, and a reset puts back the report it lost."""
+def words(name):
+    with open(name + ".hex") as f:
+        return pe.hex_words(f.read())
+
+
+def start_log(host, program, clock_hz=48_000_000):
+    """Engine 1 runs `program`, uart_tx_host_rate, which the kernel accepts at any period
+    from 4. Returns the `log` for `serve`, which sends the key of each report taken."""
+    host.select(1)
+    host.stop()
+    host.flush()
+    host.configure(LOGGER)
+    host.load(program)
+    host.push([(clock_hz + BAUD // 2) // BAUD])
+    host.start()
+    host.select(0)
+
+    # a key takes three reports at the 10 ms poll, so its byte has long left the fifo
+    def log(report):
+        if report[0] == 1 and report[2]:
+            host.select(1)
+            host.push([CHARS[report[2]]])
+            host.select(0)
+
+    return log
+
+
+def serve(host, board, queue, bus_reset, log=lambda report: None):
+    """Forever. Typing waits for an address, a reset puts back the report it lost, and
+    `log` gets each report once the laptop has taken it."""
     while True:
         if bus_reset():
             if board.pending_report is not None:
                 queue.insert(0, board.pending_report)
             board.reset()
+        sent = board.pending_report
         usb_board.service(host, board)
+        if sent is not None and board.pending_report is None:
+            log(sent)
         if queue and board.address and board.pending_report is None and not board.chunks:
             board.report(queue.pop(0))
 
@@ -76,7 +115,9 @@ def run(text="hello jane street "):
 
     dp, dn = Pin(6, Pin.IN), Pin(7, Pin.IN)
     bus_reset = se0_reset(lambda: dp() | dn() << 1, time.ticks_ms)
-    serve(pico_board.host(), usb_board.Board(DESCRIPTORS), reports(text), bus_reset)
+    host = pico_board.host()
+    log = start_log(host, words("uart_tx_host_rate"))
+    serve(host, usb_board.Board(DESCRIPTORS), reports(text), bus_reset, log)
 
 
 def run_demo_board(text="hello jane street ", clock_hz=48_000_000):
@@ -85,7 +126,8 @@ def run_demo_board(text="hello jane street ", clock_hz=48_000_000):
     spi = demo_board.DemoBoardSpi(clock_hz=clock_hz)
     bus_reset = se0_reset(lambda: int(spi.tt.uio_out.value), time.ticks_ms)
     host = demo_board.Host(spi.transfer)
-    serve(host, usb_board.Board(DESCRIPTORS), reports(text), bus_reset)
+    log = start_log(host, words("uart_tx_host_rate"), clock_hz)
+    serve(host, usb_board.Board(DESCRIPTORS), reports(text), bus_reset, log)
 
 
 if __name__ == "__main__":
