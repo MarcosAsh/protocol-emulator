@@ -41,10 +41,13 @@ jobs:
             ox: https://github.com/oxcaml/opam-repository.git
             default: https://opam.ocaml.org
 
+      # js_of_ocaml alone would move dune off 3.22.2+ox and rebuild without hardcaml, so
+      # every locked package is held at its version
       - name: Install dependencies
         run: |
           opam install . --deps-only --locked
-          opam install js_of_ocaml.6.3.2+ox
+          opam install js_of_ocaml.6.3.2+ox \
+            $(opam list --installed --short --columns=name,version | awk '{ print $1 "." $2 }')
 
       # the release profile links the whole program, 0.8 MB against 31 MB
       - name: Build the playground
