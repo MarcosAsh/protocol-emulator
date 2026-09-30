@@ -686,6 +686,15 @@ let level_of_write (pin : Pin.t) (write : Write.t) =
       | (Level | Dir | Dir_low | Input), _ -> None))
 ;;
 
+(* Side-set wins a GPIO that the same instruction's OUT, SET or MOV also writes, level and
+   direction separately (RP2040 datasheet 3.5.6). *)
+let side_set_wins ctx ~side (data : Write.t) =
+  Array.exists ctx.outputs ~f:(fun pin ->
+    Option.is_some (level_of_write pin data)
+    && List.exists side ~f:(fun (side : Write.t) ->
+      Bool.equal side.dir data.dir && Option.is_some (level_of_write pin side)))
+;;
+
 (* Apply writes that land in the same cycle, report each edge with the width of the pulse
    it ends, and check the rules against it. *)
 let write ctx ~row writes ((key : Key.t), (timing : Timing.t)) =
@@ -778,13 +787,10 @@ let rec execute ctx ~row (instruction : Pioasm.Instruction.t) state =
   let timing =
     if may_stall ctx instruction.op then Timing.map timing ~f:Since.stall else timing
   in
-  let side_pins =
-    side_writes ctx instruction |> List.map ~f:(fun (w : Write.t) -> w.pin)
-  in
   let data =
     data_writes ctx key instruction.op
-    |> List.filter ~f:(fun (w : Write.t) ->
-      not (List.mem side_pins w.pin ~equal:Pin_ref.equal))
+    |> List.filter ~f:(fun data ->
+      not (side_set_wins ctx ~side:(side_writes ctx instruction) data))
   in
   let key, timing = write ctx ~row data (key, timing) in
   let finish ?(delay = instruction.delay) key timing control =

@@ -380,3 +380,32 @@ let%expect_test "what the analysis cannot follow is an error, not a pass" =
     (passed false)
     |}]
 ;;
+
+let%expect_test "side-set wins a pin that set also writes in the same cycle" =
+  programs
+    {|
+.program shared
+.side_set 1 opt
+    set pins, 0 side 1 [1]
+    mov pins, !null [1]
+    nop side 0 [7]
+    mov pins, null side 1 [7]
+|}
+  |> List.hd_exn
+  |> check
+       ~config:
+         { Timing.Config.default with
+           pins = pins [ "p=side0,set0"; "q=out0" ]
+         ; rules = rules [ "r: q+ -> p- >= 4" ]
+         };
+  [%expect
+    {|
+    shared
+      0  set pins, 0 side 1 [1]            2  -              p+
+      1  mov pins, !null [1]               2  -              q+ -,10
+      2  nop side 0 [7]                    8  -              p- 4,12
+      3  mov pins, null side 1 [7]         8  -              p+ 8  q- 10
+    r: q+ -> p- >= 4 cycles: FAIL, 2 cycles at pc 2
+    (passed false)
+    |}]
+;;
