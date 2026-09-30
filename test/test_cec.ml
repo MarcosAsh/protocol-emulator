@@ -237,6 +237,13 @@ let%expect_test "a retry after a frame given up at a NACK" =
   [%expect {| ((frames 2) (violations ())) |}]
 ;;
 
+(* No frame may start under 3 bit periods after the last, so a start that soon is refused
+   whether or not its frame reaches EOM: here 4 gives it up after the header. *)
+let%expect_test "a start 1 bit period after a frame, given up" =
+  followers_see ~cuts:[ 1, 90 + 480 ] [ 0, 4, 0, []; 1, 4, 0, [ 0x04 ] ];
+  [%expect {| ((frames 1) (violations ("free of 2400000 ns"))) |}]
+;;
+
 let%expect_test "cec in lockstep" =
   let unit = shortest_unit + 1 in
   let follower = ref (Follower.create ~cycle_ns:(50_000 / unit) ~address:0) in

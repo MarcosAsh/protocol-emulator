@@ -226,7 +226,15 @@ module Follower = struct
           ~lo:(205 * ms / 100)
           ~hi:(275 * ms / 100)
       | Some (fall, Data) ->
-        { t with free_ns = Some (ns (t.now - fall) - (24 * ms / 10)) }
+        (* 3 bit periods at least, whatever the frame; which of 3, 5 or 7 at its EOM *)
+        let free = ns (t.now - fall) - (24 * ms / 10) in
+        if Option.is_some t.previous && free < 3 * 24 * ms / 10
+        then (
+          let t =
+            checked t ~name:"free" ~ns:free ~lo:(3 * 24 * ms / 10) ~hi:Int.max_value
+          in
+          { t with free_ns = None })
+        else { t with free_ns = Some free }
       | Some (_, Start) | None -> t
     in
     let ack_slot = t.in_frame && List.length t.bits = 9 in

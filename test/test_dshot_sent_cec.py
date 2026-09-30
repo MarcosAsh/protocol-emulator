@@ -213,6 +213,9 @@ class CecFollower:
         if low and not self.low:
             if self.fall is not None and self.kind is None:
                 self.free = self.cycle - self.fall - 48 * self.unit
+                # 3 bit periods at least, whatever the frame; which of 3, 5 or 7 at its EOM
+                if self.previous is not None:
+                    assert self.free >= 3 * 48 * self.unit, f"free of {self.free} cycles"
             if self.fall is not None and self.kind is not None:
                 period = self.cycle - self.fall
                 if self.kind == "start":
@@ -423,3 +426,15 @@ async def test_cec_follower_retry_after_nack(dut):
     [follower] = cec_followers_see(
         [(0, 4, 0, []), (7, 4, 5, [0x04]), (3, 4, 5, [0x04])], cuts={1: 90 + 480})
     assert [frame for frame, _ in follower.frames] == [[0x40], [0x45, 0x04]]
+
+
+@cocotb.test()
+async def test_cec_follower_early_start(dut):
+    """No frame may start under 3 bit periods after the last, so a start that soon is
+    refused whether or not its frame reaches EOM: here 4 gives it up after the header."""
+    try:
+        cec_followers_see([(0, 4, 0, []), (1, 4, 0, [0x04])], cuts={1: 90 + 480})
+    except AssertionError as e:
+        assert str(e).startswith("free of 48 cycles"), e
+    else:
+        assert False, "a start 1 bit period on accepted"
