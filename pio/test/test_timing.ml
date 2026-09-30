@@ -477,10 +477,12 @@ let%expect_test "an exec no sequence may start at, or a guard on no pin, is an e
 ;;
 
 let%expect_test "out writes every out pin, zeroes above its bit count" =
-  programs {|
+  programs
+    {|
 .program narrow
     mov pins, !null [3]
     out pins, 1 [3]
+    mov pins, null [3]
 |}
   |> List.hd_exn
   |> check
@@ -493,8 +495,9 @@ let%expect_test "out writes every out pin, zeroes above its bit count" =
   [%expect
     {|
     narrow
-      0  mov pins, !null [3]               4  -              out0+ -,4  out1+ -,4
+      0  mov pins, !null [3]               4  -              out0+ -,4  out1+ -,8
       1  out pins, 1 [3]                   4  -              out0- 4  out1- 4
+      2  mov pins, null [3]                4  -              out0- 8
     hb: out1+ -> out1- >= 8 cycles: FAIL, 4 cycles at pc 1
     (passed false)
     |}]
@@ -809,6 +812,28 @@ let%expect_test "two pins on one set, out or side-set bit are one GPIO, an error
     |}]
 ;;
 
+let%expect_test "a time exactly at the limit passes" =
+  vendored "uart_tx.pio" "uart_tx"
+  |> check
+       ~config:
+         { Timing.Config.default with
+           pins = pins [ "tx=out0,side0" ] |> initially true
+         ; fifo_ready = true
+         ; clock = Some { sys_hz = 125e6; clkdiv = 1. }
+         ; rules = rules [ "bit: tx -> tx >= 64ns" ]
+         };
+  [%expect
+    {|
+    uart_tx
+      0  pull side 1 [7]                   8  -              tx+ 8
+      1  set x, 7 side 0 [7]               8  -              tx- -,8
+      2  out pins, 1                       1  -              tx- 8  tx+ 8,16
+      3  jmp x-- bitloop [6]               7  -
+    bit: tx -> tx >= 64ns: ok, 8 cycles (64ns) at pc 0
+    (passed true)
+    |}]
+;;
+
 let receiver ?clock ?(fifo_ready = true) ~cell text =
   programs text
   |> List.hd_exn
@@ -839,6 +864,64 @@ let%expect_test "a sample that may land after its cell fails, a little late or a
       1  nop [13]                         14  1
       2  in pins, 1                        1  15             samples rx
     cells of 16 cycles from each anchor: FAIL, sender may run -6.25% fast or any amount slow
+    (passed false)
+    |}]
+;;
+
+let%expect_test "a sample two paths reach in different cells straddles them, and fails" =
+  receiver
+    ~cell:(Some 4)
+    {|
+.program straddle
+    wait 0 pin 0
+    jmp pin skip
+    nop [3]
+skip:
+    in pins, 1
+|};
+  [%expect
+    {|
+    straddle
+      0  wait 0 pin 0                     1+  -,3..7         samples rx  anchor
+      1  jmp pin skip                      1  1              samples rx
+      2  nop [3]                           4  2
+      3  in pins, 1                        1  2..6           samples rx
+    cells of 4 cycles from each anchor: FAIL, a sample straddles a cell boundary
+    (passed false)
+    |}]
+;;
+
+let%expect_test "a locking wait after a stall may lock late, and fails" =
+  receiver
+    ~fifo_ready:false
+    ~cell:(Some 8)
+    {|
+.program rearm
+    wait 0 pin 0
+    in pins, 1 [6]
+    push
+|};
+  [%expect
+    {|
+    rearm
+      0  wait 0 pin 0                     1+  -,9..?         samples rx  anchor
+      1  in pins, 1 [6]                    7  1              samples rx
+      2  push                             1+  8
+    cells of 8 cycles from each anchor: FAIL, a wait re-arms after a stall
+    (passed false)
+    |}]
+;;
+
+let%expect_test "an error with no rules still fails" =
+  programs {|
+.program p
+    nop
+|}
+  |> List.hd_exn
+  |> check ~config:{ Timing.Config.default with entry = Some "nowhere" };
+  [%expect {|
+    p
+    ERROR no label nowhere
     (passed false)
     |}]
 ;;
