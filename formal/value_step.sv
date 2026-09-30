@@ -195,8 +195,13 @@ module value_step (input clk);
   wire [5:0] crc_top = crc_width - 6'd1;
   wire crc_bit = crc_reflect ? crc[0] : crc_top >= 31 ? crc[31] : crc[crc_top[4:0]];
   wire crc_sends = crc_sending && n == 1;
+`ifdef CRC_UNCOMPLEMENTED
+  wire crc_sent = crc_bit;
+`else
+  wire crc_sent = crc_bit ^ crc_complement;
+`endif
   wire [15:0] out_bits =
-      crc_sends ? {15'd0, crc_bit ^ crc_complement}
+      crc_sends ? {15'd0, crc_sent}
     : out_right ? osr_from & mask(out_n) : (osr_from >> (16 - out_n)) & mask(out_n);
   wire [15:0] osr_shifted = out_right ? osr_from >> out_n : osr_from << out_n;
   wire [4:0] osr_count_shifted = count_from + out_n > 16 ? 5'd16 : count_from + out_n;

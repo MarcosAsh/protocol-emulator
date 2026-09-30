@@ -14,6 +14,7 @@ in_wrong_direction teeth
 push_before_shift teeth
 flip_at_outs_base teeth
 flip_same_half teeth
+crc_uncomplemented teeth
 
 [options]
 prove: mode prove
@@ -57,6 +58,7 @@ push_before_shift: read -define PUSH_BEFORE_SHIFT
 flip_at_outs_base: read -define FLIP_AT_OUTS_BASE
 flip_same_half: read -define FLIP_SAME_HALF
 narrow_timer: read -define TIMER_BITS=7
+crc_uncomplemented: read -define CRC_UNCOMPLEMENTED
 read_verilog -formal -sv value_step.sv
 prep -top value_step
 
