@@ -324,7 +324,7 @@ let changes samples ~pin =
 ;;
 
 (* Runs of the pin at least [min_run] long, some ending before a verdict is due and some
-   after, from a first run long enough to leave the prologue behind. *)
+   after, the first as short as any so an edge may land during the prologue. *)
 let quiet_samples ~min_run ~due =
   let open Quickcheck.Generator.Let_syntax in
   let%map runs =
@@ -333,7 +333,7 @@ let quiet_samples ~min_run ~due =
       (Quickcheck.Generator.union
          [ Int.gen_incl min_run due; Int.gen_incl (due + 1) (2 * due) ])
   in
-  List.concat_mapi ((2 * due) :: runs) ~f:(fun i cycles ->
+  List.concat_mapi (min_run :: runs) ~f:(fun i cycles ->
     List.init cycles ~f:(fun _ -> (i % 2) lsl 2))
 ;;
 
@@ -376,11 +376,11 @@ let%expect_test "on the model, a quiet verdict comes latency to latency + jitter
     print_s [%message "" (latency : int) (jitter : int) ~verdicts:(!verdicts : int)]);
   [%expect
     {|
-    ((latency 12) (jitter 5) (verdicts 2339))
-    ((latency 20) (jitter 5) (verdicts 2104))
-    ((latency 36) (jitter 5) (verdicts 1911))
-    ((latency 200) (jitter 6) (verdicts 167))
-    ((latency 1000) (jitter 31) (verdicts 170))
+    ((latency 12) (jitter 5) (verdicts 2228))
+    ((latency 20) (jitter 5) (verdicts 1995))
+    ((latency 36) (jitter 5) (verdicts 1808))
+    ((latency 200) (jitter 6) (verdicts 157))
+    ((latency 1000) (jitter 31) (verdicts 159))
     |}]
 ;;
 
@@ -404,7 +404,7 @@ let%expect_test "the engine runs the quiet firmware as the model does" =
   print_s [%message (machine.fault : Machine.Fault.t)];
   [%expect
     {|
-    ("lockstep held" (cycles 947))
+    ("lockstep held" (cycles 901))
     (machine.fault
      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
     |}]
