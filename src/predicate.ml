@@ -565,8 +565,8 @@ let compile ?(verdict_pin = Isa.first_output_pin) ~latency t =
     | Quiet { pin } -> readable "watched" pin
   in
   let%bind () =
-    if verdict_pin < Isa.first_output_pin || verdict_pin >= Isa.num_pins
-    then refuse "verdict pin %d is not an output" verdict_pin
+    if verdict_pin < Isa.first_output_pin || verdict_pin >= Isa.first_bidir_pin
+    then refuse "verdict pin %d is not an output pin" verdict_pin
     else Ok ()
   in
   let config = { Program_config.default with set_base = verdict_pin } in

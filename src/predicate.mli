@@ -80,6 +80,6 @@ module Firmware : sig
     }
 end
 
-(** [verdict_pin] defaults to OUT0. The pins watched must be inputs, bidirectional pins or
-    wires. *)
+(** [verdict_pin] is an output pin, OUT0 by default: the firmware sets no directions. The
+    pins watched must be inputs, bidirectional pins or wires. *)
 val compile : ?verdict_pin:int -> latency:int -> t -> Firmware.t Or_error.t

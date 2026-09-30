@@ -81,6 +81,20 @@ let%expect_test "pins that cannot be read, or a budget too long for p, are refus
      (Error "guard pin 11 is not an input, a bidirectional pin or a wire"))
     ("compiled predicate ~latency"
      (Error "latency 70000 needs a budget of 69998, above what p holds"))
+    |}];
+  (* the core never drives a bidirectional pin it has not set the direction of *)
+  List.iter [ 11; 12; 4 ] ~f:(fun verdict_pin ->
+    print_s
+      [%message
+        (verdict_pin : int)
+          ~_:
+            (Predicate.compile ~verdict_pin ~latency:10 scl_rise
+             |> Or_error.map ~f:(fun (f : Predicate.Firmware.t) -> f.config.set_base)
+             : int Or_error.t)]);
+  [%expect {|
+    ((verdict_pin 11) (Ok 11))
+    ((verdict_pin 12) (Error "verdict pin 12 is not an output pin"))
+    ((verdict_pin 4) (Error "verdict pin 4 is not an output pin"))
     |}]
 ;;
 
@@ -429,7 +443,8 @@ let%expect_test "a pulse of min_run is seen from every start, one shorter is not
             ~min_run_missed:(failing min_run : int list)
             ~step_missed:(step_failing : int list)
             ~shorter_missed_somewhere:(not (List.is_empty (failing (min_run - 1))) : bool)]));
-  [%expect {|
+  [%expect
+    {|
     ((latency 12) (background 0) (min_run_missed ()) (step_missed ())
      (shorter_missed_somewhere true))
     ((latency 12) (background 1) (min_run_missed ()) (step_missed ())
