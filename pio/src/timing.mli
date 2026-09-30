@@ -83,8 +83,9 @@ module Clock : sig
     }
   [@@deriving sexp_of]
 
-  (** The divider the hardware runs: 16 integer and 8 fraction bits, the fraction
-      truncated as the SDK does. *)
+  (** The divider the hardware runs when [clkdiv] is the float given to
+      [sm_config_set_clkdiv]: 16 integer and 8 fraction bits, rounded to the nearest 1/256
+      as pico-sdk does by default. *)
   val effective_div : t -> float
 end
 

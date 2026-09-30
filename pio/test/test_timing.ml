@@ -492,3 +492,23 @@ let%expect_test "out writes every out pin, zeroes above its bit count" =
     (passed false)
     |}]
 ;;
+
+let%expect_test "the divider is the float the SDK is given, rounded to the nearest 1/256" =
+  List.iter
+    [ 1.502403846; 1.999; 39.0625; 125e6 /. (8. *. 115_200.) ]
+    ~f:(fun clkdiv ->
+      let div = Timing.Clock.effective_div { sys_hz = 125e6; clkdiv } in
+      printf
+        "%.9f -> %.8f = %d + %d/256\n"
+        clkdiv
+        div
+        (Float.iround_down_exn div)
+        (Float.iround_nearest_exn ((div -. Float.round_down div) *. 256.)));
+  [%expect
+    {|
+    1.502403846 -> 1.50390625 = 1 + 129/256
+    1.999000000 -> 2.00000000 = 2 + 0/256
+    39.062500000 -> 39.06250000 = 39 + 16/256
+    135.633680556 -> 135.63281250 = 135 + 162/256
+    |}]
+;;

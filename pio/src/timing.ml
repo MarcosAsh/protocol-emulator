@@ -169,9 +169,21 @@ module Clock = struct
     }
   [@@deriving sexp_of]
 
+  (* pico-sdk's pio_calculate_clkdiv8_from_float, in single precision, with
+     PICO_CLKDIV_ROUND_NEAREST on as it is by default:
+     {v
+       div += 0.5f / 256;
+       div_int = (uint16_t)div;
+       div_frac8 = div_int == 0 ? 0 : (uint8_t)((div - div_int) * 256);
+     v}
+     An integer part of 0 is the hardware's 65536. *)
   let effective_div { clkdiv; _ } =
-    let whole = Float.round_down clkdiv in
-    whole +. (Float.round_down ((clkdiv -. whole) *. 256.) /. 256.)
+    let single value = Int32.float_of_bits (Int32.bits_of_float value) in
+    let div = single (single clkdiv +. (0.5 /. 256.)) in
+    let whole = Float.round_down div in
+    if Float.( >= ) whole 65536.
+    then 65536.
+    else whole +. (Float.round_down ((div -. whole) *. 256.) /. 256.)
   ;;
 
   (* A fractional divider spaces ticks by the floor or the ceiling of the divider, so [n]
@@ -503,7 +515,7 @@ module Report = struct
      wait releases on the first tick after the edge. With a clock this is in system
      clocks: the release also waits for the synchroniser's clock, [n] ticks of a
      fractional divider span the floor to the ceiling of [n] times it, and the divider is
-     the truncated one while the sender runs at the one asked for. A wait's own sample
+     the one the SDK programs while the sender runs at the one asked for. A wait's own sample
      follows its stall, so it is unbounded and left out. *)
   let receiver_line t cell =
     let earliest, latest, cell_length =
