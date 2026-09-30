@@ -488,12 +488,20 @@ let drift (s : State.t) (t : Isa.t) =
      | _ -> Some next)
 ;;
 
+(* A jump that may fall through, out of the loop from [first] to [last] and leaving x
+   alone, takes its cycles either way. *)
+let exits_loop (t : Isa.t) ~first ~last =
+  match t with
+  | Jmp { cond = Always | X_dec; _ } | Op _ -> false
+  | Jmp { target; _ } -> target < first || target > last
+;;
+
 (* A counted loop is a [jmp x--] back over a straight run of instructions that each move
-   the phase alike on every pass. If a pass moves it by [d] while x counts down by one,
-   [phase + d * x] holds still round the loop: its slope is [-d]. The analysis keeps the
-   phase less the slope times x as the offset at every pc of the loop, and where the loop
-   falls through, x is zero and the phase lies in the offset. A loop that overlaps one
-   found before it gets no slope. *)
+   the phase alike on every pass, or jump out of the loop leaving x alone. If a pass moves
+   it by [d] while x counts down by one, [phase + d * x] holds still round the loop: its
+   slope is [-d]. The analysis keeps the phase less the slope times x as the offset at
+   every pc of the loop, and where the loop falls through, x is zero and the phase lies in
+   the offset. A loop that overlaps one found before it gets no slope. *)
 let slopes ~(config : Program_config.t) (program : Isa.t array) entry =
   let slopes = Array.create ~len:(Array.length program) 0 in
   Array.iteri program ~f:(fun pc t ->
@@ -503,6 +511,8 @@ let slopes ~(config : Program_config.t) (program : Isa.t array) entry =
         List.map (List.range target pc) ~f:(fun b ->
           if b = config.wrap_top
           then None
+          else if exits_loop program.(b) ~first:target ~last:pc
+          then Some Isa.jmp_cycles
           else Option.bind entry.(b) ~f:(fun s -> drift s program.(b)))
       in
       let loop = List.range target pc ~stop:`inclusive in
