@@ -9,8 +9,8 @@ uart_tx_host_rate.hex: ASSUME = -period 434
 ethernet.hex: ASSUME = -period 64000 -autopull-data 16
 data_stream.hex: ASSUME = -autopull-data 16
 # The checker loads a bit period per edge from its rows, each min_gap or more.
-self_check_wire.hex: ASSUME = -period-floor 29 -single-capture-edge -capture-pin 20 \
-  -capture-falling -autopull-data 16
+self_check_wire.hex: ASSUME = -period-floor 17 -capture-pin 20 -capture-falling \
+  -autopull-data 16
 
 # What self_check_wire checks uart_tx_host_rate's frames against, start bit to stop bit,
 # above the data memory's low half.

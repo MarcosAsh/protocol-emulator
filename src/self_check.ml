@@ -159,21 +159,28 @@ let edges ?period ~config (program : Asm.Program.t) ~first ~last =
   later @ [ final + gap ]
 ;;
 
-(* [checker]'s wait for a check ends [lead] cycles before the edge. *)
-let lead = 3
-let min_gap = 29
+(* [checker]'s wait for a check ends [lead] cycles before the edge and its wait for the
+   least [least_lead] cycles before it; each frame's [t] is anchored [anchor] cycles after
+   its first edge. *)
+let lead = 2
+let least_lead = 5
+let anchor = 10
+let min_gap = 17
 let capture_span = 1 lsl 14
 let data_words = 1 lsl Isa.data_addr_bits
 
 let rows ~base edges =
   let open Or_error.Let_syntax in
-  let%bind first =
+  let%bind first, rest =
     match edges with
-    | first :: _ -> Ok first
-    | [] -> Or_error.error_s [%message "no edges"]
+    | first :: (_ :: _ as rest) -> Ok (first, rest)
+    | [] | [ _ ] -> Or_error.error_s [%message "no least after the edges"]
   in
-  let gaps = List.zip_exn (List.drop_last_exn edges) (List.tl_exn edges) in
-  let loaded = (first - lead) :: List.map gaps ~f:(fun (a, b) -> b - a) in
+  let gaps = List.map2_exn (List.drop_last_exn edges) rest ~f:(fun a b -> b - a) in
+  let loaded =
+    ((first - anchor - lead) :: List.drop_last_exn gaps)
+    @ [ List.last_exn gaps - (least_lead - lead) ]
+  in
   let%bind () =
     List.map loaded ~f:(fun p ->
       if p < min_gap
@@ -181,8 +188,6 @@ let rows ~base edges =
       else Ok ())
     |> Or_error.combine_errors_unit
   in
-  (* A falling edge [capture_span] after an earlier one in the frame would stamp the same
-     14 bits, so no check may be that far from the first edge. *)
   let%bind () =
     let last = List.last_exn edges in
     if last >= capture_span
@@ -194,11 +199,21 @@ let rows ~base edges =
     then Or_error.error_s [%message "rows past the data memory" (base : int)]
     else Ok ()
   in
-  (* [seek] wraps the base, so the last row's [p] is not under [min_gap] either *)
-  List.mapi loaded ~f:(fun n p -> if n = 0 then p else (p lsl 1) lor 1)
-  @ [ (base + data_words) lsl 1 ]
+  (* the first row is the first check's [p]; the rest carry theirs above whether another
+     edge follows; the word after them is the base, which [seek] wraps, above the data
+     memory so no load of [p] is under [min_gap] *)
+  let last = List.length loaded - 1 in
+  List.mapi loaded ~f:(fun n p ->
+    if n = 0 then p else (p lsl 1) lor Bool.to_int (n < last))
+  @ [ base + data_words ]
 ;;
 
+(* One loop per level after the last edge. High, x holds the last fall's stamp and the
+   capture is armed from the cycle after each edge, so it reads x unless the line fell
+   since, and a fall at the edge must stamp the edge's own cycle. Low, the line cannot
+   fall without rising first, so the cycle before the edge tells all, and the edge's own
+   picks the loop. The next frame's wait for its fall starts at the least itself, and its
+   stamp must be the cycle the wait released on. *)
 let checker ~pin ~base =
   if base < 0 || base >= data_words
   then raise_s [%message "base past the data memory" (base : int)];
@@ -210,43 +225,80 @@ let checker ~pin ~base =
     in x, 5
     set x, %{low#Int}
     in x, 4
-    mov x, isr               ; the rows' base
+    mov x, isr
+    mov p, x                 ; the rows' base, where the least keeps it
+start:
+    capture_arm
     wait 1 pin %{pin#Int}            ; the line idles high
-    capture_arm
-frame:
-    seek                     ; the rows from the top
-    wait 0 pin %{pin#Int}            ; a first edge, stamped by the capture
-    mov t, capture
+    wait 0 pin %{pin#Int}            ; the first frame's first edge
     capture_arm
     mov isr, capture
-    in null, 2               ; low since the first edge
     mov x, isr
-    out p, 16
-    add t, p
-edge:
-    wait t
-    mov isr, capture         ; two cycles before the edge
-    in pins, 1               ; one before
-    in pins, 1               ; the edge
-    capture_arm
-    xor x, isr               ; since the last edge only its own level may move
-    mov y, isr
-    jmp x--, moved
-    jmp next
-moved:
-    jmp x--, fault
-next:
-    mov isr, capture
-    in y, 1                  ; the capture and this edge's level, for the next
-    in null, 1
-    mov x, isr
+    mov y, now
+    add x, 4
+    jmp x!=y, start          ; it fell before the line was high
+    jmp anchor
+high:                        ; x is the last fall's stamp
+    wait t [2]
+    capture_arm              ; the cycle after the edge
+    mov y, capture
+    jmp x!=y, fell
     out y, 1
     out p, 15
     add t, p
-    jmp y--, edge
-    set x, 0                 ; the last row holds the base
+    jmp y--, high
+    jmp least
+fell:
+    mov x, now
+    sub x, 5                 ; the edge's own cycle
+    jmp x!=y, fault
+    out y, 1
+    out p, 15
+    add t, p
+    jmp y--, low
+    jmp fault                ; the frame ends low
+low:
+    mov isr, null
+    wait t
+    in pins, 1               ; the cycle before the edge
+    jmp pin, rose            ; the edge
+    mov y, isr
+    jmp y--, fault
+    out y, 1
+    out p, 15
+    add t, p
+    jmp y--, low
+    jmp fault                ; the frame ends low
+rose:
+    mov y, isr
+    jmp y--, fault
+    out y, 1
+    out p, 15
+    add t, p
+    jmp y--, high
+least:
+    out p, 16                ; the base, in the word after the rows
+    wait t
+    mov y, capture
+    jmp x!=y, fault          ; nothing fell up to five cycles before the least
+    mov y, capture           ; the cycle before it
+    wait 0 pin %{pin#Int}            ; from the least on, the next frame's first edge
+    capture_arm
+    mov isr, capture
+    jmp x!=y, fault          ; nor up to two cycles before
+    mov x, isr
+    mov y, now
+    add x, 6
+    jmp x!=y, fault          ; the capture is the fall the wait released on
+anchor:
+    mov t, now
+    set x, 0
     add x, p
-    jmp frame
+    seek                     ; the rows from the top
+    mov x, isr
+    out p, 16
+    add t, p
+    jmp low
 fault:
     irq
     halt

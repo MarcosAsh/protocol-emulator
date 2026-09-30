@@ -17,23 +17,33 @@ val edges
   -> last:int
   -> int list Or_error.t
 
-(** [edges] as data memory words for [checker] to read from [base]: the cycles from the
-    first edge to the first check, then a word per edge with the cycles to the next in
-    bits 15 to 1 and whether one follows in bit 0, [base] above the data memory in the
-    last, so no row loads [p] under [min_gap]. Refused if a gap, or the first edge less
-    three cycles, is under [min_gap], if the last edge is [2^14] or more from the first,
-    where a glitch would stamp the 14 bits of capture [checker] compares as an earlier
-    edge did, or if the rows run past the data memory. *)
+(** [edges] as data memory words for [checker] to read from [base]: the first check's [p],
+    then a word per later edge and one for the least, each with the cycles from the edge
+    before in bits 15 to 1 and whether another edge follows in bit 0, then [base] above
+    the data memory, so no row loads [p] under [min_gap]. Refused if a load would be under
+    [min_gap]: a first edge under [min_gap + 12], a gap under [min_gap], or a least under
+    [min_gap + 3] after the last edge. Refused too if the least is [2^14] or more from the
+    first edge, which keeps the stamps [checker] compares well inside their 16 bits, or if
+    the rows run past the data memory. *)
 val rows : base:int -> int list -> int list Or_error.t
 
-(** The least [p] [checker] loads without missing a deadline of its own. *)
+(** The least [p] [checker] loads without missing a deadline of its own, whatever the line
+    does. *)
 val min_gap : int
 
-(** Checks every frame on [pin] against the rows at [base]. The pin idles high and starts
-    each frame with a falling edge, which the capture stamps; from it each later edge has
-    to fall in its cycle: the level a cycle before it must be the level after the one
-    before, and no falling edge may be captured in between. A one-cycle pulse from three
-    cycles before an edge to seven after it can go unseen. *)
+(** Checks every frame on [pin] against the rows at [base]. The line idles high; once the
+    checker has seen it high, the first fall is a frame's first edge [F], and each later
+    frame's is the first low cycle from the last one's least. Inside a frame the line may
+    move, its level differing from the cycle before, only at [F + edge] for an edge before
+    the least, and it is high after the last. Frames that keep to this raise nothing.
+
+    Any other move raises the irq and halts: by the cycle before the least, or for a move
+    in the four cycles before it, within ten cycles of the next frame's first edge, never
+    if none comes. The one it can miss is a one-cycle low pulse in the cycle before the
+    least with the next first edge a multiple of [2^16] cycles later, as the capture's 16
+    bits read it as that edge's stamp; nothing else is blind, first edges included. A fall
+    stamped before the line is first seen high restarts it, unchecked. No deadline is
+    missed whatever the line does. *)
 val checker : pin:int -> base:int -> string
 
 val checker_config : pin:int -> Program_config.t

@@ -53,41 +53,32 @@ module G = Hardcaml_verify.Comb_gates
 
 (* Each edge loads p from its row, so the analyser's table is for every load of min_gap or
    more, and the kernel accepts it at each, by checked SAT; phase_step.sv's load is free
-   at each entry, so no deadline is missed however the rows' loads vary. At one less the
-   kernel refuses. *)
+   at each entry, so no deadline is missed however the rows' loads vary. Every frame is
+   anchored on [now] after a wait on the pin, so this holds whatever the line does, with
+   nothing assumed of the capture. At one less the kernel refuses. *)
 let%expect_test "the kernel accepts the checker at every load from min_gap" =
   let checker = checker ~pin:wire () in
   let checker_config = Self_check.checker_config ~pin:wire in
   let config = Asm.Program.configure checker checker_config in
   let words = Asm.Program.words checker |> ok_exn in
   let table ~floor =
-    Analyser.analyse
-      ~period_floor:floor
-      ~single_capture_edge:true
-      ~config
-      checker.instructions
+    Analyser.analyse ~period_floor:floor ~config checker.instructions
     |> Kernel.Table.of_analyser
   in
-  let check ~floor =
-    Kernel.check ~period:floor ~single_capture_edge:true ~config ~words (table ~floor)
-  in
+  let check ~floor = Kernel.check ~period:floor ~config ~words (table ~floor) in
   let floor = Self_check.min_gap in
   print_s
     [%message
       ""
         ~analyser:
-          (Analyser.check
-             ~period_floor:floor
-             ~single_capture_edge:true
-             ~config:checker_config
-             checker
+          (Analyser.check ~period_floor:floor ~config:checker_config checker
            : Analyser.Verdict.t Or_error.t)
         ~kernel:(check ~floor : unit Or_error.t)
         ~one_less:(check ~floor:(floor - 1) : unit Or_error.t)];
   let loads_from least =
     Table_query.every_load_from
       ~floor:least
-      ~single_capture_edge:true
+      ~single_capture_edge:false
       ~config
       ~words
       (table ~floor)
@@ -104,20 +95,23 @@ let%expect_test "the kernel accepts the checker at every load from min_gap" =
     ~claim:(loads_from (floor - 1));
   [%expect
     {|
-    ((analyser (Ok ((words 39) (deadline_waits 1) (worst_slack (0)))))
+    ((analyser (Ok ((words 73) (deadline_waits 3) (worst_slack (0)))))
      (kernel (Ok ()))
      (one_less
       (Error
-       ("rows the kernel rejects" (rejected (((pc 16) (fails ("in time")))))))))
-    (QED "checker: every load of 29 or more")
-    (counterexample "checker: every load of 28 or more"
-     (model ((loaded 0000000000011100))))
+       ("rows the kernel rejects" (rejected (((pc 34) (fails ("in time")))))))))
+    (QED "checker: every load of 17 or more")
+    (counterexample "checker: every load of 16 or more"
+     (model ((loaded 0000000000010000))))
     |}]
 ;;
 
-(* the last row loads its base above the data memory, which seek wraps *)
+(* the word after the rows loads its base above the data memory, which seek wraps *)
 let%expect_test "every p the rows load is at least min_gap" =
-  let loads rows = List.mapi rows ~f:(fun n word -> if n = 0 then word else word lsr 1) in
+  let loads rows =
+    let last = List.length rows - 1 in
+    List.mapi rows ~f:(fun n word -> if n = 0 || n = last then word else word lsr 1)
+  in
   let edges_and_base =
     let open Quickcheck.Generator.Let_syntax in
     let%bind first = Int.gen_incl 0 (1 lsl 12) in
@@ -137,7 +131,7 @@ let%expect_test "every p the rows load is at least min_gap" =
           if p < Self_check.min_gap
           then raise_s [%message "a row loads p under min_gap" (p : int)])));
   print_s [%message (!accepted : int)];
-  [%expect {| (!accepted 881) |}]
+  [%expect {| (!accepted 824) |}]
 ;;
 
 let%expect_test "a uart frame's edges and rows" =
@@ -151,7 +145,7 @@ let%expect_test "a uart frame's edges and rows" =
   [%expect
     {|
     ((frame (Ok (434 868 1302 1736 2170 2604 3038 3472 3906 4346)))
-     (rows (431 869 869 869 869 869 869 869 869 881 1536)))
+     (rows (422 869 869 869 869 869 869 869 869 874 768)))
     |}]
 ;;
 
@@ -169,19 +163,20 @@ let%expect_test "frames the checker cannot take are refused" =
   let rows ~base edges =
     print_s [%sexp (Self_check.rows ~base edges : int list Or_error.t)]
   in
-  rows ~base:0 [ 32; 61 ];
-  rows ~base:0 [ 31; 59 ];
-  (* three words, the last at 511 *)
-  rows ~base:509 [ 32; 61 ];
-  rows ~base:510 [ 32; 61 ];
+  (* the least first edge, gap and gap to the least, then each a cycle short *)
+  rows ~base:0 [ 29; 46; 66 ];
+  rows ~base:0 [ 28; 45; 64 ];
+  (* four words, the last at 511 *)
+  rows ~base:508 [ 29; 46; 66 ];
+  rows ~base:509 [ 29; 46; 66 ];
   [%expect
     {|
     (Error ("not exact" (what edge) (pc 3)))
     (Error ("branch after the frame" (pc 12)))
-    (Ok (29 59 1024))
-    (Error (("gap out of range" (p 28)) ("gap out of range" (p 28))))
-    (Ok (29 59 2042))
-    (Error ("rows past the data memory" (base 510)))
+    (Ok (17 35 34 512))
+    (Error (("gap out of range" (p 16)) ("gap out of range" (p 16))))
+    (Ok (17 35 34 1020))
+    (Error ("rows past the data memory" (base 509)))
     |}]
 ;;
 
@@ -277,12 +272,9 @@ let%expect_test "what the checker sees on a pad" =
       glitch <> 0 && not (pad ~glitch ()))
   in
   print_s [%message (shifted : int list) (unseen : int list)];
-  [%expect
-    {|
+  [%expect {|
     ("on time" (caught false))
-    ((shifted ())
-     (unseen
-      (97 98 101 102 103 104 105 106 107 198 201 202 203 204 205 206 297 298)))
+    ((shifted ()) (unseen ()))
     |}]
 ;;
 
@@ -311,7 +303,8 @@ let%expect_test "the rtl checks as the model does, rows above other data" =
   in
   run ~host_period:period;
   run ~host_period:(period + 1);
-  [%expect {|
+  [%expect
+    {|
     ("lockstep held" (cycles 14322))
     ((host_period 434) (checker.irq false) (checker.halted false))
     ("lockstep held" (cycles 14322))
@@ -321,14 +314,18 @@ let%expect_test "the rtl checks as the model does, rows above other data" =
 
 (* The words [Self_check.rows] makes, with none of its refusals. *)
 let unchecked_rows edges =
-  let gaps = List.zip_exn (List.drop_last_exn edges) (List.tl_exn edges) in
-  (List.hd_exn edges - 3)
-  :: List.map gaps ~f:(fun (a, b) -> ((b - a) lsl 1) lor 1)
-  @ [ (1 lsl Isa.data_addr_bits) lsl 1 ]
+  let gaps =
+    List.map2_exn (List.drop_last_exn edges) (List.tl_exn edges) ~f:(fun a b -> b - a)
+  in
+  let least = List.length gaps - 1 in
+  ((List.hd_exn edges - 12)
+   :: List.mapi gaps ~f:(fun n gap ->
+     if n = least then (gap - 3) lsl 1 else (gap lsl 1) lor 1))
+  @ [ 1 lsl Isa.data_addr_bits ]
 ;;
 
-(* Low for the first 100 cycles of each frame, then high, with checks at [edges]; the
-   last is the next frame. One cycle of the other level at [glitch]. *)
+(* Low for the first 100 cycles of each frame, then high, with checks at [edges]; the last
+   is the next frame. One cycle of the other level at [glitch]. *)
 let long_frame ?glitch ?every ~rtl edges =
   let pin = 0 in
   let start = 50 in
@@ -369,17 +366,20 @@ let long_frame ?glitch ?every ~rtl edges =
     m.irq)
 ;;
 
-(* Before [rows] refused frames this long, a glitch 2^14 cycles after the first edge
-   stamped the same 14 bits and went unseen, on the model and the rtl; one a cycle either
-   side is caught. The next frame comes late, as an idle line's would. *)
+(* The checker once compared 14 bits of the capture, and before [rows] refused frames this
+   long a glitch 2^14 cycles after the first edge stamped as that edge had and went
+   unseen. It compares 16 now and catches that glitch and one a cycle either side, on the
+   model and the rtl, with the frame quiet without them; [rows] still refuses the frame.
+   The next frame comes late, as an idle line's would. *)
 let%expect_test "a frame spanning the capture's 14 bits is refused" =
   let edges = [ 100; 8000; 16000; 16500; 16600 ] in
+  let quiet = not (long_frame ~every:17000 ~rtl:false edges) in
   let unseen =
     List.filter [ 16383; 16384; 16385 ] ~f:(fun glitch ->
       not (long_frame ~glitch ~every:17000 ~rtl:false edges))
   in
   let rtl_caught = long_frame ~glitch:16384 ~every:17000 ~rtl:true edges in
-  print_s [%message (unseen : int list) (rtl_caught : bool)];
+  print_s [%message (quiet : bool) (unseen : int list) (rtl_caught : bool)];
   let rows edges =
     print_s [%sexp (Self_check.rows ~base:0 edges : int list Or_error.t)]
   in
@@ -395,9 +395,9 @@ let%expect_test "a frame spanning the capture's 14 bits is refused" =
   [%expect
     {|
     ("lockstep held" (cycles 34250))
-    ((unseen (16384)) (rtl_caught false))
+    ((quiet true) (unseen ()) (rtl_caught true))
     (Error ("frame spans the capture's 14 bits" (last 16600)))
-    (Ok (97 32567 1024))
+    (Ok (88 32560 512))
     (Error ("frame spans the capture's 14 bits" (last 16384)))
     (Error ("frame spans the capture's 14 bits" (last 52086)))
     |}]
