@@ -1,0 +1,225 @@
+open! Core
+open Protocol_emulator
+open Cec
+
+let frame ~to_ data = { Frame.initiator = 4; destination = to_; data }
+
+(* From a playback device, 4, to the TV at 0: a poll, <Image View On>, <Set OSD Name>
+   "CEC", then a poll of 5, where no one answers. *)
+let frames =
+  [ frame ~to_:0 []
+  ; frame ~to_:0 [ 0x04 ]
+  ; frame ~to_:0 [ 0x47; Char.to_int 'C'; Char.to_int 'E'; Char.to_int 'C' ]
+  ; frame ~to_:5 []
+  ]
+;;
+
+let master_low (m : Machine.t) = (m.pin_dir lsr pin) land 1 = 1
+
+let bus (m : Machine.t) follower =
+  if master_low m || Follower.drive_low follower then 0 else 1 lsl pin
+;;
+
+let print_follower follower ~acks (fault : Machine.Fault.t) =
+  print_s
+    [%message
+      ""
+        ~frames:(Follower.frames follower : (Frame.t * bool list) list)
+        (acks : int list)
+        ~measured_ns:(Follower.measured follower : Measured.t)
+        ~violations:
+          (Follower.violations follower |> List.dedup_and_sort ~compare:String.compare
+           : string list)
+        (fault : Machine.Fault.t)]
+;;
+
+(* The follower at 0 on the line, times scaled so a unit of [unit] cycles is 50 us. *)
+let run ~unit ~cycles =
+  let t = Machine.create ~config ~program:(Firmware.assemble firmware) |> ok_exn in
+  let rec loop (t : Machine.t) follower pending n acks =
+    if n = 0
+    then t, follower, List.rev acks
+    else (
+      let t, pending =
+        match pending with
+        | w :: rest when List.length t.tx_fifo < Machine.fifo_depth ->
+          Machine.write_tx t w |> ok_exn, rest
+        | pending -> t, pending
+      in
+      let line = bus t follower in
+      let t' = Machine.step t ~inputs:line in
+      let follower = Follower.step follower ~low:(line = 0) in
+      let acks, t' =
+        match Machine.read_rx t' with
+        | Some (a, t') -> a :: acks, t'
+        | None -> acks, t'
+      in
+      loop t' follower pending (n - 1) acks)
+  in
+  let t, follower, acks =
+    loop
+      t
+      (Follower.create ~cycle_ns:(50_000 / unit) ~address:0)
+      (unit :: List.concat_map frames ~f:words)
+      cycles
+      []
+  in
+  print_follower follower ~acks t.fault
+;;
+
+let%expect_test "the words of a frame" =
+  List.iter frames ~f:(fun frame ->
+    let words = words frame |> List.map ~f:(sprintf "0x%04x") in
+    print_s [%message "" ~_:(words : string list)]);
+  [%expect
+    {|
+    (0x0000 0x4080)
+    (0x0001 0x4000 0x0480)
+    (0x0004 0x4000 0x4700 0x4300 0x4500 0x4380)
+    (0x0000 0x4580)
+    |}]
+;;
+
+(* A unit of 25 cycles, as a 500 kHz clock would give. *)
+let%expect_test "four frames, acknowledged by the TV but the last" =
+  run ~unit:25 ~cycles:145_000;
+  [%expect
+    {|
+    ((frames
+      ((((initiator 4) (destination 0) (data ())) (true))
+       (((initiator 4) (destination 0) (data (4))) (true true))
+       (((initiator 4) (destination 0) (data (71 67 69 67)))
+        (true true true true true))
+       (((initiator 4) (destination 5) (data ())) (false))))
+     (acks (0 0 0 0 0 0 0 0 1))
+     (measured_ns
+      (("start low" (3700000 3700000)) (start (4500000 4500000))
+       ("zero low" (1500000 1500000)) (bit (2400000 2400000))
+       ("one low" (600000 600000)) (free (12020000 12020000))))
+     (violations ())
+     (fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    |}]
+;;
+
+let%expect_test "cec in lockstep" =
+  let unit = shortest_unit + 1 in
+  let follower = ref (Follower.create ~cycle_ns:(50_000 / unit) ~address:0) in
+  let pending = ref (unit :: List.concat_map frames ~f:words) in
+  let acks = ref [] in
+  let last = ref None in
+  let model =
+    Lockstep.lockstep
+      ~cycles:46_000
+      ~config
+      ~program:(Firmware.assemble firmware)
+      ~inputs:(fun _ ->
+        Option.value_map !last ~default:(1 lsl pin) ~f:(fun m -> bus m !follower))
+      ~host:(fun _ ->
+        let tx_level, rx_head =
+          Option.value_map !last ~default:(0, None) ~f:(fun (m : Machine.t) ->
+            List.length m.tx_fifo, List.hd m.rx_fifo)
+        in
+        Option.iter rx_head ~f:(fun a -> acks := a :: !acks);
+        let tx =
+          match !pending with
+          | w :: rest when tx_level < Machine.fifo_depth ->
+            pending := rest;
+            Some w
+          | _ -> None
+        in
+        { Lockstep.Host.idle with tx; pop_rx = Option.is_some rx_head })
+      ~react:(fun m ->
+        Option.iter !last ~f:(fun before ->
+          follower := Follower.step !follower ~low:(bus before !follower = 0));
+        last := Some m)
+      ()
+  in
+  print_follower !follower ~acks:(List.rev !acks) model.fault;
+  [%expect
+    {|
+    ("lockstep held" (cycles 46000))
+    ((frames
+      ((((initiator 4) (destination 0) (data ())) (true))
+       (((initiator 4) (destination 0) (data (4))) (true true))
+       (((initiator 4) (destination 0) (data (71 67 69 67)))
+        (true true true true true))
+       (((initiator 4) (destination 5) (data ())) (false))))
+     (acks (0 0 0 0 0 0 0 0 1))
+     (measured_ns
+      (("start low" (3700000 3700000)) (start (4500000 4500000))
+       ("zero low" (1500000 1500000)) (bit (2400000 2400000))
+       ("one low" (600000 600000)) (free (12062500 12062500))))
+     (violations ())
+     (fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    |}]
+;;
+
+let%expect_test "every edge and every sample is placed by a deadline" =
+  Timing_report.print ~config ~period:standard_unit firmware;
+  [%expect
+    {|
+      4  set pins, 0                  phase 1  edge 2  gap ?..?
+      5  set pindirs, 0               phase 2  edge 3  gap 1
+     12  set pindirs, 1               phase -2499  edge -2498  gap 2505..?
+     23  set pindirs, 0               phase -2499  edge -2498  gap 10000..?
+     30  set pindirs, 1               phase -2499  edge -2498  gap 4998..?
+     35  out pindirs, 1               phase -2499  edge -2498  gap 5000..?
+     40  set pindirs, 0               phase -2499  edge -2498  gap 5000..?
+     46  set pindirs, 1               phase -2499  edge -2498  gap 5000..?
+     51  set pindirs, 0               phase -2499  edge -2498  gap 5000..?
+     56  in pins, 1                   phase -2499  sample -2499
+    ((words 71) (edge_jitter 0) (sample_jitter 0) (side_jitter 0) (may_miss 0))
+    |}]
+;;
+
+module G = Hardcaml_verify.Comb_gates
+
+(* As first written, but for the anchor before the line is let go, which only makes that
+   edge's report exact. The host picks the unit, so the analyser's rows are for every load
+   of the floor or more and the kernel accepts them at each, by checked SAT; at one less
+   it refuses. *)
+let%expect_test "the kernel accepts every unit from the shortest up" =
+  let program = Asm.assemble firmware |> ok_exn in
+  let config = Asm.Program.configure program config in
+  let words = Asm.Program.words program |> ok_exn in
+  let table ~floor =
+    Analyser.analyse ~period_floor:floor ~config program.instructions
+    |> Kernel.Table.of_analyser
+  in
+  let check ~floor = Kernel.check ~period:floor ~config ~words (table ~floor) in
+  print_s
+    [%message
+      ""
+        ~kernel:(check ~floor:shortest_unit : unit Or_error.t)
+        ~one_less:(check ~floor:(shortest_unit - 1) : unit Or_error.t)];
+  let loads_from floor =
+    Table_query.every_load_from
+      ~floor
+      ~single_capture_edge:false
+      ~config
+      ~words
+      (table ~floor:shortest_unit)
+  in
+  Checked_unsat.prove
+    [%string "cec: every load of %{shortest_unit#Int} or more"]
+    ~cases:[ G.vdd ]
+    ~claim:(loads_from shortest_unit);
+  Checked_unsat.prove
+    ~show:[ "loaded" ]
+    [%string "cec: every load of %{shortest_unit - 1#Int} or more"]
+    ~cases:[ G.vdd ]
+    ~claim:(loads_from (shortest_unit - 1));
+  [%expect
+    {|
+    ((kernel (Ok ()))
+     (one_less
+      (Error
+       ("rows the kernel rejects"
+        (rejected (((pc 29) (fails ("in time"))) ((pc 64) (fails ("in time")))))))))
+    (QED "cec: every load of 7 or more")
+    (counterexample "cec: every load of 6 or more"
+     (model ((loaded 0000000000000110))))
+    |}]
+;;
