@@ -156,3 +156,29 @@
  (alias runtest)
  (action
   (diff ../quiet_watch.settings quiet_watch.settings.gen)))
+
+; a latency whose budget is too long for set, so the host sends it
+
+(rule
+ (targets quiet_watch_slow.gen quiet_watch_slow.settings.gen)
+ (action
+  (with-stdout-to
+   quiet_watch_slow.gen
+   (run
+    %{exe:../../bin/generate.exe}
+    predicate
+    -latency
+    100
+    -settings
+    quiet_watch_slow.settings.gen
+    "pin 2 stops moving"))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff ../quiet_watch_slow.asm quiet_watch_slow.gen)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff ../quiet_watch_slow.settings quiet_watch_slow.settings.gen)))

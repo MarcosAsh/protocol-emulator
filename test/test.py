@@ -323,3 +323,10 @@ async def watch_quiet(dut, name, runs):
 async def test_quiet_watch(dut):
     """A verdict for every run of pin 2 longer than the window, in it, and for no other."""
     await watch_quiet(dut, "quiet_watch", [40, 10, 5, 30, 22, 50, 7, 26, 60, 9, 23, 28, 45, 5, 6, 33])
+
+
+@cocotb.test()
+async def test_quiet_watch_slow(dut):
+    """The same at a latency whose budget the host sends, as the settings say."""
+    assert "budget_from_host" in predicate_settings("quiet_watch_slow")
+    await watch_quiet(dut, "quiet_watch_slow", [120, 5, 200, 6, 110, 300, 7, 150])

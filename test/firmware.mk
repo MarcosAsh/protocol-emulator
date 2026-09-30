@@ -19,9 +19,13 @@ uart_tx_host_rate_rows.hex: uart_tx_host_rate.asm FORCE
 	cd .. && dune exec -- bin/generate.exe self-check -period 434 -first 8 -last 14 -base 256 test/$< > test/$@.new
 	mv $@.new $@
 
+# A predicate's budget from the host is the period every load of p carries, from the
+# settings the compiler wrote beside it.
+host_budget = $(shell awk '$$1 == "budget_from_host" { print "-period", $$2 }' $(1).settings 2>/dev/null)
+
 firmware: $(FIRMWARE) $(ROWS)
 %.hex: %.asm FORCE
-	cd .. && dune exec -- bin/generate.exe assemble $(ASSUME) test/$< > test/$@.new
+	cd .. && dune exec -- bin/generate.exe assemble $(ASSUME) $(call host_budget,$*) test/$< > test/$@.new
 	mv $@.new $@
 FORCE:
 .PHONY: firmware
