@@ -268,6 +268,7 @@ module Level = struct
     | Low
     | High
     | Released (** Let go by us, high once any other driver lets go too. *)
+    | Maybe_released (** Low, or [Released]: we do not know which. *)
     | Unknown
   [@@deriving sexp_of, compare, equal, hash]
 
@@ -279,7 +280,7 @@ module Level = struct
 
   let is_high = function
     | High | Released -> true
-    | Low | Unknown -> false
+    | Low | Maybe_released | Unknown -> false
   ;;
 end
 
@@ -768,7 +769,8 @@ let level_of_write (pin : Pin.t) (write : Write.t) =
     else (
       let released = function
         | Some true -> Level.Released
-        | high -> Level.of_bool high
+        | Some false -> Low
+        | None -> Maybe_released
       in
       match drive, write.dir with
       | Level, false -> Some (Level.of_bool write.value)
@@ -799,8 +801,9 @@ let write ctx ~row writes ((key : Key.t), (timing : Timing.t)) =
       |> Option.map ~f:(fun (level : Level.t) ->
         let level =
           match level with
-          | Released when List.mem ctx.config.no_stretch pin.name ~equal:String.equal ->
-            Level.High
+          | (Released | Maybe_released)
+            when List.mem ctx.config.no_stretch pin.name ~equal:String.equal ->
+            if Level.equal level Released then Level.High else Unknown
           | level -> level
         in
         let old = levels.(i) in
@@ -893,8 +896,8 @@ let see ctx ~row ~rising pin_ref (key : Key.t) (timing : Timing.t) =
           | None -> true
         in
         match level with
-        | (Released | Unknown) when rising && settled -> Level.High
-        | Low | High | Released | Unknown -> level)
+        | (Released | Maybe_released | Unknown) when rising && settled -> Level.High
+        | Low | High | Released | Maybe_released | Unknown -> level)
       else level)
   in
   { key with levels }
@@ -927,7 +930,8 @@ let advance (key : Key.t) timing cycles =
     rise =
       List.map2_exn key.levels timing.rise ~f:(fun (level : Level.t) rise ->
         match level with
-        | Released -> Option.map rise ~f:(fun rise -> { rise with lo = Some 0 })
+        | Released | Maybe_released ->
+          Option.map rise ~f:(fun rise -> { rise with lo = Some 0 })
         | Low | High | Unknown -> rise)
   }
 ;;
@@ -1075,7 +1079,7 @@ and exec ctx ~(row : Row_id.t) (key : Key.t) timing =
             Array.findi ctx.outputs ~f:(fun _ (pin : Pin.t) -> String.equal pin.name name)
             |> Option.bind ~f:(fun (i, _) ->
               match List.nth_exn key.levels i, value with
-              | Unknown, _ | (High | Released), 1 | Low, 0 -> Some key
+              | (Unknown | Maybe_released), _ | (High | Released), 1 | Low, 0 -> Some key
               | (High | Released | Low), _ -> None)))
   in
   let starts =

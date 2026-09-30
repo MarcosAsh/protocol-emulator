@@ -1005,3 +1005,28 @@ hang:
     (passed false)
     |}]
 ;;
+
+let%expect_test "an unknown write to an open-drain pin's direction may release it" =
+  programs {|
+.program b
+.wrap_target
+    out pindirs, 1 [7]
+.wrap
+|}
+  |> List.hd_exn
+  |> check
+       ~config:
+         { Timing.Config.default with
+           pins = pins [ "s=out0:dir" ]
+         ; autopull = true
+         ; fifo_ready = true
+         ; rules = rules [ "high: s+ -> s- >= 8" ]
+         };
+  [%expect
+    {|
+    b
+      0  out pindirs, 1 [7]               8+  -              s- -,0..8,1..9  s+ -,8,9
+    high: s+ -> s- >= 8 cycles: FAIL, 0 cycles at pc 0
+    (passed false)
+    |}]
+;;
