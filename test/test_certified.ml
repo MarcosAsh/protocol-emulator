@@ -58,7 +58,7 @@ let%expect_test "the firmware library and its certificates" =
     jtag                  15         3      0
     can                   56        10     81  period 96, no wrap
     dshot600              21         4     14  no wrap
-    sent                  82         8    129  period 150, no wrap
+    sent                  83         9    129  period 150, no wrap
     cec                   71        20   2493  period 2500, no wrap
     |}]
 ;;

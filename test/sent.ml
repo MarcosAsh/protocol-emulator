@@ -75,6 +75,7 @@ length:
     add t, p
     add t, p                 ; 12 ticks of pause, more if the host is late
     jmp tx, frame
+    wait t                   ; late: the 12 ticks out first
     wait tx
     mov t, now
     add t, p

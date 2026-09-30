@@ -102,6 +102,41 @@ let%expect_test "a late frame lengthens the pause before it" =
     |}]
 ;;
 
+(* The third frame's words arriving at every other cycle from a tick before the second
+   frame's pause falls to 14 ticks after: the pause before it, and any run that fails. *)
+let%expect_test "a frame arriving anywhere in the pause leaves 12 ticks or more" =
+  let tick = shortest_tick in
+  let falls levels =
+    let levels = Array.of_list levels in
+    List.filter
+      (List.range 1 (Array.length levels))
+      ~f:(fun i -> levels.(i - 1) && not levels.(i))
+  in
+  let pause_fall =
+    List.nth_exn (falls (snd (run ~late:1_000_000 ~tick ~cycles:12_000 ()))) 19
+  in
+  let pauses, failed =
+    List.range ~stride:2 (pause_fall - tick) (pause_fall + (14 * tick))
+    |> List.fold ~init:(Measured.empty, []) ~f:(fun (pauses, failed) late ->
+      let t, levels = run ~late ~tick ~cycles:(late + (80 * tick)) () in
+      let pause =
+        match List.drop (falls levels) 19 with
+        | fall :: next :: _ -> (next - fall) * cycle_ns
+        | _ -> 0
+      in
+      let ok =
+        Or_error.is_ok (decode ~cycle_ns levels)
+        && [%equal: Machine.Fault.t] t.fault Machine.Fault.none
+      in
+      ( Measured.add pauses ~name:"pause" ~ns:pause
+      , if ok then failed else (late - pause_fall) :: failed ))
+  in
+  print_s
+    [%message
+      "" ~tick_ns:(tick * cycle_ns : int) (pauses : Measured.t) (failed : int list)];
+  [%expect {| ((tick_ns 420) (pauses ((pause (5040 6320)))) (failed ())) |}]
+;;
+
 let%expect_test "the decoder refuses a fall a tick late and a short low" =
   let _, levels = run ~tick:standard_tick ~cycles:60_000 () in
   let levels = Array.of_list levels in
@@ -225,7 +260,7 @@ let%expect_test "every edge is placed by a deadline" =
      34  set pins, 1                  phase 1  edge 2  gap 750
      45  set pins, 0                  phase 1  edge 2  gap 305..?
      52  set pins, 1                  phase 1  edge 2  gap 750
-    ((words 82) (edge_jitter 0) (sample_jitter 0) (side_jitter 0) (may_miss 0))
+    ((words 83) (edge_jitter 0) (sample_jitter 0) (side_jitter 0) (may_miss 0))
     |}]
 ;;
 
@@ -308,8 +343,12 @@ let third = replace fourth [ "length:\n    wait t+\n", "length:\n    add t, p\n"
 let second =
   replace
     third
-    [ ( "    add t, p                 ; 12 ticks of pause, more if the host is late\n"
-      , "    add t, p\n    wait t                   ; 12 ticks of pause\n" )
+    [ ( "    add t, p                 ; 12 ticks of pause, more if the host is late\n\
+        \    jmp tx, frame\n\
+        \    wait t                   ; late: the 12 ticks out first\n"
+      , "    add t, p\n\
+        \    wait t                   ; 12 ticks of pause\n\
+        \    jmp tx, frame\n" )
     ; ( "    out x, 4                 ; status, not in the CRC\n"
       , "    mov isr, osr\n    in null, 12\n    mov x, isr\n    out null, 4\n" )
     ; ( "    mov osr, isr\n    out x, 4\n    jmp pulse\n"

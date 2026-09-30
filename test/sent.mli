@@ -4,8 +4,9 @@
     The host sends the tick in cycles once, then two words a frame, [words]. Each pulse
     falls on a deadline, is low for 5 ticks and ends at the next fall, 12 ticks and the
     nibble after, the sync 56. The CRC is the core's: CRC-4 over the data nibbles, not the
-    status. The pause is 12 ticks, or runs on until the host's next frame; a late second
-    word is an underflow fault. The line is low from reset until the tick arrives.
+    status. The pause is 12 ticks, or, when the host's next frame is not in by then, runs
+    on to a tick after it arrives, 13 ticks or more; a late second word is an underflow
+    fault. The line is low from reset until the tick arrives.
 
     J2716 bounds the pause at 768 ticks, so the host must send the next frame within 766
     ticks of the pause's fall. *)
