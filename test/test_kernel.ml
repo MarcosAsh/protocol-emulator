@@ -506,14 +506,30 @@ let uart_bits bit =
 let can_bit = Float.iround_up_exn (400. /. 1.0158)
 let can_bits bit = holding ~pin:Can.tx_pin ~dirs:false ~at0:bit ~at1:bit
 
-(* Each at its standard's rate keeps the least widths the standard asks of a transmitter;
-   one cycle outside, it keeps every deadline and the kernel refuses it. *)
+(* IBM PS/2: CLK low 30 us or more (T4), DATA moving 5 us or more after CLK rises (T2) and
+   before it falls (T1). CLK high (T3) is left out: the kernel does not see how long the
+   host holds CLK low to ask to send, and the first fall comes a quarter after. Each is
+   the standard's unless given. *)
+let ps2 ?(clock_low = cycles 30_000) ?(t1 = cycles 5_000) ?(t2 = cycles 5_000) () =
+  { Kernel.Spacing.Spec.a = Ps2.clock_pin
+  ; b = Ps2.data_pin
+  ; dirs = true
+  ; hold_a = (fun ~own ~other:_ -> if own then clock_low else 0)
+  ; apart_a = (fun ~own ~other:_ -> if own then 0 else t1)
+  ; hold_b = (fun ~own:_ ~other:_ -> 0)
+  ; apart_b = (fun ~own:_ ~other -> if other then 0 else t2)
+  }
+;;
+
+(* Each at its standard's rate keeps the least widths taken above from its standard; one
+   cycle outside, it keeps every deadline and the kernel refuses it. *)
 let%expect_test "a standard's least widths are kept, and one cycle outside is refused" =
   List.iter
     [ ( uart_bits midi_bit
       , at_period "uart_tx_host_rate" 1600
       , at_period "uart_tx_host_rate" 1584 )
     ; can_bits can_bit, at_period "can" 400, at_period "can" 393
+    ; ps2 (), at_period "ps2" 1000, at_period "ps2" 749
     ]
     ~f:(fun (spacing, firmware, outside) ->
       List.iter [ firmware; outside ] ~f:(fun (c : Certified.t) ->
@@ -541,15 +557,27 @@ let%expect_test "a standard's least widths are kept, and one cycle outside is re
           ((pc 29) (fails ("a spaced"))) ((pc 37) (fails ("a spaced")))
           ((pc 41) (fails ("a spaced"))) ((pc 47) (fails ("a spaced")))
           ((pc 51) (fails ("a spaced")))))))))
+    (ps2_1000 (deadlines (Ok ())) (spaced (Ok ())))
+    (ps2_749 (deadlines (Ok ()))
+     (spaced
+      (Error
+       ("rows the kernel rejects"
+        (rejected
+         (((pc 18) (fails ("a spaced"))) ((pc 27) (fails ("a spaced")))
+          ((pc 59) (fails ("a spaced")))))))))
     |}]
 ;;
 
-(* The kernel's bound is the firmware's own width at the standard's rate: a cycle more is
-   refused. *)
-let%expect_test "each standard's width is the firmware's own, to the cycle" =
+(* The most cycles the kernel takes for each width at the standard's rate: a cycle more is
+   refused. PS/2's T1 binds at the acknowledge, pc 24, a cycle under the 998 the emulator
+   measures between a sent bit and its fall. *)
+let%expect_test "the kernel's bound on each width, to the cycle" =
   List.concat_map
     [ "MIDI bit", at_period "uart_tx_host_rate" 1600, 1600, uart_bits
     ; "CAN bit", at_period "can" 400, 400, can_bits
+    ; ("PS/2 CLK low", at_period "ps2" 1000, 2000, fun clock_low -> ps2 ~clock_low ())
+    ; ("PS/2 T1", at_period "ps2" 1000, 997, fun t1 -> ps2 ~t1 ())
+    ; ("PS/2 T2", at_period "ps2" 1000, 1000, fun t2 -> ps2 ~t2 ())
     ]
     ~f:(fun (timing, c, own, spacing) ->
       List.map [ own; own + 1 ] ~f:(fun cycles -> timing, c, cycles, spacing cycles))
@@ -571,6 +599,21 @@ let%expect_test "each standard's width is the firmware's own, to the cycle" =
          ((pc 29) (fails ("a spaced"))) ((pc 37) (fails ("a spaced")))
          ((pc 41) (fails ("a spaced"))) ((pc 47) (fails ("a spaced")))
          ((pc 51) (fails ("a spaced"))))))))
+    ("PS/2 CLK low" (cycles 2000) (Ok ()))
+    ("PS/2 CLK low" (cycles 2001)
+     (Error
+      ("rows the kernel rejects"
+       (rejected
+        (((pc 18) (fails ("a spaced"))) ((pc 27) (fails ("a spaced")))
+         ((pc 59) (fails ("a spaced"))))))))
+    ("PS/2 T1" (cycles 997) (Ok ()))
+    ("PS/2 T1" (cycles 998)
+     (Error
+      ("rows the kernel rejects" (rejected (((pc 24) (fails ("a spaced"))))))))
+    ("PS/2 T2" (cycles 1000) (Ok ()))
+    ("PS/2 T2" (cycles 1001)
+     (Error
+      ("rows the kernel rejects" (rejected (((pc 29) (fails ("b spaced"))))))))
     |}]
 ;;
 
