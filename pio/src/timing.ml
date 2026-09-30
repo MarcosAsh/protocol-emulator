@@ -863,13 +863,21 @@ let sample ?(locks = false) ctx ~row (timing : Timing.t) pin_ref =
     ctx.emit row (Sample { pin; phase = timing.phase; locks; own }))
 ;;
 
-(* A wait on an output's own pin (I2C's SCL, stretched by a slave) shows its level, but
-   reads it [sync] cycles late, so after a recent edge of ours the level stays unknown. *)
+(* A wait that sees an open-drain pin of ours high shows we let it go and no other driver
+   holds it, unless it read the pin within [sync] cycles of our last low, before that low
+   arrived. Seeing it low shows nothing: another driver may still hold it. *)
 let see ctx ~row ~rising pin_ref (key : Key.t) (timing : Timing.t) =
   let levels =
-    List.mapi key.levels ~f:(fun i level ->
+    List.mapi key.levels ~f:(fun i (level : Level.t) ->
       let pin = ctx.outputs.(i) in
-      if (not (List.mem ctx.config.no_stretch pin.name ~equal:String.equal))
+      let open_drain =
+        List.exists pin.bindings ~f:(fun (_, drive) ->
+          match drive with
+          | Dir | Dir_low -> true
+          | Level | Input -> false)
+      in
+      if open_drain
+         && (not (List.mem ctx.config.no_stretch pin.name ~equal:String.equal))
          && List.exists pin.bindings ~f:(fun (bound, drive) ->
            Pin_ref.equal bound pin_ref
            &&
@@ -879,12 +887,14 @@ let see ctx ~row ~rising pin_ref (key : Key.t) (timing : Timing.t) =
       then (
         ctx.emit row (Seen { pin = pin.name; rising });
         let settled =
-          match Since.min (List.nth_exn timing.rise i) (List.nth_exn timing.fall i) with
+          match List.nth_exn timing.fall i with
           | Some { lo = Some lo; _ } -> lo >= ctx.sync
           | Some { lo = None; _ } -> false
           | None -> true
         in
-        if not settled then Level.Unknown else if rising then High else Low)
+        match level with
+        | (Released | Unknown) when rising && settled -> Level.High
+        | Low | High | Released | Unknown -> level)
       else level)
   in
   { key with levels }

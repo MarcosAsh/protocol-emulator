@@ -716,7 +716,7 @@ let%expect_test "a wait within the synchroniser delay of our own edge may see th
     {|
     ce2
       0  nop side 1 [7]                    8  -,17           scl+ 8
-      1  wait 1 pin 0 side 0 [7]          8+  -,25           scl- -,8  samples scl (scl+ -,8..?, scl- 0..?)  sees scl+  anchor
+      1  wait 1 pin 0 side 0 [7]          8+  -,25           scl- -,8  samples scl (scl+ -,8..?, scl- 0..?)  anchor
       2  nop side 1                        1  8              scl+ 8..?
       3  nop side 0 [7]                    8  9              scl- 1
     t_high: scl+ -> scl- >= 8 cycles: FAIL, 1 cycles at pc 3
@@ -950,6 +950,58 @@ hang:
       1  nop side 0 [7]                    8  -              scl-
       2  jmp hang side 0                   1  -
     t_high: scl+ -> scl- >= 8 cycles: FAIL, never checked
+    (passed false)
+    |}]
+;;
+
+(* A wait that sees a released pin low, or high before our own low has reached it, leaves
+   another driver free to hold it, so its rise stays late. *)
+let%expect_test "a wait keeps a released pin stretchable unless it sees it high" =
+  List.iter
+    [ {|
+.program a3
+.side_set 1 opt pindirs
+    nop side 0 [3]
+    nop side 1
+    wait 0 pin 0 [3]
+    nop side 0 [7]
+|}
+    ; {|
+.program stale
+.side_set 1 opt pindirs
+    nop side 0
+    nop side 1
+    wait 1 pin 0 [3]
+    nop side 0 [7]
+hang:
+    jmp hang side 0
+|}
+    ]
+    ~f:(fun text ->
+      programs text
+      |> List.hd_exn
+      |> check
+           ~config:
+             { Timing.Config.default with
+               pins = pins [ "s=side0:dir,in0" ] |> initially true
+             ; rules = rules [ "high: s+ -> s- >= 4" ]
+             });
+  [%expect
+    {|
+    a3
+      0  nop side 0 [3]                    4  -,12           s-
+      1  nop side 1                        1  -,16           s+ 4,12
+      2  wait 0 pin 0 [3]                 4+  -,17           samples s (s+ 0..?, s- 5..?,13..?)  sees s-  anchor
+      3  nop side 0 [7]                    8  4              s- 0..?
+    high: s+ -> s- >= 4 cycles: FAIL, 0 cycles at pc 3
+    (passed false)
+    stale
+      0  nop side 0                        1  -              s-
+      1  nop side 1                        1  -              s+ 1
+      2  wait 1 pin 0 [3]                 4+  -              samples s (s+ 0..?, s- 2..?)  sees s+  anchor
+      3  nop side 0 [7]                    8  4              s- 0..?
+      4  jmp hang side 0                   1  12..?
+    high: s+ -> s- >= 4 cycles: FAIL, 0 cycles at pc 3
     (passed false)
     |}]
 ;;
