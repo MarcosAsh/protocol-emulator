@@ -86,5 +86,8 @@ let%expect_test "the kernel refuses each row moved by a cycle" =
     (ps2 (phase 86) (arm 0) (capture 0) (accepted ()))
     (jtag (phase 20) (arm 0) (capture 0) (accepted ()))
     (can (phase 94) (arm 0) (capture 0) (accepted ()))
+    (dshot600 (phase 34) (arm 0) (capture 0) (accepted ()))
+    (sent (phase 152) (arm 0) (capture 0) (accepted ()))
+    (cec (phase 128) (arm 0) (capture 0) (accepted ()))
     |}]
 ;;
