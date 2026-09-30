@@ -706,6 +706,55 @@ let%expect_test "x-- leaves all ones when it falls through" =
     |}]
 ;;
 
+(* The offset is the phase less the slope times x, which a jump out of one loop into
+   another of the same slope keeps, as it leaves x alone: both fall through to an exact
+   phase. *)
+let%expect_test "a counted loop may jump out into another of the same slope" =
+  let source =
+    {|
+    set p, 31
+    mov t, now
+    set x, 3
+a:
+    jmp pin, b
+    nop
+    jmp x--, a
+    add t, p
+    wait t
+    jmp 0
+b:
+    nop [2]
+    jmp x--, b
+    add t, p
+    wait t
+    jmp 0
+|}
+  in
+  report source;
+  let { Soundness.issues; reached; violations; _ } =
+    soundness ~config:Program_config.default ~cycles:3000 ~seeds:8 (assemble source)
+  in
+  print_s
+    [%message (issues : int) (reached : int) (violations : (int * int * int * int) list)];
+  [%expect {|
+      0  set p, 31                    phase ?..?
+      1  mov t, now                   phase ?..?
+      2  set x, 3                     phase 1
+      3  jmp pin, 9                   phase 2..?
+      4  nop                          phase 4..?
+      5  jmp x--, 3                   phase 5..?
+      6  add t, p                     phase 22
+      7  wait t                       phase -8  slack 8
+      8  jmp 0                        phase 1
+      9  nop [2]                      phase 4..?
+     10  jmp x--, 9                   phase 7..?
+     11  add t, p                     phase 24
+     12  wait t                       phase -6  slack 6
+     13  jmp 0                        phase 1
+    ((issues 10927) (reached 14) (violations ()))
+    |}]
+;;
+
 let%expect_test "a jump on registers the analysis knows goes one way" =
   let source =
     {|
