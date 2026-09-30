@@ -248,3 +248,54 @@ async def test_i2c_start_watch(dut):
     assert [v - s for s, v in zip(starts, verdicts)] == [PAD_LATENCY] * 2, (starts, verdicts)
     assert len(verdicts) == 2, verdicts
     assert (await host.read(STATUS))[0] & 0x3D == 0, "running, no fault"
+
+
+QUIET_WATCH = assembled("quiet_watch")
+# Predicate.compile's window for "pin 2 stops moving" at latency 20: the verdict issues 20
+# to 25 cycles after the core samples the last edge, or 23 to 28 at the pads, if every run
+# of the pin lasts 6 cycles; an edge in the last 2 cycles, 5 at the pads, goes unseen.
+QUIET_WINDOW = (20 + 3, 25 + 3)
+QUIET_UNSEEN = 2 + 3
+
+
+@cocotb.test()
+async def test_quiet_watch(dut):
+    """A verdict for every run of pin 2 longer than the window, in it, and for no other."""
+    await reset(dut)
+
+    host = AsyncHost(Pins(dut).transfer)
+    config = dict(DEFAULT_CONFIG, jmp_pin=2)
+    for reg, word in config_writes(config):
+        await host.write(reg, [word])
+    await host.write(PROGRAM_ADDR, [0])
+    await host.write(PROGRAM_REG, QUIET_WATCH)
+    await host.write(CONTROL, [1])
+
+    runs = [40, 10, 6, 30, 22, 50, 7, 26, 60, 9, 23, 28, 45, 6, 6, 33]
+    changes, verdicts = [], []
+    cycle, level, previous = 0, 0, 0
+    for n, length in enumerate(runs):
+        if n > 0:
+            level ^= 1
+            changes.append(cycle)
+        for _ in range(length):
+            dut.ui_in.value = 0b100 | (level << 5)
+            await ClockCycles(dut.clk, 1)
+            verdict = (int(dut.uo_out.value) >> 1) & 1
+            if verdict and not previous:
+                verdicts.append(cycle)
+            previous = verdict
+            cycle += 1
+    low, high = QUIET_WINDOW
+    answered = []
+    for v in verdicts:
+        seen = [c for c in changes if c <= v - QUIET_UNSEEN]
+        if seen:
+            assert low <= v - seen[-1] <= high, (v, seen[-1])
+            answered.append(seen[-1])
+    assert len(answered) == len(set(answered)), answered
+    for c, n in zip(changes, changes[1:] + [cycle]):
+        if n - c > high and c + high < cycle:
+            assert c in answered, (c, verdicts)
+    assert len(answered) >= 6, verdicts
+    assert (await host.read(STATUS))[0] & 0x3D == 0, "running, no fault"

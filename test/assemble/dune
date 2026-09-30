@@ -123,3 +123,13 @@
  (alias runtest)
  (action
   (diff i2c_start_short.expected i2c_start_short.gen)))
+
+(rule
+ (with-stdout-to
+  quiet_watch.gen
+  (run %{exe:../../bin/generate.exe} predicate -latency 20 "pin 2 stops moving")))
+
+(rule
+ (alias runtest)
+ (action
+  (diff ../quiet_watch.asm quiet_watch.gen)))
