@@ -521,6 +521,12 @@ let ps2 ?(clock_low = cycles 30_000) ?(t1 = cycles 5_000) ?(t2 = cycles 5_000) (
   }
 ;;
 
+(* DS18B20: a write-1 low (tLOW1) and the recovery high (tREC) each 1 us or more, unless
+   given *)
+let one_wire ?(low = cycles 1_000) ?(recovery = cycles 1_000) () =
+  holding ~pin:One_wire.pin ~dirs:true ~at0:recovery ~at1:low
+;;
+
 (* Each at its standard's rate keeps the least widths taken above from its standard; one
    cycle outside, it keeps every deadline and the kernel refuses it. *)
 let%expect_test "a standard's least widths are kept, and one cycle outside is refused" =
@@ -530,6 +536,7 @@ let%expect_test "a standard's least widths are kept, and one cycle outside is re
       , at_period "uart_tx_host_rate" 1584 )
     ; can_bits can_bit, at_period "can" 400, at_period "can" 393
     ; ps2 (), at_period "ps2" 1000, at_period "ps2" 749
+    ; one_wire (), at_period "one_wire" 300, at_period "one_wire" 49
     ]
     ~f:(fun (spacing, firmware, outside) ->
       List.iter [ firmware; outside ] ~f:(fun (c : Certified.t) ->
@@ -565,12 +572,20 @@ let%expect_test "a standard's least widths are kept, and one cycle outside is re
         (rejected
          (((pc 18) (fails ("a spaced"))) ((pc 27) (fails ("a spaced")))
           ((pc 59) (fails ("a spaced")))))))))
+    (one_wire_300 (deadlines (Ok ())) (spaced (Ok ())))
+    (one_wire_49 (deadlines (Ok ()))
+     (spaced
+      (Error
+       ("rows the kernel rejects"
+        (rejected
+         (((pc 11) (fails ("a spaced"))) ((pc 14) (fails ("a spaced")))))))))
     |}]
 ;;
 
 (* The most cycles the kernel takes for each width at the standard's rate: a cycle more is
    refused. PS/2's T1 binds at the acknowledge, pc 24, a cycle under the 998 the emulator
-   measures between a sent bit and its fall. *)
+   measures between a sent bit and its fall; 1-Wire's tREC is a cycle under the least high
+   it measures, 300. *)
 let%expect_test "the kernel's bound on each width, to the cycle" =
   List.concat_map
     [ "MIDI bit", at_period "uart_tx_host_rate" 1600, 1600, uart_bits
@@ -578,6 +593,8 @@ let%expect_test "the kernel's bound on each width, to the cycle" =
     ; ("PS/2 CLK low", at_period "ps2" 1000, 2000, fun clock_low -> ps2 ~clock_low ())
     ; ("PS/2 T1", at_period "ps2" 1000, 997, fun t1 -> ps2 ~t1 ())
     ; ("PS/2 T2", at_period "ps2" 1000, 1000, fun t2 -> ps2 ~t2 ())
+    ; ("1-Wire tLOW1", at_period "one_wire" 300, 300, fun low -> one_wire ~low ())
+    ; ("1-Wire tREC", at_period "one_wire" 300, 299, fun recovery -> one_wire ~recovery ())
     ]
     ~f:(fun (timing, c, own, spacing) ->
       List.map [ own; own + 1 ] ~f:(fun cycles -> timing, c, cycles, spacing cycles))
@@ -614,6 +631,14 @@ let%expect_test "the kernel's bound on each width, to the cycle" =
     ("PS/2 T2" (cycles 1001)
      (Error
       ("rows the kernel rejects" (rejected (((pc 29) (fails ("b spaced"))))))))
+    ("1-Wire tLOW1" (cycles 300) (Ok ()))
+    ("1-Wire tLOW1" (cycles 301)
+     (Error
+      ("rows the kernel rejects" (rejected (((pc 14) (fails ("a spaced"))))))))
+    ("1-Wire tREC" (cycles 299) (Ok ()))
+    ("1-Wire tREC" (cycles 300)
+     (Error
+      ("rows the kernel rejects" (rejected (((pc 11) (fails ("a spaced"))))))))
     |}]
 ;;
 
