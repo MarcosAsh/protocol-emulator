@@ -147,8 +147,8 @@ module Follower = struct
     ; bytes : int list
     ; acks : bool list
     ; in_frame : bool
-    ; free_ns : int option (* before this frame, checked once its initiator is known *)
-    ; previous : (int * bool) option (* its initiator, and if it went through *)
+    ; free_ns : int option (* before this frame, checked at its EOM *)
+    ; previous : (Frame.t * bool) option (* and if it went through *)
     ; driving_until : int option
     ; frames : (Frame.t * bool list) list
     ; measured : Measured.t
@@ -226,12 +226,17 @@ module Follower = struct
     { t with fall = Some (t.now, if t.in_frame then Data else Start); driving_until }
   ;;
 
-  (* CEC 9.1's signal free time, in nominal bit periods of 2.4 ms *)
-  let check_free t ~initiator =
+  (* CEC 9.1's signal free time, in nominal bit periods of 2.4 ms; a retry is the same
+     frame again, as Linux's cec-adap.c takes it *)
+  let check_free t (frame : Frame.t) =
     match t.free_ns, t.previous with
     | Some ns, Some (previous, went_through) ->
       let periods =
-        if not went_through then 3 else if previous = initiator then 7 else 5
+        if previous.initiator <> frame.initiator
+        then 5
+        else if (not went_through) && Frame.equal previous frame
+        then 3
+        else 7
       in
       checked t ~name:"free" ~ns ~lo:(periods * 24 * ms / 10) ~hi:Int.max_value
     | _ -> t
@@ -263,11 +268,6 @@ module Follower = struct
       in
       let block = List.rev t.bits in
       let t =
-        match t.bytes with
-        | [] -> check_free t ~initiator:(byte (List.take block 4))
-        | _ :: _ -> t
-      in
-      let t =
         { t with
           bits = []
         ; bytes = byte (List.take block 8) :: t.bytes
@@ -282,10 +282,10 @@ module Follower = struct
             { Frame.initiator = header lsr 4; destination = header land 0xf; data }
           in
           let acks = List.rev t.acks in
+          let t = check_free t frame in
           { t with
             in_frame = false
-          ; previous =
-              Some (frame.initiator, went_through ~destination:frame.destination acks)
+          ; previous = Some (frame, went_through ~destination:frame.destination acks)
           ; frames = (frame, acks) :: t.frames
           }
         | [] -> raise_s [%message "BUG: a block is in"])

@@ -129,6 +129,76 @@ let%expect_test "the follower refuses five bit periods free before the same init
     |}]
 ;;
 
+(* A line driven by an initiator drawn in 50 us units, a cycle each, with the followers at
+   [addresses] on it. Each frame comes [free] bit periods after the last one's final bit,
+   and is [from] an initiator to [to_]. *)
+let followers_see ?(addresses = [ 0 ]) sends =
+  let bit one = List.init 48 ~f:(fun i -> i < if one then 12 else 30) in
+  let lows =
+    List.concat_map sends ~f:(fun (free, from, to_, data) ->
+      let bytes = ((from lsl 4) lor to_) :: data in
+      let last = List.length bytes - 1 in
+      List.init (free * 48) ~f:(fun _ -> false)
+      @ List.init 90 ~f:(fun i -> i < 74)
+      @ List.concat_mapi bytes ~f:(fun i byte ->
+        List.concat_map (List.range ~stride:(-1) 7 (-1)) ~f:(fun b ->
+          bit ((byte lsr b) land 1 = 1))
+        @ bit (i = last)
+        @ bit true))
+  in
+  let followers =
+    List.fold
+      lows
+      ~init:
+        (List.map addresses ~f:(fun address -> Follower.create ~cycle_ns:50_000 ~address))
+      ~f:(fun followers low ->
+        let low = low || List.exists followers ~f:Follower.drive_low in
+        List.map followers ~f:(Follower.step ~low))
+  in
+  List.iter followers ~f:(fun follower ->
+    print_s
+      [%message
+        ""
+          ~frames:(List.length (Follower.frames follower) : int)
+          ~violations:(Follower.violations follower : string list)])
+;;
+
+(* 4 polls 5, where no one answers, so the frame fails: a retry of it may come 3 bit
+   periods on, but a new frame of 4's owes 7 and one from a new initiator, 3, owes 5. *)
+let%expect_test "the free time the follower asks of each next frame" =
+  let failed = 0, 4, 5, [] in
+  let ok = 0, 4, 0, [] in
+  List.iter
+    [ "retry at 3", [ failed; 3, 4, 5, [] ]
+    ; "retry at 2", [ failed; 2, 4, 5, [] ]
+    ; "new initiator at 5", [ ok; 5, 3, 0, [] ]
+    ; "new initiator at 4", [ ok; 4, 3, 0, [] ]
+    ; "new initiator at 3 after a failure", [ failed; 3, 3, 0, [] ]
+    ; "another frame at 3 after a failure", [ failed; 3, 4, 0, [] ]
+    ; "another frame at 7 after a failure", [ failed; 7, 4, 0, [ 0x04 ] ]
+    ]
+    ~f:(fun (name, sends) ->
+      print_endline name;
+      followers_see sends);
+  [%expect
+    {|
+    retry at 3
+    ((frames 2) (violations ()))
+    retry at 2
+    ((frames 2) (violations ("free of 4800000 ns")))
+    new initiator at 5
+    ((frames 2) (violations ()))
+    new initiator at 4
+    ((frames 2) (violations ("free of 9600000 ns")))
+    new initiator at 3 after a failure
+    ((frames 2) (violations ("free of 7200000 ns")))
+    another frame at 3 after a failure
+    ((frames 2) (violations ("free of 7200000 ns")))
+    another frame at 7 after a failure
+    ((frames 2) (violations ()))
+    |}]
+;;
+
 let%expect_test "cec in lockstep" =
   let unit = shortest_unit + 1 in
   let follower = ref (Follower.create ~cycle_ns:(50_000 / unit) ~address:0) in

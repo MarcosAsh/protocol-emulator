@@ -162,8 +162,8 @@ class CecFollower:
     """A follower at logical address 0 that acknowledges every block sent to it and times
     the initiator in units: start low 70 to 78 and 86 to 94 in all, a one low 8 to 16, a
     zero 26 to 34, a bit 41 to 55 (CEC 1.4, in 50 us units). Before a frame the line is
-    free for 3 bit periods of 48 units after one that failed, 5 before a new initiator's
-    and 7 before the same initiator's next (CEC 9.1)."""
+    free for 5 bit periods of 48 units if its initiator is new, 3 if it retries a frame
+    that failed, and 7 otherwise (CEC 9.1), checked at its EOM."""
 
     def __init__(self, unit):
         self.unit = unit
@@ -185,11 +185,16 @@ class CecFollower:
     def within(self, cycles, lo, hi, name):
         assert lo * self.unit <= cycles <= hi * self.unit, f"{name} of {cycles} cycles"
 
-    def check_free(self, initiator):
+    def check_free(self, frame):
         if self.free is None or self.previous is None:
             return
         previous, went_through = self.previous
-        periods = 3 if not went_through else 7 if previous == initiator else 5
+        if previous[0] >> 4 != frame[0] >> 4:
+            periods = 5
+        elif not went_through and previous == frame:
+            periods = 3
+        else:
+            periods = 7
         assert self.free >= periods * 48 * self.unit, f"free of {self.free} cycles"
 
     def step(self, low):
@@ -217,8 +222,6 @@ class CecFollower:
                 if self.drive_until < 0:
                     self.within(width, 8, 16, "one low")
                 self.drive_until = -1
-                if not self.frame:
-                    self.check_free(int("".join(map(str, self.bits[:4])), 2))
                 self.frame.append(int("".join(map(str, self.bits[:8])), 2))
                 eom = self.bits[8]
                 self.bits = []
@@ -226,7 +229,8 @@ class CecFollower:
                 if eom:
                     destination = self.frame[0] & 0xF
                     went_through = (not any(self.acks)) if destination == 0xF else all(self.acks)
-                    self.previous = (self.frame[0] >> 4, went_through)
+                    self.check_free(self.frame)
+                    self.previous = (self.frame, went_through)
                     self.frames.append((self.frame, self.acks))
                     self.frame, self.acks, self.kind = [], [], None
             else:
@@ -263,3 +267,48 @@ async def test_cec(dut):
     assert follower.frames == [([0x40], [1]), ([0x45], [0])], follower.frames
     assert await host.read(RX, 2) == [0, 1], "ACK from 0, none from 5"
     assert (await host.read(STATUS))[0] & 0x3D == 0, "running, no fault"
+
+
+def cec_lows(sends):
+    """An initiator's line in units, a cycle each: per frame the bit periods free before
+    it, its initiator, its destination and its data."""
+    def bit(one):
+        return [i < (12 if one else 30) for i in range(48)]
+
+    lows = []
+    for free, initiator, destination, data in sends:
+        blocks = [(initiator << 4) | destination] + data
+        lows += [False] * (free * 48) + [i < 74 for i in range(90)]
+        for i, block in enumerate(blocks):
+            for b in range(7, -1, -1):
+                lows += bit((block >> b) & 1)
+            lows += bit(i == len(blocks) - 1) + bit(True)
+    return lows
+
+
+@cocotb.test()
+async def test_cec_follower_free_time(dut):
+    """The follower's CEC 9.1 cases on a drawn line: 4 polls 5, where no one answers, so a
+    retry of it may come 3 bit periods on, but a new frame of 4's owes 7 and one from a new
+    initiator, 3, owes 5."""
+    failed, ok = (0, 4, 5, []), (0, 4, 0, [])
+    cases = [
+        ([failed, (3, 4, 5, [])], True),
+        ([failed, (2, 4, 5, [])], False),
+        ([ok, (5, 3, 0, [])], True),
+        ([ok, (4, 3, 0, [])], False),
+        ([failed, (3, 3, 0, [])], False),
+        ([failed, (3, 4, 0, [])], False),
+        ([failed, (7, 4, 0, [0x04])], True),
+    ]
+    for sends, passes in cases:
+        follower = CecFollower(1)
+        try:
+            for low in cec_lows(sends):
+                follower.step(low or follower.drives())
+            assert len(follower.frames) == 2, follower.frames
+            verdict = True
+        except AssertionError as e:
+            assert str(e).startswith("free of"), e
+            verdict = False
+        assert verdict == passes, (sends, verdict)
