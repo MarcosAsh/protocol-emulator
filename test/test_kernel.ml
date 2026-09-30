@@ -376,13 +376,15 @@ let%expect_test "the kernel on the firmware library, from the analyser's rows" =
     |}]
 ;;
 
+(* the least whole cycles at 50 MHz that last [ns] *)
+let cycles ns = ((ns * 50) + 999) / 1000
+
 (* UM10204's Fast-mode Plus timings a master drives, in cycles at 50 MHz, as a spacing of
    i2c_master's pins: SCL is [a] and SDA [b], each its pindirs bit, where 1 pulls the line
    low. tLOW and tHIGH hold SCL, and tBUF holds SDA high before any START, a repeated one
    too, which UM10204 does not ask; tSU;DAT and tHD;STA part SCL's edges from SDA's, and
    tSU;STA and tSU;STO SDA's from SCL's rise. fSCL, two edges back, is not a spacing. *)
 let fast_mode_plus =
-  let cycles ns = ((ns * 50) + 999) / 1000 in
   { Kernel.Spacing.Spec.a = Firmware.scl
   ; b = Firmware.sda
   ; dirs = true
@@ -471,6 +473,78 @@ let%expect_test "the spacing i2c_master passes is its own, to the cycle" =
      (Error
       ("rows the kernel rejects"
        (rejected (((pc 27) (fails ("b spaced"))) ((pc 80) (fails ("b spaced"))))))))
+    |}]
+;;
+
+(* Library firmware whose host loads [period], named for it. *)
+let at_period name period =
+  let c = Certified.find_exn name in
+  { c with name = [%string "%{name}_%{period#Int}"]; period = Some period }
+;;
+
+(* A spacing that holds [pin] at least [at0] cycles at bit 0 and [at1] at bit 1, its
+   pindirs bit if [dirs]; [b] is the next pin, which the firmware leaves alone. *)
+let holding ~pin ~dirs ~at0 ~at1 =
+  { Kernel.Spacing.Spec.a = pin
+  ; b = pin + 1
+  ; dirs
+  ; hold_a = (fun ~own ~other:_ -> if own then at1 else at0)
+  ; apart_a = (fun ~own:_ ~other:_ -> 0)
+  ; hold_b = (fun ~own:_ ~other:_ -> 0)
+  ; apart_b = (fun ~own:_ ~other:_ -> 0)
+  }
+;;
+
+(* MIDI 1.0: 31.25 kbaud +-1%, so a bit is at least 50 MHz / 31562.5, 1584.2 cycles *)
+let midi_bit = Float.iround_up_exn (50e6 /. (31_250. *. 1.01))
+
+let uart_bits bit =
+  holding ~pin:Program_config.default.set_base ~dirs:false ~at0:bit ~at1:bit
+;;
+
+(* Each at its standard's rate keeps the least widths the standard asks of a transmitter;
+   one cycle outside, it keeps every deadline and the kernel refuses it. *)
+let%expect_test "a standard's least widths are kept, and one cycle outside is refused" =
+  List.iter
+    [ ( uart_bits midi_bit
+      , at_period "uart_tx_host_rate" 1600
+      , at_period "uart_tx_host_rate" 1584 )
+    ]
+    ~f:(fun (spacing, firmware, outside) ->
+      List.iter [ firmware; outside ] ~f:(fun (c : Certified.t) ->
+        print_s
+          [%message
+            c.name
+              ~deadlines:(check c : unit Or_error.t)
+              ~spaced:(check ~spacing c : unit Or_error.t)]));
+  [%expect
+    {|
+    (uart_tx_host_rate_1600 (deadlines (Ok ())) (spaced (Ok ())))
+    (uart_tx_host_rate_1584 (deadlines (Ok ()))
+     (spaced
+      (Error
+       ("rows the kernel rejects"
+        (rejected
+         (((pc 11) (fails ("a spaced"))) ((pc 14) (fails ("a spaced")))))))))
+    |}]
+;;
+
+(* The kernel's bound is the firmware's own width at the standard's rate: a cycle more is
+   refused. *)
+let%expect_test "each standard's width is the firmware's own, to the cycle" =
+  List.concat_map
+    [ "MIDI bit", at_period "uart_tx_host_rate" 1600, 1600, uart_bits ]
+    ~f:(fun (timing, c, own, spacing) ->
+      List.map [ own; own + 1 ] ~f:(fun cycles -> timing, c, cycles, spacing cycles))
+  |> List.iter ~f:(fun (timing, c, cycles, spacing) ->
+    print_s [%message timing (cycles : int) ~_:(check ~spacing c : unit Or_error.t)]);
+  [%expect
+    {|
+    ("MIDI bit" (cycles 1600) (Ok ()))
+    ("MIDI bit" (cycles 1601)
+     (Error
+      ("rows the kernel rejects"
+       (rejected (((pc 11) (fails ("a spaced"))) ((pc 14) (fails ("a spaced"))))))))
     |}]
 ;;
 
