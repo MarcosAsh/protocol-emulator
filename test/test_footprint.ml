@@ -235,6 +235,9 @@ let%expect_test "the footprint of each firmware, and of its config under any pro
     ps2                -            12-13      12-27          12-19
     jtag               5-7          -          5-21           12-19
     can                6            -          6-21           12-19
+    dshot600           5            -          5-20           12-19
+    sent               5            -          5-20           12-19
+    cec                12           12         12-27          12-19
     |}]
 ;;
 
@@ -308,6 +311,9 @@ let%expect_test "each firmware stays inside its footprint" =
     ps2                -            -
     jtag               5-7          -
     can                -            -
+    dshot600           5            -
+    sent               5            -
+    cec                -            -
     |}]
 ;;
 

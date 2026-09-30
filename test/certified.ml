@@ -74,6 +74,21 @@ let all =
       "can"
       Can.firmware
       Can.config
+  ; plain ~no_wrap:true "dshot600" Dshot.dshot600 Dshot.config
+  ; plain
+      ~period:Sent.standard_tick
+      ~period_floor:Sent.shortest_tick
+      ~no_wrap:true
+      "sent"
+      Sent.firmware
+      Sent.config
+  ; plain
+      ~period:Cec.standard_unit
+      ~period_floor:Cec.shortest_unit
+      ~no_wrap:true
+      "cec"
+      Cec.firmware
+      Cec.config
   ]
 ;;
 

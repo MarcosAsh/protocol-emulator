@@ -57,6 +57,9 @@ let%expect_test "the firmware library and its certificates" =
     ps2                   65        12    992  period 1000
     jtag                  15         3      0
     can                   56        10     81  period 96, no wrap
+    dshot600              21         4     14  no wrap
+    sent                  82         8    129  period 150, no wrap
+    cec                   71        20   2493  period 2500, no wrap
     |}]
 ;;
 
@@ -127,5 +130,13 @@ let%expect_test "the least period the host may load" =
     (QED "can: every load of 15 or more")
     (counterexample "can: every load of 14 or more"
      (model ((loaded 0000000000001110))))
+    (sent (period (150)) (floor 21) (passes true) (one_less false))
+    (QED "sent: every load of 21 or more")
+    (counterexample "sent: every load of 20 or more"
+     (model ((loaded 0000000000010100))))
+    (cec (period (2500)) (floor 7) (passes true) (one_less false))
+    (QED "cec: every load of 7 or more")
+    (counterexample "cec: every load of 6 or more"
+     (model ((loaded 0000000000000110))))
     |}]
 ;;
