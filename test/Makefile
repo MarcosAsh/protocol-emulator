@@ -26,6 +26,13 @@ COMPILE_ARGS    += -I$(ECP5_SIM)
 VERILOG_SOURCES += $(ECP5_SIM)/common_sim.vh $(ECP5_SIM)/ccu2c_sim.vh
 VERILOG_SOURCES += $(PWD)/models/DP16KD.v $(PWD)/models/EHXPLLL.v $(PWD)/icepi_netlist.v
 
+else ifeq ($(JOURNAL),yes)
+
+# The chip built with a journal, from `make journal_top.v`:
+SIM_BUILD				= sim_build/journal
+COMPILE_ARGS    += -DFUNCTIONAL
+VERILOG_SOURCES += $(SRC_DIR)/project.v $(PWD)/journal_top.v models/RM_IHPSG13_1P_core_behavioral_bm_bist.v models/RM_IHPSG13_1P_512x16_c2_bm_bist.v
+
 else ifneq ($(GATES),yes)
 
 # RTL simulation:
@@ -68,8 +75,11 @@ ifneq ($(FPGA),yes)
 COCOTB_TEST_MODULES := $(COCOTB_TEST_MODULES),test_two_engines,test_board_blame
 endif
 # the bench demos' rehearsals simulate milliseconds, so on the RTL alone
-ifeq ($(FPGA)$(GATES)$(ICEPI),)
+ifeq ($(FPGA)$(GATES)$(ICEPI)$(JOURNAL),)
 COCOTB_TEST_MODULES := $(COCOTB_TEST_MODULES),test_demo
+endif
+ifeq ($(JOURNAL),yes)
+COCOTB_TEST_MODULES = test_journal
 endif
 
 # Where there is a dune the firmware words are reassembled first, so an encoding change
@@ -102,6 +112,14 @@ fpga_fit: fpga_netlist.v
 icepi_netlist.v: $(SRC_DIR)/project.v $(SRC_DIR)/protocol_emulator.v ../icepi/icepi_top.v
 	$(MAKE) -C ../icepi build/usb1.json
 	yosys -q -p "read_json ../icepi/build/usb1.json; write_verilog -noattr icepi_netlist.v"
+
+# The journal is a build option, so its chip is generated here: make journal
+journal_top.v: $(wildcard $(SRC_DIR)/*.ml) $(SRC_DIR)/../bin/generate.ml
+	cd .. && dune exec -- bin/generate.exe top -sram -engines 2 -journal > test/journal_top.v
+
+journal: journal_top.v
+	$(MAKE) sim JOURNAL=yes COCOTB_RESULTS_FILE=results_journal.xml
+	$(PYTHON_BIN) -m cocotb_tools.check_results results_journal.xml
 
 # Replays the pin traces in traces/, recorded from the OCaml simulation of the top, on
 # whichever netlist the mode selects: make replay, make replay GATES=yes, FPGA=yes or

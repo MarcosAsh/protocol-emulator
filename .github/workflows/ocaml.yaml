@@ -141,6 +141,10 @@ jobs:
           ! grep failure results.xml
           make replay FPGA=yes
 
+      # the journal is a build option, so its chip is generated and simulated on its own
+      - name: Simulate the chip with a journal
+        run: opam exec -- make -C test journal
+
       # the chip's own Verilog, two engines and all, on the Icepi Zero's ECP5 at 48 MHz;
       # nextpnr fails the build if timing does
       - name: Build for the Icepi Zero and simulate the netlist
