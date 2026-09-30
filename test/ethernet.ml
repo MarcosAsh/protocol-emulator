@@ -22,14 +22,31 @@ tenth:
     set pins, 0
     jmp link
 send:
-    pull                     ; its length in bits less one
+    pull                     ; the frame's length in bits less two
     mov y, osr
     set x, 0
     seek
     out null, 16             ; so the next out pulls from the data memory
-bit:
+    set x, 30
+preamble:
     out pins, 1 [1]          ; the first half of the bit, and with the jump the second
+    jmp x--, preamble
+    out pins, 1 [1]
+    set x, 30 [1]            ; the second half of the preamble's 32nd bit
+start:
+    out pins, 1 [1]
+    jmp x--, start
+    out pins, 1 [1]          ; the start of frame's last bit
+    crc_init [1]             ; the FCS covers what follows
+bit:
+    out pins, 1 [1]
     jmp y--, bit
+    out pins, 1 [1]          ; the frame's last bit
+    crc_send                 ; so the outs send the FCS
+    set x, 31
+fcs:
+    out pins, 1 [1]
+    jmp x--, fcs
     set pins, 1 [10]         ; TP_IDL, high 275 ns
     set pins, 0
     mov t, now
@@ -46,6 +63,11 @@ let config =
   ; manchester = true
   ; autopull = true
   ; autopull_data = true
+  ; crc_width = 32
+  ; crc_poly = 0xedb88320
+  ; crc_init = 0xffffffff
+  ; crc_reflect = true
+  ; crc_complement = true
   }
 ;;
 
@@ -96,12 +118,11 @@ module Frame = struct
     frame @ List.init (length - List.length frame) ~f:(Fn.const 0)
   ;;
 
+  let preamble = List.init 7 ~f:(Fn.const 0x55) @ [ 0xd5 ]
+
   let wire frame =
     let fcs = crc32 frame in
-    List.init 7 ~f:(Fn.const 0x55)
-    @ [ 0xd5 ]
-    @ frame
-    @ List.init 4 ~f:(fun n -> (fcs lsr (8 * n)) land 0xff)
+    preamble @ frame @ List.init 4 ~f:(fun n -> (fcs lsr (8 * n)) land 0xff)
   ;;
 
   let rec words = function

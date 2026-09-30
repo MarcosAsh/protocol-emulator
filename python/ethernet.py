@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# 10BASE-T frames at 40 MHz. The host builds the whole frame, preamble to FCS; the core
-# only times it onto the wire. CPython and MicroPython.
+# 10BASE-T frames at 40 MHz. The host builds the frame behind its preamble; the core times
+# it onto the wire and its CRC unit appends the FCS. CPython and MicroPython.
 
 from protocol_emulator import CONTROL, DATA, DATA_ADDR, DEFAULT_CONFIG, TX
 
@@ -10,11 +10,13 @@ LINK_TENTH = 64000  # cycles in a tenth of the 16 ms between link pulses
 # TD+ on IO0, TD- on IO1, a Manchester pair
 CONFIG = dict(
     DEFAULT_CONFIG, out_base=12, set_base=12, set_count=2, manchester=1, autopull=1,
-    autopull_data=1)
+    autopull_data=1, crc_width=32, crc_poly=0x8320, crc_poly_high=0xEDB8, crc_init=0xFFFF,
+    crc_init_high=0xFFFF, crc_reflect=1, crc_complement=1)
 
 
 def crc32(data):
-    """The FCS of IEEE 802.3, over bytes taken least significant bit first."""
+    """The FCS of IEEE 802.3, over bytes taken least significant bit first; the chip
+    computes it too, and the tests check the two agree."""
     crc = 0xFFFFFFFF
     for byte in data:
         crc ^= byte
@@ -66,11 +68,10 @@ def words(data):
 def writes(frame, link_tenth=LINK_TENTH):
     """The register writes that send [frame]. The data memory takes writes only while
     every core is halted; a start runs the firmware from the top, which reads the link
-    interval and then the frame's length in bits less one."""
-    data = wire(frame)
+    interval and then the frame's length in bits less two."""
     return [
-        (CONTROL, [4]), (CONTROL, [8]), (DATA_ADDR, [0]), (DATA, words(data)),
-        (TX, [link_tenth, 8 * len(data) - 1]), (CONTROL, [1]),
+        (CONTROL, [4]), (CONTROL, [8]), (DATA_ADDR, [0]), (DATA, words(PREAMBLE + frame)),
+        (TX, [link_tenth, 8 * len(frame) - 2]), (CONTROL, [1]),
     ]
 
 
