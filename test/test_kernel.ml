@@ -668,6 +668,39 @@ let%expect_test "the kernel's bound on each width, to the cycle" =
     |}]
 ;;
 
+(* Without its wait the stop bit lasts 7 cycles when the host has the next byte ready: the
+   the kernel takes a high of 7 and refuses 8, so MIDI's bit too. *)
+let%expect_test "a MIDI stop bit cut short is refused" =
+  let c = at_period "uart_tx_host_rate" 1600 in
+  let short_stop =
+    { c with
+      name = "uart_tx_host_rate_short_stop"
+    ; source = String.substr_replace_first c.source ~pattern:"    wait t\n" ~with_:""
+    }
+  in
+  List.iter [ 7; 8 ] ~f:(fun high ->
+    let spacing =
+      holding ~pin:Program_config.default.set_base ~dirs:false ~at0:0 ~at1:high
+    in
+    print_s [%message (high : int) ~_:(check ~spacing short_stop : unit Or_error.t)]);
+  print_s
+    [%message
+      short_stop.name
+        ~deadlines:(check short_stop : unit Or_error.t)
+        ~spaced:(check ~spacing:(uart_bits midi_bit) short_stop : unit Or_error.t)];
+  [%expect
+    {|
+    ((high 7) (Ok ()))
+    ((high 8)
+     (Error
+      ("rows the kernel rejects" (rejected (((pc 8) (fails ("a spaced"))))))))
+    (uart_tx_host_rate_short_stop (deadlines (Ok ()))
+     (spaced
+      (Error
+       ("rows the kernel rejects" (rejected (((pc 8) (fails ("a spaced")))))))))
+    |}]
+;;
+
 (* With a spacing a run starts with the pins at either level too, so the row at pc 0 must
    bound neither. *)
 let%expect_test "with a spacing, the row at pc 0 bounds no pin" =
