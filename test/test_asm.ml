@@ -237,6 +237,8 @@ let%expect_test "the words committed for the cocotb test are current" =
     ; "ethernet"
     ; "i2c_master_marked"
     ; "scl_rise"
+    ; "i2c_start_watch"
+    ; "quiet_watch"
     ]
     ~f:(fun name ->
       [%test_result: int list] ~message:name (committed name) ~expect:(assembled name));
