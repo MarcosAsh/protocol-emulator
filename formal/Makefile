@@ -168,7 +168,7 @@ teeth: engine.v engine_sram.v engines.v kernel_step.v osr_step.v
 	  second_edge level_at_arm later_edge_captured capture_a_cycle_older capture_a_cycle_younger \
 	  arm_one_short edge_one_short
 	sby -f edge_step.sby pins_never_change side_set_only one_cycle_later flip_off_issue no_flip
-	sby -f event_step.sby late level_only wires_plain jump_late
+	sby -f event_step.sby late level_only wires_plain jump_late held_moves
 	sby -f frame_step.sby narrow_side narrow_set narrow_out narrow_mov no_pair side_dirs_on_out \
 	  no_wrap
 	sby -f value_step.sby wrong_direction one_short no_invert reverse_wrong_width \
