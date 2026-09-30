@@ -162,11 +162,11 @@ let decode ~cycle_ns levels =
     then return n
     else Or_error.error_s [%message "not whole ticks" (cycles : int) (sync : int)]
   in
-  (* J2716 5.2.1: every pulse, the sync and the pause too, is low 4 ticks or more *)
+  (* J2716: every pulse, the sync and the pause too, is low for more than 4 ticks *)
   let low_enough ~sync ~name low =
-    if 56 * low >= 4 * sync
+    if 56 * low > 4 * sync
     then return ()
-    else Or_error.error_s [%message "low under 4 ticks" name (low : int) (sync : int)]
+    else Or_error.error_s [%message "low 4 ticks or less" name (low : int) (sync : int)]
   in
   let rec frames pulses ~previous_sync decoded measured =
     match pulses with

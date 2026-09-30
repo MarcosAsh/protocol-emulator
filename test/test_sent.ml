@@ -166,7 +166,7 @@ let%expect_test "the decoder refuses a fall a tick late and a short low" =
   [%expect
     {|
     ((late (Error ("no nibble" (n 11))))
-     (short (Error ("low under 4 ticks" nibble (low 450) (sync 8400)))))
+     (short (Error ("low 4 ticks or less" nibble (low 450) (sync 8400)))))
     |}]
 ;;
 
@@ -195,14 +195,16 @@ let%expect_test "the decoder's bounds on the pause and on every low" =
         ~pause_769:(decoded ~pause:769 () : int Or_error.t)
         ~pause_11:(decoded ~pause:11 () : int Or_error.t)
         ~pause_low_3:(decoded ~pause_low:3 () : int Or_error.t)
+        ~pause_low_4:(decoded ~pause_low:4 () : int Or_error.t)
         ~sync_low_3:(decoded ~sync_low:3 () : int Or_error.t)];
   [%expect
     {|
     ((nominal (Ok 1)) (pause_768 (Ok 1))
      (pause_769 (Error ("no pause" (pause 3076) (sync 224))))
      (pause_11 (Error ("no pause" (pause 44) (sync 224))))
-     (pause_low_3 (Error ("low under 4 ticks" pause (low 12) (sync 224))))
-     (sync_low_3 (Error ("low under 4 ticks" sync (low 12) (sync 224)))))
+     (pause_low_3 (Error ("low 4 ticks or less" pause (low 12) (sync 224))))
+     (pause_low_4 (Error ("low 4 ticks or less" pause (low 16) (sync 224))))
+     (sync_low_3 (Error ("low 4 ticks or less" sync (low 12) (sync 224)))))
     |}]
 ;;
 

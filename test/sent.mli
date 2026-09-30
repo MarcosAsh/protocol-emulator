@@ -40,7 +40,7 @@ end
 
 val words : Frame.t -> int list
 
-(** Decodes one level per cycle against J2716's pulses: sync 56 ticks, each low 4 ticks or
-    more, a nibble 12 to 27 ticks within an eighth of a tick of whole ticks of the sync's,
-    and a pause 12 to 768 ticks. A frame whose pause has not ended counts. *)
+(** Decodes one level per cycle against J2716's pulses: sync 56 ticks, each low more than
+    4 ticks, a nibble 12 to 27 ticks within an eighth of a tick of whole ticks of the
+    sync's, and a pause 12 to 768 ticks. A frame whose pause has not ended counts. *)
 val decode : cycle_ns:int -> bool list -> (Frame.t list * Measured.t) Or_error.t
