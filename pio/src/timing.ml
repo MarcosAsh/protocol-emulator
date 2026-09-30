@@ -289,7 +289,11 @@ module Since = struct
   ;;
 
   let shift t cycles = Option.map t ~f:(fun t -> Interval.shift t cycles)
-  let stall t = Option.map t ~f:(fun (t : Interval.t) -> { t with hi = None })
+
+  let stall ?at_most t =
+    Option.map t ~f:(fun (t : Interval.t) ->
+      { t with hi = Option.map2 t.hi at_most ~f:( + ) })
+  ;;
 
   let widen ~(old : t) (t : t) =
     match old, t with
@@ -826,34 +830,57 @@ let see ctx ~row ~rising pin_ref ((key : Key.t), (timing : Timing.t)) =
   , { timing with rise = Array.to_list rise; fall = Array.to_list fall } )
 ;;
 
-let may_stall ctx (op : Pioasm.Op.t) =
+(* How many cycles an instruction may stall: [None] if never, [Some None] without bound.
+   An autopull [out] stalls a cycle on an empty OSR even when the FIFO keeps up, as at
+   restart (datasheet 3.5.4.2). *)
+let stall ctx (op : Pioasm.Op.t) =
+  let fifo_ready = ctx.config.fifo_ready in
   match op with
-  | Wait _ | Irq { mode = Raise_and_wait; _ } -> true
-  | Pull { block; _ } | Push { block; _ } -> block && not ctx.config.fifo_ready
-  | Out _ -> ctx.config.autopull && not ctx.config.fifo_ready
-  | In _ -> ctx.config.autopush && not ctx.config.fifo_ready
-  | Jmp _ | Mov _ | Irq _ | Set _ -> false
+  | Wait _ | Irq { mode = Raise_and_wait; _ } -> Some None
+  | (Pull { block = true; _ } | Push { block = true; _ }) when not fifo_ready -> Some None
+  | Out _ when ctx.config.autopull -> Some (Option.some_if fifo_ready 1)
+  | In _ when ctx.config.autopush && not fifo_ready -> Some None
+  | Jmp _ | Mov _ | Irq _ | Set _ | Pull _ | Push _ | Out _ | In _ -> None
 ;;
+
+let may_stall ctx op = Option.is_some (stall ctx op)
 
 type control =
   | Next
   | Jump of int
 
-(* One instruction from issue to the next issue: side-set, stall, execute, delay. The pin
-   writes are applied together at issue, as they land with no stall: side-set and data
-   edges may coincide, and any stall only lengthens what follows. *)
+(* One instruction from issue to the next issue: side-set, stall, execute, delay. Side-set
+   lands on the first cycle and the data writes on the last (datasheet 3.2.4, 3.5.1), so
+   they coincide, side-set winning, unless the instruction stalls. *)
 let rec execute ctx ~row (instruction : Pioasm.Instruction.t) state =
   let key, (timing : Timing.t) = state in
   ctx.emit row (Phase timing.phase);
   let side = side_writes ctx instruction in
-  let data =
-    data_writes ctx key instruction.op
-    |> List.filter ~f:(fun data -> not (side_set_wins ctx ~side data))
+  let data = data_writes ctx key instruction.op in
+  let at_once =
+    write
+      ctx
+      ~row
+      (side @ List.filter data ~f:(fun data -> not (side_set_wins ctx ~side data)))
+      (key, timing)
   in
-  let key, timing = write ctx ~row (side @ data) (key, timing) in
-  let timing =
-    if may_stall ctx instruction.op then Timing.map timing ~f:Since.stall else timing
+  let stalled ~at_least timing =
+    match stall ctx instruction.op with
+    | None -> timing
+    | Some at_most ->
+      Timing.map (Timing.shift timing at_least) ~f:(fun since ->
+        Since.stall ?at_most:(Option.map at_most ~f:(fun n -> n - at_least)) since)
   in
+  List.concat_map
+    (match stall ctx instruction.op, data with
+     | None, _ -> [ at_once ]
+     | Some _, [] -> [ fst at_once, stalled ~at_least:0 (snd at_once) ]
+     | Some _, _ :: _ ->
+       let key, timing = write ctx ~row side (key, timing) in
+       [ at_once; write ctx ~row data (key, stalled ~at_least:1 timing) ])
+    ~f:(fun (key, timing) -> finish_execute ctx ~row instruction key timing)
+
+and finish_execute ctx ~row (instruction : Pioasm.Instruction.t) key (timing : Timing.t) =
   let finish ?(delay = instruction.delay) key timing control =
     [ key, Timing.shift timing (1 + delay), control ]
   in

@@ -267,12 +267,12 @@ let%expect_test "pico-examples i2c misses Standard-mode START, STOP and SCL low 
       0  jmp y-- entry_point               1  11
       1  irq wait 0 rel                   1+  12
       2  set x, 7                          1  -,14..?,48..?,61..?
-      3  out pindirs, 1 [7]               8+  -,15..?,21..?,49..?,62..? sda- -,13..?,31..?,32..?  sda+ 26..?,31..?,32..?
+      3  out pindirs, 1 [7]               8+  -,15..?,21..?,49..?,62..? sda- -,13..?,14..?,31..?,32..?,33..?  sda+ 26..?,27..?,31..?,32..?,33..?
       4  nop side 1 [2]                    3  -,23..?,29..?,57..? scl+ 15..?,16..?,24..?
       5  wait 1 pin, 1 [4]                5+  -,26..?,32..?  samples scl (scl+ -,3..?, scl- -,18..?,19..?,27..?)  sees scl+  anchor
       6  in pins, 1 [7]                   8+  5              samples sda (sda+ -,16..?, sda- 16..?)
       7  jmp x-- bitloop side 0 [7]        8  13..?          scl- 13..?
-      8  out pindirs, 1 [7]               8+  21..?          sda- 32..?  sda+ 32..?
+      8  out pindirs, 1 [7]               8+  21..?          sda- 32..?,33..?  sda+ 32..?,33..?
       9  nop side 1 [7]                    8  29..?          scl+ 16..?
      10  wait 1 pin, 1 [7]                8+  37..?          samples scl (scl+ 8..?, scl- 24..?)  sees scl+  anchor
      11  jmp pin do_nack side 0 [2]        3  8              scl- 8  samples sda (sda+ 24..?, sda- 24..?)
@@ -319,12 +319,12 @@ let%expect_test "one more cycle after ACK, and each START and STOP step sent twi
       0  jmp y-- entry_point               1  12
       1  irq wait 0 rel                   1+  13
       2  set x, 7                          1  -,15..?,59..?,82..?
-      3  out pindirs, 1 [7]               8+  -,16..?,21..?,60..?,83..? sda- -,13..?,32..?  sda+ 32..?,36..?
+      3  out pindirs, 1 [7]               8+  -,16..?,21..?,60..?,83..? sda- -,13..?,14..?,32..?,33..?  sda+ 32..?,33..?,36..?,37..?
       4  nop side 1 [2]                    3  -,24..?,29..?,68..? scl+ 16..?,24..?
       5  wait 1 pin, 1 [4]                5+  -,27..?,32..?  samples scl (scl+ -,3..?, scl- -,19..?,27..?)  sees scl+  anchor
       6  in pins, 1 [7]                   8+  5              samples sda (sda+ -,16..?, sda- 16..?)
       7  jmp x-- bitloop side 0 [7]        8  13..?          scl- 13..?
-      8  out pindirs, 1 [7]               8+  21..?          sda- 32..?  sda+ 32..?
+      8  out pindirs, 1 [7]               8+  21..?          sda- 32..?,33..?  sda+ 32..?,33..?
       9  nop side 1 [7]                    8  29..?          scl+ 16..?
      10  wait 1 pin, 1 [7]                8+  37..?          samples scl (scl+ 8..?, scl- 24..?)  sees scl+  anchor
      11  jmp pin do_nack side 0 [3]        4  8              scl- 8  samples sda (sda+ 24..?, sda- 24..?)
@@ -633,6 +633,50 @@ let%expect_test "a wait on an output's own pin may see a later edge from another
       1  wait 1 pin 0 [3]                 4+  -,20           samples scl (scl+ -,8..?, scl- -,16..?)  sees scl+  anchor
       2  nop side 0 [7]                    8  4              scl- 4
     t_high: scl+ -> scl- >= 8 cycles: FAIL, 4 cycles at pc 2
+    (passed false)
+    |}]
+;;
+
+(* Side-set lands on an instruction's first cycle, a stalled [out]'s data on its last, so
+   the data wins a shared pin once the [out] stalls. Even with the FIFO kept full, an
+   [out] stalls a cycle on the OSR left empty at restart. *)
+let%expect_test "a stalled out writes its pins after its side-set, and wins them" =
+  let program =
+    programs
+      {|
+.program ce1
+.side_set 1 opt
+.wrap_target
+    out pins, 1 side 1
+    nop [7]
+    nop side 0 [7]
+.wrap
+|}
+    |> List.hd_exn
+  in
+  List.iter [ false; true ] ~f:(fun fifo_ready ->
+    check
+      program
+      ~config:
+        { Timing.Config.default with
+          pins = pins [ "p=side0,out0" ]
+        ; autopull = true
+        ; fifo_ready
+        ; rules = rules [ "high: p+ -> p- >= 9" ]
+        });
+  [%expect
+    {|
+    ce1
+      0  out pins, 1 side 1               1+  -              p- 1..?  p+ -,8
+      1  nop [7]                           8  -
+      2  nop side 0 [7]                    8  -              p- 9,10..?
+    high: p+ -> p- >= 9 cycles: FAIL, 1 cycles at pc 0
+    (passed false)
+    ce1
+      0  out pins, 1 side 1               1+  -              p- 1  p+ -,8
+      1  nop [7]                           8  -
+      2  nop side 0 [7]                    8  -              p- 9,10
+    high: p+ -> p- >= 9 cycles: FAIL, 1 cycles at pc 0
     (passed false)
     |}]
 ;;
