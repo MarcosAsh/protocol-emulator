@@ -1,0 +1,68 @@
+name: release
+
+# The assembler, the firmware and the chip as files, for anyone without the OxCaml switch.
+# The binary needs glibc 2.39 and libgmp, as on Ubuntu 24.04.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Set up OxCaml
+        uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: ocaml-variants.5.2.0+ox
+          opam-repositories: |
+            ox: https://github.com/oxcaml/opam-repository.git
+            default: https://opam.ocaml.org
+
+      - name: Install dependencies
+        run: opam install . --deps-only --locked
+
+      - name: Build the assembler
+        run: |
+          opam exec -- dune build --profile release bin/generate.exe
+          mkdir release
+          cp _build/default/bin/generate.exe release/generate-linux-x86_64
+
+      # outside dune, as a judge would run it
+      - name: Check the binary reproduces the committed Verilog and firmware
+        run: |
+          ./release/generate-linux-x86_64 top -sram -engines 2 | cmp - src/protocol_emulator.v
+          ./release/generate-linux-x86_64 assemble test/uart_tx.asm | cmp - test/uart_tx.hex
+          if ./release/generate-linux-x86_64 assemble playground/gap_adding_x.asm; then
+            echo "::error::the kernel accepted gap_adding_x"
+            exit 1
+          fi
+
+      - name: Pack the firmware
+        run: tar czf release/firmware.tar.gz test/*.asm test/*.hex test/*.settings test/firmware.mk
+
+      - name: Download the chip
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run=$(gh run list -R "${{ github.repository }}" --workflow gds.yaml --branch main \
+            --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+          gh run download "$run" -R "${{ github.repository }}" -n tt_submission -n gds_render -D chip
+          cp chip/tt_submission/tt_submission/*.{gds,oas,lef,v} chip/gds_render/gds_render.png release/
+          echo "run=$run" >> "$GITHUB_ENV"
+          echo "commit=$(jq -r .commit chip/tt_submission/tt_submission/commit_id.json)" >> "$GITHUB_ENV"
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" -R "${{ github.repository }}" release/* \
+            --title "$GITHUB_REF_NAME" \
+            --notes "The chip is from gds run $run at $commit. Assemble and check firmware
+          with no OCaml: \`chmod +x generate-linux-x86_64 && ./generate-linux-x86_64 assemble uart_tx.asm\`"
