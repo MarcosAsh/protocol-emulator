@@ -5,8 +5,8 @@ The core does what must meet the turnaround time (tokens, CRC, ACK, NAK); this d
 the rest: SETUPs, descriptors, data toggles, reloading on a new address.
 
 `Board` does no I/O: `feed` takes the words the core pushed, `reload` is the address to
-load the core for, and each list in `replies` must be written to the tx fifo whole.
-`service` is one round of that I/O over a `protocol_emulator.Host`.
+load the core for, and each list in `replies` must be written to the tx fifo whole and
+in order. `service` is one round of that I/O over a `protocol_emulator.Host`.
 """
 
 import usb_device_firmware as firmware
@@ -52,6 +52,9 @@ class Board:
         self.toggle = DATA1
         self.report_toggle = DATA0
         self.replies = []
+        # the endpoint of each reply queued, oldest first: the core answers each with one
+        # ACK or DROPPED tag, in that order
+        self.queued = []
         self.new_address = None
         self.reload = 0
         self.pending_report = None
@@ -60,7 +63,7 @@ class Board:
     def report(self, payload):
         """A report for the interrupt endpoint; kept until the host has taken it."""
         self.pending_report = payload
-        self.replies.append(reply(1, self.report_toggle, payload))
+        self._queue(1, self.report_toggle, payload)
 
     def feed(self, word):
         if self.expect:
@@ -73,15 +76,20 @@ class Board:
             self.tag, self.expect, self.words = word, 6, []
         elif word == TAG_DATA1:
             self.tag, self.expect, self.words = word, 2, []
-        elif word == TAG_ACK:
-            self._acked()
-        elif word == TAG_DROPPED:
-            self.dropped = True
+        elif word == TAG_ACK and self.queued:
+            self._acked(self.queued.pop(0))
+        elif word == TAG_DROPPED and self.queued:
+            if self.queued.pop(0) == 1:
+                self.dropped = True
         self._requeue()
+
+    def _queue(self, endpoint, pid, payload):
+        self.replies.append(reply(endpoint, pid, payload))
+        self.queued.append(endpoint)
 
     def _next_chunk(self):
         if self.chunks:
-            self.replies.append(reply(0, self.toggle, self.chunks.pop(0)))
+            self._queue(0, self.toggle, self.chunks.pop(0))
             self.toggle = DATA0 if self.toggle == DATA1 else DATA1
 
     def _setup(self, b):
@@ -99,12 +107,12 @@ class Board:
             self.chunks = [[]]
         self._next_chunk()
 
-    def _acked(self):
-        if self.chunks:
-            self._next_chunk()
-        elif self.pending_report is not None and not self.dropped and self.new_address is None:
+    def _acked(self, endpoint):
+        if endpoint == 1:
             self.pending_report = None
             self.report_toggle = DATA1 if self.report_toggle == DATA0 else DATA0
+        elif self.chunks:
+            self._next_chunk()
         elif self.new_address is not None:
             self.address = self.reload = self.new_address
             self.new_address = None
@@ -112,7 +120,7 @@ class Board:
     def _requeue(self):
         if self.dropped and self.pending_report is not None and not self.chunks and not self.replies:
             self.dropped = False
-            self.replies.append(reply(1, self.report_toggle, self.pending_report))
+            self._queue(1, self.report_toggle, self.pending_report)
 
 
 def load(host, address):
