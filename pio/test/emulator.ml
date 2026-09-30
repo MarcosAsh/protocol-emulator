@@ -1,10 +1,10 @@
 open! Core
 open Pio
 
-(* One state machine at a divider of 1, from RP2040 datasheet chapter 3, after the
+(* One state machine at an integer divider, from RP2040 datasheet chapter 3, after the
    verifier's pioemu.py. Side-set lands on an instruction's first cycle, its data writes
    on the cycle it completes, side-set winning a tie (3.2.4, 3.5.1, 3.5.6). The machine
-   reads its own outputs 4 cycles late through the synchronisers (3.5.6.1). *)
+   reads its own outputs 4 system clocks late through the synchronisers (3.5.6.1). *)
 
 module Edge = struct
   type t =
@@ -22,10 +22,20 @@ module Setup = struct
     ; shift_left : bool
     ; exec : (int * Pioasm.Instruction.t) list (** What [out exec] runs, by word. *)
     ; tx : int Sequence.t option (** The TX words, in order; random when [None]. *)
+    ; divider : int (** System clocks a machine cycle; edge times are in system clocks. *)
+    ; tx_chance : float
+    (** Of a TX word arriving each system clock, unless [fifo_ready]. *)
     }
 
   let default =
-    { pull_threshold = 32; push_threshold = 32; shift_left = false; exec = []; tx = None }
+    { pull_threshold = 32
+    ; push_threshold = 32
+    ; shift_left = false
+    ; exec = []
+    ; tx = None
+    ; divider = 1
+    ; tx_chance = 0.3
+    }
   ;;
 end
 
@@ -147,7 +157,7 @@ let run
          Some word)
   in
   let environment () =
-    if Queue.length tx < 4 && (config.fifo_ready || chance 0.3)
+    if Queue.length tx < 4 && (config.fifo_ready || chance setup.tx_chance)
     then Option.iter (next_word ()) ~f:(Queue.enqueue tx);
     if config.fifo_ready || (!rx > 0 && chance 0.3) then rx := 0;
     Array.iteri irq ~f:(fun i flag -> if chance 0.02 then irq.(i) <- not flag);
@@ -434,7 +444,7 @@ let run
   while (not !halted) && !time < cycles do
     environment ();
     Array.fill touched ~pos:0 ~len:count false;
-    machine_cycle ();
+    if !time % setup.divider = setup.divider - 1 then machine_cycle ();
     let after = pads () in
     Array.iteri outputs ~f:(fun i pin ->
       if not (Bool.equal !before.(i) after.(i))

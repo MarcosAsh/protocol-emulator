@@ -46,7 +46,7 @@ let compare_with_runs
         let gap = target.time - source in
         fewest.(i) <- Some (Option.value_map fewest.(i) ~default:gap ~f:(Int.min gap));
         (match bounds.(i) with
-         | Some bound when gap >= bound -> ()
+         | Some bound when gap >= bound * setup.divider -> ()
          | bound ->
            Queue.enqueue
              violations
@@ -152,12 +152,60 @@ let%expect_test "the verifier's counterexamples and the open-drain cases" =
     { Timing.Config.default with
       pins = pins [ "sda=set0:dir"; "scl=side0:dir" ] |> initially true
     };
+  compare_with_runs
+    ~cycles:2_000
+    "a3"
+    (`Text
+      {|
+.program a3
+.side_set 1 opt pindirs
+    nop side 0 [3]
+    nop side 1
+    wait 0 pin 0 [3]
+    nop side 0 [7]
+|})
+    { Timing.Config.default with pins = pins [ "s=side0:dir,in0" ] };
+  compare_with_runs
+    ~cycles:2_000
+    "b"
+    (`Text {|
+.program b
+.wrap_target
+    out pindirs, 1 [7]
+.wrap
+|})
+    { Timing.Config.default with
+      pins = pins [ "s=out0:dir" ]
+    ; autopull = true
+    ; fifo_ready = true
+    };
+  compare_with_runs
+    ~setup:
+      { Emulator.Setup.default with divider = 3; pull_threshold = 1; tx_chance = 0.01 }
+    ~cycles:6_000
+    "d3 at a divider of 3"
+    (`Text
+      {|
+.program d3
+.side_set 2 opt pindirs
+    nop side 0 [3]
+    out pindirs, 1 side 3
+    wait 1 pin 0 [3]
+|})
+    { Timing.Config.default with
+      pins = pins [ "s=side0:dir,in0"; "q=side1:dir,out0:dir" ]
+    ; autopull = true
+    ; clock = Some { sys_hz = 125e6; clkdiv = 3. }
+    };
   [%expect
     {|
     ce1: 4 rules, 4 seen in runs, 3 as close as the bound, 0 violations
     ce2: 4 rules, 4 seen in runs, 4 as close as the bound, 0 violations
     stretched wait: 4 rules, 4 seen in runs, 2 as close as the bound, 0 violations
     stretched stop: 16 rules, 16 seen in runs, 9 as close as the bound, 0 violations
+    a3: 4 rules, 4 seen in runs, 2 as close as the bound, 0 violations
+    b: 4 rules, 4 seen in runs, 1 as close as the bound, 0 violations
+    d3 at a divider of 3: 16 rules, 16 seen in runs, 5 as close as the bound, 0 violations
     |}]
 ;;
 
@@ -257,6 +305,8 @@ let%expect_test "pico-examples i2c, with a slave that stretches scl" =
         ; shift_left = true
         ; exec
         ; tx = Some (Sequence.of_list (words seed))
+        ; divider = 1
+        ; tx_chance = 0.3
         }
       ~runs:20
       ~cycles:30_000
