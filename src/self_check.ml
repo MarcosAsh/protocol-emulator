@@ -176,10 +176,18 @@ let rows ~base edges =
   let loaded = (first - lead) :: List.map gaps ~f:(fun (a, b) -> b - a) in
   let%bind () =
     List.map loaded ~f:(fun p ->
-      if p < min_gap || p >= capture_span
+      if p < min_gap
       then Or_error.error_s [%message "gap out of range" (p : int)]
       else Ok ())
     |> Or_error.combine_errors_unit
+  in
+  (* A falling edge [capture_span] after an earlier one in the frame would stamp the same
+     14 bits, so no check may be that far from the first edge. *)
+  let%bind () =
+    let last = List.last_exn edges in
+    if last >= capture_span
+    then Or_error.error_s [%message "frame spans the capture's 14 bits" (last : int)]
+    else Ok ()
   in
   let%map () =
     if base < 0 || base + List.length loaded + 1 > data_words

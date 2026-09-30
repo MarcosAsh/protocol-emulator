@@ -120,10 +120,8 @@ let%expect_test "every p the rows load is at least min_gap" =
   let loads rows = List.mapi rows ~f:(fun n word -> if n = 0 then word else word lsr 1) in
   let edges_and_base =
     let open Quickcheck.Generator.Let_syntax in
-    let%bind first = Int.gen_incl 0 (1 lsl 14) in
-    let%bind gaps =
-      List.gen_non_empty (Int.gen_incl Self_check.min_gap ((1 lsl 14) - 1))
-    in
+    let%bind first = Int.gen_incl 0 (1 lsl 12) in
+    let%bind gaps = List.gen_non_empty (Int.gen_incl Self_check.min_gap (1 lsl 10)) in
     let%map base = Int.gen_incl 0 511 in
     first :: List.folding_map gaps ~init:first ~f:(fun at gap -> at + gap, at + gap), base
   in
@@ -139,7 +137,7 @@ let%expect_test "every p the rows load is at least min_gap" =
           if p < Self_check.min_gap
           then raise_s [%message "a row loads p under min_gap" (p : int)])));
   print_s [%message (!accepted : int)];
-  [%expect {| (!accepted 887) |}]
+  [%expect {| (!accepted 881) |}]
 ;;
 
 let%expect_test "a uart frame's edges and rows" =
@@ -318,5 +316,89 @@ let%expect_test "the rtl checks as the model does, rows above other data" =
     ((host_period 434) (checker.irq false) (checker.halted false))
     ("lockstep held" (cycles 14322))
     ((host_period 435) (checker.irq true) (checker.halted true))
+    |}]
+;;
+
+(* The words [Self_check.rows] makes, with none of its refusals. *)
+let unchecked_rows edges =
+  let gaps = List.zip_exn (List.drop_last_exn edges) (List.tl_exn edges) in
+  (List.hd_exn edges - 3)
+  :: List.map gaps ~f:(fun (a, b) -> ((b - a) lsl 1) lor 1)
+  @ [ (1 lsl Isa.data_addr_bits) lsl 1 ]
+;;
+
+(* Low for the first 100 cycles of each frame, then high, with checks at [edges]; the
+   last is the next frame. One cycle of the other level at [glitch]. *)
+let long_frame ?glitch ?every ~rtl edges =
+  let pin = 0 in
+  let start = 50 in
+  let span = Option.value every ~default:(List.last_exn edges) in
+  let level cycle =
+    let at = cycle - start in
+    if at < 0
+    then 1
+    else (
+      let level = if at % span < 100 then 0 else 1 in
+      if Option.equal Int.equal glitch (Some at) then 1 - level else level)
+  in
+  let cycles = start + (2 * span) + 200 in
+  let data = unchecked_rows edges in
+  let checker = checker ~pin () in
+  let config = Self_check.checker_config ~pin in
+  if rtl
+  then (
+    let system =
+      System_lockstep.lockstep
+        ~cycles
+        ~pads:(fun cycle -> level cycle lsl pin)
+        [ { config = Asm.Program.configure checker config
+          ; program = Asm.Program.words checker |> ok_exn
+          ; preload = []
+          ; data
+          }
+        ]
+    in
+    (List.hd_exn system.engines).irq)
+  else (
+    let m =
+      List.fold
+        (List.init cycles ~f:Fn.id)
+        ~init:(machine ~config checker ~data)
+        ~f:(fun m cycle -> Machine.step m ~inputs:(level cycle lsl pin))
+    in
+    m.irq)
+;;
+
+(* Before [rows] refused frames this long, a glitch 2^14 cycles after the first edge
+   stamped the same 14 bits and went unseen, on the model and the rtl; one a cycle either
+   side is caught. The next frame comes late, as an idle line's would. *)
+let%expect_test "a frame spanning the capture's 14 bits is refused" =
+  let edges = [ 100; 8000; 16000; 16500; 16600 ] in
+  let unseen =
+    List.filter [ 16383; 16384; 16385 ] ~f:(fun glitch ->
+      not (long_frame ~glitch ~every:17000 ~rtl:false edges))
+  in
+  let rtl_caught = long_frame ~glitch:16384 ~every:17000 ~rtl:true edges in
+  print_s [%message (unseen : int list) (rtl_caught : bool)];
+  let rows edges =
+    print_s [%sexp (Self_check.rows ~base:0 edges : int list Or_error.t)]
+  in
+  rows edges;
+  rows [ 100; 16383 ];
+  rows [ 100; 16384 ];
+  (* uart_tx_host_rate at 9600 baud *)
+  Or_error.bind
+    (Self_check.edges ~period:5208 ~config:sender_config sender ~first:8 ~last:14)
+    ~f:(Self_check.rows ~base:0)
+  |> [%sexp_of: int list Or_error.t]
+  |> print_s;
+  [%expect
+    {|
+    ("lockstep held" (cycles 34250))
+    ((unseen (16384)) (rtl_caught false))
+    (Error ("frame spans the capture's 14 bits" (last 16600)))
+    (Ok (97 32567 1024))
+    (Error ("frame spans the capture's 14 bits" (last 16384)))
+    (Error ("frame spans the capture's 14 bits" (last 52086)))
     |}]
 ;;
