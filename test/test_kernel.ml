@@ -502,6 +502,10 @@ let uart_bits bit =
   holding ~pin:Program_config.default.set_base ~dirs:false ~at0:bit ~at1:bit
 ;;
 
+(* Bosch CAN 2.0: at 125 kbit/s, an oscillator 1.58% fast at most: bits of 393.8 cycles *)
+let can_bit = Float.iround_up_exn (400. /. 1.0158)
+let can_bits bit = holding ~pin:Can.tx_pin ~dirs:false ~at0:bit ~at1:bit
+
 (* Each at its standard's rate keeps the least widths the standard asks of a transmitter;
    one cycle outside, it keeps every deadline and the kernel refuses it. *)
 let%expect_test "a standard's least widths are kept, and one cycle outside is refused" =
@@ -509,6 +513,7 @@ let%expect_test "a standard's least widths are kept, and one cycle outside is re
     [ ( uart_bits midi_bit
       , at_period "uart_tx_host_rate" 1600
       , at_period "uart_tx_host_rate" 1584 )
+    ; can_bits can_bit, at_period "can" 400, at_period "can" 393
     ]
     ~f:(fun (spacing, firmware, outside) ->
       List.iter [ firmware; outside ] ~f:(fun (c : Certified.t) ->
@@ -526,6 +531,16 @@ let%expect_test "a standard's least widths are kept, and one cycle outside is re
        ("rows the kernel rejects"
         (rejected
          (((pc 11) (fails ("a spaced"))) ((pc 14) (fails ("a spaced")))))))))
+    (can_400 (deadlines (Ok ())) (spaced (Ok ())))
+    (can_393 (deadlines (Ok ()))
+     (spaced
+      (Error
+       ("rows the kernel rejects"
+        (rejected
+         (((pc 19) (fails ("a spaced"))) ((pc 23) (fails ("a spaced")))
+          ((pc 29) (fails ("a spaced"))) ((pc 37) (fails ("a spaced")))
+          ((pc 41) (fails ("a spaced"))) ((pc 47) (fails ("a spaced")))
+          ((pc 51) (fails ("a spaced")))))))))
     |}]
 ;;
 
@@ -533,7 +548,9 @@ let%expect_test "a standard's least widths are kept, and one cycle outside is re
    refused. *)
 let%expect_test "each standard's width is the firmware's own, to the cycle" =
   List.concat_map
-    [ "MIDI bit", at_period "uart_tx_host_rate" 1600, 1600, uart_bits ]
+    [ "MIDI bit", at_period "uart_tx_host_rate" 1600, 1600, uart_bits
+    ; "CAN bit", at_period "can" 400, 400, can_bits
+    ]
     ~f:(fun (timing, c, own, spacing) ->
       List.map [ own; own + 1 ] ~f:(fun cycles -> timing, c, cycles, spacing cycles))
   |> List.iter ~f:(fun (timing, c, cycles, spacing) ->
@@ -545,6 +562,15 @@ let%expect_test "each standard's width is the firmware's own, to the cycle" =
      (Error
       ("rows the kernel rejects"
        (rejected (((pc 11) (fails ("a spaced"))) ((pc 14) (fails ("a spaced"))))))))
+    ("CAN bit" (cycles 400) (Ok ()))
+    ("CAN bit" (cycles 401)
+     (Error
+      ("rows the kernel rejects"
+       (rejected
+        (((pc 19) (fails ("a spaced"))) ((pc 23) (fails ("a spaced")))
+         ((pc 29) (fails ("a spaced"))) ((pc 37) (fails ("a spaced")))
+         ((pc 41) (fails ("a spaced"))) ((pc 47) (fails ("a spaced")))
+         ((pc 51) (fails ("a spaced"))))))))
     |}]
 ;;
 
