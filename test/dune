@@ -14,6 +14,7 @@
  (inline_tests
   (deps
    (glob_files *.asm)
-   (glob_files *.hex))
+   (glob_files *.hex)
+   ../formal/Makefile)
   (flags
    (-source-tree-root .))))
