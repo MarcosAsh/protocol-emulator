@@ -220,6 +220,13 @@ let%expect_test "the follower times the ACK slot as a one or a zero" =
     |}]
 ;;
 
+(* The first frame stops after its start bit and 5 bits, so the next start bit comes long
+   after the last fall; the follower drops the frame and takes the next whole. *)
+let%expect_test "a frame cut short is dropped" =
+  followers_see ~cut:(90 + (5 * 48)) [ 0, 4, 0, [ 0x04 ]; 7, 4, 0, [] ];
+  [%expect {| ((frames 1) (violations ())) |}]
+;;
+
 let%expect_test "cec in lockstep" =
   let unit = shortest_unit + 1 in
   let follower = ref (Follower.create ~cycle_ns:(50_000 / unit) ~address:0) in

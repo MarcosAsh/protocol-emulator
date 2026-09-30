@@ -300,12 +300,31 @@ module Follower = struct
       { t with bits = one :: t.bits })
   ;;
 
+  (* a start bit's period is at most 4.7 ms and a bit's 2.75; the line high past that
+     inside a frame is the initiator giving it up *)
+  let aborted t ~low =
+    match t.fall with
+    | Some (fall, bit) when t.in_frame && not low ->
+      let limit =
+        match bit with
+        | Start -> 47 * ms / 10
+        | Data -> 275 * ms / 100
+      in
+      (t.now - fall) * t.cycle_ns > limit
+    | _ -> false
+  ;;
+
   let step t ~low =
     let t =
       match t.low, low, t.fall with
       | false, true, _ -> fell t
       | true, false, Some (fall, _) -> rose t ~fall
       | _ -> t
+    in
+    let t =
+      if aborted t ~low
+      then { t with in_frame = false; bits = []; bytes = []; acks = [] }
+      else t
     in
     { t with low; now = t.now + 1 }
   ;;
