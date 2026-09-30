@@ -42,11 +42,12 @@ val words : Frame.t -> int list
 (** A follower at a logical address on the line. It acknowledges every block of a frame
     sent to it, pulling the line low from the ACK slot's fall to 1.5 ms. It times what it
     sees against CEC 1.4's limits: a start bit low 3.5 to 3.9 ms and 4.3 to 4.7 ms to the
-    next fall, a one low 0.4 to 0.8 ms, a zero 1.3 to 1.7, a bit 2.05 to 2.75 to the next
-    fall. Before a start bit the line must be free, CEC 9.1, for 3 bit periods after a
-    frame that failed, a block unacknowledged or a broadcast refused, when the next is the
-    same frame again, 5, 12 ms, before a new initiator's, and 7 before any other frame of
-    the same initiator's; checked at the next frame's EOM. *)
+    next fall, a one low 0.4 to 0.8 ms, a zero 1.3 to 1.7, an ACK slot as either whoever
+    pulls it, a bit 2.05 to 2.75 to the next fall. Before a start bit the line must be
+    free, CEC 9.1, for 3 bit periods after a frame that failed, a block unacknowledged or
+    a broadcast refused, when the next is the same frame again, 5, 12 ms, before a new
+    initiator's, and 7 before any other frame of the same initiator's; checked at the next
+    frame's EOM. *)
 module Follower : sig
   type t
 

@@ -262,8 +262,8 @@ module Follower = struct
       (* the ACK slot: what a sample at 1.05 ms sees *)
       let acked = low_ns > 105 * ms / 100 in
       let t =
-        if Option.is_some t.driving_until
-        then t
+        if acked
+        then checked t ~name:"zero low" ~ns:low_ns ~lo:(13 * ms / 10) ~hi:(17 * ms / 10)
         else checked t ~name:"one low" ~ns:low_ns ~lo:(4 * ms / 10) ~hi:(8 * ms / 10)
       in
       let block = List.rev t.bits in

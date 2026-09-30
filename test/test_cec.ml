@@ -131,20 +131,28 @@ let%expect_test "the follower refuses five bit periods free before the same init
 
 (* A line driven by an initiator drawn in 50 us units, a cycle each, with the followers at
    [addresses] on it. Each frame comes [free] bit periods after the last one's final bit,
-   and is [from] an initiator to [to_]. *)
-let followers_see ?(addresses = [ 0 ]) sends =
+   and is [from] an initiator to [to_]. The initiator holds its ACK slots low for
+   [ack_units], and the first frame is cut to its first [cut] units, the line high after. *)
+let followers_see ?(addresses = [ 0 ]) ?(ack_units = 12) ?cut sends =
   let bit one = List.init 48 ~f:(fun i -> i < if one then 12 else 30) in
   let lows =
-    List.concat_map sends ~f:(fun (free, from, to_, data) ->
+    List.concat_mapi sends ~f:(fun n (free, from, to_, data) ->
       let bytes = ((from lsl 4) lor to_) :: data in
       let last = List.length bytes - 1 in
+      let frame =
+        List.init 90 ~f:(fun i -> i < 74)
+        @ List.concat_mapi bytes ~f:(fun i byte ->
+          List.concat_map (List.range ~stride:(-1) 7 (-1)) ~f:(fun b ->
+            bit ((byte lsr b) land 1 = 1))
+          @ bit (i = last)
+          @ List.init 48 ~f:(fun i -> i < ack_units))
+      in
       List.init (free * 48) ~f:(fun _ -> false)
-      @ List.init 90 ~f:(fun i -> i < 74)
-      @ List.concat_mapi bytes ~f:(fun i byte ->
-        List.concat_map (List.range ~stride:(-1) 7 (-1)) ~f:(fun b ->
-          bit ((byte lsr b) land 1 = 1))
-        @ bit (i = last)
-        @ bit true))
+      @
+      match cut with
+      | Some cut when n = 0 ->
+        List.take frame cut @ List.init (List.length frame - cut) ~f:(fun _ -> false)
+      | _ -> frame)
   in
   let followers =
     List.fold
@@ -196,6 +204,19 @@ let%expect_test "the free time the follower asks of each next frame" =
     ((frames 2) (violations ("free of 7200000 ns")))
     another frame at 7 after a failure
     ((frames 2) (violations ()))
+    |}]
+;;
+
+(* The ACK slot's low is a one's, or a zero's when a follower acknowledges, whoever pulls
+   it: 4 holding it 1.8 ms under 0's ACK is too long, and 5's ACK, seen by 0, is not. *)
+let%expect_test "the follower times the ACK slot as a one or a zero" =
+  followers_see ~ack_units:36 [ 0, 4, 0, [] ];
+  followers_see ~addresses:[ 0; 5 ] [ 0, 4, 5, [] ];
+  [%expect
+    {|
+    ((frames 1) (violations ("zero low of 1800000 ns")))
+    ((frames 1) (violations ()))
+    ((frames 1) (violations ()))
     |}]
 ;;
 
