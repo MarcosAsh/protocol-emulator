@@ -641,6 +641,7 @@ type context =
   ; inputs : Pin.t list
   ; rules : (int * Rule.t * int option) list (* index, rule, source output *)
   ; emit : Row_id.t -> Event.t -> unit
+  ; sync : int (** Cycles before our own edge reaches our inputs. *)
   }
 
 let cap value = Option.bind value ~f:(fun value -> Option.some_if (value <= 255) value)
@@ -810,7 +811,9 @@ let sample ?(locks = false) ctx ~row (timing : Timing.t) pin_ref =
 
 (* A wait on an output's own pin (I2C's SCL, stretched by a slave) releases on an edge
    another driver may have made after ours. Taking it at the release is a lower bound for
-   what follows it, but not for what it ends, so it starts pulses and checks no rule. *)
+   what follows it, but not for what it ends, so it starts pulses and checks no rule. The
+   wait reads the pin [sync] cycles late, so after a recent edge of ours the level is
+   unknown. *)
 let see ctx ~row ~rising pin_ref ((key : Key.t), (timing : Timing.t)) =
   let levels = Array.of_list key.levels in
   let rise = Array.of_list timing.rise in
@@ -824,7 +827,13 @@ let see ctx ~row ~rising pin_ref ((key : Key.t), (timing : Timing.t)) =
          | Level | Dir | Dir_low -> false)
     then (
       ctx.emit row (Seen { pin = pin.name; rising });
-      levels.(i) <- (if rising then High else Low);
+      let settled =
+        match Since.min rise.(i) fall.(i) with
+        | Some { lo = Some lo; _ } -> lo >= ctx.sync
+        | Some { lo = None; _ } -> false
+        | None -> true
+      in
+      levels.(i) <- (if not settled then Unknown else if rising then High else Low);
       if rising then rise.(i) <- Since.zero else fall.(i) <- Since.zero));
   ( { key with levels = Array.to_list levels }
   , { timing with rise = Array.to_list rise; fall = Array.to_list fall } )
@@ -1071,7 +1080,15 @@ let analyse (config : Config.t) (program : Pioasm.Program.t) =
     List.mapi config.rules ~f:(fun index rule ->
       index, rule, output_index rule.source.pin)
   in
-  let ctx = { config; program; outputs; inputs = pins; rules; emit = (fun _ _ -> ()) } in
+  (* 4 system clocks through the synchronisers (datasheet 3.5.6.1). *)
+  let sync =
+    match config.clock with
+    | None -> 4
+    | Some clock -> Float.iround_up_exn (4. /. Clock.effective_div clock)
+  in
+  let ctx =
+    { config; program; outputs; inputs = pins; rules; emit = (fun _ _ -> ()); sync }
+  in
   let entry =
     Option.bind config.entry ~f:(fun label ->
       List.Assoc.find program.labels label ~equal:String.equal)

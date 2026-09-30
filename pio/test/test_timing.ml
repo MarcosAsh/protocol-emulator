@@ -680,3 +680,38 @@ let%expect_test "a stalled out writes its pins after its side-set, and wins them
     (passed false)
     |}]
 ;;
+
+(* Our own edges reach a wait 4 system clocks late through the synchronisers (datasheet
+   3.5.6.1), so a wait just after its own side-set sees the old level. *)
+let%expect_test "a wait within the synchroniser delay of our own edge may see the old \
+                 level"
+  =
+  programs
+    {|
+.program ce2
+.side_set 1 opt pindirs
+.wrap_target
+    nop side 1 [7]
+    wait 1 pin 0 side 0 [7]
+    nop side 1
+    nop side 0 [7]
+.wrap
+|}
+  |> List.hd_exn
+  |> check
+       ~config:
+         { Timing.Config.default with
+           pins = pins [ "scl=side0:dir,in0" ] |> initially true
+         ; rules = rules [ "t_high: scl+ -> scl- >= 8" ]
+         };
+  [%expect
+    {|
+    ce2
+      0  nop side 1 [7]                    8  -,17           scl+ 8
+      1  wait 1 pin 0 side 0 [7]          8+  -,25           scl- -,8  samples scl (scl+ -,8..?, scl- 0..?)  sees scl+  anchor
+      2  nop side 1                        1  8              scl+ 8..?
+      3  nop side 0 [7]                    8  9              scl- 1
+    t_high: scl+ -> scl- >= 8 cycles: FAIL, 1 cycles at pc 3
+    (passed false)
+    |}]
+;;
