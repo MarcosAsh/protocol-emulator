@@ -381,11 +381,14 @@ let compile_event ~config ~verdict_pin ~latency t ~edge ~guard =
     }
 ;;
 
+let following (config : Program_config.t) pc =
+  if pc = config.wrap_top then config.wrap_bottom else pc + 1
+;;
+
 (* Where [pc] may go next: its fall through, across the wrap, and a jump's target. *)
-let successors (config : Program_config.t) (instructions : Isa.t array) pc =
-  let following = if pc = config.wrap_top then config.wrap_bottom else pc + 1 in
+let successors config (instructions : Isa.t array) pc =
   let following =
-    List.filter [ following ] ~f:(fun pc -> pc < Array.length instructions)
+    List.filter [ following config pc ] ~f:(fun pc -> pc < Array.length instructions)
   in
   match instructions.(pc) with
   | Jmp { cond = Always; target } -> [ target ]
@@ -393,27 +396,78 @@ let successors (config : Program_config.t) (instructions : Isa.t array) pc =
   | Op _ -> following
 ;;
 
-let samples_pin : Isa.t -> bool = function
-  | Jmp { cond = Pin | Not_pin; _ } | Op { op = Wait (Pin_level _); _ } -> true
-  | _ -> false
+(* The level of [pin] that going from [pc] to [next] shows, if [pc] samples it. *)
+let seen_level (config : Program_config.t) ~pin (instructions : Isa.t array) pc ~next =
+  match instructions.(pc) with
+  | Jmp { cond = (Pin | Not_pin) as cond; target }
+    when config.jmp_pin = pin && target <> following config pc ->
+    let high_if_taken =
+      match cond with
+      | Pin -> true
+      | _ -> false
+    in
+    Some (Bool.equal (next = target) high_if_taken)
+  | Op { op = Wait (Pin_level { pin = sampled; level }); _ } when sampled = pin ->
+    Some level
+  | _ -> None
 ;;
 
-(* Every way into an anchor is a sample of the pin [to_anchor] cycles before. *)
-let anchored_by_samples config (instructions : Isa.t array) ~to_anchor =
-  let enters_anchor pc =
-    List.exists (successors config instructions pc) ~f:(fun next ->
-      is_anchor instructions.(next))
+(* Every way into an anchor is a sample of [pin] [to_anchor] cycles before, at the one
+   level of that anchor's half. Each half's polls stay at its level and its level wait
+   leaves for the other. *)
+let quiet_layout config ~pin (instructions : Isa.t array) ~to_anchor =
+  let open Or_error.Let_syntax in
+  let all_pcs = List.init (Array.length instructions) ~f:Fn.id in
+  let%bind entries =
+    List.concat_map all_pcs ~f:(fun pc ->
+      List.filter_map (successors config instructions pc) ~f:(fun next ->
+        Option.some_if (is_anchor instructions.(next)) (pc, next)))
+    |> List.map ~f:(fun (pc, next) ->
+      match seen_level config ~pin instructions pc ~next with
+      | Some level when cycles instructions.(pc) = to_anchor -> Ok (next, level)
+      | _ ->
+        bug
+          "pc %d enters an anchor but not %d cycles after a sample of pin %d"
+          pc
+          to_anchor
+          pin)
+    |> Or_error.all
   in
-  match
-    List.find
-      (List.init (Array.length instructions) ~f:Fn.id)
-      ~f:(fun pc ->
-        enters_anchor pc
-        && not (samples_pin instructions.(pc) && cycles instructions.(pc) = to_anchor))
-  with
-  | None -> Ok ()
-  | Some pc -> bug "pc %d enters an anchor but not %d cycles after a sample" pc to_anchor
+  let%bind levels =
+    pcs instructions ~f:is_anchor
+    |> List.map ~f:(fun anchor ->
+      match
+        List.filter_map entries ~f:(fun (next, level) ->
+          Option.some_if (next = anchor) level)
+        |> List.dedup_and_sort ~compare:Bool.compare
+      with
+      | [ level ] -> Ok (anchor, level)
+      | _ -> bug "the anchor at pc %d is not entered at one level" anchor)
+    |> Or_error.all
+  in
+  List.map levels ~f:(fun (anchor, level) ->
+    let pad = List.find (pcs instructions ~f:is_pad) ~f:(fun pc -> pc > anchor) in
+    let stays pc =
+      pc < Array.length instructions
+      && [%equal: bool option]
+           (seen_level config ~pin instructions pc ~next:(following config pc))
+           (Some level)
+    in
+    let leaves pc =
+      pc < Array.length instructions
+      && [%equal: bool option]
+           (seen_level config ~pin instructions pc ~next:(following config pc))
+           (Some (not level))
+    in
+    match pad with
+    | Some pad when stays (anchor + 3) && stays (pad + 1) && leaves (pad + 4) -> Ok ()
+    | _ -> bug "the half at pc %d does not keep to its level" anchor)
+  |> Or_error.all_unit
 ;;
+
+module For_testing = struct
+  let quiet_layout = quiet_layout
+end
 
 (* A half's samples of the pin in cycles from its deadline, all read from the kernel's
    table: its loop's polls [-slope] apart down to the offset, the poll after the pad and
@@ -451,7 +505,6 @@ let polled_half config table (instructions : Isa.t array) ~anchor ~to_anchor =
        && jumps_to_anchor final
        && is_verdict instructions.(verdict)
        && level_wait < Array.length instructions
-       && samples_pin instructions.(level_wait)
        && List.for_all (successors config instructions level_wait) ~f:(fun next ->
          is_anchor instructions.(next))
     then Ok ()
@@ -534,7 +587,7 @@ let compile_quiet ~config ~verdict_pin ~latency t ~pin =
       ~latency
   in
   let%bind min_run, unseen_before_verdict =
-    let%bind () = anchored_by_samples config instructions ~to_anchor in
+    let%bind () = quiet_layout config ~pin instructions ~to_anchor in
     let%map halves =
       pcs instructions ~f:is_anchor
       |> List.map ~f:(fun anchor ->

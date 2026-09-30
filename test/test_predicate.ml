@@ -91,7 +91,8 @@ let%expect_test "pins that cannot be read, or a budget too long for p, are refus
             (Predicate.compile ~verdict_pin ~latency:10 scl_rise
              |> Or_error.map ~f:(fun (f : Predicate.Firmware.t) -> f.config.set_base)
              : int Or_error.t)]);
-  [%expect {|
+  [%expect
+    {|
     ((verdict_pin 11) (Ok 11))
     ((verdict_pin 12) (Error "verdict pin 12 is not an output pin"))
     ((verdict_pin 4) (Error "verdict pin 4 is not an output pin"))
@@ -326,6 +327,75 @@ let%expect_test "a quiet latency the polls cannot meet is refused" =
     ((latency 5000)
      ("compiled quiet ~latency"
       (Error "latency 5000 is beyond 31 polls however far apart")))
+    |}]
+;;
+
+let%expect_test "a quiet layout that samples the wrong pin or level is a bug" =
+  let firmware = Predicate.compile quiet ~latency:20 |> ok_exn in
+  let check ?(config = firmware.config) source =
+    let program = Asm.assemble source |> ok_exn in
+    Predicate.For_testing.quiet_layout
+      (Asm.Program.configure program config)
+      ~pin:2
+      (Array.of_list program.instructions)
+      ~to_anchor:Isa.jmp_cycles
+  in
+  let mutated ~from ~into =
+    String.substr_replace_first firmware.source ~pattern:from ~with_:into
+  in
+  List.iter
+    [ "as compiled", check firmware.source
+    ; "jmp_pin 3", check ~config:{ firmware.config with jmp_pin = 3 } firmware.source
+    ; ( "prologue on !pin"
+      , check
+          (mutated
+             ~from:"jmp pin, high\n.wrap_target"
+             ~into:"jmp !pin, high\n.wrap_target") )
+    ; ( "low poll on !pin"
+      , check (mutated ~from:"jmp pin, high       ; an edge" ~into:"jmp !pin, high") )
+    ; ( "low final poll on !pin"
+      , check
+          (mutated ~from:"latency\n    jmp pin, high" ~into:"latency\n    jmp !pin, high")
+      )
+    ; ( "high poll on pin"
+      , check (mutated ~from:"jmp !pin, low       ; an edge" ~into:"jmp pin, low") )
+    ; "low level wait for 0", check (mutated ~from:"wait 1 pin 2" ~into:"wait 0 pin 2")
+    ; "low level wait on pin 3", check (mutated ~from:"wait 1 pin 2" ~into:"wait 1 pin 3")
+    ; "high level wait for 1", check (mutated ~from:"wait 0 pin 2" ~into:"wait 1 pin 2")
+    ; ( "level wait without its delay"
+      , check (mutated ~from:"wait 0 pin 2 [1]" ~into:"wait 0 pin 2") )
+    ]
+    ~f:(fun (name, result) -> print_s [%message name ~_:(result : unit Or_error.t)]);
+  [%expect {|
+    ("as compiled" (Ok ()))
+    ("jmp_pin 3"
+     (Error
+      ("BUG: pc 2 enters an anchor but not 2 cycles after a sample of pin 2"
+       "BUG: pc 2 enters an anchor but not 2 cycles after a sample of pin 2"
+       "BUG: pc 6 enters an anchor but not 2 cycles after a sample of pin 2"
+       "BUG: pc 9 enters an anchor but not 2 cycles after a sample of pin 2"
+       "BUG: pc 16 enters an anchor but not 2 cycles after a sample of pin 2"
+       "BUG: pc 19 enters an anchor but not 2 cycles after a sample of pin 2")))
+    ("prologue on !pin"
+     (Error
+      ("BUG: the anchor at pc 3 is not entered at one level"
+       "BUG: the anchor at pc 13 is not entered at one level")))
+    ("low poll on !pin"
+     (Error "BUG: the anchor at pc 13 is not entered at one level"))
+    ("low final poll on !pin"
+     (Error "BUG: the anchor at pc 13 is not entered at one level"))
+    ("high poll on pin"
+     (Error "BUG: the anchor at pc 3 is not entered at one level"))
+    ("low level wait for 0"
+     (Error "BUG: the anchor at pc 13 is not entered at one level"))
+    ("low level wait on pin 3"
+     (Error
+      "BUG: pc 12 enters an anchor but not 2 cycles after a sample of pin 2"))
+    ("high level wait for 1"
+     (Error "BUG: the anchor at pc 3 is not entered at one level"))
+    ("level wait without its delay"
+     (Error
+      "BUG: pc 22 enters an anchor but not 2 cycles after a sample of pin 2"))
     |}]
 ;;
 

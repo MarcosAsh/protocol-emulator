@@ -83,3 +83,14 @@ end
 (** [verdict_pin] is an output pin, OUT0 by default: the firmware sets no directions. The
     pins watched must be inputs, bidirectional pins or wires. *)
 val compile : ?verdict_pin:int -> latency:int -> t -> Firmware.t Or_error.t
+
+module For_testing : sig
+  (** Refuses with [BUG] a quiet pin's firmware where a way into an anchor is not a sample
+      of [pin] [to_anchor] cycles before at the level of that anchor's half. *)
+  val quiet_layout
+    :  Program_config.t
+    -> pin:int
+    -> Isa.t array
+    -> to_anchor:int
+    -> unit Or_error.t
+end
