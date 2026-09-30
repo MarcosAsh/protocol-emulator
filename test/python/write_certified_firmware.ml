@@ -3,7 +3,7 @@ open Hardcaml
 open Protocol_emulator
 open Protocol_emulator_test
 
-(* The DShot, SENT and CEC firmware for the board's Python and the cocotb tests, each
+(* The DShot600, SENT and CEC firmware for the board's Python and the cocotb tests, each
    checked under its [Certified] entry's assumptions, as the command line does. *)
 let () =
   print_string

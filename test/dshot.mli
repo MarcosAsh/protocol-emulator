@@ -16,10 +16,10 @@ val cycle_ns : int
     to say of each. *)
 val firmware : zero_high:int -> bit:int -> string
 
-(** 31 and 83 cycles, 620 and 1660 ns. *)
+(** 31 and 83 cycles, 620 and 1660 ns; in [Certified.all]. *)
 val dshot600 : string
 
-(** 16 and 42 cycles, 320 and 840 ns. *)
+(** 16 and 42 cycles, 320 and 840 ns; kernel-checked, not certified. *)
 val dshot1200 : string
 
 val config : Program_config.t
