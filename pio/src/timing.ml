@@ -568,9 +568,8 @@ module Report = struct
     && Option.value_map t.cell ~default:true ~f:(fun cell -> snd (receiver t cell))
     && List.for_alli t.rules ~f:(fun index rule ->
       match rule_verdict t index rule with
-      | Ok None -> true
       | Ok (Some (_, _, ok, _)) -> ok
-      | Error _ -> false)
+      | Ok None | Error _ -> false)
   ;;
 
   let to_string t =
@@ -584,7 +583,7 @@ module Report = struct
         in
         match rule_verdict t index rule with
         | Error why -> [%string "%{head}: %{why}"]
-        | Ok None -> [%string "%{head}: never happens"]
+        | Ok None -> [%string "%{head}: FAIL, never checked"]
         | Ok (Some (cycles, row, ok, ns)) ->
           let time =
             match ns with

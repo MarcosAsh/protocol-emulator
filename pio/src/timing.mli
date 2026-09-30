@@ -134,8 +134,8 @@ end
 module Report : sig
   type t [@@deriving sexp_of]
 
-  (** No rule is broken, every path was modelled, and with a [cell] every sample lands in
-      its cell with a sender at the rate asked for. *)
+  (** Every rule was checked on some path and none is broken, every path was modelled, and
+      with a [cell] every sample lands in its cell with a sender at the rate asked for. *)
   val passed : t -> bool
 
   (** A row per instruction (and per [exec]'d instruction): address, text, cycles ([+]

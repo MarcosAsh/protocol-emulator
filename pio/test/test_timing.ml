@@ -459,11 +459,11 @@ let%expect_test "an exec no sequence may start at, or a guard on no pin, is an e
     {|
     e
       0  out exec, 16 side 1               1  -              p+
-    high: p+ -> p- >= 8 cycles: never happens
+    high: p+ -> p- >= 8 cycles: FAIL, never checked
     ERROR pc 0: exec where no sequence's guard may hold
     (passed false)
     e
-    high: p+ -> p- >= 8 cycles: never happens
+    high: p+ -> p- >= 8 cycles: FAIL, never checked
     ERROR exec guard: q is neither x, y nor an output
     (passed false)
     |}]
@@ -568,6 +568,40 @@ let%expect_test "a sample after a stall cannot be placed in a cell, and fails" =
       4  in pins, 1 [6]                    7  14..?          samples rx
       5  push                             1+  21..?
     cells of 8 cycles from each anchor: FAIL, a sample follows a stall, or no wait
+    (passed false)
+    |}]
+;;
+
+let%expect_test "a rule that never fires is never checked, and fails" =
+  vendored "onewire_library.pio" "onewire"
+  |> check
+       ~config:
+         { Timing.Config.default with
+           fifo_ready = true
+         ; pins = pins [ "dq=side0,in0" ]
+         ; rules = rules [ "reset: dq- -> dq+ >= 480" ]
+         };
+  [%expect
+    {|
+    onewire
+      0  set x, 28 side 1 [15]            16  -
+      1  jmp x-- loop_a side 1 [15]       16  -
+      2  set x, 8 side 0 [6]               7  -
+      3  jmp x-- loop_b side 0 [6]         7  -
+      4  mov isr, pins side 0              1  -              samples dq (dq+ -, dq- -)
+      5  push side 0                       1  -
+      6  set x, 24 side 0 [7]              8  -
+      7  jmp x-- loop_c side 0 [15]       16  -
+      8  out x, 1 side 0                   1  -
+      9  jmp !x send_0 side 1 [5]          6  -
+     10  set x, 2 side 0 [8]               9  -
+     11  in pins, 1 side 0 [4]             5  -              samples dq (dq+ -, dq- -)
+     12  jmp x-- loop_e side 0 [15]       16  -
+     13  jmp fetch_bit side 0              1  -
+     14  set x, 2 side 1 [5]               6  -
+     15  jmp x-- loop_d side 1 [15]       16  -
+     16  in null, 1 side 0 [8]             9  -
+    reset: dq- -> dq+ >= 480 cycles: FAIL, never checked
     (passed false)
     |}]
 ;;
