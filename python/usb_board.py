@@ -5,8 +5,8 @@ The core does what must meet the turnaround time (tokens, CRC, ACK, NAK); this d
 the rest: SETUPs, descriptors, data toggles, reloading on a new address.
 
 `Board` does no I/O: `feed` takes the words the core pushed, `reload` is the address to
-load the core for, and each list in `replies` must be written to the tx fifo whole and
-in order. `service` is one round of that I/O over a `protocol_emulator.Host`.
+load the core for (then call `flushed`), and each list in `replies` must be written to
+the tx fifo whole and in order. `service` is one round of that I/O over a `protocol_emulator.Host`.
 """
 
 import usb_device_firmware as firmware
@@ -117,6 +117,14 @@ class Board:
             self.address = self.reload = self.new_address
             self.new_address = None
 
+    def flushed(self):
+        """The core was reloaded: what it held was lost unanswered, a report put back."""
+        lost = len(self.queued) - len(self.replies)
+        if 1 in self.queued[:lost]:
+            self.dropped = True
+        self.queued = self.queued[lost:]
+        self._requeue()
+
     def _requeue(self):
         if self.dropped and self.pending_report is not None and not self.chunks and not self.replies:
             self.dropped = False
@@ -144,6 +152,7 @@ def service(host, board, fifo_depth=8):
     if board.reload is not None:
         address, board.reload = board.reload, None
         load(host, address)
+        board.flushed()
     elif board.replies and status["tx_level"] + len(board.replies[0]) <= fifo_depth:
         host.push(board.replies.pop(0))
     return status

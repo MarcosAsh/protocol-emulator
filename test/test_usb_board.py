@@ -126,6 +126,7 @@ async def serve(dut, host, board, faults, loads):
         if board.reload is not None:
             address, board.reload = board.reload, None
             await load(host, address)
+            board.flushed()
             loads.append(address)
         elif board.replies and ((status >> 6) & 15) + len(board.replies[0]) <= 8:
             await host.write(TX, board.replies.pop(0))
