@@ -1,0 +1,70 @@
+[tasks]
+prove written
+no_reset written teeth
+unreset teeth
+stale
+
+[options]
+~teeth: mode prove
+~teeth: depth 2
+teeth: mode bmc
+teeth: depth 4
+teeth: expect fail
+stale: expect unknown
+
+[engines]
+smtbmc boolector
+
+[script]
+read_verilog -lib RM_IHPSG13_1P_512x16_c2_bm_bist.v
+read_verilog project.v
+written: read_verilog protocol_emulator.v
+unreset: read_verilog unreset.v
+stale: read_verilog stale.v
+hierarchy -top tt_um_marcosash_protocol_emulator
+proc
+flatten
+expose -evert tt_um_marcosash_protocol_emulator/t:RM_IHPSG13_1P_512x16_c2_bm_bist
+cd tt_um_marcosash_protocol_emulator
+rename core.top.engines.engine_0.sram_macro.sram.A_MEN m0_men
+rename core.top.engines.engine_0.sram_macro.sram.A_WEN m0_wen
+rename core.top.engines.engine_0.sram_macro.sram.A_REN m0_ren
+rename core.top.engines.engine_0.sram_macro.sram.A_ADDR m0_addr
+rename core.top.engines.engine_0.sram_macro.sram.A_DIN m0_din
+rename core.top.engines.engine_0.sram_macro.sram.A_BM m0_bm
+rename core.top.engines.engine_0.sram_macro.sram.A_BIST_EN m0_bist_en
+rename core.top.engines.engine_0.sram_macro.sram.A_DOUT m0_dout
+rename core.top.engines.engine_1.sram_macro.sram.A_MEN m1_men
+rename core.top.engines.engine_1.sram_macro.sram.A_WEN m1_wen
+rename core.top.engines.engine_1.sram_macro.sram.A_REN m1_ren
+rename core.top.engines.engine_1.sram_macro.sram.A_ADDR m1_addr
+rename core.top.engines.engine_1.sram_macro.sram.A_DIN m1_din
+rename core.top.engines.engine_1.sram_macro.sram.A_BM m1_bm
+rename core.top.engines.engine_1.sram_macro.sram.A_BIST_EN m1_bist_en
+rename core.top.engines.engine_1.sram_macro.sram.A_DOUT m1_dout
+rename core.top.engines.data_memory.sram_macro.sram.A_MEN m2_men
+rename core.top.engines.data_memory.sram_macro.sram.A_WEN m2_wen
+rename core.top.engines.data_memory.sram_macro.sram.A_REN m2_ren
+rename core.top.engines.data_memory.sram_macro.sram.A_ADDR m2_addr
+rename core.top.engines.data_memory.sram_macro.sram.A_DIN m2_din
+rename core.top.engines.data_memory.sram_macro.sram.A_BM m2_bm
+rename core.top.engines.data_memory.sram_macro.sram.A_BIST_EN m2_bist_en
+rename core.top.engines.data_memory.sram_macro.sram.A_DOUT m2_dout
+cd ..
+# no flop or fifo word starts at a known value, the RTL's declared ones included
+setattr -unset init tt_um_marcosash_protocol_emulator/w:*
+memory_map tt_um_marcosash_protocol_emulator
+tcl powerup.tcl
+no_reset: read -define NO_RESET
+teeth: read -define NO_INVARIANT
+read_verilog -formal -sv powerup.sv
+prep -top powerup
+
+[files]
+../src/project.v
+written: ../src/protocol_emulator.v
+unreset: powerup_teeth/unreset.v
+stale: powerup_teeth/stale.v
+../src/RM_IHPSG13_1P_512x16_c2_bm_bist.v
+powerup.tcl
+powerup.sv
