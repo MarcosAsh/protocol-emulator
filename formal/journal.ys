@@ -1,0 +1,40 @@
+# An engine configured without data autopull ignores its data word: two copies from one
+# state, fed alike but for the data word, agree on every register and output after the
+# edge. The journal takes engine 1's data memory turns only while engine 1 does not
+# autopull data, so it cannot move engine 1. Each tooth, a claim with its premise
+# dropped, must fail.
+read_verilog -lib ../src/RM_IHPSG13_1P_512x16_c2_bm_bist.v
+read_verilog engine_sram.v
+setattr -mod -set blackbox 1 host_fifo
+hierarchy -top engine
+proc
+flatten
+expose -evert -sep __ engine/t:RM_IHPSG13_1P_512x16_c2_bm_bist engine/t:host_fifo
+dffunmap
+expose -evert-dff -sep __ engine/t:$dff
+select -assert-none engine/t:$mem* engine/t:$mem_v2
+copy engine other
+cd engine
+add -input data_word_other 16
+cd ..
+cd other
+rename data_word data_word_other
+add -input data_word 16
+cd ..
+miter -equiv -flatten engine other pair
+sat -verify -prove trigger 0 -set in_config$autopull_data 0 pair
+sat -falsify -prove trigger 0 pair
+
+# The journal writes only while engine 1 does not autopull data, from any state: one
+# step from registers left free.
+design -reset
+read_verilog -lib ../src/RM_IHPSG13_1P_512x16_c2_bm_bist.v
+read_verilog engines_sram_journal.v
+setattr -mod -set blackbox 1 host_fifo
+hierarchy -top engines_top
+proc
+flatten
+expose -evert -sep __ engines_top/t:RM_IHPSG13_1P_512x16_c2_bm_bist engines_top/t:host_fifo
+select -assert-none t:$mem* t:$mem_v2
+sat -seq 1 -verify -prove journal_write$valid_0 0 -set hosts$config$autopull_data_1 1
+sat -seq 1 -falsify -prove journal_write$valid_0 0

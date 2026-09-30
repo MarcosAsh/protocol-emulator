@@ -1,0 +1,75 @@
+[tasks]
+prove
+engine_1
+journal_half teeth
+stolen_turn teeth
+timed_quiet teeth
+
+[options]
+prove: mode prove
+prove: depth 4
+engine_1: mode prove
+engine_1: depth 4
+teeth: mode bmc
+teeth: depth 12
+teeth: expect fail
+
+[engines]
+smtbmc boolector
+
+[script]
+read_verilog data_memory.v
+hierarchy -top data_memory_top
+proc
+setattr -mod -set keep_hierarchy 1 program_memory
+flatten
+expose -evert -sep __ data_memory_top/t:program_memory
+cd data_memory_top
+rename data_memory.program_memory__men mem_men
+rename data_memory.program_memory__wen mem_wen
+rename data_memory.program_memory__ren mem_ren
+rename data_memory.program_memory__addr mem_addr
+rename data_memory.program_memory__din mem_din
+rename data_memory.program_memory__bm mem_bm
+rename data_memory.program_memory__dout mem_dout
+expose data_memory.turn data_memory.mine data_memory.mine_1 data_memory.last data_memory.last_1
+rename data_memory.turn turn
+rename data_memory.mine_1 mine_0
+rename data_memory.mine mine_1
+rename data_memory.last_1 last_0
+rename data_memory.last last_1
+cd ..
+rename data_memory_top dm_off
+hierarchy -top dm_off
+read_verilog data_memory_journal.v
+proc
+setattr -mod -set keep_hierarchy 1 program_memory
+flatten data_memory_top
+expose -evert -sep __ data_memory_top/t:program_memory
+cd data_memory_top
+rename data_memory.program_memory__men mem_men
+rename data_memory.program_memory__wen mem_wen
+rename data_memory.program_memory__ren mem_ren
+rename data_memory.program_memory__addr mem_addr
+rename data_memory.program_memory__din mem_din
+rename data_memory.program_memory__bm mem_bm
+rename data_memory.program_memory__dout mem_dout
+expose data_memory.turn data_memory.mine data_memory.mine_1 data_memory.last data_memory.last_1
+rename data_memory.turn turn
+rename data_memory.mine_1 mine_0
+rename data_memory.mine mine_1
+rename data_memory.last_1 last_0
+rename data_memory.last last_1
+cd ..
+rename data_memory_top dm_on
+engine_1: read -define ENGINE_1
+journal_half: read -define JOURNAL_HALF
+stolen_turn: read -define ENGINE_1 -define STOLEN_TURN
+timed_quiet: read -define ENGINE_1 -define TIMED_QUIET
+read_verilog -formal -sv journal_memory.sv
+prep -top journal_memory
+
+[files]
+data_memory.v
+data_memory_journal.v
+journal_memory.sv

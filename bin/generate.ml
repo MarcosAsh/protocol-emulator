@@ -87,6 +87,25 @@ let memory_rtl_command =
              | Ihp_sram -> Sram_macro.hierarchical scope))]
 ;;
 
+let data_memory_rtl_command =
+  Command.basic
+    ~summary:
+      "Verilog for the two-engine data memory, with or without the journal's port, which \
+       formal/journal_memory.sv compares"
+    [%map_open.Command
+      let journal = journal in
+      fun () ->
+        let module Data_memory =
+          Data_memory.Make (struct
+            let engines = 2
+            let journal = journal
+          end)
+        in
+        let module C = Circuit.With_interface (Data_memory.I) (Data_memory.O) in
+        print_rtl ~name:"data_memory_top" (fun ~name scope ->
+          C.create_exn ~name (Data_memory.hierarchical ~memory:Flops scope))]
+;;
+
 let kernel_rtl_command =
   Command.basic
     ~summary:
@@ -399,6 +418,7 @@ let () =
        ; "engines", engines_rtl_command
        ; "top", top_rtl_command
        ; "memory", memory_rtl_command
+       ; "data-memory", data_memory_rtl_command
        ; "kernel", kernel_rtl_command
        ; "kernel-gates", kernel_gates_command
        ; "osr", osr_rtl_command

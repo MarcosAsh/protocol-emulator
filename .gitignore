@@ -26,6 +26,9 @@ formal/engine.v
 formal/engine_sram.v
 formal/engines.v
 formal/engines_sram.v
+formal/engines_sram_journal.v
+formal/data_memory.v
+formal/data_memory_journal.v
 formal/link*.sv
 formal/certificate*.sv
 formal/fsm_miter*.sv

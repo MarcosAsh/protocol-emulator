@@ -1,6 +1,6 @@
 all: issue_timing host_timing late_host fifo_order phase_step edge_step frame_step value_step \
   chip_frame data_step teeth fsm_miter sram_equiv \
-  kernel_equiv link
+  kernel_equiv link journal
 
 engine.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe engine > formal/engine.v
@@ -13,6 +13,15 @@ engines.v: ../src/*.ml
 
 engines_sram.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe engines -engines 2 -sram > formal/engines_sram.v
+
+engines_sram_journal.v: ../src/*.ml
+	cd .. && dune exec -- bin/generate.exe engines -engines 2 -sram -journal > formal/engines_sram_journal.v
+
+data_memory.v: ../src/*.ml
+	cd .. && dune exec -- bin/generate.exe data-memory > formal/data_memory.v
+
+data_memory_journal.v: ../src/*.ml
+	cd .. && dune exec -- bin/generate.exe data-memory -journal > formal/data_memory_journal.v
 
 issue_timing: engine.v
 	sby -f issue_timing.sby prove cover
@@ -108,6 +117,17 @@ link: engines_sram.v
 
 link_proof:
 	sby -f link.sby prove cover never_pushes next_bit wider baud
+
+# The journal moves no pin. Engine 0 gets the same data words with it as without, and
+# engine 1 once it has read since the journal wrote (journal_memory); an engine not
+# autopulling data ignores its word, and only then does the journal write (journal.ys).
+# Each tooth must fail. journal_proof runs on Verilog written already, for CI.
+journal: engine_sram.v engines_sram_journal.v data_memory.v data_memory_journal.v
+	$(MAKE) journal_proof
+
+journal_proof:
+	yosys -q -s journal.ys
+	sby -f journal_memory.sby prove engine_1 journal_half stolen_turn timed_quiet
 
 osr_step.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe osr > formal/osr_step.v

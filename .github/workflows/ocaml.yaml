@@ -68,6 +68,9 @@ jobs:
           opam exec -- dune exec -- bin/generate.exe kernel > formal/kernel_step.v
           opam exec -- dune exec -- bin/generate.exe engines -engines 2 > formal/engines.v
           opam exec -- dune exec -- bin/generate.exe engines -engines 2 -sram > formal/engines_sram.v
+          opam exec -- dune exec -- bin/generate.exe engines -engines 2 -sram -journal > formal/engines_sram_journal.v
+          opam exec -- dune exec -- bin/generate.exe data-memory > formal/data_memory.v
+          opam exec -- dune exec -- bin/generate.exe data-memory -journal > formal/data_memory_journal.v
           opam exec -- dune exec -- test/certify/write_link.exe > formal/link.sv
           opam exec -- dune exec -- test/certify/write_link.exe -rx-period 11 > formal/link_baud.sv
           opam exec -- dune exec -- bin/generate.exe osr > formal/osr_step.v
@@ -78,7 +81,7 @@ jobs:
           opam exec -- dune exec -- bin/generate.exe memory -sram > formal/memory_sram.v
           opam exec -- dune exec -- bin/generate.exe kernel-gates > formal/kernel_gates.aag
           opam exec -- dune exec -- bin/generate.exe kernel-gates -accepts > formal/kernel_accepts_gates.aag
-          make -C formal issue_timing host_timing late_host fifo_order phase_step edge_step frame_step value_step chip_frame data_step teeth fsm_miter_proof sram_equiv_proof kernel_equiv_proof sync_rtl sync_rtl_teeth
+          make -C formal issue_timing host_timing late_host fifo_order phase_step edge_step frame_step value_step chip_frame data_step teeth fsm_miter_proof sram_equiv_proof kernel_equiv_proof sync_rtl sync_rtl_teeth journal_proof
 
       # each inductive certificate, the stamped one and the ones with data claims too, is
       # proved in a job of its own below
