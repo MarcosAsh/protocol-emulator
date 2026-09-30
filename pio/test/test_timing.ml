@@ -468,3 +468,27 @@ let%expect_test "an exec no sequence may start at, or a guard on no pin, is an e
     (passed false)
     |}]
 ;;
+
+let%expect_test "out writes every out pin, zeroes above its bit count" =
+  programs {|
+.program narrow
+    mov pins, !null [3]
+    out pins, 1 [3]
+|}
+  |> List.hd_exn
+  |> check
+       ~config:
+         { Timing.Config.default with
+           out_count = 2
+         ; fifo_ready = true
+         ; rules = rules [ "hb: out1+ -> out1- >= 8" ]
+         };
+  [%expect
+    {|
+    narrow
+      0  mov pins, !null [3]               4  -              out0+ -,4  out1+ -,4
+      1  out pins, 1 [3]                   4  -              out0- 4  out1- 4
+    hb: out1+ -> out1- >= 8 cycles: FAIL, 4 cycles at pc 1
+    (passed false)
+    |}]
+;;

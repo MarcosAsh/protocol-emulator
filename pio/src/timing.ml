@@ -640,15 +640,18 @@ let data_writes ctx (key : Key.t) (op : Pioasm.Op.t) =
   let set_pin i = Pin_ref.Set i in
   let out_pin i = Pin_ref.Out i in
   let out_count = ctx.config.out_count in
+  (* The low [n] bits come from the OSR and the rest are zeroes (datasheet 3.4.5.2). *)
+  let out_bits n ~dir =
+    List.init out_count ~f:(fun bit ->
+      { Write.pin = out_pin bit; dir; value = Option.some_if (bit >= n) false })
+  in
   match op with
   | Set { destination = Pins; value } ->
     bits ~count:ctx.config.set_count ~make:set_pin ~dir:false (Some value)
   | Set { destination = Pindirs; value } ->
     bits ~count:ctx.config.set_count ~make:set_pin ~dir:true (Some value)
-  | Out { destination = Pins; bits = n } ->
-    bits ~count:(Int.min n out_count) ~make:out_pin ~dir:false None
-  | Out { destination = Pindirs; bits = n } ->
-    bits ~count:(Int.min n out_count) ~make:out_pin ~dir:true None
+  | Out { destination = Pins; bits = n } -> out_bits n ~dir:false
+  | Out { destination = Pindirs; bits = n } -> out_bits n ~dir:true
   | Mov { destination = Pins; op; source } ->
     bits
       ~count:out_count
