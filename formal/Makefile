@@ -1,6 +1,6 @@
 all: issue_timing host_timing late_host fifo_order phase_step edge_step frame_step value_step \
   narrow saturating chip_frame data_step teeth fsm_miter sram_equiv \
-  kernel_equiv link
+  kernel_equiv link powerup
 
 engine.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe engine > formal/engine.v
@@ -369,6 +369,19 @@ kernel_miter:
 	  -c 'read_aiger miter.aig; print_stats; dprove; print_status' > proof.log
 	grep 'Status = $(EXPECT) ' $(KERNEL)/proof.log
 
+# Power-up is deterministic: two copies of the chip from any two states, reset at the
+# first edge and the same pins after it, drive the same pins (powerup.sv), by induction on
+# an invariant over the flops powerup.tcl brings out. About 30 s. Teeth: no reset at the
+# first edge and the engines' pin register without its clear have to fail, and with the
+# fix for an empty rx fifo's stale head reverted the invariant must not prove.
+powerup:
+	mkdir -p powerup_teeth
+	awk -f powerup_unreset.awk ../src/protocol_emulator.v ../src/protocol_emulator.v \
+	  > powerup_teeth/unreset.v
+	awk -f powerup_stale.awk ../src/protocol_emulator.v ../src/protocol_emulator.v \
+	  > powerup_teeth/stale.v
+	sby -f powerup.sby prove no_reset unreset stale
+
 # the hardened netlist equals the RTL, macros cut (netlist_equiv/miter.ys); about 2 min:
 #   make netlist_equiv NETLIST=../runs/wokwi/final/nl/tt_um_marcosash_protocol_emulator.nl.v
 STDCELL = $(PDK_ROOT)/ihp-sg13cmos5l/libs.ref/sg13cmos5l_stdcell
@@ -596,4 +609,4 @@ witness_reject:
   netlist_equiv netlist_equiv_teeth sync_rtl sync_gate sync_rtl_teeth sync_gate_teeth \
   fsm_miter fsm_miter_proof sram_equiv sram_equiv_proof \
   sram_equiv_step sram_equiv_teeth kernel_equiv kernel_equiv_proof kernel_miter sat_tools \
-  narrow narrow_proof saturating saturating_proof saturating_chip
+  narrow narrow_proof saturating saturating_proof saturating_chip powerup
