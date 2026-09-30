@@ -9,7 +9,7 @@ module Pin_ref = struct
     | In of int
     | Jmp_pin
     | Gpio of int
-  [@@deriving sexp_of, equal]
+  [@@deriving sexp_of, compare, equal]
 
   let to_string = function
     | Side i -> [%string "side%{i#Int}"]
@@ -767,13 +767,13 @@ let level_of_write (pin : Pin.t) (write : Write.t) =
       | (Level | Dir | Dir_low | Input), _ -> None))
 ;;
 
-(* Side-set wins a GPIO that the same instruction's OUT, SET or MOV also writes, level and
-   direction separately (RP2040 datasheet 3.5.6). *)
+(* Side-set wins a GPIO that the same instruction's OUT, SET or MOV also writes (datasheet
+   3.5.6). The hardware decides level and direction apart, but a pin shows one level here,
+   and no other pin shares the bit, so dropping the data write for the pin is the same. *)
 let side_set_wins ctx ~side (data : Write.t) =
   Array.exists ctx.outputs ~f:(fun pin ->
     Option.is_some (level_of_write pin data)
-    && List.exists side ~f:(fun (side : Write.t) ->
-      Bool.equal side.dir data.dir && Option.is_some (level_of_write pin side)))
+    && List.exists side ~f:(fun side -> Option.is_some (level_of_write pin side)))
 ;;
 
 (* Apply writes that land in the same cycle, report each edge with the width of the pulse
@@ -1123,6 +1123,20 @@ let analyse (config : Config.t) (program : Pioasm.Program.t) =
         Option.some_if
           (Option.is_none (output_index pin))
           [%string "rule %{rule.name}: %{pin} is not an output"]))
+    @ (Array.to_list outputs
+       |> List.concat_map ~f:(fun (pin : Pin.t) ->
+         List.filter_map pin.bindings ~f:(fun (bound, drive) ->
+           match drive with
+           | Input -> None
+           | Level | Dir | Dir_low -> Some (bound, pin.name)))
+       |> List.Assoc.sort_and_group ~compare:[%compare: Pin_ref.t]
+       |> List.filter_map ~f:(fun (bound, names) ->
+         let names = List.dedup_and_sort names ~compare:String.compare in
+         Option.some_if
+           (List.length names > 1)
+           [%string
+             "%{Pin_ref.to_string bound} is one GPIO, bound by %{String.concat ~sep:\" \
+              and \" names}"]))
     @ List.filter_map config.no_stretch ~f:(fun name ->
       Option.some_if
         (Option.is_none (output_index name))

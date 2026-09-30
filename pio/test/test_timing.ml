@@ -793,3 +793,18 @@ let%expect_test "an open-drain release with no wait after it rises at an unknown
     (passed true)
     |}]
 ;;
+
+let%expect_test "two pins on one set, out or side-set bit are one GPIO, an error" =
+  programs {|
+.program p
+    set pins, 1
+|}
+  |> List.hd_exn
+  |> check ~config:{ Timing.Config.default with pins = pins [ "a=set0"; "b=set0:dir" ] };
+  [%expect
+    {|
+    p
+    ERROR set0 is one GPIO, bound by a and b
+    (passed false)
+    |}]
+;;
