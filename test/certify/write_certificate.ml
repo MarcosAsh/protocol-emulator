@@ -742,9 +742,20 @@ let inductive
           ]
       in
       (* the offsets the kernel's table keeps, taken modulo the timer, as the core's own
-         arithmetic is *)
-      let offset =
+         arithmetic is; a loop entered at a phase bounded only below keeps the lower
+         bound, which carries it past a count longer than the induction's depth *)
+      let fits n = abs n < 1 lsl (Isa.timer_bits - 1) in
+      let bounds =
         match Kernel.Table.offset_bounds ~slope:row.slope row.offset with
+        | Some (slope, lo, hi) -> Some (slope, lo, Some hi)
+        | None ->
+          (match row.offset.lo, row.offset.hi with
+           | Some lo, None when row.slope <> 0 && fits row.slope && fits lo ->
+             Some (row.slope, lo, None)
+           | _ -> None)
+      in
+      let offset =
+        match bounds with
         | None -> []
         | Some (slope, lo, hi) ->
           let offset_of value =
@@ -754,7 +765,9 @@ let inductive
                 value
                 (slope land ((1 lsl Isa.timer_bits) - 1))
             in
-            sprintf "%s >= %d && %s <= %d" offset lo offset hi
+            match hi with
+            | Some hi -> sprintf "%s >= %d && %s <= %d" offset lo offset hi
+            | None -> sprintf "%s >= %d" offset lo
           in
           [ sprintf
               "      if (pc == %d && stall != 0) assert (%s);"
