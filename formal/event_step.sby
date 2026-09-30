@@ -1,0 +1,41 @@
+[tasks]
+prove
+cover
+late teeth
+level_only teeth
+wires_plain teeth
+
+[options]
+prove: mode prove
+prove: depth 3
+cover: mode cover
+cover: depth 12
+teeth: mode bmc
+teeth: depth 12
+teeth: expect fail
+
+[engines]
+smtbmc boolector
+
+[script]
+read_verilog engine.v
+hierarchy -top engine
+proc
+flatten
+cd engine
+expose w:jmp_go w:advance w:out_value w:mov_value w:sample
+rename jmp_go eng_jmp_go
+rename advance eng_advance
+rename out_value eng_out_value
+rename mov_value eng_mov_value
+rename sample eng_sample
+cd ..
+late: read -define LATE
+level_only: read -define LEVEL_ONLY
+wires_plain: read -define WIRES_PLAIN
+read_verilog -formal -sv event_step.sv
+prep -top event_step
+
+[files]
+engine.v
+event_step.sv

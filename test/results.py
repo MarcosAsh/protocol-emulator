@@ -320,6 +320,8 @@ CLAIMS = [
     ("Lemmas on the RTL", [
         Claim("The pins change only the cycle after an entry that writes them",
               "ocaml", exactly("test"), "edge_step", sby("edge_step_"), step="Prove"),
+        Claim("A pin wait releases in the cycle that samples its level or edge, never later",
+              "ocaml", exactly("test"), "event_step", sby("event_step_"), step="Prove"),
         Claim("A pin outside an engine's footprint keeps 0 from the clear",
               "ocaml", exactly("test"), "frame_step", sby("frame_step_"), step="Prove"),
         Claim("Two engines with disjoint footprints drive and read their pads as they would "

@@ -1,5 +1,5 @@
-all: issue_timing host_timing late_host fifo_order phase_step edge_step frame_step value_step \
-  narrow saturating chip_frame data_step teeth fsm_miter sram_equiv \
+all: issue_timing host_timing late_host fifo_order phase_step edge_step event_step frame_step \
+  value_step narrow saturating chip_frame data_step teeth fsm_miter sram_equiv \
   kernel_equiv link
 
 engine.v: ../src/*.ml
@@ -88,6 +88,11 @@ phase_table_affine_proof:
 edge_step: engine.v
 	sby -f edge_step.sby prove cover
 
+# a pin wait releases in the very cycle its level or edge is sampled, which a predicate's
+# latency rests on
+event_step: engine.v
+	sby -f event_step.sby prove cover
+
 # the frame lemma: a pin outside the engine's footprint keeps 0 from the clear on
 frame_step: engine.v
 	sby -f frame_step.sby prove cover
@@ -163,6 +168,7 @@ teeth: engine.v engine_sram.v engines.v kernel_step.v osr_step.v
 	  second_edge level_at_arm later_edge_captured capture_a_cycle_older capture_a_cycle_younger \
 	  arm_one_short edge_one_short
 	sby -f edge_step.sby pins_never_change side_set_only one_cycle_later flip_off_issue no_flip
+	sby -f event_step.sby late level_only wires_plain
 	sby -f frame_step.sby narrow_side narrow_set narrow_out narrow_mov no_pair side_dirs_on_out \
 	  no_wrap
 	sby -f value_step.sby wrong_direction one_short no_invert reverse_wrong_width \
@@ -590,7 +596,7 @@ witness_reject:
 
 .PHONY: all link link_proof issue_timing host_timing late_host fifo_order phase_step phase_table \
   phase_table_proof phase_table_affine phase_table_affine_proof phase_spacing \
-  phase_spacing_proof edge_step frame_step value_step chip_frame data_step teeth certificates \
+  phase_spacing_proof edge_step event_step frame_step value_step chip_frame data_step teeth certificates \
   certificate inductive_certificate inductive_proof inductive_certificates inductive_names \
   stamped_certificate stamped_proof data_certificate data_proof data_certificates data_names \
   netlist_equiv netlist_equiv_teeth sync_rtl sync_gate sync_rtl_teeth sync_gate_teeth \

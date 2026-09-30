@@ -1,10 +1,8 @@
 (** Compiles a predicate over input pin events to firmware that pulses a verdict pin a
-    fixed number of cycles after each match.
-
-    After the event the firmware anchors [t], adds a budget and waits on it before the
-    verdict, so every match lands at the same cycle. The kernel certifies that wait is
-    never late, which makes the latency exact; a latency the code cannot meet is a missed
-    deadline, and refused with the cycles it is short by. *)
+    fixed number of cycles after each match. A deadline wait pads each match to the
+    latency, so the kernel's acceptance makes it exact and a latency the code cannot meet
+    is refused, short by the wait's lateness. [formal/event_step.sby] proves the event
+    wait releases in the cycle that samples the event. *)
 
 open! Core
 
