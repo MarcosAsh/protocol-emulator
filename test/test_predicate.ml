@@ -337,7 +337,7 @@ let changes samples ~pin =
 ;;
 
 (* Runs of the pin at least [min_run] long, some ending before a verdict is due and some
-   after, the first as short as any so an edge may land during the prologue. *)
+   after, the first as short as any; the pulse sweep below covers the prologue. *)
 let quiet_samples ~min_run ~due =
   let open Quickcheck.Generator.Let_syntax in
   let%map runs =
