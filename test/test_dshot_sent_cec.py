@@ -111,8 +111,8 @@ def sent_words(status, data):
 
 
 def decode_sent(levels):
-    """SAE J2716 pulses from their falling edges: sync 56 ticks, each low 4 ticks or more,
-    nibbles 12 to 27 ticks and whole to an eighth of a tick, a pause 12 to 768."""
+    """SAE J2716 pulses from their falling edges: sync 56 ticks, every pulse low 4 ticks
+    or more, nibbles 12 to 27 ticks and whole to an eighth of a tick, a pause 12 to 768."""
     falls = [i for i in range(1, len(levels)) if levels[i - 1] and not levels[i]]
     rises = [i for i in range(1, len(levels)) if not levels[i - 1] and levels[i]]
     pulses = []
@@ -121,7 +121,8 @@ def decode_sent(levels):
         pulses.append((nxt - fall, rise - fall))
     frames = []
     while len(pulses) >= 9:
-        sync = pulses[0][0]
+        sync, sync_low = pulses[0]
+        assert 56 * sync_low >= 4 * sync, ("sync low", sync_low)
         nibbles = []
         for length, low in pulses[1:9]:
             ticks = round(56 * length / sync)
@@ -132,7 +133,9 @@ def decode_sent(levels):
         frames.append((nibbles[0], nibbles[1:7]))
         pulses = pulses[9:]
         if pulses:
-            assert 12 <= 56 * pulses[0][0] // sync < 768, "pause"
+            pause, pause_low = pulses[0]
+            assert 12 * sync <= 56 * pause <= 768 * sync, ("pause", pause)
+            assert 56 * pause_low >= 4 * sync, ("pause low", pause_low)
             pulses = pulses[1:]
     return frames
 

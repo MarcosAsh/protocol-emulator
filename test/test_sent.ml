@@ -84,14 +84,19 @@ let%expect_test "the core sends every frame, at the standard tick and the shorte
     |}]
 ;;
 
-(* The third frame's words come 15,000 cycles in, 5,000 after the second frame ends. *)
+(* The third frame's words come 15,000 cycles in, 5,000 after the second frame ends; at
+   30,000 the pause is past 768 ticks. *)
 let%expect_test "a late frame lengthens the pause before it" =
   print_run ~late:15_000 ~tick:shortest_tick ~cycles:30_000 ();
+  print_run ~late:30_000 ~tick:shortest_tick ~cycles:40_000 ();
   [%expect
     {|
     ((tick 21)
      (measured_ns
       (Ok ((sync (23520 23520)) (low (2100 2100)) (pause (5040 116780)))))
+     (t.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    ((tick 21) (measured_ns (Error ("no pause" (pause 20839) (sync 1176))))
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
     |}]
@@ -125,8 +130,44 @@ let%expect_test "the decoder refuses a fall a tick late and a short low" =
         ~short:(decoded short : Frame.t list Or_error.t)];
   [%expect
     {|
-    ((late (Error ("no nibble" (n 11) (low_ticks 4))))
-     (short (Error ("no nibble" (n 12) (low_ticks 3)))))
+    ((late (Error ("no nibble" (n 11))))
+     (short (Error ("low under 4 ticks" nibble (low 450) (sync 8400)))))
+    |}]
+;;
+
+(* One frame drawn from its pulses, as ticks and ticks low, with the pause closed by the
+   next sync's fall. *)
+let%expect_test "the decoder's bounds on the pause and on every low" =
+  let tick = 4 in
+  let decoded ?(sync_low = 5) ?(pause = 12) ?(pause_low = 5) () =
+    let nibbles = (5 :: [ 1; 2; 3; 4; 5; 6 ]) @ [ crc4 [ 1; 2; 3; 4; 5; 6 ] ] in
+    let pulses =
+      ((56, sync_low) :: List.map nibbles ~f:(fun n -> 12 + n, 5)) @ [ pause, pause_low ]
+    in
+    let levels =
+      List.concat_map pulses ~f:(fun (ticks, low) ->
+        List.init (ticks * tick) ~f:(fun i -> i >= low * tick))
+    in
+    (true :: levels) @ [ false ]
+    |> decode ~cycle_ns
+    |> Or_error.map ~f:(fun (decoded, _) -> List.length decoded)
+  in
+  print_s
+    [%message
+      ""
+        ~nominal:(decoded () : int Or_error.t)
+        ~pause_768:(decoded ~pause:768 () : int Or_error.t)
+        ~pause_769:(decoded ~pause:769 () : int Or_error.t)
+        ~pause_11:(decoded ~pause:11 () : int Or_error.t)
+        ~pause_low_3:(decoded ~pause_low:3 () : int Or_error.t)
+        ~sync_low_3:(decoded ~sync_low:3 () : int Or_error.t)];
+  [%expect
+    {|
+    ((nominal (Ok 1)) (pause_768 (Ok 1))
+     (pause_769 (Error ("no pause" (pause 3076) (sync 224))))
+     (pause_11 (Error ("no pause" (pause 44) (sync 224))))
+     (pause_low_3 (Error ("low under 4 ticks" pause (low 12) (sync 224))))
+     (sync_low_3 (Error ("low under 4 ticks" sync (low 12) (sync 224)))))
     |}]
 ;;
 

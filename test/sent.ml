@@ -161,10 +161,17 @@ let decode ~cycle_ns levels =
     then return n
     else Or_error.error_s [%message "not whole ticks" (cycles : int) (sync : int)]
   in
+  (* J2716 5.2.1: every pulse, the sync and the pause too, is low 4 ticks or more *)
+  let low_enough ~sync ~name low =
+    if 56 * low >= 4 * sync
+    then return ()
+    else Or_error.error_s [%message "low under 4 ticks" name (low : int) (sync : int)]
+  in
   let rec frames pulses ~previous_sync decoded measured =
     match pulses with
     | [] -> return (List.rev decoded, measured)
-    | (sync, _) :: rest ->
+    | (sync, sync_low) :: rest ->
+      let%bind () = low_enough ~sync ~name:"sync" sync_low in
       let%bind () =
         match previous_sync with
         | Some previous when abs (sync - previous) * 64 > previous ->
@@ -182,12 +189,12 @@ let decode ~cycle_ns levels =
             ~init:([], measured)
             ~f:(fun (nibbles, measured) (cycles, low) ->
               let%bind n = ticks ~sync cycles in
-              let%bind low_ticks = ticks ~sync low in
-              let%map () =
-                if n >= 12 && n <= 27 && low_ticks >= 4
+              let%bind () =
+                if n >= 12 && n <= 27
                 then return ()
-                else Or_error.error_s [%message "no nibble" (n : int) (low_ticks : int)]
+                else Or_error.error_s [%message "no nibble" (n : int)]
               in
+              let%map () = low_enough ~sync ~name:"nibble" low in
               (n - 12) :: nibbles, Measured.add measured ~name:"low" ~ns:(low * cycle_ns))
         in
         let status, data, crc =
@@ -205,13 +212,13 @@ let decode ~cycle_ns levels =
         let decoded = { Frame.status; data } :: decoded in
         match rest with
         | [] -> return (List.rev decoded, measured)
-        | (pause, _) :: rest ->
-          let n = 56 * pause / sync in
+        | (pause, pause_low) :: rest ->
           let%bind () =
-            if n >= 12 && n < 768
+            if 56 * pause >= 12 * sync && 56 * pause <= 768 * sync
             then return ()
-            else Or_error.error_s [%message "no pause" (n : int)]
+            else Or_error.error_s [%message "no pause" (pause : int) (sync : int)]
           in
+          let%bind () = low_enough ~sync ~name:"pause" pause_low in
           frames
             rest
             ~previous_sync:(Some sync)

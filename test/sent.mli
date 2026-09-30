@@ -5,7 +5,10 @@
     falls on a deadline, is low for 5 ticks and ends at the next fall, 12 ticks and the
     nibble after, the sync 56. The CRC is the core's: CRC-4 over the data nibbles, not the
     status. The pause is 12 ticks, or runs on until the host's next frame; a late second
-    word is an underflow fault. The line is low from reset until the tick arrives. *)
+    word is an underflow fault. The line is low from reset until the tick arrives.
+
+    J2716 bounds the pause at 768 ticks, so the host must send the next frame within 766
+    ticks of the pause's fall. *)
 
 open! Core
 open Protocol_emulator
@@ -37,7 +40,6 @@ end
 val words : Frame.t -> int list
 
 (** Decodes one level per cycle against J2716's pulses: sync 56 ticks, each low 4 ticks or
-    more, a nibble 12 to 27 ticks and a pause 12 to 768, each but the pause within an
-    eighth of a tick of whole ticks of the sync's. A frame whose pause has not ended
-    counts. *)
+    more, a nibble 12 to 27 ticks within an eighth of a tick of whole ticks of the sync's,
+    and a pause 12 to 768 ticks. A frame whose pause has not ended counts. *)
 val decode : cycle_ns:int -> bool list -> (Frame.t list * Measured.t) Or_error.t
