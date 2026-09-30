@@ -74,6 +74,8 @@ module Firmware : sig
     { source : string
     ; program : Asm.Program.t
     ; config : Program_config.t
+    ; budget_from_host : int option
+    (** A budget too long for [set], which the host writes into the tx fifo first. *)
     ; certificate : Certificate.t
     }
 end

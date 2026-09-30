@@ -70,6 +70,7 @@ module Firmware = struct
     { source : string
     ; program : Asm.Program.t
     ; config : Program_config.t
+    ; budget_from_host : int option
     ; certificate : Certificate.t
     }
 end
@@ -136,6 +137,20 @@ let pulses ~verdict_pin ~latency ~jitter =
       "pin %{verdict_pin#Int} pulses %{latency#Int} to %{latency + jitter#Int} cycles on"]
 ;;
 
+(* [set] takes five bits; a longer budget comes from the host, which the analyser and the
+   kernel take as the value every load of p carries *)
+let from_host budget = budget >= 1 lsl Isa.Field.set_value.width
+
+let set_budget budget =
+  if from_host budget
+  then
+    [ line "wait tx"
+    ; line "pull" ~comment:[%string "the host sends the budget, %{budget#Int}"]
+    ; line "mov p, osr"
+    ]
+  else [ line [%string "set p, %{budget#Int}"] ~comment:"the budget" ]
+;;
+
 let event_source ~(edge : Edge.t) ~(guard : Level.t option) ~header ~budget =
   let reject =
     Option.value_map guard ~default:[] ~f:(fun (guard : Level.t) ->
@@ -145,14 +160,14 @@ let event_source ~(edge : Edge.t) ~(guard : Level.t option) ~header ~budget =
           ~comment:[%string "pin %{guard.pin#Int} %{level}: no match"]
       ])
   in
-  [ header
-  ; line [%string "set p, %{budget#Int}"] ~comment:"the budget"
-  ; line "set pins, 0"
-  ; "watch:"
-  ; line
-      [%string "wait %{if edge.rising then \"rise\" else \"fall\"} pin %{edge.pin#Int}"]
-      ~comment:"the event"
-  ]
+  [ header ]
+  @ set_budget budget
+  @ [ line "set pins, 0"
+    ; "watch:"
+    ; line
+        [%string "wait %{if edge.rising then \"rise\" else \"fall\"} pin %{edge.pin#Int}"]
+        ~comment:"the event"
+    ]
   @ reject
   @ [ line "mov t, now" ~comment:"the anchor"
     ; line "add t, p"
@@ -167,7 +182,7 @@ let event_source ~(edge : Edge.t) ~(guard : Level.t option) ~header ~budget =
 (* A half per level of the pin: it anchors, polls in a counted loop, pads to the latency,
    polls once more and pulses the verdict, then waits for the level to change. The wait's
    delay anchors an edge it sees as far on as a poll's jump does. *)
-let quiet_source ~pin ~header ~budget ~loops =
+let quiet_source ~pin ~header ~budget ~loops ~stretch =
   let half ~name ~other ~high =
     let leave = [%string "jmp %{if high then \"!pin\" else \"pin\"}, %{other}"] in
     [ name ^ ":"
@@ -176,21 +191,24 @@ let quiet_source ~pin ~header ~budget ~loops =
     ; line [%string "set x, %{loops#Int}"]
     ; name ^ "_poll:"
     ; line leave ~comment:"an edge"
-    ; line [%string "jmp x--, %{name}_poll"]
-    ; line "wait t" ~comment:"pads the verdict to the latency"
-    ; line leave
-    ; line "set pins, 1" ~comment:"the verdict"
-    ; line "set pins, 0"
     ]
+    @ Option.value_map stretch ~default:[] ~f:(fun delay ->
+      [ line [%string "nop [%{delay#Int}]"] ~comment:"spaces the polls" ])
+    @ [ line [%string "jmp x--, %{name}_poll"]
+      ; line "wait t" ~comment:"pads the verdict to the latency"
+      ; line leave
+      ; line "set pins, 1" ~comment:"the verdict"
+      ; line "set pins, 0"
+      ]
   in
-  [ header
-  ; line [%string "set p, %{budget#Int}"] ~comment:"the budget"
-  ; line "set pins, 0"
-  ; line "jmp pin, high"
-  ; line "jmp low"
-  ; "low_wait:"
-  ; line [%string "wait 0 pin %{pin#Int} [1]"]
-  ]
+  [ header ]
+  @ set_budget budget
+  @ [ line "set pins, 0"
+    ; line "jmp pin, high"
+    ; line "jmp low"
+    ; "low_wait:"
+    ; line [%string "wait 0 pin %{pin#Int} [1]"]
+    ]
   @ half ~name:"low" ~other:"high" ~high:false
   @ [ line [%string "wait 1 pin %{pin#Int} [1]"] ]
   @ half ~name:"high" ~other:"low" ~high:true
@@ -242,9 +260,9 @@ let pad_lateness rows =
   |> List.max_elt ~compare:Int.compare
 ;;
 
-let fits_set ~latency name value =
-  if value >= 1 lsl Isa.Field.set_value.width
-  then refuse "latency %d needs %s of %d, above what set holds" latency name value
+let fits_budget ~latency budget =
+  if budget >= 1 lsl Isa.data_bits
+  then refuse "latency %d needs a budget of %d, above what p holds" latency budget
   else Ok ()
 ;;
 
@@ -252,7 +270,8 @@ let fits_set ~latency name value =
    budget below zero. The kernel's table must then give every verdict one phase. *)
 let certify t ~config ~latency ~budget (program : Asm.Program.t) =
   let open Or_error.Let_syntax in
-  let rows = Analyser.analyse ~config program.instructions in
+  let period = Option.some_if (from_host budget) budget in
+  let rows = Analyser.analyse ?period ~config program.instructions in
   let%bind () =
     match pad_lateness rows with
     | Some late when late > 0 ->
@@ -266,10 +285,10 @@ let certify t ~config ~latency ~budget (program : Asm.Program.t) =
         (latency + short)
     | _ -> Ok ()
   in
-  let%bind _ : Analyser.Verdict.t = Analyser.check ~config program in
+  let%bind _ : Analyser.Verdict.t = Analyser.check ?period ~config program in
   let%bind words = Asm.Program.words program in
   let table = Kernel.Table.of_analyser rows in
-  let%bind () = Kernel.check ~config ~words table in
+  let%bind () = Kernel.check ?period ~config ~words table in
   let instructions = Array.of_list program.instructions in
   match
     List.map (pcs instructions ~f:is_verdict) ~f:(fun pc -> certified_phase table ~pc)
@@ -309,7 +328,7 @@ let compile_event ~config ~verdict_pin ~latency t ~edge ~guard =
   let to_anchor = cycles_between instructions ~first:event_pc ~last:anchor_pc in
   (* released at the deadline, the verdict issues the cycle after *)
   let budget = latency - to_anchor - 1 in
-  let%bind () = fits_set ~latency "a budget" budget in
+  let%bind () = fits_budget ~latency budget in
   let%bind source, program = assemble ~budget:(Int.max 0 budget) in
   let config = Asm.Program.configure program config in
   let%bind phase = certify t ~config ~latency ~budget program in
@@ -333,41 +352,69 @@ let compile_event ~config ~verdict_pin ~latency t ~edge ~guard =
     { Firmware.source
     ; program
     ; config
-    ; certificate = { latency; jitter = 0; sampling; verdict_pcs = [ verdict_pc ] }
+    ; budget_from_host = Option.some_if (from_host budget) budget
+    ; certificate =
+        { latency
+        ; jitter = 0
+        ; sampling
+        ; verdict_pcs = pcs (Array.of_list program.instructions) ~f:is_verdict
+        }
     }
 ;;
 
 (* The halves are laid out alike, so the low one's cycles stand for both, but for the high
-   one's jump back to the low wait. *)
+   one's jump back to the low wait. Polls are spaced out only as far as [set x] needs to
+   count them, since the space between them is the jitter. *)
 let compile_quiet ~config ~verdict_pin ~latency t ~pin =
   let open Or_error.Let_syntax in
-  let assemble ~header ~budget ~loops =
-    let source = quiet_source ~pin ~header ~budget ~loops in
+  let assemble ~header ~budget ~loops ~stretch =
+    let source = quiet_source ~pin ~header ~budget ~loops ~stretch in
     let%map program = Asm.assemble source in
     source, program
   in
-  let%bind _, probe = assemble ~header:"" ~budget:0 ~loops:0 in
-  let instructions = Array.of_list probe.instructions in
+  (* the layout does not depend on the budget or the count, so a probe at zero finds it *)
+  let probe stretch =
+    let%bind _, probe = assemble ~header:"" ~budget:0 ~loops:0 ~stretch in
+    let instructions = Array.of_list probe.instructions in
+    let%map pad_at_zero =
+      match pad_lateness (Analyser.analyse ~config probe.instructions) with
+      | Some late -> Ok late
+      | None -> refuse "BUG: the pad wait has no bound"
+    in
+    stretch, instructions, pad_at_zero
+  in
+  let%bind _, instructions, _ = probe None in
   let anchor = List.hd_exn (pcs instructions ~f:is_anchor) in
   let pad = List.hd_exn (pcs instructions ~f:is_pad) in
-  let verdicts = pcs instructions ~f:is_verdict in
-  let verdict = List.hd_exn verdicts in
-  let poll = anchor + 3 in
-  let loop_period = cycles_between instructions ~first:poll ~last:(poll + 2) in
+  let verdict = List.hd_exn (pcs instructions ~f:is_verdict) in
   (* a poll's jump and the level wait's delay each anchor [to_anchor] after the edge *)
   let to_anchor = Isa.jmp_cycles in
   let verdict_phase = cycles_between instructions ~first:pad ~last:verdict in
   let budget = latency - to_anchor - verdict_phase in
-  let%bind () = fits_set ~latency "a budget" budget in
-  let%bind pad_at_zero =
-    match pad_lateness (Analyser.analyse ~config probe.instructions) with
-    | Some late -> Ok late
-    | None -> refuse "BUG: the pad wait has no bound"
+  let%bind () = fits_budget ~latency budget in
+  let most_loops = (1 lsl Isa.Field.set_value.width) - 1 in
+  let%bind stretch, instructions, loop_period, loops =
+    let fits (stretch, instructions, pad_at_zero) =
+      let poll = anchor + 3 in
+      let back = pad - 1 + Bool.to_int (Option.is_some stretch) in
+      let loop_period = cycles_between instructions ~first:poll ~last:(back + 1) in
+      let loops = Int.max 0 ((budget - pad_at_zero) / loop_period) in
+      Option.some_if (loops <= most_loops) (stretch, instructions, loop_period, loops)
+    in
+    let rec search = function
+      | [] -> refuse "latency %d is beyond %d polls however far apart" latency most_loops
+      | stretch :: wider ->
+        let%bind probed = probe stretch in
+        (match fits probed with
+         | Some fit -> Ok fit
+         | None -> search wider)
+    in
+    search (None :: List.init (1 lsl Isa.delay_bits) ~f:Option.some)
   in
-  let loops = Int.max 0 ((budget - pad_at_zero) / loop_period) in
-  let%bind () = fits_set ~latency "a count of polls" loops in
+  let pad = pad + Bool.to_int (Option.is_some stretch) in
+  let verdict = verdict + Bool.to_int (Option.is_some stretch) in
   (* where the pin is sampled, in cycles from the anchor *)
-  let first_poll = cycles_between instructions ~first:anchor ~last:poll in
+  let first_poll = cycles_between instructions ~first:anchor ~last:(anchor + 3) in
   let last_loop_poll = first_poll + (loops * loop_period) in
   let final_poll = budget + cycles instructions.(pad) in
   let verdict_at = budget + verdict_phase in
@@ -388,7 +435,9 @@ let compile_quiet ~config ~verdict_pin ~latency t ~pin =
   in
   let jitter = min_run - 1 in
   let header = [%string "; %{to_string t}: %{pulses ~verdict_pin ~latency ~jitter}"] in
-  let%bind source, program = assemble ~header ~budget:(Int.max 0 budget) ~loops in
+  let%bind source, program =
+    assemble ~header ~budget:(Int.max 0 budget) ~loops ~stretch
+  in
   let config = Asm.Program.configure program config in
   let%bind phase = certify t ~config ~latency ~budget program in
   let%bind () = check_latency ~certified:(to_anchor + budget + phase) ~latency in
@@ -399,7 +448,13 @@ let compile_quiet ~config ~verdict_pin ~latency t ~pin =
     { Firmware.source
     ; program
     ; config
-    ; certificate = { latency; jitter; sampling; verdict_pcs = verdicts }
+    ; budget_from_host = Option.some_if (from_host budget) budget
+    ; certificate =
+        { latency
+        ; jitter
+        ; sampling
+        ; verdict_pcs = pcs (Array.of_list program.instructions) ~f:is_verdict
+        }
     }
 ;;
 

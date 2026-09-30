@@ -64,12 +64,12 @@ let%expect_test "a latency one cycle short of the code is refused" =
     |}]
 ;;
 
-let%expect_test "pins that cannot be read, or a budget too long to set, are refused" =
+let%expect_test "pins that cannot be read, or a budget too long for p, are refused" =
   List.iter
     [ Predicate.Edge { pin = 5; rising = true }, 10
     ; ( Edge_while { edge = { pin = 0; rising = true }; guard = { pin = 11; high = true } }
       , 10 )
-    ; scl_rise, 40
+    ; scl_rise, 70_000
     ]
     ~f:(fun (predicate, latency) ->
       print_s [%message (compiled predicate ~latency : int Or_error.t)]);
@@ -80,7 +80,7 @@ let%expect_test "pins that cannot be read, or a budget too long to set, are refu
     ("compiled predicate ~latency"
      (Error "guard pin 11 is not an input, a bidirectional pin or a wire"))
     ("compiled predicate ~latency"
-     (Error "latency 40 needs a budget of 38, above what set holds"))
+     (Error "latency 70000 needs a budget of 69998, above what p holds"))
     |}]
 ;;
 
@@ -92,6 +92,10 @@ let verdict_bit (firmware : Predicate.Firmware.t) (machine : Machine.t) =
 let machine_verdicts (firmware : Predicate.Firmware.t) samples =
   let words = Asm.Program.words firmware.program |> ok_exn in
   let machine = Machine.create ~config:firmware.config ~program:words |> ok_exn in
+  let machine =
+    Option.fold firmware.budget_from_host ~init:machine ~f:(fun machine budget ->
+      Machine.write_tx machine budget |> ok_exn)
+  in
   List.foldi
     samples
     ~init:(machine, 0, [])
@@ -120,8 +124,13 @@ let expected_verdicts (firmware : Predicate.Firmware.t) predicate samples =
     | Edge_while { edge; guard } -> edge, Some guard
     | Quiet _ -> raise_s [%message "not an edge"]
   in
-  (* the prologue: set p, set pins *)
-  let watching_from = 2 in
+  (* the prologue's instructions each take a cycle, the budget being in the fifo *)
+  let watching_from =
+    List.findi_exn firmware.program.instructions ~f:(fun _ -> function
+      | Op { op = Wait (Pin_edge _); _ } -> true
+      | _ -> false)
+    |> fst
+  in
   let _, verdicts =
     Array.foldi samples ~init:(watching_from, []) ~f:(fun cycle (ready, verdicts) _ ->
       let seen =
@@ -148,11 +157,11 @@ let expected_verdicts (firmware : Predicate.Firmware.t) predicate samples =
 ;;
 
 (* Pins 0 and 1 held for a few cycles at a time. *)
-let random_samples =
+let random_samples ?(runs = 60) () =
   let open Quickcheck.Generator.Let_syntax in
   let%map runs =
     List.gen_with_length
-      60
+      runs
       (Quickcheck.Generator.both (Int.gen_incl 0 3) (Int.gen_incl 1 8))
   in
   List.concat_map runs ~f:(fun (pins, cycles) -> List.init cycles ~f:(fun _ -> pins))
@@ -160,11 +169,13 @@ let random_samples =
 
 let%expect_test "on the model, every match lands exactly at the certified latency" =
   List.iter
-    [ i2c_start, 10; i2c_start, 6; scl_rise, 4; scl_rise, 25 ]
+    [ i2c_start, 10; i2c_start, 6; i2c_start, 300; scl_rise, 4; scl_rise, 25 ]
     ~f:(fun (p, l) ->
       let firmware = Predicate.compile p ~latency:l |> ok_exn in
       let matches = ref 0 in
-      Quickcheck.test ~trials:100 random_samples ~f:(fun samples ->
+      (* long enough to hold a few matches past the latency *)
+      let runs = Int.max 60 (l * 2) in
+      Quickcheck.test ~trials:100 (random_samples ~runs ()) ~f:(fun samples ->
         let expected = expected_verdicts firmware p samples in
         matches := !matches + List.length expected;
         [%test_result: int list] (machine_verdicts firmware samples) ~expect:expected);
@@ -178,6 +189,7 @@ let%expect_test "on the model, every match lands exactly at the certified latenc
     {|
     ((predicate "pin 0 falls while pin 1 is high") (l 10) (matches 544))
     ((predicate "pin 0 falls while pin 1 is high") (l 6) (matches 593))
+    ((predicate "pin 0 falls while pin 1 is high") (l 300) (matches 748))
     ((predicate "pin 1 rises") (l 4) (matches 1334))
     ((predicate "pin 1 rises") (l 25) (matches 632))
     |}]
@@ -186,10 +198,12 @@ let%expect_test "on the model, every match lands exactly at the certified latenc
 let%expect_test "the engine runs the compiled firmware as the model does" =
   let firmware = Predicate.compile i2c_start ~latency:10 |> ok_exn in
   let samples =
-    Quickcheck.random_value ~seed:(`Deterministic "i2c") random_samples |> Array.of_list
+    Quickcheck.random_value ~seed:(`Deterministic "i2c") (random_samples ())
+    |> Array.of_list
   in
   let machine =
     Lockstep.lockstep
+      ?preload:(Option.map firmware.budget_from_host ~f:List.return)
       ~cycles:(Array.length samples)
       ~config:firmware.config
       ~program:(Asm.Program.words firmware.program |> ok_exn)
@@ -287,7 +301,7 @@ let%expect_test "a pin that stops moving compiles to a poll per level" =
 ;;
 
 let%expect_test "a quiet latency the polls cannot meet is refused" =
-  List.iter [ 11; 12; 36; 37 ] ~f:(fun latency ->
+  List.iter [ 11; 12; 1000; 5000 ] ~f:(fun latency ->
     print_s [%message (latency : int) (compiled quiet ~latency : int Or_error.t)]);
   [%expect
     {|
@@ -295,10 +309,10 @@ let%expect_test "a quiet latency the polls cannot meet is refused" =
      ("compiled quiet ~latency"
       (Error "latency 11 exceeded by 1 cycle: pin 2 stops moving needs 12")))
     ((latency 12) ("compiled quiet ~latency" (Ok 12)))
-    ((latency 36) ("compiled quiet ~latency" (Ok 36)))
-    ((latency 37)
+    ((latency 1000) ("compiled quiet ~latency" (Ok 1000)))
+    ((latency 5000)
      ("compiled quiet ~latency"
-      (Error "latency 37 needs a budget of 32, above what set holds")))
+      (Error "latency 5000 is beyond 31 polls however far apart")))
     |}]
 ;;
 
@@ -326,7 +340,7 @@ let quiet_samples ~min_run ~due =
 let%expect_test "on the model, a quiet verdict comes latency to latency + jitter after \
                  the last edge, and each quiet run gets one"
   =
-  List.iter [ 12; 20; 36 ] ~f:(fun latency ->
+  List.iter [ 12; 20; 36; 200; 1000 ] ~f:(fun latency ->
     let firmware = Predicate.compile quiet ~latency |> ok_exn in
     let { Predicate.Certificate.jitter; sampling; _ } = firmware.certificate in
     let min_run, unseen =
@@ -336,7 +350,8 @@ let%expect_test "on the model, a quiet verdict comes latency to latency + jitter
     in
     let due = latency + jitter in
     let verdicts = ref 0 in
-    Quickcheck.test ~trials:100 (quiet_samples ~min_run ~due) ~f:(fun samples ->
+    let trials = if latency > 100 then 10 else 100 in
+    Quickcheck.test ~trials (quiet_samples ~min_run ~due) ~f:(fun samples ->
       let length = List.length samples in
       let seen = machine_verdicts firmware samples in
       let changes = changes samples ~pin:2 in
@@ -364,6 +379,8 @@ let%expect_test "on the model, a quiet verdict comes latency to latency + jitter
     ((latency 12) (jitter 5) (verdicts 2339))
     ((latency 20) (jitter 5) (verdicts 2104))
     ((latency 36) (jitter 5) (verdicts 1911))
+    ((latency 200) (jitter 6) (verdicts 167))
+    ((latency 1000) (jitter 31) (verdicts 170))
     |}]
 ;;
 
@@ -377,6 +394,7 @@ let%expect_test "the engine runs the quiet firmware as the model does" =
   in
   let machine =
     Lockstep.lockstep
+      ?preload:(Option.map firmware.budget_from_host ~f:List.return)
       ~cycles:(Array.length samples)
       ~config:firmware.config
       ~program:(Asm.Program.words firmware.program |> ok_exn)
