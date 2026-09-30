@@ -1,0 +1,126 @@
+name: pages
+
+# The playground from main, beside the 3D viewer of the last green gds run on main. Runs
+# after gds, whose viewer job deploys the chip alone. js_of_ocaml is never locked.
+on:
+  push:
+    branches: [main]
+    paths:
+      - src/**
+      - playground/**
+      - test/*.asm
+      - dune-project
+      - protocol_emulator.opam.locked
+      - .github/workflows/pages.yaml
+  workflow_run:
+    workflows: [gds]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  playground:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Set up OxCaml
+        uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: ocaml-variants.5.2.0+ox
+          opam-repositories: |
+            ox: https://github.com/oxcaml/opam-repository.git
+            default: https://opam.ocaml.org
+
+      - name: Install dependencies
+        run: |
+          opam install . --deps-only --locked
+          opam install js_of_ocaml.6.3.2+ox
+
+      # the release profile links the whole program, 0.8 MB against 31 MB
+      - name: Build the playground
+        run: PLAYGROUND=yes opam exec -- dune build --profile release @playground/page
+
+      # the page is only worth publishing if the kernel still refuses the example it
+      # shows refusing
+      - name: Check the examples' verdicts
+        working-directory: _build/default/playground
+        run: |
+          node -e '
+            const pe = require("./playground.bc.js").protocolEmulator;
+            const verdicts = pe.examples.map(([name, source]) =>
+              name + ": " + pe.check(source, null, false, 0, false).verdict);
+            console.log(verdicts.join("\n"));
+            const want = ["uart_tx: accepted", "gap_adding_x: refused by the kernel"];
+            if (!want.every((v) => verdicts.includes(v))) process.exit(1);
+          '
+
+      - name: Upload the playground
+        uses: actions/upload-artifact@v7
+        with:
+          name: playground
+          path: |
+            _build/default/playground/index.html
+            _build/default/playground/playground.bc.js
+
+  deploy:
+    needs: playground
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}playground/
+    steps:
+      - name: Download the playground
+        uses: actions/download-artifact@v7
+        with:
+          name: playground
+          path: site/playground
+
+      # what TinyTapeout/tt-gds-action/viewer publishes, from the last run that passed
+      - name: Download the chip
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run=$(gh run list -R "${{ github.repository }}" --workflow gds.yaml --branch main \
+            --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+          gh run download "$run" -R "${{ github.repository }}" -n tt_submission -n gds_render -D chip
+          cp chip/tt_submission/tt_submission/*.gds site/tinytapeout.gds
+          cp chip/tt_submission/tt_submission/*.oas site/tinytapeout.oas
+          cp chip/gds_render/gds_render.png site/
+          pdk=$(jq -r .PDK chip/tt_submission/tt_submission/pdk.json)
+          cat > site/index.html <<EOF
+          <!doctype html>
+          <html lang="en">
+          <head><meta charset="utf-8"><title>Redirecting to 3D Viewer...</title></head>
+          <body>
+          <script>
+            location.href = "https://gds-viewer.tinytapeout.com/?pdk=$pdk&model="
+              + encodeURIComponent(location.href + "/tinytapeout.oas");
+          </script>
+          <p><a href="playground/">Firmware timing playground</a></p>
+          </body>
+          </html>
+          EOF
+          echo "chip from gds run $run" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
