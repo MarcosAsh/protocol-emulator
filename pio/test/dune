@@ -1,0 +1,13 @@
+; pico_examples: .pio files from github.com/raspberrypi/pico-examples at 0d62f75, copied
+; unmodified (BSD-3-Clause, see pico_examples/LICENSE.TXT).
+
+(library
+ (name pio_test)
+ (libraries core pio)
+ (preprocess
+  (pps ppx_jane))
+ (inline_tests
+  (deps
+   (glob_files pico_examples/*.pio))
+  (flags
+   (-source-tree-root .))))
