@@ -11,7 +11,9 @@ open Protocol_emulator
 val pin : int
 val cycle_ns : int
 
-(** [zero_high] at most 31, and [bit] between [2 * zero_high] and [3 * zero_high]. *)
+(** [zero_high] at most 31, and [bit] between [2 * zero_high] and [3 * zero_high]: what
+    the firmware can be written for, not what holds its deadlines, which is the kernel's
+    to say of each. *)
 val firmware : zero_high:int -> bit:int -> string
 
 (** 31 and 83 cycles, 620 and 1660 ns. *)
@@ -25,7 +27,8 @@ val config : Program_config.t
 (** The 11-bit throttle, the telemetry request, then the XOR of the nibbles above. *)
 val frame : throttle:int -> telemetry:bool -> int
 
-(** The rates' nominal times in ns: bit, T0H and T1H. *)
+(** The rates' nominal times in ns, bit, T0H and T1H, as KISS gives them, 3/8 and 3/4 of
+    the bit. Betaflight's 7 and 14 of 20 are outside the decoder's 5% of these. *)
 module Rate : sig
   type t =
     { bit_ns : int
