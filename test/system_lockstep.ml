@@ -32,6 +32,7 @@ end
 
 let run
   ?(cycles = 400)
+  ?journal
   ?host
   ?(react = fun (_ : System.t) -> ())
   ~pads
@@ -40,6 +41,7 @@ let run
   let module Dut =
     Engines.Make (struct
       let engines = List.length setups
+      let journal = Option.is_some journal
     end)
   in
   let module Harness = Lws_harness.Make (Dut.I) (Dut.O) in
@@ -53,6 +55,19 @@ let run
        let cycle () = Hardcaml_lws.Lws.cycle h in
        let o = Before_and_after_edge.after_edge outputs in
        let int r = Bits.to_unsigned_int !r in
+       let cycle () =
+         cycle ();
+         List.iter2_exn (Option.to_list journal) o.journal_write ~f:(fun ring write ->
+           if Bits.to_bool !(write.valid)
+           then ring.(int write.addr - Journal.base) <- int write.data)
+       in
+       let arm on =
+         List.iter i.journal ~f:(fun arm ->
+           arm.valid := Bits.vdd;
+           arm.on := Bits.of_bool on);
+         cycle ();
+         List.iter i.journal ~f:(fun arm -> arm.valid := Bits.gnd)
+       in
        i.clocking.clear := Bits.vdd;
        cycle ();
        i.clocking.clear := Bits.gnd;
@@ -111,6 +126,13 @@ let run
          |> System.create
          |> ref
        in
+       if Option.is_some journal
+       then (
+         arm true;
+         (* time for the arm entry to reach the ring before the start's *)
+         for _ = 2 to 8 do
+           cycle ()
+         done);
        each (fun port _ -> port.start := Bits.vdd);
        cycle ();
        each (fun port _ -> port.start := Bits.gnd);
@@ -175,11 +197,17 @@ let run
            react !model;
            Int.incr cycle_number
        done;
+       if Option.is_some journal
+       then (
+         arm false;
+         for _ = 1 to 8 do
+           cycle ()
+         done);
        !model, !mismatch)
 ;;
 
-let lockstep ?(cycles = 400) ?host ?react ~pads setups =
-  let model, mismatch = run ~cycles ?host ?react ~pads setups in
+let lockstep ?(cycles = 400) ?journal ?host ?react ~pads setups =
+  let model, mismatch = run ~cycles ?journal ?host ?react ~pads setups in
   (match mismatch with
    | None -> print_s [%message "lockstep held" (cycles : int)]
    | Some mismatch -> print_s [%message "MISMATCH" (mismatch : Mismatch.t)]);

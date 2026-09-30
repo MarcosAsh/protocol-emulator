@@ -22,9 +22,10 @@ module O = struct
   [@@deriving hardcaml]
 end
 
-let create ~memory ~engines (scope : Scope.t) (i : Signal.t I.t) =
+let create ~memory ~engines ~journal (scope : Scope.t) (i : Signal.t I.t) =
   let module Config = struct
     let engines = engines
+    let journal = journal
   end
   in
   let module Host = Host_port.Make (Config) in
@@ -57,7 +58,10 @@ let create ~memory ~engines (scope : Scope.t) (i : Signal.t I.t) =
       }
   in
   let cores =
-    Engines.hierarchical ~memory scope { clocking; hosts = host.engines; pads = inputs }
+    Engines.hierarchical
+      ~memory
+      scope
+      { clocking; hosts = host.engines; pads = inputs; journal = host.journal }
   in
   List.iter2_exn engine_outs cores.engines ~f:Engine.O.Of_signal.assign;
   { O.uo_out = cores.pin_out.:[11, 5] @: host.miso
@@ -66,7 +70,7 @@ let create ~memory ~engines (scope : Scope.t) (i : Signal.t I.t) =
   }
 ;;
 
-let hierarchical ?instance ~memory ~engines scope i =
+let hierarchical ?instance ?(journal = false) ~memory ~engines scope i =
   let module H = Hierarchy.In_scope (I) (O) in
-  H.hierarchical ?instance ~scope ~name:"top" (create ~memory ~engines) i
+  H.hierarchical ?instance ~scope ~name:"top" (create ~memory ~engines ~journal) i
 ;;

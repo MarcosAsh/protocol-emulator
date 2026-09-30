@@ -220,14 +220,17 @@ end
 
 module One = Fuzz (struct
     let engines = 1
+    let journal = false
   end)
 
 module Two = Fuzz (struct
     let engines = 2
+    let journal = false
   end)
 
 module Three = Fuzz (struct
     let engines = 3
+    let journal = false
   end)
 
 let fuzz = One.fuzz

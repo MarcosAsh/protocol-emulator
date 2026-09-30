@@ -6,8 +6,9 @@
     select, 12 data address, 13 data word (writes to 10 and 13 increment the address), 16
     on the config fields, write-only and reading zero. Control bits 4-5 do nothing.
     Program, data, config and flush take effect only while halted, so a flush needs its
-    own write after the stop. 43, 44 and 64-71 are reserved and read zero; config skips
-    43-44 to keep [autopull_data] and [manchester] at 45-46 for existing hosts.
+    own write after the stop. 43, 44 and 64-71 are reserved and read zero, but 43 arms a
+    journal if the chip has one; config skips 43-44 to keep [autopull_data] and
+    [manchester] at 45-46 for existing hosts.
 
     Select picks the engine for every register but the two addresses; it resets to 0 and
     past the last engine reaches none and reads zero. Status bit 15 flags another engine's
@@ -55,6 +56,9 @@ module Reg : sig
   val data : int
   val config : int
 
+  (** Reserved but with a journal: 1 arms it, 0 disarms it. *)
+  val journal : int
+
   (** Each [Engine.Config] field's register, skipping the reserved ones. *)
   val configs : int list
 
@@ -64,6 +68,7 @@ end
 
 module type Config = sig
   val engines : int
+  val journal : bool
 end
 
 module Make (_ : Config) : sig
@@ -82,6 +87,7 @@ module Make (_ : Config) : sig
     type 'a t =
       { miso : 'a
       ; engines : 'a Engine.Host.t list
+      ; journal : 'a Journal.Arm.t list (** Writes to [Reg.journal], with a journal. *)
       }
     [@@deriving hardcaml]
   end

@@ -239,3 +239,199 @@ let%expect_test "a long quiet spell is cut into full deltas" =
         ((code Pads) (pads 1) (delta 4455)) ((code Disarm) (pads 1) (delta 10))))))
     |}]
 ;;
+
+(* What [System_lockstep] feeds the chip from the arm to the first cycle it compares: the
+   arm, idle cycles, the start and the cycle after it. *)
+let lockstep_lead =
+  List.init 8 ~f:(fun _ -> Stimulus.idle 0)
+  @ [ { (Stimulus.idle 0) with command = Control }; Stimulus.idle 0 ]
+;;
+
+(* Random programs on both engines with the journal armed, pads and one host action at a
+   time now and then: the chip holds with the model, which has no journal, and the ring
+   says what came in, up to the first fault. Engine 0 streams from the low half only; an
+   engine 1 streaming data keeps its turns and the journal writes nothing. *)
+let%expect_test "random programs on two engines hold in lockstep and are journaled" =
+  let random = Splittable_random.of_int 7 in
+  let int hi = Splittable_random.int random ~lo:0 ~hi in
+  let outcomes =
+    List.init 32 ~f:(fun run ->
+      let setups =
+        List.init 2 ~f:(fun engine ->
+          let config = Random_program.config random in
+          let config =
+            if engine = 0 || run % 4 > 0
+            then { config with autopull_data = false }
+            else config
+          in
+          { System_lockstep.Setup.config
+          ; program = Random_program.program ~waits:`Input_pins random ~config
+          ; preload = []
+          ; data = []
+          })
+      in
+      let levels = ref [ 0; 0 ] in
+      let seen = Queue.create () in
+      let level = ref 0 in
+      (* every other run leaves the journal time to write each entry *)
+      let quiet = ref 0 in
+      let calm () = run % 2 = 1 || !quiet = 0 in
+      let pads _ =
+        if calm () && int 15 = 0
+        then (
+          level := !level lxor (1 lsl int (Isa.num_pins - 1));
+          quiet := 5);
+        !level
+      in
+      let host _ =
+        let engine = int 1 in
+        let action : Lockstep.Host.t =
+          match if calm () then int 47 else 47 with
+          | 0 when List.nth_exn !levels engine < Machine.fifo_depth ->
+            { Lockstep.Host.idle with tx = Some (int 0xffff) }
+          | 1 -> { Lockstep.Host.idle with pop_rx = true }
+          | 2 -> { Lockstep.Host.idle with clear_irq = true }
+          | _ -> Lockstep.Host.idle
+        in
+        let command : Journal.Code.t =
+          match action with
+          | { tx = Some _; _ } -> Tx
+          | { pop_rx = true; _ } -> Rx_pop
+          | { clear_irq = true; _ } -> Control
+          | _ -> Pads
+        in
+        if not ([%equal: Journal.Code.t] command Pads) then quiet := 5;
+        quiet := Int.max 0 (!quiet - 1);
+        Queue.enqueue
+          seen
+          { Stimulus.pads = Journal.pads_of_pins !level; command; fault = false };
+        List.init 2 ~f:(fun n -> if n = engine then action else Lockstep.Host.idle)
+      in
+      let faulted_at = ref None in
+      let react (system : System.t) =
+        levels := List.map system.engines ~f:(fun m -> List.length m.tx_fifo);
+        if Option.is_none !faulted_at
+           && List.exists system.engines ~f:(fun m ->
+             not (Machine.Fault.equal m.fault Machine.Fault.none))
+        then faulted_at := Some (Queue.length seen)
+      in
+      let ring = Array.create ~len:Journal.words 0 in
+      match System_lockstep.run ~cycles:600 ~journal:ring ~host ~react ~pads setups with
+      | _, Some mismatch ->
+        print_s [%message "MISMATCH" (mismatch : System_lockstep.Mismatch.t)];
+        "mismatch"
+      | _, None ->
+        let streams = (List.nth_exn setups 1).config.autopull_data in
+        if streams
+        then (
+          [%test_result: int list]
+            (Array.to_list ring)
+            ~expect:(List.init Journal.words ~f:(fun _ -> 0));
+          "engine 1 streams")
+        else (
+          let log = Journal.decode (Array.to_list ring) |> ok_exn in
+          let stimuli = lockstep_lead @ Queue.to_list seen in
+          let expected = reference stimuli in
+          let kept = List.drop_last_exn log.entries in
+          [%test_result: Journal.Entry.t list]
+            kept
+            ~expect:(List.take expected (List.length kept));
+          let ended_at = List.sum (module Int) log.entries ~f:(fun e -> e.delta) in
+          match (List.last_exn log.entries).code, !faulted_at with
+          | Disarm, None ->
+            [%test_result: Journal.Entry.t list] log.entries ~expect:expected;
+            "whole"
+          | Fault, Some run_cycle ->
+            (* the fault shows the cycle after the step that raised it *)
+            [%test_result: int] ended_at ~expect:(List.length lockstep_lead + run_cycle);
+            "to the fault"
+          | Lost, _ ->
+            (* two entries too close, and the next one is where the journal stopped *)
+            [%test_result: int]
+              (List.last_exn log.entries).delta
+              ~expect:(List.nth_exn expected (List.length kept)).delta;
+            "to a burst"
+          | code, faulted_at ->
+            raise_s
+              [%message
+                "unexpected end" (code : Journal.Code.t) (faulted_at : int option)]))
+  in
+  let outcomes =
+    List.sort_and_group outcomes ~compare:String.compare
+    |> List.map ~f:(fun runs -> List.hd_exn runs, List.length runs)
+  in
+  print_s [%message (outcomes : (string * int) list)];
+  [%expect
+    {|
+    (outcomes
+     (("engine 1 streams" 6) ("to a burst" 6) ("to the fault" 18) (whole 2)))
+    |}]
+;;
+
+(* The data memory in use by both sides at once: engine 0 streams the low half onto IO0-7
+   while the journal writes the top half in engine 1's turns, and engine 1 takes a byte
+   off IN0. *)
+let%expect_test "engine 0 streams data while the journal writes" =
+  let period = 16 in
+  let byte = 0xa5 in
+  let line n =
+    match (n - 40) / period with
+    | bit when n < 40 || bit >= 9 -> 1
+    | 0 -> 0
+    | bit -> (byte lsr (bit - 1)) land 1
+  in
+  let seen = Queue.create () in
+  let pads n =
+    Queue.enqueue seen (Stimulus.idle (line n));
+    line n
+  in
+  let ring = Array.create ~len:Journal.words 0 in
+  let system =
+    System_lockstep.lockstep
+      ~cycles:(40 + (10 * period))
+      ~journal:ring
+      ~pads
+      [ { config =
+            { Program_config.default with
+              out_base = Isa.first_bidir_pin
+            ; out_count = 8
+            ; autopull = true
+            ; autopull_data = true
+            }
+        ; program = Firmware.assemble (In_channel.read_all "data_stream.asm")
+        ; preload = []
+        ; data = [ 0x2211; 0x4433; 0x6655; 0x8877 ]
+        }
+      ; { config = Firmware.rx_config
+        ; program = Firmware.assemble (Firmware.uart_rx ~period)
+        ; preload = []
+        ; data = []
+        }
+      ]
+  in
+  let log = Journal.decode (Array.to_list ring) |> ok_exn in
+  let stimuli = lockstep_lead @ Queue.to_list seen in
+  [%test_result: Journal.Entry.t list] log.entries ~expect:(reference stimuli);
+  List.iteri system.engines ~f:(fun engine m ->
+    print_s [%message (engine : int) (m.rx_fifo : int list) (m.fault : Machine.Fault.t)]);
+  print_s [%message (log : Journal.Log.t)];
+  [%expect
+    {|
+    ("lockstep held" (cycles 200))
+    ((engine 0) (m.rx_fifo ())
+     (m.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    ((engine 1) (m.rx_fifo (165))
+     (m.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    (log
+     ((from_arm true)
+      (entries
+       (((code Arm) (pads 0) (delta 0)) ((code Control) (pads 0) (delta 8))
+        ((code Pads) (pads 1) (delta 2)) ((code Pads) (pads 0) (delta 40))
+        ((code Pads) (pads 1) (delta 16)) ((code Pads) (pads 0) (delta 16))
+        ((code Pads) (pads 1) (delta 16)) ((code Pads) (pads 0) (delta 16))
+        ((code Pads) (pads 1) (delta 32)) ((code Pads) (pads 0) (delta 16))
+        ((code Pads) (pads 1) (delta 16)) ((code Disarm) (pads 1) (delta 32))))))
+    |}]
+;;

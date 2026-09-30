@@ -23,6 +23,7 @@ module O = Engine.O
 
 module Data_memory = Data_memory.Make (struct
     let engines = 1
+    let journal = false
   end)
 
 let create ~memory (scope : Scope.t) (i : Signal.t I.t) =
@@ -35,6 +36,7 @@ let create ~memory (scope : Scope.t) (i : Signal.t I.t) =
       ; halted = [ out.halted ]
       ; writes = [ i.data_write ]
       ; reads = [ out.data_addr ]
+      ; journal = []
       }
   in
   Engine.hierarchical

@@ -17,6 +17,7 @@ let period = 10
 
 module Chip = Engines.Make (struct
     let engines = 2
+    let journal = false
   end)
 
 module Sim = Cyclesim.With_interface (Chip.I) (Chip.O)

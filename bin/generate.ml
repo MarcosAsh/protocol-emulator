@@ -23,6 +23,11 @@ let engines =
       ~doc:"N cores, each with its own program memory")
 ;;
 
+let journal =
+  Command.Param.(
+    flag "-journal" no_arg ~doc:" record the pads and the host in the data memory")
+;;
+
 let engine_rtl_command =
   Command.basic
     ~summary:"Verilog for the core"
@@ -39,11 +44,13 @@ let engines_rtl_command =
     ~summary:"Verilog for the cores and the pins between them, with no host port"
     [%map_open.Command
       let memory = memory
-      and engines = engines in
+      and engines = engines
+      and journal = journal in
       fun () ->
         let module Engines =
           Engines.Make (struct
             let engines = engines
+            let journal = journal
           end)
         in
         let module C = Circuit.With_interface (Engines.I) (Engines.O) in
@@ -56,11 +63,12 @@ let top_rtl_command =
     ~summary:"Verilog for the tiny tapeout top"
     [%map_open.Command
       let memory = memory
-      and engines = engines in
+      and engines = engines
+      and journal = journal in
       fun () ->
         let module C = Circuit.With_interface (Top.I) (Top.O) in
         print_rtl ~name:"protocol_emulator" (fun ~name scope ->
-          C.create_exn ~name (Top.hierarchical ~memory ~engines scope))]
+          C.create_exn ~name (Top.hierarchical ~journal ~memory ~engines scope))]
 ;;
 
 let memory_rtl_command =

@@ -33,6 +33,7 @@ module Reg = struct
   let data_addr = 0x0c
   let data = 0x0d
   let config = 0x10
+  let journal = 0x2b
 
   (* unused, so the fields after 0x2b and 0x2c stay where existing hosts write them *)
   let reserved = [ 0x2b; 0x2c ] @ List.range 0x40 0x48
@@ -62,10 +63,12 @@ end
 
 module type Config = sig
   val engines : int
+  val journal : bool
 end
 
 module Make (Config : Config) = struct
   let engines = Config.engines
+  let journals = Bool.to_int Config.journal
   let select_bits = Int.ceil_log2 engines
 
   let () =
@@ -88,6 +91,7 @@ module Make (Config : Config) = struct
     type 'a t =
       { miso : 'a
       ; engines : 'a Engine.Host.t list [@length engines]
+      ; journal : 'a Journal.Arm.t list [@length journals]
       }
     [@@deriving hardcaml]
   end
@@ -266,6 +270,9 @@ module Make (Config : Config) = struct
           ; tx = { valid = mine (strobe Reg.tx); value }
           ; rx_pop = mine (read_done.value &: at Reg.rx)
           })
+    ; journal =
+        List.init journals ~f:(fun _ ->
+          { Journal.Arm.valid = strobe Reg.journal; on = value.:(0) })
     }
   ;;
 

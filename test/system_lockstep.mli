@@ -33,9 +33,11 @@ end
 
 (** Every engine starts in the same cycle. [pads] and [host], one action per engine, are
     asked once per cycle; [react] sees the model after each step. Stops at the first
-    mismatch. *)
+    mismatch. With [journal], two engines and a [Journal] armed eight cycles before the
+    start and disarmed after the run, whose ring writes land in the array. *)
 val run
   :  ?cycles:int
+  -> ?journal:int array
   -> ?host:(int -> Lockstep.Host.t list)
   -> ?react:(System.t -> unit)
   -> pads:(int -> int)
@@ -45,6 +47,7 @@ val run
 (** [run], printing whether the two held together. *)
 val lockstep
   :  ?cycles:int
+  -> ?journal:int array
   -> ?host:(int -> Lockstep.Host.t list)
   -> ?react:(System.t -> unit)
   -> pads:(int -> int)

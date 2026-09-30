@@ -69,14 +69,17 @@ end
 
 module One = Bench (struct
     let engines = 1
+    let journal = false
   end)
 
 module Two = Bench (struct
     let engines = 2
+    let journal = false
   end)
 
 module Three = Bench (struct
     let engines = 3
+    let journal = false
   end)
 
 let run = One.run
