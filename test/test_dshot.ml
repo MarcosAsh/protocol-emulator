@@ -170,14 +170,15 @@ let%expect_test "the kernel accepts both rates" =
    together, as the line was low for 2.4 us after each, under the decoder's two bits. The
    kernel checks deadlines, not how long the protocol wants the line idle. *)
 let%expect_test "the first version, with a short gap between frames" =
+  let pattern =
+    "    set y, 7\ngap:\n    wait t+\n    jmp y--, gap             ; low between frames\n"
+  in
+  if not (String.is_substring dshot600 ~substring:pattern)
+  then raise_s [%message "BUG: not in the source" pattern];
   let first =
     String.substr_replace_first
       dshot600
-      ~pattern:
-        "    set y, 7\n\
-         gap:\n\
-        \    wait t+\n\
-        \    jmp y--, gap             ; low between frames\n"
+      ~pattern
       ~with_:
         "    add t, p\n    add t, p\n    wait t                   ; low between frames\n"
   in

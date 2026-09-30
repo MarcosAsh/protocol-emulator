@@ -27,8 +27,7 @@ let () =
       |> Engine.Config.to_list
     in
     printf "\n%s = {\n    \"config\": {\n" (String.uppercase name);
-    List.iter fields ~f:(fun (field, value) ->
-      printf "        \"%s\": %d,\n" field value);
+    List.iter fields ~f:(fun (field, value) -> printf "        \"%s\": %d,\n" field value);
     print_string "    },\n    \"words\": [\n";
     List.chunks_of words ~length:8
     |> List.iter ~f:(fun chunk ->
