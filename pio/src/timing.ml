@@ -598,13 +598,19 @@ module Report = struct
         "FAIL, a wait re-arms after a stall", false
       | _, _ when not (List.is_empty straddles) ->
         "FAIL, a sample straddles a cell boundary", false
-      | Some fast, Some slow ->
-        let ok = Float.( <= ) fast 1. && Float.( >= ) slow 1. in
+      | None, None -> "no bounded samples", true
+      | _ ->
+        (* No sample past the first cell leaves a slow sender unbounded. *)
+        let ok =
+          Option.for_all fast ~f:(fun fast -> Float.( <= ) fast 1.)
+          && Option.for_all slow ~f:(fun slow -> Float.( >= ) slow 1.)
+        in
+        let margin value ~f = Option.value_map value ~default:"any amount" ~f in
         ( [%string
-            "%{if ok then \"\" else \"FAIL, \"}sender may run %{percent (1. -. fast)} \
-             fast or %{percent (slow -. 1.)} slow"]
+            "%{if ok then \"\" else \"FAIL, \"}sender may run %{margin fast ~f:(fun fast \
+             -> percent (1. -. fast))} fast or %{margin slow ~f:(fun slow -> percent \
+             (slow -. 1.))} slow"]
         , ok )
-      | _ -> "no bounded samples", true
     in
     [%string "cells of %{cell#Int} cycles from each anchor: %{tolerance}"], ok
   ;;

@@ -808,3 +808,37 @@ let%expect_test "two pins on one set, out or side-set bit are one GPIO, an error
     (passed false)
     |}]
 ;;
+
+let receiver ?clock ?(fifo_ready = true) ~cell text =
+  programs text
+  |> List.hd_exn
+  |> check
+       ~config:
+         { Timing.Config.default with
+           pins = pins [ "rx=in0,jmp" ]
+         ; fifo_ready
+         ; cell
+         ; clock
+         }
+;;
+
+let%expect_test "a sample that may land after its cell fails, a little late or a lot" =
+  receiver
+    ~cell:(Some 16)
+    ~clock:{ sys_hz = 125e6; clkdiv = 1. }
+    {|
+.program late
+    wait 0 pin 0
+    nop [13]
+    in pins, 1
+|};
+  [%expect
+    {|
+    late
+      0  wait 0 pin 0                     1+  -,16           samples rx  anchor
+      1  nop [13]                         14  1
+      2  in pins, 1                        1  15             samples rx
+    cells of 16 cycles from each anchor: FAIL, sender may run -6.25% fast or any amount slow
+    (passed false)
+    |}]
+;;
