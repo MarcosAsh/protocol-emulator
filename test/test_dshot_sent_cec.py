@@ -114,7 +114,9 @@ def decode_sent(levels):
     """SAE J2716 pulses from their falling edges: sync 56 ticks and within 1/64 of the
     last, every pulse low more than 4 ticks, nibbles 12 to 27 ticks and whole to an eighth
     of a tick, a pause 12 to 768. A trailing frame cut short has its sync checked, as
-    test/sent.ml's decoder does, and does not count."""
+    test/sent.ml's decoder does, and does not count. Like that one, an oracle for this
+    transmitter: no check of J2716's 3 to 90 us tick, so the test runs short ticks, and a
+    pause after every frame."""
     falls = [i for i in range(1, len(levels)) if levels[i - 1] and not levels[i]]
     rises = [i for i in range(1, len(levels)) if not levels[i - 1] and levels[i]]
     pulses = []
