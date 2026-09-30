@@ -42,6 +42,10 @@
   "//": "repairs antennas and CI fails on any antenna violation.",
   "RUN_ANTENNA_REPAIR": false,
 
+  "//": "DRT_ANTENNA_REPAIR_ITERS - the detailed router's repair loop stops once clean; 3 left one",
+  "//": "net on the power-up build (64 -> 7 -> 1 -> 1).",
+  "DRT_ANTENNA_REPAIR_ITERS": 6,
+
   "//": "SRAM macro integration, see odb_sram_stripes.py",
   "MACROS": {
     "RM_IHPSG13_1P_512x16_c2_bm_bist": {
