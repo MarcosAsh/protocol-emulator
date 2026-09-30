@@ -37,3 +37,27 @@ let%expect_test "exit codes tell a failed check from a usage error" =
     1  pico_examples/missing.pio
     |}]
 ;;
+
+let%expect_test "numbers out of range, and a time with no clock, are usage errors" =
+  let uart = [ "pico_examples/uart_tx.pio"; "-fifo-ready" ] in
+  List.iter
+    ~f:run
+    [ uart @ [ "-sys-hz"; "0" ]
+    ; uart @ [ "-sys-hz"; "125e6"; "-clkdiv"; "0.5" ]
+    ; uart @ [ "-cell"; "0" ]
+    ; uart @ [ "-set-count"; "6" ]
+    ; uart @ [ "-out-count"; "33" ]
+    ; uart @ [ "-rule"; "bit: out0 -> out0 >= 1us" ]
+    ; uart @ [ "-sys-hz"; "125e6"; "-rule"; "bit: out0 -> out0 >= 1us" ]
+    ];
+  [%expect
+    {|
+    1  pico_examples/uart_tx.pio -fifo-ready -sys-hz 0
+    1  pico_examples/uart_tx.pio -fifo-ready -sys-hz 125e6 -clkdiv 0.5
+    1  pico_examples/uart_tx.pio -fifo-ready -cell 0
+    1  pico_examples/uart_tx.pio -fifo-ready -set-count 6
+    1  pico_examples/uart_tx.pio -fifo-ready -out-count 33
+    1  pico_examples/uart_tx.pio -fifo-ready -rule bit: out0 -> out0 >= 1us
+    2  pico_examples/uart_tx.pio -fifo-ready -sys-hz 125e6 -rule bit: out0 -> out0 >= 1us
+    |}]
+;;

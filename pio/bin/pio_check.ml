@@ -74,6 +74,24 @@ let command =
            { pin with initial = List.Assoc.find initials pin.name ~equal:String.equal })
        in
        let rules = List.map rules ~f:Rule.of_string |> Or_error.all |> ok_or_usage in
+       let check ok message = if not ok then usage_error (Error.of_string message) in
+       check
+         (Option.for_all sys_hz ~f:(fun hz -> Float.( > ) hz 0.))
+         "-sys-hz must be > 0";
+       check
+         (Option.for_all clkdiv ~f:(fun div ->
+            Float.( >= ) div 1. && Float.( <= ) div 65536.))
+         "-clkdiv must be in 1..65536";
+       check (Option.for_all cell ~f:(fun cell -> cell > 0)) "-cell must be > 0";
+       check (0 <= set_count && set_count <= 5) "-set-count must be in 0..5";
+       check (0 <= out_count && out_count <= 32) "-out-count must be in 0..32";
+       check
+         (Option.is_some sys_hz
+          || List.for_all rules ~f:(fun (rule : Rule.t) ->
+            match rule.at_least with
+            | Cycles _ -> true
+            | Ns _ -> false))
+         "a rule in ns or us needs -sys-hz";
        let passed =
          List.map programs ~f:(fun program ->
            let exec =
