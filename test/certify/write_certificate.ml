@@ -766,6 +766,64 @@ let inductive
      no run reaches inside the base case's depth, so what fails is the induction step and
      the failure says the invariant is one some state satisfies. *)
   let teeth_pc = (List.last_exn rows).pc in
+  (* Teeth bmc runs from reset: the bounded row fewest instructions from pc 0 moved a
+     cycle, and a receiver's capture a cycle older. A receiver's capture is one cycle old
+     where its row allows two, so its rows move only later. *)
+  let anchors_on_edge = single_capture_edge && no_wrap && anchors_on_capture in
+  let moved =
+    let steps = Hashtbl.create (module Int) in
+    let rec walk depth = function
+      | [] -> ()
+      | pcs ->
+        List.iter pcs ~f:(fun pc -> Hashtbl.set steps ~key:pc ~data:depth);
+        List.filter_map rows ~f:(fun (row : Analyser.Row.t) ->
+          Option.some_if
+            ((not (Hashtbl.mem steps row.pc))
+             && List.exists row.since_edge ~f:(fun (from, _) ->
+               List.mem pcs from ~equal:Int.equal))
+            row.pc)
+        |> walk (depth + 1)
+    in
+    walk 0 [ 0 ];
+    let tooth name claim = sprintf "`ifdef %s\n      %s\n`endif\n" name claim in
+    let phase =
+      List.filter_map rows ~f:(fun (row : Analyser.Row.t) ->
+        match row.phase, Hashtbl.find steps row.pc with
+        | { lo = Some lo; hi = Some hi }, Some depth when row.pc > 0 ->
+          Some ((depth, hi - lo, row.pc), (lo, hi))
+        | _ -> None)
+      |> List.min_elt ~compare:(Comparable.lift [%compare: int * int * int] ~f:fst)
+      |> Option.value_map ~default:"" ~f:(fun ((_, _, pc), (lo, hi)) ->
+        let at by =
+          sprintf
+            "if (pc == %d && entry) assert (phase >= %d && phase <= %d);"
+            pc
+            (lo + by)
+            (hi + by)
+        in
+        (if anchors_on_edge then "" else tooth "ROW_EARLY" (at (-1)))
+        ^ tooth "ROW_LATE" (at 1))
+    in
+    let capture =
+      if not anchors_on_edge
+      then ""
+      else
+        List.find_map rows ~f:(fun (row : Analyser.Row.t) ->
+          match row.since_arm with
+          | Some { lo = Some lo; hi = Some _ }
+            when row.captured && moves_capture row.instruction ->
+            Some
+              (tooth
+                 "CAPTURE_OLDER"
+                 (sprintf
+                    "if (pc == %d && entry) assert (capture_age >= %d);"
+                    row.pc
+                    (lo + 1)))
+          | _ -> None)
+        |> Option.value ~default:""
+    in
+    phase ^ capture
+  in
   (* The one thing a certificate assumes of time, [no_wrap]. A wait for the host or for a
      pin can stall for as long as the world likes, so the rows after it have a floor under
      their phase and no ceiling: the core can fall arbitrarily far behind its deadline and
@@ -997,7 +1055,7 @@ module certificate (input clk);
       if (stalled) assert (came_valid && came == pc);
 %{claims}
 %{edges}
-%{stamp_claims}%{data_claims}%{extra_claims}`ifdef TEETH
+%{stamp_claims}%{data_claims}%{extra_claims}%{moved}`ifdef TEETH
       assert (pc != %{teeth_pc#Int});
 `endif
     end
