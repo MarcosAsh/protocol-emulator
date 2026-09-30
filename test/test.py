@@ -202,3 +202,49 @@ async def test_wrapped_loop(dut):
         levels.append((int(dut.uo_out.value) >> 1) & 1)
     assert levels in ([0, 0, 1, 1] * 10, [0, 1, 1, 0] * 10, [1, 1, 0, 0] * 10, [1, 0, 0, 1] * 10), levels
     assert (await host.read(STATUS))[0] == 0
+
+
+I2C_START_WATCH = assembled("i2c_start_watch")
+# The latency Predicate.compile certifies, from the core's first sample of the SDA fall to
+# the verdict's issue; the pads add the two synchroniser flops and the pin register.
+WATCH_LATENCY = 10
+PAD_LATENCY = WATCH_LATENCY + 3
+
+
+@cocotb.test()
+async def test_i2c_start_watch(dut):
+    """Every SDA fall while SCL is high pulses OUT0 a fixed 13 cycles later, and nothing else."""
+    await reset(dut)
+
+    host = AsyncHost(Pins(dut).transfer)
+    config = dict(DEFAULT_CONFIG, jmp_pin=1)
+    for reg, word in config_writes(config):
+        await host.write(reg, [word])
+    await host.write(PROGRAM_ADDR, [0])
+    await host.write(PROGRAM_REG, I2C_START_WATCH)
+    await host.write(CONTROL, [1])
+
+    # (sda, scl, cycles): a start, a byte's worth of data changes while SCL is low, a
+    # repeated start, a stop, and an SDA fall while SCL is low
+    bit = [(0, 0, 12), (0, 1, 12), (1, 1, 12), (1, 0, 12)]
+    waveform = [(1, 1, 30), (0, 1, 30), (0, 0, 20)] + bit * 4
+    waveform += [(1, 0, 12), (1, 1, 30), (0, 1, 30), (0, 0, 20), (0, 1, 20), (1, 1, 30)]
+    waveform += [(1, 0, 20), (0, 0, 20), (1, 0, 20), (1, 1, 40)]
+    starts, verdicts = [], []
+    cycle, sda, scl, previous = 0, 1, 1, 0
+    for next_sda, next_scl, cycles in waveform:
+        if sda == 1 and next_sda == 0 and next_scl == 1:
+            starts.append(cycle)
+        sda, scl = next_sda, next_scl
+        for _ in range(cycles):
+            dut.ui_in.value = 0b100 | (sda << 3) | (scl << 4)
+            await ClockCycles(dut.clk, 1)
+            level = (int(dut.uo_out.value) >> 1) & 1
+            if level and not previous:
+                verdicts.append(cycle)
+            previous = level
+            cycle += 1
+    assert len(starts) == 2
+    assert [v - s for s, v in zip(starts, verdicts)] == [PAD_LATENCY] * 2, (starts, verdicts)
+    assert len(verdicts) == 2, verdicts
+    assert (await host.read(STATUS))[0] & 0x3D == 0, "running, no fault"

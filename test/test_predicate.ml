@@ -195,3 +195,14 @@ let%expect_test "the engine runs the compiled firmware as the model does" =
      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
     |}]
 ;;
+
+let%expect_test "the watch cocotb runs on the chip is the compiler's" =
+  let firmware = Predicate.compile i2c_start ~latency:10 |> ok_exn in
+  print_s
+    [%message
+      ""
+        ~same:
+          (String.equal firmware.source (In_channel.read_all "i2c_start_watch.asm")
+           : bool)];
+  [%expect {| (same true) |}]
+;;
