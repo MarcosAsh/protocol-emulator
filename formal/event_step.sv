@@ -1,8 +1,8 @@
 // Event lemma: for any program and constant config, a pin wait at an issue releases in
 // exactly the cycle whose sample shows its level, or for an edge that level after the
 // other, and a held wait issues again the next cycle, so no event goes unseen and none is
-// invented. An input pin samples that cycle's input. With issue_timing's gaps this puts
-// the anchor after an event wait a fixed count of cycles after the event.
+// invented. A jmp on the pin goes where that cycle's sample says, as a poll and a guard
+// need. An input pin, and a bidirectional one not driven, samples that cycle's input.
 
 module event_step (input clk);
   (* anyconst *) wire [1:0] side_set_count;
@@ -92,6 +92,13 @@ module event_step (input clk);
   // an index past the pin space reads low
   wire now_level = (index < 28 && sample[index]) == polarity;
   wire was_other = (index < 28 && previous[index]) != polarity;
+  wire [3:0] cond = instruction[12:9];
+  wire pin_jump = decode_ok && opcode == 0 && (cond == 4 || cond == 5) && jmp_pin < 28;
+`ifdef JUMP_LATE
+  wire pin_high = previous[jmp_pin];
+`else
+  wire pin_high = sample[jmp_pin];
+`endif
 `ifdef LATE
   reg late_level = 0;
   always @(posedge clk) late_level <= now_level;
@@ -118,6 +125,7 @@ module event_step (input clk);
       assert(sample[27:20] == (inputs[27:20] | pin_out[27:20]));
 `endif
       assert(sample[4:0] == inputs[4:0]);
+      assert((sample[19:12] & ~pin_dir[19:12]) == (inputs[19:12] & ~pin_dir[19:12]));
     end
   end
 
@@ -130,7 +138,19 @@ module event_step (input clk);
   end
   always @(*) if (held && !clear) assert(issue && pc == held_pc);
 
+  // the jump lands where the sample says, unless the host stops or starts the core
+  reg jumped = 0, jump_taken = 0;
+  reg [8:0] jump_target = 0, jump_following = 0;
+  always @(posedge clk) begin
+    jumped <= !clear && issue && pin_jump && !stop && !start && !reset;
+    jump_taken <= pin_high == (cond == 4);
+    jump_target <= instruction[8:0];
+    jump_following <= pc == wrap_top ? wrap_bottom : pc + 9'd1;
+  end
+  always @(*) if (jumped && !clear) assert(pc == (jump_taken ? jump_target : jump_following));
+
 `ifndef LATE
   always @(*) cover(issue && pin_wait && source == 1 && advance && index == 0);
+  always @(*) cover(jumped && jump_taken && jump_target != jump_following);
 `endif
 endmodule

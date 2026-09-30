@@ -2,7 +2,7 @@
     certified number of cycles after each match. A deadline wait pads each match to the
     latency, so the kernel's acceptance fixes it and a latency the code cannot meet is
     refused, short by the wait's lateness. [formal/event_step.sby] proves the event wait
-    releases in the cycle that samples the event. *)
+    releases, and a poll or guard jump goes, by the sample of the cycle it issues in. *)
 
 open! Core
 

@@ -4,6 +4,7 @@ cover
 late teeth
 level_only teeth
 wires_plain teeth
+jump_late teeth
 
 [options]
 prove: mode prove
@@ -33,6 +34,7 @@ cd ..
 late: read -define LATE
 level_only: read -define LEVEL_ONLY
 wires_plain: read -define WIRES_PLAIN
+jump_late: read -define JUMP_LATE
 read_verilog -formal -sv event_step.sv
 prep -top event_step
 
