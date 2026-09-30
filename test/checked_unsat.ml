@@ -30,8 +30,11 @@ let check ~dimacs ~proof =
          ~sep:" "
          [ "cake_lpr"; Filename.quote dimacs; Filename.quote proof; ">" ^ out; "2>&1" ])
   in
-  let verdict = In_channel.read_all out in
-  Stdlib.Sys.remove out;
+  let verdict =
+    Exn.protect
+      ~f:(fun () -> In_channel.read_all out)
+      ~finally:(fun () -> Stdlib.Sys.remove out)
+  in
   match ran with
   | Ok () when String.equal verdict "s VERIFIED UNSAT\n" -> Ok ()
   | Ok () | Error _ -> error_s [%message "cake_lpr rejects the proof" verdict]
@@ -55,21 +58,23 @@ let negate_first_lemma lines =
 
 let solve ~bad_proof ~dimacs_in ~result_out () =
   let proof = Stdlib.Filename.temp_file "cadical" "lrat" in
-  let checked =
-    let%bind.Or_error () =
-      cadical ~binary:(not bad_proof) ~dimacs:dimacs_in ~proof ~result:result_out ()
-    in
-    (* any answer but SAT needs the proof, so none reads as UNSAT unchecked *)
-    match In_channel.read_lines result_out with
-    | "s SATISFIABLE" :: _ -> Ok ()
-    | _ ->
-      if bad_proof
-      then
+  Exn.protect
+    ~finally:(fun () -> Stdlib.Sys.remove proof)
+    ~f:(fun () ->
+      let%bind.Or_error () =
+        cadical ~binary:(not bad_proof) ~dimacs:dimacs_in ~proof ~result:result_out ()
+      in
+      (* any answer but SAT needs the proof, so none reads as UNSAT unchecked *)
+      match In_channel.read_lines result_out with
+      | "s SATISFIABLE" :: _ -> Ok ()
+      | _ when bad_proof ->
         Out_channel.write_lines proof (negate_first_lemma (In_channel.read_lines proof));
-      check ~dimacs:dimacs_in ~proof
-  in
-  Stdlib.Sys.remove proof;
-  checked
+        check ~dimacs:dimacs_in ~proof
+      | _ ->
+        (* cadical still answers UNSAT when a full disk cuts its proof short *)
+        let proof_bytes = In_channel.with_file proof ~f:In_channel.length in
+        check ~dimacs:dimacs_in ~proof
+        |> Or_error.tag_s ~tag:[%message (proof : string) (proof_bytes : int64)])
 ;;
 
 let solver = solve ~bad_proof:false
