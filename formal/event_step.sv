@@ -139,11 +139,12 @@ module event_step (input clk);
   always @(*) if (held && !clear) assert(issue && pc == held_pc);
 
   // the jump lands where the sample says, unless the host stops or starts the core
-  reg jumped = 0, jump_taken = 0;
+  reg jumped = 0, jump_taken = 0, jump_not_pin = 0;
   reg [8:0] jump_target = 0, jump_following = 0;
   always @(posedge clk) begin
     jumped <= !clear && issue && pin_jump && !stop && !start && !reset;
     jump_taken <= pin_high == (cond == 4);
+    jump_not_pin <= cond == 5;
     jump_target <= instruction[8:0];
     jump_following <= pc == wrap_top ? wrap_bottom : pc + 9'd1;
   end
@@ -151,6 +152,10 @@ module event_step (input clk);
 
 `ifndef LATE
   always @(*) cover(issue && pin_wait && source == 1 && advance && index == 0);
+  always @(*) cover(issue && pin_wait && source == 0 && advance);
+  always @(*) cover(held && !clear);
   always @(*) cover(jumped && jump_taken && jump_target != jump_following);
+  always @(*) cover(jumped && !jump_taken && jump_target != jump_following);
+  always @(*) cover(jumped && jump_not_pin && jump_taken && jump_target != jump_following);
 `endif
 endmodule
