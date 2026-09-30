@@ -169,9 +169,11 @@ let%expect_test "config registers are write only" =
        (pull_threshold 0x21 0) (crc_width 0x22 0) (crc_poly 0x23 0)
        (crc_init 0x24 0) (crc_reflect 0x25 0) (stuff_threshold 0x26 0)
        (stuff_level 0x27 0) (wrap_bottom 0x28 0) (wrap_top 0x29 0)
-       (period_fraction 0x2a 0) (autopull_data 0x2d 0) (manchester 0x2e 0)))
+       (period_fraction 0x2a 0) (autopull_data 0x2d 0) (manchester 0x2e 0)
+       (crc_poly_high 0x2f 0) (crc_init_high 0x30 0) (crc_complement 0x31 0)))
      (live
-      (1 2 1 4 5 6 7 8 1 10 11 0 1 0 1 16 1 18 19 20 21 0 23 0 25 26 27 0 1)))
+      (1 2 1 4 5 6 7 8 1 10 11 0 1 0 1 16 1 18 19 20 21 0 23 0 25 26 27 0 1 30 31
+       0)))
     (events ())
     |}]
 ;;
@@ -196,7 +198,7 @@ let%expect_test "the reserved registers and control bits do nothing" =
   [%expect
     {|
     ((back (0 0 0 0 0 0 0 0 0 0))
-     (live (0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)))
+     (live (0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)))
     (events ())
     |}]
 ;;

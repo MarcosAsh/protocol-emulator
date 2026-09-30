@@ -30,6 +30,7 @@ type t =
   ; crc_poly : int
   ; crc_init : int
   ; crc_reflect : bool
+  ; crc_complement : bool
   ; stuff_threshold : int
   ; stuff_level : bool
   ; wrap_bottom : int
@@ -63,6 +64,7 @@ let default =
   ; crc_poly = 0xa001
   ; crc_init = 0xffff
   ; crc_reflect = true
+  ; crc_complement = true
   ; stuff_threshold = 0
   ; stuff_level = true
   ; wrap_bottom = 0
@@ -89,9 +91,9 @@ let validate t =
     ; pin "capture_pin" t.capture_pin
     ; range "push_threshold" t.push_threshold ~lo:1 ~hi:Isa.data_bits
     ; range "pull_threshold" t.pull_threshold ~lo:1 ~hi:Isa.data_bits
-    ; range "crc_width" t.crc_width ~lo:1 ~hi:Isa.data_bits
-    ; range "crc_poly" t.crc_poly ~lo:0 ~hi:0xffff
-    ; range "crc_init" t.crc_init ~lo:0 ~hi:0xffff
+    ; range "crc_width" t.crc_width ~lo:1 ~hi:Crc.max_width
+    ; range "crc_poly" t.crc_poly ~lo:0 ~hi:((1 lsl Crc.max_width) - 1)
+    ; range "crc_init" t.crc_init ~lo:0 ~hi:((1 lsl Crc.max_width) - 1)
     ; range "stuff_threshold" t.stuff_threshold ~lo:0 ~hi:31
     ; range "wrap_bottom" t.wrap_bottom ~lo:0 ~hi:((1 lsl Isa.pc_bits) - 1)
     ; range "wrap_top" t.wrap_top ~lo:0 ~hi:((1 lsl Isa.pc_bits) - 1)

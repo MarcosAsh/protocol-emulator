@@ -55,6 +55,7 @@ type t =
   ; capture : int
   ; capture_armed : bool
   ; crc : int
+  ; crc_sending : bool
   ; stuff_run : int
   ; flip : int option
   }
@@ -98,6 +99,7 @@ let create ~config ~program =
   ; capture = 0
   ; capture_armed = false
   ; crc = config.crc_init
+  ; crc_sending = false
   ; stuff_run = 0
   ; flip = None
   }
@@ -215,11 +217,25 @@ let capture_edge t ~sample =
 
 let stuff_run_max = 31
 
-(* The assist units see every bit that crosses a pin one at a time. *)
+let crc_out_bit t =
+  Crc.out_bit ~width:t.config.crc_width ~reflect:t.config.crc_reflect t.crc
+;;
+
+(* what a single-bit [out] sends: the osr's bit, or the CRC's while it sends *)
+let sent_bit t bit =
+  if t.crc_sending then crc_out_bit t lxor Bool.to_int t.config.crc_complement else bit
+;;
+
+(* The assist units see every bit that crosses a pin one at a time; a sending CRC shifts. *)
 let bit_crosses t bit =
   let c = t.config in
   let crc =
-    Crc.step ~width:c.crc_width ~poly:c.crc_poly ~reflect:c.crc_reflect t.crc ~bit
+    Crc.step
+      ~width:c.crc_width
+      ~poly:c.crc_poly
+      ~reflect:c.crc_reflect
+      t.crc
+      ~bit:(if t.crc_sending then crc_out_bit t else bit)
   in
   let stuff_run =
     if Bool.equal (bit = 1) c.stuff_level
@@ -309,7 +325,7 @@ let in_source t (source : Isa.In_source.Cases.t) ~count ~sample =
   | Null -> 0
   | Isr -> t.isr
   | Osr -> t.osr
-  | Crc -> t.crc
+  | Crc -> t.crc land data_mask
   | Capture -> t.capture land data_mask
 ;;
 
@@ -409,10 +425,11 @@ let sys t (op : Isa.Sys_op.Cases.t) =
   | Irq -> { t with irq = true }
   | Push -> push t
   | Pull -> pull t
-  | Crc_init -> { t with crc = t.config.crc_init }
+  | Crc_init -> { t with crc = t.config.crc_init; crc_sending = false }
   | Stuff_reset -> { t with stuff_run = 0 }
   | Capture_arm -> { t with capture_armed = true }
   | Seek -> { t with data_ptr = t.x % data_size; data_age = 0 }
+  | Crc_send -> { t with crc_sending = true }
 ;;
 
 let execute t (op : Isa.Op.t) ~sample =
@@ -425,6 +442,7 @@ let execute t (op : Isa.Op.t) ~sample =
   | Out { dest; count } ->
     let t = autopull_before_out t in
     let value, t = shift_out t ~count in
+    let value = if count = 1 then sent_bit t value else value in
     let t = if count = 1 then bit_crosses t value else t in
     out_dest t dest ~count ~value
   | Mov { dest; op; source } ->

@@ -233,6 +233,66 @@ more:
     |}]
 ;;
 
+(* CRC-32/MPEG-2, MSB first and not complemented, sent by the CRC unit after its data; the
+   osr still shifts under it, so two words of padding keep autopull off an empty fifo *)
+let%expect_test "crc_send sends the CRC after its data" =
+  let data = String.to_list "123456789" |> List.map ~f:Char.to_int in
+  let rec words = function
+    | hi :: lo :: rest -> ((hi lsl 8) lor lo) :: words rest
+    | [ hi ] -> [ hi lsl 8 ]
+    | [] -> []
+  in
+  let bits = 8 * List.length data in
+  let config =
+    { Program_config.default with
+      set_count = 2
+    ; out_shift = Left
+    ; autopull = true
+    ; crc_width = 32
+    ; crc_poly = 0x04c11db7
+    ; crc_init = 0xffffffff
+    ; crc_reflect = false
+    ; crc_complement = false
+    }
+  in
+  let levels = Queue.create () in
+  let m =
+    lockstep
+      ~cycles:((6 * (bits + 32)) + 40)
+      ~config
+      ~program:(In_channel.read_all "crc_send.asm" |> assemble)
+      ~preload:(((bits - 2) :: words data) @ [ 0; 0 ])
+      ~inputs:(fun _ -> 0)
+      ~react:(fun m -> Queue.enqueue levels ((m.pin_out lsr config.out_base) land 3))
+      ()
+  in
+  let levels = Queue.to_list levels in
+  let start, _ = List.findi_exn levels ~f:(fun _ l -> l land 2 <> 0) in
+  let sent =
+    List.init (bits + 32) ~f:(fun k ->
+      List.nth_exn levels (start + 1 + (6 * k) + 3) land 1)
+  in
+  let #(data_bits, crc_bits) = List.split_n sent bits in
+  let msb_first =
+    List.concat_map data ~f:(fun byte ->
+      List.init 8 ~f:(fun n -> (byte lsr (7 - n)) land 1))
+  in
+  print_s
+    [%message
+      ""
+        ~data_as_sent:([%equal: int list] data_bits msb_first : bool)
+        ~crc:(List.fold crc_bits ~init:0 ~f:(fun acc b -> (acc lsl 1) lor b) : Int.Hex.t)
+        (m.halted : bool)
+        (m.fault : Machine.Fault.t)];
+  [%expect
+    {|
+    ("lockstep held" (cycles 664))
+    ((data_as_sent true) (crc 0x376e6e7) (m.halted true)
+     (m.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    |}]
+;;
+
 let%expect_test "faults and halt" =
   let program = assemble {|
     pull

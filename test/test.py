@@ -202,3 +202,38 @@ async def test_wrapped_loop(dut):
         levels.append((int(dut.uo_out.value) >> 1) & 1)
     assert levels in ([0, 0, 1, 1] * 10, [0, 1, 1, 0] * 10, [1, 1, 0, 0] * 10, [1, 0, 0, 1] * 10), levels
     assert (await host.read(STATUS))[0] == 0
+
+
+@cocotb.test()
+async def test_crc_send(dut):
+    """CRC-32/MPEG-2 over "123456789", MSB first and not complemented, sent by the CRC
+    unit after the data; two words of padding, since the osr still shifts under it."""
+    await reset(dut)
+
+    host = AsyncHost(Pins(dut).transfer)
+    config = dict(
+        DEFAULT_CONFIG, set_count=2, out_shift_right=0, autopull=1, crc_width=32,
+        crc_poly=0x1DB7, crc_poly_high=0x04C1, crc_init=0xFFFF, crc_init_high=0xFFFF,
+        crc_reflect=0, crc_complement=0)
+    for reg, word in config_writes(config):
+        await host.write(reg, [word])
+    await host.write(PROGRAM_ADDR, [0])
+    await host.write(PROGRAM_REG, assembled("crc_send"))
+    data = b"123456789"
+    words = [(data[i] << 8) | (data[i + 1] if i + 1 < len(data) else 0) for i in range(0, len(data), 2)]
+    await host.write(TX, [8 * len(data) - 2] + words + [0, 0])
+    await host.write(CONTROL, [1])
+
+    # OUT0 is uo_out[1], OUT1 uo_out[2]; a bit every six cycles from the cycle after OUT1
+    levels = []
+    for _ in range(6 * (8 * len(data) + 32) + 40):
+        await ClockCycles(dut.clk, 1)
+        levels.append((int(dut.uo_out.value) >> 1) & 3)
+    start = next(n for n, level in enumerate(levels) if level & 2)
+    sent = [levels[start + 1 + 6 * k + 3] & 1 for k in range(8 * len(data) + 32)]
+    assert sent[:-32] == [(byte >> (7 - n)) & 1 for byte in data for n in range(8)]
+    crc = 0
+    for bit in sent[-32:]:
+        crc = (crc << 1) | bit
+    assert crc == 0x0376E6E7, hex(crc)
+    assert (await host.read(STATUS))[0] & 0x3D == 1, "halted, no fault"

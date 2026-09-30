@@ -208,7 +208,7 @@ let%expect_test "what the directed firmwares and the random programs never issue
     mov      192 of 192
     set        5 of   5
     alu       72 of  72
-    sys        9 of   9
+    sys       10 of  10
     delay      7 of   7
     side-set   7 of   7
     never, by construction:

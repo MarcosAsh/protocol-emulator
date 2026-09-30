@@ -5,7 +5,15 @@
 open! Core
 open! Hardcaml
 
+(** 32, so Ethernet's FCS fits. *)
+val max_width : int
+
+val width_bits : int
 val step : width:int -> poly:int -> reflect:bool -> int -> bit:int -> int
+
+(** The bit the register sends next: its LSB if reflected, else its top bit. Stepping with
+    it as [bit] shifts the register without the polynomial. *)
+val out_bit : width:int -> reflect:bool -> int -> int
 
 (** Width and polynomial chosen at run time. *)
 module Make (Comb : Comb.S) : sig
@@ -16,4 +24,6 @@ module Make (Comb : Comb.S) : sig
     -> Comb.t
     -> bit:Comb.t
     -> Comb.t
+
+  val out_bit : width:Comb.t -> reflect:Comb.t -> Comb.t -> Comb.t
 end

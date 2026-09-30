@@ -27,7 +27,7 @@ module Config = struct
     ; push_threshold : 'a [@bits Isa.count_bits]
     ; autopull : 'a
     ; pull_threshold : 'a [@bits Isa.count_bits]
-    ; crc_width : 'a [@bits Isa.count_bits]
+    ; crc_width : 'a [@bits Crc.width_bits]
     ; crc_poly : 'a [@bits Isa.data_bits]
     ; crc_init : 'a [@bits Isa.data_bits]
     ; crc_reflect : 'a
@@ -38,12 +38,17 @@ module Config = struct
     ; period_fraction : 'a [@bits Isa.fraction_bits]
     ; autopull_data : 'a
     ; manchester : 'a
+    ; crc_poly_high : 'a [@bits Isa.data_bits]
+    ; crc_init_high : 'a [@bits Isa.data_bits]
+    ; crc_complement : 'a
     }
   [@@deriving hardcaml]
 
   let of_program_config (c : Program_config.t) =
     let bool b = Bits.of_bool b in
     let int width v = Bits.of_unsigned_int ~width v in
+    let low v = int Isa.data_bits (v land ((1 lsl Isa.data_bits) - 1)) in
+    let high v = int Isa.data_bits (v lsr Isa.data_bits) in
     let right (d : Program_config.Shift_direction.t) =
       match d with
       | Right -> Bits.vdd
@@ -67,9 +72,9 @@ module Config = struct
     ; push_threshold = int Isa.count_bits c.push_threshold
     ; autopull = bool c.autopull
     ; pull_threshold = int Isa.count_bits c.pull_threshold
-    ; crc_width = int Isa.count_bits c.crc_width
-    ; crc_poly = int Isa.data_bits c.crc_poly
-    ; crc_init = int Isa.data_bits c.crc_init
+    ; crc_width = int Crc.width_bits c.crc_width
+    ; crc_poly = low c.crc_poly
+    ; crc_init = low c.crc_init
     ; crc_reflect = bool c.crc_reflect
     ; stuff_threshold = int Isa.count_bits c.stuff_threshold
     ; stuff_level = bool c.stuff_level
@@ -78,6 +83,9 @@ module Config = struct
     ; period_fraction = int Isa.fraction_bits c.period_fraction
     ; autopull_data = bool c.autopull_data
     ; manchester = bool c.manchester
+    ; crc_poly_high = high c.crc_poly
+    ; crc_init_high = high c.crc_init
+    ; crc_complement = bool c.crc_complement
     }
   ;;
 end
@@ -188,7 +196,8 @@ module Make (Timer : Timer) = struct
       ; decode_ok : 'a
       ; opcode_onehot : 'a [@bits List.length Isa.Opcode.Cases.all]
       ; wait_select : 'a [@bits num_pins]
-      ; crc : 'a [@bits Isa.data_bits]
+      ; crc : 'a [@bits Crc.max_width]
+      ; crc_sending : 'a
       ; stuff_run : 'a [@bits Isa.count_bits]
       ; flip_pending : 'a
       ; flip_bit : 'a
@@ -223,7 +232,8 @@ module Make (Timer : Timer) = struct
     let%hw flip_bit = wire 1 in
     let%hw capture = wire timer_bits in
     let%hw capture_armed = wire 1 in
-    let%hw crc = wire data_bits in
+    let%hw crc = wire Crc.max_width in
+    let%hw crc_sending = wire 1 in
     let%hw stuff_run = wire count_bits in
     let%hw fetch_addr = wire pc_bits in
     let%hw data_ptr = wire Isa.data_addr_bits in
@@ -384,7 +394,7 @@ module Make (Timer : Timer) = struct
         ; Null, zero data_bits
         ; Isr, isr
         ; Osr, osr
-        ; Crc, crc
+        ; Crc, sel_bottom crc ~width:data_bits
         ; Capture, uresize capture ~width:data_bits
         ]
       &: mask
@@ -414,11 +424,22 @@ module Make (Timer : Timer) = struct
     let%hw pull_ok = pull_fifo &: ~:(tx.empty) in
     let%hw osr_before = mux2 pull_data_ok i.data_word @@ mux2 pull_ok tx.head osr in
     let%hw osr_count_before = mux2 pull_now (zero count_bits) osr_count in
-    let%hw out_value =
+    let%hw osr_out_value =
       mux2
         c.out_shift_right
         (osr_before &: mask)
         (log_shift ~f:srl osr_before ~by:shift_back &: mask)
+    in
+    let module Crc_step = Crc.Make (Signal) in
+    let%hw crc_poly = c.crc_poly_high @: c.crc_poly in
+    let%hw crc_init = c.crc_init_high @: c.crc_init in
+    let%hw crc_out_bit = Crc_step.out_bit ~width:c.crc_width ~reflect:c.crc_reflect crc in
+    (* a single bit out of a sending CRC replaces the osr's *)
+    let%hw out_value =
+      mux2
+        (crc_sending &: (shift_count ==:. 1))
+        (uresize (crc_out_bit ^: c.crc_complement) ~width:data_bits)
+        osr_out_value
     in
     let%hw osr_shifted =
       mux2
@@ -430,17 +451,16 @@ module Make (Timer : Timer) = struct
     (* assist units see every single-bit shift *)
     let%hw bit_crosses = shift_count ==:. 1 &: (is In |: is Out) in
     let%hw crossing_bit = mux2 (is In) in_value.:(0) out_value.:(0) in
-    let module Crc_step = Crc.Make (Signal) in
     let%hw crc_stepped =
       Crc_step.step
         ~width:c.crc_width
-        ~poly:c.crc_poly
+        ~poly:crc_poly
         ~reflect:c.crc_reflect
         crc
-        ~bit:crossing_bit
+        ~bit:(mux2 crc_sending crc_out_bit crossing_bit)
     in
     let%hw crc_next =
-      mux2 (is_sys Crc_init) c.crc_init @@ mux2 bit_crosses crc_stepped crc
+      mux2 (is_sys Crc_init) crc_init @@ mux2 bit_crosses crc_stepped crc
     in
     let%hw stuff_run_max = of_unsigned_int ~width:count_bits 31 in
     let%hw stuff_run_next =
@@ -790,7 +810,13 @@ module Make (Timer : Timer) = struct
     stall <-- reg spec stall_next;
     halted <-- reg spec ~clear_to:vdd halted_next;
     capture <-- reg spec ~enable:captured now;
-    crc <-- reg spec (mux2 start c.crc_init @@ mux2 go crc_next crc);
+    crc <-- reg spec (mux2 start crc_init @@ mux2 go crc_next crc);
+    crc_sending
+    <-- reg
+          spec
+          (mux2 start gnd
+           @@ mux2 (op_go &: is_sys Crc_init) gnd
+           @@ mux2 (op_go &: is_sys Crc_send) vdd crc_sending);
     stuff_run
     <-- reg spec (mux2 start (zero count_bits) @@ mux2 go stuff_run_next stuff_run);
     capture_armed
@@ -830,6 +856,7 @@ module Make (Timer : Timer) = struct
     ; opcode_onehot = concat_lsb is_opcode
     ; wait_select
     ; crc
+    ; crc_sending
     ; stuff_run
     ; flip_pending
     ; flip_bit

@@ -7,9 +7,10 @@ module issue_timing (input clk);
   (* anyseq *) wire [2:0] set_count;
   (* anyseq *) wire [4:0] jmp_pin, capture_pin, push_threshold, pull_threshold;
   (* anyseq *) wire side_set_pindirs, capture_rising, in_shift_right, out_shift_right, autopush, autopull;
-  (* anyseq *) wire [4:0] crc_width, stuff_threshold;
-  (* anyseq *) wire [15:0] crc_poly, crc_init;
-  (* anyseq *) wire crc_reflect, stuff_level;
+  (* anyseq *) wire [5:0] crc_width;
+  (* anyseq *) wire [4:0] stuff_threshold;
+  (* anyseq *) wire [15:0] crc_poly, crc_init, crc_poly_high, crc_init_high;
+  (* anyseq *) wire crc_reflect, crc_complement, stuff_level;
   (* anyseq *) wire [8:0] wrap_bottom, wrap_top;
   (* anyseq *) wire [15:0] period_fraction;
   (* anyseq *) wire autopull_data, manchester, data_write_valid;
@@ -26,7 +27,9 @@ module issue_timing (input clk);
 
   wire [27:0] pin_out, pin_dir;
   wire [8:0] pc;
-  wire [15:0] x, y, p, osr, isr, rx_head, instruction, crc;
+  wire [15:0] x, y, p, osr, isr, rx_head, instruction;
+  wire [31:0] crc;
+  wire crc_sending;
   wire [23:0] t, now, capture;
   wire [4:0] osr_count, isr_count, stall, stuff_run;
   wire halted, irq, underflow, overflow, missed_deadline, decode, capture_armed;
@@ -52,6 +55,8 @@ module issue_timing (input clk);
     .config$wrap_bottom(wrap_bottom), .config$wrap_top(wrap_top),
     .config$period_fraction(period_fraction),
     .config$autopull_data(autopull_data), .config$manchester(manchester),
+    .config$crc_poly_high(crc_poly_high), .config$crc_init_high(crc_init_high),
+    .config$crc_complement(crc_complement),
     .stop(stop), .flush(flush),
     .start(start), .program_write$valid(program_write_valid),
     .program_write$addr(program_write_addr), .program_write$data(program_write_data),
@@ -64,7 +69,7 @@ module issue_timing (input clk);
     .halted(halted), .irq(irq), .fault$underflow(underflow), .fault$overflow(overflow),
     .fault$missed_deadline(missed_deadline), .fault$decode(decode), .capture(capture),
     .capture_armed(capture_armed), .tx_level(tx_level), .rx_level(rx_level),
-    .rx_head(rx_head), .instruction(instruction), .crc(crc), .stuff_run(stuff_run),
+    .rx_head(rx_head), .instruction(instruction), .crc(crc), .crc_sending(crc_sending), .stuff_run(stuff_run),
     .decode_ok(decode_ok), .opcode_onehot(opcode_onehot), .wait_select(wait_select));
 
   always @(*) begin
@@ -95,7 +100,7 @@ module issue_timing (input clk);
    || (opcode == 5 && instruction[7:5] < 5)         // set
    || (opcode == 6 && instruction[5:4] != 3 && (!instruction[3] || instruction[2:0] < 5)); // alu
   wire jump = opcode == 0 && instruction[12:9] < 12;
-  wire sys = opcode == 7 && (instruction[7:3] == 0 || instruction[7:0] == 8);
+  wire sys = opcode == 7 && instruction[7:4] == 0 && instruction[3:0] < 10;
 
   // what the core registers beside the instruction always agrees with it
   always @(posedge clk)

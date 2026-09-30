@@ -35,8 +35,8 @@ module Config : sig
     ; autopull : 'a
     ; pull_threshold : 'a
     ; crc_width : 'a
-    ; crc_poly : 'a
-    ; crc_init : 'a
+    ; crc_poly : 'a (** The low half; [crc_poly_high] is the high. *)
+    ; crc_init : 'a (** The low half; [crc_init_high] is the high. *)
     ; crc_reflect : 'a
     ; stuff_threshold : 'a
     ; stuff_level : 'a
@@ -45,6 +45,9 @@ module Config : sig
     ; period_fraction : 'a
     ; autopull_data : 'a
     ; manchester : 'a
+    ; crc_poly_high : 'a (** Last, so the host registers before keep their places. *)
+    ; crc_init_high : 'a
+    ; crc_complement : 'a
     }
   [@@deriving hardcaml]
 
@@ -144,6 +147,7 @@ module Make (_ : Timer) : sig
       ; opcode_onehot : 'a
       ; wait_select : 'a (** Bit [n] for the pin the wait field names. *)
       ; crc : 'a
+      ; crc_sending : 'a
       ; stuff_run : 'a
       ; flip_pending : 'a
       ; flip_bit : 'a

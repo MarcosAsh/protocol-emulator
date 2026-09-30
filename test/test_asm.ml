@@ -235,6 +235,7 @@ let%expect_test "the words committed for the cocotb test are current" =
     ; "edge_logger_echo"
     ; "data_stream"
     ; "ethernet"
+    ; "crc_send"
     ; "i2c_master_marked"
     ; "scl_rise"
     ]

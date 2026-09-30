@@ -191,7 +191,7 @@ let%expect_test "the frame lemma counts each word as the writer Writes counts it
     "%d of the %d words decode under some side-set count\n"
     (List.map decoded ~f:fst |> Int.Set.of_list |> Set.length)
     (1 lsl Isa.word_bits);
-  [%expect {| 34592 of the 65536 words decode under some side-set count |}]
+  [%expect {| 34624 of the 65536 words decode under some side-set count |}]
 ;;
 
 let%expect_test "the footprint of each firmware, and of its config under any program" =

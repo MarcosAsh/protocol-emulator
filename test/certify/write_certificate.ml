@@ -284,6 +284,11 @@ let stamp_claims ~(config : Program_config.t) (rows : Analyser.Row.t list) =
 let data_claims ~(config : Program_config.t) ~words (rows : Analyser.Row.t list) =
   if config.autopull || config.manchester
   then raise_s [%message "BUG: data claims are for firmware that pulls by hand"];
+  if List.exists rows ~f:(fun row ->
+       match row.instruction with
+       | Op { op = Sys Crc_send; _ } -> true
+       | _ -> false)
+  then raise_s [%message "BUG: data claims are for firmware whose outs send the osr"];
   let kernel = Kernel.Table.of_analyser rows in
   let osr = Osr_kernel.Table.propose ~config ~words kernel in
   Osr_kernel.check ~config ~words ~kernel osr |> ok_exn;
@@ -482,6 +487,7 @@ let anyseq_host =
    - the opcode, the decode flag and the wait pin, which the core registers beside the
      word, say what the word says: they are state of their own, and induction would start
      them disagreeing with it and let a wait retire before its deadline;
+   - with no [crc_send] in the program, the CRC is not sending, so outs send the osr;
    - what is left of a delay brings the next issue to the phase its row allows;
    - in a counted loop, the phase less the loop's slope times x lies in the row's offset,
      which is what carries the phase to where the loop falls through;
@@ -883,6 +889,21 @@ let inductive
   let data_monitor, data_claims =
     if data then data_claims ~config ~words rows else "", ""
   in
+  (* with no crc_send the CRC never sends, and the pins carry what the program outs *)
+  let sends_crc =
+    List.exists rows ~f:(fun row ->
+      match row.instruction with
+      | Op { op = Sys Crc_send; _ } -> true
+      | _ -> false)
+  in
+  let crc_wires, crc_ports, never_sends =
+    if sends_crc
+    then "", "", ""
+    else
+      ( "  wire crc_sending;\n"
+      , ".crc_sending(crc_sending),\n    "
+      , "      assert (!crc_sending);\n" )
+  in
   let extra_monitor, extra_claims =
     match extra with
     | Some extra -> extra ~config rows
@@ -929,7 +950,7 @@ module certificate (input clk);
   wire [27:0] wait_pin = 28'd1 << instruction[4:0];
   wire [4:0] stall;
   wire halted, decode_ok, eng_issue, eng_jmp_go, flip_pending;
-%{edge_wires}  engine_top dut (
+%{edge_wires}%{crc_wires}  engine_top dut (
     .clock(clk), .clear(clear),
     %{config_ports},
     .start(start), .program_write$valid(1'b0), .program_write$addr(9'b0),
@@ -941,7 +962,7 @@ module certificate (input clk);
     .osr(osr), .osr_count(osr_count), .stall(stall),
     .fault$underflow(underflow), .halted(halted), .instruction(instruction), .decode_ok(decode_ok),
     .opcode_onehot(opcode_onehot), .wait_select(wait_select), .flip_pending(flip_pending),
-    %{ports}%{edge_ports}.eng_issue(eng_issue),
+    %{ports}%{edge_ports}%{crc_ports}.eng_issue(eng_issue),
     .eng_jmp_go(eng_jmp_go), .eng_tx_head(tx_head),
     .eng_tx_empty(tx_empty));
 
@@ -987,7 +1008,7 @@ module certificate (input clk);
       assert (!halted && !started);
 %{captured_has_passed}%{holds_capture}      assert (decode_ok && opcode_onehot == (8'd1 << instruction[15:13]));
       assert (wait_select == wait_pin);
-      if (!jumped) assert (instruction == rom(pc) && fetched == rom(after(pc)));
+%{never_sends}      if (!jumped) assert (instruction == rom(pc) && fetched == rom(after(pc)));
       if (jumped) assert (stall == 1 && fetched == rom(pc));
       if (stalled) assert (instruction[15:13] == 1);
       assert (%{reachable});

@@ -16,9 +16,12 @@ module chip_frame (input clk);
   (* anyconst *) wire [4:0] jmp_pin_1, capture_pin_1, push_threshold_1, pull_threshold_1;
   (* anyconst *) wire side_set_pindirs_0, capture_rising_0, in_shift_right_0, out_shift_right_0, autopush_0, autopull_0;
   (* anyconst *) wire side_set_pindirs_1, capture_rising_1, in_shift_right_1, out_shift_right_1, autopush_1, autopull_1;
-  (* anyconst *) wire [4:0] crc_width_0, stuff_threshold_0, crc_width_1, stuff_threshold_1;
+  (* anyconst *) wire [5:0] crc_width_0, crc_width_1;
+  (* anyconst *) wire [4:0] stuff_threshold_0, stuff_threshold_1;
   (* anyconst *) wire [15:0] crc_poly_0, crc_init_0, crc_poly_1, crc_init_1;
-  (* anyconst *) wire crc_reflect_0, stuff_level_0, crc_reflect_1, stuff_level_1;
+  (* anyconst *) wire [15:0] crc_poly_high_0, crc_init_high_0, crc_poly_high_1, crc_init_high_1;
+  (* anyconst *) wire crc_reflect_0, crc_complement_0, stuff_level_0;
+  (* anyconst *) wire crc_reflect_1, crc_complement_1, stuff_level_1;
   (* anyconst *) wire [8:0] wrap_bottom_0, wrap_top_0, wrap_bottom_1, wrap_top_1;
   (* anyconst *) wire [15:0] period_fraction_0, period_fraction_1;
   (* anyconst *) wire autopull_data_0, manchester_0, autopull_data_1, manchester_1;
@@ -60,6 +63,8 @@ module chip_frame (input clk);
     .hosts$config$stuff_level_0(stuff_level_0), .hosts$config$wrap_bottom_0(wrap_bottom_0),
     .hosts$config$wrap_top_0(wrap_top_0), .hosts$config$period_fraction_0(period_fraction_0),
     .hosts$config$autopull_data_0(autopull_data_0), .hosts$config$manchester_0(manchester_0),
+    .hosts$config$crc_poly_high_0(crc_poly_high_0), .hosts$config$crc_init_high_0(crc_init_high_0),
+    .hosts$config$crc_complement_0(crc_complement_0),
     .hosts$start_0(start[0]), .hosts$program_write$valid_0(program_write_valid[0]),
     .hosts$program_write$addr_0(program_write_addr_0),
     .hosts$program_write$data_0(program_write_data_0),
@@ -83,6 +88,8 @@ module chip_frame (input clk);
     .hosts$config$stuff_level_1(stuff_level_1), .hosts$config$wrap_bottom_1(wrap_bottom_1),
     .hosts$config$wrap_top_1(wrap_top_1), .hosts$config$period_fraction_1(period_fraction_1),
     .hosts$config$autopull_data_1(autopull_data_1), .hosts$config$manchester_1(manchester_1),
+    .hosts$config$crc_poly_high_1(crc_poly_high_1), .hosts$config$crc_init_high_1(crc_init_high_1),
+    .hosts$config$crc_complement_1(crc_complement_1),
     .hosts$start_1(start[1]), .hosts$program_write$valid_1(program_write_valid[1]),
     .hosts$program_write$addr_1(program_write_addr_1),
     .hosts$program_write$data_1(program_write_data_1),

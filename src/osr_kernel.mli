@@ -4,7 +4,7 @@
     ([pulled]). formal/data_step.sv proves the core follows [step]; test_osr_kernel.ml
     proves by SAT that [accepts] keeps it in the rows given the kernel's x. Composed on
     paper: an out at a [pulled] row sends bits [shifted, shifted + n) of that word (from 0
-    if it autopulls), or underflow is set. Meaningful only for a program the kernel
+    if it autopulls), or underflow is set, unless a [crc_send] is in force. Meaningful only for a program the kernel
     accepts; an empty row is never reached. *)
 
 open! Core

@@ -17,7 +17,8 @@
     pull from an empty one leaves [osr] and sets [underflow]. A late deadline release sets
     [missed_deadline]; an undecodable word halts and sets [decode]. CRC and stuff counter
     see only single-bit [in]/[out]; [jmp stuff_pending] compares the run with the
-    threshold. *)
+    threshold. After [crc_send] such a bit shifts the CRC out instead, and an [out] sends
+    the CRC's bit, complemented if configured, in place of the osr's. *)
 
 open! Core
 
@@ -66,6 +67,7 @@ type t = private
   ; capture : int
   ; capture_armed : bool
   ; crc : int
+  ; crc_sending : bool (** From [crc_send] to [crc_init]. *)
   ; stuff_run : int
   ; flip : int option
   (** Manchester [out] bit whose second half starts at the next issue. *)

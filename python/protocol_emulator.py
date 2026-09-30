@@ -27,14 +27,15 @@ CONFIG_FIELDS = [
     "in_shift_right", "out_shift_right", "autopush", "push_threshold", "autopull",
     "pull_threshold", "crc_width", "crc_poly", "crc_init", "crc_reflect",
     "stuff_threshold", "stuff_level", "wrap_bottom", "wrap_top", "period_fraction",
-    None, None, "autopull_data", "manchester",
+    None, None, "autopull_data", "manchester", "crc_poly_high", "crc_init_high",
+    "crc_complement",
 ]
 
 DEFAULT_CONFIG = {
     "side_set_base": 5, "in_count": 16, "out_base": 5, "out_count": 1, "set_base": 5, "set_count": 1,
     "in_shift_right": 1, "out_shift_right": 1, "push_threshold": 16, "pull_threshold": 16,
     "crc_width": 16, "crc_poly": 0xA001, "crc_init": 0xFFFF, "crc_reflect": 1,
-    "stuff_level": 1, "wrap_top": 511,
+    "crc_complement": 1, "stuff_level": 1, "wrap_top": 511,
 }
 
 

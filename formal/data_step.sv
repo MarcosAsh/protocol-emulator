@@ -3,7 +3,8 @@
 // took it, move as osr_step.v (the checker's own step) says. From the clear on, osr_count
 // is the count stopped at 16, the osr holds the word shifted by it, and each out whose
 // word was pulled sends bits [c, c + n) of it from the end the osr shifts from (c the
-// count, 0 after an autopull), or underflow is set by that out or before. A take finds
+// count, 0 after an autopull), or underflow is set by that out or before, unless a
+// sending CRC gives a single-bit out its own bit (value_step.sv). A take finds
 // no word from an empty fifo or a data pointer moved the cycle before; a mov to the osr
 // writes none. The word is the tx fifo's head (fifo_order.sv) or the data memory's word;
 // the value reaches the pins by edge_step.sv. Nothing is assumed of the host (stop, flush,
@@ -16,9 +17,10 @@ module data_step (input clk);
   (* anyconst *) wire [2:0] set_count;
   (* anyconst *) wire [4:0] jmp_pin, capture_pin, push_threshold, pull_threshold;
   (* anyconst *) wire side_set_pindirs, capture_rising, in_shift_right, out_shift_right, autopush, autopull;
-  (* anyconst *) wire [4:0] crc_width, stuff_threshold;
-  (* anyconst *) wire [15:0] crc_poly, crc_init;
-  (* anyconst *) wire crc_reflect, stuff_level;
+  (* anyconst *) wire [5:0] crc_width;
+  (* anyconst *) wire [4:0] stuff_threshold;
+  (* anyconst *) wire [15:0] crc_poly, crc_init, crc_poly_high, crc_init_high;
+  (* anyconst *) wire crc_reflect, crc_complement, stuff_level;
   (* anyconst *) wire [8:0] wrap_bottom, wrap_top;
   (* anyconst *) wire [15:0] period_fraction;
   (* anyconst *) wire autopull_data, manchester;
@@ -36,7 +38,9 @@ module data_step (input clk);
 
   wire [27:0] pin_out, pin_dir;
   wire [8:0] pc;
-  wire [15:0] x, y, p, osr, isr, rx_head, instruction, crc;
+  wire [15:0] x, y, p, osr, isr, rx_head, instruction;
+  wire [31:0] crc;
+  wire crc_sending;
   wire [23:0] t, now, capture;
   wire [4:0] osr_count, isr_count, stall, stuff_run;
   wire halted, irq, underflow, overflow, missed_deadline, decode, capture_armed;
@@ -65,6 +69,8 @@ module data_step (input clk);
     .config$wrap_bottom(wrap_bottom), .config$wrap_top(wrap_top),
     .config$period_fraction(period_fraction),
     .config$autopull_data(autopull_data), .config$manchester(manchester),
+    .config$crc_poly_high(crc_poly_high), .config$crc_init_high(crc_init_high),
+    .config$crc_complement(crc_complement),
     .stop(stop), .flush(flush),
     .start(start), .program_write$valid(program_write_valid),
     .program_write$addr(program_write_addr), .program_write$data(program_write_data),
@@ -76,7 +82,7 @@ module data_step (input clk);
     .halted(halted), .irq(irq), .fault$underflow(underflow), .fault$overflow(overflow),
     .fault$missed_deadline(missed_deadline), .fault$decode(decode), .capture(capture),
     .capture_armed(capture_armed), .tx_level(tx_level), .rx_level(rx_level),
-    .rx_head(rx_head), .instruction(instruction), .crc(crc), .stuff_run(stuff_run),
+    .rx_head(rx_head), .instruction(instruction), .crc(crc), .crc_sending(crc_sending), .stuff_run(stuff_run),
     .decode_ok(decode_ok), .opcode_onehot(opcode_onehot), .wait_select(wait_select),
     .eng_out_value(out_value), .eng_tx_head(tx_head), .eng_tx_empty(tx_empty),
     .eng_data_moved(data_moved));
@@ -164,7 +170,7 @@ module data_step (input clk);
       if (holds_word) assert(osr == shifted_by(word, shifted));
       if (sets_underflow) assert(underflow);
       // the lemma
-      if (go && is_out && next_pulled)
+      if (go && is_out && next_pulled && !(crc_sending && n == 1))
 `ifdef OFF_BY_ONE
         assert(out_has_word ? out_value == bits(out_word, c + 6'd1, n) : underflow || pull_now);
 `else

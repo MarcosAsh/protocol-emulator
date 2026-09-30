@@ -28,11 +28,12 @@ type t =
   ; push_threshold : int
   ; autopull : bool
   ; pull_threshold : int
-  ; crc_width : int (** 1 to 16. *)
+  ; crc_width : int (** 1 to 32. *)
   ; crc_poly : int (** Right-aligned; the top bit is implicit. *)
   ; crc_init : int
   ; crc_reflect : bool
   (** LSB first, as USB, with the polynomial given reflected; else MSB first. *)
+  ; crc_complement : bool (** [crc_send] sends the register complemented. *)
   ; stuff_threshold : int (** Run length that raises [stuff_pending]; 0 turns it off. *)
   ; stuff_level : bool (** The level whose runs count. *)
   ; wrap_bottom : int
@@ -51,7 +52,8 @@ type t =
 [@@deriving sexp_of, compare, equal]
 
 (** One output at OUT0, shift right, no side-set or autopush/pull, stuffing off, whole
-    cycle period. CRC is CRC-16/USB (0x8005 reflected as 0xa001, init 0xffff). *)
+    cycle period. CRC is CRC-16/USB (0x8005 reflected as 0xa001, init 0xffff, sent
+    complemented). *)
 val default : t
 
 val validate : t -> unit Or_error.t
