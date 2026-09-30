@@ -943,8 +943,11 @@ and finish_execute ctx ~row (instruction : Pioasm.Instruction.t) key (timing : T
       Option.value_map pin_ref ~default:(key, timing) ~f:(fun pin_ref ->
         see ctx ~row ~rising:polarity pin_ref (key, timing))
     in
-    ctx.emit row Anchor;
-    finish key { timing with phase = Since.zero } Next
+    (match pin_ref with
+     | Some _ ->
+       ctx.emit row Anchor;
+       finish key { timing with phase = Since.zero } Next
+     | None -> finish key timing Next)
   | In { source = Pins; bits } ->
     List.iter (List.init bits ~f:Fn.id) ~f:(fun bit ->
       if bit = 0

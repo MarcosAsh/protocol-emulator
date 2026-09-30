@@ -715,3 +715,36 @@ let%expect_test "a wait within the synchroniser delay of our own edge may see th
     (passed false)
     |}]
 ;;
+
+let%expect_test "a wait on an irq locks to no input edge" =
+  programs
+    {|
+.program irqlock
+.wrap_target
+    wait 1 irq 0
+    nop [2]
+    in pins, 1 [7]
+    in pins, 1 [7]
+    push
+.wrap
+|}
+  |> List.hd_exn
+  |> check
+       ~config:
+         { Timing.Config.default with
+           pins = pins [ "rx=in0" ]
+         ; fifo_ready = true
+         ; cell = Some 8
+         };
+  [%expect
+    {|
+    irqlock
+      0  wait 1 irq 0                     1+  -
+      1  nop [2]                           3  -
+      2  in pins, 1 [7]                    8  -              samples rx
+      3  in pins, 1 [7]                    8  -              samples rx
+      4  push                              1  -
+    cells of 8 cycles from each anchor: FAIL, a sample follows a stall, or no wait
+    (passed false)
+    |}]
+;;
