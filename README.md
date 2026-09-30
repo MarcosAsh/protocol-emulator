@@ -57,6 +57,9 @@ board has run it yet; `make -C test TESTCASE=test_uart_over_spi` runs it under c
 - hardcaml_hobby_boards' `Uart.Tx`, compiled to firmware, drives the core's pin as the
   circuit drives its line, 4 cycles later, at 4 clocks a bit, for bytes at least 4 cycles
   after ready (`make -C formal fsm_miter`).
+- Two engines composed: uart_tx on engine 0 to uart_rx on engine 1 over an on-chip wire,
+  10 cycles a bit, is proved for all time: engine 1 pushes the low byte of each word
+  engine 0 pulled, once a frame (`formal/link.sby`, the `link` job).
 - Each UNSAT in the SAT proofs is checked by cake_lpr, an LRAT checker verified in HOL4.
 
 ## What is not proved
