@@ -799,9 +799,7 @@ let write ctx ~row writes ((key : Key.t), (timing : Timing.t)) =
       |> Option.map ~f:(fun (level : Level.t) ->
         let level =
           match level with
-          | Released
-            when Level.equal levels.(i) High
-                 || List.mem ctx.config.no_stretch pin.name ~equal:String.equal ->
+          | Released when List.mem ctx.config.no_stretch pin.name ~equal:String.equal ->
             Level.High
           | level -> level
         in
@@ -912,7 +910,7 @@ type control =
   | Jump of int
 
 (* Another driver may hold a low we released until a wait sees the pin high, so its rise
-   stays recent. *)
+   stays recent; a pin released while high has no rise to keep. *)
 let advance (key : Key.t) timing cycles =
   let (timing : Timing.t) = Timing.shift timing cycles in
   { timing with

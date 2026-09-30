@@ -925,3 +925,31 @@ let%expect_test "an error with no rules still fails" =
     (passed false)
     |}]
 ;;
+
+let%expect_test "a release while high starts no low, so nothing can stretch it" =
+  programs
+    {|
+.program idle
+.side_set 1 opt pindirs
+    nop side 1 [7]
+    nop side 0 [7]
+hang:
+    jmp hang side 0
+|}
+  |> List.hd_exn
+  |> check
+       ~config:
+         { Timing.Config.default with
+           pins = pins [ "scl=side0:dir" ] |> initially true
+         ; rules = rules [ "t_high: scl+ -> scl- >= 8" ]
+         };
+  [%expect
+    {|
+    idle
+      0  nop side 1 [7]                    8  -
+      1  nop side 0 [7]                    8  -              scl-
+      2  jmp hang side 0                   1  -
+    t_high: scl+ -> scl- >= 8 cycles: FAIL, never checked
+    (passed false)
+    |}]
+;;
