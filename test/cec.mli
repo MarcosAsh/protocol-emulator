@@ -43,13 +43,14 @@ val words : Frame.t -> int list
     sent to it, pulling the line low from the ACK slot's fall to 1.5 ms. It times what it
     sees against CEC 1.4's limits: a start bit low 3.5 to 3.9 ms and 4.3 to 4.7 ms to the
     next fall, a one low 0.4 to 0.8 ms, a zero 1.3 to 1.7, an ACK slot as either whoever
-    pulls it, a bit 2.05 to 2.75 to the next fall. Before a start bit the line must be
-    free, CEC 9.1, for 3 bit periods after a frame that failed, a block unacknowledged or
-    a broadcast refused, when the next is the same frame again, 5, 12 ms, before a new
-    initiator's, and 7 before any other frame of the same initiator's; 3 checked at the
-    start bit and the rest at the frame's EOM. A frame whose line stays high past a bit's
-    2.75 ms, or a start bit's 4.7, is given up and not counted, but failed: the next may
-    retry it if it begins with the blocks it got to. *)
+    pulls it, a bit 2.05 to 2.75 to the next fall. Before a start bit the line, from the
+    nominal end of its last bit or of a start bit given up, must be free, CEC 9.1, for 3
+    bit periods after a frame that failed, a block unacknowledged or a broadcast refused,
+    when the next is the same frame again, 5, 12 ms, before a new initiator's, and 7
+    before any other frame of the same initiator's; 3 checked at the start bit and the
+    rest at the frame's EOM. A frame whose line stays high past a bit's 2.75 ms, or a
+    start bit's 4.7, is given up and not counted, but failed: the next may retry it if it
+    begins with the blocks it got to. *)
 module Follower : sig
   type t
 

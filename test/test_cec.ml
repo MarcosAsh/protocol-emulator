@@ -244,6 +244,13 @@ let%expect_test "a start 1 bit period after a frame, given up" =
   [%expect {| ((frames 1) (violations ("free of 2400000 ns"))) |}]
 ;;
 
+(* A start bit given up is the line's last use: the line is free from the end of its 4.5
+   ms, here 1 bit period before the next frame, too soon after anything. *)
+let%expect_test "a frame 1 bit period after a lone start bit" =
+  followers_see ~cuts:[ 1, 90 ] [ 0, 4, 0, []; 20, 4, 0, []; 1, 4, 0, [ 0x04 ] ];
+  [%expect {| ((frames 2) (violations ("free of 2400000 ns"))) |}]
+;;
+
 let%expect_test "cec in lockstep" =
   let unit = shortest_unit + 1 in
   let follower = ref (Follower.create ~cycle_ns:(50_000 / unit) ~address:0) in

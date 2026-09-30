@@ -190,6 +190,7 @@ class CecFollower:
         self.drive_until = -1
         self.free = None
         self.previous = None
+        self.fall_began_start = False
 
     def drives(self):
         return self.cycle < self.drive_until
@@ -212,7 +213,9 @@ class CecFollower:
     def step(self, low):
         if low and not self.low:
             if self.fall is not None and self.kind is None:
-                self.free = self.cycle - self.fall - 48 * self.unit
+                # from the end of the last bit's period, or a start bit's given up
+                period = 90 if self.fall_began_start else 48
+                self.free = self.cycle - self.fall - period * self.unit
                 # 3 bit periods at least, whatever the frame; which of 3, 5 or 7 at its EOM
                 if self.previous is not None:
                     assert self.free >= 3 * 48 * self.unit, f"free of {self.free} cycles"
@@ -227,6 +230,7 @@ class CecFollower:
                 if header & 0xF == self.address:
                     self.drive_until = self.cycle + 30 * self.unit
             self.fall = self.cycle
+            self.fall_began_start = self.kind is None
         elif not low and self.low:
             width = self.cycle - self.fall
             if self.kind is None:
@@ -438,3 +442,16 @@ async def test_cec_follower_early_start(dut):
         assert str(e).startswith("free of 48 cycles"), e
     else:
         assert False, "a start 1 bit period on accepted"
+
+
+@cocotb.test()
+async def test_cec_follower_lone_start(dut):
+    """A start bit given up is the line's last use: the line is free from the end of its
+    90 units, here 1 bit period before the next frame, too soon after anything."""
+    try:
+        cec_followers_see(
+            [(0, 4, 0, []), (20, 4, 0, []), (1, 4, 0, [0x04])], cuts={1: 90})
+    except AssertionError as e:
+        assert str(e).startswith("free of 48 cycles"), e
+    else:
+        assert False, "a frame 1 bit period after a start bit accepted"
