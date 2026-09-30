@@ -411,19 +411,49 @@ let self_check_command =
           exit 1]
 ;;
 
+(* What the host loads beside the words, and the window it may check the verdicts against,
+   one [name value] per line for the cocotb test to read. *)
+let predicate_settings (firmware : Predicate.Firmware.t) =
+  let { Program_config.set_base; jmp_pin; wrap_bottom; wrap_top; _ } = firmware.config in
+  let { Predicate.Certificate.latency; jitter; sampling; _ } = firmware.certificate in
+  let sampling =
+    match sampling with
+    | Waits _ -> []
+    | Polls { min_run; unseen_before_verdict } ->
+      [ "min_run", min_run; "unseen_before_verdict", unseen_before_verdict ]
+  in
+  [ "set_base", set_base
+  ; "jmp_pin", jmp_pin
+  ; "wrap_bottom", wrap_bottom
+  ; "wrap_top", wrap_top
+  ; "latency", latency
+  ; "jitter", jitter
+  ]
+  @ sampling
+  @ Option.value_map firmware.budget_from_host ~default:[] ~f:(fun budget ->
+    [ "budget_from_host", budget ])
+  |> List.map ~f:(fun (name, value) -> [%string "%{name} %{value#Int}"])
+  |> String.concat_lines
+;;
+
 let predicate_command =
   Command.basic
     ~summary:"Compile a predicate over pin events to firmware and print its source"
     ~readme:(fun () ->
       "As in \"pin 0 falls while pin 1 is high\" or \"pin 2 stops moving\". The \
-       certificate goes to stderr. A latency the code cannot meet is refused with the \
-       cycles it is short by.")
+       certificate goes to stderr, with the config and host budget it depends on. A \
+       latency the code cannot meet is refused with the cycles it is short by.")
     [%map_open.Command
       let text = anon ("PREDICATE" %: string)
       and latency =
         flag "-latency" (required int) ~doc:"N cycles from the event to the verdict"
       and verdict_pin =
         flag "-verdict-pin" (optional int) ~doc:"N the pin that pulses (default OUT0)"
+      and settings =
+        flag
+          "-settings"
+          (optional string)
+          ~doc:"FILE write the config, host budget and window there, one per line"
       in
       fun () ->
         match
@@ -433,7 +463,14 @@ let predicate_command =
         with
         | Ok firmware ->
           print_string firmware.source;
-          eprint_s [%sexp (firmware.certificate : Predicate.Certificate.t)]
+          Option.iter settings ~f:(fun file ->
+            Out_channel.write_all file ~data:(predicate_settings firmware));
+          eprint_s
+            [%message
+              ""
+                ~certificate:(firmware.certificate : Predicate.Certificate.t)
+                ~budget_from_host:(firmware.budget_from_host : int option)
+                ~config:(firmware.config : Program_config.t)]
         | Error e ->
           eprintf "%s\n" (Error.to_string_hum e);
           exit 1]

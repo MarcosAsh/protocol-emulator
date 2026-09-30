@@ -7,7 +7,7 @@ from cocotb.triggers import ClockCycles
 import sys
 
 sys.path.insert(0, "../python")
-from protocol_emulator import CONTROL, DATA, DATA_ADDR, DEFAULT_CONFIG, PROGRAM_ADDR, PROGRAM as PROGRAM_REG, STATUS, TX, Host, config_writes
+from protocol_emulator import CONFIG_FIELDS, CONTROL, DATA, DATA_ADDR, DEFAULT_CONFIG, PROGRAM_ADDR, PROGRAM as PROGRAM_REG, STATUS, TX, Host, config_writes
 
 HALF = 4
 
@@ -204,11 +204,29 @@ async def test_wrapped_loop(dut):
     assert (await host.read(STATUS))[0] == 0
 
 
-I2C_START_WATCH = assembled("i2c_start_watch")
-# The latency Predicate.compile certifies, from the core's first sample of the SDA fall to
-# the verdict's issue; the pads add the two synchroniser flops and the pin register.
-WATCH_LATENCY = 10
-PAD_LATENCY = WATCH_LATENCY + 3
+def predicate_settings(name):
+    """What `generate.exe predicate -settings` wrote beside the watch: the config, the
+    host budget if any, and the certified window."""
+    with open(f"{name}.settings") as f:
+        return {key: int(value) for key, value in (line.split() for line in f)}
+
+
+async def load_watch(host, name):
+    settings = predicate_settings(name)
+    config = dict(DEFAULT_CONFIG, **{k: v for k, v in settings.items() if k in CONFIG_FIELDS})
+    for reg, word in config_writes(config):
+        await host.write(reg, [word])
+    await host.write(PROGRAM_ADDR, [0])
+    await host.write(PROGRAM_REG, assembled(name))
+    if "budget_from_host" in settings:
+        await host.write(TX, [settings["budget_from_host"]])
+    await host.write(CONTROL, [1])
+    return settings
+
+
+# The pads add the two synchroniser flops and the pin register to a certified latency,
+# which runs from the core's first sample of the event to the verdict's issue.
+PAD_DELAY = 3
 
 
 @cocotb.test()
@@ -217,12 +235,8 @@ async def test_i2c_start_watch(dut):
     await reset(dut)
 
     host = AsyncHost(Pins(dut).transfer)
-    config = dict(DEFAULT_CONFIG, jmp_pin=1)
-    for reg, word in config_writes(config):
-        await host.write(reg, [word])
-    await host.write(PROGRAM_ADDR, [0])
-    await host.write(PROGRAM_REG, I2C_START_WATCH)
-    await host.write(CONTROL, [1])
+    settings = await load_watch(host, "i2c_start_watch")
+    assert settings["jitter"] == 0
 
     # (sda, scl, cycles): a start, a byte's worth of data changes while SCL is low, a
     # repeated start, a stop, and an SDA fall while SCL is low
@@ -245,17 +259,10 @@ async def test_i2c_start_watch(dut):
             previous = level
             cycle += 1
     assert len(starts) == 2
-    assert [v - s for s, v in zip(starts, verdicts)] == [PAD_LATENCY] * 2, (starts, verdicts)
+    pad_latency = settings["latency"] + PAD_DELAY
+    assert [v - s for s, v in zip(starts, verdicts)] == [pad_latency] * 2, (starts, verdicts)
     assert len(verdicts) == 2, verdicts
     assert (await host.read(STATUS))[0] & 0x3D == 0, "running, no fault"
-
-
-QUIET_WATCH = assembled("quiet_watch")
-# Predicate.compile's window for "pin 2 stops moving" at latency 20: the verdict issues 20
-# to 24 cycles after the core samples the last edge, or 23 to 27 at the pads, if every run
-# of the pin lasts 5 cycles; an edge in the last 2 cycles, 5 at the pads, goes unseen.
-QUIET_WINDOW = (20 + 3, 24 + 3)
-QUIET_UNSEEN = 2 + 3
 
 
 @cocotb.test()
@@ -264,12 +271,14 @@ async def test_quiet_watch(dut):
     await reset(dut)
 
     host = AsyncHost(Pins(dut).transfer)
-    config = dict(DEFAULT_CONFIG, jmp_pin=2, wrap_bottom=3, wrap_top=22)
-    for reg, word in config_writes(config):
-        await host.write(reg, [word])
-    await host.write(PROGRAM_ADDR, [0])
-    await host.write(PROGRAM_REG, QUIET_WATCH)
-    await host.write(CONTROL, [1])
+    # "pin 2 stops moving" at latency 20: the verdict comes latency to latency + jitter
+    # after the core samples the last edge, if every run lasts min_run cycles; an edge in
+    # the last unseen_before_verdict cycles goes unseen
+    settings = await load_watch(host, "quiet_watch")
+    low = settings["latency"] + PAD_DELAY
+    high = low + settings["jitter"]
+    unseen = settings["unseen_before_verdict"] + PAD_DELAY
+    assert settings["min_run"] <= 5
 
     runs = [40, 10, 5, 30, 22, 50, 7, 26, 60, 9, 23, 28, 45, 5, 6, 33]
     changes, verdicts = [], []
@@ -286,10 +295,9 @@ async def test_quiet_watch(dut):
                 verdicts.append(cycle)
             previous = verdict
             cycle += 1
-    low, high = QUIET_WINDOW
     answered = []
     for v in verdicts:
-        seen = [c for c in changes if c <= v - QUIET_UNSEEN]
+        seen = [c for c in changes if c <= v - unseen]
         if seen:
             assert low <= v - seen[-1] <= high, (v, seen[-1])
             answered.append(seen[-1])

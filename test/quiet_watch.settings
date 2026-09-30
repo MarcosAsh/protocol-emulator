@@ -1,0 +1,8 @@
+set_base 5
+jmp_pin 2
+wrap_bottom 3
+wrap_top 22
+latency 20
+jitter 4
+min_run 5
+unseen_before_verdict 2

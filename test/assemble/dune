@@ -89,23 +89,32 @@
  (action
   (diff uart_tx_rows.expected uart_tx_rows.gen)))
 
-; The predicate compiler's firmware is the watch cocotb runs, and a latency one cycle short
-; is refused.
+; The predicate compiler's firmware and settings are the watch cocotb runs, and a latency
+; one cycle short is refused.
 
 (rule
- (with-stdout-to
-  i2c_start_watch.gen
-  (run
-   %{exe:../../bin/generate.exe}
-   predicate
-   -latency
-   10
-   "pin 0 falls while pin 1 is high")))
+ (targets i2c_start_watch.gen i2c_start_watch.settings.gen)
+ (action
+  (with-stdout-to
+   i2c_start_watch.gen
+   (run
+    %{exe:../../bin/generate.exe}
+    predicate
+    -latency
+    10
+    -settings
+    i2c_start_watch.settings.gen
+    "pin 0 falls while pin 1 is high"))))
 
 (rule
  (alias runtest)
  (action
   (diff ../i2c_start_watch.asm i2c_start_watch.gen)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff ../i2c_start_watch.settings i2c_start_watch.settings.gen)))
 
 (rule
  (with-outputs-to
@@ -125,11 +134,25 @@
   (diff i2c_start_short.expected i2c_start_short.gen)))
 
 (rule
- (with-stdout-to
-  quiet_watch.gen
-  (run %{exe:../../bin/generate.exe} predicate -latency 20 "pin 2 stops moving")))
+ (targets quiet_watch.gen quiet_watch.settings.gen)
+ (action
+  (with-stdout-to
+   quiet_watch.gen
+   (run
+    %{exe:../../bin/generate.exe}
+    predicate
+    -latency
+    20
+    -settings
+    quiet_watch.settings.gen
+    "pin 2 stops moving"))))
 
 (rule
  (alias runtest)
  (action
   (diff ../quiet_watch.asm quiet_watch.gen)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff ../quiet_watch.settings quiet_watch.settings.gen)))
