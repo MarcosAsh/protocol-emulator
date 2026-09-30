@@ -544,3 +544,30 @@ let%expect_test "a sample that may land before its cell is a negative margin, an
     (passed false)
     |}]
 ;;
+
+let%expect_test "a sample after a stall cannot be placed in a cell, and fails" =
+  programs
+    {|
+.program stalls
+    wait 0 pin 0
+    nop [10]
+    in pins, 1
+    push
+    in pins, 1 [6]
+    push
+|}
+  |> List.hd_exn
+  |> check ~config:{ Timing.Config.default with pins = pins [ "rx=in0" ]; cell = Some 8 };
+  [%expect
+    {|
+    stalls
+      0  wait 0 pin 0                     1+  -,22..?        samples rx  anchor
+      1  nop [10]                         11  1
+      2  in pins, 1                        1  12             samples rx
+      3  push                             1+  13
+      4  in pins, 1 [6]                    7  14..?          samples rx
+      5  push                             1+  21..?
+    cells of 8 cycles from each anchor: FAIL, a sample follows a stall, or no wait
+    (passed false)
+    |}]
+;;

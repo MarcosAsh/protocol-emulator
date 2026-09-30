@@ -377,6 +377,7 @@ module Event = struct
     | Sample of
         { pin : string
         ; phase : Since.t
+        ; locks : bool (** A wait's own sample, which the receiver locks to. *)
         ; own : (Since.t * Since.t) option
         (** Cycles since the last rise and fall of an output of the same name. *)
         }
@@ -505,8 +506,9 @@ module Report = struct
      wait releases on the first tick after the edge. With a clock this is in system
      clocks: the release also waits for the synchroniser's clock, [n] ticks of a
      fractional divider span the floor to the ceiling of [n] times it, and the divider is
-     the one the SDK programs while the sender runs at the one asked for. A wait's own sample
-     follows its stall, so it is unbounded and left out. *)
+     the one the SDK programs while the sender runs at the one asked for. A wait's own
+     sample is where the receiver locks, so it is left out; any other sample must have a
+     bounded phase. *)
   let receiver t cell =
     let earliest, latest, cell_length =
       match t.clock with
@@ -521,10 +523,15 @@ module Report = struct
     let samples =
       List.concat_map t.rows ~f:(fun row ->
         List.filter_map row.events ~f:(function
-          | Sample { phase = Some { lo = Some lo; hi = Some hi }; _ } -> Some (lo, hi)
+          | Sample { phase; locks = false; _ } -> Some phase
           | _ -> None))
-      |> List.dedup_and_sort ~compare:[%compare: int * int]
     in
+    let samples, unbounded =
+      List.partition_map samples ~f:(function
+        | Some { lo = Some lo; hi = Some hi } -> First (lo, hi)
+        | _ -> Second ())
+    in
+    let samples = List.dedup_and_sort samples ~compare:[%compare: int * int] in
     let straddles = List.filter samples ~f:(fun (lo, hi) -> lo / cell <> hi / cell) in
     let fast =
       List.map samples ~f:(fun (lo, hi) ->
@@ -540,6 +547,8 @@ module Report = struct
     let percent ratio = sprintf "%.2f%%" (ratio *. 100.) in
     let tolerance, ok =
       match fast, slow with
+      | _, _ when not (List.is_empty unbounded) ->
+        "FAIL, a sample follows a stall, or no wait", false
       | _, _ when not (List.is_empty straddles) ->
         "FAIL, a sample straddles a cell boundary", false
       | Some fast, Some slow ->
@@ -764,7 +773,7 @@ let write ctx ~row writes ((key : Key.t), (timing : Timing.t)) =
   , { timing with rise = Array.to_list rise; fall = Array.to_list fall } )
 ;;
 
-let sample ctx ~row (timing : Timing.t) pin_ref =
+let sample ?(locks = false) ctx ~row (timing : Timing.t) pin_ref =
   let names =
     List.filter_map ctx.inputs ~f:(fun pin ->
       Option.some_if
@@ -783,7 +792,7 @@ let sample ctx ~row (timing : Timing.t) pin_ref =
       |> Option.map ~f:(fun (i, _) ->
         List.nth_exn timing.rise i, List.nth_exn timing.fall i)
     in
-    ctx.emit row (Sample { pin; phase = timing.phase; own }))
+    ctx.emit row (Sample { pin; phase = timing.phase; locks; own }))
 ;;
 
 let may_stall ctx (op : Pioasm.Op.t) =
@@ -856,9 +865,9 @@ let rec execute ctx ~row (instruction : Pioasm.Instruction.t) state =
      | Osr_not_empty -> go key true @ go key false)
   | Wait { source; _ } ->
     (match source with
-     | Pin index -> sample ctx ~row timing (In index)
-     | Gpio index -> sample ctx ~row timing (Gpio index)
-     | Jmp_pin -> sample ctx ~row timing Jmp_pin
+     | Pin index -> sample ~locks:true ctx ~row timing (In index)
+     | Gpio index -> sample ~locks:true ctx ~row timing (Gpio index)
+     | Jmp_pin -> sample ~locks:true ctx ~row timing Jmp_pin
      | Irq _ -> ());
     ctx.emit row Anchor;
     finish key { timing with phase = Since.zero } Next
