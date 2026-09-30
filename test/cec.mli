@@ -6,7 +6,9 @@
     4.5 ms; a bit is 12 units low for a one and 30 for a zero, 0.6 and 1.5 ms, and 48 in
     all. In each ACK slot the initiator sends a one, samples the line at 21 units, 1.05
     ms, and pushes what it saw, 0 when a follower acknowledged. After a frame the line is
-    left free for five bit periods. A block's word that is late is an underflow fault.
+    left free for seven bit periods, 16.8 ms, CEC 9.1's wait before an initiator's next
+    frame, which covers a retry's three too. A block's word that is late is an underflow
+    fault.
 
     No arbitration: the initiator does not watch the line before a frame or read back its
     bits, and sends every block whatever the ACK. *)
@@ -41,7 +43,9 @@ val words : Frame.t -> int list
     sent to it, pulling the line low from the ACK slot's fall to 1.5 ms. It times what it
     sees against CEC 1.4's limits: a start bit low 3.5 to 3.9 ms and 4.3 to 4.7 ms to the
     next fall, a one low 0.4 to 0.8 ms, a zero 1.3 to 1.7, a bit 2.05 to 2.75 to the next
-    fall, and 5 bit periods, 12 ms, free before a start bit. *)
+    fall. Before a start bit the line must be free, CEC 9.1, for 3 bit periods after a
+    frame that failed, a block unacknowledged or a broadcast refused, 5, 12 ms, before a
+    new initiator's, and 7 before the same initiator's next; the header says which. *)
 module Follower : sig
   type t
 

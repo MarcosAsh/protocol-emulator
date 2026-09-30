@@ -34,8 +34,8 @@ let print_follower follower ~acks (fault : Machine.Fault.t) =
 ;;
 
 (* The follower at 0 on the line, times scaled so a unit of [unit] cycles is 50 us. *)
-let run ~unit ~cycles =
-  let t = Machine.create ~config ~program:(Firmware.assemble firmware) |> ok_exn in
+let run ?(source = firmware) ~unit ~cycles () =
+  let t = Machine.create ~config ~program:(Firmware.assemble source) |> ok_exn in
   let rec loop (t : Machine.t) follower pending n acks =
     if n = 0
     then t, follower, List.rev acks
@@ -82,7 +82,34 @@ let%expect_test "the words of a frame" =
 
 (* A unit of 25 cycles, as a 500 kHz clock would give. *)
 let%expect_test "four frames, acknowledged by the TV but the last" =
-  run ~unit:25 ~cycles:145_000;
+  run ~unit:25 ~cycles:145_000 ();
+  [%expect
+    {|
+    ((frames
+      ((((initiator 4) (destination 0) (data ())) (true))
+       (((initiator 4) (destination 0) (data (4))) (true true))
+       (((initiator 4) (destination 0) (data (71 67 69 67)))
+        (true true true true true))
+       (((initiator 4) (destination 5) (data ())) (false))))
+     (acks (0 0 0 0 0 0 0 0 1))
+     (measured_ns
+      (("start low" (3700000 3700000)) (start (4500000 4500000))
+       ("zero low" (1500000 1500000)) (bit (2400000 2400000))
+       ("one low" (600000 600000)) (free (16820000 16820000))))
+     (violations ())
+     (fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    |}]
+;;
+
+(* Five bit periods between frames, the wait a new initiator owes, is short by two for
+   this one's next frame. *)
+let%expect_test "the follower refuses five bit periods free before the same initiator" =
+  let pattern = "set y, 6" in
+  if not (String.is_substring firmware ~substring:pattern)
+  then raise_s [%message "BUG: not in the source" pattern];
+  let source = String.substr_replace_first firmware ~pattern ~with_:"set y, 4" in
+  run ~source ~unit:25 ~cycles:145_000 ();
   [%expect
     {|
     ((frames
@@ -96,7 +123,7 @@ let%expect_test "four frames, acknowledged by the TV but the last" =
       (("start low" (3700000 3700000)) (start (4500000 4500000))
        ("zero low" (1500000 1500000)) (bit (2400000 2400000))
        ("one low" (600000 600000)) (free (12020000 12020000))))
-     (violations ())
+     (violations ("free of 12020000 ns"))
      (fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
     |}]
@@ -149,7 +176,7 @@ let%expect_test "cec in lockstep" =
      (measured_ns
       (("start low" (3700000 3700000)) (start (4500000 4500000))
        ("zero low" (1500000 1500000)) (bit (2400000 2400000))
-       ("one low" (600000 600000)) (free (12062500 12062500))))
+       ("one low" (600000 600000)) (free (16862500 16862500))))
      (violations ())
      (fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))

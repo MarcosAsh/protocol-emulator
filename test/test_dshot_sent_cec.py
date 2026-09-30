@@ -158,7 +158,9 @@ async def test_sent(dut):
 class CecFollower:
     """A follower at logical address 0 that acknowledges every block sent to it and times
     the initiator in units: start low 70 to 78 and 86 to 94 in all, a one low 8 to 16, a
-    zero 26 to 34, a bit 41 to 55 (CEC 1.4, in 50 us units)."""
+    zero 26 to 34, a bit 41 to 55 (CEC 1.4, in 50 us units). Before a frame the line is
+    free for 3 bit periods of 48 units after one that failed, 5 before a new initiator's
+    and 7 before the same initiator's next (CEC 9.1)."""
 
     def __init__(self, unit):
         self.unit = unit
@@ -171,6 +173,8 @@ class CecFollower:
         self.acks = []
         self.frames = []
         self.drive_until = -1
+        self.free = None
+        self.previous = None
 
     def drives(self):
         return self.cycle < self.drive_until
@@ -178,8 +182,17 @@ class CecFollower:
     def within(self, cycles, lo, hi, name):
         assert lo * self.unit <= cycles <= hi * self.unit, f"{name} of {cycles} cycles"
 
+    def check_free(self, initiator):
+        if self.free is None or self.previous is None:
+            return
+        previous, went_through = self.previous
+        periods = 3 if not went_through else 7 if previous == initiator else 5
+        assert self.free >= periods * 48 * self.unit, f"free of {self.free} cycles"
+
     def step(self, low):
         if low and not self.low:
+            if self.fall is not None and self.kind is None:
+                self.free = self.cycle - self.fall - 48 * self.unit
             if self.fall is not None and self.kind is not None:
                 period = self.cycle - self.fall
                 if self.kind == "start":
@@ -201,11 +214,16 @@ class CecFollower:
                 if self.drive_until < 0:
                     self.within(width, 8, 16, "one low")
                 self.drive_until = -1
+                if not self.frame:
+                    self.check_free(int("".join(map(str, self.bits[:4])), 2))
                 self.frame.append(int("".join(map(str, self.bits[:8])), 2))
                 eom = self.bits[8]
                 self.bits = []
                 self.kind = "bit"
                 if eom:
+                    destination = self.frame[0] & 0xF
+                    went_through = (not any(self.acks)) if destination == 0xF else all(self.acks)
+                    self.previous = (self.frame[0] >> 4, went_through)
                     self.frames.append((self.frame, self.acks))
                     self.frame, self.acks, self.kind = [], [], None
             else:
@@ -237,7 +255,7 @@ async def test_cec(dut):
         follower.step(low)
 
     host, task = await start(dut, certified_firmware.CEC, words, line)
-    await ClockCycles(dut.clk, 14000)
+    await ClockCycles(dut.clk, 16000)
     task.cancel()
     assert follower.frames == [([0x40], [1]), ([0x45], [0])], follower.frames
     assert await host.read(RX, 2) == [0, 1], "ACK from 0, none from 5"

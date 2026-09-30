@@ -84,7 +84,7 @@ a2:
     wait t+
     jmp x--, a2
     jmp y--, block
-    set y, 4                 ; signal free time, five bit periods
+    set y, 6                 ; signal free time, seven bit periods
 free:
     set x, 31
 f0:
@@ -147,6 +147,8 @@ module Follower = struct
     ; bytes : int list
     ; acks : bool list
     ; in_frame : bool
+    ; free_ns : int option (* before this frame, checked once its initiator is known *)
+    ; previous : (int * bool) option (* its initiator, and if it went through *)
     ; driving_until : int option
     ; frames : (Frame.t * bool list) list
     ; measured : Measured.t
@@ -163,6 +165,8 @@ module Follower = struct
     ; bytes = []
     ; acks = []
     ; in_frame = false
+    ; free_ns = None
+    ; previous = None
     ; driving_until = None
     ; frames = []
     ; measured = Measured.empty
@@ -212,12 +216,7 @@ module Follower = struct
           ~lo:(205 * ms / 100)
           ~hi:(275 * ms / 100)
       | Some (fall, Data) ->
-        checked
-          t
-          ~name:"free"
-          ~ns:(ns (t.now - fall) - (24 * ms / 10))
-          ~lo:(12 * ms)
-          ~hi:Int.max_value
+        { t with free_ns = Some (ns (t.now - fall) - (24 * ms / 10)) }
       | Some (_, Start) | None -> t
     in
     let ack_slot = t.in_frame && List.length t.bits = 9 in
@@ -225,6 +224,24 @@ module Follower = struct
       if ack_slot && addressed t then Some (t.now + (15 * ms / 10 / t.cycle_ns)) else None
     in
     { t with fall = Some (t.now, if t.in_frame then Data else Start); driving_until }
+  ;;
+
+  (* CEC 9.1's signal free time, in nominal bit periods of 2.4 ms *)
+  let check_free t ~initiator =
+    match t.free_ns, t.previous with
+    | Some ns, Some (previous, went_through) ->
+      let periods =
+        if not went_through then 3 else if previous = initiator then 7 else 5
+      in
+      checked t ~name:"free" ~ns ~lo:(periods * 24 * ms / 10) ~hi:Int.max_value
+    | _ -> t
+  ;;
+
+  (* a directed block goes through when acknowledged, a broadcast one unless refused *)
+  let went_through ~destination acks =
+    if destination = 0xf
+    then not (List.exists acks ~f:Fn.id)
+    else List.for_all acks ~f:Fn.id
   ;;
 
   let rose t ~fall =
@@ -246,6 +263,11 @@ module Follower = struct
       in
       let block = List.rev t.bits in
       let t =
+        match t.bytes with
+        | [] -> check_free t ~initiator:(byte (List.take block 4))
+        | _ :: _ -> t
+      in
+      let t =
         { t with
           bits = []
         ; bytes = byte (List.take block 8) :: t.bytes
@@ -256,12 +278,15 @@ module Follower = struct
       then (
         match List.rev t.bytes with
         | header :: data ->
+          let frame =
+            { Frame.initiator = header lsr 4; destination = header land 0xf; data }
+          in
+          let acks = List.rev t.acks in
           { t with
             in_frame = false
-          ; frames =
-              ( { Frame.initiator = header lsr 4; destination = header land 0xf; data }
-              , List.rev t.acks )
-              :: t.frames
+          ; previous =
+              Some (frame.initiator, went_through ~destination:frame.destination acks)
+          ; frames = (frame, acks) :: t.frames
           }
         | [] -> raise_s [%message "BUG: a block is in"])
       else t)
