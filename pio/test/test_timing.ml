@@ -276,11 +276,11 @@ let%expect_test "pico-examples i2c misses Standard-mode START, STOP and SCL low 
       4  nop side 1 [2]                    3  -,23..?,29..?,57..? scl+ 15..?,16..?,24..?
       5  wait 1 pin, 1 [4]                5+  -,26..?,32..?  samples scl (scl+ -,0..?, scl- -,18..?,19..?,27..?)  sees scl+  anchor
       6  in pins, 1 [7]                   8+  5              samples sda (sda+ -,16..?, sda- 16..?)
-      7  jmp x-- bitloop side 0 [7]        8  13..?          scl- 13..?
+      7  jmp x-- bitloop side 0 [7]        8  13..?          scl- -,13..?
       8  out pindirs, 1 [7]               8+  21..?          sda- 32..?,33..?  sda+ 32..?,33..?
       9  nop side 1 [7]                    8  29..?          scl+ 16..?
      10  wait 1 pin, 1 [7]                8+  37..?          samples scl (scl+ 0..?, scl- 24..?)  sees scl+  anchor
-     11  jmp pin do_nack side 0 [2]        3  8              scl- 8  samples sda (sda+ 24..?, sda- 24..?)
+     11  jmp pin do_nack side 0 [2]        3  8              scl- 8..?  samples sda (sda+ 24..?, sda- 24..?)
      12  out x, 6                         1+  -,11..12,45..?,58..?
      13  out y, 1                         1+  -,12..?,46..?,59..?
      14  jmp !x do_byte                    1  -,13..?,47..?,60..?
@@ -639,7 +639,7 @@ let%expect_test "a wait on an output's own pin may see a later edge from another
     stretch
       0  nop side 1 [7]                    8  -,12           scl+ 8
       1  wait 1 pin 0 [3]                 4+  -,20           samples scl (scl+ -,0..?, scl- -,16..?)  sees scl+  anchor
-      2  nop side 0 [7]                    8  4              scl- 4
+      2  nop side 0 [7]                    8  4              scl- -,4..?
     t_high: scl+ -> scl- >= 8 cycles: FAIL, 4 cycles at pc 2
     (passed false)
     |}]

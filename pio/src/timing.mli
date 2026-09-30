@@ -2,7 +2,7 @@
     gets a lower bound on the pulse it ends and each rule its worst case; [phase] counts
     from the last [wait] on a pin, where a receiver locks. Times are at the pin driver,
     not at the bus's 30% and 70% levels: rise and fall times are the caller's to subtract.
-    Other drivers may hold a released open-drain pin low, unless [no_stretch]. *)
+    Another driver may stretch a low we release on an open-drain pin, unless [no_stretch]. *)
 
 open! Core
 
@@ -123,8 +123,9 @@ module Config : sig
         error every sample tolerates, in system clocks when [clock] is known. *)
     ; entry : string option (** The label the state machine starts at; else address 0. *)
     ; no_stretch : string list
-    (** Open-drain outputs no other driver holds low, so a release rises at once. Any
-        other release rises at an unknown later time, until a [wait] sees it high. *)
+    (** Open-drain outputs no other driver holds low, so a release rises at once. On any
+        other, a release after our low rises at an unknown later time, until a [wait] sees
+        it high. Other drivers only hold a low, never start one. *)
     }
   [@@deriving sexp_of]
 

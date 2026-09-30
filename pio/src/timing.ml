@@ -795,7 +795,9 @@ let write ctx ~row writes ((key : Key.t), (timing : Timing.t)) =
       |> Option.map ~f:(fun (level : Level.t) ->
         let level =
           match level with
-          | Released when List.mem ctx.config.no_stretch pin.name ~equal:String.equal ->
+          | Released
+            when Level.equal levels.(i) High
+                 || List.mem ctx.config.no_stretch pin.name ~equal:String.equal ->
             Level.High
           | level -> level
         in
@@ -859,35 +861,31 @@ let sample ?(locks = false) ctx ~row (timing : Timing.t) pin_ref =
     ctx.emit row (Sample { pin; phase = timing.phase; locks; own }))
 ;;
 
-(* A wait on an output's own pin (I2C's SCL, stretched by a slave) releases on an edge
-   another driver may have made after ours. Taking it at the release is a lower bound for
-   what follows it, but not for what it ends, so it starts pulses and checks no rule. The
-   wait reads the pin [sync] cycles late, so after a recent edge of ours the level is
-   unknown. *)
-let see ctx ~row ~rising pin_ref ((key : Key.t), (timing : Timing.t)) =
-  let levels = Array.of_list key.levels in
-  let rise = Array.of_list timing.rise in
-  let fall = Array.of_list timing.fall in
-  Array.iteri ctx.outputs ~f:(fun i (pin : Pin.t) ->
-    if (not (List.mem ctx.config.no_stretch pin.name ~equal:String.equal))
-       && List.exists pin.bindings ~f:(fun (bound, drive) ->
-         Pin_ref.equal bound pin_ref
-         &&
-         match drive with
-         | Input -> true
-         | Level | Dir | Dir_low -> false)
-    then (
-      ctx.emit row (Seen { pin = pin.name; rising });
-      let settled =
-        match Since.min rise.(i) fall.(i) with
-        | Some { lo = Some lo; _ } -> lo >= ctx.sync
-        | Some { lo = None; _ } -> false
-        | None -> true
-      in
-      levels.(i) <- (if not settled then Unknown else if rising then High else Low);
-      if rising then rise.(i) <- Since.zero else fall.(i) <- Since.zero));
-  ( { key with levels = Array.to_list levels }
-  , { timing with rise = Array.to_list rise; fall = Array.to_list fall } )
+(* A wait on an output's own pin (I2C's SCL, stretched by a slave) shows its level, but
+   reads it [sync] cycles late, so after a recent edge of ours the level stays unknown. *)
+let see ctx ~row ~rising pin_ref (key : Key.t) (timing : Timing.t) =
+  let levels =
+    List.mapi key.levels ~f:(fun i level ->
+      let pin = ctx.outputs.(i) in
+      if (not (List.mem ctx.config.no_stretch pin.name ~equal:String.equal))
+         && List.exists pin.bindings ~f:(fun (bound, drive) ->
+           Pin_ref.equal bound pin_ref
+           &&
+           match drive with
+           | Input -> true
+           | Level | Dir | Dir_low -> false)
+      then (
+        ctx.emit row (Seen { pin = pin.name; rising });
+        let settled =
+          match Since.min (List.nth_exn timing.rise i) (List.nth_exn timing.fall i) with
+          | Some { lo = Some lo; _ } -> lo >= ctx.sync
+          | Some { lo = None; _ } -> false
+          | None -> true
+        in
+        if not settled then Level.Unknown else if rising then High else Low)
+      else level)
+  in
+  { key with levels }
 ;;
 
 (* How many cycles an instruction may stall: [None] if never, [Some None] without bound.
@@ -909,7 +907,8 @@ type control =
   | Next
   | Jump of int
 
-(* A released pin may rise at any time until a wait sees it, so its rise stays recent. *)
+(* Another driver may hold a low we released until a wait sees the pin high, so its rise
+   stays recent. *)
 let advance (key : Key.t) timing cycles =
   let (timing : Timing.t) = Timing.shift timing cycles in
   { timing with
@@ -1002,9 +1001,9 @@ and finish_execute ctx ~row (instruction : Pioasm.Instruction.t) key (timing : T
       | Irq _ -> None
     in
     Option.iter pin_ref ~f:(sample ~locks:true ctx ~row timing);
-    let key, timing =
-      Option.value_map pin_ref ~default:(key, timing) ~f:(fun pin_ref ->
-        see ctx ~row ~rising:polarity pin_ref (key, timing))
+    let key =
+      Option.value_map pin_ref ~default:key ~f:(fun pin_ref ->
+        see ctx ~row ~rising:polarity pin_ref key timing)
     in
     (match pin_ref with
      | Some _ ->
