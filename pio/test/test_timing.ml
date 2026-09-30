@@ -409,3 +409,31 @@ let%expect_test "side-set wins a pin that set also writes in the same cycle" =
     (passed false)
     |}]
 ;;
+
+let%expect_test "side-set and set edges in one instruction are 0 cycles apart, either \
+                 way round"
+  =
+  programs
+    {|
+.program start
+.side_set 1 opt pindirs
+    set pindirs, 1 side 1 [7]
+    set pindirs, 0 side 0 [7]
+|}
+  |> List.hd_exn
+  |> check
+       ~config:
+         { Timing.Config.default with
+           pins = pins [ "sda=set0:dir"; "scl=side0:dir" ] |> initially true
+         ; rules = rules [ "t_hd_sta: sda- -> scl- >= 4"; "back: scl- -> sda- >= 4" ]
+         };
+  [%expect
+    {|
+    start
+      0  set pindirs, 1 side 1 [7]         8  -              scl+ 8  sda+ 8
+      1  set pindirs, 0 side 0 [7]         8  -              scl- -,8  sda- -,8
+    t_hd_sta: sda- -> scl- >= 4 cycles: FAIL, 0 cycles at pc 1
+    back: scl- -> sda- >= 4 cycles: FAIL, 0 cycles at pc 1
+    (passed false)
+    |}]
+;;

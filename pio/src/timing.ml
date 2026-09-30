@@ -779,20 +779,21 @@ type control =
   | Next
   | Jump of int
 
-(* One instruction from issue to the next issue: side-set, stall, execute, delay. *)
+(* One instruction from issue to the next issue: side-set, stall, execute, delay. The pin
+   writes are applied together at issue, as they land with no stall: side-set and data
+   edges may coincide, and any stall only lengthens what follows. *)
 let rec execute ctx ~row (instruction : Pioasm.Instruction.t) state =
   let key, (timing : Timing.t) = state in
   ctx.emit row (Phase timing.phase);
-  let key, timing = write ctx ~row (side_writes ctx instruction) (key, timing) in
+  let side = side_writes ctx instruction in
+  let data =
+    data_writes ctx key instruction.op
+    |> List.filter ~f:(fun data -> not (side_set_wins ctx ~side data))
+  in
+  let key, timing = write ctx ~row (side @ data) (key, timing) in
   let timing =
     if may_stall ctx instruction.op then Timing.map timing ~f:Since.stall else timing
   in
-  let data =
-    data_writes ctx key instruction.op
-    |> List.filter ~f:(fun data ->
-      not (side_set_wins ctx ~side:(side_writes ctx instruction) data))
-  in
-  let key, timing = write ctx ~row data (key, timing) in
   let finish ?(delay = instruction.delay) key timing control =
     [ key, Timing.shift timing (1 + delay), control ]
   in
