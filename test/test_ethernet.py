@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 # A UDP datagram from python/ethernet.py through the data memory, read back off TD+ and
 # TD- (IO0, IO1) at four cycles a bit, with the FCS the chip's CRC unit appends checked
-# against the host's.
+# against zlib's CRC-32.
+
+import zlib
 
 import cocotb
 from cocotb.triggers import ClockCycles
@@ -45,6 +47,8 @@ async def test_udp_datagram(dut):
         bits.append(int(b > 0))
     received = [sum(bits[8 * i + j] << j for j in range(8)) for i in range(len(bits) // 8)]
     assert received == data
+    fcs = received[-4:]
+    assert fcs == list(zlib.crc32(bytes(frame)).to_bytes(4, "little")), fcs
     tail = levels[4 * len(bits):]
     assert all(level > 0 for level in tail) and 10 <= len(tail) <= 14, "TP_IDL"
     assert (await host.read(STATUS))[0] & 0x3D == 0, "running, no fault"

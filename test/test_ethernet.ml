@@ -69,6 +69,59 @@ let%expect_test "a UDP datagram goes out in 10BASE-T" =
     |}]
 ;;
 
+(* The FCS the CRC unit sends, over an ARP request and datagrams of many lengths, against
+   the reference; the CRC of a frame and its FCS is the standard's residue, 0x2144df1c. *)
+let%expect_test "the chip's FCS over frames of many lengths" =
+  let arp =
+    List.init 6 ~f:(Fn.const 0xff)
+    @ [ 0x02; 0; 0; 0; 0; 0x02; 0x08; 0x06; 0; 1; 0x08; 0; 6; 4; 0; 1 ]
+    @ [ 0x02; 0; 0; 0; 0; 0x02; 10; 0; 0; 2 ]
+    @ List.init 6 ~f:(Fn.const 0)
+    @ [ 10; 0; 0; 1 ]
+    @ List.init 18 ~f:(Fn.const 0)
+  in
+  let frames =
+    arp
+    :: List.map [ 0; 1; 19; 100; 901 ] ~f:(fun length ->
+      Frame.udp ~payload:(String.init length ~f:(fun n -> Char.of_int_exn (n land 0xff))))
+  in
+  List.iter frames ~f:(fun frame ->
+    let bits = 8 * List.length (Frame.wire frame) in
+    let t, receiver =
+      run
+        ~cycles:(link_tenth + (4 * bits) + 100)
+        ~host:[ link_tenth; (8 * List.length frame) - 2 ]
+        ~data:(Frame.words (Frame.preamble @ frame))
+    in
+    let received = List.hd_exn (Receiver.frames receiver) in
+    let #(body, fcs) = List.split_n received (List.length received - 4) in
+    let fcs = List.foldi fcs ~init:0 ~f:(fun n acc byte -> acc lor (byte lsl (8 * n))) in
+    print_s
+      [%message
+        ""
+          ~bytes:(List.length received : int)
+          ~as_sent:([%equal: int list] body frame : bool)
+          ~fcs_ok:(fcs = Frame.crc32 body : bool)
+          ~residue:(Frame.crc32 received : Int.Hex.t)
+          ~violations:(Receiver.violations receiver : string list)
+          ~faulted:(not ([%equal: Machine.Fault.t] t.fault Machine.Fault.none) : bool)]);
+  [%expect
+    {|
+    ((bytes 64) (as_sent true) (fcs_ok true) (residue 0x2144df1c) (violations ())
+     (faulted false))
+    ((bytes 64) (as_sent true) (fcs_ok true) (residue 0x2144df1c) (violations ())
+     (faulted false))
+    ((bytes 64) (as_sent true) (fcs_ok true) (residue 0x2144df1c) (violations ())
+     (faulted false))
+    ((bytes 66) (as_sent true) (fcs_ok true) (residue 0x2144df1c) (violations ())
+     (faulted false))
+    ((bytes 146) (as_sent true) (fcs_ok true) (residue 0x2144df1c)
+     (violations ()) (faulted false))
+    ((bytes 948) (as_sent true) (fcs_ok true) (residue 0x2144df1c)
+     (violations ()) (faulted false))
+    |}]
+;;
+
 (* Idle for 50 ms: a link pulse every 16 ms keeps the link up. *)
 let%expect_test "link pulses while idle" =
   let t, receiver = run ~cycles:2_000_000 ~host:[ link_tenth ] ~data:[] in
