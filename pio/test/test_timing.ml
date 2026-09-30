@@ -1059,3 +1059,30 @@ let%expect_test "a pin released at the start of a stall may rise late during it"
     (passed false)
     |}]
 ;;
+
+(* The phase-10 sample reads the pin within 15 system clocks of the edge, 0.6 before its
+   cell ends, and the metastability allowance of one clock takes more than that. *)
+let%expect_test "manchester_rx at clkdiv 1.3021 fails only by the metastability allowance"
+  =
+  vendored "manchester_encoding.pio" "manchester_rx"
+  |> check
+       ~config:
+         { Timing.Config.default with
+           pins = pins [ "rx=in0,jmp" ]
+         ; fifo_ready = true
+         ; cell = Some 6
+         ; clock = Some { sys_hz = 125e6; clkdiv = 1.3021 }
+         };
+  [%expect
+    {|
+    manchester_rx
+      0  wait 0 pin 0                     1+  -,11           samples rx  anchor
+      1  in y, 1 [8]                       9  1
+      2  jmp pin start_of_0                1  10             samples rx
+      3  wait 1 pin 0                     1+  11             samples rx  anchor
+      4  in x, 1 [8]                       9  1
+      5  jmp pin start_of_0                1  10             samples rx
+    cells of 6 cycles from each anchor: FAIL, sender may run -2.40% fast or 53.60% slow
+    (passed false)
+    |}]
+;;

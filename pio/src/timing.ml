@@ -529,21 +529,23 @@ module Report = struct
     |> String.rstrip
   ;;
 
-  (* A sample at phase [p] reads the pin [p, p + 1) ticks after its anchor's edge, the
-     synchroniser delay cancelling, with a system clock either way for metastability. *)
+  (* A sample at phase [p] reads the pin [p, p + 1) ticks after its anchor's edge, which
+     [n] ticks of a fractional divider span to within its floor and ceiling; the
+     synchroniser delay cancels, and a system clock either way covers metastability. *)
   let receiver t cell =
-    let earliest, latest, armed_slack, cell_length =
+    let earliest, latest, armed, cell_length =
       match t.clock with
       | None ->
         ( (fun lo -> Float.of_int lo)
         , (fun hi -> Float.of_int (hi + 1))
-        , 1.
+        , (fun hi -> Float.of_int hi)
         , Float.of_int cell )
       | Some clock ->
         let div = Clock.effective_div clock in
-        ( (fun lo -> Float.round_down (Float.of_int lo *. div) -. 1.)
-        , (fun hi -> Float.round_up (Float.of_int hi *. div) +. Float.round_up div +. 1.)
-        , Float.round_up div
+        let ticks n = Float.of_int n *. div in
+        ( (fun lo -> Float.round_down (ticks lo) -. 1.)
+        , (fun hi -> Float.round_up (ticks (hi + 1)) +. 1.)
+        , (fun hi -> Float.round_up (ticks hi) +. 1.)
         , Float.of_int cell *. clock.clkdiv )
     in
     let samples =
@@ -589,7 +591,7 @@ module Report = struct
       | Some last ->
         let frame = Float.of_int ((last / cell) + 1) *. cell_length in
         List.filter_opt arms
-        |> List.map ~f:(fun hi -> (latest hi -. armed_slack) /. frame)
+        |> List.map ~f:(fun hi -> armed hi /. frame)
         |> List.fold ~init:fast ~f:(fun fast arm ->
           Option.value_map fast ~default:(Some arm) ~f:(fun fast ->
             Some (Float.max fast arm)))
