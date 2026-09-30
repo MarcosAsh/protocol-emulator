@@ -442,16 +442,6 @@ module Report = struct
        | Ns _, None -> Error "needs a clock")
   ;;
 
-  let passed t =
-    List.is_empty t.errors
-    && List.is_empty (unmodelled t)
-    && List.for_alli t.rules ~f:(fun index rule ->
-      match rule_verdict t index rule with
-      | Ok None -> true
-      | Ok (Some (_, _, ok, _)) -> ok
-      | Error _ -> false)
-  ;;
-
   let values to_string list =
     let list = List.dedup_and_sort list ~compare:[%compare: Since.t] in
     if List.length list <= 6
@@ -517,7 +507,7 @@ module Report = struct
      fractional divider span the floor to the ceiling of [n] times it, and the divider is
      the one the SDK programs while the sender runs at the one asked for. A wait's own sample
      follows its stall, so it is unbounded and left out. *)
-  let receiver_line t cell =
+  let receiver t cell =
     let earliest, latest, cell_length =
       match t.clock with
       | None ->
@@ -547,16 +537,31 @@ module Report = struct
         Option.some_if (k > 0) (earliest lo /. (Float.of_int k *. cell_length)))
       |> List.min_elt ~compare:Float.compare
     in
-    let percent ratio = sprintf "%.2f%%" (Float.abs ratio *. 100.) in
-    let tolerance =
+    let percent ratio = sprintf "%.2f%%" (ratio *. 100.) in
+    let tolerance, ok =
       match fast, slow with
-      | Some fast, Some slow when List.is_empty straddles ->
-        [%string
-          "sender may run %{percent (1. -. fast)} fast or %{percent (slow -. 1.)} slow"]
-      | _, _ when not (List.is_empty straddles) -> "a sample straddles a cell boundary"
-      | _ -> "no bounded samples"
+      | _, _ when not (List.is_empty straddles) ->
+        "FAIL, a sample straddles a cell boundary", false
+      | Some fast, Some slow ->
+        let ok = Float.( <= ) fast 1. && Float.( >= ) slow 1. in
+        ( [%string
+            "%{if ok then \"\" else \"FAIL, \"}sender may run %{percent (1. -. fast)} \
+             fast or %{percent (slow -. 1.)} slow"]
+        , ok )
+      | _ -> "no bounded samples", true
     in
-    [%string "cells of %{cell#Int} cycles from each anchor: %{tolerance}"]
+    [%string "cells of %{cell#Int} cycles from each anchor: %{tolerance}"], ok
+  ;;
+
+  let passed t =
+    List.is_empty t.errors
+    && List.is_empty (unmodelled t)
+    && Option.value_map t.cell ~default:true ~f:(fun cell -> snd (receiver t cell))
+    && List.for_alli t.rules ~f:(fun index rule ->
+      match rule_verdict t index rule with
+      | Ok None -> true
+      | Ok (Some (_, _, ok, _)) -> ok
+      | Error _ -> false)
   ;;
 
   let to_string t =
@@ -587,7 +592,7 @@ module Report = struct
     in
     let receiver =
       match t.cell with
-      | Some cell -> [ receiver_line t cell ]
+      | Some cell -> [ fst (receiver t cell) ]
       | None -> []
     in
     let errors = List.map (t.errors @ unmodelled t) ~f:(fun error -> "ERROR " ^ error) in

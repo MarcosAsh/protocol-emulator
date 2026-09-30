@@ -512,3 +512,35 @@ let%expect_test "the divider is the float the SDK is given, rounded to the neare
     135.633680556 -> 135.63281250 = 135 + 162/256
     |}]
 ;;
+
+let%expect_test "a sample that may land before its cell is a negative margin, and fails" =
+  programs
+    {|
+.program early
+    wait 0 pin 0
+    nop [6]
+    in pins, 1
+    nop [3]
+    in pins, 1
+|}
+  |> List.hd_exn
+  |> check
+       ~config:
+         { Timing.Config.default with
+           pins = pins [ "rx=in0" ]
+         ; fifo_ready = true
+         ; cell = Some 8
+         ; clock = Some { sys_hz = 125e6; clkdiv = 1. }
+         };
+  [%expect
+    {|
+    early
+      0  wait 0 pin 0                     1+  -,14           samples rx  anchor
+      1  nop [6]                           7  1
+      2  in pins, 1                        1  8              samples rx
+      3  nop [3]                           4  9
+      4  in pins, 1                        1  13             samples rx
+    cells of 8 cycles from each anchor: FAIL, sender may run 6.25% fast or -12.50% slow
+    (passed false)
+    |}]
+;;
