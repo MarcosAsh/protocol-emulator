@@ -248,10 +248,26 @@ let is_verdict : Isa.t -> bool = function
   | _ -> false
 ;;
 
-(* The phase on entry to [pc] as the kernel's table holds it, once the table is accepted. *)
+let bug fmt = Printf.ksprintf (fun s -> Or_error.error_string ("BUG: " ^ s)) fmt
+
+let exactly name ~pc lo hi =
+  if lo = hi then Ok lo else bug "the %s at pc %d is %d..%d, not one value" name pc lo hi
+;;
+
+(* Read from the kernel's table once it is accepted: the phase [now - t] on entry to [pc],
+   and [p] there. *)
 let certified_phase (table : Kernel.Table.t) ~pc =
   let row = table.(pc) in
-  Bits.to_signed_int row.phase_lo, Bits.to_signed_int row.phase_hi
+  exactly "phase" ~pc (Bits.to_signed_int row.phase_lo) (Bits.to_signed_int row.phase_hi)
+;;
+
+let certified_period (table : Kernel.Table.t) ~pc =
+  let row = table.(pc) in
+  exactly
+    "period"
+    ~pc
+    (Bits.to_unsigned_int row.period_lo)
+    (Bits.to_unsigned_int row.period_hi)
 ;;
 
 let pad_lateness rows =
@@ -267,7 +283,7 @@ let fits_budget ~latency budget =
 ;;
 
 (* A pad wait entered late is refused: the latency is short by the lateness, and by the
-   budget below zero. The kernel's table must then give every verdict one phase. *)
+   budget below zero. Gives the kernel's table, and the verdicts' phase in it. *)
 let certify t ~config ~latency ~budget (program : Asm.Program.t) =
   let open Or_error.Let_syntax in
   let period = Option.some_if (from_host budget) budget in
@@ -290,20 +306,25 @@ let certify t ~config ~latency ~budget (program : Asm.Program.t) =
   let table = Kernel.Table.of_analyser rows in
   let%bind () = Kernel.check ?period ~config ~words table in
   let instructions = Array.of_list program.instructions in
-  match
+  let%bind phases =
     List.map (pcs instructions ~f:is_verdict) ~f:(fun pc -> certified_phase table ~pc)
-    |> List.dedup_and_sort ~compare:[%compare: int * int]
-  with
-  | [ (lo, hi) ] when lo = hi -> Ok lo
+    |> Or_error.all
+  in
+  match List.dedup_and_sort phases ~compare:Int.compare with
+  | [ phase ] -> Ok (table, phase)
   | phases ->
-    Or_error.error_s
-      [%message "BUG: the verdicts' phase is not one cycle" (phases : (int * int) list)]
+    bug "the verdicts' phases differ: %s" (List.to_string phases ~f:Int.to_string)
 ;;
 
-let check_latency ~certified ~latency =
+(* The verdict issues [to_anchor] after the event's sample, plus the [p] that [add t, p]
+   adds, plus its phase: all but [to_anchor] from the kernel's table. *)
+let check_latency table ~anchor ~to_anchor ~verdict_phase ~latency =
+  let open Or_error.Let_syntax in
+  let%bind period = certified_period table ~pc:(anchor + 1) in
+  let certified = to_anchor + period + verdict_phase in
   if certified = latency
   then Ok ()
-  else refuse "BUG: certified latency %d, asked for %d" certified latency
+  else bug "certified latency %d, asked for %d" certified latency
 ;;
 
 let compile_event ~config ~verdict_pin ~latency t ~edge ~guard =
@@ -331,8 +352,10 @@ let compile_event ~config ~verdict_pin ~latency t ~edge ~guard =
   let%bind () = fits_budget ~latency budget in
   let%bind source, program = assemble ~budget:(Int.max 0 budget) in
   let config = Asm.Program.configure program config in
-  let%bind phase = certify t ~config ~latency ~budget program in
-  let%bind () = check_latency ~certified:(to_anchor + budget + phase) ~latency in
+  let%bind table, verdict_phase = certify t ~config ~latency ~budget program in
+  let%bind () =
+    check_latency table ~anchor:anchor_pc ~to_anchor ~verdict_phase ~latency
+  in
   (* the next event the wait sees is one sampled in the cycle it issues again *)
   let back_to_watch ~from =
     cycles_between instructions ~first:from ~last:(Array.length instructions) - 1
@@ -362,9 +385,73 @@ let compile_event ~config ~verdict_pin ~latency t ~edge ~guard =
     }
 ;;
 
-(* The halves are laid out alike, so the low one's cycles stand for both, but for the high
-   one's jump back to the low wait. Polls are spaced out only as far as [set x] needs to
-   count them, since the space between them is the jitter. *)
+(* A half's samples of the pin in cycles from its deadline, all read from the kernel's
+   table: its loop's polls [-slope] apart down to the offset, the poll after the pad and
+   the level wait from its issue on. Gives the longest gap between samples, counting from
+   the one that anchored the half, and the cycles from the last poll to the verdict. *)
+let polled_half table (instructions : Isa.t array) ~anchor ~to_anchor =
+  let open Or_error.Let_syntax in
+  let poll = anchor + 3 in
+  let row : _ Kernel.Row.t = table.(poll) in
+  let slope = Bits.to_signed_int row.slope in
+  let%bind offset =
+    exactly
+      "offset"
+      ~pc:poll
+      (Bits.to_signed_int row.offset_lo)
+      (Bits.to_signed_int row.offset_hi)
+  in
+  let%bind count =
+    match instructions.(anchor + 2) with
+    | Op { op = Set { dest = X; value }; _ }
+      when slope < 0 && value = Bits.to_unsigned_int row.x_hi -> Ok value
+    | _ -> bug "the polls at pc %d are not counted" poll
+  in
+  let pad = List.find_exn (pcs instructions ~f:is_pad) ~f:(fun pc -> pc > anchor) in
+  let final = pad + 1 in
+  let verdict = pad + 2 in
+  let after = verdict + 2 in
+  let%bind level_wait =
+    match instructions.(after) with
+    | Jmp { cond = Always; target } -> Ok target
+    | Op { op = Wait (Pin_level _); _ } -> Ok after
+    | _ -> bug "no level wait after the verdict at pc %d" verdict
+  in
+  let%bind () =
+    let anchors_at pc = pc < Array.length instructions && is_anchor instructions.(pc) in
+    let jumps_to_anchor pc =
+      match instructions.(pc) with
+      | Jmp { cond = Pin | Not_pin; target } -> anchors_at target
+      | _ -> false
+    in
+    if jumps_to_anchor poll
+       && jumps_to_anchor final
+       && is_verdict instructions.(verdict)
+       && anchors_at (level_wait + 1)
+       && cycles instructions.(level_wait) = to_anchor
+    then Ok ()
+    else bug "the half at pc %d is not laid out as polls" anchor
+  in
+  let%bind period = certified_period table ~pc:(anchor + 1)
+  and final_phase = certified_phase table ~pc:final
+  and verdict_phase = certified_phase table ~pc:verdict
+  and level_phase = certified_phase table ~pc:after in
+  let level_phase =
+    if level_wait = after then level_phase else level_phase + Isa.jmp_cycles
+  in
+  let anchored = -period - to_anchor in
+  let gaps =
+    [ offset + (slope * count) - anchored
+    ; (if count > 0 then -slope else 0)
+    ; final_phase - offset
+    ; level_phase - final_phase
+    ]
+  in
+  return (List.fold gaps ~init:0 ~f:Int.max, verdict_phase - final_phase)
+;;
+
+(* Polls are spaced out only as far as [set x] needs to count them, since the space
+   between them is the jitter. *)
 let compile_quiet ~config ~verdict_pin ~latency t ~pin =
   let open Or_error.Let_syntax in
   let assemble ~header ~budget ~loops ~stretch =
@@ -379,7 +466,7 @@ let compile_quiet ~config ~verdict_pin ~latency t ~pin =
     let%map pad_at_zero =
       match pad_lateness (Analyser.analyse ~config probe.instructions) with
       | Some late -> Ok late
-      | None -> refuse "BUG: the pad wait has no bound"
+      | None -> bug "the pad wait has no bound"
     in
     stretch, instructions, pad_at_zero
   in
@@ -393,13 +480,13 @@ let compile_quiet ~config ~verdict_pin ~latency t ~pin =
   let budget = latency - to_anchor - verdict_phase in
   let%bind () = fits_budget ~latency budget in
   let most_loops = (1 lsl Isa.Field.set_value.width) - 1 in
-  let%bind stretch, instructions, loop_period, loops =
+  let%bind stretch, loops =
     let fits (stretch, instructions, pad_at_zero) =
       let poll = anchor + 3 in
       let back = pad - 1 + Bool.to_int (Option.is_some stretch) in
       let loop_period = cycles_between instructions ~first:poll ~last:(back + 1) in
       let loops = Int.max 0 ((budget - pad_at_zero) / loop_period) in
-      Option.some_if (loops <= most_loops) (stretch, instructions, loop_period, loops)
+      Option.some_if (loops <= most_loops) (stretch, loops)
     in
     let rec search = function
       | [] -> refuse "latency %d is beyond %d polls however far apart" latency most_loops
@@ -411,48 +498,33 @@ let compile_quiet ~config ~verdict_pin ~latency t ~pin =
     in
     search (None :: List.init (1 lsl Isa.delay_bits) ~f:Option.some)
   in
-  let pad = pad + Bool.to_int (Option.is_some stretch) in
-  let verdict = verdict + Bool.to_int (Option.is_some stretch) in
-  (* where the pin is sampled, in cycles from the anchor *)
-  let first_poll = cycles_between instructions ~first:anchor ~last:(anchor + 3) in
-  let last_loop_poll = first_poll + (loops * loop_period) in
-  let final_poll = budget + cycles instructions.(pad) in
-  let verdict_at = budget + verdict_phase in
-  let level_wait =
-    verdict_at
-    + cycles_between instructions ~first:verdict ~last:(verdict + 2)
-    + Isa.jmp_cycles
-  in
-  let min_run =
-    List.fold
-      [ first_poll + to_anchor
-      ; (if loops > 0 then loop_period else 0)
-      ; final_poll - last_loop_poll
-      ; level_wait - final_poll
-      ]
-      ~init:0
-      ~f:Int.max
+  let%bind _, program = assemble ~header:"" ~budget:(Int.max 0 budget) ~loops ~stretch in
+  let config = Asm.Program.configure program config in
+  let%bind table, verdict_phase = certify t ~config ~latency ~budget program in
+  let%bind () = check_latency table ~anchor ~to_anchor ~verdict_phase ~latency in
+  let%bind min_run, unseen_before_verdict =
+    let instructions = Array.of_list program.instructions in
+    let%map halves =
+      pcs instructions ~f:is_anchor
+      |> List.map ~f:(fun anchor -> polled_half table instructions ~anchor ~to_anchor)
+      |> Or_error.all
+    in
+    List.fold halves ~init:(0, 0) ~f:(fun (run, unseen) (run', unseen') ->
+      Int.max run run', Int.max unseen unseen')
   in
   let jitter = min_run - 1 in
+  (* the header is a comment, so the source assembles to [program] *)
   let header = [%string "; %{to_string t}: %{pulses ~verdict_pin ~latency ~jitter}"] in
-  let%bind source, program =
-    assemble ~header ~budget:(Int.max 0 budget) ~loops ~stretch
-  in
-  let config = Asm.Program.configure program config in
-  let%bind phase = certify t ~config ~latency ~budget program in
-  let%bind () = check_latency ~certified:(to_anchor + budget + phase) ~latency in
-  let sampling =
-    Sampling.Polls { min_run; unseen_before_verdict = verdict_at - final_poll }
-  in
   return
-    { Firmware.source
+    { Firmware.source =
+        quiet_source ~pin ~header ~budget:(Int.max 0 budget) ~loops ~stretch
     ; program
     ; config
     ; budget_from_host = Option.some_if (from_host budget) budget
     ; certificate =
         { latency
         ; jitter
-        ; sampling
+        ; sampling = Polls { min_run; unseen_before_verdict }
         ; verdict_pcs = pcs (Array.of_list program.instructions) ~f:is_verdict
         }
     }
