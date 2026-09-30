@@ -1025,8 +1025,37 @@ let%expect_test "an unknown write to an open-drain pin's direction may release i
   [%expect
     {|
     b
-      0  out pindirs, 1 [7]               8+  -              s- -,0..8,1..9  s+ -,8,9
+      0  out pindirs, 1 [7]               8+  -              s- -,0..8,0..9  s+ -,8,9
     high: s+ -> s- >= 8 cycles: FAIL, 0 cycles at pc 0
+    (passed false)
+    |}]
+;;
+
+let%expect_test "a pin released at the start of a stall may rise late during it" =
+  programs
+    {|
+.program d3
+.side_set 2 opt pindirs
+    nop side 0 [3]
+    out pindirs, 1 side 3
+    wait 1 pin 0 [3]
+|}
+  |> List.hd_exn
+  |> check
+       ~config:
+         { Timing.Config.default with
+           pins = pins [ "s=side0:dir,in0"; "q=side1:dir,out0:dir" ]
+         ; autopull = true
+         ; clock = Some { sys_hz = 125e6; clkdiv = 3. }
+         ; rules = rules [ "r: s+ -> q- >= 1" ]
+         };
+  [%expect
+    {|
+    d3
+      0  nop side 0 [3]                    4  -,4            q- -,0..?  s- -,4..?
+      1  out pindirs, 1 side 3            1+  -,8            q- 0..?  q+ 4  s+ 4
+      2  wait 1 pin 0 [3]                 4+  -,9,10..?      samples s (s+ 0..?, s- 5..?,6..?)  sees s+  anchor
+    r: s+ -> q- >= 1 cycles: FAIL, 0 cycles at pc 1
     (passed false)
     |}]
 ;;

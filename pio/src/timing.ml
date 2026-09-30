@@ -923,7 +923,7 @@ type control =
   | Jump of int
 
 (* Another driver may hold a low we released until a wait sees the pin high, so its rise
-   stays recent; a pin released while high has no rise to keep. *)
+   stays recent, through a stall too; a pin released while high has no rise to keep. *)
 let advance (key : Key.t) timing cycles =
   let (timing : Timing.t) = Timing.shift timing cycles in
   { timing with
@@ -964,7 +964,7 @@ let rec execute ctx ~row (instruction : Pioasm.Instruction.t) state =
      | Some _, [] -> [ fst at_once, stalled ~at_least:0 (snd at_once) ]
      | Some _, _ :: _ ->
        let key, timing = write ctx ~row side (key, timing) in
-       [ at_once; write ctx ~row data (key, stalled ~at_least:1 timing) ])
+       [ at_once; write ctx ~row data (key, advance key (stalled ~at_least:1 timing) 0) ])
     ~f:(fun (key, timing) -> finish_execute ctx ~row instruction key timing)
 
 and finish_execute ctx ~row (instruction : Pioasm.Instruction.t) key (timing : Timing.t) =
