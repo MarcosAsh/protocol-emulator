@@ -30,6 +30,7 @@ formal/link*.sv
 formal/certificate*.sv
 formal/fsm_miter*.sv
 formal/*_*/
+formal/powerup/
 !formal/netlist_equiv/
 !formal/sram_equiv/
 !formal/kernel_equiv/
