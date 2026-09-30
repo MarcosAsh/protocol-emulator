@@ -414,7 +414,79 @@ let self_check_command =
 (* What the host loads beside the words, and the window it may check the verdicts against,
    one [name value] per line for the cocotb test to read. *)
 let predicate_settings (firmware : Predicate.Firmware.t) =
-  let { Program_config.set_base; jmp_pin; wrap_bottom; wrap_top; _ } = firmware.config in
+  (* every field, named as the host's config registers are, so none falls back *)
+  let { Program_config.side_set_count
+      ; side_set_base
+      ; side_set_pindirs
+      ; in_base
+      ; in_count
+      ; out_base
+      ; out_count
+      ; set_base
+      ; set_count
+      ; jmp_pin
+      ; capture_pin
+      ; capture_rising
+      ; in_shift
+      ; out_shift
+      ; autopush
+      ; push_threshold
+      ; autopull
+      ; pull_threshold
+      ; crc_width
+      ; crc_poly
+      ; crc_init
+      ; crc_reflect
+      ; stuff_threshold
+      ; stuff_level
+      ; wrap_bottom
+      ; wrap_top
+      ; period_fraction
+      ; autopull_data
+      ; manchester
+      }
+    =
+    firmware.config
+  in
+  let right : Program_config.Shift_direction.t -> bool = function
+    | Right -> true
+    | Left -> false
+  in
+  let config =
+    List.map
+      [ "side_set_pindirs", side_set_pindirs
+      ; "capture_rising", capture_rising
+      ; "in_shift_right", right in_shift
+      ; "out_shift_right", right out_shift
+      ; "autopush", autopush
+      ; "autopull", autopull
+      ; "crc_reflect", crc_reflect
+      ; "stuff_level", stuff_level
+      ; "autopull_data", autopull_data
+      ; "manchester", manchester
+      ]
+      ~f:(fun (name, flag) -> name, Bool.to_int flag)
+    @ [ "side_set_count", side_set_count
+      ; "side_set_base", side_set_base
+      ; "in_base", in_base
+      ; "in_count", in_count
+      ; "out_base", out_base
+      ; "out_count", out_count
+      ; "set_base", set_base
+      ; "set_count", set_count
+      ; "jmp_pin", jmp_pin
+      ; "capture_pin", capture_pin
+      ; "push_threshold", push_threshold
+      ; "pull_threshold", pull_threshold
+      ; "crc_width", crc_width
+      ; "crc_poly", crc_poly
+      ; "crc_init", crc_init
+      ; "stuff_threshold", stuff_threshold
+      ; "wrap_bottom", wrap_bottom
+      ; "wrap_top", wrap_top
+      ; "period_fraction", period_fraction
+      ]
+  in
   let { Predicate.Certificate.latency; jitter; sampling; _ } = firmware.certificate in
   let sampling =
     match sampling with
@@ -422,13 +494,8 @@ let predicate_settings (firmware : Predicate.Firmware.t) =
     | Polls { min_run; unseen_before_verdict } ->
       [ "min_run", min_run; "unseen_before_verdict", unseen_before_verdict ]
   in
-  [ "set_base", set_base
-  ; "jmp_pin", jmp_pin
-  ; "wrap_bottom", wrap_bottom
-  ; "wrap_top", wrap_top
-  ; "latency", latency
-  ; "jitter", jitter
-  ]
+  config
+  @ [ "latency", latency; "jitter", jitter ]
   @ sampling
   @ Option.value_map firmware.budget_from_host ~default:[] ~f:(fun budget ->
     [ "budget_from_host", budget ])
