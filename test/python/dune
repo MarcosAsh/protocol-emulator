@@ -33,3 +33,9 @@
  (alias runtest)
  (action
   (diff ../../python/certified_firmware.py certified_firmware.py.gen)))
+
+(rule
+ (alias runtest)
+ (deps ../../python/protocol_emulator.py)
+ (action
+  (run python3 -B %{dep:test_host.py} ../../python)))

@@ -109,9 +109,15 @@ class Host:
         }
 
     def now(self):
-        lo = self.read(NOW_LO)[0]
+        """The halves come in separate frames, so the high one is read either side of the
+        low and the read retried if it moved."""
         hi = self.read(NOW_HI)[0]
-        return (hi << 16) | lo
+        while True:
+            lo = self.read(NOW_LO)[0]
+            again = self.read(NOW_HI)[0]
+            if again == hi:
+                return (hi << 16) | lo
+            hi = again
 
 
 def hex_words(text):
