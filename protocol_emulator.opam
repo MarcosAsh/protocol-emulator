@@ -21,6 +21,7 @@ depends: [
   "jane_rope"
   "ppx_hardcaml"
   "ppx_jane"
+  "ppxlib"
   "re"
 ]
 available: arch != "x86_32"

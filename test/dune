@@ -8,9 +8,11 @@
   hardcaml_waveterm
   hardcaml_verify
   re
-  hardcaml_hobby_boards)
+  hardcaml_hobby_boards
+  ppxlib
+  ppx_firmware)
  (preprocess
-  (pps ppx_hardcaml ppx_jane))
+  (pps ppx_hardcaml ppx_jane ppx_firmware))
  (inline_tests
   (deps
    (glob_files *.asm)
