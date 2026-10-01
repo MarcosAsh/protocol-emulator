@@ -269,7 +269,7 @@ let timing_check =
     and no_timing_check =
       flag "-no-timing-check" no_arg ~doc:" assemble firmware that may miss a deadline"
     in
-    fun program ->
+    fun ~source (program : Asm.Program.t) ->
       let config =
         { Program_config.default with
           capture_pin
@@ -292,13 +292,13 @@ let timing_check =
       else (
         let print_verdict verdict = eprintf "%s\n" (Analyser.Verdict.to_string verdict) in
         match
-          Timed_program.check ?period ?period_floor ~single_capture_edge ~config program
+          Timed_program.check ?period ?period_floor ~single_capture_edge ~config source
         with
         | Ok timed ->
           print_verdict (Timed_program.verdict timed);
           eprintf "kernel: accepted, so no deadline is missed by the step lemma\n";
           Ok (Timed_program.rows timed)
-        | Error { pcs = _; verdict; error } ->
+        | Error { faults = _; verdict; error } ->
           Option.iter verdict ~f:print_verdict;
           Error error)]
 ;;
@@ -328,8 +328,9 @@ let assemble_command =
       fun () ->
         let assembled =
           let open Or_error.Let_syntax in
-          let%bind program = In_channel.read_all file |> Asm.assemble in
-          let%bind rows = timing_check program in
+          let source = In_channel.read_all file in
+          let%bind program = Asm.assemble source in
+          let%bind rows = timing_check ~source program in
           let%map words = Asm.Program.words program in
           program, words, rows
         in

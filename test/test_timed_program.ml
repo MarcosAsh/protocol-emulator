@@ -9,23 +9,16 @@ let%expect_test "firmware the kernel accepts" =
   [%expect {| (verdict ((words 15) (deadline_waits 3) (worst_slack (12)))) |}]
 ;;
 
-(* The pcs a refusal names, at their source lines. *)
 let refusal source =
-  let program, lines =
-    Asm.assemble_with_lines source |> Result.map_error ~f:snd |> ok_exn
-  in
-  match Timed_program.check ~config program with
+  match Timed_program.check ~config source with
   | Ok _ -> print_s [%message "accepted"]
-  | Error { pcs; verdict; error = _ } ->
+  | Error { faults; verdict; error = _ } ->
     print_s
       [%message
-        ""
-          (pcs : int list)
-          ~lines:(List.map pcs ~f:(List.nth_exn lines) : int list)
-          (verdict : Analyser.Verdict.t option)]
+        "" (faults : Timed_program.Fault.t list) (verdict : Analyser.Verdict.t option)]
 ;;
 
-let%expect_test "a refusal names its pcs, and the verdict if the analyser passed" =
+let%expect_test "a refusal names its lines, and the verdict if the analyser passed" =
   (* the analyser refuses a loop that falls further behind on every pass *)
   refusal
     {|
@@ -41,8 +34,15 @@ loop:
   refusal (In_channel.read_all "assemble/gap_adding_x.asm");
   [%expect
     {|
-    ((pcs (3)) (lines (6)) (verdict ()))
-    ((pcs (11)) (lines (17))
+    ((faults
+      (((line 6) (pc (3))
+        (reason
+         "this deadline wait can be reached late, by more on each pass of a loop or after an untimed wait"))))
+     (verdict ()))
+    ((faults
+      (((line 17) (pc (11))
+        (reason
+         "the analyser passed this row, and the kernel refuses it: in time, next phase"))))
      (verdict (((words 32) (deadline_waits 4) (worst_slack (0))))))
     |}]
 ;;
