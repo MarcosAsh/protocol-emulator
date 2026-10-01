@@ -831,8 +831,10 @@ module Make_timer (Timer : Engine.Timer) = struct
     let edge_images ~side_set_count ~fraction ~capture ~spacing ~word ~(row : _ Row.t) =
       let c = Class.of_word ~side_set_count ~capture word in
       let capture_bounded = c.from_capture &: row.captured &: ~:(arm_is_full row) in
-      let phase_fits, image_hi = phase_fits ~fraction ~c ~row ~capture_bounded in
-      let a, b, _, _ = row_edges ~side_set_count ~spacing ~c ~row ~phase_fits ~image_hi in
+      let fits, image_hi = phase_fits ~fraction ~c ~row ~capture_bounded in
+      let a, b, _, _ =
+        row_edges ~side_set_count ~spacing ~c ~row ~phase_fits:fits ~image_hi
+      in
       a, b
     ;;
 

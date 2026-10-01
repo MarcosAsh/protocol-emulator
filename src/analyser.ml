@@ -396,8 +396,8 @@ let step
        after { s with phase = Interval.exactly 0; offset = Interval.top }
      | Mov { dest = T; op = Copy; source = Capture } ->
        (* the capture is at least a cycle old, since a register shows the cycle after it
-          is written, and when the line made one edge younger than the arm, which takes
-          effect a cycle late *)
+          is written, and once the line made an edge, a cycle younger than the arm, which
+          takes effect a cycle late *)
        let phase =
          { Interval.lo = Some 1
          ; hi =
