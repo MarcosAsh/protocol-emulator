@@ -12,6 +12,7 @@ let wires = ((1 lsl Isa.pin_space) - 1) land lnot pin_mask
 let output_only = (1 lsl Isa.first_bidir_pin) - 1
 let any engines ~f = List.fold engines ~init:0 ~f:(fun v (m : Machine.t) -> v lor f m)
 
+(* what engine [n] is handed as [inputs] for the next step *)
 let seen t n ~pads =
   let others = List.filteri t.engines ~f:(fun m _ -> m <> n) in
   let driven = any others ~f:(fun m -> m.pin_dir) in

@@ -11,11 +11,6 @@ open Protocol_emulator
 val pin : int
 val cycle_ns : int
 
-(** [zero_high] at most 31, and [bit] between [2 * zero_high] and [3 * zero_high]: what
-    the firmware can be written for, not what holds its deadlines, which is the kernel's
-    to say of each. *)
-val firmware : zero_high:int -> bit:int -> string
-
 (** 31 and 83 cycles, 620 and 1660 ns; in [Certified.all]. *)
 val dshot600 : string
 

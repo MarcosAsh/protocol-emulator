@@ -4,8 +4,10 @@ open Protocol_emulator
 let pin = 5
 let cycle_ns = 20
 
-(* [t] is the next rise on entry to [bit]; three deadlines on from it is past the next, so
-   the tail comes off in steps of the largest immediate. *)
+(* [zero_high] at most 31, and [bit] between [2 * zero_high] and [3 * zero_high]: what the
+   firmware can be written for; whether it holds its deadlines is the kernel's to say. [t]
+   is the next rise on entry to [bit]; three deadlines on from it is past the next, so the
+   tail comes off in steps of the largest immediate. *)
 let firmware ~zero_high ~bit =
   let tail = (3 * zero_high) - bit in
   if zero_high < 1 || zero_high > 31 || tail < 0 || tail > zero_high

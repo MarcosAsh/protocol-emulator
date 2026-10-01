@@ -5,7 +5,6 @@
 open! Core
 open! Hardcaml
 
-val depth : int
 val level_bits : int
 
 module I : sig

@@ -12,9 +12,6 @@ val create : Machine.t list -> t
 (** One cycle of every engine. *)
 val step : t -> pads:int -> t
 
-(** What engine [n] is handed as [inputs] for the next step. *)
-val seen : t -> int -> pads:int -> int
-
 val pin_out : t -> int
 val pin_dir : t -> int
 

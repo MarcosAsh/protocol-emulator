@@ -4,8 +4,6 @@
 open! Core
 open! Hardcaml
 
-val name : string
-
 val hierarchical
   :  ?instance:string
   -> Scope.t
