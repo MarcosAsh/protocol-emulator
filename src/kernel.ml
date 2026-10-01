@@ -626,8 +626,17 @@ module Make_timer (Timer : Engine.Timer) = struct
 
     (* A pin's bounds after the word: at the bit it keeps, the counts go on by the least
        [duration] and the mark by the least move of [t], if known; at the bit it moves to,
-       they restart. *)
-    let pin_image (w : Watched.t) (r : _ Pin.t) ~duration ~dt_lo ~dt_known ~phase_hi =
+       they restart. Where the next phase is known to be [next_phase_hi] or less, the
+       count less that bounds the mark too, so a mark lost to a wait comes back. *)
+    let pin_image
+      (w : Watched.t)
+      (r : _ Pin.t)
+      ~duration
+      ~dt_lo
+      ~dt_known
+      ~phase_hi
+      ~next_phase_hi
+      =
       let kept (h : _ Held.t) =
         { h with
           since =
@@ -650,10 +659,16 @@ module Make_timer (Timer : Engine.Timer) = struct
             @@ mux2 dt_known (clamp_mark (dt_lo -: phase_hi)) mark_none
         }
       in
+      let rederived (h : _ Held.t) =
+        let by_since =
+          clamp_mark (uresize h.since ~width:(mark_bits + 2) -: next_phase_hi)
+        in
+        { h with mark = mux2 (dt_known &: (by_since >+ h.mark)) by_since h.mark }
+      in
       let keeps bit = w.data |: ~:(w.written) |: (w.bit ==: bit) in
       let moves bit = w.data |: (w.written &: (w.bit <>: bit)) in
-      { Pin.at0 = join_held [ keeps gnd, kept r.at0; moves vdd, moved r.at1 ]
-      ; at1 = join_held [ keeps vdd, kept r.at1; moves gnd, moved r.at0 ]
+      { Pin.at0 = rederived (join_held [ keeps gnd, kept r.at0; moves vdd, moved r.at1 ])
+      ; at1 = rederived (join_held [ keeps vdd, kept r.at1; moves gnd, moved r.at0 ])
       ; fresh = r.fresh &: ~:(w.written |: w.data)
       }
     ;;
@@ -741,23 +756,24 @@ module Make_timer (Timer : Engine.Timer) = struct
       image, delta_lo, delta_hi
     ;;
 
-    (* whether the next phase is bounded and does not wrap *)
+    (* whether the next phase is bounded and does not wrap, and its upper end *)
     let phase_fits ~fraction ~(c : Class.t) ~(row : _ Row.t) ~capture_bounded =
       let image, _, _ = phase_image ~fraction ~c ~row ~capture_bounded in
       let image_lo, image_hi = image ~lo:(wide row.phase_lo) ~hi:(wide row.phase_hi) in
-      c.bounded &: (image_lo >=+ timer_min) &: (image_hi <=+ timer_max)
+      c.bounded &: (image_lo >=+ timer_min) &: (image_hi <=+ timer_max), image_hi
     ;;
 
     (* Both pins' bounds after the word from the row's, and whether each keeps its
        spacing: the least duration is the cycles and a deadline wait's least stall, and
        [t] moves by the analyser's classes. A mark follows only where [phase_fits]: the
-       next phase is bounded and does not wrap. *)
+       next phase is bounded, by [image_hi] above, and does not wrap. *)
     let row_edges
       ~side_set_count
       ~(spacing : _ Spaced.t)
       ~(c : Class.t)
       ~(row : _ Row.t)
       ~phase_fits
+      ~image_hi
       =
       let v = spacing.value in
       let hi = wide row.phase_hi in
@@ -787,6 +803,7 @@ module Make_timer (Timer : Engine.Timer) = struct
           ~dt_lo
           ~dt_known:phase_fits
           ~phase_hi:(mark_wide row.phase_hi)
+          ~next_phase_hi:(mark_wide image_hi)
       in
       ( image wa row.a
       , image wb row.b
@@ -814,14 +831,8 @@ module Make_timer (Timer : Engine.Timer) = struct
     let edge_images ~side_set_count ~fraction ~capture ~spacing ~word ~(row : _ Row.t) =
       let c = Class.of_word ~side_set_count ~capture word in
       let capture_bounded = c.from_capture &: row.captured &: ~:(arm_is_full row) in
-      let a, b, _, _ =
-        row_edges
-          ~side_set_count
-          ~spacing
-          ~c
-          ~row
-          ~phase_fits:(phase_fits ~fraction ~c ~row ~capture_bounded)
-      in
+      let phase_fits, image_hi = phase_fits ~fraction ~c ~row ~capture_bounded in
+      let a, b, _, _ = row_edges ~side_set_count ~spacing ~c ~row ~phase_fits ~image_hi in
       a, b
     ;;
 
@@ -897,6 +908,7 @@ module Make_timer (Timer : Engine.Timer) = struct
           ~c
           ~row
           ~phase_fits:(c.bounded &: (image_lo >=+ timer_min) &: (image_hi <=+ timer_max))
+          ~image_hi
       in
       let captured_image = mux2 c.arm gnd (row.captured |: (capturing &: arm_known)) in
       let awaiting_image = mux2 c.arm vdd (row.awaiting &: ~:(c.capturing)) in
