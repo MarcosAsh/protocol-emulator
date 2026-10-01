@@ -25,22 +25,54 @@ let timing name ~from ~until ?(through = []) min_ns =
   { Timing.name; from; until; through; min_ns }
 ;;
 
-let fast_mode_plus =
+let mode ~period ~low ~high ~hd_sta ~su_sta ~su_dat ~su_sto ~buf =
   [ timing
       "SCL period"
       ~from:Scl_rise
       ~until:Scl_rise
       ~through:[ Scl_fall; Data; Start; Stop ]
-      1000
-  ; timing "tLOW" ~from:Scl_fall ~until:Scl_rise ~through:[ Data ] 500
-  ; timing "tHIGH" ~from:Scl_rise ~until:Scl_fall ~through:[ Start; Stop ] 260
-  ; timing "tHD;STA" ~from:Start ~until:Scl_fall 260
-  ; timing "tSU;STA" ~from:Scl_rise ~until:Start 260
+      period
+  ; timing "tLOW" ~from:Scl_fall ~until:Scl_rise ~through:[ Data ] low
+  ; timing "tHIGH" ~from:Scl_rise ~until:Scl_fall ~through:[ Start; Stop ] high
+  ; timing "tHD;STA" ~from:Start ~until:Scl_fall hd_sta
+  ; timing "tSU;STA" ~from:Scl_rise ~until:Start su_sta
   ; timing "tHD;DAT" ~from:Scl_fall ~until:Data 0
-  ; timing "tSU;DAT" ~from:Data ~until:Scl_rise 50
-  ; timing "tSU;STO" ~from:Scl_rise ~until:Stop 260
-  ; timing "tBUF" ~from:Stop ~until:Start 500
+  ; timing "tSU;DAT" ~from:Data ~until:Scl_rise su_dat
+  ; timing "tSU;STO" ~from:Scl_rise ~until:Stop su_sto
+  ; timing "tBUF" ~from:Stop ~until:Start buf
   ]
+;;
+
+let standard_mode =
+  mode
+    ~period:10_000
+    ~low:4700
+    ~high:4000
+    ~hd_sta:4000
+    ~su_sta:4700
+    ~su_dat:250
+    ~su_sto:4000
+    ~buf:4700
+;;
+
+let fast_mode_plus =
+  mode
+    ~period:1000
+    ~low:500
+    ~high:260
+    ~hd_sta:260
+    ~su_sta:260
+    ~su_dat:50
+    ~su_sto:260
+    ~buf:500
+;;
+
+let min_ns timings name =
+  match
+    List.find timings ~f:(fun (timing : Timing.t) -> String.equal timing.name name)
+  with
+  | Some timing -> timing.min_ns
+  | None -> raise_s [%message "no such timing" (name : string)]
 ;;
 
 module Bound = struct

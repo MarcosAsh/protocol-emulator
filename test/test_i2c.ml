@@ -339,46 +339,33 @@ let%expect_test "i2c logger in lockstep" =
     |}]
 ;;
 
-(* The smallest quarter at which the certified master meets UM10204 Fast-mode Plus at 50
-   MHz, and its bounds. These are edges at the pins: the master does not wait for SCL
-   high, so rise time comes off tHIGH, tSU;STA and tSU;STO, the last two exactly at their
-   limits here. A full 120 ns Fm+ rise would need a quarter of 22. *)
-let%expect_test "the certified master's pins keep to fast-mode plus at 50 MHz" =
-  let clock_mhz = 50 in
-  let bounds quarter =
-    let program = Asm.assemble (i2c_master ~quarter) |> ok_exn in
-    match Analyser.check ~config:(Asm.Program.configure program i2c_config) program with
-    | Error _ -> None
-    | Ok (_ : Analyser.Verdict.t) ->
-      Some
-        (I2c_timing.check ~clock_mhz ~config:i2c_config program I2c_timing.fast_mode_plus)
-  in
-  let failing bounds =
-    List.filter_map bounds ~f:(fun ({ timing; cycles; met } : I2c_timing.Bound.t) ->
-      Option.some_if
-        (not met)
-        [%string
-          "%{timing.name} %{Option.value_map cycles ~default:\"never\" \
-           ~f:Interval.to_string}"])
-  in
-  List.iter (List.range 10 13) ~f:(fun quarter ->
-    printf
-      "quarter %d is short: %s\n"
-      quarter
-      (Option.value_map (bounds quarter) ~default:"refused" ~f:(fun bounds ->
-         String.concat ~sep:", " (failing bounds))));
-  let quarter, bounds =
-    List.find_map_exn (List.range 1 64) ~f:(fun quarter ->
-      Option.bind (bounds quarter) ~f:(fun bounds ->
-        Option.some_if (List.is_empty (failing bounds)) (quarter, bounds)))
-  in
-  let certified = Certified.find_exn "i2c_master" in
-  print_s
-    [%message
-      (quarter : int)
-        ~certified:(String.equal certified.source (i2c_master ~quarter) : bool)
-        ~scl_khz:(clock_mhz * 1000 / (4 * quarter) : int)];
-  printf "%-10s %8s  %-9s %s\n" "timing" "Fm+ ns" "cycles" "ns";
+(* The master's bounds at a quarter, if the analyser takes it. *)
+let bounds ~clock_mhz timings quarter =
+  let program = Asm.assemble (i2c_master ~quarter) |> ok_exn in
+  match Analyser.check ~config:(Asm.Program.configure program i2c_config) program with
+  | Error _ -> None
+  | Ok (_ : Analyser.Verdict.t) ->
+    Some (I2c_timing.check ~clock_mhz ~config:i2c_config program timings)
+;;
+
+let failing bounds =
+  List.filter_map bounds ~f:(fun ({ timing; cycles; met } : I2c_timing.Bound.t) ->
+    Option.some_if
+      (not met)
+      [%string
+        "%{timing.name} %{Option.value_map cycles ~default:\"never\" \
+         ~f:Interval.to_string}"])
+;;
+
+(* [set p] takes 31 at most *)
+let smallest_quarter ~clock_mhz timings =
+  List.find_map (List.range 1 32) ~f:(fun quarter ->
+    Option.bind (bounds ~clock_mhz timings quarter) ~f:(fun bounds ->
+      Option.some_if (List.is_empty (failing bounds)) (quarter, bounds)))
+;;
+
+let print_bounds ~clock_mhz ~mode (bounds : I2c_timing.Bound.t list) =
+  printf "%-10s %8s  %-9s %s\n" "timing" [%string "%{mode} ns"] "cycles" "ns";
   List.iter bounds ~f:(fun { timing; cycles; met } ->
     let ns n = n * 1000 / clock_mhz in
     printf
@@ -388,7 +375,32 @@ let%expect_test "the certified master's pins keep to fast-mode plus at 50 MHz" =
       (Option.value_map cycles ~default:"never" ~f:Interval.to_string)
       (Option.value_map cycles ~default:"-" ~f:(fun (c : Interval.t) ->
          Interval.to_string { lo = Option.map c.lo ~f:ns; hi = Option.map c.hi ~f:ns }))
-      (if met then "" else "  SHORT"));
+      (if met then "" else "  SHORT"))
+;;
+
+(* The smallest quarter at which the certified master meets UM10204 Fast-mode Plus at 50
+   MHz, and its bounds. These are edges at the pins: the master does not wait for SCL
+   high, so rise time comes off tHIGH, tSU;STA and tSU;STO, the last two exactly at their
+   limits here. A full 120 ns Fm+ rise would need a quarter of 22. *)
+let%expect_test "the certified master's pins keep to fast-mode plus at 50 MHz" =
+  let clock_mhz = 50 in
+  let timings = I2c_timing.fast_mode_plus in
+  List.iter (List.range 10 13) ~f:(fun quarter ->
+    printf
+      "quarter %d is short: %s\n"
+      quarter
+      (Option.value_map
+         (bounds ~clock_mhz timings quarter)
+         ~default:"refused"
+         ~f:(fun bounds -> String.concat ~sep:", " (failing bounds))));
+  let quarter, bounds = Option.value_exn (smallest_quarter ~clock_mhz timings) in
+  let certified = Certified.find_exn "i2c_master" in
+  print_s
+    [%message
+      (quarter : int)
+        ~certified:(String.equal certified.source (i2c_master ~quarter) : bool)
+        ~scl_khz:(clock_mhz * 1000 / (4 * quarter) : int)];
+  print_bounds ~clock_mhz ~mode:"Fm+" bounds;
   let program = assemble certified.source in
   let t = Machine.create ~config:i2c_config ~program |> ok_exn in
   let t =
@@ -452,6 +464,34 @@ let%expect_test "the certified master's pins keep to fast-mode plus at 50 MHz" =
      (shortest_low (26)) (shortest_high (26))
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    |}]
+;;
+
+(* Standard mode's 4.7 us tSU;STA is one quarter, past [set p]'s 31 cycles above 6 MHz:
+   the fastest whole clock at which the master meets it, its bus clear included. *)
+let%expect_test "the master's pins keep to standard mode at 6 MHz" =
+  let timings = I2c_timing.standard_mode in
+  let clock_mhz, (quarter, bounds) =
+    List.find_map_exn (List.range ~stride:(-1) 50 0) ~f:(fun clock_mhz ->
+      Option.map (smallest_quarter ~clock_mhz timings) ~f:(fun found -> clock_mhz, found))
+  in
+  print_s
+    [%message
+      (clock_mhz : int) (quarter : int) ~scl_khz:(clock_mhz * 1000 / (4 * quarter) : int)];
+  print_bounds ~clock_mhz ~mode:"Sm" bounds;
+  [%expect
+    {|
+    ((clock_mhz 6) (quarter 29) (scl_khz 51))
+    timing        Sm ns  cycles    ns
+    SCL period >= 10000  116..?    19333..?
+    tLOW        >= 4700  58..?     9666..?
+    tHIGH       >= 4000  58..?     9666..?
+    tHD;STA     >= 4000  29        4833
+    tSU;STA     >= 4700  29        4833
+    tHD;DAT        >= 0  1..?      166..?
+    tSU;DAT      >= 250  28..81    4666..13500
+    tSU;STO     >= 4000  29        4833
+    tBUF        >= 4700  92..?     15333..?
     |}]
 ;;
 

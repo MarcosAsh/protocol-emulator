@@ -41,6 +41,12 @@ end
     the 1 MHz most of fSCL. *)
 val fast_mode_plus : Timing.t list
 
+(** The same from UM10204 table 10's Standard-mode column, an SCL period of 10 us. *)
+val standard_mode : Timing.t list
+
+(** The limit of the timing [name], such as ["tLOW"]. *)
+val min_ns : Timing.t list -> string -> int
+
 module Bound : sig
   type t =
     { timing : Timing.t
