@@ -1,0 +1,45 @@
+[tasks]
+prove
+# a frame is reached, and, with the mined claims left out, a contract whose first edge is a
+# cycle late sees a false alarm: both have to fail from the clear
+teeth from_reset
+shifted from_reset
+
+[options]
+prove: mode prove
+prove: depth 12
+from_reset: mode bmc
+from_reset: depth 80
+from_reset: expect fail
+
+[engines]
+smtbmc boolector
+
+[script]
+read_verilog -lib RM_IHPSG13_1P_512x16_c2_bm_bist.v
+read_verilog engine_sram.v
+hierarchy -top engine_top
+proc
+flatten
+expose -evert -sep __ engine_top/t:RM_IHPSG13_1P_512x16_c2_bm_bist
+cd engine_top
+# induction starts from no history, so it needs the core's own issue and jump
+expose w:solo.engine.issue w:solo.engine.jmp_go
+rename solo.engine.issue eng_issue
+rename solo.engine.jmp_go eng_jmp_go
+rename solo.engine.sram_macro.sram__A_ADDR sram_addr
+rename solo.engine.sram_macro.sram__A_DOUT sram_dout
+rename solo.data_memory.sram_macro.sram__A_ADDR data_sram_addr
+rename solo.data_memory.sram_macro.sram__A_DOUT data_sram_dout
+cd ..
+prove: read_verilog -formal -sv self_check_clean.sv
+teeth: read_verilog -formal -sv -DTEETH self_check_clean.sv
+shifted: read_verilog -formal -sv -DSHIFTED self_check_clean.sv
+prep -top self_check
+# as memories, the roms are state; as logic, fixed
+memory_map
+
+[files]
+engine_sram.v
+self_check_clean.sv
+../src/RM_IHPSG13_1P_512x16_c2_bm_bist.v

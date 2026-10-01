@@ -51,6 +51,7 @@ jobs:
           opam exec -- dune exec -- test/certify/write_self_check.exe -mutant least > formal/self_check_least.sv
           opam exec -- dune exec -- test/certify/write_self_check.exe -mutant silent > formal/self_check_silent.sv
           opam exec -- dune exec -- test/certify/write_self_check.exe -mutant slow > formal/self_check_slow.sv
+          opam exec -- dune exec -- test/certify/write_self_check.exe -invariants > formal/self_check_clean.sv
           opam exec -- dune exec -- bin/generate.exe kernel-accepts > formal/kernel_accepts.v
 
       # each inductive certificate, the stamped one and the ones with data claims too, is
@@ -394,7 +395,8 @@ jobs:
       - name: Prove
         run: make -C formal saturating_proof
 
-  # the self-check checker beside its contract from the clear, its covers and teeth
+  # the self-check checker beside its contract from the clear, its covers and teeth, and
+  # by induction for all time until a break
   self_check:
     needs: generate
     runs-on: ubuntu-24.04
@@ -415,7 +417,7 @@ jobs:
           echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
 
       - name: Prove
-        run: make -C formal self_check_proof
+        run: make -C formal self_check_proof self_check_clean_proof
 
   # the uart link between two engines by induction, its cover and teeth
   link:

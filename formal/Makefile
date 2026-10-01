@@ -1,6 +1,6 @@
 all: issue_timing host_timing late_host fifo_order phase_step edge_step event_step frame_step \
   value_step narrow saturating chip_frame data_step teeth fsm_miter sram_equiv \
-  kernel_equiv link self_check powerup
+  kernel_equiv link self_check self_check_clean powerup
 
 engine.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe engine > formal/engine.v
@@ -192,6 +192,17 @@ self_check: engine_sram.v
 
 self_check_proof:
 	sby -f self_check.sby bmc cover stamp least silent slow
+
+# The same checker and edges, any line, for all time: until the line leaves its rows, no
+# irq, no halt, none of its own deadlines missed. By 12-induction over invariants mined from
+# simulated runs, less those it refuted (write_self_check.ml). Teeth: a frame is reached,
+# and with the claims left out a contract a cycle off the rows sees a false alarm. ~1 min.
+self_check_clean: engine_sram.v
+	(cd .. && dune exec -- test/certify/write_self_check.exe -invariants) > self_check_clean.sv
+	$(MAKE) self_check_clean_proof
+
+self_check_clean_proof:
+	sby -f self_check_clean.sby prove teeth shifted
 
 osr_step.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe osr > formal/osr_step.v
@@ -638,4 +649,5 @@ witness_reject:
   fsm_miter fsm_miter_proof sram_equiv sram_equiv_proof \
   sram_equiv_step sram_equiv_teeth kernel_equiv kernel_equiv_proof kernel_miter sat_tools \
   narrow narrow_proof saturating saturating_proof saturating_chip self_check self_check_proof \
+  self_check_clean self_check_clean_proof \
   powerup

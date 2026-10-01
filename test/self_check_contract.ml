@@ -6,6 +6,7 @@ let position_bits = 14
 
 (* the 16 bits a stamp keeps *)
 let watch_from = Self_check_monitor.watch_from
+let boot_bits = Int.ceil_log2 (watch_from + 1)
 let stamp_bits = 16
 
 module type Config = sig
@@ -32,6 +33,11 @@ module Make (Config : Config) = struct
       ; overdue : 'a
       ; ended : 'a [@bits 2]
       ; late : 'a
+      ; phase : 'a [@bits 3]
+      ; position : 'a [@bits position_bits]
+      ; boot : 'a [@bits boot_bits]
+      ; previous : 'a
+      ; flags : 'a [@bits 6]
       }
     [@@deriving hardcaml]
   end
@@ -55,7 +61,7 @@ module Make (Config : Config) = struct
     let spec = Clocking.to_spec i.clocking in
     let open Always in
     let%hw.Always.State_machine sm = State_machine.create (module State) spec in
-    let%hw_var boot = Variable.reg spec ~width:(Int.ceil_log2 (watch_from + 1)) in
+    let%hw_var boot = Variable.reg spec ~width:boot_bits in
     let%hw_var stale = Variable.reg spec ~width:1 in
     let%hw_var ended = Variable.reg spec ~width:2 in
     let%hw_var blind = Variable.reg spec ~width:1 in
@@ -153,6 +159,19 @@ module Make (Config : Config) = struct
     ; overdue = sm.is Doomed &: (left.value ==:. 0)
     ; ended = ended.value
     ; late = late.value
+    ; phase = sm.current
+    ; position = position.value
+    ; boot = boot.value
+    ; previous
+    ; flags =
+        concat_msb
+          [ stale.value
+          ; blind.value
+          ; early.value
+          ; at_last.value
+          ; fresh.value
+          ; least_high.value
+          ]
     }
   ;;
 

@@ -31,6 +31,13 @@ module Make (_ : Config) : sig
       ; overdue : 'a (** the checker's irq is due by now *)
       ; ended : 'a (** frames that reached their least, up to 3 *)
       ; late : 'a (** the irq is due ten after a start, not before a least *)
+      ; phase : 'a
+      (** 0 from the clear, 1 waiting for the line high, 2 for a frame, 3 in one, 4 with
+          the irq due *)
+      ; position : 'a (** in a frame, the cycles since its start *)
+      ; boot : 'a (** from the clear, the cycles up to [watch_from] *)
+      ; previous : 'a (** the line a cycle ago *)
+      ; flags : 'a (** stale, blind, early, at last, fresh and least high, msb first *)
       }
     [@@deriving hardcaml]
   end
