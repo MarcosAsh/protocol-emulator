@@ -152,6 +152,7 @@ let%expect_test "errors name the line" =
   try_ ".origin 4";
   try_ "out pins, 1 side 1";
   try_ ".side_set 1\nout pins, 1";
+  try_ (String.concat ~sep:"\n" (List.init 513 ~f:(fun _ -> "nop")));
   [%expect
     {|
     (Error ((line 1 "jmp nowhere") ("unknown label" nowhere)))
@@ -170,6 +171,7 @@ let%expect_test "errors name the line" =
     (Error
      ((line 2 "out pins, 1")
       "side-set is enabled, so every instruction needs a side"))
+    (Error ((line 513 nop) ("longer than program memory" (words 512))))
     |}]
 ;;
 

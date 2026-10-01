@@ -293,7 +293,12 @@ let assemble_with_lines source =
              if List.Assoc.mem first.labels label ~equal:String.equal
              then Or_error.error_s [%message "duplicate label" label]
              else Ok { first with labels = (label, first.address) :: first.labels }
-           | Instruction _ -> Ok { first with address = first.address + 1 }))
+           | Instruction _ ->
+             if first.address = 1 lsl Isa.pc_bits
+             then
+               Or_error.error_s
+                 [%message "longer than program memory" ~words:(1 lsl Isa.pc_bits : int)]
+             else Ok { first with address = first.address + 1 }))
   in
   let { First_pass.side_set_count; labels; address = length; wrap_bottom; wrap_top } =
     first
