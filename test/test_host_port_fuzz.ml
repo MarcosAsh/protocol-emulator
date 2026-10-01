@@ -3,7 +3,6 @@ open! Hardcaml
 open Hardcaml_lws
 open Protocol_emulator
 module Model = Host_port_model
-module Reg = Host_port.Reg
 module Status = Host_port.Status
 module Frame = Host_frame
 

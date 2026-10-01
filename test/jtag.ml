@@ -59,7 +59,6 @@ let shift ~bits value =
     { Clock.tms = i = bits - 1; tdi = (value lsr i) land 1 = 1 })
 ;;
 
-let ir_shift_offset = 4
 let dr_shift_offset = 3
 let scan_ir ~bits value = tms [ 1; 1; 0; 0 ] @ shift ~bits value @ tms [ 1; 0 ]
 let scan_dr ~bits value = tms [ 1; 0; 0 ] @ shift ~bits value @ tms [ 1; 0 ]

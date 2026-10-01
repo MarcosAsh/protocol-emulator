@@ -8,7 +8,6 @@ type t =
 
 let exactly n = { lo = Some n; hi = Some n }
 let top = { lo = None; hi = None }
-let at_least n = { lo = Some n; hi = None }
 let shift t n = { lo = Option.map t.lo ~f:(( + ) n); hi = Option.map t.hi ~f:(( + ) n) }
 
 let join a b =

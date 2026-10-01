@@ -10,7 +10,6 @@ type t =
 
 val exactly : int -> t
 val top : t
-val at_least : int -> t
 val shift : t -> int -> t
 val join : t -> t -> t
 

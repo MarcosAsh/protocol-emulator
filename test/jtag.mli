@@ -50,9 +50,7 @@ val words : Clock.t list -> int list
     the core pushed: [first] is the index of the scan's first clock in the whole sequence. *)
 val shifted_out : pushed:int list -> first:int -> bits:int -> int
 
-(** The offset of the first shift clock inside [scan_ir] and [scan_dr]. *)
-val ir_shift_offset : int
-
+(** The offset of the first shift clock inside [scan_dr]. *)
 val dr_shift_offset : int
 
 (** A TAP controller with a four bit instruction register: 0x1 IDCODE, which reset
