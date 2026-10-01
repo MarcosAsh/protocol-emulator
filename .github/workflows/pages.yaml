@@ -47,7 +47,7 @@ jobs:
         run: |
           opam install . --deps-only --locked
           opam install js_of_ocaml.6.3.2+ox \
-            $(opam list --installed --short --columns=name,version | awk '{ print $1 "." $2 }')
+            $(opam list --installed --short --color=never --columns=name,version | awk '{ print $1 "." $2 }')
 
       # the release profile links the whole program, 0.8 MB against 31 MB
       - name: Build the playground
