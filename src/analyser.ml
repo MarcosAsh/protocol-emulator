@@ -171,6 +171,10 @@ let writes_side_set (c : Program_config.t) (op : Isa.Op.t) =
   | Set { dest = Pins; _ } -> to_pins && overlaps ~base:c.set_base ~count:c.set_count
   | Set { dest = Pindirs; _ } ->
     c.side_set_pindirs && overlaps ~base:c.set_base ~count:c.set_count
+  (* a Manchester bit drives the pin beside too; its second half needs nothing more, as
+     side-set's level is lost already and an instruction's own side-set lands after it *)
+  | Out { dest = Pins; count = 1 } when c.manchester ->
+    to_pins && overlaps ~base:c.out_base ~count:2
   | Out { dest = Pins; count } -> to_pins && overlaps ~base:c.out_base ~count
   | Out { dest = Pindirs; count } ->
     c.side_set_pindirs && overlaps ~base:c.out_base ~count

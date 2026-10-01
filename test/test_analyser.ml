@@ -863,6 +863,49 @@ loop:
     |}]
 ;;
 
+(* A Manchester bit drives [out_base] and the pin beside it, here side-set's, in its first
+   half on the out and its second on the jmp, which drives no side-set. *)
+let%expect_test "a Manchester bit moves a side-set pin beside out_base" =
+  let config =
+    { Program_config.default with
+      side_set_count = 1
+    ; side_set_base = 6
+    ; out_base = 5
+    ; manchester = true
+    }
+  in
+  let source =
+    {|
+    .side_set 1
+    set x, 1 side 1
+    mov osr, x side 1
+    out pins, 1 side 1
+    jmp next
+next:
+    nop side 1
+    nop side 1
+    halt side 1
+|}
+  in
+  report ~config source;
+  let { Soundness.issues; side_edges; violations; _ } =
+    soundness ~config ~cycles:50 ~seeds:1 (assemble source)
+  in
+  print_s
+    [%message
+      (issues : int) (side_edges : int) (violations : (int * int * int * int) list)];
+  [%expect {|
+      0  set x, 1 side 1              phase ?..?  side ?..?  jitter ?
+      1  mov osr, x side 1            phase ?..?
+      2  out pins, 1 side 1           phase ?..?  edge ?..?  jitter ?  gap ?..?
+      3  jmp 4                        phase ?..?  flip ?..?  jitter ?  gap 1
+      4  nop side 1                   phase ?..?  side ?..?  jitter ?
+      5  nop side 1                   phase ?..?
+      6  halt side 1                  phase ?..?
+    ((issues 7) (side_edges 2) (violations ()))
+    |}]
+;;
+
 let%expect_test "edge meter" =
   report ~config:edge_meter_config (edge_meter ~period:16);
   [%expect
