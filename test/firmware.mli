@@ -54,7 +54,7 @@ val scl : int
 val i2c_master : quarter:int -> string
 
 (** The master without the bus clear, as the bench's marked copy runs it. *)
-val i2c_master_unclearing : quarter:int -> string
+val i2c_master_without_bus_clear : quarter:int -> string
 
 val i2c_config : Program_config.t
 

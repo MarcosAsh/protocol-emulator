@@ -272,7 +272,7 @@ let%expect_test "the words committed for the cocotb test are current" =
   in
   [%test_result: int list]
     (Firmware.assemble unmarked)
-    ~expect:(Firmware.assemble (Firmware.i2c_master_unclearing ~quarter:30));
+    ~expect:(Firmware.assemble (Firmware.i2c_master_without_bus_clear ~quarter:30));
   [%test_result: int list]
     (assembled "self_check_wire")
     ~expect:(Firmware.assemble (Self_check.checker ~pin:Isa.num_pins ~base:256));

@@ -387,7 +387,7 @@ stop:
 ;;
 
 let i2c_master = i2c_master_with ~preamble:bus_clear
-let i2c_master_unclearing = i2c_master_with ~preamble:"\n"
+let i2c_master_without_bus_clear = i2c_master_with ~preamble:"\n"
 
 let i2c_config =
   { Program_config.default with

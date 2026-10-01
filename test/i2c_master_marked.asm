@@ -1,4 +1,5 @@
-; Firmware.i2c_master ~quarter:30 (400 kHz at 48 MHz) with SDA on IO7 and SCL on IO6.
+; Firmware.i2c_master_without_bus_clear ~quarter:30 (400 kHz at 48 MHz), SDA on IO7, SCL
+; on IO6.
 ; set_count 2 puts wire 20 beside SDA: each nop that moves SCL is a set that copies the
 ; release onto the wire in the same issue, so engine 1 sees the proved release cycle.
 ; host word: start[15] read[14] data[13:6] stop[5]
