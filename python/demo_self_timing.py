@@ -15,6 +15,7 @@ TRANSMITTER = dict(pe.DEFAULT_CONFIG, set_base=WIRE, out_base=WIRE)
 # sets OUT0, the default set pin
 LOGGER = dict(pe.DEFAULT_CONFIG, jmp_pin=WIRE, autopush=1)
 FAULTS = 0x3C
+FLOOD = (pe.NOW_LO, pe.PC)
 
 
 def words(name):
@@ -55,7 +56,21 @@ def setup(host, transmitter, logger, period=PERIOD):
             host.pop(level)
 
 
-def send(host, data, flood=False, pause=None, polls=100_000):
+def host_drain(host):
+    """The poll as Host makes it, for the cocotb rehearsal: append the selected engine's
+    waiting stamps, then read each register in reads."""
+
+    def drain(stamps, reads):
+        level = rx_level(host)
+        if level:
+            stamps.extend(host.pop(level))
+        for reg in reads:
+            host.read(reg)
+
+    return drain
+
+
+def send(host, drain, data, flood=False, pause=None, polls=100_000):
     """The stamps of every edge. Flooding, the host reads two more registers each poll."""
     expected = sum(len(edges(b)) for b in data)
     host.select(0)
@@ -63,15 +78,10 @@ def send(host, data, flood=False, pause=None, polls=100_000):
     host.select(1)
     stamps = []
     for _ in range(polls):
-        level = rx_level(host)
-        if level:
-            stamps += host.pop(level)
+        drain(stamps, FLOOD if flood else ())
         if len(stamps) >= expected:
             return stamps
-        if flood:
-            host.read(pe.NOW_LO)
-            host.read(pe.PC)
-        elif pause:
+        if pause and not flood:
             pause()
     raise RuntimeError("%d of %d edges stamped" % (len(stamps), expected))
 
@@ -110,28 +120,37 @@ def table(data, measured, period=PERIOD):
 
 
 class Counted:
-    def __init__(self, transfer):
+    """The SPI frames sent, through Host or a transport's own drain."""
+
+    def __init__(self, transfer, drain=None):
         self.inner = transfer
+        self.inner_drain = drain
         self.frames = 0
 
     def transfer(self, data):
         self.frames += 1
         return self.inner(data)
 
+    def drain(self, stamps, reads):
+        self.frames += self.inner_drain(stamps, reads)
 
-def run(transfer, text=b"Jane St!", pause=None):
-    """Quiet, then with the host flooding SPI: both tables, and whether they agree."""
+
+def run(transfer, text=b"Jane St!", pause=None, drain=None):
+    """Quiet, then with the host flooding SPI: both tables, and whether they agree. A
+    transport's own drain, like host_drain's but returning the frames it sent, stands in
+    for Host's where the host is too slow to poll through it."""
     data = bytes(text)
     assert len(data) <= 8, "the tx fifo holds eight"
-    spi = Counted(transfer)
+    spi = Counted(transfer, drain)
     host = pe.Host(spi.transfer)
+    poll = host_drain(host) if drain is None else spi.drain
     setup(host, words("uart_tx_host_rate"), words("edge_logger_echo"))
     spi.frames = 0
-    quiet = offsets(data, send(host, data, pause=pause))
+    quiet = offsets(data, send(host, poll, data, pause=pause))
     print("\nquiet, %d SPI frames:" % spi.frames)
     ok = table(data, quiet)
     spi.frames = 0
-    flooded = offsets(data, send(host, data, flood=True))
+    flooded = offsets(data, send(host, poll, data, flood=True))
     print("\nflooded, %d SPI frames:" % spi.frames)
     ok = table(data, flooded) and ok
     found = faults(host)
@@ -145,4 +164,5 @@ if __name__ == "__main__":
     import pico_board
 
     spi = pico_board.PicoSpi()
-    print("PASS" if run(spi.transfer, pause=lambda: time.sleep_us(300)) else "FAIL")
+    ok = run(spi.transfer, pause=lambda: time.sleep_us(300), drain=spi.drain)
+    print("PASS" if ok else "FAIL")
