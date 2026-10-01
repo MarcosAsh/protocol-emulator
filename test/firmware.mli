@@ -50,7 +50,7 @@ val sda : int
 val scl : int
 
 (** Master with SCL a quarter period [quarter] cycles. It first clears the bus (UM10204
-    3.1.16): up to nine SCL pulses while SDA reads low, then a STOP. *)
+    3.1.16): up to nine SCL pulses while SDA reads low, then a START and a STOP. *)
 val i2c_master : quarter:int -> string
 
 (** The master without the bus clear, as the bench's marked copy runs it. *)

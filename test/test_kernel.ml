@@ -434,23 +434,23 @@ let%expect_test "i2c_master keeps Fast-mode Plus spacing, and a short SCL low is
     (i2c_master_short_low (deadlines (Ok ()))
      (spaced
       (Error
-       ("rows the kernel rejects" (rejected (((pc 38) (fails ("a spaced")))))))))
+       ("rows the kernel rejects" (rejected (((pc 40) (fails ("a spaced")))))))))
     (i2c_master_quarter_12 (deadlines (Ok ()))
      (spaced
       (Error
        ("rows the kernel rejects"
         (rejected
-         (((pc 9) (fails ("a spaced"))) ((pc 34) (fails ("a spaced")))
-          ((pc 41) (fails ("b spaced"))) ((pc 43) (fails ("a spaced")))
-          ((pc 52) (fails ("a spaced"))) ((pc 60) (fails ("a spaced")))
-          ((pc 70) (fails ("a spaced"))) ((pc 81) (fails ("a spaced")))
-          ((pc 92) (fails ("a spaced"))) ((pc 94) (fails ("b spaced")))))))))
+         (((pc 9) (fails ("a spaced"))) ((pc 36) (fails ("a spaced")))
+          ((pc 43) (fails ("b spaced"))) ((pc 45) (fails ("a spaced")))
+          ((pc 54) (fails ("a spaced"))) ((pc 62) (fails ("a spaced")))
+          ((pc 72) (fails ("a spaced"))) ((pc 83) (fails ("a spaced")))
+          ((pc 94) (fails ("a spaced"))) ((pc 96) (fails ("b spaced")))))))))
     |}]
 ;;
 
 (* The bus clear's SCL low cut to a quarter keeps every deadline, and the kernel refuses
    it once it spaces the edges. At 6 MHz a quarter of 29, the fastest Standard mode
-   (test_i2c.ml), is refused only at pc 45: the SCL fall for a host word with no START,
+   (test_i2c.ml), is refused only at pc 47: the SCL fall for a host word with no START,
    whose SDA edge before is a STOP behind the host wait, past the kernel's bound. A
    quarter of 28 is short of tSU;STA too. *)
 let%expect_test "i2c_master's bus clear is spaced, and a short pulse is refused" =
@@ -495,13 +495,13 @@ let%expect_test "i2c_master's bus clear is spaced, and a short pulse is refused"
     (i2c_master_quarter_29 "Sm at 6 MHz" (deadlines (Ok ()))
      (spaced
       (Error
-       ("rows the kernel rejects" (rejected (((pc 45) (fails ("a spaced")))))))))
+       ("rows the kernel rejects" (rejected (((pc 47) (fails ("a spaced")))))))))
     (i2c_master_quarter_28 "Sm at 6 MHz" (deadlines (Ok ()))
      (spaced
       (Error
        ("rows the kernel rejects"
         (rejected
-         (((pc 41) (fails ("b spaced"))) ((pc 45) (fails ("a spaced")))))))))
+         (((pc 43) (fails ("b spaced"))) ((pc 47) (fails ("a spaced")))))))))
     |}]
 ;;
 
@@ -531,14 +531,14 @@ let%expect_test "the spacing i2c_master passes is its own, to the cycle" =
      (Error
       ("rows the kernel rejects"
        (rejected
-        (((pc 9) (fails ("a spaced"))) ((pc 52) (fails ("a spaced")))
-         ((pc 60) (fails ("a spaced"))) ((pc 70) (fails ("a spaced")))
-         ((pc 81) (fails ("a spaced"))) ((pc 92) (fails ("a spaced"))))))))
+        (((pc 9) (fails ("a spaced"))) ((pc 54) (fails ("a spaced")))
+         ((pc 62) (fails ("a spaced"))) ((pc 72) (fails ("a spaced")))
+         ((pc 83) (fails ("a spaced"))) ((pc 94) (fails ("a spaced"))))))))
     ("tSU;STA, tSU;STO" (cycles 13) (Ok ()))
     ("tSU;STA, tSU;STO" (cycles 14)
      (Error
       ("rows the kernel rejects"
-       (rejected (((pc 41) (fails ("b spaced"))) ((pc 94) (fails ("b spaced"))))))))
+       (rejected (((pc 43) (fails ("b spaced"))) ((pc 96) (fails ("b spaced"))))))))
     |}]
 ;;
 
@@ -1112,7 +1112,7 @@ let%expect_test "a bound on the jitter of every pin edge, in firmware the kernel
     (uart_rx "writes no pins")
     (spi_master (pc 9) (jitter_bound 2) (untimed (0 1 2 3 4 5)))
     (spi_slave "no edge has a deadline" (untimed (0 4)))
-    (i2c_master (pc 48) (jitter_bound 10) (untimed (0 1 2 16 17 24 25)))
+    (i2c_master (pc 50) (jitter_bound 10) (untimed (0 1 2 18 19 26 27)))
     (i2c_slave "no edge has a deadline" (untimed (2 19 22 40 43 53 60 64)))
     (i2c_logger (pc 24) (jitter_bound 2) (untimed (0 1 2 3)))
     (usb_tx (pc 11) (jitter_bound 0) (untimed (2)))

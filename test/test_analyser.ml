@@ -101,90 +101,92 @@ let%expect_test "i2c master" =
     10  wait t+ side 0               phase -6  slack 6
     11  jmp x--, 4                   phase -7
     12  wait t+ side 0               phase -5..-3  slack 3..5
-    13  nop side 1                   phase -7  side -6
-    14  jmp 89                       phase -6
-    15  wait tx side 0               phase -5
-    16  pull side 0                  phase -4..?
-    17  mov t, now side 0            phase -3..?
-    18  add t, p side 0              phase 1
-    19  add t, p side 0              phase -6
-    20  out x, 1 side 0              phase -13
-    21  jmp x--, 31                  phase -12
-    22  jmp 45                       phase -10
-    23  wait tx side 1               phase 0..2
-    24  pull side 1                  phase 1..?
-    25  mov t, now side 1            phase 2..?
-    26  add t, p side 1              phase 1
-    27  add t, p side 1              phase -6
-    28  out x, 1 side 1              phase -13
-    29  jmp x--, 37                  phase -12
-    30  jmp 45                       phase -10
-    31  wait t+ side 0               phase -10  slack 10
-    32  set pindirs, 1 side 0        phase -7  edge -6  gap 29..?
-    33  wait t+ side 0               phase -6  slack 6
-    34  nop side 1                   phase -7  side -6
-    35  add t, p side 1              phase -6
-    36  jmp 45                       phase -13
-    37  set pindirs, 0 side 1        phase -10  edge -9  gap 14..?
-    38  wait t+ side 1               phase -9  slack 9
-    39  nop side 0                   phase -7  side -6
-    40  wait t+ side 0               phase -6  slack 6
-    41  set pindirs, 1 side 0        phase -7  edge -6  gap 19
+    13  set pindirs, 1 side 0        phase -7  edge -6  gap ?..?
+    14  wait t+ side 0               phase -6  slack 6
+    15  nop side 1                   phase -7  side -6
+    16  jmp 91                       phase -6
+    17  wait tx side 0               phase -5
+    18  pull side 0                  phase -4..?
+    19  mov t, now side 0            phase -3..?
+    20  add t, p side 0              phase 1
+    21  add t, p side 0              phase -6
+    22  out x, 1 side 0              phase -13
+    23  jmp x--, 33                  phase -12
+    24  jmp 47                       phase -10
+    25  wait tx side 1               phase 0..2
+    26  pull side 1                  phase 1..?
+    27  mov t, now side 1            phase 2..?
+    28  add t, p side 1              phase 1
+    29  add t, p side 1              phase -6
+    30  out x, 1 side 1              phase -13
+    31  jmp x--, 39                  phase -12
+    32  jmp 47                       phase -10
+    33  wait t+ side 0               phase -10  slack 10
+    34  set pindirs, 1 side 0        phase -7  edge -6  gap 29..?
+    35  wait t+ side 0               phase -6  slack 6
+    36  nop side 1                   phase -7  side -6
+    37  add t, p side 1              phase -6
+    38  jmp 47                       phase -13
+    39  set pindirs, 0 side 1        phase -10  edge -9  gap 14..?
+    40  wait t+ side 1               phase -9  slack 9
+    41  nop side 0                   phase -7  side -6
     42  wait t+ side 0               phase -6  slack 6
-    43  nop side 1                   phase -7  side -6
-    44  add t, p side 1              phase -6
-    45  out y, 1 side 1              phase -13..-8  side -7
-    46  set x, 7 side 1              phase -12..-7
-    47  jmp y--, 67                  phase -11..-6
-    48  wait t+ side 1               phase -9..-4  slack 4..9
-    49  out y, 1 side 1              phase -7
-    50  mov pindirs, !y side 1       phase -6  edge -5  gap 20..?
-    51  wait t+ side 1               phase -5  slack 5
-    52  nop side 0                   phase -7  side -6
-    53  wait t+ side 0               phase -6  slack 6
-    54  wait t+ side 0               phase -7  slack 7
-    55  nop side 1                   phase -7  side -6
-    56  jmp x--, 48                  phase -6
-    57  wait t+ side 1               phase -4  slack 4
-    58  set pindirs, 0 side 1        phase -7  edge -6  gap 31
-    59  wait t+ side 1               phase -6  slack 6
-    60  nop side 0                   phase -7  side -6
-    61  wait t+ side 0               phase -6  slack 6
-    62  in pins, 1 side 0            phase -7  sample -7
+    43  set pindirs, 1 side 0        phase -7  edge -6  gap 19
+    44  wait t+ side 0               phase -6  slack 6
+    45  nop side 1                   phase -7  side -6
+    46  add t, p side 1              phase -6
+    47  out y, 1 side 1              phase -13..-8  side -7
+    48  set x, 7 side 1              phase -12..-7
+    49  jmp y--, 69                  phase -11..-6
+    50  wait t+ side 1               phase -9..-4  slack 4..9
+    51  out y, 1 side 1              phase -7
+    52  mov pindirs, !y side 1       phase -6  edge -5  gap 20..?
+    53  wait t+ side 1               phase -5  slack 5
+    54  nop side 0                   phase -7  side -6
+    55  wait t+ side 0               phase -6  slack 6
+    56  wait t+ side 0               phase -7  slack 7
+    57  nop side 1                   phase -7  side -6
+    58  jmp x--, 50                  phase -6
+    59  wait t+ side 1               phase -4  slack 4
+    60  set pindirs, 0 side 1        phase -7  edge -6  gap 31
+    61  wait t+ side 1               phase -6  slack 6
+    62  nop side 0                   phase -7  side -6
     63  wait t+ side 0               phase -6  slack 6
-    64  nop side 1                   phase -7  side -6
-    65  out x, 1 side 1              phase -6
-    66  jmp 86                       phase -5
-    67  set pindirs, 0 side 1        phase -9..-4  edge -8..-3  jitter 5  gap 14..?
-    68  wait t+ side 1               phase -8..-3  slack 3..8
-    69  wait t+ side 1               phase -7  slack 7
-    70  nop side 0                   phase -7  side -6
-    71  wait t+ side 0               phase -6  slack 6
-    72  in pins, 1 side 0            phase -7  sample -7
+    64  in pins, 1 side 0            phase -7  sample -7
+    65  wait t+ side 0               phase -6  slack 6
+    66  nop side 1                   phase -7  side -6
+    67  out x, 1 side 1              phase -6
+    68  jmp 88                       phase -5
+    69  set pindirs, 0 side 1        phase -9..-4  edge -8..-3  jitter 5  gap 14..?
+    70  wait t+ side 1               phase -8..-3  slack 3..8
+    71  wait t+ side 1               phase -7  slack 7
+    72  nop side 0                   phase -7  side -6
     73  wait t+ side 0               phase -6  slack 6
-    74  nop side 1                   phase -7  side -6
-    75  jmp x--, 68                  phase -6
-    76  out null, 8 side 1           phase -4
-    77  out x, 1 side 1              phase -3
-    78  wait t+ side 1               phase -2  slack 2
-    79  mov pindirs, !x side 1       phase -7  edge -6  gap 37..?
-    80  wait t+ side 1               phase -6  slack 6
-    81  nop side 0                   phase -7  side -6
-    82  wait t+ side 0               phase -6  slack 6
-    83  wait t+ side 0               phase -7  slack 7
-    84  nop side 1                   phase -7  side -6
-    85  set pindirs, 0 side 1        phase -6  edge -5  gap 25
-    86  push side 1                  phase -5..-3
-    87  jmp x--, 89                  phase -4..-2
-    88  jmp 23                       phase -2..0
-    89  wait t+ side 1               phase -4..0  slack 0..4
-    90  set pindirs, 1 side 1        phase -7  edge -6  gap ?..?
-    91  wait t+ side 1               phase -6  slack 6
-    92  nop side 0                   phase -7  side -6
-    93  wait t+ side 0               phase -6  slack 6
-    94  set pindirs, 0 side 0        phase -7  edge -6  gap 16
+    74  in pins, 1 side 0            phase -7  sample -7
+    75  wait t+ side 0               phase -6  slack 6
+    76  nop side 1                   phase -7  side -6
+    77  jmp x--, 70                  phase -6
+    78  out null, 8 side 1           phase -4
+    79  out x, 1 side 1              phase -3
+    80  wait t+ side 1               phase -2  slack 2
+    81  mov pindirs, !x side 1       phase -7  edge -6  gap 37..?
+    82  wait t+ side 1               phase -6  slack 6
+    83  nop side 0                   phase -7  side -6
+    84  wait t+ side 0               phase -6  slack 6
+    85  wait t+ side 0               phase -7  slack 7
+    86  nop side 1                   phase -7  side -6
+    87  set pindirs, 0 side 1        phase -6  edge -5  gap 25
+    88  push side 1                  phase -5..-3
+    89  jmp x--, 91                  phase -4..-2
+    90  jmp 25                       phase -2..0
+    91  wait t+ side 1               phase -4..0  slack 0..4
+    92  set pindirs, 1 side 1        phase -7  edge -6  gap 5..36
+    93  wait t+ side 1               phase -6  slack 6
+    94  nop side 0                   phase -7  side -6
     95  wait t+ side 0               phase -6  slack 6
-    96  jmp 15                       phase -7
+    96  set pindirs, 0 side 0        phase -7  edge -6  gap 16
+    97  wait t+ side 0               phase -6  slack 6
+    98  jmp 17                       phase -7
     |}]
 ;;
 
@@ -205,90 +207,92 @@ let%expect_test "a quarter of 5 is too short for the i2c dispatch" =
     10  wait t+ side 0               phase -3  slack 3
     11  jmp x--, 4                   phase -4
     12  wait t+ side 0               phase -2..0  slack 0..2
-    13  nop side 1                   phase -4  side -3
-    14  jmp 89                       phase -3
-    15  wait tx side 0               phase -2
-    16  pull side 0                  phase -1..?
-    17  mov t, now side 0            phase 0..?
-    18  add t, p side 0              phase 1
-    19  add t, p side 0              phase -3
-    20  out x, 1 side 0              phase -7
-    21  jmp x--, 31                  phase -6
-    22  jmp 45                       phase -4
-    23  wait tx side 1               phase 3..5
-    24  pull side 1                  phase 4..?
-    25  mov t, now side 1            phase 5..?
-    26  add t, p side 1              phase 1
-    27  add t, p side 1              phase -3
-    28  out x, 1 side 1              phase -7
-    29  jmp x--, 37                  phase -6
-    30  jmp 45                       phase -4
-    31  wait t+ side 0               phase -4  slack 4
-    32  set pindirs, 1 side 0        phase -4  edge -3  gap 20..?
-    33  wait t+ side 0               phase -3  slack 3
-    34  nop side 1                   phase -4  side -3
-    35  add t, p side 1              phase -3
-    36  jmp 45                       phase -7
-    37  set pindirs, 0 side 1        phase -4  edge -3  gap 14..?
-    38  wait t+ side 1               phase -3  slack 3
-    39  nop side 0                   phase -4  side -3
-    40  wait t+ side 0               phase -3  slack 3
-    41  set pindirs, 1 side 0        phase -4  edge -3  gap 10
+    13  set pindirs, 1 side 0        phase -4  edge -3  gap ?..?
+    14  wait t+ side 0               phase -3  slack 3
+    15  nop side 1                   phase -4  side -3
+    16  jmp 91                       phase -3
+    17  wait tx side 0               phase -2
+    18  pull side 0                  phase -1..?
+    19  mov t, now side 0            phase 0..?
+    20  add t, p side 0              phase 1
+    21  add t, p side 0              phase -3
+    22  out x, 1 side 0              phase -7
+    23  jmp x--, 33                  phase -6
+    24  jmp 47                       phase -4
+    25  wait tx side 1               phase 3..5
+    26  pull side 1                  phase 4..?
+    27  mov t, now side 1            phase 5..?
+    28  add t, p side 1              phase 1
+    29  add t, p side 1              phase -3
+    30  out x, 1 side 1              phase -7
+    31  jmp x--, 39                  phase -6
+    32  jmp 47                       phase -4
+    33  wait t+ side 0               phase -4  slack 4
+    34  set pindirs, 1 side 0        phase -4  edge -3  gap 20..?
+    35  wait t+ side 0               phase -3  slack 3
+    36  nop side 1                   phase -4  side -3
+    37  add t, p side 1              phase -3
+    38  jmp 47                       phase -7
+    39  set pindirs, 0 side 1        phase -4  edge -3  gap 14..?
+    40  wait t+ side 1               phase -3  slack 3
+    41  nop side 0                   phase -4  side -3
     42  wait t+ side 0               phase -3  slack 3
-    43  nop side 1                   phase -4  side -3
-    44  add t, p side 1              phase -3
-    45  out y, 1 side 1              phase -7..-2  side -1
-    46  set x, 7 side 1              phase -6..-1
-    47  jmp y--, 67                  phase -5..0
-    48  wait t+ side 1               phase -3..2  slack -2..3  MAY MISS
-    49  out y, 1 side 1              phase -4..-2
-    50  mov pindirs, !y side 1       phase -3..-1  edge -2..0  jitter 2  gap 13..?
-    51  wait t+ side 1               phase -2..0  slack 0..2
-    52  nop side 0                   phase -4  side -3
-    53  wait t+ side 0               phase -3  slack 3
-    54  wait t+ side 0               phase -4  slack 4
-    55  nop side 1                   phase -4  side -3
-    56  jmp x--, 48                  phase -3
-    57  wait t+ side 1               phase -1  slack 1
-    58  set pindirs, 0 side 1        phase -4  edge -3  gap 17..19
-    59  wait t+ side 1               phase -3  slack 3
-    60  nop side 0                   phase -4  side -3
-    61  wait t+ side 0               phase -3  slack 3
-    62  in pins, 1 side 0            phase -4  sample -4
+    43  set pindirs, 1 side 0        phase -4  edge -3  gap 10
+    44  wait t+ side 0               phase -3  slack 3
+    45  nop side 1                   phase -4  side -3
+    46  add t, p side 1              phase -3
+    47  out y, 1 side 1              phase -7..-2  side -1
+    48  set x, 7 side 1              phase -6..-1
+    49  jmp y--, 69                  phase -5..0
+    50  wait t+ side 1               phase -3..2  slack -2..3  MAY MISS
+    51  out y, 1 side 1              phase -4..-2
+    52  mov pindirs, !y side 1       phase -3..-1  edge -2..0  jitter 2  gap 13..?
+    53  wait t+ side 1               phase -2..0  slack 0..2
+    54  nop side 0                   phase -4  side -3
+    55  wait t+ side 0               phase -3  slack 3
+    56  wait t+ side 0               phase -4  slack 4
+    57  nop side 1                   phase -4  side -3
+    58  jmp x--, 50                  phase -3
+    59  wait t+ side 1               phase -1  slack 1
+    60  set pindirs, 0 side 1        phase -4  edge -3  gap 17..19
+    61  wait t+ side 1               phase -3  slack 3
+    62  nop side 0                   phase -4  side -3
     63  wait t+ side 0               phase -3  slack 3
-    64  nop side 1                   phase -4  side -3
-    65  out x, 1 side 1              phase -3
-    66  jmp 86                       phase -2
-    67  set pindirs, 0 side 1        phase -3..2  edge -2..3  jitter 5  gap 11..?
-    68  wait t+ side 1               phase -2..3  slack -3..2  MAY MISS
-    69  wait t+ side 1               phase -4..-1  slack 1..4
-    70  nop side 0                   phase -4  side -3
-    71  wait t+ side 0               phase -3  slack 3
-    72  in pins, 1 side 0            phase -4  sample -4
+    64  in pins, 1 side 0            phase -4  sample -4
+    65  wait t+ side 0               phase -3  slack 3
+    66  nop side 1                   phase -4  side -3
+    67  out x, 1 side 1              phase -3
+    68  jmp 88                       phase -2
+    69  set pindirs, 0 side 1        phase -3..2  edge -2..3  jitter 5  gap 11..?
+    70  wait t+ side 1               phase -2..3  slack -3..2  MAY MISS
+    71  wait t+ side 1               phase -4..-1  slack 1..4
+    72  nop side 0                   phase -4  side -3
     73  wait t+ side 0               phase -3  slack 3
-    74  nop side 1                   phase -4  side -3
-    75  jmp x--, 68                  phase -3
-    76  out null, 8 side 1           phase -1
-    77  out x, 1 side 1              phase 0
-    78  wait t+ side 1               phase 1  slack -1  MAY MISS
-    79  mov pindirs, !x side 1       phase -3  edge -2  gap 20..?
-    80  wait t+ side 1               phase -2  slack 2
-    81  nop side 0                   phase -4  side -3
-    82  wait t+ side 0               phase -3  slack 3
-    83  wait t+ side 0               phase -4  slack 4
-    84  nop side 1                   phase -4  side -3
-    85  set pindirs, 0 side 1        phase -3  edge -2  gap 15
-    86  push side 1                  phase -2..0
-    87  jmp x--, 89                  phase -1..1
-    88  jmp 23                       phase 1..3
-    89  wait t+ side 1               phase -1..3  slack -3..1  MAY MISS
-    90  set pindirs, 1 side 1        phase -4..-1  edge -3..0  jitter 3  gap ?..?
-    91  wait t+ side 1               phase -3..0  slack 0..3
-    92  nop side 0                   phase -4  side -3
-    93  wait t+ side 0               phase -3  slack 3
-    94  set pindirs, 0 side 0        phase -4  edge -3  gap 7..10
+    74  in pins, 1 side 0            phase -4  sample -4
+    75  wait t+ side 0               phase -3  slack 3
+    76  nop side 1                   phase -4  side -3
+    77  jmp x--, 70                  phase -3
+    78  out null, 8 side 1           phase -1
+    79  out x, 1 side 1              phase 0
+    80  wait t+ side 1               phase 1  slack -1  MAY MISS
+    81  mov pindirs, !x side 1       phase -3  edge -2  gap 20..?
+    82  wait t+ side 1               phase -2  slack 2
+    83  nop side 0                   phase -4  side -3
+    84  wait t+ side 0               phase -3  slack 3
+    85  wait t+ side 0               phase -4  slack 4
+    86  nop side 1                   phase -4  side -3
+    87  set pindirs, 0 side 1        phase -3  edge -2  gap 15
+    88  push side 1                  phase -2..0
+    89  jmp x--, 91                  phase -1..1
+    90  jmp 25                       phase 1..3
+    91  wait t+ side 1               phase -1..3  slack -3..1  MAY MISS
+    92  set pindirs, 1 side 1        phase -4..-1  edge -3..0  jitter 3  gap 5..24
+    93  wait t+ side 1               phase -3..0  slack 0..3
+    94  nop side 0                   phase -4  side -3
     95  wait t+ side 0               phase -3  slack 3
-    96  jmp 15                       phase -4
+    96  set pindirs, 0 side 0        phase -4  edge -3  gap 7..10
+    97  wait t+ side 0               phase -3  slack 3
+    98  jmp 17                       phase -4
     |}]
 ;;
 
@@ -493,15 +497,15 @@ let check ?(config = Program_config.default) ?period ?single_capture_edge source
 
 let%expect_test "firmware that can miss a deadline is refused" =
   check ~config:i2c_config (i2c_master ~quarter:8);
-  [%expect {| 97 words, 30 deadline waits, worst slack 0 |}];
+  [%expect {| 99 words, 31 deadline waits, worst slack 0 |}];
   check ~config:i2c_config (i2c_master ~quarter:5);
   [%expect
     {|
-    4 of 30 deadline waits may be missed
-     48  wait t+ side 1               phase -3..2  slack -2..3  MAY MISS
-     68  wait t+ side 1               phase -2..3  slack -3..2  MAY MISS
-     78  wait t+ side 1               phase 1  slack -1  MAY MISS
-     89  wait t+ side 1               phase -1..3  slack -3..1  MAY MISS
+    4 of 31 deadline waits may be missed
+     50  wait t+ side 1               phase -3..2  slack -2..3  MAY MISS
+     70  wait t+ side 1               phase -2..3  slack -3..2  MAY MISS
+     80  wait t+ side 1               phase 1  slack -1  MAY MISS
+     91  wait t+ side 1               phase -1..3  slack -3..1  MAY MISS
     |}];
   (* a program with no deadline to miss *)
   check ~config:spi_slave_config (Timed_program.source spi_slave);
@@ -622,7 +626,7 @@ let%expect_test "every firmware stays inside its analysis under random stimulus"
     ("spi master" (issues 8172) (reached 16/16) (side_edges 2598)
      (violations ()))
     ("spi slave" (issues 14940) (reached 6/6) (side_edges 0) (violations ()))
-    ("i2c master" (issues 7122) (reached 97/97) (side_edges 1392)
+    ("i2c master" (issues 7131) (reached 99/99) (side_edges 1386)
      (violations ()))
     ("i2c slave" (issues 13883) (reached 59/72) (side_edges 0) (violations ()))
     ("i2c logger" (issues 6752) (reached 73/73) (side_edges 1200)

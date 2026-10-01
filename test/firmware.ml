@@ -263,15 +263,16 @@ bit:
 let sda = 12
 let scl = 13
 
-(* UM10204 3.1.16: a slave reset mid-read can hold SDA low, and clocking out its byte
-   frees it. Each pulse is a bit's two quarters low and two high. *)
+(* UM10204 3.1.16: a master reset mid-read can leave a slave holding SDA low, and clocking
+   out its byte frees it. Each pulse is a bit's two quarters low and two high. SDA read
+   high may be a 1 bit, so a START resets the slave before the STOP. *)
 let bus_clear =
   {|
     set x, 8 side 0              ; nine pulses at most
     mov t, now side 0
     add t, p side 0
 clear:
-    jmp pin, clear_stop          ; SDA high: the bus is free
+    jmp pin, clear_stop          ; SDA high
     wait t+ side 0
     nop side 1                   ; SCL low
     wait t+ side 1
@@ -280,6 +281,8 @@ clear:
     wait t+ side 0
     jmp x--, clear
 clear_stop:
+    wait t+ side 0
+    set pindirs, 1 side 0        ; a START, which resets any slave
     wait t+ side 0
     nop side 1
     jmp stop
