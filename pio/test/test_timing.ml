@@ -926,6 +926,22 @@ let%expect_test "an error with no rules still fails" =
     |}]
 ;;
 
+let%expect_test "an entry past the last instruction is an error" =
+  programs {|
+.program p
+    nop
+end:
+|}
+  |> List.hd_exn
+  |> check ~config:{ Timing.Config.default with entry = Some "end" };
+  [%expect
+    {|
+    p
+    ERROR label end is past the last instruction
+    (passed false)
+    |}]
+;;
+
 let%expect_test "a release while high starts no low, so nothing can stretch it" =
   programs
     {|

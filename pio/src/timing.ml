@@ -1172,9 +1172,13 @@ let analyse (config : Config.t) (program : Pioasm.Program.t) =
               || Option.is_some (output_index name)))
           [%string "exec guard: %{name} is neither x, y nor an output"]))
     @
-    match config.entry with
-    | Some label when not (List.Assoc.mem program.labels label ~equal:String.equal) ->
-      [ [%string "no label %{label}"] ]
+    match
+      Option.map config.entry ~f:(fun label ->
+        label, List.Assoc.find program.labels label ~equal:String.equal)
+    with
+    | Some (label, None) -> [ [%string "no label %{label}"] ]
+    | Some (label, Some address) when address >= Array.length program.instructions ->
+      [ [%string "label %{label} is past the last instruction"] ]
     | _ -> []
   in
   let rules =
