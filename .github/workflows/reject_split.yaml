@@ -30,13 +30,17 @@ jobs:
         run: opam install . --deps-only --with-test --locked
 
       # cadical and cake_lpr check each UNSAT behind No_table (test/checked_unsat.ml), at
-      # the pins formal/Makefile names
+      # the pins formal/Makefile names; keyed on those lines alone
+      - name: Key the SAT tools
+        id: sat_key
+        run: echo "key=sat-tools-$(sed -n '/^CADICAL = /,/^$/p' formal/Makefile | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+
       - name: Cache the SAT tools
         id: sat_tools
         uses: actions/cache@v4
         with:
           path: formal/sat_tools/bin
-          key: sat-tools-${{ hashFiles('formal/Makefile') }}
+          key: ${{ steps.sat_key.outputs.key }}
 
       - name: Build the SAT tools
         run: |
