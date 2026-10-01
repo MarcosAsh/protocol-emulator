@@ -530,9 +530,10 @@ sat_tools:
 # --dumpcfg, Yosys from parsing to write_aiger, model.ys, Certifaiger's checks and the aiger
 # library under it, aigsplit, aigtocnf, cake_lpr's verified build, the C compilers, make and
 # the shell; not rIC3 or cadical. Needs make sat_tools. witness_proof runs on files written
-# already.
-WITNESSED = phase_step edge_step
-witness: engine.v kernel_step.v
+# already. phase_table's peaks at 30 GB and takes 6.5 h (rIC3 1.5 h, Inductive's check 4 h),
+# past a hosted runner, so CI proves only the other two.
+WITNESSED = phase_step edge_step phase_table
+witness: engine.v kernel_step.v kernel_accepts.v
 	for lemma in $(WITNESSED); do $(MAKE) witness_proof LEMMA=$$lemma || exit 1; done
 
 CHECKS = Reset Safety Base Transition Liveness Decrease Closure Consistent Inductive
@@ -556,9 +557,10 @@ witness_model:
 
 # One check, UNSAT only if cake_lpr verifies the LRAT proof cadical pipes to it; on disk
 # Inductive's would take GBs. Either side dying ends the other, with SIGPIPE or at EOF.
-# HEAP is cake_lpr's in MB: phase_step's checks pass in 2048; phase_table's Transition
-# exhausts 4096 and passes in 12288.
-HEAP = 4096
+# HEAP is cake_lpr's in MB: phase_step's and edge_step's checks pass in 4096, phase_table's
+# in 24576, five of them exhausting 4096.
+WITNESS_HEAP_phase_table = 24576
+HEAP = $(or $(WITNESS_HEAP_$(LEMMA)),4096)
 witness_unsat:
 	cd $(W) && aigtocnf $(CHECK).aig $(CHECK).cnf
 	cd $(W) && { cadical -q --unsat --lrat=true -w $(CHECK).cadical $(CHECK).cnf -; \

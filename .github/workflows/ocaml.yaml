@@ -311,7 +311,7 @@ jobs:
         run: make -C formal link_proof
 
   # each step lemma's Certifaiger witness, every check's LRAT proof verified by cake_lpr,
-  # and its teeth, whose models have to fail
+  # and its teeth, whose models have to fail; phase_table's outgrows a hosted runner
   witness:
     needs: test
     runs-on: ubuntu-24.04
