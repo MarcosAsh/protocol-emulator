@@ -263,13 +263,35 @@ bit:
 let sda = 12
 let scl = 13
 
+(* UM10204 3.1.16: a slave reset mid-read can hold SDA low, and clocking out its byte
+   frees it. Each pulse is a bit's two quarters low and two high. *)
+let bus_clear =
+  {|
+    set x, 8 side 0              ; nine pulses at most
+    mov t, now side 0
+    add t, p side 0
+clear:
+    jmp pin, clear_stop          ; SDA high: the bus is free
+    wait t+ side 0
+    nop side 1                   ; SCL low
+    wait t+ side 1
+    wait t+ side 1
+    nop side 0                   ; SCL high
+    wait t+ side 0
+    jmp x--, clear
+clear_stop:
+    wait t+ side 0
+    nop side 1
+    jmp stop
+|}
+;;
+
 (* host word: start[15] read[14] data[13:6] stop[5]; p is a quarter period *)
-let i2c_master ~quarter =
+let i2c_master_with ~preamble ~quarter =
   [%string
     {|
     .side_set 1
-    set p, %{quarter#Int} side 0
-idle:
+    set p, %{quarter#Int} side 0%{preamble}idle:
     wait tx side 0
     pull side 0
     mov t, now side 0
@@ -364,6 +386,9 @@ stop:
 |}]
 ;;
 
+let i2c_master = i2c_master_with ~preamble:bus_clear
+let i2c_master_unclearing = i2c_master_with ~preamble:"\n"
+
 let i2c_config =
   { Program_config.default with
     side_set_count = 1
@@ -374,6 +399,7 @@ let i2c_config =
   ; set_base = sda
   ; set_count = 1
   ; in_base = sda
+  ; jmp_pin = sda
   ; out_shift = Left
   ; in_shift = Left
   }

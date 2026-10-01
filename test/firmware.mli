@@ -48,7 +48,14 @@ val slave_miso_pin : int
 val spi_slave_config : Program_config.t
 val sda : int
 val scl : int
+
+(** Master with SCL a quarter period [quarter] cycles. It first clears the bus (UM10204
+    3.1.16): up to nine SCL pulses while SDA reads low, then a STOP. *)
 val i2c_master : quarter:int -> string
+
+(** The master without the bus clear, as the bench's marked copy runs it. *)
+val i2c_master_unclearing : quarter:int -> string
+
 val i2c_config : Program_config.t
 
 (** Slave. The host sends [address lsl 1] first, then reads every byte the master writes

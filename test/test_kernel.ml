@@ -428,17 +428,17 @@ let%expect_test "i2c_master keeps Fast-mode Plus spacing, and a short SCL low is
     (i2c_master_short_low (deadlines (Ok ()))
      (spaced
       (Error
-       ("rows the kernel rejects" (rejected (((pc 24) (fails ("a spaced")))))))))
+       ("rows the kernel rejects" (rejected (((pc 38) (fails ("a spaced")))))))))
     (i2c_master_quarter_12 (deadlines (Ok ()))
      (spaced
       (Error
        ("rows the kernel rejects"
         (rejected
-         (((pc 20) (fails ("a spaced"))) ((pc 27) (fails ("b spaced")))
-          ((pc 29) (fails ("a spaced"))) ((pc 38) (fails ("a spaced")))
-          ((pc 46) (fails ("a spaced"))) ((pc 56) (fails ("a spaced")))
-          ((pc 67) (fails ("a spaced"))) ((pc 78) (fails ("a spaced")))
-          ((pc 80) (fails ("b spaced")))))))))
+         (((pc 9) (fails ("a spaced"))) ((pc 34) (fails ("a spaced")))
+          ((pc 41) (fails ("b spaced"))) ((pc 43) (fails ("a spaced")))
+          ((pc 52) (fails ("a spaced"))) ((pc 60) (fails ("a spaced")))
+          ((pc 70) (fails ("a spaced"))) ((pc 81) (fails ("a spaced")))
+          ((pc 92) (fails ("a spaced"))) ((pc 94) (fails ("b spaced")))))))))
     |}]
 ;;
 
@@ -468,14 +468,14 @@ let%expect_test "the spacing i2c_master passes is its own, to the cycle" =
      (Error
       ("rows the kernel rejects"
        (rejected
-        (((pc 38) (fails ("a spaced"))) ((pc 46) (fails ("a spaced")))
-         ((pc 56) (fails ("a spaced"))) ((pc 67) (fails ("a spaced")))
-         ((pc 78) (fails ("a spaced"))))))))
+        (((pc 9) (fails ("a spaced"))) ((pc 52) (fails ("a spaced")))
+         ((pc 60) (fails ("a spaced"))) ((pc 70) (fails ("a spaced")))
+         ((pc 81) (fails ("a spaced"))) ((pc 92) (fails ("a spaced"))))))))
     ("tSU;STA, tSU;STO" (cycles 13) (Ok ()))
     ("tSU;STA, tSU;STO" (cycles 14)
      (Error
       ("rows the kernel rejects"
-       (rejected (((pc 27) (fails ("b spaced"))) ((pc 80) (fails ("b spaced"))))))))
+       (rejected (((pc 41) (fails ("b spaced"))) ((pc 94) (fails ("b spaced"))))))))
     |}]
 ;;
 
@@ -1049,7 +1049,7 @@ let%expect_test "a bound on the jitter of every pin edge, in firmware the kernel
     (uart_rx "writes no pins")
     (spi_master (pc 9) (jitter_bound 2) (untimed (0 1 2 3 4 5)))
     (spi_slave "no edge has a deadline" (untimed (0 4)))
-    (i2c_master (pc 34) (jitter_bound 10) (untimed (0 1 2 3 10 11)))
+    (i2c_master (pc 48) (jitter_bound 10) (untimed (0 1 2 16 17 24 25)))
     (i2c_slave "no edge has a deadline" (untimed (2 19 22 40 43 53 60 64)))
     (i2c_logger (pc 24) (jitter_bound 2) (untimed (0 1 2 3)))
     (usb_tx (pc 11) (jitter_bound 0) (untimed (2)))

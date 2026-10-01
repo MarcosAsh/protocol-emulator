@@ -51,10 +51,10 @@ let%expect_test "write a register then read it back" =
     {|
     ((replies (0 0 0))
      ("I2c_slave.log slave"
-      (start "address 80 write" "pointer 3" "write 170" stop))
+      (stop start "address 80 write" "pointer 3" "write 170" stop))
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false)))
-     (t.pc 1))
+     (t.pc 15))
     |}];
   print_s [%message (memory : int array)];
   [%expect {| (memory (0 0 0 170 0 0 0 0 0 0 0 0 0 0 0 0)) |}];
@@ -71,10 +71,11 @@ let%expect_test "write a register then read it back" =
     {|
     ((replies (0 0 0 170 92))
      ("I2c_slave.log slave"
-      (start "address 80 write" "pointer 3" start "address 80 read" nack stop))
+      (stop start "address 80 write" "pointer 3" start "address 80 read" nack
+       stop))
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false)))
-     (t.pc 1))
+     (t.pc 15))
     |}]
 ;;
 
@@ -86,10 +87,10 @@ let%expect_test "a slave at another address does not answer" =
   [%expect
     {|
     ((replies (1))
-     ("I2c_slave.log slave" (start "address 81 write ignored" stop))
+     ("I2c_slave.log slave" (stop start "address 81 write ignored" stop))
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false)))
-     (t.pc 1))
+     (t.pc 15))
     |}]
 ;;
 
@@ -255,7 +256,7 @@ let%expect_test "i2c master in lockstep" =
   [%expect
     {|
     ("lockstep held" (cycles 1500))
-    ((log (start "address 80 write" "pointer 3" "write 170" stop))
+    ((log (stop start "address 80 write" "pointer 3" "write 170" stop))
      (memory (0 0 0 170 0 0 0 0 0 0 0 0 0 0 0 0)))
     |}]
 ;;
@@ -446,10 +447,133 @@ let%expect_test "the certified master's pins keep to fast-mode plus at 50 MHz" =
     tSU;STO      >= 260  13        260
     tBUF         >= 500  44..?     880..?
     (("I2c_slave.log (!slave)"
-      (start "address 80 write" "pointer 3" "write 170" stop start
+      (stop start "address 80 write" "pointer 3" "write 170" stop start
        "address 80 write" "pointer 3" start "address 80 read" nack stop))
      (shortest_low (26)) (shortest_high (26))
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
     |}]
+;;
+
+(* Bit runs, one bit per SCL rise at SDA's level, between the STARTs and STOPs. *)
+let bus_events levels =
+  let flush run events = if String.is_empty run then events else run :: events in
+  let (_ : int * int), run, events =
+    List.fold
+      (List.tl_exn levels)
+      ~init:(List.hd_exn levels, "", [])
+      ~f:(fun ((last_sda, last_scl), run, events) (bus_sda, bus_scl) ->
+        let run, events =
+          match last_scl, bus_scl with
+          | 0, 1 -> run ^ Int.to_string bus_sda, events
+          | 1, 1 when last_sda <> bus_sda ->
+            "", (if bus_sda = 0 then "S" else "P") :: flush run events
+          | _ -> run, events
+        in
+        (bus_sda, bus_scl), run, events)
+  in
+  List.rev (flush run events)
+;;
+
+(* The master from reset beside [slave], or with SDA held low throughout, then [words]
+   from the host. *)
+let clear_bus ?slave ?(words = []) ~cycles () =
+  let t =
+    Machine.create ~config:i2c_config ~program:(assemble (i2c_master ~quarter:8))
+    |> ok_exn
+  in
+  let t = List.fold words ~init:t ~f:(fun t w -> Machine.write_tx t w |> ok_exn) in
+  let t, slave, levels =
+    List.fold (List.range 0 cycles) ~init:(t, slave, []) ~f:(fun (t, slave, levels) _ ->
+      let master_sda = 1 - ((t.pin_dir lsr sda) land 1) in
+      let bus_sda =
+        match slave with
+        | Some slave when not (I2c_slave.drive_low slave) -> master_sda
+        | Some _ | None -> 0
+      in
+      let bus_scl = 1 - ((t.pin_dir lsr scl) land 1) in
+      let t = Machine.step t ~inputs:((bus_sda lsl sda) lor (bus_scl lsl scl)) in
+      let slave = Option.map slave ~f:(I2c_slave.step ~sda:bus_sda ~scl:bus_scl) in
+      t, slave, (bus_sda, bus_scl) :: levels)
+  in
+  let bus = bus_events (List.rev levels) in
+  let log = Option.map slave ~f:I2c_slave.log in
+  print_s
+    [%message
+      (bus : string list)
+        (log : (string list option[@sexp.option]))
+        (t.fault : Machine.Fault.t)
+        (t.pc : int)]
+;;
+
+(* A slave at 0x50 left holding SDA low by a master reset mid-read: [bits] of a zero byte
+   clocked out, SCL low. *)
+let slave_mid_read ~bits =
+  let rec go peer slave ~rises =
+    if rises > bits && I2c_peer.scl peer = 0 && I2c_slave.drive_low slave
+    then slave
+    else (
+      let bus_sda = if I2c_slave.drive_low slave then 0 else I2c_peer.sda peer in
+      let bus_scl = I2c_peer.scl peer in
+      let reading =
+        List.mem (I2c_slave.log slave) "address 80 read" ~equal:String.equal
+      in
+      let slave = I2c_slave.step slave ~sda:bus_sda ~scl:bus_scl in
+      let peer' = I2c_peer.step peer ~sda:bus_sda in
+      let rose = reading && I2c_peer.scl peer = 0 && I2c_peer.scl peer' = 1 in
+      go peer' slave ~rises:(if rose then rises + 1 else rises))
+  in
+  go
+    (I2c_peer.create ~quarter:8 [ Start; Write 0xa1; Read { ack = true }; Stop ])
+    (I2c_slave.create ~address:0x50 ~memory:(Array.create ~len:16 0))
+    ~rises:0
+;;
+
+(* A free bus gets only the STOP. A slave stopped after the address's ack and three bits
+   lets go after the other five and the ack's rise, where the master's NACK ends its read.
+   SDA held for good gets nine pulses and the STOP's rise, and the master goes on. *)
+let%expect_test "the bus clear frees a slave stuck mid-read" =
+  clear_bus
+    ~slave:(I2c_slave.create ~address:0x50 ~memory:(Array.create ~len:16 0))
+    ~cycles:300
+    ();
+  clear_bus
+    ~slave:(slave_mid_read ~bits:3)
+    ~words:[ i2c_word ~start:true 0xa0; i2c_word 3; i2c_word ~stop:true 0xaa ]
+    ~cycles:1500
+    ();
+  clear_bus ~cycles:600 ();
+  [%expect
+    {|
+    ((bus (0 P)) (log (stop))
+     (t.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+     (t.pc 15))
+    ((bus (0000010 P S 1010000000000001101010101000 P))
+     (log
+      (start "address 80 read" nack stop start "address 80 write" "pointer 3"
+       "write 170" stop))
+     (t.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+     (t.pc 15))
+    ((bus (0000000000))
+     (t.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+     (t.pc 15))
+    |}]
+;;
+
+(* The pulses' way out of the loop, on the RTL. *)
+let%expect_test "the bus clear in lockstep, SDA held low" =
+  let bus_scl = ref 1 in
+  let (_ : Machine.t) =
+    Lockstep.lockstep
+      ~cycles:600
+      ~config:i2c_config
+      ~program:(assemble (i2c_master ~quarter:8))
+      ~inputs:(fun _ -> !bus_scl lsl scl)
+      ~react:(fun m -> bus_scl := 1 - ((m.pin_dir lsr scl) land 1))
+      ()
+  in
+  [%expect {| ("lockstep held" (cycles 600)) |}]
 ;;
