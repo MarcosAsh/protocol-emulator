@@ -4,7 +4,7 @@ module Shift_direction = struct
   type t =
     | Left
     | Right
-  [@@deriving sexp_of, compare, equal]
+  [@@deriving sexp, compare, equal]
 end
 
 type t =
@@ -38,7 +38,7 @@ type t =
   ; autopull_data : bool
   ; manchester : bool
   }
-[@@deriving sexp_of, compare, equal]
+[@@deriving sexp, compare, equal]
 
 let default =
   { side_set_count = 0

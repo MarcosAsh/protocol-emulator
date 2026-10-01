@@ -6,7 +6,7 @@ module Shift_direction : sig
   type t =
     | Left
     | Right
-  [@@deriving sexp_of, compare, equal]
+  [@@deriving sexp, compare, equal]
 end
 
 type t =
@@ -48,7 +48,7 @@ type t =
   (** [out pins, 1] drives a Manchester pair: [out_base] the complement, [out_base + 1]
       the bit, both flipping at the next issue. The [out]'s length is the first half. *)
   }
-[@@deriving sexp_of, compare, equal]
+[@@deriving sexp, compare, equal]
 
 (** One output at OUT0, shift right, no side-set or autopush/pull, stuffing off, whole
     cycle period. CRC is CRC-16/USB (0x8005 reflected as 0xa001, init 0xffff). *)
