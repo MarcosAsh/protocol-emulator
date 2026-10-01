@@ -554,7 +554,7 @@ sat_tools:
 	cd sat_tools && $(CXX) -std=c++23 -O3 -DNDEBUG -DVERSION='"10.3.1"' -DGITID='"$(CERTIFAIGER)"' \
 	  -iquote aiger-$(AIGER) certifaiger-$(CERTIFAIGER)/src/certifaiger.cpp aiger.o -o bin/certifaiger
 
-# Certifaiger witnesses for the step lemmas. The model is the lemma's prove task through
+# Certifaiger witnesses for the step lemmas and the self-check's. The model is the lemma's prove task through
 # SBY's own aiger flow (witness/model.ys); rIC3 proves it by k-induction and writes a
 # witness circuit; each SAT check Certifaiger makes of the pair must be UNSAT by an LRAT
 # proof cake_lpr accepts. Trusted: the .sby and the Verilog it reads, SBY's --dumpfiles and
@@ -562,7 +562,8 @@ sat_tools:
 # library under it, aigsplit, aigtocnf, cake_lpr's verified build, the C compilers, make and
 # the shell; not rIC3 or cadical. Needs make sat_tools. witness_proof runs on files written
 # already. phase_table's peaks at 30 GB and takes 6.5 h (rIC3 1.5 h, Inductive's check 4 h),
-# past a hosted runner, so CI proves only the other two.
+# past a hosted runner. CI proves phase_step's, edge_step's and self_check_clean's (2.5 min,
+# 4.3 GB on the mini, its Verilog from make self_check_clean, so not in WITNESSED).
 WITNESSED = phase_step edge_step phase_table
 witness: engine.v kernel_step.v kernel_accepts.v
 	for lemma in $(WITNESSED); do $(MAKE) witness_proof LEMMA=$$lemma || exit 1; done
@@ -588,8 +589,8 @@ witness_model:
 
 # One check, UNSAT only if cake_lpr verifies the LRAT proof cadical pipes to it; on disk
 # Inductive's would take GBs. Either side dying ends the other, with SIGPIPE or at EOF.
-# HEAP is cake_lpr's in MB: phase_step's and edge_step's checks pass in 4096, phase_table's
-# in 24576, five of them exhausting 4096.
+# HEAP is cake_lpr's in MB: phase_step's, edge_step's and self_check_clean's checks pass in
+# 4096, phase_table's in 24576, five of them exhausting 4096.
 WITNESS_HEAP_phase_table = 24576
 HEAP = $(or $(WITNESS_HEAP_$(LEMMA)),4096)
 witness_unsat:
@@ -610,6 +611,7 @@ witness_unsat:
 WITNESS_TEETH_phase_step = 12
 WITNESS_TEETH_edge_step = 5
 WITNESS_TEETH_phase_table = 5
+WITNESS_TEETH_self_check_clean = 2
 witness_teeth:
 	teeth=0; for task in $$(sby --dumptasks $(LEMMA).sby); do \
 	  sby --dumpcfg $(LEMMA).sby $$task | grep -qx 'expect fail' || continue; \
