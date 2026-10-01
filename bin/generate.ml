@@ -280,47 +280,27 @@ let timing_check =
             Option.value autopull_data ~default:Program_config.default.pull_threshold
         }
       in
-      let configured = Asm.Program.configure program config in
-      let rows =
-        Analyser.analyse
-          ?period
-          ?period_floor
-          ~single_capture_edge
-          ~config:configured
-          program.instructions
-      in
       if no_timing_check
-      then Ok rows
-      else
-        let open Or_error.Let_syntax in
-        let%bind verdict =
-          Analyser.check ?period ?period_floor ~single_capture_edge ~config program
-        in
-        eprintf "%s\n" (Analyser.Verdict.to_string verdict);
-        let%bind words = Asm.Program.words program in
-        (* The analyser is not trusted: the kernel, which is proved, checks its rows and
-           has the last word. It covers less than the analyser, so it can refuse firmware
-           the analyser passes. *)
-        let kernel period =
-          Kernel.check
-            ?period
-            ~single_capture_edge
-            ~config:configured
-            ~words
-            (Kernel.Table.of_analyser rows)
-        in
-        (* A load enters [accepts] only as a value some row's period interval must hold,
-           so the loads it accepts are an interval, and a floor needs only its two ends;
-           test_self_check.ml proves every load between by checked SAT. *)
-        let%map () =
-          match period_floor with
-          | None -> kernel period
-          | Some floor ->
-            Or_error.combine_errors_unit
-              [ kernel (Some floor); kernel (Some ((1 lsl Isa.data_bits) - 1)) ]
-        in
-        eprintf "kernel: accepted, so no deadline is missed by the step lemma\n";
-        rows]
+      then
+        Ok
+          (Analyser.analyse
+             ?period
+             ?period_floor
+             ~single_capture_edge
+             ~config:(Asm.Program.configure program config)
+             program.instructions)
+      else (
+        let print_verdict verdict = eprintf "%s\n" (Analyser.Verdict.to_string verdict) in
+        match
+          Timed_program.check ?period ?period_floor ~single_capture_edge ~config program
+        with
+        | Ok timed ->
+          print_verdict (Timed_program.verdict timed);
+          eprintf "kernel: accepted, so no deadline is missed by the step lemma\n";
+          Ok (Timed_program.rows timed)
+        | Error { pcs = _; verdict; error } ->
+          Option.iter verdict ~f:print_verdict;
+          Error error)]
 ;;
 
 let assemble_command =

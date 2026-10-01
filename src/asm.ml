@@ -257,14 +257,17 @@ module First_pass = struct
   ;;
 end
 
-let assemble source =
-  let open Or_error.Let_syntax in
+let assemble_with_lines source =
+  let open Result.Let_syntax in
   let lines =
     String.split_lines source
     |> List.concat_mapi ~f:(fun i line ->
       List.map (Line.parse line) ~f:(fun parsed -> i + 1, line, parsed))
   in
-  let tag number line = Or_error.tag_s ~tag:[%message "line" ~_:(number : int) line] in
+  let tag number line result =
+    Or_error.tag_s ~tag:[%message "line" ~_:(number : int) line] result
+    |> Result.map_error ~f:(fun error -> number, error)
+  in
   let%bind first =
     List.fold_result
       lines
@@ -273,7 +276,8 @@ let assemble source =
         tag
           number
           line
-          (match parsed with
+          (let open Or_error.Let_syntax in
+           match parsed with
            | Directive ("side_set", [ count ]) ->
              let%map side_set_count = int_of_token count in
              { first with side_set_count }
@@ -294,13 +298,20 @@ let assemble source =
   let { First_pass.side_set_count; labels; address = length; wrap_bottom; wrap_top } =
     first
   in
-  let%map instructions =
+  let parsed =
     List.filter_map lines ~f:(fun (number, line, parsed) ->
       match parsed with
       | Instruction tokens ->
-        Some (tag number line (parse_instruction tokens ~labels ~side_set_count))
+        Some (number, tag number line (parse_instruction tokens ~labels ~side_set_count))
       | Directive _ | Label _ -> None)
-    |> Or_error.all
+  in
+  (* every error, as [Or_error.all] gives them, at the first one's line *)
+  let%map instructions =
+    match Result.combine_errors (List.map parsed ~f:snd) with
+    | Ok instructions -> Ok instructions
+    | Error [ error ] -> Error error
+    | Error errors ->
+      Error (fst (List.hd_exn errors), Error.of_list (List.map errors ~f:snd))
   in
   (* as in the PIO assembler, a loop that is opened and not closed ends with the program *)
   let wrap_top =
@@ -309,11 +320,16 @@ let assemble source =
     | None, Some _ -> length - 1
     | None, None -> Program_config.default.wrap_top
   in
-  { Program.side_set_count
-  ; wrap_bottom = Option.value wrap_bottom ~default:Program_config.default.wrap_bottom
-  ; wrap_top
-  ; instructions
-  }
+  ( { Program.side_set_count
+    ; wrap_bottom = Option.value wrap_bottom ~default:Program_config.default.wrap_bottom
+    ; wrap_top
+    ; instructions
+    }
+  , List.map parsed ~f:fst )
+;;
+
+let assemble source =
+  assemble_with_lines source |> Result.map ~f:fst |> Result.map_error ~f:snd
 ;;
 
 let to_string ~side_set_count (t : Isa.t) =
