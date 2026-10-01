@@ -7,6 +7,7 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       certificates: ${{ steps.certificates.outputs.names }}
+      phase_spacing: ${{ steps.phase_spacing.outputs.parts }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v6
@@ -50,6 +51,10 @@ jobs:
             data="$data data_$name"
           done
           echo "names=$(echo $names stamped $data | jq -Rc 'split(" ")')" >> "$GITHUB_OUTPUT"
+
+      - name: List the parts of the pair's spacing
+        id: phase_spacing
+        run: echo "parts=$(make -s -C formal phase_spacing_parts | jq -Rc 'split(" ")')" >> "$GITHUB_OUTPUT"
 
       - name: Upload the certificates
         uses: actions/upload-artifact@v7
@@ -296,11 +301,16 @@ jobs:
       - name: Prove
         run: make -C formal phase_table_affine_proof
 
-  # a watched pair's spacing on the one-run theorem, its cover and tooth
+  # a watched pair's spacing on the one-run theorem, its cover and tooth, in the parts
+  # phase_spacing_parts lists, which together are phase_spacing_proof
   phase_spacing:
     needs: generate
     runs-on: ubuntu-24.04
     timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        part: ${{ fromJSON(needs.generate.outputs.phase_spacing) }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v6
@@ -317,7 +327,7 @@ jobs:
           echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
 
       - name: Prove
-        run: make -C formal phase_spacing_proof
+        run: make -C formal phase_spacing_part PART=${{ matrix.part }}
 
   # the step lemma on the narrow core, where a timer that stops at its top has to fail
   saturating:
