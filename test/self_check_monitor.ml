@@ -43,7 +43,7 @@ module Reference = struct
     type t =
       | By of int (** the checker raises its irq by this cycle *)
       | Pending (** before a least with no frame after it, so never seen *)
-      | Alias (** the one blind case: see [Self_check.checker] *)
+      | Alias (** blind, as [Self_check.checker] states *)
     [@@deriving sexp_of, compare, equal]
   end
 
@@ -56,20 +56,32 @@ module Reference = struct
   (* A frame starts at the first low cycle from the least on, or for the first, after the
      line is first high from [watch_from]. Inside it the line moves only at an edge, and
      it is high by the next least. A move in the four cycles before the least is seen when
-     the next frame starts; one before those, by the cycle before the least. *)
+     the next frame starts; one before those, by the cycle before the least. After a fall
+     at [watch_from], the first frame is blind from a fall [2^16 k] cycles after it. *)
   let violations ~edges (w : Wave.t) =
     let m = Array.length edges in
     let least = edges.(m - 1) in
     let last = edges.(m - 2) in
     let inner = Int.Set.of_array (Array.sub edges ~pos:0 ~len:(m - 1)) in
-    let rec from ~least_at acc =
+    let stale = Wave.get w (watch_from - 1) = 1 && Wave.get w watch_from = 0 in
+    let rec from ~least_at ~first acc =
       match Wave.next_fall w ~from:least_at with
       | None -> List.rev acc
       | Some f ->
         let e = f + least in
         let next = Wave.next_fall w ~from:e in
+        let blind_from =
+          if first && stale
+          then
+            List.range (f + 1) e
+            |> List.find ~f:(fun c ->
+              (c - watch_from) % (1 lsl 16) = 0 && Wave.moves w c && Wave.get w c = 0)
+          else None
+        in
         let kind v =
-          if v <= e - 5
+          if Option.exists blind_from ~f:(fun b -> v >= b)
+          then Kind.Alias
+          else if v <= e - 5
           then Kind.By (e - 1)
           else (
             match next with
@@ -90,13 +102,13 @@ module Reference = struct
         in
         let acc = List.rev_append found acc in
         if List.for_all found ~f:(fun v -> Kind.equal v.kind Alias) && e < Bytes.length w
-        then from ~least_at:e acc
+        then from ~least_at:e ~first:false acc
         else List.rev acc
     in
     let rec high c =
       if c >= Bytes.length w || Wave.get w c = 1 then c else high (c + 1)
     in
-    from ~least_at:(high watch_from + 1) []
+    from ~least_at:(high watch_from + 1) ~first:true []
   ;;
 end
 

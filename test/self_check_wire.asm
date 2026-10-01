@@ -6,16 +6,11 @@
     in x, 4
     mov x, isr
     mov p, x                 ; the rows' base, where the least keeps it
-start:
     capture_arm
     wait 1 pin 20            ; the line idles high
     wait 0 pin 20            ; the first frame's first edge
     capture_arm
-    mov isr, capture
-    mov x, isr
-    mov y, now
-    add x, 4
-    jmp x!=y, start          ; it fell before the line was high: no frame yet
+    mov isr, capture [5]     ; its stamp, or a fall's in the first cycle read
     jmp anchor
 high:                        ; x is the last fall's stamp
     wait t [2]

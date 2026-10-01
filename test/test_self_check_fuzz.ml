@@ -269,6 +269,47 @@ let%expect_test "the first frame" =
     |}]
 ;;
 
+(* A fall in the first cycle the checker reads took the capture, and the old checker
+   restarted on its stale stamp in the middle of the next frame. The stale stamp now
+   stands for the first frame's, blind to a fall 2^16 cycles on; a cycle either side is
+   caught. *)
+let%expect_test "a fall before the line is first high" =
+  let stale = [ Case.Pulse { at = watch_from; width = 1 } ] in
+  show
+    ~rtl:true
+    "low at 7, frames at 100 and 230"
+    (Case.frames
+       [| 40; 60; 80; 100; 130 |]
+       [| 0; 1; 0; 1; 1 |]
+       ~idle:[ 0 ]
+       ~mutations:stale);
+  List.iter [ -1; 0; 1 ] ~f:(fun by ->
+    let at = watch_from + (1 lsl 16) + by in
+    show
+      [%string
+        "low at 7, pulse 2^16%{if by < 0 then \"-1\" else if by > 0 then \"+1\" else \
+         \"\"} after it"]
+      (Case.frames
+         [| 300; 600 |]
+         [| 0; 1 |]
+         ~lead_in:(at - 400)
+         ~mutations:(stale @ [ Pulse { at; width = 1 } ])));
+  [%expect
+    {|
+    ("low at 7, frames at 100 and 230" (verdict Quiet) (reference ()) (irq_at ())
+     (rtl_irq false))
+    ("low at 7, pulse 2^16-1 after it" (verdict Caught)
+     (reference (((at 65542) (kind (By 65741))) ((at 65543) (kind (By 65741)))))
+     (irq_at (65741)))
+    ("low at 7, pulse 2^16 after it" (verdict (Unseen Alias))
+     (reference (((at 65543) (kind Alias)) ((at 65544) (kind Alias))))
+     (irq_at ()))
+    ("low at 7, pulse 2^16+1 after it" (verdict Caught)
+     (reference (((at 65544) (kind (By 65743))) ((at 65545) (kind (By 65743)))))
+     (irq_at (65743)))
+    |}]
+;;
+
 (* Random certified frames with pulses, moved, missing and added edges, against the
    contract; [long] reaches frames near 2^14 cycles and idle gaps near 2^16. *)
 let fuzz ~seed ~cases ~long =

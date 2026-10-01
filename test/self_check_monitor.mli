@@ -17,7 +17,7 @@ module Reference : sig
     type t =
       | By of int (** The checker must raise its irq by this cycle. *)
       | Pending (** In the four cycles before a least no frame follows: never seen. *)
-      | Alias (** The one blind case, which [Self_check.checker] states. *)
+      | Alias (** Blind, as [Self_check.checker] states. *)
     [@@deriving sexp_of, compare, equal]
   end
 

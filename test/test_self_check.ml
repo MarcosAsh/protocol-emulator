@@ -95,11 +95,11 @@ let%expect_test "the kernel accepts the checker at every load from min_gap" =
     ~claim:(loads_from (floor - 1));
   [%expect
     {|
-    ((analyser (Ok ((words 73) (deadline_waits 3) (worst_slack (0)))))
+    ((analyser (Ok ((words 69) (deadline_waits 3) (worst_slack (0)))))
      (kernel (Ok ()))
      (one_less
       (Error
-       ("rows the kernel rejects" (rejected (((pc 34) (fails ("in time")))))))))
+       ("rows the kernel rejects" (rejected (((pc 30) (fails ("in time")))))))))
     (QED "checker: every load of 17 or more")
     (counterexample "checker: every load of 16 or more"
      (model ((loaded 0000000000010000))))

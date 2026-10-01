@@ -31,19 +31,13 @@ val rows : base:int -> int list -> int list Or_error.t
     does. *)
 val min_gap : int
 
-(** Checks every frame on [pin] against the rows at [base]. The line idles high; once the
-    checker has seen it high, the first fall is a frame's first edge [F], and each later
-    frame's is the first low cycle from the last one's least. Inside a frame the line may
-    move, its level differing from the cycle before, only at [F + edge] for an edge before
-    the least, and it is high after the last. Frames that keep to this raise nothing.
-
-    Any other move raises the irq and halts: by the cycle before the least, or for a move
-    in the four cycles before it, within ten cycles of the next frame's first edge, never
-    if none comes. The one it can miss is a one-cycle low pulse in the cycle before the
-    least with the next first edge a multiple of [2^16] cycles later, as the capture's 16
-    bits read it as that edge's stamp; nothing else is blind, first edges included. A fall
-    stamped before the line is first seen high restarts it, unchecked. No deadline is
-    missed whatever the line does. *)
+(** Checks each frame on [pin], the first from the first fall after it sees the line high,
+    against the rows at [base]. A move off the rows raises the irq and halts by the cycle
+    before the least, or for one in the four cycles before it, within ten cycles of the
+    next first edge. Blind only where a fall's 16-bit stamp repeats an older one: a
+    one-cycle low pulse in the cycle before a least and the next first edge, or a fall in
+    the first cycle it reads and one in the first frame, each [2^16 k] cycles apart. It
+    misses no deadline of its own. *)
 val checker : pin:int -> base:int -> string
 
 val checker_config : pin:int -> Program_config.t
