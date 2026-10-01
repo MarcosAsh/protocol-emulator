@@ -42,12 +42,16 @@ jobs:
             default: https://opam.ocaml.org
 
       # js_of_ocaml alone would move dune off 3.22.2+ox and rebuild without hardcaml, so
-      # every locked package is held at its version
+      # every locked package is held at its version. It and its sedlex and yojson are the
+      # oxcaml patched ones, whose -patches packages replace the four guards left free.
       - name: Install dependencies
         run: |
           opam install . --deps-only --locked
-          opam install js_of_ocaml.6.3.2+ox \
-            $(opam list --installed --short --color=never --columns=name,version | awk '{ print $1 "." $2 }')
+          opam install js_of_ocaml.6.3.2+ox sedlex.3.7+ox yojson.2.2.2+ox \
+            oxcaml-js_of_ocaml-patches oxcaml-js_of_ocaml-compiler-patches \
+            oxcaml-sedlex-patches oxcaml-yojson-patches \
+            $(opam list --installed --short --color=never --columns=name,version \
+              | awk '$1 !~ /^oxcaml-(js_of_ocaml|js_of_ocaml-compiler|sedlex|yojson)$/ { print $1 "." $2 }')
 
       # the release profile links the whole program, 0.8 MB against 31 MB
       - name: Build the playground
