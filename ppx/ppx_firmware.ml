@@ -42,6 +42,7 @@ module Binding = struct
     | Let of string * expression
     | Opaque of string
     | Open
+    | Module of string
 end
 
 type env = Binding.t list
@@ -64,13 +65,22 @@ let is_default (ident : Longident.t) =
   | _ -> false
 ;;
 
+(* [Program_config] and [Isa] are the library's, unless a module above takes the name. *)
+let library ~loc (env : env) name =
+  if List.exists env ~f:(function
+       | Module bound -> String.equal bound name
+       | Let _ | Opaque _ | Open -> false)
+  then
+    fail ~loc [%string "cannot tell which %{name} this is, past a module %{name} above"]
+;;
+
 (* The library's constants a configuration may name, as this ppx links the same library. *)
 let isa = [ "first_bidir_pin", Isa.first_bidir_pin ]
 
 let int_op ~loc env op =
   if List.exists env ~f:(function
        | Binding.Let (name, _) | Opaque name -> String.equal name op
-       | Open -> false)
+       | Open | Module _ -> false)
   then fail ~loc [%string "cannot follow ( %{op} ), bound at the top level"];
   match op with
   | "+" -> Some ( + )
@@ -101,9 +111,11 @@ let rec eval (env : env) (e : expression) : Value.t =
     Bool (Bool.of_string b)
   | Pexp_construct ({ txt; loc = _ }, None) -> Constructor (Longident.last_exn txt)
   | Pexp_ident { txt; loc = _ } when is_default txt ->
+    library ~loc env "Program_config";
     Value.t_of_sexp (Program_config.sexp_of_t Program_config.default)
   | Pexp_ident { txt = Ldot (Lident "Isa", name); loc = _ }
     when List.Assoc.mem isa ~equal:String.equal name ->
+    library ~loc env "Isa";
     Int (List.Assoc.find_exn isa ~equal:String.equal name)
   | Pexp_ident { txt = Lident name; loc = _ } ->
     (match lookup ~loc env name with
@@ -365,12 +377,20 @@ let structure items =
             }
           | _ -> { binding with pvb_expr = misplaced#expression binding.pvb_expr })
       in
+      (* a name in an [and] group would be looked up past its siblings, so only a lone
+         binding is followed *)
       let env =
-        List.fold bindings ~init:env ~f:(fun env binding ->
-          match bound_name binding.pvb_pat with
-          | Some name -> Binding.Let (name, binding.pvb_expr) :: env
-          | None ->
-            List.map (names_in binding.pvb_pat) ~f:(fun name -> Binding.Opaque name) @ env)
+        let opaque () =
+          List.concat_map bindings ~f:(fun binding ->
+            List.map (names_in binding.pvb_pat) ~f:(fun name -> Binding.Opaque name))
+          @ env
+        in
+        match bindings with
+        | [ binding ] ->
+          (match bound_name binding.pvb_pat with
+           | Some name -> Binding.Let (name, binding.pvb_expr) :: env
+           | None -> opaque ())
+        | _ -> opaque ()
       in
       env, { item with pstr_desc = Pstr_value (Nonrecursive, bindings) }
     | Pstr_value (Recursive, bindings) ->
@@ -381,6 +401,13 @@ let structure items =
     | Pstr_primitive { pval_name = { txt; loc = _ }; _ } ->
       Opaque txt :: env, misplaced#structure_item item
     | Pstr_open _ | Pstr_include _ -> Open :: env, misplaced#structure_item item
+    | Pstr_module { pmb_name = { txt = Some name; loc = _ }; _ } ->
+      Module name :: env, misplaced#structure_item item
+    | Pstr_recmodule bindings ->
+      ( List.filter_map bindings ~f:(fun binding ->
+          Option.map binding.pmb_name.txt ~f:(fun name -> Binding.Module name))
+        @ env
+      , misplaced#structure_item item )
     | _ -> env, misplaced#structure_item item)
 ;;
 

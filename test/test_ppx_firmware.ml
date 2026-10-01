@@ -175,6 +175,29 @@ let shadowed =
       ~config:{ Program_config.default with out_base = pin }]
 ;;
 
+let lone = 2
+and sibling = 3
+
+let in_a_group =
+  [%firmware
+    {|
+    nop
+|}
+      ~config:{ Program_config.default with out_base = lone }]
+;;
+
+module Isa = struct
+  let first_bidir_pin = 0
+end
+
+let local_isa =
+  [%firmware
+    {|
+    nop
+|}
+      ~config:{ Program_config.default with out_base = Isa.first_bidir_pin }]
+;;
+
 open Program_config
 
 let behind_open =
@@ -211,8 +234,16 @@ let behind_open =
      54 |       ~config:{ Program_config.default with out_base = pin }]
                                                                  ^^^
     [%firmware] cannot follow pin, bound by more than a plain top-level let
-    line 64, characters 16-23:
-     64 |       ~config:{ default with out_base = 1 }]
+    line 65, characters 55-59:
+     65 |       ~config:{ Program_config.default with out_base = lone }]
+                                                                 ^^^^
+    [%firmware] cannot follow lone, bound by more than a plain top-level let
+    line 77, characters 55-74:
+     77 |       ~config:{ Program_config.default with out_base = Isa.first_bidir_pin }]
+                                                                 ^^^^^^^^^^^^^^^^^^^
+    [%firmware] cannot tell which Isa this is, past a module Isa above
+    line 87, characters 16-23:
+     87 |       ~config:{ default with out_base = 1 }]
                           ^^^^^^^
     [%firmware] cannot tell what default is, past an open or include above
     |xxx}]
