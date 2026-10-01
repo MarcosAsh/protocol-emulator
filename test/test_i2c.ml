@@ -546,8 +546,8 @@ let clear_bus ?slave ?(words = []) ~cycles () =
         (t.pc : int)]
 ;;
 
-(* A slave at 0x50 left holding SDA low by a master reset mid-read: [bits] of [byte], MSB
-   first, clocked out, SCL low. *)
+(* A slave at 0x50 left holding SDA low by a master reset mid-read, once [bits] of [byte],
+   MSB first, are clocked out. It may not yet have seen SCL's last fall. *)
 let slave_mid_read ~byte ~bits =
   let rec go peer slave ~rises =
     if rises > bits && I2c_peer.scl peer = 0 && I2c_slave.drive_low slave
