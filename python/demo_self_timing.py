@@ -143,6 +143,9 @@ def run(transfer, text=b"Jane St!", pause=None, drain=None):
     assert len(data) <= 8, "the tx fifo holds eight"
     spi = Counted(transfer, drain)
     host = pe.Host(spi.transfer)
+    found = faults(host)
+    if any(found):
+        raise RuntimeError("faults %s hold from an earlier run: reset the chip" % found)
     poll = host_drain(host) if drain is None else spi.drain
     setup(host, words("uart_tx_host_rate"), words("edge_logger_echo"))
     spi.frames = 0
