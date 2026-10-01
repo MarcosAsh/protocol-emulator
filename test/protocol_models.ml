@@ -417,11 +417,13 @@ module Usb_ls = struct
     go bits 0 []
   ;;
 
+  (* seven ones in a row is a stuffing error, and the receiver drops the packet *)
   let unstuff bits =
     let rec go bits ones acc =
       match bits with
-      | [] -> List.rev acc
+      | [] -> Some (List.rev acc)
       | 0 :: rest when ones = 6 -> go rest 0 acc
+      | 1 :: _ when ones = 6 -> None
       | 1 :: rest -> go rest (ones + 1) (1 :: acc)
       | _ :: rest -> go rest 0 (0 :: acc)
     in
@@ -481,8 +483,8 @@ module Usb_ls = struct
         List.fold_map symbols ~init:Line.J ~f:(fun prev s ->
           s, if Line.equal prev s then 1 else 0)
       in
-      match bytes_of_bits (unstuff bits) with
-      | 0x80 :: bytes -> Some bytes
+      match Option.map (unstuff bits) ~f:bytes_of_bits with
+      | Some (0x80 :: bytes) -> Some bytes
       | _ -> None
     ;;
 

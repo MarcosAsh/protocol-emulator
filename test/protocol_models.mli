@@ -85,7 +85,8 @@ module Usb_ls : sig
     val create : bit_period:int -> t
     val step : t -> dp:int -> dm:int -> t
 
-    (** Packets seen so far, bytes after SYNC, PID first. *)
+    (** Packets seen so far, bytes after SYNC, PID first. One with seven ones in a row, a
+        stuffing error, is dropped. *)
     val packets : t -> int list list
   end
 end

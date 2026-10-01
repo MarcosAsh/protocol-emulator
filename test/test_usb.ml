@@ -45,6 +45,43 @@ let%expect_test "usb low speed packets survive the wire" =
     |}]
 ;;
 
+let%expect_test "usb sniffer drops a packet that is not stuffed" =
+  let bit_period = 8 in
+  let sniff lines =
+    List.fold
+      (List.init 3 ~f:(fun _ -> Usb_ls.Line.J) @ lines)
+      ~init:(Usb_ls.Sniffer.create ~bit_period)
+      ~f:(fun sniffer (line : Usb_ls.Line.t) ->
+        let dp, dm =
+          match line with
+          | J -> 0, 1
+          | K -> 1, 0
+          | Se0 -> 0, 0
+        in
+        Fn.apply_n_times ~n:bit_period (fun s -> Usb_ls.Sniffer.step s ~dp ~dm) sniffer)
+    |> Usb_ls.Sniffer.packets
+  in
+  let packet = [ 0xc3; 0xff; 0xff ] in
+  (* NRZI with no stuff bits: a one holds the line, a zero toggles it *)
+  let _, unstuffed =
+    List.fold_map
+      (Usb_ls.bits_of_bytes (0x80 :: packet))
+      ~init:Usb_ls.Line.J
+      ~f:(fun line bit ->
+        let line : Usb_ls.Line.t =
+          match bit, line with
+          | 1, line -> line
+          | _, J -> K
+          | _, (K | Se0) -> J
+        in
+        line, line)
+  in
+  let stuffed = sniff (Usb_ls.encode packet @ [ J ]) in
+  let unstuffed = sniff (unstuffed @ [ Se0; Se0; J; J ]) in
+  print_s [%message (stuffed : int list list) (unstuffed : int list list)];
+  [%expect {| ((stuffed ((195 255 255))) (unstuffed ())) |}]
+;;
+
 let%expect_test "usb tx builds the crc and stuffs the get descriptor packet" =
   let bit_period = 32 in
   let data = [ 0x80; 0x06; 0x00; 0x01; 0x00; 0x00; 0x40; 0x00 ] in
