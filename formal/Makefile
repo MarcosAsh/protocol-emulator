@@ -72,14 +72,13 @@ phase_spacing_proof:
 	sby -f pair_step.sby unspaced
 	sby -f phase_spacing.sby prove cover no_spacing
 
-# The same in parts, a CI job each: the three slowest tasks alone, the next two together,
-# the rest with the tooth, and the run. phase_spacing_parts lists them.
-PAIR_STEP_ALONE = alu_t_0_2 wait_2_1 alu_t_0_1
-PAIR_STEP_PAIRED = wait_2_2 alu_t_0_0
-PAIR_STEP_REST = $(filter-out $(PAIR_STEP_ALONE) $(PAIR_STEP_PAIRED),$(PAIR_STEP_TASKS))
+# The same in parts, a CI job each: the seven slowest tasks alone, the rest with the
+# tooth, and the run. phase_spacing_parts lists them.
+PAIR_STEP_ALONE = alu_t_0_1 alu_t_0_0 alu_t_0_2 wait_2_1 wait_2_2 wait_2_0 alu_t_1
+PAIR_STEP_REST = $(filter-out $(PAIR_STEP_ALONE),$(PAIR_STEP_TASKS))
 
 phase_spacing_parts:
-	@echo $(PAIR_STEP_ALONE) paired rest run
+	@echo $(PAIR_STEP_ALONE) rest run
 
 phase_spacing_part:
 ifeq ($(PART),run)
@@ -87,12 +86,10 @@ ifeq ($(PART),run)
 else ifeq ($(PART),rest)
 	sby -f pair_step.sby $(PAIR_STEP_REST)
 	sby -f pair_step.sby unspaced
-else ifeq ($(PART),paired)
-	sby -f pair_step.sby $(PAIR_STEP_PAIRED)
 else ifneq ($(filter $(PART),$(PAIR_STEP_ALONE)),)
 	sby -f pair_step.sby $(PART)
 else
-	$(error PART is one of: $(PAIR_STEP_ALONE) paired rest run)
+	$(error PART is one of: $(PAIR_STEP_ALONE) rest run)
 endif
 
 # The same for tables whose rows bound phase - slope * x too: row_step's lemma, the kernel's
