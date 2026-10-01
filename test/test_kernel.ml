@@ -379,24 +379,30 @@ let%expect_test "the kernel on the firmware library, from the analyser's rows" =
     |}]
 ;;
 
-(* the least whole cycles at 50 MHz that last [ns] *)
-let cycles ns = ((ns * 50) + 999) / 1000
+(* the least whole cycles at [clock_mhz] that last [ns] *)
+let cycles_at ~clock_mhz ns = ((ns * clock_mhz) + 999) / 1000
+let cycles = cycles_at ~clock_mhz:50
 
-(* UM10204's Fast-mode Plus timings a master drives, in cycles at 50 MHz, as a spacing of
+(* UM10204's [timings] a master drives, in cycles at [clock_mhz], as a spacing of
    i2c_master's pins: SCL is [a] and SDA [b], each its pindirs bit, where 1 pulls the line
    low. tLOW and tHIGH hold SCL, and tBUF holds SDA high before any START, a repeated one
    too, which UM10204 does not ask; tSU;DAT and tHD;STA part SCL's edges from SDA's, and
    tSU;STA and tSU;STO SDA's from SCL's rise. fSCL, two edges back, is not a spacing. *)
-let fast_mode_plus =
+let i2c_spacing ~clock_mhz timings =
+  let limit name = cycles_at ~clock_mhz (I2c_timing.min_ns timings name) in
   { Kernel.Spacing.Spec.a = Firmware.scl
   ; b = Firmware.sda
   ; dirs = true
-  ; hold_a = (fun ~own ~other:_ -> if own then cycles 500 else cycles 260)
-  ; apart_a = (fun ~own ~other:_ -> if own then cycles 50 else cycles 260)
-  ; hold_b = (fun ~own ~other -> if (not own) && not other then cycles 500 else 0)
-  ; apart_b = (fun ~own:_ ~other -> if other then 0 else cycles 260)
+  ; hold_a = (fun ~own ~other:_ -> limit (if own then "tLOW" else "tHIGH"))
+  ; apart_a = (fun ~own ~other:_ -> limit (if own then "tSU;DAT" else "tHD;STA"))
+  ; hold_b = (fun ~own ~other -> if (not own) && not other then limit "tBUF" else 0)
+  ; apart_b =
+      (fun ~own ~other ->
+        if other then 0 else limit (if own then "tSU;STO" else "tSU;STA"))
   }
 ;;
+
+let fast_mode_plus = i2c_spacing ~clock_mhz:50 I2c_timing.fast_mode_plus
 
 (* The SCL low before a repeated START cut short, and the quarter one cycle short, which
    holds SCL low 24 cycles to Fm+'s 25: each keeps every deadline, and the kernel refuses
@@ -439,6 +445,63 @@ let%expect_test "i2c_master keeps Fast-mode Plus spacing, and a short SCL low is
           ((pc 52) (fails ("a spaced"))) ((pc 60) (fails ("a spaced")))
           ((pc 70) (fails ("a spaced"))) ((pc 81) (fails ("a spaced")))
           ((pc 92) (fails ("a spaced"))) ((pc 94) (fails ("b spaced")))))))))
+    |}]
+;;
+
+(* The bus clear's SCL low cut to a quarter keeps every deadline, and the kernel refuses
+   it once it spaces the edges. At 6 MHz a quarter of 29, the fastest Standard mode
+   (test_i2c.ml), is refused only at pc 45: the SCL fall for a host word with no START,
+   whose SDA edge before is a STOP behind the host wait, past the kernel's bound. A
+   quarter of 28 is short of tSU;STA too. *)
+let%expect_test "i2c_master's bus clear is spaced, and a short pulse is refused" =
+  let c = Certified.find_exn "i2c_master" in
+  let short_pulse =
+    { c with
+      name = "i2c_master_short_pulse"
+    ; source =
+        String.substr_replace_first
+          c.source
+          ~pattern:"; SCL low\n    wait t+ side 1\n"
+          ~with_:"; SCL low\n"
+    }
+  in
+  let quarter n =
+    { c with
+      name = [%string "i2c_master_quarter_%{n#Int}"]
+    ; source = Firmware.i2c_master ~quarter:n
+    }
+  in
+  let standard_mode = i2c_spacing ~clock_mhz:6 I2c_timing.standard_mode in
+  List.iter
+    [ "Fm+", c, fast_mode_plus
+    ; "Fm+", short_pulse, fast_mode_plus
+    ; "Sm at 6 MHz", quarter 29, standard_mode
+    ; "Sm at 6 MHz", quarter 28, standard_mode
+    ]
+    ~f:(fun (mode, c, spacing) ->
+      print_s
+        [%message
+          c.name
+            mode
+            ~deadlines:(check c : unit Or_error.t)
+            ~spaced:(check ~spacing c : unit Or_error.t)]);
+  [%expect
+    {|
+    (i2c_master Fm+ (deadlines (Ok ())) (spaced (Ok ())))
+    (i2c_master_short_pulse Fm+ (deadlines (Ok ()))
+     (spaced
+      (Error
+       ("rows the kernel rejects" (rejected (((pc 8) (fails ("a spaced")))))))))
+    (i2c_master_quarter_29 "Sm at 6 MHz" (deadlines (Ok ()))
+     (spaced
+      (Error
+       ("rows the kernel rejects" (rejected (((pc 45) (fails ("a spaced")))))))))
+    (i2c_master_quarter_28 "Sm at 6 MHz" (deadlines (Ok ()))
+     (spaced
+      (Error
+       ("rows the kernel rejects"
+        (rejected
+         (((pc 41) (fails ("b spaced"))) ((pc 45) (fails ("a spaced")))))))))
     |}]
 ;;
 
