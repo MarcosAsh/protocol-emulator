@@ -9,10 +9,11 @@ next_bit
 # period, or the line's level at the arm, left free; bmc, so what fails is a run from reset
 no_period from_reset
 level_at_arm from_reset
-# a row's phase moved a cycle either way, and a receiver's capture a cycle older
+# a row's phase moved a cycle either way, and a receiver's capture a cycle older or younger
 row_early from_reset
 row_late from_reset
 capture_older from_reset
+capture_younger from_reset
 
 [options]
 ~from_reset: mode prove
@@ -59,6 +60,7 @@ level_at_arm: read_verilog -formal -sv -DLEVEL_AT_ARM certificate.sv
 row_early: read_verilog -formal -sv -DROW_EARLY certificate.sv
 row_late: read_verilog -formal -sv -DROW_LATE certificate.sv
 capture_older: read_verilog -formal -sv -DCAPTURE_OLDER certificate.sv
+capture_younger: read_verilog -formal -sv -DCAPTURE_YOUNGER certificate.sv
 prep -top certificate
 # as a memory, the harness rom is state induction starts anywhere; as logic it is fixed
 memory_map

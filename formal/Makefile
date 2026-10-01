@@ -236,7 +236,7 @@ teeth: engine.v engine_sram.v engines.v kernel_step.v osr_step.v
 # all time and not only to a depth: make inductive_certificate NAME=uart_tx16. The teeth
 # run adds one claim that is false in any run, because induction proves anything from an
 # invariant no state satisfies, so it has to fail. So does a row moved a cycle, and a
-# receiver's capture a cycle older, from reset. inductive_proof runs the proof alone,
+# receiver's capture a cycle older or younger, from reset. inductive_proof runs the proof alone,
 # on a certificate_$(NAME).sv written already, for CI, where make has no dune.
 inductive_certificate: engine_sram.v
 	(cd .. && dune exec -- test/certify/write_certificate.exe -inductive $(NAME)) > certificate_$(NAME).sv
@@ -256,6 +256,8 @@ inductive_proof:
 	  sby -f --prefix certificate_$(NAME) certificate_inductive.sby row_late
 	! grep -q CAPTURE_OLDER certificate.sv || \
 	  sby -f --prefix certificate_$(NAME) certificate_inductive.sby capture_older
+	! grep -q CAPTURE_YOUNGER certificate.sv || \
+	  sby -f --prefix certificate_$(NAME) certificate_inductive.sby capture_younger
 
 # Every frame uart_tx_stamped sends carries the low 16 bits of the cycle its start bit
 # shows on the pin, and the pin shows those bits: its certificate as above with that

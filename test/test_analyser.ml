@@ -45,9 +45,9 @@ let%expect_test "uart rx" =
      3  capture_arm                  phase ?..?
      4  wait 0 pin 0                 phase ?..?
      5  mov t, capture               phase ?..?
-     6  add t, y                     phase 2..3
-     7  add t, p                     phase -4..-3
-     8  set x, 7                     phase -19..-18
+     6  add t, y                     phase 2
+     7  add t, p                     phase -4
+     8  set x, 7                     phase -19
      9  wait t+                      phase -18..-12  slack 12..18
     10  in pins, 1                   phase -15  sample -15
     11  jmp x--, 9                   phase -14
@@ -464,11 +464,11 @@ let%expect_test "usb rx" =
      5  capture_arm                  phase ?..?
      6  wait 1 pin 4                 phase ?..?
      7  mov t, capture               phase ?..?
-     8  add t, 7                     phase 2..3
-     9  add t, 7                     phase -4..-3
-    10  add t, 2                     phase -10..-9
-    11  jmp stuff, 24                phase -26..-10
-    12  wait t+                      phase -24..-8  slack 8..24
+     8  add t, 7                     phase 2
+     9  add t, 7                     phase -4
+    10  add t, 2                     phase -10
+    11  jmp stuff, 24                phase -26..-11
+    12  wait t+                      phase -24..-9  slack 9..24
     13  mov x, pins                  phase -31  sample -31
     14  jmp x!=y, 18                 phase -30
     15  set x, 1                     phase -28
@@ -480,7 +480,7 @@ let%expect_test "usb rx" =
     21  jmp 2                        phase -24
     22  in null, 1                   phase -25
     23  jmp 11                       phase -24
-    24  wait t+                      phase -24..-8  slack 8..24
+    24  wait t+                      phase -24..-9  slack 9..24
     25  mov x, pins                  phase -31  sample -31
     26  mov y, x                     phase -30
     27  stuff_reset                  phase -29
@@ -926,7 +926,7 @@ let%expect_test "usb device" =
     ("List.length report" 466)
       0  pull                         phase ?..?
       1  mov p, osr                   phase ?..?
-      2  set pins, 2                  phase ?..?  edge ?..?  jitter ?  gap 31 from 428, 85..? from 371, 107..? from 360, 269..? from 348, 97..? from 199, ?..? from 1
+      2  set pins, 2                  phase ?..?  edge ?..?  jitter ?  gap 31 from 428, 87..? from 371, 107..? from 360, 270..? from 348, 97..? from 199, ?..? from 1
       3  set pindirs, 4               phase ?..?  edge ?..?  jitter ?  gap 1
       4  mov isr, null                phase ?..?
       5  set y, 0                     phase ?..?
@@ -943,10 +943,10 @@ let%expect_test "usb device" =
      16  capture_arm                  phase ?..?
      17  wait 1 pin 12                phase ?..?
      18  mov t, capture               phase ?..?
-    109  set pins, 6                  phase -27  edge -26  gap 162..?
-    111  set pins, 2                  phase -27  edge -26  gap 162..?
-    113  set pins, 6                  phase -25  edge -24  gap 164..?
-    115  set pins, 2                  phase -25  edge -24  gap 164..?
+    109  set pins, 6                  phase -27  edge -26  gap 163..?
+    111  set pins, 2                  phase -27  edge -26  gap 163..?
+    113  set pins, 6                  phase -25  edge -24  gap 165..?
+    115  set pins, 2                  phase -25  edge -24  gap 165..?
     363  mov t, capture               phase -9..?
     379  set pins, 6                  phase -31  edge -30  gap 168..?
     380  set pindirs, 7               phase -30  edge -29  gap 1

@@ -569,7 +569,7 @@ let inductive
   in
   (* Under the single-edge assumption: from the arm to the wait for the edge the core
      holds the capture armed until the edge and after it an edge younger than the arm;
-     from that wait on, the capture is the edge, as old as the row says. *)
+     from that wait on, the capture is the edge, younger than the row's arm. *)
   let edge_claims (row : Analyser.Row.t) =
     let awaiting =
       if not row.awaiting
@@ -607,7 +607,12 @@ let inductive
         sprintf "      if (pc == %d) assert (!capture_armed);" row.pc
         ::
         (if no_wrap && anchors_on_capture
-         then Option.value_map row.since_arm ~default:[] ~f:(ages "capture_age" row)
+         then
+           Option.value_map row.since_arm ~default:[] ~f:(fun since ->
+             ages
+               "capture_age"
+               row
+               { since with hi = Option.map since.hi ~f:(fun hi -> hi - 1) })
          else [])
     in
     awaiting @ captured
@@ -673,8 +678,7 @@ let inductive
      the failure says the invariant is one some state satisfies. *)
   let teeth_pc = (List.last_exn rows).pc in
   (* Teeth bmc runs from reset: the bounded row fewest instructions from pc 0 moved a
-     cycle, and a receiver's capture a cycle older. A receiver's capture is one cycle old
-     where its row allows two, so its rows move only later. *)
+     cycle, and a receiver's capture a cycle older or younger. *)
   let anchors_on_edge = single_capture_edge && no_wrap && anchors_on_capture in
   let moved =
     let steps = Hashtbl.create (module Int) in
@@ -707,8 +711,7 @@ let inductive
             (lo + by)
             (hi + by)
         in
-        (if anchors_on_edge then "" else tooth "ROW_EARLY" (at (-1)))
-        ^ tooth "ROW_LATE" (at 1))
+        tooth "ROW_EARLY" (at (-1)) ^ tooth "ROW_LATE" (at 1))
     in
     let capture =
       if not anchors_on_edge
@@ -716,15 +719,12 @@ let inductive
       else
         List.find_map rows ~f:(fun (row : Analyser.Row.t) ->
           match row.since_arm with
-          | Some { lo = Some lo; hi = Some _ }
+          | Some { lo = Some lo; hi = Some hi }
             when row.captured && moves_capture row.instruction ->
+            let claim = sprintf "if (pc == %d && entry) assert (capture_age %s %d);" in
             Some
-              (tooth
-                 "CAPTURE_OLDER"
-                 (sprintf
-                    "if (pc == %d && entry) assert (capture_age >= %d);"
-                    row.pc
-                    (lo + 1)))
+              (tooth "CAPTURE_OLDER" (claim row.pc ">=" (lo + 1))
+               ^ tooth "CAPTURE_YOUNGER" (claim row.pc "<=" (hi - 2)))
           | _ -> None)
         |> Option.value ~default:""
     in

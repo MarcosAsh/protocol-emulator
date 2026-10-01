@@ -65,7 +65,8 @@ module Row : sig
     (** What the registers hold on the way in, which is what a proof by induction needs to
         tell one turn of a loop from the next. *)
     ; since_arm : Interval.t option
-    (** Cycles since [capture_arm], or once [captured] the most the capture can be old. *)
+    (** Cycles since [capture_arm], a capturing wait's own wait left out; once [captured],
+        the capture is younger. *)
     ; captured : bool (** A wait has seen the captured edge since the arm. *)
     ; awaiting : bool (** Armed, and no wait for the edge has released since. *)
     }

@@ -396,12 +396,14 @@ let step
        after { s with phase = Interval.exactly 0; offset = Interval.top }
      | Mov { dest = T; op = Copy; source = Capture } ->
        (* the capture is at least a cycle old, since a register shows the cycle after it
-          is written, and at most as old as the arm when the line made one edge *)
+          is written, and when the line made one edge younger than the arm, which takes
+          effect a cycle late *)
        let phase =
          { Interval.lo = Some 1
          ; hi =
              Option.bind s.since_arm ~f:(fun since ->
-               Option.bind (Option.some_if s.captured since) ~f:(fun since -> since.hi))
+               Option.bind (Option.some_if s.captured since) ~f:(fun since ->
+                 Option.map since.hi ~f:(fun hi -> hi - 1)))
          }
        in
        after { s with phase; offset = Interval.top }
