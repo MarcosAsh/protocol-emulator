@@ -1,10 +1,92 @@
 name: ocaml
 on: [push, workflow_dispatch]
+
 jobs:
-  test:
+  # the Verilog and certificates the proof jobs read, so they start without the tests
+  generate:
     runs-on: ubuntu-24.04
     outputs:
       certificates: ${{ steps.certificates.outputs.names }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Set up OxCaml
+        uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: ocaml-variants.5.2.0+ox
+          opam-repositories: |
+            ox: https://github.com/oxcaml/opam-repository.git
+            default: https://opam.ocaml.org
+
+      - name: Install dependencies
+        run: opam install . --deps-only --with-test --locked
+
+      - name: Write the Verilog
+        run: |
+          opam exec -- dune exec -- bin/generate.exe engine > formal/engine.v
+          opam exec -- dune exec -- bin/generate.exe engine -sram > formal/engine_sram.v
+          opam exec -- dune exec -- bin/generate.exe engine -timer-bits 7 > formal/engine_narrow.v
+          opam exec -- dune exec -- bin/generate.exe kernel > formal/kernel_step.v
+          opam exec -- dune exec -- bin/generate.exe kernel -timer-bits 7 > formal/kernel_step_narrow.v
+          opam exec -- dune exec -- bin/generate.exe engines -engines 2 -sram > formal/engines_sram.v
+          opam exec -- dune exec -- test/certify/write_link.exe > formal/link.sv
+          opam exec -- dune exec -- test/certify/write_link.exe -rx-period 11 > formal/link_baud.sv
+          opam exec -- dune exec -- bin/generate.exe kernel-accepts > formal/kernel_accepts.v
+
+      # each inductive certificate, the stamped one and the ones with data claims too, is
+      # proved in a job of its own below
+      - name: Write the certificates
+        id: certificates
+        run: |
+          names=$(make -s -C formal inductive_names)
+          for name in $names; do
+            opam exec -- dune exec -- test/certify/write_certificate.exe -inductive $name > formal/certificate_$name.sv
+          done
+          opam exec -- dune exec -- test/certify/write_certificate.exe -inductive -stamped uart_tx_stamped > formal/certificate_stamped.sv
+          data=""
+          for name in $(make -s -C formal data_names); do
+            opam exec -- dune exec -- test/certify/write_certificate.exe -inductive -data $name > formal/certificate_data_$name.sv
+            data="$data data_$name"
+          done
+          echo "names=$(echo $names stamped $data | jq -Rc 'split(" ")')" >> "$GITHUB_OUTPUT"
+
+      - name: Upload the certificates
+        uses: actions/upload-artifact@v7
+        with:
+          name: certificates
+          path: |
+            formal/engine_sram.v
+            formal/certificate_*.sv
+
+      - name: Upload the Verilog of the uart link
+        uses: actions/upload-artifact@v7
+        with:
+          name: link
+          path: |
+            formal/engines_sram.v
+            formal/link.sv
+            formal/link_baud.sv
+
+      - name: Upload the Verilog of the narrow core
+        uses: actions/upload-artifact@v7
+        with:
+          name: narrow
+          path: |
+            formal/engine_narrow.v
+            formal/kernel_step_narrow.v
+
+      - name: Upload the Verilog of the one-run theorem
+        uses: actions/upload-artifact@v7
+        with:
+          name: phase_table
+          path: |
+            formal/engine.v
+            formal/kernel_step.v
+            formal/kernel_accepts.v
+
+  test:
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout repo
         uses: actions/checkout@v6
@@ -82,56 +164,29 @@ jobs:
           opam exec -- dune exec -- bin/generate.exe kernel-gates -accepts > formal/kernel_accepts_gates.aag
           make -C formal issue_timing host_timing late_host fifo_order phase_step edge_step event_step frame_step value_step narrow_proof chip_frame data_step teeth fsm_miter_proof sram_equiv_proof kernel_equiv_proof sync_rtl sync_rtl_teeth powerup
 
-      # each inductive certificate, the stamped one and the ones with data claims too, is
-      # proved in a job of its own below
-      - name: Write the certificates
-        id: certificates
+  # the netlists of both boards, simulated; the firmware words they load are the committed
+  # ones, which the test job checks are current
+  fpga:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Set up OxCaml
+        uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: ocaml-variants.5.2.0+ox
+          opam-repositories: |
+            ox: https://github.com/oxcaml/opam-repository.git
+            default: https://opam.ocaml.org
+
+      - name: Install dependencies
+        run: opam install . --deps-only --with-test --locked
+
+      - name: Install OSS CAD Suite
         run: |
-          names=$(make -s -C formal inductive_names)
-          for name in $names; do
-            opam exec -- dune exec -- test/certify/write_certificate.exe -inductive $name > formal/certificate_$name.sv
-          done
-          opam exec -- dune exec -- test/certify/write_certificate.exe -inductive -stamped uart_tx_stamped > formal/certificate_stamped.sv
-          data=""
-          for name in $(make -s -C formal data_names); do
-            opam exec -- dune exec -- test/certify/write_certificate.exe -inductive -data $name > formal/certificate_data_$name.sv
-            data="$data data_$name"
-          done
-          echo "names=$(echo $names stamped $data | jq -Rc 'split(" ")')" >> "$GITHUB_OUTPUT"
-
-      - name: Upload the certificates
-        uses: actions/upload-artifact@v7
-        with:
-          name: certificates
-          path: |
-            formal/engine_sram.v
-            formal/certificate_*.sv
-
-      - name: Upload the Verilog of the uart link
-        uses: actions/upload-artifact@v7
-        with:
-          name: link
-          path: |
-            formal/engines_sram.v
-            formal/link.sv
-            formal/link_baud.sv
-
-      - name: Upload the Verilog of the narrow core
-        uses: actions/upload-artifact@v7
-        with:
-          name: narrow
-          path: |
-            formal/engine_narrow.v
-            formal/kernel_step_narrow.v
-
-      - name: Upload the Verilog of the one-run theorem
-        uses: actions/upload-artifact@v7
-        with:
-          name: phase_table
-          path: |
-            formal/engine.v
-            formal/kernel_step.v
-            formal/kernel_accepts.v
+          curl -sL https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz | tar xz -C "$HOME"
+          echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
 
       # the kit's top and pin file; tt is not part of this repository
       - name: Checkout tt-support-tools
@@ -164,13 +219,13 @@ jobs:
           make replay ICEPI=yes
 
   inductive_certificate:
-    needs: test
+    needs: generate
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
-        name: ${{ fromJSON(needs.test.outputs.certificates) }}
+        name: ${{ fromJSON(needs.generate.outputs.certificates) }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v6
@@ -197,7 +252,7 @@ jobs:
 
   # the step lemma and the kernel's check in one run, and its teeth, which have to fail
   phase_table:
-    needs: test
+    needs: generate
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     steps:
@@ -220,7 +275,7 @@ jobs:
 
   # the same for rows that bound the offset too, on row_step's lemma, and its teeth
   phase_table_affine:
-    needs: test
+    needs: generate
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -243,7 +298,7 @@ jobs:
 
   # a watched pair's spacing on the one-run theorem, its cover and tooth
   phase_spacing:
-    needs: test
+    needs: generate
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     steps:
@@ -266,7 +321,7 @@ jobs:
 
   # the step lemma on the narrow core, where a timer that stops at its top has to fail
   saturating:
-    needs: test
+    needs: generate
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
@@ -289,7 +344,7 @@ jobs:
 
   # the uart link between two engines by induction, its cover and teeth
   link:
-    needs: test
+    needs: generate
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
@@ -313,7 +368,7 @@ jobs:
   # each step lemma's Certifaiger witness, every check's LRAT proof verified by cake_lpr,
   # and its teeth, whose models have to fail; phase_table's outgrows a hosted runner
   witness:
-    needs: test
+    needs: generate
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     strategy:
