@@ -544,9 +544,10 @@ let parse text =
          | ".clock_div", value ->
            let%bind.Or_error draft = current () in
            (match Float.of_string_opt (String.concat value) with
-            | Some value ->
+            | Some value when Float.( >= ) value 1. && Float.( <= ) value 65536. ->
               draft.clock_div <- Some value;
               Ok ()
+            | Some _ -> Or_error.error_string ".clock_div must be in 1..65536"
             | None -> Or_error.error_string "bad .clock_div")
          | ( ( ".pio_version"
              | ".lang_opt"
