@@ -476,6 +476,21 @@ let%expect_test "an exec no sequence may start at, or a guard on no pin, is an e
     |}]
 ;;
 
+let%expect_test "an exec with no guard may reverse with ::" =
+  let program = programs ".program e\n    out exec, 16" |> List.hd_exn in
+  List.iter [ "mov pins, ::x"; "x=1: mov pins, ::x" ] ~f:(fun sequence ->
+    print_s
+      [%sexp
+        (Timing.Exec_sequence.of_string program sequence
+         |> Or_error.map ~f:(fun (t : Timing.Exec_sequence.t) ->
+           t.guard, List.map t.instructions ~f:(fun i -> i.text))
+         : ((string * int) list * string list) Or_error.t)]);
+  [%expect {|
+    (Ok (() ("mov pins, ::x")))
+    (Ok (((x 1)) ("mov pins, ::x")))
+    |}]
+;;
+
 let%expect_test "out writes every out pin, zeroes above its bit count" =
   programs
     {|

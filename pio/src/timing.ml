@@ -211,11 +211,17 @@ module Exec_sequence = struct
   ;;
 
   let of_string program text =
+    (* the first colon that is not half of a [::] reverse *)
+    let is_colon i = i >= 0 && i < String.length text && Char.equal text.[i] ':' in
+    let colon =
+      String.lfindi text ~f:(fun i _ ->
+        is_colon i && not (is_colon (i - 1) || is_colon (i + 1)))
+    in
     let%bind.Or_error guard, body =
-      match String.lsplit2 text ~on:':' with
-      | Some (guard, body) ->
-        let%map.Or_error guard = guard_of_string guard in
-        guard, body
+      match colon with
+      | Some i ->
+        let%map.Or_error guard = guard_of_string (String.prefix text i) in
+        guard, String.drop_prefix text (i + 1)
       | None -> Ok ([], text)
     in
     let%map.Or_error instructions =
