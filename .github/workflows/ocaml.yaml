@@ -20,6 +20,13 @@ jobs:
             ox: https://github.com/oxcaml/opam-repository.git
             default: https://opam.ocaml.org
 
+      # the switch as the lock built it; on a hit the install below has nothing to do
+      - name: Cache the switch
+        uses: actions/cache@v4
+        with:
+          path: _opam
+          key: opam-${{ runner.os }}-${{ runner.arch }}-5.2.0+ox-test-${{ hashFiles('protocol_emulator.opam.locked') }}
+
       - name: Install dependencies
         run: opam install . --deps-only --with-test --locked
 
@@ -104,6 +111,12 @@ jobs:
             ox: https://github.com/oxcaml/opam-repository.git
             default: https://opam.ocaml.org
 
+      - name: Cache the switch
+        uses: actions/cache@v4
+        with:
+          path: _opam
+          key: opam-${{ runner.os }}-${{ runner.arch }}-5.2.0+ox-test-${{ hashFiles('protocol_emulator.opam.locked') }}
+
       # no z3: every QED in the tests is cadical's, checked by cake_lpr
       - name: Install dependencies
         run: opam install . --deps-only --with-test --locked
@@ -184,6 +197,12 @@ jobs:
           opam-repositories: |
             ox: https://github.com/oxcaml/opam-repository.git
             default: https://opam.ocaml.org
+
+      - name: Cache the switch
+        uses: actions/cache@v4
+        with:
+          path: _opam
+          key: opam-${{ runner.os }}-${{ runner.arch }}-5.2.0+ox-test-${{ hashFiles('protocol_emulator.opam.locked') }}
 
       - name: Install dependencies
         run: opam install . --deps-only --with-test --locked

@@ -25,6 +25,13 @@ jobs:
             ox: https://github.com/oxcaml/opam-repository.git
             default: https://opam.ocaml.org
 
+      # the ocaml workflow's switch, a superset of this one's; a tag saves no cache
+      - name: Restore the switch
+        uses: actions/cache/restore@v4
+        with:
+          path: _opam
+          key: opam-${{ runner.os }}-${{ runner.arch }}-5.2.0+ox-test-${{ hashFiles('protocol_emulator.opam.locked') }}
+
       - name: Install dependencies
         run: opam install . --deps-only --locked
 

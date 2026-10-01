@@ -41,6 +41,14 @@ jobs:
             ox: https://github.com/oxcaml/opam-repository.git
             default: https://opam.ocaml.org
 
+      # the ocaml workflow's switch, a superset of the locked one; not saved with
+      # js_of_ocaml in it, whose freed guards the locked install would put back
+      - name: Restore the switch
+        uses: actions/cache/restore@v4
+        with:
+          path: _opam
+          key: opam-${{ runner.os }}-${{ runner.arch }}-5.2.0+ox-test-${{ hashFiles('protocol_emulator.opam.locked') }}
+
       # js_of_ocaml alone would move dune off 3.22.2+ox and rebuild without hardcaml, so
       # every locked package is held at its version. It and its sedlex and yojson are the
       # oxcaml patched ones, whose -patches packages replace the four guards left free.
