@@ -463,7 +463,7 @@ type draft =
   { name : string
   ; mutable side_set : Side_set.t
   ; mutable lines : Line.t list
-  ; mutable wrap_target : int option
+  ; mutable wrap_target : (int * int) option (* address, line *)
   ; mutable wrap : int option
   ; mutable clock_div : float option
   ; defines : (string, int) Hashtbl.t
@@ -533,10 +533,14 @@ let parse text =
               }
          | ".wrap_target", [] ->
            let%map.Or_error draft = current () in
-           draft.wrap_target <- Some draft.count
+           draft.wrap_target <- Some (draft.count, number)
          | ".wrap", [] ->
-           let%map.Or_error draft = current () in
-           draft.wrap <- Some (draft.count - 1)
+           let%bind.Or_error draft = current () in
+           if draft.count = 0
+           then Or_error.error_string ".wrap before the first instruction"
+           else (
+             draft.wrap <- Some (draft.count - 1);
+             Ok ())
          | ".clock_div", value ->
            let%bind.Or_error draft = current () in
            (match Float.of_string_opt (String.concat value) with
@@ -616,6 +620,12 @@ let parse text =
       then Or_error.error_s [%message "program length" draft.name (count : int)]
       else Ok ()
     in
+    let%bind.Or_error () =
+      match draft.wrap_target with
+      | Some (address, number) when address >= count ->
+        Or_error.error_string ".wrap_target after the last instruction" |> error_at number
+      | _ -> Ok ()
+    in
     let%map.Or_error () =
       Array.to_list instructions
       |> List.map ~f:(fun (instruction : Instruction.t) ->
@@ -628,7 +638,7 @@ let parse text =
     { Program.name = draft.name
     ; side_set = draft.side_set
     ; instructions
-    ; wrap_target = Option.value draft.wrap_target ~default:0
+    ; wrap_target = Option.value_map draft.wrap_target ~f:fst ~default:0
     ; wrap = Option.value draft.wrap ~default:(count - 1)
     ; clock_div = draft.clock_div
     ; labels

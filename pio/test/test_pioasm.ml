@@ -67,6 +67,8 @@ let%expect_test "what pioasm refuses is refused, with the line" =
     ; ".program a\njmp nowhere"
     ; ".program a\nfrobnicate x"
     ; "nop"
+    ; ".program a\nnop\n.wrap_target"
+    ; ".program a\n.wrap\nnop"
     ]
     ~f:(fun text ->
       print_s [%sexp (Pioasm.parse text : Pioasm.Program.t list Or_error.t)]);
@@ -78,6 +80,8 @@ let%expect_test "what pioasm refuses is refused, with the line" =
     (Error ("line 2" ("unknown name" (token nowhere))))
     (Error ("line 2" ("unknown instruction" (mnemonic frobnicate))))
     (Error ("line 1" "instruction before .program"))
+    (Error ("line 3" ".wrap_target after the last instruction"))
+    (Error ("line 2" ".wrap before the first instruction"))
     |}]
 ;;
 
