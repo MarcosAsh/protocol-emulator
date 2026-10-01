@@ -13,11 +13,12 @@ let decode_uart levels ~period =
     then List.rev acc
     else if levels.(i) = 0 && (i = 0 || levels.(i - 1) = 1)
     then (
+      let sample bit = levels.(i + (bit * period) + (period / 2)) in
       let byte =
-        List.init 8 ~f:(fun b -> levels.(i + ((b + 1) * period) + (period / 2)) lsl b)
-        |> List.fold ~init:0 ~f:( lor )
+        List.init 8 ~f:(fun b -> sample (b + 1) lsl b) |> List.fold ~init:0 ~f:( lor )
       in
-      frames (i + (10 * period)) (byte :: acc))
+      (* a low stop bit is a framing error, and no byte *)
+      frames (i + (10 * period)) (if sample 9 = 1 then byte :: acc else acc))
     else frames (i + 1) acc
   in
   frames 0 []

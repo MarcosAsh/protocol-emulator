@@ -4,6 +4,20 @@ open Firmware
 open Protocol_models
 open Machine_run
 
+let%expect_test "the uart decoder drops a frame whose stop bit is low" =
+  let period = 16 in
+  List.iter [ 1; 0 ] ~f:(fun stop ->
+    print_s
+      [%message
+        (stop : int)
+          (decode_uart (serial_levels [ 0x55 ] ~period ~stop) ~period : int list)]);
+  [%expect
+    {|
+    ((stop 1) ("decode_uart (serial_levels [0x55] ~period ~stop) ~period" (85)))
+    ((stop 0) ("decode_uart (serial_levels [0x55] ~period ~stop) ~period" ()))
+    |}]
+;;
+
 let%expect_test "uart tx sends two bytes with exact bit periods" =
   let period = 16 in
   let t =

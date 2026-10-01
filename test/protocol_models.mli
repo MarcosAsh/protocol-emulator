@@ -1,7 +1,11 @@
 open! Core
 
 val runs : int list -> (int * int) list
+
+(** 8N1 frames from levels a cycle apart, each bit sampled mid period; a frame whose stop
+    bit is low is dropped. *)
 val decode_uart : int list -> period:int -> int list
+
 val serial_levels : int list -> period:int -> stop:int -> int list
 
 module Spi_slave : sig
