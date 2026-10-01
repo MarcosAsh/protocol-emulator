@@ -1,0 +1,54 @@
+[tasks]
+bmc
+cover
+# teeth: a checker that takes a fall's stamp a cycle off, one that takes the next frame's
+# first edge a cycle off, one that halts without its irq, and one that raises it a cycle
+# late, have to fail from the clear
+stamp teeth
+least teeth
+silent teeth
+slow teeth
+
+[options]
+bmc: mode bmc
+bmc: depth 120
+cover: mode cover
+cover: depth 190
+teeth: mode bmc
+teeth: depth 120
+teeth: expect fail
+
+[engines]
+smtbmc boolector
+
+[script]
+read_verilog -lib RM_IHPSG13_1P_512x16_c2_bm_bist.v
+read_verilog engine_sram.v
+hierarchy -top engine_top
+proc
+flatten
+expose -evert -sep __ engine_top/t:RM_IHPSG13_1P_512x16_c2_bm_bist
+cd engine_top
+rename solo.engine.sram_macro.sram__A_ADDR sram_addr
+rename solo.engine.sram_macro.sram__A_DOUT sram_dout
+rename solo.data_memory.sram_macro.sram__A_ADDR data_sram_addr
+rename solo.data_memory.sram_macro.sram__A_DOUT data_sram_dout
+cd ..
+bmc: read_verilog -formal -sv self_check.sv
+cover: read_verilog -formal -sv self_check.sv
+stamp: read_verilog -formal -sv self_check_stamp.sv
+least: read_verilog -formal -sv self_check_least.sv
+silent: read_verilog -formal -sv self_check_silent.sv
+slow: read_verilog -formal -sv self_check_slow.sv
+prep -top self_check
+# as memories, the roms are state; as logic, fixed
+memory_map
+
+[files]
+engine_sram.v
+self_check.sv
+self_check_stamp.sv
+self_check_least.sv
+self_check_silent.sv
+self_check_slow.sv
+../src/RM_IHPSG13_1P_512x16_c2_bm_bist.v

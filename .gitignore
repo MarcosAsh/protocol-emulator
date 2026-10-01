@@ -29,6 +29,7 @@ formal/engines_sram.v
 formal/link*.sv
 formal/certificate*.sv
 formal/fsm_miter*.sv
+formal/self_check*.sv
 formal/*_*/
 formal/powerup/
 !formal/netlist_equiv/

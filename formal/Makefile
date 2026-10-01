@@ -1,6 +1,6 @@
 all: issue_timing host_timing late_host fifo_order phase_step edge_step event_step frame_step \
   value_step narrow saturating chip_frame data_step teeth fsm_miter sram_equiv \
-  kernel_equiv link powerup
+  kernel_equiv link self_check powerup
 
 engine.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe engine > formal/engine.v
@@ -176,6 +176,22 @@ link: engines_sram.v
 
 link_proof:
 	sby -f link.sby prove cover never_pushes next_bit wider baud
+
+# Self_check.checker on the core beside its contract (test/self_check_contract.ml), any
+# line, 116 cycles from the clear: the irq only after a break and by when the contract says,
+# no deadline missed. That holds the first frame's deadlines for a first fall by about cycle
+# 22. Covers meet each deadline to the cycle; teeth (a stamp a cycle off at either check, the
+# irq left out or a cycle late) fail. self_check_proof is for CI, about 30 min.
+self_check: engine_sram.v
+	(cd .. && dune exec -- test/certify/write_self_check.exe) > self_check.sv
+	(cd .. && dune exec -- test/certify/write_self_check.exe -mutant stamp) > self_check_stamp.sv
+	(cd .. && dune exec -- test/certify/write_self_check.exe -mutant least) > self_check_least.sv
+	(cd .. && dune exec -- test/certify/write_self_check.exe -mutant silent) > self_check_silent.sv
+	(cd .. && dune exec -- test/certify/write_self_check.exe -mutant slow) > self_check_slow.sv
+	$(MAKE) self_check_proof
+
+self_check_proof:
+	sby -f self_check.sby bmc cover stamp least silent slow
 
 osr_step.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe osr > formal/osr_step.v
@@ -621,4 +637,5 @@ witness_reject:
   netlist_equiv netlist_equiv_teeth sync_rtl sync_gate sync_rtl_teeth sync_gate_teeth \
   fsm_miter fsm_miter_proof sram_equiv sram_equiv_proof \
   sram_equiv_step sram_equiv_teeth kernel_equiv kernel_equiv_proof kernel_miter sat_tools \
-  narrow narrow_proof saturating saturating_proof saturating_chip powerup
+  narrow narrow_proof saturating saturating_proof saturating_chip self_check self_check_proof \
+  powerup
