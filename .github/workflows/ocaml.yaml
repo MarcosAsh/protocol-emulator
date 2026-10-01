@@ -1,6 +1,12 @@
 name: ocaml
 on: [push, workflow_dispatch]
 
+# a newer push cancels a branch's run; on main every run that starts finishes, and of the
+# ones waiting only the newest starts
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   # the Verilog and certificates the proof jobs read, so they start without the tests
   generate:
