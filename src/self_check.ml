@@ -210,7 +210,7 @@ let rows ~base edges =
   let%bind () =
     let last = List.last_exn edges in
     if last >= capture_span
-    then Or_error.error_s [%message "frame spans the capture's 14 bits" (last : int)]
+    then Or_error.error_s [%message "frame reaches 2^14 cycles" (last : int)]
     else Ok ()
   in
   let%map () =
@@ -227,12 +227,10 @@ let rows ~base edges =
   @ [ base + data_words ]
 ;;
 
-(* One loop per level after the last edge. High, x holds the last fall's stamp and the
-   capture is armed from the cycle after each edge, so it reads x unless the line fell
-   since, and a fall at the edge must stamp the edge's own cycle. Low, the line cannot
-   fall without rising first, so the cycle before the edge tells all, and the edge's own
-   picks the loop. The next frame's wait for its fall starts at the least itself, and its
-   stamp must be the cycle the wait released on. *)
+(* One loop per level after the last edge. High, x is the last fall's stamp, so a capture
+   that differs means a fall, which must stamp the edge's own cycle. Low, the line cannot
+   fall without rising, so it is read in the cycle before the edge and at the edge. The
+   next frame's wait starts at the least, and its stamp must be the cycle it released on. *)
 let checker ~pin ~base =
   if base < 0 || base >= data_words
   then raise_s [%message "base past the data memory" (base : int)];

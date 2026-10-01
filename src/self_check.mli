@@ -5,10 +5,9 @@
 open! Core
 
 (** The cycles from a frame's first edge, the write at [first], to every later pin write
-    up to [last], and last the least to the next frame's first edge. Each is exact: a
-    write whose row has jitter, a wait on the world, a write to [t] or [p] inside the
-    frame, or a write between the frame and the next is refused. Refused too if the write
-    at [first] does not say it leaves the pin low, and unless the kernel accepts the rows. *)
+    up to [last], then the least to the next frame's first edge. Refused unless each is
+    exact, the write at [first] leaves the first pin it writes low, and the kernel
+    accepts. *)
 val edges
   :  ?period:int
   -> config:Program_config.t
@@ -17,13 +16,8 @@ val edges
   -> last:int
   -> int list Or_error.t
 
-(** [edges] as data memory words for [checker] to read from [base]: the first check's [p],
-    then a word per later edge and one for the least, each with the cycles from the edge
-    before in bits 15 to 1 and whether another edge follows in bit 0, then [base] above
-    the data memory, so no row loads [p] under [min_gap]. Refused if a load would be under
-    [min_gap]: a first edge under [min_gap + 12], a gap under [min_gap], or a least under
-    [min_gap + 3] after the last edge. Refused too if the least is [2^14] or more from the
-    first edge, which keeps the stamps [checker] compares well inside their 16 bits, or if
+(** [edges] as data memory words for [checker] at [base]. Refused if a load of [p] would
+    be under [min_gap], if the least is [2^14] or more cycles from the first edge, or if
     the rows run past the data memory. *)
 val rows : base:int -> int list -> int list Or_error.t
 

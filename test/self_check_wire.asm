@@ -54,12 +54,12 @@ least:
     out p, 16                ; the base, in the word after the rows
     wait t
     mov y, capture
-    jmp x!=y, fault          ; nothing fell since the last fall
-    mov y, capture           ; two cycles before the least
-    wait 0 pin 20            ; the least: the next frame's first edge
+    jmp x!=y, fault          ; nothing fell up to five cycles before the least
+    mov y, capture           ; the cycle before it
+    wait 0 pin 20            ; from the least on, the next frame's first edge
     capture_arm
     mov isr, capture
-    jmp x!=y, fault
+    jmp x!=y, fault          ; nor up to two cycles before
     mov x, isr
     mov y, now
     add x, 6

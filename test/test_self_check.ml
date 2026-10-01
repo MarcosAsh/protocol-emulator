@@ -428,9 +428,9 @@ let%expect_test "a frame spanning the capture's 14 bits is refused" =
     {|
     ("lockstep held" (cycles 34250))
     ((quiet true) (unseen ()) (rtl_caught true))
-    (Error ("frame spans the capture's 14 bits" (last 16600)))
+    (Error ("frame reaches 2^14 cycles" (last 16600)))
     (Ok (88 32560 512))
-    (Error ("frame spans the capture's 14 bits" (last 16384)))
-    (Error ("frame spans the capture's 14 bits" (last 52086)))
+    (Error ("frame reaches 2^14 cycles" (last 16384)))
+    (Error ("frame reaches 2^14 cycles" (last 52086)))
     |}]
 ;;
