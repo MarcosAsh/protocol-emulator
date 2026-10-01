@@ -217,3 +217,36 @@ let behind_open =
     [%firmware] cannot tell what default is, past an open or include above
     |xxx}]
 ;;
+
+(* The library's literal firmwares, checked as they compiled and again as they load. *)
+let%expect_test "the literal firmwares" =
+  List.iter
+    [ "uart_tx16", Firmware.uart_tx16
+    ; "spi_slave", Firmware.spi_slave
+    ; "i2c_slave", Firmware.i2c_slave
+    ; "i2c_logger", Firmware.i2c_logger
+    ; "usb_tx", Firmware.usb_tx
+    ; "ethernet", Ethernet.firmware
+    ; "one_wire", One_wire.firmware
+    ; "ps2", Ps2.firmware
+    ; "can", Can.firmware
+    ]
+    ~f:(fun (name, timed) ->
+      print_s [%message name ~_:(Timed_program.verdict timed : Analyser.Verdict.t)]);
+  (* the demo's literal is the library's uart_tx at period 16, word for word *)
+  [%test_result: int list]
+    (Timed_program.words Firmware.uart_tx16)
+    ~expect:(Firmware.assemble (Firmware.uart_tx ~period:16));
+  [%expect
+    {|
+    (uart_tx16 ((words 15) (deadline_waits 3) (worst_slack (12))))
+    (spi_slave ((words 6) (deadline_waits 0) (worst_slack ())))
+    (i2c_slave ((words 72) (deadline_waits 0) (worst_slack ())))
+    (i2c_logger ((words 73) (deadline_waits 25) (worst_slack (1))))
+    (usb_tx ((words 65) (deadline_waits 11) (worst_slack (16))))
+    (ethernet ((words 24) (deadline_waits 1) (worst_slack (63987))))
+    (one_wire ((words 48) (deadline_waits 15) (worst_slack (0))))
+    (ps2 ((words 65) (deadline_waits 12) (worst_slack (0))))
+    (can ((words 56) (deadline_waits 10) (worst_slack (0))))
+    |}]
+;;

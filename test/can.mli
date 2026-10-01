@@ -14,7 +14,7 @@ open! Core
 open Protocol_emulator
 
 val tx_pin : int
-val firmware : string
+val firmware : Timed_program.t
 val config : Program_config.t
 
 (** 500 kbit/s at 48 MHz. *)

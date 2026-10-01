@@ -33,7 +33,7 @@ let print_answers answers slave (fault : Machine.Fault.t) =
 ;;
 
 let run ?(words = read_rom) ~unit ~cycles () =
-  let t = Machine.create ~config ~program:(Firmware.assemble firmware) |> ok_exn in
+  let t = Machine.create ~config ~program:(Timed_program.words firmware) |> ok_exn in
   let rec loop (t : Machine.t) slave pending n answers =
     if n = 0
     then t, slave, List.rev answers
@@ -89,7 +89,7 @@ let%expect_test "one wire in lockstep" =
     Lockstep.lockstep
       ~cycles:20_000
       ~config
-      ~program:(Firmware.assemble firmware)
+      ~program:(Timed_program.words firmware)
       ~inputs:(fun _ ->
         Option.value_map !last ~default:(1 lsl pin) ~f:(fun m -> bus m !slave))
       ~host:(fun _ ->
@@ -128,7 +128,7 @@ let%expect_test "one wire in lockstep" =
 ;;
 
 let%expect_test "every edge and every sample is placed by a deadline" =
-  Timing_report.print ~config ~period:standard_unit firmware;
+  Timing_report.print ~config ~period:standard_unit (Timed_program.source firmware);
   [%expect
     {|
      11  set pindirs, 1               phase -299  edge -298  gap ?..?
@@ -143,7 +143,7 @@ let%expect_test "every edge and every sample is placed by a deadline" =
 ;;
 
 let%expect_test "the shortest unit the program keeps up with" =
-  Timing_report.print ~config ~period:5 firmware;
+  Timing_report.print ~config ~period:5 (Timed_program.source firmware);
   [%expect
     {|
      11  set pindirs, 1               phase -4  edge -3  gap ?..?
@@ -158,7 +158,7 @@ let%expect_test "the shortest unit the program keeps up with" =
 ;;
 
 let%expect_test "a unit of four cycles is too short" =
-  Timing_report.print ~config ~period:4 firmware;
+  Timing_report.print ~config ~period:4 (Timed_program.source firmware);
   [%expect
     {|
      10  wait t+                      phase 0..1  slack -1..0  MAY MISS

@@ -5,12 +5,29 @@ let tx_pin = 6
 let period = 96
 let shortest_period = 15
 
+let config =
+  { Program_config.default with
+    in_base = tx_pin
+  ; in_count = 1
+  ; out_base = tx_pin
+  ; set_base = tx_pin
+  ; jmp_pin = tx_pin
+  ; out_shift = Left
+  ; autopull = true
+  ; crc_width = 15
+  ; crc_poly = 0x4599
+  ; crc_init = 0
+  ; crc_reflect = false
+  }
+;;
+
 (* The level before each bit is read back from the pin: a change starts a run, the same
    level counts it down in y, and y running out is five equal bits. A stuff bit is the
    complement of the pin and starts a run. SOF is not shifted through the CRC, but a
    dominant bit from 0 leaves it at 0. *)
 let firmware =
-  {|
+  [%firmware
+    {|
     wait tx
     pull
     mov p, osr               ; the bit period
@@ -80,22 +97,8 @@ tail:
     jmp x--, tail
     jmp frame
 |}
-;;
-
-let config =
-  { Program_config.default with
-    in_base = tx_pin
-  ; in_count = 1
-  ; out_base = tx_pin
-  ; set_base = tx_pin
-  ; jmp_pin = tx_pin
-  ; out_shift = Left
-  ; autopull = true
-  ; crc_width = 15
-  ; crc_poly = 0x4599
-  ; crc_init = 0
-  ; crc_reflect = false
-  }
+      ~config
+      ~period_floor:shortest_period]
 ;;
 
 module Frame = struct

@@ -11,7 +11,7 @@ let%expect_test "the frame check sequence is the standard CRC-32" =
 (* The model with the far end on TD+ and TD-; an undriven pin reads idle. *)
 let run ~cycles ~host ~data =
   let t =
-    Machine.create ~config ~program:(Firmware.assemble firmware)
+    Machine.create ~config ~program:(Timed_program.words firmware)
     |> Or_error.bind ~f:(fun m -> Machine.load_data m data)
     |> ok_exn
   in
@@ -103,7 +103,7 @@ let%expect_test "the frame in lockstep with the hardware" =
       ~preload:[ 50; bits - 1 ]
       ~data:(Frame.words wire)
       ~config
-      ~program:(Firmware.assemble firmware)
+      ~program:(Timed_program.words firmware)
       ~inputs:(fun _ -> 0)
       ~react
       ()
@@ -128,14 +128,14 @@ let%expect_test "the frame in lockstep with the hardware" =
    deadline, so their phase is only bounded from the frame start, but each edge is exactly
    two cycles after the last. A short link interval lets random host words start frames. *)
 let%expect_test "the certificate" =
-  Timing_report.print ~config ~period:link_tenth firmware;
+  Timing_report.print ~config ~period:link_tenth (Timed_program.source firmware);
   let { Soundness.issues; flips; gaps; violations; _ } =
     Soundness.check
       ~period:50
       ~preload:[ 50 ]
       ~config
       (List.init 4 ~f:(fun n -> Soundness.Stimulus.random ~seed:(n + 1) ~cycles:3000))
-      (Firmware.assemble firmware)
+      (Timed_program.words firmware)
   in
   print_s
     [%message

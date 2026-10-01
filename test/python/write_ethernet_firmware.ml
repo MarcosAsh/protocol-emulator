@@ -2,13 +2,10 @@ open! Core
 open Protocol_emulator
 open Protocol_emulator_test
 
-(* The 10BASE-T firmware for the board's Python, checked at the board's link interval. *)
+(* The 10BASE-T firmware for the board's Python, checked at the board's link interval when
+   it compiled. *)
 let () =
-  let program = Asm.assemble Ethernet.firmware |> ok_exn in
-  let (_ : Analyser.Verdict.t) =
-    Analyser.check ~period:Ethernet.link_tenth ~config:Ethernet.config program |> ok_exn
-  in
-  let words = Asm.Program.words program |> ok_exn in
+  let words = Timed_program.words Ethernet.firmware in
   print_string
     "# Written by test/python/write_ethernet_firmware.ml; `dune promote` after a change.\n\
      # The 10BASE-T firmware of test/ethernet.ml, for python/ethernet.py.\n\n\

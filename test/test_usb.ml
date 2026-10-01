@@ -52,7 +52,9 @@ let%expect_test "usb tx builds the crc and stuffs the get descriptor packet" =
     (bit_period :: 0x80 :: 0xc3 :: (List.length data - 1) :: data)
     @ [ 0x80; 0xc3; 0; 0xff ]
   in
-  let t = Machine.create ~config:usb_config ~program:(assemble usb_tx) |> ok_exn in
+  let t =
+    Machine.create ~config:usb_config ~program:(Timed_program.words usb_tx) |> ok_exn
+  in
   let feed (t : Machine.t) words =
     match words with
     | w :: rest when List.length t.tx_fifo < Machine.fifo_depth ->
@@ -161,7 +163,7 @@ let%expect_test "usb tx in lockstep" =
     Lockstep.lockstep
       ~cycles:(bit_period * 200)
       ~config:usb_config
-      ~program:(assemble usb_tx)
+      ~program:(Timed_program.words usb_tx)
       ~preload:[ bit_period ]
       ~inputs:(fun _ -> 0)
       ~host

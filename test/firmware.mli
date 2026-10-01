@@ -3,6 +3,7 @@ open Protocol_emulator
 
 val assemble : string -> int list
 val uart_tx : period:int -> string
+val uart_tx16 : Timed_program.t
 val uart_tx_host_rate : string
 
 (** [uart_tx] with no wait on the host: frames back to back from one anchor, a byte a
@@ -39,7 +40,7 @@ val spi_stream_config : Program_config.t
 
 (** Mode 0 slave without chip select. Replies are host words [byte lsl 8]; sck half
     periods of four cycles or more. *)
-val spi_slave : string
+val spi_slave : Timed_program.t
 
 val slave_sck_pin : int
 val slave_mosi_pin : int
@@ -52,20 +53,20 @@ val i2c_config : Program_config.t
 
 (** Slave. The host sends [address lsl 1] first, then reads every byte the master writes
     to that address and supplies every byte it reads. *)
-val i2c_slave : string
+val i2c_slave : Timed_program.t
 
 val i2c_slave_config : Program_config.t
 
 (** Reads bytes from the slave at 0x50 and logs each one over UART on [logger_uart_pin], a
     quarter period of 8 and a bit period of 16. *)
-val i2c_logger : string
+val i2c_logger : Timed_program.t
 
 val logger_uart_pin : int
 val i2c_logger_config : Program_config.t
 
 (** Low speed USB packets with the core's CRC and stuff counter. Host words: the bit
     period once, then per packet SYNC, PID, data bytes less one, the data. *)
-val usb_tx : string
+val usb_tx : Timed_program.t
 
 val usb_scratch_pin : int
 val usb_dp_pin : int

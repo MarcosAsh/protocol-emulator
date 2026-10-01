@@ -71,7 +71,7 @@ let directed coverage =
       lor (Spi_peer.mosi !master lsl slave_mosi_pin))
     ~react:(fun m -> master := Spi_peer.step !master ~miso:(bit m.pin_out slave_miso_pin))
     ~config:spi_slave_config
-    spi_slave;
+    (Timed_program.source spi_slave);
   let slave = ref (I2c_slave.create ~address:0x50 ~memory:(Array.create ~len:16 0x5a)) in
   let bus = ref ((1 lsl sda) lor (1 lsl scl)) in
   let react (m : Machine.t) =
@@ -83,7 +83,12 @@ let directed coverage =
   let words = [ i2c_word ~start:true 0xa0; i2c_word 3; i2c_word ~stop:true 0xaa ] in
   let inputs () = !bus in
   run ~cycles:1500 ~words ~inputs ~react ~config:i2c_config (i2c_master ~quarter:8);
-  run ~cycles:3000 ~inputs ~react ~config:i2c_logger_config i2c_logger;
+  run
+    ~cycles:3000
+    ~inputs
+    ~react
+    ~config:i2c_logger_config
+    (Timed_program.source i2c_logger);
   let master =
     ref (I2c_peer.create ~quarter:8 [ Start; Write 0xa0; Write 3; Start; Write 0xa1 ])
   in
@@ -96,8 +101,12 @@ let directed coverage =
       bus_sda := I2c_peer.sda !master land (1 - bit m.pin_dir sda);
       master := I2c_peer.step !master ~sda:!bus_sda)
     ~config:i2c_slave_config
-    i2c_slave;
-  run ~cycles:3200 ~words:[ 32; 0x80; 0xc3; 0; 0xff ] ~config:usb_config usb_tx;
+    (Timed_program.source i2c_slave);
+  run
+    ~cycles:3200
+    ~words:[ 32; 0x80; 0xc3; 0; 0xff ]
+    ~config:usb_config
+    (Timed_program.source usb_tx);
   let lines =
     List.concat_map
       (Usb_ls.encode [ 0xc3; 0x80; 0x06 ])

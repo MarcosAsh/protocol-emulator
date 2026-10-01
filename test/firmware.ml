@@ -26,6 +26,30 @@ bit:
 
 let uart_tx ~period = [%string "    set p, %{period#Int}%{uart_tx_frame}"]
 
+(* [uart_tx ~period:16], checked when it compiles *)
+let uart_tx16 =
+  [%firmware
+    {|
+    set p, 16
+    set pins, 1              ; idle high
+idle:
+    wait tx
+    pull
+    set x, 7
+    mov t, now               ; anchor the frame
+    set pins, 0              ; start bit
+    add t, p
+bit:
+    wait t+
+    out pins, 1
+    jmp x--, bit
+    wait t+
+    set pins, 1              ; stop bit
+    wait t
+    jmp idle
+|}]
+;;
+
 (* 26-bit frame: start, the host's byte, the low 16 bits of the cycle the start bit shows,
    both LSB first, stop. [mov y, now] reads four cycles before that edge. *)
 let uart_tx_stamped ~period =
@@ -203,20 +227,6 @@ let spi_stream_config =
   }
 ;;
 
-(* Mode 0 slave, no chip select. Replies come from the host as [byte lsl 8]. Needs sck
-   half periods of at least four cycles. *)
-let spi_slave =
-  {|
-    out pins, 1              ; first bit of the first reply
-bit:
-    wait 1 pin 1             ; rising edge
-    in pins, 1
-    wait 0 pin 1             ; falling edge
-    out pins, 1
-    jmp bit
-|}
-;;
-
 let slave_sck_pin = 1
 let slave_mosi_pin = 2
 let slave_miso_pin = 5
@@ -232,6 +242,22 @@ let spi_slave_config =
   ; autopull = true
   ; pull_threshold = 8
   }
+;;
+
+(* Mode 0 slave, no chip select. Replies come from the host as [byte lsl 8]. Needs sck
+   half periods of at least four cycles. *)
+let spi_slave =
+  [%firmware
+    {|
+    out pins, 1              ; first bit of the first reply
+bit:
+    wait 1 pin 1             ; rising edge
+    in pins, 1
+    wait 0 pin 1             ; falling edge
+    out pins, 1
+    jmp bit
+|}
+      ~config:spi_slave_config]
 ;;
 
 let sda = 12
@@ -353,11 +379,25 @@ let i2c_config =
   }
 ;;
 
+let i2c_slave_config =
+  { Program_config.default with
+    jmp_pin = scl
+  ; out_base = sda
+  ; out_count = 1
+  ; set_base = sda
+  ; set_count = 1
+  ; in_base = sda
+  ; out_shift = Left
+  ; in_shift = Left
+  }
+;;
+
 (* Slave at the address the host sends first as [address lsl 1]. Written bytes, address
    included, go to the host; read bytes come from it. Start and stop are only watched for
    on the first bit of a byte. Never stretches the clock. *)
 let i2c_slave =
-  {|
+  [%firmware
+    {|
     pull
     mov p, osr               ; address << 1
 idle:
@@ -442,26 +482,21 @@ rbit:
     jmp x--, idle            ; nack: the master is done
     jmp rbyte
 |}
+      ~config:i2c_slave_config]
 ;;
 
-let i2c_slave_config =
-  { Program_config.default with
-    jmp_pin = scl
-  ; out_base = sda
-  ; out_count = 1
-  ; set_base = sda
-  ; set_count = 1
-  ; in_base = sda
-  ; out_shift = Left
-  ; in_shift = Left
-  }
+let logger_uart_pin = 5
+
+let i2c_logger_config =
+  { i2c_config with out_base = logger_uart_pin; out_count = 1; out_shift = Left }
 ;;
 
 (* Two protocols on one core: read a byte from the I2C slave at 0x50, log it over UART on
    OUT0, forever. Periods are immediates so the timing is fixed at assembly. The data bit
    is set on both branches of a jump so its edge lands at the same cycle either way. *)
 let i2c_logger =
-  {|
+  [%firmware
+    {|
     .side_set 1
     mov pins, !null side 0       ; UART idle high
     set pindirs, 0 side 0        ; SDA released
@@ -543,12 +578,25 @@ ubit:
     wait t side 0
     jmp loop
 |}
+      ~config:i2c_logger_config]
 ;;
 
-let logger_uart_pin = 5
+let usb_scratch_pin = 5
+let usb_dp_pin = 6
+let usb_dm_pin = 7
 
-let i2c_logger_config =
-  { i2c_config with out_base = logger_uart_pin; out_count = 1; out_shift = Left }
+let usb_config =
+  { Program_config.default with
+    in_base = usb_scratch_pin
+  ; out_base = usb_scratch_pin
+  ; out_count = 3
+  ; set_base = usb_dp_pin
+  ; set_count = 2
+  ; jmp_pin = usb_scratch_pin
+  ; out_shift = Right
+  ; stuff_threshold = 6
+  ; stuff_level = true
+  }
 ;;
 
 (* USB low speed transmitter. The host sends the bit period, then per packet SYNC, PID,
@@ -556,7 +604,8 @@ let i2c_logger_config =
    data bit goes out on a scratch pin first so the CRC sees it and [jmp pin] reads it
    back. Every toggle lands four cycles after its deadline on either path. *)
 let usb_tx =
-  {|
+  [%firmware
+    {|
     pull
     mov p, osr
     set pins, 2              ; idle J
@@ -637,24 +686,8 @@ estuff:
     stuff_reset
     jmp eop
 |}
-;;
-
-let usb_scratch_pin = 5
-let usb_dp_pin = 6
-let usb_dm_pin = 7
-
-let usb_config =
-  { Program_config.default with
-    in_base = usb_scratch_pin
-  ; out_base = usb_scratch_pin
-  ; out_count = 3
-  ; set_base = usb_dp_pin
-  ; set_count = 2
-  ; jmp_pin = usb_scratch_pin
-  ; out_shift = Right
-  ; stuff_threshold = 6
-  ; stuff_level = true
-  }
+      ~config:usb_config
+      ~period:32]
 ;;
 
 (* USB low speed receiver. The host sends the bit period; the half period is an immediate

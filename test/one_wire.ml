@@ -5,9 +5,20 @@ let pin = 12
 let cycle_ns = 20
 let standard_unit = 6_000 / cycle_ns
 
+let config =
+  { Program_config.default with
+    in_base = pin
+  ; out_base = pin
+  ; out_count = 1
+  ; set_base = pin
+  ; set_count = 1
+  }
+;;
+
 (* host word: bit 0 asks for a reset, otherwise bits 8 to 1 are the byte, LSB first *)
 let firmware =
-  {|
+  [%firmware
+    {|
     wait tx
     pull
     mov p, osr               ; the unit
@@ -64,16 +75,8 @@ high:
     push
     jmp idle
 |}
-;;
-
-let config =
-  { Program_config.default with
-    in_base = pin
-  ; out_base = pin
-  ; out_count = 1
-  ; set_base = pin
-  ; set_count = 1
-  }
+      ~config
+      ~period_floor:5]
 ;;
 
 let reset = 1

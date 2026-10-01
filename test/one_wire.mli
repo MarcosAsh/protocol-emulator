@@ -34,7 +34,7 @@ val cycle_ns : int
 (** Cycles in 6 us at 50 MHz. *)
 val standard_unit : int
 
-val firmware : string
+val firmware : Timed_program.t
 val config : Program_config.t
 val reset : int
 val byte : int -> int

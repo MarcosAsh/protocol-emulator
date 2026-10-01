@@ -255,7 +255,7 @@ let%expect_test "the words committed for the cocotb test are current" =
     ~expect:(Firmware.assemble Firmware.uart_tx_host_rate);
   [%test_result: int list]
     (assembled "ethernet")
-    ~expect:(Firmware.assemble Ethernet.firmware);
+    ~expect:(Timed_program.words Ethernet.firmware);
   [%test_result: int list]
     (assembled "edge_logger_wire")
     ~expect:(Firmware.assemble (Firmware.edge_logger ~pin:Isa.num_pins));

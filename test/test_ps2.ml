@@ -87,7 +87,7 @@ let run ?(script = []) ~quarter ~bytes ~cycles () =
   in
   let m, host, driver =
     loop
-      (Machine.create ~config ~program:(Firmware.assemble firmware) |> ok_exn)
+      (Machine.create ~config ~program:(Timed_program.words firmware) |> ok_exn)
       (Host.create ~cycle_ns script)
       (Driver.create ~quarter bytes)
       cycles
@@ -146,7 +146,7 @@ let%expect_test "ps2 in lockstep" =
     Lockstep.lockstep
       ~cycles:9_500
       ~config
-      ~program:(Firmware.assemble firmware)
+      ~program:(Timed_program.words firmware)
       ~inputs:(fun _ ->
         levels := Option.value_map !last ~default:(1, 1) ~f:(fun m -> bus m !host);
         let clock, data = !levels in
@@ -182,7 +182,7 @@ let%expect_test "ps2 in lockstep" =
 ;;
 
 let%expect_test "every edge and every sample is placed by a deadline" =
-  Timing_report.print ~config ~period:standard_quarter firmware;
+  Timing_report.print ~config ~period:standard_quarter (Timed_program.source firmware);
   [%expect
     {|
       9  in pins, 1                   phase 2  sample 2
@@ -202,7 +202,7 @@ let%expect_test "every edge and every sample is placed by a deadline" =
 ;;
 
 let%expect_test "the shortest quarter the program keeps up with" =
-  Timing_report.print ~config ~period:8 firmware;
+  Timing_report.print ~config ~period:8 (Timed_program.source firmware);
   [%expect
     {|
       9  in pins, 1                   phase 2  sample 2
@@ -222,7 +222,7 @@ let%expect_test "the shortest quarter the program keeps up with" =
 ;;
 
 let%expect_test "a quarter of seven cycles is too short" =
-  Timing_report.print ~config ~period:7 firmware;
+  Timing_report.print ~config ~period:7 (Timed_program.source firmware);
   [%expect
     {|
       9  in pins, 1                   phase 2  sample 2

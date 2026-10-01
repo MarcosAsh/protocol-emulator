@@ -33,7 +33,7 @@ val cycle_ns : int
 (** Cycles in 20 us at 50 MHz. *)
 val standard_quarter : int
 
-val firmware : string
+val firmware : Timed_program.t
 val config : Program_config.t
 
 (** The host at the other end. It times the clock the device makes: low and high of 30 to

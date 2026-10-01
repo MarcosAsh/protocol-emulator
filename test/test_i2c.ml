@@ -95,7 +95,8 @@ let%expect_test "a slave at another address does not answer" =
 
 let run_slave ?(replies = []) ops ~cycles =
   let t =
-    Machine.create ~config:i2c_slave_config ~program:(assemble i2c_slave) |> ok_exn
+    Machine.create ~config:i2c_slave_config ~program:(Timed_program.words i2c_slave)
+    |> ok_exn
   in
   let t =
     List.fold ((0x50 lsl 1) :: replies) ~init:t ~f:(fun t w ->
@@ -181,7 +182,8 @@ let%expect_test "slave ignores another address" =
 let%expect_test "one core polls the slave over i2c and logs over uart" =
   let memory = Array.init 16 ~f:(fun i -> 0x10 + (0x11 * i)) in
   let t =
-    Machine.create ~config:i2c_logger_config ~program:(assemble i2c_logger) |> ok_exn
+    Machine.create ~config:i2c_logger_config ~program:(Timed_program.words i2c_logger)
+    |> ok_exn
   in
   let slave = I2c_slave.create ~address:0x50 ~memory in
   let rec loop (t : Machine.t) slave n levels =
@@ -281,7 +283,7 @@ let%expect_test "i2c slave in lockstep" =
     Lockstep.lockstep
       ~cycles:3000
       ~config:i2c_slave_config
-      ~program:(assemble i2c_slave)
+      ~program:(Timed_program.words i2c_slave)
       ~preload:[ 0x50 lsl 1; 0x12; 0x34 ]
       ~inputs:(fun _ -> (!last_sda lsl sda) lor (I2c_peer.scl !master lsl scl))
       ~react:(fun m ->
@@ -315,7 +317,7 @@ let%expect_test "i2c logger in lockstep" =
     Lockstep.lockstep
       ~cycles:3000
       ~config:i2c_logger_config
-      ~program:(assemble i2c_logger)
+      ~program:(Timed_program.words i2c_logger)
       ~inputs:(fun _ -> (!last_sda lsl sda) lor (!last_scl lsl scl))
       ~react:(fun m ->
         last_sda := bus_sda m;

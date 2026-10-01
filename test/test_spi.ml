@@ -52,7 +52,8 @@ let%expect_test "spi master exchanges bytes with a mode 0 slave" =
 (* one reply more than bytes, or the last edge pulls from an empty fifo *)
 let run_spi_slave ~half_period ?gap ~replies bytes =
   let t =
-    Machine.create ~config:spi_slave_config ~program:(assemble spi_slave) |> ok_exn
+    Machine.create ~config:spi_slave_config ~program:(Timed_program.words spi_slave)
+    |> ok_exn
   in
   let t =
     List.fold replies ~init:t ~f:(fun t reply ->
@@ -151,7 +152,7 @@ let%expect_test "spi slave in lockstep" =
   let (_ : Machine.t) =
     Lockstep.lockstep
       ~config:spi_slave_config
-      ~program:(assemble spi_slave)
+      ~program:(Timed_program.words spi_slave)
       ~preload:(List.map [ 0x81; 0x7e; 0x11; 0 ] ~f:(fun reply -> reply lsl 8))
       ~inputs:(fun _ ->
         (Spi_peer.sck !master lsl slave_sck_pin)

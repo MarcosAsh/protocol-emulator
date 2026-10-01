@@ -28,7 +28,7 @@ let receiver = plain ~single_capture_edge:true ~no_wrap:true
 let all =
   [ plain "uart_tx" (Firmware.uart_tx ~period:8) Program_config.default
     (* the same UART at the slower bit period the tests use, for the deep run *)
-  ; plain "uart_tx16" (Firmware.uart_tx ~period:16) Program_config.default
+  ; plain "uart_tx16" (Timed_program.source Firmware.uart_tx16) Program_config.default
   ; plain
       ~period:434
       ~period_floor:4
@@ -38,13 +38,16 @@ let all =
       Program_config.default
   ; receiver "uart_rx" (Firmware.uart_rx ~period:16) Firmware.rx_config
   ; plain "spi_master" (Firmware.spi_master ~half_period:8) Firmware.spi_config
-  ; plain "spi_slave" Firmware.spi_slave Firmware.spi_slave_config
+  ; plain "spi_slave" (Timed_program.source Firmware.spi_slave) Firmware.spi_slave_config
     (* the smallest Fast-mode Plus quarter at 50 MHz (test_i2c.ml): assumes zero rise
        time, with tHD;STA, tSU;STA and tSU;STO exactly at their limits *)
   ; plain ~no_wrap:true "i2c_master" (Firmware.i2c_master ~quarter:13) Firmware.i2c_config
-  ; plain "i2c_slave" Firmware.i2c_slave Firmware.i2c_slave_config
-  ; plain "i2c_logger" Firmware.i2c_logger Firmware.i2c_logger_config
-  ; plain ~period:32 "usb_tx" Firmware.usb_tx Firmware.usb_config
+  ; plain "i2c_slave" (Timed_program.source Firmware.i2c_slave) Firmware.i2c_slave_config
+  ; plain
+      "i2c_logger"
+      (Timed_program.source Firmware.i2c_logger)
+      Firmware.i2c_logger_config
+  ; plain ~period:32 "usb_tx" (Timed_program.source Firmware.usb_tx) Firmware.usb_config
   ; receiver ~period:32 "usb_rx" (Firmware.usb_rx ~half_period:16) Firmware.usb_rx_config
   ; receiver
       ~period:32
@@ -57,22 +60,27 @@ let all =
       ~period:Ethernet.link_tenth
       ~no_wrap:true
       "ethernet"
-      Ethernet.firmware
+      (Timed_program.source Ethernet.firmware)
       Ethernet.config
   ; plain
       ~period:One_wire.standard_unit
       ~period_floor:5
       "one_wire"
-      One_wire.firmware
+      (Timed_program.source One_wire.firmware)
       One_wire.config
-  ; plain ~period:Ps2.standard_quarter ~period_floor:8 "ps2" Ps2.firmware Ps2.config
+  ; plain
+      ~period:Ps2.standard_quarter
+      ~period_floor:8
+      "ps2"
+      (Timed_program.source Ps2.firmware)
+      Ps2.config
   ; plain "jtag" (Jtag.firmware ~half_period:Jtag.shortest_half) Jtag.config
   ; plain
       ~period:Can.period
       ~period_floor:Can.shortest_period
       ~no_wrap:true
       "can"
-      Can.firmware
+      (Timed_program.source Can.firmware)
       Can.config
   ; plain ~no_wrap:true "dshot600" Dshot.dshot600 Dshot.config
   ; plain

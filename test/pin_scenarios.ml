@@ -79,7 +79,7 @@ let i2c_logger =
   { Scenario.name = "i2c_logger"
   ; peer
   ; script =
-      Scenario.load ~config:i2c_logger_config ~program:(assemble i2c_logger)
+      Scenario.load ~config:i2c_logger_config ~program:(Timed_program.words i2c_logger)
       @ [ Scenario.start; Run 3000; Read (Reg.status, 1) ]
   }
 ;;

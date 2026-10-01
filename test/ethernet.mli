@@ -18,7 +18,7 @@ open Protocol_emulator
 val td_plus : int
 val cycle_ns : int
 val link_tenth : int
-val firmware : string
+val firmware : Timed_program.t
 val config : Program_config.t
 
 module Frame : sig

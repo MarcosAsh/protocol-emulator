@@ -265,7 +265,7 @@ let%expect_test "a quarter of 5 is too short for the i2c dispatch" =
 ;;
 
 let%expect_test "i2c logger" =
-  report ~config:i2c_logger_config i2c_logger;
+  report ~config:i2c_logger_config (Timed_program.source i2c_logger);
   [%expect
     {|
      0  mov pins, !null side 0       phase ?..?  edge ?..?  jitter ?  side ?..?  jitter ?
@@ -345,7 +345,7 @@ let%expect_test "i2c logger" =
 ;;
 
 let%expect_test "usb tx" =
-  report ~config:usb_config ~period:32 usb_tx;
+  report ~config:usb_config ~period:32 (Timed_program.source usb_tx);
   [%expect
     {|
      0  pull                         phase ?..?
@@ -476,7 +476,7 @@ let%expect_test "firmware that can miss a deadline is refused" =
      75  wait t+ side 1               phase 1..3  slack -3..-1  MAY MISS
     |}];
   (* a program with no deadline to miss *)
-  check ~config:spi_slave_config spi_slave;
+  check ~config:spi_slave_config (Timed_program.source spi_slave);
   [%expect {| 6 words, 0 deadline waits |}]
 ;;
 
@@ -491,7 +491,7 @@ let%expect_test "a deadline is only as good as what is assumed about the world" 
     |}];
   check ~config:rx_config ~single_capture_edge:true (uart_rx ~period:16);
   [%expect {| 19 words, 2 deadline waits, worst slack 7 |}];
-  check usb_tx;
+  check (Timed_program.source usb_tx);
   [%expect
     {|
     11 of 11 deadline waits may be missed
@@ -508,10 +508,10 @@ let%expect_test "a deadline is only as good as what is assumed about the world" 
      60  wait t+                      phase ?..?  slack ?..?  MAY MISS
     a bound of ? means none: the way here has a wait for a pin or a fifo, a capture nothing is assumed about, a period the host loads, or a loop that falls further behind on every pass
     |}];
-  check ~config:usb_config ~period:32 usb_tx;
+  check ~config:usb_config ~period:32 (Timed_program.source usb_tx);
   [%expect {| 65 words, 11 deadline waits, worst slack 16 |}];
   (* the same firmware at twelve cycles a bit, which its longest path does not fit *)
-  check ~config:usb_config ~period:12 usb_tx;
+  check ~config:usb_config ~period:12 (Timed_program.source usb_tx);
   [%expect
     {|
     11 of 11 deadline waits may be missed
@@ -547,11 +547,11 @@ let%expect_test "every firmware stays inside its analysis under random stimulus"
     ; "uart tx host rate", Program_config.default, uart_tx_host_rate, Some 434, [ 434 ]
     ; "uart rx", rx_config, uart_rx ~period:16, None, []
     ; "spi master", spi_config, spi_master ~half_period:8, None, []
-    ; "spi slave", spi_slave_config, spi_slave, None, []
+    ; "spi slave", spi_slave_config, Timed_program.source spi_slave, None, []
     ; "i2c master", i2c_config, i2c_master ~quarter:8, None, []
-    ; "i2c slave", i2c_slave_config, i2c_slave, None, [ 0x50 lsl 1 ]
-    ; "i2c logger", i2c_logger_config, i2c_logger, None, []
-    ; "usb tx", usb_config, usb_tx, Some 32, [ 32 ]
+    ; "i2c slave", i2c_slave_config, Timed_program.source i2c_slave, None, [ 0x50 lsl 1 ]
+    ; "i2c logger", i2c_logger_config, Timed_program.source i2c_logger, None, []
+    ; "usb tx", usb_config, Timed_program.source usb_tx, Some 32, [ 32 ]
     ; "usb rx", usb_rx_config, usb_rx ~half_period:16, Some 32, [ 32 ]
     ; ( "usb device"
       , usb_device_config
@@ -566,8 +566,8 @@ let%expect_test "every firmware stays inside its analysis under random stimulus"
       , Some 16
       , [ 16 ] )
     ; "ws2812", Ws2812.config, Ws2812.firmware ~third:6 ~tail:7, None, []
-    ; "1-wire", One_wire.config, One_wire.firmware, Some 8, [ 8 ]
-    ; "ps/2", Ps2.config, Ps2.firmware, Some 10, [ 10 ]
+    ; "1-wire", One_wire.config, Timed_program.source One_wire.firmware, Some 8, [ 8 ]
+    ; "ps/2", Ps2.config, Timed_program.source Ps2.firmware, Some 10, [ 10 ]
     ; "jtag", Jtag.config, Jtag.firmware ~half_period:Jtag.shortest_half, None, []
     ]
   in

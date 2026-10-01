@@ -6,11 +6,27 @@ let clock_pin = 13
 let cycle_ns = 20
 let standard_quarter = 20_000 / cycle_ns
 
+let config =
+  { Program_config.default with
+    in_base = data_pin
+  ; out_base = data_pin
+  ; out_count = 1
+  ; set_base = clock_pin
+  ; set_count = 1
+  ; jmp_pin = clock_pin
+  ; crc_width = 1
+  ; crc_poly = 1
+  ; crc_init = 1
+  ; crc_reflect = false
+  }
+;;
+
 (* [set] is the clock and [mov pindirs] the data; a direction bit of 1 pulls low. isr
    builds the frame shifting right: byte, parity from the CRC, stop, then five more so the
    start bit is bit 0. *)
 let firmware =
-  {|
+  [%firmware
+    {|
     wait tx
     pull
     mov p, osr               ; a quarter of the clock period
@@ -84,21 +100,8 @@ abort:
     irq
     jmp idle
 |}
-;;
-
-let config =
-  { Program_config.default with
-    in_base = data_pin
-  ; out_base = data_pin
-  ; out_count = 1
-  ; set_base = clock_pin
-  ; set_count = 1
-  ; jmp_pin = clock_pin
-  ; crc_width = 1
-  ; crc_poly = 1
-  ; crc_init = 1
-  ; crc_reflect = false
-  }
+      ~config
+      ~period_floor:8]
 ;;
 
 module Host = struct

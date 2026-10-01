@@ -5,8 +5,20 @@ let td_plus = Isa.first_bidir_pin
 let cycle_ns = 25
 let link_tenth = 64000
 
+let config =
+  { Program_config.default with
+    out_base = td_plus
+  ; set_base = td_plus
+  ; set_count = 2
+  ; manchester = true
+  ; autopull = true
+  ; autopull_data = true
+  }
+;;
+
 let firmware =
-  {|
+  [%firmware
+    {|
     pull                     ; a tenth of the link pulse interval
     mov p, osr
     set pindirs, 3
@@ -36,17 +48,8 @@ bit:
     add t, p
     jmp link
 |}
-;;
-
-let config =
-  { Program_config.default with
-    out_base = td_plus
-  ; set_base = td_plus
-  ; set_count = 2
-  ; manchester = true
-  ; autopull = true
-  ; autopull_data = true
-  }
+      ~config
+      ~period:link_tenth]
 ;;
 
 module Frame = struct

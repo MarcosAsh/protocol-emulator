@@ -86,7 +86,7 @@ let run frames ~period =
   let cycles =
     List.sum (module Int) frames ~f:(fun frame -> List.length (line frame) + 2) * period
   in
-  let t = Machine.create ~config ~program:(Firmware.assemble firmware) |> ok_exn in
+  let t = Machine.create ~config ~program:(Timed_program.words firmware) |> ok_exn in
   let rec loop (t : Machine.t) schedule levels n =
     if n = 0
     then t, List.rev levels
@@ -152,7 +152,7 @@ let%expect_test "can in lockstep" =
         (List.sum (module Int) frames ~f:(fun frame -> List.length (line frame) + 2)
          * period)
       ~config
-      ~program:(Firmware.assemble firmware)
+      ~program:(Timed_program.words firmware)
       ~inputs:(fun _ -> 0)
       ~host:(fun _ ->
         match !schedule with
@@ -173,7 +173,7 @@ let%expect_test "can in lockstep" =
 ;;
 
 let%expect_test "every edge is placed by a deadline" =
-  Timing_report.print ~period ~config firmware;
+  Timing_report.print ~period ~config (Timed_program.source firmware);
   [%expect
     {|
       6  set pins, 1                  phase -95  edge -94  gap ?..?
@@ -194,7 +194,7 @@ module G = Hardcaml_verify.Comb_gates
 (* The host picks the rate, so the analyser's rows are for every load of the floor or more
    and the kernel accepts them at each, by checked SAT; at one less it refuses them. *)
 let%expect_test "the kernel accepts every period from the shortest up" =
-  let program = Asm.assemble firmware |> ok_exn in
+  let program = Timed_program.program firmware in
   let config = Asm.Program.configure program config in
   let words = Asm.Program.words program |> ok_exn in
   let table ~floor =
