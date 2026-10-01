@@ -619,8 +619,12 @@ let analyse ?period ?period_floor ?single_capture_edge ~config (program : Isa.t 
       let slack, may_miss =
         match instruction with
         | Op { op = Wait (Deadline _); _ } ->
+          (* the wait compares [now - t] signed, so a [t] further ahead than the timer's
+             half reads as passed *)
+          let half = 1 lsl (Isa.timer_bits - 1) in
           ( Some (Interval.minus (Interval.exactly 0) s.phase)
-          , Option.value_map s.phase.hi ~default:true ~f:(fun hi -> hi > 0) )
+          , Option.value_map s.phase.hi ~default:true ~f:(fun hi -> hi > 0)
+            || Option.value_map s.phase.lo ~default:false ~f:(fun lo -> lo < -half) )
         | _ -> None, false
       in
       (* a pin write shows on the pin the cycle after it issues; a read samples the pins

@@ -1159,10 +1159,11 @@ module Make_timer (Timer : Engine.Timer) = struct
           unsigned lo, unsigned hi
         | _ -> unsigned 0, Bits.ones timer_bits
       in
-      (* an open end is the whole range, since the timer wraps *)
+      (* an open end, or one the timer's width cannot hold, is the whole range, since the
+         timer wraps *)
       let phase_lo, phase_hi =
         match phase.lo, phase.hi with
-        | Some lo, Some hi -> lo, hi
+        | Some lo, Some hi when lo >= -half && hi < half -> lo, hi
         | _ -> -half, half - 1
       in
       let slope, offset_lo, offset_hi =

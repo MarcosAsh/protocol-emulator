@@ -66,3 +66,59 @@ let%expect_test "lines count from 1, and an error comes at its first fault's" =
        ((line 4 "    jmp nowhere") ("unknown label" nowhere)))))
     |}]
 ;;
+
+let%expect_test "a deadline past half the timer is refused" =
+  (* 160 adds of 65535 put [t] past 2^23 ahead, which the wait's signed compare reads as
+     passed, so the model misses it *)
+  let source =
+    {|
+    mov p, !null
+    mov t, now
+    set x, 31
+loop:
+    add t, p
+    add t, p
+    add t, p
+    add t, p
+    add t, p
+    jmp x--, loop
+    wait t
+    halt
+|}
+  in
+  let ahead = Asm.assemble source |> ok_exn in
+  let configured = Asm.Program.configure ahead config in
+  let machine =
+    Fn.apply_n_times
+      ~n:1000
+      (Machine.step ~inputs:0)
+      (Machine.create ~config:configured ~program:(Asm.Program.words ahead |> ok_exn)
+       |> ok_exn)
+  in
+  print_s [%message "" ~missed_deadline:(machine.fault.missed_deadline : bool)];
+  (match Timed_program.check ~period:65535 ~config source with
+   | Ok _ -> print_s [%message "accepted"]
+   | Error { faults; verdict = _; error = _ } ->
+     print_s [%message "" (faults : Timed_program.Fault.t list)]);
+  (* the kernel, on the analyser's rows alone, refuses it too *)
+  let rows = Analyser.analyse ~period:65535 ~config:configured ahead.instructions in
+  print_s
+    [%message
+      ""
+        ~kernel_accepts:
+          (Kernel.check
+             ~period:65535
+             ~config:configured
+             ~words:(Asm.Program.words ahead |> ok_exn)
+             (Kernel.Table.of_analyser rows)
+           |> Result.is_ok
+           : bool)];
+  [%expect {|
+    (missed_deadline true)
+    (faults
+     (((line 12) (pc (9))
+       (reason
+        "this deadline wait can be reached more than half the timer early, which the wait reads as passed (slack 10485374)"))))
+    (kernel_accepts false)
+    |}]
+;;

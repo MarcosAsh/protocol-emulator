@@ -35,6 +35,10 @@ let analyser_reason (row : Analyser.Row.t) =
   | Some slack ->
     let late =
       match slack.lo with
+      | Some lo when lo >= 0 ->
+        [%string
+          "more than half the timer early, which the wait reads as passed (slack \
+           %{Interval.to_string slack})"]
       | Some lo -> [%string "%{cycles (-lo)} late (slack %{Interval.to_string slack})"]
       | None when row.slope < 0 -> "late"
       | None -> "late, by more on each pass of a loop or after an untimed wait"
