@@ -205,27 +205,6 @@ teeth: engine.v engine_sram.v engines.v kernel_step.v osr_step.v
 	sby -f late_host.sby admit_fifo_wait admit_fifo_jump private_pull no_underflow_excuse \
 	  no_overflow_excuse
 
-# Each firmware's certificate from the analyser, as properties of the RTL for every input
-# and every host, to the depth in certificate.sby. The cover run says how far into the
-# firmware that depth reaches: a row it does not reach is not proven of that row, which is
-# why the reached ones are printed. Only the properties failing is a failure here.
-CERTIFIED = uart_tx spi_master ws2812
-certificates: engine.v
-	for name in $(CERTIFIED); do $(MAKE) certificate NAME=$$name || exit 1; done
-
-# One firmware, at the depth in SBY. A firmware slow enough to need more than the depth
-# certificate.sby carries is run on its own, which takes the better part of an hour:
-#   make certificate NAME=uart_tx16 SBY=deep_certificate.sby
-SBY = certificate.sby
-certificate: engine.v
-	(cd .. && dune exec -- test/certify/write_certificate.exe $(NAME)) > certificate.sv
-	sby -f -d certificate_$(NAME)_bmc $(SBY) bmc
-	-sby -f -d certificate_$(NAME)_cover $(SBY) cover
-	@rows=$$(grep -c 'cover (entry' certificate.sv); \
-	 missed=$$(grep -A99 'unreached cover statements' certificate_$(NAME)_cover/logfile.txt \
-	   | grep -c 'certificate.sv:'); \
-	 echo "$(NAME): $$((rows - missed)) of $$rows certified rows reached at this depth"
-
 # The certificate of one firmware as an invariant proved by induction, which holds for
 # all time and not only to a depth: make inductive_certificate NAME=uart_tx16. The teeth
 # run adds one claim that is false in any run, because induction proves anything from an
@@ -636,8 +615,8 @@ witness_reject:
 
 .PHONY: all link link_proof issue_timing host_timing late_host fifo_order phase_step phase_table \
   phase_table_proof phase_table_affine phase_table_affine_proof phase_spacing \
-  phase_spacing_proof edge_step event_step frame_step value_step chip_frame data_step teeth certificates \
-  certificate inductive_certificate inductive_proof inductive_certificates inductive_names \
+  phase_spacing_proof edge_step event_step frame_step value_step chip_frame data_step teeth \
+  inductive_certificate inductive_proof inductive_certificates inductive_names \
   stamped_certificate stamped_proof data_certificate data_proof data_certificates data_names \
   netlist_equiv netlist_equiv_teeth sync_rtl sync_gate sync_rtl_teeth sync_gate_teeth \
   fsm_miter fsm_miter_proof sram_equiv sram_equiv_proof \

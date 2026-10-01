@@ -27,7 +27,7 @@ let receiver = plain ~single_capture_edge:true ~no_wrap:true
 
 let all =
   [ plain "uart_tx" (Firmware.uart_tx ~period:8) Program_config.default
-    (* the same UART at the slower bit period the tests use, for the deep run *)
+    (* the same UART at the slower bit period the tests use *)
   ; plain "uart_tx16" (Timed_program.source Firmware.uart_tx16) Program_config.default
   ; plain
       ~period:434
