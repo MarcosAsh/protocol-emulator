@@ -21,6 +21,26 @@ import usb_board
 US = 48
 
 
+def cycle():
+    return int(get_sim_time("ns")) // 20
+
+
+async def watch_out0(dut, out0):
+    """Appends OUT0's (cycle, level) each time it changes."""
+    while True:
+        await dut.uo_out.value_change
+        level = 1 if str(dut.uo_out.value)[-2] == "1" else 0
+        if level != out0[-1][1]:
+            out0.append((cycle(), level))
+
+
+async def assert_no_faults(pins):
+    host = AsyncHost(pins.transfer)
+    for engine in (0, 1):
+        await host.write(SELECT, [engine])
+        assert (await host.read(STATUS))[0] & 0x3C == 0, f"engine {engine} faulted"
+
+
 @cocotb.test()
 async def test_self_timing(dut):
     await reset(dut)
@@ -37,17 +57,10 @@ async def test_self_timing(dut):
     # OUT0's level from each cycle on
     out0 = [(0, 0)]
 
-    async def watch():
-        while True:
-            await dut.uo_out.value_change
-            level = 1 if str(dut.uo_out.value)[-2] == "1" else 0
-            if level != out0[-1][1]:
-                out0.append((get_sim_time("ns") // 20, level))
-
     def level_at(cycle):
         return [level for at, level in out0 if at <= cycle][-1]
 
-    watcher = cocotb.start_soon(watch())
+    watcher = cocotb.start_soon(watch_out0(dut, out0))
     text = b"Hi!"
     ok = await bridge(demo_self_timing.run)(transfer, text=text, pause=pause)
     watcher.cancel()
@@ -108,6 +121,17 @@ def uart_frames(edges, period):
     return frames
 
 
+def assert_typed(dut, out0, period, taken, text):
+    """OUT0 carries text, each key once the laptop has acknowledged its report and before
+    the next report: taken holds the cycle of each report's ACK, three to a key."""
+    frames = uart_frames(out0[1:], period)
+    dut._log.info(f"OUT0 frames at {[start for start, _ in frames]}, report ACKs at {taken}")
+    assert bytes(byte for _, byte in frames) == text, frames
+    for n, (start, _) in enumerate(frames):
+        key = text[n:n + 1]
+        assert taken[3 * n] < start < taken[3 * n + 1], f"{key} out of step with its report"
+
+
 @cocotb.test()
 async def test_keyboard(dut):
     """Act 3 as the Pico runs it: demo_usb.serve against a host that resets the bus, reads
@@ -141,17 +165,8 @@ async def test_keyboard(dut):
     async def ms():
         return get_sim_time("ns") // 20_000
 
-    # OUT0 from each cycle it changes
     out0 = [(0, 0)]
-
-    async def watch():
-        while True:
-            await dut.uo_out.value_change
-            level = 1 if str(dut.uo_out.value)[-2] == "1" else 0
-            if level != out0[-1][1]:
-                out0.append((int(get_sim_time("ns")) // 20, level))
-
-    watcher = cocotb.start_soon(watch())
+    watcher = cocotb.start_soon(watch_out0(dut, out0))
 
     def serve():
         host = Host(transfer)
@@ -237,17 +252,8 @@ async def test_keyboard(dut):
         data_packet(0xC3, [1, 0, 0, 0, 0, 0, 0, 0]),
     ], received
     assert board.address == 3
-
-    frames = uart_frames(out0[1:], 434)
-    dut._log.info(f"OUT0 frames at {[start for start, _ in frames]}, report ACKs at {taken}")
-    assert bytes(byte for _, byte in frames) == b"hi", frames
-    # each key goes out once the host acknowledges its report, before the next report
-    assert taken[0] < frames[0][0] < taken[1], "h out of step with its report"
-    assert taken[3] < frames[1][0] < taken[4], "i out of step with its report"
-    host = AsyncHost(pins.transfer)
-    for engine in (0, 1):
-        await host.write(SELECT, [engine])
-        assert (await host.read(STATUS))[0] & 0x3C == 0, f"engine {engine} faulted"
+    assert_typed(dut, out0, 434, taken, b"hi")
+    await assert_no_faults(pins)
 
 
 @cocotb.test()
