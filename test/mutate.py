@@ -2,9 +2,11 @@
 # Mutation score of the OCaml tests: one textual mutation at a time, in copies under
 # _mutation/. A survivor not in test/mutation_allow.txt exits 1.
 # Usage: python3 test/mutate.py [--scope engine|wide] [--file F ...] [--operator NAME ...]
-#        [--id ID ...] [--seed S] [--jobs N] [--timeout S] [--list]
+#        [--id ID ...] [--shard I/N] [--seed S] [--jobs N] [--timeout S] [--json OUT] [--list]
+#        python3 test/mutate.py --report OUT ...
 import argparse
 import hashlib
+import json
 import math
 import os
 import re
@@ -13,6 +15,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -189,7 +192,6 @@ def mutants(scope, file, source):
                    "after": after.strip(), "mutated": mutated}
 
 
-
 def plan(scope, files, seed, held_out):
     # a mutant's id and whether it is held out follow from its line, not where it is
     todo, count = [], {}
@@ -249,11 +251,13 @@ def wilson(k, n, z=1.96):
     return f"{100 * p:.2f}% [{100 * max(0, centre - half):.2f}, {100 * min(1, centre + half):.2f}]"
 
 
-def report(results):
+def report(results, planned):
     # a timeout counts as killed, as the suite does not pass, and is listed apart
     allowed = read_allowed()
     valid = [r for r in results if r["result"] != "invalid"]
-    files = list(dict.fromkeys(r["file"] for r in results))
+    order = SCOPES["wide"]["files"]
+    files = sorted({r["file"] for r in results}, key=lambda f: (order.index(f) if f in order else len(order), f))
+    print(f"ran {len(results)} of {planned} planned mutants")
     for file in files + ["total"]:
         rows = [r for r in valid if file in (r["file"], "total")]
         killed = sum(1 for r in rows if r["result"] != "survived")
@@ -269,7 +273,7 @@ def report(results):
         killed = sum(1 for r in rows if r["result"] != "survived")
         print(f"{label}: killed {killed} of {len(rows)}, {wilson(killed, len(rows))} (Wilson 95%)")
     unexpected = []
-    for r in sorted(valid, key=lambda r: r["held_out"]):
+    for r in sorted(valid, key=lambda r: (r["held_out"], files.index(r["file"]), r["line"])):
         if r["result"] in ("survived", "timeout"):
             reason = allowed.get((r["file"], r["operator"], r["text"]))
             if r["result"] == "survived" and reason is None:
@@ -278,7 +282,7 @@ def report(results):
             print(f"{r['result']}: {r['operator']} at {r['file']}:{r['line']} [{r['id']}{tag}]:"
                   f" {reason or ('NOT ALLOWED' if r['result'] == 'survived' else 'counted killed')}"
                   f"\n    - {r['text']}\n    + {r['after']}")
-    return 1 if unexpected else 0
+    return 1 if unexpected or len(results) < planned else 0
 
 
 def main():
@@ -287,17 +291,26 @@ def main():
     p.add_argument("--file", action="append", help="only these files of the scope")
     p.add_argument("--operator", action="append", help="only these operators")
     p.add_argument("--id", action="append", help="only these mutants, as --list names them")
+    p.add_argument("--shard", default="0/1", help="I/N: every Nth mutant from the Ith")
     p.add_argument("--seed", type=int, help="holds out a sample, scored apart")
     p.add_argument("--held-out", type=int, default=20, help="percent held out")
     p.add_argument("--jobs", type=int, default=1)
     p.add_argument("--dune-jobs", type=int, help="dune's -j in each copy")
     p.add_argument("--timeout", type=int, help="seconds per suite; default 3x the unmutated one")
+    p.add_argument("--json", help="append each result to this file, a line each")
     p.add_argument("--list", action="store_true", help="print the mutants and stop")
+    p.add_argument("--report", nargs="+", help="score the --json files of every shard")
     args = p.parse_args()
+    if args.report:
+        lines = [json.loads(line) for f in args.report for line in Path(f).read_text().splitlines()]
+        planned = sum(line["planned"] for line in lines if "planned" in line)
+        sys.exit(report([line for line in lines if "result" in line], planned))
     files = args.file or SCOPES[args.scope]["files"]
+    shard, shards = map(int, args.shard.split("/"))
     todo = plan(args.scope, files, args.seed, args.held_out)
     todo = [m for m in todo if not args.operator or m["operator"] in args.operator]
     todo = [m for m in todo if not args.id or m["id"] in args.id]
+    todo = todo[shard::shards]
     if args.list:
         for m in todo:
             tag = " held out" if m["held_out"] else ""
@@ -308,11 +321,14 @@ def main():
         return
     root = Path(__file__).resolve().parent.parent
     work = root / "_mutation"
+    out = Path(args.json).open("a") if args.json else None
+    lock = threading.Lock()
     copies = Queue()
     timeout = args.timeout
 
     def run(m):
         copy = copies.get()
+        start = time.monotonic()
         original = (copy / m["file"]).read_text()
         try:
             (copy / m["file"]).write_text(m["mutated"])
@@ -320,10 +336,21 @@ def main():
         finally:
             (copy / m["file"]).write_text(original)
             copies.put(copy)
-        print(f"{result:9} {m['operator']} at {m['file']}:{m['line']} [{m['id']}]", flush=True)
-        return {k: v for k, v in m.items() if k != "mutated"} | {"result": result}
+        row = {k: v for k, v in m.items() if k != "mutated"}
+        row |= {"result": result, "seconds": round(time.monotonic() - start)}
+        with lock:
+            print(f"{result:9} {m['operator']} at {m['file']}:{m['line']} [{m['id']}]", flush=True)
+            if out:
+                out.write(json.dumps(row) + "\n")
+                out.flush()
+        return row
 
     try:
+        # results land as they come, so a shard cut short still reports what it ran
+        if out:
+            out.write(json.dumps({"scope": args.scope, "shard": args.shard, "seed": args.seed,
+                                  "planned": len(todo)}) + "\n")
+            out.flush()
         (work / "0").mkdir(parents=True)
         for item in COPIED:
             (work / "0" / item).parent.mkdir(parents=True, exist_ok=True)
@@ -346,7 +373,7 @@ def main():
             results = list(pool.map(run, todo))
     finally:
         shutil.rmtree(work, ignore_errors=True)
-    sys.exit(report(results))
+    sys.exit(report(results, len(todo)))
 
 
 if __name__ == "__main__":
