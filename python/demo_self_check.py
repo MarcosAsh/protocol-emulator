@@ -141,17 +141,22 @@ def quiet(host, label, frames, pause=None):
     return ok
 
 
-def glitch(host, period, pause=None):
-    """The quiet restart at period with one frame: engine 1's status and pc once the frame
-    is out, then engine 1 checking again from the idle line."""
-    restart(host, period, [GLITCH_BYTE])
-    idle(host, pause)
-    seen = checker(host)
+def arm(host):
+    """Engine 1 checking again from its first instruction with its irq clear, back on
+    engine 0. Only while the line idles high."""
     host.select(1)
     host.clear_irq()
     host.start()
     host.select(0)
-    return seen
+
+
+def glitch(host, period, pause=None):
+    """Engine 1 armed afresh, so an alarm from before cannot show here, then the quiet
+    restart at period with one frame: engine 1's status and pc once the frame is out."""
+    arm(host)
+    restart(host, period, [GLITCH_BYTE])
+    idle(host, pause)
+    return checker(host)
 
 
 def faults(host):
@@ -191,6 +196,7 @@ def run(transfer, frames=FRAMES, pause=None):
             print("NO ALARM: engine 1 status 0x%04x pc %d" % (s, pc))
 
     # started again on a line already high, as after act 2
+    arm(host)
     ok = quiet(host, "re-armed", min(frames, 256), pause) and ok
     found = faults(host)
     print("\nfaults %s" % found)
