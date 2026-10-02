@@ -34,7 +34,6 @@ DIRECTORY = re.compile(r"`((?:[\w.-]+/)+)`")
 URL = re.compile(r"https?://[^\s)]+")
 MAKE = re.compile(r"make -C ([\w./-]+)([^`#\n]*)")
 JOB = re.compile(r"`([\w-]+)` job")
-BADGE = re.compile(r"actions/workflows/([\w.-]+)/badge\.svg")
 # a run id is all digits and longer, a word such as "defaced" has no digit
 COMMIT = re.compile(r"(?<![\w/#.-])(?=[0-9a-f]*\d)([0-9a-f]{7,8}|(?=[0-9]*[a-f])[0-9a-f]{9,12})"
                     r"(?![\w.-])")
@@ -225,9 +224,6 @@ def check_paths(doc, text):
     for path in sorted(set(PATH.findall(URL.sub(" ", text)) + DIRECTORY.findall(text))):
         if not path.startswith(NOT_IN_REPO) and not (ROOT / path).exists():
             yield f"{path} does not exist"
-    for workflow in BADGE.findall(text):
-        if not (ROOT / ".github/workflows" / workflow).exists():
-            yield f"the badge's workflow {workflow} does not exist"
 
 
 def check_make(doc, text):

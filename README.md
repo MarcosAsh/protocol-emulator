@@ -1,8 +1,5 @@
 # protocol-emulator
 
-[![gds](https://github.com/MarcosAsh/protocol-emulator/actions/workflows/gds.yaml/badge.svg?branch=main)](https://github.com/MarcosAsh/protocol-emulator/actions/workflows/gds.yaml)
-[![ocaml](https://github.com/MarcosAsh/protocol-emulator/actions/workflows/ocaml.yaml/badge.svg?branch=main)](https://github.com/MarcosAsh/protocol-emulator/actions/workflows/ocaml.yaml)
-
 An entry for Jane Street's protocol emulator ASIC competition, written in Hardcaml and
 built on IHP CMOS5L through Tiny Tapeout, in 6 x 4 tiles at 50 MHz.
 
