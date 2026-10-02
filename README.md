@@ -158,6 +158,9 @@ make -C formal             # hours; CI runs the long proofs in jobs of their own
 To harden, clone TinyTapeout/tt-support-tools, branch `ihp-sg13cmos5l`, into `tt/`, then
 `tt/tt_tool.py --create-user-config --ihp` and `--harden --ihp`. Gds run 36922636022, on
 this Verilog, signs off with setup slack +4.009 ns at the slow corner, at 49.7%
-utilisation. The picture is from an earlier run, 36615334436, on older Verilog.
+utilisation. The picture is that run's die by RTL module, drawn by `demo/die.py` from its
+`GDS_logs` artifact. 1,873 of 1,883 flops map by RTL line and net name. Each gate goes with
+the nearest flop it feeds, which gets 97.9% of gates right on the RTL synthesised a module
+at a time (`--check`).
 
-![the hardened design](docs/die.png)
+![the hardened die, each cell coloured by its RTL module](docs/die.png)
