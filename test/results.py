@@ -469,7 +469,7 @@ def row(claim):
     if result.note:
         passes = f"{passes}; {result.note}" if passes else result.note
     # a green job that never ran the check, as before the check was added
-    missing = not passes and not result.teeth and claim.read is not green
+    missing = not (passes or result.teeth or result.teeth_note or claim.read is green)
     if missing:
         result.time = None
     if result.teeth:
