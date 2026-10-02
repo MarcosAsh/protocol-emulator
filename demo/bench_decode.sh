@@ -7,6 +7,7 @@
 # Usage: PICO=id:<serial of Pico A> demo/bench_decode.sh TRACE [--probe PIN=Dn...]
 #   PICO=id:e66548545717552e demo/bench_decode.sh test/traces/sigrok/can.trace
 set -e
+echo "press the Icepi's reset button first: the trace starts from reset" >&2
 trace=$1
 shift
 name=$(basename "$trace" .trace)
