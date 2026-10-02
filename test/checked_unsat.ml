@@ -40,23 +40,81 @@ let check ~dimacs ~proof =
   | Ok () | Error _ -> error_s [%message "cake_lpr rejects the proof" verdict]
 ;;
 
-let negate_first_lemma lines =
-  let lemma line =
-    match String.split line ~on:' ' with
-    | id :: literal :: rest when not (List.mem [ "d"; "0" ] literal ~equal:String.equal)
-      -> Some (id, Int.of_string literal, rest)
-    | _ -> None
+let words line = String.split line ~on:' ' |> List.filter ~f:(Fn.non String.is_empty)
+let holding literal = if literal > 0 then '1' else '0'
+
+(* The value the model gives each variable, ['-'] where it gives none, from every word
+   after the answer, as hardcaml_verify's model reader takes them. A variable set twice,
+   of which that reader keeps the last, is refused. *)
+let read_model model ~variables =
+  let values = Bytes.make (variables + 1) '-' in
+  let set literal =
+    let variable = abs literal in
+    if not (Char.equal (Bytes.get values variable) '-')
+    then raise_s [%message "the model sets a variable twice" (variable : int)];
+    Bytes.set values variable (holding literal)
   in
-  let first, (id, literal, rest) =
-    List.find_mapi_exn lines ~f:(fun i line -> Option.map (lemma line) ~f:(fun l -> i, l))
+  List.iter model ~f:(fun line ->
+    List.iter (words line) ~f:(fun word ->
+      if not (String.equal word "v")
+      then (
+        match Int.of_string word with
+        | 0 -> ()
+        | literal -> set literal)));
+  values
+;;
+
+let check_model ~dimacs ~result =
+  Or_error.try_with (fun () ->
+    In_channel.with_file dimacs ~f:(fun dimacs ->
+      let variables =
+        match words (In_channel.input_line_exn dimacs) with
+        | [ "p"; "cnf"; variables; _ ] -> Int.of_string variables
+        | header -> raise_s [%message "not a DIMACS header" (header : string list)]
+      in
+      let values =
+        match In_channel.read_lines result with
+        | "s SATISFIABLE" :: model -> read_model model ~variables
+        | answer -> raise_s [%message "no model" ~answer:(List.hd answer : string option)]
+      in
+      let holds literal = Char.equal (Bytes.get values (abs literal)) (holding literal) in
+      In_channel.iter_lines dimacs ~f:(fun line ->
+        let clause =
+          List.map (words line) ~f:Int.of_string |> List.filter ~f:(fun l -> l <> 0)
+        in
+        if not (List.exists clause ~f:holds)
+        then raise_s [%message "the model falsifies a clause" (clause : int list)])))
+;;
+
+(* [lines] with the first literal that [literal] finds in a line negated. *)
+let negate_first lines ~literal =
+  let first, (head, value, rest) =
+    List.find_mapi_exn lines ~f:(fun i line ->
+      Option.map (literal line) ~f:(fun l -> i, l))
   in
   List.mapi lines ~f:(fun i line ->
     if i = first
-    then String.concat ~sep:" " (id :: Int.to_string (-literal) :: rest)
+    then String.concat ~sep:" " (head :: Int.to_string (-value) :: rest)
     else line)
 ;;
 
-let solve ~bad_proof ~dimacs_in ~result_out () =
+let negate_first_lemma =
+  negate_first ~literal:(fun line ->
+    match String.split line ~on:' ' with
+    | id :: literal :: rest when not (List.mem [ "d"; "0" ] literal ~equal:String.equal)
+      -> Some (id, Int.of_string literal, rest)
+    | _ -> None)
+;;
+
+let negate_first_value =
+  negate_first ~literal:(fun line ->
+    match String.split line ~on:' ' with
+    | "v" :: literal :: rest when not (String.equal literal "0") ->
+      Some ("v", Int.of_string literal, rest)
+    | _ -> None)
+;;
+
+let solve ~bad_proof ~bad_model ~dimacs_in ~result_out () =
   let proof = Stdlib.Filename.temp_file "cadical" "lrat" in
   Exn.protect
     ~finally:(fun () -> Stdlib.Sys.remove proof)
@@ -64,9 +122,12 @@ let solve ~bad_proof ~dimacs_in ~result_out () =
       let%bind.Or_error () =
         cadical ~binary:(not bad_proof) ~dimacs:dimacs_in ~proof ~result:result_out ()
       in
-      (* any answer but SAT needs the proof, so none reads as UNSAT unchecked *)
+      (* SAT needs its model to hold and any other answer the proof, so none reads
+         unchecked *)
       match In_channel.read_lines result_out with
-      | "s SATISFIABLE" :: _ -> Ok ()
+      | "s SATISFIABLE" :: _ as model ->
+        if bad_model then Out_channel.write_lines result_out (negate_first_value model);
+        check_model ~dimacs:dimacs_in ~result:result_out
       | _ when bad_proof ->
         Out_channel.write_lines proof (negate_first_lemma (In_channel.read_lines proof));
         check ~dimacs:dimacs_in ~proof
@@ -77,8 +138,9 @@ let solve ~bad_proof ~dimacs_in ~result_out () =
         |> Or_error.tag_s ~tag:[%message (proof : string) (proof_bytes : int64)])
 ;;
 
-let solver = solve ~bad_proof:false
-let solver_with_a_bad_proof = solve ~bad_proof:true
+let solver = solve ~bad_proof:false ~bad_model:false
+let solver_with_a_bad_proof = solve ~bad_proof:true ~bad_model:false
+let solver_with_a_bad_model = solve ~bad_proof:false ~bad_model:true
 
 let prove ?show name ~cases ~claim =
   let covered = Comb_gates.reduce ~f:Comb_gates.( |: ) cases in
