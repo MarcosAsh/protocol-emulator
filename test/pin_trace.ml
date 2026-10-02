@@ -38,6 +38,7 @@ module Step = struct
     | Write of int * int list
     | Read of int * int
     | Run of int
+    | Until of int
     | Drive of
         { pin : int
         ; levels : int list
@@ -70,6 +71,7 @@ let run (scenario : Scenario.t) =
        let o = Before_and_after_edge.after_edge outputs in
        let peer = scenario.peer () in
        let lines = ref [] in
+       let count = ref 0 in
        let driven = ref None in
        let sck = ref Bits.gnd
        and mosi = ref Bits.gnd
@@ -97,6 +99,7 @@ let run (scenario : Scenario.t) =
            }
          in
          lines := line :: !lines;
+         incr count;
          peer.step
            ~pin_out:
              (((line.uo_out lsr 1) lsl Isa.first_output_pin)
@@ -121,6 +124,13 @@ let run (scenario : Scenario.t) =
            | Read (reg, count) -> Some (Spi_master.read m ~watch reg ~count)
            | Run n ->
              watch n;
+             None
+           | Until n ->
+             if n < !count
+             then
+               raise_s
+                 [%message "the script is already past" (n : int) ~cycle:(!count : int)];
+             watch (n - !count);
              None
            | Drive { pin; levels } ->
              List.iter levels ~f:(fun level ->

@@ -73,7 +73,7 @@ let%expect_test "the host writes program memory while the core runs" =
   in
   let script =
     List.filter loop.script ~f:(function
-      | Run _ | Read _ -> false
+      | Run _ | Until _ | Read _ -> false
       | Write _ | Drive _ -> true)
   in
   let out0 script =

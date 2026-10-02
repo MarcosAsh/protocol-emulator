@@ -38,6 +38,7 @@ module Step : sig
     | Write of int * int list (** A host write frame: register, words. *)
     | Read of int * int (** A host read frame: register, number of words. *)
     | Run of int (** Cycles with the host idle. *)
+    | Until of int (** Cycles with the host idle up to this one, counted from 0. *)
     | Drive of
         { pin : int
         ; levels : int list
