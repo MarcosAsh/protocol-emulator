@@ -2,8 +2,9 @@
 # Writes a results table from GitHub Actions: each claim, the job that checks it, its last
 # green run on main, the weakened copies that had to fail and did, and how long it took.
 # Reads the job logs, so it can only report what CI printed. Needs gh, logged in.
-# Usage: python3 test/results.py [--repo OWNER/NAME] [--runs N] > RESULTS.md
+# Usage: python3 test/results.py [--repo OWNER/NAME] [--runs N] [--html PAGE] > RESULTS.md
 import argparse
+import html
 import json
 import re
 import subprocess
@@ -244,10 +245,22 @@ def split(lines):
     return Result(note=", ".join(f"{v} {c}" for v, c in counts.items()))
 
 
+# Each claim's status word once a green run on main logs its check, and the last until then.
+STATUSES = {
+    "proved for all time": "a proof over every state, input or program it names, with no "
+    "bound on time: induction, PDR, or an UNSAT checked by cake_lpr",
+    "checked": "a structural check of every cell of a netlist, or Tiny Tapeout's precheck",
+    "tested": "many runs, mutants or variants, not all of them",
+    "simulated": "cocotb tests and recorded pin traces on a design in simulation",
+    "not verified": "no green run on main shows the check, or its log shows no pass",
+}
+
+
 class Claim:
-    def __init__(self, text, workflow, job, target, read, step=None, teeth_note=""):
+    def __init__(self, text, workflow, job, target, read, step=None, teeth_note="",
+                 status="proved for all time"):
         self.text, self.workflow, self.job, self.target = text, workflow, job, target
-        self.read, self.step, self.teeth_note = read, step, teeth_note
+        self.read, self.step, self.teeth_note, self.status = read, step, teeth_note, status
 
     def jobs_of(self, run):
         found = [j for j in jobs(run["databaseId"]) if self.job(j["name"])]
@@ -315,7 +328,7 @@ CLAIMS = [
               witness),
         Claim("Across one-field variants of the library, no firmware the kernel accepts "
               "misses a deadline in a run", "reject split", exactly("split"), "split.exe",
-              split),
+              split, status="tested"),
     ]),
     ("Lemmas on the RTL", [
         Claim("The pins change only the cycle after an entry that writes them",
@@ -367,33 +380,38 @@ CLAIMS = [
                    matching(r"netlist: (\d+) logic cells", "{} logic cells compared")),
               step="Prove the netlist equal to the RTL, and fail on four mutants"),
         Claim("One clock, and every other pin read by one two-flop synchroniser, on the RTL",
-              "ocaml", exactly("test"), "sync_rtl sync_rtl_teeth", sync, step="Prove"),
+              "ocaml", exactly("test"), "sync_rtl sync_rtl_teeth", sync, step="Prove",
+              status="checked"),
         Claim("The same on the hardened netlist", "gds", exactly("netlist_equiv"),
               "sync_gate sync_gate_teeth", sync,
               step="Check one clock and a two-flop synchroniser on every pin, and fail on "
-              "five mutants"),
+              "five mutants", status="checked"),
         Claim("The hardened design passes Tiny Tapeout's precheck", "gds",
               exactly("precheck"), "tt-gds-action/precheck", green,
-              teeth_note="none, a check"),
+              teeth_note="none, a check", status="checked"),
     ]),
     ("Tests", [
         Claim("The cocotb tests and recorded pin traces pass on the RTL", "test",
-              exactly("test"), "make -C test; make replay", cocotb, teeth_note=TESTED),
+              exactly("test"), "make -C test; make replay", cocotb, teeth_note=TESTED,
+              status="simulated"),
         Claim("The same on the hardened gate-level netlist", "gds", exactly("gl_test"),
-              "tt-gds-action/gl_test; make replay GATES=yes", cocotb, teeth_note=TESTED),
+              "tt-gds-action/gl_test; make replay GATES=yes", cocotb, teeth_note=TESTED,
+              status="simulated"),
         Claim("The same on the iCE40 kit's netlist", "ocaml", exactly("fpga"),
               "make FPGA=yes; make replay FPGA=yes",
               both(cocotb, matching(r"ICESTORM_LC: *(\d+)/ *(\d+)", "{} of {} LCs"),
                    matching(r"Max frequency for clock [^:]*: ([\d.]+) MHz", "{} MHz routed")),
-              step="Build for the FPGA kit and simulate the netlist", teeth_note=TESTED),
+              step="Build for the FPGA kit and simulate the netlist", teeth_note=TESTED,
+              status="simulated"),
         Claim("The same on the Icepi Zero's ECP5 netlist, timing met at 48 MHz", "ocaml",
               exactly("fpga"), "make -C icepi; make ICEPI=yes",
               both(cocotb, matching(r"Max frequency for clock [^:]*: ([\d.]+) MHz",
                                     "{} MHz routed")),
-              step="Build for the Icepi Zero and simulate the netlist", teeth_note=TESTED),
+              step="Build for the Icepi Zero and simulate the netlist", teeth_note=TESTED,
+              status="simulated"),
         Claim("Every textual mutant of the engine, decoder, pins and host port is killed by "
               "the tests, or allowed with a reason", "mutation", exactly("mutate"),
-              "test/mutate.py", mutation),
+              "test/mutate.py", mutation, status="tested"),
     ]),
 ]
 
@@ -415,10 +433,24 @@ def run_cell(run, good):
     return f"[{run['databaseId']}]({run['url']}) {date} `{run['headSha'][:7]}`{mark}"
 
 
+class Row:
+    """What CI shows for one claim; [missing] when its green run never logged the check."""
+    def __init__(self, claim, run=None, good=False, where="", passes="", teeth="",
+                 time=None, wrong=0, missing=False):
+        self.claim, self.run, self.good, self.where = claim, run, good, where
+        self.passes, self.teeth, self.time = passes, teeth, time
+        self.wrong, self.missing = wrong, missing
+
+    @property
+    def status(self):
+        shown = self.run and self.good and not self.wrong and not self.missing
+        return self.claim.status if shown else "not verified"
+
+
 def row(claim):
     run, found, good = claim.evaluate()
     if run is None:
-        return f"| {claim.text} | `{claim.target}` ({claim.workflow}) | no run on main | | | |"
+        return Row(claim)
     result = Result(time=0.0)
     for job in found:
         r = claim.read(step_lines(job, claim.step))
@@ -436,15 +468,135 @@ def row(claim):
         passes += f", {result.wrong} failed" if passes else f"{result.wrong} failed"
     if result.note:
         passes = f"{passes}; {result.note}" if passes else result.note
-    if not passes and not result.teeth and claim.read is not green:
-        # a green job that never ran the check, as before the check was added
-        passes, result.time = "**none in the log**", None
+    # a green job that never ran the check, as before the check was added
+    missing = not passes and not result.teeth and claim.read is not green
+    if missing:
+        result.time = None
     if result.teeth:
         teeth = f"{result.teeth}, all failed as expected"
     else:
         teeth = result.teeth_note or claim.teeth_note or "none in the log"
-    return (f"| {claim.text} | `{claim.target}`<br>{where} | {run_cell(run, good)} "
-            f"| {passes} | {teeth} | {minutes(result.time)} |")
+    return Row(claim, run, good, where, passes, teeth, result.time, result.wrong, missing)
+
+
+def markdown_row(r):
+    claim = r.claim
+    if r.run is None:
+        return f"| {claim.text} | `{claim.target}` ({claim.workflow}) | no run on main | | | |"
+    passes = "**none in the log**" if r.missing else r.passes
+    return (f"| {claim.text} | `{claim.target}`<br>{r.where} | {run_cell(r.run, r.good)} "
+            f"| {passes} | {r.teeth} | {minutes(r.time)} |")
+
+
+PAGE_STYLE = """
+  :root { --bg: #fff; --fg: #1a1a1a; --muted: #666; --code: #f4f4f4; --line: #ddd;
+    --ok: #1a7f37; --bad: #c62828; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #161616; --fg: #e8e8e8; --muted: #9a9a9a;
+      --code: #232323; --line: #333; --ok: #57c27a; --bad: #ef6a6a; }
+  }
+  :root[data-theme="dark"] { --bg: #161616; --fg: #e8e8e8; --muted: #9a9a9a;
+    --code: #232323; --line: #333; --ok: #57c27a; --bad: #ef6a6a; }
+  body { font: 14px/1.4 system-ui, sans-serif; margin: 0 auto; padding: 16px;
+    max-width: 76rem; background: var(--bg); color: var(--fg); }
+  a { color: inherit; }
+  code { font: 12px/1.4 ui-monospace, monospace; background: var(--code); padding: 0 3px;
+    overflow-wrap: anywhere; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; vertical-align: top; padding: 6px 8px;
+    border-bottom: 1px solid var(--line); }
+  thead th { font-weight: 600; white-space: nowrap; }
+  tr.section th { padding-top: 20px; font-size: 1.05rem; }
+  .status { font-weight: 600; }
+  .status, .nowrap { white-space: nowrap; }
+  .proved { color: var(--ok); }
+  .unverified, .bad { color: var(--bad); }
+  .muted, dd { color: var(--muted); }
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: 2px 16px; }
+  dd { margin: 0; }
+  @media (max-width: 720px) {
+    table, tbody, tr, th, td { display: block; }
+    thead { display: none; }
+    tr { border-bottom: 1px solid var(--line); padding: 8px 0; }
+    th, td { border: 0; padding: 2px 0; }
+    td[data-label]::before { content: attr(data-label) ": "; color: var(--muted); }
+    dl { grid-template-columns: 1fr; }
+    dd { margin-bottom: 6px; }
+  }
+"""
+
+
+def html_row(r):
+    e = html.escape
+    claim = r.claim
+    kind = {"proved for all time": "proved", "not verified": "unverified"}.get(r.status, "")
+    passes = re.sub(r"^(\d+)", r"\1 passed", r.passes)
+    passes = f'<br><span class="muted">{e(passes)}</span>' if passes else ""
+    cells = [f'<th scope="row">{e(claim.text)}</th>',
+             f'<td data-label="Status"><span class="status {kind}">{e(r.status)}</span>'
+             f'{passes}</td>']
+    if r.run is None:
+        cells += [f'<td data-label="CI job"><code>{e(claim.target)}</code><br>'
+                  f'{e(claim.workflow)}</td>',
+                  '<td data-label="Last green run">no run on main</td>']
+        return "<tr>" + "".join(cells) + "</tr>"
+    sha = r.run["headSha"]
+    run = (f'<a href="{e(r.run["url"])}">{r.run["databaseId"]}</a> at '
+           f'<a href="https://github.com/{e(REPO)}/commit/{sha}"><code>{sha[:7]}</code></a>')
+    if not r.good:
+        run += ' <span class="bad">(not green)</span>'
+    cells += [f'<td data-label="CI job"><code>{e(claim.target)}</code><br>{e(r.where)}</td>',
+              f'<td data-label="Last green run">{run}</td>',
+              f'<td data-label="Date" class="nowrap">{r.run["createdAt"][:10]}</td>',
+              f'<td data-label="Teeth">{e(r.teeth)}</td>',
+              f'<td data-label="Time" class="nowrap">{minutes(r.time)}</td>']
+    return "<tr>" + "".join(cells) + "</tr>"
+
+
+def html_page(rows, now):
+    """The claims as one table, for GitHub Pages."""
+    e = html.escape
+    counts = {}
+    for r in rows.values():
+        counts[r.status] = counts.get(r.status, 0) + 1
+    tally = ", ".join(f"{counts[s]} {s}" for s in STATUSES if s in counts)
+    legend = "\n".join(f"<dt>{e(s)}</dt><dd>{e(m)}</dd>" for s, m in STATUSES.items())
+    body = []
+    for title, section in CLAIMS:
+        body.append(f'<tr class="section"><th colspan="7" scope="colgroup">{e(title)}</th></tr>')
+        body += [html_row(rows[id(claim)]) for claim in section]
+    body = "\n".join(body)
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Protocol Emulator Results</title>
+<style>{PAGE_STYLE}</style>
+</head>
+<body>
+<h1>Results</h1>
+<p class="muted">Each claim CI checks, the job that checks it, and its last run on main where
+every job behind it was green. Written by <code>test/results.py</code> at {e(now)} from the
+job logs, so it shows only what CI printed. Teeth are weakened copies and mutants that have
+to fail. Bench measurements are not in CI and not here.
+<a href="https://github.com/{e(REPO)}">Repository</a>, <a href="../playground/">playground</a>.</p>
+<p>{e(tally)}.</p>
+<table>
+<thead><tr><th scope="col">Claim</th><th scope="col">Status</th><th scope="col">CI job</th>
+<th scope="col">Last green run</th><th scope="col">Date</th><th scope="col">Teeth</th>
+<th scope="col">Time</th></tr></thead>
+<tbody>
+{body}
+</tbody>
+</table>
+<h2>Status</h2>
+<dl>
+{legend}
+</dl>
+</body>
+</html>
+"""
 
 
 def die():
@@ -469,6 +621,7 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--repo", help="OWNER/NAME, by default this checkout's")
     p.add_argument("--runs", type=int, default=RUNS, help="runs to look back per workflow")
+    p.add_argument("--html", metavar="PAGE", help="also write the results page to PAGE")
     args = p.parse_args()
     REPO = args.repo or gh("repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner").strip()
     RUNS = args.runs
@@ -476,6 +629,9 @@ def main():
     with ThreadPoolExecutor(8) as pool:
         rows = dict(zip(map(id, claims), pool.map(row, claims)))
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    if args.html:
+        with open(args.html, "w") as f:
+            f.write(html_page(rows, now))
     print("# Results")
     print()
     print(f"Written by `test/results.py` at {now} from the GitHub Actions runs on main. Each "
@@ -489,7 +645,7 @@ def main():
         print("| Claim | Checked by | Last green | Passes | Teeth | Time |")
         print("|---|---|---|---|---|---|")
         for claim in section:
-            print(rows[id(claim)])
+            print(markdown_row(rows[id(claim)]))
     print()
     print("## The die")
     print()
