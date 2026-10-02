@@ -14,9 +14,12 @@ PIXELS = [
     (0x00, 0x20, 0x20), (0x20, 0x00, 0x20), (0x12, 0x34, 0x56), (0x01, 0x02, 0x04),
 ]
 # A pixel takes 24 bits of 55 cycles, so the firmware takes a word every 13.75 us on
-# average. Every word of a frame goes in one SPI frame, at a clock that brings a word every
-# 10.7 us: never later than the firmware wants it, and never more than the fifo holds.
-SPI_HZ = 1_500_000
+# average. A frame's words go in one SPI frame at 2 MHz, a word every 8 us, 9.5 with the
+# RP2040's pause after each byte: never later than the firmware wants one, and at most
+# seven waiting. A word late between pixels would latch the stick early with no fault to
+# show for it, and a push into a full fifo is dropped without one, so test_outside.py
+# checks every frame whole both ways.
+SPI_HZ = 2_000_000
 # The SK6812 latches after 80 us low, and the firmware's own gap is 53 us
 LATCH_MS = 1
 
@@ -33,6 +36,8 @@ def run(transfer, pause_ms, log=print):
     host = pe.Host(transfer)
     bench.load(host, bench_firmware.SK6812)
     host.start()
+    # the firmware first holds the line low for its latch gap, taking no word
+    pause_ms(LATCH_MS)
     frames = [PIXELS, PIXELS[1:] + PIXELS[:1]]
     for pixels in frames:
         host.push(words(pixels))

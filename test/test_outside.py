@@ -319,11 +319,13 @@ async def test_ds18b20(dut):
 
 
 class SlowPins(Pins):
-    """The host SPI at another clock: half a period of half cycles."""
+    """The host SPI at another clock, half a period of half cycles, with gap half periods
+    between bytes: the RP2040's SPI in mode 0 pauses a bit and a half after each."""
 
-    def __init__(self, dut, half):
+    def __init__(self, dut, half, gap):
         super().__init__(dut)
         self.half = half
+        self.gap = gap
 
     async def byte(self, out):
         acc = 0
@@ -335,6 +337,7 @@ class SlowPins(Pins):
             await self.wait(self.half)
             self.sck = 0
             acc = (acc << 1) | bit
+        await self.wait(self.gap * self.half)
         return acc
 
 
@@ -342,19 +345,46 @@ class SlowPins(Pins):
 SK6812 = {"T0H": (150, 450), "T1H": (450, 750), "T0L": (750, 1050), "T1L": (450, 750)}
 
 
-@cocotb.test()
-async def test_neopixel(dut):
-    """The NeoPixel act with Pico A's SPI at 1.5 MHz, its frames decoded by sigrok and every
-    high and low time held to the SK6812's datasheet."""
+async def neopixel(dut, gap):
+    """The NeoPixel act with Pico A's SPI at its clock and gap half periods between bytes:
+    every pixel has to chain, so sigrok sees each frame whole, and nothing faults."""
     await reset(dut)
     analyser = Analyser({4: bit(dut.uo_out, 1)})
     half = 48_000_000 // demo_neopixel.SPI_HZ // 2
-    transfer, pause_ms, log, _ = acted(dut, SlowPins(dut, half))
+    transfer, pause_ms, log, _ = acted(dut, SlowPins(dut, half, gap))
+    # engine 0's tx fifo, which drops a push when full without a fault
+    level = dut.user_project.core.top.engines.engine_0.tx.level
+    most = [0]
+
+    async def watch():
+        while True:
+            await level.value_change
+            most[0] = max(most[0], int(level.value))
+
+    watcher = cocotb.start_soon(watch())
     assert await bridge(demo_neopixel.run)(transfer, pause_ms, log=log)
+    watcher.cancel()
+    cocotb.log.info("most words waiting: %d of 8", most[0])
+    assert most[0] < 8
     decoded = decode(analyser, "neopixel")
     colours = [line.split(": ")[1] for line in decoded if ": #" in line]
     expected = ["#%02x%02x%02x" % p for p in demo_neopixel.PIXELS]
     assert colours == expected + expected[1:] + expected[:1], colours
+    assert decoded.count("rgb_led_ws281x-1: RESET") == 2, decoded
+    return analyser
+
+
+@cocotb.test()
+async def test_neopixel_back_to_back(dut):
+    """The fifo at its fullest: the bytes with no pause between them."""
+    await neopixel(dut, gap=0)
+
+
+@cocotb.test()
+async def test_neopixel(dut):
+    """The words at their latest, a byte and its pause 9.5 SPI clocks, and every high and low
+    time held to the SK6812's datasheet."""
+    analyser = await neopixel(dut, gap=3)
 
     # each bit is a high time and the low time after it, the last of a frame excepted
     edges = analyser.levels(4)
