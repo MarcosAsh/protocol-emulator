@@ -2,13 +2,19 @@
 """The bench demos' own Python, run blocking in a thread with each SPI frame a cocotb
 transfer, as the host Pico runs it."""
 
+import collections
+import os
+import sys
+import types
+
 import cocotb
 from cocotb.task import bridge, resume
-from cocotb.triggers import ClockCycles
+from cocotb.triggers import ClockCycles, Timer
 from cocotb.utils import get_sim_time
 
 from test import AsyncHost, Pins, reset
 from test_usb_board import J, SE0, Wire, data_packet, token
+import protocol_emulator
 from protocol_emulator import CONTROL, SELECT, STATUS, TX, Host
 import demo_self_check
 import demo_self_timing
@@ -16,6 +22,7 @@ import demo_sweep
 import demo_usb
 import sweep_firmware
 import usb_board
+import usb_device_firmware
 
 # cycles in a microsecond at 48 MHz, for the Pico's pauses
 US = 48
@@ -254,6 +261,480 @@ async def test_keyboard(dut):
     assert board.address == 3
     assert_typed(dut, out0, 434, taken, b"hi")
     await assert_no_faults(pins)
+
+
+# test_keyboard's Python takes no sim time, so it passed while the bench overflowed the rx
+# fifo. test_keyboard_slow_host charges each call what it costs Pico A and enumerates the
+# way the bench laptop did. It runs in real time, a cycle being one of the chip's 48 MHz
+# for the laptop's sleeps and the Pico's ms() too: the fifo race is in microseconds against
+# 32 cycle bits, and a compressed millisecond would let a reload or a collection, charged
+# in real cycles, outlast the 10 ms after SET_ADDRESS. That is 330 ms of chip, an hour on
+# icarus, so only Verilator runs it:
+#   make SIM=verilator COCOTB_TEST_MODULES=test_demo COCOTB_TEST_FILTER=slow_host
+# PICO_SCALE=k multiplies every cost, for the margin, and TURNAROUND_US the laptop's time
+# between transfers.
+
+# Pico A's costs in microseconds: before the call's SPI frame and after it, per word moved
+# (before a write's frame, after a read's), and the bytes allocated, per call and per word.
+# The frame's simulated wire time comes off the first two. bench: timed on Pico A at 200
+# MHz on 2026-10-01, the timing loop's 8 us call in it; fit: solved from the bench's load
+# times; est: read off the code.
+COSTS = {
+    "Host.status": (60, 281, 0, 320, 0),  # bench 341; split, bytes est
+    "Host.read": (60, 186, 0, 210, 0),  # bench 246 a word
+    "Host.pop": (60, 168, 20.6, 210, 4),  # bench 228 for none, 372 for seven
+    "Host.write": (80, 12, 28, 80, 42),  # fit: 120 a word, a full load 21.4 ms
+    "PicoHost.status": (15, 80, 0, 0, 0),  # bench 95, one dict refilled
+    "PicoHost.pop": (15, 69, 7.1, 48, 4),  # bench 84 for none, 134 for seven
+    "PicoHost.write": (40, 12, 18, 64, 0),  # fit: six words 188 (bench), loads 1.3-1.7 ms
+    "Board.feed": (50, 0, 0, 8, 0),  # bench: a status OUT's three words 152
+    "_reverse": (118, 0, 0, 48, 0),  # bench: a SETUP fed in 2359, in 949 with the table
+    "word_bytes": (10, 0, 0, 32, 0),  # est
+    "Board._setup": (440, 0, 0, 600, 0),  # bench: that 949 less its feeds and lookups
+    "reply": (100, 0, 0, 100, 0),  # est
+    "service": (40, 0, 0, 32, 0),  # est; the bench's 260-461 idle is mostly collections
+    "bus_reset": (39, 0, 0, 0, 0),  # bench 24, and serve's loop 15 est
+    "words": (1000, 0, 0, 1900, 0),  # fit: a same address load 1.4 ms less four writes
+    "Host.load": (1000, 0, 0, 4100, 0),  # est: the words copied again, then zeros
+    "config_writes": (400, 0, 0, 1100, 0),  # est
+}
+# bench: gc.mem_free() with the demo imported, and r3's pauses in serve, 660 ms apart there
+GC_HEAP = 200_000
+GC_PAUSE_US = 11_000
+
+# The bench laptop, Linux on an xHCI root port. bench: the r1 and r3 logs on Pico A.
+RESET_US = 50_000  # USB 2.0 7.1.7.5, a root port's
+RESET_RECOVERY_US = 60_000  # bench: 110 ms from each reset to the next SETUP
+SET_ADDRESS_US = 10_000  # hub_port_init's sleep; bench 13 ms to the next SETUP
+# est: a completion's interrupt, the hub thread woken, the next URB queued; r3 bounds it
+# below about 370 us, and nothing here is less certain
+TURNAROUND_US = float(os.environ.get("TURNAROUND_US", 100))
+BIND_US = 1_000  # est: the driver bound before SET_CONFIGURATION, usbhid before SET_IDLE
+OPEN_US = 10_000  # est: the input device opened, then EP1 polled
+POLL_US = 8_000  # xHCI's interval for bInterval 10 at low speed
+GAP = 8  # bits between a transfer's transactions and before a NAKed one's retry, est
+TIMEOUT = 17  # bits a host waits for the reply, USB 2.0's 16 to 18
+NAK_LIMIT_US = 50_000  # in place of the kernel's 5 s, past any pause the Pico takes
+ADDRESS = 16  # bench r3
+
+ACK, NAK, DATA0, DATA1 = 0xD2, 0x5A, 0xC3, 0x4B
+PIDS = {ACK: "ACK", NAK: "NAK", 0x1E: "STALL", DATA0: "DATA0", DATA1: "DATA1"}
+
+
+def bus(dut):
+    """D+ | D- << 1 as a Pico watching the bus sees it, the device's where it drives."""
+    if int(dut.uio_oe.value) & 3 == 3:
+        return int(dut.uio_out.value) & 3
+    return int(dut.uio_in.value) & 3
+
+
+class Pico:
+    """Pico A's clock, and the MicroPython it runs on. A call's cost goes on a tab that is
+    paid in chip cycles before the Pico next touches the chip, and a collection joins it
+    each time calls have allocated a heap's worth."""
+
+    def __init__(self, dut, scale):
+        self.dut = dut
+        self.pins = Pins(dut)
+        self.scale = scale
+        self.owed = 0.0
+        self.free = GC_HEAP
+        self.depth = 0
+        self.done = False
+        self.collections = []
+        self.undo = []
+
+    def spend(self, us, allocates=0):
+        self.owed += us * US * self.scale
+        self.free -= allocates
+        if self.free <= 0:
+            self.free += GC_HEAP
+            self.collections.append(cycle() + round(self.owed))
+            self.owed += GC_PAUSE_US * US * self.scale
+
+    async def settle(self):
+        if self.done:
+            raise Done
+        cycles = round(self.owed)
+        self.owed -= cycles
+        if cycles > 0:
+            await Timer(cycles * 20, "ns")
+
+    @resume
+    async def frame(self, data):
+        await self.settle()
+        return await self.pins.transfer(data)
+
+    @resume
+    async def line(self, pin):
+        await self.settle()
+        return bus(self.dut) >> (pin - 6) & 1
+
+    @resume
+    async def ticks_ms(self):
+        await self.settle()
+        return cycle() // (1000 * US)
+
+    def costly(self, cost, function, words=None):
+        """function, costing what COSTS says. With words, which gives the words its SPI frame
+        moves, it is I/O, charged at the outermost call only."""
+        before, after, per_word, allocates, per_word_allocates = COSTS[cost]
+
+        def charged(*args, **kwargs):
+            if words is None:
+                self.spend(before, allocates)
+                return function(*args, **kwargs)
+            if self.depth:
+                return function(*args, **kwargs)
+            n = words(*args, **kwargs)
+            first, then = (before + per_word * n, after) if cost.endswith("write") else (
+                before, after + per_word * n)
+            cut = max(0, 1 - (64 * (1 + 2 * n) + 11) / US / (first + then))
+            self.spend(first * cut, allocates + per_word_allocates * n)
+            self.depth += 1
+            try:
+                return function(*args, **kwargs)
+            finally:
+                self.depth -= 1
+                self.spend(then * cut)
+
+        return charged
+
+    def patch(self, owner, name, value):
+        self.undo.append((owner, name, getattr(owner, name)))
+        setattr(owner, name, value)
+
+    def charge(self, owner, name, cost, words=None):
+        if name in vars(owner):
+            self.patch(owner, name, self.costly(cost, vars(owner)[name], words))
+
+    def install(self):
+        """machine and micropython as pico_board uses them, the clock as demo_usb.run
+        does, and every call costed, as far as the code in python/ has it."""
+        pico = self
+
+        class Pin:
+            IN, OUT = 0, 1
+
+            def __init__(self, pin, mode=IN, value=0):
+                self.pin = pin
+
+            # chip select's edges frame each transfer, which is one cocotb transfer here
+            def __call__(self, value=None):
+                return pico.line(self.pin) if value is None else None
+
+        class SPI:
+            MSB = 0
+
+            def __init__(self, *args, **kwargs):
+                pass
+
+            def write_readinto(self, out, into):
+                into[:] = bytes(pico.frame(list(out)))
+
+            def write(self, out):
+                pico.frame(list(out))
+
+        machine = types.SimpleNamespace(Pin=Pin, SPI=SPI, freq=lambda hz=None: None)
+        sys.modules["machine"] = machine
+        sys.modules["micropython"] = types.SimpleNamespace(native=lambda f: f)
+        sys.modules.pop("pico_board", None)
+        import pico_board
+
+        self.patch(demo_usb, "time", types.SimpleNamespace(ticks_ms=self.ticks_ms))
+        se0_reset = demo_usb.se0_reset
+        self.patch(demo_usb, "se0_reset",
+                   lambda *args, **kwargs: self.costly("bus_reset", se0_reset(*args, **kwargs)))
+        one = lambda *args: 1
+        count = lambda host, count=1: count
+        for owner, prefix in ((Host, "Host"), (getattr(pico_board, "PicoHost", None), "PicoHost")):
+            if owner is None:
+                continue
+            self.charge(owner, "status", f"{prefix}.status", one)
+            self.charge(owner, "read", f"{prefix}.read", lambda host, reg, count=1: count)
+            self.charge(owner, "pop", f"{prefix}.pop", count)
+            self.charge(owner, "write", f"{prefix}.write", lambda host, reg, words: len(words))
+        self.charge(Host, "load", "Host.load")
+        self.charge(protocol_emulator, "config_writes", "config_writes")
+        self.charge(usb_board.Board, "feed", "Board.feed")
+        self.charge(usb_board.Board, "_setup", "Board._setup")
+        for name in ("_reverse", "word_bytes", "reply", "service"):
+            self.charge(usb_board, name, name)
+        self.charge(usb_device_firmware, "words", "words")
+
+    def uninstall(self):
+        for owner, name, value in reversed(self.undo):
+            setattr(owner, name, value)
+        for name in ("machine", "micropython", "pico_board"):
+            sys.modules.pop(name, None)
+
+
+class Failed(Exception):
+    """The laptop gave up, with the kernel's error."""
+
+
+class Laptop:
+    """Linux enumerating a low-speed device on an xHCI root port: a transfer's packets back
+    to back, a NAKed transaction retried at once, three tries before -71."""
+
+    def __init__(self, dut, overflowed):
+        self.dut = dut
+        self.wire = Wire(dut)
+        self.overflowed = overflowed
+        self.events = collections.deque(maxlen=400)
+        self.naks = 0
+        # (cycles from a transaction's first try to its answer, the transfer, the kind)
+        self.waits = []
+        self.addressed = None
+
+    def note(self, what):
+        self.events.append((cycle(), what))
+
+    async def idle(self, us, state=J):
+        self.dut.uio_in.value = state[0] | (state[1] << 1)
+        await Timer(round(us * US) * 20, "ns")
+
+    async def send(self, packet, what):
+        self.note(what)
+        await self.wire.send(packet)
+
+    async def reply(self):
+        packet = await self.wire.listen(TIMEOUT)
+        if packet is None:
+            self.note("no reply")
+        else:
+            payload = bytes(packet[1:-2]).hex() if len(packet) > 1 else ""
+            self.note(f"{PIDS.get(packet[0], hex(packet[0]))} {payload}".strip())
+        return packet
+
+    async def transaction(self, what, kind, send):
+        """send() puts a transaction on the wire and returns the reply: a handshake or a good
+        data packet. It goes again after a NAK, and after a bad reply up to three times."""
+        errors, since = 0, cycle()
+        while True:
+            reply = await send()
+            if self.overflowed():
+                raise Failed(f"{what}: the rx fifo overflowed")
+            if reply == [NAK]:
+                self.naks += 1
+                if cycle() - since > NAK_LIMIT_US * US:
+                    raise Failed(f"{what}: -110, NAKed for {NAK_LIMIT_US // 1000} ms")
+            elif reply and (len(reply) == 1 or reply == data_packet(reply[0], reply[1:-2])):
+                self.waits.append((cycle() - since, what, kind))
+                return reply
+            else:
+                errors += 1
+                if errors == 3:
+                    raise Failed(f"{what}: -71, {reply or 'no reply'} to {kind}")
+            await self.wire.drive(J, GAP)
+
+    async def setup(self, address, request, what):
+        async def send():
+            await self.send(token(0x2D, address, 0), f"SETUP {address}")
+            await self.wire.drive(J, 3)
+            await self.send(data_packet(DATA0, request), f"DATA0 {bytes(request).hex()}")
+            return await self.reply()
+
+        if await self.transaction(what, "SETUP", send) != [ACK]:
+            raise Failed(f"{what}: SETUP not acknowledged")
+
+    async def data_in(self, address, endpoint, pid, what):
+        async def send():
+            await self.send(token(0x69, address, endpoint), f"IN {address}/{endpoint}")
+            return await self.reply()
+
+        packet = await self.transaction(what, "IN", send)
+        if packet[0] != pid:
+            raise Failed(f"{what}: {PIDS.get(packet[0], hex(packet[0]))} where {PIDS[pid]} was due")
+        await self.send([ACK], "ACK")
+        return packet[1:-2]
+
+    async def status_out(self, address, what):
+        async def send():
+            await self.send(token(0xE1, address, 0), f"OUT {address}")
+            await self.wire.drive(J, 3)
+            await self.send(data_packet(DATA1, []), "DATA1")
+            return await self.reply()
+
+        if await self.transaction(what, "OUT", send) != [ACK]:
+            raise Failed(f"{what}: status OUT not acknowledged")
+
+    async def control_read(self, address, request, what):
+        await self.setup(address, request, what)
+        length, data, pid = request[6] | request[7] << 8, [], DATA1
+        while True:
+            await self.wire.drive(J, GAP)
+            payload = await self.data_in(address, 0, pid, what)
+            data += payload
+            pid = DATA0 if pid == DATA1 else DATA1
+            if len(payload) < 8 or len(data) >= length:
+                break
+        await self.wire.drive(J, GAP)
+        await self.status_out(address, what)
+        return data
+
+    async def control_write(self, address, request, what):
+        await self.setup(address, request, what)
+        await self.wire.drive(J, GAP)
+        if await self.data_in(address, 0, DATA1, what) != []:
+            raise Failed(f"{what}: data in the status stage")
+
+    async def reset(self):
+        self.note("reset")
+        await self.idle(RESET_US, SE0)
+        await self.idle(RESET_RECOVERY_US)
+
+
+async def enumerate_and_type(laptop, text):
+    """What the bench laptop did: hub_port_init's two resets around the first read, then the
+    descriptors, the configuration, usbhid's requests, and EP1 polled until text is typed.
+    The reports and the cycle of each one's ACK."""
+
+    def get(kind, length, recipient=0x80):
+        return [recipient, 6, 0, kind, 0, 0, length & 0xFF, length >> 8]
+
+    async def read(address, request, what, expected):
+        data = await laptop.control_read(address, request, what)
+        if data != expected:
+            raise Failed(f"{what}: {bytes(data).hex()}")
+        await laptop.idle(TURNAROUND_US)
+
+    await laptop.reset()
+    await read(0, get(1, 64), "device descriptor read/64", demo_usb.DEVICE)
+    await laptop.reset()
+    await laptop.control_write(0, [0, 5, ADDRESS, 0, 0, 0, 0, 0], "SET_ADDRESS")
+    laptop.addressed = cycle()
+    await laptop.idle(SET_ADDRESS_US)
+    await read(ADDRESS, get(1, 18), "device descriptor read/all", demo_usb.DEVICE)
+    configuration = demo_usb.CONFIGURATION
+    await read(ADDRESS, get(2, 9), "config index 0 descriptor/start", configuration[:9])
+    await read(ADDRESS, get(2, len(configuration)), "config index 0 descriptor/all", configuration)
+    await laptop.idle(BIND_US)
+    await laptop.control_write(ADDRESS, [0, 9, 1, 0, 0, 0, 0, 0], "SET_CONFIGURATION")
+    await laptop.idle(BIND_US)
+    await laptop.control_write(ADDRESS, [0x21, 0x0A, 0, 0, 0, 0, 0, 0], "SET_IDLE")
+    await laptop.idle(TURNAROUND_US)
+    report = demo_usb.REPORT
+    await read(ADDRESS, get(0x22, len(report), 0x81), "report descriptor", report)
+    await laptop.idle(OPEN_US)
+
+    reports, taken, pid = [], [], DATA0
+    for _ in range(10 * len(text)):
+        if len(reports) == 3 * len(text):
+            break
+        start = cycle()
+        await laptop.send(token(0x69, ADDRESS, 1), f"IN {ADDRESS}/1")
+        packet = await laptop.reply()
+        if packet != [NAK]:
+            if not packet or packet[0] != pid or packet != data_packet(pid, packet[1:-2]):
+                raise Failed(f"EP1 poll: {packet}")
+            taken.append(cycle())
+            await laptop.send([ACK], "ACK")
+            reports.append(packet[1:-2])
+            pid = DATA0 if pid == DATA1 else DATA1
+        await laptop.idle(POLL_US - (cycle() - start) / US)
+    return reports, taken
+
+
+def timeline(laptop, levels, halts, pico, start, end):
+    """The laptop's packets, the rx fifo's level, engine 0 halting and starting, and the
+    Pico's collections over the 12 ms to end, one a line, a run of NAKed INs on one."""
+    lines = [(at, what) for at, what in laptop.events]
+    lines += [(at, f"    rx fifo {level}") for at, level in levels]
+    lines += [(at, f"    engine 0 {'halted' if halted else 'started'}") for at, halted in halts]
+    lines += [(at, f"    GC {GC_PAUSE_US * pico.scale / 1000:.0f} ms") for at in pico.collections]
+    rows = []
+    for at, what in sorted(lines, key=lambda line: line[0]):
+        if not end - 12_000 * US <= at <= end or what == "NAK" and not rows:
+            continue
+        if rows and rows[-1][1].startswith("IN") and what == "NAK":
+            rows[-1][2] += 1
+        elif not (rows and rows[-1][2] and what == rows[-1][1]):
+            rows.append([at, what, 0])
+    return "\n".join(
+        f"{(at - start) / (1000 * US):10.3f} ms  {what}" + (f", NAKed {naks} times" if naks else "")
+        for at, what, naks in rows)
+
+
+@cocotb.test(skip=cocotb.SIM_NAME != "Verilator")
+async def test_keyboard_slow_host(dut):
+    """Act 3 as demo_usb.run runs it on Pico A, at Pico A's pace, against the bench laptop."""
+    await reset(dut)
+    start = cycle()
+    scale = float(os.environ.get("PICO_SCALE", 1))
+    engine = dut.user_project.core.top.engines.engine_0
+    overflow = next(h for h in engine if "fault$overflow" in h._name)
+    levels, halts, overflowed, out0 = [(0, 0)], [], [], [(0, 0)]
+
+    async def watch(signal, changes):
+        while True:
+            await signal.value_change
+            changes.append((cycle(), int(signal.value)))
+
+    async def watch_overflow():
+        while int(overflow.value) == 0:
+            await overflow.value_change
+        overflowed.append(cycle())
+
+    watchers = [
+        cocotb.start_soon(w)
+        for w in (watch(engine.rx_level, levels), watch(engine.halted, halts), watch_overflow(),
+                  watch_out0(dut, out0))
+    ]
+    pico = Pico(dut, scale)
+    pico.install()
+
+    def run():
+        try:
+            demo_usb.run("hi")
+        except Done:
+            pass
+
+    server = cocotb.start_soon(bridge(run)())
+    laptop = Laptop(dut, lambda: overflowed)
+    try:
+        reports, taken = await enumerate_and_type(laptop, b"hi")
+    except Failed as failure:
+        failed, failed_at = failure, cycle()
+    else:
+        failed = None
+        await laptop.idle(500)
+    finally:
+        pico.done = True
+        await server
+        pico.uninstall()
+    for watcher in watchers:
+        watcher.cancel()
+    peak = max(level for _, level in levels)
+    dut._log.info(
+        f"k {scale}: {(cycle() - start) / (1000 * US):.1f} ms of chip, peak rx level {peak}, "
+        f"{laptop.naks} NAKs, collections at "
+        f"{[round((at - start) / (1000 * US), 1) for at in pico.collections]} ms")
+    # USB 2.0 9.2.6: a request's data within 500 ms, a status stage within 50 ms, and the
+    # new address within 2 ms of SET_ADDRESS's status stage, where Linux waits 10
+    if laptop.waits:
+        waited, what, kind = max(laptop.waits)
+        dut._log.info(f"longest wait for an answer {waited / (1000 * US):.3f} ms, {kind} of {what}")
+    if laptop.addressed is not None:
+        ready = next((at for at, halted in halts if not halted and at > laptop.addressed), None)
+        dut._log.info(
+            "engine 0 never started at the new address" if ready is None else
+            f"engine 0 started at the new address {(ready - laptop.addressed) / (1000 * US):.3f}"
+            " ms after SET_ADDRESS's status stage")
+    if failed or overflowed:
+        end = overflowed[0] if overflowed else failed_at
+        host = AsyncHost(pico.pins.transfer)
+        await host.write(SELECT, [0])
+        status = (await host.read(STATUS))[0]
+        faults = [name for bit, name in ((2, "underflow"), (3, "overflow")) if status >> bit & 1]
+        raise AssertionError(
+            f"{failed}; peak rx level {peak}"
+            + (f", overflow at {(end - start) / (1000 * US):.3f} ms" if overflowed else "")
+            + f", engine 0 faults {faults}\n" + timeline(laptop, levels, halts, pico, start, end))
+    assert reports == demo_usb.reports("hi"), reports
+    # run() starts the logger for 48 MHz
+    assert_typed(dut, out0, (48_000_000 + demo_usb.BAUD // 2) // demo_usb.BAUD, taken, b"hi")
+    await assert_no_faults(pico.pins)
 
 
 @cocotb.test()
