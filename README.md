@@ -14,7 +14,7 @@ the RTL is proven never to miss one of its deadlines, under the assumptions belo
 
 | | | Source |
 |---|---|---|
-| Process | IHP SG13CMOS5L through Tiny Tapeout, 6 x 4 tiles | `info.yaml` |
+| Process | IHP SG13CMOS5L through Tiny Tapeout, 6 x 4 tiles | `info.yaml`, `.github/workflows/gds.yaml` |
 | Clock | 50 MHz | `info.yaml` |
 | Cores | 2 cores, 3 IHP 512 x 16 SRAM macros: a program memory each and a data memory they share | `src/protocol_emulator.v` |
 | Pins | 4 for the host's SPI, 5 in, 7 out, 8 bidirectional, and 8 wires between the cores | `info.yaml`, `src/isa.ml` |
