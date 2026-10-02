@@ -19,9 +19,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# a run in progress finishes, so a burst of triggers cannot cancel every deploy; the
+# newest waits behind it
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   actions: read
