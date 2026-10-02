@@ -13,6 +13,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from functools import cache
+from pathlib import Path
 
 REPO = None
 RUNS = 30
@@ -249,11 +250,26 @@ def split(lines):
 STATUSES = {
     "proved for all time": "a proof over every state, input or program it names, with no "
     "bound on time: induction, PDR, or an UNSAT checked by cake_lpr",
+    "proved to depth N": "a bounded proof: every run of N steps from the clear, nothing "
+    "past it",
     "checked": "a structural check of every cell of a netlist, or Tiny Tapeout's precheck",
     "tested": "many runs, mutants or variants, not all of them",
     "simulated": "cocotb tests and recorded pin traces on a design in simulation",
     "not verified": "no green run on main shows the check, or its log shows no pass",
 }
+
+
+FORMAL = Path(__file__).resolve().parent.parent / "formal"
+
+
+def depth(sby_file, task):
+    """The status of a bounded proof, at the depth formal/[sby_file] gives [task]."""
+    found = re.search(rf"^{task}: depth (\d+)$", (FORMAL / sby_file).read_text(), re.M)
+    return f"proved to depth {found[1]}"
+
+
+def status_word(status):
+    return "proved to depth N" if status.startswith("proved to depth") else status
 
 
 class Claim:
@@ -314,8 +330,13 @@ CLAIMS = [
               "ocaml", exactly("phase_table_affine"), "phase_table_affine_proof",
               sby("row_step_", "phase_table_affine_")),
         Claim("For any program, the core moves between entries as the kernel's step says, "
-              "and a deadline wait entered in time never faults (k-induction on the RTL)",
-              "ocaml", exactly("test"), "phase_step", sby("phase_step_"), step="Prove"),
+              "and a deadline wait entered in time never faults (k-induction on the RTL). "
+              "A timer that stops at its top instead of wrapping has to fail it",
+              "ocaml", lambda job: job in ("test", "saturating"), "phase_step saturating_proof",
+              sby("phase_step_"), step="Prove"),
+        Claim("For any program and any table of intervals the kernel accepts with a spacing, "
+              "each counted edge of a watched pair is spaced", "ocaml", matrix("phase_spacing"),
+              "phase_spacing_part", sby("pair_step_", "phase_spacing_")),
         Claim("An accepted table is closed under the kernel's step, over every instruction "
               "word and row; every UNSAT is cadical's, checked by cake_lpr",
               "ocaml", exactly("test"), "dune build @runtest", green, step="Run tests",
@@ -372,11 +393,27 @@ CLAIMS = [
               "the circuit drives its line, 4 cycles later, at 4 clocks a bit, for bytes at "
               "least 4 cycles after ready", "ocaml", exactly("test"), "fsm_miter_proof",
               sby("fsm_miter_"), step="Prove"),
+        Claim("Self_check.checker, for one set of edges on pin 0, rows at 0, on one engine "
+              "with a private data memory, its program and rows as ROMs and the host idle: no "
+              "irq, no halt and none of its own deadlines missed until the line leaves its "
+              "rows", "ocaml", exactly("self_check"), "self_check_clean_proof",
+              sby("self_check_clean_"), step="Prove"),
+        Claim("Self_check.checker's irq only after a break and by the contract's deadline, "
+              "for 116 cycles from the clear, which reach the first frame's deadline only if "
+              "the first fall comes by about cycle 22", "ocaml", exactly("self_check"),
+              "self_check_proof",
+              sby(*(f"self_check_{t}" for t in ["bmc", "cover", "stamp", "least", "silent",
+                                                "slow"])),
+              step="Prove", status=depth("self_check.sby", "bmc")),
     ]),
     ("From RTL to silicon", [
         Claim("The flop program memory equals IHP's model of the 512x16 SRAM, step for step "
               "from any contents", "ocaml", exactly("test"), "sram_equiv",
               abc("sram_equiv_"), step="Prove"),
+        Claim("Power-up is deterministic: two copies of the chip from any two states of their "
+              "flops and fifos, with the same words in their SRAMs, reset at the first edge "
+              "and given the same pins, drive the same pins", "ocaml", exactly("test"),
+              "powerup", sby("powerup_"), step="Prove"),
         Claim("The hardened netlist equals the RTL for all time from all flops 0",
               "gds", exactly("netlist_equiv"), "netlist_equiv netlist_equiv_teeth",
               both(abc("netlist_equiv_"),
@@ -562,7 +599,8 @@ def html_page(rows, now):
     counts = {}
     for r in rows.values():
         counts[r.status] = counts.get(r.status, 0) + 1
-    tally = ", ".join(f"{counts[s]} {s}" for s in STATUSES if s in counts)
+    tally = ", ".join(f"{n} {status}" for word in STATUSES for status, n in counts.items()
+                      if status_word(status) == word)
     legend = "\n".join(f"<dt>{e(s)}</dt><dd>{e(m)}</dd>" for s, m in STATUSES.items())
     body = []
     for title, section in CLAIMS:
@@ -579,10 +617,12 @@ def html_page(rows, now):
 </head>
 <body>
 <h1>Results</h1>
-<p class="muted">Each claim CI checks, the job that checks it, and its last run on main where
+<p class="muted">The claims CI checks, the job that checks each, and its last run on main where
 every job behind it was green. Written by <code>test/results.py</code> at {e(now)} from the
 job logs, so it shows only what CI printed. Teeth are weakened copies and mutants that have
-to fail. Bench measurements are not in CI and not here.
+to fail. The assumptions and the tools trusted are under
+<a href="https://github.com/{e(REPO)}#what-is-not-proved">What is not proved</a> in the
+README. Bench measurements are not in CI and not here.
 <a href="https://github.com/{e(REPO)}">Repository</a>, <a href="../playground/">playground</a>.</p>
 <p>{e(tally)}.</p>
 <table>
