@@ -221,13 +221,14 @@ def dune(cwd, command, *args, jobs=None, timeout=None):
 
 
 def verdict(cwd, file, jobs, timeout):
-    # a mutant that does not compile, or that Hardcaml refuses to elaborate, is not a mutant
-    if dune(cwd, "build", "./bin/generate.exe", jobs=jobs)[0] != 0:
-        return "invalid"
-    for args in ELABORATE.get(file, []):
-        if dune(cwd, "exec", "--", "./bin/generate.exe", *args, jobs=jobs)[0] != 0:
-            return "invalid"
+    # a mutant that does not compile, or that Hardcaml refuses to elaborate, is not a mutant;
+    # one whose generator loops would hang the tests too
     try:
+        if dune(cwd, "build", "./bin/generate.exe", jobs=jobs, timeout=timeout)[0] != 0:
+            return "invalid"
+        for args in ELABORATE.get(file, []):
+            if dune(cwd, "exec", "--", "./bin/generate.exe", *args, jobs=jobs, timeout=timeout)[0] != 0:
+                return "invalid"
         return "survived" if dune(cwd, "build", "@runtest", jobs=jobs, timeout=timeout)[0] == 0 else "killed"
     except subprocess.TimeoutExpired:
         return "timeout"
