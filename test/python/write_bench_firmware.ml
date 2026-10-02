@@ -4,12 +4,14 @@ open Protocol_emulator
 open Protocol_emulator_test
 
 (* The library firmware the outside chip acts in BRINGUP.md load, at the parameters the
-   bench's 48 MHz needs, each checked by the analyser and the kernel under the assumption
+   bench's clock needs, each checked by the analyser and the kernel under the assumption
    it runs with, as the command line does. The Icepi's USB build drives IO0 and IO1's
-   header pins with the USB lines, so I2C moves to IO2 and IO3 and 1-Wire to IO4. *)
+   header pins with the USB lines, so I2C moves to IO2 and IO3, 1-Wire to IO4 and 10BASE-T
+   to IO6 and IO7. *)
 let sda = 14
 let scl = 15
 let one_wire = 16
+let td_plus = 18
 
 (* The library's reset is 80 units, 480 us at the 6 us unit: exactly the least a DS18B20
    takes. One more pass of its low loop makes it 84, 504 us. *)
@@ -26,7 +28,7 @@ let bench =
     , "Firmware.spi_master ~half_period:8: SCK at 3 MHz, no chip select"
     , Firmware.spi_master ~half_period:8
     , Firmware.spi_config
-    , None )
+    , `None )
   ; ( "i2c_master"
     , "Firmware.i2c_master_host_rate: the host sends the quarter, 48 cycles for 250 kHz, \
        SDA on IO2, SCL on IO3"
@@ -38,7 +40,7 @@ let bench =
       ; in_base = sda
       ; jmp_pin = sda
       }
-    , Some 31 )
+    , `Floor 31 )
   ; ( "one_wire"
     , "One_wire.firmware with a reset of 84 units: the host sends the unit, 288 cycles \
        for 6 us, so 504 us, on IO4"
@@ -48,17 +50,23 @@ let bench =
       ; out_base = one_wire
       ; set_base = one_wire
       }
-    , Some 5 )
+    , `Floor 5 )
   ; ( "can"
     , "Can.firmware: the host sends the bit period, 96 cycles for 500 kbit/s"
     , Timed_program.source Can.firmware
     , Can.config
-    , Some Can.shortest_period )
+    , `Floor Can.shortest_period )
   ; ( "sk6812"
     , "Ws2812.firmware ~third:16 ~tail:7: T0H 333, T1H 667, T0L 813, T1L 479 ns"
     , Ws2812.firmware ~third:16 ~tail:7
     , Ws2812.config
-    , None )
+    , `None )
+  ; ( "ethernet"
+    , "Ethernet.firmware at the Icepi's 40 MHz: the host sends a tenth of the link pulse \
+       interval, 64000 cycles for 16 ms, TD+ on IO6, TD- on IO7"
+    , Timed_program.source Ethernet.firmware
+    , { Ethernet.config with out_base = td_plus; set_base = td_plus }
+    , `Period Ethernet.link_tenth )
   ]
 ;;
 
@@ -66,9 +74,14 @@ let () =
   print_string
     "# Written by test/python/write_bench_firmware.ml; `dune promote` after a change.\n\
      # The outside chip acts' firmware (BRINGUP.md) as words and the configuration it runs\n\
-     # under, at the bench's 48 MHz.\n";
-  List.iter bench ~f:(fun (name, what, source, config, period_floor) ->
-    let timed = Timed_program.of_source_exn ?period_floor ~config source in
+     # under, at the bench's 48 MHz but for 10BASE-T's 40.\n";
+  List.iter bench ~f:(fun (name, what, source, config, assumption) ->
+    let timed =
+      match assumption with
+      | `None -> Timed_program.of_source_exn ~config source
+      | `Floor period_floor -> Timed_program.of_source_exn ~period_floor ~config source
+      | `Period period -> Timed_program.of_source_exn ~period ~config source
+    in
     let fields =
       Engine.Config.map2
         Engine.Config.port_names

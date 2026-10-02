@@ -4,21 +4,19 @@
 # the Pi bring the link up. TD+ on IO6, TD- on IO7, through 47 R each to the Teensy kit's
 # MagJack. A bit is four cycles, so the Icepi runs the 40 MHz build (make -C icepi MHZ=40)
 # and the host SPI is at most 5 MHz. Needs protocol_emulator.py, pico_board.py, bench.py,
-# ethernet.py and ethernet_firmware.py on the Pico.
+# bench_firmware.py and ethernet.py on the Pico.
 
 import bench
+import bench_firmware
 import ethernet
-import ethernet_firmware
 import protocol_emulator as pe
 
-# the Manchester pair on IO6 and IO7, header 38 and 40
-FIRMWARE = {"config": dict(ethernet.CONFIG, out_base=18, set_base=18), "words": ethernet_firmware.WORDS}
 SPI_HZ = 5_000_000
 
 
 def run(transfer, pause_ms, count=30, log=print):
     host = pe.Host(transfer)
-    bench.load(host, FIRMWARE)
+    bench.load(host, bench_firmware.ETHERNET)
     for n in range(count):
         text = "hello from the chip %d" % n
         ethernet.send(host, ethernet.udp(text.encode()))

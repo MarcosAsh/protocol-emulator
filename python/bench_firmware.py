@@ -1,6 +1,6 @@
 # Written by test/python/write_bench_firmware.ml; `dune promote` after a change.
 # The outside chip acts' firmware (BRINGUP.md) as words and the configuration it runs
-# under, at the bench's 48 MHz.
+# under, at the bench's 48 MHz but for 10BASE-T's 40.
 
 # Firmware.spi_master ~half_period:8: SCK at 3 MHz, no chip select
 SPI_MASTER = {
@@ -216,5 +216,45 @@ SK6812 = {
         0xC0CA, 0xC0CA, 0x2040, 0x0205, 0x20E0, 0x80E6, 0xC0CA, 0xA04F,
         0xE004, 0x8022, 0x20C0, 0xA001, 0x20C0, 0x6001, 0x20C0, 0xA000,
         0xC0C7, 0x0212, 0xA02F, 0x061E, 0xA047, 0x0010, 0x100F, 0x0003,
+    ],
+}
+
+# Ethernet.firmware at the Icepi's 40 MHz: the host sends a tenth of the link pulse interval, 64000 cycles for 16 ms, TD+ on IO6, TD- on IO7
+ETHERNET = {
+    "config": {
+        "side_set_count": 0,
+        "side_set_base": 5,
+        "side_set_pindirs": 0,
+        "in_base": 0,
+        "in_count": 16,
+        "out_base": 18,
+        "out_count": 1,
+        "set_base": 18,
+        "set_count": 2,
+        "jmp_pin": 0,
+        "capture_pin": 0,
+        "capture_rising": 1,
+        "in_shift_right": 1,
+        "out_shift_right": 1,
+        "autopush": 0,
+        "push_threshold": 16,
+        "autopull": 1,
+        "pull_threshold": 16,
+        "crc_width": 16,
+        "crc_poly": 40961,
+        "crc_init": 65535,
+        "crc_reflect": 1,
+        "stuff_threshold": 0,
+        "stuff_level": 1,
+        "wrap_bottom": 0,
+        "wrap_top": 511,
+        "period_fraction": 0,
+        "autopull_data": 1,
+        "manchester": 1,
+    },
+    "words": [
+        0xE004, 0x80C5, 0xA063, 0x80E6, 0xC0CA, 0xA029, 0x20C0, 0x100C,
+        0x0206, 0xA301, 0xA000, 0x0005, 0xE004, 0x8045, 0xA020, 0xE008,
+        0x6070, 0x6101, 0x0411, 0xAA01, 0xA000, 0x80E6, 0xC0CA, 0x0005,
     ],
 }
