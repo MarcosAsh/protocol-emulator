@@ -3,7 +3,8 @@
   write_usb_firmware
   write_ethernet_firmware
   write_certified_firmware
-  write_sweep_firmware)
+  write_sweep_firmware
+  write_bench_firmware)
  (libraries core hardcaml protocol_emulator protocol_emulator_test)
  (preprocess
   (pps ppx_jane)))
@@ -55,3 +56,13 @@
  (deps ../../python/protocol_emulator.py)
  (action
   (run python3 -B %{dep:test_host.py} ../../python)))
+
+(rule
+ (with-stdout-to
+  bench_firmware.py.gen
+  (run ./write_bench_firmware.exe)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff ../../python/bench_firmware.py bench_firmware.py.gen)))
