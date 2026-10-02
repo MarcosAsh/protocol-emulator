@@ -11,6 +11,16 @@ let sda = 14
 let scl = 15
 let one_wire = 16
 
+(* The library's reset is 80 units, 480 us at the 6 us unit: exactly the least a DS18B20
+   takes. One more pass of its low loop makes it 84, 504 us. *)
+let one_wire_firmware =
+  let source = Timed_program.source One_wire.firmware in
+  let pattern = "    set x, 19\n" in
+  if List.length (String.substr_index_all source ~may_overlap:false ~pattern) <> 1
+  then raise_s [%message "BUG: One_wire.firmware's reset loop has moved"];
+  String.substr_replace_first source ~pattern ~with_:"    set x, 20\n"
+;;
+
 let bench =
   [ ( "spi_master"
     , "Firmware.spi_master ~half_period:8: SCK at 3 MHz, no chip select"
@@ -30,8 +40,9 @@ let bench =
       }
     , Some 31 )
   ; ( "one_wire"
-    , "One_wire.firmware: the host sends the unit, 288 cycles for 6 us, on IO4"
-    , Timed_program.source One_wire.firmware
+    , "One_wire.firmware with a reset of 84 units: the host sends the unit, 288 cycles \
+       for 6 us, so 504 us, on IO4"
+    , one_wire_firmware
     , { One_wire.config with
         in_base = one_wire
       ; out_base = one_wire

@@ -244,6 +244,7 @@ class Ds18b20:
         self.received = []
         self.busy = 0
         self.log = []
+        self.resets = []
         cocotb.start_soon(self.run())
 
     async def hold(self, us):
@@ -283,6 +284,7 @@ class Ds18b20:
             if low >= 480:
                 self.sending, self.received, self.busy = [], [], 0
                 self.log.append("reset")
+                self.resets.append(low)
                 await Timer(30, unit="us")
                 await self.hold(120)
             elif sent is None:
@@ -307,6 +309,9 @@ async def test_ds18b20(dut):
     assert await bridge(demo_ds18b20.run)(transfer, log=log)
     assert any("25.0625 C" in line for line in lines), lines
     assert device.log[:3] == ["reset", "0x33", "reset"], device.log
+    # 84 units of 6 us, which leaves 480 behind by more than the clock's rounding
+    cocotb.log.info("resets low for %s us", sorted(set(round(r, 1) for r in device.resets)))
+    assert min(device.resets) >= 500
     decoded = decode(analyser, "ds18b20")
     serial = sum(b << (8 * i) for i, b in enumerate(rom))
     for line in ["ROM command: 0x33 'Read ROM'", "ROM: 0x%016x" % serial, "Data: 0xbe"]:
