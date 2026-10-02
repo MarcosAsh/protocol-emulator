@@ -2,14 +2,17 @@
 # Mutation score of the OCaml tests: one textual mutation at a time, in copies under
 # _mutation/. A survivor not in test/mutation_allow.txt exits 1.
 # Usage: python3 test/mutate.py [--scope engine|wide] [--file F ...] [--operator NAME ...]
-#        [--id ID ...] [--jobs N] [--list]
+#        [--id ID ...] [--jobs N] [--timeout S] [--list]
 import argparse
 import hashlib
+import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
+import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from queue import Queue
@@ -198,21 +201,30 @@ def plan(scope, files):
     return todo
 
 
-def dune(cwd, command, *args, jobs=None):
+def dune(cwd, command, *args, jobs=None, timeout=None):
     flags = ["-j", str(jobs)] if jobs else []
-    p = subprocess.run(["dune", command, "--root", ".", *flags, *args], cwd=cwd, text=True,
-                       stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
-    return p.returncode, p.stderr
+    p = subprocess.Popen(["dune", command, "--root", ".", *flags, *args], cwd=cwd, text=True,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, start_new_session=True)
+    try:
+        _, err = p.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        os.killpg(p.pid, signal.SIGKILL)
+        p.communicate()
+        raise
+    return p.returncode, err
 
 
-def verdict(cwd, file, jobs):
+def verdict(cwd, file, jobs, timeout):
     # a mutant that does not compile, or that Hardcaml refuses to elaborate, is not a mutant
     if dune(cwd, "build", "./bin/generate.exe", jobs=jobs)[0] != 0:
         return "invalid"
     for args in ELABORATE.get(file, []):
         if dune(cwd, "exec", "--", "./bin/generate.exe", *args, jobs=jobs)[0] != 0:
             return "invalid"
-    return "survived" if dune(cwd, "build", "@runtest", jobs=jobs)[0] == 0 else "killed"
+    try:
+        return "survived" if dune(cwd, "build", "@runtest", jobs=jobs, timeout=timeout)[0] == 0 else "killed"
+    except subprocess.TimeoutExpired:
+        return "timeout"
 
 
 def read_allowed():
@@ -225,21 +237,26 @@ def read_allowed():
 
 
 def report(results):
+    # a timeout counts as killed, as the suite does not pass, and is listed apart
     allowed = read_allowed()
     valid = [r for r in results if r["result"] != "invalid"]
     files = list(dict.fromkeys(r["file"] for r in results))
     for file in files + ["total"]:
         rows = [r for r in valid if file in (r["file"], "total")]
-        killed = sum(1 for r in rows if r["result"] == "killed")
-        print(f"{file}: killed {killed} of {len(rows)} valid mutants")
+        killed = sum(1 for r in rows if r["result"] != "survived")
+        timeouts = sum(1 for r in rows if r["result"] == "timeout")
+        invalid = sum(1 for r in results if file in (r["file"], "total") and r["result"] == "invalid")
+        print(f"{file}: killed {killed} of {len(rows)} valid mutants"
+              f" ({timeouts} timed out, {invalid} invalid)")
     unexpected = []
     for r in valid:
-        if r["result"] == "survived":
+        if r["result"] in ("survived", "timeout"):
             reason = allowed.get((r["file"], r["operator"], r["text"]))
-            if reason is None:
+            if r["result"] == "survived" and reason is None:
                 unexpected.append(r)
-            print(f"survived: {r['operator']} at {r['file']}:{r['line']} [{r['id']}]:"
-                  f" {reason or 'NOT ALLOWED'}\n    - {r['text']}\n    + {r['after']}")
+            print(f"{r['result']}: {r['operator']} at {r['file']}:{r['line']} [{r['id']}]:"
+                  f" {reason or ('NOT ALLOWED' if r['result'] == 'survived' else 'counted killed')}"
+                  f"\n    - {r['text']}\n    + {r['after']}")
     return 1 if unexpected else 0
 
 
@@ -251,6 +268,7 @@ def main():
     p.add_argument("--id", action="append", help="only these mutants, as --list names them")
     p.add_argument("--jobs", type=int, default=1)
     p.add_argument("--dune-jobs", type=int, help="dune's -j in each copy")
+    p.add_argument("--timeout", type=int, help="seconds per suite; default 3x the unmutated one")
     p.add_argument("--list", action="store_true", help="print the mutants and stop")
     args = p.parse_args()
     files = args.file or SCOPES[args.scope]["files"]
@@ -267,13 +285,14 @@ def main():
     root = Path(__file__).resolve().parent.parent
     work = root / "_mutation"
     copies = Queue()
+    timeout = args.timeout
 
     def run(m):
         copy = copies.get()
         original = (copy / m["file"]).read_text()
         try:
             (copy / m["file"]).write_text(m["mutated"])
-            result = verdict(copy, m["file"], args.dune_jobs)
+            result = verdict(copy, m["file"], args.dune_jobs, timeout)
         finally:
             (copy / m["file"]).write_text(original)
             copies.put(copy)
@@ -288,9 +307,13 @@ def main():
                 shutil.copytree(root / item, work / "0" / item, ignore=SKIPPED)
             else:
                 shutil.copy(root / item, work / "0" / item)
+        start = time.monotonic()
         code, err = dune(work / "0", "build", "@runtest", jobs=args.dune_jobs)
         if code != 0:
             sys.exit("the unmutated suite fails\n" + err[-4000:])
+        timeout = timeout or 3 * round(time.monotonic() - start)
+        print(f"the unmutated suite passes in {round(time.monotonic() - start)} s;"
+              f" {len(todo)} mutants, {timeout} s each at most", flush=True)
         for n in range(args.jobs):
             if n > 0:
                 shutil.copytree(work / "0", work / str(n), symlinks=True)
