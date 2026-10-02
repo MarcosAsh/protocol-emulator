@@ -43,8 +43,9 @@ class Board:
         self.reset()
 
     def reset(self):
-        """A bus reset: address 0 again and nothing pending."""
+        """A bus reset: address 0 again, unconfigured, and nothing pending."""
         self.address = 0
+        self.configured = False
         self.expect = 0
         self.tag = None
         self.words = []
@@ -104,6 +105,8 @@ class Board:
         else:
             if request == 5:  # SET_ADDRESS takes effect after its status stage
                 self.new_address = value
+            elif request == 9:  # SET_CONFIGURATION; the status packet goes ahead of a report
+                self.configured = value != 0
             self.chunks = [[]]
         self._next_chunk()
 

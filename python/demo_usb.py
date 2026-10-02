@@ -97,7 +97,7 @@ def start_log(host, program, clock_hz=48_000_000):
 
 
 def serve(host, board, queue, bus_reset, log=lambda report: None):
-    """Forever. Typing waits for an address, a reset puts back the report it lost, and
+    """Forever. Typing waits for a configuration, a reset puts back the report it lost, and
     `log` gets each report once the laptop has taken it."""
     while True:
         if bus_reset():
@@ -108,7 +108,7 @@ def serve(host, board, queue, bus_reset, log=lambda report: None):
         usb_board.service(host, board)
         if sent is not None and board.pending_report is None:
             log(sent)
-        if queue and board.address and board.pending_report is None and not board.chunks:
+        if queue and board.configured and board.pending_report is None and not board.chunks:
             board.report(queue.pop(0))
 
 

@@ -236,10 +236,14 @@ async def test_keyboard(dut):
     assert await poll_in(0, 0) == data_packet(0x4B, [])
     await until(lambda: len(starts) == 3)
 
-    # SET_CONFIGURATION with h's report in the fifo. The status packet queues behind it,
-    # the status IN drops the report, and the ACK after that is the status packet's.
-    await until(lambda: board.pending_report is not None and not board.replies)
+    # typing waits for SET_CONFIGURATION
     await setup(3, [0x00, 9, 1, 0, 0, 0, 0, 0])
+    assert await poll_in(3, 0) == data_packet(0x4B, [])
+
+    # SET_IDLE with h's report in the fifo. The status packet queues behind it, the status
+    # IN drops the report, and the ACK after that is the status packet's.
+    await until(lambda: board.pending_report is not None and not board.replies)
+    await setup(3, [0x21, 0x0A, 0, 0, 0, 0, 0, 0])
     await wire.drive(J, 100)
     assert await poll_in(3, 0) == data_packet(0x4B, [])
 
