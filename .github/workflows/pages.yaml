@@ -1,7 +1,7 @@
 name: pages
 
 # The playground from main and the results page, beside the 3D viewer of the last green gds
-# run on main. Runs after gds, whose viewer job deploys the chip alone, and after results.
+# run on main, the only workflow that deploys the site. Runs after gds and results.
 # js_of_ocaml is never locked.
 on:
   push:
