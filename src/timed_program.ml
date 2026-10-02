@@ -157,7 +157,11 @@ let check ?period ?period_floor ?single_capture_edge ~config source =
            | errors -> Error.of_list (List.map errors ~f:snd))
       })
   in
-  let fault pc reason = { Fault.line = List.nth_exn lines pc; pc = Some pc; reason } in
+  (* past its end a program runs on through [jmp 0]s, from its last line *)
+  let fault pc reason =
+    let line = Option.first_some (List.nth lines pc) (List.last lines) in
+    { Fault.line = Option.value line ~default:1; pc = Some pc; reason }
+  in
   let configured = Asm.Program.configure program config in
   let rows =
     Analyser.analyse
@@ -172,9 +176,9 @@ let check ?period ?period_floor ?single_capture_edge ~config source =
     |> Result.map_error ~f:(fun error ->
       { Refusal.faults =
           List.filter_map rows ~f:(fun row ->
-            Option.some_if
-              (row.may_miss || row.may_underrun)
-              (fault row.pc (analyser_reason ~config:configured rows row)))
+            if row.may_miss || row.may_underrun
+            then Some (fault row.pc (analyser_reason ~config:configured rows row))
+            else None)
       ; verdict = None
       ; error
       })

@@ -123,6 +123,22 @@ loop:
     |}]
 ;;
 
+let%expect_test "firmware that runs off its end is refused, not raised" =
+  refusal {|
+    set p, 4
+    mov t, now
+    wait t+
+    out pins, 1 [5]
+|};
+  [%expect
+    {|
+    ((faults
+      (((line 4) (pc (2))
+        (reason "this deadline wait can be reached 1 cycle late (slack -1)"))))
+     (verdict ()))
+    |}]
+;;
+
 let%expect_test "lines count from 1, and each error comes at its own" =
   let lines source =
     print_s
