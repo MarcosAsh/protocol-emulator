@@ -1,5 +1,5 @@
 # The hardened netlist equals the RTL for all time. From all flops 0, for every input
-# sequence on the pins and the three macros' outputs, the 24 outputs and the 276 macro
+# sequence on the pins and the five macros' outputs, the 24 outputs and the 460 macro
 # inputs agree every cycle. The Makefile proves the miter 0 with ABC scorr + dprove, which
 # match flops by function, not name; a retimed flop would not match, and the flow does
 # not retime.

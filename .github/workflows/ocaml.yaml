@@ -174,9 +174,9 @@ jobs:
       # the chip is hardened from the committed file, not from the OCaml
       - name: Check the committed Verilog is current
         run: |
-          opam exec -- dune exec -- bin/generate.exe top -sram -engines 2 > src/protocol_emulator.v
+          opam exec -- dune exec -- bin/generate.exe top -sram -engines 4 > src/protocol_emulator.v
           if ! git diff --stat --exit-code src/protocol_emulator.v; then
-            echo "::error file=src/protocol_emulator.v::stale, regenerate it: dune exec -- bin/generate.exe top -sram -engines 2 > src/protocol_emulator.v"
+            echo "::error file=src/protocol_emulator.v::stale, regenerate it: dune exec -- bin/generate.exe top -sram -engines 4 > src/protocol_emulator.v"
             exit 1
           fi
 

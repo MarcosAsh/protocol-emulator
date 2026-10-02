@@ -19,7 +19,7 @@
 
   "//": "PL_TARGET_DENSITY_PCT - You can increase this if Global Placement fails with error GPL-0302.",
   "//": "Users have reported that values up to 80 worked well for them.",
-  "PL_TARGET_DENSITY_PCT": 50,
+  "PL_TARGET_DENSITY_PCT": 60,
 
   "//": "CLOCK_PERIOD - Increase this in case you are getting setup time violations.",
   "//": "The value is in nanoseconds, so 20ns == 50MHz.",
@@ -55,11 +55,19 @@
           "orientation": "R0"
         },
         "core.top.engines.engine_1.sram_macro.sram": {
+          "location": [492, 37.8],
+          "orientation": "R0"
+        },
+        "core.top.engines.engine_2.sram_macro.sram": {
           "location": [992, 37.8],
           "orientation": "R0"
         },
+        "core.top.engines.engine_3.sram_macro.sram": {
+          "location": [1442, 37.8],
+          "orientation": "R0"
+        },
         "core.top.engines.data_memory.sram_macro.sram": {
-          "location": [42, 264.6],
+          "location": [742, 264.6],
           "orientation": "R0"
         }
       },
@@ -79,6 +87,10 @@
     "core.top.engines.engine_0.sram_macro.sram VPWR VGND VDDARRAY! VSS!",
     "core.top.engines.engine_1.sram_macro.sram VPWR VGND VDD! VSS!",
     "core.top.engines.engine_1.sram_macro.sram VPWR VGND VDDARRAY! VSS!",
+    "core.top.engines.engine_2.sram_macro.sram VPWR VGND VDD! VSS!",
+    "core.top.engines.engine_2.sram_macro.sram VPWR VGND VDDARRAY! VSS!",
+    "core.top.engines.engine_3.sram_macro.sram VPWR VGND VDD! VSS!",
+    "core.top.engines.engine_3.sram_macro.sram VPWR VGND VDDARRAY! VSS!",
     "core.top.engines.data_memory.sram_macro.sram VPWR VGND VDD! VSS!",
     "core.top.engines.data_memory.sram_macro.sram VPWR VGND VDDARRAY! VSS!"
   ],

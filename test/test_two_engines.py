@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# UART transmitter on engine 0, receiver on engine 1, over wire 20.
+# UART transmitter on one engine, receiver on another, over wire 20.
 
 import cocotb
 from cocotb.triggers import ClockCycles
@@ -18,16 +18,15 @@ async def load(host, engine, config, words):
     await host.write(PROGRAM, words)
 
 
-@cocotb.test()
-async def test_uart_between_engines(dut):
+async def uart_between(dut, sender, receiver):
     await reset(dut)
     host = AsyncHost(Pins(dut).transfer)
 
-    receiver = dict(DEFAULT_CONFIG, in_base=WIRE, jmp_pin=WIRE, capture_pin=WIRE)
-    await load(host, 1, receiver, assembled("uart_rx_wire"))
+    receiver_config = dict(DEFAULT_CONFIG, in_base=WIRE, jmp_pin=WIRE, capture_pin=WIRE)
+    await load(host, receiver, receiver_config, assembled("uart_rx_wire"))
     await host.write(CONTROL, [1])
     transmitter = dict(DEFAULT_CONFIG, set_base=WIRE, out_base=WIRE)
-    await load(host, 0, transmitter, assembled("uart_tx"))
+    await load(host, sender, transmitter, assembled("uart_tx"))
     await host.write(TX, [0x55, 0xA3])
     await host.write(CONTROL, [1])
 
@@ -37,10 +36,21 @@ async def test_uart_between_engines(dut):
     # both idle: the sender took its two words, and no fault or irq anywhere
     assert (await host.read(STATUS))[0] == 0
 
-    await host.write(SELECT, [1])
-    assert (await host.read(SELECT))[0] == 1
-    assert (await host.read(STATUS))[0] == 2 << 10, "two words wait in engine 1's rx fifo"
+    await host.write(SELECT, [receiver])
+    assert (await host.read(SELECT))[0] == receiver
+    assert (await host.read(STATUS))[0] == 2 << 10, "two words wait in the receiver's rx fifo"
     assert await host.read(RX, 2) == [0x55, 0xA3]
+
+
+@cocotb.test()
+async def test_uart_between_engines(dut):
+    await uart_between(dut, 0, 1)
+
+
+@cocotb.test()
+async def test_uart_between_the_last_two_engines(dut):
+    """The same between engines 2 and 3, each with its own program memory."""
+    await uart_between(dut, 2, 3)
 
 
 @cocotb.test()

@@ -32,7 +32,10 @@ proc gather {port wires} {
   return $bits
 }
 
-foreach {fifo port} {engine_0.rx rx_0 engine_0.tx tx_0 engine_1.rx rx_1 engine_1.tx tx_1} {
+foreach {fifo port} {
+  engine_0.rx rx_0 engine_0.tx tx_0 engine_1.rx rx_1 engine_1.tx tx_1
+  engine_2.rx rx_2 engine_2.tx tx_2 engine_3.rx rx_3 engine_3.tx tx_3
+} {
   set path core.top.engines.$fifo
   for {set n 0} {$n < 8} {incr n} {
     yosys rename $path.signal_multiport_mem\[$n\] $path.word_$n

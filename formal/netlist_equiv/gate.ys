@@ -1,6 +1,6 @@
 # The implementation side: the hardened netlist, netlist.v in the Makefile's work
 # directory, through the IHP standard cell models in cells.v (see primitives.v), cut at
-# the same three macros as gold.ys. Run from that directory.
+# the same five macros as gold.ys. Run from that directory.
 #
 # Vacuity: the cut must not hide logic. Every standard cell left after the fill, decap
 # and antenna cells go has to lie in the fan-in of a compared bit, a primary output or a
@@ -20,7 +20,7 @@ read_verilog netlist.v
 hierarchy -check -top tt_um_marcosash_protocol_emulator
 delete -port tt_um_marcosash_protocol_emulator/VPWR tt_um_marcosash_protocol_emulator/VGND
 
-select -assert-count 3 t:RM_IHPSG13_1P_512x16_c2_bm_bist
+select -assert-count 5 t:RM_IHPSG13_1P_512x16_c2_bm_bist
 expose -evert t:RM_IHPSG13_1P_512x16_c2_bm_bist
 # the macros' rails would be ports now, which gold.ys has not
 delete w:*.VDD! w:*.VSS! w:*.VDDARRAY!

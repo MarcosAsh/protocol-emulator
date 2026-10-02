@@ -519,10 +519,10 @@ sync_gate_teeth:
 	  (.RESET_B(tooth_hi), .D(\\core.top.signal_reg_2[0] ), .Q(tooth_q), .CLK(clk));' \
 	  $(NETLIST) > sync_teeth/stage.v
 	$(TOOTH) sg13cmos5l_dlhq_1 tooth (.D(\\core.top.host_port.addr[0] ), \
-	  .GATE(\\core.top.host_port.select ), .Q(tooth_q));' $(NETLIST) > sync_teeth/latch.v
+	  .GATE(\\core.top.host_port.select[0] ), .Q(tooth_q));' $(NETLIST) > sync_teeth/latch.v
 	$(TOOTH) sg13cmos5l_inv_1 tooth (.A(tooth_y), .Y(tooth_y));' $(NETLIST) > sync_teeth/loop.v
 	$(TOOTH) sg13cmos5l_tiehi hi (.L_HI(tooth_hi)); sg13cmos5l_dfrbpq_1 tooth \
-	  (.RESET_B(tooth_hi), .D(tooth_hi), .Q(tooth_q), .CLK(\\core.top.host_port.select ));' \
+	  (.RESET_B(tooth_hi), .D(tooth_hi), .Q(tooth_q), .CLK(\\core.top.host_port.select[0] ));' \
 	  $(NETLIST) > sync_teeth/clock.v
 	$(MAKE) sync_gate NETLIST=sync_teeth/sample.v SYNC=sync_sample FAILS='ui_in_3_ reaches one flop'
 	$(MAKE) sync_gate NETLIST=sync_teeth/stage.v SYNC=sync_stage FAILS='uio_in_0_ first stage reaches one flop'

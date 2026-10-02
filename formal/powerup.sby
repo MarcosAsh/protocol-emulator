@@ -42,14 +42,30 @@ rename core.top.engines.engine_1.sram_macro.sram.A_DIN m1_din
 rename core.top.engines.engine_1.sram_macro.sram.A_BM m1_bm
 rename core.top.engines.engine_1.sram_macro.sram.A_BIST_EN m1_bist_en
 rename core.top.engines.engine_1.sram_macro.sram.A_DOUT m1_dout
-rename core.top.engines.data_memory.sram_macro.sram.A_MEN m2_men
-rename core.top.engines.data_memory.sram_macro.sram.A_WEN m2_wen
-rename core.top.engines.data_memory.sram_macro.sram.A_REN m2_ren
-rename core.top.engines.data_memory.sram_macro.sram.A_ADDR m2_addr
-rename core.top.engines.data_memory.sram_macro.sram.A_DIN m2_din
-rename core.top.engines.data_memory.sram_macro.sram.A_BM m2_bm
-rename core.top.engines.data_memory.sram_macro.sram.A_BIST_EN m2_bist_en
-rename core.top.engines.data_memory.sram_macro.sram.A_DOUT m2_dout
+rename core.top.engines.engine_2.sram_macro.sram.A_MEN m2_men
+rename core.top.engines.engine_2.sram_macro.sram.A_WEN m2_wen
+rename core.top.engines.engine_2.sram_macro.sram.A_REN m2_ren
+rename core.top.engines.engine_2.sram_macro.sram.A_ADDR m2_addr
+rename core.top.engines.engine_2.sram_macro.sram.A_DIN m2_din
+rename core.top.engines.engine_2.sram_macro.sram.A_BM m2_bm
+rename core.top.engines.engine_2.sram_macro.sram.A_BIST_EN m2_bist_en
+rename core.top.engines.engine_2.sram_macro.sram.A_DOUT m2_dout
+rename core.top.engines.engine_3.sram_macro.sram.A_MEN m3_men
+rename core.top.engines.engine_3.sram_macro.sram.A_WEN m3_wen
+rename core.top.engines.engine_3.sram_macro.sram.A_REN m3_ren
+rename core.top.engines.engine_3.sram_macro.sram.A_ADDR m3_addr
+rename core.top.engines.engine_3.sram_macro.sram.A_DIN m3_din
+rename core.top.engines.engine_3.sram_macro.sram.A_BM m3_bm
+rename core.top.engines.engine_3.sram_macro.sram.A_BIST_EN m3_bist_en
+rename core.top.engines.engine_3.sram_macro.sram.A_DOUT m3_dout
+rename core.top.engines.data_memory.sram_macro.sram.A_MEN m4_men
+rename core.top.engines.data_memory.sram_macro.sram.A_WEN m4_wen
+rename core.top.engines.data_memory.sram_macro.sram.A_REN m4_ren
+rename core.top.engines.data_memory.sram_macro.sram.A_ADDR m4_addr
+rename core.top.engines.data_memory.sram_macro.sram.A_DIN m4_din
+rename core.top.engines.data_memory.sram_macro.sram.A_BM m4_bm
+rename core.top.engines.data_memory.sram_macro.sram.A_BIST_EN m4_bist_en
+rename core.top.engines.data_memory.sram_macro.sram.A_DOUT m4_dout
 cd ..
 # no flop or fifo word starts at a known value, the RTL's declared ones included
 setattr -unset init tt_um_marcosash_protocol_emulator/w:*

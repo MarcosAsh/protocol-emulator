@@ -1,5 +1,5 @@
 # The reference side: src/project.v around src/protocol_emulator.v, as the flow reads it,
-# with the three macros cut. Synthesis recodes the host port's state machine to one-hot,
+# with the five macros cut. Synthesis recodes the host port's state machine to one-hot,
 # which no signal correspondence can match, so gold.il carries the recoded host port and
 # fsm_step.aig proves it equal to the host port as written, for every value of the x's the
 # recoding leaves. The other x's, on the address and data of disabled memory writes,
@@ -50,10 +50,10 @@ opt_clean
 delete t:$scopeinfo
 
 # the macros' inputs become outputs to compare and their outputs inputs both sides share
-select -assert-count 3 t:RM_IHPSG13_1P_512x16_c2_bm_bist
+select -assert-count 5 t:RM_IHPSG13_1P_512x16_c2_bm_bist
 expose -evert t:RM_IHPSG13_1P_512x16_c2_bm_bist
-select -assert-count 51 o:*
-select -assert-count 8 i:*
+select -assert-count 83 o:*
+select -assert-count 10 i:*
 
 # one clock: every flop takes the rising edge of clk
 select -assert-none t:$*latch* t:$sr %u
