@@ -63,12 +63,27 @@ module Sigrok = struct
           }
   end
 
+  module Refusal = struct
+    type t =
+      { why : string
+      ; first_difference : int
+      ; reads : string
+      }
+
+    let header name t =
+      [ sprintf "%s why %s" name t.why
+      ; sprintf "%s at %d" name t.first_difference
+      ; sprintf "%s reads %s" name t.reads
+      ]
+    ;;
+  end
+
   type t =
     { clock_hz : int
     ; decoders : string list
     ; expect : (string * string list) list
-    ; joins_after : (int * string) option
-    ; rejected : string option
+    ; joins_after : (int * Refusal.t) option
+    ; rejected : Refusal.t option
     ; teeth : Corruption.t list list
     }
 
@@ -92,9 +107,9 @@ module Sigrok = struct
     ; List.map t.decoders ~f:(sprintf "decoder %s")
     ; List.concat_map t.expect ~f:(fun (annotations, lines) ->
         sprintf "annotations %s" annotations :: List.map lines ~f:(sprintf "expect %s"))
-    ; Option.to_list t.joins_after
-      |> List.map ~f:(fun (cycles, why) -> sprintf "joins_after %d %s" cycles why)
-    ; Option.to_list t.rejected |> List.map ~f:(sprintf "rejected %s")
+    ; Option.value_map t.joins_after ~default:[] ~f:(fun (cycles, misread) ->
+        sprintf "joins_after %d" cycles :: Refusal.header "misread" misread)
+    ; Option.value_map t.rejected ~default:[] ~f:(Refusal.header "rejected")
     ; List.map t.teeth ~f:(fun tooth ->
         List.map tooth ~f:(function
           | Corruption.Shift { pin; edge; cycles } ->

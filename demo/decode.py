@@ -43,10 +43,23 @@ BENCH = {"SCK": "D0", "MOSI": "D1", "MISO": "D2", "CS_N": "D3", "OUT0": "D4", "O
 PIN = re.compile(r"=((?:IN|OUT|IO)\d|SCK|MOSI|MISO|CS_N)\b")
 
 
+class Refusal:
+    """How the decoders misread a waveform: the first payload line that differs is line
+    at, where sigrok prints a line starting with reads."""
+
+    def __init__(self, why, at, reads):
+        self.why, self.at, self.reads = why, int(at), reads
+
+    def matches(self, mismatches):
+        return bool(mismatches) and mismatches[0][1] == self.at and (
+            mismatches[0][2] or "").startswith(self.reads)
+
+
 class Trace:
     def __init__(self, path):
         self.name = os.path.basename(path).removesuffix(".trace")
         self.clock = self.joins_after = self.misread = self.rejected = None
+        refusals = {}
         self.decoders, self.expect, self.teeth, self.lines = [], [], [], []
         for line in open(path):
             if line.startswith("# sigrok "):
@@ -60,15 +73,17 @@ class Trace:
                 elif key == "expect":
                     self.expect[-1][1].append(value)
                 elif key == "joins_after":
-                    cycles, _, self.misread = value.partition(" ")
-                    self.joins_after = int(cycles)
-                elif key == "rejected":
-                    self.rejected = value
+                    self.joins_after = int(value)
+                elif key in ("misread", "rejected"):
+                    field, _, text = value.partition(" ")
+                    refusals.setdefault(key, {})[field] = text
                 elif key == "tooth":
                     self.teeth.append(value.split())
             elif not line.startswith("#") and line.strip():
                 count, *pins = line.split()
                 self.lines.append((int(count), [int(p, 16) for p in pins]))
+        self.misread, self.rejected = (
+            Refusal(**refusals[k]) if k in refusals else None for k in ("misread", "rejected"))
 
     def pins(self):
         names = []
@@ -173,17 +188,23 @@ def faults(decoders):
 
 
 def judge(capture, decoders, expect):
-    """Every fault sigrok reports, then every way it reads the payload otherwise."""
-    wrong = sigrok_cli(capture, decoders, faults(decoders)) if faults(decoders) else []
+    """Every fault sigrok reports, and for each payload it reads otherwise, the classes,
+    the first line that differs, what sigrok prints there and what was expected."""
+    reported = sigrok_cli(capture, decoders, faults(decoders)) if faults(decoders) else []
+    mismatches = []
     for annotations, lines in expect:
         got = sigrok_cli(capture, decoders, annotations)
         if got != lines:
             at = next((i for i, (g, w) in enumerate(zip(got, lines)) if g != w),
                       min(len(got), len(lines)))
-            wrong.append("%s: line %d is %r, expected %r (%d lines, %d expected)" % (
-                annotations, at, got[at] if at < len(got) else None,
-                lines[at] if at < len(lines) else None, len(got), len(lines)))
-    return wrong
+            mismatches.append((annotations, at, got[at] if at < len(got) else None,
+                               lines[at] if at < len(lines) else None, len(got), len(lines)))
+    return reported, mismatches
+
+
+def describe(reported, mismatches):
+    return reported + ["%s: line %d is %r, expected %r (%d lines, %d expected)" % m
+                       for m in mismatches]
 
 
 def captures(trace, args, scratch, tooth=()):
@@ -216,7 +237,7 @@ def captures(trace, args, scratch, tooth=()):
     start = joined(samples, first, round(trace.joins_after * rate / trace.clock))
     later = os.path.join(scratch, trace.name + "_joined.sr")
     sigrok.write(later, rate, samples[start:], names=names)
-    return [("from reset, ", path, decoders, trace.misread),
+    return [("from reset, ", path, decoders, "info" if args.capture else trace.misread),
             ("joined, ", later, decoders, trace.rejected)]
 
 
@@ -232,22 +253,29 @@ def check(path, args):
     results = []
     with tempfile.TemporaryDirectory() as scratch:
         for what, capture, decoders, rejected in captures(trace, args, scratch):
-            wrong = judge(capture, decoders, trace.expect)
-            if rejected:
-                results.append(("XFAIL", what + "%s (%s)" % (rejected, wrong[0])) if wrong else (
-                    "XPASS", what + "sigrok now reads it, though recorded as: " + rejected))
+            reported, mismatches = judge(capture, decoders, trace.expect)
+            wrong = describe(reported, mismatches)
+            if rejected == "info":
+                # on the bench an earlier run may have left the line idle
+                results.append(("INFO", what + (wrong[0] if wrong else "read as expected")))
+            elif rejected and rejected.matches(mismatches):
+                results.append(("XFAIL", what + "%s (%s)" % (
+                    rejected.why, describe([], mismatches)[0])))
+            elif rejected:
+                results.append(("FAIL", what + "refused otherwise than as recorded, %s: %s"
+                                % (rejected.why, "\n  ".join(wrong) or "read as expected")))
             else:
                 results.append(("FAIL", what + "\n  ".join(wrong)) if wrong else (
                     "PASS", what + "%d lines, %s" % (lines, " ".join(decoders))))
         for tooth in [] if args.capture else trace.teeth:
             what, capture, decoders, _ = captures(trace, args, scratch, tooth)[-1]
-            wrong = judge(capture, decoders, trace.expect)
+            wrong = describe(*judge(capture, decoders, trace.expect))
             tooth = " ".join(tooth)
             results.append(("TOOTH", "%s refused: %s" % (tooth, wrong[0])) if wrong else (
                 "MISSED", "sigrok read it as expected after " + tooth))
     for verdict, text in results:
         print("%s %s: %s" % (verdict, trace.name, text))
-    return all(verdict in ("PASS", "XFAIL", "TOOTH") for verdict, _ in results)
+    return all(verdict in ("PASS", "XFAIL", "TOOTH", "INFO") for verdict, _ in results)
 
 
 def write_capture(trace, args):

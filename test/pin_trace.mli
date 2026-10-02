@@ -67,18 +67,28 @@ module Sigrok : sig
           } (** The pin inverted for [cycles] from [after] cycles past the edge. *)
   end
 
+  (** Why the decoders misread a waveform, and how: the first payload line that differs is
+      [first_difference], where sigrok prints a line starting with [reads]. *)
+  module Refusal : sig
+    type t =
+      { why : string
+      ; first_difference : int
+      ; reads : string
+      }
+  end
+
   type t =
     { clock_hz : int
     ; decoders : string list (** One [-P] of sigrok-cli each. *)
     ; expect : (string * string list) list
     (** Per [-A] of sigrok-cli, classes that carry the payload, every line it prints. *)
-    ; joins_after : (int * string) option
+    ; joins_after : (int * Refusal.t) option
     (** Cycles the first pin idles high before the decoders join, as a CAN node waits for
-        eleven recessive bits, and why they misread the line before: the check from reset
-        then has to fail. *)
-    ; rejected : string option
-    (** Why the decoders refuse the waveform, when they are known to: the check then has
-        to fail. *)
+        eleven recessive bits, and how they misread the line before: the check from reset
+        then has to fail just so. *)
+    ; rejected : Refusal.t option
+    (** How the decoders refuse the waveform, when they are known to: the check then has
+        to fail just so. *)
     ; teeth : Corruption.t list list (** Each must make the check fail. *)
     }
 

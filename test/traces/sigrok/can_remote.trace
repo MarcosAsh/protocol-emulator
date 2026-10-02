@@ -22,8 +22,13 @@
 # sigrok expect can-1: CRC-15 sequence: 0x0b6e
 # sigrok expect can-1: ACK slot: NACK
 # sigrok expect can-1: End of frame
-# sigrok joins_after 1056 the pin is dominant from reset until a bit after the period arrives, which sigrok reads as frames of zeros
-# sigrok rejected sigrok 0.5.3 reads a remote frame's DLC of data bytes, though a remote frame carries none
+# sigrok joins_after 1056
+# sigrok misread why the pin is dominant from reset until a bit after the period arrives, which sigrok reads as frames of zeros
+# sigrok misread at 1
+# sigrok misread reads can-1: Identifier: 0 (0x0)
+# sigrok rejected why sigrok 0.5.3 reads a remote frame's DLC of data bytes, though a remote frame carries none
+# sigrok rejected at 5
+# sigrok rejected reads can-1: Data byte 0:
 4 04 00 00 00 00
 4 00 00 00 00 00
 4 02 00 00 00 00

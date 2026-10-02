@@ -53,8 +53,12 @@ let can_scenario ?(teeth = []) ~name ~frames ~rejected () =
         ; joins_after =
             Some
               ( 11 * Can.period
-              , "the pin is dominant from reset until a bit after the period arrives, \
-                 which sigrok reads as frames of zeros" )
+              , { why =
+                    "the pin is dominant from reset until a bit after the period \
+                     arrives, which sigrok reads as frames of zeros"
+                ; first_difference = 1
+                ; reads = "can-1: Identifier: 0 (0x0)"
+                } )
         ; rejected
         ; teeth
         }
@@ -86,8 +90,12 @@ let can_remote =
     ~frames:[ Can.Frame.remote ~id:0x0f0 ~dlc:4; Can.Frame.data ~id:0x123 [ 0xde; 0xad ] ]
     ~rejected:
       (Some
-         "sigrok 0.5.3 reads a remote frame's DLC of data bytes, though a remote frame \
-          carries none")
+         { why =
+             "sigrok 0.5.3 reads a remote frame's DLC of data bytes, though a remote \
+              frame carries none"
+         ; first_difference = 5 (* the line after the remote frame's DLC *)
+         ; reads = "can-1: Data byte 0:"
+         })
     ()
 ;;
 
