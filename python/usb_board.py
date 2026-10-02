@@ -21,13 +21,13 @@ TAG_ACK = 3  # the host acknowledged what we sent
 TAG_DROPPED = 4  # a reply was queued for the other endpoint and is gone
 
 
-def _reverse(byte):
-    return sum(((byte >> i) & 1) << (7 - i) for i in range(8))
+# each byte bit reversed, a table as the per-bit sum took 2 ms a SETUP on the Pico
+_REVERSED = bytes(sum(((byte >> i) & 1) << (7 - i) for i in range(8)) for byte in range(256))
 
 
 def word_bytes(word):
     """The first bit the core received is the top bit of a word."""
-    return [_reverse(word >> 8), _reverse(word & 0xFF)]
+    return [_REVERSED[word >> 8], _REVERSED[word & 0xFF]]
 
 
 def reply(endpoint, pid, payload):
