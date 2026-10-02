@@ -101,7 +101,7 @@ def serve(host, board, queue, bus_reset, log=lambda report: None, say=lambda lin
     fifo while the laptop enumerates: an IN on endpoint 0 would drop it, a word more for the
     rx fifo on a SETUP's heels. A reset puts back the report it lost, `log` gets each report
     once the laptop has taken it, and `say` each step of the enumeration and each key."""
-    serving, address, configured = False, 0, False
+    serving, halted, address, configured = False, False, 0, False
     while True:
         if bus_reset():
             if board.pending_report is not None:
@@ -110,7 +110,11 @@ def serve(host, board, queue, bus_reset, log=lambda report: None, say=lambda lin
             address, configured = 0, False
             say("bus reset")
         sent = board.pending_report
-        usb_board.service(host, board)
+        status = usb_board.service(host, board)
+        # a power glitch reloads the bitstream from flash, which leaves engine 0 halted
+        if serving and status & 1 and not halted:
+            say("engine 0 halted: the chip was reset, a full load follows the next bus reset")
+        halted = bool(status & 1)
         if not serving:
             serving = True
             # the board pulled D- up at its bitstream, when nothing answered the laptop
