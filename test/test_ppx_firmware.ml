@@ -98,15 +98,15 @@ let%expect_test "a bit loop one cycle too long fails the build at its deadline w
     line 15, characters 4-11:
      15 |     wait t+
               ^^^^^^^
-    uart_tx16 is refused by the analyser: this deadline wait can be reached late, by more on each pass of a loop or after an untimed wait
+    uart_tx16 is refused by the analyser: this deadline wait can be reached late, as a pass of its loop takes 17 cycles and moves the deadline by 16, so the wait falls 1 cycle further behind each pass
     line 18, characters 4-11:
      18 |     wait t+
               ^^^^^^^
-    and here
+    and here: this deadline wait can be reached 1 cycle or more late
     line 20, characters 4-10:
      20 |     wait t
               ^^^^^^
-    and here
+    and here: this deadline wait can be reached late, by more on each pass of a loop or after an untimed wait
     |}]
 ;;
 
@@ -121,15 +121,15 @@ let%expect_test "a file with CRLF line ends is refused at the same line" =
     line 15, characters 4-11:
      15 |     wait t+
               ^^^^^^^
-    uart_tx16 is refused by the analyser: this deadline wait can be reached late, by more on each pass of a loop or after an untimed wait
+    uart_tx16 is refused by the analyser: this deadline wait can be reached late, as a pass of its loop takes 17 cycles and moves the deadline by 16, so the wait falls 1 cycle further behind each pass
     line 18, characters 4-11:
      18 |     wait t+
               ^^^^^^^
-    and here
+    and here: this deadline wait can be reached 1 cycle or more late
     line 20, characters 4-10:
      20 |     wait t
               ^^^^^^
-    and here
+    and here: this deadline wait can be reached late, by more on each pass of a loop or after an untimed wait
     |}]
 ;;
 
@@ -144,15 +144,15 @@ let%expect_test "a file with mixed line ends is refused at the same line" =
     line 15, characters 4-11:
      15 |     wait t+
               ^^^^^^^
-    uart_tx16 is refused by the analyser: this deadline wait can be reached late, by more on each pass of a loop or after an untimed wait
+    uart_tx16 is refused by the analyser: this deadline wait can be reached late, as a pass of its loop takes 17 cycles and moves the deadline by 16, so the wait falls 1 cycle further behind each pass
     line 18, characters 4-11:
      18 |     wait t+
               ^^^^^^^
-    and here
+    and here: this deadline wait can be reached 1 cycle or more late
     line 20, characters 4-10:
      20 |     wait t
               ^^^^^^
-    and here
+    and here: this deadline wait can be reached late, by more on each pass of a loop or after an untimed wait
     |}]
 ;;
 

@@ -37,13 +37,89 @@ loop:
     ((faults
       (((line 6) (pc (3))
         (reason
-         "this deadline wait can be reached late, by more on each pass of a loop or after an untimed wait"))))
+         "this deadline wait can be reached late, as a pass of its loop takes 10 cycles and moves the deadline by 4, so the wait falls 6 cycles further behind each pass"))))
      (verdict ()))
     ((faults
       (((line 17) (pc (11))
         (reason
          "the analyser passed this row, and the kernel refuses it: in time, next phase"))))
      (verdict (((words 32) (deadline_waits 4) (worst_slack (0))))))
+    |}]
+;;
+
+let%expect_test "a late wait counts its loop's cycles only where nothing else in it waits"
+  =
+  (* a pass is the out, the wait and the jmp: 14 + 1 + 2 cycles against 16 *)
+  refusal
+    {|
+    set p, 16
+    set x, 7
+    mov t, now
+bit:
+    out pins, 1 [13]
+    wait t+
+    jmp x--, bit
+    halt
+|};
+  (* with a second wait in the loop no pass is counted, though here every one is 25 cycles *)
+  refusal
+    {|
+    set p, 8
+    mov t, now
+loop:
+    wait t+
+    out pins, 1 [20]
+    wait t+
+    jmp loop
+|};
+  [%expect
+    {|
+    ((faults
+      (((line 7) (pc (4))
+        (reason
+         "this deadline wait can be reached late, as a pass of its loop takes 17 cycles and moves the deadline by 16, so the wait falls 1 cycle further behind each pass"))))
+     (verdict ()))
+    ((faults
+      (((line 5) (pc (2))
+        (reason "this deadline wait can be reached 1 cycle or more late"))
+       ((line 7) (pc (4))
+        (reason "this deadline wait can be reached 15 cycles or more late"))))
+     (verdict ()))
+    |}]
+;;
+
+let%expect_test "a loop that x leaves at zero is not blamed for a late wait" =
+  let program ~x =
+    [%string
+      {|
+    set p, 5
+idle:
+    wait tx
+    pull
+    set x, %{x#Int}
+loop:
+    wait t+
+    out pins, 1 [9]
+    jmp x--, loop
+    jmp idle
+|}]
+  in
+  (* at 0 [jmp x--] never jumps back, and the wait is late after the untimed [wait tx]; at
+     3 the loop falls behind as well *)
+  refusal (program ~x:0);
+  refusal (program ~x:3);
+  [%expect
+    {|
+    ((faults
+      (((line 8) (pc (4))
+        (reason
+         "this deadline wait can be reached late, by more on each pass of a loop or after an untimed wait"))))
+     (verdict ()))
+    ((faults
+      (((line 8) (pc (4))
+        (reason
+         "this deadline wait can be reached late, as a pass of its loop takes 13 cycles and moves the deadline by 5, so the wait falls 8 cycles further behind each pass"))))
+     (verdict ()))
     |}]
 ;;
 
