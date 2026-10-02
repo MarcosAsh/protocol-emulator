@@ -645,4 +645,104 @@ let ws2812 =
   }
 ;;
 
-let all = [ can; can_remote; cec; one_wire; ps2; jtag; usb; ws2812 ]
+(* An RP2040's two DPs woken from dormant and core 0 selected, then SWCLK held for 200 us
+   before its DPIDR read, ABORT, CTRL/STAT powered up and read back, and its AP's IDR read
+   through RDBUFF, which the AP is still busy for once, at 1 MHz. Each step waits for the
+   core, which holds SWCLK high between host words. *)
+let swd =
+  let half = Swd.standard_half in
+  let pause = 10_000 in
+  let send words ~bits ~replies =
+    [ Step.Write (Reg.tx, words); Run ((bits * 2 * half) + 200) ]
+    @ if replies = 0 then [] else [ Step.Read (Reg.rx, replies) ]
+  in
+  let bits words =
+    List.chunks_of words ~length:Machine.fifo_depth
+    |> List.concat_map ~f:(fun chunk ->
+      send chunk ~bits:(16 * List.length chunk) ~replies:0)
+  in
+  (* request, turnaround, ACK, turnaround, data, parity and eight idle cycles *)
+  let transfer transfer =
+    send
+      (Swd.Transfer.words transfer)
+      ~bits:(8 + 5 + 33 + 8)
+      ~replies:(Swd.Transfer.replies transfer)
+  in
+  let read ?(ap = false) address = Swd.Transfer.Read { ap; address } in
+  let write address value = Swd.Transfer.Write { ap = false; address; value } in
+  (* each transfer as sigrok names it, its ACK and the data the DP has for it *)
+  let transfers =
+    [ read 0x0, "IDCODE", Some Swd.rp2040_dpidr
+    ; write 0x0 0x1c, "W ABORT", Some 0x1c
+    ; write 0x4 0x5000_0000, "W CTRL/STAT", Some 0x5000_0000
+    ; read 0x4, "R CTRL/STAT", Some 0xf000_0000
+    ; write 0x8 0xf0, "W SELECT", Some 0xf0
+    ; read ~ap:true 0xc, "R APc", Some 0
+    ; read 0xc, "RDBUFF", None
+    ; read 0xc, "RDBUFF", Some 0x0477_0031
+    ; write 0x8 0, "W SELECT", Some 0
+    ]
+  in
+  let peer () =
+    let bus =
+      ref
+        (Swd.Bus.create
+           (List.map [ Swd.rp2040_core0; Swd.rp2040_core1 ] ~f:(fun targetid ->
+              Swd.Dp.create
+                ~ap_latency:60
+                ~cycle_ns:Swd.cycle_ns
+                ~dpidr:Swd.rp2040_dpidr
+                ~targetid
+                ())))
+    in
+    { Peer.inputs = (fun () -> Swd.Bus.inputs !bus)
+    ; step = (fun ~pin_out ~pin_dir -> bus := Swd.Bus.step !bus ~pin_out ~pin_dir)
+    }
+  in
+  { Scenario.name = "swd"
+  ; peer
+  ; script =
+      Scenario.load
+        ~config:(Timed_program.config Swd.firmware)
+        ~program:(Timed_program.words Swd.firmware)
+      @ [ Scenario.start; Write (Reg.tx, [ half ]) ]
+      @ bits Swd.dormant_to_swd
+      @ bits Swd.line_reset
+      @ transfer (Targetsel Swd.rp2040_core0)
+      @ [ Step.Run pause ]
+      @ List.concat_map transfers ~f:(fun (t, _, _) -> transfer t)
+  ; sigrok =
+      Some
+        { clock_hz = 1_000_000_000 / Swd.cycle_ns
+        ; decoders =
+            [ Sigrok.decoder
+                "swd"
+                ~pins:[ "swclk", Swd.swclk_pin; "swdio", Swd.swdio_pin ]
+            ]
+        ; expect =
+            [ ( "swd=read:write:ack:data"
+              , List.concat_map transfers ~f:(fun (_, name, data) ->
+                  match data with
+                  | Some data -> [ name; "OK"; sprintf "0x%08x" data ]
+                  | None -> [ name; "WAIT" ])
+                |> lines "swd" )
+            ]
+        ; joins_after =
+            Some
+              ( pause * 4 / 5
+              , { why =
+                    "sigrok 0.5.3's swd decoder knows SWD protocol version 1 only: it \
+                     reads requests into the selection alert's bits, and into \
+                     TARGETSEL's data"
+                ; first_difference = 0
+                ; reads = "swd-1: R APc"
+                } )
+        ; rejected = None
+        ; (* edge 99 starts RDATA[0] of the DPIDR read: inverted for its bit *)
+          teeth =
+            [ [ Flip { pin = Swd.swdio_pin; edge = 99; after = 0; cycles = 2 * half } ] ]
+        }
+  }
+;;
+
+let all = [ can; can_remote; cec; one_wire; ps2; jtag; usb; ws2812; swd ]

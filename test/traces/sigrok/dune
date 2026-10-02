@@ -77,3 +77,13 @@
  (alias runtest)
  (action
   (diff ws2812.trace ws2812.trace.gen)))
+
+(rule
+ (with-stdout-to
+  swd.trace.gen
+  (run ../write_trace.exe swd)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff swd.trace swd.trace.gen)))

@@ -35,6 +35,7 @@ ERRORS = {
     "usb_packet": ["sync-err", "crc5-err", "crc16-err", "packet-err", "packet-invalid"],
     "usb_request": ["errors"],
     "rgb_led_ws281x": [],
+    "swd": ["parity"],
 }
 
 # The bench's analyser, as the Demo Bench Wiring has CH1 to CH6: the host's SCK, MOSI,
