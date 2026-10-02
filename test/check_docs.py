@@ -237,10 +237,16 @@ def units(text):
 
 
 def glance(text):
-    """The first table in the README, as {label: the rest of its row}."""
+    """The first table in the README, as {label: (what it says, its source)}."""
     table = next((u for u in re.split(r"\n\s*\n", text) if u.startswith("|")), "")
     rows = [[c.strip() for c in row.strip("|").split("|")] for row in table.splitlines()[2:]]
-    return {cells[0]: " | ".join(cells[1:]) for cells in rows}
+    return {cells[0]: (cells[1], " ".join(cells[2:])) for cells in rows}
+
+
+def row_numbers(text):
+    """Every number in [text], sorted: 23,883 and +4.009 count, the 5 of ECP5 does not."""
+    found = re.findall(r"(?<![\w.,+-])([+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)(?!\w)", text)
+    return sorted(round(float(n.replace(",", "")), 6) for n in found)
 
 
 def numbers(pattern, text):
@@ -318,8 +324,8 @@ def check_gds(doc, text):
                  f"{cite if newer != run_id else 'run gds again and cite that'}")
         elif metrics is None:
             yield f"gds run {run_id} {why}"
-        if metrics is None:
-            continue
+        if metrics is None or unit.startswith("|"):
+            continue  # check_glance holds a table row's numbers
         quoted = {
             "setup_slow_ns": re.findall(r"([+-]\d+\.\d+) ns at the slow corner", unit),
             "utilisation": [round(float(u) / 100, 6)
@@ -410,45 +416,43 @@ def check_transcripts(doc, text):
 
 
 def check_glance(doc, text):
-    """The table at the top of the README, against where each number comes from."""
+    """The table at the top of the README: each row's numbers, in any order and wording,
+    are exactly the ones its sources give."""
     if doc != "README.md":
         return
     table = glance(text)
     count, words, bits = sram()
     pins = pinout()
-    rows = {
-        "Process": [("tiles", r"(\d+ x \d+) tiles", tiles()),
-                    ("process", r"IHP (\w+)", pdk())],
-        "Clock": [("clock", r"(\d+) MHz", str(clock_mhz()))],
-        "Cores": [("cores", r"(\d+) cores", str(instances().get("engine"))),
-                  ("SRAM macros", r"(\d+) IHP", str(count)),
-                  ("SRAM shape", r"IHP (\d+ x \d+)", f"{words} x {bits}")],
-        "Pins": [("host pins", r"(\d+) for the host", str(pins["host"])),
-                 ("inputs", r"(\d+) in,", str(pins["in"])),
-                 ("outputs", r"(\d+) out,", str(pins["out"])),
-                 ("bidirectional pins", r"(\d+) bidirectional", str(pins["bidirectional"])),
-                 ("wires", r"(\d+) wires", str(isa("num_wires")))],
-        # check_gds holds these to the run's metrics
-        "Hardened": [("gds run", r"gds run \[?(\d{10,12})", True),
-                     ("cells", r"([\d,]+) standard cells", True),
-                     ("utilisation", r"([\d.]+)% utilisation", True),
-                     ("slack", r"([+-][\d.]+) ns at the slow corner", True)],
-        "Firmware": [("library firmwares", r"(\d+) library", str(len(library_firmwares())))],
+    hardened = None  # unchecked offline, or once the run's metrics expire
+    if run_id := re.search(r"gds run \[?(\d{10,12})", table.get("Hardened", ("", ""))[1]):
+        metrics = gds_metrics(run_id[1])[0] if ONLINE and run(run_id[1]) else None
+        if metrics:
+            hardened = [metrics["std_cells"], float(metrics["utilisation"]) * 100,
+                        metrics["setup_slow_ns"]]
+    elif "Hardened" in table:
+        yield "the table's Hardened row cites no gds run"
+    expected = {
+        "Process": [tiles()],
+        "Clock": [clock_mhz()],
+        "Cores": [instances().get("engine"), count, words, bits],
+        "Pins": [pins["host"], pins["in"], pins["out"], pins["bidirectional"], isa("num_wires")],
+        "Hardened": hardened,
+        "Firmware": [len(library_firmwares())],
         "Proved": [],
-        "Board": [],  # the bench, which no file in the repo records
+        "Board": None,  # the bench, which no file in the repo records
     }
-    for label in table.keys() - rows.keys():
+    for label in table.keys() - expected.keys():
         yield f"the table's {label} row has no check, add one to test/check_docs.py"
-    for label, checks in rows.items():
+    for label, numbers in expected.items():
         if label not in table:
             yield f"the table has no {label} row"
-            continue
-        for what, pattern, expected in checks:
-            m = re.search(pattern, table[label])
-            if not m:
-                yield f"the table's {label} row does not give its {what}"
-            elif expected is not True and m[1] != expected:
-                yield f"the table's {label} row says {m[1]} for its {what}, not {expected}"
+        elif numbers is not None:
+            said, sources = row_numbers(table[label][0]), row_numbers(" ".join(map(str, numbers)))
+            if said != sources:
+                said, sources = (", ".join(f"{n:g}" for n in ns) for ns in (said, sources))
+                yield f"the table's {label} row gives {said or 'no number'}, its sources {sources}"
+    if "Process" in table and pdk() not in table["Process"][0].upper():
+        yield f"the table's Process row does not name {pdk()}, which gds.yaml hardens on"
 
 
 CHECKS = [check_paths, check_make, check_jobs, check_commits, check_counts, check_transcripts,
