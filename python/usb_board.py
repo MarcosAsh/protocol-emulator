@@ -10,6 +10,7 @@ the tx fifo whole and in order. `service` is one round of that I/O over a `proto
 """
 
 import usb_device_firmware as firmware
+from protocol_emulator import PROGRAM, PROGRAM_ADDR
 
 DATA0 = 0xC3
 DATA1 = 0x4B
@@ -40,6 +41,8 @@ def reply(endpoint, pid, payload):
 class Board:
     def __init__(self, descriptors):
         self.descriptors = descriptors  # by descriptor type
+        # the address whose program the core holds, None until `service` first loads it
+        self.loaded = None
         self.reset()
 
     def reset(self):
@@ -134,13 +137,28 @@ class Board:
             self._queue(1, self.report_toggle, self.pending_report)
 
 
-def load(host, address):
-    """Halt the core and start it again with the firmware for this address."""
+def load(host, address, loaded=None):
+    """Halt the core and start it again with the firmware for this address. When it holds
+    the program for `loaded`, only the words that differ are written: a full load takes
+    the core off the bus for 20 ms, past the 2 ms SET_ADDRESS allows."""
+    # worked out before the stop, as the core is off the bus from there to the start
+    first, words = 0, None
+    if loaded is None:
+        words = firmware.words(address)
+    elif loaded != address:
+        first = firmware.PATCH_AT[0]
+        words = firmware.WORDS[first:firmware.PATCH_AT[-1] + 1]
+        for at, word in zip(firmware.PATCH_AT, firmware.PATCHES[address]):
+            words[at - first] = word
     host.stop()
     # a reply still queued would be pulled by the new program as its bit period
     host.flush()
-    host.configure(firmware.CONFIG)
-    host.load(firmware.words(address))
+    if loaded is None:
+        host.configure(firmware.CONFIG)
+        host.load(words)
+    elif words is not None:
+        host.write(PROGRAM_ADDR, [first])
+        host.write(PROGRAM, words)
     # the first instruction pulls the bit period, so it must be queued before start
     host.push([firmware.BIT_PERIOD])
     host.start()
@@ -154,7 +172,9 @@ def service(host, board, fifo_depth=8):
             board.feed(word)
     if board.reload is not None:
         address, board.reload = board.reload, None
-        load(host, address)
+        # a halted core may have lost its configuration to a reset or a new bitstream
+        load(host, address, None if status["halted"] else board.loaded)
+        board.loaded = address
         board.flushed()
     elif board.replies and status["tx_level"] + len(board.replies[0]) <= fifo_depth:
         host.push(board.replies.pop(0))
