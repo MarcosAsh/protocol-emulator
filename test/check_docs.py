@@ -33,9 +33,11 @@ EXTENSIONS = "ml|mli|sv|v|sby|py|asm|hex|txt|tcl|yaml|svg|png|md|json|settings|l
 PATH = re.compile(rf"(?<![\w./-])((?:[\w.-]+/)+[\w.-]+\.(?:{EXTENSIONS}))(?!\.?[\w/-])")
 DIRECTORY = re.compile(r"`((?:[\w.-]+/)+)`")
 URL = re.compile(r"https?://[^\s)]+")
-MAKE = re.compile(r"make -C ([\w./-]+)([^`#\n]*)")
+FENCE = re.compile(r"^```[\w-]*\n(.*?)^```", re.M | re.S)
+MAKE = re.compile(r"make -C ([\w./-]+)([^#\n]*)")
 JOB = re.compile(r"`([\w-]+)` job")
-# a run id is all digits and longer, a word such as "defaced" has no digit
+# a run id is all digits and longer, a word such as "defaced" has no digit, and an all-digit
+# token of 7 or 8 counts only if git knows it (check_commits)
 COMMIT = re.compile(r"(?<![\w/#.-])(?=[0-9a-f]*\d)([0-9a-f]{7,8}|(?=[0-9]*[a-f])[0-9a-f]{9,12})"
                     r"(?![\w.-])")
 # a run is cited by its link, or as "run N", never by a bare number such as a job id
@@ -257,19 +259,35 @@ def numbers(pattern, text):
 
 def check_paths(doc, text):
     for path in sorted(set(PATH.findall(URL.sub(" ", text)) + DIRECTORY.findall(text))):
-        if not path.startswith(NOT_IN_REPO) and not (ROOT / path).exists():
+        if path.startswith(NOT_IN_REPO) or git("check-ignore", "-q", path).returncode == 0:
+            continue  # the reader makes it
+        if not (ROOT / path).exists():
             yield f"{path} does not exist"
 
 
+def make_commands(text):
+    """(directory, targets) of each make -C, whole in code, and in prose only when it ends
+    at punctuation or the line's end, so the words after it are not read as targets."""
+    fences = FENCE.findall(text)
+    rest = FENCE.sub("", text)
+    for code in fences + re.findall(r"`([^`\n]+)`", rest):
+        for directory, args in MAKE.findall(code):
+            yield directory, [a for a in args.split() if "=" not in a and not a.startswith("-")]
+    prose = re.sub(r"`[^`\n]+`", "", rest)
+    word = r"[\w/-]+(?:\.[\w/-]+)*"  # a full stop after it ends the sentence
+    for directory, target in re.findall(rf"make -C ({word})(?: ({word}))?(?=[.,;:)]|\s*$)",
+                                        prose, re.M):
+        yield directory, [target] if target else []
+
+
 def check_make(doc, text):
-    for directory, args in MAKE.findall(text):
+    for directory, targets in make_commands(text):
         if not (ROOT / directory / "Makefile").exists():
             yield f"make -C {directory}: there is no {directory}/Makefile"
             continue
-        for target in args.split():
-            if "=" not in target and not target.startswith("-"):
-                if target not in make_targets(directory):
-                    yield f"make -C {directory} {target}: no such target"
+        for target in targets:
+            if target not in make_targets(directory):
+                yield f"make -C {directory} {target}: no such target"
 
 
 def check_jobs(doc, text):
@@ -283,7 +301,10 @@ def check_commits(doc, text):
         yield "a shallow clone cannot place commits, check out with fetch-depth: 0"
         return
     for commit in sorted(set(COMMIT.findall(URL.sub(" ", text)))):
-        if why := not_ours(commit):
+        why = not_ours(commit)
+        if commit.isdigit() and why == "is not a commit":
+            continue  # a number such as 16777216, unless git knows it as a commit
+        if why:
             yield f"commit {commit} {why}"
 
 
