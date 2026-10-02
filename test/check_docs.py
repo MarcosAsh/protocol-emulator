@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DOCS = ["README.md", "docs/info.md"]
 REPO = "MarcosAsh/protocol-emulator"
 ONLINE = True
+WARNINGS = []
 
 # cited for the reader to make: tt-support-tools is cloned into tt/
 NOT_IN_REPO = ("tt/",)
@@ -169,27 +170,54 @@ def run(run_id):
     return json.loads(out) if out else None
 
 
+def same_chip(sha):
+    return git("diff", "--quiet", sha, "HEAD", "--", *HARDENED).returncode == 0
+
+
+@cache
+def current_gds_run():
+    """The newest green gds run on main that hardened the chip as it is now, or None."""
+    out = gh("api", f"repos/{REPO}/actions/workflows/gds.yaml/runs?branch=main&status=success")
+    for r in json.loads(out or '{"workflow_runs": []}')["workflow_runs"]:
+        if not not_ours(r["head_sha"]) and same_chip(r["head_sha"]):
+            return str(r["id"])
+    return None
+
+
 @cache
 def gds_metrics(run_id):
-    """The metrics.csv row gds.yaml uploads, or None once the artifact has expired."""
+    """The metrics.csv row gds.yaml uploads, or None and why not."""
+    out = gh("api", f"repos/{REPO}/actions/runs/{run_id}/artifacts?name=metrics")
+    artifacts = json.loads(out or '{"artifacts": []}')["artifacts"]
+    if not artifacts:
+        return None, "has no metrics artifact"
+    if artifacts[0]["expired"]:
+        return None, f"has a metrics artifact that expired on {artifacts[0]['expires_at'][:10]}"
     with tempfile.TemporaryDirectory() as tmp:
-        done = subprocess.run(["gh", "run", "download", run_id, "-R", REPO, "-n", "metrics",
-                               "-D", tmp], capture_output=True, text=True)
-        if done.returncode != 0:
-            return None
+        gh("run", "download", run_id, "-R", REPO, "-n", "metrics", "-D", tmp)
+        if not (Path(tmp) / "metrics.csv").exists():
+            return None, "has a metrics artifact gh could not download"
         with open(Path(tmp) / "metrics.csv") as f:
-            return next(csv.DictReader(f))
+            return next(csv.DictReader(f)), None
 
 
 @cache
 def mutation_score(run_id):
-    """(killed, valid) from the run's log, or None once the log has expired."""
+    """(killed, valid) from the run's log, or None and why not."""
     jobs = json.loads(gh("api", f"repos/{REPO}/actions/runs/{run_id}/jobs") or '{"jobs": []}')
-    for job in jobs["jobs"]:
-        log = gh("api", f"repos/{REPO}/actions/jobs/{job['id']}/logs") or ""
+    logs = [gh("api", f"repos/{REPO}/actions/jobs/{job['id']}/logs") for job in jobs["jobs"]]
+    if not any(logs):
+        return None, "has a log that expired"
+    for log in filter(None, logs):
         if m := re.search(r"total: killed (\d+) of (\d+) valid mutants", log):
-            return int(m[1]), int(m[2])
-    return None
+            return (int(m[1]), int(m[2])), None
+    return None, "has no score in its log"
+
+
+def warn(message):
+    """For a cited run that still checks but whose numbers can no longer be read."""
+    if message not in WARNINGS:
+        WARNINGS.append(message)
 
 
 # What the docs say
@@ -279,16 +307,23 @@ def check_gds(doc, text):
         run_id = runs.pop()
         if not run(run_id):
             continue  # check_runs says so
-        metrics = gds_metrics(run_id)
-        if metrics is None:
-            yield f"gds run {run_id} has no metrics artifact left, cite a newer gds run"
-            continue
+        newer = current_gds_run()
+        cite = f"cite gds run {newer}" if newer else "no green gds run on main has hardened it"
         sha = run(run_id)["head_sha"]
-        if git("diff", "--quiet", sha, "HEAD", "--", *HARDENED).returncode != 0:
-            yield f"gds run {run_id} hardened {sha[:7]}, and the chip has changed since"
+        if not same_chip(sha):
+            yield f"gds run {run_id} hardened {sha[:7]} and the chip has changed since, {cite}"
+        metrics, why = gds_metrics(run_id)
+        if metrics is None and "expired" in why:
+            warn(f"gds run {run_id} {why}, so the numbers beside it go unchecked, "
+                 f"{cite if newer != run_id else 'run gds again and cite that'}")
+        elif metrics is None:
+            yield f"gds run {run_id} {why}"
+        if metrics is None:
+            continue
         quoted = {
             "setup_slow_ns": re.findall(r"([+-]\d+\.\d+) ns at the slow corner", unit),
-            "utilisation": [float(u) / 100 for u in re.findall(r"([\d.]+)% utilisation", unit)],
+            "utilisation": [round(float(u) / 100, 6)
+                            for u in re.findall(r"([\d.]+)% utilisation", unit)],
             "std_cells": numbers(r"([\d,]+) (?:standard )?cells", unit),
         }
         for key, values in quoted.items():
@@ -303,9 +338,13 @@ def check_mutation(doc, text):
         for run_id in re.findall(r"mutation run \[?(\d{10,12})", unit):
             if not run(run_id):
                 continue
-            score = mutation_score(run_id)
+            score, why = mutation_score(run_id)
+            if score is None and "expired" in why:
+                warn(f"mutation run {run_id} {why}, so the score beside it goes unchecked, "
+                     "cite a newer mutation run")
+            elif score is None:
+                yield f"mutation run {run_id} {why}"
             if score is None:
-                yield f"mutation run {run_id} has no log left, cite a newer mutation run"
                 continue
             for quoted in re.findall(r"(\d+) of (\d+) valid mutants", unit):
                 if tuple(map(int, quoted)) != score:
@@ -448,34 +487,35 @@ def bump(s):
     return s[:i] + str((int(s[i]) + 1) % 10) + s[i + 1:]
 
 
-# Wrong READMEs, made from what it says now: (what is wrong, how, needs gh)
+# Wrong READMEs, made from what it says now: (what is wrong, how, what it needs: gh, or
+# the metrics of the cited gds run, which expire)
 TEETH = [
-    ("a path", first(PATH, lambda p: re.sub(r"\.(\w+)$", r"x.\1", p)), False),
-    ("a directory", first(DIRECTORY, lambda d: d[:-1] + "x/"), False),
-    ("a make target", first(r"make -C \S+ ([a-z]\w*)(?![\w=])", lambda t: t + "x"), False),
-    ("a job", first(JOB, lambda j: j + "x"), False),
-    ("a commit", first(r"\b(?=\w*[a-f])(?=\w*\d)([0-9a-f]{7})\b", bump), False),
-    ("the firmware count", first(r"(\d+) library firmwares", bump), False),
-    ("the protocols", first(r"(\d+) protocols", bump), False),
-    ("the mutation score", first(r"(\d+) of \d+ valid mutants", bump), False),
-    ("the equivalent mutants", first(r"other (\d+) are equivalent", bump), False),
-    ("the tiles", first(r"(\d+ x \d+) tiles", bump), False),
-    ("the clock", first(r"\| (\d+) MHz", bump), False),
-    ("the cores", first(r"(\d+) cores", bump), False),
-    ("the SRAM macros", first(r"(\d+) IHP", bump), False),
-    ("the inputs", first(r"(\d+) in,", bump), False),
-    ("the wires", first(r"(\d+) wires", bump), False),
-    ("the bench date", first(r"demo on (\d{4}-\d\d-\d\d)", bump), False),
-    ("a missing row", first(r"(\| Clock \|[^\n]*\n)", lambda _: ""), False),
-    ("a transcript", first(r"worst slack (\d+)", bump), False),
-    ("a transcript's edit", first(r"\$ sed '([^']*)'", bump), False),
-    ("the slack", first(r"([+-][\d.]+) ns at the slow corner", bump), True),
-    ("the utilisation", first(r"([\d.]+)% utilisation", bump), True),
-    ("the cells", first(r"([\d,]+) standard cells", bump), True),
-    ("a run id", first(r"run \[?(\d{10,12})", bump), True),
-    ("a run date", first(r"run \d{10,12}, (\d{4}-\d\d-\d\d)", bump), True),
+    ("a path", first(PATH, lambda p: re.sub(r"\.(\w+)$", r"x.\1", p)), None),
+    ("a directory", first(DIRECTORY, lambda d: d[:-1] + "x/"), None),
+    ("a make target", first(r"make -C \S+ ([a-z]\w*)(?![\w=])", lambda t: t + "x"), None),
+    ("a job", first(JOB, lambda j: j + "x"), None),
+    ("a commit", first(r"\b(?=\w*[a-f])(?=\w*\d)([0-9a-f]{7})\b", bump), None),
+    ("the firmware count", first(r"(\d+) library firmwares", bump), None),
+    ("the protocols", first(r"(\d+) protocols", bump), None),
+    ("the mutation score", first(r"(\d+) of \d+ valid mutants", bump), None),
+    ("the equivalent mutants", first(r"other (\d+) are equivalent", bump), None),
+    ("the tiles", first(r"(\d+ x \d+) tiles", bump), None),
+    ("the clock", first(r"\| (\d+) MHz", bump), None),
+    ("the cores", first(r"(\d+) cores", bump), None),
+    ("the SRAM macros", first(r"(\d+) IHP", bump), None),
+    ("the inputs", first(r"(\d+) in,", bump), None),
+    ("the wires", first(r"(\d+) wires", bump), None),
+    ("the bench date", first(r"demo on (\d{4}-\d\d-\d\d)", bump), None),
+    ("a missing row", first(r"(\| Clock \|[^\n]*\n)", lambda _: ""), None),
+    ("a transcript", first(r"worst slack (\d+)", bump), None),
+    ("a transcript's edit", first(r"\$ sed '([^']*)'", bump), None),
+    ("the slack", first(r"([+-][\d.]+) ns at the slow corner", bump), "metrics"),
+    ("the utilisation", first(r"([\d.]+)% utilisation", bump), "metrics"),
+    ("the cells", first(r"([\d,]+) standard cells", bump), "metrics"),
+    ("a run id", first(r"run \[?(\d{10,12})", bump), "gh"),
+    ("a run date", first(r"run \d{10,12}, (\d{4}-\d\d-\d\d)", bump), "gh"),
     # the run the die picture is from, which hardened older Verilog
-    ("an old gds run", first(r"[Gg]ds run (\d{10,12})", lambda _: "36615334436"), True),
+    ("an old gds run", first(r"[Gg]ds run (\d{10,12})", lambda _: "36615334436"), "gh"),
 ]
 
 
@@ -483,10 +523,13 @@ def teeth():
     docs = read_docs()
     if any(failures(docs).values()):
         sys.exit("the docs fail as they are, so the teeth would prove nothing")
+    cited = re.search(r"[Gg]ds run \[?(\d{10,12})", docs["README.md"])
+    has = {None: True, "gh": ONLINE,
+           "metrics": ONLINE and cited is not None and gds_metrics(cited[1])[0] is not None}
     missed = []
-    for what, tooth, online in TEETH:
-        if online and not ONLINE:
-            print(f"skip {what} (offline)")
+    for what, tooth, needs in TEETH:
+        if not has[needs]:
+            print(f"skip {what}, which needs {needs}")
             continue
         wrong = tooth(docs["README.md"])
         if not wrong:
@@ -517,6 +560,8 @@ def main():
         print(f"{'FAIL' if found else 'ok  '} {name}")
         for why in found:
             print(f"     {why}")
+    for message in WARNINGS:
+        print(f"::warning::{message}")
     if any(failed.values()):
         sys.exit(f"{sum(map(len, failed.values()))} things in the docs disagree with the repo")
 
