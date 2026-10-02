@@ -9,7 +9,8 @@ from cocotb.utils import get_sim_time
 
 from test import AsyncHost, Pins, reset
 from test_usb_board import J, SE0, Wire, data_packet, token
-from protocol_emulator import CONTROL, SELECT, STATUS, Host
+from protocol_emulator import CONTROL, SELECT, STATUS, TX, Host
+import demo_self_check
 import demo_self_timing
 import demo_sweep
 import demo_usb
@@ -247,3 +248,69 @@ async def test_keyboard(dut):
     for engine in (0, 1):
         await host.write(SELECT, [engine])
         assert (await host.read(STATUS))[0] & 0x3C == 0, f"engine {engine} faulted"
+
+
+@cocotb.test()
+async def test_self_check(dut):
+    """The self-check as the Pico runs it: the quiet frames all on the wire with no alarm,
+    then one alarm per glitch, from the check the script names. Wire 20 never reaches a
+    pad, so the testbench reads it, and engine 1's irq, from the RTL."""
+    await reset(dut)
+    pins = Pins(dut)
+    engines = dut.user_project.core.top.engines
+
+    def cycle():
+        return int(get_sim_time("ns")) // 20
+
+    # (cycle, period) of each push that starts a glitch
+    pushes = []
+
+    @resume
+    async def transfer(data):
+        if data[0] == 0x80 | TX and (data[1] << 8 | data[2]) in demo_self_check.GLITCHES:
+            pushes.append((cycle(), data[1] << 8 | data[2]))
+        return await pins.transfer(data)
+
+    @resume
+    async def pause():
+        await ClockCycles(dut.clk, 300 * US)
+
+    # the wire's level from each cycle it changes, and each rise of engine 1's irq
+    wire, irqs = [(0, 0)], []
+
+    async def watch_wire():
+        while True:
+            await engines.engine_0.pin_out.value_change
+            level = (int(engines.engine_0.pin_out.value) >> demo_self_check.WIRE) & 1
+            if level != wire[-1][1]:
+                wire.append((cycle(), level))
+
+    async def watch_irq():
+        while True:
+            await engines.engine_1.irq.value_change
+            if int(engines.engine_1.irq.value):
+                irqs.append(cycle())
+
+    watchers = [cocotb.start_soon(watch_wire()), cocotb.start_soon(watch_irq())]
+    frames = 14
+    ok = await bridge(demo_self_check.run)(transfer, frames=frames, pause=pause)
+    for watcher in watchers:
+        watcher.cancel()
+    assert ok
+
+    period = demo_self_check.PERIOD
+    glitched = pushes[0][0]
+    quiet = uart_frames([edge for edge in wire[1:] if edge[0] < glitched], period)
+    assert bytes(byte for _, byte in quiet) == bytes(range(frames)), quiet
+    assert [at for at in irqs if at < glitched] == [], "an alarm on the quiet frames"
+    assert len(irqs) == len(pushes) == len(demo_self_check.GLITCHES), (irqs, pushes)
+    # the frame test_self_check.ml prints, as the script reads it from the rows
+    edges = [bit * period for bit in range(1, 10)] + [10 * period + 6]
+    with open("uart_tx_host_rate_rows.hex") as f:
+        assert demo_self_check.certified([int(w, 16) for w in f.read().split()]) == edges
+    # the checker's irq shows six cycles after the write it checks shows on the wire
+    for (pushed, glitch), irq in zip(pushes, irqs):
+        start = next(at for at, level in wire if at > pushed and level == 0)
+        moved, check = demo_self_check.caught_by(edges, demo_self_check.GLITCH_BYTE, glitch)
+        dut._log.info(f"period {glitch}: moved at {moved}, irq {irq - start} after the start bit")
+        assert irq - start == check + 6, (glitch, irq - start, check)
