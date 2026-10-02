@@ -99,6 +99,38 @@ let%expect_test "a bit loop one cycle too long fails the build at its deadline w
     |}]
 ;;
 
+let%expect_test "a literal half typed is refused at each line that does not assemble" =
+  build
+    {ocaml|
+let typing =
+  [%firmware
+    {|
+    set p, 16
+    jmp
+loop:
+    wait t+
+    ou
+    jmp lop
+|}]
+;;
+|ocaml};
+  [%expect
+    {|
+    line 6, characters 4-7:
+      6 |     jmp
+              ^^^
+    typing does not assemble: expected: jmp [cond,] target
+    line 9, characters 4-6:
+      9 |     ou
+              ^^
+    and here: cannot parse ou (args ())
+    line 10, characters 4-11:
+     10 |     jmp lop
+              ^^^^^^^
+    and here: unknown label lop
+    |}]
+;;
+
 let%expect_test "firmware the analyser passes and the kernel refuses" =
   build
     [%string

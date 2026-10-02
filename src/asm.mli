@@ -45,9 +45,10 @@ end
 (** Errors carry the line number and the offending line. *)
 val assemble : string -> Program.t Or_error.t
 
-(** [assemble], with the source line of each instruction by pc, and on error the first
-    fault's line beside the error. Lines count from 1. *)
-val assemble_with_lines : string -> (Program.t * int list, int * Error.t) Result.t
+(** [assemble], with the source line of each instruction by pc, and on error each fault's
+    line beside its error: every bad label, directive or line past the memory, or if there
+    are none, every instruction at fault. Lines count from 1. *)
+val assemble_with_lines : string -> (Program.t * int list, (int * Error.t) list) Result.t
 
 (** Inverse of [assemble] for one instruction, with a numeric jump target. *)
 val to_string : side_set_count:int -> Isa.t -> string

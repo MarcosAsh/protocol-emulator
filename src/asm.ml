@@ -267,38 +267,45 @@ let assemble_with_lines source =
     Or_error.tag_s ~tag:[%message "line" ~_:(number : int) line] result
     |> Result.map_error ~f:(fun error -> number, error)
   in
-  let%bind first =
-    List.fold_result
+  let first, faults =
+    List.fold
       lines
-      ~init:First_pass.empty
-      ~f:(fun (first : First_pass.t) (number, line, parsed) ->
-        tag
-          number
-          line
-          (let open Or_error.Let_syntax in
-           match parsed with
-           | Directive ("side_set", [ count ]) ->
-             let%map side_set_count = int_of_token count in
-             { first with side_set_count }
-           | Directive ("wrap_target", []) ->
-             Ok { first with wrap_bottom = Some first.address }
-           | Directive ("wrap", []) ->
-             if first.address = 0
-             then Or_error.error_s [%message ".wrap before any instruction"]
-             else Ok { first with wrap_top = Some (first.address - 1) }
-           | Directive (name, args) ->
-             Or_error.error_s [%message "unknown directive" name (args : string list)]
-           | Label label ->
-             if List.Assoc.mem first.labels label ~equal:String.equal
-             then Or_error.error_s [%message "duplicate label" label]
-             else Ok { first with labels = (label, first.address) :: first.labels }
-           | Instruction _ ->
-             if first.address = 1 lsl Isa.pc_bits
-             then
-               Or_error.error_s
-                 [%message "longer than program memory" ~words:(1 lsl Isa.pc_bits : int)]
-             else Ok { first with address = first.address + 1 }))
+      ~init:(First_pass.empty, [])
+      ~f:(fun ((first : First_pass.t), faults) (number, line, parsed) ->
+        match
+          tag
+            number
+            line
+            (let open Or_error.Let_syntax in
+             match parsed with
+             | Directive ("side_set", [ count ]) ->
+               let%map side_set_count = int_of_token count in
+               { first with side_set_count }
+             | Directive ("wrap_target", []) ->
+               Ok { first with wrap_bottom = Some first.address }
+             | Directive ("wrap", []) ->
+               if first.address = 0
+               then Or_error.error_s [%message ".wrap before any instruction"]
+               else Ok { first with wrap_top = Some (first.address - 1) }
+             | Directive (name, args) ->
+               Or_error.error_s [%message "unknown directive" name (args : string list)]
+             | Label label ->
+               if List.Assoc.mem first.labels label ~equal:String.equal
+               then Or_error.error_s [%message "duplicate label" label]
+               else Ok { first with labels = (label, first.address) :: first.labels }
+             | Instruction _ ->
+               if first.address = 1 lsl Isa.pc_bits
+               then
+                 Or_error.error_s
+                   [%message
+                     "longer than program memory" ~words:(1 lsl Isa.pc_bits : int)]
+               else Ok { first with address = first.address + 1 })
+        with
+        | Ok first -> first, faults
+        | Error fault -> first, fault :: faults)
   in
+  (* the second pass needs the first's labels and side-set *)
+  let%bind () = if List.is_empty faults then Ok () else Error (List.rev faults) in
   let { First_pass.side_set_count; labels; address = length; wrap_bottom; wrap_top } =
     first
   in
@@ -309,14 +316,7 @@ let assemble_with_lines source =
         Some (number, tag number line (parse_instruction tokens ~labels ~side_set_count))
       | Directive _ | Label _ -> None)
   in
-  (* every error, as [Or_error.all] gives them, at the first one's line *)
-  let%map instructions =
-    match Result.combine_errors (List.map parsed ~f:snd) with
-    | Ok instructions -> Ok instructions
-    | Error [ error ] -> Error error
-    | Error errors ->
-      Error (fst (List.hd_exn errors), Error.of_list (List.map errors ~f:snd))
-  in
+  let%map instructions = Result.combine_errors (List.map parsed ~f:snd) in
   (* as in the PIO assembler, a loop that is opened and not closed ends with the program *)
   let wrap_top =
     match wrap_top, wrap_bottom with
@@ -332,8 +332,13 @@ let assemble_with_lines source =
   , List.map parsed ~f:fst )
 ;;
 
+(* every error, as [Or_error.all] gives them *)
 let assemble source =
-  assemble_with_lines source |> Result.map ~f:fst |> Result.map_error ~f:snd
+  assemble_with_lines source
+  |> Result.map ~f:fst
+  |> Result.map_error ~f:(function
+    | [ (_, error) ] -> error
+    | errors -> Error.of_list (List.map errors ~f:snd))
 ;;
 
 let to_string ~side_set_count (t : Isa.t) =

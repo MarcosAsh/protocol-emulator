@@ -47,23 +47,28 @@ loop:
     |}]
 ;;
 
-let%expect_test "lines count from 1, and an error comes at its first fault's" =
+let%expect_test "lines count from 1, and each error comes at its own" =
   let lines source =
     print_s
       [%sexp
         (Asm.assemble_with_lines source |> Result.map ~f:snd
-         : (int list, int * Error.t) Result.t)]
+         : (int list, (int * Error.t) list) Result.t)]
   in
   lines
     ".side_set 1\nstart:\n    set p, 4 side 0 ; comment\n\n    jmp start\nend: nop side 1";
   lines "    set p, 4\n    frob pins, 1\n    nop\n    jmp nowhere";
+  (* the second pass, which would refuse [jmp nowhere], waits on a first with no faults *)
+  lines ".wrap\nloop:\n    nop\n.wrap_targt\nloop:\n    jmp nowhere";
   [%expect
     {|
     (Ok (3 5 6))
     (Error
-     (2
-      (((line 2 "    frob pins, 1") ("cannot parse" frob (args (pins 1))))
-       ((line 4 "    jmp nowhere") ("unknown label" nowhere)))))
+     ((2 ((line 2 "    frob pins, 1") ("cannot parse" frob (args (pins 1)))))
+      (4 ((line 4 "    jmp nowhere") ("unknown label" nowhere)))))
+    (Error
+     ((1 ((line 1 .wrap) ".wrap before any instruction"))
+      (4 ((line 4 .wrap_targt) ("unknown directive" wrap_targt (args ()))))
+      (5 ((line 5 loop:) ("duplicate label" loop)))))
     |}]
 ;;
 
@@ -113,7 +118,8 @@ loop:
              (Kernel.Table.of_analyser rows)
            |> Result.is_ok
            : bool)];
-  [%expect {|
+  [%expect
+    {|
     (missed_deadline true)
     (faults
      (((line 12) (pc (9))

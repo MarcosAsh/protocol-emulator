@@ -56,6 +56,15 @@ let analyser_reason (row : Analyser.Row.t) =
        pointer moving"]
 ;;
 
+(* the assembler tags an error with its line, which the fault has already *)
+let assembler_reason error =
+  match Error.sexp_of_t error with
+  | List [ List (Atom "line" :: _); Atom what ] -> what
+  | List [ List (Atom "line" :: _); List (Atom what :: detail) ] ->
+    String.concat ~sep:" " (what :: List.map detail ~f:Sexp.to_string_hum)
+  | sexp -> Sexp.to_string_hum sexp
+;;
+
 let kernel_reason fails =
   [%string
     "the analyser passed this row, and the kernel refuses it: %{String.concat ~sep:\", \
@@ -66,14 +75,16 @@ let check ?period ?period_floor ?single_capture_edge ~config source =
   let open Result.Let_syntax in
   let%bind program, lines =
     Asm.assemble_with_lines source
-    |> Result.map_error ~f:(fun (line, error) ->
-      let reason =
-        match Error.sexp_of_t error with
-        | List [ List (Atom "line" :: _); List (Atom what :: detail) ] ->
-          String.concat ~sep:" " (what :: List.map detail ~f:Sexp.to_string_hum)
-        | sexp -> Sexp.to_string_hum sexp
-      in
-      { Refusal.faults = [ { line; pc = None; reason } ]; verdict = None; error })
+    |> Result.map_error ~f:(fun errors ->
+      { Refusal.faults =
+          List.map errors ~f:(fun (line, error) ->
+            { Fault.line; pc = None; reason = assembler_reason error })
+      ; verdict = None
+      ; error =
+          (match errors with
+           | [ (_, error) ] -> error
+           | errors -> Error.of_list (List.map errors ~f:snd))
+      })
   in
   let fault pc reason = { Fault.line = List.nth_exn lines pc; pc = Some pc; reason } in
   let configured = Asm.Program.configure program config in
