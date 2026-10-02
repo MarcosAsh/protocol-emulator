@@ -78,12 +78,20 @@ let check_model ~dimacs ~result =
         | answer -> raise_s [%message "no model" ~answer:(List.hd answer : string option)]
       in
       let holds literal = Char.equal (Bytes.get values (abs literal)) (holding literal) in
-      In_channel.iter_lines dimacs ~f:(fun line ->
-        let clause =
-          List.map (words line) ~f:Int.of_string |> List.filter ~f:(fun l -> l <> 0)
-        in
-        if not (List.exists clause ~f:holds)
-        then raise_s [%message "the model falsifies a clause" (clause : int list)])))
+      (* a clause runs to its 0, across lines or several to a line *)
+      let unfinished =
+        In_channel.fold_lines dimacs ~init:[] ~f:(fun clause line ->
+          List.fold (words line) ~init:clause ~f:(fun clause word ->
+            match Int.of_string word with
+            | 0 ->
+              let clause = List.rev clause in
+              if not (List.exists clause ~f:holds)
+              then raise_s [%message "the model falsifies a clause" (clause : int list)];
+              []
+            | literal -> literal :: clause))
+      in
+      if not (List.is_empty unfinished)
+      then raise_s [%message "a clause has no 0" ~clause:(List.rev unfinished : int list)]))
 ;;
 
 (* [lines] with the first literal that [literal] finds in a line negated. *)

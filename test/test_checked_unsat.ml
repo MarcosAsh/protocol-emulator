@@ -74,3 +74,32 @@ let%expect_test "an unsatisfiable query yields no model" =
      (checked (Error ("no model" (answer ("s UNSATISFIABLE"))))))
     |}]
 ;;
+
+(* [check_model] of a DIMACS file and a model written by hand. *)
+let check_by_hand ~dimacs ~model =
+  let dimacs_file = temp_file "dimacs" in
+  let result = temp_file "result" in
+  Out_channel.write_lines dimacs_file dimacs;
+  Out_channel.write_lines result ("s SATISFIABLE" :: model);
+  let checked = Checked_unsat.check_model ~dimacs:dimacs_file ~result in
+  print_s [%message "" (dimacs : string list) (checked : unit Or_error.t)];
+  List.iter [ dimacs_file; result ] ~f:Stdlib.Sys.remove
+;;
+
+let%expect_test "a clause runs to its 0, not to the end of its line" =
+  let model = [ "v 1 -2 0" ] in
+  check_by_hand ~dimacs:[ "p cnf 2 2"; "1 0 2 0" ] ~model;
+  check_by_hand ~dimacs:[ "p cnf 2 2"; "1 0 -2"; "2 0" ] ~model;
+  check_by_hand ~dimacs:[ "p cnf 2 1"; "-1 -2" ] ~model;
+  check_by_hand ~dimacs:[ "p cnf 2 1"; "1 c 0" ] ~model;
+  [%expect
+    {|
+    ((dimacs ("p cnf 2 2" "1 0 2 0"))
+     (checked (Error ("the model falsifies a clause" (clause (2))))))
+    ((dimacs ("p cnf 2 2" "1 0 -2" "2 0")) (checked (Ok ())))
+    ((dimacs ("p cnf 2 1" "-1 -2"))
+     (checked (Error ("a clause has no 0" (clause (-1 -2))))))
+    ((dimacs ("p cnf 2 1" "1 c 0"))
+     (checked (Error (Failure "Int.of_string: \"c\""))))
+    |}]
+;;
