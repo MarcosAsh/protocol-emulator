@@ -3,7 +3,7 @@
 # One outside chip act of BRINGUP.md: runs its script on Pico A while the analyser
 # captures, then prints the Pico's log and sigrok's decode. Reset the chip first, as faults
 # hold until reset, but not for can, which runs on the engine demo_can.arm() left running.
-# Usage: PICO=id:<serial of Pico A> demo/outside.sh flash|eeprom|ds18b20|neopixel|can
+# Usage: PICO=id:<serial of Pico A> demo/outside.sh flash|eeprom|ds18b20|neopixel|can|swd
 set -e
 act=$1
 case $act in
@@ -27,8 +27,12 @@ can)
     ms=2000
     decode="-P can:can_rx=D6:nominal_bitrate=500000 -A can=id:dlc:data:crc-sequence:ack-slot:warnings"
     ;;
+swd)
+    ms=3000
+    decode="-P swd:swclk=D6:swdio=D7 -A swd"
+    ;;
 *)
-    echo "usage: PICO=id:<serial> $0 flash|eeprom|ds18b20|neopixel|can" >&2
+    echo "usage: PICO=id:<serial> $0 flash|eeprom|ds18b20|neopixel|can|swd" >&2
     exit 1
     ;;
 esac

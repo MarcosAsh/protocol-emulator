@@ -7,7 +7,7 @@ open Protocol_emulator_test
    bench's clock needs, each checked by the analyser and the kernel under the assumption
    it runs with, as the command line does. The Icepi's USB build drives IO0 and IO1's
    header pins with the USB lines, so I2C moves to IO2 and IO3, 1-Wire to IO4 and 10BASE-T
-   to IO6 and IO7. *)
+   to IO6 and IO7. SWD is on pins no other act uses, OUT2 and IO5, as the library has it. *)
 let sda = 14
 let scl = 15
 let one_wire = 16
@@ -67,6 +67,12 @@ let bench =
     , Timed_program.source Ethernet.firmware
     , { Ethernet.config with out_base = td_plus; set_base = td_plus }
     , `Period Ethernet.link_tenth )
+  ; ( "swd"
+    , "Swd.firmware: the host sends the half period, 24 cycles for a 1 MHz SWCLK, SWCLK \
+       on OUT2, SWDIO on IO5"
+    , Timed_program.source Swd.firmware
+    , Swd.config
+    , `Floor Swd.shortest_half )
   ]
 ;;
 
