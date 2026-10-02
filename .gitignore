@@ -41,6 +41,8 @@ test/fpga_top.v
 test/fpga_kit_top.v
 test/fpga_kit.json
 test/fpga_kit.log
+test/fpga_kit.asc
+test/fpga_kit.bin
 formal/kernel_step.v
 formal/kernel_step_narrow.v
 formal/osr_step.v

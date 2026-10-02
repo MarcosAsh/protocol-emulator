@@ -95,8 +95,12 @@ FPGA_MHZ ?= 16
 fpga_fit: fpga_netlist.v
 	sed "s/__tt_um_placeholder/tt_um_marcosash_protocol_emulator/" ../tt/fpga/tt_fpga_top.v > fpga_kit_top.v
 	yosys -q -p "read_verilog -sv fpga_kit_top.v $(SRC_DIR)/project.v fpga_top.v; synth_ice40 -top tt_fpga_top -json fpga_kit.json"
-	nextpnr-ice40 --up5k --package sg48 --json fpga_kit.json --pcf ../tt/fpga/tt_fpga_top.pcf --pcf-allow-unconstrained --freq $(FPGA_MHZ) --seed 1 -q --log fpga_kit.log
+	nextpnr-ice40 --up5k --package sg48 --json fpga_kit.json --pcf ../tt/fpga/tt_fpga_top.pcf --pcf-allow-unconstrained --freq $(FPGA_MHZ) --seed 1 -q --log fpga_kit.log --asc fpga_kit.asc
 	grep -h "ICESTORM_LC:\|Max frequency" fpga_kit.log | tail -3
+
+# The bitstream for Tiny Tapeout's classic FPGA breakout, which the release carries.
+fpga_kit.bin: fpga_fit
+	icepack fpga_kit.asc $@
 
 # The Icepi Zero's netlist, as its own flow in ../icepi synthesises it.
 icepi_netlist.v: $(SRC_DIR)/project.v $(SRC_DIR)/protocol_emulator.v ../icepi/icepi_top.v

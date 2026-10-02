@@ -248,7 +248,7 @@ jobs:
         run: |
           # the simulator loads OSS CAD Suite's cocotb, so no pip cocotb beside it
           cd test
-          opam exec -- make fpga_fit
+          opam exec -- make fpga_kit.bin
           python3 check_metrics.py --fpga fpga_kit.log >> "$GITHUB_STEP_SUMMARY"
           make FPGA=yes
           ! grep failure results.xml
