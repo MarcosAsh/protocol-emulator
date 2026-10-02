@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live die</title>
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f3f2ee;
+    --panel: #fbfbf9;
+    --text: #141413;
+    --muted: #6d6b66;
+    --line: #dcd9d2;
+    --button: #ffffff;
+    --button-hover: #efede8;
+    --accent: #2a78d6;
+    --mark: #fff1b8;
+    --die: #e9e7e1;
+    --die-edge: #cfccc4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #0a0a0b;
+      --panel: #111113;
+      --text: #e8e6e1;
+      --muted: #8e8c86;
+      --line: #26262a;
+      --button: #1a1a1d;
+      --button-hover: #242428;
+      --accent: #6aa8f0;
+      --mark: #3b3313;
+      --die: #000000;
+      --die-edge: #2a2a2e;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0a0a0b;
+    --panel: #111113;
+    --text: #e8e6e1;
+    --muted: #8e8c86;
+    --line: #26262a;
+    --button: #1a1a1d;
+    --button-hover: #242428;
+    --accent: #6aa8f0;
+    --mark: #3b3313;
+    --die: #000000;
+    --die-edge: #2a2a2e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .app {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    grid-template-rows: minmax(0, 1fr) auto;
+    height: 100vh;
+  }
+  .stage {
+    position: relative;
+    background: var(--die-edge);
+    overflow: hidden;
+    touch-action: none;
+    cursor: grab;
+  }
+  .stage.dragging { cursor: grabbing; }
+  .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .zoom {
+    position: absolute;
+    right: 12px;
+    top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .timeline {
+    border-top: 1px solid var(--line);
+    background: var(--panel);
+    padding: 8px 12px 10px;
+  }
+  .timeline canvas { width: 100%; height: 96px; display: block; cursor: ew-resize; touch-action: none; }
+  .panel {
+    grid-row: 1 / span 2;
+    grid-column: 2;
+    background: var(--panel);
+    border-left: 1px solid var(--line);
+    padding: 16px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  h1 { font-size: 17px; font-weight: 600; margin: 0; letter-spacing: 0.01em; }
+  h2 {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin: 0 0 6px;
+  }
+  p { margin: 0; }
+  p[data-owner-text]:empty { display: none; }
+  button, select {
+    font: inherit;
+    color: var(--text);
+    background: var(--button);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    height: 32px;
+    min-width: 32px;
+    padding: 0 8px;
+    cursor: pointer;
+  }
+  button:hover, select:hover { background: var(--button-hover); }
+  button:focus-visible, select:focus-visible, canvas:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button svg { width: 16px; height: 16px; display: block; margin: auto; fill: currentColor; }
+  .controls { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .controls .play { width: 44px; }
+  .controls label { margin-left: auto; display: flex; gap: 6px; align-items: center; color: var(--muted); }
+  .state {
+    font: 12.5px/1.6 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    display: grid;
+    grid-template-columns: 56px minmax(0, 1fr);
+    margin: 0;
+  }
+  .state dt { color: var(--muted); }
+  .state dd { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+  .program {
+    font: 12.5px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .program li { display: grid; grid-template-columns: 28px 1fr; padding: 0 4px; border-radius: 3px; }
+  .program li span { color: var(--muted); }
+  .program li.at { background: var(--mark); }
+  .legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
+  .legend li { display: grid; grid-template-columns: 14px 1fr auto; gap: 8px; align-items: center; }
+  .legend i { width: 12px; height: 12px; border-radius: 2px; display: block; }
+  .legend span { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12.5px; }
+  .show { display: flex; gap: 14px; color: var(--muted); }
+  .show label { display: flex; gap: 5px; align-items: center; cursor: pointer; }
+  .probe { font: 12.5px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace; overflow-wrap: anywhere; }
+  .probe:empty::before { content: "-"; color: var(--muted); }
+  .stamp { color: var(--muted); font-size: 12px; }
+  .stamp a { color: inherit; }
+  .loading {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  @media (max-width: 820px) {
+    .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto; height: auto; }
+    .stage { aspect-ratio: 16 / 10; max-height: 70vh; }
+    .panel { grid-row: auto; grid-column: 1; border-left: 0; border-top: 1px solid var(--line); overflow: visible; }
+    .timeline { padding: 8px 16px 10px; }
+  }
+</style>
+</head>
+<body>
+<main class="app">
+  <section class="stage" id="stage" aria-label="Die">
+    <canvas id="die" tabindex="0" aria-label="The hardened die, cells and wires lit as they switch"></canvas>
+    <div class="loading" id="loading">Loading the die</div>
+    <div class="zoom">
+      <button id="zoom-in" title="Zoom in (z)" aria-label="Zoom in"><svg viewBox="0 0 16 16"><path d="M7 2h2v5h5v2H9v5H7V9H2V7h5z"/></svg></button>
+      <button id="zoom-out" title="Zoom out (x)" aria-label="Zoom out"><svg viewBox="0 0 16 16"><path d="M2 7h12v2H2z"/></svg></button>
+      <button id="zoom-fit" title="Fit the die (0)" aria-label="Fit the die"><svg viewBox="0 0 16 16"><path d="M1 1h5v2H3v3H1zm9 0h5v5h-2V3h-3zM1 10h2v3h3v2H1zm12 0h2v5h-5v-2h3z"/></svg></button>
+    </div>
+  </section>
+
+  <section class="timeline" aria-label="Cycles">
+    <canvas id="scrub" tabindex="0" aria-label="Cycle scrubber: activity, the host's SPI frames and OUT0"></canvas>
+  </section>
+
+  <aside class="panel">
+    <header>
+      <h1>Live die</h1>
+      <button id="theme" title="Light or dark" aria-label="Switch between light and dark"><svg viewBox="0 0 16 16"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm0 2v10a5 5 0 0 1 0-10z"/></svg></button>
+    </header>
+    <p data-owner-text="what the page shows"></p>
+
+    <div class="controls">
+      <button id="first" title="First cycle (Home)" aria-label="First cycle"><svg viewBox="0 0 16 16"><path d="M3 2h2v12H3zm3 6 7-6v12z"/></svg></button>
+      <button id="back" title="Step back (left)" aria-label="Step back"><svg viewBox="0 0 16 16"><path d="M11 2v12L4 8z"/></svg></button>
+      <button id="play" class="play" title="Play or pause (space)" aria-label="Play"><svg viewBox="0 0 16 16"><path id="play-icon" d="M4 2l10 6-10 6z"/></svg></button>
+      <button id="step" title="Step (right)" aria-label="Step"><svg viewBox="0 0 16 16"><path d="M5 2v12l7-6z"/></svg></button>
+      <label>speed
+        <select id="speed" aria-label="Cycles a second">
+          <option value="2">2 /s</option>
+          <option value="10">10 /s</option>
+          <option value="40" selected>40 /s</option>
+          <option value="160">160 /s</option>
+          <option value="640">640 /s</option>
+        </select>
+      </label>
+    </div>
+
+    <section>
+      <h2>State</h2>
+      <dl class="state">
+        <dt>cycle</dt><dd id="s-cycle"></dd>
+        <dt>time</dt><dd id="s-time"></dd>
+        <dt>host</dt><dd id="s-host"></dd>
+        <dt>pc</dt><dd id="s-pc"></dd>
+        <dt>OUT0</dt><dd id="s-out0"></dd>
+        <dt>uart</dt><dd id="s-uart"></dd>
+        <dt>nets</dt><dd id="s-nets"></dd>
+      </dl>
+    </section>
+
+    <section>
+      <h2>Engine 0 program</h2>
+      <ol class="program" id="program"></ol>
+    </section>
+
+    <section>
+      <h2>Probe</h2>
+      <div class="probe" id="probe"></div>
+    </section>
+
+    <section>
+      <h2>Blocks</h2>
+      <ul class="legend" id="legend"></ul>
+    </section>
+
+    <div class="show">
+      <label><input type="checkbox" id="show-wires" checked> wires</label>
+      <label><input type="checkbox" id="show-cells" checked> cells</label>
+    </div>
+
+    <p data-owner-text="how the data was made"></p>
+    <p class="stamp" id="stamp"></p>
+  </aside>
+</main>
+<script src="die.js"></script>
+</body>
+</html>
