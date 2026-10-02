@@ -67,21 +67,34 @@ def gh(*args):
 
 # What the repo and CI say
 
+class Unreadable(Exception):
+    """A source no longer says what a check reads from it."""
+
+
 def read(path):
+    if not (ROOT / path).is_file():
+        raise Unreadable(f"{path} does not exist, and a check reads it")
     return (ROOT / path).read_text()
 
 
+def find(pattern, path, flags=re.M):
+    m = re.search(pattern, read(path), flags)
+    if not m:
+        raise Unreadable(f"{path} has nothing like {pattern}, update test/check_docs.py")
+    return m
+
+
 def tiles():
-    m = re.search(r'^\s*tiles:\s*"(\d+)x(\d+)"', read("info.yaml"), re.M)
+    m = find(r'^\s*tiles:\s*"(\d+)x(\d+)"', "info.yaml")
     return f"{m[1]} x {m[2]}"
 
 
 def clock_mhz():
-    return int(re.search(r"^\s*clock_hz:\s*(\d+)", read("info.yaml"), re.M)[1]) // 1_000_000
+    return int(find(r"^\s*clock_hz:\s*(\d+)", "info.yaml")[1]) // 1_000_000
 
 
 def pdk():
-    return re.search(r"pdk: ihp-(\w+)", read(".github/workflows/gds.yaml"))[1].upper()
+    return find(r"pdk: ihp-(\w+)", ".github/workflows/gds.yaml")[1].upper()
 
 
 def pinout():
@@ -92,7 +105,7 @@ def pinout():
 
 
 def isa(name):
-    return int(re.search(rf"^let {name} = (\d+)$", read("src/isa.ml"), re.M)[1])
+    return int(find(rf"^let {name} = (\d+)$", "src/isa.ml")[1])
 
 
 @cache
@@ -116,17 +129,20 @@ def instances():
 
 def sram():
     """How many SRAM macros the chip holds, and their words and bits."""
-    name = next(n for n in instances() if n.startswith("RM_IHPSG13_1P_"))
-    words, bits = re.search(r"_(\d+)x(\d+)_", name).groups()
-    return instances()[name], int(words), int(bits)
+    macros = [n for n in instances() if re.match(r"RM_IHPSG13_1P_\d+x\d+_", n)]
+    if len(macros) != 1:
+        raise Unreadable(f"src/protocol_emulator.v holds {len(macros)} kinds of SRAM macro, "
+                         "not 1, update test/check_docs.py")
+    words, bits = re.match(r"RM_IHPSG13_1P_(\d+)x(\d+)_", macros[0]).groups()
+    return instances()[macros[0]], int(words), int(bits)
 
 
 def library_firmwares():
     """The library firmwares the kernel accepts in test_kernel.ml, which dune runtest keeps
     current."""
-    test = read("test/test_kernel.ml").split(
-        'let%expect_test "the kernel on the firmware library, from the analyser\'s rows"')[1]
-    return re.findall(r"^\s*\((\w+) \(verdict \(Ok \(\)\)\)\)$", test.split("|}]")[0], re.M)
+    test = find(r'^let%expect_test "the kernel on the firmware library[^"]*" =(.*?)\|\}\]',
+                "test/test_kernel.ml", re.M | re.S)[1]
+    return re.findall(r"^\s*\((\w+) \(verdict \(Ok \(\)\)\)\)$", test, re.M)
 
 
 def equivalent_mutants():
@@ -420,7 +436,7 @@ def check_counts(doc, text):
     for n in numbers(r"(\d+)-word IHP", text):
         if n != sram()[1]:
             yield f"a {n}-word macro, the chip's are {sram()[1]} words"
-    depth = int(re.search(r"^let depth = (\d+)$", read("src/host_fifo.ml"), re.M)[1])
+    depth = int(find(r"^let depth = (\d+)$", "src/host_fifo.ml")[1])
     for n in numbers(r"(\d+)-deep fifos", text):
         if n != depth:
             yield f"{n}-deep fifos, src/host_fifo.ml has depth = {depth}"
@@ -489,8 +505,14 @@ ONLINE_CHECKS = [check_runs, check_gds, check_mutation]
 
 def failures(docs):
     """{check: [what is wrong]} over every doc."""
+    def wrong(check, doc, text):
+        try:
+            return [f"{doc}: {why}" for why in check(doc, text)]
+        except Unreadable as e:
+            return [f"{doc}: {e}"]
+
     checks = CHECKS + (ONLINE_CHECKS if ONLINE else [])
-    return {c.__name__: [f"{doc}: {why}" for doc, text in docs.items() for why in c(doc, text)]
+    return {c.__name__: [w for doc, text in docs.items() for w in wrong(c, doc, text)]
             for c in checks}
 
 
