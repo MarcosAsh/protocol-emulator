@@ -2,12 +2,16 @@ open! Core
 open Protocol_emulator
 open Ppxlib
 
-(* Runs [%firmware] on [source] as the build does, and prints each error the compiler
-   would report, under the line it points at. *)
+(* Runs [%firmware] on [source] as the build does, from a file, and prints each error the
+   compiler would report, under the line it points at: the line from its start's byte
+   offset, as the compiler quotes it. *)
 let build source =
+  let file = Stdlib.Filename.temp_file "demo" ".ml" in
+  Out_channel.write_all file ~data:source;
   let lexbuf = Lexing.from_string source in
-  Lexing.set_filename lexbuf "demo.ml";
-  let lines = String.split source ~on:'\n' |> Array.of_list in
+  Lexing.set_filename lexbuf file;
+  let structure = Driver.map_structure (Parse.implementation lexbuf) in
+  Stdlib.Sys.remove file;
   let errors = ref [] in
   (object
      inherit Ast_traverse.iter as super
@@ -26,21 +30,28 @@ let build source =
        super#extension extension
   end)
     #structure
-    (Driver.map_structure (Parse.implementation lexbuf));
+    structure;
   match List.rev !errors with
   | [] -> print_endline "builds"
   | errors ->
     List.iter errors ~f:(fun ((loc : Location.t), message) ->
       let line = loc.loc_start.pos_lnum in
-      let first = loc.loc_start.pos_cnum - loc.loc_start.pos_bol in
-      let last = loc.loc_end.pos_cnum - loc.loc_start.pos_bol in
+      let bol = loc.loc_start.pos_bol in
+      let first = loc.loc_start.pos_cnum - bol in
+      let last = loc.loc_end.pos_cnum - bol in
+      let text =
+        String.drop_prefix source bol
+        |> String.split_lines
+        |> List.hd
+        |> Option.value ~default:""
+      in
       printf
         "line %d, characters %d-%d:\n%3d | %s\n      %s%s\n%s\n"
         line
         first
         last
         line
-        lines.(line - 1)
+        text
         (String.make first ' ')
         (String.make (last - first) '^')
         message)
@@ -82,6 +93,52 @@ let%expect_test "a bit loop one cycle too long fails the build at its deadline w
   build (uart_tx16 ~out:"out pins, 1 [12]");
   [%expect {| builds |}];
   build (uart_tx16 ~out:"out pins, 1 [13]");
+  [%expect
+    {|
+    line 15, characters 4-11:
+     15 |     wait t+
+              ^^^^^^^
+    uart_tx16 is refused by the analyser: this deadline wait can be reached late, by more on each pass of a loop or after an untimed wait
+    line 18, characters 4-11:
+     18 |     wait t+
+              ^^^^^^^
+    and here
+    line 20, characters 4-10:
+     20 |     wait t
+              ^^^^^^
+    and here
+    |}]
+;;
+
+let%expect_test "a file with CRLF line ends is refused at the same line" =
+  build
+    (String.substr_replace_all
+       (uart_tx16 ~out:"out pins, 1 [13]")
+       ~pattern:"\n"
+       ~with_:"\r\n");
+  [%expect
+    {|
+    line 15, characters 4-11:
+     15 |     wait t+
+              ^^^^^^^
+    uart_tx16 is refused by the analyser: this deadline wait can be reached late, by more on each pass of a loop or after an untimed wait
+    line 18, characters 4-11:
+     18 |     wait t+
+              ^^^^^^^
+    and here
+    line 20, characters 4-10:
+     20 |     wait t
+              ^^^^^^
+    and here
+    |}]
+;;
+
+let%expect_test "a file with mixed line ends is refused at the same line" =
+  (* every other line ends in CRLF, so a line's offset is no multiple of one width *)
+  build
+    (String.split (uart_tx16 ~out:"out pins, 1 [13]") ~on:'\n'
+     |> List.mapi ~f:(fun i line -> if i % 2 = 0 then line ^ "\r" else line)
+     |> String.concat ~sep:"\n");
   [%expect
     {|
     line 15, characters 4-11:
