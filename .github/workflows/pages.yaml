@@ -1,7 +1,8 @@
 name: pages
 
-# The playground from main and the results page, beside the 3D viewer of the last green gds
-# run on main, the only workflow that deploys the site. Runs after gds and results.
+# The playground from main, the results page and the live die, beside the 3D viewer of the
+# last green gds run on main, the only workflow that deploys the site. Runs after gds and
+# results.
 # js_of_ocaml is never locked.
 on:
   push:
@@ -9,6 +10,7 @@ on:
     paths:
       - src/**
       - playground/**
+      - pages/**
       - test/*.asm
       - dune-project
       - protocol_emulator.opam.locked
@@ -121,6 +123,18 @@ jobs:
           name: playground
           path: site/playground
 
+      # as committed: demo/live_die.py makes its data from one gds run, by hand
+      - name: Checkout the live die
+        uses: actions/checkout@v6
+        with:
+          sparse-checkout: pages/die
+          path: repo
+
+      - name: Add the live die
+        run: |
+          mkdir -p site/die
+          cp repo/pages/die/index.html repo/pages/die/die.js repo/pages/die/die.bin site/die/
+
       # test/results.py's page from the last results run that passed; the site goes up
       # without it rather than not at all
       - name: Download the results
@@ -162,6 +176,7 @@ jobs:
               + encodeURIComponent(location.href + "/tinytapeout.oas");
           </script>
           <p><a href="playground/">Firmware timing playground</a></p>
+          <p><a href="die/">Live die</a></p>
           $results
           </body>
           </html>
