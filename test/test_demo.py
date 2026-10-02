@@ -299,6 +299,7 @@ COSTS = {
     "words": (1000, 0, 0, 1900, 0),  # fit: a same address load 1.4 ms less four writes
     "Host.load": (1000, 0, 0, 4100, 0),  # est: the words copied again, then zeros
     "config_writes": (400, 0, 0, 1100, 0),  # est
+    "say": (300, 0, 0, 100, 0),  # est: a line printed over the Pico's USB serial
 }
 # PicoSpi.drain_quiet's native loop, per status read and per rx read and its words, the
 # frame's wire time in each. est: a PicoHost.status of the bench's 95 less its dict, and
@@ -728,9 +729,11 @@ async def test_keyboard_slow_host(dut):
     pico = Pico(dut, scale)
     pico.install()
 
+    said = []
+
     def run():
         try:
-            demo_usb.run("hi")
+            demo_usb.run("hi", say=pico.costly("say", said.append))
         except Done:
             pass
 
@@ -776,6 +779,9 @@ async def test_keyboard_slow_host(dut):
             + (f", overflow at {(end - start) / (1000 * US):.3f} ms" if overflowed else "")
             + f", engine 0 faults {faults}\n" + timeline(laptop, levels, halts, pico, start, end))
     assert reports == demo_usb.reports("hi"), reports
+    dut._log.info(f"the Pico said {said}")
+    assert any(line.startswith("engine 0 is serving") for line in said), said
+    assert said[-4:] == [f"address {ADDRESS}", "configured", "typed h", "typed i"], said
     # run() starts the logger for 48 MHz
     assert_typed(dut, out0, (48_000_000 + demo_usb.BAUD // 2) // demo_usb.BAUD, taken, b"hi")
     await assert_no_faults(pico.pins)

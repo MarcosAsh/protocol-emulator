@@ -96,23 +96,39 @@ def start_log(host, program, clock_hz=48_000_000):
     return log
 
 
-def serve(host, board, queue, bus_reset, log=lambda report: None):
-    """Forever. Typing waits for a configuration, a reset puts back the report it lost, and
-    `log` gets each report once the laptop has taken it."""
+def serve(host, board, queue, bus_reset, log=lambda report: None, say=lambda line: None):
+    """Forever. Typing waits for a configuration, a reset puts back the report it lost,
+    `log` gets each report once the laptop has taken it, and `say` each step of the
+    enumeration and each key typed."""
+    serving, address, configured = False, 0, False
     while True:
         if bus_reset():
             if board.pending_report is not None:
                 queue.insert(0, board.pending_report)
             board.reset()
+            address, configured = 0, False
+            say("bus reset")
         sent = board.pending_report
         usb_board.service(host, board)
+        if not serving:
+            serving = True
+            # the board pulled D- up at its bitstream, when nothing answered the laptop
+            say("engine 0 is serving: plug the Icepi's first USB port in again")
+        if board.address != address:
+            address = board.address
+            say("address %d" % address)
+        if board.configured != configured:
+            configured = board.configured
+            say("configured" if configured else "unconfigured")
         if sent is not None and board.pending_report is None:
             log(sent)
+            if sent[0] == 1 and sent[2]:
+                say("typed %s" % chr(CHARS[sent[2]]))
         if queue and board.configured and board.pending_report is None and not board.chunks:
             board.report(queue.pop(0))
 
 
-def run(text="hello jane street "):
+def run(text="hello jane street ", say=print):
     """On the Icepi Zero, from the host Pico."""
     from machine import Pin
 
@@ -122,7 +138,7 @@ def run(text="hello jane street "):
     bus_reset = se0_reset(lambda: dp() | dn() << 1, time.ticks_ms)
     host = pico_board.host()
     log = start_log(host, words("uart_tx_host_rate"))
-    serve(host, usb_board.Board(DESCRIPTORS), reports(text), bus_reset, log)
+    serve(host, usb_board.Board(DESCRIPTORS), reports(text), bus_reset, log, say)
 
 
 def run_demo_board(text="hello jane street ", clock_hz=48_000_000):
@@ -132,7 +148,7 @@ def run_demo_board(text="hello jane street ", clock_hz=48_000_000):
     bus_reset = se0_reset(lambda: int(spi.tt.uio_out.value), time.ticks_ms)
     host = demo_board.Host(spi.transfer)
     log = start_log(host, words("uart_tx_host_rate"), clock_hz)
-    serve(host, usb_board.Board(DESCRIPTORS), reports(text), bus_reset, log)
+    serve(host, usb_board.Board(DESCRIPTORS), reports(text), bus_reset, log, print)
 
 
 if __name__ == "__main__":
