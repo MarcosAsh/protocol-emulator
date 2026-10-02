@@ -1,11 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # CAN at 500 kbit/s from the library's transmitter (MicroPython, Pico A): OUT1 into an
-# SN65HVD230's D, the bus to a second SN65HVD230 and Pico B running demo/can_node, which
-# ACKs and prints every frame. The pin is dominant from reset until a bit after the period
-# arrives, which would hold a live bus, so arm() loads the firmware and sends the period
-# before D is wired, and the run sends frames only to an armed engine. The firmware does
-# not wait for the bus to be idle, so the run waits 11 recessive bits first. Needs
-# protocol_emulator.py, pico_board.py, bench.py and bench_firmware.py on the Pico.
+# SN65HVD230's D, the bus to Pico B running demo/can_node, which ACKs. OUT1 is dominant
+# from reset until it has the period, so arm() sends that before D is wired, and the run
+# only sends frames, after 11 recessive bits, as the firmware waits for no idle bus.
 
 import bench
 import bench_firmware

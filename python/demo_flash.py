@@ -1,10 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # A W25Q64 on the library's SPI master (MicroPython, Pico A): MOSI on OUT0, SCK on OUT1,
-# MISO on IN0. The firmware drives no chip select, so Pico A holds the flash's CS low on
-# GP8 across each command and raises it once every reply is back, after the last SCK edge.
-# JEDEC ID, then the top 4 KiB sector erased, a page programmed and read back, and the
-# sector erased again. Needs protocol_emulator.py, pico_board.py, bench.py and
-# bench_firmware.py on the Pico, which demo/outside.sh flash copies.
+# MISO on IN0, and CS from Pico A's GP8, held low across each command since the firmware
+# drives none. JEDEC ID, then the last sector erased, a page programmed and read back, and
+# the sector erased again. demo/outside.sh flash copies what it needs and runs it.
 
 import bench
 import bench_firmware

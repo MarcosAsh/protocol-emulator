@@ -1,10 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# 10BASE-T from the Icepi into a Raspberry Pi 5 (MicroPython, Pico A): a UDP broadcast
-# a second from 10.0.0.2 port 1234, and between frames the link pulses every 16 ms that let
-# the Pi bring the link up. TD+ on IO6, TD- on IO7, through 47 R each to the Teensy kit's
-# MagJack. A bit is four cycles, so the Icepi runs the 40 MHz build (make -C icepi MHZ=40)
-# and the host SPI is at most 5 MHz. Needs protocol_emulator.py, pico_board.py, bench.py,
-# bench_firmware.py and ethernet.py on the Pico.
+# 10BASE-T from the Icepi into a Raspberry Pi 5 (MicroPython, Pico A): a UDP broadcast a
+# second, with the firmware's link pulses between. TD+ on IO6, TD- on IO7, through 47 R
+# each to the Teensy kit's MagJack. A bit is four cycles, so this needs the Icepi's 40 MHz
+# build, and the host SPI at 5 MHz. Needs bench_firmware.py and ethernet.py on the Pico.
 
 import bench
 import bench_firmware

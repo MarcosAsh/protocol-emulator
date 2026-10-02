@@ -1,9 +1,8 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
-# One outside chip act of BRINGUP.md: copies its script to Pico A and runs it while the
-# analyser captures, then prints the Pico's log and sigrok's decode of the capture. Reset
-# the chip first, as faults hold until reset, but for can: a reset makes OUT1 dominant
-# again, so can runs on the engine demo_can.arm() left running.
+# One outside chip act of BRINGUP.md: runs its script on Pico A while the analyser
+# captures, then prints the Pico's log and sigrok's decode. Reset the chip first, as faults
+# hold until reset, but not for can, which runs on the engine demo_can.arm() left running.
 # Usage: PICO=id:<serial of Pico A> demo/outside.sh flash|eeprom|ds18b20|neopixel|can
 set -e
 act=$1

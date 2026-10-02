@@ -1,9 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# A DS18B20 on the library's 1-Wire master (MicroPython, Pico A): DQ on IO4, pulled up to
-# 3.3 V by 4.7 k, VDD at 3.3 V (not parasite power). Reset and presence, READ ROM with its
-# CRC, CONVERT T polled with read slots until it ends, then READ SCRATCHPAD with its CRC
-# and the temperature. Needs protocol_emulator.py, pico_board.py, bench.py and
-# bench_firmware.py on the Pico, which demo/outside.sh ds18b20 copies.
+# A DS18B20 on the library's 1-Wire master (MicroPython, Pico A): DQ on IO4 pulled up by
+# 4.7 k, VDD at 3.3 V. Reset and presence, READ ROM with its CRC, CONVERT T polled to its
+# end, then READ SCRATCHPAD with its CRC and the temperature. demo/outside.sh ds18b20
+# copies what it needs and runs it.
 
 import bench
 import bench_firmware
