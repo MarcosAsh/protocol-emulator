@@ -600,7 +600,7 @@ def html_row(r):
               f'<td data-label="Last green run">{run}</td>',
               f'<td data-label="Date" class="nowrap">{r.run["createdAt"][:10]}</td>',
               f'<td data-label="Teeth">{e(r.teeth)}</td>',
-              f'<td data-label="Time" class="nowrap">{minutes(r.time)}</td>']
+              f'<td data-label="Job time" class="nowrap">{minutes(r.time)}</td>']
     return "<tr>" + "".join(cells) + "</tr>"
 
 
@@ -631,7 +631,8 @@ def html_page(rows, now):
 <p class="muted">The claims CI checks, the job that checks each, and its last run on main where
 every job behind it was green. Written by <code>test/results.py</code> at {e(now)} from the
 job logs, so it shows only what CI printed. Teeth are weakened copies and mutants that have
-to fail. The assumptions and the tools trusted are under
+to fail. Job time adds up jobs that ran in parallel. The assumptions and the tools trusted
+are under
 <a href="https://github.com/{e(REPO)}#what-is-not-proved">What is not proved</a> in the
 README. Bench measurements are not in CI and not here.
 <a href="https://github.com/{e(REPO)}">Repository</a>, <a href="../playground/">playground</a>.</p>
@@ -639,7 +640,7 @@ README. Bench measurements are not in CI and not here.
 <table>
 <thead><tr><th scope="col">Claim</th><th scope="col">Status</th><th scope="col">CI job</th>
 <th scope="col">Last green run</th><th scope="col">Date</th><th scope="col">Teeth</th>
-<th scope="col">Time</th></tr></thead>
+<th scope="col">Job time</th></tr></thead>
 <tbody>
 {body}
 </tbody>
@@ -691,12 +692,13 @@ def main():
     print(f"Written by `test/results.py` at {now} from the GitHub Actions runs on main. Each "
           "row is the last run where every job behind the claim was green. Passes counts the "
           "proofs, covers and tests that passed; teeth are the weakened copies and mutants "
-          "that have to fail, counted from the log. Time is the wall time of those runs.")
+          "that have to fail, counted from the log. Job time is how long the checks took in "
+          "their jobs, added up over jobs that ran in parallel.")
     for title, section in CLAIMS:
         print()
         print(f"## {title}")
         print()
-        print("| Claim | Checked by | Last green | Passes | Teeth | Time |")
+        print("| Claim | Checked by | Last green | Passes | Teeth | Job time |")
         print("|---|---|---|---|---|---|")
         for claim in section:
             print(markdown_row(rows[id(claim)]))
