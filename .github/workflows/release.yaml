@@ -1,7 +1,7 @@
 name: release
 
-# The assembler, the firmware and the chip as files, for anyone without the OxCaml switch.
-# The binary needs glibc 2.39 and libgmp, as on Ubuntu 24.04.
+# The assembler, the firmware, the chip and its FPGA bitstreams as files, for anyone without
+# the OxCaml switch. The binary needs glibc 2.39 and libgmp, as on Ubuntu 24.04.
 on:
   push:
     tags: ['v*']
@@ -54,6 +54,27 @@ jobs:
       - name: Pack the firmware
         run: tar czf release/firmware.tar.gz test/*.asm test/*.hex test/*.settings test/firmware.mk
 
+      - name: Install OSS CAD Suite
+        run: |
+          curl -sL https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz | tar xz -C "$HOME"
+          echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
+
+      # the kit's top and pin file; tt is not part of this repository
+      - name: Checkout tt-support-tools
+        uses: actions/checkout@v6
+        with:
+          repository: TinyTapeout/tt-support-tools
+          ref: ihp-sg13cmos5l
+          path: tt
+
+      # the builds whose netlists the ocaml workflow's fpga job simulates
+      - name: Build the bitstreams
+        run: |
+          (cd test && opam exec -- make fpga_kit.bin)
+          make -C icepi
+          cp test/fpga_kit.bin release/tt_um_marcosash_protocol_emulator.bin
+          cp icepi/build/v1.4.bit release/icepi-zero-v1.4.bit
+
       - name: Download the chip
         env:
           GH_TOKEN: ${{ github.token }}
@@ -69,7 +90,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          echo "The chip is from gds run $run at $commit." > notes.md
+          cat >> notes.md <<'EOF'
+          Assemble and check firmware with no OCaml: `chmod +x generate-linux-x86_64 && ./generate-linux-x86_64 assemble uart_tx.asm`
+
+          `icepi-zero-v1.4.bit` is the chip, two engines at 48 MHz, for an Icepi Zero v1.3 or v1.4 (ECP5), its pins on the 40-pin header as `icepi/header.lpf` maps them and USB on the first USB-C port. Load it with `openFPGALoader -b icepi-zero icepi-zero-v1.4.bit`, as `make -C icepi prog` does, and add `--write-flash` to keep it. v1.0 to v1.2 take the clock on another ball: `make -C icepi REV=v1.2`.
+
+          `tt_um_marcosash_protocol_emulator.bin` is one engine with flop program memory, to fit the iCE40 UP5K on Tiny Tapeout's classic (TT04) FPGA breakout, pins as tt-support-tools' `fpga/tt_fpga_top.pcf`. Copy it to the demo board with `mpremote cp tt_um_marcosash_protocol_emulator.bin :/bitstreams/`, reset the board, select it with `tt.shuttle.tt_um_marcosash_protocol_emulator.enable()` and clock it at 16 MHz or less.
+          EOF
           gh release create "$GITHUB_REF_NAME" -R "${{ github.repository }}" release/* \
-            --title "$GITHUB_REF_NAME" \
-            --notes "The chip is from gds run $run at $commit. Assemble and check firmware
-          with no OCaml: \`chmod +x generate-linux-x86_64 && ./generate-linux-x86_64 assemble uart_tx.asm\`"
+            --title "$GITHUB_REF_NAME" --notes-file notes.md
