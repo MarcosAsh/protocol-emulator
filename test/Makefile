@@ -32,6 +32,12 @@ else ifneq ($(GATES),yes)
 SIM_BUILD				= sim_build/rtl
 COMPILE_ARGS    += -DFUNCTIONAL
 VERILOG_SOURCES += $(addprefix $(SRC_DIR)/,$(PROJECT_SOURCES)) models/RM_IHPSG13_1P_core_behavioral_bm_bist.v models/RM_IHPSG13_1P_512x16_c2_bm_bist.v
+# Verilator is some fifteen times icarus's speed, for the rehearsal of the bench's real
+# milliseconds: make SIM=verilator COCOTB_TEST_MODULES=test_demo
+ifeq ($(SIM),verilator)
+SIM_BUILD				= sim_build/verilator
+COMPILE_ARGS    += --no-timing -Wno-fatal -Wno-lint -Wno-style
+endif
 
 else
 
