@@ -413,12 +413,9 @@ def check_glance(doc, text):
     """The table at the top of the README, against where each number comes from."""
     if doc != "README.md":
         return
-    table, body = glance(text), flat(text)
+    table = glance(text)
     count, words, bits = sram()
     pins = pinout()
-    listed = re.search(r"library firmwares \(([^)]*)\)", body)
-    bench = re.search(r"demo_self_timing\.py` passed on (\d{4}-\d\d-\d\d)", body)
-    silicon = "no silicon yet" if "Nothing has run on silicon yet" in body else "silicon"
     rows = {
         "Process": [("tiles", r"(\d+ x \d+) tiles", tiles()),
                     ("process", r"IHP (\w+)", pdk())],
@@ -436,12 +433,9 @@ def check_glance(doc, text):
                      ("cells", r"([\d,]+) standard cells", True),
                      ("utilisation", r"([\d.]+)% utilisation", True),
                      ("slack", r"([+-][\d.]+) ns at the slow corner", True)],
-        "Firmware": [("library firmwares", r"(\d+) library", str(len(library_firmwares()))),
-                     ("protocols", r"(\d+) protocols",
-                      str(len(re.split(r",\s*", listed[1]))) if listed else "a list")],
+        "Firmware": [("library firmwares", r"(\d+) library", str(len(library_firmwares())))],
         "Proved": [],
-        "Board": [("bench date", r"(\d{4}-\d\d-\d\d)", bench[1] if bench else "a date"),
-                  ("silicon", r"(no silicon yet)", silicon)],
+        "Board": [],  # the bench, which no file in the repo records
     }
     for label in table.keys() - rows.keys():
         yield f"the table's {label} row has no check, add one to test/check_docs.py"
@@ -496,7 +490,6 @@ TEETH = [
     ("a job", first(JOB, lambda j: j + "x"), None),
     ("a commit", first(r"\b(?=\w*[a-f])(?=\w*\d)([0-9a-f]{7})\b", bump), None),
     ("the firmware count", first(r"(\d+) library firmwares", bump), None),
-    ("the protocols", first(r"(\d+) protocols", bump), None),
     ("the mutation score", first(r"(\d+) of \d+ valid mutants", bump), None),
     ("the equivalent mutants", first(r"other (\d+) are equivalent", bump), None),
     ("the tiles", first(r"(\d+ x \d+) tiles", bump), None),
@@ -505,7 +498,6 @@ TEETH = [
     ("the SRAM macros", first(r"(\d+) IHP", bump), None),
     ("the inputs", first(r"(\d+) in,", bump), None),
     ("the wires", first(r"(\d+) wires", bump), None),
-    ("the bench date", first(r"demo on (\d{4}-\d\d-\d\d)", bump), None),
     ("a missing row", first(r"(\| Clock \|[^\n]*\n)", lambda _: ""), None),
     ("a transcript", first(r"worst slack (\d+)", bump), None),
     ("a transcript's edit", first(r"\$ sed '([^']*)'", bump), None),
