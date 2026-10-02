@@ -71,6 +71,30 @@ class PicoSpi:
             cs_n(1)
         return frames
 
+    @micropython.native
+    def drain_quiet(self, words, quiet, limit):
+        """Append the selected engine's rx words to words until quiet status reads in a row
+        find none, or limit are in. Returns the status word last read."""
+        spi, cs_n, status, rx_in = self.spi, self.cs_n, self.status, self.rx_in
+        read_status = self.reads[STATUS]
+        idle = 0
+        while idle < quiet and len(words) < limit:
+            cs_n(0)
+            spi.write_readinto(read_status, status)
+            cs_n(1)
+            level = (status[1] >> 2) & 15
+            if level:
+                out, into = self.rx_frames[level]
+                cs_n(0)
+                spi.write_readinto(out, into)
+                cs_n(1)
+                for i in range(1, 1 + 2 * level, 2):
+                    words.append(rx_in[i] << 8 | rx_in[i + 1])
+                idle = 0
+            else:
+                idle += 1
+        return status[1] << 8 | status[2]
+
 
 class PicoHost(Host):
     """Host with act 3's hot calls in native code."""
@@ -80,6 +104,7 @@ class PicoHost(Host):
         self.spi = spi
         # the longest write, a full program load
         self.out = bytearray(1 + 2 * PROGRAM_WORDS)
+        self.drain_quiet = spi.drain_quiet
 
     @micropython.native
     def write(self, reg, words):

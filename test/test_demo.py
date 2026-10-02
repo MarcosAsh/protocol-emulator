@@ -288,8 +288,6 @@ COSTS = {
     "Host.read": (60, 186, 0, 210, 0),  # bench 246 a word
     "Host.pop": (60, 168, 20.6, 210, 4),  # bench 228 for none, 372 for seven
     "Host.write": (80, 12, 28, 80, 42),  # fit: 120 a word, a full load 21.4 ms
-    "PicoHost.status": (15, 80, 0, 0, 0),  # bench 95, one dict refilled
-    "PicoHost.pop": (15, 69, 7.1, 48, 4),  # bench 84 for none, 134 for seven
     "PicoHost.write": (40, 12, 18, 64, 0),  # fit: six words 188 (bench), loads 1.3-1.7 ms
     "Board.feed": (50, 0, 0, 8, 0),  # bench: a status OUT's three words 152
     "_reverse": (118, 0, 0, 48, 0),  # bench: a SETUP fed in 2359, in 949 with the table
@@ -297,11 +295,17 @@ COSTS = {
     "Board._setup": (440, 0, 0, 600, 0),  # bench: that 949 less its feeds and lookups
     "reply": (100, 0, 0, 100, 0),  # est
     "service": (40, 0, 0, 32, 0),  # est; the bench's 260-461 idle is mostly collections
-    "bus_reset": (39, 0, 0, 0, 0),  # bench 24, and serve's loop 15 est
+    "bus_reset": (30, 0, 0, 0, 0),  # bench 24 less its Pin reads, and serve's loop 15 est
     "words": (1000, 0, 0, 1900, 0),  # fit: a same address load 1.4 ms less four writes
     "Host.load": (1000, 0, 0, 4100, 0),  # est: the words copied again, then zeros
     "config_writes": (400, 0, 0, 1100, 0),  # est
 }
+# PicoSpi.drain_quiet's native loop, per status read and per rx read and its words, the
+# frame's wire time in each. est: a PicoHost.status of the bench's 95 less its dict, and
+# a PicoHost.pop of 84 and 7.1 a word less its call and list
+DRAIN_STATUS_US = 60
+DRAIN_POP_US, DRAIN_WORD_US = 50, 7.1
+PIN_US = 4.7  # est: a Pin read, as a CS edge
 # bench: gc.mem_free() with the demo imported, and r3's pauses in serve, 660 ms apart there
 GC_HEAP = 200_000
 GC_PAUSE_US = 11_000
@@ -344,6 +348,8 @@ class Pico:
         self.owed = 0.0
         self.free = GC_HEAP
         self.depth = 0
+        # inside a native loop, whose frames are charged one by one
+        self.native = False
         self.done = False
         self.collections = []
         self.undo = []
@@ -404,6 +410,23 @@ class Pico:
 
         return charged
 
+    def native_frame(self, out):
+        n = (len(out) - 1) // 2
+        us = DRAIN_STATUS_US if out[0] == STATUS else DRAIN_POP_US + DRAIN_WORD_US * n
+        self.spend(max(0, us - (64 * len(out) + 11) / US), 4 * n)
+
+    def natively(self, function):
+        """function, a native loop over SPI frames, each charged as native_frame says."""
+
+        def charged(*args):
+            self.native = True
+            try:
+                return function(*args)
+            finally:
+                self.native = False
+
+        return charged
+
     def patch(self, owner, name, value):
         self.undo.append((owner, name, getattr(owner, name)))
         setattr(owner, name, value)
@@ -425,7 +448,10 @@ class Pico:
 
             # chip select's edges frame each transfer, which is one cocotb transfer here
             def __call__(self, value=None):
-                return pico.line(self.pin) if value is None else None
+                if value is not None:
+                    return None
+                pico.spend(PIN_US)
+                return pico.line(self.pin)
 
         class SPI:
             MSB = 0
@@ -434,6 +460,8 @@ class Pico:
                 pass
 
             def write_readinto(self, out, into):
+                if pico.native:
+                    pico.native_frame(out)
                 into[:] = bytes(pico.frame(list(out)))
 
             def write(self, out):
@@ -458,6 +486,9 @@ class Pico:
             self.charge(owner, "read", f"{prefix}.read", lambda host, reg, count=1: count)
             self.charge(owner, "pop", f"{prefix}.pop", count)
             self.charge(owner, "write", f"{prefix}.write", lambda host, reg, words: len(words))
+        if hasattr(pico_board.PicoSpi, "drain_quiet"):
+            self.patch(pico_board.PicoSpi, "drain_quiet",
+                       self.natively(pico_board.PicoSpi.drain_quiet))
         self.charge(Host, "load", "Host.load")
         self.charge(protocol_emulator, "config_writes", "config_writes")
         self.charge(usb_board.Board, "feed", "Board.feed")

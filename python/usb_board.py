@@ -10,7 +10,7 @@ the tx fifo whole and in order. `service` is one round of that I/O over a `proto
 """
 
 import usb_device_firmware as firmware
-from protocol_emulator import PROGRAM, PROGRAM_ADDR
+from protocol_emulator import PROGRAM, PROGRAM_ADDR, STATUS
 
 DATA0 = 0xC3
 DATA1 = 0x4B
@@ -20,6 +20,11 @@ TAG_DATA0 = 1  # a SETUP's eight bytes and their CRC follow, six words
 TAG_DATA1 = 2  # an OUT's data: only status packets are expected, two words
 TAG_ACK = 3  # the host acknowledged what we sent
 TAG_DROPPED = 4  # a reply was queued for the other endpoint and is gone
+
+# status reads in a row that must find the rx fifo empty before its words are fed, and
+# the most words one round pops, so a bus that never goes quiet still gets reset checks
+QUIET = 5
+DRAIN_LIMIT = 64
 
 
 # each byte bit reversed, a table as the per-bit sum took 2 ms a SETUP on the Pico
@@ -164,18 +169,41 @@ def load(host, address, loaded=None):
     host.start()
 
 
+def drain(host, words):
+    """Pop the core's words into words until QUIET status reads in a row find none, in one
+    native call where the host has one. Returns the status word last read."""
+    fast = getattr(host, "drain_quiet", None)
+    if fast is not None:
+        return fast(words, QUIET, DRAIN_LIMIT)
+    idle = 0
+    while idle < QUIET and len(words) < DRAIN_LIMIT:
+        status = host.read(STATUS)[0]
+        level = (status >> 10) & 15
+        if level:
+            words += host.pop(level)
+            idle = 0
+        else:
+            idle += 1
+    return status
+
+
 def service(host, board, fifo_depth=8):
-    """One round: hand the core's words to the board, then do what the board wants."""
-    status = host.status()
-    if status["rx_level"]:
-        for word in host.pop(status["rx_level"]):
-            board.feed(word)
+    """One round: hand the core's words to the board, then do what the board wants.
+    Returns the status word.
+
+    The laptop's ACK, status OUT and next SETUP come back to back, eleven words for an
+    eight word fifo, and feeding them one by one on the Pico is too slow to keep up: so
+    the fifo is drained until quiet, then fed."""
+    words = []
+    status = drain(host, words)
+    for word in words:
+        board.feed(word)
     if board.reload is not None:
         address, board.reload = board.reload, None
         # a halted core may have lost its configuration to a reset or a new bitstream
-        load(host, address, None if status["halted"] else board.loaded)
+        load(host, address, None if status & 1 else board.loaded)
         board.loaded = address
         board.flushed()
-    elif board.replies and status["tx_level"] + len(board.replies[0]) <= fifo_depth:
+    elif board.replies and ((status >> 6) & 15) + len(board.replies[0]) <= fifo_depth:
         host.push(board.replies.pop(0))
     return status
