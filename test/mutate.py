@@ -296,7 +296,7 @@ def main():
     p.add_argument("--held-out", type=int, default=20, help="percent held out")
     p.add_argument("--jobs", type=int, default=1)
     p.add_argument("--dune-jobs", type=int, help="dune's -j in each copy")
-    p.add_argument("--timeout", type=int, help="seconds per suite; default 3x the unmutated one")
+    p.add_argument("--timeout", type=int, help="seconds per suite; default 3x the unmutated one per job")
     p.add_argument("--json", help="append each result to this file, a line each")
     p.add_argument("--list", action="store_true", help="print the mutants and stop")
     p.add_argument("--report", nargs="+", help="score the --json files of every shard")
@@ -362,7 +362,8 @@ def main():
         code, err = dune(work / "0", "build", "@runtest", jobs=args.dune_jobs)
         if code != 0:
             sys.exit("the unmutated suite fails\n" + err[-4000:])
-        timeout = timeout or 3 * round(time.monotonic() - start)
+        # suites run side by side share the cores
+        timeout = timeout or 3 * args.jobs * round(time.monotonic() - start)
         print(f"the unmutated suite passes in {round(time.monotonic() - start)} s;"
               f" {len(todo)} mutants, {timeout} s each at most", flush=True)
         for n in range(args.jobs):
