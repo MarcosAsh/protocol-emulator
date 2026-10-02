@@ -40,6 +40,9 @@ end
 (** CRC-15/CAN, MSB first from 0: 0x4599, check 0x059e. *)
 val crc15 : bool list -> int
 
+(** The CRC-15 a frame carries, over SOF to its last data bit. *)
+val crc : Frame.t -> int
+
 (** Every bit on the line from SOF to the end of the intermission, stuff bits included. *)
 val line : Frame.t -> bool list
 

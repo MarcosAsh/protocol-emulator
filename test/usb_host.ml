@@ -217,6 +217,8 @@ module Board = struct
   ;;
 end
 
+let reply = Board.reply
+
 type t =
   { mutable machine : Machine.t
   ; mutable sniffer : Usb_ls.Sniffer.t
@@ -377,13 +379,13 @@ let listen t =
   wait 160
 ;;
 
-let token t ~pid ~endpoint =
+let token ~address ~pid ~endpoint =
   let bits_ =
     List.init 11 ~f:(fun i ->
-      if i < 7 then (t.address lsr i) land 1 else (endpoint lsr (i - 7)) land 1)
+      if i < 7 then (address lsr i) land 1 else (endpoint lsr (i - 7)) land 1)
   in
   [ pid
-  ; t.address lor ((endpoint land 1) lsl 7)
+  ; address lor ((endpoint land 1) lsl 7)
   ; (endpoint lsr 1) lor (Usb_ls.crc5 bits_ lsl 3)
   ]
 ;;
@@ -401,7 +403,7 @@ let expect_ack t what =
 
 (* an IN, again after every NAK; the payload once the CRC has been checked *)
 let rec in_ t ~endpoint ~tries =
-  send t (token t ~pid:0x69 ~endpoint);
+  send t (token ~address:t.address ~pid:0x69 ~endpoint);
   match listen t with
   | Some [ pid ] when pid = nak ->
     t.naks <- t.naks + 1;
@@ -421,7 +423,7 @@ let rec in_ t ~endpoint ~tries =
 ;;
 
 let setup t (request : Request.t) =
-  send t (token t ~pid:0x2d ~endpoint:0);
+  send t (token ~address:t.address ~pid:0x2d ~endpoint:0);
   bits t J ~count:3;
   send t (data ~pid:data0 (Request.bytes request));
   expect_ack t "SETUP";
@@ -440,7 +442,7 @@ let control_in t request =
       else stage acc
   in
   let bytes = stage [] in
-  send t (token t ~pid:0xe1 ~endpoint:0);
+  send t (token ~address:t.address ~pid:0xe1 ~endpoint:0);
   bits t J ~count:3;
   send t (data ~pid:data1 []);
   expect_ack t "status";

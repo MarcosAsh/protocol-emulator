@@ -142,6 +142,8 @@ let stuff bits =
   |> fun (sent, _, _) -> List.rev sent
 ;;
 
+let crc f = crc15 (false :: fields f)
+
 let line f =
   let unstuffed = false :: fields f in
   stuff (unstuffed @ msb_first (crc15 unstuffed) ~width:15)

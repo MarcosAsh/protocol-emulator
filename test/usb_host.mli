@@ -26,6 +26,20 @@ type t
 (** Cycles to a bit: 48 MHz. *)
 val bit_period : int
 
+val ack : int
+val nak : int
+val data0 : int
+val data1 : int
+
+(** A token's bytes after SYNC, PID first, CRC5 last. *)
+val token : address:int -> pid:int -> endpoint:int -> int list
+
+(** A data packet's bytes after SYNC, PID first, CRC16 last. *)
+val data : pid:int -> int list -> int list
+
+(** The words a board queues to answer an IN on [endpoint] with [payload]. *)
+val reply : endpoint:int -> pid:int -> int list -> int list
+
 (** [descriptors] by descriptor type. *)
 val create
   :  ?reset_cycles:int
