@@ -11,6 +11,8 @@ test/sim_build
 test/__pycache__/
 test/results.xml
 test/results_replay.xml
+test/results_outside.xml
+test/outside_*.sr
 test/gate_level_netlist.v
 
 _build

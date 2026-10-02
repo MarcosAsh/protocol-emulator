@@ -62,10 +62,14 @@ COMPILE_ARGS 		+= -I$(SRC_DIR)
 # Include the testbench sources:
 ifeq ($(ICEPI),yes)
 VERILOG_SOURCES += $(CURDIR)/tb_icepi.v
+TOPLEVEL = tb
+else ifeq ($(OUTSIDE),yes)
+VERILOG_SOURCES += $(CURDIR)/tb_outside.v $(CURDIR)/models/spiflash.v
+TOPLEVEL = tb_outside
 else
 VERILOG_SOURCES += $(CURDIR)/tb.v
-endif
 TOPLEVEL = tb
+endif
 
 # List test modules to run, separated by commas and without the .py suffix:
 COCOTB_TEST_MODULES = test,test_usb_board,test_ethernet,test_dshot_sent_cec
@@ -112,6 +116,15 @@ fpga_kit.bin: fpga_fit
 icepi_netlist.v: $(SRC_DIR)/project.v $(SRC_DIR)/protocol_emulator.v ../icepi/icepi_top.v
 	$(MAKE) -C ../icepi build/usb1.json
 	yosys -q -p "read_json ../icepi/build/usb1.json; write_verilog -noattr icepi_netlist.v"
+
+# The outside chip acts of BRINGUP.md on the RTL, against picosoc's SPI flash model and
+# cocotbext-i2c's memory, each capture judged by sigrok's decoders. Needs cocotbext-i2c
+# 0.1.2 and sigrok-cli beside cocotb.
+outside:
+	$(MAKE) sim OUTSIDE=yes SIM_BUILD=sim_build/outside COCOTB_TEST_MODULES=test_outside \
+		PLUSARGS=+firmware=/dev/null \
+		COCOTB_RESULTS_FILE=results_outside.xml
+	$(PYTHON_BIN) -m cocotb_tools.check_results results_outside.xml
 
 # Replays the pin traces in traces/, recorded from the OCaml simulation of the top, on
 # whichever netlist the mode selects: make replay, make replay GATES=yes, FPGA=yes or
