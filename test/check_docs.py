@@ -1,9 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-# Fails when README.md or docs/info.md cites a path, make target, CI job, commit or run
-# that is not there, or quotes a count the code, the tests or the cited run disagree with.
-# A reworded sentence a count is read from fails too, until this file learns the new one.
-# Runs are looked up with gh, which --offline skips. --teeth makes wrong READMEs from the
-# current one, a count, path, target, commit or run off by one each, and fails if any passes.
+# Fails when README.md or docs/info.md cites a path, make target, job, commit or run that
+# is not there, or quotes a number the code, the tests or the cited run disagree with.
+# --teeth checks that wrong READMEs made from this one fail. --offline skips the runs.
 # Usage: python3 test/check_docs.py [--offline] [--teeth]
 import argparse
 import csv
