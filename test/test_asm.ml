@@ -175,6 +175,14 @@ let%expect_test "errors name the line" =
     |}]
 ;;
 
+let%expect_test "a tab separates tokens as a space does" =
+  listing "loop:\tset pins, 1\t[2]\t; idle\n\tjmp\tloop";
+  [%expect {|
+    0  a201  set pins, 1 [2]
+    1  0000  jmp 0
+    |}]
+;;
+
 let%expect_test "an instruction survives printing and parsing" =
   List.iter [ 0; 1; 2 ] ~f:(fun side_set_count ->
     Quickcheck.test

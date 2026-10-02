@@ -76,8 +76,7 @@ let strip_comment line =
 ;;
 
 let tokenize line =
-  String.tr line ~target:',' ~replacement:' '
-  |> String.split ~on:' '
+  String.split_on_chars line ~on:[ ','; ' '; '\t' ]
   |> List.filter ~f:(Fn.non String.is_empty)
 ;;
 
