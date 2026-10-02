@@ -1,6 +1,12 @@
 # uart_tx, from test/pin_trace.ml: do not edit
 # cycles ui_in uio_in uo_out uio_out uio_oe; cycle 0 is the first rising edge
 # after rst_n rises, outputs are the values after the edge
+# sigrok clock 48000000
+# sigrok decoder uart:tx=OUT0:baudrate=3000000
+# sigrok annotations uart=tx-data
+# sigrok expect uart-1: 55
+# sigrok expect uart-1: A3
+# sigrok tooth shift:OUT0:10:12
 4 04 00 00 00 00
 4 00 00 00 00 00
 4 02 00 00 00 00

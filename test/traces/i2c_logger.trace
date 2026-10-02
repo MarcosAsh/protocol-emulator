@@ -1,6 +1,43 @@
 # i2c_logger, from test/pin_trace.ml: do not edit
 # cycles ui_in uio_in uo_out uio_out uio_oe; cycle 0 is the first rising edge
 # after rst_n rises, outputs are the values after the edge
+# sigrok clock 48000000
+# sigrok decoder i2c:scl=IO1:sda=IO0
+# sigrok decoder uart:tx=OUT0:baudrate=3000000
+# sigrok annotations i2c=start:address-read:ack:data-read:nack:stop
+# sigrok expect i2c-1: Start
+# sigrok expect i2c-1: Read
+# sigrok expect i2c-1: Address read: 50
+# sigrok expect i2c-1: ACK
+# sigrok expect i2c-1: Data read: 10
+# sigrok expect i2c-1: NACK
+# sigrok expect i2c-1: Stop
+# sigrok expect i2c-1: Start
+# sigrok expect i2c-1: Read
+# sigrok expect i2c-1: Address read: 50
+# sigrok expect i2c-1: ACK
+# sigrok expect i2c-1: Data read: 21
+# sigrok expect i2c-1: NACK
+# sigrok expect i2c-1: Stop
+# sigrok expect i2c-1: Start
+# sigrok expect i2c-1: Read
+# sigrok expect i2c-1: Address read: 50
+# sigrok expect i2c-1: ACK
+# sigrok expect i2c-1: Data read: 32
+# sigrok expect i2c-1: NACK
+# sigrok expect i2c-1: Stop
+# sigrok expect i2c-1: Start
+# sigrok expect i2c-1: Read
+# sigrok expect i2c-1: Address read: 50
+# sigrok expect i2c-1: ACK
+# sigrok expect i2c-1: Data read: 43
+# sigrok expect i2c-1: NACK
+# sigrok expect i2c-1: Stop
+# sigrok annotations uart=tx-data
+# sigrok expect uart-1: 10
+# sigrok expect uart-1: 21
+# sigrok expect uart-1: 32
+# sigrok expect uart-1: 43
 4 04 03 00 00 00
 4 00 03 00 00 00
 4 02 03 00 00 00

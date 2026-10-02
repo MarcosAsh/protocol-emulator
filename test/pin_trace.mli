@@ -45,11 +45,57 @@ module Step : sig
         } (** One level per cycle on an input pin, over the peer's. *)
 end
 
+(** What sigrok's protocol decoders should read off the pins, for [demo/decode.py]. A pin
+    is named as [pin_name] gives it wherever sigrok-cli wants a channel. *)
+module Sigrok : sig
+  (** A change to one pin's waveform, edges counted from 0. *)
+  module Corruption : sig
+    type t =
+      | Shift of
+          { pin : int
+          ; edge : int
+          ; cycles : int
+          } (** The edge [cycles] later, or earlier if negative. *)
+      | Flip of
+          { pin : int
+          ; edge : int
+          ; after : int
+          ; cycles : int
+          } (** The pin inverted for [cycles] from [after] cycles past the edge. *)
+  end
+
+  type t =
+    { clock_hz : int
+    ; decoders : string list (** One [-P] of sigrok-cli each. *)
+    ; expect : (string * string list) list
+    (** Per [-A] of sigrok-cli, classes that carry the payload, every line it prints. *)
+    ; joins_after : (int * string) option
+    (** Cycles the first pin idles high before the decoders join, as a CAN node waits for
+        eleven recessive bits, and why they misread the line before: the check from reset
+        then has to fail. *)
+    ; rejected : string option
+    (** Why the decoders refuse the waveform, when they are known to: the check then has
+        to fail. *)
+    ; teeth : Corruption.t list list (** Each must make the check fail. *)
+    }
+
+  (** IN0 to IN4, OUT0 to OUT6 and IO0 to IO7. *)
+  val pin_name : int -> string
+
+  (** [name:channel=PIN:option=value...]. *)
+  val decoder
+    :  ?pins:(string * int) list
+    -> ?options:(string * string) list
+    -> string
+    -> string
+end
+
 module Scenario : sig
   type t =
     { name : string
     ; peer : unit -> Peer.t
     ; script : Step.t list
+    ; sigrok : Sigrok.t option
     }
 
   (** The frames that configure the core and load a program at address 0. *)
@@ -63,5 +109,5 @@ val run : Scenario.t -> Line.t list * int list list
 
 (** One line per run of identical cycles: the run length in decimal, then [ui_in],
     [uio_in], [uo_out], [uio_out] and [uio_oe] in hex. Lines starting with [#] are
-    comments. *)
+    comments, and those starting with [# sigrok] carry [Sigrok.t]. *)
 val to_string : Scenario.t -> Line.t list -> string

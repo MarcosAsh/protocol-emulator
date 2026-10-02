@@ -36,12 +36,16 @@ def read(path):
     return _rate(device["samplerate"]), channels, samples
 
 
-def write(path, rate_hz, samples, channels=8):
+def write(path, rate_hz, samples, channels=8, names=None):
+    """names: one a channel, D0 and up by default."""
+    names = names or ["D%d" % i for i in range(channels)]
     meta = io.StringIO()
     meta.write("[global]\nsigrok version=0.5.2\n\n[device 1]\ncapturefile=logic-1\n")
-    meta.write("total probes=%d\nsamplerate=%g MHz\ntotal analog=0\n" % (channels, rate_hz / 1e6))
-    for i in range(channels):
-        meta.write("probe%d=D%d\n" % (i + 1, i))
+    meta.write(
+        "total probes=%d\nsamplerate=%g MHz\ntotal analog=0\n" % (len(names), rate_hz / 1e6)
+    )
+    for i, name in enumerate(names):
+        meta.write("probe%d=%s\n" % (i + 1, name))
     meta.write("unitsize=1\n")
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("version", "2")

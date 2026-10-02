@@ -1,6 +1,16 @@
 # spi_master, from test/pin_trace.ml: do not edit
 # cycles ui_in uio_in uo_out uio_out uio_oe; cycle 0 is the first rising edge
 # after rst_n rises, outputs are the values after the edge
+# sigrok clock 48000000
+# sigrok decoder spi:clk=OUT1:mosi=OUT0:miso=IN0
+# sigrok annotations spi=mosi-data
+# sigrok expect spi-1: A5
+# sigrok expect spi-1: 3C
+# sigrok expect spi-1: 0F
+# sigrok annotations spi=miso-data
+# sigrok expect spi-1: 81
+# sigrok expect spi-1: 7E
+# sigrok expect spi-1: 42
 4 0c 00 00 00 00
 4 08 00 00 00 00
 4 0a 00 00 00 00

@@ -45,11 +45,74 @@ module Step = struct
         }
 end
 
+module Sigrok = struct
+  module Corruption = struct
+    type t =
+      | Shift of
+          { pin : int
+          ; edge : int
+          ; cycles : int
+          }
+      | Flip of
+          { pin : int
+          ; edge : int
+          ; after : int
+          ; cycles : int
+          }
+  end
+
+  type t =
+    { clock_hz : int
+    ; decoders : string list
+    ; expect : (string * string list) list
+    ; joins_after : (int * string) option
+    ; rejected : string option
+    ; teeth : Corruption.t list list
+    }
+
+  let pin_name pin =
+    if pin < Isa.first_output_pin
+    then sprintf "IN%d" pin
+    else if pin < Isa.first_bidir_pin
+    then sprintf "OUT%d" (pin - Isa.first_output_pin)
+    else sprintf "IO%d" (pin - Isa.first_bidir_pin)
+  ;;
+
+  let decoder ?(pins = []) ?(options = []) name =
+    String.concat
+      ~sep:":"
+      ((name :: List.map pins ~f:(fun (channel, pin) -> channel ^ "=" ^ pin_name pin))
+       @ List.map options ~f:(fun (option, value) -> option ^ "=" ^ value))
+  ;;
+
+  let header t =
+    [ [ sprintf "clock %d" t.clock_hz ]
+    ; List.map t.decoders ~f:(sprintf "decoder %s")
+    ; List.concat_map t.expect ~f:(fun (annotations, lines) ->
+        sprintf "annotations %s" annotations :: List.map lines ~f:(sprintf "expect %s"))
+    ; Option.to_list t.joins_after
+      |> List.map ~f:(fun (cycles, why) -> sprintf "joins_after %d %s" cycles why)
+    ; Option.to_list t.rejected |> List.map ~f:(sprintf "rejected %s")
+    ; List.map t.teeth ~f:(fun tooth ->
+        List.map tooth ~f:(function
+          | Corruption.Shift { pin; edge; cycles } ->
+            sprintf "shift:%s:%d:%d" (pin_name pin) edge cycles
+          | Flip { pin; edge; after; cycles } ->
+            sprintf "flip:%s:%d:%d:%d" (pin_name pin) edge after cycles)
+        |> String.concat ~sep:" "
+        |> sprintf "tooth %s")
+    ]
+    |> List.concat
+    |> List.map ~f:(sprintf "# sigrok %s\n")
+  ;;
+end
+
 module Scenario = struct
   type t =
     { name : string
     ; peer : unit -> Peer.t
     ; script : Step.t list
+    ; sigrok : Sigrok.t option
     }
 
   let load ~config ~program =
@@ -153,5 +216,6 @@ let to_string (scenario : Scenario.t) lines =
      ; "# cycles ui_in uio_in uo_out uio_out uio_oe; cycle 0 is the first rising edge\n"
      ; "# after rst_n rises, outputs are the values after the edge\n"
      ]
+     @ Option.value_map scenario.sigrok ~default:[] ~f:Sigrok.header
      @ runs)
 ;;
