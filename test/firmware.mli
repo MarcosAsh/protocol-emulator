@@ -56,6 +56,10 @@ val i2c_master : quarter:int -> string
 (** The master without the bus clear, as the bench's marked copy runs it. *)
 val i2c_master_without_bus_clear : quarter:int -> string
 
+(** [i2c_master] with the quarter period from the host, as its first word: a bus slower
+    than a quarter of 31 cycles, which is as long as [set] makes one. *)
+val i2c_master_host_rate : string
+
 val i2c_config : Program_config.t
 
 (** Slave. The host sends [address lsl 1] first, then reads every byte the master writes

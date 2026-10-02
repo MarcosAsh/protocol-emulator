@@ -289,12 +289,13 @@ clear_stop:
 |}
 ;;
 
-(* host word: start[15] read[14] data[13:6] stop[5]; p is a quarter period *)
-let i2c_master_with ~preamble ~quarter =
+(* host word: start[15] read[14] data[13:6] stop[5]; p is a quarter period, which [load]
+   sets *)
+let i2c_master_loading ~load ~preamble =
   [%string
     {|
     .side_set 1
-    set p, %{quarter#Int} side 0%{preamble}idle:
+%{load}%{preamble}idle:
     wait tx side 0
     pull side 0
     mov t, now side 0
@@ -389,8 +390,18 @@ stop:
 |}]
 ;;
 
+let i2c_master_with ~preamble ~quarter =
+  i2c_master_loading ~load:[%string "    set p, %{quarter#Int} side 0"] ~preamble
+;;
+
 let i2c_master = i2c_master_with ~preamble:bus_clear
 let i2c_master_without_bus_clear = i2c_master_with ~preamble:"\n"
+
+let i2c_master_host_rate =
+  i2c_master_loading
+    ~load:"    wait tx side 0\n    pull side 0\n    mov p, osr side 0"
+    ~preamble:bus_clear
+;;
 
 let i2c_config =
   { Program_config.default with

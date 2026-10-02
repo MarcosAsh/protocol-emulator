@@ -18,18 +18,17 @@ let bench =
     , Firmware.spi_config
     , None )
   ; ( "i2c_master"
-    , "Firmware.i2c_master ~quarter:31, fraction 1/2: SCL low 63 cycles, 1.3125 us, SDA \
-       on IO2, SCL on IO3"
-    , Firmware.i2c_master ~quarter:31
+    , "Firmware.i2c_master_host_rate: the host sends the quarter, 48 cycles for 250 kHz, \
+       SDA on IO2, SCL on IO3"
+    , Firmware.i2c_master_host_rate
     , { Firmware.i2c_config with
-        period_fraction = 0x8000
-      ; side_set_base = scl
+        side_set_base = scl
       ; out_base = sda
       ; set_base = sda
       ; in_base = sda
       ; jmp_pin = sda
       }
-    , None )
+    , Some 31 )
   ; ( "one_wire"
     , "One_wire.firmware: the host sends the unit, 288 cycles for 6 us, on IO4"
     , Timed_program.source One_wire.firmware

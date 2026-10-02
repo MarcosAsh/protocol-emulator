@@ -1,15 +1,17 @@
 # SPDX-License-Identifier: Apache-2.0
 # A 24LC256 on the library's I2C master (MicroPython, Pico A): SDA on IO2, SCL on IO3, each
-# pulled up to 3.3 V by 4.7 k. Finds the chip from 0x50 to 0x57, then a byte write and a
-# page write, each followed by ACK polling for the end of the write cycle, a random read of
-# the byte and a sequential read of the page. The old contents seed what is written, so a
-# run that writes nothing cannot pass. Needs protocol_emulator.py, pico_board.py, bench.py
-# and bench_firmware.py on the Pico, which demo/outside.sh eeprom copies.
+# pulled up to 3.3 V. Finds the chip, then a byte write and a page write, each ACK polled to
+# the end of its write cycle and read back. The old contents seed what is written, so a run
+# that writes nothing cannot pass. demo/outside.sh eeprom copies what it needs and runs it.
 
 import bench
 import bench_firmware
 import protocol_emulator as pe
 
+# A repeated START's setup is a quarter less SCL's rise, and Fast-mode wants 600 ns. A
+# quarter of 31 cycles, the most `set` makes, leaves about 400 ns behind 4.7 k and 45 pF,
+# so the host sends 48, 1 us: SCL at 250 kHz.
+QUARTER = 48
 PAGE = 64
 # the last page, and the byte before it
 PAGE_ADDRESS = 0x7FC0
@@ -70,6 +72,8 @@ def run(transfer, log=print):
     host = pe.Host(transfer)
     bench.load(host, bench_firmware.I2C_MASTER)
     host.start()
+    # the quarter comes first and is not answered
+    host.push([QUARTER])
     device = find(host)
     if device is None:
         log("no ACK from 0x50 to 0x57: check the pull-ups, SDA, SCL and 3.3 V")

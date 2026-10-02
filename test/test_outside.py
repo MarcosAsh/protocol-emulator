@@ -204,6 +204,16 @@ async def test_eeprom(dut):
     page = [(1 + 13 * i) & 0xFF for i in range(demo_eeprom.PAGE)]
     assert list(memory.read_mem(demo_eeprom.PAGE_ADDRESS, demo_eeprom.PAGE)) == page
     assert memory.read_mem(demo_eeprom.BYTE_ADDRESS, 1) == b"\x01"
+    # every START, repeated ones included: SCL high this long before SDA falls, which
+    # SCL's rise on the bench eats into against Fast-mode's 600 ns
+    scl = analyser.levels(7)
+    setups = [
+        (fall - max(at for at, level in scl if at <= fall and level == 1)) / 1000
+        for fall, level in analyser.levels(6)[1:]
+        if level == 0 and [v for at, v in scl if at <= fall][-1] == 1
+    ]
+    cocotb.log.info("least START setup: %d ns", min(setups))
+    assert min(setups) >= 1000
     decoded = decode(analyser, "eeprom")
     data = " ".join("%02X" % b for b in page)
     for line in [
