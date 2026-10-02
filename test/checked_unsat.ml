@@ -135,20 +135,22 @@ let solve ~bad_proof ~bad_model ~dimacs_in ~result_out () =
       let%bind.Or_error () =
         cadical ~binary:(not bad_proof) ~dimacs:dimacs_in ~proof ~result:result_out ()
       in
-      (* SAT needs its model to hold and any other answer the proof, so none reads
-         unchecked *)
+      (* SAT needs its model to hold, UNSAT its proof and any other answer is refused, so
+         none reads unchecked *)
       match In_channel.read_lines result_out with
       | "s SATISFIABLE" :: _ as model ->
         if bad_model then Out_channel.write_lines result_out (negate_first_value model);
         check_model ~dimacs:dimacs_in ~result:result_out
-      | _ when bad_proof ->
+      | "s UNSATISFIABLE" :: _ when bad_proof ->
         Out_channel.write_lines proof (negate_first_lemma (In_channel.read_lines proof));
         check ~dimacs:dimacs_in ~proof
-      | _ ->
+      | "s UNSATISFIABLE" :: _ ->
         (* cadical still answers UNSAT when a full disk cuts its proof short *)
         let proof_bytes = In_channel.with_file proof ~f:In_channel.length in
         check ~dimacs:dimacs_in ~proof
-        |> Or_error.tag_s ~tag:[%message (proof : string) (proof_bytes : int64)])
+        |> Or_error.tag_s ~tag:[%message (proof : string) (proof_bytes : int64)]
+      | answer ->
+        error_s [%message "unknown answer" ~answer:(List.hd answer : string option)])
 ;;
 
 let solver = solve ~bad_proof:false ~bad_model:false
