@@ -26,7 +26,9 @@ type t
 (** Cycles to a bit: 48 MHz. *)
 val bit_period : int
 
+(** PIDs, with their check bits. *)
 val ack : int
+
 val nak : int
 val data0 : int
 val data1 : int
