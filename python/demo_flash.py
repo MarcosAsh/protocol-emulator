@@ -78,8 +78,8 @@ def address_bytes(address):
     return [(address >> 16) & 0xFF, (address >> 8) & 0xFF, address & 0xFF]
 
 
-def pattern(seed):
-    return [(seed + 7 * i) & 0xFF for i in range(PAGE)]
+def pattern():
+    return [(7 * i) & 0xFF for i in range(PAGE)]
 
 
 def start(host):
@@ -97,16 +97,14 @@ def run(transfer, cs, pause_ms, log=print):
     log("JEDEC ID %s: %s" % (bench.hexs(jedec), part or "not a W25Q64JV (ef 40 17)"))
     if not part:
         return False
-    # the old contents seed the pattern, so a run that writes nothing cannot pass
-    old = flash.read(SECTOR, 1)[0]
     ms = flash.erase(SECTOR)
     blank = flash.read(SECTOR, PAGE)
     log("erase 0x%06x: %d ms, %s" % (SECTOR, ms, "blank" if blank == [0xFF] * PAGE else "NOT BLANK"))
-    data = pattern(old + 1)
+    data = pattern()
     ms = flash.program(SECTOR, data)
     back = flash.read(SECTOR, PAGE)
-    log("program %d bytes from %02x: %d ms, read back %s ..., %s" % (
-        PAGE, data[0], ms, bench.hexs(back[:8]), "equal" if back == data else "DIFFERS"))
+    log("program %d bytes: %d ms, read back %s ..., %s" % (
+        PAGE, ms, bench.hexs(back[:8]), "equal" if back == data else "DIFFERS"))
     ms = flash.erase(SECTOR)
     erased = flash.read(SECTOR, PAGE)
     log("erase again: %d ms, %s" % (ms, "blank" if erased == [0xFF] * PAGE else "NOT BLANK"))

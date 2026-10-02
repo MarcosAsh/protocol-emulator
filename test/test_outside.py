@@ -142,7 +142,7 @@ async def test_flash(dut):
     from power down and the reads: so the wake and a read of a page it was loaded with.
     JEDEC ID, status, program and erase it does not have, and they are scripted only."""
     await reset(dut)
-    page = demo_flash.pattern(0x5A)
+    page = [(0x5A + 11 * i) & 0xFF for i in range(demo_flash.PAGE)]
     for i, value in enumerate(page):
         dut.flash.memory[demo_flash.SECTOR + i].value = value
     # the model takes no command until CS has risen once
