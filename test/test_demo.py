@@ -313,14 +313,18 @@ GC_PAUSE_US = 11_000
 # The bench laptop, Linux on an xHCI root port. bench: the r1 and r3 logs on Pico A.
 RESET_US = 50_000  # USB 2.0 7.1.7.5, a root port's
 RESET_RECOVERY_US = 60_000  # bench: 110 ms from each reset to the next SETUP
-SET_ADDRESS_US = 10_000  # hub_port_init's sleep; bench 13 ms to the next SETUP
+SET_ADDRESS_US = 10_700  # bench: 10.7 and 10.9 ms from the status ACK to the next SETUP
 # est: a completion's interrupt, the hub thread woken, the next URB queued; r3 bounds it
 # below about 370 us, and nothing here is less certain
 TURNAROUND_US = float(os.environ.get("TURNAROUND_US", 100))
 BIND_US = 1_000  # est: the driver bound before SET_CONFIGURATION, usbhid before SET_IDLE
 OPEN_US = 10_000  # est: the input device opened, then EP1 polled
 POLL_US = 8_000  # xHCI's interval for bInterval 10 at low speed
-GAP = 8  # bits between a transfer's transactions and before a NAKed one's retry, est
+# bits between a transfer's transactions, and before a transaction goes again after a NAK
+# and after no good reply. bench, the analyser on 2026-10-02: 2.2 us, 57 to 197 us, 20 us
+GAP = 3
+NAK_RETRY = 85
+ERROR_RETRY = 30
 TIMEOUT = 17  # bits a host waits for the reply, USB 2.0's 16 to 18
 NAK_LIMIT_US = 50_000  # in place of the kernel's 5 s, past any pause the Pico takes
 ADDRESS = 16  # bench r3
@@ -510,7 +514,7 @@ class Failed(Exception):
 
 class Laptop:
     """Linux enumerating a low-speed device on an xHCI root port: a transfer's packets back
-    to back, a NAKed transaction retried at once, three tries before -71."""
+    to back, a NAKed transaction retried within 60 us, three tries before -71."""
 
     def __init__(self, dut, overflowed):
         self.dut = dut
@@ -561,7 +565,7 @@ class Laptop:
                 errors += 1
                 if errors == 3:
                     raise Failed(f"{what}: -71, {reply or 'no reply'} to {kind}")
-            await self.wire.drive(J, GAP)
+            await self.wire.drive(J, NAK_RETRY if reply == [NAK] else ERROR_RETRY)
 
     async def setup(self, address, request, what):
         async def send():
