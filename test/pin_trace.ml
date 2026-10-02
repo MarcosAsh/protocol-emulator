@@ -31,6 +31,8 @@ module Peer = struct
   let idle levels =
     { inputs = (fun () -> levels); step = (fun ~pin_out:_ ~pin_dir:_ -> ()) }
   ;;
+
+  let bit levels pin = (levels lsr pin) land 1
 end
 
 module Step = struct

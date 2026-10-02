@@ -3,7 +3,6 @@ open Protocol_emulator
 open Pin_trace
 module Reg = Host_port.Reg
 
-let bit levels pin = (levels lsr pin) land 1
 let cycle_ns ~clock_hz = 1_000_000_000 / clock_hz
 
 (* what sigrok-cli prints for an instance of a decoder *)
@@ -110,7 +109,7 @@ let cec =
     { Peer.inputs = (fun () -> if !low then 0 else 1 lsl Cec.pin)
     ; step =
         (fun ~pin_out:_ ~pin_dir ->
-          low := bit pin_dir Cec.pin = 1 || Cec.Follower.drive_low !follower;
+          low := Peer.bit pin_dir Cec.pin = 1 || Cec.Follower.drive_low !follower;
           follower := Cec.Follower.step !follower ~low:!low)
     }
   in
@@ -162,7 +161,7 @@ let one_wire =
     { Peer.inputs = (fun () -> if !low then 0 else 1 lsl One_wire.pin)
     ; step =
         (fun ~pin_out:_ ~pin_dir ->
-          let master_low = bit pin_dir One_wire.pin = 1 in
+          let master_low = Peer.bit pin_dir One_wire.pin = 1 in
           low := master_low || One_wire.Slave.drive_low !slave;
           slave := One_wire.Slave.step !slave ~master_low)
     }
@@ -245,8 +244,8 @@ let ps2 =
              holding := 100_000 / Ps2.cycle_ns
            | Some n -> inhibit_in := Some (n - 1)
            | None -> if !holding > 0 then decr holding);
-          clock := if bit pin_dir Ps2.clock_pin = 1 || !holding > 0 then 0 else 1;
-          data := 1 - bit pin_dir Ps2.data_pin;
+          clock := if Peer.bit pin_dir Ps2.clock_pin = 1 || !holding > 0 then 0 else 1;
+          data := 1 - Peer.bit pin_dir Ps2.data_pin;
           if was = 1 && !clock = 0 && !holding = 0 then incr falls;
           if was = 0 && !clock = 1 && !falls = 11
           then (
@@ -330,9 +329,9 @@ let jtag =
           tap
           := Jtag.Tap.step
                !tap
-               ~tck:(bit pin_out Jtag.tck_pin)
-               ~tms:(bit pin_out Jtag.tms_pin)
-               ~tdi:(bit pin_out Jtag.tdi_pin))
+               ~tck:(Peer.bit pin_out Jtag.tck_pin)
+               ~tms:(Peer.bit pin_out Jtag.tms_pin)
+               ~tdi:(Peer.bit pin_out Jtag.tdi_pin))
     }
   in
   (* eight clocks a word *)
@@ -404,8 +403,8 @@ let low_speed_host groups () =
   ; step =
       (fun ~pin_out ~pin_dir ->
         let host_dp, host_dm = levels !line in
-        let pin n level = if bit pin_dir n = 1 then bit pin_out n else level in
-        if bit pin_dir dp = 1 then device := true;
+        let pin n level = if Peer.bit pin_dir n = 1 then Peer.bit pin_out n else level in
+        if Peer.bit pin_dir dp = 1 then device := true;
         sniffer := Sniffer.step !sniffer ~dp:(pin dp host_dp) ~dm:(pin dm host_dm);
         let packets = Sniffer.packets !sniffer in
         if List.length packets > !seen

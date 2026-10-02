@@ -31,6 +31,9 @@ module Peer : sig
     }
 
   val idle : int -> t
+
+  (** The level of [pin] in [levels]. *)
+  val bit : int -> int -> int
 end
 
 module Step : sig

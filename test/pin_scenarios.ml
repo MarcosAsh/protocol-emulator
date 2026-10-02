@@ -5,8 +5,6 @@ open Protocol_models
 open Pin_trace
 module Reg = Host_port.Reg
 
-let bit levels pin = (levels lsr pin) land 1
-
 (* bits of 16 cycles: 3 Mbaud at 48 MHz *)
 let clock_hz = 48_000_000
 
@@ -80,7 +78,10 @@ let spi_master =
     ; step =
         (fun ~pin_out ~pin_dir:_ ->
           slave
-          := Spi_slave.step !slave ~sck:(bit pin_out sck_pin) ~mosi:(bit pin_out mosi_pin))
+          := Spi_slave.step
+               !slave
+               ~sck:(Peer.bit pin_out sck_pin)
+               ~mosi:(Peer.bit pin_out mosi_pin))
     }
   in
   { Scenario.name = "spi_master"
@@ -123,8 +124,8 @@ let i2c_logger =
     { Peer.inputs = (fun () -> (!bus_sda lsl sda) lor (!bus_scl lsl scl))
     ; step =
         (fun ~pin_out:_ ~pin_dir ->
-          bus_sda := if I2c_slave.drive_low !slave then 0 else 1 - bit pin_dir sda;
-          bus_scl := 1 - bit pin_dir scl;
+          bus_sda := if I2c_slave.drive_low !slave then 0 else 1 - Peer.bit pin_dir sda;
+          bus_scl := 1 - Peer.bit pin_dir scl;
           slave := I2c_slave.step !slave ~sda:!bus_sda ~scl:!bus_scl)
     }
   in
