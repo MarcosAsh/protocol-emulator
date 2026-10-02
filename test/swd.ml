@@ -508,7 +508,7 @@ module Dp = struct
     sprintf "%s %s 0x%x" (if read then "R" else "W") (if ap then "AP" else "DP") address
   ;;
 
-  (* an Arm AHB MEM-AP's IDR: designer 0x477, class 8, type 1 (C1.3.2) *)
+  (* an Arm AHB MEM-AP's IDR: designer 0x23b, class 8, type 1 (C1.3.2) *)
   let ap_idr = 0x0477_0031
 
   let mem_ap_read t address =
