@@ -241,7 +241,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: TinyTapeout/tt-support-tools
-          ref: ihp-sg13cmos5l
+          ref: d66cf179e7bc4d296362ab7e2e3b344dc3c4f665 # ihp-sg13cmos5l, 2026-09-21
           path: tt
 
       - name: Build for the FPGA kit and simulate the netlist
