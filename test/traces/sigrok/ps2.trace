@@ -16,6 +16,40 @@
 # sigrok expect ps2-1: Data: 1c
 # sigrok expect ps2-1: Parity OK
 # sigrok expect ps2-1: Stop bit
+# sigrok annotations ps2=bit
+# sigrok expect ps2-1: 0
+# sigrok expect ps2-1: 0
+# sigrok expect ps2-1: 0
+# sigrok expect ps2-1: 1
+# sigrok expect ps2-1: 1
+# sigrok expect ps2-1: 1
+# sigrok expect ps2-1: 0
+# sigrok expect ps2-1: 0
+# sigrok expect ps2-1: 0
+# sigrok expect ps2-1: 0
+# sigrok expect ps2-1: 1
+# sigrok expect ps2-1: 0
+# sigrok expect ps2-1: 0
+# sigrok expect ps2-1: 0
+# sigrok expect ps2-1: 0
+# sigrok expect ps2-1: 0
+# sigrok expect ps2-1: 1
+# sigrok expect ps2-1: 1
+# sigrok expect ps2-1: 1
+# sigrok expect ps2-1: 1
+# sigrok expect ps2-1: 1
+# sigrok expect ps2-1: 1
+# sigrok expect ps2-1: 0
+# sigrok expect ps2-1: 0
+# sigrok expect ps2-1: 0
+# sigrok expect ps2-1: 1
+# sigrok expect ps2-1: 1
+# sigrok expect ps2-1: 1
+# sigrok expect ps2-1: 0
+# sigrok expect ps2-1: 0
+# sigrok expect ps2-1: 0
+# sigrok expect ps2-1: 0
+# sigrok expect ps2-1: 1
 # sigrok tooth flip:IO0:2:12000:4000
 4 04 03 00 00 00
 4 00 03 00 00 00

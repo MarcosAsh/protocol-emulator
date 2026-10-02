@@ -279,6 +279,14 @@ let ps2 =
               , List.concat_map bytes ~f:(fun byte ->
                   [ "Start bit"; sprintf "Data: %02x" byte; "Parity OK"; "Stop bit" ])
                 |> lines "ps2" )
+            ; (* sigrok checks neither the start nor the stop bit, only labels them *)
+              ( "ps2=bit"
+              , List.concat_map bytes ~f:(fun byte ->
+                  let data = List.init 8 ~f:(fun i -> (byte lsr i) land 1) in
+                  let parity = 1 - (List.sum (module Int) data ~f:Fn.id % 2) in
+                  (0 :: data) @ [ parity; 1 ])
+                |> List.map ~f:Int.to_string
+                |> lines "ps2" )
             ]
         ; joins_after = None
         ; rejected = None
@@ -448,8 +456,8 @@ let low_speed_host groups () =
 ;;
 
 (* The first request of an enumeration, GET_DESCRIPTOR for eight bytes of the device
-   descriptor, then a keyboard report ("h") on the interrupt endpoint and an IN with
-   nothing queued, which gets a NAK. *)
+   descriptor, then a mouse report on the interrupt endpoint, a pixel up and left, whose
+   0xff bytes need stuff bits, and an IN with nothing queued, which gets a NAK. *)
 let usb =
   let bit_period = Usb_host.bit_period in
   let address = 0 in
@@ -460,7 +468,7 @@ let usb =
   let token pid endpoint = Usb_host.token ~address ~pid ~endpoint in
   let get_descriptor = [ 0x80; 0x06; 0x00; 0x01; 0x00; 0x00; 0x08; 0x00 ] in
   let descriptor = [ 0x12; 0x01; 0x10; 0x01; 0x00; 0x00; 0x00; 0x08 ] in
-  let report = [ 0x01; 0x00; 0x0b; 0x00; 0x00; 0x00; 0x00; 0x00 ] in
+  let report = [ 0x02; 0x00; 0xff; 0xff ] in
   let packet name endpoint = sprintf "%s ADDR %d EP %d" name address endpoint in
   let data name payload =
     sprintf "%s [ %s]" name (String.concat (List.map payload ~f:(sprintf "%02X ")))
@@ -514,7 +522,26 @@ let usb =
                 ]
             ]
         ; expect =
-            [ ( [ "setup"; "in"; "out"; "data0"; "data1"; "ack"; "nak" ]
+            [ ( (* every packet class, so one more of any kind is a difference *)
+                [ "out"
+                ; "in"
+                ; "sof"
+                ; "setup"
+                ; "data0"
+                ; "data1"
+                ; "data2"
+                ; "mdata"
+                ; "ack"
+                ; "nak"
+                ; "stall"
+                ; "nyet"
+                ; "pre"
+                ; "err"
+                ; "split"
+                ; "ping"
+                ; "reserved"
+                ; "invalid"
+                ]
                 |> List.map ~f:(( ^ ) "packet-")
                 |> String.concat ~sep:":"
                 |> ( ^ ) "usb_packet="
