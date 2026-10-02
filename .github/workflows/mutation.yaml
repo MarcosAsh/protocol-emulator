@@ -3,10 +3,30 @@ on:
   schedule:
     - cron: '0 3 * * 1'
   workflow_dispatch:
+    inputs:
+      scope:
+        description: 'engine: the four files of the published score; wide: every file that makes RTL, the kernel and the analyser'
+        type: choice
+        options: [engine, wide]
+        default: engine
+
+# the held-out sample is a function of this seed and the mutant, fixed before any run
+env:
+  SCOPE: ${{ inputs.scope || 'engine' }}
+  SEED: '20261002'
+
 jobs:
+  # a mutant costs about four runner-minutes, four at a time on four cores: engine's 114
+  # in four shards of about two hours, wide's thousand in twenty of about three and a half
   mutate:
     runs-on: ubuntu-24.04
-    timeout-minutes: 300
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON((inputs.scope || 'engine') == 'wide' && '[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]' || '[0,1,2,3]') }}
+    env:
+      SHARDS: ${{ (inputs.scope || 'engine') == 'wide' && '20' || '4' }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v6
@@ -48,13 +68,54 @@ jobs:
           [ "${{ steps.sat_tools.outputs.cache-hit }}" = true ] || make -C formal sat_tools
           echo "$PWD/formal/sat_tools/bin" >> "$GITHUB_PATH"
 
-      - name: Mutate the hardware and run the tests on every mutant
-        shell: bash
-        run: opam exec -- python3 test/mutate.py --jobs 4 | tee mutation.log
+      # the shard's mutants and which are held out, logged before any is run
+      - name: List the mutants
+        run: opam exec -- python3 test/mutate.py --scope "$SCOPE" --shard "${{ matrix.shard }}/$SHARDS" --seed "$SEED" --list
+
+      # a suite that runs 45 minutes, about three times a mutant's, has hung
+      - name: Mutate and run the tests on every mutant
+        timeout-minutes: 330
+        run: opam exec -- python3 test/mutate.py --scope "$SCOPE" --shard "${{ matrix.shard }}/$SHARDS" --seed "$SEED" --jobs 4 --timeout 2700 --json "shard_${{ matrix.shard }}.jsonl"
+
+      - name: Upload the results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mutation-${{ matrix.shard }}
+          path: shard_${{ matrix.shard }}.jsonl
+
+  # every shard's results in one score, in-sample and held out apart, and every survivor
+  score:
+    needs: mutate
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Download the results
+        uses: actions/download-artifact@v8
+        with:
+          pattern: mutation-*
+          path: results
+          merge-multiple: true
 
       - name: Score
+        run: python3 test/mutate.py --report results/*.jsonl > report.txt
+
+      - name: Summary
         if: always()
         run: |
+          cat report.txt
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          grep "valid mutants\|^survived" -A1 mutation.log >> "$GITHUB_STEP_SUMMARY"
+          cat report.txt >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mutation-report
+          path: |
+            report.txt
+            results
