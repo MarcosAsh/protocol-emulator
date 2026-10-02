@@ -18,7 +18,7 @@ REPO = None
 RUNS = 30
 
 STAMP = re.compile(r"^\ufeff?(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)\.\d+Z (.*)$")
-SBY_LINE = re.compile(r"^SBY [\d:]+ \[([A-Za-z0-9_]+)\] (.*)$")
+SBY_LINE = re.compile(r"^SBY +[\d:]+ \[([A-Za-z0-9_]+)\] (.*)$")
 SBY_DONE = re.compile(r"^DONE \((\w+), rc=(\d+)\)")
 ABC_GREP = re.compile(r"^grep 'Status = ([01]) ' (\w+)/")
 ABC_STATUS = re.compile(r"^Status = ([01]) ")
