@@ -474,12 +474,18 @@ def run_cell(run, good):
 
 
 class Row:
-    """What CI shows for one claim; [missing] when its green run never logged the check."""
-    def __init__(self, claim, run=None, good=False, where="", passes="", teeth="",
-                 time=None, wrong=0, missing=False):
+    """What CI shows for one claim; [missing] when its green run logged no pass."""
+    def __init__(self, claim, run=None, good=False, where="", passes=0, wrong=0, note="",
+                 teeth="", time=None, missing=False):
         self.claim, self.run, self.good, self.where = claim, run, good, where
-        self.passes, self.teeth, self.time = passes, teeth, time
-        self.wrong, self.missing = wrong, missing
+        self.passes, self.wrong, self.note = passes, wrong, note
+        self.teeth, self.time, self.missing = teeth, time, missing
+
+    def evidence(self, passed=""):
+        """The passes, the failures and the note; [passed] follows the count of passes."""
+        counts = [f"{self.passes}{passed}"] if self.passes else []
+        counts += [f"{self.wrong} failed"] if self.wrong else []
+        return "; ".join(t for t in [", ".join(counts), self.note] if t)
 
     @property
     def status(self):
@@ -503,27 +509,29 @@ def row(claim):
         where += f" / {claim.step}"
     if len(found) > 1:
         where += f" ({len(found)} jobs)"
-    passes = str(result.passes) if result.passes else ""
-    if result.wrong:
-        passes += f", {result.wrong} failed" if passes else f"{result.wrong} failed"
-    if result.note:
-        passes = f"{passes}; {result.note}" if passes else result.note
-    # a green job that never ran the check, as before the check was added
-    missing = not (passes or result.teeth or result.teeth_note or claim.read is green)
+    # a green job may never have run the check, as before the check was added, so the log
+    # has to show a pass, or for mutation and split their tally
+    if claim.read is green:
+        missing = False
+    elif claim.read in (mutation, split):
+        missing = not (result.note or result.teeth_note)
+    else:
+        missing = not result.passes
     if missing:
         result.time = None
     if result.teeth:
         teeth = f"{result.teeth}, all failed as expected"
     else:
         teeth = result.teeth_note or claim.teeth_note or "none in the log"
-    return Row(claim, run, good, where, passes, teeth, result.time, result.wrong, missing)
+    return Row(claim, run, good, where, result.passes, result.wrong, result.note, teeth,
+               result.time, missing)
 
 
 def markdown_row(r):
     claim = r.claim
     if r.run is None:
         return f"| {claim.text} | `{claim.target}` ({claim.workflow}) | no run on main | | | |"
-    passes = "**none in the log**" if r.missing else r.passes
+    passes = r.evidence() or ("**none in the log**" if r.missing else "")
     return (f"| {claim.text} | `{claim.target}`<br>{r.where} | {run_cell(r.run, r.good)} "
             f"| {passes} | {r.teeth} | {minutes(r.time)} |")
 
@@ -570,7 +578,7 @@ def html_row(r):
     e = html.escape
     claim = r.claim
     kind = {"proved for all time": "proved", "not verified": "unverified"}.get(r.status, "")
-    passes = re.sub(r"^(\d+)", r"\1 passed", r.passes)
+    passes = r.evidence(" passed") or ("none in the log" if r.missing else "")
     passes = f'<br><span class="muted">{e(passes)}</span>' if passes else ""
     cells = [f'<th scope="row">{e(claim.text)}</th>',
              f'<td data-label="Status"><span class="status {kind}">{e(r.status)}</span>'
