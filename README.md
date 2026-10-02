@@ -109,7 +109,9 @@ under cocotb.
   - the core against its model beyond the decoder, deadline compare, pin rotation and
     data path values, on every library firmware and on random programs
   - which host words the pins carry, for all but five transmitters
-  - the protocols, against models we wrote
+  - the protocols, against models we wrote, and at the RTL's pins against sigrok's decoders
+    for UART, SPI, I2C, CAN data frames, CEC, 1-Wire, PS/2, JTAG, low speed USB and WS2812
+    (`demo/decode.py`, the `decode` job)
   - USB enumeration, which the board does in `python/usb_board.py`
 - Nothing has run on silicon yet. On an Icepi Zero FPGA (ECP5, 48 MHz) running the chip's
   RTL, `python/demo_self_timing.py` passed on 2026-10-01: engine 1 stamped all 52 edges of
