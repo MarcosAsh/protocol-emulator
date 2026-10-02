@@ -2,9 +2,10 @@
 # Mutation score of the OCaml tests: one textual mutation at a time, in copies under
 # _mutation/. A survivor not in test/mutation_allow.txt exits 1.
 # Usage: python3 test/mutate.py [--scope engine|wide] [--file F ...] [--operator NAME ...]
-#        [--id ID ...] [--jobs N] [--timeout S] [--list]
+#        [--id ID ...] [--seed S] [--jobs N] [--timeout S] [--list]
 import argparse
 import hashlib
+import math
 import os
 import re
 import shutil
@@ -189,7 +190,8 @@ def mutants(scope, file, source):
 
 
 
-def plan(scope, files):
+def plan(scope, files, seed, held_out):
+    # a mutant's id and whether it is held out follow from its line, not where it is
     todo, count = [], {}
     root = Path(__file__).resolve().parent.parent
     for file in files:
@@ -197,6 +199,8 @@ def plan(scope, files):
             key = "\0".join([m["file"], m["operator"], m["text"]])
             count[key] = count.get(key, -1) + 1
             m["id"] = hashlib.sha256(f"{key}\0{count[key]}".encode()).hexdigest()[:8]
+            pick = hashlib.sha256(f"{seed}\0{m['id']}".encode()).hexdigest()
+            m["held_out"] = seed is not None and int(pick, 16) % 100 < held_out
             todo.append(m)
     return todo
 
@@ -236,6 +240,15 @@ def read_allowed():
     return allowed
 
 
+def wilson(k, n, z=1.96):
+    if n == 0:
+        return "no mutants"
+    p = k / n
+    centre = (p + z * z / (2 * n)) / (1 + z * z / n)
+    half = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / (1 + z * z / n)
+    return f"{100 * p:.2f}% [{100 * max(0, centre - half):.2f}, {100 * min(1, centre + half):.2f}]"
+
+
 def report(results):
     # a timeout counts as killed, as the suite does not pass, and is listed apart
     allowed = read_allowed()
@@ -248,13 +261,21 @@ def report(results):
         invalid = sum(1 for r in results if file in (r["file"], "total") and r["result"] == "invalid")
         print(f"{file}: killed {killed} of {len(rows)} valid mutants"
               f" ({timeouts} timed out, {invalid} invalid)")
+    parts = [("all", [False, True])]
+    if any(r["held_out"] for r in results):
+        parts += [("in-sample", [False]), ("held-out", [True])]
+    for label, held_out in parts:
+        rows = [r for r in valid if r["held_out"] in held_out]
+        killed = sum(1 for r in rows if r["result"] != "survived")
+        print(f"{label}: killed {killed} of {len(rows)}, {wilson(killed, len(rows))} (Wilson 95%)")
     unexpected = []
-    for r in valid:
+    for r in sorted(valid, key=lambda r: r["held_out"]):
         if r["result"] in ("survived", "timeout"):
             reason = allowed.get((r["file"], r["operator"], r["text"]))
             if r["result"] == "survived" and reason is None:
                 unexpected.append(r)
-            print(f"{r['result']}: {r['operator']} at {r['file']}:{r['line']} [{r['id']}]:"
+            tag = " held out" if r["held_out"] else ""
+            print(f"{r['result']}: {r['operator']} at {r['file']}:{r['line']} [{r['id']}{tag}]:"
                   f" {reason or ('NOT ALLOWED' if r['result'] == 'survived' else 'counted killed')}"
                   f"\n    - {r['text']}\n    + {r['after']}")
     return 1 if unexpected else 0
@@ -266,21 +287,24 @@ def main():
     p.add_argument("--file", action="append", help="only these files of the scope")
     p.add_argument("--operator", action="append", help="only these operators")
     p.add_argument("--id", action="append", help="only these mutants, as --list names them")
+    p.add_argument("--seed", type=int, help="holds out a sample, scored apart")
+    p.add_argument("--held-out", type=int, default=20, help="percent held out")
     p.add_argument("--jobs", type=int, default=1)
     p.add_argument("--dune-jobs", type=int, help="dune's -j in each copy")
     p.add_argument("--timeout", type=int, help="seconds per suite; default 3x the unmutated one")
     p.add_argument("--list", action="store_true", help="print the mutants and stop")
     args = p.parse_args()
     files = args.file or SCOPES[args.scope]["files"]
-    todo = plan(args.scope, files)
+    todo = plan(args.scope, files, args.seed, args.held_out)
     todo = [m for m in todo if not args.operator or m["operator"] in args.operator]
     todo = [m for m in todo if not args.id or m["id"] in args.id]
     if args.list:
         for m in todo:
-            print(f"{m['id']} {m['operator']} at {m['file']}:{m['line']}\n    - {m['text']}\n    + {m['after']}")
+            tag = " held out" if m["held_out"] else ""
+            print(f"{m['id']}{tag} {m['operator']} at {m['file']}:{m['line']}\n    - {m['text']}\n    + {m['after']}")
         for file in files:
             print(f"{file}: {sum(1 for m in todo if m['file'] == file)} mutants")
-        print(f"total: {len(todo)} mutants")
+        print(f"total: {len(todo)} mutants, {sum(1 for m in todo if m['held_out'])} held out")
         return
     root = Path(__file__).resolve().parent.parent
     work = root / "_mutation"
