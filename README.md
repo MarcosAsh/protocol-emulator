@@ -116,6 +116,12 @@ capacity (mutant, a67aa23), a stale power-up word at an empty rx fifo's head (pr
 ae5e91d) and an `add t, x` after a spent `jmp x--` certified 65536 cycles wrong (soundness
 check, 99d55ee).
 
+Eight held-out protocols, none of them in the firmware library, are sealed in
+`test/heldout.sha256`, the SHA-256 of a salted list committed on 2026-10-02. When the list
+is opened in November, an agent writes each one from its public spec, then the kernel
+checks it and one of sigrok's decoders reads it from simulation. Every result goes here,
+failures included.
+
 ## AI-assisted verification
 
 Agents write firmware, models, checkers and proof harnesses, and review them. Each output
