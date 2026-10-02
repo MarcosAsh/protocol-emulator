@@ -141,9 +141,10 @@ def sby(*prefixes):
     return read
 
 
-def abc(*prefixes):
+def abc(*prefixes, controls=()):
     """ABC's dprove through the Makefile's greps: a directory with any 'Status = 0' is a
-    mutant refuted, one with only 'Status = 1' a proof; the grep must print that status."""
+    mutant refuted, one with only 'Status = 1' a proof, unless [controls] names it; the grep
+    must print that status."""
     def read(lines):
         status, touched = {}, []
         for i, (t, text) in enumerate(lines):
@@ -156,9 +157,11 @@ def abc(*prefixes):
             ok = printed and printed[1] == m[1]
             status.setdefault(m[2], []).append(m[1] if ok else "wrong")
         r = Result(time=span([(min(touched), max(touched))]) if touched else None)
-        for seen in status.values():
+        for name, seen in status.items():
             if "wrong" in seen:
                 r.wrong += 1
+            elif name in controls:
+                continue
             elif "0" in seen:
                 r.teeth += 1
             else:
@@ -409,7 +412,7 @@ CLAIMS = [
     ("From RTL to silicon", [
         Claim("The flop program memory equals IHP's model of the 512x16 SRAM, step for step "
               "from any contents", "ocaml", exactly("test"), "sram_equiv",
-              abc("sram_equiv_"), step="Prove"),
+              abc("sram_equiv_", controls=["sram_equiv_zero"]), step="Prove"),
         Claim("Power-up is deterministic: two copies of the chip from any two states of their "
               "flops and fifos, with the same words in their SRAMs, reset at the first edge "
               "and given the same pins, drive the same pins", "ocaml", exactly("test"),
