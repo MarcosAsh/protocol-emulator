@@ -59,6 +59,10 @@ def gh(*args):
             return done.stdout
         if "HTTP 404" in done.stderr or "HTTP 410" in done.stderr:
             return None
+        # newer gh refuses logs with colour codes unless told, older gh has no such flag
+        if "--allow-escape-sequences" in done.stderr and args[0] == "api":
+            args = ("api", "--allow-escape-sequences", *args[1:])
+            continue
         time.sleep(2 ** attempt)
     sys.exit(f"gh {' '.join(args)}: {done.stderr.strip()}")
 
