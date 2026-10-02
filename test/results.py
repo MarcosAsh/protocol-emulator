@@ -323,9 +323,9 @@ CLAIMS = [
         Claim("The kernel's Verilog, which the RTL proofs read, equals the gates its SAT "
               "proofs build", "ocaml", exactly("test"), "kernel_equiv",
               abc("kernel_equiv_"), step="Prove"),
-        Claim("Each step lemma's k-induction has a Certifaiger witness, every check of it an "
-              "UNSAT that cake_lpr verifies", "ocaml", matrix("witness"), "witness_proof",
-              witness),
+        Claim("The k-inductions of phase_step, edge_step and self_check_clean each have a "
+              "Certifaiger witness, every check of it an UNSAT that cake_lpr verifies",
+              "ocaml", matrix("witness"), "witness_proof", witness),
         Claim("Across one-field variants of the library, no firmware the kernel accepts "
               "misses a deadline in a run", "reject split", exactly("split"), "split.exe",
               split, status="tested"),
@@ -346,28 +346,31 @@ CLAIMS = [
               "ocaml", exactly("test"), "data_step", sby("data_step_"), step="Prove"),
         Claim("Issue timing depends on nothing but the delay field",
               "ocaml", exactly("test"), "issue_timing", sby("issue_timing_"), step="Prove"),
-        Claim("The host never reaches the pins; a late host word can fault a time-triggered "
-              "program, never move a pin", "ocaml", exactly("test"), "host_timing late_host",
-              sby("host_timing_", "late_host_"), step="Prove"),
+        Claim("When and how the host talks reaches the pins only through the program's own "
+              "fifo waits and tests, or a fault", "ocaml", exactly("test"),
+              "host_timing late_host", sby("host_timing_", "late_host_"), step="Prove"),
         Claim("The fifos keep their order", "ocaml", exactly("test"), "fifo_order",
               sby("fifo_order_"), step="Prove"),
     ]),
     ("Per-firmware proofs", [
-        Claim("Each library firmware's certificate holds for all time, by induction",
+        Claim("Each library firmware's certificate holds for all time, by induction, under "
+              "the assumptions test/test_certified.ml lists",
               "ocaml", matrix("inductive_certificate", plain_certificate), "inductive_proof",
               sby("certificate_")),
         Claim("For the five transmitters that pull by hand, the pins show the right bit of "
               "the right host word", "ocaml",
               matrix("inductive_certificate", lambda v: v.startswith("data_")), "data_proof",
               sby("certificate_data_")),
-        Claim("Each uart_tx_stamped frame carries the cycle its start bit showed on the pin",
+        Claim("Each uart_tx_stamped frame carries the low 16 bits of the cycle its start bit "
+              "showed on the pin",
               "ocaml", matrix("inductive_certificate", lambda v: v == "stamped"),
               "stamped_proof", sby("certificate_stamped_")),
-        Claim("A UART from engine 0 to engine 1 delivers each byte once a frame, sampled half "
-              "a bit from the wire's edges", "ocaml", exactly("link"), "link_proof",
-              sby("link_")),
-        Claim("The engine running firmware compiled from hobby_boards' Uart.Tx drives its "
-              "line 4 cycles later", "ocaml", exactly("test"), "fsm_miter_proof",
+        Claim("uart_tx on engine 0 to uart_rx on engine 1 over an on-chip wire, 10 cycles a "
+              "bit: engine 1 pushes the low byte of each word engine 0 pulled, once a frame",
+              "ocaml", exactly("link"), "link_proof", sby("link_")),
+        Claim("hardcaml_hobby_boards' Uart.Tx, compiled to firmware, drives the core's pin as "
+              "the circuit drives its line, 4 cycles later, at 4 clocks a bit, for bytes at "
+              "least 4 cycles after ready", "ocaml", exactly("test"), "fsm_miter_proof",
               sby("fsm_miter_"), step="Prove"),
     ]),
     ("From RTL to silicon", [
