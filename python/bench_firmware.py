@@ -41,19 +41,19 @@ SPI_MASTER = {
     ],
 }
 
-# Firmware.i2c_master ~quarter:31, fraction 1/2: SCL low 63 cycles, 1.3125 us
+# Firmware.i2c_master ~quarter:31, fraction 1/2: SCL low 63 cycles, 1.3125 us, SDA on IO2, SCL on IO3
 I2C_MASTER = {
     "config": {
         "side_set_count": 1,
-        "side_set_base": 13,
+        "side_set_base": 15,
         "side_set_pindirs": 1,
-        "in_base": 12,
+        "in_base": 14,
         "in_count": 16,
-        "out_base": 12,
+        "out_base": 14,
         "out_count": 1,
-        "set_base": 12,
+        "set_base": 14,
         "set_count": 1,
-        "jmp_pin": 12,
+        "jmp_pin": 14,
         "capture_pin": 0,
         "capture_rising": 1,
         "in_shift_right": 0,
@@ -91,17 +91,17 @@ I2C_MASTER = {
     ],
 }
 
-# One_wire.firmware: the host sends the unit, 288 cycles for 6 us
+# One_wire.firmware: the host sends the unit, 288 cycles for 6 us, on IO4
 ONE_WIRE = {
     "config": {
         "side_set_count": 0,
         "side_set_base": 5,
         "side_set_pindirs": 0,
-        "in_base": 12,
+        "in_base": 16,
         "in_count": 16,
-        "out_base": 12,
+        "out_base": 16,
         "out_count": 1,
-        "set_base": 12,
+        "set_base": 16,
         "set_count": 1,
         "jmp_pin": 0,
         "capture_pin": 0,

@@ -5,7 +5,12 @@ open Protocol_emulator_test
 
 (* The library firmware the outside chip acts in BRINGUP.md load, at the parameters the
    bench's 48 MHz needs, each checked by the analyser and the kernel under the assumption
-   it runs with, as the command line does. *)
+   it runs with, as the command line does. The Icepi's USB build drives IO0 and IO1's
+   header pins with the USB lines, so I2C moves to IO2 and IO3 and 1-Wire to IO4. *)
+let sda = 14
+let scl = 15
+let one_wire = 16
+
 let bench =
   [ ( "spi_master"
     , "Firmware.spi_master ~half_period:8: SCK at 3 MHz, no chip select"
@@ -13,14 +18,26 @@ let bench =
     , Firmware.spi_config
     , None )
   ; ( "i2c_master"
-    , "Firmware.i2c_master ~quarter:31, fraction 1/2: SCL low 63 cycles, 1.3125 us"
+    , "Firmware.i2c_master ~quarter:31, fraction 1/2: SCL low 63 cycles, 1.3125 us, SDA \
+       on IO2, SCL on IO3"
     , Firmware.i2c_master ~quarter:31
-    , { Firmware.i2c_config with period_fraction = 0x8000 }
+    , { Firmware.i2c_config with
+        period_fraction = 0x8000
+      ; side_set_base = scl
+      ; out_base = sda
+      ; set_base = sda
+      ; in_base = sda
+      ; jmp_pin = sda
+      }
     , None )
   ; ( "one_wire"
-    , "One_wire.firmware: the host sends the unit, 288 cycles for 6 us"
+    , "One_wire.firmware: the host sends the unit, 288 cycles for 6 us, on IO4"
     , Timed_program.source One_wire.firmware
-    , One_wire.config
+    , { One_wire.config with
+        in_base = one_wire
+      ; out_base = one_wire
+      ; set_base = one_wire
+      }
     , Some 5 )
   ; ( "can"
     , "Can.firmware: the host sends the bit period, 96 cycles for 500 kbit/s"
