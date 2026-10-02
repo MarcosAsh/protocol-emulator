@@ -12,6 +12,25 @@
  (action
   (diff uart_tx.expected uart_tx.gen)))
 
+; the README's late example, made the way it makes it
+
+(rule
+ (with-stdout-to
+  late.asm
+  (run sed "s/out pins, 1/out pins, 1 [13]/" %{dep:../uart_tx.asm})))
+
+(rule
+ (with-outputs-to
+  late.gen
+  (with-accepted-exit-codes
+   1
+   (run %{exe:../../bin/generate.exe} assemble %{dep:late.asm}))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff late.expected late.gen)))
+
 (rule
  (with-outputs-to
   too_tight.gen
