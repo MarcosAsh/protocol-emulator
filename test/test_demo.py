@@ -11,7 +11,9 @@ from test import AsyncHost, Pins, reset
 from test_usb_board import J, SE0, Wire, data_packet, token
 from protocol_emulator import CONTROL, SELECT, STATUS, Host
 import demo_self_timing
+import demo_sweep
 import demo_usb
+import sweep_firmware
 import usb_board
 
 # cycles in a microsecond at 48 MHz, for the Pico's pauses
@@ -62,6 +64,24 @@ async def test_self_timing(dut):
         received.append(sum(b << i for i, b in enumerate(bits)))
         next_start = middle + 9 * period
     assert bytes(received) == text * 2, received
+
+
+@cocotb.test()
+async def test_sweep(dut):
+    """Act 2 for every swept firmware, each poll taking as long as the table lets the Pico
+    take; every edge has to land where the kernel's rows put it."""
+    await reset(dut)
+    pins = Pins(dut)
+
+    @resume
+    async def transfer(data):
+        return await pins.transfer(data)
+
+    @resume
+    async def pause():
+        await ClockCycles(dut.clk, sweep_firmware.POLL)
+
+    assert await bridge(demo_sweep.run)(transfer, pause=pause)
 
 
 class Done(Exception):
