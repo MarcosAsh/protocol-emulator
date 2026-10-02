@@ -26,6 +26,7 @@ on:
       - '!test/mutate.py'
       - '!test/mutation_allow.txt'
       - '!test/results.py'
+      - '!test/check_docs.py'
       - '!**.ml'
       - '!**.mli'
       - '!**/dune'

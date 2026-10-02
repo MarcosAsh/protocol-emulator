@@ -15,3 +15,23 @@ jobs:
 
       - name: Build docs
         uses: TinyTapeout/tt-gds-action/docs@ihp-cmos5l
+
+  # what README.md and docs/info.md cite and quote, against the repo and its runs, then
+  # wrong copies of the README that have to fail (test/check_docs.py)
+  check:
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # the cited commits have to be ancestors of HEAD
+
+      - name: Check the docs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 test/check_docs.py
+          python3 test/check_docs.py --teeth
