@@ -526,7 +526,7 @@ class Laptop:
         self.dut = dut
         self.wire = Wire(dut)
         self.overflowed = overflowed
-        self.events = collections.deque(maxlen=400)
+        self.events = collections.deque(maxlen=20_000)
         self.naks = 0
         # (cycles from a transaction's first try to its answer, the transfer, the kind)
         self.waits = []
@@ -681,16 +681,16 @@ async def enumerate_and_type(laptop, text):
     return reports, taken
 
 
-def timeline(laptop, levels, halts, pico, start, end):
+def timeline(laptop, levels, halts, pico, start, end, span_us=12_000):
     """The laptop's packets, the rx fifo's level, engine 0 halting and starting, and the
-    Pico's collections over the 12 ms to end, one a line, a run of NAKed INs on one."""
+    Pico's collections over the span to end, one a line, a run of NAKed INs on one."""
     lines = [(at, what) for at, what in laptop.events]
     lines += [(at, f"    rx fifo {level}") for at, level in levels]
     lines += [(at, f"    engine 0 {'halted' if halted else 'started'}") for at, halted in halts]
     lines += [(at, f"    GC {GC_PAUSE_US * pico.scale / 1000:.0f} ms") for at in pico.collections]
     rows = []
     for at, what in sorted(lines, key=lambda line: line[0]):
-        if not end - 12_000 * US <= at <= end or what == "NAK" and not rows:
+        if not end - span_us * US <= at <= end or what == "NAK" and not rows:
             continue
         if rows and rows[-1][1].startswith("IN") and what == "NAK":
             rows[-1][2] += 1
@@ -779,6 +779,9 @@ async def test_keyboard_slow_host(dut):
             + (f", overflow at {(end - start) / (1000 * US):.3f} ms" if overflowed else "")
             + f", engine 0 faults {faults}\n" + timeline(laptop, levels, halts, pico, start, end))
     assert reports == demo_usb.reports("hi"), reports
+    # where the fifo came closest to overflowing
+    at = next(at for at, level in levels if level == peak)
+    dut._log.info(f"the first peak:\n{timeline(laptop, levels, halts, pico, start, at + 50 * US, 600)}")
     dut._log.info(f"the Pico said {said}")
     assert any(line.startswith("engine 0 is serving") for line in said), said
     assert said[-4:] == [f"address {ADDRESS}", "configured", "typed h", "typed i"], said
