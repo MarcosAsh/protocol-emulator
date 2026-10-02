@@ -58,6 +58,9 @@ class Board:
         """A bus reset: address 0 again, unconfigured, and nothing pending."""
         self.address = 0
         self.configured = False
+        # the laptop has asked for the report descriptor, as a HID driver does once bound
+        # and before it polls endpoint 1
+        self.described = False
         self.expect = 0
         self.tag = None
         self.words = []
@@ -117,6 +120,7 @@ class Board:
         self.setups += 1
         self.toggle = DATA1
         if request == 6:  # GET_DESCRIPTOR
+            self.described = self.described or value >> 8 == 0x22
             data = self.descriptors.get(value >> 8, [])[:length]
             self.chunks = [data[i:i + MAX_PACKET] for i in range(0, len(data), MAX_PACKET)]
             # a short answer ending on a full packet needs an empty one

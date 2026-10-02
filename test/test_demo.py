@@ -215,8 +215,8 @@ async def test_keyboard(dut):
         await wire.drive(J, 4)
         return packet
 
-    async def status_out():
-        await wire.send(token(0xE1, 0, 0))
+    async def status_out(address=0):
+        await wire.send(token(0xE1, address, 0))
         await wire.drive(J, 3)
         await wire.send(data_packet(0x4B, []))
         assert await wire.listen() == [0xD2]
@@ -236,12 +236,23 @@ async def test_keyboard(dut):
     assert await poll_in(0, 0) == data_packet(0x4B, [])
     await until(lambda: len(starts) == 3)
 
-    # typing waits for SET_CONFIGURATION
+    # typing waits for SET_CONFIGURATION, then for the report descriptor's read
     await setup(3, [0x00, 9, 1, 0, 0, 0, 0, 0])
     assert await poll_in(3, 0) == data_packet(0x4B, [])
+    length = len(demo_usb.REPORT)
+    await setup(3, [0x81, 6, 0, 0x22, 0, 0, length & 0xFF, length >> 8])
+    report, pid = [], 0x4B
+    while len(report) < length:
+        packet = await poll_in(3, 0)
+        assert packet == data_packet(pid, packet[1:-2]), packet
+        report += packet[1:-2]
+        pid = 0xC3 if pid == 0x4B else 0x4B
+    assert report == demo_usb.REPORT
+    await status_out(3)
 
-    # SET_IDLE with h's report in the fifo. The status packet queues behind it, the status
-    # IN drops the report, and the ACK after that is the status packet's.
+    # A SET_IDLE once typing has started, h's report in the fifo. The status packet queues
+    # behind it, the status IN drops the report, and the ACK after that is the status
+    # packet's.
     await until(lambda: board.pending_report is not None and not board.replies)
     await setup(3, [0x21, 0x0A, 0, 0, 0, 0, 0, 0])
     await wire.drive(J, 100)

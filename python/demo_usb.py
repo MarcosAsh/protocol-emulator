@@ -97,9 +97,10 @@ def start_log(host, program, clock_hz=48_000_000):
 
 
 def serve(host, board, queue, bus_reset, log=lambda report: None, say=lambda line: None):
-    """Forever. Typing waits for a configuration, a reset puts back the report it lost,
-    `log` gets each report once the laptop has taken it, and `say` each step of the
-    enumeration and each key typed."""
+    """Forever. Typing waits for a configuration and a HID driver, so no report sits in the
+    fifo while the laptop enumerates: an IN on endpoint 0 would drop it, a word more for the
+    rx fifo on a SETUP's heels. A reset puts back the report it lost, `log` gets each report
+    once the laptop has taken it, and `say` each step of the enumeration and each key."""
     serving, address, configured = False, 0, False
     while True:
         if bus_reset():
@@ -124,7 +125,7 @@ def serve(host, board, queue, bus_reset, log=lambda report: None, say=lambda lin
             log(sent)
             if sent[0] == 1 and sent[2]:
                 say("typed %s" % chr(CHARS[sent[2]]))
-        if queue and board.configured and board.pending_report is None and not board.chunks:
+        if queue and board.configured and board.described and board.pending_report is None and not board.chunks:
             board.report(queue.pop(0))
 
 
