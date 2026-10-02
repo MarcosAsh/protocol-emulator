@@ -75,6 +75,7 @@ cocotb.
   fifos, with the same words in their SRAMs, reset at the first edge and given the same
   pins, drive the same pins (`formal/powerup.sby`).
 - Each UNSAT in the SAT proofs is checked by cake_lpr, an LRAT checker verified in HOL4.
+  Each SAT answer counts only once its model satisfies every clause the solver was given.
 
 ## What is not proved
 
