@@ -1,13 +1,17 @@
 # The chip on an Icepi Zero (ECP5 LFE5U-25F): make [REV=v1.4] [USB=1] [SEED=1], then
 # make prog to load it or make flash to keep it. USB=0 puts uio[1:0] on the header too.
-# MHZ=40 clocks the chip at 40 MHz for 10BASE-T. The SRAM macro is its IHP behavioural
-# model, which yosys maps to block RAM.
+# MHZ=40 clocks the chip at 40 MHz for 10BASE-T, with USB=0 unless told, since low speed
+# USB needs 48, and names its bitstream apart. The SRAM macro is its IHP behavioural model,
+# which yosys maps to block RAM.
 
 REV ?= v1.4
-USB ?= 1
-SEED ?= 1
-FREQ ?= 48
 MHZ ?= 48
+ifeq ($(filter 40 48,$(MHZ)),)
+$(error MHZ is 48, or 40 for 10BASE-T, not $(MHZ))
+endif
+USB ?= $(if $(filter 40,$(MHZ)),0,1)
+SEED ?= 1
+FREQ ?= $(MHZ)
 
 BUILD = build
 CLOCK = $(if $(filter-out 48,$(MHZ)),-$(MHZ)mhz)
