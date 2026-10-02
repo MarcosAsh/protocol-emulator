@@ -65,8 +65,8 @@ class Board:
         self.toggle = DATA1
         self.report_toggle = DATA0
         self.replies = []
-        # the endpoint of each reply queued, oldest first: the core answers each with one
-        # ACK or DROPPED tag, in that order
+        # (endpoint, words) of each reply queued, oldest first: the core answers each with
+        # one ACK or DROPPED tag, in that order
         self.queued = []
         self.new_address = None
         self.reload = 0
@@ -90,15 +90,22 @@ class Board:
         elif word == TAG_DATA1:
             self.tag, self.expect, self.words = word, 2, []
         elif word == TAG_ACK and self.queued:
-            self._acked(self.queued.pop(0))
+            self._acked(self.queued.pop(0)[0])
         elif word == TAG_DROPPED and self.queued:
-            if self.queued.pop(0) == 1:
+            endpoint, words = self.queued.pop(0)
+            if endpoint == 1:
                 self.dropped = True
+            else:
+                # an IN on endpoint 1 found it first: it goes again, behind what the fifo holds
+                in_fifo = len(self.queued) - len(self.replies)
+                self.replies.insert(0, words)
+                self.queued.insert(in_fifo, (0, words))
         self._requeue()
 
     def _queue(self, endpoint, pid, payload):
-        self.replies.append(reply(endpoint, pid, payload))
-        self.queued.append(endpoint)
+        words = reply(endpoint, pid, payload)
+        self.replies.append(words)
+        self.queued.append((endpoint, words))
 
     def _next_chunk(self):
         if self.chunks:
@@ -136,7 +143,7 @@ class Board:
     def flushed(self):
         """The core was reloaded: what it held was lost unanswered, a report put back."""
         lost = len(self.queued) - len(self.replies)
-        if 1 in self.queued[:lost]:
+        if any(endpoint == 1 for endpoint, _ in self.queued[:lost]):
             self.dropped = True
         self.queued = self.queued[lost:]
         self._requeue()
