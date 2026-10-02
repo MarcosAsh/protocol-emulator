@@ -119,34 +119,6 @@ jobs:
           name: playground
           path: site/playground
 
-      # what TinyTapeout/tt-gds-action/viewer publishes, from the last run that passed
-      - name: Download the chip
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          run=$(gh run list -R "${{ github.repository }}" --workflow gds.yaml --branch main \
-            --status success --limit 1 --json databaseId --jq '.[0].databaseId')
-          gh run download "$run" -R "${{ github.repository }}" -n tt_submission -n gds_render -D chip
-          cp chip/tt_submission/tt_submission/*.gds site/tinytapeout.gds
-          cp chip/tt_submission/tt_submission/*.oas site/tinytapeout.oas
-          cp chip/gds_render/gds_render.png site/
-          pdk=$(jq -r .PDK chip/tt_submission/tt_submission/pdk.json)
-          cat > site/index.html <<EOF
-          <!doctype html>
-          <html lang="en">
-          <head><meta charset="utf-8"><title>Redirecting to 3D Viewer...</title></head>
-          <body>
-          <script>
-            location.href = "https://gds-viewer.tinytapeout.com/?pdk=$pdk&model="
-              + encodeURIComponent(location.href + "/tinytapeout.oas");
-          </script>
-          <p><a href="playground/">Firmware timing playground</a></p>
-          <p><a href="results/">Results</a></p>
-          </body>
-          </html>
-          EOF
-          echo "chip from gds run $run" >> "$GITHUB_STEP_SUMMARY"
-
       # test/results.py's page from the last results run that passed; the site goes up
       # without it rather than not at all
       - name: Download the results
@@ -163,6 +135,36 @@ jobs:
           else
             echo "::warning::no results page in results run $run"
           fi
+
+      # what TinyTapeout/tt-gds-action/viewer publishes, from the last run that passed
+      - name: Download the chip
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run=$(gh run list -R "${{ github.repository }}" --workflow gds.yaml --branch main \
+            --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+          gh run download "$run" -R "${{ github.repository }}" -n tt_submission -n gds_render -D chip
+          cp chip/tt_submission/tt_submission/*.gds site/tinytapeout.gds
+          cp chip/tt_submission/tt_submission/*.oas site/tinytapeout.oas
+          cp chip/gds_render/gds_render.png site/
+          pdk=$(jq -r .PDK chip/tt_submission/tt_submission/pdk.json)
+          results=""
+          [ -f site/results/index.html ] && results='<p><a href="results/">Results</a></p>'
+          cat > site/index.html <<EOF
+          <!doctype html>
+          <html lang="en">
+          <head><meta charset="utf-8"><title>Redirecting to 3D Viewer...</title></head>
+          <body>
+          <script>
+            location.href = "https://gds-viewer.tinytapeout.com/?pdk=$pdk&model="
+              + encodeURIComponent(location.href + "/tinytapeout.oas");
+          </script>
+          <p><a href="playground/">Firmware timing playground</a></p>
+          $results
+          </body>
+          </html>
+          EOF
+          echo "chip from gds run $run" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload the site
         uses: actions/upload-pages-artifact@v5
