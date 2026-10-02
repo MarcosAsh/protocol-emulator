@@ -1,7 +1,8 @@
 name: pages
 
-# The playground from main, beside the 3D viewer of the last green gds run on main. Runs
-# after gds, whose viewer job deploys the chip alone. js_of_ocaml is never locked.
+# The playground from main and the results page, beside the 3D viewer of the last green gds
+# run on main. Runs after gds, whose viewer job deploys the chip alone, and after results.
+# js_of_ocaml is never locked.
 on:
   push:
     branches: [main]
@@ -13,7 +14,7 @@ on:
       - protocol_emulator.opam.locked
       - .github/workflows/pages.yaml
   workflow_run:
-    workflows: [gds]
+    workflows: [gds, results]
     types: [completed]
     branches: [main]
   workflow_dispatch:
@@ -33,7 +34,18 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v6
 
+      # the page as last built from these inputs, so new results alone skip the switch
+      - name: Cache the playground
+        id: built
+        uses: actions/cache@v4
+        with:
+          path: |
+            _build/default/playground/index.html
+            _build/default/playground/playground.bc.js
+          key: playground-${{ hashFiles('src/**', 'playground/**', 'test/*.asm', 'dune-project', 'protocol_emulator.opam.locked', '.github/workflows/pages.yaml') }}
+
       - name: Set up OxCaml
+        if: steps.built.outputs.cache-hit != 'true'
         uses: ocaml/setup-ocaml@v3
         with:
           ocaml-compiler: ocaml-variants.5.2.0+ox
@@ -44,6 +56,7 @@ jobs:
       # the ocaml workflow's switch, a superset of the locked one; not saved with
       # js_of_ocaml in it, whose freed guards the locked install would put back
       - name: Restore the switch
+        if: steps.built.outputs.cache-hit != 'true'
         uses: actions/cache/restore@v4
         with:
           path: _opam
@@ -53,6 +66,7 @@ jobs:
       # every locked package is held at its version. It and its sedlex and yojson are the
       # oxcaml patched ones, whose -patches packages replace the four guards left free.
       - name: Install dependencies
+        if: steps.built.outputs.cache-hit != 'true'
         run: |
           opam install . --deps-only --locked
           opam install js_of_ocaml.6.3.2+ox sedlex.3.7+ox yojson.2.2.2+ox \
@@ -63,6 +77,7 @@ jobs:
 
       # the release profile links the whole program, 0.8 MB against 31 MB
       - name: Build the playground
+        if: steps.built.outputs.cache-hit != 'true'
         run: PLAYGROUND=yes opam exec -- dune build --profile release @playground/page
 
       # the page is only worth publishing if the kernel still refuses the example it
@@ -126,10 +141,28 @@ jobs:
               + encodeURIComponent(location.href + "/tinytapeout.oas");
           </script>
           <p><a href="playground/">Firmware timing playground</a></p>
+          <p><a href="results/">Results</a></p>
           </body>
           </html>
           EOF
           echo "chip from gds run $run" >> "$GITHUB_STEP_SUMMARY"
+
+      # test/results.py's page from the last results run that passed; the site goes up
+      # without it rather than not at all
+      - name: Download the results
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run=$(gh run list -R "${{ github.repository }}" --workflow results.yaml --branch main \
+            --status success --limit 1 --json databaseId --jq '.[0].databaseId') || true
+          if gh run download "$run" -R "${{ github.repository }}" -n results -D results \
+            && [ -f results/results.html ]; then
+            mkdir -p site/results
+            cp results/results.html site/results/index.html
+            echo "results from results run $run" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning::no results page in results run $run"
+          fi
 
       - name: Upload the site
         uses: actions/upload-pages-artifact@v5

@@ -1,6 +1,7 @@
 name: results
 
-# RESULTS.md from the last green runs on main, each time one of them finishes
+# RESULTS.md and the results page from the last green runs on main, each time one of them
+# finishes. The pages workflow publishes the page.
 on:
   workflow_run:
     workflows: [ocaml, gds, test, mutation, reject split]
@@ -27,11 +28,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          python3 test/results.py --repo "${{ github.repository }}" > RESULTS.md
+          python3 test/results.py --repo "${{ github.repository }}" --html results.html > RESULTS.md
           cat RESULTS.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload the results
         uses: actions/upload-artifact@v7
         with:
           name: results
-          path: RESULTS.md
+          path: |
+            RESULTS.md
+            results.html
