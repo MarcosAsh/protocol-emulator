@@ -17,7 +17,7 @@ send:
     pull                     ; its length in bits less one
     mov y, osr
     set x, 0
-    seek
+    seek [2]                 ; the shared memory takes four cycles to fetch the word
     out null, 16             ; so the next out pulls from the data memory
 bit:
     out pins, 1 [1]          ; the first half of the bit, and with the jump the second

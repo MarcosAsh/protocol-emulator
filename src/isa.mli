@@ -21,8 +21,9 @@ val pc_bits : int
 (** Same 512-word macro as program memory. *)
 val data_addr_bits : int
 
-(** The engines time-share data memory: after a data autopull or [Seek], a data autopull
-    sooner than this many cycles is refused and sets [underflow]. *)
+(** Up to four engines time-share data memory: after a data autopull, [Seek] or the start
+    pulse (two cycles before the first issue), a data autopull sooner than this many
+    cycles is refused and sets [underflow]. *)
 val data_settle : int
 
 val delay_bits : int

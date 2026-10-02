@@ -51,20 +51,20 @@ let stream ?(preload = []) ~cycles source =
   print_s [%message (issues : int) (violations : (int * int * int * int) list)]
 ;;
 
-(* An autopull every other cycle, the fastest the shared memory is ever read. *)
-let%expect_test "every other cycle takes the next word from where seek pointed" =
+(* An autopull every fourth cycle, the fastest the shared memory is ever read. *)
+let%expect_test "every fourth cycle takes the next word from where seek pointed" =
   stream
-    ~cycles:22
+    ~cycles:42
     {|
     set x, 3
-    seek [1]
+    seek [3]
 .wrap_target
-    out pins, 16 [1]
+    out pins, 16 [3]
 .wrap
 |};
   [%expect
     {|
-    ("lockstep held" (cycles 22))
+    ("lockstep held" (cycles 42))
     ((shown
       (0x0 0x4003 0x5004 0x6005 0x7006 0x8007 0x9008 0xa009 0xb00a 0xc00b 0x0))
      (underflow false))
@@ -73,10 +73,10 @@ let%expect_test "every other cycle takes the next word from where seek pointed" 
     |}]
 ;;
 
-(* A pull the cycle after the pointer moved is refused, since the word may not have
-   arrived; the next one takes it. *)
-let%expect_test "a data pull the cycle after a seek or a pull is refused" =
-  stream ~cycles:12 {|
+(* A pull within three cycles of the pointer moving is refused, since the word may not
+   have arrived; a later one takes it. *)
+let%expect_test "a data pull within three cycles of a seek or a pull is refused" =
+  stream ~cycles:20 {|
     set x, 3
     seek
 .wrap_target
@@ -85,10 +85,9 @@ let%expect_test "a data pull the cycle after a seek or a pull is refused" =
 |};
   [%expect
     {|
-    ("lockstep held" (cycles 12))
-    ((shown (0x0 0x4003 0x0 0x5004 0x0 0x6005 0x0 0x7006 0x0 0x8007))
-     (underflow true))
-    1 data pull may come within 1 cycle of the pointer moving
+    ("lockstep held" (cycles 20))
+    ((shown (0x0 0x4003 0x0 0x5004 0x0 0x6005 0x0 0x7006 0x0)) (underflow true))
+    1 data pull may come within 3 cycles of the pointer moving
       2  out pins, 16                 phase ?..?  edge ?..?  jitter ?  gap 1 from 2, ?..? from 1  MAY UNDERRUN
     ((issues 12) (violations ()))
     |}]
@@ -105,7 +104,7 @@ let%expect_test "a pull reads the host while autopull reads the data" =
     mov y, osr
     out null, 16
 loop:
-    out pins, 16
+    out pins, 16 [1]
     jmp y--, loop
     halt
 |};

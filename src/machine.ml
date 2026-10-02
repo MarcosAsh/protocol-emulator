@@ -74,7 +74,9 @@ let create ~config ~program =
   ; program
   ; data = Array.create ~len:data_size 0
   ; data_ptr = 0
-  ; data_age = Isa.data_settle
+  ; (* the start pulse pointed it at 0 two cycles before the first issue, and [step]
+       counts one of them *)
+    data_age = 1
   ; pc = 0
   ; x = 0
   ; y = 0

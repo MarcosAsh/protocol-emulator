@@ -762,7 +762,16 @@ module Make (Timer : Timer) = struct
         @@ mux2 seeks (sel_bottom x ~width:Isa.data_addr_bits)
         @@ mux2 pulls_data (data_ptr +:. 1) data_ptr;
     data_ptr <-- reg spec data_ptr_next;
-    data_moved <-- reg spec (mux2 start gnd (seeks |: pulls_data));
+    (* the start pulse moves the pointer as a seek does, and the word takes as long *)
+    let settle_bits = num_bits_to_represent (Isa.data_settle - 1) in
+    let%hw data_settling =
+      reg_fb spec ~width:settle_bits ~f:(fun left ->
+        mux2
+          (i.start |: seeks |: pulls_data)
+          (of_unsigned_int ~width:settle_bits (Isa.data_settle - 1))
+        @@ mux2 (left ==:. 0) left (left -:. 1))
+    in
+    data_moved <-- (data_settling <>:. 0);
     osr <-- reg spec ~enable:go osr_next;
     osr_count
     <-- reg

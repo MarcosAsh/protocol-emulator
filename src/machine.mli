@@ -41,8 +41,8 @@ type t = private
   ; data : int array (** Loaded by the host while the core is halted. *)
   ; data_ptr : int (** The word the next data autopull takes. *)
   ; data_age : int
-  (** Cycles since [data_ptr] moved, saturating at [Isa.data_settle]; a data pull sooner
-      is refused like an empty-fifo pull. *)
+  (** Cycles since [data_ptr] moved (pull, seek or start), saturating at
+      [Isa.data_settle]; a data pull sooner is refused like an empty-fifo pull. *)
   ; pc : int
   ; x : int
   ; y : int

@@ -4,7 +4,7 @@
 // is the count stopped at 16, the osr holds the word shifted by it, and each out whose
 // word was pulled sends bits [c, c + n) of it from the end the osr shifts from (c the
 // count, 0 after an autopull), or underflow is set by that out or before. A take finds
-// no word from an empty fifo or a data pointer moved the cycle before; a mov to the osr
+// no word from an empty fifo or a data pointer still settling; a mov to the osr
 // writes none. The word is the tx fifo's head (fifo_order.sv) or the data memory's word;
 // the value reaches the pins by edge_step.sv. Nothing is assumed of the host (stop, flush,
 // start, program writes, fifos, data word, clear all free); the config holds still with
@@ -45,7 +45,7 @@ module data_step (input clk);
   wire [7:0] opcode_onehot;
   wire [27:0] wait_select;
   // the value an out shifts, the tx fifo's head, and the core's note of a data pointer
-  // that moved the cycle before
+  // whose word has not arrived
   wire [15:0] out_value, tx_head;
   wire tx_empty, data_moved;
 

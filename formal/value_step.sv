@@ -54,9 +54,10 @@ module value_step (input clk);
   wire decode_ok;
   wire [7:0] opcode_onehot;
   wire [27:0] wait_select;
-  // the fifos' ports, and the core's note of a data pointer that moved the cycle before
+  // the fifos' ports, and the cycles the core counts until a moved data pointer's word
   wire [15:0] tx_head, rx_push_value;
-  wire tx_empty, tx_pop, rx_full, rx_push, data_moved;
+  wire tx_empty, tx_pop, rx_full, rx_push;
+  wire [1:0] data_settling;
 
   engine dut (
     .clock(clk), .clear(clear),
@@ -91,7 +92,7 @@ module value_step (input clk);
     .flip_pending(flip_pending), .flip_bit(flip_bit),
     .eng_tx_head(tx_head), .eng_tx_empty(tx_empty), .eng_tx_pop(tx_pop),
     .eng_rx_full(rx_full), .eng_rx_push(rx_push), .eng_rx_push_value(rx_push_value),
-    .eng_data_moved(data_moved));
+    .eng_data_settling(data_settling));
 
   // an issue, as the model's step has it: running, the delay run out, no start in flight
   reg started = 0;
@@ -175,13 +176,13 @@ module value_step (input clk);
 `else
   wire pull_due = autopull && osr_count >= pull_threshold;
 `endif
-  // the data memory is time-sliced, so a pointer moved last cycle has no word yet
-  // (the model's data_age below data_settle)
-  reg moved = 0;
+  // the data memory is time-sliced, so a pointer moved at the start pulse, a seek or a
+  // data pull has no word for 3 cycles (the model's data_age below data_settle)
+  reg [1:0] settling = 0;
 `ifdef DATA_NEVER_REFUSED
   wire refused = 0;
 `else
-  wire refused = moved;
+  wire refused = settling != 0;
 `endif
   wire pull_misses = autopull_data ? refused : tx_empty;
   wire [15:0] osr_from = !pull_due || pull_misses ? osr : autopull_data ? data_word : tx_head;
@@ -254,7 +255,9 @@ module value_step (input clk);
   wire misses_pull = outs && pull_due && pull_misses || pulls && tx_empty;
   wire misses_push = pushes && rx_full;
   wire [15:0] push_word = ins ? isr_shifted : isr;
-  always @(posedge clk) moved <= seeks || data_pull;
+  always @(posedge clk)
+    settling <= clear ? 2'd0 : start || seeks || data_pull ? 2'd3
+      : settling == 0 ? 2'd0 : settling - 2'd1;
 
   // the ISA's next value of each register, from this cycle
   wire [15:0] want_osr =
@@ -393,7 +396,7 @@ module value_step (input clk);
     if (powered) begin
       assert(decode_ok == decodes(instruction));
       assert(opcode_onehot == 8'b1 << opcode);
-      assert(data_moved == moved);
+      assert(data_settling == settling);
       assert(flip_pending == owed);
       if (owed) assert(flip_bit == owed_bit);
       assert(osr_count <= 16 && isr_count <= 16);

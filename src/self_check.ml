@@ -306,7 +306,7 @@ anchor:
     mov t, now
     set x, 0
     add x, p
-    seek                     ; the rows from the top
+    seek [2]                 ; the rows from the top, four cycles to fetch
     mov x, isr
     out p, 16
     add t, p

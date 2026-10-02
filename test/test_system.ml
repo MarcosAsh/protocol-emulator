@@ -63,22 +63,34 @@ let%expect_test "uart from one engine to the other over a wire" =
     |}]
 ;;
 
-(* random programs, pads and host traffic on both engines: chip and model agree *)
-let%expect_test "random programs on two engines in lockstep" =
-  let random = Splittable_random.of_int 5 in
+(* random programs, pads and host traffic on every engine: chip and model agree.
+   [streaming] has every engine autopull random data, so a word late for its turn at the
+   shared memory shows as a mismatch. *)
+let random_programs ~engines ~streaming ~seed =
+  let random = Splittable_random.of_int seed in
   let int hi = Splittable_random.int random ~lo:0 ~hi in
   let failed =
-    List.init 32 ~f:(fun seed ->
+    List.init 32 ~f:(fun trial ->
+      let data =
+        if streaming
+        then List.init (1 lsl Isa.data_addr_bits) ~f:(fun _ -> int 0xffff)
+        else []
+      in
       let setups =
-        List.init 2 ~f:(fun _ ->
+        List.init engines ~f:(fun _ ->
           let config = Random_program.config random in
+          let config =
+            if streaming
+            then { config with autopull = true; autopull_data = true }
+            else config
+          in
           { System_lockstep.Setup.config
           ; program = Random_program.program ~waits:`Input_pins random ~config
           ; preload = []
-          ; data = []
+          ; data
           })
       in
-      let levels = ref [ 0; 0 ] in
+      let levels = ref (List.init engines ~f:(fun _ -> 0)) in
       let host _ =
         List.map !levels ~f:(fun level ->
           { Lockstep.Host.idle with
@@ -94,11 +106,21 @@ let%expect_test "random programs on two engines in lockstep" =
       match System_lockstep.run ~cycles:1000 ~host ~react ~pads setups with
       | _, None -> None
       | _, Some mismatch ->
-        print_s [%message "MISMATCH" (seed : int) (mismatch : System_lockstep.Mismatch.t)];
-        Some seed)
+        print_s
+          [%message "MISMATCH" (trial : int) (mismatch : System_lockstep.Mismatch.t)];
+        Some trial)
     |> List.filter_opt
   in
-  print_s [%message (failed : int list)];
+  print_s [%message (failed : int list)]
+;;
+
+let%expect_test "random programs on two engines in lockstep" =
+  random_programs ~engines:2 ~streaming:false ~seed:5;
+  [%expect {| (failed ()) |}]
+;;
+
+let%expect_test "random programs on four engines streaming one data memory in lockstep" =
+  random_programs ~engines:4 ~streaming:true ~seed:7;
   [%expect {| (failed ()) |}]
 ;;
 

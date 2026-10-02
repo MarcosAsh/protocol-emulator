@@ -37,14 +37,14 @@ hierarchy -top engine
 proc
 flatten
 cd engine
-expose w:tx.head w:tx.empty w:tx.pop w:rx.full w:rx.push$valid w:rx.push$value w:data_moved
+expose w:tx.head w:tx.empty w:tx.pop w:rx.full w:rx.push$valid w:rx.push$value w:data_settling
 rename tx.head eng_tx_head
 rename tx.empty eng_tx_empty
 rename tx.pop eng_tx_pop
 rename rx.full eng_rx_full
 rename rx.push$valid eng_rx_push
 rename rx.push$value eng_rx_push_value
-rename data_moved eng_data_moved
+rename data_settling eng_data_settling
 cd ..
 wrong_direction: read -define WRONG_DIRECTION
 one_short: read -define ONE_SHORT

@@ -33,7 +33,8 @@ module State = struct
     ; captured = false
     ; awaiting = false
     ; since_edge = Interval.top
-    ; since_data = { lo = Some Isa.data_settle; hi = None }
+    ; (* the start pulse moves the pointer to 0 two cycles before the first issue *)
+      since_data = { lo = Some 2; hi = None }
     ; osr_count = Interval.exactly Isa.data_bits
     ; side_set = None
     ; flip = Some false
@@ -793,7 +794,7 @@ let check ?period ?period_floor ?single_capture_edge ~config (program : Asm.Prog
          [ (let pulls = if List.length underruns = 1 then "pull" else "pulls" in
             [%string
               "%{List.length underruns#Int} data %{pulls} may come within \
-               %{Isa.data_settle - 1#Int} cycle of the pointer moving"])
+               %{Isa.data_settle - 1#Int} cycles of the pointer moving"])
          ; rows underruns
          ])
     ; (if unbounded

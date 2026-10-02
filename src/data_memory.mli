@@ -1,8 +1,8 @@
 (** The one data memory every engine streams from. Engine [n] reads on cycles [n] modulo
     the engine count and keeps its last word; [reads] is each pointer's next address,
-    [words] the word at it now. A moved pointer's word arrives within two cycles, hence
-    the data-pull refusal after a pull or seek. Writes land only while all engines are
-    halted. At most two engines. *)
+    [words] the word at it now. A moved pointer's word arrives within one cycle per
+    engine, hence the data-pull refusal after a pull, a seek or the start. Writes land
+    only while all engines are halted. At most [Isa.data_settle] engines. *)
 
 open! Core
 open! Hardcaml

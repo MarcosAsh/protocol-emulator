@@ -10,9 +10,13 @@ module Make (Config : Config) = struct
   let engines = Config.engines
 
   let () =
-    if engines < 1 || engines > 2
+    if engines < 1 || engines > Isa.data_settle
     then
-      raise_s [%message "BUG: one data memory serves one or two engines" (engines : int)]
+      raise_s
+        [%message
+          "BUG: more engines than cycles a data pull waits for its word"
+            (engines : int)
+            (Isa.data_settle : int)]
   ;;
 
   module I = struct
@@ -43,8 +47,13 @@ module Make (Config : Config) = struct
         ~default:(zero (width (f (List.hd_exn i.writes))))
     in
     (* whose turn it is to read, one cycle each *)
-    let%hw turn = wire 1 in
-    turn <-- if engines = 1 then gnd else reg spec ~:turn;
+    let%hw turn =
+      if engines = 1
+      then gnd
+      else
+        reg_fb spec ~width:(Int.ceil_log2 engines) ~f:(fun turn ->
+          mux2 (turn ==:. engines - 1) (zero (width turn)) (turn +:. 1))
+    in
     let%hw read_addr = mux turn i.reads in
     let memory_in =
       { Program_memory.I.clock = i.clocking.clock

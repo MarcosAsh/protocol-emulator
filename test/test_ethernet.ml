@@ -148,12 +148,12 @@ let%expect_test "the certificate" =
       2  set pindirs, 3               phase ?..?  edge ?..?  jitter ?  gap ?..?
       9  set pins, 1 [3]              phase -63995  edge -63994  gap 63996..?
      10  set pins, 0                  phase -63991  edge -63990  gap 4
-     17  out pins, 1 [1]              phase -63992..?  edge -63991..?  jitter ?  gap 2 from 18, 63999..? from 16
-     18  jmp y--, 17                  phase -63990..?  flip -63989..?  jitter ?  gap 2
-     19  set pins, 1 [10]             phase -63988..?  edge -63987..?  jitter ?  gap 2
-     20  set pins, 0                  phase -63977..?  edge -63976..?  jitter ?  gap 11
+     17  out pins, 1 [1]              phase -63990..?  edge -63989..?  jitter ?  gap 2 from 18, 64001..? from 16
+     18  jmp y--, 17                  phase -63988..?  flip -63987..?  jitter ?  gap 2
+     19  set pins, 1 [10]             phase -63986..?  edge -63985..?  jitter ?  gap 2
+     20  set pins, 0                  phase -63975..?  edge -63974..?  jitter ?  gap 11
     ((words 24) (edge_jitter unbounded) (sample_jitter 0) (side_jitter 0)
      (may_miss 0))
-    ((issues 5932) (flips 2940) (gaps 5880) (violations ()))
+    ((issues 5928) (flips 2936) (gaps 5876) (violations ()))
     |}]
 ;;
