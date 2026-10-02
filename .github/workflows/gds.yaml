@@ -27,6 +27,7 @@ on:
       - '!test/mutation_allow.txt'
       - '!test/results.py'
       - '!test/check_docs.py'
+      - '!test/heldout.sha256'
       - '!**.ml'
       - '!**.mli'
       - '!**/dune'
