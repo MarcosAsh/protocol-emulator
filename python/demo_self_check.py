@@ -21,7 +21,8 @@ CHECKER = dict(
     in_shift_right=0, autopull=1, pull_threshold=16, autopull_data=1,
 )
 FAULTS = 0x3C
-OTHER_IRQ = 1 << 15
+# wait 0 pin 20, as the assembler encodes it
+WAIT_FALL = 0x2000 | WIRE
 # uart_tx_host_rate's wait for a byte between frames
 IDLE = 4
 # every byte value ten times
@@ -65,6 +66,12 @@ def caught_by(edges, byte, period):
     return None
 
 
+def tracking(program):
+    """Where the checker waits for each frame's first edge after the first frame: its last
+    wait 0 pin 20."""
+    return max(pc for pc, word in enumerate(program) if word == WAIT_FALL)
+
+
 def load(host, engine, config, program):
     host.select(engine)
     host.stop()
@@ -74,13 +81,13 @@ def load(host, engine, config, program):
     host.load(program)
 
 
-def setup(host, rows):
+def setup(host, rows, program):
     """The rows in while both are halted, the checker running, the transmitter halted."""
     for engine in (0, 1):
         host.select(engine)
         host.stop()
     host.load_data(rows, BASE)
-    load(host, 1, CHECKER, words("self_check_wire"))
+    load(host, 1, CHECKER, program)
     host.start()
     load(host, 0, TRANSMITTER, words("uart_tx_host_rate"))
 
@@ -95,14 +102,14 @@ def restart(host, period, data):
 
 
 def idle(host, pause=None, polls=10_000):
-    """Engine 0's status once it has sent all it was given and waits for more, the stop
-    bit over. Nothing waits on the host, so the poll need not be fast."""
+    """Returns once engine 0 has sent all it was given and waits for more, the stop bit
+    over. Nothing waits on the host, so the poll need not be fast."""
     for _ in range(polls):
         s = host.read(pe.STATUS)[0]
         if s & 1:
             raise RuntimeError("engine 0 halted, status 0x%04x" % s)
         if (s >> 6) & 15 == 0 and host.read(pe.PC)[0] == IDLE:
-            return s
+            return
         if pause:
             pause()
     raise RuntimeError("engine 0 never went idle")
@@ -117,28 +124,35 @@ def checker(host):
     return s, pc
 
 
-def send(host, frames, pause=None):
+def send(host, frames, track, pause=None):
     """Every byte value in turn, seven to a restart at the certified period, back to back
-    within one: the frames sent, fewer if an alarm stopped them."""
+    within one, until a restart leaves engine 1 halted or anywhere but its wait at track:
+    the frames sent, and engine 1's status and pc after the last restart."""
     sent = 0
     while sent < frames:
         data = [(sent + i) & 0xFF for i in range(min(7, frames - sent))]
         restart(host, PERIOD, data)
         sent += len(data)
-        if idle(host, pause) & OTHER_IRQ:
+        idle(host, pause)
+        s, pc = checker(host)
+        if s & 3 or pc != track:
             break
-    return sent
+    return sent, s, pc
 
 
-def quiet(host, label, frames, pause=None):
-    """Whether frames went out and engine 1 is still checking, with no irq."""
-    sent = send(host, frames, pause)
-    s, pc = checker(host)
-    ok = sent == frames and s & 3 == 0
+def quiet(host, label, frames, track, pause=None):
+    """Whether frames went out with no irq, engine 1 waiting at track for the next frame
+    after every restart, so it checked them all."""
+    sent, s, pc = send(host, frames, track, pause)
+    if s & 3:
+        seen = "ALARM, engine 1 status 0x%04x pc %d" % (s, pc)
+    elif pc != track:
+        seen = "NOT CHECKING, engine 1 at pc %d, not its wait at %d" % (pc, track)
+    else:
+        seen = "no alarm"
     print("\n%s: %d frames at %d cycles a bit, %d restarts: %s" % (
-        label, sent, PERIOD, (sent + 6) // 7,
-        "no alarm" if ok else "ALARM, engine 1 status 0x%04x pc %d" % (s, pc)))
-    return ok
+        label, sent, PERIOD, (sent + 6) // 7, seen))
+    return s & 3 == 0 and pc == track
 
 
 def arm(host):
@@ -177,12 +191,14 @@ def run(transfer, frames=FRAMES, pause=None):
     if any(found):
         raise RuntimeError("faults %s hold from an earlier run: reset the chip" % found)
     rows = words("uart_tx_host_rate_rows")
+    program = words("self_check_wire")
+    track = tracking(program)
     edges = certified(rows)
     writes = " ".join("%d" % e for e in edges[:-1])
     print("rows: writes at %s, the next frame from %d" % (writes, edges[-1]))
-    setup(host, rows)
+    setup(host, rows, program)
 
-    ok = quiet(host, "quiet", frames, pause)
+    ok = quiet(host, "quiet", frames, track, pause)
     for period in GLITCHES:
         moved, check = caught_by(edges, GLITCH_BYTE, period)
         print("\nglitch: the same restart at %d: 0x%02x's start bit ends at cycle %d, not %d" % (
@@ -198,7 +214,7 @@ def run(transfer, frames=FRAMES, pause=None):
 
     # started again on a line already high, as after act 2
     arm(host)
-    ok = quiet(host, "re-armed", min(frames, 256), pause) and ok
+    ok = quiet(host, "re-armed", min(frames, 256), track, pause) and ok
     found = faults(host)
     print("\nfaults %s" % found)
     return ok and not any(found)
