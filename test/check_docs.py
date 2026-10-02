@@ -31,7 +31,8 @@ HARDENED = ["src", "macro", "info.yaml", "librelane_plugin_sram_pdn.py", "odb_sr
 
 EXTENSIONS = "ml|mli|sv|v|sby|py|asm|hex|txt|tcl|yaml|svg|png|md|json|settings|lpf|mk"
 PATH = re.compile(rf"(?<![\w./-])((?:[\w.-]+/)+[\w.-]+\.(?:{EXTENSIONS}))(?!\.?[\w/-])")
-DIRECTORY = re.compile(r"`((?:[\w.-]+/)+)`")
+# and any backticked token with a slash, whatever its extension
+BACKTICKED = re.compile(r"`(?![^`]*://)([^`\s*]*/[^`\s*]*)`")
 URL = re.compile(r"https?://[^\s)]+")
 FENCE = re.compile(r"^```[\w-]*\n(.*?)^```", re.M | re.S)
 MAKE = re.compile(r"make -C ([\w./-]+)([^#\n]*)")
@@ -42,7 +43,9 @@ COMMIT = re.compile(r"(?<![\w/#.-])(?=[0-9a-f]*\d)([0-9a-f]{7,8}|(?=[0-9]*[a-f])
                     r"(?![\w.-])")
 # a run is cited by its link, or as "run N", never by a bare number such as a job id
 RUN = re.compile(r"actions/runs/(\d+)|\bruns?,? \[?(\d{9,})")
-DATED_RUN = re.compile(r"run \[?(\d{10,12})\]?(?:\([^)]*\))?, (\d{4}-\d\d-\d\d)")
+# what follows "run N, ", which has to be a date in ISO form if it looks like one at all
+DATED_RUN = re.compile(r"\bruns?,? \[?(\d{9,})\]?(?:\([^)]*\))?, ([^,;)]*)")
+LOOKS_DATED = re.compile(r"\d|\b(?:jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)", re.I)
 
 
 def git(*args):
@@ -258,7 +261,7 @@ def numbers(pattern, text):
 # The checks, each yielding what is wrong
 
 def check_paths(doc, text):
-    for path in sorted(set(PATH.findall(URL.sub(" ", text)) + DIRECTORY.findall(text))):
+    for path in sorted(set(PATH.findall(URL.sub(" ", text)) + BACKTICKED.findall(text))):
         if path.startswith(NOT_IN_REPO) or git("check-ignore", "-q", path).returncode == 0:
             continue  # the reader makes it
         if not (ROOT / path).exists():
@@ -317,10 +320,13 @@ def check_runs(doc, text):
             yield f"run {run_id} ({r['name']}) concluded {r['conclusion']}"
         elif why := not_ours(r["head_sha"]):
             yield f"run {run_id} ran {r['head_sha'][:7]}, which {why}"
-    for run_id, date in DATED_RUN.findall(flat(text)):
+    for run_id, phrase in DATED_RUN.findall(flat(text)):
         r = run(run_id)
-        if r and r["created_at"][:10] != date:
-            yield f"run {run_id} is dated {date} but ran on {r['created_at'][:10]}"
+        if m := re.fullmatch(r"(\d{4}-\d\d-\d\d)\.?", phrase.strip()):
+            if r and r["created_at"][:10] != m[1]:
+                yield f"run {run_id} is dated {m[1]} but ran on {r['created_at'][:10]}"
+        elif LOOKS_DATED.search(phrase):
+            yield f"run {run_id} has {phrase.strip()!r} beside it, write a date as YYYY-MM-DD"
 
 
 def check_gds(doc, text):
@@ -425,7 +431,7 @@ def check_transcripts(doc, text):
     against what it does print, after the same edit."""
     printed = {line for f in (ROOT / "test/assemble").glob("*.expected")
                for line in f.read_text().splitlines()}
-    for block in re.findall(r"^```\n(.*?)^```", text, re.M | re.S):
+    for block in FENCE.findall(text):
         if "bin/generate.exe assemble" not in block:
             continue
         for line in block.splitlines():
@@ -510,7 +516,7 @@ def bump(s):
 # the metrics of the cited gds run, which expire)
 TEETH = [
     ("a path", first(PATH, lambda p: re.sub(r"\.(\w+)$", r"x.\1", p)), None),
-    ("a directory", first(DIRECTORY, lambda d: d[:-1] + "x/"), None),
+    ("a directory", first(r"`((?:[\w.-]+/)+)`", lambda d: d[:-1] + "x/"), None),
     ("a make target", first(r"make -C \S+ ([a-z]\w*)(?![\w=])", lambda t: t + "x"), None),
     ("a job", first(JOB, lambda j: j + "x"), None),
     ("a commit", first(r"\b(?=\w*[a-f])(?=\w*\d)([0-9a-f]{7})\b", bump), None),
@@ -531,6 +537,7 @@ TEETH = [
     ("the cells", first(r"([\d,]+) standard cells", bump), "metrics"),
     ("a run id", first(r"run \[?(\d{10,12})", bump), "gh"),
     ("a run date", first(r"run \d{10,12}, (\d{4}-\d\d-\d\d)", bump), "gh"),
+    ("a run date in words", first(r"run \d{10,12}, (\d{4}-\d\d-\d\d)", lambda _: "29 Sep"), "gh"),
     # the run the die picture is from, which hardened older Verilog
     ("an old gds run", first(r"[Gg]ds run (\d{10,12})", lambda _: "36615334436"), "gh"),
 ]
