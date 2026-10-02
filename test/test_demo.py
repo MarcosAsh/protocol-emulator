@@ -253,8 +253,8 @@ async def test_keyboard(dut):
 @cocotb.test()
 async def test_self_check(dut):
     """The self-check as the Pico runs it: the quiet frames all on the wire with no alarm,
-    then one alarm per glitch, from the check the script names. Wire 20 never reaches a
-    pad, so the testbench reads it, and engine 1's irq, from the RTL."""
+    one alarm per glitch, from the check the script names, then quiet again. Wire 20 never
+    reaches a pad, so the testbench reads it, and engine 1's irq, from the RTL."""
     await reset(dut)
     pins = Pins(dut)
     engines = dut.user_project.core.top.engines
@@ -262,12 +262,12 @@ async def test_self_check(dut):
     def cycle():
         return int(get_sim_time("ns")) // 20
 
-    # (cycle, period) of each push that starts a glitch
+    # (cycle, period) of each restart's push
     pushes = []
 
     @resume
     async def transfer(data):
-        if data[0] == 0x80 | TX and (data[1] << 8 | data[2]) in demo_self_check.GLITCHES:
+        if data[0] == 0x80 | TX:
             pushes.append((cycle(), data[1] << 8 | data[2]))
         return await pins.transfer(data)
 
@@ -299,17 +299,24 @@ async def test_self_check(dut):
     assert ok
 
     period = demo_self_check.PERIOD
-    glitched = pushes[0][0]
-    quiet = uart_frames([edge for edge in wire[1:] if edge[0] < glitched], period)
-    assert bytes(byte for _, byte in quiet) == bytes(range(frames)), quiet
-    assert [at for at in irqs if at < glitched] == [], "an alarm on the quiet frames"
-    assert len(irqs) == len(pushes) == len(demo_self_check.GLITCHES), (irqs, pushes)
+    glitches = [(at, p) for at, p in pushes if p != period]
+    assert [p for _, p in glitches] == list(demo_self_check.GLITCHES), pushes
+    first, last = glitches[0][0], glitches[-1][0]
+    rearmed = next(at for at, _ in pushes if at > last)
+    # each quiet run is every byte in turn on the wire, from the line idle high
+    before = [edge for edge in wire[1:] if edge[0] < first]
+    after = [(rearmed, 1)] + [edge for edge in wire if edge[0] > rearmed]
+    for line in before, after:
+        quiet = uart_frames(line, period)
+        assert bytes(byte for _, byte in quiet) == bytes(range(frames)), quiet
+    # one alarm a glitch, none on the quiet frames
+    assert len(irqs) == len(glitches), (irqs, glitches)
     # the frame test_self_check.ml prints, as the script reads it from the rows
     edges = [bit * period for bit in range(1, 10)] + [10 * period + 6]
     with open("uart_tx_host_rate_rows.hex") as f:
         assert demo_self_check.certified([int(w, 16) for w in f.read().split()]) == edges
     # the checker's irq shows six cycles after the write it checks shows on the wire
-    for (pushed, glitch), irq in zip(pushes, irqs):
+    for (pushed, glitch), irq in zip(glitches, irqs):
         start = next(at for at, level in wire if at > pushed and level == 0)
         moved, check = demo_self_check.caught_by(edges, demo_self_check.GLITCH_BYTE, glitch)
         dut._log.info(f"period {glitch}: moved at {moved}, irq {irq - start} after the start bit")

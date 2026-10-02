@@ -2,9 +2,9 @@
 # The self-check on the host Pico (MicroPython): engine 0 sends UART frames over wire 20,
 # engine 1 checks every edge against the certificate's rows and raises its irq and halts
 # at the first that leaves its cycle. Quiet over every byte value, then the same restart
-# with the bit period a cycle long and a cycle short. The wire stays inside the chip, so
-# Pico B and the analyser see nothing. Needs protocol_emulator.py, pico_board.py and the
-# three .hex files on the Pico.
+# with the bit period a cycle long and a cycle short, then quiet again. The wire stays
+# inside the chip, so Pico B and the analyser see nothing. Needs protocol_emulator.py,
+# pico_board.py and the three .hex files on the Pico.
 
 import protocol_emulator as pe
 
@@ -117,7 +117,7 @@ def checker(host):
     return s, pc
 
 
-def quiet(host, frames, pause=None):
+def send(host, frames, pause=None):
     """Every byte value in turn, seven to a restart at the certified period, back to back
     within one: the frames sent, fewer if an alarm stopped them."""
     sent = 0
@@ -128,6 +128,17 @@ def quiet(host, frames, pause=None):
         if idle(host, pause) & OTHER_IRQ:
             break
     return sent
+
+
+def quiet(host, label, frames, pause=None):
+    """Whether frames went out and engine 1 is still checking, with no irq."""
+    sent = send(host, frames, pause)
+    s, pc = checker(host)
+    ok = sent == frames and s & 3 == 0
+    print("\n%s: %d frames at %d cycles a bit, %d restarts: %s" % (
+        label, sent, PERIOD, (sent + 6) // 7,
+        "no alarm" if ok else "ALARM, engine 1 status 0x%04x pc %d" % (s, pc)))
+    return ok
 
 
 def glitch(host, period, pause=None):
@@ -154,8 +165,8 @@ def faults(host):
 
 
 def run(transfer, frames=FRAMES, pause=None):
-    """Quiet, then each glitch: whether the quiet frames raised no alarm, every glitch
-    raised one, and nothing faulted."""
+    """Quiet, each glitch, then quiet again: whether the quiet frames raised no alarm,
+    every glitch raised one, and nothing faulted."""
     host = pe.Host(transfer)
     found = faults(host)
     if any(found):
@@ -166,13 +177,7 @@ def run(transfer, frames=FRAMES, pause=None):
     print("rows: writes at %s, the next frame from %d" % (writes, edges[-1]))
     setup(host, rows)
 
-    sent = quiet(host, frames, pause)
-    s, pc = checker(host)
-    ok = sent == frames and s & 3 == 0
-    print("\nquiet: %d frames at %d cycles a bit, %d restarts: %s" % (
-        sent, PERIOD, (sent + 6) // 7,
-        "no alarm" if ok else "ALARM, engine 1 status 0x%04x pc %d" % (s, pc)))
-
+    ok = quiet(host, "quiet", frames, pause)
     for period in GLITCHES:
         moved, check = caught_by(edges, GLITCH_BYTE, period)
         print("\nglitch: the same restart at %d: 0x%02x's start bit ends at cycle %d, not %d" % (
@@ -185,6 +190,8 @@ def run(transfer, frames=FRAMES, pause=None):
         else:
             print("NO ALARM: engine 1 status 0x%04x pc %d" % (s, pc))
 
+    # started again on a line already high, as after act 2
+    ok = quiet(host, "re-armed", min(frames, 256), pause) and ok
     found = faults(host)
     print("\nfaults %s" % found)
     return ok and not any(found)
