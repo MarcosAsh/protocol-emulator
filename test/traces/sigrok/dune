@@ -1,0 +1,79 @@
+(rule
+ (with-stdout-to
+  can.trace.gen
+  (run ../write_trace.exe can)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff can.trace can.trace.gen)))
+
+(rule
+ (with-stdout-to
+  can_remote.trace.gen
+  (run ../write_trace.exe can_remote)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff can_remote.trace can_remote.trace.gen)))
+
+(rule
+ (with-stdout-to
+  cec.trace.gen
+  (run ../write_trace.exe cec)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff cec.trace cec.trace.gen)))
+
+(rule
+ (with-stdout-to
+  one_wire.trace.gen
+  (run ../write_trace.exe one_wire)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff one_wire.trace one_wire.trace.gen)))
+
+(rule
+ (with-stdout-to
+  ps2.trace.gen
+  (run ../write_trace.exe ps2)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff ps2.trace ps2.trace.gen)))
+
+(rule
+ (with-stdout-to
+  jtag.trace.gen
+  (run ../write_trace.exe jtag)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff jtag.trace jtag.trace.gen)))
+
+(rule
+ (with-stdout-to
+  usb.trace.gen
+  (run ../write_trace.exe usb)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff usb.trace usb.trace.gen)))
+
+(rule
+ (with-stdout-to
+  ws2812.trace.gen
+  (run ../write_trace.exe ws2812)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff ws2812.trace ws2812.trace.gen)))
