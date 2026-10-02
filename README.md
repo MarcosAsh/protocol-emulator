@@ -19,7 +19,7 @@ the RTL is proven never to miss one of its deadlines, under the assumptions belo
 | Cores | 2 cores, 3 IHP 512 x 16 SRAM macros: a program memory each and a data memory they share | `src/protocol_emulator.v` |
 | Pins | 4 for the host's SPI, 5 in, 7 out, 8 bidirectional, and 8 wires between the cores | `info.yaml`, `src/isa.ml` |
 | Hardened | 23,883 standard cells at 49.7% utilisation, setup slack +4.009 ns at the slow corner, precheck clean | gds run [36922636022](https://github.com/MarcosAsh/protocol-emulator/actions/runs/36922636022) |
-| Firmware | 22 library firmwares the kernel accepts, over 13 protocols | `test/test_certified.ml` |
+| Firmware | 22 library firmwares the kernel accepts, over 13 protocols | `test/test_kernel.ml` |
 | Proved | a program the kernel accepts never misses a deadline on the RTL, under the assumptions below | `formal/phase_table.sby` |
 | Board | the RTL on an Icepi Zero (ECP5 FPGA) passed the self-timing demo on 2026-10-01, no silicon yet | `python/demo_self_timing.py` |
 

@@ -117,11 +117,11 @@ def sram():
 
 
 def library_firmwares():
-    """The firmwares test_certified.ml's table accepts, which dune runtest keeps current."""
-    test = read("test/test_certified.ml").split(
-        'let%expect_test "the firmware library and its certificates"')[1]
-    rows = test.split("[%expect {|")[1].split("|}]")[0].strip().splitlines()[1:]
-    return [row.split()[0] for row in rows if "refused" not in row]
+    """The library firmwares the kernel accepts in test_kernel.ml, which dune runtest keeps
+    current."""
+    test = read("test/test_kernel.ml").split(
+        'let%expect_test "the kernel on the firmware library, from the analyser\'s rows"')[1]
+    return re.findall(r"^\s*\((\w+) \(verdict \(Ok \(\)\)\)\)$", test.split("|}]")[0], re.M)
 
 
 def equivalent_mutants():
@@ -368,7 +368,7 @@ def check_counts(doc, text):
     firmwares = len(library_firmwares())
     for n in quoted["library firmwares"]:
         if n != firmwares:
-            yield f"{n} library firmwares, test/test_certified.ml has {firmwares} accepted"
+            yield f"{n} library firmwares, the kernel accepts {firmwares} in test/test_kernel.ml"
     for killed, valid in quoted["valid mutants"]:
         for n in quoted["equivalent mutants"]:
             if n != int(valid) - int(killed) or n != equivalent_mutants():
