@@ -1,5 +1,9 @@
 (executables
- (names write_usb_firmware write_ethernet_firmware write_certified_firmware)
+ (names
+  write_usb_firmware
+  write_ethernet_firmware
+  write_certified_firmware
+  write_sweep_firmware)
  (libraries core hardcaml protocol_emulator protocol_emulator_test)
  (preprocess
   (pps ppx_jane)))
@@ -33,6 +37,18 @@
  (alias runtest)
  (action
   (diff ../../python/certified_firmware.py certified_firmware.py.gen)))
+
+(rule
+ (deps ../edge_logger_echo.asm)
+ (action
+  (with-stdout-to
+   sweep_firmware.py.gen
+   (run ./write_sweep_firmware.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff ../../python/sweep_firmware.py sweep_firmware.py.gen)))
 
 (rule
  (alias runtest)
