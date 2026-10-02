@@ -154,13 +154,13 @@ saturating_chip: engine.v kernel_step.v
 	! cmp -s engine.v engine_saturating.v
 	sby -f phase_step.sby saturating_chip
 
-# and on the two-engine chip: two engines whose footprints share no pad each drive their
+# and on a two-engine build: two engines whose footprints share no pad each drive their
 # pads as they would alone, and each reads as it would alone but where the other drives a
 # bidirectional pad or can move a wire, and there reads what the other drives
 chip_frame: engines.v
 	sby -f chip_frame.sby prove pads_shared cover
 
-# A UART from engine 0 to engine 1 over a wire, by induction on the two-engine chip: each
+# A UART from engine 0 to engine 1 over a wire, by induction on a two-engine build: each
 # word engine 1 pushes is the byte engine 0 sent in that frame, once a frame, and each
 # sample lies half a bit from the wire's edges. The proof takes about 2 min, the covers
 # (a push, and a second pull right behind a frame) 12. Teeth: a claim no run keeps,

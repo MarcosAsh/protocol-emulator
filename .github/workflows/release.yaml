@@ -52,7 +52,7 @@ jobs:
       # outside dune, as a judge would run it
       - name: Check the binary reproduces the committed Verilog and firmware
         run: |
-          ./release/generate-linux-x86_64 top -sram -engines 2 | cmp - src/protocol_emulator.v
+          ./release/generate-linux-x86_64 top -sram -engines 4 | cmp - src/protocol_emulator.v
           ./release/generate-linux-x86_64 assemble test/uart_tx.asm | cmp - test/uart_tx.hex
           if ./release/generate-linux-x86_64 assemble playground/gap_adding_x.asm; then
             echo "::error::the kernel accepted gap_adding_x"
@@ -127,7 +127,7 @@ jobs:
 
           Both bitstreams are built from this tag, whose Verilog is the one that gds run hardened, and the ocaml workflow's fpga job simulated their netlists.
 
-          `icepi-zero-v1.4.bit` is the chip's Verilog, two engines at 48 MHz, for an Icepi Zero v1.3 or v1.4 (ECP5), its pins on the 40-pin header as `icepi/header.lpf` maps them and USB on the first USB-C port. Load it with `openFPGALoader -b icepi-zero icepi-zero-v1.4.bit`, as `make -C icepi prog` does, and add `--write-flash` to keep it. v1.0 to v1.2 take the clock on another ball: `make -C icepi REV=v1.2`.
+          `icepi-zero-v1.4.bit` is the chip's Verilog, four engines at 48 MHz, for an Icepi Zero v1.3 or v1.4 (ECP5), its pins on the 40-pin header as `icepi/header.lpf` maps them and USB on the first USB-C port. Load it with `openFPGALoader -b icepi-zero icepi-zero-v1.4.bit`, as `make -C icepi prog` does, and add `--write-flash` to keep it. v1.0 to v1.2 take the clock on another ball: `make -C icepi REV=v1.2`.
 
           `tt_um_marcosash_protocol_emulator.bin` is one engine with flop program memory, to fit the iCE40 UP5K on Tiny Tapeout's classic (TT04) FPGA breakout, pins as tt-support-tools' `fpga/tt_fpga_top.pcf`. Copy it to the demo board with `mpremote cp tt_um_marcosash_protocol_emulator.bin :/bitstreams/`, reset the board, select it with `tt.shuttle.tt_um_marcosash_protocol_emulator.enable()` and clock it at 16 MHz or less.
           EOF

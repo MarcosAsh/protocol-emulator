@@ -276,7 +276,7 @@ jobs:
           ! grep failure results.xml
           make replay FPGA=yes
 
-      # the chip's own Verilog, two engines and all, on the Icepi Zero's ECP5 at 48 MHz;
+      # the chip's own Verilog, four engines and all, on the Icepi Zero's ECP5 at 48 MHz;
       # nextpnr fails the build if timing does
       - name: Build for the Icepi Zero and simulate the netlist
         run: |
