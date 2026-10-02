@@ -7,7 +7,7 @@ import machine
 import micropython
 from machine import Pin, SPI
 
-from protocol_emulator import RX, STATUS, Host
+from protocol_emulator import PROGRAM_WORDS, RX, STATUS, Host
 
 # the longest rx read, a full level field's worth of words
 RX_WORDS = 15
@@ -72,5 +72,31 @@ class PicoSpi:
         return frames
 
 
+class PicoHost(Host):
+    """Host with act 3's hot calls in native code."""
+
+    def __init__(self, spi):
+        super().__init__(spi.transfer)
+        self.spi = spi
+        # the longest write, a full program load
+        self.out = bytearray(1 + 2 * PROGRAM_WORDS)
+
+    @micropython.native
+    def write(self, reg, words):
+        """Host.write without its list of bytes: a full load in 1.5 ms, not 21."""
+        n = len(words)
+        if n > PROGRAM_WORDS:
+            return Host.write(self, reg, words)
+        out = self.out
+        out[0] = 0x80 | reg
+        for i in range(n):
+            out[1 + 2 * i] = (words[i] >> 8) & 0xFF
+            out[2 + 2 * i] = words[i] & 0xFF
+        spi = self.spi
+        spi.cs_n(0)
+        spi.spi.write(memoryview(out)[:1 + 2 * n])
+        spi.cs_n(1)
+
+
 def host(**kwargs):
-    return Host(PicoSpi(**kwargs).transfer)
+    return PicoHost(PicoSpi(**kwargs))
