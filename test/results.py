@@ -565,9 +565,11 @@ PAGE_STYLE = """
   .muted, dd { color: var(--muted); }
   dl { display: grid; grid-template-columns: max-content 1fr; gap: 2px 16px; }
   dd { margin: 0; }
+  /* narrow: each row a card, the roles in the markup keep it a table to a screen reader */
   @media (max-width: 720px) {
     table, tbody, tr, th, td { display: block; }
-    thead { display: none; }
+    thead { position: absolute; width: 1px; height: 1px; overflow: hidden;
+      clip-path: inset(50%); }
     tr { border-bottom: 1px solid var(--line); padding: 8px 0; }
     th, td { border: 0; padding: 2px 0; }
     td[data-label]::before { content: attr(data-label) ": "; color: var(--muted); }
@@ -583,25 +585,24 @@ def html_row(r):
     kind = {"proved for all time": "proved", "not verified": "unverified"}.get(r.status, "")
     passes = r.evidence(" passed") or ("none in the log" if r.missing else "")
     passes = f'<br><span class="muted">{e(passes)}</span>' if passes else ""
-    cells = [f'<th scope="row">{e(claim.text)}</th>',
-             f'<td data-label="Status"><span class="status {kind}">{e(r.status)}</span>'
-             f'{passes}</td>']
+    status = f'<span class="status {kind}">{e(r.status)}</span>{passes}'
     if r.run is None:
-        cells += [f'<td data-label="CI job"><code>{e(claim.target)}</code><br>'
-                  f'{e(claim.workflow)}</td>',
-                  '<td data-label="Last green run">no run on main</td>']
-        return "<tr>" + "".join(cells) + "</tr>"
-    sha = r.run["headSha"]
-    run = (f'<a href="{e(r.run["url"])}">{r.run["databaseId"]}</a> at '
-           f'<a href="https://github.com/{e(REPO)}/commit/{sha}"><code>{sha[:7]}</code></a>')
-    if not r.good:
-        run += ' <span class="bad">(not green)</span>'
-    cells += [f'<td data-label="CI job"><code>{e(claim.target)}</code><br>{e(r.where)}</td>',
-              f'<td data-label="Last green run">{run}</td>',
-              f'<td data-label="Date" class="nowrap">{r.run["createdAt"][:10]}</td>',
-              f'<td data-label="Teeth">{e(r.teeth)}</td>',
-              f'<td data-label="Job time" class="nowrap">{minutes(r.time)}</td>']
-    return "<tr>" + "".join(cells) + "</tr>"
+        where, run, date = e(claim.workflow), "no run on main", ""
+    else:
+        sha = r.run["headSha"]
+        where, date = e(r.where), r.run["createdAt"][:10]
+        run = (f'<a href="{e(r.run["url"])}">{r.run["databaseId"]}</a> at <a href='
+               f'"https://github.com/{e(REPO)}/commit/{sha}"><code>{sha[:7]}</code></a>')
+        if not r.good:
+            run += ' <span class="bad">(not green)</span>'
+    nowrap = ' class="nowrap"'
+    cells = [("Status", "", status), ("CI job", "", f"<code>{e(claim.target)}</code><br>{where}"),
+             ("Last green run", "", run), ("Date", nowrap, date), ("Teeth", "", e(r.teeth)),
+             ("Job time", nowrap, minutes(r.time))]
+    return (f'<tr role="row"><th scope="row" role="rowheader">{e(claim.text)}</th>'
+            + "".join(f'<td role="cell" data-label="{label}"{style}>{text}</td>'
+                      for label, style, text in cells)
+            + "</tr>")
 
 
 def html_page(rows, now):
@@ -615,14 +616,19 @@ def html_page(rows, now):
     legend = "\n".join(f"<dt>{e(s)}</dt><dd>{e(m)}</dd>" for s, m in STATUSES.items())
     body = []
     for title, section in CLAIMS:
-        body.append(f'<tr class="section"><th colspan="7" scope="colgroup">{e(title)}</th></tr>')
+        body.append('<tbody role="rowgroup"><tr role="row" class="section">'
+                    f'<th colspan="7" scope="rowgroup" role="rowheader">{e(title)}</th></tr>')
         body += [html_row(rows[id(claim)]) for claim in section]
+        body.append("</tbody>")
     body = "\n".join(body)
+    heads = ["Claim", "Status", "CI job", "Last green run", "Date", "Teeth", "Job time"]
+    heads = "".join(f'<th scope="col" role="columnheader">{h}</th>' for h in heads)
     return f"""<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
 <title>Protocol Emulator Results</title>
 <style>{PAGE_STYLE}</style>
 </head>
@@ -637,13 +643,9 @@ are under
 README. Bench measurements are not in CI and not here.
 <a href="https://github.com/{e(REPO)}">Repository</a>, <a href="../playground/">playground</a>.</p>
 <p>{e(tally)}.</p>
-<table>
-<thead><tr><th scope="col">Claim</th><th scope="col">Status</th><th scope="col">CI job</th>
-<th scope="col">Last green run</th><th scope="col">Date</th><th scope="col">Teeth</th>
-<th scope="col">Job time</th></tr></thead>
-<tbody>
+<table role="table">
+<thead role="rowgroup"><tr role="row">{heads}</tr></thead>
 {body}
-</tbody>
 </table>
 <h2>Status</h2>
 <dl>
