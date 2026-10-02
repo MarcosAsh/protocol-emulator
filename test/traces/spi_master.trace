@@ -11,6 +11,7 @@
 # sigrok expect spi-1: 81
 # sigrok expect spi-1: 7E
 # sigrok expect spi-1: 42
+# sigrok tooth flip:IN0:0:0:16
 4 0c 00 00 00 00
 4 08 00 00 00 00
 4 0a 00 00 00 00

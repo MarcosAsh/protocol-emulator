@@ -11,6 +11,7 @@
 # sigrok expect uart-1: 0F
 # sigrok expect uart-1: F0
 # sigrok expect uart-1: 5A
+# sigrok tooth shift:IN0:9:12
 4 0c 00 00 00 00
 4 08 00 00 00 00
 4 0a 00 00 00 00

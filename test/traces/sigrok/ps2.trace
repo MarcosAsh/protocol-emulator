@@ -51,6 +51,7 @@
 # sigrok expect ps2-1: 0
 # sigrok expect ps2-1: 1
 # sigrok tooth flip:IO0:2:12000:4000
+# sigrok tooth flip:IO0:3:0:4000
 4 04 03 00 00 00
 4 00 03 00 00 00
 4 02 03 00 00 00

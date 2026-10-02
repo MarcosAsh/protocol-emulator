@@ -38,6 +38,7 @@
 # sigrok expect uart-1: 21
 # sigrok expect uart-1: 32
 # sigrok expect uart-1: 43
+# sigrok tooth flip:IO0:6:0:32
 4 04 03 00 00 00
 4 00 03 00 00 00
 4 02 03 00 00 00

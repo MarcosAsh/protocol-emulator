@@ -65,7 +65,14 @@ let uart_rx =
         ; Read (Reg.rx, 3)
         ; Read (Reg.status, 1)
         ]
-  ; sigrok = Some (uart ~channel:"rx" ~pin:rx_config.in_base (first @ second))
+  ; sigrok =
+      (* the first stop bit, edge 9, 12 cycles late: a framing error *)
+      Some
+        (uart
+           ~channel:"rx"
+           ~pin:rx_config.in_base
+           ~teeth:[ [ Shift { pin = rx_config.in_base; edge = 9; cycles = 12 } ] ]
+           (first @ second))
   }
 ;;
 
@@ -108,7 +115,8 @@ let spi_master =
             ]
         ; joins_after = None
         ; rejected = None
-        ; teeth = []
+        ; (* a bit of the first reply inverted *)
+          teeth = [ [ Flip { pin = miso_pin; edge = 0; after = 0; cycles = 16 } ] ]
         }
   }
 ;;
@@ -160,7 +168,8 @@ let i2c_logger =
             ]
         ; joins_after = None
         ; rejected = None
-        ; teeth = []
+        ; (* edge 6 is the slave's ACK of the first address: a NACK instead *)
+          teeth = [ [ Flip { pin = sda; edge = 6; after = 0; cycles = 32 } ] ]
         }
   }
 ;;

@@ -13,6 +13,7 @@
 # sigrok expect jtag-1: IR TDO: 0001 (0x1), 4 bits
 # sigrok expect jtag-1: DR TDO: 00000000 (0x0), 8 bits
 # sigrok expect jtag-1: DR TDO: 10100101 (0xa5), 8 bits
+# sigrok tooth flip:IN0:0:0:20
 4 04 00 00 00 00
 4 00 00 00 00 00
 4 02 00 00 00 00

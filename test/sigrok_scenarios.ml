@@ -299,6 +299,8 @@ let ps2 =
                   ; cycles = 4 * quarter
                   }
               ]
+            ; (* edge 3 raises the first byte's stop bit: held low instead *)
+              [ Flip { pin = Ps2.data_pin; edge = 3; after = 0; cycles = 4 * quarter } ]
             ]
         }
   }
@@ -384,7 +386,11 @@ let jtag =
             ]
         ; joins_after = None
         ; rejected = None
-        ; teeth = []
+        ; (* a bit of the IDCODE inverted on TDO *)
+          teeth =
+            [ [ Flip { pin = Jtag.tdo_pin; edge = 0; after = 0; cycles = 2 * half_period }
+              ]
+            ]
         }
   }
 ;;
@@ -589,6 +595,11 @@ let usb =
                   ; after = 46
                   ; cycles = 32
                   }
+              ]
+            ; (* the report's second stuff bit a bit time late, edges 349 of D+ and 357 of
+                 D-: seven ones in a row *)
+              [ Shift { pin = Firmware.usb_device_dp_pin; edge = 349; cycles = 32 }
+              ; Shift { pin = Firmware.usb_device_dm_pin; edge = 357; cycles = 32 }
               ]
             ]
         }
