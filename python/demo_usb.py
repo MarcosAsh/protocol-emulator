@@ -49,17 +49,20 @@ def reports(text):
 
 def se0_reset(lines, ms, least=2):
     """A bus_reset for `serve`. lines() is D+ | D- << 1 and ms() counts milliseconds: SE0
-    held past `least` of them is a reset, where an EOP's is two bits."""
-    since = None
+    held past `least` of them is a reset, where an EOP's is two bits. True once a reset."""
+    since, fired = None, False
 
     def bus_reset():
-        nonlocal since
+        nonlocal since, fired
         if lines() & 3:
-            since = None
+            since, fired = None, False
             return False
         now = ms()
         since = now if since is None else since
-        return now - since > least
+        if fired or now - since <= least:
+            return False
+        fired = True
+        return True
 
     return bus_reset
 
