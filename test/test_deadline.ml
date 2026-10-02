@@ -57,17 +57,20 @@ let%expect_test "no QED once cake_lpr refuses the proof" =
     |}]
 ;;
 
-(* and no counterexample once [check_model] refuses the model *)
+let t_minus_now = G.(Deadline.release ~now ~t ==: (t -: now <=+ zero Isa.timer_bits))
+
 let%expect_test "t - now <= 0 is not the same test" =
-  let claim = G.(Deadline.release ~now ~t ==: (t -: now <=+ zero Isa.timer_bits)) in
-  prove "release = t - now <= 0 signed" ~claim;
+  prove "release = t - now <= 0 signed" ~claim:t_minus_now;
+  [%expect {| (counterexample "release = t - now <= 0 signed" (phase 8388608)) |}]
+;;
+
+let%expect_test "no counterexample once check_model refuses the model" =
   prove
     ~solver:Checked_unsat.solver_with_a_bad_model
     "release = t - now <= 0 signed"
-    ~claim;
+    ~claim:t_minus_now;
   [%expect
     {|
-    (counterexample "release = t - now <= 0 signed" (phase 8388608))
     ("solver failed" "release = t - now <= 0 signed"
      (e ("the model falsifies a clause" (clause (-1 -235)))))
     |}]
