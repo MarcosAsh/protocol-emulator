@@ -16,8 +16,8 @@ PAGE = 64
 # the last page, and the byte before it
 PAGE_ADDRESS = 0x7FC0
 BYTE_ADDRESS = 0x7FBF
-# 5 ms a write cycle at most, and a poll takes the Pico about a millisecond
-POLLS = 50
+# twice the 5 ms a write cycle takes at most
+WRITE_LIMIT_MS = 10
 
 
 def word(data=0, start=False, read=False, stop=False):
@@ -26,20 +26,27 @@ def word(data=0, start=False, read=False, stop=False):
 
 
 class Eeprom:
-    def __init__(self, host, device):
+    """clock() is milliseconds from any start."""
+
+    def __init__(self, host, device, clock=None):
         self.host = host
         self.device = device
+        self.clock = clock
 
     def acked(self):
         """START, the address for a write and STOP: whether the chip answered."""
         return bench.exchange(self.host, [word(self.device << 1, start=True, stop=True)]) == [0]
 
     def poll(self):
-        """NACKs before the chip answers again, which it does once its write cycle ends."""
-        for nacks in range(POLLS):
-            if self.acked():
-                return nacks
-        raise RuntimeError("no ACK after %d polls" % POLLS)
+        """NACKs before the chip answers again, which it does once its write cycle ends,
+        and the milliseconds that took."""
+        start = self.clock()
+        nacks = 0
+        while not self.acked():
+            nacks += 1
+            if self.clock() - start > WRITE_LIMIT_MS:
+                raise RuntimeError("no ACK %d ms after the write" % WRITE_LIMIT_MS)
+        return nacks, self.clock() - start
 
     def write(self, address, data):
         words = [word(self.device << 1, start=True), word(address >> 8), word(address)]
@@ -68,7 +75,7 @@ def find(host):
     return None
 
 
-def run(transfer, log=print):
+def run(transfer, clock, log=print):
     host = pe.Host(transfer)
     bench.load(host, bench_firmware.I2C_MASTER)
     host.start()
@@ -79,21 +86,21 @@ def run(transfer, log=print):
         log("no ACK from 0x50 to 0x57: check the pull-ups, SDA, SCL and 3.3 V")
         return False
     log("24LC256 at 0x%02x" % device)
-    eeprom = Eeprom(host, device)
+    eeprom = Eeprom(host, device, clock)
 
     old = eeprom.read(BYTE_ADDRESS, 1)[0]
     value = (old + 1) & 0xFF
-    nacks = eeprom.write(BYTE_ADDRESS, [value])
+    nacks, ms = eeprom.write(BYTE_ADDRESS, [value])
     got = eeprom.read(BYTE_ADDRESS, 1)[0]
-    log("byte write 0x%04x: %02x -> %02x, %d NACKs while it wrote, read back %02x" % (
-        BYTE_ADDRESS, old, value, nacks, got))
+    log("byte write 0x%04x: %02x -> %02x, %d NACKs over %d ms, read back %02x" % (
+        BYTE_ADDRESS, old, value, nacks, ms, got))
 
     seed = eeprom.read(PAGE_ADDRESS, 1)[0] + 1
     page = [(seed + 13 * i) & 0xFF for i in range(PAGE)]
-    page_nacks = eeprom.write(PAGE_ADDRESS, page)
+    nacks, ms = eeprom.write(PAGE_ADDRESS, page)
     back = eeprom.read(PAGE_ADDRESS, PAGE)
-    log("page write 0x%04x, %d bytes from %02x: %d NACKs while it wrote, read back %s ..., %s" % (
-        PAGE_ADDRESS, PAGE, page[0], page_nacks, bench.hexs(back[:8]),
+    log("page write 0x%04x, %d bytes from %02x: %d NACKs over %d ms, read back %s ..., %s" % (
+        PAGE_ADDRESS, PAGE, page[0], nacks, ms, bench.hexs(back[:8]),
         "equal" if back == page else "DIFFERS"))
     found = bench.faults(host)
     log("faults 0x%x" % found)
@@ -108,4 +115,5 @@ if __name__ == "__main__":
     log = bench.Log()
     spi = pico_board.PicoSpi()
     time.sleep_ms(bench.START_MS)
-    bench.report(lambda: run(spi.transfer, log), log)
+    start = time.ticks_ms()
+    bench.report(lambda: run(spi.transfer, lambda: time.ticks_diff(time.ticks_ms(), start), log), log)

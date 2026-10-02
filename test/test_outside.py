@@ -200,7 +200,12 @@ async def test_eeprom(dut):
     )
     analyser = Analyser({6: bit(dut.sda), 7: bit(dut.scl)})
     transfer, _, log, lines = acted(dut)
-    assert await bridge(demo_eeprom.run)(transfer, log=log)
+
+    @resume
+    async def clock():
+        return get_sim_time("ns") // 1_000_000
+
+    assert await bridge(demo_eeprom.run)(transfer, clock, log=log)
     page = [(1 + 13 * i) & 0xFF for i in range(demo_eeprom.PAGE)]
     assert list(memory.read_mem(demo_eeprom.PAGE_ADDRESS, demo_eeprom.PAGE)) == page
     assert memory.read_mem(demo_eeprom.BYTE_ADDRESS, 1) == b"\x01"
