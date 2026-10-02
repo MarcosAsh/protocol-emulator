@@ -37,7 +37,8 @@ JOB = re.compile(r"`([\w-]+)` job")
 # a run id is all digits and longer, a word such as "defaced" has no digit
 COMMIT = re.compile(r"(?<![\w/#.-])(?=[0-9a-f]*\d)([0-9a-f]{7,8}|(?=[0-9]*[a-f])[0-9a-f]{9,12})"
                     r"(?![\w.-])")
-RUN = re.compile(r"(?<![\d.])(\d{10,12})(?![\d.])")
+# a run is cited by its link, or as "run N", never by a bare number such as a job id
+RUN = re.compile(r"actions/runs/(\d+)|\bruns?,? \[?(\d{9,})")
 DATED_RUN = re.compile(r"run \[?(\d{10,12})\]?(?:\([^)]*\))?, (\d{4}-\d\d-\d\d)")
 
 
@@ -253,7 +254,7 @@ def check_commits(doc, text):
 
 
 def check_runs(doc, text):
-    for run_id in sorted(set(RUN.findall(text))):
+    for run_id in sorted({m[1] or m[2] for m in RUN.finditer(flat(text))}):
         r = run(run_id)
         if r is None:
             yield f"run {run_id} does not exist in {REPO}"
