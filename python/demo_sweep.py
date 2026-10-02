@@ -5,6 +5,8 @@
 # first edge. sweep_firmware.py says what runs, and why the rest do not. Needs
 # protocol_emulator.py, pico_board.py, demo_self_timing.py and sweep_firmware.py.
 
+import gc
+
 import protocol_emulator as pe
 import sweep_firmware as sf
 from demo_self_timing import faults, host_drain
@@ -98,6 +100,8 @@ def sweep(host, firmware, drain, pause):
         counts[OUT] += abs(len(got) - s["edges"])
         notes.append("setup: %d of %d edges" % (len(got), s["edges"]))
     for burst in firmware["bursts"]:
+        # a collection mid-burst stalls the poll for milliseconds, and engine 1 overflows
+        gc.collect()
         host.select(0)
         host.push(burst["words"])
         host.select(1)
