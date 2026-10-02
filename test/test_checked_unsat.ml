@@ -103,3 +103,17 @@ let%expect_test "a clause runs to its 0, not to the end of its line" =
      (checked (Error (Failure "Int.of_string: \"c\""))))
     |}]
 ;;
+
+let%expect_test "a variable past the header is refused" =
+  let model = [ "v 1 -2 0" ] in
+  check_by_hand ~dimacs:[ "p cnf 2 1"; "1 3 0" ] ~model;
+  check_by_hand ~dimacs:[ "p cnf 1 1"; "1 0" ] ~model;
+  [%expect
+    {|
+    ((dimacs ("p cnf 2 1" "1 3 0"))
+     (checked (Error ("a clause names a variable past the header" (literal 3)))))
+    ((dimacs ("p cnf 1 1" "1 0"))
+     (checked
+      (Error ("the model names a variable past the header" (variable 2)))))
+    |}]
+;;

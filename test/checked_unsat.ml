@@ -50,6 +50,8 @@ let read_model model ~variables =
   let values = Bytes.make (variables + 1) '-' in
   let set literal =
     let variable = abs literal in
+    if variable > variables
+    then raise_s [%message "the model names a variable past the header" (variable : int)];
     if not (Char.equal (Bytes.get values variable) '-')
     then raise_s [%message "the model sets a variable twice" (variable : int)];
     Bytes.set values variable (holding literal)
@@ -88,6 +90,9 @@ let check_model ~dimacs ~result =
               if not (List.exists clause ~f:holds)
               then raise_s [%message "the model falsifies a clause" (clause : int list)];
               []
+            | literal when abs literal > variables ->
+              raise_s
+                [%message "a clause names a variable past the header" (literal : int)]
             | literal -> literal :: clause))
       in
       if not (List.is_empty unfinished)
