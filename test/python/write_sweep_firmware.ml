@@ -6,7 +6,8 @@ open Protocol_emulator_test
 (* Act 2's sweep: every library firmware engine 1 can stamp, its watched output moved to
    wire 20 and its other outputs beside it, with a stimulus and, for every edge from its
    frame's first, the cycle the model of both engines gives and the interval the kernel's
-   rows allow. Each is checked at the period it runs at, as the command line does. *)
+   rows allow along the model's path. Each is checked at the period it runs at, as the
+   command line does. *)
 
 let wire = Isa.num_pins
 
@@ -431,8 +432,8 @@ let () =
      # Act 2's sweep: each firmware of test/certified.ml that engine 1 can stamp on wire\n\
      # 20, as a config's changes from DEFAULTS, words, the words that park its pins low\n\
      # first, and a stimulus. Each edge is its cycles from its frame's first: an int\n\
-     # where the kernel's rows allow that cycle alone, else (the model's, the least and\n\
-     # the most they allow), None where unbounded.\n";
+     # where the kernel's rows along the model's path allow that cycle alone, else (the\n\
+     # model's, the least and the most they allow), None where unbounded.\n";
   printf "\n# cycles the host may take between polls, 150 us at 48 MHz\nPOLL = %d\n" poll;
   print_string "\nDEFAULTS = {\n";
   print_items

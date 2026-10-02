@@ -2,8 +2,8 @@
 # Act 2's sweep: each firmware of test/certified.ml that engine 1 can stamp on wire
 # 20, as a config's changes from DEFAULTS, words, the words that park its pins low
 # first, and a stimulus. Each edge is its cycles from its frame's first: an int
-# where the kernel's rows allow that cycle alone, else (the model's, the least and
-# the most they allow), None where unbounded.
+# where the kernel's rows along the model's path allow that cycle alone, else (the
+# model's, the least and the most they allow), None where unbounded.
 
 # cycles the host may take between polls, 150 us at 48 MHz
 POLL = 7200

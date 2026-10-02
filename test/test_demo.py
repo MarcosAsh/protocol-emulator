@@ -69,7 +69,7 @@ async def test_self_timing(dut):
 @cocotb.test()
 async def test_sweep(dut):
     """Act 2 for every swept firmware, each poll taking as long as the table lets the Pico
-    take; every edge has to land where the kernel's rows put it."""
+    take; every edge has to land where the kernel's rows along the model's path put it."""
     await reset(dut)
     pins = Pins(dut)
 
