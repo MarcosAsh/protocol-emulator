@@ -8,9 +8,11 @@
 // The chip on an Icepi Zero: its 50 MHz oscillator through the PLL to 48 MHz, the
 // pins on the 40-pin header. With USB_UIO set, uio[1:0] are D+/D- on the first USB-C
 // port with the board's pull-up on D- for low speed, and their header pins mirror the
-// bus so a host can see a bus reset. The button is reset.
+// bus so a host can see a bus reset. The button is reset. MHZ 40 is for 10BASE-T,
+// whose bit is four cycles. nextpnr times the clock from the dividers either way.
 module icepi_top #(
-    parameter USB_UIO = 1
+    parameter USB_UIO = 1,
+    parameter MHZ = 48
 ) (
     input  wire       clk,
     input  wire       button_n,
@@ -28,7 +30,8 @@ module icepi_top #(
   wire clk_feedback;
   wire locked;
 
-  // ecppll -i 50 -o 48 --highres: 50 / 5 = 10 MHz at the phase detector, VCO 480 MHz.
+  // ecppll -i 50 -o 48 --highres: 50 / 5 = 10 MHz at the phase detector, VCO 480 MHz,
+  // which CLKOS divides by 10 for 48 MHz or 12 for 40.
   (* FREQUENCY_PIN_CLKI = "50" *)
   (* FREQUENCY_PIN_CLKOS = "48" *)
   (* ICP_CURRENT = "12" *)
@@ -50,7 +53,7 @@ module icepi_top #(
       .CLKOP_CPHASE(9),
       .CLKOP_FPHASE(0),
       .CLKOS_ENABLE("ENABLED"),
-      .CLKOS_DIV(10),
+      .CLKOS_DIV(480 / MHZ),
       .CLKOS_CPHASE(0),
       .CLKOS_FPHASE(0),
       .FEEDBK_PATH("CLKOP"),
