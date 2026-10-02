@@ -5,7 +5,7 @@
 SIM ?= icarus
 FST ?= -fst # Use more efficient FST format
 TOPLEVEL_LANG ?= verilog
-SRC_DIR = $(PWD)/../src
+SRC_DIR = $(CURDIR)/../src
 PROJECT_SOURCES = project.v protocol_emulator.v
 
 ifeq ($(FPGA),yes)
@@ -13,7 +13,7 @@ ifeq ($(FPGA),yes)
 # The netlist yosys synthesises for the FPGA kit's iCE40, from `make fpga_netlist.v`:
 SIM_BUILD				= sim_build/fpga
 VERILOG_SOURCES += $(shell yosys-config --datdir)/ice40/cells_sim.v
-VERILOG_SOURCES += $(PWD)/fpga_netlist.v
+VERILOG_SOURCES += $(CURDIR)/fpga_netlist.v
 
 else ifeq ($(ICEPI),yes)
 
@@ -24,7 +24,7 @@ SIM_BUILD				= sim_build/icepi
 ECP5_SIM = $(shell yosys-config --datdir)/ecp5
 COMPILE_ARGS    += -I$(ECP5_SIM)
 VERILOG_SOURCES += $(ECP5_SIM)/common_sim.vh $(ECP5_SIM)/ccu2c_sim.vh
-VERILOG_SOURCES += $(PWD)/models/DP16KD.v $(PWD)/models/EHXPLLL.v $(PWD)/icepi_netlist.v
+VERILOG_SOURCES += $(CURDIR)/models/DP16KD.v $(CURDIR)/models/EHXPLLL.v $(CURDIR)/icepi_netlist.v
 
 else ifneq ($(GATES),yes)
 
@@ -46,7 +46,7 @@ VERILOG_SOURCES += $(PDK_ROOT)/ihp-sg13cmos5l/libs.ref/sg13cmos5l_stdcell/verilo
 VERILOG_SOURCES += models/RM_IHPSG13_1P_core_behavioral_bm_bist.v models/RM_IHPSG13_1P_512x16_c2_bm_bist.v
 
 # this gets copied in by the GDS action workflow
-VERILOG_SOURCES += $(PWD)/gate_level_netlist.v
+VERILOG_SOURCES += $(CURDIR)/gate_level_netlist.v
 
 endif
 
@@ -55,9 +55,9 @@ COMPILE_ARGS 		+= -I$(SRC_DIR)
 
 # Include the testbench sources:
 ifeq ($(ICEPI),yes)
-VERILOG_SOURCES += $(PWD)/tb_icepi.v
+VERILOG_SOURCES += $(CURDIR)/tb_icepi.v
 else
-VERILOG_SOURCES += $(PWD)/tb.v
+VERILOG_SOURCES += $(CURDIR)/tb.v
 endif
 TOPLEVEL = tb
 
