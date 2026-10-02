@@ -191,7 +191,8 @@ def run(transfer, frames=FRAMES, pause=None):
         caught = s & 3 == 3
         ok = ok and caught
         if caught:
-            print("alarm: engine 1 raised its irq and halted, by its check at cycle %d" % check)
+            print("alarm: engine 1 raised its irq and halted, the rows put the catch at cycle %d"
+                  % check)
         else:
             print("NO ALARM: engine 1 status 0x%04x pc %d" % (s, pc))
 
