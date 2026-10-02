@@ -9,6 +9,8 @@ load the core for (then call `flushed`), and each list in `replies` must be writ
 the tx fifo whole and in order. `service` is one round of that I/O over a `protocol_emulator.Host`.
 """
 
+import gc
+
 import usb_device_firmware as firmware
 from protocol_emulator import PROGRAM, PROGRAM_ADDR, STATUS
 
@@ -48,6 +50,8 @@ class Board:
         self.descriptors = descriptors  # by descriptor type
         # the address whose program the core holds, None until `service` first loads it
         self.loaded = None
+        # SETUPs parsed so far
+        self.setups = 0
         self.reset()
 
     def reset(self):
@@ -103,6 +107,7 @@ class Board:
 
     def _setup(self, b):
         request, value, length = b[1], b[2] | (b[3] << 8), b[6] | (b[7] << 8)
+        self.setups += 1
         self.toggle = DATA1
         if request == 6:  # GET_DESCRIPTOR
             data = self.descriptors.get(value >> 8, [])[:length]
@@ -196,8 +201,14 @@ def service(host, board, fifo_depth=8):
     the fifo is drained until quiet, then fed."""
     words = []
     status = drain(host, words)
+    setups = board.setups
     for word in words:
         board.feed(word)
+    # The laptop NAKs its IN until the reply is queued, so no word arrives while this
+    # collects. A collection of the Pico's own, 5 to 11 ms, could fall on the laptop's
+    # words back to back and overflow the fifo; after this one none is due for a while.
+    if board.setups != setups:
+        gc.collect()
     if board.reload is not None:
         address, board.reload = board.reload, None
         # a halted core may have lost its configuration to a reset or a new bitstream

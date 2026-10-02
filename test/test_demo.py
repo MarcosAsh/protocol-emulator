@@ -362,9 +362,12 @@ class Pico:
         self.owed += us * US * self.scale
         self.free -= allocates
         if self.free <= 0:
-            self.free += GC_HEAP
-            self.collections.append(cycle() + round(self.owed))
-            self.owed += GC_PAUSE_US * US * self.scale
+            self.collect()
+
+    def collect(self):
+        self.collections.append(cycle() + round(self.owed))
+        self.owed += GC_PAUSE_US * US * self.scale
+        self.free = GC_HEAP
 
     async def settle(self):
         if self.done:
@@ -478,6 +481,8 @@ class Pico:
         import pico_board
 
         self.patch(demo_usb, "time", types.SimpleNamespace(ticks_ms=self.ticks_ms))
+        if hasattr(usb_board, "gc"):
+            self.patch(usb_board, "gc", types.SimpleNamespace(collect=self.collect))
         se0_reset = demo_usb.se0_reset
         self.patch(demo_usb, "se0_reset",
                    lambda *args, **kwargs: self.costly("bus_reset", se0_reset(*args, **kwargs)))
