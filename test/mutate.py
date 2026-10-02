@@ -14,7 +14,7 @@ from queue import Queue
 
 FILES = ["src/engine.ml", "src/decoder.ml", "src/pins.ml", "src/host_port.ml"]
 ALLOW = Path(__file__).with_name("mutation_allow.txt")
-COPIED = ["src", "test", "bin", "python", "dune-project", ".ocamlformat"]
+COPIED = ["src", "test", "bin", "ppx", "python", "formal/Makefile", "dune-project", ".ocamlformat"]
 SKIPPED = shutil.ignore_patterns("sim_build", "__pycache__", "*.fst", "*.vcd", "*.xml", "*.v", "*.json")
 
 OPERATORS = [
@@ -106,6 +106,7 @@ def main():
     try:
         (work / "0").mkdir(parents=True)
         for item in COPIED:
+            (work / "0" / item).parent.mkdir(parents=True, exist_ok=True)
             if (root / item).is_dir():
                 shutil.copytree(root / item, work / "0" / item, ignore=SKIPPED)
             else:
