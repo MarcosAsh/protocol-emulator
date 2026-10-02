@@ -131,12 +131,11 @@ let witness
 let some_table_passes ?offsets (c : Certified.t) =
   let program = Asm.assemble c.source |> ok_exn in
   let config = Asm.Program.configure program c.config in
-  witness
-    ?offsets
-    ?period:c.period
-    ~single_capture_edge:c.single_capture_edge
-    ~config
-    ~words:(Asm.Program.words program |> ok_exn)
-    ()
-  |> Option.is_some
+  let words = Asm.Program.words program |> ok_exn in
+  let single_capture_edge = c.single_capture_edge in
+  match witness ?offsets ?period:c.period ~single_capture_edge ~config ~words () with
+  | None -> false
+  | Some table ->
+    Kernel.check ?period:c.period ~single_capture_edge ~config ~words table |> ok_exn;
+    true
 ;;

@@ -40,5 +40,6 @@ val witness
   -> unit
   -> Kernel.Table.t option
 
-(** [witness] of the firmware, assembled, as a yes or no. *)
+(** [witness] of the firmware, assembled, as a yes or no. Raises if [Kernel.check] refuses
+    the table a yes rests on. *)
 val some_table_passes : ?offsets:bool -> Certified.t -> bool
