@@ -304,8 +304,13 @@ def main():
     args = p.parse_args()
     if args.report:
         lines = [json.loads(line) for f in args.report for line in Path(f).read_text().splitlines()]
-        planned = sum(line["planned"] for line in lines if "planned" in line)
-        sys.exit(report([line for line in lines if "result" in line], planned))
+        heads = [line for line in lines if "planned" in line]
+        seen = {h["shard"] for h in heads}
+        wanted = {f"{i}/{n}" for n in {int(s.split("/")[1]) for s in seen} for i in range(n)}
+        if not heads or seen != wanted:
+            print(f"no results from shards {' '.join(sorted(wanted - seen)) or 'at all'}")
+        code = report([line for line in lines if "result" in line], sum(h["planned"] for h in heads))
+        sys.exit(code or (0 if heads and seen == wanted else 1))
     files = args.file or SCOPES[args.scope]["files"]
     shard, shards = map(int, args.shard.split("/"))
     todo = plan(args.scope, files, args.seed, args.held_out)
