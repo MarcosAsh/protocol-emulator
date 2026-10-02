@@ -206,6 +206,49 @@ jobs:
           opam exec -- dune exec -- bin/generate.exe kernel-gates -accepts > formal/kernel_accepts_gates.aag
           make -C formal issue_timing host_timing late_host fifo_order phase_step edge_step event_step frame_step value_step narrow_proof chip_frame data_step teeth fsm_miter_proof sram_equiv_proof kernel_equiv_proof sync_rtl sync_rtl_teeth powerup
 
+  # the pin traces judged by sigrok's protocol decoders, which we did not write: at the
+  # chip's clock and as a 24 MHz analyser samples them, each with its teeth, and once
+  # through the bench's path
+  decode:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Set up OxCaml
+        uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: ocaml-variants.5.2.0+ox
+          opam-repositories: |
+            ox: https://github.com/oxcaml/opam-repository.git
+            default: https://opam.ocaml.org
+
+      - name: Cache the switch
+        uses: actions/cache@v4
+        with:
+          path: _opam
+          key: opam-${{ runner.os }}-${{ runner.arch }}-5.2.0+ox-test-${{ hashFiles('protocol_emulator.opam.locked') }}
+
+      - name: Install dependencies
+        run: opam install . --deps-only --with-test --locked
+
+      - name: Install sigrok-cli
+        run: sudo apt-get update && sudo apt-get install -y sigrok-cli
+
+      # fails if a committed trace is not the one the simulation writes
+      - name: Write the traces
+        run: opam exec -- dune build @test/traces/runtest
+
+      - name: Decode
+        run: |
+          sigrok-cli -V | head -1
+          python3 demo/decode.py test/traces/*.trace test/traces/sigrok/*.trace
+          python3 demo/decode.py --rate 24 --seed 1 test/traces/*.trace test/traces/sigrok/*.trace
+          for trace in test/traces/uart_tx.trace test/traces/sigrok/can.trace test/traces/sigrok/ws2812.trace; do
+            python3 demo/decode.py --rate 24 --seed 2 --write-capture bench.sr $trace
+            python3 demo/decode.py --capture bench.sr $trace
+          done
+
   # the netlists of both boards, simulated; the firmware words they load are the committed
   # ones, which the test job checks are current
   fpga:
