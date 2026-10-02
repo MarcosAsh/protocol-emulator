@@ -37,7 +37,8 @@ ERRORS = {
     "rgb_led_ws281x": [],
 }
 
-# The bench's analyser, BRINGUP.md: the host's SPI on D0 to D3, OUT0 on D4 and OUT1 on D5
+# The bench's analyser, as the Demo Bench Wiring has CH1 to CH6: the host's SCK, MOSI,
+# MISO and CS_N, then OUT0 and OUT1
 BENCH = {"SCK": "D0", "MOSI": "D1", "MISO": "D2", "CS_N": "D3", "OUT0": "D4", "OUT1": "D5"}
 
 PIN = re.compile(r"=((?:IN|OUT|IO)\d|SCK|MOSI|MISO|CS_N)\b")
