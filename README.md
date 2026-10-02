@@ -52,8 +52,8 @@ host.start()
 ```
 
 On the Tiny Tapeout demo board that sends 0x55 and 0xA3 as two frames on `uo[1]`. No Tiny
-Tapeout board has run it yet. `make -C test TESTCASE=test_uart_over_spi` runs it under
-cocotb.
+Tapeout board has run it yet. `make -C test COCOTB_TEST_FILTER=test_uart_over_spi` runs it
+under cocotb.
 
 ## What is proved
 
@@ -165,6 +165,10 @@ dune build @runtest
 dune exec -- bin/generate.exe top -sram -engines 2 > src/protocol_emulator.v
 make -C formal             # hours; CI runs the long proofs in jobs of their own
 ```
+
+`make -C test COCOTB_TEST_MODULES=test_demo` runs the self-timing and keyboard demos with
+no board in about 6 minutes. Each claim's last green run in CI is on the
+[results page](https://marcosash.github.io/protocol-emulator/results/).
 
 To harden, clone TinyTapeout/tt-support-tools, branch `ihp-sg13cmos5l`, into `tt/`, then
 `tt/tt_tool.py --create-user-config --ihp` and `--harden --ihp`. Gds run 36922636022, on
