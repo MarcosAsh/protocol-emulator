@@ -61,6 +61,12 @@ let bench =
     , Ws2812.firmware ~third:16 ~tail:7
     , Ws2812.config
     , `None )
+  ; ( "start_hold"
+    , "Firmware.start_hold for engine 1: each START's hold in cycles, SDA on IO2, SCL on \
+       IO3, both only listened to"
+    , Firmware.start_hold ~sda ~scl
+    , Firmware.start_hold_config ~scl
+    , `None )
   ; ( "ethernet"
     , "Ethernet.firmware at the Icepi's 40 MHz: the host sends a tenth of the link pulse \
        interval, 64000 cycles for 16 ms, TD+ on IO6, TD- on IO7"

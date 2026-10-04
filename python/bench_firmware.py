@@ -219,6 +219,45 @@ SK6812 = {
     ],
 }
 
+# Firmware.start_hold for engine 1: each START's hold in cycles, SDA on IO2, SCL on IO3, both only listened to
+START_HOLD = {
+    "config": {
+        "side_set_count": 0,
+        "side_set_base": 5,
+        "side_set_pindirs": 0,
+        "in_base": 0,
+        "in_count": 16,
+        "out_base": 5,
+        "out_count": 1,
+        "set_base": 5,
+        "set_count": 1,
+        "jmp_pin": 15,
+        "capture_pin": 0,
+        "capture_rising": 1,
+        "in_shift_right": 1,
+        "out_shift_right": 1,
+        "autopush": 1,
+        "push_threshold": 16,
+        "autopull": 0,
+        "pull_threshold": 16,
+        "crc_width": 16,
+        "crc_poly": 40961,
+        "crc_init": 65535,
+        "crc_reflect": 1,
+        "stuff_threshold": 0,
+        "stuff_level": 1,
+        "wrap_bottom": 0,
+        "wrap_top": 511,
+        "period_fraction": 0,
+        "autopull_data": 0,
+        "manchester": 0,
+    },
+    "words": [
+        0x202E, 0x8026, 0x0A00, 0x200F, 0x8046, 0x1600, 0xC058, 0x4050,
+        0x0000,
+    ],
+}
+
 # Ethernet.firmware at the Icepi's 40 MHz: the host sends a tenth of the link pulse interval, 64000 cycles for 16 ms, TD+ on IO6, TD- on IO7
 ETHERNET = {
     "config": {

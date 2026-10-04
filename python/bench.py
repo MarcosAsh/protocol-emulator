@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # What the outside chip acts share (MicroPython and CPython): loading a bench_firmware.py
-# entry into engine 0, a stream of host words that never overflows either fifo, and the
+# entry into an engine, a stream of host words that never overflows either fifo, and the
 # log demo/outside.sh reads back from Pico A once the capture is done.
 
 import protocol_emulator as pe
@@ -20,18 +20,19 @@ def rx_level(host):
     return (host.read(pe.STATUS)[0] >> 10) & 15
 
 
-def load(host, firmware):
-    """Engine 0 stopped, flushed and loaded with a bench_firmware.py entry, engine 1
-    stopped. Faults hold until reset, so one left from an earlier run is refused rather
-    than reported as this one's."""
-    for engine in (1, 0):
-        host.select(engine)
+def load(host, firmware, engine=0):
+    """Both engines stopped and flushed, then engine loaded with a bench_firmware.py entry
+    and left selected. Faults hold until reset, so one left from an earlier run is refused
+    rather than reported as this one's."""
+    for other in (1, 0):
+        host.select(other)
         found = faults(host)
         if found:
             raise RuntimeError(
-                "engine %d holds faults 0x%x from an earlier run: reset the chip" % (engine, found))
+                "engine %d holds faults 0x%x from an earlier run: reset the chip" % (other, found))
         host.stop()
         host.flush()
+    host.select(engine)
     host.configure(firmware["config"])
     host.load(firmware["words"])
 
