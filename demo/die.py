@@ -321,10 +321,9 @@ def read_provenance(path, commit):
 
 
 def sources(cells, nets, lib, hierarchy, flops, provenance, inner):
-    """Each cell's src line, or its module where the name has none, and the cells a name
-    of their own gave it to: a flop's register, or a net named in the instance that drives
-    it. Every other cell takes the line of the nearest of those, as [label] does with
-    blocks. [flops] maps flop outputs' names to [registers], [inner] is [from_instances]."""
+    """Each cell's src line, else its module, from its flop's register or a net its instance
+    names, else the nearest such cell's, and the cells that had their own. [flops] maps
+    flop outputs' names to [registers], [inner] is [from_instances]."""
     by_path, outside, _ = hierarchy
     drivers_of, neighbours, upstream = graph(cells, nets, lib)
     seeds, rank = {}, {}
