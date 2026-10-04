@@ -323,7 +323,7 @@ let program_config =
 ;;
 
 (* The assumptions are the analyser's, under its names. Gives the analyser's rows under
-   them, checked unless [-no-timing-check]. *)
+   them, checked unless [-no-timing-check], the verdicts going to [verdicts]. *)
 let timing_check =
   [%map_open.Command
     let period =
@@ -344,7 +344,7 @@ let timing_check =
     and no_timing_check =
       flag "-no-timing-check" no_arg ~doc:" assemble firmware that may miss a deadline"
     in
-    fun ~config ~source (program : Asm.Program.t) ->
+    fun ?(verdicts = Out_channel.stderr) ~config ~source (program : Asm.Program.t) ->
       if no_timing_check
       then
         Ok
@@ -355,13 +355,17 @@ let timing_check =
              ~config:(Asm.Program.configure program config)
              program.instructions)
       else (
-        let print_verdict verdict = eprintf "%s\n" (Analyser.Verdict.to_string verdict) in
+        let print_verdict verdict =
+          fprintf verdicts "%s\n" (Analyser.Verdict.to_string verdict)
+        in
         match
           Timed_program.check ?period ?period_floor ~single_capture_edge ~config source
         with
         | Ok timed ->
           print_verdict (Timed_program.verdict timed);
-          eprintf "kernel: accepted, so no deadline is missed by the step lemma\n";
+          fprintf
+            verdicts
+            "kernel: accepted, so no deadline is missed by the step lemma\n";
           Ok (Timed_program.rows timed)
         | Error { faults = _; verdict; error } ->
           Option.iter verdict ~f:print_verdict;
@@ -418,6 +422,78 @@ let assemble_command =
         | Error e ->
           eprintf "%s: %s\n" file (Error.to_string_hum e);
           exit 1]
+;;
+
+let run_command =
+  Command.basic
+    ~summary:"Run a source file on the model of the core and print its pins"
+    ~readme:(fun () ->
+      "Checks the firmware as assemble does, then runs it anyway. Inputs are low until \
+       set, and the host writes the tx words as the fifo has room. Exits 1 if the \
+       firmware was refused or the model set a fault.")
+    [%map_open.Command
+      let file = anon ("FILE" %: string)
+      and config = program_config
+      and timing_check = timing_check
+      and cycles =
+        flag
+          "-cycles"
+          (optional_with_default
+             1000
+             (Arg_type.map int ~f:(fun cycles ->
+                if cycles <= 0 then raise_s [%message "not positive" (cycles : int)];
+                cycles)))
+          ~doc:"N steps of the model (default 1000)"
+      and tx =
+        flag
+          "-tx"
+          (listed (Arg_type.comma_separated (Arg_type.create Machine_trace.Tx.of_string)))
+          ~doc:"WORD[@CYCLE],... words the host writes into the tx fifo, in order"
+      and inputs =
+        flag
+          "-input"
+          (listed
+             (Arg_type.comma_separated (Arg_type.create Machine_trace.Input.of_string)))
+          ~doc:"PIN=LEVEL[@CYCLE],... an input pin's level from that cycle on"
+      and data =
+        flag
+          "-data"
+          (optional_with_default [] (Arg_type.comma_separated int))
+          ~doc:"WORD,... the data memory from address 0"
+      and vcd = flag "-vcd" (optional string) ~doc:"FILE write the pins there as a VCD" in
+      fun () ->
+        let source = In_channel.read_all file in
+        let machine =
+          let open Or_error.Let_syntax in
+          let%bind program = Asm.assemble source in
+          let checked =
+            timing_check ~verdicts:Out_channel.stdout ~config ~source program
+          in
+          let%bind words = Asm.Program.words program in
+          let%bind machine =
+            Machine.create ~config:(Asm.Program.configure program config) ~program:words
+          in
+          let%map machine = Machine.load_data machine data in
+          checked, machine
+        in
+        match machine with
+        | Error e ->
+          eprintf "%s: %s\n" file (Error.to_string_hum e);
+          exit 1
+        | Ok (checked, machine) ->
+          Result.iter_error checked ~f:(fun e ->
+            printf "%s: %s\n" file (Error.to_string_hum e));
+          let trace =
+            Machine_trace.run
+              machine
+              ~cycles
+              ~tx:(List.concat tx)
+              ~inputs:(List.concat inputs)
+          in
+          printf "\n%s" (Machine_trace.to_string trace);
+          Option.iter vcd ~f:(fun vcd ->
+            Out_channel.write_all vcd ~data:(Machine_trace.to_vcd trace));
+          if Result.is_error checked || Machine_trace.faulted trace then exit 1]
 ;;
 
 let self_check_command =
@@ -604,6 +680,7 @@ let () =
        ; "osr", osr_rtl_command
        ; "kernel-accepts", kernel_accepts_rtl_command
        ; "assemble", assemble_command
+       ; "run", run_command
        ; "self-check", self_check_command
        ; "predicate", predicate_command
        ])

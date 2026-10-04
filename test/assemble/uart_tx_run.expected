@@ -1,0 +1,11 @@
+15 words, 3 deadline waits, worst slack 12
+kernel: accepted, so no deadline is missed by the step lemma
+
+cycles 0 to 199, 4 a column: _ low, - high, | both
+OUT0  ||_______|---|___|-------|___|---|___|------------
+
+OUT0  starts low, rise 1, fall 6 +5, rise 38 +32, fall 54 +16, rise 70 +16, fall 102 +32,
+      rise 118 +16, fall 134 +16, rise 150 +16
+
+rx: empty
+faults: none

@@ -31,6 +31,70 @@
  (action
   (diff late.expected late.gen)))
 
+; run: the verdict, then the model's pins. The late firmware is refused, and the model
+; shows its bits 17 cycles apart against a period of 16, and the fault.
+
+(rule
+ (with-outputs-to
+  uart_tx_run.gen
+  (run
+   %{exe:../../bin/generate.exe}
+   run
+   -cycles
+   200
+   -tx
+   0x5a
+   %{dep:../uart_tx.asm})))
+
+(rule
+ (alias runtest)
+ (action
+  (diff uart_tx_run.expected uart_tx_run.gen)))
+
+(rule
+ (with-outputs-to
+  late_run.gen
+  (with-accepted-exit-codes
+   1
+   (run
+    %{exe:../../bin/generate.exe}
+    run
+    -cycles
+    200
+    -tx
+    0x5a
+    %{dep:late.asm}))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff late_run.expected late_run.gen)))
+
+; a peer sends 0x5a on wire 20, LSB first at 16 cycles a bit
+
+(rule
+ (with-outputs-to
+  uart_rx_wire_run.gen
+  (run
+   %{exe:../../bin/generate.exe}
+   run
+   -single-capture-edge
+   -capture-pin
+   20
+   -capture-falling
+   -config
+   in_base=20,jmp_pin=20
+   -cycles
+   240
+   -input
+   W0=1,W0=0@50,W0=1@82,W0=0@98,W0=1@114,W0=0@146,W0=1@162,W0=0@178,W0=1@194
+   %{dep:../uart_rx_wire.asm})))
+
+(rule
+ (alias runtest)
+ (action
+  (diff uart_rx_wire_run.expected uart_rx_wire_run.gen)))
+
 (rule
  (with-outputs-to
   too_tight.gen

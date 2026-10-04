@@ -1,0 +1,14 @@
+late.asm: 3 of 3 deadline waits may be missed
+  8  wait t+                      phase -13..?  slack ?..13  MAY MISS
+ 11  wait t+                      phase 1..?  slack ?..-1  MAY MISS
+ 13  wait t                       phase -13..?  slack ?..13  MAY MISS
+a bound of ? means none: the way here has a wait for a pin or a fifo, a capture nothing is assumed about, a period the host loads, or a loop that falls further behind on every pass
+
+cycles 0 to 199, 4 a column: _ low, - high, | both
+OUT0  ||_______|----____|-------|____----|___|----------
+
+OUT0  starts low, rise 1, fall 6 +5, rise 39 +33, fall 56 +17, rise 73 +17, fall 107 +34,
+      rise 124 +17, fall 141 +17, rise 158 +17
+
+rx: empty
+fault missed_deadline at cycle 38, pc 8
