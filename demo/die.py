@@ -115,8 +115,8 @@ def read_hierarchy(verilog, root):
     return dict(walk("protocol_emulator", root)), outside, starts
 
 
-def flop_modules(synthesis, starts):
-    """Each flop output's names -> the RTL module of the line yosys kept for the flop."""
+def flop_lines(synthesis):
+    """Each flop output's names -> the RTL line yosys kept for the flop."""
     design = json.load(open(synthesis))["modules"]
     top = next(m for m in design.values() if m.get("attributes", {}).get("top"))
     names = bit_names(top)
@@ -124,9 +124,16 @@ def flop_modules(synthesis, starts):
     for cell in top["cells"].values():
         line = re.search(r"\.v:(\d+)", cell.get("attributes", {}).get("src", ""))
         if line and "Q" in cell["connections"]:
-            module = [m for start, m in starts if start <= int(line.group(1))][-1]
-            found.update((n, module) for n in names[cell["connections"]["Q"][0]])
+            found.update((n, int(line.group(1))) for n in names[cell["connections"]["Q"][0]])
     return found
+
+
+def flop_modules(synthesis, starts):
+    """Each flop output's names -> the RTL module of the line yosys kept for the flop."""
+    return {
+        n: [m for start, m in starts if start <= line][-1]
+        for n, line in flop_lines(synthesis).items()
+    }
 
 
 def bit_names(top):
@@ -196,6 +203,23 @@ def spread(seeds, edges, allowed, barred):
     return labels
 
 
+def graph(cells, nets, lib):
+    """Each net's drivers, each cell's neighbours, and the drivers of the nets each cell
+    reads, nets with more than MAX_FANOUT pins left out of the last two."""
+    drivers_of = []
+    neighbours = collections.defaultdict(list)
+    upstream = collections.defaultdict(list)
+    for _, pins in nets:
+        drivers = [c for c, p in pins if p in lib[cells[c]]["outputs"]]
+        drivers_of.append(drivers)
+        if len(pins) <= MAX_FANOUT:
+            for c, _ in pins:
+                neighbours[c] += [o for o, _ in pins if o != c]
+                if c not in drivers:
+                    upstream[c] += drivers
+    return drivers_of, neighbours, upstream
+
+
 def label(cells, nets, lib, hierarchy, from_rtl):
     """Each cell's block, and the seeds: flops, named nets' drivers and macros. [nets] is
     [(hierarchical names, [(cell, pin)])]. Gates take the block of the nearest seed they
@@ -203,15 +227,8 @@ def label(cells, nets, lib, hierarchy, from_rtl):
     by_path, outside, _ = hierarchy
     seeds = {}
     barred = collections.defaultdict(set)
-    neighbours = collections.defaultdict(list)
-    upstream = collections.defaultdict(list)
-    for names, pins in nets:
-        drivers = [c for c, p in pins if p in lib[cells[c]]["outputs"]]
-        if len(pins) <= MAX_FANOUT:
-            for c, _ in pins:
-                neighbours[c] += [o for o, _ in pins if o != c]
-                if c not in drivers:
-                    upstream[c] += drivers
+    drivers_of, neighbours, upstream = graph(cells, nets, lib)
+    for (names, _), drivers in zip(nets, drivers_of):
         known = [(n, from_rtl[n]) for n in names if n in from_rtl] or [(n, None) for n in names]
         if not known:
             continue
@@ -231,6 +248,105 @@ def label(cells, nets, lib, hierarchy, from_rtl):
     labels = spread(seeds, upstream, gates, barred)
     labels = spread(labels, neighbours, logic, barred)
     return {c: labels.get(c, "glue") for c in logic}, seeds
+
+
+def registers(verilog):
+    """Each clocked always block's first RTL line -> its module and the register it sets."""
+    found, module = {}, None
+    lines = open(verilog).read().split("\n")
+    for n, line in enumerate(lines, 1):
+        module = re.match(r"module (\w+)", line).group(1) if line.startswith("module ") else module
+        if line.lstrip().startswith("always @(posedge"):
+            for after in lines[n : n + 6]:
+                set_ = re.match(r"\s+([\w$]+)(?:\[[^]]*\])? <=", after)
+                if set_:
+                    found[n] = module, set_.group(1)
+                    break
+    return found
+
+
+def from_instances(verilog):
+    """Each module's names that an instance in it drives: what its outputs connect to,
+    and plain copies of that."""
+    text = open(verilog).read()
+    bodies = dict(re.findall(r"^module (\w+)(.*?)^endmodule", text, re.S | re.M))
+    outputs = {
+        m: set(re.findall(r"^\s+output (?:\[\S+\] )?(\S+);", body, re.M))
+        for m, body in bodies.items()
+    }
+    found = {}
+    for module, body in bodies.items():
+        names = set()
+        instances = re.findall(r"^\s+(\w+)\s*\n\s+\w+\s*\n\s+\((.*?)\);", body, re.S | re.M)
+        for child, ports in instances:
+            for port, name in re.findall(r"\.([\w$]+)\(([\w$]+)", ports):
+                if port in outputs.get(child, ()):
+                    names.add(name)
+        copies = re.findall(r"^\s+assign (\S+) = ([^\s\[;]+)(?:\[[\d:]+\])?;", body, re.M)
+        for _ in range(3):
+            names |= {a for a, b in copies if b in names}
+        found[module] = names
+    return found
+
+
+def read_provenance(path, commit):
+    """generate.exe provenance's JSON, its lines moved to where they are at [commit]. A
+    line the sources changed since is dropped."""
+    provenance = json.load(open(path))
+    files = {v.rpartition(":")[0] for names in provenance.values() for v in names.values() if v}
+    moved = {}
+    for file in files:
+        diff = subprocess.run(
+            ["git", "diff", "-U0", commit, "--", file], cwd=REPO, check=True,
+            capture_output=True, text=True,
+        ).stdout
+        hunks = re.findall(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@", diff, re.M)
+        moved[file] = [(int(o), int(a or 1), int(n), int(b or 1)) for o, a, n, b in hunks]
+
+    def at_commit(source):
+        if source is None:
+            return None
+        file, _, line = source.rpartition(":")
+        line, shift = int(line), 0
+        for old, old_count, new, new_count in moved[file]:
+            start = new if new_count else new + 1
+            if line < start:
+                break
+            if line < start + new_count:
+                return None
+            shift = (old + old_count if old_count else old + 1) - (start + new_count)
+        return "%s:%d" % (file, line + shift)
+
+    return {m: {n: at_commit(v) for n, v in names.items()} for m, names in provenance.items()}
+
+
+def sources(cells, nets, lib, hierarchy, flops, provenance, inner):
+    """Each cell's src line, or its module where the name has none, and the cells a name
+    of their own gave it to: a flop's register, or a net named in the instance that drives
+    it. Every other cell takes the line of the nearest of those, as [label] does with
+    blocks. [flops] maps flop outputs' names to [registers], [inner] is [from_instances]."""
+    by_path, outside, _ = hierarchy
+    drivers_of, neighbours, upstream = graph(cells, nets, lib)
+    seeds, rank = {}, {}
+    for (names, _), drivers in zip(nets, drivers_of):
+        for name in names:
+            if name in flops:
+                (module, base), better = flops[name], 0
+            else:
+                path, _, base = name.rpartition(".")
+                module, base, better = by_path.get(path), re.sub(r"(\[\d+\])+$", "", base), 1
+                if module is None or base in outside[module] or base in inner[module]:
+                    continue
+            names = provenance.get(module, {})
+            if base not in names:
+                continue
+            line = names[base] or module
+            for c in drivers:
+                if better < rank.get(c, 2):
+                    seeds[c], rank[c] = line, better
+    every = set(cells)
+    lines = spread(seeds, upstream, every, collections.defaultdict(set))
+    return spread(lines, neighbours, every, collections.defaultdict(set)), set(seeds)
 
 
 def check(verilog, lib, hierarchy, keep, liberty):
