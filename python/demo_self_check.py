@@ -124,13 +124,13 @@ def checker(host):
     return s, pc
 
 
-def send(host, frames, track, pause=None):
-    """Every byte value in turn, seven to a restart at the certified period, back to back
-    within one, until a restart leaves engine 1 halted or anywhere but its wait at track:
-    the frames sent, and engine 1's status and pc after the last restart."""
+def send(host, frames, track, pause=None, first=0):
+    """Every byte value in turn from first, seven to a restart at the certified period, back
+    to back within one, until a restart leaves engine 1 halted or anywhere but its wait at
+    track: the frames sent, and engine 1's status and pc after the last restart."""
     sent = 0
     while sent < frames:
-        data = [(sent + i) & 0xFF for i in range(min(7, frames - sent))]
+        data = [(first + sent + i) & 0xFF for i in range(min(7, frames - sent))]
         restart(host, PERIOD, data)
         sent += len(data)
         idle(host, pause)
@@ -183,20 +183,26 @@ def faults(host):
     return found
 
 
-def run(transfer, frames=FRAMES, pause=None):
-    """Quiet, each glitch, then quiet again: whether the quiet frames raised no alarm,
-    every glitch raised one, and nothing faulted."""
-    host = pe.Host(transfer)
+def begin(host, log=print):
+    """The rows and the checker read from their .hex files and set up, once no fault holds
+    from an earlier run: the rows, the checker, its wait at each frame and the edges."""
     found = faults(host)
     if any(found):
         raise RuntimeError("faults %s hold from an earlier run: reset the chip" % found)
     rows = words("uart_tx_host_rate_rows")
     program = words("self_check_wire")
-    track = tracking(program)
     edges = certified(rows)
     writes = " ".join("%d" % e for e in edges[:-1])
-    print("rows: writes at %s, the next frame from %d" % (writes, edges[-1]))
+    log("rows: writes at %s, the next frame from %d" % (writes, edges[-1]))
     setup(host, rows, program)
+    return rows, program, tracking(program), edges
+
+
+def run(transfer, frames=FRAMES, pause=None):
+    """Quiet, each glitch, then quiet again: whether the quiet frames raised no alarm,
+    every glitch raised one, and nothing faulted."""
+    host = pe.Host(transfer)
+    _, _, track, edges = begin(host)
 
     ok = quiet(host, "quiet", frames, track, pause)
     for period in GLITCHES:
