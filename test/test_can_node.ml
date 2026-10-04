@@ -322,6 +322,27 @@ let line_of fields =
 
 let flip line n = List.mapi line ~f:(fun i b -> if i = n then not b else b)
 
+(* The first SOF at every phase of the receiver's last idle sample. One between that
+   sample and the capture's arm is timed from the arm, not from a stale capture. *)
+let%expect_test "a SOF at any phase of the last idle sample" =
+  let good = Can.Frame.data ~id:0x123 [ 0xde; 0xad ] in
+  let outcomes =
+    List.map (List.range 1_000 1_300) ~f:(fun start ->
+      let run = receive (Node.create ~start [ to_delimiter good ]) in
+      match run.events, run.acked with
+      | Ok [ Receiver.Event.Frame frame ], [ true ] when Can.Frame.equal frame good ->
+        start, "ACKed"
+      | Ok [], [ false ] -> start, "let go"
+      | _ -> start, Sexp.to_string [%sexp (run : Run.t)])
+    |> List.group ~break:(fun (_, a) (_, b) -> not (String.equal a b))
+    |> List.map ~f:(fun group ->
+      let first, outcome = List.hd_exn group in
+      first, fst (List.last_exn group), outcome)
+  in
+  print_s [%sexp (outcomes : (int * int * string) list)];
+  [%expect {| ((1000 1058 "let go") (1059 1299 ACKed)) |}]
+;;
+
 (* After each, the host's word lets it listen again, and the frame after is taken. *)
 let%expect_test "frames it refuses, and the one after" =
   let good = Can.Frame.data ~id:0x123 [ 0xde; 0xad ] in
@@ -390,15 +411,15 @@ let%expect_test "every sample and the ACK's edges are placed by a deadline" =
   [%expect
     {|
       3  set pins, 1                  phase ?..?  edge ?..?  jitter ?  gap ?..?
-     27  in pins, 1                   phase -95  sample -95
-     48  in pins, 1                   phase -95  sample -95
-    137  in pins, 1                   phase -95  sample -95
-    158  in pins, 1                   phase -95  sample -95
-    175  in pins, 1                   phase -95  sample -95
-    196  in pins, 1                   phase -95  sample -95
-    216  set pins, 0                  phase -72  edge -71  gap 323..?
-    219  set pins, 1                  phase -72  edge -71  gap 96
-    ((words 239) (edge_jitter unbounded) (sample_jitter 0) (side_jitter 0)
+     30  in pins, 1                   phase -95  sample -95
+     51  in pins, 1                   phase -95  sample -95
+    140  in pins, 1                   phase -95  sample -95
+    161  in pins, 1                   phase -95  sample -95
+    178  in pins, 1                   phase -95  sample -95
+    199  in pins, 1                   phase -95  sample -95
+    219  set pins, 0                  phase -72  edge -71  gap 323..?
+    222  set pins, 1                  phase -72  edge -71  gap 96
+    ((words 242) (edge_jitter unbounded) (sample_jitter 0) (side_jitter 0)
      (may_miss 0))
     |}]
 ;;
@@ -434,12 +455,12 @@ let%expect_test "the kernel accepts the receiver from its shortest period up" =
            : bool)];
   [%expect
     {|
-    ((bench (Ok ((words 239) (deadline_waits 16) (worst_slack (24)))))
+    ((bench (Ok ((words 242) (deadline_waits 16) (worst_slack (24)))))
      (shortest 63)
-     (accepted (Ok ((words 231) (deadline_waits 16) (worst_slack (1)))))
+     (accepted (Ok ((words 234) (deadline_waits 16) (worst_slack (1)))))
      (one_less
       (Error
-       (((206) "this deadline wait can be reached 1 cycle late (slack -1..92)"))))
+       (((209) "this deadline wait can be reached 1 cycle late (slack -1..92)"))))
      (every_period_to_250_kbits true))
     |}]
 ;;

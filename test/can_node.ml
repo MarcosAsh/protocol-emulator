@@ -193,8 +193,13 @@ module Receiver = struct
          ; "    jmp x--, quiet           ; eleven recessive bits: the bus is idle"
          ; "sof:"
          ; "    capture_arm"
+         ; "    jmp pin, armed"
+         ; "    mov t, now               ; a SOF edge came a few cycles before the arm"
+         ; "    jmp sofed"
+         ; "armed:"
          ; [%string "    wait 0 pin %{rx_pin#Int}             ; SOF, its edge in capture"]
          ; "    mov t, capture"
+         ; "sofed:"
          ]
        @ add_to_t (sample - 1)
        @ [ "    wait t+"
