@@ -430,13 +430,13 @@ let i2c_config =
 (* Lets SCL go and polls it every four cycles, 65536 times at most, for a slave holding it
    low. Once high, [t] is set where [i2c_master]'s is when SCL rises at once, so what
    follows is timed from the poll that saw it high, at most three cycles after the rise. *)
-let scl_rise label =
+let scl_rise ?(stuck = "stuck") label =
   [%string
     {|    mov y, !null side 0          ; SCL let go
 %{label}:
     jmp pin, %{label}_high
     jmp y--, %{label}
-    jmp stuck
+    jmp %{stuck}
 %{label}_high:
     mov t, now side 0
     sub t, 4 side 0              ; the plain master's t when SCL rises at once
@@ -551,10 +551,13 @@ stop:
     wait t+ side 1
     set pindirs, 1 side 1        ; SDA low
     wait t+ side 1
-%{scl_rise "stop_rise"}
+%{scl_rise ~stuck:"stop_stuck" "stop_rise"}
     wait t+ side 0
     set pindirs, 0 side 0        ; SDA released while SCL high
     wait t+ side 0
+    jmp idle
+stop_stuck:                      ; held at the STOP: the word has its reply
+    set pindirs, 0 side 0
     jmp idle
 stuck:                           ; SCL held low: let both lines go
     set pindirs, 0 side 0

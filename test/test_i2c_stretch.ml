@@ -146,7 +146,7 @@ let%expect_test "the kernel accepts the stretching master from a quarter of 8" =
     {|
     (accepted (quarter 8)
      ("Timed_program.verdict timed"
-      ((words 148) (deadline_waits 35) (worst_slack (0)))))
+      ((words 150) (deadline_waits 35) (worst_slack (0)))))
     (refused (quarter 7)
      (faults
       (((line 116) (pc (97))
@@ -185,7 +185,7 @@ let%expect_test "the certificate starts again from the poll that sees SCL high" 
     69  mov y, !null side 0          phase -12  side -11
     70  jmp pin, 73                  phase -11..?
     71  jmp y--, 70                  phase -9..?
-    72  jmp 144                      phase -7..?
+    72  jmp 146                      phase -7..?
     73  mov t, now side 0            phase -9..?
     74  sub t, 4 side 0              phase 1
     75  add t, p side 0              phase 6
@@ -315,6 +315,48 @@ let%expect_test "SCL held low answers 0xffff" =
        (65535 262537) (65535 262549) (65535 262561) (0 300327) (0 300635)
        (0 300943)))
      (memory (0 0 0 0 0 119 0 0 0 0 0 0 0 0 0 0)) (pc 25) (driven 0)
+     (fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    |}]
+;;
+
+(* Held at the STOP, after the stop word's reply: nothing more is pushed for it. No STOP
+   reaches the bus, so the model slave takes the next START as a repeated one and writes
+   on from 6. *)
+let%expect_test "SCL held at the STOP adds no reply" =
+  let config, program = stretching ~quarter:8 in
+  let words = [ i2c_word ~start:true 0xa0; i2c_word 5; i2c_word ~stop:true 0x77 ] in
+  let free = run ~config ~program ~words ~cycles:1_000 () in
+  let last = snd (List.last_exn free.replies) in
+  let memory = Array.create ~len:16 0 in
+  let back = last + 300_000 in
+  let run =
+    run
+      ~stuck:(last + 1, back)
+      ~later:(back, [ i2c_word ~start:true 0xa0; i2c_word 6; i2c_word ~stop:true 0x55 ])
+      ~memory
+      ~config
+      ~program
+      ~words
+      ~cycles:(back + 1_500)
+      ()
+  in
+  print_s
+    [%message
+      ""
+        ~replies:(List.map run.replies ~f:fst : int list)
+        ~log:(run.log : string list)
+        (memory : int array)
+        ~pc:(run.machine.pc : int)
+        ~driven:(run.machine.pin_dir land ((1 lsl sda) lor (1 lsl scl)) : int)
+        ~fault:(run.machine.fault : Machine.Fault.t)];
+  [%expect
+    {|
+    ((replies (0 0 0 0 0 0))
+     (log
+      (start stop start "address 80 write" "pointer 5" "write 119" start
+       "address 80 write" "write 6" "write 85" stop))
+     (memory (0 0 0 0 0 119 6 85 0 0 0 0 0 0 0 0)) (pc 25) (driven 0)
      (fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
     |}]
