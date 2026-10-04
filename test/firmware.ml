@@ -265,14 +265,16 @@ let scl = 13
 
 (* UM10204 3.1.16: a master reset mid-read can leave a slave holding SDA low, and clocking
    out its byte frees it. Each pulse is a bit's two quarters low and two high. SDA read
-   high may be a 1 bit, so a START resets the slave before the STOP. *)
-let bus_clear =
-  {|
+   high may be a 1 bit, so a START resets the slave before the STOP. [sda_high] jumps to
+   [clear_stop] when SDA reads high; [stop] follows the START. *)
+let bus_clear_testing ~sda_high ~stop =
+  [%string
+    {|
     set x, 8 side 0              ; nine pulses at most
     mov t, now side 0
     add t, p side 0
 clear:
-    jmp pin, clear_stop          ; SDA high
+%{sda_high}
     wait t+ side 0
     nop side 1                   ; SCL low
     wait t+ side 1
@@ -285,8 +287,14 @@ clear_stop:
     set pindirs, 1 side 0        ; a START, which resets any slave
     wait t+ side 0
     nop side 1
-    jmp stop
-|}
+%{stop}
+|}]
+;;
+
+let bus_clear =
+  bus_clear_testing
+    ~sda_high:"    jmp pin, clear_stop          ; SDA high"
+    ~stop:"    jmp stop"
 ;;
 
 (* host word: start[15] read[14] data[13:6] stop[5]; p is a quarter period, which [load]
