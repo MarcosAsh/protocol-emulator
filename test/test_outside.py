@@ -106,13 +106,15 @@ def bit(signal, n=None):
     return signal, level
 
 
-def decode(analyser, act):
+def decode(analyser, act, args=None):
+    """What sigrok reads, with the act's arguments unless given others."""
     path = "outside_%s.sr" % act
     analyser.write(path)
+    args = args or decoders()[act]
     # sigrok's decoders run in the system's Python, not the simulator's
     env = {k: v for k, v in os.environ.items() if not k.startswith("PYTHON")}
     run = subprocess.run(
-        ["sigrok-cli", "-i", path] + decoders()[act], capture_output=True, text=True, env=env
+        ["sigrok-cli", "-i", path] + args, capture_output=True, text=True, env=env
     )
     assert run.returncode == 0, run.stderr
     out = run.stdout
@@ -140,39 +142,40 @@ def acted(dut, pins=None):
     return transfer, pause_ms, log, lines
 
 
+def in_mode(args, mode):
+    """sigrok arguments with the spi decoder in mode."""
+    return [a.replace("spi:", "spi:cpol=%d:cpha=%d:" % (mode >> 1, mode & 1), 1) for a in args]
+
+
 @cocotb.test()
-async def test_flash(dut):
+@cocotb.parametrize(mode=[0, 3])
+async def test_flash(dut, mode):
     """The flash act's commands against picosoc's spiflash.v, which models only release
-    from power down and the reads: so the wake and a read of a page it was loaded with.
-    JEDEC ID, status, program and erase it does not have, and they are scripted only."""
+    from power down and the reads: so the wake and a read of a page it was loaded with, in
+    mode 0 as the act runs and in mode 3, the flash's other mode. JEDEC ID, status, program
+    and erase it does not have, and they are scripted only."""
     await reset(dut)
     page = [(0x5A + 11 * i) & 0xFF for i in range(demo_flash.PAGE)]
     for i, value in enumerate(page):
         dut.flash.memory[demo_flash.SECTOR + i].value = value
-    # the model takes no command until CS has risen once
-    dut.flash_cs_n.value = 0
-    await ClockCycles(dut.clk, 1)
-    dut.flash_cs_n.value = 1
+    # CS is low from reset until the firmware starts, as on the bench
+    dut.flash_wired.value = 1
     analyser = Analyser({
-        4: bit(dut.uo_out, 1), 5: bit(dut.uo_out, 2), 6: bit(dut.miso), 7: bit(dut.flash_cs_n),
+        4: bit(dut.uo_out, 1), 5: bit(dut.uo_out, 2), 6: bit(dut.miso), 7: bit(dut.uo_out, 3),
     })
     transfer, pause_ms, log, _ = acted(dut)
 
-    @resume
-    async def cs(level):
-        dut.flash_cs_n.value = level
-
     def act():
         host = demo_flash.pe.Host(transfer)
-        demo_flash.start(host)
-        flash = demo_flash.Flash(host, cs, pause_ms)
+        demo_flash.start(host, getattr(demo_flash.bench_firmware, "SPI_CS_MODE%d" % mode))
+        flash = demo_flash.Flash(host, pause_ms)
         flash.wake()
         back = flash.read(demo_flash.SECTOR, demo_flash.PAGE)
         log("read 0x%06x: %s ..." % (demo_flash.SECTOR, demo_flash.bench.hexs(back[:8])))
         return back, demo_flash.bench.faults(host)
 
     back, faults = await bridge(act)()
-    lines = decode(analyser, "flash")
+    lines = decode(analyser, "flash", in_mode(decoders()["flash"], mode))
     assert back == page
     assert faults == 0
     assert "spiflash-1: Command: Release from deep powerdown / Read electronic ID (RDP/RES)" in lines

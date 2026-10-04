@@ -1,14 +1,15 @@
 # SPDX-License-Identifier: Apache-2.0
-# A W25Q64 on the library's SPI master (MicroPython, Pico A): MOSI on OUT0, SCK on OUT1,
-# MISO on IN0, and CS from Pico A's GP8, held low across each command since the firmware
-# drives none. JEDEC ID, then the last sector erased, a page programmed and read back, and
-# the sector erased again. demo/outside.sh flash copies what it needs and runs it.
+# A W25Q64 on the SPI master with chip select in mode 0 (MicroPython, Pico A): MOSI on
+# OUT0, SCK on OUT1, CS on OUT2 and MISO on IN0, the chip driving the whole bus. JEDEC ID,
+# then the last sector erased, a page programmed and read back, and the sector erased
+# again. demo/outside.sh flash copies what it needs and runs it.
 
 import bench
 import bench_firmware
 import protocol_emulator as pe
 
-CS_PIN = 8
+# in a host word, CS rises after its byte
+LAST = 0x100
 # Winbond, SPI NOR, then the capacity: the 128 Mbit part has the same commands
 PARTS = {(0xEF, 0x40, 0x17): "W25Q64JV", (0xEF, 0x40, 0x18): "W25Q128JV"}
 SECTOR = 0x7FF000
@@ -19,19 +20,18 @@ ERASE_MS = 400
 
 
 class Flash:
-    """cs(level) drives the chip select and pause_ms(n) waits."""
+    """pause_ms(n) waits."""
 
-    def __init__(self, host, cs, pause_ms):
+    def __init__(self, host, pause_ms):
         self.host = host
-        self.cs = cs
         self.pause_ms = pause_ms
 
     def command(self, data, reply=0):
-        """The bytes of data with CS low throughout, then reply bytes more, and what
-        came back during those."""
-        self.cs(0)
-        got = bench.exchange(self.host, list(data) + [0] * reply)
-        self.cs(1)
+        """The bytes of data, then reply bytes more, in one frame of CS low, and what came
+        back during those."""
+        words = list(data) + [0] * reply
+        words[-1] |= LAST
+        got = bench.exchange(self.host, words)
         return [b & 0xFF for b in got[len(data):]]
 
     def wake(self):
@@ -80,15 +80,15 @@ def pattern():
     return [(7 * i) & 0xFF for i in range(PAGE)]
 
 
-def start(host):
-    bench.load(host, bench_firmware.SPI_MASTER)
+def start(host, firmware=bench_firmware.SPI_CS_MODE0):
+    bench.load(host, firmware)
     host.start()
 
 
-def run(transfer, cs, pause_ms, log=print):
+def run(transfer, pause_ms, log=print):
     host = pe.Host(transfer)
     start(host)
-    flash = Flash(host, cs, pause_ms)
+    flash = Flash(host, pause_ms)
     flash.wake()
     jedec = flash.jedec_id()
     part = PARTS.get(tuple(jedec))
@@ -114,12 +114,9 @@ def run(transfer, cs, pause_ms, log=print):
 if __name__ == "__main__":
     import time
 
-    from machine import Pin
-
     import pico_board
 
     log = bench.Log()
-    cs = Pin(CS_PIN, Pin.OUT, value=1)
     spi = pico_board.PicoSpi()
     time.sleep_ms(bench.START_MS)
-    bench.report(lambda: run(spi.transfer, cs, time.sleep_ms, log), log)
+    bench.report(lambda: run(spi.transfer, time.sleep_ms, log), log)

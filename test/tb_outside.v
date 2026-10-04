@@ -2,8 +2,9 @@
 `timescale 1ns / 1ps
 
 // The chip with the outside parts BRINGUP.md wires to it. An SPI flash takes MOSI from
-// OUT0, SCK from OUT1 and its chip select from the host, and answers on IN0:
-// models/spiflash.v is picosoc's model from YosysHQ/picorv32 at commit ef203c2, unchanged.
+// OUT0, SCK from OUT1 and CS from OUT2, and answers on IN0: models/spiflash.v is picosoc's
+// model from YosysHQ/picorv32 at commit ef203c2, unchanged. Unless a test sets flash_wired,
+// the flash is deselected and a cocotb slave on the spi_* lines may answer instead.
 // IO2 and IO3 are an I2C bus and IO4 a 1-Wire line, each pulled up: a cocotb model pulls
 // one low through its *_o, the chip by enabling the pin's output, whose value is 0. A CAN
 // bus is the AND of the transceivers' D: OUT1's, OUT2's once can_out2 joins it, and a
@@ -20,7 +21,8 @@ module tb_outside ();
   reg rst_n;
   reg ena;
   reg [7:0] ui_in;
-  reg flash_cs_n = 1'b1;
+  reg flash_wired = 1'b0;
+  reg spi_miso = 1'b1;
   reg sda_o = 1'b1;
   reg scl_o = 1'b1;
   reg dq_o = 1'b1;
@@ -30,9 +32,13 @@ module tb_outside ();
   wire [7:0] uio_out;
   wire [7:0] uio_oe;
 
-  // nothing drives MISO between replies
-  wire miso;
-  pullup (miso);
+  // nothing drives the flash's MISO between replies
+  wire flash_miso;
+  pullup (flash_miso);
+  wire miso = flash_wired ? flash_miso : spi_miso;
+  wire spi_mosi = uo_out[1];
+  wire spi_sclk = uo_out[2];
+  wire spi_cs = uo_out[3];
 
   wire sda = sda_o & ~(uio_oe[2] & ~uio_out[2]);
   wire scl = scl_o & ~(uio_oe[3] & ~uio_out[3]);
@@ -56,10 +62,10 @@ module tb_outside ();
   );
 
   spiflash flash (
-      .csb(flash_cs_n),
-      .clk(uo_out[2]),
-      .io0(uo_out[1]),
-      .io1(miso),
+      .csb(spi_cs | ~flash_wired),
+      .clk(spi_sclk),
+      .io0(spi_mosi),
+      .io1(flash_miso),
       .io2(),
       .io3()
   );
