@@ -1,10 +1,8 @@
 // Engine 0 cannot tell what engine 1 or engine 1's host does. Two copies of the two-engine
-// chip share the clear, the pads, engine 0's config, host fields and program, and the data
-// in engine 0's region; engine 1's config, host fields and program words are free in each.
-// From the first clear on, engine 0's pins and what the host reads of it agree in both,
-// for all time, by induction on the copies agreeing on engine 0's flops (isolation.tcl).
-// The data memory's turns are proved to hide engine 1's reads and halts; the assumptions
-// below close the other ways engine 0 could hear engine 1, and each tooth drops one.
+// chip share the clear, the pads and all of engine 0's inputs; engine 1's are free in each.
+// From the first clear on, engine 0's pins and what the host reads of it agree, by induction
+// on engine 0's flops (isolation.tcl). The data memory's turns are proved to hide engine 1's
+// reads; the assumptions below close the other channels, and a tooth drops each.
 
 `include "pairs.sv"
 
