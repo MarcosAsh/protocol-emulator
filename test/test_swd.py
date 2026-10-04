@@ -298,3 +298,61 @@ async def test_swd_unpowered_after_a_stopped_run(dut):
     first = driven.index(False)
     assert not any(driven[first:]), "a line driven after the act let go"
     assert "SWDIO is low" in lines[0], lines
+
+
+def words(data):
+    """The words of a write frame."""
+    return [(data[i] << 8) | data[i + 1] for i in range(1, len(data), 2)]
+
+
+def levels(transfer):
+    """The tx and rx fifo levels, read with transfer."""
+    reply = transfer([demo_swd.pe.STATUS, 0, 0])
+    status = (reply[1] << 8) | reply[2]
+    return (status >> 6) & 15, (status >> 10) & 15
+
+
+@cocotb.test()
+async def test_swd_stopped_mid_sequence(dut):
+    """Ctrl-C between the two pushes of the wake-up's eleven words, eight deep, the core
+    holding SWCLK high and SWDIO driven for the rest, and again as the act lets go: it
+    still lets both lines go."""
+    await reset(dut)
+    bus = swd_target.Bus()
+    task = wire(dut, bus)
+    transfer, log, _ = acted(dut)
+    wake = demo_swd.sequence([0xFFFF] + demo_swd.ALERT + [demo_swd.ACTIVATION])
+    pushed, held, again = [], [], []
+
+    @resume
+    async def holding():
+        return not let_go(dut)
+
+    def stopping(data):
+        if held and not again and data[0] == 0x80 | demo_swd.pe.CONTROL:
+            again.append(data)
+            raise KeyboardInterrupt
+        if data[0] == 0x80 | demo_swd.pe.TX:
+            if not held and len(pushed) == 2 and pushed[1] == wake[:len(pushed[1])]:
+                while levels(transfer)[0]:
+                    pass
+                for _ in range(50):
+                    levels(transfer)
+                held.append(holding())
+                raise KeyboardInterrupt
+            pushed.append(words(data))
+        return transfer(data)
+
+    def act():
+        try:
+            demo_swd.run(stopping, log=log)
+        except KeyboardInterrupt:
+            return True
+        return False
+
+    assert await bridge(act)()
+    await ClockCycles(dut.clk, 100)
+    assert held == [True] and len(again) == 1
+    assert let_go(dut)
+    await unwire(dut, task)
+    assert bus.contention == 0

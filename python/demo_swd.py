@@ -23,8 +23,6 @@ DPIDR = 0x0BC12477
 ALERT = [0xF392, 0x6209, 0x2D95, 0x8685, 0xAFE9, 0xE3DD, 0x0EA2, 0x19BC]
 ACTIVATION = 0xF1A0
 LINE_RESET = [0xFFFF] * 4 + [0x0000]
-# bit 15 of a word with bit 0 clear: SWCLK low and SWDIO let go until the next command
-RELEASE = [0x8000]
 # DP registers (B2.2), and ABORT's sticky flag clears less STKCMPCLR, which a MINDP DP
 # takes as SBZ
 ABORT, CTRL_STAT, SELECT, RDBUFF = 0x0, 0x4, 0x8, 0xC
@@ -116,22 +114,34 @@ def select(swd, target, log):
     return ack, value, good
 
 
+def let_go(host):
+    """Restarts the core, whose first instruction lets SWDIO go with SWCLK low, wherever
+    in a command it stopped. Begun again on a second Ctrl-C."""
+    while True:
+        try:
+            host.stop()
+            host.flush()
+            host.start()
+            return
+        except KeyboardInterrupt:
+            pass
+
+
 def run(transfer, log=print, half=HALF):
     """The act, leaving SWCLK low and SWDIO let go however it ends."""
     host = pe.Host(transfer)
     bench.load(host, bench_firmware.SWD)
     host.start()
     swd = Swd(host)
-    # the core answers the half period with SWDIO's level before it drives either line
-    if swd.send([half], 1)[0] != 1:
-        log("SWDIO is low with nobody driving it: power Pico B and fit the 4.7 k from SWDIO "
-            "to Pico B's 3V3 (pin 36)")
-        host.stop()
-        return False
     try:
+        # the core answers the half period with SWDIO's level before it drives either line
+        if swd.send([half], 1)[0] != 1:
+            log("SWDIO is low with nobody driving it: power Pico B and fit the 4.7 k from "
+                "SWDIO to Pico B's 3V3 (pin 36)")
+            return False
         return act(swd, host, log)
     finally:
-        swd.send(RELEASE, 0)
+        let_go(host)
 
 
 def act(swd, host, log):
