@@ -276,7 +276,7 @@ def main():
     print("%.1f s at a report each %d ms poll, after %d s from enumeration" % (
         reports * POLL_MS / 1000, POLL_MS, args.wait))
     print("a %d x %d px drawing from the pointer's start, its top left corner" % (
-        args.width, height))
+        args.width + 1, height + 1))
     print("rendered %s and %s" % (png, svg))
     if worst > args.tolerance:
         sys.exit("the host would draw %.2f px off the path, past %g" % (worst, args.tolerance))
