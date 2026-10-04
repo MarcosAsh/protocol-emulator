@@ -62,6 +62,19 @@ val i2c_master_host_rate : string
 
 val i2c_config : Program_config.t
 
+(** [i2c_master] for slaves that stretch the clock: after letting SCL go it polls SCL, and
+    times the rest of the high phase from the poll that sees it high, at most three cycles
+    after the rise. SCL still low after 65536 polls, or low when a word comes to an idle
+    bus, lets both lines go and answers the word 0xffff. The bus clear does not wait on
+    SCL. Run under [i2c_stretch_config]. *)
+val i2c_master_stretch : quarter:int -> string
+
+(** [i2c_master_stretch] with the quarter from the host, as [i2c_master_host_rate]. *)
+val i2c_master_stretch_host_rate : string
+
+(** [i2c_config] with SCL the jump pin, and [mov pins] reading SDA alone. *)
+val i2c_stretch_config : Program_config.t
+
 (** Slave. The host sends [address lsl 1] first, then reads every byte the master writes
     to that address and supplies every byte it reads. *)
 val i2c_slave : Timed_program.t

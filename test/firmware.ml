@@ -427,6 +427,154 @@ let i2c_config =
   }
 ;;
 
+(* Lets SCL go and polls it every four cycles, 65536 times at most, for a slave holding it
+   low. Once high, [t] is set where [i2c_master]'s is when SCL rises at once, so what
+   follows is timed from the poll that saw it high, at most three cycles after the rise. *)
+let scl_rise label =
+  [%string
+    {|    mov y, !null side 0          ; SCL let go
+%{label}:
+    jmp pin, %{label}_high
+    jmp y--, %{label}
+    jmp stuck
+%{label}_high:
+    mov t, now side 0
+    sub t, 4 side 0              ; the plain master's t when SCL rises at once
+    add t, p side 0|}]
+;;
+
+(* [i2c_master_loading] waiting on SCL after each release. The bus clear reads SDA by
+   [mov y, pins], so the jump pin can be SCL, and does not wait on SCL: its STOP is the
+   plain master's, so a bus held low from reset answers nothing until a word comes. *)
+let i2c_master_stretch_loading ~load =
+  let bus_clear =
+    bus_clear_testing
+      ~sda_high:"    mov y, pins side 0\n    jmp y--, clear_stop"
+      ~stop:
+        {|    wait t+ side 1
+    set pindirs, 1 side 1
+    wait t+ side 1
+    nop side 0
+    wait t+ side 0
+    set pindirs, 0 side 0
+    wait t+ side 0
+    jmp idle|}
+  in
+  [%string
+    {|
+    .side_set 1
+%{load}%{bus_clear}idle:
+    wait tx side 0
+    pull side 0
+    mov t, now side 0
+    add t, p side 0
+    add t, p side 0              ; two quarters of slack for the dispatch
+    jmp !pin, stuck              ; SCL held low: answer at once
+    out x, 1 side 0
+    jmp x--, start
+    jmp send_or_read
+byte:
+    wait tx side 1
+    pull side 1
+    mov t, now side 1
+    add t, p side 1
+    add t, p side 1
+    out x, 1 side 1
+    jmp x--, restart
+    jmp send_or_read
+start:                           ; bus idle, both lines high
+    wait t+ side 0
+    set pindirs, 1 side 0        ; SDA low while SCL high
+    wait t+ side 0
+    nop side 1
+    add t, p side 1              ; a quarter of slack before the dispatch
+    jmp send_or_read
+restart:                         ; SCL low after a byte
+    set pindirs, 0 side 1        ; release SDA
+    wait t+ side 1
+%{scl_rise "restart_rise"}
+    wait t+ side 0
+    set pindirs, 1 side 0        ; SDA low while SCL high
+    wait t+ side 0
+    nop side 1
+    add t, p side 1
+send_or_read:
+    out y, 1 side 1
+    set x, 7 side 1
+    jmp y--, read
+send:
+    wait t+ side 1
+    out y, 1 side 1
+    mov pindirs, !y side 1       ; SDA follows the bit
+    wait t+ side 1
+%{scl_rise "send_rise"}
+    wait t+ side 0
+    wait t+ side 0
+    nop side 1                   ; SCL low
+    jmp x--, send
+    wait t+ side 1
+    set pindirs, 0 side 1        ; release SDA for the ack
+    wait t+ side 1
+%{scl_rise "ack_rise"}
+    wait t+ side 0
+    in pins, 1 side 0            ; ack bit, 0 means acked
+    wait t+ side 0
+    nop side 1
+    out x, 1 side 1              ; stop flag
+    jmp finish
+read:
+    set pindirs, 0 side 1        ; release SDA
+rbit:
+    wait t+ side 1
+    wait t+ side 1
+%{scl_rise "read_rise"}
+    wait t+ side 0
+    in pins, 1 side 0
+    wait t+ side 0
+    nop side 1
+    jmp x--, rbit
+    out null, 8 side 1           ; the unused data bits
+    out x, 1 side 1              ; stop flag, and nack on the last byte
+    wait t+ side 1
+    mov pindirs, !x side 1
+    wait t+ side 1
+%{scl_rise "nack_rise"}
+    wait t+ side 0
+    wait t+ side 0
+    nop side 1
+    set pindirs, 0 side 1
+finish:
+    push side 1
+    jmp x--, stop
+    jmp byte
+stop:
+    wait t+ side 1
+    set pindirs, 1 side 1        ; SDA low
+    wait t+ side 1
+%{scl_rise "stop_rise"}
+    wait t+ side 0
+    set pindirs, 0 side 0        ; SDA released while SCL high
+    wait t+ side 0
+    jmp idle
+stuck:                           ; SCL held low: let both lines go
+    set pindirs, 0 side 0
+    mov isr, !null side 0        ; 0xffff for the word
+    push side 0
+    jmp idle
+|}]
+;;
+
+let i2c_master_stretch ~quarter =
+  i2c_master_stretch_loading ~load:[%string "    set p, %{quarter#Int} side 0"]
+;;
+
+let i2c_master_stretch_host_rate =
+  i2c_master_stretch_loading
+    ~load:"    wait tx side 0\n    pull side 0\n    mov p, osr side 0"
+;;
+
+let i2c_stretch_config = { i2c_config with jmp_pin = scl; in_count = 1 }
+
 let i2c_slave_config =
   { Program_config.default with
     jmp_pin = scl
