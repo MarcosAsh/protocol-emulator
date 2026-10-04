@@ -152,10 +152,14 @@ high_late:
 no_write:
     wait t+ side 1
     mov y, x side 0            ; turnaround, and no data phase
-    crc_init side 0
+    set x, 2 side 0
+    jmp x!=y, write_not_wait
+write_refused:
     wait t+ side 0
     nop side 1
     set pindirs, 1 side 1
+    crc_init side 1
+drop:
     wait tx side 1             ; the WDATA words, dropped
     pull side 1
     wait tx side 1
@@ -163,6 +167,27 @@ no_write:
     mov t, now side 1
     add t, p side 1
     jmp done
+write_not_wait:
+    set x, 4 side 0
+    jmp x!=y, write_invalid
+    jmp write_refused
+write_invalid:
+    set x, 31 side 0           ; no valid ACK: let the line be for a data phase too
+write_backoff:
+    wait t+ side 0
+    nop side 1
+    wait t+ side 1
+    nop side 0
+    jmp x--, write_backoff
+    wait t+ side 0
+    nop side 1
+    wait t+ side 1
+    nop side 0
+    wait t+ side 0
+    nop side 1                 ; the rise a read's turnaround would end on
+    set pindirs, 1 side 1
+    crc_init side 1
+    jmp drop
 read:
     set y, 1 side 1
     jmp x!=y, no_read
@@ -196,25 +221,52 @@ read_high:
 no_read:
     wait t+ side 1
     mov y, x side 0            ; turnaround, and no data phase
-    crc_init side 0
-    mov isr, null side 0       ; RDATA as zeros, so every read pushes three words
-    push side 0
-    push side 0
+    set x, 2 side 0
+    jmp x!=y, read_not_wait
+read_refused:
     wait t+ side 0
     nop side 1
     set pindirs, 1 side 1
-done:
-    in y, 3 side 1             ; the status, which shifts out all isr held
-    in crc, 1 side 1
-    in null, 12 side 1
+    crc_init side 1
+    mov isr, null side 1       ; RDATA as zeros, so every read pushes three words
     push side 1
+    push side 1
+    jmp done
+read_not_wait:
+    set x, 4 side 0
+    jmp x!=y, read_invalid
+    jmp read_refused
+read_invalid:
+    set x, 31 side 0           ; no valid ACK: let the line be for a data phase too
+read_backoff:
+    wait t+ side 0
+    nop side 1
+    wait t+ side 1
+    nop side 0
+    jmp x--, read_backoff
+    wait t+ side 0
+    nop side 1
+    wait t+ side 1
+    crc_init side 0
+    mov isr, null side 0
+    push side 0
+    push side 0
+    wait t+ side 0
+    nop side 1                 ; the end of a read's turnaround
+    set pindirs, 1 side 1
+    jmp done
+done:
     set x, 7 side 1
 idle_cycle:
     wait t+ side 1
-    set pins, 0 side 0
+    set pins, 0 side 0         ; eight idle cycles, so the DP clocks the transfer through
     wait t+ side 0
     nop side 1
     jmp x--, idle_cycle
+    in y, 3 side 1             ; then the status, which shifts out all isr held
+    in crc, 1 side 1
+    in null, 12 side 1
+    push side 1
     jmp idle
 |}
       ~config
@@ -343,7 +395,7 @@ module Dp = struct
       | Request of int list (* the latest first *)
       | Respond of
           { actions : Action.t list
-          ; sampled : int list
+          ; sampled : (int * bool) list (* each bit, and whether the host drove it *)
           ; request : int
           }
   end
@@ -355,6 +407,7 @@ module Dp = struct
     ; ap_latency : int
     ; memory : (int * int) list
     ; corrupt_parity : bool
+    ; corrupt_acks : int
     ; now : int
     ; mode : Mode.t
     ; phase : Phase.t
@@ -388,6 +441,7 @@ module Dp = struct
     ?(ap_latency = 0)
     ?(memory = [])
     ?(corrupt_parity = false)
+    ?(corrupt_acks = 0)
     ~cycle_ns
     ~dpidr
     ~targetid
@@ -399,6 +453,7 @@ module Dp = struct
     ; ap_latency
     ; memory
     ; corrupt_parity
+    ; corrupt_acks
     ; now = 0
     ; mode = Dormant []
     ; phase = Idle
@@ -587,7 +642,8 @@ module Dp = struct
 
   (* B4.2: ACK on the three rises after the turnaround; RDATA and its parity straight
      after a read's, then the target lets go and a turnaround follows; a write's WDATA
-     after a turnaround. *)
+     after a turnaround. A corrupt ACK goes on as OK, as a target whose ACK the wire
+     garbled would. *)
   let respond t request =
     let ap, read, address = fields request in
     let name = describe request in
@@ -598,6 +654,12 @@ module Dp = struct
       if may_refuse && sticky t then Fault else if may_refuse && busy then Wait else Ok
     in
     let t = { t with in_reset = t.in_reset && not (read && address = 0 && not ap) } in
+    let sent, t =
+      match ack with
+      | Ok when t.corrupt_acks > 0 ->
+        Ack.Invalid 0b101, { t with corrupt_acks = t.corrupt_acks - 1 }
+      | ack -> ack, t
+    in
     match ack with
     | Wait | Fault | Invalid _ ->
       ( note t (sprintf "%s %s" name (if Ack.equal ack Wait then "WAIT" else "FAULT"))
@@ -612,11 +674,17 @@ module Dp = struct
         else t, dp_read t address
       in
       let parity = parity value lxor Bool.to_int t.corrupt_parity in
-      ( note t (sprintf "%s OK 0x%08x" name value)
-      , ack_actions ack @ drive_bits value 32 @ [ Drive parity; Release; Skip ] )
+      ( note
+          t
+          (sprintf
+             "%s OK 0x%08x%s"
+             name
+             value
+             (if Ack.equal sent Ok then "" else ", ACK garbled"))
+      , ack_actions sent @ drive_bits value 32 @ [ Drive parity; Release; Skip ] )
     | Ok ->
       ( t
-      , ack_actions ack
+      , ack_actions sent
         @ [ Action.Release; Skip ]
         @ List.init 33 ~f:(fun _ -> Action.Sample) )
   ;;
@@ -664,14 +732,20 @@ module Dp = struct
       { t with phase = Respond { actions; sampled = []; request } })
   ;;
 
+  (* WDATA the host drove every bit of, or none of, which is a host backing off *)
   let complete t ~request ~sampled =
-    let sampled = List.rev sampled in
+    let driven = List.count sampled ~f:snd in
+    let sampled = List.rev_map sampled ~f:fst in
     let value =
       List.foldi (List.take sampled 32) ~init:0 ~f:(fun i acc b -> acc lor (b lsl i))
     in
     let good = parity value = List.nth_exn sampled 32 in
     let ap, read, address = fields request in
-    if (not ap) && (not read) && address = 0xc
+    if driven = 0
+    then note { t with phase = Idle } (describe request ^ " with no WDATA")
+    else if driven < List.length sampled
+    then violation { t with phase = Idle } (describe request ^ ", WDATA part undriven")
+    else if (not ap) && (not read) && address = 0xc
     then (
       let selected = good && value = t.targetid in
       note
@@ -718,7 +792,11 @@ module Dp = struct
            | Drive level -> { t with drive = Some level }, so_far
            | Release -> { t with drive = None }, so_far
            | Skip -> t, so_far
-           | Sample -> host_bit t, Bool.to_int sampled :: so_far
+           | Sample ->
+             ( (if Option.is_some host
+                then { (timed t ~name:"setup" ~since:t.moved) with took = true }
+                else t)
+             , (Bool.to_int sampled, Option.is_some host) :: so_far )
          in
          if List.is_empty actions
          then (

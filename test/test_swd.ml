@@ -27,8 +27,16 @@ let replies items ~pushed =
   |> snd
 ;;
 
-let dp ?ap_latency ?memory ?corrupt_parity targetid =
-  Dp.create ?ap_latency ?memory ?corrupt_parity ~cycle_ns ~dpidr:rp2040_dpidr ~targetid ()
+let dp ?ap_latency ?memory ?corrupt_parity ?corrupt_acks targetid =
+  Dp.create
+    ?ap_latency
+    ?memory
+    ?corrupt_parity
+    ?corrupt_acks
+    ~cycle_ns
+    ~dpidr:rp2040_dpidr
+    ~targetid
+    ()
 ;;
 
 (* the core, fed and emptied each cycle as a host keeping up would, on [bus] *)
@@ -195,7 +203,7 @@ let%expect_test "an RP2040's two DPs, woken from dormant and selected in turn" =
        "TARGETSEL 0x21002927: deselected" "line reset"
        "TARGETSEL 0x01002927: selected" "R DP 0x0 OK 0x0bc12477"))
      (measured_ns
-      (("SWCLK low" (200 200)) ("SWCLK high" (200 400)) (setup (180 13180))
+      (("SWCLK low" (200 200)) ("SWCLK high" (200 440)) (setup (180 13180))
        (hold (200 220))))
      (violations ()))
     ((dp 1)
@@ -205,7 +213,7 @@ let%expect_test "an RP2040's two DPs, woken from dormant and selected in turn" =
        "line reset" "TARGETSEL 0x21002927: deselected" "line reset"
        "TARGETSEL 0x01002927: deselected"))
      (measured_ns
-      (("SWCLK low" (200 200)) ("SWCLK high" (200 400)) (setup (180 3800))
+      (("SWCLK low" (200 200)) ("SWCLK high" (200 440)) (setup (180 3800))
        (hold (200 220))))
      (violations ()))
     ((contention ())
@@ -231,7 +239,46 @@ let%expect_test "a read whose parity is wrong" =
       ("dormant to SWD" "line reset" "R DP 0x0 OK 0x0bc12477"
        "R DP 0x0 OK 0x0bc12477"))
      (measured_ns
-      (("SWCLK low" (200 200)) ("SWCLK high" (200 400)) (setup (180 600))
+      (("SWCLK low" (200 200)) ("SWCLK high" (200 440)) (setup (180 600))
+       (hold (200 220))))
+     (violations ()))
+    ((contention ())
+     (fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+     (tx_left 0))
+    |}]
+;;
+
+(* A DP whose first two OK ACKs the wire garbles goes on with the data phase: RDATA for
+   the read, which the core lets be, and WDATA for the write, which the core does not
+   send. A line reset after, and the DP answers as it should. *)
+let%expect_test "ACKs the wire garbled" =
+  let bus = Bus.create [ dp ~corrupt_acks:2 rp2040_core0 ] in
+  let items =
+    [ Item.Bits dormant_to_swd
+    ; Bits line_reset
+    ; read 0x0
+    ; write 0x0 0x04
+    ; Bits line_reset
+    ; read 0x0
+    ]
+  in
+  let machine, bus, pushed = run ~cycles:20_000 ~bus items in
+  print ~machine ~bus ~pushed items;
+  [%expect
+    {|
+    ((transfer (Read (ap false) (address 0)))
+     (reply ((ack (Invalid 5)) (data ()) (parity_error false))))
+    ((transfer (Write (ap false) (address 0) (value 0x4)))
+     (reply ((ack (Invalid 5)) (data ()) (parity_error false))))
+    ((transfer (Read (ap false) (address 0)))
+     (reply ((ack Ok) (data (0xbc12477)) (parity_error false))))
+    ((dp 0)
+     (log
+      ("dormant to SWD" "line reset" "R DP 0x0 OK 0x0bc12477, ACK garbled"
+       "W DP 0x0 with no WDATA" "line reset" "R DP 0x0 OK 0x0bc12477"))
+     (measured_ns
+      (("SWCLK low" (200 200)) ("SWCLK high" (200 440)) (setup (180 3000))
        (hold (200 220))))
      (violations ()))
     ((contention ())
@@ -304,23 +351,35 @@ let%expect_test "every edge and every sample is placed by a deadline" =
      93  mov pins, isr side 0         phase -24  edge -23  side -23  gap 50
      95  nop side 1                   phase -24  side -23
     108  mov y, x side 0              phase -24  side -23
-    111  nop side 1                   phase -24  side -23
-    112  set pindirs, 1 side 1        phase -23  edge -22  gap 225
-    125  in pins, 1 side 0            phase -24  sample -24  side -23
+    112  nop side 1                   phase -24  side -23
+    113  set pindirs, 1 side 1        phase -23  edge -22  gap 220..230
     127  nop side 1                   phase -24  side -23
-    132  in pins, 1 side 0            phase -24  sample -24  side -23
-    134  nop side 1                   phase -24  side -23
-    138  in pins, 1 side 0            phase -24  sample -24  side -23
-    140  nop side 1                   phase -24  side -23
-    142  nop side 0                   phase -24  side -23
-    144  nop side 1                   phase -24  side -23
-    145  set pindirs, 1 side 1        phase -23  edge -22  gap 375..?
-    148  mov y, x side 0              phase -24  side -23
+    129  nop side 0                   phase -24  side -23
+    132  nop side 1                   phase -24  side -23
+    134  nop side 0                   phase -24  side -23
+    136  nop side 1                   phase -24  side -23
+    137  set pindirs, 1 side 1        phase -23  edge -22  gap 325..?
+    145  in pins, 1 side 0            phase -24  sample -24  side -23
+    147  nop side 1                   phase -24  side -23
+    152  in pins, 1 side 0            phase -24  sample -24  side -23
     154  nop side 1                   phase -24  side -23
-    155  set pindirs, 1 side 1        phase -23  edge -22  gap 225
-    162  set pins, 0 side 0           phase -24  edge -23  side -23  gap 22..?
+    158  in pins, 1 side 0            phase -24  sample -24  side -23
+    160  nop side 1                   phase -24  side -23
+    162  nop side 0                   phase -24  side -23
     164  nop side 1                   phase -24  side -23
-    ((words 167) (edge_jitter unbounded) (sample_jitter 0)
+    165  set pindirs, 1 side 1        phase -23  edge -22  gap 375..?
+    168  mov y, x side 0              phase -24  side -23
+    172  nop side 1                   phase -24  side -23
+    173  set pindirs, 1 side 1        phase -23  edge -22  gap 220..230
+    184  nop side 1                   phase -24  side -23
+    186  nop side 0                   phase -24  side -23
+    189  nop side 1                   phase -24  side -23
+    191  crc_init side 0              phase -24  side -23
+    196  nop side 1                   phase -24  side -23
+    197  set pindirs, 1 side 1        phase -23  edge -22  gap 325..?
+    201  set pins, 0 side 0           phase -24  edge -23  side -23  gap 20..?
+    203  nop side 1                   phase -24  side -23
+    ((words 210) (edge_jitter unbounded) (sample_jitter 0)
      (side_jitter unbounded) (may_miss 0))
     |}]
 ;;
@@ -348,9 +407,10 @@ let%expect_test "the kernel accepts swd at its half period" =
   [%expect {| (Ok ()) |}]
 ;;
 
-(* The core against its RTL, through a wake-up, TARGETSEL and the DPIDR read. *)
+(* The core against its RTL, through a wake-up, TARGETSEL, and a read and a write whose
+   ACKs the wire garbles. *)
 let%expect_test "swd in lockstep" =
-  let bus = ref (Bus.rp2040 ~cycle_ns) in
+  let bus = ref (Bus.create [ dp ~corrupt_acks:2 rp2040_core0; dp rp2040_core1 ]) in
   let schedule =
     ref
       (words
@@ -364,7 +424,7 @@ let%expect_test "swd in lockstep" =
   let tx_level = ref 0 in
   let model =
     Lockstep.lockstep
-      ~cycles:9_000
+      ~cycles:12_000
       ~config:(Timed_program.config firmware)
       ~program:(Timed_program.words firmware)
       ~inputs:(fun _ -> Bus.inputs !bus)
@@ -386,11 +446,11 @@ let%expect_test "swd in lockstep" =
         (model.fault : Machine.Fault.t)];
   [%expect
     {|
-    ("lockstep held" (cycles 9000))
+    ("lockstep held" (cycles 12000))
     ((log
       ("dormant to SWD" "line reset" "TARGETSEL 0x01002927: selected"
-       "R DP 0x0 OK 0x0bc12477" "W DP 0x0 OK 0x0000001c" "dormant to SWD"
-       "line reset" "TARGETSEL 0x01002927: deselected"))
+       "R DP 0x0 OK 0x0bc12477, ACK garbled" "W DP 0x0 with no WDATA"
+       "dormant to SWD" "line reset" "TARGETSEL 0x01002927: deselected"))
      (model.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
     |}]

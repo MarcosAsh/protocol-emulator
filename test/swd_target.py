@@ -22,11 +22,15 @@ def parity(value):
 
 
 class Dp:
-    def __init__(self, targetid, dpidr=DPIDR, ap_latency=0, memory=None):
+    """One SW-DP and its MEM-AP, busy ap_latency clocks after each access. corrupt_acks
+    garbles that many OK ACKs, the DP going on as if the host had seen OK."""
+
+    def __init__(self, targetid, dpidr=DPIDR, ap_latency=0, memory=None, corrupt_acks=0):
         self.targetid = targetid
         self.dpidr = dpidr
         self.ap_latency = ap_latency
         self.memory = dict(memory or {})
+        self.corrupt_acks = corrupt_acks
         self.dormant = True
         self.seen = []
         self.after_alert = None
@@ -110,7 +114,11 @@ class Dp:
         ack = FAULT if may_refuse and sticky else WAIT if may_refuse and busy else OK
         if read and not ap and address == 0:
             self.in_reset = False
-        acks = [("drive", (ack >> i) & 1) for i in range(3)]
+        sent = ack
+        if ack == OK and self.corrupt_acks:
+            self.corrupt_acks -= 1
+            sent = 0b101
+        acks = [("drive", (sent >> i) & 1) for i in range(3)]
         if ack != OK:
             self.log.append("%s %s" % (name, "WAIT" if ack == WAIT else "FAULT"))
             return acks + [("release", None), ("skip", None)]
@@ -129,7 +137,7 @@ class Dp:
             value = self.rdbuff
         else:
             value = 0
-        self.log.append("%s OK 0x%08x" % (name, value))
+        self.log.append("%s OK 0x%08x%s" % (name, value, "" if sent == OK else ", ACK garbled"))
         data = [("drive", (value >> i) & 1) for i in range(32)]
         return acks + data + [("drive", parity(value)), ("release", None), ("skip", None)]
 
@@ -159,15 +167,25 @@ class Dp:
             self.actions = self.respond(ap, read, address)
 
     def complete(self):
-        value = sum(b << i for i, b in enumerate(self.sampled[:32]))
-        good = parity(value) == self.sampled[32]
+        """WDATA the host drove every bit of, or none of, which is a host backing off."""
+        driven = sum(d for _, d in self.sampled)
+        bits = [b for b, _ in self.sampled]
+        value = sum(b << i for i, b in enumerate(bits[:32]))
+        good = parity(value) == bits[32]
         ap, address = (self.request >> 1) & 1, ((self.request >> 3) & 3) << 2
+        name = "W %s 0x%x" % ("AP" if ap else "DP", address)
+        if driven == 0:
+            self.log.append(name + " with no WDATA")
+            return
+        if driven < len(bits):
+            self.violations.append(name + ", WDATA part undriven")
+            return
         if not ap and address == 0xC:
             self.selected = good and value == self.targetid
             self.log.append("TARGETSEL 0x%08x: %s" % (
                 value, "selected" if self.selected else "deselected"))
             return
-        self.log.append("W %s 0x%x OK 0x%08x" % ("AP" if ap else "DP", address, value))
+        self.log.append("%s OK 0x%08x" % (name, value))
         if not good:
             self.wdata_err = True
         elif ap:
@@ -205,9 +223,7 @@ class Dp:
             elif action == "release":
                 self.drive = None
             elif action == "sample":
-                if host is None:
-                    self.violations.append("a bit taken from the host while it does not drive")
-                self.sampled.append(b)
+                self.sampled.append((b, host is not None))
                 if not self.actions:
                     self.complete()
                     self.sampled = []

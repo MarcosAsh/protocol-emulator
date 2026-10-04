@@ -28,7 +28,8 @@ val shortest_half : int
 val firmware : Timed_program.t
 val config : Program_config.t
 
-(** As the core pushes it, OK being 1. *)
+(** As the core pushes it, OK being 1. After none of OK, WAIT or FAULT the core lets the
+    line be for a data phase and turnaround too, as CMSIS-DAP does. *)
 module Ack : sig
   type t =
     | Ok
@@ -103,7 +104,7 @@ val rp2040_dpidr : int
     outside it sets STICKYERR, and a sticky flag FAULTs what B4.2.4 lets it. It times
     SWCLK high and low, and SWDIO's setup and hold around each rise where the host drives,
     each at least [minimum_ns], and refuses STKCMPCLR as a MINDP DP must. [corrupt_parity]
-    sends every RDATA with the wrong parity. *)
+    sends every RDATA with the wrong parity, and [corrupt_acks] garbles its first OK ACKs. *)
 module Dp : sig
   type t
 
@@ -113,6 +114,7 @@ module Dp : sig
     :  ?ap_latency:int
     -> ?memory:(int * int) list
     -> ?corrupt_parity:bool
+    -> ?corrupt_acks:int
     -> cycle_ns:int
     -> dpidr:int
     -> targetid:int

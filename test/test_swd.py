@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """The SWD act's own Python (python/demo_swd.py) on the RTL at the bench's 48 MHz, run
 blocking in a thread as Pico A runs it, against two RP2040 SW-DPs modelled from the spec
-(swd_target.py). Then each ACK the act never sees: WAIT, FAULT and a bad RDATA parity."""
+(swd_target.py). Then what the act never sees: WAIT, FAULT, bad parity and a garbled
+ACK."""
 
 import os
 import re
@@ -201,3 +202,33 @@ async def test_swd_parity(dut):
     ack, value, good = await bridge(act)()
     await unwire(dut, task)
     assert (ack, value, good) == (swd_target.OK, swd_target.DPIDR, False)
+
+
+@cocotb.test()
+async def test_swd_garbled_ack(dut):
+    """A DP whose first two OK ACKs the wire garbles and which goes on with the data phase:
+    the core lets the line be through RDATA and sends no WDATA, then a line reset and the
+    DP answers."""
+    await reset(dut)
+    bus = swd_target.Bus([swd_target.Dp(swd_target.CORE0, corrupt_acks=2)])
+    task = wire(dut, bus)
+    transfer, _, _ = acted(dut)
+
+    def act():
+        host = demo_swd.pe.Host(transfer)
+        demo_swd.bench.load(host, demo_swd.bench_firmware.SWD)
+        host.start()
+        host.push([10])
+        swd = demo_swd.Swd(host)
+        swd.wake()
+        swd.line_reset()
+        acks = [swd.read(0, 0x0)[0], swd.write(0, demo_swd.ABORT, 0x4)]
+        swd.line_reset()
+        return acks, swd.read(0, 0x0)
+
+    acks, read = await bridge(act)()
+    await unwire(dut, task)
+    clean(bus)
+    assert acks == [0b101, 0b101], acks
+    assert read == (swd_target.OK, swd_target.DPIDR, True), read
+    assert "W DP 0x0 with no WDATA" in bus.dps[0].log, bus.dps[0].log
