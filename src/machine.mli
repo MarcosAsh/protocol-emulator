@@ -83,6 +83,9 @@ val load_data : t -> int list -> t Or_error.t
     core drives are ignored. *)
 val step : t -> inputs:int -> t
 
+(** The level on every pin: what the core drives, else [inputs]; wires read ORed. *)
+val pins : t -> inputs:int -> int
+
 (** Host side of the fifos and the interrupt flag. *)
 val write_tx : t -> int -> t Or_error.t
 

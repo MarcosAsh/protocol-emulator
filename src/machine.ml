@@ -148,6 +148,8 @@ let sample_pins t ~inputs =
     set_bit v i (level = 1))
 ;;
 
+let pins = sample_pins
+
 let reverse_bits v ~width =
   List.init width ~f:(fun i -> bit v i lsl (width - 1 - i))
   |> List.fold ~init:0 ~f:( lor )
