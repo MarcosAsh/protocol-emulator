@@ -22,6 +22,10 @@ CALL_US = 2
 # a blocking call that waits this long on a fake would hang the real board
 HANG_S = Fraction(1, 50)
 FIFO = 4
+# a PIO reads a pad through the GPIO's two-flop synchroniser, and after both pads and the
+# chip's mux, guessed at 20 ns there and back
+IN_SYNC = 2
+PAD_NS = 20
 # MicroPython's rp2.PIO and machine.Pin constants
 OUT_LOW, OUT_HIGH, SHIFT_LEFT, SHIFT_RIGHT = 2, 3, 0, 1
 IN, OUT, PULL_UP, PULL_DOWN = 0, 1, 1, 2
@@ -68,13 +72,14 @@ def asm_pio(**config):
 
 
 class StateMachine:
-    """One PIO state machine, a cycle per step. A side-set lands after the instruction's
-    reads, as the input synchronisers have it, and on every stalled cycle too."""
+    """One PIO state machine, a cycle per step. Its reads see the chip's pads as they were
+    board.lag() system clocks before the step; a side-set lands on stalled cycles too."""
 
     def __init__(self, board, number):
         self.board, self.number, self.pio = board, number, board.pios[number // 4]
         self.running, self.program = False, None
         self.tx, self.rx = collections.deque(), collections.deque()
+        self.sampled = None
 
     def init(self, program, freq, in_base=None, out_base=None, set_base=None,
              sideset_base=None, jmp_pin=None):
@@ -98,6 +103,7 @@ class StateMachine:
         self.pio.loaded = True
         self.div = int(board.sys_hz * 256 / freq)
         assert self.div >= 256, "freq above the system clock"
+        assert board.lag() <= self.div // 256, "a read lagging over a step is not modelled"
         self.pc, self.x, self.y, self.delay = 0, 0, 0, 0
         self.osr, self.osr_count, self.isr, self.isr_count = 0, 32, 0, 0
         self.tx.clear()
@@ -157,11 +163,12 @@ class StateMachine:
     def step(self):
         self.k += 1
         self.next_at = self.origin + self.k * self.div // 256
+        sampled, self.sampled = self.sampled, None
         if self.delay:
             self.delay -= 1
             return
         instr = self.program.code[self.pc]
-        jumped = self._execute(instr)
+        jumped = self._execute(instr, sampled)
         if instr.sideset is not None:
             self._pins("sideset", instr.sideset, self.outs["sideset"][1])
         if jumped is None:
@@ -170,7 +177,13 @@ class StateMachine:
         if jumped is not True:
             self.pc = self.program.wrap_target if self.pc == self.program.wrap else self.pc + 1
 
-    def _execute(self, instr):
+    def reads(self):
+        """Whether the next step reads a pin."""
+        instr = self.program.code[self.pc]
+        return not self.delay and (instr.op in ("in", "wait")
+                                   or instr.op == "jmp" and instr.args[0] == "pin")
+
+    def _execute(self, instr, pads):
         """False when done, True when it jumped, None when it stalled."""
         config, op, args = self.config, instr.op, instr.args
         if op == "out":
@@ -193,7 +206,7 @@ class StateMachine:
         elif op == "in":
             src, n = args
             assert src == "pins", src
-            bits = sum(self.board.level(self.in_base + i) << i for i in range(n))
+            bits = sum(self.board.level(self.in_base + i, pads=pads) << i for i in range(n))
             if config.get("in_shiftdir", SHIFT_RIGHT) == SHIFT_LEFT:
                 isr = ((self.isr << n) | bits) & 0xFFFFFFFF
             else:
@@ -215,14 +228,15 @@ class StateMachine:
         elif op == "wait":
             polarity, src, index = args
             gpio = self.in_base + index if src == "pin" else self.pio.base + index
-            if self.board.level(gpio) != polarity:
+            if self.board.level(gpio, pads=pads) != polarity:
                 return None
         elif op == "jmp":
             cond, label = args if len(args) == 2 else (None, args[0])
             take = {
                 None: True, "not_x": not self.x, "not_y": not self.y, "x_dec": self.x != 0,
                 "y_dec": self.y != 0, "x_not_y": self.x != self.y,
-                "pin": self.jmp_pin is not None and self.board.level(self.jmp_pin) == 1,
+                "pin": self.jmp_pin is not None
+                and self.board.level(self.jmp_pin, pads=pads) == 1,
             }[cond]
             if cond == "x_dec":
                 self.x = (self.x - 1) & 0xFFFFFFFF
@@ -426,17 +440,19 @@ class Board:
         if gpio in self.pio_pins:
             self.pio_levels[gpio] = level
 
-    def level(self, gpio, cached=False):
+    def level(self, gpio, cached=False, pads=None):
+        """pads, the chip's (uo, uio), as a PIO sampled them, else as they are or as the
+        last run left them."""
         if gpio in self.pio_pins:
             return self.pio_levels[gpio]
         if gpio in self.outputs:
             return self.sio.get(gpio, 0)
+        if pads is None and (gpio in self.uo or gpio in self.uio):
+            pads = self.pads if cached else self.chip.pads()
         if gpio in self.uo:
-            uo = self.pads[0] if cached else self.chip.pads()[0]
-            return (uo >> self.uo.index(gpio)) & 1
+            return (pads[0] >> self.uo.index(gpio)) & 1
         if gpio in self.uio:
-            uio = self.pads[1] if cached else self.chip.pads()[1]
-            return (uio >> self.uio.index(gpio)) & 1
+            return (pads[1] >> self.uio.index(gpio)) & 1
         if gpio in self.ui:
             return (self.switches >> self.ui.index(gpio)) & 1
         return 0
@@ -452,13 +468,27 @@ class Board:
             self.chip.drive(*driven)
 
     # time
+    def lag(self):
+        """System clocks from the chip moving a pad to a PIO read seeing it."""
+        return IN_SYNC + -(-PAD_NS * self.sys_hz // 10**9)
+
     def events(self, ticks, stop=None):
         """Each wait for the chip to elapse, with the PIO stepped between, until ticks pass
-        or stop() holds. Pads go to the chip first and come back last."""
+        or stop() holds. Pads go to the chip first and come back last; a PIO about to read
+        samples them lag() early."""
         end = self.ticks + ticks
         self.sync()
         while self.ticks < end and not (stop and stop()):
-            due = [sm.next_at for sm in self.sms.values() if sm.running and not sm.blocked]
+            due = []
+            for sm in self.sms.values():
+                if not sm.running or sm.blocked:
+                    continue
+                due.append(sm.next_at)
+                if sm.sampled is None and sm.reads():
+                    if sm.next_at - self.lag() <= self.ticks:
+                        sm.sampled = self.chip.pads()
+                    else:
+                        due.append(sm.next_at - self.lag())
             at = min(due + [end])
             yield at - self.ticks
             self.ticks = at

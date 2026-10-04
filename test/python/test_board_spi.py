@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # python/demo_board.py and demo_board_check.py on ttboard_fake's RP2, against a model of the
 # host port a clock at a time: host_spi.ml's synchronisers and shifters over a register
-# file. The waveforms are held to SCK at most an eighth of the clock; test/test_demo_board.py
+# file. The waveforms are held to SCK at most a twelfth of the clock; test/test_demo_board.py
 # runs the same scripts on the RTL.
 import sys
 
@@ -35,7 +35,7 @@ class Chip:
 
     def drive(self, ui, rst_n):
         self.ui, self.rst_n = ui, rst_n
-        self.settle = 4
+        self.settle = 5
 
     def pads(self):
         e = self.engines[0]
@@ -58,8 +58,9 @@ class Chip:
         if not self.rst_n:
             self.reset()
             return
-        self.sync = [self.sync[1], self.ui]
+        # the edge detect's register: shift_out moves on the third edge, as in the RTL
         ui = self.sync[0]
+        self.sync = [self.sync[1], self.ui]
         sck, mosi, selected = ui & 1, (ui >> 1) & 1, not (ui >> 2) & 1
         rise = selected and sck and not self.sck
         fall = selected and not sck and self.sck
@@ -190,7 +191,7 @@ def assert_spi_timing(trace, clock_hz, sck_hz):
 
 def test_frames_and_timing():
     for kind, clock_hz, sck_hz in (("dbv3", 48_000_000, None), ("dbv3", 10_000_000, None),
-                                   ("tt06", 48_000_000, 6_000_000)):
+                                   ("tt06", 48_000_000, 4_000_000)):
         chip = Chip()
         b, m = board(chip, kind=kind)
         spi = m.demo_board.DemoBoardSpi(clock_hz=clock_hz, sck_hz=sck_hz)
@@ -214,6 +215,18 @@ def test_frames_and_timing():
         b.uninstall()
 
 
+def test_sck_margin():
+    """SCK at an eighth, were it allowed, reads each bit before MISO moves: the limit is
+    what the lag from the chip's pads to the PIO costs."""
+    b, m = board()
+    m.demo_board.SCK_DIVIDE = 8
+    spi = m.demo_board.DemoBoardSpi(clock_hz=48_000_000, sck_hz=6_000_000)
+    host = pe.Host(spi.transfer)
+    host.write(pe.PROGRAM_ADDR, [0x1A5])
+    assert host.read(pe.PROGRAM_ADDR) != [0x1A5]
+    b.uninstall()
+
+
 def test_setup():
     """Mode before enable, enable's clock and the button's monitor stopped, the PWM at
     the clock asked for and the project reset under it, uio left to the chip."""
@@ -234,7 +247,7 @@ def test_setup():
 
 def test_refusals():
     b, m = board()
-    for kwargs, message in (({"sck_hz": 6_000_001}, "over an eighth"),
+    for kwargs, message in (({"sck_hz": 4_000_001}, "over 1/12"),
                             ({"project": "tt_um_other"}, "not on this chip")):
         try:
             m.demo_board.DemoBoardSpi(**kwargs)
@@ -278,6 +291,7 @@ def test_check():
 
 
 test_frames_and_timing()
+test_sck_margin()
 test_setup()
 test_refusals()
 test_check()

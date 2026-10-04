@@ -94,14 +94,14 @@ async def test_bringup_check(dut):
 
 @cocotb.test()
 async def test_fastest_sck(dut):
-    """SCK at the limit, an eighth of the clock, on the RP2040 board's pin map: a full
+    """SCK at the limit, a twelfth of the clock, on the RP2040 board's pin map: a full
     program load and every read back intact."""
     await reset(dut)
     board = ttboard_fake.Board(Rtl(dut), kind="tt06")
     loaded = board.install()
 
     def traffic():
-        spi = loaded.demo_board.DemoBoardSpi(clock_hz=CLOCK_HZ, sck_hz=CLOCK_HZ // 8)
+        spi = loaded.demo_board.DemoBoardSpi(clock_hz=CLOCK_HZ, sck_hz=CLOCK_HZ // 12)
         host = pe.Host(spi.transfer)
         words = [(i * 0x9E37) & 0xFFFF for i in range(512)]
         host.load(words)

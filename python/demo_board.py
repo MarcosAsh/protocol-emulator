@@ -18,6 +18,9 @@ PROJECT = "tt_um_marcosash_protocol_emulator"
 STATE_MACHINE = 4
 # a FIFO's depth, so a chunk out and its replies back never stall either side
 CHUNK = 4
+# the chip moves MISO 3 clocks after SCK falls, and the PIO reads it 2 system clocks late,
+# past the pads and mux both ways: at 48 MHz a twelfth leaves a clock to spare
+SCK_DIVIDE = 12
 
 
 @rp2.asm_pio(
@@ -50,14 +53,14 @@ def claim_pio(index, gpios):
 
 
 class DemoBoardSpi:
-    """SCK at most an eighth of the chip's clock, by default a sixteenth for margin on
-    MISO, which the chip moves some four clocks after SCK falls. Build another to change
-    the clock: the PIO's divider is set from the system clock the PWM chose."""
+    """SCK at most a twelfth of the chip's clock (SCK_DIVIDE), by default a sixteenth.
+    Build another to change the clock: the PIO's divider is set from the system clock the
+    PWM chose."""
 
     def __init__(self, project=PROJECT, clock_hz=48_000_000, sck_hz=None):
         sck_hz = sck_hz or clock_hz // 16
-        if 8 * sck_hz > clock_hz:
-            raise ValueError("SCK %d Hz is over an eighth of the clock" % sck_hz)
+        if SCK_DIVIDE * sck_hz > clock_hz:
+            raise ValueError("SCK %d Hz is over 1/%d of the clock" % (sck_hz, SCK_DIVIDE))
         self.tt = tt = DemoBoard.get()
         tt.mode = RPMode.ASIC_RP_CONTROL
         if not tt.shuttle.has(project):
