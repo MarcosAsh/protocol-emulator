@@ -87,3 +87,43 @@
  (alias runtest)
  (action
   (diff swd.trace swd.trace.gen)))
+
+(rule
+ (with-stdout-to
+  spi_mode0.trace.gen
+  (run ../write_trace.exe spi_mode0)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff spi_mode0.trace spi_mode0.trace.gen)))
+
+(rule
+ (with-stdout-to
+  spi_mode1.trace.gen
+  (run ../write_trace.exe spi_mode1)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff spi_mode1.trace spi_mode1.trace.gen)))
+
+(rule
+ (with-stdout-to
+  spi_mode2.trace.gen
+  (run ../write_trace.exe spi_mode2)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff spi_mode2.trace spi_mode2.trace.gen)))
+
+(rule
+ (with-stdout-to
+  spi_mode3.trace.gen
+  (run ../write_trace.exe spi_mode3)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff spi_mode3.trace spi_mode3.trace.gen)))
