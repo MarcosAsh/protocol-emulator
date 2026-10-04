@@ -12,15 +12,18 @@ on:
       - odb_sram_stripes.py
       - test/**
       - .github/workflows/gds.yaml
-      # what the gate-level test never reads: the OCaml's tests, the RTL-only demo and
-      # outside chip tests, the Icepi's testbench and models, and the scripts CI runs
-      # elsewhere
+      # what the gate-level test never reads: the OCaml's tests, the RTL-only demo, SWD
+      # and outside chip tests, the traces only sigrok reads, the Icepi's testbench and
+      # models, and the scripts CI runs elsewhere
       - '!test/assemble/**'
       - '!test/certify/**'
       - '!test/split/**'
       - '!test/**.md'
       - '!test/test_demo.py'
       - '!test/test_outside.py'
+      - '!test/test_swd.py'
+      - '!test/swd_target.py'
+      - '!test/traces/sigrok/**'
       - '!test/tb_icepi.v'
       - '!test/tb_outside.v'
       - '!test/tb.gtkw'
