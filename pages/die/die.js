@@ -881,6 +881,7 @@ function zoomAt(factor, clientX, clientY) {
   };
   state.baseDirty = true;
   render();
+  rehover();
 }
 
 function zoomCentre(factor) {
@@ -912,17 +913,30 @@ function pick(clientX, clientY) {
 }
 
 // a mouse over a cell names it and its line, at most once a frame
-let hovered = null;
+let pointer = null;
+let tipFrame = 0;
 function hover(e) {
-  if (!hovered) requestAnimationFrame(showTip);
-  hovered = e;
+  pointer = e;
+  if (!tipFrame) tipFrame = requestAnimationFrame(showTip);
+}
+
+function unhover() {
+  cancelAnimationFrame(tipFrame);
+  tipFrame = 0;
+  pointer = null;
+  $("tip").hidden = true;
+}
+
+// a zoom moves the die under a still mouse
+function rehover() {
+  if (pointer) hover(pointer);
 }
 
 function showTip() {
-  const e = hovered;
-  hovered = null;
+  tipFrame = 0;
+  const e = pointer;
   const tip = $("tip");
-  const cell = e.pointerType === "mouse" && !e.buttons ? cellAt(e.clientX, e.clientY) : -1;
+  const cell = e && e.pointerType === "mouse" && !e.buttons ? cellAt(e.clientX, e.clientY) : -1;
   if (cell < 0) {
     tip.hidden = true;
     return;
@@ -981,7 +995,7 @@ function wireInput() {
     }
   });
   stage.addEventListener("pointermove", hover);
-  stage.addEventListener("pointerleave", () => ($("tip").hidden = true));
+  stage.addEventListener("pointerleave", unhover);
   const up = (e) => {
     if (pointers.size === 1 && !dragged) pick(e.clientX, e.clientY);
     pointers.delete(e.pointerId);
@@ -1078,6 +1092,7 @@ function wireInput() {
       "0": () => {
         fitView();
         render();
+        rehover();
       },
     };
     const action = keys[e.key];
