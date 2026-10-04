@@ -2,7 +2,7 @@
 # The worst setup paths of a gds run's slow corner, with slack, each start, end and the
 # cells between named by the src line demo/die.py's sources gives them.
 # Usage: source env.sh && demo/paths.py GDS --provenance JSON [-n 10]
-#        demo/paths.py --report max.rpt --cells cells.json, as test/paths does
+#        demo/paths.py --report max.rpt --cells cells.json --cut 1,6, as test/paths does
 import argparse
 import glob
 import json
@@ -117,6 +117,7 @@ def main():
     parser.add_argument("-n", type=int, default=10, help="how many of the worst, default 10")
     parser.add_argument("--ranks", help="which of the worst, as 1,6, in place of -n")
     parser.add_argument("--fixture", help="also write the paths shown and their cells' lines")
+    parser.add_argument("--cut", help="the ranks a report --fixture cut holds, as 1,6")
     args = parser.parse_args()
     if not (args.cells or args.gds and args.provenance):
         parser.error("give GDS and --provenance, or --cells")
@@ -125,17 +126,21 @@ def main():
     )[0]
     text = open(report).read()
     paths = read_paths(text)
-    ranks = [int(r) for r in args.ranks.split(",")] if args.ranks else range(1, args.n + 1)
-    shown = [(r, *paths[r - 1][:4]) for r in ranks if r <= len(paths)]
+    if args.cut:
+        shown = [(int(r), *p[:4]) for r, p in zip(args.cut.split(","), paths)]
+    else:
+        ranks = [int(r) for r in args.ranks.split(",")] if args.ranks else range(1, args.n + 1)
+        shown = [(r, *paths[r - 1][:4]) for r in ranks if r <= len(paths)]
     lines = (
         {c: tuple(v) for c, v in json.load(open(args.cells)).items()}
         if args.cells
         else run_lines(args.gds, args.provenance)
     )
     corner = re.search(r"=+ (\S+) Corner", text)
+    of = "the report's" if args.cut else len(paths)
     print(
-        "%s, %d of %d setup paths by slack. ~ marks a line that is only the nearest named"
-        " cell's." % (corner.group(1) if corner else report, len(shown), len(paths))
+        "%s, %d of %s setup paths by slack. ~ marks a line that is only the nearest named"
+        " cell's." % (corner.group(1) if corner else report, len(shown), of)
     )
     print("\n".join(describe(shown, lines)))
     if args.fixture:

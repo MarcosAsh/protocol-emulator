@@ -1,5 +1,6 @@
 ; demo/paths.py on the worst path and the worst from an SRAM of gds run 36922636022's slow
 ; corner, written by demo/paths.py GDS --provenance JSON --ranks 1,6 --fixture test/paths
+; and read back as those ranks with --cut 1,6
 
 (rule
  (with-stdout-to
@@ -12,8 +13,8 @@
    %{dep:max.rpt}
    --cells
    %{dep:cells.json}
-   --ranks
-   1,2)))
+   --cut
+   1,6)))
 
 (rule
  (alias runtest)
