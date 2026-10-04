@@ -8,6 +8,7 @@
 #        python3 demo/decode.py --capture can.sr TRACE        a capture from the bench
 #        python3 demo/decode.py --rate 24 --write-capture can.sr TRACE
 #        python3 demo/decode.py --host-frames frames.py TRACE for demo/pico_replay.py
+#        python3 demo/decode.py --summary "the RTL" TRACE...  and a count of protocols read
 import argparse
 import os
 import random
@@ -320,6 +321,22 @@ def host_frames(trace, path, clock_mhz):
     return True
 
 
+def protocols(path):
+    """Each decoder stack's protocol, its first decoder."""
+    return [stack.split(",")[0].split(":")[0] for stack in Trace(path).decoders]
+
+
+def summary(what, results, args):
+    """A protocol is read when every trace it decodes passed."""
+    read = {}
+    for path, passed in results.items():
+        for protocol in protocols(path):
+            read[protocol] = read.get(protocol, True) and passed
+    if args.rate:
+        what += ", sampled at %g MHz" % args.rate
+    print("sigrok on %s: %d of %d protocols" % (what, sum(read.values()), len(read)))
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("traces", nargs="+")
@@ -332,9 +349,12 @@ def main():
     parser.add_argument("--write-capture", help="write the trace as the bench's analyser sees it")
     parser.add_argument("--host-frames", help="write the trace's host frames for the Pico")
     parser.add_argument("--clock-mhz", type=float, default=48.0, help="the bench's chip clock")
+    parser.add_argument("--summary", help="what the traces ran on, for a count of protocols")
     args = parser.parse_args()
-    results = [check(path, args) for path in args.traces]
-    sys.exit(0 if all(results) else 1)
+    results = {path: check(path, args) for path in args.traces}
+    if args.summary:
+        summary(args.summary, results, args)
+    sys.exit(0 if all(results.values()) else 1)
 
 
 if __name__ == "__main__":
