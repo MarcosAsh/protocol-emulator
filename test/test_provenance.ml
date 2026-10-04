@@ -30,6 +30,7 @@ let%expect_test "tracing leaves the committed verilog byte for byte" =
   [%expect {| ((bytes 387291) (untraced_identical true) (traced_identical true)) |}]
 ;;
 
+(* no module's lines are an interface's fields, where its derived code sits *)
 let%expect_test "the share of verilog names that resolve to a src line" =
   let modules = Provenance.traced rtl |> Provenance.of_rtl in
   let names = List.concat_map modules ~f:snd in
@@ -61,18 +62,25 @@ let%expect_test "the share of verilog names that resolve to a src line" =
         module_name
           ~names:(List.length names : int)
           ~unresolved:
-            (List.count names ~f:(fun (_, source) -> Option.is_none source) : int)]);
+            (List.count names ~f:(fun (_, source) -> Option.is_none source) : int)
+          ~files:
+            (List.filter_map names ~f:(fun (_, source) ->
+               Option.map source ~f:(fun source -> source.file))
+             |> List.dedup_and_sort ~compare:String.compare
+             : string list)]);
   [%expect {|
-    ((names 3728) (named_at 190) (made_at 3205) (unresolved 333)
-     (distinct_lines 573))
-    (data_memory (names 60) (unresolved 22))
-    (engine (names 2001) (unresolved 63))
-    (engines (names 414) (unresolved 87))
-    (host_fifo (names 92) (unresolved 79))
-    (host_port (names 882) (unresolved 36))
-    (host_spi (names 71) (unresolved 15))
-    (protocol_emulator (names 17) (unresolved 12))
-    (sram_macro (names 21) (unresolved 12))
-    (top (names 170) (unresolved 7))
+    ((names 3728) (named_at 190) (made_at 2889) (unresolved 649)
+     (distinct_lines 455))
+    (data_memory (names 60) (unresolved 30) (files (src/data_memory.ml)))
+    (engine (names 2001) (unresolved 106)
+     (files
+      (src/crc.ml src/deadline.ml src/decoder.ml src/engine.ml src/pins.ml)))
+    (engines (names 414) (unresolved 174) (files (src/engines.ml)))
+    (host_fifo (names 92) (unresolved 85) (files (src/host_fifo.ml)))
+    (host_port (names 882) (unresolved 186) (files (src/host_port.ml)))
+    (host_spi (names 71) (unresolved 21) (files (src/host_spi.ml)))
+    (protocol_emulator (names 17) (unresolved 17) (files ()))
+    (sram_macro (names 21) (unresolved 19) (files (src/sram_macro.ml)))
+    (top (names 170) (unresolved 11) (files (src/top.ml)))
     |}]
 ;;

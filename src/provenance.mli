@@ -1,7 +1,7 @@
 (** The [src/] line each Verilog name of a design came from. A named signal takes the line
     that named it, any other the innermost [src/] frame of the stack Hardcaml keeps for it
-    inside its own module, and a wire with neither its driver's. The stack is cut at 16
-    frames and loses inlined ones, so some signals have no line. *)
+    inside its own module, past derived interface code, and a wire with neither its
+    driver's. The stack is cut at 16 frames and loses inlined ones, so some get none. *)
 
 open! Core
 open! Hardcaml

@@ -17,6 +17,29 @@ let traced f =
   Exn.protect ~f ~finally:(fun () -> Caller_id.set_mode Disabled)
 ;;
 
+(* [@@deriving hardcaml] code sits at the record field it maps, so a signal an interface's
+   [Of_always.reg] or [wires] made would claim a type's field. OxCaml names its frames
+   after any of the derived functions. *)
+let derived =
+  String.Set.of_list
+    [ "ast"
+    ; "iter"
+    ; "iter2"
+    ; "map"
+    ; "map2"
+    ; "port_names_and_widths"
+    ; "sexp_of_t"
+    ; "to_list"
+    ; "wave_formats"
+    ]
+;;
+
+let is_derived defname =
+  String.chop_suffix_if_exists defname ~suffix:".(fun)"
+  |> String.rsplit2 ~on:'.'
+  |> Option.exists ~f:(fun (_, name) -> Set.mem derived name)
+;;
+
 (* Core and Hardcaml keep their sources in a src/ too, so a frame is told ours by the
    module dune wraps it in. Frames past Hardcaml's hierarchy are the parent's, where the
    module was instantiated, so a signal whose own frames were inlined or cut has none. *)
@@ -28,7 +51,7 @@ let made signal =
     not (String.is_prefix slot.defname ~prefix:"Hardcaml__Hierarchy."))
   |> List.find_map ~f:(fun { filename; line_number; defname; _ } ->
     Option.some_if
-      (String.is_prefix defname ~prefix:"Protocol_emulator__")
+      (String.is_prefix defname ~prefix:"Protocol_emulator__" && not (is_derived defname))
       { Source.file = filename; line = line_number; named = false })
 ;;
 
