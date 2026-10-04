@@ -15,6 +15,9 @@ DPIDR = 0x0BC12477
 # the IDR of an Arm AHB MEM-AP: designer 0x23b (Arm), class 8 (MEM-AP), type 1
 AP_IDR = 0x04770031
 OK, WAIT, FAULT = 1, 2, 4
+# SWCLK high and low, and the host's setup and hold: half of a 24 MHz SWCLK, the most the
+# RP2040 datasheet recommends
+MINIMUM_PS = 21_000
 
 
 def parity(value):
@@ -25,12 +28,14 @@ class Dp:
     """One SW-DP and its MEM-AP, busy ap_latency clocks after each access. corrupt_acks
     garbles that many OK ACKs, the DP going on as if the host had seen OK."""
 
-    def __init__(self, targetid, dpidr=DPIDR, ap_latency=0, memory=None, corrupt_acks=0):
+    def __init__(self, targetid, dpidr=DPIDR, ap_latency=0, memory=None, corrupt_acks=0,
+                 cycle_ps=20834):
         self.targetid = targetid
         self.dpidr = dpidr
         self.ap_latency = ap_latency
         self.memory = dict(memory or {})
         self.corrupt_acks = corrupt_acks
+        self.cycle_ps = cycle_ps
         self.dormant = True
         self.seen = []
         self.after_alert = None
@@ -51,9 +56,23 @@ class Dp:
         self.tar = 0
         self.rdbuff = 0
         self.busy = 0
+        self.now = 0
         self.swclk = 1
+        self.line = 1
+        self.rose = self.fell = self.moved = None
+        self.held = True
+        self.took = False
+        self.shortest = {}
         self.log = []
         self.violations = []
+
+    def timed(self, name, since):
+        if since is None:
+            return
+        ps = (self.now - since) * self.cycle_ps
+        self.shortest[name] = min(ps, self.shortest.get(name, ps))
+        if ps < MINIMUM_PS:
+            self.violations.append("%s of %d ps" % (name, ps))
 
     def wake(self, b):
         """The selection alert, four cycles ignored, then the activation code (B5.3.4)."""
@@ -208,7 +227,16 @@ class Dp:
         elif address == 8:
             self.select = value
 
+    def host_bit(self, host):
+        if host is None:
+            self.violations.append("a bit taken from the host while it does not drive")
+        else:
+            self.timed("setup", self.moved)
+            self.took = True
+
     def rise(self, b, host):
+        self.timed("SWCLK low", self.fell)
+        self.took = False
         if self.dormant:
             self.wake(b)
             return
@@ -223,17 +251,20 @@ class Dp:
             elif action == "release":
                 self.drive = None
             elif action == "sample":
+                if host is not None:
+                    self.timed("setup", self.moved)
+                    self.took = True
                 self.sampled.append((b, host is not None))
                 if not self.actions:
                     self.complete()
                     self.sampled = []
         elif self.bits is not None:
-            if host is None:
-                self.violations.append("a bit taken from the host while it does not drive")
+            self.host_bit(host)
             self.bits.append(b)
             if len(self.bits) == 8:
                 self.decode()
         elif b:
+            self.host_bit(host)
             self.bits = [1]
 
     def step(self, swclk, host, line):
@@ -241,9 +272,22 @@ class Dp:
         everyone sees."""
         if host is not None and self.drive is not None:
             self.violations.append("contention: host and target both drive")
+        if line != self.line and host is not None:
+            # hold counts only after a rise that took a bit from the host
+            if not self.held:
+                self.held = True
+                self.timed("hold", self.rose)
+            self.moved = self.now
+        self.line = line
         if swclk and not self.swclk:
             self.rise(line, host)
+            self.rose = self.now
+            self.held = not self.took
+        elif not swclk and self.swclk:
+            self.timed("SWCLK high", self.rose)
+            self.fell = self.now
         self.swclk = swclk
+        self.now += 1
 
 
 class Bus:

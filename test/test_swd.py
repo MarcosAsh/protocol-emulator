@@ -95,7 +95,7 @@ def acted(dut):
 
 def clean(bus):
     for i, dp in enumerate(bus.dps):
-        cocotb.log.info("DP %d: %s", i, dp.log)
+        cocotb.log.info("DP %d: %s, shortest %s ps", i, dp.log, dp.shortest)
         assert dp.violations == [], (i, dp.violations)
     assert bus.contention == 0
 
@@ -210,6 +210,7 @@ async def test_swd_parity(dut):
 
     ack, value, good = await bridge(act)()
     await unwire(dut, task)
+    clean(bus)
     assert (ack, value, good) == (swd_target.OK, swd_target.DPIDR, False)
 
 
