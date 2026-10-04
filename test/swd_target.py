@@ -1,10 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-"""An RP2040's SWD port as ADIv5.2 (ARM IHI 0031G) has it, for the cocotb tests: SW-DPs of
-SWD protocol version 2 on one multi-drop line, pulled up. Each is dormant from power-on
-(B5.3), selected by a line reset and kept or let go by the TARGETSEL write straight after
-it (B4.3.4), answers ACK OK, WAIT or FAULT (B4.2), and samples SWDIO and moves it on the
-rise of SWCLK. Behind each is a MEM-AP whose accesses keep it busy for ap_latency clocks.
-It is the same model as Swd.Dp in test/swd.ml, written again for Python."""
+"""An RP2040's SWD port for the cocotb tests: SW-DPs of SWD protocol version 2 (ARM IHI
+0031G, B4 and B5.3) on one line, as Swd.Dp and Swd.Bus in test/swd.ml model them."""
 
 ALERT = 0x19BC0EA2E3DDAFE986852D956209F392
 # Table B5-2, the SW-DP activation code, MSB first
@@ -125,6 +121,8 @@ class Dp:
         return 0
 
     def respond(self, ap, read, address):
+        """ACK on the three rises after the turnaround, then RDATA and parity and a
+        turnaround, or a turnaround and WDATA (B4.2)."""
         name = "%s %s 0x%x" % ("R" if read else "W", "AP" if ap else "DP", address)
         # B4.2.3, B4.2.4: never to a DPIDR or CTRL/STAT read, nor to an ABORT write
         may_refuse = ap or (read and address > 4) or (not read and address != 0)
@@ -268,7 +266,7 @@ class Dp:
             self.bits = [1]
 
     def step(self, swclk, host, line):
-        """One cycle: [host] is the level the host drives, None if it does not, [line] what
+        """One cycle: host is the level the host drives, None if it does not, line what
         everyone sees."""
         if host is not None and self.drive is not None:
             self.violations.append("contention: host and target both drive")
