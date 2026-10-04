@@ -67,13 +67,9 @@ module Receiver = struct
     @ if n % 32 = 0 then [] else [ [%string "    nop [%{n % 32 - 1#Int}]"] ]
   ;;
 
-  (* One field's bits: x is the number left less one, y counts a run down from 3 and is
-     spent at five equal bits, and the last bit's level is the half of the loop the core
-     is in. [in pins] samples a bit [sample] cycles in, and [jmp pin] reads it again a
-     cycle later to pick the half. A recessive bit arms the capture, so a fall before the
-     next sample is caught and the bits are timed from it, as can2040 does. Stuff bits are
-     checked and kept out of isr and the CRC. The loop leaves at [high_end] or [low_end]
-     by the last level. *)
+  (* One field's bits: x counts them down, y the run to a stuff bit, and the loop half is
+     the last level. A recessive bit arms the capture, so the next fall retimes the bits,
+     as can2040 does. Leaves at [high_end] or [low_end] by the last level. *)
   let field name ~sample ~high_end ~low_end =
     lines
       ([ [%string "%{name}_high:"]
