@@ -1,8 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
 # Data for pages/die: every cell and wire of a hardened run, and which nets switch on each
 # cycle of its netlist sending "Jane St!" (demo/live_die_stimulus.py). Fails unless the
-# netlist's pins equal the RTL's on every cycle. Cells are coloured as demo/die.py does.
-# Usage: source env.sh && make -C pages/die, or demo/live_die.py GDS -o pages/die/die.bin
+# netlist's pins equal the RTL's on every cycle. Cells are coloured as demo/die.py does,
+# and carry the src line demo/die.py's sources gives them, at the run's commit.
+# Usage: source env.sh && make -C pages/die, or
+#        demo/live_die.py GDS --provenance JSON -o pages/die/die.bin
 import argparse
 import glob
 import gzip
@@ -220,6 +222,9 @@ def main():
     parser.add_argument("gds", help="a gds run's GDS_logs artifact, holding runs/ and src/")
     parser.add_argument("-o", "--output", required=True, help="the page's data, gzipped")
     parser.add_argument("--build", help="where the simulations run, default a temporary dir")
+    parser.add_argument(
+        "--provenance", required=True, help="generate.exe provenance's JSON for the run's RTL"
+    )
     args = parser.parse_args()
     run = os.path.join(args.gds, "runs", "wokwi")
     src = os.path.join(args.gds, "src")
@@ -280,6 +285,18 @@ def main():
     }
     named = [([n] if n.startswith(root + ".") else [], pins) for n, pins in die_nets.items()]
     labels, _ = die.label(kept, named, lib, hierarchy, die.flop_modules(synthesis, hierarchy[2]))
+    commit = json.load(open(os.path.join(run, "final", "commit_id.json")))["commit"]
+    verilog = os.path.join(src, "protocol_emulator.v")
+    registers = die.registers(verilog)
+    lines, own = die.sources(
+        kept,
+        named,
+        lib,
+        hierarchy,
+        {n: registers[line] for n, line in die.flop_lines(synthesis).items() if line in registers},
+        die.read_provenance(args.provenance, commit),
+        die.from_instances(verilog),
+    )
 
     # cells by block, then row, so a cycle's toggles sit close together
     blocks = [name for name, _, _ in die.BLOCKS] + [SRAM]
@@ -325,6 +342,17 @@ def main():
         )
     cells = bytes(blocks.index(labels.get(c, SRAM)) for c in order)
     cells += struct.pack("<%dH" % len(order), *(masters.index(kept[c]) for c in order))
+    # each cell's line as an index into the header's sources, the top bit set when it is
+    # only the nearest named cell's, and all ones when there is none
+    sources = sorted(set(lines.values()))
+    source_index = {s: n for n, s in enumerate(sources)}
+    origins = struct.pack(
+        "<%dH" % len(order),
+        *(
+            source_index[lines[c]] | (0 if c in own else 0x8000) if c in lines else 0xFFFF
+            for c in order
+        ),
+    )
     drivers = varints(b - a for a, b in zip([0] + [d for d, _, _ in nets], [d for d, _, _ in nets]))
     counts = varints(len(s) for _, _, s in nets)
     # each segment as its layer, its first end from the last segment's and its second
@@ -342,7 +370,7 @@ def main():
     for t in toggles:
         flips += varints([len(t)]) + varints(b - a - 1 for a, b in zip([-1] + t, t))
 
-    sections = [geometry, cells, drivers, counts, wires, flips]
+    sections = [geometry, cells, drivers, counts, wires, flips, origins]
     pin_names = pin_labels(os.path.join(REPO, "info.yaml"))
     header = {
         "run": json.load(open(os.path.join(run, "final", "commit_id.json"))),
@@ -351,6 +379,7 @@ def main():
         "blocks": [[name, colour] for name, colour, _ in die.BLOCKS] + [[SRAM, "#9a978f"]],
         "layers": LAYERS,
         "masters": [m.removeprefix("sg13cmos5l_") for m in masters],
+        "sources": sources,
         "cells": len(order),
         "macros": [[index[c], c.removeprefix(root + ".")] for c in macros],
         "nets": len(nets),
@@ -388,6 +417,10 @@ def main():
             len(blob) >> 10,
             os.path.getsize(args.output) >> 10,
         )
+    )
+    print(
+        "%d cells with a src line or module, %d by a name of their own, %d lines"
+        % (len(lines), len(own), sum(":" in s for s in sources))
     )
 
 
