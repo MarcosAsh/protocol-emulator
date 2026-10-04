@@ -31,16 +31,23 @@ def words(pixels):
     return out
 
 
-def run(transfer, pause_ms, log=print):
-    host = pe.Host(transfer)
-    bench.load(host, bench_firmware.SK6812)
+def show(host, frames, pause_ms, engine=0, hold_ms=LATCH_MS):
+    """engine runs the SK6812 firmware, each frame held hold_ms and the last kept until a
+    load. Loading it stops the other engine; Pico A's SPI must be at SPI_HZ."""
+    bench.load(host, bench_firmware.SK6812, engine)
     host.start()
     # the firmware first holds the line low for its latch gap, taking no word
     pause_ms(LATCH_MS)
-    frames = [PIXELS, PIXELS[1:] + PIXELS[:1]]
     for pixels in frames:
         host.push(words(pixels))
-        pause_ms(LATCH_MS)
+        pause_ms(hold_ms)
+
+
+def run(transfer, pause_ms, log=print):
+    host = pe.Host(transfer)
+    frames = [PIXELS, PIXELS[1:] + PIXELS[:1]]
+    show(host, frames, pause_ms)
+    for pixels in frames:
         log("frame: %s" % " ".join("#%02x%02x%02x" % p for p in pixels))
     found = bench.faults(host)
     log("faults 0x%x" % found)

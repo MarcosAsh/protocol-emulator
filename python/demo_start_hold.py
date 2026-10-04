@@ -80,11 +80,7 @@ def measure(host, pause_ms, log=print, count=COUNT, limit_ms=LIMIT_MS):
 def light(host, ok, pause_ms):
     """Engine 0 runs the library's SK6812 firmware and every pixel turns green or red.
     Loading it stops engine 1."""
-    bench.load(host, bench_firmware.SK6812)
-    host.start()
-    pause_ms(demo_neopixel.LATCH_MS)
-    host.push(demo_neopixel.words([GREEN if ok else RED] * 8))
-    pause_ms(demo_neopixel.LATCH_MS)
+    demo_neopixel.show(host, [[GREEN if ok else RED] * 8], pause_ms)
 
 
 def run(transfer, pause_ms, log=print, count=COUNT):
