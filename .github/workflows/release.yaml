@@ -54,6 +54,8 @@ jobs:
         run: |
           ./release/generate-linux-x86_64 top -sram -engines 2 | cmp - src/protocol_emulator.v
           ./release/generate-linux-x86_64 assemble test/uart_tx.asm | cmp - test/uart_tx.hex
+          ./release/generate-linux-x86_64 run -cycles 200 -tx 0x5a test/uart_tx.asm \
+            | cmp - test/assemble/uart_tx_run.expected
           if ./release/generate-linux-x86_64 assemble playground/gap_adding_x.asm; then
             echo "::error::the kernel accepted gap_adding_x"
             exit 1
