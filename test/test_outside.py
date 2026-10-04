@@ -13,12 +13,13 @@ import sys
 import cocotb
 from cocotb.clock import Clock
 from cocotb.task import bridge, resume
-from cocotb.triggers import ClockCycles, FallingEdge, RisingEdge, Timer
+from cocotb.triggers import ClockCycles, FallingEdge, First, RisingEdge, Timer
 from cocotb.utils import get_sim_time
 from cocotbext.i2c import I2cMemory
 
 from test import Pins
 import demo_can
+import demo_can_node
 import demo_ds18b20
 import demo_eeprom
 import demo_flash
@@ -430,6 +431,234 @@ async def test_can(dut):
     assert ids == ["%d (0x%x)" % (ident, ident) for ident, _ in demo_can.FRAMES], ids
     assert decoded.count("can-1: ACK slot: NACK") == len(demo_can.FRAMES), decoded
     assert not any("must be" in line or "arning" in line for line in decoded), decoded
+
+
+# can2040's own lines, SOF to the CRC delimiter, for demo/can_node.c's replies, as
+# demo/can_node/golden.c prints them and test/test_can_node.ml checks them
+REPLY_LINES = [
+    "0000101000010000011100000100100000101000001001111100011110011001",
+    "00001010001010000101010011001010101",
+    "0110101100010001000111110111110111110111110111110111110111110111110111110111110111110111110111110010101011011101",
+    "000001000001000001001000001000001000001000100101101100011",
+]
+# Pico B's bit, a crystal's 500 kbit/s, where the chip's is 96 of its cycles
+CAN_BIT_PS = 2_000_000
+
+
+def crc15(bits):
+    crc = 0
+    for bit in bits:
+        top = ((crc >> 14) & 1) ^ bit
+        crc = (crc << 1) & 0x7FFF
+        if top:
+            crc ^= 0x4599
+    return crc
+
+
+class PicoB:
+    """Pico B as demo/can_node.c runs can2040, on its own transceiver: it ACKs each frame
+    whose CRC holds, and after a frame with ID request, delay_ms on, sends replies, can2040's
+    own lines, gap_ms apart, each again until ACKed. A model of ours: it samples each bit
+    three quarters in from the SOF's fall, with no resynchronising, which the simulator's
+    steady clocks allow."""
+
+    def __init__(self, dut, request, replies, delay_ms, gap_ms):
+        self.dut = dut
+        self.request = request
+        self.replies = replies
+        self.delay_ms = delay_ms
+        self.gap_ms = gap_ms
+        self.received = []
+        self.attempts = []
+        self.pending = []
+        self.due = 0
+        cocotb.start_soon(self.run())
+
+    def level(self):
+        return bit(self.dut.can_rx)[1]()
+
+    async def until(self, ps):
+        now = get_sim_time("ps")
+        if ps > now:
+            await Timer(ps - now, unit="ps")
+
+    async def idle(self, bits):
+        """Until the bus has been recessive for that many bits, a quarter bit at a time."""
+        quarters = 0
+        while quarters < 4 * bits:
+            await Timer(CAN_BIT_PS // 4, unit="ps")
+            quarters = quarters + 1 if self.level() else 0
+
+    async def receive(self, sof):
+        """The frame whose SOF fell at sof: (id, rtr, dlc, data), ACKed if its CRC holds, or
+        None for a stuff, form or CRC error."""
+        raw, bits = [], []
+        last, run, need = None, 0, None
+        while need is None or len(bits) < need or run == 5:
+            await self.until(sof + (4 * len(raw) + 3) * CAN_BIT_PS // 4)
+            level = self.level()
+            raw.append(level)
+            if run == 5:
+                if level == last:
+                    return None
+                last, run = level, 1
+                continue
+            run, last = (run + 1 if level == last else 1), level
+            bits.append(level)
+            if len(bits) == 19:
+                rtr, dlc = bits[12], int("".join(map(str, bits[15:19])), 2)
+                need = 19 + (0 if rtr else 8 * min(dlc, 8)) + 15
+        await self.until(sof + (4 * len(raw) + 3) * CAN_BIT_PS // 4)
+        crc = int("".join(map(str, bits[-15:])), 2)
+        if not self.level() or crc != crc15(bits[:-15]):
+            return None
+        await self.until(sof + (len(raw) + 1) * CAN_BIT_PS)
+        self.dut.can_o.value = 0
+        await Timer(CAN_BIT_PS, unit="ps")
+        self.dut.can_o.value = 1
+        value = lambda b: int("".join(map(str, b)), 2) if b else 0
+        data = [value(bits[19 + 8 * i:27 + 8 * i]) for i in range((need - 34) // 8)]
+        return value(bits[1:12]), bits[12], value(bits[15:19]), data
+
+    async def send(self, line):
+        """line once, after an idle bus, and whether a receiver ACKed it."""
+        await self.idle(11)
+        for level in line:
+            self.dut.can_o.value = int(level)
+            await Timer(CAN_BIT_PS, unit="ps")
+        self.dut.can_o.value = 1
+        await Timer(3 * CAN_BIT_PS // 4, unit="ps")
+        acked = not self.level()
+        await Timer(CAN_BIT_PS // 4, unit="ps")
+        return acked
+
+    async def run(self):
+        await self.idle(11)
+        while True:
+            if self.pending and get_sim_time("ps") >= self.due:
+                tries = 1
+                while not await self.send(self.pending[0]):
+                    tries += 1
+                self.attempts.append(tries)
+                self.pending.pop(0)
+                self.due = get_sim_time("ps") + self.gap_ms * 10**9
+                continue
+            fell = FallingEdge(self.dut.can_rx)
+            if await First(fell, Timer(CAN_BIT_PS, unit="ps")) is not fell:
+                continue
+            frame = await self.receive(get_sim_time("ps"))
+            await self.idle(7)
+            if frame is None:
+                continue
+            self.received.append(frame)
+            if frame[0] == self.request and not frame[1] and not self.pending:
+                self.pending = list(self.replies)
+                self.due = get_sim_time("ps") + self.delay_ms * 10**9
+
+
+def can_ids(decoded):
+    return [line.partition("Identifier: ")[2] for line in decoded if "Identifier: " in line]
+
+
+@cocotb.test()
+async def test_can_node(dut):
+    """The can_node act against a model of Pico B: armed, the sender's four frames, each
+    ACKed and the ACK read back, the last asking for Pico B's four, which the receiver ACKs.
+    sigrok decodes both ways on module A's R."""
+    await reset(dut)
+    pico_b = PicoB(dut, demo_can_node.REQUEST, REPLY_LINES, delay_ms=5, gap_ms=2)
+    transfer, pause_ms, log, _ = acted(dut)
+    await bridge(demo_can_node.arm)(transfer, log=log)
+    await ClockCycles(dut.clk, 2 * demo_can_node.PERIOD)
+    analyser = Analyser({6: bit(dut.can_rx)})
+    assert await bridge(demo_can_node.run)(transfer, pause_ms, log=log)
+    sent = [(ident, 0, len(data), data) for ident, data in demo_can_node.FRAMES]
+    assert pico_b.received == sent, pico_b.received
+    cocotb.log.info("Pico B's attempts at each reply: %s", pico_b.attempts)
+    assert pico_b.attempts == [1] * len(REPLY_LINES)
+    decoded = decode(analyser, "can_node")
+    frames = sent + demo_can_node.REPLIES
+    assert can_ids(decoded) == ["%d (0x%x)" % (f[0], f[0]) for f in frames], decoded
+    # sigrok 0.5.3 reads a remote frame's DLC of data bytes, test/sigrok_scenarios.ml's
+    # can_remote, so its CRC and ACK slot are not where it looks
+    data_frames = [f for f in frames if not f[1]]
+    assert decoded.count("can-1: ACK slot: ACK") == len(data_frames), decoded
+    assert not any("must be" in line or "arning" in line for line in decoded), decoded
+
+
+def two_engines(transfer, pause_ms):
+    """The receiver in engine 1 with its ACK on OUT2, and the sender in engine 0, which has
+    its period and leaves OUT1 recessive; the receiver hears eleven idle bits after."""
+    host = demo_can_node.pe.Host(transfer)
+    bench = demo_can_node.bench
+    firmware = demo_can_node.bench_firmware
+    config = dict(firmware.CAN_RECEIVER["config"], set_base=7, out_base=7)
+    bench.load(host, dict(firmware.CAN_RECEIVER, config=config), engine=1)
+    bench.load(host, firmware.CAN_SENDER, engine=0)
+    host.select(1)
+    host.start()
+    host.select(0)
+    host.start()
+    host.push([demo_can_node.PERIOD])
+    pause_ms(1)
+
+
+def send(transfer, pause_ms, log, frames):
+    """frames from engine 0, the ACKs it read, what engine 1 heard, and their faults."""
+    host = demo_can_node.pe.Host(transfer)
+    bench = demo_can_node.bench
+    acks, words = [], []
+    for ident, data in frames:
+        host.push(demo_can.words(ident, data))
+        pause_ms(demo_can_node.FRAME_MS)
+        acks += host.pop(bench.rx_level(host))
+        # a long frame is seven words, so each is read before the next
+        host.select(1)
+        words += host.pop(bench.rx_level(host))
+        host.select(0)
+    heard, _ = demo_can_node.frames(words)
+    log("engine 0 read %s, engine 1 heard %s" % (acks, heard))
+    faults = bench.faults(host)
+    host.select(1)
+    faults |= bench.faults(host)
+    host.select(0)
+    return acks, heard, faults
+
+
+def stop_engine_1(transfer):
+    """Its OUT2 holds the recessive level it left."""
+    host = demo_can_node.pe.Host(transfer)
+    host.select(1)
+    host.stop()
+    host.select(0)
+
+
+@cocotb.test()
+async def test_can_chip_to_chip(dut):
+    """The chip's sender in engine 0 on OUT1 and its receiver in engine 1 on OUT2, through
+    two transceivers on one bus: engine 1 takes and ACKs each frame and engine 0 reads the
+    ACK, then with engine 1 stopped reads none. sigrok decodes the bus."""
+    await reset(dut)
+    dut.can_out2.value = 1
+    transfer, pause_ms, log, _ = acted(dut)
+    await bridge(two_engines)(transfer, pause_ms)
+    analyser = Analyser({6: bit(dut.can_rx)})
+    frames = demo_can.FRAMES[:2]
+    acks, heard, faults = await bridge(send)(transfer, pause_ms, log, frames)
+    assert acks == [0] * len(frames)
+    assert heard == [(ident, 0, len(data), data) for ident, data in frames], heard
+    assert faults == 0
+    await bridge(stop_engine_1)(transfer)
+    acks, heard, faults = await bridge(send)(transfer, pause_ms, log, frames)
+    assert acks == [1] * len(frames)
+    assert heard == [] and faults == 0
+    decoded = decode(analyser, "can_node")
+    idents = [ident for ident, _ in frames] * 2
+    assert can_ids(decoded) == ["%d (0x%x)" % (i, i) for i in idents], decoded
+    slots = [line for line in decoded if "ACK slot" in line]
+    assert slots == ["can-1: ACK slot: ACK"] * len(frames) + ["can-1: ACK slot: NACK"] * len(
+        frames
+    ), slots
 
 
 # Standard-mode at 100 kHz: SCL low and high 5 us each, SDA moving a quarter into the low
