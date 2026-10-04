@@ -139,22 +139,21 @@ def assert_typed(dut, out0, period, taken, text):
         assert taken[3 * n] < start < taken[3 * n + 1], f"{key} out of step with its report"
 
 
-@cocotb.test()
-async def test_keyboard(dut):
-    """Act 3 as the Pico runs it: demo_usb.serve against a host that resets the bus, reads
-    the device descriptor, sets address 3, configures it and polls the keyboard, while
-    engine 1 sends each key the host took out of OUT0, every edge on its certified cycle."""
+async def act3(dut, queue, logs):
+    """Act 3's enumeration as the Pico runs it, serving queue and logging with logs(host).
+    Returns the host's handles, OUT0's edges, the board, and end(), which stops the Pico
+    and checks neither engine faulted."""
     await reset(dut)
     dut.uio_in.value = 2
     pins = Pins(dut)
     wire = Wire(dut)
     board = usb_board.Board(demo_usb.DESCRIPTORS)
     # engine 0's starts, as engine 1's start comes first
-    starts, selected, done = [], [0], False
+    starts, selected, done = [], [0], [False]
 
     @resume
     async def transfer(data):
-        if done:
+        if done[0]:
             raise Done
         replies = await pins.transfer(data)
         if data[:2] == [0x80 | SELECT, 0]:
@@ -177,10 +176,9 @@ async def test_keyboard(dut):
 
     def serve():
         host = Host(transfer)
-        # the testbench's 50 MHz, so 434 cycles a bit
-        log = demo_usb.start_log(host, demo_usb.words("uart_tx_host_rate"), 50_000_000)
+        log = logs(host)
         try:
-            demo_usb.serve(host, board, demo_usb.reports("hi"), demo_usb.se0_reset(lines, ms), log)
+            demo_usb.serve(host, board, queue, demo_usb.se0_reset(lines, ms), log)
         except Done:
             pass
 
@@ -236,7 +234,7 @@ async def test_keyboard(dut):
     assert await poll_in(0, 0) == data_packet(0x4B, [])
     await until(lambda: len(starts) == 3)
 
-    # typing waits for SET_CONFIGURATION, then for the report descriptor's read
+    # reports wait for SET_CONFIGURATION, then for the report descriptor's read
     await setup(3, [0x00, 9, 1, 0, 0, 0, 0, 0])
     assert await poll_in(3, 0) == data_packet(0x4B, [])
     length = len(demo_usb.REPORT)
@@ -250,22 +248,43 @@ async def test_keyboard(dut):
     assert report == demo_usb.REPORT
     await status_out(3)
 
+    async def end():
+        done[0] = True
+        await wire.drive(J, 400)
+        await server
+        watcher.cancel()
+        await assert_no_faults(pins)
+
+    return types.SimpleNamespace(
+        poll_in=poll_in, setup=setup, until=until, acked=acked, out0=out0, board=board,
+        wire=wire, end=end)
+
+
+def start_log(host):
+    """Engine 1 on uart_tx_host_rate at the testbench's 50 MHz, so 434 cycles a bit."""
+    return demo_usb.start_log(host, demo_usb.words("uart_tx_host_rate"), 50_000_000)
+
+
+@cocotb.test()
+async def test_keyboard(dut):
+    """Act 3 typing: after a SET_IDLE the keyboard's reports, while engine 1 sends each key
+    the host took out of OUT0, every edge on its certified cycle."""
+    laptop = await act3(dut, demo_usb.reports("hi"), start_log)
+    board = laptop.board
+
     # A SET_IDLE once typing has started, h's report in the fifo. The status packet queues
     # behind it, the status IN drops the report, and the ACK after that is the status
     # packet's.
-    await until(lambda: board.pending_report is not None and not board.replies)
-    await setup(3, [0x21, 0x0A, 0, 0, 0, 0, 0, 0])
-    await wire.drive(J, 100)
-    assert await poll_in(3, 0) == data_packet(0x4B, [])
+    await laptop.until(lambda: board.pending_report is not None and not board.replies)
+    await laptop.setup(3, [0x21, 0x0A, 0, 0, 0, 0, 0, 0])
+    await laptop.wire.drive(J, 100)
+    assert await laptop.poll_in(3, 0) == data_packet(0x4B, [])
 
     h, i = demo_usb.KEYS["h"], demo_usb.KEYS["i"]
     # the fifth, i's release, is queued only once i is logged
-    received = [await poll_in(3, 1) for _ in range(5)]
-    taken = acked[-5:]
-    done = True
-    await wire.drive(J, 400)
-    await server
-    watcher.cancel()
+    received = [await laptop.poll_in(3, 1) for _ in range(5)]
+    taken = laptop.acked[-5:]
+    await laptop.end()
     assert received == [
         data_packet(0xC3, [1, 0, h, 0, 0, 0, 0, 0]),
         data_packet(0x4B, [1, 0, 0, 0, 0, 0, 0, 0]),
@@ -274,8 +293,7 @@ async def test_keyboard(dut):
         data_packet(0xC3, [1, 0, 0, 0, 0, 0, 0, 0]),
     ], received
     assert board.address == 3
-    assert_typed(dut, out0, 434, taken, b"hi")
-    await assert_no_faults(pins)
+    assert_typed(dut, laptop.out0, 434, taken, b"hi")
 
 
 # test_keyboard's Python takes no sim time, so it passed while the bench overflowed the rx
