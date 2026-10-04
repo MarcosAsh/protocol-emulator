@@ -16,6 +16,7 @@ from test import AsyncHost, Pins, reset
 from test_usb_board import J, SE0, Wire, data_packet, token
 import protocol_emulator
 from protocol_emulator import CONTROL, SELECT, STATUS, TX, Host
+import demo_draw
 import demo_self_check
 import demo_self_timing
 import demo_sweep
@@ -23,6 +24,10 @@ import demo_usb
 import sweep_firmware
 import usb_board
 import usb_device_firmware
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "demo"))
+import draw  # noqa: E402
+import outline  # noqa: E402
 
 # cycles in a microsecond at 48 MHz, for the Pico's pauses
 US = 48
@@ -294,6 +299,46 @@ async def test_keyboard(dut):
     ], received
     assert board.address == 3
     assert_typed(dut, laptop.out0, 434, taken, b"hi")
+
+
+@cocotb.test()
+async def test_mouse_draw(dut):
+    """The drawing's first stroke, the tile's outline split at 127: each IN carries the next
+    report, the reports add up to the outline, and engine 1 sends each one taken."""
+    die, cells, _ = outline.read()
+    strokes = outline.pen_path(outline.outlines(outline.regions(die, cells)), die, 800)
+    data = demo_draw.encode(strokes, 0)
+    assert list(data[1:4]) == [1, 0, 0], "the tile starts where the pointer does"
+    release = next(at for at in range(4, len(data), 3) if data[at] == 0)
+    count = (release - 1) // 3 + 1
+    data = data[:release + 3]
+    queue = demo_draw.Reports(data, lambda: 0)
+    queue.start(0)
+
+    def logs(host):
+        start_log(host)
+        return demo_draw.logger(host, queue, count, lambda: 0, dut._log.info)
+
+    laptop = await act3(dut, queue, logs)
+    received = []
+    for _ in range(count):
+        received.append(await laptop.poll_in(3, 1))
+        # the next poll after three bytes at 115200 baud, as the laptop's 10 ms is
+        await laptop.wire.drive(J, 500)
+    taken = laptop.acked[-count:]
+    await laptop.end()
+
+    reports = [list(data[at:at + 3]) for at in range(1, len(data), 3)]
+    assert received == [
+        data_packet(0xC3 if n % 2 == 0 else 0x4B, [2] + report)
+        for n, report in enumerate(reports)
+    ], received
+    drawn, _, end = draw.replay(bytes([0]) + bytes(b for p in received for b in p[2:5]))
+    assert draw.drift(strokes[:1], drawn, end) <= 0.5, drawn
+    frames = uart_frames(laptop.out0[1:], 434)
+    assert [byte for _, byte in frames] == [b for report in reports for b in report], frames
+    for n in range(count):
+        assert taken[n] < frames[3 * n][0], f"report {n} logged before it was taken"
 
 
 # test_keyboard's Python takes no sim time, so it passed while the bench overflowed the rx
