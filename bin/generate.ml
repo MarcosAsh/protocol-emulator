@@ -266,6 +266,9 @@ let config_field =
     | None -> raise_s [%message "expected FIELD=VALUE" (text : string)])
 ;;
 
+(* [Asm.Program.configure] takes these from the source, so a flag could not set them. *)
+let from_source = [ "side_set_count"; "wrap_bottom"; "wrap_top" ]
+
 let set_fields config fields =
   match Program_config.sexp_of_t config with
   | Atom _ as sexp -> raise_s [%message "BUG: config is not a record" (sexp : Sexp.t)]
@@ -276,7 +279,9 @@ let set_fields config fields =
     in
     List.iter fields ~f:(fun (field, _) ->
       if not (List.mem (List.filter_map pairs ~f:field_of) field ~equal:String.equal)
-      then raise_s [%message "no such field of the configuration" (field : string)]);
+      then raise_s [%message "no such field of the configuration" (field : string)];
+      if List.mem from_source field ~equal:String.equal
+      then raise_s [%message "the source file sets this field" (field : string)]);
     List
       (List.map pairs ~f:(fun pair ->
          match field_of pair with
@@ -296,7 +301,7 @@ let program_config =
       flag
         "-config"
         (optional_with_default [] (Arg_type.comma_separated config_field))
-        ~doc:"FIELD=VALUE,... any field of the configuration, over the other flags"
+        ~doc:"FIELD=VALUE,... a field of the configuration, over the other flags"
     and capture_pin =
       flag
         "-capture-pin"
