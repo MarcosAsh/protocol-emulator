@@ -260,7 +260,8 @@ let%expect_test "a read whose parity is wrong" =
 
 (* A DP whose first two OK ACKs the wire garbles goes on with the data phase: RDATA for
    the read, which the core lets be, and WDATA for the write, which the core does not
-   send. A line reset after, and the DP answers as it should. *)
+   send, so the DP takes the pull-up's ones, whose parity fails: WDATAERR, until the
+   act's ABORT clears it after a line reset. *)
 let%expect_test "ACKs the wire garbled" =
   let bus = Bus.create [ dp ~corrupt_acks:2 rp2040_core0 ] in
   let items =
@@ -270,6 +271,9 @@ let%expect_test "ACKs the wire garbled" =
     ; write 0x0 0x04
     ; Bits line_reset
     ; read 0x0
+    ; read 0x4
+    ; write 0x0 0x1c
+    ; read 0x4
     ; Bits release
     ]
   in
@@ -284,12 +288,20 @@ let%expect_test "ACKs the wire garbled" =
      (reply ((ack (Invalid 5)) (data ()) (parity_error false))))
     ((transfer (Read (ap false) (address 0)))
      (reply ((ack Ok) (data (0xbc12477)) (parity_error false))))
+    ((transfer (Read (ap false) (address 4)))
+     (reply ((ack Ok) (data (0x80)) (parity_error false))))
+    ((transfer (Write (ap false) (address 0) (value 0x1c)))
+     (reply ((ack Ok) (data ()) (parity_error false))))
+    ((transfer (Read (ap false) (address 4)))
+     (reply ((ack Ok) (data (0x0)) (parity_error false))))
     ((dp 0)
      (log
       ("dormant to SWD" "line reset" "R DP 0x0 OK 0x0bc12477, ACK garbled"
-       "W DP 0x0 with no WDATA" "line reset" "R DP 0x0 OK 0x0bc12477"))
+       "W DP 0x0 OK 0xffffffff, undriven, WDATAERR" "line reset"
+       "R DP 0x0 OK 0x0bc12477" "R DP 0x4 OK 0x00000080" "W DP 0x0 OK 0x0000001c"
+       "R DP 0x4 OK 0x00000000"))
      (measured_ns
-      (("SWCLK low" (200 6940)) ("SWCLK high" (200 580)) (setup (180 3000))
+      (("SWCLK low" (200 6940)) ("SWCLK high" (200 580)) (setup (180 10600))
        (hold (200 220))))
      (violations ()))
     ((contention ())
@@ -503,8 +515,9 @@ let%expect_test "swd in lockstep" =
     ("lockstep held" (cycles 12000))
     ((log
       ("dormant to SWD" "line reset" "TARGETSEL 0x01002927: selected"
-       "R DP 0x0 OK 0x0bc12477, ACK garbled" "W DP 0x0 with no WDATA"
-       "dormant to SWD" "line reset" "TARGETSEL 0x01002927: deselected"))
+       "R DP 0x0 OK 0x0bc12477, ACK garbled"
+       "W DP 0x0 OK 0xffffffff, undriven, WDATAERR" "dormant to SWD" "line reset"
+       "TARGETSEL 0x01002927: deselected"))
      (model.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
     |}]

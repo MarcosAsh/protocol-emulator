@@ -759,7 +759,8 @@ module Dp = struct
       { t with phase = Respond { actions; sampled = []; request } })
   ;;
 
-  (* WDATA the host drove every bit of, or none of, which is a host backing off *)
+  (* WDATA as the line had it, whoever drove it, as silicon cannot tell: a host backing
+     off leaves the pull's level. A host driving part of it is a violation. *)
   let complete t ~request ~sampled =
     let driven = List.count sampled ~f:snd in
     let sampled = List.rev_map sampled ~f:fst in
@@ -768,22 +769,34 @@ module Dp = struct
     in
     let good = parity value = List.nth_exn sampled 32 in
     let ap, read, address = fields request in
-    if driven = 0
-    then note { t with phase = Idle } (describe request ^ " with no WDATA")
-    else if driven < List.length sampled
-    then violation { t with phase = Idle } (describe request ^ ", WDATA part undriven")
-    else if (not ap) && (not read) && address = 0xc
+    let t = { t with phase = Idle } in
+    let t =
+      if driven > 0 && driven < List.length sampled
+      then violation t (describe request ^ ", WDATA part undriven")
+      else t
+    in
+    let undriven = if driven = 0 then ", undriven" else "" in
+    if (not ap) && (not read) && address = 0xc
     then (
       let selected = good && value = t.targetid in
       note
-        { t with selected; phase = Idle }
+        { t with selected }
         (sprintf
-           "TARGETSEL 0x%08x: %s"
+           "TARGETSEL 0x%08x%s: %s"
            value
+           undriven
            (if selected then "selected" else "deselected")))
     else (
-      let t = note t (sprintf "%s OK 0x%08x" (describe request) value) in
-      let t = { t with phase = Idle } in
+      let t =
+        note
+          t
+          (sprintf
+             "%s OK 0x%08x%s%s"
+             (describe request)
+             value
+             undriven
+             (if good then "" else ", WDATAERR"))
+      in
       if good then write_register t request value else { t with wdata_err = true })
   ;;
 

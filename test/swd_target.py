@@ -184,25 +184,24 @@ class Dp:
             self.actions = self.respond(ap, read, address)
 
     def complete(self):
-        """WDATA the host drove every bit of, or none of, which is a host backing off."""
+        """WDATA as the line had it, whoever drove it, as silicon cannot tell: a host
+        backing off leaves the pull's level. A host driving part of it is a violation."""
         driven = sum(d for _, d in self.sampled)
         bits = [b for b, _ in self.sampled]
         value = sum(b << i for i, b in enumerate(bits[:32]))
         good = parity(value) == bits[32]
         ap, address = (self.request >> 1) & 1, ((self.request >> 3) & 3) << 2
         name = "W %s 0x%x" % ("AP" if ap else "DP", address)
-        if driven == 0:
-            self.log.append(name + " with no WDATA")
-            return
-        if driven < len(bits):
+        if 0 < driven < len(bits):
             self.violations.append(name + ", WDATA part undriven")
-            return
+        undriven = "" if driven else ", undriven"
         if not ap and address == 0xC:
             self.selected = good and value == self.targetid
-            self.log.append("TARGETSEL 0x%08x: %s" % (
-                value, "selected" if self.selected else "deselected"))
+            self.log.append("TARGETSEL 0x%08x%s: %s" % (
+                value, undriven, "selected" if self.selected else "deselected"))
             return
-        self.log.append("%s OK 0x%08x" % (name, value))
+        self.log.append("%s OK 0x%08x%s%s" % (
+            name, value, undriven, "" if good else ", WDATAERR"))
         if not good:
             self.wdata_err = True
         elif ap:

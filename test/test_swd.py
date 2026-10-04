@@ -217,8 +217,9 @@ async def test_swd_parity(dut):
 @cocotb.test()
 async def test_swd_garbled_ack(dut):
     """A DP whose first two OK ACKs the wire garbles and which goes on with the data phase:
-    the core lets the line be through RDATA and sends no WDATA, then a line reset and the
-    DP answers."""
+    the core lets the line be through RDATA and WDATA, so the DP takes the pull-up's ones,
+    whose parity fails. After a line reset the DP answers, WDATAERR set until the act's
+    ABORT clears it."""
     await reset(dut)
     bus = swd_target.Bus([swd_target.Dp(swd_target.CORE0, corrupt_acks=2)])
     task = wire(dut, bus)
@@ -230,14 +231,21 @@ async def test_swd_garbled_ack(dut):
         swd.line_reset()
         acks = [swd.read(0, 0x0)[0], swd.write(0, demo_swd.ABORT, 0x4)]
         swd.line_reset()
-        return acks, swd.read(0, 0x0)
+        read = swd.read(0, 0x0)
+        before = swd.read(0, demo_swd.CTRL_STAT)
+        cleared = swd.write(0, demo_swd.ABORT, demo_swd.CLEAR_STICKY)
+        return acks, read, before, cleared, swd.read(0, demo_swd.CTRL_STAT)
 
-    acks, read = await bridge(act)()
+    acks, read, before, cleared, after = await bridge(act)()
     await unwire(dut, task)
     clean(bus)
+    OK = swd_target.OK
     assert acks == [0b101, 0b101], acks
-    assert read == (swd_target.OK, swd_target.DPIDR, True), read
-    assert "W DP 0x0 with no WDATA" in bus.dps[0].log, bus.dps[0].log
+    assert read == (OK, swd_target.DPIDR, True), read
+    assert before == (OK, 0x80, True) and cleared == OK and after == (OK, 0, True), \
+        (before, cleared, after)
+    # the host drove none of WDATA: the DP saw the pull-up alone
+    assert "W DP 0x0 OK 0xffffffff, undriven, WDATAERR" in bus.dps[0].log, bus.dps[0].log
 
 
 @cocotb.test()
