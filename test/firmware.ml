@@ -429,7 +429,7 @@ let i2c_config =
 
 (* Lets SCL go and polls it every four cycles, 65536 times at most, for a slave holding it
    low. Once high, [t] is set where [i2c_master]'s is when SCL rises at once, so what
-   follows is timed from the poll that saw it high, at most three cycles after the rise. *)
+   follows is timed from the poll that saw it high, 0 to 3 cycles after the input did. *)
 let scl_rise ?(stuck = "stuck") label =
   [%string
     {|    mov y, !null side 0          ; SCL let go

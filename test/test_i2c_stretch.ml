@@ -196,6 +196,8 @@ let%expect_test "the certificate starts again from the poll that sees SCL high" 
     |}]
 ;;
 
+(* In the model, whose inputs take no time; on the RTL every high is longer by the input
+   path's delay. *)
 let%expect_test "without a stretch the bus is the plain master's, cycle for cycle" =
   List.iter [ 8; 13 ] ~f:(fun quarter ->
     let bus (config, program) =
