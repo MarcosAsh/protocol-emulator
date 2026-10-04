@@ -18,6 +18,7 @@ on:
       - '!test/assemble/**'
       - '!test/certify/**'
       - '!test/split/**'
+      - '!test/python/**'
       - '!test/**.md'
       - '!test/test_demo.py'
       - '!test/test_outside.py'
