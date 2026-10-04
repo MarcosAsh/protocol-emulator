@@ -1,0 +1,76 @@
+[tasks]
+prove
+cover
+heard teeth
+any_turn teeth
+region_written teeth
+load_anytime teeth
+start_write teeth
+
+[options]
+prove: mode prove
+prove: depth 3
+cover: mode cover
+cover: depth 16
+teeth: mode bmc
+teeth: depth 16
+teeth: expect fail
+
+[engines]
+smtbmc boolector
+
+[script]
+read_verilog -lib RM_IHPSG13_1P_512x16_c2_bm_bist.v
+~any_turn: read_verilog engines_sram.v
+any_turn: read_verilog engines_any_turn.v
+hierarchy -top engines_top
+proc
+flatten
+expose -evert -sep __ engines_top/t:RM_IHPSG13_1P_512x16_c2_bm_bist
+cd engines_top
+expose w:engines.engine_0.pins_sampled w:engines.engine_0.start_0
+expose w:engines.data_memory.mine_1 w:engines.data_memory.words_0
+rename engines.engine_0.pins_sampled pins_sampled_0
+rename engines.engine_0.start_0 started_0
+rename engines.data_memory.mine_1 data_mine_0
+rename engines.data_memory.words_0 data_word_0
+rename engines.engine_0.sram_macro.sram__A_MEN sram_0_men
+rename engines.engine_0.sram_macro.sram__A_WEN sram_0_wen
+rename engines.engine_0.sram_macro.sram__A_REN sram_0_ren
+rename engines.engine_0.sram_macro.sram__A_ADDR sram_0_addr
+rename engines.engine_0.sram_macro.sram__A_DIN sram_0_din
+rename engines.engine_0.sram_macro.sram__A_BM sram_0_bm
+rename engines.engine_0.sram_macro.sram__A_DOUT sram_0_dout
+rename engines.engine_1.sram_macro.sram__A_MEN sram_1_men
+rename engines.engine_1.sram_macro.sram__A_WEN sram_1_wen
+rename engines.engine_1.sram_macro.sram__A_REN sram_1_ren
+rename engines.engine_1.sram_macro.sram__A_ADDR sram_1_addr
+rename engines.engine_1.sram_macro.sram__A_DIN sram_1_din
+rename engines.engine_1.sram_macro.sram__A_BM sram_1_bm
+rename engines.engine_1.sram_macro.sram__A_DOUT sram_1_dout
+rename engines.data_memory.sram_macro.sram__A_MEN data_sram_men
+rename engines.data_memory.sram_macro.sram__A_WEN data_sram_wen
+rename engines.data_memory.sram_macro.sram__A_REN data_sram_ren
+rename engines.data_memory.sram_macro.sram__A_ADDR data_sram_addr
+rename engines.data_memory.sram_macro.sram__A_DIN data_sram_din
+rename engines.data_memory.sram_macro.sram__A_BM data_sram_bm
+rename engines.data_memory.sram_macro.sram__A_DOUT data_sram_dout
+cd ..
+memory_map engines_top
+tcl isolation.tcl
+teeth: read -define NO_INVARIANT
+heard: read -define HEARD
+region_written: read -define REGION_WRITTEN
+load_anytime: read -define LOAD_ANYTIME
+start_write: read -define START_WRITE
+read_verilog -formal -sv isolation.sv
+prep -top isolation
+
+[files]
+~any_turn: engines_sram.v
+any_turn: engines_any_turn.v
+../src/RM_IHPSG13_1P_512x16_c2_bm_bist.v
+flops.tcl
+isolation.tcl
+pairs.sv
+isolation.sv

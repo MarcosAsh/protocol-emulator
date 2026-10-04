@@ -12,6 +12,18 @@ proc wires {selection} {
   return $found
 }
 
+# the wires a connect of the module's own joins to wire, other names for its flop
+proc aliases {wire} {
+  set found {}
+  foreach line [split [yosys tee -q -s result.string dump] "\n"] {
+    if {[regexp {^  connect \\(\S+) \\(\S+)$} $line -> lhs rhs]} {
+      if {$lhs eq $wire} { lappend found $rhs }
+      if {$rhs eq $wire} { lappend found $lhs }
+    }
+  }
+  return $found
+}
+
 # a new output port holding the wires, the first at bit 0; returns its width
 proc gather {port wires} {
   set bits 0
