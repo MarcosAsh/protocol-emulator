@@ -23,6 +23,7 @@ on:
       - '!test/python/**'
       - '!test/**.md'
       - '!test/test_demo.py'
+      - '!test/test_demo_board.py'
       - '!test/test_outside.py'
       - '!test/test_swd.py'
       - '!test/swd_target.py'
