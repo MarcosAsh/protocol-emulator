@@ -4,7 +4,8 @@
 # captures, then prints the Pico's log and sigrok's decode. Reset the chip first, as faults
 # hold until reset, but not for can or can_node, which run on the engine their arm() left
 # running.
-# Usage: PICO=id:<serial of Pico A> demo/outside.sh flash|eeprom|ds18b20|neopixel|start_hold|can|can_node|swd|referee
+# Usage: PICO=id:<serial of Pico A> demo/outside.sh <act>, one of
+#   flash eeprom eeprom_stretch ds18b20 neopixel start_hold can can_node swd referee
 set -e
 act=$1
 files=
@@ -16,6 +17,11 @@ flash)
 eeprom)
     ms=3000
     decode="-P i2c:sda=D6:scl=D7,eeprom24xx:chip=onsemi_cat24c256 -A eeprom24xx"
+    ;;
+eeprom_stretch)
+    ms=3000
+    decode="-P i2c:sda=D6:scl=D7,eeprom24xx:chip=onsemi_cat24c256 -A eeprom24xx"
+    files=python/demo_eeprom.py
     ;;
 ds18b20)
     ms=4000
@@ -50,7 +56,7 @@ referee)
         test/uart_tx_host_rate_rows.hex test/self_check_wire.hex test/scrub.hex"
     ;;
 *)
-    echo "usage: PICO=id:<serial> $0 flash|eeprom|ds18b20|neopixel|start_hold|can|can_node|swd|referee" >&2
+    echo "usage: PICO=id:<serial> $0 flash|eeprom|eeprom_stretch|ds18b20|neopixel|start_hold|can|can_node|swd|referee" >&2
     exit 1
     ;;
 esac

@@ -75,9 +75,10 @@ def find(host):
     return None
 
 
-def run(transfer, clock, log=print):
+def run(transfer, clock, log=print, firmware=bench_firmware.I2C_MASTER):
+    """firmware is I2C_MASTER or I2C_MASTER_STRETCH, which take the same words."""
     host = pe.Host(transfer)
-    bench.load(host, bench_firmware.I2C_MASTER)
+    bench.load(host, firmware)
     host.start()
     # the quarter comes first and is not answered
     host.push([QUARTER])
@@ -107,7 +108,7 @@ def run(transfer, clock, log=print):
     return got == value and back == page and not found
 
 
-if __name__ == "__main__":
+def main(firmware):
     import time
 
     import pico_board
@@ -116,4 +117,9 @@ if __name__ == "__main__":
     spi = pico_board.PicoSpi()
     time.sleep_ms(bench.START_MS)
     start = time.ticks_ms()
-    bench.report(lambda: run(spi.transfer, lambda: time.ticks_diff(time.ticks_ms(), start), log), log)
+    bench.report(lambda: run(
+        spi.transfer, lambda: time.ticks_diff(time.ticks_ms(), start), log, firmware), log)
+
+
+if __name__ == "__main__":
+    main(bench_firmware.I2C_MASTER)
