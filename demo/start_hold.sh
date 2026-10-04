@@ -35,6 +35,8 @@ fi
 # the decode lists every START, so runs of them are counted
 out=$(mktemp)
 trap 'rm -f "$out"' EXIT
-demo/outside.sh start_hold > "$out"
+status=0
+demo/outside.sh start_hold > "$out" || status=$?
 uniq -c "$out" | sed 's/^ *1 //'
+[ "$status" -eq 0 ] || exit "$status"
 python3 demo/start_hold.py start_hold.sr
