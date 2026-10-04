@@ -6,7 +6,8 @@
 # known case, an rx read that empties the fifo. Inputs change on the falling edge;
 # outputs are sampled on the next falling edge.
 # REPLAY_TRACES gives other globs under test/; REPLAY_RECORD a folder where each trace is
-# written again with the outputs the netlist drove, for demo/decode.py.
+# written again with the outputs the netlist drove, an x or z as 0, for demo/decode.py.
+# A trace that differs still runs to its end and is written, then fails.
 
 import os
 from pathlib import Path
@@ -67,6 +68,7 @@ async def replay(dut, path):
         await FallingEdge(dut.clk)
     dut.rst_n.value = 1
     cycles = []
+    difference = None
     for count, (ui_in, uio_in, *expected) in read_trace(path):
         dut.ui_in.value = ui_in
         dut.uio_in.value = uio_in
@@ -75,14 +77,14 @@ async def replay(dut, path):
             driven = []
             for name, want in zip(OUTPUTS, expected):
                 got = str(getattr(dut, name).value)
-                if got != format(want, "08b"):
-                    difference = first_difference(name, want, got)
-                    assert False, f"{path.name} cycle {len(cycles)}: {difference}"
-                driven.append(int(got, 2))
+                if difference is None and got != format(want, "08b"):
+                    difference = f"cycle {len(cycles)}: {first_difference(name, want, got)}"
+                driven.append(int("".join(b if b in "01" else "0" for b in got), 2))
             cycles.append((ui_in, uio_in, *driven))
     if RECORD:
         record(path, cycles)
     dut._log.info(f"{path.name}: {len(cycles)} cycles")
+    assert difference is None, f"{path.name} {difference}"
 
 
 def make_test(path):
