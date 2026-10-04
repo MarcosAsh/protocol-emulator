@@ -7,7 +7,7 @@ open Protocol_emulator_test
    bench's clock needs, each checked by the analyser and the kernel under the assumption
    it runs with, as the command line does. The Icepi's USB build drives IO0 and IO1's
    header pins with the USB lines, so I2C moves to IO2 and IO3, 1-Wire to IO4 and 10BASE-T
-   to IO6 and IO7. SWD is on pins no other act uses, OUT2 and IO5, as the library has it. *)
+   to IO6 and IO7. SWD, not yet in the library, is on pins no other act uses, OUT2 and IO5. *)
 let sda = 14
 let scl = 15
 let one_wire = 16

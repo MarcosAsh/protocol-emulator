@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Pico B's SWD port on the library's SWD host (MicroPython, Pico A): OUT2 (header 12) to
+# Pico B's SWD port on the chip's SWD host (MicroPython, Pico A): OUT2 (header 12) to
 # SWCLK, pin 1 of Pico B's debug connector, IO5 (header 36) to SWDIO, pin 3, GND to pin 2,
 # each line through 220 R, and 4.7 k from SWDIO to Pico B's 3V3. Reads core 0's DPIDR and
 # AP IDR and core 1's DPIDR, checks an absent instance stays silent, then lets the lines
@@ -132,16 +132,18 @@ def run(transfer, log=print, half=HALF):
     host = pe.Host(transfer)
     bench.load(host, bench_firmware.SWD)
     host.start()
+    finished = False
     try:
         ok = act(Swd(host), host, log, half)
-    except BaseException:
+        finished = True
+    finally:
         # what stopped the act is what it raises, even if letting go fails too
         try:
             let_go(host)
         except Exception as e:
+            if finished:
+                raise
             log("SWCLK and SWDIO may be held, reset the chip: %s" % e)
-        raise
-    let_go(host)
     return ok
 
 
