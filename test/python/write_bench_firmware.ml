@@ -7,9 +7,9 @@ open Protocol_emulator_test
    bench's clock needs, each checked by the analyser and the kernel under the assumption
    it runs with, as the command line does. The Icepi's USB build drives IO0 and IO1's
    header pins with the USB lines, so I2C moves to IO2 and IO3, 1-Wire to IO4 and 10BASE-T
-   to IO6 and IO7. SWD, the SPI master with chip select and the CAN node are not in the
-   library: SWD is on OUT2 and IO5, the flash act's chip select on OUT2 too, and the CAN
-   node's CRX on IN1. *)
+   to IO6 and IO7. SWD, the SPI master with chip select, the I2C master that waits on SCL
+   and the CAN node are not in the library: SWD is on OUT2 and IO5, the flash act's chip
+   select on OUT2 too, and the CAN node's CRX on IN1. *)
 let sda = 14
 let scl = 15
 let one_wire = 16
@@ -41,6 +41,18 @@ let bench =
       ; set_base = sda
       ; in_base = sda
       ; jmp_pin = sda
+      }
+    , `Floor 31 )
+  ; ( "i2c_master_stretch"
+    , "Firmware.i2c_master_stretch_host_rate: i2c_master waiting on SCL, SDA on IO2, SCL \
+       on IO3"
+    , Firmware.i2c_master_stretch_host_rate
+    , { Firmware.i2c_stretch_config with
+        side_set_base = scl
+      ; out_base = sda
+      ; set_base = sda
+      ; in_base = sda
+      ; jmp_pin = scl
       }
     , `Floor 31 )
   ; ( "one_wire"
