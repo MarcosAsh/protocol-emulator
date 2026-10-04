@@ -81,6 +81,30 @@ let top_rtl_command =
           C.create_exn ~name (Top.hierarchical ~memory ~engines scope))]
 ;;
 
+let provenance_command =
+  Command.basic
+    ~summary:"The src line each Verilog name of the tiny tapeout top came from, as JSON"
+    ~readme:(fun () ->
+      "Takes the same flags as top and gives the names it prints. A name with no src \
+       line is null.")
+    [%map_open.Command
+      let memory = memory
+      and engines = engines in
+      fun () ->
+        let module C = Circuit.With_interface (Top.I) (Top.O) in
+        Provenance.traced (fun () ->
+          let scope = Scope.create ~auto_label_hierarchical_ports:true () in
+          let circuit =
+            C.create_exn
+              ~name:"protocol_emulator"
+              (Top.hierarchical ~memory ~engines scope)
+          in
+          Rtl.create ~database:(Scope.circuit_database scope) Verilog [ circuit ])
+        |> Provenance.of_rtl
+        |> Provenance.to_json
+        |> print_string]
+;;
+
 let memory_rtl_command =
   Command.basic
     ~summary:
@@ -531,6 +555,7 @@ let () =
        [ "engine", engine_rtl_command
        ; "engines", engines_rtl_command
        ; "top", top_rtl_command
+       ; "provenance", provenance_command
        ; "memory", memory_rtl_command
        ; "kernel", kernel_rtl_command
        ; "kernel-gates", kernel_gates_command

@@ -18,6 +18,7 @@
    (glob_files *.asm)
    (glob_files assemble/*.asm)
    (glob_files *.hex)
-   ../formal/Makefile)
+   ../formal/Makefile
+   ../src/protocol_emulator.v)
   (flags
    (-source-tree-root .))))
