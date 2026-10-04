@@ -258,9 +258,72 @@ let kernel_accepts_rtl_command =
           C.create_exn ~name (Kernel.Accepts.hierarchical scope))]
 ;;
 
-(* The assumptions are the analyser's, under its names. The capture pin and autopull
-   belong to the configuration, which the host loads and a source file does not carry.
-   Gives the analyser's rows under them, checked unless [-no-timing-check]. *)
+(* [FIELD=VALUE] over the record's sexp, so every field goes by its own name *)
+let config_field =
+  Command.Arg_type.create (fun text ->
+    match String.lsplit2 text ~on:'=' with
+    | Some (field, value) -> field, Sexp.of_string value
+    | None -> raise_s [%message "expected FIELD=VALUE" (text : string)])
+;;
+
+let set_fields config fields =
+  match Program_config.sexp_of_t config with
+  | Atom _ as sexp -> raise_s [%message "BUG: config is not a record" (sexp : Sexp.t)]
+  | List pairs ->
+    let field_of = function
+      | Sexp.List [ Atom field; _ ] -> Some field
+      | _ -> None
+    in
+    List.iter fields ~f:(fun (field, _) ->
+      if not (List.mem (List.filter_map pairs ~f:field_of) field ~equal:String.equal)
+      then raise_s [%message "no such field of the configuration" (field : string)]);
+    List
+      (List.map pairs ~f:(fun pair ->
+         match field_of pair with
+         | None -> pair
+         | Some field ->
+           List.Assoc.find fields field ~equal:String.equal
+           |> Option.value_map ~default:pair ~f:(fun value ->
+             Sexp.List [ Atom field; value ])))
+    |> Program_config.t_of_sexp
+;;
+
+(* The capture pin and autopull belong to the configuration, which the host loads and a
+   source file does not carry. *)
+let program_config =
+  [%map_open.Command
+    let fields =
+      flag
+        "-config"
+        (optional_with_default [] (Arg_type.comma_separated config_field))
+        ~doc:"FIELD=VALUE,... any field of the configuration, over the other flags"
+    and capture_pin =
+      flag
+        "-capture-pin"
+        (optional_with_default Program_config.default.capture_pin int)
+        ~doc:"N the capture pin that assumption is about"
+    and capture_falling =
+      flag "-capture-falling" no_arg ~doc:" the capture is of a falling edge"
+    and autopull_data =
+      flag
+        "-autopull-data"
+        (optional int)
+        ~doc:"N every out autopulls from the data memory once N bits are shifted out"
+    in
+    set_fields
+      { Program_config.default with
+        capture_pin
+      ; capture_rising = not capture_falling
+      ; autopull = Option.is_some autopull_data
+      ; autopull_data = Option.is_some autopull_data
+      ; pull_threshold =
+          Option.value autopull_data ~default:Program_config.default.pull_threshold
+      }
+      fields]
+;;
+
+(* The assumptions are the analyser's, under its names. Gives the analyser's rows under
+   them, checked unless [-no-timing-check]. *)
 let timing_check =
   [%map_open.Command
     let period =
@@ -278,32 +341,10 @@ let timing_check =
         "-single-capture-edge"
         no_arg
         ~doc:" assume the capture pin makes one edge from capture_arm to the wait for it"
-    and capture_pin =
-      flag
-        "-capture-pin"
-        (optional_with_default Program_config.default.capture_pin int)
-        ~doc:"N the capture pin that assumption is about"
-    and capture_falling =
-      flag "-capture-falling" no_arg ~doc:" the capture is of a falling edge"
-    and autopull_data =
-      flag
-        "-autopull-data"
-        (optional int)
-        ~doc:"N every out autopulls from the data memory once N bits are shifted out"
     and no_timing_check =
       flag "-no-timing-check" no_arg ~doc:" assemble firmware that may miss a deadline"
     in
-    fun ~source (program : Asm.Program.t) ->
-      let config =
-        { Program_config.default with
-          capture_pin
-        ; capture_rising = not capture_falling
-        ; autopull = Option.is_some autopull_data
-        ; autopull_data = Option.is_some autopull_data
-        ; pull_threshold =
-            Option.value autopull_data ~default:Program_config.default.pull_threshold
-        }
-      in
+    fun ~config ~source (program : Asm.Program.t) ->
       if no_timing_check
       then
         Ok
@@ -337,6 +378,7 @@ let assemble_command =
        that fail there. -no-timing-check turns off both.")
     [%map_open.Command
       let file = anon ("FILE" %: string)
+      and config = program_config
       and timing_check = timing_check
       and listing =
         flag
@@ -354,7 +396,7 @@ let assemble_command =
           let open Or_error.Let_syntax in
           let source = In_channel.read_all file in
           let%bind program = Asm.assemble source in
-          let%bind rows = timing_check ~source program in
+          let%bind rows = timing_check ~config ~source program in
           let%map words = Asm.Program.words program in
           program, words, rows
         in
