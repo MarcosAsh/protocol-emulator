@@ -65,8 +65,8 @@ val i2c_config : Program_config.t
 (** [i2c_master] for slaves that stretch the clock: after letting SCL go it polls SCL, and
     times the rest of the high phase from the poll that sees it high, at most three cycles
     after the rise. SCL still low after 65536 polls, or low when a word comes to an idle
-    bus, lets both lines go and answers the word 0xffff. The bus clear does not wait on
-    SCL. Run under [i2c_stretch_config]. *)
+    bus, lets both lines go and answers 0xffff, off the bus, up to a START word. The bus
+    clear does not wait on SCL. Run under [i2c_stretch_config]. *)
 val i2c_master_stretch : quarter:int -> string
 
 (** [i2c_master_stretch] with the quarter from the host, as [i2c_master_host_rate]. *)

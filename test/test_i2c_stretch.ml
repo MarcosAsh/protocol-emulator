@@ -146,7 +146,7 @@ let%expect_test "the kernel accepts the stretching master from a quarter of 8" =
     {|
     (accepted (quarter 8)
      ("Timed_program.verdict timed"
-      ((words 150) (deadline_waits 35) (worst_slack (0)))))
+      ((words 161) (deadline_waits 35) (worst_slack (0)))))
     (refused (quarter 7)
      (faults
       (((line 116) (pc (97))
@@ -302,19 +302,64 @@ let%expect_test "SCL held low answers 0xffff" =
     {|
     ((log ())
      (replies
-      ((65535 62) (65535 74) (65535 86) (65535 98) (65535 110) (65535 122)
-       (65535 134) (65535 146)))
-     (memory (0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)) (pc 25) (driven 0)
+      ((65535 62) (65535 69) (65535 78) (65535 93) (65535 100) (65535 115)
+       (65535 122) (65535 131)))
+     (memory (0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)) (pc 149) (driven 0)
      (fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
     ((log
       (start stop start "address 80 read" start "address 80 write" "pointer 5"
        "write 119" stop))
      (replies
-      ((65535 262477) (65535 262489) (65535 262501) (65535 262513) (65535 262525)
-       (65535 262537) (65535 262549) (65535 262561) (0 300327) (0 300635)
-       (0 300943)))
+      ((65535 262477) (65535 262484) (65535 262493) (65535 262508) (65535 262515)
+       (65535 262530) (65535 262537) (65535 262546) (0 300330) (0 300638)
+       (0 300946)))
      (memory (0 0 0 0 0 119 0 0 0 0 0 0 0 0 0 0)) (pc 25) (driven 0)
+     (fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    |}]
+;;
+
+(* SCL comes back after the timeout but before the rest of the transfer: those words are
+   answered 0xffff and kept off the bus, and the next START word goes through. *)
+let%expect_test "after a timeout only a START goes back on the bus" =
+  let config, program = stretching ~quarter:8 in
+  let memory = Array.create ~len:16 0 in
+  let run =
+    run
+      ~stuck:(300, 262_600)
+      ~later:
+        ( 263_000
+        , [ i2c_word 3
+          ; i2c_word ~stop:true 0xaa
+          ; i2c_word ~start:true 0xa0
+          ; i2c_word 5
+          ; i2c_word ~stop:true 0x77
+          ] )
+      ~memory
+      ~config
+      ~program
+      ~words:[ i2c_word ~start:true 0xa0 ]
+      ~cycles:264_500
+      ()
+  in
+  print_s
+    [%message
+      ""
+        ~replies:(run.replies : (int * int) list)
+        ~log:(run.log : string list)
+        (memory : int array)
+        ~pc:(run.machine.pc : int)
+        ~fault:(run.machine.fault : Machine.Fault.t)];
+  [%expect
+    {|
+    ((replies
+      ((65535 262477) (65535 263006) (65535 263015) (0 263348) (0 263656)
+       (0 263964)))
+     (log
+      (start stop start "address 80 read" start "address 80 write" "pointer 5"
+       "write 119" stop))
+     (memory (0 0 0 0 0 119 0 0 0 0 0 0 0 0 0 0)) (pc 25)
      (fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
     |}]

@@ -558,12 +558,25 @@ stop:
     jmp idle
 stop_stuck:                      ; held at the STOP: the word has its reply
     set pindirs, 0 side 0
-    jmp idle
+    jmp aborted
 stuck:                           ; SCL held low: let both lines go
     set pindirs, 0 side 0
     mov isr, !null side 0        ; 0xffff for the word
     push side 0
-    jmp idle
+aborted:                         ; 0xffff, off the bus, for every word up to a START
+    wait tx side 0
+    pull side 0
+    out x, 1 side 0
+    jmp x--, aborted_start
+    mov isr, !null side 0
+    push side 0
+    jmp aborted
+aborted_start:
+    mov t, now side 0
+    add t, p side 0
+    add t, p side 0
+    jmp !pin, stuck
+    jmp start
 |}]
 ;;
 
