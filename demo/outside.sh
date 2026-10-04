@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 # One outside chip act of BRINGUP.md: runs its script on Pico A while the analyser
 # captures, then prints the Pico's log and sigrok's decode. Reset the chip first, as faults
-# hold until reset, but not for can, which runs on the engine demo_can.arm() left running.
-# Usage: PICO=id:<serial of Pico A> demo/outside.sh flash|eeprom|ds18b20|neopixel|start_hold|can|swd
+# hold until reset, but not for can or can_node, which run on the engine their arm() left
+# running.
+# Usage: PICO=id:<serial of Pico A> demo/outside.sh flash|eeprom|ds18b20|neopixel|start_hold|can|can_node|swd
 set -e
 act=$1
 files=
@@ -33,12 +34,17 @@ can)
     ms=2000
     decode="-P can:can_rx=D6:nominal_bitrate=500000 -A can=id:dlc:data:crc-sequence:ack-slot:warnings"
     ;;
+can_node)
+    ms=3000
+    decode="-P can:can_rx=D6:nominal_bitrate=500000 -A can=id:dlc:data:crc-sequence:ack-slot:warnings"
+    files=python/demo_can.py
+    ;;
 swd)
     ms=3000
     decode="-P swd:swclk=D6:swdio=D7 -A swd"
     ;;
 *)
-    echo "usage: PICO=id:<serial> $0 flash|eeprom|ds18b20|neopixel|start_hold|can|swd" >&2
+    echo "usage: PICO=id:<serial> $0 flash|eeprom|ds18b20|neopixel|start_hold|can|can_node|swd" >&2
     exit 1
     ;;
 esac
