@@ -132,19 +132,25 @@ def run(transfer, log=print, half=HALF):
     host = pe.Host(transfer)
     bench.load(host, bench_firmware.SWD)
     host.start()
-    swd = Swd(host)
     try:
-        # the core answers the half period with SWDIO's level before it drives either line
-        if swd.send([half], 1)[0] != 1:
-            log("SWDIO is low with nobody driving it: power Pico B and fit the 4.7 k from "
-                "SWDIO to Pico B's 3V3 (pin 36)")
-            return False
-        return act(swd, host, log)
-    finally:
-        let_go(host)
+        ok = act(Swd(host), host, log, half)
+    except BaseException:
+        # what stopped the act is what it raises, even if letting go fails too
+        try:
+            let_go(host)
+        except Exception as e:
+            log("SWCLK and SWDIO may be held, reset the chip: %s" % e)
+        raise
+    let_go(host)
+    return ok
 
 
-def act(swd, host, log):
+def act(swd, host, log, half):
+    # the core answers the half period with SWDIO's level before it drives either line
+    if swd.send([half], 1)[0] != 1:
+        log("SWDIO is low with nobody driving it: power Pico B and fit the 4.7 k from SWDIO "
+            "to Pico B's 3V3 (pin 36)")
+        return False
     swd.wake()
     ack, dpidr, good = select(swd, CORE0, log)
     core0 = ack == OK and dpidr == DPIDR and good

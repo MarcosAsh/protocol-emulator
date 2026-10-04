@@ -356,3 +356,56 @@ async def test_swd_stopped_mid_sequence(dut):
     assert let_go(dut)
     await unwire(dut, task)
     assert bus.contention == 0
+
+
+async def stopped_reading(dut, link_fails):
+    """Ctrl-C while the act polls for core 0's DPIDR with replies waiting, and the SPI
+    link failing from then on if link_fails. What run raised, whether the lines are let
+    go, and the log."""
+    await reset(dut)
+    bus = swd_target.Bus()
+    task = wire(dut, bus)
+    transfer, log, lines = acted(dut)
+    dpidr = [0x80 | demo_swd.pe.TX, 0, demo_swd.request(0, 1, 0x0)]
+    asked, stopped = [], []
+
+    def stopping(data):
+        if stopped and link_fails:
+            raise OSError("SPI link down")
+        if list(data) == dpidr:
+            asked.append(data)
+        if asked and not stopped and data[0] == demo_swd.pe.STATUS:
+            if levels(transfer)[1]:
+                stopped.append(data)
+                raise KeyboardInterrupt
+        return transfer(data)
+
+    def act():
+        try:
+            demo_swd.run(stopping, log=log)
+        except BaseException as e:
+            return e
+        return None
+
+    raised = await bridge(act)()
+    await ClockCycles(dut.clk, 100)
+    released = let_go(dut)
+    await unwire(dut, task)
+    return raised, released, lines
+
+
+@cocotb.test()
+async def test_swd_stopped_with_replies_waiting(dut):
+    """Replies left in the rx fifo do not stop the act letting go, nor hide the Ctrl-C."""
+    raised, released, _ = await stopped_reading(dut, link_fails=False)
+    assert isinstance(raised, KeyboardInterrupt), repr(raised)
+    assert released
+
+
+@cocotb.test()
+async def test_swd_letting_go_fails(dut):
+    """The SPI link failing as the act lets go: the Ctrl-C is still what it raises, and the
+    log says the lines may be held."""
+    raised, _, lines = await stopped_reading(dut, link_fails=True)
+    assert isinstance(raised, KeyboardInterrupt), repr(raised)
+    assert "may be held" in lines[-1] and "SPI link down" in lines[-1], lines
