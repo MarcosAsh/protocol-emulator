@@ -7,8 +7,9 @@ open Protocol_emulator_test
    bench's clock needs, each checked by the analyser and the kernel under the assumption
    it runs with, as the command line does. The Icepi's USB build drives IO0 and IO1's
    header pins with the USB lines, so I2C moves to IO2 and IO3, 1-Wire to IO4 and 10BASE-T
-   to IO6 and IO7. SWD, not yet in the library, is on pins no other act uses, OUT2 and
-   IO5, and so is the CAN node's CRX, IN1. *)
+   to IO6 and IO7. SWD, the SPI master with chip select and the CAN node are not in the
+   library: SWD is on OUT2 and IO5, the flash act's chip select on OUT2 too, and the CAN
+   node's CRX on IN1. *)
 let sda = 14
 let scl = 15
 let one_wire = 16
@@ -93,6 +94,15 @@ let bench =
     , Swd.config
     , `Floor Swd.shortest_half )
   ]
+  @ List.map Spi_cs.Mode.all ~f:(fun mode ->
+    let n = Spi_cs.Mode.to_int mode in
+    ( [%string "spi_cs_mode%{n#Int}"]
+    , [%string
+        "Spi_cs.master in mode %{n#Int}, half period 8: SCK at 3 MHz, CS on OUT2 4 \
+         cycles before the first edge and 8 after the last"]
+    , Spi_cs.master ~mode ~half_period:8 ~setup:4 ~hold:8
+    , Spi_cs.config
+    , `None ))
 ;;
 
 let () =
