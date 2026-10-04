@@ -6,6 +6,7 @@ demo/outside.sh runs on the bench's capture."""
 
 import math
 import os
+import random
 import re
 import subprocess
 import sys
@@ -18,6 +19,7 @@ from cocotb.utils import get_sim_time
 from cocotbext.i2c import I2cMemory
 
 from test import Pins
+import bench_firmware
 import demo_can
 import demo_can_node
 import demo_ds18b20
@@ -298,6 +300,126 @@ async def test_eeprom(dut):
         "Sequential random read (addr=%04X, 64 bytes): %s" % (demo_eeprom.PAGE_ADDRESS, data),
     ]:
         assert "eeprom24xx-1: " + line in decoded, (line, decoded)
+
+
+class StretchingMemory(Memory):
+    """Holds SCL low a random 0 to 1499 cycles before each byte it takes or gives, as
+    cocotbext-i2c holds it across handle_write and handle_read. Past a read's first byte
+    0.1.2 calls handle_read as the ACK's SCL rises, where a hold would cut that high to
+    nothing, which no slave may do, so this one first lets SCL go until the ACK's fall."""
+
+    def __init__(self, *args, seed, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.random = random.Random(seed)
+        self.stretches = []
+        self.reading = False
+
+    def handle_start(self):
+        super().handle_start()
+        self.reading = False
+
+    async def stretch(self):
+        cycles = self.random.randrange(1500)
+        self.stretches.append(cycles)
+        if cycles:
+            await Timer(cycles * CLOCK_PS, unit="ps")
+
+    async def handle_write(self, data):
+        await self.stretch()
+        await super().handle_write(data)
+
+    async def handle_read(self):
+        if self.reading:
+            self._set_scl(1)
+            await FallingEdge(self.scl)
+            self._set_scl(0)
+        self.reading = True
+        await self.stretch()
+        return await super().handle_read()
+
+
+def scl_highs(analyser):
+    """Cycles SCL stays high, each time, but for the idle bus around a transfer."""
+    scl = analyser.levels(7)
+    highs = [round((end - at) / CLOCK_PS) for (at, level), (end, _) in zip(scl, scl[1:]) if level]
+    return [n for n in highs if n < 4 * demo_eeprom.QUARTER]
+
+
+@cocotb.test()
+async def test_eeprom_stretch(dut):
+    """The EEPROM act on the master that waits on SCL, against the memory stretching SCL
+    before every byte. Every SCL high is two quarters from the rise the core sees."""
+    await reset(dut)
+    memory = StretchingMemory(
+        sda=dut.sda, sda_o=dut.sda_o, scl=dut.scl, scl_o=dut.scl_o, addr=0x52, size=32768,
+        seed=1,
+    )
+    analyser = Analyser({6: bit(dut.sda), 7: bit(dut.scl)})
+    transfer, _, log, _ = acted(dut)
+
+    @resume
+    async def clock():
+        return get_sim_time("ns") // 1_000_000
+
+    assert await bridge(demo_eeprom.run)(
+        transfer, clock, log=log, firmware=bench_firmware.I2C_MASTER_STRETCH)
+    page = [(1 + 13 * i) & 0xFF for i in range(demo_eeprom.PAGE)]
+    assert list(memory.read_mem(demo_eeprom.PAGE_ADDRESS, demo_eeprom.PAGE)) == page
+    assert memory.read_mem(demo_eeprom.BYTE_ADDRESS, 1) == b"\x01"
+    stretched = [n for n in memory.stretches if n > 2 * demo_eeprom.QUARTER]
+    highs = scl_highs(analyser)
+    cocotb.log.info(
+        "%d stretches past the master's low, up to %d cycles; SCL high %d to %d cycles",
+        len(stretched), max(stretched), min(highs), max(highs))
+    assert stretched
+    assert min(highs) >= 2 * demo_eeprom.QUARTER
+    decoded = decode(analyser, "eeprom_stretch")
+    data = " ".join("%02X" % b for b in page)
+    for line in [
+        "Page write (addr=%04X, 1 byte): 01" % demo_eeprom.BYTE_ADDRESS,
+        "Page write (addr=%04X, 64 bytes): %s" % (demo_eeprom.PAGE_ADDRESS, data),
+        "Sequential random read (addr=%04X, 64 bytes): %s" % (demo_eeprom.PAGE_ADDRESS, data),
+    ]:
+        assert "eeprom24xx-1: " + line in decoded, (line, decoded)
+
+
+@cocotb.test()
+async def test_i2c_stuck_scl(dut):
+    """SCL held low from the address's second bit: the master that waits on SCL answers
+    that word 0xffff after 65536 polls of four cycles, the others at once, and lets both
+    lines go."""
+    await reset(dut)
+    transfer, _, log, _ = acted(dut)
+    held = []
+
+    async def hold(falls):
+        # the bus clear's START, the word's START and its first bit
+        for _ in range(falls):
+            await FallingEdge(dut.scl)
+        dut.scl_o.value = 0
+        held.append(get_sim_time("ns"))
+
+    cocotb.start_soon(hold(3))
+
+    def act():
+        host = demo_eeprom.pe.Host(transfer)
+        demo_eeprom.bench.load(host, bench_firmware.I2C_MASTER_STRETCH)
+        host.start()
+        host.push([demo_eeprom.QUARTER])
+        words = [
+            demo_eeprom.word(0xA4, start=True), demo_eeprom.word(0),
+            demo_eeprom.word(0, stop=True), demo_eeprom.word(0xA4, start=True, stop=True),
+        ]
+        return demo_eeprom.bench.exchange(host, words), demo_eeprom.bench.faults(host)
+
+    replies, faults = await bridge(act)()
+    log("replies %s, %d us after SCL was held" % (
+        [hex(r) for r in replies], (get_sim_time("ns") - held[0]) // 1000))
+    assert replies == [0xFFFF] * 4
+    assert faults == 0
+    assert (int(dut.uio_oe.value) >> 2) & 3 == 0
+    # the later acts share the bus
+    dut.scl_o.value = 1
 
 
 class Ds18b20:
