@@ -867,16 +867,16 @@ async def test_referee_auto(dut):
 @cocotb.test()
 async def test_referee_play(dut):
     """The game with BOOTSEL pressed on the second and fourth polls: a cycle late, then a
-    cycle early, each caught, with honest frames before each."""
-    presses = iter([False, True, False, True])
+    cycle early, each caught, with honest frames before each, and the second held to end."""
+    reads = iter([False, True, False, True, True, True])
 
     @resume
     async def poll():
         await ClockCycles(dut.clk, 10)
 
     def act(referee):
-        ok = demo_referee.play(
-            referee, lambda: next(presses), poll, restart_every=1, rounds=4)
+        pressed = demo_referee.button(lambda: next(reads), hold=3)
+        ok = demo_referee.play(referee, pressed, poll, restart_every=1)
         return not referee.faults() and ok
 
     ok, cheats, irqs, analyser, lines = await refereed(dut, act)

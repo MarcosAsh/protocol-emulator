@@ -22,10 +22,14 @@ SWEEP_MS = 40
 # a press's cheat, in turn
 PRESSES = (1, -1)
 # BOOTSEL is read every POLL_MS and seven honest frames go out every RESTART_EVERY reads,
-# so a sweep comes about every 4 s
+# so a sweep comes about every 4 s, and held for HOLD reads, about 2 s, it ends the game
 POLL_MS = 10
 RESTART_EVERY = 10
 FRAMES = 7
+HOLD = 200
+# what button's reads say
+PRESS = 1
+END = 2
 # the auto mode's cheats, in turn, the honest frames before each, so one sweep comes in
 # the run, and how long each catch's score shows
 AUTO = (1, -1, 2, -2)
@@ -124,33 +128,33 @@ def scrub(host, program, polls=100):
     raise RuntimeError("scrub never halted")
 
 
-def button(read):
-    """True once for each press of read's button."""
-    held = [False]
+def button(read, hold=HOLD):
+    """PRESS once for each press of read's button, END once it has been held hold reads."""
+    held = [0]
 
     def pressed():
-        now = bool(read())
-        new = now and not held[0]
-        held[0] = now
-        return new
+        held[0] = held[0] + 1 if read() else 0
+        return PRESS if held[0] == 1 else END if held[0] == hold else None
 
     return pressed
 
 
-def play(referee, pressed, poll, restart_every=RESTART_EVERY, rounds=None):
-    """Honest frames, and a cheat for each press, until an honest frame raises an alarm or
-    rounds polls are done: whether none did. BOOTSEL is never read while the stick is lit."""
+def play(referee, pressed, poll, restart_every=RESTART_EVERY):
+    """Honest frames, and a cheat for each press, until a hold or an honest frame's alarm:
+    whether there was none. BOOTSEL is never read while the stick is lit."""
     cheats = 0
     tick = 0
-    while rounds is None or tick < rounds:
-        if pressed():
+    while True:
+        now = pressed()
+        if now == END:
+            return True
+        if now == PRESS:
             referee.cheat(PRESSES[cheats % len(PRESSES)])
             cheats += 1
         elif tick % restart_every == 0 and not referee.frames():
             return False
         poll()
         tick += 1
-    return True
 
 
 def auto(referee, cheats=AUTO_CHEATS, frames=AUTO_FRAMES, linger_ms=LINGER_MS):
@@ -181,16 +185,13 @@ def on_pico(log):
 
 
 def main():
-    """The game: a press of BOOTSEL cheats, Ctrl-C ends it."""
+    """The game: a press of BOOTSEL cheats, a hold ends it, as mpremote keeps Ctrl-C."""
     import rp2
     import time
 
     referee = on_pico(print)
-    print("press BOOTSEL to cheat")
-    try:
-        ok = play(referee, button(rp2.bootsel_button), lambda: time.sleep_ms(POLL_MS))
-    except KeyboardInterrupt:
-        ok = True
+    print("press BOOTSEL to cheat, hold it to end")
+    ok = play(referee, button(rp2.bootsel_button), lambda: time.sleep_ms(POLL_MS))
     print("you %d, referee %d, %d honest frames" % (referee.you, referee.caught, referee.honest))
     print("PASS" if not referee.faults() and ok else "FAIL")
 
