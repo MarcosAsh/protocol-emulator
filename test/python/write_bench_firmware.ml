@@ -7,7 +7,8 @@ open Protocol_emulator_test
    bench's clock needs, each checked by the analyser and the kernel under the assumption
    it runs with, as the command line does. The Icepi's USB build drives IO0 and IO1's
    header pins with the USB lines, so I2C moves to IO2 and IO3, 1-Wire to IO4 and 10BASE-T
-   to IO6 and IO7. SWD, not yet in the library, is on pins no other act uses, OUT2 and IO5. *)
+   to IO6 and IO7. SWD, not yet in the library, is on pins no other act uses, OUT2 and
+   IO5, and so is the CAN node's CRX, IN1. *)
 let sda = 14
 let scl = 15
 let one_wire = 16
@@ -56,6 +57,18 @@ let bench =
     , Timed_program.source Can.firmware
     , Can.config
     , `Floor Can.shortest_period )
+  ; ( "can_sender"
+    , "Can_node.Sender.firmware: Can.firmware reading its ACK slot on IN1, the host \
+       sends the bit period, 96 cycles for 500 kbit/s"
+    , Timed_program.source Can_node.Sender.firmware
+    , Can_node.Sender.config
+    , `Floor Can_node.Sender.shortest_period )
+  ; ( "can_receiver"
+    , "Can_node.Receiver.firmware: 500 kbit/s at 48 MHz sampled 72 cycles in, CRX on \
+       IN1, the ACK on OUT1"
+    , Timed_program.source Can_node.Receiver.firmware
+    , Can_node.Receiver.config
+    , `Receiver Can_node.Receiver.period )
   ; ( "sk6812"
     , "Ws2812.firmware ~third:16 ~tail:7: T0H 333, T1H 667, T0L 813, T1L 479 ns"
     , Ws2812.firmware ~third:16 ~tail:7
@@ -93,6 +106,8 @@ let () =
       | `None -> Timed_program.of_source_exn ~config source
       | `Floor period_floor -> Timed_program.of_source_exn ~period_floor ~config source
       | `Period period -> Timed_program.of_source_exn ~period ~config source
+      | `Receiver period ->
+        Timed_program.of_source_exn ~period ~single_capture_edge:true ~config source
     in
     let fields =
       Engine.Config.map2
