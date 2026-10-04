@@ -1,0 +1,5 @@
+nom_slow_1p08V_125C, 2 of 2 setup paths by slack. ~ marks a line that is only the nearest named cell's.
+ 1   4.009 ns  _33095_ src/engine.ml:270  ->  _32650_ src/engine.ml:754
+    ~src/engine.ml:259, ~src/engine.ml:754, ~src/engine.ml:751, ~src/engine.ml:752, ~src/engine.ml:754 x19  (+9 buffers)
+ 2   4.598 ns  data SRAM ~src/data_memory.ml:68  ->  _33216_ src/engine.ml:795
+    ~src/data_memory.ml:68, ~src/engine.ml:766, ~src/engine.ml:751 x4, ~src/engine.ml:797, ~src/engine.ml:795 x5  (+7 buffers)

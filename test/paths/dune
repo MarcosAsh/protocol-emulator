@@ -1,0 +1,21 @@
+; demo/paths.py on the worst path and the worst from an SRAM of gds run 36922636022's slow
+; corner, written by demo/paths.py GDS --provenance JSON --ranks 1,6 --fixture test/paths
+
+(rule
+ (with-stdout-to
+  paths.output
+  (run
+   python3
+   -B
+   %{dep:../../demo/paths.py}
+   --report
+   %{dep:max.rpt}
+   --cells
+   %{dep:cells.json}
+   --ranks
+   1,2)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff paths.expected paths.output)))
