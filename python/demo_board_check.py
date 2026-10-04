@@ -113,7 +113,7 @@ def uart(spi, host, clock_hz, say):
 
 def run(clock_hz=48_000_000, window_ms=WINDOW_MS, say=print):
     try:
-        spi = demo_board.DemoBoardSpi(clock_hz=clock_hz)
+        spi = demo_board.DemoBoardSpi(clock_hz=clock_hz, programs=(uart_rx,))
     except (RuntimeError, ValueError) as e:
         say("FAIL setup: %s" % e)
         say("FAIL")

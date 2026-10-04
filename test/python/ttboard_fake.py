@@ -45,10 +45,12 @@ class Instr:
 
 
 class Program:
-    """What @rp2.asm_pio makes: the body run once with the assembler's names as globals."""
+    """What @rp2.asm_pio makes: the body run once with the assembler's names as globals.
+    Items 1 to 3 are its offset on each PIO, -1 when not loaded, as in rp2.py's list."""
 
     def __init__(self, body, config):
         self.code, self.labels, self.config = [], {}, config
+        self.offsets = [-1, -1, -1]
         self.wrap_target, self.wrap = 0, None
 
         def emit(op):
@@ -65,6 +67,14 @@ class Program:
         types.FunctionType(body.__code__, names)()
         if self.wrap is None:
             self.wrap = len(self.code) - 1
+
+    def __getitem__(self, i):
+        assert 1 <= i <= 3, i
+        return self.offsets[i - 1]
+
+    def __setitem__(self, i, offset):
+        assert 1 <= i <= 3, i
+        self.offsets[i - 1] = offset
 
 
 def asm_pio(**config):
@@ -100,11 +110,15 @@ class StateMachine:
         for gpio in [self.in_base] + [b + c - 1 for b, c in self.outs.values()]:
             if gpio is not None and not 0 <= gpio - self.pio.base < 32:
                 raise ValueError("GPIO %d not within gpio_base range" % gpio)
-        self.pio.loaded = True
+        # a program keeps the offset it was given, loaded or not, as MicroPython's does
+        offset = program.offsets[self.pio.index]
+        if offset < 0:
+            offset = self.pio.add_program(program)
+        self.wrap_target, self.wrap = offset + program.wrap_target, offset + program.wrap
         self.div = int(board.sys_hz * 256 / freq)
         assert self.div >= 256, "freq above the system clock"
         assert board.lag() <= self.div // 256, "a read lagging over a step is not modelled"
-        self.pc, self.x, self.y, self.delay = 0, 0, 0, 0
+        self.pc, self.x, self.y, self.delay = offset, 0, 0, 0
         self.osr, self.osr_count, self.isr, self.isr_count = 0, 32, 0, 0
         self.tx.clear()
         self.rx.clear()
@@ -167,23 +181,23 @@ class StateMachine:
         if self.delay:
             self.delay -= 1
             return
-        instr = self.program.code[self.pc]
-        jumped = self._execute(instr, sampled)
+        instr, target = self.pio.memory[self.pc]
+        jumped = self._execute(instr, target, sampled)
         if instr.sideset is not None:
             self._pins("sideset", instr.sideset, self.outs["sideset"][1])
         if jumped is None:
             return
         self.delay = instr.delay
         if jumped is not True:
-            self.pc = self.program.wrap_target if self.pc == self.program.wrap else self.pc + 1
+            self.pc = self.wrap_target if self.pc == self.wrap else (self.pc + 1) % 32
 
     def reads(self):
         """Whether the next step reads a pin."""
-        instr = self.program.code[self.pc]
+        instr, _ = self.pio.memory[self.pc]
         return not self.delay and (instr.op in ("in", "wait")
                                    or instr.op == "jmp" and instr.args[0] == "pin")
 
-    def _execute(self, instr, pads):
+    def _execute(self, instr, target, pads):
         """False when done, True when it jumped, None when it stalled."""
         config, op, args = self.config, instr.op, instr.args
         if op == "out":
@@ -243,7 +257,7 @@ class StateMachine:
             if cond == "y_dec":
                 self.y = (self.y - 1) & 0xFFFFFFFF
             if take:
-                self.pc = self.program.labels[label]
+                self.pc = target
                 return True
         else:
             assert op == "nop", op
@@ -251,18 +265,45 @@ class StateMachine:
 
 
 class Pio:
+    """Instruction memory, each slot an instruction and its jump's address, and which slots
+    are in use. Programs go in from the top, as pico-sdk places them."""
+
     def __init__(self, board, index):
-        self.board, self.index, self.base, self.loaded = board, index, 0, False
+        self.board, self.index, self.base = board, index, 0
+        self.memory, self.used = [(Instr("nop"), None)] * 32, 0
+
+    def add_program(self, program):
+        n = len(program.code)
+        for offset in range(32 - n, -1, -1):
+            if not self.used & ((1 << n) - 1) << offset:
+                break
+        else:
+            raise OSError(12)
+        self.used |= ((1 << n) - 1) << offset
+        for i, instr in enumerate(program.code):
+            label = instr.args[-1] if instr.op == "jmp" else None
+            target = None if label is None else offset + program.labels[label]
+            self.memory[offset + i] = (instr, target)
+        program.offsets[self.index] = offset
+        return offset
 
     def remove_program(self, program=None):
-        self.loaded = False
+        """Every slot freed, or program's, whose offset alone it resets. rp2_pio.c's check
+        for a program not loaded tests an unsigned offset, so the board would go on."""
+        if program is None:
+            self.used = 0
+            return
+        offset = program.offsets[self.index]
+        assert offset >= 0, "remove_program of a program not loaded: undefined on the board"
+        self.used &= ~(((1 << len(program.code)) - 1) << offset)
+        program.offsets[self.index] = -1
 
     def gpio_base(self, pin=None):
         """Only with no program loaded, as the pico-sdk refuses it otherwise."""
         if pin is not None:
             if pin.id not in (0, 16):
                 raise ValueError("invalid GPIO base")
-            if self.loaded:
+            if self.used:
                 raise OSError(22)
             self.base = pin.id
         return self.base

@@ -38,12 +38,17 @@ def gpio(tt, name):
     return getattr(tt.pins, name).gpio_num
 
 
-def claim_pio(index, gpios):
+def claim_pio(index, gpios, programs):
     """Stop PIO index's state machines and clear its programs, so a second instance in the
-    same session starts clean. On the RP2350B a PIO sees 32 GPIOs from 0 or from 16."""
+    same session starts clean. Only a named removal resets a program's stored offset, and
+    rp2_pio.c lets one never loaded through, so check asm_pio's [data, offsets...] first.
+    On the RP2350B a PIO sees 32 GPIOs from 0 or from 16."""
     for n in range(4):
         rp2.StateMachine(4 * index + n).active(0)
     pio = rp2.PIO(index)
+    for program in programs:
+        if program[1 + index] >= 0:
+            pio.remove_program(program)
     pio.remove_program()
     if max(gpios) >= 32:
         if not hasattr(pio, "gpio_base"):
@@ -55,9 +60,9 @@ def claim_pio(index, gpios):
 class DemoBoardSpi:
     """SCK at most a twelfth of the chip's clock (SCK_DIVIDE), by default a sixteenth.
     Build another to change the clock: the PIO's divider is set from the system clock the
-    PWM chose."""
+    PWM chose. programs, those the caller runs on PIO 1's other state machines, unload too."""
 
-    def __init__(self, project=PROJECT, clock_hz=48_000_000, sck_hz=None):
+    def __init__(self, project=PROJECT, clock_hz=48_000_000, sck_hz=None, programs=()):
         sck_hz = sck_hz or clock_hz // 16
         if SCK_DIVIDE * sck_hz > clock_hz:
             raise ValueError("SCK %d Hz is over 1/%d of the clock" % (sck_hz, SCK_DIVIDE))
@@ -82,7 +87,7 @@ class DemoBoardSpi:
         time.sleep_ms(1)
         tt.reset_project(False)
         self.clock_hz = clock_hz
-        self.pio = claim_pio(STATE_MACHINE // 4, (sck, mosi, miso))
+        self.pio = claim_pio(STATE_MACHINE // 4, (sck, mosi, miso), (spi_mode0,) + tuple(programs))
         self.sm = rp2.StateMachine(
             STATE_MACHINE, spi_mode0, freq=4 * sck_hz,
             sideset_base=Pin(sck), out_base=Pin(mosi), in_base=Pin(miso),

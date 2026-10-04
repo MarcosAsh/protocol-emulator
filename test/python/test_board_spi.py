@@ -279,6 +279,14 @@ def test_check():
         "PASS",
     ], said
     b.uninstall()
+    # in one session after a host, and again: each instance loads its programs afresh
+    b, m = board(Chip(uart=words))
+    host = m.demo_board.host()
+    assert host.status()["halted"] == 1
+    for _ in range(2):
+        said = []
+        assert m.demo_board_check.run(window_ms=2, say=said.append), said
+    b.uninstall()
     # a chip that never starts the uart, and one on half the clock
     for chip, clock_hz, failed in ((Chip(), 48_000_000, "FAIL uart"),
                                    (Chip(uart=words), 24_000_000, "FAIL clock")):
