@@ -37,6 +37,7 @@ formal/fsm_miter*.sv
 formal/self_check*.sv
 formal/*_*/
 formal/powerup/
+formal/isolation/
 !formal/netlist_equiv/
 !formal/sram_equiv/
 !formal/kernel_equiv/
