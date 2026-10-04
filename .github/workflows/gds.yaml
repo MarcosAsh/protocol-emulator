@@ -12,9 +12,11 @@ on:
       - odb_sram_stripes.py
       - test/**
       - .github/workflows/gds.yaml
+      - demo/decode.py
+      - demo/sigrok.py
       # what the gate-level test never reads: the OCaml's tests, the RTL-only demo, SWD
-      # and outside chip tests, the traces only sigrok reads, the Icepi's testbench and
-      # models, and the scripts CI runs elsewhere
+      # and outside chip tests, the Icepi's testbench and models, and the scripts CI runs
+      # elsewhere
       - '!test/assemble/**'
       - '!test/certify/**'
       - '!test/split/**'
@@ -24,7 +26,6 @@ on:
       - '!test/test_outside.py'
       - '!test/test_swd.py'
       - '!test/swd_target.py'
-      - '!test/traces/sigrok/**'
       - '!test/tb_icepi.v'
       - '!test/tb_outside.v'
       - '!test/tb.gtkw'
@@ -96,11 +97,31 @@ jobs:
       - name: GL test
         uses: TinyTapeout/tt-gds-action/gl_test@ihp-cmos5l
 
-      # the action leaves the netlist, the PDK and cocotb in place
+      # the action leaves the netlist, the PDK and cocotb in place; each trace is written
+      # again with the outputs the gates drove
       - name: Replay the pin traces on the gate level
         run: |
           cd test
-          make replay GATES=yes
+          REPLAY_TRACES='traces/*.trace traces/sigrok/*.trace' REPLAY_RECORD=gl_traces \
+            make replay GATES=yes
+
+      - name: Install sigrok-cli
+        run: sudo apt-get update && sudo apt-get install -y sigrok-cli
+
+      # what the gates drove, judged as the ocaml workflow's decode job judges the RTL's
+      - name: Decode the gate level's traces with sigrok
+        run: |
+          sigrok-cli -V | head -1
+          python3 demo/decode.py --summary "the gate-level netlist" test/gl_traces/*.trace
+          python3 demo/decode.py --rate 24 --seed 1 --summary "the gate-level netlist" \
+            test/gl_traces/*.trace
+
+      - name: Publish the gate level's traces
+        if: success() || failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: gl_traces
+          path: test/gl_traces
 
   # the hardened netlist equals the RTL (formal/netlist_equiv); on IHP tt_submission
   # carries the unpowered final/nl, so that is what this proves
