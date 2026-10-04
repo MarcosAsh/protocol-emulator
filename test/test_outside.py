@@ -23,9 +23,11 @@ import demo_ds18b20
 import demo_eeprom
 import demo_flash
 import demo_neopixel
+import demo_start_hold
 
 sys.path.insert(0, "../demo")
 import sigrok
+import start_hold
 
 # 48 MHz, as the Icepi's PLL makes it
 CLOCK_PS = 20834
@@ -428,3 +430,97 @@ async def test_can(dut):
     assert ids == ["%d (0x%x)" % (ident, ident) for ident, _ in demo_can.FRAMES], ids
     assert decoded.count("can-1: ACK slot: NACK") == len(demo_can.FRAMES), decoded
     assert not any("must be" in line or "arning" in line for line in decoded), decoded
+
+
+# Standard-mode at 100 kHz: SCL low and high 5 us each, SDA moving a quarter into the low
+HALF_PS = 5_000_000
+QUARTER_PS = 1_250_000
+READS = 3
+
+
+async def i2c_reads(dut, hold_ps):
+    """READS reads as a master that holds each START hold_ps: START, 0x50 to write, a
+    repeated START, 0x50 to read, STOP. Nothing answers, so both addresses are NACKed."""
+
+    async def wait(ps):
+        await Timer(ps, unit="ps")
+
+    async def clock(sda):
+        await wait(QUARTER_PS)
+        dut.sda_o.value = sda
+        await wait(HALF_PS - QUARTER_PS)
+        dut.scl_o.value = 1
+        await wait(HALF_PS)
+
+    async def start():
+        dut.sda_o.value = 0
+        await wait(hold_ps)
+        dut.scl_o.value = 0
+
+    async def address(byte):
+        for b in [(byte >> i) & 1 for i in range(7, -1, -1)] + [1]:
+            await clock(b)
+            dut.scl_o.value = 0
+
+    for _ in range(READS):
+        await start()
+        await address(0xA0)
+        await clock(1)
+        await start()
+        await address(0xA1)
+        await clock(0)
+        dut.sda_o.value = 1
+        await wait(2 * HALF_PS)
+
+
+async def start_holds(dut, hold_ps):
+    """The start hold act against a master holding every START hold_ps: the chip's holds
+    each within a cycle of it, the analyser's within a sample, nothing driven on the bus,
+    and the host's verdict, which is returned."""
+    await reset(dut)
+    analyser = Analyser({6: bit(dut.sda), 7: bit(dut.scl)})
+    driven = []
+
+    async def watch():
+        while True:
+            await dut.uio_oe.value_change
+            if int(dut.uio_oe.value) & 0b1100:
+                driven.append(get_sim_time("ns"))
+
+    watcher = cocotb.start_soon(watch())
+    transfer, pause_ms, log, _ = acted(dut)
+    host = demo_start_hold.pe.Host(transfer)
+    await bridge(demo_start_hold.arm)(host)
+    master = cocotb.start_soon(i2c_reads(dut, hold_ps))
+    holds = await bridge(demo_start_hold.collect)(host, pause_ms, 2 * READS, 5)
+    await master
+    faults = await bridge(demo_start_hold.bench.faults)(host)
+    watcher.cancel()
+    verdict = demo_start_hold.judge(holds, log)
+    cycles = hold_ps / CLOCK_PS
+    assert len(holds) == 2 * READS, holds
+    assert all(abs(h - cycles) <= 1 for h in holds), (holds, cycles)
+    assert faults == 0
+    assert not driven, "the chip drove the bus at %s ns" % driven[:3]
+    decoded = decode(analyser, "start_hold")
+    assert decoded.count("i2c-1: Start") == READS, decoded
+    assert decoded.count("i2c-1: Start repeat") == READS, decoded
+    seen, sample = start_hold.holds("outside_start_hold.sr")
+    cocotb.log.info("analyser: %s ns, each +-%.1f", sorted(set(round(h) for h in seen)), sample)
+    assert len(seen) == 2 * READS
+    assert all(abs(h - hold_ps / 1000) <= sample for h in seen), seen
+    return verdict
+
+
+@cocotb.test()
+async def test_start_hold_pio_i2c(dut):
+    """pio/i2c's START: 10 PIO cycles at 125 MHz over 39.0625, 3.125 us, which the host
+    has to FAIL against 4.0 us."""
+    assert await start_holds(dut, 3_125_000) is False
+
+
+@cocotb.test()
+async def test_start_hold_hardware_i2c(dut):
+    """The RP2040 I2C block's START, taken as its SCL high time, HCNT + SPKLEN + 7 = 553
+    cycles at 125 MHz, 4.424 us, which the host has to PASS."""
+    assert await start_holds(dut, 4_424_000) is True
