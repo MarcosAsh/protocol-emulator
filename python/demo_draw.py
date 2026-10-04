@@ -2,7 +2,8 @@
 # Act 3's mouse draws the die (MicroPython). demo/draw.py writes draw.bin, a byte of seconds
 # to wait once the laptop has configured the chip, then three bytes a report: buttons, dx,
 # dy. This serves them through demo_usb.serve on Pico A while engine 1 sends each report's
-# three bytes, once taken, to pico_listener. Ctrl-C on the console releases the button.
+# three bytes, once taken, to pico_listener. Ctrl-C on the console releases the button, and
+# how that went is left in `ended` for demo/draw.py to read back.
 
 import time
 
@@ -161,7 +162,8 @@ def logger(host, queue, total, ms, say):
 
 
 def run(path="draw.bin", say=print):
-    """On the Icepi Zero, from the host Pico, with draw.bin beside this."""
+    """On the Icepi Zero, from the host Pico, with draw.bin beside this. Returns what it
+    said on stopping."""
     import micropython
 
     with open(path, "rb") as f:
@@ -184,12 +186,14 @@ def run(path="draw.bin", say=print):
     try:
         demo_usb.serve(host, board, queue, check, log, said)
     except Stopped as stopped:
-        say("stopped, button up" if stopped.args[0] else
-            "stopped before the laptop took the last report: if the button is still down,"
-            " unplug the Icepi's first USB port")
+        ended = ("stopped, button up" if stopped.args[0] else
+                 "stopped before the laptop took the last report: if the button is still"
+                 " down, unplug the Icepi's first USB port")
+        say(ended)
+        return ended
     finally:
         micropython.kbd_intr(3)
 
 
 if __name__ == "__main__":
-    run()
+    ended = run()

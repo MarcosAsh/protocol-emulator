@@ -31,6 +31,9 @@ PICO_FILES = [
     "python/demo_draw.py",
     "test/uart_tx_host_rate.hex",
 ]
+# said when Pico A cannot tell how its run ended
+UNKNOWN = ("no word from Pico A on the button: if it is still down, unplug the Icepi's first"
+           " USB port")
 # the chip's vendor and product, which name its input devices on Linux
 DEVICE = "1209:0001"
 MARGIN = 12
@@ -216,7 +219,8 @@ def flat_profile():
 
 def bench(pico, path):
     """Copies Pico A's files and runs demo_draw there. A Ctrl-C here ends mpremote but not
-    the Pico's script, so a second mpremote sends the Ctrl-C that releases the button."""
+    the Pico's script, so a second mpremote sends the Ctrl-C that releases the button. It
+    drops what the Pico prints meanwhile, so the outcome is read back from `ended`."""
     mpremote = ["mpremote", "connect", pico]
     files = [os.path.join(REPO, f) for f in PICO_FILES] + [path]
     subprocess.run(mpremote + ["cp"] + files + [":"], check=True)
@@ -224,7 +228,10 @@ def bench(pico, path):
         subprocess.run(mpremote + ["run", os.path.join(REPO, "python", "demo_draw.py")])
     except KeyboardInterrupt:
         print("\nreleasing the button")
-        subprocess.run(mpremote + ["exec", "pass"])
+        # resume keeps the run's globals until the read back, then the soft reset as before
+        read_back = "print(globals().get('ended', %r))" % UNKNOWN
+        if subprocess.run(mpremote + ["resume", "exec", read_back, "soft-reset"]).returncode:
+            print(UNKNOWN)
 
 
 def main():
