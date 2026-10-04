@@ -634,3 +634,58 @@ let%expect_test "the bus clear in lockstep, SDA held low" =
     (m.pc 17)
     |}]
 ;;
+
+(* The bench's bus, SDA on IO2 and SCL on IO3: a START held 150 cycles, as pio/i2c holds
+   it at 48 MHz, a data bit whose SDA falls with SCL low, a repeated START held 212, as
+   the RP2040's I2C block holds it, and a STOP. *)
+let%expect_test "the start hold stamper is accepted and reads each hold in lockstep" =
+  let sda = 14 in
+  let scl = 15 in
+  let config = start_hold_config ~scl in
+  let timed = Timed_program.of_source_exn ~config (start_hold ~sda ~scl) in
+  print_s
+    [%message "accepted" ~verdict:(Timed_program.verdict timed : Analyser.Verdict.t)];
+  let bus =
+    [ 1, 1, 40
+    ; 0, 1, 150
+    ; 0, 0, 30
+    ; 1, 0, 30
+    ; 1, 1, 40
+    ; 1, 0, 20
+    ; 0, 0, 30
+    ; 0, 1, 40
+    ; 0, 0, 20
+    ; 1, 0, 20
+    ; 1, 1, 40
+    ; 0, 1, 212
+    ; 0, 0, 30
+    ; 0, 1, 40
+    ; 1, 1, 40
+    ]
+    |> List.concat_map ~f:(fun (sda_level, scl_level, cycles) ->
+      List.init cycles ~f:(fun _ -> (sda_level lsl sda) lor (scl_level lsl scl)))
+    |> Array.of_list
+  in
+  let idle = (1 lsl sda) lor (1 lsl scl) in
+  let (m : Machine.t) =
+    Lockstep.lockstep
+      ~cycles:(Array.length bus + 10)
+      ~config
+      ~program:(Timed_program.words timed)
+      ~inputs:(fun cycle -> if cycle < Array.length bus then bus.(cycle) else idle)
+      ()
+  in
+  print_s
+    [%message
+      (m.rx_fifo : int list)
+        ~driven:(m.pin_dir land idle : int)
+        (m.fault : Machine.Fault.t)];
+  [%expect
+    {|
+    (accepted (verdict ((words 9) (deadline_waits 0) (worst_slack ()))))
+    ("lockstep held" (cycles 792))
+    ((m.rx_fifo (150 212)) (driven 0)
+     (m.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    |}]
+;;

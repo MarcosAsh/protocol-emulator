@@ -103,6 +103,13 @@ val edge_meter_config : Program_config.t
 val edge_logger : pin:int -> string
 
 val edge_logger_config : pin:int -> Program_config.t
+
+(** Listens to an I2C bus and pushes, for every START or repeated START, the cycles from
+    SDA's fall to SCL's, UM10204's t_HD;STA, low 16 bits. Drives no pin. A START that
+    finds the rx fifo full is dropped. *)
+val start_hold : sda:int -> scl:int -> string
+
+val start_hold_config : scl:int -> Program_config.t
 val i2c_word : ?start:bool -> ?read:bool -> ?stop:bool -> int -> int
 
 (** USB low speed device for [address], endpoints 0 and 1. The host sends the bit period

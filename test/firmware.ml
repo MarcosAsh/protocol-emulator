@@ -849,6 +849,28 @@ let edge_logger_config ~pin =
   { Program_config.default with jmp_pin = pin; autopush = true; push_threshold = 16 }
 ;;
 
+(* Both stamps are the instruction after a pin wait, and both pins pass one synchroniser,
+   so their difference is the gap between the edges as sampled: exact to a cycle. *)
+let start_hold ~sda ~scl =
+  [%string
+    {|
+start:
+    wait fall pin %{sda#Int}
+    mov x, now               ; SDA fell
+    jmp !pin, start          ; with SCL low: a data bit
+    wait 0 pin %{scl#Int}
+    mov y, now               ; SCL fell: the START is over
+    jmp !rx, start           ; no room, so this one is dropped
+    sub y, x
+    in y, 16
+    jmp start
+|}]
+;;
+
+let start_hold_config ~scl =
+  { Program_config.default with jmp_pin = scl; autopush = true; push_threshold = 16 }
+;;
+
 let i2c_word ?(start = false) ?(read = false) ?(stop = false) data =
   (Bool.to_int start lsl 15)
   lor (Bool.to_int read lsl 14)

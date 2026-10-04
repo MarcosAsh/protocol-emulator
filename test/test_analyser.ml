@@ -592,6 +592,7 @@ let%expect_test "every firmware stays inside its analysis under random stimulus"
       , [ 32 ] )
     ; "edge meter", edge_meter_config, edge_meter ~period:16, None, []
     ; "edge logger", edge_logger_config ~pin:0, edge_logger ~pin:0, None, []
+    ; "start hold", start_hold_config ~scl:1, start_hold ~sda:0 ~scl:1, None, []
     ; ( "uart tx, fractional period"
       , { Program_config.default with period_fraction = 43691 }
       , uart_tx_host_rate
@@ -636,6 +637,7 @@ let%expect_test "every firmware stays inside its analysis under random stimulus"
     ("usb device" (issues 5809) (reached 271/470) (side_edges 0) (violations ()))
     ("edge meter" (issues 6016) (reached 12/12) (side_edges 0) (violations ()))
     ("edge logger" (issues 16848) (reached 8/8) (side_edges 0) (violations ()))
+    ("start hold" (issues 13680) (reached 9/9) (side_edges 0) (violations ()))
     ("uart tx, fractional period" (issues 4796) (reached 17/17) (side_edges 0)
      (violations ()))
     (ws2812 (issues 7368) (reached 31/32) (side_edges 0) (violations ()))
