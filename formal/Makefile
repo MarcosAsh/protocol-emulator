@@ -666,4 +666,4 @@ witness_reject:
   sram_equiv_step sram_equiv_teeth kernel_equiv kernel_equiv_proof kernel_miter sat_tools \
   narrow narrow_proof saturating saturating_proof saturating_chip self_check self_check_proof \
   self_check_clean self_check_clean_proof \
-  powerup
+  powerup isolation isolation_proof
