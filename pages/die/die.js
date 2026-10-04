@@ -1,6 +1,7 @@
 // The live die: die.bin from demo/live_die.py, drawn on a canvas. Cells are coloured
 // faintly by block, and a net that switches lights its wires and the cell driving it, fading
-// over a few cycles. Coordinates are in the file's steps (20 nm), y up.
+// over a few cycles. Coordinates are in the file's steps (20 nm), y up. Each cell knows the
+// src line it came from, which the search box lights.
 "use strict";
 
 const $ = (id) => document.getElementById(id);
@@ -50,7 +51,7 @@ function varints(bytes) {
 
 const unzigzag = (z) => (z % 2 ? -(z + 1) / 2 : z / 2);
 
-function decode(head, [geometry, cellInfo, drivers, counts, wires, flips]) {
+function decode(head, [geometry, cellInfo, drivers, counts, wires, flips, origins]) {
   const n = head.cells;
   const g = new DataView(geometry.buffer, geometry.byteOffset, geometry.byteLength);
   const x = new Uint16Array(n), y = new Uint16Array(n), w = new Uint16Array(n), h = new Uint16Array(n);
@@ -106,7 +107,13 @@ function decode(head, [geometry, cellInfo, drivers, counts, wires, flips]) {
     for (let i = 0; i < count; i++) flip[m++] = net += f[p++] + 1;
   }
   flipStart[cycles] = m;
-  return { head, x, y, w, h, block, master, driver, segStart, layer, seg, flipStart, flip };
+  // an index into head.sources, the top bit set when it is only the nearest named cell's
+  const origin = new Uint16Array(n).fill(NONE);
+  if (origins) {
+    const o = new DataView(origins.buffer, origins.byteOffset, origins.byteLength);
+    for (let i = 0; i < n; i++) origin[i] = o.getUint16(2 * i, true);
+  }
+  return { head, x, y, w, h, block, master, driver, segStart, layer, seg, flipStart, flip, origin };
 }
 
 // ---- colours ----
@@ -136,6 +143,7 @@ function palette(dark, blocks) {
         label: "#bdbab3",
         pin: "#77757a",
         pick: "#ffffff",
+        find: [255, 96, 72],
         blend: "source-over",
       }
     : {
@@ -151,6 +159,7 @@ function palette(dark, blocks) {
         label: "#2c2b29",
         pin: "#8b8880",
         pick: "#000000",
+        find: [214, 40, 24],
         blend: "source-over",
       };
 }
@@ -167,6 +176,9 @@ const state = {
   fit: 1,
   colours: null,
   picked: -1,
+  probed: null,
+  query: "",
+  lit: null,
   showWires: true,
   showCells: true,
   baseDirty: true,
@@ -451,6 +463,16 @@ function drawLive() {
     ctx.strokeRect(d.x[cell], d.y[cell], d.w[cell], d.h[cell]);
   }
   ctx.globalCompositeOperation = "source-over";
+  // the cells of the line searched for, those it named outright the stronger
+  if (state.lit) {
+    ctx.fillStyle = rgba(col.find, 0.35);
+    ctx.fill(state.lit.near);
+    ctx.fillStyle = rgba(col.find, 0.9);
+    ctx.fill(state.lit.own);
+    ctx.strokeStyle = rgba(col.find, 1);
+    ctx.lineWidth = 1.5 * px;
+    ctx.stroke(state.lit.own);
+  }
   // the probed cell and the nets it drives
   if (state.picked >= 0) {
     const cell = state.picked;
@@ -529,6 +551,7 @@ function updatePanel() {
 function updateProbe() {
   const d = state.data;
   const el = $("probe");
+  if (state.probed !== state.picked) probeSource();
   if (state.picked < 0) {
     el.textContent = "";
     return;
@@ -554,6 +577,94 @@ function updateProbe() {
   el.style.whiteSpace = "pre-wrap";
 }
 
+// ---- src lines ----
+
+function sourceOf(cell) {
+  const o = state.data.origin[cell];
+  return o === NONE ? null : { text: state.data.head.sources[o & 0x7fff], own: !(o & 0x8000) };
+}
+
+// the line on GitHub at the commit the run hardened, for "src/engine.ml:123"
+function permalink(text) {
+  const m = text.match(/^(.+):(\d+)$/);
+  const run = state.data.head.run;
+  return m ? `${run.repo}/blob/${run.commit}/${m[1]}#L${m[2]}` : null;
+}
+
+// The picked cell's line, with a link to it and a button that lights its cells; built
+// only when the pick changes, so the link stays put while the die plays.
+function probeSource() {
+  state.probed = state.picked;
+  const el = $("probe-src");
+  el.textContent = "";
+  if (state.picked < 0) return;
+  const source = sourceOf(state.picked);
+  if (!source) {
+    el.textContent = "no src line";
+    return;
+  }
+  const url = permalink(source.text);
+  el.append(document.createTextNode(source.own ? "from " : "near "));
+  if (url) {
+    const a = document.createElement("a");
+    a.href = url;
+    a.target = "_blank";
+    a.rel = "noopener";
+    a.textContent = source.text;
+    el.append(a);
+  } else {
+    el.append(document.createTextNode(source.text + ", no line on the stack"));
+  }
+  const light = document.createElement("button");
+  light.className = "light";
+  light.textContent = "light its cells";
+  light.onclick = () => {
+    $("find").value = source.text;
+    find(source.text);
+  };
+  el.append(light);
+}
+
+// The sources a query names: one line as src/engine.ml:123 or engine.ml:123, else every
+// line of a file or module, as engine or host_fifo, else those that contain it.
+function sourcesMatching(query) {
+  const sources = state.data.head.sources;
+  const all = sources.map((_, i) => i);
+  const q = query.trim().toLowerCase().replace(/^src\//, "");
+  if (!q) return [];
+  const line = q.match(/^(.+?)(?:\.ml)?:(\d+)$/);
+  if (line) return all.filter((i) => sources[i] === `src/${line[1]}.ml:${line[2]}`);
+  const name = q.replace(/\.ml$/, "");
+  const named = all.filter((i) => sources[i] === name || sources[i].startsWith(`src/${name}.ml:`));
+  return named.length ? named : all.filter((i) => sources[i].includes(q));
+}
+
+function find(query) {
+  const d = state.data;
+  state.query = query.trim();
+  const hits = new Set(sourcesMatching(query));
+  let owned = 0, near = 0;
+  state.lit = hits.size ? { own: new Path2D(), near: new Path2D() } : null;
+  for (let i = 0; hits.size && i < d.head.cells; i++) {
+    const o = d.origin[i];
+    if (o === NONE || !hits.has(o & 0x7fff)) continue;
+    if (o & 0x8000) {
+      near++;
+      state.lit.near.rect(d.x[i], d.y[i], d.w[i], d.h[i]);
+    } else {
+      owned++;
+      state.lit.own.rect(d.x[i], d.y[i], d.w[i], d.h[i]);
+    }
+  }
+  const lines = hits.size === 1 ? "1 line" : `${hits.size} lines`;
+  $("found").textContent = !state.query
+    ? ""
+    : hits.size
+      ? `${(owned + near).toLocaleString("en")} cells from ${lines}, ${owned.toLocaleString("en")} by a name of their own`
+      : "no cell comes from that";
+  render();
+}
+
 function buildPanel() {
   const h = state.data.head;
   const program = $("program");
@@ -576,6 +687,13 @@ function buildPanel() {
     li.append(swatch, document.createTextNode(name), count);
     legend.append(li);
   });
+  const list = $("lines");
+  for (const source of h.sources || []) {
+    const option = document.createElement("option");
+    option.value = source;
+    list.append(option);
+  }
+  $("find").disabled = !h.sources;
   const run = h.run.workflow_url;
   $("stamp").innerHTML = "";
   const link = document.createElement("a");
@@ -733,6 +851,7 @@ function writeHash() {
   let hash = `cycle=${state.cycle}`;
   if (zoom > 1.01) hash += `&zoom=${zoom.toFixed(2)}&x=${Math.round(cx)}&y=${Math.round(cy)}`;
   if (state.picked >= 0) hash += `&pick=${state.picked}`;
+  if (state.query) hash += `&find=${encodeURIComponent(state.query)}`;
   if (location.hash.slice(1) !== hash) history.replaceState(null, "", "#" + hash);
 }
 
@@ -769,7 +888,7 @@ function zoomCentre(factor) {
   zoomAt(factor, r.left + r.width / 2, r.top + r.height / 2);
 }
 
-function pick(clientX, clientY) {
+function cellAt(clientX, clientY) {
   const d = state.data;
   const [wx, wy] = toDie(clientX, clientY);
   // a pixel's slack around thin cells
@@ -784,8 +903,44 @@ function pick(clientX, clientY) {
       }
     }
   }
-  state.picked = best;
+  return best;
+}
+
+function pick(clientX, clientY) {
+  state.picked = cellAt(clientX, clientY);
   render();
+}
+
+// a mouse over a cell names it and its line, at most once a frame
+let hovered = null;
+function hover(e) {
+  if (!hovered) requestAnimationFrame(showTip);
+  hovered = e;
+}
+
+function showTip() {
+  const e = hovered;
+  hovered = null;
+  const tip = $("tip");
+  const cell = e.pointerType === "mouse" && !e.buttons ? cellAt(e.clientX, e.clientY) : -1;
+  if (cell < 0) {
+    tip.hidden = true;
+    return;
+  }
+  const h = state.data.head;
+  const macro = h.macros.find(([c]) => c === cell);
+  const source = sourceOf(cell);
+  tip.textContent =
+    (macro ? macro[1] : h.masters[state.data.master[cell]]) +
+    "\n" +
+    (source ? (source.own ? "" : "near ") + source.text : "no src line");
+  tip.hidden = false;
+  const r = stage.getBoundingClientRect();
+  let x = e.clientX - r.left + 14;
+  let y = e.clientY - r.top + 14;
+  if (x + tip.offsetWidth > r.width - 4) x = e.clientX - r.left - tip.offsetWidth - 10;
+  if (y + tip.offsetHeight > r.height - 4) y = e.clientY - r.top - tip.offsetHeight - 10;
+  tip.style.transform = `translate(${Math.max(4, x)}px, ${Math.max(4, y)}px)`;
 }
 
 function wireInput() {
@@ -825,6 +980,8 @@ function wireInput() {
       render();
     }
   });
+  stage.addEventListener("pointermove", hover);
+  stage.addEventListener("pointerleave", () => ($("tip").hidden = true));
   const up = (e) => {
     if (pointers.size === 1 && !dragged) pick(e.clientX, e.clientY);
     pointers.delete(e.pointerId);
@@ -888,6 +1045,13 @@ function wireInput() {
     state.baseDirty = true;
     render();
   };
+  $("find").addEventListener("input", (e) => find(e.target.value));
+  $("find").addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      e.target.value = "";
+      find("");
+    }
+  });
   $("theme").onclick = () => {
     const next = isDark() ? "light" : "dark";
     document.documentElement.dataset.theme = next;
@@ -958,6 +1122,10 @@ async function main() {
   const params = readHash();
   state.colours = palette(isDark(), data.head.blocks);
   buildPanel();
+  if (params.has("find") && data.head.sources) {
+    $("find").value = params.get("find");
+    find(params.get("find"));
+  }
   wireInput();
   $("loading").remove();
   // a first visit starts as the host starts the engine

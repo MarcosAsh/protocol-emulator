@@ -151,6 +151,39 @@
   .show label { display: flex; gap: 5px; align-items: center; cursor: pointer; }
   .probe { font: 12.5px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace; overflow-wrap: anywhere; }
   .probe:empty::before { content: "-"; color: var(--muted); }
+  .probe-src { font: 12.5px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace; overflow-wrap: anywhere; margin-bottom: 4px; }
+  .probe-src:empty { display: none; }
+  .probe-src a { color: var(--accent); }
+  .probe-src .light { height: 24px; margin-left: 8px; font: 12px system-ui, sans-serif; vertical-align: baseline; }
+  input[type="search"] {
+    font: 12.5px ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    color: var(--text);
+    background: var(--button);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    height: 32px;
+    width: 100%;
+    padding: 0 8px;
+  }
+  input[type="search"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .found { color: var(--muted); font-size: 12.5px; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .found:empty { display: none; }
+  .tip {
+    position: absolute;
+    left: 0;
+    top: 0;
+    pointer-events: none;
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 3px 6px;
+    font: 12px/1.45 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    white-space: pre;
+    max-width: 320px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
   .stamp { color: var(--muted); font-size: 12px; }
   .stamp a { color: inherit; }
   .loading {
@@ -174,6 +207,7 @@
   <section class="stage" id="stage" aria-label="Die">
     <canvas id="die" tabindex="0" aria-label="The hardened die, cells and wires lit as they switch"></canvas>
     <div class="loading" id="loading">Loading the die</div>
+    <div class="tip" id="tip" hidden></div>
     <div class="zoom">
       <button id="zoom-in" title="Zoom in (z)" aria-label="Zoom in"><svg viewBox="0 0 16 16"><path d="M7 2h2v5h5v2H9v5H7V9H2V7h5z"/></svg></button>
       <button id="zoom-out" title="Zoom out (x)" aria-label="Zoom out"><svg viewBox="0 0 16 16"><path d="M2 7h12v2H2z"/></svg></button>
@@ -227,7 +261,15 @@
     </section>
 
     <section>
+      <h2>Source</h2>
+      <input id="find" type="search" list="lines" placeholder="src/engine.ml:750 or engine" aria-label="Light the cells a src line or module became" autocomplete="off" spellcheck="false">
+      <datalist id="lines"></datalist>
+      <p class="found" id="found"></p>
+    </section>
+
+    <section>
       <h2>Probe</h2>
+      <div class="probe-src" id="probe-src"></div>
       <div class="probe" id="probe"></div>
     </section>
 
