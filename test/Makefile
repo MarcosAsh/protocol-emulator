@@ -117,9 +117,10 @@ icepi_netlist.v: $(SRC_DIR)/project.v $(SRC_DIR)/protocol_emulator.v ../icepi/ic
 	$(MAKE) -C ../icepi build/usb1.json
 	yosys -q -p "read_json ../icepi/build/usb1.json; write_verilog -noattr icepi_netlist.v"
 
-# The outside chip acts of BRINGUP.md on the RTL, against picosoc's SPI flash model and
-# cocotbext-i2c's memory, each capture judged by sigrok's decoders. Needs cocotbext-i2c
-# 0.1.2 and sigrok-cli beside cocotb.
+# The outside chip acts of BRINGUP.md on the RTL, against picosoc's SPI flash model,
+# cocotbext-i2c's memory and cocotbext-spi's loopback slave, each capture judged by sigrok's
+# decoders. Needs cocotbext-i2c 0.1.2, cocotbext-spi 0.5.0 with cocotb-bus 0.3.0, and
+# sigrok-cli beside cocotb.
 outside:
 	$(MAKE) sim OUTSIDE=yes SIM_BUILD=sim_build/outside COCOTB_TEST_MODULES=test_outside \
 		PLUSARGS=+firmware=/dev/null \

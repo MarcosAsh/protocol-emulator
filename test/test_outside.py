@@ -184,6 +184,70 @@ async def test_flash(dut, mode):
     assert read in lines, lines
 
 
+def cocotbext_spi():
+    """cocotbext-spi 0.5.0 predates cocotb 2, which dropped BaseClock, only its master's
+    base, and a scalar's .integer, which its slaves read."""
+    import cocotb.clock
+    from cocotb.types import Logic
+
+    cocotb.clock.BaseClock = getattr(cocotb.clock, "BaseClock", object)
+    if not hasattr(Logic, "integer"):
+        Logic.integer = property(int)
+    from cocotbext import spi
+    from cocotbext.spi.devices.generic import SpiSlaveLoopback
+
+    return spi, SpiSlaveLoopback
+
+
+# 9 cycles at 48 MHz, the least CS high the kernel proves, is 187.5 ns: 190 fails
+FRAME_SPACING_NS = 180
+
+
+@cocotb.test()
+@cocotb.parametrize(mode=[0, 1, 2, 3])
+async def test_spi_modes(dut, mode):
+    """The SPI master with chip select in each mode against cocotbext-spi's loopback slave
+    of that mode, which answers each 16-bit frame with the one before and fails on CS
+    rising inside a frame or falling less than FRAME_SPACING_NS after it rose. The pins
+    are decoded by sigrok's spi decoder with the mode's cpol and cpha."""
+    spi, SpiSlaveLoopback = cocotbext_spi()
+    await reset(dut)
+    # test_flash leaves the flash wired
+    dut.flash_wired.value = 0
+    config = spi.SpiConfig(word_width=16, cpol=bool(mode >> 1), cpha=bool(mode & 1),
+                           frame_spacing_ns=FRAME_SPACING_NS)
+    SpiSlaveLoopback(spi.SpiBus.from_prefix(dut, "spi"), config)
+    analyser = Analyser({
+        4: bit(dut.uo_out, 1), 5: bit(dut.uo_out, 2), 6: bit(dut.miso), 7: bit(dut.uo_out, 3),
+    })
+    transfer, _, log, _ = acted(dut)
+    frames = [[0x12, 0x34], [0x56, 0x78], [0x9A, 0xBC]]
+
+    def act():
+        host = demo_flash.pe.Host(transfer)
+        demo_flash.start(host, getattr(demo_flash.bench_firmware, "SPI_CS_MODE%d" % mode))
+        # in one go, so the next frame's words wait in the fifo and CS is high the least
+        words = [w for high, low in frames for w in (high, low | demo_flash.LAST)]
+        got = [b & 0xFF for b in demo_flash.bench.exchange(host, words)]
+        replies = [got[i:i + 2] for i in range(0, len(got), 2)]
+        log("mode %d replies %s" % (mode, replies))
+        return replies, demo_flash.bench.faults(host)
+
+    replies, faults = await bridge(act)()
+    assert faults == 0
+    assert replies == [[0, 0]] + frames[:-1], replies
+    # the flash act's spi decoder, without the spiflash one stacked on it
+    decoder = in_mode(["-P", decoders()["flash"][1].split(",")[0]], mode)
+
+    # CS is low from reset until the firmware starts: a transfer with no bytes
+    def transfers(frames):
+        return ["spi-1: "] + ["spi-1: " + " ".join("%02X" % b for b in f) for f in frames]
+
+    name = "spi_mode%d" % mode
+    assert decode(analyser, name, decoder + ["-A", "spi=mosi-transfer"]) == transfers(frames)
+    assert decode(analyser, name, decoder + ["-A", "spi=miso-transfer"]) == transfers(replies)
+
+
 class Memory(I2cMemory):
     """cocotbext-i2c 0.1.2's memory keeps bits of the old address when a two-byte one comes
     in, its mask not shifted to the byte, so here each byte is set in place."""
