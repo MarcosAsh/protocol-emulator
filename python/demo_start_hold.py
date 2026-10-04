@@ -57,9 +57,10 @@ def judge(holds, log):
     short = [h for h in holds if ns(h) < LIMIT_NS]
     least = min(holds)
     ok = not short
+    # a stamp is the true hold to within a cycle, so one at the limit may be just short
+    word = "FAIL" if short else "PASS" if ns(least - 1) >= LIMIT_NS else "PASS within a cycle of it"
     log("host, against t_HD;STA >= %d ns (%d cycles): %s, %d of %d short, least %d cycles (%d ns)" % (
-        LIMIT_NS, LIMIT_NS * MHZ // 1000, "PASS" if ok else "FAIL", len(short), len(holds),
-        least, ns(least)))
+        LIMIT_NS, LIMIT_NS * MHZ // 1000, word, len(short), len(holds), least, ns(least)))
     return ok
 
 
@@ -109,5 +110,6 @@ if __name__ == "__main__":
     except Exception as e:
         log("stopped: %s" % e)
         verdict = None
-    log("no verdict" if verdict is None else ("PASS" if verdict else "FAIL"))
+    if verdict is None:
+        log("no verdict")
     log.save()
