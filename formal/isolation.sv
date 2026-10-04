@@ -268,14 +268,15 @@ module isolation (input clk);
     // Engine 1 is not heard there: it drives no pad direction and no wire level among
     // them, which the frame lemma gives when its footprint misses them.
 `ifndef HEARD
-    assume (((pin_dir_1_a | (pin_out_1_a & WIRES)) & listens) == 0);
-    assume (((pin_dir_1_b | (pin_out_1_b & WIRES)) & listens) == 0);
-`else
-    assume ((pin_dir_1_a & listens) == 0);
-    assume ((pin_dir_1_b & listens) == 0);
+    assume (((pin_out_1_a | pin_out_1_b) & WIRES & listens) == 0);
+`endif
+`ifndef PAD_HEARD
+    assume (((pin_dir_1_a | pin_dir_1_b) & listens) == 0);
 `endif
     // Engine 0's data pointer stays in its region, and engine 1's host writes none of it.
+`ifndef OUTSIDE
     assume (region[data_addr_a]);
+`endif
 `ifndef REGION_WRITTEN
     if (host_1_a.data_valid) assume (!region[host_1_a.data_addr]);
     if (host_1_b.data_valid) assume (!region[host_1_b.data_addr]);

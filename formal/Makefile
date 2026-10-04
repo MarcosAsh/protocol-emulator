@@ -175,11 +175,10 @@ link_proof:
 	sby -f link.sby prove cover never_pushes next_bit wider baud
 
 # Engine 0 cannot tell what engine 1 or engine 1's host does: two copies of the two-engine
-# chip, engine 1, its config, program and host free in each, agree on engine 0's pins and
-# what the host reads of it, for all time, by induction (isolation.sv). Teeth: engine 0
-# hearing a wire engine 1 drives, reads that ignore the turn, engine 1's host writing
-# engine 0's data, a load while engine 1 runs and a write as engine 0 starts have to fail.
-# isolation_proof runs on files written already, for CI.
+# chip agree on engine 0's pins and what the host reads of it, for all time (isolation.sv).
+# Teeth drop one assumption each and must fail: engine 1 heard by wire or pad, engine 0's
+# pointer or engine 1's host off their side of the region, reads ignoring the turn, a load
+# while engine 1 runs, a write as engine 0 starts. isolation_proof is for CI.
 ANY_TURN = /^module data_memory/,/^endmodule/s/^\(\s*assign signal_and[_0-9]* = \)signal_eq[_0-9]* & \(signal_not[_0-9]*\);/\1\2;/
 isolation: engines_sram.v
 	$(MAKE) isolation_proof
@@ -187,7 +186,8 @@ isolation: engines_sram.v
 isolation_proof:
 	sed '$(ANY_TURN)' engines_sram.v > engines_any_turn.v
 	! cmp -s engines_sram.v engines_any_turn.v
-	sby -f isolation.sby prove cover heard any_turn region_written load_anytime start_write
+	sby -f isolation.sby prove cover heard pad_heard any_turn region_written outside \
+	  load_anytime start_write
 
 # Self_check.checker on the core beside its contract (test/self_check_contract.ml), any
 # line, 116 cycles from the clear: the irq only after a break and by when the contract says,

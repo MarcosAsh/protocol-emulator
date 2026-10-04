@@ -2,8 +2,10 @@
 prove
 cover
 heard teeth
+pad_heard teeth
 any_turn teeth
 region_written teeth
+outside teeth
 load_anytime teeth
 start_write teeth
 
@@ -60,7 +62,9 @@ memory_map engines_top
 tcl isolation.tcl
 teeth: read -define NO_INVARIANT
 heard: read -define HEARD
+pad_heard: read -define PAD_HEARD
 region_written: read -define REGION_WRITTEN
+outside: read -define OUTSIDE
 load_anytime: read -define LOAD_ANYTIME
 start_write: read -define START_WRITE
 read_verilog -formal -sv isolation.sv
