@@ -23,7 +23,8 @@ REPLIES = [
     (0x6B1, 0, 8, [0xFF] * 8),
     (0x000, 0, 2, [0x00, 0x00]),
 ]
-LISTEN_MS = 3000
+# the replies end about 0.5 s in, and a failed act must still end inside the capture
+LISTEN_MS = 1000
 POLL_MS = 1
 # Can_node.Receiver.Error_code's words
 ERRORS = {1: "stuff error", 2: "refused: IDE or r0 recessive", 3: "CRC delimiter dominant",
