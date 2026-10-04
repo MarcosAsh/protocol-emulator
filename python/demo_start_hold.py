@@ -3,10 +3,12 @@
 # runs Firmware.start_hold on IO2 (SDA) and IO3 (SCL), driving neither, and pushes the
 # cycles from each START's SDA fall to its SCL fall. Pico B is the master, through
 # pico-examples' pio_i2c or its I2C block (demo/start_hold_master). The chip measures and
-# this script judges, against UM10204's Standard-mode 4.0 us. demo/start_hold.sh runs it.
+# this script judges, against UM10204's Standard-mode 4.0 us, then engine 0 shows the
+# verdict on the NeoPixel stick, wired as for demo_neopixel. demo/start_hold.sh runs it.
 
 import bench
 import bench_firmware
+import demo_neopixel
 import protocol_emulator as pe
 
 MHZ = 48
@@ -15,6 +17,8 @@ LIMIT_NS = 4000
 COUNT = 64
 # Pico B starts a read every 20 ms, two STARTs a read
 LIMIT_MS = 5000
+GREEN = (0x00, 0x20, 0x00)
+RED = (0x20, 0x00, 0x00)
 
 
 def ns(cycles):
@@ -72,10 +76,24 @@ def measure(host, pause_ms, log=print, count=COUNT, limit_ms=LIMIT_MS):
     return judge(holds, log)
 
 
+def light(host, ok, pause_ms):
+    """Engine 0 runs the library's SK6812 firmware and every pixel turns green or red.
+    Loading it stops engine 1."""
+    bench.load(host, bench_firmware.SK6812)
+    host.start()
+    pause_ms(demo_neopixel.LATCH_MS)
+    host.push(demo_neopixel.words([GREEN if ok else RED] * 8))
+    pause_ms(demo_neopixel.LATCH_MS)
+
+
 def run(transfer, pause_ms, log=print, count=COUNT):
     host = pe.Host(transfer)
     arm(host)
-    return measure(host, pause_ms, log, count)
+    verdict = measure(host, pause_ms, log, count)
+    if verdict is not None:
+        light(host, verdict, pause_ms)
+        log("engine 0: the stick is %s" % ("green" if verdict else "red"))
+    return verdict
 
 
 if __name__ == "__main__":
@@ -84,7 +102,7 @@ if __name__ == "__main__":
     import pico_board
 
     log = bench.Log()
-    spi = pico_board.PicoSpi()
+    spi = pico_board.PicoSpi(baudrate=demo_neopixel.SPI_HZ)
     time.sleep_ms(bench.START_MS)
     try:
         verdict = run(spi.transfer, time.sleep_ms, log)

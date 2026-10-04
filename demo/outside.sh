@@ -6,6 +6,7 @@
 # Usage: PICO=id:<serial of Pico A> demo/outside.sh flash|eeprom|ds18b20|neopixel|start_hold|can|swd
 set -e
 act=$1
+files=
 case $act in
 flash)
     ms=4000
@@ -26,6 +27,7 @@ neopixel)
 start_hold)
     ms=3000
     decode="-P i2c:sda=D6:scl=D7 -A i2c=start:repeat-start"
+    files=python/demo_neopixel.py
     ;;
 can)
     ms=2000
@@ -40,8 +42,9 @@ swd)
     exit 1
     ;;
 esac
+# shellcheck disable=SC2086
 mpremote connect "$PICO" cp python/protocol_emulator.py python/pico_board.py python/bench.py \
-    python/bench_firmware.py "python/demo_$act.py" :
+    python/bench_firmware.py "python/demo_$act.py" $files :
 mpremote connect "$PICO" exec "import os
 try:
     os.remove('outside.log')

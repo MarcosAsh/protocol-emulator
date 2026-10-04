@@ -474,11 +474,12 @@ async def i2c_reads(dut, hold_ps):
 
 
 async def start_holds(dut, hold_ps):
-    """The start hold act against a master holding every START hold_ps: the chip's holds
-    each within a cycle of it, the analyser's within a sample, nothing driven on the bus,
-    and the host's verdict, which is returned."""
+    """The start hold act against a master holding every START hold_ps, with Pico A's SPI
+    at the NeoPixel act's clock: the chip's holds each within a cycle of it, the analyser's
+    within a sample, nothing driven on the bus, and the stick lit with the host's verdict,
+    which is returned."""
     await reset(dut)
-    analyser = Analyser({6: bit(dut.sda), 7: bit(dut.scl)})
+    analyser = Analyser({4: bit(dut.uo_out, 1), 6: bit(dut.sda), 7: bit(dut.scl)})
     driven = []
 
     async def watch():
@@ -488,7 +489,8 @@ async def start_holds(dut, hold_ps):
                 driven.append(get_sim_time("ns"))
 
     watcher = cocotb.start_soon(watch())
-    transfer, pause_ms, log, _ = acted(dut)
+    half = 48_000_000 // demo_neopixel.SPI_HZ // 2
+    transfer, pause_ms, log, _ = acted(dut, SlowPins(dut, half, 3))
     host = demo_start_hold.pe.Host(transfer)
     await bridge(demo_start_hold.arm)(host)
     master = cocotb.start_soon(i2c_reads(dut, hold_ps))
@@ -509,6 +511,10 @@ async def start_holds(dut, hold_ps):
     cocotb.log.info("analyser: %s ns, each +-%.1f", sorted(set(round(h) for h in seen)), sample)
     assert len(seen) == 2 * READS
     assert all(abs(h - hold_ps / 1000) <= sample for h in seen), seen
+    await bridge(demo_start_hold.light)(host, verdict, pause_ms)
+    colours = [line.split(": ")[1] for line in decode(analyser, "neopixel") if ": #" in line]
+    colour = demo_start_hold.GREEN if verdict else demo_start_hold.RED
+    assert colours == ["#%02x%02x%02x" % colour] * 8, colours
     return verdict
 
 
