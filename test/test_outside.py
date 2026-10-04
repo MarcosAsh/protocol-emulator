@@ -24,6 +24,7 @@ import demo_ds18b20
 import demo_eeprom
 import demo_flash
 import demo_neopixel
+import demo_referee
 import demo_start_hold
 
 sys.path.insert(0, "../demo")
@@ -759,3 +760,126 @@ async def test_start_hold_hardware_i2c(dut):
     """The RP2040 I2C block's START, taken as its SCL high time, HCNT + SPKLEN + 7 = 553
     cycles at 125 MHz, 4.424 us, which the host has to PASS."""
     assert await start_holds(dut, 4_424_000) is True
+
+
+async def refereed(dut, act, **kwargs):
+    """act(referee) as Pico A runs it, the SPI clock switched as the script switches it:
+    act's result, each cheat's start bit fall on wire 20 and period, engine 1's irq rises,
+    the analyser on OUT0 and the log. Wire 20 and the irq never reach a pad, so the RTL's."""
+    await reset(dut)
+    analyser = Analyser({4: bit(dut.uo_out, 1)})
+    pins = SlowPins(dut, 48_000_000 // demo_referee.HOST_HZ // 2, 3)
+    _, pause_ms, log, lines = acted(dut, pins)
+    engines = dut.user_project.core.top.engines
+    check = demo_referee.check
+
+    def cycle():
+        return int(get_sim_time("ps")) // CLOCK_PS
+
+    def rate(hz):
+        pins.half = 48_000_000 // hz // 2
+
+    # (cycle, period) of each restart's push to engine 0, whose first word is the period
+    pushes = []
+    periods = {check.PERIOD + slip for slip in (-2, -1, 0, 1, 2)}
+
+    @resume
+    async def transfer(data):
+        if data[0] == 0x80 | demo_referee.pe.TX and (data[1] << 8 | data[2]) in periods:
+            pushes.append((cycle(), data[1] << 8 | data[2]))
+        return await pins.transfer(data)
+
+    wire, irqs = [(0, 0)], []
+
+    async def watch_wire():
+        while True:
+            await engines.engine_0.pin_out.value_change
+            level = (int(engines.engine_0.pin_out.value) >> check.WIRE) & 1
+            if level != wire[-1][1]:
+                wire.append((cycle(), level))
+
+    async def watch_irq():
+        while True:
+            await engines.engine_1.irq.value_change
+            if int(engines.engine_1.irq.value):
+                irqs.append(cycle())
+
+    watchers = [cocotb.start_soon(watch_wire()), cocotb.start_soon(watch_irq())]
+    referee = await bridge(demo_referee.Referee)(transfer, rate, pause_ms, log, **kwargs)
+    ok = await bridge(act)(referee)
+    for watcher in watchers:
+        watcher.cancel()
+    cheats = [
+        (next(at for at, level in wire if at > pushed and level == 0), period)
+        for pushed, period in pushes
+        if period != check.PERIOD
+    ]
+    return ok, cheats, irqs, analyser, lines
+
+
+def assert_refereed(cheats, irqs, analyser, lines, slips, frames):
+    """One alarm a cheat and none on the honest frames, each six cycles after the write the
+    rows name shows on wire 20, the stick showing frames after the catches, no faults."""
+    check = demo_referee.check
+    period = check.PERIOD
+    assert [p - period for _, p in cheats] == slips, cheats
+    assert len(irqs) == len(cheats), (irqs, cheats)
+    # the frame test_self_check.ml prints
+    edges = [bit * period for bit in range(1, 10)] + [10 * period + 6]
+    for (start, glitch), irq in zip(cheats, irqs):
+        _, at = check.caught_by(edges, check.GLITCH_BYTE, glitch)
+        cocotb.log.info("period %d: irq %d after the start bit, the rows' %d", glitch,
+                        irq - start, at)
+        assert irq - start == at + 6, (glitch, irq - start, at)
+    decoded = decode(analyser, "referee")
+    colours = [line.split(": ")[1] for line in decoded if ": #" in line]
+    assert colours == [c for frame in frames for c in frame], colours
+    assert decoded.count("rgb_led_ws281x-1: RESET") == len(frames), decoded
+    assert "faults [0, 0]" in lines, lines
+
+
+def lit(colour, n):
+    return [colour] * n + ["#000000"] * (8 - n)
+
+
+RED = "#200000"
+GREEN = "#002000"
+
+
+@cocotb.test()
+async def test_referee_auto(dut):
+    """The referee's auto mode, a cycle and two late and early: each cheat caught at the
+    check the rows name, the stick red a pixel a catch and swept green after 21 honest
+    frames, the checker re-armed and quiet on the honest frames between."""
+
+    def act(referee):
+        return demo_referee.auto(referee, cheats=4, frames=7, linger_ms=0)
+
+    ok, cheats, irqs, analyser, lines = await refereed(
+        dut, act, sweep_every=21, sweep_ms=demo_neopixel.LATCH_MS)
+    assert ok
+    assert "slipped past: 0 of 4" in lines, lines
+    sweep = [lit(GREEN, n) for n in range(1, 9)]
+    frames = [lit(RED, 1), lit(RED, 2)] + sweep + [lit(RED, 2), lit(RED, 3), lit(RED, 4)]
+    assert_refereed(cheats, irqs, analyser, lines, [1, -1, 2, -2], frames)
+
+
+@cocotb.test()
+async def test_referee_play(dut):
+    """The game with BOOTSEL pressed on the second and fourth polls: a cycle late, then a
+    cycle early, each caught, with honest frames before each."""
+    presses = iter([False, True, False, True])
+
+    @resume
+    async def poll():
+        await ClockCycles(dut.clk, 10)
+
+    def act(referee):
+        ok = demo_referee.play(
+            referee, lambda: next(presses), poll, restart_every=1, rounds=4)
+        return not referee.faults() and ok
+
+    ok, cheats, irqs, analyser, lines = await refereed(dut, act)
+    assert ok
+    assert "you 0, referee 2" in lines, lines
+    assert_refereed(cheats, irqs, analyser, lines, [1, -1], [lit(RED, 1), lit(RED, 2)])
