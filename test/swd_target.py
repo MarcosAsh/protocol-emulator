@@ -113,7 +113,7 @@ class Dp:
         acks = [("drive", (ack >> i) & 1) for i in range(3)]
         if ack != OK:
             self.log.append("%s %s" % (name, "WAIT" if ack == WAIT else "FAULT"))
-            return acks + [("release", None)]
+            return acks + [("release", None), ("skip", None)]
         if not read:
             return acks + [("release", None), ("skip", None)] + [("sample", None)] * 33
         if ap:
@@ -131,7 +131,7 @@ class Dp:
             value = 0
         self.log.append("%s OK 0x%08x" % (name, value))
         data = [("drive", (value >> i) & 1) for i in range(32)]
-        return acks + data + [("drive", parity(value)), ("release", None)]
+        return acks + data + [("drive", parity(value)), ("release", None), ("skip", None)]
 
     def decode(self):
         request = sum(b << i for i, b in enumerate(self.bits))

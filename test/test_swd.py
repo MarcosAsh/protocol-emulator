@@ -180,7 +180,7 @@ async def test_swd_parity(dut):
     class Corrupt(swd_target.Dp):
         def respond(self, ap, read, address):
             actions = super().respond(ap, read, address)
-            if read and len(actions) == 37:
+            if read and len(actions) == 38:
                 actions[35] = ("drive", 1 - actions[35][1])
             return actions
 

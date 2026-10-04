@@ -21,9 +21,9 @@ let config =
   }
 ;;
 
-(* Each edge is the instruction after a wait, which carries the level SWCLK already has. y
-   keeps RnW, then the ACK; the CRC unit, one bit wide, is the parity of every bit shifted
-   since crc_init. *)
+(* Each edge is the instruction after a wait, which carries the level SWCLK already has,
+   and SWDIO is never taken back on the cycle SWCLK rises. y keeps RnW, then the ACK; the
+   CRC unit, one bit wide, is the parity of every bit shifted since crc_init. *)
 let firmware =
   [%firmware
     {|
@@ -108,6 +108,7 @@ write:
     mov y, x side 0            ; turnaround
     crc_init side 0
     wait t+ side 0
+    nop side 1
     set pindirs, 1 side 1
     jmp !tx, low_late
     pull side 1
@@ -153,6 +154,7 @@ no_write:
     mov y, x side 0            ; turnaround, and no data phase
     crc_init side 0
     wait t+ side 0
+    nop side 1
     set pindirs, 1 side 1
     wait tx side 1             ; the WDATA words, dropped
     pull side 1
@@ -188,6 +190,7 @@ read_high:
     wait t+ side 1
     nop side 0                 ; turnaround
     wait t+ side 0
+    nop side 1
     set pindirs, 1 side 1
     jmp done
 no_read:
@@ -198,6 +201,7 @@ no_read:
     push side 0
     push side 0
     wait t+ side 0
+    nop side 1
     set pindirs, 1 side 1
 done:
     in y, 3 side 1             ; the status, which shifts out all isr held
@@ -374,6 +378,7 @@ module Dp = struct
     ; fell : int option
     ; moved : int option
     ; held : bool
+    ; took : bool
     ; log : string list
     ; measured : Measured.t
     ; violations : string list
@@ -417,6 +422,7 @@ module Dp = struct
     ; fell = None
     ; moved = None
     ; held = true
+    ; took = false
     ; log = []
     ; measured = Measured.empty
     ; violations = []
@@ -580,7 +586,8 @@ module Dp = struct
   let ack_actions ack = drive_bits (Ack.to_bits ack) 3
 
   (* B4.2: ACK on the three rises after the turnaround; RDATA and its parity straight
-     after a read's, then the target lets go; a write's WDATA after a turnaround more *)
+     after a read's, then the target lets go and a turnaround follows; a write's WDATA
+     after a turnaround. *)
   let respond t request =
     let ap, read, address = fields request in
     let name = describe request in
@@ -594,7 +601,7 @@ module Dp = struct
     match ack with
     | Wait | Fault | Invalid _ ->
       ( note t (sprintf "%s %s" name (if Ack.equal ack Wait then "WAIT" else "FAULT"))
-      , ack_actions ack @ [ Action.Release ] )
+      , ack_actions ack @ [ Action.Release; Skip ] )
     | Ok when read ->
       let t, value =
         if ap
@@ -606,7 +613,7 @@ module Dp = struct
       in
       let parity = parity value lxor Bool.to_int t.corrupt_parity in
       ( note t (sprintf "%s OK 0x%08x" name value)
-      , ack_actions ack @ drive_bits value 32 @ [ Drive parity; Release ] )
+      , ack_actions ack @ drive_bits value 32 @ [ Drive parity; Release; Skip ] )
     | Ok ->
       ( t
       , ack_actions ack
@@ -685,11 +692,12 @@ module Dp = struct
     let t = dormant t ~sampled in
     let t = line_reset t ~sampled in
     let t = { t with busy = Int.max 0 (t.busy - 1) } in
+    let t = { t with took = false } in
     (* a bit the target takes from the host *)
     let host_bit t =
       if Option.is_none host
       then violation t "a bit taken from the host while it does not drive"
-      else timed t ~name:"setup" ~since:t.moved
+      else { (timed t ~name:"setup" ~since:t.moved) with took = true }
     in
     match t.mode, t.selected, t.phase with
     | (Dormant _ | Alerted _), _, _ | Swd, false, _ -> t
@@ -740,7 +748,10 @@ module Dp = struct
       if swclk = t.swclk
       then t
       else if swclk = 1
-      then { (rise t ~host) with swclk; rose = Some t.now; held = false }
+      then (
+        (* hold counts only after a rise that took a bit from the host *)
+        let t = rise t ~host in
+        { t with swclk; rose = Some t.now; held = not t.took })
       else { (timed t ~name:"SWCLK high" ~since:t.rose) with swclk; fell = Some t.now }
     in
     { t with now = t.now + 1 }

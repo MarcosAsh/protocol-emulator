@@ -195,8 +195,8 @@ let%expect_test "an RP2040's two DPs, woken from dormant and selected in turn" =
        "TARGETSEL 0x21002927: deselected" "line reset"
        "TARGETSEL 0x01002927: selected" "R DP 0x0 OK 0x0bc12477"))
      (measured_ns
-      (("SWCLK low" (200 200)) ("SWCLK high" (200 400)) (hold (200 400))
-       (setup (180 13200))))
+      (("SWCLK low" (200 200)) ("SWCLK high" (200 400)) (setup (180 13180))
+       (hold (200 220))))
      (violations ()))
     ((dp 1)
      (log
@@ -205,8 +205,8 @@ let%expect_test "an RP2040's two DPs, woken from dormant and selected in turn" =
        "line reset" "TARGETSEL 0x21002927: deselected" "line reset"
        "TARGETSEL 0x01002927: deselected"))
      (measured_ns
-      (("SWCLK low" (200 200)) ("SWCLK high" (200 400)) (hold (200 400))
-       (setup (180 3800))))
+      (("SWCLK low" (200 200)) ("SWCLK high" (200 400)) (setup (180 3800))
+       (hold (200 220))))
      (violations ()))
     ((contention ())
      (fault
@@ -231,8 +231,8 @@ let%expect_test "a read whose parity is wrong" =
       ("dormant to SWD" "line reset" "R DP 0x0 OK 0x0bc12477"
        "R DP 0x0 OK 0x0bc12477"))
      (measured_ns
-      (("SWCLK low" (200 200)) ("SWCLK high" (200 400)) (hold (200 400))
-       (setup (180 600))))
+      (("SWCLK low" (200 200)) ("SWCLK high" (200 400)) (setup (180 600))
+       (hold (200 220))))
      (violations ()))
     ((contention ())
      (fault
@@ -295,28 +295,32 @@ let%expect_test "every edge and every sample is placed by a deadline" =
      58  in pins, 1 side 0            phase -24  sample -24  side -23
      62  nop side 1                   phase -24  side -23
      69  mov y, x side 0              phase -24  side -23
-     72  set pindirs, 1 side 1        phase -24  edge -23  side -23  gap 221..227
-     77  out pins, 1 side 0           phase -24  edge -23  side -23  gap 25..?
-     79  nop side 1                   phase -24  side -23
-     85  out pins, 1 side 0           phase -24  edge -23  side -23  gap 46..?
-     87  nop side 1                   phase -24  side -23
-     92  mov pins, isr side 0         phase -24  edge -23  side -23  gap 50
-     94  nop side 1                   phase -24  side -23
-    107  mov y, x side 0              phase -24  side -23
-    110  set pindirs, 1 side 1        phase -24  edge -23  side -23  gap 224
-    123  in pins, 1 side 0            phase -24  sample -24  side -23
-    125  nop side 1                   phase -24  side -23
-    130  in pins, 1 side 0            phase -24  sample -24  side -23
-    132  nop side 1                   phase -24  side -23
-    136  in pins, 1 side 0            phase -24  sample -24  side -23
-    138  nop side 1                   phase -24  side -23
-    140  nop side 0                   phase -24  side -23
-    142  set pindirs, 1 side 1        phase -24  edge -23  side -23  gap 374..?
-    145  mov y, x side 0              phase -24  side -23
-    151  set pindirs, 1 side 1        phase -24  edge -23  side -23  gap 224
-    158  set pins, 0 side 0           phase -24  edge -23  side -23  gap 23..?
-    160  nop side 1                   phase -24  side -23
-    ((words 163) (edge_jitter unbounded) (sample_jitter 0)
+     72  nop side 1                   phase -24  side -23
+     73  set pindirs, 1 side 1        phase -23  edge -22  gap 222..228
+     78  out pins, 1 side 0           phase -24  edge -23  side -23  gap 24..?
+     80  nop side 1                   phase -24  side -23
+     86  out pins, 1 side 0           phase -24  edge -23  side -23  gap 46..?
+     88  nop side 1                   phase -24  side -23
+     93  mov pins, isr side 0         phase -24  edge -23  side -23  gap 50
+     95  nop side 1                   phase -24  side -23
+    108  mov y, x side 0              phase -24  side -23
+    111  nop side 1                   phase -24  side -23
+    112  set pindirs, 1 side 1        phase -23  edge -22  gap 225
+    125  in pins, 1 side 0            phase -24  sample -24  side -23
+    127  nop side 1                   phase -24  side -23
+    132  in pins, 1 side 0            phase -24  sample -24  side -23
+    134  nop side 1                   phase -24  side -23
+    138  in pins, 1 side 0            phase -24  sample -24  side -23
+    140  nop side 1                   phase -24  side -23
+    142  nop side 0                   phase -24  side -23
+    144  nop side 1                   phase -24  side -23
+    145  set pindirs, 1 side 1        phase -23  edge -22  gap 375..?
+    148  mov y, x side 0              phase -24  side -23
+    154  nop side 1                   phase -24  side -23
+    155  set pindirs, 1 side 1        phase -23  edge -22  gap 225
+    162  set pins, 0 side 0           phase -24  edge -23  side -23  gap 22..?
+    164  nop side 1                   phase -24  side -23
+    ((words 167) (edge_jitter unbounded) (sample_jitter 0)
      (side_jitter unbounded) (may_miss 0))
     |}]
 ;;
