@@ -133,15 +133,20 @@ def serve(host, board, queue, bus_reset, log=lambda report: None, say=lambda lin
             board.report(queue.pop(0))
 
 
-def run(text="hello jane street ", say=print):
-    """On the Icepi Zero, from the host Pico."""
+def pico_a():
+    """The host Pico's port to the Icepi Zero, and a bus_reset from D+ and D- on GP6 and GP7."""
     from machine import Pin
 
     import pico_board
 
     dp, dn = Pin(6, Pin.IN), Pin(7, Pin.IN)
     bus_reset = se0_reset(lambda: dp() | dn() << 1, time.ticks_ms)
-    host = pico_board.host()
+    return pico_board.host(), bus_reset
+
+
+def run(text="hello jane street ", say=print):
+    """On the Icepi Zero, from the host Pico."""
+    host, bus_reset = pico_a()
     log = start_log(host, words("uart_tx_host_rate"))
     serve(host, usb_board.Board(DESCRIPTORS), reports(text), bus_reset, log, say)
 
