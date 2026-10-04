@@ -261,3 +261,40 @@ async def test_swd_unpowered(dut):
     await unwire(dut, task)
     assert not any(driven), "a line driven"
     assert "SWDIO is low" in lines[0], lines
+
+
+@cocotb.test()
+async def test_swd_unpowered_after_a_stopped_run(dut):
+    """An earlier run stopped part-way through a sequence, SWCLK high and SWDIO driven
+    high, then Pico B unpowered with no reset: the act lets SWDIO go before it reads it,
+    and stops without driving either line again."""
+    await reset(dut)
+    bus = swd_target.Bus(undriven=0)
+    driven = []
+
+    async def watch():
+        while True:
+            driven.append(not let_go(dut))
+            await ClockCycles(dut.clk, 1)
+
+    task = wire(dut, bus)
+    transfer, log, lines = acted(dut)
+
+    def stopped():
+        host = demo_swd.pe.Host(transfer)
+        demo_swd.bench.load(host, demo_swd.bench_firmware.SWD)
+        host.start()
+        swd = demo_swd.Swd(host)
+        swd.send([10], 1)
+        swd.send(demo_swd.sequence([0xFFFF, 0xFFFF])[:2], 0)
+
+    await bridge(stopped)()
+    await ClockCycles(dut.clk, 1000)
+    assert not let_go(dut)
+    watcher = cocotb.start_soon(watch())
+    assert not await bridge(demo_swd.run)(transfer, log=log)
+    watcher.cancel()
+    await unwire(dut, task)
+    first = driven.index(False)
+    assert not any(driven[first:]), "a line driven after the act let go"
+    assert "SWDIO is low" in lines[0], lines

@@ -15,8 +15,9 @@ val standard_half : int
 
 val shortest_half : int
 
-(** Takes the half period, answering with SWDIO's level while let go, then [sequence],
-    [Transfer.words] or [release]. Eight idle cycles end each transfer. *)
+(** Lets SWDIO go with SWCLK low on every start, takes the half period and answers with
+    SWDIO's level 32 half periods on, then [sequence], [Transfer.words] or [release].
+    Eight idle cycles end each transfer. *)
 val firmware : Timed_program.t
 
 val config : Program_config.t

@@ -28,9 +28,17 @@ let firmware =
   [%firmware
     {|
     .side_set 1
+    set pindirs, 0 side 0      ; every start: SWCLK low and SWDIO let go, wherever it was
+    set pins, 0 side 0
     wait tx side 0
     pull side 0
     mov p, osr side 0          ; the half period
+    mov t, now side 0
+    add t, p side 0
+    set x, 31 side 0
+settle:
+    wait t+ side 0             ; 32 half periods, 6 us or more: many RCs of either pull
+    jmp x--, settle
     in pins, 1 side 0          ; SWDIO let go: high if the target's pull-up is powered
     in null, 15 side 0
     push side 0

@@ -211,7 +211,7 @@ let%expect_test "an RP2040's two DPs, woken from dormant and selected in turn" =
        "TARGETSEL 0x21002927: deselected" "line reset"
        "TARGETSEL 0x01002927: selected" "R DP 0x0 OK 0x0bc12477"))
      (measured_ns
-      (("SWCLK low" (200 440)) ("SWCLK high" (200 580)) (setup (180 13180))
+      (("SWCLK low" (200 6940)) ("SWCLK high" (200 580)) (setup (180 13180))
        (hold (200 220))))
      (violations ()))
     ((dp 1)
@@ -221,7 +221,7 @@ let%expect_test "an RP2040's two DPs, woken from dormant and selected in turn" =
        "line reset" "TARGETSEL 0x21002927: deselected" "line reset"
        "TARGETSEL 0x01002927: deselected"))
      (measured_ns
-      (("SWCLK low" (200 440)) ("SWCLK high" (200 580)) (setup (180 3800))
+      (("SWCLK low" (200 6940)) ("SWCLK high" (200 580)) (setup (180 3800))
        (hold (200 220))))
      (violations ()))
     ((contention ())
@@ -248,7 +248,7 @@ let%expect_test "a read whose parity is wrong" =
       ("dormant to SWD" "line reset" "R DP 0x0 OK 0x0bc12477"
        "R DP 0x0 OK 0x0bc12477"))
      (measured_ns
-      (("SWCLK low" (200 440)) ("SWCLK high" (200 540)) (setup (180 600))
+      (("SWCLK low" (200 6940)) ("SWCLK high" (200 540)) (setup (180 600))
        (hold (200 220))))
      (violations ()))
     ((contention ())
@@ -289,7 +289,7 @@ let%expect_test "ACKs the wire garbled" =
       ("dormant to SWD" "line reset" "R DP 0x0 OK 0x0bc12477, ACK garbled"
        "W DP 0x0 with no WDATA" "line reset" "R DP 0x0 OK 0x0bc12477"))
      (measured_ns
-      (("SWCLK low" (200 440)) ("SWCLK high" (200 580)) (setup (180 3000))
+      (("SWCLK low" (200 6940)) ("SWCLK high" (200 580)) (setup (180 3000))
        (hold (200 220))))
      (violations ()))
     ((contention ())
@@ -321,13 +321,13 @@ let%expect_test "a line nobody pulls up" =
     ((dp 0)
      (log ("dormant to SWD" "line reset" "TARGETSEL 0x21002927: deselected"))
      (measured_ns
-      (("SWCLK low" (200 440)) ("SWCLK high" (200 540)) (setup (200 3800))
+      (("SWCLK low" (200 6940)) ("SWCLK high" (200 540)) (setup (200 3800))
        (hold (200 200))))
      (violations ()))
     ((dp 1)
      (log ("dormant to SWD" "line reset" "TARGETSEL 0x21002927: deselected"))
      (measured_ns
-      (("SWCLK low" (200 440)) ("SWCLK high" (200 540)) (setup (200 3800))
+      (("SWCLK low" (200 6940)) ("SWCLK high" (200 540)) (setup (200 3800))
        (hold (200 200))))
      (violations ()))
     ((contention ())
@@ -369,70 +369,71 @@ let%expect_test "every edge and every sample is placed by a deadline" =
   Timing_report.print ~config ~period:standard_half (Timed_program.source firmware);
   [%expect
     {|
-      0  wait tx side 0               phase ?..?  side ?..?  jitter ?
-      3  in pins, 1 side 0            phase ?..?  sample ?..?  jitter ?
-      8  set pindirs, 1 side 0        phase ?..?  edge ?..?  jitter ?  gap ?..?
-     15  out y, 1 side 1              phase -15..?  side 4
-     26  out pins, 1 side 0           phase -24  edge -23  side -23  gap 44..?
-     28  nop side 1                   phase -24  side -23
-     37  set pindirs, 0 side 0        phase -8..?  edge -7..?  jitter ?  side -7..?  jitter ?  gap 36..?
-     42  set pins, 1 side 0           phase -24  edge -23  side -23  gap 58..?
-     44  nop side 1                   phase -24  side -23
-     46  out pins, 1 side 0           phase -24  edge -23  side -23  gap 50
-     48  nop side 1                   phase -24  side -23
-     50  out y, 1 side 0              phase -24  side -23
-     51  mov pins, y side 0           phase -23  edge -22  gap 51
-     53  set x, 4 side 1              phase -24  side -23
-     55  out pins, 1 side 0           phase -24  edge -23  side -23  gap 47..52
-     57  nop side 1                   phase -24  side -23
-     60  set pindirs, 0 side 0        phase -24  edge -23  side -23  gap 50
-     61  set pins, 0 side 0           phase -23  edge -22  gap 1
-     63  nop side 1                   phase -24  side -23
-     65  in pins, 1 side 0            phase -24  sample -24  side -23
-     67  nop side 1                   phase -24  side -23
-     69  in pins, 1 side 0            phase -24  sample -24  side -23
-     71  nop side 1                   phase -24  side -23
-     73  in pins, 1 side 0            phase -24  sample -24  side -23
-     77  nop side 1                   phase -24  side -23
-     84  mov y, x side 0              phase -24  side -23
-     87  nop side 1                   phase -24  side -23
-     88  set pindirs, 1 side 1        phase -23  edge -22  gap 222..228
-     93  out pins, 1 side 0           phase -24  edge -23  side -23  gap 24..?
-     95  nop side 1                   phase -24  side -23
-    101  out pins, 1 side 0           phase -24  edge -23  side -23  gap 46..?
-    103  nop side 1                   phase -24  side -23
-    108  mov pins, isr side 0         phase -24  edge -23  side -23  gap 50
+      0  set pindirs, 0 side 0        phase ?..?  edge ?..?  jitter ?  side ?..?  jitter ?
+      1  set pins, 0 side 0           phase ?..?  edge ?..?  jitter ?  gap 1
+     10  in pins, 1 side 0            phase -22  sample -22
+     15  set pindirs, 1 side 0        phase -17..?  edge -16..?  jitter ?  gap 5..?
+     22  out y, 1 side 1              phase -15..?  side 4
+     33  out pins, 1 side 0           phase -24  edge -23  side -23  gap 44..?
+     35  nop side 1                   phase -24  side -23
+     44  set pindirs, 0 side 0        phase -8..?  edge -7..?  jitter ?  side -7..?  jitter ?  gap 36..?
+     49  set pins, 1 side 0           phase -24  edge -23  side -23  gap 58..?
+     51  nop side 1                   phase -24  side -23
+     53  out pins, 1 side 0           phase -24  edge -23  side -23  gap 50
+     55  nop side 1                   phase -24  side -23
+     57  out y, 1 side 0              phase -24  side -23
+     58  mov pins, y side 0           phase -23  edge -22  gap 51
+     60  set x, 4 side 1              phase -24  side -23
+     62  out pins, 1 side 0           phase -24  edge -23  side -23  gap 47..52
+     64  nop side 1                   phase -24  side -23
+     67  set pindirs, 0 side 0        phase -24  edge -23  side -23  gap 50
+     68  set pins, 0 side 0           phase -23  edge -22  gap 1
+     70  nop side 1                   phase -24  side -23
+     72  in pins, 1 side 0            phase -24  sample -24  side -23
+     74  nop side 1                   phase -24  side -23
+     76  in pins, 1 side 0            phase -24  sample -24  side -23
+     78  nop side 1                   phase -24  side -23
+     80  in pins, 1 side 0            phase -24  sample -24  side -23
+     84  nop side 1                   phase -24  side -23
+     91  mov y, x side 0              phase -24  side -23
+     94  nop side 1                   phase -24  side -23
+     95  set pindirs, 1 side 1        phase -23  edge -22  gap 222..228
+    100  out pins, 1 side 0           phase -24  edge -23  side -23  gap 24..?
+    102  nop side 1                   phase -24  side -23
+    108  out pins, 1 side 0           phase -24  edge -23  side -23  gap 46..?
     110  nop side 1                   phase -24  side -23
-    123  mov y, x side 0              phase -24  side -23
-    127  nop side 1                   phase -24  side -23
-    128  set pindirs, 1 side 1        phase -23  edge -22  gap 220..230
-    142  nop side 1                   phase -24  side -23
-    144  nop side 0                   phase -24  side -23
-    147  nop side 1                   phase -24  side -23
-    149  nop side 0                   phase -24  side -23
-    151  nop side 1                   phase -24  side -23
-    152  set pindirs, 1 side 1        phase -23  edge -22  gap 325..?
-    160  in pins, 1 side 0            phase -24  sample -24  side -23
-    162  nop side 1                   phase -24  side -23
+    115  mov pins, isr side 0         phase -24  edge -23  side -23  gap 50
+    117  nop side 1                   phase -24  side -23
+    130  mov y, x side 0              phase -24  side -23
+    134  nop side 1                   phase -24  side -23
+    135  set pindirs, 1 side 1        phase -23  edge -22  gap 220..230
+    149  nop side 1                   phase -24  side -23
+    151  nop side 0                   phase -24  side -23
+    154  nop side 1                   phase -24  side -23
+    156  nop side 0                   phase -24  side -23
+    158  nop side 1                   phase -24  side -23
+    159  set pindirs, 1 side 1        phase -23  edge -22  gap 325..?
     167  in pins, 1 side 0            phase -24  sample -24  side -23
     169  nop side 1                   phase -24  side -23
-    173  in pins, 1 side 0            phase -24  sample -24  side -23
-    175  nop side 1                   phase -24  side -23
-    177  nop side 0                   phase -24  side -23
-    179  nop side 1                   phase -24  side -23
-    180  set pindirs, 1 side 1        phase -23  edge -22  gap 375..?
-    183  mov y, x side 0              phase -24  side -23
-    187  nop side 1                   phase -24  side -23
-    188  set pindirs, 1 side 1        phase -23  edge -22  gap 220..230
-    199  nop side 1                   phase -24  side -23
-    201  nop side 0                   phase -24  side -23
-    204  nop side 1                   phase -24  side -23
-    206  crc_init side 0              phase -24  side -23
+    174  in pins, 1 side 0            phase -24  sample -24  side -23
+    176  nop side 1                   phase -24  side -23
+    180  in pins, 1 side 0            phase -24  sample -24  side -23
+    182  nop side 1                   phase -24  side -23
+    184  nop side 0                   phase -24  side -23
+    186  nop side 1                   phase -24  side -23
+    187  set pindirs, 1 side 1        phase -23  edge -22  gap 375..?
+    190  mov y, x side 0              phase -24  side -23
+    194  nop side 1                   phase -24  side -23
+    195  set pindirs, 1 side 1        phase -23  edge -22  gap 220..230
+    206  nop side 1                   phase -24  side -23
+    208  nop side 0                   phase -24  side -23
     211  nop side 1                   phase -24  side -23
-    212  set pindirs, 1 side 1        phase -23  edge -22  gap 325..?
-    216  set pins, 0 side 0           phase -24  edge -23  side -23  gap 20..?
+    213  crc_init side 0              phase -24  side -23
     218  nop side 1                   phase -24  side -23
-    ((words 225) (edge_jitter unbounded) (sample_jitter unbounded)
+    219  set pindirs, 1 side 1        phase -23  edge -22  gap 325..?
+    223  set pins, 0 side 0           phase -24  edge -23  side -23  gap 20..?
+    225  nop side 1                   phase -24  side -23
+    ((words 232) (edge_jitter unbounded) (sample_jitter 0)
      (side_jitter unbounded) (may_miss 0))
     |}]
 ;;
