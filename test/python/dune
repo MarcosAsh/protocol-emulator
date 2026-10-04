@@ -66,3 +66,17 @@
  (alias runtest)
  (action
   (diff ../../python/bench_firmware.py bench_firmware.py.gen)))
+
+(rule
+ (alias runtest)
+ (deps
+  ../../python/demo_draw.py
+  ../../python/demo_usb.py
+  ../../python/usb_board.py
+  ../../python/usb_device_firmware.py
+  ../../python/protocol_emulator.py
+  ../../demo/outline.py
+  ../../demo/draw.py
+  ../../pages/die/die.bin)
+ (action
+  (run python3 -B %{dep:test_draw.py} ../../python ../../demo)))
