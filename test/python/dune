@@ -58,6 +58,23 @@
   (run python3 -B %{dep:test_host.py} ../../python)))
 
 (rule
+ (alias runtest)
+ (deps
+  ../../python/demo_board.py
+  ../../python/demo_board_check.py
+  ../../python/protocol_emulator.py
+  ttboard_fake.py
+  ../uart_tx_host_rate.hex)
+ (action
+  (run
+   python3
+   -B
+   %{dep:test_board_spi.py}
+   ../../python
+   .
+   ../uart_tx_host_rate.hex)))
+
+(rule
  (with-stdout-to
   bench_firmware.py.gen
   (run ./write_bench_firmware.exe)))
