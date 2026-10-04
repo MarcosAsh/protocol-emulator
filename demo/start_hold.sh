@@ -33,5 +33,8 @@ if [ -n "$PICO_B" ]; then
     timeout 3 grep -a -m 1 "sys" "$PICO_B" || echo "Pico B printed nothing in 3 s" >&2
 fi
 # the decode lists every START, so runs of them are counted
-demo/outside.sh start_hold | uniq -c | sed 's/^ *1 //'
+out=$(mktemp)
+trap 'rm -f "$out"' EXIT
+demo/outside.sh start_hold > "$out"
+uniq -c "$out" | sed 's/^ *1 //'
 python3 demo/start_hold.py start_hold.sr
