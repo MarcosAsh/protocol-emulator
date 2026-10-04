@@ -15,6 +15,7 @@ test/results_outside.xml
 test/outside_*.sr
 /*.sr
 test/gate_level_netlist.v
+test/gl_traces/
 
 _build
 _mutation
