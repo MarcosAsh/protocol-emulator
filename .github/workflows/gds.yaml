@@ -98,18 +98,22 @@ jobs:
         uses: TinyTapeout/tt-gds-action/gl_test@ihp-cmos5l
 
       # the action leaves the netlist, the PDK and cocotb in place; each trace is written
-      # again with the outputs the gates drove
+      # again with the outputs the gates drove, even one that differs from the RTL's
       - name: Replay the pin traces on the gate level
+        id: replay
         run: |
           cd test
           REPLAY_TRACES='traces/*.trace traces/sigrok/*.trace' REPLAY_RECORD=gl_traces \
             make replay GATES=yes
 
       - name: Install sigrok-cli
+        if: (success() || failure()) && steps.replay.outcome != 'skipped'
         run: sudo apt-get update && sudo apt-get install -y sigrok-cli
 
-      # what the gates drove, judged as the ocaml workflow's decode job judges the RTL's
+      # what the gates drove, judged as the ocaml workflow's decode job judges the RTL's;
+      # after a failed replay this says which protocols the difference breaks
       - name: Decode the gate level's traces with sigrok
+        if: (success() || failure()) && steps.replay.outcome != 'skipped'
         run: |
           sigrok-cli -V | head -1
           python3 demo/decode.py --summary "the gate-level netlist" test/gl_traces/*.trace
