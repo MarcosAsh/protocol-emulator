@@ -705,7 +705,7 @@ let swd =
       Scenario.load
         ~config:(Timed_program.config Swd.firmware)
         ~program:(Timed_program.words Swd.firmware)
-      @ [ Scenario.start; Write (Reg.tx, [ half ]) ]
+      @ [ Scenario.start; Write (Reg.tx, [ half ]); Run 200; Read (Reg.rx, 1) ]
       @ bits Swd.dormant_to_swd
       @ bits Swd.line_reset
       @ transfer (Targetsel Swd.rp2040_core0)

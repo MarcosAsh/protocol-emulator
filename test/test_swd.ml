@@ -3,6 +3,7 @@ open Protocol_emulator
 open Swd
 
 let half_period = shortest_half
+let bit v i = (v lsr i) land 1
 
 module Item = struct
   type t =
@@ -69,7 +70,10 @@ let run ~cycles ~bus items =
   loop t bus (words items) [] 0
 ;;
 
+(* the first word pushed is SWDIO's level before the core drove it *)
 let print ~(machine : Machine.t) ~bus ~pushed items =
+  let let_go, pushed = List.hd_exn pushed, List.tl_exn pushed in
+  print_s [%message (let_go : int)];
   List.iter (replies items ~pushed) ~f:(fun (transfer, reply) ->
     print_s [%message "" (transfer : Transfer.t) (reply : Reply.t)]);
   List.iteri (Bus.dps bus) ~f:(fun i dp ->
@@ -87,7 +91,9 @@ let print ~(machine : Machine.t) ~bus ~pushed items =
       ""
         ~contention:(Bus.contention bus : int list)
         ~fault:(machine.fault : Machine.Fault.t)
-        ~tx_left:(List.length machine.tx_fifo : int)]
+        ~tx_left:(List.length machine.tx_fifo : int)
+        ~swclk:(bit machine.pin_out swclk_pin : int)
+        ~swdio_driven:(bit machine.pin_dir swdio_pin : int)]
 ;;
 
 let read ?(ap = false) address = Item.Transfer (Read { ap; address })
@@ -130,11 +136,13 @@ let%expect_test "an RP2040's two DPs, woken from dormant and selected in turn" =
     @ select rp2040_core1
     @ select 0x2100_2927
     @ select rp2040_core0
+    @ [ Bits release ]
   in
   let machine, bus, pushed = run ~cycles:90_000 ~bus items in
   print ~machine ~bus ~pushed items;
   [%expect
     {|
+    (let_go 1)
     ((transfer (Targetsel 0x1002927))
      (reply ((ack (Invalid 7)) (data ()) (parity_error false))))
     ((transfer (Read (ap false) (address 0)))
@@ -203,7 +211,7 @@ let%expect_test "an RP2040's two DPs, woken from dormant and selected in turn" =
        "TARGETSEL 0x21002927: deselected" "line reset"
        "TARGETSEL 0x01002927: selected" "R DP 0x0 OK 0x0bc12477"))
      (measured_ns
-      (("SWCLK low" (200 200)) ("SWCLK high" (200 440)) (setup (180 13180))
+      (("SWCLK low" (200 440)) ("SWCLK high" (200 580)) (setup (180 13180))
        (hold (200 220))))
      (violations ()))
     ((dp 1)
@@ -213,13 +221,13 @@ let%expect_test "an RP2040's two DPs, woken from dormant and selected in turn" =
        "line reset" "TARGETSEL 0x21002927: deselected" "line reset"
        "TARGETSEL 0x01002927: deselected"))
      (measured_ns
-      (("SWCLK low" (200 200)) ("SWCLK high" (200 440)) (setup (180 3800))
+      (("SWCLK low" (200 440)) ("SWCLK high" (200 580)) (setup (180 3800))
        (hold (200 220))))
      (violations ()))
     ((contention ())
      (fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false)))
-     (tx_left 0))
+     (tx_left 0) (swclk 0) (swdio_driven 0))
     |}]
 ;;
 
@@ -230,6 +238,7 @@ let%expect_test "a read whose parity is wrong" =
   print ~machine ~bus ~pushed items;
   [%expect
     {|
+    (let_go 1)
     ((transfer (Read (ap false) (address 0)))
      (reply ((ack Ok) (data (0xbc12477)) (parity_error true))))
     ((transfer (Read (ap false) (address 0)))
@@ -239,13 +248,13 @@ let%expect_test "a read whose parity is wrong" =
       ("dormant to SWD" "line reset" "R DP 0x0 OK 0x0bc12477"
        "R DP 0x0 OK 0x0bc12477"))
      (measured_ns
-      (("SWCLK low" (200 200)) ("SWCLK high" (200 440)) (setup (180 600))
+      (("SWCLK low" (200 440)) ("SWCLK high" (200 540)) (setup (180 600))
        (hold (200 220))))
      (violations ()))
     ((contention ())
      (fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false)))
-     (tx_left 0))
+     (tx_left 0) (swclk 1) (swdio_driven 1))
     |}]
 ;;
 
@@ -261,12 +270,14 @@ let%expect_test "ACKs the wire garbled" =
     ; write 0x0 0x04
     ; Bits line_reset
     ; read 0x0
+    ; Bits release
     ]
   in
   let machine, bus, pushed = run ~cycles:20_000 ~bus items in
   print ~machine ~bus ~pushed items;
   [%expect
     {|
+    (let_go 1)
     ((transfer (Read (ap false) (address 0)))
      (reply ((ack (Invalid 5)) (data ()) (parity_error false))))
     ((transfer (Write (ap false) (address 0) (value 0x4)))
@@ -278,13 +289,51 @@ let%expect_test "ACKs the wire garbled" =
       ("dormant to SWD" "line reset" "R DP 0x0 OK 0x0bc12477, ACK garbled"
        "W DP 0x0 with no WDATA" "line reset" "R DP 0x0 OK 0x0bc12477"))
      (measured_ns
-      (("SWCLK low" (200 200)) ("SWCLK high" (200 440)) (setup (180 3000))
+      (("SWCLK low" (200 440)) ("SWCLK high" (200 580)) (setup (180 3000))
        (hold (200 220))))
      (violations ()))
     ((contention ())
      (fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false)))
-     (tx_left 0))
+     (tx_left 0) (swclk 0) (swdio_driven 0))
+    |}]
+;;
+
+(* With SWDIO pulled low, as the bitstream's pad would leave it, nobody's ACK reads 0. *)
+let%expect_test "a line nobody pulls up" =
+  let bus = Bus.rp2040 ~undriven:0 ~cycle_ns () in
+  let items =
+    [ Item.Bits dormant_to_swd
+    ; Bits line_reset
+    ; Transfer (Targetsel 0x2100_2927)
+    ; read 0x0
+    ]
+  in
+  let machine, bus, pushed = run ~cycles:12_000 ~bus items in
+  print ~machine ~bus ~pushed items;
+  [%expect
+    {|
+    (let_go 0)
+    ((transfer (Targetsel 0x21002927))
+     (reply ((ack (Invalid 0)) (data ()) (parity_error false))))
+    ((transfer (Read (ap false) (address 0)))
+     (reply ((ack (Invalid 0)) (data ()) (parity_error false))))
+    ((dp 0)
+     (log ("dormant to SWD" "line reset" "TARGETSEL 0x21002927: deselected"))
+     (measured_ns
+      (("SWCLK low" (200 440)) ("SWCLK high" (200 540)) (setup (200 3800))
+       (hold (200 200))))
+     (violations ()))
+    ((dp 1)
+     (log ("dormant to SWD" "line reset" "TARGETSEL 0x21002927: deselected"))
+     (measured_ns
+      (("SWCLK low" (200 440)) ("SWCLK high" (200 540)) (setup (200 3800))
+       (hold (200 200))))
+     (violations ()))
+    ((contention ())
+     (fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+     (tx_left 0) (swclk 1) (swdio_driven 1))
     |}]
 ;;
 
@@ -320,66 +369,70 @@ let%expect_test "every edge and every sample is placed by a deadline" =
   Timing_report.print ~config ~period:standard_half (Timed_program.source firmware);
   [%expect
     {|
-      0  set pindirs, 1 side 1        phase ?..?  edge ?..?  jitter ?  side ?..?  jitter ?
-     15  out pins, 1 side 0           phase -24  edge -23  side -23  gap 32..?
-     17  nop side 1                   phase -24  side -23
-     27  set pins, 1 side 0           phase -24  edge -23  side -23  gap 32..?
-     29  nop side 1                   phase -24  side -23
-     31  out pins, 1 side 0           phase -24  edge -23  side -23  gap 50
-     33  nop side 1                   phase -24  side -23
-     35  out y, 1 side 0              phase -24  side -23
-     36  mov pins, y side 0           phase -23  edge -22  gap 51
-     38  set x, 4 side 1              phase -24  side -23
-     40  out pins, 1 side 0           phase -24  edge -23  side -23  gap 47..52
-     42  nop side 1                   phase -24  side -23
-     45  set pindirs, 0 side 0        phase -24  edge -23  side -23  gap 50
-     46  set pins, 0 side 0           phase -23  edge -22  gap 1
+      0  wait tx side 0               phase ?..?  side ?..?  jitter ?
+      3  in pins, 1 side 0            phase ?..?  sample ?..?  jitter ?
+      8  set pindirs, 1 side 0        phase ?..?  edge ?..?  jitter ?  gap ?..?
+     15  out y, 1 side 1              phase -15..?  side 4
+     26  out pins, 1 side 0           phase -24  edge -23  side -23  gap 44..?
+     28  nop side 1                   phase -24  side -23
+     37  set pindirs, 0 side 0        phase -8..?  edge -7..?  jitter ?  side -7..?  jitter ?  gap 36..?
+     42  set pins, 1 side 0           phase -24  edge -23  side -23  gap 58..?
+     44  nop side 1                   phase -24  side -23
+     46  out pins, 1 side 0           phase -24  edge -23  side -23  gap 50
      48  nop side 1                   phase -24  side -23
-     50  in pins, 1 side 0            phase -24  sample -24  side -23
-     52  nop side 1                   phase -24  side -23
-     54  in pins, 1 side 0            phase -24  sample -24  side -23
-     56  nop side 1                   phase -24  side -23
-     58  in pins, 1 side 0            phase -24  sample -24  side -23
-     62  nop side 1                   phase -24  side -23
-     69  mov y, x side 0              phase -24  side -23
-     72  nop side 1                   phase -24  side -23
-     73  set pindirs, 1 side 1        phase -23  edge -22  gap 222..228
-     78  out pins, 1 side 0           phase -24  edge -23  side -23  gap 24..?
-     80  nop side 1                   phase -24  side -23
-     86  out pins, 1 side 0           phase -24  edge -23  side -23  gap 46..?
-     88  nop side 1                   phase -24  side -23
-     93  mov pins, isr side 0         phase -24  edge -23  side -23  gap 50
+     50  out y, 1 side 0              phase -24  side -23
+     51  mov pins, y side 0           phase -23  edge -22  gap 51
+     53  set x, 4 side 1              phase -24  side -23
+     55  out pins, 1 side 0           phase -24  edge -23  side -23  gap 47..52
+     57  nop side 1                   phase -24  side -23
+     60  set pindirs, 0 side 0        phase -24  edge -23  side -23  gap 50
+     61  set pins, 0 side 0           phase -23  edge -22  gap 1
+     63  nop side 1                   phase -24  side -23
+     65  in pins, 1 side 0            phase -24  sample -24  side -23
+     67  nop side 1                   phase -24  side -23
+     69  in pins, 1 side 0            phase -24  sample -24  side -23
+     71  nop side 1                   phase -24  side -23
+     73  in pins, 1 side 0            phase -24  sample -24  side -23
+     77  nop side 1                   phase -24  side -23
+     84  mov y, x side 0              phase -24  side -23
+     87  nop side 1                   phase -24  side -23
+     88  set pindirs, 1 side 1        phase -23  edge -22  gap 222..228
+     93  out pins, 1 side 0           phase -24  edge -23  side -23  gap 24..?
      95  nop side 1                   phase -24  side -23
-    108  mov y, x side 0              phase -24  side -23
-    112  nop side 1                   phase -24  side -23
-    113  set pindirs, 1 side 1        phase -23  edge -22  gap 220..230
+    101  out pins, 1 side 0           phase -24  edge -23  side -23  gap 46..?
+    103  nop side 1                   phase -24  side -23
+    108  mov pins, isr side 0         phase -24  edge -23  side -23  gap 50
+    110  nop side 1                   phase -24  side -23
+    123  mov y, x side 0              phase -24  side -23
     127  nop side 1                   phase -24  side -23
-    129  nop side 0                   phase -24  side -23
-    132  nop side 1                   phase -24  side -23
-    134  nop side 0                   phase -24  side -23
-    136  nop side 1                   phase -24  side -23
-    137  set pindirs, 1 side 1        phase -23  edge -22  gap 325..?
-    145  in pins, 1 side 0            phase -24  sample -24  side -23
+    128  set pindirs, 1 side 1        phase -23  edge -22  gap 220..230
+    142  nop side 1                   phase -24  side -23
+    144  nop side 0                   phase -24  side -23
     147  nop side 1                   phase -24  side -23
-    152  in pins, 1 side 0            phase -24  sample -24  side -23
-    154  nop side 1                   phase -24  side -23
-    158  in pins, 1 side 0            phase -24  sample -24  side -23
-    160  nop side 1                   phase -24  side -23
-    162  nop side 0                   phase -24  side -23
-    164  nop side 1                   phase -24  side -23
-    165  set pindirs, 1 side 1        phase -23  edge -22  gap 375..?
-    168  mov y, x side 0              phase -24  side -23
-    172  nop side 1                   phase -24  side -23
-    173  set pindirs, 1 side 1        phase -23  edge -22  gap 220..230
-    184  nop side 1                   phase -24  side -23
-    186  nop side 0                   phase -24  side -23
-    189  nop side 1                   phase -24  side -23
-    191  crc_init side 0              phase -24  side -23
-    196  nop side 1                   phase -24  side -23
-    197  set pindirs, 1 side 1        phase -23  edge -22  gap 325..?
-    201  set pins, 0 side 0           phase -24  edge -23  side -23  gap 20..?
-    203  nop side 1                   phase -24  side -23
-    ((words 210) (edge_jitter unbounded) (sample_jitter 0)
+    149  nop side 0                   phase -24  side -23
+    151  nop side 1                   phase -24  side -23
+    152  set pindirs, 1 side 1        phase -23  edge -22  gap 325..?
+    160  in pins, 1 side 0            phase -24  sample -24  side -23
+    162  nop side 1                   phase -24  side -23
+    167  in pins, 1 side 0            phase -24  sample -24  side -23
+    169  nop side 1                   phase -24  side -23
+    173  in pins, 1 side 0            phase -24  sample -24  side -23
+    175  nop side 1                   phase -24  side -23
+    177  nop side 0                   phase -24  side -23
+    179  nop side 1                   phase -24  side -23
+    180  set pindirs, 1 side 1        phase -23  edge -22  gap 375..?
+    183  mov y, x side 0              phase -24  side -23
+    187  nop side 1                   phase -24  side -23
+    188  set pindirs, 1 side 1        phase -23  edge -22  gap 220..230
+    199  nop side 1                   phase -24  side -23
+    201  nop side 0                   phase -24  side -23
+    204  nop side 1                   phase -24  side -23
+    206  crc_init side 0              phase -24  side -23
+    211  nop side 1                   phase -24  side -23
+    212  set pindirs, 1 side 1        phase -23  edge -22  gap 325..?
+    216  set pins, 0 side 0           phase -24  edge -23  side -23  gap 20..?
+    218  nop side 1                   phase -24  side -23
+    ((words 225) (edge_jitter unbounded) (sample_jitter unbounded)
      (side_jitter unbounded) (may_miss 0))
     |}]
 ;;

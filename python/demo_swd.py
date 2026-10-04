@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 # Pico B's SWD port on the library's SWD host (MicroPython, Pico A): OUT2 (header 12) to
-# SWCLK, pin 1 of Pico B's debug connector, IO5 (header 36) to SWDIO, pin 3, GND to pin 2.
-# Wakes the RP2040's DPs from dormant, selects core 0, reads its DPIDR, powers its debug
-# up and reads its AP's IDR, then selects core 1 and an instance nobody has, which must
-# not answer. demo/outside.sh swd runs it; test/test_swd.py rehearses it on the RTL.
+# SWCLK, pin 1 of Pico B's debug connector, IO5 (header 36) to SWDIO, pin 3, GND to pin 2,
+# each line through 220 R, and 4.7 k from SWDIO to Pico B's 3V3. Reads core 0's DPIDR and
+# AP IDR and core 1's DPIDR, checks an absent instance stays silent, then lets the lines
+# go. demo/outside.sh swd runs it; test/test_swd.py rehearses it on the RTL.
 
 import bench
 import bench_firmware
@@ -23,6 +23,8 @@ DPIDR = 0x0BC12477
 ALERT = [0xF392, 0x6209, 0x2D95, 0x8685, 0xAFE9, 0xE3DD, 0x0EA2, 0x19BC]
 ACTIVATION = 0xF1A0
 LINE_RESET = [0xFFFF] * 4 + [0x0000]
+# bit 15 of a word with bit 0 clear: SWCLK low and SWDIO let go until the next command
+RELEASE = [0x8000]
 # DP registers (B2.2), and ABORT's sticky flag clears less STKCMPCLR, which a MINDP DP
 # takes as SBZ
 ABORT, CTRL_STAT, SELECT, RDBUFF = 0x0, 0x4, 0x8, 0xC
@@ -115,14 +117,25 @@ def select(swd, target, log):
 
 
 def run(transfer, log=print, half=HALF):
+    """The act, leaving SWCLK low and SWDIO let go however it ends."""
     host = pe.Host(transfer)
     bench.load(host, bench_firmware.SWD)
     host.start()
-    # the half period comes first and is not answered
-    host.push([half])
     swd = Swd(host)
-    swd.wake()
+    # the core answers the half period with SWDIO's level before it drives either line
+    if swd.send([half], 1)[0] != 1:
+        log("SWDIO is low with nobody driving it: power Pico B and fit the 4.7 k from SWDIO "
+            "to Pico B's 3V3 (pin 36)")
+        host.stop()
+        return False
+    try:
+        return act(swd, host, log)
+    finally:
+        swd.send(RELEASE, 0)
 
+
+def act(swd, host, log):
+    swd.wake()
     ack, dpidr, good = select(swd, CORE0, log)
     core0 = ack == OK and dpidr == DPIDR and good
     if ack != OK:
@@ -152,6 +165,7 @@ def run(transfer, log=print, half=HALF):
     ack, value, good = select(swd, CORE1, log)
     core1 = ack == OK and value == DPIDR and good
     ack, _, _ = select(swd, NOBODY, log)
+    # the ACK lines read 111 or 000 as the pull-up or the pad's pull-down wins
     silent = ack != OK
     log("nobody answers instance 2: %s" % ("yes" if silent else "NO"))
     ack, value, good = select(swd, CORE0, log)

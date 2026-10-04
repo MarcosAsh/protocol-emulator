@@ -28,18 +28,31 @@ let firmware =
   [%firmware
     {|
     .side_set 1
-    set pindirs, 1 side 1
-    wait tx side 1
-    pull side 1
-    mov p, osr side 1          ; the half period
+    wait tx side 0
+    pull side 0
+    mov p, osr side 0          ; the half period
+    in pins, 1 side 0          ; SWDIO let go: high if the target's pull-up is powered
+    in null, 15 side 0
+    push side 0
+released:
+    wait tx side 0             ; SWCLK low and SWDIO let go until a command
+    pull side 0
+    set pindirs, 1 side 0      ; then SWDIO low, half a period before SWCLK rises to idle
+    mov t, now side 0
+    add t, p side 0
+    wait t side 0
+    jmp command
 idle:
     wait tx side 1
     pull side 1
-    mov t, now side 1
-    add t, p side 1
+command:
     out y, 1 side 1            ; 1: a request, and this is its start bit
     jmp y--, request
-    out y, 15 side 1           ; driven bits, this many words less one
+    out y, 14 side 1           ; driven bits, this many words less one
+    out x, 1 side 1            ; or bit 15: let go of the lines
+    jmp x--, release
+    mov t, now side 1
+    add t, p side 1
 word:
     jmp !tx, word_late
     pull side 1
@@ -59,7 +72,12 @@ word_late:
     mov t, now side 1
     add t, p side 1
     jmp word_ready
+release:
+    set pindirs, 0 side 0
+    jmp released
 request:
+    mov t, now side 1
+    add t, p side 1
     wait t+ side 1
     set pins, 1 side 0         ; start
     wait t+ side 0
@@ -359,6 +377,7 @@ end
 
 let sequence words = ((List.length words - 1) lsl 1) :: words
 let line_reset = sequence [ 0xffff; 0xffff; 0xffff; 0xffff; 0x0000 ]
+let release = [ 0x8000 ]
 
 (* 0x19BC0EA2 E3DDAFE9 86852D95 6209F392, sent LSB first *)
 let selection_alert = [ 0xf392; 0x6209; 0x2d95; 0x8685; 0xafe9; 0xe3dd; 0x0ea2; 0x19bc ]
@@ -842,12 +861,16 @@ module Bus = struct
     ; host : int option
     ; now : int
     ; contention : int list
+    ; undriven : int
     }
 
-  let create dps = { dps; host = None; now = 0; contention = [] }
+  let create ?(undriven = 1) dps =
+    { dps; host = None; now = 0; contention = []; undriven }
+  ;;
 
-  let rp2040 ~cycle_ns =
+  let rp2040 ?undriven ~cycle_ns () =
     create
+      ?undriven
       (List.map [ rp2040_core0; rp2040_core1 ] ~f:(fun targetid ->
          Dp.create ~cycle_ns ~dpidr:rp2040_dpidr ~targetid ()))
   ;;
@@ -859,7 +882,7 @@ module Bus = struct
     match t.host, List.filter_map t.dps ~f:Dp.drive with
     | Some level, _ -> level
     | None, level :: _ -> level
-    | None, [] -> 1
+    | None, [] -> t.undriven
   ;;
 
   let inputs t = line t lsl swdio_pin

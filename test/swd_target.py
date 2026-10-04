@@ -247,10 +247,12 @@ class Dp:
 
 
 class Bus:
-    """The RP2040's two core DPs on one pulled-up line."""
+    """The host's pins and the RP2040's two core DPs on one line, at undriven when nobody
+    drives it: 1 for a pull-up."""
 
-    def __init__(self, dps=None):
+    def __init__(self, dps=None, undriven=1):
         self.dps = dps or [Dp(CORE0), Dp(CORE1)]
+        self.undriven = undriven
         self.host = None
         self.contention = 0
 
@@ -258,7 +260,7 @@ class Bus:
         if self.host is not None:
             return self.host
         drives = [dp.drive for dp in self.dps if dp.drive is not None]
-        return drives[0] if drives else 1
+        return drives[0] if drives else self.undriven
 
     def step(self, swclk, host):
         self.host = host

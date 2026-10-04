@@ -1,12 +1,15 @@
 (** SWD host (debugger): SWCLK on OUT2 by side-set, SWDIO on IO5 (ARM IHI 0031G, B4).
 
-    The host's first word is the half period in cycles. Then a word with bit 0 clear sends
-    the [n] words after it as driven bits, LSB first, for line resets and the dormant
-    wake-up, [n - 1] in bits 15 to 1. A word with bit 0 set is a request byte, which the
-    core sends and then reads the ACK; bit 8 writes regardless of the ACK, as TARGETSEL
-    takes none. A write's two data words follow it and the CRC unit adds the parity.
+    The host's first word is the half period in cycles, which the core answers with
+    SWDIO's level before it drives either line. Then a word with bit 0 clear sends the [n]
+    words after it as driven bits, LSB first, for line resets and the dormant wake-up,
+    [n - 1] in bits 14 to 1, or with bit 15 set lets go of the lines. A word with bit 0
+    set is a request byte, which the core sends and then reads the ACK; bit 8 writes
+    regardless of the ACK, as TARGETSEL takes none. A write's two data words follow it and
+    the CRC unit adds the parity.
 
-    SWCLK idles high and SWDIO is driven but where the target answers. The core changes
+    SWCLK idles high and SWDIO is driven but where the target answers, once the first
+    command comes and until the lines are let go, which leaves SWCLK low. The core changes
     SWDIO as SWCLK falls and samples the target there too, half a period after the target
     moved it on the rise. A read pushes RDATA as two words, zeros if the ACK refused it,
     then the status; a write pushes the status: ACK in bits 2 to 0, OK being 1, and a
@@ -78,6 +81,9 @@ end
 (** Driven bits, sixteen to a word. *)
 val sequence : int list -> int list
 
+(** Leaves SWCLK low and SWDIO let go until the next command. *)
+val release : int list
+
 (** 64 cycles high, then 16 idle. *)
 val line_reset : int list
 
@@ -132,12 +138,13 @@ module Dp : sig
   val violations : t -> string list
 end
 
-(** The host's pins and a multi-drop bus of DPs, pulled up. *)
+(** The host's pins and a multi-drop bus of DPs, at [undriven] when nobody drives it: 1, a
+    pull-up, unless said. *)
 module Bus : sig
   type t
 
-  val create : Dp.t list -> t
-  val rp2040 : cycle_ns:int -> t
+  val create : ?undriven:int -> Dp.t list -> t
+  val rp2040 : ?undriven:int -> cycle_ns:int -> unit -> t
   val dps : t -> Dp.t list
 
   (** The line, at [swdio_pin], as the core's input. *)

@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """The SWD act's own Python (python/demo_swd.py) on the RTL at the bench's 48 MHz, run
 blocking in a thread as Pico A runs it, against two RP2040 SW-DPs modelled from the spec
-(swd_target.py). Then what the act never sees: WAIT, FAULT, bad parity and a garbled
-ACK."""
+(swd_target.py). Then what the act never sees: WAIT, FAULT, bad parity, a garbled ACK and
+Pico B unpowered."""
 
 import os
 import re
@@ -100,6 +100,21 @@ def clean(bus):
     assert bus.contention == 0
 
 
+def let_go(dut):
+    """SWCLK low and SWDIO not driven, as the act leaves them."""
+    return (int(dut.uo_out.value) >> SWCLK) & 1 == 0 and (int(dut.uio_oe.value) >> SWDIO) & 1 == 0
+
+
+def started(transfer, half=10):
+    """SWD firmware running at half, its report of SWDIO let go read."""
+    host = demo_swd.pe.Host(transfer)
+    demo_swd.bench.load(host, demo_swd.bench_firmware.SWD)
+    host.start()
+    swd = demo_swd.Swd(host)
+    assert swd.send([half], 1) == [1]
+    return host, swd
+
+
 @cocotb.test()
 async def test_swd_act(dut):
     await reset(dut)
@@ -108,6 +123,8 @@ async def test_swd_act(dut):
     task = wire(dut, bus, samples)
     transfer, log, lines = acted(dut)
     assert await bridge(demo_swd.run)(transfer, log=log), lines
+    await ClockCycles(dut.clk, 100)
+    assert let_go(dut)
     await unwire(dut, task)
     clean(bus)
     if shutil.which("sigrok-cli"):
@@ -139,11 +156,7 @@ async def test_swd_refusals(dut):
     transfer, log, _ = acted(dut)
 
     def act():
-        host = demo_swd.pe.Host(transfer)
-        demo_swd.bench.load(host, demo_swd.bench_firmware.SWD)
-        host.start()
-        host.push([10])
-        swd = demo_swd.Swd(host)
+        host, swd = started(transfer)
         swd.wake()
         swd.line_reset()
         swd.targetsel(swd_target.CORE0)
@@ -190,11 +203,7 @@ async def test_swd_parity(dut):
     transfer, _, _ = acted(dut)
 
     def act():
-        host = demo_swd.pe.Host(transfer)
-        demo_swd.bench.load(host, demo_swd.bench_firmware.SWD)
-        host.start()
-        host.push([10])
-        swd = demo_swd.Swd(host)
+        _, swd = started(transfer)
         swd.wake()
         swd.line_reset()
         return swd.read(0, 0x0)
@@ -215,11 +224,7 @@ async def test_swd_garbled_ack(dut):
     transfer, _, _ = acted(dut)
 
     def act():
-        host = demo_swd.pe.Host(transfer)
-        demo_swd.bench.load(host, demo_swd.bench_firmware.SWD)
-        host.start()
-        host.push([10])
-        swd = demo_swd.Swd(host)
+        _, swd = started(transfer)
         swd.wake()
         swd.line_reset()
         acks = [swd.read(0, 0x0)[0], swd.write(0, demo_swd.ABORT, 0x4)]
@@ -232,3 +237,26 @@ async def test_swd_garbled_ack(dut):
     assert acks == [0b101, 0b101], acks
     assert read == (swd_target.OK, swd_target.DPIDR, True), read
     assert "W DP 0x0 with no WDATA" in bus.dps[0].log, bus.dps[0].log
+
+
+@cocotb.test()
+async def test_swd_unpowered(dut):
+    """Pico B unpowered, so SWDIO reads low let go: the act stops before driving either
+    line."""
+    await reset(dut)
+    bus = swd_target.Bus(undriven=0)
+    driven = []
+
+    async def watch():
+        while True:
+            driven.append(not let_go(dut))
+            await ClockCycles(dut.clk, 1)
+
+    task = wire(dut, bus)
+    watcher = cocotb.start_soon(watch())
+    transfer, log, lines = acted(dut)
+    assert not await bridge(demo_swd.run)(transfer, log=log)
+    watcher.cancel()
+    await unwire(dut, task)
+    assert not any(driven), "a line driven"
+    assert "SWDIO is low" in lines[0], lines
