@@ -1,8 +1,8 @@
 name: pages
 
-# The playground from main, the results page and the live die, beside the 3D viewer of the
-# last green gds run on main, the only workflow that deploys the site. Runs after gds and
-# results.
+# The landing page, the playground from main, the results page and the live die, beside the
+# 3D viewer of the last green gds run on main, the only workflow that deploys the site. Runs
+# after gds and results.
 # js_of_ocaml is never locked.
 on:
   push:
@@ -11,6 +11,7 @@ on:
       - src/**
       - playground/**
       - pages/**
+      - docs/die.png
       - test/*.asm
       - dune-project
       - protocol_emulator.opam.locked
@@ -115,7 +116,7 @@ jobs:
       id-token: write
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}playground/
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Download the playground
         uses: actions/download-artifact@v7
@@ -123,11 +124,13 @@ jobs:
           name: playground
           path: site/playground
 
-      # as committed: demo/live_die.py makes its data from one gds run, by hand
-      - name: Checkout the live die
+      # as committed: demo/live_die.py makes the die's data from one gds run, by hand
+      - name: Checkout the pages
         uses: actions/checkout@v6
         with:
-          sparse-checkout: pages/die
+          sparse-checkout: |
+            pages
+            docs
           path: repo
 
       - name: Add the live die
@@ -154,6 +157,7 @@ jobs:
 
       # what TinyTapeout/tt-gds-action/viewer publishes, from the last run that passed
       - name: Download the chip
+        id: chip
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -163,25 +167,21 @@ jobs:
           cp chip/tt_submission/tt_submission/*.gds site/tinytapeout.gds
           cp chip/tt_submission/tt_submission/*.oas site/tinytapeout.oas
           cp chip/gds_render/gds_render.png site/
-          pdk=$(jq -r .PDK chip/tt_submission/tt_submission/pdk.json)
-          results=""
-          [ -f site/results/index.html ] && results='<p><a href="results/">Results</a></p>'
-          cat > site/index.html <<EOF
-          <!doctype html>
-          <html lang="en">
-          <head><meta charset="utf-8"><title>Redirecting to 3D Viewer...</title></head>
-          <body>
-          <script>
-            location.href = "https://gds-viewer.tinytapeout.com/?pdk=$pdk&model="
-              + encodeURIComponent(location.href + "/tinytapeout.oas");
-          </script>
-          <p><a href="playground/">Firmware timing playground</a></p>
-          <p><a href="die/">Live die</a></p>
-          $results
-          </body>
-          </html>
-          EOF
+          echo "pdk=$(jq -r .PDK chip/tt_submission/tt_submission/pdk.json)" >> "$GITHUB_OUTPUT"
           echo "chip from gds run $run" >> "$GITHUB_STEP_SUMMARY"
+
+      # the pdk as the gds run has it, and the results card only when the results page went up
+      - name: Add the landing page
+        env:
+          PDK: ${{ steps.chip.outputs.pdk }}
+        run: |
+          cp repo/pages/index.html site/
+          cp repo/docs/die.png site/
+          sed -i -e "s|data-pdk=\"[^\"]*\"|data-pdk=\"$PDK\"|" -e "s|?pdk=[^&]*&|?pdk=$PDK\&|" \
+            site/index.html
+          grep -q "data-pdk=\"$PDK\"" site/index.html
+          grep -q "?pdk=$PDK&" site/index.html
+          [ -f site/results/index.html ] || sed -i '/<!-- results -->/,/<!-- \/results -->/d' site/index.html
 
       - name: Upload the site
         uses: actions/upload-pages-artifact@v5
