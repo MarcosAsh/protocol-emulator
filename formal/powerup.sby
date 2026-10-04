@@ -66,5 +66,7 @@ written: ../src/protocol_emulator.v
 unreset: powerup_teeth/unreset.v
 stale: powerup_teeth/stale.v
 ../src/RM_IHPSG13_1P_512x16_c2_bm_bist.v
+flops.tcl
 powerup.tcl
+pairs.sv
 powerup.sv
