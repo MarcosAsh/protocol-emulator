@@ -26,6 +26,7 @@ ABC_STATUS = re.compile(r"^Status = ([01]) ")
 WITNESS = re.compile(r"^(\w+): (\w+) (verified|fails)$")
 SYNC_RUN = re.compile(r"^cd sync_\w+ && if \[ -z '(.*?)' \]")
 COCOTB = re.compile(r"\*\* TESTS=(\d+) PASS=(\d+) FAIL=(\d+)")
+DECODE = re.compile(r"^(PASS|XFAIL|TOOTH|FAIL|MISSED) \w+: ")
 
 
 def gh(*args):
@@ -205,6 +206,20 @@ def cocotb(lines):
         if m:
             r.passes += int(m[2])
             r.wrong += int(m[3])
+    return r
+
+
+def decoded(lines):
+    """demo/decode.py's verdicts: a refused tooth counts as teeth, a fail or miss wrong."""
+    r = Result()
+    for _, text in lines:
+        m = DECODE.match(text)
+        if m and m[1] in ("PASS", "XFAIL"):
+            r.passes += 1
+        elif m and m[1] == "TOOTH":
+            r.teeth += 1
+        elif m:
+            r.wrong += 1
     return r
 
 
@@ -452,6 +467,11 @@ CLAIMS = [
                                     "{} MHz routed")),
               step="Build for the Icepi Zero and simulate the netlist", teeth_note=TESTED,
               status="simulated"),
+        Claim("sigrok's decoders read the gate-level netlist's outputs as they read the RTL's",
+              "gds", exactly("gl_test"), "demo/decode.py on the gate level's traces",
+              both(decoded, matching(r"^sigrok on the gate-level netlist: (\d+) of (\d+) ",
+                                     "{} of {} protocols")),
+              step="Decode the gate level's traces with sigrok", status="simulated"),
         Claim("Every textual mutant of the engine, decoder, pins and host port is killed by "
               "the tests, or allowed with a reason", "mutation", exactly("mutate"),
               "test/mutate.py", mutation, status="tested"),
