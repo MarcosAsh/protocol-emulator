@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Pico B as a CAN node at 500 kbit/s for the CAN acts: Kevin O'Connor's can2040 on PIO 0,
-// RX on GP10 from the transceiver's R, TX on GP11 to its D. It ACKs and prints every whole
+// RX on GP6 from the transceiver's R, TX on GP7 to its D. It ACKs and prints every whole
 // frame and the parse errors it counts. ID REQUEST is answered after REPLY_DELAY_MS with
 // REPLIES, REPLY_GAP_MS apart, each printed once ACKed: can2040 resends until one is.
 
@@ -12,8 +12,8 @@
 
 #include "can2040.h"
 
-#define GPIO_RX 10
-#define GPIO_TX 11
+#define GPIO_RX 6
+#define GPIO_TX 7
 #define BITRATE 500000
 #define REQUEST 0x7e0
 // longer than Pico A takes to load the receiver into engine 0
