@@ -177,9 +177,12 @@ def load(host, address, loaded=None):
     if loaded is None:
         host.configure(firmware.CONFIG)
         host.load(words)
+        host.certify(firmware.CERTIFICATE, loaded=firmware.BIT_PERIOD, single_edge=True)
     elif words is not None:
         host.write(PROGRAM_ADDR, [first])
         host.write(PROGRAM, words)
+        # the certificate serves every address and is still in the data memory
+        host.check(loaded=firmware.BIT_PERIOD, single_edge=True)
     # the first instruction pulls the bit period, so it must be queued before start
     host.push([firmware.BIT_PERIOD])
     host.start()

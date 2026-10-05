@@ -25,6 +25,17 @@ let () =
     Asm.Program.words program |> ok_exn |> Array.of_list
   in
   let programs = Array.init addresses ~f:program in
+  (* x and y whole, so the one certificate passes every address's program *)
+  let certificate =
+    Load_check.of_program
+      ~registers_whole:true
+      ~period:bit_period
+      ~single_capture_edge:true
+      ~config:Firmware.usb_device_config
+      (Array.to_list programs.(0))
+    |> ok_exn
+    |> Load_check.to_words
+  in
   let base = programs.(0) in
   let patch_at =
     List.filter
@@ -48,6 +59,8 @@ let () =
   List.iter config ~f:(fun (name, value) -> printf "    \"%s\": %d,\n" name value);
   print_endline "}\n\nWORDS = [";
   List.iter (lines (Array.to_list base)) ~f:(printf "    %s,\n");
+  print_endline "]\n\nCERTIFICATE = [";
+  List.iter (lines certificate) ~f:(printf "    %s,\n");
   printf
     "]\n\nPATCH_AT = [%s]\n\nPATCHES = [\n"
     (List.map patch_at ~f:Int.to_string |> String.concat ~sep:", ");
