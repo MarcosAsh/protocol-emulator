@@ -3,7 +3,7 @@
 # stamps every edge and echoes the wire on OUT0 for the listener Pico and the analyser.
 # An engine's set and out pins are one run from their base, so it cannot drive OUT0 and
 # the wire together: hence the echo. Needs protocol_emulator.py, pico_board.py and the
-# two .hex files on the Pico.
+# two .hex and two .cert.hex files on the Pico.
 
 import protocol_emulator as pe
 
@@ -11,6 +11,8 @@ WIRE = 20
 # 9600 baud at 48 MHz; `assemble -period 5000 test/uart_tx_host_rate.asm` accepts it, so
 # every edge lands a whole number of periods after its start bit
 PERIOD = 5000
+# the least period test/firmware.mk certifies uart_tx_host_rate for, so any load from it up
+FLOOR = 434
 TRANSMITTER = dict(pe.DEFAULT_CONFIG, set_base=WIRE, out_base=WIRE)
 # sets OUT0, the default set pin
 LOGGER = dict(pe.DEFAULT_CONFIG, jmp_pin=WIRE, autopush=1)
@@ -29,23 +31,29 @@ def edges(byte):
     return [bit for bit in range(10) if levels[bit] != (levels[bit - 1] if bit else 1)]
 
 
-def load(host, engine, config, program):
+def load(host, engine, config, name, loaded=None):
+    """Loads and certifies; both engines have to be halted for the certificate."""
     host.select(engine)
-    host.stop()
-    host.flush()
     host.configure(config)
-    host.load(program)
+    host.load(words(name))
+    host.certify(words(name + ".cert"), loaded=loaded)
 
 
 def rx_level(host):
     return (host.read(pe.STATUS)[0] >> 10) & 15
 
 
-def setup(host, transmitter, logger, period=PERIOD):
+def setup(host, period=PERIOD):
     """Both engines running, the wire idle and no stamp waiting."""
-    load(host, 1, LOGGER, logger)
+    for engine in (1, 0):
+        host.select(engine)
+        host.stop()
+        host.flush()
+    load(host, 1, LOGGER, "edge_logger_echo")
+    load(host, 0, TRANSMITTER, "uart_tx_host_rate", loaded=FLOOR)
+    host.select(1)
     host.start()
-    load(host, 0, TRANSMITTER, transmitter)
+    host.select(0)
     host.push([period])
     host.start()
     host.select(1)
@@ -147,7 +155,7 @@ def run(transfer, text=b"Jane St!", pause=None, drain=None):
     if any(found):
         raise RuntimeError("faults %s hold from an earlier run: reset the chip" % found)
     poll = host_drain(host) if drain is None else spi.drain
-    setup(host, words("uart_tx_host_rate"), words("edge_logger_echo"))
+    setup(host)
     spi.frames = 0
     quiet = offsets(data, send(host, poll, data, pause=pause))
     print("\nquiet, %d SPI frames:" % spi.frames)
