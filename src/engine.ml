@@ -112,6 +112,8 @@ module Host = struct
     ; clear_irq : 'a
     ; stop : 'a
     ; flush : 'a
+    ; check : 'a
+    ; config_written : 'a
     }
   [@@deriving hardcaml]
 end
@@ -129,6 +131,7 @@ module I = struct
     ; config : 'a Config.t
     ; start : 'a
     ; program_write : 'a Program_write.t
+    ; program_read : 'a With_valid.t [@bits Isa.pc_bits]
     ; data_word : 'a [@bits Isa.data_bits]
     ; tx : 'a With_valid.t [@bits Isa.data_bits]
     ; rx_pop : 'a
@@ -185,6 +188,7 @@ module Make (Timer : Timer) = struct
       ; rx_level : 'a [@bits Host_fifo.level_bits]
       ; rx_head : 'a [@bits Isa.data_bits]
       ; instruction : 'a [@bits Isa.word_bits]
+      ; program_word : 'a [@bits Isa.word_bits]
       ; decode_ok : 'a
       ; opcode_onehot : 'a [@bits List.length Isa.Opcode.Cases.all]
       ; wait_select : 'a [@bits num_pins]
@@ -249,14 +253,17 @@ module Make (Timer : Timer) = struct
     in
     (* an empty fifo's head is a stale word, from power-up until eight have passed *)
     let%hw rx_head = mux2 rx.empty (zero data_bits) rx.head in
-    (* a write while the core runs would take the memory from the fetch *)
+    (* a write or a read while the core runs would take the memory from the fetch *)
     let%hw program_write = i.program_write.valid &: halted in
+    let%hw program_read = i.program_read.valid &: halted in
     let memory_in =
       { Program_memory.I.clock = i.clocking.clock
       ; men = vdd
       ; wen = program_write
       ; ren = vdd
-      ; addr = mux2 program_write i.program_write.addr fetch_addr
+      ; addr =
+          mux2 program_write i.program_write.addr
+          @@ mux2 program_read i.program_read.value fetch_addr
       ; din = i.program_write.data
       ; bm = ones Isa.word_bits
       }
@@ -828,6 +835,7 @@ module Make (Timer : Timer) = struct
     ; rx_level = rx.level
     ; rx_head
     ; instruction = word
+    ; program_word = memory.dout
     ; decode_ok
     ; opcode_onehot = concat_lsb is_opcode
     ; wait_select

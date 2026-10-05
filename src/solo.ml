@@ -44,6 +44,7 @@ let create ~memory (scope : Scope.t) (i : Signal.t I.t) =
     ; config = i.config
     ; start = i.start
     ; program_write = i.program_write
+    ; program_read = { valid = gnd; value = zero Isa.pc_bits }
     ; data_word = List.hd_exn data.words
     ; tx = i.tx
     ; rx_pop = i.rx_pop

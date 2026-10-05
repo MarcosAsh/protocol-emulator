@@ -82,6 +82,8 @@ module Host : sig
     ; clear_irq : 'a
     ; stop : 'a
     ; flush : 'a
+    ; check : 'a (** Walk the halted engine's program against its certificate. *)
+    ; config_written : 'a (** A field of [config] was written. *)
     }
   [@@deriving hardcaml]
 end
@@ -92,6 +94,8 @@ module I : sig
     ; config : 'a Config.t (** Held constant while running. *)
     ; start : 'a (** Pulse while halted. *)
     ; program_write : 'a Program_write.t (** Only while halted. *)
+    ; program_read : 'a With_valid.t
+    (** Only while halted and not writing: the word is [program_word] a cycle later. *)
     ; data_word : 'a (** The word at [data_ptr], from [Data_memory]. *)
     ; tx : 'a With_valid.t
     ; rx_pop : 'a (** [rx_head] is the word popped. *)
@@ -140,6 +144,7 @@ module Make (_ : Timer) : sig
       ; rx_level : 'a
       ; rx_head : 'a (** 0 while [rx_level] is. *)
       ; instruction : 'a (** The word at [pc]. *)
+      ; program_word : 'a (** The program memory's output. *)
       ; decode_ok : 'a (** Registered with [instruction], as are the next two. *)
       ; opcode_onehot : 'a
       ; wait_select : 'a (** Bit [n] for the pin the wait field names. *)
