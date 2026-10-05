@@ -16,6 +16,7 @@ def run(count=10, clock_hz=40_000_000):
     host.stop()
     host.configure(ethernet.CONFIG)
     host.load(ethernet_firmware.WORDS)
+    host.certify(ethernet_firmware.CERTIFICATE, loaded=ethernet_firmware.LOADED)
     for n in range(count):
         ethernet.send(host, ethernet.udp(("hello from the chip %d" % n).encode()))
         time.sleep(1)

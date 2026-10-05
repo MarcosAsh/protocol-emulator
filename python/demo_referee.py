@@ -119,8 +119,14 @@ def scrub(host, program, polls=100):
     """The selected engine runs program, scrub.hex, under the config it has, which must
     not autopull: the SK6812 firmware leaves osr's count at 8, and the checker would shift
     its first row from what is left. A start clears neither."""
-    host.stop()
+    selected = host.read(pe.SELECT)[0]
+    for engine in (0, 1):
+        host.select(engine)
+        host.stop()
+    host.select(selected)
     host.load(program)
+    # no jump and no wrap: the certificate is the empty table
+    host.certify([0, 0])
     host.start()
     for _ in range(polls):
         if host.read(pe.STATUS)[0] & 1:

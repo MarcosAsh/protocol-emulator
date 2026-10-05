@@ -18,6 +18,12 @@ UART_TX = [
     0x20E0, 0xE004, 0x80C5, 0xA001, 0x20E0, 0xE004, 0xA027, 0x80E6, 0xA000,
     0xC0CA, 0x20C0, 0x6001, 0x020A, 0x20C0, 0xA001, 0x2040, 0x0004,
 ]
+
+# test/uart_tx_host_rate.cert.hex: what the chip checks UART_TX against, from a period of 4
+UART_TX_CERTIFICATE = [
+    0x0002, 0x0001, 0x0200, 0x0001, 0x0000, 0x0500, 0x4001, 0x0400,
+    0xFF00, 0x0400, 0x0000, 0x0004, 0xFFFF, 0x0000, 0x0007,
+]
 BAUD = 115_200
 BYTES = [0x55, 0xA3, 0x00, 0xFF]
 FAULTS = 0x3C
@@ -94,6 +100,7 @@ def uart(spi, host, clock_hz, say):
     host.flush()
     host.configure(pe.DEFAULT_CONFIG)
     host.load(UART_TX)
+    host.certify(UART_TX_CERTIFICATE, loaded=4)
     wrapped = host.read(pe.PROGRAM_ADDR)[0]
     ok = report(say, "load", wrapped == 0, "program address 0x%03x after 512 words" % wrapped)
     sm.active(1)

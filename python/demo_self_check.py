@@ -4,7 +4,7 @@
 # at the first that leaves its cycle. Quiet over every byte value, then the same restart
 # with the bit period a cycle long and a cycle short, then quiet again. The wire stays
 # inside the chip, so Pico B and the analyser see nothing. Needs protocol_emulator.py,
-# pico_board.py and the three .hex files on the Pico.
+# pico_board.py and the three .hex files and two .cert.hex files on the Pico.
 
 import protocol_emulator as pe
 
@@ -82,14 +82,20 @@ def load(host, engine, config, program):
 
 
 def setup(host, rows, program):
-    """The rows in while both are halted, the checker running, the transmitter halted."""
+    """Both certified and the rows in while both are halted, then the checker running and
+    the transmitter halted. The certificates go at 0, under the rows, and hold once
+    checked."""
     for engine in (0, 1):
         host.select(engine)
         host.stop()
-    host.load_data(rows, BASE)
     load(host, 1, CHECKER, program)
-    host.start()
+    host.certify(words("self_check_wire.cert"), loaded=17)
     load(host, 0, TRANSMITTER, words("uart_tx_host_rate"))
+    host.certify(words("uart_tx_host_rate.cert"), loaded=4)
+    host.load_data(rows, BASE)
+    host.select(1)
+    host.start()
+    host.select(0)
 
 
 def restart(host, period, data):

@@ -27,6 +27,8 @@ def main():
     host.select(1)
     host.configure(dict(DEFAULT_CONFIG, out_base=5, out_count=15))
     host.load(CLEAR)
+    # no jump and no wrap: the certificate is the empty table
+    host.certify([0, 0])
     host.start()
     host.select(0)
     for gap_us, frame in FRAMES:
