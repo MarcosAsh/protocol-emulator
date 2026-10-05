@@ -48,16 +48,19 @@ DEFAULT_CONFIG = {
 }
 
 
-def certify_writes(certificate, base=0, loaded=None, single_edge=False):
-    """(register, words) that write a certificate and start the chip's check of it."""
+def check_writes(base=0, loaded=None, single_edge=False):
+    """(register, words) that start the chip's check against the certificate at base."""
     return [
-        (DATA_ADDR, [base]),
-        (DATA, list(certificate)),
         (CHECK_BASE, [base]),
         (CHECK_LOADED, [0 if loaded is None else loaded]),
         (CHECK_FLAGS, [(loaded is not None) | (bool(single_edge) << 1)]),
         (CONTROL, [0x10]),
     ]
+
+
+def certify_writes(certificate, base=0, loaded=None, single_edge=False):
+    """check_writes after writing the certificate at base."""
+    return [(DATA_ADDR, [base]), (DATA, list(certificate))] + check_writes(base, loaded, single_edge)
 
 
 def config_writes(config):
@@ -107,7 +110,13 @@ class Host:
         for the write; certification lasts until the program or configuration changes,
         whatever the data memory holds later. loaded is the period every run-time load of
         p is assumed to carry, the floor where the firmware has one."""
-        for reg, words in certify_writes(certificate, base, loaded, single_edge):
+        self.load_data(certificate, base)
+        self.check(base, loaded, single_edge)
+
+    def check(self, base=0, loaded=None, single_edge=False):
+        """certify against a certificate the data memory already holds, as after a patch
+        while another core runs and no data write lands."""
+        for reg, words in check_writes(base, loaded, single_edge):
             self.write(reg, words)
         status = self.read(CHECK_STATUS)[0]
         while status & 1:
