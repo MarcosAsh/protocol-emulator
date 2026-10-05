@@ -90,6 +90,11 @@ module chip_frame (input clk);
     .hosts$data_write$data_1(data_write_data_1),
     .hosts$tx$valid_1(tx_valid[1]), .hosts$tx$value_1(tx_value_1), .hosts$rx_pop_1(rx_pop[1]),
     .hosts$clear_irq_1(clear_irq[1]), .hosts$stop_1(stop[1]), .hosts$flush_1(flush[1]),
+    // the load checker idle, which ungated engines.v leaves out of every start
+    .hosts$check_0(1'b0), .hosts$config_written_0(1'b0),
+    .hosts$check_1(1'b0), .hosts$config_written_1(1'b0),
+    .check_setup$base(9'd0), .check_setup$loaded$valid(1'b0),
+    .check_setup$loaded$value(16'd0), .check_setup$single_edge(1'b0),
     .pads(pads),
     .engines$pin_out_0(pin_out_0), .engines$pin_dir_0(pin_dir_0),
     .engines$instruction_0(instruction_0), .engines$opcode_onehot_0(opcode_onehot_0),

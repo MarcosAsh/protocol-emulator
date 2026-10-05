@@ -17,10 +17,10 @@ kernel_step_narrow.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe kernel -timer-bits 7 > formal/kernel_step_narrow.v
 
 engines.v: ../src/*.ml
-	cd .. && dune exec -- bin/generate.exe engines -engines 2 > formal/engines.v
+	cd .. && dune exec -- bin/generate.exe engines -engines 2 -ungated > formal/engines.v
 
 engines_sram.v: ../src/*.ml
-	cd .. && dune exec -- bin/generate.exe engines -engines 2 -sram > formal/engines_sram.v
+	cd .. && dune exec -- bin/generate.exe engines -engines 2 -sram -ungated > formal/engines_sram.v
 
 issue_timing: engine.v
 	sby -f issue_timing.sby prove cover

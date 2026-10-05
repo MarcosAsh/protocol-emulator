@@ -35,7 +35,16 @@ typedef struct packed {
   logic data_valid;
   logic [8:0] data_addr;
   logic [15:0] data_data;
+  logic check, config_written;
 } host_t;
+
+// the load checker's settings, the chip's and not an engine's
+typedef struct packed {
+  logic [8:0] base;
+  logic loaded_valid;
+  logic [15:0] loaded_value;
+  logic single_edge;
+} check_setup_t;
 
 // a macro's inputs
 typedef struct packed {
@@ -59,6 +68,7 @@ module isolation_copy (
   input [19:0] pads,
   input config_t config_0, config_1,
   input host_t host_0, host_1,
+  input check_setup_t check_setup,
   input [15:0] dout_0, dout_1, dout_data,
   output port_t port_0, port_1, port_data,
   output [27:0] pin_out_0, pin_dir_0, pin_out_1, pin_dir_1,
@@ -105,13 +115,17 @@ module isolation_copy (
     .hosts$program_write$addr_``n(h.program_addr), \
     .hosts$program_write$data_``n(h.program_data), \
     .hosts$data_write$valid_``n(h.data_valid), .hosts$data_write$addr_``n(h.data_addr), \
-    .hosts$data_write$data_``n(h.data_data),
+    .hosts$data_write$data_``n(h.data_data), \
+    .hosts$check_``n(h.check), .hosts$config_written_``n(h.config_written),
 `define PORT(prefix, p) \
     .prefix``_men(p.men), .prefix``_wen(p.wen), .prefix``_ren(p.ren), \
     .prefix``_addr(p.addr), .prefix``_din(p.din), .prefix``_bm(p.bm),
 
   engines_top chip (
     .clock(clk), .clear(clear), .pads(pads),
+    .check_setup$base(check_setup.base), .check_setup$loaded$valid(check_setup.loaded_valid),
+    .check_setup$loaded$value(check_setup.loaded_value),
+    .check_setup$single_edge(check_setup.single_edge),
     `CONFIG(0, config_0) `HOST(0, host_0)
     `CONFIG(1, config_1) `HOST(1, host_1)
     `PORT(sram_0, port_0) `PORT(sram_1, port_1) `PORT(data_sram, port_data)
@@ -174,6 +188,8 @@ module isolation (input clk);
   // and what each has of its own
   (* anyseq *) config_t config_1_a, config_1_b;
   (* anyseq *) host_t host_1_a, host_1_b;
+  // shared by both copies, as the host port holds it; the checker may run on either engine
+  (* anyseq *) check_setup_t check_setup;
   (* anyseq *) wire [15:0] dout_1_a, dout_1_b;
 
   // both copies clear at the first edge, and together whenever reset comes again
@@ -203,6 +219,7 @@ module isolation (input clk);
   isolation_copy side ( \
     .clk(clk), .clear(clear), .pads(pads), \
     .config_0(config_0), .config_1(config_1_``side), .host_0(host_0), .host_1(host_1_``side), \
+    .check_setup(check_setup), \
     .dout_0(dout_0_``side), .dout_1(dout_1_``side), .dout_data(dout_data_``side), \
     .port_0(port_0_``side), .port_1(port_1_``side), .port_data(port_data_``side), \
     .pin_out_0(pin_out_0_``side), .pin_dir_0(pin_dir_0_``side), \
