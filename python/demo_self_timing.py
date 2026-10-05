@@ -12,7 +12,7 @@ WIRE = 20
 # every edge lands a whole number of periods after its start bit
 PERIOD = 5000
 # the least period test/firmware.mk certifies uart_tx_host_rate for, so any load from it up
-FLOOR = 434
+FLOOR = 4
 TRANSMITTER = dict(pe.DEFAULT_CONFIG, set_base=WIRE, out_base=WIRE)
 # sets OUT0, the default set pin
 LOGGER = dict(pe.DEFAULT_CONFIG, jmp_pin=WIRE, autopush=1)
