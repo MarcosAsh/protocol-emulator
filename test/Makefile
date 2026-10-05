@@ -87,7 +87,7 @@ endif
 .DEFAULT_GOAL := all
 include firmware.mk
 ifneq ($(shell command -v dune),)
-CUSTOM_SIM_DEPS += $(FIRMWARE) $(ROWS)
+CUSTOM_SIM_DEPS += $(FIRMWARE) $(CERTIFICATES) $(ROWS)
 endif
 
 # include cocotb's make rules to take care of the simulator setup
