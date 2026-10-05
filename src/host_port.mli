@@ -1,13 +1,17 @@
 (** The host's SPI view of the core. A frame is a command byte (write bit, 7-bit register)
     then 16-bit words high byte first; more words repeat the access.
 
-    Registers: 0 control (bit 0 start, 1 clear irq, 2 stop, 3 flush), 1 status, 2 pc, 3-4
-    now, 5-6 capture, 7 tx, 8 rx (read pops), 9 program address, 10 program word, 11
-    select, 12 data address, 13 data word (writes to 10 and 13 increment the address), 16
-    on the config fields, write-only and reading zero. Control bits 4-5 do nothing.
-    Program, data, config and flush take effect only while halted, so a flush needs its
-    own write after the stop. 43, 44 and 64-71 are reserved and read zero; config skips
-    43-44 to keep [autopull_data] and [manchester] at 45-46 for existing hosts.
+    Registers: 0 control (bit 0 start, 1 clear irq, 2 stop, 3 flush, 4 check), 1 status,
+    2 pc, 3-4 now, 5-6 capture, 7 tx, 8 rx (read pops), 9 program address, 10 program
+    word, 11 select, 12 data address, 13 data word (writes to 10 and 13 increment the
+    address), 16 on the config fields, write-only and reading zero; for [Load_checker],
+    64 the certificate's base, 65 the loaded period, 66 its flags (bit 0 loaded, 1 single
+    edge), 67 the check's status (bit 0 busy, 1 accepted, 2 certified, 3 refused), 68 the
+    pc and 69 the reason it refused. Control bit 5 does nothing. Program, data, config,
+    check and flush take effect only while halted, so a flush needs its own write after
+    the stop, and a start only once the engine is certified. 43, 44, 70 and 71 are
+    reserved and read zero; config skips 43-44 to keep [autopull_data] and [manchester] at
+    45-46 for existing hosts.
 
     Select picks the engine for every register but the two addresses; it resets to 0 and
     past the last engine reaches none and reads zero. Status bit 15 flags another engine's
@@ -27,6 +31,8 @@ module Status : sig
     ; tx_level : 'a
     ; rx_level : 'a
     ; rx_head : 'a
+    ; certified : 'a (** [Engines.Check]'s, for this engine. *)
+    ; refused : 'a
     }
   [@@deriving hardcaml]
 end
@@ -54,6 +60,12 @@ module Reg : sig
   val data_addr : int
   val data : int
   val config : int
+  val check_base : int
+  val check_loaded : int
+  val check_flags : int
+  val check_status : int
+  val reject_pc : int
+  val reject_reason : int
 
   (** Each [Engine.Config] field's register, skipping the reserved ones. *)
   val configs : int list
@@ -74,6 +86,7 @@ module Make (_ : Config) : sig
       ; mosi : 'a
       ; cs_n : 'a
       ; status : 'a Status.t list
+      ; check : 'a Load_checker.Verdict.t
       }
     [@@deriving hardcaml]
   end
@@ -82,6 +95,7 @@ module Make (_ : Config) : sig
     type 'a t =
       { miso : 'a
       ; engines : 'a Engine.Host.t list
+      ; check_setup : 'a Load_checker.Setup.t
       }
     [@@deriving hardcaml]
   end

@@ -13,6 +13,8 @@ module Status = struct
     ; tx_level : 'a [@bits Host_fifo.level_bits]
     ; rx_level : 'a [@bits Host_fifo.level_bits]
     ; rx_head : 'a [@bits Isa.data_bits]
+    ; certified : 'a
+    ; refused : 'a
     }
   [@@deriving hardcaml]
 end
@@ -33,9 +35,15 @@ module Reg = struct
   let data_addr = 0x0c
   let data = 0x0d
   let config = 0x10
+  let check_base = 0x40
+  let check_loaded = 0x41
+  let check_flags = 0x42
+  let check_status = 0x43
+  let reject_pc = 0x44
+  let reject_reason = 0x45
 
   (* unused, so the fields after 0x2b and 0x2c stay where existing hosts write them *)
-  let reserved = [ 0x2b; 0x2c ] @ List.range 0x40 0x48
+  let reserved = [ 0x2b; 0x2c ] @ List.range 0x46 0x48
 
   let configs =
     List.take
@@ -80,6 +88,7 @@ module Make (Config : Config) = struct
       ; mosi : 'a
       ; cs_n : 'a
       ; status : 'a Status.t list [@length engines]
+      ; check : 'a Load_checker.Verdict.t
       }
     [@@deriving hardcaml]
   end
@@ -88,6 +97,7 @@ module Make (Config : Config) = struct
     type 'a t =
       { miso : 'a
       ; engines : 'a Engine.Host.t list [@length engines]
+      ; check_setup : 'a Load_checker.Setup.t
       }
     [@@deriving hardcaml]
   end
@@ -131,6 +141,9 @@ module Make (Config : Config) = struct
     let%hw_var word = Always.Variable.reg spec ~width:Isa.data_bits in
     let%hw_var program_addr = Always.Variable.reg spec ~width:Isa.pc_bits in
     let%hw_var data_addr = Always.Variable.reg spec ~width:Isa.data_addr_bits in
+    let%hw_var check_base = Always.Variable.reg spec ~width:Isa.data_addr_bits in
+    let%hw_var check_loaded = Always.Variable.reg spec ~width:Isa.data_bits in
+    let%hw_var check_flags = Always.Variable.reg spec ~width:2 in
     let%hw_var write = Always.Variable.wire ~default:gnd () in
     let%hw_var read_done = Always.Variable.wire ~default:gnd () in
     let%hw is_write = msb cmd.value in
@@ -168,8 +181,24 @@ module Make (Config : Config) = struct
     (* the command byte's register is read while the byte arrives, [addr]'s after it *)
     let%hw spi_rx_byte = wire 8 in
     let%hw read_addr = mux2 (sm.is Command) spi_rx_byte.:[6, 0] addr in
+    let%hw check_status =
+      concat_msb
+        [ pick (List.map i.status ~f:(fun s -> s.refused)) ~zero:gnd
+        ; pick (List.map i.status ~f:(fun s -> s.certified)) ~zero:gnd
+        ; i.check.accepted
+        ; i.check.busy
+        ]
+    in
     let%hw read_value =
-      [ Reg.program_addr, reg16 program_addr.value; Reg.data_addr, reg16 data_addr.value ]
+      [ Reg.program_addr, reg16 program_addr.value
+      ; Reg.data_addr, reg16 data_addr.value
+      ; Reg.check_base, reg16 check_base.value
+      ; Reg.check_loaded, check_loaded.value
+      ; Reg.check_flags, reg16 check_flags.value
+      ; Reg.check_status, reg16 check_status
+      ; Reg.reject_pc, reg16 i.check.reject_pc
+      ; Reg.reject_reason, reg16 i.check.reason
+      ]
       @ (Option.map select_value ~f:(fun select -> Reg.select, reg16 select)
          |> Option.to_list)
       |> List.map ~f:(fun (n, v) -> key n, v)
@@ -242,11 +271,20 @@ module Make (Config : Config) = struct
                  (at Reg.data_addr)
                  [ data_addr <-- sel_bottom value ~width:Isa.data_addr_bits ]
              ; when_ (at Reg.data) [ data_addr <-- data_addr.value +:. 1 ]
+             ; when_
+                 (at Reg.check_base)
+                 [ check_base <-- sel_bottom value ~width:Isa.data_addr_bits ]
+             ; when_ (at Reg.check_loaded) [ check_loaded <-- value ]
+             ; when_ (at Reg.check_flags) [ check_flags <-- sel_bottom value ~width:2 ]
              ]
              @ select_write
              @ config_writes)
         ]);
     let strobe n = write.value &: at n in
+    let%hw writes_config =
+      write.value
+      &: (List.map Reg.configs ~f:at |> List.reduce_exn ~f:( |: ))
+    in
     { O.miso = spi.miso
     ; engines =
         List.mapi config_values ~f:(fun n config ->
@@ -265,7 +303,14 @@ module Make (Config : Config) = struct
               }
           ; tx = { valid = mine (strobe Reg.tx); value }
           ; rx_pop = mine (read_done.value &: at Reg.rx)
+          ; check = mine (strobe Reg.control &: value.:(4))
+          ; config_written = mine writes_config &: (List.nth_exn i.status n).halted
           })
+    ; check_setup =
+        { base = check_base.value
+        ; loaded = { valid = check_flags.value.:(0); value = check_loaded.value }
+        ; single_edge = check_flags.value.:(1)
+        }
     }
   ;;
 

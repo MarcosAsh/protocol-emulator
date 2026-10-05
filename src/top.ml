@@ -35,6 +35,7 @@ let create ~memory ~engines (scope : Scope.t) (i : Signal.t I.t) =
   let sync x = Clocking.pipeline clocking ~n:2 x in
   let%hw inputs = concat_msb [ sync i.uio_in; zero 7; sync i.ui_in.:[7, 3] ] in
   let engine_outs = List.init engines ~f:(fun _ -> Engine.O.Of_signal.wires ()) in
+  let check = Engines.Check.Of_signal.wires () in
   let host =
     Host.hierarchical
       scope
@@ -43,7 +44,7 @@ let create ~memory ~engines (scope : Scope.t) (i : Signal.t I.t) =
       ; mosi = i.ui_in.:(1)
       ; cs_n = i.ui_in.:(2)
       ; status =
-          List.map engine_outs ~f:(fun (engine : _ Engine.O.t) ->
+          List.map3_exn engine_outs check.certified check.refused ~f:(fun (engine : _ Engine.O.t) certified refused ->
             { Host_port.Status.pc = engine.pc
             ; now = engine.now
             ; capture = engine.capture
@@ -53,13 +54,20 @@ let create ~memory ~engines (scope : Scope.t) (i : Signal.t I.t) =
             ; tx_level = engine.tx_level
             ; rx_level = engine.rx_level
             ; rx_head = engine.rx_head
+            ; certified
+            ; refused
             })
+      ; check = check.verdict
       }
   in
   let cores =
-    Engines.hierarchical ~memory scope { clocking; hosts = host.engines; pads = inputs }
+    Engines.hierarchical
+      ~memory
+      scope
+      { clocking; hosts = host.engines; pads = inputs; check_setup = host.check_setup }
   in
   List.iter2_exn engine_outs cores.engines ~f:Engine.O.Of_signal.assign;
+  Engines.Check.Of_signal.assign check cores.check;
   { O.uo_out = cores.pin_out.:[11, 5] @: host.miso
   ; uio_out = cores.pin_out.:[19, 12]
   ; uio_oe = cores.pin_dir.:[19, 12]
