@@ -6,19 +6,38 @@ module Decoder = Decoder.Make (Signal)
 module Opcode = Isa.Opcode.Make_comb (Signal)
 
 let data_wait = 3
+let aborted = 29
 let out_of_order = 30
 let left_over = 31
 let reason_bits = 5
 let count_bits = 8
 
+module Setup = struct
+  type 'a t =
+    { base : 'a [@bits Isa.data_addr_bits]
+    ; loaded : 'a With_valid.t [@bits Isa.data_bits]
+    ; single_edge : 'a
+    }
+  [@@deriving hardcaml]
+end
+
+module Verdict = struct
+  type 'a t =
+    { busy : 'a
+    ; accepted : 'a
+    ; reject_pc : 'a [@bits Isa.pc_bits + 1]
+    ; reason : 'a [@bits reason_bits]
+    }
+  [@@deriving hardcaml]
+end
+
 module I = struct
   type 'a t =
     { clocking : 'a Clocking.t
     ; check : 'a
+    ; abort : 'a
     ; config : 'a Engine.Config.t
-    ; loaded : 'a With_valid.t [@bits Isa.data_bits]
-    ; single_edge : 'a
-    ; base : 'a [@bits Isa.data_addr_bits]
+    ; setup : 'a Setup.t
     ; program_word : 'a [@bits Isa.word_bits]
     ; data_word : 'a [@bits Isa.data_bits]
     }
@@ -110,7 +129,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let capture =
     { Kernel.Capture.pin = uresize config.capture_pin ~width:Isa.Field.wait_index.width
     ; rising = config.capture_rising
-    ; single_edge = i.single_edge
+    ; single_edge = i.setup.single_edge
     }
   in
   let%hw following, jump_target =
@@ -130,7 +149,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
     K.conjuncts
       ~side_set_count
       ~fraction
-      ~loaded:i.loaded
+      ~loaded:i.setup.loaded
       ~capture
       ~spacing:K.no_spacing
       ~word:word.value
@@ -142,7 +161,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
     K.fall_through
       ~side_set_count
       ~fraction
-      ~loaded:i.loaded
+      ~loaded:i.setup.loaded
       ~capture
       ~word:word.value
       ~row:row_value
@@ -167,7 +186,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   (* the certificate's layout from [base]: two header words, the entries, the dictionaries *)
   let address offset = uresize offset ~width:Isa.data_addr_bits in
   let times3 x = uresize x ~width:Isa.data_addr_bits *: of_unsigned_int ~width:2 3 |> address in
-  let%hw entries_at = i.base +:. 2 in
+  let%hw entries_at = i.setup.base +:. 2 in
   let%hw wide_at = entries_at +: times3 count.value in
   let%hw narrow_at = wide_at +: times3 wide_count.value in
   let entry_at n = entries_at +: times3 n +: uresize k.value ~width:Isa.data_addr_bits in
@@ -272,7 +291,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
                   ]
               ] )
           ; ( Header
-            , read (i.base +: uresize k.value ~width:Isa.data_addr_bits)
+            , read (i.setup.base +: uresize k.value ~width:Isa.data_addr_bits)
               @ [ when_
                     read_done
                     [ if_
@@ -417,6 +436,12 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
                      (of_unsigned_int ~width:reason_bits left_over))
               ] )
           ]
+        (* last, so it wins over the state's own assignments *)
+      ; when_
+          (i.abort &: ~:(sm.is Idle))
+          (reject
+             ~at:(uresize pc.value ~width:(Isa.pc_bits + 1))
+             (of_unsigned_int ~width:reason_bits aborted))
       ]);
   { O.program_read = { valid = sm.is Word; value = pc.value }
   ; data_read = { valid = reading.value; value = data_addr.value }

@@ -4,7 +4,7 @@
     nothing from the host but the certificate, so what it accepts is the program the
     engine will run. [finished] pulses once, with [accepted], or [reject_pc] and [reason]:
     the index of the first failing conjunct in [Kernel.Conjuncts.to_list] order, or
-    [out_of_order] or [left_over]. *)
+    [out_of_order] or [left_over], or [aborted] if [abort] came while it walked. *)
 
 open! Core
 open! Hardcaml
@@ -12,17 +12,39 @@ open! Hardcaml
 (** Cycles from presenting a data address to its word, enough for either engine's turn. *)
 val data_wait : int
 
+val aborted : int
 val out_of_order : int
 val left_over : int
+
+(** What the host sets before a check: where the certificate starts, the period every
+    run-time load of [p] is assumed to carry, and the single-edge assumption. *)
+module Setup : sig
+  type 'a t =
+    { base : 'a
+    ; loaded : 'a With_valid.t
+    ; single_edge : 'a
+    }
+  [@@deriving hardcaml]
+end
+
+(** The last check's outcome, as the host reads it. *)
+module Verdict : sig
+  type 'a t =
+    { busy : 'a
+    ; accepted : 'a
+    ; reject_pc : 'a
+    ; reason : 'a
+    }
+  [@@deriving hardcaml]
+end
 
 module I : sig
   type 'a t =
     { clocking : 'a Clocking.t
     ; check : 'a
+    ; abort : 'a (** Ends a walk unaccepted: something it reads was written. *)
     ; config : 'a Engine.Config.t
-    ; loaded : 'a With_valid.t
-    ; single_edge : 'a
-    ; base : 'a
+    ; setup : 'a Setup.t
     ; program_word : 'a (** The word at [program_read], a cycle later. *)
     ; data_word : 'a (** The word at [data_read], [data_wait] cycles later. *)
     }

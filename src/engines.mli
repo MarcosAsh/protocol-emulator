@@ -4,7 +4,8 @@
     drive defined. An engine reads another's driven bidirectional pin instead of the pad,
     and any engine's drive on a wire. [formal/chip_frame.sv] proves two engines sharing no
     pad drive and read as alone, except reading the other's bidirectional pads and wires,
-    provided neither gets a new config without a clear. *)
+    provided neither gets a new config without a clear. An engine starts only on a program
+    the [Load_checker] accepted, under the configuration it was checked with. *)
 
 open! Core
 open! Hardcaml
@@ -19,6 +20,19 @@ module Make (_ : Config) : sig
       { clocking : 'a Clocking.t
       ; hosts : 'a Engine.Host.t list
       ; pads : 'a
+      ; check_setup : 'a Load_checker.Setup.t
+      }
+    [@@deriving hardcaml]
+  end
+
+  (** The [Load_checker]'s last verdict, and each engine's: [certified], from an accepted
+      check until a program or configuration write or the next check; and [refused], a
+      start without it, which leaves the engine halted, until the next check. *)
+  module Check : sig
+    type 'a t =
+      { verdict : 'a Load_checker.Verdict.t
+      ; certified : 'a list
+      ; refused : 'a list
       }
     [@@deriving hardcaml]
   end
@@ -28,6 +42,7 @@ module Make (_ : Config) : sig
       { engines : 'a Engine.O.t list
       ; pin_out : 'a
       ; pin_dir : 'a
+      ; check : 'a Check.t
       }
     [@@deriving hardcaml]
   end

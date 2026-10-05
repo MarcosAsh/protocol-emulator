@@ -19,6 +19,16 @@ module Make (Config : Config) = struct
       { clocking : 'a Clocking.t
       ; hosts : 'a Engine.Host.t list [@length engines]
       ; pads : 'a [@bits Isa.num_pins]
+      ; check_setup : 'a Load_checker.Setup.t
+      }
+    [@@deriving hardcaml]
+  end
+
+  module Check = struct
+    type 'a t =
+      { verdict : 'a Load_checker.Verdict.t
+      ; certified : 'a list [@length engines]
+      ; refused : 'a list [@length engines]
       }
     [@@deriving hardcaml]
   end
@@ -28,6 +38,7 @@ module Make (Config : Config) = struct
       { engines : 'a Engine.O.t list [@length engines]
       ; pin_out : 'a [@bits Isa.num_pins]
       ; pin_dir : 'a [@bits Isa.num_pins]
+      ; check : 'a Check.t
       }
     [@@deriving hardcaml]
   end
@@ -51,7 +62,33 @@ module Make (Config : Config) = struct
   ;;
 
   let create ~memory (scope : Scope.t) (i : Signal.t I.t) =
+    let spec = Clocking.to_spec i.clocking in
     let outs = List.init engines ~f:(fun _ -> Engine.O.Of_signal.wires ()) in
+    let select_bits = Int.max 1 (Int.ceil_log2 engines) in
+    (* One checker serves every engine, a halted one at a time: it reads that engine's
+       program memory and takes its turn at the data memory. *)
+    let checker = Load_checker.O.Of_signal.wires () in
+    let%hw checked = wire select_bits in
+    let%hw checking = checker.busy in
+    let mine n = checking &: (checked ==:. n) in
+    let%hw_list asks =
+      List.map2_exn i.hosts outs ~f:(fun (h : _ Engine.Host.t) e -> h.check &: e.halted)
+    in
+    let%hw go = ~:checking &: List.reduce_exn asks ~f:( |: ) in
+    let%hw chosen =
+      priority_select_with_default
+        (List.mapi asks ~f:(fun n ask ->
+           { With_valid.valid = ask; value = of_unsigned_int ~width:select_bits n }))
+        ~default:(zero select_bits)
+    in
+    checked <-- reg spec ~enable:go chosen;
+    let pick values = mux checked values in
+    (* what the walk reads, written under it *)
+    let%hw abort =
+      checking
+      &: (List.map i.hosts ~f:(fun h -> h.data_write.valid) |> List.reduce_exn ~f:( |: )
+          |: pick (List.map i.hosts ~f:(fun h -> h.program_write.valid |: h.config_written)))
+    in
     let data =
       Data_memory.hierarchical
         ~memory
@@ -59,8 +96,41 @@ module Make (Config : Config) = struct
         { clocking = i.clocking
         ; halted = List.map outs ~f:(fun e -> e.halted)
         ; writes = List.map i.hosts ~f:(fun h -> h.data_write)
-        ; reads = List.map outs ~f:(fun e -> e.data_addr)
+        ; reads =
+            List.mapi outs ~f:(fun n e ->
+              mux2 (mine n &: checker.data_read.valid) checker.data_read.value e.data_addr)
         }
+    in
+    Load_checker.hierarchical
+      scope
+      { clocking = i.clocking
+      ; check = go
+      ; abort
+      ; config = Engine.Config.Of_signal.mux checked (List.map i.hosts ~f:(fun h -> h.config))
+      ; setup = i.check_setup
+      ; program_word = pick (List.map outs ~f:(fun e -> e.program_word))
+      ; data_word = pick data.words
+      }
+    |> Load_checker.O.Of_signal.assign checker;
+    let%hw accepts = checker.finished &: checker.accepted in
+    (* a start counts only for a program the checker accepted, under the configuration
+       it was checked with *)
+    let certified, refused =
+      List.mapi i.hosts ~f:(fun n (h : _ Engine.Host.t) ->
+        let started = go &: (chosen ==:. n) in
+        let%hw certified =
+          reg_fb spec ~width:1 ~f:(fun certified ->
+            mux2
+              (h.program_write.valid |: h.config_written |: started)
+              gnd
+              (mux2 (accepts &: (checked ==:. n)) vdd certified))
+        in
+        let%hw refused =
+          reg_fb spec ~width:1 ~f:(fun refused ->
+            mux2 started gnd (mux2 (h.start &: ~:certified) vdd refused))
+        in
+        certified, refused)
+      |> List.unzip
     in
     List.iteri
       (List.zip_exn (List.zip_exn i.hosts outs) data.words)
@@ -72,8 +142,12 @@ module Make (Config : Config) = struct
           scope
           { clocking = i.clocking
           ; config = host.config
-          ; start = host.start
+          ; start = host.start &: List.nth_exn certified n
           ; program_write = host.program_write
+          ; program_read =
+              { valid = mine n &: checker.program_read.valid
+              ; value = checker.program_read.value
+              }
           ; data_word
           ; tx = host.tx
           ; rx_pop = host.rx_pop
@@ -97,6 +171,16 @@ module Make (Config : Config) = struct
     { O.engines = outs
     ; pin_out = sel_bottom pin_out ~width:Isa.num_pins
     ; pin_dir = sel_bottom (any outs ~f:(fun e -> e.pin_dir)) ~width:Isa.num_pins
+    ; check =
+        { verdict =
+            { busy = checking
+            ; accepted = checker.accepted
+            ; reject_pc = checker.reject_pc
+            ; reason = checker.reason
+            }
+        ; certified
+        ; refused
+        }
     }
   ;;
 
