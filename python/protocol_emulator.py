@@ -16,8 +16,18 @@ SELECT = 0x0B
 DATA_ADDR = 0x0C
 DATA = 0x0D
 CONFIG = 0x10
+CHECK_BASE = 0x40
+CHECK_LOADED = 0x41
+CHECK_FLAGS = 0x42
+CHECK_STATUS = 0x43
+REJECT_PC = 0x44
+REJECT_REASON = 0x45
 PROGRAM_WORDS = 512
-# 0x40 to 0x47 are reserved and read as zero.
+# 0x46 and 0x47 are reserved and read as zero.
+
+
+class Refused(Exception):
+    """The chip's load check refused the program: the pc and the reason it gives."""
 
 # Engine.Config order, the nth at CONFIG + n. None is a reserved register, kept so later
 # fields stay where existing hosts write them.
@@ -79,7 +89,26 @@ class Host:
         self.write(DATA_ADDR, [address])
         self.write(DATA, words)
 
+    def certify(self, certificate, base=0, loaded=None, single_edge=False):
+        """Write the selected engine's certificate at base and have the chip check its
+        program against it, as it must before a start counts. Every core has to be halted
+        for the write; certification lasts until the program or configuration changes,
+        whatever the data memory holds later. loaded is the period every run-time load of
+        p is assumed to carry, the floor where the firmware has one."""
+        self.load_data(certificate, base)
+        self.write(CHECK_BASE, [base])
+        self.write(CHECK_LOADED, [0 if loaded is None else loaded])
+        self.write(CHECK_FLAGS, [(loaded is not None) | (bool(single_edge) << 1)])
+        self.write(CONTROL, [0x10])
+        status = self.read(CHECK_STATUS)[0]
+        while status & 1:
+            status = self.read(CHECK_STATUS)[0]
+        if not status & 4:
+            raise Refused(self.read(REJECT_PC)[0], self.read(REJECT_REASON)[0])
+
     def start(self):
+        """Counts only once the program is certified; otherwise the core stays halted and
+        check_status shows it refused."""
         self.write(CONTROL, [1])
 
     def stop(self):
