@@ -7,7 +7,7 @@ CERTIFICATES = $(patsubst %.asm,%.cert.hex,$(wildcard *.asm))
 # The assembler refuses firmware that can miss a deadline. What a program has to assume
 # about the world to pass goes here, beside the configuration its test loads it with.
 uart_rx_wire.hex uart_rx_wire.cert.hex: ASSUME = -single-capture-edge -capture-pin 20 -capture-falling
-uart_tx_host_rate.hex uart_tx_host_rate.cert.hex: ASSUME = -period 434
+uart_tx_host_rate.hex uart_tx_host_rate.cert.hex: ASSUME = -period-floor 434
 ethernet.hex ethernet.cert.hex: ASSUME = -period 64000 -autopull-data 16
 data_stream.hex data_stream.cert.hex: ASSUME = -autopull-data 16
 # The checker loads a bit period per edge from its rows, each min_gap or more.
