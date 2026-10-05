@@ -105,17 +105,21 @@ def describe(pc, edge, v):
     return text
 
 
-def load(host, engine, config, words):
+def load(host, engine, config, words, certificate):
     host.select(engine)
-    host.stop()
     host.configure(config)
     host.load(words)
+    host.certify(certificate)
 
 
 def start(host, master, meter):
-    """Engine 0 first: its first instruction releases SCL, which the meter must not see."""
-    load(host, 0, MASTER_CONFIG, master)
-    load(host, 1, METER_CONFIG, meter)
+    """master and meter are (words, certificate). Both halted for the certificates' writes;
+    then engine 0 first: its first instruction releases SCL, which the meter must not see."""
+    for engine in (1, 0):
+        host.select(engine)
+        host.stop()
+    load(host, 0, MASTER_CONFIG, *master)
+    load(host, 1, METER_CONFIG, *meter)
     host.select(0)
     host.start()
     host.select(1)
@@ -151,12 +155,16 @@ def run(host, words, names, tries=200, **kwargs):
 
 def pico(pull_up=47_000, mode="fast", clock_hz=48_000_000):
     """On the bare-Pico bench: the host port on GP2-5 (python/pico_board.py), and
-    i2c_master_marked.asm, .hex and scl_rise.hex copied to the Pico."""
+    i2c_master_marked.asm, .hex, .cert.hex and scl_rise.hex, .cert.hex copied to the Pico."""
     import pico_board
 
     host = pico_board.host()
     with open("i2c_master_marked.asm") as f:
         names = releases(f.read())
-    start(host, hex_file("i2c_master_marked.hex"), hex_file("scl_rise.hex"))
+    start(
+        host,
+        (hex_file("i2c_master_marked.hex"), hex_file("i2c_master_marked.cert.hex")),
+        (hex_file("scl_rise.hex"), hex_file("scl_rise.cert.hex")),
+    )
     words = [i2c_word(0xA0, start=True), i2c_word(0x5A, stop=True)]
     return run(host, words, names, clock_hz=clock_hz, mode=mode, pull_up=pull_up)

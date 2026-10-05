@@ -7,7 +7,7 @@ import math
 import cocotb
 from cocotb.triggers import ClockCycles, First, Timer
 
-from test import AsyncHost, Pins, assembled, reset
+from test import AsyncHost, Pins, assembled, padded, reset
 import board_blame
 from board_blame import SCL, SDA, i2c_word
 from protocol_emulator import CONTROL, PROGRAM, PROGRAM_ADDR, RX, SELECT, STATUS, TX, config_writes
@@ -60,12 +60,13 @@ class Bus:
             await First(self.dut.uio_oe.value_change, self.dut.uio_out.value_change)
 
 
-async def load(host, engine, config, words):
+async def load(host, engine, config, name):
     await host.write(SELECT, [engine])
     for reg, word in config_writes(config):
         await host.write(reg, [word])
     await host.write(PROGRAM_ADDR, [0])
-    await host.write(PROGRAM, words)
+    await host.write(PROGRAM, padded(assembled(name)))
+    await host.certify_firmware(name)
 
 
 async def rx_level(host):
@@ -79,8 +80,8 @@ async def measure(dut, scl_ns):
     cocotb.start_soon(bus.run())
     host = AsyncHost(Pins(dut).transfer)
 
-    await load(host, 0, board_blame.MASTER_CONFIG, assembled("i2c_master_marked"))
-    await load(host, 1, board_blame.METER_CONFIG, assembled("scl_rise"))
+    await load(host, 0, board_blame.MASTER_CONFIG, "i2c_master_marked")
+    await load(host, 1, board_blame.METER_CONFIG, "scl_rise")
     await host.write(SELECT, [0])
     await host.write(CONTROL, [1])
     await host.write(SELECT, [1])
