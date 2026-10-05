@@ -10,7 +10,7 @@ sys.path.insert(0, "../python")
 from protocol_emulator import CONFIG_FIELDS, CONTROL, PROGRAM_ADDR, PROGRAM as PROGRAM_REG, RX, STATUS, TX, config_writes
 import usb_board
 import usb_device_firmware as firmware
-from test import AsyncHost, Pins, reset
+from test import AsyncHost, Pins, reset, padded
 
 BIT = firmware.BIT_PERIOD
 J, K, SE0 = (0, 1), (1, 0), (0, 0)
@@ -108,7 +108,8 @@ async def load(host, address):
     for reg, word in config_writes(firmware.CONFIG):
         await host.write(reg, [word])
     await host.write(PROGRAM_ADDR, [0])
-    await host.write(PROGRAM_REG, firmware.words(address))
+    await host.write(PROGRAM_REG, padded(firmware.words(address)))
+    await host.certify(firmware.CERTIFICATE, loaded=firmware.BIT_PERIOD, single_edge=True)
     await host.write(TX, [firmware.BIT_PERIOD])
     await host.write(CONTROL, [1])
 

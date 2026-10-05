@@ -74,14 +74,21 @@ def words(name):
         return pe.hex_words(f.read())
 
 
-def start_log(host, program, clock_hz=48_000_000):
+def start_log(host, program, certificate, clock_hz=48_000_000):
     """Engine 1 runs `program`, uart_tx_host_rate, which the kernel accepts at any period
-    from 4. Returns the `log` for `serve`, which sends the key of each report taken."""
-    host.select(1)
-    host.stop()
-    host.flush()
+    from 4. Both certificates go in first, while every core is halted: engine 0's, which
+    usb_board.load checks against, and after it engine 1's. Returns the `log` for `serve`,
+    which sends the key of each report taken."""
+    for engine in (0, 1):
+        host.select(engine)
+        host.stop()
+        host.flush()
+    usb_board.write_certificate(host)
     host.configure(LOGGER)
     host.load(program)
+    host.certify(
+        certificate, base=usb_board.CERTIFICATE_BASE + len(usb_board.firmware.CERTIFICATE),
+        loaded=4)
     host.push([(clock_hz + BAUD // 2) // BAUD])
     host.start()
     host.select(0)
@@ -147,7 +154,7 @@ def pico_a():
 def run(text="hello jane street ", say=print):
     """On the Icepi Zero, from the host Pico."""
     host, bus_reset = pico_a()
-    log = start_log(host, words("uart_tx_host_rate"))
+    log = start_log(host, words("uart_tx_host_rate"), words("uart_tx_host_rate.cert"))
     serve(host, usb_board.Board(DESCRIPTORS), reports(text), bus_reset, log, say)
 
 
@@ -157,7 +164,8 @@ def run_demo_board(text="hello jane street ", clock_hz=48_000_000):
     spi = demo_board.DemoBoardSpi(clock_hz=clock_hz)
     bus_reset = se0_reset(lambda: int(spi.tt.uio_out.value), time.ticks_ms)
     host = demo_board.Host(spi.transfer)
-    log = start_log(host, words("uart_tx_host_rate"), clock_hz)
+    log = start_log(
+        host, words("uart_tx_host_rate"), words("uart_tx_host_rate.cert"), clock_hz=clock_hz)
     serve(host, usb_board.Board(DESCRIPTORS), reports(text), bus_reset, log, print)
 
 

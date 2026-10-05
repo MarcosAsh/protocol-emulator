@@ -158,6 +158,16 @@ class Board:
             self._queue(1, self.report_toggle, self.pending_report)
 
 
+# where write_certificate puts the device's certificate, which serves every address
+CERTIFICATE_BASE = 0
+
+
+def write_certificate(host):
+    """While every core is halted: the certificate load checks against, as no data write
+    lands once the other core runs."""
+    host.load_data(firmware.CERTIFICATE, CERTIFICATE_BASE)
+
+
 def load(host, address, loaded=None):
     """Halt the core and start it again with the firmware for this address. When it holds
     the program for `loaded`, only the words that differ are written: a full load takes
@@ -177,12 +187,11 @@ def load(host, address, loaded=None):
     if loaded is None:
         host.configure(firmware.CONFIG)
         host.load(words)
-        host.certify(firmware.CERTIFICATE, loaded=firmware.BIT_PERIOD, single_edge=True)
     elif words is not None:
         host.write(PROGRAM_ADDR, [first])
         host.write(PROGRAM, words)
-        # the certificate serves every address and is still in the data memory
-        host.check(loaded=firmware.BIT_PERIOD, single_edge=True)
+    # against the certificate write_certificate left in the data memory
+    host.check(CERTIFICATE_BASE, loaded=firmware.BIT_PERIOD, single_edge=True)
     # the first instruction pulls the bit period, so it must be queued before start
     host.push([firmware.BIT_PERIOD])
     host.start()

@@ -267,7 +267,12 @@ async def act3(dut, queue, logs):
 
 def start_log(host):
     """Engine 1 on uart_tx_host_rate at the testbench's 50 MHz, so 434 cycles a bit."""
-    return demo_usb.start_log(host, demo_usb.words("uart_tx_host_rate"), 50_000_000)
+    return demo_usb.start_log(
+        host,
+        demo_usb.words("uart_tx_host_rate"),
+        demo_usb.words("uart_tx_host_rate.cert"),
+        clock_hz=50_000_000,
+    )
 
 
 @cocotb.test()

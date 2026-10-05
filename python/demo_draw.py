@@ -171,7 +171,8 @@ def run(path="draw.bin", say=print):
     ms = time.ticks_ms
     queue = Reports(data, ms)
     host, bus_reset = demo_usb.pico_a()
-    demo_usb.start_log(host, demo_usb.words("uart_tx_host_rate"))
+    demo_usb.start_log(
+        host, demo_usb.words("uart_tx_host_rate"), demo_usb.words("uart_tx_host_rate.cert"))
     board = usb_board.Board(demo_usb.DESCRIPTORS)
 
     def said(text):
