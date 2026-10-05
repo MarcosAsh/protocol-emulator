@@ -5,7 +5,7 @@
 import cocotb
 from cocotb.triggers import ClockCycles
 
-from test import AsyncHost, Pins, assembled, reset
+from test import AsyncHost, Pins, assembled, padded, reset
 from protocol_emulator import PROGRAM, PROGRAM_ADDR, STATUS, config_writes
 import ethernet
 
@@ -17,7 +17,10 @@ async def test_udp_datagram(dut):
     for reg, word in config_writes(ethernet.CONFIG):
         await host.write(reg, [word])
     await host.write(PROGRAM_ADDR, [0])
-    await host.write(PROGRAM, assembled("ethernet"))
+    await host.write(PROGRAM, padded(assembled("ethernet")))
+    # under the board's link interval; the test then loads a shorter one, which the
+    # chip's check, made at load, does not see
+    await host.certify_firmware("ethernet")
     frame = ethernet.udp(b"hello from the chip")
     data = ethernet.wire(frame)
     # what ethernet.send does, with a short link interval so the frame starts soon
