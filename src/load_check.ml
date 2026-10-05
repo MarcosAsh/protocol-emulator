@@ -84,6 +84,15 @@ let of_table ~config ~words (table : Kernel.Table.t) =
           ~narrow:(List.length !narrow : int)]
 ;;
 
+let of_program ?period ?period_floor ?single_capture_edge ~(config : Program_config.t) words =
+  let%bind.Or_error instructions =
+    List.map words ~f:(Isa.of_word ~side_set_count:config.side_set_count) |> Or_error.all
+  in
+  Analyser.analyse ?period ?period_floor ?single_capture_edge ~config instructions
+  |> Kernel.Table.of_analyser
+  |> of_table ~config ~words
+;;
+
 (* 48 bits as three words, the top first *)
 let split3 bits = [ (bits lsr 32) land 0xffff; (bits lsr 16) land 0xffff; bits land 0xffff ]
 let join3 memory at = (memory at lsl 32) lor (memory (at + 1) lsl 16) lor memory (at + 2)

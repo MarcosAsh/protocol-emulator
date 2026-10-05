@@ -20,6 +20,16 @@ type t [@@deriving sexp_of]
     [config]. Fails if a dictionary outgrows its indices. *)
 val of_table : config:Program_config.t -> words:int list -> Kernel.Table.t -> t Or_error.t
 
+(** [of_table] on the analyser's rows for [words] under the assumptions, as a host
+    makes the certificate for a program it holds only as words. *)
+val of_program
+  :  ?period:int
+  -> ?period_floor:int
+  -> ?single_capture_edge:bool
+  -> config:Program_config.t
+  -> int list
+  -> t Or_error.t
+
 (** The data memory's words, from [base]. *)
 val to_words : t -> int list
 
