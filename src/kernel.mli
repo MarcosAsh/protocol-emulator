@@ -260,6 +260,18 @@ module Make_timer (_ : Engine.Timer) : sig
       -> target:Comb.t Row.t
       -> Comb.t
 
+    (** The tightest row [conjuncts] lets the next pc's be on the way of falling through,
+        with no spacing and the offset left full, and whether that way is asked: where it
+        is not, any row holds. [test/test_kernel.ml] proves it field by field. *)
+    val fall_through
+      :  side_set_count:Comb.t
+      -> fraction:Comb.t
+      -> loaded:Comb.t With_valid.t
+      -> capture:Comb.t Capture.t
+      -> word:Comb.t
+      -> row:Comb.t Row.t
+      -> Comb.t Row.t * Comb.t
+
     val no_spacing : Comb.t Spaced.t
 
     (** An edge state at the start of a run, not yet written. *)

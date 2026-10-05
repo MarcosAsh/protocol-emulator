@@ -860,7 +860,9 @@ module Make_timer (Timer : Engine.Timer) = struct
       mux2 e.level (inside r.at1) (inside r.at0) &: (~:(r.fresh) |: e.fresh)
     ;;
 
-    let conjuncts
+    (* [conjuncts], with the tightest row [next] can be for its way of falling through to
+       hold and whether that way is asked *)
+    let ways
       ~side_set_count
       ~fraction
       ~(loaded : _ With_valid.t)
@@ -1013,14 +1015,83 @@ module Make_timer (Timer : Engine.Timer) = struct
       (* an empty row or a halt asks nothing; each conjunct holds or does not apply *)
       let asks = ~:(is_empty row) &: ~:(c.halts) in
       let only_if needed holds = Holds.map holds ~f:(fun h -> ~:needed |: h) in
+      (* [holds ~taken:false s] field by field is this row inside [s], an unknown bound
+         being the whole range; the offset is left full and the pins as they are *)
+      let fallen : _ Row.t =
+        let x_lo, x_hi = counter ~set:c.set_x ~dec:c.x_dec ~taken:false row.x_lo row.x_hi in
+        let y_lo, y_hi = counter ~set:c.set_y ~dec:c.y_dec ~taken:false row.y_lo row.y_hi in
+        let narrow x = sel_bottom x ~width:timer_bits in
+        let range ~known ~all lo hi = mux2 known lo (zero (width lo)), mux2 known hi all in
+        let image_lo = mux2 c.x_dec fallen_lo image_lo in
+        let image_hi = mux2 c.x_dec fallen_hi image_hi in
+        let phase_known =
+          phase_known &: (image_lo >=+ timer_min) &: (image_hi <=+ timer_max)
+        in
+        let phase_lo = mux2 phase_known (narrow image_lo) (narrow timer_min) in
+        let phase_hi = mux2 phase_known (narrow image_hi) (narrow timer_max) in
+        let period_lo, period_hi =
+          range
+            ~known:~:(c.writes_p &: ~:(loaded.valid))
+            ~all:data_max
+            (period_image row.period_lo)
+            (period_image row.period_hi)
+        in
+        let x_lo, x_hi = range ~known:~:(c.writes_x) ~all:data_max x_lo x_hi in
+        let y_lo, y_hi = range ~known:~:(c.writes_y) ~all:data_max y_lo y_hi in
+        let arm_lo, arm_hi =
+          range
+            ~known:arm_image_known
+            ~all:(ones timer_bits)
+            (sel_bottom arm_lo ~width:timer_bits)
+            (sel_bottom arm_hi ~width:timer_bits)
+        in
+        { row with
+          phase_lo
+        ; phase_hi
+        ; slope = zero timer_bits
+        ; offset_lo = narrow timer_min
+        ; offset_hi = narrow timer_max
+        ; period_lo
+        ; period_hi
+        ; x_lo
+        ; x_hi
+        ; y_lo
+        ; y_hi
+        ; arm_lo
+        ; arm_hi
+        ; captured = captured_image
+        ; awaiting = awaiting_image
+        }
+      in
+      let falls = asks &: (~:(c.jump) |: may_fall) in
       (* a halt's side-set moves the pins too *)
-      { Conjuncts.in_time = ~:asks |: ~:(c.deadline) |: (row.phase_hi <=+ zero timer_bits)
-      ; wide_a = is_empty row |: wide_a
-      ; wide_b = is_empty row |: wide_b
-      ; next = only_if (asks &: (~:(c.jump) |: may_fall)) (holds ~taken:false next)
-      ; target = only_if (asks &: c.jump &: may_take) (holds ~taken:true target)
-      }
+      ( { Conjuncts.in_time = ~:asks |: ~:(c.deadline) |: (row.phase_hi <=+ zero timer_bits)
+        ; wide_a = is_empty row |: wide_a
+        ; wide_b = is_empty row |: wide_b
+        ; next = only_if falls (holds ~taken:false next)
+        ; target = only_if (asks &: c.jump &: may_take) (holds ~taken:true target)
+        }
+      , fallen
+      , falls )
     ;;
+
+    let conjuncts
+      ~side_set_count
+      ~fraction
+      ~loaded
+      ~capture
+      ~spacing
+      ~word
+      ~row
+      ~next
+      ~target
+      =
+      let conjuncts, _, _ =
+        ways ~side_set_count ~fraction ~loaded ~capture ~spacing ~word ~row ~next ~target
+      in
+      conjuncts
+    ;;
+
 
     let accepts
       ~side_set_count
@@ -1086,6 +1157,22 @@ module Make_timer (Timer : Engine.Timer) = struct
     let no_spacing =
       let module Spaced = Spaced.Make_comb (Comb) in
       Spaced.zero ()
+    ;;
+
+    let fall_through ~side_set_count ~fraction ~loaded ~capture ~word ~row =
+      let _, fallen, falls =
+        ways
+          ~side_set_count
+          ~fraction
+          ~loaded
+          ~capture
+          ~spacing:no_spacing
+          ~word
+          ~row
+          ~next:row
+          ~target:row
+      in
+      fallen, falls
     ;;
 
     let starting ~level = { Edge.since = since_limit; level; fresh = vdd }

@@ -286,6 +286,126 @@ let%expect_test "an accepted row maps into its successors and meets its deadline
     |}]
 ;;
 
+(* [fall_through] is the tightest row the kernel lets the next pc's be: from a row with no
+   slope and the offset full, as every row a chip holds is, on the way of falling through
+   to any row with the offset full and no spacing, each bound a chip keeps holds exactly
+   where the image lies inside it, and where that way is not asked every conjunct holds. *)
+let%expect_test "the fall-through image is the tightest next row" =
+  let side_set_count = G.input "side_set_count" 2 in
+  let fraction = G.input "fraction" 1 in
+  let loaded =
+    { With_valid.valid = G.input "loads_period" 1
+    ; value = G.input "loaded_period" Isa.data_bits
+    }
+  in
+  let capture =
+    { Kernel.Capture.pin = G.input "capture_pin" Isa.Field.wait_index.width
+    ; rising = G.input "capture_rising" 1
+    ; single_edge = G.input "single_edge" 1
+    }
+  in
+  let word = G.input "word" Isa.data_bits in
+  let row = row_input "row" in
+  let next = row_input "next" in
+  let fallen, falls = K.fall_through ~side_set_count ~fraction ~loaded ~capture ~word ~row in
+  let holds =
+    (K.conjuncts
+       ~side_set_count
+       ~fraction
+       ~loaded
+       ~capture
+       ~spacing:K.no_spacing
+       ~word
+       ~row
+       ~next
+       ~target:(row_input "target"))
+      .next
+  in
+  let inside lo hi ~image_lo ~image_hi ~signed =
+    if signed
+    then G.(lo <=+ image_lo &: (image_hi <=+ hi))
+    else G.(lo <=: image_lo &: (image_hi <=: hi))
+  in
+  let contained =
+    { holds with
+      Kernel.Holds.phase =
+        inside
+          next.phase_lo
+          next.phase_hi
+          ~image_lo:fallen.phase_lo
+          ~image_hi:fallen.phase_hi
+          ~signed:true
+    ; period =
+        inside
+          next.period_lo
+          next.period_hi
+          ~image_lo:fallen.period_lo
+          ~image_hi:fallen.period_hi
+          ~signed:false
+    ; x = inside next.x_lo next.x_hi ~image_lo:fallen.x_lo ~image_hi:fallen.x_hi ~signed:false
+    ; y = inside next.y_lo next.y_hi ~image_lo:fallen.y_lo ~image_hi:fallen.y_hi ~signed:false
+    ; arm =
+        inside
+          next.arm_lo
+          next.arm_hi
+          ~image_lo:fallen.arm_lo
+          ~image_hi:fallen.arm_hi
+          ~signed:false
+    ; captured = G.(~:(next.captured) |: fallen.captured)
+    ; awaiting = G.(~:(next.awaiting) |: fallen.awaiting)
+    }
+  in
+  let offset_full =
+    G.(K.offset_is_full next &: K.offset_is_full row &: (row.slope ==:. 0))
+  in
+  let d = Decoder.decode ~side_set_count word in
+  let cases =
+    let values (field : Isa.Field.t) =
+      List.init (1 lsl field.width) ~f:(fun v ->
+        G.(Isa.Field.select (module G) field word ==:. v))
+    in
+    List.concat_map Isa.Opcode.Cases.all ~f:(fun op ->
+      let parts =
+        match op with
+        | Jmp -> values Isa.Field.jmp_cond
+        | Alu ->
+          List.cartesian_product (values Isa.Field.alu_dest) (values Isa.Field.alu_op)
+          |> List.map ~f:(fun (dest, op) -> G.(dest &: op))
+        | Wait | In | Out | Mov | Set | Sys -> [ G.vdd ]
+      in
+      List.map parts ~f:(fun part -> G.(Opcode.is d.opcode op &: part)))
+  in
+  List.iter
+    [ "phase", (fun (h : _ Kernel.Holds.t) -> h.phase)
+    ; "period", (fun h -> h.period)
+    ; "x", (fun h -> h.x)
+    ; "y", (fun h -> h.y)
+    ; "arm", (fun h -> h.arm)
+    ; "captured", (fun h -> h.captured)
+    ; "awaiting", (fun h -> h.awaiting)
+    ]
+    ~f:(fun (name, field) ->
+      Checked_unsat.prove
+        ("falling through, next " ^ name ^ " holds iff the image lies inside")
+        ~cases
+        ~claim:G.(~:falls |: ~:offset_full |: (field holds ==: field contained)));
+  Checked_unsat.prove
+    "a way not asked holds"
+    ~cases
+    ~claim:G.(falls |: all holds);
+  [%expect
+    {|
+    (QED "falling through, next phase holds iff the image lies inside")
+    (QED "falling through, next period holds iff the image lies inside")
+    (QED "falling through, next x holds iff the image lies inside")
+    (QED "falling through, next y holds iff the image lies inside")
+    (QED "falling through, next arm holds iff the image lies inside")
+    (QED "falling through, next captured holds iff the image lies inside")
+    (QED "falling through, next awaiting holds iff the image lies inside")
+    (QED "a way not asked holds")
+    |}]
+;;
+
 (* Teeth for the single-edge assumption: a row the kernel accepts under it need not hold a
    core whose capture pin may make a second edge, which is the step without it. Any
    counterexample has the kernel assuming one edge while the core awaits it. *)
