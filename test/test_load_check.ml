@@ -158,3 +158,40 @@ let%expect_test "the walk refuses what it was not given" =
     an entry twice: refused at 2: a table entry out of order
     |}]
 ;;
+
+(* USB's device address is in its words, patched at SET_ADDRESS. A certificate for address
+   0 with x and y left whole passes every address's program, so the chip checks a patch
+   against the certificate already in its data memory. *)
+let%expect_test "one usb certificate serves every address" =
+  let config = Firmware.usb_device_config in
+  let program address =
+    Asm.assemble (Firmware.usb_device ~address ~half_period:16)
+    |> ok_exn
+    |> Asm.Program.words
+    |> ok_exn
+  in
+  let certificate =
+    Load_check.of_program
+      ~registers_whole:true
+      ~period:32
+      ~single_capture_edge:true
+      ~config
+      (program 0)
+    |> ok_exn
+    |> Load_check.to_words
+  in
+  let refused =
+    List.filter (List.range 0 128) ~f:(fun address ->
+      Result.is_error
+        (Load_check.walk
+           ~loaded:32
+           ~single_capture_edge:true
+           ~config
+           ~words:(program address)
+           ~memory:(memory certificate)
+           ~base
+           ()))
+  in
+  print_s [%message (List.length certificate : int) (refused : int list)];
+  [%expect {| (("List.length certificate" 483) (refused ())) |}]
+;;

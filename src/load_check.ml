@@ -56,7 +56,7 @@ let intern dictionary ~whole interval =
       List.length !dictionary)
 ;;
 
-let of_table ~config ~words (table : Kernel.Table.t) =
+let of_table ?(registers_whole = false) ~config ~words (table : Kernel.Table.t) =
   let wide = ref [] in
   let narrow = ref [] in
   let bounds lo hi = Bits.to_unsigned_int lo, Bits.to_unsigned_int hi in
@@ -69,8 +69,14 @@ let of_table ~config ~words (table : Kernel.Table.t) =
       ; phase = intern wide ~whole:phase_whole (bounds r.phase_lo r.phase_hi)
       ; arm = intern wide ~whole:arm_whole (bounds r.arm_lo r.arm_hi)
       ; period = intern narrow ~whole:narrow_whole (bounds r.period_lo r.period_hi)
-      ; x = intern narrow ~whole:narrow_whole (bounds r.x_lo r.x_hi)
-      ; y = intern narrow ~whole:narrow_whole (bounds r.y_lo r.y_hi)
+      ; x =
+          (if registers_whole
+           then 0
+           else intern narrow ~whole:narrow_whole (bounds r.x_lo r.x_hi))
+      ; y =
+          (if registers_whole
+           then 0
+           else intern narrow ~whole:narrow_whole (bounds r.y_lo r.y_hi))
       })
   in
   let fits dictionary = List.length !dictionary < 1 lsl index_bits in
@@ -84,13 +90,20 @@ let of_table ~config ~words (table : Kernel.Table.t) =
           ~narrow:(List.length !narrow : int)]
 ;;
 
-let of_program ?period ?period_floor ?single_capture_edge ~(config : Program_config.t) words =
+let of_program
+  ?registers_whole
+  ?period
+  ?period_floor
+  ?single_capture_edge
+  ~(config : Program_config.t)
+  words
+  =
   let%bind.Or_error instructions =
     List.map words ~f:(Isa.of_word ~side_set_count:config.side_set_count) |> Or_error.all
   in
   Analyser.analyse ?period ?period_floor ?single_capture_edge ~config instructions
   |> Kernel.Table.of_analyser
-  |> of_table ~config ~words
+  |> of_table ?registers_whole ~config ~words
 ;;
 
 (* 48 bits as three words, the top first *)

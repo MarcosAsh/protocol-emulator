@@ -17,13 +17,21 @@ open! Hardcaml
 type t [@@deriving sexp_of]
 
 (** The rows of [table] at the wrap and jump targets, the program being [words] under
-    [config]. Fails if a dictionary outgrows its indices. *)
-val of_table : config:Program_config.t -> words:int list -> Kernel.Table.t -> t Or_error.t
+    [config]. [registers_whole] stores x and y as their whole ranges, so one certificate
+    serves programs that differ only in what they set them to. Fails if a dictionary
+    outgrows its indices. *)
+val of_table
+  :  ?registers_whole:bool
+  -> config:Program_config.t
+  -> words:int list
+  -> Kernel.Table.t
+  -> t Or_error.t
 
 (** [of_table] on the analyser's rows for [words] under the assumptions, as a host
     makes the certificate for a program it holds only as words. *)
 val of_program
-  :  ?period:int
+  :  ?registers_whole:bool
+  -> ?period:int
   -> ?period_floor:int
   -> ?single_capture_edge:bool
   -> config:Program_config.t
