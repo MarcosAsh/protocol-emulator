@@ -87,11 +87,11 @@ module Purpose = struct
 end
 
 let constant_row bits = Kernel.Row.map bits ~f:of_bits
-let full = constant_row (Kernel.Table.of_analyser []).(0)
-let empty = constant_row (Kernel.Table.of_analyser []).(1)
 
 let create (scope : Scope.t) (i : Signal.t I.t) =
   let spec = Clocking.to_spec i.clocking in
+  let full = constant_row (Kernel.Table.of_analyser []).(0) in
+  let empty = constant_row (Kernel.Table.of_analyser []).(1) in
   let%hw.Always.State_machine sm = Always.State_machine.create (module State) spec in
   let%hw.Always.State_machine purpose =
     Always.State_machine.create (module Purpose) spec
