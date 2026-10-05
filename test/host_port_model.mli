@@ -22,6 +22,8 @@ module Event : sig
         }
     | Tx of int
     | Rx_pop
+    | Check
+    | Config_written
   [@@deriving sexp_of, equal]
 end
 
@@ -45,5 +47,6 @@ val write
 val read
   :  t
   -> statuses:int Host_port.Status.t list
+  -> verdict:int Load_checker.Verdict.t
   -> reg:int
   -> int * (int * Event.t) list

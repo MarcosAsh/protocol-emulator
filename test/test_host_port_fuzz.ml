@@ -31,6 +31,8 @@ let events (o : Bits.t ref Engine.Host.t) =
         (Data_write { addr = int o.data_write.addr; data = int o.data_write.data })
     ; on o.tx.valid (Tx (int o.tx.value))
     ; on o.rx_pop Rx_pop
+    ; on o.check Check
+    ; on o.config_written Config_written
     ]
 ;;
 
@@ -102,6 +104,12 @@ module Fuzz (Config : Host_port.Config) = struct
            let statuses = List.map inputs.status ~f:(fun _ -> random_status random) in
            List.iter2_exn inputs.status statuses ~f:(fun ports status ->
              Status.iter2 ports status ~f:(fun port value -> port <--. value));
+           let verdict =
+             Load_checker.Verdict.map Load_checker.Verdict.port_widths ~f:(fun width ->
+               Splittable_random.int random ~lo:0 ~hi:((1 lsl width) - 1))
+           in
+           Load_checker.Verdict.iter2 inputs.check verdict ~f:(fun port value ->
+             port <--. value);
            let words = List.take frame.words (Frame.complete_words frame) in
            let expected_events, expected_replies =
              if frame.write
@@ -121,7 +129,7 @@ module Fuzz (Config : Host_port.Config) = struct
                        in
                        { status with rx_head })
                    in
-                   Model.read !model ~statuses ~reg:frame.reg)
+                   Model.read !model ~statuses ~verdict ~reg:frame.reg)
                  |> List.unzip
                in
                List.concat events, replies)
@@ -235,11 +243,11 @@ let%expect_test "random frames, whole and cut short, against the register map" =
   List.iter [ 1; 2; 3 ] ~f:(fun seed -> fuzz ~seed ~frames:300 ());
   [%expect
     {|
-    ((seed 1) (frames 300) (cut 122) (!strobes 92) (!words_read 203)
+    ((seed 1) (frames 300) (cut 122) (!strobes 115) (!words_read 203)
      (!miso_high_when_idle false) (!failure ()))
-    ((seed 2) (frames 300) (cut 110) (!strobes 133) (!words_read 204)
+    ((seed 2) (frames 300) (cut 110) (!strobes 156) (!words_read 204)
      (!miso_high_when_idle false) (!failure ()))
-    ((seed 3) (frames 300) (cut 124) (!strobes 89) (!words_read 183)
+    ((seed 3) (frames 300) (cut 124) (!strobes 129) (!words_read 183)
      (!miso_high_when_idle false) (!failure ()))
     |}]
 ;;
@@ -249,9 +257,9 @@ let%expect_test "random frames with a select register in the map" =
   Three.fuzz ~seed:6 ~frames:400 ();
   [%expect
     {|
-    ((seed 5) (frames 400) (cut 163) (!strobes 166) (!words_read 270)
+    ((seed 5) (frames 400) (cut 163) (!strobes 211) (!words_read 270)
      (!miso_high_when_idle false) (!failure ()))
-    ((seed 6) (frames 400) (cut 157) (!strobes 117) (!words_read 260)
+    ((seed 6) (frames 400) (cut 157) (!strobes 156) (!words_read 260)
      (!miso_high_when_idle false) (!failure ()))
     |}]
 ;;
@@ -262,9 +270,9 @@ let%expect_test "outside what the interface allows" =
   fuzz ~edge:0 ~seed:4 ~frames:300 ();
   [%expect
     {|
-    ((seed 4) (frames 300) (cut 148) (!strobes 80) (!words_read 170)
+    ((seed 4) (frames 300) (cut 148) (!strobes 127) (!words_read 170)
      (!miso_high_when_idle false) (!failure ()))
-    ((seed 4) (frames 300) (cut 148) (!strobes 6) (!words_read 5)
+    ((seed 4) (frames 300) (cut 148) (!strobes 10) (!words_read 5)
      (!miso_high_when_idle false)
      (!failure
       (((frame_number 7)
@@ -273,9 +281,10 @@ let%expect_test "outside what the interface allows" =
           (release_high false) (stray 1) (half 2) (lead 2) (trail 2) (gap 3)))
         (expected_events ()) (events ()) (expected_replies (2 2)) (replies (1 1))
         (expected_configs
-         ((0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)))
-        (configs ((0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)))))))
-    ((seed 4) (frames 300) (cut 148) (!strobes 80) (!words_read 170)
+         ((0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 5892 0 0)))
+        (configs
+         ((0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 5892 0 0)))))))
+    ((seed 4) (frames 300) (cut 148) (!strobes 127) (!words_read 170)
      (!miso_high_when_idle false) (!failure ()))
     |}]
 ;;

@@ -18,6 +18,8 @@ module Event = struct
         }
     | Tx of int
     | Rx_pop
+    | Check
+    | Config_written
   [@@deriving sexp_of, equal]
 end
 
@@ -27,6 +29,9 @@ type t =
   ; program_addr : int
   ; data_addr : int
   ; configs : int list list
+  ; check_base : int
+  ; check_loaded : int
+  ; check_flags : int
   }
 [@@deriving sexp_of]
 
@@ -38,6 +43,9 @@ let create ?(engines = 1) () =
   ; program_addr = 0
   ; data_addr = 0
   ; configs = List.init engines ~f:(fun _ -> List.map config_widths ~f:(fun _ -> 0))
+  ; check_base = 0
+  ; check_loaded = 0
+  ; check_flags = 0
   }
 ;;
 
@@ -59,6 +67,7 @@ let write t ~(statuses : int Host_port.Status.t list) ~reg value =
         ; Option.some_if (value land 2 = 2) Event.Clear_irq
         ; Option.some_if (value land 4 = 4) Event.Stop
         ; Option.some_if (value land 8 = 8) Event.Flush
+        ; Option.some_if (value land 16 = 16) Event.Check
         ]
       |> reached t )
   else if reg = Reg.tx
@@ -77,6 +86,12 @@ let write t ~(statuses : int Host_port.Status.t list) ~reg value =
     , reached t [ Event.Data_write { addr = t.data_addr; data = value } ] )
   else if reg = Reg.select && t.engines > 1
   then { t with select = value land mask (Int.ceil_log2 t.engines) }, []
+  else if reg = Reg.check_base
+  then { t with check_base = value land mask Isa.data_addr_bits }, []
+  else if reg = Reg.check_loaded
+  then { t with check_loaded = value }, []
+  else if reg = Reg.check_flags
+  then { t with check_flags = value land 3 }, []
   else (
     match field with
     | None -> t, []
@@ -90,7 +105,10 @@ let write t ~(statuses : int Host_port.Status.t list) ~reg value =
             then value land mask (List.nth_exn config_widths n)
             else old))
       in
-      { t with configs }, [])
+      let written =
+        if t.select < t.engines && halted t.select then reached t [ Event.Config_written ] else []
+      in
+      { t with configs }, written)
 ;;
 
 let status_word (s : int Host_port.Status.t) ~other_irq =
@@ -108,7 +126,12 @@ let status_word (s : int Host_port.Status.t) ~other_irq =
     ~f:(fun bit word flag -> word lor (flag lsl bit))
 ;;
 
-let read t ~(statuses : int Host_port.Status.t list) ~reg =
+let read
+  t
+  ~(statuses : int Host_port.Status.t list)
+  ~(verdict : int Load_checker.Verdict.t)
+  ~reg
+  =
   let low x = x land mask Isa.data_bits in
   let high x = x lsr Isa.data_bits in
   let engine = t.select in
@@ -123,6 +146,24 @@ let read t ~(statuses : int Host_port.Status.t list) ~reg =
   then t.data_addr, []
   else if reg = Reg.select && t.engines > 1
   then t.select, []
+  else if reg = Reg.check_base
+  then t.check_base, []
+  else if reg = Reg.check_loaded
+  then t.check_loaded, []
+  else if reg = Reg.check_flags
+  then t.check_flags, []
+  else if reg = Reg.check_status
+  then (
+    let mine = if engine < t.engines then status else Host_port.Status.map Host_port.Status.port_widths ~f:(Fn.const 0) in
+    ( verdict.busy
+      lor (verdict.accepted lsl 1)
+      lor (mine.certified lsl 2)
+      lor (mine.refused lsl 3)
+    , [] ))
+  else if reg = Reg.reject_pc
+  then verdict.reject_pc, []
+  else if reg = Reg.reject_reason
+  then verdict.reason, []
   else if engine >= t.engines
   then 0, []
   else if reg = Reg.status
