@@ -40,6 +40,12 @@ let%expect_test "the host loads and runs the uart transmitter over spi" =
        |> List.iter2_exn Reg.configs ~f:(fun reg v -> Spi_master.write m ~watch reg [ v ]);
        Spi_master.write m ~watch Reg.program_addr [ 0 ];
        Spi_master.write m ~watch Reg.program (assemble (uart_tx ~period));
+       Spi_certify.certify
+         m
+         ~watch
+         ~assumptions:System_lockstep.Assumptions.none
+         ~config:Program_config.default
+         (assemble (uart_tx ~period));
        Spi_master.write m ~watch Reg.tx [ 0x55; 0xa3 ];
        Spi_master.write m ~watch Reg.control [ 1 ];
        tx_levels := [];
@@ -85,7 +91,7 @@ let%expect_test "two engines talk over a wire and the host reads the result" =
        inputs.rst_n := Bits.vdd;
        cycle ~n:4 ();
        let m = Spi_master.create ~sck ~mosi ~cs_n ~miso ~half:4 in
-       let load engine ~config ~program =
+       let load engine ~config ~program ~(assumptions : System_lockstep.Assumptions.t) =
          Spi_master.write m ~watch Reg.select [ engine ];
          Engine.Config.of_program_config config
          |> Engine.Config.map ~f:Bits.to_unsigned_int
@@ -93,17 +99,23 @@ let%expect_test "two engines talk over a wire and the host reads the result" =
          |> List.iter2_exn Reg.configs ~f:(fun reg v ->
            Spi_master.write m ~watch reg [ v ]);
          Spi_master.write m ~watch Reg.program_addr [ 0 ];
-         Spi_master.write m ~watch Reg.program (assemble program)
+         Spi_master.write m ~watch Reg.program (assemble program);
+         Spi_certify.certify m ~watch ~assumptions ~config (assemble program)
        in
+       let rx_config = { rx_config with in_base = wire; jmp_pin = wire; capture_pin = wire } in
        load
          1
-         ~config:{ rx_config with in_base = wire; jmp_pin = wire; capture_pin = wire }
-         ~program:(uart_rx_on ~pin:wire ~period);
-       Spi_master.write m ~watch Reg.control [ 1 ];
+         ~config:rx_config
+         ~program:(uart_rx_on ~pin:wire ~period)
+         ~assumptions:{ System_lockstep.Assumptions.none with single_capture_edge = true };
        load
          0
          ~config:{ Program_config.default with set_base = wire; out_base = wire }
-         ~program:(uart_tx ~period);
+         ~program:(uart_tx ~period)
+         ~assumptions:System_lockstep.Assumptions.none;
+       Spi_master.write m ~watch Reg.select [ 1 ];
+       Spi_master.write m ~watch Reg.control [ 1 ];
+       Spi_master.write m ~watch Reg.select [ 0 ];
        Spi_master.write m ~watch Reg.tx [ 0x55; 0xa3 ];
        Spi_master.write m ~watch Reg.control [ 1 ];
        watch 400;
@@ -179,8 +191,8 @@ let%expect_test "waveform of reset and the first command" =
     │                            ││───────────────────────────┬───────────────────────────────────── │
     │top$host_port$cmd           ││ 0                         │128                                   │
     │                            ││───────────────────────────┴───────────────────────────────────── │
-    │top$engines$engine_0$halted ││ ┌──────────────────────────────────────────────────────────┐     │
-    │                            ││─┘                                                          └──── │
+    │top$engines$engine_0$halted ││ ┌─────────────────────────────────────────────────────────────── │
+    │                            ││─┘                                                                │
     └────────────────────────────┘└──────────────────────────────────────────────────────────────────┘
     |}]
 ;;
