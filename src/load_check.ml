@@ -155,8 +155,10 @@ let walk
   let word pc =
     Bits.of_unsigned_int ~width:Isa.data_bits (if pc < Array.length words then words.(pc) else 0)
   in
-  let count = memory base in
-  let wide_count = memory (base + 1) in
+  (* as the chip reads them: addresses wrap at the memory's size, counts are a byte *)
+  let memory at = memory (at land ((1 lsl Isa.data_addr_bits) - 1)) in
+  let count = memory base land 0xff in
+  let wide_count = memory (base + 1) land 0xff in
   let entry i = unpack (join3 memory (base + 2 + (3 * i))) in
   let wide_at = base + 2 + (3 * count) in
   let narrow_at = wide_at + (3 * wide_count) in

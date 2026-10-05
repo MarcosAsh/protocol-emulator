@@ -4,11 +4,12 @@
     row is the kernel's [fall_through] image of the row before it. Rows carry no Spacing
     and no slope, so firmware that needs either is refused.
 
-    Layout from [base]: the entry count and the wide count, then three words an entry,
-    sorted by pc, then the wide dictionary, three words an interval, then the narrow one,
-    two words an interval. An entry is a pc, the captured and awaiting bits and seven bit
-    indices into the dictionaries for the phase and arm (wide) and the period, x and y
-    (narrow), index 0 being the field's whole range. *)
+    Layout from [base]: the entry count and the wide count, each its low byte, then three
+    words an entry, sorted by pc, then the wide dictionary, three words an interval, then
+    the narrow one, two words an interval; addresses wrap at the memory's size. An entry
+    is a pc, the captured and awaiting bits and seven bit indices into the dictionaries for
+    the phase and arm (wide) and the period, x and y (narrow), index 0 being the field's
+    whole range. *)
 
 open! Core
 open! Hardcaml
