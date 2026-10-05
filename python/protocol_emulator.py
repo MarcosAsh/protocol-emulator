@@ -48,6 +48,18 @@ DEFAULT_CONFIG = {
 }
 
 
+def certify_writes(certificate, base=0, loaded=None, single_edge=False):
+    """(register, words) that write a certificate and start the chip's check of it."""
+    return [
+        (DATA_ADDR, [base]),
+        (DATA, list(certificate)),
+        (CHECK_BASE, [base]),
+        (CHECK_LOADED, [0 if loaded is None else loaded]),
+        (CHECK_FLAGS, [(loaded is not None) | (bool(single_edge) << 1)]),
+        (CONTROL, [0x10]),
+    ]
+
+
 def config_writes(config):
     """(register, word) for every config field, 0 for a field config leaves out."""
     return [(CONFIG + n, int(config.get(name, 0))) for n, name in enumerate(CONFIG_FIELDS) if name]
@@ -95,11 +107,8 @@ class Host:
         for the write; certification lasts until the program or configuration changes,
         whatever the data memory holds later. loaded is the period every run-time load of
         p is assumed to carry, the floor where the firmware has one."""
-        self.load_data(certificate, base)
-        self.write(CHECK_BASE, [base])
-        self.write(CHECK_LOADED, [0 if loaded is None else loaded])
-        self.write(CHECK_FLAGS, [(loaded is not None) | (bool(single_edge) << 1)])
-        self.write(CONTROL, [0x10])
+        for reg, words in certify_writes(certificate, base, loaded, single_edge):
+            self.write(reg, words)
         status = self.read(CHECK_STATUS)[0]
         while status & 1:
             status = self.read(CHECK_STATUS)[0]

@@ -8,7 +8,8 @@ import random
 import sys
 
 sys.path.insert(0, "../python")
-from protocol_emulator import CONFIG_FIELDS, CONTROL, DATA, DATA_ADDR, DEFAULT_CONFIG, PROGRAM_ADDR, PROGRAM as PROGRAM_REG, STATUS, TX, Host, config_writes
+from protocol_emulator import PROGRAM_WORDS, CHECK_STATUS, CONFIG_FIELDS, CONTROL, DATA, DATA_ADDR, DEFAULT_CONFIG, PROGRAM_ADDR, PROGRAM as PROGRAM_REG, REJECT_PC, REJECT_REASON, STATUS, TX, Host, Refused, certify_writes, config_writes
+from certified_hex import assumptions, certificate
 
 HALF = 4
 
@@ -17,6 +18,12 @@ def assembled(name):
     """The words `make firmware` assembles from the .asm of the same name."""
     with open(f"{name}.hex") as f:
         return [int(line, 16) for line in f]
+
+
+def padded(words):
+    """The whole program memory, zeros after the program, as Host.load writes it: the
+    chip's check reads every word, and memory nobody wrote holds anything."""
+    return list(words) + [0] * (PROGRAM_WORDS - len(words))
 
 
 PROGRAM = assembled("uart_tx")
@@ -72,6 +79,19 @@ class AsyncHost(Host):
         reply = (await self.transfer([reg] + [0] * (2 * count)))[1:]
         return [(reply[i] << 8) | reply[i + 1] for i in range(0, 2 * count, 2)]
 
+    async def certify(self, certificate, base=0, loaded=None, single_edge=False):
+        for reg, words in certify_writes(certificate, base, loaded, single_edge):
+            await self.write(reg, words)
+        status = (await self.read(CHECK_STATUS))[0]
+        while status & 1:
+            status = (await self.read(CHECK_STATUS))[0]
+        if not status & 4:
+            raise Refused(status, (await self.read(REJECT_PC))[0], (await self.read(REJECT_REASON))[0])
+
+    async def certify_firmware(self, name):
+        """The certificate firmware.mk wrote for name.asm, under its assumptions."""
+        await self.certify(certificate(name), **assumptions(name))
+
 
 def decode_uart(levels, period):
     frames = []
@@ -109,7 +129,8 @@ async def test_uart_over_spi(dut):
     for reg, word in config_writes(DEFAULT_CONFIG):
         await host.write(reg, [word])
     await host.write(PROGRAM_ADDR, [0])
-    await host.write(PROGRAM_REG, PROGRAM)
+    await host.write(PROGRAM_REG, padded(PROGRAM))
+    await host.certify_firmware("uart_tx")
     await host.write(TX, [0x55, 0xA3])
     await host.write(CONTROL, [1])
 
@@ -134,7 +155,8 @@ async def test_fractional_period(dut):
     for reg, word in config_writes(config):
         await host.write(reg, [word])
     await host.write(PROGRAM_ADDR, [0])
-    await host.write(PROGRAM_REG, assembled("uart_tx_host_rate"))
+    await host.write(PROGRAM_REG, padded(assembled("uart_tx_host_rate")))
+    await host.certify_firmware("uart_tx_host_rate")
     await host.write(TX, [416, 0x55])
     await host.write(CONTROL, [1])
 
@@ -162,7 +184,8 @@ async def test_data_memory(dut):
     for reg, word in config_writes(config):
         await host.write(reg, [word])
     await host.write(PROGRAM_ADDR, [0])
-    await host.write(PROGRAM_REG, assembled("data_stream"))
+    await host.write(PROGRAM_REG, padded(assembled("data_stream")))
+    await host.certify_firmware("data_stream")
     await host.write(DATA_ADDR, [0])
     await host.write(DATA, [0x2211, 0x4433, 0x6655, 0x8877])
     assert (await host.read(DATA_ADDR))[0] == 4, "the address counts the words written"
@@ -193,7 +216,8 @@ async def test_wrapped_loop(dut):
     for reg, word in config_writes(config):
         await host.write(reg, [word])
     await host.write(PROGRAM_ADDR, [0])
-    await host.write(PROGRAM_REG, WRAPPED_LOOP)
+    await host.write(PROGRAM_REG, padded(WRAPPED_LOOP))
+    await host.certify_firmware("wrapped_loop")
     await host.write(CONTROL, [1])
 
     await ClockCycles(dut.clk, 20)
@@ -219,7 +243,8 @@ async def load_watch(host, name):
     for reg, word in config_writes(config):
         await host.write(reg, [word])
     await host.write(PROGRAM_ADDR, [0])
-    await host.write(PROGRAM_REG, assembled(name))
+    await host.write(PROGRAM_REG, padded(assembled(name)))
+    await host.certify_firmware(name)
     if "budget_from_host" in settings:
         await host.write(TX, [settings["budget_from_host"]])
     await host.write(CONTROL, [1])
@@ -277,56 +302,30 @@ def quiet_runs(settings, seed, count=40):
             else rng.randint(shortest, longest) for _ in range(count)]
 
 
-async def watch_quiet(dut, name, runs):
-    """Drives pin 2 in runs and checks each verdict against the window the settings give:
-    latency to latency + jitter after the last edge the core could see, one per edge, and
-    one for every run longer than the window."""
+async def refused_watch(dut, name, pc):
     await reset(dut)
-
     host = AsyncHost(Pins(dut).transfer)
-    settings = await load_watch(host, name)
-    low = settings["latency"] + PAD_DELAY
-    high = low + settings["jitter"]
-    unseen = settings["unseen_before_verdict"] + PAD_DELAY
-    assert min(runs) >= settings["min_run"], runs
-    runs = runs + quiet_runs(settings, seed=len(runs))
-
-    changes, verdicts = [], []
-    cycle, level, previous = 0, 0, 0
-    for n, length in enumerate(runs):
-        if n > 0:
-            level ^= 1
-            changes.append(cycle)
-        for _ in range(length):
-            dut.ui_in.value = 0b100 | (level << 5)
-            await ClockCycles(dut.clk, 1)
-            verdict = (int(dut.uo_out.value) >> 1) & 1
-            if verdict and not previous:
-                verdicts.append(cycle)
-            previous = verdict
-            cycle += 1
-    answered = []
-    for v in verdicts:
-        seen = [c for c in changes if c <= v - unseen]
-        if seen:
-            assert low <= v - seen[-1] <= high, (v, seen[-1])
-            answered.append(seen[-1])
-    assert len(answered) == len(set(answered)), answered
-    for c, n in zip(changes, changes[1:] + [cycle]):
-        if n - c > high and c + high < cycle:
-            assert c in answered, (c, verdicts)
-    assert len(answered) >= 6, verdicts
-    assert (await host.read(STATUS))[0] & 0x3D == 0, "running, no fault"
+    try:
+        await load_watch(host, name)
+    except Refused as refused:
+        assert refused.args[1:] == (pc, 0), refused.args  # reason 0: a wait not in time
+        await host.write(CONTROL, [1])
+        assert (await host.read(STATUS))[0] & 1, "a start without a certificate leaves it halted"
+        assert (await host.read(CHECK_STATUS))[0] & 8, "and shows it refused"
+    else:
+        assert False, "the chip started a watch it cannot check"
 
 
 @cocotb.test()
 async def test_quiet_watch(dut):
-    """A verdict for every run of pin 2 longer than the window, in it, and for no other."""
-    await watch_quiet(dut, "quiet_watch", [40, 10, 5, 30, 22, 50, 7, 26, 60, 9, 23, 28, 45, 5, 6, 33])
+    """The compiled quiet watch's timing rests on the kernel's affine rows, a phase less a
+    multiple of x, which the chip's check does not carry: the chip refuses to start it,
+    at its first deadline wait. The kernel on the host accepts it (test_asm.ml)."""
+    await refused_watch(dut, "quiet_watch", pc=8)
 
 
 @cocotb.test()
 async def test_quiet_watch_slow(dut):
     """The same at a latency whose budget the host sends, as the settings say."""
     assert "budget_from_host" in predicate_settings("quiet_watch_slow")
-    await watch_quiet(dut, "quiet_watch_slow", [120, 5, 200, 6, 110, 300, 7, 150])
+    await refused_watch(dut, "quiet_watch_slow", pc=10)
