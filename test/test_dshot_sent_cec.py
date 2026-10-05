@@ -5,7 +5,7 @@
 import cocotb
 from cocotb.triggers import ClockCycles
 
-from test import AsyncHost, Pins, reset
+from test import AsyncHost, Pins, padded, reset
 from protocol_emulator import CONTROL, PROGRAM, PROGRAM_ADDR, RX, STATUS, TX, config_writes
 import certified_firmware
 
@@ -27,7 +27,9 @@ async def start(dut, firmware, words, watch):
     for reg, word in config_writes(firmware["config"]):
         await host.write(reg, [word])
     await host.write(PROGRAM_ADDR, [0])
-    await host.write(PROGRAM, firmware["words"])
+    await host.write(PROGRAM, padded(firmware["words"]))
+    await host.certify(
+        firmware["certificate"], loaded=firmware["loaded"], single_edge=firmware["single_edge"])
     await host.write(CONTROL, [1])
     await host.write(TX, words)
     return host, task

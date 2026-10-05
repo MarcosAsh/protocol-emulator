@@ -4,18 +4,27 @@
 import cocotb
 from cocotb.triggers import ClockCycles
 
-from test import AsyncHost, Pins, assembled, reset
+from test import AsyncHost, Pins, assembled, padded, reset
 from protocol_emulator import CONTROL, DATA, DATA_ADDR, DEFAULT_CONFIG, PROGRAM, PROGRAM_ADDR, RX, SELECT, STATUS, TX, config_writes
 
 WIRE = 20
 
 
-async def load(host, engine, config, words):
+async def load(host, engine, config, name):
+    """Loads and certifies; every engine has to be halted for the certificate's write."""
     await host.write(SELECT, [engine])
     for reg, word in config_writes(config):
         await host.write(reg, [word])
     await host.write(PROGRAM_ADDR, [0])
-    await host.write(PROGRAM, words)
+    await host.write(PROGRAM, padded(assembled(name)))
+    await host.certify_firmware(name)
+
+
+async def start(host, engine, tx=()):
+    await host.write(SELECT, [engine])
+    if tx:
+        await host.write(TX, list(tx))
+    await host.write(CONTROL, [1])
 
 
 @cocotb.test()
@@ -24,12 +33,11 @@ async def test_uart_between_engines(dut):
     host = AsyncHost(Pins(dut).transfer)
 
     receiver = dict(DEFAULT_CONFIG, in_base=WIRE, jmp_pin=WIRE, capture_pin=WIRE)
-    await load(host, 1, receiver, assembled("uart_rx_wire"))
-    await host.write(CONTROL, [1])
+    await load(host, 1, receiver, "uart_rx_wire")
     transmitter = dict(DEFAULT_CONFIG, set_base=WIRE, out_base=WIRE)
-    await load(host, 0, transmitter, assembled("uart_tx"))
-    await host.write(TX, [0x55, 0xA3])
-    await host.write(CONTROL, [1])
+    await load(host, 0, transmitter, "uart_tx")
+    await start(host, 1)
+    await start(host, 0, tx=[0x55, 0xA3])
 
     for _ in range(400):
         await ClockCycles(dut.clk, 1)
@@ -53,12 +61,11 @@ async def test_one_engine_times_the_other(dut):
     data = [0x55, 0xA3]
 
     logger = dict(DEFAULT_CONFIG, jmp_pin=WIRE, autopush=1)
-    await load(host, 1, logger, assembled("edge_logger_wire"))
-    await host.write(CONTROL, [1])
+    await load(host, 1, logger, "edge_logger_wire")
     transmitter = dict(DEFAULT_CONFIG, set_base=WIRE, out_base=WIRE)
-    await load(host, 0, transmitter, assembled("uart_tx_host_rate"))
-    await host.write(TX, [period] + data)
-    await host.write(CONTROL, [1])
+    await load(host, 0, transmitter, "uart_tx_host_rate")
+    await start(host, 1)
+    await start(host, 0, tx=[period] + data)
 
     frames = []
     for byte in data:
@@ -98,20 +105,20 @@ async def self_check(dut, period):
     irq, which it does only with a halt."""
     await reset(dut)
     host = AsyncHost(Pins(dut).transfer)
-    await host.write(DATA_ADDR, [0])
-    await host.write(DATA, [0x0101] * 16)
-    await host.write(DATA_ADDR, [256])
-    await host.write(DATA, assembled("uart_tx_host_rate_rows"))
     checker = dict(
         DEFAULT_CONFIG, in_base=WIRE, in_count=1, jmp_pin=WIRE, capture_pin=WIRE, in_shift_right=0,
         autopull=1, pull_threshold=16, autopull_data=1,
     )
-    await load(host, 1, checker, assembled("self_check_wire"))
-    await host.write(CONTROL, [1])
+    await load(host, 1, checker, "self_check_wire")
     transmitter = dict(DEFAULT_CONFIG, set_base=WIRE, out_base=WIRE)
-    await load(host, 0, transmitter, assembled("uart_tx_host_rate"))
-    await host.write(TX, [period, 0x55, 0xA3])
-    await host.write(CONTROL, [1])
+    await load(host, 0, transmitter, "uart_tx_host_rate")
+    # over the certificates, which hold once checked
+    await host.write(DATA_ADDR, [0])
+    await host.write(DATA, [0x0101] * 16)
+    await host.write(DATA_ADDR, [256])
+    await host.write(DATA, assembled("uart_tx_host_rate_rows"))
+    await start(host, 1)
+    await start(host, 0, tx=[period, 0x55, 0xA3])
 
     await ClockCycles(dut.clk, 3 * 11 * period)
     caught = (await host.read(STATUS))[0] >> 15

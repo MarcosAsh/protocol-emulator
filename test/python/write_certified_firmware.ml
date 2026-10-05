@@ -10,7 +10,7 @@ let () =
     "# Written by test/python/write_certified_firmware.ml; `dune promote` after a change.\n\
      # Firmware of test/certified.ml as words and the configuration it runs under.\n";
   List.iter [ "dshot600"; "sent"; "cec" ] ~f:(fun name ->
-    let { Certified.source; config; period; single_capture_edge; _ } =
+    let { Certified.source; config; period; period_floor; single_capture_edge; _ } =
       Certified.find_exn name
     in
     let program = Asm.assemble source |> ok_exn in
@@ -19,6 +19,18 @@ let () =
       Analyser.check ?period ~single_capture_edge ~config program |> ok_exn
     in
     let words = Asm.Program.words program |> ok_exn in
+    (* the kernel's load, the floor where there is one, as the chip checks under *)
+    let loaded = Option.first_some period_floor period in
+    let certificate =
+      Load_check.of_program
+        ?period:(if Option.is_some period_floor then None else period)
+        ?period_floor
+        ~single_capture_edge
+        ~config
+        words
+      |> ok_exn
+      |> Load_check.to_words
+    in
     let fields =
       Engine.Config.map2
         Engine.Config.port_names
@@ -34,5 +46,14 @@ let () =
       printf
         "        %s,\n"
         (String.concat ~sep:", " (List.map chunk ~f:(sprintf "0x%04X"))));
-    print_string "    ],\n}\n")
+    print_string "    ],\n    \"certificate\": [\n";
+    List.chunks_of certificate ~length:8
+    |> List.iter ~f:(fun chunk ->
+      printf
+        "        %s,\n"
+        (String.concat ~sep:", " (List.map chunk ~f:(sprintf "0x%04X"))));
+    printf
+      "    ],\n    \"loaded\": %s,\n    \"single_edge\": %d,\n}\n"
+      (Option.value_map loaded ~default:"None" ~f:Int.to_string)
+      (Bool.to_int single_capture_edge))
 ;;
