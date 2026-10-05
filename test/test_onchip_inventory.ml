@@ -16,9 +16,7 @@ type case =
   }
 
 let half = 1 lsl (Isa.timer_bits - 1)
-let data_max = (1 lsl Isa.data_bits) - 1
 let signed n = Bits.of_signed_int ~width:Isa.timer_bits n
-let timer n = Bits.of_unsigned_int ~width:Isa.timer_bits n
 let data n = Bits.of_unsigned_int ~width:Isa.data_bits n
 
 let reduce (r : Bits.t Kernel.Row.t) =
@@ -28,129 +26,29 @@ let reduce (r : Bits.t Kernel.Row.t) =
     { r with slope = signed 0; offset_lo = signed (-half); offset_hi = signed (half - 1) }
 ;;
 
-let full : Bits.t Kernel.Row.t =
-  { ((Kernel.Table.of_analyser []).(0)) with
-    phase_lo = signed (-half)
-  ; phase_hi = signed (half - 1)
-  ; period_lo = data 0
-  ; period_hi = data data_max
-  ; x_lo = data 0
-  ; x_hi = data data_max
-  ; y_lo = data 0
-  ; y_hi = data data_max
-  ; arm_lo = timer 0
-  ; arm_hi = Bits.ones Isa.timer_bits
-  }
-;;
-
 (* pc 0 of a table is always the full row *)
 let unreached = (Kernel.Table.of_analyser []).(1)
 
-(* the largest [v] in [lo, hi] with [f v], [f] true up to some point *)
-let rec last_true ~lo ~hi f =
-  if lo >= hi
-  then lo
-  else (
-    let mid = lo + ((hi - lo + 1) / 2) in
-    if f mid then last_true ~lo:mid ~hi f else last_true ~lo ~hi:(mid - 1) f)
-;;
-
-let first_true ~lo ~hi f = -last_true ~lo:(-hi) ~hi:(-lo) (fun v -> f (-v))
-
-let derive case ~config ~word ~row ~target =
-  let loaded =
-    { With_valid.valid = Bits.of_bool (Option.is_some case.period)
-    ; value = data (Option.value case.period ~default:0)
-    }
+(* the row the chip derives for the pc after [row]'s, the kernel's own image of it *)
+let derive case ~config ~word ~row =
+  let fallen, falls =
+    K.fall_through
+      ~side_set_count:(Bits.of_unsigned_int ~width:2 config.Program_config.side_set_count)
+      ~fraction:(Bits.of_bool (config.period_fraction <> 0))
+      ~loaded:
+        { With_valid.valid = Bits.of_bool (Option.is_some case.period)
+        ; value = data (Option.value case.period ~default:0)
+        }
+      ~capture:
+        { Kernel.Capture.pin =
+            Bits.of_unsigned_int ~width:Isa.Field.wait_index.width config.capture_pin
+        ; rising = Bits.of_bool config.capture_rising
+        ; single_edge = Bits.of_bool case.single_capture_edge
+        }
+      ~word
+      ~row
   in
-  let capture =
-    { Kernel.Capture.pin =
-        Bits.of_unsigned_int
-          ~width:Isa.Field.wait_index.width
-          config.Program_config.capture_pin
-    ; rising = Bits.of_bool config.capture_rising
-    ; single_edge = Bits.of_bool case.single_capture_edge
-    }
-  in
-  let holds next =
-    (K.conjuncts
-       ~side_set_count:(Bits.of_unsigned_int ~width:2 config.side_set_count)
-       ~fraction:(Bits.of_bool (config.period_fraction <> 0))
-       ~loaded
-       ~capture
-       ~spacing:K.no_spacing
-       ~word
-       ~row
-       ~next
-       ~target)
-      .next
-  in
-  let ok field next = Bits.to_bool (field (holds next)) in
-  let phase = Kernel.Holds.(fun h -> h.phase) in
-  let period = Kernel.Holds.(fun h -> h.period) in
-  let y = Kernel.Holds.(fun h -> h.y) in
-  let arm = Kernel.Holds.(fun h -> h.arm) in
-  let flags =
-    List.find
-      [ true, true; true, false; false, true; false, false ]
-      ~f:(fun (c, a) ->
-        let next = { full with captured = Bits.of_bool c; awaiting = Bits.of_bool a } in
-        ok (fun h -> Bits.(h.Kernel.Holds.captured &: h.awaiting)) next)
-    |> Option.value ~default:(false, false)
-  in
-  let base =
-    { full with captured = Bits.of_bool (fst flags); awaiting = Bits.of_bool (snd flags) }
-  in
-  let phase_lo =
-    last_true ~lo:(-half) ~hi:(half - 1) (fun v ->
-      ok phase { base with phase_lo = signed v })
-  in
-  let phase_hi =
-    first_true ~lo:(-half) ~hi:(half - 1) (fun v ->
-      ok phase { base with phase_hi = signed v })
-  in
-  let period_lo =
-    last_true ~lo:0 ~hi:data_max (fun v -> ok period { base with period_lo = data v })
-  in
-  let period_hi =
-    first_true ~lo:0 ~hi:data_max (fun v -> ok period { base with period_hi = data v })
-  in
-  let x = Kernel.Holds.(fun h -> h.x) in
-  let x_lo = last_true ~lo:0 ~hi:data_max (fun v -> ok x { base with x_lo = data v }) in
-  let x_hi = first_true ~lo:0 ~hi:data_max (fun v -> ok x { base with x_hi = data v }) in
-  let y_lo = last_true ~lo:0 ~hi:data_max (fun v -> ok y { base with y_lo = data v }) in
-  let y_hi = first_true ~lo:0 ~hi:data_max (fun v -> ok y { base with y_hi = data v }) in
-  let arm_lo =
-    last_true
-      ~lo:0
-      ~hi:((1 lsl Isa.timer_bits) - 1)
-      (fun v -> ok arm { base with arm_lo = timer v })
-  in
-  let arm_hi =
-    first_true
-      ~lo:0
-      ~hi:((1 lsl Isa.timer_bits) - 1)
-      (fun v -> ok arm { base with arm_hi = timer v })
-  in
-  if phase_lo > phase_hi
-     || period_lo > period_hi
-     || x_lo > x_hi
-     || y_lo > y_hi
-     || arm_lo > arm_hi
-  then unreached
-  else
-    { base with
-      phase_lo = signed phase_lo
-    ; phase_hi = signed phase_hi
-    ; period_lo = data period_lo
-    ; period_hi = data period_hi
-    ; x_lo = data x_lo
-    ; x_hi = data x_hi
-    ; y_lo = data y_lo
-    ; y_hi = data y_hi
-    ; arm_lo = timer arm_lo
-    ; arm_hi = timer arm_hi
-    }
+  if Bits.to_bool falls then fallen else unreached
 ;;
 
 let size = 1 lsl Isa.pc_bits
@@ -204,7 +102,7 @@ let report case =
   let derived = Array.create ~len:size unreached in
   derived.(0) <- reduced.(0);
   for pc = 0 to size - 2 do
-    let next, target =
+    let next, _ =
       K.successors
         ~wrap_top:(Bits.of_unsigned_int ~width:Isa.pc_bits config.wrap_top)
         ~wrap_bottom:(Bits.of_unsigned_int ~width:Isa.pc_bits config.wrap_bottom)
@@ -216,12 +114,7 @@ let report case =
         then reduced.(pc + 1)
         else if Bits.to_unsigned_int next = pc + 1 && pc < List.length words
         then
-          derive
-            case
-            ~config
-            ~word:(word pc)
-            ~row:derived.(pc)
-            ~target:reduced.(Bits.to_unsigned_int target)
+          derive case ~config ~word:(word pc) ~row:derived.(pc)
         else unreached)
   done;
   let verdict table = if Result.is_ok (check case table) then "ok" else "REFUSED" in
@@ -363,8 +256,7 @@ let%expect_test "every firmware against the on-chip certificate" =
     "stored"
     "table";
   List.iter (library @ asm_cases @ bench_cases) ~f:report;
-  [%expect
-    {|
+  [%expect {|
     firmware               words  full  reduced  derived  stored  table
     uart_tx                   15    ok       ok       ok       2     24
     uart_tx16                 15    ok       ok       ok       2     24
