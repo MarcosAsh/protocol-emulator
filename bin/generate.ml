@@ -399,6 +399,11 @@ let assemble_command =
           "-rows"
           no_arg
           ~doc:" print the analyser's rows, each edge's phase to the deadline, not words"
+      and print_certificate =
+        flag
+          "-certificate"
+          no_arg
+          ~doc:" print the certificate the chip checks the program against at load, not words"
       in
       fun () ->
         let assembled =
@@ -412,6 +417,18 @@ let assemble_command =
         match assembled with
         | Ok (program, _, rows) when print_rows ->
           print_endline (Analyser.to_string ~side_set_count:program.side_set_count rows)
+        | Ok (program, words, rows) when print_certificate ->
+          (match
+             Load_check.of_table
+               ~config:(Asm.Program.configure program config)
+               ~words
+               (Kernel.Table.of_analyser rows)
+           with
+           | Ok certificate ->
+             List.iter (Load_check.to_words certificate) ~f:(printf "%04x\n")
+           | Error e ->
+             eprintf "%s: %s\n" file (Error.to_string_hum e);
+             exit 1)
         | Ok (program, words, _) ->
           List.iteri
             (List.zip_exn words program.instructions)
