@@ -45,6 +45,11 @@ module Step = struct
         { pin : int
         ; levels : int list
         }
+    | Certify of
+        { assumptions : System_lockstep.Assumptions.t
+        ; config : Program_config.t
+        ; program : int list
+        }
 end
 
 module Sigrok = struct
@@ -132,13 +137,16 @@ module Scenario = struct
     ; sigrok : Sigrok.t option
     }
 
-  let load ~config ~program =
-    let config = Engine.Config.of_program_config config in
+  let load ?(assumptions = System_lockstep.Assumptions.none) ~config ~program () =
+    let fields = Engine.Config.of_program_config config in
     List.map2_exn
       Reg.configs
-      (Engine.Config.to_list (Engine.Config.map config ~f:Bits.to_unsigned_int))
+      (Engine.Config.to_list (Engine.Config.map fields ~f:Bits.to_unsigned_int))
       ~f:(fun reg v -> Step.Write (reg, [ v ]))
-    @ [ Write (Reg.program_addr, [ 0 ]); Write (Reg.program, program) ]
+    @ [ Write (Reg.program_addr, [ 0 ])
+      ; Write (Reg.program, program)
+      ; Certify { assumptions; config; program }
+      ]
   ;;
 
   let start = Step.Write (Reg.control, [ 1 ])
@@ -217,6 +225,10 @@ let run (scenario : Scenario.t) =
                driven := Some (pin, level);
                watch 1);
              driven := None;
+             None
+           | Certify { assumptions; config; program } ->
+             (try Spi_certify.certify m ~watch ~assumptions ~config program with
+              | exn -> raise_s [%message "certifying" scenario.name (exn : exn)]);
              None)
        in
        List.rev !lines, reads)

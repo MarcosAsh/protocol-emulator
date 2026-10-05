@@ -30,7 +30,7 @@ let uart_tx =
   ; script =
       Scenario.load
         ~config:Program_config.default
-        ~program:(assemble (uart_tx ~period:16))
+        ~program:(assemble (uart_tx ~period:16)) ()
       @ [ Write (Reg.tx, [ 0x55; 0xa3 ]); Scenario.start; Run 400; Read (Reg.status, 1) ]
   ; sigrok =
       (* the first stop bit, edge 10, 12 cycles late: sampled low, a framing error *)
@@ -57,7 +57,11 @@ let uart_rx =
   { Scenario.name = "uart_rx"
   ; peer = (fun () -> Peer.idle 1)
   ; script =
-      Scenario.load ~config:rx_config ~program:(assemble (uart_rx ~period))
+      Scenario.load
+        ~assumptions:{ System_lockstep.Assumptions.none with single_capture_edge = true }
+        ~config:rx_config
+        ~program:(assemble (uart_rx ~period))
+        ()
       @ [ Scenario.start
         ; drive first
         ; Read (Reg.rx, 3)
@@ -94,7 +98,7 @@ let spi_master =
   { Scenario.name = "spi_master"
   ; peer
   ; script =
-      Scenario.load ~config:spi_config ~program:(assemble (spi_master ~half_period:8))
+      Scenario.load ~config:spi_config ~program:(assemble (spi_master ~half_period:8)) ()
       @ [ Write (Reg.tx, sent)
         ; Scenario.start
         ; Run 600
@@ -140,7 +144,7 @@ let i2c_logger =
   { Scenario.name = "i2c_logger"
   ; peer
   ; script =
-      Scenario.load ~config:i2c_logger_config ~program:(Timed_program.words i2c_logger)
+      Scenario.load ~config:i2c_logger_config ~program:(Timed_program.words i2c_logger) ()
       @ [ Scenario.start; Run 3000; Read (Reg.status, 1) ]
   ; sigrok =
       Some
@@ -192,7 +196,7 @@ let wrapped_loop =
   ; script =
       Scenario.load
         ~config:{ Program_config.default with in_base = 5; wrap_bottom = 3; wrap_top = 4 }
-        ~program
+        ~program ()
       @ [ Scenario.start; Run 60; Read (Reg.status, 1) ]
   ; sigrok = None
   }
@@ -207,7 +211,7 @@ let fifo_poll =
   { Scenario.name = "fifo_poll"
   ; peer = (fun () -> Peer.idle 0)
   ; script =
-      Scenario.load ~config:{ Program_config.default with in_base = 5 } ~program
+      Scenario.load ~config:{ Program_config.default with in_base = 5 } ~program ()
       @ [ Scenario.start ]
       @ traffic [ 0x1234; 0xbeef; 0x0001 ]
       @ [ Step.Read (Reg.rx, 2) ]

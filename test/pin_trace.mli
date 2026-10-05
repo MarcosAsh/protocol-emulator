@@ -46,6 +46,11 @@ module Step : sig
         { pin : int
         ; levels : int list
         } (** One level per cycle on an input pin, over the peer's. *)
+    | Certify of
+        { assumptions : System_lockstep.Assumptions.t
+        ; config : Program_config.t
+        ; program : int list
+        } (** [Spi_certify.certify] on the selected engine. *)
 end
 
 (** What sigrok's protocol decoders should read off the pins, for [demo/decode.py]. A pin
@@ -111,8 +116,14 @@ module Scenario : sig
     ; sigrok : Sigrok.t option
     }
 
-  (** The frames that configure the core and load a program at address 0. *)
-  val load : config:Program_config.t -> program:int list -> Step.t list
+  (** The frames that configure the core and load a program at address 0, then certify it
+      under [assumptions], none unless given. *)
+  val load
+    :  ?assumptions:System_lockstep.Assumptions.t
+    -> config:Program_config.t
+    -> program:int list
+    -> unit
+    -> Step.t list
 
   val start : Step.t
 end

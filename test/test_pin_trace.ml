@@ -13,12 +13,12 @@ let%expect_test "what the host reads back in every scenario" =
         scenario.name ~cycles:(List.length lines : int) (reads : string list list)]);
   [%expect
     {|
-    (uart_tx (cycles 9226) (reads ((0000))))
-    (uart_rx (cycles 11213) (reads ((0055 00a3 00ff) (0000 000f 00f0) (0400))))
-    (spi_master (cycles 10013) (reads ((0081 007e) (0400))))
-    (i2c_logger (cycles 18919) (reads ((0000))))
-    (wrapped_loop (cycles 7275) (reads ((0000))))
-    (fifo_poll (cycles 11916)
+    (uart_tx (cycles 16702) (reads ((0000))))
+    (uart_rx (cycles 19329) (reads ((0055 00a3 00ff) (0000 000f 00f0) (0400))))
+    (spi_master (cycles 17489) (reads ((0081 007e) (0400))))
+    (i2c_logger (cycles 29745) (reads ((0000))))
+    (wrapped_loop (cycles 14111) (reads ((0000))))
+    (fifo_poll (cycles 18112)
      (reads
       ((0400) (0800) (0c00) (1234 beef) (0800) (0c00) (1000) (1400)
        (0001 ffff 8000) (7a5c 0ff0) (0000))))
@@ -74,7 +74,7 @@ let%expect_test "the host writes program memory while the core runs" =
   let script =
     List.filter loop.script ~f:(function
       | Run _ | Until _ | Read _ -> false
-      | Write _ | Drive _ -> true)
+      | Write _ | Drive _ | Certify _ -> true)
   in
   let out0 script =
     let lines, (_ : int list list) = Pin_trace.run { loop with script } in

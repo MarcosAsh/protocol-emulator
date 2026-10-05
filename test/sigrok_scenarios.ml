@@ -3,6 +3,16 @@ open Protocol_emulator
 open Pin_trace
 module Reg = Host_port.Reg
 
+(* a library firmware's assumptions, the floor where there is one, as the kernel checks it *)
+let library name =
+  let t = Certified.find_exn name in
+  { System_lockstep.Assumptions.period =
+      (if Option.is_some t.period_floor then None else t.period)
+  ; period_floor = t.period_floor
+  ; single_capture_edge = t.single_capture_edge
+  }
+;;
+
 let cycle_ns ~clock_hz = 1_000_000_000 / clock_hz
 
 (* what sigrok-cli prints for an instance of a decoder *)
@@ -20,7 +30,11 @@ let can_scenario ?(teeth = []) ~name ~frames ~rejected () =
   { Scenario.name
   ; peer = (fun () -> Peer.idle 0)
   ; script =
-      Scenario.load ~config:Can.config ~program:(Timed_program.words Can.firmware)
+      Scenario.load
+        ~assumptions:(library "can")
+        ~config:Can.config
+        ~program:(Timed_program.words Can.firmware)
+        ()
       @ [ Scenario.start; Write (Reg.tx, [ Can.period ]); Run (12 * Can.period) ]
       @ List.concat_map frames ~f:send
   ; sigrok =
@@ -132,7 +146,11 @@ let cec =
   { Scenario.name = "cec"
   ; peer
   ; script =
-      Scenario.load ~config:Cec.config ~program:(Firmware.assemble Cec.firmware)
+      Scenario.load
+        ~assumptions:(library "cec")
+        ~config:Cec.config
+        ~program:(Firmware.assemble Cec.firmware)
+        ()
       @ [ Scenario.start; Write (Reg.tx, [ unit ]) ]
       @ List.concat_map frames ~f:send
   ; sigrok =
@@ -185,8 +203,10 @@ let one_wire =
   ; peer
   ; script =
       Scenario.load
+        ~assumptions:(library "one_wire")
         ~config:One_wire.config
         ~program:(Timed_program.words One_wire.firmware)
+        ()
       @ [ Scenario.start
         ; Write (Reg.tx, [ unit; One_wire.reset; One_wire.byte 0x33 ])
         ; Run (((160 + 88) * unit) + 1000)
@@ -266,7 +286,11 @@ let ps2 =
   { Scenario.name = "ps2"
   ; peer
   ; script =
-      Scenario.load ~config:Ps2.config ~program:(Timed_program.words Ps2.firmware)
+      Scenario.load
+        ~assumptions:(library "ps2")
+        ~config:Ps2.config
+        ~program:(Timed_program.words Ps2.firmware)
+        ()
       @ [ Scenario.start; Write (Reg.tx, [ quarter ]) ]
       @ List.concat_map bytes ~f:send
   ; sigrok =
@@ -364,7 +388,7 @@ let jtag =
   ; script =
       Scenario.load
         ~config:Jtag.config
-        ~program:(Firmware.assemble (Jtag.firmware ~half_period))
+        ~program:(Firmware.assemble (Jtag.firmware ~half_period)) ()
       @ [ Scenario.start ]
       @ List.concat_map (List.chunks_of (Jtag.words clocks) ~length:4) ~f:send
   ; sigrok =
@@ -467,7 +491,8 @@ let low_speed_host groups () =
 let usb =
   let bit_period = Usb_host.bit_period in
   let address = 0 in
-  let at bits = 120_000 + (bits * bit_period) in
+  (* after the load and the certificate's check, which take some 150k cycles *)
+  let at bits = 160_000 + (bits * bit_period) in
   let setup = 0x2d
   and in_ = 0x69
   and out = 0xe1 in
@@ -492,9 +517,11 @@ let usb =
   ; peer = low_speed_host host
   ; script =
       Scenario.load
+        ~assumptions:(library "usb_device")
         ~config:Firmware.usb_device_config
         ~program:
           (Firmware.assemble (Firmware.usb_device ~address ~half_period:(bit_period / 2)))
+        ()
       @ [ Write
             ( Reg.tx
             , bit_period :: Usb_host.reply ~endpoint:0 ~pid:Usb_host.data1 descriptor )
@@ -622,7 +649,7 @@ let ws2812 =
   { Scenario.name = "ws2812"
   ; peer = (fun () -> Peer.idle 0)
   ; script =
-      Scenario.load ~config:Ws2812.config ~program:(Firmware.assemble Ws2812.standard)
+      Scenario.load ~config:Ws2812.config ~program:(Firmware.assemble Ws2812.standard) ()
       @ [ Scenario.start ]
       @ List.concat_map frames ~f:send
   ; sigrok =
@@ -703,8 +730,11 @@ let swd =
   ; peer
   ; script =
       Scenario.load
+        ~assumptions:
+          { System_lockstep.Assumptions.none with period_floor = Some Swd.shortest_half }
         ~config:(Timed_program.config Swd.firmware)
         ~program:(Timed_program.words Swd.firmware)
+        ()
       @ [ Scenario.start; Write (Reg.tx, [ half ]); Run 200; Read (Reg.rx, 1) ]
       @ bits Swd.dormant_to_swd
       @ bits Swd.line_reset
@@ -783,7 +813,7 @@ let spi_cs mode =
   ; script =
       Scenario.load
         ~config:Spi_cs.config
-        ~program:(Firmware.assemble (Spi_cs.master ~mode ~half_period ~setup:4 ~hold:8))
+        ~program:(Firmware.assemble (Spi_cs.master ~mode ~half_period ~setup:4 ~hold:8)) ()
       @ [ Scenario.start; Run 200 ]
       @ List.concat_map frames ~f:send
   ; sigrok =
