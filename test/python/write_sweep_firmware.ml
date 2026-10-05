@@ -350,6 +350,14 @@ let print_changes indent config =
     printf "%s},\n" indent)
 ;;
 
+(* what the chip checks a program against before it starts it *)
+let certificate ?period ?single_capture_edge ~config words =
+  Load_check.of_program ?period ?single_capture_edge ~config words
+  |> ok_exn
+  |> Load_check.to_words
+  |> hex
+;;
+
 let edge (predicted, lo, hi) =
   match lo, hi with
   | Some lo, Some hi when lo = predicted && hi = predicted -> Int.to_string predicted
@@ -400,7 +408,22 @@ let print_swept { Swept.name; watch; on_wire; period; bursts } =
   print_changes "        " config;
   print_string "        \"words\": [\n";
   print_items "            " (hex (Timed_program.words timed));
-  printf "        ],\n        \"park\": %s,\n" (inline (hex park));
+  print_string "        ],\n        \"certificate\": [\n";
+  print_items
+    "            "
+    (Load_check.of_table
+       ~config
+       ~words:(Timed_program.words timed)
+       (Kernel.Table.of_analyser (Timed_program.rows timed))
+     |> ok_exn
+     |> Load_check.to_words
+     |> hex);
+  printf
+    "        ],\n        \"loaded\": %s,\n        \"single_edge\": %s,\n"
+    (Option.value_map period ~default:"None" ~f:Int.to_string)
+    (if c.single_capture_edge then "True" else "False");
+  printf "        \"park\": %s,\n" (inline (hex park));
+  printf "        \"park_certificate\": %s,\n" (inline (certificate ~config park));
   printf "        \"preamble\": %s,\n" (inline (List.map preamble ~f:Int.to_string));
   printf
     "        \"setup\": {\"edges\": %d, \"cycles\": %d},\n"
@@ -444,6 +467,8 @@ let () =
   print_changes "    " logger_config;
   print_string "    \"words\": [\n";
   print_items "        " (hex logger_words);
+  print_string "    ],\n    \"certificate\": [\n";
+  print_items "        " (certificate ~config:logger_config logger_words);
   print_string "    ],\n}\n\nSWEPT = [\n";
   List.iter swept ~f:print_swept;
   print_string "]\n\nNOT_SWEPT = [\n";

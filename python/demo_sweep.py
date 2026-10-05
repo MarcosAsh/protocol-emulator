@@ -39,11 +39,13 @@ def setup(host, firmware, dirty):
     host.stop()
     host.flush()
     host.configure(config(firmware["config"]))
-    host.write(pe.PROGRAM_ADDR, [0])
-    host.write(pe.PROGRAM, firmware["park"])
+    dirty = write_program(host, firmware["park"], dirty)
+    host.certify(firmware["park_certificate"])
     host.start()
     host.stop()
     dirty = write_program(host, firmware["words"], dirty)
+    host.certify(
+        firmware["certificate"], loaded=firmware["loaded"], single_edge=firmware["single_edge"])
     if firmware["preamble"]:
         host.push(firmware["preamble"])
     host.select(1)
@@ -135,11 +137,14 @@ def run(transfer, pause=None, drain=None):
     if any(found):
         raise RuntimeError("faults %s hold from an earlier run: reset the chip" % found)
     poll = host_drain(host) if drain is None else drain
+    host.select(0)
+    host.stop()
     host.select(1)
     host.stop()
     host.flush()
     host.configure(config(sf.LOGGER["config"]))
     host.load(sf.LOGGER["words"])
+    host.certify(sf.LOGGER["certificate"])
     # nothing is known of engine 0's memory yet
     dirty = pe.PROGRAM_WORDS
     print("firmware           watch  edges  exact  within  out  faults")
