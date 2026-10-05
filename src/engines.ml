@@ -61,7 +61,7 @@ module Make (Config : Config) = struct
       pads &: ~:driven |: level
   ;;
 
-  let create ~memory (scope : Scope.t) (i : Signal.t I.t) =
+  let create ~gated ~memory (scope : Scope.t) (i : Signal.t I.t) =
     let spec = Clocking.to_spec i.clocking in
     let outs = List.init engines ~f:(fun _ -> Engine.O.Of_signal.wires ()) in
     let select_bits = Int.max 1 (Int.ceil_log2 engines) in
@@ -142,7 +142,7 @@ module Make (Config : Config) = struct
           scope
           { clocking = i.clocking
           ; config = host.config
-          ; start = host.start &: List.nth_exn certified n
+          ; start = (if gated then host.start &: List.nth_exn certified n else host.start)
           ; program_write = host.program_write
           ; program_read =
               { valid = mine n &: checker.program_read.valid
@@ -184,8 +184,8 @@ module Make (Config : Config) = struct
     }
   ;;
 
-  let hierarchical ?instance ~memory scope i =
+  let hierarchical ?instance ?(gated = true) ~memory scope i =
     let module H = Hierarchy.In_scope (I) (O) in
-    H.hierarchical ?instance ~scope ~name:"engines" (create ~memory) i
+    H.hierarchical ?instance ~scope ~name:"engines" (create ~gated ~memory) i
   ;;
 end

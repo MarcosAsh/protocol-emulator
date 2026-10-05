@@ -47,8 +47,12 @@ module Make (_ : Config) : sig
     [@@deriving hardcaml]
   end
 
+  (** [gated], the default and the chip, starts an engine only once it is certified.
+      Without it a start always counts and the checker only reports: what the proofs of
+      the cores take, a gated chip doing no more than they cover. *)
   val hierarchical
     :  ?instance:string
+    -> ?gated:bool
     -> memory:Engine.Memory.t
     -> Scope.t
     -> Signal.t I.t

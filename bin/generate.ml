@@ -57,7 +57,13 @@ let engines_rtl_command =
     ~summary:"Verilog for the cores and the pins between them, with no host port"
     [%map_open.Command
       let memory = memory
-      and engines = engines in
+      and engines = engines
+      and ungated =
+        flag
+          "-ungated"
+          no_arg
+          ~doc:" a start counts without a certificate, as the proofs of the cores take it"
+      in
       fun () ->
         let module Engines =
           Engines.Make (struct
@@ -66,7 +72,7 @@ let engines_rtl_command =
         in
         let module C = Circuit.With_interface (Engines.I) (Engines.O) in
         print_rtl ~name:"engines_top" (fun ~name scope ->
-          C.create_exn ~name (Engines.hierarchical ~memory scope))]
+          C.create_exn ~name (Engines.hierarchical ~gated:(not ungated) ~memory scope))]
 ;;
 
 let top_rtl_command =
