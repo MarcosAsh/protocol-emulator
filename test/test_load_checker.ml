@@ -48,10 +48,10 @@ let run ?random_initial_state ~config ?loaded ?(single_edge = false) ~words ~cer
          inputs.config
          (Engine.Config.of_program_config config)
          ~f:( := );
-       inputs.loaded.valid := Bits.of_bool (Option.is_some loaded);
-       inputs.loaded.value <--. Option.value loaded ~default:0;
-       inputs.single_edge := Bits.of_bool single_edge;
-       inputs.base <--. 0;
+       inputs.setup.loaded.valid := Bits.of_bool (Option.is_some loaded);
+       inputs.setup.loaded.value <--. Option.value loaded ~default:0;
+       inputs.setup.single_edge := Bits.of_bool single_edge;
+       inputs.setup.base <--. 0;
        inputs.check := Bits.vdd;
        cycle ();
        inputs.check := Bits.gnd;
