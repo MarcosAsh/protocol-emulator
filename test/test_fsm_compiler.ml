@@ -37,20 +37,20 @@ let%expect_test "the uart state machine compiles to firmware" =
     {|
     ; enable_rate counts to 16: the tick is wait t+
     ; txd is pin OUT0
-    ; _38 is osr
+    ; _70 is osr
     ; data_count is x, counting down
         set p, 16
         set pins, 1     ; txd clears to 1
     start:
         wait tx         ; until data_in_valid
-        pull            ; _38 <- data_in
+        pull            ; _70 <- data_in
         mov t, now      ; restart the tick
         set pins, 0     ; txd <- 0
         add t, p
         set x, 7        ; data_count <- 0, leaving at 7
     data:
         wait t+         ; the tick
-        out pins, 1     ; txd <- _38[0], _38 <- _38 >> 1
+        out pins, 1     ; txd <- _70[0], _70 <- _70 >> 1
         jmp x--, data   ; data_count <- data_count + 1
     stop:
         wait t+         ; the tick
