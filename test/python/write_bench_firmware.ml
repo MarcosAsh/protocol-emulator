@@ -131,6 +131,20 @@ let () =
       | `Receiver period ->
         Timed_program.of_source_exn ~period ~single_capture_edge:true ~config source
     in
+    let loaded, single_edge =
+      match assumption with
+      | `None -> None, false
+      | `Floor period | `Period period -> Some period, false
+      | `Receiver period -> Some period, true
+    in
+    let certificate =
+      Load_check.of_table
+        ~config:(Timed_program.config timed)
+        ~words:(Timed_program.words timed)
+        (Kernel.Table.of_analyser (Timed_program.rows timed))
+      |> ok_exn
+      |> Load_check.to_words
+    in
     let fields =
       Engine.Config.map2
         Engine.Config.port_names
@@ -146,5 +160,14 @@ let () =
       printf
         "        %s,\n"
         (String.concat ~sep:", " (List.map chunk ~f:(sprintf "0x%04X"))));
-    print_string "    ],\n}\n")
+    print_string "    ],\n    \"certificate\": [\n";
+    List.chunks_of certificate ~length:8
+    |> List.iter ~f:(fun chunk ->
+      printf
+        "        %s,\n"
+        (String.concat ~sep:", " (List.map chunk ~f:(sprintf "0x%04X"))));
+    printf
+      "    ],\n    \"loaded\": %s,\n    \"single_edge\": %d,\n}\n"
+      (Option.value_map loaded ~default:"None" ~f:Int.to_string)
+      (Bool.to_int single_edge))
 ;;

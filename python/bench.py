@@ -21,8 +21,8 @@ def rx_level(host):
 
 
 def load(host, firmware, engine=0):
-    """Both engines stopped and flushed, then engine loaded with a bench_firmware.py entry
-    and left selected. Faults hold until reset, so one left from an earlier run is refused
+    """Both engines stopped and flushed, then engine loaded with a bench_firmware.py entry,
+    its certificate checked, and left selected. Faults hold until reset, so one left from an earlier run is refused
     rather than reported as this one's."""
     for other in (1, 0):
         host.select(other)
@@ -35,6 +35,8 @@ def load(host, firmware, engine=0):
     host.select(engine)
     host.configure(firmware["config"])
     host.load(firmware["words"])
+    host.certify(
+        firmware["certificate"], loaded=firmware["loaded"], single_edge=firmware["single_edge"])
 
 
 def exchange(host, words, polls=100_000):
