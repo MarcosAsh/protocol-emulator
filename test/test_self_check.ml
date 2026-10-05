@@ -322,11 +322,15 @@ let%expect_test "the rtl checks as the model does, rows above other data" =
           ; program = Asm.Program.words sender |> ok_exn
           ; preload = [ host_period; 0x55; 0xa3 ]
           ; data = []
+          ; assumptions =
+              { System_lockstep.Assumptions.none with period = Some host_period }
           }
         ; { config = Asm.Program.configure checker (Self_check.checker_config ~pin:wire)
           ; program = Asm.Program.words checker |> ok_exn
           ; preload = []
           ; data = under ~base @ rows ~base
+          ; assumptions =
+              { System_lockstep.Assumptions.none with period_floor = Some Self_check.min_gap }
           }
         ]
     in
@@ -384,6 +388,8 @@ let long_frame ?glitch ?every ~rtl edges =
           ; program = Asm.Program.words checker |> ok_exn
           ; preload = []
           ; data
+          ; assumptions =
+              { System_lockstep.Assumptions.none with period_floor = Some Self_check.min_gap }
           }
         ]
     in

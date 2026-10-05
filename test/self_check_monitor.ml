@@ -153,6 +153,8 @@ let run_rtl ~base ~edges (w : Wave.t) =
         ; program = Asm.Program.words program |> ok_exn
         ; preload = []
         ; data = data ~base ~edges
+        ; assumptions =
+            { System_lockstep.Assumptions.none with period_floor = Some Self_check.min_gap }
         }
       ]
   in

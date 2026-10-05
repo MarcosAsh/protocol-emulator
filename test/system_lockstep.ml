@@ -5,12 +5,36 @@ open Protocol_emulator
 
 let ( <--. ) = Bits.( <--. )
 
+module Assumptions = struct
+  type t =
+    { period : int option
+    ; period_floor : int option
+    ; single_capture_edge : bool
+    }
+
+  let none = { period = None; period_floor = None; single_capture_edge = false }
+
+  let certificate t ~config program =
+    Load_check.of_program
+      ?period:t.period
+      ?period_floor:t.period_floor
+      ~single_capture_edge:t.single_capture_edge
+      ~config
+      program
+    |> ok_exn
+    |> Load_check.to_words
+  ;;
+
+  let loaded t = Option.first_some t.period_floor t.period
+end
+
 module Setup = struct
   type t =
     { config : Program_config.t
     ; program : int list
     ; preload : int list
     ; data : int list
+    ; assumptions : Assumptions.t
     }
 end
 
@@ -85,6 +109,40 @@ let run
          ~write:(fun port addr word ->
            port.program_write.addr <--. addr;
            port.program_write.data <--. word);
+       (* each engine's certificate, checked one engine at a time before anything else
+          goes into the data memory *)
+       List.iteri (List.zip_exn i.hosts setups) ~f:(fun engine (port, setup) ->
+         let assumptions = setup.assumptions in
+         let certificate =
+           Assumptions.certificate assumptions ~config:setup.config setup.program
+         in
+         List.iteri certificate ~f:(fun addr word ->
+           port.data_write.valid := Bits.vdd;
+           port.data_write.addr <--. addr;
+           port.data_write.data <--. word;
+           cycle ());
+         port.data_write.valid := Bits.gnd;
+         i.check_setup.base <--. 0;
+         let loaded = Assumptions.loaded assumptions in
+         i.check_setup.loaded.valid := Bits.of_bool (Option.is_some loaded);
+         i.check_setup.loaded.value <--. Option.value loaded ~default:0;
+         i.check_setup.single_edge := Bits.of_bool assumptions.single_capture_edge;
+         port.check := Bits.vdd;
+         cycle ();
+         port.check := Bits.gnd;
+         while Bits.to_bool !(o.check.verdict.busy) do
+           cycle ()
+         done;
+         (* the engine's bit takes the verdict a cycle after it lands *)
+         cycle ();
+         if not (Bits.to_bool !(List.nth_exn o.check.certified engine))
+         then
+           raise_s
+             [%message
+               "the load checker refused the program"
+                 (engine : int)
+                 ~pc:(int o.check.verdict.reject_pc : int)
+                 ~reason:(int o.check.verdict.reason : int)]);
        (* the hardware's data memory holds whatever it held, so a program that can read it
           gets it all written *)
        feed

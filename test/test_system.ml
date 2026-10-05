@@ -15,11 +15,13 @@ let cross_wired ~line ~transmitter =
         ; program = assemble transmitter
         ; preload = [ 0x55; 0xa3 ]
         ; data = []
+        ; assumptions = System_lockstep.Assumptions.none
         }
       ; { config = rx_config
         ; program = assemble (uart_rx_on ~pin:line ~period)
         ; preload = []
         ; data = []
+        ; assumptions = { System_lockstep.Assumptions.none with single_capture_edge = true }
         }
       ]
   in
@@ -76,6 +78,7 @@ let%expect_test "random programs on two engines in lockstep" =
           ; program = Random_program.program ~waits:`Input_pins random ~config
           ; preload = []
           ; data = []
+          ; assumptions = System_lockstep.Assumptions.none
           })
       in
       let levels = ref [ 0; 0 ] in
@@ -131,11 +134,13 @@ let%expect_test "one engine times the other's uart edges" =
         ; program = assemble uart_tx_host_rate
         ; preload = period :: bytes
         ; data = []
+        ; assumptions = { System_lockstep.Assumptions.none with period = Some period }
         }
       ; { config = edge_logger_config ~pin:line
         ; program = assemble (edge_logger ~pin:line)
         ; preload = []
         ; data = []
+        ; assumptions = System_lockstep.Assumptions.none
         }
       ]
   in

@@ -4,6 +4,25 @@
 open! Core
 open Protocol_emulator
 
+(** What the kernel assumes of the world, under which a certificate is made and checked:
+    the period every run-time load of [p] carries, or the least it may be, and the
+    single-edge assumption. *)
+module Assumptions : sig
+  type t =
+    { period : int option
+    ; period_floor : int option
+    ; single_capture_edge : bool
+    }
+
+  val none : t
+
+  (** The certificate for [program], as the host writes it to the data memory. *)
+  val certificate : t -> config:Program_config.t -> int list -> int list
+
+  (** The period the chip's check takes as loaded: the floor where there is one. *)
+  val loaded : t -> int option
+end
+
 module Setup : sig
   type t =
     { config : Program_config.t
@@ -12,6 +31,8 @@ module Setup : sig
     ; data : int list
     (** Written into the data memory from address 0 before the start, zeros after, when
         the program autopulls from it. *)
+    ; assumptions : Assumptions.t
+    (** Under which the engine's certificate is made and checked before the start. *)
     }
 end
 
