@@ -33,6 +33,8 @@ module Bench (Config : Host_port.Config) = struct
                if Bits.to_bool !(o.clear_irq) then note "clear_irq";
                if Bits.to_bool !(o.stop) then note "stop";
                if Bits.to_bool !(o.flush) then note "flush";
+               if Bits.to_bool !(o.check) then note "check";
+               if Bits.to_bool !(o.config_written) then note "config_written";
                if Bits.to_bool !(o.program_write.valid)
                then
                  note
@@ -172,17 +174,23 @@ let%expect_test "config registers are write only" =
        (period_fraction 0x2a 0) (autopull_data 0x2d 0) (manchester 0x2e 0)))
      (live
       (1 2 1 4 5 6 7 8 1 10 11 0 1 0 1 16 1 18 19 20 21 0 23 0 25 26 27 0 1)))
-    (events ())
+    (events
+     (config_written config_written config_written config_written config_written
+      config_written config_written config_written config_written config_written
+      config_written config_written config_written config_written config_written
+      config_written config_written config_written config_written config_written
+      config_written config_written config_written config_written config_written
+      config_written config_written config_written config_written))
     |}]
 ;;
 
-(* reserved registers ignore writes and read zero; control bits 4 and 5 do nothing *)
+(* reserved registers ignore writes and read zero; control bit 5 does nothing *)
 let%expect_test "the reserved registers and control bits do nothing" =
   run ~half:4 (fun m ~watch inputs o ->
     Host_port.Status.iter (List.hd_exn inputs.status) ~f:(fun port ->
       port := Bits.ones (Bits.width !port));
     List.iter Reg.reserved ~f:(fun reg -> Spi_master.write m ~watch reg [ 0xffff ]);
-    Spi_master.write m ~watch Reg.control [ 0x30 ];
+    Spi_master.write m ~watch Reg.control [ 0x20 ];
     let back =
       List.map Reg.reserved ~f:(fun reg ->
         List.hd_exn (Spi_master.read m ~watch reg ~count:1))
@@ -195,9 +203,43 @@ let%expect_test "the reserved registers and control bits do nothing" =
     print_s [%message (back : int list) (live : int list)]);
   [%expect
     {|
-    ((back (0 0 0 0 0 0 0 0 0 0))
+    ((back (0 0 0 0))
      (live (0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)))
     (events ())
+    |}]
+;;
+
+(* The check's registers: what the host sets reaches the load checker and reads back, the
+   check strobes only the selected engine, and the verdict and that engine's bits read
+   back. *)
+let%expect_test "the load checker's registers" =
+  run ~half:4 (fun m ~watch inputs o ->
+    (List.hd_exn inputs.status).halted := Bits.vdd;
+    (List.hd_exn inputs.status).certified := Bits.vdd;
+    inputs.check.accepted := Bits.vdd;
+    inputs.check.reject_pc <--. 0x123;
+    inputs.check.reason <--. 30;
+    Spi_master.write m ~watch Reg.check_base [ 0x105 ];
+    Spi_master.write m ~watch Reg.check_loaded [ 434 ];
+    Spi_master.write m ~watch Reg.check_flags [ 0b11 ];
+    let setup =
+      Load_checker.Setup.map o.check_setup ~f:(fun r -> Bits.to_unsigned_int !r)
+    in
+    Spi_master.write m ~watch Reg.control [ 0x10 ];
+    let back reg = List.hd_exn (Spi_master.read m ~watch reg ~count:1) in
+    print_s
+      [%message
+        (setup : int Load_checker.Setup.t)
+          ~base:(back Reg.check_base : int)
+          ~loaded:(back Reg.check_loaded : int)
+          ~flags:(back Reg.check_flags : int)
+          ~status:(back Reg.check_status : int)
+          ~reject_pc:(back Reg.reject_pc : int)
+          ~reason:(back Reg.reject_reason : int)]);
+  [%expect {|
+    ((setup ((base 261) (loaded ((valid 1) (value 434))) (single_edge 1)))
+     (base 261) (loaded 434) (flags 3) (status 6) (reject_pc 291) (reason 30))
+    (events (check))
     |}]
 ;;
 
@@ -219,7 +261,7 @@ let%expect_test "config writes wait until the core is halted" =
     ((halted true) (value 7) (live 7))
     ((halted false) (value 9) (live 7))
     ((halted true) (value 9) (live 9))
-    (events ())
+    (events (config_written config_written))
     |}]
 ;;
 
@@ -283,8 +325,9 @@ let%expect_test "select routes every register but the program address" =
     (live (12 13))
     (events
      ("0: program[8] <- 40976" "0: tx <- 85" "0: start" "0: clear_irq" "0: stop"
-      "0: flush" "0: rx_pop" "1: program[16] <- 40977" "1: tx <- 86" "1: start"
-      "1: clear_irq" "1: stop" "1: flush" "1: rx_pop"))
+      "0: flush" "0: config_written" "0: rx_pop" "1: program[16] <- 40977"
+      "1: tx <- 86" "1: start" "1: clear_irq" "1: stop" "1: flush"
+      "1: config_written" "1: rx_pop"))
     |}]
 ;;
 
