@@ -419,6 +419,92 @@ let%expect_test "the fall-through image is the tightest next row" =
     |}]
 ;;
 
+(* The load checker reads a successor with no stored row as the empty row, where the walk
+   later holds a row of its own. Holding into [stand_in] must then hold into any row the
+   walk can hold: no slope and the full offset. Gives the cases and the claims for the
+   next row and the target. *)
+let holds_into_any_walked_row ~(stand_in : Bits.t Kernel.Row.t) =
+  let side_set_count = G.input "side_set_count" 2 in
+  let fraction = G.input "fraction" 1 in
+  let loaded =
+    { With_valid.valid = G.input "loads_period" 1
+    ; value = G.input "loaded_period" Isa.data_bits
+    }
+  in
+  let capture =
+    { Kernel.Capture.pin = G.input "capture_pin" Isa.Field.wait_index.width
+    ; rising = G.input "capture_rising" 1
+    ; single_edge = G.input "single_edge" 1
+    }
+  in
+  let word = G.input "word" Isa.data_bits in
+  let row = row_input "row" in
+  let other = row_input "other" in
+  let stand_in =
+    Kernel.Row.map stand_in ~f:(fun bits -> G.of_constant (Bits.to_constant bits))
+  in
+  let conjuncts ~next ~target =
+    K.conjuncts
+      ~side_set_count
+      ~fraction
+      ~loaded
+      ~capture
+      ~spacing:K.no_spacing
+      ~word
+      ~row
+      ~next
+      ~target
+  in
+  let walked (r : _ Kernel.Row.t) = G.(K.offset_is_full r &: (r.slope ==:. 0)) in
+  let d = Decoder.decode ~side_set_count word in
+  let cases = List.map Isa.Opcode.Cases.all ~f:(fun op -> Opcode.is d.opcode op) in
+  let into_stand_in = conjuncts ~next:stand_in ~target:stand_in in
+  let into_other = conjuncts ~next:other ~target:other in
+  let claim (holds : _ Kernel.Conjuncts.t -> _ Kernel.Holds.t) =
+    G.(
+      ~:(walked row &: walked other)
+      |: ~:(all (holds into_stand_in))
+      |: all (holds into_other))
+  in
+  cases, claim (fun c -> c.next), claim (fun c -> c.target)
+;;
+
+let%expect_test "what holds into the empty row holds into any row the walk holds" =
+  let cases, next, target =
+    holds_into_any_walked_row ~stand_in:(Kernel.Table.of_analyser []).(1)
+  in
+  Checked_unsat.prove
+    "next: into the empty row implies into any walked row"
+    ~cases
+    ~claim:next;
+  Checked_unsat.prove
+    "target: into the empty row implies into any walked row"
+    ~cases
+    ~claim:target;
+  [%expect
+    {|
+    (QED "next: into the empty row implies into any walked row")
+    (QED "target: into the empty row implies into any walked row")
+    |}]
+;;
+
+(* Teeth: the full row in its place, the row at pc 0, which bounds nothing. *)
+let%expect_test "what holds into the full row need not hold into a walked row" =
+  let cases, _, target =
+    holds_into_any_walked_row ~stand_in:(Kernel.Table.of_analyser []).(0)
+  in
+  Checked_unsat.prove
+    "target: into the full row implies into any walked row"
+    ~show:[ "word" ]
+    ~cases
+    ~claim:target;
+  [%expect
+    {|
+    (counterexample "target: into the full row implies into any walked row"
+     (model ((word 0000000000000000))))
+    |}]
+;;
+
 (* Teeth for the single-edge assumption: a row the kernel accepts under it need not hold a
    core whose capture pin may make a second edge, which is the step without it. Any
    counterexample has the kernel assuming one edge while the core awaits it. *)
