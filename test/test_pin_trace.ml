@@ -13,12 +13,12 @@ let%expect_test "what the host reads back in every scenario" =
         scenario.name ~cycles:(List.length lines : int) (reads : string list list)]);
   [%expect
     {|
-    (uart_tx (cycles 17717) (reads ((0000))))
-    (uart_rx (cycles 20547) (reads ((0055 00a3 00ff) (0000 000f 00f0) (0400))))
-    (spi_master (cycles 18504) (reads ((0081 007e) (0400))))
-    (i2c_logger (cycles 30760) (reads ((0000))))
-    (wrapped_loop (cycles 15126) (reads ((0000))))
-    (fifo_poll (cycles 19127)
+    (uart_tx (cycles 81333) (reads ((0000))))
+    (uart_rx (cycles 83651) (reads ((0055 00a3 00ff) (0000 000f 00f0) (0400))))
+    (spi_master (cycles 81992) (reads ((0081 007e) (0400))))
+    (i2c_logger (cycles 86952) (reads ((0000))))
+    (wrapped_loop (cycles 80022) (reads ((0000))))
+    (fifo_poll (cycles 83639)
      (reads
       ((0400) (0800) (0c00) (1234 beef) (0800) (0c00) (1000) (1400)
        (0001 ffff 8000) (7a5c 0ff0) (0000))))

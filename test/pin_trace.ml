@@ -144,7 +144,12 @@ module Scenario = struct
       (Engine.Config.to_list (Engine.Config.map fields ~f:Bits.to_unsigned_int))
       ~f:(fun reg v -> Step.Write (reg, [ v ]))
     @ [ Write (Reg.program_addr, [ 0 ])
-      ; Write (Reg.program, program)
+        (* zeros past the program, as the host protocol loads them: the checker walks
+           every word, and the SRAM powers up with anything in it *)
+      ; Write
+          ( Reg.program
+          , program
+            @ List.init ((1 lsl Isa.pc_bits) - List.length program) ~f:(fun _ -> 0) )
       ; Certify { assumptions; config; program }
       ]
   ;;
