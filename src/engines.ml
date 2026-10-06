@@ -86,22 +86,21 @@ module Make (Config : Config) = struct
     let%hw accepts = checker.finished &: checker.accepted in
     (* a start counts only for a program the checker accepted, under the configuration it
        was checked with *)
-    let certified, refused =
+    let checks_begin n = go &: (chosen ==:. n) in
+    let%hw_list certified =
       List.mapi i.hosts ~f:(fun n (h : _ Engine.Host.t) ->
-        let started = go &: (chosen ==:. n) in
-        let%hw certified =
-          reg_fb spec ~width:1 ~f:(fun certified ->
-            mux2
-              (h.program_write.valid |: h.config_written |: started)
-              gnd
-              (mux2 (accepts &: (checked ==:. n)) vdd certified))
-        in
-        let%hw refused =
+        reg_fb spec ~width:1 ~f:(fun certified ->
+          mux2
+            (h.program_write.valid |: h.config_written |: checks_begin n)
+            gnd
+            (mux2 (accepts &: (checked ==:. n)) vdd certified)))
+    in
+    let%hw_list refused =
+      List.mapi
+        (List.zip_exn i.hosts certified)
+        ~f:(fun n ((h : _ Engine.Host.t), certified) ->
           reg_fb spec ~width:1 ~f:(fun refused ->
-            mux2 started gnd (mux2 (h.start &: ~:certified) vdd refused))
-        in
-        certified, refused)
-      |> List.unzip
+            mux2 (checks_begin n) gnd (mux2 (h.start &: ~:certified) vdd refused)))
     in
     let starts =
       List.map2_exn i.hosts certified ~f:(fun (h : _ Engine.Host.t) certified ->
