@@ -1,0 +1,67 @@
+[tasks]
+prove built
+cover built
+short_cover
+sticky teeth
+lend_busy teeth
+no_abort teeth
+
+[options]
+prove: mode prove
+prove: depth 4
+cover: mode cover
+cover: depth 16
+short_cover: mode cover
+short_cover: depth 40
+teeth: mode bmc
+teeth: depth 40
+lend_busy: depth 64
+teeth: expect fail
+
+[engines]
+smtbmc boolector
+
+[script]
+read_verilog -lib RM_IHPSG13_1P_512x16_c2_bm_bist.v
+built: read_verilog engines_gated.v
+short_cover: read_verilog short.v
+sticky: read_verilog sticky.v
+lend_busy: read_verilog lend_busy.v
+no_abort: read_verilog no_abort.v
+hierarchy -top engines_top
+proc
+flatten
+expose -evert -sep __ engines_top/t:RM_IHPSG13_1P_512x16_c2_bm_bist
+cd engines_top
+expose w:engines.certified$0 w:engines.certified$1 w:engines.go w:engines.chosen
+expose w:engines.checked w:engines.checking w:engines.accepts w:engines.lent$0 w:engines.lent$1
+expose w:engines.engine_0.start w:engines.engine_1.start
+expose w:engines.engine_0.free w:engines.engine_1.free
+rename engines.certified$0 certified_0
+rename engines.certified$1 certified_1
+rename engines.go go
+rename engines.chosen chosen
+rename engines.checked checked
+rename engines.checking checking
+rename engines.accepts accepts
+rename engines.lent$0 lent_0
+rename engines.lent$1 lent_1
+rename engines.engine_0.start started_0
+rename engines.engine_1.start started_1
+rename engines.engine_0.free free_0
+rename engines.engine_1.free free_1
+cd ..
+short_cover: read -define SHORT_WALK
+teeth: read -define NO_INVARIANT
+read_verilog -formal -sv gate.sv
+prep -top gate
+setundef -undriven -anyseq
+
+[files]
+engines_gated.v
+gate_teeth/short.v
+gate_teeth/sticky.v
+gate_teeth/lend_busy.v
+gate_teeth/no_abort.v
+../src/RM_IHPSG13_1P_512x16_c2_bm_bist.v
+gate.sv

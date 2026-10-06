@@ -31,6 +31,7 @@ formal/engine_saturating.v
 formal/engines_any_turn.v
 formal/engines.v
 formal/engines_sram.v
+formal/engines_gated.v
 formal/link*.sv
 formal/certificate*.sv
 formal/fsm_miter*.sv

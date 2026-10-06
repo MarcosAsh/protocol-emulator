@@ -1,6 +1,6 @@
 all: issue_timing host_timing late_host fifo_order phase_step edge_step event_step frame_step \
   value_step narrow saturating chip_frame isolation data_step teeth fsm_miter sram_equiv \
-  kernel_equiv link self_check self_check_clean powerup
+  kernel_equiv link self_check self_check_clean powerup gate
 
 engine.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe engine > formal/engine.v
@@ -21,6 +21,10 @@ engines.v: ../src/*.ml
 
 engines_sram.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe engines -engines 2 -sram -ungated > formal/engines_sram.v
+
+# the chip's engines as built, the gate taking each uncertified start away
+engines_gated.v: ../src/*.ml
+	cd .. && dune exec -- bin/generate.exe engines -engines 2 -sram > formal/engines_gated.v
 
 issue_timing: engine.v
 	sby -f issue_timing.sby prove cover
@@ -182,6 +186,28 @@ link_proof:
 ANY_TURN = /^module data_memory/,/^endmodule/s/^\(\s*assign signal_and[_0-9]* = \)signal_eq[_0-9]* & \(signal_not[_0-9]*\);/\1\2;/
 isolation: engines_sram.v
 	$(MAKE) isolation_proof
+
+# A start reaches a core only once it is certified, by an accepted walk begun after its
+# last write that held it free; and never right after the checker held its ports. A walk
+# takes thousands of cycles, so the short covers and the teeth end it at pc 1, which no
+# claim depends on: there a cover reaches a certified start, and each tooth (certified
+# never cleared, an engine lent while not free, no abort) has to fail.
+SHORT_WALK = /^module load_checker /,/^endmodule/s/= 9'b111111111;/= 9'b000000001;/
+STICKY = /^module engines /,/^endmodule/s/^\(\s*assign signal_mux[_0-9]* = \)signal_or[_0-9]* ? gnd : /\1/
+LEND_BUSY = /^module engines /,/^endmodule/s/^\(\s*assign lent\$$[01] = \)\(signal_and[_0-9]*\) \& signal_wire[_0-9]*;/\1\2;/
+NO_ABORT = /^module engines /,/^endmodule/s/^\(\s*assign abort = \).*;/\11'b0;/
+gate: engines_gated.v
+	$(MAKE) gate_proof
+
+gate_proof:
+	mkdir -p gate_teeth
+	sed "$(SHORT_WALK)" engines_gated.v > gate_teeth/short.v
+	! cmp -s engines_gated.v gate_teeth/short.v
+	sed -e "$(SHORT_WALK)" -e "$(STICKY)" engines_gated.v > gate_teeth/sticky.v
+	sed -e "$(SHORT_WALK)" -e "$(LEND_BUSY)" engines_gated.v > gate_teeth/lend_busy.v
+	sed -e "$(SHORT_WALK)" -e "$(NO_ABORT)" engines_gated.v > gate_teeth/no_abort.v
+	for t in sticky lend_busy no_abort; do ! cmp -s gate_teeth/short.v gate_teeth/$$t.v || exit 1; done
+	sby -f gate.sby prove cover short_cover sticky lend_busy no_abort
 
 isolation_proof:
 	sed '$(ANY_TURN)' engines_sram.v > engines_any_turn.v
