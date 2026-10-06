@@ -95,7 +95,7 @@ module I : sig
     ; start : 'a (** Pulse while halted. *)
     ; program_write : 'a Program_write.t (** Only while halted. *)
     ; program_read : 'a With_valid.t
-    (** Only while halted and not writing: the word is [program_word] a cycle later. *)
+    (** Only while [free] and not writing: the word is [program_word] a cycle later. *)
     ; data_word : 'a (** The word at [data_ptr], from [Data_memory]. *)
     ; tx : 'a With_valid.t
     ; rx_pop : 'a (** [rx_head] is the word popped. *)
@@ -136,6 +136,9 @@ module Make (_ : Timer) : sig
       ; now : 'a
       ; stall : 'a (** Cycles until the next issue. *)
       ; halted : 'a
+      ; free : 'a
+      (** Halted, and not starting now or a cycle ago: the program port and data turn
+          serve no fetch. *)
       ; irq : 'a
       ; fault : 'a Fault.t
       ; capture : 'a

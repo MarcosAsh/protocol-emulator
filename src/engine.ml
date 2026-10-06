@@ -180,6 +180,7 @@ module Make (Timer : Timer) = struct
       ; now : 'a [@bits timer_bits]
       ; stall : 'a [@bits Isa.count_bits]
       ; halted : 'a
+      ; free : 'a
       ; irq : 'a
       ; fault : 'a Fault.t
       ; capture : 'a [@bits timer_bits]
@@ -255,7 +256,9 @@ module Make (Timer : Timer) = struct
     let%hw rx_head = mux2 rx.empty (zero data_bits) rx.head in
     (* a write or a read while the core runs would take the memory from the fetch *)
     let%hw program_write = i.program_write.valid &: halted in
-    let%hw program_read = i.program_read.valid &: halted in
+    (* halted stays high through a start and the fetch of pc 0 a cycle later *)
+    let%hw free = halted &: ~:(i.start |: start) in
+    let%hw program_read = i.program_read.valid &: free in
     let memory_in =
       { Program_memory.I.clock = i.clocking.clock
       ; men = vdd
@@ -827,6 +830,7 @@ module Make (Timer : Timer) = struct
     ; now
     ; stall
     ; halted
+    ; free
     ; irq
     ; fault
     ; capture

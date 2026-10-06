@@ -107,12 +107,9 @@ module Make (Config : Config) = struct
       List.map2_exn i.hosts certified ~f:(fun (h : _ Engine.Host.t) certified ->
         if gated then h.start &: certified else h.start)
     in
-    (* The checker borrows engine [n]'s program port and data turn only while [n] is
-       halted and not starting, so a running core never sees it. *)
-    let%hw_list lent =
-      List.mapi (List.zip_exn outs starts) ~f:(fun n (e, start) ->
-        mine n &: e.halted &: ~:start)
-    in
+    (* The checker borrows engine [n]'s program port and data turn only while [n] is free,
+       so a running or starting core never sees it. *)
+    let%hw_list lent = List.mapi outs ~f:(fun n e -> mine n &: e.free) in
     (* what the walk reads, written under it, or its engine leaving halted *)
     let%hw abort =
       checking
