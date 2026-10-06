@@ -1,0 +1,72 @@
+[tasks]
+prove built
+cover built
+short_cover short
+early teeth short
+
+[options]
+prove: mode prove
+prove: depth 4
+cover: mode cover
+cover: depth 40
+short_cover: mode cover
+short_cover: depth 40
+teeth: mode bmc
+teeth: depth 40
+teeth: expect fail
+
+[engines]
+smtbmc boolector
+
+[script]
+built: read_verilog engines_gated.v
+short_cover: read_verilog short.v
+early: read_verilog early.v
+hierarchy -top load_checker
+proc
+flatten
+cd load_checker
+expose w:sm w:purpose w:pc w:next_fails w:target_fails w:falls_to_next
+expose w:row$phase_lo w:row$phase_hi w:row$slope w:row$offset_lo w:row$offset_hi w:row$arm_lo w:row$arm_hi w:row$period_lo w:row$period_hi w:row$x_lo w:row$x_hi w:row$y_lo w:row$y_hi w:row$captured w:row$awaiting
+rename row$phase_lo row_phase_lo
+rename row$phase_hi row_phase_hi
+rename row$slope row_slope
+rename row$offset_lo row_offset_lo
+rename row$offset_hi row_offset_hi
+rename row$arm_lo row_arm_lo
+rename row$arm_hi row_arm_hi
+rename row$period_lo row_period_lo
+rename row$period_hi row_period_hi
+rename row$x_lo row_x_lo
+rename row$x_hi row_x_hi
+rename row$y_lo row_y_lo
+rename row$y_hi row_y_hi
+rename row$captured row_captured
+rename row$awaiting row_awaiting
+expose w:other$phase_lo w:other$phase_hi w:other$slope w:other$offset_lo w:other$offset_hi w:other$arm_lo w:other$arm_hi w:other$period_lo w:other$period_hi w:other$x_lo w:other$x_hi w:other$y_lo w:other$y_hi w:other$captured w:other$awaiting
+rename other$phase_lo other_phase_lo
+rename other$phase_hi other_phase_hi
+rename other$slope other_slope
+rename other$offset_lo other_offset_lo
+rename other$offset_hi other_offset_hi
+rename other$arm_lo other_arm_lo
+rename other$arm_hi other_arm_hi
+rename other$period_lo other_period_lo
+rename other$period_hi other_period_hi
+rename other$x_lo other_x_lo
+rename other$x_hi other_x_hi
+rename other$y_lo other_y_lo
+rename other$y_hi other_y_hi
+rename other$captured other_captured
+rename other$awaiting other_awaiting
+cd ..
+short: read -define SHORT_WALK
+early: read -define NO_INVARIANT
+read_verilog -formal -sv certify.sv
+prep -top certify
+
+[files]
+engines_gated.v
+certify_teeth/short.v
+certify_teeth/early.v
+certify.sv

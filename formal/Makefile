@@ -1,6 +1,6 @@
 all: issue_timing host_timing late_host fifo_order phase_step edge_step event_step frame_step \
   value_step narrow saturating chip_frame isolation data_step teeth fsm_miter sram_equiv \
-  kernel_equiv link self_check self_check_clean powerup gate
+  kernel_equiv link self_check self_check_clean powerup gate certify
 
 engine.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe engine > formal/engine.v
@@ -186,6 +186,21 @@ link_proof:
 ANY_TURN = /^module data_memory/,/^endmodule/s/^\(\s*assign signal_and[_0-9]* = \)signal_eq[_0-9]* & \(signal_not[_0-9]*\);/\1\2;/
 isolation: engines_sram.v
 	$(MAKE) isolation_proof
+
+# The load checker's walk, for any program, configuration, setup and data memory: an
+# accepted walk passed every pc, and a pc that falls through was checked against the row
+# the walk then holds. The cover and tooth end the walk at pc 1 (SHORT_WALK, below); the
+# tooth, ending it at pc 0, has to accept with pc 1 unchecked.
+EARLY_WALK = /^module load_checker /,/^endmodule/s/= 9'b111111111;/= 9'b000000000;/
+certify: engines_gated.v
+	$(MAKE) certify_proof
+
+certify_proof:
+	mkdir -p certify_teeth
+	sed "$(SHORT_WALK)" engines_gated.v > certify_teeth/short.v
+	sed "$(EARLY_WALK)" engines_gated.v > certify_teeth/early.v
+	! cmp -s certify_teeth/short.v certify_teeth/early.v
+	sby -f certify.sby prove cover short_cover early
 
 # A start reaches a core only once it is certified, by an accepted walk begun after its
 # last write that held it free; and never right after the checker held its ports. A walk
