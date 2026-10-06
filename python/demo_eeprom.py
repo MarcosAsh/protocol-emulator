@@ -20,8 +20,8 @@ PAGE_ADDRESS = 0x7FC0
 BYTE_ADDRESS = 0x7FBF
 # twice the 5 ms a write cycle takes at most
 WRITE_LIMIT_MS = 10
-# demo/start_hold_master starts a read every 20 ms
-GUARD_MS = 50
+# demo/start_hold_master starts a read, two STARTs, every 20 ms
+GUARD_MS = 25
 
 
 def word(data=0, start=False, read=False, stop=False):
@@ -72,16 +72,13 @@ class Eeprom:
         return replies[4:]
 
 
-def bus_free(host, clock):
+def bus_free(host, pause_ms):
     """Whether engine 1's START_HOLD, which drives neither line, heard no START in
-    GUARD_MS."""
+    GUARD_MS. Its fifo outlasts the STARTs Pico B makes in that time."""
     bench.load(host, bench_firmware.START_HOLD, engine=1)
     host.start()
-    start = clock()
-    while clock() - start < GUARD_MS:
-        if bench.rx_level(host):
-            return False
-    return True
+    pause_ms(GUARD_MS)
+    return not bench.rx_level(host)
 
 
 def find(host):
@@ -91,10 +88,10 @@ def find(host):
     return None
 
 
-def run(transfer, clock, log=print, firmware=bench_firmware.I2C_MASTER):
+def run(transfer, clock, pause_ms, log=print, firmware=bench_firmware.I2C_MASTER):
     """firmware is I2C_MASTER or I2C_MASTER_STRETCH, which take the same words."""
     host = pe.Host(transfer)
-    if not bus_free(host, clock):
+    if not bus_free(host, pause_ms):
         log("Pico B is mastering the bus: load MicroPython or can_node")
         return False
     bench.load(host, firmware)
@@ -137,7 +134,8 @@ def main(firmware):
     time.sleep_ms(bench.START_MS)
     start = time.ticks_ms()
     bench.report(lambda: run(
-        spi.transfer, lambda: time.ticks_diff(time.ticks_ms(), start), log, firmware), log)
+        spi.transfer, lambda: time.ticks_diff(time.ticks_ms(), start), time.sleep_ms, log,
+        firmware), log)
 
 
 if __name__ == "__main__":

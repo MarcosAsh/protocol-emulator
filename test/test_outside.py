@@ -272,13 +272,13 @@ async def test_eeprom(dut):
         sda=dut.sda, sda_o=dut.sda_o, scl=dut.scl, scl_o=dut.scl_o, addr=0x52, size=32768
     )
     analyser = Analyser({6: bit(dut.sda), 7: bit(dut.scl)})
-    transfer, _, log, lines = acted(dut)
+    transfer, pause_ms, log, lines = acted(dut)
 
     @resume
     async def clock():
         return get_sim_time("ns") // 1_000_000
 
-    assert await bridge(demo_eeprom.run)(transfer, clock, log=log)
+    assert await bridge(demo_eeprom.run)(transfer, clock, pause_ms, log=log)
     page = [(1 + 13 * i) & 0xFF for i in range(demo_eeprom.PAGE)]
     assert list(memory.read_mem(demo_eeprom.PAGE_ADDRESS, demo_eeprom.PAGE)) == page
     assert memory.read_mem(demo_eeprom.BYTE_ADDRESS, 1) == b"\x01"
@@ -355,14 +355,14 @@ async def test_eeprom_stretch(dut):
         seed=1,
     )
     analyser = Analyser({6: bit(dut.sda), 7: bit(dut.scl)})
-    transfer, _, log, _ = acted(dut)
+    transfer, pause_ms, log, _ = acted(dut)
 
     @resume
     async def clock():
         return get_sim_time("ns") // 1_000_000
 
     assert await bridge(demo_eeprom.run)(
-        transfer, clock, log=log, firmware=bench_firmware.I2C_MASTER_STRETCH)
+        transfer, clock, pause_ms, log=log, firmware=bench_firmware.I2C_MASTER_STRETCH)
     page = [(1 + 13 * i) & 0xFF for i in range(demo_eeprom.PAGE)]
     assert list(memory.read_mem(demo_eeprom.PAGE_ADDRESS, demo_eeprom.PAGE)) == page
     assert memory.read_mem(demo_eeprom.BYTE_ADDRESS, 1) == b"\x01"
@@ -381,6 +381,42 @@ async def test_eeprom_stretch(dut):
         "Sequential random read (addr=%04X, 64 bytes): %s" % (demo_eeprom.PAGE_ADDRESS, data),
     ]:
         assert "eeprom24xx-1: " + line in decoded, (line, decoded)
+
+
+@cocotb.test()
+async def test_eeprom_beside_a_master(dut):
+    """The EEPROM act with another master's reads on the bus, as Pico B's start hold build
+    makes them: the run hears the STARTs, refuses, and never drives either line."""
+    await reset(dut)
+    driven = []
+
+    async def watch():
+        while True:
+            await dut.uio_oe.value_change
+            if int(dut.uio_oe.value) & 0b1100:
+                driven.append(get_sim_time("ns"))
+
+    async def reads():
+        while True:
+            await i2c_reads(dut, 4_424_000)
+            await Timer(20, unit="ms")
+
+    watcher = cocotb.start_soon(watch())
+    master = cocotb.start_soon(reads())
+    transfer, pause_ms, log, lines = acted(dut)
+
+    @resume
+    async def clock():
+        return get_sim_time("ns") // 1_000_000
+
+    assert not await bridge(demo_eeprom.run)(transfer, clock, pause_ms, log=log)
+    master.cancel()
+    watcher.cancel()
+    # the later acts share the bus
+    dut.sda_o.value = 1
+    dut.scl_o.value = 1
+    assert "Pico B is mastering the bus: load MicroPython or can_node" in lines, lines
+    assert not driven, "the chip drove the bus at %s ns" % driven[:3]
 
 
 @cocotb.test()
