@@ -96,6 +96,10 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let%hw.Always.State_machine purpose =
     Always.State_machine.create (module Purpose) spec
   in
+  (* taken as the check begins, so a host writing it mid-walk cannot mix two *)
+  let%hw.Setup.Of_signal setup =
+    Setup.Of_signal.reg spec ~enable:(sm.is Idle &: i.check) i.setup
+  in
   let%hw_var pc = Always.Variable.reg spec ~width:Isa.pc_bits in
   let%hw_var ptr = Always.Variable.reg spec ~width:count_bits in
   let%hw_var count = Always.Variable.reg spec ~width:count_bits in
@@ -119,8 +123,11 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let%hw_var reason = Always.Variable.reg spec ~width:reason_bits in
   let%hw_var data_addr = Always.Variable.wire ~default:(zero Isa.data_addr_bits) () in
   let%hw_var reading = Always.Variable.wire ~default:gnd () in
+  (* the row at [pc], and the successor's it is checked against *)
   let row = Kernel.Row.Of_always.reg spec in
   let other = Kernel.Row.Of_always.reg spec in
+  Kernel.Row.Of_always.apply_names ~prefix:"row$" ~naming_op:(Scope.naming scope) row;
+  Kernel.Row.Of_always.apply_names ~prefix:"other$" ~naming_op:(Scope.naming scope) other;
   let row_value = Kernel.Row.Of_always.value row in
   let other_value = Kernel.Row.Of_always.value other in
   let config = i.config in
@@ -129,7 +136,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let capture =
     { Kernel.Capture.pin = uresize config.capture_pin ~width:Isa.Field.wait_index.width
     ; rising = config.capture_rising
-    ; single_edge = i.setup.single_edge
+    ; single_edge = setup.single_edge
     }
   in
   let%hw following, jump_target =
@@ -147,7 +154,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
     K.conjuncts
       ~side_set_count
       ~fraction
-      ~loaded:i.setup.loaded
+      ~loaded:setup.loaded
       ~capture
       ~spacing:K.no_spacing
       ~word:word.value
@@ -159,7 +166,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
     K.fall_through
       ~side_set_count
       ~fraction
-      ~loaded:i.setup.loaded
+      ~loaded:setup.loaded
       ~capture
       ~word:word.value
       ~row:row_value
@@ -198,7 +205,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let times3 x =
     uresize x ~width:Isa.data_addr_bits *: of_unsigned_int ~width:2 3 |> address
   in
-  let%hw entries_at = i.setup.base +:. 2 in
+  let%hw entries_at = setup.base +:. 2 in
   let%hw wide_at = entries_at +: times3 count.value in
   let%hw narrow_at = wide_at +: times3 wide_count.value in
   let entry_at n = entries_at +: times3 n +: uresize k.value ~width:Isa.data_addr_bits in
@@ -309,7 +316,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
                   ]
               ] )
           ; ( Header
-            , read (i.setup.base +: uresize k.value ~width:Isa.data_addr_bits)
+            , read (setup.base +: uresize k.value ~width:Isa.data_addr_bits)
               @ [ when_
                     read_done
                     [ if_

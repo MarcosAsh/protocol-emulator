@@ -6026,19 +6026,20 @@ module load_checker (
     wire [8:0] signal_mux_62;
     wire [8:0] signal_cat_15;
     wire [8:0] signal_wire_7;
+    reg [8:0] setup$base_0;
     wire [8:0] signal_add_7;
     reg [8:0] signal_cases_7;
     wire [8:0] data_addr;
-    wire [3:0] signal_const_53;
+    wire [3:0] signal_const_54;
     wire signal_eq_1;
     wire [3:0] signal_mux_63;
     wire [3:0] signal_mux_64;
     wire [3:0] signal_mux_65;
-    wire [3:0] signal_const_54;
+    wire [3:0] signal_const_55;
     wire [3:0] signal_mux_66;
     wire [3:0] signal_mux_67;
     wire [3:0] signal_mux_68;
-    wire [3:0] signal_const_480;
+    wire [3:0] signal_const_484;
     wire signal_mux_69;
     wire signal_mux_70;
     wire signal_not_18;
@@ -6057,19 +6058,19 @@ module load_checker (
     wire signal_not_23;
     wire signal_and;
     wire signal_and_1;
-    wire [23:0] signal_const_58;
-    wire signal_eq_2;
     wire [23:0] signal_const_59;
+    wire signal_eq_2;
+    wire [23:0] signal_const_60;
     wire signal_eq_3;
     wire signal_and_2;
     wire signal_or_19;
     wire signal_not_24;
     wire signal_or_20;
     wire signal_eq_4;
-    wire [15:0] signal_const_60;
+    wire [15:0] signal_const_61;
     wire signal_eq_5;
     wire signal_and_3;
-    wire [15:0] signal_const_61;
+    wire [15:0] signal_const_62;
     wire [15:0] signal_sub_2;
     wire [15:0] signal_mux_71;
     wire [15:0] signal_mux_72;
@@ -6240,10 +6241,10 @@ module load_checker (
     wire signal_select_38;
     wire signal_not_49;
     wire [25:0] signal_cat_65;
-    wire [25:0] signal_const_71;
+    wire [25:0] signal_const_72;
     wire signal_lt_12;
     wire signal_not_50;
-    wire [25:0] signal_const_72;
+    wire [25:0] signal_const_73;
     wire [24:0] signal_select_39;
     wire signal_select_40;
     wire signal_not_51;
@@ -6313,8 +6314,8 @@ module load_checker (
     wire signal_lt_14;
     wire signal_not_62;
     wire [25:0] signal_cat_72;
-    wire [25:0] signal_const_77;
     wire [25:0] signal_const_78;
+    wire [25:0] signal_const_79;
     wire [24:0] signal_select_43;
     wire [25:0] signal_sub_8;
     wire signal_select_44;
@@ -6331,7 +6332,7 @@ module load_checker (
     wire [25:0] signal_mux_103;
     wire signal_lt_16;
     wire signal_not_64;
-    wire [25:0] signal_const_82;
+    wire [25:0] signal_const_83;
     wire [24:0] signal_select_45;
     wire [25:0] signal_sub_9;
     wire signal_select_46;
@@ -6350,11 +6351,11 @@ module load_checker (
     wire signal_lt_18;
     wire signal_eq_22;
     wire signal_eq_23;
-    wire [1:0] signal_const_89;
+    wire [1:0] signal_const_90;
     wire signal_eq_24;
     wire signal_eq_25;
     wire signal_or_33;
-    wire [2:0] signal_const_91;
+    wire [2:0] signal_const_92;
     wire signal_eq_26;
     wire signal_and_33;
     wire signal_and_34;
@@ -6369,9 +6370,9 @@ module load_checker (
     wire signal_not_68;
     wire signal_and_40;
     wire signal_and_41;
-    wire [3:0] signal_const_93;
+    wire [3:0] signal_const_94;
     wire signal_eq_28;
-    wire [2:0] signal_const_94;
+    wire [2:0] signal_const_95;
     wire signal_eq_29;
     wire signal_and_42;
     wire signal_or_34;
@@ -6393,9 +6394,9 @@ module load_checker (
     wire signal_not_70;
     wire [15:0] signal_mux_110;
     wire [15:0] signal_mux_111;
-    wire [2:0] signal_const_98;
-    wire signal_eq_34;
     wire [2:0] signal_const_99;
+    wire signal_eq_34;
+    wire [2:0] signal_const_100;
     wire signal_eq_35;
     wire signal_and_47;
     wire [15:0] signal_mux_112;
@@ -6403,15 +6404,15 @@ module load_checker (
     wire signal_not_71;
     wire signal_and_48;
     wire signal_eq_36;
-    wire [2:0] signal_const_101;
+    wire [2:0] signal_const_102;
     wire signal_eq_37;
     wire signal_and_49;
     wire signal_eq_38;
-    wire [2:0] signal_const_103;
+    wire [2:0] signal_const_104;
     wire signal_eq_39;
     wire signal_and_50;
     wire signal_eq_40;
-    wire [2:0] signal_const_105;
+    wire [2:0] signal_const_106;
     wire signal_eq_41;
     wire signal_and_51;
     wire signal_or_37;
@@ -6456,7 +6457,7 @@ module load_checker (
     wire signal_not_77;
     wire signal_and_56;
     wire signal_not_78;
-    wire [1:0] signal_const_110;
+    wire [1:0] signal_const_111;
     wire signal_eq_48;
     wire signal_eq_49;
     wire signal_and_57;
@@ -6513,7 +6514,7 @@ module load_checker (
     wire [30:0] signal_cat_100;
     wire [29:0] signal_select_57;
     wire [4:0] signal_select_58;
-    wire [10:0] signal_const_116;
+    wire [10:0] signal_const_117;
     wire [15:0] signal_cat_101;
     wire [4:0] signal_select_59;
     wire [5:0] signal_cat_102;
@@ -6543,7 +6544,7 @@ module load_checker (
     wire [23:0] signal_mux_132;
     reg [23:0] signal_cases_9;
     wire [23:0] signal_wire_9;
-    reg [23:0] signal_reg;
+    reg [23:0] row$slope;
     wire [23:0] signal_mux_133;
     wire [23:0] signal_mux_134;
     wire [23:0] signal_mux_135;
@@ -6555,7 +6556,7 @@ module load_checker (
     wire [23:0] signal_mux_141;
     reg [23:0] signal_cases_10;
     wire [23:0] signal_wire_10;
-    reg [23:0] signal_reg_1;
+    reg [23:0] other$slope;
     wire signal_eq_54;
     wire signal_eq_55;
     wire signal_eq_56;
@@ -6621,7 +6622,7 @@ module load_checker (
     wire signal_lt_30;
     wire signal_not_95;
     wire [24:0] signal_select_76;
-    wire [25:0] signal_const_131;
+    wire [25:0] signal_const_132;
     wire [25:0] signal_cat_125;
     wire [25:0] signal_sub_12;
     wire [24:0] signal_select_77;
@@ -6701,13 +6702,13 @@ module load_checker (
     wire [25:0] signal_mux_160;
     wire [25:0] signal_add_20;
     wire signal_and_72;
-    wire [24:0] signal_const_149;
+    wire [24:0] signal_const_150;
     wire [25:0] signal_cat_144;
     wire [25:0] signal_cat_145;
     wire [25:0] signal_add_21;
     wire [25:0] signal_cat_146;
     wire [25:0] signal_cat_147;
-    wire [20:0] signal_const_153;
+    wire [20:0] signal_const_154;
     wire [23:0] signal_cat_148;
     wire [25:0] signal_cat_149;
     wire [25:0] signal_sub_15;
@@ -6718,7 +6719,7 @@ module load_checker (
     wire signal_and_74;
     wire signal_and_75;
     wire [25:0] signal_mux_163;
-    wire [2:0] signal_const_158;
+    wire [2:0] signal_const_159;
     wire signal_eq_66;
     wire signal_and_76;
     wire signal_and_77;
@@ -6732,14 +6733,14 @@ module load_checker (
     wire signal_and_82;
     wire signal_or_50;
     wire [25:0] signal_mux_165;
-    wire [23:0] signal_const_160;
     wire [23:0] signal_const_161;
+    wire [23:0] signal_const_162;
     wire [4:0] signal_and_83;
     wire [4:0] signal_and_84;
     wire [4:0] signal_and_85;
     wire [4:0] signal_select_97;
     reg [4:0] signal_mux_166;
-    wire [18:0] signal_const_165;
+    wire [18:0] signal_const_166;
     wire [23:0] signal_cat_150;
     wire [23:0] signal_add_22;
     wire [23:0] signal_mux_167;
@@ -6831,12 +6832,12 @@ module load_checker (
     wire signal_and_113;
     wire signal_and_114;
     wire signal_and_115;
-    wire [25:0] signal_const_189;
+    wire [25:0] signal_const_190;
     wire signal_select_106;
     wire [1:0] signal_cat_156;
     wire [25:0] signal_cat_157;
     wire signal_eq_86;
-    wire [25:0] signal_const_190;
+    wire [25:0] signal_const_191;
     wire signal_select_107;
     wire [1:0] signal_cat_158;
     wire [25:0] signal_cat_159;
@@ -6850,15 +6851,15 @@ module load_checker (
     wire signal_lt_40;
     wire signal_not_116;
     wire signal_and_117;
-    wire [3:0] signal_const_193;
+    wire [3:0] signal_const_194;
     wire signal_eq_90;
     wire signal_and_118;
     wire signal_mux_173;
-    wire [3:0] signal_const_194;
+    wire [3:0] signal_const_195;
     wire signal_eq_91;
     wire signal_and_119;
     wire signal_mux_174;
-    wire [3:0] signal_const_195;
+    wire [3:0] signal_const_196;
     wire signal_eq_92;
     wire signal_and_120;
     wire signal_mux_175;
@@ -6876,7 +6877,7 @@ module load_checker (
     wire signal_select_110;
     wire signal_not_119;
     wire [23:0] signal_cat_160;
-    wire [23:0] signal_const_198;
+    wire [23:0] signal_const_199;
     wire signal_lt_41;
     wire signal_not_120;
     wire signal_eq_95;
@@ -6887,7 +6888,7 @@ module load_checker (
     wire signal_eq_97;
     wire signal_eq_98;
     wire signal_and_124;
-    wire [3:0] signal_const_203;
+    wire [3:0] signal_const_204;
     wire [3:0] signal_select_112;
     wire signal_lt_42;
     wire [3:0] signal_select_113;
@@ -6913,13 +6914,13 @@ module load_checker (
     wire signal_and_127;
     wire signal_eq_100;
     wire signal_eq_101;
-    wire [4:0] signal_const_213;
+    wire [4:0] signal_const_214;
     wire signal_lt_49;
     wire [4:0] signal_select_120;
     wire signal_lt_50;
     wire [1:0] signal_select_121;
     reg signal_mux_177;
-    wire [3:0] signal_const_215;
+    wire [3:0] signal_const_216;
     wire [3:0] signal_select_122;
     wire signal_lt_51;
     wire [2:0] signal_select_123;
@@ -6937,7 +6938,7 @@ module load_checker (
     wire [23:0] signal_cat_161;
     wire [22:0] signal_select_126;
     wire [23:0] signal_select_127;
-    wire [23:0] signal_const_218;
+    wire [23:0] signal_const_219;
     wire [23:0] signal_mux_179;
     wire signal_eq_102;
     wire signal_eq_103;
@@ -7013,13 +7014,13 @@ module load_checker (
     wire [23:0] signal_mux_195;
     reg [23:0] signal_cases_11;
     wire [23:0] signal_wire_11;
-    reg [23:0] signal_reg_2;
+    reg [23:0] other$offset_hi;
     wire [23:0] signal_mux_196;
     wire [23:0] signal_mux_197;
     wire [23:0] signal_mux_198;
     reg [23:0] signal_cases_12;
     wire [23:0] signal_wire_12;
-    reg [23:0] signal_reg_3;
+    reg [23:0] row$offset_hi;
     wire signal_select_138;
     wire [1:0] signal_cat_164;
     wire [25:0] signal_cat_165;
@@ -7055,13 +7056,13 @@ module load_checker (
     wire [15:0] signal_mux_218;
     reg [15:0] signal_cases_14;
     wire [15:0] signal_wire_13;
-    reg [15:0] signal_reg_4;
+    reg [15:0] other$period_lo;
     wire [15:0] signal_mux_219;
     wire [15:0] signal_mux_220;
     wire [15:0] signal_mux_221;
     reg [15:0] signal_cases_15;
     wire [15:0] signal_wire_14;
-    reg [15:0] signal_reg_5;
+    reg [15:0] row$period_lo;
     wire [25:0] signal_cat_168;
     wire [25:0] signal_cat_169;
     wire [15:0] signal_mux_222;
@@ -7084,13 +7085,13 @@ module load_checker (
     wire [15:0] signal_mux_238;
     reg [15:0] signal_cases_17;
     wire [15:0] signal_wire_15;
-    reg [15:0] signal_reg_6;
+    reg [15:0] other$x_lo;
     wire [15:0] signal_mux_239;
     wire [15:0] signal_mux_240;
     wire [15:0] signal_mux_241;
     reg [15:0] signal_cases_18;
     wire [15:0] signal_wire_16;
-    reg [15:0] signal_reg_7;
+    reg [15:0] row$x_lo;
     wire signal_lt_74;
     wire [15:0] signal_mux_242;
     wire [15:0] signal_mux_243;
@@ -7114,13 +7115,13 @@ module load_checker (
     wire [15:0] signal_mux_259;
     reg [15:0] signal_cases_20;
     wire [15:0] signal_wire_17;
-    reg [15:0] signal_reg_8;
+    reg [15:0] other$y_lo;
     wire [15:0] signal_mux_260;
     wire [15:0] signal_mux_261;
     wire [15:0] signal_mux_262;
     reg [15:0] signal_cases_21;
     wire [15:0] signal_wire_18;
-    reg [15:0] signal_reg_9;
+    reg [15:0] row$y_lo;
     wire [25:0] signal_cat_170;
     wire [25:0] signal_mux_263;
     wire [25:0] signal_mux_264;
@@ -7168,13 +7169,13 @@ module load_checker (
     wire [23:0] signal_mux_280;
     reg [23:0] signal_cases_22;
     wire [23:0] signal_wire_19;
-    reg [23:0] signal_reg_10;
+    reg [23:0] other$offset_lo;
     wire [23:0] signal_mux_281;
     wire [23:0] signal_mux_282;
     wire [23:0] signal_mux_283;
     reg [23:0] signal_cases_23;
     wire [23:0] signal_wire_20;
-    reg [23:0] signal_reg_11;
+    reg [23:0] row$offset_lo;
     wire signal_select_152;
     wire [1:0] signal_cat_176;
     wire [25:0] signal_cat_177;
@@ -7193,12 +7194,14 @@ module load_checker (
     wire signal_and_134;
     wire [25:0] signal_cat_179;
     wire [15:0] signal_wire_22;
+    reg [15:0] setup$loaded$value_0;
     wire [15:0] signal_mux_288;
     wire signal_eq_111;
     wire signal_eq_112;
     wire signal_and_135;
     wire [15:0] signal_mux_289;
     wire signal_wire_23;
+    reg setup$loaded$valid_0;
     wire signal_not_146;
     wire signal_eq_113;
     wire signal_eq_114;
@@ -7230,14 +7233,14 @@ module load_checker (
     wire [15:0] signal_mux_303;
     reg [15:0] signal_cases_25;
     wire [15:0] signal_wire_24;
-    reg [15:0] signal_reg_12;
+    reg [15:0] other$period_hi;
     wire [15:0] signal_mux_304;
     wire [15:0] signal_mux_305;
-    wire [15:0] signal_const_298;
+    wire [15:0] signal_const_301;
     wire [15:0] signal_mux_306;
     reg [15:0] signal_cases_26;
     wire [15:0] signal_wire_25;
-    reg [15:0] signal_reg_13;
+    reg [15:0] row$period_hi;
     wire [25:0] signal_cat_180;
     wire [25:0] signal_add_27;
     wire [25:0] signal_cat_181;
@@ -7278,13 +7281,13 @@ module load_checker (
     wire [15:0] signal_mux_323;
     reg [15:0] signal_cases_28;
     wire [15:0] signal_wire_26;
-    reg [15:0] signal_reg_14;
+    reg [15:0] other$x_hi;
     wire [15:0] signal_mux_324;
     wire [15:0] signal_mux_325;
     wire [15:0] signal_mux_326;
     reg [15:0] signal_cases_29;
     wire [15:0] signal_wire_27;
-    reg [15:0] signal_reg_15;
+    reg [15:0] row$x_hi;
     wire signal_lt_79;
     wire [15:0] signal_mux_327;
     wire signal_eq_127;
@@ -7328,13 +7331,13 @@ module load_checker (
     wire [15:0] signal_mux_344;
     reg [15:0] signal_cases_31;
     wire [15:0] signal_wire_28;
-    reg [15:0] signal_reg_16;
+    reg [15:0] other$y_hi;
     wire [15:0] signal_mux_345;
     wire [15:0] signal_mux_346;
     wire [15:0] signal_mux_347;
     reg [15:0] signal_cases_32;
     wire [15:0] signal_wire_29;
-    reg [15:0] signal_reg_17;
+    reg [15:0] row$y_hi;
     wire [25:0] signal_cat_183;
     wire [23:0] signal_cat_184;
     wire [25:0] signal_cat_185;
@@ -7440,13 +7443,13 @@ module load_checker (
     wire [23:0] signal_mux_377;
     reg [23:0] signal_cases_34;
     wire [23:0] signal_wire_31;
-    reg [23:0] signal_reg_18;
+    reg [23:0] other$arm_hi;
     wire [23:0] signal_mux_378;
     wire [23:0] signal_mux_379;
     wire [23:0] signal_mux_380;
     reg [23:0] signal_cases_35;
     wire [23:0] signal_wire_32;
-    reg [23:0] signal_reg_19;
+    reg [23:0] row$arm_hi;
     wire [25:0] signal_cat_200;
     wire [25:0] signal_add_35;
     wire [25:0] signal_mux_381;
@@ -7478,13 +7481,13 @@ module load_checker (
     wire [23:0] signal_mux_396;
     reg [23:0] signal_cases_37;
     wire [23:0] signal_wire_33;
-    reg [23:0] signal_reg_20;
+    reg [23:0] other$arm_lo;
     wire [23:0] signal_mux_397;
     wire [23:0] signal_mux_398;
     wire [23:0] signal_mux_399;
     reg [23:0] signal_cases_38;
     wire [23:0] signal_wire_34;
-    reg [23:0] signal_reg_21;
+    reg [23:0] row$arm_lo;
     wire signal_eq_144;
     wire signal_and_168;
     wire signal_not_158;
@@ -7503,35 +7506,38 @@ module load_checker (
     wire signal_mux_409;
     reg signal_cases_39;
     wire signal_wire_35;
-    reg signal_reg_22;
+    reg other$awaiting;
     wire signal_mux_410;
     wire signal_mux_411;
     wire signal_mux_412;
     reg signal_cases_40;
     wire signal_wire_36;
-    reg signal_reg_23;
+    reg row$awaiting;
     wire signal_wire_37;
     wire signal_select_170;
     wire signal_eq_145;
     wire [4:0] signal_wire_38;
     wire [4:0] signal_select_171;
     wire signal_eq_146;
-    wire signal_wire_39;
     wire signal_eq_147;
-    wire signal_eq_148;
-    wire signal_or_76;
-    wire signal_eq_149;
     wire signal_and_170;
+    wire signal_wire_39;
+    reg setup$single_edge_0;
+    wire signal_eq_148;
+    wire signal_eq_149;
+    wire signal_or_76;
+    wire signal_eq_150;
     wire signal_and_171;
     wire signal_and_172;
     wire signal_and_173;
     wire signal_and_174;
     wire signal_and_175;
+    wire signal_and_176;
     wire signal_or_77;
     wire [3:0] signal_select_172;
-    wire signal_eq_150;
     wire signal_eq_151;
-    wire signal_and_176;
+    wire signal_eq_152;
+    wire signal_and_177;
     wire signal_mux_413;
     wire signal_mux_414;
     wire signal_mux_415;
@@ -7546,83 +7552,83 @@ module load_checker (
     wire signal_mux_422;
     reg signal_cases_41;
     wire signal_wire_40;
-    reg signal_reg_24;
+    reg other$captured;
     wire signal_mux_423;
     wire signal_mux_424;
     wire signal_mux_425;
     reg signal_cases_42;
     wire signal_wire_41;
-    reg signal_reg_25;
-    wire signal_eq_152;
+    reg row$captured;
     wire signal_eq_153;
-    wire signal_and_177;
+    wire signal_eq_154;
     wire signal_and_178;
     wire signal_and_179;
     wire signal_and_180;
-    wire signal_not_160;
-    wire signal_eq_154;
     wire signal_and_181;
-    wire signal_and_182;
+    wire signal_not_160;
     wire signal_eq_155;
+    wire signal_and_182;
     wire signal_and_183;
+    wire signal_eq_156;
     wire signal_and_184;
     wire signal_and_185;
-    wire signal_eq_156;
     wire signal_and_186;
+    wire signal_eq_157;
     wire signal_and_187;
     wire signal_and_188;
-    wire [2:0] signal_select_174;
-    wire signal_eq_157;
     wire signal_and_189;
+    wire [2:0] signal_select_174;
+    wire signal_eq_158;
     wire signal_and_190;
     wire signal_and_191;
+    wire signal_and_192;
     wire signal_select_175;
     wire signal_not_161;
     wire [1:0] signal_select_176;
-    wire signal_eq_158;
-    wire signal_and_192;
+    wire signal_eq_159;
     wire signal_and_193;
+    wire signal_and_194;
     wire signal_or_78;
     wire signal_or_79;
     wire signal_or_80;
     wire signal_or_81;
     wire signal_not_162;
     wire [1:0] signal_select_177;
-    wire signal_eq_159;
     wire signal_eq_160;
-    wire signal_and_194;
-    wire signal_and_195;
-    wire [2:0] signal_select_178;
     wire signal_eq_161;
-    wire signal_eq_162;
+    wire signal_and_195;
     wire signal_and_196;
-    wire [2:0] signal_select_179;
+    wire [2:0] signal_select_178;
+    wire signal_eq_162;
     wire signal_eq_163;
-    wire [1:0] signal_select_180;
-    wire signal_eq_164;
     wire signal_and_197;
+    wire [2:0] signal_select_179;
+    wire signal_eq_164;
+    wire [1:0] signal_select_180;
+    wire signal_eq_165;
     wire signal_and_198;
+    wire signal_and_199;
     wire signal_not_163;
     wire [2:0] signal_select_181;
-    wire signal_eq_165;
     wire signal_eq_166;
-    wire signal_and_199;
-    wire signal_and_200;
-    wire [1:0] signal_select_182;
     wire signal_eq_167;
-    wire signal_eq_168;
+    wire signal_and_200;
     wire signal_and_201;
-    wire signal_not_164;
-    wire [2:0] signal_select_183;
+    wire [1:0] signal_select_182;
+    wire signal_eq_168;
     wire signal_eq_169;
     wire signal_and_202;
+    wire signal_not_164;
+    wire [2:0] signal_select_183;
+    wire signal_eq_170;
+    wire signal_and_203;
     wire signal_or_82;
     wire signal_or_83;
     wire signal_or_84;
     wire signal_not_165;
     wire signal_or_85;
-    wire signal_and_203;
     wire signal_and_204;
+    wire signal_and_205;
     wire [23:0] signal_mux_426;
     wire [23:0] signal_mux_427;
     wire [23:0] signal_mux_428;
@@ -7641,13 +7647,13 @@ module load_checker (
     wire [23:0] signal_mux_439;
     reg [23:0] signal_cases_44;
     wire [23:0] signal_wire_42;
-    reg [23:0] signal_reg_26;
+    reg [23:0] other$phase_lo;
     wire [23:0] signal_mux_440;
     wire [23:0] signal_mux_441;
     wire [23:0] signal_mux_442;
     reg [23:0] signal_cases_45;
     wire [23:0] signal_wire_43;
-    reg [23:0] signal_reg_27;
+    reg [23:0] row$phase_lo;
     wire signal_select_185;
     wire signal_not_166;
     wire [23:0] signal_cat_201;
@@ -7661,13 +7667,13 @@ module load_checker (
     wire signal_or_88;
     wire signal_or_89;
     wire signal_not_168;
-    wire signal_and_205;
     wire signal_and_206;
+    wire signal_and_207;
     wire [23:0] signal_mux_443;
     wire [23:0] signal_mux_444;
     wire [23:0] signal_mux_445;
     wire [23:0] signal_mux_446;
-    wire [47:0] signal_const_411;
+    wire [47:0] signal_const_415;
     wire [47:0] signal_mux_447;
     wire [47:0] signal_mux_448;
     wire [47:0] signal_mux_449;
@@ -7689,13 +7695,13 @@ module load_checker (
     wire [23:0] signal_mux_458;
     reg [23:0] signal_cases_48;
     wire [23:0] signal_wire_45;
-    reg [23:0] signal_reg_28;
+    reg [23:0] other$phase_hi;
     wire [23:0] signal_mux_459;
     wire [23:0] signal_mux_460;
     wire [23:0] signal_mux_461;
     reg [23:0] signal_cases_49;
     wire [23:0] signal_wire_46;
-    reg [23:0] signal_reg_29;
+    reg [23:0] row$phase_hi;
     wire signal_select_190;
     wire signal_not_169;
     wire [23:0] signal_cat_203;
@@ -7705,11 +7711,10 @@ module load_checker (
     wire signal_or_92;
     wire signal_or_93;
     wire signal_not_170;
-    wire signal_and_207;
+    wire signal_and_208;
     wire signal_not_171;
     wire signal_or_94;
     wire signal_or_95;
-    wire signal_and_208;
     wire signal_and_209;
     wire signal_and_210;
     wire signal_and_211;
@@ -7717,6 +7722,7 @@ module load_checker (
     wire signal_and_213;
     wire signal_and_214;
     wire signal_and_215;
+    wire signal_and_216;
     wire next_fails;
     wire [3:0] signal_mux_462;
     wire [3:0] signal_mux_463;
@@ -7726,7 +7732,7 @@ module load_checker (
     wire [3:0] signal_mux_466;
     wire [3:0] signal_mux_467;
     wire [3:0] signal_mux_468;
-    wire [3:0] signal_const_415;
+    wire [3:0] signal_const_419;
     wire [1:0] signal_mux_469;
     wire [1:0] signal_mux_470;
     wire [1:0] signal_mux_471;
@@ -7737,19 +7743,19 @@ module load_checker (
     (* fsm_encoding="one_hot" *)
     reg [1:0] purpose;
     reg [3:0] signal_cases_52;
-    wire [3:0] signal_const_448;
+    wire [3:0] signal_const_452;
     wire [3:0] signal_mux_474;
     wire [3:0] signal_mux_475;
     wire [3:0] signal_mux_476;
-    wire [3:0] signal_const_421;
-    wire [3:0] signal_const_463;
+    wire [3:0] signal_const_425;
+    wire [3:0] signal_const_467;
     wire [3:0] signal_mux_477;
     wire [3:0] signal_mux_478;
     wire signal_lt_87;
     wire signal_not_172;
     wire [3:0] signal_mux_479;
     wire [3:0] signal_mux_480;
-    wire [3:0] signal_const_462;
+    wire [3:0] signal_const_466;
     wire [3:0] signal_mux_481;
     wire [3:0] signal_mux_482;
     wire [3:0] signal_mux_483;
@@ -7772,8 +7778,8 @@ module load_checker (
     wire [1:0] signal_mux_496;
     wire [2:0] signal_add_38;
     wire [2:0] signal_add_39;
-    wire signal_eq_170;
     wire signal_eq_171;
+    wire signal_eq_172;
     wire wide;
     wire last_word;
     wire [2:0] signal_mux_497;
@@ -7791,7 +7797,7 @@ module load_checker (
     wire [45:0] signal_select_193;
     wire [6:0] held$phase;
     reg [6:0] index;
-    wire signal_eq_172;
+    wire signal_eq_173;
     wire [2:0] signal_mux_500;
     wire [2:0] signal_mux_501;
     wire [2:0] signal_mux_502;
@@ -7799,18 +7805,18 @@ module load_checker (
     reg [2:0] signal_cases_54;
     wire [2:0] signal_wire_49;
     reg [2:0] field;
-    wire signal_eq_173;
+    wire signal_eq_174;
     wire [1:0] signal_mux_504;
     wire [1:0] signal_add_40;
-    wire signal_eq_174;
+    wire signal_eq_175;
     wire [1:0] signal_mux_505;
     wire [1:0] signal_mux_506;
     wire [1:0] signal_mux_507;
     wire [1:0] signal_mux_508;
     wire [7:0] signal_mux_509;
     wire [7:0] signal_mux_510;
-    wire [7:0] signal_const_452;
-    wire signal_eq_175;
+    wire [7:0] signal_const_456;
+    wire signal_eq_176;
     wire [7:0] signal_mux_511;
     wire [7:0] signal_mux_512;
     wire [7:0] signal_mux_513;
@@ -7836,12 +7842,12 @@ module load_checker (
     reg [8:0] signal_cases_56;
     wire [8:0] signal_wire_51;
     reg [8:0] key;
-    wire signal_eq_176;
+    wire signal_eq_177;
     wire [7:0] signal_mux_522;
     wire [7:0] signal_mux_523;
     wire [7:0] signal_mux_524;
     wire [8:0] jump_target;
-    wire signal_eq_177;
+    wire signal_eq_178;
     wire [7:0] signal_mux_525;
     wire [15:0] signal_wire_52;
     wire [15:0] signal_mux_526;
@@ -7858,17 +7864,17 @@ module load_checker (
     wire signal_not_174;
     wire [1:0] signal_mux_528;
     wire [1:0] signal_add_43;
-    wire signal_eq_178;
+    wire signal_eq_179;
     wire [1:0] signal_mux_529;
     wire [1:0] signal_add_44;
-    wire signal_eq_179;
+    wire signal_eq_180;
     wire [1:0] signal_mux_530;
     wire [1:0] signal_mux_531;
     wire [1:0] signal_mux_532;
     reg [1:0] signal_cases_59;
     wire [1:0] signal_wire_55;
     reg [1:0] k;
-    wire signal_eq_180;
+    wire signal_eq_181;
     wire [7:0] signal_mux_533;
     wire [7:0] signal_mux_534;
     reg [7:0] signal_cases_60;
@@ -7878,24 +7884,24 @@ module load_checker (
     wire [7:0] signal_add_45;
     wire [7:0] signal_mux_535;
     wire [8:0] signal_wire_57;
-    wire [8:0] signal_const_473;
+    wire [8:0] signal_const_477;
     wire [8:0] signal_add_46;
     wire [8:0] signal_wire_58;
     wire [8:0] signal_mux_536;
     wire [8:0] signal_mux_537;
     wire [8:0] signal_select_196;
-    wire [8:0] signal_const_476;
-    wire signal_eq_181;
+    wire [8:0] signal_const_480;
+    wire signal_eq_182;
     wire [8:0] signal_mux_538;
     wire signal_wire_59;
     wire signal_wire_60;
-    wire [9:0] signal_const_478;
+    wire [9:0] signal_const_482;
     wire [9:0] signal_cat_208;
     wire [9:0] next_pc;
     wire [15:0] signal_wire_61;
     wire [8:0] entry_tag;
     wire [9:0] signal_cat_209;
-    wire signal_eq_182;
+    wire signal_eq_183;
     wire signal_mux_539;
     wire signal_mux_540;
     reg signal_cases_61;
@@ -7907,7 +7913,7 @@ module load_checker (
     reg [8:0] signal_cases_62;
     wire [8:0] signal_wire_63;
     reg [8:0] pc;
-    wire signal_eq_183;
+    wire signal_eq_184;
     wire [8:0] following;
     wire gnd;
     wire [9:0] signal_cat_210;
@@ -7922,7 +7928,7 @@ module load_checker (
     wire vdd;
     reg signal_cases_64;
     wire reading;
-    wire signal_and_216;
+    wire signal_and_217;
     wire [1:0] signal_mux_547;
     wire [1:0] signal_wire_65;
     reg [1:0] \wait ;
@@ -7931,15 +7937,15 @@ module load_checker (
     wire signal_wire_66;
     wire [3:0] signal_mux_549;
     reg [3:0] signal_cases_65;
-    wire signal_eq_184;
+    wire signal_eq_185;
     wire signal_not_175;
     wire signal_wire_67;
-    wire signal_and_217;
+    wire signal_and_218;
     wire [3:0] signal_mux_550;
     wire [3:0] signal_wire_68;
     (* fsm_encoding="one_hot" *)
     reg [3:0] sm;
-    wire signal_eq_185;
+    wire signal_eq_186;
     assign signal_const = 5'b00000;
     assign signal_const_1 = 5'b11101;
     assign signal_const_2 = 5'b11111;
@@ -8052,7 +8058,7 @@ module load_checker (
             signal_cases_1 <= reason_0;
         endcase
     end
-    assign signal_mux_27 = signal_and_217 ? signal_const_1 : signal_cases_1;
+    assign signal_mux_27 = signal_and_218 ? signal_const_1 : signal_cases_1;
     assign signal_wire_1 = signal_mux_27;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
@@ -8088,7 +8094,7 @@ module load_checker (
             signal_cases_2 <= reject_pc_0;
         endcase
     end
-    assign signal_mux_34 = signal_and_217 ? signal_cat : signal_cases_2;
+    assign signal_mux_34 = signal_and_218 ? signal_cat : signal_cases_2;
     assign signal_wire_2 = signal_mux_34;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
@@ -8115,7 +8121,7 @@ module load_checker (
             signal_cases_3 <= accepted_0;
         endcase
     end
-    assign signal_mux_41 = signal_and_217 ? gnd : signal_cases_3;
+    assign signal_mux_41 = signal_and_218 ? gnd : signal_cases_3;
     assign signal_wire_3 = signal_mux_41;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
@@ -8141,7 +8147,7 @@ module load_checker (
             signal_cases_4 <= gnd;
         endcase
     end
-    assign signal_mux_48 = signal_and_217 ? vdd : signal_cases_4;
+    assign signal_mux_48 = signal_and_218 ? vdd : signal_cases_4;
     assign signal_wire_4 = signal_mux_48;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
@@ -8149,7 +8155,7 @@ module load_checker (
         else
             finished_0 <= signal_wire_4;
     end
-    assign signal_eq = signal_const_53 == sm;
+    assign signal_eq = signal_const_54 == sm;
     assign signal_not_17 = ~ signal_eq;
     assign signal_const_34 = 7'b0000000;
     assign signal_cat_4 = { signal_const_34,
@@ -8171,7 +8177,7 @@ module load_checker (
                             signal_const_32 };
     assign signal_const_42 = 8'b00000000;
     assign signal_select_2 = signal_wire_61[7:0];
-    assign signal_mux_49 = signal_eq_180 ? wide_count : signal_select_2;
+    assign signal_mux_49 = signal_eq_181 ? wide_count : signal_select_2;
     assign signal_mux_50 = read_done ? signal_mux_49 : wide_count;
     always @* begin
         case (sm)
@@ -8201,15 +8207,15 @@ module load_checker (
     assign signal_add_1 = narrow_at + signal_cat_7;
     assign signal_mux_51 = wide ? signal_add : signal_add_1;
     assign interval_at = signal_mux_51 + signal_cat_4;
-    assign signal_mux_52 = signal_eq_172 ? signal_const_51 : interval_at;
-    assign signal_mux_53 = signal_eq_173 ? signal_const_51 : signal_mux_52;
+    assign signal_mux_52 = signal_eq_173 ? signal_const_51 : interval_at;
+    assign signal_mux_53 = signal_eq_174 ? signal_const_51 : signal_mux_52;
     assign signal_cat_10 = { signal_const_34,
                              k };
     assign signal_mux_54 = stored ? ptr : sel;
     assign signal_mux_55 = falls_to_next ? sel : signal_mux_54;
     assign signal_mux_56 = stored ? ptr : sel;
     assign signal_mux_57 = falls_to_next ? signal_mux_56 : sel;
-    assign signal_mux_58 = signal_eq_176 ? mid : sel;
+    assign signal_mux_58 = signal_eq_177 ? mid : sel;
     assign signal_mux_59 = read_done ? signal_mux_58 : sel;
     assign signal_mux_60 = signal_not_174 ? sel : signal_mux_59;
     always @* begin
@@ -8250,7 +8256,7 @@ module load_checker (
     assign signal_mulu_5 = signal_cat_14 * signal_const_35;
     assign signal_select_7 = signal_mulu_5[8:0];
     assign signal_const_50 = 9'b000000010;
-    assign entries_at = signal_wire_7 + signal_const_50;
+    assign entries_at = setup$base_0 + signal_const_50;
     assign signal_add_5 = entries_at + signal_select_7;
     assign signal_add_6 = signal_add_5 + signal_cat_13;
     assign signal_const_51 = 9'b000000000;
@@ -8258,7 +8264,14 @@ module load_checker (
     assign signal_cat_15 = { signal_const_34,
                              k };
     assign signal_wire_7 = setup$base;
-    assign signal_add_7 = signal_wire_7 + signal_cat_15;
+    always @(posedge signal_wire_60) begin
+        if (signal_wire_59)
+            setup$base_0 <= signal_const_51;
+        else
+            if (signal_and_170)
+                setup$base_0 <= signal_wire_7;
+    end
+    assign signal_add_7 = setup$base_0 + signal_cat_15;
     always @* begin
         case (sm)
         4'b0001:
@@ -8276,97 +8289,97 @@ module load_checker (
         endcase
     end
     assign data_addr = signal_cases_7;
-    assign signal_const_53 = 4'b0000;
+    assign signal_const_54 = 4'b0000;
     assign signal_eq_1 = ptr == count;
-    assign signal_mux_63 = signal_eq_1 ? signal_const_53 : signal_const_53;
-    assign signal_mux_64 = signal_eq_181 ? signal_const_54 : signal_const_194;
-    assign signal_mux_65 = signal_eq_181 ? signal_const_54 : signal_const_194;
-    assign signal_const_54 = 4'b1101;
-    assign signal_mux_66 = signal_eq_181 ? signal_const_54 : signal_const_194;
-    assign signal_mux_67 = stored ? signal_const_448 : signal_mux_66;
+    assign signal_mux_63 = signal_eq_1 ? signal_const_54 : signal_const_54;
+    assign signal_mux_64 = signal_eq_182 ? signal_const_55 : signal_const_195;
+    assign signal_mux_65 = signal_eq_182 ? signal_const_55 : signal_const_195;
+    assign signal_const_55 = 4'b1101;
+    assign signal_mux_66 = signal_eq_182 ? signal_const_55 : signal_const_195;
+    assign signal_mux_67 = stored ? signal_const_452 : signal_mux_66;
     assign signal_mux_68 = falls_to_next ? signal_mux_65 : signal_mux_67;
-    assign signal_const_480 = 4'b1011;
+    assign signal_const_484 = 4'b1011;
     assign signal_mux_69 = stored ? target_fails : gnd;
     assign signal_mux_70 = falls_to_next ? gnd : signal_mux_69;
-    assign signal_not_18 = ~ signal_reg_22;
+    assign signal_not_18 = ~ other$awaiting;
     assign signal_or_15 = signal_not_18 | signal_mux_99;
     assign signal_not_19 = ~ signal_and_23;
     assign signal_or_16 = signal_not_19 | signal_or_15;
-    assign signal_not_20 = ~ signal_reg_24;
+    assign signal_not_20 = ~ other$captured;
     assign signal_or_17 = signal_not_20 | signal_mux_100;
     assign signal_not_21 = ~ signal_and_23;
     assign signal_or_18 = signal_not_21 | signal_or_17;
     assign signal_cat_16 = { signal_const_37,
-                             signal_reg_18 };
+                             other$arm_hi };
     assign signal_lt = signal_cat_16 < signal_mux_106;
     assign signal_not_22 = ~ signal_lt;
     assign signal_cat_17 = { signal_const_37,
-                             signal_reg_20 };
+                             other$arm_lo };
     assign signal_lt_1 = signal_mux_103 < signal_cat_17;
     assign signal_not_23 = ~ signal_lt_1;
     assign signal_and = signal_or_34 & signal_not_23;
     assign signal_and_1 = signal_and & signal_not_22;
-    assign signal_const_58 = 24'b111111111111111111111111;
-    assign signal_eq_2 = signal_reg_18 == signal_const_58;
-    assign signal_const_59 = 24'b000000000000000000000000;
-    assign signal_eq_3 = signal_reg_20 == signal_const_59;
+    assign signal_const_59 = 24'b111111111111111111111111;
+    assign signal_eq_2 = other$arm_hi == signal_const_59;
+    assign signal_const_60 = 24'b000000000000000000000000;
+    assign signal_eq_3 = other$arm_lo == signal_const_60;
     assign signal_and_2 = signal_eq_3 & signal_eq_2;
     assign signal_or_19 = signal_and_2 | signal_and_1;
     assign signal_not_24 = ~ signal_and_23;
     assign signal_or_20 = signal_not_24 | signal_or_19;
-    assign signal_eq_4 = signal_reg_16 == signal_const_298;
-    assign signal_const_60 = 16'b0000000000000000;
-    assign signal_eq_5 = signal_reg_8 == signal_const_60;
+    assign signal_eq_4 = other$y_hi == signal_const_301;
+    assign signal_const_61 = 16'b0000000000000000;
+    assign signal_eq_5 = other$y_lo == signal_const_61;
     assign signal_and_3 = signal_eq_5 & signal_eq_4;
-    assign signal_const_61 = 16'b0000000000000001;
-    assign signal_sub_2 = signal_reg_17 - signal_const_61;
-    assign signal_mux_71 = signal_and_119 ? signal_sub_2 : signal_reg_17;
+    assign signal_const_62 = 16'b0000000000000001;
+    assign signal_sub_2 = row$y_hi - signal_const_62;
+    assign signal_mux_71 = signal_and_119 ? signal_sub_2 : row$y_hi;
     assign signal_mux_72 = signal_and_47 ? signal_cat_101 : signal_mux_71;
-    assign signal_lt_2 = signal_reg_16 < signal_mux_72;
+    assign signal_lt_2 = other$y_hi < signal_mux_72;
     assign signal_not_25 = ~ signal_lt_2;
-    assign signal_sub_3 = signal_reg_9 - signal_const_61;
-    assign signal_eq_6 = signal_reg_9 == signal_const_60;
-    assign signal_mux_73 = signal_eq_6 ? signal_const_60 : signal_sub_3;
-    assign signal_mux_74 = signal_and_119 ? signal_mux_73 : signal_reg_9;
+    assign signal_sub_3 = row$y_lo - signal_const_62;
+    assign signal_eq_6 = row$y_lo == signal_const_61;
+    assign signal_mux_73 = signal_eq_6 ? signal_const_61 : signal_sub_3;
+    assign signal_mux_74 = signal_and_119 ? signal_mux_73 : row$y_lo;
     assign signal_mux_75 = signal_and_47 ? signal_cat_101 : signal_mux_74;
-    assign signal_lt_3 = signal_mux_75 < signal_reg_8;
+    assign signal_lt_3 = signal_mux_75 < other$y_lo;
     assign signal_not_26 = ~ signal_lt_3;
     assign signal_and_4 = signal_not_26 & signal_not_25;
     assign signal_mux_76 = signal_or_38 ? signal_and_3 : signal_and_4;
     assign signal_not_27 = ~ signal_and_23;
     assign signal_or_21 = signal_not_27 | signal_mux_76;
-    assign signal_eq_7 = signal_reg_14 == signal_const_298;
-    assign signal_eq_8 = signal_reg_6 == signal_const_60;
+    assign signal_eq_7 = other$x_hi == signal_const_301;
+    assign signal_eq_8 = other$x_lo == signal_const_61;
     assign signal_and_5 = signal_eq_8 & signal_eq_7;
-    assign signal_sub_4 = signal_reg_15 - signal_const_61;
-    assign signal_mux_77 = signal_and_120 ? signal_sub_4 : signal_reg_15;
+    assign signal_sub_4 = row$x_hi - signal_const_62;
+    assign signal_mux_77 = signal_and_120 ? signal_sub_4 : row$x_hi;
     assign signal_mux_78 = signal_and_68 ? signal_cat_101 : signal_mux_77;
-    assign signal_lt_4 = signal_reg_14 < signal_mux_78;
+    assign signal_lt_4 = other$x_hi < signal_mux_78;
     assign signal_not_28 = ~ signal_lt_4;
-    assign signal_sub_5 = signal_reg_7 - signal_const_61;
-    assign signal_eq_9 = signal_reg_7 == signal_const_60;
-    assign signal_mux_79 = signal_eq_9 ? signal_const_60 : signal_sub_5;
-    assign signal_mux_80 = signal_and_120 ? signal_mux_79 : signal_reg_7;
+    assign signal_sub_5 = row$x_lo - signal_const_62;
+    assign signal_eq_9 = row$x_lo == signal_const_61;
+    assign signal_mux_79 = signal_eq_9 ? signal_const_61 : signal_sub_5;
+    assign signal_mux_80 = signal_and_120 ? signal_mux_79 : row$x_lo;
     assign signal_mux_81 = signal_and_68 ? signal_cat_101 : signal_mux_80;
-    assign signal_lt_5 = signal_mux_81 < signal_reg_6;
+    assign signal_lt_5 = signal_mux_81 < other$x_lo;
     assign signal_not_29 = ~ signal_lt_5;
     assign signal_and_6 = signal_not_29 & signal_not_28;
     assign signal_mux_82 = signal_or_45 ? signal_and_5 : signal_and_6;
     assign signal_not_30 = ~ signal_and_23;
     assign signal_or_22 = signal_not_30 | signal_mux_82;
-    assign signal_eq_10 = signal_reg_12 == signal_const_298;
-    assign signal_eq_11 = signal_reg_4 == signal_const_60;
+    assign signal_eq_10 = other$period_hi == signal_const_301;
+    assign signal_eq_11 = other$period_lo == signal_const_61;
     assign signal_and_7 = signal_eq_11 & signal_eq_10;
-    assign signal_mux_83 = signal_or_42 ? signal_wire_22 : signal_reg_13;
+    assign signal_mux_83 = signal_or_42 ? setup$loaded$value_0 : row$period_hi;
     assign signal_mux_84 = signal_and_55 ? signal_cat_101 : signal_mux_83;
-    assign signal_lt_6 = signal_reg_12 < signal_mux_84;
+    assign signal_lt_6 = other$period_hi < signal_mux_84;
     assign signal_not_31 = ~ signal_lt_6;
-    assign signal_mux_85 = signal_or_42 ? signal_wire_22 : signal_reg_5;
+    assign signal_mux_85 = signal_or_42 ? setup$loaded$value_0 : row$period_lo;
     assign signal_mux_86 = signal_and_55 ? signal_cat_101 : signal_mux_85;
-    assign signal_lt_7 = signal_mux_86 < signal_reg_4;
+    assign signal_lt_7 = signal_mux_86 < other$period_lo;
     assign signal_not_32 = ~ signal_lt_7;
     assign signal_and_8 = signal_not_32 & signal_not_31;
-    assign signal_not_33 = ~ signal_wire_23;
+    assign signal_not_33 = ~ setup$loaded$valid_0;
     assign signal_and_9 = signal_or_42 & signal_not_33;
     assign signal_mux_87 = signal_and_9 ? signal_and_7 : signal_and_8;
     assign signal_not_34 = ~ signal_and_23;
@@ -8382,11 +8395,11 @@ module load_checker (
     assign signal_cat_21 = { signal_cat_20,
                              signal_add_19 };
     assign signal_sub_6 = signal_cat_21 - signal_cat_41;
-    assign signal_select_10 = signal_reg[23:23];
+    assign signal_select_10 = row$slope[23:23];
     assign signal_cat_22 = { signal_select_10,
                              signal_select_10 };
     assign signal_cat_23 = { signal_cat_22,
-                             signal_reg };
+                             row$slope };
     assign signal_add_8 = signal_add_16 + signal_cat_23;
     assign signal_mux_88 = signal_and_120 ? signal_add_8 : signal_add_16;
     assign signal_select_11 = signal_mux_88[25:25];
@@ -8406,7 +8419,7 @@ module load_checker (
     assign signal_select_13 = signal_cat_33[29:0];
     assign signal_cat_29 = { signal_cat_30,
                              signal_select_14 };
-    assign signal_select_14 = signal_reg_2[23:23];
+    assign signal_select_14 = other$offset_hi[23:23];
     assign signal_cat_30 = { signal_select_14,
                              signal_select_14 };
     assign signal_cat_31 = { signal_cat_30,
@@ -8414,7 +8427,7 @@ module load_checker (
     assign signal_cat_32 = { signal_cat_31,
                              signal_cat_29 };
     assign signal_cat_33 = { signal_cat_32,
-                             signal_reg_2 };
+                             other$offset_hi };
     assign signal_select_15 = signal_cat_33[30:30];
     assign signal_not_36 = ~ signal_select_15;
     assign signal_cat_34 = { signal_not_36,
@@ -8424,7 +8437,7 @@ module load_checker (
     assign signal_select_16 = signal_cat_39[29:0];
     assign signal_cat_35 = { signal_cat_36,
                              signal_select_17 };
-    assign signal_select_17 = signal_reg_10[23:23];
+    assign signal_select_17 = other$offset_lo[23:23];
     assign signal_cat_36 = { signal_select_17,
                              signal_select_17 };
     assign signal_cat_37 = { signal_cat_36,
@@ -8432,13 +8445,13 @@ module load_checker (
     assign signal_cat_38 = { signal_cat_37,
                              signal_cat_35 };
     assign signal_cat_39 = { signal_cat_38,
-                             signal_reg_10 };
+                             other$offset_lo };
     assign signal_select_18 = signal_cat_39[30:30];
     assign signal_not_38 = ~ signal_select_18;
     assign signal_cat_40 = { signal_not_38,
                              signal_select_16 };
     assign signal_select_19 = signal_mux_91[29:0];
-    assign signal_muls = $signed(signal_reg_1) * $signed(signal_cat_102);
+    assign signal_muls = $signed(other$slope) * $signed(signal_cat_102);
     assign signal_select_20 = signal_muls[29:29];
     assign signal_cat_41 = { signal_select_20,
                              signal_muls };
@@ -8452,11 +8465,11 @@ module load_checker (
     assign signal_cat_45 = { signal_cat_44,
                              signal_add_23 };
     assign signal_sub_7 = signal_cat_45 - signal_cat_41;
-    assign signal_select_22 = signal_reg[23:23];
+    assign signal_select_22 = row$slope[23:23];
     assign signal_cat_46 = { signal_select_22,
                              signal_select_22 };
     assign signal_cat_47 = { signal_cat_46,
-                             signal_reg };
+                             row$slope };
     assign signal_add_9 = signal_add_17 + signal_cat_47;
     assign signal_mux_90 = signal_and_120 ? signal_add_9 : signal_add_17;
     assign signal_select_23 = signal_mux_90[25:25];
@@ -8475,25 +8488,25 @@ module load_checker (
                              signal_select_19 };
     assign signal_lt_9 = signal_cat_52 < signal_cat_40;
     assign signal_not_40 = ~ signal_lt_9;
-    assign signal_eq_12 = signal_reg_1 == signal_reg;
+    assign signal_eq_12 = other$slope == row$slope;
     assign signal_not_41 = ~ signal_or_45;
     assign signal_and_10 = signal_and_65 & signal_not_41;
     assign signal_and_11 = signal_and_10 & signal_eq_12;
     assign signal_mux_92 = signal_and_68 ? signal_or_58 : signal_and_11;
     assign signal_and_12 = signal_mux_92 & signal_not_40;
     assign signal_and_13 = signal_and_12 & signal_not_37;
-    assign signal_select_25 = signal_reg_2[23:23];
+    assign signal_select_25 = other$offset_hi[23:23];
     assign signal_cat_53 = { signal_select_25,
                              signal_select_25 };
     assign signal_cat_54 = { signal_cat_53,
-                             signal_reg_2 };
-    assign signal_eq_13 = signal_cat_54 == signal_const_189;
-    assign signal_select_26 = signal_reg_10[23:23];
+                             other$offset_hi };
+    assign signal_eq_13 = signal_cat_54 == signal_const_190;
+    assign signal_select_26 = other$offset_lo[23:23];
     assign signal_cat_55 = { signal_select_26,
                              signal_select_26 };
     assign signal_cat_56 = { signal_cat_55,
-                             signal_reg_10 };
-    assign signal_eq_14 = signal_cat_56 == signal_const_190;
+                             other$offset_lo };
+    assign signal_eq_14 = signal_cat_56 == signal_const_191;
     assign signal_and_14 = signal_eq_14 & signal_eq_13;
     assign signal_or_24 = signal_and_14 | signal_and_13;
     assign signal_not_42 = ~ signal_and_23;
@@ -8504,11 +8517,11 @@ module load_checker (
     assign signal_cat_57 = { signal_not_43,
                              signal_select_27 };
     assign signal_select_29 = signal_cat_59[24:0];
-    assign signal_select_30 = signal_reg_28[23:23];
+    assign signal_select_30 = other$phase_hi[23:23];
     assign signal_cat_58 = { signal_select_30,
                              signal_select_30 };
     assign signal_cat_59 = { signal_cat_58,
-                             signal_reg_28 };
+                             other$phase_hi };
     assign signal_select_31 = signal_cat_59[25:25];
     assign signal_not_44 = ~ signal_select_31;
     assign signal_cat_60 = { signal_not_44,
@@ -8516,11 +8529,11 @@ module load_checker (
     assign signal_lt_10 = signal_cat_60 < signal_cat_57;
     assign signal_not_45 = ~ signal_lt_10;
     assign signal_select_32 = signal_cat_62[24:0];
-    assign signal_select_33 = signal_reg_26[23:23];
+    assign signal_select_33 = other$phase_lo[23:23];
     assign signal_cat_61 = { signal_select_33,
                              signal_select_33 };
     assign signal_cat_62 = { signal_cat_61,
-                             signal_reg_26 };
+                             other$phase_lo };
     assign signal_select_34 = signal_cat_62[25:25];
     assign signal_not_46 = ~ signal_select_34;
     assign signal_cat_63 = { signal_not_46,
@@ -8537,42 +8550,42 @@ module load_checker (
     assign signal_not_49 = ~ signal_select_38;
     assign signal_cat_65 = { signal_not_49,
                              signal_select_37 };
-    assign signal_const_71 = 26'b10011111111111111111111111;
-    assign signal_lt_12 = signal_const_71 < signal_cat_65;
+    assign signal_const_72 = 26'b10011111111111111111111111;
+    assign signal_lt_12 = signal_const_72 < signal_cat_65;
     assign signal_not_50 = ~ signal_lt_12;
-    assign signal_const_72 = 26'b01100000000000000000000000;
+    assign signal_const_73 = 26'b01100000000000000000000000;
     assign signal_select_39 = signal_add_23[24:0];
     assign signal_select_40 = signal_add_23[25:25];
     assign signal_not_51 = ~ signal_select_40;
     assign signal_cat_66 = { signal_not_51,
                              signal_select_39 };
-    assign signal_lt_13 = signal_cat_66 < signal_const_72;
+    assign signal_lt_13 = signal_cat_66 < signal_const_73;
     assign signal_not_52 = ~ signal_lt_13;
     assign signal_and_15 = signal_not_52 & signal_not_50;
     assign signal_and_16 = signal_or_58 & signal_and_15;
     assign signal_and_17 = signal_and_16 & signal_not_48;
     assign signal_and_18 = signal_and_17 & signal_not_45;
-    assign signal_select_41 = signal_reg_28[23:23];
+    assign signal_select_41 = other$phase_hi[23:23];
     assign signal_cat_67 = { signal_select_41,
                              signal_select_41 };
     assign signal_cat_68 = { signal_cat_67,
-                             signal_reg_28 };
-    assign signal_eq_15 = signal_cat_68 == signal_const_189;
-    assign signal_select_42 = signal_reg_26[23:23];
+                             other$phase_hi };
+    assign signal_eq_15 = signal_cat_68 == signal_const_190;
+    assign signal_select_42 = other$phase_lo[23:23];
     assign signal_cat_69 = { signal_select_42,
                              signal_select_42 };
     assign signal_cat_70 = { signal_cat_69,
-                             signal_reg_26 };
-    assign signal_eq_16 = signal_cat_70 == signal_const_190;
+                             other$phase_lo };
+    assign signal_eq_16 = signal_cat_70 == signal_const_191;
     assign signal_and_19 = signal_eq_16 & signal_eq_15;
     assign signal_or_26 = signal_and_19 | signal_and_18;
-    assign signal_eq_17 = signal_reg_15 == signal_const_60;
+    assign signal_eq_17 = row$x_hi == signal_const_61;
     assign signal_not_53 = ~ signal_eq_17;
-    assign signal_eq_18 = signal_reg_17 == signal_const_60;
+    assign signal_eq_18 = row$y_hi == signal_const_61;
     assign signal_not_54 = ~ signal_eq_18;
-    assign signal_eq_19 = signal_reg_7 == signal_reg_9;
-    assign signal_eq_20 = signal_reg_9 == signal_reg_17;
-    assign signal_eq_21 = signal_reg_7 == signal_reg_15;
+    assign signal_eq_19 = row$x_lo == row$y_lo;
+    assign signal_eq_20 = row$y_lo == row$y_hi;
+    assign signal_eq_21 = row$x_lo == row$x_hi;
     assign signal_and_20 = signal_eq_21 & signal_eq_20;
     assign signal_and_21 = signal_and_20 & signal_eq_19;
     assign signal_not_55 = ~ signal_and_21;
@@ -8580,7 +8593,7 @@ module load_checker (
     assign signal_mux_94 = signal_and_119 ? signal_not_54 : signal_mux_93;
     assign signal_mux_95 = signal_and_120 ? signal_not_53 : signal_mux_94;
     assign signal_mux_96 = signal_and_121 ? vdd : signal_mux_95;
-    assign signal_and_22 = signal_and_207 & signal_eq_94;
+    assign signal_and_22 = signal_and_208 & signal_eq_94;
     assign signal_and_23 = signal_and_22 & signal_mux_96;
     assign signal_not_56 = ~ signal_and_23;
     assign signal_or_27 = signal_not_56 | signal_or_26;
@@ -8614,186 +8627,186 @@ module load_checker (
         else
             target_fails <= signal_wire_8;
     end
-    assign signal_mux_98 = target_fails ? signal_const_53 : signal_const_480;
+    assign signal_mux_98 = target_fails ? signal_const_54 : signal_const_484;
     assign signal_not_57 = ~ signal_and_36;
-    assign signal_and_31 = signal_reg_23 & signal_not_57;
+    assign signal_and_31 = row$awaiting & signal_not_57;
     assign signal_mux_99 = signal_and_42 ? vdd : signal_and_31;
-    assign signal_not_58 = ~ signal_reg_22;
+    assign signal_not_58 = ~ other$awaiting;
     assign signal_or_28 = signal_not_58 | signal_mux_99;
     assign signal_not_59 = ~ signal_and_122;
     assign signal_or_29 = signal_not_59 | signal_or_28;
     assign signal_and_32 = signal_and_37 & signal_not_108;
-    assign signal_or_30 = signal_reg_25 | signal_and_32;
+    assign signal_or_30 = row$captured | signal_and_32;
     assign signal_mux_100 = signal_and_42 ? gnd : signal_or_30;
-    assign signal_not_60 = ~ signal_reg_24;
+    assign signal_not_60 = ~ other$captured;
     assign signal_or_31 = signal_not_60 | signal_mux_100;
     assign signal_not_61 = ~ signal_and_122;
     assign signal_or_32 = signal_not_61 | signal_or_31;
     assign signal_cat_71 = { signal_const_37,
-                             signal_reg_18 };
+                             other$arm_hi };
     assign signal_lt_14 = signal_cat_71 < signal_mux_106;
     assign signal_not_62 = ~ signal_lt_14;
     assign signal_cat_72 = { signal_const_37,
-                             signal_reg_20 };
-    assign signal_const_77 = 26'b00000000000000000000000000;
-    assign signal_const_78 = 26'b10000000000000000000000000;
+                             other$arm_lo };
+    assign signal_const_78 = 26'b00000000000000000000000000;
+    assign signal_const_79 = 26'b10000000000000000000000000;
     assign signal_select_43 = signal_sub_8[24:0];
-    assign signal_sub_8 = signal_const_77 - signal_cat_137;
+    assign signal_sub_8 = signal_const_78 - signal_cat_137;
     assign signal_select_44 = signal_sub_8[25:25];
     assign signal_not_63 = ~ signal_select_44;
     assign signal_cat_73 = { signal_not_63,
                              signal_select_43 };
-    assign signal_lt_15 = signal_cat_73 < signal_const_78;
-    assign signal_mux_101 = signal_lt_15 ? signal_const_77 : signal_sub_8;
+    assign signal_lt_15 = signal_cat_73 < signal_const_79;
+    assign signal_mux_101 = signal_lt_15 ? signal_const_78 : signal_sub_8;
     assign signal_cat_74 = { signal_const_37,
-                             signal_reg_21 };
+                             row$arm_lo };
     assign signal_add_10 = signal_cat_74 + signal_mux_101;
     assign signal_add_11 = signal_add_10 + signal_cat_78;
     assign signal_cat_75 = { signal_const_37,
-                             signal_reg_21 };
+                             row$arm_lo };
     assign signal_add_12 = signal_cat_75 + signal_cat_78;
     assign signal_mux_102 = signal_and_123 ? signal_add_11 : signal_add_12;
     assign signal_mux_103 = signal_and_42 ? signal_cat_78 : signal_mux_102;
     assign signal_lt_16 = signal_mux_103 < signal_cat_72;
     assign signal_not_64 = ~ signal_lt_16;
-    assign signal_const_82 = 26'b00100000000000000000000000;
+    assign signal_const_83 = 26'b00100000000000000000000000;
     assign signal_select_45 = signal_sub_9[24:0];
-    assign signal_sub_9 = signal_const_77 - signal_cat_154;
+    assign signal_sub_9 = signal_const_78 - signal_cat_154;
     assign signal_select_46 = signal_sub_9[25:25];
     assign signal_not_65 = ~ signal_select_46;
     assign signal_cat_76 = { signal_not_65,
                              signal_select_45 };
-    assign signal_lt_17 = signal_cat_76 < signal_const_78;
-    assign signal_mux_104 = signal_lt_17 ? signal_const_77 : signal_sub_9;
+    assign signal_lt_17 = signal_cat_76 < signal_const_79;
+    assign signal_mux_104 = signal_lt_17 ? signal_const_78 : signal_sub_9;
     assign signal_cat_77 = { signal_const_37,
-                             signal_reg_19 };
+                             row$arm_hi };
     assign signal_add_13 = signal_cat_77 + signal_mux_104;
     assign signal_add_14 = signal_add_13 + signal_cat_78;
     assign signal_cat_78 = { signal_const_37,
                              signal_mux_167 };
     assign signal_cat_79 = { signal_const_37,
-                             signal_reg_19 };
+                             row$arm_hi };
     assign signal_add_15 = signal_cat_79 + signal_cat_78;
     assign signal_mux_105 = signal_and_123 ? signal_add_14 : signal_add_15;
     assign signal_mux_106 = signal_and_42 ? signal_cat_78 : signal_mux_105;
-    assign signal_lt_18 = signal_mux_106 < signal_const_82;
+    assign signal_lt_18 = signal_mux_106 < signal_const_83;
     assign signal_eq_22 = signal_select_96 == signal_wire_37;
     assign signal_eq_23 = signal_select_120 == signal_wire_38;
-    assign signal_const_89 = 2'b01;
-    assign signal_eq_24 = signal_select_121 == signal_const_89;
+    assign signal_const_90 = 2'b01;
+    assign signal_eq_24 = signal_select_121 == signal_const_90;
     assign signal_eq_25 = signal_select_121 == signal_const_37;
     assign signal_or_33 = signal_eq_25 | signal_eq_24;
-    assign signal_const_91 = 3'b001;
-    assign signal_eq_26 = signal_select_123 == signal_const_91;
+    assign signal_const_92 = 3'b001;
+    assign signal_eq_26 = signal_select_123 == signal_const_92;
     assign signal_and_33 = signal_eq_26 & signal_or_33;
-    assign signal_and_34 = signal_and_33 & signal_wire_39;
+    assign signal_and_34 = signal_and_33 & setup$single_edge_0;
     assign signal_and_35 = signal_and_34 & signal_eq_23;
     assign signal_and_36 = signal_and_35 & signal_eq_22;
-    assign signal_and_37 = signal_and_36 & signal_reg_23;
+    assign signal_and_37 = signal_and_36 & row$awaiting;
     assign signal_not_66 = ~ signal_and_37;
     assign signal_not_67 = ~ signal_and_123;
-    assign signal_eq_27 = signal_select_123 == signal_const_91;
+    assign signal_eq_27 = signal_select_123 == signal_const_92;
     assign signal_and_38 = signal_eq_27 & signal_not_67;
     assign signal_and_39 = signal_and_38 & signal_not_66;
     assign signal_not_68 = ~ signal_and_39;
     assign signal_and_40 = signal_not_108 & signal_not_68;
     assign signal_and_41 = signal_and_40 & signal_lt_18;
-    assign signal_const_93 = 4'b0111;
-    assign signal_eq_28 = signal_select_111 == signal_const_93;
-    assign signal_const_94 = 3'b111;
-    assign signal_eq_29 = signal_select_123 == signal_const_94;
+    assign signal_const_94 = 4'b0111;
+    assign signal_eq_28 = signal_select_111 == signal_const_94;
+    assign signal_const_95 = 3'b111;
+    assign signal_eq_29 = signal_select_123 == signal_const_95;
     assign signal_and_42 = signal_eq_29 & signal_eq_28;
     assign signal_or_34 = signal_and_42 | signal_and_41;
     assign signal_and_43 = signal_or_34 & signal_not_64;
     assign signal_and_44 = signal_and_43 & signal_not_62;
-    assign signal_eq_30 = signal_reg_18 == signal_const_58;
-    assign signal_eq_31 = signal_reg_20 == signal_const_59;
+    assign signal_eq_30 = other$arm_hi == signal_const_59;
+    assign signal_eq_31 = other$arm_lo == signal_const_60;
     assign signal_and_45 = signal_eq_31 & signal_eq_30;
     assign signal_or_35 = signal_and_45 | signal_and_44;
     assign signal_not_69 = ~ signal_and_122;
     assign signal_or_36 = signal_not_69 | signal_or_35;
-    assign signal_eq_32 = signal_reg_16 == signal_const_298;
-    assign signal_eq_33 = signal_reg_8 == signal_const_60;
+    assign signal_eq_32 = other$y_hi == signal_const_301;
+    assign signal_eq_33 = other$y_lo == signal_const_61;
     assign signal_and_46 = signal_eq_33 & signal_eq_32;
-    assign signal_mux_107 = signal_and_118 ? signal_mux_114 : signal_reg_17;
-    assign signal_mux_108 = signal_and_119 ? signal_const_298 : signal_mux_107;
+    assign signal_mux_107 = signal_and_118 ? signal_mux_114 : row$y_hi;
+    assign signal_mux_108 = signal_and_119 ? signal_const_301 : signal_mux_107;
     assign signal_mux_109 = signal_and_47 ? signal_cat_101 : signal_mux_108;
-    assign signal_lt_19 = signal_reg_16 < signal_mux_109;
+    assign signal_lt_19 = other$y_hi < signal_mux_109;
     assign signal_not_70 = ~ signal_lt_19;
-    assign signal_mux_110 = signal_and_118 ? signal_mux_118 : signal_reg_9;
-    assign signal_mux_111 = signal_and_119 ? signal_const_298 : signal_mux_110;
-    assign signal_const_98 = 3'b010;
-    assign signal_eq_34 = signal_select_117 == signal_const_98;
-    assign signal_const_99 = 3'b101;
-    assign signal_eq_35 = signal_select_123 == signal_const_99;
+    assign signal_mux_110 = signal_and_118 ? signal_mux_118 : row$y_lo;
+    assign signal_mux_111 = signal_and_119 ? signal_const_301 : signal_mux_110;
+    assign signal_const_99 = 3'b010;
+    assign signal_eq_34 = signal_select_117 == signal_const_99;
+    assign signal_const_100 = 3'b101;
+    assign signal_eq_35 = signal_select_123 == signal_const_100;
     assign signal_and_47 = signal_eq_35 & signal_eq_34;
     assign signal_mux_112 = signal_and_47 ? signal_cat_101 : signal_mux_111;
-    assign signal_lt_20 = signal_mux_112 < signal_reg_8;
+    assign signal_lt_20 = signal_mux_112 < other$y_lo;
     assign signal_not_71 = ~ signal_lt_20;
     assign signal_and_48 = signal_not_71 & signal_not_70;
-    assign signal_eq_36 = signal_select_102 == signal_const_89;
-    assign signal_const_101 = 3'b110;
-    assign signal_eq_37 = signal_select_123 == signal_const_101;
+    assign signal_eq_36 = signal_select_102 == signal_const_90;
+    assign signal_const_102 = 3'b110;
+    assign signal_eq_37 = signal_select_123 == signal_const_102;
     assign signal_and_49 = signal_eq_37 & signal_eq_36;
-    assign signal_eq_38 = signal_select_103 == signal_const_98;
-    assign signal_const_103 = 3'b011;
-    assign signal_eq_39 = signal_select_123 == signal_const_103;
+    assign signal_eq_38 = signal_select_103 == signal_const_99;
+    assign signal_const_104 = 3'b011;
+    assign signal_eq_39 = signal_select_123 == signal_const_104;
     assign signal_and_50 = signal_eq_39 & signal_eq_38;
-    assign signal_eq_40 = signal_select_105 == signal_const_98;
-    assign signal_const_105 = 3'b100;
-    assign signal_eq_41 = signal_select_123 == signal_const_105;
+    assign signal_eq_40 = signal_select_105 == signal_const_99;
+    assign signal_const_106 = 3'b100;
+    assign signal_eq_41 = signal_select_123 == signal_const_106;
     assign signal_and_51 = signal_eq_41 & signal_eq_40;
     assign signal_or_37 = signal_and_51 | signal_and_50;
     assign signal_or_38 = signal_or_37 | signal_and_49;
     assign signal_mux_113 = signal_or_38 ? signal_and_46 : signal_and_48;
     assign signal_not_72 = ~ signal_and_122;
     assign signal_or_39 = signal_not_72 | signal_mux_113;
-    assign signal_eq_42 = signal_reg_14 == signal_const_298;
-    assign signal_eq_43 = signal_reg_6 == signal_const_60;
+    assign signal_eq_42 = other$x_hi == signal_const_301;
+    assign signal_eq_43 = other$x_lo == signal_const_61;
     assign signal_and_52 = signal_eq_43 & signal_eq_42;
-    assign signal_lt_21 = signal_reg_15 < signal_reg_17;
-    assign signal_mux_114 = signal_lt_21 ? signal_reg_15 : signal_reg_17;
-    assign signal_mux_115 = signal_and_118 ? signal_mux_114 : signal_reg_15;
-    assign signal_mux_116 = signal_and_120 ? signal_const_298 : signal_mux_115;
+    assign signal_lt_21 = row$x_hi < row$y_hi;
+    assign signal_mux_114 = signal_lt_21 ? row$x_hi : row$y_hi;
+    assign signal_mux_115 = signal_and_118 ? signal_mux_114 : row$x_hi;
+    assign signal_mux_116 = signal_and_120 ? signal_const_301 : signal_mux_115;
     assign signal_mux_117 = signal_and_68 ? signal_cat_101 : signal_mux_116;
-    assign signal_lt_22 = signal_reg_14 < signal_mux_117;
+    assign signal_lt_22 = other$x_hi < signal_mux_117;
     assign signal_not_73 = ~ signal_lt_22;
-    assign signal_lt_23 = signal_reg_9 < signal_reg_7;
-    assign signal_mux_118 = signal_lt_23 ? signal_reg_7 : signal_reg_9;
-    assign signal_mux_119 = signal_and_118 ? signal_mux_118 : signal_reg_7;
-    assign signal_mux_120 = signal_and_120 ? signal_const_298 : signal_mux_119;
+    assign signal_lt_23 = row$y_lo < row$x_lo;
+    assign signal_mux_118 = signal_lt_23 ? row$x_lo : row$y_lo;
+    assign signal_mux_119 = signal_and_118 ? signal_mux_118 : row$x_lo;
+    assign signal_mux_120 = signal_and_120 ? signal_const_301 : signal_mux_119;
     assign signal_mux_121 = signal_and_68 ? signal_cat_101 : signal_mux_120;
-    assign signal_lt_24 = signal_mux_121 < signal_reg_6;
+    assign signal_lt_24 = signal_mux_121 < other$x_lo;
     assign signal_not_74 = ~ signal_lt_24;
     assign signal_and_53 = signal_not_74 & signal_not_73;
     assign signal_mux_122 = signal_or_45 ? signal_and_52 : signal_and_53;
     assign signal_not_75 = ~ signal_and_122;
     assign signal_or_40 = signal_not_75 | signal_mux_122;
-    assign signal_eq_44 = signal_reg_12 == signal_const_298;
-    assign signal_eq_45 = signal_reg_4 == signal_const_60;
+    assign signal_eq_44 = other$period_hi == signal_const_301;
+    assign signal_eq_45 = other$period_lo == signal_const_61;
     assign signal_and_54 = signal_eq_45 & signal_eq_44;
-    assign signal_mux_123 = signal_or_42 ? signal_wire_22 : signal_reg_13;
+    assign signal_mux_123 = signal_or_42 ? setup$loaded$value_0 : row$period_hi;
     assign signal_mux_124 = signal_and_55 ? signal_cat_101 : signal_mux_123;
-    assign signal_lt_25 = signal_reg_12 < signal_mux_124;
+    assign signal_lt_25 = other$period_hi < signal_mux_124;
     assign signal_not_76 = ~ signal_lt_25;
-    assign signal_mux_125 = signal_or_42 ? signal_wire_22 : signal_reg_5;
-    assign signal_eq_46 = signal_select_117 == signal_const_105;
-    assign signal_eq_47 = signal_select_123 == signal_const_99;
+    assign signal_mux_125 = signal_or_42 ? setup$loaded$value_0 : row$period_lo;
+    assign signal_eq_46 = signal_select_117 == signal_const_106;
+    assign signal_eq_47 = signal_select_123 == signal_const_100;
     assign signal_and_55 = signal_eq_47 & signal_eq_46;
     assign signal_mux_126 = signal_and_55 ? signal_cat_101 : signal_mux_125;
-    assign signal_lt_26 = signal_mux_126 < signal_reg_4;
+    assign signal_lt_26 = signal_mux_126 < other$period_lo;
     assign signal_not_77 = ~ signal_lt_26;
     assign signal_and_56 = signal_not_77 & signal_not_76;
-    assign signal_not_78 = ~ signal_wire_23;
-    assign signal_const_110 = 2'b10;
-    assign signal_eq_48 = signal_select_102 == signal_const_110;
-    assign signal_eq_49 = signal_select_123 == signal_const_101;
+    assign signal_not_78 = ~ setup$loaded$valid_0;
+    assign signal_const_111 = 2'b10;
+    assign signal_eq_48 = signal_select_102 == signal_const_111;
+    assign signal_eq_49 = signal_select_123 == signal_const_102;
     assign signal_and_57 = signal_eq_49 & signal_eq_48;
-    assign signal_eq_50 = signal_select_103 == signal_const_101;
-    assign signal_eq_51 = signal_select_123 == signal_const_103;
+    assign signal_eq_50 = signal_select_103 == signal_const_102;
+    assign signal_eq_51 = signal_select_123 == signal_const_104;
     assign signal_and_58 = signal_eq_51 & signal_eq_50;
-    assign signal_eq_52 = signal_select_105 == signal_const_101;
-    assign signal_eq_53 = signal_select_123 == signal_const_105;
+    assign signal_eq_52 = signal_select_105 == signal_const_102;
+    assign signal_eq_53 = signal_select_123 == signal_const_106;
     assign signal_and_59 = signal_eq_53 & signal_eq_52;
     assign signal_or_41 = signal_and_59 | signal_and_58;
     assign signal_or_42 = signal_or_41 | signal_and_57;
@@ -8830,7 +8843,7 @@ module load_checker (
     assign signal_select_51 = signal_cat_93[29:0];
     assign signal_cat_89 = { signal_cat_90,
                              signal_select_52 };
-    assign signal_select_52 = signal_reg_2[23:23];
+    assign signal_select_52 = other$offset_hi[23:23];
     assign signal_cat_90 = { signal_select_52,
                              signal_select_52 };
     assign signal_cat_91 = { signal_cat_90,
@@ -8838,7 +8851,7 @@ module load_checker (
     assign signal_cat_92 = { signal_cat_91,
                              signal_cat_89 };
     assign signal_cat_93 = { signal_cat_92,
-                             signal_reg_2 };
+                             other$offset_hi };
     assign signal_select_53 = signal_cat_93[30:30];
     assign signal_not_81 = ~ signal_select_53;
     assign signal_cat_94 = { signal_not_81,
@@ -8848,7 +8861,7 @@ module load_checker (
     assign signal_select_54 = signal_cat_99[29:0];
     assign signal_cat_95 = { signal_cat_96,
                              signal_select_55 };
-    assign signal_select_55 = signal_reg_10[23:23];
+    assign signal_select_55 = other$offset_lo[23:23];
     assign signal_cat_96 = { signal_select_55,
                              signal_select_55 };
     assign signal_cat_97 = { signal_cat_96,
@@ -8856,20 +8869,20 @@ module load_checker (
     assign signal_cat_98 = { signal_cat_97,
                              signal_cat_95 };
     assign signal_cat_99 = { signal_cat_98,
-                             signal_reg_10 };
+                             other$offset_lo };
     assign signal_select_56 = signal_cat_99[30:30];
     assign signal_not_83 = ~ signal_select_56;
     assign signal_cat_100 = { signal_not_83,
                               signal_select_54 };
     assign signal_select_57 = signal_mux_129[29:0];
     assign signal_select_58 = word[4:0];
-    assign signal_const_116 = 11'b00000000000;
-    assign signal_cat_101 = { signal_const_116,
+    assign signal_const_117 = 11'b00000000000;
+    assign signal_cat_101 = { signal_const_117,
                               signal_select_58 };
     assign signal_select_59 = signal_cat_101[4:0];
     assign signal_cat_102 = { gnd,
                               signal_select_59 };
-    assign signal_muls_1 = $signed(signal_reg_1) * $signed(signal_cat_102);
+    assign signal_muls_1 = $signed(other$slope) * $signed(signal_cat_102);
     assign signal_select_60 = signal_muls_1[29:29];
     assign signal_cat_103 = { signal_select_60,
                               signal_muls_1 };
@@ -8900,9 +8913,9 @@ module load_checker (
                               signal_select_57 };
     assign signal_lt_28 = signal_cat_112 < signal_cat_100;
     assign signal_not_85 = ~ signal_lt_28;
-    assign signal_mux_130 = stored ? signal_reg : signal_const_59;
-    assign signal_mux_131 = falls_to_next ? signal_reg_1 : signal_mux_130;
-    assign signal_mux_132 = signal_wire_66 ? signal_const_59 : signal_reg;
+    assign signal_mux_130 = stored ? row$slope : signal_const_60;
+    assign signal_mux_131 = falls_to_next ? other$slope : signal_mux_130;
+    assign signal_mux_132 = signal_wire_66 ? signal_const_60 : row$slope;
     always @* begin
         case (sm)
         4'b0000:
@@ -8910,27 +8923,27 @@ module load_checker (
         4'b1011:
             signal_cases_9 <= signal_mux_131;
         4'b1100:
-            signal_cases_9 <= signal_reg_1;
+            signal_cases_9 <= other$slope;
         default:
-            signal_cases_9 <= signal_reg;
+            signal_cases_9 <= row$slope;
         endcase
     end
     assign signal_wire_9 = signal_cases_9;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
-            signal_reg <= signal_const_59;
+            row$slope <= signal_const_60;
         else
-            signal_reg <= signal_wire_9;
+            row$slope <= signal_wire_9;
     end
-    assign signal_mux_133 = signal_and_206 ? signal_const_59 : signal_const_59;
-    assign signal_mux_134 = stored ? signal_reg_1 : signal_mux_133;
-    assign signal_mux_135 = signal_eq_175 ? signal_const_59 : signal_reg_1;
+    assign signal_mux_133 = signal_and_207 ? signal_const_60 : signal_const_60;
+    assign signal_mux_134 = stored ? other$slope : signal_mux_133;
+    assign signal_mux_135 = signal_eq_176 ? signal_const_60 : other$slope;
     assign signal_mux_136 = falls_to_next ? signal_mux_134 : signal_mux_135;
-    assign signal_mux_137 = signal_eq_174 ? signal_const_59 : signal_reg_1;
-    assign signal_mux_138 = read_done ? signal_mux_137 : signal_reg_1;
-    assign signal_mux_139 = signal_not_174 ? signal_const_59 : signal_reg_1;
-    assign signal_mux_140 = signal_eq_177 ? signal_const_59 : signal_reg_1;
-    assign signal_mux_141 = is_jump ? signal_mux_140 : signal_reg_1;
+    assign signal_mux_137 = signal_eq_175 ? signal_const_60 : other$slope;
+    assign signal_mux_138 = read_done ? signal_mux_137 : other$slope;
+    assign signal_mux_139 = signal_not_174 ? signal_const_60 : other$slope;
+    assign signal_mux_140 = signal_eq_178 ? signal_const_60 : other$slope;
+    assign signal_mux_141 = is_jump ? signal_mux_140 : other$slope;
     always @* begin
         case (sm)
         4'b0100:
@@ -8942,25 +8955,25 @@ module load_checker (
         4'b1001:
             signal_cases_10 <= signal_mux_136;
         default:
-            signal_cases_10 <= signal_reg_1;
+            signal_cases_10 <= other$slope;
         endcase
     end
     assign signal_wire_10 = signal_cases_10;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
-            signal_reg_1 <= signal_const_59;
+            other$slope <= signal_const_60;
         else
-            signal_reg_1 <= signal_wire_10;
+            other$slope <= signal_wire_10;
     end
-    assign signal_eq_54 = signal_reg_1 == signal_reg;
+    assign signal_eq_54 = other$slope == row$slope;
     assign signal_eq_55 = signal_select_102 == signal_const_37;
-    assign signal_eq_56 = signal_select_123 == signal_const_101;
+    assign signal_eq_56 = signal_select_123 == signal_const_102;
     assign signal_and_61 = signal_eq_56 & signal_eq_55;
-    assign signal_eq_57 = signal_select_103 == signal_const_91;
-    assign signal_eq_58 = signal_select_123 == signal_const_103;
+    assign signal_eq_57 = signal_select_103 == signal_const_92;
+    assign signal_eq_58 = signal_select_123 == signal_const_104;
     assign signal_and_62 = signal_eq_58 & signal_eq_57;
-    assign signal_eq_59 = signal_select_105 == signal_const_91;
-    assign signal_eq_60 = signal_select_123 == signal_const_105;
+    assign signal_eq_59 = signal_select_105 == signal_const_92;
+    assign signal_eq_60 = signal_select_123 == signal_const_106;
     assign signal_and_63 = signal_eq_60 & signal_eq_59;
     assign signal_or_44 = signal_and_63 | signal_and_62;
     assign signal_or_45 = signal_or_44 | signal_and_61;
@@ -8972,24 +8985,24 @@ module load_checker (
     assign signal_and_65 = signal_and_64 & signal_not_87;
     assign signal_and_66 = signal_and_65 & signal_not_86;
     assign signal_and_67 = signal_and_66 & signal_eq_54;
-    assign signal_eq_61 = signal_select_117 == signal_const_91;
-    assign signal_eq_62 = signal_select_123 == signal_const_99;
+    assign signal_eq_61 = signal_select_117 == signal_const_92;
+    assign signal_eq_62 = signal_select_123 == signal_const_100;
     assign signal_and_68 = signal_eq_62 & signal_eq_61;
     assign signal_mux_142 = signal_and_68 ? signal_or_58 : signal_and_67;
     assign signal_and_69 = signal_mux_142 & signal_not_85;
     assign signal_and_70 = signal_and_69 & signal_not_82;
-    assign signal_select_64 = signal_reg_2[23:23];
+    assign signal_select_64 = other$offset_hi[23:23];
     assign signal_cat_113 = { signal_select_64,
                               signal_select_64 };
     assign signal_cat_114 = { signal_cat_113,
-                              signal_reg_2 };
-    assign signal_eq_63 = signal_cat_114 == signal_const_189;
-    assign signal_select_65 = signal_reg_10[23:23];
+                              other$offset_hi };
+    assign signal_eq_63 = signal_cat_114 == signal_const_190;
+    assign signal_select_65 = other$offset_lo[23:23];
     assign signal_cat_115 = { signal_select_65,
                               signal_select_65 };
     assign signal_cat_116 = { signal_cat_115,
-                              signal_reg_10 };
-    assign signal_eq_64 = signal_cat_116 == signal_const_190;
+                              other$offset_lo };
+    assign signal_eq_64 = signal_cat_116 == signal_const_191;
     assign signal_and_71 = signal_eq_64 & signal_eq_63;
     assign signal_or_47 = signal_and_71 | signal_and_70;
     assign signal_not_89 = ~ signal_and_122;
@@ -9000,11 +9013,11 @@ module load_checker (
     assign signal_cat_117 = { signal_not_90,
                               signal_select_66 };
     assign signal_select_68 = signal_cat_119[24:0];
-    assign signal_select_69 = signal_reg_28[23:23];
+    assign signal_select_69 = other$phase_hi[23:23];
     assign signal_cat_118 = { signal_select_69,
                               signal_select_69 };
     assign signal_cat_119 = { signal_cat_118,
-                              signal_reg_28 };
+                              other$phase_hi };
     assign signal_select_70 = signal_cat_119[25:25];
     assign signal_not_91 = ~ signal_select_70;
     assign signal_cat_120 = { signal_not_91,
@@ -9012,11 +9025,11 @@ module load_checker (
     assign signal_lt_29 = signal_cat_120 < signal_cat_117;
     assign signal_not_92 = ~ signal_lt_29;
     assign signal_select_71 = signal_cat_122[24:0];
-    assign signal_select_72 = signal_reg_26[23:23];
+    assign signal_select_72 = other$phase_lo[23:23];
     assign signal_cat_121 = { signal_select_72,
                               signal_select_72 };
     assign signal_cat_122 = { signal_cat_121,
-                              signal_reg_26 };
+                              other$phase_lo };
     assign signal_select_73 = signal_cat_122[25:25];
     assign signal_not_93 = ~ signal_select_73;
     assign signal_cat_123 = { signal_not_93,
@@ -9029,23 +9042,23 @@ module load_checker (
     assign signal_lt_30 = signal_cat_124 < signal_cat_123;
     assign signal_not_95 = ~ signal_lt_30;
     assign signal_select_76 = signal_mux_155[24:0];
-    assign signal_const_131 = 26'b00000000000000000000000001;
+    assign signal_const_132 = 26'b00000000000000000000000001;
     assign signal_cat_125 = { signal_const_37,
-                              signal_reg_19 };
-    assign signal_sub_12 = signal_cat_125 - signal_const_131;
+                              row$arm_hi };
+    assign signal_sub_12 = signal_cat_125 - signal_const_132;
     assign signal_select_77 = signal_mux_144[24:0];
     assign signal_select_78 = signal_mux_144[25:25];
     assign signal_not_96 = ~ signal_select_78;
     assign signal_cat_126 = { signal_not_96,
                               signal_select_77 };
-    assign signal_lt_31 = signal_cat_126 < signal_const_78;
-    assign signal_mux_143 = signal_lt_31 ? signal_const_77 : signal_mux_144;
+    assign signal_lt_31 = signal_cat_126 < signal_const_79;
+    assign signal_mux_143 = signal_lt_31 ? signal_const_78 : signal_mux_144;
     assign signal_select_79 = signal_cat_128[24:0];
-    assign signal_select_80 = signal_reg_3[23:23];
+    assign signal_select_80 = row$offset_hi[23:23];
     assign signal_cat_127 = { signal_select_80,
                               signal_select_80 };
     assign signal_cat_128 = { signal_cat_127,
-                              signal_reg_3 };
+                              row$offset_hi };
     assign signal_select_81 = signal_cat_128[25:25];
     assign signal_not_97 = ~ signal_select_81;
     assign signal_cat_129 = { signal_not_97,
@@ -9059,44 +9072,44 @@ module load_checker (
     assign signal_mux_144 = signal_lt_32 ? signal_cat_137 : signal_cat_128;
     assign signal_mux_145 = signal_and_123 ? signal_mux_143 : signal_mux_144;
     assign signal_mux_146 = signal_and_91 ? signal_sub_12 : signal_mux_145;
-    assign signal_mux_147 = signal_and_109 ? signal_const_77 : signal_mux_146;
+    assign signal_mux_147 = signal_and_109 ? signal_const_78 : signal_mux_146;
     assign signal_add_18 = signal_mux_147 + signal_sub_13;
     assign signal_cat_131 = { signal_const_30,
-                              signal_reg_5 };
+                              row$period_lo };
     assign signal_cat_132 = { signal_const_30,
-                              signal_reg_7 };
+                              row$x_lo };
     assign signal_cat_133 = { signal_const_30,
-                              signal_reg_9 };
+                              row$y_lo };
     assign signal_mux_148 = signal_and_75 ? signal_cat_133 : signal_mux_162;
     assign signal_mux_149 = signal_and_78 ? signal_cat_132 : signal_mux_148;
     assign signal_or_49 = signal_and_82 | signal_and_81;
     assign signal_mux_150 = signal_or_49 ? signal_cat_131 : signal_mux_149;
     assign signal_sub_13 = signal_cat_151 - signal_mux_150;
     assign signal_cat_134 = { signal_const_37,
-                              signal_reg_19 };
-    assign signal_sub_14 = signal_cat_134 - signal_const_131;
+                              row$arm_hi };
+    assign signal_sub_14 = signal_cat_134 - signal_const_132;
     assign signal_select_84 = signal_cat_137[24:0];
     assign signal_select_85 = signal_cat_137[25:25];
     assign signal_not_99 = ~ signal_select_85;
     assign signal_cat_135 = { signal_not_99,
                               signal_select_84 };
-    assign signal_lt_33 = signal_cat_135 < signal_const_78;
-    assign signal_mux_151 = signal_lt_33 ? signal_const_77 : signal_cat_137;
-    assign signal_select_86 = signal_reg_29[23:23];
+    assign signal_lt_33 = signal_cat_135 < signal_const_79;
+    assign signal_mux_151 = signal_lt_33 ? signal_const_78 : signal_cat_137;
+    assign signal_select_86 = row$phase_hi[23:23];
     assign signal_cat_136 = { signal_select_86,
                               signal_select_86 };
     assign signal_cat_137 = { signal_cat_136,
-                              signal_reg_29 };
+                              row$phase_hi };
     assign signal_mux_152 = signal_and_123 ? signal_mux_151 : signal_cat_137;
     assign signal_mux_153 = signal_and_91 ? signal_sub_14 : signal_mux_152;
-    assign signal_mux_154 = signal_and_109 ? signal_const_77 : signal_mux_153;
+    assign signal_mux_154 = signal_and_109 ? signal_const_78 : signal_mux_153;
     assign signal_add_19 = signal_mux_154 + signal_sub_13;
     assign signal_mux_155 = signal_and_120 ? signal_add_18 : signal_add_19;
     assign signal_select_87 = signal_mux_155[25:25];
     assign signal_not_100 = ~ signal_select_87;
     assign signal_cat_138 = { signal_not_100,
                               signal_select_76 };
-    assign signal_lt_34 = signal_const_71 < signal_cat_138;
+    assign signal_lt_34 = signal_const_72 < signal_cat_138;
     assign signal_not_101 = ~ signal_lt_34;
     assign signal_select_88 = signal_mux_172[24:0];
     assign signal_select_89 = signal_mux_157[24:0];
@@ -9104,19 +9117,19 @@ module load_checker (
     assign signal_not_102 = ~ signal_select_90;
     assign signal_cat_139 = { signal_not_102,
                               signal_select_89 };
-    assign signal_lt_35 = signal_cat_139 < signal_const_78;
-    assign signal_mux_156 = signal_lt_35 ? signal_const_77 : signal_mux_157;
+    assign signal_lt_35 = signal_cat_139 < signal_const_79;
+    assign signal_mux_156 = signal_lt_35 ? signal_const_78 : signal_mux_157;
     assign signal_select_91 = signal_cat_154[24:0];
     assign signal_select_92 = signal_cat_154[25:25];
     assign signal_not_103 = ~ signal_select_92;
     assign signal_cat_140 = { signal_not_103,
                               signal_select_91 };
     assign signal_select_93 = signal_cat_142[24:0];
-    assign signal_select_94 = signal_reg_11[23:23];
+    assign signal_select_94 = row$offset_lo[23:23];
     assign signal_cat_141 = { signal_select_94,
                               signal_select_94 };
     assign signal_cat_142 = { signal_cat_141,
-                              signal_reg_11 };
+                              row$offset_lo };
     assign signal_select_95 = signal_cat_142[25:25];
     assign signal_not_104 = ~ signal_select_95;
     assign signal_cat_143 = { signal_not_104,
@@ -9124,40 +9137,40 @@ module load_checker (
     assign signal_lt_36 = signal_cat_143 < signal_cat_140;
     assign signal_mux_157 = signal_lt_36 ? signal_cat_154 : signal_cat_142;
     assign signal_mux_158 = signal_and_123 ? signal_mux_156 : signal_mux_157;
-    assign signal_mux_159 = signal_and_91 ? signal_const_131 : signal_mux_158;
-    assign signal_mux_160 = signal_and_109 ? signal_const_77 : signal_mux_159;
+    assign signal_mux_159 = signal_and_91 ? signal_const_132 : signal_mux_158;
+    assign signal_mux_160 = signal_and_109 ? signal_const_78 : signal_mux_159;
     assign signal_add_20 = signal_mux_160 + signal_sub_16;
     assign signal_and_72 = signal_and_82 & signal_not_145;
-    assign signal_const_149 = 25'b0000000000000000000000000;
-    assign signal_cat_144 = { signal_const_149,
+    assign signal_const_150 = 25'b0000000000000000000000000;
+    assign signal_cat_144 = { signal_const_150,
                               signal_and_72 };
     assign signal_cat_145 = { signal_const_30,
-                              signal_reg_13 };
+                              row$period_hi };
     assign signal_add_21 = signal_cat_145 + signal_cat_144;
     assign signal_cat_146 = { signal_const_30,
-                              signal_reg_15 };
+                              row$x_hi };
     assign signal_cat_147 = { signal_const_30,
-                              signal_reg_17 };
-    assign signal_const_153 = 21'b000000000000000000000;
-    assign signal_cat_148 = { signal_const_153,
+                              row$y_hi };
+    assign signal_const_154 = 21'b000000000000000000000;
+    assign signal_cat_148 = { signal_const_154,
                               signal_select_114 };
     assign signal_cat_149 = { signal_const_37,
                               signal_cat_148 };
-    assign signal_sub_15 = signal_const_77 - signal_cat_149;
-    assign signal_mux_161 = signal_and_93 ? signal_sub_15 : signal_const_77;
+    assign signal_sub_15 = signal_const_78 - signal_cat_149;
+    assign signal_mux_161 = signal_and_93 ? signal_sub_15 : signal_const_78;
     assign signal_mux_162 = signal_and_104 ? signal_cat_149 : signal_mux_161;
-    assign signal_eq_65 = signal_select_114 == signal_const_91;
+    assign signal_eq_65 = signal_select_114 == signal_const_92;
     assign signal_and_73 = signal_and_105 & signal_eq_76;
     assign signal_and_74 = signal_and_73 & signal_select_115;
     assign signal_and_75 = signal_and_74 & signal_eq_65;
     assign signal_mux_163 = signal_and_75 ? signal_cat_147 : signal_mux_162;
-    assign signal_const_158 = 3'b000;
-    assign signal_eq_66 = signal_select_114 == signal_const_158;
+    assign signal_const_159 = 3'b000;
+    assign signal_eq_66 = signal_select_114 == signal_const_159;
     assign signal_and_76 = signal_and_105 & signal_eq_76;
     assign signal_and_77 = signal_and_76 & signal_select_115;
     assign signal_and_78 = signal_and_77 & signal_eq_66;
     assign signal_mux_164 = signal_and_78 ? signal_cat_146 : signal_mux_163;
-    assign signal_eq_67 = signal_select_114 == signal_const_98;
+    assign signal_eq_67 = signal_select_114 == signal_const_99;
     assign signal_and_79 = signal_and_105 & signal_eq_76;
     assign signal_and_80 = signal_and_79 & signal_select_115;
     assign signal_and_81 = signal_and_80 & signal_eq_67;
@@ -9165,8 +9178,8 @@ module load_checker (
     assign signal_and_82 = signal_and_123 & signal_select_96;
     assign signal_or_50 = signal_and_82 | signal_and_81;
     assign signal_mux_165 = signal_or_50 ? signal_add_21 : signal_mux_164;
-    assign signal_const_160 = 24'b000000000000000000000010;
-    assign signal_const_161 = 24'b000000000000000000000001;
+    assign signal_const_161 = 24'b000000000000000000000010;
+    assign signal_const_162 = 24'b000000000000000000000001;
     assign signal_and_83 = signal_select_97 & signal_const_9;
     assign signal_and_84 = signal_select_97 & signal_const_9;
     assign signal_and_85 = signal_select_97 & signal_const_14;
@@ -9183,11 +9196,11 @@ module load_checker (
             signal_mux_166 <= signal_and_83;
         endcase
     end
-    assign signal_const_165 = 19'b0000000000000000000;
-    assign signal_cat_150 = { signal_const_165,
+    assign signal_const_166 = 19'b0000000000000000000;
+    assign signal_cat_150 = { signal_const_166,
                               signal_mux_166 };
-    assign signal_add_22 = signal_cat_150 + signal_const_161;
-    assign signal_mux_167 = signal_eq_94 ? signal_const_160 : signal_add_22;
+    assign signal_add_22 = signal_cat_150 + signal_const_162;
+    assign signal_mux_167 = signal_eq_94 ? signal_const_161 : signal_add_22;
     assign signal_cat_151 = { signal_const_37,
                               signal_mux_167 };
     assign signal_sub_16 = signal_cat_151 - signal_mux_165;
@@ -9196,48 +9209,48 @@ module load_checker (
     assign signal_not_105 = ~ signal_select_99;
     assign signal_cat_152 = { signal_not_105,
                               signal_select_98 };
-    assign signal_lt_37 = signal_cat_152 < signal_const_78;
-    assign signal_mux_168 = signal_lt_37 ? signal_const_77 : signal_cat_154;
-    assign signal_select_100 = signal_reg_27[23:23];
+    assign signal_lt_37 = signal_cat_152 < signal_const_79;
+    assign signal_mux_168 = signal_lt_37 ? signal_const_78 : signal_cat_154;
+    assign signal_select_100 = row$phase_lo[23:23];
     assign signal_cat_153 = { signal_select_100,
                               signal_select_100 };
     assign signal_cat_154 = { signal_cat_153,
-                              signal_reg_27 };
+                              row$phase_lo };
     assign signal_mux_169 = signal_and_123 ? signal_mux_168 : signal_cat_154;
-    assign signal_mux_170 = signal_and_91 ? signal_const_131 : signal_mux_169;
-    assign signal_mux_171 = signal_and_109 ? signal_const_77 : signal_mux_170;
+    assign signal_mux_170 = signal_and_91 ? signal_const_132 : signal_mux_169;
+    assign signal_mux_171 = signal_and_109 ? signal_const_78 : signal_mux_170;
     assign signal_add_23 = signal_mux_171 + signal_sub_16;
     assign signal_mux_172 = signal_and_120 ? signal_add_20 : signal_add_23;
     assign signal_select_101 = signal_mux_172[25:25];
     assign signal_not_106 = ~ signal_select_101;
     assign signal_cat_155 = { signal_not_106,
                               signal_select_88 };
-    assign signal_lt_38 = signal_cat_155 < signal_const_72;
+    assign signal_lt_38 = signal_cat_155 < signal_const_73;
     assign signal_not_107 = ~ signal_lt_38;
     assign signal_and_86 = signal_not_107 & signal_not_101;
-    assign signal_eq_68 = signal_reg_19 == signal_const_58;
-    assign signal_eq_69 = signal_reg_21 == signal_const_59;
+    assign signal_eq_68 = row$arm_hi == signal_const_59;
+    assign signal_eq_69 = row$arm_lo == signal_const_60;
     assign signal_and_87 = signal_eq_69 & signal_eq_68;
     assign signal_not_108 = ~ signal_and_87;
-    assign signal_eq_70 = signal_select_104 == signal_const_94;
+    assign signal_eq_70 = signal_select_104 == signal_const_95;
     assign signal_eq_71 = signal_select_118 == signal_const_37;
     assign signal_and_88 = signal_and_110 & signal_eq_71;
     assign signal_and_89 = signal_and_88 & signal_eq_70;
-    assign signal_and_90 = signal_and_89 & signal_reg_25;
+    assign signal_and_90 = signal_and_89 & row$captured;
     assign signal_and_91 = signal_and_90 & signal_not_108;
     assign signal_not_109 = ~ signal_select_115;
-    assign signal_eq_72 = signal_select_116 == signal_const_89;
+    assign signal_eq_72 = signal_select_116 == signal_const_90;
     assign signal_and_92 = signal_and_105 & signal_eq_72;
     assign signal_and_93 = signal_and_92 & signal_not_109;
-    assign signal_eq_73 = signal_select_114 == signal_const_91;
+    assign signal_eq_73 = signal_select_114 == signal_const_92;
     assign signal_and_94 = signal_and_105 & signal_eq_76;
     assign signal_and_95 = signal_and_94 & signal_select_115;
     assign signal_and_96 = signal_and_95 & signal_eq_73;
-    assign signal_eq_74 = signal_select_114 == signal_const_158;
+    assign signal_eq_74 = signal_select_114 == signal_const_159;
     assign signal_and_97 = signal_and_105 & signal_eq_76;
     assign signal_and_98 = signal_and_97 & signal_select_115;
     assign signal_and_99 = signal_and_98 & signal_eq_74;
-    assign signal_eq_75 = signal_select_114 == signal_const_98;
+    assign signal_eq_75 = signal_select_114 == signal_const_99;
     assign signal_and_100 = signal_and_105 & signal_eq_76;
     assign signal_and_101 = signal_and_100 & signal_select_115;
     assign signal_and_102 = signal_and_101 & signal_eq_75;
@@ -9252,26 +9265,26 @@ module load_checker (
     assign signal_not_111 = ~ signal_or_54;
     assign signal_select_102 = word[7:6];
     assign signal_eq_77 = signal_select_102 == signal_const_35;
-    assign signal_eq_78 = signal_select_123 == signal_const_101;
+    assign signal_eq_78 = signal_select_123 == signal_const_102;
     assign signal_and_105 = signal_eq_78 & signal_eq_77;
     assign signal_and_106 = signal_and_105 & signal_not_111;
     assign signal_select_103 = word[7:5];
-    assign signal_eq_79 = signal_select_103 == signal_const_94;
-    assign signal_eq_80 = signal_select_123 == signal_const_103;
+    assign signal_eq_79 = signal_select_103 == signal_const_95;
+    assign signal_eq_80 = signal_select_123 == signal_const_104;
     assign signal_and_107 = signal_eq_80 & signal_eq_79;
     assign signal_select_104 = word[2:0];
-    assign signal_eq_81 = signal_select_104 == signal_const_101;
+    assign signal_eq_81 = signal_select_104 == signal_const_102;
     assign signal_eq_82 = signal_select_118 == signal_const_37;
     assign signal_and_108 = signal_and_110 & signal_eq_82;
     assign signal_and_109 = signal_and_108 & signal_eq_81;
     assign signal_not_112 = ~ signal_and_109;
     assign signal_select_105 = word[7:5];
-    assign signal_eq_83 = signal_select_105 == signal_const_94;
-    assign signal_eq_84 = signal_select_123 == signal_const_105;
+    assign signal_eq_83 = signal_select_105 == signal_const_95;
+    assign signal_eq_84 = signal_select_123 == signal_const_106;
     assign signal_and_110 = signal_eq_84 & signal_eq_83;
     assign signal_and_111 = signal_and_110 & signal_not_112;
     assign signal_not_113 = ~ signal_and_123;
-    assign signal_eq_85 = signal_select_123 == signal_const_91;
+    assign signal_eq_85 = signal_select_123 == signal_const_92;
     assign signal_and_112 = signal_eq_85 & signal_not_113;
     assign signal_or_55 = signal_and_112 | signal_and_111;
     assign signal_or_56 = signal_or_55 | signal_and_107;
@@ -9281,75 +9294,75 @@ module load_checker (
     assign signal_and_113 = signal_or_58 & signal_and_86;
     assign signal_and_114 = signal_and_113 & signal_not_95;
     assign signal_and_115 = signal_and_114 & signal_not_92;
-    assign signal_const_189 = 26'b00011111111111111111111111;
-    assign signal_select_106 = signal_reg_28[23:23];
+    assign signal_const_190 = 26'b00011111111111111111111111;
+    assign signal_select_106 = other$phase_hi[23:23];
     assign signal_cat_156 = { signal_select_106,
                               signal_select_106 };
     assign signal_cat_157 = { signal_cat_156,
-                              signal_reg_28 };
-    assign signal_eq_86 = signal_cat_157 == signal_const_189;
-    assign signal_const_190 = 26'b11100000000000000000000000;
-    assign signal_select_107 = signal_reg_26[23:23];
+                              other$phase_hi };
+    assign signal_eq_86 = signal_cat_157 == signal_const_190;
+    assign signal_const_191 = 26'b11100000000000000000000000;
+    assign signal_select_107 = other$phase_lo[23:23];
     assign signal_cat_158 = { signal_select_107,
                               signal_select_107 };
     assign signal_cat_159 = { signal_cat_158,
-                              signal_reg_26 };
-    assign signal_eq_87 = signal_cat_159 == signal_const_190;
+                              other$phase_lo };
+    assign signal_eq_87 = signal_cat_159 == signal_const_191;
     assign signal_and_116 = signal_eq_87 & signal_eq_86;
     assign signal_or_59 = signal_and_116 | signal_and_115;
-    assign signal_eq_88 = signal_reg_7 == signal_const_60;
-    assign signal_eq_89 = signal_reg_9 == signal_const_60;
-    assign signal_lt_39 = signal_reg_15 < signal_reg_9;
+    assign signal_eq_88 = row$x_lo == signal_const_61;
+    assign signal_eq_89 = row$y_lo == signal_const_61;
+    assign signal_lt_39 = row$x_hi < row$y_lo;
     assign signal_not_115 = ~ signal_lt_39;
-    assign signal_lt_40 = signal_reg_17 < signal_reg_7;
+    assign signal_lt_40 = row$y_hi < row$x_lo;
     assign signal_not_116 = ~ signal_lt_40;
     assign signal_and_117 = signal_not_116 & signal_not_115;
-    assign signal_const_193 = 4'b0011;
-    assign signal_eq_90 = signal_select_108 == signal_const_193;
+    assign signal_const_194 = 4'b0011;
+    assign signal_eq_90 = signal_select_108 == signal_const_194;
     assign signal_and_118 = signal_eq_94 & signal_eq_90;
     assign signal_mux_173 = signal_and_118 ? signal_and_117 : vdd;
-    assign signal_const_194 = 4'b0010;
-    assign signal_eq_91 = signal_select_108 == signal_const_194;
+    assign signal_const_195 = 4'b0010;
+    assign signal_eq_91 = signal_select_108 == signal_const_195;
     assign signal_and_119 = signal_eq_94 & signal_eq_91;
     assign signal_mux_174 = signal_and_119 ? signal_eq_89 : signal_mux_173;
-    assign signal_const_195 = 4'b0001;
-    assign signal_eq_92 = signal_select_108 == signal_const_195;
+    assign signal_const_196 = 4'b0001;
+    assign signal_eq_92 = signal_select_108 == signal_const_196;
     assign signal_and_120 = signal_eq_94 & signal_eq_92;
     assign signal_mux_175 = signal_and_120 ? signal_eq_88 : signal_mux_174;
     assign signal_select_108 = word[12:9];
-    assign signal_eq_93 = signal_select_108 == signal_const_53;
+    assign signal_eq_93 = signal_select_108 == signal_const_54;
     assign signal_and_121 = signal_eq_94 & signal_eq_93;
     assign signal_mux_176 = signal_and_121 ? gnd : signal_mux_175;
-    assign signal_eq_94 = signal_select_123 == signal_const_158;
+    assign signal_eq_94 = signal_select_123 == signal_const_159;
     assign signal_not_117 = ~ signal_eq_94;
     assign signal_or_60 = signal_not_117 | signal_mux_176;
-    assign signal_and_122 = signal_and_207 & signal_or_60;
+    assign signal_and_122 = signal_and_208 & signal_or_60;
     assign signal_not_118 = ~ signal_and_122;
     assign signal_or_61 = signal_not_118 | signal_or_59;
-    assign signal_select_109 = signal_reg_29[22:0];
-    assign signal_select_110 = signal_reg_29[23:23];
+    assign signal_select_109 = row$phase_hi[22:0];
+    assign signal_select_110 = row$phase_hi[23:23];
     assign signal_not_119 = ~ signal_select_110;
     assign signal_cat_160 = { signal_not_119,
                               signal_select_109 };
-    assign signal_const_198 = 24'b100000000000000000000000;
-    assign signal_lt_41 = signal_const_198 < signal_cat_160;
+    assign signal_const_199 = 24'b100000000000000000000000;
+    assign signal_lt_41 = signal_const_199 < signal_cat_160;
     assign signal_not_120 = ~ signal_lt_41;
-    assign signal_eq_95 = signal_select_121 == signal_const_110;
-    assign signal_eq_96 = signal_select_123 == signal_const_91;
+    assign signal_eq_95 = signal_select_121 == signal_const_111;
+    assign signal_eq_96 = signal_select_123 == signal_const_92;
     assign signal_and_123 = signal_eq_96 & signal_eq_95;
     assign signal_not_121 = ~ signal_and_123;
     assign signal_select_111 = word[3:0];
-    assign signal_eq_97 = signal_select_111 == signal_const_195;
-    assign signal_eq_98 = signal_select_123 == signal_const_94;
+    assign signal_eq_97 = signal_select_111 == signal_const_196;
+    assign signal_eq_98 = signal_select_123 == signal_const_95;
     assign signal_and_124 = signal_eq_98 & signal_eq_97;
-    assign signal_const_203 = 4'b1001;
+    assign signal_const_204 = 4'b1001;
     assign signal_select_112 = word[3:0];
-    assign signal_lt_42 = signal_select_112 < signal_const_203;
+    assign signal_lt_42 = signal_select_112 < signal_const_204;
     assign signal_select_113 = word[7:4];
-    assign signal_eq_99 = signal_select_113 == signal_const_53;
+    assign signal_eq_99 = signal_select_113 == signal_const_54;
     assign signal_and_125 = signal_eq_99 & signal_lt_42;
     assign signal_select_114 = word[2:0];
-    assign signal_lt_43 = signal_select_114 < signal_const_99;
+    assign signal_lt_43 = signal_select_114 < signal_const_100;
     assign signal_select_115 = word[3:3];
     assign signal_not_122 = ~ signal_select_115;
     assign signal_or_62 = signal_not_122 | signal_lt_43;
@@ -9357,7 +9370,7 @@ module load_checker (
     assign signal_lt_44 = signal_select_116 < signal_const_35;
     assign signal_and_126 = signal_lt_44 & signal_or_62;
     assign signal_select_117 = word[7:5];
-    assign signal_lt_45 = signal_select_117 < signal_const_99;
+    assign signal_lt_45 = signal_select_117 < signal_const_100;
     assign signal_select_118 = word[4:3];
     assign signal_lt_46 = signal_select_118 < signal_const_35;
     assign signal_lt_47 = signal_const_21 < signal_select_119;
@@ -9368,10 +9381,10 @@ module load_checker (
     assign signal_and_127 = signal_not_124 & signal_not_123;
     assign signal_eq_100 = signal_select_120 == signal_const;
     assign signal_eq_101 = signal_select_120 == signal_const;
-    assign signal_const_213 = 5'b11100;
-    assign signal_lt_49 = signal_select_120 < signal_const_213;
+    assign signal_const_214 = 5'b11100;
+    assign signal_lt_49 = signal_select_120 < signal_const_214;
     assign signal_select_120 = word[4:0];
-    assign signal_lt_50 = signal_select_120 < signal_const_213;
+    assign signal_lt_50 = signal_select_120 < signal_const_214;
     assign signal_select_121 = word[6:5];
     always @* begin
         case (signal_select_121)
@@ -9385,9 +9398,9 @@ module load_checker (
             signal_mux_177 <= signal_eq_100;
         endcase
     end
-    assign signal_const_215 = 4'b1100;
+    assign signal_const_216 = 4'b1100;
     assign signal_select_122 = word[12:9];
-    assign signal_lt_51 = signal_select_122 < signal_const_215;
+    assign signal_lt_51 = signal_select_122 < signal_const_216;
     assign signal_select_123 = word[15:13];
     always @* begin
         case (signal_select_123)
@@ -9412,48 +9425,48 @@ module load_checker (
     assign signal_not_125 = ~ signal_mux_178;
     assign signal_or_63 = signal_not_125 | signal_and_124;
     assign signal_not_126 = ~ signal_or_63;
-    assign signal_lt_52 = signal_reg_19 < signal_reg_21;
-    assign signal_lt_53 = signal_reg_17 < signal_reg_9;
-    assign signal_lt_54 = signal_reg_15 < signal_reg_7;
-    assign signal_lt_55 = signal_reg_13 < signal_reg_5;
-    assign signal_select_124 = signal_reg_27[22:0];
-    assign signal_select_125 = signal_reg_27[23:23];
+    assign signal_lt_52 = row$arm_hi < row$arm_lo;
+    assign signal_lt_53 = row$y_hi < row$y_lo;
+    assign signal_lt_54 = row$x_hi < row$x_lo;
+    assign signal_lt_55 = row$period_hi < row$period_lo;
+    assign signal_select_124 = row$phase_lo[22:0];
+    assign signal_select_125 = row$phase_lo[23:23];
     assign signal_not_127 = ~ signal_select_125;
     assign signal_cat_161 = { signal_not_127,
                               signal_select_124 };
-    assign signal_select_126 = signal_reg_29[22:0];
+    assign signal_select_126 = row$phase_hi[22:0];
     assign signal_select_127 = signal_mux_270[23:0];
-    assign signal_const_218 = 24'b011111111111111111111111;
-    assign signal_mux_179 = signal_and_204 ? signal_select_127 : signal_const_218;
-    assign signal_eq_102 = signal_reg_7 == signal_const_60;
-    assign signal_eq_103 = signal_reg_9 == signal_const_60;
-    assign signal_lt_56 = signal_reg_15 < signal_reg_9;
+    assign signal_const_219 = 24'b011111111111111111111111;
+    assign signal_mux_179 = signal_and_205 ? signal_select_127 : signal_const_219;
+    assign signal_eq_102 = row$x_lo == signal_const_61;
+    assign signal_eq_103 = row$y_lo == signal_const_61;
+    assign signal_lt_56 = row$x_hi < row$y_lo;
     assign signal_not_128 = ~ signal_lt_56;
-    assign signal_lt_57 = signal_reg_17 < signal_reg_7;
+    assign signal_lt_57 = row$y_hi < row$x_lo;
     assign signal_not_129 = ~ signal_lt_57;
     assign signal_and_128 = signal_not_129 & signal_not_128;
     assign signal_mux_180 = signal_and_144 ? signal_and_128 : vdd;
     assign signal_mux_181 = signal_and_145 ? signal_eq_103 : signal_mux_180;
     assign signal_mux_182 = signal_and_160 ? signal_eq_102 : signal_mux_181;
-    assign signal_eq_104 = signal_select_159 == signal_const_53;
+    assign signal_eq_104 = signal_select_159 == signal_const_54;
     assign signal_and_129 = signal_eq_142 & signal_eq_104;
     assign signal_mux_183 = signal_and_129 ? gnd : signal_mux_182;
     assign signal_not_130 = ~ signal_eq_142;
     assign signal_or_64 = signal_not_130 | signal_mux_183;
-    assign signal_eq_105 = signal_select_172 == signal_const_195;
-    assign signal_eq_106 = signal_select_183 == signal_const_94;
+    assign signal_eq_105 = signal_select_172 == signal_const_196;
+    assign signal_eq_106 = signal_select_183 == signal_const_95;
     assign signal_and_130 = signal_eq_106 & signal_eq_105;
     assign signal_select_128 = word[3:0];
-    assign signal_lt_58 = signal_select_128 < signal_const_203;
+    assign signal_lt_58 = signal_select_128 < signal_const_204;
     assign signal_select_129 = word[7:4];
-    assign signal_eq_107 = signal_select_129 == signal_const_53;
+    assign signal_eq_107 = signal_select_129 == signal_const_54;
     assign signal_and_131 = signal_eq_107 & signal_lt_58;
-    assign signal_lt_59 = signal_select_174 < signal_const_99;
+    assign signal_lt_59 = signal_select_174 < signal_const_100;
     assign signal_not_131 = ~ signal_select_175;
     assign signal_or_65 = signal_not_131 | signal_lt_59;
     assign signal_lt_60 = signal_select_176 < signal_const_35;
     assign signal_and_132 = signal_lt_60 & signal_or_65;
-    assign signal_lt_61 = signal_select_155 < signal_const_99;
+    assign signal_lt_61 = signal_select_155 < signal_const_100;
     assign signal_lt_62 = signal_select_180 < signal_const_35;
     assign signal_lt_63 = signal_const_21 < signal_select_130;
     assign signal_not_132 = ~ signal_lt_63;
@@ -9463,8 +9476,8 @@ module load_checker (
     assign signal_and_133 = signal_not_133 & signal_not_132;
     assign signal_eq_108 = signal_select_171 == signal_const;
     assign signal_eq_109 = signal_select_171 == signal_const;
-    assign signal_lt_65 = signal_select_171 < signal_const_213;
-    assign signal_lt_66 = signal_select_171 < signal_const_213;
+    assign signal_lt_65 = signal_select_171 < signal_const_214;
+    assign signal_lt_66 = signal_select_171 < signal_const_214;
     always @* begin
         case (signal_select_182)
         0:
@@ -9478,7 +9491,7 @@ module load_checker (
         endcase
     end
     assign signal_select_131 = word[12:9];
-    assign signal_lt_67 = signal_select_131 < signal_const_215;
+    assign signal_lt_67 = signal_select_131 < signal_const_216;
     always @* begin
         case (signal_select_183)
         0:
@@ -9502,33 +9515,33 @@ module load_checker (
     assign signal_not_134 = ~ signal_mux_185;
     assign signal_or_66 = signal_not_134 | signal_and_130;
     assign signal_not_135 = ~ signal_or_66;
-    assign signal_lt_68 = signal_reg_19 < signal_reg_21;
-    assign signal_lt_69 = signal_reg_17 < signal_reg_9;
-    assign signal_lt_70 = signal_reg_15 < signal_reg_7;
-    assign signal_lt_71 = signal_reg_13 < signal_reg_5;
-    assign signal_select_132 = signal_reg_27[22:0];
+    assign signal_lt_68 = row$arm_hi < row$arm_lo;
+    assign signal_lt_69 = row$y_hi < row$y_lo;
+    assign signal_lt_70 = row$x_hi < row$x_lo;
+    assign signal_lt_71 = row$period_hi < row$period_lo;
+    assign signal_select_132 = row$phase_lo[22:0];
     assign signal_select_133 = signal_mux_357[23:0];
     assign signal_select_134 = signal_mux_270[24:0];
     assign signal_cat_162 = { signal_const_37,
-                              signal_reg_19 };
-    assign signal_sub_17 = signal_cat_162 - signal_const_131;
+                              row$arm_hi };
+    assign signal_sub_17 = signal_cat_162 - signal_const_132;
     assign signal_select_135 = signal_mux_199[24:0];
     assign signal_select_136 = signal_mux_199[25:25];
     assign signal_not_136 = ~ signal_select_136;
     assign signal_cat_163 = { signal_not_136,
                               signal_select_135 };
-    assign signal_lt_72 = signal_cat_163 < signal_const_78;
-    assign signal_mux_186 = signal_lt_72 ? signal_const_77 : signal_mux_199;
+    assign signal_lt_72 = signal_cat_163 < signal_const_79;
+    assign signal_mux_186 = signal_lt_72 ? signal_const_78 : signal_mux_199;
     assign signal_select_137 = signal_cat_165[24:0];
-    assign signal_mux_187 = signal_and_206 ? signal_const_218 : signal_const_218;
-    assign signal_mux_188 = stored ? signal_reg_2 : signal_mux_187;
-    assign signal_mux_189 = signal_eq_175 ? signal_const_218 : signal_reg_2;
+    assign signal_mux_187 = signal_and_207 ? signal_const_219 : signal_const_219;
+    assign signal_mux_188 = stored ? other$offset_hi : signal_mux_187;
+    assign signal_mux_189 = signal_eq_176 ? signal_const_219 : other$offset_hi;
     assign signal_mux_190 = falls_to_next ? signal_mux_188 : signal_mux_189;
-    assign signal_mux_191 = signal_eq_174 ? signal_const_218 : signal_reg_2;
-    assign signal_mux_192 = read_done ? signal_mux_191 : signal_reg_2;
-    assign signal_mux_193 = signal_not_174 ? signal_const_218 : signal_reg_2;
-    assign signal_mux_194 = signal_eq_177 ? signal_const_218 : signal_reg_2;
-    assign signal_mux_195 = is_jump ? signal_mux_194 : signal_reg_2;
+    assign signal_mux_191 = signal_eq_175 ? signal_const_219 : other$offset_hi;
+    assign signal_mux_192 = read_done ? signal_mux_191 : other$offset_hi;
+    assign signal_mux_193 = signal_not_174 ? signal_const_219 : other$offset_hi;
+    assign signal_mux_194 = signal_eq_178 ? signal_const_219 : other$offset_hi;
+    assign signal_mux_195 = is_jump ? signal_mux_194 : other$offset_hi;
     always @* begin
         case (sm)
         4'b0100:
@@ -9540,19 +9553,19 @@ module load_checker (
         4'b1001:
             signal_cases_11 <= signal_mux_190;
         default:
-            signal_cases_11 <= signal_reg_2;
+            signal_cases_11 <= other$offset_hi;
         endcase
     end
     assign signal_wire_11 = signal_cases_11;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
-            signal_reg_2 <= signal_const_59;
+            other$offset_hi <= signal_const_60;
         else
-            signal_reg_2 <= signal_wire_11;
+            other$offset_hi <= signal_wire_11;
     end
-    assign signal_mux_196 = stored ? signal_reg_3 : signal_const_218;
-    assign signal_mux_197 = falls_to_next ? signal_reg_2 : signal_mux_196;
-    assign signal_mux_198 = signal_wire_66 ? signal_const_218 : signal_reg_3;
+    assign signal_mux_196 = stored ? row$offset_hi : signal_const_219;
+    assign signal_mux_197 = falls_to_next ? other$offset_hi : signal_mux_196;
+    assign signal_mux_198 = signal_wire_66 ? signal_const_219 : row$offset_hi;
     always @* begin
         case (sm)
         4'b0000:
@@ -9560,23 +9573,23 @@ module load_checker (
         4'b1011:
             signal_cases_12 <= signal_mux_197;
         4'b1100:
-            signal_cases_12 <= signal_reg_2;
+            signal_cases_12 <= other$offset_hi;
         default:
-            signal_cases_12 <= signal_reg_3;
+            signal_cases_12 <= row$offset_hi;
         endcase
     end
     assign signal_wire_12 = signal_cases_12;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
-            signal_reg_3 <= signal_const_59;
+            row$offset_hi <= signal_const_60;
         else
-            signal_reg_3 <= signal_wire_12;
+            row$offset_hi <= signal_wire_12;
     end
-    assign signal_select_138 = signal_reg_3[23:23];
+    assign signal_select_138 = row$offset_hi[23:23];
     assign signal_cat_164 = { signal_select_138,
                               signal_select_138 };
     assign signal_cat_165 = { signal_cat_164,
-                              signal_reg_3 };
+                              row$offset_hi };
     assign signal_select_139 = signal_cat_165[25:25];
     assign signal_not_137 = ~ signal_select_139;
     assign signal_cat_166 = { signal_not_137,
@@ -9588,34 +9601,34 @@ module load_checker (
                               signal_select_140 };
     assign signal_lt_73 = signal_cat_167 < signal_cat_166;
     assign signal_mux_199 = signal_lt_73 ? signal_cat_190 : signal_cat_165;
-    assign signal_mux_200 = signal_and_201 ? signal_mux_186 : signal_mux_199;
-    assign signal_mux_201 = signal_and_180 ? signal_sub_17 : signal_mux_200;
-    assign signal_mux_202 = signal_and_198 ? signal_const_77 : signal_mux_201;
+    assign signal_mux_200 = signal_and_202 ? signal_mux_186 : signal_mux_199;
+    assign signal_mux_201 = signal_and_181 ? signal_sub_17 : signal_mux_200;
+    assign signal_mux_202 = signal_and_199 ? signal_const_78 : signal_mux_201;
     assign signal_add_24 = signal_mux_202 + signal_sub_18;
-    assign signal_mux_203 = signal_or_69 ? signal_wire_22 : signal_reg_5;
+    assign signal_mux_203 = signal_or_69 ? setup$loaded$value_0 : row$period_lo;
     assign signal_mux_204 = signal_and_135 ? signal_cat_182 : signal_mux_203;
-    assign signal_mux_205 = signal_not_147 ? signal_mux_204 : signal_const_60;
-    assign signal_mux_206 = signal_and_206 ? signal_mux_205 : signal_const_60;
-    assign signal_mux_207 = stored ? signal_reg_4 : signal_mux_206;
-    assign signal_mux_208 = signal_eq_175 ? signal_const_60 : signal_reg_4;
+    assign signal_mux_205 = signal_not_147 ? signal_mux_204 : signal_const_61;
+    assign signal_mux_206 = signal_and_207 ? signal_mux_205 : signal_const_61;
+    assign signal_mux_207 = stored ? other$period_lo : signal_mux_206;
+    assign signal_mux_208 = signal_eq_176 ? signal_const_61 : other$period_lo;
     assign signal_mux_209 = falls_to_next ? signal_mux_207 : signal_mux_208;
     always @* begin
         case (field)
         3'b010:
             signal_cases_13 <= signal_select_142;
         default:
-            signal_cases_13 <= signal_reg_4;
+            signal_cases_13 <= other$period_lo;
         endcase
     end
-    assign signal_mux_210 = last_word ? signal_cases_13 : signal_reg_4;
-    assign signal_mux_211 = read_done ? signal_mux_210 : signal_reg_4;
-    assign signal_mux_212 = signal_eq_172 ? signal_reg_4 : signal_mux_211;
-    assign signal_mux_213 = signal_eq_173 ? signal_reg_4 : signal_mux_212;
-    assign signal_mux_214 = signal_eq_174 ? signal_const_60 : signal_reg_4;
-    assign signal_mux_215 = read_done ? signal_mux_214 : signal_reg_4;
-    assign signal_mux_216 = signal_not_174 ? signal_const_60 : signal_reg_4;
-    assign signal_mux_217 = signal_eq_177 ? signal_const_60 : signal_reg_4;
-    assign signal_mux_218 = is_jump ? signal_mux_217 : signal_reg_4;
+    assign signal_mux_210 = last_word ? signal_cases_13 : other$period_lo;
+    assign signal_mux_211 = read_done ? signal_mux_210 : other$period_lo;
+    assign signal_mux_212 = signal_eq_173 ? other$period_lo : signal_mux_211;
+    assign signal_mux_213 = signal_eq_174 ? other$period_lo : signal_mux_212;
+    assign signal_mux_214 = signal_eq_175 ? signal_const_61 : other$period_lo;
+    assign signal_mux_215 = read_done ? signal_mux_214 : other$period_lo;
+    assign signal_mux_216 = signal_not_174 ? signal_const_61 : other$period_lo;
+    assign signal_mux_217 = signal_eq_178 ? signal_const_61 : other$period_lo;
+    assign signal_mux_218 = is_jump ? signal_mux_217 : other$period_lo;
     always @* begin
         case (sm)
         4'b0100:
@@ -9629,19 +9642,19 @@ module load_checker (
         4'b1001:
             signal_cases_14 <= signal_mux_209;
         default:
-            signal_cases_14 <= signal_reg_4;
+            signal_cases_14 <= other$period_lo;
         endcase
     end
     assign signal_wire_13 = signal_cases_14;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
-            signal_reg_4 <= signal_const_60;
+            other$period_lo <= signal_const_61;
         else
-            signal_reg_4 <= signal_wire_13;
+            other$period_lo <= signal_wire_13;
     end
-    assign signal_mux_219 = stored ? signal_reg_5 : signal_const_60;
-    assign signal_mux_220 = falls_to_next ? signal_reg_4 : signal_mux_219;
-    assign signal_mux_221 = signal_wire_66 ? signal_const_60 : signal_reg_5;
+    assign signal_mux_219 = stored ? row$period_lo : signal_const_61;
+    assign signal_mux_220 = falls_to_next ? other$period_lo : signal_mux_219;
+    assign signal_mux_221 = signal_wire_66 ? signal_const_61 : row$period_lo;
     always @* begin
         case (sm)
         4'b0000:
@@ -9649,47 +9662,47 @@ module load_checker (
         4'b1011:
             signal_cases_15 <= signal_mux_220;
         4'b1100:
-            signal_cases_15 <= signal_reg_4;
+            signal_cases_15 <= other$period_lo;
         default:
-            signal_cases_15 <= signal_reg_5;
+            signal_cases_15 <= row$period_lo;
         endcase
     end
     assign signal_wire_14 = signal_cases_15;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
-            signal_reg_5 <= signal_const_60;
+            row$period_lo <= signal_const_61;
         else
-            signal_reg_5 <= signal_wire_14;
+            row$period_lo <= signal_wire_14;
     end
     assign signal_cat_168 = { signal_const_30,
-                              signal_reg_5 };
+                              row$period_lo };
     assign signal_cat_169 = { signal_const_30,
-                              signal_reg_7 };
-    assign signal_mux_222 = signal_and_144 ? signal_mux_242 : signal_reg_7;
-    assign signal_mux_223 = signal_and_160 ? signal_const_298 : signal_mux_222;
+                              row$x_lo };
+    assign signal_mux_222 = signal_and_144 ? signal_mux_242 : row$x_lo;
+    assign signal_mux_223 = signal_and_160 ? signal_const_301 : signal_mux_222;
     assign signal_mux_224 = signal_and_140 ? signal_cat_182 : signal_mux_223;
-    assign signal_mux_225 = signal_not_148 ? signal_mux_224 : signal_const_60;
-    assign signal_mux_226 = signal_and_206 ? signal_mux_225 : signal_const_60;
-    assign signal_mux_227 = stored ? signal_reg_6 : signal_mux_226;
-    assign signal_mux_228 = signal_eq_175 ? signal_const_60 : signal_reg_6;
+    assign signal_mux_225 = signal_not_148 ? signal_mux_224 : signal_const_61;
+    assign signal_mux_226 = signal_and_207 ? signal_mux_225 : signal_const_61;
+    assign signal_mux_227 = stored ? other$x_lo : signal_mux_226;
+    assign signal_mux_228 = signal_eq_176 ? signal_const_61 : other$x_lo;
     assign signal_mux_229 = falls_to_next ? signal_mux_227 : signal_mux_228;
     always @* begin
         case (field)
         3'b011:
             signal_cases_16 <= signal_select_142;
         default:
-            signal_cases_16 <= signal_reg_6;
+            signal_cases_16 <= other$x_lo;
         endcase
     end
-    assign signal_mux_230 = last_word ? signal_cases_16 : signal_reg_6;
-    assign signal_mux_231 = read_done ? signal_mux_230 : signal_reg_6;
-    assign signal_mux_232 = signal_eq_172 ? signal_reg_6 : signal_mux_231;
-    assign signal_mux_233 = signal_eq_173 ? signal_reg_6 : signal_mux_232;
-    assign signal_mux_234 = signal_eq_174 ? signal_const_60 : signal_reg_6;
-    assign signal_mux_235 = read_done ? signal_mux_234 : signal_reg_6;
-    assign signal_mux_236 = signal_not_174 ? signal_const_60 : signal_reg_6;
-    assign signal_mux_237 = signal_eq_177 ? signal_const_60 : signal_reg_6;
-    assign signal_mux_238 = is_jump ? signal_mux_237 : signal_reg_6;
+    assign signal_mux_230 = last_word ? signal_cases_16 : other$x_lo;
+    assign signal_mux_231 = read_done ? signal_mux_230 : other$x_lo;
+    assign signal_mux_232 = signal_eq_173 ? other$x_lo : signal_mux_231;
+    assign signal_mux_233 = signal_eq_174 ? other$x_lo : signal_mux_232;
+    assign signal_mux_234 = signal_eq_175 ? signal_const_61 : other$x_lo;
+    assign signal_mux_235 = read_done ? signal_mux_234 : other$x_lo;
+    assign signal_mux_236 = signal_not_174 ? signal_const_61 : other$x_lo;
+    assign signal_mux_237 = signal_eq_178 ? signal_const_61 : other$x_lo;
+    assign signal_mux_238 = is_jump ? signal_mux_237 : other$x_lo;
     always @* begin
         case (sm)
         4'b0100:
@@ -9703,19 +9716,19 @@ module load_checker (
         4'b1001:
             signal_cases_17 <= signal_mux_229;
         default:
-            signal_cases_17 <= signal_reg_6;
+            signal_cases_17 <= other$x_lo;
         endcase
     end
     assign signal_wire_15 = signal_cases_17;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
-            signal_reg_6 <= signal_const_60;
+            other$x_lo <= signal_const_61;
         else
-            signal_reg_6 <= signal_wire_15;
+            other$x_lo <= signal_wire_15;
     end
-    assign signal_mux_239 = stored ? signal_reg_7 : signal_const_60;
-    assign signal_mux_240 = falls_to_next ? signal_reg_6 : signal_mux_239;
-    assign signal_mux_241 = signal_wire_66 ? signal_const_60 : signal_reg_7;
+    assign signal_mux_239 = stored ? row$x_lo : signal_const_61;
+    assign signal_mux_240 = falls_to_next ? other$x_lo : signal_mux_239;
+    assign signal_mux_241 = signal_wire_66 ? signal_const_61 : row$x_lo;
     always @* begin
         case (sm)
         4'b0000:
@@ -9723,27 +9736,27 @@ module load_checker (
         4'b1011:
             signal_cases_18 <= signal_mux_240;
         4'b1100:
-            signal_cases_18 <= signal_reg_6;
+            signal_cases_18 <= other$x_lo;
         default:
-            signal_cases_18 <= signal_reg_7;
+            signal_cases_18 <= row$x_lo;
         endcase
     end
     assign signal_wire_16 = signal_cases_18;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
-            signal_reg_7 <= signal_const_60;
+            row$x_lo <= signal_const_61;
         else
-            signal_reg_7 <= signal_wire_16;
+            row$x_lo <= signal_wire_16;
     end
-    assign signal_lt_74 = signal_reg_9 < signal_reg_7;
-    assign signal_mux_242 = signal_lt_74 ? signal_reg_7 : signal_reg_9;
-    assign signal_mux_243 = signal_and_144 ? signal_mux_242 : signal_reg_9;
-    assign signal_mux_244 = signal_and_145 ? signal_const_298 : signal_mux_243;
+    assign signal_lt_74 = row$y_lo < row$x_lo;
+    assign signal_mux_242 = signal_lt_74 ? row$x_lo : row$y_lo;
+    assign signal_mux_243 = signal_and_144 ? signal_mux_242 : row$y_lo;
+    assign signal_mux_244 = signal_and_145 ? signal_const_301 : signal_mux_243;
     assign signal_mux_245 = signal_and_146 ? signal_cat_182 : signal_mux_244;
-    assign signal_mux_246 = signal_not_149 ? signal_mux_245 : signal_const_60;
-    assign signal_mux_247 = signal_and_206 ? signal_mux_246 : signal_const_60;
-    assign signal_mux_248 = stored ? signal_reg_8 : signal_mux_247;
-    assign signal_mux_249 = signal_eq_175 ? signal_const_60 : signal_reg_8;
+    assign signal_mux_246 = signal_not_149 ? signal_mux_245 : signal_const_61;
+    assign signal_mux_247 = signal_and_207 ? signal_mux_246 : signal_const_61;
+    assign signal_mux_248 = stored ? other$y_lo : signal_mux_247;
+    assign signal_mux_249 = signal_eq_176 ? signal_const_61 : other$y_lo;
     assign signal_mux_250 = falls_to_next ? signal_mux_248 : signal_mux_249;
     assign signal_select_142 = shifted[31:16];
     always @* begin
@@ -9751,18 +9764,18 @@ module load_checker (
         3'b100:
             signal_cases_19 <= signal_select_142;
         default:
-            signal_cases_19 <= signal_reg_8;
+            signal_cases_19 <= other$y_lo;
         endcase
     end
-    assign signal_mux_251 = last_word ? signal_cases_19 : signal_reg_8;
-    assign signal_mux_252 = read_done ? signal_mux_251 : signal_reg_8;
-    assign signal_mux_253 = signal_eq_172 ? signal_reg_8 : signal_mux_252;
-    assign signal_mux_254 = signal_eq_173 ? signal_reg_8 : signal_mux_253;
-    assign signal_mux_255 = signal_eq_174 ? signal_const_60 : signal_reg_8;
-    assign signal_mux_256 = read_done ? signal_mux_255 : signal_reg_8;
-    assign signal_mux_257 = signal_not_174 ? signal_const_60 : signal_reg_8;
-    assign signal_mux_258 = signal_eq_177 ? signal_const_60 : signal_reg_8;
-    assign signal_mux_259 = is_jump ? signal_mux_258 : signal_reg_8;
+    assign signal_mux_251 = last_word ? signal_cases_19 : other$y_lo;
+    assign signal_mux_252 = read_done ? signal_mux_251 : other$y_lo;
+    assign signal_mux_253 = signal_eq_173 ? other$y_lo : signal_mux_252;
+    assign signal_mux_254 = signal_eq_174 ? other$y_lo : signal_mux_253;
+    assign signal_mux_255 = signal_eq_175 ? signal_const_61 : other$y_lo;
+    assign signal_mux_256 = read_done ? signal_mux_255 : other$y_lo;
+    assign signal_mux_257 = signal_not_174 ? signal_const_61 : other$y_lo;
+    assign signal_mux_258 = signal_eq_178 ? signal_const_61 : other$y_lo;
+    assign signal_mux_259 = is_jump ? signal_mux_258 : other$y_lo;
     always @* begin
         case (sm)
         4'b0100:
@@ -9776,19 +9789,19 @@ module load_checker (
         4'b1001:
             signal_cases_20 <= signal_mux_250;
         default:
-            signal_cases_20 <= signal_reg_8;
+            signal_cases_20 <= other$y_lo;
         endcase
     end
     assign signal_wire_17 = signal_cases_20;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
-            signal_reg_8 <= signal_const_60;
+            other$y_lo <= signal_const_61;
         else
-            signal_reg_8 <= signal_wire_17;
+            other$y_lo <= signal_wire_17;
     end
-    assign signal_mux_260 = stored ? signal_reg_9 : signal_const_60;
-    assign signal_mux_261 = falls_to_next ? signal_reg_8 : signal_mux_260;
-    assign signal_mux_262 = signal_wire_66 ? signal_const_60 : signal_reg_9;
+    assign signal_mux_260 = stored ? row$y_lo : signal_const_61;
+    assign signal_mux_261 = falls_to_next ? other$y_lo : signal_mux_260;
+    assign signal_mux_262 = signal_wire_66 ? signal_const_61 : row$y_lo;
     always @* begin
         case (sm)
         4'b0000:
@@ -9796,45 +9809,45 @@ module load_checker (
         4'b1011:
             signal_cases_21 <= signal_mux_261;
         4'b1100:
-            signal_cases_21 <= signal_reg_8;
+            signal_cases_21 <= other$y_lo;
         default:
-            signal_cases_21 <= signal_reg_9;
+            signal_cases_21 <= row$y_lo;
         endcase
     end
     assign signal_wire_18 = signal_cases_21;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
-            signal_reg_9 <= signal_const_60;
+            row$y_lo <= signal_const_61;
         else
-            signal_reg_9 <= signal_wire_18;
+            row$y_lo <= signal_wire_18;
     end
     assign signal_cat_170 = { signal_const_30,
-                              signal_reg_9 };
+                              row$y_lo };
     assign signal_mux_263 = signal_and_152 ? signal_cat_170 : signal_mux_349;
     assign signal_mux_264 = signal_and_155 ? signal_cat_169 : signal_mux_263;
     assign signal_or_67 = signal_and_159 | signal_and_158;
     assign signal_mux_265 = signal_or_67 ? signal_cat_168 : signal_mux_264;
     assign signal_sub_18 = signal_cat_186 - signal_mux_265;
     assign signal_cat_171 = { signal_const_37,
-                              signal_reg_19 };
-    assign signal_sub_19 = signal_cat_171 - signal_const_131;
+                              row$arm_hi };
+    assign signal_sub_19 = signal_cat_171 - signal_const_132;
     assign signal_select_143 = signal_cat_190[24:0];
     assign signal_select_144 = signal_cat_190[25:25];
     assign signal_not_139 = ~ signal_select_144;
     assign signal_cat_172 = { signal_not_139,
                               signal_select_143 };
-    assign signal_lt_75 = signal_cat_172 < signal_const_78;
-    assign signal_mux_266 = signal_lt_75 ? signal_const_77 : signal_cat_190;
-    assign signal_mux_267 = signal_and_201 ? signal_mux_266 : signal_cat_190;
-    assign signal_mux_268 = signal_and_180 ? signal_sub_19 : signal_mux_267;
-    assign signal_mux_269 = signal_and_198 ? signal_const_77 : signal_mux_268;
+    assign signal_lt_75 = signal_cat_172 < signal_const_79;
+    assign signal_mux_266 = signal_lt_75 ? signal_const_78 : signal_cat_190;
+    assign signal_mux_267 = signal_and_202 ? signal_mux_266 : signal_cat_190;
+    assign signal_mux_268 = signal_and_181 ? signal_sub_19 : signal_mux_267;
+    assign signal_mux_269 = signal_and_199 ? signal_const_78 : signal_mux_268;
     assign signal_add_25 = signal_mux_269 + signal_sub_18;
     assign signal_mux_270 = signal_and_160 ? signal_add_24 : signal_add_25;
     assign signal_select_145 = signal_mux_270[25:25];
     assign signal_not_140 = ~ signal_select_145;
     assign signal_cat_173 = { signal_not_140,
                               signal_select_134 };
-    assign signal_lt_76 = signal_const_71 < signal_cat_173;
+    assign signal_lt_76 = signal_const_72 < signal_cat_173;
     assign signal_not_141 = ~ signal_lt_76;
     assign signal_select_146 = signal_mux_357[24:0];
     assign signal_select_147 = signal_mux_284[24:0];
@@ -9842,23 +9855,23 @@ module load_checker (
     assign signal_not_142 = ~ signal_select_148;
     assign signal_cat_174 = { signal_not_142,
                               signal_select_147 };
-    assign signal_lt_77 = signal_cat_174 < signal_const_78;
-    assign signal_mux_271 = signal_lt_77 ? signal_const_77 : signal_mux_284;
+    assign signal_lt_77 = signal_cat_174 < signal_const_79;
+    assign signal_mux_271 = signal_lt_77 ? signal_const_78 : signal_mux_284;
     assign signal_select_149 = signal_cat_195[24:0];
     assign signal_select_150 = signal_cat_195[25:25];
     assign signal_not_143 = ~ signal_select_150;
     assign signal_cat_175 = { signal_not_143,
                               signal_select_149 };
     assign signal_select_151 = signal_cat_177[24:0];
-    assign signal_mux_272 = signal_and_206 ? signal_const_198 : signal_const_198;
-    assign signal_mux_273 = stored ? signal_reg_10 : signal_mux_272;
-    assign signal_mux_274 = signal_eq_175 ? signal_const_198 : signal_reg_10;
+    assign signal_mux_272 = signal_and_207 ? signal_const_199 : signal_const_199;
+    assign signal_mux_273 = stored ? other$offset_lo : signal_mux_272;
+    assign signal_mux_274 = signal_eq_176 ? signal_const_199 : other$offset_lo;
     assign signal_mux_275 = falls_to_next ? signal_mux_273 : signal_mux_274;
-    assign signal_mux_276 = signal_eq_174 ? signal_const_198 : signal_reg_10;
-    assign signal_mux_277 = read_done ? signal_mux_276 : signal_reg_10;
-    assign signal_mux_278 = signal_not_174 ? signal_const_198 : signal_reg_10;
-    assign signal_mux_279 = signal_eq_177 ? signal_const_198 : signal_reg_10;
-    assign signal_mux_280 = is_jump ? signal_mux_279 : signal_reg_10;
+    assign signal_mux_276 = signal_eq_175 ? signal_const_199 : other$offset_lo;
+    assign signal_mux_277 = read_done ? signal_mux_276 : other$offset_lo;
+    assign signal_mux_278 = signal_not_174 ? signal_const_199 : other$offset_lo;
+    assign signal_mux_279 = signal_eq_178 ? signal_const_199 : other$offset_lo;
+    assign signal_mux_280 = is_jump ? signal_mux_279 : other$offset_lo;
     always @* begin
         case (sm)
         4'b0100:
@@ -9870,19 +9883,19 @@ module load_checker (
         4'b1001:
             signal_cases_22 <= signal_mux_275;
         default:
-            signal_cases_22 <= signal_reg_10;
+            signal_cases_22 <= other$offset_lo;
         endcase
     end
     assign signal_wire_19 = signal_cases_22;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
-            signal_reg_10 <= signal_const_59;
+            other$offset_lo <= signal_const_60;
         else
-            signal_reg_10 <= signal_wire_19;
+            other$offset_lo <= signal_wire_19;
     end
-    assign signal_mux_281 = stored ? signal_reg_11 : signal_const_198;
-    assign signal_mux_282 = falls_to_next ? signal_reg_10 : signal_mux_281;
-    assign signal_mux_283 = signal_wire_66 ? signal_const_198 : signal_reg_11;
+    assign signal_mux_281 = stored ? row$offset_lo : signal_const_199;
+    assign signal_mux_282 = falls_to_next ? other$offset_lo : signal_mux_281;
+    assign signal_mux_283 = signal_wire_66 ? signal_const_199 : row$offset_lo;
     always @* begin
         case (sm)
         4'b0000:
@@ -9890,82 +9903,96 @@ module load_checker (
         4'b1011:
             signal_cases_23 <= signal_mux_282;
         4'b1100:
-            signal_cases_23 <= signal_reg_10;
+            signal_cases_23 <= other$offset_lo;
         default:
-            signal_cases_23 <= signal_reg_11;
+            signal_cases_23 <= row$offset_lo;
         endcase
     end
     assign signal_wire_20 = signal_cases_23;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
-            signal_reg_11 <= signal_const_59;
+            row$offset_lo <= signal_const_60;
         else
-            signal_reg_11 <= signal_wire_20;
+            row$offset_lo <= signal_wire_20;
     end
-    assign signal_select_152 = signal_reg_11[23:23];
+    assign signal_select_152 = row$offset_lo[23:23];
     assign signal_cat_176 = { signal_select_152,
                               signal_select_152 };
     assign signal_cat_177 = { signal_cat_176,
-                              signal_reg_11 };
+                              row$offset_lo };
     assign signal_select_153 = signal_cat_177[25:25];
     assign signal_not_144 = ~ signal_select_153;
     assign signal_cat_178 = { signal_not_144,
                               signal_select_151 };
     assign signal_lt_78 = signal_cat_178 < signal_cat_175;
     assign signal_mux_284 = signal_lt_78 ? signal_cat_195 : signal_cat_177;
-    assign signal_mux_285 = signal_and_201 ? signal_mux_271 : signal_mux_284;
-    assign signal_mux_286 = signal_and_180 ? signal_const_131 : signal_mux_285;
-    assign signal_mux_287 = signal_and_198 ? signal_const_77 : signal_mux_286;
+    assign signal_mux_285 = signal_and_202 ? signal_mux_271 : signal_mux_284;
+    assign signal_mux_286 = signal_and_181 ? signal_const_132 : signal_mux_285;
+    assign signal_mux_287 = signal_and_199 ? signal_const_78 : signal_mux_286;
     assign signal_add_26 = signal_mux_287 + signal_sub_21;
     assign signal_wire_21 = config$period_fraction;
-    assign signal_eq_110 = signal_wire_21 == signal_const_60;
+    assign signal_eq_110 = signal_wire_21 == signal_const_61;
     assign signal_not_145 = ~ signal_eq_110;
     assign signal_and_134 = signal_and_159 & signal_not_145;
-    assign signal_cat_179 = { signal_const_149,
+    assign signal_cat_179 = { signal_const_150,
                               signal_and_134 };
     assign signal_wire_22 = setup$loaded$value;
-    assign signal_mux_288 = signal_or_69 ? signal_wire_22 : signal_reg_13;
-    assign signal_eq_111 = signal_select_155 == signal_const_105;
-    assign signal_eq_112 = signal_select_183 == signal_const_99;
+    always @(posedge signal_wire_60) begin
+        if (signal_wire_59)
+            setup$loaded$value_0 <= signal_const_61;
+        else
+            if (signal_and_170)
+                setup$loaded$value_0 <= signal_wire_22;
+    end
+    assign signal_mux_288 = signal_or_69 ? setup$loaded$value_0 : row$period_hi;
+    assign signal_eq_111 = signal_select_155 == signal_const_106;
+    assign signal_eq_112 = signal_select_183 == signal_const_100;
     assign signal_and_135 = signal_eq_112 & signal_eq_111;
     assign signal_mux_289 = signal_and_135 ? signal_cat_182 : signal_mux_288;
     assign signal_wire_23 = setup$loaded$valid;
-    assign signal_not_146 = ~ signal_wire_23;
-    assign signal_eq_113 = signal_select_177 == signal_const_110;
-    assign signal_eq_114 = signal_select_183 == signal_const_101;
+    always @(posedge signal_wire_60) begin
+        if (signal_wire_59)
+            setup$loaded$valid_0 <= signal_const_32;
+        else
+            if (signal_and_170)
+                setup$loaded$valid_0 <= signal_wire_23;
+    end
+    assign signal_not_146 = ~ setup$loaded$valid_0;
+    assign signal_eq_113 = signal_select_177 == signal_const_111;
+    assign signal_eq_114 = signal_select_183 == signal_const_102;
     assign signal_and_136 = signal_eq_114 & signal_eq_113;
-    assign signal_eq_115 = signal_select_178 == signal_const_101;
-    assign signal_eq_116 = signal_select_183 == signal_const_103;
+    assign signal_eq_115 = signal_select_178 == signal_const_102;
+    assign signal_eq_116 = signal_select_183 == signal_const_104;
     assign signal_and_137 = signal_eq_116 & signal_eq_115;
-    assign signal_eq_117 = signal_select_181 == signal_const_101;
-    assign signal_eq_118 = signal_select_183 == signal_const_105;
+    assign signal_eq_117 = signal_select_181 == signal_const_102;
+    assign signal_eq_118 = signal_select_183 == signal_const_106;
     assign signal_and_138 = signal_eq_118 & signal_eq_117;
     assign signal_or_68 = signal_and_138 | signal_and_137;
     assign signal_or_69 = signal_or_68 | signal_and_136;
     assign signal_and_139 = signal_or_69 & signal_not_146;
     assign signal_not_147 = ~ signal_and_139;
-    assign signal_mux_290 = signal_not_147 ? signal_mux_289 : signal_const_298;
-    assign signal_mux_291 = signal_and_206 ? signal_mux_290 : signal_const_60;
-    assign signal_mux_292 = stored ? signal_reg_12 : signal_mux_291;
-    assign signal_mux_293 = signal_eq_175 ? signal_const_298 : signal_reg_12;
+    assign signal_mux_290 = signal_not_147 ? signal_mux_289 : signal_const_301;
+    assign signal_mux_291 = signal_and_207 ? signal_mux_290 : signal_const_61;
+    assign signal_mux_292 = stored ? other$period_hi : signal_mux_291;
+    assign signal_mux_293 = signal_eq_176 ? signal_const_301 : other$period_hi;
     assign signal_mux_294 = falls_to_next ? signal_mux_292 : signal_mux_293;
     always @* begin
         case (field)
         3'b010:
             signal_cases_24 <= signal_select_156;
         default:
-            signal_cases_24 <= signal_reg_12;
+            signal_cases_24 <= other$period_hi;
         endcase
     end
-    assign signal_mux_295 = last_word ? signal_cases_24 : signal_reg_12;
-    assign signal_mux_296 = read_done ? signal_mux_295 : signal_reg_12;
-    assign signal_mux_297 = signal_eq_172 ? signal_reg_12 : signal_mux_296;
-    assign signal_mux_298 = signal_eq_173 ? signal_reg_12 : signal_mux_297;
-    assign signal_mux_299 = signal_eq_174 ? signal_const_298 : signal_reg_12;
-    assign signal_mux_300 = read_done ? signal_mux_299 : signal_reg_12;
-    assign signal_mux_301 = signal_not_174 ? signal_const_60 : signal_reg_12;
-    assign signal_mux_302 = signal_eq_177 ? signal_const_298 : signal_reg_12;
-    assign signal_mux_303 = is_jump ? signal_mux_302 : signal_reg_12;
+    assign signal_mux_295 = last_word ? signal_cases_24 : other$period_hi;
+    assign signal_mux_296 = read_done ? signal_mux_295 : other$period_hi;
+    assign signal_mux_297 = signal_eq_173 ? other$period_hi : signal_mux_296;
+    assign signal_mux_298 = signal_eq_174 ? other$period_hi : signal_mux_297;
+    assign signal_mux_299 = signal_eq_175 ? signal_const_301 : other$period_hi;
+    assign signal_mux_300 = read_done ? signal_mux_299 : other$period_hi;
+    assign signal_mux_301 = signal_not_174 ? signal_const_61 : other$period_hi;
+    assign signal_mux_302 = signal_eq_178 ? signal_const_301 : other$period_hi;
+    assign signal_mux_303 = is_jump ? signal_mux_302 : other$period_hi;
     always @* begin
         case (sm)
         4'b0100:
@@ -9979,20 +10006,20 @@ module load_checker (
         4'b1001:
             signal_cases_25 <= signal_mux_294;
         default:
-            signal_cases_25 <= signal_reg_12;
+            signal_cases_25 <= other$period_hi;
         endcase
     end
     assign signal_wire_24 = signal_cases_25;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
-            signal_reg_12 <= signal_const_60;
+            other$period_hi <= signal_const_61;
         else
-            signal_reg_12 <= signal_wire_24;
+            other$period_hi <= signal_wire_24;
     end
-    assign signal_mux_304 = stored ? signal_reg_13 : signal_const_60;
-    assign signal_mux_305 = falls_to_next ? signal_reg_12 : signal_mux_304;
-    assign signal_const_298 = 16'b1111111111111111;
-    assign signal_mux_306 = signal_wire_66 ? signal_const_298 : signal_reg_13;
+    assign signal_mux_304 = stored ? row$period_hi : signal_const_61;
+    assign signal_mux_305 = falls_to_next ? other$period_hi : signal_mux_304;
+    assign signal_const_301 = 16'b1111111111111111;
+    assign signal_mux_306 = signal_wire_66 ? signal_const_301 : row$period_hi;
     always @* begin
         case (sm)
         4'b0000:
@@ -10000,66 +10027,66 @@ module load_checker (
         4'b1011:
             signal_cases_26 <= signal_mux_305;
         4'b1100:
-            signal_cases_26 <= signal_reg_12;
+            signal_cases_26 <= other$period_hi;
         default:
-            signal_cases_26 <= signal_reg_13;
+            signal_cases_26 <= row$period_hi;
         endcase
     end
     assign signal_wire_25 = signal_cases_26;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
-            signal_reg_13 <= signal_const_60;
+            row$period_hi <= signal_const_61;
         else
-            signal_reg_13 <= signal_wire_25;
+            row$period_hi <= signal_wire_25;
     end
     assign signal_cat_180 = { signal_const_30,
-                              signal_reg_13 };
+                              row$period_hi };
     assign signal_add_27 = signal_cat_180 + signal_cat_179;
     assign signal_cat_181 = { signal_const_30,
-                              signal_reg_15 };
+                              row$x_hi };
     assign signal_select_154 = word[4:0];
-    assign signal_cat_182 = { signal_const_116,
+    assign signal_cat_182 = { signal_const_117,
                               signal_select_154 };
-    assign signal_mux_307 = signal_and_144 ? signal_mux_327 : signal_reg_15;
-    assign signal_mux_308 = signal_and_160 ? signal_const_298 : signal_mux_307;
-    assign signal_eq_119 = signal_select_155 == signal_const_91;
-    assign signal_eq_120 = signal_select_183 == signal_const_99;
+    assign signal_mux_307 = signal_and_144 ? signal_mux_327 : row$x_hi;
+    assign signal_mux_308 = signal_and_160 ? signal_const_301 : signal_mux_307;
+    assign signal_eq_119 = signal_select_155 == signal_const_92;
+    assign signal_eq_120 = signal_select_183 == signal_const_100;
     assign signal_and_140 = signal_eq_120 & signal_eq_119;
     assign signal_mux_309 = signal_and_140 ? signal_cat_182 : signal_mux_308;
     assign signal_eq_121 = signal_select_177 == signal_const_37;
-    assign signal_eq_122 = signal_select_183 == signal_const_101;
+    assign signal_eq_122 = signal_select_183 == signal_const_102;
     assign signal_and_141 = signal_eq_122 & signal_eq_121;
-    assign signal_eq_123 = signal_select_178 == signal_const_91;
-    assign signal_eq_124 = signal_select_183 == signal_const_103;
+    assign signal_eq_123 = signal_select_178 == signal_const_92;
+    assign signal_eq_124 = signal_select_183 == signal_const_104;
     assign signal_and_142 = signal_eq_124 & signal_eq_123;
-    assign signal_eq_125 = signal_select_181 == signal_const_91;
-    assign signal_eq_126 = signal_select_183 == signal_const_105;
+    assign signal_eq_125 = signal_select_181 == signal_const_92;
+    assign signal_eq_126 = signal_select_183 == signal_const_106;
     assign signal_and_143 = signal_eq_126 & signal_eq_125;
     assign signal_or_70 = signal_and_143 | signal_and_142;
     assign signal_or_71 = signal_or_70 | signal_and_141;
     assign signal_not_148 = ~ signal_or_71;
-    assign signal_mux_310 = signal_not_148 ? signal_mux_309 : signal_const_298;
-    assign signal_mux_311 = signal_and_206 ? signal_mux_310 : signal_const_60;
-    assign signal_mux_312 = stored ? signal_reg_14 : signal_mux_311;
-    assign signal_mux_313 = signal_eq_175 ? signal_const_298 : signal_reg_14;
+    assign signal_mux_310 = signal_not_148 ? signal_mux_309 : signal_const_301;
+    assign signal_mux_311 = signal_and_207 ? signal_mux_310 : signal_const_61;
+    assign signal_mux_312 = stored ? other$x_hi : signal_mux_311;
+    assign signal_mux_313 = signal_eq_176 ? signal_const_301 : other$x_hi;
     assign signal_mux_314 = falls_to_next ? signal_mux_312 : signal_mux_313;
     always @* begin
         case (field)
         3'b011:
             signal_cases_27 <= signal_select_156;
         default:
-            signal_cases_27 <= signal_reg_14;
+            signal_cases_27 <= other$x_hi;
         endcase
     end
-    assign signal_mux_315 = last_word ? signal_cases_27 : signal_reg_14;
-    assign signal_mux_316 = read_done ? signal_mux_315 : signal_reg_14;
-    assign signal_mux_317 = signal_eq_172 ? signal_reg_14 : signal_mux_316;
-    assign signal_mux_318 = signal_eq_173 ? signal_reg_14 : signal_mux_317;
-    assign signal_mux_319 = signal_eq_174 ? signal_const_298 : signal_reg_14;
-    assign signal_mux_320 = read_done ? signal_mux_319 : signal_reg_14;
-    assign signal_mux_321 = signal_not_174 ? signal_const_60 : signal_reg_14;
-    assign signal_mux_322 = signal_eq_177 ? signal_const_298 : signal_reg_14;
-    assign signal_mux_323 = is_jump ? signal_mux_322 : signal_reg_14;
+    assign signal_mux_315 = last_word ? signal_cases_27 : other$x_hi;
+    assign signal_mux_316 = read_done ? signal_mux_315 : other$x_hi;
+    assign signal_mux_317 = signal_eq_173 ? other$x_hi : signal_mux_316;
+    assign signal_mux_318 = signal_eq_174 ? other$x_hi : signal_mux_317;
+    assign signal_mux_319 = signal_eq_175 ? signal_const_301 : other$x_hi;
+    assign signal_mux_320 = read_done ? signal_mux_319 : other$x_hi;
+    assign signal_mux_321 = signal_not_174 ? signal_const_61 : other$x_hi;
+    assign signal_mux_322 = signal_eq_178 ? signal_const_301 : other$x_hi;
+    assign signal_mux_323 = is_jump ? signal_mux_322 : other$x_hi;
     always @* begin
         case (sm)
         4'b0100:
@@ -10073,19 +10100,19 @@ module load_checker (
         4'b1001:
             signal_cases_28 <= signal_mux_314;
         default:
-            signal_cases_28 <= signal_reg_14;
+            signal_cases_28 <= other$x_hi;
         endcase
     end
     assign signal_wire_26 = signal_cases_28;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
-            signal_reg_14 <= signal_const_60;
+            other$x_hi <= signal_const_61;
         else
-            signal_reg_14 <= signal_wire_26;
+            other$x_hi <= signal_wire_26;
     end
-    assign signal_mux_324 = stored ? signal_reg_15 : signal_const_60;
-    assign signal_mux_325 = falls_to_next ? signal_reg_14 : signal_mux_324;
-    assign signal_mux_326 = signal_wire_66 ? signal_const_298 : signal_reg_15;
+    assign signal_mux_324 = stored ? row$x_hi : signal_const_61;
+    assign signal_mux_325 = falls_to_next ? other$x_hi : signal_mux_324;
+    assign signal_mux_326 = signal_wire_66 ? signal_const_301 : row$x_hi;
     always @* begin
         case (sm)
         4'b0000:
@@ -10093,47 +10120,47 @@ module load_checker (
         4'b1011:
             signal_cases_29 <= signal_mux_325;
         4'b1100:
-            signal_cases_29 <= signal_reg_14;
+            signal_cases_29 <= other$x_hi;
         default:
-            signal_cases_29 <= signal_reg_15;
+            signal_cases_29 <= row$x_hi;
         endcase
     end
     assign signal_wire_27 = signal_cases_29;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
-            signal_reg_15 <= signal_const_60;
+            row$x_hi <= signal_const_61;
         else
-            signal_reg_15 <= signal_wire_27;
+            row$x_hi <= signal_wire_27;
     end
-    assign signal_lt_79 = signal_reg_15 < signal_reg_17;
-    assign signal_mux_327 = signal_lt_79 ? signal_reg_15 : signal_reg_17;
-    assign signal_eq_127 = signal_select_159 == signal_const_193;
+    assign signal_lt_79 = row$x_hi < row$y_hi;
+    assign signal_mux_327 = signal_lt_79 ? row$x_hi : row$y_hi;
+    assign signal_eq_127 = signal_select_159 == signal_const_194;
     assign signal_and_144 = signal_eq_142 & signal_eq_127;
-    assign signal_mux_328 = signal_and_144 ? signal_mux_327 : signal_reg_17;
-    assign signal_eq_128 = signal_select_159 == signal_const_194;
+    assign signal_mux_328 = signal_and_144 ? signal_mux_327 : row$y_hi;
+    assign signal_eq_128 = signal_select_159 == signal_const_195;
     assign signal_and_145 = signal_eq_142 & signal_eq_128;
-    assign signal_mux_329 = signal_and_145 ? signal_const_298 : signal_mux_328;
+    assign signal_mux_329 = signal_and_145 ? signal_const_301 : signal_mux_328;
     assign signal_select_155 = word[7:5];
-    assign signal_eq_129 = signal_select_155 == signal_const_98;
-    assign signal_eq_130 = signal_select_183 == signal_const_99;
+    assign signal_eq_129 = signal_select_155 == signal_const_99;
+    assign signal_eq_130 = signal_select_183 == signal_const_100;
     assign signal_and_146 = signal_eq_130 & signal_eq_129;
     assign signal_mux_330 = signal_and_146 ? signal_cat_182 : signal_mux_329;
-    assign signal_eq_131 = signal_select_177 == signal_const_89;
-    assign signal_eq_132 = signal_select_183 == signal_const_101;
+    assign signal_eq_131 = signal_select_177 == signal_const_90;
+    assign signal_eq_132 = signal_select_183 == signal_const_102;
     assign signal_and_147 = signal_eq_132 & signal_eq_131;
-    assign signal_eq_133 = signal_select_178 == signal_const_98;
-    assign signal_eq_134 = signal_select_183 == signal_const_103;
+    assign signal_eq_133 = signal_select_178 == signal_const_99;
+    assign signal_eq_134 = signal_select_183 == signal_const_104;
     assign signal_and_148 = signal_eq_134 & signal_eq_133;
-    assign signal_eq_135 = signal_select_181 == signal_const_98;
-    assign signal_eq_136 = signal_select_183 == signal_const_105;
+    assign signal_eq_135 = signal_select_181 == signal_const_99;
+    assign signal_eq_136 = signal_select_183 == signal_const_106;
     assign signal_and_149 = signal_eq_136 & signal_eq_135;
     assign signal_or_72 = signal_and_149 | signal_and_148;
     assign signal_or_73 = signal_or_72 | signal_and_147;
     assign signal_not_149 = ~ signal_or_73;
-    assign signal_mux_331 = signal_not_149 ? signal_mux_330 : signal_const_298;
-    assign signal_mux_332 = signal_and_206 ? signal_mux_331 : signal_const_60;
-    assign signal_mux_333 = stored ? signal_reg_16 : signal_mux_332;
-    assign signal_mux_334 = signal_eq_175 ? signal_const_298 : signal_reg_16;
+    assign signal_mux_331 = signal_not_149 ? signal_mux_330 : signal_const_301;
+    assign signal_mux_332 = signal_and_207 ? signal_mux_331 : signal_const_61;
+    assign signal_mux_333 = stored ? other$y_hi : signal_mux_332;
+    assign signal_mux_334 = signal_eq_176 ? signal_const_301 : other$y_hi;
     assign signal_mux_335 = falls_to_next ? signal_mux_333 : signal_mux_334;
     assign signal_select_156 = shifted[15:0];
     always @* begin
@@ -10141,18 +10168,18 @@ module load_checker (
         3'b100:
             signal_cases_30 <= signal_select_156;
         default:
-            signal_cases_30 <= signal_reg_16;
+            signal_cases_30 <= other$y_hi;
         endcase
     end
-    assign signal_mux_336 = last_word ? signal_cases_30 : signal_reg_16;
-    assign signal_mux_337 = read_done ? signal_mux_336 : signal_reg_16;
-    assign signal_mux_338 = signal_eq_172 ? signal_reg_16 : signal_mux_337;
-    assign signal_mux_339 = signal_eq_173 ? signal_reg_16 : signal_mux_338;
-    assign signal_mux_340 = signal_eq_174 ? signal_const_298 : signal_reg_16;
-    assign signal_mux_341 = read_done ? signal_mux_340 : signal_reg_16;
-    assign signal_mux_342 = signal_not_174 ? signal_const_60 : signal_reg_16;
-    assign signal_mux_343 = signal_eq_177 ? signal_const_298 : signal_reg_16;
-    assign signal_mux_344 = is_jump ? signal_mux_343 : signal_reg_16;
+    assign signal_mux_336 = last_word ? signal_cases_30 : other$y_hi;
+    assign signal_mux_337 = read_done ? signal_mux_336 : other$y_hi;
+    assign signal_mux_338 = signal_eq_173 ? other$y_hi : signal_mux_337;
+    assign signal_mux_339 = signal_eq_174 ? other$y_hi : signal_mux_338;
+    assign signal_mux_340 = signal_eq_175 ? signal_const_301 : other$y_hi;
+    assign signal_mux_341 = read_done ? signal_mux_340 : other$y_hi;
+    assign signal_mux_342 = signal_not_174 ? signal_const_61 : other$y_hi;
+    assign signal_mux_343 = signal_eq_178 ? signal_const_301 : other$y_hi;
+    assign signal_mux_344 = is_jump ? signal_mux_343 : other$y_hi;
     always @* begin
         case (sm)
         4'b0100:
@@ -10166,19 +10193,19 @@ module load_checker (
         4'b1001:
             signal_cases_31 <= signal_mux_335;
         default:
-            signal_cases_31 <= signal_reg_16;
+            signal_cases_31 <= other$y_hi;
         endcase
     end
     assign signal_wire_28 = signal_cases_31;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
-            signal_reg_16 <= signal_const_60;
+            other$y_hi <= signal_const_61;
         else
-            signal_reg_16 <= signal_wire_28;
+            other$y_hi <= signal_wire_28;
     end
-    assign signal_mux_345 = stored ? signal_reg_17 : signal_const_60;
-    assign signal_mux_346 = falls_to_next ? signal_reg_16 : signal_mux_345;
-    assign signal_mux_347 = signal_wire_66 ? signal_const_298 : signal_reg_17;
+    assign signal_mux_345 = stored ? row$y_hi : signal_const_61;
+    assign signal_mux_346 = falls_to_next ? other$y_hi : signal_mux_345;
+    assign signal_mux_347 = signal_wire_66 ? signal_const_301 : row$y_hi;
     always @* begin
         case (sm)
         4'b0000:
@@ -10186,42 +10213,42 @@ module load_checker (
         4'b1011:
             signal_cases_32 <= signal_mux_346;
         4'b1100:
-            signal_cases_32 <= signal_reg_16;
+            signal_cases_32 <= other$y_hi;
         default:
-            signal_cases_32 <= signal_reg_17;
+            signal_cases_32 <= row$y_hi;
         endcase
     end
     assign signal_wire_29 = signal_cases_32;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
-            signal_reg_17 <= signal_const_60;
+            row$y_hi <= signal_const_61;
         else
-            signal_reg_17 <= signal_wire_29;
+            row$y_hi <= signal_wire_29;
     end
     assign signal_cat_183 = { signal_const_30,
-                              signal_reg_17 };
-    assign signal_cat_184 = { signal_const_153,
+                              row$y_hi };
+    assign signal_cat_184 = { signal_const_154,
                               signal_select_174 };
     assign signal_cat_185 = { signal_const_37,
                               signal_cat_184 };
-    assign signal_sub_20 = signal_const_77 - signal_cat_185;
-    assign signal_mux_348 = signal_and_182 ? signal_sub_20 : signal_const_77;
-    assign signal_mux_349 = signal_and_193 ? signal_cat_185 : signal_mux_348;
-    assign signal_eq_137 = signal_select_174 == signal_const_91;
-    assign signal_and_150 = signal_and_194 & signal_eq_158;
+    assign signal_sub_20 = signal_const_78 - signal_cat_185;
+    assign signal_mux_348 = signal_and_183 ? signal_sub_20 : signal_const_78;
+    assign signal_mux_349 = signal_and_194 ? signal_cat_185 : signal_mux_348;
+    assign signal_eq_137 = signal_select_174 == signal_const_92;
+    assign signal_and_150 = signal_and_195 & signal_eq_159;
     assign signal_and_151 = signal_and_150 & signal_select_175;
     assign signal_and_152 = signal_and_151 & signal_eq_137;
     assign signal_mux_350 = signal_and_152 ? signal_cat_183 : signal_mux_349;
-    assign signal_eq_138 = signal_select_174 == signal_const_158;
-    assign signal_and_153 = signal_and_194 & signal_eq_158;
+    assign signal_eq_138 = signal_select_174 == signal_const_159;
+    assign signal_and_153 = signal_and_195 & signal_eq_159;
     assign signal_and_154 = signal_and_153 & signal_select_175;
     assign signal_and_155 = signal_and_154 & signal_eq_138;
     assign signal_mux_351 = signal_and_155 ? signal_cat_181 : signal_mux_350;
-    assign signal_eq_139 = signal_select_174 == signal_const_98;
-    assign signal_and_156 = signal_and_194 & signal_eq_158;
+    assign signal_eq_139 = signal_select_174 == signal_const_99;
+    assign signal_and_156 = signal_and_195 & signal_eq_159;
     assign signal_and_157 = signal_and_156 & signal_select_175;
     assign signal_and_158 = signal_and_157 & signal_eq_139;
-    assign signal_and_159 = signal_and_201 & signal_select_170;
+    assign signal_and_159 = signal_and_202 & signal_select_170;
     assign signal_or_74 = signal_and_159 | signal_and_158;
     assign signal_mux_352 = signal_or_74 ? signal_add_27 : signal_mux_351;
     assign signal_cat_186 = { signal_const_37,
@@ -10232,61 +10259,61 @@ module load_checker (
     assign signal_not_150 = ~ signal_select_158;
     assign signal_cat_187 = { signal_not_150,
                               signal_select_157 };
-    assign signal_lt_80 = signal_cat_187 < signal_const_78;
-    assign signal_mux_353 = signal_lt_80 ? signal_const_77 : signal_cat_195;
-    assign signal_mux_354 = signal_and_201 ? signal_mux_353 : signal_cat_195;
-    assign signal_mux_355 = signal_and_180 ? signal_const_131 : signal_mux_354;
-    assign signal_mux_356 = signal_and_198 ? signal_const_77 : signal_mux_355;
+    assign signal_lt_80 = signal_cat_187 < signal_const_79;
+    assign signal_mux_353 = signal_lt_80 ? signal_const_78 : signal_cat_195;
+    assign signal_mux_354 = signal_and_202 ? signal_mux_353 : signal_cat_195;
+    assign signal_mux_355 = signal_and_181 ? signal_const_132 : signal_mux_354;
+    assign signal_mux_356 = signal_and_199 ? signal_const_78 : signal_mux_355;
     assign signal_add_28 = signal_mux_356 + signal_sub_21;
     assign signal_select_159 = word[12:9];
-    assign signal_eq_140 = signal_select_159 == signal_const_195;
+    assign signal_eq_140 = signal_select_159 == signal_const_196;
     assign signal_and_160 = signal_eq_142 & signal_eq_140;
     assign signal_mux_357 = signal_and_160 ? signal_add_26 : signal_add_28;
     assign signal_select_160 = signal_mux_357[25:25];
     assign signal_not_151 = ~ signal_select_160;
     assign signal_cat_188 = { signal_not_151,
                               signal_select_146 };
-    assign signal_lt_81 = signal_cat_188 < signal_const_72;
+    assign signal_lt_81 = signal_cat_188 < signal_const_73;
     assign signal_not_152 = ~ signal_lt_81;
-    assign signal_eq_141 = signal_reg_19 == signal_const_58;
+    assign signal_eq_141 = row$arm_hi == signal_const_59;
     assign signal_select_161 = signal_sub_22[24:0];
-    assign signal_select_162 = signal_reg_29[23:23];
+    assign signal_select_162 = row$phase_hi[23:23];
     assign signal_cat_189 = { signal_select_162,
                               signal_select_162 };
     assign signal_cat_190 = { signal_cat_189,
-                              signal_reg_29 };
-    assign signal_sub_22 = signal_const_77 - signal_cat_190;
+                              row$phase_hi };
+    assign signal_sub_22 = signal_const_78 - signal_cat_190;
     assign signal_select_163 = signal_sub_22[25:25];
     assign signal_not_153 = ~ signal_select_163;
     assign signal_cat_191 = { signal_not_153,
                               signal_select_161 };
-    assign signal_lt_82 = signal_cat_191 < signal_const_78;
-    assign signal_mux_358 = signal_lt_82 ? signal_const_77 : signal_sub_22;
+    assign signal_lt_82 = signal_cat_191 < signal_const_79;
+    assign signal_mux_358 = signal_lt_82 ? signal_const_78 : signal_sub_22;
     assign signal_cat_192 = { signal_const_37,
-                              signal_reg_21 };
+                              row$arm_lo };
     assign signal_add_29 = signal_cat_192 + signal_mux_358;
     assign signal_add_30 = signal_add_29 + signal_cat_199;
     assign signal_cat_193 = { signal_const_37,
-                              signal_reg_21 };
+                              row$arm_lo };
     assign signal_add_31 = signal_cat_193 + signal_cat_199;
-    assign signal_mux_359 = signal_and_201 ? signal_add_30 : signal_add_31;
-    assign signal_mux_360 = signal_and_176 ? signal_cat_199 : signal_mux_359;
+    assign signal_mux_359 = signal_and_202 ? signal_add_30 : signal_add_31;
+    assign signal_mux_360 = signal_and_177 ? signal_cat_199 : signal_mux_359;
     assign signal_select_164 = signal_mux_360[23:0];
     assign signal_select_165 = signal_sub_23[24:0];
-    assign signal_select_166 = signal_reg_27[23:23];
+    assign signal_select_166 = row$phase_lo[23:23];
     assign signal_cat_194 = { signal_select_166,
                               signal_select_166 };
     assign signal_cat_195 = { signal_cat_194,
-                              signal_reg_27 };
-    assign signal_sub_23 = signal_const_77 - signal_cat_195;
+                              row$phase_lo };
+    assign signal_sub_23 = signal_const_78 - signal_cat_195;
     assign signal_select_167 = signal_sub_23[25:25];
     assign signal_not_154 = ~ signal_select_167;
     assign signal_cat_196 = { signal_not_154,
                               signal_select_165 };
-    assign signal_lt_83 = signal_cat_196 < signal_const_78;
-    assign signal_mux_361 = signal_lt_83 ? signal_const_77 : signal_sub_23;
+    assign signal_lt_83 = signal_cat_196 < signal_const_79;
+    assign signal_mux_361 = signal_lt_83 ? signal_const_78 : signal_sub_23;
     assign signal_cat_197 = { signal_const_37,
-                              signal_reg_19 };
+                              row$arm_hi };
     assign signal_add_32 = signal_cat_197 + signal_mux_361;
     assign signal_add_33 = signal_add_32 + signal_cat_199;
     assign signal_and_161 = signal_select_168 & signal_const_9;
@@ -10306,36 +10333,36 @@ module load_checker (
             signal_mux_362 <= signal_and_161;
         endcase
     end
-    assign signal_cat_198 = { signal_const_165,
+    assign signal_cat_198 = { signal_const_166,
                               signal_mux_362 };
-    assign signal_add_34 = signal_cat_198 + signal_const_161;
-    assign signal_eq_142 = signal_select_183 == signal_const_158;
-    assign signal_mux_363 = signal_eq_142 ? signal_const_160 : signal_add_34;
+    assign signal_add_34 = signal_cat_198 + signal_const_162;
+    assign signal_eq_142 = signal_select_183 == signal_const_159;
+    assign signal_mux_363 = signal_eq_142 ? signal_const_161 : signal_add_34;
     assign signal_cat_199 = { signal_const_37,
                               signal_mux_363 };
     assign signal_select_169 = signal_mux_382[23:0];
-    assign signal_mux_364 = signal_or_75 ? signal_select_169 : signal_const_58;
-    assign signal_mux_365 = signal_and_206 ? signal_mux_364 : signal_const_59;
-    assign signal_mux_366 = stored ? signal_reg_18 : signal_mux_365;
-    assign signal_mux_367 = signal_eq_175 ? signal_const_58 : signal_reg_18;
+    assign signal_mux_364 = signal_or_75 ? signal_select_169 : signal_const_59;
+    assign signal_mux_365 = signal_and_207 ? signal_mux_364 : signal_const_60;
+    assign signal_mux_366 = stored ? other$arm_hi : signal_mux_365;
+    assign signal_mux_367 = signal_eq_176 ? signal_const_59 : other$arm_hi;
     assign signal_mux_368 = falls_to_next ? signal_mux_366 : signal_mux_367;
     always @* begin
         case (field)
         3'b001:
             signal_cases_33 <= signal_select_189;
         default:
-            signal_cases_33 <= signal_reg_18;
+            signal_cases_33 <= other$arm_hi;
         endcase
     end
-    assign signal_mux_369 = last_word ? signal_cases_33 : signal_reg_18;
-    assign signal_mux_370 = read_done ? signal_mux_369 : signal_reg_18;
-    assign signal_mux_371 = signal_eq_172 ? signal_reg_18 : signal_mux_370;
-    assign signal_mux_372 = signal_eq_173 ? signal_reg_18 : signal_mux_371;
-    assign signal_mux_373 = signal_eq_174 ? signal_const_58 : signal_reg_18;
-    assign signal_mux_374 = read_done ? signal_mux_373 : signal_reg_18;
-    assign signal_mux_375 = signal_not_174 ? signal_const_59 : signal_reg_18;
-    assign signal_mux_376 = signal_eq_177 ? signal_const_58 : signal_reg_18;
-    assign signal_mux_377 = is_jump ? signal_mux_376 : signal_reg_18;
+    assign signal_mux_369 = last_word ? signal_cases_33 : other$arm_hi;
+    assign signal_mux_370 = read_done ? signal_mux_369 : other$arm_hi;
+    assign signal_mux_371 = signal_eq_173 ? other$arm_hi : signal_mux_370;
+    assign signal_mux_372 = signal_eq_174 ? other$arm_hi : signal_mux_371;
+    assign signal_mux_373 = signal_eq_175 ? signal_const_59 : other$arm_hi;
+    assign signal_mux_374 = read_done ? signal_mux_373 : other$arm_hi;
+    assign signal_mux_375 = signal_not_174 ? signal_const_60 : other$arm_hi;
+    assign signal_mux_376 = signal_eq_178 ? signal_const_59 : other$arm_hi;
+    assign signal_mux_377 = is_jump ? signal_mux_376 : other$arm_hi;
     always @* begin
         case (sm)
         4'b0100:
@@ -10349,19 +10376,19 @@ module load_checker (
         4'b1001:
             signal_cases_34 <= signal_mux_368;
         default:
-            signal_cases_34 <= signal_reg_18;
+            signal_cases_34 <= other$arm_hi;
         endcase
     end
     assign signal_wire_31 = signal_cases_34;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
-            signal_reg_18 <= signal_const_59;
+            other$arm_hi <= signal_const_60;
         else
-            signal_reg_18 <= signal_wire_31;
+            other$arm_hi <= signal_wire_31;
     end
-    assign signal_mux_378 = stored ? signal_reg_19 : signal_const_59;
-    assign signal_mux_379 = falls_to_next ? signal_reg_18 : signal_mux_378;
-    assign signal_mux_380 = signal_wire_66 ? signal_const_58 : signal_reg_19;
+    assign signal_mux_378 = stored ? row$arm_hi : signal_const_60;
+    assign signal_mux_379 = falls_to_next ? other$arm_hi : signal_mux_378;
+    assign signal_mux_380 = signal_wire_66 ? signal_const_59 : row$arm_hi;
     always @* begin
         case (sm)
         4'b0000:
@@ -10369,55 +10396,55 @@ module load_checker (
         4'b1011:
             signal_cases_35 <= signal_mux_379;
         4'b1100:
-            signal_cases_35 <= signal_reg_18;
+            signal_cases_35 <= other$arm_hi;
         default:
-            signal_cases_35 <= signal_reg_19;
+            signal_cases_35 <= row$arm_hi;
         endcase
     end
     assign signal_wire_32 = signal_cases_35;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
-            signal_reg_19 <= signal_const_59;
+            row$arm_hi <= signal_const_60;
         else
-            signal_reg_19 <= signal_wire_32;
+            row$arm_hi <= signal_wire_32;
     end
     assign signal_cat_200 = { signal_const_37,
-                              signal_reg_19 };
+                              row$arm_hi };
     assign signal_add_35 = signal_cat_200 + signal_cat_199;
-    assign signal_mux_381 = signal_and_201 ? signal_add_33 : signal_add_35;
-    assign signal_mux_382 = signal_and_176 ? signal_cat_199 : signal_mux_381;
-    assign signal_lt_84 = signal_mux_382 < signal_const_82;
-    assign signal_not_155 = ~ signal_and_174;
-    assign signal_not_156 = ~ signal_and_201;
-    assign signal_eq_143 = signal_select_183 == signal_const_91;
+    assign signal_mux_381 = signal_and_202 ? signal_add_33 : signal_add_35;
+    assign signal_mux_382 = signal_and_177 ? signal_cat_199 : signal_mux_381;
+    assign signal_lt_84 = signal_mux_382 < signal_const_83;
+    assign signal_not_155 = ~ signal_and_175;
+    assign signal_not_156 = ~ signal_and_202;
+    assign signal_eq_143 = signal_select_183 == signal_const_92;
     assign signal_and_164 = signal_eq_143 & signal_not_156;
     assign signal_and_165 = signal_and_164 & signal_not_155;
     assign signal_not_157 = ~ signal_and_165;
     assign signal_and_166 = signal_not_158 & signal_not_157;
     assign signal_and_167 = signal_and_166 & signal_lt_84;
-    assign signal_or_75 = signal_and_176 | signal_and_167;
-    assign signal_mux_383 = signal_or_75 ? signal_select_164 : signal_const_59;
-    assign signal_mux_384 = signal_and_206 ? signal_mux_383 : signal_const_59;
-    assign signal_mux_385 = stored ? signal_reg_20 : signal_mux_384;
-    assign signal_mux_386 = signal_eq_175 ? signal_const_59 : signal_reg_20;
+    assign signal_or_75 = signal_and_177 | signal_and_167;
+    assign signal_mux_383 = signal_or_75 ? signal_select_164 : signal_const_60;
+    assign signal_mux_384 = signal_and_207 ? signal_mux_383 : signal_const_60;
+    assign signal_mux_385 = stored ? other$arm_lo : signal_mux_384;
+    assign signal_mux_386 = signal_eq_176 ? signal_const_60 : other$arm_lo;
     assign signal_mux_387 = falls_to_next ? signal_mux_385 : signal_mux_386;
     always @* begin
         case (field)
         3'b001:
             signal_cases_36 <= signal_select_184;
         default:
-            signal_cases_36 <= signal_reg_20;
+            signal_cases_36 <= other$arm_lo;
         endcase
     end
-    assign signal_mux_388 = last_word ? signal_cases_36 : signal_reg_20;
-    assign signal_mux_389 = read_done ? signal_mux_388 : signal_reg_20;
-    assign signal_mux_390 = signal_eq_172 ? signal_reg_20 : signal_mux_389;
-    assign signal_mux_391 = signal_eq_173 ? signal_reg_20 : signal_mux_390;
-    assign signal_mux_392 = signal_eq_174 ? signal_const_59 : signal_reg_20;
-    assign signal_mux_393 = read_done ? signal_mux_392 : signal_reg_20;
-    assign signal_mux_394 = signal_not_174 ? signal_const_59 : signal_reg_20;
-    assign signal_mux_395 = signal_eq_177 ? signal_const_59 : signal_reg_20;
-    assign signal_mux_396 = is_jump ? signal_mux_395 : signal_reg_20;
+    assign signal_mux_388 = last_word ? signal_cases_36 : other$arm_lo;
+    assign signal_mux_389 = read_done ? signal_mux_388 : other$arm_lo;
+    assign signal_mux_390 = signal_eq_173 ? other$arm_lo : signal_mux_389;
+    assign signal_mux_391 = signal_eq_174 ? other$arm_lo : signal_mux_390;
+    assign signal_mux_392 = signal_eq_175 ? signal_const_60 : other$arm_lo;
+    assign signal_mux_393 = read_done ? signal_mux_392 : other$arm_lo;
+    assign signal_mux_394 = signal_not_174 ? signal_const_60 : other$arm_lo;
+    assign signal_mux_395 = signal_eq_178 ? signal_const_60 : other$arm_lo;
+    assign signal_mux_396 = is_jump ? signal_mux_395 : other$arm_lo;
     always @* begin
         case (sm)
         4'b0100:
@@ -10431,19 +10458,19 @@ module load_checker (
         4'b1001:
             signal_cases_37 <= signal_mux_387;
         default:
-            signal_cases_37 <= signal_reg_20;
+            signal_cases_37 <= other$arm_lo;
         endcase
     end
     assign signal_wire_33 = signal_cases_37;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
-            signal_reg_20 <= signal_const_59;
+            other$arm_lo <= signal_const_60;
         else
-            signal_reg_20 <= signal_wire_33;
+            other$arm_lo <= signal_wire_33;
     end
-    assign signal_mux_397 = stored ? signal_reg_21 : signal_const_59;
-    assign signal_mux_398 = falls_to_next ? signal_reg_20 : signal_mux_397;
-    assign signal_mux_399 = signal_wire_66 ? signal_const_59 : signal_reg_21;
+    assign signal_mux_397 = stored ? row$arm_lo : signal_const_60;
+    assign signal_mux_398 = falls_to_next ? other$arm_lo : signal_mux_397;
+    assign signal_mux_399 = signal_wire_66 ? signal_const_60 : row$arm_lo;
     always @* begin
         case (sm)
         4'b0000:
@@ -10451,34 +10478,34 @@ module load_checker (
         4'b1011:
             signal_cases_38 <= signal_mux_398;
         4'b1100:
-            signal_cases_38 <= signal_reg_20;
+            signal_cases_38 <= other$arm_lo;
         default:
-            signal_cases_38 <= signal_reg_21;
+            signal_cases_38 <= row$arm_lo;
         endcase
     end
     assign signal_wire_34 = signal_cases_38;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
-            signal_reg_21 <= signal_const_59;
+            row$arm_lo <= signal_const_60;
         else
-            signal_reg_21 <= signal_wire_34;
+            row$arm_lo <= signal_wire_34;
     end
-    assign signal_eq_144 = signal_reg_21 == signal_const_59;
+    assign signal_eq_144 = row$arm_lo == signal_const_60;
     assign signal_and_168 = signal_eq_144 & signal_eq_141;
     assign signal_not_158 = ~ signal_and_168;
-    assign signal_not_159 = ~ signal_and_173;
-    assign signal_and_169 = signal_reg_23 & signal_not_159;
-    assign signal_mux_400 = signal_and_176 ? vdd : signal_and_169;
-    assign signal_mux_401 = signal_and_206 ? signal_mux_400 : signal_const_32;
-    assign signal_mux_402 = stored ? signal_reg_22 : signal_mux_401;
-    assign signal_mux_403 = signal_eq_175 ? signal_const_32 : signal_reg_22;
+    assign signal_not_159 = ~ signal_and_174;
+    assign signal_and_169 = row$awaiting & signal_not_159;
+    assign signal_mux_400 = signal_and_177 ? vdd : signal_and_169;
+    assign signal_mux_401 = signal_and_207 ? signal_mux_400 : signal_const_32;
+    assign signal_mux_402 = stored ? other$awaiting : signal_mux_401;
+    assign signal_mux_403 = signal_eq_176 ? signal_const_32 : other$awaiting;
     assign signal_mux_404 = falls_to_next ? signal_mux_402 : signal_mux_403;
     assign arriving$awaiting = signal_select_173[35:35];
-    assign signal_mux_405 = signal_eq_174 ? arriving$awaiting : signal_reg_22;
-    assign signal_mux_406 = read_done ? signal_mux_405 : signal_reg_22;
-    assign signal_mux_407 = signal_not_174 ? signal_const_32 : signal_reg_22;
-    assign signal_mux_408 = signal_eq_177 ? signal_const_32 : signal_reg_22;
-    assign signal_mux_409 = is_jump ? signal_mux_408 : signal_reg_22;
+    assign signal_mux_405 = signal_eq_175 ? arriving$awaiting : other$awaiting;
+    assign signal_mux_406 = read_done ? signal_mux_405 : other$awaiting;
+    assign signal_mux_407 = signal_not_174 ? signal_const_32 : other$awaiting;
+    assign signal_mux_408 = signal_eq_178 ? signal_const_32 : other$awaiting;
+    assign signal_mux_409 = is_jump ? signal_mux_408 : other$awaiting;
     always @* begin
         case (sm)
         4'b0100:
@@ -10490,19 +10517,19 @@ module load_checker (
         4'b1001:
             signal_cases_39 <= signal_mux_404;
         default:
-            signal_cases_39 <= signal_reg_22;
+            signal_cases_39 <= other$awaiting;
         endcase
     end
     assign signal_wire_35 = signal_cases_39;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
-            signal_reg_22 <= signal_const_32;
+            other$awaiting <= signal_const_32;
         else
-            signal_reg_22 <= signal_wire_35;
+            other$awaiting <= signal_wire_35;
     end
-    assign signal_mux_410 = stored ? signal_reg_23 : signal_const_32;
-    assign signal_mux_411 = falls_to_next ? signal_reg_22 : signal_mux_410;
-    assign signal_mux_412 = signal_wire_66 ? signal_const_32 : signal_reg_23;
+    assign signal_mux_410 = stored ? row$awaiting : signal_const_32;
+    assign signal_mux_411 = falls_to_next ? other$awaiting : signal_mux_410;
+    assign signal_mux_412 = signal_wire_66 ? signal_const_32 : row$awaiting;
     always @* begin
         case (sm)
         4'b0000:
@@ -10510,17 +10537,17 @@ module load_checker (
         4'b1011:
             signal_cases_40 <= signal_mux_411;
         4'b1100:
-            signal_cases_40 <= signal_reg_22;
+            signal_cases_40 <= other$awaiting;
         default:
-            signal_cases_40 <= signal_reg_23;
+            signal_cases_40 <= row$awaiting;
         endcase
     end
     assign signal_wire_36 = signal_cases_40;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
-            signal_reg_23 <= signal_const_32;
+            row$awaiting <= signal_const_32;
         else
-            signal_reg_23 <= signal_wire_36;
+            row$awaiting <= signal_wire_36;
     end
     assign signal_wire_37 = config$capture_rising;
     assign signal_select_170 = word[7:7];
@@ -10528,34 +10555,43 @@ module load_checker (
     assign signal_wire_38 = config$capture_pin;
     assign signal_select_171 = word[4:0];
     assign signal_eq_146 = signal_select_171 == signal_wire_38;
+    assign signal_eq_147 = signal_const_54 == sm;
+    assign signal_and_170 = signal_eq_147 & signal_wire_66;
     assign signal_wire_39 = setup$single_edge;
-    assign signal_eq_147 = signal_select_182 == signal_const_89;
-    assign signal_eq_148 = signal_select_182 == signal_const_37;
-    assign signal_or_76 = signal_eq_148 | signal_eq_147;
-    assign signal_eq_149 = signal_select_183 == signal_const_91;
-    assign signal_and_170 = signal_eq_149 & signal_or_76;
-    assign signal_and_171 = signal_and_170 & signal_wire_39;
-    assign signal_and_172 = signal_and_171 & signal_eq_146;
-    assign signal_and_173 = signal_and_172 & signal_eq_145;
-    assign signal_and_174 = signal_and_173 & signal_reg_23;
-    assign signal_and_175 = signal_and_174 & signal_not_158;
-    assign signal_or_77 = signal_reg_25 | signal_and_175;
+    always @(posedge signal_wire_60) begin
+        if (signal_wire_59)
+            setup$single_edge_0 <= signal_const_32;
+        else
+            if (signal_and_170)
+                setup$single_edge_0 <= signal_wire_39;
+    end
+    assign signal_eq_148 = signal_select_182 == signal_const_90;
+    assign signal_eq_149 = signal_select_182 == signal_const_37;
+    assign signal_or_76 = signal_eq_149 | signal_eq_148;
+    assign signal_eq_150 = signal_select_183 == signal_const_92;
+    assign signal_and_171 = signal_eq_150 & signal_or_76;
+    assign signal_and_172 = signal_and_171 & setup$single_edge_0;
+    assign signal_and_173 = signal_and_172 & signal_eq_146;
+    assign signal_and_174 = signal_and_173 & signal_eq_145;
+    assign signal_and_175 = signal_and_174 & row$awaiting;
+    assign signal_and_176 = signal_and_175 & signal_not_158;
+    assign signal_or_77 = row$captured | signal_and_176;
     assign signal_select_172 = word[3:0];
-    assign signal_eq_150 = signal_select_172 == signal_const_93;
-    assign signal_eq_151 = signal_select_183 == signal_const_94;
-    assign signal_and_176 = signal_eq_151 & signal_eq_150;
-    assign signal_mux_413 = signal_and_176 ? gnd : signal_or_77;
-    assign signal_mux_414 = signal_and_206 ? signal_mux_413 : signal_const_32;
-    assign signal_mux_415 = stored ? signal_reg_24 : signal_mux_414;
-    assign signal_mux_416 = signal_eq_175 ? signal_const_32 : signal_reg_24;
+    assign signal_eq_151 = signal_select_172 == signal_const_94;
+    assign signal_eq_152 = signal_select_183 == signal_const_95;
+    assign signal_and_177 = signal_eq_152 & signal_eq_151;
+    assign signal_mux_413 = signal_and_177 ? gnd : signal_or_77;
+    assign signal_mux_414 = signal_and_207 ? signal_mux_413 : signal_const_32;
+    assign signal_mux_415 = stored ? other$captured : signal_mux_414;
+    assign signal_mux_416 = signal_eq_176 ? signal_const_32 : other$captured;
     assign signal_mux_417 = falls_to_next ? signal_mux_415 : signal_mux_416;
     assign signal_select_173 = entry_shifted[47:2];
     assign arriving$captured = signal_select_173[36:36];
-    assign signal_mux_418 = signal_eq_174 ? arriving$captured : signal_reg_24;
-    assign signal_mux_419 = read_done ? signal_mux_418 : signal_reg_24;
-    assign signal_mux_420 = signal_not_174 ? signal_const_32 : signal_reg_24;
-    assign signal_mux_421 = signal_eq_177 ? signal_const_32 : signal_reg_24;
-    assign signal_mux_422 = is_jump ? signal_mux_421 : signal_reg_24;
+    assign signal_mux_418 = signal_eq_175 ? arriving$captured : other$captured;
+    assign signal_mux_419 = read_done ? signal_mux_418 : other$captured;
+    assign signal_mux_420 = signal_not_174 ? signal_const_32 : other$captured;
+    assign signal_mux_421 = signal_eq_178 ? signal_const_32 : other$captured;
+    assign signal_mux_422 = is_jump ? signal_mux_421 : other$captured;
     always @* begin
         case (sm)
         4'b0100:
@@ -10567,19 +10603,19 @@ module load_checker (
         4'b1001:
             signal_cases_41 <= signal_mux_417;
         default:
-            signal_cases_41 <= signal_reg_24;
+            signal_cases_41 <= other$captured;
         endcase
     end
     assign signal_wire_40 = signal_cases_41;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
-            signal_reg_24 <= signal_const_32;
+            other$captured <= signal_const_32;
         else
-            signal_reg_24 <= signal_wire_40;
+            other$captured <= signal_wire_40;
     end
-    assign signal_mux_423 = stored ? signal_reg_25 : signal_const_32;
-    assign signal_mux_424 = falls_to_next ? signal_reg_24 : signal_mux_423;
-    assign signal_mux_425 = signal_wire_66 ? signal_const_32 : signal_reg_25;
+    assign signal_mux_423 = stored ? row$captured : signal_const_32;
+    assign signal_mux_424 = falls_to_next ? other$captured : signal_mux_423;
+    assign signal_mux_425 = signal_wire_66 ? signal_const_32 : row$captured;
     always @* begin
         case (sm)
         4'b0000:
@@ -10587,92 +10623,92 @@ module load_checker (
         4'b1011:
             signal_cases_42 <= signal_mux_424;
         4'b1100:
-            signal_cases_42 <= signal_reg_24;
+            signal_cases_42 <= other$captured;
         default:
-            signal_cases_42 <= signal_reg_25;
+            signal_cases_42 <= row$captured;
         endcase
     end
     assign signal_wire_41 = signal_cases_42;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
-            signal_reg_25 <= signal_const_32;
+            row$captured <= signal_const_32;
         else
-            signal_reg_25 <= signal_wire_41;
+            row$captured <= signal_wire_41;
     end
-    assign signal_eq_152 = signal_select_179 == signal_const_94;
-    assign signal_eq_153 = signal_select_180 == signal_const_37;
-    assign signal_and_177 = signal_and_199 & signal_eq_153;
-    assign signal_and_178 = signal_and_177 & signal_eq_152;
-    assign signal_and_179 = signal_and_178 & signal_reg_25;
-    assign signal_and_180 = signal_and_179 & signal_not_158;
+    assign signal_eq_153 = signal_select_179 == signal_const_95;
+    assign signal_eq_154 = signal_select_180 == signal_const_37;
+    assign signal_and_178 = signal_and_200 & signal_eq_154;
+    assign signal_and_179 = signal_and_178 & signal_eq_153;
+    assign signal_and_180 = signal_and_179 & row$captured;
+    assign signal_and_181 = signal_and_180 & signal_not_158;
     assign signal_not_160 = ~ signal_select_175;
-    assign signal_eq_154 = signal_select_176 == signal_const_89;
-    assign signal_and_181 = signal_and_194 & signal_eq_154;
-    assign signal_and_182 = signal_and_181 & signal_not_160;
-    assign signal_eq_155 = signal_select_174 == signal_const_91;
-    assign signal_and_183 = signal_and_194 & signal_eq_158;
-    assign signal_and_184 = signal_and_183 & signal_select_175;
-    assign signal_and_185 = signal_and_184 & signal_eq_155;
-    assign signal_eq_156 = signal_select_174 == signal_const_158;
-    assign signal_and_186 = signal_and_194 & signal_eq_158;
-    assign signal_and_187 = signal_and_186 & signal_select_175;
-    assign signal_and_188 = signal_and_187 & signal_eq_156;
+    assign signal_eq_155 = signal_select_176 == signal_const_90;
+    assign signal_and_182 = signal_and_195 & signal_eq_155;
+    assign signal_and_183 = signal_and_182 & signal_not_160;
+    assign signal_eq_156 = signal_select_174 == signal_const_92;
+    assign signal_and_184 = signal_and_195 & signal_eq_159;
+    assign signal_and_185 = signal_and_184 & signal_select_175;
+    assign signal_and_186 = signal_and_185 & signal_eq_156;
+    assign signal_eq_157 = signal_select_174 == signal_const_159;
+    assign signal_and_187 = signal_and_195 & signal_eq_159;
+    assign signal_and_188 = signal_and_187 & signal_select_175;
+    assign signal_and_189 = signal_and_188 & signal_eq_157;
     assign signal_select_174 = word[2:0];
-    assign signal_eq_157 = signal_select_174 == signal_const_98;
-    assign signal_and_189 = signal_and_194 & signal_eq_158;
-    assign signal_and_190 = signal_and_189 & signal_select_175;
-    assign signal_and_191 = signal_and_190 & signal_eq_157;
+    assign signal_eq_158 = signal_select_174 == signal_const_99;
+    assign signal_and_190 = signal_and_195 & signal_eq_159;
+    assign signal_and_191 = signal_and_190 & signal_select_175;
+    assign signal_and_192 = signal_and_191 & signal_eq_158;
     assign signal_select_175 = word[3:3];
     assign signal_not_161 = ~ signal_select_175;
     assign signal_select_176 = word[5:4];
-    assign signal_eq_158 = signal_select_176 == signal_const_37;
-    assign signal_and_192 = signal_and_194 & signal_eq_158;
-    assign signal_and_193 = signal_and_192 & signal_not_161;
-    assign signal_or_78 = signal_and_193 | signal_and_191;
-    assign signal_or_79 = signal_or_78 | signal_and_188;
-    assign signal_or_80 = signal_or_79 | signal_and_185;
-    assign signal_or_81 = signal_or_80 | signal_and_182;
+    assign signal_eq_159 = signal_select_176 == signal_const_37;
+    assign signal_and_193 = signal_and_195 & signal_eq_159;
+    assign signal_and_194 = signal_and_193 & signal_not_161;
+    assign signal_or_78 = signal_and_194 | signal_and_192;
+    assign signal_or_79 = signal_or_78 | signal_and_189;
+    assign signal_or_80 = signal_or_79 | signal_and_186;
+    assign signal_or_81 = signal_or_80 | signal_and_183;
     assign signal_not_162 = ~ signal_or_81;
     assign signal_select_177 = word[7:6];
-    assign signal_eq_159 = signal_select_177 == signal_const_35;
-    assign signal_eq_160 = signal_select_183 == signal_const_101;
-    assign signal_and_194 = signal_eq_160 & signal_eq_159;
-    assign signal_and_195 = signal_and_194 & signal_not_162;
+    assign signal_eq_160 = signal_select_177 == signal_const_35;
+    assign signal_eq_161 = signal_select_183 == signal_const_102;
+    assign signal_and_195 = signal_eq_161 & signal_eq_160;
+    assign signal_and_196 = signal_and_195 & signal_not_162;
     assign signal_select_178 = word[7:5];
-    assign signal_eq_161 = signal_select_178 == signal_const_94;
-    assign signal_eq_162 = signal_select_183 == signal_const_103;
-    assign signal_and_196 = signal_eq_162 & signal_eq_161;
+    assign signal_eq_162 = signal_select_178 == signal_const_95;
+    assign signal_eq_163 = signal_select_183 == signal_const_104;
+    assign signal_and_197 = signal_eq_163 & signal_eq_162;
     assign signal_select_179 = word[2:0];
-    assign signal_eq_163 = signal_select_179 == signal_const_101;
+    assign signal_eq_164 = signal_select_179 == signal_const_102;
     assign signal_select_180 = word[4:3];
-    assign signal_eq_164 = signal_select_180 == signal_const_37;
-    assign signal_and_197 = signal_and_199 & signal_eq_164;
-    assign signal_and_198 = signal_and_197 & signal_eq_163;
-    assign signal_not_163 = ~ signal_and_198;
+    assign signal_eq_165 = signal_select_180 == signal_const_37;
+    assign signal_and_198 = signal_and_200 & signal_eq_165;
+    assign signal_and_199 = signal_and_198 & signal_eq_164;
+    assign signal_not_163 = ~ signal_and_199;
     assign signal_select_181 = word[7:5];
-    assign signal_eq_165 = signal_select_181 == signal_const_94;
-    assign signal_eq_166 = signal_select_183 == signal_const_105;
-    assign signal_and_199 = signal_eq_166 & signal_eq_165;
-    assign signal_and_200 = signal_and_199 & signal_not_163;
+    assign signal_eq_166 = signal_select_181 == signal_const_95;
+    assign signal_eq_167 = signal_select_183 == signal_const_106;
+    assign signal_and_200 = signal_eq_167 & signal_eq_166;
+    assign signal_and_201 = signal_and_200 & signal_not_163;
     assign signal_select_182 = word[6:5];
-    assign signal_eq_167 = signal_select_182 == signal_const_110;
-    assign signal_eq_168 = signal_select_183 == signal_const_91;
-    assign signal_and_201 = signal_eq_168 & signal_eq_167;
-    assign signal_not_164 = ~ signal_and_201;
+    assign signal_eq_168 = signal_select_182 == signal_const_111;
+    assign signal_eq_169 = signal_select_183 == signal_const_92;
+    assign signal_and_202 = signal_eq_169 & signal_eq_168;
+    assign signal_not_164 = ~ signal_and_202;
     assign signal_select_183 = word[15:13];
-    assign signal_eq_169 = signal_select_183 == signal_const_91;
-    assign signal_and_202 = signal_eq_169 & signal_not_164;
-    assign signal_or_82 = signal_and_202 | signal_and_200;
-    assign signal_or_83 = signal_or_82 | signal_and_196;
-    assign signal_or_84 = signal_or_83 | signal_and_195;
+    assign signal_eq_170 = signal_select_183 == signal_const_92;
+    assign signal_and_203 = signal_eq_170 & signal_not_164;
+    assign signal_or_82 = signal_and_203 | signal_and_201;
+    assign signal_or_83 = signal_or_82 | signal_and_197;
+    assign signal_or_84 = signal_or_83 | signal_and_196;
     assign signal_not_165 = ~ signal_or_84;
-    assign signal_or_85 = signal_not_165 | signal_and_180;
-    assign signal_and_203 = signal_or_85 & signal_not_152;
-    assign signal_and_204 = signal_and_203 & signal_not_141;
-    assign signal_mux_426 = signal_and_204 ? signal_select_133 : signal_const_198;
-    assign signal_mux_427 = signal_and_206 ? signal_mux_426 : signal_const_161;
-    assign signal_mux_428 = stored ? signal_reg_26 : signal_mux_427;
-    assign signal_mux_429 = signal_eq_175 ? signal_const_198 : signal_reg_26;
+    assign signal_or_85 = signal_not_165 | signal_and_181;
+    assign signal_and_204 = signal_or_85 & signal_not_152;
+    assign signal_and_205 = signal_and_204 & signal_not_141;
+    assign signal_mux_426 = signal_and_205 ? signal_select_133 : signal_const_199;
+    assign signal_mux_427 = signal_and_207 ? signal_mux_426 : signal_const_162;
+    assign signal_mux_428 = stored ? other$phase_lo : signal_mux_427;
+    assign signal_mux_429 = signal_eq_176 ? signal_const_199 : other$phase_lo;
     assign signal_mux_430 = falls_to_next ? signal_mux_428 : signal_mux_429;
     assign signal_select_184 = shifted[47:24];
     always @* begin
@@ -10680,18 +10716,18 @@ module load_checker (
         3'b000:
             signal_cases_43 <= signal_select_184;
         default:
-            signal_cases_43 <= signal_reg_26;
+            signal_cases_43 <= other$phase_lo;
         endcase
     end
-    assign signal_mux_431 = last_word ? signal_cases_43 : signal_reg_26;
-    assign signal_mux_432 = read_done ? signal_mux_431 : signal_reg_26;
-    assign signal_mux_433 = signal_eq_172 ? signal_reg_26 : signal_mux_432;
-    assign signal_mux_434 = signal_eq_173 ? signal_reg_26 : signal_mux_433;
-    assign signal_mux_435 = signal_eq_174 ? signal_const_198 : signal_reg_26;
-    assign signal_mux_436 = read_done ? signal_mux_435 : signal_reg_26;
-    assign signal_mux_437 = signal_not_174 ? signal_const_161 : signal_reg_26;
-    assign signal_mux_438 = signal_eq_177 ? signal_const_198 : signal_reg_26;
-    assign signal_mux_439 = is_jump ? signal_mux_438 : signal_reg_26;
+    assign signal_mux_431 = last_word ? signal_cases_43 : other$phase_lo;
+    assign signal_mux_432 = read_done ? signal_mux_431 : other$phase_lo;
+    assign signal_mux_433 = signal_eq_173 ? other$phase_lo : signal_mux_432;
+    assign signal_mux_434 = signal_eq_174 ? other$phase_lo : signal_mux_433;
+    assign signal_mux_435 = signal_eq_175 ? signal_const_199 : other$phase_lo;
+    assign signal_mux_436 = read_done ? signal_mux_435 : other$phase_lo;
+    assign signal_mux_437 = signal_not_174 ? signal_const_162 : other$phase_lo;
+    assign signal_mux_438 = signal_eq_178 ? signal_const_199 : other$phase_lo;
+    assign signal_mux_439 = is_jump ? signal_mux_438 : other$phase_lo;
     always @* begin
         case (sm)
         4'b0100:
@@ -10705,19 +10741,19 @@ module load_checker (
         4'b1001:
             signal_cases_44 <= signal_mux_430;
         default:
-            signal_cases_44 <= signal_reg_26;
+            signal_cases_44 <= other$phase_lo;
         endcase
     end
     assign signal_wire_42 = signal_cases_44;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
-            signal_reg_26 <= signal_const_59;
+            other$phase_lo <= signal_const_60;
         else
-            signal_reg_26 <= signal_wire_42;
+            other$phase_lo <= signal_wire_42;
     end
-    assign signal_mux_440 = stored ? signal_reg_27 : signal_const_161;
-    assign signal_mux_441 = falls_to_next ? signal_reg_26 : signal_mux_440;
-    assign signal_mux_442 = signal_wire_66 ? signal_const_198 : signal_reg_27;
+    assign signal_mux_440 = stored ? row$phase_lo : signal_const_162;
+    assign signal_mux_441 = falls_to_next ? other$phase_lo : signal_mux_440;
+    assign signal_mux_442 = signal_wire_66 ? signal_const_199 : row$phase_lo;
     always @* begin
         case (sm)
         4'b0000:
@@ -10725,24 +10761,24 @@ module load_checker (
         4'b1011:
             signal_cases_45 <= signal_mux_441;
         4'b1100:
-            signal_cases_45 <= signal_reg_26;
+            signal_cases_45 <= other$phase_lo;
         default:
-            signal_cases_45 <= signal_reg_27;
+            signal_cases_45 <= row$phase_lo;
         endcase
     end
     assign signal_wire_43 = signal_cases_45;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
-            signal_reg_27 <= signal_const_59;
+            row$phase_lo <= signal_const_60;
         else
-            signal_reg_27 <= signal_wire_43;
+            row$phase_lo <= signal_wire_43;
     end
-    assign signal_select_185 = signal_reg_27[23:23];
+    assign signal_select_185 = row$phase_lo[23:23];
     assign signal_not_166 = ~ signal_select_185;
     assign signal_cat_201 = { signal_not_166,
                               signal_select_132 };
-    assign signal_select_186 = signal_reg_29[22:0];
-    assign signal_select_187 = signal_reg_29[23:23];
+    assign signal_select_186 = row$phase_hi[22:0];
+    assign signal_select_187 = row$phase_hi[23:23];
     assign signal_not_167 = ~ signal_select_187;
     assign signal_cat_202 = { signal_not_167,
                               signal_select_186 };
@@ -10752,16 +10788,16 @@ module load_checker (
     assign signal_or_88 = signal_or_87 | signal_lt_69;
     assign signal_or_89 = signal_or_88 | signal_lt_68;
     assign signal_not_168 = ~ signal_or_89;
-    assign signal_and_205 = signal_not_168 & signal_not_135;
-    assign signal_and_206 = signal_and_205 & signal_or_64;
-    assign signal_mux_443 = signal_and_206 ? signal_mux_179 : signal_const_59;
-    assign signal_mux_444 = stored ? signal_reg_28 : signal_mux_443;
-    assign signal_mux_445 = signal_eq_175 ? signal_const_218 : signal_reg_28;
+    assign signal_and_206 = signal_not_168 & signal_not_135;
+    assign signal_and_207 = signal_and_206 & signal_or_64;
+    assign signal_mux_443 = signal_and_207 ? signal_mux_179 : signal_const_60;
+    assign signal_mux_444 = stored ? other$phase_hi : signal_mux_443;
+    assign signal_mux_445 = signal_eq_176 ? signal_const_219 : other$phase_hi;
     assign signal_mux_446 = falls_to_next ? signal_mux_444 : signal_mux_445;
-    assign signal_const_411 = 48'b000000000000000000000000000000000000000000000000;
+    assign signal_const_415 = 48'b000000000000000000000000000000000000000000000000;
     assign signal_mux_447 = read_done ? shifted : acc;
-    assign signal_mux_448 = signal_eq_172 ? acc : signal_mux_447;
-    assign signal_mux_449 = signal_eq_173 ? acc : signal_mux_448;
+    assign signal_mux_448 = signal_eq_173 ? acc : signal_mux_447;
+    assign signal_mux_449 = signal_eq_174 ? acc : signal_mux_448;
     always @* begin
         case (sm)
         4'b0111:
@@ -10773,7 +10809,7 @@ module load_checker (
     assign signal_wire_44 = signal_cases_46;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
-            acc <= signal_const_411;
+            acc <= signal_const_415;
         else
             acc <= signal_wire_44;
     end
@@ -10786,18 +10822,18 @@ module load_checker (
         3'b000:
             signal_cases_47 <= signal_select_189;
         default:
-            signal_cases_47 <= signal_reg_28;
+            signal_cases_47 <= other$phase_hi;
         endcase
     end
-    assign signal_mux_450 = last_word ? signal_cases_47 : signal_reg_28;
-    assign signal_mux_451 = read_done ? signal_mux_450 : signal_reg_28;
-    assign signal_mux_452 = signal_eq_172 ? signal_reg_28 : signal_mux_451;
-    assign signal_mux_453 = signal_eq_173 ? signal_reg_28 : signal_mux_452;
-    assign signal_mux_454 = signal_eq_174 ? signal_const_218 : signal_reg_28;
-    assign signal_mux_455 = read_done ? signal_mux_454 : signal_reg_28;
-    assign signal_mux_456 = signal_not_174 ? signal_const_59 : signal_reg_28;
-    assign signal_mux_457 = signal_eq_177 ? signal_const_218 : signal_reg_28;
-    assign signal_mux_458 = is_jump ? signal_mux_457 : signal_reg_28;
+    assign signal_mux_450 = last_word ? signal_cases_47 : other$phase_hi;
+    assign signal_mux_451 = read_done ? signal_mux_450 : other$phase_hi;
+    assign signal_mux_452 = signal_eq_173 ? other$phase_hi : signal_mux_451;
+    assign signal_mux_453 = signal_eq_174 ? other$phase_hi : signal_mux_452;
+    assign signal_mux_454 = signal_eq_175 ? signal_const_219 : other$phase_hi;
+    assign signal_mux_455 = read_done ? signal_mux_454 : other$phase_hi;
+    assign signal_mux_456 = signal_not_174 ? signal_const_60 : other$phase_hi;
+    assign signal_mux_457 = signal_eq_178 ? signal_const_219 : other$phase_hi;
+    assign signal_mux_458 = is_jump ? signal_mux_457 : other$phase_hi;
     always @* begin
         case (sm)
         4'b0100:
@@ -10811,19 +10847,19 @@ module load_checker (
         4'b1001:
             signal_cases_48 <= signal_mux_446;
         default:
-            signal_cases_48 <= signal_reg_28;
+            signal_cases_48 <= other$phase_hi;
         endcase
     end
     assign signal_wire_45 = signal_cases_48;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
-            signal_reg_28 <= signal_const_59;
+            other$phase_hi <= signal_const_60;
         else
-            signal_reg_28 <= signal_wire_45;
+            other$phase_hi <= signal_wire_45;
     end
-    assign signal_mux_459 = stored ? signal_reg_29 : signal_const_59;
-    assign signal_mux_460 = falls_to_next ? signal_reg_28 : signal_mux_459;
-    assign signal_mux_461 = signal_wire_66 ? signal_const_218 : signal_reg_29;
+    assign signal_mux_459 = stored ? row$phase_hi : signal_const_60;
+    assign signal_mux_460 = falls_to_next ? other$phase_hi : signal_mux_459;
+    assign signal_mux_461 = signal_wire_66 ? signal_const_219 : row$phase_hi;
     always @* begin
         case (sm)
         4'b0000:
@@ -10831,19 +10867,19 @@ module load_checker (
         4'b1011:
             signal_cases_49 <= signal_mux_460;
         4'b1100:
-            signal_cases_49 <= signal_reg_28;
+            signal_cases_49 <= other$phase_hi;
         default:
-            signal_cases_49 <= signal_reg_29;
+            signal_cases_49 <= row$phase_hi;
         endcase
     end
     assign signal_wire_46 = signal_cases_49;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
-            signal_reg_29 <= signal_const_59;
+            row$phase_hi <= signal_const_60;
         else
-            signal_reg_29 <= signal_wire_46;
+            row$phase_hi <= signal_wire_46;
     end
-    assign signal_select_190 = signal_reg_29[23:23];
+    assign signal_select_190 = row$phase_hi[23:23];
     assign signal_not_169 = ~ signal_select_190;
     assign signal_cat_203 = { signal_not_169,
                               signal_select_126 };
@@ -10853,45 +10889,45 @@ module load_checker (
     assign signal_or_92 = signal_or_91 | signal_lt_53;
     assign signal_or_93 = signal_or_92 | signal_lt_52;
     assign signal_not_170 = ~ signal_or_93;
-    assign signal_and_207 = signal_not_170 & signal_not_126;
-    assign signal_not_171 = ~ signal_and_207;
+    assign signal_and_208 = signal_not_170 & signal_not_126;
+    assign signal_not_171 = ~ signal_and_208;
     assign signal_or_94 = signal_not_171 | signal_not_121;
     assign signal_or_95 = signal_or_94 | signal_not_120;
-    assign signal_and_208 = signal_or_95 & signal_or_61;
-    assign signal_and_209 = signal_and_208 & signal_or_48;
-    assign signal_and_210 = signal_and_209 & signal_or_43;
-    assign signal_and_211 = signal_and_210 & signal_or_40;
-    assign signal_and_212 = signal_and_211 & signal_or_39;
-    assign signal_and_213 = signal_and_212 & signal_or_36;
-    assign signal_and_214 = signal_and_213 & signal_or_32;
-    assign signal_and_215 = signal_and_214 & signal_or_29;
-    assign next_fails = ~ signal_and_215;
-    assign signal_mux_462 = next_fails ? signal_const_53 : signal_mux_98;
-    assign signal_mux_463 = stored ? signal_const_448 : signal_const_415;
-    assign signal_mux_464 = signal_eq_175 ? signal_const_415 : signal_const_463;
+    assign signal_and_209 = signal_or_95 & signal_or_61;
+    assign signal_and_210 = signal_and_209 & signal_or_48;
+    assign signal_and_211 = signal_and_210 & signal_or_43;
+    assign signal_and_212 = signal_and_211 & signal_or_40;
+    assign signal_and_213 = signal_and_212 & signal_or_39;
+    assign signal_and_214 = signal_and_213 & signal_or_36;
+    assign signal_and_215 = signal_and_214 & signal_or_32;
+    assign signal_and_216 = signal_and_215 & signal_or_29;
+    assign next_fails = ~ signal_and_216;
+    assign signal_mux_462 = next_fails ? signal_const_54 : signal_mux_98;
+    assign signal_mux_463 = stored ? signal_const_452 : signal_const_419;
+    assign signal_mux_464 = signal_eq_176 ? signal_const_419 : signal_const_467;
     assign signal_mux_465 = falls_to_next ? signal_mux_463 : signal_mux_464;
     always @* begin
         case (purpose)
         2'b00:
-            signal_cases_50 <= signal_const_421;
+            signal_cases_50 <= signal_const_425;
         2'b01:
-            signal_cases_50 <= signal_const_415;
+            signal_cases_50 <= signal_const_419;
         2'b10:
-            signal_cases_50 <= signal_const_415;
+            signal_cases_50 <= signal_const_419;
         2'b11:
-            signal_cases_50 <= signal_const_215;
+            signal_cases_50 <= signal_const_216;
         default:
             signal_cases_50 <= sm;
         endcase
     end
-    assign signal_mux_466 = signal_eq_173 ? signal_cases_50 : sm;
-    assign signal_mux_467 = signal_eq_174 ? signal_const_93 : sm;
+    assign signal_mux_466 = signal_eq_174 ? signal_cases_50 : sm;
+    assign signal_mux_467 = signal_eq_175 ? signal_const_94 : sm;
     assign signal_mux_468 = read_done ? signal_mux_467 : sm;
-    assign signal_const_415 = 4'b1010;
+    assign signal_const_419 = 4'b1010;
     assign signal_mux_469 = stored ? signal_const_35 : purpose;
     assign signal_mux_470 = falls_to_next ? purpose : signal_mux_469;
-    assign signal_mux_471 = stored ? signal_const_110 : purpose;
-    assign signal_mux_472 = falls_to_next ? signal_mux_471 : signal_const_89;
+    assign signal_mux_471 = stored ? signal_const_111 : purpose;
+    assign signal_mux_472 = falls_to_next ? signal_mux_471 : signal_const_90;
     assign signal_mux_473 = is_jump ? signal_const_37 : purpose;
     always @* begin
         case (sm)
@@ -10915,56 +10951,56 @@ module load_checker (
     always @* begin
         case (purpose)
         2'b00:
-            signal_cases_52 <= signal_const_421;
+            signal_cases_52 <= signal_const_425;
         2'b01:
-            signal_cases_52 <= signal_const_415;
+            signal_cases_52 <= signal_const_419;
         2'b10:
-            signal_cases_52 <= signal_const_415;
+            signal_cases_52 <= signal_const_419;
         2'b11:
-            signal_cases_52 <= signal_const_215;
+            signal_cases_52 <= signal_const_216;
         default:
             signal_cases_52 <= sm;
         endcase
     end
-    assign signal_const_448 = 4'b0110;
-    assign signal_mux_474 = signal_eq_176 ? signal_const_448 : sm;
+    assign signal_const_452 = 4'b0110;
+    assign signal_mux_474 = signal_eq_177 ? signal_const_452 : sm;
     assign signal_mux_475 = read_done ? signal_mux_474 : sm;
     assign signal_mux_476 = signal_not_174 ? signal_cases_52 : signal_mux_475;
-    assign signal_const_421 = 4'b1000;
-    assign signal_const_463 = 4'b0101;
-    assign signal_mux_477 = signal_eq_177 ? signal_const_421 : signal_const_463;
-    assign signal_mux_478 = is_jump ? signal_mux_477 : signal_const_203;
+    assign signal_const_425 = 4'b1000;
+    assign signal_const_467 = 4'b0101;
+    assign signal_mux_477 = signal_eq_178 ? signal_const_425 : signal_const_467;
+    assign signal_mux_478 = is_jump ? signal_mux_477 : signal_const_204;
     assign signal_lt_87 = pc < entry_tag;
     assign signal_not_172 = ~ signal_lt_87;
-    assign signal_mux_479 = signal_not_172 ? signal_const_53 : signal_const_462;
+    assign signal_mux_479 = signal_not_172 ? signal_const_54 : signal_const_466;
     assign signal_mux_480 = read_done ? signal_mux_479 : sm;
-    assign signal_const_462 = 4'b0100;
-    assign signal_mux_481 = signal_lt_90 ? signal_mux_480 : signal_const_462;
-    assign signal_mux_482 = signal_eq_178 ? signal_const_193 : sm;
-    assign signal_mux_483 = signal_eq_179 ? signal_const_194 : sm;
-    assign signal_add_36 = \wait  + signal_const_89;
+    assign signal_const_466 = 4'b0100;
+    assign signal_mux_481 = signal_lt_90 ? signal_mux_480 : signal_const_466;
+    assign signal_mux_482 = signal_eq_179 ? signal_const_194 : sm;
+    assign signal_mux_483 = signal_eq_180 ? signal_const_195 : sm;
+    assign signal_add_36 = \wait  + signal_const_90;
     assign signal_not_173 = ~ read_done;
-    assign signal_mux_484 = signal_eq_172 ? gnd : vdd;
-    assign signal_mux_485 = signal_eq_173 ? gnd : signal_mux_484;
+    assign signal_mux_484 = signal_eq_173 ? gnd : vdd;
+    assign signal_mux_485 = signal_eq_174 ? gnd : signal_mux_484;
     assign signal_mux_486 = signal_not_174 ? gnd : vdd;
     assign signal_select_191 = signal_wire_61[7:0];
-    assign signal_mux_487 = signal_eq_181 ? k : signal_const_37;
-    assign signal_mux_488 = signal_eq_181 ? k : signal_const_37;
-    assign signal_mux_489 = signal_eq_181 ? k : signal_const_37;
+    assign signal_mux_487 = signal_eq_182 ? k : signal_const_37;
+    assign signal_mux_488 = signal_eq_182 ? k : signal_const_37;
+    assign signal_mux_489 = signal_eq_182 ? k : signal_const_37;
     assign signal_mux_490 = stored ? signal_const_37 : signal_mux_489;
     assign signal_mux_491 = falls_to_next ? signal_mux_488 : signal_mux_490;
     assign signal_mux_492 = stored ? signal_const_37 : k;
     assign signal_mux_493 = falls_to_next ? signal_mux_492 : k;
-    assign signal_add_37 = k + signal_const_89;
+    assign signal_add_37 = k + signal_const_90;
     assign signal_mux_494 = last_word ? signal_const_37 : signal_add_37;
     assign signal_mux_495 = read_done ? signal_mux_494 : k;
-    assign signal_mux_496 = signal_eq_172 ? k : signal_mux_495;
-    assign signal_add_38 = field + signal_const_91;
-    assign signal_add_39 = field + signal_const_91;
-    assign signal_eq_170 = k == signal_const_110;
-    assign signal_eq_171 = k == signal_const_89;
-    assign wide = field < signal_const_98;
-    assign last_word = wide ? signal_eq_170 : signal_eq_171;
+    assign signal_mux_496 = signal_eq_173 ? k : signal_mux_495;
+    assign signal_add_38 = field + signal_const_92;
+    assign signal_add_39 = field + signal_const_92;
+    assign signal_eq_171 = k == signal_const_111;
+    assign signal_eq_172 = k == signal_const_90;
+    assign wide = field < signal_const_99;
+    assign last_word = wide ? signal_eq_171 : signal_eq_172;
     assign signal_mux_497 = last_word ? signal_add_39 : field;
     assign signal_mux_498 = read_done ? signal_mux_497 : field;
     assign held$y = signal_select_193[6:0];
@@ -10986,7 +11022,7 @@ module load_checker (
     assign signal_wire_48 = signal_cases_53;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
-            entry <= signal_const_411;
+            entry <= signal_const_415;
         else
             entry <= signal_wire_48;
     end
@@ -11006,10 +11042,10 @@ module load_checker (
             index <= held$y;
         endcase
     end
-    assign signal_eq_172 = index == signal_const_34;
-    assign signal_mux_500 = signal_eq_172 ? signal_add_38 : signal_mux_498;
-    assign signal_mux_501 = signal_eq_173 ? field : signal_mux_500;
-    assign signal_mux_502 = signal_eq_174 ? signal_const_158 : field;
+    assign signal_eq_173 = index == signal_const_34;
+    assign signal_mux_500 = signal_eq_173 ? signal_add_38 : signal_mux_498;
+    assign signal_mux_501 = signal_eq_174 ? field : signal_mux_500;
+    assign signal_mux_502 = signal_eq_175 ? signal_const_159 : field;
     assign signal_mux_503 = read_done ? signal_mux_502 : field;
     always @* begin
         case (sm)
@@ -11024,29 +11060,29 @@ module load_checker (
     assign signal_wire_49 = signal_cases_54;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
-            field <= signal_const_158;
+            field <= signal_const_159;
         else
             field <= signal_wire_49;
     end
-    assign signal_eq_173 = field == signal_const_99;
-    assign signal_mux_504 = signal_eq_173 ? k : signal_mux_496;
-    assign signal_add_40 = k + signal_const_89;
-    assign signal_eq_174 = k == signal_const_110;
-    assign signal_mux_505 = signal_eq_174 ? signal_const_37 : signal_add_40;
+    assign signal_eq_174 = field == signal_const_100;
+    assign signal_mux_504 = signal_eq_174 ? k : signal_mux_496;
+    assign signal_add_40 = k + signal_const_90;
+    assign signal_eq_175 = k == signal_const_111;
+    assign signal_mux_505 = signal_eq_175 ? signal_const_37 : signal_add_40;
     assign signal_mux_506 = read_done ? signal_mux_505 : k;
-    assign signal_mux_507 = signal_eq_176 ? signal_const_37 : k;
+    assign signal_mux_507 = signal_eq_177 ? signal_const_37 : k;
     assign signal_mux_508 = read_done ? signal_mux_507 : k;
-    assign signal_mux_509 = signal_eq_175 ? lo : signal_const_42;
+    assign signal_mux_509 = signal_eq_176 ? lo : signal_const_42;
     assign signal_mux_510 = falls_to_next ? lo : signal_mux_509;
-    assign signal_const_452 = 8'b00000001;
-    assign signal_eq_175 = following == signal_const_51;
-    assign signal_mux_511 = signal_eq_175 ? hi : count;
+    assign signal_const_456 = 8'b00000001;
+    assign signal_eq_176 = following == signal_const_51;
+    assign signal_mux_511 = signal_eq_176 ? hi : count;
     assign signal_mux_512 = falls_to_next ? hi : signal_mux_511;
     assign signal_mux_513 = signal_lt_88 ? hi : mid;
-    assign signal_mux_514 = signal_eq_176 ? hi : signal_mux_513;
+    assign signal_mux_514 = signal_eq_177 ? hi : signal_mux_513;
     assign signal_mux_515 = read_done ? signal_mux_514 : hi;
     assign signal_mux_516 = signal_not_174 ? hi : signal_mux_515;
-    assign signal_mux_517 = signal_eq_177 ? hi : count;
+    assign signal_mux_517 = signal_eq_178 ? hi : count;
     assign signal_mux_518 = is_jump ? signal_mux_517 : hi;
     always @* begin
         case (sm)
@@ -11076,7 +11112,7 @@ module load_checker (
     assign signal_cat_206 = { signal_const_32,
                               signal_select_194 };
     assign mid = signal_cat_206[7:0];
-    assign signal_add_42 = mid + signal_const_452;
+    assign signal_add_42 = mid + signal_const_456;
     assign signal_lt_88 = entry_tag < key;
     assign signal_mux_519 = signal_lt_88 ? signal_add_42 : lo;
     assign signal_mux_520 = falls_to_next ? key : following;
@@ -11098,15 +11134,15 @@ module load_checker (
         else
             key <= signal_wire_51;
     end
-    assign signal_eq_176 = entry_tag == key;
-    assign signal_mux_522 = signal_eq_176 ? lo : signal_mux_519;
+    assign signal_eq_177 = entry_tag == key;
+    assign signal_mux_522 = signal_eq_177 ? lo : signal_mux_519;
     assign signal_mux_523 = read_done ? signal_mux_522 : lo;
     assign signal_mux_524 = signal_not_174 ? lo : signal_mux_523;
     assign jump_target = word[8:0];
-    assign signal_eq_177 = jump_target == signal_const_51;
-    assign signal_mux_525 = signal_eq_177 ? lo : signal_const_42;
+    assign signal_eq_178 = jump_target == signal_const_51;
+    assign signal_mux_525 = signal_eq_178 ? lo : signal_const_42;
     assign signal_wire_52 = program_word;
-    assign signal_mux_526 = signal_eq_178 ? signal_wire_52 : word;
+    assign signal_mux_526 = signal_eq_179 ? signal_wire_52 : word;
     always @* begin
         case (sm)
         4'b0010:
@@ -11118,12 +11154,12 @@ module load_checker (
     assign signal_wire_53 = signal_cases_57;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
-            word <= signal_const_60;
+            word <= signal_const_61;
         else
             word <= signal_wire_53;
     end
     assign signal_select_195 = word[15:13];
-    assign is_jump = signal_select_195 == signal_const_158;
+    assign is_jump = signal_select_195 == signal_const_159;
     assign signal_mux_527 = is_jump ? signal_mux_525 : lo;
     always @* begin
         case (sm)
@@ -11147,12 +11183,12 @@ module load_checker (
     assign signal_lt_89 = lo < hi;
     assign signal_not_174 = ~ signal_lt_89;
     assign signal_mux_528 = signal_not_174 ? k : signal_mux_508;
-    assign signal_add_43 = k + signal_const_89;
-    assign signal_eq_178 = k == signal_const_89;
-    assign signal_mux_529 = signal_eq_178 ? signal_const_37 : signal_add_43;
-    assign signal_add_44 = k + signal_const_89;
-    assign signal_eq_179 = k == signal_const_89;
-    assign signal_mux_530 = signal_eq_179 ? signal_const_37 : signal_add_44;
+    assign signal_add_43 = k + signal_const_90;
+    assign signal_eq_179 = k == signal_const_90;
+    assign signal_mux_529 = signal_eq_179 ? signal_const_37 : signal_add_43;
+    assign signal_add_44 = k + signal_const_90;
+    assign signal_eq_180 = k == signal_const_90;
+    assign signal_mux_530 = signal_eq_180 ? signal_const_37 : signal_add_44;
     assign signal_mux_531 = read_done ? signal_mux_530 : k;
     assign signal_mux_532 = signal_wire_66 ? signal_const_37 : k;
     always @* begin
@@ -11186,8 +11222,8 @@ module load_checker (
         else
             k <= signal_wire_55;
     end
-    assign signal_eq_180 = k == signal_const_37;
-    assign signal_mux_533 = signal_eq_180 ? signal_select_191 : count;
+    assign signal_eq_181 = k == signal_const_37;
+    assign signal_mux_533 = signal_eq_181 ? signal_select_191 : count;
     assign signal_mux_534 = read_done ? signal_mux_533 : count;
     always @* begin
         case (sm)
@@ -11209,27 +11245,27 @@ module load_checker (
     assign signal_add_45 = ptr + signal_cat_207;
     assign signal_mux_535 = stored ? ptr : signal_add_45;
     assign signal_wire_57 = config$wrap_bottom;
-    assign signal_const_473 = 9'b000000001;
-    assign signal_add_46 = pc + signal_const_473;
+    assign signal_const_477 = 9'b000000001;
+    assign signal_add_46 = pc + signal_const_477;
     assign signal_wire_58 = config$wrap_top;
-    assign signal_mux_536 = signal_eq_181 ? pc : signal_select_196;
-    assign signal_mux_537 = signal_eq_181 ? pc : signal_select_196;
+    assign signal_mux_536 = signal_eq_182 ? pc : signal_select_196;
+    assign signal_mux_537 = signal_eq_182 ? pc : signal_select_196;
     assign signal_select_196 = next_pc[8:0];
-    assign signal_const_476 = 9'b111111111;
-    assign signal_eq_181 = pc == signal_const_476;
-    assign signal_mux_538 = signal_eq_181 ? pc : signal_select_196;
+    assign signal_const_480 = 9'b111111111;
+    assign signal_eq_182 = pc == signal_const_480;
+    assign signal_mux_538 = signal_eq_182 ? pc : signal_select_196;
     assign signal_wire_59 = clear;
     assign signal_wire_60 = clock;
-    assign signal_const_478 = 10'b0000000001;
+    assign signal_const_482 = 10'b0000000001;
     assign signal_cat_208 = { gnd,
                               pc };
-    assign next_pc = signal_cat_208 + signal_const_478;
+    assign next_pc = signal_cat_208 + signal_const_482;
     assign signal_wire_61 = data_word;
     assign entry_tag = signal_wire_61[15:7];
     assign signal_cat_209 = { gnd,
                               entry_tag };
-    assign signal_eq_182 = signal_cat_209 == next_pc;
-    assign signal_mux_539 = read_done ? signal_eq_182 : stored;
+    assign signal_eq_183 = signal_cat_209 == next_pc;
+    assign signal_mux_539 = read_done ? signal_eq_183 : stored;
     assign signal_mux_540 = signal_lt_90 ? signal_mux_539 : gnd;
     always @* begin
         case (sm)
@@ -11268,8 +11304,8 @@ module load_checker (
         else
             pc <= signal_wire_63;
     end
-    assign signal_eq_183 = pc == signal_wire_58;
-    assign following = signal_eq_183 ? signal_wire_57 : signal_add_46;
+    assign signal_eq_184 = pc == signal_wire_58;
+    assign following = signal_eq_184 ? signal_wire_57 : signal_add_46;
     assign gnd = 1'b0;
     assign signal_cat_210 = { gnd,
                               following };
@@ -11315,8 +11351,8 @@ module load_checker (
         endcase
     end
     assign reading = signal_cases_64;
-    assign signal_and_216 = reading & signal_not_173;
-    assign signal_mux_547 = signal_and_216 ? signal_add_36 : signal_const_37;
+    assign signal_and_217 = reading & signal_not_173;
+    assign signal_mux_547 = signal_and_217 ? signal_add_36 : signal_const_37;
     assign signal_wire_65 = signal_mux_547;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
@@ -11324,10 +11360,10 @@ module load_checker (
         else
             \wait  <= signal_wire_65;
     end
-    assign read_done = \wait  == signal_const_110;
+    assign read_done = \wait  == signal_const_111;
     assign signal_mux_548 = read_done ? signal_mux_483 : sm;
     assign signal_wire_66 = check;
-    assign signal_mux_549 = signal_wire_66 ? signal_const_195 : sm;
+    assign signal_mux_549 = signal_wire_66 ? signal_const_196 : sm;
     always @* begin
         case (sm)
         4'b0000:
@@ -11347,7 +11383,7 @@ module load_checker (
         4'b0111:
             signal_cases_65 <= signal_mux_466;
         4'b1000:
-            signal_cases_65 <= signal_const_203;
+            signal_cases_65 <= signal_const_204;
         4'b1001:
             signal_cases_65 <= signal_mux_465;
         4'b1010:
@@ -11362,20 +11398,20 @@ module load_checker (
             signal_cases_65 <= sm;
         endcase
     end
-    assign signal_eq_184 = signal_const_53 == sm;
-    assign signal_not_175 = ~ signal_eq_184;
+    assign signal_eq_185 = signal_const_54 == sm;
+    assign signal_not_175 = ~ signal_eq_185;
     assign signal_wire_67 = abort;
-    assign signal_and_217 = signal_wire_67 & signal_not_175;
-    assign signal_mux_550 = signal_and_217 ? signal_const_53 : signal_cases_65;
+    assign signal_and_218 = signal_wire_67 & signal_not_175;
+    assign signal_mux_550 = signal_and_218 ? signal_const_54 : signal_cases_65;
     assign signal_wire_68 = signal_mux_550;
     always @(posedge signal_wire_60) begin
         if (signal_wire_59)
-            sm <= signal_const_53;
+            sm <= signal_const_54;
         else
             sm <= signal_wire_68;
     end
-    assign signal_eq_185 = signal_const_194 == sm;
-    assign program_read$valid = signal_eq_185;
+    assign signal_eq_186 = signal_const_195 == sm;
+    assign program_read$valid = signal_eq_186;
     assign program_read$value = pc;
     assign data_read$valid = reading;
     assign data_read$value = data_addr;

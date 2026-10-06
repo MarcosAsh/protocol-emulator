@@ -29,9 +29,11 @@ let expected = function
 ;;
 
 (* The checker over [words] and [certificate], the program memory answering a cycle after
-   an address and the data memory two, the latest either engine's turn gives. *)
+   an address and the data memory two, the latest either engine's turn gives. With
+   [rewrite_at], the host writes a different setup that many cycles into the walk. *)
 let run
   ?random_initial_state
+  ?rewrite_at
   ~config
   ?loaded
   ?(single_edge = false)
@@ -70,6 +72,12 @@ let run
          inputs.data_word <--. word data (fst !data_at);
          program_at := Bits.to_unsigned_int !(outputs.program_read.value);
          data_at := snd !data_at, Bits.to_unsigned_int !(outputs.data_read.value);
+         if Option.equal Int.equal rewrite_at (Some !cycles)
+         then (
+           inputs.setup.base <--. 0x155;
+           inputs.setup.loaded.valid := Bits.of_bool (Option.is_none loaded);
+           inputs.setup.loaded.value <--. 0xbeef;
+           inputs.setup.single_edge := Bits.of_bool (not single_edge));
          cycle ();
          incr cycles;
          if !cycles > 200_000 then raise_s [%message "the checker never finished"]
@@ -248,4 +256,50 @@ let%expect_test "the checker agrees with the model on corrupted certificates" =
                 ~model:(show model)]));
   print_s [%message (!trials : int) (!refused : int)];
   [%expect {| ((!trials 200) (!refused 126)) |}]
+;;
+
+(* The setup is the one the host wrote before the check: writing another mid-walk, from
+   the first cycle to the last, leaves every verdict as it was. *)
+let%expect_test "a setup written during a walk does not reach it" =
+  let cases =
+    List.filter Firmware_inventory.all ~f:(fun c ->
+      List.mem
+        [ "uart_tx"; "i2c_master"; "usb_device"; "bench/swd" ]
+        c.name
+        ~equal:String.equal)
+  in
+  List.iter cases ~f:(fun case ->
+    let config, words, certificate = certify case in
+    let run ?rewrite_at () =
+      run
+        ?rewrite_at
+        ~config
+        ?loaded:case.period
+        ~single_edge:case.single_capture_edge
+        ~words
+        ~certificate
+        ()
+    in
+    let verdict, cycles = run () in
+    List.iter
+      [ 1; 2; 3; cycles / 2; cycles - 2 ]
+      ~f:(fun rewrite_at ->
+        let rewritten, _ = run ~rewrite_at () in
+        if not ([%equal: [ `Accepted | `Rejected of int * int ]] verdict rewritten)
+        then
+          raise_s
+            [%message
+              "a setup written mid-walk changed the verdict"
+                case.name
+                (rewrite_at : int)
+                ~before:(show verdict)
+                ~after:(show rewritten)]);
+    printf "%s: %s\n" case.name (show verdict));
+  [%expect
+    {|
+    uart_tx: accepted
+    i2c_master: accepted
+    usb_device: accepted
+    bench/swd: accepted
+    |}]
 ;;

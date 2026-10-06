@@ -17,7 +17,8 @@ val out_of_order : int
 val left_over : int
 
 (** What the host sets before a check: where the certificate starts, the period every
-    run-time load of [p] is assumed to carry, and the single-edge assumption. *)
+    run-time load of [p] is assumed to carry, and the single-edge assumption. Taken as the
+    check begins; a write during a walk counts from the next check. *)
 module Setup : sig
   type 'a t =
     { base : 'a
