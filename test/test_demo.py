@@ -224,7 +224,8 @@ async def act3(dut, queue, logs):
         await wire.send(data_packet(0x4B, []))
         assert await wire.listen() == [0xD2]
 
-    await until(lambda: starts)
+    # both certificates and both programs go over SPI first, some 1,500 words
+    await until(lambda: starts, cycles=400_000)
     await wire.drive(SE0, 150)
     # idle, which the reset rereads until the reload is done
     dut.uio_in.value = 2
