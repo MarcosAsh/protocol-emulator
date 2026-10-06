@@ -9,7 +9,8 @@
 open! Core
 open! Hardcaml
 
-(** Cycles from presenting a data address to its word, enough for either engine's turn. *)
+(** Cycles from the walk choosing a data address to taking its word: one for [data_read]'s
+    register, then two for either engine's turn. *)
 val data_wait : int
 
 val aborted : int
@@ -47,7 +48,7 @@ module I : sig
     ; config : 'a Engine.Config.t
     ; setup : 'a Setup.t
     ; program_word : 'a (** The word at [program_read], a cycle later. *)
-    ; data_word : 'a (** The word at [data_read], [data_wait] cycles later. *)
+    ; data_word : 'a (** The word at [data_read] once it has held two cycles. *)
     }
   [@@deriving hardcaml]
 end

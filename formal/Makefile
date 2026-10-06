@@ -194,7 +194,7 @@ isolation: engines_sram.v
 # (SHORT_WALK, below) and at pc 0, which has to accept with pc 1 unchecked; the early_read
 # tooth takes a data word a cycle before either engine's turn delivers it.
 EARLY_WALK = /^module load_checker /,/^endmodule/s/= 9'b111111111;/= 9'b000000000;/
-EARLY_READ = /^module load_checker /,/^endmodule/s/^\(\s*assign read_done = .wait  == \)signal_const[_0-9]*;/\12'b01;/
+EARLY_READ = /^module load_checker /,/^endmodule/s/^\(\s*assign read_done = .wait  == \)signal_const[_0-9]*;/\12'b10;/
 certify: engines_gated.v
 	$(MAKE) certify_proof
 

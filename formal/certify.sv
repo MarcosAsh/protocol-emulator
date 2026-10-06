@@ -48,6 +48,8 @@ module certify (input clk);
   wire [7:0] lo, hi, ptr, mid;
   wire [8:0] key, entry_tag;
   wire stored, read_done;
+  wire [15:0] word;
+  wire [8:0] walk_addr;
   wire [23:0] row_phase_lo, other_phase_lo;
   wire [23:0] row_phase_hi, other_phase_hi;
   wire [23:0] row_slope, other_slope;
@@ -103,7 +105,8 @@ module certify (input clk);
     .target_fails(target_fails), .k(k), .field(field), .sel(sel), .count(count),
     .wide_count(wide_count), .entry(entry), .acc(acc), .walk_base(walk_base),
     .reading(reading), .read_wait(read_wait), .lo(lo), .hi(hi), .ptr(ptr), .mid(mid),
-    .key(key), .entry_tag(entry_tag), .stored(stored), .read_done(read_done),
+    .key(key), .entry_tag(entry_tag), .stored(stored), .read_done(read_done), .word(word),
+    .walk_addr(walk_addr),
     .falls_to_next(falls_to_next),
     .row_phase_lo(row_phase_lo), .row_phase_hi(row_phase_hi), .row_slope(row_slope),
     .row_offset_lo(row_offset_lo), .row_offset_hi(row_offset_hi),
@@ -171,7 +174,8 @@ module certify (input clk);
     : narrow_at + 9'd2 * (cur_index - 7'd1);
 
   localparam IDLE = 0, HEADER = 1, WORD = 2, HEAD = 3, SEARCH = 5, ENTRY = 6, FIELD = 7,
-    CHECK_NEXT = 10, ADVANCE = 11, RELOAD = 12, FINISH = 13;
+    CHECK_TARGET = 8, CHECK_NEXT = 10, ADVANCE = 11, RELOAD = 12, FINISH = 13,
+    HOLD_TARGET = 14, HOLD_NEXT = 15;
   localparam STORING = 2, RELOADING = 3;
   // past g's check: advancing, reloading the row for g + 1, or finishing
   wire after_check = sm == ADVANCE || sm == RELOAD || sm == FINISH
@@ -231,7 +235,28 @@ module certify (input clk);
       end
     end
 
+  // A check decides on conjuncts the checker held from the cycle before, its hold: the row,
+  // the successor's row and the word it held them for are the ones it decides on. The
+  // data address is the walk's from the cycle before too.
+  reg [3:0] sm_before;
+  reg [265:0] row_before, other_before;
+  reg [15:0] word_before;
+  reg [8:0] walk_addr_before;
+  reg warm = 0;
+  always @(posedge clk) begin
+    warm <= !clear;
+    sm_before <= sm;
+    row_before <= row;
+    other_before <= other;
+    word_before <= word;
+    walk_addr_before <= walk_addr;
+  end
+
   always @* if (!clear) begin
+    if (sm == CHECK_TARGET || sm == CHECK_NEXT)
+      assert (sm_before == (sm == CHECK_TARGET ? HOLD_TARGET : HOLD_NEXT)
+              && row == row_before && other == other_before && word == word_before);
+    if (warm) assert (data_read_value == walk_addr_before);
     // every row the walk holds has no slope and the full offset, as phase_table.sby's
     // rows do
     if (busy) assert ({row_slope, row_offset_lo, row_offset_hi} == FULL_SLOPE_OFFSET);
@@ -250,14 +275,14 @@ module certify (input clk);
     if (sm == HEADER)
       assert (ptr == 0 && pc == 0 && !consumed && !hit && !read_it && !held_t);
     if (sm == SEARCH) assert (lo <= hi && hi <= count && k == 0 && reading == (lo < hi));
-    if (sm == SEARCH && lo < hi) assert (data_read_value == entries_at + 9'd3 * mid);
-    if (sm == HEAD) assert (k == 0);
+    if (sm == SEARCH && lo < hi) assert (walk_addr == entries_at + 9'd3 * mid);
+    // the word count is 0 but while words are read
+    if (busy && !(sm == HEADER || sm == WORD || sm == ENTRY || sm == FIELD)) assert (k == 0);
     if (sm == HEAD && ptr < count)
-      assert (reading && data_read_value == entries_at + 9'd3 * ptr);
-    if ((sm == SEARCH || sm == HEAD) && reading && read_wait != 0)
-      assert (data_at == data_read_value);
-    if ((sm == SEARCH || sm == HEAD) && reading && read_wait == 2'd2)
-      assert (data_before == data_read_value);
+      assert (reading && walk_addr == entries_at + 9'd3 * ptr);
+    if ((sm == SEARCH || sm == HEAD) && reading && read_wait != 0) assert (data_read_value == walk_addr);
+    if ((sm == SEARCH || sm == HEAD) && reading && read_wait >= 2'd2) assert (data_at == walk_addr);
+    if ((sm == SEARCH || sm == HEAD) && reading && read_wait == 2'd3) assert (data_before == walk_addr);
     // past the head: stored says the entry at ptr is the next pc's, which is past this one
     if (busy && !(sm == HEADER || sm == WORD || sm == HEAD || sm == FINISH)) begin
       assert (stored == (ptr < count && {1'b0, tag_ptr} == {1'b0, pc} + 10'd1));
@@ -269,11 +294,13 @@ module certify (input clk);
       assert (!falls_to_next);
     if ((sm == ENTRY || sm == FIELD) && purpose == STORING)
       assert (falls_to_next && stored);
-    if (sm == CHECK_NEXT && falls_to_next && stored) assert (purpose == STORING);
+    if ((sm == HOLD_NEXT || sm == CHECK_NEXT) && falls_to_next && stored)
+      assert (purpose == STORING);
     // a stored entry's decode, and the row it leaves
     if ((sm == ENTRY || sm == FIELD) && (purpose == STORING || purpose == RELOADING))
       assert (sel == ptr && stored);
-    if (sm == RELOAD || (sm == CHECK_NEXT || sm == ADVANCE) && falls_to_next && stored)
+    if (sm == RELOAD || (sm == HOLD_NEXT || sm == CHECK_NEXT || sm == ADVANCE) && falls_to_next
+        && stored)
       assert (entry == data_entry(ptr) && other == spec_row(entry, 5));
     // entry gi is consumed at the pc before its own, and the walk holds its row there
     if (busy && sm != HEADER) assert (consumed == (ptr > gi));
@@ -303,15 +330,14 @@ module certify (input clk);
     // an entry's words as they arrive, then its row field by field, each word read once
     // its address has held
     if (sm == ENTRY)
-      assert (reading && k <= 2'd2 && data_read_value == entries_at + 9'd3 * sel + k);
+      assert (reading && k <= 2'd2 && walk_addr == entries_at + 9'd3 * sel + k);
     if (sm == FIELD) assert (k <= (cur_wide ? 2'd2 : 2'd1));
     if (sm == FIELD && (field == 5 || cur_index == 0)) assert (k == 0);
     if (sm == FIELD && field < 5 && cur_index != 0)
-      assert (reading && data_read_value == cur_at + k);
-    if ((sm == ENTRY || sm == FIELD) && reading && read_wait != 0)
-      assert (data_at == data_read_value);
-    if ((sm == ENTRY || sm == FIELD) && reading && read_wait == 2'd2)
-      assert (data_before == data_read_value);
+      assert (reading && walk_addr == cur_at + k);
+    if ((sm == ENTRY || sm == FIELD) && reading && read_wait != 0) assert (data_read_value == walk_addr);
+    if ((sm == ENTRY || sm == FIELD) && reading && read_wait >= 2'd2) assert (data_at == walk_addr);
+    if ((sm == ENTRY || sm == FIELD) && reading && read_wait == 2'd3) assert (data_before == walk_addr);
     if (sm == FIELD && k == 2'd1) assert (acc[15:0] == data[cur_at]);
     if (sm == FIELD && k == 2'd2) assert (acc[31:0] == {data[cur_at], data[cur_at + 9'd1]});
     if (sm == ENTRY && k == 2'd1) assert (entry[15:0] == spec_entry[47:32]);

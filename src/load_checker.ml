@@ -5,7 +5,7 @@ module K = Kernel.Make (Signal)
 module Decoder = Decoder.Make (Signal)
 module Opcode = Isa.Opcode.Make_comb (Signal)
 
-let data_wait = 3
+let data_wait = 4
 let aborted = 29
 let out_of_order = 30
 let left_over = 31
@@ -73,6 +73,8 @@ module State = struct
     | Advance
     | Reload
     | Finish
+    | Hold_target
+    | Hold_next
   [@@deriving sexp_of, compare ~localize, enumerate]
 end
 
@@ -171,6 +173,9 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
       ~word:word.value
       ~row:row_value
   in
+  (* held a cycle, so a check decides on the row it settled on the cycle before and the
+     kernel's arithmetic ends at a flop *)
+  let%hw.Kernel.Conjuncts.Of_signal held = Kernel.Conjuncts.map conjuncts ~f:(reg spec) in
   (* the first conjunct that fails, by its index in [Conjuncts.to_list] *)
   let first_failing holds =
     priority_select_with_default
@@ -184,14 +189,14 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
     List.mapi (Kernel.Conjuncts.to_list c) ~f:(fun n h -> n, h)
   in
   let holding = Kernel.Holds.map ~f:(fun _ -> vdd) in
-  let in_time_and_next = indexed { conjuncts with target = holding conjuncts.target } in
+  let in_time_and_next = indexed { held with target = holding held.target } in
   let target_holds =
     indexed
       { in_time = vdd
       ; wide_a = vdd
       ; wide_b = vdd
-      ; next = holding conjuncts.next
-      ; target = conjuncts.target
+      ; next = holding held.next
+      ; target = held.target
       }
   in
   let%hw next_fails = ~:(List.map in_time_and_next ~f:snd |> List.reduce_exn ~f:( &: )) in
@@ -203,7 +208,8 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   (* the certificate's layout from [base]: two header words, the entries, the dictionaries *)
   let address offset = uresize offset ~width:Isa.data_addr_bits in
   let times3 x =
-    uresize x ~width:Isa.data_addr_bits *: of_unsigned_int ~width:2 3 |> address
+    let x = address x in
+    x +: sll x ~by:1
   in
   let%hw entries_at = setup.base +:. 2 in
   let%hw wide_at = entries_at +: times3 count.value in
@@ -272,9 +278,9 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   (* where a row read for [purpose] goes *)
   let after_row =
     purpose.switch
-      [ Target, [ sm.set_next Check_target ]
-      ; Following, [ sm.set_next Check_next ]
-      ; Stored, [ sm.set_next Check_next ]
+      [ Target, [ sm.set_next Hold_target ]
+      ; Following, [ sm.set_next Hold_next ]
+      ; Stored, [ sm.set_next Hold_next ]
       ; Reload, [ sm.set_next Reload ]
       ]
   in
@@ -354,7 +360,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
           ; ( Target
             , [ if_
                   is_jump
-                  (purpose.set_next Target :: start_lookup jump_target ~then_:Check_target)
+                  (purpose.set_next Target :: start_lookup jump_target ~then_:Hold_target)
                   [ sm.set_next Following ]
               ] )
           ; ( Search
@@ -414,6 +420,8 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
                          ])
                   ]
               ] )
+          ; Hold_target, [ sm.set_next Check_target ]
+          ; Hold_next, [ sm.set_next Check_next ]
           ; ( Check_target
             , [ target_fails <-- target_fails_now
               ; target_reason <-- target_reason_now
@@ -428,10 +436,10 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
                       [ Kernel.Row.Of_always.assign
                           other
                           (Kernel.Row.map2 fallen empty ~f:(mux2 falls))
-                      ; sm.set_next Check_next
+                      ; sm.set_next Hold_next
                       ]
                   ]
-                  (purpose.set_next Following :: start_lookup following ~then_:Check_next)
+                  (purpose.set_next Following :: start_lookup following ~then_:Hold_next)
               ] )
           ; ( Check_next
             , [ if_
@@ -472,8 +480,11 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
              ~at:(uresize pc.value ~width:(Isa.pc_bits + 1))
              (of_unsigned_int ~width:reason_bits aborted))
       ]);
+  (* registered, so the walk's address arithmetic ends at a flop and not at the memory *)
+  let%hw read_valid = reg spec reading.value in
+  let%hw read_at = reg spec data_addr.value in
   { O.program_read = { valid = sm.is Word; value = pc.value }
-  ; data_read = { valid = reading.value; value = data_addr.value }
+  ; data_read = { valid = read_valid; value = read_at }
   ; busy = ~:(sm.is Idle)
   ; finished = finished.value
   ; accepted = accepted.value
