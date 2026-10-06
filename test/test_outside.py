@@ -634,15 +634,15 @@ async def test_neopixel(dut):
 
 @cocotb.test()
 async def test_can(dut):
-    """The CAN act already armed, as a second run finds it: its frames on OUT1 decoded by
-    sigrok as the receiving transceiver's R line. The run arms again, and OUT1 stays
-    recessive through it, the first SOF at least 11 recessive bits after the first arm.
-    Nothing ACKs here; on the bench Pico B does."""
+    """The CAN act as demo/outside.sh runs it, armed before the capture: its frames on OUT1
+    decoded by sigrok as the receiving transceiver's R line. The run arms again, and OUT1
+    stays recessive through it, the first SOF at least 11 recessive bits after the first
+    arm. Nothing ACKs here; on the bench Pico B does."""
     await reset(dut)
     line = Analyser({5: bit(dut.uo_out, 2)})
     transfer, pause_ms, log, _ = acted(dut)
     await bridge(demo_can.arm)(transfer)
-    # this capture starts on a recessive line
+    # the capture starts on a recessive line
     await ClockCycles(dut.clk, 2 * demo_can.PERIOD)
     analyser = Analyser({5: bit(dut.uo_out, 2)})
     assert await bridge(demo_can.run)(transfer, pause_ms, log=log)
@@ -661,20 +661,29 @@ async def test_can(dut):
 
 @cocotb.test()
 async def test_can_from_reset(dut):
-    """The CAN act with no arm, as the bench runs it with the transmitter wired from reset:
-    module A's R is dominant until the run gives the period, then idle at least 11 bits
-    before the first SOF, and sigrok reads every frame from a capture begun at reset."""
+    """The CAN act's run with no arm before it, the transmitter wired from reset: module A's
+    R is dominant until the run gives the period, then idle at least 11 bits before the
+    first SOF, and sigrok reads every frame from where R let go. A capture from reset it
+    would not: sigrok 0.5.3's CAN decoder takes a low level for SOF, not a falling edge,
+    so demo/outside.sh arms before it captures."""
     await reset(dut)
-    analyser = Analyser({5: bit(dut.can_rx)})
+    line = Analyser({5: bit(dut.can_rx)})
+    later = []
+
+    async def on_recessive():
+        await RisingEdge(dut.can_rx)
+        later.append(Analyser({5: bit(dut.can_rx)}))
+
+    cocotb.start_soon(on_recessive())
     transfer, pause_ms, log, _ = acted(dut)
     assert await bridge(demo_can.run)(transfer, pause_ms, log=log)
-    edges = analyser.levels(5)
+    edges = line.levels(5)
     assert edges[0][1] == 0, "dominant from reset"
     recessive, first_sof = edges[1][0], edges[2][0]
     bits = (first_sof - recessive) / (CLOCK_PS * demo_can.PERIOD)
     cocotb.log.info("R recessive %.1f bits before the first SOF", bits)
     assert bits >= 11
-    decoded = decode(analyser, "can")
+    decoded = decode(later[0], "can")
     assert can_ids(decoded) == ["%d (0x%x)" % (i, i) for i, _ in demo_can.FRAMES], decoded
     assert decoded.count("can-1: ACK slot: NACK") == len(demo_can.FRAMES), decoded
     assert not any("must be" in line or "arning" in line for line in decoded), decoded

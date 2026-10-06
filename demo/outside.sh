@@ -9,6 +9,7 @@
 set -e
 act=$1
 files=
+arm=
 case $act in
 flash)
     ms=4000
@@ -46,12 +47,14 @@ can)
     ms=2000
     decode="-P can:can_rx=D5:nominal_bitrate=500000 -A can=id:dlc:data:crc-sequence:ack-slot:warnings"
     analyser=A
+    arm="import demo_can, pico_board; demo_can.arm(pico_board.PicoSpi().transfer)"
     ;;
 can_node)
     ms=3000
     decode="-P can:can_rx=D5:nominal_bitrate=500000 -A can=id:dlc:data:crc-sequence:ack-slot:warnings"
     analyser=A
     files=python/demo_can.py
+    arm="import demo_can_node, pico_board; demo_can_node.arm(pico_board.PicoSpi().transfer)"
     ;;
 swd)
     ms=3000
@@ -78,6 +81,9 @@ try:
     os.remove('outside.log')
 except OSError:
     pass"
+# a run arms itself, but sigrok's CAN decoder takes the dominant line a reset chip leaves at
+# the start of a capture for a frame
+[ -z "$arm" ] || mpremote connect "$PICO" exec "$arm"
 ANALYSER=$analyser demo/capture.sh "$act.sr" "$ms" mpremote connect "$PICO" run --no-follow "python/demo_$act.py"
 # the act ends inside the capture, and a second more lets the Pico write its log
 sleep 1
