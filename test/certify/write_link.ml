@@ -91,7 +91,8 @@ let saturate n = Int.min 255 n
 
 let run ~(key : Key.t) ~programs ~configs ~pull_pc ~sample_pc ~push_pc ~sends ~steps =
   let scope = Scope.create ~flatten_design:true () in
-  let sim = Sim.create (Chip.hierarchical ~memory:Flops scope) in
+  (* ungated, as the engines the proof reads are *)
+  let sim = Sim.create (Chip.hierarchical ~gated:false ~memory:Flops scope) in
   let i = Cyclesim.inputs sim in
   let o = Cyclesim.outputs sim in
   let hosts = List.zip_exn i.hosts (List.zip_exn programs configs) in
