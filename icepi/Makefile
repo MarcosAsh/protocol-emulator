@@ -1,4 +1,4 @@
-# The chip on an Icepi Zero (ECP5 LFE5U-25F): make [REV=v1.4] [USB=1] [SEED=1], then
+# The chip on an Icepi Zero (ECP5 LFE5U-25F): make [REV=v1.4] [USB=1] [SEED=4], then
 # make prog to load it or make flash to keep it. USB=0 puts uio[1:0] on the header too.
 # MHZ=40 clocks the chip at 40 MHz for 10BASE-T, with USB=0 unless told, since low speed
 # USB needs 48, and names its bitstream apart. The SRAM macro is its IHP behavioural model,
@@ -10,7 +10,7 @@ ifeq ($(filter 40 48,$(MHZ)),)
 $(error MHZ is 48, or 40 for 10BASE-T, not $(MHZ))
 endif
 USB ?= $(if $(filter 40,$(MHZ)),0,1)
-SEED ?= 1
+SEED ?= 4
 FREQ ?= $(MHZ)
 
 BUILD = build
@@ -30,7 +30,8 @@ $(JSON): $(SOURCES)
 
 $(BUILD)/$(NAME).config: $(JSON) header.lpf $(REV).lpf
 	nextpnr-ecp5 --25k --package CABGA256 --speed 6 --json $< --lpf header.lpf \
-		--lpf $(REV).lpf --freq $(FREQ) --seed $(SEED) --textcfg $@ \
+		--lpf $(REV).lpf --freq $(FREQ) --seed $(SEED) --placer-heap-timingweight 30 \
+		--textcfg $@ \
 		--report $(BUILD)/$(NAME).report.json --log $(BUILD)/$(NAME).log -q
 	grep -h "Max frequency\|TRELLIS_COMB:\|TRELLIS_FF:\|DP16KD:" $(BUILD)/$(NAME).log | tail -5
 
