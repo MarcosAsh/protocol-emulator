@@ -555,7 +555,9 @@ class Pico:
         sys.modules.pop("pico_board", None)
         import pico_board
 
-        self.patch(demo_usb, "time", types.SimpleNamespace(ticks_ms=self.ticks_ms))
+        # the laptop here enumerates from the start, so the detach before attach takes no time
+        self.patch(demo_usb, "time",
+                   types.SimpleNamespace(ticks_ms=self.ticks_ms, sleep_ms=lambda ms: None))
         if hasattr(usb_board, "gc"):
             self.patch(usb_board, "gc", types.SimpleNamespace(collect=self.collect))
         se0_reset = demo_usb.se0_reset

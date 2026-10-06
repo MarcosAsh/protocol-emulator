@@ -170,7 +170,7 @@ def run(path="draw.bin", say=print):
         data = f.read()
     ms = time.ticks_ms
     queue = Reports(data, ms)
-    host, bus_reset = demo_usb.pico_a()
+    host, bus_reset, attach = demo_usb.pico_a()
     demo_usb.start_log(host, demo_usb.words("uart_tx_host_rate"))
     board = usb_board.Board(demo_usb.DESCRIPTORS)
 
@@ -184,7 +184,7 @@ def run(path="draw.bin", say=print):
     check = stopping(bus_reset, board, queue, console_ctrl_c(), ms)
     micropython.kbd_intr(-1)
     try:
-        demo_usb.serve(host, board, queue, check, log, said)
+        demo_usb.serve(host, board, queue, check, log, said, attach)
     except Stopped as stopped:
         ended = ("stopped, button up" if stopped.args[0] else
                  "stopped before the laptop took the last report: if the button is still"
