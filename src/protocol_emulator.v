@@ -12059,15 +12059,13 @@ module engines (
     wire signal_wire_71;
     wire [15:0] signal_wire_72;
     wire signal_wire_73;
-    wire signal_eq;
     wire signal_and_6;
-    wire signal_and_7;
     wire [15:0] signal_wire_74;
     wire [8:0] signal_wire_75;
-    wire signal_eq_1;
-    wire signal_and_8;
+    wire signal_eq;
+    wire signal_and_7;
     wire signal_mux_4;
-    wire signal_eq_2;
+    wire signal_eq_1;
     wire signal_or_6;
     wire [15:0] signal_select_68;
     wire [15:0] signal_mux_5;
@@ -12109,18 +12107,21 @@ module engines (
     wire signal_mux_33;
     wire [4:0] signal_mux_34;
     wire [1:0] signal_mux_35;
+    wire signal_not_3;
+    wire signal_not_4;
+    wire signal_mux_36;
     wire signal_or_7;
     wire signal_or_8;
-    wire signal_const_11;
-    wire signal_mux_36;
+    wire signal_const_10;
+    wire signal_mux_37;
     wire [27:0] signal_or_9;
-    wire [27:0] signal_and_9;
+    wire [27:0] signal_and_8;
     wire [27:0] signal_select_71;
     wire [27:0] signal_wire_82;
-    wire [27:0] signal_not_3;
+    wire [27:0] signal_not_5;
     wire [19:0] signal_wire_83;
     wire [27:0] signal_cat_1;
-    wire [27:0] signal_and_10;
+    wire [27:0] signal_and_9;
     wire [27:0] signal_or_10;
     wire signal_wire_84;
     wire signal_wire_85;
@@ -12130,20 +12131,21 @@ module engines (
     wire signal_wire_89;
     wire [8:0] signal_select_72;
     wire [8:0] signal_wire_90;
-    wire signal_eq_3;
-    wire signal_and_11;
-    wire signal_and_12;
-    wire [8:0] signal_mux_37;
+    wire signal_and_10;
+    wire [8:0] signal_mux_38;
     wire [8:0] signal_select_73;
     wire [8:0] signal_wire_91;
     wire [8:0] signal_select_74;
     wire [8:0] signal_wire_92;
     wire signal_select_75;
     wire signal_wire_93;
-    wire signal_eq_4;
+    wire signal_not_6;
+    wire signal_eq_2;
+    wire signal_and_11;
+    wire signal_and_12;
+    wire lent$0;
     wire signal_and_13;
-    wire signal_and_14;
-    wire [8:0] signal_mux_38;
+    wire [8:0] signal_mux_39;
     wire [15:0] signal_wire_94;
     wire [8:0] signal_wire_95;
     wire [15:0] signal_wire_96;
@@ -12154,28 +12156,31 @@ module engines (
     wire [8:0] signal_wire_98;
     wire signal_select_78;
     wire signal_wire_99;
-    wire signal_eq_5;
+    wire signal_not_7;
+    wire signal_eq_3;
+    wire signal_and_14;
     wire signal_and_15;
+    wire lent$1;
     wire signal_and_16;
     wire [15:0] signal_wire_100;
     wire [8:0] signal_wire_101;
     wire gnd;
     wire vdd;
-    wire signal_eq_6;
+    wire signal_eq_4;
     wire signal_select_79;
     wire signal_wire_102;
     wire signal_select_80;
     wire signal_wire_103;
     wire accepts;
     wire signal_and_17;
-    wire signal_mux_39;
-    wire signal_eq_7;
+    wire signal_mux_40;
+    wire signal_eq_5;
     wire signal_and_18;
     wire signal_wire_104;
     wire signal_wire_105;
     wire signal_or_11;
     wire signal_or_12;
-    wire signal_mux_40;
+    wire signal_mux_41;
     wire signal_wire_106;
     reg certified;
     wire signal_wire_107;
@@ -12222,23 +12227,24 @@ module engines (
     wire chosen;
     reg signal_reg;
     wire checked;
-    wire signal_mux_41;
+    wire signal_mux_42;
     wire signal_wire_141;
     wire signal_wire_142;
     wire signal_or_14;
     wire signal_or_15;
+    wire signal_or_16;
     wire abort;
     wire [37:0] signal_inst_2;
     wire signal_select_83;
     wire checking;
-    wire signal_not_4;
+    wire signal_not_8;
     wire go;
     wire signal_and_20;
     wire signal_wire_143;
     wire signal_wire_144;
-    wire signal_or_16;
     wire signal_or_17;
-    wire signal_mux_42;
+    wire signal_or_18;
+    wire signal_mux_43;
     wire signal_wire_145;
     reg certified_1;
     wire signal_wire_146;
@@ -12456,15 +12462,13 @@ module engines (
     assign signal_wire_71 = hosts$rx_pop_0;
     assign signal_wire_72 = hosts$tx$value_0;
     assign signal_wire_73 = hosts$tx$valid_0;
-    assign signal_eq = checked == signal_const;
-    assign signal_and_6 = checking & signal_eq;
-    assign signal_and_7 = signal_and_6 & signal_wire_99;
+    assign signal_and_6 = lent$0 & signal_wire_99;
     assign signal_wire_74 = hosts$program_write$data_0;
     assign signal_wire_75 = hosts$program_write$addr_0;
-    assign signal_eq_1 = checked == signal_const;
-    assign signal_and_8 = accepts & signal_eq_1;
-    assign signal_mux_4 = signal_and_8 ? vdd : certified_1;
-    assign signal_eq_2 = chosen == signal_const;
+    assign signal_eq = checked == signal_const;
+    assign signal_and_7 = accepts & signal_eq;
+    assign signal_mux_4 = signal_and_7 ? vdd : certified_1;
+    assign signal_eq_1 = chosen == signal_const;
     assign signal_or_6 = asks$0 | asks$1;
     assign signal_select_68 = signal_inst[15:0];
     assign signal_mux_5 = checked ? signal_select_76 : signal_select_68;
@@ -12506,20 +12510,23 @@ module engines (
     assign signal_mux_33 = checked ? signal_wire_134 : signal_wire_173;
     assign signal_mux_34 = checked ? signal_wire_135 : signal_wire_174;
     assign signal_mux_35 = checked ? signal_wire_136 : signal_wire_175;
+    assign signal_not_3 = ~ lent$1;
+    assign signal_not_4 = ~ lent$0;
+    assign signal_mux_36 = checked ? signal_not_3 : signal_not_4;
     assign signal_or_7 = signal_wire_105 | signal_wire_104;
     assign signal_or_8 = signal_wire_144 | signal_wire_143;
-    assign signal_const_11 = 1'b1;
-    assign signal_mux_36 = asks$0 ? signal_const : signal_const_11;
+    assign signal_const_10 = 1'b1;
+    assign signal_mux_37 = asks$0 ? signal_const : signal_const_10;
     assign signal_or_9 = signal_wire_82 | signal_const_3;
-    assign signal_and_9 = signal_wire_178 & signal_or_9;
+    assign signal_and_8 = signal_wire_178 & signal_or_9;
     assign signal_select_71 = signal_inst_3[55:28];
     assign signal_wire_82 = signal_select_71;
-    assign signal_not_3 = ~ signal_wire_82;
+    assign signal_not_5 = ~ signal_wire_82;
     assign signal_wire_83 = pads;
     assign signal_cat_1 = { signal_const_4,
                             signal_wire_83 };
-    assign signal_and_10 = signal_cat_1 & signal_not_3;
-    assign signal_or_10 = signal_and_10 | signal_and_9;
+    assign signal_and_9 = signal_cat_1 & signal_not_5;
+    assign signal_or_10 = signal_and_9 | signal_and_8;
     assign signal_wire_84 = hosts$flush_1;
     assign signal_wire_85 = hosts$stop_1;
     assign signal_wire_86 = hosts$clear_irq_1;
@@ -12528,20 +12535,21 @@ module engines (
     assign signal_wire_89 = hosts$tx$valid_1;
     assign signal_select_72 = signal_inst_1[82:74];
     assign signal_wire_90 = signal_select_72;
-    assign signal_eq_3 = checked == signal_const_11;
-    assign signal_and_11 = checking & signal_eq_3;
-    assign signal_and_12 = signal_and_11 & signal_wire_93;
-    assign signal_mux_37 = signal_and_12 ? signal_wire_91 : signal_wire_90;
+    assign signal_and_10 = lent$1 & signal_wire_93;
+    assign signal_mux_38 = signal_and_10 ? signal_wire_91 : signal_wire_90;
     assign signal_select_73 = signal_inst_2[19:11];
     assign signal_wire_91 = signal_select_73;
     assign signal_select_74 = signal_inst_3[82:74];
     assign signal_wire_92 = signal_select_74;
     assign signal_select_75 = signal_inst_2[10:10];
     assign signal_wire_93 = signal_select_75;
-    assign signal_eq_4 = checked == signal_const;
-    assign signal_and_13 = checking & signal_eq_4;
-    assign signal_and_14 = signal_and_13 & signal_wire_93;
-    assign signal_mux_38 = signal_and_14 ? signal_wire_91 : signal_wire_92;
+    assign signal_not_6 = ~ signal_and_21;
+    assign signal_eq_2 = checked == signal_const;
+    assign signal_and_11 = checking & signal_eq_2;
+    assign signal_and_12 = signal_and_11 & signal_wire_139;
+    assign lent$0 = signal_and_12 & signal_not_6;
+    assign signal_and_13 = lent$0 & signal_wire_93;
+    assign signal_mux_39 = signal_and_13 ? signal_wire_91 : signal_wire_92;
     assign signal_wire_94 = hosts$data_write$data_1;
     assign signal_wire_95 = hosts$data_write$addr_1;
     assign signal_wire_96 = hosts$data_write$data_0;
@@ -12558,8 +12566,8 @@ module engines (
           .writes$valid_1(signal_wire_141),
           .writes$addr_1(signal_wire_95),
           .writes$data_1(signal_wire_94),
-          .reads_0(signal_mux_38),
-          .reads_1(signal_mux_37),
+          .reads_0(signal_mux_39),
+          .reads_1(signal_mux_38),
           .words_0(signal_inst[15:0]),
           .words_1(signal_inst[31:16]) );
     assign signal_select_76 = signal_inst[31:16];
@@ -12567,29 +12575,32 @@ module engines (
     assign signal_wire_98 = signal_select_77;
     assign signal_select_78 = signal_inst_2[0:0];
     assign signal_wire_99 = signal_select_78;
-    assign signal_eq_5 = checked == signal_const_11;
-    assign signal_and_15 = checking & signal_eq_5;
-    assign signal_and_16 = signal_and_15 & signal_wire_99;
+    assign signal_not_7 = ~ signal_and_19;
+    assign signal_eq_3 = checked == signal_const_10;
+    assign signal_and_14 = checking & signal_eq_3;
+    assign signal_and_15 = signal_and_14 & signal_wire_137;
+    assign lent$1 = signal_and_15 & signal_not_7;
+    assign signal_and_16 = lent$1 & signal_wire_99;
     assign signal_wire_100 = hosts$program_write$data_1;
     assign signal_wire_101 = hosts$program_write$addr_1;
     assign gnd = 1'b0;
     assign vdd = 1'b1;
-    assign signal_eq_6 = checked == signal_const_11;
+    assign signal_eq_4 = checked == signal_const_10;
     assign signal_select_79 = signal_inst_2[22:22];
     assign signal_wire_102 = signal_select_79;
     assign signal_select_80 = signal_inst_2[21:21];
     assign signal_wire_103 = signal_select_80;
     assign accepts = signal_wire_103 & signal_wire_102;
-    assign signal_and_17 = accepts & signal_eq_6;
-    assign signal_mux_39 = signal_and_17 ? vdd : certified;
-    assign signal_eq_7 = chosen == signal_const_11;
-    assign signal_and_18 = go & signal_eq_7;
+    assign signal_and_17 = accepts & signal_eq_4;
+    assign signal_mux_40 = signal_and_17 ? vdd : certified;
+    assign signal_eq_5 = chosen == signal_const_10;
+    assign signal_and_18 = go & signal_eq_5;
     assign signal_wire_104 = hosts$config_written_1;
     assign signal_wire_105 = hosts$program_write$valid_1;
     assign signal_or_11 = signal_wire_105 | signal_wire_104;
     assign signal_or_12 = signal_or_11 | signal_and_18;
-    assign signal_mux_40 = signal_or_12 ? gnd : signal_mux_39;
-    assign signal_wire_106 = signal_mux_40;
+    assign signal_mux_41 = signal_or_12 ? gnd : signal_mux_40;
+    assign signal_wire_106 = signal_mux_41;
     always @(posedge signal_wire_177) begin
         if (signal_wire_176)
             certified <= signal_const;
@@ -12719,7 +12730,7 @@ module engines (
     assign signal_wire_140 = hosts$check_0;
     assign asks$0 = signal_wire_140 & signal_wire_139;
     assign signal_or_13 = asks$0 | asks$1;
-    assign chosen = signal_or_13 ? signal_mux_36 : signal_const;
+    assign chosen = signal_or_13 ? signal_mux_37 : signal_const;
     always @(posedge signal_wire_177) begin
         if (signal_wire_176)
             signal_reg <= signal_const;
@@ -12728,12 +12739,13 @@ module engines (
                 signal_reg <= chosen;
     end
     assign checked = signal_reg;
-    assign signal_mux_41 = checked ? signal_or_7 : signal_or_8;
+    assign signal_mux_42 = checked ? signal_or_7 : signal_or_8;
     assign signal_wire_141 = hosts$data_write$valid_1;
     assign signal_wire_142 = hosts$data_write$valid_0;
     assign signal_or_14 = signal_wire_142 | signal_wire_141;
-    assign signal_or_15 = signal_or_14 | signal_mux_41;
-    assign abort = checking & signal_or_15;
+    assign signal_or_15 = signal_or_14 | signal_mux_42;
+    assign signal_or_16 = signal_or_15 | signal_mux_36;
+    assign abort = checking & signal_or_16;
     load_checker
         load_checker
         ( .clock(signal_wire_177),
@@ -12786,15 +12798,15 @@ module engines (
           .reason(signal_inst_2[37:33]) );
     assign signal_select_83 = signal_inst_2[20:20];
     assign checking = signal_select_83;
-    assign signal_not_4 = ~ checking;
-    assign go = signal_not_4 & signal_or_6;
-    assign signal_and_20 = go & signal_eq_2;
+    assign signal_not_8 = ~ checking;
+    assign go = signal_not_8 & signal_or_6;
+    assign signal_and_20 = go & signal_eq_1;
     assign signal_wire_143 = hosts$config_written_0;
     assign signal_wire_144 = hosts$program_write$valid_0;
-    assign signal_or_16 = signal_wire_144 | signal_wire_143;
-    assign signal_or_17 = signal_or_16 | signal_and_20;
-    assign signal_mux_42 = signal_or_17 ? gnd : signal_mux_4;
-    assign signal_wire_145 = signal_mux_42;
+    assign signal_or_17 = signal_wire_144 | signal_wire_143;
+    assign signal_or_18 = signal_or_17 | signal_and_20;
+    assign signal_mux_43 = signal_or_18 ? gnd : signal_mux_4;
+    assign signal_wire_145 = signal_mux_43;
     always @(posedge signal_wire_177) begin
         if (signal_wire_176)
             certified_1 <= signal_const;
@@ -12871,7 +12883,7 @@ module engines (
           .program_write$valid(signal_wire_144),
           .program_write$addr(signal_wire_75),
           .program_write$data(signal_wire_74),
-          .program_read$valid(signal_and_7),
+          .program_read$valid(signal_and_6),
           .program_read$value(signal_wire_98),
           .data_word(signal_select_68),
           .tx$valid(signal_wire_73),

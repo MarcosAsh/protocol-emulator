@@ -83,38 +83,9 @@ module Make (Config : Config) = struct
     in
     checked <-- reg spec ~enable:go chosen;
     let pick values = mux checked values in
-    (* what the walk reads, written under it *)
-    let%hw abort =
-      checking
-      &: (List.map i.hosts ~f:(fun h -> h.data_write.valid) |> List.reduce_exn ~f:( |: )
-          |: pick (List.map i.hosts ~f:(fun h -> h.program_write.valid |: h.config_written)))
-    in
-    let data =
-      Data_memory.hierarchical
-        ~memory
-        scope
-        { clocking = i.clocking
-        ; halted = List.map outs ~f:(fun e -> e.halted)
-        ; writes = List.map i.hosts ~f:(fun h -> h.data_write)
-        ; reads =
-            List.mapi outs ~f:(fun n e ->
-              mux2 (mine n &: checker.data_read.valid) checker.data_read.value e.data_addr)
-        }
-    in
-    Load_checker.hierarchical
-      scope
-      { clocking = i.clocking
-      ; check = go
-      ; abort
-      ; config = Engine.Config.Of_signal.mux checked (List.map i.hosts ~f:(fun h -> h.config))
-      ; setup = i.check_setup
-      ; program_word = pick (List.map outs ~f:(fun e -> e.program_word))
-      ; data_word = pick data.words
-      }
-    |> Load_checker.O.Of_signal.assign checker;
     let%hw accepts = checker.finished &: checker.accepted in
-    (* a start counts only for a program the checker accepted, under the configuration
-       it was checked with *)
+    (* a start counts only for a program the checker accepted, under the configuration it
+       was checked with *)
     let certified, refused =
       List.mapi i.hosts ~f:(fun n (h : _ Engine.Host.t) ->
         let started = go &: (chosen ==:. n) in
@@ -132,6 +103,49 @@ module Make (Config : Config) = struct
         certified, refused)
       |> List.unzip
     in
+    let starts =
+      List.map2_exn i.hosts certified ~f:(fun (h : _ Engine.Host.t) certified ->
+        if gated then h.start &: certified else h.start)
+    in
+    (* The checker borrows engine [n]'s program port and data turn only while [n] is
+       halted and not starting, so a running core never sees it. *)
+    let%hw_list lent =
+      List.mapi (List.zip_exn outs starts) ~f:(fun n (e, start) ->
+        mine n &: e.halted &: ~:start)
+    in
+    (* what the walk reads, written under it, or its engine leaving halted *)
+    let%hw abort =
+      checking
+      &: (List.map i.hosts ~f:(fun h -> h.data_write.valid)
+          |> List.reduce_exn ~f:( |: )
+          |: pick
+               (List.map i.hosts ~f:(fun h -> h.program_write.valid |: h.config_written))
+          |: pick (List.map lent ~f:( ~: )))
+    in
+    let data =
+      Data_memory.hierarchical
+        ~memory
+        scope
+        { clocking = i.clocking
+        ; halted = List.map outs ~f:(fun e -> e.halted)
+        ; writes = List.map i.hosts ~f:(fun h -> h.data_write)
+        ; reads =
+            List.map2_exn outs lent ~f:(fun e lent ->
+              mux2 (lent &: checker.data_read.valid) checker.data_read.value e.data_addr)
+        }
+    in
+    Load_checker.hierarchical
+      scope
+      { clocking = i.clocking
+      ; check = go
+      ; abort
+      ; config =
+          Engine.Config.Of_signal.mux checked (List.map i.hosts ~f:(fun h -> h.config))
+      ; setup = i.check_setup
+      ; program_word = pick (List.map outs ~f:(fun e -> e.program_word))
+      ; data_word = pick data.words
+      }
+    |> Load_checker.O.Of_signal.assign checker;
     List.iteri
       (List.zip_exn (List.zip_exn i.hosts outs) data.words)
       ~f:(fun n (((host : _ Engine.Host.t), out), data_word) ->
@@ -142,10 +156,10 @@ module Make (Config : Config) = struct
           scope
           { clocking = i.clocking
           ; config = host.config
-          ; start = (if gated then host.start &: List.nth_exn certified n else host.start)
+          ; start = List.nth_exn starts n
           ; program_write = host.program_write
           ; program_read =
-              { valid = mine n &: checker.program_read.valid
+              { valid = List.nth_exn lent n &: checker.program_read.valid
               ; value = checker.program_read.value
               }
           ; data_word
