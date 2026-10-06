@@ -14,7 +14,9 @@ HEX = sys.argv[3]
 
 class Chip:
     """Two engines' registers behind host_spi.ml's frame logic. A started engine whose
-    program begins with `uart` takes the bit period, then sends each word on uo[1]."""
+    program begins with `uart` takes the bit period, then sends each word on uo[1]. A
+    check accepts any program, the RTL test running the real checker, and a start counts
+    only after one."""
 
     def __init__(self, uart=None):
         self.uart = uart
@@ -25,9 +27,10 @@ class Chip:
         self.sync = [0b100, 0b100]
         self.sck, self.selected, self.count, self.shift_in, self.shift_out = 0, False, 0, 0, 0
         self.state, self.cmd, self.high, self.value = "cmd", 0, 0, 0
-        self.program_addr, self.data_addr, self.select = 0, 0, 0
+        self.program_addr, self.data_addr, self.select, self.accepted = 0, 0, 0, 0
         self.engines = [dict(halted=1, tx=[], rx=[], program=[0] * 512, period=None,
-                             free_at=0, frames=[]) for _ in range(2)]
+                             free_at=0, frames=[], certified=0, refused=0)
+                        for _ in range(2)]
 
     # the backend
     def run(self, board, ticks, stop=None):
@@ -108,12 +111,18 @@ class Chip:
             pe.NOW_LO: self.now & 0xFFFF, pe.NOW_HI: (self.now >> 16) & 0xFF,
             pe.PROGRAM_ADDR: self.program_addr, pe.DATA_ADDR: self.data_addr,
             pe.SELECT: self.select, pe.RX: e["rx"][0] if e["rx"] else 0,
+            pe.CHECK_STATUS: self.accepted << 1 | e["certified"] << 2 | e["refused"] << 3,
         }.get(reg, 0)
 
     def write(self, reg, w):
         e = self.engines[self.select]
         if reg == pe.CONTROL:
-            if w & 1 and e["halted"]:
+            if w & 0x10 and e["halted"]:
+                self.accepted = 1
+                e.update(certified=1, refused=0)
+            elif w & 1 and e["halted"] and not e["certified"]:
+                e["refused"] = 1
+            elif w & 1 and e["halted"]:
                 e.update(halted=0, free_at=self.now + 4)
             if w & 4:
                 e.update(halted=1, period=None, frames=[])
@@ -124,9 +133,12 @@ class Chip:
         elif reg == pe.PROGRAM:
             if all(x["halted"] for x in self.engines):
                 e["program"][self.program_addr] = w
+                e["certified"] = 0
             self.program_addr = (self.program_addr + 1) & 511
         elif reg == pe.SELECT:
             self.select = w & 1
+        elif pe.CONFIG <= reg < pe.CHECK_BASE and e["halted"]:
+            e["certified"] = 0
         elif reg == pe.TX and len(e["tx"]) < 8:
             e["tx"].append(w)
 
