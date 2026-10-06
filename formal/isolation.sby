@@ -8,7 +8,6 @@ region_written teeth
 outside teeth
 load_anytime teeth
 start_write teeth
-start_lent teeth
 
 [options]
 prove: mode prove
@@ -69,7 +68,6 @@ region_written: read -define REGION_WRITTEN
 outside: read -define OUTSIDE
 load_anytime: read -define LOAD_ANYTIME
 start_write: read -define START_WRITE
-start_lent: read -define START_LENT
 read_verilog -formal -sv isolation.sv
 prep -top isolation
 

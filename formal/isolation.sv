@@ -311,11 +311,6 @@ module isolation (input clk);
 `ifndef START_WRITE
     if (host_0.start || started_a) assume (!port_data_a.wen && !port_data_b.wen);
 `endif
-    // Nor does engine 0 start the cycle after the checker held its ports, whose word
-    // would still be on its way; gate.sby proves a gated start never does.
-`ifndef START_LENT
-    if (host_0.start) assume (!was_lent);
-`endif
   end
 
   // the pads engine 1 reaches in either copy
