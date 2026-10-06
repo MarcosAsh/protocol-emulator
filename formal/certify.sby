@@ -27,6 +27,9 @@ proc
 flatten
 cd load_checker
 expose w:sm w:purpose w:pc w:next_fails w:target_fails w:falls_to_next
+expose w:k w:field w:sel w:count w:wide_count w:entry w:acc w:setup$base_0 w:reading w:wait
+rename setup$base_0 walk_base
+rename wait read_wait
 expose w:row$phase_lo w:row$phase_hi w:row$slope w:row$offset_lo w:row$offset_hi w:row$arm_lo w:row$arm_hi w:row$period_lo w:row$period_hi w:row$x_lo w:row$x_hi w:row$y_lo w:row$y_hi w:row$captured w:row$awaiting
 rename row$phase_lo row_phase_lo
 rename row$phase_hi row_phase_hi
@@ -64,6 +67,7 @@ short: read -define SHORT_WALK
 early: read -define NO_INVARIANT
 read_verilog -formal -sv certify.sv
 prep -top certify
+flatten
 
 [files]
 engines_gated.v
