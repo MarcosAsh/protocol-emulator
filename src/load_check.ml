@@ -13,20 +13,24 @@ let phase_whole = half, half - 1
 let arm_whole = 0, timer_ones
 let narrow_whole = 0, data_ones
 
-type entry =
-  { pc : int
-  ; captured : bool
-  ; awaiting : bool
-  ; phase : int
-  ; arm : int
-  ; period : int
-  ; x : int
-  ; y : int
-  }
-[@@deriving sexp_of]
+module Entry = struct
+  type 'a t =
+    { pc : 'a [@bits Isa.pc_bits]
+    ; captured : 'a
+    ; awaiting : 'a
+    ; phase : 'a [@bits index_bits]
+    ; arm : 'a [@bits index_bits]
+    ; period : 'a [@bits index_bits]
+    ; x : 'a [@bits index_bits]
+    ; y : 'a [@bits index_bits]
+    }
+  [@@deriving hardcaml]
+end
+
+let unused_bits = (3 * Isa.data_bits) - Entry.sum_of_port_widths
 
 type t =
-  { entries : entry list
+  { entries : int Entry.t list
   ; wide : (int * int) list
   ; narrow : (int * int) list
   }
@@ -63,9 +67,9 @@ let of_table ?(registers_whole = false) ~config ~words (table : Kernel.Table.t) 
   let entries =
     List.map (stored_pcs ~config ~words) ~f:(fun pc ->
       let r = table.(pc) in
-      { pc
-      ; captured = Bits.to_bool r.captured
-      ; awaiting = Bits.to_bool r.awaiting
+      { Entry.pc
+      ; captured = Bits.to_unsigned_int r.captured
+      ; awaiting = Bits.to_unsigned_int r.awaiting
       ; phase = intern wide ~whole:phase_whole (bounds r.phase_lo r.phase_hi)
       ; arm = intern wide ~whole:arm_whole (bounds r.arm_lo r.arm_hi)
       ; period = intern narrow ~whole:narrow_whole (bounds r.period_lo r.period_hi)
@@ -113,29 +117,20 @@ let split3 bits =
 
 let join3 memory at = (memory at lsl 32) lor (memory (at + 1) lsl 16) lor memory (at + 2)
 
-(* pc 9, captured, awaiting, then the phase, arm, period, x and y indices, 7 bits each *)
-let pack e =
-  (e.pc lsl 39)
-  lor (Bool.to_int e.captured lsl 38)
-  lor (Bool.to_int e.awaiting lsl 37)
-  lor (e.phase lsl 30)
-  lor (e.arm lsl 23)
-  lor (e.period lsl 16)
-  lor (e.x lsl 9)
-  lor (e.y lsl 2)
+(* an entry from the top of its three words, the first field highest *)
+let pack (e : int Entry.t) =
+  let bits =
+    Entry.map2 Entry.port_widths e ~f:(fun width v -> Bits.of_unsigned_int ~width v)
+    |> Entry.Of_bits.pack ~rev:true
+  in
+  Bits.to_unsigned_int bits lsl unused_bits
 ;;
 
 let unpack bits =
-  let index at = (bits lsr at) land ((1 lsl index_bits) - 1) in
-  { pc = (bits lsr 39) land ((1 lsl Isa.pc_bits) - 1)
-  ; captured = (bits lsr 38) land 1 = 1
-  ; awaiting = (bits lsr 37) land 1 = 1
-  ; phase = index 30
-  ; arm = index 23
-  ; period = index 16
-  ; x = index 9
-  ; y = index 2
-  }
+  Bits.of_unsigned_int ~width:(3 * Isa.data_bits) bits
+  |> Bits.drop_bottom ~width:unused_bits
+  |> Entry.Of_bits.unpack ~rev:true
+  |> Entry.map ~f:Bits.to_unsigned_int
 ;;
 
 let to_words t =
@@ -189,7 +184,7 @@ let walk
   let entry i = unpack (join3 memory (base + 2 + (3 * i))) in
   let wide_at = base + 2 + (3 * count) in
   let narrow_at = wide_at + (3 * wide_count) in
-  let decode e =
+  let decode (e : int Entry.t) =
     let wide ~whole i =
       if i = 0
       then whole
@@ -225,8 +220,8 @@ let walk
     ; x_hi
     ; y_lo
     ; y_hi
-    ; captured = Bits.of_bool e.captured
-    ; awaiting = Bits.of_bool e.awaiting
+    ; captured = Bits.of_unsigned_int ~width:1 e.captured
+    ; awaiting = Bits.of_unsigned_int ~width:1 e.awaiting
     }
   in
   (* a target's row by binary search, empty where there is none *)

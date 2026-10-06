@@ -106,7 +106,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let%hw_var lo = Always.Variable.reg spec ~width:count_bits in
   let%hw_var hi = Always.Variable.reg spec ~width:count_bits in
   let%hw_var sel = Always.Variable.reg spec ~width:count_bits in
-  let%hw_var entry = Always.Variable.reg spec ~width:48 in
+  let%hw_var entry = Always.Variable.reg spec ~width:(3 * Isa.data_bits) in
   let%hw_var acc = Always.Variable.reg spec ~width:48 in
   let%hw_var k = Always.Variable.reg spec ~width:2 in
   let%hw_var field = Always.Variable.reg spec ~width:3 in
@@ -171,9 +171,21 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
          { With_valid.valid = ~:h; value = of_unsigned_int ~width:reason_bits index }))
       ~default:(zero reason_bits)
   in
-  let indexed = List.mapi (Kernel.Conjuncts.to_list conjuncts) ~f:(fun n h -> n, h) in
-  let in_time_and_next, target_holds =
-    List.partition_tf indexed ~f:(fun (n, _) -> n < 3 + 10)
+  (* the conjuncts split into those on the next row and those on the target, each kept at
+     its place in the list so the indices stay [Conjuncts.to_list]'s *)
+  let indexed (c : Signal.t Kernel.Conjuncts.t) =
+    List.mapi (Kernel.Conjuncts.to_list c) ~f:(fun n h -> n, h)
+  in
+  let holding = Kernel.Holds.map ~f:(fun _ -> vdd) in
+  let in_time_and_next = indexed { conjuncts with target = holding conjuncts.target } in
+  let target_holds =
+    indexed
+      { in_time = vdd
+      ; wide_a = vdd
+      ; wide_b = vdd
+      ; next = holding conjuncts.next
+      ; target = conjuncts.target
+      }
   in
   let%hw next_fails = ~:(List.map in_time_and_next ~f:snd |> List.reduce_exn ~f:( &: )) in
   let%hw next_reason = first_failing in_time_and_next in
@@ -190,7 +202,8 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let%hw wide_at = entries_at +: times3 count.value in
   let%hw narrow_at = wide_at +: times3 wide_count.value in
   let entry_at n = entries_at +: times3 n +: uresize k.value ~width:Isa.data_addr_bits in
-  let%hw entry_tag = i.data_word.:[15, 7] in
+  (* an entry's pc, the top of its first word *)
+  let%hw entry_tag = sel_top i.data_word ~width:Isa.pc_bits in
   let%hw mid =
     srl
       (uresize lo.value ~width:(count_bits + 1) +: uresize hi.value ~width:(count_bits + 1)
@@ -200,16 +213,13 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   in
   let%hw read_done = wait.value ==:. data_wait - 1 in
   (* the field being read: phase and arm are wide, the period, x and y narrow *)
-  let%hw index =
-    mux
-      field.value
-      [ entry.value.:[36, 30]
-      ; entry.value.:[29, 23]
-      ; entry.value.:[22, 16]
-      ; entry.value.:[15, 9]
-      ; entry.value.:[8, 2]
-      ]
+  let unpack_entry bits =
+    Load_check.Entry.Of_signal.unpack
+      ~rev:true
+      (drop_bottom bits ~width:Load_check.unused_bits)
   in
+  let%hw.Load_check.Entry.Of_signal held = unpack_entry entry.value in
+  let%hw index = mux field.value [ held.phase; held.arm; held.period; held.x; held.y ] in
   let%hw wide = field.value <:. 2 in
   let%hw last_word = mux2 wide (k.value ==:. 2) (k.value ==:. 1) in
   let%hw interval_at =
@@ -221,6 +231,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   in
   let%hw shifted = sel_bottom acc.value ~width:32 @: i.data_word in
   let%hw entry_shifted = sel_bottom entry.value ~width:32 @: i.data_word in
+  let%hw.Load_check.Entry.Of_signal arriving = unpack_entry entry_shifted in
   let set_field =
     let narrow_lo = shifted.:[31, 16] in
     let narrow_hi = shifted.:[15, 0] in
@@ -368,8 +379,8 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
                         [ Kernel.Row.Of_always.assign
                             other
                             { full with
-                              captured = entry_shifted.:(38)
-                            ; awaiting = entry_shifted.:(37)
+                              captured = arriving.captured
+                            ; awaiting = arriving.awaiting
                             }
                         ; k <-- zero 2
                         ; field <-- zero 3
