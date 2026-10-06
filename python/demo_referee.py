@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Cheat the referee (MicroPython, Pico A): demo_self_check's frames on wire 20, and a press
 # of BOOTSEL makes the next restart's bit period a cycle long or short. Engine 1 catches it
-# and halts, is reloaded as the SK6812 driver to light the score on the stick on OUT0, so
+# and halts, is reloaded as the SK6812 driver to light the score on the stick on OUT3, so
 # after the catch and not with it, then is the referee again. demo/referee.sh runs it.
 
 import bench

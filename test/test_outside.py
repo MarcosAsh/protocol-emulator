@@ -163,7 +163,7 @@ async def test_flash(dut, mode):
     # CS is low from reset until the firmware starts, as on the bench
     dut.flash_wired.value = 1
     analyser = Analyser({
-        4: bit(dut.uo_out, 1), 5: bit(dut.uo_out, 2), 6: bit(dut.miso), 7: bit(dut.uo_out, 3),
+        0: bit(dut.uo_out, 6), 1: bit(dut.uo_out, 5), 2: bit(dut.miso), 3: bit(dut.uo_out, 7),
     })
     transfer, pause_ms, log, _ = acted(dut)
 
@@ -220,7 +220,7 @@ async def test_spi_modes(dut, mode):
                            frame_spacing_ns=FRAME_SPACING_NS)
     SpiSlaveLoopback(spi.SpiBus.from_prefix(dut, "spi"), config)
     analyser = Analyser({
-        4: bit(dut.uo_out, 1), 5: bit(dut.uo_out, 2), 6: bit(dut.miso), 7: bit(dut.uo_out, 3),
+        0: bit(dut.uo_out, 6), 1: bit(dut.uo_out, 5), 2: bit(dut.miso), 3: bit(dut.uo_out, 7),
     })
     transfer, _, log, _ = acted(dut)
     frames = [[0x12, 0x34], [0x56, 0x78], [0x9A, 0xBC]]
@@ -497,7 +497,7 @@ async def test_ds18b20(dut):
     # +25.0625 C, the datasheet's own example, and 12-bit resolution
     pad = with_crc([0x91, 0x01, 0x4B, 0x46, 0x7F, 0xFF, 0x0C, 0x10])
     device = Ds18b20(dut, rom, pad)
-    analyser = Analyser({6: bit(dut.dq)})
+    analyser = Analyser({5: bit(dut.dq)})
     transfer, _, log, lines = acted(dut)
     assert await bridge(demo_ds18b20.run)(transfer, log=log)
     assert any("25.0625 C" in line for line in lines), lines
@@ -542,7 +542,7 @@ async def neopixel(dut, gap):
     """The NeoPixel act with Pico A's SPI at its clock and gap half periods between bytes:
     every pixel has to chain, so sigrok sees each frame whole, and nothing faults."""
     await reset(dut)
-    analyser = Analyser({4: bit(dut.uo_out, 1)})
+    analyser = Analyser({4: bit(dut.uo_out, 4)})
     half = 48_000_000 // demo_neopixel.SPI_HZ // 2
     transfer, pause_ms, log, _ = acted(dut, SlowPins(dut, half, gap))
     # engine 0's tx fifo, which drops a push when full without a fault
@@ -598,19 +598,19 @@ async def test_neopixel(dut):
 
 @cocotb.test()
 async def test_can(dut):
-    """The CAN act: armed, then its frames on OUT1 decoded by sigrok as the receiving
-    transceiver's R line. OUT1 is dominant until armed and the first SOF comes at least 11
-    recessive bits later. Nothing ACKs here; on the bench Pico B does."""
+    """The CAN act already armed, as a second run finds it: its frames on OUT1 decoded by
+    sigrok as the receiving transceiver's R line. The run arms again, and OUT1 stays
+    recessive through it, the first SOF at least 11 recessive bits after the first arm.
+    Nothing ACKs here; on the bench Pico B does."""
     await reset(dut)
-    line = Analyser({6: bit(dut.uo_out, 2)})
+    line = Analyser({5: bit(dut.uo_out, 2)})
     transfer, pause_ms, log, _ = acted(dut)
     await bridge(demo_can.arm)(transfer)
-    # the pin lets go a bit after the period, and D is wired only then, so the bench's
-    # capture starts on a recessive line
+    # this capture starts on a recessive line
     await ClockCycles(dut.clk, 2 * demo_can.PERIOD)
-    analyser = Analyser({5: bit(dut.uo_out, 2), 6: bit(dut.uo_out, 2)})
+    analyser = Analyser({5: bit(dut.uo_out, 2)})
     assert await bridge(demo_can.run)(transfer, pause_ms, log=log)
-    edges = line.levels(6)
+    edges = line.levels(5)
     assert edges[0][1] == 0, "dominant from reset"
     recessive, first_sof = edges[1][0], edges[2][0]
     bits = (first_sof - recessive) / (CLOCK_PS * demo_can.PERIOD)
@@ -619,6 +619,27 @@ async def test_can(dut):
     decoded = decode(analyser, "can")
     ids = [line.partition("Identifier: ")[2] for line in decoded if "Identifier: " in line]
     assert ids == ["%d (0x%x)" % (ident, ident) for ident, _ in demo_can.FRAMES], ids
+    assert decoded.count("can-1: ACK slot: NACK") == len(demo_can.FRAMES), decoded
+    assert not any("must be" in line or "arning" in line for line in decoded), decoded
+
+
+@cocotb.test()
+async def test_can_from_reset(dut):
+    """The CAN act with no arm, as the bench runs it with the transmitter wired from reset:
+    module A's R is dominant until the run gives the period, then idle at least 11 bits
+    before the first SOF, and sigrok reads every frame from a capture begun at reset."""
+    await reset(dut)
+    analyser = Analyser({5: bit(dut.can_rx)})
+    transfer, pause_ms, log, _ = acted(dut)
+    assert await bridge(demo_can.run)(transfer, pause_ms, log=log)
+    edges = analyser.levels(5)
+    assert edges[0][1] == 0, "dominant from reset"
+    recessive, first_sof = edges[1][0], edges[2][0]
+    bits = (first_sof - recessive) / (CLOCK_PS * demo_can.PERIOD)
+    cocotb.log.info("R recessive %.1f bits before the first SOF", bits)
+    assert bits >= 11
+    decoded = decode(analyser, "can")
+    assert can_ids(decoded) == ["%d (0x%x)" % (i, i) for i, _ in demo_can.FRAMES], decoded
     assert decoded.count("can-1: ACK slot: NACK") == len(demo_can.FRAMES), decoded
     assert not any("must be" in line or "arning" in line for line in decoded), decoded
 
@@ -760,7 +781,7 @@ async def test_can_node(dut):
     transfer, pause_ms, log, _ = acted(dut)
     await bridge(demo_can_node.arm)(transfer, log=log)
     await ClockCycles(dut.clk, 2 * demo_can_node.PERIOD)
-    analyser = Analyser({6: bit(dut.can_rx)})
+    analyser = Analyser({5: bit(dut.can_rx)})
     assert await bridge(demo_can_node.run)(transfer, pause_ms, log=log)
     sent = [(ident, 0, len(data), data) for ident, data in demo_can_node.FRAMES]
     assert pico_b.received == sent, pico_b.received
@@ -832,7 +853,7 @@ async def test_can_chip_to_chip(dut):
     dut.can_out2.value = 1
     transfer, pause_ms, log, _ = acted(dut)
     await bridge(two_engines)(transfer, pause_ms)
-    analyser = Analyser({6: bit(dut.can_rx)})
+    analyser = Analyser({5: bit(dut.can_rx)})
     frames = demo_can.FRAMES[:2]
     acks, heard, faults = await bridge(send)(transfer, pause_ms, log, frames)
     assert acks == [0] * len(frames)
@@ -898,7 +919,7 @@ async def start_holds(dut, hold_ps):
     within a sample, nothing driven on the bus, and the stick lit with the host's verdict,
     which is returned."""
     await reset(dut)
-    analyser = Analyser({4: bit(dut.uo_out, 1), 6: bit(dut.sda), 7: bit(dut.scl)})
+    analyser = Analyser({4: bit(dut.uo_out, 4), 6: bit(dut.sda), 7: bit(dut.scl)})
     driven = []
 
     async def watch():
@@ -954,9 +975,9 @@ async def test_start_hold_hardware_i2c(dut):
 async def refereed(dut, act, **kwargs):
     """act(referee) as Pico A runs it, the SPI clock switched as the script switches it:
     act's result, each cheat's start bit fall on wire 20 and period, engine 1's irq rises,
-    the analyser on OUT0 and the log. Wire 20 and the irq never reach a pad, so the RTL's."""
+    the analyser on OUT3 and the log. Wire 20 and the irq never reach a pad, so the RTL's."""
     await reset(dut)
-    analyser = Analyser({4: bit(dut.uo_out, 1)})
+    analyser = Analyser({4: bit(dut.uo_out, 4)})
     pins = SlowPins(dut, 48_000_000 // demo_referee.HOST_HZ // 2, 3)
     _, pause_ms, log, lines = acted(dut, pins)
     engines = dut.user_project.core.top.engines

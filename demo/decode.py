@@ -39,9 +39,10 @@ ERRORS = {
     "swd": ["parity"],
 }
 
-# The bench's analyser, as the Demo Bench Wiring has CH1 to CH6: the host's SCK, MOSI,
-# MISO and CS_N, then OUT0 and OUT1
-BENCH = {"SCK": "D0", "MOSI": "D1", "MISO": "D2", "CS_N": "D3", "OUT0": "D4", "OUT1": "D5"}
+# The bench's analyser A: the host's SCK, MOSI, MISO and CS_N, OUT0, then CAN module A's R,
+# which gives OUT1 back, SWCLK on OUT2 and SWDIO on IO5
+BENCH = {"SCK": "D0", "MOSI": "D1", "MISO": "D2", "CS_N": "D3", "OUT0": "D4", "OUT1": "D5",
+         "OUT2": "D6", "IO5": "D7"}
 
 PIN = re.compile(r"=((?:IN|OUT|IO)\d|SCK|MOSI|MISO|CS_N)\b")
 
