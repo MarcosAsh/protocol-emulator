@@ -232,6 +232,9 @@ module certify (input clk);
     end
 
   always @* if (!clear) begin
+    // every row the walk holds has no slope and the full offset, as phase_table.sby's
+    // rows do
+    if (busy) assert ({row_slope, row_offset_lo, row_offset_hi} == FULL_SLOPE_OFFSET);
     // the walk holds the full row at pc 0, which a lookup of 0 reads without a search
     if (busy && sm != FINISH && pc == 0) assert (row == FULL_ROW);
     // the row a lookup finds is the row the walk holds at its target
