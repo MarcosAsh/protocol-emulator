@@ -419,6 +419,87 @@ let%expect_test "the fall-through image is the tightest next row" =
     |}]
 ;;
 
+(* [one_way] is [conjuncts] on the way [taken] picks, the other way holding, and where
+   [taken] is low [fall_through] too: the load checker's one way at a time, the image
+   computed once, is the kernel's two. *)
+let%expect_test "one way at a time is both ways" =
+  let side_set_count = G.input "side_set_count" 2 in
+  let fraction = G.input "fraction" 1 in
+  let loaded =
+    { With_valid.valid = G.input "loads_period" 1
+    ; value = G.input "loaded_period" Isa.data_bits
+    }
+  in
+  let capture =
+    { Kernel.Capture.pin = G.input "capture_pin" Isa.Field.wait_index.width
+    ; rising = G.input "capture_rising" 1
+    ; single_edge = G.input "single_edge" 1
+    }
+  in
+  let word = G.input "word" Isa.data_bits in
+  let row = row_input "row" in
+  let s = row_input "s" in
+  let taken = G.input "taken" 1 in
+  let both =
+    K.conjuncts
+      ~side_set_count
+      ~fraction
+      ~loaded
+      ~capture
+      ~spacing:K.no_spacing
+      ~word
+      ~row
+      ~next:s
+      ~target:s
+  in
+  let fallen, falls =
+    K.fall_through ~side_set_count ~fraction ~loaded ~capture ~word ~row
+  in
+  let same to_list a b = List.map2_exn (to_list a) (to_list b) ~f:G.( ==: ) in
+  let conjuncts ~taken_by =
+    let way, _, _ =
+      K.one_way ~side_set_count ~fraction ~loaded ~capture ~word ~row ~taken:taken_by s
+    in
+    G.(
+      mux2
+        taken
+        (all (Kernel.Holds.map2 way.target both.target ~f:( ==: )) &: all way.next)
+        (all (Kernel.Holds.map2 way.next both.next ~f:( ==: ))
+         &: all way.target
+         &: (way.in_time ==: both.in_time)
+         &: (way.wide_a ==: both.wide_a)
+         &: (way.wide_b ==: both.wide_b)))
+  in
+  let _, way_fallen, way_falls =
+    K.one_way ~side_set_count ~fraction ~loaded ~capture ~word ~row ~taken s
+  in
+  let falling =
+    G.(
+      taken
+      |: (reduce ~f:( &: ) (same Kernel.Row.to_list way_fallen fallen)
+          &: (way_falls ==: falls)))
+  in
+  let d = Decoder.decode ~side_set_count word in
+  let cases = List.map Isa.Opcode.Cases.all ~f:(fun op -> Opcode.is d.opcode op) in
+  Checked_unsat.prove
+    "one way's conjuncts are that way's"
+    ~cases
+    ~claim:(conjuncts ~taken_by:taken);
+  Checked_unsat.prove "falling through, one way's row is fall_through's" ~cases ~claim:falling;
+  (* teeth: the other way's conjuncts in its place *)
+  Checked_unsat.prove
+    "the other way's conjuncts are this way's"
+    ~show:[ "taken" ]
+    ~cases
+    ~claim:(conjuncts ~taken_by:G.(~:taken));
+  [%expect {|
+    (QED "one way's conjuncts are that way's")
+    (QED "falling through, one way's row is fall_through's")
+    (counterexample "the other way's conjuncts are this way's"
+     (model ((taken 0))))
+    |}]
+;;
+
 (* The load checker reads a successor with no stored row as the empty row, where the walk
    later holds a row of its own. Holding into [stand_in] must then hold into any row the
    walk can hold: no slope and the full offset. Gives the cases and the claims for the

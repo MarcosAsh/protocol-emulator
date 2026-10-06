@@ -860,8 +860,9 @@ module Make_timer (Timer : Engine.Timer) = struct
       mux2 e.level (inside r.at1) (inside r.at0) &: (~:(r.fresh) |: e.fresh)
     ;;
 
-    (* [conjuncts], with the tightest row [next] can be for its way of falling through to
-       hold and whether that way is asked *)
+    (* [conjuncts] on both ways out, or on the one [taken] picks with the image computed
+       once, and the tightest row [next] can be for its way of falling through to hold and
+       whether that way is asked *)
     let ways
       ~side_set_count
       ~fraction
@@ -870,8 +871,7 @@ module Make_timer (Timer : Engine.Timer) = struct
       ~spacing
       ~word
       ~(row : _ Row.t)
-      ~(next : _ Row.t)
-      ~target
+      ~on
       =
       let c = Class.of_word ~side_set_count ~capture word in
       let arm_known = ~:(arm_is_full row) in
@@ -888,11 +888,8 @@ module Make_timer (Timer : Engine.Timer) = struct
       let offset_lo = wide row.offset_lo in
       let offset_hi = wide row.offset_hi in
       (* falling through [jmp x--] leaves x = 0, where the phase lies in the offset too *)
-      let fallen_lo, fallen_hi =
-        image
-          ~lo:(mux2 (lo >+ offset_lo) lo offset_lo)
-          ~hi:(mux2 (hi <+ offset_hi) hi offset_hi)
-      in
+      let clamped_lo = mux2 (lo >+ offset_lo) lo offset_lo in
+      let clamped_hi = mux2 (hi <+ offset_hi) hi offset_hi in
       (* the cycles since the arm; a deadline wait adds its stall, a capturing wait not *)
       let arm_lo, arm_hi =
         let from ~stall a =
@@ -921,14 +918,13 @@ module Make_timer (Timer : Engine.Timer) = struct
       let common_hi = mux2 (row.x_hi <: row.y_hi) row.x_hi row.y_hi in
       (* a register's image on one way out: a counted jump decrements it on both, and
          falling through [jmp x!=y] leaves x = y, so each lies in both intervals *)
-      let counter ~set ~dec ~(taken : bool) lo hi =
+      let counter ~set ~dec ~taken lo hi =
         let taken_lo = mux2 (lo ==:. 0) (zero Isa.data_bits) (lo -:. 1) in
-        let dec_lo, dec_hi = if taken then taken_lo, hi -:. 1 else data_max, data_max in
-        let kept_lo, kept_hi =
-          if taken then lo, hi else mux2 c.x_ne_y common_lo lo, mux2 c.x_ne_y common_hi hi
-        in
-        ( mux2 set c.set_value @@ mux2 dec dec_lo kept_lo
-        , mux2 set c.set_value @@ mux2 dec dec_hi kept_hi )
+        let dec_lo = mux2 taken taken_lo data_max in
+        let dec_hi = mux2 taken (hi -:. 1) data_max in
+        let equal = ~:taken &: c.x_ne_y in
+        ( mux2 set c.set_value @@ mux2 dec dec_lo (mux2 equal common_lo lo)
+        , mux2 set c.set_value @@ mux2 dec dec_hi (mux2 equal common_hi hi) )
       in
       let phase_known = c.bounded |: capture_bounded in
       (* a step that adds to the phase moves the offset by as much *)
@@ -940,14 +936,10 @@ module Make_timer (Timer : Engine.Timer) = struct
           (sel_bottom c.set_value ~width:Isa.Field.set_value.width)
           ~width:(Isa.Field.set_value.width + 1)
       in
-      let holds ~taken (s : _ Row.t) =
+      (* [image] is the phase's on the way [taken] picks *)
+      let holds ~taken ~image:(image_lo, image_hi) (s : _ Row.t) =
         let x_lo, x_hi = counter ~set:c.set_x ~dec:c.x_dec ~taken row.x_lo row.x_hi in
         let y_lo, y_hi = counter ~set:c.set_y ~dec:c.y_dec ~taken row.y_lo row.y_hi in
-        let image_lo, image_hi =
-          if taken
-          then image_lo, image_hi
-          else mux2 c.x_dec fallen_lo image_lo, mux2 c.x_dec fallen_hi image_hi
-        in
         let fits = image_lo >=+ timer_min &: (image_hi <=+ timer_max) in
         (* The offset's image, where [s.slope * x] is known on this way out: after
            [set x], from the phase's image; with the slope the same and x the same, or one
@@ -955,10 +947,8 @@ module Make_timer (Timer : Engine.Timer) = struct
         let offset_known, offset_image_lo, offset_image_hi =
           let wider x = sresize x ~width:offset_bits in
           let product = wider (s.slope *+ small_value) in
-          let counted moved =
-            if taken then mux2 c.x_dec (moved +: wide row.slope) moved else moved
-          in
-          let follows_x = if taken then ~:(c.writes_x) else ~:(c.writes_x |: c.x_dec) in
+          let counted moved = mux2 (taken &: c.x_dec) (moved +: wide row.slope) moved in
+          let follows_x = ~:(c.writes_x |: (c.x_dec &: ~:taken)) in
           ( mux2 c.set_x phase_known (adds &: follows_x &: (s.slope ==: row.slope))
           , mux2 c.set_x (wider image_lo -: product) (wider (counted moved_lo))
           , mux2 c.set_x (wider image_hi -: product) (wider (counted moved_hi)) )
@@ -1017,19 +1007,13 @@ module Make_timer (Timer : Engine.Timer) = struct
       let only_if needed holds = Holds.map holds ~f:(fun h -> ~:needed |: h) in
       (* [holds ~taken:false s] field by field is this row inside [s], an unknown bound
          being the whole range; the offset is left full and the pins as they are *)
-      let fallen : _ Row.t =
-        let x_lo, x_hi =
-          counter ~set:c.set_x ~dec:c.x_dec ~taken:false row.x_lo row.x_hi
-        in
-        let y_lo, y_hi =
-          counter ~set:c.set_y ~dec:c.y_dec ~taken:false row.y_lo row.y_hi
-        in
+      let fallen ~taken ~image:(image_lo, image_hi) : _ Row.t =
+        let x_lo, x_hi = counter ~set:c.set_x ~dec:c.x_dec ~taken row.x_lo row.x_hi in
+        let y_lo, y_hi = counter ~set:c.set_y ~dec:c.y_dec ~taken row.y_lo row.y_hi in
         let narrow x = sel_bottom x ~width:timer_bits in
         let range ~known ~all lo hi =
           mux2 known lo (zero (width lo)), mux2 known hi all
         in
-        let image_lo = mux2 c.x_dec fallen_lo image_lo in
-        let image_hi = mux2 c.x_dec fallen_hi image_hi in
         let phase_known =
           phase_known &: (image_lo >=+ timer_min) &: (image_hi <=+ timer_max)
         in
@@ -1070,16 +1054,39 @@ module Make_timer (Timer : Engine.Timer) = struct
         }
       in
       let falls = asks &: (~:(c.jump) |: may_fall) in
+      let takes = asks &: c.jump &: may_take in
       (* a halt's side-set moves the pins too *)
-      ( { Conjuncts.in_time =
-            ~:asks |: ~:(c.deadline) |: (row.phase_hi <=+ zero timer_bits)
-        ; wide_a = is_empty row |: wide_a
-        ; wide_b = is_empty row |: wide_b
-        ; next = only_if falls (holds ~taken:false next)
-        ; target = only_if (asks &: c.jump &: may_take) (holds ~taken:true target)
-        }
-      , fallen
-      , falls )
+      let in_time = ~:asks |: ~:(c.deadline) |: (row.phase_hi <=+ zero timer_bits) in
+      let wide_a = is_empty row |: wide_a in
+      let wide_b = is_empty row |: wide_b in
+      match on with
+      | `Both (next, target) ->
+        let untaken =
+          let fallen_lo, fallen_hi = image ~lo:clamped_lo ~hi:clamped_hi in
+          mux2 c.x_dec fallen_lo image_lo, mux2 c.x_dec fallen_hi image_hi
+        in
+        ( { Conjuncts.in_time
+          ; wide_a
+          ; wide_b
+          ; next = only_if falls (holds ~taken:gnd ~image:untaken next)
+          ; target = only_if takes (holds ~taken:vdd ~image:(image_lo, image_hi) target)
+          }
+        , fallen ~taken:gnd ~image:untaken
+        , falls )
+      | `One (taken, s) ->
+        let clamps = c.x_dec &: ~:taken in
+        let image =
+          image ~lo:(mux2 clamps clamped_lo lo) ~hi:(mux2 clamps clamped_hi hi)
+        in
+        let holds = holds ~taken ~image s in
+        ( { Conjuncts.in_time
+          ; wide_a
+          ; wide_b
+          ; next = only_if (falls &: ~:taken) holds
+          ; target = only_if (takes &: taken) holds
+          }
+        , fallen ~taken ~image
+        , falls )
     ;;
 
     let conjuncts
@@ -1094,7 +1101,15 @@ module Make_timer (Timer : Engine.Timer) = struct
       ~target
       =
       let conjuncts, _, _ =
-        ways ~side_set_count ~fraction ~loaded ~capture ~spacing ~word ~row ~next ~target
+        ways
+          ~side_set_count
+          ~fraction
+          ~loaded
+          ~capture
+          ~spacing
+          ~word
+          ~row
+          ~on:(`Both (next, target))
       in
       conjuncts
     ;;
@@ -1175,10 +1190,21 @@ module Make_timer (Timer : Engine.Timer) = struct
           ~spacing:no_spacing
           ~word
           ~row
-          ~next:row
-          ~target:row
+          ~on:(`Both (row, row))
       in
       fallen, falls
+    ;;
+
+    let one_way ~side_set_count ~fraction ~loaded ~capture ~word ~row ~taken s =
+      ways
+        ~side_set_count
+        ~fraction
+        ~loaded
+        ~capture
+        ~spacing:no_spacing
+        ~word
+        ~row
+        ~on:(`One (taken, s))
     ;;
 
     let starting ~level = { Edge.since = since_limit; level; fresh = vdd }

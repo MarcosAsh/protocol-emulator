@@ -272,6 +272,21 @@ module Make_timer (_ : Engine.Timer) : sig
       -> row:Comb.t Row.t
       -> Comb.t Row.t * Comb.t
 
+    (** [conjuncts] with no spacing on one way out against [s], the jump's where [taken] is
+        high and falling through where it is low, the other way's holding; where [taken]
+        is low, [fall_through] too. A way's image is then computed once, for the load
+        checker, which checks one way at a time. [test/test_kernel.ml] proves it theirs. *)
+    val one_way
+      :  side_set_count:Comb.t
+      -> fraction:Comb.t
+      -> loaded:Comb.t With_valid.t
+      -> capture:Comb.t Capture.t
+      -> word:Comb.t
+      -> row:Comb.t Row.t
+      -> taken:Comb.t
+      -> Comb.t Row.t
+      -> Comb.t Conjuncts.t * Comb.t Row.t * Comb.t
+
     val no_spacing : Comb.t Spaced.t
 
     (** An edge state at the start of a run, not yet written. *)

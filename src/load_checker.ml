@@ -152,26 +152,17 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let%hw next_pc = uresize pc.value ~width:(Isa.pc_bits + 1) +:. 1 in
   let%hw falls_to_next = uresize following ~width:(Isa.pc_bits + 1) ==: next_pc in
   let%hw is_jump = Opcode.is (Decoder.decode ~side_set_count word.value).opcode Jmp in
-  let conjuncts =
-    K.conjuncts
-      ~side_set_count
-      ~fraction
-      ~loaded:setup.loaded
-      ~capture
-      ~spacing:K.no_spacing
-      ~word:word.value
-      ~row:row_value
-      ~next:other_value
-      ~target:other_value
-  in
-  let fallen, falls =
-    K.fall_through
+  (* the target's way while it is held, else falling through's, whose row [fallen] is *)
+  let conjuncts, fallen, falls =
+    K.one_way
       ~side_set_count
       ~fraction
       ~loaded:setup.loaded
       ~capture
       ~word:word.value
       ~row:row_value
+      ~taken:(sm.is Hold_target)
+      other_value
   in
   (* held a cycle, so a check decides on the row it settled on the cycle before and the
      kernel's arithmetic ends at a flop *)
