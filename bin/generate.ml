@@ -409,7 +409,9 @@ let assemble_command =
         flag
           "-certificate"
           no_arg
-          ~doc:" print the certificate the chip checks the program against at load, not words"
+          ~doc:
+            " print the certificate the chip checks the program against at load, not \
+             words"
       in
       fun () ->
         let assembled =

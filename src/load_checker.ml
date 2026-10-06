@@ -142,9 +142,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   (* one bit wider, so pc 511's way out never reads as falling through *)
   let%hw next_pc = uresize pc.value ~width:(Isa.pc_bits + 1) +:. 1 in
   let%hw falls_to_next = uresize following ~width:(Isa.pc_bits + 1) ==: next_pc in
-  let%hw is_jump =
-    Opcode.is (Decoder.decode ~side_set_count word.value).opcode Jmp
-  in
+  let%hw is_jump = Opcode.is (Decoder.decode ~side_set_count word.value).opcode Jmp in
   let conjuncts =
     K.conjuncts
       ~side_set_count
@@ -177,21 +175,29 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let in_time_and_next, target_holds =
     List.partition_tf indexed ~f:(fun (n, _) -> n < 3 + 10)
   in
-  let%hw next_fails =
-    ~:(List.map in_time_and_next ~f:snd |> List.reduce_exn ~f:( &: ))
-  in
+  let%hw next_fails = ~:(List.map in_time_and_next ~f:snd |> List.reduce_exn ~f:( &: )) in
   let%hw next_reason = first_failing in_time_and_next in
-  let%hw target_fails_now = ~:(List.map target_holds ~f:snd |> List.reduce_exn ~f:( &: )) in
+  let%hw target_fails_now =
+    ~:(List.map target_holds ~f:snd |> List.reduce_exn ~f:( &: ))
+  in
   let%hw target_reason_now = first_failing target_holds in
   (* the certificate's layout from [base]: two header words, the entries, the dictionaries *)
   let address offset = uresize offset ~width:Isa.data_addr_bits in
-  let times3 x = uresize x ~width:Isa.data_addr_bits *: of_unsigned_int ~width:2 3 |> address in
+  let times3 x =
+    uresize x ~width:Isa.data_addr_bits *: of_unsigned_int ~width:2 3 |> address
+  in
   let%hw entries_at = i.setup.base +:. 2 in
   let%hw wide_at = entries_at +: times3 count.value in
   let%hw narrow_at = wide_at +: times3 wide_count.value in
   let entry_at n = entries_at +: times3 n +: uresize k.value ~width:Isa.data_addr_bits in
   let%hw entry_tag = i.data_word.:[15, 7] in
-  let%hw mid = srl (uresize lo.value ~width:(count_bits + 1) +: uresize hi.value ~width:(count_bits + 1)) ~by:1 |> sel_bottom ~width:count_bits in
+  let%hw mid =
+    srl
+      (uresize lo.value ~width:(count_bits + 1) +: uresize hi.value ~width:(count_bits + 1)
+      )
+      ~by:1
+    |> sel_bottom ~width:count_bits
+  in
   let%hw read_done = wait.value ==:. data_wait - 1 in
   (* the field being read: phase and arm are wide, the period, x and y narrow *)
   let%hw index =
@@ -225,11 +231,14 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
         field.value
         [ ( of_unsigned_int ~width:3 0
           , [ other.phase_lo <-- wide_lo; other.phase_hi <-- wide_hi ] )
-        ; of_unsigned_int ~width:3 1, [ other.arm_lo <-- wide_lo; other.arm_hi <-- wide_hi ]
+        ; ( of_unsigned_int ~width:3 1
+          , [ other.arm_lo <-- wide_lo; other.arm_hi <-- wide_hi ] )
         ; ( of_unsigned_int ~width:3 2
           , [ other.period_lo <-- narrow_lo; other.period_hi <-- narrow_hi ] )
-        ; of_unsigned_int ~width:3 3, [ other.x_lo <-- narrow_lo; other.x_hi <-- narrow_hi ]
-        ; of_unsigned_int ~width:3 4, [ other.y_lo <-- narrow_lo; other.y_hi <-- narrow_hi ]
+        ; ( of_unsigned_int ~width:3 3
+          , [ other.x_lo <-- narrow_lo; other.x_hi <-- narrow_hi ] )
+        ; ( of_unsigned_int ~width:3 4
+          , [ other.y_lo <-- narrow_lo; other.y_hi <-- narrow_hi ] )
         ])
   in
   (* [purpose] is set in the same cycle, so the full row at pc 0 goes on to [then_] *)
@@ -271,9 +280,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
       ]
   in
   let read addr = Always.[ reading <-- vdd; data_addr <-- addr ] in
-  let read_entry n =
-    Always.[ sel <-- n; k <-- zero 2; sm.set_next Entry ]
-  in
+  let read_entry n = Always.[ sel <-- n; k <-- zero 2; sm.set_next Entry ] in
   Always.(
     compile
       [ wait <-- mux2 (reading.value &: ~:read_done) (wait.value +:. 1) (zero 2)
@@ -314,10 +321,13 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
                   (read (entry_at ptr.value)
                    @ [ when_
                          read_done
-                         [ stored <-- (uresize entry_tag ~width:(Isa.pc_bits + 1) ==: next_pc)
+                         [ stored
+                           <-- (uresize entry_tag ~width:(Isa.pc_bits + 1) ==: next_pc)
                          ; if_
                              (entry_tag <=: pc.value)
-                             (reject ~at:(uresize pc.value ~width:(Isa.pc_bits + 1)) (of_unsigned_int ~width:reason_bits out_of_order))
+                             (reject
+                                ~at:(uresize pc.value ~width:(Isa.pc_bits + 1))
+                                (of_unsigned_int ~width:reason_bits out_of_order))
                              [ sm.set_next Target ]
                          ]
                      ])
@@ -381,10 +391,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
                              ; k <-- k.value +:. 1
                              ; when_
                                  last_word
-                                 [ set_field
-                                 ; k <-- zero 2
-                                 ; field <-- field.value +:. 1
-                                 ]
+                                 [ set_field; k <-- zero 2; field <-- field.value +:. 1 ]
                              ]
                          ])
                   ]
@@ -400,7 +407,9 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
                   [ if_
                       stored.value
                       (purpose.set_next Stored :: read_entry ptr.value)
-                      [ Kernel.Row.Of_always.assign other (Kernel.Row.map2 fallen empty ~f:(mux2 falls))
+                      [ Kernel.Row.Of_always.assign
+                          other
+                          (Kernel.Row.map2 fallen empty ~f:(mux2 falls))
                       ; sm.set_next Check_next
                       ]
                   ]
@@ -412,7 +421,9 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
                   (reject ~at:(uresize pc.value ~width:(Isa.pc_bits + 1)) next_reason)
                   [ if_
                       target_fails.value
-                      (reject ~at:(uresize pc.value ~width:(Isa.pc_bits + 1)) target_reason.value)
+                      (reject
+                         ~at:(uresize pc.value ~width:(Isa.pc_bits + 1))
+                         target_reason.value)
                       [ sm.set_next Advance ]
                   ]
               ] )

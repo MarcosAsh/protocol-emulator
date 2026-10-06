@@ -106,7 +106,9 @@ let write t ~(statuses : int Host_port.Status.t list) ~reg value =
             else old))
       in
       let written =
-        if t.select < t.engines && halted t.select then reached t [ Event.Config_written ] else []
+        if t.select < t.engines && halted t.select
+        then reached t [ Event.Config_written ]
+        else []
       in
       { t with configs }, written)
 ;;
@@ -154,7 +156,11 @@ let read
   then t.check_flags, []
   else if reg = Reg.check_status
   then (
-    let mine = if engine < t.engines then status else Host_port.Status.map Host_port.Status.port_widths ~f:(Fn.const 0) in
+    let mine =
+      if engine < t.engines
+      then status
+      else Host_port.Status.map Host_port.Status.port_widths ~f:(Fn.const 0)
+    in
     ( verdict.busy
       lor (verdict.accepted lsl 1)
       lor (mine.certified lsl 2)

@@ -127,5 +127,4 @@ let bench_cases =
       (Spi_cs.master ~mode ~half_period:8 ~setup:4 ~hold:8))
 ;;
 
-
 let all = library @ asm_cases @ bench_cases

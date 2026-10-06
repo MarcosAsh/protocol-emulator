@@ -331,7 +331,8 @@ let%expect_test "a budget from the host moves the anchors and verdicts it certif
             ~budget_from_host:(firmware.budget_from_host : int option)
             (anchor_pcs : int list)
             ~certificate:(firmware.certificate : Predicate.Certificate.t)]);
-  [%expect {|
+  [%expect
+    {|
     ((latency 300) (budget_from_host (296)) (anchor_pcs (6))
      (certificate
       ((latency 300) (jitter 0)

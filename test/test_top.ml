@@ -102,7 +102,9 @@ let%expect_test "two engines talk over a wire and the host reads the result" =
          Spi_master.write m ~watch Reg.program (assemble program);
          Spi_certify.certify m ~watch ~assumptions ~config (assemble program)
        in
-       let rx_config = { rx_config with in_base = wire; jmp_pin = wire; capture_pin = wire } in
+       let rx_config =
+         { rx_config with in_base = wire; jmp_pin = wire; capture_pin = wire }
+       in
        load
          1
          ~config:rx_config

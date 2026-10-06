@@ -107,7 +107,10 @@ let of_program
 ;;
 
 (* 48 bits as three words, the top first *)
-let split3 bits = [ (bits lsr 32) land 0xffff; (bits lsr 16) land 0xffff; bits land 0xffff ]
+let split3 bits =
+  [ (bits lsr 32) land 0xffff; (bits lsr 16) land 0xffff; bits land 0xffff ]
+;;
+
 let join3 memory at = (memory at lsl 32) lor (memory (at + 1) lsl 16) lor memory (at + 2)
 
 (* pc 9, captured, awaiting, then the phase, arm, period, x and y indices, 7 bits each *)
@@ -175,7 +178,9 @@ let walk
   let size = 1 lsl Isa.pc_bits in
   let words = Array.of_list words in
   let word pc =
-    Bits.of_unsigned_int ~width:Isa.data_bits (if pc < Array.length words then words.(pc) else 0)
+    Bits.of_unsigned_int
+      ~width:Isa.data_bits
+      (if pc < Array.length words then words.(pc) else 0)
   in
   (* as the chip reads them: addresses wrap at the memory's size, counts are a byte *)
   let memory at = memory (at land ((1 lsl Isa.data_addr_bits) - 1)) in
@@ -193,11 +198,16 @@ let walk
         bits lsr timer_bits, bits land timer_ones)
     in
     let narrow i =
-      if i = 0 then narrow_whole else memory (narrow_at + (2 * (i - 1))), memory (narrow_at + (2 * (i - 1)) + 1)
+      if i = 0
+      then narrow_whole
+      else memory (narrow_at + (2 * (i - 1))), memory (narrow_at + (2 * (i - 1)) + 1)
     in
-    let timer (lo, hi) = Bits.of_unsigned_int ~width:timer_bits lo, Bits.of_unsigned_int ~width:timer_bits hi in
+    let timer (lo, hi) =
+      Bits.of_unsigned_int ~width:timer_bits lo, Bits.of_unsigned_int ~width:timer_bits hi
+    in
     let data (lo, hi) =
-      Bits.of_unsigned_int ~width:Isa.data_bits lo, Bits.of_unsigned_int ~width:Isa.data_bits hi
+      ( Bits.of_unsigned_int ~width:Isa.data_bits lo
+      , Bits.of_unsigned_int ~width:Isa.data_bits hi )
     in
     let phase_lo, phase_hi = timer (wide ~whole:phase_whole e.phase) in
     let arm_lo, arm_hi = timer (wide ~whole:arm_whole e.arm) in
@@ -230,7 +240,11 @@ let walk
         else (
           let mid = (lo + hi) / 2 in
           let e = entry mid in
-          if e.pc = pc then decode e else if e.pc < pc then search (mid + 1) hi else search lo mid)
+          if e.pc = pc
+          then decode e
+          else if e.pc < pc
+          then search (mid + 1) hi
+          else search lo mid)
       in
       search 0 count)
   in

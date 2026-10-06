@@ -282,8 +282,7 @@ module Make (Config : Config) = struct
         ]);
     let strobe n = write.value &: at n in
     let%hw writes_config =
-      write.value
-      &: (List.map Reg.configs ~f:at |> List.reduce_exn ~f:( |: ))
+      write.value &: (List.map Reg.configs ~f:at |> List.reduce_exn ~f:( |: ))
     in
     { O.miso = spi.miso
     ; engines =

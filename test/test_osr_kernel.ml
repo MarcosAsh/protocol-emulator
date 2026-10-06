@@ -136,7 +136,8 @@ let%expect_test "an accepted osr row maps into the row the core steps to" =
       [%string "accepts => %{bound} stays in the rows"]
       ~cases
       ~claim);
-  [%expect {|
+  [%expect
+    {|
     (QED "accepts => shifted stays in the rows")
     (QED "accepts => sum stays in the rows")
     (QED "accepts => pulled stays in the rows")
@@ -151,7 +152,8 @@ let%expect_test "the rows hold only with the kernel's x" =
     "accepts => shifted stays in the rows, x anything"
     ~cases
     ~claim:claims.shifted;
-  [%expect {|
+  [%expect
+    {|
     (counterexample "accepts => shifted stays in the rows, x anything"
      (model ()))
     |}]
@@ -208,7 +210,8 @@ let%expect_test "what each out sends, in the firmware library" =
       let verdict = Osr_kernel.check ~config ~words ~kernel table in
       let sends = sends c in
       print_s [%message c.name (verdict : unit Or_error.t) (sends : (int * string) list)]);
-  [%expect {|
+  [%expect
+    {|
     (uart_tx_stamped (verdict (Ok ()))
      (sends ((11 "bit 7 - x") (16 "not a pulled word"))))
     (uart_tx (verdict (Ok ())) (sends ((9 "bit 7 - x"))))
@@ -252,7 +255,8 @@ let%expect_test "the check refuses a row one short" =
   let out = 9 in
   table.(out) <- { (table.(out)) with shifted_hi = Bits.(table.(out).shifted_hi -:. 1) };
   print_s [%message (Osr_kernel.check ~config ~words ~kernel table : unit Or_error.t)];
-  [%expect {|
+  [%expect
+    {|
     ("Osr_kernel.check ~config ~words ~kernel table"
      (Error
       ("rows the check rejects" (rejected (((pc 8) (fails ("next shifted"))))))))

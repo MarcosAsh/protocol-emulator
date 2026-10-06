@@ -770,7 +770,8 @@ b:
   in
   print_s
     [%message (issues : int) (reached : int) (violations : (int * int * int * int) list)];
-  [%expect {|
+  [%expect
+    {|
       0  set p, 31                    phase ?..?
       1  mov t, now                   phase ?..?
       2  set x, 3                     phase 1
@@ -896,7 +897,8 @@ next:
   print_s
     [%message
       (issues : int) (side_edges : int) (violations : (int * int * int * int) list)];
-  [%expect {|
+  [%expect
+    {|
       0  set x, 1 side 1              phase ?..?  side ?..?  jitter ?
       1  mov osr, x side 1            phase ?..?
       2  out pins, 1 side 1           phase ?..?  edge ?..?  jitter ?  gap ?..?

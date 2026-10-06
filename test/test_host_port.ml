@@ -236,7 +236,8 @@ let%expect_test "the load checker's registers" =
           ~status:(back Reg.check_status : int)
           ~reject_pc:(back Reg.reject_pc : int)
           ~reason:(back Reg.reject_reason : int)]);
-  [%expect {|
+  [%expect
+    {|
     ((setup ((base 261) (loaded ((valid 1) (value 434))) (single_edge 1)))
      (base 261) (loaded 434) (flags 3) (status 6) (reject_pc 291) (reason 30))
     (events (check))

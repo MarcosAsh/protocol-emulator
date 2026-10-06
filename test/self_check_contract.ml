@@ -79,18 +79,18 @@ module Make (Config : Config) = struct
     let%hw moved = i.line ^: previous in
     let%hw fell = moved &: ~:(i.line) in
     let%hw hit =
-      List.mapi i.inner ~f:(fun n edge -> (edge ==: position.value) &: (i.count >:. n))
+      List.mapi i.inner ~f:(fun n edge -> edge ==: position.value &: (i.count >:. n))
       |> reduce ~f:( |: )
     in
     let%hw last = mux (i.count -:. 1) i.inner in
     let%hw off_edge = moved &: ~:hit in
-    let%hw ends_low = (position.value ==: last) &: ~:(i.line) in
+    let%hw ends_low = position.value ==: last &: ~:(i.line) in
     let%hw broke = off_edge |: ends_low in
     let%hw blind_now =
-      blind.value |: ((ended.value ==:. 0) &: stale.value &: (watch.value ==:. 0) &: fell)
+      blind.value |: (ended.value ==:. 0 &: stale.value &: (watch.value ==:. 0) &: fell)
     in
-    let%hw final = position.value ==: (i.least -:. 1) in
-    let%hw in_time = position.value <=: (i.least -:. 5) in
+    let%hw final = position.value ==: i.least -:. 1 in
+    let%hw in_time = position.value <=: i.least -:. 5 in
     let%hw aliased =
       at_last.value
       &: ~:(early.value)
@@ -147,7 +147,7 @@ module Make (Config : Config) = struct
                       blind_now
                       [ if_
                           in_time
-                          [ left <-- (i.least -: position.value) -:. 1; sm.set_next Doomed ]
+                          [ left <-- i.least -: position.value -:. 1; sm.set_next Doomed ]
                           [ if_ final [ at_last <--. 1 ] [ early <--. 1 ] ]
                       ]
                   ]

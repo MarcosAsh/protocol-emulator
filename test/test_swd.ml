@@ -260,8 +260,8 @@ let%expect_test "a read whose parity is wrong" =
 
 (* A DP whose first two OK ACKs the wire garbles goes on with the data phase: RDATA for
    the read, which the core lets be, and WDATA for the write, which the core does not
-   send, so the DP takes the pull-up's ones, whose parity fails: WDATAERR, until the
-   act's ABORT clears it after a line reset. *)
+   send, so the DP takes the pull-up's ones, whose parity fails: WDATAERR, until the act's
+   ABORT clears it after a line reset. *)
 let%expect_test "ACKs the wire garbled" =
   let bus = Bus.create [ dp ~corrupt_acks:2 rp2040_core0 ] in
   let items =
@@ -459,8 +459,7 @@ let%expect_test "the shortest half period" =
   [%expect {| (("check shortest_half" true) ("check (shortest_half - 1)" false)) |}]
 ;;
 
-(* swd joins [Certified.all] once its certificate is inductive: t is stale at a host
-   wait. *)
+(* swd joins [Certified.all] once its certificate is inductive: t is stale at a host wait. *)
 let%expect_test "the kernel accepts swd at its half period" =
   let program = Asm.assemble (Timed_program.source firmware) |> ok_exn in
   let config = Asm.Program.configure program config in

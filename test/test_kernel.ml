@@ -126,11 +126,13 @@ let accepted_rows_hold ?(check_spacing = Fn.id) ~step_edge () =
   let d = Decoder.decode ~side_set_count word in
   let is op = Opcode.is d.opcode op in
   let deadline = G.(is Wait &: Wait_source.is d.wait_source Deadline) in
-  (* what the core holds at the next entry, by the step lemma; after [mov t, capture]
-     that is only a range, from a cycle past the instruction up to the step *)
+  (* what the core holds at the next entry, by the step lemma; after [mov t, capture] that
+     is only a range, from a cycle past the instruction up to the step *)
   let free_phase = any "phase" Isa.timer_bits in
   let cycles = G.(uresize d.delay ~width:Isa.timer_bits +:. 1) in
-  let in_capture_range = G.(cycles +:. 1 <=: free_phase &: (free_phase <=: s.next_phase)) in
+  let in_capture_range =
+    G.(cycles +:. 1 <=: free_phase &: (free_phase <=: s.next_phase))
+  in
   let phase' =
     G.(
       mux2
@@ -307,7 +309,9 @@ let%expect_test "the fall-through image is the tightest next row" =
   let word = G.input "word" Isa.data_bits in
   let row = row_input "row" in
   let next = row_input "next" in
-  let fallen, falls = K.fall_through ~side_set_count ~fraction ~loaded ~capture ~word ~row in
+  let fallen, falls =
+    K.fall_through ~side_set_count ~fraction ~loaded ~capture ~word ~row
+  in
   let holds =
     (K.conjuncts
        ~side_set_count
@@ -342,8 +346,20 @@ let%expect_test "the fall-through image is the tightest next row" =
           ~image_lo:fallen.period_lo
           ~image_hi:fallen.period_hi
           ~signed:false
-    ; x = inside next.x_lo next.x_hi ~image_lo:fallen.x_lo ~image_hi:fallen.x_hi ~signed:false
-    ; y = inside next.y_lo next.y_hi ~image_lo:fallen.y_lo ~image_hi:fallen.y_hi ~signed:false
+    ; x =
+        inside
+          next.x_lo
+          next.x_hi
+          ~image_lo:fallen.x_lo
+          ~image_hi:fallen.x_hi
+          ~signed:false
+    ; y =
+        inside
+          next.y_lo
+          next.y_hi
+          ~image_lo:fallen.y_lo
+          ~image_hi:fallen.y_hi
+          ~signed:false
     ; arm =
         inside
           next.arm_lo
@@ -376,23 +392,20 @@ let%expect_test "the fall-through image is the tightest next row" =
       List.map parts ~f:(fun part -> G.(Opcode.is d.opcode op &: part)))
   in
   List.iter
-    [ "phase", (fun (h : _ Kernel.Holds.t) -> h.phase)
-    ; "period", (fun h -> h.period)
-    ; "x", (fun h -> h.x)
-    ; "y", (fun h -> h.y)
-    ; "arm", (fun h -> h.arm)
-    ; "captured", (fun h -> h.captured)
-    ; "awaiting", (fun h -> h.awaiting)
+    [ ("phase", fun (h : _ Kernel.Holds.t) -> h.phase)
+    ; ("period", fun h -> h.period)
+    ; ("x", fun h -> h.x)
+    ; ("y", fun h -> h.y)
+    ; ("arm", fun h -> h.arm)
+    ; ("captured", fun h -> h.captured)
+    ; ("awaiting", fun h -> h.awaiting)
     ]
     ~f:(fun (name, field) ->
       Checked_unsat.prove
         ("falling through, next " ^ name ^ " holds iff the image lies inside")
         ~cases
         ~claim:G.(~:falls |: ~:offset_full |: (field holds ==: field contained)));
-  Checked_unsat.prove
-    "a way not asked holds"
-    ~cases
-    ~claim:G.(falls |: all holds);
+  Checked_unsat.prove "a way not asked holds" ~cases ~claim:G.(falls |: all holds);
   [%expect
     {|
     (QED "falling through, next phase holds iff the image lies inside")

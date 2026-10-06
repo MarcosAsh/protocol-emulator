@@ -36,7 +36,8 @@ let%expect_test "the firmware library and its certificates" =
         verdict.deadline_waits
         (Option.value_map verdict.worst_slack ~default:"-" ~f:Int.to_string)
         assumes);
-  [%expect {|
+  [%expect
+    {|
     firmware           words  deadline  slack  assumes
     uart_tx               15         3      4
     uart_tx16             15         3     12
@@ -113,7 +114,8 @@ let%expect_test "the least period the host may load" =
         [%string "%{t.name}: every load of %{floor - 1#Int} or more"]
         ~cases:[ G.vdd ]
         ~claim:(loads_from (floor - 1))));
-  [%expect {|
+  [%expect
+    {|
     (uart_tx_host_rate (period (434)) (floor 4) (passes true) (one_less false))
     (QED "uart_tx_host_rate: every load of 4 or more")
     (counterexample "uart_tx_host_rate: every load of 3 or more"

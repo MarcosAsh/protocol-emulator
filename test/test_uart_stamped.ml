@@ -14,7 +14,8 @@ let%expect_test "the analyser's certificate" =
        ~side_set_count:config.side_set_count
        (Analyser.analyse ~config program.instructions));
   print_endline (Analyser.check ~config program |> ok_exn |> Analyser.Verdict.to_string);
-  [%expect {|
+  [%expect
+    {|
       0  set p, 8                     phase ?..?
       1  set pins, 1                  phase ?..?  edge ?..?  jitter ?  gap ?..?
       2  wait tx                      phase ?..?
@@ -94,7 +95,8 @@ let%expect_test "every frame carries the cycle its start bit showed" =
     [%test_result: int] stamp ~expect:(edge land 0xffff);
     printf "0x%02x  0x%04x  %6d  0x%04x\n" byte stamp edge (edge land 0xffff));
   print_s [%message (t.fault : Machine.Fault.t)];
-  [%expect {|
+  [%expect
+    {|
     byte   stamp    edge  edge mod 2^16
     0x41  0x0009       9  0x0009
     0xa5  0x03ef    1007  0x03ef

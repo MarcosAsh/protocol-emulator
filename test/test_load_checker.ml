@@ -23,15 +23,22 @@ let expected = function
       match reason with
       | "a table entry out of order" -> Load_checker.out_of_order
       | "a table entry left over" -> Load_checker.left_over
-      | reason ->
-        fst (List.findi_exn names ~f:(fun _ name -> String.equal name reason))
+      | reason -> fst (List.findi_exn names ~f:(fun _ name -> String.equal name reason))
     in
     `Rejected (pc, code)
 ;;
 
 (* The checker over [words] and [certificate], the program memory answering a cycle after
    an address and the data memory two, the latest either engine's turn gives. *)
-let run ?random_initial_state ~config ?loaded ?(single_edge = false) ~words ~certificate () =
+let run
+  ?random_initial_state
+  ~config
+  ?loaded
+  ?(single_edge = false)
+  ~words
+  ~certificate
+  ()
+  =
   let program = Array.of_list words in
   let data = Array.of_list certificate in
   let word memory at = if at < Array.length memory then memory.(at) else 0 in
@@ -82,7 +89,10 @@ let certify (case : Firmware_inventory.t) =
   let config = Timed_program.config case.timed in
   let words = Timed_program.words case.timed in
   let certificate =
-    Load_check.of_table ~config ~words (Kernel.Table.of_analyser (Timed_program.rows case.timed))
+    Load_check.of_table
+      ~config
+      ~words
+      (Kernel.Table.of_analyser (Timed_program.rows case.timed))
     |> ok_exn
     |> Load_check.to_words
   in
@@ -90,7 +100,9 @@ let certify (case : Firmware_inventory.t) =
 ;;
 
 let model (case : Firmware_inventory.t) ~config ~words ~certificate =
-  let memory at = if at < List.length certificate then List.nth_exn certificate at else 0 in
+  let memory at =
+    if at < List.length certificate then List.nth_exn certificate at else 0
+  in
   Load_check.walk
     ?loaded:case.period
     ~single_capture_edge:case.single_capture_edge
@@ -126,7 +138,8 @@ let%expect_test "the checker agrees with the model on every firmware" =
     if not ([%equal: [ `Accepted | `Rejected of int * int ]] verdict model)
     then printf "MISMATCH, the model says %s: " (show model);
     printf "%-26s %7d  %s\n" case.name cycles (show verdict));
-  [%expect {|
+  [%expect
+    {|
     firmware                    cycles  verdict
     uart_tx                       4222  accepted
     uart_tx16                     4222  accepted
@@ -184,7 +197,10 @@ let%expect_test "the checker agrees with the model on every firmware" =
 let%expect_test "the checker agrees with the model on corrupted certificates" =
   let cases =
     List.filter Firmware_inventory.all ~f:(fun c ->
-      List.mem [ "uart_tx"; "uart_rx"; "i2c_master"; "can"; "bench/swd" ] c.name ~equal:String.equal)
+      List.mem
+        [ "uart_tx"; "uart_rx"; "i2c_master"; "can"; "bench/swd" ]
+        c.name
+        ~equal:String.equal)
   in
   let refused = ref 0 in
   let trials = ref 0 in

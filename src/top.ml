@@ -44,19 +44,23 @@ let create ~memory ~engines (scope : Scope.t) (i : Signal.t I.t) =
       ; mosi = i.ui_in.:(1)
       ; cs_n = i.ui_in.:(2)
       ; status =
-          List.map3_exn engine_outs check.certified check.refused ~f:(fun (engine : _ Engine.O.t) certified refused ->
-            { Host_port.Status.pc = engine.pc
-            ; now = engine.now
-            ; capture = engine.capture
-            ; halted = engine.halted
-            ; irq = engine.irq
-            ; fault = engine.fault
-            ; tx_level = engine.tx_level
-            ; rx_level = engine.rx_level
-            ; rx_head = engine.rx_head
-            ; certified
-            ; refused
-            })
+          List.map3_exn
+            engine_outs
+            check.certified
+            check.refused
+            ~f:(fun (engine : _ Engine.O.t) certified refused ->
+              { Host_port.Status.pc = engine.pc
+              ; now = engine.now
+              ; capture = engine.capture
+              ; halted = engine.halted
+              ; irq = engine.irq
+              ; fault = engine.fault
+              ; tx_level = engine.tx_level
+              ; rx_level = engine.rx_level
+              ; rx_head = engine.rx_head
+              ; certified
+              ; refused
+              })
       ; check = check.verdict
       }
   in

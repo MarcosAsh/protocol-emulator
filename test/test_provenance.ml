@@ -68,7 +68,8 @@ let%expect_test "the share of verilog names that resolve to a src line" =
                Option.map source ~f:(fun source -> source.file))
              |> List.dedup_and_sort ~compare:String.compare
              : string list)]);
-  [%expect {|
+  [%expect
+    {|
     ((names 6173) (named_at 231) (made_at 5141) (unresolved 801)
      (distinct_lines 773))
     (data_memory (names 60) (unresolved 30) (files (src/data_memory.ml)))

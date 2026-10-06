@@ -21,7 +21,10 @@ let () =
   List.chunks_of words ~length:8
   |> List.iter ~f:(fun chunk ->
     printf "    %s,\n" (String.concat ~sep:", " (List.map chunk ~f:(sprintf "0x%04X"))));
-  print_string "]\n\n# what the chip checks it against at load, the link interval loaded\nCERTIFICATE = [\n";
+  print_string
+    "]\n\n\
+     # what the chip checks it against at load, the link interval loaded\n\
+     CERTIFICATE = [\n";
   List.chunks_of certificate ~length:8
   |> List.iter ~f:(fun chunk ->
     printf "    %s,\n" (String.concat ~sep:", " (List.map chunk ~f:(sprintf "0x%04X"))));

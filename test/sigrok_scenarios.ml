@@ -388,7 +388,8 @@ let jtag =
   ; script =
       Scenario.load
         ~config:Jtag.config
-        ~program:(Firmware.assemble (Jtag.firmware ~half_period)) ()
+        ~program:(Firmware.assemble (Jtag.firmware ~half_period))
+        ()
       @ [ Scenario.start ]
       @ List.concat_map (List.chunks_of (Jtag.words clocks) ~length:4) ~f:send
   ; sigrok =
@@ -813,7 +814,8 @@ let spi_cs mode =
   ; script =
       Scenario.load
         ~config:Spi_cs.config
-        ~program:(Firmware.assemble (Spi_cs.master ~mode ~half_period ~setup:4 ~hold:8)) ()
+        ~program:(Firmware.assemble (Spi_cs.master ~mode ~half_period ~setup:4 ~hold:8))
+        ()
       @ [ Scenario.start; Run 200 ]
       @ List.concat_map frames ~f:send
   ; sigrok =

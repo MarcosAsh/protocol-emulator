@@ -30,7 +30,8 @@ let uart_tx =
   ; script =
       Scenario.load
         ~config:Program_config.default
-        ~program:(assemble (uart_tx ~period:16)) ()
+        ~program:(assemble (uart_tx ~period:16))
+        ()
       @ [ Write (Reg.tx, [ 0x55; 0xa3 ]); Scenario.start; Run 400; Read (Reg.status, 1) ]
   ; sigrok =
       (* the first stop bit, edge 10, 12 cycles late: sampled low, a framing error *)
@@ -196,7 +197,8 @@ let wrapped_loop =
   ; script =
       Scenario.load
         ~config:{ Program_config.default with in_base = 5; wrap_bottom = 3; wrap_top = 4 }
-        ~program ()
+        ~program
+        ()
       @ [ Scenario.start; Run 60; Read (Reg.status, 1) ]
   ; sigrok = None
   }

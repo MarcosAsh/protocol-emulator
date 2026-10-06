@@ -446,7 +446,11 @@ let step
        after { s with y = Interval.top }
      | Sys Capture_arm ->
        after
-         { s with since_arm = Some (Interval.exactly 0); captured = false; awaiting = true }
+         { s with
+           since_arm = Some (Interval.exactly 0)
+         ; captured = false
+         ; awaiting = true
+         }
      | Sys Halt -> []
      | _ -> after s)
 ;;

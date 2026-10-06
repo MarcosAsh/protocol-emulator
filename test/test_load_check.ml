@@ -28,9 +28,9 @@ let walk (case : Firmware_inventory.t) ~config ~words ~certificate =
     ()
 ;;
 
-(* Each firmware's certificate, as the host would write it, and the chip's verdict on
-   it. Where the walk accepts, the kernel accepts the rows it held, so the run is
-   covered by the kernel's theorem. *)
+(* Each firmware's certificate, as the host would write it, and the chip's verdict on it.
+   Where the walk accepts, the kernel accepts the rows it held, so the run is covered by
+   the kernel's theorem. *)
 let%expect_test "every firmware against the chip's walk" =
   printf "%-26s %5s  %5s  %s\n" "firmware" "words" "table" "walk";
   List.iter Firmware_inventory.all ~f:(fun case ->
@@ -48,7 +48,8 @@ let%expect_test "every firmware against the chip's walk" =
              rows
          with
          | Ok () -> "accepted"
-         | Error e -> "accepted, BUT the kernel refuses its rows: " ^ Error.to_string_hum e)
+         | Error e ->
+           "accepted, BUT the kernel refuses its rows: " ^ Error.to_string_hum e)
     in
     printf
       "%-26s %5d  %5d  %s\n"
@@ -56,7 +57,8 @@ let%expect_test "every firmware against the chip's walk" =
       (List.length words)
       (List.length certificate)
       verdict);
-  [%expect {|
+  [%expect
+    {|
     firmware                   words  table  walk
     uart_tx                       15     15  accepted
     uart_tx16                     15     15  accepted
@@ -122,7 +124,8 @@ let%expect_test "the walk refuses what it was not given" =
       what
       (match result with
        | Ok _ -> "accepted"
-       | Error { Load_check.Rejection.pc; reason } -> sprintf "refused at %d: %s" pc reason)
+       | Error { Load_check.Rejection.pc; reason } ->
+         sprintf "refused at %d: %s" pc reason)
   in
   show "as written" (walk uart_tx ~config ~words ~certificate);
   (* the README's late firmware: the bit loop's out given 13 cycles of delay *)
@@ -151,7 +154,8 @@ let%expect_test "the walk refuses what it was not given" =
          ((count + 1)
           :: List.nth_exn certificate 1
           :: (List.sub certificate ~pos:2 ~len:3 @ List.drop certificate 2)));
-  [%expect {|
+  [%expect
+    {|
     as written: accepted
     out pins, 1 [13]: refused at 10: target phase
     an entry left off: refused at 1: next period

@@ -2,7 +2,13 @@ open! Core
 open Protocol_emulator
 module Reg = Host_port.Reg
 
-let certify m ~(watch @ local) ~(assumptions : System_lockstep.Assumptions.t) ~config program =
+let certify
+  m
+  ~(watch @ local)
+  ~(assumptions : System_lockstep.Assumptions.t)
+  ~config
+  program
+  =
   let loaded = System_lockstep.Assumptions.loaded assumptions in
   Spi_master.write m ~watch Reg.data_addr [ 0 ];
   Spi_master.write
@@ -31,5 +37,6 @@ let certify m ~(watch @ local) ~(assumptions : System_lockstep.Assumptions.t) ~c
     let pc = Spi_master.read m ~watch Reg.reject_pc ~count:1 in
     let reason = Spi_master.read m ~watch Reg.reject_reason ~count:1 in
     raise_s
-      [%message "the load checker refused the program" (pc : int list) (reason : int list)])
+      [%message
+        "the load checker refused the program" (pc : int list) (reason : int list)])
 ;;

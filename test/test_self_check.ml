@@ -330,7 +330,9 @@ let%expect_test "the rtl checks as the model does, rows above other data" =
           ; preload = []
           ; data = under ~base @ rows ~base
           ; assumptions =
-              { System_lockstep.Assumptions.none with period_floor = Some Self_check.min_gap }
+              { System_lockstep.Assumptions.none with
+                period_floor = Some Self_check.min_gap
+              }
           }
         ]
     in
@@ -389,7 +391,9 @@ let long_frame ?glitch ?every ~rtl edges =
           ; preload = []
           ; data
           ; assumptions =
-              { System_lockstep.Assumptions.none with period_floor = Some Self_check.min_gap }
+              { System_lockstep.Assumptions.none with
+                period_floor = Some Self_check.min_gap
+              }
           }
         ]
     in

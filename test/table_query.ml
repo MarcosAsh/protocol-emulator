@@ -107,7 +107,9 @@ let witness
     }
   in
   match
-    Solver.solve ~solver (G.cnf (accepts ~loaded ~single_capture_edge ~config ~words table))
+    Solver.solve
+      ~solver
+      (G.cnf (accepts ~loaded ~single_capture_edge ~config ~words table))
     |> ok_exn
   with
   | Unsat -> None

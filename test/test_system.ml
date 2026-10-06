@@ -21,7 +21,8 @@ let cross_wired ~line ~transmitter =
         ; program = assemble (uart_rx_on ~pin:line ~period)
         ; preload = []
         ; data = []
-        ; assumptions = { System_lockstep.Assumptions.none with single_capture_edge = true }
+        ; assumptions =
+            { System_lockstep.Assumptions.none with single_capture_edge = true }
         }
       ]
   in
