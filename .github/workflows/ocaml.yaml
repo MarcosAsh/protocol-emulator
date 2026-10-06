@@ -229,8 +229,8 @@ jobs:
             python3 demo/decode.py --capture bench.sr $trace
           done
 
-  # the netlists of both boards, simulated; the firmware words they load are the committed
-  # ones, which the test job checks are current
+  # the Icepi Zero's netlist, simulated; the firmware words it loads are the committed ones,
+  # which the test job checks are current
   fpga:
     runs-on: ubuntu-24.04
     steps:
@@ -259,23 +259,8 @@ jobs:
           curl -sL https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz | tar xz -C "$HOME"
           echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
 
-      # the kit's top and pin file; tt is not part of this repository
-      - name: Checkout tt-support-tools
-        uses: actions/checkout@v6
-        with:
-          repository: TinyTapeout/tt-support-tools
-          ref: d66cf179e7bc4d296362ab7e2e3b344dc3c4f665 # ihp-sg13cmos5l, 2026-09-21
-          path: tt
-
-      - name: Build for the FPGA kit and simulate the netlist
-        run: |
-          # the simulator loads OSS CAD Suite's cocotb, so no pip cocotb beside it
-          cd test
-          opam exec -- make fpga_kit.bin
-          python3 check_metrics.py --fpga fpga_kit.log >> "$GITHUB_STEP_SUMMARY"
-          make FPGA=yes
-          ! grep failure results.xml
-          make replay FPGA=yes
+      # The kit's iCE40 UP5K held the chip at 85% of its cells before the load checker,
+      # which needs about 2k more, so the Icepi Zero below is the FPGA the chip runs on.
 
       # the chip's own Verilog, two engines and all, on the Icepi Zero's ECP5 at 48 MHz;
       # nextpnr fails the build if timing does
