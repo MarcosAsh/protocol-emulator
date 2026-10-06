@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # CAN at 500 kbit/s from the library's transmitter (MicroPython, Pico A): OUT1 into an
 # SN65HVD230's D, the bus to Pico B running demo/can_node, which ACKs. OUT1 is dominant
-# from reset until it has the period, so arm() sends that before D is wired, and the run
-# only sends frames, after 11 recessive bits, as the firmware waits for no idle bus.
+# from reset until it has the period, so the run arms first, then waits 11
+# recessive bits before the frames, as the firmware waits for no idle bus.
 
 import bench
 import bench_firmware
@@ -40,24 +40,23 @@ def words(ident, data):
     return out
 
 
-def arm(transfer):
+def arm(transfer, log=print):
     """Loads the transmitter and sends the period, after which the pin stays recessive."""
     host = pe.Host(transfer)
     bench.load(host, bench_firmware.CAN)
     host.start()
     host.push([PERIOD])
-    print("OUT1 is recessive: wire it to the transceiver's D, then run the act")
+    log("armed: OUT1 is recessive")
 
 
 def run(transfer, pause_ms, log=print):
     host = pe.Host(transfer)
     host.select(0)
-    if host.status()["halted"]:
-        log("engine 0 is not running: run demo_can.arm() before wiring D")
-        return False
     if bench.faults(host):
-        log("engine 0 holds faults 0x%x: reset, arm again" % bench.faults(host))
+        log("engine 0 holds faults 0x%x: reset first" % bench.faults(host))
         return False
+    # again if armed already, which a stopped engine's OUT1 stays recessive through
+    arm(transfer, log)
     pause_ms(IDLE_MS)
     for ident, data in FRAMES:
         host.push(words(ident, data))

@@ -2,8 +2,8 @@
 # The chip as a CAN node at 500 kbit/s on one SN65HVD230 (MicroPython, Pico A): OUT1 into
 # its D, its R into IN1, the bus to Pico B running demo/can_node. Engine 0 sends four
 # frames with the sender, which reads each ACK slot, the last asking Pico B for frames of
-# its own; then engine 0 takes the receiver, which ACKs Pico B's four. Arm first, as
-# demo_can does: OUT1 is dominant until the sender has its period.
+# its own; then engine 0 takes the receiver, which ACKs Pico B's four. OUT1 is dominant
+# from reset until the sender has its period, which the run gives first.
 
 import bench
 import bench_firmware
@@ -37,7 +37,7 @@ def arm(transfer, log=print):
     bench.load(host, bench_firmware.CAN_SENDER)
     host.start()
     host.push([PERIOD])
-    log("OUT1 is recessive: wire it to the transceiver's D, then run the act")
+    log("armed: OUT1 is recessive")
 
 
 def frames(words):
@@ -94,14 +94,11 @@ def listen(host, pause_ms, log):
 def run(transfer, pause_ms, log=print):
     host = pe.Host(transfer)
     host.select(0)
-    if host.status()["halted"]:
-        log("engine 0 is not running: run demo_can_node.arm() before wiring D")
-        return False
     if bench.faults(host):
-        log("engine 0 holds faults 0x%x: reset, arm again" % bench.faults(host))
+        log("engine 0 holds faults 0x%x: reset first" % bench.faults(host))
         return False
-    # the sender again, as demo/capture.sh may run this more than once: OUT1 holds the
-    # recessive level the last firmware left
+    # the sender again, armed from reset or by an earlier run, as demo/capture.sh may run
+    # this more than once: a stopped engine leaves OUT1 at the level it had
     bench.load(host, bench_firmware.CAN_SENDER)
     host.start()
     host.push([PERIOD])
