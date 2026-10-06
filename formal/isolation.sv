@@ -83,7 +83,7 @@ module isolation_copy (
   output [`STATE_BITS - 1:0] state,
   output fifo_t rx, tx,
   output [27:0] pins_sampled,
-  output started, data_mine,
+  output started, data_mine, lent,
   output [15:0] data_word
 );
 `define CONFIG(n, c) \
@@ -145,7 +145,8 @@ module isolation_copy (
     .engines$wait_select_0(wait_select), .engines$capture_armed_0(capture_armed),
     .engines$data_addr_0(data_addr),
     .state_0(state), .rx_0(rx), .tx_0(tx), .pins_sampled_0(pins_sampled),
-    .started_0(started), .data_mine_0(data_mine), .data_word_0(data_word));
+    .started_0(started), .data_mine_0(data_mine), .lent_0(lent),
+    .data_word_0(data_word));
 endmodule
 
 // The data memory of each copy, as the register its reads fill. Both read the same word
@@ -200,6 +201,10 @@ module isolation (input clk);
     warm <= cleared;
   end
 
+  // the checker held engine 0's ports last cycle, in either copy
+  reg was_lent = 0;
+  always @(posedge clk) was_lent <= lent_a || lent_b;
+
   wire [15:0] dout_0_a, dout_0_b, dout_data_a, dout_data_b, held_a, held_b;
   port_t port_0_a, port_0_b, port_1_a, port_1_b, port_data_a, port_data_b;
   wire [27:0] pin_out_0_a, pin_dir_0_a, pin_out_1_a, pin_dir_1_a;
@@ -213,7 +218,7 @@ module isolation (input clk);
   wire [8:0] data_addr_a, data_addr_b;
   wire [`STATE_BITS - 1:0] state_a, state_b;
   fifo_t rx_a, tx_a, rx_b, tx_b;
-  wire started_a, started_b, data_mine_a, data_mine_b;
+  wire started_a, started_b, data_mine_a, data_mine_b, lent_a, lent_b;
 
 `define COPY(side) \
   isolation_copy side ( \
@@ -230,7 +235,7 @@ module isolation (input clk);
     .capture_armed(capture_armed_``side), .data_addr(data_addr_``side), \
     .state(state_``side), .rx(rx_``side), .tx(tx_``side), \
     .pins_sampled(pins_sampled_``side), .started(started_``side), \
-    .data_mine(data_mine_``side), .data_word(data_word_``side));
+    .data_mine(data_mine_``side), .lent(lent_``side), .data_word(data_word_``side));
 
   `COPY(a)
   `COPY(b)
@@ -306,6 +311,11 @@ module isolation (input clk);
 `ifndef START_WRITE
     if (host_0.start || started_a) assume (!port_data_a.wen && !port_data_b.wen);
 `endif
+    // Nor does engine 0 start the cycle after the checker held its ports, whose word
+    // would still be on its way; gate.sby proves a gated start never does.
+`ifndef START_LENT
+    if (host_0.start) assume (!was_lent);
+`endif
   end
 
   // the pads engine 1 reaches in either copy
@@ -332,7 +342,7 @@ module isolation (input clk);
       assert (((pins_sampled_a ^ pins_sampled_b) & listens) == 0);
       assert (opcode_onehot_a == 8'd1 << opcode);
       assert (wait_select_a == 28'd1 << instruction_a[4:0]);
-      assert (port_0_a == port_0_b);
+      if (!lent_a && !lent_b) assert (port_0_a == port_0_b);
       assert (held_a == held_b);
       // each write into the region lands in both alike
       assert ((port_data_a.wen && region[port_data_a.addr])
@@ -347,7 +357,7 @@ module isolation (input clk);
         if (data_mine_a) assert (data_word_a == data_word_b);
       end
     end
-    if (warm) assert (dout_0_a == dout_0_b);
+    if (warm && !was_lent) assert (dout_0_a == dout_0_b);
   end
 `endif
 

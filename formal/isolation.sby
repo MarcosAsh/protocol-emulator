@@ -8,6 +8,7 @@ region_written teeth
 outside teeth
 load_anytime teeth
 start_write teeth
+start_lent teeth
 
 [options]
 prove: mode prove
@@ -30,10 +31,11 @@ proc
 flatten
 expose -evert -sep __ engines_top/t:RM_IHPSG13_1P_512x16_c2_bm_bist
 cd engines_top
-expose w:engines.engine_0.pins_sampled w:engines.engine_0.start_0
+expose w:engines.engine_0.pins_sampled w:engines.engine_0.start_0 w:engines.lent$0
 expose w:engines.data_memory.mine_1 w:engines.data_memory.words_0
 rename engines.engine_0.pins_sampled pins_sampled_0
 rename engines.engine_0.start_0 started_0
+rename engines.lent$0 lent_0
 rename engines.data_memory.mine_1 data_mine_0
 rename engines.data_memory.words_0 data_word_0
 rename engines.engine_0.sram_macro.sram__A_MEN sram_0_men
@@ -67,6 +69,7 @@ region_written: read -define REGION_WRITTEN
 outside: read -define OUTSIDE
 load_anytime: read -define LOAD_ANYTIME
 start_write: read -define START_WRITE
+start_lent: read -define START_LENT
 read_verilog -formal -sv isolation.sv
 prep -top isolation
 

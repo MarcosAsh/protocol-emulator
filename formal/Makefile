@@ -187,7 +187,7 @@ isolation_proof:
 	sed '$(ANY_TURN)' engines_sram.v > engines_any_turn.v
 	! cmp -s engines_sram.v engines_any_turn.v
 	sby -f isolation.sby prove cover heard pad_heard any_turn region_written outside \
-	  load_anytime start_write
+	  load_anytime start_write start_lent
 
 # Self_check.checker on the core beside its contract (test/self_check_contract.ml), any
 # line, 116 cycles from the clear: the irq only after a break and by when the contract says,
