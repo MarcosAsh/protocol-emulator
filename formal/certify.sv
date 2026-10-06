@@ -1,10 +1,8 @@
-// The load checker's walk, for any program, configuration, setup and data memory: an
-// accepted walk passed every pc's check; where pc g falls through, the next row it
-// checked g against is the row it held at g + 1; and each entry it decodes is the row the
-// certificate's layout gives, written out below apart from the RTL. The program memory
-// gives the same word at g each time, and the data memory holds still, as the gate keeps
-// them through an accepted walk (gate.sv); an abort only ends a walk unaccepted, so none
-// comes.
+// The load checker's walk, for any program, configuration, setup and certificate: an
+// accepted walk checked every pc against the rows it then holds at the pc's successor and
+// target, the full row at pc 0, each entry decoding as the layout below gives; a missed
+// lookup's empty row is test_kernel.ml's. Program and data memory hold still through an
+// accepted walk (gate.sv); a data word is free until its address has held two cycles.
 
 module certify (input clk);
   (* anyconst *) wire [1:0] side_set_count;
@@ -19,6 +17,10 @@ module certify (input clk);
   // the pc the claims are about, and its word
   (* anyconst *) wire [8:0] g;
   (* anyconst *) wire [15:0] word_g;
+  // a lookup at g, its purpose, the target it looks up and the entry it may find
+  (* anyconst *) wire look;
+  (* anyconst *) wire [8:0] t;
+  (* anyconst *) wire [7:0] gi;
   (* anyseq *) wire [15:0] any_word;
 
   reg clear = 1;
@@ -43,6 +45,9 @@ module certify (input clk);
   wire [8:0] walk_base;
   wire reading;
   wire [1:0] read_wait;
+  wire [7:0] lo, hi, ptr, mid;
+  wire [8:0] key, entry_tag;
+  wire stored, read_done;
   wire [23:0] row_phase_lo, other_phase_lo;
   wire [23:0] row_phase_hi, other_phase_hi;
   wire [23:0] row_slope, other_slope;
@@ -65,17 +70,21 @@ module certify (input clk);
     other_offset_hi, other_arm_lo, other_arm_hi, other_period_lo, other_period_hi,
     other_x_lo, other_x_hi, other_y_lo, other_y_hi, other_captured, other_awaiting};
 
-  // a word a cycle after its address, and a data word once its address has held
-  reg [8:0] program_at, data_at;
+  // A program word a cycle after its address. A data word is anything until its address
+  // has held two cycles, the most either engine's turn takes (data_memory.mli); read_at is
+  // registered, the same as data[data_at], so the memory's other reads below make no loop
+  // through it.
+  (* anyseq *) wire [15:0] any_data;
+  reg [8:0] program_at, data_at, data_before;
   reg [15:0] data [0:511];
-  // the data word registered, the same as data[data_at], so the memory's other reads below
-  // make no loop through it
-  reg [15:0] data_word;
+  reg [15:0] read_at;
   always @(posedge clk) begin
     program_at <= program_read_value;
     data_at <= data_read_value;
-    data_word <= data[data_read_value];
+    data_before <= data_at;
+    read_at <= data[data_read_value];
   end
+  wire [15:0] data_word = data_at == data_before ? read_at : any_data;
   wire [15:0] program_word = program_at == g ? word_g : any_word;
 
   load_checker dut (
@@ -93,7 +102,8 @@ module certify (input clk);
     .sm(sm), .purpose(purpose), .pc(pc), .next_fails(next_fails),
     .target_fails(target_fails), .k(k), .field(field), .sel(sel), .count(count),
     .wide_count(wide_count), .entry(entry), .acc(acc), .walk_base(walk_base),
-    .reading(reading), .read_wait(read_wait),
+    .reading(reading), .read_wait(read_wait), .lo(lo), .hi(hi), .ptr(ptr), .mid(mid),
+    .key(key), .entry_tag(entry_tag), .stored(stored), .read_done(read_done),
     .falls_to_next(falls_to_next),
     .row_phase_lo(row_phase_lo), .row_phase_hi(row_phase_hi), .row_slope(row_slope),
     .row_offset_lo(row_offset_lo), .row_offset_hi(row_offset_hi),
@@ -120,6 +130,9 @@ module certify (input clk);
     three = {data[at], data[at + 9'd1], data[at + 9'd2]};
   endfunction
   wire [47:0] spec_entry = three(entries_at + 9'd3 * sel);
+  function [47:0] data_entry(input [7:0] i);
+    data_entry = three(entries_at + 9'd3 * i);
+  endfunction
   function [47:0] wide_of(input [6:0] index, input [47:0] whole);
     wide_of = index == 0 ? whole : three(wide_at + 9'd3 * (index - 7'd1));
   endfunction
@@ -132,6 +145,8 @@ module certify (input clk);
   endfunction
   localparam [47:0] WHOLE_PHASE = 48'h8000007fffff, WHOLE_ARM = 48'h000000ffffff;
   localparam [71:0] FULL_SLOPE_OFFSET = 72'h000000_800000_7fffff;
+  localparam [265:0] FULL_ROW =
+    {WHOLE_PHASE, FULL_SLOPE_OFFSET, WHOLE_ARM, {3{32'h0000ffff}}, 2'b00};
   // a row field by field as the spec gives it, those from field on still whole
   function [265:0] spec_row(input [47:0] e, input [2:0] upto);
     reg [47:0] phase, arm;
@@ -155,9 +170,9 @@ module certify (input clk);
   wire [8:0] cur_at = cur_wide ? wide_at + 9'd3 * (cur_index - 7'd1)
     : narrow_at + 9'd2 * (cur_index - 7'd1);
 
-  localparam IDLE = 0, SEARCH = 5, ENTRY = 6, FIELD = 7, CHECK_NEXT = 10, ADVANCE = 11,
-    RELOAD = 12, FINISH = 13;
-  localparam RELOADING = 3;
+  localparam IDLE = 0, HEADER = 1, WORD = 2, HEAD = 3, SEARCH = 5, ENTRY = 6, FIELD = 7,
+    CHECK_NEXT = 10, ADVANCE = 11, RELOAD = 12, FINISH = 13;
+  localparam STORING = 2, RELOADING = 3;
   // past g's check: advancing, reloading the row for g + 1, or finishing
   wire after_check = sm == ADVANCE || sm == RELOAD || sm == FINISH
     || purpose == RELOADING && (sm == ENTRY || sm == FIELD);
@@ -177,11 +192,106 @@ module certify (input clk);
       next_of_g <= other;
     end
 
+  // entry gi as the layout has it, and its pc; and the entry at ptr's pc
+  wire [47:0] entry_gi = three(entries_at + 9'd3 * gi);
+  wire [8:0] tag_gi = entry_gi[47:39];
+  wire [8:0] tag_ptr = data[entries_at + 9'd3 * ptr][15:7];
+
+  // g's lookup found entry gi for t (hit), and the row it read (looked_up, from entry
+  // looked_entry); the walk consumed entry gi (consumed), holding the row it read from
+  // entry consumed_entry; and the row the walk held at t (at_t)
+  wire finds = sm == SEARCH && purpose == {1'b0, look} && pc == g && lo < hi && read_done
+    && entry_tag == key && mid == gi && key == t;
+  wire consumes = stored && ptr == gi
+    && (sm == ADVANCE && falls_to_next || sm == RELOAD);
+  reg hit = 0, read_it = 0, consumed = 0, held_t = 0;
+  reg [47:0] looked_entry, consumed_entry;
+  reg [265:0] looked_up, consumed_row, at_t;
+  always @(posedge clk)
+    if (clear || begins) begin
+      hit <= 0;
+      read_it <= 0;
+      consumed <= 0;
+      held_t <= 0;
+    end else begin
+      if (finds) hit <= 1;
+      if (hit && !read_it && sm == FIELD && field == 5) begin
+        read_it <= 1;
+        looked_up <= other;
+        looked_entry <= entry;
+      end
+      if (consumes) begin
+        consumed <= 1;
+        consumed_row <= other;
+        consumed_entry <= entry;
+      end
+      if (sm == CHECK_NEXT && pc == t) begin
+        held_t <= 1;
+        at_t <= row;
+      end
+    end
+
   always @* if (!clear) begin
+    // the walk holds the full row at pc 0, which a lookup of 0 reads without a search
+    if (busy && sm != FINISH && pc == 0) assert (row == FULL_ROW);
+    // the row a lookup finds is the row the walk holds at its target
+    if (finished && accepted && hit) assert (read_it && held_t && at_t == looked_up);
     if (finished && accepted) assert (passed);
     // each entry decodes to the row the layout gives
     if (sm == FIELD && field == 5)
       assert (entry == spec_entry && other == spec_row(entry, 5));
+`ifndef NO_INVARIANT
+    // the data word, the search's bounds and reads, and the head's
+    assert (read_at == data[data_at]);
+    if (busy && sm != HEADER) assert (ptr <= count);
+    if (sm == HEADER)
+      assert (ptr == 0 && pc == 0 && !consumed && !hit && !read_it && !held_t);
+    if (sm == SEARCH) assert (lo <= hi && hi <= count && k == 0 && reading == (lo < hi));
+    if (sm == SEARCH && lo < hi) assert (data_read_value == entries_at + 9'd3 * mid);
+    if (sm == HEAD) assert (k == 0);
+    if (sm == HEAD && ptr < count)
+      assert (reading && data_read_value == entries_at + 9'd3 * ptr);
+    if ((sm == SEARCH || sm == HEAD) && reading && read_wait != 0)
+      assert (data_at == data_read_value);
+    if ((sm == SEARCH || sm == HEAD) && reading && read_wait == 2'd2)
+      assert (data_before == data_read_value);
+    // past the head: stored says the entry at ptr is the next pc's, which is past this one
+    if (busy && !(sm == HEADER || sm == WORD || sm == HEAD || sm == FINISH)) begin
+      assert (stored == (ptr < count && {1'b0, tag_ptr} == {1'b0, pc} + 10'd1));
+      if (ptr < count) assert (tag_ptr > pc);
+    end
+    // a successor is looked up only where the pc does not fall through, and one that falls
+    // through to a stored entry decodes it
+    if (purpose == 1 && (sm == SEARCH || sm == ENTRY || sm == FIELD))
+      assert (!falls_to_next);
+    if ((sm == ENTRY || sm == FIELD) && purpose == STORING)
+      assert (falls_to_next && stored);
+    if (sm == CHECK_NEXT && falls_to_next && stored) assert (purpose == STORING);
+    // a stored entry's decode, and the row it leaves
+    if ((sm == ENTRY || sm == FIELD) && (purpose == STORING || purpose == RELOADING))
+      assert (sel == ptr && stored);
+    if (sm == RELOAD || (sm == CHECK_NEXT || sm == ADVANCE) && falls_to_next && stored)
+      assert (entry == data_entry(ptr) && other == spec_row(entry, 5));
+    // entry gi is consumed at the pc before its own, and the walk holds its row there
+    if (busy && sm != HEADER) assert (consumed == (ptr > gi));
+    if (consumed)
+      assert (consumed_entry == entry_gi && consumed_row == spec_row(consumed_entry, 5));
+    if (consumed && busy) assert ({1'b0, pc} >= {1'b0, tag_gi});
+    if (consumed && busy && sm != FINISH && pc == tag_gi) assert (row == consumed_row);
+    if (busy) assert (held_t == (pc > t || pc == t && after_check));
+    if (sm == IDLE && finished && accepted) assert (held_t);
+    if (held_t && consumed && tag_gi == t) assert (at_t == consumed_row);
+    // what g's lookup found
+    if (hit && busy) assert (pc >= g);
+    if (hit) assert (tag_gi == t && gi < count);
+    if (hit && !read_it)
+      assert (pc == g && purpose == {1'b0, look} && (sm == ENTRY || sm == FIELD)
+              && sel == gi);
+    if (hit && !read_it && sm == FIELD) assert (entry == entry_gi);
+    if (read_it)
+      assert (looked_entry == entry_gi && looked_up == spec_row(looked_entry, 5));
+    if (hit && busy && pc > g) assert (read_it);
+`endif
     if (sm == CHECK_NEXT && pc == g + 9'd1 && g != 9'd511 && fell)
       assert (row == next_of_g);
 `ifndef NO_INVARIANT
@@ -197,6 +307,8 @@ module certify (input clk);
       assert (reading && data_read_value == cur_at + k);
     if ((sm == ENTRY || sm == FIELD) && reading && read_wait != 0)
       assert (data_at == data_read_value);
+    if ((sm == ENTRY || sm == FIELD) && reading && read_wait == 2'd2)
+      assert (data_before == data_read_value);
     if (sm == FIELD && k == 2'd1) assert (acc[15:0] == data[cur_at]);
     if (sm == FIELD && k == 2'd2) assert (acc[31:0] == {data[cur_at], data[cur_at + 9'd1]});
     if (sm == ENTRY && k == 2'd1) assert (entry[15:0] == spec_entry[47:32]);
@@ -204,7 +316,7 @@ module certify (input clk);
     if (sm == FIELD) assert (entry == spec_entry && field <= 5);
     if (sm == FIELD) assert (other == spec_row(entry, field));
     // only a target's or a successor's lookup searches
-    if (sm == SEARCH) assert (purpose != RELOADING);
+    if (sm == SEARCH) assert (purpose <= 1);
     if (busy && pc > g) assert (passed);
     if (busy && (pc < g || pc == g && !after_check)) assert (!passed);
     if (after_check && pc == g) assert (passed);

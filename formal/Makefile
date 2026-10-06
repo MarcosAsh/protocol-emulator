@@ -189,9 +189,12 @@ isolation: engines_sram.v
 
 # The load checker's walk, for any program, configuration, setup and data memory: an
 # accepted walk passed every pc, and a pc that falls through was checked against the row
-# the walk then holds. The cover and tooth end the walk at pc 1 (SHORT_WALK, below); the
-# tooth, ending it at pc 0, has to accept with pc 1 unchecked.
+# the walk then holds; each entry decodes to the row its layout gives; a lookup finds the
+# row the walk holds at the target. The short cover and the early tooth end the walk at pc 1
+# (SHORT_WALK, below) and at pc 0, which has to accept with pc 1 unchecked; the early_read
+# tooth takes a data word a cycle before either engine's turn delivers it.
 EARLY_WALK = /^module load_checker /,/^endmodule/s/= 9'b111111111;/= 9'b000000000;/
+EARLY_READ = /^module load_checker /,/^endmodule/s/^\(\s*assign read_done = .wait  == \)signal_const[_0-9]*;/\12'b01;/
 certify: engines_gated.v
 	$(MAKE) certify_proof
 
@@ -199,8 +202,10 @@ certify_proof:
 	mkdir -p certify_teeth
 	sed "$(SHORT_WALK)" engines_gated.v > certify_teeth/short.v
 	sed "$(EARLY_WALK)" engines_gated.v > certify_teeth/early.v
+	sed "$(EARLY_READ)" engines_gated.v > certify_teeth/early_read.v
 	! cmp -s certify_teeth/short.v certify_teeth/early.v
-	sby -f certify.sby prove cover short_cover early
+	! cmp -s engines_gated.v certify_teeth/early_read.v
+	sby -f certify.sby prove cover short_cover early early_read
 
 # A start reaches a core only once it is certified, by an accepted walk begun after its
 # last write that held it free; and never right after the checker held its ports. A walk
