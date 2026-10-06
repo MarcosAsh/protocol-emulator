@@ -92,6 +92,8 @@ let constant_row bits = Kernel.Row.map bits ~f:of_bits
 
 let create (scope : Scope.t) (i : Signal.t I.t) =
   let spec = Clocking.to_spec i.clocking in
+  (* the rows and words a walk writes before it reads them need no clear *)
+  let datapath = Reg_spec.create ~clock:i.clocking.clock () in
   let full = constant_row (Kernel.Table.of_analyser []).(0) in
   let empty = constant_row (Kernel.Table.of_analyser []).(1) in
   let%hw.Always.State_machine sm = Always.State_machine.create (module State) spec in
@@ -106,14 +108,14 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let%hw_var ptr = Always.Variable.reg spec ~width:count_bits in
   let%hw_var count = Always.Variable.reg spec ~width:count_bits in
   let%hw_var wide_count = Always.Variable.reg spec ~width:count_bits in
-  let%hw_var word = Always.Variable.reg spec ~width:Isa.word_bits in
+  let%hw_var word = Always.Variable.reg datapath ~width:Isa.word_bits in
   let%hw_var stored = Always.Variable.reg spec ~width:1 in
   let%hw_var key = Always.Variable.reg spec ~width:Isa.pc_bits in
   let%hw_var lo = Always.Variable.reg spec ~width:count_bits in
   let%hw_var hi = Always.Variable.reg spec ~width:count_bits in
   let%hw_var sel = Always.Variable.reg spec ~width:count_bits in
-  let%hw_var entry = Always.Variable.reg spec ~width:(3 * Isa.data_bits) in
-  let%hw_var acc = Always.Variable.reg spec ~width:48 in
+  let%hw_var entry = Always.Variable.reg datapath ~width:(3 * Isa.data_bits) in
+  let%hw_var acc = Always.Variable.reg datapath ~width:48 in
   let%hw_var k = Always.Variable.reg spec ~width:2 in
   let%hw_var field = Always.Variable.reg spec ~width:3 in
   let%hw_var wait = Always.Variable.reg spec ~width:2 in
@@ -126,8 +128,8 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let%hw_var data_addr = Always.Variable.wire ~default:(zero Isa.data_addr_bits) () in
   let%hw_var reading = Always.Variable.wire ~default:gnd () in
   (* the row at [pc], and the successor's it is checked against *)
-  let row = Kernel.Row.Of_always.reg spec in
-  let other = Kernel.Row.Of_always.reg spec in
+  let row = Kernel.Row.Of_always.reg datapath in
+  let other = Kernel.Row.Of_always.reg datapath in
   Kernel.Row.Of_always.apply_names ~prefix:"row$" ~naming_op:(Scope.naming scope) row;
   Kernel.Row.Of_always.apply_names ~prefix:"other$" ~naming_op:(Scope.naming scope) other;
   let row_value = Kernel.Row.Of_always.value row in
@@ -165,8 +167,11 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
       other_value
   in
   (* held a cycle, so a check decides on the row it settled on the cycle before and the
-     kernel's arithmetic ends at a flop *)
-  let%hw.Kernel.Conjuncts.Of_signal held = Kernel.Conjuncts.map conjuncts ~f:(reg spec) in
+     kernel's arithmetic ends at a flop; the way not taken holds, so both ways share flops *)
+  let way = Kernel.Holds.map2 conjuncts.next conjuncts.target ~f:( &: ) in
+  let%hw.Kernel.Conjuncts.Of_signal held =
+    Kernel.Conjuncts.map { conjuncts with next = way; target = way } ~f:(reg datapath)
+  in
   (* the first conjunct that fails, by its index in [Conjuncts.to_list] *)
   let first_failing holds =
     priority_select_with_default
