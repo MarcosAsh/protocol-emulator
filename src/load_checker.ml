@@ -67,14 +67,10 @@ module State = struct
     | Search
     | Entry
     | Field
-    | Check_target
+    | Check
     | Following
     | Check_next
-    | Advance
-    | Reload
     | Finish
-    | Hold_target
-    | Hold_next
   [@@deriving sexp_of, compare ~localize, enumerate]
 end
 
@@ -84,7 +80,18 @@ module Purpose = struct
     | Target
     | Following
     | Stored
+    | Fallen
     | Reload
+  [@@deriving sexp_of, compare ~localize, enumerate]
+end
+
+(* where a checked row's fields come from: the dictionaries, the empty row, or the fall
+   through image *)
+module Source = struct
+  type t =
+    | Dictionary
+    | Empty
+    | Fallen
   [@@deriving sexp_of, compare ~localize, enumerate]
 end
 
@@ -100,6 +107,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let%hw.Always.State_machine purpose =
     Always.State_machine.create (module Purpose) spec
   in
+  let%hw.Always.State_machine source = Always.State_machine.create (module Source) spec in
   (* taken as the check begins, so a host writing it mid-walk cannot mix two *)
   let%hw.Setup.Of_signal setup =
     Setup.Of_signal.reg spec ~enable:(sm.is Idle &: i.check) i.setup
@@ -119,21 +127,27 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let%hw_var k = Always.Variable.reg spec ~width:2 in
   let%hw_var field = Always.Variable.reg spec ~width:3 in
   let%hw_var wait = Always.Variable.reg spec ~width:2 in
-  let%hw_var target_fails = Always.Variable.reg spec ~width:1 in
-  let%hw_var target_reason = Always.Variable.reg spec ~width:reason_bits in
   let%hw_var finished = Always.Variable.reg spec ~width:1 in
   let%hw_var accepted = Always.Variable.reg spec ~width:1 in
   let%hw_var reject_pc = Always.Variable.reg spec ~width:(Isa.pc_bits + 1) in
   let%hw_var reason = Always.Variable.reg spec ~width:reason_bits in
   let%hw_var data_addr = Always.Variable.wire ~default:(zero Isa.data_addr_bits) () in
   let%hw_var reading = Always.Variable.wire ~default:gnd () in
-  (* the row at [pc], and the successor's it is checked against *)
+  (* the row at [pc]; a successor's or a target's is checked a field at a time as it is
+     read, and the conjuncts each way fails kept *)
   let row = Kernel.Row.Of_always.reg datapath in
-  let other = Kernel.Row.Of_always.reg datapath in
   Kernel.Row.Of_always.apply_names ~prefix:"row$" ~naming_op:(Scope.naming scope) row;
-  Kernel.Row.Of_always.apply_names ~prefix:"other$" ~naming_op:(Scope.naming scope) other;
+  let failed_next = Kernel.Holds.Of_always.reg datapath in
+  let failed_target = Kernel.Holds.Of_always.reg datapath in
+  Kernel.Holds.Of_always.apply_names
+    ~prefix:"failed_next$"
+    ~naming_op:(Scope.naming scope)
+    failed_next;
+  Kernel.Holds.Of_always.apply_names
+    ~prefix:"failed_target$"
+    ~naming_op:(Scope.naming scope)
+    failed_target;
   let row_value = Kernel.Row.Of_always.value row in
-  let other_value = Kernel.Row.Of_always.value other in
   let config = i.config in
   let side_set_count = config.side_set_count in
   let fraction = config.period_fraction <>:. 0 in
@@ -154,7 +168,54 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let%hw next_pc = uresize pc.value ~width:(Isa.pc_bits + 1) +:. 1 in
   let%hw falls_to_next = uresize following ~width:(Isa.pc_bits + 1) ==: next_pc in
   let%hw is_jump = Opcode.is (Decoder.decode ~side_set_count word.value).opcode Jmp in
-  (* the target's way while it is held, else falling through's, whose row [fallen] is *)
+  (* the field being read: phase and arm are wide, the period, x and y narrow *)
+  let unpack_entry bits =
+    Load_check.Entry.Of_signal.unpack
+      ~rev:true
+      (drop_bottom bits ~width:Load_check.unused_bits)
+  in
+  let%hw.Load_check.Entry.Of_signal held = unpack_entry entry.value in
+  (* a row's field as the dictionaries hold it, the low bound above the high *)
+  let field_bits (r : _ Kernel.Row.t) =
+    mux
+      field.value
+      [ r.phase_lo @: r.phase_hi
+      ; r.arm_lo @: r.arm_hi
+      ; uresize (r.period_lo @: r.period_hi) ~width:48
+      ; uresize (r.x_lo @: r.x_hi) ~width:48
+      ; uresize (r.y_lo @: r.y_hi) ~width:48
+      ]
+  in
+  (* the next row's marks where it falls through, set below from [one_way] *)
+  let fell_captured = wire 1 in
+  let fell_awaiting = wire 1 in
+  (* the field checked, [acc], in every field of a row: a conjunct reads its own fields
+     alone, and the offset and slope are the full row's, as in every row the walk holds *)
+  let checked =
+    let wide_lo = acc.value.:[47, 24] in
+    let wide_hi = acc.value.:[23, 0] in
+    let narrow_lo = acc.value.:[31, 16] in
+    let narrow_hi = acc.value.:[15, 0] in
+    let by_source ~dictionary ~fallen =
+      mux2 (source.is Dictionary) dictionary (source.is Fallen &: fallen)
+    in
+    let%hw checked_captured = by_source ~dictionary:held.captured ~fallen:fell_captured in
+    let%hw checked_awaiting = by_source ~dictionary:held.awaiting ~fallen:fell_awaiting in
+    { full with
+      phase_lo = wide_lo
+    ; phase_hi = wide_hi
+    ; arm_lo = wide_lo
+    ; arm_hi = wide_hi
+    ; period_lo = narrow_lo
+    ; period_hi = narrow_hi
+    ; x_lo = narrow_lo
+    ; x_hi = narrow_hi
+    ; y_lo = narrow_lo
+    ; y_hi = narrow_hi
+    ; captured = checked_captured
+    ; awaiting = checked_awaiting
+    }
+  in
   let conjuncts, fallen, falls =
     K.one_way
       ~side_set_count
@@ -163,14 +224,16 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
       ~capture
       ~word:word.value
       ~row:row_value
-      ~taken:(sm.is Hold_target)
-      other_value
+      ~taken:(purpose.is Target)
+      checked
   in
-  (* held a cycle, so a check decides on the row it settled on the cycle before and the
-     kernel's arithmetic ends at a flop; the way not taken holds, so both ways share flops *)
-  let way = Kernel.Holds.map2 conjuncts.next conjuncts.target ~f:( &: ) in
-  let%hw.Kernel.Conjuncts.Of_signal held =
-    Kernel.Conjuncts.map { conjuncts with next = way; target = way } ~f:(reg datapath)
+  (* the row the next pc's is where it falls through with none stored *)
+  let%hw.Kernel.Row.Of_signal fell = Kernel.Row.map2 fallen empty ~f:(mux2 falls) in
+  fell_captured <-- fell.captured;
+  fell_awaiting <-- fell.awaiting;
+  (* the way being checked; the other way holds *)
+  let%hw.Kernel.Holds.Of_signal way =
+    Kernel.Holds.map2 conjuncts.next conjuncts.target ~f:( &: )
   in
   (* the first conjunct that fails, by its index in [Conjuncts.to_list] *)
   let first_failing holds =
@@ -179,28 +242,39 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
          { With_valid.valid = ~:h; value = of_unsigned_int ~width:reason_bits index }))
       ~default:(zero reason_bits)
   in
-  (* the conjuncts split into those on the next row and those on the target, each kept at
-     its place in the list so the indices stay [Conjuncts.to_list]'s *)
+  (* the conjuncts as checked, split into those on the next row and those on the target,
+     each kept at its place in the list so the indices stay [Conjuncts.to_list]'s *)
   let indexed (c : Signal.t Kernel.Conjuncts.t) =
     List.mapi (Kernel.Conjuncts.to_list c) ~f:(fun n h -> n, h)
   in
   let holding = Kernel.Holds.map ~f:(fun _ -> vdd) in
-  let in_time_and_next = indexed { held with target = holding held.target } in
+  let passed failed = Kernel.Holds.map failed ~f:( ~: ) in
+  let in_time_and_next =
+    indexed
+      { conjuncts with
+        next = passed (Kernel.Holds.Of_always.value failed_next)
+      ; target = holding conjuncts.target
+      }
+  in
   let target_holds =
     indexed
       { in_time = vdd
       ; wide_a = vdd
       ; wide_b = vdd
-      ; next = holding held.next
-      ; target = held.target
+      ; next = holding conjuncts.next
+      ; target = passed (Kernel.Holds.Of_always.value failed_target)
       }
   in
   let%hw next_fails = ~:(List.map in_time_and_next ~f:snd |> List.reduce_exn ~f:( &: )) in
   let%hw next_reason = first_failing in_time_and_next in
-  let%hw target_fails_now =
-    ~:(List.map target_holds ~f:snd |> List.reduce_exn ~f:( &: ))
+  let%hw target_fails = ~:(List.map target_holds ~f:snd |> List.reduce_exn ~f:( &: )) in
+  let%hw target_reason = first_failing target_holds in
+  (* the field's value from a source other than the dictionaries, or the whole range for
+     an index of 0 *)
+  let%hw stand_in =
+    mux2 (source.is Dictionary) (field_bits full)
+    @@ mux2 (source.is Fallen) (field_bits fell) (field_bits empty)
   in
-  let%hw target_reason_now = first_failing target_holds in
   (* the certificate's layout from [base]: two header words, the entries, the dictionaries *)
   let address offset = uresize offset ~width:Isa.data_addr_bits in
   let times3 x =
@@ -221,16 +295,10 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
     |> sel_bottom ~width:count_bits
   in
   let%hw read_done = wait.value ==:. data_wait - 1 in
-  (* the field being read: phase and arm are wide, the period, x and y narrow *)
-  let unpack_entry bits =
-    Load_check.Entry.Of_signal.unpack
-      ~rev:true
-      (drop_bottom bits ~width:Load_check.unused_bits)
-  in
-  let%hw.Load_check.Entry.Of_signal held = unpack_entry entry.value in
   let%hw index = mux field.value [ held.phase; held.arm; held.period; held.x; held.y ] in
   let%hw wide = field.value <:. 2 in
   let%hw last_word = mux2 wide (k.value ==:. 2) (k.value ==:. 1) in
+  let%hw from_dictionary = source.is Dictionary &: (index <>:. 0) in
   let%hw interval_at =
     mux2
       wide
@@ -241,6 +309,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let%hw shifted = sel_bottom acc.value ~width:32 @: i.data_word in
   let%hw entry_shifted = sel_bottom entry.value ~width:32 @: i.data_word in
   let%hw.Load_check.Entry.Of_signal arriving = unpack_entry entry_shifted in
+  (* a reloaded row's field, from the dictionary word just read *)
   let set_field =
     let narrow_lo = shifted.:[31, 16] in
     let narrow_hi = shifted.:[15, 0] in
@@ -250,34 +319,46 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
       switch
         field.value
         [ ( of_unsigned_int ~width:3 0
-          , [ other.phase_lo <-- wide_lo; other.phase_hi <-- wide_hi ] )
-        ; ( of_unsigned_int ~width:3 1
-          , [ other.arm_lo <-- wide_lo; other.arm_hi <-- wide_hi ] )
+          , [ row.phase_lo <-- wide_lo; row.phase_hi <-- wide_hi ] )
+        ; of_unsigned_int ~width:3 1, [ row.arm_lo <-- wide_lo; row.arm_hi <-- wide_hi ]
         ; ( of_unsigned_int ~width:3 2
-          , [ other.period_lo <-- narrow_lo; other.period_hi <-- narrow_hi ] )
-        ; ( of_unsigned_int ~width:3 3
-          , [ other.x_lo <-- narrow_lo; other.x_hi <-- narrow_hi ] )
-        ; ( of_unsigned_int ~width:3 4
-          , [ other.y_lo <-- narrow_lo; other.y_hi <-- narrow_hi ] )
+          , [ row.period_lo <-- narrow_lo; row.period_hi <-- narrow_hi ] )
+        ; of_unsigned_int ~width:3 3, [ row.x_lo <-- narrow_lo; row.x_hi <-- narrow_hi ]
+        ; of_unsigned_int ~width:3 4, [ row.y_lo <-- narrow_lo; row.y_hi <-- narrow_hi ]
         ])
   in
-  (* [purpose] is set in the same cycle, so the full row at pc 0 goes on to [then_] *)
+  (* the field just checked, and with the last field the conjuncts on no interval *)
+  let record (failed : Always.Variable.t Kernel.Holds.t) =
+    let fails = Kernel.Holds.map2 failed way ~f:(fun f h -> Always.(f <-- ~:h)) in
+    Always.(
+      switch
+        field.value
+        [ of_unsigned_int ~width:3 0, [ fails.phase ]
+        ; of_unsigned_int ~width:3 1, [ fails.arm ]
+        ; of_unsigned_int ~width:3 2, [ fails.period ]
+        ; of_unsigned_int ~width:3 3, [ fails.x ]
+        ; ( of_unsigned_int ~width:3 4
+          , [ fails.y
+            ; fails.offset
+            ; fails.captured
+            ; fails.awaiting
+            ; fails.edge_a
+            ; fails.edge_b
+            ] )
+        ])
+  in
+  let check_fields ~from =
+    Always.[ source.set_next from; field <-- zero 3; k <-- zero 2; sm.set_next Field ]
+  in
+  (* every conjunct holds into the full row at pc 0, so it goes straight on to [then_]:
+     [purpose] is set in the same cycle *)
   let start_lookup target ~then_ =
     Always.
       [ key <-- target
       ; if_
           (target ==:. 0)
-          [ Kernel.Row.Of_always.assign other full; sm.set_next then_ ]
+          [ sm.set_next then_ ]
           [ lo <-- zero count_bits; hi <-- count.value; sm.set_next Search ]
-      ]
-  in
-  (* where a row read for [purpose] goes *)
-  let after_row =
-    purpose.switch
-      [ Target, [ sm.set_next Hold_target ]
-      ; Following, [ sm.set_next Hold_next ]
-      ; Stored, [ sm.set_next Hold_next ]
-      ; Reload, [ sm.set_next Reload ]
       ]
   in
   let reject ~at why =
@@ -292,15 +373,27 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let next_pc_or_finish =
     Always.
       [ ptr <-- ptr.value +: uresize stored.value ~width:count_bits
-      ; target_fails <-- gnd
       ; if_
           (pc.value ==:. (1 lsl Isa.pc_bits) - 1)
           [ sm.set_next Finish ]
           [ pc <-- sel_bottom next_pc ~width:Isa.pc_bits; k <-- zero 2; sm.set_next Word ]
       ]
   in
+  (* where a walk goes once it has a row for [purpose] *)
+  let after_row =
+    purpose.switch
+      [ Target, [ sm.set_next Following ]
+      ; Following, [ sm.set_next Check_next ]
+      ; Stored, [ sm.set_next Check_next ]
+      ; Fallen, [ sm.set_next Check_next ]
+      ; Reload, next_pc_or_finish
+      ]
+  in
   let read addr = Always.[ reading <-- vdd; data_addr <-- addr ] in
   let read_entry n = Always.[ sel <-- n; k <-- zero 2; sm.set_next Entry ] in
+  let pass (failed : Always.Variable.t Kernel.Holds.t) =
+    Kernel.Holds.to_list failed |> List.map ~f:(fun f -> Always.(f <-- gnd))
+  in
   Always.(
     compile
       [ wait <-- mux2 (reading.value &: ~:read_done) (wait.value +:. 1) (zero 2)
@@ -312,7 +405,6 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
                   [ pc <-- zero Isa.pc_bits
                   ; ptr <-- zero count_bits
                   ; k <-- zero 2
-                  ; target_fails <-- gnd
                   ; Kernel.Row.Of_always.assign row full
                   ; sm.set_next Header
                   ]
@@ -333,7 +425,9 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
             , [ k <-- k.value +:. 1
               ; when_
                   (k.value ==:. 1)
-                  [ word <-- i.program_word; k <-- zero 2; sm.set_next Head ]
+                  ([ word <-- i.program_word; k <-- zero 2; sm.set_next Head ]
+                   @ pass failed_next
+                   @ pass failed_target)
               ] )
           ; ( Head
             , [ if_
@@ -356,13 +450,13 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
           ; ( Target
             , [ if_
                   is_jump
-                  (purpose.set_next Target :: start_lookup jump_target ~then_:Hold_target)
+                  (purpose.set_next Target :: start_lookup jump_target ~then_:Following)
                   [ sm.set_next Following ]
               ] )
           ; ( Search
             , [ if_
                   (lo.value >=: hi.value)
-                  [ Kernel.Row.Of_always.assign other empty; after_row ]
+                  (check_fields ~from:Empty)
                   (read (entries_at +: times3 mid)
                    @ [ when_
                          read_done
@@ -385,16 +479,16 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
                     ; k <-- k.value +:. 1
                     ; when_
                         (k.value ==:. 2)
-                        [ Kernel.Row.Of_always.assign
-                            other
-                            { full with
-                              captured = arriving.captured
-                            ; awaiting = arriving.awaiting
-                            }
-                        ; k <-- zero 2
-                        ; field <-- zero 3
-                        ; sm.set_next Field
-                        ]
+                        (when_
+                           (purpose.is Reload)
+                           [ Kernel.Row.Of_always.assign
+                               row
+                               { full with
+                                 captured = arriving.captured
+                               ; awaiting = arriving.awaiting
+                               }
+                           ]
+                         :: check_fields ~from:Dictionary)
                     ]
                 ] )
           ; ( Field
@@ -402,8 +496,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
                   (field.value ==:. 5)
                   [ after_row ]
                   [ if_
-                      (index ==:. 0)
-                      [ field <-- field.value +:. 1 ]
+                      from_dictionary
                       (read interval_at
                        @ [ when_
                              read_done
@@ -411,17 +504,25 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
                              ; k <-- k.value +:. 1
                              ; when_
                                  last_word
-                                 [ set_field; k <-- zero 2; field <-- field.value +:. 1 ]
+                                 [ k <-- zero 2
+                                 ; if_
+                                     (purpose.is Reload)
+                                     [ set_field; field <-- field.value +:. 1 ]
+                                     [ sm.set_next Check ]
+                                 ]
                              ]
                          ])
+                      [ if_
+                          (purpose.is Reload)
+                          [ field <-- field.value +:. 1 ]
+                          [ acc <-- stand_in; sm.set_next Check ]
+                      ]
                   ]
               ] )
-          ; Hold_target, [ sm.set_next Check_target ]
-          ; Hold_next, [ sm.set_next Check_next ]
-          ; ( Check_target
-            , [ target_fails <-- target_fails_now
-              ; target_reason <-- target_reason_now
-              ; sm.set_next Following
+          ; ( Check
+            , [ if_ (purpose.is Target) [ record failed_target ] [ record failed_next ]
+              ; field <-- field.value +:. 1
+              ; if_ (field.value ==:. 4) [ after_row ] [ sm.set_next Field ]
               ] )
           ; ( Following
             , [ if_
@@ -429,37 +530,29 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
                   [ if_
                       stored.value
                       (purpose.set_next Stored :: read_entry ptr.value)
-                      [ Kernel.Row.Of_always.assign
-                          other
-                          (Kernel.Row.map2 fallen empty ~f:(mux2 falls))
-                      ; sm.set_next Hold_next
-                      ]
+                      (purpose.set_next Fallen :: check_fields ~from:Fallen)
                   ]
-                  (purpose.set_next Following :: start_lookup following ~then_:Hold_next)
+                  (purpose.set_next Following :: start_lookup following ~then_:Check_next)
               ] )
           ; ( Check_next
             , [ if_
                   next_fails
                   (reject ~at:(uresize pc.value ~width:(Isa.pc_bits + 1)) next_reason)
                   [ if_
-                      target_fails.value
+                      target_fails
                       (reject
                          ~at:(uresize pc.value ~width:(Isa.pc_bits + 1))
-                         target_reason.value)
-                      [ sm.set_next Advance ]
+                         target_reason)
+                      [ if_
+                          stored.value
+                          (purpose.set_next Reload :: read_entry ptr.value)
+                          (Kernel.Row.Of_always.assign
+                             row
+                             (Kernel.Row.map2 fell empty ~f:(mux2 falls_to_next))
+                           :: next_pc_or_finish)
+                      ]
                   ]
               ] )
-          ; ( Advance
-            , [ if_
-                  falls_to_next
-                  (Kernel.Row.Of_always.assign row other_value :: next_pc_or_finish)
-                  [ if_
-                      stored.value
-                      (purpose.set_next Reload :: read_entry ptr.value)
-                      (Kernel.Row.Of_always.assign row empty :: next_pc_or_finish)
-                  ]
-              ] )
-          ; Reload, Kernel.Row.Of_always.assign row other_value :: next_pc_or_finish
           ; ( Finish
             , [ if_
                   (ptr.value ==: count.value)

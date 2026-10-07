@@ -485,16 +485,39 @@ let%expect_test "one way at a time is both ways" =
     "one way's conjuncts are that way's"
     ~cases
     ~claim:(conjuncts ~taken_by:taken);
-  Checked_unsat.prove "falling through, one way's row is fall_through's" ~cases ~claim:falling;
+  Checked_unsat.prove
+    "falling through, one way's row is fall_through's"
+    ~cases
+    ~claim:falling;
+  (* the full row bounds nothing, so the load checker skips a lookup of pc 0 *)
+  let full_way, _, _ =
+    K.one_way
+      ~side_set_count
+      ~fraction
+      ~loaded
+      ~capture
+      ~word
+      ~row
+      ~taken
+      (Kernel.Row.map
+         (Kernel.Table.of_analyser []).(0)
+         ~f:(fun bits -> G.of_constant (Bits.to_constant bits)))
+  in
+  Checked_unsat.prove
+    "every conjunct on a way holds into the full row"
+    ~cases
+    ~claim:G.(all full_way.next &: all full_way.target);
   (* teeth: the other way's conjuncts in its place *)
   Checked_unsat.prove
     "the other way's conjuncts are this way's"
     ~show:[ "taken" ]
     ~cases
     ~claim:(conjuncts ~taken_by:G.(~:taken));
-  [%expect {|
+  [%expect
+    {|
     (QED "one way's conjuncts are that way's")
     (QED "falling through, one way's row is fall_through's")
+    (QED "every conjunct on a way holds into the full row")
     (counterexample "the other way's conjuncts are this way's"
      (model ((taken 0))))
     |}]

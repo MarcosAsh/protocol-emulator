@@ -2,7 +2,7 @@
 // engine n: (a) a start reaches the core only while n is certified; (b) n is certified
 // only after a walk of n that began after the last program or configuration write to n,
 // held n free and saw no data write throughout, and finished accepted; (c) a start
-// never comes the cycle after the checker held n's ports, which isolation.sv assumes.
+// never comes the cycle after the checker held n's ports.
 // Every host field is free every cycle, and so is each memory's output.
 
 module gate (input clk);

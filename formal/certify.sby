@@ -28,15 +28,26 @@ hierarchy -top load_checker
 proc
 flatten
 cd load_checker
-expose w:sm w:purpose w:pc w:next_fails w:target_fails w:falls_to_next
+expose w:sm w:purpose w:source w:pc w:next_fails w:target_fails w:falls_to_next w:is_jump w:jump_target
 expose w:k w:field w:sel w:count w:wide_count w:entry w:acc w:setup$base_0 w:reading w:wait w:lo w:hi w:ptr w:mid w:key w:entry_tag w:stored w:read_done w:word w:data_addr
+expose w:checked_captured w:checked_awaiting
 rename data_addr walk_addr
 rename setup$base_0 walk_base
 rename wait read_wait
-expose w:row$phase_lo w:row$phase_hi w:row$slope w:row$offset_lo w:row$offset_hi w:row$arm_lo w:row$arm_hi w:row$period_lo w:row$period_hi w:row$x_lo w:row$x_hi w:row$y_lo w:row$y_hi w:row$captured w:row$awaiting
+expose w:failed_target$phase w:failed_target$offset w:failed_target$period w:failed_target$x w:failed_target$y w:failed_target$arm w:failed_target$captured w:failed_target$awaiting w:failed_target$edge_a w:failed_target$edge_b
+rename failed_target$phase failed_phase
+rename failed_target$offset failed_offset
+rename failed_target$period failed_period
+rename failed_target$x failed_x
+rename failed_target$y failed_y
+rename failed_target$arm failed_arm
+rename failed_target$captured failed_captured
+rename failed_target$awaiting failed_awaiting
+rename failed_target$edge_a failed_edge_a
+rename failed_target$edge_b failed_edge_b
+expose w:row$phase_lo w:row$phase_hi w:row$offset_lo w:row$offset_hi w:row$arm_lo w:row$arm_hi w:row$period_lo w:row$period_hi w:row$x_lo w:row$x_hi w:row$y_lo w:row$y_hi w:row$captured w:row$awaiting
 rename row$phase_lo row_phase_lo
 rename row$phase_hi row_phase_hi
-rename row$slope row_slope
 rename row$offset_lo row_offset_lo
 rename row$offset_hi row_offset_hi
 rename row$arm_lo row_arm_lo
@@ -49,22 +60,19 @@ rename row$y_lo row_y_lo
 rename row$y_hi row_y_hi
 rename row$captured row_captured
 rename row$awaiting row_awaiting
-expose w:other$phase_lo w:other$phase_hi w:other$slope w:other$offset_lo w:other$offset_hi w:other$arm_lo w:other$arm_hi w:other$period_lo w:other$period_hi w:other$x_lo w:other$x_hi w:other$y_lo w:other$y_hi w:other$captured w:other$awaiting
-rename other$phase_lo other_phase_lo
-rename other$phase_hi other_phase_hi
-rename other$slope other_slope
-rename other$offset_lo other_offset_lo
-rename other$offset_hi other_offset_hi
-rename other$arm_lo other_arm_lo
-rename other$arm_hi other_arm_hi
-rename other$period_lo other_period_lo
-rename other$period_hi other_period_hi
-rename other$x_lo other_x_lo
-rename other$x_hi other_x_hi
-rename other$y_lo other_y_lo
-rename other$y_hi other_y_hi
-rename other$captured other_captured
-rename other$awaiting other_awaiting
+expose w:fell$phase_lo w:fell$phase_hi w:fell$arm_lo w:fell$arm_hi w:fell$period_lo w:fell$period_hi w:fell$x_lo w:fell$x_hi w:fell$y_lo w:fell$y_hi w:fell$captured w:fell$awaiting
+rename fell$phase_lo fell_phase_lo
+rename fell$phase_hi fell_phase_hi
+rename fell$arm_lo fell_arm_lo
+rename fell$arm_hi fell_arm_hi
+rename fell$period_lo fell_period_lo
+rename fell$period_hi fell_period_hi
+rename fell$x_lo fell_x_lo
+rename fell$x_hi fell_x_hi
+rename fell$y_lo fell_y_lo
+rename fell$y_hi fell_y_hi
+rename fell$captured fell_captured
+rename fell$awaiting fell_awaiting
 cd ..
 short: read -define SHORT_WALK
 teeth: read -define NO_INVARIANT

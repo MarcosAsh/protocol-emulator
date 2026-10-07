@@ -1,7 +1,7 @@
 (** [Load_check.walk] in hardware: on [check] it walks the halted engine's program, a word
     a pc through [program_read], against the certificate at [base] in the data memory,
-    through [data_read], with the kernel's own [conjuncts] and [fall_through]. It reads
-    nothing from the host but the certificate, so what it accepts is the program the
+    through [data_read], with the kernel's own [one_way], a field of a row at a time. It
+    reads nothing from the host but the certificate, so what it accepts is the program the
     engine will run. [finished] pulses once, with [accepted], or [reject_pc] and [reason]:
     the index of the first failing conjunct in [Kernel.Conjuncts.to_list] order, or
     [out_of_order] or [left_over], or [aborted] if [abort] came while it walked. *)
