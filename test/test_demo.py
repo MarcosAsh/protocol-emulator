@@ -523,10 +523,14 @@ class Pico:
         pico = self
 
         class Pin:
-            IN, OUT = 0, 1
+            IN, OUT, PULL_UP, IRQ_FALLING = 0, 1, 1, 2
 
             def __init__(self, pin, mode=IN, value=0):
                 self.pin = pin
+
+            # nobody presses REPLUG here
+            def irq(self, handler, trigger):
+                pass
 
             # chip select's edges frame each transfer, which is one cocotb transfer here
             def __call__(self, value=None):

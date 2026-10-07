@@ -2,9 +2,10 @@
 # Act 3: engine 0 is a USB keyboard and mouse that types TEXT (MicroPython). D+ is uio[0],
 # D- uio[1], pulled up from D- for low speed. On the Icepi Zero a Pico is the host over
 # pico_board's pins, watches the bus on header 29 (D+) -> GP6 and 31 (D-) -> GP7, and from
-# GP8 -> header 15 keeps the board detached until engine 0 serves; the TT demo board reads
-# uio_out itself. Meanwhile engine 1 sends each key the laptop took out of OUT0 at 115200
-# baud, for pico_listener. Needs uart_tx_host_rate.hex on the Pico.
+# GP8 -> header 15 keeps the board detached until engine 0 serves, and a press on GP9 (the
+# carrier's REPLUG) detaches it again; the TT demo board reads uio_out itself. Meanwhile
+# engine 1 sends each key the laptop took out of OUT0 at 115200 baud, for pico_listener.
+# Needs uart_tx_host_rate.hex on the Pico.
 # Untested on a board; test/test_demo.py runs `start_log` and `serve` on the RTL.
 
 import time
@@ -40,6 +41,9 @@ BAUD = 115_200
 # laptop sees no device before the attach
 DETACH_PIN = 8
 DETACH_MS = 200
+# Pico A's button to ground, and how close to the last replug a press is that one's bounce
+REPLUG_PIN = 9
+REPLUG_MS = 1000
 # uart_tx_host_rate on OUT0, the default set and out pin
 LOGGER = pe.DEFAULT_CONFIG
 
@@ -102,12 +106,13 @@ def start_log(host, program, clock_hz=48_000_000):
 
 
 def serve(host, board, queue, bus_reset, log=lambda report: None, say=lambda line: None,
-          attach=None):
+          attach=None, replug=lambda: False):
     """Forever. Typing waits for a configuration and a HID driver, so no report sits in the
     fifo while the laptop enumerates: an IN on endpoint 0 would drop it, a word more for the
     rx fifo on a SETUP's heels. A reset puts back the report it lost, `log` gets each report
     once the laptop has taken it, and `say` each step of the enumeration and each key.
-    `attach`, if given, is called once engine 0 first serves."""
+    `attach`, if given, is called once engine 0 first serves, and again each time `replug`
+    has detached the board."""
     serving, halted, address, configured = False, False, 0, False
     while True:
         if bus_reset():
@@ -130,6 +135,9 @@ def serve(host, board, queue, bus_reset, log=lambda report: None, say=lambda lin
             else:
                 attach()
                 say("engine 0 is serving: attached")
+        elif attach is not None and replug():
+            attach()
+            say("replugged")
         if board.address != address:
             address = board.address
             say("address %d" % address)
@@ -146,7 +154,7 @@ def serve(host, board, queue, bus_reset, log=lambda report: None, say=lambda lin
 
 def pico_a():
     """The host Pico's port to the Icepi Zero, a bus_reset from D+ and D- on GP6 and GP7,
-    and serve's attach. The board is detached from here until attach."""
+    and serve's attach and replug. The board is detached from here until attach."""
     from machine import Pin
 
     import pico_board
@@ -154,19 +162,35 @@ def pico_a():
     detach = Pin(DETACH_PIN, Pin.OUT, value=1)
     dp, dn = Pin(6, Pin.IN), Pin(7, Pin.IN)
     bus_reset = se0_reset(lambda: dp() | dn() << 1, time.ticks_ms)
+    button = Pin(REPLUG_PIN, Pin.IN, Pin.PULL_UP)
+    pressed, last = [], None
+    button.irq(lambda _: pressed.append(time.ticks_ms()), Pin.IRQ_FALLING)
 
     def attach():
         time.sleep_ms(DETACH_MS)
         detach(0)
 
-    return pico_board.host(), bus_reset, attach
+    def replug():
+        nonlocal last
+        if not pressed:
+            return False
+        at = pressed[-1]
+        pressed.clear()
+        if last is not None and time.ticks_diff(at, last) < REPLUG_MS:
+            return False
+        last = at
+        detach(1)
+        return True
+
+    return pico_board.host(), bus_reset, attach, replug
 
 
 def run(text="hello jane street ", say=print):
     """On the Icepi Zero, from the host Pico."""
-    host, bus_reset, attach = pico_a()
+    host, bus_reset, attach, replug = pico_a()
     log = start_log(host, words("uart_tx_host_rate"))
-    serve(host, usb_board.Board(DESCRIPTORS), reports(text), bus_reset, log, say, attach)
+    serve(host, usb_board.Board(DESCRIPTORS), reports(text), bus_reset, log, say, attach,
+          replug)
 
 
 def run_demo_board(text="hello jane street ", clock_hz=48_000_000):
