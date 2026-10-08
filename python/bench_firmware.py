@@ -2,17 +2,17 @@
 # The outside chip acts' firmware (BRINGUP.md) as words and the configuration it runs
 # under, at the bench's 48 MHz but for 10BASE-T's 40.
 
-# Firmware.spi_master ~half_period:8: SCK at 3 MHz, no chip select
+# Firmware.spi_master ~half_period:8: SCK at 3 MHz on OUT5, MOSI on OUT4, MISO on IN0, no chip select
 SPI_MASTER = {
     "config": {
         "side_set_count": 1,
-        "side_set_base": 6,
+        "side_set_base": 10,
         "side_set_pindirs": 0,
         "in_base": 0,
         "in_count": 16,
-        "out_base": 5,
+        "out_base": 9,
         "out_count": 1,
-        "set_base": 5,
+        "set_base": 9,
         "set_count": 1,
         "jmp_pin": 0,
         "capture_pin": 0,
@@ -468,7 +468,7 @@ CAN_RECEIVER = {
     "single_edge": 1,
 }
 
-# Ws2812.firmware ~third:16 ~tail:7: T0H 333, T1H 667, T0L 813, T1L 479 ns
+# Ws2812.firmware ~third:16 ~tail:7: T0H 333, T1H 667, T0L 813, T1L 479 ns, on OUT3
 SK6812 = {
     "config": {
         "side_set_count": 0,
@@ -476,9 +476,9 @@ SK6812 = {
         "side_set_pindirs": 0,
         "in_base": 0,
         "in_count": 16,
-        "out_base": 5,
+        "out_base": 8,
         "out_count": 1,
-        "set_base": 5,
+        "set_base": 8,
         "set_count": 1,
         "jmp_pin": 0,
         "capture_pin": 0,
@@ -704,17 +704,17 @@ SWD = {
     "single_edge": 0,
 }
 
-# Spi_cs.master in mode 0, half period 8: SCK at 3 MHz, CS on OUT2 4 cycles before the first edge and 8 after the last
+# Spi_cs.master in mode 0, half period 8: SCK at 3 MHz on OUT5, MOSI on OUT4, MISO on IN0, CS on OUT6 4 cycles before the first edge and 8 after the last
 SPI_CS_MODE0 = {
     "config": {
         "side_set_count": 2,
-        "side_set_base": 6,
+        "side_set_base": 10,
         "side_set_pindirs": 0,
         "in_base": 0,
         "in_count": 16,
-        "out_base": 5,
+        "out_base": 9,
         "out_count": 1,
-        "set_base": 5,
+        "set_base": 9,
         "set_count": 1,
         "jmp_pin": 0,
         "capture_pin": 0,
@@ -753,17 +753,17 @@ SPI_CS_MODE0 = {
     "single_edge": 0,
 }
 
-# Spi_cs.master in mode 1, half period 8: SCK at 3 MHz, CS on OUT2 4 cycles before the first edge and 8 after the last
+# Spi_cs.master in mode 1, half period 8: SCK at 3 MHz on OUT5, MOSI on OUT4, MISO on IN0, CS on OUT6 4 cycles before the first edge and 8 after the last
 SPI_CS_MODE1 = {
     "config": {
         "side_set_count": 2,
-        "side_set_base": 6,
+        "side_set_base": 10,
         "side_set_pindirs": 0,
         "in_base": 0,
         "in_count": 16,
-        "out_base": 5,
+        "out_base": 9,
         "out_count": 1,
-        "set_base": 5,
+        "set_base": 9,
         "set_count": 1,
         "jmp_pin": 0,
         "capture_pin": 0,
@@ -802,17 +802,17 @@ SPI_CS_MODE1 = {
     "single_edge": 0,
 }
 
-# Spi_cs.master in mode 2, half period 8: SCK at 3 MHz, CS on OUT2 4 cycles before the first edge and 8 after the last
+# Spi_cs.master in mode 2, half period 8: SCK at 3 MHz on OUT5, MOSI on OUT4, MISO on IN0, CS on OUT6 4 cycles before the first edge and 8 after the last
 SPI_CS_MODE2 = {
     "config": {
         "side_set_count": 2,
-        "side_set_base": 6,
+        "side_set_base": 10,
         "side_set_pindirs": 0,
         "in_base": 0,
         "in_count": 16,
-        "out_base": 5,
+        "out_base": 9,
         "out_count": 1,
-        "set_base": 5,
+        "set_base": 9,
         "set_count": 1,
         "jmp_pin": 0,
         "capture_pin": 0,
@@ -851,17 +851,17 @@ SPI_CS_MODE2 = {
     "single_edge": 0,
 }
 
-# Spi_cs.master in mode 3, half period 8: SCK at 3 MHz, CS on OUT2 4 cycles before the first edge and 8 after the last
+# Spi_cs.master in mode 3, half period 8: SCK at 3 MHz on OUT5, MOSI on OUT4, MISO on IN0, CS on OUT6 4 cycles before the first edge and 8 after the last
 SPI_CS_MODE3 = {
     "config": {
         "side_set_count": 2,
-        "side_set_base": 6,
+        "side_set_base": 10,
         "side_set_pindirs": 0,
         "in_base": 0,
         "in_count": 16,
-        "out_base": 5,
+        "out_base": 9,
         "out_count": 1,
-        "set_base": 5,
+        "set_base": 9,
         "set_count": 1,
         "jmp_pin": 0,
         "capture_pin": 0,

@@ -2,7 +2,9 @@
 # A 24LC256 on the library's I2C master (MicroPython, Pico A): SDA on IO2, SCL on IO3, each
 # pulled up to 3.3 V. Finds the chip, then a byte write and a page write, each ACK polled to
 # the end of its write cycle and read back. The old contents seed what is written, so a run
-# that writes nothing cannot pass. demo/outside.sh eeprom copies what it needs and runs it.
+# that writes nothing cannot pass. Pico B shares the bus for the start hold act, so the run
+# first listens and refuses if Pico B is mastering it. demo/outside.sh eeprom copies what it
+# needs and runs it.
 
 import bench
 import bench_firmware
@@ -18,6 +20,8 @@ PAGE_ADDRESS = 0x7FC0
 BYTE_ADDRESS = 0x7FBF
 # twice the 5 ms a write cycle takes at most
 WRITE_LIMIT_MS = 10
+# demo/start_hold_master starts a read, two STARTs, every 20 ms
+GUARD_MS = 25
 
 
 def word(data=0, start=False, read=False, stop=False):
@@ -68,6 +72,15 @@ class Eeprom:
         return replies[4:]
 
 
+def bus_free(host, pause_ms):
+    """Whether engine 1's START_HOLD, which drives neither line, heard no START in
+    GUARD_MS. Its fifo outlasts the STARTs Pico B makes in that time."""
+    bench.load(host, bench_firmware.START_HOLD, engine=1)
+    host.start()
+    pause_ms(GUARD_MS)
+    return not bench.rx_level(host)
+
+
 def find(host):
     for device in range(0x50, 0x58):
         if Eeprom(host, device).acked():
@@ -75,9 +88,12 @@ def find(host):
     return None
 
 
-def run(transfer, clock, log=print, firmware=bench_firmware.I2C_MASTER):
+def run(transfer, clock, pause_ms, log=print, firmware=bench_firmware.I2C_MASTER):
     """firmware is I2C_MASTER or I2C_MASTER_STRETCH, which take the same words."""
     host = pe.Host(transfer)
+    if not bus_free(host, pause_ms):
+        log("Pico B is mastering the bus: load MicroPython or can_node")
+        return False
     bench.load(host, firmware)
     host.start()
     # the quarter comes first and is not answered
@@ -118,7 +134,8 @@ def main(firmware):
     time.sleep_ms(bench.START_MS)
     start = time.ticks_ms()
     bench.report(lambda: run(
-        spi.transfer, lambda: time.ticks_diff(time.ticks_ms(), start), log, firmware), log)
+        spi.transfer, lambda: time.ticks_diff(time.ticks_ms(), start), time.sleep_ms, log,
+        firmware), log)
 
 
 if __name__ == "__main__":

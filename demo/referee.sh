@@ -1,6 +1,6 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
-# Cheat the referee on Pico A with the stick on OUT0. play: each press of BOOTSEL sends one
+# Cheat the referee on Pico A with the stick on OUT3. play: each press of BOOTSEL sends one
 # frame on wire 20 a cycle late or early, until a 2 s hold prints the score and faults. auto:
 # demo/outside.sh referee, a cycle and two either way eight times, captured and decoded.
 # Reset the chip first, as faults hold until reset.

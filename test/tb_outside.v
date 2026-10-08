@@ -2,7 +2,7 @@
 `timescale 1ns / 1ps
 
 // The chip with the outside parts BRINGUP.md wires to it. An SPI flash takes MOSI from
-// OUT0, SCK from OUT1 and CS from OUT2, and answers on IN0: models/spiflash.v is picosoc's
+// OUT4, SCK from OUT5 and CS from OUT6, and answers on IN0: models/spiflash.v is picosoc's
 // model from YosysHQ/picorv32 at commit ef203c2, unchanged. Unless a test sets flash_wired,
 // the flash is deselected and a cocotb slave on the spi_* lines may answer instead.
 // IO2 and IO3 are an I2C bus and IO4 a 1-Wire line, each pulled up: a cocotb model pulls
@@ -36,9 +36,9 @@ module tb_outside ();
   wire flash_miso;
   pullup (flash_miso);
   wire miso = flash_wired ? flash_miso : spi_miso;
-  wire spi_mosi = uo_out[1];
-  wire spi_sclk = uo_out[2];
-  wire spi_cs = uo_out[3];
+  wire spi_mosi = uo_out[5];
+  wire spi_sclk = uo_out[6];
+  wire spi_cs = uo_out[7];
 
   wire sda = sda_o & ~(uio_oe[2] & ~uio_out[2]);
   wire scl = scl_o & ~(uio_oe[3] & ~uio_out[3]);

@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # An Adafruit NeoPixel Stick 8 (SK6812) on the library's WS2812 firmware (MicroPython,
-# Pico A): OUT0 through a 74AHCT125 at 5 V to DIN. Two frames: PIXELS, then the same turned
-# by one, which the stick keeps showing. demo/outside.sh neopixel copies what it needs.
+# Pico A): OUT3, pulled down by 10 k, through a 74AHCT125 at 5 V to DIN. Two frames:
+# PIXELS, then the same turned by one, which the stick keeps showing. demo/outside.sh
+# neopixel copies what it needs.
 
 import bench
 import bench_firmware

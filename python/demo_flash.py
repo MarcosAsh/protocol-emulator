@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # A W25Q64 on the SPI master with chip select in mode 0 (MicroPython, Pico A): MOSI on
-# OUT0, SCK on OUT1, CS on OUT2 and MISO on IN0, the chip driving the whole bus. JEDEC ID,
+# OUT4, SCK on OUT5, CS on OUT6 and MISO on IN0, the chip driving the whole bus. JEDEC ID,
 # then the last sector erased, a page programmed and read back, and the sector erased
 # again. demo/outside.sh flash copies what it needs and runs it.
 

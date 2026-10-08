@@ -4,7 +4,8 @@
 # cycles from each START's SDA fall to its SCL fall. Pico B is the master, through
 # pico-examples' pio_i2c or its I2C block (demo/start_hold_master). The chip measures and
 # this script judges, against UM10204's Standard-mode 4.0 us, then engine 0 shows the
-# verdict on the NeoPixel stick, wired as for demo_neopixel. demo/start_hold.sh runs it.
+# verdict on the NeoPixel stick on OUT3, wired as for demo_neopixel. demo/start_hold.sh
+# runs it once demo/pico_b.sh has put Pico B's master in.
 
 import bench
 import bench_firmware

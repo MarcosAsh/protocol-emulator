@@ -7,13 +7,21 @@ open Protocol_emulator_test
    bench's clock needs, each checked by the analyser and the kernel under the assumption
    it runs with, as the command line does. The Icepi's USB build drives IO0 and IO1's
    header pins with the USB lines, so I2C moves to IO2 and IO3, 1-Wire to IO4 and 10BASE-T
-   to IO6 and IO7. SWD, the SPI master with chip select, the I2C master that waits on SCL
-   and the CAN node are not in the library: SWD is on OUT2 and IO5, the flash act's chip
-   select on OUT2 too, and the CAN node's CRX on IN1. *)
+   to IO6 and IO7. The bench is wired once for every act: CAN's TX keeps OUT1 and SWD
+   keeps OUT2 and IO5, so the SK6812 moves to OUT3 and the SPI masters to MOSI on OUT4,
+   SCK on OUT5 and CS on OUT6. The CAN node's CRX is on IN1. *)
+let neopixel = 8
+let mosi = 9
+let sck = 10
 let sda = 14
 let scl = 15
 let one_wire = 16
 let td_plus = 18
+
+(* side-set bit 0 is SCK and bit 1, for Spi_cs, CS *)
+let on_spi_pins (config : Program_config.t) =
+  { config with out_base = mosi; set_base = mosi; side_set_base = sck }
+;;
 
 (* The library's reset is 80 units, 480 us at the 6 us unit: exactly the least a DS18B20
    takes. One more pass of its low loop makes it 84, 504 us. *)
@@ -27,9 +35,10 @@ let one_wire_firmware =
 
 let bench =
   [ ( "spi_master"
-    , "Firmware.spi_master ~half_period:8: SCK at 3 MHz, no chip select"
+    , "Firmware.spi_master ~half_period:8: SCK at 3 MHz on OUT5, MOSI on OUT4, MISO on \
+       IN0, no chip select"
     , Firmware.spi_master ~half_period:8
-    , Firmware.spi_config
+    , on_spi_pins Firmware.spi_config
     , `None )
   ; ( "i2c_master"
     , "Firmware.i2c_master_host_rate: the host sends the quarter, 48 cycles for 250 kHz, \
@@ -83,9 +92,9 @@ let bench =
     , Can_node.Receiver.config
     , `Receiver Can_node.Receiver.period )
   ; ( "sk6812"
-    , "Ws2812.firmware ~third:16 ~tail:7: T0H 333, T1H 667, T0L 813, T1L 479 ns"
+    , "Ws2812.firmware ~third:16 ~tail:7: T0H 333, T1H 667, T0L 813, T1L 479 ns, on OUT3"
     , Ws2812.firmware ~third:16 ~tail:7
-    , Ws2812.config
+    , { Ws2812.config with out_base = neopixel; set_base = neopixel }
     , `None )
   ; ( "start_hold"
     , "Firmware.start_hold for engine 1: each START's hold in cycles, SDA on IO2, SCL on \
@@ -110,10 +119,11 @@ let bench =
     let n = Spi_cs.Mode.to_int mode in
     ( [%string "spi_cs_mode%{n#Int}"]
     , [%string
-        "Spi_cs.master in mode %{n#Int}, half period 8: SCK at 3 MHz, CS on OUT2 4 \
-         cycles before the first edge and 8 after the last"]
+        "Spi_cs.master in mode %{n#Int}, half period 8: SCK at 3 MHz on OUT5, MOSI on \
+         OUT4, MISO on IN0, CS on OUT6 4 cycles before the first edge and 8 after the \
+         last"]
     , Spi_cs.master ~mode ~half_period:8 ~setup:4 ~hold:8
-    , Spi_cs.config
+    , on_spi_pins Spi_cs.config
     , `None ))
 ;;
 
