@@ -52,19 +52,10 @@ let run ~cycles ~bus items =
     if n = cycles
     then t, bus, List.rev pushed
     else (
-      let t, schedule =
-        match schedule with
-        | word :: rest when List.length t.tx_fifo < Machine.fifo_depth ->
-          Machine.write_tx t word |> ok_exn, rest
-        | schedule -> t, schedule
-      in
+      let t, schedule = Machine_run.feed t schedule in
       let t = Machine.step t ~inputs:(Bus.inputs bus) in
       let bus = Bus.step bus ~pin_out:t.pin_out ~pin_dir:t.pin_dir in
-      let pushed, t =
-        match Machine.read_rx t with
-        | Some (word, t) -> word :: pushed, t
-        | None -> pushed, t
-      in
+      let t, pushed = Machine_run.receive t pushed in
       loop t bus schedule pushed (n + 1))
   in
   loop t bus (words items) [] 0

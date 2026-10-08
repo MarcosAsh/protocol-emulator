@@ -40,20 +40,11 @@ let run ?(source = firmware) ~unit ~cycles () =
     if n = 0
     then t, follower, List.rev acks
     else (
-      let t, pending =
-        match pending with
-        | w :: rest when List.length t.tx_fifo < Machine.fifo_depth ->
-          Machine.write_tx t w |> ok_exn, rest
-        | pending -> t, pending
-      in
+      let t, pending = Machine_run.feed t pending in
       let line = bus t follower in
       let t' = Machine.step t ~inputs:line in
       let follower = Follower.step follower ~low:(line = 0) in
-      let acks, t' =
-        match Machine.read_rx t' with
-        | Some (a, t') -> a :: acks, t'
-        | None -> acks, t'
-      in
+      let t', acks = Machine_run.receive t' acks in
       loop t' follower pending (n - 1) acks)
   in
   let t, follower, acks =

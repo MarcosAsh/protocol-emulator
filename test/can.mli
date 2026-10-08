@@ -37,6 +37,12 @@ module Frame : sig
   val remote : id:int -> dlc:int -> t
 end
 
+(** The low [width] bits of [value], MSB first. *)
+val msb_first : int -> width:int -> bool list
+
+(** Inserts the opposite level after every run of five equal bits. *)
+val stuff : bool list -> bool list
+
 (** CRC-15/CAN, MSB first from 0: 0x4599, check 0x059e. *)
 val crc15 : bool list -> int
 

@@ -9,8 +9,7 @@ let%expect_test "spi master exchanges bytes with a mode 0 slave" =
     Machine.create ~config:spi_config ~program:(assemble (spi_master ~half_period))
     |> ok_exn
   in
-  let t = Machine.write_tx t 0xa5 |> ok_exn in
-  let t = Machine.write_tx t 0x3c |> ok_exn in
+  let t = Machine_run.write_all t [ 0xa5; 0x3c ] in
   let slave = Spi_slave.create [ 0x81; 0x7e ] in
   let rec loop t slave n received sck =
     if n = 0
@@ -23,11 +22,7 @@ let%expect_test "spi master exchanges bytes with a mode 0 slave" =
           ~sck:((t.pin_out lsr sck_pin) land 1)
           ~mosi:((t.pin_out lsr mosi_pin) land 1)
       in
-      let received, t =
-        match Machine.read_rx t with
-        | Some (byte, t) -> byte :: received, t
-        | None -> received, t
-      in
+      let t, received = Machine_run.receive t received in
       loop t slave (n - 1) received (((t.pin_out lsr sck_pin) land 1) :: sck))
   in
   let t, slave, master_received, sck = loop t slave 400 [] [] in
@@ -55,10 +50,7 @@ let run_spi_slave ~half_period ?gap ~replies bytes =
     Machine.create ~config:spi_slave_config ~program:(Timed_program.words spi_slave)
     |> ok_exn
   in
-  let t =
-    List.fold replies ~init:t ~f:(fun t reply ->
-      Machine.write_tx t (reply lsl 8) |> ok_exn)
-  in
+  let t = Machine_run.write_all t (List.map replies ~f:(fun reply -> reply lsl 8)) in
   let master = Spi_peer.create ?gap ~half_period bytes in
   let rec loop t master n received =
     if n = 0
@@ -70,11 +62,7 @@ let run_spi_slave ~half_period ?gap ~replies bytes =
       in
       let t = Machine.step t ~inputs in
       let master = Spi_peer.step master ~miso:((t.pin_out lsr slave_miso_pin) land 1) in
-      let received, t =
-        match Machine.read_rx t with
-        | Some (byte, t) -> byte :: received, t
-        | None -> received, t
-      in
+      let t, received = Machine_run.receive t received in
       loop t master (n - 1) received)
   in
   let t, master, slave_received = loop t master 400 [] in

@@ -157,20 +157,7 @@ bit:
 |}
   in
   let t = Machine.create ~config ~program |> ok_exn in
-  let feed t bytes =
-    match bytes with
-    | b :: rest when List.length t.Machine.tx_fifo < Machine.fifo_depth ->
-      Machine.write_tx t b |> ok_exn, rest
-    | bytes -> t, bytes
-  in
-  let rec loop t bytes n =
-    if n = 0
-    then t
-    else (
-      let t, bytes = feed t bytes in
-      loop (Machine.step t ~inputs:0) bytes (n - 1))
-  in
-  let t = loop t bytes (50 * List.length bytes) in
+  let t, _ = run t ~tx:bytes ~cycles:(50 * List.length bytes) ~inputs:0 in
   t.crc, t.fault
 ;;
 

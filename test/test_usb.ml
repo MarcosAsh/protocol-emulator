@@ -92,17 +92,11 @@ let%expect_test "usb tx builds the crc and stuffs the get descriptor packet" =
   let t =
     Machine.create ~config:usb_config ~program:(Timed_program.words usb_tx) |> ok_exn
   in
-  let feed (t : Machine.t) words =
-    match words with
-    | w :: rest when List.length t.tx_fifo < Machine.fifo_depth ->
-      Machine.write_tx t w |> ok_exn, rest
-    | words -> t, words
-  in
   let rec loop (t : Machine.t) words sniffer n =
     if n = 0
     then t, sniffer
     else (
-      let t, words = feed t words in
+      let t, words = Machine_run.feed t words in
       let t = Machine.step t ~inputs:0 in
       let pin p = (t.pin_out lsr p) land 1 in
       let sniffer =
@@ -154,10 +148,7 @@ let%expect_test "usb rx decodes, unstuffs and checks two packets" =
   let t = Machine.write_tx t bit_period |> ok_exn in
   let t, words =
     List.fold levels ~init:(t, []) ~f:(fun (t, words) inputs ->
-      let t = Machine.step t ~inputs in
-      match Machine.read_rx t with
-      | Some (w, t) -> t, w :: words
-      | None -> t, words)
+      Machine_run.receive (Machine.step t ~inputs) words)
   in
   let words = List.rev words in
   let bytes = List.map words ~f:(fun w -> w lsr 8) in
@@ -277,10 +268,7 @@ let run_usb_device ?(queue = []) ~address packets ~idle =
       ~program:(assemble (usb_device ~address ~half_period:(bit_period / 2)))
     |> ok_exn
   in
-  let t =
-    List.fold (bit_period :: queue) ~init:t ~f:(fun t word ->
-      Machine.write_tx t word |> ok_exn)
-  in
+  let t = Machine_run.write_all t (bit_period :: queue) in
   let words = ref [] in
   let lines =
     List.concat_map packets ~f:(fun packet ->

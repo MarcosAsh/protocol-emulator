@@ -9,27 +9,17 @@ let run_transaction words ~memory ~cycles =
     Machine.create ~config:i2c_config ~program:(assemble (i2c_master ~quarter)) |> ok_exn
   in
   let slave = I2c_slave.create ~address:0x50 ~memory in
-  let feed (t : Machine.t) pending =
-    match pending with
-    | w :: rest when List.length t.tx_fifo < Machine.fifo_depth ->
-      Machine.write_tx t w |> ok_exn, rest
-    | pending -> t, pending
-  in
   let rec loop (t : Machine.t) slave pending n replies =
     if n = 0
     then t, slave, List.rev replies
     else (
-      let t, pending = feed t pending in
+      let t, pending = Machine_run.feed t pending in
       let master_sda = 1 - ((t.pin_dir lsr sda) land 1) in
       let bus_sda = if I2c_slave.drive_low slave then 0 else master_sda in
       let bus_scl = 1 - ((t.pin_dir lsr scl) land 1) in
       let t = Machine.step t ~inputs:((bus_sda lsl sda) lor (bus_scl lsl scl)) in
       let slave = I2c_slave.step slave ~sda:bus_sda ~scl:bus_scl in
-      let replies, t =
-        match Machine.read_rx t with
-        | Some (r, t) -> r :: replies, t
-        | None -> replies, t
-      in
+      let t, replies = Machine_run.receive t replies in
       loop t slave pending (n - 1) replies)
   in
   let t, slave, replies = loop t slave words cycles [] in
@@ -99,10 +89,7 @@ let run_slave ?(replies = []) ops ~cycles =
     Machine.create ~config:i2c_slave_config ~program:(Timed_program.words i2c_slave)
     |> ok_exn
   in
-  let t =
-    List.fold ((0x50 lsl 1) :: replies) ~init:t ~f:(fun t w ->
-      Machine.write_tx t w |> ok_exn)
-  in
+  let t = Machine_run.write_all t ((0x50 lsl 1) :: replies) in
   let master = I2c_peer.create ~quarter:8 ops in
   let rec loop (t : Machine.t) master n received =
     if n = 0
@@ -113,11 +100,7 @@ let run_slave ?(replies = []) ops ~cycles =
       let bus_scl = I2c_peer.scl master in
       let t = Machine.step t ~inputs:((bus_sda lsl sda) lor (bus_scl lsl scl)) in
       let master = I2c_peer.step master ~sda:bus_sda in
-      let received, t =
-        match Machine.read_rx t with
-        | Some (r, t) -> r :: received, t
-        | None -> received, t
-      in
+      let t, received = Machine_run.receive t received in
       loop t master (n - 1) received)
   in
   let t, master, received = loop t master cycles [] in
@@ -404,7 +387,8 @@ let%expect_test "the certified master's pins keep to fast-mode plus at 50 MHz" =
   let program = assemble certified.source in
   let t = Machine.create ~config:i2c_config ~program |> ok_exn in
   let t =
-    List.fold
+    Machine_run.write_all
+      t
       [ i2c_word ~start:true 0xa0
       ; i2c_word 3
       ; i2c_word ~stop:true 0xaa
@@ -413,8 +397,6 @@ let%expect_test "the certified master's pins keep to fast-mode plus at 50 MHz" =
       ; i2c_word ~start:true 0xa1
       ; i2c_word ~read:true ~stop:true 0
       ]
-      ~init:t
-      ~f:(fun t word -> Machine.write_tx t word |> ok_exn)
   in
   let slave = ref (I2c_slave.create ~address:0x50 ~memory:(Array.create ~len:16 0)) in
   let bus_scl (m : Machine.t) = 1 - ((m.pin_dir lsr scl) land 1) in
@@ -522,7 +504,7 @@ let clear_bus ?slave ?(words = []) ~cycles () =
     Machine.create ~config:i2c_config ~program:(assemble (i2c_master ~quarter:8))
     |> ok_exn
   in
-  let t = List.fold words ~init:t ~f:(fun t w -> Machine.write_tx t w |> ok_exn) in
+  let t = Machine_run.write_all t words in
   let t, slave, levels =
     List.fold (List.range 0 cycles) ~init:(t, slave, []) ~f:(fun (t, slave, levels) _ ->
       let master_sda = 1 - ((t.pin_dir lsr sda) land 1) in

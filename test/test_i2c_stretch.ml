@@ -53,7 +53,7 @@ let run
   ()
   =
   let t = Machine.create ~config ~program |> ok_exn in
-  let t = List.fold words ~init:t ~f:(fun t w -> Machine.write_tx t w |> ok_exn) in
+  let t = Machine_run.write_all t words in
   let slave = I2c_slave.create ~address:0x50 ~memory in
   let rec loop cycle (t : Machine.t) slave stretcher levels replies =
     if cycle = cycles
@@ -64,11 +64,7 @@ let run
       ; machine = t
       }
     else (
-      let t =
-        if cycle = fst later
-        then List.fold (snd later) ~init:t ~f:(fun t w -> Machine.write_tx t w |> ok_exn)
-        else t
-      in
+      let t = if cycle = fst later then Machine_run.write_all t (snd later) else t in
       let master_sda = 1 - ((t.pin_dir lsr sda) land 1) in
       let master_scl = 1 - ((t.pin_dir lsr scl) land 1) in
       let bus_sda = if I2c_slave.drive_low slave then 0 else master_sda in

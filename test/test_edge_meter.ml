@@ -16,9 +16,8 @@ let%expect_test "the core measures its own edges" =
     then t, List.rev stamps
     else (
       let t = Machine.step t ~inputs:(loopback t) in
-      match Machine.read_rx t with
-      | Some (stamp, t) -> loop t (n - 1) (stamp :: stamps)
-      | None -> loop t (n - 1) stamps)
+      let t, stamps = Machine_run.receive t stamps in
+      loop t (n - 1) stamps)
   in
   let t, stamps = loop t 400 [] in
   let intervals =

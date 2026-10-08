@@ -36,20 +36,24 @@ let%expect_test "bytes cross in both directions" =
            ~miso:outputs.miso
            ~half
        in
+       (* the next byte to send back is loaded as each one completes *)
        let transfer mosi_bytes tx_bytes =
-         let tx = Array.of_list (List.tl_exn tx_bytes @ [ 0 ]) in
-         let replies = ref [] in
          inputs.tx_byte <--. List.hd_exn tx_bytes;
          inputs.cs_n := Bits.gnd;
          watch half;
-         for n = 0 to List.length mosi_bytes - 1 do
-           replies := Spi_master.byte m ~watch (List.nth_exn mosi_bytes n) :: !replies;
-           inputs.tx_byte <--. tx.(n)
-         done;
+         let replies =
+           List.map2_exn
+             mosi_bytes
+             (List.tl_exn tx_bytes @ [ 0 ])
+             ~f:(fun mosi next ->
+               let reply = Spi_master.byte m ~watch mosi in
+               inputs.tx_byte <--. next;
+               reply)
+         in
          watch half;
          inputs.cs_n := Bits.vdd;
          watch 3;
-         List.rev !replies
+         replies
        in
        let miso = transfer [ 0xa5; 0x3c; 0xff; 0x00 ] [ 0x11; 0x22; 0x33; 0x44 ] in
        let received = List.rev !received in
