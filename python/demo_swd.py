@@ -55,8 +55,8 @@ class Swd:
         transfer at a time, so at most three replies are ever waiting."""
         sent, got = 0, []
         for _ in range(STEPS):
-            status = self.host.read(pe.STATUS)[0]
-            tx, rx = (status >> 6) & 15, (status >> 10) & 15
+            status = self.host.read_status()
+            tx, rx = pe.tx_level(status), pe.rx_level(status)
             if rx:
                 got.extend(self.host.pop(rx))
             if sent < len(words) and tx < bench.DEPTH:
@@ -189,7 +189,7 @@ def act(swd, host, log, half):
     ack, value, good = select(swd, CORE0, log)
     again = ack == OK and value == DPIDR and good
 
-    found = bench.faults(host)
+    found = host.faults()
     log("faults 0x%x" % found)
     return core0 and powered and ap and core1 and silent and again and not found
 

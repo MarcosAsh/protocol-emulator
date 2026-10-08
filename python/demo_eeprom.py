@@ -78,7 +78,7 @@ def bus_free(host, pause_ms):
     bench.load(host, bench_firmware.START_HOLD, engine=1)
     host.start()
     pause_ms(GUARD_MS)
-    return not bench.rx_level(host)
+    return not host.rx_level()
 
 
 def find(host):
@@ -119,7 +119,7 @@ def run(transfer, clock, pause_ms, log=print, firmware=bench_firmware.I2C_MASTER
     log("page write 0x%04x, %d bytes from %02x: %d NACKs over %d ms, read back %s ..., %s" % (
         PAGE_ADDRESS, PAGE, page[0], nacks, ms, bench.hexs(back[:8]),
         "equal" if back == page else "DIFFERS"))
-    found = bench.faults(host)
+    found = host.faults()
     log("faults 0x%x" % found)
     return got == value and back == page and not found
 

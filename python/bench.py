@@ -3,30 +3,20 @@
 # entry into an engine, a stream of host words that never overflows either fifo, and the
 # log demo/outside.sh reads back from Pico A once the capture is done.
 
-import protocol_emulator as pe
-
-FAULTS = 0x3C
+# the chip's clock on the bench, from the Icepi's PLL
+MHZ = 48
 DEPTH = 8
 # demo/capture.sh starts the analyser after mpremote returns, which takes this long
 START_MS = 1000
 
 
-def faults(host):
-    """The selected engine's fault bits: underflow, overflow, missed deadline, bad decode."""
-    return host.read(pe.STATUS)[0] & FAULTS
-
-
-def rx_level(host):
-    return (host.read(pe.STATUS)[0] >> 10) & 15
-
-
 def load(host, firmware, engine=0):
     """Both engines stopped and flushed, then engine loaded with a bench_firmware.py entry,
-    its certificate checked, and left selected. Faults hold until reset, so one left from an earlier run is refused
-    rather than reported as this one's."""
+    its certificate checked, and left selected. Faults hold until reset, so one left from an
+    earlier run is refused rather than reported as this one's."""
     for other in (1, 0):
         host.select(other)
-        found = faults(host)
+        found = host.faults()
         if found:
             raise RuntimeError(
                 "engine %d holds faults 0x%x from an earlier run: reset the chip" % (other, found))
@@ -50,7 +40,7 @@ def exchange(host, words, polls=100_000):
             chunk = words[sent:sent + room]
             host.push(chunk)
             sent += len(chunk)
-        level = rx_level(host)
+        level = host.rx_level()
         if level:
             replies.extend(host.pop(level))
         if len(replies) == len(words):

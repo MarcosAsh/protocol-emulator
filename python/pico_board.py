@@ -1,13 +1,22 @@
 # SPDX-License-Identifier: Apache-2.0
-# Transport for a bare Pico wired to the chip's host port (MicroPython). SPI0 in mode 0:
-# GP2 SCK -> ui[0], GP3 MOSI -> ui[1], GP4 MISO <- uo[0], GP5 CS_N -> ui[2]. SCK must stay
-# at most an eighth of the chip's clock: 6 MHz at 48 MHz.
+# Transport for a bare Pico wired to the chip's host port (MicroPython), SPI0 in mode 0,
+# and Pico A's wiring. SCK must stay at most an eighth of the chip's clock: 6 MHz at 48 MHz.
 
 import machine
 import micropython
 from machine import Pin, SPI
 
 from protocol_emulator import PROGRAM_WORDS, RX, STATUS, Host
+
+# Pico A's GPIOs, the same for every act
+SCK = 2  # -> ui[0]
+MOSI = 3  # -> ui[1]
+MISO = 4  # <- uo[0]
+CS_N = 5  # -> ui[2]
+USB_DP = 6  # <- the Icepi's header 29
+USB_DN = 7  # <- header 31
+USB_DETACH = 8  # -> header 15, high turns the board's D- pull-up off
+REPLUG = 9  # the carrier's REPLUG button, to ground
 
 # the longest rx read, a full level field's worth of words
 RX_WORDS = 15
@@ -19,9 +28,9 @@ class PicoSpi:
         machine.freq(200_000_000)
         self.spi = SPI(
             0, baudrate=baudrate, polarity=0, phase=0, bits=8, firstbit=SPI.MSB,
-            sck=Pin(2), mosi=Pin(3), miso=Pin(4),
+            sck=Pin(SCK), mosi=Pin(MOSI), miso=Pin(MISO),
         )
-        self.cs_n = Pin(5, Pin.OUT, value=1)
+        self.cs_n = Pin(CS_N, Pin.OUT, value=1)
         self.buffers = {}
         self.reads = [bytes((reg, 0, 0)) for reg in range(16)]
         self.status = bytearray(3)

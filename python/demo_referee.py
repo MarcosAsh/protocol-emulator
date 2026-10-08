@@ -11,7 +11,6 @@ import protocol_emulator as pe
 
 # pico_board.PicoSpi's rate, which the self-check runs at
 HOST_HZ = 6_000_000
-MHZ = 48
 RED = (0x20, 0x00, 0x00)
 GREEN = (0x00, 0x20, 0x00)
 OFF = (0x00, 0x00, 0x00)
@@ -70,7 +69,7 @@ class Referee:
         sent, s, pc = check.send(self.host, count, self.track, first=self.honest)
         before = self.honest
         self.honest += sent
-        if s & 3 or pc != self.track:
+        if s & check.ALARM or pc != self.track:
             self.log("ALARM on honest frames: engine 1 status 0x%04x pc %d" % (s, pc))
             return False
         if self.honest // self.sweep_every > before // self.sweep_every:
@@ -84,13 +83,13 @@ class Referee:
         due = check.moves(check.GLITCH_BYTE, check.PERIOD)[0]
         moved, at = check.caught_by(self.edges, check.GLITCH_BYTE, period)
         s, pc = check.glitch(self.host, period)
-        caught = s & 3 == 3
+        caught = s & check.ALARM == check.ALARM
         if caught:
             self.caught += 1
+            slip_ns = (abs(slip) * 1000 + bench.MHZ // 2) // bench.MHZ
             self.log("caught: 0x%02x's start bit ended at cycle %d, rows say %d (%d ns %s), "
                      "the rows put the catch at cycle %d" % (
-                         check.GLITCH_BYTE, moved, due, (abs(slip) * 1000 + MHZ // 2) // MHZ,
-                         "late" if slip > 0 else "early", at))
+                         check.GLITCH_BYTE, moved, due, slip_ns, "late" if slip > 0 else "early", at))
             self.show([score(self.caught)])
         else:
             self.you += 1
@@ -129,7 +128,7 @@ def scrub(host, program, polls=100):
     host.certify([0, 0])
     host.start()
     for _ in range(polls):
-        if host.read(pe.STATUS)[0] & 1:
+        if host.read_status() & pe.HALTED:
             return
     raise RuntimeError("scrub never halted")
 

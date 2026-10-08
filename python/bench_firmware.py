@@ -2,6 +2,9 @@
 # The outside chip acts' firmware (BRINGUP.md) as words and the configuration it runs
 # under, at the bench's 48 MHz but for 10BASE-T's 40.
 
+# Can.period: the bit period the CAN acts send, 500 kbit/s
+CAN_PERIOD = 96
+
 # Firmware.spi_master ~half_period:8: SCK at 3 MHz on OUT5, MOSI on OUT4, MISO on IN0, no chip select
 SPI_MASTER = {
     "config": {

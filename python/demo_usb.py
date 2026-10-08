@@ -1,10 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 # Act 3: engine 0 is a USB keyboard and mouse that types TEXT (MicroPython). D+ is uio[0],
-# D- uio[1], pulled up from D- for low speed. On the Icepi Zero a Pico is the host over
-# pico_board's pins, watches the bus on header 29 (D+) -> GP6 and 31 (D-) -> GP7, and from
-# GP8 -> header 15 keeps the board detached until engine 0 serves, and a press on GP9 (the
-# carrier's REPLUG) detaches it again; the TT demo board reads uio_out itself. Meanwhile
-# engine 1 sends each key the laptop took out of OUT0 at 115200 baud, for pico_listener.
+# D- uio[1], pulled up from D- for low speed. On the Icepi Zero, Pico A is the host on
+# pico_board's pins: it watches D+ and D-, keeps the board detached until engine 0 serves,
+# and REPLUG detaches it again. The TT demo board reads uio_out itself. Meanwhile engine 1
+# sends each key the laptop took out of OUT0 at 115200 baud, for pico_listener.
 # Needs uart_tx_host_rate.hex and uart_tx_host_rate.cert.hex on the Pico.
 # Untested on a board; test/test_demo.py runs `start_log` and `serve` on the RTL.
 
@@ -37,12 +36,9 @@ KEYS[" "] = 0x2C
 CHARS = {code: ord(c) for c, code in KEYS.items()}
 
 BAUD = 115_200
-# Pico A's pin to usb_detach, which high turns the board's D- pull-up off, and how long the
-# laptop sees no device before the attach
-DETACH_PIN = 8
+# how long the laptop sees no device before the attach
 DETACH_MS = 200
-# Pico A's button to ground, and how close to the last replug a press is that one's bounce
-REPLUG_PIN = 9
+# how close to the last replug a press is that one's bounce
 REPLUG_MS = 1000
 # uart_tx_host_rate on OUT0, the default set and out pin
 LOGGER = pe.DEFAULT_CONFIG
@@ -160,16 +156,16 @@ def serve(host, board, queue, bus_reset, log=lambda report: None, say=lambda lin
 
 
 def pico_a():
-    """The host Pico's port to the Icepi Zero, a bus_reset from D+ and D- on GP6 and GP7,
-    and serve's attach and replug. The board is detached from here until attach."""
+    """The host Pico's port to the Icepi Zero, a bus_reset from D+ and D-, and serve's
+    attach and replug. The board is detached from here until attach."""
     from machine import Pin
 
     import pico_board
 
-    detach = Pin(DETACH_PIN, Pin.OUT, value=1)
-    dp, dn = Pin(6, Pin.IN), Pin(7, Pin.IN)
+    detach = Pin(pico_board.USB_DETACH, Pin.OUT, value=1)
+    dp, dn = Pin(pico_board.USB_DP, Pin.IN), Pin(pico_board.USB_DN, Pin.IN)
     bus_reset = se0_reset(lambda: dp() | dn() << 1, time.ticks_ms)
-    button = Pin(REPLUG_PIN, Pin.IN, Pin.PULL_UP)
+    button = Pin(pico_board.REPLUG, Pin.IN, Pin.PULL_UP)
     pressed, last = [], None
     button.irq(lambda _: pressed.append(time.ticks_ms()), Pin.IRQ_FALLING)
 

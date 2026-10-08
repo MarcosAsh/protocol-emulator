@@ -7,6 +7,7 @@
 # Pico B reports; after it, the analyser's own reading.
 # Usage: PICO=id:<serial of Pico A> [PICO_B=/dev/ttyACM0] demo/start_hold.sh pio|hw
 set -e
+captures=demo/captures
 case $1 in
 pio | hw) demo/pico_b.sh "start_hold_$1" ;;
 esac
@@ -43,4 +44,4 @@ status=0
 demo/outside.sh start_hold > "$out" || status=$?
 uniq -c "$out" | sed 's/^ *1 //'
 [ "$status" -eq 0 ] || exit "$status"
-python3 demo/start_hold.py start_hold.sr
+python3 demo/start_hold.py "$captures/start_hold.sr"

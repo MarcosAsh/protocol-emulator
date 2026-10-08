@@ -5,20 +5,35 @@
 # for start_hold. Pico B reaches its bootloader through mpremote from MicroPython, and from
 # the C builds through picotool or, without it, a 1200 baud open of their serial port. The
 # UF2 goes in by picotool or onto the RPI-RP2 drive, mounted by udisksctl if need be.
+# The UF2s live in demo/out: the C builds as their CMakeLists.txt build them, MicroPython
+# as downloaded from micropython.org.
 # Usage: [PICO_B_SERIAL=<serial>] demo/pico_b.sh micropython|can_node|start_hold_pio|start_hold_hw
 set -e
 serial=${PICO_B_SERIAL:-e66548545740ad29}
-scratch=$HOME/.cache/claude-scratch
+out=$(dirname "$0")/out
 case $1 in
-micropython) uf2=${MICROPYTHON_UF2:-$scratch/RPI_PICO-v1.29.0.uf2} ;;
-can_node) uf2=${CAN_NODE_UF2:-$HOME/can_node/can_node.uf2} ;;
-start_hold_pio | start_hold_hw) uf2=${START_HOLD_DIR:-$scratch/start-hold}/$1.uf2 ;;
+micropython)
+    uf2=${MICROPYTHON_UF2:-$out/RPI_PICO-v1.29.0.uf2}
+    how="download it from micropython.org/download/RPI_PICO"
+    ;;
+can_node)
+    uf2=${CAN_NODE_UF2:-$out/can_node/can_node.uf2}
+    # the first build went to ~/can_node, used until demo/out has one
+    if [ -z "$CAN_NODE_UF2" ] && [ ! -f "$uf2" ] && [ -f "$HOME/can_node/can_node.uf2" ]; then
+        uf2=$HOME/can_node/can_node.uf2
+    fi
+    how="build it as demo/can_node/CMakeLists.txt says"
+    ;;
+start_hold_pio | start_hold_hw)
+    uf2=${START_HOLD_DIR:-$out/start_hold_master}/$1.uf2
+    how="build it as demo/start_hold_master/CMakeLists.txt says"
+    ;;
 *)
     echo "usage: [PICO_B_SERIAL=<serial>] $0 micropython|can_node|start_hold_pio|start_hold_hw" >&2
     exit 1
     ;;
 esac
-[ -f "$uf2" ] || { echo "no $uf2" >&2; exit 1; }
+[ -f "$uf2" ] || { echo "no $uf2: $how" >&2; exit 1; }
 
 # Pico B's serial port, as MicroPython names it in lower case and the SDK in upper
 port() {

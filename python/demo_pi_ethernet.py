@@ -20,7 +20,7 @@ def run(transfer, pause_ms, count=30, log=print):
         ethernet.send(host, ethernet.udp(text.encode()))
         log("sent %s" % text)
         pause_ms(1000)
-    found = bench.faults(host)
+    found = host.faults()
     log("faults 0x%x" % found)
     return not found
 

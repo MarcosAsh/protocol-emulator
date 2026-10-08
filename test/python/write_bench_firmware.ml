@@ -75,13 +75,16 @@ let bench =
       }
     , `Floor 5 )
   ; ( "can"
-    , "Can.firmware: the host sends the bit period, 96 cycles for 500 kbit/s"
+    , [%string
+        "Can.firmware: the host sends the bit period, %{Can.period#Int} cycles for 500 \
+         kbit/s"]
     , Timed_program.source Can.firmware
     , Can.config
     , `Floor Can.shortest_period )
   ; ( "can_sender"
-    , "Can_node.Sender.firmware: Can.firmware reading its ACK slot on IN1, the host \
-       sends the bit period, 96 cycles for 500 kbit/s"
+    , [%string
+        "Can_node.Sender.firmware: Can.firmware reading its ACK slot on IN1, the host \
+         sends the bit period, %{Can.period#Int} cycles for 500 kbit/s"]
     , Timed_program.source Can_node.Sender.firmware
     , Can_node.Sender.config
     , `Floor Can_node.Sender.shortest_period )
@@ -132,6 +135,9 @@ let () =
     "# Written by test/python/write_bench_firmware.ml; `dune promote` after a change.\n\
      # The outside chip acts' firmware (BRINGUP.md) as words and the configuration it runs\n\
      # under, at the bench's 48 MHz but for 10BASE-T's 40.\n";
+  printf
+    "\n# Can.period: the bit period the CAN acts send, 500 kbit/s\nCAN_PERIOD = %d\n"
+    Can.period;
   List.iter bench ~f:(fun (name, what, source, config, assumption) ->
     let timed =
       match assumption with

@@ -8,8 +8,7 @@ import bench
 import bench_firmware
 import protocol_emulator as pe
 
-# Can.period: 96 cycles a bit at 48 MHz
-PERIOD = 96
+PERIOD = bench_firmware.CAN_PERIOD
 # 11 recessive bits are 22 us, and the Pico cannot wait less than this
 IDLE_MS = 1
 # a frame is at most 135 bits with its stuff bits, 270 us
@@ -29,7 +28,8 @@ def bits(value, width):
 
 def words(ident, data):
     """Can.words of a data frame: the bits after SOF less one, then ID, RTR, IDE, r0, DLC
-    and the data, MSB first sixteen to a word."""
+    and the data, MSB first sixteen to a word. test/test_outside.py's CAN rehearsal has
+    sigrok check the frames it makes."""
     fields = bits(ident, 11) + [0, 0, 0] + bits(len(data), 4)
     for byte in data:
         fields += bits(byte, 8)
@@ -52,8 +52,8 @@ def arm(transfer, log=print):
 def run(transfer, pause_ms, log=print):
     host = pe.Host(transfer)
     host.select(0)
-    if bench.faults(host):
-        log("engine 0 holds faults 0x%x: reset first" % bench.faults(host))
+    if host.faults():
+        log("engine 0 holds faults 0x%x: reset first" % host.faults())
         return False
     # again if armed already, which a stopped engine's OUT1 stays recessive through
     arm(transfer, log)
@@ -62,7 +62,7 @@ def run(transfer, pause_ms, log=print):
         host.push(words(ident, data))
         pause_ms(FRAME_MS)
         log(" ".join(["sent id 0x%03x dlc %d" % (ident, len(data))] + ["%02x" % b for b in data]))
-    found = bench.faults(host)
+    found = host.faults()
     log("faults 0x%x" % found)
     return not found
 

@@ -27,7 +27,6 @@ UART_TX_CERTIFICATE = [
 
 BAUD = 115_200
 BYTES = [0x55, 0xA3, 0x00, 0xFF]
-FAULTS = 0x3C
 # the 24-bit counter wraps in 349 ms at 48 MHz
 WINDOW_MS = 100
 
@@ -55,7 +54,7 @@ def status(host, say):
     ok = True
     for engine in (0, 1):
         host.select(engine)
-        s = host.read(pe.STATUS)[0]
+        s = host.read_status()
         ok = report(say, "status %d" % engine, s == 1, "0x%04x, wants 0x0001" % s) and ok
     host.select(0)
     return ok
@@ -113,7 +112,7 @@ def uart(spi, host, clock_hz, say):
         if sm.rx_fifo():
             got.append(sm.get() >> 24)
     sm.active(0)
-    faults = host.read(pe.STATUS)[0] & FAULTS
+    faults = host.faults()
     detail = "%s at %d cycles a bit, faults 0x%02x" % (
         " ".join("0x%02x" % b for b in got), period, faults)
     return report(say, "uart", got == BYTES and not faults, detail) and ok

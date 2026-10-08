@@ -50,7 +50,7 @@ def run(transfer, pause_ms, log=print):
     show(host, frames, pause_ms)
     for pixels in frames:
         log("frame: %s" % " ".join("#%02x%02x%02x" % p for p in pixels))
-    found = bench.faults(host)
+    found = host.faults()
     log("faults 0x%x" % found)
     return not found
 

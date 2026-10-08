@@ -907,7 +907,7 @@ async def test_self_check(dut):
     async def watch_wire():
         while True:
             await engines.engine_0.pin_out.value_change
-            level = (int(engines.engine_0.pin_out.value) >> demo_self_check.WIRE) & 1
+            level = (int(engines.engine_0.pin_out.value) >> protocol_emulator.WIRE) & 1
             if level != wire[-1][1]:
                 wire.append((cycle(), level))
 

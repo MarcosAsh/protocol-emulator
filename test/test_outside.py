@@ -174,7 +174,7 @@ async def test_flash(dut, mode):
         flash.wake()
         back = flash.read(demo_flash.SECTOR, demo_flash.PAGE)
         log("read 0x%06x: %s ..." % (demo_flash.SECTOR, demo_flash.bench.hexs(back[:8])))
-        return back, demo_flash.bench.faults(host)
+        return back, host.faults()
 
     back, faults = await bridge(act)()
     lines = decode(analyser, "flash", in_mode(decoders()["flash"], mode))
@@ -233,7 +233,7 @@ async def test_spi_modes(dut, mode):
         got = [b & 0xFF for b in demo_flash.bench.exchange(host, words)]
         replies = [got[i:i + 2] for i in range(0, len(got), 2)]
         log("mode %d replies %s" % (mode, replies))
-        return replies, demo_flash.bench.faults(host)
+        return replies, host.faults()
 
     replies, faults = await bridge(act)()
     assert faults == 0
@@ -446,7 +446,7 @@ async def test_i2c_stuck_scl(dut):
             demo_eeprom.word(0xA4, start=True), demo_eeprom.word(0),
             demo_eeprom.word(0, stop=True), demo_eeprom.word(0xA4, start=True, stop=True),
         ]
-        return demo_eeprom.bench.exchange(host, words), demo_eeprom.bench.faults(host)
+        return demo_eeprom.bench.exchange(host, words), host.faults()
 
     replies, faults = await bridge(act)()
     log("replies %s, %d us after SCL was held" % (
@@ -862,21 +862,20 @@ def two_engines(transfer, pause_ms):
 def send(transfer, pause_ms, log, frames):
     """frames from engine 0, the ACKs it read, what engine 1 heard, and their faults."""
     host = demo_can_node.pe.Host(transfer)
-    bench = demo_can_node.bench
     acks, words = [], []
     for ident, data in frames:
         host.push(demo_can.words(ident, data))
         pause_ms(demo_can_node.FRAME_MS)
-        acks += host.pop(bench.rx_level(host))
+        acks += host.pop(host.rx_level())
         # a long frame is seven words, so each is read before the next
         host.select(1)
-        words += host.pop(bench.rx_level(host))
+        words += host.pop(host.rx_level())
         host.select(0)
     heard, _ = demo_can_node.frames(words)
     log("engine 0 read %s, engine 1 heard %s" % (acks, heard))
-    faults = bench.faults(host)
+    faults = host.faults()
     host.select(1)
-    faults |= bench.faults(host)
+    faults |= host.faults()
     host.select(0)
     return acks, heard, faults
 
@@ -981,7 +980,7 @@ async def start_holds(dut, hold_ps):
     master = cocotb.start_soon(i2c_reads(dut, hold_ps))
     holds = await bridge(demo_start_hold.collect)(host, pause_ms, 2 * READS, 5)
     await master
-    faults = await bridge(demo_start_hold.bench.faults)(host)
+    faults = await bridge(host.faults)()
     watcher.cancel()
     verdict = demo_start_hold.judge(holds, log)
     cycles = hold_ps / CLOCK_PS
@@ -1049,7 +1048,7 @@ async def refereed(dut, act, **kwargs):
     async def watch_wire():
         while True:
             await engines.engine_0.pin_out.value_change
-            level = (int(engines.engine_0.pin_out.value) >> check.WIRE) & 1
+            level = (int(engines.engine_0.pin_out.value) >> check.pe.WIRE) & 1
             if level != wire[-1][1]:
                 wire.append((cycle(), level))
 
