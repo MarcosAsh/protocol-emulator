@@ -302,22 +302,9 @@ let%expect_test "frames from a node whose clock is off" =
 ;;
 
 (* the bits of a frame's own making, stuffed, with the CRC over them, to the delimiter *)
-let stuff bits =
-  List.fold bits ~init:([], None, 0) ~f:(fun (sent, last, run) bit ->
-    let run = if Option.equal Bool.equal last (Some bit) then run + 1 else 1 in
-    if run = 5
-    then not bit :: bit :: sent, Some (not bit), 1
-    else bit :: sent, Some bit, run)
-  |> fun (sent, _, _) -> List.rev sent
-;;
-
-let msb_first value ~width =
-  List.init width ~f:(fun i -> (value lsr (width - 1 - i)) land 1 = 1)
-;;
-
 let line_of fields =
   let unstuffed = false :: fields in
-  stuff (unstuffed @ msb_first (Can.crc15 unstuffed) ~width:15) @ [ true ]
+  Can.stuff (unstuffed @ Can.msb_first (Can.crc15 unstuffed) ~width:15) @ [ true ]
 ;;
 
 let flip line n = List.mapi line ~f:(fun i b -> if i = n then not b else b)
@@ -350,15 +337,16 @@ let%expect_test "frames it refuses, and the one after" =
   let extended =
     (* ID 0x123, SRR and IDE recessive, then an 18-bit extension, RTR, r1, r0, DLC 1 *)
     line_of
-      (msb_first 0x123 ~width:11
+      (Can.msb_first 0x123 ~width:11
        @ [ true; true ]
-       @ msb_first 0x2aaaa ~width:18
+       @ Can.msb_first 0x2aaaa ~width:18
        @ [ false; false; false ]
-       @ msb_first 1 ~width:4
-       @ msb_first 0x5a ~width:8)
+       @ Can.msb_first 1 ~width:4
+       @ Can.msb_first 0x5a ~width:8)
   in
   let fd =
-    line_of (msb_first 0x123 ~width:11 @ [ false; false; true ] @ msb_first 0 ~width:4)
+    line_of
+      (Can.msb_first 0x123 ~width:11 @ [ false; false; true ] @ Can.msb_first 0 ~width:4)
   in
   List.iter
     [ "a data bit flipped", flip line 30
