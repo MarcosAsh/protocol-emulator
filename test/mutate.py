@@ -22,7 +22,13 @@ from pathlib import Path
 from queue import Queue
 
 ALLOW = Path(__file__).with_name("mutation_allow.txt")
-COPIED = ["src", "test", "bin", "ppx", "python", "formal/Makefile", "dune-project", ".ocamlformat"]
+# the committed verilog test_provenance holds byte for byte to the generator, regenerated in
+# each mutant so that test judges tracing alone, not whether the mutant changed a byte
+VERILOG = "src/protocol_emulator.v"
+TOP = ["top", "-sram", "-engines", "2"]
+COPIED = ["src", "test", "bin", "ppx", "python", "formal/Makefile", "dune-project", ".ocamlformat",
+          "demo/paths.py", "demo/outline.py", "demo/draw.py", "pages/die/die.bin",
+          "test/paths/cells.json", VERILOG]
 SKIPPED = shutil.ignore_patterns("sim_build", "__pycache__", "*.fst", "*.vcd", "*.xml", "*.v", "*.json")
 
 # the operators of the published score; its scope keeps exactly these
@@ -207,10 +213,10 @@ def plan(scope, files, seed, held_out):
     return todo
 
 
-def dune(cwd, command, *args, jobs=None, timeout=None):
+def dune(cwd, command, *args, jobs=None, timeout=None, stdout=subprocess.DEVNULL):
     flags = ["-j", str(jobs)] if jobs else []
     p = subprocess.Popen(["dune", command, "--root", ".", *flags, *args], cwd=cwd, text=True,
-                         stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, start_new_session=True)
+                         stdout=stdout, stderr=subprocess.PIPE, start_new_session=True)
     try:
         _, err = p.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
@@ -228,6 +234,10 @@ def verdict(cwd, file, jobs, timeout):
             return "invalid"
         for args in ELABORATE.get(file, []):
             if dune(cwd, "exec", "--", "./bin/generate.exe", *args, jobs=jobs, timeout=timeout)[0] != 0:
+                return "invalid"
+        with open(cwd / VERILOG, "w") as verilog:
+            if dune(cwd, "exec", "--", "./bin/generate.exe", *TOP, jobs=jobs, timeout=timeout,
+                    stdout=verilog)[0] != 0:
                 return "invalid"
         return "survived" if dune(cwd, "build", "@runtest", jobs=jobs, timeout=timeout)[0] == 0 else "killed"
     except subprocess.TimeoutExpired:
