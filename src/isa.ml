@@ -18,6 +18,9 @@ let first_bidir_pin = 12
 let max_shift_count = 16
 let count_bits = Bits.num_bits_to_represent data_bits
 let jmp_cycles = 2
+let fifo_depth = 8
+let stuff_run_max = 31
+let manchester_pins = 2
 
 module Field = struct
   type t =

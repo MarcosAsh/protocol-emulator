@@ -1,6 +1,6 @@
 open! Core
 
-let fifo_depth = 8
+let fifo_depth = Isa.fifo_depth
 let data_mask = (1 lsl Isa.data_bits) - 1
 let timer_mask = (1 lsl Isa.timer_bits) - 1
 let fraction_mask = (1 lsl Isa.fraction_bits) - 1
@@ -215,8 +215,6 @@ let capture_edge t ~sample =
   t.capture_armed && Bool.( <> ) prev cur && Bool.equal cur c.capture_rising
 ;;
 
-let stuff_run_max = 31
-
 (* The assist units see every bit that crosses a pin one at a time. *)
 let bit_crosses t bit =
   let c = t.config in
@@ -225,7 +223,7 @@ let bit_crosses t bit =
   in
   let stuff_run =
     if Bool.equal (bit = 1) c.stuff_level
-    then Int.min stuff_run_max (t.stuff_run + 1)
+    then Int.min Isa.stuff_run_max (t.stuff_run + 1)
     else 0
   in
   { t with crc; stuff_run }
@@ -318,12 +316,14 @@ let in_source t (source : Isa.In_source.Cases.t) ~count ~sample =
 (* the two pins of a Manchester bit: the complement on [out_base], the bit beside it *)
 let manchester_pair bit = bit lxor 1 lor (bit lsl 1)
 
+let write_manchester t ~base bit =
+  write_pins t ~base ~count:Isa.manchester_pins ~value:(manchester_pair bit)
+;;
+
 let out_dest t (dest : Isa.Out_dest.Cases.t) ~count ~value =
   match dest with
   | Pins when t.config.manchester && count = 1 ->
-    { (write_pins t ~base:t.config.out_base ~count:2 ~value:(manchester_pair value)) with
-      flip = Some value
-    }
+    { (write_manchester t ~base:t.config.out_base value) with flip = Some value }
   | Pins -> write_pins t ~base:t.config.out_base ~count ~value
   | X -> { t with x = value }
   | Y -> { t with y = value }
@@ -451,10 +451,7 @@ let issue t ~sample =
   let t =
     match t.flip with
     | None -> t
-    | Some bit ->
-      { (write_pins t ~base:c.out_base ~count:2 ~value:(manchester_pair (bit lxor 1))) with
-        flip = None
-      }
+    | Some bit -> { (write_manchester t ~base:c.out_base (bit lxor 1)) with flip = None }
   in
   match Isa.of_word ~side_set_count:c.side_set_count t.program.(t.pc) with
   | Error _ -> fault { t with halted = true } (fun f -> { f with decode = true })

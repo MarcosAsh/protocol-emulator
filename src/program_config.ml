@@ -92,7 +92,7 @@ let validate t =
     ; range "crc_width" t.crc_width ~lo:1 ~hi:Isa.data_bits
     ; range "crc_poly" t.crc_poly ~lo:0 ~hi:0xffff
     ; range "crc_init" t.crc_init ~lo:0 ~hi:0xffff
-    ; range "stuff_threshold" t.stuff_threshold ~lo:0 ~hi:31
+    ; range "stuff_threshold" t.stuff_threshold ~lo:0 ~hi:Isa.stuff_run_max
     ; range "wrap_bottom" t.wrap_bottom ~lo:0 ~hi:((1 lsl Isa.pc_bits) - 1)
     ; range "wrap_top" t.wrap_top ~lo:0 ~hi:((1 lsl Isa.pc_bits) - 1)
     ; range "period_fraction" t.period_fraction ~lo:0 ~hi:((1 lsl Isa.fraction_bits) - 1)
