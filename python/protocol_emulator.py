@@ -178,7 +178,7 @@ class Host:
     def status(self):
         s = self.read_status()
         return {
-            "halted": s & HALTED, "irq": (s >> 1) & 1, "underflow": (s >> 2) & 1,
+            "halted": s & 1, "irq": (s >> 1) & 1, "underflow": (s >> 2) & 1,
             "overflow": (s >> 3) & 1, "missed_deadline": (s >> 4) & 1,
             "decode": (s >> 5) & 1, "tx_level": tx_level(s), "rx_level": rx_level(s),
             "other_irq": (s >> 15) & 1,
