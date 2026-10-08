@@ -96,7 +96,7 @@ def run(transfer, log=print):
     pad_ok = crc8(pad) == 0 and pad[4] & CONFIG_MASK == CONFIG_FIXED
     log("scratchpad %s: CRC %s, configuration %02x, %d/16 = %.4f C" % (
         bench.hexs(pad), "good" if crc8(pad) == 0 else "BAD", pad[4], raw, raw / 16))
-    found = bench.faults(host)
+    found = host.faults()
     log("faults 0x%x" % found)
     return rom_ok and pad_ok and raw != POWER_ON and -55 * 16 <= raw <= 125 * 16 and not found
 

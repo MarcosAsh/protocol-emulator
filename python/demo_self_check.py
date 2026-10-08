@@ -8,21 +8,21 @@
 
 import protocol_emulator as pe
 
-WIRE = 20
 # The rows certify uart_tx_host_rate at 434 cycles a bit, 9 us at 48 MHz. A checked frame
 # ends inside 2^14 cycles, so act 2's 5000 cannot be checked.
 PERIOD = 434
 # the rows' base, as test_two_engines loads them
 BASE = 256
-TRANSMITTER = dict(pe.DEFAULT_CONFIG, set_base=WIRE, out_base=WIRE)
+TRANSMITTER = dict(pe.DEFAULT_CONFIG, set_base=pe.WIRE, out_base=pe.WIRE)
 # Self_check.checker_config
 CHECKER = dict(
-    pe.DEFAULT_CONFIG, in_base=WIRE, in_count=1, jmp_pin=WIRE, capture_pin=WIRE,
+    pe.DEFAULT_CONFIG, in_base=pe.WIRE, in_count=1, jmp_pin=pe.WIRE, capture_pin=pe.WIRE,
     in_shift_right=0, autopull=1, pull_threshold=16, autopull_data=1,
 )
-FAULTS = 0x3C
+# what engine 1's status shows once it has caught a frame off its rows
+ALARM = pe.HALTED | pe.IRQ
 # wait 0 pin 20, as the assembler encodes it
-WAIT_FALL = 0x2000 | WIRE
+WAIT_FALL = 0x2000 | pe.WIRE
 # uart_tx_host_rate's wait for a byte between frames
 IDLE = 4
 # every byte value ten times
@@ -111,10 +111,10 @@ def idle(host, pause=None, polls=10_000):
     """Returns once engine 0 has sent all it was given and waits for more, the stop bit
     over. Nothing waits on the host, so the poll need not be fast."""
     for _ in range(polls):
-        s = host.read(pe.STATUS)[0]
-        if s & 1:
+        s = host.read_status()
+        if s & pe.HALTED:
             raise RuntimeError("engine 0 halted, status 0x%04x" % s)
-        if (s >> 6) & 15 == 0 and host.read(pe.PC)[0] == IDLE:
+        if pe.tx_level(s) == 0 and host.read(pe.PC)[0] == IDLE:
             return
         if pause:
             pause()
@@ -124,7 +124,7 @@ def idle(host, pause=None, polls=10_000):
 def checker(host):
     """Engine 1's status and pc, back on engine 0."""
     host.select(1)
-    s = host.read(pe.STATUS)[0]
+    s = host.read_status()
     pc = host.read(pe.PC)[0]
     host.select(0)
     return s, pc
@@ -141,7 +141,7 @@ def send(host, frames, track, pause=None, first=0):
         sent += len(data)
         idle(host, pause)
         s, pc = checker(host)
-        if s & 3 or pc != track:
+        if s & ALARM or pc != track:
             break
     return sent, s, pc
 
@@ -150,7 +150,7 @@ def quiet(host, label, frames, track, pause=None):
     """Whether frames went out with no irq, engine 1 waiting at track for the next frame
     after every restart, so it checked them all."""
     sent, s, pc = send(host, frames, track, pause)
-    if s & 3:
+    if s & ALARM:
         seen = "ALARM, engine 1 status 0x%04x pc %d" % (s, pc)
     elif pc != track:
         seen = "NOT CHECKING, engine 1 at pc %d, not its wait at %d" % (pc, track)
@@ -158,7 +158,7 @@ def quiet(host, label, frames, track, pause=None):
         seen = "no alarm"
     print("\n%s: %d frames at %d cycles a bit, %d restarts: %s" % (
         label, sent, PERIOD, (sent + 6) // 7, seen))
-    return s & 3 == 0 and pc == track
+    return s & ALARM == 0 and pc == track
 
 
 def arm(host):
@@ -184,7 +184,7 @@ def faults(host):
     found = []
     for engine in (0, 1):
         host.select(engine)
-        found.append(host.read(pe.STATUS)[0] & FAULTS)
+        found.append(host.faults())
     host.select(0)
     return found
 
@@ -216,7 +216,7 @@ def run(transfer, frames=FRAMES, pause=None):
         print("\nglitch: the same restart at %d: 0x%02x's start bit ends at cycle %d, not %d" % (
             period, GLITCH_BYTE, moved, PERIOD))
         s, pc = glitch(host, period, pause)
-        caught = s & 3 == 3
+        caught = s & ALARM == ALARM
         ok = ok and caught
         if caught:
             print("alarm: engine 1 raised its irq and halted, the rows put the catch at cycle %d"

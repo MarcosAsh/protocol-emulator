@@ -10,7 +10,6 @@ from protocol_emulator import DEFAULT_CONFIG
 
 SCL = 18  # IO6, uio[6]
 SDA = 19  # IO7, uio[7]
-WIRE = 20
 QUARTER = 30  # set p, 30 in the firmware: 400 kHz at 48 MHz
 
 MASTER_CONFIG = dict(

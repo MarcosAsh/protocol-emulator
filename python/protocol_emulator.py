@@ -25,6 +25,23 @@ REJECT_REASON = 0x45
 PROGRAM_WORDS = 512
 # 0x46 and 0x47 are reserved and read as zero.
 
+# STATUS: bit 0 halted, 1 irq, 2-5 the faults, 6-9 the tx level, 10-13 the rx level,
+# 15 the other engine's irq
+HALTED = 0x0001
+IRQ = 0x0002
+# underflow, overflow, missed deadline, bad decode; they hold until reset
+FAULTS = 0x003C
+# the first wire between the engines, after the 20 pins
+WIRE = 20
+
+
+def tx_level(status):
+    return (status >> 6) & 15
+
+
+def rx_level(status):
+    return (status >> 10) & 15
+
 
 class Refused(Exception):
     """The chip's load check refused the program: the pc and the reason it gives."""
@@ -146,12 +163,20 @@ class Host:
     def pop(self, count=1):
         return self.read(RX, count)
 
+    def read_status(self):
+        """The selected engine's STATUS word."""
+        return self.read(STATUS)[0]
+
+    def faults(self):
+        """The selected engine's fault bits."""
+        return self.read_status() & FAULTS
+
     def status(self):
-        s = self.read(STATUS)[0]
+        s = self.read_status()
         return {
-            "halted": s & 1, "irq": (s >> 1) & 1, "underflow": (s >> 2) & 1,
+            "halted": s & HALTED, "irq": (s >> 1) & 1, "underflow": (s >> 2) & 1,
             "overflow": (s >> 3) & 1, "missed_deadline": (s >> 4) & 1,
-            "decode": (s >> 5) & 1, "tx_level": (s >> 6) & 15, "rx_level": (s >> 10) & 15,
+            "decode": (s >> 5) & 1, "tx_level": tx_level(s), "rx_level": rx_level(s),
             "other_irq": (s >> 15) & 1,
         }
 

@@ -106,7 +106,7 @@ def run(transfer, pause_ms, log=print):
     ms = flash.erase(SECTOR)
     erased = flash.read(SECTOR, PAGE)
     log("erase again: %d ms, %s" % (ms, "blank" if erased == [0xFF] * PAGE else "NOT BLANK"))
-    found = bench.faults(host)
+    found = host.faults()
     log("faults 0x%x" % found)
     return blank == [0xFF] * PAGE and back == data and erased == [0xFF] * PAGE and not found
 

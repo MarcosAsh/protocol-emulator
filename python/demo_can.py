@@ -52,8 +52,8 @@ def arm(transfer, log=print):
 def run(transfer, pause_ms, log=print):
     host = pe.Host(transfer)
     host.select(0)
-    if bench.faults(host):
-        log("engine 0 holds faults 0x%x: reset first" % bench.faults(host))
+    if host.faults():
+        log("engine 0 holds faults 0x%x: reset first" % host.faults())
         return False
     # again if armed already, which a stopped engine's OUT1 stays recessive through
     arm(transfer, log)
@@ -62,7 +62,7 @@ def run(transfer, pause_ms, log=print):
         host.push(words(ident, data))
         pause_ms(FRAME_MS)
         log(" ".join(["sent id 0x%03x dlc %d" % (ident, len(data))] + ["%02x" % b for b in data]))
-    found = bench.faults(host)
+    found = host.faults()
     log("faults 0x%x" % found)
     return not found
 

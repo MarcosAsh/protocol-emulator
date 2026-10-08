@@ -7,16 +7,14 @@
 
 import protocol_emulator as pe
 
-WIRE = 20
 # 9600 baud at 48 MHz; `assemble -period 5000 test/uart_tx_host_rate.asm` accepts it, so
 # every edge lands a whole number of periods after its start bit
 PERIOD = 5000
 # the least period test/firmware.mk certifies uart_tx_host_rate for, so any load from it up
 FLOOR = 4
-TRANSMITTER = dict(pe.DEFAULT_CONFIG, set_base=WIRE, out_base=WIRE)
+TRANSMITTER = dict(pe.DEFAULT_CONFIG, set_base=pe.WIRE, out_base=pe.WIRE)
 # sets OUT0, the default set pin
-LOGGER = dict(pe.DEFAULT_CONFIG, jmp_pin=WIRE, autopush=1)
-FAULTS = 0x3C
+LOGGER = dict(pe.DEFAULT_CONFIG, jmp_pin=pe.WIRE, autopush=1)
 FLOOD = (pe.NOW_LO, pe.PC)
 
 
@@ -39,10 +37,6 @@ def load(host, engine, config, name, loaded=None):
     host.certify(words(name + ".cert"), loaded=loaded)
 
 
-def rx_level(host):
-    return (host.read(pe.STATUS)[0] >> 10) & 15
-
-
 def setup(host, period=PERIOD):
     """Both engines running, the wire idle and no stamp waiting."""
     for engine in (1, 0):
@@ -59,7 +53,7 @@ def setup(host, period=PERIOD):
     host.select(1)
     # the line going idle, unless a previous run left it there
     for _ in range(4):
-        level = rx_level(host)
+        level = pe.rx_level(host.read_status())
         if level:
             host.pop(level)
 
@@ -69,7 +63,7 @@ def host_drain(host):
     waiting stamps, then read each register in reads."""
 
     def drain(stamps, reads):
-        level = rx_level(host)
+        level = pe.rx_level(host.read_status())
         if level:
             stamps.extend(host.pop(level))
         for reg in reads:
@@ -109,7 +103,7 @@ def faults(host):
     found = []
     for engine in (0, 1):
         host.select(engine)
-        found.append(host.read(pe.STATUS)[0] & FAULTS)
+        found.append(host.faults())
     host.select(1)
     return found
 

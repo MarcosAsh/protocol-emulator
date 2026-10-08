@@ -73,7 +73,7 @@ def listen(host, pause_ms, log):
     words, heard = [], []
     for _ in range(LISTEN_MS // POLL_MS):
         irq = host.status()["irq"]
-        level = bench.rx_level(host)
+        level = pe.rx_level(host.read_status())
         if level:
             words += host.pop(level)
         if irq and words:
@@ -94,8 +94,8 @@ def listen(host, pause_ms, log):
 def run(transfer, pause_ms, log=print):
     host = pe.Host(transfer)
     host.select(0)
-    if bench.faults(host):
-        log("engine 0 holds faults 0x%x: reset first" % bench.faults(host))
+    if host.faults():
+        log("engine 0 holds faults 0x%x: reset first" % host.faults())
         return False
     # the sender again, armed from reset or by an earlier run, as demo/capture.sh may run
     # this more than once: a stopped engine leaves OUT1 at the level it had
@@ -107,17 +107,18 @@ def run(transfer, pause_ms, log=print):
     for ident, data in FRAMES:
         host.push(demo_can.words(ident, data))
         pause_ms(FRAME_MS)
-        ack = host.pop(bench.rx_level(host)) if bench.rx_level(host) else []
+        level = pe.rx_level(host.read_status())
+        ack = host.pop(level) if level else []
         acked.append(ack == [0])
         log("sent %s, %s" % (describe(ident, 0, len(data), data),
                              "ACKed" if ack == [0] else "no ACK %s" % ack))
-    faults = bench.faults(host)
+    faults = host.faults()
     # the sender stops with OUT1 recessive, and the receiver keeps it so
     bench.load(host, bench_firmware.CAN_RECEIVER)
     host.start()
     log("engine 0 is the receiver")
     heard = listen(host, pause_ms, log)
-    faults |= bench.faults(host)
+    faults |= host.faults()
     log("faults 0x%x" % faults)
     return all(acked) and heard == REPLIES and not faults
 

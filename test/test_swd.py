@@ -174,7 +174,7 @@ async def test_swd_refusals(dut):
         acks.append(swd.write(1, 0x4, 0x40000000))
         acks.append(swd.read(0, demo_swd.CTRL_STAT)[0])
         log("acks %s, RDBUFF 0x%08x" % (acks, value))
-        return acks, value, good, demo_swd.bench.faults(host)
+        return acks, value, good, host.faults()
 
     acks, value, good, faults = await bridge(act)()
     await unwire(dut, task)

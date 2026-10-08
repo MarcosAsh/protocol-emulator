@@ -12,7 +12,6 @@ import bench_firmware
 import demo_neopixel
 import protocol_emulator as pe
 
-MHZ = 48
 # UM10204 table 10, t_HD;STA in Standard-mode: 192 cycles
 LIMIT_NS = 4000
 COUNT = 64
@@ -23,7 +22,7 @@ RED = (0x20, 0x00, 0x00)
 
 
 def ns(cycles):
-    return cycles * 1000 // MHZ
+    return cycles * 1000 // bench.MHZ
 
 
 def arm(host):
@@ -36,7 +35,7 @@ def collect(host, pause_ms, count, limit_ms):
     holds = []
     waited = 0
     while len(holds) < count and waited < limit_ms:
-        level = bench.rx_level(host)
+        level = pe.rx_level(host.read_status())
         if level:
             holds.extend(host.pop(level))
         else:
@@ -47,7 +46,7 @@ def collect(host, pause_ms, count, limit_ms):
 
 def judge(holds, log):
     """Logs the chip's holds as a histogram, then the verdict; True if all meet it."""
-    log("chip, engine 1: %d STARTs, SDA fall to SCL fall, %d MHz cycles" % (len(holds), MHZ))
+    log("chip, engine 1: %d STARTs, SDA fall to SCL fall, %d MHz cycles" % (len(holds), bench.MHZ))
     counts = {}
     for hold in holds:
         counts[hold] = counts.get(hold, 0) + 1
@@ -61,14 +60,14 @@ def judge(holds, log):
     # a stamp is the true hold to within a cycle, so one at the limit may be just short
     word = "FAIL" if short else "PASS" if ns(least - 1) >= LIMIT_NS else "PASS within a cycle of it"
     log("host, against t_HD;STA >= %d ns (%d cycles): %s, %d of %d short, least %d cycles (%d ns)" % (
-        LIMIT_NS, LIMIT_NS * MHZ // 1000, word, len(short), len(holds), least, ns(least)))
+        LIMIT_NS, LIMIT_NS * bench.MHZ // 1000, word, len(short), len(holds), least, ns(least)))
     return ok
 
 
 def measure(host, pause_ms, log=print, count=COUNT, limit_ms=LIMIT_MS):
     """The verdict on count holds, or None if they did not come or the chip faulted."""
     holds = collect(host, pause_ms, count, limit_ms)
-    found = bench.faults(host)
+    found = host.faults()
     if found:
         log("engine 1 faults 0x%x" % found)
         return None

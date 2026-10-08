@@ -12,7 +12,7 @@ the tx fifo whole and in order. `service` is one round of that I/O over a `proto
 import gc
 
 import usb_device_firmware as firmware
-from protocol_emulator import PROGRAM, PROGRAM_ADDR, STATUS
+from protocol_emulator import HALTED, PROGRAM, PROGRAM_ADDR, rx_level, tx_level
 
 DATA0 = 0xC3
 DATA1 = 0x4B
@@ -205,8 +205,8 @@ def drain(host, words):
         return fast(words, QUIET, DRAIN_LIMIT)
     idle = 0
     while idle < QUIET and len(words) < DRAIN_LIMIT:
-        status = host.read(STATUS)[0]
-        level = (status >> 10) & 15
+        status = host.read_status()
+        level = rx_level(status)
         if level:
             words += host.pop(level)
             idle = 0
@@ -235,9 +235,9 @@ def service(host, board, fifo_depth=8):
     if board.reload is not None:
         address, board.reload = board.reload, None
         # a halted core may have lost its configuration to a reset or a new bitstream
-        load(host, address, None if status & 1 else board.loaded)
+        load(host, address, None if status & HALTED else board.loaded)
         board.loaded = address
         board.flushed()
-    elif board.replies and ((status >> 6) & 15) + len(board.replies[0]) <= fifo_depth:
+    elif board.replies and tx_level(status) + len(board.replies[0]) <= fifo_depth:
         host.push(board.replies.pop(0))
     return status
