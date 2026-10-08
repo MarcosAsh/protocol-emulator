@@ -5,7 +5,7 @@
 # GP8 -> header 15 keeps the board detached until engine 0 serves, and a press on GP9 (the
 # carrier's REPLUG) detaches it again; the TT demo board reads uio_out itself. Meanwhile
 # engine 1 sends each key the laptop took out of OUT0 at 115200 baud, for pico_listener.
-# Needs uart_tx_host_rate.hex on the Pico.
+# Needs uart_tx_host_rate.hex and uart_tx_host_rate.cert.hex on the Pico.
 # Untested on a board; test/test_demo.py runs `start_log` and `serve` on the RTL.
 
 import time
