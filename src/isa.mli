@@ -39,6 +39,15 @@ val max_shift_count : int
 val count_bits : int
 val jmp_cycles : int
 
+(** Words each host fifo holds, in the hardware and the model alike. *)
+val fifo_depth : int
+
+(** The stuffing run counter saturates here. *)
+val stuff_run_max : int
+
+(** A Manchester bit drives [out_base] and the pin above it. *)
+val manchester_pins : int
+
 (** Instruction word fields, shared by the encoder and the hardware decoder. *)
 module Field : sig
   type t =

@@ -454,7 +454,7 @@ module Make (Timer : Timer) = struct
     let%hw crc_next =
       mux2 (is_sys Crc_init) c.crc_init @@ mux2 bit_crosses crc_stepped crc
     in
-    let%hw stuff_run_max = of_unsigned_int ~width:count_bits 31 in
+    let%hw stuff_run_max = of_unsigned_int ~width:count_bits Isa.stuff_run_max in
     let%hw stuff_run_next =
       mux2 (is_sys Stuff_reset) (zero count_bits)
       @@ mux2
@@ -510,7 +510,7 @@ module Make (Timer : Timer) = struct
     let bidir_pin n = n >= first_bidir_pin && n < Isa.num_pins in
     let side_count = uresize c.side_set_count ~width:count_bits in
     let set_count = uresize c.set_count ~width:count_bits in
-    let two = of_unsigned_int ~width:count_bits 2 in
+    let manchester_pins = of_unsigned_int ~width:count_bits Isa.manchester_pins in
     (* the complement on [out_base] and the bit beside it *)
     let manchester_pair bit = uresize (bit @: ~:bit) ~width:data_bits in
     let%hw pin_out_flipped =
@@ -519,7 +519,7 @@ module Make (Timer : Timer) = struct
         (write_pins
            pin_out
            ~base:c.out_base
-           ~count:two
+           ~count:manchester_pins
            ~value:(manchester_pair ~:flip_bit)
            ~writable:output_pin)
         pin_out
@@ -560,7 +560,7 @@ module Make (Timer : Timer) = struct
                  manchester_out
                  (out_to
                     ~base:c.out_base
-                    ~count:two
+                    ~count:manchester_pins
                     ~value:(manchester_pair out_value.:(0)))
                  (out_to ~base:c.out_base ~count:shift_count ~value:out_value))
               pin_out_base )
