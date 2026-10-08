@@ -492,8 +492,8 @@ let low_speed_host groups () =
 let usb =
   let bit_period = Usb_host.bit_period in
   let address = 0 in
-  (* after the load and the certificate's check, which take some 160k cycles *)
-  let at bits = 165_000 + (bits * bit_period) in
+  (* after the load, the certificate's check and the start, which take some 169k cycles *)
+  let at bits = 180_000 + (bits * bit_period) in
   let setup = 0x2d
   and in_ = 0x69
   and out = 0xe1 in
@@ -527,6 +527,8 @@ let usb =
             ( Reg.tx
             , bit_period :: Usb_host.reply ~endpoint:0 ~pid:Usb_host.data1 descriptor )
         ; Scenario.start
+          (* fails if the check outlasts the host's wait: the device misses the SETUP *)
+        ; Until (at 0)
         ; Until (at 280)
         ; Read (Reg.rx, 7)
         ; Until (at 580)
