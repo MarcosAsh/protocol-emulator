@@ -66,7 +66,8 @@ referee)
     decode="-P rgb_led_ws281x:din=D4 -A rgb_led_ws281x=rgb:reset"
     analyser=B
     files="python/demo_neopixel.py python/demo_self_check.py test/uart_tx_host_rate.hex
-        test/uart_tx_host_rate_rows.hex test/self_check_wire.hex test/scrub.hex"
+        test/uart_tx_host_rate.cert.hex test/uart_tx_host_rate_rows.hex test/self_check_wire.hex
+        test/self_check_wire.cert.hex test/scrub.hex"
     ;;
 *)
     echo "usage: PICO=id:<serial> $0 flash|eeprom|eeprom_stretch|ds18b20|neopixel|start_hold|can|can_node|swd|referee" >&2
