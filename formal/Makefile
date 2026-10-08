@@ -1,6 +1,6 @@
 all: issue_timing host_timing late_host fifo_order phase_step edge_step event_step frame_step \
-  value_step narrow saturating chip_frame isolation data_step teeth fsm_miter sram_equiv \
-  kernel_equiv link self_check self_check_clean powerup gate certify
+  value_step narrow saturating chip_frame fail_safe isolation data_step teeth fsm_miter \
+  sram_equiv kernel_equiv link self_check self_check_clean powerup gate certify
 
 engine.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe engine > formal/engine.v
@@ -164,6 +164,27 @@ saturating_chip: engine.v kernel_step.v
 chip_frame: engines.v
 	sby -f chip_frame.sby prove pads_shared cover
 
+# The fault fail-safe on the two-engine chip (fail_safe.sv): an engine with a fault latched
+# drives no pin from the edge it shows, halts within two edges and stays halted, pc held,
+# through any start until the clear; with no fault the pins are as they always were.
+# Seconds. Teeth: a faulted engine's drive kept, an engine that runs on or restarts, and
+# engines.v with engine 0's mask, stop or start gate taken out, all have to fail.
+FAULT_MASK = /^module engines (/,/^endmodule/s/^\(\s*assign signal_mux[_0-9]* = \)faulted\$$0 ? signal_const[_0-9]* : \(signal_wire_[0-9]*;\)/\1\2/
+FAULT_STOP = /^module engines (/,/^endmodule/s/^\(\s*assign signal_or[_0-9]* = signal_wire_[0-9]*\) | faulted\$$0;/\1;/
+FAULT_START = /^module engines (/,/^endmodule/s/^\(\s*assign signal_not[_0-9]* = \)~ faulted\$$0;/\1 1;/
+fail_safe: engines.v
+	sby -f fail_safe.sby prove cover
+
+fail_safe_teeth: engines.v
+	mkdir -p fail_safe_teeth
+	sed '$(FAULT_MASK)' engines.v > fail_safe_teeth/unmasked.v
+	sed '$(FAULT_STOP)' engines.v > fail_safe_teeth/unstopped.v
+	sed '$(FAULT_START)' engines.v > fail_safe_teeth/restartable.v
+	! cmp -s engines.v fail_safe_teeth/unmasked.v
+	! cmp -s engines.v fail_safe_teeth/unstopped.v
+	! cmp -s engines.v fail_safe_teeth/restartable.v
+	sby -f fail_safe.sby kept_drive runs_on restarts unmasked unstopped restartable
+
 # A UART from engine 0 to engine 1 over a wire, by induction on the two-engine chip: each
 # word engine 1 pushes is the byte engine 0 sent in that frame, once a frame, and each
 # sample lies half a bit from the wire's edges. The proof takes about 2 min, the covers
@@ -285,6 +306,7 @@ teeth: engine.v engine_sram.v engines.v kernel_step.v osr_step.v
 	  pull_past_threshold data_never_refused in_wrong_direction push_before_shift \
 	  flip_at_outs_base flip_same_half
 	sby -f chip_frame.sby overlap unbound read_everywhere
+	$(MAKE) fail_safe_teeth
 	sby -f data_step.sby wrong_way off_by_one stale_word
 	sby -f host_timing.sby private_pull no_wait_excuse no_jump_excuse no_underflow_excuse no_overflow_excuse
 	sby -f late_host.sby admit_fifo_wait admit_fifo_jump private_pull no_underflow_excuse \
@@ -722,7 +744,8 @@ witness_reject:
 
 .PHONY: all link link_proof issue_timing host_timing late_host fifo_order phase_step phase_table \
   phase_table_proof phase_table_affine phase_table_affine_proof phase_spacing \
-  phase_spacing_proof edge_step event_step frame_step value_step chip_frame data_step teeth \
+  phase_spacing_proof edge_step event_step frame_step value_step chip_frame fail_safe \
+  fail_safe_teeth data_step teeth \
   inductive_certificate inductive_proof inductive_certificates inductive_names \
   stamped_certificate stamped_proof data_certificate data_proof data_certificates data_names \
   netlist_equiv netlist_equiv_teeth netlist_equiv_held \

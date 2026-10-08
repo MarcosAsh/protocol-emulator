@@ -205,7 +205,7 @@ jobs:
           opam exec -- dune exec -- bin/generate.exe memory -sram > formal/memory_sram.v
           opam exec -- dune exec -- bin/generate.exe kernel-gates > formal/kernel_gates.aag
           opam exec -- dune exec -- bin/generate.exe kernel-gates -accepts > formal/kernel_accepts_gates.aag
-          make -C formal issue_timing host_timing late_host fifo_order phase_step edge_step event_step frame_step value_step narrow_proof chip_frame isolation_proof data_step teeth fsm_miter_proof sram_equiv_proof kernel_equiv_proof sync_rtl sync_rtl_teeth powerup gate certify
+          make -C formal issue_timing host_timing late_host fifo_order phase_step edge_step event_step frame_step value_step narrow_proof chip_frame fail_safe isolation_proof data_step teeth fsm_miter_proof sram_equiv_proof kernel_equiv_proof sync_rtl sync_rtl_teeth powerup gate certify
 
   # the pin traces judged by sigrok's protocol decoders, which we did not write: at the
   # chip's clock and as a 24 MHz analyser samples them, each with its teeth, and once
