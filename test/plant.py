@@ -11,8 +11,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-COPIED = ["src", "test", "bin", "python", "pio", "formal", "ppx", "dune-project", ".ocamlformat",
-          "protocol_emulator.opam"]
+COPIED = ["src", "test", "bin", "python", "pio", "formal", "ppx", "demo", "pages", "dune-project",
+          ".ocamlformat", "protocol_emulator.opam"]
 SKIPPED = shutil.ignore_patterns("sim_build", "__pycache__", "*.fst", "*.vcd", "results.xml",
                                  "_build", "plant.py")
 
@@ -88,7 +88,7 @@ def find(name):
 
 
 def copy(dest, plant=None):
-    # dune's _build stays, so the next copy rebuilds only what the plant touches
+    # dune's _build stays, so the next copy, and the next screen, rebuilds only what changed
     dest.mkdir(parents=True, exist_ok=True)
     for item in dest.iterdir():
         if item.name != "_build":
@@ -111,17 +111,31 @@ def dune(cwd, jobs, *args):
                           capture_output=True, text=True)
 
 
+# A build that fails past type checking (a [%firmware] refusal, or a rule that runs the
+# kernel on firmware) has caught the plant. One that fails to type check is no plant.
+def verdict(work, jobs):
+    if dune(work, jobs, "build").returncode != 0:
+        check = dune(work, jobs, "build", "@check")
+        if check.returncode != 0 and "[%firmware]" not in check.stderr:
+            return "invalid"
+        return "killed"
+    return "survived" if dune(work, jobs, "build", "@runtest").returncode == 0 else "killed"
+
+
 def screen(names, jobs):
     work = ROOT / "_plant" / "screen"
-    for plant in [find(n) for n in names] if names else PLANTS:
+    copy(work)
+    clean = dune(work, jobs, "build", "@default", "@runtest")
+    if clean.returncode != 0:
+        sys.exit(f"the clean copy fails:\n{clean.stderr[-2000:]}")
+    plants = [find(n) for n in names] if names else PLANTS
+    killed = 0
+    for plant in plants:
         copy(work, plant)
-        if dune(work, jobs, "build").returncode != 0:
-            result = "invalid"
-        else:
-            caught = dune(work, jobs, "build", "@runtest").returncode != 0
-            result = "killed" if caught else "survived"
+        result = verdict(work, jobs)
+        killed += result == "killed"
         print(f"{result:9} {plant[0]} ({plant[1]}, {plant[2]})", flush=True)
-    shutil.rmtree(work, ignore_errors=True)
+    print(f"{killed} of {len(plants)} killed")
 
 
 # A reproducer is DIR/repro.sh, run from the copy's root: it must pass on the clean copy
