@@ -31,8 +31,10 @@ for attempt in 1 2 3 4 5 6 7 8; do
     if [ -n "$port" ]; then
         DEVICE=fx2lafw:conn=$(cat "/sys/bus/usb/devices/$port/busnum").$(cat "/sys/bus/usb/devices/$port/devnum")
     fi
-    if sigrok-cli -d "${DEVICE:-fx2lafw}" -c samplerate=${RATE:-24M} --time "$ms" -o "$out" 2>&1 \
-        | tee /dev/stderr | grep -q "only sent"; then
+    # not tee /dev/stderr, which truncates a file that stderr goes to
+    said=$(sigrok-cli -d "${DEVICE:-fx2lafw}" -c samplerate="${RATE:-24M}" --time "$ms" -o "$out" 2>&1) || true
+    [ -z "$said" ] || echo "$said" >&2
+    if echo "$said" | grep -q "only sent"; then
         echo "attempt $attempt stopped early, again" >&2
         sleep "${PAUSE:-5}"
     else
