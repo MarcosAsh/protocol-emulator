@@ -8,10 +8,13 @@ open Protocol_models
 module Harness = Hardcaml_test_harness.Lws_harness.Make (Top.I) (Top.O)
 module Reg = Host_port.Reg
 
+(* Cyclesim does not model the asynchronous reset, so registers start at zero, as [rst_n]
+   low leaves the reset synchroniser, and only the memories start random. *)
+
 let%expect_test "the host loads and runs the uart transmitter over spi" =
   let period = 16 in
   Harness.run
-    ~random_initial_state:`All
+    ~random_initial_state:`Mems
     ~create:(Top.hierarchical ~memory:Flops ~engines:1)
     (fun (h @ local) ~inputs ~outputs ->
        let cycle ?n () = Lws.step ?n h in
@@ -65,7 +68,7 @@ let%expect_test "two engines talk over a wire and the host reads the result" =
   let period = 16 in
   let wire = Isa.num_pins in
   Harness.run
-    ~random_initial_state:`All
+    ~random_initial_state:`Mems
     ~create:(Top.hierarchical ~memory:Flops ~engines:2)
     (fun (h @ local) ~inputs ~outputs ->
        let cycle ?n () = Lws.step ?n h in
