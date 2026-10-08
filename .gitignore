@@ -61,3 +61,4 @@ formal/kernel_accepts_gates.aag
 test/icepi_netlist.v
 icepi/build
 demo/out/
+demo/captures/
