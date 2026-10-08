@@ -98,3 +98,9 @@
   ../../pages/die/die.bin)
  (action
   (run python3 -B %{dep:test_draw.py} ../../python ../../demo)))
+
+(rule
+ (alias runtest)
+ (deps ../../demo/kernel_vs_board.py)
+ (action
+  (run python3 -B %{dep:test_kernel_vs_board.py} ../../demo)))
