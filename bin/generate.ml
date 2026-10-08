@@ -506,77 +506,9 @@ let self_check_command =
    one [name value] per line for the cocotb test to read. *)
 let predicate_settings (firmware : Predicate.Firmware.t) =
   (* every field, named as the host's config registers are, so none falls back *)
-  let { Program_config.side_set_count
-      ; side_set_base
-      ; side_set_pindirs
-      ; in_base
-      ; in_count
-      ; out_base
-      ; out_count
-      ; set_base
-      ; set_count
-      ; jmp_pin
-      ; capture_pin
-      ; capture_rising
-      ; in_shift
-      ; out_shift
-      ; autopush
-      ; push_threshold
-      ; autopull
-      ; pull_threshold
-      ; crc_width
-      ; crc_poly
-      ; crc_init
-      ; crc_reflect
-      ; stuff_threshold
-      ; stuff_level
-      ; wrap_bottom
-      ; wrap_top
-      ; period_fraction
-      ; autopull_data
-      ; manchester
-      }
-    =
-    firmware.config
-  in
-  let right : Program_config.Shift_direction.t -> bool = function
-    | Right -> true
-    | Left -> false
-  in
   let config =
-    List.map
-      [ "side_set_pindirs", side_set_pindirs
-      ; "capture_rising", capture_rising
-      ; "in_shift_right", right in_shift
-      ; "out_shift_right", right out_shift
-      ; "autopush", autopush
-      ; "autopull", autopull
-      ; "crc_reflect", crc_reflect
-      ; "stuff_level", stuff_level
-      ; "autopull_data", autopull_data
-      ; "manchester", manchester
-      ]
-      ~f:(fun (name, flag) -> name, Bool.to_int flag)
-    @ [ "side_set_count", side_set_count
-      ; "side_set_base", side_set_base
-      ; "in_base", in_base
-      ; "in_count", in_count
-      ; "out_base", out_base
-      ; "out_count", out_count
-      ; "set_base", set_base
-      ; "set_count", set_count
-      ; "jmp_pin", jmp_pin
-      ; "capture_pin", capture_pin
-      ; "push_threshold", push_threshold
-      ; "pull_threshold", pull_threshold
-      ; "crc_width", crc_width
-      ; "crc_poly", crc_poly
-      ; "crc_init", crc_init
-      ; "stuff_threshold", stuff_threshold
-      ; "wrap_bottom", wrap_bottom
-      ; "wrap_top", wrap_top
-      ; "period_fraction", period_fraction
-      ]
+    Engine.Config.(to_list (zip port_names (of_program_config firmware.config)))
+    |> List.map ~f:(fun (name, value) -> name, Bits.to_unsigned_int value)
   in
   let { Predicate.Certificate.latency; jitter; sampling; _ } = firmware.certificate in
   let sampling =
