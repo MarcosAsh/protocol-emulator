@@ -468,7 +468,7 @@ kernel_miter:
 
 # Power-up is deterministic: two copies of the chip from any two states, reset at the
 # first edge and the same pins after it, drive the same pins (powerup.sv), by induction on
-# an invariant over the flops powerup.tcl brings out. About 30 s. Teeth: no reset at the
+# an invariant over the flops powerup.tcl brings out. About 2 min. Teeth: no reset at the
 # first edge and the engines' pin register without its clear have to fail, and with the
 # fix for an empty rx fifo's stale head reverted the invariant must not prove.
 powerup:

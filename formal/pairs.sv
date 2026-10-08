@@ -1,4 +1,5 @@
-// The parts of a two-copy miter that pair one copy's macro or host fifo with the other's.
+// The parts of a two-copy miter that pair one copy's macro, host fifo or load checker
+// with the other's.
 
 module sram_pair (
   input clk,
@@ -64,4 +65,42 @@ module fifo_pair (input check, input fifo_t a, input fifo_t b);
         assert (a.words[n] == b.words[n]);
     end
   endgenerate
+endmodule
+
+// The load checker's state, then the words and rows it keeps without a clear, fields as
+// powerup.tcl gathers them.
+typedef struct packed {
+  logic [241:0] row;
+  logic [9:0] failed_target, failed_next;
+  logic [47:0] entry, acc;
+  logic [15:0] word;
+  logic [2:0] field;
+  logic [1:0] k, source;
+  logic [3:0] sm;
+} load_checker_t;
+
+// The two copies of the load checker agree on its state, and on each word and row from
+// the walk's write of it on: the row from the check's start, the program word and failed
+// conjuncts from the word's read, an entry or an interval a word at a time, k so far.
+module load_checker_pair (input check, input load_checker_t a, input load_checker_t b);
+  localparam IDLE = 0, HEADER = 1, WORD = 2, ENTRY = 6, FIELD = 7, CHECK = 8;
+  localparam DICTIONARY = 0;
+  wire [3:0] sm = a.sm;
+  wire [47:0] read_in = a.k == 0 ? 48'h0 : a.k == 1 ? 48'hffff : 48'hffff_ffff;
+  // a phase or an arm is three words, the rest two
+  wire [47:0] interval = a.field < 2 ? {48{1'b1}} : 48'hffff_ffff;
+
+  always @* if (check) begin
+    assert (a.sm == b.sm && a.source == b.source && a.k == b.k && a.field == b.field);
+    if (sm != IDLE) assert (a.row == b.row);
+    if (sm != IDLE && sm != HEADER && sm != WORD) begin
+      assert (a.word == b.word);
+      assert (a.failed_next == b.failed_next && a.failed_target == b.failed_target);
+    end
+    if (sm == ENTRY) assert (((a.entry ^ b.entry) & read_in) == 0);
+    if ((sm == FIELD || sm == CHECK) && a.source == DICTIONARY)
+      assert (a.entry == b.entry);
+    if (sm == FIELD) assert (((a.acc ^ b.acc) & read_in) == 0);
+    if (sm == CHECK) assert (((a.acc ^ b.acc) & interval) == 0);
+  end
 endmodule

@@ -9,9 +9,10 @@
 // equal from then on, which is asserted, so the premise holds after it if it holds then.
 //
 // By induction on an invariant, also asserted: the copies agree on every flop outside the
-// host fifos, on each macro's output from the second edge on, and on the words each fifo
-// holds (fifo_pair). powerup.tcl brings the flops out. The teeth set NO_INVARIANT, so
-// they fail on the claim alone.
+// host fifos and the load checker, on each macro's output from the second edge on, on the
+// words each fifo holds (fifo_pair), and on the checker's state and the words its walk
+// has written (load_checker_pair). powerup.tcl brings the flops out. The teeth set
+// NO_INVARIANT, so they fail on the claim alone.
 
 `include "pairs.sv"
 
@@ -34,6 +35,7 @@ module powerup (input clk);
   wire [15:0] din_a[0:2], din_b[0:2], bm_a[0:2], bm_b[0:2], dout_a[0:2], dout_b[0:2];
   wire [`STATE_BITS - 1:0] state_a, state_b;
   fifo_t rx_0_a, tx_0_a, rx_1_a, tx_1_a, rx_0_b, tx_0_b, rx_1_b, tx_1_b;
+  load_checker_t load_checker_a, load_checker_b;
 
 `define CHIP(side) \
   tt_um_marcosash_protocol_emulator side ( \
@@ -41,7 +43,7 @@ module powerup (input clk);
     .uo_out(uo_out_``side), .uio_out(uio_out_``side), .uio_oe(uio_oe_``side), \
     `PORTS(side, 0) `PORTS(side, 1) `PORTS(side, 2) \
     .state(state_``side), .rx_0(rx_0_``side), .tx_0(tx_0_``side), .rx_1(rx_1_``side), \
-    .tx_1(tx_1_``side) \
+    .tx_1(tx_1_``side), .load_checker(load_checker_``side) \
   );
 `define PORTS(side, n) \
     .m``n``_men(men_``side[n]), .m``n``_wen(wen_``side[n]), .m``n``_ren(ren_``side[n]), \
@@ -56,6 +58,7 @@ module powerup (input clk);
   `FIFO(tx_0)
   `FIFO(rx_1)
   `FIFO(tx_1)
+  load_checker_pair load_checker (.check(!first), .a(load_checker_a), .b(load_checker_b));
 `endif
 
   genvar n;
