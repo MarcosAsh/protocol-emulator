@@ -51,16 +51,16 @@
     "RM_IHPSG13_1P_512x16_c2_bm_bist": {
       "instances": {
         "core.top.engines.engine_0.sram_macro.sram": {
-          "location": [42, 37.8],
-          "orientation": "R0"
+          "location": [2.88, 3.78],
+          "orientation": "MX"
         },
         "core.top.engines.engine_1.sram_macro.sram": {
-          "location": [992, 37.8],
-          "orientation": "R0"
+          "location": [1484.16, 3.78],
+          "orientation": "MX"
         },
         "core.top.engines.data_memory.sram_macro.sram": {
-          "location": [42, 264.6],
-          "orientation": "R0"
+          "location": [743.52, 3.78],
+          "orientation": "MX"
         }
       },
       "gds": ["dir::../macro/RM_IHPSG13_1P_512x16_c2_bm_bist/RM_IHPSG13_1P_512x16_c2_bm_bist.gds"],
