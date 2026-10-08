@@ -1,5 +1,4 @@
 (executables
- (modes byte exe)
  (names generate)
  (libraries
   core.command
