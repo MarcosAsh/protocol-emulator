@@ -16,18 +16,19 @@ let run ?(cycles = 2000) ?late ~mode ~half_period ~setup ~hold frames =
       ~program:(Timed_program.words program)
     |> ok_exn
   in
+  (* every word is due at once but the late one *)
+  let schedule =
+    List.concat_map frames ~f:words
+    |> List.mapi ~f:(fun i word ->
+      match late with
+      | Some (late, cycle) when i = late -> cycle, word
+      | Some _ | None -> 0, word)
+  in
   let rec loop (t : Machine.t) device schedule received trace n =
     if n = cycles
     then t, device, List.rev received, List.rev trace
     else (
-      let t, schedule =
-        match schedule with
-        | (i, word) :: rest
-          when List.length t.tx_fifo < Machine.fifo_depth
-               && Option.for_all late ~f:(fun (late, cycle) -> i <> late || n >= cycle) ->
-          Machine.write_tx t word |> ok_exn, rest
-        | schedule -> t, schedule
-      in
+      let t, schedule = Machine_run.feed_due t schedule ~now:n in
       let miso = Device.miso device in
       let t = Machine.step t ~inputs:(miso lsl miso_pin) in
       let device =
@@ -37,20 +38,10 @@ let run ?(cycles = 2000) ?late ~mode ~half_period ~setup ~hold frames =
           ~sck:(bit t.pin_out sck_pin)
           ~mosi:(bit t.pin_out mosi_pin)
       in
-      let received, t =
-        match Machine.read_rx t with
-        | Some (byte, t) -> byte :: received, t
-        | None -> received, t
-      in
+      let t, received = Machine_run.receive t received in
       loop t device schedule received ((t.pin_out, miso) :: trace) (n + 1))
   in
-  loop
-    t
-    (Device.create ~mode ~first:0x5a)
-    (List.concat_map frames ~f:words |> List.mapi ~f:Tuple2.create)
-    []
-    []
-    0
+  loop t (Device.create ~mode ~first:0x5a) schedule [] [] 0
 ;;
 
 let frames = [ [ 0x9f; 0x00; 0x00; 0x00 ]; [ 0xa5 ]; [ 0x3c; 0xc3 ] ]

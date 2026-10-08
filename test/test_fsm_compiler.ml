@@ -119,9 +119,8 @@ let engine_trace (firmware : Fsm_compiler.Firmware.t) ~cycles ~arrivals =
   in
   List.folding_map (List.range 0 cycles) ~init:machine ~f:(fun machine cycle ->
     let machine =
-      List.filter arrivals ~f:(fun (at, _) -> at = cycle)
-      |> List.fold ~init:machine ~f:(fun machine (_, byte) ->
-        Machine.write_tx machine byte |> ok_exn)
+      List.filter_map arrivals ~f:(fun (at, byte) -> Option.some_if (at = cycle) byte)
+      |> Machine_run.write_all machine
     in
     let machine = Machine.step machine ~inputs:0 in
     machine, (machine.pin_out lsr Isa.first_output_pin) land 1)

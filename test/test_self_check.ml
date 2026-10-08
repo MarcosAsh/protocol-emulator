@@ -37,8 +37,7 @@ let caught ?(sender = sender) ?(host_period = period) ?(base = 0) ~rows bytes =
       ]
   in
   let system =
-    List.fold (host_period :: bytes) ~init:system ~f:(fun s w ->
-      System.update s 0 ~f:(fun m -> Machine.write_tx m w |> ok_exn))
+    System.update system 0 ~f:(fun m -> Machine_run.write_all m (host_period :: bytes))
   in
   let cycles = (List.length bytes + 1) * 11 * host_period in
   let system = Fn.apply_n_times ~n:cycles (fun s -> System.step s ~pads:0) system in

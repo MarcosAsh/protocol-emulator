@@ -55,8 +55,8 @@ let run ~cycles ~writes =
     then t, Array.of_list (List.rev acc)
     else (
       let t =
-        List.filter writes ~f:(fun (at, _) -> at = cycle)
-        |> List.fold ~init:t ~f:(fun t (_, byte) -> Machine.write_tx t byte |> ok_exn)
+        List.filter_map writes ~f:(fun (at, byte) -> Option.some_if (at = cycle) byte)
+        |> Machine_run.write_all t
       in
       let t = Machine.step t ~inputs:0 in
       loop t (cycle + 1) ((t.now, (t.pin_out lsr tx_pin) land 1) :: acc))

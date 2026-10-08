@@ -28,13 +28,9 @@ end
 let watch_while ?(preload = []) ?(react = ignore) (firmware : Certified.t) ~next =
   let premise = Premise.create () in
   let t =
-    List.fold
-      preload
-      ~init:
-        (Machine.create ~config:firmware.config ~program:(assemble firmware.source)
-         |> ok_exn)
-      ~f:(fun t word -> Machine.write_tx t word |> ok_exn)
+    Machine.create ~config:firmware.config ~program:(assemble firmware.source) |> ok_exn
   in
+  let t = Machine_run.write_all t preload in
   let rec loop t ~words ~irqs =
     match next () with
     | None -> t, words, irqs

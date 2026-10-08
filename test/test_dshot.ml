@@ -13,20 +13,8 @@ let words = List.map frames ~f:(fun (throttle, telemetry) -> frame ~throttle ~te
 (* The host writes every word as the fifo has room. *)
 let run source ~cycles =
   let t = Machine.create ~config ~program:(Firmware.assemble source) |> ok_exn in
-  let rec loop (t : Machine.t) words levels n =
-    if n = 0
-    then t, List.rev levels
-    else (
-      let t, words =
-        match words with
-        | word :: rest when List.length t.tx_fifo < Machine.fifo_depth ->
-          Machine.write_tx t word |> ok_exn, rest
-        | words -> t, words
-      in
-      let t = Machine.step t ~inputs:0 in
-      loop t words (((t.pin_out lsr pin) land 1 = 1) :: levels) (n - 1))
-  in
-  loop t words [] cycles
+  let t, levels = Machine_run.run t ~tx:words ~pin ~cycles ~inputs:0 in
+  t, List.map levels ~f:(fun level -> level = 1)
 ;;
 
 let%expect_test "the core sends every frame within the rate's timing" =

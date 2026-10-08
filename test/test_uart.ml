@@ -24,8 +24,7 @@ let%expect_test "uart tx sends two bytes with exact bit periods" =
     Machine.create ~config:Program_config.default ~program:(assemble (uart_tx ~period))
     |> ok_exn
   in
-  let t = Machine.write_tx t 0x55 |> ok_exn in
-  let t = Machine.write_tx t 0xa3 |> ok_exn in
+  let t = write_all t [ 0x55; 0xa3 ] in
   let t, levels = run t ~cycles:400 ~inputs:0 in
   print_s [%message (runs levels : (int * int) list)];
   print_s [%message (decode_uart levels ~period : int list)];
@@ -48,10 +47,7 @@ let%expect_test "uart tx at 115200 baud from a 50 MHz clock" =
     Machine.create ~config:Program_config.default ~program:(assemble uart_tx_host_rate)
     |> ok_exn
   in
-  let t =
-    List.fold [ period; 0x55; 0xa3 ] ~init:t ~f:(fun t w ->
-      Machine.write_tx t w |> ok_exn)
-  in
+  let t = write_all t [ period; 0x55; 0xa3 ] in
   let t, levels = run t ~cycles:(24 * period) ~inputs:0 in
   print_s [%message (decode_uart levels ~period : int list) (t.fault : Machine.Fault.t)];
   [%expect
@@ -71,10 +67,7 @@ let%expect_test "uart tx at 115200 baud from a 48 MHz clock" =
   let bit = 1250. /. 3. in
   let frame ~config ~period =
     let t = Machine.create ~config ~program:(assemble uart_tx_host_rate) |> ok_exn in
-    let t =
-      List.fold [ period; 0x55; 0xa3 ] ~init:t ~f:(fun t w ->
-        Machine.write_tx t w |> ok_exn)
-    in
+    let t = write_all t [ period; 0x55; 0xa3 ] in
     let t, levels = run t ~cycles:(24 * 417) ~inputs:0 in
     let lengths = List.take (List.drop (runs levels) 2) 9 |> List.map ~f:snd in
     let edges =
@@ -132,10 +125,7 @@ let receive levels ~period =
   in
   let t, received =
     List.fold levels ~init:(t, []) ~f:(fun (t, received) level ->
-      let t = Machine.step t ~inputs:level in
-      match Machine.read_rx t with
-      | Some (byte, t) -> t, byte :: received
-      | None -> t, received)
+      receive (Machine.step t ~inputs:level) received)
   in
   let received = List.rev received in
   print_s

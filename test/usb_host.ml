@@ -243,8 +243,7 @@ let load ~queued ~address =
         (Firmware.assemble (Firmware.usb_device ~address ~half_period:(bit_period / 2)))
     |> ok_exn
   in
-  List.fold (queued @ [ bit_period ]) ~init:machine ~f:(fun machine word ->
-    Machine.write_tx machine word |> ok_exn)
+  Machine_run.write_all machine (queued @ [ bit_period ])
 ;;
 
 (* two and a half milliseconds at 48 MHz *)

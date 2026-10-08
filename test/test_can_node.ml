@@ -522,11 +522,7 @@ let on_one_bus ?(delay = 3) ?(receiver = true) ~period frames =
       let inputs = if List.hd_exn line then 1 lsl rx_pin else 0 in
       let line = List.tl_exn line in
       let sender, schedule =
-        match schedule with
-        | word :: rest
-          when n >= 13 * period && List.length sender.tx_fifo < Machine.fifo_depth ->
-          Machine.write_tx sender word |> ok_exn, rest
-        | schedule -> sender, schedule
+        if n >= 13 * period then Machine_run.feed sender schedule else sender, schedule
       in
       let sender, acks = drain (Machine.step sender ~inputs) acks in
       let listener, heard = drain (Machine.step listener ~inputs) heard in
@@ -701,12 +697,7 @@ let%expect_test "the sender's ACK read, against a node that ACKs only the second
           None, frame + 1
         | sof -> sof, frame
       in
-      let t, schedule =
-        match schedule with
-        | word :: rest when List.length t.tx_fifo < Machine.fifo_depth ->
-          Machine.write_tx t word |> ok_exn, rest
-        | schedule -> t, schedule
-      in
+      let t, schedule = Machine_run.feed t schedule in
       let t, acks =
         drain (Machine.step t ~inputs:(if bus then 1 lsl rx_pin else 0)) acks
       in

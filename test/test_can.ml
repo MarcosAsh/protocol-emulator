@@ -87,21 +87,8 @@ let run frames ~period =
     List.sum (module Int) frames ~f:(fun frame -> List.length (line frame) + 2) * period
   in
   let t = Machine.create ~config ~program:(Timed_program.words firmware) |> ok_exn in
-  let rec loop (t : Machine.t) schedule levels n =
-    if n = 0
-    then t, List.rev levels
-    else (
-      let t, schedule =
-        match schedule with
-        | word :: rest when List.length t.tx_fifo < Machine.fifo_depth ->
-          Machine.write_tx t word |> ok_exn, rest
-        | schedule -> t, schedule
-      in
-      let t = Machine.step t ~inputs:0 in
-      loop t schedule (((t.pin_out lsr tx_pin) land 1 = 1) :: levels) (n - 1))
-  in
-  let t, levels = loop t schedule [] cycles in
-  t, sampled levels frames ~period
+  let t, levels = Machine_run.run t ~tx:schedule ~pin:tx_pin ~cycles ~inputs:0 in
+  t, sampled (List.map levels ~f:(fun level -> level = 1)) frames ~period
 ;;
 
 let%expect_test "the core sends what the builder makes, back to back" =

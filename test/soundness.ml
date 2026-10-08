@@ -76,8 +76,8 @@ let check ?period ?single_capture_edge ?(preload = []) ~config stimuli words =
   let reached = Array.create ~len:(Array.length instructions) false in
   let violations = ref [] in
   List.iteri stimuli ~f:(fun run (stimulus : Stimulus.t) ->
-    let m = ref (Machine.create ~config ~program:words |> ok_exn) in
-    List.iter preload ~f:(fun w -> m := Machine.write_tx !m w |> ok_exn);
+    let m = Machine.create ~config ~program:words |> ok_exn in
+    let m = ref (Machine_run.write_all m preload) in
     let last = ref None in
     let came_from = ref None in
     let last_edge = ref None in

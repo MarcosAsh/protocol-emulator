@@ -41,12 +41,7 @@ let run ?(late = 0) ?(source = firmware) ~tick ~cycles () =
     if n = cycles
     then t, List.rev levels
     else (
-      let t, schedule =
-        match schedule with
-        | (at, word) :: rest when at <= n && List.length t.tx_fifo < Machine.fifo_depth ->
-          Machine.write_tx t word |> ok_exn, rest
-        | schedule -> t, schedule
-      in
+      let t, schedule = Machine_run.feed_due t schedule ~now:n in
       let t = Machine.step t ~inputs:0 in
       loop t schedule (((t.pin_out lsr pin) land 1 = 1) :: levels) (n + 1))
   in

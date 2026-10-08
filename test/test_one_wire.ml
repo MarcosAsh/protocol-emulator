@@ -38,19 +38,10 @@ let run ?(words = read_rom) ~unit ~cycles () =
     if n = 0
     then t, slave, List.rev answers
     else (
-      let t, pending =
-        match pending with
-        | w :: rest when List.length t.tx_fifo < Machine.fifo_depth ->
-          Machine.write_tx t w |> ok_exn, rest
-        | pending -> t, pending
-      in
+      let t, pending = Machine_run.feed t pending in
       let t' = Machine.step t ~inputs:(bus t slave) in
       let slave = Slave.step slave ~master_low:(master_low t) in
-      let answers, t' =
-        match Machine.read_rx t' with
-        | Some (a, t') -> a :: answers, t'
-        | None -> answers, t'
-      in
+      let t', answers = Machine_run.receive t' answers in
       loop t' slave pending (n - 1) answers)
   in
   let t, slave, answers =

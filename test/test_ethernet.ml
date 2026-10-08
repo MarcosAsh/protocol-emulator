@@ -15,7 +15,7 @@ let run ~cycles ~host ~data =
     |> Or_error.bind ~f:(fun m -> Machine.load_data m data)
     |> ok_exn
   in
-  let t = List.fold host ~init:t ~f:(fun t word -> Machine.write_tx t word |> ok_exn) in
+  let t = Machine_run.write_all t host in
   let rec loop t receiver n =
     if n = 0
     then t, receiver

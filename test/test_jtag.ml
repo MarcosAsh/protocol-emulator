@@ -65,20 +65,11 @@ let%expect_test "a TAP reads its IDCODE and keeps what the user register was giv
     if n = cycles
     then t, tap, List.rev pushed
     else (
-      let t, schedule =
-        match schedule with
-        | word :: rest when List.length t.tx_fifo < Machine.fifo_depth ->
-          Machine.write_tx t word |> ok_exn, rest
-        | schedule -> t, schedule
-      in
+      let t, schedule = Machine_run.feed t schedule in
       let t = Machine.step t ~inputs:(Tap.tdo tap lsl tdo_pin) in
       let tck, tms, tdi = pins t in
       let tap = Tap.step tap ~tck ~tms ~tdi in
-      let pushed, t =
-        match Machine.read_rx t with
-        | Some (word, t) -> word :: pushed, t
-        | None -> pushed, t
-      in
+      let t, pushed = Machine_run.receive t pushed in
       loop t tap schedule pushed (n + 1))
   in
   let t, tap, pushed = loop t (Tap.create ~cycle_ns) schedule [] 0 in

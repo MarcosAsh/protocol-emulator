@@ -164,8 +164,7 @@ let run
          List.map setups ~f:(fun s ->
            let machine = Machine.create ~config:s.config ~program:s.program |> ok_exn in
            let machine = Machine.load_data machine s.data |> ok_exn in
-           List.fold s.preload ~init:machine ~f:(fun m word ->
-             Machine.write_tx m word |> ok_exn))
+           Machine_run.write_all machine s.preload)
          |> System.create
          |> ref
        in
