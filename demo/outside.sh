@@ -4,10 +4,13 @@
 # captures, then prints the Pico's log and sigrok's decode. Reset the chip before every
 # act, CAN included, as faults hold until reset. Analyser A has the host port, OUT0, CAN
 # and SWD, B the flash, the stick, 1-Wire and I2C: see demo/capture.sh for picking one.
+# The capture, the Pico's log and the decode are kept as <name>.sr, .log and .decode in
+# CAPTURES, the current directory unless set.
 # Usage: PICO=id:<serial of Pico A> demo/outside.sh <act>, one of
 #   flash eeprom eeprom_stretch ds18b20 neopixel start_hold can can_node swd referee
 set -e
 act=$1
+captures=${CAPTURES:-.}
 files=
 arm=
 case $act in
@@ -84,9 +87,15 @@ except OSError:
 # a run arms itself, but sigrok's CAN decoder takes the dominant line a reset chip leaves at
 # the start of a capture for a frame
 [ -z "$arm" ] || mpremote connect "$PICO" exec "$arm"
-ANALYSER=$analyser demo/capture.sh "$act.sr" "$ms" mpremote connect "$PICO" run --no-follow "python/demo_$act.py"
+mkdir -p "$captures"
+ANALYSER=$analyser demo/capture.sh "$captures/$act.sr" "$ms" mpremote connect "$PICO" run --no-follow "python/demo_$act.py"
 # the act ends inside the capture, and a second more lets the Pico write its log
 sleep 1
-mpremote connect "$PICO" cat :outside.log || echo "no log: the act was still running" >&2
+if mpremote connect "$PICO" cat :outside.log > "$captures/$act.log"; then
+    cat "$captures/$act.log"
+else
+    echo "no log: the demo was still running" >&2
+fi
 # shellcheck disable=SC2086
-sigrok-cli -i "$act.sr" $decode
+sigrok-cli -i "$captures/$act.sr" $decode > "$captures/$act.decode"
+cat "$captures/$act.decode"
