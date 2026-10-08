@@ -320,13 +320,7 @@ module Program = struct
   ;;
 
   let size = 1 lsl Isa.pc_bits
-
-  let word t pc =
-    Bits.of_unsigned_int
-      ~width:Isa.data_bits
-      (if pc < Array.length t.words then t.words.(pc) else 0)
-  ;;
-
+  let word t pc = Row_table.word t.words pc
   let following t pc = if pc = t.wrap_top then t.wrap_bottom else (pc + 1) % size
 
   let target t pc =
@@ -374,63 +368,35 @@ module Table = struct
       })
   ;;
 
-  (* a sum still moving after this many joins at one pc is given up as full *)
-  let widen_after = 64
-
   let propose ~config ~words (kernel : Kernel.Table.t) =
     let program = Program.create ~config ~words in
-    let table = Array.create ~len:Program.size unreached in
-    let joins = Array.create ~len:Program.size 0 in
-    table.(0) <- full;
-    let rec settle = function
-      | [] -> ()
-      | pc :: rest ->
-        let word = Program.word program pc in
-        let { Kernel.Row.x_lo; x_hi; _ } = kernel.(pc) in
-        let ways =
-          M.ways ~side_set_count:program.side_set_count ~word ~x_lo ~x_hi ~row:table.(pc)
-        in
-        let image =
-          M.image
-            ~side_set_count:program.side_set_count
-            ~autopull:program.autopull
-            ~pull_threshold:program.pull_threshold
-            ~word
-            ~x_lo
-            ~x_hi
-            ~row:table.(pc)
-        in
-        let changed =
-          [ ways.next, Program.following program pc, false
-          ; ways.target, Program.target program pc, true
-          ]
-          |> List.filter_map ~f:(fun (asked, to_, taken) ->
-            let joined = join table.(to_) (image ~taken) in
-            let joined =
-              if joins.(to_) < widen_after
-              then joined
-              else { joined with sum_lo = full.sum_lo; sum_hi = full.sum_hi }
-            in
-            if (not (Bits.to_bool asked)) || equal joined table.(to_)
-            then None
-            else (
-              table.(to_) <- joined;
-              joins.(to_) <- joins.(to_) + 1;
-              Some to_))
-        in
-        settle (rest @ changed)
+    let init = Array.create ~len:Program.size unreached in
+    init.(0) <- full;
+    (* the rows a pc passes on, by each way out it may take *)
+    let visit pc row =
+      let word = Program.word program pc in
+      let { Kernel.Row.x_lo; x_hi; _ } = kernel.(pc) in
+      let ways = M.ways ~side_set_count:program.side_set_count ~word ~x_lo ~x_hi ~row in
+      let image =
+        M.image
+          ~side_set_count:program.side_set_count
+          ~autopull:program.autopull
+          ~pull_threshold:program.pull_threshold
+          ~word
+          ~x_lo
+          ~x_hi
+          ~row
+      in
+      [ ways.next, Program.following program pc, false
+      ; ways.target, Program.target program pc, true
+      ]
+      |> List.filter_map ~f:(fun (asked, to_, taken) ->
+        Option.some_if (Bits.to_bool asked) (to_, image ~taken))
     in
-    settle [ 0 ];
-    table
+    (* a sum still moving after many joins at one pc is given up as full *)
+    let widen (row : _ Row.t) = { row with sum_lo = full.sum_lo; sum_hi = full.sum_hi } in
+    Row_table.fixpoint init ~visit ~join ~widen ~equal
   ;;
-end
-
-module Rejection = struct
-  type t =
-    { pc : int
-    ; fails : string list
-    }
-  [@@deriving sexp_of]
 end
 
 let check ~config ~words ~(kernel : Kernel.Table.t) (table : Table.t) =
@@ -453,18 +419,16 @@ let check ~config ~words ~(kernel : Kernel.Table.t) (table : Table.t) =
           ~next:table.(Program.following program pc)
           ~target:table.(Program.target program pc)
       in
-      let fails =
-        List.filter_map
-          (Conjuncts.to_list (Conjuncts.zip names conjuncts))
-          ~f:(fun (name, holds) -> Option.some_if (not (Bits.to_bool holds)) name)
-      in
-      Option.some_if (not (List.is_empty fails)) { Rejection.pc; fails })
+      Row_table.Rejection.of_conjuncts
+        ~pc
+        (Conjuncts.to_list (Conjuncts.zip names conjuncts)))
   in
   match Bits.to_bool (M.is_full table.(0)), rejected with
   | true, [] -> Ok ()
   | false, _ -> Or_error.error_s [%message "the row at pc 0 must be the full range"]
   | true, rejected ->
-    Or_error.error_s [%message "rows the check rejects" (rejected : Rejection.t list)]
+    Or_error.error_s
+      [%message "rows the check rejects" (rejected : Row_table.Rejection.t list)]
 ;;
 
 module I = struct

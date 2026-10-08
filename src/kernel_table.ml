@@ -152,9 +152,12 @@ module Make (Rows : Kernel_intf.Rows) = struct
     }
   ;;
 
-  (* after this many joins at a pc, its marks bound nothing, so a mark that falls round a
-     loop cannot keep it going *)
-  let widen_after = 64
+  (* after [Row_table.fixpoint]'s joins at a pc run out, its marks bound nothing, so a
+     mark that falls round a loop cannot keep it going *)
+  let forget_marks (p : _ Pin.t) =
+    let held (h : _ Held.t) = { h with mark = K.mark_none } in
+    { p with at0 = held p.at0; at1 = held p.at1 }
+  ;;
 
   let with_edges
     ?(single_capture_edge = false)
@@ -165,11 +168,6 @@ module Make (Rows : Kernel_intf.Rows) = struct
     =
     let size = Array.length table in
     let words = Array.of_list words in
-    let word pc =
-      Bits.of_unsigned_int
-        ~width:Isa.data_bits
-        (if pc < Array.length words then words.(pc) else 0)
-    in
     let side_set_count = Bits.of_unsigned_int ~width:2 config.side_set_count in
     let fraction = Bits.of_bool (config.period_fraction <> 0) in
     let capture =
@@ -181,20 +179,11 @@ module Make (Rows : Kernel_intf.Rows) = struct
     in
     let spacing = { With_valid.valid = Bits.vdd; value = spacing } in
     let reached pc = not (Bits.to_bool (K.is_empty table.(pc))) in
-    let state = Array.create ~len:size None in
-    let joins = Array.create ~len:size 0 in
-    let starting =
-      let held = { Held.may = Bits.vdd; since = K.since_limit; mark = K.mark_max } in
-      { Pin.at0 = held; at1 = held; fresh = Bits.vdd }
-    in
-    state.(0) <- Some (starting, starting);
-    let queue = Queue.of_list [ 0 ] in
-    while not (Queue.is_empty queue) do
-      let pc = Queue.dequeue_exn queue in
-      match state.(pc) with
-      | None -> ()
+    (* the pair's bounds after the word at [pc], to each pc it may go to *)
+    let visit pc state =
+      match state with
       | Some (a, b) when reached pc ->
-        let w = word pc in
+        let w = Row_table.word words pc in
         let a, b =
           K.edge_images
             ~side_set_count
@@ -217,30 +206,28 @@ module Make (Rows : Kernel_intf.Rows) = struct
           | Ok (Jmp _) -> [ Bits.to_unsigned_int target; following ]
           | Ok (Op _) -> [ following ]
         in
-        List.iter successors ~f:(fun next ->
-          let joined =
-            match state.(next) with
-            | None -> join a a, join b b
-            | Some (a', b') -> join a a', join b b'
-          in
-          let joined =
-            if joins.(next) < widen_after
-            then joined
-            else (
-              let widen (p : _ Pin.t) =
-                let held (h : _ Held.t) = { h with mark = K.mark_none } in
-                { p with at0 = held p.at0; at1 = held p.at1 }
-              in
-              widen (fst joined), widen (snd joined))
-          in
-          if not
-               ([%equal: (Bits.t Pin.t * Bits.t Pin.t) option] (Some joined) state.(next))
-          then (
-            joins.(next) <- joins.(next) + 1;
-            state.(next) <- Some joined;
-            Queue.enqueue queue next))
-      | Some _ -> ()
-    done;
+        List.map successors ~f:(fun next -> next, (a, b))
+      | _ -> []
+    in
+    let join_pair state (a, b) =
+      match state with
+      | None -> Some (join a a, join b b)
+      | Some (a', b') -> Some (join a a', join b b')
+    in
+    let starting =
+      let held = { Held.may = Bits.vdd; since = K.since_limit; mark = K.mark_max } in
+      { Pin.at0 = held; at1 = held; fresh = Bits.vdd }
+    in
+    let init = Array.create ~len:size None in
+    init.(0) <- Some (starting, starting);
+    let state =
+      Row_table.fixpoint
+        init
+        ~visit
+        ~join:join_pair
+        ~widen:(Option.map ~f:(fun (a, b) -> forget_marks a, forget_marks b))
+        ~equal:[%equal: (Bits.t Pin.t * Bits.t Pin.t) option]
+    in
     Array.mapi table ~f:(fun pc row ->
       match state.(pc) with
       | Some (a, b) when reached pc -> { row with a; b }

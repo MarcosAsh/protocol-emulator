@@ -306,13 +306,7 @@ module M (Rows : Rows) = struct
 
     (** A pc [check] rejects and the conjuncts that fail there: ["in time"], ["a spaced"],
         ["b spaced"], or ["next"] or ["target"] and a [Holds] field, as ["next phase"]. *)
-    module Rejection : sig
-      type t =
-        { pc : int
-        ; fails : string list
-        }
-      [@@deriving sexp_of]
-    end
+    module Rejection = Row_table.Rejection
 
     (** [check]'s rejections, empty when every row passes; the row at pc 0 and the
         spacing's scope aside. *)

@@ -8,14 +8,7 @@ module Make_timer (Timer : Engine.Timer) = struct
   module Make = Kernel_comb.Make (Rows)
   module K = Make (Bits)
   module Table = Kernel_table.Make (Rows)
-
-  module Rejection = struct
-    type t =
-      { pc : int
-      ; fails : string list
-      }
-    [@@deriving sexp_of]
-  end
+  module Rejection = Row_table.Rejection
 
   (* Whether the row at pc 0 starts open, and the pcs whose conjuncts fail. *)
   let verdicts
@@ -28,11 +21,6 @@ module Make_timer (Timer : Engine.Timer) = struct
     =
     let size = 1 lsl Isa.pc_bits in
     let words = Array.of_list words in
-    let word pc =
-      Bits.of_unsigned_int
-        ~width:Isa.data_bits
-        (if pc < Array.length words then words.(pc) else 0)
-    in
     let side_set_count = Bits.of_unsigned_int ~width:2 config.side_set_count in
     let fraction = Bits.of_bool (config.period_fraction <> 0) in
     let loaded =
@@ -66,7 +54,7 @@ module Make_timer (Timer : Engine.Timer) = struct
     in
     let rejected =
       List.filter_map (List.range 0 size) ~f:(fun pc ->
-        let w = word pc in
+        let w = Row_table.word words pc in
         let next, target = K.successors ~wrap_top ~wrap_bottom ~pc:(pc_bits pc) ~word:w in
         let row pc = table.(Bits.to_unsigned_int pc) in
         let conjuncts =
@@ -81,12 +69,7 @@ module Make_timer (Timer : Engine.Timer) = struct
             ~next:(row next)
             ~target:(row target)
         in
-        let fails =
-          List.filter_map
-            (Conjuncts.to_list (Conjuncts.zip names conjuncts))
-            ~f:(fun (name, holds) -> Option.some_if (not (Bits.to_bool holds)) name)
-        in
-        Option.some_if (not (List.is_empty fails)) { Rejection.pc; fails })
+        Rejection.of_conjuncts ~pc (Conjuncts.to_list (Conjuncts.zip names conjuncts)))
     in
     starts_open, rejected
   ;;
