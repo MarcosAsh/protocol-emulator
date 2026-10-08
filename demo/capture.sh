@@ -7,6 +7,7 @@
 # With two analysers plugged in, ANALYSER=A or B picks one by the USB port it is on,
 # ANALYSER_A_PORT and ANALYSER_B_PORT as /sys/bus/usb/devices names it (3-1.2); without
 # them DEVICE does, DEVICE=fx2lafw:conn=1.7, the bus and address `sigrok-cli --scan` prints.
+# TRIES caps the attempts, 8 unless set.
 # Usage: [ANALYSER=A|B] demo/capture.sh OUT.sr MS [COMMAND...]
 #   demo/capture.sh pico.sr 5000 mpremote connect id:e66548545717552e run --no-follow demo/pico_uart.py
 set -e
@@ -25,7 +26,7 @@ esac
 if [ -n "${ANALYSER:-}" ] && [ -z "$port" ]; then
     echo "ANALYSER_${ANALYSER}_PORT is unset: DEVICE picks the analyser" >&2
 fi
-for attempt in 1 2 3 4 5 6 7 8; do
+for attempt in $(seq "${TRIES:-8}"); do
     [ $# -eq 0 ] || "$@"
     # read each time, as the analyser's address changes when it takes its firmware
     if [ -n "$port" ]; then
