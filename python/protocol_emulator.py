@@ -171,6 +171,10 @@ class Host:
         """The selected engine's fault bits."""
         return self.read_status() & FAULTS
 
+    def rx_level(self):
+        """How many words the selected engine's rx fifo holds."""
+        return rx_level(self.read_status())
+
     def status(self):
         s = self.read_status()
         return {

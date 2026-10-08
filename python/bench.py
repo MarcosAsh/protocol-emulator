@@ -3,8 +3,6 @@
 # entry into an engine, a stream of host words that never overflows either fifo, and the
 # log demo/outside.sh reads back from Pico A once the capture is done.
 
-import protocol_emulator as pe
-
 # the chip's clock on the bench, from the Icepi's PLL
 MHZ = 48
 DEPTH = 8
@@ -42,7 +40,7 @@ def exchange(host, words, polls=100_000):
             chunk = words[sent:sent + room]
             host.push(chunk)
             sent += len(chunk)
-        level = pe.rx_level(host.read_status())
+        level = host.rx_level()
         if level:
             replies.extend(host.pop(level))
         if len(replies) == len(words):

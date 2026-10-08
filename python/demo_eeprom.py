@@ -78,7 +78,7 @@ def bus_free(host, pause_ms):
     bench.load(host, bench_firmware.START_HOLD, engine=1)
     host.start()
     pause_ms(GUARD_MS)
-    return not pe.rx_level(host.read_status())
+    return not host.rx_level()
 
 
 def find(host):

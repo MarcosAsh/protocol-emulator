@@ -73,7 +73,7 @@ def listen(host, pause_ms, log):
     words, heard = [], []
     for _ in range(LISTEN_MS // POLL_MS):
         irq = host.status()["irq"]
-        level = pe.rx_level(host.read_status())
+        level = host.rx_level()
         if level:
             words += host.pop(level)
         if irq and words:
@@ -107,8 +107,7 @@ def run(transfer, pause_ms, log=print):
     for ident, data in FRAMES:
         host.push(demo_can.words(ident, data))
         pause_ms(FRAME_MS)
-        level = pe.rx_level(host.read_status())
-        ack = host.pop(level) if level else []
+        ack = host.pop(host.rx_level()) if host.rx_level() else []
         acked.append(ack == [0])
         log("sent %s, %s" % (describe(ident, 0, len(data), data),
                              "ACKed" if ack == [0] else "no ACK %s" % ack))

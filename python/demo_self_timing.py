@@ -53,7 +53,7 @@ def setup(host, period=PERIOD):
     host.select(1)
     # the line going idle, unless a previous run left it there
     for _ in range(4):
-        level = pe.rx_level(host.read_status())
+        level = host.rx_level()
         if level:
             host.pop(level)
 
@@ -63,7 +63,7 @@ def host_drain(host):
     waiting stamps, then read each register in reads."""
 
     def drain(stamps, reads):
-        level = pe.rx_level(host.read_status())
+        level = host.rx_level()
         if level:
             stamps.extend(host.pop(level))
         for reg in reads:

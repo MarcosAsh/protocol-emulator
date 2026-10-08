@@ -861,16 +861,15 @@ def two_engines(transfer, pause_ms):
 
 def send(transfer, pause_ms, log, frames):
     """frames from engine 0, the ACKs it read, what engine 1 heard, and their faults."""
-    pe = demo_can_node.pe
-    host = pe.Host(transfer)
+    host = demo_can_node.pe.Host(transfer)
     acks, words = [], []
     for ident, data in frames:
         host.push(demo_can.words(ident, data))
         pause_ms(demo_can_node.FRAME_MS)
-        acks += host.pop(pe.rx_level(host.read_status()))
+        acks += host.pop(host.rx_level())
         # a long frame is seven words, so each is read before the next
         host.select(1)
-        words += host.pop(pe.rx_level(host.read_status()))
+        words += host.pop(host.rx_level())
         host.select(0)
     heard, _ = demo_can_node.frames(words)
     log("engine 0 read %s, engine 1 heard %s" % (acks, heard))

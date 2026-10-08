@@ -35,7 +35,7 @@ def collect(host, pause_ms, count, limit_ms):
     holds = []
     waited = 0
     while len(holds) < count and waited < limit_ms:
-        level = pe.rx_level(host.read_status())
+        level = host.rx_level()
         if level:
             holds.extend(host.pop(level))
         else:
