@@ -569,7 +569,7 @@ let predicate_command =
 let () =
   Command_unix.run
     (Command.group
-       ~summary:""
+       ~summary:"Verilog, proof inputs and firmware for the protocol emulator"
        [ "engine", engine_rtl_command
        ; "engines", engines_rtl_command
        ; "top", top_rtl_command
