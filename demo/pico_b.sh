@@ -18,6 +18,10 @@ micropython)
     ;;
 can_node)
     uf2=${CAN_NODE_UF2:-$out/can_node/can_node.uf2}
+    # the first build went to ~/can_node, used until demo/out has one
+    if [ -z "$CAN_NODE_UF2" ] && [ ! -f "$uf2" ] && [ -f "$HOME/can_node/can_node.uf2" ]; then
+        uf2=$HOME/can_node/can_node.uf2
+    fi
     how="build it as demo/can_node/CMakeLists.txt says"
     ;;
 start_hold_pio | start_hold_hw)
