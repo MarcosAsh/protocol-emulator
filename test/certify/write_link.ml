@@ -8,7 +8,8 @@ open Protocol_emulator_test
    pulled for that frame, once a frame, with every sample half a bit from the wire's
    edges. The invariant is a table of both engines' state by steps since the start, the
    pull and the start bit; a simulation proposes it, the proof checks it for any words at
-   any times. *)
+   any times. Engine 1's claims hold until its host lets the fifo overflow, which halts it
+   and lets go of its pins. *)
 
 let wire = 20
 
@@ -189,6 +190,7 @@ module Field = struct
     ; width : int
     ; kind : Kind.t
     ; rx : bool
+    ; receiver : bool (** Claimed only until engine 1's fifo overflows. *)
     ; read : Step.t -> int
     }
 
@@ -213,6 +215,7 @@ module Field = struct
              then Data
              else Value)
         ; rx
+        ; receiver = rx
         ; read = (fun step -> step.values.(index))
         })
   ;;
@@ -224,13 +227,16 @@ module Field = struct
     ; width = Isa.timer_bits
     ; kind = Value
     ; rx = n = 1
+    ; receiver = n = 1
     ; read =
         (fun step ->
           (step.values.(now) - step.values.(at)) land ((1 lsl Isa.timer_bits) - 1))
     }
   ;;
 
-  let ghost ?(rx = false) verilog width kind read = { verilog; width; kind; rx; read }
+  let ghost ?(rx = false) ?(receiver = rx) verilog width kind read =
+    { verilog; width; kind; rx; receiver; read }
+  ;;
 
   let all =
     outputs
@@ -239,11 +245,11 @@ module Field = struct
     @ [ ghost ~rx:true "pins_sampled_1[20]" 1 Data (fun s -> s.sampled)
       ; ghost ~rx:true "since_sample" 8 Range (fun s -> s.since_sample)
         (* and by engine 0's key, which knows how long the line has been idle *)
-      ; ghost "since_sample" 8 Range (fun s -> s.since_sample)
+      ; ghost ~receiver:true "since_sample" 8 Range (fun s -> s.since_sample)
       ; ghost "since_start" 8 Range (fun s -> s.since_start)
       ; ghost "since_edge" 8 Range (fun s -> s.since_edge)
       ; ghost "since_fall" 8 Value (fun s -> s.since_fall)
-      ; ghost "pushes" 2 Value (fun s -> s.pushes)
+      ; ghost ~receiver:true "pushes" 2 Value (fun s -> s.pushes)
       ; ghost "word" Isa.data_bits Data (fun s -> s.word)
       ]
   ;;
@@ -294,12 +300,14 @@ let claim (field : Field.t) samples =
       Some [%string "{%{expected}}, %{w#Int}'b%{mask}"])
 ;;
 
+let overflow_1 = Field.index "engines$fault$overflow_1"
+
 let table_claim n (field : Field.t) (runs : Step.t list list) =
   let key (step : Step.t) = if field.rx then step.rx_key else step.tx_key in
   let samples = Int.Table.create () in
   List.iter runs ~f:(fun run ->
     List.iter run ~f:(fun (step : Step.t) ->
-      if step.since_start >= 2
+      if step.since_start >= 2 && not (field.receiver && step.values.(overflow_1) = 1)
       then Hashtbl.add_multi samples ~key:(key step) ~data:(field.read step, step.word)));
   let arms =
     Hashtbl.to_alist samples
@@ -328,6 +336,7 @@ let table_claim n (field : Field.t) (runs : Step.t list list) =
     | Data -> "0"
     | Range | Value -> [%string "~%{field.width#Int}'d0"]
   in
+  let guard = if field.receiver then " && !engines_fault_overflow_1" else "" in
   [%string
     {|  // %{field.verilog}
   reg [%{top#Int}:0] a_%{n#Int}, b_%{n#Int};
@@ -337,7 +346,7 @@ let table_claim n (field : Field.t) (runs : Step.t list list) =
     case (%{key})
 %{arms}
     endcase
-    if (since_start >= 2) assert (%{check});
+    if (since_start >= 2%{guard}) assert (%{check});
   end
 |}]
 ;;
@@ -548,8 +557,11 @@ module link (input clk);
       pushes_held <= pushes == 3 ? pushes : pushes + push;
     end
 
-  // steps since the wire last moved and since engine 1 last sampled it, held at 255
-  wire level = engines_pin_out_0[%{wire#Int}] | engines_pin_out_1[%{wire#Int}];
+  // steps since the wire last moved and since engine 1 last sampled it, held at 255; a
+  // faulted engine 1 drives nothing
+  wire faulted_1 = engines_fault_underflow_1 | engines_fault_overflow_1
+    | engines_fault_missed_deadline_1 | engines_fault_decode_1;
+  wire level = engines_pin_out_0[%{wire#Int}] | (!faulted_1 && engines_pin_out_1[%{wire#Int}]);
   reg last_level = 0;
   always @(posedge clk) last_level <= level;
   wire moved = since_start != 0 && level != last_level;
@@ -598,10 +610,14 @@ module link (input clk);
     assert (since_fall_held <= %{key.rx_frame#Int});
     if (since_start != 0) begin
       // neither engine faults, but for engine 1's fifo filling, which is the host's doing
+      // and halts it: what follows of engine 1 holds until then
       assert (!engines_fault_underflow_0 && !engines_fault_overflow_0);
       assert (!engines_fault_missed_deadline_0 && !engines_fault_decode_0);
+      assert (!engines_irq_0);
+    end
+    if (since_start != 0 && !engines_fault_overflow_1) begin
       assert (!engines_fault_underflow_1 && !engines_fault_missed_deadline_1);
-      assert (!engines_fault_decode_1 && !engines_irq_0 && !engines_irq_1);
+      assert (!engines_fault_decode_1 && !engines_irq_1);
       // each word engine 1 pushes is the byte engine 0 sent in that frame, one a frame
 `ifdef NEXT_BIT
       if (push) assert (engines_isr_1 == {8'b0, word[8:1]});
