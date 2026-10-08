@@ -71,7 +71,7 @@ let%expect_test "the share of verilog names that resolve to a src line" =
   [%expect
     {|
     ((names 5702) (named_at 243) (made_at 4643) (unresolved 816)
-     (distinct_lines 797))
+     (distinct_lines 799))
     (data_memory (names 60) (unresolved 30) (files (src/data_memory.ml)))
     (engine (names 2012) (unresolved 94)
      (files

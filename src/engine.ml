@@ -243,7 +243,7 @@ module Make (Timer : Timer) = struct
   end
 
   (* Every register's output, plus [fetch_addr], [data_ptr_next] and [ir_load]: all are
-     read before the logic that drives them. *)
+     read before the logic that drives them. Only [create] drives them. *)
   module Feedback = struct
     type t =
       { pc : Signal.t
@@ -747,7 +747,7 @@ module Make (Timer : Timer) = struct
     ;;
   end
 
-  (* Manchester second half, then side-set, then the instruction's write *)
+  (* Manchester second half, then side-set, then the instruction's write. *)
   module Pin_writer = struct
     type t =
       { pin_out_flipped : Signal.t
@@ -1109,13 +1109,15 @@ module Make (Timer : Timer) = struct
     ;;
   end
 
-  (* Next [halted], [stall] and [pc]; drives [fetch_addr] and [ir_load]. A jump always
-     takes two cycles, taken or not. *)
+  (* Next [halted], [stall] and [pc], and the [fetch_addr] and [ir_load] that feed the
+     fetch. A jump always takes two cycles, taken or not. *)
   module Sequencer = struct
     type t =
       { halted_next : Signal.t
       ; stall_next : Signal.t
       ; pc_value_next : Signal.t
+      ; fetch_addr : Signal.t
+      ; ir_load : Signal.t
       }
 
     let create
@@ -1131,7 +1133,7 @@ module Make (Timer : Timer) = struct
       ~jmp_target_or_next
       =
       let is_sys = Instruction.is_sys instruction in
-      let { Feedback.pc; halted; stall; fetch_addr; ir_load; _ } = fb in
+      let { Feedback.pc; halted; stall; _ } = fb in
       let { Decoder.Decoded.delay; _ } = instruction.decoded in
       let decode_ok = instruction.decode_ok in
       let { Control.issue; jmp_go; op_go; advance; _ } = control in
@@ -1157,73 +1159,99 @@ module Make (Timer : Timer) = struct
         mux2 start (address_after c (zero pc_bits))
         @@ mux2 advance (address_after c pc_next) pc_next
       in
-      fetch_addr
-      <-- mux2 i.start (zero pc_bits) @@ mux2 jmp_go jmp_target_or_next pc_after_next;
+      let fetch_addr =
+        mux2 i.start (zero pc_bits) @@ mux2 jmp_go jmp_target_or_next pc_after_next
+      in
       let%hw refill = reg spec (jmp_go |: i.start) in
-      ir_load <-- (advance |: refill);
-      { halted_next; stall_next; pc_value_next }
+      let ir_load = advance |: refill in
+      { halted_next; stall_next; pc_value_next; fetch_addr; ir_load }
     ;;
   end
 
-  (* The pointer is at 0 from the start pulse on, so the word is there by the first issue. *)
-  let drive_data_pointer
-    scope
-    ~spec
-    (i : Signal.t I.t)
-    (fb : Feedback.t)
-    (instruction : Instruction.t)
-    ~op_go
-    ~start
-    ~pull_data_ok
-    =
-    let is = Instruction.is instruction in
-    let is_sys = Instruction.is_sys instruction in
-    let { Feedback.x; data_ptr; data_ptr_next; data_moved; _ } = fb in
-    let%hw seeks = op_go &: is_sys Seek in
-    let%hw pulls_data = op_go &: is Out &: pull_data_ok in
-    data_ptr_next
-    <-- mux2 (i.start |: start) (zero Isa.data_addr_bits)
-        @@ mux2 seeks (sel_bottom x ~width:Isa.data_addr_bits)
-        @@ mux2 pulls_data (data_ptr +:. 1) data_ptr;
-    data_ptr <-- reg spec data_ptr_next;
-    data_moved <-- reg spec (mux2 start gnd (seeks |: pulls_data))
-  ;;
+  (* The pointer is at 0 from the start pulse on, so the word is there by the first issue.
+     Each field drives the [Feedback] wire of the same name. *)
+  module Data_pointer = struct
+    type t =
+      { data_ptr_next : Signal.t
+      ; data_ptr : Signal.t
+      ; data_moved : Signal.t
+      }
 
-  (* A jump carries no side-set, so all it does to the pins is the flip. *)
-  let drive_pins
-    scope
-    ~spec
-    (fb : Feedback.t)
-    (instruction : Instruction.t)
-    (control : Control.t)
-    (pin_writer : Pin_writer.t)
-    ~start
-    ~sample
-    ~out_value
-    =
-    let is = Instruction.is instruction in
-    let { Feedback.pin_out; pin_dir; pins_sampled; flip_pending; flip_bit; _ } = fb in
-    let { Decoder.Decoded.out_dest; _ } = instruction.decoded in
-    let { Control.issue; op_go; _ } = control in
-    let { Pin_writer.pin_out_flipped; manchester_out; pin_out_next; pin_dir_next } =
-      pin_writer
-    in
-    pin_out
-    <-- reg
+    let create
+      scope
+      ~spec
+      (i : Signal.t I.t)
+      (fb : Feedback.t)
+      (instruction : Instruction.t)
+      ~op_go
+      ~start
+      ~pull_data_ok
+      =
+      let is = Instruction.is instruction in
+      let is_sys = Instruction.is_sys instruction in
+      let%hw seeks = op_go &: is_sys Seek in
+      let%hw pulls_data = op_go &: is Out &: pull_data_ok in
+      let data_ptr_next =
+        mux2 (i.start |: start) (zero Isa.data_addr_bits)
+        @@ mux2 seeks (sel_bottom fb.x ~width:Isa.data_addr_bits)
+        @@ mux2 pulls_data (fb.data_ptr +:. 1) fb.data_ptr
+      in
+      let data_ptr = reg spec fb.data_ptr_next in
+      let data_moved = reg spec (mux2 start gnd (seeks |: pulls_data)) in
+      { data_ptr_next; data_ptr; data_moved }
+    ;;
+  end
+
+  (* A jump carries no side-set, so all it does to the pins is the flip. Each field drives
+     the [Feedback] wire of the same name. *)
+  module Pin_registers = struct
+    type t =
+      { pin_out : Signal.t
+      ; flip_pending : Signal.t
+      ; flip_bit : Signal.t
+      ; pin_dir : Signal.t
+      ; pins_sampled : Signal.t
+      }
+
+    let create
+      scope
+      ~spec
+      (fb : Feedback.t)
+      (instruction : Instruction.t)
+      (control : Control.t)
+      (pin_writer : Pin_writer.t)
+      ~start
+      ~sample
+      ~out_value
+      =
+      let is = Instruction.is instruction in
+      let { Decoder.Decoded.out_dest; _ } = instruction.decoded in
+      let { Control.issue; op_go; _ } = control in
+      let { Pin_writer.pin_out_flipped; manchester_out; pin_out_next; pin_dir_next } =
+        pin_writer
+      in
+      let pin_out =
+        reg
           spec
-          ~enable:(op_go |: (issue &: flip_pending))
-          (mux2 op_go pin_out_next pin_out_flipped);
-    let%hw starts_manchester_bit =
-      op_go &: is Out &: Isa.Out_dest.Of_signal.is out_dest Pins &: manchester_out
-    in
-    flip_pending
-    <-- reg
+          ~enable:(op_go |: (issue &: fb.flip_pending))
+          (mux2 op_go pin_out_next pin_out_flipped)
+      in
+      let%hw starts_manchester_bit =
+        op_go &: is Out &: Isa.Out_dest.Of_signal.is out_dest Pins &: manchester_out
+      in
+      let flip_pending =
+        reg
           spec
-          (mux2 start gnd @@ mux2 starts_manchester_bit vdd @@ mux2 issue gnd flip_pending);
-    flip_bit <-- reg spec ~enable:starts_manchester_bit out_value.:(0);
-    pin_dir <-- reg spec ~enable:op_go pin_dir_next;
-    pins_sampled <-- reg spec sample
-  ;;
+          (mux2 start gnd
+           @@ mux2 starts_manchester_bit vdd
+           @@ mux2 issue gnd fb.flip_pending)
+      in
+      let flip_bit = reg spec ~enable:starts_manchester_bit out_value.:(0) in
+      let pin_dir = reg spec ~enable:op_go pin_dir_next in
+      let pins_sampled = reg spec sample in
+      { pin_out; flip_pending; flip_bit; pin_dir; pins_sampled }
+    ;;
+  end
 
   (* Register writes show the next cycle, pin writes the cycle after issue. *)
   let create ~(memory : Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
@@ -1255,7 +1283,7 @@ module Make (Timer : Timer) = struct
         ; data_ptr_next
         ; data_moved
         ; pins_sampled
-        ; fetch_addr = _
+        ; fetch_addr
         ; ir_load
         }
       =
@@ -1284,11 +1312,23 @@ module Make (Timer : Timer) = struct
     let { Control.issue; go; op_go; _ } = control in
     (* off [pc] and the config alone, so the fetch reads ahead across the wrap for free *)
     let%hw pc_next = address_after c pc in
-    let%hw jmp_target_or_next = mux2 jmp_taken instruction.decoded.jmp_target pc_next in
+    let { Decoder.Decoded.jmp_target; _ } = instruction.decoded in
+    let%hw jmp_target_or_next = mux2 jmp_taken jmp_target pc_next in
     let shifter =
       Shifter.create scope c fb instruction fifos ~sample ~data_word:i.data_word
     in
-    let { Shifter.in_value; out_value; isr_shifted; _ } = shifter in
+    let { Shifter.in_value
+        ; out_value
+        ; isr_shifted
+        ; pull_fifo
+        ; pull_data
+        ; pull_ok
+        ; pull_data_ok
+        ; _
+        }
+      =
+      shifter
+    in
     let { Crc_and_stuffing.crc_next; stuff_run_next } =
       Crc_and_stuffing.create scope c fb instruction ~in_value ~out_value
     in
@@ -1325,7 +1365,7 @@ module Make (Timer : Timer) = struct
       &: (pin_of sample c.capture_pin <>: pin_of pins_sampled c.capture_pin)
       &: (pin_of sample c.capture_pin ==: c.capture_rising)
     in
-    let { Sequencer.halted_next; stall_next; pc_value_next } =
+    let sequencer =
       Sequencer.create
         scope
         ~spec
@@ -1344,7 +1384,7 @@ module Make (Timer : Timer) = struct
           sticky
             (op_go
              &: (is Out
-                 &: (shifter.pull_fifo &: tx.empty |: (shifter.pull_data &: data_moved))
+                 &: (pull_fifo &: tx.empty |: (pull_data &: data_moved))
                  |: (pulls &: tx.empty)))
       ; overflow = sticky (op_go &: pushes &: rx.full)
       ; missed_deadline = sticky (op_go &: releases_deadline &: deadline_late)
@@ -1353,22 +1393,21 @@ module Make (Timer : Timer) = struct
     in
     rx_push.valid <-- (op_go &: pushes &: ~:(rx.full));
     rx_push.value <-- mux2 (is In) isr_shifted isr;
-    tx_pop <-- (op_go &: (is Out &: shifter.pull_ok |: (pulls &: ~:(tx.empty))));
-    pc <-- reg spec pc_value_next;
+    tx_pop <-- (op_go &: (is Out &: pull_ok |: (pulls &: ~:(tx.empty))));
+    fetch_addr <-- sequencer.fetch_addr;
+    ir_load <-- sequencer.ir_load;
+    pc <-- reg spec sequencer.pc_value_next;
     x <-- reg spec ~enable:go x_next;
     y <-- reg spec ~enable:go y_next;
     p <-- reg spec ~enable:go p_next;
     t <-- reg spec ~enable:go t_next;
     t_fraction <-- reg spec ~enable:go t_fraction_next;
-    drive_data_pointer
-      scope
-      ~spec
-      i
-      fb
-      instruction
-      ~op_go
-      ~start
-      ~pull_data_ok:shifter.pull_data_ok;
+    let data_pointer =
+      Data_pointer.create scope ~spec i fb instruction ~op_go ~start ~pull_data_ok
+    in
+    data_ptr_next <-- data_pointer.data_ptr_next;
+    data_ptr <-- data_pointer.data_ptr;
+    data_moved <-- data_pointer.data_moved;
     osr <-- reg spec ~enable:go osr_next;
     osr_count
     <-- reg
@@ -1379,9 +1418,25 @@ module Make (Timer : Timer) = struct
     isr <-- reg spec ~enable:go isr_next;
     isr_count <-- reg spec ~enable:go isr_count_next_value;
     now <-- reg spec (mux2 start (zero timer_bits) (now +:. 1));
-    drive_pins scope ~spec fb instruction control pin_writer ~start ~sample ~out_value;
-    stall <-- reg spec stall_next;
-    halted <-- reg spec ~clear_to:vdd halted_next;
+    let pin_registers =
+      Pin_registers.create
+        scope
+        ~spec
+        fb
+        instruction
+        control
+        pin_writer
+        ~start
+        ~sample
+        ~out_value
+    in
+    pin_out <-- pin_registers.pin_out;
+    flip_pending <-- pin_registers.flip_pending;
+    flip_bit <-- pin_registers.flip_bit;
+    pin_dir <-- pin_registers.pin_dir;
+    pins_sampled <-- pin_registers.pins_sampled;
+    stall <-- reg spec sequencer.stall_next;
+    halted <-- reg spec ~clear_to:vdd sequencer.halted_next;
     capture <-- reg spec ~enable:captured now;
     crc <-- reg spec (mux2 start c.crc_init @@ mux2 go crc_next crc);
     stuff_run
