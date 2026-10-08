@@ -16,7 +16,8 @@
 
     The parts: [Kernel_spacing] (the watched pair), [Kernel_rows] (the records),
     [Kernel_comb] (the step and its conjuncts over any gates), [Kernel_table] (the rows
-    software builds) and this module (the check and its circuits). *)
+    software builds) and this module (the check and its circuits). The signature and the
+    records' docs are in [Kernel_intf]: [Rows], then [M(...).S]. *)
 
 open! Core
 
