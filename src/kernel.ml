@@ -136,8 +136,8 @@ module Make_timer (Timer : Engine.Timer) = struct
 
   module O = Step
 
-  let create (_scope : Scope.t) (i : Signal.t I.t) =
-    let module K = Make (Signal) in
+  let combinational (type a) (module Comb : Comb.S with type t = a) (i : a I.t) =
+    let module K = Make (Comb) in
     K.step
       ~side_set_count:i.side_set_count
       ~fraction:i.fraction
@@ -158,6 +158,8 @@ module Make_timer (Timer : Engine.Timer) = struct
       ~data_a:i.data_a
       ~data_b:i.data_b
   ;;
+
+  let create (_scope : Scope.t) i = combinational (module Signal) i
 
   let hierarchical ?instance scope i =
     let module H = Hierarchy.In_scope (I) (O) in
@@ -205,9 +207,10 @@ module Make_timer (Timer : Engine.Timer) = struct
       [@@deriving hardcaml]
     end
 
-    let create (_scope : Scope.t) (i : Signal.t I.t) =
-      let module K = Make (Signal) in
-      let row = Row.Of_signal.unpack ~rev:true i.row in
+    let combinational (type a) (module Comb : Comb.S with type t = a) (i : a I.t) =
+      let module K = Make (Comb) in
+      let module Row = Row.Make_comb (Comb) in
+      let row = Row.unpack ~rev:true i.row in
       let next_pc, target_pc =
         K.successors ~wrap_top:i.wrap_top ~wrap_bottom:i.wrap_bottom ~pc:i.pc ~word:i.word
       in
@@ -222,8 +225,8 @@ module Make_timer (Timer : Engine.Timer) = struct
             ~spacing:i.spacing
             ~word:i.word
             ~row
-            ~next:(Row.Of_signal.unpack ~rev:true i.next)
-            ~target:(Row.Of_signal.unpack ~rev:true i.target)
+            ~next:(Row.unpack ~rev:true i.next)
+            ~target:(Row.unpack ~rev:true i.target)
       ; within =
           K.within
             row
@@ -240,10 +243,12 @@ module Make_timer (Timer : Engine.Timer) = struct
             ~a:i.a
             ~b:i.b
           |> Holds.to_list
-          |> Signal.reduce ~f:Signal.( &: )
+          |> Comb.reduce ~f:Comb.( &: )
       ; starts_open = K.starts_open row ~spacing:i.spacing
       }
     ;;
+
+    let create (_scope : Scope.t) i = combinational (module Signal) i
 
     let hierarchical ?instance scope i =
       let module H = Hierarchy.In_scope (I) (O) in

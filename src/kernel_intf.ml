@@ -359,6 +359,10 @@ module M (Rows : Rows) = struct
 
     module O = Step
 
+    (** [step] on its ports over any gates: [hierarchical] over [Signal], and the AIG
+        [formal/kernel_equiv] proves equal to it. *)
+    val combinational : (module Comb.S with type t = 'a) -> 'a I.t -> 'a O.t
+
     val hierarchical : ?instance:string -> Scope.t -> Signal.t I.t -> Signal.t O.t
 
     (** [accepts], [within] and [starts_open] of [row] and the pcs of [next] and [target],
@@ -404,6 +408,9 @@ module M (Rows : Rows) = struct
           }
         [@@deriving hardcaml]
       end
+
+      (** The same, over any gates. *)
+      val combinational : (module Comb.S with type t = 'a) -> 'a I.t -> 'a O.t
 
       val hierarchical : ?instance:string -> Scope.t -> Signal.t I.t -> Signal.t O.t
     end
