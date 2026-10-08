@@ -228,6 +228,9 @@ jobs:
             python3 demo/decode.py --capture bench.sr $trace
           done
 
+      - name: Ledger, against stand-ins for the bench's tools
+        run: python3 test/test_ledger.py
+
   # the netlists of both boards, simulated; the firmware words they load are the committed
   # ones, which the test job checks are current
   fpga:
