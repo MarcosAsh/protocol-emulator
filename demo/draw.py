@@ -30,6 +30,7 @@ PICO_FILES = [
     "python/demo_usb.py",
     "python/demo_draw.py",
     "test/uart_tx_host_rate.hex",
+    "test/uart_tx_host_rate.cert.hex",
 ]
 # said when Pico A cannot tell how its run ended
 UNKNOWN = ("no word from Pico A on the button: if it is still down, unplug the Icepi's first"

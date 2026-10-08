@@ -11,7 +11,8 @@ play)
     mpremote connect "$PICO" cp python/protocol_emulator.py python/pico_board.py \
         python/bench.py python/bench_firmware.py python/demo_neopixel.py \
         python/demo_self_check.py python/demo_referee.py test/uart_tx_host_rate.hex \
-        test/uart_tx_host_rate_rows.hex test/self_check_wire.hex test/scrub.hex :
+        test/uart_tx_host_rate.cert.hex test/uart_tx_host_rate_rows.hex \
+        test/self_check_wire.hex test/self_check_wire.cert.hex test/scrub.hex :
     mpremote connect "$PICO" exec "import demo_referee; demo_referee.main()"
     ;;
 auto)
