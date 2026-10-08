@@ -1,10 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 # Act 3: engine 0 is a USB keyboard and mouse that types TEXT (MicroPython). D+ is uio[0],
-# D- uio[1], pulled up from D- for low speed. On the Icepi Zero Pico A is the host, watches
-# the bus on D+ and D-, keeps the board detached until engine 0 serves, and a press on the
-# carrier's REPLUG detaches it again, on pico_board's pins; the TT demo board reads
-# uio_out itself. Meanwhile engine 1 sends each key the laptop took out of OUT0 at 115200
-# baud, for pico_listener.
+# D- uio[1], pulled up from D- for low speed. On the Icepi Zero, Pico A is the host on
+# pico_board's pins: it watches D+ and D-, keeps the board detached until engine 0 serves,
+# and REPLUG detaches it again. The TT demo board reads uio_out itself. Meanwhile engine 1
+# sends each key the laptop took out of OUT0 at 115200 baud, for pico_listener.
 # Needs uart_tx_host_rate.hex and uart_tx_host_rate.cert.hex on the Pico.
 # Untested on a board; test/test_demo.py runs `start_log` and `serve` on the RTL.
 
