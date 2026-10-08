@@ -1,0 +1,39 @@
+[tasks]
+prove
+cover
+kept_drive teeth
+runs_on teeth
+restarts teeth
+unmasked mutant teeth
+unstopped mutant teeth
+restartable mutant teeth
+
+[options]
+prove: mode prove
+prove: depth 3
+cover: mode cover
+cover: depth 16
+teeth: mode bmc
+teeth: depth 16
+teeth: expect fail
+
+[engines]
+smtbmc boolector
+
+[script]
+~mutant: read_verilog engines.v
+unmasked: read_verilog unmasked.v
+unstopped: read_verilog unstopped.v
+restartable: read_verilog restartable.v
+kept_drive: read -define KEEP_DRIVE
+runs_on: read -define RUNS_ON
+restarts: read -define RESTARTS
+read_verilog -formal -sv fail_safe.sv
+prep -top fail_safe
+
+[files]
+~mutant: engines.v
+unmasked: fail_safe_teeth/unmasked.v
+unstopped: fail_safe_teeth/unstopped.v
+restartable: fail_safe_teeth/restartable.v
+fail_safe.sv
