@@ -4,7 +4,10 @@
     drive defined. An engine reads another's driven bidirectional pin instead of the pad,
     and any engine's drive on a wire. [formal/chip_frame.sv] proves two engines sharing no
     pad drive and read as alone, except reading the other's bidirectional pads and wires,
-    provided neither gets a new config without a clear. *)
+    provided neither gets a new config without a clear.
+
+    An engine with a fault latched halts and lets go of its pins, as at reset, until the
+    clear; a start does nothing meanwhile. [formal/fail_safe.sv] proves it. *)
 
 open! Core
 open! Hardcaml

@@ -4,7 +4,7 @@
 // except where it hears the other; (c) there it reads what the other drives. The
 // pads_shared task drops the disjoint-pads assumption, which only (a) needs. Assumes, as
 // frame_step.sv does, that each word a core runs writes no more than its program says.
-// Wires are not pads: both engines may write one.
+// Wires are not pads: both engines may write one. An engine with a fault drives nothing.
 // Host fields, pads and clear are free every cycle; each config holds between clears.
 
 module chip_frame (input clk);
@@ -38,6 +38,7 @@ module chip_frame (input clk);
 
   wire [19:0] pin_out, pin_dir;
   wire [27:0] pin_out_0, pin_dir_0, pin_out_1, pin_dir_1, sample_0, sample_1;
+  wire [3:0] fault_0, fault_1;
   wire [15:0] instruction_0, instruction_1;
   wire [7:0] opcode_onehot_0, opcode_onehot_1;
   wire flip_pending_0, flip_pending_1, op_go_0, op_go_1;
@@ -94,9 +95,13 @@ module chip_frame (input clk);
     .engines$pin_out_0(pin_out_0), .engines$pin_dir_0(pin_dir_0),
     .engines$instruction_0(instruction_0), .engines$opcode_onehot_0(opcode_onehot_0),
     .engines$flip_pending_0(flip_pending_0),
+    .engines$fault$underflow_0(fault_0[0]), .engines$fault$overflow_0(fault_0[1]),
+    .engines$fault$missed_deadline_0(fault_0[2]), .engines$fault$decode_0(fault_0[3]),
     .engines$pin_out_1(pin_out_1), .engines$pin_dir_1(pin_dir_1),
     .engines$instruction_1(instruction_1), .engines$opcode_onehot_1(opcode_onehot_1),
     .engines$flip_pending_1(flip_pending_1),
+    .engines$fault$underflow_1(fault_1[0]), .engines$fault$overflow_1(fault_1[1]),
+    .engines$fault$missed_deadline_1(fault_1[2]), .engines$fault$decode_1(fault_1[3]),
     .pin_out(pin_out), .pin_dir(pin_dir),
     .op_go_0(op_go_0), .op_go_1(op_go_1), .sample_0(sample_0), .sample_1(sample_1));
 
@@ -136,15 +141,21 @@ module chip_frame (input clk);
   always @(*) assume ((pads_0 & pads_1) == 0);
 `endif
 
+  // what each engine drives: nothing once it has faulted (fail_safe.sv)
+  wire [27:0] live_dir_0 = fault_0 != 0 ? 28'd0 : pin_dir_0;
+  wire [27:0] live_out_0 = fault_0 != 0 ? 28'd0 : pin_out_0;
+  wire [27:0] live_dir_1 = fault_1 != 0 ? 28'd0 : pin_dir_1;
+  wire [27:0] live_out_1 = fault_1 != 0 ? 28'd0 : pin_out_1;
+
   // a pad as the top drives it, for the chip and for each engine alone
   localparam [19:0] OUTPUT_PADS = 20'h00fe0;
   localparam [19:0] BIDIR_PADS = 20'hff000;
   wire [19:0] oe = OUTPUT_PADS | (pin_dir & BIDIR_PADS);
   wire [19:0] level = pin_out & oe;
-  wire [19:0] alone_oe_0 = OUTPUT_PADS | (pin_dir_0[19:0] & BIDIR_PADS);
-  wire [19:0] alone_level_0 = pin_out_0[19:0] & alone_oe_0;
-  wire [19:0] alone_oe_1 = OUTPUT_PADS | (pin_dir_1[19:0] & BIDIR_PADS);
-  wire [19:0] alone_level_1 = pin_out_1[19:0] & alone_oe_1;
+  wire [19:0] alone_oe_0 = OUTPUT_PADS | (live_dir_0[19:0] & BIDIR_PADS);
+  wire [19:0] alone_level_0 = live_out_0[19:0] & alone_oe_0;
+  wire [19:0] alone_oe_1 = OUTPUT_PADS | (live_dir_1[19:0] & BIDIR_PADS);
+  wire [19:0] alone_level_1 = live_out_1[19:0] & alone_oe_1;
 
   // what an engine reads alone: its own level where it drives (a lone engine always
   // drives its wires), the pad elsewhere
@@ -155,11 +166,11 @@ module chip_frame (input clk);
   wire [27:0] own_1 = OWN | (pin_dir_1 & BIDIRS);
   wire [27:0] alone_sample_0 = (pin_out_0 & own_0) | ({8'd0, pads} & ~own_0);
   wire [27:0] alone_sample_1 = (pin_out_1 & own_1) | ({8'd0, pads} & ~own_1);
-  // where an engine hears the other: its level, on a wire ORed with the engine's own
-  wire [27:0] hears_0 = (WIRES & moves_1) | (pin_dir_1 & BIDIRS & ~pin_dir_0);
-  wire [27:0] hears_1 = (WIRES & moves_0) | (pin_dir_0 & BIDIRS & ~pin_dir_1);
-  wire [27:0] heard_0 = pin_out_1 | (pin_out_0 & WIRES);
-  wire [27:0] heard_1 = pin_out_0 | (pin_out_1 & WIRES);
+  // where an engine hears the other: its live level, on a wire ORed with the engine's own
+  wire [27:0] hears_0 = (WIRES & moves_1) | (live_dir_1 & BIDIRS & ~pin_dir_0);
+  wire [27:0] hears_1 = (WIRES & moves_0) | (live_dir_0 & BIDIRS & ~pin_dir_1);
+  wire [27:0] heard_0 = live_out_1 | (pin_out_0 & WIRES);
+  wire [27:0] heard_1 = live_out_0 | (pin_out_1 & WIRES);
   // tooth 3: each engine reads alone on every pin
 `ifdef READ_EVERYWHERE
   wire [27:0] apart_0 = 28'hfffffff;
