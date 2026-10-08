@@ -148,8 +148,8 @@ let%expect_test "one engine times the other's uart edges" =
   (* the first stamp is the line going idle; then each frame, start bit first *)
   let frame byte =
     let levels = (0 :: List.init 8 ~f:(fun i -> (byte lsr i) land 1)) @ [ 1 ] in
-    List.filter_mapi levels ~f:(fun bit level ->
-      let before = if bit = 0 then 1 else List.nth_exn levels (bit - 1) in
+    List.zip_exn (1 :: List.drop_last_exn levels) levels
+    |> List.filter_mapi ~f:(fun bit (before, level) ->
       Option.some_if (level <> before) (level, bit * period))
   in
   let rec table stamps = function
