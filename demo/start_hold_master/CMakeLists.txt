@@ -2,8 +2,8 @@
 # pico-examples' pio_i2c at a pinned commit (BSD-3-Clause, fetched at configure time, not
 # kept here, built unmodified), start_hold_hw through the RP2040's I2C block. Needs
 # pico-sdk 2.x and arm-none-eabi-gcc:
-#   cmake -S demo/start_hold_master -B build/start_hold_master -D PICO_SDK_PATH=<pico-sdk> -D PICO_BOARD=pico
-#   make -C build/start_hold_master
+#   cmake -S demo/start_hold_master -B demo/out/start_hold_master -D PICO_SDK_PATH=<pico-sdk> -D PICO_BOARD=pico
+#   make -C demo/out/start_hold_master
 cmake_minimum_required(VERSION 3.13)
 
 include(${PICO_SDK_PATH}/external/pico_sdk_import.cmake)

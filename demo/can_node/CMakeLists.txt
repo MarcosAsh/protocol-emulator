@@ -1,7 +1,7 @@
 # Pico B's CAN node for the CAN act, on can2040 at a pinned commit (GPL-3.0, fetched at
 # configure time, not kept here). Needs pico-sdk 2.x and arm-none-eabi-gcc:
-#   cmake -S demo/can_node -B build/can_node -D PICO_SDK_PATH=<pico-sdk> -D PICO_BOARD=pico
-#   make -C build/can_node
+#   cmake -S demo/can_node -B demo/out/can_node -D PICO_SDK_PATH=<pico-sdk> -D PICO_BOARD=pico
+#   make -C demo/out/can_node
 cmake_minimum_required(VERSION 3.13)
 
 include(${PICO_SDK_PATH}/external/pico_sdk_import.cmake)
