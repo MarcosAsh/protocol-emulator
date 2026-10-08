@@ -46,6 +46,10 @@
   "//": "net on the power-up build (64 -> 7 -> 1 -> 1).",
   "DRT_ANTENNA_REPAIR_ITERS": 6,
 
+  "//": "GRT_ADJUSTMENT - Metal3 is the only horizontal signal layer; at the default 0.3 global",
+  "//": "routing overflows on 8x4 while detailed routing still closes to 0 violations at 0.15.",
+  "GRT_ADJUSTMENT": 0.15,
+
   "//": "SRAM macro integration, see odb_sram_stripes.py",
   "MACROS": {
     "RM_IHPSG13_1P_512x16_c2_bm_bist": {
