@@ -71,7 +71,7 @@ let%expect_test "the share of verilog names that resolve to a src line" =
   [%expect
     {|
     ((names 5702) (named_at 243) (made_at 4627) (unresolved 832)
-     (distinct_lines 788))
+     (distinct_lines 787))
     (data_memory (names 60) (unresolved 30) (files (src/data_memory.ml)))
     (engine (names 2012) (unresolved 110)
      (files
@@ -81,7 +81,7 @@ let%expect_test "the share of verilog names that resolve to a src line" =
     (host_port (names 1016) (unresolved 230) (files (src/host_port.ml)))
     (host_spi (names 71) (unresolved 21) (files (src/host_spi.ml)))
     (load_checker (names 1644) (unresolved 99)
-     (files (src/decoder.ml src/kernel.ml src/load_checker.ml)))
+     (files (src/decoder.ml src/kernel_comb.ml src/load_checker.ml)))
     (protocol_emulator (names 17) (unresolved 17) (files ()))
     (sram_macro (names 21) (unresolved 19) (files (src/sram_macro.ml)))
     (top (names 194) (unresolved 11) (files (src/top.ml)))
