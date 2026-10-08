@@ -35,6 +35,7 @@ on:
       - '!test/models/spiflash.v'
       - '!test/mutate.py'
       - '!test/mutation_allow.txt'
+      - '!test/plant.py'
       - '!test/results.py'
       - '!test/check_docs.py'
       - '!test/heldout.sha256'

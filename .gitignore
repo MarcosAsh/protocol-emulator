@@ -19,6 +19,7 @@ test/gl_traces/
 
 _build
 _mutation
+_plant
 *.install
 *.merlin
 _opam
