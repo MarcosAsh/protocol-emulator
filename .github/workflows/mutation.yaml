@@ -44,13 +44,15 @@ jobs:
           echo "shards=$(seq 0 $((n - 1)) | jq -sc .)" >> "$GITHUB_OUTPUT"
 
   # a mutant costs about four runner-minutes, four at a time on four cores: engine's 114
-  # in four shards of about two hours, wide's thousand in twenty of about three and a half
+  # in four shards of about two hours, wide's thousand in twenty of about three and a half,
+  # six shards at a time so the other branches keep the rest of the shared runners
   mutate:
     needs: plan
     runs-on: ubuntu-24.04
     timeout-minutes: 350
     strategy:
       fail-fast: false
+      max-parallel: 6
       matrix:
         shard: ${{ fromJSON(needs.plan.outputs.shards) }}
     env:
