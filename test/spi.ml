@@ -173,6 +173,21 @@ let protocol =
   ; loaded_from_hex = []
   ; limits = []
   ; unlimited = [ "spi_master", "no demo loads it" ]
+  ; swept =
+      [ (* SCK by side-set beside MOSI: 16 edges a byte 8 cycles apart is twice the fifo *)
+        { name = "spi_master"
+        ; watch = "mosi"
+        ; on_wire =
+            (fun c -> { c with out_base = Swept.wire; side_set_base = Swept.wire + 1 })
+        ; period = None
+        ; bursts = Swept.bytes "Jane"
+        }
+      ]
+  ; not_swept =
+      [ "spi_slave", "a slave: the master's clock moves it"
+      ; ( "spi_master_stream"
+        , "time-triggered: it underflows, a sticky fault, once the host stops" )
+      ]
   ; scenarios = [ scenario ]
   }
 ;;

@@ -300,6 +300,27 @@ let protocol =
   ; loaded_from_hex = [ log ]
   ; limits
   ; unlimited = []
+  ; swept =
+      (let swept ?period name text =
+         { Swept.name
+         ; watch = "line"
+         ; on_wire = Swept.line
+         ; period
+         ; bursts = Swept.bytes text
+         }
+       in
+       [ swept "uart_tx" "Jane"
+       ; swept "uart_tx16" "Jane"
+       ; swept ~period:434 "uart_tx_host_rate" "St"
+       ])
+  ; not_swept =
+      [ "uart_rx", "a receiver: it samples, and nothing on the chip sends to it"
+      ; ( "uart_tx_stream"
+        , "time-triggered: it underflows, a sticky fault, once the host stops" )
+      ; ( "uart_tx_stamped"
+        , "26 bits 8 cycles apart, and the chip's clock in them, which the model cannot \
+           know" )
+      ]
   ; scenarios = [ tx_scenario; rx_scenario ]
   }
 ;;

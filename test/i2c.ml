@@ -723,6 +723,13 @@ let protocol =
   ; loaded_from_hex = []
   ; limits = limits "i2c_master" @ limits "i2c_master_stretch"
   ; unlimited = []
+  ; swept = []
+  ; not_swept =
+      [ ( "i2c_master"
+        , "open drain, which a wire does not show, and a slave has to acknowledge" )
+      ; "i2c_slave", "a slave: the master's clock moves it"
+      ; "i2c_logger", "an I2C master: open drain, and a slave has to answer"
+      ]
   ; scenarios = [ scenario ]
   }
 ;;

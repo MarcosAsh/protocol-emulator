@@ -16,7 +16,7 @@ let ranges ks =
    tightest way into the wait the stimulus never takes. demo/kernel_vs_board.py runs every
    [k] in between on the board. *)
 let%expect_test "the kernel's verdict on delay variants" =
-  List.iter Swept.all ~f:(fun swept ->
+  List.iter Library.swept ~f:(fun swept ->
     let t = Delay_variants.of_swept swept in
     let { Delay_variants.wait_pc; slack; _ } = t in
     let variants =

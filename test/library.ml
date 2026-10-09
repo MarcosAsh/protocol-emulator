@@ -9,6 +9,8 @@ let rest =
   ; loaded_from_hex = []
   ; limits = Datasheet.others
   ; unlimited = Datasheet.exempt
+  ; swept = Swept.others
+  ; not_swept = Swept.not_swept
   ; scenarios = []
   }
 ;;
@@ -44,3 +46,13 @@ let find_bench_exn name =
 let limits = each (fun p -> p.limits)
 let exempt = each (fun p -> p.unlimited)
 let scenarios = each (fun p -> p.scenarios)
+
+(* in the order of the firmware, whichever protocol has it *)
+let in_firmware_order all ~name =
+  List.filter_map
+    ((certified @ time_triggered) @ [ stamped ])
+    ~f:(fun c -> List.find all ~f:(fun x -> String.equal (name x) c.name))
+;;
+
+let swept = in_firmware_order (each (fun p -> p.swept)) ~name:(fun s -> s.Swept.name)
+let not_swept = in_firmware_order (each (fun p -> p.not_swept)) ~name:fst
