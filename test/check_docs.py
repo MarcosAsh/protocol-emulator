@@ -6,7 +6,9 @@
 # READMEs made from this one fail. --offline skips the runs, evidence and links.
 # Usage: python3 test/check_docs.py [--offline] [--teeth] [--external-links]
 import argparse
+import contextlib
 import csv
+import io
 import json
 import re
 import subprocess
@@ -814,7 +816,68 @@ TEETH = [
     ("a run date in words", first(r"run \d{10,12}, (\d{4}-\d\d-\d\d)", lambda _: "29 Sep"), "gh"),
     # the run the die picture is from, which hardened older Verilog
     ("an old gds run", first(r"[Gg]ds run (\d{10,12})", lambda _: "36615334436"), "gh"),
+    ("a stale gds run", lambda text: every(text, r"[Gg]ds run \[?(\d{10,12})",
+                                            lambda _: stale_gds_run()), "stale gds"),
+    # green, but it mutated an engine.ml that has changed since
+    ("an old mutation run", lambda text: every(text, r"mutation run \[?(\d{10,12})",
+                                                lambda _: "36642527804"), "gh"),
+    ("a board date", first(r"passed (?:the [\w-]+ demo )?on (\d{4}-\d\d-\d\d)", bump), "gh"),
+    ("the board edges", first(r"all (\d+) edges", bump), "gh"),
+    ("the board baud", first(r"at (\d+) baud", bump), "gh"),
+    ("a dead link", first(r"\]\(https://github\.com/[^)]*/issues/(\d+)\)", lambda n: n + "0000"),
+     "gh"),
+    ("a dead pages link", first(r"\]\((https://marcosash\.github\.io/[^)]*\w)/?\)",
+                                lambda u: u + "x"), "gh"),
+    ("the demo time", first(r"in about (\d+) minutes", lambda n: str(int(n) * 3 + 3)), "gh"),
+    ("the transmitters", first(r"all but (\w+) transmitters",
+                               lambda w: "seven" if w == "six" else "six"), None),
+    ("a commit date", first(r"committed on (\d{4}-\d\d-\d\d)", bump), None),
 ]
+
+
+def every(text, pattern, change):
+    """[text] with the token [pattern]'s first match groups changed everywhere it is."""
+    m = re.search(pattern, text)
+    return m and change(m[1]) and re.sub(rf"\b{m[1]}\b", change(m[1]), text)
+
+
+def stale_gds_run():
+    """A green gds run on main of this chip that is neither the newest nor kept, or None."""
+    return next((r for r in chip_gds_runs()
+                 if r != current_gds_run() and not evidence.gds_kept(r)), None)
+
+
+def clear_caches():
+    for f in [evidence.asset, evidence.unpacked, evidence.ledger, evidence.gds_kept,
+              gds_numbers, fresh_gds, fresh_mutation]:
+        f.cache_clear()
+
+
+def tampered_pin(docs):
+    """What fails with the board evidence pinned to another asset's hash."""
+    real = evidence.pins
+    pinned = real()
+    board = next(k for k in pinned if k[1].startswith("board-evidence-"))
+    other = next(sha for k, sha in pinned.items() if k != board)
+    evidence.pins = lambda: {**pinned, board: other}
+    clear_caches()
+    try:
+        return [name for name, found in failures(docs).items() if found]
+    finally:
+        evidence.pins = real
+        clear_caches()
+
+
+def generated_table(docs):
+    """What fails with the README's table as test/results.py --readme-table writes it."""
+    import results
+
+    readme = docs["README.md"]
+    table = next(u for u in re.split(r"\n\s*\n", readme) if u.startswith("|"))
+    with contextlib.redirect_stderr(io.StringIO()):  # what it changed, which is nothing here
+        fresh = results.readme_table(readme)
+    return {name: found for name, found in
+            failures({**docs, "README.md": readme.replace(table, fresh)}).items() if found}
 
 
 def teeth():
@@ -823,14 +886,15 @@ def teeth():
         sys.exit("the docs fail as they are, so the teeth would prove nothing")
     cited = re.search(r"[Gg]ds run \[?(\d{10,12})", docs["README.md"])
     has = {None: True, "gh": ONLINE,
-           "metrics": ONLINE and cited is not None and gds_numbers(cited[1])[0] is not None}
+           "metrics": ONLINE and cited is not None and gds_numbers(cited[1])[0] is not None,
+           "stale gds": ONLINE and stale_gds_run() is not None}
     missed = []
     for what, tooth, needs in TEETH:
         if not has[needs]:
             print(f"skip {what}, which needs {needs}")
             continue
         wrong = tooth(docs["README.md"])
-        if not wrong:
+        if not wrong or wrong == docs["README.md"]:
             sys.exit(f"the tooth for {what} finds nothing to change in the README")
         caught = [name for name, found in failures({**docs, "README.md": wrong}).items() if found]
         line = next(b for a, b in zip(docs["README.md"].splitlines(), wrong.splitlines()) if a != b)
@@ -838,6 +902,20 @@ def teeth():
         print(f"     {line.strip()[:88]}")
         if not caught:
             missed.append(what)
+    if ONLINE:
+        caught = tampered_pin(docs)
+        print(f"{'ok  ' if caught else 'FAIL'} a tampered evidence pin, caught by "
+              f"{', '.join(caught) or 'nothing'}")
+        if not caught:
+            missed.append("a tampered evidence pin")
+        # not a tooth: the table the generator writes has to pass
+        wrong = generated_table(docs)
+        print(f"{'FAIL' if wrong else 'ok  '} test/results.py --readme-table writes a table "
+              "that passes")
+        for why in (w for found in wrong.values() for w in found):
+            print(f"     {why}")
+        if wrong:
+            sys.exit("the table test/results.py --readme-table writes fails the checks")
     if missed:
         sys.exit(f"{len(missed)} wrong READMEs passed: {', '.join(missed)}")
 
