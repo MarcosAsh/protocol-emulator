@@ -267,3 +267,29 @@ let%expect_test "an edge bound tighter than the rows before it is refused" =
     (fresh (tampered 13) (refused 13))
     |}]
 ;;
+
+(* the timer's signed values are [-half, half - 1] *)
+let half = 1 lsl (Isa.timer_bits - 1)
+
+let%expect_test "an offset or a slope the timer cannot hold is dropped" =
+  List.iter
+    [ 1, -half, half - 1; 1, -half - 1, 0; 1, 0, half; 0, 0, 0; half, 0, 0; -half, 0, 0 ]
+    ~f:(fun (slope, lo, hi) ->
+      print_s
+        [%message
+          (slope : int)
+            (lo : int)
+            (hi : int)
+            ~kept:
+              (Kernel.Table.offset_bounds ~slope { lo = Some lo; hi = Some hi }
+               : (int * int * int) option)]);
+  [%expect
+    {|
+    ((slope 1) (lo -8388608) (hi 8388607) (kept ((1 -8388608 8388607))))
+    ((slope 1) (lo -8388609) (hi 0) (kept ()))
+    ((slope 1) (lo 0) (hi 8388608) (kept ()))
+    ((slope 0) (lo 0) (hi 0) (kept ()))
+    ((slope 8388608) (lo 0) (hi 0) (kept ()))
+    ((slope -8388608) (lo 0) (hi 0) (kept ((-8388608 0 0))))
+    |}]
+;;
