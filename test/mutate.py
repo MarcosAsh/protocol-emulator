@@ -331,6 +331,9 @@ def main():
     todo = plan(args.scope, files, args.seed, args.held_out)
     todo = [m for m in todo if not args.operator or m["operator"] in args.operator]
     todo = [m for m in todo if not args.id or m["id"] in args.id]
+    # a mistyped id would leave a run of nothing, which passes
+    if missing := set(args.id or []) - {m["id"] for m in todo}:
+        sys.exit(f"no mutant {' '.join(sorted(missing))} in this scope")
     todo = todo[shard::shards]
     if args.list:
         for m in todo:
