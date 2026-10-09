@@ -38,6 +38,11 @@ check -assert
 miter -equiv -flatten written recoded fsm_step
 hierarchy -top fsm_step
 delete t:$scopeinfo
+# the same miter for anystate.awk, from any state
+design -save fsm_step
+script ../netlist_equiv/fine.ys
+write_rtlil fsm_step_pre.il
+design -load fsm_step
 script ../netlist_equiv/aig.ys
 write_aiger fsm_step.aig
 
