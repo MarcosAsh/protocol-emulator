@@ -7,9 +7,15 @@ let cycle_ns = 20
 (* y is bits in the word less one: 15 then 7 per pixel. Both paths round a word's end take
    thirteen cycles, fourteen with a tail over 7. The reset gap waits on every pass of its
    loop, not once after, so [t] is never more than five thirds ahead of [now] and the
-   kernel accepts the loop. *)
-let firmware ~third ~tail =
-  if tail < 0 || tail > 14 then raise_s [%message "BUG: tail out of range" (tail : int)];
+   kernel accepts the loop; y counts its turns before a frame takes it. *)
+let latching ~gaps ~third ~tail =
+  if gaps < 1 || gaps > 32 || tail < 0 || tail > 14
+  then raise_s [%message "BUG: gaps or tail out of range" (gaps : int) (tail : int)];
+  let gap_turns, gap_again =
+    if gaps = 1
+    then "", ""
+    else [%string "    set y, %{gaps - 1#Int}\ngaps:\n"], "    jmp y--, gaps\n"
+  in
   let add_tail =
     if tail <= 7
     then [%string "    add t, %{tail#Int}\n"]
@@ -22,7 +28,7 @@ let firmware ~third ~tail =
     set p, %{third#Int}
 latch:
     mov t, now
-    set x, 31
+%{gap_turns}    set x, 31
 gap:
     add t, p
     add t, p
@@ -31,7 +37,7 @@ gap:
     add t, p
     wait t
     jmp x--, gap
-    wait tx                  ; the line has been low for 160 thirds
+%{gap_again}    wait tx                  ; the line has been low for 160 thirds
     mov t, now
     add t, p
 pixel:
@@ -57,6 +63,7 @@ last:
 |}]
 ;;
 
+let firmware = latching ~gaps:1
 let standard = firmware ~third:20 ~tail:2
 
 let config =
