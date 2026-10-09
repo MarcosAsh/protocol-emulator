@@ -134,6 +134,10 @@ class Ledger(unittest.TestCase):
         self.assertEqual(ledger.last_verdict("PASS\n  x\r\n FAIL\r\nPASS within a cycle\n"), "FAIL")
         self.assertIsNone(ledger.last_verdict("faults 0x0\n"))
         self.assertEqual(ledger.typed("typed h\r\ntyped i\r\ntyped  \r\nreplugged\r\n"), "hi ")
+        hold = "host, against t_HD;STA >= 4000 ns (192 cycles): %s, 0 of 64 short\nthe stick\n"
+        self.assertEqual(ledger.hold_verdict(hold % "PASS within a cycle of it"), "PASS")
+        self.assertEqual(ledger.hold_verdict(hold % "FAIL"), "FAIL")
+        self.assertIsNone(ledger.hold_verdict("no START in 5000 ms\nno verdict\n"))
 
 
 if __name__ == "__main__":
