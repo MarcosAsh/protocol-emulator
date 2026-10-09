@@ -65,14 +65,14 @@ let%expect_test "the rom is as the device has it" =
 ;;
 
 let%expect_test "reset, read rom, eight bytes and a good crc" =
-  run ~unit:standard_unit ~cycles:290_000 ();
+  run ~unit:standard_unit ~cycles:340_000 ();
   [%expect
     {|
     ((presence (0)) (rom (28 ab 89 67 45 23 01 5a)) (crc8 0) (matches true)
      (log (reset presence "command 0x33" "rom sent"))
      (measured_ns
-      (("reset low" (480040 480040)) ("one low" (6000 6000)) (slot (66000 66220))
-       (high (6000 60220)) ("zero low" (60000 60000))))
+      (("reset low" (480040 480040)) ("one low" (6000 6000)) (slot (72000 72220))
+       (high (6000 66220)) ("zero low" (66000 66000))))
      (violations ())
      (fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
@@ -87,7 +87,7 @@ let%expect_test "one wire in lockstep" =
   let last = ref None in
   let model =
     Lockstep.lockstep
-      ~cycles:20_000
+      ~cycles:24_000
       ~config
       ~program:(Timed_program.words firmware)
       ~inputs:(fun _ ->
@@ -115,12 +115,12 @@ let%expect_test "one wire in lockstep" =
   print_answers (List.rev !answers) !slave model.fault;
   [%expect
     {|
-    ("lockstep held" (cycles 20000))
+    ("lockstep held" (cycles 24000))
     ((presence (0)) (rom (28 ab 89 67 45 23 01 5a)) (crc8 0) (matches true)
      (log (reset presence "command 0x33" "rom sent"))
      (measured_ns
-      (("reset low" (480600 480600)) ("one low" (6000 6000)) (slot (66000 69300))
-       (high (6000 63300)) ("zero low" (60000 60000))))
+      (("reset low" (480600 480600)) ("one low" (6000 6000)) (slot (72000 75300))
+       (high (6000 69300)) ("zero low" (66000 66000))))
      (violations ())
      (fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
@@ -188,23 +188,23 @@ let%expect_test "a sample after 15 us misses the zeros" =
     ((presence (0)) (rom (ff ff)) (crc8 180) (matches false)
      (log (reset presence "command 0x33"))
      (measured_ns
-      (("reset low" (640040 640040)) ("one low" (8000 8000)) (slot (88000 88220))
-       (high (8000 80220)) ("zero low" (80000 80000))))
+      (("reset low" (640040 640040)) ("one low" (8000 8000)) (slot (96000 96220))
+       (high (8000 88220)) ("zero low" (88000 88000))))
      (violations ())
      (fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
     |}]
 ;;
 
-(* at 5 us the reset is 400 us and a zero 50 us, which the slave rejects *)
+(* at 5 us the reset is 400 us and a zero 55 us, which the slave rejects *)
 let%expect_test "a unit of 5 us is out of the standard" =
   run ~words:[ reset; byte 0x33 ] ~unit:(5_000 / cycle_ns) ~cycles:80_000 ();
   [%expect
     {|
     ((presence (1)) (rom ()) (crc8 0) (matches false) (log ())
      (measured_ns
-      ((slot (55000 805200)) (high (5000 405160)) ("one low" (5000 5000))))
-     (violations ("low of 400040 ns" "low of 50000 ns" "slot of 55000 ns"))
+      ((slot (60000 805200)) (high (5000 405160)) ("one low" (5000 5000))))
+     (violations ("low of 400040 ns" "low of 55000 ns"))
      (fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
     |}]
