@@ -117,6 +117,12 @@ def typed(text):
     return "".join(re.findall(r"^typed (.)\r?$", text, re.MULTILINE))
 
 
+def hold_verdict(text):
+    """demo_start_hold's verdict on the chip's stamps, on the line that judges them."""
+    found = re.findall(r"^host, against t_HD;STA .*?: (PASS|FAIL)", text, re.MULTILINE)
+    return found[-1] if found else None
+
+
 def sha256(path):
     h = hashlib.sha256()
     with open(path, "rb") as f:
@@ -341,6 +347,7 @@ class Ledger:
             if not b.dry_run:
                 text = (b.dir / log).read_text(errors="replace") if (b.dir / log).exists() else ""
                 said = (("PASS" if typed(text) == TEXT else "FAIL") if demo.name == "keyboard"
+                        else hold_verdict(text) if demo.kind == "start_hold"
                         else last_verdict(text))
                 b.note("Pico A says %s, every step %s" % (said, "ran" if ok else "did not"))
                 # a run with a step missing is no evidence either way
