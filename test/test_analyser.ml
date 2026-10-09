@@ -1293,3 +1293,34 @@ let%expect_test "a period floor leaves a load no higher than a data word" =
     1  halt                         period 100..65535
     |}]
 ;;
+
+(* x is 1 or 3, never 10; y is 3, never 0 *)
+let%expect_test "a jump on register ranges the analysis knows goes one way" =
+  report
+    {|
+    set y, 10
+    set x, 1
+    jmp pin, a
+    set x, 3
+a:
+    jmp x!=y, c
+    set pins, 1
+c:
+    set y, 3
+    jmp y--, d
+    set pins, 0
+d:
+    halt
+|};
+  [%expect
+    {|
+    0  set y, 10                    phase ?..?
+    1  set x, 1                     phase ?..?
+    2  jmp pin, 4                   phase ?..?
+    3  set x, 3                     phase ?..?
+    4  jmp x!=y, 6                  phase ?..?
+    6  set y, 3                     phase ?..?
+    7  jmp y--, 9                   phase ?..?
+    9  halt                         phase ?..?
+    |}]
+;;
