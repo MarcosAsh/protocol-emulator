@@ -290,6 +290,55 @@ let%expect_test "a decode fault halts the core" =
     |}]
 ;;
 
+(* registered beside [instruction], so they agree with it from the cycle after a clear, as
+   formal/issue_timing.sv asserts; the core runs into a word that does not decode *)
+let%expect_test "decode_ok and opcode_onehot agree with the instruction from a clear" =
+  Harness.run
+    ~random_initial_state:`All
+    ~create:(Solo.hierarchical ~memory:Flops)
+    (fun (h @ local) ~inputs:i ~outputs ->
+       let cycle () = Hardcaml_lws.Lws.cycle h in
+       let disagree = ref [] in
+       let check n =
+         let o = Before_and_after_edge.after_edge outputs in
+         let instruction = Bits.to_unsigned_int !(o.instruction) in
+         let decodes = Result.is_ok (Isa.of_word ~side_set_count:0 instruction) in
+         let opcode = Isa.Field.extract Isa.Field.op instruction in
+         if Bool.( <> ) (Bits.to_bool !(o.decode_ok)) decodes
+            || Bits.to_unsigned_int !(o.opcode_onehot) <> 1 lsl opcode
+         then disagree := n :: !disagree
+       in
+       i.clocking.clear := Bits.vdd;
+       cycle ();
+       i.clocking.clear := Bits.gnd;
+       Engine.Config.iter2
+         i.config
+         (Engine.Config.of_program_config Program_config.default)
+         ~f:( := );
+       check 0;
+       List.iteri [ 0xa000; 0xe0ff ] ~f:(fun addr word ->
+         i.program_write.valid := Bits.vdd;
+         i.program_write.addr <--. addr;
+         i.program_write.data <--. word;
+         cycle ();
+         check (addr + 1));
+       i.program_write.valid := Bits.gnd;
+       i.start := Bits.vdd;
+       cycle ();
+       i.start := Bits.gnd;
+       List.iter (List.range 3 12) ~f:(fun n ->
+         check n;
+         cycle ());
+       let o = Before_and_after_edge.after_edge outputs in
+       print_s
+         [%message
+           ""
+             ~disagree:(List.rev !disagree : int list)
+             ~decode_fault:(Bits.to_bool !(o.fault.decode) : bool)
+             ~halted:(Bits.to_bool !(o.halted) : bool)]);
+  [%expect {| ((disagree ()) (decode_fault true) (halted true)) |}]
+;;
+
 let%expect_test "waveform of a short loop" =
   let program =
     assemble
