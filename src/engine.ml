@@ -179,6 +179,7 @@ module Make (Timer : Timer) = struct
       ; halted : 'a
       ; irq : 'a
       ; fault : 'a Fault.t
+      ; faulted : 'a
       ; capture : 'a [@bits timer_bits]
       ; capture_armed : 'a
       ; tx_level : 'a [@bits Host_fifo.level_bits]
@@ -732,18 +733,20 @@ module Make (Timer : Timer) = struct
     let%hw refill = reg spec (jmp_go |: i.start) in
     ir_load <-- (advance |: refill);
     let sticky set = reg spec ~enable:set vdd in
-    let fault =
+    let faulting =
       { Fault.underflow =
-          sticky
-            (op_go
-             &: (is Out
-                 &: (pull_fifo &: tx.empty |: (pull_data &: data_moved))
-                 |: (pulls &: tx.empty)))
-      ; overflow = sticky (op_go &: pushes &: rx.full)
-      ; missed_deadline = sticky (op_go &: releases_deadline &: deadline_late)
-      ; decode = sticky (issue &: ~:decode_ok)
+          op_go
+          &: (is Out
+              &: (pull_fifo &: tx.empty |: (pull_data &: data_moved))
+              |: (pulls &: tx.empty))
+      ; overflow = op_go &: pushes &: rx.full
+      ; missed_deadline = op_go &: releases_deadline &: deadline_late
+      ; decode = issue &: ~:decode_ok
       }
     in
+    let fault = Fault.map faulting ~f:sticky in
+    (* the four in one flop, so a gate on any fault starts at a flop and not at their OR *)
+    let%hw faulted = sticky (Fault.to_list faulting |> reduce ~f:( |: )) in
     rx_push.valid <-- (op_go &: pushes &: ~:(rx.full));
     rx_push.value <-- mux2 (is In) isr_shifted isr;
     tx_pop <-- (op_go &: (is Out &: pull_ok |: (pulls &: ~:(tx.empty))));
@@ -822,6 +825,7 @@ module Make (Timer : Timer) = struct
     ; halted
     ; irq
     ; fault
+    ; faulted
     ; capture
     ; capture_armed
     ; tx_level = tx.level
