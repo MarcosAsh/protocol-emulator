@@ -274,6 +274,9 @@ jobs:
       - name: Ledger, against stand-ins for the bench's tools
         run: python3 test/test_ledger.py
 
+      - name: Traffic checks, on made captures
+        run: python3 test/test_traffic.py
+
   # the netlists of both boards, simulated; the firmware words they load are the committed
   # ones, which the test job checks are current
   fpga:
