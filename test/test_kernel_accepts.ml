@@ -356,3 +356,27 @@ let%expect_test "a table with no edge bounds keeps no spacing" =
         ((pc 9) (fails ("a spaced"))) ((pc 12) (fails ("a spaced")))))))
     |}]
 ;;
+
+(* beside test_kernel's: a pin past the pin space, and a slope with no offset *)
+let%expect_test "a spacing is checked only for pins and tables it is proved for" =
+  let c = Certified.find_exn "uart_tx" in
+  let config, words, table = table ~spacing:uart_bits c in
+  let check ?(table = table) spacing =
+    print_s
+      [%message "" ~_:(Kernel.check ~spacing ~config ~words table : unit Or_error.t)]
+  in
+  check { uart_bits with a = Isa.pin_space };
+  check { uart_bits with b = Isa.pin_space };
+  let sloped = Array.copy table in
+  sloped.(5) <- { (sloped.(5)) with slope = Bits.one Isa.timer_bits };
+  check ~table:sloped uart_bits;
+  [%expect
+    {|
+    (Error
+     "edges are spaced only for two pins, Manchester off and a table of intervals")
+    (Error
+     "edges are spaced only for two pins, Manchester off and a table of intervals")
+    (Error
+     "edges are spaced only for two pins, Manchester off and a table of intervals")
+    |}]
+;;
