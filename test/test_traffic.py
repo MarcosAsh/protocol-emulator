@@ -141,9 +141,9 @@ class Decodes(unittest.TestCase):
                          ["no capture %s" % (self.dir / "neopixel.sr")])
 
     def test_a_line_never_moves(self):
-        sigrok.write(self.dir / "ds18b20.sr", RATE, bytes([0xA0]) * 1000)
-        self.assertEqual(traffic.check("ds18b20", self.dir),
-                         ["D5 (1-Wire DQ) never changes in the capture: high throughout"])
+        sigrok.write(self.dir / "neopixel.sr", RATE, bytes([0x10]) * 1000)
+        self.assertEqual(traffic.check("neopixel", self.dir),
+                         ["D4 (NEO_3V3) never changes in the capture: high throughout"])
 
     def test_neopixel(self):
         p = traffic.demo_neopixel.PIXELS
@@ -178,18 +178,26 @@ class Decodes(unittest.TestCase):
             "Pico A's log has no byte write and page write to hold the decode to"])
 
     def test_ds18b20(self):
+        """No analyser channel has DQ: Pico A's readback is checked again, and a flat
+        capture on analyser B's D5 counts for nothing."""
         log = ("ROM 28 7d 50 63 79 25 0b 3e: family 28, CRC good\n"
-               "scratchpad 68 01 4b 46 7f ff 0c 10 3e: CRC good\nPASS\n")
-        decoded = ["onewire_network-1: " + x for x in [
-            "Reset/presence: true", "ROM command: 0x33 'Read ROM'", "ROM: 0x3e0b257963507d28",
-            "Reset/presence: true", "ROM command: 0xcc 'Skip ROM'", "Data: 0x44", "Data: 0x00",
-            "Data: 0xff", "Reset/presence: true", "ROM command: 0xcc 'Skip ROM'", "Data: 0xbe",
-            "Data: 0x68", "Data: 0x01", "Data: 0x4b", "Data: 0x46", "Data: 0x7f", "Data: 0xff",
-            "Data: 0x0c", "Data: 0x10", "Data: 0x3e"]]
-        self.assertEqual(self.check("ds18b20", decoded, log), [])
-        self.assertEqual(self.check("ds18b20", decoded[:-1], log), [
-            "READ ROM, CONVERT T, READ SCRATCHPAD: no 'onewire_network-1: Data: 0x3e' in the "
-            "decode after the ones before it"])
+               "scratchpad 68 01 4b 46 7f ff 0c 10 3e: CRC good, configuration 7f, "
+               "360/16 = 22.5000 C\nPASS\n")
+        sigrok.write(self.dir / "ds18b20.sr", RATE, bytes([0xA0]) * 1000)
+        (self.dir / "ds18b20.log").write_text(log)
+        self.assertEqual(traffic.check("ds18b20", self.dir), [])
+        (self.dir / "ds18b20.log").write_text(log.replace("0c 10 3e", "0c 10 3f"))
+        self.assertEqual(traffic.check("ds18b20", self.dir), [
+            "scratchpad 68 01 4b 46 7f ff 0c 10 3f: bad CRC or configuration"])
+        # the power-on 85 C, with its own good CRC
+        pad = [0x50, 0x05, 0x4B, 0x46, 0x7F, 0xFF, 0x0C, 0x10]
+        pad = " ".join("%02x" % b for b in pad + [traffic.demo_ds18b20.crc8(pad)])
+        (self.dir / "ds18b20.log").write_text(log.replace("68 01 4b 46 7f ff 0c 10 3e", pad))
+        self.assertEqual(traffic.check("ds18b20", self.dir), [
+            "scratchpad reads 85.0000 C, the power-on value or out of range"])
+        (self.dir / "ds18b20.log").write_text("no presence pulse\nFAIL\n")
+        self.assertEqual(traffic.check("ds18b20", self.dir),
+                         ["Pico A's log has no ROM and scratchpad read back"])
 
     def test_swd(self):
         log = "AP 0 IDR 0x04770031: designer 0x23b, class 8, a MEM-AP\nPASS\n"

@@ -364,8 +364,12 @@ class Ledger:
                 problems = traffic.check(demo.name, b.dir) if ok else []
                 for problem in problems:
                     b.note("traffic: " + problem)
-                if ok and traffic.stem(demo.name) in traffic.CHECKS:
+                name = traffic.stem(demo.name)
+                if ok and name in traffic.CHECKS:
                     held = "; ".join(problems) or "held to the capture"
+                elif ok and name in traffic.UNSEEN:
+                    # a PASS here rests on Pico A's readback alone, which the reader must see
+                    held = "; ".join(["none (no analyser channel)"] + problems)
                 result = judged(ok, said, problems, demo.expect)
         b.close()
         if b.dry_run:
