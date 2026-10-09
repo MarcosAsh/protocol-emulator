@@ -166,6 +166,12 @@ jobs:
           make -C formal netlist_equiv netlist_equiv_teeth \
             NETLIST="$GITHUB_WORKSPACE/hardened/tt_submission/tt_um_marcosash_protocol_emulator.v"
 
+      # formal/netlist_equiv/anystate.awk, in the directory netlist_equiv left
+      - name: Prove the netlist from any state equal to the RTL after reset, and fail on two mutants
+        run: |
+          make -C formal netlist_anystate netlist_anystate_teeth \
+            NETLIST="$GITHUB_WORKSPACE/hardened/tt_submission/tt_um_marcosash_protocol_emulator.v"
+
       # formal/sync/check.tcl
       - name: Check one clock and a two-flop synchroniser on every pin, and fail on five mutants
         run: |
