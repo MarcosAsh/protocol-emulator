@@ -7,8 +7,11 @@
 // output register: a read takes a value, the same in both copies when both read the same
 // way after the first edge, and a free one in each otherwise. The copies' writes are
 // equal from then on, which is asserted, so the premise holds after it if it holds then.
-// The havoc tasks' RTL (powerup_havoc.awk) gives the host fifos' words and read buffers
-// any value while the fifo is cleared.
+// With COLD a program macro's words are its own in each copy until its engine is first
+// started: the cores reset halted, and Host.load fills all 512 words before a start. The
+// data memory keeps the premise, as nothing fills it. The havoc tasks' RTL
+// (powerup_havoc.awk) gives the host fifos' words and read buffers any value while the
+// fifo is cleared.
 //
 // By induction on an invariant, also asserted: the copies agree on every flop outside the
 // host fifos, on each macro's output from the second edge on, and on the words each fifo
@@ -35,6 +38,7 @@ module powerup (input clk);
   wire [8:0] addr_a[0:2], addr_b[0:2];
   wire [15:0] din_a[0:2], din_b[0:2], bm_a[0:2], bm_b[0:2], dout_a[0:2], dout_b[0:2];
   wire [`STATE_BITS - 1:0] state_a, state_b;
+  wire [1:0] start_a, start_b, halted_a, halted_b, started_a, started_b, refill_a, refill_b;
   fifo_t rx_0_a, tx_0_a, rx_1_a, tx_1_a, rx_0_b, tx_0_b, rx_1_b, tx_1_b;
 
 `define CHIP(side) \
@@ -42,8 +46,9 @@ module powerup (input clk);
     .clk(clk), .rst_n(rst_n), .ena(ena), .ui_in(ui_in), .uio_in(uio_in), \
     .uo_out(uo_out_``side), .uio_out(uio_out_``side), .uio_oe(uio_oe_``side), \
     `PORTS(side, 0) `PORTS(side, 1) `PORTS(side, 2) \
-    .state(state_``side), .rx_0(rx_0_``side), .tx_0(tx_0_``side), .rx_1(rx_1_``side), \
-    .tx_1(tx_1_``side) \
+    .state(state_``side), .start(start_``side), .halted(halted_``side), \
+    .started(started_``side), .refill(refill_``side), \
+    .rx_0(rx_0_``side), .tx_0(tx_0_``side), .rx_1(rx_1_``side), .tx_1(tx_1_``side) \
   );
 `define PORTS(side, n) \
     .m``n``_men(men_``side[n]), .m``n``_wen(wen_``side[n]), .m``n``_ren(ren_``side[n]), \
@@ -60,15 +65,28 @@ module powerup (input clk);
   `FIFO(tx_1)
 `endif
 
+  // which macros hold the host's words, the same in both copies: all of them, unless COLD,
+  // and whether a macro's output holds a read of them
+  reg [2:0] read_loaded = 0;
+`ifdef COLD
+  reg [1:0] ran = 0;
+  wire [1:0] running = ran | (first ? 2'b00 : start_a);
+  wire [2:0] loaded = {1'b1, running};
+  always @(posedge clk) ran <= running;
+`else
+  wire [2:0] loaded = 3'b111;
+`endif
+  always @(posedge clk) read_loaded <= loaded;
+
   genvar n;
   generate
     for (n = 0; n < 3; n = n + 1) begin : macro
       sram_pair pair (
         .clk(clk), .first(first),
-        .ports_a({men_a[n], wen_a[n], ren_a[n], addr_a[n] == addr_b[n], din_a[n] == din_b[n],
-                  bm_a[n] == bm_b[n]}),
-        .ports_b({men_b[n], wen_b[n], ren_b[n], addr_a[n] == addr_b[n], din_a[n] == din_b[n],
-                  bm_a[n] == bm_b[n]}),
+        .ports_a({men_a[n], wen_a[n], ren_a[n], loaded[n] && addr_a[n] == addr_b[n],
+                  din_a[n] == din_b[n], bm_a[n] == bm_b[n]}),
+        .ports_b({men_b[n], wen_b[n], ren_b[n], loaded[n] && addr_a[n] == addr_b[n],
+                  din_a[n] == din_b[n], bm_a[n] == bm_b[n]}),
         .dout_a(dout_a[n]), .dout_b(dout_b[n])
       );
     end
@@ -90,7 +108,22 @@ module powerup (input clk);
   // the invariant beside fifo_pair; each macro reads every cycle, so from the second edge
   // on its output holds a word the premise makes the same
   always @* if (!first) assert (state_a == state_b);
-  always @* if (warm)
-    assert (dout_a[0] == dout_b[0] && dout_a[1] == dout_b[1] && dout_a[2] == dout_b[2]);
+  generate
+    for (n = 0; n < 3; n = n + 1) begin : settled
+      always @* if (warm && read_loaded[n]) assert (dout_a[n] == dout_b[n]);
+    end
+  endgenerate
+  // the flags only ever rise
+  always @* begin
+    assert (!warm || !first);
+    assert ((read_loaded | loaded) == loaded);
+`ifdef COLD
+    // an engine leaves halted, and fetches, only on a start
+    if (!first) begin
+      assert ((running | halted_a) == 2'b11);
+      assert ((running | started_a | refill_a) == running);
+    end
+`endif
+  end
 `endif
 endmodule
