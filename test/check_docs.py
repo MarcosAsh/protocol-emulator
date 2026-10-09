@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
 # Fails when README.md or docs/info.md cites a path, make target, job, commit or run that
 # is not there, or quotes a number the code, the tests or the cited run disagree with,
-# naming the line. --teeth checks that wrong READMEs made from this one fail. --offline
-# skips the runs.
-# Usage: python3 test/check_docs.py [--offline] [--teeth]
+# naming the line, or links to a page that is gone. Board results and gds runs older than
+# CI keeps are read from the releases test/evidence.sha256 pins. --teeth checks that wrong
+# READMEs made from this one fail. --offline skips the runs, evidence and links.
+# Usage: python3 test/check_docs.py [--offline] [--teeth] [--external-links]
 import argparse
 import csv
 import json
@@ -12,6 +13,9 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 from functools import cache
 from pathlib import Path
 
@@ -21,6 +25,10 @@ ROOT = Path(__file__).resolve().parent.parent
 DOCS = ["README.md", "docs/info.md"]
 REPO = "MarcosAsh/protocol-emulator"
 ONLINE = True
+EXTERNAL = False
+# links checked unless --external-links asks for every host
+OWN_HOSTS = ("github.com", "marcosash.github.io")
+LINK_TTL = 24 * 3600  # how long a link that answered is not asked again
 WARNINGS = []
 DEADLINE = "2027-01-18"  # the competition's submission date
 
@@ -323,6 +331,36 @@ def mutation_score(run_id):
     return None, "has no score in its log"
 
 
+@cache
+def link_status(url):
+    """The status [url] answers with after redirects, or None if it does not answer. An
+    answer under 400 is cached for LINK_TTL, so CI asks GitHub once a day."""
+    path = evidence.CACHE / "links.json"
+    try:
+        seen = json.loads(path.read_text())
+    except (OSError, ValueError):
+        seen = {}
+    if (hit := seen.get(url)) and hit["status"] < 400 and time.time() - hit["at"] < LINK_TTL:
+        return hit["status"]
+    for method in ["HEAD", "GET"]:
+        ask = urllib.request.Request(url, method=method,
+                                     headers={"User-Agent": "protocol-emulator check_docs"})
+        try:
+            with urllib.request.urlopen(ask, timeout=20) as answer:
+                status = answer.status
+        except urllib.error.HTTPError as e:
+            status = e.code
+        except (urllib.error.URLError, OSError):
+            status = None
+        if status != 405:  # HEAD not allowed
+            break
+    if status is not None:
+        seen[url] = {"status": status, "at": time.time()}
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(seen, indent=1, sort_keys=True))
+    return status
+
+
 def warn(message):
     """For evidence that checks now but will not for long, or a link GitHub would not
     answer."""
@@ -548,6 +586,20 @@ def check_board(doc, text):
                            f"{', '.join(bauds) or 'no'} baud, the docs say {n}")
 
 
+def check_links(doc, text):
+    """Every link to GitHub or the Pages site answers, and a 404 or 410 fails. Runs are
+    check_runs', and other hosts are asked only with --external-links."""
+    for url in sorted({u.rstrip(".,;:") for u in URL.findall(text)}):
+        host = urllib.parse.urlparse(url).hostname or ""
+        if "/actions/runs/" in url or not (EXTERNAL or host in OWN_HOSTS):
+            continue
+        status = link_status(url)
+        if status in (404, 410):
+            yield url, f"{url} answers {status}"
+        elif status is None or status >= 400:
+            warn(f"{url} answered {status or 'nothing'}, so it goes unchecked")
+
+
 def check_counts(doc, text):
     """Counts the code and the tests hold, wherever the docs quote them."""
     text = flat(text)
@@ -650,7 +702,7 @@ def check_glance(doc, text):
 
 CHECKS = [check_paths, check_make, check_jobs, check_commits, check_counts, check_transcripts,
           check_glance]
-ONLINE_CHECKS = [check_runs, check_gds, check_mutation, check_board]
+ONLINE_CHECKS = [check_runs, check_gds, check_mutation, check_board, check_links]
 
 
 def failures(docs):
@@ -745,14 +797,16 @@ def teeth():
 
 
 def main():
-    global ONLINE
+    global ONLINE, EXTERNAL
     p = argparse.ArgumentParser()
-    p.add_argument("--offline", action="store_true", help="skip what needs gh")
+    p.add_argument("--offline", action="store_true", help="skip what needs gh or the network")
     p.add_argument("--teeth", action="store_true", help="check that wrong READMEs fail")
+    p.add_argument("--external-links", action="store_true",
+                   help="ask every link's host, not just GitHub's")
     args = p.parse_args()
-    ONLINE = not args.offline
+    ONLINE, EXTERNAL = not args.offline, args.external_links
     if not ONLINE:
-        print("skip run ids, gds metrics and mutation scores (offline)")
+        print("skip run ids, gds metrics, mutation scores, board evidence and links (offline)")
     if args.teeth:
         return teeth()
     failed = failures(read_docs())
