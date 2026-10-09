@@ -3,6 +3,8 @@ prove written
 no_reset written teeth
 unreset teeth
 stale
+havoc havoc_rtl
+havoc_unreset havoc_unreset_rtl teeth
 
 [options]
 ~teeth: mode prove
@@ -21,6 +23,8 @@ read_verilog project.v
 written: read_verilog protocol_emulator.v
 unreset: read_verilog unreset.v
 stale: read_verilog stale.v
+havoc_rtl: read_verilog -formal havoc.v
+havoc_unreset_rtl: read_verilog -formal havoc_unreset.v
 hierarchy -top tt_um_marcosash_protocol_emulator
 proc
 flatten
@@ -65,6 +69,8 @@ prep -top powerup
 written: ../src/protocol_emulator.v
 unreset: powerup_teeth/unreset.v
 stale: powerup_teeth/stale.v
+havoc_rtl: powerup_teeth/havoc.v
+havoc_unreset_rtl: powerup_teeth/havoc_unreset.v
 ../src/RM_IHPSG13_1P_512x16_c2_bm_bist.v
 flops.tcl
 powerup.tcl

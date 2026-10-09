@@ -7,6 +7,8 @@
 // output register: a read takes a value, the same in both copies when both read the same
 // way after the first edge, and a free one in each otherwise. The copies' writes are
 // equal from then on, which is asserted, so the premise holds after it if it holds then.
+// The havoc tasks' RTL (powerup_havoc.awk) gives the host fifos' words and read buffers
+// any value while the fifo is cleared.
 //
 // By induction on an invariant, also asserted: the copies agree on every flop outside the
 // host fifos, on each macro's output from the second edge on, and on the words each fifo
