@@ -185,3 +185,85 @@ let%expect_test "the accepts circuit agrees with the kernel on the library's tab
           ~disagree:(List.rev !disagree : (string * int) list)]);
   [%expect {| ((rows 2668) (accepted 2668) (within 1557) (disagree ())) |}]
 ;;
+
+(* What [formal/pair_step.sby] proves on the RTL, that a row's edge bounds carry to the
+   rows after it, the kernel checks of each row; so a bound made one step tighter than
+   every way in brings is refused at a row before it. Each tamper is one bit's bound of
+   one pin at one row of uart_tx's table. *)
+let%expect_test "an edge bound tighter than the rows before it is refused" =
+  let config, words, table = table ~spacing:uart_bits (Certified.find_exn "uart_tx") in
+  let refused table =
+    Kernel.rejections ~config ~words ~spacing:uart_bits table
+    |> List.exists ~f:(fun (r : Kernel.Rejection.t) ->
+      List.exists r.fails ~f:(String.is_substring ~substring:"edge"))
+  in
+  (* the highest mark a row may hold, which saturates *)
+  let mark_max =
+    Bits.of_signed_int
+      ~width:Kernel.Held.port_widths.mark
+      ((1 lsl (Isa.timer_bits - 1)) + 0xffff)
+  in
+  let tampers =
+    [ ( "may"
+      , fun (h : Bits.t Kernel.Held.t) ->
+          Option.some_if (Bits.to_bool h.may) { h with may = Bits.gnd } )
+    ; ( "since"
+      , fun h ->
+          Option.some_if
+            (Bits.to_bool h.may && not (Bits.equal h.since (Bits.ones Isa.data_bits)))
+            { h with since = Bits.(h.since +:. 1) } )
+    ; ( "mark"
+      , fun h ->
+          Option.some_if
+            (Bits.to_bool h.may && not (Bits.equal h.mark mark_max))
+            { h with mark = Bits.(h.mark +:. 1) } )
+    ]
+  in
+  let pins =
+    [ ( (fun (r : Bits.t Kernel.Row.t) -> r.a)
+      , fun (r : Bits.t Kernel.Row.t) a -> { r with a } )
+    ; ((fun r -> r.b), fun r b -> { r with b })
+    ]
+  in
+  let tampered_rows ~f =
+    List.concat_mapi (Array.to_list table) ~f:(fun pc row ->
+      if Bits.(to_bool (row.phase_lo <=+ row.phase_hi))
+      then
+        List.concat_map pins ~f:(fun (get, set) ->
+          List.map
+            (f (get row))
+            ~f:(fun pin ->
+              let table = Array.copy table in
+              table.(pc) <- set row pin;
+              table))
+      else [])
+  in
+  let report name tables =
+    print_s
+      [%message
+        name
+          ~tampered:(List.length tables : int)
+          ~refused:(List.count tables ~f:refused : int)]
+  in
+  print_s [%message "" ~untampered_refused:(refused table : bool)];
+  List.iter tampers ~f:(fun (name, tamper) ->
+    report
+      name
+      (tampered_rows ~f:(fun (p : Bits.t Kernel.Pin.t) ->
+         [ Option.map (tamper p.at0) ~f:(fun at0 -> { p with at0 })
+         ; Option.map (tamper p.at1) ~f:(fun at1 -> { p with at1 })
+         ]
+         |> List.filter_opt)));
+  report
+    "fresh"
+    (tampered_rows ~f:(fun (p : Bits.t Kernel.Pin.t) ->
+       if Bits.to_bool p.fresh then [] else [ { p with fresh = Bits.vdd } ]));
+  [%expect
+    {|
+    (untampered_refused false)
+    (may (tampered 52) (refused 48))
+    (since (tampered 18) (refused 18))
+    (mark (tampered 48) (refused 48))
+    (fresh (tampered 13) (refused 13))
+    |}]
+;;
