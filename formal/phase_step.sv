@@ -97,7 +97,7 @@ module phase_step (input clk);
   // are its host's through the chip's fault gate
   wire [19:0] chip_out, chip_dir;
   wire [27:0] o_pin_out, o_pin_dir;
-  wire o_underflow, o_overflow, o_missed_deadline, o_decode;
+  wire o_underflow, o_overflow, o_missed_deadline, o_decode, faulted, o_faulted;
   wire flip_pending, flip_bit, core_start, core_stop;
   // engine n's host fields on the wires named w and the field
 `define HOST(n, w) \
@@ -132,12 +132,12 @@ module phase_step (input clk);
     .hosts$tx$valid_``n(w``tx_valid), .hosts$tx$value_``n(w``tx_value), \
     .hosts$rx_pop_``n(w``rx_pop), .hosts$clear_irq_``n(w``clear_irq), \
     .hosts$stop_``n(w``stop), .hosts$flush_``n(w``flush)
-  // its pins and faults
+  // its pins, its faults and the flop holding any of them
 `define DRIVE(n, w) \
     .engines$pin_out_``n(w``pin_out), .engines$pin_dir_``n(w``pin_dir), \
     .engines$fault$underflow_``n(w``underflow), .engines$fault$overflow_``n(w``overflow), \
     .engines$fault$missed_deadline_``n(w``missed_deadline), \
-    .engines$fault$decode_``n(w``decode)
+    .engines$fault$decode_``n(w``decode), .engines$faulted_``n(w``faulted)
   // and the rest of this engine, with the wires inside its core that the .sby brings out
 `define CORE(n) \
     `DRIVE(n, ), .engines$pc_``n(pc), .engines$x_``n(x), .engines$y_``n(y), \
@@ -1044,11 +1044,9 @@ module phase_step (input clk);
 `endif
   end
 `ifdef CHIP
-  // What the chip drives for each engine, nothing once it has faulted, and what the pads
-  // show: the two ORed, an output pin taking an engine's level, a bidirectional one only
-  // where its direction bit is set.
-  wire faulted = underflow || overflow || missed_deadline || decode;
-  wire o_faulted = o_underflow || o_overflow || o_missed_deadline || o_decode;
+  // What the chip drives for each engine, nothing once its fault flop is set, and what the
+  // pads show: the two ORed, an output pin taking an engine's level, a bidirectional one
+  // only where its direction bit is set.
   wire [27:0] drive_out = faulted ? 28'd0 : pin_out;
   wire [27:0] drive_dir = faulted ? 28'd0 : pin_dir;
   wire [27:0] o_drive_out = o_faulted ? 28'd0 : o_pin_out;
@@ -1081,6 +1079,9 @@ module phase_step (input clk);
   always @(posedge clk)
     if (!clear) begin
       on_pads: assert(chip_out == pads_out[19:0] && chip_dir == pads_dir[19:0]);
+      // the flop is the OR of the four the host reads
+      one_flop: assert(faulted == (underflow || overflow || missed_deadline || decode)
+        && o_faulted == (o_underflow || o_overflow || o_missed_deadline || o_decode));
       if (!last_clear) begin
         stays_released: assert(!last_faulted || faulted);
         if (moved) certified: assert(releases || edge_entry);
