@@ -15,6 +15,8 @@ type t =
   ; source : string
   ; config : Program_config.t
   ; assumption : Assumption.t
+  ; clock_hz : int
+  ; load : int option
   }
 
 (* The Icepi's USB build drives IO0 and IO1's header pins with the USB lines, so I2C moves
@@ -77,6 +79,15 @@ let can_firmware firmware =
       \    jmp x--, bus_idle\n"
 ;;
 
+(* The Icepi's PLL and the demo board's [clock_hz] both run the chip at 48 MHz; 10BASE-T
+   needs the Icepi's 40 MHz build. *)
+let clock_hz = 48_000_000
+let ethernet_clock_hz = 40_000_000
+let bit ~hz = clock_hz / hz
+let half ~hz = clock_hz / (2 * hz)
+let quarter ~hz = clock_hz / (4 * hz)
+let cycles_in ~us = clock_hz / 1_000_000 * us
+
 let all =
   [ { name = "spi_master"
     ; what =
@@ -85,6 +96,8 @@ let all =
     ; source = Firmware.spi_master ~half_period:8
     ; config = on_spi_pins Firmware.spi_config
     ; assumption = Nothing
+    ; clock_hz
+    ; load = None
     }
   ; { name = "i2c_master"
     ; what =
@@ -100,6 +113,8 @@ let all =
         ; jmp_pin = sda
         }
     ; assumption = Floor 31
+    ; clock_hz
+    ; load = Some (quarter ~hz:250_000)
     }
   ; { name = "i2c_master_stretch"
     ; what =
@@ -115,6 +130,8 @@ let all =
         ; jmp_pin = scl
         }
     ; assumption = Floor 31
+    ; clock_hz
+    ; load = Some (quarter ~hz:250_000)
     }
   ; { name = "one_wire"
     ; what =
@@ -128,6 +145,8 @@ let all =
         ; set_base = one_wire
         }
     ; assumption = Floor 5
+    ; clock_hz
+    ; load = Some (cycles_in ~us:6)
     }
   ; { name = "can"
     ; what =
@@ -136,6 +155,8 @@ let all =
     ; source = can_firmware Can.firmware
     ; config = Can.config
     ; assumption = Floor Can.shortest_period
+    ; clock_hz
+    ; load = Some (bit ~hz:500_000)
     }
   ; { name = "can_sender"
     ; what =
@@ -145,6 +166,8 @@ let all =
     ; source = can_firmware Can_node.Sender.firmware
     ; config = Can_node.Sender.config
     ; assumption = Floor Can_node.Sender.shortest_period
+    ; clock_hz
+    ; load = Some (bit ~hz:500_000)
     }
   ; { name = "can_receiver"
     ; what =
@@ -153,6 +176,8 @@ let all =
     ; source = Timed_program.source Can_node.Receiver.firmware
     ; config = Can_node.Receiver.config
     ; assumption = Receiver Can_node.Receiver.period
+    ; clock_hz
+    ; load = Some Can_node.Receiver.period
     }
   ; { name = "sk6812"
     ; what =
@@ -161,6 +186,8 @@ let all =
     ; source = Ws2812.latching ~gaps:4 ~third:17 ~tail:8
     ; config = { Ws2812.config with out_base = neopixel; set_base = neopixel }
     ; assumption = Nothing
+    ; clock_hz
+    ; load = None
     }
   ; { name = "start_hold"
     ; what =
@@ -169,6 +196,8 @@ let all =
     ; source = Firmware.start_hold ~sda ~scl
     ; config = Firmware.start_hold_config ~scl
     ; assumption = Nothing
+    ; clock_hz
+    ; load = None
     }
   ; { name = "ethernet"
     ; what =
@@ -177,6 +206,8 @@ let all =
     ; source = Timed_program.source Ethernet.firmware
     ; config = { Ethernet.config with out_base = td_plus; set_base = td_plus }
     ; assumption = Period Ethernet.link_tenth
+    ; clock_hz = ethernet_clock_hz
+    ; load = Some Ethernet.link_tenth
     }
   ; { name = "swd"
     ; what =
@@ -185,6 +216,8 @@ let all =
     ; source = Timed_program.source Swd.firmware
     ; config = Swd.config
     ; assumption = Floor Swd.shortest_half
+    ; clock_hz
+    ; load = Some (half ~hz:1_000_000)
     }
   ]
   @ List.map Spi_cs.Mode.all ~f:(fun mode ->
@@ -196,9 +229,12 @@ let all =
            OUT4, MISO on IN0, CS on OUT6 4 cycles before the first edge and 8 after the \
            last, and high 144 cycles, 3 us, between frames"]
         (* the W25Q64JV's tRES1 after ABh, kept by every frame *)
-    ; source = Spi_cs.master ~mode ~half_period:8 ~setup:4 ~hold:8 ~deselect:144
+    ; source =
+        Spi_cs.master ~mode ~half_period:8 ~setup:4 ~hold:8 ~deselect:(cycles_in ~us:3)
     ; config = on_spi_pins Spi_cs.config
     ; assumption = Nothing
+    ; clock_hz
+    ; load = None
     })
 ;;
 
@@ -216,4 +252,10 @@ let timed t =
   | Period period -> Timed_program.of_source_exn ~period ~config t.source
   | Receiver period ->
     Timed_program.of_source_exn ~period ~single_capture_edge:true ~config t.source
+;;
+
+let period t =
+  match t.assumption with
+  | Period period | Receiver period -> Some period
+  | Nothing | Floor _ -> t.load
 ;;
