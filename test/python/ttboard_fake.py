@@ -11,11 +11,14 @@ import types
 from fractions import Fraction
 
 # GPIOs of ui_in, uo_out and uio, the system clock at boot, and whether a PIO has a GPIO
-# base: the RP2350B DB v3 of SDK v3, the RP2040 TT06 board of SDK v2
+# base: the RP2350B DB v3 of SDK v3, the RP2040 TT06 board of SDK v2, and Pico A on the
+# bench, whose host port alone is wired (python/etr_standin.py)
 BOARDS = {
     "dbv3": (range(17, 25), range(33, 41), range(25, 33), 150_000_000, True),
     "tt06": ([9, 10, 11, 12, 17, 18, 19, 20], [5, 6, 7, 8, 13, 14, 15, 16], range(21, 29),
              125_000_000, False),
+    "pico_a": ([2, 3, 5, 20, 21, 22, 26, 27], [4, 6, 7, 8, 9, 10, 11, 12], range(13, 20),
+               125_000_000, False),
 }
 # what a MicroPython call costs, roughly, so time passes between pin moves
 CALL_US = 2
@@ -581,9 +584,11 @@ class Board:
             if not ready():
                 raise TimeoutError("the board would hang here")
 
-    def install(self):
+    def install(self, sdk=None):
         """machine, rp2, micropython and ttboard in sys.modules, and demo_board and
-        demo_board_check imported fresh with this board's time."""
+        demo_board_check imported fresh with this board's time. sdk, a module to import as
+        ttboard's instead of the fake's, gets a machine.freq that sets the chip's clock to
+        half the system's, as the SDK's PWM would."""
         board = self
         Pin.board = board
         tt = DemoBoard(board)
@@ -606,7 +611,13 @@ class Board:
                             ("SHIFT_LEFT", SHIFT_LEFT), ("SHIFT_RIGHT", SHIFT_RIGHT)):
             setattr(pio, name, value)
         machine = types.ModuleType("machine")
-        machine.Pin, machine.freq = Pin, lambda hz=None: board.sys_hz
+
+        def freq(hz=None):
+            if hz is None:
+                return board.sys_hz
+            board.set_clock(hz // 2)
+
+        machine.Pin, machine.freq = Pin, freq
         micropython = types.ModuleType("micropython")
         micropython.native = lambda f: f
         ttboard = types.ModuleType("ttboard")
@@ -619,6 +630,11 @@ class Board:
             "rp2": rp2, "machine": machine, "micropython": micropython, "ttboard": ttboard,
             "ttboard.demoboard": demoboard, "ttboard.mode": mode,
         })
+        if sdk is not None:
+            sys.modules.pop(sdk, None)
+            standin = importlib.import_module(sdk)
+            sys.modules.update({"ttboard.demoboard": standin, "ttboard.mode": standin})
+            tt = standin.DemoBoard.get()
         for name in ("demo_board", "demo_board_check"):
             sys.modules.pop(name, None)
         clock = types.SimpleNamespace(

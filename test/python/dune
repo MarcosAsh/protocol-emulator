@@ -64,6 +64,7 @@
  (deps
   ../../python/demo_board.py
   ../../python/demo_board_check.py
+  ../../python/etr_standin.py
   ../../python/protocol_emulator.py
   ttboard_fake.py
   ../uart_tx_host_rate.hex)
