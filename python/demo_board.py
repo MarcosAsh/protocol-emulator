@@ -62,12 +62,16 @@ def claim_pio(index, gpios, programs):
 class DemoBoardSpi:
     """SCK at most an eighth of the chip's clock (SCK_DIVIDE), by default a sixteenth.
     Build another to change the clock: the PIO's divider is set from the system clock the
-    PWM chose. programs, those the caller runs on PIO 1's other state machines, unload too."""
+    PWM chose. programs, those the caller runs on PIO 1's other state machines, unload too.
+    ui_inputs has a bit for each of ui[3] to ui[7] the RP leaves to the input Pmod."""
 
-    def __init__(self, project=PROJECT, clock_hz=48_000_000, sck_hz=None, programs=()):
+    def __init__(self, project=PROJECT, clock_hz=48_000_000, sck_hz=None, programs=(),
+                 ui_inputs=0):
         sck_hz = sck_hz or clock_hz // 16
         if SCK_DIVIDE * sck_hz > clock_hz:
             raise ValueError("SCK %d Hz is over 1/%d of the clock" % (sck_hz, SCK_DIVIDE))
+        if ui_inputs & ~0xF8:
+            raise ValueError("ui[0] to ui[2] are the host port's")
         self.tt = tt = DemoBoard.get()
         tt.mode = RPMode.ASIC_RP_CONTROL
         if not tt.shuttle.has(project):
@@ -83,6 +87,9 @@ class DemoBoardSpi:
         for bit in range(3):
             if getattr(tt.pins, "ui_in%d" % bit).mode != Pin.OUT:
                 raise RuntimeError("ui[%d] reads high: turn its DIP switch off" % bit)
+        for bit in range(3, 8):
+            if ui_inputs >> bit & 1:
+                getattr(tt.pins, "ui_in%d" % bit).mode = Pin.IN
         sck, mosi, cs_n, miso = (gpio(tt, n) for n in ("ui_in0", "ui_in1", "ui_in2", "uo_out0"))
         self.cs_n = Pin(cs_n, Pin.OUT, value=1)
         tt.clock_project_PWM(clock_hz)
