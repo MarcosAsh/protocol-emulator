@@ -55,6 +55,9 @@ type t =
 
 val all : t list
 
+(** Firmware with no limit, and why. *)
+val exempt : (string * string) list
+
 (** What a run gives the host: bursts of words, each once the one before is in the core,
     its fifo empty and the pin quiet for [quiet] cycles. *)
 module Stimulus : sig
@@ -84,5 +87,6 @@ val check : ?limits:t list -> Bench.t -> (t * Verdict.t) list
     it does not clear the margin. *)
 val to_string : Bench.t -> (t * Verdict.t) list -> string
 
-(** Raises unless every limit clears its margin. *)
+(** Raises unless every limit clears its margin, and for firmware with no limit that is
+    not [exempt]. *)
 val check_exn : Bench.t -> unit
