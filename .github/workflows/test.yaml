@@ -5,7 +5,25 @@ on:
     branches: ['**']
   workflow_dispatch:
 jobs:
+  # whether a branch's changes reach the cocotb tests (.github/changed.sh); a skip counts
+  # as a pass
+  changes:
+    runs-on: ubuntu-24.04
+    outputs:
+      rtl: ${{ steps.changed.outputs.rtl }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # to find where the branch left main
+
+      - name: List what changed
+        id: changed
+        run: .github/changed.sh rtl | tee -a "$GITHUB_OUTPUT"
+
   test:
+    needs: changes
+    if: needs.changes.outputs.rtl == 'true'
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repo
