@@ -6,10 +6,10 @@
 #
 # Trusted: yosys's Verilog frontend, proc, flatten and memory_map (synthesis uses them
 # too); the IHP cell models, each proved equal to its Liberty function in cells.ys; the
-# macros as shared cut points; one rising-edge clock (asserted in gold.ys and gate.ys);
+# macros as shared cut points; one rising-edge clock (asserted in cut.ys and gate.ys);
 # an asynchronous reset acting in the cycle it is asserted, on both sides; timing, which
-# is signoff STA's. The host port's recoded state machine is proved on its own (fsm_step,
-# gold.ys). Not covered: power-up states other than all 0.
+# is signoff STA's. gold.il recodes the state machines as synthesis does, and step.ys
+# proves it equal to the RTL as written. Not covered: power-up states other than all 0.
 # Vacuity and teeth: gate.ys and make netlist_equiv_teeth.
 
 read_rtlil gold.il

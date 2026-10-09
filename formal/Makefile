@@ -489,11 +489,9 @@ WRITTEN = ../src/protocol_emulator.v
 CELL_MODELS = sed -e '/^\s*specify/,/^\s*endspecify/d' -e 's/delayed_//g' \
   -e 's/^\(\s*\)\(ihp_[a-z0-9_]*\) *(\([A-Za-z0-9_]*\),/\1\2 u_\3 (\3,/' \
   $(STDCELL)/verilog/sg13cmos5l_stdcell.v
-FSM_STEP = timeout 600 yosys-abc -c 'read_aiger fsm_step.aig; print_stats; pdr; print_status'
 netlist_equiv:
 	rm -rf $(EQUIV) && mkdir $(EQUIV)
 	cp $(NETLIST) $(EQUIV)/netlist.v
-	cp $(WRITTEN) $(EQUIV)/written.v
 	$(CELL_MODELS) > $(EQUIV)/cells.v
 	cp $(STDCELL)/lib/sg13cmos5l_stdcell_typ_1p20V_25C.lib $(EQUIV)/cells.lib
 	cp netlist_equiv/cells.ys $(EQUIV)
@@ -508,8 +506,6 @@ netlist_equiv:
 	cd $(EQUIV) && yosys -q -l gold.log ../netlist_equiv/gold.ys
 	cd $(EQUIV) && yosys -q -l gate.log ../netlist_equiv/gate.ys
 	cd $(EQUIV) && yosys -q -l miter.log ../netlist_equiv/miter.ys
-	cd $(EQUIV) && $(FSM_STEP) > fsm_step.log
-	grep 'Status = 1 ' $(EQUIV)/fsm_step.log
 	cd $(EQUIV) && timeout 1200 yosys-abc \
 	  -c 'read_aiger miter.aig; print_stats; scorr; print_stats; dprove; print_status' > proof.log
 	@cd $(EQUIV) && echo "netlist: $$(cut -d' ' -f1 logic.count) logic cells, $$(cut -d' ' -f1 covered.count)" \
@@ -517,19 +513,29 @@ netlist_equiv:
 	  "$$(cut -d' ' -f1 physical.count) fill, decap and antenna cells"
 	grep 'Status = $(EXPECT) ' $(EQUIV)/proof.log
 
+# gold.il equals the chip as written (step.ys): BMC on the first cycle, then, once that
+# passes, every later cycle from each state the first reaches (tempor); about 5 min:
+#   make netlist_equiv_step
+CHIP_STEP = { timeout 120 yosys-abc -c 'read_aiger chip_step.aig; bmc3 -F 1; print_status' \
+  > chip_step.log; ! grep -q 'No output asserted in 1 frames' chip_step.log \
+  || timeout 1200 yosys-abc -c 'read_aiger chip_step.aig; print_stats; tempor -F 1; \
+  print_stats; scorr; print_stats; dprove; print_status' >> chip_step.log; }
+netlist_equiv_step:
+	rm -rf netlist_equiv_step && mkdir netlist_equiv_step
+	cp $(WRITTEN) netlist_equiv_step/written.v
+	cd netlist_equiv_step && yosys -q -l gold.log ../netlist_equiv/gold.ys
+	cd netlist_equiv_step && yosys -q -l step.log ../netlist_equiv/step.ys
+	cd netlist_equiv_step && $(CHIP_STEP)
+	grep 'Status = 1 ' netlist_equiv_step/chip_step.log
+
 # mutants that must be refuted: macro enables swapped, uio_oe[0] inverted, a reset
-# synchroniser untied (its counterexample must pass the first cycle), and the written
-# host port's state held, against fsm_step
+# synchroniser untied (its counterexample must pass the first cycle), and, against
+# chip_step, the host port's state held in the RTL as written (holding the load
+# checker's takes dprove over 20 min to refute, so that one runs by hand)
 netlist_equiv_teeth:
 	mkdir -p netlist_equiv_teeth
-	sed -E '/^module host_port /,/^endmodule/s/^( *sm <= )signal_wire_[0-9]+;/\1sm;/' \
-	  ../src/protocol_emulator.v > netlist_equiv_teeth/written.v
-	! cmp -s ../src/protocol_emulator.v netlist_equiv_teeth/written.v
-	rm -rf netlist_equiv_written && mkdir netlist_equiv_written
-	cp netlist_equiv_teeth/written.v netlist_equiv_written
-	cd netlist_equiv_written && yosys -q -l gold.log ../netlist_equiv/gold.ys
-	cd netlist_equiv_written && $(FSM_STEP) > fsm_step.log
-	grep 'Status = 0 ' netlist_equiv_written/fsm_step.log
+	cd netlist_equiv_teeth && yosys -q -l gold.log ../netlist_equiv/gold.ys
+	$(MAKE) netlist_equiv_held HELD_ONE=host_port/sm
 	sed '/ RM_IHPSG13_1P_512x16_c2_bm_bist \\core\.top\.engines\.data_memory\.sram_macro\.sram /,/;$$/'\
 	'{s/\.A_REN(/.A_SWAP(/;s/\.A_WEN(/.A_REN(/;s/\.A_SWAP(/.A_WEN(/}' $(NETLIST) > netlist_equiv_teeth/swap.v
 	! cmp -s $(NETLIST) netlist_equiv_teeth/swap.v
@@ -539,6 +545,22 @@ netlist_equiv_teeth:
 	$(MAKE) netlist_equiv NETLIST=netlist_equiv_teeth/flip.v EQUIV=netlist_equiv_flip EXPECT=0
 	$(MAKE) netlist_equiv NETLIST=netlist_equiv_teeth/unreset.v EQUIV=netlist_equiv_unreset EXPECT=0
 	grep -E 'CEX: .* Frame = +[1-9]' netlist_equiv_unreset/proof.log
+
+# the RTL as written with one recoded machine's state held, against gold.il from the teeth:
+#   make netlist_equiv_held HELD_ONE=load_checker/sm
+HELD_ONE =
+HELD_MODULE = $(firstword $(subst /, ,$(HELD_ONE)))
+HELD_REG = $(lastword $(subst /, ,$(HELD_ONE)))
+HELD_DIR = netlist_equiv_held_$(HELD_MODULE)_$(HELD_REG)
+netlist_equiv_held:
+	rm -rf $(HELD_DIR) && mkdir $(HELD_DIR)
+	cp netlist_equiv_teeth/gold.il $(HELD_DIR)
+	sed -E '/^module $(HELD_MODULE) /,/^endmodule/s/^( *$(HELD_REG) <= )signal_wire_[0-9]+;/\1$(HELD_REG);/' \
+	  ../src/protocol_emulator.v > $(HELD_DIR)/written.v
+	test $$(diff ../src/protocol_emulator.v $(HELD_DIR)/written.v | grep -c '^>') = 1
+	cd $(HELD_DIR) && yosys -q -l step.log ../netlist_equiv/step.ys
+	cd $(HELD_DIR) && $(CHIP_STEP)
+	grep 'Status = 0 ' $(HELD_DIR)/chip_step.log
 
 # one clock, and every other pin through one two-flop synchroniser (sync/check.tcl), on
 # the RTL and on the hardened netlist; about 3 min:
@@ -707,7 +729,8 @@ witness_reject:
   phase_spacing_proof edge_step event_step frame_step value_step chip_frame data_step teeth \
   inductive_certificate inductive_proof inductive_certificates inductive_names \
   stamped_certificate stamped_proof data_certificate data_proof data_certificates data_names \
-  netlist_equiv netlist_equiv_teeth sync_rtl sync_gate sync_rtl_teeth sync_gate_teeth \
+  netlist_equiv netlist_equiv_step netlist_equiv_teeth netlist_equiv_held \
+  sync_rtl sync_gate sync_rtl_teeth sync_gate_teeth \
   fsm_miter fsm_miter_proof sram_equiv sram_equiv_proof \
   sram_equiv_step sram_equiv_teeth kernel_equiv kernel_equiv_proof kernel_miter sat_tools \
   narrow narrow_proof saturating saturating_proof saturating_chip self_check self_check_proof \
