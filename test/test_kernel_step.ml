@@ -188,3 +188,77 @@ let%expect_test "the narrowest timer the kernel takes" =
     ((timer_bits 7) (since (Ok (19 65535 65535))))
     |}]
 ;;
+
+(* Pin a after one word that would set it to 1, out and mov data being 1: only pins the
+   core can drive move, inputs never and directions only on bidirectionals, and a run of
+   pins wraps at the pin space. *)
+let%expect_test "which pins a word writes" =
+  let default = Program_config.default in
+  List.iter
+    [ "a wrapped out run", { default with out_base = 20 }, 5, false, "out pins, 16"
+    ; "an input", { default with out_base = 0 }, 1, false, "out pins, 2"
+    ; "an input", { default with set_base = 0; set_count = 2 }, 1, false, "set pins, 3"
+    ; "an output", { default with set_base = 5; set_count = 2 }, 6, false, "set pins, 3"
+    ; ( "past the pins"
+      , { default with set_base = 27; set_count = 2 }
+      , 28
+      , false
+      , "set pins, 3" )
+    ; "a bidirectional", { default with set_base = 12 }, 12, true, "set pindirs, 1"
+    ; "an output's direction", { default with set_base = 5 }, 5, true, "set pindirs, 1"
+    ; "a wire's direction", { default with set_base = 20 }, 20, true, "set pindirs, 1"
+    ]
+    ~f:(fun (pin, config, a, dirs, source) ->
+      let s =
+        K.step
+          ~side_set_count:(Bits.zero 2)
+          ~fraction:Bits.gnd
+          ~loaded:{ valid = Bits.gnd; value = Bits.zero Isa.data_bits }
+          ~capture:
+            { pin = Bits.zero Isa.Field.wait_index.width
+            ; rising = Bits.gnd
+            ; single_edge = Bits.gnd
+            }
+          ~spacing:
+            { valid = Bits.vdd
+            ; value =
+                Kernel.Spacing.of_spec
+                  config
+                  { a
+                  ; b = 0
+                  ; dirs
+                  ; hold_a = (fun ~own:_ ~other:_ -> 0)
+                  ; apart_a = (fun ~own:_ ~other:_ -> 0)
+                  ; hold_b = (fun ~own:_ ~other:_ -> 0)
+                  ; apart_b = (fun ~own:_ ~other:_ -> 0)
+                  }
+            }
+          ~word:(word source)
+          ~phase:(Bits.zero Isa.timer_bits)
+          ~period:(Bits.zero Isa.data_bits)
+          ~x:(Bits.zero Isa.data_bits)
+          ~y:(Bits.zero Isa.data_bits)
+          ~arm:(Bits.zero Isa.timer_bits)
+          ~arm_known:Bits.gnd
+          ~captured:Bits.gnd
+          ~awaiting:Bits.gnd
+          ~a:(edge ~since:100 ~fresh:false)
+          ~b:(edge ~since:100 ~fresh:false)
+          ~data_a:Bits.vdd
+          ~data_b:Bits.vdd
+      in
+      print_s
+        [%message
+          source pin (a : int) (dirs : bool) ~moves:(Bits.to_bool s.next_a.level : bool)]);
+  [%expect
+    {|
+    ("out pins, 16" "a wrapped out run" (a 5) (dirs false) (moves true))
+    ("out pins, 2" "an input" (a 1) (dirs false) (moves false))
+    ("set pins, 3" "an input" (a 1) (dirs false) (moves false))
+    ("set pins, 3" "an output" (a 6) (dirs false) (moves true))
+    ("set pins, 3" "past the pins" (a 28) (dirs false) (moves false))
+    ("set pindirs, 1" "a bidirectional" (a 12) (dirs true) (moves true))
+    ("set pindirs, 1" "an output's direction" (a 5) (dirs true) (moves false))
+    ("set pindirs, 1" "a wire's direction" (a 20) (dirs true) (moves false))
+    |}]
+;;
