@@ -27,10 +27,21 @@ type t =
 
 val all : t list
 
+(** The keyboard demo's log to Pico B at 115200 baud, which [all] leaves out: the demo
+    loads the certified copy. *)
+val uart_log : t
+
 (** The period the kernel checks the limits at: the assumption's, else the load. *)
 val period : t -> int option
 
+(** Searches [all] and [uart_log]. *)
 val find_exn : string -> t
+
+(** A time or a rate from cycles at [clock_hz], 48 MHz unless given, which is where every
+    label here comes from. *)
+val time : ?clock_hz:int -> int -> string
+
+val rate : ?clock_hz:int -> ?unit:string -> int -> string
 
 (** [Timed_program.of_source_exn] under the assumption. *)
 val timed : t -> Timed_program.t

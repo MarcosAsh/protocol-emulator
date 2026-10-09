@@ -8,6 +8,8 @@ let () =
     "# Written by test/python/write_bench_firmware.ml; `dune promote` after a change.\n\
      # The outside chip acts' firmware (BRINGUP.md) as words and the configuration it runs\n\
      # under, at the bench's 48 MHz but for 10BASE-T's 40.\n";
+  (* the keyboard's log is not written here, but held to its limits all the same *)
+  Datasheet.check_exn Bench.uart_log;
   List.iter Bench.all ~f:(fun bench ->
     Datasheet.check_exn bench;
     let timed = Bench.timed bench in

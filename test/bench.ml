@@ -88,12 +88,44 @@ let half ~hz = clock_hz / (2 * hz)
 let quarter ~hz = clock_hz / (4 * hz)
 let cycles_in ~us = clock_hz / 1_000_000 * us
 
+(* labels from the cycles and the clock, never written by hand *)
+let time ?(clock_hz = clock_hz) cycles =
+  let ns = Float.of_int cycles *. 1e9 /. Float.of_int clock_hz in
+  if Float.(ns < 1e3)
+  then sprintf "%.0f ns" ns
+  else if Float.(ns < 1e6)
+  then sprintf "%.4g us" (ns /. 1e3)
+  else sprintf "%.4g ms" (ns /. 1e6)
+;;
+
+let rate ?(clock_hz = clock_hz) ?(unit = "Hz") cycles =
+  let hz = Float.of_int clock_hz /. Float.of_int cycles in
+  if Float.(hz >= 1e6)
+  then sprintf "%.4g M%s" (hz /. 1e6) unit
+  else sprintf "%.4g k%s" (hz /. 1e3) unit
+;;
+
+let spi_half = 8
+let i2c_quarter = quarter ~hz:250_000
+let one_wire_unit = cycles_in ~us:6
+let can_bit = bit ~hz:500_000
+let swd_half = half ~hz:1_000_000
+
+(* SK6812, 012 B/0: a bit of 1.2 us at least and a reset of 200 us *)
+let sk6812_third = 17
+let sk6812_tail = 8
+let sk6812_gaps = (cycles_in ~us:200 / (160 * sk6812_third)) + 1
+
+(* the W25Q64JV's tRES1 after ABh, kept by every frame *)
+let spi_cs_deselect = cycles_in ~us:3
+
 let all =
   [ { name = "spi_master"
     ; what =
-        "Firmware.spi_master ~half_period:8: SCK at 3 MHz on OUT5, MOSI on OUT4, MISO on \
-         IN0, no chip select"
-    ; source = Firmware.spi_master ~half_period:8
+        [%string
+          "Firmware.spi_master ~half_period:%{spi_half#Int}: SCK at %{rate (2 * \
+           spi_half)} on OUT5, MOSI on OUT4, MISO on IN0, no chip select"]
+    ; source = Firmware.spi_master ~half_period:spi_half
     ; config = on_spi_pins Firmware.spi_config
     ; assumption = Nothing
     ; clock_hz
@@ -101,8 +133,9 @@ let all =
     }
   ; { name = "i2c_master"
     ; what =
-        "Firmware.i2c_master_host_rate: the host sends the quarter, 48 cycles for 250 \
-         kHz, SDA on IO2, SCL on IO3"
+        [%string
+          "Firmware.i2c_master_host_rate: the host sends the quarter, %{i2c_quarter#Int} \
+           cycles for %{rate (4 * i2c_quarter)}, SDA on IO2, SCL on IO3"]
     ; source = Firmware.i2c_master_host_rate
     ; config =
         { Firmware.i2c_config with
@@ -114,7 +147,7 @@ let all =
         }
     ; assumption = Floor 31
     ; clock_hz
-    ; load = Some (quarter ~hz:250_000)
+    ; load = Some i2c_quarter
     }
   ; { name = "i2c_master_stretch"
     ; what =
@@ -131,12 +164,14 @@ let all =
         }
     ; assumption = Floor 31
     ; clock_hz
-    ; load = Some (quarter ~hz:250_000)
+    ; load = Some i2c_quarter
     }
   ; { name = "one_wire"
     ; what =
-        "One_wire.firmware with a reset of 84 units: the host sends the unit, 288 cycles \
-         for 6 us, so 504 us, on IO4"
+        [%string
+          "One_wire.firmware with a reset of 84 units: the host sends the unit, \
+           %{one_wire_unit#Int} cycles for %{time one_wire_unit}, so %{time (84 * \
+           one_wire_unit)}, on IO4"]
     ; source = one_wire_firmware
     ; config =
         { One_wire.config with
@@ -146,33 +181,38 @@ let all =
         }
     ; assumption = Floor 5
     ; clock_hz
-    ; load = Some (cycles_in ~us:6)
+    ; load = Some one_wire_unit
     }
   ; { name = "can"
     ; what =
-        "Can.firmware, recessive from the start and for eleven bits after the period: \
-         the host sends the bit period, 96 cycles for 500 kbit/s"
+        [%string
+          "Can.firmware, recessive from the start and for eleven bits after the period: \
+           the host sends the bit period, %{can_bit#Int} cycles for %{rate \
+           ~unit:\"bit/s\" can_bit}"]
     ; source = can_firmware Can.firmware
     ; config = Can.config
     ; assumption = Floor Can.shortest_period
     ; clock_hz
-    ; load = Some (bit ~hz:500_000)
+    ; load = Some can_bit
     }
   ; { name = "can_sender"
     ; what =
-        "Can_node.Sender.firmware, recessive from the start and for eleven bits after \
-         the period: Can.firmware reading its ACK slot on IN1, the host sends the bit \
-         period, 96 cycles for 500 kbit/s"
+        [%string
+          "Can_node.Sender.firmware, recessive from the start and for eleven bits after \
+           the period: Can.firmware reading its ACK slot on IN1, the host sends the bit \
+           period, %{can_bit#Int} cycles for %{rate ~unit:\"bit/s\" can_bit}"]
     ; source = can_firmware Can_node.Sender.firmware
     ; config = Can_node.Sender.config
     ; assumption = Floor Can_node.Sender.shortest_period
     ; clock_hz
-    ; load = Some (bit ~hz:500_000)
+    ; load = Some can_bit
     }
   ; { name = "can_receiver"
     ; what =
-        "Can_node.Receiver.firmware: 500 kbit/s at 48 MHz sampled 72 cycles in, CRX on \
-         IN1, the ACK on OUT1"
+        [%string
+          "Can_node.Receiver.firmware: %{rate ~unit:\"bit/s\" Can_node.Receiver.period} \
+           sampled %{Can_node.Receiver.sample#Int} cycles in, CRX on IN1, the ACK on \
+           OUT1"]
     ; source = Timed_program.source Can_node.Receiver.firmware
     ; config = Can_node.Receiver.config
     ; assumption = Receiver Can_node.Receiver.period
@@ -181,9 +221,15 @@ let all =
     }
   ; { name = "sk6812"
     ; what =
-        "Ws2812.latching ~gaps:4 ~third:17 ~tail:8: T0H 354, T1H 708, T0L 875, T1L 521 \
-         ns, a bit of 1229 ns, 227 us low before a frame, on OUT3"
-    ; source = Ws2812.latching ~gaps:4 ~third:17 ~tail:8
+        (let third = sk6812_third
+         and tail = sk6812_tail in
+         [%string
+           "Ws2812.latching ~gaps:%{sk6812_gaps#Int} ~third:%{third#Int} \
+            ~tail:%{tail#Int}: T0H %{time third}, T1H %{time (2 * third)}, T0L %{time \
+            ((2 * third) + tail)}, T1L %{time (third + tail)}, a bit of %{time ((3 * \
+            third) + tail)}, %{time (sk6812_gaps * 160 * third)} low before a frame, on \
+            OUT3"])
+    ; source = Ws2812.latching ~gaps:sk6812_gaps ~third:sk6812_third ~tail:sk6812_tail
     ; config = { Ws2812.config with out_base = neopixel; set_base = neopixel }
     ; assumption = Nothing
     ; clock_hz
@@ -201,8 +247,11 @@ let all =
     }
   ; { name = "ethernet"
     ; what =
-        "Ethernet.firmware at the Icepi's 40 MHz: the host sends a tenth of the link \
-         pulse interval, 64000 cycles for 16 ms, TD+ on IO6, TD- on IO7"
+        [%string
+          "Ethernet.firmware at the Icepi's 40 MHz: the host sends a tenth of the link \
+           pulse interval, %{Ethernet.link_tenth#Int} cycles for %{time \
+           ~clock_hz:ethernet_clock_hz (10 * Ethernet.link_tenth)}, TD+ on IO6, TD- on \
+           IO7"]
     ; source = Timed_program.source Ethernet.firmware
     ; config = { Ethernet.config with out_base = td_plus; set_base = td_plus }
     ; assumption = Period Ethernet.link_tenth
@@ -211,13 +260,14 @@ let all =
     }
   ; { name = "swd"
     ; what =
-        "Swd.firmware: the host sends the half period, 24 cycles for a 1 MHz SWCLK, \
-         SWCLK on OUT2, SWDIO on IO5"
+        [%string
+          "Swd.firmware: the host sends the half period, %{swd_half#Int} cycles for a \
+           %{rate (2 * swd_half)} SWCLK, SWCLK on OUT2, SWDIO on IO5"]
     ; source = Timed_program.source Swd.firmware
     ; config = Swd.config
     ; assumption = Floor Swd.shortest_half
     ; clock_hz
-    ; load = Some (half ~hz:1_000_000)
+    ; load = Some swd_half
     }
   ]
   @ List.map Spi_cs.Mode.all ~f:(fun mode ->
@@ -225,12 +275,17 @@ let all =
     { name = [%string "spi_cs_mode%{n#Int}"]
     ; what =
         [%string
-          "Spi_cs.master in mode %{n#Int}, half period 8: SCK at 3 MHz on OUT5, MOSI on \
-           OUT4, MISO on IN0, CS on OUT6 4 cycles before the first edge and 8 after the \
-           last, and high 144 cycles, 3 us, between frames"]
-        (* the W25Q64JV's tRES1 after ABh, kept by every frame *)
+          "Spi_cs.master in mode %{n#Int}, half period %{spi_half#Int}: SCK at %{rate (2 \
+           * spi_half)} on OUT5, MOSI on OUT4, MISO on IN0, CS on OUT6 4 cycles before \
+           the first edge and 8 after the last, and high %{time spi_cs_deselect} between \
+           frames"]
     ; source =
-        Spi_cs.master ~mode ~half_period:8 ~setup:4 ~hold:8 ~deselect:(cycles_in ~us:3)
+        Spi_cs.master
+          ~mode
+          ~half_period:spi_half
+          ~setup:4
+          ~hold:8
+          ~deselect:spi_cs_deselect
     ; config = on_spi_pins Spi_cs.config
     ; assumption = Nothing
     ; clock_hz
@@ -238,8 +293,26 @@ let all =
     })
 ;;
 
+(* the keyboard demo loads the certified copy, at the period python/demo_usb.py works out
+   from the clock the same way *)
+let uart_log =
+  let baud = 115_200 in
+  let period = (clock_hz + (baud / 2)) / baud in
+  { name = "uart_log"
+  ; what =
+      [%string
+        "Firmware.uart_tx_host_rate: the keyboard demo's log to Pico B, %{period#Int} \
+         cycles a bit for %{rate ~unit:\"baud\" period}, on OUT0"]
+  ; source = Firmware.uart_tx_host_rate
+  ; config = Program_config.default
+  ; assumption = Floor 4
+  ; clock_hz
+  ; load = Some period
+  }
+;;
+
 let find_exn name =
-  match List.find all ~f:(fun t -> String.equal t.name name) with
+  match List.find (uart_log :: all) ~f:(fun t -> String.equal t.name name) with
   | Some t -> t
   | None -> raise_s [%message "no such bench firmware" (name : string)]
 ;;
