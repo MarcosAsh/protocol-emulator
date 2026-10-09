@@ -70,7 +70,8 @@ class DemoBoardSpi:
         tt.mode = RPMode.ASIC_RP_CONTROL
         if not tt.shuttle.has(project):
             raise RuntimeError("%s is not on this chip" % project)
-        tt.shuttle.get(project).enable()
+        if not tt.shuttle.get(project).enable():
+            raise RuntimeError("the SDK would not enable %s: see its log" % project)
         # DB v3.3's button would clock the project once, over the PWM
         if getattr(tt, "manual_project_clock", None) is not None:
             tt.manual_project_clock.monitoring = False

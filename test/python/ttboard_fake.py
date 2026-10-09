@@ -416,11 +416,15 @@ class Design:
     def __init__(self, board, name):
         self.board, self.name = board, name
 
-    def enable(self):
+    def enable(self, force=False):
+        """Refused at a danger level above safe, as ProjectMux.enable has it."""
         board = self.board
+        if self.name in board.risky and not force:
+            return False
         board.note("enable", self.name)
         board.enabled = self.name
         board.set_clock(50_000_000)
+        return True
 
 
 class Shuttle:
@@ -440,8 +444,9 @@ class Board:
     last run left them, so a chip in another thread is only touched inside run."""
 
     def __init__(self, chip, kind="dbv3", switches=0,
-                 projects=("tt_um_marcosash_protocol_emulator",)):
-        self.chip, self.kind, self.switches, self.projects = chip, kind, switches, projects
+                 projects=("tt_um_marcosash_protocol_emulator",), risky=()):
+        self.chip, self.kind, self.switches = chip, kind, switches
+        self.projects, self.risky = projects, risky
         ui, uo, uio, self.sys_hz, self.has_gpio_base = BOARDS[kind]
         self.ui, self.uo, self.uio = list(ui), list(uo), list(uio)
         self.ticks, self.before = 0, Fraction(0)
