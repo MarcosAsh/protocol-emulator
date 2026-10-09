@@ -32,14 +32,31 @@ let longest_hold = 36
    have, so every edge is the instruction after a wait. CPHA 0 puts a byte's first bit on
    MOSI before its leading edge, and its last trailing edge leaves MOSI be. The eighth
    [in] autopushes. *)
-let master ~(mode : Mode.t) ~half_period ~setup ~hold =
+let master ~(mode : Mode.t) ~half_period ~setup ~hold ~deselect =
   if setup < shortest_setup || setup > longest_setup
   then raise_s [%message "BUG: setup out of range" (setup : int)];
   if hold < shortest_hold || hold > longest_hold
   then raise_s [%message "BUG: hold out of range" (hold : int)];
+  if deselect > 248 then raise_s [%message "BUG: deselect out of range" (deselect : int)];
   let idle = Bool.to_int mode.cpol in
   let active = 1 - idle in
   let deselected = 2 lor idle in
+  (* CS high [deselect] cycles from its rise, when the 9 back to idle are short: no loop,
+     which would hide the time from the kernel's spacing, but adds of up to 31 through x *)
+  let rest_while_deselected =
+    if deselect <= 9
+    then ""
+    else (
+      let parts = (deselect + 30) / 31 in
+      let part = deselect / parts in
+      let rec small n = if n = 0 then [] else Int.min n 7 :: small (n - Int.min n 7) in
+      [ "    mov t, now"; [%string "    set x, %{part#Int}"] ]
+      @ List.init parts ~f:(fun _ -> "    add t, x")
+      @ List.map (small (deselect - (parts * part))) ~f:(sprintf "    add t, %d")
+      @ [ "    wait t" ]
+      |> List.map ~f:(fun line -> [%string "%{line} side %{deselected#Int}\n"])
+      |> String.concat)
+  in
   let first, leading, trailing, last_trailing =
     if mode.cpha
     then "nop", "out pins, 1", "in pins, 1", "in pins, 1"
@@ -83,7 +100,7 @@ deselect:
     add t, x side %{idle#Int}
     wait t side %{idle#Int}
     nop side %{deselected#Int}             ; CS rises
-    jmp idle
+%{rest_while_deselected}    jmp idle
 |}]
 ;;
 

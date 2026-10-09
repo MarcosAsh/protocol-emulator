@@ -538,7 +538,7 @@ SWD = {
     ],
 }
 
-# Spi_cs.master in mode 0, half period 8: SCK at 3 MHz on OUT5, MOSI on OUT4, MISO on IN0, CS on OUT6 4 cycles before the first edge and 8 after the last
+# Spi_cs.master in mode 0, half period 8: SCK at 3 MHz on OUT5, MOSI on OUT4, MISO on IN0, CS on OUT6 4 cycles before the first edge and 8 after the last, and high 144 cycles, 3 us, between frames
 SPI_CS_MODE0 = {
     "config": {
         "side_set_count": 2,
@@ -576,11 +576,12 @@ SPI_CS_MODE0 = {
         0xA026, 0x20C0, 0x4801, 0x28C0, 0x6001, 0x0209, 0x20C0, 0x4801,
         0x28C0, 0xE000, 0xA023, 0x041C, 0x20E0, 0xE004, 0x6048, 0x6001,
         0xA026, 0x80E6, 0xC0CA, 0x0009, 0x80E6, 0xC0C8, 0x2040, 0xF000,
-        0x0001,
+        0x90E6, 0xB03C, 0xD0C8, 0xD0C8, 0xD0C8, 0xD0C8, 0xD0C8, 0xD0C4,
+        0x3040, 0x0001,
     ],
 }
 
-# Spi_cs.master in mode 1, half period 8: SCK at 3 MHz on OUT5, MOSI on OUT4, MISO on IN0, CS on OUT6 4 cycles before the first edge and 8 after the last
+# Spi_cs.master in mode 1, half period 8: SCK at 3 MHz on OUT5, MOSI on OUT4, MISO on IN0, CS on OUT6 4 cycles before the first edge and 8 after the last, and high 144 cycles, 3 us, between frames
 SPI_CS_MODE1 = {
     "config": {
         "side_set_count": 2,
@@ -618,11 +619,12 @@ SPI_CS_MODE1 = {
         0xA026, 0x20C0, 0x6801, 0x28C0, 0x4001, 0x0209, 0x20C0, 0x6801,
         0x28C0, 0x4001, 0xA023, 0x041C, 0x20E0, 0xE004, 0x6048, 0xE000,
         0xA026, 0x80E6, 0xC0CA, 0x0009, 0x80E6, 0xC0C8, 0x2040, 0xF000,
-        0x0001,
+        0x90E6, 0xB03C, 0xD0C8, 0xD0C8, 0xD0C8, 0xD0C8, 0xD0C8, 0xD0C4,
+        0x3040, 0x0001,
     ],
 }
 
-# Spi_cs.master in mode 2, half period 8: SCK at 3 MHz on OUT5, MOSI on OUT4, MISO on IN0, CS on OUT6 4 cycles before the first edge and 8 after the last
+# Spi_cs.master in mode 2, half period 8: SCK at 3 MHz on OUT5, MOSI on OUT4, MISO on IN0, CS on OUT6 4 cycles before the first edge and 8 after the last, and high 144 cycles, 3 us, between frames
 SPI_CS_MODE2 = {
     "config": {
         "side_set_count": 2,
@@ -660,11 +662,12 @@ SPI_CS_MODE2 = {
         0xA826, 0x28C0, 0x4001, 0x20C0, 0x6801, 0x0209, 0x28C0, 0x4001,
         0x20C0, 0xE800, 0xA823, 0x041C, 0x28E0, 0xE804, 0x6848, 0x6801,
         0xA826, 0x88E6, 0xC8CA, 0x0009, 0x88E6, 0xC8C8, 0x2840, 0xF800,
-        0x0001,
+        0x98E6, 0xB83C, 0xD8C8, 0xD8C8, 0xD8C8, 0xD8C8, 0xD8C8, 0xD8C4,
+        0x3840, 0x0001,
     ],
 }
 
-# Spi_cs.master in mode 3, half period 8: SCK at 3 MHz on OUT5, MOSI on OUT4, MISO on IN0, CS on OUT6 4 cycles before the first edge and 8 after the last
+# Spi_cs.master in mode 3, half period 8: SCK at 3 MHz on OUT5, MOSI on OUT4, MISO on IN0, CS on OUT6 4 cycles before the first edge and 8 after the last, and high 144 cycles, 3 us, between frames
 SPI_CS_MODE3 = {
     "config": {
         "side_set_count": 2,
@@ -702,6 +705,7 @@ SPI_CS_MODE3 = {
         0xA826, 0x28C0, 0x6001, 0x20C0, 0x4801, 0x0209, 0x28C0, 0x6001,
         0x20C0, 0x4801, 0xA823, 0x041C, 0x28E0, 0xE804, 0x6848, 0xE800,
         0xA826, 0x88E6, 0xC8CA, 0x0009, 0x88E6, 0xC8C8, 0x2840, 0xF800,
-        0x0001,
+        0x98E6, 0xB83C, 0xD8C8, 0xD8C8, 0xD8C8, 0xD8C8, 0xD8C8, 0xD8C4,
+        0x3840, 0x0001,
     ],
 }

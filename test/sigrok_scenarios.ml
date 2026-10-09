@@ -783,7 +783,9 @@ let spi_cs mode =
   ; script =
       Scenario.load
         ~config:Spi_cs.config
-        ~program:(Firmware.assemble (Spi_cs.master ~mode ~half_period ~setup:4 ~hold:8))
+        ~program:
+          (Firmware.assemble
+             (Spi_cs.master ~mode ~half_period ~setup:4 ~hold:8 ~deselect:0))
       @ [ Scenario.start; Run 200 ]
       @ List.concat_map frames ~f:send
   ; sigrok =
