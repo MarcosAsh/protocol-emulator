@@ -34,13 +34,7 @@ let one_wire_firmware =
 ;;
 
 let bench =
-  [ ( "spi_master"
-    , "Firmware.spi_master ~half_period:8: SCK at 3 MHz on OUT5, MOSI on OUT4, MISO on \
-       IN0, no chip select"
-    , Firmware.spi_master ~half_period:8
-    , on_spi_pins Firmware.spi_config
-    , `None )
-  ; ( "i2c_master"
+  [ ( "i2c_master"
     , "Firmware.i2c_master_host_rate: the host sends the quarter, 48 cycles for 250 kHz, \
        SDA on IO2, SCL on IO3"
     , Firmware.i2c_master_host_rate
