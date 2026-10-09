@@ -588,7 +588,7 @@ let bench =
     ; what =
         [%string
           "I2c.master_host_rate: the host sends the quarter, %{bench_quarter#Int} cycles \
-           for %{Bench.rate (4 * bench_quarter)}, SDA on IO2, SCL on IO3"]
+           for %{Bench.rate (4 * bench_quarter)}, SCL on IO2, SDA on IO3"]
     ; source = master_host_rate
     ; config = on_bench_pins ~jmp_pin:Bench.sda config
     ; assumption = Floor 31
@@ -598,7 +598,7 @@ let bench =
     }
   ; { name = "i2c_master_stretch"
     ; what =
-        "I2c.master_stretch_host_rate: I2c.master waiting on SCL, SDA on IO2, SCL on IO3"
+        "I2c.master_stretch_host_rate: I2c.master waiting on SCL, SCL on IO2, SDA on IO3"
     ; source = master_stretch_host_rate
     ; config = on_bench_pins ~jmp_pin:Bench.scl stretch_config
     ; assumption = Floor 31
@@ -608,7 +608,7 @@ let bench =
     }
   ; { name = "start_hold"
     ; what =
-        "I2c.start_hold for engine 1: each START's hold in cycles, SDA on IO2, SCL on \
+        "I2c.start_hold for engine 1: each START's hold in cycles, SCL on IO2, SDA on \
          IO3, both only listened to"
     ; source = start_hold ~sda:Bench.sda ~scl:Bench.scl
     ; config = start_hold_config ~scl:Bench.scl

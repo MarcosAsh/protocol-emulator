@@ -637,12 +637,12 @@ let%expect_test "the bus clear in lockstep, SDA held low" =
     |}]
 ;;
 
-(* The bench's bus, SDA on IO2 and SCL on IO3: a START held 150 cycles, as pio/i2c holds
+(* The bench's bus, SCL on IO2 and SDA on IO3: a START held 150 cycles, as pio/i2c holds
    it at 48 MHz, a data bit whose SDA falls with SCL low, a repeated START held 212, as
    the RP2040's I2C block holds it, and a STOP. *)
 let%expect_test "the start hold stamper is accepted and reads each hold in lockstep" =
-  let sda = 14 in
-  let scl = 15 in
+  let scl = 14 in
+  let sda = 15 in
   let config = I2c.start_hold_config ~scl in
   let timed = Timed_program.of_source_exn ~config (I2c.start_hold ~sda ~scl) in
   print_s

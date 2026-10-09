@@ -5,7 +5,7 @@
 // OUT4, SCK from OUT5 and CS from OUT6, and answers on IN0: models/spiflash.v is picosoc's
 // model from YosysHQ/picorv32 at commit ef203c2, unchanged. Unless a test sets flash_wired,
 // the flash is deselected and a cocotb slave on the spi_* lines may answer instead.
-// IO2 and IO3 are an I2C bus and IO4 a 1-Wire line, each pulled up: a cocotb model pulls
+// IO2 is I2C SCL, IO3 SDA and IO4 a 1-Wire line, each pulled up: a cocotb model pulls
 // one low through its *_o, the chip by enabling the pin's output, whose value is 0. A CAN
 // bus is the AND of the transceivers' D: OUT1's, OUT2's once can_out2 joins it, and a
 // cocotb node's can_o; each R gives it back after a loop delay, into IN1 for the chip.
@@ -40,8 +40,8 @@ module tb_outside ();
   wire spi_sclk = uo_out[6];
   wire spi_cs = uo_out[7];
 
-  wire sda = sda_o & ~(uio_oe[2] & ~uio_out[2]);
-  wire scl = scl_o & ~(uio_oe[3] & ~uio_out[3]);
+  wire scl = scl_o & ~(uio_oe[2] & ~uio_out[2]);
+  wire sda = sda_o & ~(uio_oe[3] & ~uio_out[3]);
   wire dq = dq_o & ~(uio_oe[4] & ~uio_out[4]);
   // whether the chip holds the 1-Wire line low, which a device times its slots by
   wire dq_held = uio_oe[4] & ~uio_out[4];
@@ -53,7 +53,7 @@ module tb_outside ();
   tt_um_marcosash_protocol_emulator user_project (
       .ui_in  ({ui_in[7:5], can_rx, miso, ui_in[2:0]}),
       .uo_out (uo_out),
-      .uio_in ({3'b000, dq, scl, sda, 2'b00}),
+      .uio_in ({3'b000, dq, sda, scl, 2'b00}),
       .uio_out(uio_out),
       .uio_oe (uio_oe),
       .ena    (ena),
