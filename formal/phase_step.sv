@@ -393,10 +393,13 @@ module phase_step (input clk);
 
   // The teeth that drop half the single-edge assumption keep only the claims at entries. The
   // invariants between entries are there for induction and lean on the assumption too, so
-  // they would fail first whether or not the claims need it.
+  // they would fail first whether or not the claims need it. So does the tooth whose core
+  // stamps the capture a cycle early (capture_early.awk), and the ghost's tie to it.
 `ifdef SECOND_EDGE
 `define ENTRIES_ONLY
 `elsif LEVEL_AT_ARM
+`define ENTRIES_ONLY
+`elsif CAPTURE_STAMPED_EARLY
 `define ENTRIES_ONLY
 `endif
 
@@ -450,8 +453,10 @@ module phase_step (input clk);
     if (clear || start || started) capture_age <= SATURATED;
     else if (captured_now) capture_age <= 1;
     else if (capture_young) capture_age <= capture_age + 1;
+`ifndef ENTRIES_ONLY
   always @(posedge clk)
     if (!clear && capture_young) assert(capture_age[T-1:0] == now - capture);
+`endif
   wire capture_after_arm = capture_young ? !young || capture_age < arm_age : !young;
   always @(posedge clk)
     if (clear || start || started) arm_age <= SATURATED;

@@ -224,13 +224,16 @@ osr_step.v: ../src/*.ml
 data_step: engine.v osr_step.v
 	sby -f data_step.sby prove cover
 
-# weakened statements, which pass only by failing
+# weakened statements, which pass only by failing, and phase_step's core with its capture
+# stamped a cycle early
 teeth: engine.v engine_sram.v engines.v kernel_step.v osr_step.v
 	sby -f issue_timing.sby jump_in_one delay_ignores_side_set waits_are_plain
 	sby -f fifo_order.sby stale_ahead
+	mkdir -p phase_step_teeth
+	awk -f capture_early.awk engine.v engine.v > phase_step_teeth/capture_early.v
 	sby -f phase_step.sby jump_in_one late_wait_waits no_carry one_late_cycle_is_safe taken_backwards \
 	  second_edge level_at_arm later_edge_captured capture_a_cycle_older capture_a_cycle_younger \
-	  arm_one_short edge_one_short
+	  capture_stamped_early arm_one_short edge_one_short
 	sby -f edge_step.sby pins_never_change side_set_only one_cycle_later flip_off_issue no_flip
 	sby -f event_step.sby late level_only wires_plain jump_late held_moves
 	sby -f frame_step.sby narrow_side narrow_set narrow_out narrow_mov no_pair side_dirs_on_out \
