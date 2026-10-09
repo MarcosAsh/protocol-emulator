@@ -503,6 +503,41 @@ def check_mutation(doc, text):
                                                 f"{score[1]}, the docs say {quoted[0]} of {quoted[1]}")
 
 
+def check_board(doc, text):
+    """A demo the docs say passed on a date passed that day in a hashed ledger a release
+    pinned in test/evidence.sha256 keeps, with the edges and baud the docs give it."""
+    for unit in units(text):
+        for m in re.finditer(r"passed (?:the ([\w-]+) demo )?on (\d{4}-\d\d-\d\d)", unit):
+            scripts = re.findall(r"`(python/\w+\.py)`", unit[:m.start()].rsplit(". ", 1)[-1])
+            demo = m[1].replace("-", "_") if m[1] else scripts[-1] if scripts else None
+            if demo is None:
+                yield (unit, m[0]), f"{m[0]!r} names no demo or python/ script before it"
+                continue
+            found = evidence.passes(demo)
+            entry = next((e for e in found if e["time"][:10] == m[2]), None)
+            if entry is None:
+                newest = found and found[0]
+                fresh = (f"the newest is {newest['time'].replace('T', ' ')} in release "
+                         f"{newest['release']}, {newest['path']}, bitstream sha256 "
+                         f"{newest['bitstream_sha256'][:16]}" if newest
+                         else "no pinned ledger has it passing")
+                yield (unit, m[2]), f"no hashed board evidence shows {demo} passing on {m[2]}, {fresh}"
+                continue
+            after = unit[m.end():]
+            for n in numbers(r"all (\d+) edges", after):
+                logged = evidence.edges(entry)
+                if not logged or any(edges != n or not ok for _, edges, ok in logged):
+                    said = ", ".join(f"{edges} {label}{'' if ok else ' (not all on time)'}"
+                                     for label, edges, ok in logged)
+                    yield ((unit, f"all {n} edges"),
+                           f"{demo} on {m[2]} logged {said or 'no edges'}, the docs say all {n}")
+            bauds = re.findall(r"baudrate=(\d+)", (entry["dir"] / "run.txt").read_text())
+            for n in numbers(r"at (\d+) baud", after):
+                if str(n) not in bauds:
+                    yield ((unit, f"{n} baud"), f"{demo} on {m[2]} decoded at "
+                           f"{', '.join(bauds) or 'no'} baud, the docs say {n}")
+
+
 def check_counts(doc, text):
     """Counts the code and the tests hold, wherever the docs quote them."""
     text = flat(text)
@@ -586,7 +621,7 @@ def check_glance(doc, text):
         "Hardened": hardened,
         "Firmware": [len(library_firmwares())],
         "Proved": [],
-        "Board": None,  # the bench, which no file in the repo records
+        "Board": None,  # check_board holds it to the hashed ledger
     }
     for label in table.keys() - expected.keys():
         yield f"| {label} |", f"the table's {label} row has no check, add one to test/check_docs.py"
@@ -605,7 +640,7 @@ def check_glance(doc, text):
 
 CHECKS = [check_paths, check_make, check_jobs, check_commits, check_counts, check_transcripts,
           check_glance]
-ONLINE_CHECKS = [check_runs, check_gds, check_mutation]
+ONLINE_CHECKS = [check_runs, check_gds, check_mutation, check_board]
 
 
 def failures(docs):
