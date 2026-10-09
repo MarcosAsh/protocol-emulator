@@ -46,7 +46,6 @@ module Make (Config : Config) = struct
   module Data_memory = Data_memory.Make (Config)
 
   let any (outs : Signal.t Engine.O.t list) ~f = List.map outs ~f |> reduce ~f:( |: )
-  let faulted (e : Signal.t Engine.O.t) = Engine.Fault.to_list e.fault |> reduce ~f:( |: )
 
   (* what an engine drives: nothing once it has faulted, as at reset, until the clear *)
   let driving (e : Signal.t Engine.O.t) ~faulted =
@@ -149,7 +148,7 @@ module Make (Config : Config) = struct
       ; data_word = pick data.words
       }
     |> Load_checker.O.Of_signal.assign checker;
-    let%hw_list faulted = List.map outs ~f:faulted in
+    let%hw_list faulted = List.map outs ~f:(fun e -> e.faulted) in
     let drives = List.map2_exn outs faulted ~f:(fun e faulted -> driving e ~faulted) in
     List.iteri
       (List.zip_exn (List.zip_exn i.hosts outs) data.words)

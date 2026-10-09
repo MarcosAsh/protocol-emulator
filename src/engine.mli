@@ -141,6 +141,7 @@ module Make (_ : Timer) : sig
           serve no fetch. *)
       ; irq : 'a
       ; fault : 'a Fault.t
+      ; faulted : 'a (** Any of [fault], as one flop. *)
       ; capture : 'a
       ; capture_armed : 'a
       ; tx_level : 'a
