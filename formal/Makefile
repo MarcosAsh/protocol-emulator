@@ -543,6 +543,26 @@ netlist_equiv_teeth:
 	$(MAKE) netlist_equiv NETLIST=netlist_equiv_teeth/unreset.v EQUIV=netlist_equiv_unreset EXPECT=0
 	grep -E 'CEX: .* Frame = +[1-9]' netlist_equiv_unreset/proof.log
 
+# the hardened netlist from any state, rst_n low at the first edge, equals the RTL from
+# any state after it (netlist_equiv/anystate.awk), and the host port's recoded state
+# machine its written one; run after netlist_equiv, in its directory. About 5 min.
+ANY_EXPECT = 1
+ANY_AIG = setundef -init -zero; aigmap; opt_clean -purge
+ANY_PROOF = read_aiger anystate.aig; print_stats; scorr -C 10000; print_stats; dprove; print_status
+netlist_anystate:
+	cd $(EQUIV) && yosys -q -l anystate.log ../netlist_equiv/anystate.ys
+	cd $(EQUIV) && awk -v reset=in_rst_n -v fifos=1 -f ../netlist_equiv/anystate.awk \
+	  anystate_pre.il anystate_pre.il > anystate.il
+	cd $(EQUIV) && awk -v reset=in_clear -v high=1 -f ../netlist_equiv/anystate.awk \
+	  fsm_step_pre.il fsm_step_pre.il > fsm_anystate.il
+	cd $(EQUIV) && yosys -q -p 'read_rtlil fsm_anystate.il; $(ANY_AIG); write_aiger fsm_anystate.aig'
+	cd $(EQUIV) && yosys -q -p 'read_rtlil anystate.il; $(ANY_AIG); write_aiger anystate.aig'
+	cd $(EQUIV) && timeout 600 yosys-abc \
+	  -c 'read_aiger fsm_anystate.aig; print_stats; pdr; print_status' > fsm_anystate.log
+	grep 'Status = 1 ' $(EQUIV)/fsm_anystate.log
+	cd $(EQUIV) && timeout 1800 yosys-abc -c '$(ANY_PROOF)' > anystate.proof.log
+	grep 'Status = $(ANY_EXPECT) ' $(EQUIV)/anystate.proof.log
+
 # one clock, and every other pin through one two-flop synchroniser (sync/check.tcl), on
 # the RTL and on the hardened netlist; about 3 min:
 #   make sync_rtl sync_gate NETLIST=../runs/wokwi/final/nl/tt_um_marcosash_protocol_emulator.nl.v
@@ -713,7 +733,8 @@ witness_reject:
   fail_safe_teeth fail_safe_table fail_safe_table_proof data_step teeth \
   inductive_certificate inductive_proof inductive_certificates inductive_names \
   stamped_certificate stamped_proof data_certificate data_proof data_certificates data_names \
-  netlist_equiv netlist_equiv_teeth sync_rtl sync_gate sync_rtl_teeth sync_gate_teeth \
+  netlist_equiv netlist_equiv_teeth netlist_anystate \
+  sync_rtl sync_gate sync_rtl_teeth sync_gate_teeth \
   fsm_miter fsm_miter_proof sram_equiv sram_equiv_proof \
   sram_equiv_step sram_equiv_teeth kernel_equiv kernel_equiv_proof kernel_miter sat_tools \
   narrow narrow_proof saturating saturating_proof saturating_chip self_check self_check_proof \
