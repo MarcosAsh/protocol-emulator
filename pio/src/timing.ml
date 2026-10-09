@@ -696,7 +696,11 @@ type context =
   ; sync : int (** Cycles before our own edge reaches our inputs. *)
   }
 
-let cap value = Option.bind value ~f:(fun value -> Option.some_if (value <= 255) value)
+(* Under js_of_ocaml an int is 32 bits, so a value with bit 31 set is negative there. *)
+let cap value =
+  Option.bind value ~f:(fun value -> Option.some_if (0 <= value && value <= 255) value)
+;;
+
 let mask32 = 0xFFFF_FFFF
 
 let reverse32 value =
