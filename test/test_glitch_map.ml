@@ -52,15 +52,15 @@ let%expect_test "the receiver's samples, from the start bit" =
       (at kernel.at));
   [%expect
     {|
-    pc 10 pass 0  rows 24   kernel 23..24
-    pc 10 pass 1  rows 40   kernel 39..40
-    pc 10 pass 2  rows 56   kernel 55..56
-    pc 10 pass 3  rows 72   kernel 71..72
-    pc 10 pass 4  rows 88   kernel 87..88
-    pc 10 pass 5  rows 104  kernel 103..104
-    pc 10 pass 6  rows 120  kernel 119..120
-    pc 10 pass 7  rows 136  kernel 135..136
-    pc 16 pass 0  rows 150  kernel 149..150
+    pc 10 pass 0  rows 24   kernel 24
+    pc 10 pass 1  rows 40   kernel 40
+    pc 10 pass 2  rows 56   kernel 56
+    pc 10 pass 3  rows 72   kernel 72
+    pc 10 pass 4  rows 88   kernel 88
+    pc 10 pass 5  rows 104  kernel 104
+    pc 10 pass 6  rows 120  kernel 120
+    pc 10 pass 7  rows 136  kernel 136
+    pc 16 pass 0  rows 150  kernel 150
     |}]
 ;;
 
@@ -138,13 +138,13 @@ let%expect_test "the sweep" =
     k 151-152  rows ff                model ff                rtl ff
     k 153-191  rows ff ff             model ff ff             rtl ff ff
     (("List.length seen" 175) (differ 0))
-    bit 0  kernel 23..24   seen at 24
-    bit 1  kernel 39..40   seen at 40
-    bit 2  kernel 55..56   seen at 56
-    bit 3  kernel 71..72   seen at 72
-    bit 4  kernel 87..88   seen at 88
-    bit 5  kernel 103..104 seen at 104
-    bit 6  kernel 119..120 seen at 120
-    bit 7  kernel 135..136 seen at 136
+    bit 0  kernel 24       seen at 24
+    bit 1  kernel 40       seen at 40
+    bit 2  kernel 56       seen at 56
+    bit 3  kernel 72       seen at 72
+    bit 4  kernel 88       seen at 88
+    bit 5  kernel 104      seen at 104
+    bit 6  kernel 120      seen at 120
+    bit 7  kernel 136      seen at 136
     |}]
 ;;

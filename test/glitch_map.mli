@@ -37,8 +37,8 @@ module Sample : sig
   [@@deriving sexp_of]
 end
 
-(** Where the capture may be against the edge it releases on: the analyser's rows say the
-    same cycle; the kernel's step lets it be a cycle older too. *)
+(** Where the capture may be against the edge it releases on, by the analyser's rows or by
+    the kernel's own step on [mov t, capture]. *)
 module Capture_age : sig
   type t =
     | Rows
