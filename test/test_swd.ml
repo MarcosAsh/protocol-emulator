@@ -459,7 +459,7 @@ let%expect_test "the shortest half period" =
   [%expect {| (("check shortest_half" true) ("check (shortest_half - 1)" false)) |}]
 ;;
 
-(* swd joins [Certified.all] once its certificate is inductive: t is stale at a host
+(* swd joins [Library.certified] once its certificate is inductive: t is stale at a host
    wait. *)
 let%expect_test "the kernel accepts swd at its half period" =
   let program = Asm.assemble (Timed_program.source firmware) |> ok_exn in

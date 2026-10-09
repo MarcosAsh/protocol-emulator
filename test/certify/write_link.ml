@@ -22,12 +22,11 @@ module Chip = Engines.Make (struct
 module Sim = Cyclesim.With_interface (Chip.I) (Chip.O)
 
 let transmitter =
-  ( Firmware.uart_tx ~period
-  , { Program_config.default with set_base = wire; out_base = wire } )
+  Uart.tx ~period, { Program_config.default with set_base = wire; out_base = wire }
 ;;
 
 let receiver ~period =
-  ( Firmware.uart_rx_on ~pin:wire ~period
+  ( Uart.rx_on ~pin:wire ~period
   , { Program_config.default with
       in_base = wire
     ; jmp_pin = wire

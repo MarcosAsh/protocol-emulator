@@ -15,10 +15,9 @@ let writes_pins (t : Isa.t) =
   | _ -> false
 ;;
 
-(* The departure time in a stamped frame, for a transmitter shaped like
-   [Firmware.uart_tx_stamped]: [mov y, now] starts the stamp, a [set pins, 0] sends the
-   start bit, [mov osr, y] loads the stamp and [wait t+; out pins, 1; jmp x--] sends it
-   LSB first. The claims:
+(* The departure time in a stamped frame, for a transmitter shaped like [Uart.tx_stamped]:
+   [mov y, now] starts the stamp, a [set pins, 0] sends the start bit, [mov osr, y] loads
+   the stamp and [wait t+; out pins, 1; jmp x--] sends it LSB first. The claims:
 
    - in the first cycle the start bit shows, the line was high the cycle before and [y]
      holds the low 16 bits of [now];
@@ -1155,7 +1154,7 @@ let () =
     if not (flag "-inductive")
     then raise_s [%message "write_certificate.exe: pass -inductive or -fsm"];
     let { Certified.source; config; period; single_capture_edge; no_wrap; _ } =
-      Certified.find_exn (Array.last_exn args)
+      Library.find_certified_exn (Array.last_exn args)
     in
     print_string
       (inductive

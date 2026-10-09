@@ -39,7 +39,7 @@ let%expect_test "the host loads and runs the uart transmitter over spi" =
        Engine.Config.to_list (Engine.Config.map config ~f:Bits.to_unsigned_int)
        |> List.iter2_exn Reg.configs ~f:(fun reg v -> Spi_master.write m ~watch reg [ v ]);
        Spi_master.write m ~watch Reg.program_addr [ 0 ];
-       Spi_master.write m ~watch Reg.program (assemble (uart_tx ~period));
+       Spi_master.write m ~watch Reg.program (assemble (Uart.tx ~period));
        Spi_master.write m ~watch Reg.tx [ 0x55; 0xa3 ];
        Spi_master.write m ~watch Reg.control [ 1 ];
        tx_levels := [];
@@ -97,13 +97,14 @@ let%expect_test "two engines talk over a wire and the host reads the result" =
        in
        load
          1
-         ~config:{ rx_config with in_base = wire; jmp_pin = wire; capture_pin = wire }
-         ~program:(uart_rx_on ~pin:wire ~period);
+         ~config:
+           { Uart.rx_config with in_base = wire; jmp_pin = wire; capture_pin = wire }
+         ~program:(Uart.rx_on ~pin:wire ~period);
        Spi_master.write m ~watch Reg.control [ 1 ];
        load
          0
          ~config:{ Program_config.default with set_base = wire; out_base = wire }
-         ~program:(uart_tx ~period);
+         ~program:(Uart.tx ~period);
        Spi_master.write m ~watch Reg.tx [ 0x55; 0xa3 ];
        Spi_master.write m ~watch Reg.control [ 1 ];
        watch 400;

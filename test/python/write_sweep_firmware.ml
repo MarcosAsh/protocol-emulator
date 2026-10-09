@@ -265,7 +265,7 @@ let edge (predicted, lo, hi) =
 ;;
 
 let print_swept { Swept.name; watch; on_wire; period; bursts } =
-  let (c : Certified.t) = Certified.find_exn name in
+  let (c : Certified.t) = Library.find_certified_exn name in
   let timed =
     Timed_program.of_source_exn
       ?period
@@ -329,7 +329,7 @@ let print_swept { Swept.name; watch; on_wire; period; bursts } =
 let () =
   let names = List.map Swept.all ~f:(fun s -> s.name) @ List.map Swept.not_swept ~f:fst in
   List.iter
-    (Certified.stamped :: (Certified.all @ Certified.time_triggered))
+    (Library.stamped :: (Library.certified @ Library.time_triggered))
     ~f:(fun { name; _ } ->
       if not (List.mem names name ~equal:String.equal)
       then raise_s [%message "neither swept nor said why not" name]);

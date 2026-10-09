@@ -17,7 +17,7 @@ module Variant : sig
     }
 end
 
-(** [Certified.all] less the receivers. *)
+(** [Library.certified] less the receivers. *)
 val firmware : Certified.t list
 
 val variants : Certified.t -> Variant.t list

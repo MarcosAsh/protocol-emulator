@@ -66,3 +66,5 @@ module Device : sig
   val measured : t -> Measured.t
   val violations : t -> string list
 end
+
+val protocol : Protocol.t

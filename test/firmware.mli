@@ -2,89 +2,6 @@ open! Core
 open Protocol_emulator
 
 val assemble : string -> int list
-val uart_tx : period:int -> string
-val uart_tx16 : Timed_program.t
-val uart_tx_host_rate : string
-
-(** [uart_tx] with no wait on the host: frames back to back from one anchor, a byte a
-    frame by autopull in the low half of each host word. The host has to keep up; a byte
-    that is late sets the underflow fault and the line sends what [osr] holds instead. *)
-val uart_tx_stream : period:int -> string
-
-val stream_config : Program_config.t
-
-(** Each host word goes out as a 26-bit frame: start bit, the low byte, the low 16 bits of
-    [now] in the cycle the start bit first shows on the pin, stop bit, all LSB first. *)
-val uart_tx_stamped : period:int -> string
-
-val uart_rx : period:int -> string
-
-(** [uart_rx] on another line, which the configuration has to name as well: [in_base],
-    [jmp_pin] and [capture_pin]. *)
-val uart_rx_on : pin:int -> period:int -> string
-
-val rx_config : Program_config.t
-val spi_master : half_period:int -> string
-val sck_pin : int
-val mosi_pin : int
-val miso_pin : int
-val spi_config : Program_config.t
-
-(** [spi_master] with no wait on the host: SCK runs from one anchor for ever, bytes back
-    to back, each sent from the high half of a host word by autopull and each received
-    byte pushed by autopush. A byte that is late sets the underflow fault, a reply the
-    host has not read in time the overflow fault. *)
-val spi_master_stream : half_period:int -> string
-
-val spi_stream_config : Program_config.t
-
-(** Mode 0 slave without chip select. Replies are host words [byte lsl 8]; sck half
-    periods of four cycles or more. *)
-val spi_slave : Timed_program.t
-
-val slave_sck_pin : int
-val slave_mosi_pin : int
-val slave_miso_pin : int
-val spi_slave_config : Program_config.t
-val sda : int
-val scl : int
-
-(** Master with SCL a quarter period [quarter] cycles. It first clears the bus (UM10204
-    3.1.16): up to nine SCL pulses while SDA reads low, then a START and a STOP. *)
-val i2c_master : quarter:int -> string
-
-(** The master without the bus clear, as the bench's marked copy runs it. *)
-val i2c_master_without_bus_clear : quarter:int -> string
-
-(** [i2c_master] with the quarter period from the host, as its first word: a bus slower
-    than a quarter of 31 cycles, which is as long as [set] makes one. *)
-val i2c_master_host_rate : string
-
-val i2c_config : Program_config.t
-
-(** [i2c_master] under [i2c_stretch_config], each SCL high timed from the poll that sees
-    it, 0 to 3 cycles after the input. SCL low after 65536 polls, or at an idle bus, lets
-    both lines go and answers 0xffff up to a START word. The bus clear ignores SCL. *)
-val i2c_master_stretch : quarter:int -> string
-
-(** [i2c_master_stretch] with the quarter from the host, as [i2c_master_host_rate]. *)
-val i2c_master_stretch_host_rate : string
-
-(** [i2c_config] with SCL the jump pin, and [mov pins] reading SDA alone. *)
-val i2c_stretch_config : Program_config.t
-
-(** Slave. The host sends [address lsl 1] first, then reads every byte the master writes
-    to that address and supplies every byte it reads. *)
-val i2c_slave : Timed_program.t
-
-val i2c_slave_config : Program_config.t
-
-(** Reads bytes from the slave at 0x50 and logs each one over UART on [logger_uart_pin], a
-    quarter period of 8 and a bit period of 16. *)
-val i2c_logger : Timed_program.t
-
-val logger_uart_pin : int
-val i2c_logger_config : Program_config.t
 
 (** Low speed USB packets with the core's CRC and stuff counter. Host words: the bit
     period once, then per packet SYNC, PID, data bytes less one, the data. *)
@@ -121,7 +38,6 @@ val edge_logger_config : pin:int -> Program_config.t
 val start_hold : sda:int -> scl:int -> string
 
 val start_hold_config : scl:int -> Program_config.t
-val i2c_word : ?start:bool -> ?read:bool -> ?stop:bool -> int -> int
 
 (** USB low speed device for [address], endpoints 0 and 1. The host sends the bit period
     first. A token that is not ours is ignored together with the data that follows it.

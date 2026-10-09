@@ -202,7 +202,7 @@ let sends (c : Certified.t) =
 
 let%expect_test "what each out sends, in the firmware library" =
   List.iter
-    ((Certified.stamped :: Certified.all) @ Certified.time_triggered)
+    ((Library.stamped :: Library.certified) @ Library.time_triggered)
     ~f:(fun (c : Certified.t) ->
       let _, config, words, kernel, table = rows c in
       let verdict = Osr_kernel.check ~config ~words ~kernel table in
@@ -247,7 +247,7 @@ let%expect_test "what each out sends, in the firmware library" =
 (* A row that leaves out the last count the loop reaches is refused: uart_tx's, with the
    count at its out one short of 7, which the wait before it steps past. *)
 let%expect_test "the check refuses a row one short" =
-  let c = Certified.find_exn "uart_tx" in
+  let c = Library.find_certified_exn "uart_tx" in
   let _, config, words, kernel, table = rows c in
   let out = 9 in
   table.(out) <- { (table.(out)) with shifted_hi = Bits.(table.(out).shifted_hi -:. 1) };

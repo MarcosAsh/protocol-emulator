@@ -22,15 +22,24 @@ type t =
   ; no_wrap : bool
   }
 
-val all : t list
+val plain
+  :  ?period:int
+  -> ?period_floor:int
+  -> ?single_capture_edge:bool
+  -> ?no_wrap:bool
+  -> string
+  -> string
+  -> Program_config.t
+  -> t
 
-(** [Firmware.uart_tx_stamped], whose proof adds that the stamp in each frame is the cycle
-    its start bit shows. Kept out of [all] until the kernel's tests take it in. *)
-val stamped : t
+(** [plain] with one edge before the capture and no wrap, as a receiver needs. *)
+val receiver
+  :  ?period:int
+  -> ?period_floor:int
+  -> string
+  -> string
+  -> Program_config.t
+  -> t
 
-(** Firmware that never waits on the host, so a late word can fault it but not move an
-    edge ([formal/late_host.sv]); [Feeding.schedule] gives the host its deadlines. *)
-val time_triggered : t list
-
-(** Searches [all], [stamped] and [time_triggered]. *)
-val find_exn : string -> t
+(** The library's firmware no protocol file holds yet ([Library]). *)
+val others : t list

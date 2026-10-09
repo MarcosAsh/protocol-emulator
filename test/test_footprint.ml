@@ -177,7 +177,7 @@ let%expect_test "the frame lemma counts each word as the writer Writes counts it
       ~message:(sprintf "word 0x%04x" word)
       ~expect:(fields (of_program [ instruction ]))
       (fields (frame_step_writes word)));
-  List.iter Certified.all ~f:(fun t ->
+  List.iter Library.certified ~f:(fun t ->
     let _, program = firmware t in
     let writes = of_program program.instructions in
     List.iter
@@ -202,7 +202,7 @@ let%expect_test "the footprint of each firmware, and of its config under any pro
     "pin_dir"
     "any: pin_out"
     "pin_dir";
-  List.iter Certified.all ~f:(fun t ->
+  List.iter Library.certified ~f:(fun t ->
     let config, _ = firmware t in
     let mine = footprint t in
     let any = Footprint.of_config config in
@@ -246,7 +246,7 @@ let%expect_test "each firmware stays inside its footprint" =
   let random = Random.State.make [| 7 |] in
   let cycles = 4000 in
   printf "%-18s %-12s %s\n" "firmware" "moved out" "moved dir";
-  List.iter Certified.all ~f:(fun t ->
+  List.iter Library.certified ~f:(fun t ->
     let config, program = firmware t in
     let footprint = footprint t in
     let mask pins = List.fold pins ~init:0 ~f:(fun mask pin -> mask lor (1 lsl pin)) in
@@ -334,8 +334,8 @@ let%expect_test "which pairs of firmware write disjoint pins" =
     ~f:(fun (a, b) ->
       let shared =
         Footprint.shared
-          (footprint (Certified.find_exn a))
-          (footprint (Certified.find_exn b))
+          (footprint (Library.find_certified_exn a))
+          (footprint (Library.find_certified_exn b))
       in
       printf
         "%-24s %s\n"

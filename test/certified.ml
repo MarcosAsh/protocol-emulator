@@ -25,29 +25,8 @@ let plain
 
 let receiver = plain ~single_capture_edge:true ~no_wrap:true
 
-let all =
-  [ plain "uart_tx" (Firmware.uart_tx ~period:8) Program_config.default
-    (* the same UART at the slower bit period the tests use *)
-  ; plain "uart_tx16" (Timed_program.source Firmware.uart_tx16) Program_config.default
-  ; plain
-      ~period:434
-      ~period_floor:4
-      ~no_wrap:true
-      "uart_tx_host_rate"
-      Firmware.uart_tx_host_rate
-      Program_config.default
-  ; receiver "uart_rx" (Firmware.uart_rx ~period:16) Firmware.rx_config
-  ; plain "spi_master" (Firmware.spi_master ~half_period:8) Firmware.spi_config
-  ; plain "spi_slave" (Timed_program.source Firmware.spi_slave) Firmware.spi_slave_config
-    (* the smallest Fast-mode Plus quarter at 50 MHz (test_i2c.ml): assumes zero rise
-       time, with tHD;STA, tSU;STA and tSU;STO exactly at their limits *)
-  ; plain ~no_wrap:true "i2c_master" (Firmware.i2c_master ~quarter:13) Firmware.i2c_config
-  ; plain "i2c_slave" (Timed_program.source Firmware.i2c_slave) Firmware.i2c_slave_config
-  ; plain
-      "i2c_logger"
-      (Timed_program.source Firmware.i2c_logger)
-      Firmware.i2c_logger_config
-  ; plain ~period:32 "usb_tx" (Timed_program.source Firmware.usb_tx) Firmware.usb_config
+let others =
+  [ plain ~period:32 "usb_tx" (Timed_program.source Firmware.usb_tx) Firmware.usb_config
   ; receiver ~period:32 "usb_rx" (Firmware.usb_rx ~half_period:16) Firmware.usb_rx_config
   ; receiver
       ~period:32
@@ -98,25 +77,4 @@ let all =
       Cec.firmware
       Cec.config
   ]
-;;
-
-let time_triggered =
-  [ plain "uart_tx_stream" (Firmware.uart_tx_stream ~period:8) Firmware.stream_config
-  ; plain
-      "spi_master_stream"
-      (Firmware.spi_master_stream ~half_period:8)
-      Firmware.spi_stream_config
-  ]
-;;
-
-let stamped =
-  plain "uart_tx_stamped" (Firmware.uart_tx_stamped ~period:8) Program_config.default
-;;
-
-let find_exn name =
-  match
-    List.find ((stamped :: all) @ time_triggered) ~f:(fun t -> String.equal t.name name)
-  with
-  | Some t -> t
-  | None -> raise_s [%message "no such firmware" (name : string)]
 ;;

@@ -3,7 +3,7 @@ open Protocol_emulator
 
 let fails (bench : Bench.t) =
   let verdicts =
-    Datasheet.check bench
+    Datasheet.check Library.limits bench
     |> List.filter ~f:(fun (_, (v : Datasheet.Verdict.t)) -> not v.ok)
   in
   print_endline (Datasheet.to_string bench verdicts)
@@ -11,8 +11,8 @@ let fails (bench : Bench.t) =
 
 (* Each kernel bound is the most cycles the kernel accepts, so one more is refused. *)
 let%expect_test "the bench firmware against its datasheet limits" =
-  List.iter (Bench.all @ [ Bench.uart_log ]) ~f:(fun bench ->
-    match Datasheet.check bench with
+  List.iter (Library.bench @ [ Uart.log ]) ~f:(fun bench ->
+    match Datasheet.check Library.limits bench with
     | [] -> ()
     | verdicts -> print_endline (Datasheet.to_string bench verdicts));
   [%expect
@@ -89,11 +89,11 @@ let%expect_test "the bench firmware against its datasheet limits" =
 
 let%expect_test "every bench firmware has its limits, or a reason it has none" =
   let names =
-    List.map (Bench.uart_log :: Bench.all) ~f:(fun bench -> bench.name)
+    List.map (Uart.log :: Library.bench) ~f:(fun bench -> bench.name)
     |> String.Set.of_list
   in
-  let limited = List.map Datasheet.all ~f:(fun t -> t.firmware) |> String.Set.of_list in
-  let exempt = List.map Datasheet.exempt ~f:fst |> String.Set.of_list in
+  let limited = List.map Library.limits ~f:(fun t -> t.firmware) |> String.Set.of_list in
+  let exempt = List.map Library.exempt ~f:fst |> String.Set.of_list in
   print_s
     [%message
       ""
@@ -102,14 +102,16 @@ let%expect_test "every bench firmware has its limits, or a reason it has none" =
         ~both:(Set.inter limited exempt : String.Set.t)];
   [%expect {| ((missing ()) (unknown ()) (both ())) |}];
   (* the tooth: a new demo's firmware with no limits does not build *)
-  let unlimited = { (Bench.find_exn "sk6812") with name = "new_demo" } in
+  let unlimited = { (Library.find_bench_exn "sk6812") with name = "new_demo" } in
   print_s
     [%sexp
-      (Or_error.try_with (fun () -> Datasheet.check_exn unlimited) : unit Or_error.t)];
+      (Or_error.try_with (fun () ->
+         Datasheet.check_exn Library.limits ~exempt:Library.exempt unlimited)
+       : unit Or_error.t)];
   [%expect {| (Error ("no datasheet limits, and no reason why" new_demo)) |}]
 ;;
 
-let before name ~source = { (Bench.find_exn name) with source }
+let before name ~source = { (Library.find_bench_exn name) with source }
 
 let undo (bench : Bench.t) ~fix ~was =
   let source = bench.source in
@@ -125,7 +127,7 @@ let%expect_test "the firmware before each fix fails" =
     ~f:fails
     [ before "sk6812" ~source:(Ws2812.firmware ~third:16 ~tail:7)
     ; undo
-        (Bench.find_exn "one_wire")
+        (Library.find_bench_exn "one_wire")
         ~fix:"    set y, 7\nhold:"
         ~was:"    set y, 6\nhold:"
     ; before "can" ~source:(Timed_program.source Can.firmware)
@@ -141,7 +143,7 @@ let%expect_test "the firmware before each fix fails" =
              ~deselect:0)
     ; List.fold
         [ "                ; a quarter, for an SCL let go after the last poll\n"; "\n" ]
-        ~init:(Bench.find_exn "i2c_master_stretch")
+        ~init:(Library.find_bench_exn "i2c_master_stretch")
         ~f:(fun bench comment ->
           undo
             bench
@@ -165,8 +167,8 @@ let%expect_test "the firmware before each fix fails" =
 (* The tooth: 434 cycles, the bit at 115200 baud from the chip's rated 50 MHz, is outside
    a receiver's 2% at the 48 MHz the firmware runs at, as the label from the clock says. *)
 let%expect_test "a rate comes from the clock it runs at" =
-  let fifty_mhz = { Bench.uart_log with load = Some (50_000_000 / 115_200) } in
-  print_endline (Datasheet.to_string fifty_mhz (Datasheet.check fifty_mhz));
+  let fifty_mhz = { Uart.log with load = Some (50_000_000 / 115_200) } in
+  print_endline (Datasheet.to_string fifty_mhz (Datasheet.check Library.limits fifty_mhz));
   print_endline (Bench.rate ~unit:"baud" 434);
   [%expect {|
     uart_log           bit            >=  8506.94 ns  kernel 434 (9041.7 ns)   needs  410       UART at 115200 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
@@ -184,7 +186,7 @@ let%expect_test "the bench's clock is the boards'" =
   print_s
     [%message
       ""
-        ~bench:(Bench.uart_log.clock_hz : int)
+        ~bench:(Uart.log.clock_hz : int)
         ~demo_board:(find "../python/demo_board.py" {|clock_hz=([0-9_]+)|} : int)
         ~icepi:(find "../icepi/Makefile" {|MHZ \?= ([0-9]+)|} * 1_000_000 : int)];
   [%expect {| ((bench 48000000) (demo_board 48000000) (icepi 48000000)) |}]

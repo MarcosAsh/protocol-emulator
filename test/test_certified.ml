@@ -5,7 +5,7 @@ open Protocol_emulator
    by [make -C formal certificates] and [make -C formal inductive_certificates]. *)
 let%expect_test "the firmware library and its certificates" =
   printf "%-18s %5s  %8s  %5s  %s\n" "firmware" "words" "deadline" "slack" "assumes";
-  List.iter Certified.all ~f:(fun t ->
+  List.iter Library.certified ~f:(fun t ->
     let program = Asm.assemble t.source |> ok_exn in
     let verdict =
       Analyser.check
@@ -70,7 +70,7 @@ module G = Hardcaml_verify.Comb_gates
    floor less one the kernel refuses its table. With phase_step.sv, whose load is free at
    each entry, no deadline is missed however the loads from the floor up vary. *)
 let%expect_test "the least period the host may load" =
-  List.iter Certified.all ~f:(fun t ->
+  List.iter Library.certified ~f:(fun t ->
     Option.iter t.period_floor ~f:(fun floor ->
       let program = Asm.assemble t.source |> ok_exn in
       let config = Asm.Program.configure program t.config in
@@ -154,7 +154,7 @@ let%expect_test "formal/Makefile proves every certificate in the library" =
     |> String.Set.of_list
   in
   let library =
-    List.map (Certified.all @ Certified.time_triggered) ~f:(fun t -> t.name)
+    List.map (Library.certified @ Library.time_triggered) ~f:(fun t -> t.name)
     |> String.Set.of_list
   in
   print_s
