@@ -340,3 +340,19 @@ let%expect_test "a phase or an arm count at the timer's ends" =
     ((arm (5 8388608)) (row (0 16777215)))
     |}]
 ;;
+
+(* The analyser's rows bound no pin, so only [Kernel.Table.with_edges]'s keep a spacing. *)
+let%expect_test "a table with no edge bounds keeps no spacing" =
+  let config, words, table = table (Certified.find_exn "uart_tx") in
+  print_s
+    [%message
+      "" ~_:(Kernel.check ~spacing:uart_bits ~config ~words table : unit Or_error.t)];
+  [%expect
+    {|
+    (Error
+     ("rows the kernel rejects"
+      (rejected
+       (((pc 1) (fails ("a spaced"))) ((pc 6) (fails ("a spaced")))
+        ((pc 9) (fails ("a spaced"))) ((pc 12) (fails ("a spaced")))))))
+    |}]
+;;
