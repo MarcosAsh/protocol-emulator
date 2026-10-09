@@ -13,7 +13,8 @@
     The resolution is one clock cycle, 20 ns. The shortest bit this structure can make is
     [third] 6 and [tail] 7, 25 cycles or 2 Mbit/s: the thirteen cycles from the falling
     edge round the end of a word to the next rise have to fit in [third + tail], and
-    [tail] is an immediate of at most 7.
+    [tail] is an immediate of at most 7. A [tail] up to 14 takes a second add, a cycle
+    more round a word's end.
 
     The host writes two words a pixel, [Pixel.words]. The string goes on for as long as
     the next pixel is in the fifo when the last one ends; when it is not, the line stays

@@ -5,9 +5,16 @@ let pin = 5
 let cycle_ns = 20
 
 (* y is bits in the word less one: 15 then 7 per pixel. Both paths round a word's end take
-   thirteen cycles. The reset gap waits on every pass of its loop, not once after, so [t]
-   is never more than five thirds ahead of [now] and the kernel accepts the loop. *)
+   thirteen cycles, fourteen with a tail over 7. The reset gap waits on every pass of its
+   loop, not once after, so [t] is never more than five thirds ahead of [now] and the
+   kernel accepts the loop. *)
 let firmware ~third ~tail =
+  if tail < 0 || tail > 14 then raise_s [%message "BUG: tail out of range" (tail : int)];
+  let add_tail =
+    if tail <= 7
+    then [%string "    add t, %{tail#Int}\n"]
+    else [%string "    add t, 7\n    add t, %{tail - 7#Int}\n"]
+  in
   [%string
     {|
     mov t, now
@@ -39,8 +46,7 @@ bit:
     out pins, 1              ; a zero falls here
     wait t+
     set pins, 0              ; a one falls here
-    add t, %{tail#Int}
-    jmp x--, bit
+%{add_tail}    jmp x--, bit
     set x, 15
     jmp x!=y, last
     set y, 7
