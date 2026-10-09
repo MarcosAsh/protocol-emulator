@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 # Every bench demo in turn, each from a fresh load of BITSTREAM as its reset. A demo keeps
-# its capture, decode, Pico logs and a SHA256SUMS in EVIDENCE/<date>/<demo>/, and adds a
-# line to demo/ledger.tsv. --keyboard adds the USB keyboard demo, which types into the
-# focused window. PICO_B_SERIAL picks Pico B, as for demo/pico_b.sh.
+# its capture, decode, Pico logs and a SHA256SUMS in EVIDENCE/<date>/ledger/<demo>/, beside
+# the day's other bench runs, and adds a line to demo/ledger.tsv. --keyboard adds the USB
+# keyboard demo, which types into the focused window. PICO_B_SERIAL picks Pico B, as for
+# demo/pico_b.sh.
 # Usage: PICO=id:<serial of Pico A> python3 demo/ledger.py BITSTREAM [--keyboard]
 #            [--only DEMO]... [--evidence DIR] [--results TSV] [--dry-run]
 
@@ -332,8 +333,8 @@ class Ledger:
 
     def demo(self, demo, day, head, bit_hash):
         b = self.bench
-        b.open(fresh(self.args.evidence / day, demo.name) if not b.dry_run
-               else self.args.evidence / day / demo.name)
+        b.open(fresh(self.args.runs, demo.name) if not b.dry_run
+               else self.args.runs / demo.name)
         print("%s, expect %s%s" % (demo.name, demo.expect, ": " + demo.why if demo.why else ""))
         result, said = "ERROR", None
         if not self.reset():
@@ -418,15 +419,16 @@ def main():
             sys.exit("no bitstream %s" % args.bitstream)
     demos = plan(args)
     day = datetime.date.today().isoformat()
+    args.runs = args.evidence / day / "ledger"
     head = commit()
     bit_hash = "-" if args.dry_run else sha256(args.bitstream)
     if not args.dry_run:
         # the bitstream itself, so its hash can be checked once the build is gone
-        kept = args.evidence / day / "bitstreams" / (bit_hash[:16] + ".bit")
+        kept = args.runs / "bitstreams" / (bit_hash[:16] + ".bit")
         kept.parent.mkdir(parents=True, exist_ok=True)
         if not kept.exists():
             shutil.copyfile(args.bitstream, kept)
-    print("commit %s, bitstream %s, evidence %s" % (head, args.bitstream, args.evidence / day))
+    print("commit %s, bitstream %s, evidence %s" % (head, args.bitstream, args.runs))
     ledger = Ledger(args, Bench(args.dry_run))
     rows = []
     for demo in demos:
