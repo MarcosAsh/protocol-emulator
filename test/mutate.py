@@ -226,18 +226,27 @@ def dune(cwd, command, *args, jobs=None, timeout=None):
     return p.returncode, err
 
 
+# dune names the file of each test that fails; CI forces colour, so codes are stripped first
+FAILED = re.compile(r'^File "([^"]+)", line', re.M)
+COLOUR = re.compile(r"\x1b\[[0-9;]*m")
+
+
 def verdict(cwd, file, jobs, timeout):
     # a mutant that does not compile, or that Hardcaml refuses to elaborate, is not a mutant;
-    # one whose generator loops would hang the tests too
+    # one whose generator loops would hang the tests too. A kill comes with the files of the
+    # tests that failed.
     try:
         if dune(cwd, "build", "./bin/generate.exe", jobs=jobs, timeout=timeout)[0] != 0:
-            return "invalid"
+            return "invalid", []
         for args in ELABORATE.get(file, []):
             if dune(cwd, "exec", "--", "./bin/generate.exe", *args, jobs=jobs, timeout=timeout)[0] != 0:
-                return "invalid"
-        return "survived" if dune(cwd, "build", "@runtest", jobs=jobs, timeout=timeout)[0] == 0 else "killed"
+                return "invalid", []
+        code, err = dune(cwd, "build", "@runtest", jobs=jobs, timeout=timeout)
+        if code == 0:
+            return "survived", []
+        return "killed", sorted(set(FAILED.findall(COLOUR.sub("", err))))
     except subprocess.TimeoutExpired:
-        return "timeout"
+        return "timeout", []
 
 
 def read_allowed():
@@ -344,12 +353,12 @@ def main():
         original = (copy / m["file"]).read_text()
         try:
             (copy / m["file"]).write_text(m["mutated"])
-            result = verdict(copy, m["file"], args.dune_jobs, timeout)
+            result, by = verdict(copy, m["file"], args.dune_jobs, timeout)
         finally:
             (copy / m["file"]).write_text(original)
             copies.put(copy)
         row = {k: v for k, v in m.items() if k != "mutated"}
-        row |= {"result": result, "seconds": round(time.monotonic() - start)}
+        row |= {"result": result, "by": by, "seconds": round(time.monotonic() - start)}
         with lock:
             print(f"{result:9} {m['operator']} at {m['file']}:{m['line']} [{m['id']}]", flush=True)
             if out:
