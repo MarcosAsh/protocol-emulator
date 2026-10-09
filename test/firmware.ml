@@ -557,9 +557,15 @@ stop:
     wait t+ side 0
     jmp idle
 stop_stuck:                      ; held at the STOP: the word has its reply
+    mov t, now side 0
+    add t, p side 0
+    wait t side 0                ; a quarter, for an SCL let go after the last poll
     set pindirs, 0 side 0
     jmp aborted
 stuck:                           ; SCL held low: let both lines go
+    mov t, now side 0
+    add t, p side 0
+    wait t side 0
     set pindirs, 0 side 0
     mov isr, !null side 0        ; 0xffff for the word
     push side 0
