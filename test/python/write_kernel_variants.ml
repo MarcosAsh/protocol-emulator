@@ -56,7 +56,7 @@ let print_variant (t : Delay_variants.t) (v : Delay_variants.Variant.t) =
 ;;
 
 let () =
-  List.iter Swept.all ~f:(fun swept ->
+  List.iter Library.swept ~f:(fun swept ->
     let t = Delay_variants.of_swept swept in
     List.iter (Delay_variants.every t) ~f:(print_variant t))
 ;;

@@ -203,16 +203,23 @@ let%expect_test "every name in the library is its own" =
   [%expect {| ((certified ()) (bench ()) (scenarios ())) |}]
 ;;
 
-(* a limit, or a reason for none, names its own protocol's bench firmware *)
-let%expect_test "every protocol's limits are on its own bench firmware" =
+(* each limit, reason for none and sweep decision names the protocol's own firmware *)
+let%expect_test "every protocol speaks only of its own firmware" =
   List.iter Library.protocols ~f:(fun p ->
-    let own =
-      List.map (p.bench @ p.loaded_from_hex) ~f:(fun b -> b.name) |> String.Set.of_list
+    let names l = String.Set.of_list l in
+    let bench = names (List.map (p.bench @ p.loaded_from_hex) ~f:(fun b -> b.name))
+    and firmware =
+      (* the stamped UART is certified apart, [Library.stamped] *)
+      let stamped = if phys_equal p Uart.protocol then [ Uart.stamped ] else [] in
+      names (List.map (stamped @ p.certified @ p.time_triggered) ~f:(fun c -> c.name))
     in
-    List.iter
-      (List.map p.limits ~f:(fun l -> l.firmware) @ List.map p.unlimited ~f:fst)
-      ~f:(fun firmware ->
-        if not (Set.mem own firmware)
-        then print_s [%message "not this protocol's bench firmware" p.name firmware]));
+    let check own kind firmware_names =
+      List.iter firmware_names ~f:(fun name ->
+        if not (Set.mem own name) then print_s [%message "not its own" p.name kind name])
+    in
+    check bench "limit" (List.map p.limits ~f:(fun l -> l.firmware));
+    check bench "unlimited" (List.map p.unlimited ~f:fst);
+    check firmware "swept" (List.map p.swept ~f:(fun s -> s.name));
+    check firmware "not swept" (List.map p.not_swept ~f:fst));
   [%expect {| |}]
 ;;

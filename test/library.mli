@@ -32,3 +32,9 @@ val exempt : (string * string) list
 
 (** The protocols' runs at the pins. *)
 val scenarios : Pin_trace.Scenario.t list
+
+(** The sweep, and what keeps the rest of the firmware out of it, in the order of the
+    firmware. *)
+val swept : Swept.t list
+
+val not_swept : (string * string) list

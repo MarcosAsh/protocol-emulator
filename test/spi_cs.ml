@@ -295,6 +295,8 @@ let protocol =
       List.concat_map Mode.all ~f:(fun mode ->
         limits [%string "spi_cs_mode%{Mode.to_int mode#Int}"])
   ; unlimited = []
+  ; swept = []
+  ; not_swept = []
   ; scenarios = []
   }
 ;;

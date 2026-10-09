@@ -15,7 +15,14 @@ type t =
   ; bursts : int list list (** Each pushed once the one before is quiet. *)
   }
 
-val all : t list
+(** The firmware's line on the wire. *)
+val line : Program_config.t -> Program_config.t
 
-(** What keeps every other firmware in [Certified] out of the sweep, by name. *)
+(** A burst a character. *)
+val bytes : string -> int list list
+
+(** The swept firmware no protocol file holds yet ([Library]), and what keeps the rest of
+    those out of the sweep, by name. *)
+val others : t list
+
 val not_swept : (string * string) list

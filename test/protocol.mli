@@ -18,6 +18,9 @@ type t =
       the same. *)
   ; limits : Datasheet.t list (** Each names one of [bench] or [loaded_from_hex]. *)
   ; unlimited : (string * string) list (** Bench firmware with no limits, and why. *)
+  ; swept : Swept.t list (** Firmware engine 1 stamps in the sweep demo. *)
+  ; not_swept : (string * string) list
+  (** The protocol's other firmware, each with what keeps it out of the sweep. *)
   ; scenarios : Pin_trace.Scenario.t list
   (** Each loads one of [certified] or [time_triggered] at the configuration it is
       certified under; written to test/traces, replayed on the netlists and, with a

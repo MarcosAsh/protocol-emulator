@@ -12,6 +12,8 @@ type t =
   ; loaded_from_hex : Bench.t list
   ; limits : Datasheet.t list
   ; unlimited : (string * string) list
+  ; swept : Swept.t list
+  ; not_swept : (string * string) list
   ; scenarios : Pin_trace.Scenario.t list
   }
 

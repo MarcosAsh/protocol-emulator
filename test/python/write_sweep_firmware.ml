@@ -327,7 +327,9 @@ let print_swept { Swept.name; watch; on_wire; period; bursts } =
 ;;
 
 let () =
-  let names = List.map Swept.all ~f:(fun s -> s.name) @ List.map Swept.not_swept ~f:fst in
+  let names =
+    List.map Library.swept ~f:(fun s -> s.name) @ List.map Library.not_swept ~f:fst
+  in
   List.iter
     (Library.stamped :: (Library.certified @ Library.time_triggered))
     ~f:(fun { name; _ } ->
@@ -351,9 +353,9 @@ let () =
   print_string "    \"words\": [\n";
   print_items "        " (hex logger_words);
   print_string "    ],\n}\n\nSWEPT = [\n";
-  List.iter Swept.all ~f:print_swept;
+  List.iter Library.swept ~f:print_swept;
   print_string "]\n\nNOT_SWEPT = [\n";
-  List.iter Swept.not_swept ~f:(fun (name, why) ->
+  List.iter Library.not_swept ~f:(fun (name, why) ->
     printf "    (\"%s\", \"%s\"),\n" name why);
   print_string "]\n"
 ;;
