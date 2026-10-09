@@ -26,8 +26,8 @@ ALLOW = Path(__file__).with_name("mutation_allow.txt")
 # the chip changes whether or not it changes behaviour, so the mutants run without it; the
 # committed verilog is still copied, as test/dune depends on it
 COPIED = ["src", "test", "bin", "ppx", "python", "formal/Makefile", "dune-project", ".ocamlformat",
-          "demo/paths.py", "demo/outline.py", "demo/draw.py", "pages/die/die.bin",
-          "test/paths/cells.json", "src/protocol_emulator.v"]
+          "demo/paths.py", "demo/outline.py", "demo/draw.py", "demo/kernel_vs_board.py",
+          "pages/die/die.bin", "test/paths/cells.json", "src/protocol_emulator.v"]
 SKIPPED = shutil.ignore_patterns("sim_build", "__pycache__", "*.fst", "*.vcd", "*.xml", "*.v", "*.json",
                                  "test_provenance.ml*")
 
