@@ -105,7 +105,7 @@ let device_descriptor =
 
 let configuration_descriptor =
   let report_length = List.length report_descriptor in
-  [ 9; 2; 34; 0; 1; 1; 0; 0xa0; 50 ]
+  [ 9; 2; 34; 0; 1; 1; 0; 0x80; 50 ]
   @ [ 9; 4; 0; 0; 1; 3; 0; 0; 0 ]
   @ [ 9; 0x21; 0x11; 0x01; 0; 1; 0x22; report_length land 0xff; report_length lsr 8 ]
   @ [ 7; 5; 0x81; 3; 8; 0; 10 ]
@@ -347,6 +347,6 @@ let%expect_test "the enumeration stays inside the analysis of the device" =
     (load (address 0) (issues 18) (reached 18/470) (violations ()))
     (load (address 0) (issues 3073) (reached 312/470) (violations ()))
     (load (address 0) (issues 2070) (reached 294/470) (violations ()))
-    (load (address 7) (issues 19333) (reached 353/470) (violations ()))
+    (load (address 7) (issues 19335) (reached 353/470) (violations ()))
     |}]
 ;;
