@@ -228,6 +228,9 @@ jobs:
             python3 demo/decode.py --capture bench.sr $trace
           done
 
+      - name: Check the i2c timing decoder
+        run: python3 test/test_i2c_timing.py
+
   # the netlists of both boards, simulated; the firmware words they load are the committed
   # ones, which the test job checks are current
   fpga:
