@@ -1257,3 +1257,39 @@ b:
     13  jmp 0                        phase 1..?  slope 0  offset ?..?
     |}]
 ;;
+
+(* [now - t] is compared signed over the timer's width, so a deadline further ahead than
+   half of it reads as passed. *)
+let%expect_test "a deadline half the timer ahead" =
+  let source = {|
+    mov p, osr
+    mov t, now
+    add t, p
+    wait t
+    halt
+|} in
+  let half = 1 lsl (Isa.timer_bits - 1) in
+  List.iter
+    [ (half / 2) + 3; half + 2; half + 3 ]
+    ~f:(fun period ->
+      rows ~period source
+      |> List.filter ~f:(fun r -> Option.is_some r.slack)
+      |> Analyser.to_string ~side_set_count:0
+      |> print_endline);
+  [%expect
+    {|
+    3  wait t                       phase -4194305  slack 4194305
+    3  wait t                       phase -8388608  slack 8388608
+    3  wait t                       phase -8388609  slack 8388609  MAY MISS
+    |}]
+;;
+
+let%expect_test "a period floor leaves a load no higher than a data word" =
+  print_rows (rows ~period_floor:100 "    mov p, osr\n    halt\n") ~f:(fun r ->
+    "period " ^ Interval.to_string r.period);
+  [%expect
+    {|
+    0  mov p, osr                   period ?..?
+    1  halt                         period 100..65535
+    |}]
+;;
