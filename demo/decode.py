@@ -10,6 +10,7 @@
 #        python3 demo/decode.py --host-frames frames.py TRACE for demo/pico_replay.py
 #        python3 demo/decode.py --summary "the RTL" TRACE...  and a count of protocols read
 import argparse
+import functools
 import os
 import random
 import re
@@ -19,7 +20,8 @@ import tempfile
 
 import sigrok
 
-# What each decoder reports a fault in. One with none judges nothing but the payload.
+# What each decoder reports a fault in. One with none judges nothing but the payload; one
+# not here, every class sigrok names a warning or an error.
 ERRORS = {
     "uart": [
         "rx-warnings", "tx-warnings", "rx-parity-err", "tx-parity-err", "rx-break", "tx-break"
@@ -183,12 +185,24 @@ def sigrok_cli(capture, decoders, annotations):
     return result.stdout.splitlines()
 
 
+@functools.lru_cache
+def errors(decoder):
+    """ERRORS' classes for the decoder, or for one it does not list, every class sigrok
+    names a warning or an error."""
+    if decoder in ERRORS:
+        return ERRORS[decoder]
+    shown = subprocess.run(["sigrok-cli", "-P", decoder, "--show"], capture_output=True,
+                           text=True)
+    if shown.returncode:
+        raise SystemExit("sigrok has no decoder %s: %s" % (decoder, shown.stderr.strip()))
+    classes = shown.stdout.split("Annotation classes:")[1].split("Annotation rows:")[0]
+    ids = [line[2:].split(":")[0] for line in classes.splitlines() if line.startswith("- ")]
+    return [c for c in ids if "warn" in c or "err" in c]
+
+
 def faults(decoders):
     stacked = [d.split(":")[0] for stack in decoders for d in stack.split(",")]
-    unknown = [d for d in stacked if d not in ERRORS]
-    if unknown:
-        raise SystemExit("decode.py lists no error classes for %s" % ", ".join(unknown))
-    return ",".join("%s=%s" % (d, ":".join(ERRORS[d])) for d in stacked if ERRORS[d])
+    return ",".join("%s=%s" % (d, ":".join(errors(d))) for d in stacked if errors(d))
 
 
 def judge(capture, decoders, expect):
