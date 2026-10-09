@@ -18,10 +18,10 @@ the RTL is proven never to miss one of its deadlines, under the assumptions belo
 | Clock | 50 MHz | `info.yaml` |
 | Cores | 2 cores, 3 IHP 512 x 16 SRAM macros: a program memory each and a data memory they share | `src/protocol_emulator.v` |
 | Pins | 4 for the host's SPI, 5 in, 7 out, 8 bidirectional, and 8 wires between the cores | `info.yaml`, `src/isa.ml` |
-| Hardened | 23,883 standard cells at 49.7% utilisation, setup slack +4.009 ns at the slow corner, precheck clean | gds run [36922636022](https://github.com/MarcosAsh/protocol-emulator/actions/runs/36922636022) |
+| Hardened | 23,732 standard cells at 49.8% utilisation, setup slack +4.358 ns at the slow corner, precheck clean | gds run [37962655107](https://github.com/MarcosAsh/protocol-emulator/actions/runs/37962655107) |
 | Firmware | 22 library firmwares the kernel accepts | `test/test_kernel.ml` |
 | Proved | a program the kernel accepts never misses a deadline on each core's RTL, under the assumptions below | `formal/phase_table.sby` |
-| Board | the RTL on an Icepi Zero (ECP5 FPGA) passed the self-timing demo on 2026-10-01, no silicon yet | `python/demo_self_timing.py` |
+| Board | the RTL on an Icepi Zero (ECP5 FPGA) passed the self-timing demo on 2026-10-09, no silicon yet | `python/demo_self_timing.py` |
 
 ## From source to pins
 
@@ -114,10 +114,10 @@ under cocotb.
     (`demo/decode.py`, the `decode` job)
   - USB enumeration, which the board does in `python/usb_board.py`
 - Nothing has run on silicon yet. On an Icepi Zero FPGA (ECP5, 48 MHz) running the chip's
-  RTL, `python/demo_self_timing.py` passed on 2026-10-01: engine 1 stamped all 52 edges of
+  RTL, `python/demo_self_timing.py` passed on 2026-10-09: engine 1 stamped all 52 edges of
   engine 0's `Jane St!` at 9600 baud on the predicted cycles, quiet and with the host
-  flooding SPI with reads. The USB keyboard (`python/demo_usb.py`) does not work there
-  yet.
+  flooding SPI with reads. The USB keyboard (`python/demo_usb.py`) passed there on
+  2026-10-02 (release v0.2.0).
 
 ## What the checks found
 
@@ -169,13 +169,13 @@ make -C formal             # hours; CI runs the long proofs in jobs of their own
 ```
 
 `make -C test COCOTB_TEST_MODULES=test_demo` runs the self-timing and keyboard demos with
-no board in about 6 minutes. Each claim's last green run in CI is on the
+no board in about 17 minutes. Each claim's last green run in CI is on the
 [results page](https://marcosash.github.io/protocol-emulator/results/).
 
 To harden, clone TinyTapeout/tt-support-tools, branch `ihp-sg13cmos5l`, into `tt/`, then
-`tt/tt_tool.py --create-user-config --ihp` and `--harden --ihp`. Gds run 36922636022, on
-this Verilog, signs off with setup slack +4.009 ns at the slow corner, at 49.7%
-utilisation. The picture is that run's die by RTL module, drawn by `demo/die.py` from its
+`tt/tt_tool.py --create-user-config --ihp` and `--harden --ihp`. Gds run 37962655107, on
+this Verilog, signs off with setup slack +4.358 ns at the slow corner, at 49.8%
+utilisation. The picture is an earlier harden's die by RTL module, drawn by `demo/die.py` from its
 `GDS_logs` artifact. 1,873 of 1,883 flops map by RTL line and net name. Each gate goes with
 the nearest flop it feeds, which gets 97.9% of gates right on the RTL synthesised a module
 at a time (`--check`).
