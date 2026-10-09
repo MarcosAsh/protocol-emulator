@@ -659,3 +659,20 @@ let%expect_test "the edge bounds of the table hold where they are hard to follow
     (since_at_8 65535)
     |}]
 ;;
+
+(* x is 1 or 3 and y 10, so jmp x!=y never falls through and the row after it is unreached *)
+let%expect_test "a jump the registers rule out needs no row on that way" =
+  check
+    (program
+       "x_ne_y"
+       {|
+    set y, 10
+    set x, 1
+    jmp pin, 4
+    set x, 3
+    jmp x!=y, 6
+    set pins, 1
+    jmp 0
+|});
+  [%expect {| (x_ne_y (Ok ())) |}]
+;;
