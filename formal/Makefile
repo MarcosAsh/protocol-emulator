@@ -487,6 +487,8 @@ STDCELL = $(PDK_ROOT)/ihp-sg13cmos5l/libs.ref/sg13cmos5l_stdcell
 EQUIV = netlist_equiv_run
 EXPECT = 1
 WRITTEN = ../src/protocol_emulator.v
+# what runs on the miter once scorr has merged what it can
+ENGINE = dprove
 # the cell models at zero delay (netlist_equiv/primitives.v)
 CELL_MODELS = sed -e '/^\s*specify/,/^\s*endspecify/d' -e 's/delayed_//g' \
   -e 's/^\(\s*\)\(ihp_[a-z0-9_]*\) *(\([A-Za-z0-9_]*\),/\1\2 u_\3 (\3,/' \
@@ -510,7 +512,7 @@ netlist_equiv:
 	cd $(EQUIV) && yosys -q -l miter.log ../netlist_equiv/miter.ys
 	cd $(EQUIV) && timeout 120 yosys-abc -c 'read_aiger miter.aig; bmc3 -F 1; print_status' > proof.log
 	cd $(EQUIV) && ! grep -q 'No output asserted in 1 frames' proof.log || timeout 1200 yosys-abc \
-	  -c 'read_aiger miter.aig; print_stats; tempor -F 1; print_stats; scorr; print_stats; dprove; print_status' \
+	  -c 'read_aiger miter.aig; print_stats; tempor -F 1; print_stats; scorr; print_stats; $(ENGINE); print_status' \
 	  >> proof.log
 	@cd $(EQUIV) && echo "netlist: $$(cut -d' ' -f1 logic.count) logic cells, $$(cut -d' ' -f1 covered.count)" \
 	  "in the fan-in of a compared bit and the rest driving no net;" \
@@ -518,10 +520,10 @@ netlist_equiv:
 	grep 'Status = $(EXPECT) ' $(EQUIV)/proof.log
 
 # mutants that must be refuted: macro enables swapped, uio_oe[0] inverted, a reset
-# synchroniser untied, the RTL as written with the host port's state held, and with the
-# load checker's reset into Header, not Idle; the last three's counterexamples must pass
-# the first cycle. Holding the load checker's state instead leaves dprove undecided after
-# 10 min.
+# synchroniser untied, and the RTL as written with the host port's state held, with the
+# load checker's reset into Header, not Idle, and with its state held; the last four's
+# counterexamples must pass the first cycle. The last one's is 57 cycles deep, past what
+# dprove's own BMC reaches, so BMC alone looks for it.
 netlist_equiv_teeth:
 	mkdir -p netlist_equiv_teeth
 	sed '/ RM_IHPSG13_1P_512x16_c2_bm_bist \\core\.top\.engines\.data_memory\.sram_macro\.sram /,/;$$/'\
@@ -540,6 +542,8 @@ netlist_equiv_teeth:
 	test $$(diff ../src/protocol_emulator.v netlist_equiv_teeth/header.v | grep -c '^>') = 1
 	$(MAKE) netlist_equiv WRITTEN=netlist_equiv_teeth/header.v EQUIV=netlist_equiv_header EXPECT=0
 	grep 'No output asserted in 1 frames' netlist_equiv_header/proof.log
+	$(MAKE) netlist_equiv_held HELD_ONE=load_checker/sm ENGINE='bmc3 -T 600'
+	grep 'No output asserted in 1 frames' netlist_equiv_held_load_checker_sm/proof.log
 
 # the RTL as written with one recoded machine's state held, against the netlist:
 #   make netlist_equiv_held HELD_ONE=host_port/sm NETLIST=...
