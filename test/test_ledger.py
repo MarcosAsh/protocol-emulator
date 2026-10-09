@@ -96,8 +96,9 @@ class Ledger(unittest.TestCase):
         self.assertEqual(sorted(p.name for p in neopixel.iterdir()),
                          ["SHA256SUMS", "ledger.txt", "neopixel.decode", "neopixel.log",
                           "neopixel.sr", "outside.txt", "run.txt"])
-        day = self.tmp / "evidence" / rows["smoke"]["date"]
-        kept = day / "bitstreams" / (bit_hash[:16] + ".bit")
+        runs = self.tmp / "evidence" / rows["smoke"]["date"] / "ledger"
+        self.assertEqual(neopixel.parent, runs)
+        kept = runs / "bitstreams" / (bit_hash[:16] + ".bit")
         self.assertEqual(kept.read_bytes(), self.bit.read_bytes())
 
     def test_fail_and_no_overwrite(self):
