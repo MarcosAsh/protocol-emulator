@@ -127,6 +127,8 @@ def main():
     if args.only:
         variants = [v for v in variants if v["firmware"] in args.only]
     if args.chip:
+        if not any("chip_model" in v for v in variants):
+            sys.exit("--chip needs variants from a build with the chip's check")
         # with no certificate the chip would check the firmware's own
         for v in variants:
             if v.get("certificate") is None:
