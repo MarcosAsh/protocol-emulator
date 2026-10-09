@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # python/demo_board.py and demo_board_check.py on ttboard_fake's RP2, against a model of the
 # host port a clock at a time: host_spi.ml's synchronisers and shifters over a register
-# file. The waveforms are held to SCK at most a twelfth of the clock; test/test_demo_board.py
+# file. The waveforms are held to SCK at most an eighth of the clock; test/test_demo_board.py
 # runs the same scripts on the RTL.
 import sys
 
@@ -16,14 +16,15 @@ class Chip:
     """Two engines' registers behind host_spi.ml's frame logic. A started engine whose
     program begins with `uart` takes the bit period, then sends each word on uo[1]."""
 
-    def __init__(self, uart=None):
-        self.uart = uart
+    def __init__(self, uart=None, miso_lag=0):
+        self.uart, self.miso_lag = uart, miso_lag
         self.ui, self.rst_n, self.carry, self.now, self.settle = 0b100, 1, 0, 0, 0
         self.reset()
 
     def reset(self):
         self.sync = [0b100, 0b100]
         self.sck, self.selected, self.count, self.shift_in, self.shift_out = 0, False, 0, 0, 0
+        self.misos = [0] * (1 + self.miso_lag)
         self.state, self.cmd, self.high, self.value = "cmd", 0, 0, 0
         self.program_addr, self.data_addr, self.select = 0, 0, 0
         self.engines = [dict(halted=1, tx=[], rx=[], program=[0] * 512, period=None,
@@ -35,11 +36,11 @@ class Chip:
 
     def drive(self, ui, rst_n):
         self.ui, self.rst_n = ui, rst_n
-        self.settle = 5
+        self.settle = 5 + self.miso_lag
 
     def pads(self):
-        e = self.engines[0]
-        return int(self.selected and self.shift_out >> 7) | self.line(e) << 1, 0
+        """MISO miso_lag clocks late, as longer pads and mux would have it."""
+        return self.misos[0] | self.line(self.engines[0]) << 1, 0
 
     def elapse(self, board, ticks):
         if not board.clock_hz:
@@ -80,6 +81,7 @@ class Chip:
                 self.shift_out = (self.shift_out << 1) & 0xFF
         for e in self.engines:
             self.serve(e)
+        self.misos = self.misos[1:] + [int(self.selected and self.shift_out >> 7)]
 
     # the register layer
     def byte(self, b):
@@ -190,8 +192,8 @@ def assert_spi_timing(trace, clock_hz, sck_hz):
 
 
 def test_frames_and_timing():
-    for kind, clock_hz, sck_hz in (("dbv3", 48_000_000, None), ("dbv3", 10_000_000, None),
-                                   ("tt06", 48_000_000, 4_000_000)):
+    for kind, clock_hz, sck_hz in (("dbv3", 48_000_000, None), ("dbv3", 48_000_000, 6_000_000),
+                                   ("dbv3", 10_000_000, None), ("tt06", 48_000_000, 6_000_000)):
         chip = Chip()
         b, m = board(chip, kind=kind)
         spi = m.demo_board.DemoBoardSpi(clock_hz=clock_hz, sck_hz=sck_hz)
@@ -216,15 +218,18 @@ def test_frames_and_timing():
 
 
 def test_sck_margin():
-    """SCK at an eighth, were it allowed, reads each bit before MISO moves: the limit is
-    what the lag from the chip's pads to the PIO costs."""
-    b, m = board()
-    m.demo_board.SCK_DIVIDE = 8
-    spi = m.demo_board.DemoBoardSpi(clock_hz=48_000_000, sck_hz=6_000_000)
-    host = pe.Host(spi.transfer)
-    host.write(pe.PROGRAM_ADDR, [0x1A5])
-    assert host.read(pe.PROGRAM_ADDR) != [0x1A5]
-    b.uninstall()
+    """SCK at an eighth reads every bit with MISO up to three clocks later than the 20 ns
+    of pads and mux the fake has, and not four. Read on the rise, it failed with none."""
+    for lag, intact in ((0, True), (3, True), (4, False)):
+        b, m = board(Chip(miso_lag=lag))
+        spi = m.demo_board.DemoBoardSpi(clock_hz=48_000_000, sck_hz=6_000_000)
+        host = pe.Host(spi.transfer)
+        got = []
+        for word in (0x1A5, 0x05A, 0x1FF):
+            host.write(pe.PROGRAM_ADDR, [word])
+            got += host.read(pe.PROGRAM_ADDR)
+        assert (got == [0x1A5, 0x05A, 0x1FF]) == intact, (lag, got)
+        b.uninstall()
 
 
 def test_setup():
@@ -247,7 +252,7 @@ def test_setup():
 
 def test_refusals():
     b, m = board()
-    for kwargs, message in (({"sck_hz": 4_000_001}, "over 1/12"),
+    for kwargs, message in (({"sck_hz": 6_000_001}, "over 1/8"),
                             ({"project": "tt_um_other"}, "not on this chip")):
         try:
             m.demo_board.DemoBoardSpi(**kwargs)
