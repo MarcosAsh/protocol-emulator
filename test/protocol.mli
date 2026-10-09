@@ -23,3 +23,13 @@ type t =
       certified under; written to test/traces, replayed on the netlists and, with a
       [sigrok] field, judged by sigrok's decoders ([demo/decode.py]). *)
   }
+
+(** The firmware [scenario] loads. Raises if it is none of [certified] and
+    [time_triggered], or loads it under another configuration. *)
+val firmware : t -> Pin_trace.Scenario.t -> Certified.t
+
+(** [scenario] at a lone engine, the RTL and [Machine] compared after every edge as
+    [Lockstep.lockstep] does and printing the same. The host's tx words go in as the fifo
+    has room and every rx word is taken as it comes, with no host port in between, so the
+    cycles are not the trace's. Returns the rx words. *)
+val lockstep : t -> Pin_trace.Scenario.t -> int list
