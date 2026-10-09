@@ -189,11 +189,11 @@ let%expect_test "the accepts circuit agrees with the kernel on the library's tab
 (* What [formal/pair_step.sby] proves on the RTL, that a row's edge bounds carry to the
    rows after it, the kernel checks of each row; so a bound made one step tighter than
    every way in brings is refused at a row before it. Each tamper is one bit's bound of
-   one pin at one row of uart_tx's table. *)
-let%expect_test "an edge bound tighter than the rows before it is refused" =
-  let config, words, table = table ~spacing:uart_bits (Certified.find_exn "uart_tx") in
+   one pin at one reached row of [c]'s table. *)
+let tamper_edges ?(spacing = uart_bits) (c : Certified.t) =
+  let config, words, table = table ~spacing c in
   let refused table =
-    Kernel.rejections ~config ~words ~spacing:uart_bits table
+    Kernel.rejections ~config ~words ~spacing table
     |> List.exists ~f:(fun (r : Kernel.Rejection.t) ->
       List.exists r.fails ~f:(String.is_substring ~substring:"edge"))
   in
@@ -245,7 +245,7 @@ let%expect_test "an edge bound tighter than the rows before it is refused" =
           ~tampered:(List.length tables : int)
           ~refused:(List.count tables ~f:refused : int)]
   in
-  print_s [%message "" ~untampered_refused:(refused table : bool)];
+  print_s [%message c.name ~untampered_refused:(refused table : bool)];
   List.iter tampers ~f:(fun (name, tamper) ->
     report
       name
@@ -257,10 +257,14 @@ let%expect_test "an edge bound tighter than the rows before it is refused" =
   report
     "fresh"
     (tampered_rows ~f:(fun (p : Bits.t Kernel.Pin.t) ->
-       if Bits.to_bool p.fresh then [] else [ { p with fresh = Bits.vdd } ]));
+       if Bits.to_bool p.fresh then [] else [ { p with fresh = Bits.vdd } ]))
+;;
+
+let%expect_test "an edge bound tighter than the rows before it is refused" =
+  tamper_edges (Certified.find_exn "uart_tx");
   [%expect
     {|
-    (untampered_refused false)
+    (uart_tx (untampered_refused false))
     (may (tampered 52) (refused 48))
     (since (tampered 18) (refused 18))
     (mark (tampered 48) (refused 48))
