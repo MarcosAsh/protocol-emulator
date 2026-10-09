@@ -434,7 +434,7 @@ CLAIMS = [
               "powerup", sby("powerup_"), step="Prove"),
         Claim("The hardened netlist equals the RTL for all time from all flops 0",
               "gds", exactly("netlist_equiv"),
-              "netlist_equiv netlist_equiv_step netlist_equiv_teeth",
+              "netlist_equiv netlist_equiv_teeth",
               both(abc("netlist_equiv_"),
                    matching(r"netlist: (\d+) logic cells", "{} logic cells compared")),
               step="Prove the netlist equal to the RTL, and fail on four mutants"),

@@ -1,24 +1,61 @@
-# The hardened netlist equals the RTL for all time. From all flops 0, for every input
-# sequence on the pins and the three macros' outputs, the 24 outputs and the 276 macro
-# inputs agree every cycle. The Makefile proves the miter 0 with ABC scorr + dprove, which
-# match flops by function, not name; a retimed flop would not match, and the flow does
-# not retime.
+# The hardened netlist equals the RTL as written for all time. From all flops 0, for every
+# input sequence on the pins and the three macros' outputs, the 24 outputs and the 276
+# macro inputs agree every cycle. The RTL is written.v, the copy of src/protocol_emulator.v
+# the Makefile makes, so a tooth can mutate this side alone.
+#
+# The Makefile checks the first cycle by BMC and every later one from each state the first
+# reaches (tempor), with ABC scorr + dprove, which match flops by function, not name. Each
+# flop of a state machine the flow recodes to one-hot matches the RTL's binary state
+# compared with one value, so the induction knows only one is ever set; a retimed flop
+# would match nothing, and the flow does not retime. The recoded machines power up all 0,
+# which is no state, so the flops match only once the reset synchronisers, also 0, have
+# reset both sides in the first cycle.
 #
 # Trusted: yosys's Verilog frontend, proc, flatten and memory_map (synthesis uses them
 # too); the IHP cell models, each proved equal to its Liberty function in cells.ys; the
-# macros as shared cut points; one rising-edge clock (asserted in cut.ys and gate.ys);
-# an asynchronous reset acting in the cycle it is asserted, on both sides; timing, which
-# is signoff STA's. gold.il recodes the state machines as synthesis does, and step.ys
-# proves it equal to the RTL as written. Not covered: power-up states other than all 0.
+# macros as shared cut points; one rising-edge clock (asserted here and in gate.ys); an
+# asynchronous reset acting in the cycle it is asserted, on both sides; timing, which is
+# signoff STA's. Not covered: power-up states other than all 0.
 # Vacuity and teeth: gate.ys and make netlist_equiv_teeth.
 
-read_rtlil gold.il
+read_verilog ../../src/project.v written.v
+read_verilog -lib ../../src/RM_IHPSG13_1P_512x16_c2_bm_bist.v
+hierarchy -check -top tt_um_marcosash_protocol_emulator
+proc
+
+# memories to flops, and the three macros cut so their inputs are outputs to compare and
+# their outputs inputs both sides share. The x's left, on the address and data of disabled
+# memory writes, write nothing, so folding them with -mux_undef is safe.
+flatten
+memory_collect
+memory_map
+opt_expr -mux_undef
+opt_clean
+delete t:$scopeinfo
+
+select -assert-count 3 t:RM_IHPSG13_1P_512x16_c2_bm_bist
+expose -evert t:RM_IHPSG13_1P_512x16_c2_bm_bist
+select -assert-count 51 o:*
+select -assert-count 8 i:*
+
+# one clock: every flop takes the rising edge of clk
+select -assert-none t:$*latch* t:$sr %u
+select -assert-none t:$*ff* w:clk %co:+[CLK] %d
+select -assert-none t:$*ff* r:CLK_POLARITY=1 r:CLK_POLARITY=1'1 %u %d
+
+# no used net without a driver, which miter -flatten would make an x (see aig.ys)
+check -assert
+
+rename tt_um_marcosash_protocol_emulator written
+hierarchy -top written
+delete =A:blackbox
+
 read_rtlil gate.il
-miter -equiv -flatten gold gate miter
+miter -equiv -flatten written gate miter
 hierarchy -top miter
 delete t:$scopeinfo
 script ../netlist_equiv/aig.ys
-# the RTL has no x left after gold.ys and the netlist none at all, so the only inputs are
-# the ports and the macros' outputs, never an x made free
+# the RTL has no x left after -mux_undef and the netlist none at all, so the only inputs
+# are the ports and the macros' outputs, never an x made free
 select -assert-none t:$anyseq t:$anyconst %u
 write_aiger miter.aig
