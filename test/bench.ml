@@ -35,14 +35,46 @@ let on_spi_pins (config : Program_config.t) =
   { config with out_base = mosi; set_base = mosi; side_set_base = sck }
 ;;
 
+let patch source ~pattern ~with_ =
+  if List.length (String.substr_index_all source ~may_overlap:false ~pattern) <> 1
+  then raise_s [%message "BUG: the firmware has moved" (pattern : string)];
+  String.substr_replace_first source ~pattern ~with_
+;;
+
 (* The library's reset is 80 units, 480 us at the 6 us unit: exactly the least a DS18B20
    takes. One more pass of its low loop makes it 84, 504 us. *)
 let one_wire_firmware =
-  let source = Timed_program.source One_wire.firmware in
-  let pattern = "    set x, 19\n" in
-  if List.length (String.substr_index_all source ~may_overlap:false ~pattern) <> 1
-  then raise_s [%message "BUG: One_wire.firmware's reset loop has moved"];
-  String.substr_replace_first source ~pattern ~with_:"    set x, 20\n"
+  patch
+    (Timed_program.source One_wire.firmware)
+    ~pattern:"    set x, 19\n"
+    ~with_:"    set x, 20\n"
+;;
+
+(* The library's line is dominant from reset until a bit after the period, and a frame can
+   follow a bit later. On a bus it goes recessive at once and stays so eleven bits after
+   the period, which a node needs to join the bus. *)
+let can_firmware firmware =
+  patch
+    (Timed_program.source firmware)
+    ~pattern:
+      "    wait tx\n\
+      \    pull\n\
+      \    mov p, osr               ; the bit period\n\
+      \    mov t, now\n\
+      \    add t, p\n\
+      \    wait t+\n\
+      \    set pins, 1              ; recessive\n"
+    ~with_:
+      "    set pins, 1              ; recessive\n\
+      \    wait tx\n\
+      \    pull\n\
+      \    mov p, osr               ; the bit period\n\
+      \    mov t, now\n\
+      \    add t, p\n\
+      \    set x, 10\n\
+       bus_idle:\n\
+      \    wait t+\n\
+      \    jmp x--, bus_idle\n"
 ;;
 
 let all =
@@ -98,16 +130,19 @@ let all =
     ; assumption = Floor 5
     }
   ; { name = "can"
-    ; what = "Can.firmware: the host sends the bit period, 96 cycles for 500 kbit/s"
-    ; source = Timed_program.source Can.firmware
+    ; what =
+        "Can.firmware, recessive from the start and for eleven bits after the period: \
+         the host sends the bit period, 96 cycles for 500 kbit/s"
+    ; source = can_firmware Can.firmware
     ; config = Can.config
     ; assumption = Floor Can.shortest_period
     }
   ; { name = "can_sender"
     ; what =
-        "Can_node.Sender.firmware: Can.firmware reading its ACK slot on IN1, the host \
-         sends the bit period, 96 cycles for 500 kbit/s"
-    ; source = Timed_program.source Can_node.Sender.firmware
+        "Can_node.Sender.firmware, recessive from the start and for eleven bits after \
+         the period: Can.firmware reading its ACK slot on IN1, the host sends the bit \
+         period, 96 cycles for 500 kbit/s"
+    ; source = can_firmware Can_node.Sender.firmware
     ; config = Can_node.Sender.config
     ; assumption = Floor Can_node.Sender.shortest_period
     }
