@@ -54,7 +54,8 @@ let longest_run = 1 lsl 22
 
 (* The core alone on the model, driven as the sweep drives it: the preamble, then each
    burst once the core waits for the host again. Each run's edges on the wire in cycles
-   from its first, the setup's first, and the faults at the end. *)
+   from its first, the setup's first, and the faults at the end. A fault halts the core,
+   so the run it shows in is the last. *)
 let run ~config ~words ~preamble ~bursts =
   let level (m : Machine.t) = (m.pin_out lsr Swept.wire) land 1 in
   let waits_for_host =
@@ -75,11 +76,12 @@ let run ~config ~words ~preamble ~bursts =
     let m = core () in
     List.is_empty m.tx_fifo && m.pc < Array.length waits_for_host && waits_for_host.(m.pc)
   in
+  let faulted () = not (Machine.Fault.equal (core ()).fault Machine.Fault.none) in
   let until_idle () =
     let edges = Queue.create () in
     let steps = ref 0 in
     (* a run starts at the wait for the host, with its words in the fifo *)
-    while !steps = 0 || not (idle ()) do
+    while !steps = 0 || not (idle () || faulted ()) do
       Int.incr steps;
       if !steps > longest_run then raise_s [%message "the core never waits for the host"];
       let before = level (core ()) in
@@ -93,10 +95,13 @@ let run ~config ~words ~preamble ~bursts =
   let setup = until_idle () in
   let runs =
     List.map bursts ~f:(fun burst ->
-      system
-      := System.update !system 0 ~f:(fun m ->
-           List.fold burst ~init:m ~f:(fun m w -> Machine.write_tx m w |> ok_exn));
-      until_idle ())
+      if faulted ()
+      then []
+      else (
+        system
+        := System.update !system 0 ~f:(fun m ->
+             List.fold burst ~init:m ~f:(fun m w -> Machine.write_tx m w |> ok_exn));
+        until_idle ()))
   in
   setup :: runs, (core ()).fault
 ;;
