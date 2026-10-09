@@ -248,11 +248,17 @@ def test_setup():
     assert m.tt.uio_oe_pico.value == 0
     assert b.sys_hz == 96_000_000 and spi.sck_hz == 3_000_000
     b.uninstall()
+    # ui[6] and ui[7] left to the input Pmod, the rest driven by the RP
+    b, m = board()
+    m.demo_board.DemoBoardSpi(ui_inputs=0b1100_0000)
+    assert [g in b.outputs for g in b.ui] == [True] * 6 + [False] * 2, b.outputs
+    b.uninstall()
 
 
 def test_refusals():
     b, m = board()
     for kwargs, message in (({"sck_hz": 6_000_001}, "over 1/8"),
+                            ({"ui_inputs": 0b100}, "host port"),
                             ({"project": "tt_um_other"}, "not on this chip")):
         try:
             m.demo_board.DemoBoardSpi(**kwargs)
