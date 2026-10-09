@@ -69,15 +69,15 @@ let run
         then List.fold (snd later) ~init:t ~f:(fun t w -> Machine.write_tx t w |> ok_exn)
         else t
       in
-      let master_sda = 1 - ((t.pin_dir lsr sda) land 1) in
-      let master_scl = 1 - ((t.pin_dir lsr scl) land 1) in
+      let master_sda = 1 - ((t.pin_dir lsr I2c.sda) land 1) in
+      let master_scl = 1 - ((t.pin_dir lsr I2c.scl) land 1) in
       let bus_sda = if I2c_slave.drive_low slave then 0 else master_sda in
       let bus_scl =
         if cycle >= fst stuck && cycle < snd stuck
         then 0
         else Stretcher.scl stretcher ~master:master_scl
       in
-      let t = Machine.step t ~inputs:((bus_sda lsl sda) lor (bus_scl lsl scl)) in
+      let t = Machine.step t ~inputs:((bus_sda lsl I2c.sda) lor (bus_scl lsl I2c.scl)) in
       let slave = I2c_slave.step slave ~sda:bus_sda ~scl:bus_scl in
       let stretcher = Stretcher.step stretcher ~master:master_scl in
       let replies, t =
@@ -90,18 +90,18 @@ let run
   loop 0 t slave stretcher [] []
 ;;
 
-let plain ~quarter = i2c_config, assemble (i2c_master ~quarter)
-let stretching ~quarter = i2c_stretch_config, assemble (i2c_master_stretch ~quarter)
+let plain ~quarter = I2c.config, assemble (I2c.master ~quarter)
+let stretching ~quarter = I2c.stretch_config, assemble (I2c.master_stretch ~quarter)
 
 let write_then_read =
-  [ i2c_word ~start:true 0xa0
-  ; i2c_word 3
-  ; i2c_word ~stop:true 0xaa
-  ; i2c_word ~start:true 0xa0
-  ; i2c_word 3
-  ; i2c_word ~start:true 0xa1
-  ; i2c_word ~read:true 0
-  ; i2c_word ~read:true ~stop:true 0
+  [ I2c.word ~start:true 0xa0
+  ; I2c.word 3
+  ; I2c.word ~stop:true 0xaa
+  ; I2c.word ~start:true 0xa0
+  ; I2c.word 3
+  ; I2c.word ~start:true 0xa1
+  ; I2c.word ~read:true 0
+  ; I2c.word ~read:true ~stop:true 0
   ]
 ;;
 
@@ -119,7 +119,7 @@ let scl_runs (run : Run.t) ~level =
 let%expect_test "the kernel accepts the stretching master from a quarter of 8" =
   List.iter [ 8; 7 ] ~f:(fun quarter ->
     match
-      Timed_program.check ~config:i2c_stretch_config (i2c_master_stretch ~quarter)
+      Timed_program.check ~config:I2c.stretch_config (I2c.master_stretch ~quarter)
     with
     | Ok timed ->
       print_s
@@ -130,13 +130,13 @@ let%expect_test "the kernel accepts the stretching master from a quarter of 8" =
   let host_rate period_floor =
     Timed_program.check
       ~period_floor
-      ~config:i2c_stretch_config
-      i2c_master_stretch_host_rate
+      ~config:I2c.stretch_config
+      I2c.master_stretch_host_rate
     |> Result.is_ok
   in
   print_s [%message (host_rate 8 : bool) (host_rate 7 : bool)];
-  let program = Asm.assemble (i2c_master_stretch ~quarter:13) |> ok_exn in
-  let config = Asm.Program.configure program i2c_stretch_config in
+  let program = Asm.assemble (I2c.master_stretch ~quarter:13) |> ok_exn in
+  let config = Asm.Program.configure program I2c.stretch_config in
   let words = Asm.Program.words program |> ok_exn in
   let rows = Analyser.analyse ~config program.instructions in
   print_s
@@ -164,8 +164,8 @@ let%expect_test "the kernel accepts the stretching master from a quarter of 8" =
 let%expect_test "the certificate starts again from the poll that sees SCL high" =
   let timed =
     Timed_program.of_source_exn
-      ~config:i2c_stretch_config
-      (i2c_master_stretch ~quarter:13)
+      ~config:I2c.stretch_config
+      (I2c.master_stretch ~quarter:13)
   in
   let releases =
     List.filter (Timed_program.rows timed) ~f:(fun row ->
@@ -291,13 +291,13 @@ let%expect_test "SCL held low answers 0xffff" =
           ~replies:(run.replies : (int * int) list)
           (memory : int array)
           ~pc:(run.machine.pc : int)
-          ~driven:(run.machine.pin_dir land ((1 lsl sda) lor (1 lsl scl)) : int)
+          ~driven:(run.machine.pin_dir land ((1 lsl I2c.sda) lor (1 lsl I2c.scl)) : int)
           ~fault:(run.machine.fault : Machine.Fault.t)]
   in
   held ~stuck:(0, 1_000) ~cycles:1_000 ();
   held
     ~stuck:(300, 300_000)
-    ~later:(300_000, [ i2c_word ~start:true 0xa0; i2c_word 5; i2c_word ~stop:true 0x77 ])
+    ~later:(300_000, [ I2c.word ~start:true 0xa0; I2c.word 5; I2c.word ~stop:true 0x77 ])
     ~cycles:301_500
     ();
   [%expect
@@ -332,16 +332,16 @@ let%expect_test "after a timeout only a START goes back on the bus" =
       ~stuck:(300, 262_600)
       ~later:
         ( 263_000
-        , [ i2c_word 3
-          ; i2c_word ~stop:true 0xaa
-          ; i2c_word ~start:true 0xa0
-          ; i2c_word 5
-          ; i2c_word ~stop:true 0x77
+        , [ I2c.word 3
+          ; I2c.word ~stop:true 0xaa
+          ; I2c.word ~start:true 0xa0
+          ; I2c.word 5
+          ; I2c.word ~stop:true 0x77
           ] )
       ~memory
       ~config
       ~program
-      ~words:[ i2c_word ~start:true 0xa0 ]
+      ~words:[ I2c.word ~start:true 0xa0 ]
       ~cycles:264_500
       ()
   in
@@ -372,7 +372,7 @@ let%expect_test "after a timeout only a START goes back on the bus" =
    on from 6. *)
 let%expect_test "SCL held at the STOP adds no reply" =
   let config, program = stretching ~quarter:8 in
-  let words = [ i2c_word ~start:true 0xa0; i2c_word 5; i2c_word ~stop:true 0x77 ] in
+  let words = [ I2c.word ~start:true 0xa0; I2c.word 5; I2c.word ~stop:true 0x77 ] in
   let free = run ~config ~program ~words ~cycles:1_000 () in
   let last = snd (List.last_exn free.replies) in
   let memory = Array.create ~len:16 0 in
@@ -380,7 +380,7 @@ let%expect_test "SCL held at the STOP adds no reply" =
   let run =
     run
       ~stuck:(last + 1, back)
-      ~later:(back, [ i2c_word ~start:true 0xa0; i2c_word 6; i2c_word ~stop:true 0x55 ])
+      ~later:(back, [ I2c.word ~start:true 0xa0; I2c.word 6; I2c.word ~stop:true 0x55 ])
       ~memory
       ~config
       ~program
@@ -395,7 +395,7 @@ let%expect_test "SCL held at the STOP adds no reply" =
         ~log:(run.log : string list)
         (memory : int array)
         ~pc:(run.machine.pc : int)
-        ~driven:(run.machine.pin_dir land ((1 lsl sda) lor (1 lsl scl)) : int)
+        ~driven:(run.machine.pin_dir land ((1 lsl I2c.sda) lor (1 lsl I2c.scl)) : int)
         ~fault:(run.machine.fault : Machine.Fault.t)];
   [%expect
     {|
@@ -416,23 +416,23 @@ let%expect_test "the stretching master in lockstep with a stretching slave" =
   let stretcher = ref (Stretcher.create [ 0; 17; 21; 40; 100; 33 ]) in
   let words = ref write_then_read in
   let bus (m : Machine.t) =
-    let master_sda = 1 - ((m.pin_dir lsr sda) land 1) in
+    let master_sda = 1 - ((m.pin_dir lsr I2c.sda) land 1) in
     let bus_sda = if I2c_slave.drive_low !slave then 0 else master_sda in
-    let master_scl = 1 - ((m.pin_dir lsr scl) land 1) in
+    let master_scl = 1 - ((m.pin_dir lsr I2c.scl) land 1) in
     bus_sda, master_scl, Stretcher.scl !stretcher ~master:master_scl
   in
   let model = ref None in
   let (_ : Machine.t) =
     Lockstep.lockstep
       ~cycles:5000
-      ~config:i2c_stretch_config
-      ~program:(assemble (i2c_master_stretch ~quarter:8))
+      ~config:I2c.stretch_config
+      ~program:(assemble (I2c.master_stretch ~quarter:8))
       ~inputs:(fun _ ->
         match !model with
-        | None -> (1 lsl sda) lor (1 lsl scl)
+        | None -> (1 lsl I2c.sda) lor (1 lsl I2c.scl)
         | Some m ->
           let bus_sda, _, bus_scl = bus m in
-          (bus_sda lsl sda) lor (bus_scl lsl scl))
+          (bus_sda lsl I2c.sda) lor (bus_scl lsl I2c.scl))
       ~host:(fun _ ->
         match !words with
         | w :: rest ->

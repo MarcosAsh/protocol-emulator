@@ -14,7 +14,7 @@ let report ?(config = Program_config.default) ?period ?single_capture_edge sourc
 ;;
 
 let%expect_test "uart tx" =
-  report (uart_tx ~period:16);
+  report (Uart.tx ~period:16);
   [%expect
     {|
      0  set p, 16                    phase ?..?
@@ -36,7 +36,7 @@ let%expect_test "uart tx" =
 ;;
 
 let%expect_test "uart rx" =
-  report ~config:rx_config ~single_capture_edge:true (uart_rx ~period:16);
+  report ~config:Uart.rx_config ~single_capture_edge:true (Uart.rx ~period:16);
   [%expect
     {|
      0  set p, 16                    phase ?..?
@@ -62,7 +62,7 @@ let%expect_test "uart rx" =
 ;;
 
 let%expect_test "spi master" =
-  report ~config:spi_config (spi_master ~half_period:8);
+  report ~config:Spi.config (Spi.master ~half_period:8);
   [%expect
     {|
      0  set p, 8 side 0              phase ?..?  side ?..?  jitter ?
@@ -85,7 +85,7 @@ let%expect_test "spi master" =
 ;;
 
 let%expect_test "i2c master" =
-  report ~config:i2c_config (i2c_master ~quarter:8);
+  report ~config:I2c.config (I2c.master ~quarter:8);
   [%expect
     {|
      0  set p, 8 side 0              phase ?..?  side ?..?  jitter ?
@@ -191,7 +191,7 @@ let%expect_test "i2c master" =
 ;;
 
 let%expect_test "a quarter of 5 is too short for the i2c dispatch" =
-  report ~config:i2c_config (i2c_master ~quarter:5);
+  report ~config:I2c.config (I2c.master ~quarter:5);
   [%expect
     {|
      0  set p, 5 side 0              phase ?..?  side ?..?  jitter ?
@@ -297,7 +297,7 @@ let%expect_test "a quarter of 5 is too short for the i2c dispatch" =
 ;;
 
 let%expect_test "i2c logger" =
-  report ~config:i2c_logger_config (Timed_program.source i2c_logger);
+  report ~config:I2c.logger_config (Timed_program.source I2c.logger);
   [%expect
     {|
      0  mov pins, !null side 0       phase ?..?  edge ?..?  jitter ?  side ?..?  jitter ?
@@ -496,9 +496,9 @@ let check ?(config = Program_config.default) ?period ?single_capture_edge source
 ;;
 
 let%expect_test "firmware that can miss a deadline is refused" =
-  check ~config:i2c_config (i2c_master ~quarter:8);
+  check ~config:I2c.config (I2c.master ~quarter:8);
   [%expect {| 99 words, 31 deadline waits, worst slack 0 |}];
-  check ~config:i2c_config (i2c_master ~quarter:5);
+  check ~config:I2c.config (I2c.master ~quarter:5);
   [%expect
     {|
     4 of 31 deadline waits may be missed
@@ -508,12 +508,12 @@ let%expect_test "firmware that can miss a deadline is refused" =
      91  wait t+ side 1               phase -1..3  slack -3..1  MAY MISS
     |}];
   (* a program with no deadline to miss *)
-  check ~config:spi_slave_config (Timed_program.source spi_slave);
+  check ~config:Spi.slave_config (Timed_program.source Spi.slave);
   [%expect {| 6 words, 0 deadline waits |}]
 ;;
 
 let%expect_test "a deadline is only as good as what is assumed about the world" =
-  check ~config:rx_config (uart_rx ~period:16);
+  check ~config:Uart.rx_config (Uart.rx ~period:16);
   [%expect
     {|
     2 of 2 deadline waits may be missed
@@ -521,7 +521,7 @@ let%expect_test "a deadline is only as good as what is assumed about the world" 
      15  wait t                       phase -7..?  slack ?..7  MAY MISS
     a bound of ? means none: the way here has a wait for a pin or a fifo, a capture nothing is assumed about, a period the host loads, or a loop that falls further behind on every pass
     |}];
-  check ~config:rx_config ~single_capture_edge:true (uart_rx ~period:16);
+  check ~config:Uart.rx_config ~single_capture_edge:true (Uart.rx ~period:16);
   [%expect {| 19 words, 2 deadline waits, worst slack 7 |}];
   check (Timed_program.source usb_tx);
   [%expect
@@ -575,14 +575,14 @@ let soundness ?period ?preload ~config ~cycles ~seeds words =
 
 let%expect_test "every firmware stays inside its analysis under random stimulus" =
   let corpus =
-    [ "uart tx", Program_config.default, uart_tx ~period:16, None, []
-    ; "uart tx host rate", Program_config.default, uart_tx_host_rate, Some 434, [ 434 ]
-    ; "uart rx", rx_config, uart_rx ~period:16, None, []
-    ; "spi master", spi_config, spi_master ~half_period:8, None, []
-    ; "spi slave", spi_slave_config, Timed_program.source spi_slave, None, []
-    ; "i2c master", i2c_config, i2c_master ~quarter:8, None, []
-    ; "i2c slave", i2c_slave_config, Timed_program.source i2c_slave, None, [ 0x50 lsl 1 ]
-    ; "i2c logger", i2c_logger_config, Timed_program.source i2c_logger, None, []
+    [ "uart tx", Program_config.default, Uart.tx ~period:16, None, []
+    ; "uart tx host rate", Program_config.default, Uart.tx_host_rate, Some 434, [ 434 ]
+    ; "uart rx", Uart.rx_config, Uart.rx ~period:16, None, []
+    ; "spi master", Spi.config, Spi.master ~half_period:8, None, []
+    ; "spi slave", Spi.slave_config, Timed_program.source Spi.slave, None, []
+    ; "i2c master", I2c.config, I2c.master ~quarter:8, None, []
+    ; "i2c slave", I2c.slave_config, Timed_program.source I2c.slave, None, [ 0x50 lsl 1 ]
+    ; "i2c logger", I2c.logger_config, Timed_program.source I2c.logger, None, []
     ; "usb tx", usb_config, Timed_program.source usb_tx, Some 32, [ 32 ]
     ; "usb rx", usb_rx_config, usb_rx ~half_period:16, Some 32, [ 32 ]
     ; ( "usb device"
@@ -595,7 +595,7 @@ let%expect_test "every firmware stays inside its analysis under random stimulus"
     ; "start hold", start_hold_config ~scl:1, start_hold ~sda:0 ~scl:1, None, []
     ; ( "uart tx, fractional period"
       , { Program_config.default with period_fraction = 43691 }
-      , uart_tx_host_rate
+      , Uart.tx_host_rate
       , Some 16
       , [ 16 ] )
     ; "ws2812", Ws2812.config, Ws2812.firmware ~third:6 ~tail:7, None, []
@@ -674,11 +674,11 @@ let%expect_test "a fractional period" =
   Timing_report.print
     ~config:{ Program_config.default with period_fraction = 43691 }
     ~period:416
-    uart_tx_host_rate;
+    Uart.tx_host_rate;
   report
     ~config:{ Program_config.default with period_fraction = 43691 }
     ~period:416
-    uart_tx_host_rate;
+    Uart.tx_host_rate;
   [%expect
     {|
       3  set pins, 1                  phase ?..?  edge ?..?  jitter ?  gap ?..?
@@ -1019,7 +1019,7 @@ let%expect_test "a capture is only as young as the arm once a wait has seen the 
     \    jmp 0\n"
   in
   let program = Asm.assemble source |> ok_exn in
-  let config = Asm.Program.configure program Firmware.rx_config in
+  let config = Asm.Program.configure program Uart.rx_config in
   print_s
     [%message
       (Analyser.check ~single_capture_edge:true ~config program
@@ -1059,7 +1059,7 @@ let%expect_test "only the first wait after the arm sees the captured edge" =
     \    jmp 0\n"
   in
   let program = Asm.assemble source |> ok_exn in
-  let config = Asm.Program.configure program Firmware.rx_config in
+  let config = Asm.Program.configure program Uart.rx_config in
   print_s
     [%message
       (Analyser.check ~single_capture_edge:true ~config program

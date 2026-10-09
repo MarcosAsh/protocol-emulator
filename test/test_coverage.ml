@@ -42,8 +42,8 @@ let run
 
 let directed coverage =
   let run = run coverage in
-  run ~words:[ 0x55; 0xa3 ] ~config:Program_config.default (uart_tx ~period:16);
-  run ~words:[ 16; 0x55 ] ~config:Program_config.default uart_tx_host_rate;
+  run ~words:[ 0x55; 0xa3 ] ~config:Program_config.default (Uart.tx ~period:16);
+  run ~words:[ 16; 0x55 ] ~config:Program_config.default Uart.tx_host_rate;
   let levels = ref (serial_levels [ 0x55; 0x00 ] ~period:16 ~stop:1 @ [ 0 ]) in
   let next () =
     match !levels with
@@ -53,42 +53,46 @@ let directed coverage =
       level
     | [] -> 0
   in
-  run ~cycles:600 ~inputs:next ~config:rx_config (uart_rx ~period:16);
+  run ~cycles:600 ~inputs:next ~config:Uart.rx_config (Uart.rx ~period:16);
   let slave = ref (Spi_slave.create [ 0x81; 0x7e ]) in
   run
     ~words:[ 0xa5; 0x3c ]
-    ~inputs:(fun () -> Spi_slave.miso !slave lsl miso_pin)
+    ~inputs:(fun () -> Spi_slave.miso !slave lsl Spi.miso_pin)
     ~react:(fun m ->
       slave
-      := Spi_slave.step !slave ~sck:(bit m.pin_out sck_pin) ~mosi:(bit m.pin_out mosi_pin))
-    ~config:spi_config
-    (spi_master ~half_period:8);
+      := Spi_slave.step
+           !slave
+           ~sck:(bit m.pin_out Spi.sck_pin)
+           ~mosi:(bit m.pin_out Spi.mosi_pin))
+    ~config:Spi.config
+    (Spi.master ~half_period:8);
   let master = ref (Spi_peer.create ~half_period:4 [ 0xa5; 0x3c ]) in
   run
     ~words:[ 0x8100; 0x7e00; 0 ]
     ~inputs:(fun () ->
-      (Spi_peer.sck !master lsl slave_sck_pin)
-      lor (Spi_peer.mosi !master lsl slave_mosi_pin))
-    ~react:(fun m -> master := Spi_peer.step !master ~miso:(bit m.pin_out slave_miso_pin))
-    ~config:spi_slave_config
-    (Timed_program.source spi_slave);
+      (Spi_peer.sck !master lsl Spi.slave_sck_pin)
+      lor (Spi_peer.mosi !master lsl Spi.slave_mosi_pin))
+    ~react:(fun m ->
+      master := Spi_peer.step !master ~miso:(bit m.pin_out Spi.slave_miso_pin))
+    ~config:Spi.slave_config
+    (Timed_program.source Spi.slave);
   let slave = ref (I2c_slave.create ~address:0x50 ~memory:(Array.create ~len:16 0x5a)) in
-  let bus = ref ((1 lsl sda) lor (1 lsl scl)) in
+  let bus = ref ((1 lsl I2c.sda) lor (1 lsl I2c.scl)) in
   let react (m : Machine.t) =
-    let bus_sda = if I2c_slave.drive_low !slave then 0 else 1 - bit m.pin_dir sda in
-    let bus_scl = 1 - bit m.pin_dir scl in
-    bus := (bus_sda lsl sda) lor (bus_scl lsl scl);
+    let bus_sda = if I2c_slave.drive_low !slave then 0 else 1 - bit m.pin_dir I2c.sda in
+    let bus_scl = 1 - bit m.pin_dir I2c.scl in
+    bus := (bus_sda lsl I2c.sda) lor (bus_scl lsl I2c.scl);
     slave := I2c_slave.step !slave ~sda:bus_sda ~scl:bus_scl
   in
-  let words = [ i2c_word ~start:true 0xa0; i2c_word 3; i2c_word ~stop:true 0xaa ] in
+  let words = [ I2c.word ~start:true 0xa0; I2c.word 3; I2c.word ~stop:true 0xaa ] in
   let inputs () = !bus in
-  run ~cycles:1500 ~words ~inputs ~react ~config:i2c_config (i2c_master ~quarter:8);
+  run ~cycles:1500 ~words ~inputs ~react ~config:I2c.config (I2c.master ~quarter:8);
   run
     ~cycles:3000
     ~inputs
     ~react
-    ~config:i2c_logger_config
-    (Timed_program.source i2c_logger);
+    ~config:I2c.logger_config
+    (Timed_program.source I2c.logger);
   let master =
     ref (I2c_peer.create ~quarter:8 [ Start; Write 0xa0; Write 3; Start; Write 0xa1 ])
   in
@@ -96,12 +100,12 @@ let directed coverage =
   run
     ~cycles:1500
     ~words:[ 0x50 lsl 1; 0x12 ]
-    ~inputs:(fun () -> (!bus_sda lsl sda) lor (I2c_peer.scl !master lsl scl))
+    ~inputs:(fun () -> (!bus_sda lsl I2c.sda) lor (I2c_peer.scl !master lsl I2c.scl))
     ~react:(fun m ->
-      bus_sda := I2c_peer.sda !master land (1 - bit m.pin_dir sda);
+      bus_sda := I2c_peer.sda !master land (1 - bit m.pin_dir I2c.sda);
       master := I2c_peer.step !master ~sda:!bus_sda)
-    ~config:i2c_slave_config
-    (Timed_program.source i2c_slave);
+    ~config:I2c.slave_config
+    (Timed_program.source I2c.slave);
   run
     ~cycles:3200
     ~words:[ 32; 0x80; 0xc3; 0; 0xff ]

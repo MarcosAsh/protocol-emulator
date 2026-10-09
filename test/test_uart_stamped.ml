@@ -6,7 +6,7 @@ let period = 8
 let tx_pin = 5
 
 let%expect_test "the analyser's certificate" =
-  let { Certified.source; config; _ } = Certified.stamped in
+  let { Certified.source; config; _ } = Library.stamped in
   let program = Asm.assemble source |> ok_exn in
   let config = Asm.Program.configure program config in
   print_endline
@@ -46,7 +46,7 @@ let run ~cycles ~writes =
   let t =
     Machine.create
       ~config:Program_config.default
-      ~program:(assemble (uart_tx_stamped ~period))
+      ~program:(assemble (Uart.tx_stamped ~period))
     |> ok_exn
   in
   let rec loop t cycle acc =

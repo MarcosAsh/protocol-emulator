@@ -9,6 +9,14 @@ module Assumption = struct
     | Receiver of int
 end
 
+module Stimulus = struct
+  type t =
+    { bursts : int list list
+    ; quiet : int
+    ; cycles : int
+    }
+end
+
 type t =
   { name : string
   ; what : string
@@ -17,6 +25,7 @@ type t =
   ; assumption : Assumption.t
   ; clock_hz : int
   ; load : int option
+  ; stimulus : Stimulus.t option
   }
 
 (* The Icepi's USB build drives IO0 and IO1's header pins with the USB lines, so I2C moves
@@ -106,7 +115,6 @@ let rate ?(clock_hz = clock_hz) ?(unit = "Hz") cycles =
 ;;
 
 let spi_half = 8
-let i2c_quarter = quarter ~hz:250_000
 let one_wire_unit = cycles_in ~us:6
 let can_bit = bit ~hz:500_000
 let swd_half = half ~hz:1_000_000
@@ -116,57 +124,15 @@ let sk6812_third = 17
 let sk6812_tail = 8
 let sk6812_gaps = (cycles_in ~us:200 / (160 * sk6812_third)) + 1
 
-(* the W25Q64JV's tRES1 after ABh, kept by every frame *)
-let spi_cs_deselect = cycles_in ~us:3
+let can_stimulus =
+  { Stimulus.bursts = [ Can.words (Can.Frame.data ~id:0x4a [ 0x61 ]) ]
+  ; quiet = 0
+  ; cycles = 20_000
+  }
+;;
 
-let all =
-  [ { name = "spi_master"
-    ; what =
-        [%string
-          "Firmware.spi_master ~half_period:%{spi_half#Int}: SCK at %{rate (2 * \
-           spi_half)} on OUT5, MOSI on OUT4, MISO on IN0, no chip select"]
-    ; source = Firmware.spi_master ~half_period:spi_half
-    ; config = on_spi_pins Firmware.spi_config
-    ; assumption = Nothing
-    ; clock_hz
-    ; load = None
-    }
-  ; { name = "i2c_master"
-    ; what =
-        [%string
-          "Firmware.i2c_master_host_rate: the host sends the quarter, %{i2c_quarter#Int} \
-           cycles for %{rate (4 * i2c_quarter)}, SDA on IO2, SCL on IO3"]
-    ; source = Firmware.i2c_master_host_rate
-    ; config =
-        { Firmware.i2c_config with
-          side_set_base = scl
-        ; out_base = sda
-        ; set_base = sda
-        ; in_base = sda
-        ; jmp_pin = sda
-        }
-    ; assumption = Floor 31
-    ; clock_hz
-    ; load = Some i2c_quarter
-    }
-  ; { name = "i2c_master_stretch"
-    ; what =
-        "Firmware.i2c_master_stretch_host_rate: i2c_master waiting on SCL, SDA on IO2, \
-         SCL on IO3"
-    ; source = Firmware.i2c_master_stretch_host_rate
-    ; config =
-        { Firmware.i2c_stretch_config with
-          side_set_base = scl
-        ; out_base = sda
-        ; set_base = sda
-        ; in_base = sda
-        ; jmp_pin = scl
-        }
-    ; assumption = Floor 31
-    ; clock_hz
-    ; load = Some i2c_quarter
-    }
-  ; { name = "one_wire"
+let others =
+  [ { name = "one_wire"
     ; what =
         [%string
           "One_wire.firmware with a reset of 84 units: the host sends the unit, \
@@ -182,6 +148,12 @@ let all =
     ; assumption = Floor 5
     ; clock_hz
     ; load = Some one_wire_unit
+    ; stimulus =
+        Some
+          { bursts = [ One_wire.[ reset; byte 0x00; byte 0xa5; byte 0xff ] ]
+          ; quiet = 0
+          ; cycles = 200_000
+          }
     }
   ; { name = "can"
     ; what =
@@ -194,6 +166,7 @@ let all =
     ; assumption = Floor Can.shortest_period
     ; clock_hz
     ; load = Some can_bit
+    ; stimulus = Some can_stimulus
     }
   ; { name = "can_sender"
     ; what =
@@ -206,6 +179,7 @@ let all =
     ; assumption = Floor Can_node.Sender.shortest_period
     ; clock_hz
     ; load = Some can_bit
+    ; stimulus = Some can_stimulus
     }
   ; { name = "can_receiver"
     ; what =
@@ -218,6 +192,7 @@ let all =
     ; assumption = Receiver Can_node.Receiver.period
     ; clock_hz
     ; load = Some Can_node.Receiver.period
+    ; stimulus = None
     }
   ; { name = "sk6812"
     ; what =
@@ -234,6 +209,15 @@ let all =
     ; assumption = Nothing
     ; clock_hz
     ; load = None
+    ; stimulus =
+        (let pixels =
+           List.concat_map
+             [ { Ws2812.Pixel.red = 0x0f; green = 0xf0; blue = 0x55 }
+             ; { red = 0xaa; green = 0x33; blue = 0xcc }
+             ]
+             ~f:Ws2812.Pixel.words
+         in
+         Some { bursts = [ pixels; pixels; pixels ]; quiet = 200; cycles = 60_000 })
     }
   ; { name = "start_hold"
     ; what =
@@ -244,6 +228,7 @@ let all =
     ; assumption = Nothing
     ; clock_hz
     ; load = None
+    ; stimulus = None
     }
   ; { name = "ethernet"
     ; what =
@@ -257,6 +242,7 @@ let all =
     ; assumption = Period Ethernet.link_tenth
     ; clock_hz = ethernet_clock_hz
     ; load = Some Ethernet.link_tenth
+    ; stimulus = None
     }
   ; { name = "swd"
     ; what =
@@ -268,53 +254,9 @@ let all =
     ; assumption = Floor Swd.shortest_half
     ; clock_hz
     ; load = Some swd_half
+    ; stimulus = None
     }
   ]
-  @ List.map Spi_cs.Mode.all ~f:(fun mode ->
-    let n = Spi_cs.Mode.to_int mode in
-    { name = [%string "spi_cs_mode%{n#Int}"]
-    ; what =
-        [%string
-          "Spi_cs.master in mode %{n#Int}, half period %{spi_half#Int}: SCK at %{rate (2 \
-           * spi_half)} on OUT5, MOSI on OUT4, MISO on IN0, CS on OUT6 4 cycles before \
-           the first edge and 8 after the last, and high %{time spi_cs_deselect} between \
-           frames"]
-    ; source =
-        Spi_cs.master
-          ~mode
-          ~half_period:spi_half
-          ~setup:4
-          ~hold:8
-          ~deselect:spi_cs_deselect
-    ; config = on_spi_pins Spi_cs.config
-    ; assumption = Nothing
-    ; clock_hz
-    ; load = None
-    })
-;;
-
-(* the keyboard demo loads the certified copy, at the period python/demo_usb.py works out
-   from the clock the same way *)
-let uart_log =
-  let baud = 115_200 in
-  let period = (clock_hz + (baud / 2)) / baud in
-  { name = "uart_log"
-  ; what =
-      [%string
-        "Firmware.uart_tx_host_rate: the keyboard demo's log to Pico B, %{period#Int} \
-         cycles a bit for %{rate ~unit:\"baud\" period}, on OUT0"]
-  ; source = Firmware.uart_tx_host_rate
-  ; config = Program_config.default
-  ; assumption = Floor 4
-  ; clock_hz
-  ; load = Some period
-  }
-;;
-
-let find_exn name =
-  match List.find (uart_log :: all) ~f:(fun t -> String.equal t.name name) with
-  | Some t -> t
-  | None -> raise_s [%message "no such bench firmware" (name : string)]
 ;;
 
 let timed t =

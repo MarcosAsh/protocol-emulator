@@ -256,13 +256,13 @@ let%expect_test "the words committed for the cocotb test are current" =
   (* copies of firmware.ml's, since the command line assembles files *)
   [%test_result: int list]
     (assembled "uart_tx")
-    ~expect:(Firmware.assemble (Firmware.uart_tx ~period:16));
+    ~expect:(Firmware.assemble (Uart.tx ~period:16));
   [%test_result: int list]
     (assembled "uart_rx_wire")
-    ~expect:(Firmware.assemble (Firmware.uart_rx_on ~pin:Isa.num_pins ~period:16));
+    ~expect:(Firmware.assemble (Uart.rx_on ~pin:Isa.num_pins ~period:16));
   [%test_result: int list]
     (assembled "uart_tx_host_rate")
-    ~expect:(Firmware.assemble Firmware.uart_tx_host_rate);
+    ~expect:(Firmware.assemble Uart.tx_host_rate);
   [%test_result: int list]
     (assembled "ethernet")
     ~expect:(Timed_program.words Ethernet.firmware);
@@ -282,7 +282,7 @@ let%expect_test "the words committed for the cocotb test are current" =
   in
   [%test_result: int list]
     (Firmware.assemble unmarked)
-    ~expect:(Firmware.assemble (Firmware.i2c_master_without_bus_clear ~quarter:30));
+    ~expect:(Firmware.assemble (I2c.master_without_bus_clear ~quarter:30));
   [%test_result: int list]
     (assembled "self_check_wire")
     ~expect:(Firmware.assemble (Self_check.checker ~pin:Isa.num_pins ~base:256));

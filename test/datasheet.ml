@@ -219,89 +219,6 @@ let can_receiver =
   ]
 ;;
 
-(* 24LC256 at 3.3 V, the 2.5 to 5.5 V rows. The kernel times the master's pins, so a width
-   from a release to the next edge loses the line's rise, TR of 300 ns at most. *)
-let i2c firmware =
-  let sheet page =
-    { Sheet.part = "24LC256"; document = "Microchip DS20001203W, Table 1-2"; page }
-  in
-  let rise = Margin.Ns { ns = 300.; why = "TR, param 4" } in
-  let scl = side_pin
-  and sda = set_pin in
-  (* the bits before an edge are true while the master holds the line low *)
-  let pair ?hold ?apart () =
-    Bound.Kernel
-      (fun config -> spacing ~dirs:true ?hold ?apart ~a:(scl config) ~b:(sda config) ())
-  in
-  let sda_pair ?hold ?apart () =
-    Bound.Kernel
-      (fun config n ->
-        swap (spacing ~dirs:true ?hold ?apart ~a:(sda config) ~b:(scl config) () n))
-  in
-  let limit parameter ns page margin bound =
-    { firmware; parameter; limit = At_least ns; sheet = sheet page; margin; bound }
-  in
-  [ limit "THIGH" 600. "p.3, param 2" rise (pair ~hold:(fun ~own ~other:_ -> not own) ())
-  ; limit "TLOW" 1300. "p.3, param 3" Cycle (pair ~hold:(fun ~own ~other:_ -> own) ())
-  ; limit
-      "THD:STA"
-      600.
-      "p.3, param 6"
-      Cycle
-      (pair ~apart:(fun ~own ~other -> (not own) && other) ())
-  ; limit
-      "TSU:STA"
-      600.
-      "p.3, param 7"
-      rise
-      (sda_pair ~apart:(fun ~own ~other -> (not own) && not other) ())
-  ; limit "TSU:DAT" 100. "p.3, param 9" rise (pair ~apart:(fun ~own ~other:_ -> own) ())
-  ; limit
-      "TSU:STO"
-      600.
-      "p.3, param 10"
-      rise
-      (sda_pair ~apart:(fun ~own ~other -> own && not other) ())
-  ; limit
-      "TBUF"
-      1300.
-      "p.4, param 14"
-      rise
-      (sda_pair ~hold:(fun ~own ~other -> (not own) && not other) ())
-  ]
-;;
-
-(* W25Q64JV: CLK high and low are 45% of the 20 ns of 03h's 50 MHz, the strictest reading;
-   CS high is tRES1's 3 us, which a read after ABh needs and every frame keeps *)
-let w25q64 firmware =
-  let sheet page = { Sheet.part = "W25Q64JV"; document = "Winbond Rev. M"; page } in
-  let sck = side_pin
-  and cs config = side_pin config + 1 in
-  let pair ?hold ?apart () =
-    Bound.Kernel (fun config -> spacing ?hold ?apart ~a:(sck config) ~b:(cs config) ())
-  in
-  let cs_pair ?hold ?apart () =
-    Bound.Kernel
-      (fun config n -> swap (spacing ?hold ?apart ~a:(cs config) ~b:(sck config) () n))
-  in
-  let limit parameter ns page bound =
-    { firmware
-    ; parameter
-    ; limit = At_least ns
-    ; sheet = sheet page
-    ; margin = Cycle
-    ; bound
-    }
-  in
-  [ limit "tCLH" 9. "p.64" (pair ~hold:(fun ~own ~other -> own && not other) ())
-  ; limit "tCLL" 9. "p.64" (pair ~hold:(fun ~own ~other -> (not own) && not other) ())
-  ; limit "tSLCH" 3. "p.64" (pair ~apart:(fun ~own:_ ~other -> not other) ())
-  ; limit "tCHSH" 3. "p.64" (cs_pair ~apart:(fun ~own ~other:_ -> not own) ())
-  ; limit "tSHSL2" 50. "p.64" (cs_pair ~hold:(fun ~own ~other:_ -> own) ())
-  ; limit "tRES1" 3_000. "p.65" (cs_pair ~hold:(fun ~own ~other:_ -> own) ())
-  ]
-;;
-
 (* RP2040 recommends 24 MHz at most; each half at least half of its period keeps it *)
 let swd =
   let sheet =
@@ -322,91 +239,16 @@ let swd =
       })
 ;;
 
-(* the bit within 2% of 115200 baud, the 'nasty link' budget a receiver shares *)
-let uart_log =
-  let sheet =
-    { Sheet.part = "UART at 115200 baud"
-    ; document = "Maxim AN2141"
-    ; page = "p.4, +-3/152, 2%"
-    }
-  in
-  let bit = 1e9 /. 115_200. in
-  [ { firmware = "uart_log"
-    ; parameter = "bit"
-    ; limit = At_least (bit *. 0.98)
-    ; sheet
-    ; margin = Cycle
-    ; bound = level ~pin:set_pin ~high:false ()
-    }
-  ; { firmware = "uart_log"
-    ; parameter = "bit"
-    ; limit = At_most (bit *. 1.02)
-    ; sheet
-    ; margin = Cycle
-    ; bound = run ~pin:set_pin (fun ~clock_hz:_ levels -> lows levels)
-    }
-  ]
-;;
-
-let all =
-  sk6812
-  @ ds18b20
-  @ can "can"
-  @ can "can_sender"
-  @ can_receiver
-  @ i2c "i2c_master"
-  @ i2c "i2c_master_stretch"
-  @ swd
-  @ uart_log
-  @ List.concat_map Spi_cs.Mode.all ~f:(fun mode ->
-    w25q64 [%string "spi_cs_mode%{Spi_cs.Mode.to_int mode#Int}"])
-;;
+let others = sk6812 @ ds18b20 @ can "can" @ can "can_sender" @ can_receiver @ swd
 
 let exempt =
-  [ "spi_master", "no demo loads it"
-  ; "start_hold", "it drives no pin: it listens to Pico B's I2C"
+  [ "start_hold", "it drives no pin: it listens to Pico B's I2C"
   ; "ethernet", "no demo on the bench: it needs the Icepi's 40 MHz build"
   ]
 ;;
 
-module Stimulus = struct
-  type t =
-    { bursts : int list list
-    ; quiet : int
-    ; cycles : int
-    }
-end
-
-let stimulus (bench : Bench.t) =
-  let load = Option.to_list bench.load in
-  match bench.name with
-  | "sk6812" ->
-    let pixels =
-      List.concat_map
-        [ { Ws2812.Pixel.red = 0x0f; green = 0xf0; blue = 0x55 }
-        ; { red = 0xaa; green = 0x33; blue = 0xcc }
-        ]
-        ~f:Ws2812.Pixel.words
-    in
-    Some { Stimulus.bursts = [ pixels; pixels; pixels ]; quiet = 200; cycles = 60_000 }
-  | "one_wire" ->
-    Some
-      { bursts = [ (load @ One_wire.[ reset; byte 0x00; byte 0xa5; byte 0xff ]) ]
-      ; quiet = 0
-      ; cycles = 200_000
-      }
-  | "can" | "can_sender" ->
-    Some
-      { bursts = [ load @ Can.words (Can.Frame.data ~id:0x4a [ 0x61 ]) ]
-      ; quiet = 0
-      ; cycles = 20_000
-      }
-  | "uart_log" -> Some { bursts = [ load @ [ 0x55; 0x55 ] ]; quiet = 0; cycles = 20_000 }
-  | _ -> None
-;;
-
 (* every line pulled up, nothing else driving, and the host on time *)
-let levels (bench : Bench.t) ~pin (stimulus : Stimulus.t) =
+let levels (bench : Bench.t) ~pin (stimulus : Bench.Stimulus.t) =
   let timed = Bench.timed bench in
   let inputs = (1 lsl Isa.num_pins) - 1 in
   let level machine = (Machine.pins machine ~inputs lsr pin) land 1 = 1 in
@@ -456,7 +298,13 @@ let levels (bench : Bench.t) ~pin (stimulus : Stimulus.t) =
       ~program:(Timed_program.words timed)
     |> ok_exn
   in
-  go machine ~cycle:0 ~queued:[] ~bursts:stimulus.bursts ~quiet:0 []
+  (* the load, if any, goes first *)
+  let bursts =
+    match stimulus.bursts with
+    | first :: rest -> (Option.to_list bench.load @ first) :: rest
+    | [] -> []
+  in
+  go machine ~cycle:0 ~queued:[] ~bursts ~quiet:0 []
 ;;
 
 module Verdict = struct
@@ -516,11 +364,8 @@ let rec most ~ok ~lo ~hi =
     if ok mid then most ~ok ~lo:mid ~hi else most ~ok ~lo ~hi:mid)
 ;;
 
-let check ?limits (bench : Bench.t) =
-  let limits =
-    Option.value_or_thunk limits ~default:(fun () ->
-      List.filter all ~f:(fun t -> String.equal t.firmware bench.name))
-  in
+let check limits (bench : Bench.t) =
+  let limits = List.filter limits ~f:(fun t -> String.equal t.firmware bench.name) in
   List.map limits ~f:(fun t ->
     let needed = needed ~clock_hz:bench.clock_hz t.limit t.margin in
     let bound =
@@ -531,7 +376,7 @@ let check ?limits (bench : Bench.t) =
       | Kernel _, At_most _ -> raise_s [%message "BUG: the kernel bounds least widths"]
       | Run { pin; widths }, limit ->
         let stimulus =
-          match stimulus bench with
+          match bench.stimulus with
           | Some stimulus -> stimulus
           | None -> raise_s [%message "BUG: no stimulus to run" bench.name]
         in
@@ -591,8 +436,8 @@ let to_string (bench : Bench.t) verdicts =
   |> String.concat ~sep:"\n"
 ;;
 
-let check_exn (bench : Bench.t) =
-  match check bench with
+let check_exn limits ~exempt (bench : Bench.t) =
+  match check limits bench with
   | [] when not (List.Assoc.mem exempt bench.name ~equal:String.equal) ->
     raise_s [%message "no datasheet limits, and no reason why" bench.name]
   | verdicts ->

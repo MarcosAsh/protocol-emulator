@@ -11,7 +11,7 @@ open Protocol_emulator
 val pin : int
 val cycle_ns : int
 
-(** 31 and 83 cycles, 620 and 1660 ns; in [Certified.all]. *)
+(** 31 and 83 cycles, 620 and 1660 ns; in [Library.certified]. *)
 val dshot600 : string
 
 (** 16 and 42 cycles, 320 and 840 ns; kernel-checked, not certified. *)

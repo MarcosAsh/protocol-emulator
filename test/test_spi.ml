@@ -6,7 +6,7 @@ open Protocol_models
 let%expect_test "spi master exchanges bytes with a mode 0 slave" =
   let half_period = 8 in
   let t =
-    Machine.create ~config:spi_config ~program:(assemble (spi_master ~half_period))
+    Machine.create ~config:Spi.config ~program:(assemble (Spi.master ~half_period))
     |> ok_exn
   in
   let t = Machine.write_tx t 0xa5 |> ok_exn in
@@ -16,19 +16,19 @@ let%expect_test "spi master exchanges bytes with a mode 0 slave" =
     if n = 0
     then t, slave, List.rev received, List.rev sck
     else (
-      let t = Machine.step t ~inputs:(Spi_slave.miso slave lsl miso_pin) in
+      let t = Machine.step t ~inputs:(Spi_slave.miso slave lsl Spi.miso_pin) in
       let slave =
         Spi_slave.step
           slave
-          ~sck:((t.pin_out lsr sck_pin) land 1)
-          ~mosi:((t.pin_out lsr mosi_pin) land 1)
+          ~sck:((t.pin_out lsr Spi.sck_pin) land 1)
+          ~mosi:((t.pin_out lsr Spi.mosi_pin) land 1)
       in
       let received, t =
         match Machine.read_rx t with
         | Some (byte, t) -> byte :: received, t
         | None -> received, t
       in
-      loop t slave (n - 1) received (((t.pin_out lsr sck_pin) land 1) :: sck))
+      loop t slave (n - 1) received (((t.pin_out lsr Spi.sck_pin) land 1) :: sck))
   in
   let t, slave, master_received, sck = loop t slave 400 [] [] in
   print_s
@@ -52,7 +52,7 @@ let%expect_test "spi master exchanges bytes with a mode 0 slave" =
 (* one reply more than bytes, or the last edge pulls from an empty fifo *)
 let run_spi_slave ~half_period ?gap ~replies bytes =
   let t =
-    Machine.create ~config:spi_slave_config ~program:(Timed_program.words spi_slave)
+    Machine.create ~config:Spi.slave_config ~program:(Timed_program.words Spi.slave)
     |> ok_exn
   in
   let t =
@@ -65,11 +65,13 @@ let run_spi_slave ~half_period ?gap ~replies bytes =
     then t, master, List.rev received
     else (
       let inputs =
-        (Spi_peer.sck master lsl slave_sck_pin)
-        lor (Spi_peer.mosi master lsl slave_mosi_pin)
+        (Spi_peer.sck master lsl Spi.slave_sck_pin)
+        lor (Spi_peer.mosi master lsl Spi.slave_mosi_pin)
       in
       let t = Machine.step t ~inputs in
-      let master = Spi_peer.step master ~miso:((t.pin_out lsr slave_miso_pin) land 1) in
+      let master =
+        Spi_peer.step master ~miso:((t.pin_out lsr Spi.slave_miso_pin) land 1)
+      in
       let received, t =
         match Machine.read_rx t with
         | Some (byte, t) -> byte :: received, t
@@ -127,16 +129,16 @@ let%expect_test "spi master in lockstep" =
   let slave = ref (Spi_slave.create [ 0x81; 0x7e ]) in
   let (_ : Machine.t) =
     Lockstep.lockstep
-      ~config:spi_config
-      ~program:(assemble (spi_master ~half_period:8))
+      ~config:Spi.config
+      ~program:(assemble (Spi.master ~half_period:8))
       ~preload:[ 0xa5; 0x3c ]
-      ~inputs:(fun _ -> Spi_slave.miso !slave lsl miso_pin)
+      ~inputs:(fun _ -> Spi_slave.miso !slave lsl Spi.miso_pin)
       ~react:(fun m ->
         slave
         := Spi_slave.step
              !slave
-             ~sck:((m.pin_out lsr sck_pin) land 1)
-             ~mosi:((m.pin_out lsr mosi_pin) land 1))
+             ~sck:((m.pin_out lsr Spi.sck_pin) land 1)
+             ~mosi:((m.pin_out lsr Spi.mosi_pin) land 1))
       ()
   in
   let received = Spi_slave.received !slave in
@@ -151,14 +153,14 @@ let%expect_test "spi slave in lockstep" =
   let master = ref (Spi_peer.create ~half_period:4 [ 0xa5; 0x3c; 0xf0 ]) in
   let (_ : Machine.t) =
     Lockstep.lockstep
-      ~config:spi_slave_config
-      ~program:(Timed_program.words spi_slave)
+      ~config:Spi.slave_config
+      ~program:(Timed_program.words Spi.slave)
       ~preload:(List.map [ 0x81; 0x7e; 0x11; 0 ] ~f:(fun reply -> reply lsl 8))
       ~inputs:(fun _ ->
-        (Spi_peer.sck !master lsl slave_sck_pin)
-        lor (Spi_peer.mosi !master lsl slave_mosi_pin))
+        (Spi_peer.sck !master lsl Spi.slave_sck_pin)
+        lor (Spi_peer.mosi !master lsl Spi.slave_mosi_pin))
       ~react:(fun m ->
-        master := Spi_peer.step !master ~miso:((m.pin_out lsr slave_miso_pin) land 1))
+        master := Spi_peer.step !master ~miso:((m.pin_out lsr Spi.slave_miso_pin) land 1))
       ()
   in
   let received = Spi_peer.received !master in

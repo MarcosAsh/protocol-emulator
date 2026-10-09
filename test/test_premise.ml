@@ -281,14 +281,14 @@ let%expect_test "the receivers keep the premise their certificates rest on" =
     "at level"
     "left level"
     "received";
-  List.iter Certified.all ~f:(fun firmware ->
+  List.iter Library.certified ~f:(fun firmware ->
     if firmware.single_capture_edge
     then (
       match firmware.name with
       | "uart_rx" ->
         uart ~period:16 firmware;
-        uart ~period:25 ~name:"uart_rx 25" { firmware with source = uart_rx ~period:25 };
-        uart ~period:17 ~name:"uart_rx 17" { firmware with source = uart_rx ~period:17 };
+        uart ~period:25 ~name:"uart_rx 25" { firmware with source = Uart.rx ~period:25 };
+        uart ~period:17 ~name:"uart_rx 17" { firmware with source = Uart.rx ~period:17 };
         uart ~broken:(fun byte -> byte % 8 = 7) ~period:16 ~name:"uart_rx stop" firmware
       | "usb_rx" -> usb_rx_packets ~bit_period:(Option.value_exn firmware.period) firmware
       | "usb_device" ->
@@ -324,7 +324,7 @@ let%expect_test "the receivers keep the premise their certificates rest on" =
 (* A halt is not a release: the host stops the armed UART and the line falls and rises
    again, a second edge before the wait released. *)
 let%expect_test "a halted wait for the edge has not released" =
-  let firmware = Certified.find_exn "uart_rx" in
+  let firmware = Library.find_certified_exn "uart_rx" in
   let program = assemble firmware.source in
   let levels = List.init 20 ~f:(fun _ -> 1) @ [ 0; 0; 1; 1 ] in
   let run ?stop config =

@@ -6,7 +6,7 @@ open Protocol_emulator
    and where a capture is armed or taken, its age. The kernel refuses every one. *)
 let%expect_test "the kernel refuses each row moved by a cycle" =
   let move by b = Bits.(b +: of_signed_int ~width:(width b) by) in
-  List.iter Certified.all ~f:(fun (c : Certified.t) ->
+  List.iter Library.certified ~f:(fun (c : Certified.t) ->
     let program = Asm.assemble c.source |> ok_exn in
     let config = Asm.Program.configure program c.config in
     let single_capture_edge = c.single_capture_edge in

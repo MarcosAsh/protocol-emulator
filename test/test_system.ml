@@ -6,7 +6,9 @@ let period = 16
 
 (* a transmitter on one engine and a receiver on the other, with nothing outside the chip *)
 let cross_wired ~line ~transmitter =
-  let rx_config = { rx_config with in_base = line; jmp_pin = line; capture_pin = line } in
+  let rx_config =
+    { Uart.rx_config with in_base = line; jmp_pin = line; capture_pin = line }
+  in
   let system =
     System_lockstep.lockstep
       ~cycles:500
@@ -17,7 +19,7 @@ let cross_wired ~line ~transmitter =
         ; data = []
         }
       ; { config = rx_config
-        ; program = assemble (uart_rx_on ~pin:line ~period)
+        ; program = assemble (Uart.rx_on ~pin:line ~period)
         ; preload = []
         ; data = []
         }
@@ -36,7 +38,7 @@ let cross_wired ~line ~transmitter =
 let%expect_test "uart from one engine to the other over a pin" =
   cross_wired
     ~line:Isa.first_bidir_pin
-    ~transmitter:("    set pindirs, 1\n" ^ uart_tx ~period);
+    ~transmitter:("    set pindirs, 1\n" ^ Uart.tx ~period);
   [%expect
     {|
     ("lockstep held" (cycles 500))
@@ -50,7 +52,7 @@ let%expect_test "uart from one engine to the other over a pin" =
 ;;
 
 let%expect_test "uart from one engine to the other over a wire" =
-  cross_wired ~line:Isa.num_pins ~transmitter:(uart_tx ~period);
+  cross_wired ~line:Isa.num_pins ~transmitter:(Uart.tx ~period);
   [%expect
     {|
     ("lockstep held" (cycles 500))
@@ -111,7 +113,7 @@ let%expect_test "one engine times the other's uart edges" =
   let period = 434 in
   let bytes = [ 0x55; 0xa3 ] in
   let transmitter = { Program_config.default with set_base = line; out_base = line } in
-  Timing_report.print ~config:transmitter ~period uart_tx_host_rate;
+  Timing_report.print ~config:transmitter ~period Uart.tx_host_rate;
   let random = Splittable_random.of_int 1 in
   let fifo = ref [] in
   let stamps = ref [] in
@@ -128,7 +130,7 @@ let%expect_test "one engine times the other's uart edges" =
       ~react
       ~pads:(fun _ -> 0)
       [ { config = transmitter
-        ; program = assemble uart_tx_host_rate
+        ; program = assemble Uart.tx_host_rate
         ; preload = period :: bytes
         ; data = []
         }

@@ -3,7 +3,7 @@ open! Core
 (* The one variant of the reject split's sample no table passes. *)
 let no_table =
   List.find_exn
-    (Reject_split.variants (Certified.find_exn "uart_tx_host_rate"))
+    (Reject_split.variants (Library.find_certified_exn "uart_tx_host_rate"))
     ~f:(fun (v : Reject_split.Variant.t) ->
       String.equal v.name "uart_tx_host_rate pc 12 jmp 11")
 ;;

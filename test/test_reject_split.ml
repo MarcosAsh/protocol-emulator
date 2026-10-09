@@ -2,7 +2,7 @@ open! Core
 open Protocol_emulator
 
 let variant name =
-  let firmware = Certified.find_exn (List.hd_exn (String.split name ~on:' ')) in
+  let firmware = Library.find_certified_exn (List.hd_exn (String.split name ~on:' ')) in
   List.find_exn (Reject_split.variants firmware) ~f:(fun (v : Reject_split.Variant.t) ->
     String.equal v.name name)
 ;;

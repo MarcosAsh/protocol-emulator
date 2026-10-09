@@ -12,16 +12,12 @@ module Mode = struct
   let all = List.init 4 ~f:of_int
 end
 
-let mosi_pin = Firmware.mosi_pin
-let sck_pin = Firmware.sck_pin
+let mosi_pin = Spi.mosi_pin
+let sck_pin = Spi.sck_pin
 let cs_pin = sck_pin + 1
-let miso_pin = Firmware.miso_pin
+let miso_pin = Spi.miso_pin
 let last = 0x100
-
-let config =
-  { Firmware.spi_config with side_set_count = 2; autopush = true; push_threshold = 8 }
-;;
-
+let config = { Spi.config with side_set_count = 2; autopush = true; push_threshold = 8 }
 let shortest_half = 4
 let shortest_setup = 3
 let longest_setup = 30
@@ -231,3 +227,74 @@ module Device = struct
     else clock t ~sck ~mosi
   ;;
 end
+
+(* the W25Q64JV's tRES1 after ABh, kept by every frame *)
+let deselect = Bench.cycles_in ~us:3
+
+let bench mode =
+  let n = Mode.to_int mode
+  and half = Bench.spi_half in
+  { Bench.name = [%string "spi_cs_mode%{n#Int}"]
+  ; what =
+      [%string
+        "Spi_cs.master in mode %{n#Int}, half period %{half#Int}: SCK at %{Bench.rate (2 \
+         * half)} on OUT5, MOSI on OUT4, MISO on IN0, CS on OUT6 4 cycles before the \
+         first edge and 8 after the last, and high %{Bench.time deselect} between frames"]
+  ; source = master ~mode ~half_period:half ~setup:4 ~hold:8 ~deselect
+  ; config = Bench.on_spi_pins config
+  ; assumption = Nothing
+  ; clock_hz = Bench.clock_hz
+  ; load = None
+  ; stimulus = None
+  }
+;;
+
+(* W25Q64JV: CLK high and low are 45% of the 20 ns of 03h's 50 MHz, the strictest reading;
+   CS high is tRES1's 3 us, which a read after ABh needs and every frame keeps *)
+let limits firmware =
+  let sheet page =
+    { Datasheet.Sheet.part = "W25Q64JV"; document = "Winbond Rev. M"; page }
+  in
+  let sck = Datasheet.side_pin
+  and cs config = Datasheet.side_pin config + 1 in
+  let pair ?hold ?apart () =
+    Datasheet.Bound.Kernel
+      (fun config -> Datasheet.spacing ?hold ?apart ~a:(sck config) ~b:(cs config) ())
+  in
+  let cs_pair ?hold ?apart () =
+    Datasheet.Bound.Kernel
+      (fun config n ->
+        Datasheet.swap
+          (Datasheet.spacing ?hold ?apart ~a:(cs config) ~b:(sck config) () n))
+  in
+  let limit parameter ns page bound =
+    { Datasheet.firmware
+    ; parameter
+    ; limit = At_least ns
+    ; sheet = sheet page
+    ; margin = Cycle
+    ; bound
+    }
+  in
+  [ limit "tCLH" 9. "p.64" (pair ~hold:(fun ~own ~other -> own && not other) ())
+  ; limit "tCLL" 9. "p.64" (pair ~hold:(fun ~own ~other -> (not own) && not other) ())
+  ; limit "tSLCH" 3. "p.64" (pair ~apart:(fun ~own:_ ~other -> not other) ())
+  ; limit "tCHSH" 3. "p.64" (cs_pair ~apart:(fun ~own ~other:_ -> not own) ())
+  ; limit "tSHSL2" 50. "p.64" (cs_pair ~hold:(fun ~own ~other:_ -> own) ())
+  ; limit "tRES1" 3_000. "p.65" (cs_pair ~hold:(fun ~own ~other:_ -> own) ())
+  ]
+;;
+
+let protocol =
+  { Protocol.name = "spi_cs"
+  ; certified = []
+  ; time_triggered = []
+  ; bench = List.map Mode.all ~f:bench
+  ; loaded_from_hex = []
+  ; limits =
+      List.concat_map Mode.all ~f:(fun mode ->
+        limits [%string "spi_cs_mode%{Mode.to_int mode#Int}"])
+  ; unlimited = []
+  ; scenarios = []
+  }
+;;

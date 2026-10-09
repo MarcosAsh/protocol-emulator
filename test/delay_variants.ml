@@ -198,7 +198,7 @@ let variant t k =
 ;;
 
 let of_swept (swept : Swept.t) =
-  let certified = Certified.find_exn swept.name in
+  let certified = Library.find_certified_exn swept.name in
   let slack, wait_pc = tightest swept certified in
   let edges =
     let program, config = assembled swept certified certified.source in
