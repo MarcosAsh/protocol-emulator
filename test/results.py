@@ -437,7 +437,7 @@ CLAIMS = [
               "netlist_equiv netlist_equiv_teeth",
               both(abc("netlist_equiv_"),
                    matching(r"netlist: (\d+) logic cells", "{} logic cells compared")),
-              step="Prove the netlist equal to the RTL, and fail on five mutants"),
+              step="Prove the netlist equal to the RTL, and fail on six mutants"),
         Claim("One clock, and every other pin read by one two-flop synchroniser, on the RTL",
               "ocaml", exactly("test"), "sync_rtl sync_rtl_teeth", sync, step="Prove",
               status="checked"),
