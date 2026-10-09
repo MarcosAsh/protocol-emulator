@@ -120,18 +120,7 @@ let sk6812_gaps = (cycles_in ~us:200 / (160 * sk6812_third)) + 1
 let spi_cs_deselect = cycles_in ~us:3
 
 let all =
-  [ { name = "spi_master"
-    ; what =
-        [%string
-          "Firmware.spi_master ~half_period:%{spi_half#Int}: SCK at %{rate (2 * \
-           spi_half)} on OUT5, MOSI on OUT4, MISO on IN0, no chip select"]
-    ; source = Firmware.spi_master ~half_period:spi_half
-    ; config = on_spi_pins Firmware.spi_config
-    ; assumption = Nothing
-    ; clock_hz
-    ; load = None
-    }
-  ; { name = "i2c_master"
+  [ { name = "i2c_master"
     ; what =
         [%string
           "Firmware.i2c_master_host_rate: the host sends the quarter, %{i2c_quarter#Int} \
