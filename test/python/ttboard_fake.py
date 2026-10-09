@@ -359,6 +359,22 @@ class Port:
                 self.board.sio[g] = (byte >> i) & 1
 
 
+class StandardPin:
+    """ttboard's pin wrapper: its GPIO, and a mode that sets the pad's direction."""
+
+    def __init__(self, gpio):
+        self.gpio_num, self._mode = gpio, IN
+
+    @property
+    def mode(self):
+        return self._mode
+
+    @mode.setter
+    def mode(self, mode):
+        self._mode = mode
+        Pin(self.gpio_num, mode, value=0)
+
+
 class DemoBoard:
     """The SDK calls demo_board makes. Enable starts info.yaml's clock, as a project with
     no config.ini section gets; RP control turns the DB v3.3 button's monitor on."""
@@ -366,10 +382,9 @@ class DemoBoard:
     def __init__(self, board):
         self.board = board
         self.pins = types.SimpleNamespace()
-        # StandardPin's GPIO and direction
         for port, gpios in (("ui_in", board.ui), ("uo_out", board.uo)):
             for i, g in enumerate(gpios):
-                setattr(self.pins, "%s%d" % (port, i), types.SimpleNamespace(gpio_num=g, mode=IN))
+                setattr(self.pins, "%s%d" % (port, i), StandardPin(g))
         self.ui_in = Port(board, board.ui, writable=True)
         self.uo_out = Port(board, board.uo)
         self.uio_out = Port(board, board.uio)
@@ -396,7 +411,6 @@ class DemoBoard:
             pin = getattr(self.pins, "ui_in%d" % i)
             high = mode == 1 and (board.switches >> i) & 1
             pin.mode = OUT if mode == 1 and not high else IN
-            Pin(g, pin.mode, value=0)
         if self.manual_project_clock is not None:
             self.manual_project_clock.monitoring = mode == 1
 
