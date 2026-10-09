@@ -653,8 +653,37 @@ witness_reject:
 	    case $$? in 10) echo "$(W): $$check fails"; exit 0 ;; 20) ;; *) exit 1 ;; esac; \
 	  done; exit 1
 
+# The witnesses as a bundle a judge rechecks with witness/check.sh and no OCaml: per witness
+# the prove task's Verilog, read.ys, model.aig and witness.aig, and per tooth its read.ys,
+# model.aig and the counterexample aigsim replays. After witness_proof, on its files. A
+# witness of another task, as W=fail_safe_table_witness_prove_0 TASK=prove_0, has no teeth.
+BUNDLE = proof_bundle
+SHA256 = $(if $(shell command -v sha256sum),sha256sum,shasum -a 256)
+witness_bundle: W = $(LEMMA)_witness
+witness_bundle: TASK = prove
+witness_bundle:
+	rm -rf $(BUNDLE)/$(subst _witness,,$(W)) && mkdir -p $(BUNDLE)/$(subst _witness,,$(W))/teeth
+	for file in $$(sby --dumpfiles $(LEMMA).sby $(TASK)) read.ys model.aig witness.aig; do \
+	  cp $(W)/$$(basename $$file) $(BUNDLE)/$(subst _witness,,$(W)) || exit 1; \
+	done
+	for tooth in $(W)_*/cex.aiw; do \
+	  [ -f $$tooth ] || continue; \
+	  dir=$(BUNDLE)/$(subst _witness,,$(W))/teeth/$$(dirname $$tooth | sed 's/^$(W)_//'); \
+	  mkdir $$dir && cp $$(dirname $$tooth)/read.ys $$(dirname $$tooth)/model.aig $$tooth $$dir || exit 1; \
+	done
+	[ $$(ls $(BUNDLE)/$(subst _witness,,$(W))/teeth | wc -l) -ge "$(or $(WITNESS_TEETH_$(LEMMA)),0)" ]
+
+# check.sh, model.ys, tools.sh with the SAT tools' commits, and a sha256 of each file
+proof_bundle:
+	cp witness/check.sh witness/model.ys $(BUNDLE)
+	sed -e 's/@CADICAL@/$(CADICAL)/' -e 's/@CAKE_LPR@/$(CAKE_LPR)/' \
+	  -e 's/@CERTIFAIGER@/$(CERTIFAIGER)/' -e 's/@AIGER@/$(AIGER)/' witness/tools.sh > $(BUNDLE)/tools.sh
+	chmod +x $(BUNDLE)/check.sh $(BUNDLE)/tools.sh
+	cd $(BUNDLE) && find . -type f ! -name SHA256SUMS | sort | xargs $(SHA256) > SHA256SUMS
+	tar czf $(BUNDLE).tar.gz $(BUNDLE)
+
 .PHONY: witness witness_proof witness_model witness_unsat witness_teeth witness_tooth \
-  witness_reject
+  witness_reject witness_bundle proof_bundle
 
 .PHONY: all link link_proof issue_timing host_timing late_host fifo_order phase_step phase_table \
   phase_table_proof phase_table_affine phase_table_affine_proof phase_spacing \
