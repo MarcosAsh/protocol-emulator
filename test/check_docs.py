@@ -147,9 +147,16 @@ def library_firmwares():
     return re.findall(r"^\s*\((\w+) \(verdict \(Ok \(\)\)\)\)$", test, re.M)
 
 
+@cache
+def engine_scope():
+    """The files of test/mutate.py's engine scope, whose score the docs quote."""
+    files = find(r'"engine": \{\s*"files": \[([^]]*)\]', "test/mutate.py")[1]
+    return re.findall(r'"([^"]+)"', files)
+
+
 def equivalent_mutants():
     lines = read("test/mutation_allow.txt").splitlines()
-    return sum(1 for line in lines if line.strip() and not line.startswith("#"))
+    return sum(1 for line in lines if line.split(" ## ")[0] in engine_scope())
 
 
 @cache
