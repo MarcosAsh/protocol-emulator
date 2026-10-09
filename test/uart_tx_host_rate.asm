@@ -1,4 +1,4 @@
-; uart tx at the bit period the host sends first; the twin of Firmware.uart_tx_host_rate
+; uart tx at the bit period the host sends first; the twin of Uart.tx_host_rate
     wait tx
     pull
     mov p, osr

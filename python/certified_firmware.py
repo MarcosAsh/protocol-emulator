@@ -1,5 +1,5 @@
 # Written by test/python/write_certified_firmware.ml; `dune promote` after a change.
-# Firmware of test/certified.ml as words and the configuration it runs under.
+# Firmware of test/library.ml as words and the configuration it runs under.
 
 DSHOT600 = {
     "config": {

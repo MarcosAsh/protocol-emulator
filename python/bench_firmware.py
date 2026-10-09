@@ -2,7 +2,7 @@
 # The outside chip acts' firmware (BRINGUP.md) as words and the configuration it runs
 # under, at the bench's 48 MHz but for 10BASE-T's 40.
 
-# Firmware.spi_master ~half_period:8: SCK at 3 MHz on OUT5, MOSI on OUT4, MISO on IN0, no chip select
+# Spi.master ~half_period:8: SCK at 3 MHz on OUT5, MOSI on OUT4, MISO on IN0, no chip select
 SPI_MASTER = {
     "config": {
         "side_set_count": 1,
@@ -41,7 +41,7 @@ SPI_MASTER = {
     ],
 }
 
-# Firmware.i2c_master_host_rate: the host sends the quarter, 48 cycles for 250 kHz, SDA on IO2, SCL on IO3
+# I2c.master_host_rate: the host sends the quarter, 48 cycles for 250 kHz, SDA on IO2, SCL on IO3
 I2C_MASTER = {
     "config": {
         "side_set_count": 1,
@@ -91,7 +91,7 @@ I2C_MASTER = {
     ],
 }
 
-# Firmware.i2c_master_stretch_host_rate: i2c_master waiting on SCL, SDA on IO2, SCL on IO3
+# I2c.master_stretch_host_rate: I2c.master waiting on SCL, SDA on IO2, SCL on IO3
 I2C_MASTER_STRETCH = {
     "config": {
         "side_set_count": 1,

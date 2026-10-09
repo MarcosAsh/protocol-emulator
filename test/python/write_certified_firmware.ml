@@ -8,7 +8,7 @@ open Protocol_emulator_test
 let () =
   print_string
     "# Written by test/python/write_certified_firmware.ml; `dune promote` after a change.\n\
-     # Firmware of test/certified.ml as words and the configuration it runs under.\n";
+     # Firmware of test/library.ml as words and the configuration it runs under.\n";
   List.iter [ "dshot600"; "sent"; "cec" ] ~f:(fun name ->
     let { Certified.source; config; period; single_capture_edge; _ } =
       Library.find_certified_exn name

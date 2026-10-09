@@ -565,9 +565,8 @@ let bench =
   [ { Bench.name = "i2c_master"
     ; what =
         [%string
-          "Firmware.i2c_master_host_rate: the host sends the quarter, \
-           %{bench_quarter#Int} cycles for %{Bench.rate (4 * bench_quarter)}, SDA on \
-           IO2, SCL on IO3"]
+          "I2c.master_host_rate: the host sends the quarter, %{bench_quarter#Int} cycles \
+           for %{Bench.rate (4 * bench_quarter)}, SDA on IO2, SCL on IO3"]
     ; source = master_host_rate
     ; config = on_bench_pins ~jmp_pin:Bench.sda config
     ; assumption = Floor 31
@@ -577,8 +576,7 @@ let bench =
     }
   ; { name = "i2c_master_stretch"
     ; what =
-        "Firmware.i2c_master_stretch_host_rate: i2c_master waiting on SCL, SDA on IO2, \
-         SCL on IO3"
+        "I2c.master_stretch_host_rate: I2c.master waiting on SCL, SDA on IO2, SCL on IO3"
     ; source = master_stretch_host_rate
     ; config = on_bench_pins ~jmp_pin:Bench.scl stretch_config
     ; assumption = Floor 31

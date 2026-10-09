@@ -335,7 +335,7 @@ let () =
       then raise_s [%message "neither swept nor said why not" name]);
   print_string
     "# Written by test/python/write_sweep_firmware.ml; `dune promote` after a change.\n\
-     # Act 2's sweep: each firmware of test/certified.ml that engine 1 can stamp on wire\n\
+     # Act 2's sweep: each firmware of test/library.ml that engine 1 can stamp on wire\n\
      # 20, as a config's changes from DEFAULTS, words, the words that park its pins low\n\
      # first, and a stimulus. Each edge is its cycles from its frame's first: an int\n\
      # where the kernel's rows along the model's path allow that cycle alone, else (the\n\

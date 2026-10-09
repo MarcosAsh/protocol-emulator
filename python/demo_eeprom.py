@@ -25,7 +25,7 @@ GUARD_MS = 25
 
 
 def word(data=0, start=False, read=False, stop=False):
-    """A host word of Firmware.i2c_master: start[15] read[14] data[13:6] stop[5]."""
+    """A host word of I2c.master: start[15] read[14] data[13:6] stop[5]."""
     return (start << 15) | (read << 14) | ((data & 0xFF) << 6) | (stop << 5)
 
 
