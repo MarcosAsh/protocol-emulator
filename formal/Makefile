@@ -519,6 +519,18 @@ netlist_anystate:
 	cd $(EQUIV) && timeout 1800 yosys-abc -c '$(ANY_PROOF)' > anystate.proof.log
 	grep 'Status = $(ANY_EXPECT) ' $(EQUIV)/anystate.proof.log
 
+# mutants that must be refuted from any state: a reset synchroniser untied, and a flop
+# with no reset ORed into uio_oe[0], which netlist_equiv, from all flops 0, has to pass
+netlist_anystate_teeth:
+	mkdir -p netlist_anystate_teeth
+	awk -f netlist_equiv/unreset.awk $(NETLIST) $(NETLIST) > netlist_anystate_teeth/unreset.v
+	awk -v 'net=uio_oe[0]' -f netlist_equiv/stuck.awk $(NETLIST) > netlist_anystate_teeth/stuck.v
+	$(MAKE) netlist_equiv NETLIST=netlist_anystate_teeth/unreset.v EQUIV=netlist_anystate_unreset \
+	  EXPECT=0
+	$(MAKE) netlist_anystate EQUIV=netlist_anystate_unreset ANY_EXPECT=0
+	$(MAKE) netlist_equiv NETLIST=netlist_anystate_teeth/stuck.v EQUIV=netlist_anystate_stuck
+	$(MAKE) netlist_anystate EQUIV=netlist_anystate_stuck ANY_EXPECT=0
+
 # one clock, and every other pin through one two-flop synchroniser (sync/check.tcl), on
 # the RTL and on the hardened netlist; about 3 min:
 #   make sync_rtl sync_gate NETLIST=../runs/wokwi/final/nl/tt_um_marcosash_protocol_emulator.nl.v
@@ -686,7 +698,7 @@ witness_reject:
   phase_spacing_proof edge_step event_step frame_step value_step chip_frame data_step teeth \
   inductive_certificate inductive_proof inductive_certificates inductive_names \
   stamped_certificate stamped_proof data_certificate data_proof data_certificates data_names \
-  netlist_equiv netlist_equiv_teeth netlist_anystate \
+  netlist_equiv netlist_equiv_teeth netlist_anystate netlist_anystate_teeth \
   sync_rtl sync_gate sync_rtl_teeth sync_gate_teeth \
   fsm_miter fsm_miter_proof sram_equiv sram_equiv_proof \
   sram_equiv_step sram_equiv_teeth kernel_equiv kernel_equiv_proof kernel_miter sat_tools \
