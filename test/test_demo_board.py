@@ -94,25 +94,26 @@ async def test_bringup_check(dut):
 
 @cocotb.test()
 async def test_fastest_sck(dut):
-    """SCK at the limit, a twelfth of the clock, on the RP2040 board's pin map: a full
-    program load and every read back intact."""
-    await reset(dut)
-    board = ttboard_fake.Board(Rtl(dut), kind="tt06")
-    loaded = board.install()
+    """SCK at the limit, an eighth of the clock, on both boards' pin maps: a full program
+    load and every read back intact."""
+    for kind in ("dbv3", "tt06"):
+        await reset(dut)
+        board = ttboard_fake.Board(Rtl(dut), kind=kind)
+        loaded = board.install()
 
-    def traffic():
-        spi = loaded.demo_board.DemoBoardSpi(clock_hz=CLOCK_HZ, sck_hz=CLOCK_HZ // 12)
-        host = pe.Host(spi.transfer)
-        words = [(i * 0x9E37) & 0xFFFF for i in range(512)]
-        host.load(words)
-        got = [host.read(pe.PROGRAM_ADDR)[0], host.read(pe.STATUS)[0]]
-        for word in (0x1A5, 0x05A, 0x1FF):
-            host.write(pe.PROGRAM_ADDR, [word])
-            got += host.read(pe.PROGRAM_ADDR)
-        return got
+        def traffic():
+            spi = loaded.demo_board.DemoBoardSpi(clock_hz=CLOCK_HZ, sck_hz=CLOCK_HZ // 8)
+            host = pe.Host(spi.transfer)
+            words = [(i * 0x9E37) & 0xFFFF for i in range(512)]
+            host.load(words)
+            got = [host.read(pe.PROGRAM_ADDR)[0], host.read(pe.STATUS)[0]]
+            for word in (0x1A5, 0x05A, 0x1FF):
+                host.write(pe.PROGRAM_ADDR, [word])
+                got += host.read(pe.PROGRAM_ADDR)
+            return got
 
-    try:
-        got = await bridge(traffic)()
-    finally:
-        board.uninstall()
-    assert got == [0, 1, 0x1A5, 0x05A, 0x1FF], got
+        try:
+            got = await bridge(traffic)()
+        finally:
+            board.uninstall()
+        assert got == [0, 1, 0x1A5, 0x05A, 0x1FF], (kind, got)

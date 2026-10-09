@@ -18,9 +18,10 @@ PROJECT = "tt_um_marcosash_protocol_emulator"
 STATE_MACHINE = 4
 # a FIFO's depth, so a chunk out and its replies back never stall either side
 CHUNK = 4
-# the chip moves MISO 3 clocks after SCK falls, and the PIO reads it 2 system clocks late,
-# past the pads and mux both ways: at 48 MHz a twelfth leaves a clock to spare
-SCK_DIVIDE = 12
+# the chip's register layer needs SCK at most an eighth of its clock (host_spi.mli). MISO
+# moves 3 clocks after SCK falls and is read on the next fall, which leaves 5 clocks for
+# the pads, the mux and the PIO's input synchroniser
+SCK_DIVIDE = 8
 
 
 @rp2.asm_pio(
@@ -29,9 +30,10 @@ SCK_DIVIDE = 12
     autopull=True, pull_thresh=8, autopush=True, push_thresh=8,
 )
 def spi_mode0():
-    # four cycles a bit, MISO sampled as SCK rises; an empty FIFO stalls here with SCK low
-    out(pins, 1).side(0)[1]  # noqa: F821
-    in_(pins, 1).side(1)[1]  # noqa: F821
+    # four cycles a bit, MISO read as SCK falls; an empty FIFO stalls the out with SCK low
+    out(pins, 1).side(0)  # noqa: F821
+    nop().side(1)[1]  # noqa: F821
+    in_(pins, 1).side(0)  # noqa: F821
 
 
 def gpio(tt, name):
@@ -58,7 +60,7 @@ def claim_pio(index, gpios, programs):
 
 
 class DemoBoardSpi:
-    """SCK at most a twelfth of the chip's clock (SCK_DIVIDE), by default a sixteenth.
+    """SCK at most an eighth of the chip's clock (SCK_DIVIDE), by default a sixteenth.
     Build another to change the clock: the PIO's divider is set from the system clock the
     PWM chose. programs, those the caller runs on PIO 1's other state machines, unload too."""
 
