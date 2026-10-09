@@ -673,6 +673,16 @@ def check_counts(doc, text):
     for n in numbers(r"(\d+)-deep fifos", text):
         if n != depth:
             yield f"{n}-deep fifos", f"{n}-deep fifos, src/host_fifo.ml has depth = {depth}"
+    for baud, mhz, period in re.findall(r"at (\d+) baud from the (\d+) MHz clock\. The host "
+                                        r"sends the bit period, (\d+) cycles", text):
+        if int(period) != round(int(mhz) * 1e6 / int(baud)):
+            yield (f"{period} cycles", f"{period} cycles a bit, {mhz} MHz over {baud} baud is "
+                   f"{round(int(mhz) * 1e6 / int(baud))}")
+    for whole, num, den, baud, mhz in re.findall(r"(\d+) (\d+)/(\d+) for (\d+) baud at (\d+) MHz",
+                                                 text):
+        if abs(int(whole) + int(num) / int(den) - int(mhz) * 1e6 / int(baud)) > 1e-9:
+            yield (f"{whole} {num}/{den}", f"{whole} {num}/{den} cycles a bit, {mhz} MHz over "
+                   f"{baud} baud is {int(mhz) * 1e6 / int(baud):g}")
     transmitters = len(find(r"^DATA = (.*)$", "formal/Makefile")[1].split())
     for word in re.findall(r"all but (\w+) transmitters", text):
         if WORDS.get(word, word) != str(transmitters):
@@ -785,7 +795,7 @@ def bump(s):
 
 
 # Wrong READMEs, made from what it says now: (what is wrong, how, what it needs: gh, or
-# the metrics of the cited gds run, which expire)
+# the metrics of the cited gds run, which expire), and the doc if not the README
 TEETH = [
     ("a path", first(PATH, lambda p: re.sub(r"\.(\w+)$", r"x.\1", p)), None),
     ("a directory", first(r"`((?:[\w.-]+/)+)`", lambda d: d[:-1] + "x/"), None),
@@ -829,6 +839,8 @@ TEETH = [
     ("the transmitters", first(r"all but (\w+) transmitters",
                                lambda w: "seven" if w == "six" else "six"), None),
     ("a commit date", first(r"committed on (\d{4}-\d\d-\d\d)", bump), None),
+    ("a bit period", first(r"the bit period,\s+(\d+) cycles", bump), None, "docs/info.md"),
+    ("a fractional bit period", first(r"(\d+) \d+/\d+ for \d+ baud", bump), None, "docs/info.md"),
 ]
 
 
@@ -886,15 +898,16 @@ def teeth():
            "metrics": ONLINE and cited is not None and gds_numbers(cited[1])[0] is not None,
            "an older gds run of this chip": ONLINE and stale_gds_run() is not None}
     missed = []
-    for what, tooth, needs in TEETH:
+    for what, tooth, needs, *doc in TEETH:
+        doc = doc[0] if doc else "README.md"
         if not has[needs]:
             print(f"skip {what}, which needs {needs}")
             continue
-        wrong = tooth(docs["README.md"])
-        if not wrong or wrong == docs["README.md"]:
-            sys.exit(f"the tooth for {what} finds nothing to change in the README")
-        caught = [name for name, found in failures({**docs, "README.md": wrong}).items() if found]
-        line = next(b for a, b in zip(docs["README.md"].splitlines(), wrong.splitlines()) if a != b)
+        wrong = tooth(docs[doc])
+        if not wrong or wrong == docs[doc]:
+            sys.exit(f"the tooth for {what} finds nothing to change in {doc}")
+        caught = [name for name, found in failures({**docs, doc: wrong}).items() if found]
+        line = next(b for a, b in zip(docs[doc].splitlines(), wrong.splitlines()) if a != b)
         print(f"{'ok  ' if caught else 'FAIL'} {what}, caught by {', '.join(caught) or 'nothing'}")
         print(f"     {line.strip()[:88]}")
         if not caught:
