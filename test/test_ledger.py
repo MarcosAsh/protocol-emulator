@@ -131,6 +131,15 @@ class Ledger(unittest.TestCase):
         self.assertIn("\nFAIL\n", (self.tmp / "evidence" / row["evidence"] / "outside.txt")
                       .read_text())
 
+    def test_no_analyser_channel(self):
+        """The DS18B20's PASS rests on Pico A's readback, and ledger.txt says so."""
+        self.run_ledger("ds18b20", VERDICT="ROM 28 7d 50 63 79 25 0b 3e: family 28\n"
+                        "scratchpad 68 01 4b 46 7f ff 0c 10 3e: CRC good\nPASS")
+        (row,) = self.rows()
+        self.assertEqual(row["result"], "PASS")
+        text = (self.check_sums(row) / "ledger.txt").read_text()
+        self.assertIn("\ntraffic: none (no analyser channel)\n", text)
+
     def test_no_bitstream_load(self):
         self.run_ledger("smoke", LOAD="1")
         (row,) = self.rows()
