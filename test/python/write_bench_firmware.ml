@@ -6,15 +6,16 @@ open Protocol_emulator_test
 (* The library firmware the outside chip acts in BRINGUP.md load, at the parameters the
    bench's clock needs, each checked by the analyser and the kernel under the assumption
    it runs with, as the command line does. The Icepi's USB build drives IO0 and IO1's
-   header pins with the USB lines, so I2C moves to IO2 and IO3, 1-Wire to IO4 and 10BASE-T
-   to IO6 and IO7. The bench is wired once for every act: CAN's TX keeps OUT1 and SWD
-   keeps OUT2 and IO5, so the SK6812 moves to OUT3 and the SPI masters to MOSI on OUT4,
-   SCK on OUT5 and CS on OUT6. The CAN node's CRX is on IN1. *)
+   header pins with the USB lines, so I2C moves to IO2 and IO3, SCL first as on Tiny
+   Tapeout's I2C Pmod, 1-Wire to IO4 and 10BASE-T to IO6 and IO7. The bench is wired once
+   for every act: CAN's TX keeps OUT1 and SWD keeps OUT2 and IO5, so the SK6812 moves to
+   OUT3 and the SPI masters to MOSI on OUT4, SCK on OUT5 and CS on OUT6. The CAN node's
+   CRX is on IN1. *)
 let neopixel = 8
 let mosi = 9
 let sck = 10
-let sda = 14
-let scl = 15
+let scl = 14
+let sda = 15
 let one_wire = 16
 let td_plus = 18
 
@@ -42,7 +43,7 @@ let bench =
     , `None )
   ; ( "i2c_master"
     , "Firmware.i2c_master_host_rate: the host sends the quarter, 48 cycles for 250 kHz, \
-       SDA on IO2, SCL on IO3"
+       SCL on IO2, SDA on IO3"
     , Firmware.i2c_master_host_rate
     , { Firmware.i2c_config with
         side_set_base = scl
@@ -53,7 +54,7 @@ let bench =
       }
     , `Floor 31 )
   ; ( "i2c_master_stretch"
-    , "Firmware.i2c_master_stretch_host_rate: i2c_master waiting on SCL, SDA on IO2, SCL \
+    , "Firmware.i2c_master_stretch_host_rate: i2c_master waiting on SCL, SCL on IO2, SDA \
        on IO3"
     , Firmware.i2c_master_stretch_host_rate
     , { Firmware.i2c_stretch_config with
@@ -97,7 +98,7 @@ let bench =
     , { Ws2812.config with out_base = neopixel; set_base = neopixel }
     , `None )
   ; ( "start_hold"
-    , "Firmware.start_hold for engine 1: each START's hold in cycles, SDA on IO2, SCL on \
+    , "Firmware.start_hold for engine 1: each START's hold in cycles, SCL on IO2, SDA on \
        IO3, both only listened to"
     , Firmware.start_hold ~sda ~scl
     , Firmware.start_hold_config ~scl

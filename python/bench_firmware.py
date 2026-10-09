@@ -41,19 +41,19 @@ SPI_MASTER = {
     ],
 }
 
-# Firmware.i2c_master_host_rate: the host sends the quarter, 48 cycles for 250 kHz, SDA on IO2, SCL on IO3
+# Firmware.i2c_master_host_rate: the host sends the quarter, 48 cycles for 250 kHz, SCL on IO2, SDA on IO3
 I2C_MASTER = {
     "config": {
         "side_set_count": 1,
-        "side_set_base": 15,
+        "side_set_base": 14,
         "side_set_pindirs": 1,
-        "in_base": 14,
+        "in_base": 15,
         "in_count": 16,
-        "out_base": 14,
+        "out_base": 15,
         "out_count": 1,
-        "set_base": 14,
+        "set_base": 15,
         "set_count": 1,
-        "jmp_pin": 14,
+        "jmp_pin": 15,
         "capture_pin": 0,
         "capture_rising": 1,
         "in_shift_right": 0,
@@ -91,19 +91,19 @@ I2C_MASTER = {
     ],
 }
 
-# Firmware.i2c_master_stretch_host_rate: i2c_master waiting on SCL, SDA on IO2, SCL on IO3
+# Firmware.i2c_master_stretch_host_rate: i2c_master waiting on SCL, SCL on IO2, SDA on IO3
 I2C_MASTER_STRETCH = {
     "config": {
         "side_set_count": 1,
-        "side_set_base": 15,
+        "side_set_base": 14,
         "side_set_pindirs": 1,
-        "in_base": 14,
+        "in_base": 15,
         "in_count": 1,
-        "out_base": 14,
+        "out_base": 15,
         "out_count": 1,
-        "set_base": 14,
+        "set_base": 15,
         "set_count": 1,
-        "jmp_pin": 15,
+        "jmp_pin": 14,
         "capture_pin": 0,
         "capture_rising": 1,
         "in_shift_right": 0,
@@ -390,7 +390,7 @@ SK6812 = {
     ],
 }
 
-# Firmware.start_hold for engine 1: each START's hold in cycles, SDA on IO2, SCL on IO3, both only listened to
+# Firmware.start_hold for engine 1: each START's hold in cycles, SCL on IO2, SDA on IO3, both only listened to
 START_HOLD = {
     "config": {
         "side_set_count": 0,
@@ -402,7 +402,7 @@ START_HOLD = {
         "out_count": 1,
         "set_base": 5,
         "set_count": 1,
-        "jmp_pin": 15,
+        "jmp_pin": 14,
         "capture_pin": 0,
         "capture_rising": 1,
         "in_shift_right": 1,
@@ -424,7 +424,7 @@ START_HOLD = {
         "manchester": 0,
     },
     "words": [
-        0x202E, 0x8026, 0x0A00, 0x200F, 0x8046, 0x1600, 0xC058, 0x4050,
+        0x202F, 0x8026, 0x0A00, 0x200E, 0x8046, 0x1600, 0xC058, 0x4050,
         0x0000,
     ],
 }
