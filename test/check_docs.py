@@ -438,10 +438,9 @@ def check_counts(doc, text):
     for n in numbers(r"(\d+)-word IHP", text):
         if n != sram()[1]:
             yield f"a {n}-word macro, the chip's are {sram()[1]} words"
-    depth = int(find(r"^let depth = (\d+)$", "src/host_fifo.ml")[1])
     for n in numbers(r"(\d+)-deep fifos", text):
-        if n != depth:
-            yield f"{n}-deep fifos, src/host_fifo.ml has depth = {depth}"
+        if n != isa("fifo_depth"):
+            yield f"{n}-deep fifos, src/isa.ml has fifo_depth = {isa('fifo_depth')}"
 
 
 def check_transcripts(doc, text):
