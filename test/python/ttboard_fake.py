@@ -392,7 +392,7 @@ class DemoBoard:
         self.manual_project_clock = None
         if board.kind == "dbv3":
             self.manual_project_clock = types.SimpleNamespace(monitoring=False)
-        self.shuttle = Shuttle(board)
+        self.shuttle = board.shuttle = Shuttle(board)
         self._mode = 0
 
     @property
@@ -431,25 +431,36 @@ class Design:
         self.board, self.name = board, name
 
     def enable(self, force=False):
-        """Refused at a danger level above safe, as ProjectMux.enable has it."""
+        """As ProjectMux.enable: refused at a danger level above safe, else the mux goes
+        through project 0, which powers every design down, and the callback runs."""
         board = self.board
         if self.name in board.risky and not force:
             return False
         board.note("enable", self.name)
-        board.enabled = self.name
-        board.set_clock(50_000_000)
+        board.shuttle.disable()
+        board.shuttle.enabled = self
+        board.shuttle.design_enabled_callback(self)
         return True
 
 
 class Shuttle:
+    """The callback is apply_user_config's, for a project with no config.ini section:
+    info.yaml's clock_hz."""
+
     def __init__(self, board):
-        self.board = board
+        self.board, self.enabled = board, None
+        self.design_enabled_callback = lambda design: board.set_clock(50_000_000)
 
     def has(self, name):
         return name in self.board.projects
 
     def get(self, name):
         return Design(self.board, name)
+
+    def disable(self):
+        self.enabled = None
+        if hasattr(self.board.chip, "power_down"):
+            self.board.chip.power_down()
 
 
 class Board:
@@ -458,7 +469,7 @@ class Board:
     last run left them, so a chip in another thread is only touched inside run."""
 
     def __init__(self, chip, kind="dbv3", switches=0,
-                 projects=("tt_um_marcosash_protocol_emulator",), risky=()):
+                 projects=("tt_um_marcosash_protocol_emulator", "tt_um_other"), risky=()):
         self.chip, self.kind, self.switches = chip, kind, switches
         self.projects, self.risky = projects, risky
         ui, uo, uio, self.sys_hz, self.has_gpio_base = BOARDS[kind]
@@ -467,7 +478,7 @@ class Board:
         self.sio, self.outputs, self.pio_pins, self.pio_levels = {}, set(), {}, {}
         self.pios = [Pio(self, n) for n in range(3 if self.has_gpio_base else 2)]
         self.sms = {}
-        self.clock_hz, self.rst_n, self.enabled = 0, 1, None
+        self.clock_hz, self.rst_n = 0, 1
         self.pads = (0, 0)
         self.driven = None
         self.log, self.trace = [], []
