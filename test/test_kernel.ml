@@ -983,7 +983,7 @@ module Reaction = struct
          && Bits.to_bool Bits.(row.captured &: ~:(Kernel_bits.arm_is_full row)))
         r.pc)
     |> List.max_elt ~compare:(Comparable.lift Int.compare ~f:arm_hi)
-    |> Option.map ~f:(fun pc -> { pc; at_most = arm_hi pc + 1 })
+    |> Option.map ~f:(fun pc -> { pc; at_most = arm_hi pc })
   ;;
 end
 
@@ -1066,8 +1066,9 @@ let%expect_test "a spacing is checked only where it is proved" =
    in a loop as long as its data, has no deadline, and its pc is listed as untimed.
 
    Reaction: a row that writes pins, has seen the captured edge and bounds the arm enters
-   within [arm_hi] cycles of the core sampling the edge ([formal/phase_step.sv]); its edge
-   shows within [arm_hi + 1]. Single-edge assumption; [Top]'s synchroniser adds two. *)
+   under [arm_hi] cycles after the core samples the edge, as the arm takes effect a cycle
+   late ([formal/phase_step.sv]); its edge shows within [arm_hi]. Single-edge assumption;
+   [Top]'s synchroniser adds two. *)
 let%expect_test "a bound on the jitter of every pin edge, in firmware the kernel accepts" =
   let module Kernel_bits = Kernel.Make (Bits) in
   List.iter (Certified.all @ [ spi_slave_captured ]) ~f:(fun (c : Certified.t) ->
@@ -1136,7 +1137,7 @@ let%expect_test "a bound on the jitter of every pin edge, in firmware the kernel
     (sent (pc 4) (jitter_bound 0) (untimed ()))
     (cec (pc 4) (jitter_bound 0) (untimed ()))
     (spi_slave_captured "no edge has a deadline" (untimed (0 5))
-     (reaction ((pc 5) (at_most 3))))
+     (reaction ((pc 5) (at_most 2))))
     |}]
 ;;
 
@@ -1200,8 +1201,7 @@ let answering_later cycles =
 ;;
 
 (* Each firmware against a mode 0 master over half periods and byte gaps, in lockstep with
-   the RTL. [worst] comes one under the bound, which counts the arm's own cycle, where the
-   capture cannot fall. *)
+   the RTL. [worst] meets the bound. *)
 let%expect_test "every answer to a captured edge comes within the reaction bound" =
   let module Spi_peer = Protocol_models.Spi_peer in
   List.iter
@@ -1243,13 +1243,13 @@ let%expect_test "every answer to a captured edge comes within the reaction bound
             ~premise:(Premise.count premise : Premise.Count.t)]);
   [%expect
     {|
-    (spi_slave_captured (reaction ((pc 5) (at_most 3))) (worst 2) (answers 288)
+    (spi_slave_captured (reaction ((pc 5) (at_most 2))) (worst 2) (answers 288)
      (exchanged true)
      (premise ((arms 288) (at_captured_level 0) (left_captured_level 0))))
-    (answering_1_later (reaction ((pc 6) (at_most 4))) (worst 3) (answers 144)
+    (answering_1_later (reaction ((pc 6) (at_most 3))) (worst 3) (answers 144)
      (exchanged true)
      (premise ((arms 144) (at_captured_level 0) (left_captured_level 0))))
-    (answering_4_later (reaction ((pc 6) (at_most 7))) (worst 6) (answers 144)
+    (answering_4_later (reaction ((pc 6) (at_most 6))) (worst 6) (answers 144)
      (exchanged true)
      (premise ((arms 144) (at_captured_level 0) (left_captured_level 0))))
     |}]
@@ -1279,7 +1279,7 @@ let%expect_test "the reaction bound rests on the single-edge assumption" =
         ~premise:(Premise.count premise : Premise.Count.t)];
   [%expect
     {|
-    (spi_slave_captured (reaction ((pc 5) (at_most 3))) (worst 4) (mismatch ())
+    (spi_slave_captured (reaction ((pc 5) (at_most 2))) (worst 4) (mismatch ())
      (premise ((arms 19) (at_captured_level 19) (left_captured_level 0))))
     |}]
 ;;
