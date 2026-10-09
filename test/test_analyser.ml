@@ -1083,3 +1083,70 @@ let%expect_test "only the first wait after the arm sees the captured edge" =
      ((underflow false) (overflow false) (missed_deadline true) (decode false)))
     |}]
 ;;
+
+let rows
+  ?(config = Program_config.default)
+  ?period
+  ?period_floor
+  ?single_capture_edge
+  source
+  =
+  let program = Asm.assemble source |> ok_exn in
+  Analyser.analyse
+    ?period
+    ?period_floor
+    ?single_capture_edge
+    ~config:(Asm.Program.configure program config)
+    program.instructions
+;;
+
+(* a line per row with what [f] picks out of it, for the fields the report leaves out *)
+let print_rows rows ~f =
+  List.iter rows ~f:(fun (r : Analyser.Row.t) ->
+    printf "%3d  %-28s %s\n" r.pc (Asm.to_string ~side_set_count:0 r.instruction) (f r))
+;;
+
+(* rx_config captures pin 0 falling; a wait on another pin, or for anything else, leaves
+   the arm awaiting *)
+let%expect_test "only a wait for the captured edge on the capture pin sees it" =
+  let source =
+    {|
+    wait 1 pin 0
+    capture_arm
+    wait tx
+    wait 0 pin 3
+    wait fall pin 3
+    wait fall pin 0
+    capture_arm
+    wait 0 pin 0
+    halt
+|}
+  in
+  List.iter [ true; false ] ~f:(fun single_capture_edge ->
+    print_s [%message (single_capture_edge : bool)];
+    print_rows (rows ~config:Uart.rx_config ~single_capture_edge source) ~f:(fun r ->
+      sprintf "awaiting %b  captured %b" r.awaiting r.captured));
+  [%expect
+    {|
+    (single_capture_edge true)
+      0  wait 1 pin 0                 awaiting false  captured false
+      1  capture_arm                  awaiting false  captured false
+      2  wait tx                      awaiting true  captured false
+      3  wait 0 pin 3                 awaiting true  captured false
+      4  wait fall pin 3              awaiting true  captured false
+      5  wait fall pin 0              awaiting true  captured false
+      6  capture_arm                  awaiting false  captured true
+      7  wait 0 pin 0                 awaiting true  captured false
+      8  halt                         awaiting false  captured true
+    (single_capture_edge false)
+      0  wait 1 pin 0                 awaiting false  captured false
+      1  capture_arm                  awaiting false  captured false
+      2  wait tx                      awaiting true  captured false
+      3  wait 0 pin 3                 awaiting true  captured false
+      4  wait fall pin 3              awaiting true  captured false
+      5  wait fall pin 0              awaiting true  captured false
+      6  capture_arm                  awaiting true  captured false
+      7  wait 0 pin 0                 awaiting true  captured false
+      8  halt                         awaiting true  captured false
+    |}]
+;;
