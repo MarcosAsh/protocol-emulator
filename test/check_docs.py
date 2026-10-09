@@ -31,7 +31,8 @@ EXTERNAL = False
 # links checked unless --external-links asks for every host
 OWN_HOSTS = ("github.com", "marcosash.github.io")
 LINK_TTL = 24 * 3600  # how long a link that answered is not asked again
-WORDS = dict(zip("one two three four five six seven eight nine ten".split(), map(str, range(1, 11))))
+WORDS = dict(zip("one two three four five six seven eight nine ten".split(),
+                 map(str, range(1, 11))))
 WARNINGS = []
 DEADLINE = "2027-01-18"  # the competition's submission date
 
@@ -385,11 +386,10 @@ def line_of(text, needle):
     def at(needle, start=0):
         words = str(needle).split()[:12]
         m = words and re.compile(r"\s+".join(map(re.escape, words))).search(text, start)
-        return m and m.start()
+        return m.start() if m else None
     unit, needle = needle if isinstance(needle, tuple) else (None, needle)
-    start = at(unit) or 0 if unit else 0
-    found = at(needle, start)
-    return found is not None and found is not False and text.count("\n", 0, found) + 1
+    found = at(needle, (unit and at(unit)) or 0)
+    return None if found is None else text.count("\n", 0, found) + 1
 
 
 def flat(text):
@@ -491,7 +491,8 @@ def check_runs(doc, text):
             if r and r["created_at"][:10] != m[1]:
                 yield m[1], f"run {run_id} is dated {m[1]} but ran on {r['created_at'][:10]}"
         elif LOOKS_DATED.search(phrase):
-            yield run_id, f"run {run_id} has {phrase.strip()!r} beside it, write a date as YYYY-MM-DD"
+            yield run_id, (f"run {run_id} has {phrase.strip()!r} beside it, write a date as "
+                           "YYYY-MM-DD")
 
 
 def check_gds(doc, text):
@@ -500,7 +501,8 @@ def check_gds(doc, text):
     for unit in units(text):
         runs = set(re.findall(r"[Gg]ds run \[?(\d{10,12})", unit))
         if len(runs) > 1:
-            yield (unit, min(runs)), f"gds runs {', '.join(sorted(runs))} in one place, whose numbers are whose?"
+            yield ((unit, min(runs)),
+                   f"gds runs {', '.join(sorted(runs))} in one place, whose numbers are whose?")
         if len(runs) != 1:
             continue
         run_id = runs.pop()
@@ -508,16 +510,17 @@ def check_gds(doc, text):
             continue  # check_runs says so
         sha = run(run_id)["head_sha"]
         if not same_chip(sha):
-            yield (unit, run_id), (f"gds run {run_id} hardened {sha[:7]} and the chip has changed since, "
-                           f"{fresh_gds()}")
+            yield (unit, run_id), (f"gds run {run_id} hardened {sha[:7]} and the chip has "
+                                   f"changed since, {fresh_gds()}")
             continue
         if run_id != current_gds_run() and not evidence.gds_kept(run_id):
-            yield (unit, run_id), (f"gds run {run_id} is stale, a newer green gds run on main hardened "
-                           f"this chip and no pinned release keeps it, {fresh_gds()}")
+            yield (unit, run_id), (f"gds run {run_id} is stale, a newer green gds run on main "
+                                   f"hardened this chip and no pinned release keeps it, "
+                                   f"{fresh_gds()}")
         metrics, why = gds_numbers(run_id)
         if metrics is None:
-            yield (unit, run_id), (f"gds run {run_id} {why}, so the numbers beside it cannot be "
-                           f"checked, {fresh_gds()}")
+            yield (unit, run_id), (f"gds run {run_id} {why}, so the numbers beside it cannot "
+                                   f"be checked, {fresh_gds()}")
             continue
         if metrics.get("expires_at", DEADLINE) < DEADLINE:
             warn(f"gds run {run_id}'s metrics expire on {metrics['expires_at']}, before the "
@@ -534,8 +537,8 @@ def check_gds(doc, text):
                    for s in re.findall(r"([\d,]+) (?:standard )?cells", unit)]
         for key, said, value in quoted:
             if abs(value - float(metrics[key])) > 1e-9:
-                yield (unit, said), (f"gds run {run_id} has {key} {metrics[key]}, the docs say {said}: "
-                             f"{said_gds(metrics)}")
+                yield (unit, said), (f"gds run {run_id} has {key} {metrics[key]}, the docs say "
+                                     f"{said}: {said_gds(metrics)}")
 
 
 def check_mutation(doc, text):
@@ -548,16 +551,17 @@ def check_mutation(doc, text):
             sha = run(run_id)["head_sha"]
             if changed := changed_since(sha, mutated()):
                 yield (unit, run_id), (f"mutation run {run_id} mutated {sha[:7]}, and "
-                               f"{', '.join(changed)} changed since, {fresh_mutation()}")
+                                       f"{', '.join(changed)} changed since, {fresh_mutation()}")
             score, why = mutation_score(run_id)
             if score is None:
-                yield (unit, run_id), (f"mutation run {run_id} {why}, so the score beside it cannot be "
-                               f"checked, {fresh_mutation()}")
+                yield (unit, run_id), (f"mutation run {run_id} {why}, so the score beside it "
+                                       f"cannot be checked, {fresh_mutation()}")
                 continue
             for quoted in re.findall(r"(\d+) of (\d+) valid mutants", unit):
                 if tuple(map(int, quoted)) != score:
-                    yield (unit, " of ".join(quoted)), (f"mutation run {run_id} killed {score[0]} of "
-                                                f"{score[1]}, the docs say {quoted[0]} of {quoted[1]}")
+                    yield ((unit, " of ".join(quoted)),
+                           f"mutation run {run_id} killed {score[0]} of {score[1]}, the docs say "
+                           f"{quoted[0]} of {quoted[1]}")
 
 
 def check_board(doc, text):
@@ -571,14 +575,15 @@ def check_board(doc, text):
                 yield (unit, m[0]), f"{m[0]!r} names no demo or python/ script before it"
                 continue
             found = evidence.passes(demo)
-            entry = next((e for e in found if e["time"][:10] == m[2]), None)
+            entry = next((e for e in found if e.get("time", "")[:10] == m[2]), None)
             if entry is None:
                 newest = found and found[0]
-                fresh = (f"the newest is {newest['time'].replace('T', ' ')} in release "
+                fresh = (f"the newest is {newest.get('time', '?').replace('T', ' ')} in release "
                          f"{newest['release']}, {newest['path']}, bitstream sha256 "
-                         f"{newest['bitstream_sha256'][:16]}" if newest
+                         f"{newest.get('bitstream_sha256', '?')[:16]}" if newest
                          else "no pinned ledger has it passing")
-                yield (unit, m[2]), f"no hashed board evidence shows {demo} passing on {m[2]}, {fresh}"
+                yield ((unit, m[2]),
+                       f"no hashed board evidence shows {demo} passing on {m[2]}, {fresh}")
                 continue
             after = unit[m.end():]
             for n in numbers(r"all (\d+) edges", after):
@@ -744,7 +749,8 @@ def check_glance(doc, text):
                 yield (f"| {label} |", f"the table's {label} row gives {said or 'no number'}, "
                        f"its sources {sources}")
     if "Process" in table and pdk() not in table["Process"][0].upper():
-        yield "| Process |", f"the table's Process row does not name {pdk()}, which gds.yaml hardens on"
+        yield "| Process |", (f"the table's Process row does not name {pdk()}, which gds.yaml "
+                              "hardens on")
 
 
 CHECKS = [check_paths, check_make, check_jobs, check_commits, check_counts, check_transcripts,
@@ -817,7 +823,8 @@ TEETH = [
     # the run the die picture is from, which hardened older Verilog
     ("an old gds run", first(r"[Gg]ds run (\d{10,12})", lambda _: "36615334436"), "gh"),
     ("a stale gds run", lambda text: every(text, r"[Gg]ds run \[?(\d{10,12})",
-                                            lambda _: stale_gds_run()), "an older gds run of this chip"),
+                                            lambda _: stale_gds_run()),
+     "an older gds run of this chip"),
     # green, but it mutated an engine.ml that has changed since
     ("an old mutation run", lambda text: every(text, r"mutation run \[?(\d{10,12})",
                                                 lambda _: "36642527804"), "gh"),

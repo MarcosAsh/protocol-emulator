@@ -755,7 +755,8 @@ def board_table():
     newest_first = sorted(evidence.ledger(), key=lambda e: e.get("time", ""), reverse=True)
     for e in sorted(newest_first, key=lambda e: e.get("demo", "")):
         where = f"[{e['release']}]({evidence.release_url(e['release'])}) `{e['path']}`"
-        lines.append(f"| {e.get('demo')} | {e.get('result')} | {e.get('time', '').replace('T', ' ')} "
+        when = e.get("time", "").replace("T", " ")
+        lines.append(f"| {e.get('demo')} | {e.get('result')} | {when} "
                      f"| `{e.get('bitstream_sha256', '')[:16]}` | {where} |")
     return "\n".join(lines)
 
@@ -772,7 +773,8 @@ def main():
                    help="print the pinned board ledgers as a table, and stop")
     args = p.parse_args()
     if args.readme_table:
-        return print(readme_table((Path(__file__).resolve().parent.parent / "README.md").read_text()))
+        readme = Path(__file__).resolve().parent.parent / "README.md"
+        return print(readme_table(readme.read_text()))
     if args.board_table:
         return print(board_table())
     REPO = args.repo or gh("repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner").strip()
