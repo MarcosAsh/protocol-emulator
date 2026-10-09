@@ -181,6 +181,29 @@ fail_safe_teeth: engines.v
 	! cmp -s engines.v fail_safe_teeth/restartable.v
 	sby -f fail_safe.sby kept_drive runs_on restarts unmasked unstopped restartable
 
+# The fail-safe as a corollary of the one-run theorem, on each engine inside the two-engine
+# chip, the rest free (phase_step.sv's CHIP): for any program and table the kernel accepts,
+# each edge the chip drives for the engine comes the cycle after an entry inside its row,
+# but the release on the edge a fault shows, after which it drives nothing until reset.
+# Teeth, which have to fail: no kernel check, the edge at the entry, engine 0's mask gone or
+# a cycle late, underflow not sticky, a Manchester half early. _proof needs files written.
+FAULT_LATE = /^module engines (/,/^endmodule/{s/^\(\s*assign signal_mux[_0-9]* = \)faulted\$$0 \(? signal_const[_0-9]* : signal_wire_[0-9]*;\)/\1late$$0 \2/;s/^\(\s*\)wire faulted\$$0;/&\n\1reg late$$0 = 0;\n\1always @(posedge clock) late$$0 <= faulted$$0;/}
+FLIP_EARLY = /^module engine (/,/^endmodule/s/^\(\s*assign signal_and[_0-9]* = \)issue & flip_pending_0;/\1flip_pending_0;/
+fail_safe_table: engines.v kernel_step.v kernel_accepts.v
+	$(MAKE) fail_safe_table_proof
+
+fail_safe_table_proof:
+	mkdir -p fail_safe_teeth
+	sed '$(FAULT_MASK)' engines.v > fail_safe_teeth/unmasked.v
+	sed '$(FAULT_LATE)' engines.v > fail_safe_teeth/late_mask.v
+	awk -f fail_safe_unsticky.awk engines.v engines.v > fail_safe_teeth/unsticky.v
+	sed '$(FLIP_EARLY)' engines.v > fail_safe_teeth/flip_early.v
+	for tooth in unmasked late_mask unsticky flip_early; do \
+	  ! cmp -s engines.v fail_safe_teeth/$$tooth.v || exit 1; \
+	done
+	sby -f fail_safe_table.sby prove_0 prove_1 cover
+	sby -f fail_safe_table.sby no_accepts edge_at_entry unmasked late_mask unsticky flip_early
+
 # A UART from engine 0 to engine 1 over a wire, by induction on the two-engine chip: each
 # word engine 1 pushes is the byte engine 0 sent in that frame, once a frame, and each
 # sample lies half a bit from the wire's edges. The proof takes about 2 min, the covers
@@ -681,7 +704,7 @@ witness_reject:
 .PHONY: all link link_proof issue_timing host_timing late_host fifo_order phase_step phase_table \
   phase_table_proof phase_table_affine phase_table_affine_proof phase_spacing \
   phase_spacing_proof edge_step event_step frame_step value_step chip_frame fail_safe \
-  fail_safe_teeth data_step teeth \
+  fail_safe_teeth fail_safe_table fail_safe_table_proof data_step teeth \
   inductive_certificate inductive_proof inductive_certificates inductive_names \
   stamped_certificate stamped_proof data_certificate data_proof data_certificates data_names \
   netlist_equiv netlist_equiv_teeth sync_rtl sync_gate sync_rtl_teeth sync_gate_teeth \
