@@ -186,7 +186,8 @@ fail_safe_teeth: engines.v
 # each edge the chip drives for the engine comes the cycle after an entry inside its row,
 # but the release on the edge a fault shows, after which it drives nothing until reset.
 # Teeth, which have to fail: no kernel check, the edge at the entry, engine 0's mask gone or
-# a cycle late, underflow not sticky, a Manchester half early. _proof needs files written.
+# a cycle late, the fault flop not sticky, a Manchester half early. _proof needs files
+# written.
 FAULT_LATE = /^module engines (/,/^endmodule/{s/^\(\s*assign signal_mux[_0-9]* = \)faulted\$$0 \(? signal_const[_0-9]* : signal_wire_[0-9]*;\)/\1late$$0 \2/;s/^\(\s*\)wire faulted\$$0;/&\n\1reg late$$0 = 0;\n\1always @(posedge clock) late$$0 <= faulted$$0;/}
 FLIP_EARLY = /^module engine (/,/^endmodule/s/^\(\s*assign signal_and[_0-9]* = \)issue & flip_pending_0;/\1flip_pending_0;/
 fail_safe_table: engines.v kernel_step.v kernel_accepts.v
