@@ -20,6 +20,8 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+import traffic
+
 ROOT = Path(__file__).resolve().parent.parent
 EVIDENCE = Path.home() / ".local/share/protocol-emulator/board-evidence"
 RESULTS = ROOT / "demo/ledger.tsv"
@@ -113,15 +115,18 @@ def last_verdict(text):
     return found[-1] if found else None
 
 
-def typed(text):
-    """What demo_usb says it typed, a key a line."""
-    return "".join(re.findall(r"^typed (.)\r?$", text, re.MULTILINE))
-
-
 def hold_verdict(text):
     """demo_start_hold's verdict on the chip's stamps, on the line that judges them."""
     found = re.findall(r"^host, against t_HD;STA .*?: (PASS|FAIL)", text, re.MULTILINE)
     return found[-1] if found else None
+
+
+def judged(ok, said, problems, expect):
+    """A run with a step missing is no evidence either way, nor is a capture without the
+    traffic of a demo expected to fail. Pico A's PASS on a capture without it is a FAIL."""
+    if not (ok and said) or (problems and expect == "FAIL"):
+        return "ERROR"
+    return "FAIL" if problems else said
 
 
 def sha256(path):
@@ -340,7 +345,7 @@ class Ledger:
         b.open(fresh(self.args.runs, demo.name) if not b.dry_run
                else self.args.runs / demo.name)
         print("%s, expect %s%s" % (demo.name, demo.expect, ": " + demo.why if demo.why else ""))
-        result, said = "ERROR", None
+        result, said, held = "ERROR", None, ""
         if not self.reset():
             b.note("the bitstream did not load: not run")
         elif not self.load_pico_b(demo.pico_b):
@@ -351,21 +356,27 @@ class Ledger:
             log, ok = run(demo)
             if not b.dry_run:
                 text = (b.dir / log).read_text(errors="replace") if (b.dir / log).exists() else ""
-                said = (("PASS" if typed(text) == TEXT else "FAIL") if demo.name == "keyboard"
+                said = (("PASS" if traffic.typed(text) == TEXT else "FAIL")
+                        if demo.name == "keyboard"
                         else hold_verdict(text) if demo.kind == "start_hold"
                         else last_verdict(text))
                 b.note("Pico A says %s, every step %s" % (said, "ran" if ok else "did not"))
-                # a run with a step missing is no evidence either way
-                result = said if ok and said else "ERROR"
+                problems = traffic.check(demo.name, b.dir) if ok else []
+                for problem in problems:
+                    b.note("traffic: " + problem)
+                if ok and traffic.stem(demo.name) in traffic.CHECKS:
+                    held = "; ".join(problems) or "held to the capture"
+                result = judged(ok, said, problems, demo.expect)
         b.close()
         if b.dry_run:
             return None
-        return self.seal(demo, result, said, day, head, bit_hash)
+        return self.seal(demo, result, said, held, day, head, bit_hash)
 
-    def seal(self, demo, result, said, day, head, bit_hash):
+    def seal(self, demo, result, said, held, day, head, bit_hash):
         """ledger.txt and SHA256SUMS in the demo's directory, and its line for the TSV."""
         d = self.bench.dir
         info = [("demo", demo.name), ("result", result), ("pico_a_says", said),
+                ("traffic", held),
                 ("expected", demo.expect),
                 ("why", demo.why), ("time", datetime.datetime.now().isoformat(timespec="seconds")),
                 ("commit", head), ("bitstream", os.path.abspath(self.args.bitstream)),
