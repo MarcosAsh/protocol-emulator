@@ -2,7 +2,10 @@
 # Writes a results table from GitHub Actions: each claim, the job that checks it, its last
 # green run on main, the weakened copies that had to fail and did, and how long it took.
 # Reads the job logs, so it can only report what CI printed. Needs gh, logged in.
+# --readme-table prints the README's first table with its numbers, runs and dates fresh
+# from the sources test/check_docs.py holds it to, and --board-table the pinned ledgers.
 # Usage: python3 test/results.py [--repo OWNER/NAME] [--runs N] [--html PAGE] > RESULTS.md
+#        python3 test/results.py --readme-table | --board-table
 import argparse
 import html
 import json
@@ -693,13 +696,85 @@ def die():
     return out
 
 
+def readme_table(readme):
+    """[readme]'s first table, each number, run and date its sources give put in, the
+    words left as the README has them. Prints each change to stderr."""
+    import check_docs as docs
+    import evidence
+
+    table = next(u for u in re.split(r"\n\s*\n", readme) if u.startswith("|"))
+    count, words, bits = docs.sram()
+    pins = docs.pinout()
+    fresh = {
+        "Process": [(r"\d+ x \d+(?= tiles)", docs.tiles())],
+        "Clock": [(r"\d+(?= MHz)", docs.clock_mhz())],
+        "Cores": [(r"\d+(?= cores)", docs.instances().get("engine")),
+                  (r"\d+(?= IHP)", count), (r"\d+ x \d+(?= SRAM)", f"{words} x {bits}")],
+        "Pins": [(r"\d+(?= for the host)", pins["host"]), (r"\d+(?= in,)", pins["in"]),
+                 (r"\d+(?= out,)", pins["out"]), (r"\d+(?= bidirectional)", pins["bidirectional"]),
+                 (r"\d+(?= wires)", docs.isa("num_wires"))],
+        "Firmware": [(r"\d+(?= library firmwares)", len(docs.library_firmwares()))],
+    }
+    if (best := docs.best_gds_run()) and (m := docs.gds_numbers(best)[0]):
+        fresh["Hardened"] = [
+            (r"[\d,]+(?= standard cells)", f"{int(m['std_cells']):,}"),
+            (r"[\d.]+(?=% utilisation)", f"{round(float(m['utilisation']) * 100, 6):g}"),
+            (r"[+-][\d.]+(?= ns at the slow corner)", f"{float(m['setup_slow_ns']):+.3f}"),
+            (r"(?<=gds run \[)\d+|(?<=actions/runs/)\d+|(?<=gds run )\d+", best)]
+        if bad := docs.failed_jobs(best, "precheck"):
+            print(f"gds run {best}'s precheck job is {', '.join(bad)}", file=sys.stderr)
+    board = re.search(r"passed the ([\w-]+) demo on", table)
+    if board and (passed := evidence.passes(board[1].replace("-", "_"))):
+        newest = passed[0]
+        link = f"[{newest['release']}]({evidence.release_url(newest['release'])})"
+        fresh["Board"] = [(r"(?<=demo on )\d{4}-\d\d-\d\d", newest["time"][:10]),
+                          (r"\[[\w.-]+\]\(https://github\.com/[^)]*/releases/tag/[^)]*\)", link)]
+    out = []
+    for line in table.splitlines():
+        cells = line.split("|")
+        label = cells[1].strip() if len(cells) > 2 else ""
+        for pattern, value in fresh.get(label, []):
+            changed = re.sub(pattern, str(value), line)
+            if changed == line and not re.search(pattern, line):
+                if label == "Board" and "releases/tag/" in pattern:
+                    changed = line.rstrip().removesuffix("|").rstrip() + f", {link} |"
+                else:
+                    print(f"{label}: nothing like {pattern} to put {value} in", file=sys.stderr)
+            if changed != line:
+                print(f"{label}: {line.strip()}\n  now {changed.strip()}", file=sys.stderr)
+            line = changed
+        out.append(line)
+    return "\n".join(out)
+
+
+def board_table():
+    """Every demo run the pinned board evidence holds, newest first per demo."""
+    import evidence
+
+    lines = ["| Demo | Result | When | Bitstream sha256 | Evidence |", "|---|---|---|---|---|"]
+    newest_first = sorted(evidence.ledger(), key=lambda e: e.get("time", ""), reverse=True)
+    for e in sorted(newest_first, key=lambda e: e.get("demo", "")):
+        where = f"[{e['release']}]({evidence.release_url(e['release'])}) `{e['path']}`"
+        lines.append(f"| {e.get('demo')} | {e.get('result')} | {e.get('time', '').replace('T', ' ')} "
+                     f"| `{e.get('bitstream_sha256', '')[:16]}` | {where} |")
+    return "\n".join(lines)
+
+
 def main():
     global REPO, RUNS
     p = argparse.ArgumentParser()
     p.add_argument("--repo", help="OWNER/NAME, by default this checkout's")
     p.add_argument("--runs", type=int, default=RUNS, help="runs to look back per workflow")
     p.add_argument("--html", metavar="PAGE", help="also write the results page to PAGE")
+    p.add_argument("--readme-table", action="store_true",
+                   help="print the README's first table with fresh numbers, and stop")
+    p.add_argument("--board-table", action="store_true",
+                   help="print the pinned board ledgers as a table, and stop")
     args = p.parse_args()
+    if args.readme_table:
+        return print(readme_table((Path(__file__).resolve().parent.parent / "README.md").read_text()))
+    if args.board_table:
+        return print(board_table())
     REPO = args.repo or gh("repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner").strip()
     RUNS = args.runs
     claims = [c for _, section in CLAIMS for c in section]
