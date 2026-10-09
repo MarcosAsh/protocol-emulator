@@ -163,7 +163,7 @@ jobs:
 
       - name: Prove the netlist equal to the RTL, and fail on four mutants
         run: |
-          make -C formal netlist_equiv netlist_equiv_teeth \
+          make -C formal netlist_equiv netlist_equiv_step netlist_equiv_teeth \
             NETLIST="$GITHUB_WORKSPACE/hardened/tt_submission/tt_um_marcosash_protocol_emulator.v"
 
       # formal/sync/check.tcl

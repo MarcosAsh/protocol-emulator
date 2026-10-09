@@ -1,0 +1,24 @@
+# What gold.ys and step.ys both do to the RTL after proc: flatten, memories to flops,
+# the three macros cut so their inputs are outputs to compare and their outputs inputs
+# both sides share. The x's left, on the address and data of disabled memory writes,
+# write nothing, so folding them with -mux_undef is safe.
+
+flatten
+memory_collect
+memory_map
+opt_expr -mux_undef
+opt_clean
+delete t:$scopeinfo
+
+select -assert-count 3 t:RM_IHPSG13_1P_512x16_c2_bm_bist
+expose -evert t:RM_IHPSG13_1P_512x16_c2_bm_bist
+select -assert-count 51 o:*
+select -assert-count 8 i:*
+
+# one clock: every flop takes the rising edge of clk
+select -assert-none t:$*latch* t:$sr %u
+select -assert-none t:$*ff* w:clk %co:+[CLK] %d
+select -assert-none t:$*ff* r:CLK_POLARITY=1 r:CLK_POLARITY=1'1 %u %d
+
+# no used net without a driver, which miter -flatten would make an x (see aig.ys)
+check -assert
