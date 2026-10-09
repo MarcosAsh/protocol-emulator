@@ -1,3 +1,5 @@
 # Mutants that no test can kill: file ## operator ## the source line ## why
 src/engine.ml ## greater ## (s >:. data_bits) ## both arms of the saturation give data_bits when the sum is exactly data_bits
 src/decoder.ml ## constant one ## if n = 1 lsl width raw then vdd else raw <:. n ## no enum checked here fills its field now that the jump condition is 12 of 16, so the branch is never built
+src/host_fifo.ml ## int plus one ## let level_bits = Int.ceil_log2 (depth + 1) ## at a depth of 8, ceil_log2 of 9 and of 10 are both 4
+src/host_spi.ml ## constant zero ## @@ mux2 sck_fall (d.:[6, 0] @: gnd) d) ## the filled bit never reaches the msb, as tx_byte reloads at every byte boundary after seven shifts
