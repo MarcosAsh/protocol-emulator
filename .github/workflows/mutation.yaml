@@ -3,10 +3,60 @@ on:
   schedule:
     - cron: '0 3 * * 1'
   workflow_dispatch:
+    inputs:
+      scope:
+        description: 'engine: the four files of the published score; wide: every file that makes RTL, the kernel and the analyser'
+        type: choice
+        options: [engine, wide]
+        default: engine
+      ids:
+        description: 'only these mutants of the scope, as --list names them, space separated'
+        type: string
+        default: ''
+      shards:
+        description: 'jobs to split the mutants over; 0: 4 for engine, 20 for wide, 1 for ids'
+        type: number
+        default: 0
+
+# the held-out sample is a function of this seed and the mutant, fixed before any run
+env:
+  SCOPE: ${{ inputs.scope || 'engine' }}
+  IDS: ${{ inputs.ids }}
+  SEED: '20261002'
+
 jobs:
-  mutate:
+  plan:
     runs-on: ubuntu-24.04
-    timeout-minutes: 300
+    outputs:
+      count: ${{ steps.plan.outputs.count }}
+      shards: ${{ steps.plan.outputs.shards }}
+    steps:
+      - name: Number the shards
+        id: plan
+        env:
+          SHARDS: ${{ inputs.shards }}
+        run: |
+          n=${SHARDS:-0}
+          if [ "$n" -eq 0 ]; then
+            if [ -n "$IDS" ]; then n=1; elif [ "$SCOPE" = wide ]; then n=20; else n=4; fi
+          fi
+          echo "count=$n" >> "$GITHUB_OUTPUT"
+          echo "shards=$(seq 0 $((n - 1)) | jq -sc .)" >> "$GITHUB_OUTPUT"
+
+  # a mutant costs about four runner-minutes, four at a time on four cores: engine's 114
+  # in four shards of about two hours, wide's thousand in twenty of about three and a half,
+  # six shards at a time so the other branches keep the rest of the shared runners
+  mutate:
+    needs: plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        shard: ${{ fromJSON(needs.plan.outputs.shards) }}
+    env:
+      SHARDS: ${{ needs.plan.outputs.count }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v6
@@ -48,13 +98,54 @@ jobs:
           [ "${{ steps.sat_tools.outputs.cache-hit }}" = true ] || make -C formal sat_tools
           echo "$PWD/formal/sat_tools/bin" >> "$GITHUB_PATH"
 
-      - name: Mutate the hardware and run the tests on every mutant
-        shell: bash
-        run: opam exec -- python3 test/mutate.py --jobs 4 | tee mutation.log
+      # the shard's mutants and which are held out, logged before any is run
+      - name: List the mutants
+        run: opam exec -- python3 test/mutate.py --scope "$SCOPE" ${IDS:+--id $IDS} --shard "${{ matrix.shard }}/$SHARDS" --seed "$SEED" --list
+
+      # a suite that runs 45 minutes, about three times a mutant's, has hung
+      - name: Mutate and run the tests on every mutant
+        timeout-minutes: 330
+        run: opam exec -- python3 test/mutate.py --scope "$SCOPE" ${IDS:+--id $IDS} --shard "${{ matrix.shard }}/$SHARDS" --seed "$SEED" --jobs 4 --timeout 2700 --json "shard_${{ matrix.shard }}.jsonl"
+
+      - name: Upload the results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mutation-${{ matrix.shard }}
+          path: shard_${{ matrix.shard }}.jsonl
+
+  # every shard's results in one score, in-sample and held out apart, and every survivor
+  score:
+    needs: mutate
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Download the results
+        uses: actions/download-artifact@v8
+        with:
+          pattern: mutation-*
+          path: results
+          merge-multiple: true
 
       - name: Score
+        run: python3 test/mutate.py --report results/*.jsonl > report.txt
+
+      - name: Summary
         if: always()
         run: |
+          cat report.txt
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          grep "valid mutants\|^survived" -A1 mutation.log >> "$GITHUB_STEP_SUMMARY"
+          cat report.txt >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mutation-report
+          path: |
+            report.txt
+            results

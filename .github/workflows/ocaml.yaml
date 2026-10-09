@@ -1,15 +1,49 @@
 name: ocaml
-on: [push, workflow_dispatch]
+# branches only: a tag names a commit a branch push has already run
+on:
+  push:
+    branches: ['**']
+  # phase_spacing, nine jobs of up to 3.5 h, runs nightly on main and on a dispatch only.
+  # Before landing a branch: gh workflow run ocaml.yaml --ref BRANCH -f phase_spacing=true
+  schedule:
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+    inputs:
+      phase_spacing:
+        description: Prove phase_spacing too
+        type: boolean
+        default: false
 
 # a newer push cancels a branch's run; on main every run that starts finishes, and of the
-# ones waiting only the newest starts
+# ones waiting only the newest starts. The nightly and a dispatch wait apart from pushes,
+# so a push never drops them.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}${{ github.event_name != 'push' && format('-{0}', github.event_name) || '' }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  # which jobs a branch's changes reach (.github/changed.sh); the rest skip, which counts
+  # as a pass
+  changes:
+    runs-on: ubuntu-24.04
+    outputs:
+      tests: ${{ steps.changed.outputs.tests }}
+      proofs: ${{ steps.changed.outputs.proofs }}
+      fpga: ${{ steps.changed.outputs.fpga }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # to find where the branch left main
+
+      - name: List what changed
+        id: changed
+        run: .github/changed.sh tests proofs fpga | tee -a "$GITHUB_OUTPUT"
+
   # the Verilog and certificates the proof jobs read, so they start without the tests
   generate:
+    needs: changes
+    if: needs.changes.outputs.proofs == 'true'
     runs-on: ubuntu-24.04
     outputs:
       certificates: ${{ steps.certificates.outputs.names }}
@@ -118,6 +152,8 @@ jobs:
             formal/kernel_accepts.v
 
   test:
+    needs: changes
+    if: needs.changes.outputs.tests == 'true'
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repo
@@ -181,11 +217,13 @@ jobs:
           fi
 
       - name: Install OSS CAD Suite
+        if: needs.changes.outputs.proofs == 'true'
         run: |
           curl -sL https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz | tar xz -C "$HOME"
           echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
 
       - name: Prove
+        if: needs.changes.outputs.proofs == 'true'
         run: |
           opam exec -- dune exec -- bin/generate.exe engine > formal/engine.v
           opam exec -- dune exec -- bin/generate.exe engine -sram > formal/engine_sram.v
@@ -231,6 +269,8 @@ jobs:
   # the netlists of both boards, simulated; the firmware words they load are the committed
   # ones, which the test job checks are current
   fpga:
+    needs: changes
+    if: needs.changes.outputs.fpga == 'true'
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repo
@@ -370,6 +410,7 @@ jobs:
   # phase_spacing_parts lists, which together are phase_spacing_proof
   phase_spacing:
     needs: generate
+    if: github.event_name == 'schedule' || inputs.phase_spacing
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     strategy:
