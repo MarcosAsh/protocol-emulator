@@ -382,6 +382,12 @@ def main():
                 shutil.copytree(root / item, work / "0" / item, ignore=SKIPPED)
             else:
                 shutil.copy(root / item, work / "0" / item)
+        # a copy that cannot build or elaborate the design would count every mutant invalid
+        elaborate = sorted({tuple(a) for m in todo for a in ELABORATE.get(m["file"], [])})
+        commands = [["exec", "--", "./bin/generate.exe", *a] for a in elaborate]
+        for command in [["build", "./bin/generate.exe"]] + commands:
+            if dune(work / "0", *command, jobs=args.dune_jobs)[0] != 0:
+                sys.exit(f"the unmutated copy fails dune {' '.join(command)}")
         start = time.monotonic()
         code, err = dune(work / "0", "build", "@runtest", jobs=args.dune_jobs)
         if code != 0:
