@@ -1150,3 +1150,110 @@ let%expect_test "only a wait for the captured edge on the capture pin sees it" =
       8  halt                         awaiting true  captured false
     |}]
 ;;
+
+(* The slope is the cycles a pass falls behind: what each instruction adds to the phase,
+   and none for a loop with a jump that stays inside it. *)
+let%expect_test "counted loops of every shape" =
+  let source =
+    {|
+    set y, 2
+    mov t, now
+    set x, 1
+    nop
+    set x, 3
+a:
+    add t, 5
+    add t, y
+    sub t, 1
+    jmp x--, a
+    set x, 3
+b:
+    jmp x--, b
+    set x, 3
+c:
+    jmp pin, c
+    jmp x--, c
+    set x, 3
+d:
+    jmp pin, e
+e:
+    jmp x--, d
+    halt
+|}
+  in
+  print_rows (rows source) ~f:(fun r ->
+    sprintf
+      "phase %s  slope %d  offset %s"
+      (Interval.to_string r.phase)
+      r.slope
+      (Interval.to_string r.offset));
+  [%expect
+    {|
+     0  set y, 2                     phase ?..?  slope 0  offset ?..?
+     1  mov t, now                   phase ?..?  slope 0  offset ?..?
+     2  set x, 1                     phase 1  slope 0  offset ?..?
+     3  nop                          phase 2  slope 0  offset ?..?
+     4  set x, 3                     phase 3  slope 0  offset ?..?
+     5  add t, 5                     phase ?..4  slope 1  offset 1
+     6  add t, y                     phase ?..0  slope 1  offset -3
+     7  sub t, 1                     phase ?..-1  slope 1  offset -4
+     8  jmp x--, 5                   phase ?..1  slope 1  offset -2
+     9  set x, 3                     phase 0  slope 0  offset ?..?
+    10  jmp x--, 10                  phase 1..?  slope -2  offset 7
+    11  set x, 3                     phase 9  slope 0  offset ?..?
+    12  jmp pin, 12                  phase 10..?  slope 0  offset ?..?
+    13  jmp x--, 12                  phase 12..?  slope 0  offset ?..?
+    14  set x, 3                     phase 14..?  slope 0  offset ?..?
+    15  jmp pin, 16                  phase 15..?  slope 0  offset ?..?
+    16  jmp x--, 15                  phase 17..?  slope 0  offset ?..?
+    17  halt                         phase 19..?  slope 0  offset ?..?
+    |}]
+;;
+
+(* Unlike a jump into a loop of the same slope, one into a loop of another slope carries
+   no offset: the phase it falls through at is no tighter than the drift allows. *)
+let%expect_test "a counted loop may jump out into another of another slope" =
+  let source =
+    {|
+    set p, 31
+    mov t, now
+    set x, 3
+a:
+    jmp pin, b
+    nop
+    jmp x--, a
+    add t, p
+    wait t
+    jmp 0
+b:
+    nop [3]
+    jmp x--, b
+    add t, p
+    wait t
+    jmp 0
+|}
+  in
+  print_rows (rows source) ~f:(fun r ->
+    sprintf
+      "phase %s  slope %d  offset %s"
+      (Interval.to_string r.phase)
+      r.slope
+      (Interval.to_string r.offset));
+  [%expect
+    {|
+     0  set p, 31                    phase ?..?  slope 0  offset ?..?
+     1  mov t, now                   phase ?..?  slope 0  offset ?..?
+     2  set x, 3                     phase 1  slope 0  offset ?..?
+     3  jmp pin, 9                   phase 2..?  slope -5  offset 17
+     4  nop                          phase 4..?  slope -5  offset 19
+     5  jmp x--, 3                   phase 5..?  slope -5  offset 20
+     6  add t, p                     phase 22  slope 0  offset ?..?
+     7  wait t                       phase -8  slope 0  offset ?..?
+     8  jmp 0                        phase 1  slope 0  offset ?..?
+     9  nop [3]                      phase 4..?  slope -6  offset ?..?
+    10  jmp x--, 9                   phase 8..?  slope -6  offset ?..?
+    11  add t, p                     phase 10..?  slope 0  offset ?..?
+    12  wait t                       phase -20..?  slope 0  offset ?..?
+    13  jmp 0                        phase 1..?  slope 0  offset ?..?
+    |}]
+;;
