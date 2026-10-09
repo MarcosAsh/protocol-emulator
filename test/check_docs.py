@@ -29,6 +29,7 @@ EXTERNAL = False
 # links checked unless --external-links asks for every host
 OWN_HOSTS = ("github.com", "marcosash.github.io")
 LINK_TTL = 24 * 3600  # how long a link that answered is not asked again
+WORDS = dict(zip("one two three four five six seven eight nine ten".split(), map(str, range(1, 11))))
 WARNINGS = []
 DEADLINE = "2027-01-18"  # the competition's submission date
 
@@ -590,6 +591,34 @@ def check_links(doc, text):
             warn(f"{url} answered {status or 'nothing'}, so it goes unchecked")
 
 
+@cache
+def cocotb_seconds(run_id, module):
+    """{test: real seconds} for [module]'s cocotb tests that passed in [run_id]'s logs."""
+    jobs = json.loads(gh("api", f"repos/{REPO}/actions/runs/{run_id}/jobs?per_page=100")
+                      or '{"jobs": []}')["jobs"]
+    logs = "".join(gh("api", f"repos/{REPO}/actions/jobs/{j['id']}/logs") or "" for j in jobs)
+    return {test: float(s) for test, s in re.findall(
+        rf"\*\* {module}\.(\w+) +PASS +[\d.]+ +([\d.]+) ", logs)}
+
+
+def check_demo_time(doc, text):
+    """How long the docs say a cocotb module takes, against its last three green test runs
+    on main, give or take a third."""
+    for module, said in re.findall(r"COCOTB_TEST_MODULES=(\w+)`[^.]*? in about (\d+) minutes",
+                                   flat(text)):
+        runs = [str(r["id"]) for r in green_runs("test.yaml")][:3]
+        took = [sum(cocotb_seconds(r, module).values()) for r in runs]
+        took = [s for s in took if s]
+        if not took:
+            yield module, f"no green test run on main logs {module}'s tests passing"
+            continue
+        minutes = sum(took) / len(took) / 60
+        if abs(minutes - int(said)) > max(1, int(said) / 3):
+            yield (f"in about {said} minutes",
+                   f"{module} took {minutes:.0f} minutes in test runs {', '.join(runs)} "
+                   f"({', '.join(f'{s / 60:.1f}' for s in took)}), the docs say about {said}")
+
+
 def check_counts(doc, text):
     """Counts the code and the tests hold, wherever the docs quote them."""
     text = flat(text)
@@ -631,6 +660,16 @@ def check_counts(doc, text):
     for n in numbers(r"(\d+)-deep fifos", text):
         if n != depth:
             yield f"{n}-deep fifos", f"{n}-deep fifos, src/host_fifo.ml has depth = {depth}"
+    transmitters = len(find(r"^DATA = (.*)$", "formal/Makefile")[1].split())
+    for word in re.findall(r"all but (\w+) transmitters", text):
+        if WORDS.get(word, word) != str(transmitters):
+            yield (f"all but {word}", f"all but {word} transmitters, formal/Makefile's DATA "
+                   f"proves the host's words on {transmitters}")
+    for path, date in re.findall(r"`([\w./-]+)`[^.`]*? committed on (\d{4}-\d\d-\d\d)", text):
+        added = git("log", "--diff-filter=A", "--format=%ad", "--date=short", "--", path)
+        first = (added.stdout.split() or ["never"])[-1]
+        if first != date:
+            yield date, f"{path} committed on {date}, git first has it on {first}"
 
 
 def check_transcripts(doc, text):
@@ -692,7 +731,8 @@ def check_glance(doc, text):
 
 CHECKS = [check_paths, check_make, check_jobs, check_commits, check_counts, check_transcripts,
           check_glance]
-ONLINE_CHECKS = [check_runs, check_gds, check_mutation, check_board, check_links]
+ONLINE_CHECKS = [check_runs, check_gds, check_mutation, check_board, check_links,
+                 check_demo_time]
 
 
 def failures(docs):
