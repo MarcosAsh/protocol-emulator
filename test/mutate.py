@@ -306,7 +306,7 @@ def main():
     p.add_argument("--scope", choices=SCOPES, default="engine")
     p.add_argument("--file", action="append", help="only these files of the scope")
     p.add_argument("--operator", action="append", help="only these operators")
-    p.add_argument("--id", action="append", help="only these mutants, as --list names them")
+    p.add_argument("--id", action="extend", nargs="+", help="only these mutants, as --list names them")
     p.add_argument("--shard", default="0/1", help="I/N: every Nth mutant from the Ith")
     p.add_argument("--seed", type=int, help="holds out a sample, scored apart")
     p.add_argument("--held-out", type=int, default=20, help="percent held out")
