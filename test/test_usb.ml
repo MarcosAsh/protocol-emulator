@@ -263,6 +263,91 @@ let%expect_test "usb rx in lockstep" =
     |}]
 ;;
 
+(* A sender off in rate, its bit [num / den] of the receiver's, each bit starting on the
+   first cycle at or after it is due. USB allows a low speed sender 1.5% off. The receiver
+   re-anchors on every J-to-K edge, at most fourteen bits apart once stuffed, so the drift
+   it has to ride out is that of fourteen bits and not of a whole packet. Every byte in
+   eight-byte DATA0 packets, then packets of all ones, the longest gaps between edges. *)
+let%expect_test "usb rx follows a sender off in rate" =
+  let bit_period = 32 in
+  let level (line : Usb_ls.Line.t) =
+    match line with
+    | J -> 1 lsl usb_rx_dm_pin
+    | K -> 1 lsl usb_rx_dp_pin
+    | Se0 -> 0
+  in
+  let data payload =
+    let crc = Usb_ls.crc16 (Usb_ls.bits_of_bytes payload) in
+    (0xc3 :: payload) @ [ crc land 0xff; crc lsr 8 ]
+  in
+  let receive payloads ~num ~den =
+    let packets = List.map payloads ~f:data in
+    let lines =
+      List.init 8 ~f:(fun _ -> Usb_ls.Line.J)
+      @ List.concat_map packets ~f:(fun packet -> Usb_ls.encode packet @ [ J; J ])
+      @ List.init 8 ~f:(fun _ -> Usb_ls.Line.J)
+    in
+    let start k = ((k * bit_period * num) + den - 1) / den in
+    let levels =
+      List.concat_mapi lines ~f:(fun k line ->
+        List.init (start (k + 1) - start k) ~f:(fun _ -> level line))
+    in
+    let expected =
+      List.concat_map packets ~f:(fun packet ->
+        List.map (0x80 :: packet) ~f:(fun byte -> byte lsl 8) @ [ Usb_ls.residual packet ])
+    in
+    let t =
+      Machine.create
+        ~config:usb_rx_config
+        ~program:(assemble (usb_rx ~half_period:(bit_period / 2)))
+      |> ok_exn
+    in
+    let t = Machine.write_tx t bit_period |> ok_exn in
+    let t, words =
+      List.fold levels ~init:(t, []) ~f:(fun (t, words) inputs ->
+        let t = Machine.step t ~inputs in
+        match Machine.read_rx t with
+        | Some (word, t) -> t, word :: words
+        | None -> t, words)
+    in
+    [%equal: int list] (List.rev words) expected, t.fault.missed_deadline
+  in
+  let every_byte = List.chunks_of (List.init 256 ~f:Fn.id) ~length:8 in
+  let all_ones = List.init 4 ~f:(fun _ -> List.init 8 ~f:(fun _ -> 0xff)) in
+  printf "%-10s %-10s %-10s %s\n" "sender" "every byte" "all ones" "missed";
+  List.iter
+    [ "4% fast", 24, 25
+    ; "2.5% fast", 39, 40
+    ; "2% fast", 49, 50
+    ; "1.5% fast", 197, 200
+    ; "exact", 1, 1
+    ; "1.5% slow", 203, 200
+    ; "3% slow", 103, 100
+    ; "4% slow", 26, 25
+    ]
+    ~f:(fun (sender, num, den) ->
+      let every_ok, every_missed = receive every_byte ~num ~den in
+      let ones_ok, ones_missed = receive all_ones ~num ~den in
+      let intact ok = if ok then "intact" else "garbled" in
+      printf
+        "%-10s %-10s %-10s %b\n"
+        sender
+        (intact every_ok)
+        (intact ones_ok)
+        (every_missed || ones_missed));
+  [%expect {|
+    sender     every byte all ones   missed
+    4% fast    garbled    garbled    false
+    2.5% fast  garbled    garbled    false
+    2% fast    intact     intact     false
+    1.5% fast  intact     intact     false
+    exact      intact     intact     false
+    1.5% slow  intact     intact     false
+    3% slow    intact     intact     false
+    4% slow    garbled    garbled    false
+    |}]
+;;
+
 (* D+ and D- as a wire: the device wins where it drives, the host's level otherwise *)
 let usb_bus (t : Machine.t) ~host =
   let pin n = if (t.pin_dir lsr n) land 1 = 1 then (t.pin_out lsr n) land 1 else host n in

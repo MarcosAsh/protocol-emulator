@@ -48,7 +48,7 @@ let%expect_test "the firmware library and its certificates" =
     i2c_slave             72         0      -
     i2c_logger            73        25      1
     usb_tx                65        11     16  period 32
-    usb_rx                29         2      9  period 32, one edge before capture, no wrap
+    usb_rx                85         4      5  period 32, one edge before capture, no wrap
     usb_device           470        54      6  period 32, one edge before capture, no wrap
     edge_meter            12         2      6
     ws2812                32         4      0  no wrap

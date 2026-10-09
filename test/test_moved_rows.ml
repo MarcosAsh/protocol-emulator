@@ -77,7 +77,7 @@ let%expect_test "the kernel refuses each row moved by a cycle" =
     (i2c_slave (phase 0) (arm 0) (capture 0) (accepted ()))
     (i2c_logger (phase 138) (arm 0) (capture 0) (accepted ()))
     (usb_tx (phase 120) (arm 0) (capture 0) (accepted ()))
-    (usb_rx (phase 42) (arm 2) (capture 8) (accepted ()))
+    (usb_rx (phase 154) (arm 100) (capture 22) (accepted ()))
     (usb_device (phase 892) (arm 4) (capture 22) (accepted ()))
     (edge_meter (phase 18) (arm 14) (capture 0) (accepted ()))
     (ws2812 (phase 60) (arm 0) (capture 0) (accepted ()))
