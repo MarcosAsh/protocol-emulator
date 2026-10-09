@@ -1,4 +1,4 @@
-; uart rx on wire 20 at 16 cycles per bit; the twin of Firmware.uart_rx_on ~pin:20 ~period:16
+; uart rx on wire 20 at 16 cycles per bit; the twin of Uart.rx_on ~pin:20 ~period:16
     set p, 16
     set y, 7
 idle:

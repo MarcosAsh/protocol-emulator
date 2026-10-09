@@ -105,8 +105,8 @@ let bench =
   { Bench.name = "spi_master"
   ; what =
       [%string
-        "Firmware.spi_master ~half_period:%{Bench.spi_half#Int}: SCK at %{Bench.rate (2 \
-         * Bench.spi_half)} on OUT5, MOSI on OUT4, MISO on IN0, no chip select"]
+        "Spi.master ~half_period:%{Bench.spi_half#Int}: SCK at %{Bench.rate (2 * \
+         Bench.spi_half)} on OUT5, MOSI on OUT4, MISO on IN0, no chip select"]
   ; source = master ~half_period:Bench.spi_half
   ; config = Bench.on_spi_pins config
   ; assumption = Nothing

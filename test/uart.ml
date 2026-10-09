@@ -169,8 +169,8 @@ let log =
   { Bench.name = "uart_log"
   ; what =
       [%string
-        "Firmware.uart_tx_host_rate: the keyboard demo's log to Pico B, %{period#Int} \
-         cycles a bit for %{Bench.rate ~unit:\"baud\" period}, on OUT0"]
+        "Uart.tx_host_rate: the keyboard demo's log to Pico B, %{period#Int} cycles a \
+         bit for %{Bench.rate ~unit:\"baud\" period}, on OUT0"]
   ; source = tx_host_rate
   ; config = Program_config.default
   ; assumption = Floor 4

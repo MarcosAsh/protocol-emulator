@@ -2,9 +2,9 @@
 # Replays test/traces (from test/pin_trace.ml) and compares every output bit every cycle.
 # Cycle 0 is the first rising edge after RESET_CYCLES of reset, which clears every
 # register with a clear; nothing is masked, so an X is a mismatch.
-# Unwritten storage is X here but zero in OCaml: test/pin_scenarios.ml avoids the one
-# known case, an rx read that empties the fifo. Inputs change on the falling edge;
-# outputs are sampled on the next falling edge.
+# Unwritten storage is X here but zero in OCaml: test/uart.ml's uart_rx scenario avoids
+# the one known case, an rx read that empties the fifo. Inputs change on the falling
+# edge; outputs are sampled on the next falling edge.
 # REPLAY_TRACES gives other globs under test/; REPLAY_RECORD a folder where each trace is
 # written again with the outputs the netlist drove, an x or z as 0, for demo/decode.py.
 # A trace that differs still runs to its end and is written, then fails.

@@ -1,4 +1,4 @@
-; uart tx at 16 cycles per bit; the twin of Firmware.uart_tx ~period:16 in firmware.ml
+; uart tx at 16 cycles per bit; the twin of Uart.tx ~period:16 in uart.ml
     set p, 16
     set pins, 1              ; idle high
 idle:

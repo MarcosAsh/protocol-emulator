@@ -253,7 +253,7 @@ let%expect_test "the words committed for the cocotb test are current" =
     ]
     ~f:(fun name ->
       [%test_result: int list] ~message:name (committed name) ~expect:(assembled name));
-  (* copies of firmware.ml's, since the command line assembles files *)
+  (* copies of the library's, since the command line assembles files *)
   [%test_result: int list]
     (assembled "uart_tx")
     ~expect:(Firmware.assemble (Uart.tx ~period:16));
@@ -269,7 +269,7 @@ let%expect_test "the words committed for the cocotb test are current" =
   [%test_result: int list]
     (assembled "edge_logger_wire")
     ~expect:(Firmware.assemble (Firmware.edge_logger ~pin:Isa.num_pins));
-  (* the marked master is firmware.ml's, less the bus clear, with each SCL move copied
+  (* the marked master is I2c.master's, less the bus clear, with each SCL move copied
      onto the wire *)
   let unmarked =
     In_channel.read_lines "i2c_master_marked.asm"

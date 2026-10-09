@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# The EEPROM act on Firmware.i2c_master_stretch, which reads SCL back after letting it go
+# The EEPROM act on I2c.master_stretch, which reads SCL back after letting it go
 # and times the high phase from the rise it sees, so SCL's rise behind the pull-up no
 # longer comes off tHIGH and the START and STOP setups. demo/outside.sh eeprom_stretch.
 
