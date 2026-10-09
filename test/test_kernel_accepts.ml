@@ -391,3 +391,155 @@ let%expect_test "a row that steps into an unreached row is refused" =
   [%expect
     {| (((pc 2) (fails ("next phase" "next period" "next x" "next y" "next arm")))) |}]
 ;;
+
+(* Whether the word at an entry writes [pin], side-set first, as [Pins.write] wraps runs;
+   followed apart from the kernel's [Watched]. *)
+let writes (c : Program_config.t) (spec : Kernel.Spacing.Spec.t) ~pin (i : Isa.t) =
+  let in_run ~base ~count =
+    List.exists (List.range 0 count) ~f:(fun k -> (base + k) % Isa.pin_space = pin)
+  in
+  let takes =
+    if spec.dirs
+    then pin >= Isa.first_bidir_pin && pin < Isa.num_pins
+    else pin >= Isa.first_output_pin && pin < Isa.pin_space
+  in
+  let to_pins (dest : [ `Pins | `Pindirs ]) =
+    Bool.equal
+      spec.dirs
+      (match dest with
+       | `Pins -> false
+       | `Pindirs -> true)
+  in
+  takes
+  &&
+  match i with
+  | Jmp _ -> false
+  | Op { op; _ } ->
+    (Bool.equal c.side_set_pindirs spec.dirs
+     && in_run ~base:c.side_set_base ~count:c.side_set_count)
+    ||
+      (match op with
+      | Set { dest = Pins; _ } ->
+        to_pins `Pins && in_run ~base:c.set_base ~count:c.set_count
+      | Set { dest = Pindirs; _ } ->
+        to_pins `Pindirs && in_run ~base:c.set_base ~count:c.set_count
+      | Out { dest = Pins; count } -> to_pins `Pins && in_run ~base:c.out_base ~count
+      | Out { dest = Pindirs; count } ->
+        to_pins `Pindirs && in_run ~base:c.out_base ~count
+      | Mov { dest = Pins; _ } ->
+        to_pins `Pins && in_run ~base:c.out_base ~count:c.out_count
+      | Mov { dest = Pindirs; _ } ->
+        to_pins `Pindirs && in_run ~base:c.out_base ~count:c.out_count
+      | _ -> false)
+;;
+
+(* [now - t], signed, as the core reads it *)
+let phase (m : Machine.t) =
+  let d = (m.now - m.t) land ((1 lsl Isa.timer_bits) - 1) in
+  if d >= half then d - (2 * half) else d
+;;
+
+(* What formal/pair_step.sby proves, run on the model: at every entry the core's edge
+   state of each pin of the pair lies inside the row [Kernel.Table.with_edges] gives its
+   pc, under random pins and host. *)
+let%expect_test "the core's edges stay inside the rows the table carries them to" =
+  List.iter
+    [ Certified.find_exn "uart_tx", uart_bits
+    ; ( Certified.find_exn "i2c_master"
+      , { Kernel.Spacing.Spec.a = Firmware.scl
+        ; b = Firmware.sda
+        ; dirs = true
+        ; hold_a = (fun ~own:_ ~other:_ -> 10)
+        ; apart_a = (fun ~own:_ ~other:_ -> 3)
+        ; hold_b = (fun ~own:_ ~other:_ -> 0)
+        ; apart_b = (fun ~own:_ ~other:_ -> 3)
+        } )
+    ]
+    ~f:(fun ((c : Certified.t), spec) ->
+      let config, words, table = table ~spacing:spec c in
+      let spacing =
+        { With_valid.valid = Bits.vdd; value = Kernel.Spacing.of_spec config spec }
+      in
+      let instructions =
+        Array.init (1 lsl Isa.pc_bits) ~f:(fun pc ->
+          Isa.of_word
+            ~side_set_count:config.side_set_count
+            (if pc < List.length words then List.nth_exn words pc else 0)
+          |> ok_exn)
+      in
+      let level (m : Machine.t) pin =
+        ((if spec.dirs then m.pin_dir else m.pin_out) lsr pin) land 1 = 1
+      in
+      let entries = ref 0 in
+      let outside = ref [] in
+      List.iter (List.range 1 5) ~f:(fun seed ->
+        let stimulus = Soundness.Stimulus.random ~seed ~cycles:3000 in
+        let m = ref (Machine.create ~config ~program:words |> ok_exn) in
+        (* per pin: the entry of the last counted edge, and whether it is unwritten *)
+        let last_edge = Array.create ~len:2 None in
+        let fresh = Array.create ~len:2 true in
+        let last = ref None in
+        List.iter (List.range 0 stimulus.cycles) ~f:(fun cycle ->
+          let t = !m in
+          let entry =
+            (not t.halted)
+            && t.stall = 0
+            && not (Option.equal [%equal: int * int] !last (Some (cycle - 1, t.pc)))
+          in
+          if (not t.halted) && t.stall = 0 then last := Some (cycle, t.pc);
+          let pins = [ spec.a; spec.b ] in
+          if entry
+          then (
+            Int.incr entries;
+            let edge n pin =
+              { Kernel.Edge.since =
+                  Bits.of_unsigned_int
+                    ~width:Isa.data_bits
+                    (Option.value_map last_edge.(n) ~default:0xffff ~f:(fun at ->
+                       Int.min 0xffff (cycle - at)))
+              ; level = Bits.of_bool (level t pin)
+              ; fresh = Bits.of_bool fresh.(n)
+              }
+            in
+            let row = table.(t.pc) in
+            let holds =
+              K.within
+                row
+                ~spacing
+                ~phase:(Bits.of_signed_int ~width:Isa.timer_bits (phase t))
+                ~offset:row.offset_lo
+                ~period:row.period_lo
+                ~x:row.x_lo
+                ~y:row.y_lo
+                ~arm:row.arm_lo
+                ~arm_known:Bits.gnd
+                ~captured:row.captured
+                ~awaiting:row.awaiting
+                ~a:(edge 0 spec.a)
+                ~b:(edge 1 spec.b)
+            in
+            if not (Bits.to_bool Bits.(holds.edge_a &: holds.edge_b))
+            then outside := (seed, cycle, t.pc) :: !outside);
+          let next =
+            Machine.step (stimulus.host cycle t) ~inputs:(stimulus.inputs cycle)
+          in
+          if entry
+          then
+            List.iteri pins ~f:(fun n pin ->
+              if writes config spec ~pin instructions.(t.pc)
+              then (
+                if (not fresh.(n)) && Bool.( <> ) (level t pin) (level next pin)
+                then last_edge.(n) <- Some cycle;
+                fresh.(n) <- false));
+          m := next));
+      print_s
+        [%message
+          c.name
+            ~entries:(!entries : int)
+            ~outside:(List.take (List.rev !outside) 5 : (int * int * int) list)]);
+  [%expect
+    {|
+    (uart_tx (entries 4755) (outside ()))
+    (i2c_master (entries 2257) (outside ()))
+    |}]
+;;
