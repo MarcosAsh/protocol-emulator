@@ -1,7 +1,8 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
 # One outside chip act of BRINGUP.md: runs its script on Pico A while its analyser
-# captures, then prints the Pico's log and sigrok's decode. Reset the chip before every
+# captures, then prints the Pico's log and sigrok's decode, and FAIL last if the capture
+# lacks the demo's traffic (demo/traffic.py), whatever the Pico said. Reset the chip before every
 # act, CAN included, as faults hold until reset. Analyser A has the host port, OUT0, CAN
 # and SWD, B the flash, the stick, 1-Wire and I2C: see demo/capture.sh for picking one.
 # The capture, the Pico's log and the decode are kept as <name>.sr, .log and .decode in
@@ -99,3 +100,4 @@ fi
 # shellcheck disable=SC2086
 sigrok-cli -i "$captures/$act.sr" $decode > "$captures/$act.decode"
 cat "$captures/$act.decode"
+python3 demo/traffic.py "$act" "$captures"
