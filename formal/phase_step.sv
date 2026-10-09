@@ -4,7 +4,8 @@
 // deadline wait entered at phase <= 0 does not fault. Equalities are mod 2^T, T the
 // timer's width: 24, or 7 in the narrow tasks, which reach the wrap in a bounded run. The
 // engine is the chip's with every input free, so this holds for each engine of several;
-// its program memory is the flop stand-in for the SRAM macro.
+// CHIP runs it on one inside the two-engine chip instead. Program memories are the flop
+// stand-in for the SRAM macro.
 
 `ifndef TIMER_BITS
 `define TIMER_BITS 24
@@ -50,6 +51,27 @@ module phase_step (input clk);
   (* anyseq *) wire [8:0] program_write_addr;
   (* anyseq *) wire [15:0] program_write_data, tx_value;
   (* anyseq *) wire [27:0] inputs;
+`ifdef CHIP
+  // the other engine's host, its config too, both hosts' data writes and the pads
+  (* anyseq *) wire [1:0] o_side_set_count;
+  (* anyseq *) wire [4:0] o_side_set_base, o_in_base, o_in_count, o_out_base, o_out_count;
+  (* anyseq *) wire [4:0] o_set_base, o_jmp_pin, o_capture_pin, o_push_threshold;
+  (* anyseq *) wire [4:0] o_pull_threshold, o_crc_width, o_stuff_threshold;
+  (* anyseq *) wire [2:0] o_set_count;
+  (* anyseq *) wire o_side_set_pindirs, o_capture_rising, o_in_shift_right, o_out_shift_right;
+  (* anyseq *) wire o_autopush, o_autopull, o_crc_reflect, o_stuff_level, o_autopull_data;
+  (* anyseq *) wire o_manchester;
+  (* anyseq *) wire [15:0] o_crc_poly, o_crc_init, o_period_fraction;
+  (* anyseq *) wire [8:0] o_wrap_bottom, o_wrap_top;
+  (* anyseq *) wire o_stop, o_flush, o_start, o_program_write_valid, o_tx_valid, o_rx_pop;
+  (* anyseq *) wire o_clear_irq;
+  (* anyseq *) wire [8:0] o_program_write_addr;
+  (* anyseq *) wire [15:0] o_program_write_data, o_tx_value;
+  (* anyseq *) wire data_write_valid, o_data_write_valid;
+  (* anyseq *) wire [8:0] data_write_addr, o_data_write_addr;
+  (* anyseq *) wire [15:0] data_write_data, o_data_write_data;
+  (* anyseq *) wire [19:0] pads;
+`endif
 
   reg clear = 1;
   always @(posedge clk) clear <= 0;
@@ -70,6 +92,84 @@ module phase_step (input clk);
   wire captured_now;
   wire [15:0] out_value, mov_value;
 
+`ifdef CHIP
+  // the pads, the other engine's drive and faults, and this core's start and stop, which
+  // are its host's through the chip's fault gate
+  wire [19:0] chip_out, chip_dir;
+  wire [27:0] o_pin_out, o_pin_dir;
+  wire o_underflow, o_overflow, o_missed_deadline, o_decode;
+  wire flip_pending, flip_bit, core_start, core_stop;
+  // engine n's host fields on the wires named w and the field
+`define HOST(n, w) \
+    .hosts$config$side_set_count_``n(w``side_set_count), \
+    .hosts$config$side_set_base_``n(w``side_set_base), \
+    .hosts$config$side_set_pindirs_``n(w``side_set_pindirs), \
+    .hosts$config$in_base_``n(w``in_base), .hosts$config$in_count_``n(w``in_count), \
+    .hosts$config$out_base_``n(w``out_base), .hosts$config$out_count_``n(w``out_count), \
+    .hosts$config$set_base_``n(w``set_base), .hosts$config$set_count_``n(w``set_count), \
+    .hosts$config$jmp_pin_``n(w``jmp_pin), .hosts$config$capture_pin_``n(w``capture_pin), \
+    .hosts$config$capture_rising_``n(w``capture_rising), \
+    .hosts$config$in_shift_right_``n(w``in_shift_right), \
+    .hosts$config$out_shift_right_``n(w``out_shift_right), \
+    .hosts$config$autopush_``n(w``autopush), \
+    .hosts$config$push_threshold_``n(w``push_threshold), \
+    .hosts$config$autopull_``n(w``autopull), \
+    .hosts$config$pull_threshold_``n(w``pull_threshold), \
+    .hosts$config$crc_width_``n(w``crc_width), .hosts$config$crc_poly_``n(w``crc_poly), \
+    .hosts$config$crc_init_``n(w``crc_init), .hosts$config$crc_reflect_``n(w``crc_reflect), \
+    .hosts$config$stuff_threshold_``n(w``stuff_threshold), \
+    .hosts$config$stuff_level_``n(w``stuff_level), \
+    .hosts$config$wrap_bottom_``n(w``wrap_bottom), .hosts$config$wrap_top_``n(w``wrap_top), \
+    .hosts$config$period_fraction_``n(w``period_fraction), \
+    .hosts$config$autopull_data_``n(w``autopull_data), \
+    .hosts$config$manchester_``n(w``manchester), \
+    .hosts$start_``n(w``start), .hosts$program_write$valid_``n(w``program_write_valid), \
+    .hosts$program_write$addr_``n(w``program_write_addr), \
+    .hosts$program_write$data_``n(w``program_write_data), \
+    .hosts$data_write$valid_``n(w``data_write_valid), \
+    .hosts$data_write$addr_``n(w``data_write_addr), \
+    .hosts$data_write$data_``n(w``data_write_data), \
+    .hosts$tx$valid_``n(w``tx_valid), .hosts$tx$value_``n(w``tx_value), \
+    .hosts$rx_pop_``n(w``rx_pop), .hosts$clear_irq_``n(w``clear_irq), \
+    .hosts$stop_``n(w``stop), .hosts$flush_``n(w``flush)
+  // its pins and faults
+`define DRIVE(n, w) \
+    .engines$pin_out_``n(w``pin_out), .engines$pin_dir_``n(w``pin_dir), \
+    .engines$fault$underflow_``n(w``underflow), .engines$fault$overflow_``n(w``overflow), \
+    .engines$fault$missed_deadline_``n(w``missed_deadline), \
+    .engines$fault$decode_``n(w``decode)
+  // and the rest of this engine, with the wires inside its core that the .sby brings out
+`define CORE(n) \
+    `DRIVE(n, ), .engines$pc_``n(pc), .engines$x_``n(x), .engines$y_``n(y), \
+    .engines$p_``n(p), .engines$t_``n(t), .engines$osr_``n(osr), \
+    .engines$osr_count_``n(osr_count), .engines$isr_``n(isr), \
+    .engines$isr_count_``n(isr_count), .engines$now_``n(now), .engines$stall_``n(stall), \
+    .engines$halted_``n(halted), .engines$irq_``n(irq), .engines$capture_``n(capture), \
+    .engines$capture_armed_``n(capture_armed), .engines$tx_level_``n(tx_level), \
+    .engines$rx_level_``n(rx_level), .engines$rx_head_``n(rx_head), \
+    .engines$instruction_``n(instruction), .engines$crc_``n(crc), \
+    .engines$stuff_run_``n(stuff_run), .engines$decode_ok_``n(decode_ok), \
+    .engines$opcode_onehot_``n(opcode_onehot), .engines$wait_select_``n(wait_select), \
+    .engines$flip_pending_``n(flip_pending), .engines$flip_bit_``n(flip_bit), \
+    .eng_jmp_go_``n(jmp_go), .eng_advance_``n(advance), .eng_sample_``n(sample), \
+    .eng_captured_``n(captured_now), .eng_start_``n(core_start), .eng_stop_``n(core_stop)
+  // the load checker idle, which ungated engines.v leaves out of every start
+`define CHECK_IDLE \
+    .hosts$check_0(1'b0), .hosts$config_written_0(1'b0), \
+    .hosts$check_1(1'b0), .hosts$config_written_1(1'b0), \
+    .check_setup$base(9'd0), .check_setup$loaded$valid(1'b0), \
+    .check_setup$loaded$value(16'd0), .check_setup$single_edge(1'b0)
+`ifdef ENGINE_1
+  engines_top dut (
+    .clock(clk), .clear(clear), .pads(pads), .pin_out(chip_out), .pin_dir(chip_dir),
+    `HOST(1, ), `CORE(1), `HOST(0, o_), `DRIVE(0, o_), `CHECK_IDLE);
+`else
+  engines_top dut (
+    .clock(clk), .clear(clear), .pads(pads), .pin_out(chip_out), .pin_dir(chip_dir),
+    `HOST(0, ), `CORE(0), `HOST(1, o_), `DRIVE(1, o_), `CHECK_IDLE);
+`endif
+`else
+  wire core_start = start, core_stop = stop;
   engine dut (
     .clock(clk), .clear(clear),
     .config$side_set_count(side_set_count), .config$side_set_base(side_set_base),
@@ -101,6 +201,7 @@ module phase_step (input clk);
     .decode_ok(decode_ok), .opcode_onehot(opcode_onehot), .wait_select(wait_select),
     .eng_jmp_go(jmp_go), .eng_advance(advance), .eng_sample(sample),
     .eng_captured(captured_now), .eng_out_value(out_value), .eng_mov_value(mov_value));
+`endif
   // an instruction completes when a jump issues, or anything else issues and goes on
   wire completes = jmp_go || advance;
 
@@ -137,11 +238,11 @@ module phase_step (input clk);
 
   // an entry is the first issue after a start or after a completion
   reg started = 0;
-  always @(posedge clk) started <= start;
+  always @(posedge clk) started <= core_start;
   wire issue = !clear && !halted && stall == 0 && !started;
   reg fresh = 0;
   always @(posedge clk)
-    if (clear || start || completes) fresh <= 1;
+    if (clear || core_start || completes) fresh <= 1;
     else if (issue) fresh <= 0;
   wire entry = issue && fresh;
   wire signed [T-1:0] phase = now - t;
@@ -268,7 +369,7 @@ module phase_step (input clk);
       e_safe <= !missed_deadline && (!deadline_wait || phase[T-1] || phase == 0);
 `endif
     end
-    if (clear || start || stop) pending <= 0;
+    if (clear || core_start || core_stop) pending <= 0;
     else if (entry) begin
       pending <= decode_ok && !halts;
       done <= completes;
@@ -447,19 +548,19 @@ module phase_step (input clk);
   reg [T:0] capture_age = SATURATED;
   wire capture_young = !capture_age[T];
   always @(posedge clk)
-    if (clear || start || started) capture_age <= SATURATED;
+    if (clear || core_start || started) capture_age <= SATURATED;
     else if (captured_now) capture_age <= 1;
     else if (capture_young) capture_age <= capture_age + 1;
   always @(posedge clk)
     if (!clear && capture_young) assert(capture_age[T-1:0] == now - capture);
   wire capture_after_arm = capture_young ? !young || capture_age < arm_age : !young;
   always @(posedge clk)
-    if (clear || start || started) arm_age <= SATURATED;
+    if (clear || core_start || started) arm_age <= SATURATED;
     else if (arms) arm_age <= 1;
     else if (young) arm_age <= arm_age + 1;
   always @(posedge clk) if (!clear && young) assert(arm_age[T-1:0] == now - arm_now);
   always @(posedge clk)
-    if (clear || start) begin
+    if (clear || core_start) begin
       holding <= 0;
       seen <= 0;
     end else if (arms) begin
@@ -541,6 +642,21 @@ module phase_step (input clk);
       assert(now == e_t);
 `endif
 
+  // Pins.write's placing, as in edge_step.sv: the low bits of v from base up, wrapping at
+  // 28, on the pins that take them: 5 and up drive, 12 to 19 turn around
+  localparam [27:0] OUTPUTS = 28'hfffffe0;
+  localparam [27:0] BIDIRS = 28'h00ff000;
+  function [27:0] place(input [15:0] v, input [4:0] base);
+    reg [55:0] twice;
+    begin
+      twice = {12'd0, v, 12'd0, v} << (base >= 28 ? base - 5'd28 : base);
+      place = twice[55:28];
+    end
+  endfunction
+  function [15:0] mask(input [4:0] n);
+    mask = n >= 16 ? 16'hffff : (16'd1 << n) - 16'd1;
+  endfunction
+
 `ifdef EDGES
   // The spacing of the pair's edges, with Manchester off. Each pin's cycles since it last
   // moved, saturating, and whether it has made a counted edge in this run: one after the
@@ -566,7 +682,7 @@ module phase_step (input clk);
     quiet_b <= quiet_b_now[16] ? quiet_b_now : quiet_b_now + 17'd1;
     l_wrote_a <= wrote_a;
     l_wrote_b <= wrote_b;
-    if (clear || start) begin
+    if (clear || core_start) begin
       wrote_a <= 0;
       wrote_b <= 0;
       moved_a <= 0;
@@ -581,18 +697,6 @@ module phase_step (input clk);
 
   // What an entry's word writes to the watched bits, as edge_step.sv's Pins.write, and the
   // edge lemma for them, assumed: proved there for any host, clear and program.
-  localparam [27:0] OUTPUTS = 28'hfffffe0;
-  localparam [27:0] BIDIRS = 28'h00ff000;
-  function [27:0] place(input [15:0] v, input [4:0] base);
-    reg [55:0] twice;
-    begin
-      twice = {12'd0, v, 12'd0, v} << (base >= 28 ? base - 5'd28 : base);
-      place = twice[55:28];
-    end
-  endfunction
-  function [15:0] mask(input [4:0] n);
-    mask = n >= 16 ? 16'hffff : (16'd1 << n) - 16'd1;
-  endfunction
   wire [2:0] w_dest = instruction[7:5];
   wire w_runs = decode_ok && opcode != 0;
   wire [27:0] w_takes = pair_dirs ? BIDIRS : OUTPUTS;
@@ -945,5 +1049,104 @@ module phase_step (input clk);
       && row[439:392] != full);
 `endif
   end
+`ifdef CHIP
+  // What the chip drives for each engine, nothing once it has faulted, and what the pads
+  // show: the two ORed, an output pin taking an engine's level, a bidirectional one only
+  // where its direction bit is set.
+  wire faulted = underflow || overflow || missed_deadline || decode;
+  wire o_faulted = o_underflow || o_overflow || o_missed_deadline || o_decode;
+  wire [27:0] drive_out = faulted ? 28'd0 : pin_out;
+  wire [27:0] drive_dir = faulted ? 28'd0 : pin_dir;
+  wire [27:0] o_drive_out = o_faulted ? 28'd0 : o_pin_out;
+  wire [27:0] o_drive_dir = o_faulted ? 28'd0 : o_pin_dir;
+  localparam [27:0] OUTPUT_ONLY = 28'h0000fff;
+  wire [27:0] pads_dir = drive_dir | o_drive_dir;
+  wire [27:0] pads_out = drive_out & (drive_dir | OUTPUT_ONLY)
+    | o_drive_out & (o_drive_dir | OUTPUT_ONLY);
+
+  // The corollary. Each edge of this engine's drive comes the cycle after an entry inside
+  // its row, but the release, on the edge its fault shows, after which it drives nothing.
+  reg last_clear = 1, last_entry = 0, last_within = 0, last_faulted = 0;
+  reg [27:0] last_drive_out = 0, last_drive_dir = 0;
+  always @(posedge clk) begin
+    last_clear <= clear;
+    last_entry <= entry;
+    last_within <= within;
+    last_faulted <= faulted;
+    last_drive_out <= drive_out;
+    last_drive_dir <= drive_dir;
+  end
+  wire releases = faulted && !last_faulted;
+  wire moved = drive_out != last_drive_out || drive_dir != last_drive_dir;
+`ifdef EDGE_AT_ENTRY
+  // the tooth takes the edge for the entry's own cycle
+  wire edge_entry = entry && within;
+`else
+  wire edge_entry = last_entry && last_within;
+`endif
+  always @(posedge clk)
+    if (!clear) begin
+      on_pads: assert(chip_out == pads_out[19:0] && chip_dir == pads_dir[19:0]);
+      if (!last_clear) begin
+        stays_released: assert(!last_faulted || faulted);
+        if (moved) certified: assert(releases || edge_entry);
+      end
+    end
+
+  // edge_step.sv's invariants, which the claim needs for induction: a Manchester second
+  // half is owed from its out's entry to the next entry, and a held wait's side-set is on
+  // the pins already
+  function [27:0] write
+    (input [27:0] old, input [4:0] base, input [4:0] n, input [15:0] v, input [27:0] takes);
+    reg [27:0] hit;
+    begin
+      hit = place(mask(n), base) & takes;
+      write = old & ~hit | place(v, base) & hit;
+    end
+  endfunction
+  wire edge_runs = decode_ok && opcode != 0;
+  wire side_pins = edge_runs && side_set_count != 0 && !side_set_pindirs;
+  wire side_dirs = edge_runs && side_set_count != 0 && side_set_pindirs;
+  wire manchester_bit = edge_runs && opcode == 3 && instruction[7:5] == 0 && manchester
+    && instruction[4:0] == 1;
+  reg flip_owed = 0;
+  always @(posedge clk)
+    if (clear || started) flip_owed <= 0;
+    else if (entry) flip_owed <= manchester_bit;
+  reg [5:0] since_out = 0, out_step = 0;
+  always @(posedge clk)
+    if (entry && manchester_bit) begin
+      since_out <= 1;
+      out_step <= delay + 6'd1;
+    end else if (since_out != 63) since_out <= since_out + 6'd1;
+  wire [27:0] flip_pair = place(16'd3, out_base) & OUTPUTS;
+  wire [27:0] flipped = flip_owed ? pin_out ^ flip_pair : pin_out;
+  wire [15:0] side_value =
+    side_set_count == 1 ? {15'd0, instruction[12]} : {14'd0, instruction[12:11]};
+  wire [27:0] first_half_held = place({14'd0, flip_bit, !flip_bit}, out_base) & OUTPUTS;
+  always @(posedge clk)
+    if (!clear) begin
+      assert(flip_pending == flip_owed);
+      if (flip_owed) assert((pin_out & flip_pair) == first_half_held);
+      if (flip_owed && !halted) assert(since_out <= out_step && stall == out_step - since_out);
+      if (!fresh && !halted) begin
+        assert(opcode == 1 && decode_ok && stall == 0 && !started);
+        if (side_pins)
+          assert(write(flipped, side_set_base, side_set_count, side_value, OUTPUTS) == pin_out);
+        if (side_dirs)
+          assert(write(pin_dir, side_set_base, side_set_count, side_value, BIDIRS) == pin_dir);
+      end
+    end
+
+  always @(posedge clk)
+    if (!clear && !last_clear) begin
+      // a bidirectional pin moves the cycle after an entry inside its row
+      cover(moved && !releases && edge_entry && (drive_dir ^ last_drive_dir) != 0);
+      // a fault lets go of a bidirectional pad this engine alone drove, the other engine
+      // still driving one of its own
+      cover(releases && (last_drive_dir[19:12] & ~o_drive_dir[19:12]) != 0
+        && o_drive_dir[19:12] != 0);
+    end
+`endif
 `endif
 endmodule
