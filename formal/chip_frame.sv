@@ -39,6 +39,7 @@ module chip_frame (input clk);
   wire [19:0] pin_out, pin_dir;
   wire [27:0] pin_out_0, pin_dir_0, pin_out_1, pin_dir_1, sample_0, sample_1;
   wire [3:0] fault_0, fault_1;
+  wire any_fault_0, any_fault_1;
   wire [15:0] instruction_0, instruction_1;
   wire [7:0] opcode_onehot_0, opcode_onehot_1;
   wire flip_pending_0, flip_pending_1, op_go_0, op_go_1;
@@ -97,11 +98,13 @@ module chip_frame (input clk);
     .engines$flip_pending_0(flip_pending_0),
     .engines$fault$underflow_0(fault_0[0]), .engines$fault$overflow_0(fault_0[1]),
     .engines$fault$missed_deadline_0(fault_0[2]), .engines$fault$decode_0(fault_0[3]),
+    .engines$faulted_0(any_fault_0),
     .engines$pin_out_1(pin_out_1), .engines$pin_dir_1(pin_dir_1),
     .engines$instruction_1(instruction_1), .engines$opcode_onehot_1(opcode_onehot_1),
     .engines$flip_pending_1(flip_pending_1),
     .engines$fault$underflow_1(fault_1[0]), .engines$fault$overflow_1(fault_1[1]),
     .engines$fault$missed_deadline_1(fault_1[2]), .engines$fault$decode_1(fault_1[3]),
+    .engines$faulted_1(any_fault_1),
     .pin_out(pin_out), .pin_dir(pin_dir),
     .op_go_0(op_go_0), .op_go_1(op_go_1), .sample_0(sample_0), .sample_1(sample_1));
 
@@ -183,6 +186,8 @@ module chip_frame (input clk);
   // tooth 2 keeps only engine 0's half of (a), where engine 1's stray drive shows
   always @(posedge clk)
     if (cleared) begin
+      // the flop the chip gates on is the OR of the four
+      assert (any_fault_0 == (fault_0 != 0) && any_fault_1 == (fault_1 != 0));
       // (a)
 `ifndef PADS_SHARED
       assert (((oe ^ alone_oe_0) & pads_0) == 0);
