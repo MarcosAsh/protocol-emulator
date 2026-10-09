@@ -608,3 +608,54 @@ let%expect_test "the core's edges stay inside the rows the table carries them to
     (i2c_master (entries 2257) (outside ()))
     |}]
 ;;
+
+let check ?(spacing = uart_bits) (c : Certified.t) =
+  let config, words, table = table ~spacing c in
+  print_s
+    [%message
+      c.name
+        ~_:(Kernel.check ?period:c.period ~spacing ~config ~words table : unit Or_error.t)]
+;;
+
+(* With_edges reads past the program as the core does, carries a fractional period's cycle
+   into a pin's count, here uart_tx's held 7 cycles, and saturates the count across a wait
+   of three 65535-cycle periods, which a hold of 65535 then needs. *)
+let%expect_test "the edge bounds of the table hold where they are hard to follow" =
+  check (program "off_the_end" "    set pins, 1\n");
+  check
+    ~spacing:{ uart_bits with hold_a = (fun ~own:_ ~other:_ -> 7) }
+    (program
+       ~config:{ Program_config.default with period_fraction = 0x8000 }
+       "fractional"
+       (Firmware.uart_tx ~period:8));
+  let held =
+    { uart_bits with hold_a = (fun ~own ~other:_ -> if own then 0xffff else 0) }
+  in
+  let long_wait =
+    program
+      ~period:0xffff
+      "long_wait"
+      {|
+    mov p, osr
+    set pins, 0
+    mov t, now
+    set pins, 1
+    add t, p
+    add t, p
+    add t, p
+    wait t
+    set pins, 0
+    jmp 2
+|}
+  in
+  check ~spacing:held long_wait;
+  let _, _, table = table ~spacing:held long_wait in
+  print_s [%message "" ~since_at_8:(Bits.to_unsigned_int table.(8).a.at1.since : int)];
+  [%expect
+    {|
+    (off_the_end (Ok ()))
+    (fractional (Ok ()))
+    (long_wait (Ok ()))
+    (since_at_8 65535)
+    |}]
+;;
