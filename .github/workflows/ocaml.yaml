@@ -3,12 +3,22 @@ name: ocaml
 on:
   push:
     branches: ['**']
+  # phase_spacing, nine jobs of up to 3.5 h, runs nightly on main and on a dispatch only.
+  # Before landing a branch: gh workflow run ocaml.yaml --ref BRANCH -f phase_spacing=true
+  schedule:
+    - cron: '0 1 * * *'
   workflow_dispatch:
+    inputs:
+      phase_spacing:
+        description: Prove phase_spacing too
+        type: boolean
+        default: false
 
 # a newer push cancels a branch's run; on main every run that starts finishes, and of the
-# ones waiting only the newest starts
+# ones waiting only the newest starts. The nightly and a dispatch wait apart from pushes,
+# so a push never drops them.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}${{ github.event_name != 'push' && format('-{0}', github.event_name) || '' }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
@@ -400,6 +410,7 @@ jobs:
   # phase_spacing_parts lists, which together are phase_spacing_proof
   phase_spacing:
     needs: generate
+    if: github.event_name == 'schedule' || inputs.phase_spacing
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     strategy:
