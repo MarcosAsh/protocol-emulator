@@ -292,7 +292,7 @@ class Ledger:
             capture = b.start(["demo/capture.sh", str(b.dir / ("%s.sr" % d)),
                                str(demo.capture_ms)], env=env)
             b.sleep(ARM_S)
-        status = 1
+        status, since = 1, int(time.time())
         if ok:
             script = ("run", demo.run) if demo.run else ("exec", demo.exec)
             status = b.run(self.mpremote(*script), out=d + ".log", timeout=demo.timeout_s)
@@ -304,6 +304,10 @@ class Ledger:
         if demo.decode and (b.dry_run or sr.exists()):
             ok = b.run(["sigrok-cli", "-i", str(sr), *demo.decode.split()],
                        out=d + ".decode") == 0 and ok
+        if d == "keyboard":
+            # the laptop's own account of the device it enumerated
+            b.run(["journalctl", "-k", "-o", "short-iso-precise", "--since", "@%d" % since,
+                   "--grep", "usb|hid|input"], out="keyboard.kernel")
         return d + ".log", ok
 
     def run_outside(self, demo):
