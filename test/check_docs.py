@@ -301,12 +301,6 @@ def failed_jobs(run_id, name):
     return [c for c in found if c != "success"] if found else ["missing"]
 
 
-@cache
-def mutated():
-    """The files test/mutate.py mutates."""
-    return re.findall(r'"([^"]+)"', find(r"^FILES = \[(.*)\]$", "test/mutate.py")[1])
-
-
 def changed_since(sha, paths):
     return git("diff", "--name-only", sha, "HEAD", "--", *paths).stdout.split()
 
@@ -316,7 +310,7 @@ def fresh_mutation():
     """What to cite instead: the newest green mutation run on main of the files as they
     are, and its score."""
     for r in green_runs("mutation.yaml"):
-        if not changed_since(r["head_sha"], mutated()):
+        if not changed_since(r["head_sha"], engine_scope()):
             score, _ = mutation_score(str(r["id"]))
             if score:
                 return (f"cite mutation run {r['id']}, {r['created_at'][:10]}: killed "
@@ -549,7 +543,7 @@ def check_mutation(doc, text):
             if not run(run_id):
                 continue
             sha = run(run_id)["head_sha"]
-            if changed := changed_since(sha, mutated()):
+            if changed := changed_since(sha, engine_scope()):
                 yield (unit, run_id), (f"mutation run {run_id} mutated {sha[:7]}, and "
                                        f"{', '.join(changed)} changed since, {fresh_mutation()}")
             score, why = mutation_score(run_id)
