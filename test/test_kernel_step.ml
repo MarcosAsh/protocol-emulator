@@ -137,3 +137,54 @@ let%expect_test "the step's capture and edge state" =
      (next_awaiting false) (a_fresh false) (b_fresh false) (a_spaced false))
     |}]
 ;;
+
+(* An instruction's cycles, up to [1 lsl Isa.delay_bits], need 7 bits, and a pin's count
+   saturates at 16 bits however narrow the timer. *)
+let%expect_test "the narrowest timer the kernel takes" =
+  List.iter [ 6; 7 ] ~f:(fun timer_bits ->
+    let since =
+      Or_error.try_with (fun () ->
+        let module T =
+          Kernel.Make_timer (struct
+            let timer_bits = timer_bits
+          end)
+        in
+        let module K = T.Make (Bits) in
+        let s =
+          K.step
+            ~side_set_count:(Bits.zero 2)
+            ~fraction:Bits.gnd
+            ~loaded:{ valid = Bits.gnd; value = Bits.zero Isa.data_bits }
+            ~capture:
+              { pin = Bits.zero Isa.Field.wait_index.width
+              ; rising = Bits.gnd
+              ; single_edge = Bits.gnd
+              }
+            ~spacing
+            ~word:(word "nop")
+            ~phase:(Bits.zero timer_bits)
+            ~period:(Bits.zero Isa.data_bits)
+            ~x:(Bits.zero Isa.data_bits)
+            ~y:(Bits.zero Isa.data_bits)
+            ~arm:(Bits.zero timer_bits)
+            ~arm_known:Bits.gnd
+            ~captured:Bits.gnd
+            ~awaiting:Bits.gnd
+            ~a:(edge ~since:0xfffe ~fresh:false)
+            ~b:(edge ~since:0xffff ~fresh:false)
+            ~data_a:Bits.gnd
+            ~data_b:Bits.gnd
+        in
+        ( T.Held.port_widths.mark
+        , Bits.to_unsigned_int s.next_a.since
+        , Bits.to_unsigned_int s.next_b.since ))
+    in
+    print_s [%message (timer_bits : int) (since : (int * int * int) Or_error.t)]);
+  [%expect
+    {|
+    ((timer_bits 6)
+     (since
+      (Error ("BUG: the timer is too narrow for the kernel" (timer_bits 6)))))
+    ((timer_bits 7) (since (Ok (19 65535 65535))))
+    |}]
+;;
