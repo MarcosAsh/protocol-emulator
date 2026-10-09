@@ -363,8 +363,7 @@ let all =
 ;;
 
 let exempt =
-  [ "spi_master", "no demo loads it"
-  ; "start_hold", "it drives no pin: it listens to Pico B's I2C"
+  [ "start_hold", "it drives no pin: it listens to Pico B's I2C"
   ; "ethernet", "no demo on the bench: it needs the Icepi's 40 MHz build"
   ]
 ;;
