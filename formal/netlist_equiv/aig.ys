@@ -1,7 +1,7 @@
 # The tail both miters share, from a flattened miter module to what write_aiger takes.
 # An asynchronous reset becomes one that acts in the cycle it is asserted, the same on
 # both sides. A combinational loop stops the run. A used net with no driver is caught
-# before this, on each side on its own (gold.ys, gate.ys): miter -flatten has already
+# before this, on each side on its own (cut.ys, gate.ys): miter -flatten has already
 # turned any such net into an x, and where it meets an x on the other side the miter's
 # own opt_expr folds the comparison to equal, so nothing here would see it. An x left
 # after that becomes a free input, so a proof holds for every value it takes. Every flop
