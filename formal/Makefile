@@ -768,8 +768,20 @@ proof_bundle:
 	cd $(BUNDLE) && find . -type f ! -name SHA256SUMS | sort | xargs $(SHA256) > SHA256SUMS
 	tar czf $(BUNDLE).tar.gz $(BUNDLE)
 
+# A copy of the bundle whose $(LEMMA) witness has one latch's next state inverted, its sum
+# made to match, has to fail check.sh at one of the nine checks.
+proof_bundle_tooth:
+	rm -rf bundle_tooth && cp -R $(BUNDLE) bundle_tooth
+	cd bundle_tooth/$(LEMMA) && aigtoaig witness.aig witness.aag \
+	  && awk 'NR == 1 { inputs = $$3 } NR == inputs + 2 { $$2 += $$2 % 2 ? -1 : 1 } 1' witness.aag \
+	  > flipped.aag && aigtoaig flipped.aag witness.aig && rm witness.aag flipped.aag
+	! cmp -s $(BUNDLE)/$(LEMMA)/witness.aig bundle_tooth/$(LEMMA)/witness.aig
+	cd bundle_tooth && find . -type f ! -name SHA256SUMS | sort | xargs $(SHA256) > SHA256SUMS
+	! bundle_tooth/check.sh $(LEMMA) > bundle_tooth/check.log
+	grep -E '^$(LEMMA): FAIL, [A-Za-z]+ not verified' bundle_tooth/check.log
+
 .PHONY: witness witness_proof witness_model witness_unsat witness_teeth witness_tooth \
-  witness_reject witness_bundle proof_bundle
+  witness_reject witness_bundle proof_bundle proof_bundle_tooth
 
 .PHONY: all link link_proof issue_timing host_timing late_host fifo_order phase_step phase_table \
   phase_table_proof phase_table_affine phase_table_affine_proof phase_spacing \
