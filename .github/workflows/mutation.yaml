@@ -9,24 +9,52 @@ on:
         type: choice
         options: [engine, wide]
         default: engine
+      ids:
+        description: 'only these mutants of the scope, as --list names them, space separated'
+        type: string
+        default: ''
+      shards:
+        description: 'jobs to split the mutants over; 0: 4 for engine, 20 for wide, 1 for ids'
+        type: number
+        default: 0
 
 # the held-out sample is a function of this seed and the mutant, fixed before any run
 env:
   SCOPE: ${{ inputs.scope || 'engine' }}
+  IDS: ${{ inputs.ids }}
   SEED: '20261002'
 
 jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      count: ${{ steps.plan.outputs.count }}
+      shards: ${{ steps.plan.outputs.shards }}
+    steps:
+      - name: Number the shards
+        id: plan
+        env:
+          SHARDS: ${{ inputs.shards }}
+        run: |
+          n=${SHARDS:-0}
+          if [ "$n" -eq 0 ]; then
+            if [ -n "$IDS" ]; then n=1; elif [ "$SCOPE" = wide ]; then n=20; else n=4; fi
+          fi
+          echo "count=$n" >> "$GITHUB_OUTPUT"
+          echo "shards=$(seq 0 $((n - 1)) | jq -sc .)" >> "$GITHUB_OUTPUT"
+
   # a mutant costs about four runner-minutes, four at a time on four cores: engine's 114
   # in four shards of about two hours, wide's thousand in twenty of about three and a half
   mutate:
+    needs: plan
     runs-on: ubuntu-24.04
     timeout-minutes: 350
     strategy:
       fail-fast: false
       matrix:
-        shard: ${{ fromJSON((inputs.scope || 'engine') == 'wide' && '[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]' || '[0,1,2,3]') }}
+        shard: ${{ fromJSON(needs.plan.outputs.shards) }}
     env:
-      SHARDS: ${{ (inputs.scope || 'engine') == 'wide' && '20' || '4' }}
+      SHARDS: ${{ needs.plan.outputs.count }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v6
@@ -70,12 +98,12 @@ jobs:
 
       # the shard's mutants and which are held out, logged before any is run
       - name: List the mutants
-        run: opam exec -- python3 test/mutate.py --scope "$SCOPE" --shard "${{ matrix.shard }}/$SHARDS" --seed "$SEED" --list
+        run: opam exec -- python3 test/mutate.py --scope "$SCOPE" ${IDS:+--id $IDS} --shard "${{ matrix.shard }}/$SHARDS" --seed "$SEED" --list
 
       # a suite that runs 45 minutes, about three times a mutant's, has hung
       - name: Mutate and run the tests on every mutant
         timeout-minutes: 330
-        run: opam exec -- python3 test/mutate.py --scope "$SCOPE" --shard "${{ matrix.shard }}/$SHARDS" --seed "$SEED" --jobs 4 --timeout 2700 --json "shard_${{ matrix.shard }}.jsonl"
+        run: opam exec -- python3 test/mutate.py --scope "$SCOPE" ${IDS:+--id $IDS} --shard "${{ matrix.shard }}/$SHARDS" --seed "$SEED" --jobs 4 --timeout 2700 --json "shard_${{ matrix.shard }}.jsonl"
 
       - name: Upload the results
         if: always()
