@@ -31,15 +31,15 @@ let run ~cycles ~host ~data =
 ;;
 
 let frame = Frame.udp ~payload:"hello from the chip"
-let wire = Frame.wire frame
+let sent = Frame.with_fcs frame
 
 let%expect_test "a UDP datagram goes out in 10BASE-T" =
-  let bits = 8 * List.length wire in
+  let bits = 8 * List.length sent in
   let t, receiver =
     run
-      ~cycles:(link_tenth + (4 * bits) + 100)
+      ~cycles:(link_tenth + (4 * (64 + bits)) + 100)
       ~host:[ link_tenth; bits - 1 ]
-      ~data:(Frame.words wire)
+      ~data:(Frame.words sent)
   in
   List.iter (Receiver.frames receiver) ~f:(fun received ->
     let #(body, fcs) = List.split_n received (List.length received - 4) in
@@ -90,7 +90,7 @@ let%expect_test "link pulses while idle" =
 
 (* The frame in lockstep, with a short link interval so the frame starts soon. *)
 let%expect_test "the frame in lockstep with the hardware" =
-  let bits = 8 * List.length wire in
+  let bits = 8 * List.length sent in
   let receiver = ref (Receiver.create ()) in
   let react (m : Machine.t) =
     let driven pin = ((m.pin_out land m.pin_dir) lsr pin) land 1 in
@@ -99,9 +99,9 @@ let%expect_test "the frame in lockstep with the hardware" =
   in
   let (_ : Machine.t) =
     Lockstep.lockstep
-      ~cycles:((4 * bits) + 200)
+      ~cycles:((4 * (64 + bits)) + 200)
       ~preload:[ 50; bits - 1 ]
-      ~data:(Frame.words wire)
+      ~data:(Frame.words sent)
       ~config
       ~program:(Timed_program.words firmware)
       ~inputs:(fun _ -> 0)
@@ -148,12 +148,18 @@ let%expect_test "the certificate" =
       2  set pindirs, 3               phase ?..?  edge ?..?  jitter ?  gap ?..?
       9  set pins, 1 [3]              phase -63995  edge -63994  gap 63996..?
      10  set pins, 0                  phase -63991  edge -63990  gap 4
-     17  out pins, 1 [1]              phase -63992..?  edge -63991..?  jitter ?  gap 2 from 18, 63999..? from 16
-     18  jmp y--, 17                  phase -63990..?  flip -63989..?  jitter ?  gap 2
-     19  set pins, 1 [10]             phase -63988..?  edge -63987..?  jitter ?  gap 2
-     20  set pins, 0                  phase -63977..?  edge -63976..?  jitter ?  gap 11
-    ((words 24) (edge_jitter unbounded) (sample_jitter 0) (side_jitter 0)
+     18  set pins, 2 [1]              phase -63991  edge -63990  gap 64000..?
+     19  set pins, 1 [3]              phase -63989..?  edge -63988..?  jitter ?  gap 4 from 21, 2 from 18
+     20  set pins, 2 [1]              phase -63985..?  edge -63984..?  jitter ?  gap 4
+     22  set pins, 1 [1]              phase -63981..?  edge -63980..?  jitter ?  gap 4
+     23  set pins, 2 [1]              phase -63979..?  edge -63978..?  jitter ?  gap 2
+     24  set pins, 1 [1]              phase -63977..?  edge -63976..?  jitter ?  gap 2
+     25  out pins, 1 [1]              phase -63975..?  edge -63974..?  jitter ?  gap 2
+     26  jmp y--, 25                  phase -63973..?  flip -63972..?  jitter ?  gap 2
+     27  set pins, 1 [10]             phase -63971..?  edge -63970..?  jitter ?  gap 2
+     28  set pins, 0                  phase -63960..?  edge -63959..?  jitter ?  gap 11
+    ((words 32) (edge_jitter unbounded) (sample_jitter 0) (side_jitter 0)
      (may_miss 0))
-    ((issues 5932) (flips 2940) (gaps 5880) (violations ()))
+    ((issues 5808) (flips 2680) (gaps 5628) (violations ()))
     |}]
 ;;

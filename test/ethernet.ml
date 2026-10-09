@@ -39,6 +39,15 @@ send:
     set x, 0
     seek
     out null, 16             ; so the next out pulls from the data memory
+    set x, 30
+    set pins, 2 [1]          ; the preamble: the first half of its first one
+preamble:
+    set pins, 1 [3]          ; a one's second half and a zero's first
+    set pins, 2 [1]          ; a zero's second half and, with the jump, a one's first
+    jmp x--, preamble
+    set pins, 1 [1]          ; the start of frame ends in two ones
+    set pins, 2 [1]
+    set pins, 1 [1]
 bit:
     out pins, 1 [1]          ; the first half of the bit, and with the jump the second
     jmp y--, bit
@@ -99,13 +108,14 @@ module Frame = struct
     frame @ List.init (length - List.length frame) ~f:(Fn.const 0)
   ;;
 
-  let wire frame =
+  let preamble = List.init 7 ~f:(Fn.const 0x55) @ [ 0xd5 ]
+
+  let with_fcs frame =
     let fcs = crc32 frame in
-    List.init 7 ~f:(Fn.const 0x55)
-    @ [ 0xd5 ]
-    @ frame
-    @ List.init 4 ~f:(fun n -> (fcs lsr (8 * n)) land 0xff)
+    frame @ List.init 4 ~f:(fun n -> (fcs lsr (8 * n)) land 0xff)
   ;;
+
+  let wire frame = preamble @ with_fcs frame
 
   let rec words = function
     | lo :: hi :: rest -> (lo lor (hi lsl 8)) :: words rest

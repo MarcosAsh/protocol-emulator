@@ -1127,7 +1127,7 @@ let%expect_test "a bound on the jitter of every pin edge, in firmware the kernel
     (usb_device (pc 109) (jitter_bound 0) (untimed (2 3)))
     (edge_meter (pc 6) (jitter_bound 0) (untimed (1)))
     (ws2812 (pc 1) (jitter_bound 0) (untimed ()))
-    (ethernet (pc 9) (jitter_bound 0) (untimed (2 17 18 19 20)))
+    (ethernet (pc 9) (jitter_bound 0) (untimed (2 19 20 22 23 24 25 26 27 28)))
     (one_wire (pc 11) (jitter_bound 0) (untimed ()))
     (ps2 (pc 15) (jitter_bound 0) (untimed ()))
     (jtag (pc 8) (jitter_bound 2) (untimed (0 1 2 3 4)))
