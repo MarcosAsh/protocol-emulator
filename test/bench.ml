@@ -121,9 +121,9 @@ let all =
     }
   ; { name = "sk6812"
     ; what =
-        "Ws2812.firmware ~third:16 ~tail:7: T0H 333, T1H 667, T0L 813, T1L 479 ns, on \
-         OUT3"
-    ; source = Ws2812.firmware ~third:16 ~tail:7
+        "Ws2812.firmware ~third:17 ~tail:8: T0H 354, T1H 708, T0L 875, T1L 521 ns, a bit \
+         of 1229 ns, on OUT3"
+    ; source = Ws2812.firmware ~third:17 ~tail:8
     ; config = { Ws2812.config with out_base = neopixel; set_base = neopixel }
     ; assumption = Nothing
     }
