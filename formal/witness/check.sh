@@ -5,6 +5,7 @@
 # nine checks is UNSAT by an LRAT proof cake_lpr verifies. Each tooth, a weakened model, has
 # to replay its counterexample in aigsim and make Certifaiger reject the witness. Tools as
 # tools.sh pins them, from tools/ or PATH. One line per lemma, exit 1 if any fails.
+# A lemma with a heap file needs that many MB for cake_lpr, and runs only when named.
 # Usage: [HEAP=<cake_lpr's heap in MB, 4096>] ./check.sh [lemma ...]
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
@@ -28,7 +29,7 @@ model() {
 unsat() {
     (cd "$1" && aigtocnf "$2.aig" "$2.cnf" \
         && { cadical -q --unsat --lrat=true -w "$2.cadical" "$2.cnf" -; echo $? >> "$2.cadical"; } \
-        | cake_lpr --CML_HEAP_SIZE="${HEAP:-4096}" "$2.cnf" /dev/stdin > "$2.cake" 2>&1)
+        | cake_lpr --CML_HEAP_SIZE="$heap" "$2.cnf" /dev/stdin > "$2.cake" 2>&1)
     [ "$(tail -n 1 "$1/$2.cadical")" = 20 ] && [ "$(cat "$1/$2.cake")" = "s VERIFIED UNSAT" ] \
         && rm "$1/$2.cnf"
 }
@@ -52,6 +53,7 @@ rejects() {
 lemma() {
     dir=$here/$1
     [ -f "$dir/witness.aig" ] || { echo "no lemma $1 in this bundle"; return 1; }
+    heap=${HEAP:-$(cat "$dir/heap" 2> /dev/null || echo 4096)}
     model "$dir" "$dir" "$work/$1" || { echo "model.aig is not the Verilog's"; return 1; }
     split "$work/$1" "$dir/witness.aig" || { echo "Certifaiger did not make the nine checks"; return 1; }
     for check in $checks; do
@@ -75,7 +77,16 @@ cd "$here" || exit 1
 sha256 -c --status SHA256SUMS || { echo "a file differs from SHA256SUMS"; exit 1; }
 echo "SHA256SUMS $(sha256 SHA256SUMS | cut -c1-64)"
 echo "yosys: $(yosys -V), cadical $(cadical --version), certifaiger $(certifaiger --version)"
-[ $# -gt 0 ] || set -- $(ls */witness.aig | xargs -n 1 dirname)
+if [ $# = 0 ]; then
+    for witness in */witness.aig; do
+        dir=$(dirname "$witness")
+        if [ -f "$dir/heap" ]; then
+            echo "$dir: skipped, needs a $(cat "$dir/heap") MB heap: ./check.sh $dir"
+        else
+            set -- "$@" "$dir"
+        fi
+    done
+fi
 failed=0
 for name in "$@"; do
     start=$(date +%s)
