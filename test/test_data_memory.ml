@@ -117,3 +117,62 @@ loop:
     ((issues 52) (violations ()))
     |}]
 ;;
+
+let%expect_test "a data memory serves one or two engines" =
+  List.iter [ 0; 3 ] ~f:(fun engines ->
+    let made =
+      Or_error.try_with (fun () ->
+        let module _ =
+          Data_memory.Make (struct
+            let engines = engines
+          end)
+        in
+        ())
+    in
+    print_s [%message (made : unit Or_error.t)]);
+  [%expect
+    {|
+    (made (Error ("BUG: one data memory serves one or two engines" (engines 0))))
+    (made (Error ("BUG: one data memory serves one or two engines" (engines 3))))
+    |}]
+;;
+
+module Two = Data_memory.Make (struct
+    let engines = 2
+  end)
+
+module Harness = Hardcaml_test_harness.Lws_harness.Make (Two.I) (Two.O)
+
+let%expect_test "a write lands only while both engines are halted" =
+  Harness.run
+    ~random_initial_state:`All
+    ~create:(Two.hierarchical ~memory:Flops)
+    (fun (h @ local) ~inputs:i ~outputs ->
+       let open Hardcaml in
+       let words = (Before_and_after_edge.after_edge outputs).words in
+       let write = List.hd_exn i.writes in
+       let halt halted =
+         List.iter2_exn i.halted halted ~f:(fun r b -> r := Bits.of_bool b)
+       in
+       i.clocking.clear := Bits.vdd;
+       Hardcaml_lws.Lws.cycle h;
+       i.clocking.clear := Bits.gnd;
+       List.iter
+         [ [ true; true ], 0, 0x1111
+         ; [ true; true ], 1, 0x2222
+         ; [ true; false ], 0, 0xdead
+         ; [ false; true ], 1, 0xbeef
+         ]
+         ~f:(fun (halted, addr, data) ->
+           halt halted;
+           write.valid := Bits.vdd;
+           Bits.(write.addr <--. addr);
+           Bits.(write.data <--. data);
+           Hardcaml_lws.Lws.cycle h);
+       write.valid := Bits.gnd;
+       halt [ true; true ];
+       List.iteri i.reads ~f:(fun n r -> Bits.(r <--. n));
+       List.iter (List.range 0 4) ~f:(fun _ -> Hardcaml_lws.Lws.cycle h);
+       print_s [%message "" ~words:(List.map words ~f:( ! ) : Bits.Hex.t list)]);
+  [%expect {| (words (16'h1111 16'h2222)) |}]
+;;
