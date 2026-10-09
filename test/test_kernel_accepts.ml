@@ -272,6 +272,67 @@ let%expect_test "an edge bound tighter than the rows before it is refused" =
     |}]
 ;;
 
+let program ?(config = Program_config.default) ?period name source =
+  { Certified.name
+  ; source
+  ; config
+  ; period
+  ; period_floor = None
+  ; single_capture_edge = false
+  ; no_wrap = false
+  }
+;;
+
+(* A mark follows a wait for a pin only as far as the phase does, it follows a step to the
+   timer's very ends, and after a captured edge the arm bounds the phase. *)
+let%expect_test "edge bounds past a pin wait, at the timer's ends and after a capture" =
+  tamper_edges
+    (program
+       "pin_wait"
+       {|
+    mov t, now
+    set pins, 1
+    wait 0 pin 0
+    set pins, 0
+    jmp 0
+|});
+  tamper_edges (program "add_t_at_pc_0" "    add t, 1\n    set pins, 1\n    jmp 0\n");
+  let spi_slave = Certified.find_exn "spi_slave" in
+  tamper_edges
+    { spi_slave with
+      name = "spi_slave_captured"
+    ; source =
+        String.substr_replace_first
+          spi_slave.source
+          ~pattern:"in pins, 1\n"
+          ~with_:"in pins, 1\n    capture_arm\n"
+    ; config =
+        { spi_slave.config with
+          capture_pin = Firmware.slave_sck_pin
+        ; capture_rising = false
+        }
+    ; single_capture_edge = true
+    };
+  [%expect
+    {|
+    (pin_wait (untampered_refused false))
+    (may (tampered 17) (refused 16))
+    (since (tampered 5) (refused 5))
+    (mark (tampered 16) (refused 16))
+    (fresh (tampered 5) (refused 5))
+    (add_t_at_pc_0 (untampered_refused false))
+    (may (tampered 11) (refused 10))
+    (since (tampered 3) (refused 3))
+    (mark (tampered 9) (refused 9))
+    (fresh (tampered 3) (refused 3))
+    (spi_slave_captured (untampered_refused false))
+    (may (tampered 28) (refused 24))
+    (since (tampered 12) (refused 12))
+    (mark (tampered 24) (refused 24))
+    (fresh (tampered 6) (refused 6))
+    |}]
+;;
+
 (* the timer's signed values are [-half, half - 1] *)
 let half = 1 lsl (Isa.timer_bits - 1)
 
