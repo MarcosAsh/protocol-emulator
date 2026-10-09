@@ -78,17 +78,52 @@ end
 
 let rows = Array.of_list (Timed_program.rows receiver)
 
+(* The kernel's step on [mov t, capture] from its row's count since the arm: its next
+   phase is the most [now - capture] it allows at the next entry. *)
+let kernel_after ~mov_pc =
+  let open Hardcaml in
+  let module K = Kernel.Make (Bits) in
+  let config = Timed_program.config receiver in
+  let bits width n = Bits.of_unsigned_int ~width n in
+  let arm = Option.value_exn (Option.value_exn rows.(mov_pc).since_arm).hi in
+  let step =
+    K.step
+      ~side_set_count:(bits 2 config.side_set_count)
+      ~fraction:(Bits.of_bool (config.period_fraction <> 0))
+      ~loaded:{ valid = Bits.gnd; value = bits Isa.data_bits 0 }
+      ~capture:
+        { pin = bits Isa.Field.wait_index.width config.capture_pin
+        ; rising = Bits.of_bool config.capture_rising
+        ; single_edge = Bits.vdd
+        }
+      ~spacing:K.no_spacing
+      ~word:(bits Isa.data_bits (List.nth_exn (Timed_program.words receiver) mov_pc))
+      ~phase:(bits Isa.timer_bits 0)
+      ~period:(bits Isa.data_bits 0)
+      ~x:(bits Isa.data_bits 0)
+      ~y:(bits Isa.data_bits 0)
+      ~arm:(bits Isa.timer_bits arm)
+      ~arm_known:Bits.vdd
+      ~captured:Bits.vdd
+      ~awaiting:Bits.gnd
+      ~a:(K.starting ~level:Bits.gnd)
+      ~b:(K.starting ~level:Bits.gnd)
+      ~data_a:Bits.gnd
+      ~data_b:Bits.gnd
+  in
+  if not (Bits.to_bool step.capture_bounded)
+  then raise_s [%message "BUG: the kernel leaves the capture unbounded" (mov_pc : int)];
+  Bits.to_unsigned_int step.next_phase
+;;
+
 (* The capture against the edge the capturing wait releases on, which [mov t, capture]
-   reads the cycle after. The row after it holds [now - capture]: the analyser's bound is
-   the arm's age less one, the kernel's step (formal/phase_step.sv) the arm's age. *)
+   reads the cycle after. The row after it holds [now - capture]. *)
 let capture_offset (age : Capture_age.t) ~mov_pc =
   let after = rows.(mov_pc + 1).phase in
   let after =
     match age with
     | Rows -> after
-    | Kernel ->
-      let arm = Option.value_exn rows.(mov_pc).since_arm in
-      { after with hi = Option.map arm.hi ~f:(fun hi -> hi + 1) }
+    | Kernel -> { after with hi = Some (kernel_after ~mov_pc) }
   in
   Interval.minus (Interval.exactly 2) after
 ;;
