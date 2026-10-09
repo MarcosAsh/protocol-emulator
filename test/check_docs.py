@@ -817,7 +817,7 @@ TEETH = [
     # the run the die picture is from, which hardened older Verilog
     ("an old gds run", first(r"[Gg]ds run (\d{10,12})", lambda _: "36615334436"), "gh"),
     ("a stale gds run", lambda text: every(text, r"[Gg]ds run \[?(\d{10,12})",
-                                            lambda _: stale_gds_run()), "stale gds"),
+                                            lambda _: stale_gds_run()), "an older gds run of this chip"),
     # green, but it mutated an engine.ml that has changed since
     ("an old mutation run", lambda text: every(text, r"mutation run \[?(\d{10,12})",
                                                 lambda _: "36642527804"), "gh"),
@@ -887,7 +887,7 @@ def teeth():
     cited = re.search(r"[Gg]ds run \[?(\d{10,12})", docs["README.md"])
     has = {None: True, "gh": ONLINE,
            "metrics": ONLINE and cited is not None and gds_numbers(cited[1])[0] is not None,
-           "stale gds": ONLINE and stale_gds_run() is not None}
+           "an older gds run of this chip": ONLINE and stale_gds_run() is not None}
     missed = []
     for what, tooth, needs in TEETH:
         if not has[needs]:
