@@ -304,15 +304,13 @@ data_certificates: engine_sram.v
 data_names:
 	@echo $(DATA)
 
-# Every firmware in test/certified.ml, each under what its entry there says it assumes,
-# which the certificate prints: nothing for most; the period the host loads; one edge from
-# the arm to the wait for it; for the firmware that waits on the host or anchors on a
-# captured edge, that the core is within 84 ms of its deadline and of that edge, since 24
-# bits of the difference wrap beyond it. With the period, or the line's level at the arm,
-# left free it has to fail.
-INDUCTIVE = uart_tx uart_tx16 uart_tx_host_rate uart_rx spi_master spi_slave i2c_master \
-  i2c_slave i2c_logger usb_tx usb_rx usb_device edge_meter ws2812 ethernet one_wire ps2 jtag \
-  can dshot600 sent cec uart_tx_stream spi_master_stream
+# Every firmware in test/library.ml, each under what its entry says it assumes, which the
+# certificate prints: nothing for most; the period the host loads; one edge from the arm
+# to the wait for it; for the firmware that waits on the host or anchors on a captured
+# edge, that the core is within 84 ms of its deadline and of that edge, since 24 bits of
+# the difference wrap beyond it. With the period, or the line's level at the arm, left
+# free it has to fail. The library names them, so a protocol's file is all that adds one.
+INDUCTIVE = $(shell cd .. && dune exec -- test/certify/write_certificate.exe -names)
 inductive_certificates: engine_sram.v
 	for name in $(INDUCTIVE); do $(MAKE) inductive_certificate NAME=$$name || exit 1; done
 

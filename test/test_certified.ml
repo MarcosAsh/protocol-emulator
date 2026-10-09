@@ -140,27 +140,3 @@ let%expect_test "the least period the host may load" =
      (model ((loaded 0000000000000110))))
     |}]
 ;;
-
-(* CI proves the certificates [make inductive_names] lists, the INDUCTIVE line of
-   formal/Makefile: it must name every one here, and no other. *)
-let%expect_test "formal/Makefile proves every certificate in the library" =
-  let inductive =
-    In_channel.read_all "../formal/Makefile"
-    |> String.substr_replace_all ~pattern:"\\\n" ~with_:" "
-    |> String.split_lines
-    |> List.find_map_exn ~f:(String.chop_prefix ~prefix:"INDUCTIVE =")
-    |> String.split ~on:' '
-    |> List.filter ~f:(Fn.non String.is_empty)
-    |> String.Set.of_list
-  in
-  let library =
-    List.map (Library.certified @ Library.time_triggered) ~f:(fun t -> t.name)
-    |> String.Set.of_list
-  in
-  print_s
-    [%message
-      ""
-        ~only_in_make:(Set.diff inductive library : String.Set.t)
-        ~only_in_library:(Set.diff library inductive : String.Set.t)];
-  [%expect {| ((only_in_make ()) (only_in_library ())) |}]
-;;
