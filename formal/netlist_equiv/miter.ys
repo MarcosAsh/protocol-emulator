@@ -9,7 +9,7 @@
 # macros as shared cut points; one rising-edge clock (asserted in gold.ys and gate.ys);
 # an asynchronous reset acting in the cycle it is asserted, on both sides; timing, which
 # is signoff STA's. The host port's recoded state machine is proved on its own (fsm_step,
-# gold.ys). Not covered: power-up states other than all 0.
+# gold.ys). Power-up states other than all 0 are anystate.awk's.
 # Vacuity and teeth: gate.ys and make netlist_equiv_teeth.
 
 read_rtlil gold.il
