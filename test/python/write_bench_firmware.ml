@@ -9,6 +9,7 @@ let () =
      # The outside chip acts' firmware (BRINGUP.md) as words and the configuration it runs\n\
      # under, at the bench's 48 MHz but for 10BASE-T's 40.\n";
   List.iter Bench.all ~f:(fun bench ->
+    Datasheet.check_exn bench;
     let timed = Bench.timed bench in
     let fields =
       Engine.Config.map2

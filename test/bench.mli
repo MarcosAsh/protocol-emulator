@@ -19,9 +19,17 @@ type t =
   ; source : string
   ; config : Program_config.t
   ; assumption : Assumption.t
+  ; clock_hz : int
+  ; load : int option
+  (** The period a demo loads, for firmware that takes it from the host, from the rate it
+      wants at [clock_hz]. *)
   }
 
 val all : t list
+
+(** The period the kernel checks the limits at: the assumption's, else the load. *)
+val period : t -> int option
+
 val find_exn : string -> t
 
 (** [Timed_program.of_source_exn] under the assumption. *)
