@@ -293,3 +293,50 @@ let%expect_test "an offset or a slope the timer cannot hold is dropped" =
     ((slope -8388608) (lo 0) (hi 0) (kept ((-8388608 0 0))))
     |}]
 ;;
+
+(* An end the timer cannot hold makes the whole range, as the timer wraps; pc 0's row is
+   always the whole range, so these are pc 1's. *)
+let%expect_test "a phase or an arm count at the timer's ends" =
+  let program = Asm.assemble "    halt\n" |> ok_exn in
+  let base =
+    List.hd_exn (Analyser.analyse ~config:Program_config.default program.instructions)
+  in
+  List.iter
+    [ -half, 0; -half - 1, 0; 0, half - 1; 0, half ]
+    ~f:(fun (lo, hi) ->
+      let row =
+        (Kernel.Table.of_analyser
+           [ { base with pc = 1; phase = { lo = Some lo; hi = Some hi } } ]).(1)
+      in
+      print_s
+        [%message
+          ""
+            ~phase:((lo, hi) : int * int)
+            ~row:
+              ((Bits.to_signed_int row.phase_lo, Bits.to_signed_int row.phase_hi)
+               : int * int)]);
+  List.iter
+    [ 0, 5; 5, half - 1; 5, half ]
+    ~f:(fun (lo, hi) ->
+      let row =
+        (Kernel.Table.of_analyser
+           [ { base with pc = 1; since_arm = Some { lo = Some lo; hi = Some hi } } ]).(1)
+      in
+      print_s
+        [%message
+          ""
+            ~arm:((lo, hi) : int * int)
+            ~row:
+              ((Bits.to_unsigned_int row.arm_lo, Bits.to_unsigned_int row.arm_hi)
+               : int * int)]);
+  [%expect
+    {|
+    ((phase (-8388608 0)) (row (-8388608 0)))
+    ((phase (-8388609 0)) (row (-8388608 8388607)))
+    ((phase (0 8388607)) (row (0 8388607)))
+    ((phase (0 8388608)) (row (-8388608 8388607)))
+    ((arm (0 5)) (row (0 5)))
+    ((arm (5 8388607)) (row (5 8388607)))
+    ((arm (5 8388608)) (row (0 16777215)))
+    |}]
+;;
