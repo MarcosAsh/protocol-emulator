@@ -194,8 +194,9 @@ let all =
         [%string
           "Spi_cs.master in mode %{n#Int}, half period 8: SCK at 3 MHz on OUT5, MOSI on \
            OUT4, MISO on IN0, CS on OUT6 4 cycles before the first edge and 8 after the \
-           last"]
-    ; source = Spi_cs.master ~mode ~half_period:8 ~setup:4 ~hold:8
+           last, and high 144 cycles, 3 us, between frames"]
+        (* the W25Q64JV's tRES1 after ABh, kept by every frame *)
+    ; source = Spi_cs.master ~mode ~half_period:8 ~setup:4 ~hold:8 ~deselect:144
     ; config = on_spi_pins Spi_cs.config
     ; assumption = Nothing
     })

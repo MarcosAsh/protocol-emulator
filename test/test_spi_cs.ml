@@ -8,7 +8,9 @@ let bit v i = (v lsr i) land 1
    against a [Device] *)
 let run ?(cycles = 2000) ?late ~mode ~half_period ~setup ~hold frames =
   let program =
-    Timed_program.of_source_exn ~config (master ~mode ~half_period ~setup ~hold)
+    Timed_program.of_source_exn
+      ~config
+      (master ~mode ~half_period ~setup ~hold ~deselect:0)
   in
   let t =
     Machine.create
@@ -176,7 +178,8 @@ let%expect_test "a slow host holds the frame open" =
 ;;
 
 let check ~mode ~half_period ~setup ~hold =
-  Timed_program.check ~config (master ~mode ~half_period ~setup ~hold) |> Result.is_ok
+  Timed_program.check ~config (master ~mode ~half_period ~setup ~hold ~deselect:0)
+  |> Result.is_ok
 ;;
 
 let%expect_test "the shortest half period" =
@@ -201,7 +204,9 @@ let%expect_test "the shortest half period" =
 
 let%expect_test "the kernel accepts each mode at the flash act's parameters" =
   List.iter Mode.all ~f:(fun mode ->
-    let program = Asm.assemble (master ~mode ~half_period ~setup ~hold) |> ok_exn in
+    let program =
+      Asm.assemble (master ~mode ~half_period ~setup ~hold ~deselect:0) |> ok_exn
+    in
     let config = Asm.Program.configure program config in
     let words = Asm.Program.words program |> ok_exn in
     let rows = Analyser.analyse ~config program.instructions in
@@ -235,7 +240,9 @@ let spacing ~half_period ~setup ~hold ~deselect =
 ;;
 
 let spaced ~mode spec =
-  let program = Asm.assemble (master ~mode ~half_period ~setup ~hold) |> ok_exn in
+  let program =
+    Asm.assemble (master ~mode ~half_period ~setup ~hold ~deselect:0) |> ok_exn
+  in
   let config = Asm.Program.configure program config in
   let words = Asm.Program.words program |> ok_exn in
   let rows = Analyser.analyse ~config program.instructions in
@@ -300,7 +307,7 @@ let%expect_test "each mode in lockstep" =
           (Timed_program.words
              (Timed_program.of_source_exn
                 ~config
-                (master ~mode ~half_period ~setup ~hold)))
+                (master ~mode ~half_period ~setup ~hold ~deselect:0)))
         ~preload:(List.concat_map [ [ 0x9f; 0x00 ]; [ 0xa5 ] ] ~f:words)
         ~inputs:(fun _ -> Device.miso !device lsl miso_pin)
         ~react:(fun m ->
