@@ -1,5 +1,9 @@
 name: ocaml
-on: [push, workflow_dispatch]
+# branches only: a tag names a commit a branch push has already run
+on:
+  push:
+    branches: ['**']
+  workflow_dispatch:
 
 # a newer push cancels a branch's run; on main every run that starts finishes, and of the
 # ones waiting only the newest starts

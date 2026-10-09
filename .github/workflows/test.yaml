@@ -1,5 +1,9 @@
 name: test
-on: [push, workflow_dispatch]
+# branches only: a tag names a commit a branch push has already run
+on:
+  push:
+    branches: ['**']
+  workflow_dispatch:
 jobs:
   test:
     runs-on: ubuntu-24.04

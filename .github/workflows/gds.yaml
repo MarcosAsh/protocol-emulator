@@ -4,6 +4,8 @@ name: gds
 # OCaml reaches it through the committed Verilog, kept current by the ocaml workflow.
 on:
   push:
+    # a tag push ignores paths, so name branches to keep tags out
+    branches: ['**']
     paths:
       - src/**
       - macro/**
