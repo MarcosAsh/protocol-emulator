@@ -39,6 +39,8 @@ on:
       - '!test/mutation_allow.txt'
       - '!test/results.py'
       - '!test/check_docs.py'
+      - '!test/evidence.py'
+      - '!test/evidence.sha256'
       - '!test/heldout.sha256'
       - '!**.ml'
       - '!**.mli'
