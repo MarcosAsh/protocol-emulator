@@ -3,13 +3,13 @@
     Everything is a whole number of units, and the host sends the unit in cycles as its
     first word: 6 us, 300 cycles at 50 MHz. Every slot is the same five deadlines whatever
     it carries: the line falls, after one unit it takes the value of the bit, so a one or
-    a read lets go after 6 us, after two units the line is sampled, at 12 us, after ten
-    units a zero lets go, at 60 us, and the next slot starts after eleven, at 66 us. That
-    is 15.2 kbit/s, inside the 60 to 120 us the standard gives a slot. A read is a write
-    of 0xff, and every byte comes back as it was seen on the line, so a write reads back
-    as itself unless something held the line. A reset is 80 units low, 480 us, the
-    presence sample 12 units after the release, at 72 us, and 68 units more to make up the
-    480 us the line has to stay high.
+    a read lets go after 6 us, after two units the line is sampled, at 12 us, after eleven
+    units a zero lets go, at 66 us, and the next slot starts after twelve, at 72 us. That
+    is 13.9 kbit/s, a unit clear of the 60 us least the standard gives a zero and a slot.
+    A read is a write of 0xff, and every byte comes back as it was seen on the line, so a
+    write reads back as itself unless something held the line. A reset is 80 units low,
+    480 us, the presence sample 12 units after the release, at 72 us, and 68 units more to
+    make up the 480 us the line has to stay high.
 
     Host words after the unit: [reset], which answers 0 when a device pulled the line low
     and 1 when none did, and [byte b], which answers the byte sampled.
