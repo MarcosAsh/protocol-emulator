@@ -322,6 +322,32 @@ let swd =
       })
 ;;
 
+(* the bit within 2% of 115200 baud, the 'nasty link' budget a receiver shares *)
+let uart_log =
+  let sheet =
+    { Sheet.part = "UART at 115200 baud"
+    ; document = "Maxim AN2141"
+    ; page = "p.4, +-3/152, 2%"
+    }
+  in
+  let bit = 1e9 /. 115_200. in
+  [ { firmware = "uart_log"
+    ; parameter = "bit"
+    ; limit = At_least (bit *. 0.98)
+    ; sheet
+    ; margin = Cycle
+    ; bound = level ~pin:set_pin ~high:false ()
+    }
+  ; { firmware = "uart_log"
+    ; parameter = "bit"
+    ; limit = At_most (bit *. 1.02)
+    ; sheet
+    ; margin = Cycle
+    ; bound = run ~pin:set_pin (fun ~clock_hz:_ levels -> lows levels)
+    }
+  ]
+;;
+
 let all =
   sk6812
   @ ds18b20
@@ -331,6 +357,7 @@ let all =
   @ i2c "i2c_master"
   @ i2c "i2c_master_stretch"
   @ swd
+  @ uart_log
   @ List.concat_map Spi_cs.Mode.all ~f:(fun mode ->
     w25q64 [%string "spi_cs_mode%{Spi_cs.Mode.to_int mode#Int}"])
 ;;
@@ -374,6 +401,7 @@ let stimulus (bench : Bench.t) =
       ; quiet = 0
       ; cycles = 20_000
       }
+  | "uart_log" -> Some { bursts = [ load @ [ 0x55; 0x55 ] ]; quiet = 0; cycles = 20_000 }
   | _ -> None
 ;;
 

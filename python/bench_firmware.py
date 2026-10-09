@@ -284,7 +284,7 @@ CAN_SENDER = {
     ],
 }
 
-# Can_node.Receiver.firmware: 500 kbit/s at 48 MHz sampled 72 cycles in, CRX on IN1, the ACK on OUT1
+# Can_node.Receiver.firmware: 500 kbit/s sampled 72 cycles in, CRX on IN1, the ACK on OUT1
 CAN_RECEIVER = {
     "config": {
         "side_set_count": 0,
@@ -352,7 +352,7 @@ CAN_RECEIVER = {
     ],
 }
 
-# Ws2812.latching ~gaps:4 ~third:17 ~tail:8: T0H 354, T1H 708, T0L 875, T1L 521 ns, a bit of 1229 ns, 227 us low before a frame, on OUT3
+# Ws2812.latching ~gaps:4 ~third:17 ~tail:8: T0H 354 ns, T1H 708 ns, T0L 875 ns, T1L 521 ns, a bit of 1.229 us, 226.7 us low before a frame, on OUT3
 SK6812 = {
     "config": {
         "side_set_count": 0,
@@ -539,7 +539,7 @@ SWD = {
     ],
 }
 
-# Spi_cs.master in mode 0, half period 8: SCK at 3 MHz on OUT5, MOSI on OUT4, MISO on IN0, CS on OUT6 4 cycles before the first edge and 8 after the last, and high 144 cycles, 3 us, between frames
+# Spi_cs.master in mode 0, half period 8: SCK at 3 MHz on OUT5, MOSI on OUT4, MISO on IN0, CS on OUT6 4 cycles before the first edge and 8 after the last, and high 3 us between frames
 SPI_CS_MODE0 = {
     "config": {
         "side_set_count": 2,
@@ -582,7 +582,7 @@ SPI_CS_MODE0 = {
     ],
 }
 
-# Spi_cs.master in mode 1, half period 8: SCK at 3 MHz on OUT5, MOSI on OUT4, MISO on IN0, CS on OUT6 4 cycles before the first edge and 8 after the last, and high 144 cycles, 3 us, between frames
+# Spi_cs.master in mode 1, half period 8: SCK at 3 MHz on OUT5, MOSI on OUT4, MISO on IN0, CS on OUT6 4 cycles before the first edge and 8 after the last, and high 3 us between frames
 SPI_CS_MODE1 = {
     "config": {
         "side_set_count": 2,
@@ -625,7 +625,7 @@ SPI_CS_MODE1 = {
     ],
 }
 
-# Spi_cs.master in mode 2, half period 8: SCK at 3 MHz on OUT5, MOSI on OUT4, MISO on IN0, CS on OUT6 4 cycles before the first edge and 8 after the last, and high 144 cycles, 3 us, between frames
+# Spi_cs.master in mode 2, half period 8: SCK at 3 MHz on OUT5, MOSI on OUT4, MISO on IN0, CS on OUT6 4 cycles before the first edge and 8 after the last, and high 3 us between frames
 SPI_CS_MODE2 = {
     "config": {
         "side_set_count": 2,
@@ -668,7 +668,7 @@ SPI_CS_MODE2 = {
     ],
 }
 
-# Spi_cs.master in mode 3, half period 8: SCK at 3 MHz on OUT5, MOSI on OUT4, MISO on IN0, CS on OUT6 4 cycles before the first edge and 8 after the last, and high 144 cycles, 3 us, between frames
+# Spi_cs.master in mode 3, half period 8: SCK at 3 MHz on OUT5, MOSI on OUT4, MISO on IN0, CS on OUT6 4 cycles before the first edge and 8 after the last, and high 3 us between frames
 SPI_CS_MODE3 = {
     "config": {
         "side_set_count": 2,

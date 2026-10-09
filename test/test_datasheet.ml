@@ -11,7 +11,7 @@ let fails (bench : Bench.t) =
 
 (* Each kernel bound is the most cycles the kernel accepts, so one more is refused. *)
 let%expect_test "the bench firmware against its datasheet limits" =
-  List.iter Bench.all ~f:(fun bench ->
+  List.iter (Bench.all @ [ Bench.uart_log ]) ~f:(fun bench ->
     match Datasheet.check bench with
     | [] -> ()
     | verdicts -> print_endline (Datasheet.to_string bench verdicts));
@@ -82,11 +82,16 @@ let%expect_test "the bench firmware against its datasheet limits" =
     spi_cs_mode3       tCHSH          >=        3 ns  kernel 8 (166.7 ns)      needs    2       W25Q64JV, Winbond Rev. M p.64; margin a cycle
     spi_cs_mode3       tSHSL2         >=       50 ns  kernel 154 (3208.3 ns)   needs    4       W25Q64JV, Winbond Rev. M p.64; margin a cycle
     spi_cs_mode3       tRES1          >=     3000 ns  kernel 154 (3208.3 ns)   needs  145       W25Q64JV, Winbond Rev. M p.65; margin a cycle
+    uart_log           bit            >=  8506.94 ns  kernel 417 (8687.5 ns)   needs  410       UART at 115200 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
+    uart_log           bit            <=  8854.17 ns  run    417 (8687.5 ns)   needs  424       UART at 115200 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
     |}]
 ;;
 
 let%expect_test "every bench firmware has its limits, or a reason it has none" =
-  let names = List.map Bench.all ~f:(fun bench -> bench.name) |> String.Set.of_list in
+  let names =
+    List.map (Bench.uart_log :: Bench.all) ~f:(fun bench -> bench.name)
+    |> String.Set.of_list
+  in
   let limited = List.map Datasheet.all ~f:(fun t -> t.firmware) |> String.Set.of_list in
   let exempt = List.map Datasheet.exempt ~f:fst |> String.Set.of_list in
   print_s
@@ -155,4 +160,32 @@ let%expect_test "the firmware before each fix fails" =
     spi_cs_mode0       tRES1          >=     3000 ns  kernel 9 (187.5 ns)      needs  145 FAIL  W25Q64JV, Winbond Rev. M p.65; margin a cycle
     i2c_master_stretch TSU:STO        >=      600 ns  kernel 7 (145.8 ns)      needs   44 FAIL  24LC256, Microchip DS20001203W, Table 1-2 p.3, param 10; margin 300 ns, TR, param 4
     |}]
+;;
+
+(* The tooth: 434 cycles, the bit at 115200 baud from the chip's rated 50 MHz, is outside
+   a receiver's 2% at the 48 MHz the firmware runs at, as the label from the clock says. *)
+let%expect_test "a rate comes from the clock it runs at" =
+  let fifty_mhz = { Bench.uart_log with load = Some (50_000_000 / 115_200) } in
+  print_endline (Datasheet.to_string fifty_mhz (Datasheet.check fifty_mhz));
+  print_endline (Bench.rate ~unit:"baud" 434);
+  [%expect {|
+    uart_log           bit            >=  8506.94 ns  kernel 434 (9041.7 ns)   needs  410       UART at 115200 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
+    uart_log           bit            <=  8854.17 ns  run    434 (9041.7 ns)   needs  424 FAIL  UART at 115200 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
+    110.6 kbaud
+    |}]
+;;
+
+(* The clock the limits are checked at is the one both boards run the chip at. *)
+let%expect_test "the bench's clock is the boards'" =
+  let find file pattern =
+    Re.Group.get (Re.exec (Re.Perl.compile_pat pattern) (In_channel.read_all file)) 1
+    |> Int.of_string
+  in
+  print_s
+    [%message
+      ""
+        ~bench:(Bench.uart_log.clock_hz : int)
+        ~demo_board:(find "../python/demo_board.py" {|clock_hz=([0-9_]+)|} : int)
+        ~icepi:(find "../icepi/Makefile" {|MHZ \?= ([0-9]+)|} * 1_000_000 : int)];
+  [%expect {| ((bench 48000000) (demo_board 48000000) (icepi 48000000)) |}]
 ;;
