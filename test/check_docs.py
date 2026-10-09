@@ -262,14 +262,20 @@ def said_gds(m):
             f"setup slack {float(m['setup_slow_ns']):+.3f} ns at the slow corner")
 
 
+def best_gds_run():
+    """The run the docs should cite: the newest green gds run of the chip as it is now that
+    a pinned release keeps, else the newest, or None."""
+    runs = chip_gds_runs()
+    return next((r for r in runs if evidence.gds_kept(r)), next(iter(runs), None))
+
+
 @cache
 def fresh_gds():
     """What to cite instead: a green gds run of the chip as it is now, one a pinned release
     keeps if there is one, and its numbers."""
-    runs = chip_gds_runs()
-    if not runs:
+    best = best_gds_run()
+    if best is None:
         return "no green gds run on main has hardened the chip as it is now"
-    best = next((r for r in runs if evidence.gds_kept(r)), runs[0])
     kept = evidence.gds_kept(best)
     where = f", kept in release {kept['release']}" if kept else ""
     m, _ = gds_numbers(best)
