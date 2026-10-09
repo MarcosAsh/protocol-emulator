@@ -743,8 +743,9 @@ witness_reject:
 
 # The witnesses as a bundle a judge rechecks with witness/check.sh and no OCaml: per witness
 # the prove task's Verilog, read.ys, model.aig and witness.aig, and per tooth its read.ys,
-# model.aig and the counterexample aigsim replays. After witness_proof, on its files. A
-# witness of another task, as W=fail_safe_table_witness_prove_0 TASK=prove_0, has no teeth.
+# model.aig and the counterexample aigsim replays, and cake_lpr's heap if not the default.
+# After witness_proof, on its files. A witness of another task, as
+# W=fail_safe_table_witness_prove_0 TASK=prove_0, has no teeth.
 BUNDLE = proof_bundle
 SHA256 = $(if $(shell command -v sha256sum),sha256sum,shasum -a 256)
 witness_bundle: W = $(LEMMA)_witness
@@ -760,6 +761,7 @@ witness_bundle:
 	  mkdir $$dir && cp $$(dirname $$tooth)/read.ys $$(dirname $$tooth)/model.aig $$tooth $$dir || exit 1; \
 	done
 	[ $$(ls $(BUNDLE)/$(subst _witness,,$(W))/teeth | wc -l) -ge "$(or $(WITNESS_TEETH_$(LEMMA)),0)" ]
+	[ -z "$(WITNESS_HEAP_$(LEMMA))" ] || echo $(WITNESS_HEAP_$(LEMMA)) > $(BUNDLE)/$(subst _witness,,$(W))/heap
 
 # check.sh, model.ys, tools.sh with the SAT tools' commits, and a sha256 of each file
 proof_bundle:
