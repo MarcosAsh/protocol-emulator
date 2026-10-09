@@ -1324,3 +1324,90 @@ d:
     9  halt                         phase ?..?
     |}]
 ;;
+
+(* a data pull may come straight after a seek on the way where the out reaches the
+   threshold *)
+let%expect_test "an autopull that comes on some ways in" =
+  report
+    ~config:
+      { Program_config.default with
+        autopull = true
+      ; pull_threshold = 8
+      ; autopull_data = true
+      }
+    {|
+    pull
+    jmp pin, b
+    out null, 8
+b:
+    seek
+    out x, 1
+    halt
+|};
+  [%expect
+    {|
+    0  pull                         phase ?..?
+    1  jmp pin, 3                   phase ?..?
+    2  out null, 8                  phase ?..?
+    3  seek                         phase ?..?
+    4  out x, 1                     phase ?..?  MAY UNDERRUN
+    5  halt                         phase ?..?
+    |}]
+;;
+
+(* side-set keeps its level across a write unless the write reaches one of its pins *)
+let%expect_test "side-set holds across a write to other pins" =
+  (* the second of two side-set pins is the set pin *)
+  report
+    ~config:
+      { Program_config.default with side_set_count = 2; side_set_base = 5; set_base = 6 }
+    {|
+    .side_set 2
+    nop side 0
+    set pins, 1 side 0
+    nop side 0
+    halt side 0
+|};
+  (* a Manchester bit drives out_base and the pin beside it, not side-set's *)
+  report
+    ~config:
+      { Program_config.default with
+        side_set_count = 1
+      ; side_set_base = 10
+      ; manchester = true
+      }
+    {|
+    .side_set 1
+    set x, 1 side 0
+    mov osr, x side 0
+    out pins, 1 side 0
+    nop side 0
+    halt side 0
+|};
+  (* side-set drives levels, so a write to the same pin's direction leaves it *)
+  report
+    ~config:{ Program_config.default with side_set_count = 1 }
+    {|
+    .side_set 1
+    nop side 0
+    out pindirs, 1 side 0
+    nop side 0
+    halt side 0
+|};
+  [%expect
+    {|
+    0  nop side 0                   phase ?..?  side ?..?  jitter ?
+    1  set pins, 1 side 0           phase ?..?  edge ?..?  jitter ?  gap ?..?
+    2  nop side 0                   phase ?..?  side ?..?  jitter ?
+    3  halt side 0                  phase ?..?
+    0  set x, 1 side 0              phase ?..?  side ?..?  jitter ?
+    1  mov osr, x side 0            phase ?..?
+    2  out pins, 1 side 0           phase ?..?  edge ?..?  jitter ?  gap ?..?
+    3  nop side 0                   phase ?..?  flip ?..?  jitter ?  gap 1
+    4  halt side 0                  phase ?..?
+    0  nop side 0                   phase ?..?  side ?..?  jitter ?
+    1  out pindirs, 1 side 0        phase ?..?  edge ?..?  jitter ?  gap ?..?
+    2  nop side 0                   phase ?..?
+    3  halt side 0                  phase ?..?
+    |}]
+;;
