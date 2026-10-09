@@ -20,8 +20,7 @@
     the next pixel is in the fifo when the last one ends; when it is not, the line stays
     low for 160 times [third] cycles, 64 us at the standard timing, so the string latches,
     and the next word starts a new frame at the first LED. Strings that want a longer
-    reset need the host to wait before it writes again. A pixel whose second word is late
-    sets the underflow fault. *)
+    reset take [latching]. A pixel whose second word is late sets the underflow fault. *)
 
 open! Core
 open Protocol_emulator
@@ -29,6 +28,10 @@ open Protocol_emulator
 val pin : int
 val cycle_ns : int
 val firmware : third:int -> tail:int -> string
+
+(** [firmware] with the line low for [gaps] times 160 thirds before a frame, from 1 to 32. *)
+val latching : gaps:int -> third:int -> tail:int -> string
+
 val standard : string
 val config : Program_config.t
 
