@@ -43,6 +43,7 @@ jobs:
           opam exec -- dune exec -- bin/generate.exe engine -timer-bits 7 > formal/engine_narrow.v
           opam exec -- dune exec -- bin/generate.exe kernel > formal/kernel_step.v
           opam exec -- dune exec -- bin/generate.exe kernel -timer-bits 7 > formal/kernel_step_narrow.v
+          opam exec -- dune exec -- bin/generate.exe engines -engines 2 -ungated > formal/engines.v
           opam exec -- dune exec -- bin/generate.exe engines -engines 2 -sram -ungated > formal/engines_sram.v
           opam exec -- dune exec -- test/certify/write_link.exe > formal/link.sv
           opam exec -- dune exec -- test/certify/write_link.exe -rx-period 11 > formal/link_baud.sv
@@ -114,6 +115,7 @@ jobs:
           name: phase_table
           path: |
             formal/engine.v
+            formal/engines.v
             formal/kernel_step.v
             formal/kernel_accepts.v
 
@@ -328,6 +330,30 @@ jobs:
 
       - name: Prove
         run: make -C formal phase_table_proof
+
+  # the same on each engine inside the two-engine chip, with the fail-safe as its corollary,
+  # and its teeth, which have to fail
+  fail_safe_table:
+    needs: generate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Download the Verilog
+        uses: actions/download-artifact@v8
+        with:
+          name: phase_table
+          path: formal
+
+      - name: Install OSS CAD Suite
+        run: |
+          curl -sL https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz | tar xz -C "$HOME"
+          echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
+
+      - name: Prove
+        run: make -C formal fail_safe_table_proof
 
   # the same for rows that bound the offset too, on row_step's lemma, and its teeth
   phase_table_affine:
