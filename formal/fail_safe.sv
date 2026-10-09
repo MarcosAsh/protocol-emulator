@@ -39,6 +39,7 @@ module fail_safe (input clk);
   wire halted_0, halted_1;
   wire underflow_0, overflow_0, missed_deadline_0, decode_0;
   wire underflow_1, overflow_1, missed_deadline_1, decode_1;
+  wire any_fault_0, any_fault_1;
 
   engines_top dut (
     .clock(clk), .clear(clear),
@@ -98,10 +99,12 @@ module fail_safe (input clk);
     .engines$pc_0(pc_0), .engines$halted_0(halted_0),
     .engines$fault$underflow_0(underflow_0), .engines$fault$overflow_0(overflow_0),
     .engines$fault$missed_deadline_0(missed_deadline_0), .engines$fault$decode_0(decode_0),
+    .engines$faulted_0(any_fault_0),
     .engines$pin_out_1(pin_out_1), .engines$pin_dir_1(pin_dir_1),
     .engines$pc_1(pc_1), .engines$halted_1(halted_1),
     .engines$fault$underflow_1(underflow_1), .engines$fault$overflow_1(overflow_1),
     .engines$fault$missed_deadline_1(missed_deadline_1), .engines$fault$decode_1(decode_1),
+    .engines$faulted_1(any_fault_1),
     .pin_out(pin_out), .pin_dir(pin_dir));
 
   reg cleared = 0;
@@ -150,6 +153,8 @@ module fail_safe (input clk);
 
   always @(posedge clk)
     if (cleared) begin
+      // the flop the chip gates on is the OR of the four
+      assert (any_fault_0 == faulted_0 && any_fault_1 == faulted_1);
       // F1, release: the chip shows only engines with no fault
       assert (pin_dir == combine_dir[19:0]);
       assert (pin_out == combine_out[19:0]);
