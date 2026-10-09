@@ -518,8 +518,10 @@ netlist_equiv:
 	grep 'Status = $(EXPECT) ' $(EQUIV)/proof.log
 
 # mutants that must be refuted: macro enables swapped, uio_oe[0] inverted, a reset
-# synchroniser untied and the RTL as written with the host port's state held; the last
-# two's counterexamples must pass the first cycle
+# synchroniser untied, the RTL as written with the host port's state held, and with the
+# load checker's reset into Header, not Idle; the last three's counterexamples must pass
+# the first cycle. Holding the load checker's state instead leaves dprove undecided after
+# 10 min.
 netlist_equiv_teeth:
 	mkdir -p netlist_equiv_teeth
 	sed '/ RM_IHPSG13_1P_512x16_c2_bm_bist \\core\.top\.engines\.data_memory\.sram_macro\.sram /,/;$$/'\
@@ -533,6 +535,11 @@ netlist_equiv_teeth:
 	grep 'No output asserted in 1 frames' netlist_equiv_unreset/proof.log
 	$(MAKE) netlist_equiv_held HELD_ONE=host_port/sm
 	grep 'No output asserted in 1 frames' netlist_equiv_held_host_port_sm/proof.log
+	sed -E '/^module load_checker /,/^endmodule/s/^( *sm <= )signal_const_[0-9]+;/\1 1;/' \
+	  ../src/protocol_emulator.v > netlist_equiv_teeth/header.v
+	test $$(diff ../src/protocol_emulator.v netlist_equiv_teeth/header.v | grep -c '^>') = 1
+	$(MAKE) netlist_equiv WRITTEN=netlist_equiv_teeth/header.v EQUIV=netlist_equiv_header EXPECT=0
+	grep 'No output asserted in 1 frames' netlist_equiv_header/proof.log
 
 # the RTL as written with one recoded machine's state held, against the netlist:
 #   make netlist_equiv_held HELD_ONE=host_port/sm NETLIST=...
