@@ -1150,9 +1150,15 @@ let () =
   let flag name = Array.exists args ~f:(String.equal name) in
   if flag "-fsm"
   then print_string (fsm_miter ~mutant:(flag "-mutant"))
+  else if flag "-names"
+  then
+    (* every certificate formal/Makefile proves by induction, for CI's jobs *)
+    List.map (Library.certified @ Library.time_triggered) ~f:(fun t -> t.name)
+    |> String.concat ~sep:" "
+    |> print_endline
   else (
     if not (flag "-inductive")
-    then raise_s [%message "write_certificate.exe: pass -inductive or -fsm"];
+    then raise_s [%message "write_certificate.exe: pass -inductive, -names or -fsm"];
     let { Certified.source; config; period; single_capture_edge; no_wrap; _ } =
       Library.find_certified_exn (Array.last_exn args)
     in

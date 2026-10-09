@@ -94,7 +94,7 @@ jobs:
       - name: Write the certificates
         id: certificates
         run: |
-          names=$(make -s -C formal inductive_names)
+          names=$(opam exec -- dune exec -- test/certify/write_certificate.exe -names)
           for name in $names; do
             opam exec -- dune exec -- test/certify/write_certificate.exe -inductive $name > formal/certificate_$name.sv
           done
