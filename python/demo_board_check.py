@@ -21,8 +21,9 @@ UART_TX = [
 BAUD = 115_200
 BYTES = [0x55, 0xA3, 0x00, 0xFF]
 FAULTS = 0x3C
-# the 24-bit counter wraps in 349 ms at 48 MHz
-WINDOW_MS = 100
+# the 24-bit counter wraps in 349 ms at 48 MHz. A stamp's three reads take ~1.4 ms on an
+# RP2 at 96 MHz, which put 100 ms off by up to 1.1% on Pico A
+WINDOW_MS = 300
 
 
 @rp2.asm_pio(in_shiftdir=rp2.PIO.SHIFT_RIGHT, autopush=True, push_thresh=8)
