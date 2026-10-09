@@ -255,6 +255,14 @@ def test_refusals():
         except (ValueError, RuntimeError) as e:
             assert message in str(e), e
     b.uninstall()
+    # a danger level over safe, which ProjectMux.enable refuses without force
+    b, m = board(risky=("tt_um_marcosash_protocol_emulator",))
+    try:
+        m.demo_board.DemoBoardSpi()
+        raise AssertionError("enabled")
+    except RuntimeError as e:
+        assert "would not enable" in str(e), e
+    b.uninstall()
     b, m = board(switches=0b010)
     said = []
     assert not m.demo_board_check.run(window_ms=2, say=said.append)
