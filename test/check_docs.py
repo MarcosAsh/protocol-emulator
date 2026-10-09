@@ -227,8 +227,11 @@ def gds_metrics(run_id):
 @cache
 def mutation_score(run_id):
     """(killed, valid) from the run's log, or None and why not."""
-    jobs = json.loads(gh("api", f"repos/{REPO}/actions/runs/{run_id}/jobs") or '{"jobs": []}')
-    logs = [gh("api", f"repos/{REPO}/actions/jobs/{job['id']}/logs") for job in jobs["jobs"]]
+    url = f"repos/{REPO}/actions/runs/{run_id}/jobs?per_page=100"
+    jobs = json.loads(gh("api", url) or '{"jobs": []}')["jobs"]
+    # a sharded run's score is its score job's; each shard logs only its own part
+    jobs = [job for job in jobs if job["name"] == "score"] or jobs
+    logs = [gh("api", f"repos/{REPO}/actions/jobs/{job['id']}/logs") for job in jobs]
     if not any(logs):
         return None, "has a log that expired"
     for log in filter(None, logs):
