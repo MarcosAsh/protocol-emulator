@@ -22,6 +22,10 @@ CHUNK = 4
 # moves 3 clocks after SCK falls and is read on the next fall, which leaves 5 clocks for
 # the pads, the mux and the PIO's input synchroniser
 SCK_DIVIDE = 8
+# designs the SDK has enabled, ours included, since watch_enables: a deselected design is
+# powered down, so a count that moved since a select means the chip lost its program
+ENABLES = [0]
+WATCHERS = []
 
 
 @rp2.asm_pio(
@@ -38,6 +42,21 @@ def spi_mode0():
 
 def gpio(tt, name):
     return getattr(tt.pins, name).gpio_num
+
+
+def watch_enables(mux):
+    """Count every design the SDK enables into ENABLES, before its own callback runs."""
+    callback = mux.design_enabled_callback
+    if callback in WATCHERS:
+        return
+
+    def enabled(design):
+        ENABLES[0] += 1
+        if callback is not None:
+            callback(design)
+
+    WATCHERS.append(enabled)
+    mux.design_enabled_callback = enabled
 
 
 def claim_pio(index, gpios, programs):
@@ -72,12 +91,23 @@ class DemoBoardSpi:
             raise ValueError("SCK %d Hz is over 1/%d of the clock" % (sck_hz, SCK_DIVIDE))
         if ui_inputs & ~0xF8:
             raise ValueError("ui[0] to ui[2] are the host port's")
-        self.tt = tt = DemoBoard.get()
+        self.project, self.clock_hz, self.sck_hz = project, clock_hz, sck_hz
+        self.programs, self.ui_inputs = tuple(programs), ui_inputs
+        self.tt = DemoBoard.get()
+        self.buffers = {}
+        self.select()
+
+    def select(self):
+        """Enable the design, clock it, reset it and start the PIO. Again after another
+        design ran, which may also have moved the system clock the PIO divides."""
+        tt = self.tt
         tt.mode = RPMode.ASIC_RP_CONTROL
-        if not tt.shuttle.has(project):
-            raise RuntimeError("%s is not on this chip" % project)
-        if not tt.shuttle.get(project).enable():
-            raise RuntimeError("the SDK would not enable %s: see its log" % project)
+        if not tt.shuttle.has(self.project):
+            raise RuntimeError("%s is not on this chip" % self.project)
+        watch_enables(tt.shuttle)
+        if not tt.shuttle.get(self.project).enable():
+            raise RuntimeError("the SDK would not enable %s: see its log" % self.project)
+        self.enables = ENABLES[0]
         # DB v3.3's button would clock the project once, over the PWM
         if getattr(tt, "manual_project_clock", None) is not None:
             tt.manual_project_clock.monitoring = False
@@ -88,23 +118,27 @@ class DemoBoardSpi:
             if getattr(tt.pins, "ui_in%d" % bit).mode != Pin.OUT:
                 raise RuntimeError("ui[%d] reads high: turn its DIP switch off" % bit)
         for bit in range(3, 8):
-            if ui_inputs >> bit & 1:
+            if self.ui_inputs >> bit & 1:
                 getattr(tt.pins, "ui_in%d" % bit).mode = Pin.IN
         sck, mosi, cs_n, miso = (gpio(tt, n) for n in ("ui_in0", "ui_in1", "ui_in2", "uo_out0"))
         self.cs_n = Pin(cs_n, Pin.OUT, value=1)
-        tt.clock_project_PWM(clock_hz)
+        tt.clock_project_PWM(self.clock_hz)
         tt.reset_project(True)
         time.sleep_ms(1)
         tt.reset_project(False)
-        self.clock_hz = clock_hz
-        self.pio = claim_pio(STATE_MACHINE // 4, (sck, mosi, miso), (spi_mode0,) + tuple(programs))
+        self.pio = claim_pio(
+            STATE_MACHINE // 4, (sck, mosi, miso), (spi_mode0,) + self.programs)
         self.sm = rp2.StateMachine(
-            STATE_MACHINE, spi_mode0, freq=4 * sck_hz,
+            STATE_MACHINE, spi_mode0, freq=4 * self.sck_hz,
             sideset_base=Pin(sck), out_base=Pin(mosi), in_base=Pin(miso),
         )
         self.sm.active(1)
-        self.sck_hz = sck_hz
-        self.buffers = {}
+
+    def selected(self):
+        """Whether the design is enabled and nothing else has been since select."""
+        enabled = self.tt.shuttle.enabled
+        return (ENABLES[0] == self.enables and enabled is not None
+                and enabled.name == self.project)
 
     def _buffers(self, n):
         out, reply = bytearray(n), bytearray(n)
@@ -128,5 +162,61 @@ class DemoBoardSpi:
         return bytes(reply)
 
 
+class DemoBoardHost(Host):
+    """Host that keeps each engine's config and program loads and the data loads, so
+    reload can put them back after a reselect. Engines come back halted with empty
+    fifos: starting them again is the caller's."""
+
+    def __init__(self, spi):
+        super().__init__(spi.transfer)
+        self.spi, self.engine, self.engines, self.data = spi, 0, {}, []
+
+    def _engine(self):
+        return self.engines.setdefault(self.engine, {"config": None, "loads": []})
+
+    def select(self, engine):
+        self.engine = engine
+        Host.select(self, engine)
+
+    def configure(self, config):
+        self._engine()["config"] = dict(config)
+        Host.configure(self, config)
+
+    def load(self, words, address=0):
+        """A load from 0 overwrites every earlier one, as it zero-fills to the end."""
+        loads = self._engine()["loads"]
+        if address == 0:
+            loads.clear()
+        loads.append((address, list(words)))
+        Host.load(self, words, address)
+
+    def load_data(self, words, address=0):
+        self.data.append((address, list(words)))
+        Host.load_data(self, words, address)
+
+    def reload(self):
+        for engine in sorted(self.engines):
+            Host.select(self, engine)
+            kept = self.engines[engine]
+            if kept["config"] is not None:
+                Host.configure(self, kept["config"])
+            for address, words in kept["loads"]:
+                Host.load(self, words, address)
+        for address, words in self.data:
+            Host.load_data(self, words, address)
+        Host.select(self, self.engine)
+
+    def reselect(self):
+        self.spi.select()
+        self.reload()
+
+    def ensure(self):
+        """Reselect and reload if another design ran since the last select; whether it did."""
+        if self.spi.selected():
+            return False
+        self.reselect()
+        return True
+
+
 def host(**kwargs):
-    return Host(DemoBoardSpi(**kwargs).transfer)
+    return DemoBoardHost(DemoBoardSpi(**kwargs))

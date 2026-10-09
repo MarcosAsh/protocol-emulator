@@ -19,16 +19,24 @@ class Chip:
     def __init__(self, uart=None, miso_lag=0):
         self.uart, self.miso_lag = uart, miso_lag
         self.ui, self.rst_n, self.carry, self.now, self.settle = 0b100, 1, 0, 0, 0
+        self.programs, self.data = [[0] * 512 for _ in range(2)], [0] * 512
         self.reset()
 
     def reset(self):
+        """The flops; the SRAM keeps its words."""
         self.sync = [0b100, 0b100]
         self.sck, self.selected, self.count, self.shift_in, self.shift_out = 0, False, 0, 0, 0
         self.misos = [0] * (1 + self.miso_lag)
         self.state, self.cmd, self.high, self.value = "cmd", 0, 0, 0
         self.program_addr, self.data_addr, self.select = 0, 0, 0
-        self.engines = [dict(halted=1, tx=[], rx=[], program=[0] * 512, period=None,
-                             free_at=0, frames=[]) for _ in range(2)]
+        self.engines = [dict(halted=1, tx=[], rx=[], program=program, config={}, period=None,
+                             free_at=0, frames=[]) for program in self.programs]
+
+    def power_down(self):
+        """Deselected: every flop and SRAM word arbitrary."""
+        self.reset()
+        for words in self.programs + [self.data]:
+            words[:] = [(i * 0x6F4B + 0x3A) & 0xFFFF for i in range(len(words))]
 
     # the backend
     def run(self, board, ticks, stop=None):
@@ -129,6 +137,14 @@ class Chip:
             self.program_addr = (self.program_addr + 1) & 511
         elif reg == pe.SELECT:
             self.select = w & 1
+        elif reg == pe.DATA_ADDR:
+            self.data_addr = w & 511
+        elif reg == pe.DATA:
+            if all(x["halted"] for x in self.engines):
+                self.data[self.data_addr] = w
+            self.data_addr = (self.data_addr + 1) & 511
+        elif reg >= pe.CONFIG and e["halted"]:
+            e["config"][reg] = w
         elif reg == pe.TX and len(e["tx"]) < 8:
             e["tx"].append(w)
 
@@ -247,6 +263,7 @@ def test_setup():
     assert m.tt.manual_project_clock.monitoring is False
     assert m.tt.uio_oe_pico.value == 0
     assert b.sys_hz == 96_000_000 and spi.sck_hz == 3_000_000
+    assert spi.selected()
     b.uninstall()
     # ui[6] and ui[7] left to the input Pmod, the rest driven by the RP
     b, m = board()
@@ -259,7 +276,7 @@ def test_refusals():
     b, m = board()
     for kwargs, message in (({"sck_hz": 6_000_001}, "over 1/8"),
                             ({"ui_inputs": 0b100}, "host port"),
-                            ({"project": "tt_um_other"}, "not on this chip")):
+                            ({"project": "tt_um_missing"}, "not on this chip")):
         try:
             m.demo_board.DemoBoardSpi(**kwargs)
             raise AssertionError(kwargs)
@@ -317,8 +334,42 @@ def test_check():
         b.uninstall()
 
 
+def test_reselect():
+    """Another design selected powers ours down; ensure sees it from the SDK's enables and
+    puts back both engines' configs and programs and the data, with engine 1 selected."""
+    chip = Chip()
+    b, m = board(chip)
+    host = m.demo_board.host(sck_hz=6_000_000)
+    assert not host.ensure()
+    programs = [[(i * 0x9E37 + e) & 0xFFFF for i in range(40)] for e in range(2)]
+    for e in (0, 1):
+        host.select(e)
+        host.configure(dict(pe.DEFAULT_CONFIG, out_base=5 + e))
+        host.load([0xFFFF] * 8)
+        host.load(programs[e])
+        host.load([0x1234], address=100)
+    host.load_data([0xBEEF, 0xCAFE], address=7)
+    expect = [list(chip.programs[e]) for e in (0, 1)]
+    configs = [dict(chip.engines[e]["config"]) for e in (0, 1)]
+    assert expect[1][:41] == programs[1] + [0] and expect[1][100] == 0x1234
+    assert configs[1][pe.CONFIG + pe.CONFIG_FIELDS.index("out_base")] == 6
+    m.tt.shuttle.get("tt_um_other").enable()
+    assert not host.spi.selected() and chip.programs[0] != expect[0]
+    assert host.ensure()
+    assert [chip.programs[e] for e in (0, 1)] == expect
+    assert [chip.engines[e]["config"] for e in (0, 1)] == configs
+    assert chip.data[7:9] == [0xBEEF, 0xCAFE] and chip.select == 1
+    assert host.read(pe.SELECT) == [1] and not host.ensure()
+    # enabling ours again through the SDK powers it down too
+    m.tt.shuttle.get(m.demo_board.PROJECT).enable()
+    assert not host.spi.selected() and host.ensure()
+    assert [chip.programs[e] for e in (0, 1)] == expect
+    b.uninstall()
+
+
 test_frames_and_timing()
 test_sck_margin()
 test_setup()
 test_refusals()
 test_check()
+test_reselect()
