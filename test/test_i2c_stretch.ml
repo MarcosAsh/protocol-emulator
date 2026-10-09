@@ -146,7 +146,7 @@ let%expect_test "the kernel accepts the stretching master from a quarter of 8" =
     {|
     (accepted (quarter 8)
      ("Timed_program.verdict timed"
-      ((words 161) (deadline_waits 35) (worst_slack (0)))))
+      ((words 167) (deadline_waits 37) (worst_slack (0)))))
     (refused (quarter 7)
      (faults
       (((line 116) (pc (97))
@@ -185,7 +185,7 @@ let%expect_test "the certificate starts again from the poll that sees SCL high" 
     69  mov y, !null side 0          phase -12  side -11
     70  jmp pin, 73                  phase -11..?
     71  jmp y--, 70                  phase -9..?
-    72  jmp 146                      phase -7..?
+    72  jmp 149                      phase -7..?
     73  mov t, now side 0            phase -9..?
     74  sub t, 4 side 0              phase 1
     75  add t, p side 0              phase 6
@@ -304,17 +304,17 @@ let%expect_test "SCL held low answers 0xffff" =
     {|
     ((log ())
      (replies
-      ((65535 62) (65535 69) (65535 78) (65535 93) (65535 100) (65535 115)
-       (65535 122) (65535 131)))
-     (memory (0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)) (pc 149) (driven 0)
+      ((65535 71) (65535 78) (65535 87) (65535 111) (65535 118) (65535 142)
+       (65535 149) (65535 158)))
+     (memory (0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)) (pc 155) (driven 0)
      (fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
     ((log
       (start stop start "address 80 read" start "address 80 write" "pointer 5"
        "write 119" stop))
      (replies
-      ((65535 262477) (65535 262484) (65535 262493) (65535 262508) (65535 262515)
-       (65535 262530) (65535 262537) (65535 262546) (0 300330) (0 300638)
+      ((65535 262486) (65535 262493) (65535 262502) (65535 262526) (65535 262533)
+       (65535 262557) (65535 262564) (65535 262573) (0 300330) (0 300638)
        (0 300946)))
      (memory (0 0 0 0 0 119 0 0 0 0 0 0 0 0 0 0)) (pc 25) (driven 0)
      (fault
@@ -356,7 +356,7 @@ let%expect_test "after a timeout only a START goes back on the bus" =
   [%expect
     {|
     ((replies
-      ((65535 262477) (65535 263006) (65535 263015) (0 263348) (0 263656)
+      ((65535 262486) (65535 263006) (65535 263015) (0 263348) (0 263656)
        (0 263964)))
      (log
       (start stop start "address 80 read" start "address 80 write" "pointer 5"
