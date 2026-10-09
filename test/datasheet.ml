@@ -9,6 +9,15 @@ module Sheet = struct
     }
 end
 
+module Margin = struct
+  type t =
+    | Cycle
+    | Ns of
+        { ns : float
+        ; why : string
+        }
+end
+
 module Levels = struct
   type t = (bool * int) list
 end
@@ -33,6 +42,7 @@ type t =
   ; parameter : string
   ; limit : Limit.t
   ; sheet : Sheet.t
+  ; margin : Margin.t
   ; bound : Bound.t
   }
 
@@ -87,7 +97,8 @@ let run ~pin widths = Bound.Run { pin; widths }
 let lows levels = List.filter_map levels ~f:(fun (high, n) -> Option.some_if (not high) n)
 
 (* SK6812: the low of a bit is under 20 us (012 B/0, note 3), so a longer one latches, and
-   a high under 500 ns is a zero, between the B/0 sheet's T0H and T1H. *)
+   a high under 500 ns is a zero, between the B/0 sheet's T0H and T1H. A cycle of margin
+   covers the 74AHCT125's skew between rise and fall, 5.5 ns at most. *)
 let sk6812 =
   let rev01 =
     { Sheet.part = "SK6812"
@@ -108,7 +119,7 @@ let sk6812 =
         Option.some_if (Bool.equal one (not (zero ~clock_hz bit))) (f bit)))
   in
   let limit parameter limit sheet bound =
-    { firmware = "sk6812"; parameter; limit; sheet; bound }
+    { firmware = "sk6812"; parameter; limit; sheet; margin = Cycle; bound }
   in
   [ limit "T0H" (At_least 200.) b0 (level ~pin:set_pin ~high:true ())
   ; limit "T0H" (At_most 400.) b0 (code ~one:false fst)
@@ -150,7 +161,7 @@ let ds18b20 =
         if high then None else f ~clock_hz l h))
   in
   let limit parameter limit bound =
-    { firmware = "one_wire"; parameter; limit; sheet; bound }
+    { firmware = "one_wire"; parameter; limit; sheet; margin = Cycle; bound }
   in
   [ limit "tLOW1" (At_least 1_000.) (level ~dirs:true ~pin:set_pin ~high:true ())
   ; limit "tLOW1" (At_most 15_000.) (lows_from 0. ~below:60_000. ())
@@ -179,7 +190,9 @@ let can firmware =
   and transceiver =
     { Sheet.part = "SN65HVD230"; document = "TI SLOS346O"; page = "p.1, up to 1 Mbps" }
   in
-  let limit parameter limit sheet bound = { firmware; parameter; limit; sheet; bound } in
+  let limit parameter limit sheet bound =
+    { firmware; parameter; limit; sheet; margin = Cycle; bound }
+  in
   [ limit "recessive" (At_least 1_000.) transceiver (level ~pin:set_pin ~high:true ())
   ; limit "dominant" (At_least 1_000.) transceiver (level ~pin:set_pin ~high:false ())
   ; limit
@@ -200,16 +213,19 @@ let can_receiver =
     ; limit = At_least 1_000.
     ; sheet =
         { part = "SN65HVD230"; document = "TI SLOS346O"; page = "p.1, up to 1 Mbps" }
+    ; margin = Cycle
     ; bound = level ~pin:set_pin ~high:false ()
     }
   ]
 ;;
 
-(* 24LC256 at 3.3 V, the 2.5 to 5.5 V rows *)
+(* 24LC256 at 3.3 V, the 2.5 to 5.5 V rows. The kernel times the master's pins, so a width
+   from a release to the next edge loses the line's rise, TR of 300 ns at most. *)
 let i2c firmware =
   let sheet page =
     { Sheet.part = "24LC256"; document = "Microchip DS20001203W, Table 1-2"; page }
   in
+  let rise = Margin.Ns { ns = 300.; why = "TR, param 4" } in
   let scl = side_pin
   and sda = set_pin in
   (* the bits before an edge are true while the master holds the line low *)
@@ -222,31 +238,35 @@ let i2c firmware =
       (fun config n ->
         swap (spacing ~dirs:true ?hold ?apart ~a:(sda config) ~b:(scl config) () n))
   in
-  let limit parameter ns page bound =
-    { firmware; parameter; limit = At_least ns; sheet = sheet page; bound }
+  let limit parameter ns page margin bound =
+    { firmware; parameter; limit = At_least ns; sheet = sheet page; margin; bound }
   in
-  [ limit "THIGH" 600. "p.3, param 2" (pair ~hold:(fun ~own ~other:_ -> not own) ())
-  ; limit "TLOW" 1300. "p.3, param 3" (pair ~hold:(fun ~own ~other:_ -> own) ())
+  [ limit "THIGH" 600. "p.3, param 2" rise (pair ~hold:(fun ~own ~other:_ -> not own) ())
+  ; limit "TLOW" 1300. "p.3, param 3" Cycle (pair ~hold:(fun ~own ~other:_ -> own) ())
   ; limit
       "THD:STA"
       600.
       "p.3, param 6"
+      Cycle
       (pair ~apart:(fun ~own ~other -> (not own) && other) ())
   ; limit
       "TSU:STA"
       600.
       "p.3, param 7"
+      rise
       (sda_pair ~apart:(fun ~own ~other -> (not own) && not other) ())
-  ; limit "TSU:DAT" 100. "p.3, param 9" (pair ~apart:(fun ~own ~other:_ -> own) ())
+  ; limit "TSU:DAT" 100. "p.3, param 9" rise (pair ~apart:(fun ~own ~other:_ -> own) ())
   ; limit
       "TSU:STO"
       600.
       "p.3, param 10"
+      rise
       (sda_pair ~apart:(fun ~own ~other -> own && not other) ())
   ; limit
       "TBUF"
       1300.
       "p.4, param 14"
+      rise
       (sda_pair ~hold:(fun ~own ~other -> (not own) && not other) ())
   ]
 ;;
@@ -265,7 +285,13 @@ let w25q64 firmware =
       (fun config n -> swap (spacing ?hold ?apart ~a:(cs config) ~b:(sck config) () n))
   in
   let limit parameter ns page bound =
-    { firmware; parameter; limit = At_least ns; sheet = sheet page; bound }
+    { firmware
+    ; parameter
+    ; limit = At_least ns
+    ; sheet = sheet page
+    ; margin = Cycle
+    ; bound
+    }
   in
   [ limit "tCLH" 9. "p.64" (pair ~hold:(fun ~own ~other -> own && not other) ())
   ; limit "tCLL" 9. "p.64" (pair ~hold:(fun ~own ~other -> (not own) && not other) ())
@@ -291,6 +317,7 @@ let swd =
       ; parameter
       ; limit = At_least (1e9 /. 24e6 /. 2.)
       ; sheet
+      ; margin = Cycle
       ; bound = level ~pin:side_pin ~high ()
       })
 ;;
@@ -408,12 +435,18 @@ end
 
 let picoseconds ns = Float.iround_nearest_exn (ns *. 1000.)
 
-(* the least or most cycles that meet the limit *)
-let needed ~clock_hz (limit : Limit.t) =
+(* the least or most cycles that clear the limit by the margin *)
+let needed ~clock_hz (limit : Limit.t) (margin : Margin.t) =
   let per_ps = 1_000_000_000_000 in
+  let cycle, margin_ps =
+    match margin with
+    | Cycle -> 1, 0
+    | Ns { ns; why = _ } -> 0, picoseconds ns
+  in
   match limit with
-  | At_least ns -> ((picoseconds ns * clock_hz) + per_ps - 1) / per_ps
-  | At_most ns -> picoseconds ns * clock_hz / per_ps
+  | At_least ns ->
+    ((((picoseconds ns + margin_ps) * clock_hz) + per_ps - 1) / per_ps) + cycle
+  | At_most ns -> ((picoseconds ns - margin_ps) * clock_hz / per_ps) - cycle
 ;;
 
 let kernel_accepts (bench : Bench.t) spec =
@@ -454,7 +487,7 @@ let check ?limits (bench : Bench.t) =
       List.filter all ~f:(fun t -> String.equal t.firmware bench.name))
   in
   List.map limits ~f:(fun t ->
-    let needed = needed ~clock_hz:bench.clock_hz t.limit in
+    let needed = needed ~clock_hz:bench.clock_hz t.limit t.margin in
     let bound =
       match t.bound, t.limit with
       | Kernel spec, At_least _ ->
@@ -492,6 +525,11 @@ let to_string (bench : Bench.t) verdicts =
       | At_least ns -> ">=", ns
       | At_most ns -> "<=", ns
     in
+    let margin =
+      match t.margin with
+      | Cycle -> "a cycle"
+      | Ns { ns; why } -> sprintf "%g ns, %s" ns why
+    in
     let kind =
       match t.bound with
       | Kernel _ -> "kernel"
@@ -502,7 +540,7 @@ let to_string (bench : Bench.t) verdicts =
         sprintf "%d (%.1f ns)" cycles (ns ~clock_hz:bench.clock_hz cycles))
     in
     sprintf
-      "%-18s %-14s %s %8g ns  %-6s %-17s needs %4d%-5s  %s, %s %s"
+      "%-18s %-14s %s %8g ns  %-6s %-17s needs %4d%-5s  %s, %s %s; margin %s"
       bench.name
       t.parameter
       side
@@ -513,7 +551,8 @@ let to_string (bench : Bench.t) verdicts =
       (if v.ok then "" else " FAIL")
       t.sheet.part
       t.sheet.document
-      t.sheet.page)
+      t.sheet.page
+      margin)
   |> String.concat ~sep:"\n"
 ;;
 

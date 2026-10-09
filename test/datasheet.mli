@@ -1,7 +1,7 @@
 (** Datasheet limits on the bench firmware's pins, each with the sheet it is read from,
     and the firmware's bound at the clock it ships at: the kernel's, on the analyser's
     rows, or for a width the pin's levels cannot tell apart, an exact run of the words
-    with the host on time. *)
+    with the host on time. A bound has to clear its limit by the margin, not just meet it. *)
 
 open! Core
 open Protocol_emulator
@@ -12,6 +12,15 @@ module Sheet : sig
     ; document : string (** With its revision. *)
     ; page : string
     }
+end
+
+module Margin : sig
+  type t =
+    | Cycle (** One cycle of the clock. *)
+    | Ns of
+        { ns : float
+        ; why : string
+        }
 end
 
 (** The pin's levels in a run, high or low, and the cycles each lasted. *)
@@ -40,6 +49,7 @@ type t =
   ; parameter : string
   ; limit : Limit.t
   ; sheet : Sheet.t
+  ; margin : Margin.t
   ; bound : Bound.t
   }
 
@@ -61,7 +71,7 @@ val levels : Bench.t -> pin:int -> Stimulus.t -> Levels.t
 module Verdict : sig
   type t =
     { limit : Limit.t
-    ; needed : int (** The least, or most, cycles the limit leaves. *)
+    ; needed : int (** The least, or most, cycles the margin leaves. *)
     ; bound : int option (** The firmware's: least for [At_least], most for [At_most]. *)
     ; ok : bool
     }
@@ -71,8 +81,8 @@ end
 val check : ?limits:t list -> Bench.t -> (t * Verdict.t) list
 
 (** A line per limit: its parameter, the limit, the bound in cycles and ns, and FAIL where
-    it does not meet the limit. *)
+    it does not clear the margin. *)
 val to_string : Bench.t -> (t * Verdict.t) list -> string
 
-(** Raises unless every limit is met. *)
+(** Raises unless every limit clears its margin. *)
 val check_exn : Bench.t -> unit
