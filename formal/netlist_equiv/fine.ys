@@ -1,0 +1,11 @@
+# A flattened miter down to single-bit cells for anystate.awk, every flop still a cell of
+# its own and each net still under all its names: no opt_clean, which would drop them.
+# Every flop starts free (anystate.awk), so no initial value is kept.
+
+dffunmap
+check -assert
+setundef -undriven -anyseq
+setattr -unset init
+techmap
+# rising-edge flops only, with or without an asynchronous reset: what anystate.awk handles
+select -assert-none t:$_*FF* t:$_*LATCH* t:$_SR_* %u %u t:$_DFF_P_ t:$_DFF_P??_ %u %d
