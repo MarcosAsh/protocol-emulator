@@ -38,12 +38,12 @@ slot:
     mov pindirs, !y          ; 1 unit: a one or a read lets go
     wait t+
     in pins, 1               ; 2 units: sample
-    set y, 6
+    set y, 7
 hold:
     wait t+
     jmp y--, hold
     wait t+
-    set pindirs, 0           ; 10 units: a zero lets go
+    set pindirs, 0           ; 11 units: a zero lets go
     jmp x--, slot
     in null, 8
     push
