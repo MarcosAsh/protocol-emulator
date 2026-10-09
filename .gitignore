@@ -36,6 +36,7 @@ formal/certificate*.sv
 formal/fsm_miter*.sv
 formal/self_check*.sv
 formal/*_*/
+formal/proof_bundle.tar.gz
 formal/powerup/
 formal/isolation/
 !formal/netlist_equiv/
