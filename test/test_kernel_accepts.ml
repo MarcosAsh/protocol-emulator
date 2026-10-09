@@ -380,3 +380,14 @@ let%expect_test "a spacing is checked only for pins and tables it is proved for"
      "edges are spaced only for two pins, Manchester off and a table of intervals")
     |}]
 ;;
+
+(* An unreached row holds nothing, so a step into one fails on every bound it can. *)
+let%expect_test "a row that steps into an unreached row is refused" =
+  let config, words, table = table (Certified.find_exn "uart_tx") in
+  let table = Array.copy table in
+  table.(3) <- table.(Array.length table - 1);
+  print_s
+    [%message "" ~_:(Kernel.rejections ~config ~words table : Kernel.Rejection.t list)];
+  [%expect
+    {| (((pc 2) (fails ("next phase" "next period" "next x" "next y" "next arm")))) |}]
+;;
