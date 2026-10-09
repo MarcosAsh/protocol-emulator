@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Mutation score of the OCaml tests: one textual mutation at a time, in copies under
-# _mutation/. A survivor not in test/mutation_allow.txt exits 1.
+# _mutation/. A survivor not in test/mutation_allow.txt exits 1, at --report with --json.
 # Usage: python3 test/mutate.py [--scope engine|wide] [--file F ...] [--operator NAME ...]
 #        [--id ID ...] [--shard I/N] [--seed S] [--jobs N] [--timeout S] [--json OUT] [--list]
 #        python3 test/mutate.py --report OUT ...
@@ -308,7 +308,7 @@ def main():
     p.add_argument("--jobs", type=int, default=1)
     p.add_argument("--dune-jobs", type=int, help="dune's -j in each copy")
     p.add_argument("--timeout", type=int, help="seconds per suite; default 3x the unmutated one per job")
-    p.add_argument("--json", help="append each result to this file, a line each")
+    p.add_argument("--json", help="append each result to this file, a line each, for --report")
     p.add_argument("--list", action="store_true", help="print the mutants and stop")
     p.add_argument("--report", nargs="+", help="score the --json files of every shard")
     args = p.parse_args()
@@ -390,7 +390,9 @@ def main():
             results = list(pool.map(run, todo))
     finally:
         shutil.rmtree(work, ignore_errors=True)
-    sys.exit(report(results, len(todo)))
+    code = report(results, len(todo))
+    # a shard's survivors are judged at --report, beside every other shard's
+    sys.exit(0 if args.json else code)
 
 
 if __name__ == "__main__":
