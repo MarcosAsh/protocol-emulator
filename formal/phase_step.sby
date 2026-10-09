@@ -15,6 +15,7 @@ level_at_arm teeth
 later_edge_captured teeth
 capture_a_cycle_older teeth
 capture_a_cycle_younger teeth
+capture_stamped_early teeth
 arm_one_short teeth
 edge_one_short teeth
 
@@ -39,7 +40,8 @@ teeth: expect fail
 smtbmc boolector
 
 [script]
-read_verilog engine.v
+~capture_stamped_early: read_verilog engine.v
+capture_stamped_early: read_verilog engine_early.v
 hierarchy -top engine
 proc
 flatten
@@ -62,6 +64,7 @@ level_at_arm: read -define LEVEL_AT_ARM
 later_edge_captured: read -define LATER_EDGE_CAPTURED
 capture_a_cycle_older: read -define CAPTURE_A_CYCLE_OLDER
 capture_a_cycle_younger: read -define CAPTURE_A_CYCLE_YOUNGER
+capture_stamped_early: read -define CAPTURE_STAMPED_EARLY
 arm_one_short: read -define ARM_ONE_SHORT
 edge_one_short: read -define EDGE_ONE_SHORT
 narrow_timer: read -define TIMER_BITS=7
@@ -82,3 +85,4 @@ narrow_timer: engine.v engine_narrow_saturating.v
 ~narrow_timer: kernel_step.v
 narrow_timer: kernel_step.v kernel_step_narrow.v
 phase_step.sv
+capture_stamped_early: engine_early.v phase_step_teeth/capture_early.v
