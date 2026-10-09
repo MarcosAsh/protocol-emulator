@@ -469,10 +469,11 @@ kernel_miter:
 # Power-up is deterministic: two copies of the chip from any two states, reset at the
 # first edge and the same pins after it, drive the same pins (powerup.sv), by induction on
 # an invariant over the flops powerup.tcl brings out. havoc proves it with the host fifos'
-# words and read buffers free while cleared (powerup_havoc.awk). About 30 s each. Teeth:
-# no reset at the first edge and the engines' pin register without its clear have to
-# fail, the latter under havoc too, and with the fix for an empty rx fifo's stale head
-# reverted the invariant must not prove.
+# words and read buffers free while cleared (powerup_havoc.awk), as netlist_anystate needs;
+# cold adds each program SRAM's words its own in each copy until its engine first starts.
+# About 30 s each. Teeth: no reset at the first edge and the engines' pin register without
+# its clear have to fail, the latter under havoc and cold too, and with the fix for an
+# empty rx fifo's stale head reverted the invariant must not prove.
 powerup:
 	mkdir -p powerup_teeth
 	awk -f powerup_unreset.awk ../src/protocol_emulator.v ../src/protocol_emulator.v \
@@ -481,7 +482,7 @@ powerup:
 	  > powerup_teeth/stale.v
 	awk -f powerup_havoc.awk ../src/protocol_emulator.v > powerup_teeth/havoc.v
 	awk -f powerup_havoc.awk powerup_teeth/unreset.v > powerup_teeth/havoc_unreset.v
-	sby -f powerup.sby prove no_reset unreset stale havoc havoc_unreset
+	sby -f powerup.sby prove no_reset unreset stale havoc havoc_unreset cold cold_unreset
 
 # the hardened netlist equals the RTL, macros cut (netlist_equiv/miter.ys); about 2 min:
 #   make netlist_equiv NETLIST=../runs/wokwi/final/nl/tt_um_marcosash_protocol_emulator.nl.v

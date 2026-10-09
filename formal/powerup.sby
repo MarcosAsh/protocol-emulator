@@ -5,6 +5,8 @@ unreset teeth
 stale
 havoc havoc_rtl
 havoc_unreset havoc_unreset_rtl teeth
+cold havoc_rtl cold_rtl
+cold_unreset havoc_unreset_rtl cold_rtl teeth
 
 [options]
 ~teeth: mode prove
@@ -61,6 +63,7 @@ memory_map tt_um_marcosash_protocol_emulator
 tcl powerup.tcl
 no_reset: read -define NO_RESET
 teeth: read -define NO_INVARIANT
+cold_rtl: read -define COLD
 read_verilog -formal -sv powerup.sv
 prep -top powerup
 
