@@ -19,6 +19,8 @@
    (glob_files assemble/*.asm)
    (glob_files *.hex)
    ../formal/Makefile
-   ../src/protocol_emulator.v)
+   ../src/protocol_emulator.v
+   ../python/demo_board.py
+   ../icepi/Makefile)
   (flags
    (-source-tree-root .))))
