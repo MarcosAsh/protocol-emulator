@@ -335,6 +335,13 @@ let all =
     w25q64 [%string "spi_cs_mode%{Spi_cs.Mode.to_int mode#Int}"])
 ;;
 
+let exempt =
+  [ "spi_master", "no demo loads it"
+  ; "start_hold", "it drives no pin: it listens to Pico B's I2C"
+  ; "ethernet", "no demo on the bench: it needs the Icepi's 40 MHz build"
+  ]
+;;
+
 module Stimulus = struct
   type t =
     { bursts : int list list
@@ -557,9 +564,13 @@ let to_string (bench : Bench.t) verdicts =
 ;;
 
 let check_exn (bench : Bench.t) =
-  let verdicts = check bench in
-  if not (List.for_all verdicts ~f:(fun (_, v) -> v.ok))
-  then
-    raise_s
-      [%message "a datasheet limit is not cleared" ~_:(to_string bench verdicts : string)]
+  match check bench with
+  | [] when not (List.Assoc.mem exempt bench.name ~equal:String.equal) ->
+    raise_s [%message "no datasheet limits, and no reason why" bench.name]
+  | verdicts ->
+    if not (List.for_all verdicts ~f:(fun (_, v) -> v.ok))
+    then
+      raise_s
+        [%message
+          "a datasheet limit is not cleared" ~_:(to_string bench verdicts : string)]
 ;;

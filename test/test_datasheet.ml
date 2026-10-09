@@ -85,6 +85,25 @@ let%expect_test "the bench firmware against its datasheet limits" =
     |}]
 ;;
 
+let%expect_test "every bench firmware has its limits, or a reason it has none" =
+  let names = List.map Bench.all ~f:(fun bench -> bench.name) |> String.Set.of_list in
+  let limited = List.map Datasheet.all ~f:(fun t -> t.firmware) |> String.Set.of_list in
+  let exempt = List.map Datasheet.exempt ~f:fst |> String.Set.of_list in
+  print_s
+    [%message
+      ""
+        ~missing:(Set.diff names (Set.union limited exempt) : String.Set.t)
+        ~unknown:(Set.diff (Set.union limited exempt) names : String.Set.t)
+        ~both:(Set.inter limited exempt : String.Set.t)];
+  [%expect {| ((missing ()) (unknown ()) (both ())) |}];
+  (* the tooth: a new demo's firmware with no limits does not build *)
+  let unlimited = { (Bench.find_exn "sk6812") with name = "new_demo" } in
+  print_s
+    [%sexp
+      (Or_error.try_with (fun () -> Datasheet.check_exn unlimited) : unit Or_error.t)];
+  [%expect {| (Error ("no datasheet limits, and no reason why" new_demo)) |}]
+;;
+
 let before name ~source = { (Bench.find_exn name) with source }
 
 let undo (bench : Bench.t) ~fix ~was =
