@@ -3,3 +3,14 @@ src/engine.ml ## greater ## (s >:. data_bits) ## both arms of the saturation giv
 src/decoder.ml ## constant one ## if n = 1 lsl width raw then vdd else raw <:. n ## no enum checked here fills its field now that the jump condition is 12 of 16, so the branch is never built
 src/host_fifo.ml ## int plus one ## let level_bits = Int.ceil_log2 (depth + 1) ## at a depth of 8, ceil_log2 of 9 and of 10 are both 4
 src/host_spi.ml ## constant zero ## @@ mux2 sck_fall (d.:[6, 0] @: gnd) d) ## the filled bit never reaches the msb, as tx_byte reloads at every byte boundary after seven shifts
+src/analyser.ml ## bool false ## if Option.value_map s.osr_count.lo ~default:false ~f:(fun lo -> ## osr_count always has both ends: it starts exact, a pull sets 0 and shift_out sets both
+src/analyser.ml ## bool true ## else if Option.value_map s.osr_count.hi ~default:true ~f:(fun hi -> ## osr_count always has both ends: it starts exact, a pull sets 0 and shift_out sets both
+src/analyser.ml ## int subtract to add ## (program_size - List.length program) ## a longer padding is never reached, as every pc is taken modulo the program size
+src/analyser.ml ## int less than ## if pc < n ## every pc is below the program size, which n is at least
+src/analyser.ml ## int less than ## if next < n then arrive ~from:pc next s))); ## every pc is below the program size, which n is at least
+src/analyser.ml ## int equal ## if Array.for_all slopes ~f:(fun slope -> slope = 0) then entry else fixpoint ~slope_at ## every slope nonzero needs every slot in a counted loop, where nothing anchors the phase, so the second fixpoint finds the same rows
+src/analyser.ml ## int greater ## when config.Program_config.side_set_count > 0 ## side_edge is read only when side_set_count is above zero
+src/analyser.ml ## bool and to or ## if slope <> 0 && List.for_all loop ~f:(fun b -> slopes.(b) = 0) ## a loop that overlaps an earlier one holds that loop's jmp x--, which has no drift, so it never gets a slope
+src/analyser.ml ## int greater ## if passes.(pc) > max_passes then State.widen ~old joined else joined ## near-equivalent: widening a pass later moves rows only for a pc whose state changes exactly 257 times and then settles
+src/analyser.ml ## int plus one ## passes.(pc) <- passes.(pc) + 1; ## near-equivalent: widening twice as early moves rows only for a pc whose state changes 129 to 256 times and then settles
+src/analyser.ml ## bool true ## Option.value_map s.since_data.lo ~default:true ~f:(fun lo -> ## near-equivalent: since_data loses its low end only to widening past max_passes
