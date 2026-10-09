@@ -2,45 +2,6 @@
 # The outside chip acts' firmware (BRINGUP.md) as words and the configuration it runs
 # under, at the bench's 48 MHz but for 10BASE-T's 40.
 
-# Spi.master ~half_period:8: SCK at 3 MHz on OUT5, MOSI on OUT4, MISO on IN0, no chip select
-SPI_MASTER = {
-    "config": {
-        "side_set_count": 1,
-        "side_set_base": 10,
-        "side_set_pindirs": 0,
-        "in_base": 0,
-        "in_count": 16,
-        "out_base": 9,
-        "out_count": 1,
-        "set_base": 9,
-        "set_count": 1,
-        "jmp_pin": 0,
-        "capture_pin": 0,
-        "capture_rising": 1,
-        "in_shift_right": 0,
-        "out_shift_right": 0,
-        "autopush": 0,
-        "push_threshold": 16,
-        "autopull": 0,
-        "pull_threshold": 16,
-        "crc_width": 16,
-        "crc_poly": 40961,
-        "crc_init": 65535,
-        "crc_reflect": 1,
-        "stuff_threshold": 0,
-        "stuff_level": 1,
-        "wrap_bottom": 0,
-        "wrap_top": 511,
-        "period_fraction": 0,
-        "autopull_data": 0,
-        "manchester": 0,
-    },
-    "words": [
-        0xA088, 0x20E0, 0xE004, 0x6068, 0xA027, 0x80E6, 0xC0CA, 0x20C0,
-        0x6001, 0x20C0, 0x5001, 0x30C0, 0x6001, 0x0209, 0xE003, 0x0001,
-    ],
-}
-
 # I2c.master_host_rate: the host sends the quarter, 48 cycles for 250 kHz, SDA on IO2, SCL on IO3
 I2C_MASTER = {
     "config": {

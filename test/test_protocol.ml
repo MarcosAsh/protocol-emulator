@@ -114,7 +114,6 @@ let%expect_test "every protocol from its file to the decoded trace" =
     spi_master_stream: 10 words, 3 deadline waits, worst slack 4, the kernel accepts it, assuming nothing
 
     limits
-    spi_master: none, no demo loads it
 
     lockstep: spi_master, spi_master
     ("lockstep held" (cycles 600))

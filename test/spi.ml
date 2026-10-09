@@ -101,21 +101,6 @@ bit:
       ~config:slave_config]
 ;;
 
-let bench =
-  { Bench.name = "spi_master"
-  ; what =
-      [%string
-        "Spi.master ~half_period:%{Bench.spi_half#Int}: SCK at %{Bench.rate (2 * \
-         Bench.spi_half)} on OUT5, MOSI on OUT4, MISO on IN0, no chip select"]
-  ; source = master ~half_period:Bench.spi_half
-  ; config = Bench.on_spi_pins config
-  ; assumption = Nothing
-  ; clock_hz = Bench.clock_hz
-  ; load = None
-  ; stimulus = None
-  }
-;;
-
 let scenario =
   let sent = [ 0xa5; 0x3c; 0x0f ]
   and replies = [ 0x81; 0x7e; 0x42 ] in
@@ -169,10 +154,10 @@ let protocol =
       ]
   ; time_triggered =
       [ Certified.plain "spi_master_stream" (master_stream ~half_period:8) stream_config ]
-  ; bench = [ bench ]
+  ; bench = []
   ; loaded_from_hex = []
   ; limits = []
-  ; unlimited = [ "spi_master", "no demo loads it" ]
+  ; unlimited = []
   ; swept =
       [ (* SCK by side-set beside MOSI: 16 edges a byte 8 cycles apart is twice the fifo *)
         { name = "spi_master"
