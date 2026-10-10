@@ -213,32 +213,20 @@ let%expect_test "the kernel on the interpreters, data memory unknown" =
      (verdict ((words 14) (deadline_waits 1) (worst_slack (0)))))
     (accepted (route Hold_p) (k 4)
      (verdict ((words 14) (deadline_waits 1) (worst_slack (0)))))
-    (refused (route Dwell_y) (k 1)
-     (r.faults
-      (((line 10) (pc (7))
-        (reason
-         "this deadline wait can be reached late, by more on each pass of a loop or after an untimed wait")))))
-    (refused (route Dwell_y) (k 2)
-     (r.faults
-      (((line 10) (pc (7))
-        (reason
-         "this deadline wait can be reached late, by more on each pass of a loop or after an untimed wait")))))
-    (refused (route Dwell_y) (k 3)
-     (r.faults
-      (((line 10) (pc (7))
-        (reason
-         "this deadline wait can be reached late, by more on each pass of a loop or after an untimed wait")))))
-    (refused (route Dwell_y) (k 4)
-     (r.faults
-      (((line 10) (pc (7))
-        (reason
-         "this deadline wait can be reached late, by more on each pass of a loop or after an untimed wait")))))
+    (accepted (route Dwell_y) (k 1)
+     (verdict ((words 17) (deadline_waits 1) (worst_slack (0)))))
+    (accepted (route Dwell_y) (k 2)
+     (verdict ((words 17) (deadline_waits 1) (worst_slack (0)))))
+    (accepted (route Dwell_y) (k 3)
+     (verdict ((words 17) (deadline_waits 1) (worst_slack (0)))))
+    (accepted (route Dwell_y) (k 4)
+     (verdict ((words 17) (deadline_waits 1) (worst_slack (0)))))
     |}];
   List.iter Route.all ~f:(fun route ->
     match timed route ~k:3 with
     | Ok t ->
       print_s [%message (route : Route.t)];
-      print_string (Analyser.to_string ~side_set_count:0 (Timed_program.rows t))
+      print_endline (Analyser.to_string ~side_set_count:0 (Timed_program.rows t))
     | Error _ -> ());
   [%expect
     {|
@@ -257,6 +245,24 @@ let%expect_test "the kernel on the interpreters, data memory unknown" =
      11  mov x, isr                   phase -65529..-4
      12  seek [1]                     phase -65528..-3
      13  out p, 16                    phase -65526..-1
+    (route Dwell_y)
+      0  set p, 11                    phase ?..?
+      1  set x, 0                     phase ?..?
+      2  seek [1]                     phase ?..?
+      3  out y, 16                    phase ?..?
+      4  mov t, now                   phase ?..?
+      5  add t, p                     phase 1
+      6  add t, y                     phase -9
+      7  wait t+                      phase -65543..0  slack 0..65543
+      8  out pins, 8                  phase -10  edge -9  gap ?..?
+      9  out x, 8                     phase -9
+     10  in x, 5                      phase -8
+     11  in pins, 3                   phase -7  sample -7
+     12  in null, 1                   phase -6
+     13  mov x, isr                   phase -5
+     14  seek [1]                     phase -4
+     15  out y, 16                    phase -2
+     16  add t, y                     phase -1
     |}]
 ;;
 
@@ -350,7 +356,11 @@ let%expect_test "random tables: RTL, model and the Mealy reference agree every c
     print_s
       [%message
         "" (route : Route.t) (tables : int) (cycles : int) ~differing:(!bad : int)]);
-  [%expect {| ((route Hold_p) (tables 50) (cycles 1500) (differing 0)) |}]
+  [%expect
+    {|
+    ((route Hold_p) (tables 50) (cycles 1500) (differing 0))
+    ((route Dwell_y) (tables 50) (cycles 1500) (differing 0))
+    |}]
 ;;
 
 (* A table from output segments, [(outputs, cycles)], each held that long; state 0 holds
@@ -445,6 +455,8 @@ let%expect_test "uart tx: the table and the native firmware make the same edges"
     {|
     ("uart tx" (route Hold_p) (native_edges 6) (table_edges 6)
      (identical_from_first_start true))
+    ("uart tx" (route Dwell_y) (native_edges 6) (table_edges 6)
+     (identical_from_first_start true))
     |}]
 ;;
 
@@ -480,6 +492,8 @@ let%expect_test "spi master: the table and the native firmware make the same edg
   [%expect
     {|
     ("spi master" (route Hold_p) (native_edges 24) (table_edges 24)
+     (identical_from_first_start true))
+    ("spi master" (route Dwell_y) (native_edges 24) (table_edges 24)
      (identical_from_first_start true))
     |}]
 ;;
@@ -526,6 +540,10 @@ let%expect_test "long times stay exact on the model" =
     {|
     ((route Hold_p) (matches_reference true)
      (gaps (10 40000 11 131070 10 40000 11))
+     ("(!m).fault"
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    ((route Dwell_y) (matches_reference true)
+     (gaps (40011 12 65546 65557 40011 12 65546))
      ("(!m).fault"
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
     |}]
