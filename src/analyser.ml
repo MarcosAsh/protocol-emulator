@@ -443,7 +443,8 @@ let step
      | Mov { dest = X; _ } | Out { dest = X; _ } | Alu { dest = X; _ } ->
        after { s with x = Interval.top; offset = Interval.top }
      | Mov { dest = Y; _ } | Out { dest = Y; _ } | Alu { dest = Y; _ } ->
-       after { s with y = Interval.top }
+       (* a 16-bit register, whatever it was written with *)
+       after { s with y = { lo = Some 0; hi = Some ((1 lsl Isa.data_bits) - 1) } }
      | Sys Capture_arm ->
        after
          { s with since_arm = Some (Interval.exactly 0); captured = false; awaiting = true }
