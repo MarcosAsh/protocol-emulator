@@ -480,6 +480,303 @@ let%expect_test "every row of the interpreter, k = 1" =
     |}]
 ;;
 
+(* every change of the watched pins: cycle, pin, level *)
+let edges ~watch pins =
+  List.concat_mapi (Array.to_list pins) ~f:(fun c p ->
+    List.filter_map watch ~f:(fun pin ->
+      let level = (p lsr pin) land 1 in
+      if c > 0 && level <> (pins.(c - 1) lsr pin) land 1
+      then Some (c, pin, level)
+      else None))
+;;
+
+let table_image t =
+  let config, program = image t.wiring in
+  config, program, words t |> ok_exn
+;;
+
+(* each frame from its start edge after an idle high: the edges inside 10 bits, and the
+   byte read mid bit *)
+let uart_frames ~pin ~bit pins =
+  let rec frames acc = function
+    | [] -> List.rev acc
+    | (c, _, 0) :: _ as rest ->
+      let inside, after =
+        List.split_while rest ~f:(fun (c', _, _) -> c' < c + (10 * bit))
+      in
+      let byte =
+        List.init 8 ~f:(fun i ->
+          ((pins.(c + (bit * (i + 1)) + (bit / 2)) lsr pin) land 1) lsl i)
+        |> List.reduce_exn ~f:( lor )
+      in
+      frames ((byte, List.map inside ~f:(fun (c', _, l) -> c' - c, l)) :: acc) after
+    | _ :: rest -> frames acc rest
+  in
+  frames [] (edges ~watch:[ pin ] pins)
+;;
+
+let%expect_test "uart tx, a bit at a time and by burst, against the library's" =
+  let bytes = [ 0xa3; 0x00; 0xff; 0x5c ] in
+  let pin = Isa.first_output_pin in
+  List.iter
+    [ "shift", (fun ~bit -> table_image (uart_tx ~bit)), uart_word, 26
+    ; "burst", (fun ~bit -> table_image (uart_tx_burst ~bit)), uart_frame, 16
+    ; "burst", (fun ~bit -> table_image (uart_tx_burst ~bit)), uart_frame, 8
+    ]
+    ~f:(fun (name, image, word, bit) ->
+      let cycles = (4 * 14 * bit) + 400 in
+      let _, native, _ =
+        run
+          ~cycles
+          ~config:Program_config.default
+          ~program:(Firmware.assemble (Uart.tx ~period:bit))
+          ~inputs:(Fn.const 0)
+          ~host_words:bytes
+          ()
+      in
+      let config, program, data = image ~bit in
+      let model, pins, _ =
+        run
+          ~data
+          ~cycles
+          ~config
+          ~program
+          ~inputs:(Fn.const 0)
+          ~host_words:(List.map bytes ~f:word)
+          ()
+      in
+      let native = uart_frames ~pin ~bit native in
+      let table = uart_frames ~pin ~bit pins in
+      print_s
+        [%message
+          name
+            (bit : int)
+            ~bytes:(List.map table ~f:fst : int list)
+            ~edges_identical:([%equal: (int * (int * int) list) list] native table : bool)
+            (model.fault : Machine.Fault.t)]);
+  [%expect
+    {|
+    (shift (bit 26) (bytes (163 0 255 92)) (edges_identical true)
+     (model.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    (burst (bit 16) (bytes (163 0 255 92)) (edges_identical true)
+     (model.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    (burst (bit 8) (bytes (163 0 255 92)) (edges_identical true)
+     (model.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    |}]
+;;
+
+let%expect_test "spi master, full duplex, against the library's" =
+  let half = 26 in
+  let sent = [ 0xa5; 0x3c; 0x01 ] in
+  let slave = [ 0x96; 0xf0; 0x80 ] in
+  let cycles = 2500 in
+  (* a mode 0 slave: MISO shows the next bit after each falling SCK *)
+  let peer () =
+    let bits =
+      List.concat_map slave ~f:(fun b -> List.init 8 ~f:(fun i -> (b lsr (7 - i)) land 1))
+      |> Array.of_list
+    in
+    let index = ref 0 in
+    let sck = ref 0 in
+    let inputs _ =
+      if !index < Array.length bits then bits.(!index) lsl Spi.miso_pin else 0
+    in
+    let react (m : Machine.t) =
+      let level = (m.pin_out lsr Spi.sck_pin) land 1 in
+      if !sck = 1 && level = 0 then incr index;
+      sck := level
+    in
+    inputs, react
+  in
+  (* SCK's rises from the first of each byte, and MOSI at each *)
+  let observe pins =
+    let rises =
+      edges ~watch:[ Spi.sck_pin ] pins |> List.filter ~f:(fun (_, _, l) -> l = 1)
+    in
+    ( List.map rises ~f:(fun (c, _, _) -> (pins.(c) lsr Spi.mosi_pin) land 1)
+    , List.chunks_of rises ~length:8
+      |> List.map ~f:(fun byte ->
+        let first = Tuple3.get1 (List.hd_exn byte) in
+        List.map byte ~f:(fun (c, _, _) -> c - first)) )
+  in
+  let with_peer ~config ~program ~data ~host_words =
+    let inputs, react = peer () in
+    run ~react ~data ~cycles ~config ~program ~inputs ~host_words ()
+  in
+  let _, native, native_rx =
+    with_peer
+      ~config:Spi.config
+      ~program:(Firmware.assemble (Spi.master ~half_period:half))
+      ~data:[]
+      ~host_words:sent
+  in
+  let config, program, data = table_image (spi_master ~half) in
+  let model, pins, table_rx =
+    with_peer ~config ~program ~data ~host_words:(List.map sent ~f:(fun b -> b lsl 8))
+  in
+  let native_mosi, native_spacing = observe native in
+  let table_mosi, table_spacing = observe pins in
+  print_s
+    [%message
+      ""
+        (half : int)
+        ~mosi_at_rises_identical:([%equal: int list] native_mosi table_mosi : bool)
+        ~sck_rises_identical:([%equal: int list list] native_spacing table_spacing : bool)
+        ~native_read:(List.map native_rx ~f:(fun w -> w land 0xff) : int list)
+        ~table_read:(List.map table_rx ~f:(fun w -> w land 0xff) : int list)
+        (model.fault : Machine.Fault.t)];
+  [%expect
+    {|
+    ((half 26) (mosi_at_rises_identical true) (sck_rises_identical true)
+     (native_read (150 240 128)) (table_read (150 240 128))
+     (model.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    |}]
+;;
+
+let%expect_test "dshot600 from host frames, against the library's" =
+  let frames =
+    [ Dshot.frame ~throttle:1046 ~telemetry:false
+    ; Dshot.frame ~throttle:2047 ~telemetry:true
+    ; Dshot.frame ~throttle:48 ~telemetry:false
+    ]
+  in
+  let cycles = 6000 in
+  let _, native, _ =
+    run
+      ~cycles
+      ~config:Dshot.config
+      ~program:(Firmware.assemble Dshot.dshot600)
+      ~inputs:(Fn.const 0)
+      ~host_words:frames
+      ()
+  in
+  let config, program, data = table_image (dshot ~zero_high:31 ~bit:83) in
+  let model, pins, _ =
+    run ~data ~cycles ~config ~program ~inputs:(Fn.const 0) ~host_words:frames ()
+  in
+  (* each frame's edges from its first rise *)
+  let per_frame pins =
+    edges ~watch:[ Dshot.pin ] pins
+    |> List.group ~break:(fun (a, _, _) (b, _, _) -> b - a > 200)
+    |> List.map ~f:(fun es ->
+      let first = Tuple3.get1 (List.hd_exn es) in
+      List.map es ~f:(fun (c, _, l) -> c - first, l))
+  in
+  let levels pins =
+    Array.to_list pins |> List.map ~f:(fun p -> (p lsr Dshot.pin) land 1 = 1)
+  in
+  let decoded pins =
+    Dshot.decode Dshot.Rate.dshot600 ~cycle_ns:Dshot.cycle_ns (levels pins)
+    |> Or_error.map ~f:fst
+  in
+  print_s
+    [%message
+      ""
+        ~edges_a_frame:(List.map (per_frame pins) ~f:List.length : int list)
+        ~identical:
+          ([%equal: (int * int) list list] (per_frame native) (per_frame pins) : bool)
+        ~decoded:(decoded pins : (int * bool) list Or_error.t)
+        (model.fault : Machine.Fault.t)];
+  [%expect
+    {|
+    ((edges_a_frame (32 32 32)) (identical true)
+     (decoded (Ok ((1046 false) (2047 true) (48 false))))
+     (model.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    |}]
+;;
+
+let%expect_test "i2c slave by the second await pin, against the library's" =
+  let module Peer = Protocol_models.I2c_peer in
+  let ops : Peer.Op.t list =
+    [ Start
+    ; Write 0xa0
+    ; Write 3
+    ; Write 0xaa
+    ; Stop
+    ; Start
+    ; Write 0xa2
+    ; Write 1
+    ; Stop
+    ; Start
+    ; Write 0xa0
+    ; Write 0x55
+    ; Start
+    ; Write 0xa0
+    ; Write 0x80
+    ; Stop
+    ]
+  in
+  let on_bus ~quarter ~config ~program ~data ~host_words =
+    let master = ref (Peer.create ~quarter ops) in
+    let dir = ref 0 in
+    let bus_sda = ref 1 in
+    (* the bus idles while both cores start *)
+    let lead = 100 in
+    let inputs c =
+      let sda, scl = if c < lead then 1, 1 else Peer.sda !master, Peer.scl !master in
+      bus_sda := sda land (1 - ((!dir lsr I2c.sda) land 1));
+      (!bus_sda lsl I2c.sda) lor (scl lsl I2c.scl)
+    in
+    let cycle = ref 0 in
+    let react (m : Machine.t) =
+      if !cycle >= lead then master := Peer.step !master ~sda:!bus_sda;
+      incr cycle;
+      dir := m.pin_dir
+    in
+    let cycles = quarter * 4 * 9 * 12 in
+    let model, _, received =
+      run ~react ~data ~cycles ~config ~program ~inputs ~host_words ()
+    in
+    model, received, Peer.log !master, Peer.idle !master
+  in
+  List.iter [ 125; 32 ] ~f:(fun quarter ->
+    let _, native, native_log, _ =
+      on_bus
+        ~quarter
+        ~config:I2c.slave_config
+        ~program:(Timed_program.words I2c.slave)
+        ~data:[]
+        ~host_words:[ 0x50 lsl 1 ]
+    in
+    let config, program, data = table_image (i2c_slave ~address:0x50 ~sda:I2c.sda) in
+    let model, table, table_log, idle =
+      on_bus
+        ~quarter
+        ~config
+        ~program
+        ~data
+        ~host_words:(List.init 16 ~f:(fun _ -> marker))
+    in
+    print_s
+      [%message
+        ""
+          ~kHz:(50_000 / (4 * quarter) : int)
+          ~native:(List.filter native ~f:(fun w -> w <> 0xa0) : int list)
+          ~table:(List.map table ~f:(fun w -> w lxor 0x8000) : int list)
+          ~logs_identical:([%equal: string list] native_log table_log : bool)
+          (table_log : string list)
+          (idle : bool)
+          (model.fault : Machine.Fault.t)]);
+  [%expect
+    {|
+    ((kHz 100) (native (3 170 85 128)) (table (3 170 85 128))
+     (logs_identical true) (table_log (ack ack ack nack nack ack ack ack ack))
+     (idle true)
+     (model.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    ((kHz 390) (native (3 170 85 128)) (table (3 170 85 128))
+     (logs_identical true) (table_log (ack ack ack nack nack ack ack ack ack))
+     (idle true)
+     (model.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    |}]
+;;
+
 module Counter = struct
   type t = int [@@deriving equal, sexp_of]
 end

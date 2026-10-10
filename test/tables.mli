@@ -109,3 +109,39 @@ val host_bits : bool list -> int
 
 (** A host word a [Burst] sends: 1 to 12 bits, the first first. *)
 val burst_word : bool list -> int
+
+module Uart_tx : State
+module Uart_burst : State
+module Spi_master : State
+module Dshot_bits : State
+module I2c_slave : State
+
+(** UART 8N1 on out_base, a bit at a time: each host word is [uart_word byte], whose bits
+    the table reads as the host bit and shifts on. A bit is [bit] cycles, at least
+    [Kind.least Shift]. *)
+val uart_tx : bit:int -> Uart_tx.t t
+
+val uart_word : int -> int
+
+(** The same by burst: each host word is a whole frame, [uart_frame byte]. A bit is [bit]
+    cycles, at least [Kind.burst_bit]. *)
+val uart_tx_burst : bit:int -> Uart_burst.t t
+
+val uart_frame : int -> int
+
+(** SPI mode 0, full duplex: MOSI on out_base, SCK on the next pin, MISO on in_base. Each
+    host word is a byte in its high 8 bits; the byte read comes back in the low 8 bits of
+    a pushed word. SCK is low for [half] cycles and high for [half]. *)
+val spi_master : half:int -> Spi_master.t t
+
+(** DShot from host frame words, MSB first, on out_base. *)
+val dshot : zero_high:int -> bit:int -> Dshot_bits.t t
+
+(** Takes writes to [address] on SDA [sda] and SCL [sda + 1], open drain, and acks the
+    address and each byte. Each byte goes to the host as [0x8000 lor byte]. The host keeps
+    a [marker] word queued for every byte: it reaches the host bit as the eighth bit comes
+    in. START and STOP are watched for on the first bit of a byte only, as [I2c.slave]
+    does. *)
+val i2c_slave : address:int -> sda:int -> I2c_slave.t t
+
+val marker : int
