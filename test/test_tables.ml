@@ -568,6 +568,57 @@ let%expect_test "uart tx, a bit at a time and by burst, against the library's" =
     |}]
 ;;
 
+let rev8 b =
+  List.init 8 ~f:(fun i -> ((b lsr i) land 1) lsl (7 - i))
+  |> List.sum (module Int) ~f:Fn.id
+;;
+
+let%expect_test "uart rx by awaiting the start edge, against the library's" =
+  let bit = 31 in
+  let rand = Random.State.make [| 3 |] in
+  let bytes = List.init 12 ~f:(fun _ -> Random.State.int rand 256) in
+  (* each frame after two bits of idle *)
+  let line =
+    List.concat_map bytes ~f:(fun b ->
+      [ 1; 1; 0 ] @ List.init 8 ~f:(fun i -> (b lsr i) land 1) @ [ 1 ])
+    |> Array.of_list
+  in
+  let lead = 100 in
+  let inputs c =
+    if c < lead || (c - lead) / bit >= Array.length line
+    then 1
+    else line.((c - lead) / bit)
+  in
+  let cycles = lead + (bit * Array.length line) + 200 in
+  let _, _, native =
+    run
+      ~cycles
+      ~config:Uart.rx_config
+      ~program:(Firmware.assemble (Uart.rx ~period:bit))
+      ~inputs
+      ~host_words:[]
+      ()
+  in
+  let config, program, data = table_image (uart_rx ~bit) in
+  let model, _, table = run ~data ~cycles ~config ~program ~inputs ~host_words:[] () in
+  print_s
+    [%message
+      ""
+        (bit : int)
+        (bytes : int list)
+        ~native:(List.map native ~f:(fun w -> w land 0xff) : int list)
+        ~table:(List.map table ~f:(fun w -> rev8 (w land 0xff)) : int list)
+        (model.fault : Machine.Fault.t)];
+  [%expect
+    {|
+    ((bit 31) (bytes (51 48 221 112 94 153 208 75 50 135 133 127))
+     (native (51 48 221 112 94 153 208 75 50 135 133 127))
+     (table (51 48 221 112 94 153 208 75 50 135 133 127))
+     (model.fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    |}]
+;;
+
 let%expect_test "spi master, full duplex, against the library's" =
   let half = 26 in
   let sent = [ 0xa5; 0x3c; 0x01 ] in
