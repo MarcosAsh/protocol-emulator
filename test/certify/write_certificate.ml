@@ -1145,6 +1145,28 @@ let fsm_miter ~mutant =
   ^ circuit_verilog
 ;;
 
+(* pico-examples programs as pio_import translates them, at the k their lockstep runs at *)
+let translated =
+  [ "pio_uart_tx", ("uart_tx.pio", "uart_tx", 8.)
+  ; "pio_ws2812", ("ws2812.pio", "ws2812", 6.25)
+  ; "pio_spi_cpha0", ("spi.pio", "spi_cpha0", 8.)
+  ; "pio_manchester_tx", ("manchester_encoding.pio", "manchester_tx", 7.)
+  ]
+;;
+
+let translated_exn name =
+  let file, wanted, k = List.Assoc.find_exn translated name ~equal:String.equal in
+  let program =
+    In_channel.read_all ("pio/test/pico_examples/" ^ file)
+    |> Pio.Pioasm.parse
+    |> ok_exn
+    |> List.find_exn ~f:(fun (p : Pio.Pioasm.Program.t) -> String.equal p.name wanted)
+  in
+  match Pio.Census.certify program ~k with
+  | Ok (t, _) -> Certified.plain ~no_wrap:true name t.source t.config
+  | Error verdict -> raise_s [%sexp (verdict : Pio.Census.Verdict.t)]
+;;
+
 let () =
   let args = Sys.get_argv () in
   let flag name = Array.exists args ~f:(String.equal name) in
@@ -1154,13 +1176,17 @@ let () =
   then
     (* every certificate formal/Makefile proves by induction, for CI's jobs *)
     List.map (Library.certified @ Library.time_triggered) ~f:(fun t -> t.name)
+    @ List.map translated ~f:fst
     |> String.concat ~sep:" "
     |> print_endline
   else (
     if not (flag "-inductive")
     then raise_s [%message "write_certificate.exe: pass -inductive, -names or -fsm"];
+    let name = Array.last_exn args in
     let { Certified.source; config; period; single_capture_edge; no_wrap; _ } =
-      Library.find_certified_exn (Array.last_exn args)
+      if List.Assoc.mem translated name ~equal:String.equal
+      then translated_exn name
+      else Library.find_certified_exn name
     in
     print_string
       (inductive
