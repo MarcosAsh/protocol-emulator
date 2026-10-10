@@ -10,7 +10,7 @@ let scl = 13
    out its byte frees it. Each pulse is a bit's two quarters low and two high. SDA read
    high may be a 1 bit, so a START resets the slave before the STOP. [sda_high] jumps to
    [clear_stop] when SDA reads high; [stop] follows the START. *)
-let bus_clear_testing ~sda_high ~stop =
+let bus_clear_testing ?(held = "") ~sda_high ~stop () =
   [%string
     {|
     set x, 8 side 0              ; nine pulses at most
@@ -27,22 +27,24 @@ clear:
     jmp x--, clear
 clear_stop:
     wait t+ side 0
-    set pindirs, 1 side 0        ; a START, which resets any slave
-    wait t+ side 0
+%{held}    set pindirs, 1 side 0        ; a START, which resets any slave
+%{held}    wait t+ side 0
     nop side 1
 %{stop}
 |}]
 ;;
 
-let bus_clear =
+let bus_clear ?held () =
   bus_clear_testing
+    ?held
     ~sda_high:"    jmp pin, clear_stop          ; SDA high"
     ~stop:"    jmp stop"
+    ()
 ;;
 
 (* host word: start[15] read[14] data[13:6] stop[5]; p is a quarter period, which [load]
    sets *)
-let master_loading ~load ~preamble =
+let master_loading ?(held = "") ~load ~preamble () =
   [%string
     {|
     .side_set 1
@@ -67,7 +69,7 @@ byte:
 start:                           ; bus idle, both lines high
     wait t+ side 0
     set pindirs, 1 side 0        ; SDA low while SCL high
-    wait t+ side 0
+%{held}    wait t+ side 0
     nop side 1
     add t, p side 1              ; a quarter of slack before the dispatch
     jmp send_or_read
@@ -75,9 +77,9 @@ restart:                         ; SCL low after a byte
     set pindirs, 0 side 1        ; release SDA
     wait t+ side 1
     nop side 0
-    wait t+ side 0
+%{held}    wait t+ side 0
     set pindirs, 1 side 0        ; SDA low while SCL high
-    wait t+ side 0
+%{held}    wait t+ side 0
     nop side 1
     add t, p side 1
 send_or_read:
@@ -134,7 +136,7 @@ stop:
     set pindirs, 1 side 1        ; SDA low
     wait t+ side 1
     nop side 0                   ; SCL high
-    wait t+ side 0
+%{held}    wait t+ side 0
     set pindirs, 0 side 0        ; SDA released while SCL high
     wait t+ side 0
     jmp idle
@@ -142,16 +144,26 @@ stop:
 ;;
 
 let master_with ~preamble ~quarter =
-  master_loading ~load:[%string "    set p, %{quarter#Int} side 0"] ~preamble
+  master_loading ~load:[%string "    set p, %{quarter#Int} side 0"] ~preamble ()
 ;;
 
-let master = master_with ~preamble:bus_clear
+let master = master_with ~preamble:(bus_clear ())
 let master_without_bus_clear = master_with ~preamble:"\n"
+let load_quarter = "    wait tx side 0\n    pull side 0\n    mov p, osr side 0"
+let master_host_rate = master_loading ~load:load_quarter ~preamble:(bus_clear ()) ()
 
-let master_host_rate =
-  master_loading
-    ~load:"    wait tx side 0\n    pull side 0\n    mov p, osr side 0"
-    ~preamble:bus_clear
+let master_host_rate_without_bus_clear =
+  master_loading ~load:load_quarter ~preamble:"\n" ()
+;;
+
+(* each START's hold, and repeated START's and STOP's setup, [quarters] long *)
+let master_host_rate_held ?(clear_bus = true) ~quarters () =
+  if quarters < 1 then raise_s [%message "BUG: under a quarter" (quarters : int)];
+  let held =
+    String.concat (List.init (quarters - 1) ~f:(fun _ -> "    wait t+ side 0\n"))
+  in
+  let preamble = if clear_bus then bus_clear ~held () else "\n" in
+  master_loading ~held ~load:load_quarter ~preamble ()
 ;;
 
 let config =
@@ -202,6 +214,7 @@ let master_stretch_loading ~load =
     set pindirs, 0 side 0
     wait t+ side 0
     jmp idle|}
+      ()
   in
   [%string
     {|
@@ -620,16 +633,10 @@ let bench =
   ]
 ;;
 
-(* 24LC256 at 3.3 V, the 2.5 to 5.5 V rows. The kernel times the master's pins, so a width
-   from a release to the next edge loses the line's rise, TR of 300 ns at most. *)
-let limits firmware =
-  let sheet page =
-    { Datasheet.Sheet.part = "24LC256"
-    ; document = "Microchip DS20001203W, Table 1-2"
-    ; page
-    }
-  in
-  let rise = Datasheet.Margin.Ns { ns = 300.; why = "TR, param 4" } in
+(* The kernel times the master's pins, so a width from a release to the next edge loses
+   the line's rise, which [rise] gives. [times] are each parameter's least, in ns, and
+   where the sheet gives it. *)
+let limits_with ~sheet ~rise ~times firmware =
   let scl = Datasheet.side_pin
   and sda = Datasheet.set_pin in
   (* the bits before an edge are true while the master holds the line low *)
@@ -644,7 +651,8 @@ let limits firmware =
         Datasheet.swap
           (Datasheet.spacing ~dirs:true ?hold ?apart ~a:(sda config) ~b:(scl config) () n))
   in
-  let limit parameter ns page margin bound =
+  let limit parameter (margin : Datasheet.Margin.t) bound =
+    let ns, page = List.Assoc.find_exn times ~equal:String.equal parameter in
     { Datasheet.firmware
     ; parameter
     ; limit = At_least ns
@@ -653,35 +661,168 @@ let limits firmware =
     ; bound
     }
   in
-  [ limit "THIGH" 600. "p.3, param 2" rise (pair ~hold:(fun ~own ~other:_ -> not own) ())
-  ; limit "TLOW" 1300. "p.3, param 3" Cycle (pair ~hold:(fun ~own ~other:_ -> own) ())
-  ; limit
-      "THD:STA"
-      600.
-      "p.3, param 6"
-      Cycle
-      (pair ~apart:(fun ~own ~other -> (not own) && other) ())
-  ; limit
-      "TSU:STA"
-      600.
-      "p.3, param 7"
-      rise
-      (sda_pair ~apart:(fun ~own ~other -> (not own) && not other) ())
-  ; limit "TSU:DAT" 100. "p.3, param 9" rise (pair ~apart:(fun ~own ~other:_ -> own) ())
-  ; limit
-      "TSU:STO"
-      600.
-      "p.3, param 10"
-      rise
-      (sda_pair ~apart:(fun ~own ~other -> own && not other) ())
-  ; limit
-      "TBUF"
-      1300.
-      "p.4, param 14"
-      rise
-      (sda_pair ~hold:(fun ~own ~other -> (not own) && not other) ())
+  [ limit "THIGH" rise (pair ~hold:(fun ~own ~other:_ -> not own) ())
+  ; limit "TLOW" Cycle (pair ~hold:(fun ~own ~other:_ -> own) ())
+  ; limit "THD:STA" Cycle (pair ~apart:(fun ~own ~other -> (not own) && other) ())
+  ; limit "TSU:STA" rise (sda_pair ~apart:(fun ~own ~other -> (not own) && not other) ())
+  ; limit "TSU:DAT" rise (pair ~apart:(fun ~own ~other:_ -> own) ())
+  ; limit "TSU:STO" rise (sda_pair ~apart:(fun ~own ~other -> own && not other) ())
+  ; limit "TBUF" rise (sda_pair ~hold:(fun ~own ~other -> (not own) && not other) ())
   ]
 ;;
+
+(* 24LC256 at 3.3 V, the 2.5 to 5.5 V rows *)
+let limits =
+  limits_with
+    ~sheet:(fun page ->
+      { Datasheet.Sheet.part = "24LC256"
+      ; document = "Microchip DS20001203W, Table 1-2"
+      ; page
+      })
+    ~rise:(Ns { ns = 300.; why = "TR, param 4" })
+    ~times:
+      [ "THIGH", (600., "p.3, param 2")
+      ; "TLOW", (1300., "p.3, param 3")
+      ; "THD:STA", (600., "p.3, param 6")
+      ; "TSU:STA", (600., "p.3, param 7")
+      ; "TSU:DAT", (100., "p.3, param 9")
+      ; "TSU:STO", (600., "p.3, param 10")
+      ; "TBUF", (1300., "p.4, param 14")
+      ]
+;;
+
+module Mode = struct
+  type t =
+    | Standard
+    | Fast
+  [@@deriving sexp_of]
+end
+
+(* UM10204's own rows, for any device on the bus, with the mode's slowest rise, tr; and
+   the clock's period from a run, as SCL's rate is at most fSCL *)
+let um10204 (mode : Mode.t) firmware =
+  let column, rate, rise, times =
+    match mode with
+    | Standard ->
+      ( "Standard-mode"
+      , 100_000.
+      , 1000.
+      , [ "THIGH", 4000.
+        ; "TLOW", 4700.
+        ; "THD:STA", 4000.
+        ; "TSU:STA", 4700.
+        ; "TSU:DAT", 250.
+        ; "TSU:STO", 4000.
+        ; "TBUF", 4700.
+        ] )
+    | Fast ->
+      ( "Fast-mode"
+      , 400_000.
+      , 300.
+      , [ "THIGH", 600.
+        ; "TLOW", 1300.
+        ; "THD:STA", 600.
+        ; "TSU:STA", 600.
+        ; "TSU:DAT", 100.
+        ; "TSU:STO", 600.
+        ; "TBUF", 1300.
+        ] )
+  in
+  let sheet page =
+    { Datasheet.Sheet.part = [%string "I2C %{column}"]
+    ; document = "NXP UM10204 Rev. 7.0"
+    ; page
+    }
+  in
+  let period =
+    { Datasheet.firmware
+    ; parameter = "1/fSCL"
+    ; limit = At_least (1e9 /. rate)
+    ; sheet = sheet "Table 10, fSCL"
+    ; margin = Cycle
+    ; bound =
+        Datasheet.run ~pin:Datasheet.side_pin (fun ~clock_hz:_ levels ->
+          List.filter_map (Datasheet.pairs levels) ~f:(fun ((high, l), (next, h)) ->
+            Option.some_if ((not high) && next) (l + h)))
+    }
+  in
+  limits_with
+    ~sheet
+    ~rise:(Ns { ns = rise; why = "tr" })
+    ~times:(List.map times ~f:(fun (parameter, ns) -> parameter, (ns, "Table 10")))
+    firmware
+  @ [ period ]
+;;
+
+(* Standard-mode and Fast-mode on the bench's bus, each at the fastest clock its limits
+   allow at 48 MHz: 99.2 kHz, and 375 kHz, as an even clock's low of 1.3 us leaves no 400 *)
+let standard_quarter = 121
+let fast_quarter = 32
+
+let standard_and_fast =
+  List.map
+    [ "i2c_standard", 3, standard_quarter; "i2c_fast", 2, fast_quarter ]
+    ~f:(fun (name, quarters, quarter) ->
+      let word = word in
+      let words =
+        [ quarter
+        ; word ~start:true 0xa0
+        ; word 0x00
+        ; word ~stop:true 0x10
+        ; word ~start:true 0xa0
+        ; word 0x00
+        ; word ~start:true 0xa1
+        ; word ~read:true 0
+        ; word ~read:true ~stop:true 0
+        ]
+      in
+      { Bench.name
+      ; what =
+          [%string
+            "I2c.master_host_rate_held ~quarters:%{quarters#Int}: the host sends the \
+             quarter, %{quarter#Int} cycles for %{Bench.rate (4 * quarter)}, SCL on IO2, \
+             SDA on IO3"]
+      ; source = master_host_rate_held ~quarters ()
+      ; config = on_bench_pins ~jmp_pin:Bench.sda config
+      ; assumption = Floor 31
+      ; clock_hz = Bench.clock_hz
+      ; load = Some quarter
+      ; stimulus = Some { bursts = [ words ]; quiet = 0; cycles = 100 * 4 * quarter }
+      })
+;;
+
+(* On wires, whose OR carries each line's pull: the master without its bus clear, whose
+   START then STOP [slave] reads as an address bit, and nothing outside can hold a wire *)
+let wire_sda = Isa.num_pins
+let wire_scl = Isa.num_pins + 1
+let wire_pins = [ sda, wire_sda; scl, wire_scl ]
+
+let on_wires (config : Program_config.t) =
+  let pin p = List.Assoc.find_exn wire_pins ~equal:Int.equal p in
+  { config with
+    side_set_base =
+      (if config.side_set_count > 0
+       then pin config.side_set_base
+       else config.side_set_base)
+  ; side_set_pindirs = false
+  ; in_base = pin config.in_base
+  ; out_base = pin config.out_base
+  ; set_base = pin config.set_base
+  ; jmp_pin = pin config.jmp_pin
+  }
+;;
+
+let master_on_wires =
+  On_wire.open_drain_on_wire ~pins:wire_pins master_host_rate_without_bus_clear
+;;
+
+let master_on_wires_config = on_wires config
+
+let slave_on_wires =
+  On_wire.open_drain_on_wire ~pins:wire_pins (Timed_program.source slave)
+;;
+
+let slave_on_wires_config = on_wires slave_config
 
 let scenario =
   let memory = List.init 16 ~f:(fun i -> 0x10 + (0x11 * i)) in
@@ -750,11 +891,39 @@ let protocol =
         Certified.plain ~no_wrap:true "i2c_master" (master ~quarter:13) config
       ; Certified.plain "i2c_slave" (Timed_program.source slave) slave_config
       ; Certified.plain "i2c_logger" (Timed_program.source logger) logger_config
+        (* Standard-mode and Fast-mode at 48 MHz *)
+      ; Certified.plain
+          ~period:standard_quarter
+          ~period_floor:8
+          ~no_wrap:true
+          "i2c_master_standard"
+          (master_host_rate_held ~quarters:3 ())
+          config
+      ; Certified.plain
+          ~period:fast_quarter
+          ~period_floor:8
+          ~no_wrap:true
+          "i2c_master_fast"
+          (master_host_rate_held ~quarters:2 ())
+          config
+        (* each as both_roles.ml runs it on wires *)
+      ; Certified.plain
+          ~period:standard_quarter
+          ~period_floor:8
+          ~no_wrap:true
+          "i2c_controller_wire"
+          master_on_wires
+          master_on_wires_config
+      ; Certified.plain "i2c_target_wire" slave_on_wires slave_on_wires_config
       ]
   ; time_triggered = []
-  ; bench
+  ; bench = bench @ standard_and_fast
   ; loaded_from_hex = []
-  ; limits = limits "i2c_master" @ limits "i2c_master_stretch"
+  ; limits =
+      limits "i2c_master"
+      @ limits "i2c_master_stretch"
+      @ um10204 Standard "i2c_standard"
+      @ um10204 Fast "i2c_fast"
   ; unlimited = [ "start_hold", "it drives no pin: it listens to Pico B's I2C" ]
   ; swept = []
   ; not_swept =
@@ -762,6 +931,13 @@ let protocol =
         , "open drain, which a wire does not show, and a slave has to acknowledge" )
       ; "i2c_slave", "a slave: the master's clock moves it"
       ; "i2c_logger", "an I2C master: open drain, and a slave has to answer"
+      ; ( "i2c_master_standard"
+        , "open drain, which a wire does not show, and a slave has to acknowledge" )
+      ; ( "i2c_master_fast"
+        , "open drain, which a wire does not show, and a slave has to acknowledge" )
+      ; ( "i2c_controller_wire"
+        , "on two wires already, and both_roles.ml's target acknowledges" )
+      ; "i2c_target_wire", "a target: the controller's clock moves it"
       ]
   ; scenarios = [ scenario ]
   ; decoded = []

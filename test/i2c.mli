@@ -18,6 +18,16 @@ val master_without_bus_clear : quarter:int -> string
     quarter of 31 cycles, which is as long as [set] makes one. *)
 val master_host_rate : string
 
+(** [master_host_rate] without the bus clear, whose START then STOP [slave] reads as the
+    first bit of an address: for a bus no outside slave can hold. *)
+val master_host_rate_without_bus_clear : string
+
+(** [master_host_rate] with each START held, and each repeated START and STOP set up,
+    [quarters] quarter periods where it has one, as UM10204's tHD;STA, tSU;STA and tSU;STO
+    need at its clock: Standard-mode 3, Fast-mode 2. Without [clear_bus] it starts at
+    [idle]. *)
+val master_host_rate_held : ?clear_bus:bool -> quarters:int -> unit -> string
+
 val config : Program_config.t
 
 (** [master] under [stretch_config], each SCL high timed from the poll that sees it, 0 to
@@ -53,5 +63,24 @@ val start_hold_config : scl:int -> Program_config.t
 
 (** A host word for [master]: start[15] read[14] data[13:6] stop[5]. *)
 val word : ?start:bool -> ?read:bool -> ?stop:bool -> int -> int
+
+(** The quarters for Standard-mode, 121 for 99.2 kHz, and Fast-mode, 32 for 375 kHz, the
+    fastest UM10204's limits allow at 48 MHz with an even clock. *)
+val standard_quarter : int
+
+val fast_quarter : int
+
+(** [master] and [slave] on wires 20 (SDA) and 21 (SCL) by [On_wire.open_drain_on_wire],
+    the master without its bus clear. Host words as theirs. *)
+val wire_sda : int
+
+val wire_scl : int
+val master_on_wires : string
+val master_on_wires_config : Program_config.t
+val slave_on_wires : string
+val slave_on_wires_config : Program_config.t
+
+(** [config] with SCL on the bench's IO2, SDA on IO3, and [jmp_pin]. *)
+val on_bench_pins : jmp_pin:int -> Program_config.t -> Program_config.t
 
 val protocol : Protocol.t
