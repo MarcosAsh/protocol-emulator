@@ -1146,3 +1146,331 @@ let%expect_test "only the first wait after the arm sees the captured edge" =
      ((underflow false) (overflow false) (missed_deadline true) (decode false)))
     |}]
 ;;
+
+let rows
+  ?(config = Program_config.default)
+  ?period
+  ?period_floor
+  ?single_capture_edge
+  source
+  =
+  let program = Asm.assemble source |> ok_exn in
+  Analyser.analyse
+    ?period
+    ?period_floor
+    ?single_capture_edge
+    ~config:(Asm.Program.configure program config)
+    program.instructions
+;;
+
+(* a line per row with what [f] picks out of it, for the fields the report leaves out *)
+let print_rows rows ~f =
+  List.iter rows ~f:(fun (r : Analyser.Row.t) ->
+    printf "%3d  %-28s %s\n" r.pc (Asm.to_string ~side_set_count:0 r.instruction) (f r))
+;;
+
+(* rx_config captures pin 0 falling; a wait on another pin, or for anything else, leaves
+   the arm awaiting *)
+let%expect_test "only a wait for the captured edge on the capture pin sees it" =
+  let source =
+    {|
+    wait 1 pin 0
+    capture_arm
+    wait tx
+    wait 0 pin 3
+    wait fall pin 3
+    wait fall pin 0
+    capture_arm
+    wait 0 pin 0
+    halt
+|}
+  in
+  List.iter [ true; false ] ~f:(fun single_capture_edge ->
+    print_s [%message (single_capture_edge : bool)];
+    print_rows (rows ~config:Uart.rx_config ~single_capture_edge source) ~f:(fun r ->
+      sprintf "awaiting %b  captured %b" r.awaiting r.captured));
+  [%expect
+    {|
+    (single_capture_edge true)
+      0  wait 1 pin 0                 awaiting false  captured false
+      1  capture_arm                  awaiting false  captured false
+      2  wait tx                      awaiting true  captured false
+      3  wait 0 pin 3                 awaiting true  captured false
+      4  wait fall pin 3              awaiting true  captured false
+      5  wait fall pin 0              awaiting true  captured false
+      6  capture_arm                  awaiting false  captured true
+      7  wait 0 pin 0                 awaiting true  captured false
+      8  halt                         awaiting false  captured true
+    (single_capture_edge false)
+      0  wait 1 pin 0                 awaiting false  captured false
+      1  capture_arm                  awaiting false  captured false
+      2  wait tx                      awaiting true  captured false
+      3  wait 0 pin 3                 awaiting true  captured false
+      4  wait fall pin 3              awaiting true  captured false
+      5  wait fall pin 0              awaiting true  captured false
+      6  capture_arm                  awaiting true  captured false
+      7  wait 0 pin 0                 awaiting true  captured false
+      8  halt                         awaiting true  captured false
+    |}]
+;;
+
+(* The slope is the cycles a pass falls behind: what each instruction adds to the phase,
+   and none for a loop with a jump that stays inside it. *)
+let%expect_test "counted loops of every shape" =
+  let source =
+    {|
+    set y, 2
+    mov t, now
+    set x, 1
+    nop
+    set x, 3
+a:
+    add t, 5
+    add t, y
+    sub t, 1
+    jmp x--, a
+    set x, 3
+b:
+    jmp x--, b
+    set x, 3
+c:
+    jmp pin, c
+    jmp x--, c
+    set x, 3
+d:
+    jmp pin, e
+e:
+    jmp x--, d
+    halt
+|}
+  in
+  print_rows (rows source) ~f:(fun r ->
+    sprintf
+      "phase %s  slope %d  offset %s"
+      (Interval.to_string r.phase)
+      r.slope
+      (Interval.to_string r.offset));
+  [%expect
+    {|
+     0  set y, 2                     phase ?..?  slope 0  offset ?..?
+     1  mov t, now                   phase ?..?  slope 0  offset ?..?
+     2  set x, 1                     phase 1  slope 0  offset ?..?
+     3  nop                          phase 2  slope 0  offset ?..?
+     4  set x, 3                     phase 3  slope 0  offset ?..?
+     5  add t, 5                     phase ?..4  slope 1  offset 1
+     6  add t, y                     phase ?..0  slope 1  offset -3
+     7  sub t, 1                     phase ?..-1  slope 1  offset -4
+     8  jmp x--, 5                   phase ?..1  slope 1  offset -2
+     9  set x, 3                     phase 0  slope 0  offset ?..?
+    10  jmp x--, 10                  phase 1..?  slope -2  offset 7
+    11  set x, 3                     phase 9  slope 0  offset ?..?
+    12  jmp pin, 12                  phase 10..?  slope 0  offset ?..?
+    13  jmp x--, 12                  phase 12..?  slope 0  offset ?..?
+    14  set x, 3                     phase 14..?  slope 0  offset ?..?
+    15  jmp pin, 16                  phase 15..?  slope 0  offset ?..?
+    16  jmp x--, 15                  phase 17..?  slope 0  offset ?..?
+    17  halt                         phase 19..?  slope 0  offset ?..?
+    |}]
+;;
+
+(* Unlike a jump into a loop of the same slope, one into a loop of another slope carries
+   no offset: the phase it falls through at is no tighter than the drift allows. *)
+let%expect_test "a counted loop may jump out into another of another slope" =
+  let source =
+    {|
+    set p, 31
+    mov t, now
+    set x, 3
+a:
+    jmp pin, b
+    nop
+    jmp x--, a
+    add t, p
+    wait t
+    jmp 0
+b:
+    nop [3]
+    jmp x--, b
+    add t, p
+    wait t
+    jmp 0
+|}
+  in
+  print_rows (rows source) ~f:(fun r ->
+    sprintf
+      "phase %s  slope %d  offset %s"
+      (Interval.to_string r.phase)
+      r.slope
+      (Interval.to_string r.offset));
+  [%expect
+    {|
+     0  set p, 31                    phase ?..?  slope 0  offset ?..?
+     1  mov t, now                   phase ?..?  slope 0  offset ?..?
+     2  set x, 3                     phase 1  slope 0  offset ?..?
+     3  jmp pin, 9                   phase 2..?  slope -5  offset 17
+     4  nop                          phase 4..?  slope -5  offset 19
+     5  jmp x--, 3                   phase 5..?  slope -5  offset 20
+     6  add t, p                     phase 22  slope 0  offset ?..?
+     7  wait t                       phase -8  slope 0  offset ?..?
+     8  jmp 0                        phase 1  slope 0  offset ?..?
+     9  nop [3]                      phase 4..?  slope -6  offset ?..?
+    10  jmp x--, 9                   phase 8..?  slope -6  offset ?..?
+    11  add t, p                     phase 10..?  slope 0  offset ?..?
+    12  wait t                       phase -20..?  slope 0  offset ?..?
+    13  jmp 0                        phase 1..?  slope 0  offset ?..?
+    |}]
+;;
+
+(* [now - t] is compared signed over the timer's width, so a deadline further ahead than
+   half of it reads as passed. *)
+let%expect_test "a deadline half the timer ahead" =
+  let source = {|
+    mov p, osr
+    mov t, now
+    add t, p
+    wait t
+    halt
+|} in
+  let half = 1 lsl (Isa.timer_bits - 1) in
+  List.iter
+    [ (half / 2) + 3; half + 2; half + 3 ]
+    ~f:(fun period ->
+      rows ~period source
+      |> List.filter ~f:(fun r -> Option.is_some r.slack)
+      |> Analyser.to_string ~side_set_count:0
+      |> print_endline);
+  [%expect
+    {|
+    3  wait t                       phase -4194305  slack 4194305
+    3  wait t                       phase -8388608  slack 8388608
+    3  wait t                       phase -8388609  slack 8388609  MAY MISS
+    |}]
+;;
+
+let%expect_test "a period floor leaves a load no higher than a data word" =
+  print_rows (rows ~period_floor:100 "    mov p, osr\n    halt\n") ~f:(fun r ->
+    "period " ^ Interval.to_string r.period);
+  [%expect
+    {|
+    0  mov p, osr                   period ?..?
+    1  halt                         period 100..65535
+    |}]
+;;
+
+(* x is 1 or 3, never 10; y is 3, never 0 *)
+let%expect_test "a jump on register ranges the analysis knows goes one way" =
+  report
+    {|
+    set y, 10
+    set x, 1
+    jmp pin, a
+    set x, 3
+a:
+    jmp x!=y, c
+    set pins, 1
+c:
+    set y, 3
+    jmp y--, d
+    set pins, 0
+d:
+    halt
+|};
+  [%expect
+    {|
+    0  set y, 10                    phase ?..?
+    1  set x, 1                     phase ?..?
+    2  jmp pin, 4                   phase ?..?
+    3  set x, 3                     phase ?..?
+    4  jmp x!=y, 6                  phase ?..?
+    6  set y, 3                     phase ?..?
+    7  jmp y--, 9                   phase ?..?
+    9  halt                         phase ?..?
+    |}]
+;;
+
+(* a data pull may come straight after a seek on the way where the out reaches the
+   threshold *)
+let%expect_test "an autopull that comes on some ways in" =
+  report
+    ~config:
+      { Program_config.default with
+        autopull = true
+      ; pull_threshold = 8
+      ; autopull_data = true
+      }
+    {|
+    pull
+    jmp pin, b
+    out null, 8
+b:
+    seek
+    out x, 1
+    halt
+|};
+  [%expect
+    {|
+    0  pull                         phase ?..?
+    1  jmp pin, 3                   phase ?..?
+    2  out null, 8                  phase ?..?
+    3  seek                         phase ?..?
+    4  out x, 1                     phase ?..?  MAY UNDERRUN
+    5  halt                         phase ?..?
+    |}]
+;;
+
+(* side-set keeps its level across a write unless the write reaches one of its pins *)
+let%expect_test "side-set holds across a write to other pins" =
+  (* the second of two side-set pins is the set pin *)
+  report
+    ~config:
+      { Program_config.default with side_set_count = 2; side_set_base = 5; set_base = 6 }
+    {|
+    .side_set 2
+    nop side 0
+    set pins, 1 side 0
+    nop side 0
+    halt side 0
+|};
+  (* a Manchester bit drives out_base and the pin beside it, not side-set's *)
+  report
+    ~config:
+      { Program_config.default with
+        side_set_count = 1
+      ; side_set_base = 10
+      ; manchester = true
+      }
+    {|
+    .side_set 1
+    set x, 1 side 0
+    mov osr, x side 0
+    out pins, 1 side 0
+    nop side 0
+    halt side 0
+|};
+  (* side-set drives levels, so a write to the same pin's direction leaves it *)
+  report
+    ~config:{ Program_config.default with side_set_count = 1 }
+    {|
+    .side_set 1
+    nop side 0
+    out pindirs, 1 side 0
+    nop side 0
+    halt side 0
+|};
+  [%expect
+    {|
+    0  nop side 0                   phase ?..?  side ?..?  jitter ?
+    1  set pins, 1 side 0           phase ?..?  edge ?..?  jitter ?  gap ?..?
+    2  nop side 0                   phase ?..?  side ?..?  jitter ?
+    3  halt side 0                  phase ?..?
+    0  set x, 1 side 0              phase ?..?  side ?..?  jitter ?
+    1  mov osr, x side 0            phase ?..?
+    2  out pins, 1 side 0           phase ?..?  edge ?..?  jitter ?  gap ?..?
+    3  nop side 0                   phase ?..?  flip ?..?  jitter ?  gap 1
+    4  halt side 0                  phase ?..?
+    0  nop side 0                   phase ?..?  side ?..?  jitter ?
+    1  out pindirs, 1 side 0        phase ?..?  edge ?..?  jitter ?  gap ?..?
+    2  nop side 0                   phase ?..?
+    3  halt side 0                  phase ?..?
+    |}]
+;;
