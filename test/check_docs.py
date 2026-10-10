@@ -41,7 +41,7 @@ NOT_IN_REPO = ("tt/",)
 
 # what a gds run hardens, as gds.yaml's paths filter has it
 HARDENED = ["src", "macro", "info.yaml", "librelane_plugin_sram_pdn.py", "odb_sram_stripes.py",
-            ":!*.ml", ":!*.mli", ":!**/dune"]
+            "librelane_plugin_die_art.py", "die_art.py", ":!*.ml", ":!*.mli", ":!**/dune"]
 
 EXTENSIONS = "ml|mli|sv|v|sby|py|asm|hex|txt|tcl|yaml|svg|png|md|json|settings|lpf|mk"
 PATH = re.compile(rf"(?<![\w./-])((?:[\w.-]+/)+[\w.-]+\.(?:{EXTENSIONS}))(?!\.?[\w/-])")

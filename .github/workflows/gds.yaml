@@ -12,6 +12,8 @@ on:
       - info.yaml
       - librelane_plugin_sram_pdn.py
       - odb_sram_stripes.py
+      - librelane_plugin_die_art.py
+      - die_art.py
       - test/**
       - .github/workflows/gds.yaml
       - demo/decode.py

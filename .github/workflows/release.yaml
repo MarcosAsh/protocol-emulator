@@ -99,7 +99,7 @@ jobs:
           # the bitstreams are built from here, so they are the chip only if what a gds run
           # hardens, as gds.yaml's paths filter has it, is the same here as at its commit
           if ! git diff --quiet "$commit" HEAD -- src macro info.yaml librelane_plugin_sram_pdn.py \
-            odb_sram_stripes.py ':!*.ml' ':!*.mli' ':!**/dune'; then
+            odb_sram_stripes.py librelane_plugin_die_art.py die_art.py ':!*.ml' ':!*.mli' ':!**/dune'; then
             echo "::$LEVEL::the chip's sources here differ from $commit, which gds run $run hardened"
             [ "$LEVEL" = warning ]
           fi
