@@ -1,5 +1,6 @@
 ; pico_examples: .pio files from github.com/raspberrypi/pico-examples at 0d62f75, copied
-; unmodified (BSD-3-Clause, see pico_examples/LICENSE.TXT).
+; unmodified (BSD-3-Clause, see pico_examples/LICENSE.TXT). holes/i2c.pio is pico_examples/i2c.pio
+; with four delays made holes.
 
 (library
  (name pio_test)
@@ -9,6 +10,7 @@
  (inline_tests
   (deps
    ../bin/pio_check.exe
-   (glob_files pico_examples/*.pio))
+   (glob_files pico_examples/*.pio)
+   (glob_files holes/*))
   (flags
    (-source-tree-root .))))
