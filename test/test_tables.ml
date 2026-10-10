@@ -120,7 +120,7 @@ let reference
           after ~sample:(release + 26) ~next_release:(release + e.hold + 31) ~p ~host
         | Burst ->
           let word = List.hd_exn host in
-          let anchor = release + 20 in
+          let anchor = release + 21 in
           let bit_cycles = e.hold + 6 in
           let n = (word land 0xf) + 1 in
           List.init n ~f:Fn.id
@@ -135,7 +135,7 @@ let reference
             ~p
             ~host:(List.tl_exn host)
         | Await_host ->
-          let anchor = release + 23 in
+          let anchor = release + 24 in
           after
             ~sample:(anchor + 11)
             ~next_release:(anchor + e.hold + 16)
@@ -144,9 +144,9 @@ let reference
         | Await { pin = which; level } ->
           let opens =
             match which, level with
-            | A, true -> 21
-            | A, false -> 23
-            | B, _ -> 25
+            | A, true -> 22
+            | A, false -> 24
+            | B, _ -> 26
           in
           let watched =
             match which with
@@ -283,7 +283,7 @@ let%expect_test "random tables of every kind: RTL, model and reference agree" =
         ~words_pushed:(!pushed_words : int)
         (unreached : int list)];
   [%expect
-    {| ((tables 64) (cycles 3000) (differing 0) (words_pushed 494) (unreached (0))) |}]
+    {| ((tables 64) (cycles 3000) (differing 0) (words_pushed 477) (unreached (0))) |}]
 ;;
 
 let%expect_test "the kernel accepts the interpreter at every wiring, with data memory \
@@ -332,36 +332,36 @@ let%expect_test "the kernel accepts the interpreter at every wiring, with data m
   [%expect
     {|
     ((inputs 1) (open_drain false)
-     (verdict ((words 106) (deadline_waits 2) (worst_slack (0)))))
+     (verdict ((words 112) (deadline_waits 2) (worst_slack (0)))))
     ((inputs 1) (open_drain true)
-     (verdict ((words 106) (deadline_waits 2) (worst_slack (0)))))
+     (verdict ((words 112) (deadline_waits 2) (worst_slack (0)))))
     ((inputs 2) (open_drain false)
-     (verdict ((words 106) (deadline_waits 2) (worst_slack (0)))))
+     (verdict ((words 112) (deadline_waits 2) (worst_slack (0)))))
     ((inputs 2) (open_drain true)
-     (verdict ((words 106) (deadline_waits 2) (worst_slack (0)))))
+     (verdict ((words 112) (deadline_waits 2) (worst_slack (0)))))
     ((inputs 3) (open_drain false)
-     (verdict ((words 106) (deadline_waits 2) (worst_slack (0)))))
+     (verdict ((words 112) (deadline_waits 2) (worst_slack (0)))))
     ((inputs 3) (open_drain true)
-     (verdict ((words 106) (deadline_waits 2) (worst_slack (0)))))
+     (verdict ((words 112) (deadline_waits 2) (worst_slack (0)))))
     ((inputs 4) (open_drain false)
-     (verdict ((words 106) (deadline_waits 2) (worst_slack (0)))))
+     (verdict ((words 112) (deadline_waits 2) (worst_slack (0)))))
     ((inputs 4) (open_drain true)
-     (verdict ((words 106) (deadline_waits 2) (worst_slack (0)))))
+     (verdict ((words 112) (deadline_waits 2) (worst_slack (0)))))
     ((inputs 5) (open_drain false)
-     (verdict ((words 106) (deadline_waits 2) (worst_slack (0)))))
+     (verdict ((words 112) (deadline_waits 2) (worst_slack (0)))))
     ((inputs 5) (open_drain true)
-     (verdict ((words 106) (deadline_waits 2) (worst_slack (0)))))
+     (verdict ((words 112) (deadline_waits 2) (worst_slack (0)))))
     ((inputs 6) (open_drain false)
-     (verdict ((words 106) (deadline_waits 2) (worst_slack (0)))))
+     (verdict ((words 112) (deadline_waits 2) (worst_slack (0)))))
     ((inputs 6) (open_drain true)
-     (verdict ((words 106) (deadline_waits 2) (worst_slack (0)))))
+     (verdict ((words 112) (deadline_waits 2) (worst_slack (0)))))
     ("a cycle short, refused" (added 16) (at ((5))))
     ("a cycle short, refused" (added 17) (at ((5))))
     ("a cycle short, refused" (added 19) (at ((5))))
     ("a cycle short, refused" (added 26) (at ((5))))
     ("a cycle short, refused" (added 28) (at ((5))))
     ("a cycle short, refused" (added 31) (at ((5))))
-    ("a burst bit a cycle short, refused" (at ((5) (58))))
+    ("a burst bit a cycle short, refused" (at ((5) (59))))
     |}]
 ;;
 
@@ -422,61 +422,67 @@ let%expect_test "every row of the interpreter, k = 1" =
      48  set y, 31                    phase -65519..16
      49  add t, y                     phase -65518..17
      50  jmp 12                       phase -65548..-13
-     51  jmp x--, 68                  phase -65521..14
+     51  jmp x--, 69                  phase -65521..14
      52  out isr, 6                   phase -65519..16
-     53  wait tx                      phase -65518..17
-     54  pull                         phase -65517..?
-     55  out x, 4                     phase -65516..?
-     56  mov t, now                   phase -65515..?
-     57  add t, 4                     phase 1
-     58  wait t                       phase -65535..0  slack 0..65535
-     59  out pins, 1                  phase 1  edge 2  gap 6..?
-     60  add t, y                     phase 2
-     61  add t, 6                     phase -65532..3
-     62  jmp x--, 58                  phase -65537..-2
-     63  mov x, isr                   phase -65535..0
-     64  out null, 16                 phase -65534..1
-     65  set y, 16                    phase -65533..2
-     66  add t, y                     phase -65532..3
-     67  jmp 13                       phase -65547..-12
-     68  jmp x--, 79                  phase -65519..16
-     69  out x, 6                     phase -65517..18
-     70  wait tx                      phase -65516..19
-     71  pull                         phase -65515..?
-     72  mov p, osr                   phase -65514..?
-     73  out null, 16                 phase -65513..?
-     74  mov t, now                   phase -65512..?
-     75  add t, y                     phase 1
-     76  set y, 16                    phase -65533..2
-     77  add t, y                     phase -65532..3
-     78  jmp 13                       phase -65547..-12
-     79  jmp x--, 86                  phase -65517..18
-     80  wait 1 pin 0                 phase -65515..20
-     81  mov t, now                   phase -65514..?
-     82  add t, y                     phase 1
-     83  set y, 17                    phase -65533..2
-     84  add t, y                     phase -65532..3
-     85  jmp 12                       phase -65548..-13
-     86  jmp x--, 93                  phase -65515..20
-     87  wait 0 pin 0                 phase -65513..22
-     88  mov t, now                   phase -65512..?
-     89  add t, y                     phase 1
-     90  set y, 17                    phase -65533..2
-     91  add t, y                     phase -65532..3
-     92  jmp 12                       phase -65548..-13
-     93  jmp x--, 100                 phase -65513..22
-     94  wait 1 pin 1                 phase -65511..24
-     95  mov t, now                   phase -65510..?
-     96  add t, y                     phase 1
-     97  set y, 17                    phase -65533..2
-     98  add t, y                     phase -65532..3
-     99  jmp 12                       phase -65548..-13
-    100  wait 0 pin 1                 phase -65511..24
-    101  mov t, now                   phase -65510..?
-    102  add t, y                     phase 1
-    103  set y, 17                    phase -65533..2
-    104  add t, y                     phase -65532..3
-    105  jmp 12                       phase -65548..-13
+     53  mov t, null                  phase -65518..17
+     54  wait tx                      phase ?..?
+     55  pull                         phase ?..?
+     56  out x, 4                     phase ?..?
+     57  mov t, now                   phase ?..?
+     58  add t, 4                     phase 1
+     59  wait t                       phase -65535..0  slack 0..65535
+     60  out pins, 1                  phase 1  edge 2  gap 6..?
+     61  add t, y                     phase 2
+     62  add t, 6                     phase -65532..3
+     63  jmp x--, 59                  phase -65537..-2
+     64  mov x, isr                   phase -65535..0
+     65  out null, 16                 phase -65534..1
+     66  set y, 16                    phase -65533..2
+     67  add t, y                     phase -65532..3
+     68  jmp 13                       phase -65547..-12
+     69  jmp x--, 81                  phase -65519..16
+     70  out x, 6                     phase -65517..18
+     71  mov t, null                  phase -65516..19
+     72  wait tx                      phase ?..?
+     73  pull                         phase ?..?
+     74  mov p, osr                   phase ?..?
+     75  out null, 16                 phase ?..?
+     76  mov t, now                   phase ?..?
+     77  add t, y                     phase 1
+     78  set y, 16                    phase -65533..2
+     79  add t, y                     phase -65532..3
+     80  jmp 13                       phase -65547..-12
+     81  jmp x--, 89                  phase -65517..18
+     82  mov t, null                  phase -65515..20
+     83  wait 1 pin 0                 phase ?..?
+     84  mov t, now                   phase ?..?
+     85  add t, y                     phase 1
+     86  set y, 17                    phase -65533..2
+     87  add t, y                     phase -65532..3
+     88  jmp 12                       phase -65548..-13
+     89  jmp x--, 97                  phase -65515..20
+     90  mov t, null                  phase -65513..22
+     91  wait 0 pin 0                 phase ?..?
+     92  mov t, now                   phase ?..?
+     93  add t, y                     phase 1
+     94  set y, 17                    phase -65533..2
+     95  add t, y                     phase -65532..3
+     96  jmp 12                       phase -65548..-13
+     97  jmp x--, 105                 phase -65513..22
+     98  mov t, null                  phase -65511..24
+     99  wait 1 pin 1                 phase ?..?
+    100  mov t, now                   phase ?..?
+    101  add t, y                     phase 1
+    102  set y, 17                    phase -65533..2
+    103  add t, y                     phase -65532..3
+    104  jmp 12                       phase -65548..-13
+    105  mov t, null                  phase -65511..24
+    106  wait 0 pin 1                 phase ?..?
+    107  mov t, now                   phase ?..?
+    108  add t, y                     phase 1
+    109  set y, 17                    phase -65533..2
+    110  add t, y                     phase -65532..3
+    111  jmp 12                       phase -65548..-13
     |}]
 ;;
 
@@ -1010,7 +1016,7 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
   limit "dshot" ~at:shift ~fits:(fun zero_high ->
     fits (dshot ~zero_high ~bit:(3 * zero_high)));
   let dshot1200 = fits (dshot ~zero_high:16 ~bit:42) in
-  let i2c_quarter = i2c_slave_least_quarter (List.range ~stride:(-2) 40 0) in
+  let i2c_quarter = i2c_slave_least_quarter (List.range ~stride:(-1) 40 0) in
   let rows =
     [ ( "uart"
       , "built"
@@ -1121,7 +1127,7 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       library tx 8 to 31 cycles a bit; rx 16; rx wants some idle between frames, as its wait opens after the Push
     spi        built    master SCK 1.11 MHz, slave 581 kHz
       library half 8 (3.12 MHz); master built, mode 0; the slave awaits SCK and cannot abort on CS
-    i2c        built    slave to 417 kHz
+    i2c        built    slave to 403 kHz
       library master quarter 13 (962 kHz); slave built, writes only, by the second await pin; master by design, Shift reads
     usb        no       -
       library low speed device; a resync on every edge, NRZI, stuffing, CRC and a reply within 7.5 bits

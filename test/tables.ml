@@ -106,7 +106,9 @@ let burst_bits = 12
    low bits first. The entry at [d << 7 | state << k | inputs], d the host bit p[15],
    comes next. The kinds are tried in [Kind.all]'s order by counting x down, and every
    code from the last on runs the last. Each path adds its [Kind.added] to [t] before the
-   paths join, as the analyser keeps one interval a pc. *)
+   paths join, as the analyser keeps one interval a pc. A wait for the host or a pin
+   clears [t] first and re-anchors after: its phase grows without bound, and a bound on it
+   alone would wrap with the clock. *)
 let interpreter (w : Wiring.t) =
   Wiring.validate w |> ok_exn;
   let drive = if w.open_drain then "pindirs" else "pins" in
@@ -114,7 +116,8 @@ let interpreter (w : Wiring.t) =
   let after_await = added (Await { pin = A; level = true }) in
   let await pin level =
     [%string
-      {|    wait %{level#Int} pin %{pin#Int}
+      {|    mov t, null              ; no deadline while waiting
+    wait %{level#Int} pin %{pin#Int}
     mov t, now
     add t, y                 ; the hold, from here
     set y, %{after_await}
@@ -185,6 +188,7 @@ stamp:
 burst:
     jmp x--, await_host
     out isr, 6               ; the next state, kept
+    mov t, null              ; no deadline while waiting
     wait tx
     pull                     ; bits less one in the low 4, then the bits
     out x, 4
@@ -204,6 +208,7 @@ bit:
 await_host:
     jmp x--, await_a_high
     out x, 6
+    mov t, null              ; no deadline while waiting
     wait tx
     pull
     mov p, osr
