@@ -22,8 +22,9 @@ CHECK_FLAGS = 0x42
 CHECK_STATUS = 0x43
 REJECT_PC = 0x44
 REJECT_REASON = 0x45
+LINE_ADDR = 0x46
+LINE = 0x47
 PROGRAM_WORDS = 512
-# 0x46 and 0x47 are reserved and read as zero.
 
 
 class Refused(Exception):
@@ -37,7 +38,7 @@ CONFIG_FIELDS = [
     "in_shift_right", "out_shift_right", "autopush", "push_threshold", "autopull",
     "pull_threshold", "crc_width", "crc_poly", "crc_init", "crc_reflect",
     "stuff_threshold", "stuff_level", "wrap_bottom", "wrap_top", "period_fraction",
-    None, None, "autopull_data", "manchester",
+    None, None, "autopull_data", "manchester", "line_code", "route",
 ]
 
 DEFAULT_CONFIG = {
@@ -48,19 +49,21 @@ DEFAULT_CONFIG = {
 }
 
 
-def check_writes(base=0, loaded=None, single_edge=False):
+def check_writes(base=0, loaded=None, single_edge=False, floor=False):
     """(register, words) that start the chip's check against the certificate at base."""
+    flags = (loaded is not None) | (bool(single_edge) << 1) | (bool(floor) << 2)
     return [
         (CHECK_BASE, [base]),
         (CHECK_LOADED, [0 if loaded is None else loaded]),
-        (CHECK_FLAGS, [(loaded is not None) | (bool(single_edge) << 1)]),
+        (CHECK_FLAGS, [flags]),
         (CONTROL, [0x10]),
     ]
 
 
-def certify_writes(certificate, base=0, loaded=None, single_edge=False):
+def certify_writes(certificate, base=0, loaded=None, single_edge=False, floor=False):
     """check_writes after writing the certificate at base."""
-    return [(DATA_ADDR, [base]), (DATA, list(certificate))] + check_writes(base, loaded, single_edge)
+    return [(DATA_ADDR, [base]), (DATA, list(certificate))] + check_writes(
+        base, loaded, single_edge, floor)
 
 
 def config_writes(config):
@@ -104,19 +107,20 @@ class Host:
         self.write(DATA_ADDR, [address])
         self.write(DATA, words)
 
-    def certify(self, certificate, base=0, loaded=None, single_edge=False):
+    def certify(self, certificate, base=0, loaded=None, single_edge=False, floor=False):
         """Write the selected engine's certificate at base and have the chip check its
         program against it, as it must before a start counts. Every core has to be halted
         for the write; certification lasts until the program or configuration changes,
         whatever the data memory holds later. loaded is the period every run-time load of
-        p is assumed to carry, the floor where the firmware has one."""
+        p is assumed to carry, the least with floor. The core then faults where p or the
+        capture pin breaks what the check assumed."""
         self.load_data(certificate, base)
-        self.check(base, loaded, single_edge)
+        self.check(base, loaded, single_edge, floor)
 
-    def check(self, base=0, loaded=None, single_edge=False):
+    def check(self, base=0, loaded=None, single_edge=False, floor=False):
         """certify against a certificate the data memory already holds, as after a patch
         while another core runs and no data write lands."""
-        for reg, words in check_writes(base, loaded, single_edge):
+        for reg, words in check_writes(base, loaded, single_edge, floor):
             self.write(reg, words)
         status = self.read(CHECK_STATUS)[0]
         while status & 1:
@@ -128,6 +132,16 @@ class Host:
         """Counts only once the program is certified; otherwise the core stays halted and
         check_status shows it refused."""
         self.write(CONTROL, [1])
+
+    def start_all(self):
+        """Every engine on the same cycle, whatever the select, only if all are halted and
+        certified."""
+        self.write(CONTROL, [0x20])
+
+    def load_line_table(self, words):
+        """The selected engine's line code table, a word per state; only while halted."""
+        self.write(LINE_ADDR, [0])
+        self.write(LINE, list(words))
 
     def stop(self):
         """Halt the core, as program writes need. It resumes only from a start, at 0."""
