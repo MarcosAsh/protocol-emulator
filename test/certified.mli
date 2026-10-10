@@ -40,6 +40,3 @@ val receiver
   -> string
   -> Program_config.t
   -> t
-
-(** The library's firmware no protocol file holds yet ([Library]). *)
-val others : t list

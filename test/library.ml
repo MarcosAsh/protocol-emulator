@@ -1,21 +1,26 @@
 open! Core
 
-(* what the rest of the library still lists in [Certified], [Bench] and [Datasheet] *)
-let rest =
-  { Protocol.name = "rest"
-  ; certified = Certified.others
-  ; time_triggered = []
-  ; bench = Bench.others
-  ; loaded_from_hex = []
-  ; limits = Datasheet.others
-  ; unlimited = Datasheet.exempt
-  ; swept = Swept.others
-  ; not_swept = Swept.not_swept
-  ; scenarios = []
-  }
+(* in the order of the certificates, then the ones with none *)
+let protocols =
+  [ Uart.protocol
+  ; Spi.protocol
+  ; I2c.protocol
+  ; Usb.protocol
+  ; Edge_meter.protocol
+  ; Ws2812.protocol
+  ; Ethernet.protocol
+  ; One_wire.protocol
+  ; Ps2.protocol
+  ; Jtag.protocol
+  ; Can_node.protocol
+  ; Dshot.protocol
+  ; Sent.protocol
+  ; Cec.protocol
+  ; Swd.protocol
+  ; Spi_cs.protocol
+  ]
 ;;
 
-let protocols = [ Uart.protocol; Spi.protocol; I2c.protocol; rest; Spi_cs.protocol ]
 let each f = List.concat_map protocols ~f
 let certified = each (fun p -> p.certified)
 let time_triggered = each (fun p -> p.time_triggered)
@@ -46,6 +51,7 @@ let find_bench_exn name =
 let limits = each (fun p -> p.limits)
 let exempt = each (fun p -> p.unlimited)
 let scenarios = each (fun p -> p.scenarios)
+let decoded = each (fun p -> p.decoded)
 
 (* in the order of the firmware, whichever protocol has it *)
 let in_firmware_order all ~name =

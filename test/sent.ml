@@ -228,3 +228,34 @@ let decode ~cycle_ns levels =
   in
   frames pulses ~previous_sync:None [] Measured.empty
 ;;
+
+let protocol =
+  { Protocol.name = "sent"
+  ; certified =
+      [ Certified.plain
+          ~period:standard_tick
+          ~period_floor:shortest_tick
+          ~no_wrap:true
+          "sent"
+          firmware
+          config
+      ]
+  ; time_triggered = []
+  ; bench = []
+  ; loaded_from_hex = []
+  ; limits = []
+  ; unlimited = []
+  ; swept =
+      [ (* a tick of 6.25 us at 48 MHz, where nine edges take twice a poll *)
+        { Swept.name = "sent"
+        ; watch = "line"
+        ; on_wire = Swept.line
+        ; period = Some 300
+        ; bursts = [ words { status = 0; data = [ 1; 2; 3; 4; 5; 6 ] } ]
+        }
+      ]
+  ; not_swept = []
+  ; scenarios = []
+  ; decoded = []
+  }
+;;

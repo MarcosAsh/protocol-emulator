@@ -389,3 +389,92 @@ module Follower = struct
   let measured t = t.measured
   let violations t = List.rev t.violations
 end
+
+open Pin_trace
+module Reg = Host_port.Reg
+
+(* A unit of 25 cycles, as a 500 kHz clock gives, keeps the simulation short. *)
+let scenario =
+  let clock_hz = 500_000 in
+  let unit = clock_hz / 20_000 in
+  let frame ~to_ data = { Frame.initiator = 4; destination = to_; data } in
+  let frames =
+    [ frame ~to_:0 []
+    ; frame ~to_:0 [ 0x04 ]
+    ; frame ~to_:0 [ 0x47; Char.to_int 'C'; Char.to_int 'E'; Char.to_int 'C' ]
+    ; frame ~to_:15 [ 0x36 ]
+    ]
+  in
+  let peer () =
+    let follower =
+      ref (Follower.create ~cycle_ns:(1_000_000_000 / clock_hz) ~address:0)
+    in
+    let low = ref false in
+    { Peer.inputs = (fun () -> if !low then 0 else 1 lsl pin)
+    ; step =
+        (fun ~pin_out:_ ~pin_dir ->
+          low := Peer.bit pin_dir pin = 1 || Follower.drive_low !follower;
+          follower := Follower.step !follower ~low:!low)
+    }
+  in
+  (* the start bit is 90 units, a block 480, and the line is left free for 336 *)
+  let send (frame : Frame.t) =
+    let blocks = 1 + List.length frame.data in
+    [ Step.Write (Reg.tx, words frame)
+    ; Run ((90 + (480 * blocks) + 336 + 10) * unit)
+    ; Read (Reg.rx, blocks)
+    ]
+  in
+  { Scenario.name = "cec"
+  ; peer
+  ; script =
+      Scenario.load ~config ~program:(Firmware.assemble firmware)
+      @ [ Scenario.start; Write (Reg.tx, [ unit ]) ]
+      @ List.concat_map frames ~f:send
+  ; sigrok =
+      Some
+        { clock_hz
+        ; decoders = [ Sigrok.decoder "cec" ~pins:[ "cec", pin ] ]
+        ; expect =
+            [ ( "cec=frames"
+              , List.map frames ~f:(fun frame ->
+                  ((frame.initiator lsl 4) lor frame.destination) :: frame.data
+                  |> List.map ~f:(sprintf "%02x")
+                  |> String.concat ~sep:":")
+                |> Sigrok.lines "cec" )
+            ; (* the follower at 0 pulls each ACK slot low; nobody refuses a broadcast *)
+              ( "cec=ack:nack"
+              , List.concat_map frames ~f:(fun frame ->
+                  List.init (1 + List.length frame.data) ~f:(fun _ -> "ACK"))
+                |> Sigrok.lines "cec" )
+            ]
+        ; joins_after = None
+        ; rejected = None
+        ; (* edge 5 ends the low of the header's first one: 0.9 ms, past a one's 0.8 *)
+          teeth = [ [ Shift { pin; edge = 5; cycles = 6 * unit } ] ]
+        }
+  }
+;;
+
+let protocol =
+  { Protocol.name = "cec"
+  ; certified =
+      [ Certified.plain
+          ~period:standard_unit
+          ~period_floor:shortest_unit
+          ~no_wrap:true
+          "cec"
+          firmware
+          config
+      ]
+  ; time_triggered = []
+  ; bench = []
+  ; loaded_from_hex = []
+  ; limits = []
+  ; unlimited = []
+  ; swept = []
+  ; not_swept = [ "cec", "open drain, which a wire does not show" ]
+  ; scenarios = []
+  ; decoded = [ scenario ]
+  }
+;;

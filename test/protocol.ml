@@ -15,6 +15,7 @@ type t =
   ; swept : Swept.t list
   ; not_swept : (string * string) list
   ; scenarios : Pin_trace.Scenario.t list
+  ; decoded : Pin_trace.Scenario.t list
   }
 
 let configured (c : Certified.t) =
@@ -38,23 +39,65 @@ let loaded (scenario : Scenario.t) =
 ;;
 
 let firmware t (scenario : Scenario.t) =
-  let config, program = loaded scenario in
-  match
-    List.find (t.certified @ t.time_triggered) ~f:(fun c ->
-      [%equal: int list option] (Some (snd (configured c))) program)
-  with
-  | None ->
-    raise_s
-      [%message "the scenario loads none of the protocol's firmware" scenario.name t.name]
-  | Some c ->
-    if not ([%equal: int list] (fst (configured c)) config)
-    then
-      raise_s
-        [%message
-          "the scenario loads its firmware under another configuration"
-            scenario.name
-            c.name];
-    c
+  let loaded = loaded scenario in
+  List.find (t.certified @ t.time_triggered) ~f:(fun c ->
+    let config, words = configured c in
+    [%equal: int list * int list option] loaded (config, Some words))
+;;
+
+(* the configuration the registers hold, which [Scenario.load] wrote *)
+let of_registers values : Program_config.t =
+  let c =
+    let rest = ref values in
+    Engine.Config.map Engine.Config.port_names ~f:(fun _ ->
+      match !rest with
+      | value :: tail ->
+        rest := tail;
+        value
+      | [] -> raise_s [%message "BUG: too few config registers" (values : int list)])
+  in
+  let bool v = v <> 0 in
+  let shift v : Program_config.Shift_direction.t = if bool v then Right else Left in
+  let config : Program_config.t =
+    { side_set_count = c.side_set_count
+    ; side_set_base = c.side_set_base
+    ; side_set_pindirs = bool c.side_set_pindirs
+    ; in_base = c.in_base
+    ; in_count = c.in_count
+    ; out_base = c.out_base
+    ; out_count = c.out_count
+    ; set_base = c.set_base
+    ; set_count = c.set_count
+    ; jmp_pin = c.jmp_pin
+    ; capture_pin = c.capture_pin
+    ; capture_rising = bool c.capture_rising
+    ; in_shift = shift c.in_shift_right
+    ; out_shift = shift c.out_shift_right
+    ; autopush = bool c.autopush
+    ; push_threshold = c.push_threshold
+    ; autopull = bool c.autopull
+    ; pull_threshold = c.pull_threshold
+    ; crc_width = c.crc_width
+    ; crc_poly = c.crc_poly
+    ; crc_init = c.crc_init
+    ; crc_reflect = bool c.crc_reflect
+    ; stuff_threshold = c.stuff_threshold
+    ; stuff_level = bool c.stuff_level
+    ; wrap_bottom = c.wrap_bottom
+    ; wrap_top = c.wrap_top
+    ; period_fraction = c.period_fraction
+    ; autopull_data = bool c.autopull_data
+    ; manchester = bool c.manchester
+    }
+  in
+  let written =
+    Engine.Config.of_program_config config
+    |> Engine.Config.map ~f:Bits.to_unsigned_int
+    |> Engine.Config.to_list
+  in
+  if not ([%equal: int list] written values)
+  then raise_s [%message "BUG: the registers do not read back" (values : int list)];
+  config
 ;;
 
 (* The script against the engine's own cycles, from the start: each tx word with the cycle
@@ -102,11 +145,11 @@ module Plan = struct
   ;;
 end
 
-let lockstep t (scenario : Scenario.t) =
-  let firmware = firmware t scenario in
+let lockstep (scenario : Scenario.t) =
   let config, program =
-    let program = Asm.assemble firmware.source |> ok_exn in
-    Asm.Program.configure program firmware.config, Asm.Program.words program |> ok_exn
+    match loaded scenario with
+    | values, Some program -> of_registers values, program
+    | _, None -> raise_s [%message "the scenario loads no program" scenario.name]
   in
   let plan = Plan.of_script scenario.script in
   let peer = scenario.peer () in

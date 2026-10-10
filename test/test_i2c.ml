@@ -643,8 +643,8 @@ let%expect_test "the bus clear in lockstep, SDA held low" =
 let%expect_test "the start hold stamper is accepted and reads each hold in lockstep" =
   let sda = 14 in
   let scl = 15 in
-  let config = start_hold_config ~scl in
-  let timed = Timed_program.of_source_exn ~config (start_hold ~sda ~scl) in
+  let config = I2c.start_hold_config ~scl in
+  let timed = Timed_program.of_source_exn ~config (I2c.start_hold ~sda ~scl) in
   print_s
     [%message "accepted" ~verdict:(Timed_program.verdict timed : Analyser.Verdict.t)];
   let bus =

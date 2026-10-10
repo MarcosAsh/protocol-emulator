@@ -835,7 +835,7 @@ async def test_can_node(dut):
     decoded = decode(analyser, "can_node")
     frames = sent + demo_can_node.REPLIES
     assert can_ids(decoded) == ["%d (0x%x)" % (f[0], f[0]) for f in frames], decoded
-    # sigrok 0.5.3 reads a remote frame's DLC of data bytes, test/sigrok_scenarios.ml's
+    # sigrok 0.5.3 reads a remote frame's DLC of data bytes, test/can_node.ml's
     # can_remote, so its CRC and ACK slot are not where it looks
     data_frames = [f for f in frames if not f[1]]
     assert decoded.count("can-1: ACK slot: ACK") == len(data_frames), decoded

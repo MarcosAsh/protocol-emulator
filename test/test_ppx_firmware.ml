@@ -345,7 +345,7 @@ let%expect_test "the literal firmwares" =
     ; "spi_slave", Spi.slave
     ; "i2c_slave", I2c.slave
     ; "i2c_logger", I2c.logger
-    ; "usb_tx", Firmware.usb_tx
+    ; "usb_tx", Usb.tx
     ; "ethernet", Ethernet.firmware
     ; "one_wire", One_wire.firmware
     ; "ps2", Ps2.firmware

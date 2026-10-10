@@ -37,10 +37,13 @@ type t =
   (** For limits a run bounds ([Datasheet.Bound.Run]), with the host on time. *)
   }
 
-(** I2C's pins on the bench, which is wired once for every demo. *)
-val sda : int
+(** The bench's pins, wired once for every demo. *)
 
+val neopixel : int
+val sda : int
 val scl : int
+val one_wire : int
+val td_plus : int
 
 (** MOSI on OUT4, SCK on OUT5 and, for [Spi_cs], CS on OUT6 by side-set. *)
 val on_spi_pins : Program_config.t -> Program_config.t
@@ -48,15 +51,20 @@ val on_spi_pins : Program_config.t -> Program_config.t
 (** The chip's clock on both boards, and the half period both SPI masters run at. *)
 val clock_hz : int
 
+(** 10BASE-T's, on the Icepi's 40 MHz build. *)
+val ethernet_clock_hz : int
+
 val spi_half : int
 
 (** Cycles at [clock_hz]. *)
-val quarter : hz:int -> int
+val bit : hz:int -> int
 
+val half : hz:int -> int
+val quarter : hz:int -> int
 val cycles_in : us:int -> int
 
-(** The library firmware no protocol file holds yet ([Library]). *)
-val others : t list
+(** [source] with [pattern], which has to appear once, replaced. *)
+val patch : string -> pattern:string -> with_:string -> string
 
 (** The period the kernel checks the limits at: the assumption's, else the load. *)
 val period : t -> int option

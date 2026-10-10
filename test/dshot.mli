@@ -44,3 +44,5 @@ val decode
   -> cycle_ns:int
   -> bool list
   -> ((int * bool) list * Measured.t) Or_error.t
+
+val protocol : Protocol.t

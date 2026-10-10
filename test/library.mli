@@ -1,14 +1,10 @@
-(** The firmware library: every protocol written in a file of its own, and as one more
-    what the rest still list in [Certified], [Bench] and [Datasheet]. A new protocol is
-    one file and its name in [protocols]. *)
+(** The firmware library: every protocol, each written in a file of its own. A new
+    protocol is one file and its name in [protocols]. *)
 
 open! Core
 
-(** In the order the generated files list their firmware. *)
+(** In the order of their certificates, then the protocols with none. *)
 val protocols : Protocol.t list
-
-(** The one in [protocols] that is not a file of its own. *)
-val rest : Protocol.t
 
 (** Every firmware CI proves a certificate of by induction, but [stamped]. *)
 val certified : Certified.t list
@@ -30,8 +26,10 @@ val limits : Datasheet.t list
 (** Bench firmware with no limits, and why. *)
 val exempt : (string * string) list
 
-(** The protocols' runs at the pins. *)
+(** The protocols' runs at the pins, and the runs only sigrok judges. *)
 val scenarios : Pin_trace.Scenario.t list
+
+val decoded : Pin_trace.Scenario.t list
 
 (** The sweep, and what keeps the rest of the firmware out of it, in the order of the
     firmware. *)

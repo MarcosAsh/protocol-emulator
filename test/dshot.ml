@@ -146,3 +146,18 @@ let decode (rate : Rate.t) ~cycle_ns levels =
   let frames, measured = decoded in
   return (List.rev frames, measured)
 ;;
+
+let protocol =
+  { Protocol.name = "dshot"
+  ; certified = [ Certified.plain ~no_wrap:true "dshot600" dshot600 config ]
+  ; time_triggered = []
+  ; bench = []
+  ; loaded_from_hex = []
+  ; limits = []
+  ; unlimited = []
+  ; swept = []
+  ; not_swept = [ "dshot600", "32 edges a frame in 1328 cycles: the fifo holds 8" ]
+  ; scenarios = []
+  ; decoded = []
+  }
+;;

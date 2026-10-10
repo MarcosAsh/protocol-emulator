@@ -542,6 +542,28 @@ ubit:
       ~config:logger_config]
 ;;
 
+(* Both stamps are the instruction after a pin wait, and both pins pass one synchroniser,
+   so their difference is the gap between the edges as sampled: exact to a cycle. *)
+let start_hold ~sda ~scl =
+  [%string
+    {|
+start:
+    wait fall pin %{sda#Int}
+    mov x, now               ; SDA fell
+    jmp !pin, start          ; with SCL low: a data bit
+    wait 0 pin %{scl#Int}
+    mov y, now               ; SCL fell: the START is over
+    jmp !rx, start           ; no room, so this one is dropped
+    sub y, x
+    in y, 16
+    jmp start
+|}]
+;;
+
+let start_hold_config ~scl =
+  { Program_config.default with jmp_pin = scl; autopush = true; push_threshold = 16 }
+;;
+
 let word ?(start = false) ?(read = false) ?(stop = false) data =
   (Bool.to_int start lsl 15)
   lor (Bool.to_int read lsl 14)
@@ -582,6 +604,17 @@ let bench =
     ; assumption = Floor 31
     ; clock_hz = Bench.clock_hz
     ; load = Some bench_quarter
+    ; stimulus = None
+    }
+  ; { name = "start_hold"
+    ; what =
+        "Firmware.start_hold for engine 1: each START's hold in cycles, SDA on IO2, SCL \
+         on IO3, both only listened to"
+    ; source = start_hold ~sda:Bench.sda ~scl:Bench.scl
+    ; config = start_hold_config ~scl:Bench.scl
+    ; assumption = Nothing
+    ; clock_hz = Bench.clock_hz
+    ; load = None
     ; stimulus = None
     }
   ]
@@ -722,7 +755,7 @@ let protocol =
   ; bench
   ; loaded_from_hex = []
   ; limits = limits "i2c_master" @ limits "i2c_master_stretch"
-  ; unlimited = []
+  ; unlimited = [ "start_hold", "it drives no pin: it listens to Pico B's I2C" ]
   ; swept = []
   ; not_swept =
       [ ( "i2c_master"
@@ -731,5 +764,6 @@ let protocol =
       ; "i2c_logger", "an I2C master: open drain, and a slave has to answer"
       ]
   ; scenarios = [ scenario ]
+  ; decoded = []
   }
 ;;

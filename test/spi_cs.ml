@@ -285,6 +285,86 @@ let limits firmware =
   ]
 ;;
 
+open Pin_trace
+module Reg = Protocol_emulator.Host_port.Reg
+
+(* The chip-select master in [mode] at 3 MHz against a slave of that mode, three frames:
+   sigrok frames each transfer by CS. The decoders join once CS has been high a while. *)
+let scenario mode =
+  let half_period = 8 in
+  let frames = [ [ 0x9f; 0x00; 0x00; 0x00 ]; [ 0xa5 ]; [ 0x3c; 0xc3 ] ] in
+  let replies frame =
+    0x5a :: List.map (List.drop_last_exn frame) ~f:(fun byte -> lnot byte land 0xff)
+  in
+  let peer () =
+    let device = ref (Device.create ~mode ~first:0x5a) in
+    { Peer.inputs = (fun () -> Device.miso !device lsl miso_pin)
+    ; step =
+        (fun ~pin_out ~pin_dir:_ ->
+          device
+          := Device.step
+               !device
+               ~cs:(Peer.bit pin_out cs_pin)
+               ~sck:(Peer.bit pin_out sck_pin)
+               ~mosi:(Peer.bit pin_out mosi_pin))
+    }
+  in
+  let send frame =
+    [ Step.Write (Reg.tx, words frame)
+    ; Run ((List.length frame * 20 * half_period) + 200)
+    ; Read (Reg.rx, List.length frame)
+    ]
+  in
+  let transfers bytes =
+    Sigrok.lines
+      "spi"
+      (List.map bytes ~f:(fun b ->
+         String.concat ~sep:" " (List.map b ~f:(sprintf "%02X"))))
+  in
+  { Scenario.name = [%string "spi_mode%{Mode.to_int mode#Int}"]
+  ; peer
+  ; script =
+      Scenario.load
+        ~config
+        ~program:
+          (Firmware.assemble (master ~mode ~half_period ~setup:4 ~hold:8 ~deselect:0))
+      @ [ Scenario.start; Run 200 ]
+      @ List.concat_map frames ~f:send
+  ; sigrok =
+      Some
+        { clock_hz = 48_000_000
+        ; decoders =
+            [ Sigrok.decoder
+                "spi"
+                ~pins:[ "cs", cs_pin; "clk", sck_pin; "mosi", mosi_pin; "miso", miso_pin ]
+                ~options:
+                  [ "cpol", Int.to_string (Bool.to_int mode.cpol)
+                  ; "cpha", Int.to_string (Bool.to_int mode.cpha)
+                  ]
+            ]
+        ; expect =
+            [ "spi=mosi-transfer", transfers frames
+            ; "spi=miso-transfer", transfers (List.map frames ~f:replies)
+            ]
+        ; joins_after =
+            Some
+              ( 100
+              , { why =
+                    "CS is low from reset until the firmware starts, which sigrok reads \
+                     as a transfer with no bytes"
+                ; first_difference = 0
+                ; reads = "spi-1: "
+                } )
+        ; rejected = None
+        ; (* The first bit inverted, and the first frame's CS rise moved two bits early *)
+          teeth =
+            [ [ Flip { pin = mosi_pin; edge = 0; after = 0; cycles = 2 * half_period } ]
+            ; [ Shift { pin = cs_pin; edge = 2; cycles = -4 * half_period } ]
+            ]
+        }
+  }
+;;
+
 let protocol =
   { Protocol.name = "spi_cs"
   ; certified = []
@@ -298,5 +378,6 @@ let protocol =
   ; swept = []
   ; not_swept = []
   ; scenarios = []
+  ; decoded = List.map Mode.all ~f:scenario
   }
 ;;
