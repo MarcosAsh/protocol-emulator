@@ -378,6 +378,10 @@ let%expect_test "the kernel on the firmware library, from the analyser's rows" =
     (sent (verdict (Ok ())))
     (cec (verdict (Ok ())))
     (swd (verdict (Ok ())))
+    (spi_cs_mode0 (verdict (Ok ())))
+    (spi_cs_mode1 (verdict (Ok ())))
+    (spi_cs_mode2 (verdict (Ok ())))
+    (spi_cs_mode3 (verdict (Ok ())))
     |}]
 ;;
 
@@ -1143,6 +1147,10 @@ let%expect_test "a bound on the jitter of every pin edge, in firmware the kernel
      (untimed
       (0 1 2 3 4 5 13 14 15 16 21 22 24 25 27 40 41 44 46 120 121 125 126 138 139
        140 141)))
+    (spi_cs_mode0 (pc 9) (jitter_bound 3) (untimed (0 1 2 3 4 5 21 22 23 24 25)))
+    (spi_cs_mode1 (pc 9) (jitter_bound 3) (untimed (0 1 2 3 4 5 21 22 23 24 25)))
+    (spi_cs_mode2 (pc 9) (jitter_bound 3) (untimed (0 1 2 3 4 5 21 22 23 24 25)))
+    (spi_cs_mode3 (pc 9) (jitter_bound 3) (untimed (0 1 2 3 4 5 21 22 23 24 25)))
     (spi_slave_captured "no edge has a deadline" (untimed (0 5))
      (reaction ((pc 5) (at_most 3))))
     |}]

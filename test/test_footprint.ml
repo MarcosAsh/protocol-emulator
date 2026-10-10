@@ -240,6 +240,10 @@ let%expect_test "the footprint of each firmware, and of its config under any pro
     sent               5            -          5-20           12-19
     cec                12           12         12-27          12-19
     swd                7 17         17         7 17-27        17-19
+    spi_cs_mode0       9-11         -          9-24           12-19
+    spi_cs_mode1       9-11         -          9-24           12-19
+    spi_cs_mode2       9-11         -          9-24           12-19
+    spi_cs_mode3       9-11         -          9-24           12-19
     |}]
 ;;
 
@@ -318,6 +322,10 @@ let%expect_test "each firmware stays inside its footprint" =
     sent               5            -
     cec                -            -
     swd                -            -
+    spi_cs_mode0       9-11         -
+    spi_cs_mode1       9-11         -
+    spi_cs_mode2       9-11         -
+    spi_cs_mode3       9-11         -
     |}]
 ;;
 

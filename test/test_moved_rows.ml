@@ -91,5 +91,9 @@ let%expect_test "the kernel refuses each row moved by a cycle" =
     (sent (phase 154) (arm 0) (capture 0) (accepted ()))
     (cec (phase 128) (arm 0) (capture 0) (accepted ()))
     (swd (phase 404) (arm 0) (capture 0) (accepted ()))
+    (spi_cs_mode0 (phase 62) (arm 0) (capture 0) (accepted ()))
+    (spi_cs_mode1 (phase 62) (arm 0) (capture 0) (accepted ()))
+    (spi_cs_mode2 (phase 62) (arm 0) (capture 0) (accepted ()))
+    (spi_cs_mode3 (phase 62) (arm 0) (capture 0) (accepted ()))
     |}]
 ;;

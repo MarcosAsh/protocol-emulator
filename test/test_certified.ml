@@ -62,6 +62,10 @@ let%expect_test "the firmware library and its certificates" =
     sent                  83         9    129  period 150, no wrap
     cec                   71        20   2493  period 2500, no wrap
     swd                  232        52     15  period 25, no wrap
+    spi_cs_mode0          42         6      1  no wrap
+    spi_cs_mode1          42         6      1  no wrap
+    spi_cs_mode2          42         6      1  no wrap
+    spi_cs_mode3          42         6      1  no wrap
     |}]
 ;;
 

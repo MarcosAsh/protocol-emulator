@@ -1,5 +1,6 @@
 (** SPI master in any of the four modes, driving its chip select: MOSI on OUT0, SCK on
-    OUT1, CS on OUT2 and MISO on IN0, MSB first. Not in the certified library. *)
+    OUT1, CS on OUT2 and MISO on IN0, MSB first. The bench's copies, on its pins, are
+    certified. *)
 
 open! Core
 open Protocol_emulator
