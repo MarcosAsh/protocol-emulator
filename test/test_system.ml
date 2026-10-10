@@ -201,3 +201,146 @@ let%expect_test "one engine times the other's uart edges" =
     0xa3  rise       3472      3472
     |}]
 ;;
+
+(* Engine 0's pushes go to engine 1's tx fifo, waiting while it is full; engine 1 copies
+   each word to its own rx fifo more slowly, which the host empties now and then. Nothing
+   is lost or faults. *)
+let%expect_test "a routed engine feeds the other with no host between" =
+  let random = Splittable_random.of_int 3 in
+  let popped = ref [] in
+  let rx = ref [] in
+  let host _ =
+    let pop = (not (List.is_empty !rx)) && Splittable_random.int random ~lo:0 ~hi:7 = 0 in
+    if pop then popped := List.hd_exn !rx :: !popped;
+    [ Lockstep.Host.idle; { Lockstep.Host.idle with pop_rx = pop } ]
+  in
+  let react (system : System.t) = rx := (List.nth_exn system.engines 1).rx_fifo in
+  let system =
+    System_lockstep.lockstep
+      ~cycles:1500
+      ~host
+      ~react
+      ~pads:(fun _ -> 0)
+      [ { config = { Program_config.default with route = true }
+        ; program =
+            assemble
+              {|
+loop:
+    wait rx                  ; room in engine 1's tx fifo
+    mov isr, x
+    push
+    add x, 1
+    jmp loop
+|}
+        ; preload = []
+        ; data = []
+        ; assumptions = System_lockstep.Assumptions.none
+        }
+      ; { config = Program_config.default
+        ; program =
+            assemble
+              {|
+loop:
+    wait tx
+    pull
+    mov isr, osr
+    wait rx
+    push [15]
+    jmp loop
+|}
+        ; preload = []
+        ; data = []
+        ; assumptions = System_lockstep.Assumptions.none
+        }
+      ]
+  in
+  let popped = List.rev !popped in
+  print_s
+    [%message
+      ""
+        ~in_order:
+          ([%equal: int list] popped (List.init (List.length popped) ~f:Fn.id) : bool)
+        ~words:(List.length popped : int)
+        ~faults:(List.map system.engines ~f:(fun m -> m.fault) : Machine.Fault.t list)];
+  [%expect
+    {|
+    ("lockstep held" (cycles 1500))
+    ((in_order true) (words 68)
+     (faults
+      (((underflow false) (overflow false) (missed_deadline false) (decode false)
+        (assumption false))
+       ((underflow false) (overflow false) (missed_deadline false) (decode false)
+        (assumption false)))))
+    |}]
+;;
+
+(* As above, with routing, line tables, premises and the start of every engine at once
+   drawn at random too; the host writes no tx fifo another engine feeds. *)
+let%expect_test "random programs on two engines with the add-ons in lockstep" =
+  let random = Splittable_random.of_int 8 in
+  let int hi = Splittable_random.int random ~lo:0 ~hi in
+  let bool () = Splittable_random.bool random in
+  let routed = ref 0 in
+  let failed =
+    List.init 24 ~f:(fun seed ->
+      let setups =
+        List.init 2 ~f:(fun _ ->
+          let config =
+            { (Random_program.config random) with route = bool (); line_code = bool () }
+          in
+          { System_lockstep.Setup.config
+          ; program = Random_program.program ~waits:`Input_pins random ~config
+          ; preload = []
+          ; data = []
+          ; assumptions =
+              { System_lockstep.Assumptions.none with single_capture_edge = bool () }
+          })
+      in
+      let line_tables =
+        List.init 2 ~f:(fun _ ->
+          Line_code.of_words
+            (List.init Line_code.states ~f:(fun _ -> int 0xffff land 0x1f1f) @ [ int 15 ])
+          |> ok_exn)
+      in
+      let fed n =
+        (List.nth_exn setups ((n + 1) % 2)).System_lockstep.Setup.config.route
+      in
+      let levels = ref [ 0; 0 ] in
+      let host _ =
+        List.mapi !levels ~f:(fun n level ->
+          { Lockstep.Host.idle with
+            tx =
+              (if (not (fed n)) && level < Machine.fifo_depth && int 3 = 0
+               then Some (int 0xffff)
+               else None)
+          ; pop_rx = int 3 = 0
+          })
+      in
+      let saw_routed = ref false in
+      let react (system : System.t) =
+        levels := List.map system.engines ~f:(fun m -> List.length m.tx_fifo);
+        if List.exists system.engines ~f:(fun m -> Option.is_some m.routed)
+        then saw_routed := true
+      in
+      let pads _ = int ((1 lsl Isa.num_pins) - 1) in
+      match
+        System_lockstep.run
+          ~cycles:800
+          ~host
+          ~react
+          ~line_tables
+          ~start_all:(bool ())
+          ~pads
+          setups
+      with
+      | _, None ->
+        if !saw_routed then incr routed;
+        None
+      | _, Some mismatch ->
+        print_s [%message "MISMATCH" (seed : int) (mismatch : System_lockstep.Mismatch.t)];
+        Some seed)
+    |> List.filter_opt
+  in
+  print_s [%message (failed : int list) (!routed : int)];
+  [%expect {| ((failed ()) (!routed 8)) |}]
+;;

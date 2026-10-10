@@ -55,13 +55,16 @@ module Mismatch : sig
   [@@deriving sexp_of]
 end
 
-(** Every engine starts in the same cycle. [pads] and [host], one action per engine, are
-    asked once per cycle; [react] sees the model after each step. Stops at the first
-    mismatch. *)
+(** Every engine starts in the same cycle, by one start each or with [start_all] by the
+    chip's start of every engine. [line_tables], one per engine, are written before the
+    checks. [pads] and [host], one action per engine, are asked once per cycle; [react]
+    sees the model after each step. Stops at the first mismatch. *)
 val run
   :  ?cycles:int
   -> ?host:(int -> Lockstep.Host.t list)
   -> ?react:(System.t -> unit)
+  -> ?line_tables:Line_code.t list
+  -> ?start_all:bool
   -> pads:(int -> int)
   -> Setup.t list
   -> System.t * Mismatch.t option
@@ -71,6 +74,8 @@ val lockstep
   :  ?cycles:int
   -> ?host:(int -> Lockstep.Host.t list)
   -> ?react:(System.t -> unit)
+  -> ?line_tables:Line_code.t list
+  -> ?start_all:bool
   -> pads:(int -> int)
   -> Setup.t list
   -> System.t

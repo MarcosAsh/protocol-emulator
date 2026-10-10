@@ -65,9 +65,14 @@ let run
   ?(cycles = 400)
   ?host
   ?(react = fun (_ : System.t) -> ())
+  ?line_tables
+  ?(start_all = false)
   ~pads
   (setups : Setup.t list)
   =
+  let line_tables =
+    Option.value line_tables ~default:(List.map setups ~f:(fun _ -> Line_code.off))
+  in
   let module Dut =
     Engines.Make (struct
       let engines = List.length setups
@@ -116,6 +121,17 @@ let run
          ~write:(fun port addr word ->
            port.program_write.addr <--. addr;
            port.program_write.data <--. word);
+       (* a table write takes the engine's certificate, so the tables go first *)
+       let tables = List.zip_exn setups line_tables in
+       List.iteri
+         (List.transpose_exn (List.map line_tables ~f:Line_code.words))
+         ~f:(fun addr words ->
+           List.iter2_exn i.hosts words ~f:(fun port word ->
+             port.line_write.valid := Bits.vdd;
+             port.line_write.addr <--. addr;
+             port.line_write.data <--. word);
+           cycle ());
+       List.iter i.hosts ~f:(fun port -> port.line_write.valid := Bits.gnd);
        (* each engine's certificate, checked one engine at a time before anything else
           goes into the data memory *)
        List.iteri (List.zip_exn i.hosts setups) ~f:(fun engine (port, setup) ->
@@ -169,18 +185,25 @@ let run
          ~valid:(fun port -> port.tx.valid)
          ~write:(fun port _ word -> port.tx.value <--. word);
        let model =
-         List.map setups ~f:(fun s ->
+         List.map tables ~f:(fun (s, table) ->
            let machine = Machine.create ~config:s.config ~program:s.program |> ok_exn in
            let machine = Machine.load_data machine s.data |> ok_exn in
            let machine = Machine.assume machine (Assumptions.premises s.assumptions) in
+           let machine = Machine.load_line_table machine table in
            List.fold s.preload ~init:machine ~f:(fun m word ->
              Machine.write_tx m word |> ok_exn))
          |> System.create
          |> ref
        in
-       each (fun port _ -> port.start := Bits.vdd);
-       cycle ();
-       each (fun port _ -> port.start := Bits.gnd);
+       if start_all
+       then (
+         i.start_all := Bits.vdd;
+         cycle ();
+         i.start_all := Bits.gnd)
+       else (
+         each (fun port _ -> port.start := Bits.vdd);
+         cycle ();
+         each (fun port _ -> port.start := Bits.gnd));
        cycle ();
        let mismatch = ref None in
        let cycle_number = ref 0 in
@@ -245,8 +268,8 @@ let run
        !model, !mismatch)
 ;;
 
-let lockstep ?(cycles = 400) ?host ?react ~pads setups =
-  let model, mismatch = run ~cycles ?host ?react ~pads setups in
+let lockstep ?(cycles = 400) ?host ?react ?line_tables ?start_all ~pads setups =
+  let model, mismatch = run ~cycles ?host ?react ?line_tables ?start_all ~pads setups in
   (match mismatch with
    | None -> print_s [%message "lockstep held" (cycles : int)]
    | Some mismatch -> print_s [%message "MISMATCH" (mismatch : Mismatch.t)]);
