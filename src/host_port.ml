@@ -43,6 +43,9 @@ module Reg = struct
   let reject_reason = 0x45
   let line_addr = 0x46
   let line = 0x47
+  let frame_control = 0x48
+  let frame_base = 0x49
+  let frame_status = 0x4a
 
   (* unused, so the fields after 0x2b and 0x2c stay where existing hosts write them *)
   let reserved = [ 0x2b; 0x2c ]
@@ -91,6 +94,7 @@ module Make (Config : Config) = struct
       ; cs_n : 'a
       ; status : 'a Status.t list [@length engines]
       ; check : 'a Load_checker.Verdict.t
+      ; frame : 'a Frame_rx.Status.t
       }
     [@@deriving hardcaml]
   end
@@ -101,6 +105,8 @@ module Make (Config : Config) = struct
       ; engines : 'a Engine.Host.t list [@length engines]
       ; check_setup : 'a Load_checker.Setup.t
       ; start_all : 'a
+      ; frame : 'a Frame_rx.Control.t
+      ; frame_pin : 'a [@bits Frame_rx.pin_bits]
       }
     [@@deriving hardcaml]
   end
@@ -148,6 +154,9 @@ module Make (Config : Config) = struct
     let%hw_var check_loaded = Always.Variable.reg spec ~width:Isa.data_bits in
     let%hw_var check_flags = Always.Variable.reg spec ~width:3 in
     let%hw_var line_addr = Always.Variable.reg spec ~width:Line_code.address_bits in
+    let%hw_var frame_fifty = Always.Variable.reg spec ~width:1 in
+    let%hw_var frame_pin = Always.Variable.reg spec ~width:Frame_rx.pin_bits in
+    let%hw_var frame_base = Always.Variable.reg spec ~width:Isa.data_addr_bits in
     let%hw_var write = Always.Variable.wire ~default:gnd () in
     let%hw_var read_done = Always.Variable.wire ~default:gnd () in
     let%hw is_write = msb cmd.value in
@@ -203,6 +212,12 @@ module Make (Config : Config) = struct
       ; Reg.reject_pc, reg16 i.check.reject_pc
       ; Reg.reject_reason, reg16 i.check.reason
       ; Reg.line_addr, reg16 line_addr.value
+      ; Reg.frame_control, reg16 (frame_pin.value @: frame_fifty.value @: gnd)
+      ; Reg.frame_base, reg16 frame_base.value
+      ; ( Reg.frame_status
+        , let f = i.frame in
+          concat_msb
+            [ f.armed; f.receiving; f.dropped; f.half; f.fcs_ok; f.finished; f.words ] )
       ]
       @ (Option.map select_value ~f:(fun select -> Reg.select, reg16 select)
          |> Option.to_list)
@@ -285,6 +300,14 @@ module Make (Config : Config) = struct
                  (at Reg.line_addr)
                  [ line_addr <-- sel_bottom value ~width:Line_code.address_bits ]
              ; when_ (at Reg.line) [ line_addr <-- line_addr.value +:. 1 ]
+             ; when_
+                 (at Reg.frame_control)
+                 [ frame_fifty <-- value.:(1)
+                 ; frame_pin <-- value.:[Frame_rx.pin_bits + 1, 2]
+                 ]
+             ; when_
+                 (at Reg.frame_base)
+                 [ frame_base <-- sel_bottom value ~width:Isa.data_addr_bits ]
              ]
              @ select_write
              @ config_writes)
@@ -323,6 +346,12 @@ module Make (Config : Config) = struct
         ; single_edge = check_flags.value.:(1)
         }
     ; start_all = strobe Reg.control &: value.:(5)
+    ; frame =
+        { arm = strobe Reg.frame_control &: value.:(0)
+        ; base = frame_base.value
+        ; fifty = frame_fifty.value
+        }
+    ; frame_pin = frame_pin.value
     }
   ;;
 

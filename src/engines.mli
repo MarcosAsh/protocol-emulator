@@ -1,6 +1,7 @@
 (** The chip's cores ([engine_n], each with its own program memory and host fields) and
-    the pins between them; they share one [Data_memory], written only while all are
-    halted. A pin is the OR of what engines drive, which keeps a mis-configured double
+    the pins between them; they share one [Data_memory], written by the host only while
+    all are halted, and by [Frame_rx] where no engine pulling data runs and no check
+    reads. A pin is the OR of what engines drive, which keeps a mis-configured double
     drive defined. An engine reads another's driven bidirectional pin instead of the pad,
     and any engine's drive on a wire. [formal/chip_frame.sv] proves two engines sharing no
     pad drive and read as alone, except reading the other's bidirectional pads and wires,
@@ -26,6 +27,8 @@ module Make (_ : Config) : sig
       ; start_all : 'a
       (** Starts every engine on one cycle, only when all are halted and, gated, all
           certified. *)
+      ; rd : 'a (** [Both_edges]' two samples of the 10BASE-T pin. *)
+      ; frame : 'a Frame_rx.Control.t
       }
     [@@deriving hardcaml]
   end
@@ -48,6 +51,7 @@ module Make (_ : Config) : sig
       ; pin_out : 'a
       ; pin_dir : 'a
       ; check : 'a Check.t
+      ; frame : 'a Frame_rx.Status.t
       }
     [@@deriving hardcaml]
   end

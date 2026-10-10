@@ -33,7 +33,14 @@ let create ~memory ~engines (scope : Scope.t) (i : Signal.t I.t) =
   let%hw reset_done = pipeline async ~n:2 vdd in
   let clocking = { Clocking.clock = i.clk; clear = ~:reset_done } in
   let sync x = Clocking.pipeline clocking ~n:2 x in
+  let pads = concat_msb [ i.uio_in; zero 7; i.ui_in.:[7, 3] ] in
   let%hw inputs = concat_msb [ sync i.uio_in; zero 7; sync i.ui_in.:[7, 3] ] in
+  let frame = Frame_rx.Status.Of_signal.wires () in
+  let%hw frame_pin = wire Frame_rx.pin_bits in
+  (* straight off the pad, so the falling edge samples it too *)
+  let rd =
+    Both_edges.hierarchical scope { clocking; pad = mux frame_pin (bits_lsb pads) }
+  in
   let engine_outs = List.init engines ~f:(fun _ -> Engine.O.Of_signal.wires ()) in
   let check = Engines.Check.Of_signal.wires () in
   let host =
@@ -62,8 +69,10 @@ let create ~memory ~engines (scope : Scope.t) (i : Signal.t I.t) =
               ; refused
               })
       ; check = check.verdict
+      ; frame
       }
   in
+  frame_pin <-- host.frame_pin;
   let cores =
     Engines.hierarchical
       ~memory
@@ -73,8 +82,11 @@ let create ~memory ~engines (scope : Scope.t) (i : Signal.t I.t) =
       ; pads = inputs
       ; check_setup = host.check_setup
       ; start_all = host.start_all
+      ; rd = rd.samples
+      ; frame = host.frame
       }
   in
+  Frame_rx.Status.Of_signal.assign frame cores.frame;
   List.iter2_exn engine_outs cores.engines ~f:Engine.O.Of_signal.assign;
   Engines.Check.Of_signal.assign check cores.check;
   { O.uo_out = cores.pin_out.:[11, 5] @: host.miso

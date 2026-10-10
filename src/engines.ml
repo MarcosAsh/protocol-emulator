@@ -21,6 +21,8 @@ module Make (Config : Config) = struct
       ; pads : 'a [@bits Isa.num_pins]
       ; check_setup : 'a Load_checker.Setup.t
       ; start_all : 'a
+      ; rd : 'a [@bits 2]
+      ; frame : 'a Frame_rx.Control.t
       }
     [@@deriving hardcaml]
   end
@@ -40,6 +42,7 @@ module Make (Config : Config) = struct
       ; pin_out : 'a [@bits Isa.num_pins]
       ; pin_dir : 'a [@bits Isa.num_pins]
       ; check : 'a Check.t
+      ; frame : 'a Frame_rx.Status.t
       }
     [@@deriving hardcaml]
   end
@@ -143,6 +146,30 @@ module Make (Config : Config) = struct
                   h.program_write.valid |: h.config_written |: h.line_write.valid))
           |: pick (List.map lent ~f:( ~: )))
     in
+    (* A received frame takes the data memory's port only where nothing it serves reads:
+       no check, no host write, and every engine halted and not starting, or not pulling
+       from data. A halted engine's word is refetched from its start on. *)
+    let%hw host_writes =
+      List.map outs ~f:(fun e -> e.halted)
+      @ [ List.map i.hosts ~f:(fun h -> h.data_write.valid) |> List.reduce_exn ~f:( |: ) ]
+      |> List.reduce_exn ~f:( &: )
+    in
+    let%hw frame_may_write =
+      ~:checking
+      &: ~:host_writes
+      &: (List.map2_exn outs i.hosts ~f:(fun e (h : _ Engine.Host.t) ->
+            e.free |: ~:(h.config.autopull_data))
+          |> List.reduce_exn ~f:( &: ))
+    in
+    let frame =
+      Frame_rx.hierarchical
+        scope
+        { clocking = i.clocking
+        ; rd = i.rd
+        ; control = i.frame
+        ; may_write = frame_may_write
+        }
+    in
     let data =
       Data_memory.hierarchical
         ~memory
@@ -153,6 +180,7 @@ module Make (Config : Config) = struct
         ; reads =
             List.map2_exn outs lent ~f:(fun e lent ->
               mux2 (lent &: checker.data_read.valid) checker.data_read.value e.data_addr)
+        ; dma = frame.write
         }
     in
     Load_checker.hierarchical
@@ -232,6 +260,7 @@ module Make (Config : Config) = struct
         ; certified
         ; refused
         }
+    ; frame = frame.status
     }
   ;;
 

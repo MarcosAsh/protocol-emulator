@@ -9,11 +9,15 @@
     flags (bit 0 loaded, 1 single edge, 2 the loaded period a floor), 67 the check's
     status (bit 0 busy, 1 accepted, 2 certified, 3 refused), 68 the pc and 69 the reason
     it refused; 70 the [Line_code] table's state and 71 its word (writes increment the
-    state). Program, data, config, table, check and flush take effect only while halted,
-    so a flush needs its own write after the stop, and a start only once the engine is
-    certified. Control bit 5 starts every engine on one cycle, whatever the select, and
-    only with all halted and certified. 43 and 44 are reserved and read zero; config skips
-    them to keep [autopull_data] and [manchester] at 45-46 for existing hosts.
+    state); for [Frame_rx], whatever the select, 72 its control (bit 0 arms, 1 a 50 MHz
+    clock, 6-2 the pad), 73 the data address a frame lands at, 74 its status (bits 9-0 the
+    words, 10 finished, 11 FCS good, 12 a half last word, 13 a word dropped, 14 in a
+    frame, 15 armed). Program, data, config, table, check and flush take effect only while
+    halted, so a flush needs its own write after the stop, and a start only once the
+    engine is certified. Control bit 5 starts every engine on one cycle, whatever the
+    select, and only with all halted and certified. 43 and 44 are reserved and read zero;
+    config skips them to keep [autopull_data] and [manchester] at 45-46 for existing
+    hosts.
 
     Select picks the engine for every register but the two addresses; it resets to 0 and
     past the last engine reaches none and reads zero. Status bit 15 flags another engine's
@@ -71,6 +75,9 @@ module Reg : sig
   val reject_reason : int
   val line_addr : int
   val line : int
+  val frame_control : int
+  val frame_base : int
+  val frame_status : int
 
   (** Each [Engine.Config] field's register, skipping the reserved ones. *)
   val configs : int list
@@ -92,6 +99,7 @@ module Make (_ : Config) : sig
       ; cs_n : 'a
       ; status : 'a Status.t list
       ; check : 'a Load_checker.Verdict.t
+      ; frame : 'a Frame_rx.Status.t
       }
     [@@deriving hardcaml]
   end
@@ -102,6 +110,8 @@ module Make (_ : Config) : sig
       ; engines : 'a Engine.Host.t list
       ; check_setup : 'a Load_checker.Setup.t
       ; start_all : 'a
+      ; frame : 'a Frame_rx.Control.t
+      ; frame_pin : 'a (** The pad [Frame_rx] decodes. *)
       }
     [@@deriving hardcaml]
   end

@@ -1,8 +1,10 @@
 (** The one data memory every engine streams from. Engine [n] reads on cycles [n] modulo
     the engine count and keeps its last word; [reads] is each pointer's next address,
     [words] the word at it now. A moved pointer's word arrives within two cycles, hence
-    the data-pull refusal after a pull or seek. Writes land only while all engines are
-    halted. At most two engines. *)
+    the data-pull refusal after a pull or seek. [writes] land only while all engines are
+    halted. [dma] lands whenever valid, unless a host write takes the cycle, and takes
+    that cycle's read: the caller holds it off any read an engine or the checker needs. At
+    most two engines. *)
 
 open! Core
 open! Hardcaml
@@ -18,6 +20,7 @@ module Make (_ : Config) : sig
       ; halted : 'a list
       ; writes : 'a Engine.Program_write.t list
       ; reads : 'a list
+      ; dma : 'a Engine.Program_write.t
       }
     [@@deriving hardcaml]
   end

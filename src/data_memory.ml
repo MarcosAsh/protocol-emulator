@@ -21,6 +21,7 @@ module Make (Config : Config) = struct
       ; halted : 'a list [@length engines] [@bits 1]
       ; writes : 'a Engine.Program_write.t list [@length engines]
       ; reads : 'a list [@length engines] [@bits Isa.data_addr_bits]
+      ; dma : 'a Engine.Program_write.t
       }
     [@@deriving hardcaml]
   end
@@ -33,9 +34,11 @@ module Make (Config : Config) = struct
   let create ~(memory : Engine.Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
     let spec = Clocking.to_spec i.clocking in
     let%hw writes_open = List.reduce_exn i.halted ~f:( &: ) in
-    let%hw write =
+    let%hw host_write =
       writes_open &: List.reduce_exn (List.map i.writes ~f:(fun w -> w.valid)) ~f:( |: )
     in
+    (* the caller lets the other writer in only where no read it serves is lost *)
+    let%hw write = host_write |: i.dma.valid in
     let written ~f =
       priority_select_with_default
         (List.map i.writes ~f:(fun (w : _ Engine.Program_write.t) ->
@@ -51,8 +54,9 @@ module Make (Config : Config) = struct
       ; men = vdd
       ; wen = write
       ; ren = vdd
-      ; addr = mux2 write (written ~f:(fun w -> w.addr)) read_addr
-      ; din = written ~f:(fun w -> w.data)
+      ; addr =
+          mux2 write (mux2 host_write (written ~f:(fun w -> w.addr)) i.dma.addr) read_addr
+      ; din = mux2 host_write (written ~f:(fun w -> w.data)) i.dma.data
       ; bm = ones Isa.data_bits
       }
     in
