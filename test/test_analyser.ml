@@ -458,33 +458,96 @@ let%expect_test "usb rx" =
     {|
      0  pull                         phase ?..?
      1  mov p, osr                   phase ?..?
-     2  set y, 1                     phase ?..?
-     3  crc_init                     phase ?..?
-     4  stuff_reset                  phase ?..?
-     5  capture_arm                  phase ?..?
-     6  wait 1 pin 4                 phase ?..?
-     7  mov t, capture               phase ?..?
-     8  add t, 7                     phase 2
-     9  add t, 7                     phase -4
-    10  add t, 2                     phase -10
-    11  jmp stuff, 24                phase -26..-11
-    12  wait t+                      phase -24..-9  slack 9..24
-    13  mov x, pins                  phase -31  sample -31
-    14  jmp x!=y, 18                 phase -30
-    15  set x, 1                     phase -28
-    16  in x, 1                      phase -27
-    17  jmp 11                       phase -26
-    18  mov y, x                     phase -28
-    19  jmp x--, 22                  phase -27
-    20  in crc, 16                   phase -25
-    21  jmp 2                        phase -24
-    22  in null, 1                   phase -25
-    23  jmp 11                       phase -24
-    24  wait t+                      phase -24..-9  slack 9..24
-    25  mov x, pins                  phase -31  sample -31
-    26  mov y, x                     phase -30
-    27  stuff_reset                  phase -29
-    28  jmp 11                       phase -28
+     2  crc_init                     phase ?..?
+     3  stuff_reset                  phase ?..?
+     4  capture_arm                  phase ?..?
+     5  wait 1 pin 4                 phase ?..?
+     6  mov t, capture               phase ?..?
+     7  add t, p                     phase 2
+     8  add t, 7                     phase -29
+     9  add t, 7                     phase -35
+    10  in null, 1                   phase -41
+    11  jmp 18                       phase -40
+    12  wait 1 pin 4                 phase -29
+    13  mov t, capture               phase -28..?
+    14  add t, p                     phase 2..33
+    15  add t, 7                     phase -29..2
+    16  add t, 7                     phase -35..-4
+    17  in null, 1                   phase -41..-10
+    18  jmp stuff, 32                phase -40..-7
+    19  wait t+                      phase -38..-5  slack 5..38
+    20  mov x, pins                  phase -31  sample -31
+    21  jmp x--, 24                  phase -30
+    22  in crc, 16                   phase -28
+    23  jmp 2                        phase -27
+    24  jmp x--, 29                  phase -28
+    25  capture_arm                  phase -26
+    26  jmp pin, 79                  phase -25
+    27  in null, 1                   phase -23
+    28  jmp 41                       phase -22
+    29  set x, 1                     phase -26
+    30  in x, 1                      phase -25
+    31  jmp 18                       phase -24
+    32  wait t+                      phase -38..-5  slack 5..38
+    33  mov x, pins                  phase -31  sample -31
+    34  stuff_reset                  phase -30
+    35  jmp x--, 38                  phase -29
+    36  in crc, 16                   phase -27
+    37  jmp 2                        phase -26
+    38  jmp x--, 18                  phase -27
+    39  capture_arm                  phase -25
+    40  jmp pin, 86                  phase -24
+    41  jmp stuff, 53                phase -22..-19
+    42  wait t+                      phase -20..-17  slack 17..20
+    43  jmp pin, 12                  phase -31
+    44  mov x, pins                  phase -29  sample -29
+    45  jmp x--, 48                  phase -28
+    46  in crc, 16                   phase -26
+    47  jmp 2                        phase -25
+    48  capture_arm                  phase -26
+    49  jmp pin, 70                  phase -25
+    50  set x, 1                     phase -23
+    51  in x, 1                      phase -22
+    52  jmp 41                       phase -21
+    53  wait t+                      phase -20..-17  slack 17..20
+    54  jmp pin, 63                  phase -31
+    55  mov x, pins                  phase -29  sample -29
+    56  stuff_reset                  phase -28
+    57  jmp x--, 60                  phase -27
+    58  in crc, 16                   phase -25
+    59  jmp 2                        phase -24
+    60  capture_arm                  phase -25
+    61  jmp pin, 86                  phase -24
+    62  jmp 41                       phase -22
+    63  wait 1 pin 4                 phase -29
+    64  mov t, capture               phase -28..?
+    65  add t, p                     phase 2..33
+    66  add t, 7                     phase -29..2
+    67  add t, 7                     phase -35..-4
+    68  stuff_reset                  phase -41..-10
+    69  jmp 18                       phase -40..-9
+    70  mov t, now                   phase -23
+    71  add t, p                     phase 1
+    72  add t, 7                     phase -30
+    73  add t, 4                     phase -36
+    74  set x, 1                     phase -39
+    75  in x, 1                      phase -38
+    76  jmp stuff, 18                phase -37
+    77  in null, 1                   phase -35
+    78  jmp 18                       phase -34
+    79  mov t, now                   phase -23
+    80  add t, p                     phase 1
+    81  add t, 7                     phase -30
+    82  add t, 4                     phase -36
+    83  in null, 1                   phase -39
+    84  in null, 1                   phase -38
+    85  jmp 18                       phase -37
+    86  mov t, now                   phase -22
+    87  add t, p                     phase 1
+    88  add t, 7                     phase -30
+    89  add t, 4                     phase -36
+    90  in null, 1                   phase -39
+    91  jmp 18                       phase -38
     |}]
 ;;
 
@@ -633,7 +696,7 @@ let%expect_test "every firmware stays inside its analysis under random stimulus"
     ("i2c logger" (issues 6752) (reached 73/73) (side_edges 1200)
      (violations ()))
     ("usb tx" (issues 4466) (reached 38/65) (side_edges 0) (violations ()))
-    ("usb rx" (issues 8302) (reached 24/29) (side_edges 0) (violations ()))
+    ("usb rx" (issues 7083) (reached 73/92) (side_edges 0) (violations ()))
     ("usb device" (issues 5809) (reached 271/470) (side_edges 0) (violations ()))
     ("edge meter" (issues 6016) (reached 12/12) (side_edges 0) (violations ()))
     ("edge logger" (issues 16848) (reached 8/8) (side_edges 0) (violations ()))

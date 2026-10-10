@@ -157,7 +157,7 @@ let%expect_test "every protocol from its file to the decoded trace" =
 
     certificates
     usb_tx: 65 words, 11 deadline waits, worst slack 16, the kernel accepts it, assuming period 32
-    usb_rx: 29 words, 2 deadline waits, worst slack 9, the kernel accepts it, assuming period 32, one edge before capture, no wrap
+    usb_rx: 92 words, 4 deadline waits, worst slack 5, the kernel accepts it, assuming period 32, one edge before capture, no wrap
     usb_device: 470 words, 54 deadline waits, worst slack 6, the kernel accepts it, assuming period 32, one edge before capture, no wrap
 
     limits
