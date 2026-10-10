@@ -27,8 +27,9 @@ type t =
 val default : t
 
 (** One flag a line, named as [pio_check] names it but without the dash:
-    [pin sda=set0:dir,in0] or [autopull]. [#] starts a comment. *)
-val of_string : string -> t Or_error.t
+    [pin sda=set0:dir,in0] or [autopull]. [#] starts a comment. Each line is added to
+    [base], [default] if not given. *)
+val of_string : ?base:t -> string -> t Or_error.t
 
 (** The programs [program] names, in order; an error when that leaves none. *)
 val select : t -> Pioasm.Program.t list -> Pioasm.Program.t list Or_error.t

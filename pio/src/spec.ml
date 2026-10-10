@@ -85,14 +85,14 @@ let add t line =
   | _ -> error "unknown flag"
 ;;
 
-let of_string text =
+let of_string ?(base = default) text =
   String.split_lines text
   |> List.filter_map ~f:(fun line ->
     let line =
       String.lsplit2 line ~on:'#' |> Option.value_map ~default:line ~f:fst |> String.strip
     in
     Option.some_if (not (String.is_empty line)) line)
-  |> List.fold_result ~init:default ~f:add
+  |> List.fold_result ~init:base ~f:add
 ;;
 
 let select t programs =
