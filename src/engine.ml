@@ -471,7 +471,9 @@ module Make (Timer : Timer) = struct
     let%hw line_rx_entry =
       line_entry ~input:(line_pin ^: (line_modes.:(1) &: line_last))
     in
-    let%hw line_bit = line_rx_entry.:(Line_code.out_bit) ^: (line_modes.:(3) &: line_last) in
+    let%hw line_bit =
+      line_rx_entry.:(Line_code.out_bit) ^: (line_modes.:(3) &: line_last)
+    in
     (* a dropped bit reaches nothing but the state *)
     let%hw line_drop = line_in &: line_rx_entry.:(Line_code.flag_bit) in
     let%hw in_source_value =
@@ -648,7 +650,9 @@ module Make (Timer : Timer) = struct
     let%hw line_tx_entry =
       line_entry ~input:(out_value.:(0) ^: (line_modes.:(0) &: out_pin))
     in
-    let%hw line_level = line_tx_entry.:(Line_code.out_bit) ^: (line_modes.:(2) &: out_pin) in
+    let%hw line_level =
+      line_tx_entry.:(Line_code.out_bit) ^: (line_modes.:(2) &: out_pin)
+    in
     let%hw out_pins_count =
       mux2 line_out (mux2 (c.out_count >=: two) two c.out_count) shift_count
     in

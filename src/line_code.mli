@@ -3,20 +3,19 @@
     [out pins] and [in pins] steps the engine's table, the transmit side from one state
     register and the receive side from another, both 0 after a start.
 
-    Word [s] (0 to 15) holds state [s]'s two 6-bit entries {flag, out, next}, for input 0
-    in the low byte and input 1 in the high; word 16 holds the [Modes]. The transmit state
-    starts at 0 and the receive state at [rx_start], so one table can hold both sides of a
-    code. An [out]'s input is the bit the osr
-    gives, or with [tx_relative] whether it differs from the pin at [out_base]. It drives
-    [out] on that pin, or with [tx_toggle] flips the pin where [out] is set, and with
-    [out_count] 2 or more drives the next pin as the complement. An [in]'s input is the
-    pin at [in_base], or with [rx_relative] whether it moved since the last [in]. It
-    shifts in [out], flipped with [rx_toggle] where the pin was high at the last [in];
-    with [flag] it shifts nothing: the bit is dropped, past the CRC and the stuff counter
-    too. Either way the state moves to [next], and [flag] is what [jmp stuff] reads until
-    [stuff_reset] or the next step. [stuff_reset] leaves the states, so a table that
-    stuffs moves to the state after the stuffed bit, which the firmware drives, as it
-    raises [flag]. *)
+    Word [s] (0 to 15) holds state [s]'s two 6-bit entries [{flag, out, next}], for input
+    0 in the low byte and input 1 in the high; word 16 holds the [Modes]. The transmit
+    state starts at 0 and the receive state at [rx_start], so one table can hold both
+    sides of a code. An [out]'s input is the bit the osr gives, or with [tx_relative]
+    whether it differs from the pin at [out_base]. It drives [out] on that pin, or with
+    [tx_toggle] flips the pin where [out] is set, and with [out_count] 2 or more drives
+    the next pin as the complement. An [in]'s input is the pin at [in_base], or with
+    [rx_relative] whether it moved since the last [in]. It shifts in [out], flipped with
+    [rx_toggle] where the pin was high at the last [in]; with [flag] it shifts nothing:
+    the bit is dropped, past the CRC and the stuff counter too. Either way the state moves
+    to [next], and [flag] is what [jmp stuff] reads until [stuff_reset] or the next step.
+    [stuff_reset] leaves the states, so a table that stuffs moves to the state after the
+    stuffed bit, which the firmware drives, as it raises [flag]. *)
 
 open! Core
 

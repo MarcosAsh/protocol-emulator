@@ -100,7 +100,9 @@ let%expect_test "the combined tables code and decode as the separate ones" =
       ~f:(fun (both, transmit, receive) ->
         let line = transmitted both bits in
         [%test_result: int list] line ~expect:(transmitted transmit bits);
-        [%test_result: int list] (shifted_receive both line) ~expect:(received receive line)));
+        [%test_result: int list]
+          (shifted_receive both line)
+          ~expect:(received receive line)));
   print_s
     [%message
       ""
@@ -357,9 +359,11 @@ let%expect_test "one engine sends and receives USB through one table" =
         ~sent_as_reference:
           ([%equal: int list] (List.take (List.rev !line) (List.length expected)) expected
            : bool)
-        ~received:(List.map m.rx_fifo ~f:(fun w -> sprintf "%02x" (w lsr 8)) : string list)
+        ~received:
+          (List.map m.rx_fifo ~f:(fun w -> sprintf "%02x" (w lsr 8)) : string list)
         ~line_rx:(m.line_rx : int)];
-  [%expect {|
+  [%expect
+    {|
     ("lockstep held" (cycles 720))
     ((sent_as_reference true) (received (80 ff ff 3c 7e)) (line_rx 10))
     |}]

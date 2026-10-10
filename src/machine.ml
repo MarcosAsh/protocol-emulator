@@ -150,6 +150,7 @@ let load_data t words =
 let load_line_table t line_table =
   { t with line_table; line_rx = line_table.modes.rx_start }
 ;;
+
 let assume t premises = { t with premises }
 
 let write_tx t value =
