@@ -192,6 +192,7 @@ module Step = struct
       ; after : 'a [@bits row_bits]
       ; fails : 'a
       ; reason : 'a [@bits reason_bits]
+      ; conjuncts : 'a Kernel.Conjuncts.t
       }
     [@@deriving hardcaml]
   end
@@ -242,15 +243,15 @@ module Step = struct
           ~row
           ~next:(Kernel.Row.map2 after next ~f:(mux2 falls_to_next))
           ~target
-        |> Kernel.Conjuncts.to_list
       in
+      let holds = Kernel.Conjuncts.to_list conjuncts in
       let reason =
         priority_select_with_default
-          (List.mapi conjuncts ~f:(fun n holds ->
+          (List.mapi holds ~f:(fun n holds ->
              { With_valid.valid = ~:holds; value = of_unsigned_int ~width:reason_bits n }))
           ~default:(zero reason_bits)
       in
-      after, ~:(reduce conjuncts ~f:( &: )), reason
+      after, ~:(reduce holds ~f:( &: )), reason, conjuncts
     ;;
   end
 
@@ -262,7 +263,7 @@ module Step = struct
     let next_pc, target_pc =
       S.K.successors ~wrap_top:i.wrap_top ~wrap_bottom:i.wrap_bottom ~pc:i.pc ~word:i.word
     in
-    let after, fails, reason =
+    let after, fails, reason, conjuncts =
       S.step
         ~side_set_count:i.side_set_count
         ~fraction:i.fraction
@@ -282,6 +283,7 @@ module Step = struct
     ; after = Kernel.Row.Of_signal.pack ~rev:true after
     ; fails
     ; reason
+    ; conjuncts
     }
   ;;
 
@@ -404,7 +406,7 @@ let walk
           ~word:w
       in
       let stored = ptr < count && (entry ptr).pc = pc + 1 in
-      let after, fails, reason =
+      let after, fails, reason, _ =
         Step.Of_bits.step
           ~side_set_count
           ~fraction

@@ -69,9 +69,10 @@ end
 
 (** [walk]'s step at a pc, over [Kernel.Make]: the row it holds next, which is the stored
     entry's, [stored_row], where [stored], and whether a conjunct fails, [reason] the
-    first in [Kernel.Conjuncts.to_list] order. [next] and [target] are the rows looked up
-    at the successors; [next] is unread where the pc falls through. [formal/complete.sv]
-    takes the circuit for the walk the load checker is proved to keep. *)
+    first in [Kernel.Conjuncts.to_list] order, and each. [next] and [target] are the rows
+    looked up at the successors; [next] is unread where the pc falls through.
+    [formal/complete.sv] takes the circuit for the walk the load checker is proved to
+    keep. *)
 module Step : sig
   module I : sig
     type 'a t =
@@ -99,6 +100,7 @@ module Step : sig
       ; after : 'a
       ; fails : 'a
       ; reason : 'a
+      ; conjuncts : 'a Kernel.Conjuncts.t
       }
     [@@deriving hardcaml]
   end
@@ -117,7 +119,7 @@ module Step : sig
       -> next_pc:Comb.t
       -> next:Comb.t Kernel.Row.t
       -> target:Comb.t Kernel.Row.t
-      -> Comb.t Kernel.Row.t * Comb.t * Comb.t
+      -> Comb.t Kernel.Row.t * Comb.t * Comb.t * Comb.t Kernel.Conjuncts.t
   end
 
   val hierarchical : ?instance:string -> Scope.t -> Signal.t I.t -> Signal.t O.t

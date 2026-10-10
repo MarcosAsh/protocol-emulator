@@ -1,6 +1,6 @@
 all: issue_timing host_timing late_host fifo_order phase_step edge_step event_step frame_step \
   value_step narrow saturating chip_frame isolation data_step teeth fsm_miter sram_equiv \
-  kernel_equiv link self_check self_check_clean powerup gate certify
+  kernel_equiv link self_check self_check_clean powerup gate certify complete
 
 engine.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe engine > formal/engine.v
@@ -206,6 +206,30 @@ certify_proof:
 	! cmp -s certify_teeth/short.v certify_teeth/early.v
 	! cmp -s engines_gated.v certify_teeth/early_read.v
 	sby -f certify.sby prove cover short_cover early early_read
+
+# The load checker is complete as well as sound: for any program, configuration, setup and
+# certificate it passes a pc only where Load_check.walk does, over the kernel's own
+# conjuncts on whole rows (load_check_step.v), and finishes with the walk's verdict, reject
+# pc and reason; a rank falls every cycle of a walk, so it finishes. Covers reach a refusal
+# and, ending at pc 1, an acceptance. Teeth must fail: the successor's phase conjunct
+# dropped on chip, the reject pc one off, a read that never ends.
+NEXT_PHASE = /^module load_checker /,/^endmodule/s/^\(\s*failed_next\$$phase <= \)signal_wire_[0-9]*;/\11'b0;/
+OFF_BY_ONE = /^module load_checker /,/^endmodule/s/^\(\s*reject_pc_0 <= signal_wire_[0-9]*\);/\1 + 10'd1;/
+STALL = /^module load_checker /,/^endmodule/s/^\(\s*assign read_done = \).*;/\11'b0;/
+load_check_step.v: ../src/*.ml
+	cd .. && dune exec -- bin/generate.exe load-check-step > formal/load_check_step.v
+
+complete: engines_gated.v load_check_step.v
+	$(MAKE) complete_proof
+
+complete_proof:
+	mkdir -p complete_teeth
+	sed "$(SHORT_WALK)" engines_gated.v > complete_teeth/short.v
+	sed "$(NEXT_PHASE)" engines_gated.v > complete_teeth/next_phase.v
+	sed "$(OFF_BY_ONE)" engines_gated.v > complete_teeth/off_by_one.v
+	sed "$(STALL)" engines_gated.v > complete_teeth/stall.v
+	for t in short next_phase off_by_one stall; do ! cmp -s engines_gated.v complete_teeth/$$t.v || exit 1; done
+	sby -f complete.sby prove cover short_cover next_phase off_by_one stall
 
 # A start reaches a core only once it is certified, by an accepted walk begun after its
 # last write that held it free; and never right after the checker held its ports. A walk
