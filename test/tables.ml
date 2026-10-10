@@ -337,3 +337,213 @@ let burst_word bits =
   List.foldi bits ~init:(n - 1) ~f:(fun i word bit ->
     word lor (Bool.to_int bit lsl (4 + i)))
 ;;
+
+let step outputs kind cycles next = { Step.outputs; kind; cycles; next }
+let fastest kind next ~outputs = step outputs kind (Kind.least kind) next
+let bit b = Bool.to_int b
+
+module Uart_tx = struct
+  type t =
+    | Idle
+    | Start
+    | Data of int
+    | Stop
+  [@@deriving equal, sexp_of]
+end
+
+let uart_tx ~bit:cycles : Uart_tx.t t =
+  { name = "uart_tx"
+  ; wiring = Wiring.default
+  ; state = (module Uart_tx)
+  ; states =
+      (Uart_tx.Idle :: Start :: List.init 8 ~f:(fun i -> Uart_tx.Data i)) @ [ Stop ]
+  ; step =
+      (fun state ~host_bit ~inputs:_ ->
+        let open Uart_tx in
+        match state with
+        | Idle -> fastest Await_host Start ~outputs:1
+        | Start -> step 0 Plain cycles (Data 0)
+        | Data i ->
+          step (bit host_bit) Shift cycles (if i = 7 then Stop else Data (i + 1))
+        | Stop -> step 1 Plain cycles Idle)
+  }
+;;
+
+let uart_word byte = host_bits (List.init 8 ~f:(fun i -> (byte lsr i) land 1 = 1))
+
+module Uart_burst = struct
+  type t = Send [@@deriving equal, sexp_of]
+end
+
+let uart_tx_burst ~bit:cycles : Uart_burst.t t =
+  { name = "uart_tx_burst"
+  ; wiring = Wiring.default
+  ; state = (module Uart_burst)
+  ; states = [ Uart_burst.Send ]
+  ; step = (fun Send ~host_bit:_ ~inputs:_ -> step 1 Burst cycles Uart_burst.Send)
+  }
+;;
+
+let uart_frame byte =
+  burst_word ((false :: List.init 8 ~f:(fun i -> (byte lsr i) land 1 = 1)) @ [ true ])
+;;
+
+module Spi_master = struct
+  type t =
+    | Idle
+    | Low of int
+    | High of int
+    | Done
+  [@@deriving equal, sexp_of]
+end
+
+(* MOSI on out_base, SCK beside it, MISO on in_base *)
+let spi_master ~half : Spi_master.t t =
+  { name = "spi_master"
+  ; wiring = Wiring.default
+  ; state = (module Spi_master)
+  ; states =
+      (Spi_master.Idle
+       :: List.concat_map (List.range 0 8) ~f:(fun i -> [ Spi_master.Low i; High i ]))
+      @ [ Done ]
+  ; step =
+      (fun state ~host_bit ~inputs:_ ->
+        let open Spi_master in
+        match state with
+        | Idle -> fastest Await_host (Low 0) ~outputs:0
+        | Low i -> step (bit host_bit) Plain half (High i)
+        | High i ->
+          step (bit host_bit lor 2) Shift half (if i = 7 then Done else Low (i + 1))
+        | Done -> fastest Push Idle ~outputs:0)
+  }
+;;
+
+module Dshot_bits = struct
+  type t =
+    | Idle
+    | Rise of int
+    | Bit of int
+    | Fall of int
+    | Gap
+  [@@deriving equal, sexp_of]
+end
+
+(* each bit: high for [zero_high], the bit for [zero_high] more, low to [bit] *)
+let dshot ~zero_high ~bit:cycles : Dshot_bits.t t =
+  { name = "dshot"
+  ; wiring = Wiring.default
+  ; state = (module Dshot_bits)
+  ; states =
+      (Dshot_bits.Idle
+       :: List.concat_map (List.range 0 16) ~f:(fun i ->
+         [ Dshot_bits.Rise i; Bit i; Fall i ]))
+      @ [ Gap ]
+  ; step =
+      (fun state ~host_bit ~inputs:_ ->
+        let open Dshot_bits in
+        match state with
+        | Idle -> fastest Await_host (Rise 0) ~outputs:0
+        | Rise i -> step 1 Plain zero_high (Bit i)
+        | Bit i -> step (bit host_bit) Shift zero_high (Fall i)
+        | Fall i ->
+          step 0 Plain (cycles - (2 * zero_high)) (if i = 15 then Gap else Rise (i + 1))
+        | Gap -> step 0 Plain (8 * zero_high) Idle)
+  }
+;;
+
+module I2c_slave = struct
+  type t =
+    | Idle
+    | Fall
+    | Start
+    | Address_high of int
+    | Address_check of int
+    | Ack
+    | Ack_low
+    | Release
+    | First_high
+    | First_shift
+    | Watch of bool
+    | Data_high
+    | Data_shift
+    | Data_low
+    | Push_ack
+  [@@deriving equal, sexp_of]
+end
+
+let marker = 0x0080
+
+(* Takes writes to [address]: SDA on [sda], SCL beside it, both open drain. Each byte goes
+   to the host as [0x8000 lor byte]; the host keeps a [marker] word queued for each, which
+   reaches p[15] as the eighth bit comes in. START and STOP are watched for on the first
+   bit of a byte, by polling while SCL is high, as [I2c.slave] does. *)
+let i2c_slave ~address ~sda : I2c_slave.t t =
+  let scl = sda + 1 in
+  let wiring =
+    { Wiring.inputs = 2
+    ; in_base = sda
+    ; out_base = sda
+    ; open_drain = true
+    ; await_a = scl
+    ; await_b = sda
+    }
+  in
+  let sda_high inputs = inputs land 1 = 1 in
+  let scl_high inputs = inputs land 2 = 2 in
+  let scl_low = Kind.Await { pin = A; level = false } in
+  let scl_high_kind = Kind.Await { pin = A; level = true } in
+  let wanted i = ((address lsl 1) lsr (7 - i)) land 1 = 1 in
+  { name = "i2c_slave"
+  ; wiring
+  ; state = (module I2c_slave)
+  ; states =
+      [ I2c_slave.Idle; Fall; Start ]
+      @ List.concat_map (List.range 0 8) ~f:(fun i ->
+        [ I2c_slave.Address_high i; Address_check i ])
+      @ [ Ack
+        ; Ack_low
+        ; Release
+        ; First_high
+        ; First_shift
+        ; Watch false
+        ; Watch true
+        ; Data_high
+        ; Data_shift
+        ; Data_low
+        ; Push_ack
+        ]
+  ; step =
+      (fun state ~host_bit ~inputs ->
+        let open I2c_slave in
+        match state with
+        | Idle -> fastest (Await { pin = B; level = true }) Fall ~outputs:0
+        | Fall -> fastest (Await { pin = B; level = false }) Start ~outputs:0
+        | Start ->
+          if scl_high inputs
+          then fastest scl_low (Address_high 0) ~outputs:0
+          else fastest Plain Idle ~outputs:0
+        | Address_high i -> fastest scl_high_kind (Address_check i) ~outputs:0
+        | Address_check i ->
+          if scl_high inputs && Bool.equal (sda_high inputs) (wanted i)
+          then fastest scl_low (if i = 7 then Ack else Address_high (i + 1)) ~outputs:0
+          else fastest Plain Idle ~outputs:0
+        | Ack -> fastest scl_high_kind Ack_low ~outputs:1
+        | Ack_low -> fastest scl_low Release ~outputs:1
+        | Release -> fastest Pull First_high ~outputs:0
+        | First_high -> fastest scl_high_kind First_shift ~outputs:0
+        | First_shift -> fastest Shift (Watch (sda_high inputs)) ~outputs:0
+        | Watch was ->
+          if not (scl_high inputs)
+          then fastest scl_high_kind Data_shift ~outputs:0
+          else if Bool.equal (sda_high inputs) was
+          then fastest Plain (Watch was) ~outputs:0
+          else if was
+          then fastest scl_low (Address_high 0) ~outputs:0 (* a repeated START *)
+          else fastest Plain Idle ~outputs:0 (* a STOP *)
+        | Data_high -> fastest scl_high_kind Data_shift ~outputs:0
+        | Data_shift -> fastest Shift Data_low ~outputs:0
+        | Data_low ->
+          fastest scl_low (if host_bit then Push_ack else Data_high) ~outputs:0
+        | Push_ack -> fastest Push Ack ~outputs:1)
+  }
+;;
