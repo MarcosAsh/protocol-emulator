@@ -24,6 +24,15 @@ REJECT_PC = 0x44
 REJECT_REASON = 0x45
 LINE_ADDR = 0x46
 LINE = 0x47
+FRAME_CONTROL = 0x48
+FRAME_BASE = 0x49
+FRAME_STATUS = 0x4A
+STAMP_MASK = 0x4C
+STAMP_CONTROL = 0x4D
+STAMP_TIME_LO = 0x4E
+STAMP_TIME_HI = 0x4F
+STAMP_PINS_LO = 0x50
+STAMP_PINS_HI = 0x51
 PROGRAM_WORDS = 512
 
 
@@ -168,6 +177,37 @@ class Host:
             "decode": (s >> 5) & 1, "tx_level": (s >> 6) & 15, "rx_level": (s >> 10) & 15,
             "other_irq": (s >> 15) & 1,
         }
+
+    def arm_frame(self, pin, base=0, fifty=True):
+        """Take the next 10BASE-T frame on pin into the data memory from base, sampling
+        for a 50 MHz clock (else 40 MHz). One frame per arm."""
+        self.write(FRAME_BASE, [base])
+        self.write(FRAME_CONTROL, [(pin << 2) | (int(fifty) << 1) | 1])
+
+    def frame_status(self):
+        s = self.read(FRAME_STATUS)[0]
+        return {
+            "words": s & 0x3FF, "finished": (s >> 10) & 1, "fcs_ok": (s >> 11) & 1,
+            "half": (s >> 12) & 1, "dropped": (s >> 13) & 1, "receiving": (s >> 14) & 1,
+            "armed": (s >> 15) & 1,
+        }
+
+    def watch_edges(self, pins, engine=0):
+        """Stamp edges on the pins (a mask of 20) with engine's time; empties the queue."""
+        self.write(STAMP_MASK, [pins & 0xFFFF])
+        self.write(STAMP_CONTROL, [(engine << 4) | (pins >> 16)])
+
+    def edge_stamps(self):
+        """Pop every queued stamp: (time, pads), and whether one was lost to a full queue."""
+        stamps = []
+        hi = self.read(STAMP_TIME_HI)[0]
+        while (hi >> 8) & 7:
+            lo = self.read(STAMP_TIME_LO)[0]
+            pins_lo = self.read(STAMP_PINS_LO)[0]
+            pins_hi = self.read(STAMP_PINS_HI)[0]  # pops
+            stamps.append((((hi & 0xFF) << 16) | lo, (pins_hi << 16) | pins_lo))
+            hi = self.read(STAMP_TIME_HI)[0]
+        return stamps, bool(hi >> 15)
 
     def now(self):
         """The halves come in separate frames, so the high one is read either side of the
