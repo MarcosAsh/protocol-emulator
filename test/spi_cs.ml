@@ -374,6 +374,13 @@ let protocol =
       List.map Mode.all ~f:(fun mode ->
         let bench = bench mode in
         Certified.plain ~no_wrap:true bench.name bench.source bench.config)
+      (* the flash demo's master on Spi_cs.config's own pins, not the bench's *)
+      @ List.map Mode.all ~f:(fun mode ->
+        Certified.plain
+          ~no_wrap:true
+          [%string "spi_cs_mode%{Mode.to_int mode#Int}_default_pins"]
+          (master ~mode ~half_period:Bench.spi_half ~setup:4 ~hold:8 ~deselect)
+          config)
   ; time_triggered = []
   ; bench = List.map Mode.all ~f:bench
   ; loaded_from_hex = []
@@ -387,6 +394,10 @@ let protocol =
         ( (bench mode).name
         , "the bench's SPI demo, certified as it loads; the sweep has not stamped it on \
            the board" ))
+      @ List.map Mode.all ~f:(fun mode ->
+        ( [%string "spi_cs_mode%{Mode.to_int mode#Int}_default_pins"]
+        , "not stamped: its decoded runs judge each mode, and both_roles.ml runs it \
+           against Spi_target" ))
   ; scenarios = []
   ; decoded = List.map Mode.all ~f:scenario
   }
