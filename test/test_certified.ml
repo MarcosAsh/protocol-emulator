@@ -60,6 +60,8 @@ let%expect_test "the firmware library and its certificates" =
     dshot600              21         4     14  no wrap
     sent                  83         9    129  period 150, no wrap
     cec                   71        20   2493  period 2500, no wrap
+    table                112         2      0
+    table_open_drain     112         2      0
     |}]
 ;;
 

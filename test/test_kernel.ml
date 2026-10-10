@@ -376,6 +376,8 @@ let%expect_test "the kernel on the firmware library, from the analyser's rows" =
     (dshot600 (verdict (Ok ())))
     (sent (verdict (Ok ())))
     (cec (verdict (Ok ())))
+    (table (verdict (Ok ())))
+    (table_open_drain (verdict (Ok ())))
     |}]
 ;;
 
@@ -1138,6 +1140,8 @@ let%expect_test "a bound on the jitter of every pin edge, in firmware the kernel
     (dshot600 (pc 1) (jitter_bound 0) (untimed ()))
     (sent (pc 4) (jitter_bound 0) (untimed ()))
     (cec (pc 4) (jitter_bound 0) (untimed ()))
+    (table (pc 6) (jitter_bound 0) (untimed ()))
+    (table_open_drain (pc 6) (jitter_bound 0) (untimed ()))
     (spi_slave_captured "no edge has a deadline" (untimed (0 5))
      (reaction ((pc 5) (at_most 2))))
     |}]

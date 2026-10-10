@@ -11,7 +11,8 @@ module Variant = struct
 end
 
 let firmware =
-  List.filter Library.certified ~f:(fun (c : Certified.t) -> not c.single_capture_edge)
+  List.filter Library.certified ~f:(fun (c : Certified.t) ->
+    not (c.single_capture_edge || c.any_data))
 ;;
 
 let variants (firmware : Certified.t) =

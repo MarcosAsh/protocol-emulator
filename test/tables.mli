@@ -151,3 +151,7 @@ val dshot : zero_high:int -> bit:int -> Dshot_bits.t t
 val i2c_slave : address:int -> sda:int -> I2c_slave.t t
 
 val marker : int
+
+(** The interpreter at [Wiring.default] and at [i2c_slave]'s wiring, certified with the
+    data memory free. *)
+val protocol : Protocol.t

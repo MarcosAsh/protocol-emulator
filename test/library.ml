@@ -18,6 +18,7 @@ let protocols =
   ; Cec.protocol
   ; Swd.protocol
   ; Spi_cs.protocol
+  ; Tables.protocol
   ]
 ;;
 

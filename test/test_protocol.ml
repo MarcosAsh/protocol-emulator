@@ -384,6 +384,14 @@ let%expect_test "every protocol from its file to the decoded trace" =
     decode: test/traces/sigrok/spi_mode3.trace, by sigrok's spi:cs=OUT2:clk=OUT1:mosi=OUT0:miso=IN0:cpol=1:cpha=1
       spi=mosi-transfer: spi-1: 9F 00 00 00, spi-1: A5, spi-1: 3C C3
       spi=miso-transfer: spi-1: 5A 60 FF FF, spi-1: 5A, spi-1: 5A C3
+
+    === tables
+
+    certificates
+    table: 112 words, 2 deadline waits, worst slack 0, the kernel accepts it, assuming nothing
+    table_open_drain: 112 words, 2 deadline waits, worst slack 0, the kernel accepts it, assuming nothing
+
+    limits
     |}]
 ;;
 

@@ -238,6 +238,8 @@ let%expect_test "the footprint of each firmware, and of its config under any pro
     dshot600           5            -          5-20           12-19
     sent               5            -          5-20           12-19
     cec                12           12         12-27          12-19
+    table              5-10         -          5-20           12-19
+    table_open_drain   -            12-17      5 12-27        12-19
     |}]
 ;;
 
@@ -314,6 +316,8 @@ let%expect_test "each firmware stays inside its footprint" =
     dshot600           5            -
     sent               5            -
     cec                -            -
+    table              -            -
+    table_open_drain   -            -
     |}]
 ;;
 
