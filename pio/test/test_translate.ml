@@ -31,7 +31,8 @@ let%expect_test "uart_tx at k = 8: side-set shares the pin with out, so comes by
   List.iter t.contract ~f:print_endline;
   print_string t.source;
   print_s [%sexp (Timed_program.verdict timed : Analyser.Verdict.t)];
-  [%expect {|
+  [%expect
+    {|
     tx words fit 16 bits
         set p, 8
         set pins, 1
@@ -116,7 +117,8 @@ let%expect_test "census of pico-examples at 0d62f75" =
   print_string
     (Census.to_string
        (List.map (every_program ()) ~f:(fun (file, program) -> Census.row ~file program)));
-  [%expect {|
+  [%expect
+    {|
     | file | program | verdict | least k | words | k at 50 MHz, certified |
     |---|---|---|---|---|---|
     | addition.pio | addition | refused: mov ~ into a register (32-bit invert) |  |  |  |
@@ -234,7 +236,8 @@ let%expect_test "refused features are named" =
     ; "irq wait 0"
     ; "out null, 32"
     ];
-  [%expect {|
+  [%expect
+    {|
     irq clear 3                  irq clear
     wait 1 irq 2                 wait irq
     wait 0 gpio 4                wait gpio
@@ -251,5 +254,54 @@ let%expect_test "refused features are named" =
     irq 3                        translates
     irq wait 0                   translates
     out null, 32                 translates
+    |}]
+;;
+
+(* The checker's teeth: spi_cpha0's [in pins, 1 side 1 [1]] with one word changed. *)
+let%expect_test "the relation check refuses a dropped wait, a late sample and a wrong \
+                 side-set"
+  =
+  let spi = program "spi.pio" "spi_cpha0" in
+  let t, _ = certify spi ~k:8. in
+  let setup = Census.setup spi ~period:8 in
+  let words = Array.of_list t.words in
+  let step =
+    List.find_exn t.relation.steps ~f:(fun step ->
+      match Relation.instruction spi ~exec:t.exec step.site with
+      | { op = In _; _ } -> true
+      | _ -> false)
+  in
+  let marker = List.hd_exn step.markers in
+  let check name mutate =
+    let words = Array.copy words in
+    mutate words;
+    match Translate.check_relation setup spi { t with words = Array.to_list words } with
+    | Ok () -> printf "%s: passes\n" name
+    | Error error ->
+      printf
+        "%s: %s\n"
+        name
+        (List.hd_exn (String.split_lines (Error.to_string_hum error)))
+  in
+  List.iter [ 0; 1; 2 ] ~f:(fun i ->
+    print_endline (Asm.to_string ~side_set_count:1 words.(marker + i)));
+  check "as translated" ignore;
+  check "the delay's wait dropped" (fun w ->
+    w.(marker + 2) <- Op { op = Sys Nop; delay = 0; side_set = 1 });
+  check "the sample after the wait" (fun w ->
+    let sample = w.(marker + 1) in
+    w.(marker + 1) <- w.(marker + 2);
+    w.(marker + 2) <- sample);
+  check "side-set 0 for 1" (fun w ->
+    w.(marker + 1) <- Op { op = In { source = Pins; count = 1 }; delay = 0; side_set = 0 });
+  [%expect
+    {|
+    wait t+ side 0
+    in pins, 1 side 1
+    wait t+ side 1
+    as translated: passes
+    the delay's wait dropped: (Pc 1), to word 37: takes 0 waits after its marker, not 1
+    the sample after the wait: (Pc 1), to word 37: a pin event off its cycle
+    side-set 0 for 1: (Pc 1), word 13: drives side-set 0 inside the step, not 1
     |}]
 ;;
