@@ -153,7 +153,7 @@ loop:
 (* The short programs of test_engine.ml. *)
 let short coverage =
   let run = run coverage ~config:{ Program_config.default with in_base = 5 } in
-  let words = List.init 12 ~f:(fun n -> 0x1000 + n) in
+  let words = List.init (Machine.fifo_depth + 4) ~f:(fun n -> 0x1000 + n) in
   List.iter Fifo_poll.programs ~f:(fun program ->
     run ~words program;
     run ~words ~pop:false program);

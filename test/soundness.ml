@@ -11,9 +11,12 @@ module Stimulus = struct
   let random ~seed ~cycles =
     let random = Splittable_random.of_int seed in
     let int hi = Splittable_random.int random ~lo:0 ~hi in
+    (* at most eight words waiting: a host that fills the fifo keeps some firmwares (the
+       i2c slave) to fewer of their paths *)
+    let backlog = 8 in
     let host _ (m : Machine.t) =
       let m =
-        if int 3 = 0 && List.length m.tx_fifo < Machine.fifo_depth
+        if int 3 = 0 && List.length m.tx_fifo < backlog
         then Machine.write_tx m (int 0xffff) |> ok_exn
         else m
       in
