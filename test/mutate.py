@@ -27,7 +27,7 @@ ALLOW = Path(__file__).with_name("mutation_allow.txt")
 # committed verilog is still copied, as test/dune depends on it
 COPIED = ["src", "test", "bin", "ppx", "python", "formal/Makefile", "dune-project", ".ocamlformat",
           "demo/paths.py", "demo/outline.py", "demo/draw.py", "demo/kernel_vs_board.py",
-          "pages/die/die.bin", "test/paths/cells.json", "src/protocol_emulator.v"]
+          "pages/die/die.bin", "test/paths/cells.json", "src/protocol_emulator.v", "icepi/Makefile"]
 SKIPPED = shutil.ignore_patterns("sim_build", "__pycache__", "*.fst", "*.vcd", "*.xml", "*.v", "*.json",
                                  "test_provenance.ml*")
 
