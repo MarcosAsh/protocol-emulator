@@ -60,6 +60,19 @@ let%expect_test "the firmware library and its certificates" =
     dshot600              21         4     14  no wrap
     sent                  83         9    129  period 150, no wrap
     cec                   71        20   2493  period 2500, no wrap
+    uart_rx_host_rate     22         2    409  period 208, one edge before capture, no wrap
+    i2c_master_standard   113        43    113  period 121, no wrap
+    i2c_master_fast      107        37     24  period 32, no wrap
+    i2c_controller_wire    87        25    113  period 121, no wrap
+    i2c_target_wire       78         0      -
+    spi_cs_mode0          42         6      1
+    spi_target_mode0      38         0      -
+    spi_cs_mode1          42         6      1
+    spi_target_mode1      33         0      -
+    spi_cs_mode2          42         6      1
+    spi_target_mode2      38         0      -
+    spi_cs_mode3          42         6      1
+    spi_target_mode3      33         0      -
     |}]
 ;;
 
@@ -138,6 +151,22 @@ let%expect_test "the least period the host may load" =
     (QED "cec: every load of 7 or more")
     (counterexample "cec: every load of 6 or more"
      (model ((loaded 0000000000000110))))
+    (uart_rx_host_rate (period (208)) (floor 4) (passes true) (one_less false))
+    (QED "uart_rx_host_rate: every load of 4 or more")
+    (counterexample "uart_rx_host_rate: every load of 3 or more"
+     (model ((loaded 0000000000000011))))
+    (i2c_master_standard (period (121)) (floor 8) (passes true) (one_less false))
+    (QED "i2c_master_standard: every load of 8 or more")
+    (counterexample "i2c_master_standard: every load of 7 or more"
+     (model ((loaded 0000000000000111))))
+    (i2c_master_fast (period (32)) (floor 8) (passes true) (one_less false))
+    (QED "i2c_master_fast: every load of 8 or more")
+    (counterexample "i2c_master_fast: every load of 7 or more"
+     (model ((loaded 0000000000000111))))
+    (i2c_controller_wire (period (121)) (floor 8) (passes true) (one_less false))
+    (QED "i2c_controller_wire: every load of 8 or more")
+    (counterexample "i2c_controller_wire: every load of 7 or more"
+     (model ((loaded 0000000000000111))))
     |}]
 ;;
 

@@ -89,5 +89,18 @@ let%expect_test "the kernel refuses each row moved by a cycle" =
     (dshot600 (phase 34) (arm 0) (capture 0) (accepted ()))
     (sent (phase 154) (arm 0) (capture 0) (accepted ()))
     (cec (phase 128) (arm 0) (capture 0) (accepted ()))
+    (uart_rx_host_rate (phase 30) (arm 2) (capture 12) (accepted ()))
+    (i2c_master_standard (phase 208) (arm 0) (capture 0) (accepted ()))
+    (i2c_master_fast (phase 196) (arm 0) (capture 0) (accepted ()))
+    (i2c_controller_wire (phase 158) (arm 0) (capture 0) (accepted ()))
+    (i2c_target_wire (phase 0) (arm 0) (capture 0) (accepted ()))
+    (spi_cs_mode0 (phase 62) (arm 0) (capture 0) (accepted ()))
+    (spi_target_mode0 (phase 0) (arm 0) (capture 0) (accepted ()))
+    (spi_cs_mode1 (phase 62) (arm 0) (capture 0) (accepted ()))
+    (spi_target_mode1 (phase 0) (arm 0) (capture 0) (accepted ()))
+    (spi_cs_mode2 (phase 62) (arm 0) (capture 0) (accepted ()))
+    (spi_target_mode2 (phase 0) (arm 0) (capture 0) (accepted ()))
+    (spi_cs_mode3 (phase 62) (arm 0) (capture 0) (accepted ()))
+    (spi_target_mode3 (phase 0) (arm 0) (capture 0) (accepted ()))
     |}]
 ;;

@@ -97,7 +97,50 @@ let all =
       "cec"
       Cec.firmware
       Cec.config
+    (* half the bit at 115200 baud and 48 MHz *)
+  ; receiver
+      ~period:208
+      ~period_floor:4
+      "uart_rx_host_rate"
+      Firmware.uart_rx_host_rate
+      Firmware.rx_config
+    (* Standard-mode and Fast-mode at 48 MHz, test/rates.ml *)
+  ; plain
+      ~period:121
+      ~period_floor:8
+      ~no_wrap:true
+      "i2c_master_standard"
+      (Firmware.i2c_master_host_rate_held ~quarters:3 ())
+      Firmware.i2c_config
+  ; plain
+      ~period:32
+      ~period_floor:8
+      ~no_wrap:true
+      "i2c_master_fast"
+      (Firmware.i2c_master_host_rate_held ~quarters:2 ())
+      Firmware.i2c_config
+    (* each as test/both_roles.ml runs it on wires *)
+  ; plain
+      ~period:121
+      ~period_floor:8
+      ~no_wrap:true
+      "i2c_controller_wire"
+      Both_roles.I2c.controller
+      Both_roles.I2c.controller_config
+  ; plain "i2c_target_wire" Both_roles.I2c.target Both_roles.I2c.target_config
   ]
+  (* the flash demo's master, 3 MHz at 48, and a target in each mode *)
+  @ List.concat_map Spi_cs.Mode.all ~f:(fun mode ->
+    let n = Spi_cs.Mode.to_int mode in
+    [ plain
+        [%string "spi_cs_mode%{n#Int}"]
+        (Spi_cs.master ~mode ~half_period:8 ~setup:4 ~hold:8 ~deselect:144)
+        Spi_cs.config
+    ; plain
+        [%string "spi_target_mode%{n#Int}"]
+        (Spi_target.firmware ~mode Spi_target.pads)
+        (Spi_target.config Spi_target.pads)
+    ])
 ;;
 
 let time_triggered =

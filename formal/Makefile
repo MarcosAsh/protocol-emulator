@@ -312,7 +312,10 @@ data_names:
 # left free it has to fail.
 INDUCTIVE = uart_tx uart_tx16 uart_tx_host_rate uart_rx spi_master spi_slave i2c_master \
   i2c_slave i2c_logger usb_tx usb_rx usb_device edge_meter ws2812 ethernet one_wire ps2 jtag \
-  can dshot600 sent cec uart_tx_stream spi_master_stream
+  can dshot600 sent cec uart_rx_host_rate i2c_master_standard i2c_master_fast \
+  i2c_controller_wire i2c_target_wire spi_cs_mode0 spi_target_mode0 spi_cs_mode1 \
+  spi_target_mode1 spi_cs_mode2 spi_target_mode2 spi_cs_mode3 spi_target_mode3 \
+  uart_tx_stream spi_master_stream
 inductive_certificates: engine_sram.v
 	for name in $(INDUCTIVE); do $(MAKE) inductive_certificate NAME=$$name || exit 1; done
 

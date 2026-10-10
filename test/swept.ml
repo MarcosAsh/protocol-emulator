@@ -91,5 +91,18 @@ let not_swept =
   ; ( "uart_tx_stamped"
     , "26 bits 8 cycles apart, and the chip's clock in them, which the model cannot know"
     )
+  ; "uart_rx_host_rate", "a receiver: both_roles.ml sends to it on a wire"
+  ; ( "i2c_master_standard"
+    , "open drain, which a wire does not show, and a slave has to acknowledge" )
+  ; ( "i2c_master_fast"
+    , "open drain, which a wire does not show, and a slave has to acknowledge" )
+  ; "i2c_controller_wire", "on two wires already, and both_roles.ml's target acknowledges"
+  ; "i2c_target_wire", "a target: the controller's clock moves it"
   ]
+  @ List.concat_map [ 0; 1; 2; 3 ] ~f:(fun n ->
+    [ ( [%string "spi_cs_mode%{n#Int}"]
+      , "not stamped: test/test_outside.py runs each mode against a slave of the mode, \
+         and both_roles.ml against Spi_target" )
+    ; [%string "spi_target_mode%{n#Int}"], "a target: the controller's clock moves it"
+    ])
 ;;

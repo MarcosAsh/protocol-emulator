@@ -6,8 +6,8 @@ open Protocol_models
 (* A sender's bit as [num / den] of the receiver's: 4% fast, exact, 4% slow. *)
 let rates = [ "4% fast", 24, 25; "exact", 1, 1; "4% slow", 26, 25 ]
 
-(* Per-bit levels to per-cycle levels, each bit starting on the first cycle at or after
-   it is due, so an off-rate sender's edges drift. *)
+(* Per-bit levels to per-cycle levels, each bit starting on the first cycle at or after it
+   is due, so an off-rate sender's edges drift. *)
 let clocked bits ~period ~num ~den =
   let start k = ((k * period * num) + den - 1) / den in
   List.concat_mapi bits ~f:(fun k level ->
@@ -89,7 +89,7 @@ let every_byte = List.init 256 ~f:Fn.id
 
 (* Every byte, back to back. [broken] frames lose their stop bit and are followed by a bit
    of idle, so the receiver takes the next start edge again. *)
-let uart ?(broken = fun _ -> false) ~period ?(name = "uart_rx") firmware =
+let uart ?preload ?(broken = fun _ -> false) ~period ?(name = "uart_rx") firmware =
   let bits =
     List.concat_map every_byte ~f:(fun byte ->
       let frame = (0 :: List.init 8 ~f:(fun i -> (byte lsr i) land 1)) @ [ 1 ] in
@@ -99,7 +99,7 @@ let uart ?(broken = fun _ -> false) ~period ?(name = "uart_rx") firmware =
     let levels =
       List.init 20 ~f:(fun _ -> 1) @ clocked (bits @ [ 1; 1 ]) ~period ~num ~den
     in
-    let run = watch firmware levels in
+    let run = watch ?preload firmware levels in
     let received = intact ~expected:every_byte run in
     print_row
       name
@@ -155,8 +155,8 @@ let usb_rx_packets ~bit_period firmware =
     print_row "usb_rx" ~sender run ~received:(intact ~expected run))
 ;;
 
-(* Per eight bytes: SETUP + DATA0 (ACKed), IN (NAKed), IN, OUT + data for another
-   address, and a host ACK, two bit times apart plus room for answers. *)
+(* Per eight bytes: SETUP + DATA0 (ACKed), IN (NAKed), IN, OUT + data for another address,
+   and a host ACK, two bit times apart plus room for answers. *)
 let usb_device_transactions ~bit_period firmware =
   let dp = usb_device_dp_pin in
   let dm = usb_device_dm_pin in
@@ -290,6 +290,17 @@ let%expect_test "the receivers keep the premise their certificates rest on" =
         uart ~period:25 ~name:"uart_rx 25" { firmware with source = uart_rx ~period:25 };
         uart ~period:17 ~name:"uart_rx 17" { firmware with source = uart_rx ~period:17 };
         uart ~broken:(fun byte -> byte % 8 = 7) ~period:16 ~name:"uart_rx stop" firmware
+      | "uart_rx_host_rate" ->
+        (* the host sends half the bit: 26, for 921600 baud at 48 MHz, the fastest common
+           rate *)
+        let firmware = { firmware with period = Some 26 } in
+        uart ~preload:[ 26 ] ~period:52 ~name:"uart_rx_host_rate" firmware;
+        uart
+          ~preload:[ 26 ]
+          ~broken:(fun byte -> byte % 8 = 7)
+          ~period:52
+          ~name:"host_rate stop"
+          firmware
       | "usb_rx" -> usb_rx_packets ~bit_period:(Option.value_exn firmware.period) firmware
       | "usb_device" ->
         let bit_period = Option.value_exn firmware.period in
@@ -318,6 +329,12 @@ let%expect_test "the receivers keep the premise their certificates rest on" =
     usb_device         exact      225         0           0  32 ACK and 32 NAK of 32 each
     usb_device         4% slow    225         0           0  0 ACK and 0 NAK of 32 each
     usb_device at once exact       97         0           0  32 ACK and 32 NAK of 32 each
+    uart_rx_host_rate  4% fast    257         0           0  all intact
+    uart_rx_host_rate  exact      257         0           0  all intact
+    uart_rx_host_rate  4% slow    257         0           0  all intact
+    host_rate stop     4% fast    257         0           0  all intact, 32 framing errors
+    host_rate stop     exact      257         0           0  all intact, 32 framing errors
+    host_rate stop     4% slow    257         0           0  all intact, 32 framing errors
     |}]
 ;;
 
@@ -344,6 +361,5 @@ let%expect_test "a halted wait for the edge has not released" =
     Premise.count premise
   in
   print_s [%message "" ~stopped:(run ~stop:10 firmware.config : Premise.Count.t)];
-  [%expect
-    {| (stopped ((arms 1) (at_captured_level 0) (left_captured_level 1))) |}]
+  [%expect {| (stopped ((arms 1) (at_captured_level 0) (left_captured_level 1))) |}]
 ;;

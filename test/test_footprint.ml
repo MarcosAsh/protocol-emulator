@@ -238,6 +238,19 @@ let%expect_test "the footprint of each firmware, and of its config under any pro
     dshot600           5            -          5-20           12-19
     sent               5            -          5-20           12-19
     cec                12           12         12-27          12-19
+    uart_rx_host_rate  -            -          5-20           12-19
+    i2c_master_standard -            12-13      12-27          12-19
+    i2c_master_fast    -            12-13      12-27          12-19
+    i2c_controller_wire 20-21        -          5-7 20-27      -
+    i2c_target_wire    20           -          5-7 20-27      -
+    spi_cs_mode0       5-7          -          5-20           12-19
+    spi_target_mode0   5            -          5-20           12-19
+    spi_cs_mode1       5-7          -          5-20           12-19
+    spi_target_mode1   5            -          5-20           12-19
+    spi_cs_mode2       5-7          -          5-20           12-19
+    spi_target_mode2   5            -          5-20           12-19
+    spi_cs_mode3       5-7          -          5-20           12-19
+    spi_target_mode3   5            -          5-20           12-19
     |}]
 ;;
 
@@ -314,6 +327,19 @@ let%expect_test "each firmware stays inside its footprint" =
     dshot600           5            -
     sent               5            -
     cec                -            -
+    uart_rx_host_rate  -            -
+    i2c_master_standard -            -
+    i2c_master_fast    -            12-13
+    i2c_controller_wire 21           -
+    i2c_target_wire    -            -
+    spi_cs_mode0       5-7          -
+    spi_target_mode0   5            -
+    spi_cs_mode1       5-7          -
+    spi_target_mode1   5            -
+    spi_cs_mode2       5-7          -
+    spi_target_mode2   5            -
+    spi_cs_mode3       5-7          -
+    spi_target_mode3   5            -
     |}]
 ;;
 
