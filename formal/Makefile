@@ -567,7 +567,7 @@ netlist_equiv:
 
 # mutants that must be refuted: macro enables swapped, uio_oe[0] inverted, a reset
 # synchroniser untied, and the RTL as written with the host port's state held, with the
-# load checker's reset into Header, not Idle, and with its state held; the last four's
+# load checker's reset and clear into Header, not Idle, and with its state held; the last four's
 # counterexamples must pass the first cycle. The last one's is 57 cycles deep, past what
 # dprove's own BMC reaches, so BMC alone looks for it.
 netlist_equiv_teeth:
@@ -585,7 +585,7 @@ netlist_equiv_teeth:
 	grep 'No output asserted in 1 frames' netlist_equiv_held_host_port_sm/proof.log
 	sed -E '/^module load_checker /,/^endmodule/s/^( *sm <= )signal_const_[0-9]+;/\1 1;/' \
 	  ../src/protocol_emulator.v > netlist_equiv_teeth/header.v
-	test $$(diff ../src/protocol_emulator.v netlist_equiv_teeth/header.v | grep -c '^>') = 1
+	test $$(diff ../src/protocol_emulator.v netlist_equiv_teeth/header.v | grep -c '^>') = 2
 	$(MAKE) netlist_equiv WRITTEN=netlist_equiv_teeth/header.v EQUIV=netlist_equiv_header EXPECT=0
 	grep 'No output asserted in 1 frames' netlist_equiv_header/proof.log
 	$(MAKE) netlist_equiv_held HELD_ONE=load_checker/sm ENGINE='bmc3 -T 600'
