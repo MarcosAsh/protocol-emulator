@@ -235,9 +235,9 @@ let%expect_test "the line table, the start of every engine and the assumption fa
         (state : int list) ~status:(List.map status ~f:(fun s -> s lsr 14) : int list)]);
   [%expect
     {|
-    ((state (1)) (status (1)))
+    ((state (17)) (status (1)))
     (events
-     ("1: line[14] <- 4660" "1: line[15] <- 22136" "1: line[0] <- 39612"
+     ("1: line[14] <- 4660" "1: line[15] <- 22136" "1: line[16] <- 39612"
       start_all))
     |}]
 ;;

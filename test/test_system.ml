@@ -343,5 +343,5 @@ let%expect_test "random programs on two engines with the add-ons in lockstep" =
     |> List.filter_opt
   in
   print_s [%message (failed : int list) (!routed : int)];
-  [%expect {| ((failed ()) (!routed 8)) |}]
+  [%expect {| ((failed ()) (!routed 11)) |}]
 ;;
