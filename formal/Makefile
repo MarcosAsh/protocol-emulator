@@ -367,6 +367,41 @@ inductive_certificates: engine_sram.v
 inductive_names:
 	@echo $(INDUCTIVE)
 
+# Each receiver's clock tolerance (write_tolerance.ml). The UARTs at the bounds their
+# certificates give (test/tolerance.ml): two frames back to back from a sender free-running
+# at any m 2^-16 cycles a bit within them and from any phase, every byte read and no irq or
+# fault. Teeth: a step faster or slower than the bounds, and the receiver with its sample
+# point a cycle late, at the bounds of the one on time and a step past its own, have to
+# fail; at its own bounds it passes; a run at each bound reads both words. uart_rx_16 is
+# the library's, the host rate receiver at half periods short enough to unroll. The SPI
+# target follows SCK, so no rate error builds up: two bytes in mode 0 with every SCK phase
+# free from its least to 4 more, and a cycle less high has to fail. tolerance_proof runs
+# one on files written already.
+TOLERANCE = uart_rx_16 uart_rx_host_rate_4 uart_rx_host_rate_8 spi_target_mode0
+TOLERANCE_PROOFS = prove moved_own
+TOLERANCE_TEETH = reach_least reach_most faster slower moved moved_faster moved_slower
+TOLERANCE_PROOFS_spi_target_mode0 = prove
+TOLERANCE_TEETH_spi_target_mode0 = reach_least faster
+
+tolerance: engine_sram.v
+	for name in $(TOLERANCE); do $(MAKE) tolerance_one NAME=$$name || exit 1; done
+
+tolerance_one:
+	(cd .. && dune exec -- test/certify/write_tolerance.exe -name $(NAME)) > tolerance_$(NAME).sv
+	(cd .. && dune exec -- test/certify/write_tolerance.exe -name $(NAME) -moved) > tolerance_$(NAME)_moved.sv
+	(cd .. && dune exec -- test/certify/write_tolerance.exe -name $(NAME) -depth) > tolerance_$(NAME).depth
+	$(MAKE) tolerance_proof NAME=$(NAME)
+
+tolerance_proof:
+	sed -e "s/^depth .*/depth $$(cat tolerance_$(NAME).depth)/" \
+	  -e "s/tolerance_moved.sv/tolerance_$(NAME)_moved.sv/g" \
+	  -e "s/tolerance.sv/tolerance_$(NAME).sv/g" tolerance.sby > tolerance_$(NAME).sby
+	sby -f tolerance_$(NAME).sby $(or $(TOLERANCE_PROOFS_$(NAME)),$(TOLERANCE_PROOFS))
+	sby -f tolerance_$(NAME).sby $(or $(TOLERANCE_TEETH_$(NAME)),$(TOLERANCE_TEETH))
+
+tolerance_names:
+	@echo $(TOLERANCE)
+
 # the fsm compiler's miter (write_certificate.ml -fsm): Uart.Tx of hardcaml_hobby_boards,
 # unmodified, beside the engine running its compiled firmware; proof ~20 s, teeth ~1.5 min.
 # fsm_miter_proof runs on files written already, for CI.

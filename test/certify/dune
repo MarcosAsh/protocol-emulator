@@ -1,5 +1,5 @@
 (executables
- (names write_certificate write_link write_self_check)
+ (names write_certificate write_link write_self_check write_tolerance)
  (libraries core hardcaml protocol_emulator protocol_emulator_test)
  (preprocess
   (pps ppx_jane)))
