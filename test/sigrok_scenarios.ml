@@ -174,10 +174,10 @@ let one_wire =
           slave := One_wire.Slave.step !slave ~master_low)
     }
   in
-  (* a reset is 160 units and a byte 88 *)
+  (* a reset is 160 units and a byte 96 *)
   let read_four =
     [ Step.Write (Reg.tx, List.init 4 ~f:(fun _ -> One_wire.byte 0xff))
-    ; Run ((4 * 88 * unit) + 1000)
+    ; Run ((4 * 96 * unit) + 1000)
     ; Read (Reg.rx, 4)
     ]
   in
@@ -189,7 +189,7 @@ let one_wire =
         ~program:(Timed_program.words One_wire.firmware)
       @ [ Scenario.start
         ; Write (Reg.tx, [ unit; One_wire.reset; One_wire.byte 0x33 ])
-        ; Run (((160 + 88) * unit) + 1000)
+        ; Run (((160 + 96) * unit) + 1000)
         ; Read (Reg.rx, 2)
         ]
       @ read_four
