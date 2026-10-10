@@ -27,7 +27,7 @@ let show name (r : Receiver.t) =
 let%expect_test "each receiver's tolerance, from its certificate" =
   show "uart_rx" (Receiver.uart_rx ~period:16 ());
   show "uart_rx_host_rate" (Receiver.uart_rx_host_rate ~half:208 ());
-  show "usb_rx" (Receiver.usb_rx ());
+  print_s [%sexp (applies (Receiver.usb_rx ()) : unit Or_error.t)];
   show "can_rx" (Receiver.can_rx ~period:96 ~sample:72 ());
   [%expect
     {|
@@ -39,10 +39,9 @@ let%expect_test "each receiver's tolerance, from its certificate" =
      (most 28777585) (fastest ((pc 4) (d (3954 3954)) (since 9) (until (10))))
      (slowest ((pc 19) (d (3952 3952)) (since 9) (until (10))))
      (holds_at_both true) (fails_one_faster true) (fails_one_slower true))
-    (usb_rx (fast 3.125%) (slow 3.348%) (least 2031616) (most 2167369)
-     (fastest ((pc 44) (d (433 433)) (since 7) (until (14))))
-     (slowest ((pc 54) (d (463 463)) (since 14) (until (18))))
-     (holds_at_both false) (fails_one_faster true) (fails_one_slower true))
+    (Error
+     ("formula does not apply: re-anchors on every edge, from [now] where it saw one late"
+      usb_rx (arms 4)))
     (can_rx (fast 1.140%) (slow 7.499%) (least 6219679) (most 6763315)
      (fastest ((pc 8) (d (1992 1992)) (since 5) (until (21))))
      (slowest ((pc 194) (d (1032 1032)) (since 10) (until (11))))
@@ -52,6 +51,28 @@ let%expect_test "each receiver's tolerance, from its certificate" =
 
 (* the CAN frames hold the longest runs: ten bits between falling edges inside a frame,
    five dominant and five recessive, and from the CRC's last fall to the next SOF *)
+(* Not certified: where the formula does not apply, the model from 16 phases, walked out
+   from the nominal rate in steps of 1/8%, to the first step that loses a frame. *)
+let%expect_test "usb_rx by model search, not certified" =
+  let r = Receiver.usb_rx () in
+  let nominal = r.nominal * unit in
+  let phases = List.init 16 ~f:(fun i -> i * unit / 16) in
+  let holds m = List.for_all phases ~f:(fun phase -> receives r ~m ~phase) in
+  let step = nominal / 800 in
+  let rec walk m ~by = if holds m then walk (m + by) ~by else m in
+  let ppm m = (m - nominal) * 1_000_000 / nominal in
+  print_s
+    [%message
+      "model search, not certified"
+        ~first_loss_faster:(percent (-ppm (walk nominal ~by:(-step))))
+        ~first_loss_slower:(percent (ppm (walk nominal ~by:step)))];
+  [%expect
+    {|
+    ("model search, not certified" (first_loss_faster 2.249%)
+     (first_loss_slower 3.374%))
+    |}]
+;;
+
 let%expect_test "the CAN receiver's frames" =
   List.iter Receiver.can_frames ~f:(fun frame ->
     let segments = Receiver.can_segments frame in

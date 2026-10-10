@@ -397,7 +397,26 @@ let reads (r : Receiver.t) =
       Some { Read.pc = s.issue.pc; d; since = first k - e; until; edge = e }))
 ;;
 
+(* An arm checked for an edge that came first, at more than one place, is a receiver that
+   re-anchors on every edge and, when it sees one late, on [now]: the reads after that are
+   timed from no captured edge, so no bound from the rows holds for it. One such arm, as
+   the CAN receiver's at the SOF, starts a frame and leaves the rest timed. *)
+let applies (r : Receiver.t) =
+  let program, config = assemble r in
+  let arms = List.length (recovers config program.instructions) / 2 in
+  if arms > 1
+  then
+    Or_error.error_s
+      [%message
+        "formula does not apply: re-anchors on every edge, from [now] where it saw one \
+         late"
+          r.firmware.name
+          (arms : int)]
+  else Ok ()
+;;
+
 let bounds r =
+  applies r |> ok_exn;
   let reads = reads r in
   let slowest =
     List.filter_map reads ~f:(fun read ->
