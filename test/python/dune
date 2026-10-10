@@ -5,7 +5,8 @@
   write_certified_firmware
   write_sweep_firmware
   write_kernel_variants
-  write_bench_firmware)
+  write_bench_firmware
+  write_both_roles_firmware)
  (libraries core hardcaml protocol_emulator protocol_emulator_test)
  (preprocess
   (pps ppx_jane)))
@@ -104,3 +105,13 @@
  (deps ../../demo/kernel_vs_board.py)
  (action
   (run python3 -B %{dep:test_kernel_vs_board.py} ../../demo)))
+
+(rule
+ (with-stdout-to
+  both_roles_firmware.py.gen
+  (run ./write_both_roles_firmware.exe)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff ../../python/both_roles_firmware.py both_roles_firmware.py.gen)))
