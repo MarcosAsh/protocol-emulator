@@ -321,14 +321,19 @@ let scenario =
 let protocol =
   { Protocol.name = "ws2812"
   ; certified =
-      [ Certified.plain ~no_wrap:true "ws2812" (firmware ~third:6 ~tail:7) config ]
+      [ Certified.plain ~no_wrap:true "ws2812" (firmware ~third:6 ~tail:7) config
+      ; Certified.plain ~no_wrap:true "ws2812_standard" standard config
+      ]
   ; time_triggered = []
   ; bench = [ bench ]
   ; loaded_from_hex = []
   ; limits
   ; unlimited = []
   ; swept = []
-  ; not_swept = [ "ws2812", "48 edges a pixel in 600 cycles: the fifo holds 8" ]
+  ; not_swept =
+      [ "ws2812", "48 edges a pixel in 600 cycles: the fifo holds 8"
+      ; "ws2812_standard", "48 edges a pixel in 1488 cycles: the fifo holds 8"
+      ]
   ; scenarios = []
   ; decoded = [ scenario ]
   }

@@ -259,6 +259,7 @@ NOT_SWEPT = [
     ("usb_device", "a device: a USB host has to talk first"),
     ("edge_meter", "toggles every 16 cycles for ever, so 9 edges come in 128: the fifo holds 8"),
     ("ws2812", "48 edges a pixel in 600 cycles: the fifo holds 8"),
+    ("ws2812_standard", "48 edges a pixel in 1488 cycles: the fifo holds 8"),
     ("ethernet", "half bits of 2 cycles: the logger needs up to 6 between edges"),
     ("one_wire", "open drain, which a wire does not show, and a slave has to answer"),
     ("ps2", "open drain, which a wire does not show, and the host holds the clock"),
