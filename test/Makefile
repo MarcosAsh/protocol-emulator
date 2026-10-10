@@ -42,17 +42,26 @@ endif
 else
 
 # Gate level simulation:
-SIM_BUILD				= sim_build/gl
 COMPILE_ARGS    += -DGL_TEST
-COMPILE_ARGS    += -DFUNCTIONAL
 COMPILE_ARGS    += -DSIM
 VERILOG_SOURCES += $(PDK_ROOT)/ihp-sg13cmos5l/libs.ref/sg13cmos5l_io/verilog/sg13cmos5l_io.v
 VERILOG_SOURCES += $(PDK_ROOT)/ihp-sg13cmos5l/libs.ref/sg13cmos5l_stdcell/verilog/sg13cmos5l_udp.v
 VERILOG_SOURCES += $(PDK_ROOT)/ihp-sg13cmos5l/libs.ref/sg13cmos5l_stdcell/verilog/sg13cmos5l_stdcell.v
 VERILOG_SOURCES += models/RM_IHPSG13_1P_core_behavioral_bm_bist.v models/RM_IHPSG13_1P_512x16_c2_bm_bist.v
 
+ifeq ($(SDF),)
+SIM_BUILD				= sim_build/gl
+COMPILE_ARGS    += -DFUNCTIONAL
 # this gets copied in by the GDS action workflow
 VERILOG_SOURCES += $(CURDIR)/gate_level_netlist.v
+else
+# With SDF= a corner's SDF from icarus_sdf.py the cells and macros keep their specify
+# blocks and take its delays, on the netlist with the macros renamed as it renames them:
+SIM_BUILD				= sim_build/sdf
+COMPILE_ARGS    += -gspecify -ginterconnect -DSDF
+COCOTB_PLUSARGS += +sdf=$(abspath $(SDF))
+VERILOG_SOURCES += $(CURDIR)/sim_build/sdf/gate_level_netlist.v
+endif
 
 endif
 
@@ -77,6 +86,7 @@ COCOTB_TEST_MODULES = test,test_usb_board,test_ethernet,test_dshot_sent_cec
 ifneq ($(FPGA),yes)
 COCOTB_TEST_MODULES := $(COCOTB_TEST_MODULES),test_two_engines,test_board_blame
 endif
+GATE_TEST_MODULES := $(COCOTB_TEST_MODULES)
 # the bench demos' rehearsals simulate milliseconds, so on the RTL alone
 ifeq ($(FPGA)$(GATES)$(ICEPI),)
 COCOTB_TEST_MODULES := $(COCOTB_TEST_MODULES),test_demo,test_swd,test_demo_board
@@ -149,3 +159,21 @@ tolerance_bench:
 replay:
 	$(MAKE) sim COCOTB_TEST_MODULES=test_replay COCOTB_RESULTS_FILE=results_replay.xml
 	$(PYTHON_BIN) -m cocotb_tools.check_results results_replay.xml
+
+# The gate level's tests and replays with the router's delays at one corner (sdf_slow,
+# sdf_typ, sdf_fast) or all three (sdf), from the flow's SDF in SDF_DIR, at the chip's
+# 50 MHz, in one run each since annotating takes minutes. Icarus has no timing checks, so a
+# violation shows only as a wrong value.
+SDF_DIR ?= ../runs/wokwi/final/sdf
+CORNERS = slow typ fast
+sdf_file = $(or $(wildcard $(SDF_DIR)/nom_$(1)_*/*.sdf),$(error no $(1) SDF in $(SDF_DIR)))
+$(CURDIR)/sim_build/sdf/gate_level_netlist.v: gate_level_netlist.v icarus_sdf.py
+	mkdir -p $(@D)
+	$(PYTHON_BIN) icarus_sdf.py netlist < $< > $@
+sdf: $(addprefix sdf_,$(CORNERS))
+sdf_%:
+	mkdir -p sim_build/sdf
+	$(PYTHON_BIN) icarus_sdf.py sdf < $(call sdf_file,$*) > sim_build/sdf/$*.sdf
+	$(MAKE) sim GATES=yes SDF=sim_build/sdf/$*.sdf COCOTB_RESULTS_FILE=results_sdf_$*.xml \
+		COCOTB_TEST_MODULES=$(GATE_TEST_MODULES),test_replay
+	$(PYTHON_BIN) -m cocotb_tools.check_results results_sdf_$*.xml

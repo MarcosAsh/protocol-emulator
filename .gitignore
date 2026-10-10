@@ -11,6 +11,7 @@ test/sim_build
 test/__pycache__/
 test/results.xml
 test/results_replay.xml
+test/results_sdf_*.xml
 test/results_outside.xml
 test/results_both_roles.xml
 test/results_tolerance_bench.xml

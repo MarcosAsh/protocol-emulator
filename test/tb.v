@@ -35,4 +35,10 @@ module tb ();
       .rst_n  (rst_n)     // not reset
   );
 
+`ifdef SDF
+  // The router's delays at one corner, from make sdf
+  reg [8*512-1:0] sdf_file;
+  initial if ($value$plusargs("sdf=%s", sdf_file)) $sdf_annotate(sdf_file, user_project);
+`endif
+
 endmodule
