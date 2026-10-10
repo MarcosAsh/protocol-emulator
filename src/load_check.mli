@@ -67,6 +67,62 @@ module Rejection : sig
   [@@deriving sexp_of]
 end
 
+(** [walk]'s step at a pc, over [Kernel.Make]: the row it holds next, which is the stored
+    entry's, [stored_row], where [stored], and whether a conjunct fails, [reason] the
+    first in [Kernel.Conjuncts.to_list] order. [next] and [target] are the rows looked up
+    at the successors; [next] is unread where the pc falls through. [formal/complete.sv]
+    takes the circuit for the walk the load checker is proved to keep. *)
+module Step : sig
+  module I : sig
+    type 'a t =
+      { side_set_count : 'a
+      ; fraction : 'a
+      ; loaded : 'a With_valid.t
+      ; capture : 'a Kernel.Capture.t
+      ; wrap_top : 'a
+      ; wrap_bottom : 'a
+      ; pc : 'a
+      ; word : 'a
+      ; row : 'a
+      ; stored : 'a
+      ; stored_row : 'a
+      ; next : 'a
+      ; target : 'a
+      }
+    [@@deriving hardcaml]
+  end
+
+  module O : sig
+    type 'a t =
+      { next_pc : 'a
+      ; target_pc : 'a
+      ; after : 'a
+      ; fails : 'a
+      ; reason : 'a
+      }
+    [@@deriving hardcaml]
+  end
+
+  module Make (Comb : Comb.S) : sig
+    val step
+      :  side_set_count:Comb.t
+      -> fraction:Comb.t
+      -> loaded:Comb.t With_valid.t
+      -> capture:Comb.t Kernel.Capture.t
+      -> pc:Comb.t
+      -> word:Comb.t
+      -> row:Comb.t Kernel.Row.t
+      -> stored:Comb.t
+      -> stored_row:Comb.t Kernel.Row.t
+      -> next_pc:Comb.t
+      -> next:Comb.t Kernel.Row.t
+      -> target:Comb.t Kernel.Row.t
+      -> Comb.t Kernel.Row.t * Comb.t * Comb.t
+  end
+
+  val hierarchical : ?instance:string -> Scope.t -> Signal.t I.t -> Signal.t O.t
+end
+
 (** The chip's walk over [words], reading the certificate from [memory] at [base], under
     [loaded] and [single_capture_edge] as the host sets them. [Ok rows] gives the row it
     held at each pc, which [Kernel.check] accepts. *)

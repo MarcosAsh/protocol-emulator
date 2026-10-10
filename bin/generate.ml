@@ -264,6 +264,19 @@ let kernel_accepts_rtl_command =
           C.create_exn ~name (Kernel.Accepts.hierarchical scope))]
 ;;
 
+let load_check_step_rtl_command =
+  Command.basic
+    ~summary:
+      "Verilog for the load check's walk at a pc, which formal/complete.sv proves the \
+       load checker keeps"
+    [%map_open.Command
+      let () = return () in
+      fun () ->
+        let module C = Circuit.With_interface (Load_check.Step.I) (Load_check.Step.O) in
+        print_rtl ~name:"load_check_step_top" (fun ~name scope ->
+          C.create_exn ~name (Load_check.Step.hierarchical scope))]
+;;
+
 (* [FIELD=VALUE] over the record's sexp, so every field goes by its own name *)
 let config_field =
   Command.Arg_type.create (fun text ->
@@ -709,6 +722,7 @@ let () =
        ; "kernel-gates", kernel_gates_command
        ; "osr", osr_rtl_command
        ; "kernel-accepts", kernel_accepts_rtl_command
+       ; "load-check-step", load_check_step_rtl_command
        ; "assemble", assemble_command
        ; "run", run_command
        ; "self-check", self_check_command
