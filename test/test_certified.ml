@@ -52,6 +52,7 @@ let%expect_test "the firmware library and its certificates" =
     usb_device           470        54      6  period 32, one edge before capture, no wrap
     edge_meter            12         2      6
     ws2812                32         4      0  no wrap
+    ws2812_standard       32         4      9  no wrap
     ethernet              32         1  63987  period 64000, no wrap
     one_wire              48        15    295  period 300
     ps2                   65        12    992  period 1000
@@ -61,6 +62,10 @@ let%expect_test "the firmware library and its certificates" =
     sent                  83         9    129  period 150, no wrap
     cec                   71        20   2493  period 2500, no wrap
     swd                  232        52     15  period 25, no wrap
+    spi_cs_mode0          43         6      1  no wrap
+    spi_cs_mode1          43         6      1  no wrap
+    spi_cs_mode2          43         6      1  no wrap
+    spi_cs_mode3          43         6      1  no wrap
     |}]
 ;;
 

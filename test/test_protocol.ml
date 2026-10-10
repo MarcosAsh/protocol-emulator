@@ -331,7 +331,11 @@ let%expect_test "every protocol from its file to the decoded trace" =
 
     === spi_cs
 
-    certificates: none
+    certificates
+    spi_cs_mode0: 43 words, 6 deadline waits, worst slack 1, the kernel accepts it, assuming no wrap
+    spi_cs_mode1: 43 words, 6 deadline waits, worst slack 1, the kernel accepts it, assuming no wrap
+    spi_cs_mode2: 43 words, 6 deadline waits, worst slack 1, the kernel accepts it, assuming no wrap
+    spi_cs_mode3: 43 words, 6 deadline waits, worst slack 1, the kernel accepts it, assuming no wrap
 
     limits
     spi_cs_mode0       tCLH           >=        9 ns  kernel 8 (166.7 ns)      needs    2       W25Q64JV, Winbond Rev. M p.64; margin a cycle
@@ -359,31 +363,31 @@ let%expect_test "every protocol from its file to the decoded trace" =
     spi_cs_mode3       tSHSL2         >=       50 ns  kernel 154 (3208.3 ns)   needs    4       W25Q64JV, Winbond Rev. M p.64; margin a cycle
     spi_cs_mode3       tRES1          >=     3000 ns  kernel 154 (3208.3 ns)   needs  145       W25Q64JV, Winbond Rev. M p.65; margin a cycle
 
-    lockstep: spi_mode0, uncertified as loaded
+    lockstep: spi_mode0, spi_cs_mode0
     ("lockstep held" (cycles 1920))
     (received (0x5a 0x60 0xff 0xff 0x5a 0x5a 0xc3))
-    decode: test/traces/sigrok/spi_mode0.trace, by sigrok's spi:cs=OUT2:clk=OUT1:mosi=OUT0:miso=IN0:cpol=0:cpha=0
+    decode: test/traces/sigrok/spi_mode0.trace, by sigrok's spi:cs=OUT6:clk=OUT5:mosi=OUT4:miso=IN0:cpol=0:cpha=0
       spi=mosi-transfer: spi-1: 9F 00 00 00, spi-1: A5, spi-1: 3C C3
       spi=miso-transfer: spi-1: 5A 60 FF FF, spi-1: 5A, spi-1: 5A C3
 
-    lockstep: spi_mode1, uncertified as loaded
+    lockstep: spi_mode1, spi_cs_mode1
     ("lockstep held" (cycles 1920))
     (received (0x5a 0x60 0xff 0xff 0x5a 0x5a 0xc3))
-    decode: test/traces/sigrok/spi_mode1.trace, by sigrok's spi:cs=OUT2:clk=OUT1:mosi=OUT0:miso=IN0:cpol=0:cpha=1
+    decode: test/traces/sigrok/spi_mode1.trace, by sigrok's spi:cs=OUT6:clk=OUT5:mosi=OUT4:miso=IN0:cpol=0:cpha=1
       spi=mosi-transfer: spi-1: 9F 00 00 00, spi-1: A5, spi-1: 3C C3
       spi=miso-transfer: spi-1: 5A 60 FF FF, spi-1: 5A, spi-1: 5A C3
 
-    lockstep: spi_mode2, uncertified as loaded
+    lockstep: spi_mode2, spi_cs_mode2
     ("lockstep held" (cycles 1920))
     (received (0x5a 0x60 0xff 0xff 0x5a 0x5a 0xc3))
-    decode: test/traces/sigrok/spi_mode2.trace, by sigrok's spi:cs=OUT2:clk=OUT1:mosi=OUT0:miso=IN0:cpol=1:cpha=0
+    decode: test/traces/sigrok/spi_mode2.trace, by sigrok's spi:cs=OUT6:clk=OUT5:mosi=OUT4:miso=IN0:cpol=1:cpha=0
       spi=mosi-transfer: spi-1: 9F 00 00 00, spi-1: A5, spi-1: 3C C3
       spi=miso-transfer: spi-1: 5A 60 FF FF, spi-1: 5A, spi-1: 5A C3
 
-    lockstep: spi_mode3, uncertified as loaded
+    lockstep: spi_mode3, spi_cs_mode3
     ("lockstep held" (cycles 1920))
     (received (0x5a 0x60 0xff 0xff 0x5a 0x5a 0xc3))
-    decode: test/traces/sigrok/spi_mode3.trace, by sigrok's spi:cs=OUT2:clk=OUT1:mosi=OUT0:miso=IN0:cpol=1:cpha=1
+    decode: test/traces/sigrok/spi_mode3.trace, by sigrok's spi:cs=OUT6:clk=OUT5:mosi=OUT4:miso=IN0:cpol=1:cpha=1
       spi=mosi-transfer: spi-1: 9F 00 00 00, spi-1: A5, spi-1: 3C C3
       spi=miso-transfer: spi-1: 5A 60 FF FF, spi-1: 5A, spi-1: 5A C3
     |}]

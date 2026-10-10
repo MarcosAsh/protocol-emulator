@@ -81,6 +81,7 @@ let%expect_test "the kernel refuses each row moved by a cycle" =
     (usb_device (phase 892) (arm 4) (capture 22) (accepted ()))
     (edge_meter (phase 18) (arm 14) (capture 0) (accepted ()))
     (ws2812 (phase 60) (arm 0) (capture 0) (accepted ()))
+    (ws2812_standard (phase 60) (arm 0) (capture 0) (accepted ()))
     (ethernet (phase 34) (arm 0) (capture 0) (accepted ()))
     (one_wire (phase 82) (arm 0) (capture 0) (accepted ()))
     (ps2 (phase 86) (arm 0) (capture 0) (accepted ()))
@@ -90,5 +91,9 @@ let%expect_test "the kernel refuses each row moved by a cycle" =
     (sent (phase 154) (arm 0) (capture 0) (accepted ()))
     (cec (phase 128) (arm 0) (capture 0) (accepted ()))
     (swd (phase 404) (arm 0) (capture 0) (accepted ()))
+    (spi_cs_mode0 (phase 62) (arm 0) (capture 0) (accepted ()))
+    (spi_cs_mode1 (phase 62) (arm 0) (capture 0) (accepted ()))
+    (spi_cs_mode2 (phase 62) (arm 0) (capture 0) (accepted ()))
+    (spi_cs_mode3 (phase 62) (arm 0) (capture 0) (accepted ()))
     |}]
 ;;

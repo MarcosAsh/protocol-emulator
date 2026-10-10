@@ -289,10 +289,15 @@ let limits firmware =
 open Pin_trace
 module Reg = Protocol_emulator.Host_port.Reg
 
-(* The chip-select master in [mode] at 3 MHz against a slave of that mode, three frames:
-   sigrok frames each transfer by CS. The decoders join once CS has been high a while. *)
+(* The bench's chip-select master in [mode], at 3 MHz on its pins, against a slave of that
+   mode, three frames: sigrok frames each transfer by CS. The decoders join once CS has
+   been high a while. *)
 let scenario mode =
-  let half_period = 8 in
+  let bench = bench mode in
+  let half_period = Bench.spi_half
+  and mosi_pin = bench.config.out_base
+  and sck_pin = bench.config.side_set_base in
+  let cs_pin = sck_pin + 1 in
   let frames = [ [ 0x9f; 0x00; 0x00; 0x00 ]; [ 0xa5 ]; [ 0x3c; 0xc3 ] ] in
   let replies frame =
     0x5a :: List.map (List.drop_last_exn frame) ~f:(fun byte -> lnot byte land 0xff)
@@ -325,10 +330,7 @@ let scenario mode =
   { Scenario.name = [%string "spi_mode%{Mode.to_int mode#Int}"]
   ; peer
   ; script =
-      Scenario.load
-        ~config
-        ~program:
-          (Firmware.assemble (master ~mode ~half_period ~setup:4 ~hold:8 ~deselect:0))
+      Scenario.load ~config:bench.config ~program:(Firmware.assemble bench.source)
       @ [ Scenario.start; Run 200 ]
       @ List.concat_map frames ~f:send
   ; sigrok =
@@ -368,7 +370,10 @@ let scenario mode =
 
 let protocol =
   { Protocol.name = "spi_cs"
-  ; certified = []
+  ; certified =
+      List.map Mode.all ~f:(fun mode ->
+        let bench = bench mode in
+        Certified.plain ~no_wrap:true bench.name bench.source bench.config)
   ; time_triggered = []
   ; bench = List.map Mode.all ~f:bench
   ; loaded_from_hex = []
@@ -377,7 +382,11 @@ let protocol =
         limits [%string "spi_cs_mode%{Mode.to_int mode#Int}"])
   ; unlimited = []
   ; swept = []
-  ; not_swept = []
+  ; not_swept =
+      List.map Mode.all ~f:(fun mode ->
+        ( (bench mode).name
+        , "the bench's SPI demo, certified as it loads; the sweep has not stamped it on \
+           the board" ))
   ; scenarios = []
   ; decoded = List.map Mode.all ~f:scenario
   }
