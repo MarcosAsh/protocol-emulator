@@ -2,7 +2,7 @@
 
 import cocotb
 from cocotb.clock import Clock
-from cocotb.triggers import ClockCycles
+from cocotb.triggers import ClockCycles, FallingEdge, RisingEdge
 
 import random
 import sys
@@ -252,9 +252,12 @@ async def test_i2c_start_watch(dut):
         if sda == 1 and next_sda == 0 and next_scl == 1:
             starts.append(cycle)
         sda, scl = next_sda, next_scl
+        # pins change on the falling edge, so with the router's delays (make sdf) the
+        # clock tree cannot move the edge that first samples them
         for _ in range(cycles):
+            await FallingEdge(dut.clk)
             dut.ui_in.value = 0b100 | (sda << 3) | (scl << 4)
-            await ClockCycles(dut.clk, 1)
+            await RisingEdge(dut.clk)
             level = (int(dut.uo_out.value) >> 1) & 1
             if level and not previous:
                 verdicts.append(cycle)
@@ -298,8 +301,10 @@ async def watch_quiet(dut, name, runs):
             level ^= 1
             changes.append(cycle)
         for _ in range(length):
+            # on the falling edge, as test_i2c_start_watch's
+            await FallingEdge(dut.clk)
             dut.ui_in.value = 0b100 | (level << 5)
-            await ClockCycles(dut.clk, 1)
+            await RisingEdge(dut.clk)
             verdict = (int(dut.uo_out.value) >> 1) & 1
             if verdict and not previous:
                 verdicts.append(cycle)
