@@ -129,10 +129,12 @@ let all =
       Both_roles.I2c.controller_config
   ; plain "i2c_target_wire" Both_roles.I2c.target Both_roles.I2c.target_config
   ]
-  (* the flash demo's master, 3 MHz at 48, and a target in each mode *)
+  (* the flash demo's master, 3 MHz at 48, which holds CS low as long as the host is slow,
+     and a target in each mode *)
   @ List.concat_map Spi_cs.Mode.all ~f:(fun mode ->
     let n = Spi_cs.Mode.to_int mode in
     [ plain
+        ~no_wrap:true
         [%string "spi_cs_mode%{n#Int}"]
         (Spi_cs.master ~mode ~half_period:8 ~setup:4 ~hold:8 ~deselect:144)
         Spi_cs.config

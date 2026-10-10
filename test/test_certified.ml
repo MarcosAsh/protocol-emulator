@@ -65,13 +65,13 @@ let%expect_test "the firmware library and its certificates" =
     i2c_master_fast      107        37     24  period 32, no wrap
     i2c_controller_wire    87        25    113  period 121, no wrap
     i2c_target_wire       78         0      -
-    spi_cs_mode0          42         6      1
+    spi_cs_mode0          42         6      1  no wrap
     spi_target_mode0      38         0      -
-    spi_cs_mode1          42         6      1
+    spi_cs_mode1          42         6      1  no wrap
     spi_target_mode1      33         0      -
-    spi_cs_mode2          42         6      1
+    spi_cs_mode2          42         6      1  no wrap
     spi_target_mode2      38         0      -
-    spi_cs_mode3          42         6      1
+    spi_cs_mode3          42         6      1  no wrap
     spi_target_mode3      33         0      -
     |}]
 ;;
