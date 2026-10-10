@@ -38,7 +38,7 @@ module fifo_order (input clk);
 
   always @(posedge clk)
     if (!clear) begin
-      assert(level <= 8);
+      assert(level <= 15);
       assert(empty == (level == 0));
       if (following) assert(!empty && ahead < level);
       if (following && ahead == 0) assert(head == word);
@@ -46,7 +46,7 @@ module fifo_order (input clk);
     end
 
   always @(posedge clk) begin
-    cover(following && ahead == 7);
-    cover(following && ahead == 0 && popped && level == 8);
+    cover(following && ahead == 14);
+    cover(following && ahead == 0 && popped && level == 15);
   end
 endmodule
