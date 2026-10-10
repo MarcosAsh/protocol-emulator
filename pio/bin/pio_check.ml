@@ -38,6 +38,11 @@ let command =
          "no-stretch"
          (listed string)
          ~doc:"NAME an open-drain output no other driver holds low"
+     and spec_file =
+       flag
+         "spec"
+         (optional Filename_unix.arg_type)
+         ~doc:"FILE more flags, one a line without the dash, as the playground takes them"
      in
      fun () ->
        let ok_or_usage = function
@@ -64,6 +69,14 @@ let command =
          ; entry
          ; no_stretch
          }
+       in
+       let spec =
+         match spec_file with
+         | None -> spec
+         | Some file ->
+           Or_error.try_with (fun () -> In_channel.read_all file)
+           |> Or_error.bind ~f:(Spec.of_string ~base:spec)
+           |> ok_or_usage
        in
        let programs =
          Or_error.try_with (fun () -> In_channel.read_all file)
