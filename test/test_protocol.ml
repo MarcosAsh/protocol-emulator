@@ -88,9 +88,22 @@ let%expect_test "every protocol from its file to the decoded trace" =
     uart_tx16: 15 words, 3 deadline waits, worst slack 12, the kernel accepts it, assuming nothing
     uart_tx_host_rate: 17 words, 3 deadline waits, worst slack 430, the kernel accepts it, assuming period 434, a load of 4 or more, no wrap
     uart_rx: 19 words, 2 deadline waits, worst slack 7, the kernel accepts it, assuming one edge before capture, no wrap
+    uart_rx_host_rate: 22 words, 2 deadline waits, worst slack 409, the kernel accepts it, assuming period 208, a load of 4 or more, one edge before capture, no wrap
     uart_tx_stream: 13 words, 3 deadline waits, worst slack 4, the kernel accepts it, assuming nothing
 
     limits
+    uart_tx_9600       bit            >=   102083 ns  kernel 5000 (104166.7 ns) needs 4901       UART at 9600 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
+    uart_tx_9600       bit            <=   106250 ns  run    5000 (104166.7 ns) needs 5099       UART at 9600 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
+    uart_tx_19200      bit            >=  51041.7 ns  kernel 2500 (52083.3 ns) needs 2452       UART at 19200 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
+    uart_tx_19200      bit            <=    53125 ns  run    2500 (52083.3 ns) needs 2549       UART at 19200 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
+    uart_tx_38400      bit            >=  25520.8 ns  kernel 1250 (26041.7 ns) needs 1226       UART at 38400 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
+    uart_tx_38400      bit            <=  26562.5 ns  run    1250 (26041.7 ns) needs 1274       UART at 38400 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
+    uart_tx_57600      bit            >=  17013.9 ns  kernel 833 (17354.2 ns)  needs  818       UART at 57600 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
+    uart_tx_57600      bit            <=  17708.3 ns  run    833 (17354.2 ns)  needs  848       UART at 57600 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
+    uart_tx_115200     bit            >=  8506.94 ns  kernel 417 (8687.5 ns)   needs  410       UART at 115200 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
+    uart_tx_115200     bit            <=  8854.17 ns  run    417 (8687.5 ns)   needs  424       UART at 115200 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
+    uart_tx_230400     bit            >=  4253.47 ns  kernel 208 (4333.3 ns)   needs  206       UART at 230400 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
+    uart_tx_230400     bit            <=  4427.08 ns  run    208 (4333.3 ns)   needs  211       UART at 230400 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
     uart_log           bit            >=  8506.94 ns  kernel 417 (8687.5 ns)   needs  410       UART at 115200 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
     uart_log           bit            <=  8854.17 ns  run    417 (8687.5 ns)   needs  424       UART at 115200 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
 
@@ -128,6 +141,10 @@ let%expect_test "every protocol from its file to the decoded trace" =
     i2c_master: 99 words, 31 deadline waits, worst slack 5, the kernel accepts it, assuming no wrap
     i2c_slave: 72 words, 0 deadline waits, the kernel accepts it, assuming nothing
     i2c_logger: 73 words, 25 deadline waits, worst slack 1, the kernel accepts it, assuming nothing
+    i2c_master_standard: 113 words, 43 deadline waits, worst slack 113, the kernel accepts it, assuming period 121, a load of 8 or more, no wrap
+    i2c_master_fast: 107 words, 37 deadline waits, worst slack 24, the kernel accepts it, assuming period 32, a load of 8 or more, no wrap
+    i2c_controller_wire: 87 words, 25 deadline waits, worst slack 113, the kernel accepts it, assuming period 121, a load of 8 or more, no wrap
+    i2c_target_wire: 78 words, 0 deadline waits, the kernel accepts it, assuming nothing
 
     limits
     i2c_master         THIGH          >=      600 ns  kernel 96 (2000.0 ns)    needs   44       24LC256, Microchip DS20001203W, Table 1-2 p.3, param 2; margin 300 ns, TR, param 4
@@ -145,6 +162,22 @@ let%expect_test "every protocol from its file to the decoded trace" =
     i2c_master_stretch TSU:STO        >=      600 ns  kernel 48 (1000.0 ns)    needs   44       24LC256, Microchip DS20001203W, Table 1-2 p.3, param 10; margin 300 ns, TR, param 4
     i2c_master_stretch TBUF           >=     1300 ns  kernel 105 (2187.5 ns)   needs   77       24LC256, Microchip DS20001203W, Table 1-2 p.4, param 14; margin 300 ns, TR, param 4
     start_hold: none, it drives no pin: it listens to Pico B's I2C
+    i2c_standard       THIGH          >=     4000 ns  kernel 242 (5041.7 ns)   needs  240       I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 10; margin 1000 ns, tr
+    i2c_standard       TLOW           >=     4700 ns  kernel 242 (5041.7 ns)   needs  227       I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 10; margin a cycle
+    i2c_standard       THD:STA        >=     4000 ns  kernel 362 (7541.7 ns)   needs  193       I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 10; margin a cycle
+    i2c_standard       TSU:STA        >=     4700 ns  kernel 363 (7562.5 ns)   needs  274       I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 10; margin 1000 ns, tr
+    i2c_standard       TSU:DAT        >=      250 ns  kernel 120 (2500.0 ns)   needs   60       I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 10; margin 1000 ns, tr
+    i2c_standard       TSU:STO        >=     4000 ns  kernel 363 (7562.5 ns)   needs  240       I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 10; margin 1000 ns, tr
+    i2c_standard       TBUF           >=     4700 ns  kernel 368 (7666.7 ns)   needs  274       I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 10; margin 1000 ns, tr
+    i2c_standard       1/fSCL         >=    10000 ns  run    484 (10083.3 ns)  needs  481       I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 10, fSCL; margin a cycle
+    i2c_fast           THIGH          >=      600 ns  kernel 64 (1333.3 ns)    needs   44       I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 10; margin 300 ns, tr
+    i2c_fast           TLOW           >=     1300 ns  kernel 64 (1333.3 ns)    needs   64       I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 10; margin a cycle
+    i2c_fast           THD:STA        >=      600 ns  kernel 64 (1333.3 ns)    needs   30       I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 10; margin a cycle
+    i2c_fast           TSU:STA        >=      600 ns  kernel 64 (1333.3 ns)    needs   44       I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 10; margin 300 ns, tr
+    i2c_fast           TSU:DAT        >=      100 ns  kernel 31 (645.8 ns)     needs   20       I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 10; margin 300 ns, tr
+    i2c_fast           TSU:STO        >=      600 ns  kernel 64 (1333.3 ns)    needs   44       I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 10; margin 300 ns, tr
+    i2c_fast           TBUF           >=     1300 ns  kernel 101 (2104.2 ns)   needs   77       I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 10; margin 300 ns, tr
+    i2c_fast           1/fSCL         >=     2500 ns  run    128 (2666.7 ns)   needs  121       I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 10, fSCL; margin a cycle
 
     lockstep: i2c_logger, i2c_logger
     ("lockstep held" (cycles 3000))
@@ -312,23 +345,6 @@ let%expect_test "every protocol from its file to the decoded trace" =
       cec=frames: cec-1: 40, cec-1: 40:04, cec-1: 40:47:43:45:43, cec-1: 4f:36
       cec=ack:nack: cec-1: ACK, cec-1: ACK, cec-1: ACK, cec-1: ACK, cec-1: ACK, cec-1: ACK, cec-1: ACK, cec-1: ACK, cec-1: ACK, cec-1: ACK
 
-    === swd
-
-    certificates
-    swd: 232 words, 52 deadline waits, worst slack 15, the kernel accepts it, assuming period 25, a load of 10 or more, no wrap
-
-    limits
-    swd                SWCLK high     >=  20.8333 ns  kernel 7 (145.8 ns)      needs    2       RP2040, RP2040 datasheet, 2025-02-20 s.2.3.4 p.61; margin a cycle
-    swd                SWCLK low      >=  20.8333 ns  kernel 24 (500.0 ns)     needs    2       RP2040, RP2040 datasheet, 2025-02-20 s.2.3.4 p.61; margin a cycle
-
-    lockstep: swd, swd
-    ("lockstep held" (cycles 53400))
-    (received
-     (0x1 0x7 0x2477 0xbc1 0x1 0x1 0x1 0x0 0xf000 0x1 0x1 0x0 0x0 0x1 0x0 0x0 0x2
-      0x31 0x477 0x1 0x1))
-    decode: test/traces/sigrok/swd.trace, by sigrok's swd:swclk=OUT2:swdio=IO5
-      swd=read:write:ack:data: swd-1: IDCODE, swd-1: OK, swd-1: 0x0bc12477, swd-1: W ABORT, swd-1: OK, swd-1: 0x0000001c, swd-1: W CTRL/STAT, swd-1: OK, swd-1: 0x50000000, swd-1: R CTRL/STAT, swd-1: OK, swd-1: 0xf0000000, swd-1: W SELECT, swd-1: OK, swd-1: 0x000000f0, swd-1: R APc, swd-1: OK, swd-1: 0x00000000, swd-1: RDBUFF, swd-1: WAIT, swd-1: RDBUFF, swd-1: OK, swd-1: 0x04770031, swd-1: W SELECT, swd-1: OK, swd-1: 0x00000000
-
     === spi_cs
 
     certificates
@@ -336,6 +352,10 @@ let%expect_test "every protocol from its file to the decoded trace" =
     spi_cs_mode1: 43 words, 6 deadline waits, worst slack 1, the kernel accepts it, assuming no wrap
     spi_cs_mode2: 43 words, 6 deadline waits, worst slack 1, the kernel accepts it, assuming no wrap
     spi_cs_mode3: 43 words, 6 deadline waits, worst slack 1, the kernel accepts it, assuming no wrap
+    spi_cs_mode0_default_pins: 43 words, 6 deadline waits, worst slack 1, the kernel accepts it, assuming no wrap
+    spi_cs_mode1_default_pins: 43 words, 6 deadline waits, worst slack 1, the kernel accepts it, assuming no wrap
+    spi_cs_mode2_default_pins: 43 words, 6 deadline waits, worst slack 1, the kernel accepts it, assuming no wrap
+    spi_cs_mode3_default_pins: 43 words, 6 deadline waits, worst slack 1, the kernel accepts it, assuming no wrap
 
     limits
     spi_cs_mode0       tCLH           >=        9 ns  kernel 8 (166.7 ns)      needs    2       W25Q64JV, Winbond Rev. M p.64; margin a cycle
@@ -390,6 +410,33 @@ let%expect_test "every protocol from its file to the decoded trace" =
     decode: test/traces/sigrok/spi_mode3.trace, by sigrok's spi:cs=OUT6:clk=OUT5:mosi=OUT4:miso=IN0:cpol=1:cpha=1
       spi=mosi-transfer: spi-1: 9F 00 00 00, spi-1: A5, spi-1: 3C C3
       spi=miso-transfer: spi-1: 5A 60 FF FF, spi-1: 5A, spi-1: 5A C3
+
+    === spi_target
+
+    certificates
+    spi_target_mode0: 38 words, 0 deadline waits, the kernel accepts it, assuming nothing
+    spi_target_mode1: 33 words, 0 deadline waits, the kernel accepts it, assuming nothing
+    spi_target_mode2: 38 words, 0 deadline waits, the kernel accepts it, assuming nothing
+    spi_target_mode3: 33 words, 0 deadline waits, the kernel accepts it, assuming nothing
+
+    limits
+
+    === swd
+
+    certificates
+    swd: 232 words, 52 deadline waits, worst slack 15, the kernel accepts it, assuming period 25, a load of 10 or more, no wrap
+
+    limits
+    swd                SWCLK high     >=  20.8333 ns  kernel 7 (145.8 ns)      needs    2       RP2040, RP2040 datasheet, 2025-02-20 s.2.3.4 p.61; margin a cycle
+    swd                SWCLK low      >=  20.8333 ns  kernel 24 (500.0 ns)     needs    2       RP2040, RP2040 datasheet, 2025-02-20 s.2.3.4 p.61; margin a cycle
+
+    lockstep: swd, swd
+    ("lockstep held" (cycles 53400))
+    (received
+     (0x1 0x7 0x2477 0xbc1 0x1 0x1 0x1 0x0 0xf000 0x1 0x1 0x0 0x0 0x1 0x0 0x0 0x2
+      0x31 0x477 0x1 0x1))
+    decode: test/traces/sigrok/swd.trace, by sigrok's swd:swclk=OUT2:swdio=IO5
+      swd=read:write:ack:data: swd-1: IDCODE, swd-1: OK, swd-1: 0x0bc12477, swd-1: W ABORT, swd-1: OK, swd-1: 0x0000001c, swd-1: W CTRL/STAT, swd-1: OK, swd-1: 0x50000000, swd-1: R CTRL/STAT, swd-1: OK, swd-1: 0xf0000000, swd-1: W SELECT, swd-1: OK, swd-1: 0x000000f0, swd-1: R APc, swd-1: OK, swd-1: 0x00000000, swd-1: RDBUFF, swd-1: WAIT, swd-1: RDBUFF, swd-1: OK, swd-1: 0x04770031, swd-1: W SELECT, swd-1: OK, swd-1: 0x00000000
     |}]
 ;;
 

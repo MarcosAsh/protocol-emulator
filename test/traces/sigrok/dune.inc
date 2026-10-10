@@ -82,16 +82,6 @@
 
 (rule
  (with-stdout-to
-  swd.trace.gen
-  (run ../write_trace.exe swd)))
-
-(rule
- (alias runtest)
- (action
-  (diff swd.trace swd.trace.gen)))
-
-(rule
- (with-stdout-to
   spi_mode0.trace.gen
   (run ../write_trace.exe spi_mode0)))
 
@@ -129,3 +119,13 @@
  (alias runtest)
  (action
   (diff spi_mode3.trace spi_mode3.trace.gen)))
+
+(rule
+ (with-stdout-to
+  swd.trace.gen
+  (run ../write_trace.exe swd)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff swd.trace swd.trace.gen)))

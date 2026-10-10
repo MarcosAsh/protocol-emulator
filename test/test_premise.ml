@@ -325,6 +325,7 @@ let%expect_test "the receivers keep the premise their certificates rest on" =
     uart_rx stop       4% fast     257         0           0  all intact, 32 framing errors
     uart_rx stop       exact       257         0           0  all intact, 32 framing errors
     uart_rx stop       4% slow     257         0           0  all intact, 32 framing errors
+    uart_rx_host_rate  no sender to drive it with
     usb_rx             4% fast    1392         9          19  413 words, not as sent
     usb_rx             3% fast    1394         3           4  412 words, not as sent
     usb_rx             1.5% fast  1394         0           0  all intact

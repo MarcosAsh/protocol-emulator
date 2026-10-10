@@ -42,11 +42,16 @@ let%expect_test "the firmware library and its certificates" =
     uart_tx16             15         3     12
     uart_tx_host_rate     17         3    430  period 434, no wrap
     uart_rx               19         2      7  one edge before capture, no wrap
+    uart_rx_host_rate     22         2    409  period 208, one edge before capture, no wrap
     spi_master            16         3      4
     spi_slave              6         0      -
     i2c_master            99        31      5  no wrap
     i2c_slave             72         0      -
     i2c_logger            73        25      1
+    i2c_master_standard   113        43    113  period 121, no wrap
+    i2c_master_fast      107        37     24  period 32, no wrap
+    i2c_controller_wire    87        25    113  period 121, no wrap
+    i2c_target_wire       78         0      -
     usb_tx                65        11     16  period 32
     usb_rx                92         4      5  period 32, one edge before capture, no wrap
     usb_device           470        54      6  period 32, one edge before capture, no wrap
@@ -61,11 +66,19 @@ let%expect_test "the firmware library and its certificates" =
     dshot600              21         4     14  no wrap
     sent                  83         9    129  period 150, no wrap
     cec                   71        20   2493  period 2500, no wrap
-    swd                  232        52     15  period 25, no wrap
     spi_cs_mode0          43         6      1  no wrap
     spi_cs_mode1          43         6      1  no wrap
     spi_cs_mode2          43         6      1  no wrap
     spi_cs_mode3          43         6      1  no wrap
+    spi_cs_mode0_default_pins    43         6      1  no wrap
+    spi_cs_mode1_default_pins    43         6      1  no wrap
+    spi_cs_mode2_default_pins    43         6      1  no wrap
+    spi_cs_mode3_default_pins    43         6      1  no wrap
+    spi_target_mode0      38         0      -
+    spi_target_mode1      33         0      -
+    spi_target_mode2      38         0      -
+    spi_target_mode3      33         0      -
+    swd                  232        52     15  period 25, no wrap
     |}]
 ;;
 
@@ -124,6 +137,22 @@ let%expect_test "the least period the host may load" =
     (QED "uart_tx_host_rate: every load of 4 or more")
     (counterexample "uart_tx_host_rate: every load of 3 or more"
      (model ((loaded 0000000000000011))))
+    (uart_rx_host_rate (period (208)) (floor 4) (passes true) (one_less false))
+    (QED "uart_rx_host_rate: every load of 4 or more")
+    (counterexample "uart_rx_host_rate: every load of 3 or more"
+     (model ((loaded 0000000000000011))))
+    (i2c_master_standard (period (121)) (floor 8) (passes true) (one_less false))
+    (QED "i2c_master_standard: every load of 8 or more")
+    (counterexample "i2c_master_standard: every load of 7 or more"
+     (model ((loaded 0000000000000111))))
+    (i2c_master_fast (period (32)) (floor 8) (passes true) (one_less false))
+    (QED "i2c_master_fast: every load of 8 or more")
+    (counterexample "i2c_master_fast: every load of 7 or more"
+     (model ((loaded 0000000000000111))))
+    (i2c_controller_wire (period (121)) (floor 8) (passes true) (one_less false))
+    (QED "i2c_controller_wire: every load of 8 or more")
+    (counterexample "i2c_controller_wire: every load of 7 or more"
+     (model ((loaded 0000000000000111))))
     (one_wire (period (300)) (floor 5) (passes true) (one_less false))
     (QED "one_wire: every load of 5 or more")
     (counterexample "one_wire: every load of 4 or more"
