@@ -230,6 +230,7 @@ let%expect_test "the footprint of each firmware, and of its config under any pro
     usb_device         12-14        12-14      12-27          12-19
     edge_meter         5            -          5-20           12-19
     ws2812             5            -          5-20           12-19
+    ws2812_standard    5            -          5-20           12-19
     ethernet           12-13        12-13      12-27          12-19
     one_wire           -            12         12-27          12-19
     ps2                -            12-13      12-27          12-19
@@ -306,6 +307,7 @@ let%expect_test "each firmware stays inside its footprint" =
     usb_device         13           14
     edge_meter         5            -
     ws2812             5            -
+    ws2812_standard    5            -
     ethernet           -            12-13
     one_wire           -            -
     ps2                -            -

@@ -181,6 +181,7 @@ let%expect_test "every protocol from its file to the decoded trace" =
 
     certificates
     ws2812: 32 words, 4 deadline waits, worst slack 0, the kernel accepts it, assuming no wrap
+    ws2812_standard: 32 words, 4 deadline waits, worst slack 9, the kernel accepts it, assuming no wrap
 
     limits
     sk6812             T0H            >=      200 ns  kernel 17 (354.2 ns)     needs   11       SK6812, OSK-SPC-SK6812-012 Rev. B/0 p.7; margin a cycle
@@ -194,7 +195,7 @@ let%expect_test "every protocol from its file to the decoded trace" =
     sk6812             T              >=     1200 ns  run    59 (1229.2 ns)    needs   59       SK6812, OSK-SPC-SK6812-012 Rev. B/0 p.7, note 2; margin a cycle
     sk6812             reset          >=   200000 ns  run    10907 (227229.2 ns) needs 9601       SK6812, OSK-SPC-SK6812-012 Rev. B/0 p.7; margin a cycle
 
-    lockstep: ws2812, uncertified as loaded
+    lockstep: ws2812, ws2812_standard
     ("lockstep held" (cycles 17840))
     (received ())
     decode: test/traces/sigrok/ws2812.trace, by sigrok's rgb_led_ws281x:din=OUT0

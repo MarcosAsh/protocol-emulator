@@ -227,6 +227,7 @@ let%expect_test "what each out sends, in the firmware library" =
     (usb_device (verdict (Ok ())) (sends ()))
     (edge_meter (verdict (Ok ())) (sends ()))
     (ws2812 (verdict (Ok ())) (sends ((21 "bit 0 to 32"))))
+    (ws2812_standard (verdict (Ok ())) (sends ((21 "bit 0 to 32"))))
     (ethernet (verdict (Ok ())) (sends ((17 "bit 1 to 32"))))
     (one_wire (verdict (Ok ())) (sends ()))
     (ps2 (verdict (Ok ())) (sends ()))
