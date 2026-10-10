@@ -63,8 +63,12 @@ require "the first reaches the second alone" 1 \
   {@reset_first_q %co @seq %i @reset_flops @reset_first %d %i}
 require "and only its D" 0 \
   {@reset_first_q %co @seq %i @reset_flops @reset_first %d %d @reset_first_q %co:-[D] @seq %i %u}
-require "no other flop has an asynchronous reset" 0 \
-  {t:$_DFF_P* %ci:+[R] @seq %d @reset_cone %d %cie* i:* %i t:$_DFF_P* %ci:+[R] @seq %d @reset_cone %d %cie* %ci @seq %i %u}
+# other flops may take the second as an asynchronous reset too, which lets them go on the
+# edge the clear does
+name reset_second {@reset_flops @reset_first %d}
+name other_reset {t:$_DFF_P* %ci:+[R] @seq %d @reset_cone %d %cie*}
+require "no pin reaches another flop by its asynchronous reset" 0 {@other_reset i:* %i}
+require "nor any flop but the second" 0 {@other_reset %ci @seq %i @reset_second %d}
 
 foreach pad [list {*}[lmap i {0 1 2 3 4 5 6 7} {string cat ui_in_ $i _}] \
                {*}[lmap i {0 1 2 3 4 5 6 7} {string cat uio_in_ $i _}]] {

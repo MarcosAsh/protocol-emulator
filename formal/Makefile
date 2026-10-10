@@ -625,13 +625,22 @@ sync_gate:
 	$(CELL_MODELS) > $(SYNC)_gate/cells.v
 	cd $(SYNC)_gate && $(call SYNC_RUN,gate)
 
-# a second flop on ui_in[3] and a latch in the wrapper, which must be refuted
+# a second flop on ui_in[3], a latch in the wrapper, and a flop reset by uio_in[2] and one
+# reset by another flop, which must be refuted
 sync_rtl_teeth:
 	mkdir -p sync_teeth
 	sed '/^endmodule/i reg tooth; always @(posedge clk) tooth <= ui_in[3];' $(PROJECT) > sync_teeth/sample_rtl.v
 	sed '/^endmodule/i reg tooth; always @* if (ena) tooth = uo_out[0];' $(PROJECT) > sync_teeth/latch_rtl.v
+	sed '/^endmodule/i reg tooth; always @(posedge clk or posedge uio_in[2]) if (uio_in[2]) tooth <= 0; else tooth <= 1;' \
+	  $(PROJECT) > sync_teeth/pin_reset_rtl.v
+	sed '/^endmodule/i reg tick, tooth; always @(posedge clk) tick <= !tick;\
+	  always @(posedge clk or posedge tick) if (tick) tooth <= 0; else tooth <= 1;' $(PROJECT) > sync_teeth/flop_reset_rtl.v
 	$(MAKE) sync_rtl PROJECT=sync_teeth/sample_rtl.v SYNC=sync_sample FAILS='ui_in_3_ reaches one flop'
 	$(MAKE) sync_rtl PROJECT=sync_teeth/latch_rtl.v SYNC=sync_latch FAILS='no latch'
+	$(MAKE) sync_rtl PROJECT=sync_teeth/pin_reset_rtl.v SYNC=sync_pin_reset \
+	  FAILS='no pin reaches another flop by its asynchronous reset'
+	$(MAKE) sync_rtl PROJECT=sync_teeth/flop_reset_rtl.v SYNC=sync_flop_reset \
+	  FAILS='nor any flop but the second'
 
 # mutants that must be refuted, each at its own check: a second flop on ui_in[3], a
 # second reader of uio_in[0]'s first stage, a latch, a loop, and a flop clocked by a flop
