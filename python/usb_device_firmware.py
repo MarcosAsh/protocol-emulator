@@ -1,5 +1,5 @@
 # Written by test/python/write_usb_firmware.ml; `dune promote` after a change.
-# Firmware.usb_device for every address, as the words that differ from address 0.
+# Usb.device for every address, as the words that differ from address 0.
 
 BIT_PERIOD = 32
 

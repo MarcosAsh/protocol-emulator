@@ -608,8 +608,8 @@ let bench =
     }
   ; { name = "start_hold"
     ; what =
-        "Firmware.start_hold for engine 1: each START's hold in cycles, SDA on IO2, SCL \
-         on IO3, both only listened to"
+        "I2c.start_hold for engine 1: each START's hold in cycles, SDA on IO2, SCL on \
+         IO3, both only listened to"
     ; source = start_hold ~sda:Bench.sda ~scl:Bench.scl
     ; config = start_hold_config ~scl:Bench.scl
     ; assumption = Nothing
