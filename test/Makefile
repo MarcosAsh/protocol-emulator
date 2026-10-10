@@ -127,6 +127,14 @@ outside:
 		COCOTB_RESULTS_FILE=results_outside.xml
 	$(PYTHON_BIN) -m cocotb_tools.check_results results_outside.xml
 
+# demo_both_roles.py and demo_rates.py on the RTL beside the outside chip demos' models,
+# as the bench runs them: make both_roles. Needs what outside needs.
+both_roles:
+	$(MAKE) sim OUTSIDE=yes SIM_BUILD=sim_build/outside COCOTB_TEST_MODULES=test_both_roles_bench \
+		PLUSARGS=+firmware=/dev/null \
+		COCOTB_RESULTS_FILE=results_both_roles.xml
+	$(PYTHON_BIN) -m cocotb_tools.check_results results_both_roles.xml
+
 # Replays the pin traces in traces/, recorded from the OCaml simulation of the top, on
 # whichever netlist the mode selects: make replay, make replay GATES=yes, FPGA=yes or
 # ICEPI=yes.
