@@ -912,3 +912,237 @@ let%expect_test "the compiler takes a table inside the class and refuses one out
     ("outside the class" (e ("pin out of range" out_base (p 5) (lo 12) (hi 14))))
     |}]
 ;;
+
+(* The I2C master writing [ops] to a slave on the model alone, the host topping up the tx
+   fifo from [host_words]: the bytes the slave pushed and what the master saw. *)
+let i2c_model ~quarter ~config ~program ~data ~host_words ops =
+  let module Peer = Protocol_models.I2c_peer in
+  let machine = Machine.create ~config ~program |> ok_exn in
+  let machine = Machine.load_data machine data |> ok_exn in
+  let preload = List.take host_words Machine.fifo_depth in
+  let host_words = List.drop host_words Machine.fifo_depth in
+  let machine =
+    List.fold preload ~init:machine ~f:(fun m w -> Machine.write_tx m w |> ok_exn)
+  in
+  let rec go (m : Machine.t) master pending received n =
+    if n = 0 || Peer.idle master
+    then List.rev received, Peer.log master
+    else (
+      let m, pending =
+        match pending with
+        | w :: rest when List.length m.tx_fifo < Machine.fifo_depth ->
+          Machine.write_tx m w |> ok_exn, rest
+        | _ -> m, pending
+      in
+      let bus_sda = Peer.sda master land (1 - ((m.pin_dir lsr I2c.sda) land 1)) in
+      let inputs = (bus_sda lsl I2c.sda) lor (Peer.scl master lsl I2c.scl) in
+      let m = Machine.step m ~inputs in
+      let master = Peer.step master ~sda:bus_sda in
+      let received, m =
+        match Machine.read_rx m with
+        | Some (w, m) -> w :: received, m
+        | None -> received, m
+      in
+      go m master pending received (n - 1))
+  in
+  (* the bus idles while the core starts *)
+  let rec idle m n =
+    if n = 0 then m else idle (Machine.step m ~inputs:(3 lsl I2c.sda)) (n - 1)
+  in
+  go (idle machine 100) (Peer.create ~quarter ops) host_words [] (quarter * 4 * 9 * 12)
+;;
+
+(* The least quarter period, from [quarters], at which the table's slave still takes every
+   byte the library's does and the master sees the same acks. *)
+let i2c_slave_least_quarter quarters =
+  let ops : Protocol_models.I2c_peer.Op.t list =
+    [ Start; Write 0xa0; Write 3; Write 0xaa; Stop; Start; Write 0xa0; Write 0x55; Stop ]
+  in
+  let config, program, data = table_image (i2c_slave ~address:0x50 ~sda:I2c.sda) in
+  List.take_while quarters ~f:(fun quarter ->
+    let native, native_log =
+      i2c_model
+        ~quarter
+        ~config:I2c.slave_config
+        ~program:(Timed_program.words I2c.slave)
+        ~data:[]
+        ~host_words:[ 0x50 lsl 1 ]
+        ops
+    in
+    let table, table_log =
+      i2c_model
+        ~quarter
+        ~config
+        ~program
+        ~data
+        ~host_words:(List.init 8 ~f:(fun _ -> marker))
+        ops
+    in
+    [%equal: int list]
+      (List.filter native ~f:(fun w -> w <> 0xa0))
+      (List.map table ~f:(fun w -> w lxor 0x8000))
+    && [%equal: string list] native_log table_log)
+  |> List.last
+;;
+
+let%expect_test "which library protocols fit the class, how fast, and why not" =
+  let clock = 50_000_000 in
+  let rate ~unit cycles =
+    let hz = Float.of_int clock /. Float.of_int cycles in
+    if Float.(hz >= 1e6)
+    then sprintf "%.2f M%s" (hz /. 1e6) unit
+    else sprintf "%.0f k%s" (hz /. 1e3) unit
+  in
+  let fits table = Result.is_ok (words table) in
+  (* each built limit, with one cycle less refused *)
+  let limit name ~at ~fits:holds =
+    if holds at && not (holds (at - 1))
+    then ()
+    else raise_s [%message "BUG: not the class's limit" name (at : int)]
+  in
+  let shift = Kind.least Shift in
+  let plain = Kind.least Plain in
+  let await = Kind.least (Await { pin = A; level = true }) in
+  limit "uart_tx" ~at:shift ~fits:(fun bit -> fits (uart_tx ~bit));
+  limit "uart_rx" ~at:shift ~fits:(fun bit -> fits (uart_rx ~bit));
+  limit "uart_tx_burst" ~at:Kind.burst_bit ~fits:(fun bit -> fits (uart_tx_burst ~bit));
+  limit "spi_master" ~at:shift ~fits:(fun half -> fits (spi_master ~half));
+  limit "dshot" ~at:shift ~fits:(fun zero_high ->
+    fits (dshot ~zero_high ~bit:(3 * zero_high)));
+  let dshot1200 = fits (dshot ~zero_high:16 ~bit:42) in
+  let i2c_quarter = i2c_slave_least_quarter (List.range ~stride:(-2) 40 0) in
+  let rows =
+    [ ( "uart"
+      , "built"
+      , [%string
+          "tx %{rate ~unit:\"baud\" shift} a bit at a time, %{rate ~unit:\"baud\" \
+           Kind.burst_bit} by burst; rx %{rate ~unit:\"baud\" shift}"]
+      , "tx 8 to 31 cycles a bit; rx 16"
+      , "rx wants some idle between frames, as its wait opens after the Push" )
+    ; ( "spi"
+      , "built"
+      , [%string
+          "master SCK %{rate ~unit:\"Hz\" (plain + shift)}, slave %{rate ~unit:\"Hz\" (2 \
+           * (await + shift))}"]
+      , "half 8 (3.12 MHz)"
+      , "master built, mode 0; the slave awaits SCK and cannot abort on CS" )
+    ; ( "i2c"
+      , "built"
+      , [%string
+          "slave to %{Option.value_map i2c_quarter ~default:\"-\" ~f:(fun q -> rate \
+           ~unit:\"Hz\" (4 * q))}"]
+      , "master quarter 13 (962 kHz)"
+      , "slave built, writes only, by the second await pin; master by design, Shift reads"
+      )
+    ; ( "usb"
+      , "no"
+      , "-"
+      , "low speed device"
+      , "a resync on every edge, NRZI, stuffing, CRC and a reply within 7.5 bits" )
+    ; ( "edge_meter"
+      , "design"
+      , [%string "an edge each way every %{await + Kind.least Stamp#Int} cycles"]
+      , "an edge a period"
+      , "Await then Stamp" )
+    ; ( "ws2812"
+      , "design"
+      , [%string "%{rate ~unit:\"Hz\" (3 * 21)}, a bit three burst bits of 21 cycles"]
+      , "third 20 + tail 2"
+      , "Burst, 4 bits a host word, the gap between words in the low time" )
+    ; ( "ethernet"
+      , "no"
+      , "-"
+      , "4 cycles a bit"
+      , [%string
+          "a Manchester half bit is 2.5 cycles, a burst bit at least \
+           %{Kind.burst_bit#Int}"] )
+    ; ( "one_wire"
+      , "design"
+      , "standard and overdrive"
+      , "unit 300"
+      , "open drain; the slot's value is the host bit, the sample a Shift" )
+    ; ( "ps2"
+      , "design"
+      , "the bus's 10 to 16.7 kHz"
+      , "quarter 1000"
+      , "open drain, both lines" )
+    ; ( "jtag"
+      , "design"
+      , [%string "TCK %{rate ~unit:\"Hz\" (plain + shift)}"]
+      , "half 4 and up"
+      , "TMS and TDI two outputs, TDO by Shift" )
+    ; ( "can"
+      , "tx only"
+      , [%string "tx to %{rate ~unit:\"bit/s\" shift}"]
+      , "500 kbit/s"
+      , "the host stuffs and adds the CRC; a node resyncs on every edge and acks on the \
+         CRC" )
+    ; ( "dshot"
+      , (if dshot1200 then "built" else "600 only")
+      , [%string "T0H %{shift#Int} cycles and up"]
+      , "600 and 1200"
+      , [%string
+          "600 built; 1200's T0H of 16 cycles is under a plain step's %{plain#Int}"] )
+    ; "sent", "design", "tick 150", "tick 150", "the host computes the CRC-4"
+    ; ( "cec"
+      , "design"
+      , "unit 2500"
+      , "unit 2500"
+      , "open drain; the ACK slot by Shift and Push" )
+    ; ( "swd"
+      , "no"
+      , "-"
+      , "1 MHz"
+      , "SWDIO turns around, which needs pins and pindirs in one table" )
+    ; ( "spi_cs"
+      , "design"
+      , [%string "SCK %{rate ~unit:\"Hz\" (plain + shift)}"]
+      , "half 4 and up"
+      , "CS a third output, each mode a different table" )
+    ]
+  in
+  let named = List.map rows ~f:(fun (name, _, _, _, _) -> name) in
+  let library =
+    List.filter_map Library.protocols ~f:(fun p ->
+      Option.some_if (not (String.equal p.name "tables")) p.name)
+  in
+  if not ([%equal: string list] named library)
+  then raise_s [%message "a row for each library protocol" (library : string list)];
+  List.iter rows ~f:(fun (name, fit, rate, library, why) ->
+    printf "%-10s %-8s %s\n  library %s; %s\n" name fit rate library why);
+  [%expect
+    {|
+    uart       built    tx 1.92 Mbaud a bit at a time, 8.33 Mbaud by burst; rx 1.92 Mbaud
+      library tx 8 to 31 cycles a bit; rx 16; rx wants some idle between frames, as its wait opens after the Push
+    spi        built    master SCK 1.11 MHz, slave 581 kHz
+      library half 8 (3.12 MHz); master built, mode 0; the slave awaits SCK and cannot abort on CS
+    i2c        built    slave to 417 kHz
+      library master quarter 13 (962 kHz); slave built, writes only, by the second await pin; master by design, Shift reads
+    usb        no       -
+      library low speed device; a resync on every edge, NRZI, stuffing, CRC and a reply within 7.5 bits
+    edge_meter design   an edge each way every 48 cycles
+      library an edge a period; Await then Stamp
+    ws2812     design   794 kHz, a bit three burst bits of 21 cycles
+      library third 20 + tail 2; Burst, 4 bits a host word, the gap between words in the low time
+    ethernet   no       -
+      library 4 cycles a bit; a Manchester half bit is 2.5 cycles, a burst bit at least 6
+    one_wire   design   standard and overdrive
+      library unit 300; open drain; the slot's value is the host bit, the sample a Shift
+    ps2        design   the bus's 10 to 16.7 kHz
+      library quarter 1000; open drain, both lines
+    jtag       design   TCK 1.11 MHz
+      library half 4 and up; TMS and TDI two outputs, TDO by Shift
+    can        tx only  tx to 1.92 Mbit/s
+      library 500 kbit/s; the host stuffs and adds the CRC; a node resyncs on every edge and acks on the CRC
+    dshot      600 only T0H 26 cycles and up
+      library 600 and 1200; 600 built; 1200's T0H of 16 cycles is under a plain step's 19
+    sent       design   tick 150
+      library tick 150; the host computes the CRC-4
+    cec        design   unit 2500
+      library unit 2500; open drain; the ACK slot by Shift and Push
+    swd        no       -
+      library 1 MHz; SWDIO turns around, which needs pins and pindirs in one table
+    spi_cs     design   SCK 1.11 MHz
+      library half 4 and up; CS a third output, each mode a different table
+    |}]
+;;
