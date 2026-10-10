@@ -121,8 +121,8 @@ under cocotb.
 
 ## What the checks found
 
-The tests kill 111 of 114 valid mutants of the engine, decoder, pins and host port
-(mutation run 36642527804, 2026-09-29). The other 3 are equivalent, see
+The tests kill 112 of 114 valid mutants of the engine, decoder, pins and host port
+(mutation run 38014037082, 2026-10-10). The other 2 are equivalent, see
 `test/mutation_allow.txt`. Counted on 2026-09-30, of 13 bugs fixed in commits of their
 own, model tests found 3, the analyser's soundness check 3, AI review 3, proofs 2, the
 analyser 1 and a mutant 1, among them a showahead `Fifo` holding one word over its
