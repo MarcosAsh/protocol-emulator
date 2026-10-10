@@ -3,7 +3,7 @@
 
 (library
  (name pio_test)
- (libraries core core_unix.sys_unix pio)
+ (libraries core core_unix.sys_unix protocol_emulator protocol_emulator_test pio)
  (preprocess
   (pps ppx_jane))
  (inline_tests
