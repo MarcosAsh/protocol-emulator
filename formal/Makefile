@@ -368,11 +368,12 @@ inductive_names:
 	@echo $(INDUCTIVE)
 
 # Each receiver's clock tolerance (write_tolerance.ml). The UARTs at the bounds their
-# certificates give (test/tolerance.ml): two frames back to back from a sender free-running
-# at any m 2^-16 cycles a bit within them and from any phase, every byte read and no irq or
-# fault. Teeth: a step faster or slower than the bounds, and the receiver with its sample
+# certificates give (test/tolerance.ml), from a sender free-running at any m 2^-16 cycles a
+# bit within them and from any phase: the byte read, no irq or fault, and the next frame's
+# start edge, right behind the stop bit, captured as far after the first's as it shows,
+# so each frame of a stream meets the receiver as the first did. Teeth: a step faster or slower than the bounds, and the receiver with its sample
 # point a cycle late, at the bounds of the one on time and a step past its own, have to
-# fail; at its own bounds it passes; a run at each bound reads both words. uart_rx_16 is
+# fail; at its own bounds it passes; a run at each bound gets that far. uart_rx_16 is
 # the library's, the host rate receiver at half periods short enough to unroll. The SPI
 # target follows SCK, so no rate error builds up: two bytes in mode 0 with every SCK phase
 # free from its least to 4 more, and a cycle less high has to fail. tolerance_proof runs
