@@ -99,14 +99,19 @@ module Make (Comb : Comb.S) = struct
   ;;
 
   let pin_out (c : Comb.t Engine.Config.t) (w : Comb.t Writes.t) =
+    let two = of_unsigned_int ~width:Isa.count_bits 2 in
     let manchester_bit = c.manchester &: (w.out_pins_width ==:. 1) in
+    (* a line-coded bit drives up to two pins, no more than [out_count] *)
+    let line_pins = mux2 (c.out_count >=: two) two c.out_count in
+    let line_width = mux2 (line_pins >: w.out_pins_width) line_pins w.out_pins_width in
     footprint
       c
       ~writable:output_pin
       ~side_set:~:(c.side_set_pindirs)
       ~sets:w.sets_pins
       ~outs:
-        (mux2 manchester_bit (of_unsigned_int ~width:Isa.count_bits 2) w.out_pins_width)
+        (mux2 manchester_bit two
+         @@ mux2 (c.line_code &: (w.out_pins_width <>:. 0)) line_width w.out_pins_width)
       ~movs:w.movs_pins
   ;;
 

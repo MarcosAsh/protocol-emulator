@@ -26,11 +26,15 @@ module Frame_step = struct
   let side_reach n = mux2 (n ==:. 3) (of_unsigned_int ~width:2 2) n
 
   let pin_out (c : G.t Engine.Config.t) (w : G.t Footprint.Writes.t) =
+    let line =
+      mux2 (c.out_count >=:. 2) (of_unsigned_int ~width:5 2) (five c.out_count)
+    in
     let pair_width =
-      mux2
-        (c.manchester &: (w.out_pins_width ==:. 1))
-        (of_unsigned_int ~width:5 2)
-        w.out_pins_width
+      mux2 (c.manchester &: (w.out_pins_width ==:. 1)) (of_unsigned_int ~width:5 2)
+      @@ mux2
+           (c.line_code &: (w.out_pins_width <>:. 0) &: (line >: w.out_pins_width))
+           line
+           w.out_pins_width
     in
     reduce
       ~f:( |: )
