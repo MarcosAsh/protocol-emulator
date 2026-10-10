@@ -1,5 +1,5 @@
-(executable
- (name pio_check)
+(executables
+ (names pio_check pio_holes)
  (libraries core core_unix.command_unix core_unix.filename_unix pio)
  (preprocess
   (pps ppx_jane)))
