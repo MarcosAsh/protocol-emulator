@@ -25,9 +25,9 @@ module O = struct
   [@@deriving hardcaml]
 end
 
-(* A showahead [Fifo] holds one past its memory, so [full] is [nearly_full] at [depth],
-   which keeps the level in four bits. A same-cycle pop makes room, as the model pops
-   before the instruction. *)
+(* A showahead [Fifo] holds one more than its capacity, so [full] is [nearly_full] at
+   [depth] and a push beside a pop at [depth] still lands, as the model pops before the
+   instruction. Fifteen keeps the level in four bits. *)
 let create (scope : Scope.t) (i : Signal.t I.t) =
   let%hw full = wire 1 in
   let fifo =
@@ -36,7 +36,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
       ~showahead:true
       ~nearly_full:depth
       ()
-      ~capacity:(depth - 1)
+      ~capacity:depth
       ~clock:i.clocking.clock
       ~clear:(i.clocking.clear |: i.flush)
       ~wr:(i.push.valid &: ~:full)
@@ -44,7 +44,11 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
       ~rd:i.pop
   in
   full <-- (fifo.nearly_full &: ~:(i.pop));
-  { O.head = fifo.q; level = fifo.used; empty = fifo.empty; full }
+  { O.head = fifo.q
+  ; level = sel_bottom fifo.used ~width:level_bits
+  ; empty = fifo.empty
+  ; full
+  }
 ;;
 
 let hierarchical ?instance scope i =
