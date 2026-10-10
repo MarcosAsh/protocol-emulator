@@ -62,6 +62,7 @@ let master ~(mode : Mode.t) ~half_period ~setup ~hold ~deselect =
     {|
     .side_set 2
     set p, %{half_period#Int} side %{deselected#Int}
+    mov isr, null side %{deselected#Int}    ; the chip keeps isr from the program before
 idle:
     wait tx side %{deselected#Int}
     pull side %{deselected#Int}
