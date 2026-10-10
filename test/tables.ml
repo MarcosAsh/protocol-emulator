@@ -371,6 +371,32 @@ let uart_tx ~bit:cycles : Uart_tx.t t =
 
 let uart_word byte = host_bits (List.init 8 ~f:(fun i -> (byte lsr i) land 1 = 1))
 
+module Uart_rx = struct
+  type t =
+    | Wait
+    | Data of int
+    | Done
+  [@@deriving equal, sexp_of]
+end
+
+(* the start bit's edge opens the wait, which times the first Shift's read to the middle
+   of bit 0 *)
+let uart_rx ~bit:cycles : Uart_rx.t t =
+  { name = "uart_rx"
+  ; wiring = Wiring.default
+  ; state = (module Uart_rx)
+  ; states = (Uart_rx.Wait :: List.init 8 ~f:(fun i -> Uart_rx.Data i)) @ [ Done ]
+  ; step =
+      (fun state ~host_bit:_ ~inputs:_ ->
+        let open Uart_rx in
+        match state with
+        | Wait ->
+          step 0 (Await { pin = A; level = false }) ((3 * cycles / 2) - 9) (Data 0)
+        | Data i -> step 0 Shift cycles (if i = 7 then Done else Data (i + 1))
+        | Done -> fastest Push Wait ~outputs:0)
+  }
+;;
+
 module Uart_burst = struct
   type t = Send [@@deriving equal, sexp_of]
 end

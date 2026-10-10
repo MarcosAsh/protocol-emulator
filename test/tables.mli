@@ -111,6 +111,7 @@ val host_bits : bool list -> int
 val burst_word : bool list -> int
 
 module Uart_tx : State
+module Uart_rx : State
 module Uart_burst : State
 module Spi_master : State
 module Dshot_bits : State
@@ -122,6 +123,11 @@ module I2c_slave : State
 val uart_tx : bit:int -> Uart_tx.t t
 
 val uart_word : int -> int
+
+(** UART 8N1 from in_base: [Await] on the start bit's edge, then a [Shift] in the middle
+    of each bit, then a [Push] of the byte, first bit highest. A bit is [bit] cycles, from
+    [Kind.least Shift]; frames need about a bit and a half of idle between them. *)
+val uart_rx : bit:int -> Uart_rx.t t
 
 (** The same by burst: each host word is a whole frame, [uart_frame byte]. A bit is [bit]
     cycles, at least [Kind.burst_bit]. *)
