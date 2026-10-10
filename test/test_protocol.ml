@@ -250,8 +250,8 @@ let%expect_test "every protocol from its file to the decoded trace" =
 
     limits
 
-    lockstep: jtag, uncertified as loaded
-    ("lockstep held" (cycles 2200))
+    lockstep: jtag, jtag
+    ("lockstep held" (cycles 1240))
     (received (0x0 0xee00 0x800 0x4000 0x9700 0x8000 0x0 0x0 0xa000 0x1400))
     decode: test/traces/sigrok/jtag.trace, by sigrok's jtag:tdi=OUT1:tdo=IN0:tck=OUT0:tms=OUT2
       jtag=bitstring-tdi: jtag-1: DR TDI: 00000000000000000000000000000000 (0x0), 32 bits, jtag-1: IR TDI: 0010 (0x2), 4 bits, jtag-1: DR TDI: 10100101 (0xa5), 8 bits, jtag-1: DR TDI: 00111100 (0x3c), 8 bits

@@ -257,7 +257,7 @@ module Reg = Host_port.Reg
 (* Reset, read the IDCODE, select USER and write it twice, the second scan shifting out
    the first value. *)
 let scenario =
-  let half_period = 10 in
+  let half_period = shortest_half in
   let scans =
     [ `Dr, 32, 0, Tap.idcode
     ; `Ir, 4, 0x2, 0b0001 (* 1149.1: the two low bits capture 01 *)
