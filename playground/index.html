@@ -16,14 +16,20 @@
   pre { overflow-x: auto; white-space: pre; }
   .controls { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin: 8px 0; }
   input[type=number] { width: 5rem; }
-  #verdict { font-size: 1.2rem; font-weight: 600; }
+  #verdict, #pio-verdict { font-size: 1.2rem; font-weight: 600; }
   .accepted { color: var(--ok); }
   .refused { color: var(--bad); }
   .muted { color: var(--muted); }
+  nav { display: flex; gap: 16px; border-bottom: 1px solid var(--muted); margin-bottom: 8px; }
+  nav a { color: var(--muted); text-decoration: none; padding: 4px 0; }
+  nav a[aria-current] { color: var(--fg); font-weight: 600; border-bottom: 2px solid var(--fg); }
+  #pio-spec { height: 12rem; }
 </style>
 </head>
 <body>
 <h1>Firmware timing playground</h1>
+<nav><a href="#firmware">Firmware</a><a href="#pio">PIO</a></nav>
+<section id="firmware-tab">
 <p class="muted">The assembler, the timing analyser and the kernel, compiled to JavaScript
 with js_of_ocaml. The kernel checks the analyser's rows one instruction at a time; the
 proofs that its check is sound run in CI, not here.</p>
@@ -42,6 +48,21 @@ proofs that its check is sound run in CI, not here.</p>
 <pre id="listing"></pre>
 <h2>Analyser rows</h2>
 <pre id="rows"></pre>
+</section>
+<section id="pio-tab" hidden>
+<p class="muted">pio_check, compiled to JavaScript: static timing of an RP2040 PIO program
+over every path, at the pin driver, against the rules in the spec. The kernel does not
+check this tab.</p>
+<div class="controls">
+  <label>Example <select id="pio-example"></select></label>
+  <button id="pio-check">Check</button>
+</div>
+<textarea id="pio-source" spellcheck="false" aria-label="PIO program"></textarea>
+<p class="muted">Spec: one pio_check flag a line, without its dash.</p>
+<textarea id="pio-spec" spellcheck="false" aria-label="Spec"></textarea>
+<p id="pio-verdict"></p>
+<pre id="pio-report"></pre>
+</section>
 <script src="playground.bc.js"></script>
 <script>
   const pe = protocolEmulator;
@@ -63,6 +84,34 @@ proofs that its check is sound run in CI, not here.</p>
   $("check").onclick = run;
   load();
   run();
+
+  pe.pioExamples.forEach(([name], i) => $("pio-example").add(new Option(name, i)));
+  const loadPio = () => {
+    const [, source, spec] = pe.pioExamples[$("pio-example").value];
+    $("pio-source").value = source;
+    $("pio-spec").value = spec;
+  };
+  const runPio = () => {
+    const r = pe.checkPio($("pio-source").value, $("pio-spec").value);
+    $("pio-verdict").textContent = r.verdict;
+    $("pio-verdict").className = r.verdict === "passed" ? "accepted" : "refused";
+    $("pio-report").textContent = r.report;
+  };
+  $("pio-example").onchange = () => { loadPio(); runPio(); };
+  $("pio-check").onclick = runPio;
+  loadPio();
+  runPio();
+
+  const show = () => {
+    const tab = location.hash === "#pio" ? "pio" : "firmware";
+    document.querySelectorAll("section").forEach((s) => { s.hidden = s.id !== tab + "-tab"; });
+    document.querySelectorAll("nav a").forEach((a) => {
+      if (a.hash === "#" + tab) a.setAttribute("aria-current", "page");
+      else a.removeAttribute("aria-current");
+    });
+  };
+  window.onhashchange = show;
+  show();
 </script>
 </body>
 </html>

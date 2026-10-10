@@ -5,7 +5,7 @@
  (modes js)
  (enabled_if
   (= %{env:PLAYGROUND=no} yes))
- (libraries core js_of_ocaml protocol_emulator)
+ (libraries core js_of_ocaml pio protocol_emulator)
  (preprocess
   (pps ppx_jane)))
 
@@ -21,6 +21,16 @@
    (cat %{dep:../test/i2c_master_marked.asm})
    (echo "|}\n  ; \"gap_adding_x\", {|")
    (cat %{dep:gap_adding_x.asm})
+   (echo "|}\n  ]\n"))))
+
+(rule
+ (with-stdout-to
+  pio_example.ml
+  (progn
+   (echo "let all =\n  [ \"i2c (#796)\", {|")
+   (cat %{dep:../pio/test/pico_examples/i2c.pio})
+   (echo "|}, {|")
+   (cat %{dep:i2c.spec})
    (echo "|}\n  ]\n"))))
 
 (alias
