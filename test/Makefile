@@ -135,6 +135,14 @@ both_roles:
 		COCOTB_RESULTS_FILE=results_both_roles.xml
 	$(PYTHON_BIN) -m cocotb_tools.check_results results_both_roles.xml
 
+# demo_tolerance.py on the RTL, shortened to simulate: make tolerance_bench. Needs what
+# outside needs.
+tolerance_bench:
+	$(MAKE) sim OUTSIDE=yes SIM_BUILD=sim_build/outside COCOTB_TEST_MODULES=test_tolerance_bench \
+		PLUSARGS=+firmware=/dev/null \
+		COCOTB_RESULTS_FILE=results_tolerance_bench.xml
+	$(PYTHON_BIN) -m cocotb_tools.check_results results_tolerance_bench.xml
+
 # Replays the pin traces in traces/, recorded from the OCaml simulation of the top, on
 # whichever netlist the mode selects: make replay, make replay GATES=yes, FPGA=yes or
 # ICEPI=yes.
