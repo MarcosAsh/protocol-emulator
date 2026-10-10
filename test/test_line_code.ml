@@ -81,29 +81,66 @@ let%expect_test "the USB and CAN tables code as the standards do, and decode bac
   [%expect {| ((!stuffed_usb 59) (!stuffed_can 105)) |}]
 ;;
 
-let%expect_test "a table is eight words, a state's two entries in each, and the modes" =
+(* one table, each side from its own start, codes as the two did apart *)
+let%expect_test "the combined tables code and decode as the separate ones" =
+  let shifted_receive (table : Line_code.t) levels =
+    let last = ref 0 in
+    let state = ref table.modes.rx_start in
+    List.filter_map levels ~f:(fun pin ->
+      let input = if table.modes.rx_relative then pin lxor !last else pin in
+      let e = Line_code.entry table ~state:!state ~input in
+      let bit = if table.modes.rx_toggle then e.out lxor !last else e.out in
+      last := pin;
+      state := e.next;
+      Option.some_if (not e.flag) bit)
+  in
+  Quickcheck.test ~trials:500 ~sexp_of:[%sexp_of: int list] bits ~f:(fun bits ->
+    List.iter
+      Line_code.[ usb, usb_transmit, usb_receive; can, can_transmit, can_receive ]
+      ~f:(fun (both, transmit, receive) ->
+        let line = transmitted both bits in
+        [%test_result: int list] line ~expect:(transmitted transmit bits);
+        [%test_result: int list] (shifted_receive both line) ~expect:(received receive line)));
+  print_s
+    [%message
+      ""
+        ~usb_rx_start:(Line_code.usb.modes.rx_start : int)
+        ~can_rx_start:(Line_code.can.modes.rx_start : int)];
+  [%expect {| ((usb_rx_start 6) (can_rx_start 5)) |}]
+;;
+
+let%expect_test "a table is sixteen words, a state's two entries in each, and the modes" =
   let hex words = List.map words ~f:(sprintf "%04x") in
   print_s
     [%message
       ""
         ~nrzi:(hex (Line_code.words Line_code.nrzi) : string list)
         ~usb_receive:(hex (Line_code.words Line_code.usb_receive) : string list)
+        ~usb_both:(hex (Line_code.words Line_code.usb) : string list)
         ~usb_transmit_at_the_sixth_one:
           (Line_code.entry Line_code.usb_transmit ~state:5 ~input:1 : Line_code.Entry.t)
         ~round_trip:
           (List.for_all
-             Line_code.[ nrzi; usb_transmit; usb_receive; can_transmit; can_receive ]
+             Line_code.
+               [ nrzi; usb_transmit; usb_receive; can_transmit; can_receive; usb; can ]
              ~f:(fun t ->
                [%equal: Line_code.t] (Line_code.of_words (Line_code.words t) |> ok_exn) t)
            : bool)
-        ~too_many:(Line_code.of_words (List.init 10 ~f:Fn.id) |> Or_error.is_error : bool)
+        ~too_many:(Line_code.of_words (List.init 18 ~f:Fn.id) |> Or_error.is_error : bool)
         ~bit_seven:
-          (Line_code.of_words (0x80 :: List.init 8 ~f:(Fn.const 0)) |> Or_error.is_error
+          (Line_code.of_words (0x80 :: List.init 16 ~f:(Fn.const 0)) |> Or_error.is_error
            : bool)];
   [%expect
     {|
-    ((nrzi (0008 0008 0008 0008 0008 0008 0008 0008 0004))
-     (usb_receive (0009 000a 000b 000c 000d 000e 100e 100e 0002))
+    ((nrzi
+      (0010 0010 0010 0010 0010 0010 0010 0010 0010 0010 0010 0010 0010 0010 0010
+       0010 0004))
+     (usb_receive
+      (0011 0012 0013 0014 0015 0016 2016 2016 2016 2016 2016 2016 2016 2016 2016
+       2016 0002))
+     (usb_both
+      (0110 0210 0310 0410 0510 2010 0617 0618 0619 061a 061b 061c 261c 261c 261c
+       261c 0066))
      (usb_transmit_at_the_sixth_one ((next 0) (out 0) (flag true)))
      (round_trip true) (too_many true) (bit_seven true))
     |}]
@@ -232,6 +269,102 @@ let%expect_test "the receive table on the core takes the stuffed zeros out" =
     |}]
 ;;
 
+(* Both sides on one engine with one table, as USB's turnaround needs: three bytes out on
+   D+ and D- (bidirectional pins), let go of the pair, then five bytes in from D+, a bit
+   every ten cycles. *)
+let usb_both =
+  {|
+    set pindirs, 3
+    set pins, 2              ; J
+    set y, 23
+bit:
+    jmp stuff, stuffed
+    out pins, 1 [5]
+    jmp y--, bit
+    set pindirs, 0
+    jmp receive
+stuffed:
+    mov pins, !pins [3]
+    stuff_reset
+    jmp bit
+receive:
+    in pins, 1 [9]
+|}
+;;
+
+let%expect_test "one engine sends and receives USB through one table" =
+  let program = assemble usb_both in
+  let pair = Isa.first_bidir_pin in
+  let out_pc = 4 in
+  let mov_pc = 8 in
+  let receive_pc = 11 in
+  let config =
+    { Program_config.default with
+      out_base = pair
+    ; out_count = 2
+    ; set_base = pair
+    ; set_count = 2
+    ; in_base = pair
+    ; in_count = 2
+    ; autopull = true
+    ; autopush = true
+    ; push_threshold = 8
+    ; wrap_bottom = receive_pc
+    ; wrap_top = receive_pc
+    ; line_code = true
+    }
+  in
+  let sent = [ 0x80; 0x3c; 0x7e ] in
+  let levels = usb_reference (bits_of_bytes bytes) |> Array.of_list in
+  let line = ref [] in
+  let previous = ref None in
+  let cycle = ref 0 in
+  let receiving_from = ref None in
+  let react (m : Machine.t) =
+    Int.incr cycle;
+    (match !previous with
+     | Some (before : Machine.t)
+       when before.stall = 0
+            && (not before.halted)
+            && (before.pc = out_pc || before.pc = mov_pc) ->
+       line := ((m.pin_out lsr pair) land 1) :: !line
+     | Some _ | None -> ());
+    if m.pc = receive_pc && m.stall = 0 && Option.is_none !receiving_from
+    then receiving_from := Some !cycle;
+    previous := Some m
+  in
+  let inputs n =
+    match !receiving_from with
+    | Some from when n >= from && (n - from) / 10 < Array.length levels ->
+      levels.((n - from) / 10) lsl pair
+    | Some _ | None -> 0
+  in
+  let m =
+    Lockstep.lockstep
+      ~cycles:720
+      ~preload:[ 0x3c80; 0x7e ]
+      ~line_table:Line_code.usb
+      ~config
+      ~program
+      ~inputs
+      ~react
+      ()
+  in
+  let expected = usb_reference (bits_of_bytes sent) in
+  print_s
+    [%message
+      ""
+        ~sent_as_reference:
+          ([%equal: int list] (List.take (List.rev !line) (List.length expected)) expected
+           : bool)
+        ~received:(List.map m.rx_fifo ~f:(fun w -> sprintf "%02x" (w lsr 8)) : string list)
+        ~line_rx:(m.line_rx : int)];
+  [%expect {|
+    ("lockstep held" (cycles 720))
+    ((sent_as_reference true) (received (80 ff ff 3c 7e)) (line_rx 10))
+    |}]
+;;
+
 (* Random words, a third of them the ones the add-ons act on: single-bit [in pins] and
    [out pins], [jmp stuff], [stuff_reset], [capture_arm], waits on the capture pin, loads
    of [p] and its uses as a period. *)
@@ -280,7 +413,7 @@ let%expect_test "random programs through random tables" =
       let program = program random ~config in
       let line_table =
         Line_code.of_words
-          (List.init Line_code.states ~f:(fun _ -> int 0xffff land 0x1f1f) @ [ int 15 ])
+          (List.init Line_code.states ~f:(fun _ -> int 0xffff land 0x3f3f) @ [ int 0xff ])
         |> ok_exn
       in
       let premises =
@@ -345,5 +478,5 @@ let%expect_test "random programs through random tables" =
         (!stepped : int)
         (!flagged : int)
         (!assumed : int)];
-  [%expect {| ((programs 64) (failed ()) (!stepped 41) (!flagged 32) (!assumed 24)) |}]
+  [%expect {| ((programs 64) (failed ()) (!stepped 62) (!flagged 34) (!assumed 27)) |}]
 ;;

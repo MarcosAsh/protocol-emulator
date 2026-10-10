@@ -106,7 +106,7 @@ val create : config:Program_config.t -> program:int list -> t Or_error.t
 (** Fills data memory from address 0, before a run or while halted; the rest is zero. *)
 val load_data : t -> int list -> t Or_error.t
 
-(** Loads the [Line_code] table, while halted. *)
+(** Loads the [Line_code] table, while halted; the receive side starts at its [rx_start]. *)
 val load_line_table : t -> Line_code.t -> t
 
 (** Watches the premises from the next step: [Fault.assumption] the step one fails. *)

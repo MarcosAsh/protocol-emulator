@@ -146,7 +146,10 @@ let load_data t words =
   Or_error.map (fill "data" words ~size:data_size) ~f:(fun data -> { t with data })
 ;;
 
-let load_line_table t line_table = { t with line_table }
+(* the receive side starts where the table says, as from a start *)
+let load_line_table t line_table =
+  { t with line_table; line_rx = line_table.modes.rx_start }
+;;
 let assume t premises = { t with premises }
 
 let write_tx t value =

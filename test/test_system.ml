@@ -299,7 +299,7 @@ let%expect_test "random programs on two engines with the add-ons in lockstep" =
       let line_tables =
         List.init 2 ~f:(fun _ ->
           Line_code.of_words
-            (List.init Line_code.states ~f:(fun _ -> int 0xffff land 0x1f1f) @ [ int 15 ])
+            (List.init Line_code.states ~f:(fun _ -> int 0xffff land 0x3f3f) @ [ int 0xff ])
           |> ok_exn)
       in
       let fed n =

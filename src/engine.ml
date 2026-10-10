@@ -399,10 +399,15 @@ module Make (Timer : Timer) = struct
           ~enable:(writes_word s)
           (d.:[8 + entry_bits - 1, 8] @: d.:[entry_bits - 1, 0]))
     in
-    (* transmit relative, receive relative, transmit toggle, receive toggle *)
+    (* transmit relative, receive relative, transmit toggle, receive toggle, and the
+       receive side's first state *)
     let%hw line_modes =
-      reg spec ~enable:(writes_word Line_code.modes_word) i.line_write.data.:[3, 0]
+      reg
+        spec
+        ~enable:(writes_word Line_code.modes_word)
+        i.line_write.data.:[4 + Line_code.state_bits - 1, 0]
     in
+    let%hw line_rx_start = line_modes.:[4 + Line_code.state_bits - 1, 4] in
     let%hw line_pair = mux (mux2 (is In) line_rx line_tx) line_table in
     let line_entry ~input =
       mux2
@@ -466,9 +471,9 @@ module Make (Timer : Timer) = struct
     let%hw line_rx_entry =
       line_entry ~input:(line_pin ^: (line_modes.:(1) &: line_last))
     in
-    let%hw line_bit = line_rx_entry.:(3) ^: (line_modes.:(3) &: line_last) in
+    let%hw line_bit = line_rx_entry.:(Line_code.out_bit) ^: (line_modes.:(3) &: line_last) in
     (* a dropped bit reaches nothing but the state *)
-    let%hw line_drop = line_in &: line_rx_entry.:(4) in
+    let%hw line_drop = line_in &: line_rx_entry.:(Line_code.flag_bit) in
     let%hw in_source_value =
       Isa.In_source.Of_signal.match_
         in_source
@@ -643,7 +648,7 @@ module Make (Timer : Timer) = struct
     let%hw line_tx_entry =
       line_entry ~input:(out_value.:(0) ^: (line_modes.:(0) &: out_pin))
     in
-    let%hw line_level = line_tx_entry.:(3) ^: (line_modes.:(2) &: out_pin) in
+    let%hw line_level = line_tx_entry.:(Line_code.out_bit) ^: (line_modes.:(2) &: out_pin) in
     let%hw out_pins_count =
       mux2 line_out (mux2 (c.out_count >=: two) two c.out_count) shift_count
     in
@@ -971,23 +976,25 @@ module Make (Timer : Timer) = struct
       op_go &: is Out &: Isa.Out_dest.Of_signal.is out_dest Pins &: line_out
     in
     let%hw line_steps_in = op_go &: line_in in
-    let line_state = zero Line_code.state_bits in
+    let next_state entry = sel_bottom entry ~width:Line_code.state_bits in
     line_tx
     <-- reg
           spec
-          (mux2 start line_state @@ mux2 line_steps_out line_tx_entry.:[2, 0] line_tx);
+          (mux2 start (zero Line_code.state_bits)
+           @@ mux2 line_steps_out (next_state line_tx_entry) line_tx);
     line_rx
     <-- reg
           spec
-          (mux2 start line_state @@ mux2 line_steps_in line_rx_entry.:[2, 0] line_rx);
+          (mux2 start line_rx_start
+           @@ mux2 line_steps_in (next_state line_rx_entry) line_rx);
     line_last <-- reg spec (mux2 start gnd @@ mux2 line_steps_in line_pin line_last);
     line_flag
     <-- reg
           spec
           (mux2 start gnd
            @@ mux2 (op_go &: is_sys Stuff_reset) gnd
-           @@ mux2 line_steps_out line_tx_entry.:(4)
-           @@ mux2 line_steps_in line_rx_entry.:(4) line_flag);
+           @@ mux2 line_steps_out line_tx_entry.:(Line_code.flag_bit)
+           @@ mux2 line_steps_in line_rx_entry.:(Line_code.flag_bit) line_flag);
     capture_armed
     <-- reg
           spec

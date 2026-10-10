@@ -3,8 +3,10 @@
     [out pins] and [in pins] steps the engine's table, the transmit side from one state
     register and the receive side from another, both 0 after a start.
 
-    Word [s] (0 to 7) holds state [s]'s two 5-bit entries, for input 0 in the low byte and
-    input 1 in the high; word 8 holds the [Modes]. An [out]'s input is the bit the osr
+    Word [s] (0 to 15) holds state [s]'s two 6-bit entries {flag, out, next}, for input 0
+    in the low byte and input 1 in the high; word 16 holds the [Modes]. The transmit state
+    starts at 0 and the receive state at [rx_start], so one table can hold both sides of a
+    code. An [out]'s input is the bit the osr
     gives, or with [tx_relative] whether it differs from the pin at [out_base]. It drives
     [out] on that pin, or with [tx_toggle] flips the pin where [out] is set, and with
     [out_count] 2 or more drives the next pin as the complement. An [in]'s input is the
@@ -24,6 +26,11 @@ val states : int
 val state_bits : int
 
 val entry_bits : int
+
+(** Where [out] and [flag] sit in an entry, above [next]. *)
+val out_bit : int
+
+val flag_bit : int
 
 (** The bits of a word's address. *)
 val address_bits : int
@@ -46,6 +53,7 @@ module Modes : sig
     ; rx_relative : bool
     ; tx_toggle : bool
     ; rx_toggle : bool
+    ; rx_start : int
     }
   [@@deriving sexp_of, compare, equal]
 
@@ -70,6 +78,10 @@ val words : t -> int list
 val of_words : int list -> t Or_error.t
 val entry : t -> state:int -> input:int -> Entry.t
 
+(** [transmit]'s first [used] states, then [receive]'s moved up by [used], with the
+    receive side starting there. Raises if [receive] steps past the room left. *)
+val combine : transmit:t -> used:int -> receive:t -> t
+
 (** NRZI: a 0 flips the line, a 1 holds it. *)
 val nrzi : t
 
@@ -87,3 +99,9 @@ val can_transmit : t
 
 (** CAN receive: the level, and the bit after five of a level dropped. *)
 val can_receive : t
+
+(** [usb_transmit] and [usb_receive] in one table, 13 states. *)
+val usb : t
+
+(** [can_transmit] and [can_receive] in one table, 11 states. *)
+val can : t
