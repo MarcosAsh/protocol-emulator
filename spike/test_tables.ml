@@ -266,6 +266,41 @@ let%expect_test "the kernel on the interpreters, data memory unknown" =
     |}]
 ;;
 
+(* As test_self_check.ml does for the checker: the analyser's rows under the floor, and
+   the kernel on them at every load from the floor, by SAT. Here z3 answers unchecked; the
+   cake_lpr-checked run is [Checked_unsat.prove] on the same claim. *)
+let%expect_test "the kernel accepts the hold interpreter at every load from the floor" =
+  let module G = Hardcaml_verify.Comb_gates in
+  let program = Asm.assemble (interpreter Hold_p ~k:3) |> ok_exn in
+  let config = Asm.Program.configure program config in
+  let words = Asm.Program.words program |> ok_exn in
+  let table =
+    Analyser.analyse ~period_floor:(floor Hold_p) ~config program.instructions
+    |> Kernel.Table.of_analyser
+  in
+  let solver = Hardcaml_verify.Solver.z3 ~parallel:false () in
+  List.iter
+    [ floor Hold_p; floor Hold_p - 1 ]
+    ~f:(fun least ->
+      let claim =
+        Table_query.every_load_from
+          ~floor:least
+          ~single_capture_edge:false
+          ~config
+          ~words
+          table
+      in
+      match Hardcaml_verify.Solver.solve ~solver (G.cnf G.(~:claim)) with
+      | Ok Unsat -> print_s [%message "every load accepted" (least : int)]
+      | Ok (Sat _) -> print_s [%message "a load refused" (least : int)]
+      | Error e -> print_s [%message "solver failed" (e : Error.t)]);
+  [%expect
+    {|
+    ("every load accepted" (least 10))
+    ("a load refused" (least 9))
+    |}]
+;;
+
 let%expect_test "without the floor, or one cycle short of it, it is refused" =
   let show name r =
     match r with
