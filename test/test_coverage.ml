@@ -109,8 +109,8 @@ let directed coverage =
   run
     ~cycles:3200
     ~words:[ 32; 0x80; 0xc3; 0; 0xff ]
-    ~config:usb_config
-    (Timed_program.source usb_tx);
+    ~config:Usb.config
+    (Timed_program.source Usb.tx);
   let lines =
     List.concat_map
       (Usb_ls.encode [ 0xc3; 0x80; 0x06 ])
@@ -121,28 +121,28 @@ let directed coverage =
           | K -> 1, 0
           | Se0 -> 0, 0
         in
-        List.init 32 ~f:(fun _ -> (dp lsl usb_rx_dp_pin) lor (dm lsl usb_rx_dm_pin)))
+        List.init 32 ~f:(fun _ -> (dp lsl Usb.rx_dp_pin) lor (dm lsl Usb.rx_dm_pin)))
   in
-  let levels = ref (List.init 40 ~f:(fun _ -> 1 lsl usb_rx_dm_pin) @ lines) in
+  let levels = ref (List.init 40 ~f:(fun _ -> 1 lsl Usb.rx_dm_pin) @ lines) in
   let next () =
     match !levels with
     | level :: rest ->
       levels := rest;
       level
-    | [] -> 1 lsl usb_rx_dm_pin
+    | [] -> 1 lsl Usb.rx_dm_pin
   in
   run
     ~cycles:1600
     ~words:[ 32 ]
     ~inputs:next
-    ~config:usb_rx_config
-    (usb_rx ~half_period:16);
+    ~config:Usb.rx_config
+    (Usb.rx ~half_period:16);
   let out0 = ref 0 in
   run
     ~inputs:(fun () -> !out0)
     ~react:(fun m -> out0 := bit m.pin_out 5)
-    ~config:edge_meter_config
-    (edge_meter ~period:16);
+    ~config:Edge_meter.config
+    (Edge_meter.firmware ~period:16);
   run
     ~config:{ Program_config.default with autopull = true; autopull_data = true }
     {|

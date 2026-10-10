@@ -442,3 +442,263 @@ module Sender = struct
   let firmware = sender
   let shortest_period = sender_shortest_period
 end
+
+let bench_bit = Bench.bit ~hz:500_000
+
+(* The library's line is dominant from reset until a bit after the period, and a frame can
+   follow a bit later. On a bus it goes recessive at once and stays so eleven bits after
+   the period, which a node needs to join the bus. *)
+let bench_firmware firmware =
+  Bench.patch
+    (Timed_program.source firmware)
+    ~pattern:
+      "    wait tx\n\
+      \    pull\n\
+      \    mov p, osr               ; the bit period\n\
+      \    mov t, now\n\
+      \    add t, p\n\
+      \    wait t+\n\
+      \    set pins, 1              ; recessive\n"
+    ~with_:
+      "    set pins, 1              ; recessive\n\
+      \    wait tx\n\
+      \    pull\n\
+      \    mov p, osr               ; the bit period\n\
+      \    mov t, now\n\
+      \    add t, p\n\
+      \    set x, 10\n\
+       bus_idle:\n\
+      \    wait t+\n\
+      \    jmp x--, bus_idle\n"
+;;
+
+let bench_stimulus =
+  { Bench.Stimulus.bursts = [ Can.words (Can.Frame.data ~id:0x4a [ 0x61 ]) ]
+  ; quiet = 0
+  ; cycles = 20_000
+  }
+;;
+
+let bench =
+  [ { Bench.name = "can"
+    ; what =
+        [%string
+          "Can.firmware, recessive from the start and for eleven bits after the period: \
+           the host sends the bit period, %{bench_bit#Int} cycles for %{Bench.rate \
+           ~unit:\"bit/s\" bench_bit}"]
+    ; source = bench_firmware Can.firmware
+    ; config = Can.config
+    ; assumption = Floor Can.shortest_period
+    ; clock_hz = Bench.clock_hz
+    ; load = Some bench_bit
+    ; stimulus = Some bench_stimulus
+    }
+  ; { name = "can_sender"
+    ; what =
+        [%string
+          "Can_node.Sender.firmware, recessive from the start and for eleven bits after \
+           the period: Can.firmware reading its ACK slot on IN1, the host sends the bit \
+           period, %{bench_bit#Int} cycles for %{Bench.rate ~unit:\"bit/s\" bench_bit}"]
+    ; source = bench_firmware Sender.firmware
+    ; config = Sender.config
+    ; assumption = Floor Sender.shortest_period
+    ; clock_hz = Bench.clock_hz
+    ; load = Some bench_bit
+    ; stimulus = Some bench_stimulus
+    }
+  ; { name = "can_receiver"
+    ; what =
+        [%string
+          "Can_node.Receiver.firmware: %{Bench.rate ~unit:\"bit/s\" Receiver.period} \
+           sampled %{Receiver.sample#Int} cycles in, CRX on IN1, the ACK on OUT1"]
+    ; source = Timed_program.source Receiver.firmware
+    ; config = Receiver.config
+    ; assumption = Receiver Receiver.period
+    ; clock_hz = Bench.clock_hz
+    ; load = Some Receiver.period
+    ; stimulus = None
+    }
+  ]
+;;
+
+(* Bosch: a node joins the bus after eleven recessive bits; the transceiver's rate *)
+let limits firmware =
+  let bosch =
+    { Datasheet.Sheet.part = "CAN 2.0A"
+    ; document = "Bosch CAN 2.0, BCANPSV2.0 Rev. 3"
+    ; page = "s.2.15 p.2-6, eleven recessive bits"
+    }
+  and transceiver =
+    { Datasheet.Sheet.part = "SN65HVD230"
+    ; document = "TI SLOS346O"
+    ; page = "p.1, up to 1 Mbps"
+    }
+  in
+  let limit parameter limit sheet bound =
+    { Datasheet.firmware; parameter; limit; sheet; margin = Cycle; bound }
+  in
+  [ limit
+      "recessive"
+      (At_least 1_000.)
+      transceiver
+      (Datasheet.level ~pin:Datasheet.set_pin ~high:true ())
+  ; limit
+      "dominant"
+      (At_least 1_000.)
+      transceiver
+      (Datasheet.level ~pin:Datasheet.set_pin ~high:false ())
+  ; limit
+      "idle to SOF"
+      (At_least 22_000.)
+      bosch
+      (Datasheet.run ~pin:Datasheet.set_pin (fun ~clock_hz:_ levels ->
+         List.drop_while levels ~f:(fun (high, _) -> not high)
+         |> List.hd
+         |> Option.to_list
+         |> List.map ~f:snd))
+  ]
+;;
+
+let receiver_limits =
+  [ { Datasheet.firmware = "can_receiver"
+    ; parameter = "ACK"
+    ; limit = At_least 1_000.
+    ; sheet =
+        { part = "SN65HVD230"; document = "TI SLOS346O"; page = "p.1, up to 1 Mbps" }
+    ; margin = Cycle
+    ; bound = Datasheet.level ~pin:Datasheet.set_pin ~high:false ()
+    }
+  ]
+;;
+
+open Pin_trace
+module Reg = Host_port.Reg
+
+(* The host waits eleven bits after the period before the first frame, as a node joining
+   the bus has to: the firmware sends whenever it has words. *)
+let can_trace ?(teeth = []) ~name ~frames ~rejected () =
+  let clock_hz = 48_000_000 in
+  let send frame =
+    [ Step.Write (Reg.tx, Can.words frame)
+    ; Run (List.length (Can.line frame) * Can.period)
+    ]
+  in
+  { Scenario.name
+  ; peer = (fun () -> Peer.idle 0)
+  ; script =
+      Scenario.load ~config:Can.config ~program:(Timed_program.words Can.firmware)
+      @ [ Scenario.start; Write (Reg.tx, [ Can.period ]); Run (12 * Can.period) ]
+      @ List.concat_map frames ~f:send
+  ; sigrok =
+      Some
+        { clock_hz
+        ; decoders =
+            [ Sigrok.decoder
+                "can"
+                ~pins:[ "can_rx", Can.tx_pin ]
+                ~options:[ "nominal_bitrate", Int.to_string (clock_hz / Can.period) ]
+            ]
+        ; expect =
+            [ ( "can=sof:id:ide:rtr:dlc:data:crc-sequence:ack-slot:eof"
+              , List.concat_map frames ~f:(fun (frame : Can.Frame.t) ->
+                  [ "Start of frame"
+                  ; sprintf "Identifier: %d (0x%x)" frame.id frame.id
+                  ; "Identifier extension bit: standard frame"
+                  ; sprintf
+                      "Remote transmission request: %s frame"
+                      (if frame.rtr then "remote" else "data")
+                  ; sprintf "Data length code: %d" frame.dlc
+                  ]
+                  @ List.mapi frame.data ~f:(sprintf "Data byte %d: 0x%02x")
+                  @ [ sprintf "CRC-15 sequence: 0x%04x" (Can.crc frame)
+                    ; "ACK slot: NACK"
+                    ; "End of frame"
+                    ])
+                |> Sigrok.lines "can" )
+            ]
+        ; joins_after =
+            Some
+              ( 11 * Can.period
+              , { why =
+                    "the pin is dominant from reset until a bit after the period \
+                     arrives, which sigrok reads as frames of zeros"
+                ; first_difference = 1
+                ; reads = "can-1: Identifier: 0 (0x0)"
+                } )
+        ; rejected
+        ; teeth
+        }
+  }
+;;
+
+let scenario =
+  (* edge 1 is the first SOF: a data bit inverted and the CRC left as it was *)
+  let tooth =
+    [ Sigrok.Corruption.Flip
+        { pin = Can.tx_pin; edge = 1; after = 25 * Can.period; cycles = Can.period }
+    ]
+  in
+  can_trace
+    ~name:"can"
+    ~frames:
+      [ Can.Frame.data ~id:0x123 [ 0xde; 0xad ]
+      ; Can.Frame.data ~id:0x555 [ 0x00; 0xff; 0x55; 0xaa; 0x01; 0x80; 0x7f; 0xfe ]
+      ; Can.Frame.data ~id:0x000 []
+      ]
+    ~rejected:None
+    ~teeth:[ tooth ]
+    ()
+;;
+
+let remote_scenario =
+  can_trace
+    ~name:"can_remote"
+    ~frames:[ Can.Frame.remote ~id:0x0f0 ~dlc:4; Can.Frame.data ~id:0x123 [ 0xde; 0xad ] ]
+    ~rejected:
+      (Some
+         { why =
+             "sigrok 0.5.3 reads a remote frame's DLC of data bytes, though a remote \
+              frame carries none"
+         ; first_difference = 5 (* the line after the remote frame's DLC *)
+         ; reads = "can-1: Data byte 0:"
+         })
+    ()
+;;
+
+let protocol =
+  { Protocol.name = "can"
+  ; certified =
+      [ Certified.plain
+          ~period:Can.period
+          ~period_floor:Can.shortest_period
+          ~no_wrap:true
+          "can"
+          (Timed_program.source Can.firmware)
+          Can.config
+      ]
+  ; time_triggered = []
+  ; bench
+  ; loaded_from_hex = []
+  ; limits = limits "can" @ limits "can_sender" @ receiver_limits
+  ; unlimited = []
+  ; swept =
+      [ (* 26.7 kbit/s at 48 MHz, where nine edges take twice a poll *)
+        { Swept.name = "can"
+        ; watch = "tx"
+        ; on_wire =
+            (fun c ->
+              { c with
+                in_base = Swept.wire
+              ; out_base = Swept.wire
+              ; set_base = Swept.wire
+              ; jmp_pin = Swept.wire
+              })
+        ; period = Some 1800
+        ; bursts = [ Can.words (Can.Frame.data ~id:0x4a [ 0x61 ]) ]
+        }
+      ]
+  ; not_swept = []
+  ; scenarios = []
+  ; decoded = [ scenario; remote_scenario ]
+  }
+;;

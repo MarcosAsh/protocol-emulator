@@ -334,3 +334,100 @@ module Host = struct
   let measured t = t.measured
   let violations t = List.rev t.violations
 end
+
+open Pin_trace
+module Reg = Host_port.Reg
+
+(* The host lets each frame end, then holds the clock low for 100 us as it takes the byte
+   in. That fall is also the twelfth sigrok 0.5.3's ps2 decoder waits for before it reads
+   a frame of eleven clocks. *)
+let scenario =
+  let quarter = standard_quarter in
+  let bytes = [ 0x1c; 0xf0; 0x1c ] in
+  let peer () =
+    let clock = ref 1
+    and data = ref 1
+    and falls = ref 0
+    and inhibit_in = ref None
+    and holding = ref 0 in
+    { Peer.inputs = (fun () -> (!clock lsl clock_pin) lor (!data lsl data_pin))
+    ; step =
+        (fun ~pin_out:_ ~pin_dir ->
+          let was = !clock in
+          (match !inhibit_in with
+           | Some 0 ->
+             inhibit_in := None;
+             holding := 100_000 / cycle_ns
+           | Some n -> inhibit_in := Some (n - 1)
+           | None -> if !holding > 0 then decr holding);
+          clock := if Peer.bit pin_dir clock_pin = 1 || !holding > 0 then 0 else 1;
+          data := 1 - Peer.bit pin_dir data_pin;
+          if was = 1 && !clock = 0 && !holding = 0 then incr falls;
+          if was = 0 && !clock = 1 && !falls = 11
+          then (
+            falls := 0;
+            inhibit_in := Some quarter))
+    }
+  in
+  (* a frame is a clock period of idle and eleven clocks, 48 quarters *)
+  let send byte = [ Step.Write (Reg.tx, [ byte ]); Run ((48 * quarter) + 10_000) ] in
+  { Scenario.name = "ps2"
+  ; peer
+  ; script =
+      Scenario.load ~config ~program:(Timed_program.words firmware)
+      @ [ Scenario.start; Write (Reg.tx, [ quarter ]) ]
+      @ List.concat_map bytes ~f:send
+  ; sigrok =
+      Some
+        { clock_hz = 1_000_000_000 / cycle_ns
+        ; decoders = [ Sigrok.decoder "ps2" ~pins:[ "clk", clock_pin; "data", data_pin ] ]
+        ; expect =
+            [ ( "ps2=start-bit:word:parity-ok:stop-bit"
+              , List.concat_map bytes ~f:(fun byte ->
+                  [ "Start bit"; sprintf "Data: %02x" byte; "Parity OK"; "Stop bit" ])
+                |> Sigrok.lines "ps2" )
+            ; (* sigrok checks neither the start nor the stop bit, only labels them *)
+              ( "ps2=bit"
+              , List.concat_map bytes ~f:(fun byte ->
+                  let data = List.init 8 ~f:(fun i -> (byte lsr i) land 1) in
+                  let parity = 1 - (List.sum (module Int) data ~f:Fn.id % 2) in
+                  (0 :: data) @ [ parity; 1 ])
+                |> List.map ~f:Int.to_string
+                |> Sigrok.lines "ps2" )
+            ]
+        ; joins_after = None
+        ; rejected = None
+        ; (* edge 2 is the first byte's fall at bit 5, three bits before its parity *)
+          teeth =
+            [ [ Flip
+                  { pin = data_pin; edge = 2; after = 12 * quarter; cycles = 4 * quarter }
+              ]
+            ; (* edge 3 raises the first byte's stop bit: held low instead *)
+              [ Flip { pin = data_pin; edge = 3; after = 0; cycles = 4 * quarter } ]
+            ]
+        }
+  }
+;;
+
+let protocol =
+  { Protocol.name = "ps2"
+  ; certified =
+      [ Certified.plain
+          ~period:standard_quarter
+          ~period_floor:8
+          "ps2"
+          (Timed_program.source firmware)
+          config
+      ]
+  ; time_triggered = []
+  ; bench = []
+  ; loaded_from_hex = []
+  ; limits = []
+  ; unlimited = []
+  ; swept = []
+  ; not_swept =
+      [ "ps2", "open drain, which a wire does not show, and the host holds the clock" ]
+  ; scenarios = []
+  ; decoded = [ scenario ]
+  }
+;;

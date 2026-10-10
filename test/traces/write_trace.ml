@@ -2,13 +2,13 @@ open! Core
 open Protocol_emulator_test
 
 (* a trace kept current from its scenario, as dune.inc lists one for each *)
-let rules name =
+let rules ~exe name =
   [%string
     {|
 (rule
  (with-stdout-to
   %{name}.trace.gen
-  (run ./write_trace.exe %{name})))
+  (run %{exe} %{name})))
 
 (rule
  (alias runtest)
@@ -17,15 +17,21 @@ let rules name =
 |}]
 ;;
 
+let dune ~flag ~exe scenarios =
+  printf "; Written by write_trace.exe %s, a pair of rules a scenario.\n" flag;
+  List.iter scenarios ~f:(fun (s : Pin_trace.Scenario.t) ->
+    print_string (rules ~exe s.name))
+;;
+
 let () =
   match Sys.get_argv () with
-  | [| _; "-dune" |] ->
-    print_string "; Written by write_trace.exe -dune, a pair of rules a scenario.\n";
-    List.iter Pin_scenarios.all ~f:(fun s -> print_string (rules s.name))
+  | [| _; "-dune" |] -> dune ~flag:"-dune" ~exe:"./write_trace.exe" Pin_scenarios.all
+  | [| _; "-dune-decoded" |] ->
+    dune ~flag:"-dune-decoded" ~exe:"../write_trace.exe" Library.decoded
   | args ->
     let name = args.(1) in
     (match
-       List.find (Pin_scenarios.all @ Sigrok_scenarios.all) ~f:(fun s ->
+       List.find (Pin_scenarios.all @ Library.decoded) ~f:(fun s ->
          String.equal s.name name)
      with
      | None -> raise_s [%message "no such scenario" (name : string)]

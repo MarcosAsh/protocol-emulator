@@ -8,7 +8,9 @@ let loopback (t : Machine.t) = (t.pin_out lsr 5) land 1
 let%expect_test "the core measures its own edges" =
   let period = 16 in
   let t =
-    Machine.create ~config:edge_meter_config ~program:(assemble (edge_meter ~period))
+    Machine.create
+      ~config:Edge_meter.config
+      ~program:(assemble (Edge_meter.firmware ~period))
     |> ok_exn
   in
   let rec loop t n stamps =
@@ -41,8 +43,8 @@ let%expect_test "edge meter in lockstep" =
   let stamps = ref [] in
   let (_ : Machine.t) =
     Lockstep.lockstep
-      ~config:edge_meter_config
-      ~program:(assemble (edge_meter ~period:16))
+      ~config:Edge_meter.config
+      ~program:(assemble (Edge_meter.firmware ~period:16))
       ~inputs:(fun _ -> !last)
       ~host:(fun _ -> { Lockstep.Host.idle with tx = None; pop_rx = true })
       ~react:(fun m ->

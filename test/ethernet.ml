@@ -225,3 +225,42 @@ module Receiver = struct
   let link_intervals t = List.rev t.link_intervals
   let violations t = List.rev t.violations
 end
+
+let bench =
+  { Bench.name = "ethernet"
+  ; what =
+      [%string
+        "Ethernet.firmware at the Icepi's 40 MHz: the host sends a tenth of the link \
+         pulse interval, %{link_tenth#Int} cycles for %{Bench.time \
+         ~clock_hz:Bench.ethernet_clock_hz (10 * link_tenth)}, TD+ on IO6, TD- on IO7"]
+  ; source = Timed_program.source firmware
+  ; config = { config with out_base = Bench.td_plus; set_base = Bench.td_plus }
+  ; assumption = Period link_tenth
+  ; clock_hz = Bench.ethernet_clock_hz
+  ; load = Some link_tenth
+  ; stimulus = None
+  }
+;;
+
+let protocol =
+  { Protocol.name = "ethernet"
+  ; certified =
+      [ Certified.plain
+          ~period:link_tenth
+          ~no_wrap:true
+          "ethernet"
+          (Timed_program.source firmware)
+          config
+      ]
+  ; time_triggered = []
+  ; bench = [ bench ]
+  ; loaded_from_hex = []
+  ; limits = []
+  ; unlimited = [ "ethernet", "no demo on the bench: it needs the Icepi's 40 MHz build" ]
+  ; swept = []
+  ; not_swept =
+      [ "ethernet", "half bits of 2 cycles: the logger needs up to 6 between edges" ]
+  ; scenarios = []
+  ; decoded = []
+  }
+;;

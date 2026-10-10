@@ -189,5 +189,6 @@ let protocol =
         , "time-triggered: it underflows, a sticky fault, once the host stops" )
       ]
   ; scenarios = [ scenario ]
+  ; decoded = []
   }
 ;;

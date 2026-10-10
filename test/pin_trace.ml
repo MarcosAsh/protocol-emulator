@@ -95,6 +95,8 @@ module Sigrok = struct
     else sprintf "IO%d" (pin - Isa.first_bidir_pin)
   ;;
 
+  let lines decoder = List.map ~f:(sprintf "%s-1: %s" decoder)
+
   let decoder ?(pins = []) ?(options = []) name =
     String.concat
       ~sep:":"

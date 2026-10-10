@@ -250,3 +250,110 @@ module Tap = struct
     { t with now = t.now + 1 }
   ;;
 end
+
+open Pin_trace
+module Reg = Host_port.Reg
+
+(* Reset, read the IDCODE, select USER and write it twice, the second scan shifting out
+   the first value. *)
+let scenario =
+  let half_period = 10 in
+  let scans =
+    [ `Dr, 32, 0, Tap.idcode
+    ; `Ir, 4, 0x2, 0b0001 (* 1149.1: the two low bits capture 01 *)
+    ; `Dr, 8, 0xa5, 0x00
+    ; `Dr, 8, 0x3c, 0xa5
+    ]
+  in
+  let clocks =
+    reset
+    @ List.concat_map scans ~f:(fun (register, bits, tdi, _) ->
+      match register with
+      | `Dr -> scan_dr ~bits tdi
+      | `Ir -> scan_ir ~bits tdi)
+  in
+  let bitstrings line value =
+    List.map scans ~f:(fun ((register, bits, _, _) as scan) ->
+      let value = value scan in
+      sprintf
+        "%s %s: %s (0x%x), %d bits"
+        (match register with
+         | `Dr -> "DR"
+         | `Ir -> "IR")
+        line
+        (String.init bits ~f:(fun i ->
+           if (value lsr (bits - 1 - i)) land 1 = 1 then '1' else '0'))
+        value
+        bits)
+    |> Sigrok.lines "jtag"
+  in
+  let peer () =
+    let tap = ref (Tap.create ~cycle_ns) in
+    { Peer.inputs = (fun () -> Tap.tdo !tap lsl tdo_pin)
+    ; step =
+        (fun ~pin_out ~pin_dir:_ ->
+          tap
+          := Tap.step
+               !tap
+               ~tck:(Peer.bit pin_out tck_pin)
+               ~tms:(Peer.bit pin_out tms_pin)
+               ~tdi:(Peer.bit pin_out tdi_pin))
+    }
+  in
+  (* eight clocks a word *)
+  let send words =
+    [ Step.Write (Reg.tx, words)
+    ; Run ((List.length words * 16 * half_period) + 200)
+    ; Read (Reg.rx, List.length words)
+    ]
+  in
+  { Scenario.name = "jtag"
+  ; peer
+  ; script =
+      Scenario.load ~config ~program:(Firmware.assemble (firmware ~half_period))
+      @ [ Scenario.start ]
+      @ List.concat_map (List.chunks_of (words clocks) ~length:4) ~f:send
+  ; sigrok =
+      Some
+        { clock_hz = 1_000_000_000 / cycle_ns
+        ; decoders =
+            [ Sigrok.decoder
+                "jtag"
+                ~pins:[ "tdi", tdi_pin; "tdo", tdo_pin; "tck", tck_pin; "tms", tms_pin ]
+            ]
+        ; expect =
+            [ "jtag=bitstring-tdi", bitstrings "TDI" (fun (_, _, tdi, _) -> tdi)
+            ; "jtag=bitstring-tdo", bitstrings "TDO" (fun (_, _, _, tdo) -> tdo)
+            ]
+        ; joins_after = None
+        ; rejected = None
+        ; (* a bit of the IDCODE inverted on TDO *)
+          teeth =
+            [ [ Flip { pin = tdo_pin; edge = 0; after = 0; cycles = 2 * half_period } ] ]
+        }
+  }
+;;
+
+let protocol =
+  { Protocol.name = "jtag"
+  ; certified = [ Certified.plain "jtag" (firmware ~half_period:shortest_half) config ]
+  ; time_triggered = []
+  ; bench = []
+  ; loaded_from_hex = []
+  ; limits = []
+  ; unlimited = []
+  ; swept =
+      [ (* TMS beside TDI and TCK after them, for the reason [Spi]'s SCK is beside MOSI *)
+        { Swept.name = "jtag"
+        ; watch = "tdi"
+        ; on_wire =
+            (fun c -> { c with out_base = Swept.wire; side_set_base = Swept.wire + 2 })
+        ; period = None
+        ; bursts = words (reset @ scan_dr ~bits:16 0x6e4a) |> List.map ~f:List.return
+        }
+      ]
+  ; not_swept = []
+  ; scenarios = []
+  ; decoded = [ scenario ]
+  }
+;;

@@ -95,6 +95,9 @@ module Sigrok : sig
   (** IN0 to IN4, OUT0 to OUT6 and IO0 to IO7. *)
   val pin_name : int -> string
 
+  (** What sigrok-cli prints for an instance of [decoder], a line each. *)
+  val lines : string -> string list -> string list
+
   (** [name:channel=PIN:option=value...]. *)
   val decoder
     :  ?pins:(string * int) list

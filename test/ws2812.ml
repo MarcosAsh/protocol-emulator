@@ -186,3 +186,150 @@ module Strip = struct
   let measured t = t.measured
   let violations t = List.rev t.violations
 end
+
+(* SK6812, 012 B/0: a bit of 1.2 us at least and a reset of 200 us *)
+let bench_third = 17
+let bench_tail = 8
+let bench_gaps = (Bench.cycles_in ~us:200 / (160 * bench_third)) + 1
+
+let bench =
+  { Bench.name = "sk6812"
+  ; what =
+      (let third = bench_third
+       and tail = bench_tail
+       and time = Bench.time in
+       [%string
+         "Ws2812.latching ~gaps:%{bench_gaps#Int} ~third:%{third#Int} ~tail:%{tail#Int}: \
+          T0H %{time third}, T1H %{time (2 * third)}, T0L %{time ((2 * third) + tail)}, \
+          T1L %{time (third + tail)}, a bit of %{time ((3 * third) + tail)}, %{time \
+          (bench_gaps * 160 * third)} low before a frame, on OUT3"])
+  ; source = latching ~gaps:bench_gaps ~third:bench_third ~tail:bench_tail
+  ; config = { config with out_base = Bench.neopixel; set_base = Bench.neopixel }
+  ; assumption = Nothing
+  ; clock_hz = Bench.clock_hz
+  ; load = None
+  ; stimulus =
+      (let pixels =
+         List.concat_map
+           [ { Pixel.red = 0x0f; green = 0xf0; blue = 0x55 }
+           ; { red = 0xaa; green = 0x33; blue = 0xcc }
+           ]
+           ~f:Pixel.words
+       in
+       Some { bursts = [ pixels; pixels; pixels ]; quiet = 200; cycles = 60_000 })
+  }
+;;
+
+(* SK6812: the low of a bit is under 20 us (012 B/0, note 3), so a longer one latches, and
+   a high under 500 ns is a zero, between the B/0 sheet's T0H and T1H. A cycle of margin
+   covers the 74AHCT125's skew between rise and fall, 5.5 ns at most. *)
+let limits =
+  let rev01 =
+    { Datasheet.Sheet.part = "SK6812"
+    ; document = "SPC/SK6812 Rev. 01"
+    ; page = "p.5, 0.3/0.6/0.9/0.6 us +-0.15"
+    }
+  and b0 =
+    { Datasheet.Sheet.part = "SK6812"
+    ; document = "OSK-SPC-SK6812-012 Rev. B/0"
+    ; page = "p.7"
+    }
+  in
+  let bits ~clock_hz levels =
+    List.filter_map (Datasheet.pairs levels) ~f:(fun ((high, h), (_, l)) ->
+      Option.some_if (high && l < Datasheet.cycles ~clock_hz 20_000.) (h, l))
+  in
+  let zero ~clock_hz (h, _) = h < Datasheet.cycles ~clock_hz 500. in
+  let code ~one f =
+    Datasheet.run ~pin:Datasheet.set_pin (fun ~clock_hz levels ->
+      List.filter_map (bits ~clock_hz levels) ~f:(fun bit ->
+        Option.some_if (Bool.equal one (not (zero ~clock_hz bit))) (f bit)))
+  in
+  let limit parameter limit sheet bound =
+    { Datasheet.firmware = "sk6812"; parameter; limit; sheet; margin = Cycle; bound }
+  in
+  [ limit "T0H" (At_least 200.) b0 (Datasheet.level ~pin:Datasheet.set_pin ~high:true ())
+  ; limit "T0H" (At_most 400.) b0 (code ~one:false fst)
+  ; limit "T1H" (At_least 600.) b0 (code ~one:true fst)
+  ; limit "T1H" (At_most 750.) rev01 (code ~one:true fst)
+  ; limit "T0L" (At_least 800.) b0 (code ~one:false snd)
+  ; limit "T0L" (At_most 1050.) rev01 (code ~one:false snd)
+  ; limit
+      "T1L"
+      (At_least 450.)
+      rev01
+      (Datasheet.level ~pin:Datasheet.set_pin ~high:false ())
+  ; limit "T1L" (At_most 750.) rev01 (code ~one:true snd)
+  ; limit
+      "T"
+      (At_least 1200.)
+      { b0 with page = "p.7, note 2" }
+      (Datasheet.run ~pin:Datasheet.set_pin (fun ~clock_hz levels ->
+         List.map (bits ~clock_hz levels) ~f:(fun (h, l) -> h + l)))
+  ; limit
+      "reset"
+      (At_least 200_000.)
+      b0
+      (Datasheet.run ~pin:Datasheet.set_pin (fun ~clock_hz levels ->
+         List.filter (Datasheet.lows levels) ~f:(fun l ->
+           l >= Datasheet.cycles ~clock_hz 20_000.)))
+  ]
+;;
+
+open Pin_trace
+module Reg = Host_port.Reg
+
+let scenario =
+  let pixel red green blue = { Pixel.red; green; blue } in
+  let frames =
+    [ [ pixel 0xff 0 0; pixel 0 0xff 0; pixel 0 0 0xff ]
+    ; [ pixel 0x12 0x34 0x56; pixel 0xab 0xcd 0xef ]
+    ]
+  in
+  (* a bit is 62 cycles, and 3200 low latch the string *)
+  let send pixels =
+    [ Step.Write (Reg.tx, List.concat_map pixels ~f:Pixel.words)
+    ; Run ((List.length pixels * 24 * 62) + 3200 + 2000)
+    ]
+  in
+  { Scenario.name = "ws2812"
+  ; peer = (fun () -> Peer.idle 0)
+  ; script =
+      Scenario.load ~config ~program:(Firmware.assemble standard)
+      @ [ Scenario.start ]
+      @ List.concat_map frames ~f:send
+  ; sigrok =
+      Some
+        { clock_hz = 48_000_000
+        ; decoders = [ Sigrok.decoder "rgb_led_ws281x" ~pins:[ "din", pin ] ]
+        ; expect =
+            [ ( "rgb_led_ws281x=rgb:reset"
+              , List.concat_map frames ~f:(fun pixels ->
+                  List.map pixels ~f:(fun { red; green; blue } ->
+                    sprintf "#%02x%02x%02x" red green blue)
+                  @ [ "RESET" ])
+                |> Sigrok.lines "rgb_led_ws281x" )
+            ]
+        ; joins_after = None
+        ; rejected = None
+        ; (* the first bit's high stretched from T0H to T1H *)
+          teeth = [ [ Shift { pin; edge = 1; cycles = 20 } ] ]
+        }
+  }
+;;
+
+let protocol =
+  { Protocol.name = "ws2812"
+  ; certified =
+      [ Certified.plain ~no_wrap:true "ws2812" (firmware ~third:6 ~tail:7) config ]
+  ; time_triggered = []
+  ; bench = [ bench ]
+  ; loaded_from_hex = []
+  ; limits
+  ; unlimited = []
+  ; swept = []
+  ; not_swept = [ "ws2812", "48 edges a pixel in 600 cycles: the fifo holds 8" ]
+  ; scenarios = []
+  ; decoded = [ scenario ]
+  }
+;;

@@ -146,7 +146,7 @@ let usb_rx_packets ~bit_period firmware =
   List.iter rates ~f:(fun (sender, num, den) ->
     let levels =
       clocked
-        (List.map lines ~f:(usb_level ~dp:usb_rx_dp_pin ~dm:usb_rx_dm_pin))
+        (List.map lines ~f:(usb_level ~dp:Usb.rx_dp_pin ~dm:Usb.rx_dm_pin))
         ~period:bit_period
         ~num
         ~den
@@ -158,8 +158,8 @@ let usb_rx_packets ~bit_period firmware =
 (* Per eight bytes: SETUP + DATA0 (ACKed), IN (NAKed), IN, OUT + data for another
    address, and a host ACK, two bit times apart plus room for answers. *)
 let usb_device_transactions ~bit_period firmware =
-  let dp = usb_device_dp_pin in
-  let dm = usb_device_dm_pin in
+  let dp = Usb.device_dp_pin in
+  let dm = Usb.device_dm_pin in
   let packets =
     List.concat_map chunks ~f:(fun chunk ->
       [ token ~pid:0x2d ~address:0, 1
@@ -203,8 +203,8 @@ let usb_device_transactions ~bit_period firmware =
 (* The device's tightest arm: the host's next packet the minimum two bit times after the
    device's handshake. Per eight bytes: SETUP + DATA0, IN, next SETUP, each at once. *)
 let usb_device_at_once ~bit_period firmware =
-  let dp = usb_device_dp_pin in
-  let dm = usb_device_dm_pin in
+  let dp = Usb.device_dp_pin in
+  let dm = Usb.device_dm_pin in
   let j = usb_level ~dp ~dm J in
   let host lines =
     clocked (List.map lines ~f:(usb_level ~dp ~dm)) ~period:bit_period ~num:1 ~den:1

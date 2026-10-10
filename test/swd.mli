@@ -143,3 +143,5 @@ module Bus : sig
   (** Two DPs driving at once, by cycle. *)
   val contention : t -> int list
 end
+
+val protocol : Protocol.t

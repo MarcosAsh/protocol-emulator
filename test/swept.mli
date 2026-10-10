@@ -20,9 +20,3 @@ val line : Program_config.t -> Program_config.t
 
 (** A burst a character. *)
 val bytes : string -> int list list
-
-(** The swept firmware no protocol file holds yet ([Library]), and what keeps the rest of
-    those out of the sweep, by name. *)
-val others : t list
-
-val not_swept : (string * string) list

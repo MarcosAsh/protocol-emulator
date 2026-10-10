@@ -85,11 +85,11 @@ val run
 
 val lows : Levels.t -> int list
 
-(** The limits of the bench firmware no protocol file holds yet ([Library]). *)
-val others : t list
+(** Each level with the one after it. *)
+val pairs : Levels.t -> ((bool * int) * (bool * int)) list
 
-(** Of those firmware, the ones with no limit, and why. *)
-val exempt : (string * string) list
+(** The whole cycles in [ns] at [clock_hz], rounded down. *)
+val cycles : clock_hz:int -> float -> int
 
 module Verdict : sig
   type t =

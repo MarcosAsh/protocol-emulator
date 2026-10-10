@@ -48,3 +48,5 @@ val words : Frame.t -> int list
     3 to 90 us, so the tests may run short ticks for speed; and every frame must have a
     pause. An oracle for this transmitter, not a general J2716 receiver. *)
 val decode : cycle_ns:int -> bool list -> (Frame.t list * Measured.t) Or_error.t
+
+val protocol : Protocol.t

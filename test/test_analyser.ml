@@ -377,7 +377,7 @@ let%expect_test "i2c logger" =
 ;;
 
 let%expect_test "usb tx" =
-  report ~config:usb_config ~period:32 (Timed_program.source usb_tx);
+  report ~config:Usb.config ~period:32 (Timed_program.source Usb.tx);
   [%expect
     {|
      0  pull                         phase ?..?
@@ -450,10 +450,10 @@ let%expect_test "usb tx" =
 
 let%expect_test "usb rx" =
   report
-    ~config:usb_rx_config
+    ~config:Usb.rx_config
     ~period:32
     ~single_capture_edge:true
-    (usb_rx ~half_period:16);
+    (Usb.rx ~half_period:16);
   [%expect
     {|
      0  pull                         phase ?..?
@@ -523,7 +523,7 @@ let%expect_test "a deadline is only as good as what is assumed about the world" 
     |}];
   check ~config:Uart.rx_config ~single_capture_edge:true (Uart.rx ~period:16);
   [%expect {| 19 words, 2 deadline waits, worst slack 7 |}];
-  check (Timed_program.source usb_tx);
+  check (Timed_program.source Usb.tx);
   [%expect
     {|
     11 of 11 deadline waits may be missed
@@ -540,10 +540,10 @@ let%expect_test "a deadline is only as good as what is assumed about the world" 
      60  wait t+                      phase ?..?  slack ?..?  MAY MISS
     a bound of ? means none: the way here has a wait for a pin or a fifo, a capture nothing is assumed about, a period the host loads, or a loop that falls further behind on every pass
     |}];
-  check ~config:usb_config ~period:32 (Timed_program.source usb_tx);
+  check ~config:Usb.config ~period:32 (Timed_program.source Usb.tx);
   [%expect {| 65 words, 11 deadline waits, worst slack 16 |}];
   (* the same firmware at twelve cycles a bit, which its longest path does not fit *)
-  check ~config:usb_config ~period:12 (Timed_program.source usb_tx);
+  check ~config:Usb.config ~period:12 (Timed_program.source Usb.tx);
   [%expect
     {|
     11 of 11 deadline waits may be missed
@@ -583,16 +583,16 @@ let%expect_test "every firmware stays inside its analysis under random stimulus"
     ; "i2c master", I2c.config, I2c.master ~quarter:8, None, []
     ; "i2c slave", I2c.slave_config, Timed_program.source I2c.slave, None, [ 0x50 lsl 1 ]
     ; "i2c logger", I2c.logger_config, Timed_program.source I2c.logger, None, []
-    ; "usb tx", usb_config, Timed_program.source usb_tx, Some 32, [ 32 ]
-    ; "usb rx", usb_rx_config, usb_rx ~half_period:16, Some 32, [ 32 ]
+    ; "usb tx", Usb.config, Timed_program.source Usb.tx, Some 32, [ 32 ]
+    ; "usb rx", Usb.rx_config, Usb.rx ~half_period:16, Some 32, [ 32 ]
     ; ( "usb device"
-      , usb_device_config
-      , usb_device ~address:0 ~half_period:16
+      , Usb.device_config
+      , Usb.device ~address:0 ~half_period:16
       , Some 32
       , [ 32 ] )
-    ; "edge meter", edge_meter_config, edge_meter ~period:16, None, []
+    ; "edge meter", Edge_meter.config, Edge_meter.firmware ~period:16, None, []
     ; "edge logger", edge_logger_config ~pin:0, edge_logger ~pin:0, None, []
-    ; "start hold", start_hold_config ~scl:1, start_hold ~sda:0 ~scl:1, None, []
+    ; "start hold", I2c.start_hold_config ~scl:1, I2c.start_hold ~sda:0 ~scl:1, None, []
     ; ( "uart tx, fractional period"
       , { Program_config.default with period_fraction = 43691 }
       , Uart.tx_host_rate
@@ -909,7 +909,7 @@ next:
 ;;
 
 let%expect_test "edge meter" =
-  report ~config:edge_meter_config (edge_meter ~period:16);
+  report ~config:Edge_meter.config (Edge_meter.firmware ~period:16);
   [%expect
     {|
      0  set p, 16                    phase ?..?
@@ -950,12 +950,12 @@ let%expect_test "a wrapped loop toggles every two cycles with no jitter" =
 ;;
 
 let%expect_test "usb device" =
-  let program = Asm.assemble (usb_device ~address:0 ~half_period:16) |> ok_exn in
+  let program = Asm.assemble (Usb.device ~address:0 ~half_period:16) |> ok_exn in
   let rows =
     Analyser.analyse
       ~period:32
       ~single_capture_edge:true
-      ~config:(Asm.Program.configure program usb_device_config)
+      ~config:(Asm.Program.configure program Usb.device_config)
       program.instructions
   in
   let report = Analyser.to_string ~side_set_count:0 rows |> String.split_lines in

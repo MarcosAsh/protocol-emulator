@@ -322,5 +322,6 @@ let protocol =
            know" )
       ]
   ; scenarios = [ tx_scenario; rx_scenario ]
+  ; decoded = []
   }
 ;;

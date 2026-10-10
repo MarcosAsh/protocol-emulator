@@ -22,17 +22,19 @@ type t =
   ; not_swept : (string * string) list
   (** The protocol's other firmware, each with what keeps it out of the sweep. *)
   ; scenarios : Pin_trace.Scenario.t list
-  (** Each loads one of [certified] or [time_triggered] at the configuration it is
-      certified under; written to test/traces, replayed on the netlists and, with a
+  (** Runs at the pins, written to test/traces, replayed on the netlists and, with a
       [sigrok] field, judged by sigrok's decoders ([demo/decode.py]). *)
+  ; decoded : Pin_trace.Scenario.t list
+  (** Runs at the pins that sigrok's decoders judge, in test/traces/sigrok, which the RTL
+      replay leaves out. *)
   }
 
-(** The firmware [scenario] loads. Raises if it is none of [certified] and
-    [time_triggered], or loads it under another configuration. *)
-val firmware : t -> Pin_trace.Scenario.t -> Certified.t
+(** The firmware of [certified] or [time_triggered] that [scenario] loads, at the
+    configuration it is certified under, if it is one. *)
+val firmware : t -> Pin_trace.Scenario.t -> Certified.t option
 
-(** [scenario] at a lone engine, the RTL and [Machine] compared after every edge as
-    [Lockstep.lockstep] does and printing the same. The host's tx words go in as the fifo
-    has room and every rx word is taken as it comes, with no host port in between, so the
-    cycles are not the trace's. Returns the rx words. *)
-val lockstep : t -> Pin_trace.Scenario.t -> int list
+(** [scenario] at a lone engine, the program and configuration it loads, the RTL and
+    [Machine] compared after every edge as [Lockstep.lockstep] does and printing the same.
+    The host's tx words go in as the fifo has room and every rx word is taken as it comes,
+    with no host port in between, so the cycles are not the trace's. Returns the rx words. *)
+val lockstep : Pin_trace.Scenario.t -> int list

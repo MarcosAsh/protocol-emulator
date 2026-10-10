@@ -1,5 +1,5 @@
 open! Core
-open Usb_host
+open Usb
 
 (* A keyboard and a mouse behind one interrupt endpoint, told apart by the report ID. *)
 let report_descriptor =
@@ -264,15 +264,13 @@ let%expect_test "the enumeration in lockstep with the hardware" =
   print_s [%message (report : int list)];
   List.iter (recording t) ~f:(fun (address, cycles) ->
     let cycles = Array.of_list cycles in
-    let program =
-      Firmware.assemble (Firmware.usb_device ~address ~half_period:(bit_period / 2))
-    in
+    let program = Firmware.assemble (Usb.device ~address ~half_period:(bit_period / 2)) in
     let premise = Premise.create () in
     let (_ : Protocol_emulator.Machine.t), mismatch =
       Lockstep.run
         ~cycles:(Array.length cycles)
         ~premise
-        ~config:Firmware.usb_device_config
+        ~config:Usb.device_config
         ~program
         ~preload:[ bit_period ]
         ~inputs:(fun n -> fst cycles.(n))
@@ -306,9 +304,7 @@ let%expect_test "the enumeration stays inside the analysis of the device" =
   let t, (_ : int list) = conversation () in
   List.iter (recording t) ~f:(fun (address, cycles) ->
     let cycles = Array.of_list cycles in
-    let words =
-      Firmware.assemble (Firmware.usb_device ~address ~half_period:(bit_period / 2))
-    in
+    let words = Firmware.assemble (Usb.device ~address ~half_period:(bit_period / 2)) in
     (* as in the lockstep harness: push after an edge, pop before one *)
     let host n m =
       let m =
@@ -329,7 +325,7 @@ let%expect_test "the enumeration stays inside the analysis of the device" =
         ~period:bit_period
         ~single_capture_edge:true
         ~preload:[ bit_period ]
-        ~config:Firmware.usb_device_config
+        ~config:Usb.device_config
         [ { cycles = Array.length cycles; inputs = (fun n -> fst cycles.(n)); host } ]
         words
     in

@@ -64,3 +64,5 @@ module Slave : sig
 
   val violations : t -> string list
 end
+
+val protocol : Protocol.t
