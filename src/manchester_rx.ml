@@ -100,7 +100,7 @@ module Make (Config : Config) = struct
           acc &: ~:earlier))
     in
     let%hw any = reduce ~f:( |: ) taken in
-    let%hw bit =
+    let%hw centre_level =
       onehot_select
         (List.map2_exn taken samples ~f:(fun valid value -> { With_valid.valid; value }))
     in
@@ -119,13 +119,13 @@ module Make (Config : Config) = struct
     let%hw lost = ~:(sm.is Idle) &: ~:any &: (drifted >+ timeout) in
     count <-- reg spec (mux2 any centred @@ mux2 (sm.is Idle) count drifted);
     let%hw shift = wire 8 in
-    let%hw shifted = bit @: mux2 (sm.is Idle) (zero 7) shift.:[7, 1] in
+    let%hw shifted = centre_level @: mux2 (sm.is Idle) (zero 7) shift.:[7, 1] in
     shift <-- reg spec ~enable:any shifted;
     let%hw found = sm.is Hunt &: any &: (shifted ==:. 0xd5) in
     let%hw in_frame = sm.is Frame &: any in
     let%hw word = wire 16 in
     let%hw word_bits = wire 4 in
-    let%hw word_next = bit @: word.:[15, 1] in
+    let%hw word_next = centre_level @: word.:[15, 1] in
     word <-- reg spec ~enable:in_frame word_next;
     word_bits
     <-- reg spec (mux2 found (zero 4) @@ mux2 in_frame (word_bits +:. 1) word_bits);
@@ -141,7 +141,7 @@ module Make (Config : Config) = struct
         ]);
     let%hw word_valid = in_frame &: (word_bits ==:. 15) |: half_word in
     (* values hold between strobes, so a waveform shows them *)
-    { O.bit = { valid = reg spec any; value = reg spec ~enable:any bit }
+    { O.bit = { valid = reg spec any; value = reg spec ~enable:any centre_level }
     ; frame_active = sm.is Frame
     ; sfd_seen = reg spec found
     ; frame_end = reg spec (sm.is Frame &: lost)

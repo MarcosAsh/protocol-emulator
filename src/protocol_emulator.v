@@ -11808,7 +11808,7 @@ module manchester_rx (
     wire [6:0] signal_mux_4;
     wire signal_and_4;
     wire signal_and_5;
-    wire bit;
+    wire centre_level;
     wire [7:0] shifted;
     wire signal_eq_7;
     wire signal_eq_8;
@@ -11929,7 +11929,7 @@ module manchester_rx (
     end
     assign word = signal_reg;
     assign signal_select_1 = word[15:1];
-    assign word_next = { bit,
+    assign word_next = { centre_level,
                          signal_select_1 };
     assign signal_mux = half_word ? signal_cat : word_next;
     always @(posedge signal_wire_1) begin
@@ -11989,7 +11989,7 @@ module manchester_rx (
             signal_reg_6 <= signal_const_3;
         else
             if (any)
-                signal_reg_6 <= bit;
+                signal_reg_6 <= centre_level;
     end
     assign signal_select_2 = blank[9:0];
     assign signal_select_3 = blank[10:10];
@@ -12032,8 +12032,8 @@ module manchester_rx (
     assign signal_mux_4 = signal_eq_6 ? signal_const_18 : signal_select_7;
     assign signal_and_4 = taken$1 & signal_select_16;
     assign signal_and_5 = taken$0 & signal_select_15;
-    assign bit = signal_and_5 | signal_and_4;
-    assign shifted = { bit,
+    assign centre_level = signal_and_5 | signal_and_4;
+    assign shifted = { centre_level,
                        signal_mux_4 };
     assign signal_eq_7 = shifted == signal_const_17;
     assign signal_eq_8 = signal_const_34 == sm;
