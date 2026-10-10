@@ -53,6 +53,8 @@ jobs:
           opam exec -- dune exec -- test/certify/write_self_check.exe -mutant slow > formal/self_check_slow.sv
           opam exec -- dune exec -- test/certify/write_self_check.exe -invariants > formal/self_check_clean.sv
           opam exec -- dune exec -- bin/generate.exe kernel-accepts > formal/kernel_accepts.v
+          opam exec -- dune exec -- bin/generate.exe engines -engines 2 -sram > formal/engines_gated.v
+          opam exec -- dune exec -- bin/generate.exe load-check-step > formal/load_check_step.v
 
       # each inductive certificate, the stamped one and the ones with data claims too, is
       # proved in a job of its own below
@@ -107,6 +109,14 @@ jobs:
           path: |
             formal/engine_narrow.v
             formal/kernel_step_narrow.v
+
+      - name: Upload the Verilog of the load checker's completeness
+        uses: actions/upload-artifact@v7
+        with:
+          name: complete
+          path: |
+            formal/engines_gated.v
+            formal/load_check_step.v
 
       - name: Upload the Verilog of the one-run theorem
         uses: actions/upload-artifact@v7
@@ -449,6 +459,29 @@ jobs:
 
       - name: Prove
         run: make -C formal link_proof
+
+  # the load checker's verdict is the load check's walk's, by induction, its covers and teeth
+  complete:
+    needs: generate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Download the Verilog
+        uses: actions/download-artifact@v8
+        with:
+          name: complete
+          path: formal
+
+      - name: Install OSS CAD Suite
+        run: |
+          curl -sL https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz | tar xz -C "$HOME"
+          echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
+
+      - name: Prove
+        run: make -C formal complete_proof
 
   # each step lemma's and the self-check's Certifaiger witness, every check's LRAT proof
   # verified by cake_lpr, and its teeth, whose models have to fail; phase_table's outgrows a
