@@ -12,12 +12,15 @@
     state); for [Frame_rx], whatever the select, 72 its control (bit 0 arms, 1 a 50 MHz
     clock, 6-2 the pad), 73 the data address a frame lands at, 74 its status (bits 9-0 the
     words, 10 finished, 11 FCS good, 12 a half last word, 13 a word dropped, 14 in a
-    frame, 15 armed). Program, data, config, table, check and flush take effect only while
-    halted, so a flush needs its own write after the stop, and a start only once the
-    engine is certified. Control bit 5 starts every engine on one cycle, whatever the
-    select, and only with all halted and certified. 43 and 44 are reserved and read zero;
-    config skips them to keep [autopull_data] and [manchester] at 45-46 for existing
-    hosts.
+    frame, 15 armed); for [Edge_stamps], whatever the select, 76 the mask of pins 0-15, 77
+    pins 16-19 in bits 3-0 and in bit 4 the engine whose clock times them (a write to
+    either empties the queue), 78-79 the head's time (79 bits 7-0 its top, 10-8 the
+    queue's level, 15 lost), 80-81 the pads it saw (reading 81 pops). Program, data,
+    config, table, check and flush take effect only while halted, so a flush needs its own
+    write after the stop, and a start only once the engine is certified. Control bit 5
+    starts every engine on one cycle, whatever the select, and only with all halted and
+    certified. 43 and 44 are reserved and read zero; config skips them to keep
+    [autopull_data] and [manchester] at 45-46 for existing hosts.
 
     Select picks the engine for every register but the two addresses; it resets to 0 and
     past the last engine reaches none and reads zero. Status bit 15 flags another engine's
@@ -78,6 +81,12 @@ module Reg : sig
   val frame_control : int
   val frame_base : int
   val frame_status : int
+  val stamp_mask : int
+  val stamp_control : int
+  val stamp_time_lo : int
+  val stamp_time_hi : int
+  val stamp_pins_lo : int
+  val stamp_pins_hi : int
 
   (** Each [Engine.Config] field's register, skipping the reserved ones. *)
   val configs : int list
@@ -100,6 +109,7 @@ module Make (_ : Config) : sig
       ; status : 'a Status.t list
       ; check : 'a Load_checker.Verdict.t
       ; frame : 'a Frame_rx.Status.t
+      ; stamps : 'a Edge_stamps.O.t
       }
     [@@deriving hardcaml]
   end
@@ -112,6 +122,7 @@ module Make (_ : Config) : sig
       ; start_all : 'a
       ; frame : 'a Frame_rx.Control.t
       ; frame_pin : 'a (** The pad [Frame_rx] decodes. *)
+      ; stamps : 'a Edge_stamps.Control.t
       }
     [@@deriving hardcaml]
   end

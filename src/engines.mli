@@ -29,6 +29,8 @@ module Make (_ : Config) : sig
           certified. *)
       ; rd : 'a (** [Both_edges]' two samples of the 10BASE-T pin. *)
       ; frame : 'a Frame_rx.Control.t
+      ; stamps : 'a Edge_stamps.Control.t
+      (** On the pads, timed by engine [engine]'s [now]. *)
       }
     [@@deriving hardcaml]
   end
@@ -52,6 +54,7 @@ module Make (_ : Config) : sig
       ; pin_dir : 'a
       ; check : 'a Check.t
       ; frame : 'a Frame_rx.Status.t
+      ; stamps : 'a Edge_stamps.O.t
       }
     [@@deriving hardcaml]
   end

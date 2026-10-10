@@ -36,6 +36,7 @@ let create ~memory ~engines (scope : Scope.t) (i : Signal.t I.t) =
   let pads = concat_msb [ i.uio_in; zero 7; i.ui_in.:[7, 3] ] in
   let%hw inputs = concat_msb [ sync i.uio_in; zero 7; sync i.ui_in.:[7, 3] ] in
   let frame = Frame_rx.Status.Of_signal.wires () in
+  let stamps = Edge_stamps.O.Of_signal.wires () in
   let%hw frame_pin = wire Frame_rx.pin_bits in
   (* straight off the pad, so the falling edge samples it too *)
   let rd =
@@ -70,6 +71,7 @@ let create ~memory ~engines (scope : Scope.t) (i : Signal.t I.t) =
               })
       ; check = check.verdict
       ; frame
+      ; stamps
       }
   in
   frame_pin <-- host.frame_pin;
@@ -84,9 +86,11 @@ let create ~memory ~engines (scope : Scope.t) (i : Signal.t I.t) =
       ; start_all = host.start_all
       ; rd = rd.samples
       ; frame = host.frame
+      ; stamps = host.stamps
       }
   in
   Frame_rx.Status.Of_signal.assign frame cores.frame;
+  Edge_stamps.O.Of_signal.assign stamps cores.stamps;
   List.iter2_exn engine_outs cores.engines ~f:Engine.O.Of_signal.assign;
   Engines.Check.Of_signal.assign check cores.check;
   { O.uo_out = cores.pin_out.:[11, 5] @: host.miso

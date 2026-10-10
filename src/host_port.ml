@@ -46,6 +46,12 @@ module Reg = struct
   let frame_control = 0x48
   let frame_base = 0x49
   let frame_status = 0x4a
+  let stamp_mask = 0x4c
+  let stamp_control = 0x4d
+  let stamp_time_lo = 0x4e
+  let stamp_time_hi = 0x4f
+  let stamp_pins_lo = 0x50
+  let stamp_pins_hi = 0x51
 
   (* unused, so the fields after 0x2b and 0x2c stay where existing hosts write them *)
   let reserved = [ 0x2b; 0x2c ]
@@ -95,6 +101,7 @@ module Make (Config : Config) = struct
       ; status : 'a Status.t list [@length engines]
       ; check : 'a Load_checker.Verdict.t
       ; frame : 'a Frame_rx.Status.t
+      ; stamps : 'a Edge_stamps.O.t
       }
     [@@deriving hardcaml]
   end
@@ -107,6 +114,7 @@ module Make (Config : Config) = struct
       ; start_all : 'a
       ; frame : 'a Frame_rx.Control.t
       ; frame_pin : 'a [@bits Frame_rx.pin_bits]
+      ; stamps : 'a Edge_stamps.Control.t
       }
     [@@deriving hardcaml]
   end
@@ -157,6 +165,8 @@ module Make (Config : Config) = struct
     let%hw_var frame_fifty = Always.Variable.reg spec ~width:1 in
     let%hw_var frame_pin = Always.Variable.reg spec ~width:Frame_rx.pin_bits in
     let%hw_var frame_base = Always.Variable.reg spec ~width:Isa.data_addr_bits in
+    let%hw_var stamp_mask = Always.Variable.reg spec ~width:Isa.num_pins in
+    let%hw_var stamp_engine = Always.Variable.reg spec ~width:1 in
     let%hw_var write = Always.Variable.wire ~default:gnd () in
     let%hw_var read_done = Always.Variable.wire ~default:gnd () in
     let%hw is_write = msb cmd.value in
@@ -218,6 +228,19 @@ module Make (Config : Config) = struct
         , let f = i.frame in
           concat_msb
             [ f.armed; f.receiving; f.dropped; f.half; f.fcs_ok; f.finished; f.words ] )
+      ; Reg.stamp_mask, stamp_mask.value.:[15, 0]
+      ; ( Reg.stamp_control
+        , reg16 (stamp_engine.value @: stamp_mask.value.:[Isa.num_pins - 1, 16]) )
+      ; Reg.stamp_time_lo, i.stamps.head.time.:[15, 0]
+      ; ( Reg.stamp_time_hi
+        , concat_msb
+            [ i.stamps.lost
+            ; zero (15 - Edge_stamps.level_bits - 8)
+            ; i.stamps.level
+            ; i.stamps.head.time.:[Isa.timer_bits - 1, 16]
+            ] )
+      ; Reg.stamp_pins_lo, i.stamps.head.pins.:[15, 0]
+      ; Reg.stamp_pins_hi, reg16 i.stamps.head.pins.:[Isa.num_pins - 1, 16]
       ]
       @ (Option.map select_value ~f:(fun select -> Reg.select, reg16 select)
          |> Option.to_list)
@@ -308,6 +331,15 @@ module Make (Config : Config) = struct
              ; when_
                  (at Reg.frame_base)
                  [ frame_base <-- sel_bottom value ~width:Isa.data_addr_bits ]
+             ; when_
+                 (at Reg.stamp_mask)
+                 [ stamp_mask <-- stamp_mask.value.:[Isa.num_pins - 1, 16] @: value ]
+             ; when_
+                 (at Reg.stamp_control)
+                 [ stamp_mask
+                   <-- value.:[Isa.num_pins - 17, 0] @: stamp_mask.value.:[15, 0]
+                 ; stamp_engine <-- value.:(Isa.num_pins - 16)
+                 ]
              ]
              @ select_write
              @ config_writes)
@@ -352,6 +384,12 @@ module Make (Config : Config) = struct
         ; fifty = frame_fifty.value
         }
     ; frame_pin = frame_pin.value
+    ; stamps =
+        { mask = stamp_mask.value
+        ; engine = stamp_engine.value
+        ; flush = strobe Reg.stamp_mask |: strobe Reg.stamp_control
+        ; pop = read_done.value &: at Reg.stamp_pins_hi
+        }
     }
   ;;
 

@@ -23,6 +23,7 @@ module Make (Config : Config) = struct
       ; start_all : 'a
       ; rd : 'a [@bits 2]
       ; frame : 'a Frame_rx.Control.t
+      ; stamps : 'a Edge_stamps.Control.t
       }
     [@@deriving hardcaml]
   end
@@ -43,6 +44,7 @@ module Make (Config : Config) = struct
       ; pin_dir : 'a [@bits Isa.num_pins]
       ; check : 'a Check.t
       ; frame : 'a Frame_rx.Status.t
+      ; stamps : 'a Edge_stamps.O.t
       }
     [@@deriving hardcaml]
   end
@@ -170,6 +172,18 @@ module Make (Config : Config) = struct
         ; may_write = frame_may_write
         }
     in
+    let stamps =
+      Edge_stamps.hierarchical
+        scope
+        { clocking = i.clocking
+        ; pads = i.pads
+        ; now =
+            (match outs with
+             | [ e ] -> e.now
+             | outs -> mux i.stamps.engine (List.map outs ~f:(fun e -> e.now)))
+        ; control = i.stamps
+        }
+    in
     let data =
       Data_memory.hierarchical
         ~memory
@@ -261,6 +275,7 @@ module Make (Config : Config) = struct
         ; refused
         }
     ; frame = frame.status
+    ; stamps
     }
   ;;
 
