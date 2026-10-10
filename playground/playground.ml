@@ -85,6 +85,34 @@ let check ?period ~single_capture_edge ~capture_pin ~capture_falling source : Re
           }))
 ;;
 
+module Pio_report = struct
+  type t =
+    { verdict : string
+    ; report : string
+    }
+end
+
+(* [pio_check] on [source] with [spec]'s flags, one a line: "passed" where it exits 0,
+   "failed" on any FAIL or ERROR, refused where it gives a usage error. *)
+let check_pio ~source ~spec : Pio_report.t =
+  match
+    let open Or_error.Let_syntax in
+    let%bind spec = Pio.Spec.of_string spec in
+    let%bind programs = Pio.Pioasm.parse source >>= Pio.Spec.select spec in
+    let%bind configure = Pio.Spec.configure spec in
+    List.map programs ~f:(fun program ->
+      let%map config = configure program in
+      Pio.Timing.analyse config program)
+    |> Or_error.all
+  with
+  | Error e -> { verdict = "refused"; report = Error.to_string_hum e }
+  | Ok reports ->
+    { verdict =
+        (if List.for_all reports ~f:Pio.Timing.Report.passed then "passed" else "failed")
+    ; report = List.map reports ~f:Pio.Timing.Report.to_string |> String.concat
+    }
+;;
+
 let () =
   let check source period single_capture_edge capture_pin capture_falling =
     let report =
@@ -102,6 +130,13 @@ let () =
        ; "rows", Js.Unsafe.inject (Js.string report.rows)
       |]
   in
+  let check_pio source spec =
+    let report = check_pio ~source:(Js.to_string source) ~spec:(Js.to_string spec) in
+    Js.Unsafe.obj
+      [| "verdict", Js.Unsafe.inject (Js.string report.verdict)
+       ; "report", Js.Unsafe.inject (Js.string report.report)
+      |]
+  in
   Js.export
     "protocolEmulator"
     (Js.Unsafe.obj
@@ -111,5 +146,11 @@ let () =
               (Js.array
                  (Array.of_list_map Example.all ~f:(fun (name, source) ->
                     Js.array [| Js.string name; Js.string source |]))) )
+        ; "checkPio", Js.Unsafe.inject (Js.wrap_callback check_pio)
+        ; ( "pioExamples"
+          , Js.Unsafe.inject
+              (Js.array
+                 (Array.of_list_map Pio_example.all ~f:(fun (name, source, spec) ->
+                    Js.array [| Js.string name; Js.string source; Js.string spec |]))) )
        |])
 ;;
