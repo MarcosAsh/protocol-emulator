@@ -24,6 +24,12 @@ val uart_rx : period:int -> string
 val uart_rx_on : pin:int -> period:int -> string
 
 val rx_config : Program_config.t
+
+(** [uart_rx_on] with half the bit period from the host, as its first word, and the stop
+    bit checked at its middle. *)
+val uart_rx_host_rate_on : pin:int -> string
+
+val uart_rx_host_rate : string
 val spi_master : half_period:int -> string
 val sck_pin : int
 val mosi_pin : int

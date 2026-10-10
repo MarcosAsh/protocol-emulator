@@ -148,6 +148,43 @@ bit:
 
 let uart_rx ~period = uart_rx_on ~pin:0 ~period
 
+(* [uart_rx_on] with half the bit period from the host, so the first sample, a period and
+   a half from the start edge, is three halves: a period the kernel bounds from below at
+   every load, as no halving in the core would. The stop bit is checked at its middle,
+   which tolerates a sender 4% off either way from 52 cycles a bit, 5% from 104. *)
+let uart_rx_host_rate_on ~pin =
+  [%string
+    {|
+    wait tx
+    pull
+    mov p, osr               ; half the bit period
+idle:
+    wait 1 pin %{pin#Int}             ; line idle
+arm:
+    capture_arm
+    wait 0 pin %{pin#Int}             ; start bit, its edge cycle is in capture
+    mov t, capture
+    add t, p
+    add t, p
+    add t, p
+    sub t, 1                 ; middle of bit 0, less the cycle the sample lands after
+    set x, 7
+bit:
+    wait t+
+    in pins, 1
+    add t, p                 ; the next bit's middle
+    jmp x--, bit
+    in null, 8
+    push
+    wait t                   ; the check, the middle of the stop bit
+    jmp pin, arm             ; high: arm before a fast sender's next start edge
+    irq                      ; framing error
+    jmp idle
+|}]
+;;
+
+let uart_rx_host_rate = uart_rx_host_rate_on ~pin:0
+
 let rx_config =
   { Program_config.default with
     in_base = 0
