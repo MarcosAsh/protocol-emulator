@@ -928,8 +928,14 @@ idle:
     crc_init
     stuff_reset
     capture_arm              ; J: armed for D+ to rise
+    wait 1 pin 4             ; the first K of SYNC
+    mov t, capture
+    add t, p
+%{after_edge}
+    in null, 1
+    jmp k_bit
 j_zero:
-    wait 1 pin 4             ; at once, as a sample saw K already, but for SYNC
+    wait 1 pin 4             ; at once, as a sample saw K already
     mov t, capture
     add t, p
 %{after_edge}
