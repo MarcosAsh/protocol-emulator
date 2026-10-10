@@ -3,76 +3,7 @@ open Hardcaml
 open Hardcaml_lws
 open! Hardcaml_waveterm
 open Protocol_emulator
-
-let bit_ns = 100.
-
-(* The line as transitions: idle low, then per bit its complement and its value, then
-   TP_IDL, high 300 ns, and idle again. Each transition moves by up to [jitter] ns either
-   way, independently, and the sender's bit is [ppm] long or short. *)
-let transitions ~random ~ppm ~jitter bits =
-  let length = bit_ns *. (1. +. (ppm /. 1e6)) in
-  let start = 1000. in
-  let level = ref 0 in
-  let edges = Queue.create () in
-  let put at value =
-    if value <> !level
-    then (
-      level := value;
-      let moved =
-        if Float.(jitter = 0.)
-        then 0.
-        else Random.State.float random (2. *. jitter) -. jitter
-      in
-      Queue.enqueue edges (at +. moved, value))
-  in
-  List.iteri bits ~f:(fun n bit ->
-    let at = start +. (Float.of_int n *. length) in
-    put at (1 - bit);
-    put (at +. (length /. 2.)) bit);
-  let finish = start +. (Float.of_int (List.length bits) *. length) in
-  put finish 1;
-  put (finish +. 300.) 0;
-  Queue.to_list edges, finish +. 1000.
-;;
-
-(* The line sampled [per_bit] times a bit from a random phase, [per_cycle] to a cycle. *)
-let sample ~random ~per_bit ~per_cycle (edges, stop) =
-  let period = bit_ns /. Float.of_int per_bit in
-  let first = Random.State.float random period in
-  let count = Float.iround_down_exn ((stop -. first) /. period) / per_cycle in
-  (* in order: the level is carried from one sample to the next *)
-  let edges = ref edges in
-  let level = ref 0 in
-  let level_at at =
-    let rec catch_up () =
-      match !edges with
-      | (time, value) :: rest when Float.(time <= at) ->
-        level := value;
-        edges := rest;
-        catch_up ()
-      | _ -> ()
-    in
-    catch_up ();
-    !level
-  in
-  let cycles = Queue.create () in
-  for cycle = 0 to count - 1 do
-    let samples = Queue.create () in
-    for k = 0 to per_cycle - 1 do
-      Queue.enqueue
-        samples
-        (level_at (first +. (Float.of_int ((cycle * per_cycle) + k) *. period)))
-    done;
-    Queue.enqueue cycles (Queue.to_list samples)
-  done;
-  Queue.to_list cycles
-;;
-
-let bits_of_bytes bytes =
-  List.concat_map bytes ~f:(fun b -> List.init 8 ~f:(fun i -> (b lsr i) land 1))
-;;
-
-let preamble = List.init 7 ~f:(Fn.const 0x55) @ [ 0xd5 ]
+open Manchester_line
 
 (* The decoder, a cycle at a time, as the RTL has it: what it shows after the edge. *)
 module Model (Config : Manchester_rx.Config) = struct
@@ -105,10 +36,11 @@ module Model (Config : Manchester_rx.Config) = struct
   end
 
   let one = 1 lsl Rx.fraction_bits
-  let length = Config.samples_per_bit * one
+  let length rate = List.nth_exn Config.samples_per_bit rate * one
   let initial = { state = Idle; count = 0; last = 0; shift = 0; word = 0; word_bits = 0 }
 
-  let step t samples =
+  let step ~rate t samples =
+    let length = length rate in
     let m = Config.samples_per_cycle in
     let idle = equal_state t.state Idle in
     let centre =
@@ -190,7 +122,7 @@ module Model (Config : Manchester_rx.Config) = struct
     List.rev frames
   ;;
 
-  let run cycles = List.folding_map cycles ~init:initial ~f:step
+  let run ?(rate = 0) cycles = List.folding_map cycles ~init:initial ~f:(step ~rate)
 end
 
 module type Setup = sig
@@ -202,7 +134,7 @@ end
 let setup name ~per_bit ~per_cycle ~gain : (module Setup) =
   (module struct
     let name = name
-    let samples_per_bit = per_bit
+    let samples_per_bit = [ per_bit ]
     let samples_per_cycle = per_cycle
     let gain_shift = gain
   end)
@@ -238,7 +170,10 @@ let%expect_test "frames intact under jitter, by sample rate and loop gain" =
           List.count (List.range 0 40) ~f:(fun _ ->
             let payload = List.init 64 ~f:(fun _ -> Random.State.int random 256) in
             transitions ~random ~ppm ~jitter (bits_of_bytes (preamble @ payload))
-            |> sample ~random ~per_bit:S.samples_per_bit ~per_cycle:S.samples_per_cycle
+            |> sample
+                 ~random
+                 ~per_bit:(List.hd_exn S.samples_per_bit)
+                 ~per_cycle:S.samples_per_cycle
             |> M.run
             |> M.frames
             |> [%equal: int list list] [ payload ])
@@ -267,74 +202,88 @@ let%expect_test "frames intact under jitter, by sample rate and loop gain" =
     |}]
 ;;
 
+(* The chip's: both edges, either clock, gain 1/8. *)
+let either_clock : (module Setup) =
+  (module struct
+    let name = "40 or 50 MHz both edges"
+    let samples_per_bit = [ 8; 10 ]
+    let samples_per_cycle = 2
+    let gain_shift = 3
+  end)
+;;
+
 (* The RTL against the model, every output on every cycle, over random short frames at
    random jitter and rate. *)
 let%expect_test "the RTL follows the model" =
-  List.iter setups ~f:(fun (module S : Setup) ->
+  List.iter (setups @ [ either_clock ]) ~f:(fun (module S : Setup) ->
     let module M = Model (S) in
     let module Harness = Hardcaml_test_harness.Lws_harness.Make (M.Rx.I) (M.Rx.O) in
-    Quickcheck.test
-      ~trials:8
-      (let open Quickcheck.Generator.Let_syntax in
-       let%bind payload = List.gen_with_length 6 (Int.gen_incl 0 255) in
-       let%bind jitter = Float.gen_incl 0. 20. in
-       let%bind ppm = Float.gen_incl (-5000.) 5000. in
-       let%map seed = Int.gen_incl 0 1_000_000 in
-       payload, jitter, ppm, seed)
-      ~f:(fun (payload, jitter, ppm, seed) ->
-        let random = Random.State.make [| seed |] in
-        let cycles =
-          transitions ~random ~ppm ~jitter (bits_of_bytes (preamble @ payload))
-          |> sample ~random ~per_bit:S.samples_per_bit ~per_cycle:S.samples_per_cycle
-        in
-        let expected = M.run cycles in
-        Harness.run
-          ~random_initial_state:`All
-          ~create:M.Rx.hierarchical
-          (fun (h @ local) ~inputs ~outputs ->
-             let cycle () = Lws.step h in
-             let outputs = Before_and_after_edge.after_edge outputs in
-             inputs.clocking.clear := Bits.vdd;
-             cycle ();
-             inputs.clocking.clear := Bits.gnd;
-             let wanted = Array.of_list (List.zip_exn cycles expected) in
-             for n = 0 to Array.length wanted - 1 do
-               let samples, (want : M.Shown.t) = wanted.(n) in
-               inputs.rd := Bits.of_bit_list (List.rev samples);
+    List.iteri S.samples_per_bit ~f:(fun rate per_bit ->
+      Quickcheck.test
+        ~trials:8
+        (let open Quickcheck.Generator.Let_syntax in
+         let%bind payload = List.gen_with_length 6 (Int.gen_incl 0 255) in
+         let%bind jitter = Float.gen_incl 0. 20. in
+         let%bind ppm = Float.gen_incl (-5000.) 5000. in
+         let%map seed = Int.gen_incl 0 1_000_000 in
+         payload, jitter, ppm, seed)
+        ~f:(fun (payload, jitter, ppm, seed) ->
+          let random = Random.State.make [| seed |] in
+          let cycles =
+            transitions ~random ~ppm ~jitter (bits_of_bytes (preamble @ payload))
+            |> sample ~random ~per_bit ~per_cycle:S.samples_per_cycle
+          in
+          let expected = M.run ~rate cycles in
+          Harness.run
+            ~random_initial_state:`All
+            ~create:M.Rx.hierarchical
+            (fun (h @ local) ~inputs ~outputs ->
+               let cycle () = Lws.step h in
+               let outputs = Before_and_after_edge.after_edge outputs in
+               inputs.clocking.clear := Bits.vdd;
                cycle ();
-               let flag x = Bits.to_bool !x in
-               let opt (v : _ With_valid.t) =
-                 Option.some_if (flag v.valid) (Bits.to_unsigned_int !(v.value))
-               in
-               let got =
-                 { M.Shown.bit = opt outputs.bit
-                 ; frame_active = flag outputs.frame_active
-                 ; sfd_seen = flag outputs.sfd_seen
-                 ; frame_end = flag outputs.frame_end
-                 ; word = opt outputs.word
-                 }
-               in
-               if not (M.Shown.equal got want)
-               then
-                 raise_s
-                   [%message
-                     "RTL and model differ"
-                       S.name
-                       (got : M.Shown.t)
-                       (want : M.Shown.t)
-                       (payload : int list)]
-             done));
-    printf "%s, gain 1/%d: agree\n" S.name (1 lsl S.gain_shift));
+               inputs.clocking.clear := Bits.gnd;
+               inputs.rate := Bits.of_bool (rate = 1);
+               let wanted = Array.of_list (List.zip_exn cycles expected) in
+               for n = 0 to Array.length wanted - 1 do
+                 let samples, (want : M.Shown.t) = wanted.(n) in
+                 inputs.rd := Bits.of_bit_list (List.rev samples);
+                 cycle ();
+                 let flag x = Bits.to_bool !x in
+                 let opt (v : _ With_valid.t) =
+                   Option.some_if (flag v.valid) (Bits.to_unsigned_int !(v.value))
+                 in
+                 let got =
+                   { M.Shown.bit = opt outputs.bit
+                   ; frame_active = flag outputs.frame_active
+                   ; sfd_seen = flag outputs.sfd_seen
+                   ; frame_end = flag outputs.frame_end
+                   ; word = opt outputs.word
+                   }
+                 in
+                 if not (M.Shown.equal got want)
+                 then
+                   raise_s
+                     [%message
+                       "RTL and model differ"
+                         S.name
+                         (got : M.Shown.t)
+                         (want : M.Shown.t)
+                         (payload : int list)]
+               done));
+      printf "%s at %d a bit, gain 1/%d: agree\n" S.name per_bit (1 lsl S.gain_shift)));
   [%expect
     {|
-    40 MHz, gain 1/1: agree
-    40 MHz, gain 1/8: agree
-    50 MHz, gain 1/1: agree
-    50 MHz, gain 1/8: agree
-    40 MHz both edges, gain 1/1: agree
-    40 MHz both edges, gain 1/8: agree
-    50 MHz both edges, gain 1/1: agree
-    50 MHz both edges, gain 1/8: agree
+    40 MHz at 4 a bit, gain 1/1: agree
+    40 MHz at 4 a bit, gain 1/8: agree
+    50 MHz at 5 a bit, gain 1/1: agree
+    50 MHz at 5 a bit, gain 1/8: agree
+    40 MHz both edges at 8 a bit, gain 1/1: agree
+    40 MHz both edges at 8 a bit, gain 1/8: agree
+    50 MHz both edges at 10 a bit, gain 1/1: agree
+    50 MHz both edges at 10 a bit, gain 1/8: agree
+    40 or 50 MHz both edges at 8 a bit, gain 1/8: agree
+    40 or 50 MHz both edges at 10 a bit, gain 1/8: agree
     |}]
 ;;
 

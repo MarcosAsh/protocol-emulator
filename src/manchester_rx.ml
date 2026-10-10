@@ -3,7 +3,7 @@ open! Hardcaml
 open! Signal
 
 module type Config = sig
-  val samples_per_bit : int
+  val samples_per_bit : int list
   val samples_per_cycle : int
   val gain_shift : int
 end
@@ -21,23 +21,28 @@ module Make (Config : Config) = struct
   let () =
     if samples_per_cycle < 1 || samples_per_cycle > 2
     then raise_s [%message "BUG: one or two samples a cycle" (samples_per_cycle : int)];
-    if samples_per_bit < 4
-    then raise_s [%message "BUG: four samples a bit at least" (samples_per_bit : int)];
+    if List.is_empty samples_per_bit || List.length samples_per_bit > 2
+    then raise_s [%message "BUG: one or two rates" (samples_per_bit : int list)];
+    if List.exists samples_per_bit ~f:(fun n -> n < 4)
+    then
+      raise_s [%message "BUG: four samples a bit at least" (samples_per_bit : int list)];
     if gain_shift < 0
     then raise_s [%message "BUG: negative gain shift" (gain_shift : int)]
   ;;
 
   let fraction_bits = gain_shift + 2
   let one = 1 lsl fraction_bits
-  let bit_length = samples_per_bit * one
-  let blank = 3 * bit_length / 4
-  let timeout = 3 * bit_length / 2
-  let count_bits = Int.ceil_log2 (timeout + (2 * samples_per_cycle * one) + 1) + 1
+  let bit_length n = n * one
+  let blank n = 3 * bit_length n / 4
+  let timeout n = 3 * bit_length n / 2
+  let slowest = List.reduce_exn samples_per_bit ~f:Int.max
+  let count_bits = Int.ceil_log2 (timeout slowest + (2 * samples_per_cycle * one) + 1) + 1
 
   module I = struct
     type 'a t =
       { clocking : 'a Clocking.t
       ; rd : 'a [@bits samples_per_cycle]
+      ; rate : 'a
       }
     [@@deriving hardcaml]
   end
@@ -65,6 +70,16 @@ module Make (Config : Config) = struct
     let spec = Clocking.to_spec i.clocking in
     let%hw.Always.State_machine sm = Always.State_machine.create (module State) spec in
     let constant n = of_signed_int ~width:count_bits n in
+    (* the rate's lengths; with one rate [rate] is ignored *)
+    let by_rate f =
+      match samples_per_bit with
+      | [ n ] -> constant (f n)
+      | first :: second :: _ -> mux2 i.rate (constant (f second)) (constant (f first))
+      | [] -> assert false
+    in
+    let%hw bit_length = by_rate bit_length in
+    let%hw blank = by_rate blank in
+    let%hw timeout = by_rate timeout in
     let%hw count = wire count_bits in
     let%hw last_sample = reg spec (msb i.rd) in
     let samples = bits_lsb i.rd in
@@ -76,8 +91,7 @@ module Make (Config : Config) = struct
     let at k = count +: constant ((k + 1) * one) in
     let after k = constant ((samples_per_cycle - 1 - k) * one) in
     let%hw_list centres =
-      List.mapi edges ~f:(fun k edge ->
-        mux2 (sm.is Idle) edge (edge &: (at k >=+ constant blank)))
+      List.mapi edges ~f:(fun k edge -> mux2 (sm.is Idle) edge (edge &: (at k >=+ blank)))
     in
     (* a cycle has room for one centre: two would need a half bit under a sample *)
     let%hw_list taken =
@@ -91,7 +105,7 @@ module Make (Config : Config) = struct
         (List.map2_exn taken samples ~f:(fun valid value -> { With_valid.valid; value }))
     in
     let residual k =
-      let error = at k -: constant bit_length in
+      let error = at k -: bit_length in
       error -: sra error ~by:gain_shift
     in
     let%hw centred =
@@ -102,7 +116,7 @@ module Make (Config : Config) = struct
            }))
     in
     let%hw drifted = count +: constant (samples_per_cycle * one) in
-    let%hw lost = ~:(sm.is Idle) &: ~:any &: (drifted >+ constant timeout) in
+    let%hw lost = ~:(sm.is Idle) &: ~:any &: (drifted >+ timeout) in
     count <-- reg spec (mux2 any centred @@ mux2 (sm.is Idle) count drifted);
     let%hw shift = wire 8 in
     let%hw shifted = bit @: mux2 (sm.is Idle) (zero 7) shift.:[7, 1] in
