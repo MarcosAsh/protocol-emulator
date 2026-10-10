@@ -150,7 +150,7 @@ I2C_MASTER_STRETCH = {
     ],
 }
 
-# Firmware.start_hold for engine 1: each START's hold in cycles, SDA on IO2, SCL on IO3, both only listened to
+# I2c.start_hold for engine 1: each START's hold in cycles, SDA on IO2, SCL on IO3, both only listened to
 START_HOLD = {
     "config": {
         "side_set_count": 0,

@@ -42,8 +42,7 @@ let () =
   let lines words = List.chunks_of words ~length:10 |> List.map ~f:hex in
   print_endline
     "# Written by test/python/write_usb_firmware.ml; `dune promote` after a change.";
-  print_endline
-    "# Firmware.usb_device for every address, as the words that differ from address 0.";
+  print_endline "# Usb.device for every address, as the words that differ from address 0.";
   printf "\nBIT_PERIOD = %d\n\nCONFIG = {\n" bit_period;
   List.iter config ~f:(fun (name, value) -> printf "    \"%s\": %d,\n" name value);
   print_endline "}\n\nWORDS = [";
