@@ -141,7 +141,7 @@ let%expect_test "host timing never reaches the pins" =
   let disagree = count `Disagree in
   let words_pulled = !words_pulled in
   print_s [%message (programs : int) (words_pulled : int) (agree : int) (disagree : int)];
-  [%expect {| ((programs 64) (words_pulled 344) (agree 63) (disagree 0)) |}]
+  [%expect {| ((programs 64) (words_pulled 490) (agree 63) (disagree 0)) |}]
 ;;
 
 (* CRC-16/USB and CRC-5/USB check values over "123456789", after the final inversion *)
