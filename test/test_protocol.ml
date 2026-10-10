@@ -314,13 +314,14 @@ let%expect_test "every protocol from its file to the decoded trace" =
 
     === swd
 
-    certificates: none
+    certificates
+    swd: 232 words, 52 deadline waits, worst slack 15, the kernel accepts it, assuming period 25, a load of 10 or more, no wrap
 
     limits
     swd                SWCLK high     >=  20.8333 ns  kernel 7 (145.8 ns)      needs    2       RP2040, RP2040 datasheet, 2025-02-20 s.2.3.4 p.61; margin a cycle
     swd                SWCLK low      >=  20.8333 ns  kernel 24 (500.0 ns)     needs    2       RP2040, RP2040 datasheet, 2025-02-20 s.2.3.4 p.61; margin a cycle
 
-    lockstep: swd, uncertified as loaded
+    lockstep: swd, swd
     ("lockstep held" (cycles 53400))
     (received
      (0x1 0x7 0x2477 0xbc1 0x1 0x1 0x1 0x0 0xf000 0x1 0x1 0x0 0x0 0x1 0x0 0x0 0x2

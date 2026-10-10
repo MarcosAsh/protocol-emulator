@@ -265,6 +265,7 @@ NOT_SWEPT = [
     ("ps2", "open drain, which a wire does not show, and the host holds the clock"),
     ("dshot600", "32 edges a frame in 1328 cycles: the fifo holds 8"),
     ("cec", "open drain, which a wire does not show"),
+    ("swd", "SWDIO turns round for the target's ACK, which a wire does not show, and a target has to answer"),
     ("uart_tx_stream", "time-triggered: it underflows, a sticky fault, once the host stops"),
     ("spi_master_stream", "time-triggered: it underflows, a sticky fault, once the host stops"),
     ("uart_tx_stamped", "26 bits 8 cycles apart, and the chip's clock in them, which the model cannot know"),

@@ -1057,14 +1057,26 @@ let scenario =
 
 let protocol =
   { Protocol.name = "swd"
-  ; certified = []
+  ; certified =
+      [ Certified.plain
+          ~period:standard_half
+          ~period_floor:shortest_half
+          ~no_wrap:true
+          "swd"
+          (Timed_program.source firmware)
+          config
+      ]
   ; time_triggered = []
   ; bench = [ bench ]
   ; loaded_from_hex = []
   ; limits
   ; unlimited = []
   ; swept = []
-  ; not_swept = []
+  ; not_swept =
+      [ ( "swd"
+        , "SWDIO turns round for the target's ACK, which a wire does not show, and a \
+           target has to answer" )
+      ]
   ; scenarios = []
   ; decoded = [ scenario ]
   }
