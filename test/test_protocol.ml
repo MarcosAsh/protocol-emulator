@@ -202,7 +202,7 @@ let%expect_test "every protocol from its file to the decoded trace" =
     === ethernet
 
     certificates
-    ethernet: 24 words, 1 deadline wait, worst slack 63987, the kernel accepts it, assuming period 64000, no wrap
+    ethernet: 32 words, 1 deadline wait, worst slack 63987, the kernel accepts it, assuming period 64000, no wrap
 
     limits
     ethernet: none, no demo on the bench: it needs the Icepi's 40 MHz build

@@ -19,6 +19,15 @@ send:
     set x, 0
     seek
     out null, 16             ; so the next out pulls from the data memory
+    set x, 30
+    set pins, 2 [1]          ; the preamble: the first half of its first one
+preamble:
+    set pins, 1 [3]          ; a one's second half and a zero's first
+    set pins, 2 [1]          ; a zero's second half and, with the jump, a one's first
+    jmp x--, preamble
+    set pins, 1 [1]          ; the start of frame ends in two ones
+    set pins, 2 [1]
+    set pins, 1 [1]
 bit:
     out pins, 1 [1]          ; the first half of the bit, and with the jump the second
     jmp y--, bit
