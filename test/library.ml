@@ -19,6 +19,7 @@ let protocols =
   ; Spi_cs.protocol
   ; Spi_target.protocol
   ; Swd.protocol
+  ; Tables.protocol
   ]
 ;;
 

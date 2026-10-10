@@ -257,6 +257,8 @@ let%expect_test "the footprint of each firmware, and of its config under any pro
     spi_target_mode2   5            -          5-20           12-19
     spi_target_mode3   5            -          5-20           12-19
     swd                7 17         17         7 17-27        17-19
+    table              5-10         -          5-20           12-19
+    table_open_drain   -            12-17      5 12-27        12-19
     |}]
 ;;
 
@@ -352,6 +354,8 @@ let%expect_test "each firmware stays inside its footprint" =
     spi_target_mode2   5            -
     spi_target_mode3   5            -
     swd                -            -
+    table              -            -
+    table_open_drain   -            -
     |}]
 ;;
 

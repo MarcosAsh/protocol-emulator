@@ -79,6 +79,8 @@ let%expect_test "the firmware library and its certificates" =
     spi_target_mode2      38         0      -
     spi_target_mode3      33         0      -
     swd                  232        52     15  period 25, no wrap
+    table                112         2      0
+    table_open_drain     112         2      0
     |}]
 ;;
 

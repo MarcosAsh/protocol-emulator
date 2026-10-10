@@ -276,6 +276,9 @@ let%expect_test "what each out sends, in the firmware library" =
      (sends
       ((33 "bit 15 - x") (53 "bit 1") (62 "bit 7 - x") (100 "bit 15 - x")
        (108 "bit 15 - x"))))
+    (table (verdict (Ok ()))
+     (sends ((6 "not a pulled word") (60 "bit 1 to 32"))))
+    (table_open_drain (verdict (Ok ())) (sends ()))
     (uart_tx_stream (verdict (Ok ())) (sends ((8 "not a pulled word"))))
     (spi_master_stream (verdict (Ok ()))
      (sends ((4 "not a pulled word") (8 "not a pulled word"))))

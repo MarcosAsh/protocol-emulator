@@ -437,6 +437,14 @@ let%expect_test "every protocol from its file to the decoded trace" =
       0x31 0x477 0x1 0x1))
     decode: test/traces/sigrok/swd.trace, by sigrok's swd:swclk=OUT2:swdio=IO5
       swd=read:write:ack:data: swd-1: IDCODE, swd-1: OK, swd-1: 0x0bc12477, swd-1: W ABORT, swd-1: OK, swd-1: 0x0000001c, swd-1: W CTRL/STAT, swd-1: OK, swd-1: 0x50000000, swd-1: R CTRL/STAT, swd-1: OK, swd-1: 0xf0000000, swd-1: W SELECT, swd-1: OK, swd-1: 0x000000f0, swd-1: R APc, swd-1: OK, swd-1: 0x00000000, swd-1: RDBUFF, swd-1: WAIT, swd-1: RDBUFF, swd-1: OK, swd-1: 0x04770031, swd-1: W SELECT, swd-1: OK, swd-1: 0x00000000
+
+    === tables
+
+    certificates
+    table: 112 words, 2 deadline waits, worst slack 0, the kernel accepts it, assuming nothing
+    table_open_drain: 112 words, 2 deadline waits, worst slack 0, the kernel accepts it, assuming nothing
+
+    limits
     |}]
 ;;
 

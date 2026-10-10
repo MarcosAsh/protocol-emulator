@@ -108,5 +108,7 @@ let%expect_test "the kernel refuses each row moved by a cycle" =
     (spi_target_mode2 (phase 0) (arm 0) (capture 0) (accepted ()))
     (spi_target_mode3 (phase 0) (arm 0) (capture 0) (accepted ()))
     (swd (phase 404) (arm 0) (capture 0) (accepted ()))
+    (table (phase 182) (arm 0) (capture 0) (accepted ()))
+    (table_open_drain (phase 182) (arm 0) (capture 0) (accepted ()))
     |}]
 ;;

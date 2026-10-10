@@ -283,6 +283,8 @@ NOT_SWEPT = [
     ("spi_target_mode2", "a target: the controller's clock moves it"),
     ("spi_target_mode3", "a target: the controller's clock moves it"),
     ("swd", "SWDIO turns round for the target's ACK, which a wire does not show, and a target has to answer"),
+    ("table", "its pins follow a table in data memory, which the sweep does not load"),
+    ("table_open_drain", "the same"),
     ("uart_tx_stream", "time-triggered: it underflows, a sticky fault, once the host stops"),
     ("spi_master_stream", "time-triggered: it underflows, a sticky fault, once the host stops"),
     ("uart_tx_stamped", "26 bits 8 cycles apart, and the chip's clock in them, which the model cannot know"),
