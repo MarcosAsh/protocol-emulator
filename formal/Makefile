@@ -376,7 +376,7 @@ inductive_names:
 # fail; at its own bounds it passes; a run at each bound gets that far. uart_rx_16 is
 # the library's, the host rate receiver at half periods short enough to unroll. The SPI
 # target follows SCK, so no rate error builds up: two bytes in mode 0 with every SCK phase
-# free from its least to 4 more, and a cycle less high has to fail. tolerance_proof runs
+# free from its least to 2 more, and a cycle less high has to fail. tolerance_proof runs
 # one on files written already.
 TOLERANCE = uart_rx_16 uart_rx_host_rate_4 uart_rx_host_rate_8 spi_target_mode0
 TOLERANCE_PROOFS = prove moved_own
