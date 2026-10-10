@@ -9,6 +9,7 @@ let uart_tx ~period =
   ; period_floor = None
   ; single_capture_edge = false
   ; no_wrap = false
+  ; any_data = false
   }
 ;;
 

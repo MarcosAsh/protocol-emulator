@@ -280,6 +280,7 @@ let program ?(config = Program_config.default) ?period name source =
   ; period_floor = None
   ; single_capture_edge = false
   ; no_wrap = false
+  ; any_data = false
   }
 ;;
 
