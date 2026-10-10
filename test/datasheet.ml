@@ -219,13 +219,10 @@ let can_receiver =
   ]
 ;;
 
-(* 24LC256 at 3.3 V, the 2.5 to 5.5 V rows. The kernel times the master's pins, so a width
-   from a release to the next edge loses the line's rise, TR of 300 ns at most. *)
-let i2c firmware =
-  let sheet page =
-    { Sheet.part = "24LC256"; document = "Microchip DS20001203W, Table 1-2"; page }
-  in
-  let rise = Margin.Ns { ns = 300.; why = "TR, param 4" } in
+(* The kernel times the master's pins, so a width from a release to the next edge loses
+   the line's rise, which [rise] gives. [times] are each parameter's least, in ns, and
+   where the sheet gives it. *)
+let i2c_with ~sheet ~rise ~times firmware =
   let scl = side_pin
   and sda = set_pin in
   (* the bits before an edge are true while the master holds the line low *)
@@ -238,37 +235,95 @@ let i2c firmware =
       (fun config n ->
         swap (spacing ~dirs:true ?hold ?apart ~a:(sda config) ~b:(scl config) () n))
   in
-  let limit parameter ns page margin bound =
+  let limit parameter margin bound =
+    let ns, page = List.Assoc.find_exn times ~equal:String.equal parameter in
     { firmware; parameter; limit = At_least ns; sheet = sheet page; margin; bound }
   in
-  [ limit "THIGH" 600. "p.3, param 2" rise (pair ~hold:(fun ~own ~other:_ -> not own) ())
-  ; limit "TLOW" 1300. "p.3, param 3" Cycle (pair ~hold:(fun ~own ~other:_ -> own) ())
-  ; limit
-      "THD:STA"
-      600.
-      "p.3, param 6"
-      Cycle
-      (pair ~apart:(fun ~own ~other -> (not own) && other) ())
-  ; limit
-      "TSU:STA"
-      600.
-      "p.3, param 7"
-      rise
-      (sda_pair ~apart:(fun ~own ~other -> (not own) && not other) ())
-  ; limit "TSU:DAT" 100. "p.3, param 9" rise (pair ~apart:(fun ~own ~other:_ -> own) ())
-  ; limit
-      "TSU:STO"
-      600.
-      "p.3, param 10"
-      rise
-      (sda_pair ~apart:(fun ~own ~other -> own && not other) ())
-  ; limit
-      "TBUF"
-      1300.
-      "p.4, param 14"
-      rise
-      (sda_pair ~hold:(fun ~own ~other -> (not own) && not other) ())
+  [ limit "THIGH" rise (pair ~hold:(fun ~own ~other:_ -> not own) ())
+  ; limit "TLOW" Cycle (pair ~hold:(fun ~own ~other:_ -> own) ())
+  ; limit "THD:STA" Cycle (pair ~apart:(fun ~own ~other -> (not own) && other) ())
+  ; limit "TSU:STA" rise (sda_pair ~apart:(fun ~own ~other -> (not own) && not other) ())
+  ; limit "TSU:DAT" rise (pair ~apart:(fun ~own ~other:_ -> own) ())
+  ; limit "TSU:STO" rise (sda_pair ~apart:(fun ~own ~other -> own && not other) ())
+  ; limit "TBUF" rise (sda_pair ~hold:(fun ~own ~other -> (not own) && not other) ())
   ]
+;;
+
+(* 24LC256 at 3.3 V, the 2.5 to 5.5 V rows *)
+let i2c =
+  i2c_with
+    ~sheet:(fun page ->
+      { Sheet.part = "24LC256"; document = "Microchip DS20001203W, Table 1-2"; page })
+    ~rise:(Ns { ns = 300.; why = "TR, param 4" })
+    ~times:
+      [ "THIGH", (600., "p.3, param 2")
+      ; "TLOW", (1300., "p.3, param 3")
+      ; "THD:STA", (600., "p.3, param 6")
+      ; "TSU:STA", (600., "p.3, param 7")
+      ; "TSU:DAT", (100., "p.3, param 9")
+      ; "TSU:STO", (600., "p.3, param 10")
+      ; "TBUF", (1300., "p.4, param 14")
+      ]
+;;
+
+module I2c_mode = struct
+  type t =
+    | Standard
+    | Fast
+  [@@deriving sexp_of]
+end
+
+(* UM10204's own rows, for any device on the bus, with its slowest rise, tr; and the
+   clock's period from a run, as SCL's rate is at most fSCL *)
+let um10204 (mode : I2c_mode.t) firmware =
+  let column, rate, rise, times =
+    match mode with
+    | Standard ->
+      ( "Standard-mode"
+      , 100_000.
+      , 1000.
+      , [ "THIGH", 4000.
+        ; "TLOW", 4700.
+        ; "THD:STA", 4000.
+        ; "TSU:STA", 4700.
+        ; "TSU:DAT", 250.
+        ; "TSU:STO", 4000.
+        ; "TBUF", 4700.
+        ] )
+    | Fast ->
+      ( "Fast-mode"
+      , 400_000.
+      , 300.
+      , [ "THIGH", 600.
+        ; "TLOW", 1300.
+        ; "THD:STA", 600.
+        ; "TSU:STA", 600.
+        ; "TSU:DAT", 100.
+        ; "TSU:STO", 600.
+        ; "TBUF", 1300.
+        ] )
+  in
+  let sheet page =
+    { Sheet.part = [%string "I2C %{column}"]; document = "NXP UM10204 Rev. 7.0"; page }
+  in
+  let period =
+    { firmware
+    ; parameter = "1/fSCL"
+    ; limit = At_least (1e9 /. rate)
+    ; sheet = sheet "Table 10, fSCL"
+    ; margin = Cycle
+    ; bound =
+        run ~pin:side_pin (fun ~clock_hz:_ levels ->
+          List.filter_map (pairs levels) ~f:(fun ((high, l), (next, h)) ->
+            Option.some_if ((not high) && next) (l + h)))
+    }
+  in
+  i2c_with
+    ~sheet
+    ~rise:(Ns { ns = rise; why = "tr" })
+    ~times:(List.map times ~f:(fun (parameter, ns) -> parameter, (ns, "Table 10")))
+    firmware
+  @ [ period ]
 ;;
 
 (* W25Q64JV: CLK high and low are 45% of the 20 ns of 03h's 50 MHz, the strictest reading;
@@ -322,23 +377,23 @@ let swd =
       })
 ;;
 
-(* the bit within 2% of 115200 baud, the 'nasty link' budget a receiver shares *)
-let uart_log =
+(* the bit within 2% of the rate, the 'nasty link' budget a receiver shares *)
+let uart ~baud firmware =
   let sheet =
-    { Sheet.part = "UART at 115200 baud"
+    { Sheet.part = [%string "UART at %{baud#Int} baud"]
     ; document = "Maxim AN2141"
     ; page = "p.4, +-3/152, 2%"
     }
   in
-  let bit = 1e9 /. 115_200. in
-  [ { firmware = "uart_log"
+  let bit = 1e9 /. Float.of_int baud in
+  [ { firmware
     ; parameter = "bit"
     ; limit = At_least (bit *. 0.98)
     ; sheet
     ; margin = Cycle
     ; bound = level ~pin:set_pin ~high:false ()
     }
-  ; { firmware = "uart_log"
+  ; { firmware
     ; parameter = "bit"
     ; limit = At_most (bit *. 1.02)
     ; sheet
@@ -347,6 +402,8 @@ let uart_log =
     }
   ]
 ;;
+
+let uart_log = uart ~baud:115_200 "uart_log"
 
 let all =
   sk6812
@@ -516,7 +573,7 @@ let rec most ~ok ~lo ~hi =
     if ok mid then most ~ok ~lo:mid ~hi else most ~ok ~lo ~hi:mid)
 ;;
 
-let check ?limits (bench : Bench.t) =
+let check ?limits ?stimulus:given (bench : Bench.t) =
   let limits =
     Option.value_or_thunk limits ~default:(fun () ->
       List.filter all ~f:(fun t -> String.equal t.firmware bench.name))
@@ -531,7 +588,7 @@ let check ?limits (bench : Bench.t) =
       | Kernel _, At_most _ -> raise_s [%message "BUG: the kernel bounds least widths"]
       | Run { pin; widths }, limit ->
         let stimulus =
-          match stimulus bench with
+          match Option.first_some given (stimulus bench) with
           | Some stimulus -> stimulus
           | None -> raise_s [%message "BUG: no stimulus to run" bench.name]
         in

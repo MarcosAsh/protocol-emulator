@@ -55,6 +55,20 @@ type t =
 
 val all : t list
 
+module I2c_mode : sig
+  type t =
+    | Standard
+    | Fast
+  [@@deriving sexp_of]
+end
+
+(** An I2C master's limits from UM10204's table for every device in [mode], each width a
+    release starts less the mode's slowest rise, and SCL's period at least 1/fSCL. *)
+val um10204 : I2c_mode.t -> string -> t list
+
+(** A UART's bit within 2% of [baud]. *)
+val uart : baud:int -> string -> t list
+
 (** Firmware with no limit, and why. *)
 val exempt : (string * string) list
 
@@ -80,8 +94,9 @@ module Verdict : sig
     }
 end
 
-(** Every limit on [bench], by [bench]'s name unless [limits] are given. *)
-val check : ?limits:t list -> Bench.t -> (t * Verdict.t) list
+(** Every limit on [bench], by [bench]'s name unless [limits] are given, a run's bounds on
+    [bench]'s stimulus unless one is given. *)
+val check : ?limits:t list -> ?stimulus:Stimulus.t -> Bench.t -> (t * Verdict.t) list
 
 (** A line per limit: its parameter, the limit, the bound in cycles and ns, and FAIL where
     it does not clear the margin. *)

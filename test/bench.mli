@@ -25,6 +25,17 @@ type t =
       wants at [clock_hz]. *)
   }
 
+(** The bench's clock, 48 MHz, and the cycles a bit, half or quarter period of a rate take
+    at it, rounded down. *)
+val clock_hz : int
+
+(** The bench's I2C bus, IO2 and IO3. *)
+val sda : int
+
+val scl : int
+val bit : hz:int -> int
+val half : hz:int -> int
+val quarter : hz:int -> int
 val all : t list
 
 (** The keyboard demo's log to Pico B at 115200 baud, which [all] leaves out: the demo
