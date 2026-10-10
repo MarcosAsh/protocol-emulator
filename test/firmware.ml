@@ -304,7 +304,7 @@ let scl = 13
    out its byte frees it. Each pulse is a bit's two quarters low and two high. SDA read
    high may be a 1 bit, so a START resets the slave before the STOP. [sda_high] jumps to
    [clear_stop] when SDA reads high; [stop] follows the START. *)
-let bus_clear_testing ~sda_high ~stop =
+let bus_clear_testing ?(held = "") ~sda_high ~stop () =
   [%string
     {|
     set x, 8 side 0              ; nine pulses at most
@@ -321,22 +321,24 @@ clear:
     jmp x--, clear
 clear_stop:
     wait t+ side 0
-    set pindirs, 1 side 0        ; a START, which resets any slave
-    wait t+ side 0
+%{held}    set pindirs, 1 side 0        ; a START, which resets any slave
+%{held}    wait t+ side 0
     nop side 1
 %{stop}
 |}]
 ;;
 
-let bus_clear =
+let bus_clear ?held () =
   bus_clear_testing
+    ?held
     ~sda_high:"    jmp pin, clear_stop          ; SDA high"
     ~stop:"    jmp stop"
+    ()
 ;;
 
 (* host word: start[15] read[14] data[13:6] stop[5]; p is a quarter period, which [load]
    sets *)
-let i2c_master_loading ~load ~preamble =
+let i2c_master_loading ?(held = "") ~load ~preamble () =
   [%string
     {|
     .side_set 1
@@ -361,7 +363,7 @@ byte:
 start:                           ; bus idle, both lines high
     wait t+ side 0
     set pindirs, 1 side 0        ; SDA low while SCL high
-    wait t+ side 0
+%{held}    wait t+ side 0
     nop side 1
     add t, p side 1              ; a quarter of slack before the dispatch
     jmp send_or_read
@@ -369,9 +371,9 @@ restart:                         ; SCL low after a byte
     set pindirs, 0 side 1        ; release SDA
     wait t+ side 1
     nop side 0
-    wait t+ side 0
+%{held}    wait t+ side 0
     set pindirs, 1 side 0        ; SDA low while SCL high
-    wait t+ side 0
+%{held}    wait t+ side 0
     nop side 1
     add t, p side 1
 send_or_read:
@@ -428,7 +430,7 @@ stop:
     set pindirs, 1 side 1        ; SDA low
     wait t+ side 1
     nop side 0                   ; SCL high
-    wait t+ side 0
+%{held}    wait t+ side 0
     set pindirs, 0 side 0        ; SDA released while SCL high
     wait t+ side 0
     jmp idle
@@ -436,16 +438,29 @@ stop:
 ;;
 
 let i2c_master_with ~preamble ~quarter =
-  i2c_master_loading ~load:[%string "    set p, %{quarter#Int} side 0"] ~preamble
+  i2c_master_loading ~load:[%string "    set p, %{quarter#Int} side 0"] ~preamble ()
 ;;
 
-let i2c_master = i2c_master_with ~preamble:bus_clear
+let i2c_master = i2c_master_with ~preamble:(bus_clear ())
 let i2c_master_without_bus_clear = i2c_master_with ~preamble:"\n"
+let load_quarter = "    wait tx side 0\n    pull side 0\n    mov p, osr side 0"
 
 let i2c_master_host_rate =
-  i2c_master_loading
-    ~load:"    wait tx side 0\n    pull side 0\n    mov p, osr side 0"
-    ~preamble:bus_clear
+  i2c_master_loading ~load:load_quarter ~preamble:(bus_clear ()) ()
+;;
+
+let i2c_master_host_rate_without_bus_clear =
+  i2c_master_loading ~load:load_quarter ~preamble:"\n" ()
+;;
+
+(* each START's hold, and repeated START's and STOP's setup, [quarters] long *)
+let i2c_master_host_rate_held ?(clear_bus = true) ~quarters () =
+  if quarters < 1 then raise_s [%message "BUG: under a quarter" (quarters : int)];
+  let held =
+    String.concat (List.init (quarters - 1) ~f:(fun _ -> "    wait t+ side 0\n"))
+  in
+  let preamble = if clear_bus then bus_clear ~held () else "\n" in
+  i2c_master_loading ~held ~load:load_quarter ~preamble ()
 ;;
 
 let i2c_config =
@@ -496,6 +511,7 @@ let i2c_master_stretch_loading ~load =
     set pindirs, 0 side 0
     wait t+ side 0
     jmp idle|}
+      ()
   in
   [%string
     {|

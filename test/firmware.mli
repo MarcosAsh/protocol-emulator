@@ -66,6 +66,16 @@ val i2c_master_without_bus_clear : quarter:int -> string
     than a quarter of 31 cycles, which is as long as [set] makes one. *)
 val i2c_master_host_rate : string
 
+(** [i2c_master_host_rate] with each START held, and each repeated START and STOP set up,
+    [quarters] quarter periods where it has one, as UM10204's tHD;STA, tSU;STA and tSU;STO
+    need at its clock: Standard-mode 3, Fast-mode 2. Without [clear_bus] it starts at
+    [idle]. *)
+val i2c_master_host_rate_held : ?clear_bus:bool -> quarters:int -> unit -> string
+
+(** [i2c_master_host_rate] without the bus clear, whose START then STOP [i2c_slave] reads
+    as the first bit of an address: for a bus no outside slave can hold. *)
+val i2c_master_host_rate_without_bus_clear : string
+
 val i2c_config : Program_config.t
 
 (** [i2c_master] under [i2c_stretch_config], each SCL high timed from the poll that sees
