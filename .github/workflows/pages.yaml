@@ -9,6 +9,8 @@ on:
     branches: [main]
     paths:
       - src/**
+      - pio/src/**
+      - pio/test/pico_examples/i2c.pio
       - playground/**
       - pages/**
       - docs/die.png
@@ -47,7 +49,7 @@ jobs:
           path: |
             _build/default/playground/index.html
             _build/default/playground/playground.bc.js
-          key: playground-${{ hashFiles('src/**', 'playground/**', 'test/*.asm', 'dune-project', 'protocol_emulator.opam.locked', '.github/workflows/pages.yaml') }}
+          key: playground-${{ hashFiles('src/**', 'pio/src/**', 'pio/test/pico_examples/i2c.pio', 'playground/**', 'test/*.asm', 'dune-project', 'protocol_emulator.opam.locked', '.github/workflows/pages.yaml') }}
 
       - name: Set up OxCaml
         if: steps.built.outputs.cache-hit != 'true'
@@ -86,7 +88,7 @@ jobs:
         run: PLAYGROUND=yes opam exec -- dune build --profile release @playground/page
 
       # the page is only worth publishing if the kernel still refuses the example it
-      # shows refusing
+      # shows refusing, and pio_check still fails #796
       - name: Check the examples' verdicts
         working-directory: _build/default/playground
         run: |
@@ -95,8 +97,13 @@ jobs:
             const verdicts = pe.examples.map(([name, source]) =>
               name + ": " + pe.check(source, null, false, 0, false).verdict);
             console.log(verdicts.join("\n"));
+            const pio = pe.pioExamples.map(([name, source, spec]) =>
+              name + ": " + pe.checkPio(source, spec).verdict);
+            console.log(pio.join("\n"));
             const want = ["uart_tx: accepted", "gap_adding_x: refused by the kernel"];
+            const wantPio = ["i2c (#796): failed"];
             if (!want.every((v) => verdicts.includes(v))) process.exit(1);
+            if (!wantPio.every((v) => pio.includes(v))) process.exit(1);
           '
 
       - name: Upload the playground
