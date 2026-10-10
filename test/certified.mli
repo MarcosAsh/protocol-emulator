@@ -7,7 +7,8 @@
     in time; [no_wrap] says the proof by induction holds while the core is within 84 ms of
     its deadline and of the edge it last captured, which a program needs said of its
     24-bit clock when a wait, or a loop as long as the host says, can leave it arbitrarily
-    far behind either. *)
+    far behind either; [any_data] says the data memory reads as anything, every cycle,
+    where the rest read zeros, which covers every table a table interpreter can load. *)
 
 open! Core
 open Protocol_emulator
@@ -20,6 +21,7 @@ type t =
   ; period_floor : int option
   ; single_capture_edge : bool
   ; no_wrap : bool
+  ; any_data : bool
   }
 
 val plain
@@ -27,6 +29,7 @@ val plain
   -> ?period_floor:int
   -> ?single_capture_edge:bool
   -> ?no_wrap:bool
+  -> ?any_data:bool
   -> string
   -> string
   -> Program_config.t

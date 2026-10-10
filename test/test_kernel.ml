@@ -910,6 +910,7 @@ let%expect_test "the way through jmp x!=y knows x is y" =
     ; period_floor = None
     ; single_capture_edge = false
     ; no_wrap = false
+    ; any_data = false
     }
   in
   let verdict = check c in
