@@ -56,7 +56,7 @@ let%expect_test "the accepts circuit agrees with the kernel on the library's tab
     let disagree = ref [] in
     List.iter
       (List.map Library.certified ~f:(fun c -> c, None)
-       @ [ Certified.find_exn "uart_tx", Some uart_bits ])
+       @ [ Library.find_certified_exn "uart_tx", Some uart_bits ])
       ~f:(fun ((c : Certified.t), spec) ->
         let config, words, table = table ?spacing:spec c in
         let words = Array.of_list words in
@@ -261,7 +261,7 @@ let tamper_edges ?(spacing = uart_bits) (c : Certified.t) =
 ;;
 
 let%expect_test "an edge bound tighter than the rows before it is refused" =
-  tamper_edges (Certified.find_exn "uart_tx");
+  tamper_edges (Library.find_certified_exn "uart_tx");
   [%expect
     {|
     (uart_tx (untampered_refused false))
@@ -297,7 +297,7 @@ let%expect_test "edge bounds past a pin wait, at the timer's ends and after a ca
     jmp 0
 |});
   tamper_edges (program "add_t_at_pc_0" "    add t, 1\n    set pins, 1\n    jmp 0\n");
-  let spi_slave = Certified.find_exn "spi_slave" in
+  let spi_slave = Library.find_certified_exn "spi_slave" in
   tamper_edges
     { spi_slave with
       name = "spi_slave_captured"
@@ -308,7 +308,7 @@ let%expect_test "edge bounds past a pin wait, at the timer's ends and after a ca
           ~with_:"in pins, 1\n    capture_arm\n"
     ; config =
         { spi_slave.config with
-          capture_pin = Firmware.slave_sck_pin
+          capture_pin = Spi.slave_sck_pin
         ; capture_rising = false
         }
     ; single_capture_edge = true
@@ -408,7 +408,7 @@ let%expect_test "a phase or an arm count at the timer's ends" =
 
 (* The analyser's rows bound no pin, so only [Kernel.Table.with_edges]'s keep a spacing. *)
 let%expect_test "a table with no edge bounds keeps no spacing" =
-  let config, words, table = table (Certified.find_exn "uart_tx") in
+  let config, words, table = table (Library.find_certified_exn "uart_tx") in
   print_s
     [%message
       "" ~_:(Kernel.check ~spacing:uart_bits ~config ~words table : unit Or_error.t)];
@@ -424,7 +424,7 @@ let%expect_test "a table with no edge bounds keeps no spacing" =
 
 (* beside test_kernel's: a pin past the pin space, and a slope with no offset *)
 let%expect_test "a spacing is checked only for pins and tables it is proved for" =
-  let c = Certified.find_exn "uart_tx" in
+  let c = Library.find_certified_exn "uart_tx" in
   let config, words, table = table ~spacing:uart_bits c in
   let check ?(table = table) spacing =
     print_s
@@ -448,7 +448,7 @@ let%expect_test "a spacing is checked only for pins and tables it is proved for"
 
 (* An unreached row holds nothing, so a step into one fails on every bound it can. *)
 let%expect_test "a row that steps into an unreached row is refused" =
-  let config, words, table = table (Certified.find_exn "uart_tx") in
+  let config, words, table = table (Library.find_certified_exn "uart_tx") in
   let table = Array.copy table in
   table.(3) <- table.(Array.length table - 1);
   print_s
@@ -509,10 +509,10 @@ let phase (m : Machine.t) =
    pc, under random pins and host. *)
 let%expect_test "the core's edges stay inside the rows the table carries them to" =
   List.iter
-    [ Certified.find_exn "uart_tx", uart_bits
-    ; ( Certified.find_exn "i2c_master"
-      , { Kernel.Spacing.Spec.a = Firmware.scl
-        ; b = Firmware.sda
+    [ Library.find_certified_exn "uart_tx", uart_bits
+    ; ( Library.find_certified_exn "i2c_master"
+      , { Kernel.Spacing.Spec.a = I2c.scl
+        ; b = I2c.sda
         ; dirs = true
         ; hold_a = (fun ~own:_ ~other:_ -> 10)
         ; apart_a = (fun ~own:_ ~other:_ -> 3)
@@ -627,7 +627,7 @@ let%expect_test "the edge bounds of the table hold where they are hard to follow
     (program
        ~config:{ Program_config.default with period_fraction = 0x8000 }
        "fractional"
-       (Firmware.uart_tx ~period:8));
+       (Uart.tx ~period:8));
   let held =
     { uart_bits with hold_a = (fun ~own ~other:_ -> if own then 0xffff else 0) }
   in
