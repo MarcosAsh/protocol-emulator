@@ -1,21 +1,24 @@
 (** The host's SPI view of the core. A frame is a command byte (write bit, 7-bit register)
     then 16-bit words high byte first; more words repeat the access.
 
-    Registers: 0 control (bit 0 start, 1 clear irq, 2 stop, 3 flush, 4 check), 1 status, 2
-    pc, 3-4 now, 5-6 capture, 7 tx, 8 rx (read pops), 9 program address, 10 program word,
-    11 select, 12 data address, 13 data word (writes to 10 and 13 increment the address),
-    16 on the config fields, write-only and reading zero; for [Load_checker], 64 the
-    certificate's base, 65 the loaded period, 66 its flags (bit 0 loaded, 1 single edge),
-    67 the check's status (bit 0 busy, 1 accepted, 2 certified, 3 refused), 68 the pc and
-    69 the reason it refused. Control bit 5 does nothing. Program, data, config, check and
-    flush take effect only while halted, so a flush needs its own write after the stop,
-    and a start only once the engine is certified. 43, 44, 70 and 71 are reserved and read
-    zero; config skips 43-44 to keep [autopull_data] and [manchester] at 45-46 for
-    existing hosts.
+    Registers: 0 control (bit 0 start, 1 clear irq, 2 stop, 3 flush, 4 check, 5 start
+    every engine at once), 1 status, 2 pc, 3-4 now, 5-6 capture, 7 tx, 8 rx (read pops), 9
+    program address, 10 program word, 11 select, 12 data address, 13 data word (writes to
+    10 and 13 increment the address), 16 on the config fields, write-only and reading
+    zero; for [Load_checker], 64 the certificate's base, 65 the loaded period, 66 its
+    flags (bit 0 loaded, 1 single edge, 2 the loaded period a floor), 67 the check's
+    status (bit 0 busy, 1 accepted, 2 certified, 3 refused), 68 the pc and 69 the reason
+    it refused; 70 the [Line_code] table's state and 71 its word (writes increment the
+    state). Program, data, config, table, check and flush take effect only while halted,
+    so a flush needs its own write after the stop, and a start only once the engine is
+    certified. Control bit 5 starts every engine on one cycle, whatever the select, and
+    only with all halted and certified. 43 and 44 are reserved and read zero; config skips
+    them to keep [autopull_data] and [manchester] at 45-46 for existing hosts.
 
     Select picks the engine for every register but the two addresses; it resets to 0 and
     past the last engine reaches none and reads zero. Status bit 15 flags another engine's
-    irq. With one engine there is no select and bit 15 stays low. *)
+    irq and bit 14 [Engine.Fault.assumption]. With one engine there is no select and bit
+    15 stays low. *)
 
 open! Core
 open! Hardcaml
@@ -66,6 +69,8 @@ module Reg : sig
   val check_status : int
   val reject_pc : int
   val reject_reason : int
+  val line_addr : int
+  val line : int
 
   (** Each [Engine.Config] field's register, skipping the reserved ones. *)
   val configs : int list
@@ -96,6 +101,7 @@ module Make (_ : Config) : sig
       { miso : 'a
       ; engines : 'a Engine.Host.t list
       ; check_setup : 'a Load_checker.Setup.t
+      ; start_all : 'a
       }
     [@@deriving hardcaml]
   end

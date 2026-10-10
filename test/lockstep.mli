@@ -29,7 +29,8 @@ end
     address 0 before the start pulse. [inputs] and [host] are asked once per cycle;
     [react] sees the model after each step, which is where a peer on the pins advances.
     Stops at the first mismatch and returns it with the cycle. [coverage] and [premise]
-    are told about every step of the model. *)
+    are told about every step of the model. [line_table] is loaded and [premises] set
+    before the start. *)
 val run
   :  ?cycles:int
   -> ?preload:int list
@@ -38,6 +39,8 @@ val run
   -> ?react:(Machine.t -> unit)
   -> ?coverage:Coverage.t
   -> ?premise:Premise.t
+  -> ?line_table:Line_code.t
+  -> ?premises:Machine.Premises.t
   -> config:Program_config.t
   -> program:int list
   -> inputs:(int -> int)
@@ -53,6 +56,8 @@ val lockstep
   -> ?react:(Machine.t -> unit)
   -> ?coverage:Coverage.t
   -> ?premise:Premise.t
+  -> ?line_table:Line_code.t
+  -> ?premises:Machine.Premises.t
   -> config:Program_config.t
   -> program:int list
   -> inputs:(int -> int)

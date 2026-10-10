@@ -597,6 +597,8 @@ let predicate_settings (firmware : Predicate.Firmware.t) =
       ; period_fraction
       ; autopull_data
       ; manchester
+      ; line_code
+      ; route
       }
     =
     firmware.config
@@ -617,6 +619,8 @@ let predicate_settings (firmware : Predicate.Firmware.t) =
       ; "stuff_level", stuff_level
       ; "autopull_data", autopull_data
       ; "manchester", manchester
+      ; "line_code", line_code
+      ; "route", route
       ]
       ~f:(fun (name, flag) -> name, Bool.to_int flag)
     @ [ "side_set_count", side_set_count

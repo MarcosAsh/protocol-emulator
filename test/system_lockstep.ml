@@ -26,6 +26,13 @@ module Assumptions = struct
   ;;
 
   let loaded t = Option.first_some t.period_floor t.period
+
+  let premises t =
+    { Machine.Premises.period = loaded t
+    ; floor = Option.is_some t.period_floor
+    ; single_edge = t.single_capture_edge
+    }
+  ;;
 end
 
 module Setup = struct
@@ -127,6 +134,7 @@ let run
          i.check_setup.loaded.valid := Bits.of_bool (Option.is_some loaded);
          i.check_setup.loaded.value <--. Option.value loaded ~default:0;
          i.check_setup.single_edge := Bits.of_bool assumptions.single_capture_edge;
+         i.check_setup.floor := Bits.of_bool (Option.is_some assumptions.period_floor);
          port.check := Bits.vdd;
          cycle ();
          port.check := Bits.gnd;
@@ -164,6 +172,7 @@ let run
          List.map setups ~f:(fun s ->
            let machine = Machine.create ~config:s.config ~program:s.program |> ok_exn in
            let machine = Machine.load_data machine s.data |> ok_exn in
+           let machine = Machine.assume machine (Assumptions.premises s.assumptions) in
            List.fold s.preload ~init:machine ~f:(fun m word ->
              Machine.write_tx m word |> ok_exn))
          |> System.create

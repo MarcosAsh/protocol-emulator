@@ -75,7 +75,8 @@ let%expect_test "reset, read rom, eight bytes and a good crc" =
        (high (6000 60220)) ("zero low" (60000 60000))))
      (violations ())
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -123,7 +124,8 @@ let%expect_test "one wire in lockstep" =
        (high (6000 63300)) ("zero low" (60000 60000))))
      (violations ())
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -192,7 +194,8 @@ let%expect_test "a sample after 15 us misses the zeros" =
        (high (8000 80220)) ("zero low" (80000 80000))))
      (violations ())
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -206,6 +209,7 @@ let%expect_test "a unit of 5 us is out of the standard" =
       ((slot (55000 805200)) (high (5000 405160)) ("one low" (5000 5000))))
      (violations ("low of 400040 ns" "low of 50000 ns" "slot of 55000 ns"))
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;

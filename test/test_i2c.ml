@@ -53,7 +53,8 @@ let%expect_test "write a register then read it back" =
      ("I2c_slave.log slave"
       (start stop start "address 80 write" "pointer 3" "write 170" stop))
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false)))
      (t.pc 17))
     |}];
   print_s [%message (memory : int array)];
@@ -74,7 +75,8 @@ let%expect_test "write a register then read it back" =
       (start stop start "address 80 write" "pointer 3" start "address 80 read"
        nack stop))
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false)))
      (t.pc 17))
     |}]
 ;;
@@ -89,7 +91,8 @@ let%expect_test "a slave at another address does not answer" =
     ((replies (1))
      ("I2c_slave.log slave" (start stop start "address 81 write ignored" stop))
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false)))
      (t.pc 17))
     |}]
 ;;
@@ -137,7 +140,8 @@ let%expect_test "slave takes a write" =
     ((received (160 3 170)) ("I2c_peer.log master" (ack ack ack))
      ("I2c_peer.idle master" true)
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false)))
      (t.pc 4))
     |}]
 ;;
@@ -161,7 +165,8 @@ let%expect_test "slave answers a read after a repeated start" =
      ("I2c_peer.log master" (ack ack ack "read 18" "read 52"))
      ("I2c_peer.idle master" true)
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false)))
      (t.pc 4))
     |}]
 ;;
@@ -175,7 +180,8 @@ let%expect_test "slave ignores another address" =
     ((received (160 7)) ("I2c_peer.log master" (nack nack ack ack))
      ("I2c_peer.idle master" true)
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false)))
      (t.pc 4))
     |}]
 ;;
@@ -211,7 +217,8 @@ let%expect_test "one core polls the slave over i2c and logs over uart" =
       (start "address 80 read" nack stop start "address 80 read" nack stop start
        "address 80 read" nack stop start "address 80 read" nack))
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -463,7 +470,8 @@ let%expect_test "the certified master's pins keep to fast-mode plus at 50 MHz" =
        "address 80 write" "pointer 3" start "address 80 read" nack stop))
      (shortest_low (26)) (shortest_high (26))
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -593,25 +601,29 @@ let%expect_test "the bus clear frees a slave stuck mid-read" =
     {|
     ((bus (S 0 P)) (log (start stop))
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false)))
      (t.pc 17))
     ((bus (000001 S 0 P S 1010000000000001101010101000 P))
      (log
       (start "address 80 read" nack start stop start "address 80 write"
        "pointer 3" "write 170" stop))
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false)))
      (t.pc 17))
     ((bus (1 S 0 P S 1010000000000001101010101000 P))
      (log
       (start "address 80 read" start stop start "address 80 write" "pointer 3"
        "write 170" stop))
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false)))
      (t.pc 17))
     ((bus (0000000000))
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false)))
      (t.pc 17))
     |}]
 ;;
@@ -686,6 +698,7 @@ let%expect_test "the start hold stamper is accepted and reads each hold in locks
     ("lockstep held" (cycles 792))
     ((m.rx_fifo (150 212)) (driven 0)
      (m.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;

@@ -15,3 +15,10 @@ val program
   -> Splittable_random.t
   -> config:Program_config.t
   -> int list
+
+(** One word of [program]. *)
+val word
+  :  ?waits:[ `Any | `Input_pins ]
+  -> Splittable_random.t
+  -> side_set_count:int
+  -> int

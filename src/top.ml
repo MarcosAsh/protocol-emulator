@@ -68,7 +68,12 @@ let create ~memory ~engines (scope : Scope.t) (i : Signal.t I.t) =
     Engines.hierarchical
       ~memory
       scope
-      { clocking; hosts = host.engines; pads = inputs; check_setup = host.check_setup }
+      { clocking
+      ; hosts = host.engines
+      ; pads = inputs
+      ; check_setup = host.check_setup
+      ; start_all = host.start_all
+      }
   in
   List.iter2_exn engine_outs cores.engines ~f:Engine.O.Of_signal.assign;
   Engines.Check.Of_signal.assign check cores.check;

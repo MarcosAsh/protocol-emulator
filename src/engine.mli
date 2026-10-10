@@ -45,6 +45,8 @@ module Config : sig
     ; period_fraction : 'a
     ; autopull_data : 'a
     ; manchester : 'a
+    ; line_code : 'a
+    ; route : 'a
     }
   [@@deriving hardcaml]
 
@@ -57,6 +59,30 @@ module Fault : sig
     ; overflow : 'a
     ; missed_deadline : 'a
     ; decode : 'a
+    ; assumption : 'a (** A premise of [Premises] failed, as [Machine] has it. *)
+    }
+  [@@deriving hardcaml]
+end
+
+(** What the chip's check took the certificate to assume, as [Load_checker.Setup] and
+    [Machine.Premises]: the period every write to [p] other than a set carries, or with
+    [floor] the least, and the single-edge assumption. The core faults the cycle either
+    fails. *)
+module Premises : sig
+  type 'a t =
+    { period : 'a With_valid.t
+    ; floor : 'a
+    ; single_edge : 'a
+    }
+  [@@deriving hardcaml]
+end
+
+(** A word of the [Line_code] table. *)
+module Line_write : sig
+  type 'a t =
+    { valid : 'a
+    ; addr : 'a
+    ; data : 'a
     }
   [@@deriving hardcaml]
 end
@@ -84,6 +110,7 @@ module Host : sig
     ; flush : 'a
     ; check : 'a (** Walk the halted engine's program against its certificate. *)
     ; config_written : 'a (** A field of [config] was written. *)
+    ; line_write : 'a Line_write.t
     }
   [@@deriving hardcaml]
 end
@@ -104,6 +131,9 @@ module I : sig
     ; flush : 'a
     (** Empties both fifos. Ignored unless already halted, so not in the [stop] cycle. *)
     ; inputs : 'a (** External pin levels, and for wires what other engines drive. *)
+    ; line_write : 'a Line_write.t (** Only while halted. *)
+    ; premises : 'a Premises.t (** Held constant while running. *)
+    ; route_full : 'a (** With [route], the next engine's tx fifo is full. *)
     }
   [@@deriving hardcaml]
 end
@@ -155,6 +185,11 @@ module Make (_ : Timer) : sig
       ; stuff_run : 'a
       ; flip_pending : 'a
       ; flip_bit : 'a
+      ; push : 'a With_valid.t (** With [route], a word for the next engine's tx fifo. *)
+      ; line_tx : 'a
+      ; line_rx : 'a
+      ; line_flag : 'a
+      ; line_last : 'a
       }
     [@@deriving hardcaml]
   end

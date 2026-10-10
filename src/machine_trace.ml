@@ -88,12 +88,14 @@ type t =
 
 let level t ~pin ~cycle = (t.levels.(cycle) lsr pin) land 1 = 1
 
-let fault_names { Machine.Fault.underflow; overflow; missed_deadline; decode } =
+let fault_names { Machine.Fault.underflow; overflow; missed_deadline; decode; assumption }
+  =
   List.filter_map
     [ "underflow", underflow
     ; "overflow", overflow
     ; "missed_deadline", missed_deadline
     ; "decode", decode
+    ; "assumption", assumption
     ]
     ~f:(fun (name, set) -> Option.some_if set name)
 ;;

@@ -21,6 +21,9 @@ module Assumptions : sig
 
   (** The period the chip's check takes as loaded: the floor where there is one. *)
   val loaded : t -> int option
+
+  (** What the engine then watches. *)
+  val premises : t -> Machine.Premises.t
 end
 
 module Setup : sig

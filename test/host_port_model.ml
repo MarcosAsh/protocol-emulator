@@ -20,6 +20,11 @@ module Event = struct
     | Rx_pop
     | Check
     | Config_written
+    | Line_write of
+        { addr : int
+        ; data : int
+        }
+    | Start_all
   [@@deriving sexp_of, equal]
 end
 
@@ -32,6 +37,7 @@ type t =
   ; check_base : int
   ; check_loaded : int
   ; check_flags : int
+  ; line_addr : int
   }
 [@@deriving sexp_of]
 
@@ -46,6 +52,7 @@ let create ?(engines = 1) () =
   ; check_base = 0
   ; check_loaded = 0
   ; check_flags = 0
+  ; line_addr = 0
   }
 ;;
 
@@ -69,7 +76,9 @@ let write t ~(statuses : int Host_port.Status.t list) ~reg value =
         ; Option.some_if (value land 8 = 8) Event.Flush
         ; Option.some_if (value land 16 = 16) Event.Check
         ]
-      |> reached t )
+      |> reached t
+      |> Fn.flip List.append (if value land 32 = 32 then [ -1, Event.Start_all ] else [])
+    )
   else if reg = Reg.tx
   then t, reached t [ Event.Tx value ]
   else if reg = Reg.program_addr
@@ -91,7 +100,13 @@ let write t ~(statuses : int Host_port.Status.t list) ~reg value =
   else if reg = Reg.check_loaded
   then { t with check_loaded = value }, []
   else if reg = Reg.check_flags
-  then { t with check_flags = value land 3 }, []
+  then { t with check_flags = value land 7 }, []
+  else if reg = Reg.line_addr
+  then { t with line_addr = value land mask Line_code.address_bits }, []
+  else if reg = Reg.line
+  then
+    ( { t with line_addr = (t.line_addr + 1) land mask Line_code.address_bits }
+    , reached t [ Event.Line_write { addr = t.line_addr; data = value } ] )
   else (
     match field with
     | None -> t, []
@@ -124,7 +139,9 @@ let status_word (s : int Host_port.Status.t) ~other_irq =
     ; s.fault.decode
     ; levels
     ]
-    ~init:(Bool.to_int other_irq lsl (Isa.data_bits - 1))
+    ~init:
+      ((Bool.to_int other_irq lsl (Isa.data_bits - 1))
+       lor (s.fault.assumption lsl (Isa.data_bits - 2)))
     ~f:(fun bit word flag -> word lor (flag lsl bit))
 ;;
 
@@ -154,6 +171,8 @@ let read
   then t.check_loaded, []
   else if reg = Reg.check_flags
   then t.check_flags, []
+  else if reg = Reg.line_addr
+  then t.line_addr, []
   else if reg = Reg.check_status
   then (
     let mine =

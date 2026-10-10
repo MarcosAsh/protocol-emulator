@@ -75,12 +75,14 @@ let%expect_test "the core sends every frame, at the standard tick and the shorte
      (measured_ns
       (Ok ((sync (168000 168000)) (low (15000 15000)) (pause (36000 36000)))))
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     ((tick 21)
      (measured_ns
       (Ok ((sync (23520 23520)) (low (2100 2100)) (pause (5040 5040)))))
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -95,10 +97,12 @@ let%expect_test "a late frame lengthens the pause before it" =
      (measured_ns
       (Ok ((sync (23520 23520)) (low (2100 2100)) (pause (5040 116780)))))
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     ((tick 21) (measured_ns (Error ("no pause" (pause 20839) (sync 1176))))
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -278,7 +282,8 @@ let%expect_test "sent in lockstep" =
         ((status 15) (data (15 15 15 15 15 15)))
         ((status 5) (data (1 2 3 4 5 6))) ((status 10) (data (12 10 15 14 0 7))))))
      (model.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -466,7 +471,8 @@ let%expect_test "the versions before" =
             ((pc 46) (fails ("in time" "next phase"))))))))))
      (decoded (Ok true))
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline true) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline true) (decode false)
+       (assumption false))))
     (third
      (standard
       ((analyser true)
@@ -486,7 +492,8 @@ let%expect_test "the versions before" =
             ((pc 43) (fails ("in time" "next phase"))))))))))
      (decoded (Ok true))
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     (fourth (standard ((analyser true) (kernel (Ok ()))))
      (from_shortest
       ((analyser true)
@@ -496,6 +503,7 @@ let%expect_test "the versions before" =
           (rejected (((pc 25) (fails ("in time" "next phase"))))))))))
      (decoded (Ok true))
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;

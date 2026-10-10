@@ -64,7 +64,8 @@ let%expect_test "a UDP datagram goes out in 10BASE-T" =
     ((bytes 66) (as_sent true) (fcs_ok true) (payload "hello from the chip"))
     ((violations ())
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -84,7 +85,8 @@ let%expect_test "link pulses while idle" =
     {|
     ((link_intervals_us (16000 16000)) (violations ())
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 

@@ -343,7 +343,8 @@ let%expect_test "the engine runs the compiled firmware as the model does" =
     {|
     ("lockstep held" (cycles 400))
     (machine.fault
-     ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+     ((underflow false) (overflow false) (missed_deadline false) (decode false)
+      (assumption false)))
     |}]
 ;;
 

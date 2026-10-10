@@ -33,6 +33,8 @@ CONFIG = {
     "period_fraction": 0,
     "autopull_data": 0,
     "manchester": 0,
+    "line_code": 0,
+    "route": 0,
 }
 
 WORDS = [

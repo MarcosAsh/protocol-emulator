@@ -124,7 +124,8 @@ let%expect_test "the core sends what the builder makes, back to back" =
     {|
     ((period 96)
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     ((id 0x123) (bits 64) (stuff_bits 1))
     ((id 0x0) (bits 127) (stuff_bits 16))
     ((id 0x7ff) (bits 126) (stuff_bits 15))
@@ -132,7 +133,8 @@ let%expect_test "the core sends what the builder makes, back to back" =
     ((id 0xf0) (bits 47) (stuff_bits 0))
     ((period 15)
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     ((id 0x123) (bits 64) (stuff_bits 1))
     ((id 0x0) (bits 127) (stuff_bits 16))
     ((id 0x7ff) (bits 126) (stuff_bits 15))
@@ -168,7 +170,8 @@ let%expect_test "can in lockstep" =
     {|
     ("lockstep held" (cycles 6752))
     (model.fault
-     ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+     ((underflow false) (overflow false) (missed_deadline false) (decode false)
+      (assumption false)))
     |}]
 ;;
 

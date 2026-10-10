@@ -111,7 +111,8 @@ let%expect_test "a key goes to the host, the host sends a command and gets its a
        ("clock high" (40000 40000)) (hold (20040 20040))))
      (violations ())
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -131,7 +132,8 @@ let%expect_test "the host takes the clock in the middle of a frame" =
        ("clock high" (40000 40000)) (hold (20040 20040))))
      (violations ())
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -177,7 +179,8 @@ let%expect_test "ps2 in lockstep" =
        ("clock high" (40000 40000)) (hold (21000 21000))))
      (violations ())
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -253,6 +256,7 @@ let%expect_test "a clock of 25 kHz is out of the standard" =
        ("clock high" (20000 20000)) (hold (10040 10040))))
      (violations ("clock high of 20000 ns" "clock low of 20000 ns"))
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;

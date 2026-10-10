@@ -37,6 +37,8 @@ type t =
   ; period_fraction : int
   ; autopull_data : bool
   ; manchester : bool
+  ; line_code : bool [@default false] [@sexp_drop_default.equal]
+  ; route : bool [@default false] [@sexp_drop_default.equal]
   }
 [@@deriving sexp, compare, equal]
 
@@ -70,6 +72,8 @@ let default =
   ; period_fraction = 0
   ; autopull_data = false
   ; manchester = false
+  ; line_code = false
+  ; route = false
   }
 ;;
 

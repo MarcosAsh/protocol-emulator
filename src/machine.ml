@@ -18,12 +18,29 @@ module Fault = struct
     ; overflow : bool
     ; missed_deadline : bool
     ; decode : bool
+    ; assumption : bool
     }
   [@@deriving sexp_of, compare, equal]
 
   let none =
-    { underflow = false; overflow = false; missed_deadline = false; decode = false }
+    { underflow = false
+    ; overflow = false
+    ; missed_deadline = false
+    ; decode = false
+    ; assumption = false
+    }
   ;;
+end
+
+module Premises = struct
+  type t =
+    { period : int option
+    ; floor : bool
+    ; single_edge : bool
+    }
+  [@@deriving sexp_of, compare, equal]
+
+  let none = { period = None; floor = false; single_edge = false }
 end
 
 type t =
@@ -57,6 +74,17 @@ type t =
   ; crc : int
   ; stuff_run : int
   ; flip : int option
+  ; line_table : Line_code.t
+  ; line_tx : int
+  ; line_rx : int
+  ; line_flag : bool
+  ; line_last : int
+  ; premises : Premises.t
+  ; p_loaded : bool
+  ; holding : bool
+  ; seen : bool
+  ; route_full : bool
+  ; routed : int option
   }
 [@@deriving sexp_of, compare, equal]
 
@@ -100,12 +128,26 @@ let create ~config ~program =
   ; crc = config.crc_init
   ; stuff_run = 0
   ; flip = None
+  ; line_table = Line_code.off
+  ; line_tx = 0
+  ; line_rx = 0
+  ; line_flag = false
+  ; line_last = 0
+  ; premises = Premises.none
+  ; p_loaded = false
+  ; holding = false
+  ; seen = false
+  ; route_full = false
+  ; routed = None
   }
 ;;
 
 let load_data t words =
   Or_error.map (fill "data" words ~size:data_size) ~f:(fun data -> { t with data })
 ;;
+
+let load_line_table t line_table = { t with line_table }
+let assume t premises = { t with premises }
 
 let write_tx t value =
   if List.length t.tx_fifo >= fifo_depth
@@ -162,10 +204,17 @@ let signed_diff a b =
 
 let fault t f = { t with fault = f t.fault }
 
+(* a routed engine's rx fifo is the next engine's tx fifo *)
+let rx_full t =
+  if t.config.route then t.route_full else List.length t.rx_fifo >= fifo_depth
+;;
+
 let push t =
   let t =
-    if List.length t.rx_fifo >= fifo_depth
+    if rx_full t
     then fault t (fun f -> { f with overflow = true })
+    else if t.config.route
+    then { t with routed = Some t.isr }
     else { t with rx_fifo = t.rx_fifo @ [ t.isr ] }
   in
   { t with isr = 0; isr_count = 0 }
@@ -232,7 +281,9 @@ let bit_crosses t bit =
 ;;
 
 let stuff_pending t =
-  t.config.stuff_threshold > 0 && t.stuff_run >= t.config.stuff_threshold
+  if t.config.line_code
+  then t.line_flag
+  else t.config.stuff_threshold > 0 && t.stuff_run >= t.config.stuff_threshold
 ;;
 
 let jmp_taken t (cond : Isa.Jmp_cond.Cases.t) ~sample =
@@ -247,8 +298,8 @@ let jmp_taken t (cond : Isa.Jmp_cond.Cases.t) ~sample =
   | Stuff_pending -> stuff_pending t, t
   | Tx_not_empty -> not (List.is_empty t.tx_fifo), t
   | Tx_empty -> List.is_empty t.tx_fifo, t
-  | Rx_not_full -> List.length t.rx_fifo < fifo_depth, t
-  | Rx_full -> List.length t.rx_fifo >= fifo_depth, t
+  | Rx_not_full -> not (rx_full t), t
+  | Rx_full -> rx_full t, t
 ;;
 
 (* the part of the period below the cycle builds up under [t] and carries into it *)
@@ -278,7 +329,7 @@ let wait_ready t (wait : Isa.Wait.t) ~sample =
       in
       Some (if advance then advance_deadline t else t))
   | Fifo Tx_not_empty -> if List.is_empty t.tx_fifo then None else Some t
-  | Fifo Rx_not_full -> if List.length t.rx_fifo < fifo_depth then Some t else None
+  | Fifo Rx_not_full -> if rx_full t then None else Some t
 ;;
 
 let shift_in t ~value ~count =
@@ -323,6 +374,19 @@ let out_dest t (dest : Isa.Out_dest.Cases.t) ~count ~value =
   | Pins when t.config.manchester && count = 1 ->
     { (write_pins t ~base:t.config.out_base ~count:2 ~value:(manchester_pair value)) with
       flip = Some value
+    }
+  | Pins when t.config.line_code && count = 1 ->
+    let c = t.config in
+    let modes = t.line_table.modes in
+    let pin = get_pins t.pin_out ~base:c.out_base ~count:1 in
+    let input = if modes.tx_relative then value lxor pin else value in
+    let e = Line_code.entry t.line_table ~state:t.line_tx ~input in
+    let level = if modes.tx_toggle then pin lxor e.out else e.out in
+    (* the next pin the complement *)
+    let value = level lor ((1 - level) lsl 1) in
+    { (write_pins t ~base:c.out_base ~count:(Int.min 2 c.out_count) ~value) with
+      line_tx = e.next
+    ; line_flag = e.flag
     }
   | Pins -> write_pins t ~base:t.config.out_base ~count ~value
   | X -> { t with x = value }
@@ -412,7 +476,7 @@ let sys t (op : Isa.Sys_op.Cases.t) =
   | Push -> push t
   | Pull -> pull t
   | Crc_init -> { t with crc = t.config.crc_init }
-  | Stuff_reset -> { t with stuff_run = 0 }
+  | Stuff_reset -> { t with stuff_run = 0; line_flag = false }
   | Capture_arm -> { t with capture_armed = true }
   | Seek -> { t with data_ptr = t.x % data_size; data_age = 0 }
 ;;
@@ -420,6 +484,17 @@ let sys t (op : Isa.Sys_op.Cases.t) =
 let execute t (op : Isa.Op.t) ~sample =
   match op with
   | Wait _ -> raise_s [%message "BUG: wait is handled by the issue logic"]
+  | In { source = Pins; count = 1 } when t.config.line_code ->
+    let modes = t.line_table.modes in
+    let pin = get_pins sample ~base:t.config.in_base ~count:1 in
+    let input = if modes.rx_relative then pin lxor t.line_last else pin in
+    let e = Line_code.entry t.line_table ~state:t.line_rx ~input in
+    let value = if modes.rx_toggle then e.out lxor t.line_last else e.out in
+    let t = { t with line_rx = e.next; line_flag = e.flag; line_last = pin } in
+    (* a dropped bit reaches nothing but the state *)
+    if e.flag
+    then t
+    else bit_crosses t value |> shift_in ~value ~count:1 |> autopush_after_in
   | In { source; count } ->
     let value = in_source t source ~count ~sample in
     let t = if count = 1 then bit_crosses t (value land 1) else t in
@@ -445,6 +520,7 @@ let pc_after t =
   if t.pc = t.config.wrap_top then t.config.wrap_bottom else (t.pc + 1) land pc_mask
 ;;
 
+(* the issue and, for an instruction that took effect rather than waited, its op *)
 let issue t ~sample =
   let c = t.config in
   (* the second half of a Manchester bit starts with the next instruction *)
@@ -457,10 +533,11 @@ let issue t ~sample =
       }
   in
   match Isa.of_word ~side_set_count:c.side_set_count t.program.(t.pc) with
-  | Error _ -> fault { t with halted = true } (fun f -> { f with decode = true })
+  | Error _ -> fault { t with halted = true } (fun f -> { f with decode = true }), None
   | Ok (Jmp { cond; target }) ->
     let taken, t = jmp_taken t cond ~sample in
-    { t with pc = (if taken then target else pc_after t); stall = Isa.jmp_cycles - 1 }
+    ( { t with pc = (if taken then target else pc_after t); stall = Isa.jmp_cycles - 1 }
+    , None )
   | Ok (Op { op; delay; side_set }) ->
     let t =
       (if c.side_set_pindirs then write_pindirs else write_pins)
@@ -472,24 +549,95 @@ let issue t ~sample =
     (match op with
      | Wait wait ->
        (match wait_ready t wait ~sample with
-        | None -> t
-        | Some t -> { t with pc = pc_after t; stall = delay })
-     | op -> { (execute t op ~sample) with pc = pc_after t; stall = delay })
+        | None -> t, None
+        | Some t -> { t with pc = pc_after t; stall = delay }, Some op)
+     | op -> { (execute t op ~sample) with pc = pc_after t; stall = delay }, Some op)
 ;;
 
-let step t ~inputs =
+(* The premises a certificate may rest on. The period: where the kernel takes [p] as a
+   period, at [wait t+] and [add t, p], a [p] last written other than by a set carries the
+   loaded period, or at least it with [floor]. Checked at the use rather than the write,
+   so firmware may keep other values in [p] between. The single edge, as
+   [formal/phase_step.sv] assumes it: the capture pin is at the other level when
+   [capture_arm] takes effect and, once at the captured level, stays there until a wait
+   for it releases ([holding] from the arm to that release, [seen] once at the level). The
+   fault rises the cycle a premise fails. *)
+let watch_premises t ~(before : t) ~(op : Isa.Op.t option) ~sample =
+  let c = t.config in
+  let level = Bool.equal (bit sample c.capture_pin = 1) c.capture_rising in
+  let arms =
+    match op with
+    | Some (Sys Capture_arm) -> true
+    | _ -> false
+  in
+  let capture_pin pin = pin = c.capture_pin && pin < Isa.pin_space in
+  let releases =
+    before.premises.single_edge
+    &&
+    match op with
+    | Some (Wait (Pin_level { pin; level })) ->
+      capture_pin pin && Bool.equal level c.capture_rising
+    | Some (Wait (Pin_edge { pin; rising })) ->
+      capture_pin pin && Bool.equal rising c.capture_rising
+    | _ -> false
+  in
+  let p_loaded =
+    match op with
+    | Some (Set { dest = P; _ }) -> false
+    | Some (Mov { dest = P; _ } | Out { dest = P; _ } | Alu { dest = P; _ }) -> true
+    | _ -> before.p_loaded
+  in
+  let uses_p =
+    match op with
+    | Some (Wait (Deadline { advance = true }))
+    | Some (Alu { dest = T; op = Add; operand = Reg P }) -> true
+    | _ -> false
+  in
+  let period_off =
+    uses_p
+    && before.p_loaded
+    &&
+    match before.premises.period with
+    | Some period ->
+      if before.premises.floor then before.p < period else before.p <> period
+    | None -> false
+  in
+  let edge_off =
+    before.premises.single_edge
+    && ((arms && level) || (before.holding && before.seen && not level))
+  in
+  let holding, seen =
+    if arms
+    then true, false
+    else if releases
+    then false, before.seen
+    else before.holding, before.seen || (before.holding && level)
+  in
+  let t = { t with p_loaded; holding; seen } in
+  if period_off || edge_off then fault t (fun f -> { f with assumption = true }) else t
+;;
+
+let step ?(route_full = false) t ~inputs =
   let sample = sample_pins t ~inputs in
   let captured = capture_edge t ~sample in
   let now = t.now in
-  let t = { t with data_age = Int.min Isa.data_settle (t.data_age + 1) } in
+  let before = t in
   let t =
+    { t with
+      data_age = Int.min Isa.data_settle (t.data_age + 1)
+    ; route_full
+    ; routed = None
+    }
+  in
+  let t, op =
     (* a delay runs out whether or not the core has been halted in the meantime *)
     if t.stall > 0
-    then { t with stall = t.stall - 1 }
+    then { t with stall = t.stall - 1 }, None
     else if t.halted
-    then t
+    then t, None
     else issue t ~sample
   in
+  let t = watch_premises t ~before ~op ~sample in
   let t = if captured then { t with capture = now; capture_armed = false } else t in
   { t with now = (now + 1) land timer_mask; pins_sampled = sample }
 ;;

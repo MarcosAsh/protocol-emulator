@@ -47,6 +47,12 @@ type t =
   ; manchester : bool
   (** [out pins, 1] drives a Manchester pair: [out_base] the complement, [out_base + 1]
       the bit, both flipping at the next issue. The [out]'s length is the first half. *)
+  ; line_code : bool
+  (** Single-bit [out pins] and [in pins] go through the engine's [Line_code] table, and
+      [jmp stuff] reads its flag. Manchester takes an [out] first. *)
+  ; route : bool
+  (** Pushes go to the next engine's tx fifo instead of this one's rx fifo, which the rx
+      conditions and the overflow fault then judge by. *)
   }
 [@@deriving sexp, compare, equal]
 

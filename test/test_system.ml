@@ -45,10 +45,12 @@ let%expect_test "uart from one engine to the other over a pin" =
     ("lockstep held" (cycles 500))
     ((engine 0) (m.rx_fifo ()) (m.irq false)
      (m.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     ((engine 1) (m.rx_fifo (85 163)) (m.irq false)
      (m.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -59,10 +61,12 @@ let%expect_test "uart from one engine to the other over a wire" =
     ("lockstep held" (cycles 500))
     ((engine 0) (m.rx_fifo ()) (m.irq false)
      (m.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     ((engine 1) (m.rx_fifo (85 163)) (m.irq false)
      (m.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 

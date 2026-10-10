@@ -16,6 +16,7 @@ module Setup = struct
   type 'a t =
     { base : 'a [@bits Isa.data_addr_bits]
     ; loaded : 'a With_valid.t [@bits Isa.data_bits]
+    ; floor : 'a
     ; single_edge : 'a
     }
   [@@deriving hardcaml]

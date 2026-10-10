@@ -34,6 +34,8 @@ SPI_MASTER = {
         "period_fraction": 0,
         "autopull_data": 0,
         "manchester": 0,
+        "line_code": 0,
+        "route": 0,
     },
     "words": [
         0xA088, 0x20E0, 0xE004, 0x6068, 0xA027, 0x80E6, 0xC0CA, 0x20C0,
@@ -79,6 +81,8 @@ I2C_MASTER = {
         "period_fraction": 0,
         "autopull_data": 0,
         "manchester": 0,
+        "line_code": 0,
+        "route": 0,
     },
     "words": [
         0x20E0, 0xE004, 0x80C5, 0xA028, 0x80E6, 0xC0CA, 0x080E, 0x20C0,
@@ -143,6 +147,8 @@ I2C_MASTER_STRETCH = {
         "period_fraction": 0,
         "autopull_data": 0,
         "manchester": 0,
+        "line_code": 0,
+        "route": 0,
     },
     "words": [
         0x20E0, 0xE004, 0x80C5, 0xA028, 0x80E6, 0xC0CA, 0x8040, 0x040F,
@@ -222,6 +228,8 @@ ONE_WIRE = {
         "period_fraction": 0,
         "autopull_data": 0,
         "manchester": 0,
+        "line_code": 0,
+        "route": 0,
     },
     "words": [
         0x20E0, 0xE004, 0x80C5, 0x20E0, 0xE004, 0x6041, 0x80E6, 0xC0CA,
@@ -276,6 +284,8 @@ CAN = {
         "period_fraction": 0,
         "autopull_data": 0,
         "manchester": 0,
+        "line_code": 0,
+        "route": 0,
     },
     "words": [
         0x20E0, 0xE004, 0x80C5, 0x80E6, 0xC0CA, 0x20C0, 0xA001, 0x20E0,
@@ -334,6 +344,8 @@ CAN_SENDER = {
         "period_fraction": 0,
         "autopull_data": 0,
         "manchester": 0,
+        "line_code": 0,
+        "route": 0,
     },
     "words": [
         0x20E0, 0xE004, 0x80C5, 0x80E6, 0xC0CA, 0x20C0, 0xA001, 0x20E0,
@@ -393,6 +405,8 @@ CAN_RECEIVER = {
         "period_fraction": 0,
         "autopull_data": 0,
         "manchester": 0,
+        "line_code": 0,
+        "route": 0,
     },
     "words": [
         0xA098, 0xC08A, 0xC08A, 0xA001, 0x80E6, 0xC0CA, 0xA02A, 0x20C0,
@@ -500,6 +514,8 @@ SK6812 = {
         "period_fraction": 0,
         "autopull_data": 0,
         "manchester": 0,
+        "line_code": 0,
+        "route": 0,
     },
     "words": [
         0x80E6, 0xA000, 0xA090, 0x80E6, 0xA03F, 0xC0CA, 0xC0CA, 0xC0CA,
@@ -551,6 +567,8 @@ START_HOLD = {
         "period_fraction": 0,
         "autopull_data": 0,
         "manchester": 0,
+        "line_code": 0,
+        "route": 0,
     },
     "words": [
         0x202E, 0x8026, 0x0A00, 0x200F, 0x8046, 0x1600, 0xC058, 0x4050,
@@ -595,6 +613,8 @@ ETHERNET = {
         "period_fraction": 0,
         "autopull_data": 1,
         "manchester": 1,
+        "line_code": 0,
+        "route": 0,
     },
     "words": [
         0xE004, 0x80C5, 0xA063, 0x80E6, 0xC0CA, 0xA029, 0x20C0, 0x100C,
@@ -643,6 +663,8 @@ SWD = {
         "period_fraction": 0,
         "autopull_data": 0,
         "manchester": 0,
+        "line_code": 0,
+        "route": 0,
     },
     "words": [
         0xA060, 0xA000, 0x20E0, 0xE004, 0x80C5, 0x80E6, 0xC0CA, 0xA03F,
@@ -736,6 +758,8 @@ SPI_CS_MODE0 = {
         "period_fraction": 0,
         "autopull_data": 0,
         "manchester": 0,
+        "line_code": 0,
+        "route": 0,
     },
     "words": [
         0xB088, 0x30E0, 0xF004, 0x7048, 0xB025, 0x90E6, 0xD0C8, 0x6001,
@@ -785,6 +809,8 @@ SPI_CS_MODE1 = {
         "period_fraction": 0,
         "autopull_data": 0,
         "manchester": 0,
+        "line_code": 0,
+        "route": 0,
     },
     "words": [
         0xB088, 0x30E0, 0xF004, 0x7048, 0xB025, 0x90E6, 0xD0C8, 0xE000,
@@ -834,6 +860,8 @@ SPI_CS_MODE2 = {
         "period_fraction": 0,
         "autopull_data": 0,
         "manchester": 0,
+        "line_code": 0,
+        "route": 0,
     },
     "words": [
         0xB888, 0x38E0, 0xF804, 0x7848, 0xB825, 0x98E6, 0xD8C8, 0x6801,
@@ -883,6 +911,8 @@ SPI_CS_MODE3 = {
         "period_fraction": 0,
         "autopull_data": 0,
         "manchester": 0,
+        "line_code": 0,
+        "route": 0,
     },
     "words": [
         0xB888, 0x38E0, 0xF804, 0x7848, 0xB825, 0x98E6, 0xD8C8, 0xE800,

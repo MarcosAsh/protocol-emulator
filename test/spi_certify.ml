@@ -24,6 +24,7 @@ let certify
     Reg.check_flags
     [ Bool.to_int (Option.is_some loaded)
       lor (Bool.to_int assumptions.single_capture_edge lsl 1)
+      lor (Bool.to_int (Option.is_some assumptions.period_floor) lsl 2)
     ];
   Spi_master.write m ~watch Reg.control [ 0x10 ];
   let status () = List.hd_exn (Spi_master.read m ~watch Reg.check_status ~count:1) in

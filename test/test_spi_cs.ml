@@ -81,7 +81,8 @@ let%expect_test "each mode against a slave of that mode" =
        ("CS low" (132 546)) ("CS high" (9 9))))
      (violations ())
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     ((mode 1) (frames ((159 0 0 0) (165) (60 195)))
      (received (90 96 255 255 90 90 195))
      (measured_cycles
@@ -89,7 +90,8 @@ let%expect_test "each mode against a slave of that mode" =
        ("CS low" (132 546)) ("CS high" (9 9))))
      (violations ())
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     ((mode 2) (frames ((159 0 0 0) (165) (60 195)))
      (received (90 96 255 255 90 90 195))
      (measured_cycles
@@ -97,7 +99,8 @@ let%expect_test "each mode against a slave of that mode" =
        ("CS low" (132 546)) ("CS high" (9 9))))
      (violations ())
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     ((mode 3) (frames ((159 0 0 0) (165) (60 195)))
      (received (90 96 255 255 90 90 195))
      (measured_cycles
@@ -105,7 +108,8 @@ let%expect_test "each mode against a slave of that mode" =
        ("CS low" (132 546)) ("CS high" (9 9))))
      (violations ())
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 

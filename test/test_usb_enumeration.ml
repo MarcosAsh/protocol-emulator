@@ -208,7 +208,8 @@ let%expect_test "a host enumerates the keyboard and mouse and reads reports" =
     ("device descriptor at address 0 after a reset" (bytes 8) (correct true)
      (naks_so_far 39))
     ("faults t"
-     ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+     ((underflow false) (overflow false) (missed_deadline false) (decode false)
+      (assumption false)))
     |}]
 ;;
 
@@ -231,7 +232,8 @@ let%expect_test "a bus reset with a report still queued" =
     {|
     ("device descriptor at address 0" (correct true) (nothing_to_report ())
      ("faults t"
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 

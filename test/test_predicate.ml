@@ -230,7 +230,8 @@ let%expect_test "the engine runs the compiled firmware as the model does" =
     {|
     ("lockstep held" (cycles 260))
     (machine.fault
-     ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+     ((underflow false) (overflow false) (missed_deadline false) (decode false)
+      (assumption false)))
     |}]
 ;;
 
@@ -590,6 +591,7 @@ let%expect_test "the engine runs the quiet firmware as the model does" =
     {|
     ("lockstep held" (cycles 901))
     (machine.fault
-     ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+     ((underflow false) (overflow false) (missed_deadline false) (decode false)
+      (assumption false)))
     |}]
 ;;

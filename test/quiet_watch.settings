@@ -8,6 +8,8 @@ crc_reflect 1
 stuff_level 1
 autopull_data 0
 manchester 0
+line_code 0
+route 0
 side_set_count 0
 side_set_base 5
 in_base 0

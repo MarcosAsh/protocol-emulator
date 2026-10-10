@@ -19,11 +19,14 @@ val left_over : int
 
 (** What the host sets before a check: where the certificate starts, the period every
     run-time load of [p] is assumed to carry, and the single-edge assumption. Taken as the
-    check begins; a write during a walk counts from the next check. *)
+    check begins; a write during a walk counts from the next check. With [floor] the
+    engine takes [loaded] as the least a load carries; the walk does not read it yet and
+    takes [loaded] as exact. *)
 module Setup : sig
   type 'a t =
     { base : 'a
     ; loaded : 'a With_valid.t
+    ; floor : 'a
     ; single_edge : 'a
     }
   [@@deriving hardcaml]

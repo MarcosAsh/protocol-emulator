@@ -5,7 +5,9 @@
     and any engine's drive on a wire. [formal/chip_frame.sv] proves two engines sharing no
     pad drive and read as alone, except reading the other's bidirectional pads and wires,
     provided neither gets a new config without a clear. An engine starts only on a program
-    the [Load_checker] accepted, under the configuration it was checked with. *)
+    the [Load_checker] accepted, under the configuration it was checked with, and watches
+    the premises that check took ([Engine.Premises]). A routed engine's pushes go to the
+    next engine's tx fifo, which its host then cannot write. *)
 
 open! Core
 open! Hardcaml
@@ -21,6 +23,9 @@ module Make (_ : Config) : sig
       ; hosts : 'a Engine.Host.t list
       ; pads : 'a
       ; check_setup : 'a Load_checker.Setup.t
+      ; start_all : 'a
+      (** Starts every engine on one cycle, only when all are halted and, gated, all
+          certified. *)
       }
     [@@deriving hardcaml]
   end

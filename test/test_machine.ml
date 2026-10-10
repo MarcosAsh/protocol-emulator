@@ -16,7 +16,8 @@ let%expect_test "a deadline that is already past releases at once and is a fault
   [%expect
     {|
     ((t.fault
-      ((underflow false) (overflow false) (missed_deadline true) (decode false)))
+      ((underflow false) (overflow false) (missed_deadline true) (decode false)
+       (assumption false)))
      (t.halted true) (t.now 6))
     |}]
 ;;
@@ -32,7 +33,8 @@ let%expect_test "pull from an empty fifo faults instead of stalling" =
   [%expect
     {|
     ((t.fault
-      ((underflow true) (overflow false) (missed_deadline false) (decode false)))
+      ((underflow true) (overflow false) (missed_deadline false) (decode false)
+       (assumption false)))
      (t.halted true))
     |}]
 ;;
@@ -62,7 +64,8 @@ let%expect_test "a word that does not decode halts with a fault" =
   [%expect
     {|
     ((t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode true)))
+      ((underflow false) (overflow false) (missed_deadline false) (decode true)
+       (assumption false)))
      (t.halted true) (t.pc 0))
     |}]
 ;;
@@ -183,7 +186,8 @@ let%expect_test "crc-16/usb over the check string" =
     {|
     (("crc lxor 0xffff" 0xb4c8)
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -197,7 +201,8 @@ let%expect_test "crc-5/usb over the check string" =
     {|
     (("crc lxor 0x1f" 0x19)
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -216,7 +221,8 @@ let%expect_test "crc-16/xmodem shifts the other way" =
     {|
     ((crc 0x31c3)
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -272,6 +278,7 @@ let%expect_test "a wrapped loop costs no cycles" =
     {|
     (("runs levels" ((0 4) (1 2) (0 2) (1 2) (0 2) (1 2) (0 2) (1 2) (0 2)))
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;

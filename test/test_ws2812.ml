@@ -76,7 +76,8 @@ let%expect_test "two frames come out of the string as they went in" =
       ((T0H (400 400)) (T0L (840 840)) (T1H (800 800)) (T1L (440 440))))
      (violations ())
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -112,7 +113,8 @@ let%expect_test "ws2812 in lockstep" =
       ((T0H (400 400)) (T0L (840 840)) (T1H (800 800)) (T1L (440 440))))
      (violations ())
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -158,7 +160,8 @@ let%expect_test "a bit too short for the end of a word" =
   [%expect
     {|
     (fault
-     ((underflow false) (overflow false) (missed_deadline true) (decode false)))
+     ((underflow false) (overflow false) (missed_deadline true) (decode false)
+      (assumption false)))
     |}]
 ;;
 
@@ -174,6 +177,7 @@ let%expect_test "a third of 29 cycles is out of tolerance" =
       ((T0H (580 580)) (T0L (1160 1160)) (T1H (1160 1160)) (T1L (580 580))))
      (violations ("T0H of 580 ns" "T0L of 1160 ns" "T1H of 1160 ns"))
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;

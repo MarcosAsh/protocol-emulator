@@ -226,7 +226,8 @@ let%expect_test "an RP2040's two DPs, woken from dormant and selected in turn" =
      (violations ()))
     ((contention ())
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false)))
      (tx_left 0) (swclk 0) (swdio_driven 0))
     |}]
 ;;
@@ -253,7 +254,8 @@ let%expect_test "a read whose parity is wrong" =
      (violations ()))
     ((contention ())
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false)))
      (tx_left 0) (swclk 1) (swdio_driven 1))
     |}]
 ;;
@@ -306,7 +308,8 @@ let%expect_test "ACKs the wire garbled" =
      (violations ()))
     ((contention ())
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false)))
      (tx_left 0) (swclk 0) (swdio_driven 0))
     |}]
 ;;
@@ -344,7 +347,8 @@ let%expect_test "a line nobody pulls up" =
      (violations ()))
     ((contention ())
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false)))
      (tx_left 0) (swclk 1) (swdio_driven 1))
     |}]
 ;;
@@ -518,6 +522,7 @@ let%expect_test "swd in lockstep" =
        "W DP 0x0 OK 0xffffffff, undriven, WDATAERR" "dormant to SWD" "line reset"
        "TARGETSEL 0x01002927: deselected"))
      (model.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;

@@ -48,7 +48,13 @@ module Bench (Config : Host_port.Config) = struct
                      "data[%{int o.data_write.addr#Int}] <- %{int o.data_write.data#Int}"];
                if Bits.to_bool !(o.tx.valid)
                then note [%string "tx <- %{int o.tx.value#Int}"];
-               if Bits.to_bool !(o.rx_pop) then note "rx_pop")
+               if Bits.to_bool !(o.rx_pop) then note "rx_pop";
+               if Bits.to_bool !(o.line_write.valid)
+               then
+                 note
+                   [%string
+                     "line[%{int o.line_write.addr#Int}] <- %{int o.line_write.data#Int}"]);
+             if Bits.to_bool !(o.start_all) then events := "start_all" :: !events
            done
          in
          inputs.clocking.clear := Bits.vdd;
@@ -171,26 +177,28 @@ let%expect_test "config registers are write only" =
        (pull_threshold 0x21 0) (crc_width 0x22 0) (crc_poly 0x23 0)
        (crc_init 0x24 0) (crc_reflect 0x25 0) (stuff_threshold 0x26 0)
        (stuff_level 0x27 0) (wrap_bottom 0x28 0) (wrap_top 0x29 0)
-       (period_fraction 0x2a 0) (autopull_data 0x2d 0) (manchester 0x2e 0)))
+       (period_fraction 0x2a 0) (autopull_data 0x2d 0) (manchester 0x2e 0)
+       (line_code 0x2f 0) (route 0x30 0)))
      (live
-      (1 2 1 4 5 6 7 8 1 10 11 0 1 0 1 16 1 18 19 20 21 0 23 0 25 26 27 0 1)))
+      (1 2 1 4 5 6 7 8 1 10 11 0 1 0 1 16 1 18 19 20 21 0 23 0 25 26 27 0 1 0 1)))
     (events
      (config_written config_written config_written config_written config_written
       config_written config_written config_written config_written config_written
       config_written config_written config_written config_written config_written
       config_written config_written config_written config_written config_written
       config_written config_written config_written config_written config_written
-      config_written config_written config_written config_written))
+      config_written config_written config_written config_written config_written
+      config_written))
     |}]
 ;;
 
-(* reserved registers ignore writes and read zero; control bit 5 does nothing *)
+(* reserved registers ignore writes and read zero; control bits 6 and up do nothing *)
 let%expect_test "the reserved registers and control bits do nothing" =
   run ~half:4 (fun m ~watch inputs o ->
     Host_port.Status.iter (List.hd_exn inputs.status) ~f:(fun port ->
       port := Bits.ones (Bits.width !port));
     List.iter Reg.reserved ~f:(fun reg -> Spi_master.write m ~watch reg [ 0xffff ]);
-    Spi_master.write m ~watch Reg.control [ 0x20 ];
+    Spi_master.write m ~watch Reg.control [ 0xffc0 ];
     let back =
       List.map Reg.reserved ~f:(fun reg ->
         List.hd_exn (Spi_master.read m ~watch reg ~count:1))
@@ -203,9 +211,34 @@ let%expect_test "the reserved registers and control bits do nothing" =
     print_s [%message (back : int list) (live : int list)]);
   [%expect
     {|
-    ((back (0 0 0 0))
-     (live (0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)))
+    ((back (0 0))
+     (live (0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)))
     (events ())
+    |}]
+;;
+
+(* The line table's words go to the selected engine and step the state, which reads back.
+   Control bit 5 reaches every engine as one start, and status bit 14 is the assumption
+   fault. *)
+let%expect_test "the line table, the start of every engine and the assumption fault" =
+  Two.run ~half:4 (fun m ~watch inputs _ ->
+    (List.nth_exn inputs.status 1).fault.assumption := Bits.vdd;
+    Spi_master.write m ~watch Reg.select [ 1 ];
+    Spi_master.write m ~watch Reg.line_addr [ 14 ];
+    Spi_master.write m ~watch Reg.line [ 0x1234; 0x5678; 0x9abc ];
+    let state = Spi_master.read m ~watch Reg.line_addr ~count:1 in
+    let status = Spi_master.read m ~watch Reg.status ~count:1 in
+    Spi_master.write m ~watch Reg.select [ 0 ];
+    Spi_master.write m ~watch Reg.control [ 0x20 ];
+    print_s
+      [%message
+        (state : int list) ~status:(List.map status ~f:(fun s -> s lsr 14) : int list)]);
+  [%expect
+    {|
+    ((state (1)) (status (1)))
+    (events
+     ("1: line[14] <- 4660" "1: line[15] <- 22136" "1: line[0] <- 39612"
+      start_all))
     |}]
 ;;
 
@@ -238,7 +271,8 @@ let%expect_test "the load checker's registers" =
           ~reason:(back Reg.reject_reason : int)]);
   [%expect
     {|
-    ((setup ((base 261) (loaded ((valid 1) (value 434))) (single_edge 1)))
+    ((setup
+      ((base 261) (loaded ((valid 1) (value 434))) (floor 0) (single_edge 1)))
      (base 261) (loaded 434) (flags 3) (status 6) (reject_pc 291) (reason 30))
     (events (check))
     |}]

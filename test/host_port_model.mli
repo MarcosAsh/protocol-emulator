@@ -24,6 +24,11 @@ module Event : sig
     | Rx_pop
     | Check
     | Config_written
+    | Line_write of
+        { addr : int
+        ; data : int
+        }
+    | Start_all (** To every engine, reported as engine -1. *)
   [@@deriving sexp_of, equal]
 end
 

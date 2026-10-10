@@ -98,7 +98,8 @@ let%expect_test "four frames, acknowledged by the TV but the last" =
        ("one low" (600000 600000)) (free (16820000 16820000))))
      (violations ())
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -125,7 +126,8 @@ let%expect_test "the follower refuses five bit periods free before the same init
        ("one low" (600000 600000)) (free (12020000 12020000))))
      (violations ("free of 12020000 ns"))
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -301,7 +303,8 @@ let%expect_test "cec in lockstep" =
        ("one low" (600000 600000)) (free (16862500 16862500))))
      (violations ())
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 

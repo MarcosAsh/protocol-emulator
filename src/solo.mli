@@ -16,6 +16,8 @@ module I : sig
     ; stop : 'a
     ; flush : 'a
     ; inputs : 'a
+    ; line_write : 'a Engine.Line_write.t (** Only while halted. *)
+    ; premises : 'a Engine.Premises.t
     }
   [@@deriving hardcaml]
 end

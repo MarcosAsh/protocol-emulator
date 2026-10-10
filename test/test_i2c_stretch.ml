@@ -263,14 +263,16 @@ let%expect_test "a slave stretching by varying amounts" =
      (scl_high (11 12 13 14 15 16 45))
      (scl_low (16 17 18 19 20 21 24 28 34 36 48 68 100 112))
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     ((log
       (start stop start "address 80 write" "pointer 3" "write 170" stop start
        "address 80 write" "pointer 3" start "address 80 read" nack stop))
      (replies (0 0 0 0 0 0 170 92)) (memory (0 0 0 170 92 0 0 0 0 0 0 0 0 0 0 0))
      (scl_high (16 17 18 19 45)) (scl_low (16 17 18 19 20 21 24 28 33 36 40 100))
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -308,7 +310,8 @@ let%expect_test "SCL held low answers 0xffff" =
        (65535 122) (65535 131)))
      (memory (0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)) (pc 149) (driven 0)
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     ((log
       (start stop start "address 80 read" start "address 80 write" "pointer 5"
        "write 119" stop))
@@ -318,7 +321,8 @@ let%expect_test "SCL held low answers 0xffff" =
        (0 300946)))
      (memory (0 0 0 0 0 119 0 0 0 0 0 0 0 0 0 0)) (pc 25) (driven 0)
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -363,7 +367,8 @@ let%expect_test "after a timeout only a START goes back on the bus" =
        "write 119" stop))
      (memory (0 0 0 0 0 119 0 0 0 0 0 0 0 0 0 0)) (pc 25)
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -405,7 +410,8 @@ let%expect_test "SCL held at the STOP adds no reply" =
        "address 80 write" "write 6" "write 85" stop))
      (memory (0 0 0 0 0 119 6 85 0 0 0 0 0 0 0 0)) (pc 25) (driven 0)
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 

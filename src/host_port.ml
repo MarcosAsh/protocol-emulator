@@ -41,9 +41,11 @@ module Reg = struct
   let check_status = 0x43
   let reject_pc = 0x44
   let reject_reason = 0x45
+  let line_addr = 0x46
+  let line = 0x47
 
   (* unused, so the fields after 0x2b and 0x2c stay where existing hosts write them *)
-  let reserved = [ 0x2b; 0x2c ] @ List.range 0x46 0x48
+  let reserved = [ 0x2b; 0x2c ]
 
   let configs =
     List.take
@@ -98,6 +100,7 @@ module Make (Config : Config) = struct
       { miso : 'a
       ; engines : 'a Engine.Host.t list [@length engines]
       ; check_setup : 'a Load_checker.Setup.t
+      ; start_all : 'a
       }
     [@@deriving hardcaml]
   end
@@ -143,7 +146,8 @@ module Make (Config : Config) = struct
     let%hw_var data_addr = Always.Variable.reg spec ~width:Isa.data_addr_bits in
     let%hw_var check_base = Always.Variable.reg spec ~width:Isa.data_addr_bits in
     let%hw_var check_loaded = Always.Variable.reg spec ~width:Isa.data_bits in
-    let%hw_var check_flags = Always.Variable.reg spec ~width:2 in
+    let%hw_var check_flags = Always.Variable.reg spec ~width:3 in
+    let%hw_var line_addr = Always.Variable.reg spec ~width:Line_code.address_bits in
     let%hw_var write = Always.Variable.wire ~default:gnd () in
     let%hw_var read_done = Always.Variable.wire ~default:gnd () in
     let%hw is_write = msb cmd.value in
@@ -156,7 +160,7 @@ module Make (Config : Config) = struct
       let status_word =
         concat_msb
           [ other_irq
-          ; zero (Isa.data_bits - 7 - (2 * Host_fifo.level_bits))
+          ; s.fault.assumption
           ; s.rx_level
           ; s.tx_level
           ; s.fault.decode
@@ -198,6 +202,7 @@ module Make (Config : Config) = struct
       ; Reg.check_status, reg16 check_status
       ; Reg.reject_pc, reg16 i.check.reject_pc
       ; Reg.reject_reason, reg16 i.check.reason
+      ; Reg.line_addr, reg16 line_addr.value
       ]
       @ (Option.map select_value ~f:(fun select -> Reg.select, reg16 select)
          |> Option.to_list)
@@ -275,7 +280,11 @@ module Make (Config : Config) = struct
                  (at Reg.check_base)
                  [ check_base <-- sel_bottom value ~width:Isa.data_addr_bits ]
              ; when_ (at Reg.check_loaded) [ check_loaded <-- value ]
-             ; when_ (at Reg.check_flags) [ check_flags <-- sel_bottom value ~width:2 ]
+             ; when_ (at Reg.check_flags) [ check_flags <-- sel_bottom value ~width:3 ]
+             ; when_
+                 (at Reg.line_addr)
+                 [ line_addr <-- sel_bottom value ~width:Line_code.address_bits ]
+             ; when_ (at Reg.line) [ line_addr <-- line_addr.value +:. 1 ]
              ]
              @ select_write
              @ config_writes)
@@ -304,12 +313,16 @@ module Make (Config : Config) = struct
           ; rx_pop = mine (read_done.value &: at Reg.rx)
           ; check = mine (strobe Reg.control &: value.:(4))
           ; config_written = mine writes_config &: (List.nth_exn i.status n).halted
+          ; line_write =
+              { valid = mine (strobe Reg.line); addr = line_addr.value; data = value }
           })
     ; check_setup =
         { base = check_base.value
         ; loaded = { valid = check_flags.value.:(0); value = check_loaded.value }
+        ; floor = check_flags.value.:(2)
         ; single_edge = check_flags.value.:(1)
         }
+    ; start_all = strobe Reg.control &: value.:(5)
     }
   ;;
 

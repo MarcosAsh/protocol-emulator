@@ -35,6 +35,8 @@ let config random =
   ; period_fraction = (if bool () then 0 else int ((1 lsl Isa.fraction_bits) - 1))
   ; autopull_data = bool ()
   ; manchester = bool ()
+  ; line_code = false
+  ; route = false
   }
 ;;
 

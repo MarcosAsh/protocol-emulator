@@ -16,6 +16,7 @@ DEFAULTS = {
     "pull_threshold": 16, "crc_width": 16, "crc_poly": 40961, "crc_init": 65535,
     "crc_reflect": 1, "stuff_threshold": 0, "stuff_level": 1, "wrap_bottom": 0,
     "wrap_top": 511, "period_fraction": 0, "autopull_data": 0, "manchester": 0,
+    "line_code": 0, "route": 0,
 }
 
 LOGGER = {

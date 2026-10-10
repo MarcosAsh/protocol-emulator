@@ -103,6 +103,7 @@ let%expect_test "every frame carries the cycle its start bit showed" =
     0x5a  0x04c7    1223  0x04c7
     0x3c  0x1177   70007  0x1177
     (t.fault
-     ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+     ((underflow false) (overflow false) (missed_deadline false) (decode false)
+      (assumption false)))
     |}]
 ;;

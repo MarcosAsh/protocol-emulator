@@ -32,7 +32,8 @@ let%expect_test "the core measures its own edges" =
     {|
     (("List.hd_exn stamps" 20) (intervals (32 32 32 32 32 32 32 32 32 32 32))
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 

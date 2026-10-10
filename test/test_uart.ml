@@ -37,7 +37,8 @@ let%expect_test "uart tx sends two bytes with exact bit periods" =
       (0 16) (1 22) (0 16) (1 32) (0 48) (1 16) (0 16) (1 100)))
     ("decode_uart levels ~period" (85 163))
     ((t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false)))
      (t.pc 2) (t.now 400))
     |}]
 ;;
@@ -58,7 +59,8 @@ let%expect_test "uart tx at 115200 baud from a 50 MHz clock" =
     {|
     (("decode_uart levels ~period" (85 163))
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -150,7 +152,8 @@ let%expect_test "uart rx receives bytes sampled mid bit" =
     {|
     ((received (85 163 255 0))
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false)))
      (t.irq false) (t.pc 4))
     |}]
 ;;
@@ -162,11 +165,13 @@ let%expect_test "uart rx tolerates the sender being four percent off" =
     {|
     ((received (85 163 15))
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false)))
      (t.irq false) (t.pc 4))
     ((received (85 163 15))
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false)))
      (t.irq false) (t.pc 4))
     |}]
 ;;
@@ -178,7 +183,8 @@ let%expect_test "a missing stop bit raises the interrupt" =
     {|
     ((received (66))
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false)))
      (t.irq true) (t.pc 4))
     |}]
 ;;

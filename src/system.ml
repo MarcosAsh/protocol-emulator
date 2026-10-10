@@ -20,8 +20,22 @@ let seen t n ~pads =
   pads land pin_mask land lnot driven lor level
 ;;
 
+(* engine [n]'s routed pushes land in engine [n + 1]'s tx fifo after the step, judged full
+   by the level before it *)
 let step t ~pads =
-  { engines = List.mapi t.engines ~f:(fun n m -> Machine.step m ~inputs:(seen t n ~pads))
+  let count = List.length t.engines in
+  let next n = List.nth_exn t.engines ((n + 1) % count) in
+  let stepped =
+    List.mapi t.engines ~f:(fun n m ->
+      let route_full = List.length (next n).tx_fifo >= Machine.fifo_depth in
+      Machine.step m ~route_full ~inputs:(seen t n ~pads))
+  in
+  let routed n = (List.nth_exn stepped ((n + count - 1) % count)).routed in
+  { engines =
+      List.mapi stepped ~f:(fun n m ->
+        match routed n with
+        | Some word -> Machine.write_tx m word |> ok_exn
+        | None -> m)
   }
 ;;
 

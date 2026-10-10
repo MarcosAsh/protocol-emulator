@@ -254,7 +254,8 @@ let%expect_test "the receiver takes can2040's lines and ACKs each" =
         (Frame ((id 0) (rtr false) (dlc 2) (data (0 0)))))))
      (acked (true true true true true true true true true true true true true))
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     (ack_bits 13)
     |}]
 ;;
@@ -587,14 +588,18 @@ let%expect_test "the sender reads the receiver's ACK, and none when it is gone" 
         (Frame ((id 240) (rtr true) (dlc 4) (data ())))
         (Frame ((id 0) (rtr false) (dlc 1) (data (1)))))))
      (sender_fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false)))
      (receiver_fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     ((receiver false) (acks (1 1 1 1 1)) (heard (Ok ()))
      (sender_fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false)))
      (receiver_fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -727,7 +732,8 @@ let%expect_test "the sender's ACK read, against a node that ACKs only the second
     {|
     ((acks (1 0 1 1 1))
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -802,10 +808,12 @@ let%expect_test "the receiver and the sender in lockstep" =
          ((id 1365) (rtr false) (dlc 8) (data (0 255 85 170 1 128 127 254))))
         (Frame ((id 2031) (rtr false) (dlc 0) (data ()))))))
      (model.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     ("lockstep held" (cycles 11907))
     ((acks (1 1))
      (model.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;

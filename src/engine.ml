@@ -38,6 +38,8 @@ module Config = struct
     ; period_fraction : 'a [@bits Isa.fraction_bits]
     ; autopull_data : 'a
     ; manchester : 'a
+    ; line_code : 'a
+    ; route : 'a
     }
   [@@deriving hardcaml]
 
@@ -78,6 +80,8 @@ module Config = struct
     ; period_fraction = int Isa.fraction_bits c.period_fraction
     ; autopull_data = bool c.autopull_data
     ; manchester = bool c.manchester
+    ; line_code = bool c.line_code
+    ; route = bool c.route
     }
   ;;
 end
@@ -88,6 +92,25 @@ module Fault = struct
     ; overflow : 'a
     ; missed_deadline : 'a
     ; decode : 'a
+    ; assumption : 'a
+    }
+  [@@deriving hardcaml]
+end
+
+module Premises = struct
+  type 'a t =
+    { period : 'a With_valid.t [@bits Isa.data_bits]
+    ; floor : 'a
+    ; single_edge : 'a
+    }
+  [@@deriving hardcaml]
+end
+
+module Line_write = struct
+  type 'a t =
+    { valid : 'a
+    ; addr : 'a [@bits Line_code.address_bits]
+    ; data : 'a [@bits Isa.data_bits]
     }
   [@@deriving hardcaml]
 end
@@ -114,6 +137,7 @@ module Host = struct
     ; flush : 'a
     ; check : 'a
     ; config_written : 'a
+    ; line_write : 'a Line_write.t
     }
   [@@deriving hardcaml]
 end
@@ -139,6 +163,9 @@ module I = struct
     ; stop : 'a
     ; flush : 'a
     ; inputs : 'a [@bits num_pins]
+    ; line_write : 'a Line_write.t
+    ; premises : 'a Premises.t
+    ; route_full : 'a
     }
   [@@deriving hardcaml]
 end
@@ -197,6 +224,11 @@ module Make (Timer : Timer) = struct
       ; stuff_run : 'a [@bits Isa.count_bits]
       ; flip_pending : 'a
       ; flip_bit : 'a
+      ; push : 'a With_valid.t [@bits Isa.data_bits]
+      ; line_tx : 'a [@bits Line_code.state_bits]
+      ; line_rx : 'a [@bits Line_code.state_bits]
+      ; line_flag : 'a
+      ; line_last : 'a
       }
     [@@deriving hardcaml]
   end
@@ -230,6 +262,12 @@ module Make (Timer : Timer) = struct
     let%hw capture_armed = wire 1 in
     let%hw crc = wire data_bits in
     let%hw stuff_run = wire count_bits in
+    let%hw line_tx = wire Line_code.state_bits in
+    let%hw line_rx = wire Line_code.state_bits in
+    let%hw line_flag = wire 1 in
+    let%hw line_last = wire 1 in
+    let%hw holding = wire 1 in
+    let%hw seen = wire 1 in
     let%hw fetch_addr = wire pc_bits in
     let%hw data_ptr = wire Isa.data_addr_bits in
     let%hw data_ptr_next = wire Isa.data_addr_bits in
@@ -304,7 +342,7 @@ module Make (Timer : Timer) = struct
              ; jmp_target
              ; wait_polarity
              ; wait_source
-             ; wait_index = _
+             ; wait_index
              ; shift_count
              ; in_source
              ; out_dest
@@ -345,6 +383,33 @@ module Make (Timer : Timer) = struct
     in
     let is op = List.nth_exn is_opcode (Isa.Opcode.to_int op) in
     let is_sys op = is Sys &: Isa.Sys_op.Of_signal.is sys_op op in
+    (* routed, the rx fifo is the next engine's tx fifo *)
+    let%hw rx_full = mux2 c.route i.route_full rx.full in
+    (* The line table, written like the program while halted: a state's two entries, and
+       the modes. One lookup serves both sides, at the state an in or an out steps, off
+       flops, so the serial bit only picks one of the two. *)
+    let%hw line_write = i.line_write.valid &: halted in
+    let writes_word n = line_write &: (i.line_write.addr ==:. n) in
+    let entry_bits = Line_code.entry_bits in
+    let%hw_list line_table =
+      List.init Line_code.states ~f:(fun s ->
+        let d = i.line_write.data in
+        reg
+          spec
+          ~enable:(writes_word s)
+          (d.:[8 + entry_bits - 1, 8] @: d.:[entry_bits - 1, 0]))
+    in
+    (* transmit relative, receive relative, transmit toggle, receive toggle *)
+    let%hw line_modes =
+      reg spec ~enable:(writes_word Line_code.modes_word) i.line_write.data.:[3, 0]
+    in
+    let%hw line_pair = mux (mux2 (is In) line_rx line_tx) line_table in
+    let line_entry ~input =
+      mux2
+        input
+        (sel_top line_pair ~width:entry_bits)
+        (sel_bottom line_pair ~width:entry_bits)
+    in
     let module Deadline = Deadline.Make (Signal) in
     let%hw deadline_ready = Deadline.release ~now ~t in
     let%hw deadline_late = Deadline.late ~now ~t in
@@ -356,7 +421,7 @@ module Make (Timer : Timer) = struct
         [ Pin_level, wait_pin_cur ==: wait_polarity
         ; Pin_edge, wait_pin_cur <>: wait_pin_prev &: (wait_pin_cur ==: wait_polarity)
         ; Deadline, deadline_ready
-        ; Fifo, mux2 wait_polarity ~:(tx.empty) ~:(rx.full)
+        ; Fifo, mux2 wait_polarity ~:(tx.empty) ~:rx_full
         ]
     in
     let%hw jmp_taken =
@@ -369,11 +434,15 @@ module Make (Timer : Timer) = struct
         ; Pin, pin_of sample c.jmp_pin
         ; Not_pin, ~:(pin_of sample c.jmp_pin)
         ; Osr_not_empty, osr_count <: c.pull_threshold
-        ; Stuff_pending, c.stuff_threshold <>:. 0 &: (stuff_run >=: c.stuff_threshold)
+        ; ( Stuff_pending
+          , mux2
+              c.line_code
+              line_flag
+              (c.stuff_threshold <>:. 0 &: (stuff_run >=: c.stuff_threshold)) )
         ; Tx_not_empty, ~:(tx.empty)
         ; Tx_empty, tx.empty
-        ; Rx_not_full, ~:(rx.full)
-        ; Rx_full, rx.full
+        ; Rx_not_full, ~:rx_full
+        ; Rx_full, rx_full
         ]
     in
     let%hw issue = ~:halted &: (stall ==:. 0) &: ~:start in
@@ -387,7 +456,20 @@ module Make (Timer : Timer) = struct
     let%hw pc_next = after pc in
     let%hw jmp_target_or_next = mux2 jmp_taken jmp_target pc_next in
     let%hw mask = count_mask shift_count in
-    let%hw in_value =
+    let%hw line_in =
+      c.line_code
+      &: is In
+      &: (shift_count ==:. 1)
+      &: Isa.In_source.Of_signal.is in_source Pins
+    in
+    let%hw line_pin = pin_of sample c.in_base in
+    let%hw line_rx_entry =
+      line_entry ~input:(line_pin ^: (line_modes.:(1) &: line_last))
+    in
+    let%hw line_bit = line_rx_entry.:(3) ^: (line_modes.:(3) &: line_last) in
+    (* a dropped bit reaches nothing but the state *)
+    let%hw line_drop = line_in &: line_rx_entry.:(4) in
+    let%hw in_source_value =
       Isa.In_source.Of_signal.match_
         in_source
         [ Pins, read_pins sample ~base:c.in_base ~count:shift_count
@@ -399,7 +481,9 @@ module Make (Timer : Timer) = struct
         ; Crc, crc
         ; Capture, uresize capture ~width:data_bits
         ]
-      &: mask
+    in
+    let%hw in_value =
+      mux2 line_in (uresize line_bit ~width:data_bits) in_source_value &: mask
     in
     let%hw shift_back = of_unsigned_int ~width:count_bits data_bits -: shift_count in
     let%hw isr_shifted =
@@ -416,7 +500,9 @@ module Make (Timer : Timer) = struct
         (sel_bottom s ~width:count_bits)
     in
     let%hw isr_count_next = saturate isr_count shift_count in
-    let%hw autopush_now = c.autopush &: (isr_count_next >=: c.push_threshold) in
+    let%hw autopush_now =
+      c.autopush &: (isr_count_next >=: c.push_threshold) &: ~:line_drop
+    in
     let%hw pull_now = c.autopull &: (osr_count >=: c.pull_threshold) in
     (* shared memory: a pointer moved last cycle may not have its word yet, so refuse as
        if the fifo were empty *)
@@ -442,6 +528,7 @@ module Make (Timer : Timer) = struct
     (* assist units see every single-bit shift *)
     let%hw bit_crosses = shift_count ==:. 1 &: (is In |: is Out) in
     let%hw crossing_bit = mux2 (is In) in_value.:(0) out_value.:(0) in
+    let%hw bit_counts = bit_crosses &: ~:line_drop in
     let module Crc_step = Crc.Make (Signal) in
     let%hw crc_stepped =
       Crc_step.step
@@ -452,13 +539,13 @@ module Make (Timer : Timer) = struct
         ~bit:crossing_bit
     in
     let%hw crc_next =
-      mux2 (is_sys Crc_init) c.crc_init @@ mux2 bit_crosses crc_stepped crc
+      mux2 (is_sys Crc_init) c.crc_init @@ mux2 bit_counts crc_stepped crc
     in
     let%hw stuff_run_max = of_unsigned_int ~width:count_bits 31 in
     let%hw stuff_run_next =
       mux2 (is_sys Stuff_reset) (zero count_bits)
       @@ mux2
-           bit_crosses
+           bit_counts
            (mux2
               (crossing_bit ==: c.stuff_level)
               (mux2 (stuff_run ==: stuff_run_max) stuff_run (stuff_run +:. 1))
@@ -549,6 +636,20 @@ module Make (Timer : Timer) = struct
       write_pins pin_dir_base ~base ~count ~value ~writable:bidir_pin
     in
     let%hw manchester_out = c.manchester &: (shift_count ==:. 1) in
+    (* the table drives the pin, or flips it, and the next as its complement, through the
+       out's own write *)
+    let%hw line_out = c.line_code &: ~:(c.manchester) &: (shift_count ==:. 1) in
+    let%hw out_pin = pin_of pin_out_base c.out_base in
+    let%hw line_tx_entry =
+      line_entry ~input:(out_value.:(0) ^: (line_modes.:(0) &: out_pin))
+    in
+    let%hw line_level = line_tx_entry.:(3) ^: (line_modes.:(2) &: out_pin) in
+    let%hw out_pins_count =
+      mux2 line_out (mux2 (c.out_count >=: two) two c.out_count) shift_count
+    in
+    let%hw out_pins_value =
+      mux2 line_out (uresize (~:line_level @: line_level) ~width:data_bits) out_value
+    in
     let%hw pin_out_next =
       Isa.Opcode.Of_signal.match_
         ~default:pin_out_base
@@ -562,7 +663,7 @@ module Make (Timer : Timer) = struct
                     ~base:c.out_base
                     ~count:two
                     ~value:(manchester_pair out_value.:(0)))
-                 (out_to ~base:c.out_base ~count:shift_count ~value:out_value))
+                 (out_to ~base:c.out_base ~count:out_pins_count ~value:out_pins_value))
               pin_out_base )
         ; ( Mov
           , mux2
@@ -696,7 +797,7 @@ module Make (Timer : Timer) = struct
     let%hw isr_next =
       by_opcode
         ~default:isr
-        [ In, mux2 autopush_now (zero data_bits) isr_shifted
+        [ In, mux2 line_drop isr @@ mux2 autopush_now (zero data_bits) isr_shifted
         ; Out, mux2 (Isa.Out_dest.Of_signal.is out_dest Isr) out_value isr
         ; Mov, mux2 (Isa.Mov_dest.Of_signal.is mov_dest Isr) mov_value isr
         ; Sys, mux2 (is_sys Push) (zero data_bits) isr
@@ -705,7 +806,7 @@ module Make (Timer : Timer) = struct
     let%hw isr_count_next_value =
       by_opcode
         ~default:isr_count
-        [ In, mux2 autopush_now osr_count_zero isr_count_next
+        [ In, mux2 line_drop isr_count @@ mux2 autopush_now osr_count_zero isr_count_next
         ; Out, mux2 (Isa.Out_dest.Of_signal.is out_dest Isr) shift_count isr_count
         ; Mov, mux2 (Isa.Mov_dest.Of_signal.is mov_dest Isr) osr_count_zero isr_count
         ; Sys, mux2 (is_sys Push) osr_count_zero isr_count
@@ -716,6 +817,64 @@ module Make (Timer : Timer) = struct
       &: (pin_of sample c.capture_pin <>: pin_of pins_sampled c.capture_pin)
       &: (pin_of sample c.capture_pin ==: c.capture_rising)
     in
+    (* The premises a certificate may rest on, as Machine watches them. Where the kernel
+       takes p as a period, a p last written other than by a set carries the loaded
+       period, or at least it. The capture pin is at the other level when capture_arm
+       takes effect and, once at the captured level, stays there until a wait for it
+       releases. The fault rises the cycle one fails. *)
+    let%hw writes_p =
+      is Mov
+      &: Isa.Mov_dest.Of_signal.is mov_dest P
+      |: (is Out &: Isa.Out_dest.Of_signal.is out_dest P)
+      |: (is Alu &: Isa.Alu_dest.Of_signal.is alu_dest P)
+    in
+    let%hw sets_p = is Set &: Isa.Set_dest.Of_signal.is set_dest P in
+    let%hw p_loaded = wire 1 in
+    p_loaded
+    <-- reg
+          spec
+          (mux2 start gnd
+           @@ mux2 (advance &: sets_p) gnd
+           @@ mux2 (advance &: writes_p) vdd p_loaded);
+    let%hw uses_p =
+      advance
+      &: (advances_deadline
+          |: (is Alu
+              &: Isa.Alu_dest.Of_signal.is alu_dest T
+              &: Isa.Alu_op.Of_signal.is alu_op Add
+              &: alu_is_reg
+              &: Isa.Alu_reg.Of_signal.is alu_reg P))
+    in
+    let period = i.premises.period in
+    let%hw period_off =
+      uses_p
+      &: p_loaded
+      &: period.valid
+      &: mux2 i.premises.floor (p <: period.value) (p <>: period.value)
+    in
+    let%hw capture_level = pin_of sample c.capture_pin ==: c.capture_rising in
+    let%hw arms = advance &: is_sys Capture_arm in
+    let%hw releases =
+      advance
+      &: i.premises.single_edge
+      &: is Wait
+      &: (Isa.Wait_source.Of_signal.is wait_source Pin_level
+          |: Isa.Wait_source.Of_signal.is wait_source Pin_edge)
+      &: (wait_index ==: c.capture_pin)
+      &: (wait_index <:. Isa.pin_space)
+      &: (wait_polarity ==: c.capture_rising)
+    in
+    let%hw edge_off =
+      i.premises.single_edge
+      &: (arms &: capture_level |: (holding &: seen &: ~:capture_level))
+    in
+    holding <-- reg spec (mux2 i.start gnd @@ mux2 arms vdd @@ mux2 releases gnd holding);
+    seen
+    <-- reg
+          spec
+          (mux2 i.start gnd
+           @@ mux2 arms gnd
+           @@ mux2 releases seen (seen |: (holding &: capture_level)));
     let%hw halted_next =
       mux2 start gnd
       @@ mux2 i.stop vdd
@@ -749,13 +908,16 @@ module Make (Timer : Timer) = struct
              &: (is Out
                  &: (pull_fifo &: tx.empty |: (pull_data &: data_moved))
                  |: (pulls &: tx.empty)))
-      ; overflow = sticky (op_go &: pushes &: rx.full)
+      ; overflow = sticky (op_go &: pushes &: rx_full)
       ; missed_deadline = sticky (op_go &: releases_deadline &: deadline_late)
       ; decode = sticky (issue &: ~:decode_ok)
+      ; assumption = sticky (period_off |: edge_off)
       }
     in
-    rx_push.valid <-- (op_go &: pushes &: ~:(rx.full));
-    rx_push.value <-- mux2 (is In) isr_shifted isr;
+    let%hw pushed = op_go &: pushes &: ~:rx_full in
+    let%hw push_value = mux2 (is In) isr_shifted isr in
+    rx_push.valid <-- (pushed &: ~:(c.route));
+    rx_push.value <-- push_value;
     tx_pop <-- (op_go &: (is Out &: pull_ok |: (pulls &: ~:(tx.empty))));
     pc <-- reg spec pc_value_next;
     x <-- reg spec ~enable:go x_next;
@@ -805,6 +967,27 @@ module Make (Timer : Timer) = struct
     crc <-- reg spec (mux2 start c.crc_init @@ mux2 go crc_next crc);
     stuff_run
     <-- reg spec (mux2 start (zero count_bits) @@ mux2 go stuff_run_next stuff_run);
+    let%hw line_steps_out =
+      op_go &: is Out &: Isa.Out_dest.Of_signal.is out_dest Pins &: line_out
+    in
+    let%hw line_steps_in = op_go &: line_in in
+    let line_state = zero Line_code.state_bits in
+    line_tx
+    <-- reg
+          spec
+          (mux2 start line_state @@ mux2 line_steps_out line_tx_entry.:[2, 0] line_tx);
+    line_rx
+    <-- reg
+          spec
+          (mux2 start line_state @@ mux2 line_steps_in line_rx_entry.:[2, 0] line_rx);
+    line_last <-- reg spec (mux2 start gnd @@ mux2 line_steps_in line_pin line_last);
+    line_flag
+    <-- reg
+          spec
+          (mux2 start gnd
+           @@ mux2 (op_go &: is_sys Stuff_reset) gnd
+           @@ mux2 line_steps_out line_tx_entry.:(4)
+           @@ mux2 line_steps_in line_rx_entry.:(4) line_flag);
     capture_armed
     <-- reg
           spec
@@ -847,6 +1030,11 @@ module Make (Timer : Timer) = struct
     ; stuff_run
     ; flip_pending
     ; flip_bit
+    ; push = { valid = pushed &: c.route; value = push_value }
+    ; line_tx
+    ; line_rx
+    ; line_flag
+    ; line_last
     }
   ;;
 

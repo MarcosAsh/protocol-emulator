@@ -35,6 +35,10 @@ module State = struct
     ; crc : int
     ; stuff_run : int
     ; flip : int option
+    ; line_tx : int
+    ; line_rx : int
+    ; line_flag : bool
+    ; line_last : int
     }
   [@@deriving sexp_of, compare, equal]
 
@@ -65,6 +69,10 @@ module State = struct
     ; crc = m.crc
     ; stuff_run = m.stuff_run
     ; flip = m.flip
+    ; line_tx = m.line_tx
+    ; line_rx = m.line_rx
+    ; line_flag = m.line_flag
+    ; line_last = m.line_last
     }
   ;;
 
@@ -94,6 +102,7 @@ module State = struct
         ; overflow = bool o.fault.overflow
         ; missed_deadline = bool o.fault.missed_deadline
         ; decode = bool o.fault.decode
+        ; assumption = bool o.fault.assumption
         }
     ; capture = int o.capture
     ; capture_armed = bool o.capture_armed
@@ -103,6 +112,10 @@ module State = struct
     ; crc = int o.crc
     ; stuff_run = int o.stuff_run
     ; flip = Option.some_if (bool o.flip_pending) (int o.flip_bit)
+    ; line_tx = int o.line_tx
+    ; line_rx = int o.line_rx
+    ; line_flag = bool o.line_flag
+    ; line_last = int o.line_last
     }
   ;;
 end
@@ -127,6 +140,8 @@ let run
   ?(react = fun (_ : Machine.t) -> ())
   ?coverage
   ?premise
+  ?(line_table = Line_code.off)
+  ?(premises = Machine.Premises.none)
   ~config
   ~program
   ~inputs
@@ -164,11 +179,23 @@ let run
         i.data_write.data <--. word;
         cycle ());
       i.data_write.valid := Bits.gnd;
+      List.iteri (Line_code.words line_table) ~f:(fun addr word ->
+        i.line_write.valid := Bits.vdd;
+        i.line_write.addr <--. addr;
+        i.line_write.data <--. word;
+        cycle ());
+      i.line_write.valid := Bits.gnd;
+      i.premises.period.valid := Bits.of_bool (Option.is_some premises.period);
+      i.premises.period.value <--. Option.value premises.period ~default:0;
+      i.premises.single_edge := Bits.of_bool premises.single_edge;
+      i.premises.floor := Bits.of_bool premises.floor;
       let model =
         ref
           (Machine.create ~config ~program
            |> Or_error.bind ~f:(fun m -> Machine.load_data m data)
-           |> ok_exn)
+           |> ok_exn
+           |> Fn.flip Machine.load_line_table line_table
+           |> Fn.flip Machine.assume premises)
       in
       List.iter preload ~f:(fun word ->
         i.tx.valid := Bits.vdd;
@@ -234,13 +261,28 @@ let lockstep
   ?react
   ?coverage
   ?premise
+  ?line_table
+  ?premises
   ~config
   ~program
   ~inputs
   ()
   =
   let model, mismatch =
-    run ~cycles ?preload ?data ?host ?react ?coverage ?premise ~config ~program ~inputs ()
+    run
+      ~cycles
+      ?preload
+      ?data
+      ?host
+      ?react
+      ?coverage
+      ?premise
+      ?line_table
+      ?premises
+      ~config
+      ~program
+      ~inputs
+      ()
   in
   (match mismatch with
    | None -> print_s [%message "lockstep held" (cycles : int)]

@@ -20,6 +20,7 @@ module Make (Config : Config) = struct
       ; hosts : 'a Engine.Host.t list [@length engines]
       ; pads : 'a [@bits Isa.num_pins]
       ; check_setup : 'a Load_checker.Setup.t
+      ; start_all : 'a
       }
     [@@deriving hardcaml]
   end
@@ -91,20 +92,43 @@ module Make (Config : Config) = struct
       List.mapi i.hosts ~f:(fun n (h : _ Engine.Host.t) ->
         reg_fb spec ~width:1 ~f:(fun certified ->
           mux2
-            (h.program_write.valid |: h.config_written |: checks_begin n)
+            (h.program_write.valid
+             |: h.config_written
+             |: h.line_write.valid
+             |: checks_begin n)
             gnd
             (mux2 (accepts &: (checked ==:. n)) vdd certified)))
     in
+    (* what the engine's certificate was checked under, which the core then watches *)
+    let premises =
+      List.init engines ~f:(fun n ->
+        let s = i.check_setup in
+        Engine.Premises.Of_signal.reg
+          spec
+          ~enable:(checks_begin n)
+          { period = s.loaded; floor = s.floor; single_edge = s.single_edge })
+    in
+    (* A start of every engine on the same cycle, so their programs' phases are fixed to
+       each other: only with all halted, and on the gated chip all certified, or none. *)
+    let%hw all_ready =
+      List.map2_exn outs certified ~f:(fun e certified ->
+        if gated then e.halted &: certified else e.halted)
+      |> List.reduce_exn ~f:( &: )
+    in
+    let%hw starts_all = i.start_all &: all_ready in
     let%hw_list refused =
       List.mapi
         (List.zip_exn i.hosts certified)
         ~f:(fun n ((h : _ Engine.Host.t), certified) ->
           reg_fb spec ~width:1 ~f:(fun refused ->
-            mux2 (checks_begin n) gnd (mux2 (h.start &: ~:certified) vdd refused)))
+            mux2
+              (checks_begin n)
+              gnd
+              (mux2 (h.start |: i.start_all &: ~:certified) vdd refused)))
     in
     let starts =
       List.map2_exn i.hosts certified ~f:(fun (h : _ Engine.Host.t) certified ->
-        if gated then h.start &: certified else h.start)
+        (if gated then h.start &: certified else h.start) |: starts_all)
     in
     (* The checker borrows engine [n]'s program port and data turn only while [n] is free,
        so a running or starting core never sees it. *)
@@ -115,7 +139,8 @@ module Make (Config : Config) = struct
       &: (List.map i.hosts ~f:(fun h -> h.data_write.valid)
           |> List.reduce_exn ~f:( |: )
           |: pick
-               (List.map i.hosts ~f:(fun h -> h.program_write.valid |: h.config_written))
+               (List.map i.hosts ~f:(fun h ->
+                  h.program_write.valid |: h.config_written |: h.line_write.valid))
           |: pick (List.map lent ~f:( ~: )))
     in
     let data =
@@ -142,10 +167,19 @@ module Make (Config : Config) = struct
       ; data_word = pick data.words
       }
     |> Load_checker.O.Of_signal.assign checker;
+    (* Engine n's pushes, routed, go to engine n + 1's tx fifo in place of its host's. The
+       full flag is the registered level's, so it holds through a pop that cycle. *)
+    let next n = (n + 1) % engines in
+    let feeder n = (n + engines - 1) % engines in
+    let%hw_list route_full =
+      List.init engines ~f:(fun n ->
+        (List.nth_exn outs (next n)).tx_level ==:. Machine.fifo_depth)
+    in
     List.iteri
       (List.zip_exn (List.zip_exn i.hosts outs) data.words)
       ~f:(fun n (((host : _ Engine.Host.t), out), data_word) ->
         let others = List.filteri outs ~f:(fun m _ -> m <> n) in
+        let feeder_routes = (List.nth_exn i.hosts (feeder n)).config.route in
         Engine.hierarchical
           ~instance:[%string "engine_%{n#Int}"]
           ~memory
@@ -159,12 +193,19 @@ module Make (Config : Config) = struct
               ; value = checker.program_read.value
               }
           ; data_word
-          ; tx = host.tx
+          ; tx =
+              (let pushed = (List.nth_exn outs (feeder n)).push in
+               { valid = mux2 feeder_routes pushed.valid host.tx.valid
+               ; value = mux2 feeder_routes pushed.value host.tx.value
+               })
           ; rx_pop = host.rx_pop
           ; clear_irq = host.clear_irq
           ; stop = host.stop
           ; flush = host.flush
           ; inputs = seen ~pads:i.pads ~others
+          ; line_write = host.line_write
+          ; premises = List.nth_exn premises n
+          ; route_full = List.nth_exn route_full n
           }
         |> Engine.O.Of_signal.assign out);
     let pin_out =

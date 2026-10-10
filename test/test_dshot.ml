@@ -49,11 +49,13 @@ let%expect_test "the core sends every frame within the rate's timing" =
     (dshot600
      (measured_ns (Ok ((T0H (620 620)) (bit (1660 1660)) (T1H (1240 1240)))))
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     (dshot1200
      (measured_ns (Ok ((T0H (320 320)) (bit (840 840)) (T1H (640 640)))))
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -122,7 +124,8 @@ let%expect_test "dshot600 in lockstep" =
     ("lockstep held" (cycles 9000))
     ((frames (Ok ((0 false) (48 false) (1046 false) (2047 true) (1365 true))))
      (model.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -199,6 +202,7 @@ let%expect_test "the first version, with a short gap between frames" =
     {|
     ((kernel (Ok ())) (decoded (Error ("not 16 bits" ("List.length frame" 80))))
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;

@@ -15,6 +15,8 @@ module I = struct
     ; stop : 'a
     ; flush : 'a
     ; inputs : 'a [@bits Isa.pin_space]
+    ; line_write : 'a Engine.Line_write.t
+    ; premises : 'a Engine.Premises.t
     }
   [@@deriving hardcaml]
 end
@@ -52,6 +54,9 @@ let create ~memory (scope : Scope.t) (i : Signal.t I.t) =
     ; stop = i.stop
     ; flush = i.flush
     ; inputs = i.inputs
+    ; line_write = i.line_write
+    ; premises = i.premises
+    ; route_full = gnd
     }
   |> Engine.O.Of_signal.assign out;
   out

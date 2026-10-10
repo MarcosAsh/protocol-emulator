@@ -45,7 +45,8 @@ let%expect_test "spi master exchanges bytes with a mode 0 slave" =
        (1 8) (0 8) (1 8) (0 8) (1 8) (0 27) (1 8) (0 8) (1 8) (0 8) (1 8)
        (0 8) (1 8) (0 8) (1 8) (0 8) (1 8) (0 8) (1 8) (0 8) (1 8) (0 111)))
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -93,7 +94,8 @@ let%expect_test "spi slave exchanges bytes with a mode 0 master" =
     ((slave_received (165 60 240)) ("Spi_peer.received master" (129 126 17))
      ("Spi_peer.idle master" true)
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -104,7 +106,8 @@ let%expect_test "spi slave keeps up with back to back bytes at four cycles a hal
     ((slave_received (165 60 240)) ("Spi_peer.received master" (129 126 17))
      ("Spi_peer.idle master" true)
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -119,7 +122,8 @@ let%expect_test "spi slave with gaps between bytes" =
     ((slave_received (165 60 240)) ("Spi_peer.received master" (129 126 17))
      ("Spi_peer.idle master" true)
      (t.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 

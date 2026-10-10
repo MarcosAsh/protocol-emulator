@@ -58,10 +58,12 @@ let%expect_test "a jump tests the fifos without stalling or faulting" =
     {|
     ("lockstep held" (cycles 600))
     (m.fault
-     ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+     ((underflow false) (overflow false) (missed_deadline false) (decode false)
+      (assumption false)))
     ("lockstep held" (cycles 600))
     (m.fault
-     ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+     ((underflow false) (overflow false) (missed_deadline false) (decode false)
+      (assumption false)))
     |}]
 ;;
 
@@ -248,7 +250,8 @@ let%expect_test "faults and halt" =
     {|
     ("lockstep held" (cycles 12))
     ((m.fault
-      ((underflow true) (overflow false) (missed_deadline true) (decode false)))
+      ((underflow true) (overflow false) (missed_deadline true) (decode false)
+       (assumption false)))
      (m.halted true))
     |}]
 ;;
@@ -285,7 +288,8 @@ let%expect_test "a decode fault halts the core" =
     {|
     ("lockstep held" (cycles 4))
     ((m.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode true)))
+      ((underflow false) (overflow false) (missed_deadline false) (decode true)
+       (assumption false)))
      (m.pc 1))
     |}]
 ;;

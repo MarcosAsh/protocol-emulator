@@ -29,6 +29,22 @@ module Fault : sig
     ; overflow : bool
     ; missed_deadline : bool
     ; decode : bool
+    ; assumption : bool (** A premise of [Premises] failed. *)
+    }
+  [@@deriving sexp_of, compare, equal]
+
+  val none : t
+end
+
+(** What the chip's check took a certificate to assume, as [Load_checker.Setup]: the
+    period every write to [p] other than a set carries, or with [floor] the least, and the
+    single-edge assumption. The period is checked where the kernel uses it, at [wait t+]
+    and [add t, p]. *)
+module Premises : sig
+  type t =
+    { period : int option
+    ; floor : bool
+    ; single_edge : bool
     }
   [@@deriving sexp_of, compare, equal]
 
@@ -69,6 +85,17 @@ type t = private
   ; stuff_run : int
   ; flip : int option
   (** Manchester [out] bit whose second half starts at the next issue. *)
+  ; line_table : Line_code.t
+  ; line_tx : int
+  ; line_rx : int
+  ; line_flag : bool
+  ; line_last : int (** The pin the last line-coded [in] read. *)
+  ; premises : Premises.t
+  ; p_loaded : bool (** [p] was last written other than by a set. *)
+  ; holding : bool (** From [capture_arm] until a wait for the captured edge releases. *)
+  ; seen : bool (** The capture pin has been at the captured level since the arm. *)
+  ; route_full : bool (** The next engine's tx fifo was full, as this step saw it. *)
+  ; routed : int option (** What this step pushed to the next engine. *)
   }
 [@@deriving sexp_of, compare, equal]
 
@@ -79,9 +106,16 @@ val create : config:Program_config.t -> program:int list -> t Or_error.t
 (** Fills data memory from address 0, before a run or while halted; the rest is zero. *)
 val load_data : t -> int list -> t Or_error.t
 
+(** Loads the [Line_code] table, while halted. *)
+val load_line_table : t -> Line_code.t -> t
+
+(** Watches the premises from the next step: [Fault.assumption] the step one fails. *)
+val assume : t -> Premises.t -> t
+
 (** [inputs]: external pin levels, and for wires what other cores drive. Bits of pins the
-    core drives are ignored. *)
-val step : t -> inputs:int -> t
+    core drives are ignored. [route_full]: with [route], the next engine's tx fifo is
+    full. *)
+val step : ?route_full:bool -> t -> inputs:int -> t
 
 (** The level on every pin: what the core drives, else [inputs]; wires read ORed. *)
 val pins : t -> inputs:int -> int

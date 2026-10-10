@@ -95,7 +95,8 @@ let%expect_test "a TAP reads its IDCODE and keeps what the user register was giv
        (hold (200 600))))
      (violations ())
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -128,7 +129,8 @@ let%expect_test "jtag in lockstep" =
     ("lockstep held" (cycles 4000))
     (("Tap.user (!tap)" 0x3c)
      (model.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 

@@ -1041,7 +1041,8 @@ let%expect_test "a capture is only as young as the arm once a wait has seen the 
       \n  4  wait t                       phase -10..?  slack ?..10  MAY MISS\
       \na bound of ? means none: the way here has a wait for a pin or a fifo, a capture nothing is assumed about, a period the host loads, or a loop that falls further behind on every pass"))
     ("(!t).fault"
-     ((underflow false) (overflow false) (missed_deadline true) (decode false)))
+     ((underflow false) (overflow false) (missed_deadline true) (decode false)
+      (assumption false)))
     |}]
 ;;
 
@@ -1082,6 +1083,7 @@ let%expect_test "only the first wait after the arm sees the captured edge" =
       \n 10  wait t                       phase -34..?  slack ?..34  MAY MISS\
       \na bound of ? means none: the way here has a wait for a pin or a fifo, a capture nothing is assumed about, a period the host loads, or a loop that falls further behind on every pass"))
     ("(!t).fault"
-     ((underflow false) (overflow false) (missed_deadline true) (decode false)))
+     ((underflow false) (overflow false) (missed_deadline true) (decode false)
+      (assumption false)))
     |}]
 ;;
