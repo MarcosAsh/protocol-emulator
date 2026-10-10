@@ -16,8 +16,9 @@ let protocols =
   ; Dshot.protocol
   ; Sent.protocol
   ; Cec.protocol
-  ; Swd.protocol
   ; Spi_cs.protocol
+  ; Spi_target.protocol
+  ; Swd.protocol
   ]
 ;;
 

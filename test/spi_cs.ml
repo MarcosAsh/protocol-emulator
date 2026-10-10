@@ -367,7 +367,14 @@ let scenario mode =
 
 let protocol =
   { Protocol.name = "spi_cs"
-  ; certified = []
+  ; certified =
+      (* the flash demo's, which holds CS low as long as the host is slow *)
+      List.map Mode.all ~f:(fun mode ->
+        Certified.plain
+          ~no_wrap:true
+          [%string "spi_cs_mode%{Mode.to_int mode#Int}"]
+          (master ~mode ~half_period:Bench.spi_half ~setup:4 ~hold:8 ~deselect)
+          config)
   ; time_triggered = []
   ; bench = List.map Mode.all ~f:bench
   ; loaded_from_hex = []
@@ -376,7 +383,11 @@ let protocol =
         limits [%string "spi_cs_mode%{Mode.to_int mode#Int}"])
   ; unlimited = []
   ; swept = []
-  ; not_swept = []
+  ; not_swept =
+      List.map Mode.all ~f:(fun mode ->
+        ( [%string "spi_cs_mode%{Mode.to_int mode#Int}"]
+        , "not stamped: its decoded runs judge each mode, and both_roles.ml runs it \
+           against Spi_target" ))
   ; scenarios = []
   ; decoded = List.map Mode.all ~f:scenario
   }
