@@ -47,9 +47,10 @@ on:
       - '!**/dune'
   workflow_dispatch:
 
+# main queues its runs so each commit keeps a green run for the release; branches cancel
 concurrency:
   group: gds-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   gds:
