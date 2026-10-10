@@ -148,6 +148,43 @@ bit:
 
 let rx ~period = rx_on ~pin:0 ~period
 
+(* [rx_on] with half the bit period from the host, so the first sample, a period and a
+   half from the start edge, is three halves: a period the kernel bounds from below at
+   every load, as no halving in the core would. The stop bit is checked at its middle,
+   which tolerates a sender 4% off either way from 52 cycles a bit, 5% from 104. *)
+let rx_host_rate_on ~pin =
+  [%string
+    {|
+    wait tx
+    pull
+    mov p, osr               ; half the bit period
+idle:
+    wait 1 pin %{pin#Int}             ; line idle
+arm:
+    capture_arm
+    wait 0 pin %{pin#Int}             ; start bit, its edge cycle is in capture
+    mov t, capture
+    add t, p
+    add t, p
+    add t, p
+    sub t, 1                 ; middle of bit 0, less the cycle the sample lands after
+    set x, 7
+bit:
+    wait t+
+    in pins, 1
+    add t, p                 ; the next bit's middle
+    jmp x--, bit
+    in null, 8
+    push
+    wait t                   ; the check, the middle of the stop bit
+    jmp pin, arm             ; high: arm before a fast sender's next start edge
+    irq                      ; framing error
+    jmp idle
+|}]
+;;
+
+let rx_host_rate = rx_host_rate_on ~pin:0
+
 let rx_config =
   { Program_config.default with
     in_base = 0
@@ -180,23 +217,25 @@ let log =
   }
 ;;
 
-(* the bit within 2% of 115200 baud, the 'nasty link' budget a receiver shares *)
-let limits =
+let bauds = [ 9600; 19200; 38400; 57600; 115200; 230400 ]
+
+(* the bit within 2% of the rate, the 'nasty link' budget a receiver shares *)
+let limits_at ~baud firmware =
   let sheet =
-    { Datasheet.Sheet.part = "UART at 115200 baud"
+    { Datasheet.Sheet.part = [%string "UART at %{baud#Int} baud"]
     ; document = "Maxim AN2141"
     ; page = "p.4, +-3/152, 2%"
     }
   in
-  let bit = 1e9 /. 115_200. in
-  [ { Datasheet.firmware = "uart_log"
+  let bit = 1e9 /. Float.of_int baud in
+  [ { Datasheet.firmware
     ; parameter = "bit"
     ; limit = At_least (bit *. 0.98)
     ; sheet
     ; margin = Cycle
     ; bound = Datasheet.level ~pin:Datasheet.set_pin ~high:false ()
     }
-  ; { firmware = "uart_log"
+  ; { firmware
     ; parameter = "bit"
     ; limit = At_most (bit *. 1.02)
     ; sheet
@@ -206,6 +245,25 @@ let limits =
           Datasheet.lows levels)
     }
   ]
+;;
+
+let limits = limits_at ~baud:115_200 "uart_log"
+
+(* [tx_host_rate] on OUT0 at each common rate, the bit rounded to the nearest cycle *)
+let at_rate baud =
+  let period = (Bench.clock_hz + (baud / 2)) / baud in
+  { Bench.name = [%string "uart_tx_%{baud#Int}"]
+  ; what =
+      [%string
+        "Uart.tx_host_rate: the host sends the bit period, %{period#Int} cycles for \
+         %{Bench.rate ~unit:\"baud\" period}, on OUT0"]
+  ; source = tx_host_rate
+  ; config = Program_config.default
+  ; assumption = Floor 4
+  ; clock_hz = Bench.clock_hz
+  ; load = Some period
+  ; stimulus = Some { bursts = [ [ 0x55; 0x55 ] ]; quiet = 0; cycles = 25 * period }
+  }
 ;;
 
 (* bits of 16 cycles: 3 Mbaud at 48 MHz *)
@@ -294,11 +352,21 @@ let protocol =
           tx_host_rate
           Program_config.default
       ; Certified.receiver "uart_rx" (rx ~period:16) rx_config
+        (* half the bit at 115200 baud and 48 MHz *)
+      ; Certified.receiver
+          ~period:208
+          ~period_floor:4
+          "uart_rx_host_rate"
+          rx_host_rate
+          rx_config
       ]
   ; time_triggered = [ plain "uart_tx_stream" (tx_stream ~period:8) stream_config ]
-  ; bench = []
+  ; bench = List.map bauds ~f:at_rate
   ; loaded_from_hex = [ log ]
-  ; limits
+  ; limits =
+      limits
+      @ List.concat_map bauds ~f:(fun baud ->
+        limits_at ~baud [%string "uart_tx_%{baud#Int}"])
   ; unlimited = []
   ; swept =
       (let swept ?period name text =
@@ -315,6 +383,7 @@ let protocol =
        ])
   ; not_swept =
       [ "uart_rx", "a receiver: it samples, and nothing on the chip sends to it"
+      ; "uart_rx_host_rate", "a receiver: both_roles.ml sends to it on a wire"
       ; ( "uart_tx_stream"
         , "time-triggered: it underflows, a sticky fault, once the host stops" )
       ; ( "uart_tx_stamped"

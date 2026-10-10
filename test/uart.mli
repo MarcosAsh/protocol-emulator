@@ -30,6 +30,19 @@ val rx_on : pin:int -> period:int -> string
 val rx : period:int -> string
 val rx_config : Program_config.t
 
+(** [rx_on] with half the bit period from the host, as its first word, and the stop bit
+    checked at its middle. *)
+val rx_host_rate_on : pin:int -> string
+
+val rx_host_rate : string
+
+(** 9600 to 230400 baud, each on the bench as [tx_host_rate] at OUT0, uart_tx_<baud>, held
+    to [limits_at]. *)
+val bauds : int list
+
+(** A bit within 2% of [baud] (Maxim AN2141), on [firmware]'s line. *)
+val limits_at : baud:int -> string -> Datasheet.t list
+
 (** [tx_stamped], whose proof adds that the stamp in each frame is the cycle its start bit
     shows. Kept out of [protocol] until the kernel's tests take it in. *)
 val stamped : Certified.t
