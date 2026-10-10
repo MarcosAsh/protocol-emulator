@@ -290,7 +290,7 @@ module Make (Timer : Timer) = struct
         scope
         { clocking = i.clocking; push = rx_push; pop = i.rx_pop; flush }
     in
-    (* an empty fifo's head is a stale word, from power-up until eight have passed *)
+    (* an empty fifo's head is a stale word, from power-up until its memory has filled *)
     let%hw rx_head = mux2 rx.empty (zero data_bits) rx.head in
     (* a write or a read while the core runs would take the memory from the fetch *)
     let%hw program_write = i.program_write.valid &: halted in

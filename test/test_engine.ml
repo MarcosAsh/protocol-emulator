@@ -31,6 +31,44 @@ loop:
   [%expect {| ("lockstep held" (cycles 400)) |}]
 ;;
 
+(* The host fills the tx fifo as far as it takes words; the core pushes a count with no
+   one reading, and the sixteenth push faults. *)
+let%expect_test "both fifos hold fifteen words" =
+  let program =
+    assemble {|
+loop:
+    add x, 1
+    mov isr, x
+    push
+    jmp loop
+|}
+  in
+  let level = ref 0 in
+  let host _ =
+    { Host.idle with tx = Option.some_if (!level < Machine.fifo_depth) 0x1234 }
+  in
+  let m =
+    lockstep
+      ~cycles:120
+      ~config:Program_config.default
+      ~program
+      ~inputs:(fun _ -> 0)
+      ~host
+      ~react:(fun m -> level := List.length m.tx_fifo)
+      ()
+  in
+  print_s
+    [%message
+      ""
+        ~tx:(List.length m.tx_fifo : int)
+        ~rx:(m.rx_fifo : int list)
+        ~overflow:(m.fault.overflow : bool)];
+  [%expect {|
+    ("lockstep held" (cycles 120))
+    ((tx 15) (rx (1 2 3 4 5 6 7 8 9 10 11 12 13 14 15)) (overflow true))
+    |}]
+;;
+
 let%expect_test "a jump tests the fifos without stalling or faulting" =
   List.iter Fifo_poll.programs ~f:(fun program ->
     let random = Splittable_random.of_int 7 in

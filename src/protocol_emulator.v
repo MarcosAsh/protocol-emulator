@@ -94,27 +94,31 @@ module host_fifo (
     reg [15:0] data_before_collision;
     wire [15:0] signal_wire;
     (* RAM_STYLE="block" *)
-    reg [15:0] signal_multiport_mem[0:7];
+    reg [15:0] signal_multiport_mem[0:13];
     wire [15:0] signal_mem_read_port;
     reg [15:0] ram_rbw_data;
-    wire [2:0] signal_const_1;
-    wire [2:0] signal_const_2;
-    wire [2:0] READ_ADDRESS_NEXT;
-    (* extract_reset="FALSE" *)
-    reg [2:0] READ_ADDRESS;
-    wire [2:0] signal_wire_1;
-    wire signal_and;
-    wire [2:0] RA;
-    wire [2:0] WRITE_ADDRESS_NEXT;
-    (* extract_reset="FALSE" *)
-    reg [2:0] WRITE_ADDRESS;
-    wire [2:0] signal_wire_2;
+    wire [3:0] signal_const_1;
+    wire [3:0] signal_const_3;
+    wire [3:0] signal_add;
+    wire [3:0] signal_const_4;
     wire signal_eq;
+    wire [3:0] READ_ADDRESS_NEXT;
+    (* extract_reset="FALSE" *)
+    reg [3:0] READ_ADDRESS;
+    wire [3:0] signal_wire_1;
+    wire signal_and;
+    wire [3:0] RA;
+    wire [3:0] signal_add_1;
+    wire signal_eq_1;
+    wire [3:0] WRITE_ADDRESS_NEXT;
+    (* extract_reset="FALSE" *)
+    reg [3:0] WRITE_ADDRESS;
+    wire [3:0] signal_wire_2;
+    wire signal_eq_2;
     wire signal_not;
     wire signal_and_1;
     wire signal_xor;
-    wire signal_const_5;
-    wire [3:0] signal_const_6;
+    wire signal_const_9;
     wire signal_lt;
     reg used_gt_one;
     wire signal_or_1;
@@ -123,23 +127,21 @@ module host_fifo (
     reg collision;
     wire [15:0] memory;
     wire signal_xor_1;
-    wire signal_eq_1;
+    wire signal_eq_3;
     reg used_is_one;
     wire signal_and_4;
     wire signal_and_5;
-    wire [3:0] signal_const_10;
-    wire [3:0] signal_const_11;
+    wire [3:0] signal_const_15;
     wire [3:0] signal_sub;
     reg [3:0] USED_MINUS_1 = 4'b1111;
     wire [3:0] signal_wire_3;
-    wire [3:0] signal_add;
+    wire [3:0] signal_add_2;
     reg [3:0] USED_PLUS_1 = 4'b0001;
     wire [3:0] signal_wire_4;
     wire [3:0] signal_mux;
     reg [3:0] USED;
     wire [3:0] signal_wire_5;
-    wire [3:0] signal_const_17;
-    wire signal_eq_2;
+    wire signal_eq_4;
     reg full_0;
     wire signal_wire_6;
     wire signal_wire_7;
@@ -149,7 +151,6 @@ module host_fifo (
     wire signal_wire_9;
     wire signal_or_2;
     wire signal_wire_10;
-    wire [3:0] signal_const_19;
     wire signal_lt_1;
     wire signal_not_3;
     reg nearly_full;
@@ -165,7 +166,7 @@ module host_fifo (
     wire RD_INT;
     wire signal_xor_2;
     wire [3:0] USED_NEXT;
-    wire signal_eq_3;
+    wire signal_eq_5;
     wire signal_not_6;
     reg not_empty;
     wire signal_wire_14;
@@ -188,9 +189,12 @@ module host_fifo (
     always @(posedge signal_wire_10) begin
         ram_rbw_data <= signal_mem_read_port;
     end
-    assign signal_const_1 = 3'b000;
-    assign signal_const_2 = 3'b001;
-    assign READ_ADDRESS_NEXT = signal_wire_1 + signal_const_2;
+    assign signal_const_1 = 4'b0000;
+    assign signal_const_3 = 4'b0001;
+    assign signal_add = signal_wire_1 + signal_const_3;
+    assign signal_const_4 = 4'b1101;
+    assign signal_eq = signal_wire_1 == signal_const_4;
+    assign READ_ADDRESS_NEXT = signal_eq ? signal_const_1 : signal_add;
     always @(posedge signal_wire_10) begin
         if (signal_or_2)
             READ_ADDRESS <= signal_const_1;
@@ -201,7 +205,9 @@ module host_fifo (
     assign signal_wire_1 = READ_ADDRESS;
     assign signal_and = RD_INT & used_gt_one;
     assign RA = signal_and ? READ_ADDRESS_NEXT : signal_wire_1;
-    assign WRITE_ADDRESS_NEXT = signal_wire_2 + signal_const_2;
+    assign signal_add_1 = signal_wire_2 + signal_const_3;
+    assign signal_eq_1 = signal_wire_2 == signal_const_4;
+    assign WRITE_ADDRESS_NEXT = signal_eq_1 ? signal_const_1 : signal_add_1;
     always @(posedge signal_wire_10) begin
         if (signal_or_2)
             WRITE_ADDRESS <= signal_const_1;
@@ -210,75 +216,72 @@ module host_fifo (
                 WRITE_ADDRESS <= WRITE_ADDRESS_NEXT;
     end
     assign signal_wire_2 = WRITE_ADDRESS;
-    assign signal_eq = signal_wire_2 == RA;
+    assign signal_eq_2 = signal_wire_2 == RA;
     assign signal_not = ~ RD_INT;
     assign signal_and_1 = used_is_one & signal_not;
     assign signal_xor = RD_INT ^ WR_INT;
-    assign signal_const_5 = 1'b0;
-    assign signal_const_6 = 4'b0001;
-    assign signal_lt = signal_const_6 < USED_NEXT;
+    assign signal_const_9 = 1'b0;
+    assign signal_lt = signal_const_3 < USED_NEXT;
     always @(posedge signal_wire_10) begin
         if (signal_or_2)
-            used_gt_one <= signal_const_5;
+            used_gt_one <= signal_const_9;
         else
             if (signal_xor)
                 used_gt_one <= signal_lt;
     end
     assign signal_or_1 = used_gt_one | signal_and_1;
     assign signal_and_2 = WR_INT & signal_or_1;
-    assign signal_and_3 = signal_and_2 & signal_eq;
+    assign signal_and_3 = signal_and_2 & signal_eq_2;
     always @(posedge signal_wire_10) begin
         collision <= signal_and_3;
     end
     assign memory = collision ? data_before_collision : ram_rbw_data;
     assign signal_xor_1 = RD_INT ^ WR_INT;
-    assign signal_eq_1 = USED_NEXT == signal_const_6;
+    assign signal_eq_3 = USED_NEXT == signal_const_3;
     always @(posedge signal_wire_10) begin
         if (signal_or_2)
-            used_is_one <= signal_const_5;
+            used_is_one <= signal_const_9;
         else
             if (signal_xor_1)
-                used_is_one <= signal_eq_1;
+                used_is_one <= signal_eq_3;
     end
     assign signal_and_4 = used_is_one & WR_INT;
     assign signal_and_5 = signal_and_4 & RD_INT;
-    assign signal_const_10 = 4'b0000;
-    assign signal_const_11 = 4'b1111;
-    assign signal_sub = USED_NEXT - signal_const_6;
+    assign signal_const_15 = 4'b1111;
+    assign signal_sub = USED_NEXT - signal_const_3;
     always @(posedge signal_wire_10) begin
         if (signal_or_2)
-            USED_MINUS_1 <= signal_const_11;
+            USED_MINUS_1 <= signal_const_15;
         else
             if (signal_xor_2)
                 USED_MINUS_1 <= signal_sub;
     end
     assign signal_wire_3 = USED_MINUS_1;
-    assign signal_add = USED_NEXT + signal_const_6;
+    assign signal_add_2 = USED_NEXT + signal_const_3;
     always @(posedge signal_wire_10) begin
         if (signal_or_2)
-            USED_PLUS_1 <= signal_const_6;
+            USED_PLUS_1 <= signal_const_3;
         else
             if (signal_xor_2)
-                USED_PLUS_1 <= signal_add;
+                USED_PLUS_1 <= signal_add_2;
     end
     assign signal_wire_4 = USED_PLUS_1;
     assign signal_mux = RD_INT ? signal_wire_3 : signal_wire_4;
     always @(posedge signal_wire_10) begin
         if (signal_or_2)
-            USED <= signal_const_10;
+            USED <= signal_const_1;
         else
             if (signal_xor_2)
                 USED <= USED_NEXT;
     end
     assign signal_wire_5 = USED;
-    assign signal_const_17 = 4'b1001;
-    assign signal_eq_2 = USED_NEXT == signal_const_17;
+    assign signal_eq_4 = USED_NEXT == signal_const_15;
     always @(posedge signal_wire_10) begin
         if (signal_or_2)
-            full_0 <= signal_const_5;
+            full_0 <= signal_const_9;
         else
             if (signal_xor_2)
-                full_0 <= signal_eq_2;
+                full_0 <= signal_eq_4;
     end
     assign signal_wire_6 = full_0;
     assign signal_wire_7 = signal_wire_6;
@@ -288,12 +291,11 @@ module host_fifo (
     assign signal_wire_9 = clear;
     assign signal_or_2 = signal_wire_9 | signal_wire_8;
     assign signal_wire_10 = clock;
-    assign signal_const_19 = 4'b1000;
-    assign signal_lt_1 = USED_NEXT < signal_const_19;
+    assign signal_lt_1 = USED_NEXT < signal_const_15;
     assign signal_not_3 = ~ signal_lt_1;
     always @(posedge signal_wire_10) begin
         if (signal_or_2)
-            nearly_full <= signal_const_5;
+            nearly_full <= signal_const_9;
         else
             if (signal_xor_2)
                 nearly_full <= signal_not_3;
@@ -310,11 +312,11 @@ module host_fifo (
     assign RD_INT = signal_wire_13 & signal_not_5;
     assign signal_xor_2 = RD_INT ^ WR_INT;
     assign USED_NEXT = signal_xor_2 ? signal_mux : signal_wire_5;
-    assign signal_eq_3 = USED_NEXT == signal_const_10;
-    assign signal_not_6 = ~ signal_eq_3;
+    assign signal_eq_5 = USED_NEXT == signal_const_1;
+    assign signal_not_6 = ~ signal_eq_5;
     always @(posedge signal_wire_10) begin
         if (signal_or_2)
-            not_empty <= signal_const_5;
+            not_empty <= signal_const_9;
         else
             if (signal_xor_2)
                 not_empty <= signal_not_6;
@@ -12765,7 +12767,7 @@ module engines (
     assign signal_wire_72 = signal_select_72;
     assign signal_select_73 = signal_inst_3[64:56];
     assign signal_wire_73 = signal_select_73;
-    assign signal_const_5 = 4'b1000;
+    assign signal_const_5 = 4'b1111;
     assign signal_select_74 = signal_inst_1[278:275];
     assign signal_wire_74 = signal_select_74;
     assign route_full$0 = signal_wire_74 == signal_const_5;

@@ -1,6 +1,6 @@
 open! Core
 
-let fifo_depth = 8
+let fifo_depth = Host_fifo.depth
 let data_mask = (1 lsl Isa.data_bits) - 1
 let timer_mask = (1 lsl Isa.timer_bits) - 1
 let fraction_mask = (1 lsl Isa.fraction_bits) - 1

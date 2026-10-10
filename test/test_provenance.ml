@@ -27,7 +27,7 @@ let%expect_test "tracing leaves the committed verilog byte for byte" =
         ~bytes:(String.length committed : int)
         ~untraced_identical:(String.equal plain committed : bool)
         ~traced_identical:(String.equal traced committed : bool)];
-  [%expect {| ((bytes 656163) (untraced_identical true) (traced_identical true)) |}]
+  [%expect {| ((bytes 656314) (untraced_identical true) (traced_identical true)) |}]
 ;;
 
 (* no module's lines are an interface's fields, where its derived code sits *)
@@ -70,14 +70,14 @@ let%expect_test "the share of verilog names that resolve to a src line" =
              : string list)]);
   [%expect
     {|
-    ((names 6286) (named_at 307) (made_at 5076) (unresolved 903)
+    ((names 6287) (named_at 307) (made_at 5076) (unresolved 904)
      (distinct_lines 901))
     (data_memory (names 60) (unresolved 30) (files (src/data_memory.ml)))
     (engine (names 2396) (unresolved 131)
      (files
       (src/crc.ml src/deadline.ml src/decoder.ml src/engine.ml src/pins.ml)))
     (engines (names 675) (unresolved 246) (files (src/engines.ml)))
-    (host_fifo (names 92) (unresolved 85) (files (src/host_fifo.ml)))
+    (host_fifo (names 93) (unresolved 86) (files (src/host_fifo.ml)))
     (host_port (names 1100) (unresolved 244) (files (src/host_port.ml)))
     (host_spi (names 71) (unresolved 21) (files (src/host_spi.ml)))
     (load_checker (names 1644) (unresolved 99)

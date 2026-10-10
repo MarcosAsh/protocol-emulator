@@ -2,7 +2,7 @@ open! Core
 open! Hardcaml
 open! Signal
 
-let depth = 8
+let depth = 15
 let level_bits = Int.ceil_log2 (depth + 1)
 
 module I = struct
@@ -25,8 +25,9 @@ module O = struct
   [@@deriving hardcaml]
 end
 
-(* A showahead [Fifo] holds one more than its capacity, so [full] is [nearly_full] at
-   [depth]. A same-cycle pop makes room, as the model pops before the instruction. *)
+(* A showahead [Fifo] holds one past its memory, so [full] is [nearly_full] at [depth],
+   which keeps the level in four bits. A same-cycle pop makes room, as the model pops
+   before the instruction. *)
 let create (scope : Scope.t) (i : Signal.t I.t) =
   let%hw full = wire 1 in
   let fifo =
@@ -35,7 +36,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
       ~showahead:true
       ~nearly_full:depth
       ()
-      ~capacity:depth
+      ~capacity:(depth - 1)
       ~clock:i.clocking.clock
       ~clear:(i.clocking.clear |: i.flush)
       ~wr:(i.push.valid &: ~:full)
