@@ -19,7 +19,7 @@ the RTL is proven never to miss one of its deadlines, under the assumptions belo
 | Cores | 2 cores, 3 IHP 512 x 16 SRAM macros: a program memory each and a data memory they share | `src/protocol_emulator.v` |
 | Pins | 4 for the host's SPI, 5 in, 7 out, 8 bidirectional, and 8 wires between the cores | `info.yaml`, `src/isa.ml` |
 | Hardened | 23,732 standard cells at 49.8% utilisation, setup slack +4.358 ns at the slow corner, precheck clean | gds run [37962655107](https://github.com/MarcosAsh/protocol-emulator/actions/runs/37962655107) |
-| Firmware | 22 library firmwares the kernel accepts | `test/test_kernel.ml` |
+| Firmware | 28 library firmwares the kernel accepts | `test/test_kernel.ml` |
 | Proved | a program the kernel accepts never misses a deadline on each core's RTL, under the assumptions below | `formal/phase_table.sby` |
 | Board | the RTL on an Icepi Zero (ECP5 FPGA) passed the self-timing demo on 2026-10-09, no silicon yet | `python/demo_self_timing.py` |
 
@@ -65,9 +65,9 @@ under cocotb.
 - When and how the host talks reaches the pins only through the program's own fifo
   waits and tests, or a fault. Like the other lemmas in `formal/`, it has weakened copies
   that must fail (`make -C formal teeth`).
-- The kernel accepts all 22 library firmwares (UART, SPI, I2C, USB, WS2812, 1-Wire, PS/2,
-  JTAG, CAN, 10BASE-T, DShot600, SENT, CEC). `test/test_certified.ml` lists each with its
-  slack and assumptions.
+- The kernel accepts all 28 library firmwares (UART, SPI, I2C, USB, WS2812, 1-Wire, PS/2,
+  JTAG, CAN, 10BASE-T, DShot600, SENT, CEC, SWD). `test/test_certified.ml` lists each
+  with its slack and assumptions.
 - hardcaml_hobby_boards' `Uart.Tx`, compiled to firmware, drives the core's pin as the
   circuit drives its line, 4 cycles later, at 4 clocks a bit, for bytes at least 4 cycles
   after ready (`make -C formal fsm_miter`).
