@@ -21,7 +21,8 @@ on:
   workflow_run:
     workflows: [gds, results]
     types: [completed]
-    branches: [main]
+    # main and CHIP_8X4_BRANCHES below; keep the two lists in step
+    branches: [main, fill-8x4, failsafe-8x4, onchip-8x4]
   workflow_dispatch:
 
 # a run in progress finishes, so a burst of triggers cannot cancel every deploy; the
