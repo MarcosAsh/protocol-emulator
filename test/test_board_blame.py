@@ -17,6 +17,7 @@ THRESHOLD = 0.5
 BUS_PF = 20
 FIRST_IO = 12  # pin 12 is uio[0]
 WORDS = [i2c_word(0xA0, start=True), i2c_word(0x5A, stop=True)]
+FIFO_DEPTH = 15  # src/host_fifo.ml's depth: the stamps the meter keeps of 19 releases
 
 
 def rise_ns(ohms, pf=BUS_PF):
@@ -115,7 +116,7 @@ def verdicts(dut, names, pcs, stamps, pull_up):
 async def check_rise(dut, ohms):
     scl_ns = rise_ns(ohms)
     names, pcs, stamps = await measure(dut, scl_ns)
-    assert (len(pcs), len(stamps)) == (19, 8), (len(pcs), len(stamps))
+    assert (len(pcs), len(stamps)) == (19, FIFO_DEPTH), (len(pcs), len(stamps))
     vs = verdicts(dut, names, pcs, stamps, ohms)
     for v in vs:
         assert v["rose"] and v["low_ns"] <= scl_ns < v["high_ns"], (scl_ns, v)
@@ -127,7 +128,7 @@ async def check_rise(dut, ohms):
 async def test_zero_load(dut):
     """A line that rises at once reads ZERO_LOAD: the chip's own part of every word."""
     _, _, stamps = await measure(dut, 0)
-    assert stamps == [board_blame.ZERO_LOAD] * 8, stamps
+    assert stamps == [board_blame.ZERO_LOAD] * FIFO_DEPTH, stamps
 
 
 @cocotb.test()
