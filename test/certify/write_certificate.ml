@@ -1044,15 +1044,19 @@ let fsm_miter ~mutant =
   let data = label "data" in
   let stop = label "stop" in
   let complete = label "complete" in
+  (* a showahead fifo's count is one bit over its address, its level the status word's *)
+  let used_bits = Int.ceil_log2 Host_fifo.depth + 1 in
   let host =
-    "  (* anyseq *) wire rx_pop, data_in_valid;\n\
-    \  (* anyseq *) wire [8:0] data_in;\n\
-    \  wire txd, data_in_ready;\n\
-    \  wire tx_valid = data_in_valid && data_in_ready;\n\
-    \  wire [15:0] tx_value = {7'b0, data_in};\n\
-    \  wire [3:0] tx_level, fifo_used, fifo_used_minus_1, fifo_used_plus_1;\n\
-    \  wire fifo_used_is_one, fifo_used_gt_one, fifo_not_empty, fifo_full, \
-     fifo_nearly_full;\n"
+    [%string
+      "  (* anyseq *) wire rx_pop, data_in_valid;\n\
+      \  (* anyseq *) wire [8:0] data_in;\n\
+      \  wire txd, data_in_ready;\n\
+      \  wire tx_valid = data_in_valid && data_in_ready;\n\
+      \  wire [15:0] tx_value = {7'b0, data_in};\n\
+      \  wire [%{Host_fifo.level_bits - 1#Int}:0] tx_level;\n\
+      \  wire [%{used_bits - 1#Int}:0] fifo_used, fifo_used_minus_1, fifo_used_plus_1;\n\
+      \  wire fifo_used_is_one, fifo_used_gt_one, fifo_not_empty, fifo_full, \
+       fifo_nearly_full;\n"]
   in
   let ports =
     ".tx_level(tx_level), .fifo_used(fifo_used),\n\
