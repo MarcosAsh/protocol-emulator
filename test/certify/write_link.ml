@@ -442,6 +442,8 @@ let link ~rx_period =
   let margin = period / 2 in
   let top = Key.limit key in
   let key_bits = Int.ceil_log2 (top + 1) in
+  (* a showahead fifo's count, one bit over its address *)
+  let used_bits = Int.ceil_log2 Host_fifo.depth + 1 in
   let declare =
     List.map Field.ports ~f:(fun (name, width) ->
       [%string "  wire [%{width - 1#Int}:0] %{Field.verilog_name name};"])
@@ -497,7 +499,7 @@ module link (input clk);
 
   wire [15:0] tx_head;
   wire tx_empty;
-  wire [3:0] fifo_used, fifo_used_minus_1, fifo_used_plus_1;
+  wire [%{used_bits - 1#Int}:0] fifo_used, fifo_used_minus_1, fifo_used_plus_1;
   wire fifo_used_is_one, fifo_used_gt_one, fifo_full_0, fifo_nearly_full;
   wire [27:0] pins_sampled_1;
 %{declare}
@@ -585,10 +587,10 @@ module link (input clk);
   // engine 0's tx fifo: Hardcaml's Fifo keeps its count several ways over, which agree
   always @(*)
     if (since_start != 0) begin
-      assert (fifo_used <= 8 && tx_empty == (fifo_used == 0));
-      assert (fifo_used_minus_1 == fifo_used - 4'd1 && fifo_used_plus_1 == fifo_used + 4'd1);
+      assert (fifo_used <= %{Host_fifo.depth#Int} && tx_empty == (fifo_used == 0));
+      assert (fifo_used_minus_1 == fifo_used - 1'd1 && fifo_used_plus_1 == fifo_used + 1'd1);
       assert (fifo_used_is_one == (fifo_used == 1) && fifo_used_gt_one == (fifo_used > 1));
-      assert (!fifo_full_0 && fifo_nearly_full == (fifo_used == 8));
+      assert (!fifo_full_0 && fifo_nearly_full == (fifo_used == %{Host_fifo.depth#Int}));
     end
 
   always @(*) begin
