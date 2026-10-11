@@ -27,7 +27,7 @@ register `p`, so a loop makes edges at exact multiples of `p` however many instr
 run in between. A period that is not a whole number of cycles, 416 2/3 for 115200 baud
 at 48 MHz, takes its fraction from the configuration and never drifts. An input capture
 unit latches `now` on a chosen pin edge so a receiver can anchor its deadlines to the
-incoming signal. Two 8-deep fifos carry data to and
+incoming signal. Two 15-deep fifos carry data to and
 from the host; they never stall the core, and a sticky fault register records an
 underflow, an overflow, a missed deadline or a word that does not decode. Side-set
 drives up to two pins on every instruction, which gives an SPI clock for free and, in
