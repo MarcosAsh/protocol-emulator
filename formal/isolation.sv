@@ -2,7 +2,11 @@
 // chip share the clear, the pads and all of engine 0's inputs; engine 1's are free in each.
 // From the first clear on, engine 0's pins and what the host reads of it agree, by induction
 // on engine 0's flops (isolation.tcl). The data memory's turns are proved to hide engine 1's
-// reads; the assumptions below close the other channels, and a tooth drops each.
+// reads; the assumptions below close the other channels, and a tooth drops each. Four are
+// premises on how the chip is used, not channels it closes: no routed pushes between the
+// two (ROUTED), no start of every engine at once (START_ALL), the frame receiver's words
+// above engine 0's region (FRAME_IN_REGION), and engine 0's check asked only while the
+// shared checker is idle, as its host polls for (CHECK_WHILE_BUSY).
 
 `include "pairs.sv"
 
@@ -23,7 +27,7 @@ typedef struct packed {
   logic stuff_level;
   logic [8:0] wrap_bottom, wrap_top;
   logic [15:0] period_fraction;
-  logic autopull_data, manchester;
+  logic autopull_data, manchester, line_code, route;
 } config_t;
 
 typedef struct packed {
@@ -36,6 +40,9 @@ typedef struct packed {
   logic [8:0] data_addr;
   logic [15:0] data_data;
   logic check, config_written;
+  logic line_valid;
+  logic [4:0] line_addr;
+  logic [15:0] line_data;
 } host_t;
 
 // the load checker's settings, the chip's and not an engine's
@@ -43,8 +50,21 @@ typedef struct packed {
   logic [8:0] base;
   logic loaded_valid;
   logic [15:0] loaded_value;
-  logic single_edge;
+  logic single_edge, floor;
 } check_setup_t;
+
+// the chip's own host fields: the frame receiver's and the edge stamps' controls, and the
+// start of every engine
+typedef struct packed {
+  logic arm;
+  logic [8:0] base;
+  logic fifty;
+} frame_t;
+
+typedef struct packed {
+  logic [19:0] mask;
+  logic engine, flush, pop;
+} stamps_t;
 
 // a macro's inputs
 typedef struct packed {
@@ -66,9 +86,13 @@ typedef struct packed {
 module isolation_copy (
   input clk, clear,
   input [19:0] pads,
+  input [1:0] rd,
   input config_t config_0, config_1,
   input host_t host_0, host_1,
   input check_setup_t check_setup,
+  input frame_t frame,
+  input stamps_t stamps,
+  input start_all,
   input [15:0] dout_0, dout_1, dout_data,
   output port_t port_0, port_1, port_data,
   output [27:0] pin_out_0, pin_dir_0, pin_out_1, pin_dir_1,
@@ -78,7 +102,7 @@ module isolation_copy (
   output [15:0] instruction,
   output [7:0] opcode_onehot,
   output [27:0] wait_select,
-  output capture_armed,
+  output capture_armed, holding, checking,
   output [8:0] data_addr,
   output [`STATE_BITS - 1:0] state,
   output fifo_t rx, tx,
@@ -106,7 +130,8 @@ module isolation_copy (
     .hosts$config$wrap_bottom_``n(c.wrap_bottom), .hosts$config$wrap_top_``n(c.wrap_top), \
     .hosts$config$period_fraction_``n(c.period_fraction), \
     .hosts$config$autopull_data_``n(c.autopull_data), \
-    .hosts$config$manchester_``n(c.manchester),
+    .hosts$config$manchester_``n(c.manchester), \
+    .hosts$config$line_code_``n(c.line_code), .hosts$config$route_``n(c.route),
 `define HOST(n, h) \
     .hosts$start_``n(h.start), .hosts$stop_``n(h.stop), .hosts$flush_``n(h.flush), \
     .hosts$rx_pop_``n(h.rx_pop), .hosts$clear_irq_``n(h.clear_irq), \
@@ -116,7 +141,9 @@ module isolation_copy (
     .hosts$program_write$data_``n(h.program_data), \
     .hosts$data_write$valid_``n(h.data_valid), .hosts$data_write$addr_``n(h.data_addr), \
     .hosts$data_write$data_``n(h.data_data), \
-    .hosts$check_``n(h.check), .hosts$config_written_``n(h.config_written),
+    .hosts$check_``n(h.check), .hosts$config_written_``n(h.config_written), \
+    .hosts$line_write$valid_``n(h.line_valid), .hosts$line_write$addr_``n(h.line_addr), \
+    .hosts$line_write$data_``n(h.line_data),
 `define PORT(prefix, p) \
     .prefix``_men(p.men), .prefix``_wen(p.wen), .prefix``_ren(p.ren), \
     .prefix``_addr(p.addr), .prefix``_din(p.din), .prefix``_bm(p.bm),
@@ -126,6 +153,11 @@ module isolation_copy (
     .check_setup$base(check_setup.base), .check_setup$loaded$valid(check_setup.loaded_valid),
     .check_setup$loaded$value(check_setup.loaded_value),
     .check_setup$single_edge(check_setup.single_edge),
+    .check_setup$floor(check_setup.floor),
+    .start_all(start_all), .rd(rd),
+    .frame$arm(frame.arm), .frame$base(frame.base), .frame$fifty(frame.fifty),
+    .stamps$mask(stamps.mask), .stamps$engine(stamps.engine), .stamps$flush(stamps.flush),
+    .stamps$pop(stamps.pop),
     `CONFIG(0, config_0) `HOST(0, host_0)
     `CONFIG(1, config_1) `HOST(1, host_1)
     `PORT(sram_0, port_0) `PORT(sram_1, port_1) `PORT(data_sram, port_data)
@@ -143,6 +175,7 @@ module isolation_copy (
     .engines$halted_1(halted_1),
     .engines$instruction_0(instruction), .engines$opcode_onehot_0(opcode_onehot),
     .engines$wait_select_0(wait_select), .engines$capture_armed_0(capture_armed),
+    .holding_0(holding), .checking(checking),
     .engines$data_addr_0(data_addr),
     .state_0(state), .rx_0(rx), .tx_0(tx), .pins_sampled_0(pins_sampled),
     .started_0(started), .data_mine_0(data_mine), .lent_0(lent),
@@ -191,6 +224,11 @@ module isolation (input clk);
   (* anyseq *) host_t host_1_a, host_1_b;
   // shared by both copies, as the host port holds it; the checker may run on either engine
   (* anyseq *) check_setup_t check_setup;
+  (* anyseq *) frame_t frame;
+  (* anyseq *) stamps_t stamps;
+  (* anyseq *) wire start_all;
+  // the 10BASE-T pad's samples on both edges, as the top takes them off the pads
+  (* anyseq *) wire [1:0] rd;
   (* anyseq *) wire [15:0] dout_1_a, dout_1_b;
 
   // both copies clear at the first edge, and together whenever reset comes again
@@ -200,6 +238,9 @@ module isolation (input clk);
     cleared <= 1;
     warm <= cleared;
   end
+
+  config_t last_config_0;
+  always @(posedge clk) last_config_0 <= config_0;
 
   // the checker held engine 0's ports last cycle, in either copy
   reg was_lent = 0;
@@ -211,7 +252,8 @@ module isolation (input clk);
   wire [27:0] pin_out_0_b, pin_dir_0_b, pin_out_1_b, pin_dir_1_b;
   wire [19:0] pin_out_a, pin_dir_a, pin_out_b, pin_dir_b;
   status_t status_a, status_b;
-  wire halted_1_a, halted_1_b, capture_armed_a, capture_armed_b;
+  wire halted_1_a, halted_1_b, capture_armed_a, capture_armed_b, holding_a, holding_b;
+  wire checking_a, checking_b;
   wire [15:0] instruction_a, instruction_b, data_word_a, data_word_b;
   wire [7:0] opcode_onehot_a, opcode_onehot_b;
   wire [27:0] wait_select_a, wait_select_b, pins_sampled_a, pins_sampled_b;
@@ -222,9 +264,9 @@ module isolation (input clk);
 
 `define COPY(side) \
   isolation_copy side ( \
-    .clk(clk), .clear(clear), .pads(pads), \
+    .clk(clk), .clear(clear), .pads(pads), .rd(rd), \
     .config_0(config_0), .config_1(config_1_``side), .host_0(host_0), .host_1(host_1_``side), \
-    .check_setup(check_setup), \
+    .check_setup(check_setup), .frame(frame), .stamps(stamps), .start_all(start_all), \
     .dout_0(dout_0_``side), .dout_1(dout_1_``side), .dout_data(dout_data_``side), \
     .port_0(port_0_``side), .port_1(port_1_``side), .port_data(port_data_``side), \
     .pin_out_0(pin_out_0_``side), .pin_dir_0(pin_dir_0_``side), \
@@ -232,7 +274,8 @@ module isolation (input clk);
     .pin_out(pin_out_``side), .pin_dir(pin_dir_``side), .status(status_``side), \
     .halted_1(halted_1_``side), .instruction(instruction_``side), \
     .opcode_onehot(opcode_onehot_``side), .wait_select(wait_select_``side), \
-    .capture_armed(capture_armed_``side), .data_addr(data_addr_``side), \
+    .capture_armed(capture_armed_``side), .holding(holding_``side), \
+    .checking(checking_``side), .data_addr(data_addr_``side), \
     .state(state_``side), .rx(rx_``side), .tx(tx_``side), \
     .pins_sampled(pins_sampled_``side), .started(started_``side), \
     .data_mine(data_mine_``side), .lent(lent_``side), .data_word(data_word_``side));
@@ -276,15 +319,20 @@ module isolation (input clk);
   wire jumps_on_pin = opcode == 0 && (instruction_a[12:9] == 4 || instruction_a[12:9] == 5);
   wire ins_pins = opcode == 2 && instruction_a[7:5] == 0;
   wire movs_pins = opcode == 4 && instruction_a[2:0] == 0;
+  wire arms = opcode == 7 && instruction_a[3:0] == 7;
 
   always @* if (cleared) begin
-    // Engine 0 reads only pins in listens: each word it runs, and its capture pin while
-    // armed.
+    // Engine 0 reads only pins in listens: each word it runs, and its capture pin as it
+    // arms, while armed, and while it watches a single-edge premise.
     if (waits_on_pin) assume (((28'd1 << instruction_a[4:0]) & ~listens) == 0);
     if (jumps_on_pin) assume ((pin(config_0.jmp_pin) & ~listens) == 0);
     if (ins_pins) assume ((window(config_0.in_base, instruction_a[4:0]) & ~listens) == 0);
+    // a one-bit in under a line code reads its pin as Pins.pin picks it
+    if (ins_pins && config_0.line_code && instruction_a[4:0] == 1)
+      assume ((pin(config_0.in_base) & ~listens) == 0);
     if (movs_pins) assume ((window(config_0.in_base, config_0.in_count) & ~listens) == 0);
-    if (capture_armed_a) assume ((pin(config_0.capture_pin) & ~listens) == 0);
+    if (capture_armed_a || arms || holding_a)
+      assume ((pin(config_0.capture_pin) & ~listens) == 0);
     // Engine 1 is not heard there: it drives no pad direction and no wire level among
     // them, which the frame lemma gives when its footprint misses them.
 `ifndef HEARD
@@ -311,6 +359,26 @@ module isolation (input clk);
 `ifndef START_WRITE
     if (host_0.start || started_a) assume (!port_data_a.wen && !port_data_b.wen);
 `endif
+    // Neither engine routes its pushes to the other, a channel by design.
+`ifndef ROUTED
+    assume (!config_0.route && !config_1_a.route && !config_1_b.route);
+`endif
+    // No start of every engine at once, which waits for engine 1 to halt.
+`ifndef START_ALL
+    assume (!start_all);
+`endif
+    // The frame receiver's words land from its base up, so a base above engine 0's region
+    // keeps every word of a frame, of any length, out of it.
+`ifndef FRAME_IN_REGION
+    assume ((region >> frame.base) == 0);
+`endif
+    // Engine 0's host asks a check only while the checker is idle, so engine 1's checks
+    // neither drop nor delay it, nor the premises it loads.
+`ifndef CHECK_WHILE_BUSY
+    if (host_0.check) assume (!checking_a && !checking_b);
+`endif
+    // Engine 0's config changes only while it is halted, as the host port writes it.
+    if (!status_a.halted) assume (config_0 == last_config_0);
   end
 
   // the pads engine 1 reaches in either copy
@@ -345,8 +413,9 @@ module isolation (input clk);
       if (port_data_a.wen && region[port_data_a.addr])
         assert (port_data_a.addr == port_data_b.addr && port_data_a.din == port_data_b.din
                 && port_data_a.bm == port_data_b.bm);
-      // the word engine 0 streams agrees while it runs, and as it starts once read
-      if (!status_a.halted) assert (data_word_a == data_word_b);
+      // the word engine 0 streams agrees while it runs pulling data, which keeps the frame
+      // receiver off the memory, and as it starts once read
+      if (!status_a.halted && config_0.autopull_data) assert (data_word_a == data_word_b);
       if (started_a) begin
         assert (data_mine_a == data_mine_b);
         if (data_mine_a) assert (data_word_a == data_word_b);

@@ -8,6 +8,10 @@ region_written teeth
 outside teeth
 load_anytime teeth
 start_write teeth
+routed teeth
+start_all teeth
+frame_in_region teeth
+check_while_busy teeth
 
 [options]
 prove: mode prove
@@ -32,11 +36,14 @@ expose -evert -sep __ engines_top/t:RM_IHPSG13_1P_512x16_c2_bm_bist
 cd engines_top
 expose w:engines.engine_0.pins_sampled w:engines.engine_0.start_0 w:engines.lent$0
 expose w:engines.data_memory.mine_1 w:engines.data_memory.words_0
+expose w:engines.engine_0.holding w:engines.checking
 rename engines.engine_0.pins_sampled pins_sampled_0
 rename engines.engine_0.start_0 started_0
 rename engines.lent$0 lent_0
 rename engines.data_memory.mine_1 data_mine_0
 rename engines.data_memory.words_0 data_word_0
+rename engines.engine_0.holding holding_0
+rename engines.checking checking
 rename engines.engine_0.sram_macro.sram__A_MEN sram_0_men
 rename engines.engine_0.sram_macro.sram__A_WEN sram_0_wen
 rename engines.engine_0.sram_macro.sram__A_REN sram_0_ren
@@ -68,6 +75,10 @@ region_written: read -define REGION_WRITTEN
 outside: read -define OUTSIDE
 load_anytime: read -define LOAD_ANYTIME
 start_write: read -define START_WRITE
+routed: read -define ROUTED
+start_all: read -define START_ALL
+frame_in_region: read -define FRAME_IN_REGION
+check_while_busy: read -define CHECK_WHILE_BUSY
 read_verilog -formal -sv isolation.sv
 prep -top isolation
 
