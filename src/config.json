@@ -47,6 +47,10 @@
   "//": "net on the power-up build (64 -> 7 -> 1 -> 1).",
   "DRT_ANTENNA_REPAIR_ITERS": 6,
 
+  "//": "OPENROAD_THREADS - unset, LibreLane 3.1.0.dev3 passes '-threads None' and OpenROAD runs",
+  "//": "on one thread. 4 is a GitHub runner's core count; local hardens override it with -c.",
+  "OPENROAD_THREADS": 4,
+
   "//": "SRAM macro integration, see odb_sram_stripes.py",
   "MACROS": {
     "RM_IHPSG13_1P_512x16_c2_bm_bist": {
