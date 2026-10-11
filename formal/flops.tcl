@@ -43,14 +43,15 @@ proc gather {port wires} {
 # the host fifo at path as one port, its fields in the order of fifo_t in pairs.sv, first
 # field last
 proc gather_fifo {path port} {
-  for {set n 0} {$n < 8} {incr n} {
+  for {set n 0} {$n < 15} {incr n} {
     yosys rename $path.signal_multiport_mem\[$n\] $path.word_$n
   }
   set fields {}
   foreach wire {
     USED USED_PLUS_1 USED_MINUS_1 READ_ADDRESS WRITE_ADDRESS used_is_one used_gt_one
     not_empty nearly_full full_0 collision signal_reg ram_rbw_data data_before_collision
-    word_0 word_1 word_2 word_3 word_4 word_5 word_6 word_7
+    word_0 word_1 word_2 word_3 word_4 word_5 word_6 word_7 word_8 word_9 word_10 word_11
+    word_12 word_13 word_14
   } {
     lappend fields {*}[wires w:$path.$wire]
   }

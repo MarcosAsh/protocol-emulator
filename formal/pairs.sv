@@ -20,16 +20,16 @@ module sram_pair (
 endmodule
 
 // One host fifo, fields as flops.tcl gathers them. It holds used words: the head, then
-// used - 1 in words from the read address on, the first of those also in the read buffer,
-// or in written when it was pushed on the edge that read it.
+// used - 1 in words from the read address on, wrapping at 15, the first of those also in
+// the read buffer, or in written when it was pushed on the edge that read it.
 typedef struct packed {
   logic full, nearly_full, not_empty, used_gt_one, used_is_one;
-  logic [2:0] write_address, read_address;
-  logic [3:0] used_minus_1, used_plus_1, used;
+  logic [3:0] write_address, read_address;
+  logic [4:0] used_minus_1, used_plus_1, used;
 } counters_t;
 
 typedef struct packed {
-  logic [7:0][15:0] words;
+  logic [14:0][15:0] words;
   logic [15:0] written, read_data, head;
   logic collision;
   counters_t counters;
@@ -41,27 +41,28 @@ module fifo_pair (input check, input fifo_t a, input fifo_t b);
   counters_t c;
   assign c = a.counters;
   // where the next word past the head goes
-  wire [2:0] free = c.used == 0 ? c.read_address : c.read_address + c.used - 4'd1;
+  wire [5:0] ahead = c.read_address + c.used - 6'd1;
+  wire [3:0] free = c.used == 0 ? c.read_address : ahead >= 15 ? ahead - 6'd15 : ahead;
   wire [15:0] buffer_a = a.collision ? a.written : a.read_data;
   wire [15:0] buffer_b = b.collision ? b.written : b.read_data;
 
   always @* if (check) begin
     assert (a.counters == b.counters);
-    assert (c.used <= 9);
-    assert (c.used_plus_1 == c.used + 4'd1 && c.used_minus_1 == c.used - 4'd1);
+    assert (c.used <= 16);
+    assert (c.used_plus_1 == c.used + 5'd1 && c.used_minus_1 == c.used - 5'd1);
     assert (c.used_is_one == (c.used == 1) && c.used_gt_one == (c.used > 1));
-    assert (c.not_empty == (c.used != 0) && c.nearly_full == (c.used >= 8));
-    assert (c.full == (c.used == 9));
-    assert (c.write_address == free);
+    assert (c.not_empty == (c.used != 0) && c.nearly_full == (c.used >= 15));
+    assert (c.full == (c.used == 16));
+    assert (c.read_address < 15 && c.write_address == free);
     if (c.used >= 1) assert (a.head == b.head);
     if (c.used >= 2) assert (buffer_a == buffer_b);
   end
 
   genvar n;
   generate
-    for (n = 0; n < 8; n = n + 1) begin : word
-      wire [2:0] place = n - c.read_address;
-      always @* if (check && c.used >= 2 && place < c.used - 4'd1)
+    for (n = 0; n < 15; n = n + 1) begin : word
+      wire [3:0] place = n >= c.read_address ? n - c.read_address : n + 15 - c.read_address;
+      always @* if (check && c.used >= 2 && place < c.used - 5'd1)
         assert (a.words[n] == b.words[n]);
     end
   endgenerate
