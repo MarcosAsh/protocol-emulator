@@ -5,10 +5,12 @@ unreset teeth
 stale
 
 [options]
+# Both_edges' falling flops: each edge is a step, so a cycle is two
+multiclock on
 ~teeth: mode prove
-~teeth: depth 2
+~teeth: depth 4
 teeth: mode bmc
-teeth: depth 4
+teeth: depth 8
 teeth: expect fail
 stale: expect unknown
 

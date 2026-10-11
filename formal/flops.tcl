@@ -40,20 +40,22 @@ proc gather {port wires} {
   return $bits
 }
 
-# the host fifo at path as one port, its fields in the order of fifo_t in pairs.sv, first
-# field last
-proc gather_fifo {path port} {
-  for {set n 0} {$n < 15} {incr n} {
+# the fifo at path, of words words, as one port, its fields in the order of fifo_t in
+# pairs.sv, first field last; full is Hardcaml's full flop, full_0 where the owner has a
+# full of its own; returns the wires
+proc gather_fifo {path port {words 16} {full full_0}} {
+  set names {}
+  for {set n 0} {$n < $words} {incr n} {
     yosys rename $path.signal_multiport_mem\[$n\] $path.word_$n
+    lappend names word_$n
   }
   set fields {}
-  foreach wire {
-    USED USED_PLUS_1 USED_MINUS_1 READ_ADDRESS WRITE_ADDRESS used_is_one used_gt_one
-    not_empty nearly_full full_0 collision signal_reg ram_rbw_data data_before_collision
-    word_0 word_1 word_2 word_3 word_4 word_5 word_6 word_7 word_8 word_9 word_10 word_11
-    word_12 word_13 word_14
-  } {
+  foreach wire [list \
+    USED USED_PLUS_1 USED_MINUS_1 READ_ADDRESS WRITE_ADDRESS used_is_one used_gt_one \
+    not_empty nearly_full $full collision signal_reg ram_rbw_data data_before_collision \
+    {*}$names] {
     lappend fields {*}[wires w:$path.$wire]
   }
   gather $port $fields
+  return $fields
 }

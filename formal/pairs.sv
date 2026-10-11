@@ -19,8 +19,8 @@ module sram_pair (
   end
 endmodule
 
-// One host fifo, fields as flops.tcl gathers them. It holds used words: the head, then
-// used - 1 in words from the read address on, wrapping at 15, the first of those also in
+// A host fifo, fields as flops.tcl gathers them, first field last. It holds used words:
+// the head, then used - 1 in words from the read address on, the first of those also in
 // the read buffer, or in written when it was pushed on the edge that read it.
 typedef struct packed {
   logic full, nearly_full, not_empty, used_gt_one, used_is_one;
@@ -29,41 +29,56 @@ typedef struct packed {
 } counters_t;
 
 typedef struct packed {
-  logic [14:0][15:0] words;
+  logic [15:0][15:0] words;
   logic [15:0] written, read_data, head;
   logic collision;
   counters_t counters;
 } fifo_t;
 
-// The two copies of a fifo agree on their counters, which agree with used, and on the
+// The two copies of a fifo laid out as fifo_t, of 2^ADDR words WORD wide, whose full
+// takes nearly_full at NEARLY, agree on their counters, which agree with used, and on the
 // words held; the rest, left from power-up, may differ.
-module fifo_pair (input check, input fifo_t a, input fifo_t b);
-  counters_t c;
-  assign c = a.counters;
+module fifo_pair #(parameter WORD = 16, ADDR = 4, USED = 5, NEARLY = 15) (
+  input check,
+  input [(2 ** ADDR + 3) * WORD + 6 + 2 * ADDR + 3 * USED - 1:0] a, b
+);
+  localparam C = 5 + 2 * ADDR + 3 * USED;
+  wire [C - 1:0] c = a[C - 1:0];
+  wire [USED - 1:0] used = c[USED - 1:0];
+  wire [USED - 1:0] used_plus_1 = c[2 * USED - 1:USED];
+  wire [USED - 1:0] used_minus_1 = c[3 * USED - 1:2 * USED];
+  wire [ADDR - 1:0] read_address = c[3 * USED + ADDR - 1:3 * USED];
+  wire [ADDR - 1:0] write_address = c[3 * USED + 2 * ADDR - 1:3 * USED + ADDR];
+  wire used_is_one = c[C - 5], used_gt_one = c[C - 4], not_empty = c[C - 3];
+  wire nearly_full = c[C - 2], full = c[C - 1];
+  function [WORD - 1:0] field(input [(2 ** ADDR + 3) * WORD + C:0] f, input integer n);
+    field = f[C + 1 + n * WORD +: WORD];
+  endfunction
+  // head, read buffer, written, then the words from C + 1 + 3 WORD up
+  wire collision_a = a[C], collision_b = b[C];
+  wire [WORD - 1:0] buffer_a = collision_a ? field(a, 2) : field(a, 1);
+  wire [WORD - 1:0] buffer_b = collision_b ? field(b, 2) : field(b, 1);
   // where the next word past the head goes
-  wire [5:0] ahead = c.read_address + c.used - 6'd1;
-  wire [3:0] free = c.used == 0 ? c.read_address : ahead >= 15 ? ahead - 6'd15 : ahead;
-  wire [15:0] buffer_a = a.collision ? a.written : a.read_data;
-  wire [15:0] buffer_b = b.collision ? b.written : b.read_data;
+  wire [ADDR - 1:0] free = used == 0 ? read_address : read_address + used - 1'd1;
 
   always @* if (check) begin
-    assert (a.counters == b.counters);
-    assert (c.used <= 16);
-    assert (c.used_plus_1 == c.used + 5'd1 && c.used_minus_1 == c.used - 5'd1);
-    assert (c.used_is_one == (c.used == 1) && c.used_gt_one == (c.used > 1));
-    assert (c.not_empty == (c.used != 0) && c.nearly_full == (c.used >= 15));
-    assert (c.full == (c.used == 16));
-    assert (c.read_address < 15 && c.write_address == free);
-    if (c.used >= 1) assert (a.head == b.head);
-    if (c.used >= 2) assert (buffer_a == buffer_b);
+    assert (c == b[C - 1:0]);
+    assert (used <= NEARLY);
+    assert (used_plus_1 == used + 1'd1 && used_minus_1 == used - 1'd1);
+    assert (used_is_one == (used == 1) && used_gt_one == (used > 1));
+    assert (not_empty == (used != 0) && nearly_full == (used >= NEARLY));
+    assert (!full);
+    assert (write_address == free);
+    if (used >= 1) assert (field(a, 0) == field(b, 0));
+    if (used >= 2) assert (buffer_a == buffer_b);
   end
 
   genvar n;
   generate
-    for (n = 0; n < 15; n = n + 1) begin : word
-      wire [3:0] place = n >= c.read_address ? n - c.read_address : n + 15 - c.read_address;
-      always @* if (check && c.used >= 2 && place < c.used - 5'd1)
-        assert (a.words[n] == b.words[n]);
+    for (n = 0; n < 2 ** ADDR; n = n + 1) begin : word
+      wire [ADDR - 1:0] place = n - read_address;
+      always @* if (check && used >= 2 && place < used - 1'd1)
+        assert (field(a, 3 + n) == field(b, 3 + n));
     end
   endgenerate
 endmodule

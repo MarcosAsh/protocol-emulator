@@ -9,9 +9,11 @@
 // equal from then on, which is asserted, so the premise holds after it if it holds then.
 //
 // By induction on an invariant, also asserted: the copies agree on every flop outside the
-// host fifos and the load checker, on each macro's output from the second edge on, on the
-// words each fifo holds (fifo_pair), and on the checker's state and the words its walk
-// has written (load_checker_pair). powerup.tcl brings the flops out. The teeth set
+// fifos and the load checker, on each macro's output from the second edge on, on the
+// words each fifo holds, the host's and the edge stamps' (fifo_pair), on the checker's
+// state and the words its walk has written (load_checker_pair), and on Both_edges'
+// falling flops from the falling edge after the first, which the clear reaches.
+// powerup.tcl brings the flops out. Each clock edge is a step (multiclock). The teeth set
 // NO_INVARIANT, so they fail on the claim alone.
 
 `include "pairs.sv"
@@ -34,7 +36,12 @@ module powerup (input clk);
   wire [8:0] addr_a[0:2], addr_b[0:2];
   wire [15:0] din_a[0:2], din_b[0:2], bm_a[0:2], bm_b[0:2], dout_a[0:2], dout_b[0:2];
   wire [`STATE_BITS - 1:0] state_a, state_b;
+  wire [`FALLING_BITS - 1:0] falling_a, falling_b;
+  wire reset_done_a, reset_done_b;
   fifo_t rx_0_a, tx_0_a, rx_1_a, tx_1_a, rx_0_b, tx_0_b, rx_1_b, tx_1_b;
+  // four stamps, each the 24-bit timer and the 20 pads
+  localparam STAMP = 44;
+  wire [7 * STAMP + 6 + 4 + 9 - 1:0] stamps_a, stamps_b;
   load_checker_t load_checker_a, load_checker_b;
 
 `define CHIP(side) \
@@ -42,8 +49,10 @@ module powerup (input clk);
     .clk(clk), .rst_n(rst_n), .ena(ena), .ui_in(ui_in), .uio_in(uio_in), \
     .uo_out(uo_out_``side), .uio_out(uio_out_``side), .uio_oe(uio_oe_``side), \
     `PORTS(side, 0) `PORTS(side, 1) `PORTS(side, 2) \
-    .state(state_``side), .rx_0(rx_0_``side), .tx_0(tx_0_``side), .rx_1(rx_1_``side), \
-    .tx_1(tx_1_``side), .load_checker(load_checker_``side) \
+    .state(state_``side), .falling(falling_``side), \
+    .reset_done(reset_done_``side), .rx_0(rx_0_``side), .tx_0(tx_0_``side), \
+    .rx_1(rx_1_``side), .tx_1(tx_1_``side), .stamps(stamps_``side), \
+    .load_checker(load_checker_``side) \
   );
 `define PORTS(side, n) \
     .m``n``_men(men_``side[n]), .m``n``_wen(wen_``side[n]), .m``n``_ren(ren_``side[n]), \
@@ -58,6 +67,8 @@ module powerup (input clk);
   `FIFO(tx_0)
   `FIFO(rx_1)
   `FIFO(tx_1)
+  fifo_pair #(.WORD(STAMP), .ADDR(2), .USED(3), .NEARLY(4)) stamps (
+    .check(!first), .a(stamps_a), .b(stamps_b));
   load_checker_pair load_checker (.check(!first), .a(load_checker_a), .b(load_checker_b));
 `endif
 
@@ -91,6 +102,13 @@ module powerup (input clk);
   // the invariant beside fifo_pair; each macro reads every cycle, so from the second edge
   // on its output holds a word the premise makes the same
   always @* if (!first) assert (state_a == state_b);
+  // the clear holds until the second edge, so the falling edge before it clears the
+  // falling flops in both
+  reg fell = 0;
+  always @(negedge clk) if (!first) fell <= 1;
+  always @* if (!first && !warm) assert (!reset_done_a && !reset_done_b);
+  always @* if (!first && !clk || warm) assert (fell);
+  always @* if (fell) assert (falling_a == falling_b);
   always @* if (warm)
     assert (dout_a[0] == dout_b[0] && dout_a[1] == dout_b[1] && dout_a[2] == dout_b[2]);
 `endif
