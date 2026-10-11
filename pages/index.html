@@ -6,8 +6,8 @@
 <meta name="color-scheme" content="light dark">
 <title>Protocol Emulator</title>
 <link rel="icon" href="data:,">
-<!-- The site's root. pages.yaml sets data-pdk from the gds run and drops the results card
-     when no results page went up. -->
+<!-- The site's root. pages.yaml sets data-pdk from the gds run and drops the results and
+     8x4 cards when those pages did not go up. -->
 <style>
   :root { --bg: #fff; --fg: #1a1a1a; --muted: #666; --code: #f4f4f4; --line: #ddd;
     --hover: #fafafa; --accent: #2a78d6; }
@@ -75,6 +75,11 @@ built on IHP CMOS5L through Tiny Tapeout, in 6 x 4 tiles at 50 MHz.</p>
     <p>The last green gds run on main in Tiny Tapeout's GDS viewer.</p>
     <p class="also"><a href="tinytapeout.gds">GDS</a>, <a href="tinytapeout.oas">OASIS</a></p>
   </li>
+  <!-- 8x4 -->
+  <li class="card">
+    <h2><a href="8x4/">8x4 tiles</a></h2>
+  </li>
+  <!-- /8x4 -->
   <li class="card">
     <h2><a href="https://github.com/MarcosAsh/protocol-emulator/releases/tag/v0.2.0">Release
       v0.2.0</a></h2>
