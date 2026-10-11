@@ -7,9 +7,11 @@
 // proved nowhere. Trusted: x, y, now, capture and crc where read (their other updates
 // are left to the engine's tests); the fifos' head, empty and full (fifo_order.sv);
 // data_word as the memory's word at data_ptr; and when the core issues, and that these
-// registers move at no other time (phase_step.sv, edge_step.sv, constant config). Host,
-// pins, clear and config are otherwise free every cycle, and the chip has no debugger. A
-// count above 16 acts as 16, as in Pins.
+// registers move at no other time (phase_step.sv, edge_step.sv, constant config); and,
+// under a line code, the table's bit, level and drop (test_line_code.ml). A routed push
+// goes to the next engine, whose fifo's full the core reads instead. Host, pins, clear,
+// config, the line table, premises and the next engine are otherwise free every cycle,
+// and the chip has no debugger. A count above 16 acts as 16, as in Pins.
 
 // the timer's width, narrower in the narrow tasks
 `ifndef TIMER_BITS
@@ -30,7 +32,13 @@ module value_step (input clk);
   (* anyseq *) wire crc_reflect, stuff_level;
   (* anyseq *) wire [8:0] wrap_bottom, wrap_top;
   (* anyseq *) wire [15:0] period_fraction;
-  (* anyseq *) wire autopull_data, manchester;
+  (* anyseq *) wire autopull_data, manchester, line_code, route;
+  (* anyseq *) wire line_write_valid, program_read_valid, route_full;
+  (* anyseq *) wire [4:0] line_write_addr;
+  (* anyseq *) wire [8:0] program_read_addr;
+  (* anyseq *) wire [15:0] line_write_data;
+  (* anyseq *) wire premise_period_valid, premise_floor, premise_single_edge;
+  (* anyseq *) wire [15:0] premise_period;
   (* anyseq *) wire [15:0] data_word;
   (* anyseq *) wire stop, flush;
   (* anyseq *) wire start, program_write_valid, tx_valid, rx_pop, clear_irq;
@@ -57,6 +65,9 @@ module value_step (input clk);
   // the fifos' ports, and the core's note of a data pointer that moved the cycle before
   wire [15:0] tx_head, rx_push_value;
   wire tx_empty, tx_pop, rx_full, rx_push, data_moved;
+  // a routed push, and the line table's bit, drop and level in the cycle of the word
+  wire [15:0] routed_value;
+  wire routed, line_bit, line_drop, line_level;
 
   engine dut (
     .clock(clk), .clear(clear),
@@ -74,6 +85,13 @@ module value_step (input clk);
     .config$wrap_bottom(wrap_bottom), .config$wrap_top(wrap_top),
     .config$period_fraction(period_fraction),
     .config$autopull_data(autopull_data), .config$manchester(manchester),
+    .config$line_code(line_code), .config$route(route), .route_full(route_full),
+    .line_write$valid(line_write_valid), .line_write$addr(line_write_addr),
+    .line_write$data(line_write_data),
+    .program_read$valid(program_read_valid), .program_read$value(program_read_addr),
+    .premises$period$valid(premise_period_valid), .premises$period$value(premise_period),
+    .premises$floor(premise_floor), .premises$single_edge(premise_single_edge),
+    .push$valid(routed), .push$value(routed_value),
     .stop(stop), .flush(flush),
     .start(start), .program_write$valid(program_write_valid),
     .program_write$addr(program_write_addr), .program_write$data(program_write_data),
@@ -91,7 +109,8 @@ module value_step (input clk);
     .flip_pending(flip_pending), .flip_bit(flip_bit),
     .eng_tx_head(tx_head), .eng_tx_empty(tx_empty), .eng_tx_pop(tx_pop),
     .eng_rx_full(rx_full), .eng_rx_push(rx_push), .eng_rx_push_value(rx_push_value),
-    .eng_data_moved(data_moved));
+    .eng_data_moved(data_moved), .eng_line_bit(line_bit), .eng_line_drop(line_drop),
+    .eng_line_level(line_level));
 
   // an issue, as the model's step has it: running, the delay run out, no start in flight
   reg started = 0;
@@ -232,7 +251,10 @@ module value_step (input clk);
     : target == 5 ? osr
     : target == 6 ? crc
     : capture_wide[15:0];
-  wire [15:0] in_bits = in_from & mask(n);
+  // a one-bit in from the pins under a line code takes the table's bit, or drops it
+  wire line_in = ins && target == 0 && line_code && n == 1;
+  wire dropped = line_in && line_drop;
+  wire [15:0] in_bits = line_in ? {15'd0, line_bit} : in_from & mask(n);
 `ifdef IN_WRONG_DIRECTION
   wire in_right = !in_shift_right;
 `else
@@ -247,12 +269,13 @@ module value_step (input clk);
 `endif
 
   wire pulls = syss && sys_op == 4;
-  wire pushes = ins && push_due || syss && sys_op == 3;
+  wire pushes = ins && push_due && !dropped || syss && sys_op == 3;
   wire seeks = syss && sys_op == 8;
   wire data_pull = outs && pull_due && autopull_data && !refused;
   wire fifo_pull = outs && pull_due && !autopull_data && !tx_empty || pulls && !tx_empty;
   wire misses_pull = outs && pull_due && pull_misses || pulls && tx_empty;
-  wire misses_push = pushes && rx_full;
+  wire full = route ? route_full : rx_full;
+  wire misses_push = pushes && full;
   wire [15:0] push_word = ins ? isr_shifted : isr;
   always @(posedge clk) moved <= seeks || data_pull;
 
@@ -265,13 +288,15 @@ module value_step (input clk);
   wire [4:0] want_osr_count =
     outs ? osr_count_shifted : movs && target == 5 || pulls ? 5'd0 : osr_count;
   wire [15:0] want_isr =
-      ins ? (push_due ? 16'd0 : isr_shifted)
+      dropped ? isr
+    : ins ? (push_due ? 16'd0 : isr_shifted)
     : outs && target == 5 ? out_bits
     : movs && target == 4 ? mov_bits
     : pushes ? 16'd0
     : isr;
   wire [4:0] want_isr_count =
-      ins ? (push_due ? 5'd0 : isr_count_shifted)
+      dropped ? isr_count
+    : ins ? (push_due ? 5'd0 : isr_count_shifted)
     : outs && target == 5 ? n
     : movs && target == 4 || pushes ? 5'd0
     : isr_count;
@@ -287,8 +312,12 @@ module value_step (input clk);
   // Pins.write takes only pins that drive (5 and up) or turn around (12 to 19)
   localparam [27:0] OUTPUTS = 28'hfffffe0;
   wire manchester_bit = outs && target == 0 && manchester && n == 1;
+  // a line-coded bit drives the table's level and its complement, out_count wide to 2
+  wire line_out = outs && target == 0 && line_code && !manchester && n == 1;
+  wire [4:0] line_width = out_count >= 2 ? 5'd2 : out_count;
   wire [27:0] run_out =
       manchester_bit ? place(16'd3, out_base) & OUTPUTS
+    : line_out ? place(mask(line_width), out_base) & OUTPUTS
     : outs && target == 0 ? place(mask(n), out_base) & OUTPUTS
     : movs && target == 0 ? place(mask(out_count), out_base) & OUTPUTS
     : 28'd0;
@@ -296,8 +325,10 @@ module value_step (input clk);
       outs && target == 4 ? place(mask(n), out_base) & BIDIRS
     : movs && target == 3 ? place(mask(out_count), out_base) & BIDIRS
     : 28'd0;
-  wire [27:0] shown =
-    place(manchester_bit ? {14'd0, out_bits[0], !out_bits[0]} : value, out_base);
+  wire [27:0] shown = place(
+      manchester_bit ? {14'd0, out_bits[0], !out_bits[0]}
+    : line_out ? {14'd0, !line_level, line_level}
+    : value, out_base);
 
   // a Manchester bit's second half, owed from the out to the next issue
   reg owed = 0, owed_bit = 0;
@@ -384,8 +415,10 @@ module value_step (input clk);
   always @(posedge clk)
     if (!clear) begin
       assert(tx_pop == fifo_pull);
-      assert(rx_push == (pushes && !rx_full));
+      assert(rx_push == (pushes && !route && !full));
       if (rx_push) assert(rx_push_value == push_word);
+      assert(routed == (pushes && route && !full));
+      if (routed) assert(routed_value == push_word);
     end
 
   // invariants for induction

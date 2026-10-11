@@ -5,7 +5,8 @@
 // pads_shared task drops the disjoint-pads assumption, which only (a) needs. Assumes, as
 // frame_step.sv does, that each word a core runs writes no more than its program says.
 // Wires are not pads: both engines may write one.
-// Host fields, pads and clear are free every cycle; each config holds between clears.
+// Host fields, line tables, pads and clear are free every cycle; each config, line code
+// and route included, holds between clears.
 
 module chip_frame (input clk);
   (* anyconst *) wire [1:0] side_set_count_0, side_set_count_1;
@@ -22,6 +23,7 @@ module chip_frame (input clk);
   (* anyconst *) wire [8:0] wrap_bottom_0, wrap_top_0, wrap_bottom_1, wrap_top_1;
   (* anyconst *) wire [15:0] period_fraction_0, period_fraction_1;
   (* anyconst *) wire autopull_data_0, manchester_0, autopull_data_1, manchester_1;
+  (* anyconst *) wire line_code_0, route_0, line_code_1, route_1;
   // each engine's host fields, bit n for engine n
   (* anyseq *) wire [1:0] start, stop, flush, rx_pop, clear_irq, tx_valid;
   (* anyseq *) wire [1:0] program_write_valid, data_write_valid;
@@ -30,6 +32,10 @@ module chip_frame (input clk);
   (* anyseq *) wire [15:0] program_write_data_0, program_write_data_1;
   (* anyseq *) wire [15:0] data_write_data_0, data_write_data_1, tx_value_0, tx_value_1;
   (* anyseq *) wire [19:0] pads;
+  (* anyseq *) wire [1:0] line_write_valid;
+  (* anyseq *) wire [4:0] line_write_addr_0, line_write_addr_1;
+  (* anyseq *) wire [15:0] line_write_data_0, line_write_data_1;
+  (* anyseq *) wire start_all;
 
   // the top clears both engines at power-on and whenever its reset comes again
   (* anyseq *) wire reset;
@@ -67,6 +73,10 @@ module chip_frame (input clk);
     .hosts$data_write$data_0(data_write_data_0),
     .hosts$tx$valid_0(tx_valid[0]), .hosts$tx$value_0(tx_value_0), .hosts$rx_pop_0(rx_pop[0]),
     .hosts$clear_irq_0(clear_irq[0]), .hosts$stop_0(stop[0]), .hosts$flush_0(flush[0]),
+    .hosts$config$line_code_0(line_code_0), .hosts$config$route_0(route_0),
+    .hosts$line_write$valid_0(line_write_valid[0]),
+    .hosts$line_write$addr_0(line_write_addr_0),
+    .hosts$line_write$data_0(line_write_data_0),
     .hosts$config$side_set_count_1(side_set_count_1), .hosts$config$side_set_base_1(side_set_base_1),
     .hosts$config$side_set_pindirs_1(side_set_pindirs_1), .hosts$config$in_base_1(in_base_1),
     .hosts$config$in_count_1(in_count_1), .hosts$config$out_base_1(out_base_1),
@@ -90,11 +100,16 @@ module chip_frame (input clk);
     .hosts$data_write$data_1(data_write_data_1),
     .hosts$tx$valid_1(tx_valid[1]), .hosts$tx$value_1(tx_value_1), .hosts$rx_pop_1(rx_pop[1]),
     .hosts$clear_irq_1(clear_irq[1]), .hosts$stop_1(stop[1]), .hosts$flush_1(flush[1]),
+    .hosts$config$line_code_1(line_code_1), .hosts$config$route_1(route_1),
+    .hosts$line_write$valid_1(line_write_valid[1]),
+    .hosts$line_write$addr_1(line_write_addr_1),
+    .hosts$line_write$data_1(line_write_data_1),
     // the load checker idle, which ungated engines.v leaves out of every start
     .hosts$check_0(1'b0), .hosts$config_written_0(1'b0),
     .hosts$check_1(1'b0), .hosts$config_written_1(1'b0),
     .check_setup$base(9'd0), .check_setup$loaded$valid(1'b0),
     .check_setup$loaded$value(16'd0), .check_setup$single_edge(1'b0),
+    .check_setup$floor(1'b0), .start_all(start_all),
     .pads(pads),
     .engines$pin_out_0(pin_out_0), .engines$pin_dir_0(pin_dir_0),
     .engines$instruction_0(instruction_0), .engines$opcode_onehot_0(opcode_onehot_0),
@@ -114,6 +129,7 @@ module chip_frame (input clk);
     .side_set_count(side_set_count_0), .side_set_base(side_set_base_0),
     .side_set_pindirs(side_set_pindirs_0), .set_base(set_base_0), .set_count(set_count_0),
     .out_base(out_base_0), .out_count(out_count_0), .manchester(manchester_0),
+    .line_code(line_code_0),
     .op_go(op_go_0), .instruction(instruction_0), .opcode_onehot(opcode_onehot_0),
     .flip_pending(flip_pending_0), .pin_out(pin_out_0), .pin_dir(pin_dir_0),
     .footprint_out(footprint_out_0), .footprint_dir(footprint_dir_0));
@@ -127,6 +143,7 @@ module chip_frame (input clk);
     .side_set_count(side_set_count_1), .side_set_base(side_set_base_1),
     .side_set_pindirs(side_set_pindirs_1), .set_base(set_base_1), .set_count(set_count_1),
     .out_base(out_base_1), .out_count(out_count_1), .manchester(manchester_1),
+    .line_code(line_code_1),
     .op_go(op_go_1), .instruction(instruction_1), .opcode_onehot(opcode_onehot_1),
     .flip_pending(flip_pending_1), .pin_out(pin_out_1), .pin_dir(pin_dir_1),
     .footprint_out(footprint_out_1), .footprint_dir(footprint_dir_1));
@@ -225,7 +242,7 @@ module engine_frame #(parameter KEEPS_TO = 1) (
   input clk, input cleared,
   input [1:0] side_set_count, input [4:0] side_set_base, input side_set_pindirs,
   input [4:0] set_base, input [2:0] set_count, input [4:0] out_base, input [4:0] out_count,
-  input manchester,
+  input manchester, input line_code,
   input op_go, input [15:0] instruction, input [7:0] opcode_onehot, input flip_pending,
   input [27:0] pin_out, input [27:0] pin_dir,
   output [27:0] footprint_out, output [27:0] footprint_dir);
@@ -275,7 +292,8 @@ module engine_frame #(parameter KEEPS_TO = 1) (
   endgenerate
 
   wire [4:0] side_width = side_set_count == 3 ? 5'd2 : side_set_count;
-  wire [4:0] pair_width = manchester && out_pins_width == 1 ? 5'd2 : out_pins_width;
+  wire [4:0] pair_width =
+    (manchester || line_code) && out_pins_width == 1 ? 5'd2 : out_pins_width;
   wire side_on_out = side_set_count != 0 && !side_set_pindirs;
   wire side_on_dir = side_set_count != 0 && side_set_pindirs;
   assign footprint_out =

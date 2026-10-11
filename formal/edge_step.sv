@@ -25,7 +25,7 @@ module edge_step (input clk);
   (* anyconst *) wire crc_reflect, stuff_level;
   (* anyconst *) wire [8:0] wrap_bottom, wrap_top;
   (* anyconst *) wire [15:0] period_fraction;
-  (* anyconst *) wire autopull_data, manchester;
+  (* anyconst *) wire autopull_data, manchester, line_code;
   (* anyseq *) wire [15:0] data_word;
   (* anyseq *) wire stop, flush;
   (* anyseq *) wire start, program_write_valid, tx_valid, rx_pop, clear_irq;
@@ -51,6 +51,7 @@ module edge_step (input clk);
   wire [27:0] wait_select;
   wire jmp_go, advance;
   wire [15:0] out_value, mov_value;
+  wire line_level;
 
   engine dut (
     .clock(clk), .clear(clear),
@@ -68,6 +69,7 @@ module edge_step (input clk);
     .config$wrap_bottom(wrap_bottom), .config$wrap_top(wrap_top),
     .config$period_fraction(period_fraction),
     .config$autopull_data(autopull_data), .config$manchester(manchester),
+    .config$line_code(line_code),
     .stop(stop), .flush(flush),
     .start(start), .program_write$valid(program_write_valid),
     .program_write$addr(program_write_addr), .program_write$data(program_write_data),
@@ -83,7 +85,7 @@ module edge_step (input clk);
     .decode_ok(decode_ok), .opcode_onehot(opcode_onehot), .wait_select(wait_select),
     .flip_pending(flip_pending), .flip_bit(flip_bit),
     .eng_jmp_go(jmp_go), .eng_advance(advance), .eng_out_value(out_value),
-    .eng_mov_value(mov_value));
+    .eng_mov_value(mov_value), .eng_line_level(line_level));
   // an instruction completes when a jump issues, or anything else issues and goes on
   wire completes = jmp_go || advance;
 
@@ -111,6 +113,8 @@ module edge_step (input clk);
   wire mov_pins = runs && opcode == 4 && dest == 0;
   wire mov_dirs = runs && opcode == 4 && dest == 3;
   wire manchester_bit = out_pins && manchester && count == 1;
+  // a line-coded out drives the table's level and its complement on the pin above
+  wire line_bit = out_pins && line_code && !manchester && count == 1;
   wire writes_out = side_pins || set_pins || out_pins || mov_pins;
   wire writes_dir = side_dirs || set_dirs || out_dirs || mov_dirs;
 
@@ -158,6 +162,8 @@ module edge_step (input clk);
   // a Manchester out drives its bit on the pin above out_base and the complement on it
   wire [15:0] first_half = {14'd0, out_value[0], !out_value[0]};
   wire [27:0] pair = place(16'd3, out_base) & OUTPUTS;
+  wire [15:0] line_pair = {14'd0, !line_level, line_level};
+  wire [4:0] line_count = out_count >= 2 ? 5'd2 : out_count;
 
   // the pins the cycle after an entry
 `ifdef NO_FLIP
@@ -171,6 +177,7 @@ module edge_step (input clk);
   wire [27:0] want_out =
       set_pins ? write(sided_out, set_base, set_count, set_value, OUTPUTS)
     : manchester_bit ? write(sided_out, out_base, 5'd2, first_half, OUTPUTS)
+    : line_bit ? write(sided_out, out_base, line_count, line_pair, OUTPUTS)
     : out_pins ? write(sided_out, out_base, count, out_value, OUTPUTS)
     : mov_pins ? write(sided_out, out_base, out_count, mov_value, OUTPUTS)
     : sided_out;

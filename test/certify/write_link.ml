@@ -502,6 +502,7 @@ module link (input clk);
   wire [%{used_bits - 1#Int}:0] fifo_used, fifo_used_minus_1, fifo_used_plus_1;
   wire fifo_used_is_one, fifo_used_gt_one, fifo_full_0, fifo_nearly_full;
   wire [27:0] pins_sampled_1;
+  wire premise_edge_0, premise_period_0, premise_edge_1, premise_period_1;
 %{declare}
   engines_top dut (
     %{connect},
@@ -514,7 +515,9 @@ module link (input clk);
     .fifo_used_plus_1(fifo_used_plus_1), .fifo_used_is_one(fifo_used_is_one),
     .fifo_used_gt_one(fifo_used_gt_one), .fifo_full_0(fifo_full_0),
     .fifo_nearly_full(fifo_nearly_full),
-    .pins_sampled_1(pins_sampled_1));
+    .pins_sampled_1(pins_sampled_1),
+    .premise_edge_0(premise_edge_0), .premise_period_0(premise_period_0),
+    .premise_edge_1(premise_edge_1), .premise_period_1(premise_period_1));
 
   // steps since the start, held at %{key.settled#Int}; 0 before it and at it
   reg [7:0] since_start = 0;
@@ -583,6 +586,11 @@ module link (input clk);
 `else
   localparam margin = %{margin#Int};
 `endif
+
+  // no check runs, so the premises the cores watch stay as the clear left them
+  always @(*)
+    if (since_start != 0)
+      assert (!premise_edge_0 && !premise_period_0 && !premise_edge_1 && !premise_period_1);
 
   // engine 0's tx fifo: Hardcaml's Fifo keeps its count several ways over, which agree
   always @(*)

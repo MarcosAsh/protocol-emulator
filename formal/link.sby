@@ -33,6 +33,8 @@ expose w:engines.engine_0.tx.USED w:engines.engine_0.tx.USED_MINUS_1
 expose w:engines.engine_0.tx.USED_PLUS_1 w:engines.engine_0.tx.used_is_one
 expose w:engines.engine_0.tx.used_gt_one w:engines.engine_0.tx.full_0
 expose w:engines.engine_0.tx.nearly_full
+expose w:engines.engine_0.premises$single_edge w:engines.engine_0.premises$period$valid
+expose w:engines.engine_1.premises$single_edge w:engines.engine_1.premises$period$valid
 rename engines.engine_0.tx.USED fifo_used
 rename engines.engine_0.tx.USED_MINUS_1 fifo_used_minus_1
 rename engines.engine_0.tx.USED_PLUS_1 fifo_used_plus_1
@@ -41,6 +43,10 @@ rename engines.engine_0.tx.used_gt_one fifo_used_gt_one
 rename engines.engine_0.tx.full_0 fifo_full_0
 rename engines.engine_0.tx.nearly_full fifo_nearly_full
 rename engines.engine_0.tx.head tx_head
+rename engines.engine_0.premises$single_edge premise_edge_0
+rename engines.engine_0.premises$period$valid premise_period_0
+rename engines.engine_1.premises$single_edge premise_edge_1
+rename engines.engine_1.premises$period$valid premise_period_1
 rename engines.engine_0.tx.empty tx_empty
 rename engines.engine_1.pins_sampled pins_sampled_1
 rename engines.engine_0.sram_macro.sram__A_ADDR sram_addr_0

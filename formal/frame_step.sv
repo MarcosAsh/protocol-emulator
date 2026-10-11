@@ -4,11 +4,12 @@
 // takes (5 and up drive, 12 to 19 turn around), wrapping at 28 as Pins.write does:
 // side-set on every word but a jump (a count of 3 carries two bits, so its third pin only
 // gets 0); set; out to the widest out the program has (an out writes its own count,
-// whatever out_count is), two wide for a one-bit Manchester out; mov to out_count. The
-// one assumption is that every word the core runs writes no more than the program says;
-// outs 16 wide with every writer used assume nothing. The host, fifos, data word, inputs
-// and clear are free every cycle, and the chip has no debugger. The config holds between
-// clears: a new one without a clear leaves the last program's pins driven.
+// whatever out_count is), two wide for a one-bit Manchester or line-coded out; mov to
+// out_count. The one assumption is that every word the core runs writes no more than
+// the program says; outs 16 wide with every writer used assume nothing. The host, fifos,
+// data word, inputs, line table, premises, next engine and clear are free every cycle,
+// and the chip has no debugger. The config holds between clears: a new one without a
+// clear leaves the last program's pins driven.
 
 // the timer's width, narrower in the narrow tasks
 `ifndef TIMER_BITS
@@ -26,7 +27,7 @@ module frame_step (input clk);
   (* anyconst *) wire crc_reflect, stuff_level;
   (* anyconst *) wire [8:0] wrap_bottom, wrap_top;
   (* anyconst *) wire [15:0] period_fraction;
-  (* anyconst *) wire autopull_data, manchester;
+  (* anyconst *) wire autopull_data, manchester, line_code, route;
   // what the program writes: its widest out to pins and pindirs (0 for none), and
   // whether it sets or moves to either
   (* anyconst *) wire [4:0] out_pins_width, out_dirs_width;
@@ -37,6 +38,12 @@ module frame_step (input clk);
   (* anyseq *) wire [8:0] program_write_addr;
   (* anyseq *) wire [15:0] program_write_data, tx_value;
   (* anyseq *) wire [27:0] inputs;
+  (* anyseq *) wire line_write_valid, program_read_valid, route_full;
+  (* anyseq *) wire [4:0] line_write_addr;
+  (* anyseq *) wire [8:0] program_read_addr;
+  (* anyseq *) wire [15:0] line_write_data;
+  (* anyseq *) wire premise_period_valid, premise_floor, premise_single_edge;
+  (* anyseq *) wire [15:0] premise_period;
 
   // the top clears the engine at power-on and whenever its reset comes again
   (* anyseq *) wire reset;
@@ -72,6 +79,12 @@ module frame_step (input clk);
     .config$wrap_bottom(wrap_bottom), .config$wrap_top(wrap_top),
     .config$period_fraction(period_fraction),
     .config$autopull_data(autopull_data), .config$manchester(manchester),
+    .config$line_code(line_code), .config$route(route), .route_full(route_full),
+    .line_write$valid(line_write_valid), .line_write$addr(line_write_addr),
+    .line_write$data(line_write_data),
+    .program_read$valid(program_read_valid), .program_read$value(program_read_addr),
+    .premises$period$valid(premise_period_valid), .premises$period$value(premise_period),
+    .premises$floor(premise_floor), .premises$single_edge(premise_single_edge),
     .stop(stop), .flush(flush),
     .start(start), .program_write$valid(program_write_valid),
     .program_write$addr(program_write_addr), .program_write$data(program_write_data),
@@ -158,7 +171,7 @@ module frame_step (input clk);
 `ifdef NO_PAIR
   wire [4:0] pair_width = out_width;
 `else
-  wire [4:0] pair_width = manchester && out_width == 1 ? 5'd2 : out_width;
+  wire [4:0] pair_width = (manchester || line_code) && out_width == 1 ? 5'd2 : out_width;
 `endif
 `ifdef SIDE_DIRS_ON_OUT
   wire side_on_out = side_set_count != 0;

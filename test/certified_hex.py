@@ -10,8 +10,9 @@ def certificate(name):
 
 
 def assumptions(name):
-    """certify's loaded and single_edge for the firmware: -period or -period-floor, or
-    the budget a compiled predicate's settings give, and -single-capture-edge."""
+    """certify's loaded, floor and single_edge for the firmware: -period or
+    -period-floor, or the budget a compiled predicate's settings give, and
+    -single-capture-edge."""
     with open("firmware.mk") as f:
         text = f.read().replace("\\\n", " ")
     match = re.search(rf"^{re.escape(name)}\.hex .*?ASSUME = (.*)$", text, re.M)
@@ -26,4 +27,8 @@ def assumptions(name):
                     loaded = int(value)
     except OSError:
         pass
-    return {"loaded": loaded, "single_edge": "-single-capture-edge" in flags}
+    return {
+        "loaded": loaded,
+        "floor": "-period-floor" in flags,
+        "single_edge": "-single-capture-edge" in flags,
+    }
