@@ -79,8 +79,8 @@ class AsyncHost(Host):
         reply = (await self.transfer([reg] + [0] * (2 * count)))[1:]
         return [(reply[i] << 8) | reply[i + 1] for i in range(0, 2 * count, 2)]
 
-    async def certify(self, certificate, base=0, loaded=None, single_edge=False):
-        for reg, words in certify_writes(certificate, base, loaded, single_edge):
+    async def certify(self, certificate, base=0, loaded=None, single_edge=False, floor=False):
+        for reg, words in certify_writes(certificate, base, loaded, single_edge, floor):
             await self.write(reg, words)
         status = (await self.read(CHECK_STATUS))[0]
         while status & 1:
