@@ -1,8 +1,8 @@
 name: pages
 
 # The landing page, the playground from main, the results page and the live die, beside the
-# 3D viewer of the last green gds run on main, the only workflow that deploys the site. Runs
-# after gds and results.
+# 3D viewer of the last green gds run on main and the staged 8x4 chip, the only workflow that
+# deploys the site. Runs after gds and results.
 # js_of_ocaml is never locked.
 on:
   push:
@@ -33,6 +33,10 @@ concurrency:
 permissions:
   actions: read
   contents: read
+
+# the staged 8x4 builds, in order; the first with a green gds run goes up at 8x4/
+env:
+  CHIP_8X4_BRANCHES: fill-8x4 failsafe-8x4 onchip-8x4
 
 jobs:
   playground:
@@ -177,7 +181,65 @@ jobs:
           echo "pdk=$(jq -r .PDK chip/tt_submission/tt_submission/pdk.json)" >> "$GITHUB_OUTPUT"
           echo "chip from gds run $run" >> "$GITHUB_STEP_SUMMARY"
 
-      # the pdk as the gds run has it, and the results card only when the results page went up
+      # what the newest green gds run of the first 8x4 branch to have one built; the site
+      # goes up without it rather than not at all. No die by module: demo/die.py needs the
+      # PDK's cell LEFs and the 400 MB run directory.
+      - name: Add the 8x4 chip
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          found=
+          for branch in $CHIP_8X4_BRANCHES; do
+            read -r run sha < <(gh run list -R "${{ github.repository }}" --workflow gds.yaml \
+              --branch "$branch" --status success --limit 1 --json databaseId,headSha \
+              --jq '.[] | "\(.databaseId) \(.headSha)"') || continue
+            rm -rf chip8x4
+            if gh run download "$run" -R "${{ github.repository }}" -n tt_submission \
+              -n gds_render -D chip8x4; then
+              found=yes
+              break
+            fi
+          done
+          if [ -z "$found" ]; then
+            echo "no 8x4 page: no green gds run on $CHIP_8X4_BRANCHES" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          sub=chip8x4/tt_submission/tt_submission
+          tiles=$(sed -n 's/^ *tiles: *"\([^"]*\)".*/\1/p' chip8x4/tt_submission/info.yaml)
+          if [ "$tiles" != 8x4 ]; then
+            echo "::warning::gds run $run on $branch is $tiles tiles, no 8x4 page"
+            exit 0
+          fi
+          mkdir page8x4
+          cp repo/pages/8x4/index.html page8x4/
+          cp "$sub"/*.gds page8x4/tinytapeout.gds
+          cp "$sub"/*.oas page8x4/tinytapeout.oas
+          cp chip8x4/gds_render/gds_render.png page8x4/
+          pdk=$(jq -r .PDK "$sub/pdk.json")
+          cells='' util=''
+          if [ -f "$sub/stats/metrics.csv" ]; then
+            cells=$(awk -F, '$1 == "design__instance__count__stdcell" { print $2 }' \
+              "$sub/stats/metrics.csv")
+            util=$(awk -F, '$1 == "design__instance__utilization" { printf "%.1f%%", 100 * $2 }' \
+              "$sub/stats/metrics.csv")
+          fi
+          if [ -z "$cells" ] || [ -z "$util" ]; then
+            sed -i '/<!-- metrics -->/,/<!-- \/metrics -->/d' page8x4/index.html
+          fi
+          sed -i -e "s|@branch@|$branch|g" -e "s|@sha@|$sha|g" -e "s|@short@|${sha:0:7}|g" \
+            -e "s|@run@|$run|g" -e "s|@pdk@|$pdk|g" -e "s|@cells@|$cells|g" \
+            -e "s|@util@|$util|g" page8x4/index.html
+          if grep -q '@[a-z]*@' page8x4/index.html; then
+            echo "::warning::8x4 page has unfilled fields, left out"
+            exit 0
+          fi
+          mv page8x4 site/8x4
+          echo "8x4 chip from gds run $run, $branch at $sha" >> "$GITHUB_STEP_SUMMARY"
+          echo "8x4 die by module left out, it needs the PDK's LEFs" >> "$GITHUB_STEP_SUMMARY"
+
+      # the pdk as the gds run has it, and the results and 8x4 cards only when their pages
+      # went up
       - name: Add the landing page
         env:
           PDK: ${{ steps.chip.outputs.pdk }}
@@ -189,6 +251,7 @@ jobs:
           grep -q "data-pdk=\"$PDK\"" site/index.html
           grep -q "?pdk=$PDK&" site/index.html
           [ -f site/results/index.html ] || sed -i '/<!-- results -->/,/<!-- \/results -->/d' site/index.html
+          [ -f site/8x4/index.html ] || sed -i '/<!-- 8x4 -->/,/<!-- \/8x4 -->/d' site/index.html
 
       - name: Upload the site
         uses: actions/upload-pages-artifact@v5
