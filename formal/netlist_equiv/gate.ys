@@ -39,9 +39,18 @@ delete t:$scopeinfo
 # rails, left dangling by the ports deleted above, are used by no cell's logic
 check -assert
 
-# one clock: every flop takes the rising edge of clk, through the clock tree's buffers
+# one clock: every flop takes the rising edge of clk, through the clock tree's buffers,
+# but Both_edges' falling pair, which takes it through inverters of clk alone
 select -assert-none t:$*latch* t:$sr %u
-select -assert-none t:$*ff* w:clk %co:+[CLK] %d
+select -set falling w:core.top.both_edges.signal_reg w:core.top.both_edges.signal_reg_1 %u \
+  %ci6:+[Q] t:$*ff* %i
+select -assert-count 2 @falling
+select -set falling_inverters @falling %ci2:+[CLK,Y] t:$not t:$_NOT_ %u %i
+select -assert-min 1 @falling_inverters
+select -assert-none @falling_inverters %ci1:+[A] w:* %i w:clk %d
+select -assert-none @falling %ci1:+[CLK] w:* %i @falling_inverters %co1:+[Y] w:* %i %d
+select -assert-none @falling_inverters %co1:+[Y] w:* %i %co1:+[CLK] t:$*ff* %i @falling %d
+select -assert-none t:$*ff* w:clk %co:+[CLK] %d @falling %d
 select -assert-none t:$*ff* r:CLK_POLARITY=1 r:CLK_POLARITY=1'1 %u %d
 
 rename tt_um_marcosash_protocol_emulator gate

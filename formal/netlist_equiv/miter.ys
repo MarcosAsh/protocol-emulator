@@ -38,10 +38,16 @@ expose -evert t:RM_IHPSG13_1P_512x16_c2_bm_bist
 select -assert-count 51 o:*
 select -assert-count 8 i:*
 
-# one clock: every flop takes the rising edge of clk
+# one clock: every flop takes the rising edge of clk, but Both_edges' falling pair, which
+# takes its falling edge; in the AIG both sides' pairs step with the others, so they are
+# compared as flops of the one clock, as gate.ys has them behind inverters
 select -assert-none t:$*latch* t:$sr %u
 select -assert-none t:$*ff* w:clk %co:+[CLK] %d
-select -assert-none t:$*ff* r:CLK_POLARITY=1 r:CLK_POLARITY=1'1 %u %d
+select -set falling w:core.top.both_edges.signal_reg w:core.top.both_edges.signal_reg_1 %u \
+  %ci6:+[Q] t:$*ff* %i
+select -assert-count 2 @falling
+select -assert-count 2 @falling r:CLK_POLARITY=0 r:CLK_POLARITY=1'0 %u %i
+select -assert-none t:$*ff* r:CLK_POLARITY=1 r:CLK_POLARITY=1'1 %u %d @falling %d
 
 # no used net without a driver, which miter -flatten would make an x (see aig.ys)
 check -assert
