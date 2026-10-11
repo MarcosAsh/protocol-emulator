@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>8x4 Build</title>
+<link rel="icon" href="data:,">
+<!-- The staged 8x4 chip. pages.yaml fills the @...@ fields from the gds run it picked,
+     and drops the metrics rows when the run has no metrics. -->
+<style>
+  :root { --bg: #fff; --fg: #1a1a1a; --muted: #666; --code: #f4f4f4; --line: #ddd;
+    --accent: #2a78d6; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #161616; --fg: #e8e8e8; --muted: #9a9a9a;
+      --code: #232323; --line: #333; --accent: #6aa8f0; }
+  }
+  :root[data-theme="dark"] { --bg: #161616; --fg: #e8e8e8; --muted: #9a9a9a;
+    --code: #232323; --line: #333; --accent: #6aa8f0; }
+  * { box-sizing: border-box; }
+  body { font: 14px/1.4 system-ui, sans-serif; margin: 0 auto; padding: 16px;
+    max-width: 60rem; background: var(--bg); color: var(--fg); }
+  a { color: inherit; }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  code { font: 12px/1.4 ui-monospace, monospace; background: var(--code); padding: 0 3px;
+    overflow-wrap: anywhere; }
+  h1 { margin: 8px 0; }
+  p { margin: 0 0 8px; }
+  .muted { color: var(--muted); }
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 16px 0; }
+  dt { color: var(--muted); }
+  dd { margin: 0; min-width: 0; }
+  figure { margin: 16px 0 0; }
+  figure img { width: 100%; height: auto; display: block; border: 1px solid var(--line); }
+  figcaption { color: var(--muted); margin-top: 6px; }
+</style>
+</head>
+<body>
+<p><a href="../">Protocol Emulator</a></p>
+<h1>8x4 tiles</h1>
+<p class="muted">Staged build, waiting for Tiny Tapeout's 8x4 template. The current design
+is the 6x4 chip on the <a href="../">home page</a>.</p>
+
+<dl>
+  <dt>Branch</dt>
+  <dd><a href="https://github.com/MarcosAsh/protocol-emulator/tree/@branch@"><code>@branch@</code></a></dd>
+  <dt>Commit</dt>
+  <dd><a href="https://github.com/MarcosAsh/protocol-emulator/commit/@sha@"><code>@short@</code></a></dd>
+  <dt>gds run</dt>
+  <dd><a href="https://github.com/MarcosAsh/protocol-emulator/actions/runs/@run@">@run@</a></dd>
+  <dt>PDK</dt>
+  <dd><code>@pdk@</code></dd>
+  <!-- metrics -->
+  <dt>Standard cells</dt>
+  <dd>@cells@</dd>
+  <dt>Utilisation</dt>
+  <dd>@util@</dd>
+  <!-- /metrics -->
+  <dt>Files</dt>
+  <dd><a id="viewer" data-pdk="@pdk@"
+    href="https://gds-viewer.tinytapeout.com/?pdk=@pdk@">3D viewer</a>,
+    <a href="tinytapeout.gds">GDS</a>, <a href="tinytapeout.oas">OASIS</a></dd>
+</dl>
+
+<figure>
+  <img src="gds_render.png" loading="lazy" alt="the 8x4 build's GDS render">
+  <figcaption><a href="gds_render.png">gds_render.png</a> from the gds run.</figcaption>
+</figure>
+
+<script>
+  // the viewer takes the OASIS file's URL, which is beside this page wherever it is served
+  const viewer = document.getElementById("viewer");
+  const model = new URL("tinytapeout.oas", location.href).href;
+  viewer.href = "https://gds-viewer.tinytapeout.com/?pdk=" + viewer.dataset.pdk
+    + "&model=" + encodeURIComponent(model);
+</script>
+</body>
+</html>
