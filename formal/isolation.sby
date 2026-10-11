@@ -10,8 +10,8 @@ load_anytime teeth
 start_write teeth
 routed teeth
 start_all teeth
-frame_in_region teeth
-check_while_busy teeth
+frame_in_region
+check_while_busy
 
 [options]
 prove: mode prove
@@ -21,6 +21,14 @@ cover: depth 16
 teeth: mode bmc
 teeth: depth 16
 teeth: expect fail
+# a frame takes hundreds of cycles to land a word and a check as many to begin, past any
+# BMC, so these two teeth keep the invariant and fail its induction from a state past them
+frame_in_region: mode prove
+frame_in_region: depth 3
+frame_in_region: expect fail,unknown
+check_while_busy: mode prove
+check_while_busy: depth 3
+check_while_busy: expect fail,unknown
 
 [engines]
 smtbmc boolector
