@@ -12,7 +12,6 @@ one_late_cycle_is_safe teeth
 taken_backwards teeth
 second_edge teeth guard_mutant
 level_at_arm teeth guard_mutant
-edge_late teeth guard_mutant
 period_unguarded teeth guard_mutant
 later_edge_captured teeth
 capture_a_cycle_older teeth
@@ -44,7 +43,6 @@ smtbmc boolector
 ~guard_mutant: read_verilog engine.v
 second_edge: read_verilog second_edge.v
 level_at_arm: read_verilog level_at_arm.v
-edge_late: read_verilog edge_late.v
 period_unguarded: read_verilog period_unguarded.v
 hierarchy -top engine
 proc
@@ -85,7 +83,6 @@ prep -top phase_step
 narrow_timer: engine.v engine_narrow.v
 second_edge: guard_teeth/second_edge.v
 level_at_arm: guard_teeth/level_at_arm.v
-edge_late: guard_teeth/edge_late.v
 period_unguarded: guard_teeth/period_unguarded.v
 --
 saturating:

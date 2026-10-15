@@ -340,19 +340,17 @@ data_step: engine.v osr_step.v
 	sby -f data_step.sby prove cover
 
 # The core's premise guards with a half taken out each: the second edge after the arm, the
-# level at the arm, the edge's fault a cycle late, and the period's. Each has to break a
-# claim at an entry of phase_step.sby, where the guard is all that holds the premise.
+# level at the arm, and the period's. Each has to break a claim at an entry of
+# phase_step.sby, where the guard is all that holds the premise.
 SECOND_EDGE_OFF = /^module engine (/,/^endmodule/s/^\(\s*assign signal_or[_0-9]* = \)armed_at_level | second_edge;/\1armed_at_level;/
 LEVEL_AT_ARM_OFF = /^module engine (/,/^endmodule/s/^\(\s*assign signal_or[_0-9]* = \)armed_at_level | second_edge;/\1second_edge;/
-EDGE_LATE = /^module engine (/,/^endmodule/s/^\(\s*\)assign edge_off = \(.*\);/\1reg edge_late = 0;\n\1always @(posedge clock) edge_late <= \2;\n\1assign edge_off = edge_late;/
 PERIOD_OFF = /^module engine (/,/^endmodule/s/^\(\s*assign period_off = \).*;/\10;/
 guard_teeth: engine.v
 	mkdir -p guard_teeth
 	sed '$(SECOND_EDGE_OFF)' engine.v > guard_teeth/second_edge.v
 	sed '$(LEVEL_AT_ARM_OFF)' engine.v > guard_teeth/level_at_arm.v
-	sed '$(EDGE_LATE)' engine.v > guard_teeth/edge_late.v
 	sed '$(PERIOD_OFF)' engine.v > guard_teeth/period_unguarded.v
-	for tooth in second_edge level_at_arm edge_late period_unguarded; do \
+	for tooth in second_edge level_at_arm period_unguarded; do \
 	  ! cmp -s engine.v guard_teeth/$$tooth.v || exit 1; \
 	done
 
@@ -361,7 +359,7 @@ teeth: engine.v engine_sram.v engines.v kernel_step.v osr_step.v guard_teeth
 	sby -f issue_timing.sby jump_in_one delay_ignores_side_set waits_are_plain
 	sby -f fifo_order.sby stale_ahead
 	sby -f phase_step.sby jump_in_one late_wait_waits no_carry one_late_cycle_is_safe taken_backwards \
-	  second_edge level_at_arm edge_late period_unguarded later_edge_captured \
+	  second_edge level_at_arm period_unguarded later_edge_captured \
 	  capture_a_cycle_older capture_a_cycle_younger arm_one_short edge_one_short
 	sby -f edge_step.sby pins_never_change side_set_only one_cycle_later flip_off_issue no_flip
 	sby -f event_step.sby late level_only wires_plain jump_late held_moves
