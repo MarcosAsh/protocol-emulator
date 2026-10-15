@@ -1,4 +1,5 @@
 open! Core
+open Protocol_emulator
 
 (* What sigrok-cli prints, or nothing when it is missing or fails. *)
 let sigrok_cli args =
@@ -96,12 +97,74 @@ module Decoder = struct
   ;;
 end
 
+(* [protocol_ml]'s [pin], OUT0, and the pins its decoder's channels take, one on from it *)
+let default_pin = 5
+
+let channels_of (decoder : Decoder.t) =
+  match decoder.channels, decoder.optional_channels with
+  | [], first :: _ -> [ first ]
+  | channels, _ -> channels
+;;
+
+let pin_name pin =
+  match Bench_wiring.find ~pin with
+  | Some { name; _ } -> name
+  | None when pin < Isa.first_output_pin -> [%string "IN%{pin#Int}"]
+  | None when pin < Isa.first_bidir_pin ->
+    [%string "OUT%{pin - Isa.first_output_pin#Int}"]
+  | None -> [%string "IO%{pin - Isa.first_bidir_pin#Int}"]
+;;
+
+(* The analyser and each channel's Dn from Bench_wiring, "TODO" where there is none or the
+   pins reach both analysers, and why for the line under the outside: one. *)
+let wiring channels =
+  let found =
+    List.mapi channels ~f:(fun i _ -> Bench_wiring.find ~pin:(default_pin + i))
+  in
+  let analysers =
+    List.filter_map found ~f:(Option.map ~f:(fun (w : Bench_wiring.t) -> w.analyser))
+    |> List.dedup_and_sort ~compare:Bench_wiring.Analyser.compare
+  in
+  let analyser, usable =
+    match analysers with
+    | [ a ] ->
+      Some a, fun (w : Bench_wiring.t) -> Bench_wiring.Analyser.compare w.analyser a = 0
+    | _ -> None, fun _ -> false
+  in
+  let channel i =
+    match List.nth_exn found i with
+    | Some w when usable w -> [%string "D%{w.channel#Int}"]
+    | Some _ | None -> "TODO"
+  in
+  let why =
+    List.filter_mapi found ~f:(fun i w ->
+      let pin = pin_name (default_pin + i) in
+      match w with
+      | None -> Some [%string "%{pin} has no analyser channel"]
+      | Some w when not (usable w) -> Some [%string "%{pin} is on the other analyser"]
+      | Some _ -> None)
+  in
+  let analyser =
+    match analyser with
+    | Some Bench_wiring.Analyser.A -> "A"
+    | Some Bench_wiring.Analyser.B -> "B"
+    | None -> "TODO"
+  in
+  analyser, List.mapi channels ~f:(fun i _ -> channel i), why
+;;
+
 let substitute template ~name ~(decoder : Decoder.t) =
   (* a decoder whose channels are all optional, as uart's, gets its first *)
-  let channels =
-    match decoder.channels, decoder.optional_channels with
-    | [], first :: _ -> [ first ]
-    | channels, _ -> channels
+  let channels = channels_of decoder in
+  let analyser, wired, why = wiring channels in
+  let outside =
+    List.map2_exn channels wired ~f:(fun channel d -> [%string "%{channel}=%{d}"])
+    |> String.concat ~sep:":"
+  in
+  let outside_note =
+    if List.is_empty why
+    then ""
+    else [%string "# TODO outside: %{String.concat ~sep:\"; \" why}, see Bench_wiring\n"]
   in
   let pins =
     List.mapi channels ~f:(fun i channel ->
@@ -119,6 +182,9 @@ let substitute template ~name ~(decoder : Decoder.t) =
     ; "__UPPER__", String.uppercase name
     ; "__NAME__", name
     ; "__DECODER__", decoder.id
+    ; "__ANALYSER__", analyser
+    ; "__OUTSIDE__", outside
+    ; "__OUTSIDE_NOTE__", outside_note
     ; "__PINS__", pins
     ; "__CHANNELS__", list decoder.channels
     ; "__OPTIONAL__", list decoder.optional_channels
@@ -315,8 +381,8 @@ let demo_py =
 # TODO what this shows on the bench, and what is wired to which pin (MicroPython, Pico A).
 # demo/outside.sh __NAME__ runs it, reading the analyser, the capture's length and
 # sigrok's decoders from the next line.
-# outside: analyser=TODO ms=2000 decode=-P __DECODER__:TODO=D4
-
+# outside: analyser=__ANALYSER__ ms=2000 decode=-P __DECODER__:__OUTSIDE__
+__OUTSIDE_NOTE__
 import bench
 import bench_firmware
 import protocol_emulator as pe
@@ -452,7 +518,25 @@ let check_name ~root name =
       then raise_s [%message "already there" file])
 ;;
 
-let checklist ~name =
+(* each pin the scaffold's firmware and decoder use, with its analyser channel and the
+   rest of its net, for step 10 *)
+let nets ~channels =
+  List.mapi channels ~f:(fun i channel ->
+    let pin = default_pin + i in
+    match Bench_wiring.find ~pin with
+    | Some w ->
+      let analyser = Sexp.to_string (Bench_wiring.Analyser.sexp_of_t w.analyser) in
+      [%string
+        "              %{w.name} (%{channel}): analyser %{analyser} D%{w.channel#Int}, \
+         %{w.net}\n"]
+    | None ->
+      [%string
+        "              %{pin_name pin} (%{channel}): no analyser channel, no free one\n"])
+  |> String.concat
+;;
+
+let checklist ~name ~channels =
+  let nets = nets ~channels in
   [%string
     {|Next, from the repository's root, with the OxCaml switch and oss-cad-suite on PATH:
 
@@ -482,9 +566,11 @@ let checklist ~name =
                 dune build --root . @test/python/runtest; dune promote --root .
  9. todo      grep -n TODO test/%{name}.ml test/test_%{name}.ml python/demo_%{name}.py
                 grep -n '"%{name}"' test/test_tables.ml
-10. bench     wire it, fill the outside: line, then
+10. bench     the outside: line is filled from Bench_wiring for the pins above; check it
+              against the pins you moved to, then
                 PICO=id:<serial of Pico A> demo/outside.sh %{name}
-|}]
+              the pins now, with the rest of each net:
+%{nets}|}]
 ;;
 
 let command =
@@ -558,5 +644,5 @@ let command =
           decoder.id
           (String.concat ~sep:" " decoder.channels)
           (String.concat ~sep:" " decoder.classes)
-          (checklist ~name)]
+          (checklist ~name ~channels:(channels_of decoder))]
 ;;
