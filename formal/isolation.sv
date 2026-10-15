@@ -2,11 +2,11 @@
 // chip share the clear, the pads and all of engine 0's inputs; engine 1's are free in each.
 // From the first clear on, engine 0's pins and what the host reads of it agree, by induction
 // on engine 0's flops (isolation.tcl). The data memory's turns are proved to hide engine 1's
-// reads; the assumptions below close the other channels, and a tooth drops each. Four are
-// premises on how the chip is used, not channels it closes: no routed pushes between the
-// two (ROUTED), no start of every engine at once (START_ALL), the frame receiver's words
-// above engine 0's region (FRAME_IN_REGION), and engine 0's check asked only while the
-// shared checker is idle, as its host polls for (CHECK_WHILE_BUSY).
+// reads, and the checker's fixed turns its checks; the assumptions below close the other
+// channels, and a tooth drops each. Three are premises on how the chip is used, not
+// channels it closes: no routed pushes between the two (ROUTED), no start of every engine
+// at once (START_ALL), and the frame receiver's words above engine 0's region
+// (FRAME_IN_REGION).
 
 `include "pairs.sv"
 
@@ -102,7 +102,7 @@ module isolation_copy (
   output [15:0] instruction,
   output [7:0] opcode_onehot,
   output [27:0] wait_select,
-  output capture_armed, holding, checking,
+  output capture_armed, holding,
   output [8:0] data_addr,
   output [`STATE_BITS - 1:0] state,
   output fifo_t rx, tx,
@@ -175,7 +175,7 @@ module isolation_copy (
     .engines$halted_1(halted_1),
     .engines$instruction_0(instruction), .engines$opcode_onehot_0(opcode_onehot),
     .engines$wait_select_0(wait_select), .engines$capture_armed_0(capture_armed),
-    .holding_0(holding), .checking(checking),
+    .holding_0(holding),
     .engines$data_addr_0(data_addr),
     .state_0(state), .rx_0(rx), .tx_0(tx), .pins_sampled_0(pins_sampled),
     .started_0(started), .data_mine_0(data_mine), .lent_0(lent),
@@ -253,7 +253,6 @@ module isolation (input clk);
   wire [19:0] pin_out_a, pin_dir_a, pin_out_b, pin_dir_b;
   status_t status_a, status_b;
   wire halted_1_a, halted_1_b, capture_armed_a, capture_armed_b, holding_a, holding_b;
-  wire checking_a, checking_b;
   wire [15:0] instruction_a, instruction_b, data_word_a, data_word_b;
   wire [7:0] opcode_onehot_a, opcode_onehot_b;
   wire [27:0] wait_select_a, wait_select_b, pins_sampled_a, pins_sampled_b;
@@ -275,7 +274,7 @@ module isolation (input clk);
     .halted_1(halted_1_``side), .instruction(instruction_``side), \
     .opcode_onehot(opcode_onehot_``side), .wait_select(wait_select_``side), \
     .capture_armed(capture_armed_``side), .holding(holding_``side), \
-    .checking(checking_``side), .data_addr(data_addr_``side), \
+    .data_addr(data_addr_``side), \
     .state(state_``side), .rx(rx_``side), .tx(tx_``side), \
     .pins_sampled(pins_sampled_``side), .started(started_``side), \
     .data_mine(data_mine_``side), .lent(lent_``side), .data_word(data_word_``side));
@@ -371,11 +370,6 @@ module isolation (input clk);
     // keeps every word of a frame, of any length, out of it.
 `ifndef FRAME_IN_REGION
     assume ((region >> frame.base) == 0);
-`endif
-    // Engine 0's host asks a check only while the checker is idle, so engine 1's checks
-    // neither drop nor delay it, nor the premises it loads.
-`ifndef CHECK_WHILE_BUSY
-    if (host_0.check) assume (!checking_a && !checking_b);
 `endif
     // Engine 0's config changes only while it is halted, as the host port writes it.
     if (!status_a.halted) assume (config_0 == last_config_0);

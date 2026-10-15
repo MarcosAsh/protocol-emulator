@@ -1,7 +1,8 @@
 # Engine 0's flops as ports for isolation.sv's invariant, on the flattened engines_top: its
 # fifos as rx_0 and tx_0 (flops.tcl); every other flop of engine 0 but the ones the script
-# brought out already, the data memory's turn and engine 0's premises, as state_0, whose
-# width goes to isolation.sv as STATE_BITS.
+# brought out already, the data memory's turn, the checker's turn and engine 0's ask
+# waiting for it, and engine 0's premises, as state_0, whose width goes to isolation.sv as
+# STATE_BITS.
 
 source flops.tcl
 yosys cd engines_top
@@ -11,6 +12,9 @@ gather_fifo engines.engine_0.tx tx_0
 
 set flops [list w:engines.engine_0.*]
 foreach wire [aliases engines.data_memory.turn] { lappend flops w:$wire %u }
+# the checker's turn, the flops themselves, and engine 0's ask waiting for it
+lappend flops w:engines.turn_cycle %u w:engines.chosen %u
+foreach wire [aliases {engines.waiting$0}] { lappend flops w:$wire %u }
 # and the premises engine 0's check was taken under, held beside the engines
 foreach port {
   premises$period$valid premises$period$value premises$floor premises$single_edge

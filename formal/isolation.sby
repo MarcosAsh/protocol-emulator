@@ -11,7 +11,6 @@ start_write teeth
 routed teeth
 start_all teeth
 frame_in_region
-check_while_busy
 
 [options]
 prove: mode prove
@@ -21,14 +20,11 @@ cover: depth 16
 teeth: mode bmc
 teeth: depth 16
 teeth: expect fail
-# a frame takes hundreds of cycles to land a word and a check as many to begin, past any
-# BMC, so these two teeth keep the invariant and fail its induction from a state past them
+# a frame takes hundreds of cycles to land a word, past any BMC, so this tooth keeps the
+# invariant and fails its induction from a state past it
 frame_in_region: mode prove
 frame_in_region: depth 3
 frame_in_region: expect fail,unknown
-check_while_busy: mode prove
-check_while_busy: depth 3
-check_while_busy: expect fail,unknown
 
 [engines]
 smtbmc boolector
@@ -44,14 +40,13 @@ expose -evert -sep __ engines_top/t:RM_IHPSG13_1P_512x16_c2_bm_bist
 cd engines_top
 expose w:engines.engine_0.pins_sampled w:engines.engine_0.start_0 w:engines.lent$0
 expose w:engines.data_memory.mine_1 w:engines.data_memory.words_0
-expose w:engines.engine_0.holding w:engines.checking
+expose w:engines.engine_0.holding
 rename engines.engine_0.pins_sampled pins_sampled_0
 rename engines.engine_0.start_0 started_0
 rename engines.lent$0 lent_0
 rename engines.data_memory.mine_1 data_mine_0
 rename engines.data_memory.words_0 data_word_0
 rename engines.engine_0.holding holding_0
-rename engines.checking checking
 rename engines.engine_0.sram_macro.sram__A_MEN sram_0_men
 rename engines.engine_0.sram_macro.sram__A_WEN sram_0_wen
 rename engines.engine_0.sram_macro.sram__A_REN sram_0_ren
@@ -86,7 +81,6 @@ start_write: read -define START_WRITE
 routed: read -define ROUTED
 start_all: read -define START_ALL
 frame_in_region: read -define FRAME_IN_REGION
-check_while_busy: read -define CHECK_WHILE_BUSY
 read_verilog -formal -sv isolation.sv
 prep -top isolation
 
