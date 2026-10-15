@@ -124,6 +124,95 @@ let%expect_test "two engines talk over a wire and the host reads the result" =
   [%expect {| ((sender (0)) (receiver (2048)) (received (85 163)) (pins 0)) |}]
 ;;
 
+(* a core echoes its input pins to the outputs, each pin through the two synchroniser
+   flops on the way in; then [rst_n] falls again and the chip comes back halted. Cyclesim
+   has no asynchronous reset, so [Cyclesim.reset] stands in for its fall. *)
+let%expect_test "every input pin reaches a core, and a second reset clears the chip" =
+  Harness.run_advanced
+    ~random_initial_state:`Mems
+    ~create:(Top.hierarchical ~memory:Flops ~engines:2)
+    (fun (h @ local) context ->
+       let sim =
+         match Lws_context.simulator_specific context with
+         | Cyclesim sim -> Lws_context.Simulator_specific.Cyclesim.simulator sim
+         | Evsim _ | Cosim -> assert false
+       in
+       let inputs = context.inputs in
+       let cycle ?n () = Lws.step ?n h in
+       let o = Before_and_after_edge.after_edge context.outputs in
+       let pins = ref 0
+       and sck = ref Bits.gnd
+       and mosi = ref Bits.gnd
+       and cs_n = ref Bits.vdd
+       and miso = ref Bits.gnd in
+       let watch n =
+         inputs.ui_in
+         := Bits.concat_msb
+              [ Bits.of_unsigned_int ~width:5 (!pins land 0x1f); !cs_n; !mosi; !sck ];
+         inputs.uio_in := Bits.of_unsigned_int ~width:8 (!pins lsr 5);
+         cycle ~n ();
+         miso := Bits.lsb !(o.uo_out)
+       in
+       let reset () =
+         inputs.rst_n := Bits.gnd;
+         Cyclesim.reset sim;
+         cycle ~n:3 ();
+         inputs.rst_n := Bits.vdd;
+         cycle ~n:4 ()
+       in
+       inputs.ena := Bits.vdd;
+       reset ();
+       let m = Spi_master.create ~sck ~mosi ~cs_n ~miso ~half:4 in
+       (* from pin [in_base] to the outputs from pin 5, which are [uo_out] from bit 1 *)
+       let echo ~in_base ~count =
+         Spi_master.write m ~watch Reg.control [ 4 ];
+         { Program_config.default with
+           in_base
+         ; in_count = count
+         ; out_base = 5
+         ; out_count = count
+         }
+         |> Engine.Config.of_program_config
+         |> Engine.Config.map ~f:Bits.to_unsigned_int
+         |> Engine.Config.to_list
+         |> List.iter2_exn Reg.configs ~f:(fun reg v ->
+           Spi_master.write m ~watch reg [ v ]);
+         Spi_master.write m ~watch Reg.program_addr [ 0 ];
+         Spi_master.write
+           m
+           ~watch
+           Reg.program
+           (assemble {|
+loop:
+    mov pins, pins
+    jmp loop
+|});
+         Spi_master.write m ~watch Reg.control [ 1 ];
+         (* pins 0 to 4 are [ui_in]'s top five bits, pins 12 to 19 [uio_in] *)
+         let input k = if in_base + k < 5 then in_base + k else in_base + k - 7 in
+         List.init count ~f:(fun k ->
+           pins := 1 lsl input k;
+           watch 16;
+           pins := 0;
+           let out = (Bits.to_unsigned_int !(o.uo_out) lsr 1) land ((1 lsl count) - 1) in
+           watch 16;
+           out)
+         [@nontail]
+       in
+       let ui_in = echo ~in_base:0 ~count:5 in
+       let uio_in =
+         echo ~in_base:12 ~count:7 @ [ List.last_exn (echo ~in_base:13 ~count:7) ]
+       in
+       reset ();
+       let status = Spi_master.read m ~watch Reg.status ~count:1 in
+       let pc = Spi_master.read m ~watch Reg.pc ~count:1 in
+       print_s
+         [%message
+           (ui_in : int list) (uio_in : int list) (status : int list) (pc : int list)]);
+  [%expect
+    {| ((ui_in (1 2 4 8 16)) (uio_in (1 2 4 8 16 32 64 64)) (status (1)) (pc (0))) |}]
+;;
+
 let%expect_test "waveform of reset and the first command" =
   let display_rules =
     [ Display_rule.port_name_is "rst_n" ~wave_format:Bit
