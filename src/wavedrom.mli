@@ -1,0 +1,63 @@
+(** A WaveDrom diagram compiled to a [Tables] table, so it runs under the interpreter's
+    certificate as it stands. Each period, or half period of a clock, is a step of
+    [table.cycles] cycles. With data, the first period is the idle shown while the host's
+    word is awaited; without, the diagram loops. Lanes: 0 1 h l levels, p n clocks, [=] a
+    host bit, [.] [|] go on; an [input: true] lane's [=] cells are bits read by Shift. *)
+
+open! Core
+
+module Level : sig
+  type t =
+    | Low
+    | High
+    | Bit (** the host bit *)
+  [@@deriving sexp_of, equal]
+end
+
+module Step : sig
+  type t =
+    { name : string (** where it was drawn *)
+    ; outputs : Level.t list (** one an output lane *)
+    ; kind : Tables.Kind.t
+    ; cycles : int
+    }
+  [@@deriving sexp_of]
+end
+
+module State : Tables.State with type t = int
+
+type t =
+  { outputs : string list (** lane names, out_base first *)
+  ; input : string option
+  ; steps : Step.t list (** one a state, the first first *)
+  ; table : State.t Tables.t
+  ; bits : int (** host bits a frame, or a pass with [while_host] *)
+  ; words : int list (** bits in each host word of a frame *)
+  ; while_host : bool
+  ; read : int (** bits read a frame *)
+  }
+
+(** The table, or why the diagram is outside the class. *)
+val compile : Wavejson.t -> t Or_error.t
+
+val of_string : string -> t Or_error.t
+
+(** One frame's host words: [bits] bits, first sent first; with [while_host] any number of
+    passes of [bits], each a word whose first bit says a pass follows, then a word of 0. *)
+val host_words : t -> bool list -> int list Or_error.t
+
+(** The bits a pushed word holds, first read first. *)
+val read_bits : t -> int -> bool list
+
+(** The certified interpreter's config and program, and the table's data words. *)
+val image : t -> (Program_config.t * int list * int list) Or_error.t
+
+(** The model of the core run [cycles] cycles from [image], the host writing [host_words]
+    as the fifo has room and taking every word pushed: the output lanes' levels each
+    cycle, out_base lowest, the words taken, and the faults. *)
+val simulate
+  :  t
+  -> host_words:int list
+  -> inputs:(int -> int)
+  -> cycles:int
+  -> (int array * int list * Machine.Fault.t) Or_error.t
