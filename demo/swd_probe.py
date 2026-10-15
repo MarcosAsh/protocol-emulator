@@ -8,6 +8,7 @@
 import argparse
 import math
 import os
+import signal
 import subprocess
 import sys
 import time
@@ -219,7 +220,13 @@ class Probe(DebugProbe):
         self.ops(["w 1 %x %x" % (addr & 0xC, v) for v in values])
 
 
+def stopped(signum, frame):
+    raise KeyboardInterrupt
+
+
 def serve(probe, port):
+    """Until Ctrl-C or SIGTERM: a shell's background job ignores SIGINT."""
+    signal.signal(signal.SIGTERM, stopped)
     session = Session(probe=None, serve_local_only=True)
     server = DebugProbeServer(session, probe, port, serve_local_only=True)
     server.start()
