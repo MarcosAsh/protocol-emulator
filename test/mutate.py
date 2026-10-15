@@ -104,12 +104,12 @@ RTL = [
     "src/engine.ml", "src/decoder.ml", "src/pins.ml", "src/deadline.ml", "src/crc.ml",
     "src/host_port.ml", "src/host_spi.ml", "src/host_fifo.ml", "src/data_memory.ml",
     "src/program_memory.ml", "src/sram_macro.ml", "src/engines.ml", "src/top.ml",
+    "src/isa.ml", "src/program_config.ml",
 ]
 # the files the chip does not instantiate, each with the generator that elaborates it alone
 APART = {
     "src/kernel.ml": [["kernel"], ["kernel-accepts"]],
     "src/osr_kernel.ml": [["osr"]],
-    "src/solo.ml": [["engine"], ["engine", "-sram"]],
     "src/manchester_rx.ml": [
         ["manchester-rx"],
         ["manchester-rx", "-samples-per-bit", "8", "-samples-per-cycle", "2", "-gain-shift", "3"],
