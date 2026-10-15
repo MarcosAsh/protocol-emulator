@@ -224,12 +224,14 @@ async def act3(dut, queue, logs):
         await wire.send(data_packet(0x4B, []))
         assert await wire.listen() == [0xD2]
 
-    # both certificates and both programs go over SPI first, some 1,500 words
-    await until(lambda: starts, cycles=400_000)
+    # both certificates and both programs go over SPI first, some 1,500 words, and each
+    # check waits up to two of the checker's 65,536-cycle turns for its engine's
+    await until(lambda: starts, cycles=700_000)
     await wire.drive(SE0, 150)
     # idle, which the reset rereads until the reload is done
     dut.uio_in.value = 2
-    await until(lambda: len(starts) == 2)
+    await until(lambda: len(starts) == 2, cycles=400_000)
+    dut._log.info(f"engine 0 started at cycles {starts}")
     await wire.drive(J, 40)
 
     await setup(0, [0x80, 6, 0, 1, 0, 0, 8, 0])
