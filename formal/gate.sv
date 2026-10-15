@@ -2,7 +2,8 @@
 // engine n: (a) a start reaches the core only while n is certified; (b) n is certified
 // only after a walk of n that began after the last program or configuration write to n,
 // held n free and saw no data write throughout, and finished accepted; (c) a start
-// never comes the cycle after the checker held n's ports.
+// never comes the cycle after the checker held n's ports; (d) a walk of n runs only in
+// n's turn at the checker.
 // Every host field is free every cycle, and so is each memory's output.
 
 module gate (input clk);
@@ -15,6 +16,7 @@ module gate (input clk);
   end
 
   wire certified_0, certified_1, go, chosen, checked, checking, accepts, lent_0, lent_1;
+  wire turn_starts;
   wire started_0, started_1, free_0, free_1;
   wire [1:0] certified = {certified_1, certified_0};
   wire [1:0] lent = {lent_1, lent_0};
@@ -30,7 +32,7 @@ module gate (input clk);
     .hosts$config_written_0(config_written[0]), .hosts$config_written_1(config_written[1]),
     .hosts$data_write$valid_0(data_write[0]), .hosts$data_write$valid_1(data_write[1]),
     .certified_0(certified_0), .certified_1(certified_1), .go(go), .chosen(chosen),
-    .checked(checked), .checking(checking), .accepts(accepts),
+    .checked(checked), .checking(checking), .accepts(accepts), .turn_starts(turn_starts),
     .lent_0(lent_0), .lent_1(lent_1), .started_0(started_0), .started_1(started_1),
     .free_0(free_0), .free_1(free_1));
 
@@ -72,13 +74,21 @@ module gate (input clk);
     end
   endgenerate
 
+  always @* if (cleared && !clear) begin
+    if (checking) assert (checked == chosen);
+`ifndef NO_INVARIANT
+    // a turn's last cycle aborts its walk, so each begins with the checker idle
+    if (turn_starts) assert (!checking);
+`endif
+  end
+
   // a walk of each engine begins and borrows its ports, and a start is refused; an
   // accepted walk takes thousands of cycles, so certified starts are covered with the
   // walk ended at pc 1
   always @* if (cleared) begin
 `ifdef SHORT_WALK
     cover (started[0]);
-    cover (started[1] && checking && checked == 0);
+    cover (started[0] && checking && checked == 1);
 `else
     cover (lent[0]);
     cover (lent[1]);
