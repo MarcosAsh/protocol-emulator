@@ -299,3 +299,89 @@ let%expect_test "the check refuses a row one short" =
       ("rows the check rejects" (rejected (((pc 8) (fails ("next shifted"))))))))
     |}]
 ;;
+
+(* Brute force: for a word that leaves x alone, the image's shifted bounds are exactly the
+   least and greatest counts the core steps to from a state the row and x's bounds allow,
+   where the sum less x narrows the row's own. *)
+let%expect_test "an image's shifted bounds are the hull of the counts the core reaches" =
+  let module O = Osr_kernel.Make (Bits) in
+  let side_set_count = Bits.zero 2 in
+  let autopull = Bits.gnd in
+  let pull_threshold = Bits.zero Isa.count_bits in
+  let of_int n ~width = Bits.of_unsigned_int ~width n in
+  let pair = Quickcheck.Generator.both (Int.gen_incl 0 12) (Int.gen_incl 0 12) in
+  List.iter [ "set y, 0"; "out pins, 3" ] ~f:(fun source ->
+    let word =
+      Asm.assemble source
+      |> ok_exn
+      |> Asm.Program.words
+      |> ok_exn
+      |> List.hd_exn
+      |> of_int ~width:Isa.data_bits
+    in
+    Quickcheck.test
+      ~trials:2000
+      (Quickcheck.Generator.tuple3
+         pair
+         (Quickcheck.Generator.both (Int.gen_incl 0 24) (Int.gen_incl 0 24))
+         pair)
+      ~f:(fun ((shifted_lo, shifted_hi), (sum_lo, sum_hi), (x_lo, x_hi)) ->
+        let reached =
+          List.concat_map
+            (List.range shifted_lo (shifted_hi + 1))
+            ~f:(fun shifted ->
+              List.filter_map
+                (List.range x_lo (x_hi + 1))
+                ~f:(fun x ->
+                  if shifted + x < sum_lo || shifted + x > sum_hi
+                  then None
+                  else (
+                    let s =
+                      O.step
+                        ~side_set_count
+                        ~autopull
+                        ~pull_threshold
+                        ~word
+                        ~shifted:
+                          (of_int shifted ~width:Osr_kernel.Row.port_widths.shifted_lo)
+                        ~pulled:Bits.gnd
+                    in
+                    Some (Bits.to_unsigned_int s.next_shifted))))
+        in
+        if not (List.is_empty reached)
+        then (
+          let width = Osr_kernel.Row.port_widths in
+          let image =
+            O.image
+              ~side_set_count
+              ~autopull
+              ~pull_threshold
+              ~word
+              ~x_lo:(of_int x_lo ~width:Isa.data_bits)
+              ~x_hi:(of_int x_hi ~width:Isa.data_bits)
+              ~row:
+                { shifted_lo = of_int shifted_lo ~width:width.shifted_lo
+                ; shifted_hi = of_int shifted_hi ~width:width.shifted_hi
+                ; sum_lo = of_int sum_lo ~width:width.sum_lo
+                ; sum_hi = of_int sum_hi ~width:width.sum_hi
+                ; pulled = Bits.gnd
+                }
+              ~taken:false
+          in
+          let least, greatest =
+            List.fold reached ~init:(Int.max_value, Int.min_value) ~f:(fun (lo, hi) n ->
+              Int.min lo n, Int.max hi n)
+          in
+          [%test_result: int * int]
+            (Bits.to_unsigned_int image.shifted_lo, Bits.to_unsigned_int image.shifted_hi)
+            ~expect:(least, greatest)
+            ~message:
+              [%string
+                "%{source}: shifted %{shifted_lo#Int}..%{shifted_hi#Int}, sum \
+                 %{sum_lo#Int}..%{sum_hi#Int}, x %{x_lo#Int}..%{x_hi#Int}"]));
+    printf "%s: exact\n" source);
+  [%expect {|
+    set y, 0: exact
+    out pins, 3: exact
+    |}]
+;;
