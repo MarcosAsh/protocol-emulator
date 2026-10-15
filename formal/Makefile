@@ -280,11 +280,17 @@ complete_proof:
 # last write that held it free; and never right after the checker held its ports. A walk
 # takes thousands of cycles, so the short covers and the teeth end it at pc 1, which no
 # claim depends on: there a cover reaches a certified start, and each tooth (certified
-# never cleared, an engine lent while not free, no abort) has to fail.
+# never cleared, an engine lent while not free, no abort, the frame receiver ungated, the
+# premises live) has to fail.
 SHORT_WALK = /^module load_checker /,/^endmodule/s/= 9'b111111111;/= 9'b000000001;/
 STICKY = /^module engines /,/^endmodule/s/^\(\s*assign signal_mux[_0-9]* = \)signal_or[_0-9]* ? gnd : /\1/
 LEND_BUSY = /^module engines /,/^endmodule/s/^\(\s*assign lent\$$[01] = \)\(signal_and[_0-9]*\) \& signal_wire[_0-9]*;/\1\2;/
 NO_ABORT = /^module engines /,/^endmodule/s/^\(\s*assign abort = \).*;/\11'b0;/
+# the frame receiver let write any cycle, a word every cycle standing in for a frame
+FRAME_UNGATED = /^module engines /,/^endmodule/s/^\(\s*assign frame_may_write = \).*;/\11'b1;/
+FRAME_EVERY_CYCLE = /^module frame_rx /,/^endmodule/s/^\(\s*assign takes = \).*;/\11'b1;/
+# each core's period premise taken live from the host's setup rather than latched at its check
+PREMISES_LIVE = /^module engines /,/^endmodule/s/\(\.premises\$$period\$$value(\)signal_reg[_0-9]*)/\1check_setup\$$loaded\$$value)/
 gate: engines_gated.v
 	$(MAKE) gate_proof
 
@@ -295,8 +301,13 @@ gate_proof:
 	sed -e "$(SHORT_WALK)" -e "$(STICKY)" engines_gated.v > gate_teeth/sticky.v
 	sed -e "$(SHORT_WALK)" -e "$(LEND_BUSY)" engines_gated.v > gate_teeth/lend_busy.v
 	sed -e "$(SHORT_WALK)" -e "$(NO_ABORT)" engines_gated.v > gate_teeth/no_abort.v
-	for t in sticky lend_busy no_abort; do ! cmp -s gate_teeth/short.v gate_teeth/$$t.v || exit 1; done
-	sby -f gate.sby prove cover short_cover sticky lend_busy no_abort
+	sed -e "$(SHORT_WALK)" -e "$(FRAME_UNGATED)" -e "$(FRAME_EVERY_CYCLE)" engines_gated.v \
+	  > gate_teeth/frame_ungated.v
+	sed -e "$(SHORT_WALK)" -e "$(PREMISES_LIVE)" engines_gated.v > gate_teeth/premises_live.v
+	for t in sticky lend_busy no_abort frame_ungated premises_live; do \
+	  ! cmp -s gate_teeth/short.v gate_teeth/$$t.v || exit 1; done
+	sby -f gate.sby prove cover short_cover sticky lend_busy no_abort frame_ungated \
+	  premises_live
 
 isolation_proof:
 	sed '$(ANY_TURN)' engines_sram.v > engines_any_turn.v
