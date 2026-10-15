@@ -277,6 +277,9 @@ jobs:
       - name: Traffic checks, on made captures
         run: python3 test/test_traffic.py
 
+      - name: Carrier self-test, on a model of the board
+        run: python3 test/test_carrier_check.py
+
   # the netlists of both boards, simulated; the firmware words they load are the committed
   # ones, which the test job checks are current
   fpga:
