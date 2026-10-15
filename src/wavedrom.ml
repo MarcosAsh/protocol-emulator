@@ -46,6 +46,7 @@ type t =
   ; starts_on_edge : bool
   ; read : int
   ; limits : Limit.t list
+  ; diagram : Wavejson.t
   }
 
 let outside detail =
@@ -521,6 +522,24 @@ let limits
   |> Result.all
 ;;
 
+let drawn (diagram : Wavejson.t) =
+  List.map diagram.lanes ~f:(fun (l : Wavejson.Lane.t) -> String.length l.wave)
+  |> List.max_elt ~compare
+  |> Option.value ~default:0
+;;
+
+let cycles_of (diagram : Wavejson.t) ~drawn =
+  match diagram.cycles with
+  | Every c -> Ok (Fn.const c)
+  | Each cs when List.length cs = drawn -> Ok (List.nth_exn cs)
+  | Each cs ->
+    outside
+      [%message
+        "table.cycles has one number a drawn period"
+          ~numbers:(List.length cs : int)
+          ~periods:(drawn : int)]
+;;
+
 let step name outputs kind cycles = { Step.name; outputs; kind; cycles }
 
 let check_steps steps =
@@ -726,6 +745,7 @@ let compile_on_host
   ; starts_on_edge = false
   ; read
   ; limits
+  ; diagram
   }
 ;;
 
@@ -830,6 +850,7 @@ let compile_on_edge
   ; starts_on_edge = true
   ; read
   ; limits
+  ; diagram
   }
 ;;
 
@@ -858,22 +879,8 @@ let compile (diagram : Wavejson.t) =
               (List.map inputs ~f:(fun (l : Wavejson.Lane.t) -> l.name) : string list)]
     else Ok ()
   in
-  let drawn =
-    List.map lanes ~f:(fun (l : Wavejson.Lane.t) -> String.length l.wave)
-    |> List.max_elt ~compare
-    |> Option.value ~default:0
-  in
-  let%bind cycles_of =
-    match diagram.cycles with
-    | Every c -> Ok (Fn.const c)
-    | Each cs when List.length cs = drawn -> Ok (List.nth_exn cs)
-    | Each cs ->
-      outside
-        [%message
-          "table.cycles has one number a drawn period"
-            ~numbers:(List.length cs : int)
-            ~periods:(drawn : int)]
-  in
+  let drawn = drawn diagram in
+  let%bind cycles_of = cycles_of diagram ~drawn in
   match inputs with
   | [ input ] when Option.is_some (input_edge input) ->
     compile_on_edge
@@ -913,6 +920,45 @@ let host_words t bits =
 
 let read_bits t word =
   List.init t.read ~f:(fun i -> (word lsr (t.read - 1 - i)) land 1 = 1)
+;;
+
+let line t frames =
+  let open Or_error.Let_syntax in
+  let%bind lane =
+    match List.find t.diagram.lanes ~f:(fun (l : Wavejson.Lane.t) -> l.input) with
+    | Some lane when t.starts_on_edge -> Ok lane
+    | _ ->
+      Or_error.error_s [%message "only a frame an input's edge starts has a line to draw"]
+  in
+  let drawn = drawn t.diagram in
+  let%bind cycles_of = cycles_of t.diagram ~drawn in
+  let%bind periods = periods ~drawn None in
+  let%bind cells = input_lane lane periods in
+  let idle = level_char lane.wave.[0] |> Option.value_exn in
+  let hold level p = List.init (cycles_of p) ~f:(Fn.const level) in
+  let%map frames =
+    List.map frames ~f:(fun bits ->
+      if List.length bits <> t.read
+      then
+        Or_error.error_s
+          [%message
+            "a frame's bits" ~bits:(List.length bits : int) ~a_frame:(t.read : int)]
+      else
+        Ok
+          (hold idle 0
+           :: List.folding_map (List.range 1 drawn) ~init:idle ~f:(fun previous p ->
+             let level =
+               match cells.(p) with
+               | Some k -> List.nth_exn bits k
+               | None ->
+                 let c = if p < String.length lane.wave then lane.wave.[p] else '.' in
+                 Option.value (level_char c) ~default:previous
+             in
+             level, hold level p)
+           |> List.concat))
+    |> Or_error.all
+  in
+  List.concat frames @ hold idle 0 |> Array.of_list
 ;;
 
 let image t =

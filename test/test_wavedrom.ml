@@ -255,17 +255,37 @@ let%expect_test "uart rx from a diagram: the start bit's edge, against the hand 
   let byte bits =
     List.foldi bits ~init:0 ~f:(fun i acc b -> acc lor (Bool.to_int b lsl i))
   in
+  (* the same bytes on the line the diagram draws, a frame after each idle bit *)
+  let drawn =
+    Wavedrom.line
+      t
+      (List.map bytes ~f:(fun b -> List.init 8 ~f:(fun i -> (b lsr i) land 1 = 1)))
+    |> ok_exn
+  in
+  let _, line_taken, line_fault =
+    Wavedrom.simulate
+      t
+      ~host_words:[]
+      ~inputs:(fun c -> Bool.to_int drawn.(Int.min c (Array.length drawn - 1)))
+      ~cycles:(Array.length drawn)
+    |> ok_exn
+  in
+  let read words = List.map words ~f:(fun w -> byte (Wavedrom.read_bits t w)) in
   print_s
     [%message
       ""
-        ~uart_read:(List.map taken ~f:(fun w -> byte (Wavedrom.read_bits t w)) : int list)];
+        ~uart_read:(read taken : int list)
+        ~line_read:(read line_taken : int list)
+        (line_fault : Machine.Fault.t)];
   [%expect
     {|
     (uart_rx (steps 10) (words_identical true) (edges 0) (edges_identical true)
      (taken_identical true)
      (fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
-    (uart_read (163 0 255 92 129))
+    ((uart_read (163 0 255 92 129)) (line_read (163 0 255 92 129))
+     (line_fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
     |}]
 ;;
 

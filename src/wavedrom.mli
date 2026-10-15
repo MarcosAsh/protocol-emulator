@@ -54,6 +54,7 @@ type t =
   ; starts_on_edge : bool (** each frame starts on the input's edge, with no host word *)
   ; read : int (** bits read a frame *)
   ; limits : Limit.t list
+  ; diagram : Wavejson.t (** as compiled *)
   }
 
 (** The table, or why the diagram is outside the class. *)
@@ -67,6 +68,11 @@ val host_words : t -> bool list -> int list Or_error.t
 
 (** The bits a pushed word holds, first read first. *)
 val read_bits : t -> int -> bool list
+
+(** The input lane's level each cycle as a peer sends [frames] of [read] bits, each drawn
+    as the diagram draws its frame after the idle period, and one more idle at the end.
+    Only for a frame an input's edge starts. *)
+val line : t -> bool list list -> bool array Or_error.t
 
 (** The certified interpreter's config and program, and the table's data words. *)
 val image : t -> (Program_config.t * int list * int list) Or_error.t
