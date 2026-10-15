@@ -444,5 +444,21 @@ class CarrierCheck(unittest.TestCase):
                             for line in said), "\n".join(said))
 
 
+class Remote(unittest.TestCase):
+    def test_waits_out_a_press(self):
+        """A call through the REPL waits longer than the button does, which Pico A may
+        take in full before it answers."""
+
+        class Repl:
+            def exec(self, code, timeout):
+                self.code, self.timeout = code, timeout
+                return "True\r\n"
+
+        repl = Repl()
+        self.assertTrue(carrier_check.Remote(repl, "gpio").pressed(9, carrier_check.BUTTON_MS))
+        self.assertEqual(repl.code, "print(repr(gpio.pressed(*(9, 120000))))")
+        self.assertGreater(repl.timeout, carrier_check.BUTTON_MS / 1000)
+
+
 if __name__ == "__main__":
     unittest.main()

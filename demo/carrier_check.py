@@ -65,6 +65,8 @@ ANALYSERS = {"A": "J2", "B": "J3"}
 TRAINS, TRAIN_GAP_US, SPLIT_S = 60, 30_000, 0.015
 CAPTURE_MS = 8000
 BUTTON_MS = 120_000
+# the longest a call on a Pico may take: the wait for a press, then some
+CALL_S = BUTTON_MS // 1000 + 15
 # Pico A's VSYS from USB: VBUS less its Schottky diode
 VSYS = (4.3, 5.5)
 
@@ -500,7 +502,8 @@ class Remote:
 
     def __getattr__(self, method):
         def call(*args):
-            said = self.repl.exec("print(repr(%s.%s(*%r)))" % (self.name, method, args))
+            said = self.repl.exec("print(repr(%s.%s(*%r)))" % (self.name, method, args),
+                                  CALL_S)
             return ast.literal_eval(said.strip())
 
         return call
