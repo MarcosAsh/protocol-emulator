@@ -1467,6 +1467,17 @@ let%expect_test "side-set holds across a write to other pins" =
     nop side 0
     halt side 0
 |};
+  (* a set to a pin side-set does not drive leaves its level, so the same side makes no
+     edge after it *)
+  report
+    ~config:{ Program_config.default with side_set_count = 1; side_set_base = 5; set_base = 7 }
+    {|
+    .side_set 1
+    nop side 0
+    set pins, 1 side 0
+    nop side 0
+    halt side 0
+|};
   [%expect
     {|
     0  nop side 0                   phase ?..?  side ?..?  jitter ?
@@ -1480,6 +1491,10 @@ let%expect_test "side-set holds across a write to other pins" =
     4  halt side 0                  phase ?..?
     0  nop side 0                   phase ?..?  side ?..?  jitter ?
     1  out pindirs, 1 side 0        phase ?..?  edge ?..?  jitter ?  gap ?..?
+    2  nop side 0                   phase ?..?
+    3  halt side 0                  phase ?..?
+    0  nop side 0                   phase ?..?  side ?..?  jitter ?
+    1  set pins, 1 side 0           phase ?..?  edge ?..?  jitter ?  gap ?..?
     2  nop side 0                   phase ?..?
     3  halt side 0                  phase ?..?
     |}]
