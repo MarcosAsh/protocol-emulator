@@ -85,6 +85,15 @@ val run
 
 val lows : Levels.t -> int list
 
+(** Every pin on each cycle of [bench]'s run of [stimulus], a word a cycle by the engine's
+    pin numbers: every line pulled up, nothing else driving, and each burst in once the
+    one before is in the core, its fifo empty and [quiet_pin] quiet for the stimulus'
+    [quiet] cycles. [Bound.Run] takes the levels of its pin's run. *)
+val run_pins : Bench.t -> quiet_pin:int -> Bench.Stimulus.t -> int array
+
+(** The levels in a run, one a sample. *)
+val runs : bool array -> Levels.t
+
 (** Each level with the one after it. *)
 val pairs : Levels.t -> ((bool * int) * (bool * int)) list
 

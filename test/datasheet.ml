@@ -97,11 +97,12 @@ let run ~pin widths = Bound.Run { pin; widths }
 let lows levels = List.filter_map levels ~f:(fun (high, n) -> Option.some_if (not high) n)
 
 (* every line pulled up, nothing else driving, and the host on time *)
-let levels (bench : Bench.t) ~pin (stimulus : Bench.Stimulus.t) =
+let run_pins (bench : Bench.t) ~quiet_pin (stimulus : Bench.Stimulus.t) =
   let timed = Bench.timed bench in
   let inputs = (1 lsl Isa.num_pins) - 1 in
-  let level machine = (Machine.pins machine ~inputs lsr pin) land 1 = 1 in
-  let rec go machine ~cycle ~queued ~bursts ~quiet acc =
+  let level machine = (Machine.pins machine ~inputs lsr quiet_pin) land 1 = 1 in
+  let pins = Array.create ~len:stimulus.cycles 0 in
+  let rec go machine ~cycle ~queued ~bursts ~quiet =
     if cycle = stimulus.cycles
     then (
       if not (Machine.Fault.equal machine.Machine.fault Machine.Fault.none)
@@ -109,8 +110,7 @@ let levels (bench : Bench.t) ~pin (stimulus : Bench.Stimulus.t) =
         raise_s
           [%message
             "BUG: the run faulted" bench.name ~fault:(machine.fault : Machine.Fault.t)];
-      (* the last level has not ended *)
-      List.tl_exn acc |> List.rev)
+      pins)
     else (
       let queued, bursts =
         match queued, bursts with
@@ -127,19 +127,13 @@ let levels (bench : Bench.t) ~pin (stimulus : Bench.Stimulus.t) =
       let before = level machine in
       let machine = Machine.step machine ~inputs in
       let machine = Option.value_map (Machine.read_rx machine) ~default:machine ~f:snd in
-      let now = level machine in
-      let acc =
-        match acc with
-        | (high, n) :: rest when Bool.equal high now -> (high, n + 1) :: rest
-        | acc -> (now, 1) :: acc
-      in
+      pins.(cycle) <- Machine.pins machine ~inputs;
       go
         machine
         ~cycle:(cycle + 1)
         ~queued
         ~bursts
-        ~quiet:(if Bool.equal before now then quiet + 1 else 0)
-        acc)
+        ~quiet:(if Bool.equal before (level machine) then quiet + 1 else 0))
   in
   let machine =
     Machine.create
@@ -153,7 +147,21 @@ let levels (bench : Bench.t) ~pin (stimulus : Bench.Stimulus.t) =
     | first :: rest -> (Option.to_list bench.load @ first) :: rest
     | [] -> []
   in
-  go machine ~cycle:0 ~queued:[] ~bursts ~quiet:0 []
+  go machine ~cycle:0 ~queued:[] ~bursts ~quiet:0
+;;
+
+let runs levels =
+  Array.fold levels ~init:[] ~f:(fun acc level ->
+    match acc with
+    | (high, n) :: rest when Bool.equal high level -> (high, n + 1) :: rest
+    | acc -> (level, 1) :: acc)
+  |> List.rev
+;;
+
+let levels bench ~pin stimulus =
+  let pins = run_pins bench ~quiet_pin:pin stimulus in
+  (* the last level has not ended *)
+  runs (Array.map pins ~f:(fun word -> (word lsr pin) land 1 = 1)) |> List.drop_last_exn
 ;;
 
 module Verdict = struct
