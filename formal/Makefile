@@ -1,4 +1,4 @@
-all: issue_timing host_timing host_spacing late_host fifo_order phase_step edge_step event_step frame_step \
+all: issue_timing host_timing host_spacing late_host fifo_order phase_step fetch_step edge_step event_step frame_step \
   value_step narrow saturating chip_frame fail_safe isolation data_step teeth fsm_miter \
   sram_equiv kernel_equiv link self_check self_check_clean powerup
 
@@ -118,6 +118,15 @@ phase_table_affine_proof:
 	sby -f phase_table_affine.sby prove cover
 	sby -f phase_table_affine.sby offset_unchecked no_accepts no_open next_no_wrap \
 	  target_is_next rows_while_running
+
+# the fetch lemma: the core runs the word its memory holds at pc, the memory followed at
+# one free address through a probe added to engine.v. Seconds. Teeth: a config or a
+# program word written in a start's second cycle, which host_spacing rules out.
+PROBE = /^module program_memory (/,/^endmodule/s/^\(\s*\)reg \[15:0\] signal_multiport_mem\[0:511\];/&\n\1wire [8:0] probe_addr = $$anyconst;\n\1wire [15:0] probe_word = signal_multiport_mem[probe_addr];/
+fetch_step: engine.v
+	sed '$(PROBE)' engine.v > engine_probed.v
+	! cmp -s engine.v engine_probed.v
+	sby -f fetch_step.sby prove cover config_at_start program_at_start
 
 # the edge lemma beside it: the pins change only the cycle after an entry that writes them
 edge_step: engine.v

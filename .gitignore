@@ -35,6 +35,7 @@ formal/engines_any_turn.v
 formal/engines.v
 formal/engines_sram.v
 formal/top.v
+formal/engine_probed.v
 formal/link*.sv
 formal/certificate*.sv
 formal/fsm_miter*.sv

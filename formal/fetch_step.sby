@@ -1,0 +1,46 @@
+[tasks]
+prove
+cover
+# teeth: the config written in a start's second cycle, as the host port's gate alone
+# allows, and a program word written in a start's two cycles
+config_at_start teeth
+program_at_start teeth
+
+[options]
+prove: mode prove
+prove: depth 6
+cover: mode cover
+cover: depth 16
+teeth: mode bmc
+teeth: depth 16
+teeth: expect fail
+
+[engines]
+smtbmc boolector
+
+[script]
+read_verilog -formal engine_probed.v
+hierarchy -top engine
+proc
+flatten
+cd engine
+expose w:jmp_go w:advance w:fetch_addr w:refill w:program_memory.dout_0
+expose w:program_memory.probe_addr w:program_memory.probe_word
+rename jmp_go eng_jmp_go
+rename advance eng_advance
+rename fetch_addr eng_fetch_addr
+rename refill eng_refill
+rename program_memory.dout_0 eng_dout
+rename program_memory.probe_addr eng_probe_addr
+rename program_memory.probe_word eng_probe_word
+cd ..
+config_at_start: read -define CONFIG_AT_START
+program_at_start: read -define PROGRAM_AT_START
+read_verilog -formal -sv fetch_step.sv
+prep -top fetch_step
+# a tooth has to fail on the lemma, so every other claim is dropped
+teeth: chformal -assert -remove c:* c:runs_memory %d
+
+[files]
+engine_probed.v
+fetch_step.sv
