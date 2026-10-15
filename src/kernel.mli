@@ -388,9 +388,9 @@ module Make_timer (_ : Engine.Timer) : sig
 
   (** Checks every pc; words past the program read zero. [period] is [loaded], and
       [period_floor] it as a floor. [spacing] is refused unless its pins differ and lie in
-      the pin space, Manchester is off and every row has no slope and the full offset, as
-      [formal/phase_spacing.sby] proves it. A rejection names each pc and the conjuncts
-      that fail there. *)
+      the pin space, Manchester and the line code are off and every row has no slope and
+      the full offset, as [formal/phase_spacing.sby] proves it. A rejection names each pc
+      and the conjuncts that fail there. *)
   val check
     :  ?period:int
     -> ?period_floor:int

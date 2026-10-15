@@ -1361,13 +1361,16 @@ let%expect_test "the library's tables are rows of intervals" =
 ;;
 
 (* [Kernel.check] spaces edges only where formal/phase_spacing.sby proves it: two pins,
-   Manchester off and a table of intervals. *)
+   no Manchester or line code and a table of intervals. *)
 let%expect_test "a spacing is checked only where it is proved" =
   let i2c = Certified.find_exn "i2c_master" in
   List.iter
     [ "one pin", i2c, { fast_mode_plus with b = Firmware.scl }
     ; ( "manchester"
       , { i2c with config = { i2c.config with manchester = true } }
+      , fast_mode_plus )
+    ; ( "line code"
+      , { i2c with config = { i2c.config with line_code = true } }
       , fast_mode_plus )
     ; "offsets", ws2812_waiting_after_gap, fast_mode_plus
     ]
@@ -1377,13 +1380,16 @@ let%expect_test "a spacing is checked only where it is proved" =
     {|
     ("one pin"
      (Error
-      "edges are spaced only for two pins, Manchester off and a table of intervals"))
+      "edges are spaced only for two pins, no Manchester or line code and a table of intervals"))
     (manchester
      (Error
-      "edges are spaced only for two pins, Manchester off and a table of intervals"))
+      "edges are spaced only for two pins, no Manchester or line code and a table of intervals"))
+    ("line code"
+     (Error
+      "edges are spaced only for two pins, no Manchester or line code and a table of intervals"))
     (offsets
      (Error
-      "edges are spaced only for two pins, Manchester off and a table of intervals"))
+      "edges are spaced only for two pins, no Manchester or line code and a table of intervals"))
     |}]
 ;;
 

@@ -1605,6 +1605,7 @@ module Make_timer (Timer : Engine.Timer) = struct
         && a < Isa.pin_space
         && b < Isa.pin_space
         && (not config.manchester)
+        && (not config.line_code)
         && Array.for_all table ~f:(fun r ->
           Bits.to_bool Bits.(K.offset_is_full r &: (r.slope ==:. 0))))
     in
@@ -1612,7 +1613,8 @@ module Make_timer (Timer : Engine.Timer) = struct
     | _ when not proved_spacing ->
       Or_error.error_s
         [%message
-          "edges are spaced only for two pins, Manchester off and a table of intervals"]
+          "edges are spaced only for two pins, no Manchester or line code and a table of \
+           intervals"]
     | true, [] -> Ok ()
     | false, _ -> Or_error.error_s [%message "the row at pc 0 must be the full range"]
     | true, rejected ->
