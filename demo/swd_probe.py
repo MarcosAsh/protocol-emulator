@@ -13,7 +13,6 @@ import subprocess
 import sys
 import time
 
-import serial.tools.list_ports
 from pyocd.core import exceptions
 from pyocd.core.session import Session
 from pyocd.probe.debug_probe import DebugProbe
@@ -54,6 +53,7 @@ class SerialLink:
                        check=True, stdout=subprocess.DEVNULL)
 
     def open(self):
+        import serial.tools.list_ports
         from mpremote.transport_serial import SerialTransport
 
         serial_number = self.pico.removeprefix("id:")
