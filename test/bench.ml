@@ -32,7 +32,8 @@ type t =
    to IO2 and IO3, SCL first as on Tiny Tapeout's I2C Pmod, 1-Wire to IO4 and 10BASE-T to
    IO6 and IO7. The bench is wired once for every demo: CAN's TX keeps OUT1 and SWD keeps
    OUT2 and IO5, so the SK6812 moves to OUT3 and the SPI masters to MOSI on OUT4, SCK on
-   OUT5 and CS on OUT6. The CAN node's CRX is on IN1. *)
+   OUT5 and CS on OUT6. The CAN node's CRX is on IN1. Bench_wiring has the analyser
+   channels. *)
 let neopixel = 8
 let mosi = 9
 let sck = 10
