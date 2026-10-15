@@ -431,7 +431,7 @@ let%expect_test "every protocol from its file to the decoded trace" =
     swd                SWCLK low      >=  20.8333 ns  kernel 24 (500.0 ns)     needs    2       RP2040, RP2040 datasheet, 2025-02-20 s.2.3.4 p.61; margin a cycle
 
     lockstep: swd, swd
-    ("lockstep held" (cycles 53400))
+    ("lockstep held" (cycles 54200))
     (received
      (0x1 0x7 0x2477 0xbc1 0x1 0x1 0x1 0x0 0xf000 0x1 0x1 0x0 0x0 0x1 0x0 0x0 0x2
       0x31 0x477 0x1 0x1))

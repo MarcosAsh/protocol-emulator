@@ -1018,7 +1018,11 @@ let scenario =
       Scenario.load
         ~config:(Timed_program.config firmware)
         ~program:(Timed_program.words firmware)
-      @ [ Scenario.start; Write (Reg.tx, [ half ]); Run 200; Read (Reg.rx, 1) ]
+      @ [ Scenario.start
+        ; Write (Reg.tx, [ half ])
+        ; Run ((32 * half) + 200) (* the pull-up's sample, 32 half periods in *)
+        ; Read (Reg.rx, 1)
+        ]
       @ bits dormant_to_swd
       @ bits line_reset
       @ transfer (Targetsel rp2040_core0)
