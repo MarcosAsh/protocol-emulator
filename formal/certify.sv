@@ -12,7 +12,7 @@ module certify (input clk);
   (* anyconst *) wire [8:0] wrap_bottom, wrap_top;
   (* anyconst *) wire [15:0] period_fraction;
   (* anyconst *) wire [8:0] base;
-  (* anyconst *) wire loaded_valid, single_edge;
+  (* anyconst *) wire loaded_valid, floor, single_edge;
   (* anyconst *) wire [15:0] loaded_value;
   (* anyseq *) wire check;
   // the pc the claims are about, and its word
@@ -104,7 +104,8 @@ module certify (input clk);
     .config$capture_rising(capture_rising), .config$wrap_bottom(wrap_bottom),
     .config$wrap_top(wrap_top), .config$period_fraction(period_fraction),
     .setup$base(base), .setup$loaded$valid(loaded_valid),
-    .setup$loaded$value(loaded_value), .setup$single_edge(single_edge),
+    .setup$loaded$value(loaded_value), .setup$floor(floor),
+    .setup$single_edge(single_edge),
     .program_word(program_word), .data_word(data_word),
     .program_read$valid(program_read_valid), .program_read$value(program_read_value),
     .data_read$valid(data_read_valid), .data_read$value(data_read_value),
