@@ -550,7 +550,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        lemma: [phase_step, edge_step, self_check_clean, fail_safe]
+        lemma: [phase_step, edge_step, event_step, frame_step, value_step, self_check_clean, fail_safe]
     steps:
       - name: Checkout repo
         uses: actions/checkout@v6

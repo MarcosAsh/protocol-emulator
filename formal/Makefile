@@ -708,9 +708,10 @@ sat_tools:
 # cake_lpr's verified build, the C compilers, make and the shell; not rIC3 or cadical. Needs
 # make sat_tools. witness_proof runs on files written already. phase_table's peaks at 30 GB
 # and takes 6.5 h (rIC3 1.5 h, Inductive's check 4 h), past a hosted runner. CI proves
-# phase_step's, edge_step's, self_check_clean's and fail_safe's (2.5 to 7 min, 4.3 GB on
-# the mini; self_check_clean's Verilog from make self_check_clean, so not in WITNESSED).
-WITNESSED = phase_step edge_step phase_table fail_safe
+# the others, phase_step's, edge_step's, event_step's, frame_step's, value_step's,
+# self_check_clean's and fail_safe's (2.5 to 13 min, 4.3 GB; self_check_clean's Verilog
+# from make self_check_clean, so not in WITNESSED).
+WITNESSED = phase_step edge_step event_step frame_step value_step phase_table fail_safe
 witness: engine.v engines.v kernel_step.v kernel_accepts.v
 	for lemma in $(WITNESSED); do $(MAKE) witness_proof LEMMA=$$lemma || exit 1; done
 
@@ -756,6 +757,9 @@ witness_unsat:
 # files than the prove task's, as the narrow core's, is another model and not a tooth here.
 WITNESS_TEETH_phase_step = 12
 WITNESS_TEETH_edge_step = 5
+WITNESS_TEETH_event_step = 5
+WITNESS_TEETH_frame_step = 7
+WITNESS_TEETH_value_step = 10
 WITNESS_TEETH_phase_table = 5
 WITNESS_TEETH_self_check_clean = 2
 WITNESS_TEETH_fail_safe = 3
