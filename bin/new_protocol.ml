@@ -97,8 +97,14 @@ module Decoder = struct
 end
 
 let substitute template ~name ~(decoder : Decoder.t) =
+  (* a decoder whose channels are all optional, as uart's, gets its first *)
+  let channels =
+    match decoder.channels, decoder.optional_channels with
+    | [], first :: _ -> [ first ]
+    | channels, _ -> channels
+  in
   let pins =
-    List.mapi decoder.channels ~f:(fun i channel ->
+    List.mapi channels ~f:(fun i channel ->
       if i = 0
       then [%string {|"%{channel}", pin|}]
       else [%string {|"%{channel}", pin + %{i#Int} (* TODO *)|}])
@@ -363,6 +369,42 @@ let add_to_library ~root name =
         (String.prefix text at ^ [%string "\n  ; %{entry}"] ^ String.drop_prefix text at)
 ;;
 
+(* a row for [name] in test_tables.ml's table of which protocols the table interpreter
+   runs, which has to name every protocol; false if the table is not where it was *)
+let add_to_tables ~root name =
+  let path = root ^/ "test/test_tables.ml" in
+  let text = In_channel.read_all path in
+  match
+    String.substr_index text ~pattern:"\n    ]\n  in\n  let named = List.map rows"
+  with
+  | None -> false
+  | Some at ->
+    Out_channel.write_all
+      path
+      ~data:
+        (String.prefix text at
+         ^ [%string
+             {|
+    ; "%{name}", "TODO", "-", "-", "TODO whether the table interpreter runs it"|}]
+         ^ String.drop_prefix text at);
+    true
+;;
+
+(* the files written, formatted as the repository's .ocamlformat asks, if ocamlformat is
+   on the PATH *)
+let format ~root files =
+  let files =
+    List.filter files ~f:(fun file ->
+      String.is_suffix file ~suffix:".ml" || String.is_suffix file ~suffix:".mli")
+    |> List.map ~f:(fun file -> Filename.quote (root ^/ file))
+  in
+  match
+    Core_unix.system
+      [%string "ocamlformat -i %{String.concat ~sep:\" \" files} 2>/dev/null"]
+  with
+  | Ok () | Error _ -> ()
+;;
+
 (* modules a test file opens or names, which a protocol of that name would shadow *)
 let taken =
   [ "array"
@@ -431,11 +473,15 @@ let checklist ~name =
  6. sigrok    what the decoders read, into [expect], then the check
                 python3 demo/decode.py --show test/traces/%{name}.trace
                 python3 demo/decode.py test/traces/%{name}.trace
- 7. certify   the inductive certificate, on the homelab (minutes)
+ 7. certify   the inductive certificate, its teeth failing as they must (minutes)
                 make -C formal inductive_certificate NAME=%{name}
- 8. the rest  every output the library feeds, then promote
-                dune build --root . @runtest 2>&1 | tail -40; dune promote --root .
+ 8. the rest  the row in test/test_tables.ml, then every test and output the library
+              feeds, a fix rerun before it is promoted; CI runs the whole of runtest
+                test/only.sh -library test_%{name}.ml
+                test/only.sh -promote -library test_%{name}.ml
+                dune build --root . @test/python/runtest; dune promote --root .
  9. todo      grep -n TODO test/%{name}.ml test/test_%{name}.ml python/demo_%{name}.py
+                grep -n '"%{name}"' test/test_tables.ml
 10. bench     wire it, fill the outside: line, then
                 PICO=id:<serial of Pico A> demo/outside.sh %{name}
 |}]
@@ -488,11 +534,15 @@ let command =
           ; write ("python" ^/ "demo_" ^ name ^ ".py") demo_py
           ]
         in
+        format ~root written;
         add_to_library ~root name;
         printf
           "wrote %s, and added %s.protocol to test/library.ml\n"
           (String.concat ~sep:", " written)
           (String.capitalize name);
+        if add_to_tables ~root name
+        then printf "added a TODO row for %s to test/test_tables.ml\n" name
+        else printf "test/test_tables.ml needs a row for %s by hand\n" name;
         (match found with
          | [] ->
            printf "sigrok: no decoder's name holds %s, so -decoder ID picks one\n" name

@@ -522,8 +522,10 @@ let%expect_test "no protocol file is left half written" =
            || todo l.sheet.document
            || todo l.sheet.page)
           [%string "limit %{l.firmware} %{l.parameter}"])
-      @ List.filter_map (p.unlimited @ p.not_swept) ~f:(fun (name, why) ->
-        Option.some_if (todo why) [%string "reason %{name}"])
+      @ List.filter_map p.unlimited ~f:(fun (name, why) ->
+        Option.some_if (todo why) [%string "unlimited %{name}"])
+      @ List.filter_map p.not_swept ~f:(fun (name, why) ->
+        Option.some_if (todo why) [%string "not swept %{name}"])
       @ List.filter_map (p.bench @ p.loaded_from_hex) ~f:(fun b ->
         Option.some_if (todo b.what) [%string "bench %{b.name}"])
       @ List.filter_map (p.scenarios @ p.decoded) ~f:(fun s ->
