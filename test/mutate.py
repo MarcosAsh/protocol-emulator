@@ -105,7 +105,17 @@ RTL = [
     "src/host_port.ml", "src/host_spi.ml", "src/host_fifo.ml", "src/data_memory.ml",
     "src/program_memory.ml", "src/sram_macro.ml", "src/engines.ml", "src/top.ml",
 ]
-ELABORATE = {f: CHIP for f in RTL} | {"src/kernel.ml": [["kernel"], ["kernel-accepts"]]}
+# the files the chip does not instantiate, each with the generator that elaborates it alone
+APART = {
+    "src/kernel.ml": [["kernel"], ["kernel-accepts"]],
+    "src/osr_kernel.ml": [["osr"]],
+    "src/solo.ml": [["engine"], ["engine", "-sram"]],
+    "src/manchester_rx.ml": [
+        ["manchester-rx"],
+        ["manchester-rx", "-samples-per-bit", "8", "-samples-per-cycle", "2", "-gain-shift", "3"],
+    ],
+}
+ELABORATE = {f: CHIP for f in RTL} | APART
 # engine is the published score's four files, five mutants an operator each; wide is
 # every file that makes RTL, the kernel and the analyser, every match
 SCOPES = {
@@ -115,7 +125,7 @@ SCOPES = {
         "max_per_operator": 5,
     },
     "wide": {
-        "files": RTL + ["src/kernel.ml", "src/analyser.ml", "src/interval.ml"],
+        "files": RTL + list(APART) + ["src/analyser.ml", "src/interval.ml"],
         "operators": lambda file: (
             SOFTWARE if file in ["src/analyser.ml", "src/interval.ml"]
             else HARDWARE + MORE_HARDWARE + SOFTWARE),
