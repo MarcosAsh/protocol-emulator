@@ -1521,3 +1521,38 @@ let%expect_test "an analysis widens only what has not settled by max_passes" =
     jtag: nothing lost from 1 passes
     |}]
 ;;
+
+(* A bound widening drops on the cycles since the data pointer moved is no bound, so the
+   data pull it guards may underrun; settled, the loop's own delay and the seek's keep every pull clear. *)
+let%expect_test "a data pull may underrun once widening drops its settle bound" =
+  let config =
+    { Program_config.default with
+      autopull = true
+    ; pull_threshold = 8
+    ; autopull_data = true
+    }
+  in
+  let source =
+    {|
+    seek [7]
+loop:
+    out pins, 8 [3]
+    jmp loop
+|}
+  in
+  List.iter [ 256; 0 ] ~f:(fun max_passes ->
+    printf "max_passes %d\n" max_passes;
+    rows ~config ~max_passes source
+    |> print_rows ~f:(fun r ->
+      if r.may_underrun then "MAY UNDERRUN" else ""));
+  [%expect {|
+    max_passes 256
+      0  seek [7]
+      1  out pins, 8 [3]
+      2  jmp 1
+    max_passes 0
+      0  seek [7]
+      1  out pins, 8 [3]              MAY UNDERRUN
+      2  jmp 1
+    |}]
+;;
