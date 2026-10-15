@@ -65,12 +65,15 @@ module phase_step (input clk);
   (* anyseq *) wire [1:0] o_side_set_count;
   (* anyseq *) wire [4:0] o_side_set_base, o_in_base, o_in_count, o_out_base, o_out_count;
   (* anyseq *) wire [4:0] o_set_base, o_jmp_pin, o_capture_pin, o_push_threshold;
-  (* anyseq *) wire [4:0] o_pull_threshold, o_crc_width, o_stuff_threshold;
+  (* anyseq *) wire [4:0] o_pull_threshold, o_stuff_threshold;
+  (* anyseq *) wire [5:0] o_crc_width;
   (* anyseq *) wire [2:0] o_set_count;
   (* anyseq *) wire o_side_set_pindirs, o_capture_rising, o_in_shift_right, o_out_shift_right;
   (* anyseq *) wire o_autopush, o_autopull, o_crc_reflect, o_stuff_level, o_autopull_data;
   (* anyseq *) wire o_manchester;
   (* anyseq *) wire [15:0] o_crc_poly, o_crc_init, o_period_fraction;
+  (* anyseq *) wire [15:0] o_crc_poly_high, o_crc_init_high;
+  (* anyseq *) wire o_crc_complement;
   (* anyseq *) wire [8:0] o_wrap_bottom, o_wrap_top;
   (* anyseq *) wire o_stop, o_flush, o_start, o_program_write_valid, o_tx_valid, o_rx_pop;
   (* anyseq *) wire o_clear_irq;
@@ -145,6 +148,9 @@ module phase_step (input clk);
     .hosts$config$period_fraction_``n(w``period_fraction), \
     .hosts$config$autopull_data_``n(w``autopull_data), \
     .hosts$config$manchester_``n(w``manchester), \
+    .hosts$config$crc_poly_high_``n(w``crc_poly_high), \
+    .hosts$config$crc_init_high_``n(w``crc_init_high), \
+    .hosts$config$crc_complement_``n(w``crc_complement), \
     .hosts$start_``n(w``start), .hosts$program_write$valid_``n(w``program_write_valid), \
     .hosts$program_write$addr_``n(w``program_write_addr), \
     .hosts$program_write$data_``n(w``program_write_data), \
