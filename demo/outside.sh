@@ -8,7 +8,8 @@
 # The capture, the Pico's log and the decode are kept as <name>.sr, .log and .decode in
 # CAPTURES, the current directory unless set.
 # Usage: PICO=id:<serial of Pico A> demo/outside.sh <act>, one of
-#   flash eeprom eeprom_stretch ds18b20 neopixel start_hold can can_node swd referee
+#   flash eeprom eeprom_stretch ds18b20 neopixel start_hold can can_node swd referee,
+#   or a protocol whose python/demo_<act>.py has an "# outside:" line
 set -e
 act=$1
 captures=${CAPTURES:-.}
@@ -73,8 +74,16 @@ referee)
         test/uart_tx_host_rate_rows.hex test/self_check_wire.hex test/scrub.hex"
     ;;
 *)
-    echo "usage: PICO=id:<serial> $0 flash|eeprom|eeprom_stretch|ds18b20|neopixel|start_hold|can|can_node|swd|referee" >&2
-    exit 1
+    # any other demo is a protocol of its own, whose script's "# outside:" line gives the
+    # analyser, the capture's length and sigrok's decoders
+    line=$(sed -n 's/^# outside: //p' "python/demo_$act.py" 2>/dev/null | head -1)
+    if [ -z "$line" ]; then
+        echo "usage: PICO=id:<serial> $0 flash|eeprom|eeprom_stretch|ds18b20|neopixel|start_hold|can|can_node|swd|referee|<protocol>" >&2
+        exit 1
+    fi
+    analyser=$(echo "$line" | sed -n 's/.*analyser=\([^ ]*\).*/\1/p')
+    ms=$(echo "$line" | sed -n 's/.*ms=\([0-9]*\).*/\1/p')
+    decode=$(echo "$line" | sed -n 's/.*decode=//p')
     ;;
 esac
 # shellcheck disable=SC2086
