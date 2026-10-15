@@ -1,6 +1,6 @@
 all: issue_timing host_timing late_host fifo_order phase_step edge_step event_step frame_step \
-  value_step narrow saturating chip_frame isolation data_step teeth fsm_miter sram_equiv \
-  kernel_equiv link self_check self_check_clean powerup gate certify
+  value_step narrow saturating chip_frame fail_safe isolation data_step teeth fsm_miter \
+  sram_equiv kernel_equiv link self_check self_check_clean powerup gate certify
 
 engine.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe engine > formal/engine.v
@@ -164,6 +164,51 @@ saturating_chip: engine.v kernel_step.v
 chip_frame: engines.v
 	sby -f chip_frame.sby prove pads_shared cover
 
+# The fault fail-safe on the two-engine chip (fail_safe.sv): an engine with a fault latched
+# drives no pin from the edge it shows, halts within two edges and stays halted, pc held,
+# through any start until the clear; with no fault the pins are as they always were.
+# Seconds. Teeth: a faulted engine's drive kept, an engine that runs on or restarts, and
+# engines.v with engine 0's mask, stop or start gate taken out, all have to fail.
+FAULT_MASK = /^module engines (/,/^endmodule/s/^\(\s*assign signal_mux[_0-9]* = \)faulted\$$0 ? signal_const[_0-9]* : \(signal_wire_[0-9]*;\)/\1\2/
+FAULT_STOP = /^module engines (/,/^endmodule/s/^\(\s*assign signal_or[_0-9]* = signal_wire_[0-9]*\) | faulted\$$0;/\1;/
+FAULT_START = /^module engines (/,/^endmodule/s/^\(\s*assign signal_not[_0-9]* = \)~ faulted\$$0;/\1 1;/
+fail_safe: engines.v
+	sby -f fail_safe.sby prove cover
+
+fail_safe_teeth: engines.v
+	mkdir -p fail_safe_teeth
+	sed '$(FAULT_MASK)' engines.v > fail_safe_teeth/unmasked.v
+	sed '$(FAULT_STOP)' engines.v > fail_safe_teeth/unstopped.v
+	sed '$(FAULT_START)' engines.v > fail_safe_teeth/restartable.v
+	! cmp -s engines.v fail_safe_teeth/unmasked.v
+	! cmp -s engines.v fail_safe_teeth/unstopped.v
+	! cmp -s engines.v fail_safe_teeth/restartable.v
+	sby -f fail_safe.sby kept_drive runs_on restarts unmasked unstopped restartable
+
+# The fail-safe as a corollary of the one-run theorem, on each engine inside the two-engine
+# chip, the rest free (phase_step.sv's CHIP): for any program and table the kernel accepts,
+# each edge the chip drives for the engine comes the cycle after an entry inside its row,
+# but the release on the edge a fault shows, after which it drives nothing until reset.
+# Teeth, which have to fail: no kernel check, the edge at the entry, engine 0's mask gone or
+# a cycle late, the fault flop not sticky, a Manchester half early. _proof needs files
+# written.
+FAULT_LATE = /^module engines (/,/^endmodule/{s/^\(\s*assign signal_mux[_0-9]* = \)faulted\$$0 \(? signal_const[_0-9]* : signal_wire_[0-9]*;\)/\1late$$0 \2/;s/^\(\s*\)wire faulted\$$0;/&\n\1reg late$$0 = 0;\n\1always @(posedge clock) late$$0 <= faulted$$0;/}
+FLIP_EARLY = /^module engine (/,/^endmodule/s/^\(\s*assign signal_and[_0-9]* = \)issue & flip_pending_0;/\1flip_pending_0;/
+fail_safe_table: engines.v kernel_step.v kernel_accepts.v
+	$(MAKE) fail_safe_table_proof
+
+fail_safe_table_proof:
+	mkdir -p fail_safe_teeth
+	sed '$(FAULT_MASK)' engines.v > fail_safe_teeth/unmasked.v
+	sed '$(FAULT_LATE)' engines.v > fail_safe_teeth/late_mask.v
+	awk -f fail_safe_unsticky.awk engines.v engines.v > fail_safe_teeth/unsticky.v
+	sed '$(FLIP_EARLY)' engines.v > fail_safe_teeth/flip_early.v
+	for tooth in unmasked late_mask unsticky flip_early; do \
+	  ! cmp -s engines.v fail_safe_teeth/$$tooth.v || exit 1; \
+	done
+	sby -f fail_safe_table.sby prove_0 prove_1 cover
+	sby -f fail_safe_table.sby no_accepts edge_at_entry unmasked late_mask unsticky flip_early
+
 # A UART from engine 0 to engine 1 over a wire, by induction on the two-engine chip: each
 # word engine 1 pushes is the byte engine 0 sent in that frame, once a frame, and each
 # sample lies half a bit from the wire's edges. The proof takes about 2 min, the covers
@@ -285,6 +330,7 @@ teeth: engine.v engine_sram.v engines.v kernel_step.v osr_step.v
 	  pull_past_threshold data_never_refused in_wrong_direction push_before_shift \
 	  flip_at_outs_base flip_same_half
 	sby -f chip_frame.sby overlap unbound read_everywhere
+	$(MAKE) fail_safe_teeth
 	sby -f data_step.sby wrong_way off_by_one stale_word
 	sby -f host_timing.sby private_pull no_wait_excuse no_jump_excuse no_underflow_excuse no_overflow_excuse
 	sby -f late_host.sby admit_fifo_wait admit_fifo_jump private_pull no_underflow_excuse \
@@ -521,7 +567,7 @@ netlist_equiv:
 
 # mutants that must be refuted: macro enables swapped, uio_oe[0] inverted, a reset
 # synchroniser untied, and the RTL as written with the host port's state held, with the
-# load checker's reset into Header, not Idle, and with its state held; the last four's
+# load checker's reset and clear into Header, not Idle, and with its state held; the last four's
 # counterexamples must pass the first cycle. The last one's is 57 cycles deep, past what
 # dprove's own BMC reaches, so BMC alone looks for it.
 netlist_equiv_teeth:
@@ -539,7 +585,7 @@ netlist_equiv_teeth:
 	grep 'No output asserted in 1 frames' netlist_equiv_held_host_port_sm/proof.log
 	sed -E '/^module load_checker /,/^endmodule/s/^( *sm <= )signal_const_[0-9]+;/\1 1;/' \
 	  ../src/protocol_emulator.v > netlist_equiv_teeth/header.v
-	test $$(diff ../src/protocol_emulator.v netlist_equiv_teeth/header.v | grep -c '^>') = 1
+	test $$(diff ../src/protocol_emulator.v netlist_equiv_teeth/header.v | grep -c '^>') = 2
 	$(MAKE) netlist_equiv WRITTEN=netlist_equiv_teeth/header.v EQUIV=netlist_equiv_header EXPECT=0
 	grep 'No output asserted in 1 frames' netlist_equiv_header/proof.log
 	$(MAKE) netlist_equiv_held HELD_ONE=load_checker/sm ENGINE='bmc3 -T 600'
@@ -579,13 +625,22 @@ sync_gate:
 	$(CELL_MODELS) > $(SYNC)_gate/cells.v
 	cd $(SYNC)_gate && $(call SYNC_RUN,gate)
 
-# a second flop on ui_in[3] and a latch in the wrapper, which must be refuted
+# a second flop on ui_in[3], a latch in the wrapper, and a flop reset by uio_in[2] and one
+# reset by another flop, which must be refuted
 sync_rtl_teeth:
 	mkdir -p sync_teeth
 	sed '/^endmodule/i reg tooth; always @(posedge clk) tooth <= ui_in[3];' $(PROJECT) > sync_teeth/sample_rtl.v
 	sed '/^endmodule/i reg tooth; always @* if (ena) tooth = uo_out[0];' $(PROJECT) > sync_teeth/latch_rtl.v
+	sed '/^endmodule/i reg tooth; always @(posedge clk or posedge uio_in[2]) if (uio_in[2]) tooth <= 0; else tooth <= 1;' \
+	  $(PROJECT) > sync_teeth/pin_reset_rtl.v
+	sed '/^endmodule/i reg tick, tooth; always @(posedge clk) tick <= !tick;\
+	  always @(posedge clk or posedge tick) if (tick) tooth <= 0; else tooth <= 1;' $(PROJECT) > sync_teeth/flop_reset_rtl.v
 	$(MAKE) sync_rtl PROJECT=sync_teeth/sample_rtl.v SYNC=sync_sample FAILS='ui_in_3_ reaches one flop'
 	$(MAKE) sync_rtl PROJECT=sync_teeth/latch_rtl.v SYNC=sync_latch FAILS='no latch'
+	$(MAKE) sync_rtl PROJECT=sync_teeth/pin_reset_rtl.v SYNC=sync_pin_reset \
+	  FAILS='no pin reaches another flop by its asynchronous reset'
+	$(MAKE) sync_rtl PROJECT=sync_teeth/flop_reset_rtl.v SYNC=sync_flop_reset \
+	  FAILS='nor any flop but the second'
 
 # mutants that must be refuted, each at its own check: a second flop on ui_in[3], a
 # second reader of uio_in[0]'s first stage, a latch, a loop, and a flop clocked by a flop
@@ -632,18 +687,19 @@ sat_tools:
 	cd sat_tools && $(CXX) -std=c++23 -O3 -DNDEBUG -DVERSION='"10.3.1"' -DGITID='"$(CERTIFAIGER)"' \
 	  -iquote aiger-$(AIGER) certifaiger-$(CERTIFAIGER)/src/certifaiger.cpp aiger.o -o bin/certifaiger
 
-# Certifaiger witnesses for the step lemmas and the self-check's. The model is the lemma's prove task through
-# SBY's own aiger flow (witness/model.ys); rIC3 proves it by k-induction and writes a
-# witness circuit; each SAT check Certifaiger makes of the pair must be UNSAT by an LRAT
-# proof cake_lpr accepts. Trusted: the .sby and the Verilog it reads, SBY's --dumpfiles and
-# --dumpcfg, Yosys from parsing to write_aiger, model.ys, Certifaiger's checks and the aiger
-# library under it, aigsplit, aigtocnf, cake_lpr's verified build, the C compilers, make and
-# the shell; not rIC3 or cadical. Needs make sat_tools. witness_proof runs on files written
-# already. phase_table's peaks at 30 GB and takes 6.5 h (rIC3 1.5 h, Inductive's check 4 h),
-# past a hosted runner. CI proves phase_step's, edge_step's and self_check_clean's (2.5 min,
-# 4.3 GB on the mini, its Verilog from make self_check_clean, so not in WITNESSED).
-WITNESSED = phase_step edge_step phase_table
-witness: engine.v kernel_step.v kernel_accepts.v
+# Certifaiger witnesses for the step lemmas, the self-check's and the fail-safe's. The
+# model is the lemma's prove task through SBY's own aiger flow (witness/model.ys); rIC3
+# proves it by k-induction and writes a witness circuit; each SAT check Certifaiger makes
+# of the pair must be UNSAT by an LRAT proof cake_lpr accepts. Trusted: the .sby and the
+# Verilog it reads, SBY's --dumpfiles and --dumpcfg, Yosys from parsing to write_aiger,
+# model.ys, Certifaiger's checks and the aiger library under it, aigsplit, aigtocnf,
+# cake_lpr's verified build, the C compilers, make and the shell; not rIC3 or cadical. Needs
+# make sat_tools. witness_proof runs on files written already. phase_table's peaks at 30 GB
+# and takes 6.5 h (rIC3 1.5 h, Inductive's check 4 h), past a hosted runner. CI proves
+# phase_step's, edge_step's, self_check_clean's and fail_safe's (2.5 to 7 min, 4.3 GB on
+# the mini; self_check_clean's Verilog from make self_check_clean, so not in WITNESSED).
+WITNESSED = phase_step edge_step phase_table fail_safe
+witness: engine.v engines.v kernel_step.v kernel_accepts.v
 	for lemma in $(WITNESSED); do $(MAKE) witness_proof LEMMA=$$lemma || exit 1; done
 
 CHECKS = Reset Safety Base Transition Liveness Decrease Closure Consistent Inductive
@@ -667,8 +723,8 @@ witness_model:
 
 # One check, UNSAT only if cake_lpr verifies the LRAT proof cadical pipes to it; on disk
 # Inductive's would take GBs. Either side dying ends the other, with SIGPIPE or at EOF.
-# HEAP is cake_lpr's in MB: phase_step's, edge_step's and self_check_clean's checks pass in
-# 4096, phase_table's in 24576, five of them exhausting 4096.
+# HEAP is cake_lpr's in MB: phase_step's, edge_step's, self_check_clean's and fail_safe's
+# checks pass in 4096, phase_table's in 24576, five of them exhausting 4096.
 WITNESS_HEAP_phase_table = 24576
 HEAP = $(or $(WITNESS_HEAP_$(LEMMA)),4096)
 witness_unsat:
@@ -690,6 +746,7 @@ WITNESS_TEETH_phase_step = 12
 WITNESS_TEETH_edge_step = 5
 WITNESS_TEETH_phase_table = 5
 WITNESS_TEETH_self_check_clean = 2
+WITNESS_TEETH_fail_safe = 3
 witness_teeth:
 	teeth=0; for task in $$(sby --dumptasks $(LEMMA).sby); do \
 	  sby --dumpcfg $(LEMMA).sby $$task | grep -qx 'expect fail' || continue; \
@@ -722,7 +779,8 @@ witness_reject:
 
 .PHONY: all link link_proof issue_timing host_timing late_host fifo_order phase_step phase_table \
   phase_table_proof phase_table_affine phase_table_affine_proof phase_spacing \
-  phase_spacing_proof edge_step event_step frame_step value_step chip_frame data_step teeth \
+  phase_spacing_proof edge_step event_step frame_step value_step chip_frame fail_safe \
+  fail_safe_teeth fail_safe_table fail_safe_table_proof data_step teeth \
   inductive_certificate inductive_proof inductive_certificates inductive_names \
   stamped_certificate stamped_proof data_certificate data_proof data_certificates data_names \
   netlist_equiv netlist_equiv_teeth netlist_equiv_held \

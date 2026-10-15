@@ -53,6 +53,12 @@ module Make (Config : Config) = struct
 
   let any (outs : Signal.t Engine.O.t list) ~f = List.map outs ~f |> reduce ~f:( |: )
 
+  (* what an engine drives: nothing once it has faulted, as at reset, until the clear *)
+  let driving (e : Signal.t Engine.O.t) ~faulted =
+    let keep s = mux2 faulted (zero (width s)) s in
+    { e with pin_out = keep e.pin_out; pin_dir = keep e.pin_dir }
+  ;;
+
   (* The pads, except bidirectional pins another engine drives, and on wires what the
      others drive. An engine reads its own outputs back itself. Only a bidirectional pin
      has a direction bit. *)
@@ -217,18 +223,22 @@ module Make (Config : Config) = struct
       List.init engines ~f:(fun n ->
         (List.nth_exn outs (next n)).tx_level ==:. Machine.fifo_depth)
     in
+    let%hw_list faulted = List.map outs ~f:(fun e -> e.faulted) in
+    let drives = List.map2_exn outs faulted ~f:(fun e faulted -> driving e ~faulted) in
     List.iteri
       (List.zip_exn (List.zip_exn i.hosts outs) data.words)
       ~f:(fun n (((host : _ Engine.Host.t), out), data_word) ->
-        let others = List.filteri outs ~f:(fun m _ -> m <> n) in
+        let faulted = List.nth_exn faulted n in
+        let others = List.filteri drives ~f:(fun m _ -> m <> n) in
         let feeder_routes = (List.nth_exn i.hosts (feeder n)).config.route in
+        (* a faulted engine halts, and no start runs it again before the clear *)
         Engine.hierarchical
           ~instance:[%string "engine_%{n#Int}"]
           ~memory
           scope
           { clocking = i.clocking
           ; config = host.config
-          ; start = List.nth_exn starts n
+          ; start = List.nth_exn starts n &: ~:faulted
           ; program_write = host.program_write
           ; program_read =
               { valid = List.nth_exn lent n &: checker.program_read.valid
@@ -242,7 +252,7 @@ module Make (Config : Config) = struct
                })
           ; rx_pop = host.rx_pop
           ; clear_irq = host.clear_irq
-          ; stop = host.stop
+          ; stop = host.stop |: faulted
           ; flush = host.flush
           ; inputs = seen ~pads:i.pads ~others
           ; line_write = host.line_write
@@ -251,19 +261,18 @@ module Make (Config : Config) = struct
           }
         |> Engine.O.Of_signal.assign out);
     let pin_out =
-      match outs with
-      (* with one engine the pad's output enable does this, and the chip stays as it was *)
+      match drives with
       | [ engine ] -> engine.pin_out
-      | outs ->
+      | drives ->
         let output_only =
           concat_msb
             [ zero (Isa.pin_space - Isa.first_bidir_pin); ones Isa.first_bidir_pin ]
         in
-        any outs ~f:(fun e -> e.pin_out &: (e.pin_dir |: output_only))
+        any drives ~f:(fun e -> e.pin_out &: (e.pin_dir |: output_only))
     in
     { O.engines = outs
     ; pin_out = sel_bottom pin_out ~width:Isa.num_pins
-    ; pin_dir = sel_bottom (any outs ~f:(fun e -> e.pin_dir)) ~width:Isa.num_pins
+    ; pin_dir = sel_bottom (any drives ~f:(fun e -> e.pin_dir)) ~width:Isa.num_pins
     ; check =
         { verdict =
             { busy = checking

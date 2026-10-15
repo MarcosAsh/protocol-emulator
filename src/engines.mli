@@ -8,7 +8,10 @@
     provided neither gets a new config without a clear. An engine starts only on a program
     the [Load_checker] accepted, under the configuration it was checked with, and watches
     the premises that check took ([Engine.Premises]). A routed engine's pushes go to the
-    next engine's tx fifo, which its host then cannot write. *)
+    next engine's tx fifo, which its host then cannot write.
+
+    An engine with a fault latched halts and lets go of its pins, as at reset, until the
+    clear; a start does nothing meanwhile. [formal/fail_safe.sv] proves it. *)
 
 open! Core
 open! Hardcaml

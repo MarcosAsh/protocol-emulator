@@ -82,10 +82,12 @@ let%expect_test "every firmware against the chip's walk" =
     dshot600                      21     28  accepted
     sent                          83     58  accepted
     cec                           71     93  accepted
+    asm/blink                      4      5  accepted
     asm/data_stream                4      5  accepted
     asm/edge_logger_echo          13     11  accepted
     asm/edge_logger_wire           8      8  accepted
     asm/ethernet                  24     29  accepted
+    asm/fault_release              7      2  accepted
     asm/i2c_master_marked         84     64  accepted
     asm/i2c_start_watch           10      7  accepted
     asm/quiet_watch               23     18  refused at 8: in time

@@ -421,7 +421,7 @@ let jtag =
 ;;
 
 (* A low speed host on D+ and D-: each group of packets at its cycle, three bit times
-   apart, and an ACK three bit times after each data packet the device sends. *)
+   apart, and an ACK two bit times after the EOP of each data packet the device sends. *)
 let low_speed_host groups () =
   let open Protocol_models.Usb_ls in
   let bit_period = Usb_host.bit_period in
@@ -462,7 +462,7 @@ let low_speed_host groups () =
              ->
              pending
              := List.sort
-                  ((!now + (3 * bit_period), [ [ Usb_host.ack ] ]) :: !pending)
+                  ((!now + (5 * bit_period), [ [ Usb_host.ack ] ]) :: !pending)
                   ~compare:(Comparable.lift Int.compare ~f:fst)
            | _ -> ());
           device := false);

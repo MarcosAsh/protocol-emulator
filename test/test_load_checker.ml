@@ -171,10 +171,12 @@ let%expect_test "the checker agrees with the model on every firmware" =
     dshot600                      8647  accepted
     sent                          9527  accepted
     cec                          10683  accepted
+    asm/blink                     8251  accepted
     asm/data_stream               8254  accepted
     asm/edge_logger_echo          8401  accepted
     asm/edge_logger_wire          8320  accepted
     asm/ethernet                  8781  accepted
+    asm/fault_release             8192  accepted
     asm/i2c_master_marked         9751  accepted
     asm/i2c_start_watch           8308  accepted
     asm/quiet_watch                392  refused at 8, reason 0

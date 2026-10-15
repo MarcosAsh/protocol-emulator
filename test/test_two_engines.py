@@ -2,10 +2,10 @@
 # UART transmitter on engine 0, receiver on engine 1, over wire 20.
 
 import cocotb
-from cocotb.triggers import ClockCycles
+from cocotb.triggers import ClockCycles, FallingEdge
 
 from test import AsyncHost, Pins, assembled, padded, reset
-from protocol_emulator import CONTROL, DATA, DATA_ADDR, DEFAULT_CONFIG, PROGRAM, PROGRAM_ADDR, RX, SELECT, STATUS, TX, config_writes
+from protocol_emulator import CONTROL, DATA, DATA_ADDR, DEFAULT_CONFIG, PC, PROGRAM, PROGRAM_ADDR, RX, SELECT, STATUS, TX, config_writes
 
 WIRE = 20
 
@@ -135,3 +135,71 @@ async def test_the_chip_passes_its_certified_edges(dut):
 @cocotb.test()
 async def test_the_chip_catches_a_bit_period_a_cycle_long(dut):
     assert await self_check(dut, 435)
+
+
+def underflow_flop(dut):
+    """Engine 0's underflow flop in the RTL; None in a netlist, which has no hierarchy."""
+    try:
+        engine = dut.user_project.core.top.engines.engine_0
+    except AttributeError:
+        return None
+    return next(h for h in engine if "fault$underflow" in h._name)
+
+
+@cocotb.test()
+async def test_a_faulted_engine_lets_go_of_its_pins(dut):
+    """Engine 0 drives uio 0 and OUT0 until it underflows. From the edge the fault shows the
+    chip drives neither, and engine 0 stays halted through a start until a reset. Engine 1
+    toggles uio 1 throughout."""
+    await reset(dut)
+    host = AsyncHost(Pins(dut).transfer)
+    releaser = dict(DEFAULT_CONFIG, set_base=12, side_set_count=1, side_set_base=5)
+
+    async def start_both():
+        await load(host, 1, dict(DEFAULT_CONFIG, set_base=13), "blink")
+        await load(host, 0, releaser, "fault_release")
+        await start(host, 1)
+        await start(host, 0)
+        await ClockCycles(dut.clk, 10)
+        assert int(dut.uio_oe.value) & 3 == 3 and int(dut.uio_out.value) & 1 == 1
+        assert int(dut.uo_out.value) >> 1 & 1 == 1, "OUT0 driven high"
+        assert (await host.read(STATUS))[0] & 0x3D == 0, "running, no fault"
+
+    await start_both()
+    flop = underflow_flop(dut)
+    samples = []
+
+    async def sample():
+        while True:
+            await FallingEdge(dut.clk)
+            fault = None if flop is None else int(flop.value)
+            samples.append((int(dut.uio_oe.value), int(dut.uio_out.value), fault))
+
+    watcher = cocotb.start_soon(sample())
+    # one word for the first pull, none for the second
+    await host.write(TX, [0])
+    status = (await host.read(STATUS))[0]
+    watcher.cancel()
+    assert status & 0x3D == 0x05, f"halted with the underflow, STATUS {status:#06x}"
+    released = next(n for n, (oe, _, _) in enumerate(samples) if not oe & 1)
+    if flop is not None:
+        shows = next(n for n, (_, _, fault) in enumerate(samples) if fault)
+        assert released == shows, f"uio 0 let go {released - shows} cycles after the fault"
+    assert all(not oe & 1 for oe, _, _ in samples[released:])
+    assert int(dut.uo_out.value) >> 1 & 1 == 0, "OUT0 back at its power-up level"
+    assert all(oe & 2 for oe, _, _ in samples), "engine 1 drives throughout"
+    assert {out & 2 for _, out, _ in samples[released:]} == {0, 2}, "and toggles on"
+
+    pc = (await host.read(PC))[0]
+    await host.write(CONTROL, [1])
+    await ClockCycles(dut.clk, 20)
+    assert (await host.read(STATUS))[0] & 0x3D == 0x05, "a start leaves it halted"
+    assert (await host.read(PC))[0] == pc
+    assert int(dut.uio_oe.value) & 1 == 0
+
+    dut.rst_n.value = 0
+    await ClockCycles(dut.clk, 5)
+    dut.rst_n.value = 1
+    await ClockCycles(dut.clk, 5)
+    assert int(dut.uio_oe.value) == 0
+    await start_both()
