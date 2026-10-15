@@ -3,7 +3,9 @@
 # back to back from one anchor at each rate tolerance_firmware.py lists, in steps of
 # 2^-16 of a cycle a bit through its period fraction, and engine 0's uart_rx_host_rate
 # takes them off a wire no pin shows. Each step is held to what the model predicts; the
-# first failure either side should fall just past the bound the certificate gives.
+# first failure either side should fall just past the bound the certificate gives. Just
+# past the fast bound the start edge beats the arm and the receiver faults
+# missed_deadline, which holds until reset: of those steps only the nearest runs, last.
 # demo/tolerance.sh runs it.
 
 import bench
@@ -11,6 +13,7 @@ import protocol_emulator as pe
 import tolerance_firmware as tf
 
 DEPTH = bench.DEPTH
+MISSED_DEADLINE = 0x10
 
 
 def levels(host):
@@ -86,15 +89,32 @@ def run_step(host, m, polls=20_000):
 
 
 def run(transfer, log=print):
-    """Every step, then the first failure either side against the bounds. Stops at a
-    fault, which holds until reset; a framing error is only an irq and is cleared."""
+    """Every step but those predicted to fault, then the one of those nearest a bound,
+    then the first failure either side against the bounds. Stops at any other fault, which
+    holds until reset; a framing error is only an irq and is cleared."""
     host = pe.Host(transfer)
     agree = True
     first_faster, first_slower = None, None
     log("bounds: m from %d to %d (%d to %d ppm)" % (
         tf.LEAST, tf.MOST, ppm(tf.LEAST), ppm(tf.MOST)))
-    for m, predicted in tf.STEPS:
+    steps = [step for step in tf.STEPS if step[0] not in tf.FAULTS]
+    if tf.FAULTS:
+        nearest = min(tf.FAULTS, key=lambda m: min(abs(m - tf.LEAST), abs(m - tf.MOST)))
+        steps.append((nearest, False))
+        log("%d steps predicted to fault, of which m %d runs last" % (len(tf.FAULTS), nearest))
+    for m, predicted in steps:
         got, status = run_step(host, m)
+        if m in tf.FAULTS:
+            ok = (status[0] & bench.FAULTS) == MISSED_DEADLINE and not status[1] & bench.FAULTS
+            agree = agree and ok
+            log("%s m %d (%+d ppm): faults 0x%x 0x%x, predicted 0x%x 0x0" % (
+                "ok  " if ok else "FAIL", m, ppm(m), status[0] & bench.FAULTS,
+                status[1] & bench.FAULTS, MISSED_DEADLINE))
+            if m < tf.LEAST and (first_faster is None or m > first_faster):
+                first_faster = m
+            if m > tf.MOST and (first_slower is None or m < first_slower):
+                first_slower = m
+            continue
         if any(s & bench.FAULTS for s in status):
             log("m %d: a fault holds until reset (0x%x 0x%x): stopped" % (m, status[0], status[1]))
             return False

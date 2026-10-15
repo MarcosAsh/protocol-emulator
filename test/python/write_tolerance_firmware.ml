@@ -45,7 +45,8 @@ let () =
      from\n\
      # 48 MHz. LEAST and MOST are the bounds the receiver's certificate gives, which\n\
      # formal/tolerance.sby proves on the RTL at short half periods; STEPS pairs each m\n\
-     # with what the model predicts. Both firmwares pass the kernel at every step.\n";
+     # with what the model predicts, and FAULTS are the steps it predicts fault the\n\
+     # receiver missed_deadline. Both firmwares pass the kernel at every step.\n";
   entry
     "SENDER"
     (Timed_program.of_source_exn
@@ -67,5 +68,8 @@ let () =
   print_string "\nSTEPS = [\n";
   List.iter steps ~f:(fun (m, ok) ->
     printf "    (%d, %s),\n" m (if ok then "True" else "False"));
-  print_string "]\n"
+  print_string "]\n";
+  printf
+    "\nFAULTS = [%s]\n"
+    (String.concat ~sep:", " (List.map (Bench.faults ()) ~f:Int.to_string))
 ;;

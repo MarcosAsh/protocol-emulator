@@ -123,25 +123,32 @@ let%expect_test "uart_rx_host_rate by its half period" =
     |}]
 ;;
 
-(* what the bench sweep rests on: [predicts] against the model, from phase 0 *)
+(* what the bench sweep rests on: [predicts] and [faults] against the model, from phase 0,
+   near each bound and every half percent out to 7% *)
 let%expect_test "predicts matches the model" =
   let r = Receiver.uart_rx_host_rate ~bytes:(List.init 64 ~f:Fn.id) ~half:16 () in
   let b = bounds r in
+  let nominal = r.nominal * unit in
   let ms =
     List.concat_map [ b.least; b.most ] ~f:(fun m ->
       List.range (m - 300) (m + 300) ~stride:25)
+    @ List.map (List.range (-14) 15) ~f:(fun h -> nominal + (h * nominal / 200))
   in
   let predicts = predicts r in
+  let faults = faults r in
   let agree, disagree =
-    List.partition_tf ms ~f:(fun m -> Bool.equal (predicts ~m) (receives r ~m ~phase:0))
+    List.partition_tf ms ~f:(fun m ->
+      Bool.equal (predicts ~m) (receives r ~m ~phase:0)
+      && Bool.equal (faults ~m) (faulted r ~m ~phase:0))
   in
   print_s
     [%message
       ""
         ~agree:(List.length agree : int)
         ~disagree:(disagree : int list)
-        ~fail:(List.count ms ~f:(fun m -> not (predicts ~m)) : int)];
-  [%expect {| ((agree 48) (disagree ()) (fail 21)) |}]
+        ~fail:(List.count ms ~f:(fun m -> not (predicts ~m)) : int)
+        ~fault:(List.count ms ~f:(fun m -> faults ~m) : int)];
+  [%expect {| ((agree 77) (disagree ()) (fail 30) (fault 13)) |}]
 ;;
 
 let%expect_test "the bench sweep" =
@@ -160,10 +167,15 @@ let%expect_test "the bench sweep" =
         ~first_slower:
           (first_fail (List.filter steps ~f:(fun (m, _) -> m > b.most)) : int option)
         ~all_inside_pass:
-          (List.for_all steps ~f:(fun (m, ok) -> ok || m < b.least || m > b.most) : bool)];
+          (List.for_all steps ~f:(fun (m, ok) -> ok || m < b.least || m > b.most) : bool)
+        ~faults:(Bench.faults () : int list)];
   [%expect
     {|
     ((least 311315661) (most 345884444) (steps 95) (first_faster (311315660))
-     (first_slower (345884476)) (all_inside_pass true))
+     (first_slower (345884476)) (all_inside_pass true)
+     (faults
+      (311314637 311315149 311315405 311315533 311315597 311315613 311315629
+       311315637 311315645 311315649 311315653 311315655 311315657 311315658
+       311315659 311315660)))
     |}]
 ;;

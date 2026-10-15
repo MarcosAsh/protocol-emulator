@@ -100,6 +100,16 @@ val receives : Receiver.t -> m:int -> phase:int -> bool
     what the host reads. [predicts r] runs the model once. *)
 val predicts : Receiver.t -> m:int -> bool
 
+(** Whether a sender at [m] from phase 0 surely faults the receiver missed_deadline: the
+    first read [predicts] finds wrong is a [capture_arm], so the edge came before it and
+    the capture still holds the last frame's. Past a first wrong read of another kind the
+    receiver is out of step, so [false] rules no fault out. [faults r] runs the model
+    once. *)
+val faults : Receiver.t -> m:int -> bool
+
+(** Whether the model's run at [m] and [phase] ends with a fault. *)
+val faulted : Receiver.t -> m:int -> phase:int -> bool
+
 (** The bench: engine 1 sends [bytes] back to back from one anchor at m 2^-16 cycles a
     bit, the whole cycles from the host and the rest as its period fraction, to engine 0
     running [Uart.rx_host_rate] on a wire, at 9600 baud from 48 MHz. *)
@@ -118,4 +128,8 @@ module Bench : sig
   (** Each m the bench tries, fine steps either side of each bound and every half percent
       from -7% to 7%, and whether [predicts] passes it. *)
   val steps : unit -> (int * bool) list
+
+  (** The steps [faults] says fault, which a run can show only one of, as a fault holds
+      until reset. *)
+  val faults : unit -> int list
 end

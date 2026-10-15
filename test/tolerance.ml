@@ -446,14 +446,34 @@ let bounds r =
 
 (* bit k of the stimulus starts floor(k * m / 2^16) cycles in, so the captured edge at bit
    e sits at phase e * m mod 2^16 *)
+let holds (read : Read.t) ~m =
+  let phase = read.edge * m % unit in
+  let after bits = (phase + (bits * m)) / unit in
+  (read.since <= 0 || after read.since <= fst read.d)
+  && Option.for_all read.until ~f:(fun u -> after u >= snd read.d + 1)
+;;
+
 let predicts r =
   let reads = reads r in
+  fun ~m -> List.for_all reads ~f:(holds ~m)
+;;
+
+(* the first wrong read an arm: the edge came before it, so [mov t, capture] takes the
+   last frame's edge and the next deadline is long past *)
+let faults r =
+  let program, _ = assemble r in
+  let reads = reads r in
   fun ~m ->
-    List.for_all reads ~f:(fun (read : Read.t) ->
-      let phase = read.edge * m % unit in
-      let after bits = (phase + (bits * m)) / unit in
-      (read.since <= 0 || after read.since <= fst read.d)
-      && Option.for_all read.until ~f:(fun u -> after u >= snd read.d + 1))
+    match List.find reads ~f:(fun read -> not (holds read ~m)) with
+    | Some read ->
+      (match List.nth_exn program.instructions read.pc with
+       | Op { op = Sys Capture_arm; _ } -> true
+       | _ -> false)
+    | None -> false
+;;
+
+let faulted r ~m ~phase =
+  not (Machine.Fault.equal (run r ~m ~phase).fault Machine.Fault.none)
 ;;
 
 module Bench = struct
@@ -513,5 +533,10 @@ bit:
       ]
     |> List.dedup_and_sort ~compare
     |> List.map ~f:(fun m -> m, predicts ~m)
+  ;;
+
+  let faults () =
+    let faults = faults receiver in
+    List.filter_map (steps ()) ~f:(fun (m, _) -> Option.some_if (faults ~m) m)
   ;;
 end
