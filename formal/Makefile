@@ -367,7 +367,7 @@ teeth: engine.v engine_sram.v engines.v kernel_step.v osr_step.v guard_teeth
 	  no_wrap
 	sby -f value_step.sby wrong_direction one_short no_invert reverse_wrong_width \
 	  pull_past_threshold data_never_refused in_wrong_direction push_before_shift \
-	  flip_at_outs_base flip_same_half
+	  flip_at_outs_base flip_same_half crc_uncomplemented
 	sby -f chip_frame.sby overlap unbound read_everywhere
 	$(MAKE) fail_safe_teeth
 	sby -f data_step.sby wrong_way off_by_one stale_word
