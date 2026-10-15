@@ -1613,3 +1613,46 @@ let%expect_test "y after a write the analyser cannot follow" =
     6  halt                         y 0..65535
     |}]
 ;;
+
+(* The data memory needs [Isa.data_settle] cycles after a seek: a pull that many cycles on
+   is clear, one a cycle sooner may underrun, as the core has it. *)
+let%expect_test "a data pull is clear from data_settle cycles after a seek" =
+  let config =
+    { Program_config.default with
+      autopull = true
+    ; pull_threshold = 8
+    ; autopull_data = true
+    }
+  in
+  List.iter [ "seek"; "seek [1]" ] ~f:(fun seek ->
+    let source =
+      [%string
+        {|
+    %{seek}
+    out pins, 8
+    halt
+|}]
+    in
+    rows ~config source
+    |> print_rows ~f:(fun r -> if r.may_underrun then "MAY UNDERRUN" else "");
+    let program = Asm.assemble source |> ok_exn in
+    let machine =
+      Machine.create
+        ~config:(Asm.Program.configure program config)
+        ~program:(Asm.Program.words program |> ok_exn)
+      |> ok_exn
+    in
+    let machine = Machine.load_data machine [ 0x1234 ] |> ok_exn in
+    let machine = Fn.apply_n_times ~n:8 (fun m -> Machine.step m ~inputs:0) machine in
+    print_s [%message "core" ~underflow:(machine.fault.underflow : bool)]);
+  [%expect {|
+      0  seek
+      1  out pins, 8                  MAY UNDERRUN
+      2  halt
+    (core (underflow true))
+      0  seek [1]
+      1  out pins, 8
+      2  halt
+    (core (underflow false))
+    |}]
+;;
