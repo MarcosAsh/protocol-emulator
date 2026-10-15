@@ -420,3 +420,29 @@ let%expect_test "waveform of a short frame" =
     └──────────────────┘└────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
     |}]
 ;;
+
+(* The functor refuses a config it cannot build, one bound at a time past each end. *)
+let%expect_test "configs outside the receiver's range are refused" =
+  List.iter
+    [ "no samples a cycle", 8, 0, 0
+    ; "three samples a cycle", 8, 3, 0
+    ; "three samples a bit", 3, 1, 0
+    ; "a negative gain shift", 8, 1, -1
+    ]
+    ~f:(fun (name, per_bit, per_cycle, gain) ->
+      let (module S) = setup name ~per_bit ~per_cycle ~gain in
+      match
+        Or_error.try_with (fun () ->
+          let module _ = Manchester_rx.Make (S) in
+          ())
+      with
+      | Ok () -> printf "%s: built\n" name
+      | Error _ -> printf "%s: refused\n" name);
+  [%expect
+    {|
+    no samples a cycle: refused
+    three samples a cycle: refused
+    three samples a bit: refused
+    a negative gain shift: refused
+    |}]
+;;
