@@ -57,14 +57,17 @@ def spi(transfer, pause_ms, log=print):
 
 
 def uart(transfer, pause_ms, baud, log=print):
-    """UART_BYTES at baud on OUT0, the bit period from both_roles_firmware.LOADS, and long
-    enough a pause after for the last stop bit."""
+    """UART_BYTES at baud on OUT0, the bit period from both_roles_firmware.LOADS. OUT0 idles
+    high a frame before the first start bit, as a UART that saw it low loses the first bytes."""
     host = pe.Host(transfer)
     period = both_roles_firmware.LOADS["uart_tx_%d" % baud]
+    frame_ms = 1 + 10 * period // 48_000
     bench.load(host, getattr(bench_firmware, "UART_TX_%d" % baud))
     host.start()
-    host.push([period] + UART_BYTES)
-    pause_ms(1 + (len(UART_BYTES) + 1) * 10 * period // 48_000)
+    host.push([period])
+    pause_ms(frame_ms)
+    host.push(UART_BYTES)
+    pause_ms(1 + len(UART_BYTES) * frame_ms)
     found = bench.faults(host)
     log("uart %d baud, %d cycles a bit: sent %s, faults 0x%x" % (
         baud, period, bench.hexs(UART_BYTES), found))
