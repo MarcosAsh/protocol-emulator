@@ -197,7 +197,7 @@ let%expect_test "every protocol from its file to the decoded trace" =
 
     lockstep: usb, usb_device
     ("lockstep held" (cycles 164800))
-    (received ())
+    (received (0x1 0x160 0x80 0x0 0x1000 0xd729 0x0 0x3 0x2 0x0 0x0 0x3))
     decode: test/traces/sigrok/usb.trace, by sigrok's usb_signalling:dp=IO0:dm=IO1:signalling=low-speed,usb_packet:signalling=low-speed,usb_request
       usb_packet=packet-out:packet-in:packet-sof:packet-setup:packet-data0:packet-data1:packet-data2:packet-mdata:packet-ack:packet-nak:packet-stall:packet-nyet:packet-pre:packet-err:packet-split:packet-ping:packet-reserved:packet-invalid: usb_packet-1: SETUP ADDR 0 EP 0, usb_packet-1: DATA0 [ 80 06 00 01 00 00 08 00 ], usb_packet-1: ACK, usb_packet-1: IN ADDR 0 EP 0, usb_packet-1: DATA1 [ 12 01 10 01 00 00 00 08 ], usb_packet-1: ACK, usb_packet-1: OUT ADDR 0 EP 0, usb_packet-1: DATA1 [ ], usb_packet-1: ACK, usb_packet-1: IN ADDR 0 EP 1, usb_packet-1: DATA0 [ 02 00 FF FF ], usb_packet-1: ACK, usb_packet-1: IN ADDR 0 EP 1, usb_packet-1: NAK
       usb_request: usb_request-1: SETUP in: [ 80 06 00 01 00 00 08 00 ][ 12 01 10 01 00 00 00 08 ] : ACK, usb_request-1: BULK in: [ 02 00 FF FF ] : ACK

@@ -35,6 +35,7 @@ val firmware : t -> Pin_trace.Scenario.t -> Certified.t option
 
 (** [scenario] at a lone engine, the program and configuration it loads, the RTL and
     [Machine] compared after every edge as [Lockstep.lockstep] does and printing the same.
-    The host's tx words go in as the fifo has room and every rx word is taken as it comes,
-    with no host port in between, so the cycles are not the trace's. Returns the rx words. *)
+    The tx words written before the start are in the fifo at the start, later ones go in
+    as it has room, and every rx word is taken as it comes, with no host port in between,
+    so the cycles are not the trace's. Returns the rx words; raises if the engine faults. *)
 val lockstep : Pin_trace.Scenario.t -> int list

@@ -100,11 +100,13 @@ let of_registers values : Program_config.t =
   config
 ;;
 
-(* The script against the engine's own cycles, from the start: each tx word with the cycle
-   it may go in from, the levels [Drive] puts on a pin, and the cycles it runs. *)
+(* The script against the engine's own cycles, from the start: the tx words written before
+   it, each later one with the cycle it may go in from, the levels [Drive] puts on a pin,
+   and the cycles it runs. *)
 module Plan = struct
   type t =
-    { tx : (int * int) list
+    { preload : int list
+    ; tx : (int * int) list
     ; driven : (int * (int * int)) list
     ; cycles : int
     }
@@ -112,34 +114,39 @@ module Plan = struct
   let of_script script =
     let started = ref false in
     let plan =
-      List.fold script ~init:{ tx = []; driven = []; cycles = 0 } ~f:(fun plan step ->
-        match (step : Step.t) with
-        | Write (reg, [ 1 ]) when reg = Reg.control ->
-          started := true;
-          plan
-        | Write (reg, words) when reg = Reg.tx ->
-          { plan with
-            tx = List.rev_map words ~f:(fun word -> plan.cycles, word) @ plan.tx
-          }
-        | Write (reg, _)
-          when (not !started)
-               && (reg = Reg.program_addr
-                   || reg = Reg.program
-                   || List.mem Reg.configs reg ~equal:Int.equal) -> plan
-        | Write (reg, words) ->
-          raise_s
-            [%message
-              "a host write the lockstep does not make" (reg : int) (words : int list)]
-        | Read _ -> plan
-        | Run n -> { plan with cycles = plan.cycles + n }
-        | Until n -> { plan with cycles = Int.max plan.cycles n }
-        | Drive { pin; levels } ->
-          { plan with
-            driven =
-              List.rev_mapi levels ~f:(fun i level -> plan.cycles + i, (pin, level))
-              @ plan.driven
-          ; cycles = plan.cycles + List.length levels
-          })
+      List.fold
+        script
+        ~init:{ preload = []; tx = []; driven = []; cycles = 0 }
+        ~f:(fun plan step ->
+          match (step : Step.t) with
+          | Write (reg, [ 1 ]) when reg = Reg.control ->
+            started := true;
+            plan
+          | Write (reg, words) when reg = Reg.tx && not !started ->
+            { plan with preload = plan.preload @ words }
+          | Write (reg, words) when reg = Reg.tx ->
+            { plan with
+              tx = List.rev_map words ~f:(fun word -> plan.cycles, word) @ plan.tx
+            }
+          | Write (reg, _)
+            when (not !started)
+                 && (reg = Reg.program_addr
+                     || reg = Reg.program
+                     || List.mem Reg.configs reg ~equal:Int.equal) -> plan
+          | Write (reg, words) ->
+            raise_s
+              [%message
+                "a host write the lockstep does not make" (reg : int) (words : int list)]
+          | Read _ -> plan
+          | Run n -> { plan with cycles = plan.cycles + n }
+          | Until n -> { plan with cycles = Int.max plan.cycles n }
+          | Drive { pin; levels } ->
+            { plan with
+              driven =
+                List.rev_mapi levels ~f:(fun i level -> plan.cycles + i, (pin, level))
+                @ plan.driven
+            ; cycles = plan.cycles + List.length levels
+            })
     in
     { plan with tx = List.rev plan.tx; driven = List.rev plan.driven }
   ;;
@@ -184,8 +191,22 @@ let lockstep (scenario : Scenario.t) =
     model := Some m;
     peer.step ~pin_out:m.pin_out ~pin_dir:m.pin_dir
   in
-  let (_ : Machine.t) =
-    Lockstep.lockstep ~cycles:plan.cycles ~host ~react ~config ~program ~inputs ()
+  let (m : Machine.t) =
+    Lockstep.lockstep
+      ~cycles:plan.cycles
+      ~preload:plan.preload
+      ~host
+      ~react
+      ~config
+      ~program
+      ~inputs
+      ()
   in
+  (* a fault leaves the rest of the run idle, and a lockstep of an idle engine holds *)
+  if not ([%equal: Machine.Fault.t] m.fault Machine.Fault.none)
+  then
+    raise_s
+      [%message
+        "the scenario faults the engine" scenario.name (m.fault : Machine.Fault.t)];
   List.rev !received
 ;;
