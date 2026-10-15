@@ -205,8 +205,8 @@ let%expect_test "every word that decodes encodes back to itself" =
     print_s [%message (side_set_count : int) (valid : int)]);
   [%expect
     {|
-    ((side_set_count 0) (valid 34592))
-    ((side_set_count 1) (valid 34592))
-    ((side_set_count 2) (valid 34592))
+    ((side_set_count 0) (valid 34624))
+    ((side_set_count 1) (valid 34624))
+    ((side_set_count 2) (valid 34624))
     |}]
 ;;

@@ -35,6 +35,9 @@ CONFIG = {
     "manchester": 0,
     "line_code": 0,
     "route": 0,
+    "crc_poly_high": 0,
+    "crc_init_high": 0,
+    "crc_complement": 1,
 }
 
 WORDS = [

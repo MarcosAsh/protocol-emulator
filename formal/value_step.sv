@@ -1,10 +1,10 @@
 // Value lemma, beside edge_step.sv: at every issue of a word the ISA decodes, the ISA's
 // value (ISA.md and machine.ml, restated here, not taken from the core) reaches the osr,
-// isr, their counts, the data pointer, underflow, overflow, the fifo pops and pushes, and
-// the pins, pindirs, x, y, p or t the word writes, as does a Manchester bit's second half
-// at the next issue. Pins.write of that value on the pins holds only for a constant
-// config, which edge_step.sv takes; a side-set or set under a config changed mid-run is
-// proved nowhere. Trusted: x, y, now, capture and crc where read (their other updates
+// isr, their counts, the data pointer, the CRC's send flag, underflow, overflow, the fifo
+// pops and pushes, and the pins, pindirs, x, y, p or t the word writes, as does a
+// Manchester bit's second half at the next issue. Pins.write of that value on the pins
+// holds only for a constant config, which edge_step.sv takes; a side-set or set under a
+// config changed mid-run is proved nowhere. Trusted: x, y, now, capture and crc where read (their other updates
 // are left to the engine's tests); the fifos' head, empty and full (fifo_order.sv);
 // data_word as the memory's word at data_ptr; and when the core issues, and that these
 // registers move at no other time (phase_step.sv, edge_step.sv, constant config); and,
@@ -27,9 +27,10 @@ module value_step (input clk);
   (* anyseq *) wire [2:0] set_count;
   (* anyseq *) wire [4:0] jmp_pin, capture_pin, push_threshold, pull_threshold;
   (* anyseq *) wire side_set_pindirs, capture_rising, in_shift_right, out_shift_right, autopush, autopull;
-  (* anyseq *) wire [4:0] crc_width, stuff_threshold;
-  (* anyseq *) wire [15:0] crc_poly, crc_init;
-  (* anyseq *) wire crc_reflect, stuff_level;
+  (* anyseq *) wire [5:0] crc_width;
+  (* anyseq *) wire [4:0] stuff_threshold;
+  (* anyseq *) wire [15:0] crc_poly, crc_init, crc_poly_high, crc_init_high;
+  (* anyseq *) wire crc_reflect, crc_complement, stuff_level;
   (* anyseq *) wire [8:0] wrap_bottom, wrap_top;
   (* anyseq *) wire [15:0] period_fraction;
   (* anyseq *) wire autopull_data, manchester, line_code, route;
@@ -53,7 +54,9 @@ module value_step (input clk);
 
   wire [27:0] pin_out, pin_dir;
   wire [8:0] pc, data_ptr;
-  wire [15:0] x, y, p, t_fraction, osr, isr, rx_head, instruction, crc;
+  wire [15:0] x, y, p, t_fraction, osr, isr, rx_head, instruction;
+  wire [31:0] crc;
+  wire crc_sending;
   wire [T-1:0] t, now, capture;
   wire [4:0] osr_count, isr_count, stall, stuff_run;
   wire halted, irq, underflow, overflow, missed_deadline, decode, capture_armed;
@@ -92,6 +95,8 @@ module value_step (input clk);
     .premises$period$valid(premise_period_valid), .premises$period$value(premise_period),
     .premises$floor(premise_floor), .premises$single_edge(premise_single_edge),
     .push$valid(routed), .push$value(routed_value),
+    .config$crc_poly_high(crc_poly_high), .config$crc_init_high(crc_init_high),
+    .config$crc_complement(crc_complement),
     .stop(stop), .flush(flush),
     .start(start), .program_write$valid(program_write_valid),
     .program_write$addr(program_write_addr), .program_write$data(program_write_data),
@@ -104,7 +109,7 @@ module value_step (input clk);
     .halted(halted), .irq(irq), .fault$underflow(underflow), .fault$overflow(overflow),
     .fault$missed_deadline(missed_deadline), .fault$decode(decode), .capture(capture),
     .capture_armed(capture_armed), .tx_level(tx_level), .rx_level(rx_level),
-    .rx_head(rx_head), .instruction(instruction), .crc(crc), .stuff_run(stuff_run),
+    .rx_head(rx_head), .instruction(instruction), .crc(crc), .crc_sending(crc_sending), .stuff_run(stuff_run),
     .decode_ok(decode_ok), .opcode_onehot(opcode_onehot), .wait_select(wait_select),
     .flip_pending(flip_pending), .flip_bit(flip_bit),
     .eng_tx_head(tx_head), .eng_tx_empty(tx_empty), .eng_tx_pop(tx_pop),
@@ -126,7 +131,7 @@ module value_step (input clk);
       4: decodes = w[4:3] < 3;
       5: decodes = w[7:5] < 5;
       6: decodes = w[5:4] < 3 && (!w[3] || w[2:0] < 5);
-      default: decodes = w[7:4] == 0 && w[3:0] < 9;
+      default: decodes = w[7:4] == 0 && w[3:0] < 10;
     endcase
   endfunction
   wire go = issue && decodes(instruction);
@@ -205,8 +210,13 @@ module value_step (input clk);
   wire pull_misses = autopull_data ? refused : tx_empty;
   wire [15:0] osr_from = !pull_due || pull_misses ? osr : autopull_data ? data_word : tx_head;
   wire [4:0] count_from = pull_due ? 5'd0 : osr_count;
+  // a single bit out of a sending CRC: its LSB if reflected, else its top bit
+  wire [5:0] crc_top = crc_width - 6'd1;
+  wire crc_bit = crc_reflect ? crc[0] : crc_top >= 31 ? crc[31] : crc[crc_top[4:0]];
+  wire crc_sends = crc_sending && n == 1;
   wire [15:0] out_bits =
-    out_right ? osr_from & mask(out_n) : (osr_from >> (16 - out_n)) & mask(out_n);
+      crc_sends ? {15'd0, crc_bit ^ crc_complement}
+    : out_right ? osr_from & mask(out_n) : (osr_from >> (16 - out_n)) & mask(out_n);
   wire [15:0] osr_shifted = out_right ? osr_from >> out_n : osr_from << out_n;
   wire [4:0] osr_count_shifted = count_from + out_n > 16 ? 5'd16 : count_from + out_n;
 
@@ -249,7 +259,7 @@ module value_step (input clk);
     : target == 3 ? 16'd0
     : target == 4 ? isr
     : target == 5 ? osr
-    : target == 6 ? crc
+    : target == 6 ? crc[15:0]
     : capture_wide[15:0];
   // a one-bit in from the pins under a line code takes the table's bit, or drops it
   wire line_in = ins && target == 0 && line_code && n == 1;
@@ -271,6 +281,8 @@ module value_step (input clk);
   wire pulls = syss && sys_op == 4;
   wire pushes = ins && push_due && !dropped || syss && sys_op == 3;
   wire seeks = syss && sys_op == 8;
+  wire want_crc_sending =
+    started || syss && sys_op == 5 ? 1'b0 : syss && sys_op == 9 ? 1'b1 : crc_sending;
   wire data_pull = outs && pull_due && autopull_data && !refused;
   wire fifo_pull = outs && pull_due && !autopull_data && !tx_empty || pulls && !tx_empty;
   wire misses_pull = outs && pull_due && pull_misses || pulls && tx_empty;
@@ -366,7 +378,7 @@ module value_step (input clk);
   reg [15:0] last_want_osr, last_want_isr, last_value;
   reg [4:0] last_want_osr_count, last_want_isr_count;
   reg [8:0] last_want_data_ptr;
-  reg last_want_underflow, last_want_overflow;
+  reg last_want_underflow, last_want_overflow, last_want_crc_sending;
   reg last_writes_x, last_writes_y, last_writes_p, last_writes_t;
   reg [T-1:0] last_t_value, last_reversed_over_data;
   reg [27:0] last_run_out, last_run_dir, last_shown, last_flip_run, last_flip_shown;
@@ -379,6 +391,7 @@ module value_step (input clk);
     last_want_data_ptr <= clear ? 9'd0 : want_data_ptr;
     last_want_underflow <= !clear && (underflow || misses_pull);
     last_want_overflow <= !clear && (overflow || misses_push);
+    last_want_crc_sending <= !clear && want_crc_sending;
     last_writes_x <= writes_x;
     last_writes_y <= writes_y;
     last_writes_p <= writes_p;
@@ -403,6 +416,7 @@ module value_step (input clk);
       assert(data_ptr == last_want_data_ptr);
       assert(underflow == last_want_underflow);
       assert(overflow == last_want_overflow);
+      assert(crc_sending == last_want_crc_sending);
       assert((pin_out & last_run_out) == (last_shown & last_run_out));
       assert((pin_dir & last_run_dir) == (last_shown & last_run_dir));
       assert((pin_out & last_flip_run) == (last_flip_shown & last_flip_run));
@@ -434,7 +448,7 @@ module value_step (input clk);
 
   // no part of the lemma is vacuous
   reg last_clear = 1, last_outs, last_movs, last_ins, last_pulls, last_pushes, last_push_due;
-  reg last_manchester_bit, last_fifo_pull, last_data_pull, last_misses_pull, last_rx_push;
+  reg last_manchester_bit, last_crc_sends, last_fifo_pull, last_data_pull, last_misses_pull, last_rx_push;
   reg last_out_shift_right, last_in_shift_right, last_autopull_data;
   reg [2:0] last_target, last_mov_source;
   reg [1:0] last_mov_op;
@@ -449,6 +463,7 @@ module value_step (input clk);
     last_pushes <= pushes;
     last_push_due <= push_due;
     last_manchester_bit <= manchester_bit;
+    last_crc_sends <= outs && crc_sends;
     last_fifo_pull <= fifo_pull;
     last_data_pull <= data_pull;
     last_misses_pull <= misses_pull;
@@ -477,6 +492,8 @@ module value_step (input clk);
       cover(last_out_shift_right && out_dirs && moved_dir);
       cover(!last_out_shift_right && out_dirs && moved_dir);
       cover(last_manchester_bit && moved_out);
+      // a bit the CRC sends
+      cover(last_crc_sends && out_pins && moved_out);
       // each way the out's autopull goes, from the fifo and from the data memory
       cover(last_outs && last_fifo_pull && out_pins && moved_out);
       cover(last_outs && last_data_pull && out_pins && moved_out);

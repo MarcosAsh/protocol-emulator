@@ -248,11 +248,11 @@ let%expect_test "random frames, whole and cut short, against the register map" =
   List.iter [ 1; 2; 3 ] ~f:(fun seed -> fuzz ~seed ~frames:300 ());
   [%expect
     {|
-    ((seed 1) (frames 300) (cut 122) (!strobes 142) (!words_read 203)
+    ((seed 1) (frames 300) (cut 122) (!strobes 147) (!words_read 203)
      (!miso_high_when_idle false) (!failure ()))
-    ((seed 2) (frames 300) (cut 110) (!strobes 185) (!words_read 204)
+    ((seed 2) (frames 300) (cut 110) (!strobes 178) (!words_read 204)
      (!miso_high_when_idle false) (!failure ()))
-    ((seed 3) (frames 300) (cut 124) (!strobes 138) (!words_read 183)
+    ((seed 3) (frames 300) (cut 124) (!strobes 143) (!words_read 183)
      (!miso_high_when_idle false) (!failure ()))
     |}]
 ;;
@@ -262,9 +262,9 @@ let%expect_test "random frames with a select register in the map" =
   Three.fuzz ~seed:6 ~frames:400 ();
   [%expect
     {|
-    ((seed 5) (frames 400) (cut 163) (!strobes 228) (!words_read 270)
+    ((seed 5) (frames 400) (cut 163) (!strobes 215) (!words_read 270)
      (!miso_high_when_idle false) (!failure ()))
-    ((seed 6) (frames 400) (cut 157) (!strobes 187) (!words_read 260)
+    ((seed 6) (frames 400) (cut 157) (!strobes 183) (!words_read 260)
      (!miso_high_when_idle false) (!failure ()))
     |}]
 ;;
@@ -275,7 +275,7 @@ let%expect_test "outside what the interface allows" =
   fuzz ~edge:0 ~seed:4 ~frames:300 ();
   [%expect
     {|
-    ((seed 4) (frames 300) (cut 148) (!strobes 125) (!words_read 170)
+    ((seed 4) (frames 300) (cut 148) (!strobes 127) (!words_read 170)
      (!miso_high_when_idle false) (!failure ()))
     ((seed 4) (frames 300) (cut 148) (!strobes 8) (!words_read 5)
      (!miso_high_when_idle false)
@@ -286,10 +286,10 @@ let%expect_test "outside what the interface allows" =
           (release_high false) (stray 1) (half 2) (lead 2) (trail 2) (gap 3)))
         (expected_events ()) (events ()) (expected_replies (2 2)) (replies (1 1))
         (expected_configs
-         ((0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)))
+         ((0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)))
         (configs
-         ((0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)))))))
-    ((seed 4) (frames 300) (cut 148) (!strobes 125) (!words_read 170)
+         ((0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)))))))
+    ((seed 4) (frames 300) (cut 148) (!strobes 127) (!words_read 170)
      (!miso_high_when_idle false) (!failure ()))
     |}]
 ;;

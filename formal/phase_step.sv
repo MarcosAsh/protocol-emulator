@@ -27,9 +27,10 @@ module phase_step (input clk);
   (* anyconst *) wire [2:0] set_count;
   (* anyconst *) wire [4:0] jmp_pin, capture_pin, push_threshold, pull_threshold;
   (* anyconst *) wire side_set_pindirs, capture_rising, in_shift_right, out_shift_right, autopush, autopull;
-  (* anyconst *) wire [4:0] crc_width, stuff_threshold;
-  (* anyconst *) wire [15:0] crc_poly, crc_init;
-  (* anyconst *) wire crc_reflect, stuff_level;
+  (* anyconst *) wire [5:0] crc_width;
+  (* anyconst *) wire [4:0] stuff_threshold;
+  (* anyconst *) wire [15:0] crc_poly, crc_init, crc_poly_high, crc_init_high;
+  (* anyconst *) wire crc_reflect, crc_complement, stuff_level;
   (* anyconst *) wire [8:0] wrap_bottom, wrap_top;
   (* anyconst *) wire [15:0] period_fraction;
   (* anyconst *) wire autopull_data, manchester;
@@ -96,7 +97,9 @@ module phase_step (input clk);
 
   wire [27:0] pin_out, pin_dir;
   wire [8:0] pc;
-  wire [15:0] x, y, p, osr, isr, rx_head, instruction, crc;
+  wire [15:0] x, y, p, osr, isr, rx_head, instruction;
+  wire [31:0] crc;
+  wire crc_sending;
   wire [T-1:0] t, now, capture;
   wire [4:0] osr_count, isr_count, stall, stuff_run;
   wire halted, irq, underflow, overflow, missed_deadline, decode, capture_armed;
@@ -219,6 +222,8 @@ module phase_step (input clk);
     .line_write$addr(5'd0), .line_write$data(16'd0), .route_full(1'b0),
     .premises$period$valid(loads_period), .premises$period$value(loaded_period),
     .premises$floor(floor_period), .premises$single_edge(single_edge),
+    .config$crc_poly_high(crc_poly_high), .config$crc_init_high(crc_init_high),
+    .config$crc_complement(crc_complement),
     .stop(stop), .flush(flush),
     .start(start), .program_write$valid(program_write_valid),
     .program_write$addr(program_write_addr), .program_write$data(program_write_data),
@@ -231,7 +236,7 @@ module phase_step (input clk);
     .fault$missed_deadline(missed_deadline), .fault$decode(decode),
     .fault$assumption(assumption), .capture(capture),
     .capture_armed(capture_armed), .tx_level(tx_level), .rx_level(rx_level),
-    .rx_head(rx_head), .instruction(instruction), .crc(crc), .stuff_run(stuff_run),
+    .rx_head(rx_head), .instruction(instruction), .crc(crc), .crc_sending(crc_sending), .stuff_run(stuff_run),
     .decode_ok(decode_ok), .opcode_onehot(opcode_onehot), .wait_select(wait_select),
     .eng_p_loaded(p_loaded), .eng_holding(eng_holding), .eng_seen(eng_seen),
     .eng_jmp_go(jmp_go), .eng_advance(advance), .eng_sample(sample),

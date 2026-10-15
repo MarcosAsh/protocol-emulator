@@ -34,6 +34,9 @@ DSHOT600 = {
         "manchester": 0,
         "line_code": 0,
         "route": 0,
+        "crc_poly_high": 0,
+        "crc_init_high": 0,
+        "crc_complement": 1,
     },
     "words": [
         0x80E6, 0xA000, 0xA09F, 0x20E0, 0xE004, 0xA02F, 0x80E6, 0xC0CA,
@@ -84,6 +87,9 @@ SENT = {
         "manchester": 0,
         "line_code": 0,
         "route": 0,
+        "crc_poly_high": 0,
+        "crc_init_high": 0,
+        "crc_complement": 1,
     },
     "words": [
         0x20E0, 0xE004, 0x80C5, 0x80E6, 0xA001, 0x20E0, 0x80E6, 0xC0CA,
@@ -146,6 +152,9 @@ CEC = {
         "manchester": 0,
         "line_code": 0,
         "route": 0,
+        "crc_poly_high": 0,
+        "crc_init_high": 0,
+        "crc_complement": 1,
     },
     "words": [
         0x20E0, 0xE004, 0x80C5, 0x80E6, 0xA000, 0xA060, 0x20E0, 0xE004,
