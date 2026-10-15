@@ -117,10 +117,11 @@ let%expect_test "every deadline wait in the library, a cycle late, is refused" =
     swd                        52 waits, 52 refused a cycle late,  0 accepted at their slack
     table                       2 waits,  2 refused a cycle late,  2 accepted at their slack
     table_open_drain            2 waits,  2 refused a cycle late,  2 accepted at their slack
+    ps2_blind                   5 waits,  5 refused a cycle late,  0 accepted at their slack
     uart_tx_stream              3 waits,  3 refused a cycle late,  3 accepted at their slack
     spi_master_stream           3 waits,  3 refused a cycle late,  3 accepted at their slack
     uart_tx_stamped             4 waits,  4 refused a cycle late,  4 accepted at their slack
 
-    46 firmwares, 444 deadline waits: 444 refused a cycle late, 215 accepted at their slack
+    47 firmwares, 449 deadline waits: 449 refused a cycle late, 215 accepted at their slack
     |}]
 ;;

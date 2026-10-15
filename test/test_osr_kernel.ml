@@ -279,6 +279,7 @@ let%expect_test "what each out sends, in the firmware library" =
     (table (verdict (Ok ()))
      (sends ((6 "not a pulled word") (60 "bit 1 to 32"))))
     (table_open_drain (verdict (Ok ())) (sends ()))
+    (ps2_blind (verdict (Ok ())) (sends ()))
     (uart_tx_stream (verdict (Ok ())) (sends ((8 "not a pulled word"))))
     (spi_master_stream (verdict (Ok ()))
      (sends ((4 "not a pulled word") (8 "not a pulled word"))))

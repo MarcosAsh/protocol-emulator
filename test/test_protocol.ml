@@ -445,6 +445,26 @@ let%expect_test "every protocol from its file to the decoded trace" =
     table_open_drain: 112 words, 2 deadline waits, worst slack 0, the kernel accepts it, assuming nothing
 
     limits
+
+    === ps2_blind
+
+    certificates
+    ps2_blind: 35 words, 5 deadline waits, worst slack 953, the kernel accepts it, assuming period 960, a load of 8 or more
+
+    limits
+    ps2_blind          T1             >=     5000 ns  kernel 955 (19895.8 ns)  needs  241       PS/2 auxiliary device, IBM PS/2 Hardware Interface Technical Reference, May 1988, Keyboard and Auxiliary Device Controller (Type 1) Figure 8, Receiving Data Timings, p.13 (PDF p.346); margin a cycle
+    ps2_blind          T2             >=     5000 ns  kernel 964 (20083.3 ns)  needs  241       PS/2 auxiliary device, IBM PS/2 Hardware Interface Technical Reference, May 1988, Keyboard and Auxiliary Device Controller (Type 1) Figure 8, Receiving Data Timings, p.13 (PDF p.346); margin a cycle
+    ps2_blind          T3             >=    30000 ns  kernel 1920 (40000.0 ns) needs 1441       PS/2 auxiliary device, IBM PS/2 Hardware Interface Technical Reference, May 1988, Keyboard and Auxiliary Device Controller (Type 1) Figure 8, Receiving Data Timings, p.13 (PDF p.346); margin a cycle
+    ps2_blind          T3             <=    50000 ns  run    1920 (40000.0 ns) needs 2399       PS/2 auxiliary device, IBM PS/2 Hardware Interface Technical Reference, May 1988, Keyboard and Auxiliary Device Controller (Type 1) Figure 8, Receiving Data Timings, p.13 (PDF p.346); margin a cycle
+    ps2_blind          T4             >=    30000 ns  kernel 1920 (40000.0 ns) needs 1441       PS/2 auxiliary device, IBM PS/2 Hardware Interface Technical Reference, May 1988, Keyboard and Auxiliary Device Controller (Type 1) Figure 8, Receiving Data Timings, p.13 (PDF p.346); margin a cycle
+    ps2_blind          T4             <=    50000 ns  run    1920 (40000.0 ns) needs 2399       PS/2 auxiliary device, IBM PS/2 Hardware Interface Technical Reference, May 1988, Keyboard and Auxiliary Device Controller (Type 1) Figure 8, Receiving Data Timings, p.13 (PDF p.346); margin a cycle
+    ps2_blind          T5             >=    50000 ns  run    3858 (80375.0 ns) needs 2401       PS/2 auxiliary device, IBM PS/2 Hardware Interface Technical Reference, May 1988, Keyboard and Auxiliary Device Controller (Type 1) Figure 8, Receiving Data Timings, p.13 (PDF p.346); margin a cycle
+
+    lockstep: ps2_blind, ps2_blind
+    ("lockstep held" (cycles 7200))
+    (received ())
+    decode: test/traces/ps2_blind.trace, by sigrok's ps2:clk=IO1:data=IO0
+      ps2=start-bit:word:parity-ok:parity-err:stop-bit: ps2-1: Start bit, ps2-1: Data: 15, ps2-1: Parity OK, ps2-1: Stop bit, ps2-1: Start bit, ps2-1: Data: f0, ps2-1: Parity OK, ps2-1: Stop bit, ps2-1: Start bit, ps2-1: Data: 15, ps2-1: Parity OK, ps2-1: Stop bit
     |}]
 ;;
 

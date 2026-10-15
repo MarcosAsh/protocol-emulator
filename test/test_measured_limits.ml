@@ -91,6 +91,13 @@ let%expect_test "the datasheet limits, measured on the bench copies' runs" =
     kernel 96  can_sender         recessive      >=     1000 ns  measured 48 (2000.0 ns)       Pass
     kernel 96  can_sender         dominant       >=     1000 ns  measured 48 (2000.0 ns)       Pass
     run    1165  can_sender         idle to SOF    >=    22000 ns  measured 583 (24291.7 ns)     Pass
+    kernel 955  ps2_blind          T1             >=     5000 ns  measured 478 (19916.7 ns)     Pass
+    kernel 964  ps2_blind          T2             >=     5000 ns  measured 482 (20083.3 ns)     Pass
+    kernel 1920  ps2_blind          T3             >=    30000 ns  measured 960 (40000.0 ns)     Pass
+    run    1920  ps2_blind          T3             <=    50000 ns  measured 960 (40000.0 ns)     Pass
+    kernel 1920  ps2_blind          T4             >=    30000 ns  measured 960 (40000.0 ns)     Pass
+    run    1920  ps2_blind          T4             <=    50000 ns  measured 960 (40000.0 ns)     Pass
+    run    3858  ps2_blind          T5             >=    50000 ns  measured 1449 (60375.0 ns)    Pass
     kernel 417  uart_log           bit            >=  8506.94 ns  measured 209 (8708.3 ns)      Pass
     run    417  uart_log           bit            <=  8854.17 ns  measured 209 (8708.3 ns)      Pass
     |}]

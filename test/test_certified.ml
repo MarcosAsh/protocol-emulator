@@ -81,6 +81,7 @@ let%expect_test "the firmware library and its certificates" =
     swd                  232        52     15  period 25, no wrap
     table                112         2      0
     table_open_drain     112         2      0
+    ps2_blind             35         5    953  period 960
     |}]
 ;;
 
@@ -179,5 +180,9 @@ let%expect_test "the least period the host may load" =
     (QED "swd: every load of 10 or more")
     (counterexample "swd: every load of 9 or more"
      (model ((loaded 0000000000001001))))
+    (ps2_blind (period (960)) (floor 8) (passes true) (one_less true))
+    (QED "ps2_blind: every load of 8 or more")
+    (counterexample "ps2_blind: every load of 7 or more"
+     (model ((loaded 0000000000000111))))
     |}]
 ;;
