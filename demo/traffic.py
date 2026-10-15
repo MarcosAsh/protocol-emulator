@@ -169,25 +169,49 @@ def eeprom(_levels):
     return judge
 
 
-def ds18b20(log):
+def in_order(decoded, expected, what):
+    """The first expected line the decode does not have after the one before it."""
+    at = 0
+    for want in expected:
+        try:
+            at = decoded.index(want, at) + 1
+        except ValueError:
+            return ["%s: no %r in the decode%s" % (
+                what, want, " after the ones before it" if at else "")]
+    return []
+
+
+def ds18b20(_levels):
     """Pico A's readback, checked again from its log: both CRCs, the family, and a
-    temperature the part can read that is not its power-on 85 C."""
-    t = demo_ds18b20
-    rom = re.search(r"^ROM ((?:\w\w ){7}\w\w):", log, re.M)
-    pad = re.search(r"^scratchpad ((?:\w\w ){8}\w\w):", log, re.M)
-    if not rom or not pad:
-        return ["Pico A's log has no ROM and scratchpad read back"]
-    rom = [int(b, 16) for b in rom.group(1).split()]
-    pad = [int(b, 16) for b in pad.group(1).split()]
-    raw = t.temperature(pad)
-    problems = []
-    if t.crc8(rom) or rom[0] != t.FAMILY:
-        problems.append("ROM %s: not a DS18B20's with a good CRC" % t.bench.hexs(rom))
-    if t.crc8(pad) or pad[4] & t.CONFIG_MASK != t.CONFIG_FIXED:
-        problems.append("scratchpad %s: bad CRC or configuration" % t.bench.hexs(pad))
-    if raw == t.POWER_ON or not -55 * 16 <= raw <= 125 * 16:
-        problems.append("scratchpad reads %.4f C, the power-on value or out of range" % (raw / 16))
-    return problems
+    temperature the part can read that is not its power-on 85 C. Then the same ROM and
+    scratchpad in the decode of DQ, behind READ ROM, CONVERT T and READ SCRATCHPAD."""
+
+    def judge(decoded, log):
+        t = demo_ds18b20
+        rom = re.search(r"^ROM ((?:\w\w ){7}\w\w):", log, re.M)
+        pad = re.search(r"^scratchpad ((?:\w\w ){8}\w\w):", log, re.M)
+        if not rom or not pad:
+            return ["Pico A's log has no ROM and scratchpad read back"]
+        rom = [int(b, 16) for b in rom.group(1).split()]
+        pad = [int(b, 16) for b in pad.group(1).split()]
+        raw = t.temperature(pad)
+        problems = []
+        if t.crc8(rom) or rom[0] != t.FAMILY:
+            problems.append("ROM %s: not a DS18B20's with a good CRC" % t.bench.hexs(rom))
+        if t.crc8(pad) or pad[4] & t.CONFIG_MASK != t.CONFIG_FIXED:
+            problems.append("scratchpad %s: bad CRC or configuration" % t.bench.hexs(pad))
+        if raw == t.POWER_ON or not -55 * 16 <= raw <= 125 * 16:
+            problems.append("scratchpad reads %.4f C, the power-on value or out of range"
+                            % (raw / 16))
+        serial = sum(b << (8 * i) for i, b in enumerate(rom))
+        presence, skip = "Reset/presence: true", "ROM command: 0xcc 'Skip ROM'"
+        expected = [presence, "ROM command: 0x33 'Read ROM'", "ROM: 0x%016x" % serial,
+                    presence, skip, "Data: 0x44", presence, skip, "Data: 0xbe"]
+        expected += ["Data: 0x%02x" % b for b in pad]
+        return problems + in_order(decoded, ["onewire_network-1: " + x for x in expected],
+                                   "READ ROM, CONVERT T, READ SCRATCHPAD")
+
+    return judge
 
 
 def swd(_levels):
@@ -280,17 +304,13 @@ CHECKS = {
     "flash": ({0: "SCK", 1: "MOSI", 2: "MISO", 3: "CS"}, flash),
     "eeprom": (I2C, eeprom),
     "eeprom_stretch": (I2C, eeprom),
+    "ds18b20": ({5: "DQ"}, ds18b20),
     "swd": ({6: "SWCLK", 7: "SWDIO"}, swd),
     "start_hold": (I2C, start_hold),
     "self_timing": (OUT0, self_timing),
     "keyboard": (OUT0, keyboard),
     "sweep": (OUT0, sweep),
 }
-
-
-# demos whose bus no analyser channel sees: DS18B20's DQ (Icepi header 37) is on none
-# (board evidence 2026-10-09/timing-fixes), so Pico A's own readback is all a PASS rests on
-UNSEEN = {"ds18b20": ds18b20}
 
 
 def stem(demo):
@@ -300,13 +320,9 @@ def stem(demo):
 
 def check(demo, directory):
     """What the demo's capture in directory lacks, empty when it holds the demo's traffic or
-    the demo puts none on a wire the analyser sees. A demo in UNSEEN has its log's readback
-    checked instead."""
+    the demo puts none on a wire the analyser sees."""
     name = stem(demo)
     d = Path(directory)
-    if name in UNSEEN:
-        log = d / (name + ".log")
-        return UNSEEN[name](log.read_text(errors="replace") if log.exists() else "")
     if name not in CHECKS:
         return []
     channels, make = CHECKS[name]
@@ -339,8 +355,6 @@ def main():
         print("traffic: " + problem)
     if problems:
         print("FAIL")
-    elif stem(demo) in UNSEEN:
-        print("traffic: none (no analyser channel), Pico A's readback checked again")
     elif stem(demo) in CHECKS:
         print("traffic: the capture holds the demo's")
 
