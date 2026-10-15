@@ -474,24 +474,43 @@ more:
   [%expect {| ((same true) (edges 15)) |}]
 ;;
 
+(* the core empties a full tx fifo, then overfills rx, which the host then drains *)
 let%expect_test "a push into a full rx fifo faults overflow" =
-  let program = assemble {|
+  let program =
+    assemble
+      {|
+    set x, 7
+drain:
+    pull
+    jmp x--, drain
     set x, 8
 fill:
     push
     jmp x--, fill
     halt
-|} in
-  let m =
-    lockstep ~cycles:40 ~config:Program_config.default ~program ~inputs:(fun _ -> 0) ()
+|}
   in
-  print_s [%message (m.fault : Machine.Fault.t) (List.length m.rx_fifo : int)];
+  let m =
+    lockstep
+      ~cycles:100
+      ~config:Program_config.default
+      ~program
+      ~preload:(List.init Machine.fifo_depth ~f:Fn.id)
+      ~inputs:(fun _ -> 0)
+      ~host:(fun n -> { Host.idle with pop_rx = n >= 80 })
+      ()
+  in
+  print_s
+    [%message
+      (m.fault : Machine.Fault.t)
+        (List.length m.tx_fifo : int)
+        (List.length m.rx_fifo : int)];
   [%expect
     {|
-    ("lockstep held" (cycles 40))
+    ("lockstep held" (cycles 100))
     ((m.fault
       ((underflow false) (overflow true) (missed_deadline false) (decode false)))
-     ("List.length m.rx_fifo" 8))
+     ("List.length m.tx_fifo" 0) ("List.length m.rx_fifo" 0))
     |}]
 ;;
 
