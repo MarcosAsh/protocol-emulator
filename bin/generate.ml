@@ -245,6 +245,39 @@ let osr_rtl_command =
           C.create_exn ~name (Osr_kernel.hierarchical scope))]
 ;;
 
+let manchester_rx_rtl_command =
+  Command.basic
+    ~summary:"Verilog for the 10BASE-T receiver of the 8x4 die, which no engine wires yet"
+    [%map_open.Command
+      let samples_per_bit =
+        flag
+          "-samples-per-bit"
+          (optional_with_default 4 int)
+          ~doc:"N samples in a 100 ns bit"
+      and samples_per_cycle =
+        flag
+          "-samples-per-cycle"
+          (optional_with_default 1 int)
+          ~doc:"N samples to a cycle"
+      and gain_shift =
+        flag
+          "-gain-shift"
+          (optional_with_default 0 int)
+          ~doc:"N the clock recovery moves a transition's error over 2^N"
+      in
+      fun () ->
+        let module Rx =
+          Manchester_rx.Make (struct
+            let samples_per_bit = samples_per_bit
+            let samples_per_cycle = samples_per_cycle
+            let gain_shift = gain_shift
+          end)
+        in
+        let module C = Circuit.With_interface (Rx.I) (Rx.O) in
+        print_rtl ~name:"manchester_rx_top" (fun ~name scope ->
+          C.create_exn ~name (Rx.hierarchical scope))]
+;;
+
 let kernel_accepts_rtl_command =
   Command.basic
     ~summary:
@@ -683,6 +716,7 @@ let () =
        ; "kernel", kernel_rtl_command
        ; "kernel-gates", kernel_gates_command
        ; "osr", osr_rtl_command
+       ; "manchester-rx", manchester_rx_rtl_command
        ; "kernel-accepts", kernel_accepts_rtl_command
        ; "assemble", assemble_command
        ; "run", run_command
