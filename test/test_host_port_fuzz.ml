@@ -232,7 +232,11 @@ module Three = Fuzz (struct
 let fuzz = One.fuzz
 
 let%expect_test "random frames, whole and cut short, against the register map" =
-  List.iter [ 1; 2; 3 ] ~f:(fun seed -> fuzz ~seed ~frames:300 ());
+  (* not in a [List.iter]: Hardcaml's coverage refuses a circuit it has seen built from a
+     different call stack *)
+  fuzz ~seed:1 ~frames:300 ();
+  fuzz ~seed:2 ~frames:300 ();
+  fuzz ~seed:3 ~frames:300 ();
   [%expect
     {|
     ((seed 1) (frames 300) (cut 122) (!strobes 92) (!words_read 203)
