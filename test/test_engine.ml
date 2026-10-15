@@ -411,6 +411,222 @@ loop:
     |}]
 ;;
 
+(* clears the core, writes [config] and [program] and starts it *)
+let load (i : _ Solo.I.t) ~cycle ~config program =
+  i.clocking.clear := Bits.vdd;
+  cycle ();
+  i.clocking.clear := Bits.gnd;
+  Engine.Config.iter2 i.config config ~f:( := );
+  List.iteri program ~f:(fun addr word ->
+    i.program_write.valid := Bits.vdd;
+    i.program_write.addr <--. addr;
+    i.program_write.data <--. word;
+    cycle ());
+  i.program_write.valid := Bits.gnd;
+  i.start := Bits.vdd;
+  cycle ();
+  i.start := Bits.gnd
+;;
+
+(* [Program_config] stops at 2, but the host port writes the field's two bits as given *)
+let%expect_test "a side-set count of 3, which only the host can write, acts as 2" =
+  let program =
+    assemble
+      {|
+    .side_set 2
+loop:
+    set x, 2 side 1 [7]
+    set pins, 1 side 2 [3]
+more:
+    set pins, 0 side 3 [1]
+    jmp x--, more
+    set y, 0 side 0 [6]
+    jmp loop
+|}
+  in
+  let config =
+    Engine.Config.of_program_config
+      { Program_config.default with side_set_count = 2; side_set_base = 5; set_base = 7 }
+  in
+  let pins side_set_count =
+    let pins = Queue.create () in
+    Harness.run
+      ~create:(Solo.hierarchical ~memory:Flops)
+      (fun (h @ local) ~inputs:i ~outputs ->
+         let cycle () = Lws.cycle h in
+         load
+           i
+           ~cycle
+           ~config:
+             { config with side_set_count = Bits.of_unsigned_int ~width:2 side_set_count }
+           program;
+         for _ = 1 to 120 do
+           cycle ();
+           Queue.enqueue
+             pins
+             (Bits.to_unsigned_int !((Before_and_after_edge.after_edge outputs).pin_out))
+         done);
+    Queue.to_list pins
+  in
+  let two = pins 2 in
+  let edges = List.length (List.remove_consecutive_duplicates two ~equal:Int.equal) - 1 in
+  print_s [%message "" ~same:(List.equal Int.equal two (pins 3) : bool) (edges : int)];
+  [%expect {| ((same true) (edges 15)) |}]
+;;
+
+let%expect_test "a push into a full rx fifo faults overflow" =
+  let program = assemble {|
+    set x, 8
+fill:
+    push
+    jmp x--, fill
+    halt
+|} in
+  let m =
+    lockstep ~cycles:40 ~config:Program_config.default ~program ~inputs:(fun _ -> 0) ()
+  in
+  print_s [%message (m.fault : Machine.Fault.t) (List.length m.rx_fifo : int)];
+  [%expect
+    {|
+    ("lockstep held" (cycles 40))
+    ((m.fault
+      ((underflow false) (overflow true) (missed_deadline false) (decode false)))
+     ("List.length m.rx_fifo" 8))
+    |}]
+;;
+
+(* every fault is sticky until a clear, which lets go of all four *)
+let%expect_test "a clear lets go of every fault" =
+  let program =
+    assemble
+      {|
+    pull
+    mov t, now
+    wait t
+    set x, 8
+fill:
+    push
+    jmp x--, fill
+|}
+    @ [ 0xe0ff ]
+  in
+  Harness.run
+    ~create:(Solo.hierarchical ~memory:Flops)
+    (fun (h @ local) ~inputs:i ~outputs ->
+       let cycle () = Lws.cycle h in
+       let faults () =
+         let o = Before_and_after_edge.after_edge outputs in
+         Engine.Fault.map o.fault ~f:(fun r -> Bits.to_bool !r), Bits.to_bool !(o.faulted)
+       in
+       load
+         i
+         ~cycle
+         ~config:(Engine.Config.of_program_config Program_config.default)
+         program;
+       for _ = 1 to 40 do
+         cycle ()
+       done;
+       let held = faults () in
+       i.clocking.clear := Bits.vdd;
+       cycle ();
+       i.clocking.clear := Bits.gnd;
+       cycle ();
+       print_s
+         [%message
+           (held : bool Engine.Fault.t * bool)
+             ~cleared:(faults () : bool Engine.Fault.t * bool)]);
+  [%expect
+    {|
+    ((held
+      (((underflow true) (overflow true) (missed_deadline true) (decode true))
+       true))
+     (cleared
+      (((underflow false) (overflow false) (missed_deadline false)
+        (decode false))
+       false)))
+    |}]
+;;
+
+(* sets [now] in the simulator a few cycles short of each carry into its top six bits,
+   which a run takes 2^24 cycles to reach; every carry and the wrap are the counter's own *)
+let%expect_test "now and capture carry into their top bits" =
+  Harness.run_advanced
+    ~trace:`Everything
+    ~create:(Solo.hierarchical ~memory:Flops)
+    (fun (h @ local) context ->
+       let sim =
+         match Lws_context.simulator_specific context with
+         | Cyclesim sim -> Lws_context.Simulator_specific.Cyclesim.simulator sim
+         | Evsim _ | Cosim -> assert false
+       in
+       let traced = (Cyclesim.traced sim).internal_signals in
+       let now =
+         List.find_map_exn traced ~f:(fun { signal; mangled_names } ->
+           if List.mem mangled_names "solo$engine$now" ~equal:String.equal
+           then Signal.Type.wire_driver signal
+           else None)
+       in
+       let now =
+         List.find_map_exn traced ~f:(fun traced ->
+           if Signal.Type.Uid.equal (Signal.uid traced.signal) (Signal.uid now)
+           then Cyclesim.lookup_reg sim traced
+           else None)
+       in
+       let i = context.inputs in
+       let run n = Lws.step ~n h in
+       let o = Before_and_after_edge.after_edge context.outputs in
+       load
+         i
+         ~cycle:(fun () -> run 1)
+         ~config:
+           (Engine.Config.of_program_config
+              { Program_config.default with capture_pin = 0; capture_rising = true })
+         (assemble
+            {|
+loop:
+    capture_arm
+    wait 1 pin 0
+    wait 0 pin 0
+    jmp loop
+|});
+       let int r = Bits.to_unsigned_int !r in
+       let set_now v =
+         Cyclesim.Reg.of_bits now (Bits.of_unsigned_int ~width:Isa.timer_bits v)
+       in
+       (* past the start, which zeroes [now] the cycle after *)
+       run 2;
+       List.iter (List.range 18 24) ~f:(fun bit ->
+         set_now ((1 lsl bit) - 3);
+         run 6;
+         print_s [%message "" ~now:(int o.now : Int.Hex.t)]);
+       set_now ((1 lsl Isa.timer_bits) - 40);
+       run 4;
+       i.inputs := Bits.of_unsigned_int ~width:Isa.pin_space 1;
+       run 4;
+       let high = int o.capture in
+       run 40;
+       i.inputs := Bits.zero Isa.pin_space;
+       run 4;
+       i.inputs := Bits.of_unsigned_int ~width:Isa.pin_space 1;
+       run 4;
+       print_s
+         [%message
+           ""
+             ~capture:(high : Int.Hex.t)
+             ~then_:(int o.capture : Int.Hex.t)
+             ~now:(int o.now : Int.Hex.t)]);
+  [%expect
+    {|
+    (now 0x40003)
+    (now 0x80003)
+    (now 0x100003)
+    (now 0x200003)
+    (now 0x400003)
+    (now 0x800003)
+    ((capture 0xffffdc) (then_ 0xc) (now 0x10))
+    |}]
+;;
+
 let%expect_test "random programs" =
   random_programs ~programs:64 ~cycles:1000 (fun random ~config ->
     Random_program.program random ~config);
@@ -500,4 +716,68 @@ loop:
        (184 55) (204 75) (224 95) (244 115) (264 7) (284 27)))
      (gaps (20)) (missed_deadline false))
     |}]
+;;
+
+(* the captures land all over the 128 cycles, so every bit of [capture] and of [t] after
+   it moves both ways *)
+let%expect_test "a 7-bit capture and the deadline after it take every bit" =
+  let program =
+    assemble
+      {|
+    set p, 3
+loop:
+    capture_arm
+    wait 1 pin 0
+    mov t, capture
+    add t, p
+    wait 0 pin 0
+    jmp loop
+|}
+  in
+  Narrow_harness.run
+    ~create:(Narrow.hierarchical ~memory:Flops)
+    (fun (h @ local) ~inputs:i ~outputs ->
+       let cycle () = Lws.cycle h in
+       let after () = Before_and_after_edge.after_edge outputs in
+       i.clocking.clear := Bits.vdd;
+       cycle ();
+       i.clocking.clear := Bits.gnd;
+       Engine.Config.iter2
+         i.config
+         (Engine.Config.of_program_config
+            { Program_config.default with capture_pin = 0; capture_rising = true })
+         ~f:( := );
+       List.iteri program ~f:(fun addr word ->
+         i.program_write.valid := Bits.vdd;
+         i.program_write.addr <--. addr;
+         i.program_write.data <--. word;
+         cycle ());
+       i.program_write.valid := Bits.gnd;
+       i.start := Bits.vdd;
+       cycle ();
+       i.start := Bits.gnd;
+       let random = Splittable_random.of_int 5 in
+       let pairs =
+         List.init 24 ~f:(fun _ ->
+           let wait = Splittable_random.int random ~lo:6 ~hi:60 in
+           for _ = 1 to wait do
+             cycle ()
+           done;
+           i.inputs := Bits.of_unsigned_int ~width:Isa.pin_space 1;
+           for _ = 1 to 6 do
+             cycle ()
+           done;
+           i.inputs := Bits.zero Isa.pin_space;
+           cycle ();
+           let int r = Bits.to_unsigned_int !r in
+           int (after ()).capture, int (after ()).t)
+       in
+       let t_is_capture_plus_3 =
+         List.for_all pairs ~f:(fun (capture, t) -> t = (capture + 3) land 0x7f)
+       in
+       let distinct =
+         List.length (List.dedup_and_sort pairs ~compare:[%compare: int * int])
+       in
+       print_s [%message (t_is_capture_plus_3 : bool) (distinct : int)]);
+  [%expect {| ((t_is_capture_plus_3 true) (distinct 24)) |}]
 ;;
