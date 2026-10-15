@@ -153,6 +153,7 @@ module Lane = struct
     { name : string
     ; wave : string
     ; data : string list
+    ; node : string
     ; input : bool
     ; phase : float
     ; period : float
@@ -182,6 +183,7 @@ type t =
   ; cycles : Cycles.t
   ; repeat : Repeat.t option
   ; words : int list option
+  ; edges : string list
   }
 [@@deriving sexp_of]
 
@@ -215,6 +217,7 @@ let lane fields =
   in
   let%bind name = string "name" ~default:"" in
   let%bind wave = string "wave" ~default:"" in
+  let%bind node = string "node" ~default:"" in
   let%bind data =
     match field fields "data" with
     | None -> Ok []
@@ -236,7 +239,7 @@ let lane fields =
   in
   let%bind phase = number "phase" ~default:0. in
   let%map period = number "period" ~default:1. in
-  { Lane.name; wave; data; input; phase; period }
+  { Lane.name; wave; data; node; input; phase; period }
 ;;
 
 (* lanes in order, groups flattened, spacers and lanes with no wave dropped *)
@@ -290,12 +293,22 @@ let of_value (v : Value.t) =
             "table.repeat is [first, last, times] or [first, last, times, \"host\"]"
               (v : Value.t)]
     in
-    let%map words =
+    let%bind words =
       match field settings "words" with
       | None -> Ok None
       | Some v -> ints "table.words" v >>| Option.some
     in
-    { lanes; cycles; repeat; words }
+    let%map edges =
+      match field top "edge" with
+      | None -> Ok []
+      | Some (List vs) ->
+        List.map vs ~f:(function
+          | Value.String s -> Ok s
+          | v -> Or_error.error_s [%message "an edge is not text" (v : Value.t)])
+        |> Or_error.all
+      | Some v -> Or_error.error_s [%message "edge is not a list" (v : Value.t)]
+    in
+    { lanes; cycles; repeat; words; edges }
   | _ -> Or_error.error_s [%message "not an object"]
 ;;
 

@@ -24,7 +24,21 @@ module Step : sig
   [@@deriving sexp_of]
 end
 
+(** An [edge] whose label has a limit, as [>= 250ns], [<= 1.2us], [= 26 cycles] or
+    [250ns..550ns], checked on the steps' cycles at [cycle_ns]. *)
+module Limit : sig
+  type t =
+    { edge : string
+    ; ns : int
+    ; least_ns : float option
+    ; most_ns : float option
+    }
+  [@@deriving sexp_of]
+end
+
 module State : Tables.State with type t = int
+
+val cycle_ns : int
 
 type t =
   { outputs : string list (** lane names, out_base first *)
@@ -35,6 +49,7 @@ type t =
   ; words : int list (** bits in each host word of a frame *)
   ; while_host : bool
   ; read : int (** bits read a frame *)
+  ; limits : Limit.t list
   }
 
 (** The table, or why the diagram is outside the class. *)

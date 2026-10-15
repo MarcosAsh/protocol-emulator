@@ -31,9 +31,11 @@ let%expect_test "WaveDrom's relaxed syntax reads as the JSON it stands for" =
     {|
     ("read relaxed"
      ((lanes
-       (((name clk) (wave p..) (data ()) (input false) (phase 0) (period 1))
-        ((name q) (wave 01.) (data (a b)) (input false) (phase 0) (period 1))))
-      (cycles (Each (20 20 20))) (repeat ()) (words ())))
+       (((name clk) (wave p..) (data ()) (node "") (input false) (phase 0)
+         (period 1))
+        ((name q) (wave 01.) (data (a b)) (node "") (input false) (phase 0)
+         (period 1))))
+      (cycles (Each (20 20 20))) (repeat ()) (words ()) (edges ())))
     (same true)
     |}]
 ;;

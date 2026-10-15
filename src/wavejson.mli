@@ -23,6 +23,7 @@ module Lane : sig
     { name : string
     ; wave : string
     ; data : string list
+    ; node : string (** a name at a period marks its start, for [edge] *)
     ; input : bool (** [input: true]: a pin the table reads, not one it drives *)
     ; phase : float
     ; period : float
@@ -55,6 +56,7 @@ type t =
   ; cycles : Cycles.t
   ; repeat : Repeat.t option
   ; words : int list option (** bits in each host word, first first *)
+  ; edges : string list (** WaveDrom's [edge]: ["a->b label"] *)
   }
 [@@deriving sexp_of]
 

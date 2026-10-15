@@ -203,6 +203,7 @@ let%expect_test "ws2812 from a diagram: passes of 12 bits while the host's flag 
     [%message
       ""
         ~steps:(List.length t.steps : int)
+        ~limits:(t.limits : Wavedrom.Limit.t list)
         ~words_a_frame:(List.length host_words / List.length frames : int)
         ~frames_identical:
           ([%equal: Ws2812.Pixel.t list list] (Ws2812.Strip.frames strip) frames : bool)
@@ -211,7 +212,17 @@ let%expect_test "ws2812 from a diagram: passes of 12 bits while the host's flag 
   print_s [%message "" ~measured:(Ws2812.Strip.measured strip : Measured.t)];
   [%expect
     {|
-    ((steps 38) (words_a_frame 5) (frames_identical true) (violations ())
+    ((steps 38)
+     (limits
+      (((edge "a<->b T0H 250ns..550ns") (ns 520) (least_ns (250))
+        (most_ns (550)))
+       ((edge "a<->c T1H 650ns..950ns") (ns 940) (least_ns (650))
+        (most_ns (950)))
+       ((edge "b<->d T0L 700ns..1000ns") (ns 980) (least_ns (700))
+        (most_ns (1000)))
+       ((edge "c<->d T1L 300ns..600ns") (ns 560) (least_ns (300))
+        (most_ns (600)))))
+     (words_a_frame 5) (frames_identical true) (violations ())
      (fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
     (measured ((T0H (520 520)) (T0L (980 980)) (T1H (940 940)) (T1L (560 560))))
@@ -244,6 +255,12 @@ let%expect_test "diagrams outside the class are refused, with the reason" =
     ; ( "a pixel unrolled"
       , "{ signal: [ { wave: '01=00' } ], table: { cycles: [0, 20, 20, 28, 2600], \
          repeat: [1, 3, 24] } }" )
+    ; ( "a limit the steps break"
+      , "{ signal: [ { wave: '01=0', node: '.ab' } ], edge: ['a->b T0H <= 400ns'], \
+         table: { cycles: [0, 26, 26, 26] } }" )
+    ; ( "a limit from the idle"
+      , "{ signal: [ { wave: '01=0', node: 'ab' } ], edge: ['a->b >= 1us'], table: { \
+         cycles: [0, 26, 26, 26] } }" )
     ; ( "ws2812 as the firmware times it, while the host says"
       , "{ signal: [ { wave: '01=00' } ], table: { cycles: [0, 20, 20, 28, 2600], \
          repeat: [1, 3, 12, 'host'] } }" )
@@ -303,6 +320,15 @@ let%expect_test "diagrams outside the class are refused, with the reason" =
      (e
       ("outside the table class"
        ("a table holds 64 steps, a repeat with the host's flag fewer" (steps 74)))))
+    ("a limit the steps break"
+     (e
+      ("outside the table class"
+       ("the diagram's own limit does not hold" (edge "a->b T0H <= 400ns")
+        (ns 520) (least_ns ()) (most_ns (400))))))
+    ("a limit from the idle"
+     (e
+      ("outside the table class"
+       ("an edge from the idle, whose length is the host's" (edge "a->b >= 1us")))))
     ("ws2812 as the firmware times it, while the host says"
      (e
       ("outside the table class"
@@ -365,5 +391,24 @@ let%expect_test "a frame of two host words pulls the second; one with no data lo
      (fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false)))
      (clock (1 0 3 2 1 0 3 2 1 0)))
+    |}]
+;;
+
+let%expect_test "an edge's label sets a limit in ns, us or cycles, or none" =
+  let t =
+    Wavedrom.of_string
+      {|{ signal: [ { wave: '01=0', node: '.abc' } ],
+          edge: [ 'a->b >= 26 cycles', 'a->c <= 1.2us', 'b->c = 520ns', 'a-c 0.4us..1.1us',
+                  'a~>b just a label' ],
+          table: { cycles: 26 } }|}
+    |> ok_exn
+  in
+  List.iter t.limits ~f:(fun l -> print_s [%sexp (l : Wavedrom.Limit.t)]);
+  [%expect
+    {|
+    ((edge "a->b >= 26 cycles") (ns 520) (least_ns (520)) (most_ns ()))
+    ((edge "a->c <= 1.2us") (ns 1040) (least_ns ()) (most_ns (1200)))
+    ((edge "b->c = 520ns") (ns 520) (least_ns (520)) (most_ns (520)))
+    ((edge "a-c 0.4us..1.1us") (ns 1040) (least_ns (400)) (most_ns (1100)))
     |}]
 ;;

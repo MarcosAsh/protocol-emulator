@@ -18,9 +18,22 @@ module Step = struct
   [@@deriving sexp_of]
 end
 
+module Limit = struct
+  type t =
+    { edge : string
+    ; ns : int
+    ; least_ns : float option
+    ; most_ns : float option
+    }
+  [@@deriving sexp_of]
+end
+
 module State = struct
   type t = int [@@deriving equal, sexp_of]
 end
+
+(* at 50 MHz *)
+let cycle_ns = 20
 
 type t =
   { outputs : string list
@@ -31,6 +44,7 @@ type t =
   ; words : int list
   ; while_host : bool
   ; read : int
+  ; limits : Limit.t list
   }
 
 let outside detail =
@@ -404,6 +418,108 @@ let check_cycles (steps : Step.t list) =
   |> Result.all_unit
 ;;
 
+let split_unit token =
+  let number =
+    String.take_while token ~f:(fun c -> Char.is_digit c || Char.equal c '.')
+  in
+  number, String.drop_prefix token (String.length number)
+;;
+
+(* "400ns", "0.4us" or "20cycles", in ns; [unit] where the token has none *)
+let quantity ?(unit = "") token =
+  let number, given = split_unit token in
+  let%bind.Option n = Float.of_string_opt number in
+  match if String.is_empty given then unit else given with
+  | "ns" -> Some n
+  | "us" -> Some (n *. 1000.)
+  | "cycle" | "cycles" -> Some (n *. Float.of_int cycle_ns)
+  | _ -> None
+;;
+
+(* the bounds a label sets, if any: a number and its unit may stand apart *)
+let bounds label =
+  let rec join = function
+    | n :: unit :: rest
+      when Option.is_some (Float.of_string_opt n)
+           && List.mem [ "ns"; "us"; "cycle"; "cycles" ] unit ~equal:String.equal ->
+      (n ^ unit) :: join rest
+    | t :: rest -> t :: join rest
+    | [] -> []
+  in
+  let rec go = function
+    | [] -> None
+    | ((">=" | "<=" | "=") as op) :: q :: _ ->
+      Option.map (quantity q) ~f:(fun q ->
+        match op with
+        | ">=" -> Some q, None
+        | "<=" -> None, Some q
+        | _ -> Some q, Some q)
+    | t :: rest ->
+      (match String.substr_index t ~pattern:".." with
+       | Some i ->
+         let hi = String.drop_prefix t (i + 2) in
+         (match quantity ~unit:(snd (split_unit hi)) (String.prefix t i), quantity hi with
+          | Some lo, Some hi -> Some (Some lo, Some hi)
+          | _ -> go rest)
+       | None ->
+         (match quantity t with
+          | Some q -> Some (Some q, Some q)
+          | None -> go rest))
+  in
+  String.split label ~on:' ' |> List.filter ~f:(Fn.non String.is_empty) |> join |> go
+;;
+
+(* The time between two nodes is the drawn periods' cycles between them, as every step is
+   exact; one at the idle, or a pair across a whole repeat, has no such time. *)
+let limits
+  (lanes : Wavejson.Lane.t list)
+  edges
+  ~cycles_of
+  ~idle
+  ~(repeat : Wavejson.Repeat.t option)
+  =
+  let node c = List.find_map lanes ~f:(fun l -> String.index l.node c) in
+  List.filter_map edges ~f:(fun edge ->
+    let arrow =
+      String.drop_prefix edge 1 |> String.take_while ~f:(fun c -> String.mem "-~<>|+" c)
+    in
+    let rest = String.drop_prefix edge (1 + String.length arrow) in
+    if String.length edge < 2 || String.is_empty rest
+    then None
+    else (
+      let label = String.drop_prefix rest 1 |> String.strip in
+      Option.map (bounds label) ~f:(fun (least_ns, most_ns) ->
+        match node edge.[0], node rest.[0] with
+        | None, _ | _, None ->
+          outside [%message "an edge names a node no lane has" (edge : string)]
+        | Some a, Some b ->
+          let a, b = Int.min a b, Int.max a b in
+          if idle && a = 0
+          then
+            outside
+              [%message
+                "an edge from the idle, whose length is the host's" (edge : string)]
+          else if Option.exists repeat ~f:(fun r -> a < r.first && b > r.last)
+          then outside [%message "an edge across a whole repeat" (edge : string)]
+          else (
+            let ns = List.sum (module Int) (List.range a b) ~f:cycles_of * cycle_ns in
+            let holds =
+              Option.for_all least_ns ~f:(fun l -> Float.(of_int ns >= l))
+              && Option.for_all most_ns ~f:(fun m -> Float.(of_int ns <= m))
+            in
+            if holds
+            then Ok { Limit.edge; ns; least_ns; most_ns }
+            else
+              outside
+                [%message
+                  "the diagram's own limit does not hold"
+                    (edge : string)
+                    (ns : int)
+                    (least_ns : float option)
+                    (most_ns : float option)]))))
+  |> Result.all
+;;
+
 let compile (diagram : Wavejson.t) =
   let open Or_error.Let_syntax in
   let lanes =
@@ -577,6 +693,14 @@ let compile (diagram : Wavejson.t) =
     else Ok ()
   in
   let%bind () = check_cycles steps in
+  let%bind limits =
+    limits
+      lanes
+      diagram.edges
+      ~cycles_of
+      ~idle:(Option.is_some idle)
+      ~repeat:diagram.repeat
+  in
   let steps = Array.of_list steps in
   let offset = if Option.is_some idle then 1 else 0 in
   (* a pass's last step goes back to its head, which on the host's flag of 0 is the step
@@ -625,6 +749,7 @@ let compile (diagram : Wavejson.t) =
   ; words
   ; while_host
   ; read
+  ; limits
   }
 ;;
 
