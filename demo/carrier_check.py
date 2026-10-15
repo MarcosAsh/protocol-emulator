@@ -6,8 +6,9 @@
 # a count of its own while each analyser captures, which finds a probe on the wrong pin.
 # The flash breakout may be left out: a JEDEC ID of all 00 or ff is a SKIP.
 # demo/carrier_check.sh loads the bitstream, runs this, and puts the chip back.
+# --button-only checks SW1 alone, which waits for the owner's press.
 # Usage: PICO=id:<serial of Pico A> [PICO_B_SERIAL=<serial>] python3 demo/carrier_check.py
-#            [--analysers] [--no-button] [--evidence DIR]
+#            [--analysers] [--no-button | --button-only] [--evidence DIR]
 
 import argparse
 import ast
@@ -23,7 +24,6 @@ from pathlib import Path
 from typing import Callable
 
 import sigrok
-import traffic
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "python"))
@@ -59,10 +59,14 @@ PULL_UPS = [
 PULSED = [(8, 1), (10, 0), (12, 1), (36, 0), (26, 1), (22, 1), (3, 1), (28, 0), (18, 1),
           (37, 0), (33, 0), (35, 0)]
 ANALYSERS = {"A": "J2", "B": "J3"}
-# demo/capture.sh's start, as demo/ledger.py waits for it
-ARM_S = 3
-CAPTURE_MS = 6000
-BUTTON_MS = 15000
+# The analysers stop early, often within half a second, so Pico A repeats the pulses
+# for longer than a capture lasts and the check reads one whole train from the middle.
+# A train takes some 90 ms; inside one no net waits more than a couple of milliseconds.
+TRAINS, TRAIN_GAP_US, SPLIT_S = 60, 30_000, 0.015
+CAPTURE_MS = 8000
+BUTTON_MS = 120_000
+# Pico A's VSYS from USB: VBUS less its Schottky diode
+VSYS = (4.3, 5.5)
 
 
 def netlist(path=NETLIST):
@@ -168,7 +172,18 @@ def pull_ups(bench, r):
     return passed
 
 
-def pico_a(bench, r, button):
+def replug(bench, r):
+    """SW1 on Pico A's GP9, which only a press shows."""
+    a = bench.a
+    if a.pressed(9, 0):
+        r.line("FAIL", ["REPLUG"], "GP9 is low before any press: SW1 shorted")
+        return
+    bench.say("     press REPLUG (SW1, below Pico A) within %d s" % (BUTTON_MS // 1000))
+    r.check(a.pressed(9, BUTTON_MS), ["REPLUG"], "a press pulls Pico A GP9 low",
+            "no press reached GP9 in %d s: SW1 or its pads" % (BUTTON_MS // 1000))
+
+
+def pico_a(bench, r):
     a, pins = bench.a, bench.pins
     for gp in (6, 7, 8):
         a.let_go(gp)
@@ -194,15 +209,6 @@ def pico_a(bench, r, button):
     r.check(out == [1, 0] and back == [1, 0], ["USB_DETACH"],
             "Pico A GP8 and header 15 reach each other",
             "header 15 read %s for GP8 at 1 then 0, GP8 read %s back" % (out, back))
-    if not button:
-        r.line("SKIP", ["REPLUG"], "--no-button")
-        return
-    if a.pressed(9, 0):
-        r.line("FAIL", ["REPLUG"], "GP9 is low before any press: SW1 shorted")
-        return
-    bench.say("     press REPLUG (SW1, below Pico A) within %d s" % (BUTTON_MS // 1000))
-    r.check(a.pressed(9, BUTTON_MS), ["REPLUG"], "a press pulls Pico A GP9 low",
-            "no press reached GP9 in %d s: SW1 or its pads" % (BUTTON_MS // 1000))
 
 
 def pico_b(bench, r):
@@ -331,30 +337,68 @@ def ethernet(bench, r):
                    % (txp, txn))
 
 
+def edges(samples, channel):
+    """The sample index of each change on one channel."""
+    levels = samples.translate(bytes((b >> channel) & 1 for b in range(256)))
+    found = []
+    for pattern in (b"\x00\x01", b"\x01\x00"):
+        at = levels.find(pattern)
+        while at >= 0:
+            found.append(at)
+            at = levels.find(pattern, at + 1)
+    return sorted(found)
+
+
+def trains(rate, changes):
+    """The spans of the pulse trains in a capture, whole ones only: the first and last
+    may be cut by its ends."""
+    every = sorted(p for c in changes for p in c)
+    if not every:
+        return []
+    spans, start = [], every[0]
+    for before, after in zip(every, every[1:]):
+        if after - before > SPLIT_S * rate:
+            spans.append((start, before))
+            start = after
+    spans.append((start, every[-1]))
+    return spans[1:-1]
+
+
 def analysers(bench, r, nets, pads):
     """Each pulsed net gets count pulses, its place in PULSED; each channel must see its
-    net's. Analyser A's D0 to D3 are the host port's SPI, which only has to move."""
+    net's in one train. Analyser A's D0 to D3 are the host port's SPI, which only has to
+    move."""
     count = {}
     for i, (h, _) in enumerate(PULSED):
         count["CAN_RX" if h == 10 else pads["J1.%d" % h]] = i + 1
     plan = [(h, i + 1, level) for i, (h, level) in enumerate(PULSED)]
     whose = {n: net for net, n in count.items()}
     for name, header in ANALYSERS.items():
-        samples = bench.capture(name, lambda: bench.pins.pulses(plan))
-        for channel in range(8):
-            net = pads.get("%s.%d" % (header, channel + 1))
-            edges = traffic.line(samples, channel)[0]
+        rate, samples = bench.capture(
+            name, lambda: bench.pins.pulses(plan, TRAINS, TRAIN_GAP_US))
+        channel_nets = [pads.get("%s.%d" % (header, k + 1)) for k in range(8)]
+        changes = [edges(samples, k) for k in range(8)]
+        whole = trains(rate, [c for c, net in zip(changes, channel_nets) if net in count])
+        if not whole:
+            r.line("FAIL", [n for n in channel_nets if n in count],
+                   "analyser %s sent %.0f ms with no whole pulse train: it stops early, "
+                   "run again" % (name, 1000 * len(samples) / rate))
+            continue
+        start, end = whole[0]
+        for channel, net in enumerate(channel_nets):
             where = "analyser %s D%d" % (name, channel)
             if net not in count:
-                r.check(edges > 0, [net], "%s moves (%d edges)" % (where, edges),
+                r.check(len(changes[channel]) > 0, [net],
+                        "%s moves (%d edges)" % (where, len(changes[channel])),
                         "%s never moves: its probe" % where)
                 continue
+            seen = sum(start <= p <= end for p in changes[channel])
             want = count[net]
-            other = whose.get(edges // 2) if edges % 2 == 0 else None
-            got = "%s's %d pulses" % (other, edges // 2) if other else "no net's pulses"
-            r.check(edges == 2 * want, [net], "%s sees its %d pulses" % (where, want),
+            other = whose.get(seen // 2) if seen % 2 == 0 else None
+            got = "%s's %d pulses" % (other, seen // 2) if other else "no net's pulses"
+            r.check(seen == 2 * want, [net], "%s sees its %d pulses" % (where, want),
                     "%s sees %d edges, %s, not %s's %d: its probe" % (
-                        where, edges, got, net, want))
+                        where, seen, got, net, want))
 
 
 def run(bench, nets, button=True, with_analysers=False):
@@ -370,7 +414,7 @@ def run(bench, nets, button=True, with_analysers=False):
         pico_b(bench, r)
         shorts(bench, r, names)
         pulls = pull_ups(bench, r)
-        pico_a(bench, r, button)
+        pico_a(bench, r)
         rail_a = [eeprom(bench, r), ds18b20(bench, r), flash(bench, r)] + pulls[:4]
         rail_b = [can(bench, r), swd(bench, r), pulls[4]]
         ethernet(bench, r)
@@ -382,7 +426,17 @@ def run(bench, nets, button=True, with_analysers=False):
                 "nothing on 3V3_A answers: Pico A's pin 36 or the rail")
         r.check(any(rail_b), ["3V3_B"], "Pico B's 3V3 reaches CAN board B and R13",
                 "nothing on 3V3_B answers: Pico B's pin 36 or the rail")
-        r.line("SKIP", ["5V_A", "LED_5V"], "no pin reads it: D3 (red) lit says it is up")
+        volts = bench.a.vsys()
+        r.check(VSYS[0] <= volts <= VSYS[1], ["5V_A"],
+                "Pico A's VSYS reads %.2f V, so its VBUS (pin 40) is up; D3 (red) says it "
+                "reaches the carrier" % volts,
+                "Pico A's VSYS reads %.2f V, outside %.1f to %.1f V: its USB supply" % (
+                    volts, VSYS[0], VSYS[1]))
+        # last, as it waits for a press
+        if button:
+            replug(bench, r)
+        else:
+            r.line("SKIP", ["REPLUG"], "--no-button: demo/carrier_check.py --button-only")
     finally:
         bench.pins.idle()
         for gp in (6, 7, 8, 9):
@@ -454,16 +508,16 @@ class Remote:
 
 def capture_with(evidence):
     def capture(analyser, action):
+        """demo/capture.sh once, kept however short, while action runs."""
         path = evidence / ("analyser_%s.sr" % analyser)
         env = dict(os.environ, ANALYSER=analyser, RATE="1M", TRIES="1")
-        for _ in range(3):
-            done = subprocess.Popen(["demo/capture.sh", str(path), str(CAPTURE_MS)], cwd=ROOT,
-                                    env=env)
-            time.sleep(ARM_S)
-            action()
-            if done.wait() == 0:
-                return sigrok.read(path)[2]
-        raise RuntimeError("analyser %s stopped early three times" % analyser)
+        done = subprocess.Popen(["demo/capture.sh", str(path), str(CAPTURE_MS)], cwd=ROOT,
+                                env=env)
+        time.sleep(0.5)
+        action()
+        done.wait()
+        rate, _, samples = sigrok.read(path)
+        return rate, samples
 
     return capture
 
@@ -472,6 +526,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--analysers", action="store_true")
     parser.add_argument("--no-button", action="store_true")
+    parser.add_argument("--button-only", action="store_true",
+                        help="only SW1, on Pico A alone, any bitstream")
     parser.add_argument("--evidence", type=Path, default=Path.home() / (
         ".local/share/protocol-emulator/board-evidence/%s/carrier" % datetime.date.today()))
     args = parser.parse_args()
@@ -482,6 +538,14 @@ def main():
     args.evidence.mkdir(parents=True, exist_ok=True)
     source = (ROOT / "python/carrier_pins.py").read_text()
     a = Repl(serial_a)
+    if args.button_only:
+        a.exec(source)
+        a.exec("gpio = Gpio()")
+        r = Report(netlist()[0], lambda text: print(text, flush=True))
+        replug(Bench(None, Remote(a, "gpio"), None, None, r.say), r)
+        a.exec("gpio.let_go(9)")
+        a.close()
+        sys.exit(0 if r.count("PASS") else 1)
     try:
         b = Repl(serial_b)
     except RuntimeError:

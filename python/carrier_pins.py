@@ -93,12 +93,15 @@ class Pins:
         self.wait_us(max(length, sample) + after + 2)
         return self.frame()[1]
 
-    def pulses(self, plan):
-        """For each (header, count, level): count pulses of 20 us to level, each in a
-        frame of its own."""
-        for header, count, level in plan:
-            for _ in range(count):
-                self.slot(header, level, 20, 0, 40)
+    def pulses(self, plan, trains=1, gap_us=0):
+        """trains times, gap_us apart: for each (header, count, level), count pulses of
+        20 us to level, each in a frame of its own."""
+        for train in range(trains):
+            if train:
+                self.wait_us(gap_us)
+            for header, count, level in plan:
+                for _ in range(count):
+                    self.slot(header, level, 20, 0, 40)
 
     # SPI mode 0 on the flash's pins, all driven by the chip's side
     def spi(self, data, read=0):
@@ -244,6 +247,15 @@ class Gpio:
                 return False
             time.sleep_ms(5)
         return True
+
+    def vsys(self):
+        """VSYS in volts, a third of it on GP29 (ADC 3), eight reads averaged after the
+        first, which reads low after boot."""
+        from machine import ADC
+
+        adc = ADC(29)
+        adc.read_u16()
+        return round(sum(adc.read_u16() for _ in range(8)) / 8 * 3 * 3.3 / 65535, 2)
 
     def i2c_scan(self, sda, scl):
         """The addresses that ACK on I2C1 at 100 kHz, the pins let go after."""

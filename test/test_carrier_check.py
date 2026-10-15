@@ -23,6 +23,10 @@ OHMS = {"R2": 10e3, "R3": 10e3, "R4": 330, "R5": 2200, "R6": 2200, "R7": 4700, "
         "R16": 470, "R17": 1e3, "R18": 1e3, "R19": 1e3}
 # a pin driving, a pad's or Pico's pull, a CAN transceiver's own pull-up on D
 DRIVE, PULL, D_PULL = 30, 50e3, 100e3
+# three trains hold a whole one, and sixty take the model a minute
+carrier_check.TRAINS = 3
+# what a sample of the model's analysers stands for
+US_A_SAMPLE = 100
 ROM = [0x28, 0x7D, 0x50, 0x63, 0x79, 0x25, 0x0B, 0x3E]
 JEDEC = [0xEF, 0x40, 0x17]
 
@@ -284,7 +288,12 @@ class Carrier:
         self.recording = []
         action()
         samples, self.recording = bytes(self.recording), None
-        return samples
+        return 1e6 / US_A_SAMPLE, samples
+
+    def wait(self, us):
+        """Time on the analysers: the last sample again, one each US_A_SAMPLE."""
+        if self.recording:
+            self.recording += self.recording[-1:] * (us // US_A_SAMPLE)
 
 
 class Gpio:
@@ -316,6 +325,9 @@ class Gpio:
             return low
         return not self.read(gp)
 
+    def vsys(self):
+        return 5.0 if self.c.levels[self.c.pad["J14.1"]] else 0.4
+
     def i2c_scan(self, sda, scl):
         def line(gp, level):
             if level:
@@ -346,7 +358,7 @@ def check(carrier=None, button=True, analysers=False):
     """The run's verdict and its lines, each (status, nets)."""
     c = carrier or Carrier()
     said = []
-    bench = carrier_check.Bench(Pins(c.transfer), Gpio(c, "A"), Gpio(c, "B"), c.capture,
+    bench = carrier_check.Bench(Pins(c.transfer, c.wait), Gpio(c, "A"), Gpio(c, "B"), c.capture,
                                 said.append)
     for gp in (1, 2, 3, 6, 7):
         c.gpio["B"][gp] = ("in", "down")
@@ -372,7 +384,7 @@ class CarrierCheck(unittest.TestCase):
         self.assertTrue(any("the EEPROM ACKs at 0x50" in line for line in said))
         self.assertEqual(said[-1], "PASS")
         skipped = [line.split(" [")[0] for line in said if line.startswith("SKIP")]
-        self.assertEqual(skipped, ["SKIP NEO_3V3 NEO_5V NEO_DIN", "SKIP 5V_A LED_5V"])
+        self.assertEqual(skipped, ["SKIP NEO_3V3 NEO_5V NEO_DIN"])
 
     def test_no_flash(self):
         """The breakout left out: its SPI reads all zeros, a SKIP and not a FAIL."""
