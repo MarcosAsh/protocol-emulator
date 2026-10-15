@@ -101,6 +101,8 @@ let%expect_test "random programs on two engines in lockstep" =
     |> List.filter_opt
   in
   print_s [%message (failed : int list)];
+  if not (List.is_empty failed)
+  then raise_s [%message "random programs out of lockstep" (failed : int list)];
   [%expect {| (failed ()) |}]
 ;;
 

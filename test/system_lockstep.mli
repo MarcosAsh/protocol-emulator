@@ -42,7 +42,7 @@ val run
   -> Setup.t list
   -> System.t * Mismatch.t option
 
-(** [run], printing whether the two held together. *)
+(** [run], printing that the two held together, or raising at the first mismatch. *)
 val lockstep
   :  ?cycles:int
   -> ?host:(int -> Lockstep.Host.t list)

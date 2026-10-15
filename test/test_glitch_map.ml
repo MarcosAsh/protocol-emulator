@@ -79,7 +79,7 @@ let%expect_test "the sweep" =
       let model = model image in
       let rtl, mismatch = rtl image in
       Option.iter mismatch ~f:(fun mismatch ->
-        print_s [%message "MISMATCH" (k : int) (mismatch : System_lockstep.Mismatch.t)]);
+        raise_s [%message "MISMATCH" (k : int) (mismatch : System_lockstep.Mismatch.t)]);
       k, predict k, model, rtl)
   in
   List.group seen ~break:(fun (_, p, m, r) (_, p', m', r') ->

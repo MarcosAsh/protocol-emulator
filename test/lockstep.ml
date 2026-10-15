@@ -245,7 +245,7 @@ let lockstep
   (match mismatch with
    | None -> print_s [%message "lockstep held" (cycles : int)]
    | Some (cycle, expected, actual) ->
-     print_s [%message "MISMATCH" (cycle : int) (expected : State.t) (actual : State.t)]);
+     raise_s [%message "MISMATCH" (cycle : int) (expected : State.t) (actual : State.t)]);
   model
 ;;
 
@@ -291,5 +291,7 @@ let random_programs ?coverage ?(wrap = true) ?(stops = false) ~programs ~cycles 
         Some seed)
     |> List.filter_opt
   in
-  print_s [%message (programs : int) (failed : int list)]
+  print_s [%message (programs : int) (failed : int list)];
+  if not (List.is_empty failed)
+  then raise_s [%message "random programs out of lockstep" (failed : int list)]
 ;;

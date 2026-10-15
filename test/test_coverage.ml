@@ -37,7 +37,7 @@ let run
           react m)
         ()
     in
-    if Option.is_some mismatch then print_s [%message "MISMATCH" program]
+    if Option.is_some mismatch then raise_s [%message "MISMATCH" program]
 ;;
 
 let directed coverage =

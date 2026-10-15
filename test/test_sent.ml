@@ -134,6 +134,8 @@ let%expect_test "a frame arriving anywhere in the pause leaves 12 ticks or more"
   print_s
     [%message
       "" ~tick_ns:(tick * cycle_ns : int) (pauses : Measured.t) (failed : int list)];
+  if not (List.is_empty failed)
+  then raise_s [%message "frames failed" (failed : int list)];
   [%expect {| ((tick_ns 420) (pauses ((pause (5040 6320)))) (failed ())) |}]
 ;;
 
