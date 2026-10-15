@@ -343,7 +343,7 @@ let%expect_test "random programs on two engines with the add-ons in lockstep" =
     |> List.filter_opt
   in
   print_s [%message (failed : int list) (!routed : int)];
-  [%expect {| ((failed ()) (!routed 10)) |}]
+  [%expect {| ((failed ()) (!routed 9)) |}]
 ;;
 
 (* Engine 0 drives pin 12 and OUT0, then pulls from its empty fifo, while engine 1 toggles

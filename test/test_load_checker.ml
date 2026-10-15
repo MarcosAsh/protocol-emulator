@@ -168,7 +168,7 @@ let%expect_test "the checker agrees with the model on every firmware" =
     usb_device                   30426  accepted
     edge_meter                    8314  accepted
     ws2812                        9121  accepted
-    ethernet                      8781  accepted
+    ethernet                      9162  accepted
     one_wire                      9277  accepted
     ps2                           9304  accepted
     jtag                          8428  accepted
@@ -177,10 +177,11 @@ let%expect_test "the checker agrees with the model on every firmware" =
     sent                          9527  accepted
     cec                          10683  accepted
     asm/blink                     8251  accepted
+    asm/crc_send                  8377  accepted
     asm/data_stream               8254  accepted
     asm/edge_logger_echo          8401  accepted
     asm/edge_logger_wire          8320  accepted
-    asm/ethernet                  8781  accepted
+    asm/ethernet                  9162  accepted
     asm/fault_release             8192  accepted
     asm/i2c_master_marked         9751  accepted
     asm/i2c_start_watch           8308  accepted

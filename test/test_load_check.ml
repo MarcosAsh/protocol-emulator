@@ -76,7 +76,7 @@ let%expect_test "every firmware against the chip's walk" =
     usb_device                   470    501  accepted
     edge_meter                    12     10  accepted
     ws2812                        32     48  accepted
-    ethernet                      24     29  accepted
+    ethernet                      38     42  accepted
     one_wire                      48     49  accepted
     ps2                           65     40  accepted
     jtag                          15     15  accepted
@@ -85,10 +85,11 @@ let%expect_test "every firmware against the chip's walk" =
     sent                          83     58  accepted
     cec                           71     93  accepted
     asm/blink                      4      5  accepted
+    asm/crc_send                  12     12  accepted
     asm/data_stream                4      5  accepted
     asm/edge_logger_echo          13     11  accepted
     asm/edge_logger_wire           8      8  accepted
-    asm/ethernet                  24     29  accepted
+    asm/ethernet                  38     42  accepted
     asm/fault_release              7      2  accepted
     asm/i2c_master_marked         84     64  accepted
     asm/i2c_start_watch           10      7  accepted
