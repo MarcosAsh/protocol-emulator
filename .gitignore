@@ -64,3 +64,4 @@ formal/kernel_gates.aag
 formal/kernel_accepts_gates.aag
 test/icepi_netlist.v
 icepi/build
+formal/RM_IHPSG13_1P_512x16_c2_bm_bist.v

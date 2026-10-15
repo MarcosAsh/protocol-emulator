@@ -68,4 +68,4 @@ memory_map
 [files]
 engine_sram.v
 certificate.sv
-../src/RM_IHPSG13_1P_512x16_c2_bm_bist.v
+RM_IHPSG13_1P_512x16_c2_bm_bist.v

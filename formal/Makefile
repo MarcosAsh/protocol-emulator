@@ -303,11 +303,19 @@ teeth: engine.v engine_sram.v engines.v kernel_step.v osr_step.v
 # invariant no state satisfies, so it has to fail. So does a row moved a cycle, and a
 # receiver's capture a cycle older or younger, from reset. inductive_proof runs the proof alone,
 # on a certificate_$(NAME).sv written already, for CI, where make has no dune.
-inductive_certificate: engine_sram.v
+# inductive_write only writes the certificate (dune, laptop), so inductive_proof can run
+# on a box with neither: remote-run HOST formal make inductive_proof NAME=...
+MACRO = RM_IHPSG13_1P_512x16_c2_bm_bist.v
+$(MACRO):
+	cp ../src/$(MACRO) $@
+
+inductive_write: engine_sram.v $(MACRO)
 	(cd .. && dune exec -- test/certify/write_certificate.exe -inductive $(NAME)) > certificate_$(NAME).sv
+
+inductive_certificate: inductive_write
 	$(MAKE) inductive_proof NAME=$(NAME)
 
-inductive_proof:
+inductive_proof: $(MACRO)
 	cp certificate_$(NAME).sv certificate.sv
 	sby -f -d certificate_$(NAME)_inductive certificate_inductive.sby prove
 	sby -f -d certificate_$(NAME)_teeth certificate_inductive.sby teeth
@@ -328,11 +336,11 @@ inductive_proof:
 # shows on the pin, and the pin shows those bits: its certificate as above with that
 # claim added. Teeth: the stamp a cycle late has to fail from reset, and the pin showing
 # the next bit has to fail the step.
-stamped_certificate: engine_sram.v
+stamped_certificate: engine_sram.v $(MACRO)
 	(cd .. && dune exec -- test/certify/write_certificate.exe -inductive -stamped uart_tx_stamped) > certificate_stamped.sv
 	$(MAKE) stamped_proof
 
-stamped_proof:
+stamped_proof: $(MACRO)
 	cp certificate_stamped.sv certificate.sv
 	sby -f -d certificate_stamped_inductive certificate_inductive.sby prove
 	sby -f --prefix certificate_stamped certificate_inductive.sby teeth off_by_one next_bit
@@ -342,11 +350,11 @@ stamped_proof:
 # of write_certificate.ml added. Teeth: the pins showing the bit after the one sent has to
 # fail.
 DATA = uart_tx uart_tx16 uart_tx_host_rate spi_master jtag
-data_certificate: engine_sram.v
+data_certificate: engine_sram.v $(MACRO)
 	(cd .. && dune exec -- test/certify/write_certificate.exe -inductive -data $(NAME)) > certificate_data_$(NAME).sv
 	$(MAKE) data_proof NAME=$(NAME)
 
-data_proof:
+data_proof: $(MACRO)
 	cp certificate_data_$(NAME).sv certificate.sv
 	sby -f -d certificate_data_$(NAME)_inductive certificate_inductive.sby prove
 	sby -f --prefix certificate_data_$(NAME) certificate_inductive.sby teeth next_bit
@@ -829,7 +837,7 @@ proof_bundle_tooth:
   phase_table_proof phase_table_affine phase_table_affine_proof phase_spacing \
   phase_spacing_proof edge_step event_step frame_step value_step chip_frame fail_safe \
   fail_safe_teeth fail_safe_table fail_safe_table_proof data_step teeth \
-  inductive_certificate inductive_proof inductive_certificates inductive_names \
+  inductive_write inductive_certificate inductive_proof inductive_certificates inductive_names \
   stamped_certificate stamped_proof data_certificate data_proof data_certificates data_names \
   netlist_equiv netlist_equiv_teeth netlist_anystate netlist_anystate_teeth \
   sync_rtl sync_gate sync_rtl_teeth sync_gate_teeth \
