@@ -29,7 +29,7 @@ proofs() {
 # the cocotb tests on the committed Verilog and what they import, not the OCaml or the
 # scripts CI runs elsewhere
 rtl() {
-  changed src test python demo info.yaml ':!*.ml' ':!*.mli' ':!**/dune' ':!*.md' ':!*.sh' \
+  changed src test python demo info.yaml icepi/carrier_check.v ':!*.ml' ':!*.mli' ':!**/dune' ':!*.md' ':!*.sh' \
     ':!test/assemble' ':!test/certify' ':!test/split' ':!test/python' ':!test/results.py' \
     ':!test/check_docs.py' ':!test/mutate.py' ':!test/mutation_allow.txt' \
     ':!test/heldout.sha256' ':!test/evidence.py' ':!test/evidence.sha256'

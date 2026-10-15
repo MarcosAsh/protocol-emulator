@@ -153,6 +153,14 @@ tolerance_bench:
 		COCOTB_RESULTS_FILE=results_tolerance_bench.xml
 	$(PYTHON_BIN) -m cocotb_tools.check_results results_tolerance_bench.xml
 
+# icepi/carrier_check.v, the bench carrier's self-test bitstream, on its own pulls:
+# make carrier_check
+carrier_check:
+	$(MAKE) sim TOPLEVEL=tb_carrier_check SIM_BUILD=sim_build/carrier_check CUSTOM_SIM_DEPS= \
+		VERILOG_SOURCES="$(CURDIR)/tb_carrier_check.v $(CURDIR)/../icepi/carrier_check.v" \
+		COCOTB_TEST_MODULES=test_carrier_bitstream COCOTB_RESULTS_FILE=results_carrier_check.xml
+	$(PYTHON_BIN) -m cocotb_tools.check_results results_carrier_check.xml
+
 # Replays the pin traces in traces/, recorded from the OCaml simulation of the top, on
 # whichever netlist the mode selects: make replay, make replay GATES=yes, FPGA=yes or
 # ICEPI=yes.

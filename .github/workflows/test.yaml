@@ -53,6 +53,7 @@ jobs:
           # make succeeds even when a test fails, so check results.xml
           ! grep failure results.xml
           make replay
+          make carrier_check
 
       - name: Test Summary
         uses: test-summary/action@v2.4

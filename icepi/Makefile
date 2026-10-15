@@ -44,7 +44,28 @@ prog: $(BUILD)/$(NAME).bit
 flash: $(BUILD)/$(NAME).bit
 	openFPGALoader -b icepi-zero --write-flash $<
 
+# The bench carrier's self-test in place of the chip (carrier_check.v, demo/carrier_check.sh):
+# make check-prog loads it into SRAM only, so openFPGALoader -r brings the chip back.
+CHECK = $(BUILD)/$(REV)-carrier-check
+
+check: $(CHECK).bit
+
+$(BUILD)/carrier_check.json: carrier_check.v
+	mkdir -p $(BUILD)
+	yosys -q -l $(BUILD)/carrier_check.log -p "read_verilog carrier_check.v; synth_ecp5 -top carrier_check -json $@"
+
+$(CHECK).config: $(BUILD)/carrier_check.json header.lpf carrier_check.lpf $(REV).lpf
+	nextpnr-ecp5 --25k --package CABGA256 --speed 6 --json $< --lpf header.lpf \
+		--lpf carrier_check.lpf --lpf $(REV).lpf --freq 50 --seed $(SEED) --textcfg $@ \
+		--log $(CHECK).log -q
+
+$(CHECK).bit: $(CHECK).config
+	ecppack --compress --input $< --bit $@
+
+check-prog: $(CHECK).bit
+	openFPGALoader -b icepi-zero $<
+
 clean:
 	rm -rf $(BUILD)
 
-.PHONY: bit prog flash clean
+.PHONY: bit prog flash check check-prog clean
