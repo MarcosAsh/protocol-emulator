@@ -533,10 +533,11 @@ netlist_equiv:
 	grep 'Status = $(EXPECT) ' $(EQUIV)/proof.log
 
 # mutants that must be refuted: macro enables swapped, uio_oe[0] inverted, a reset
-# synchroniser untied, and the RTL as written with the host port's state held, with the
-# load checker's reset into Header, not Idle, and with its state held; the last four's
-# counterexamples must pass the first cycle. The last one's is 57 cycles deep, past what
-# dprove's own BMC reaches, so BMC alone looks for it.
+# synchroniser untied, and the RTL as written with the host port's state held and with the
+# load checker's reset into Header, not Idle; the last three's counterexamples must pass
+# the first cycle. The held state's is 35 cycles deep, past what dprove's own BMC reaches,
+# so BMC alone looks for it. The load checker's state held is no tooth: it first moves in
+# a checker turn, 65,536 cycles from the clear, past any BMC.
 netlist_equiv_teeth:
 	mkdir -p netlist_equiv_teeth
 	sed '/ RM_IHPSG13_1P_512x16_c2_bm_bist \\core\.top\.engines\.data_memory\.sram_macro\.sram /,/;$$/'\
@@ -548,15 +549,13 @@ netlist_equiv_teeth:
 	$(MAKE) netlist_equiv NETLIST=netlist_equiv_teeth/flip.v EQUIV=netlist_equiv_flip EXPECT=0
 	$(MAKE) netlist_equiv NETLIST=netlist_equiv_teeth/unreset.v EQUIV=netlist_equiv_unreset EXPECT=0
 	grep 'No output asserted in 1 frames' netlist_equiv_unreset/proof.log
-	$(MAKE) netlist_equiv_held HELD_ONE=host_port/sm
+	$(MAKE) netlist_equiv_held HELD_ONE=host_port/sm ENGINE='bmc3 -T 600'
 	grep 'No output asserted in 1 frames' netlist_equiv_held_host_port_sm/proof.log
 	sed -E '/^module load_checker /,/^endmodule/s/^( *sm <= )signal_const_[0-9]+;/\1 1;/' \
 	  ../src/protocol_emulator.v > netlist_equiv_teeth/header.v
 	test $$(diff ../src/protocol_emulator.v netlist_equiv_teeth/header.v | grep -c '^>') = 1
 	$(MAKE) netlist_equiv WRITTEN=netlist_equiv_teeth/header.v EQUIV=netlist_equiv_header EXPECT=0
 	grep 'No output asserted in 1 frames' netlist_equiv_header/proof.log
-	$(MAKE) netlist_equiv_held HELD_ONE=load_checker/sm ENGINE='bmc3 -T 600'
-	grep 'No output asserted in 1 frames' netlist_equiv_held_load_checker_sm/proof.log
 
 # the RTL as written with one recoded machine's state held, against the netlist:
 #   make netlist_equiv_held HELD_ONE=host_port/sm NETLIST=...
