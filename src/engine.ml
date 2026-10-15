@@ -924,7 +924,8 @@ module Make (Timer : Timer) = struct
       }
     in
     let fault = Fault.map faulting ~f:sticky in
-    (* every fault in one flop, so a gate on any fault starts at a flop and not at their OR *)
+    (* every fault in one flop, so a gate on any fault starts at a flop and not at their
+       OR *)
     let%hw faulted = sticky (Fault.to_list faulting |> reduce ~f:( |: )) in
     let%hw pushed = op_go &: pushes &: ~:rx_full in
     let%hw push_value = mux2 (is In) isr_shifted isr in
