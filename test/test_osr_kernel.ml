@@ -300,57 +300,72 @@ let%expect_test "the check refuses a row one short" =
     |}]
 ;;
 
-(* Brute force: for a word that leaves x alone, the image's shifted bounds are exactly the
-   least and greatest counts the core steps to from a state the row and x's bounds allow,
-   where the sum less x narrows the row's own. *)
-let%expect_test "an image's shifted bounds are the hull of the counts the core reaches" =
+(* Brute force: for a word that leaves x alone or counts it down, on each way out, the
+   image's shifted bounds are exactly the least and greatest counts the core steps to from
+   a state the row and x's bounds allow there: the sum less x narrows the row's own, a
+   [jmp x--] is taken only from x at 1 or more and falls through only from 0. Its sum
+   bounds are exact too where every sum in the row's is reached. *)
+let%expect_test "an image's bounds are the hull of the states the core reaches" =
   let module O = Osr_kernel.Make (Bits) in
   let side_set_count = Bits.zero 2 in
   let autopull = Bits.gnd in
   let pull_threshold = Bits.zero Isa.count_bits in
+  let width = Osr_kernel.Row.port_widths in
   let of_int n ~width = Bits.of_unsigned_int ~width n in
-  let pair = Quickcheck.Generator.both (Int.gen_incl 0 12) (Int.gen_incl 0 12) in
-  List.iter [ "set y, 0"; "out pins, 3" ] ~f:(fun source ->
-    let word =
-      Asm.assemble source
-      |> ok_exn
-      |> Asm.Program.words
-      |> ok_exn
-      |> List.hd_exn
-      |> of_int ~width:Isa.data_bits
-    in
-    Quickcheck.test
-      ~trials:2000
-      (Quickcheck.Generator.tuple3
-         pair
-         (Quickcheck.Generator.both (Int.gen_incl 0 24) (Int.gen_incl 0 24))
-         pair)
-      ~f:(fun ((shifted_lo, shifted_hi), (sum_lo, sum_hi), (x_lo, x_hi)) ->
-        let reached =
-          List.concat_map
-            (List.range shifted_lo (shifted_hi + 1))
-            ~f:(fun shifted ->
-              List.filter_map
-                (List.range x_lo (x_hi + 1))
-                ~f:(fun x ->
-                  if shifted + x < sum_lo || shifted + x > sum_hi
-                  then None
-                  else (
-                    let s =
-                      O.step
-                        ~side_set_count
-                        ~autopull
-                        ~pull_threshold
-                        ~word
-                        ~shifted:
-                          (of_int shifted ~width:Osr_kernel.Row.port_widths.shifted_lo)
-                        ~pulled:Bits.gnd
-                    in
-                    Some (Bits.to_unsigned_int s.next_shifted))))
-        in
-        if not (List.is_empty reached)
-        then (
-          let width = Osr_kernel.Row.port_widths in
+  (* bounds in order, as a row that is not empty has them *)
+  let range top =
+    Quickcheck.Generator.map
+      (Quickcheck.Generator.both (Int.gen_incl 0 top) (Int.gen_incl 0 top))
+      ~f:(fun (a, b) -> Int.min a b, Int.max a b)
+  in
+  let hull = function
+    | [] -> None
+    | v :: rest -> Some (List.fold rest ~init:(v, v) ~f:(fun (lo, hi) n -> Int.min lo n, Int.max hi n))
+  in
+  List.iter
+    [ "set y, 0", false, Fn.const true, Fn.id
+    ; "out pins, 3", false, Fn.const true, Fn.id
+    ; "jmp x--, 0", true, (fun x -> x > 0), (fun x -> x - 1)
+    ; "jmp x--, 0", false, (fun x -> x = 0), Fn.const 0xffff
+    ]
+    ~f:(fun (source, taken, goes, next_x) ->
+      let word =
+        Asm.assemble source
+        |> ok_exn
+        |> Asm.Program.words
+        |> ok_exn
+        |> List.hd_exn
+        |> of_int ~width:Isa.data_bits
+      in
+      Quickcheck.test
+        ~trials:2000
+        (Quickcheck.Generator.tuple3 (range 12) (range 24) (range 12))
+        ~f:(fun ((shifted_lo, shifted_hi), (sum_lo, sum_hi), (x_lo, x_hi)) ->
+          (* each state the row allows that leaves this way: its sum, and the count and
+             sum after *)
+          let reached =
+            List.concat_map
+              (List.range shifted_lo (shifted_hi + 1))
+              ~f:(fun shifted ->
+                List.filter_map
+                  (List.range x_lo (x_hi + 1))
+                  ~f:(fun x ->
+                    let sum = shifted + x in
+                    if sum < sum_lo || sum > sum_hi || not (goes x)
+                    then None
+                    else (
+                      let s =
+                        O.step
+                          ~side_set_count
+                          ~autopull
+                          ~pull_threshold
+                          ~word
+                          ~shifted:(of_int shifted ~width:width.shifted_lo)
+                          ~pulled:Bits.gnd
+                      in
+                      let next = Bits.to_unsigned_int s.next_shifted in
+                      Some (sum, next, next + next_x x))))
+          in
           let image =
             O.image
               ~side_set_count
@@ -366,22 +381,36 @@ let%expect_test "an image's shifted bounds are the hull of the counts the core r
                 ; sum_hi = of_int sum_hi ~width:width.sum_hi
                 ; pulled = Bits.gnd
                 }
-              ~taken:false
+              ~taken
           in
-          let least, greatest =
-            List.fold reached ~init:(Int.max_value, Int.min_value) ~f:(fun (lo, hi) n ->
-              Int.min lo n, Int.max hi n)
+          let bounds lo hi = Bits.to_unsigned_int lo, Bits.to_unsigned_int hi in
+          let message =
+            [%string
+              "%{source}, taken %{taken#Bool}: shifted %{shifted_lo#Int}..%{shifted_hi#Int}, \
+               sum %{sum_lo#Int}..%{sum_hi#Int}, x %{x_lo#Int}..%{x_hi#Int}"]
           in
-          [%test_result: int * int]
-            (Bits.to_unsigned_int image.shifted_lo, Bits.to_unsigned_int image.shifted_hi)
-            ~expect:(least, greatest)
-            ~message:
-              [%string
-                "%{source}: shifted %{shifted_lo#Int}..%{shifted_hi#Int}, sum \
-                 %{sum_lo#Int}..%{sum_hi#Int}, x %{x_lo#Int}..%{x_hi#Int}"]));
-    printf "%s: exact\n" source);
+          Option.iter
+            (hull (List.map reached ~f:(fun (_, next, _) -> next)))
+            ~f:(fun expect ->
+              [%test_result: int * int]
+                (bounds image.shifted_lo image.shifted_hi)
+                ~expect
+                ~message:("shifted, " ^ message));
+          let sums = List.map reached ~f:(fun (sum, _, _) -> sum) in
+          if List.for_all (List.range sum_lo (sum_hi + 1)) ~f:(List.mem sums ~equal:( = ))
+          then
+            Option.iter
+              (hull (List.map reached ~f:(fun (_, _, next_sum) -> next_sum)))
+              ~f:(fun expect ->
+                [%test_result: int * int]
+                  (bounds image.sum_lo image.sum_hi)
+                  ~expect
+                  ~message:("sum, " ^ message)));
+      printf "%s%s: exact\n" source (if taken then " taken" else ""));
   [%expect {|
     set y, 0: exact
     out pins, 3: exact
+    jmp x--, 0 taken: exact
+    jmp x--, 0: exact
     |}]
 ;;
