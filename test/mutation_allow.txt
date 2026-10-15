@@ -3,6 +3,7 @@ src/engine.ml ## greater ## (s >:. data_bits) ## both arms of the saturation giv
 src/decoder.ml ## constant one ## if n = 1 lsl width raw then vdd else raw <:. n ## no enum checked here fills its field now that the jump condition is 12 of 16, so the branch is never built
 src/host_fifo.ml ## int plus one ## let level_bits = Int.ceil_log2 (depth + 1) ## at a depth of 8, ceil_log2 of 9 and of 10 are both 4
 src/host_spi.ml ## constant zero ## @@ mux2 sck_fall (d.:[6, 0] @: gnd) d) ## the filled bit never reaches the msb, as tx_byte reloads at every byte boundary after seven shifts
+src/data_memory.ml ## drop other enable ## let%hw last = reg spec ~enable:mine dout in ## two cycles running that are not an engine's turn come only during writes or after a clear, when every engine is halted, and else the cycle before is its turn and dout then is last
 src/analyser.ml ## bool false ## if Option.value_map s.osr_count.lo ~default:false ~f:(fun lo -> ## osr_count always has both ends: it starts exact, a pull sets 0 and shift_out sets both
 src/analyser.ml ## bool true ## else if Option.value_map s.osr_count.hi ~default:true ~f:(fun hi -> ## osr_count always has both ends: it starts exact, a pull sets 0 and shift_out sets both
 src/analyser.ml ## int subtract to add ## (program_size - List.length program) ## a longer padding is never reached, as every pc is taken modulo the program size
