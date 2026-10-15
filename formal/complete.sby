@@ -1,0 +1,154 @@
+[tasks]
+prove built
+cover built
+short_cover short
+next_phase teeth
+off_by_one teeth
+stall teeth
+
+[options]
+prove: mode prove
+prove: depth 3
+cover: mode cover
+cover: depth 40
+short_cover: mode cover
+short_cover: depth 80
+teeth: mode bmc
+teeth: depth 30
+teeth: expect fail
+
+[engines]
+smtbmc boolector
+
+[script]
+built: read_verilog engines_gated.v
+short: read_verilog short.v
+next_phase: read_verilog next_phase.v
+off_by_one: read_verilog off_by_one.v
+stall: read_verilog stall.v
+hierarchy -top load_checker
+proc
+flatten
+cd load_checker
+expose w:sm w:purpose w:source w:pc w:following w:jump_target w:next_fails w:target_fails w:next_reason w:target_reason w:falls_to_next w:is_jump
+expose w:k w:field w:sel w:count w:wide_count w:entry w:acc w:reading w:wait w:lo w:hi w:ptr w:mid w:key w:entry_tag w:stored w:read_done w:word w:data_addr
+expose w:checked_captured w:checked_awaiting
+expose w:setup$base_0 w:setup$loaded$valid_0 w:setup$loaded$value_0 w:setup$single_edge_0
+rename setup$base_0 walk_base
+rename setup$loaded$valid_0 walk_loaded_valid
+rename setup$loaded$value_0 walk_loaded_value
+rename setup$single_edge_0 walk_single_edge
+rename data_addr walk_addr
+rename wait read_wait
+expose w:failed_next$phase
+rename failed_next$phase failed_next_phase
+expose w:failed_next$offset
+rename failed_next$offset failed_next_offset
+expose w:failed_next$period
+rename failed_next$period failed_next_period
+expose w:failed_next$x
+rename failed_next$x failed_next_x
+expose w:failed_next$y
+rename failed_next$y failed_next_y
+expose w:failed_next$arm
+rename failed_next$arm failed_next_arm
+expose w:failed_next$captured
+rename failed_next$captured failed_next_captured
+expose w:failed_next$awaiting
+rename failed_next$awaiting failed_next_awaiting
+expose w:failed_next$edge_a
+rename failed_next$edge_a failed_next_edge_a
+expose w:failed_next$edge_b
+rename failed_next$edge_b failed_next_edge_b
+expose w:failed_target$phase
+rename failed_target$phase failed_target_phase
+expose w:failed_target$offset
+rename failed_target$offset failed_target_offset
+expose w:failed_target$period
+rename failed_target$period failed_target_period
+expose w:failed_target$x
+rename failed_target$x failed_target_x
+expose w:failed_target$y
+rename failed_target$y failed_target_y
+expose w:failed_target$arm
+rename failed_target$arm failed_target_arm
+expose w:failed_target$captured
+rename failed_target$captured failed_target_captured
+expose w:failed_target$awaiting
+rename failed_target$awaiting failed_target_awaiting
+expose w:failed_target$edge_a
+rename failed_target$edge_a failed_target_edge_a
+expose w:failed_target$edge_b
+rename failed_target$edge_b failed_target_edge_b
+expose w:row$phase_lo
+rename row$phase_lo row_phase_lo
+expose w:fell$phase_lo
+rename fell$phase_lo fell_phase_lo
+expose w:row$phase_hi
+rename row$phase_hi row_phase_hi
+expose w:fell$phase_hi
+rename fell$phase_hi fell_phase_hi
+expose w:row$offset_lo
+rename row$offset_lo row_offset_lo
+expose w:fell$offset_lo
+rename fell$offset_lo fell_offset_lo
+expose w:row$offset_hi
+rename row$offset_hi row_offset_hi
+expose w:fell$offset_hi
+rename fell$offset_hi fell_offset_hi
+expose w:row$arm_lo
+rename row$arm_lo row_arm_lo
+expose w:fell$arm_lo
+rename fell$arm_lo fell_arm_lo
+expose w:row$arm_hi
+rename row$arm_hi row_arm_hi
+expose w:fell$arm_hi
+rename fell$arm_hi fell_arm_hi
+expose w:row$period_lo
+rename row$period_lo row_period_lo
+expose w:fell$period_lo
+rename fell$period_lo fell_period_lo
+expose w:row$period_hi
+rename row$period_hi row_period_hi
+expose w:fell$period_hi
+rename fell$period_hi fell_period_hi
+expose w:row$x_lo
+rename row$x_lo row_x_lo
+expose w:fell$x_lo
+rename fell$x_lo fell_x_lo
+expose w:row$x_hi
+rename row$x_hi row_x_hi
+expose w:fell$x_hi
+rename fell$x_hi fell_x_hi
+expose w:row$y_lo
+rename row$y_lo row_y_lo
+expose w:fell$y_lo
+rename fell$y_lo fell_y_lo
+expose w:row$y_hi
+rename row$y_hi row_y_hi
+expose w:fell$y_hi
+rename fell$y_hi fell_y_hi
+expose w:row$captured
+rename row$captured row_captured
+expose w:fell$captured
+rename fell$captured fell_captured
+expose w:row$awaiting
+rename row$awaiting row_awaiting
+expose w:fell$awaiting
+rename fell$awaiting fell_awaiting
+cd ..
+read_verilog load_check_step.v
+short: read -define SHORT_WALK
+teeth: read -define NO_INVARIANT
+read_verilog -formal -sv complete.sv
+prep -top complete
+flatten
+
+[files]
+engines_gated.v
+complete_teeth/short.v
+complete_teeth/next_phase.v
+complete_teeth/off_by_one.v
+complete_teeth/stall.v
+load_check_step.v
+complete.sv
