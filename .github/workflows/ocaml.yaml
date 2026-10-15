@@ -244,7 +244,69 @@ jobs:
           opam exec -- dune exec -- bin/generate.exe memory -sram > formal/memory_sram.v
           opam exec -- dune exec -- bin/generate.exe kernel-gates > formal/kernel_gates.aag
           opam exec -- dune exec -- bin/generate.exe kernel-gates -accepts > formal/kernel_accepts_gates.aag
-          make -C formal issue_timing host_timing late_host fifo_order phase_step edge_step event_step frame_step value_step narrow_proof chip_frame fail_safe isolation_proof data_step teeth fsm_miter_proof sram_equiv_proof kernel_equiv_proof sync_rtl sync_rtl_teeth powerup
+          make -C formal issue_timing host_timing late_host fifo_order unreachable phase_step edge_step event_step frame_step value_step narrow_proof chip_frame fail_safe isolation_proof data_step teeth fsm_miter_proof sram_equiv_proof kernel_equiv_proof sync_rtl sync_rtl_teeth powerup
+
+  # Hardcaml's cyclesim coverage of src/ over every test, which reruns them, so it runs
+  # beside the test job. Each point the tests leave open is in test/coverage_triage.txt
+  # with its reason, and a new one fails (test/check_coverage.py).
+  coverage:
+    needs: changes
+    if: needs.changes.outputs.tests == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Set up OxCaml
+        uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: ocaml-variants.5.2.0+ox
+          opam-repositories: |
+            ox: https://github.com/oxcaml/opam-repository.git
+            default: https://opam.ocaml.org
+
+      - name: Cache the switch
+        uses: actions/cache@v4
+        with:
+          path: _opam
+          key: opam-${{ runner.os }}-${{ runner.arch }}-5.2.0+ox-test-${{ hashFiles('protocol_emulator.opam.locked') }}
+
+      - name: Install dependencies
+        run: opam install . --deps-only --with-test --locked
+
+      # the tests' checked QEDs need them, as in the test job
+      - name: Key the SAT tools
+        id: sat_key
+        run: echo "key=sat-tools-$(sed -n '/^CADICAL = /,/^$/p' formal/Makefile | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the SAT tools
+        id: sat_tools
+        uses: actions/cache@v4
+        with:
+          path: formal/sat_tools/bin
+          key: ${{ steps.sat_key.outputs.key }}
+
+      - name: Build the SAT tools
+        run: |
+          [ "${{ steps.sat_tools.outputs.cache-hit }}" = true ] || make -C formal sat_tools
+          echo "$PWD/formal/sat_tools/bin" >> "$GITHUB_PATH"
+
+      - name: Check coverage
+        run: |
+          status=0
+          opam exec -- dune build @test/coverage > coverage_check.txt 2>&1 || status=$?
+          cat coverage_check.txt
+          { echo '```'; cat coverage_check.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          exit $status
+
+      - name: Upload the coverage report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage
+          path: |
+            _build/default/test/coverage/
+            coverage_check.txt
 
   # the pin traces judged by sigrok's protocol decoders, which we did not write: at the
   # chip's clock and as a 24 MHz analyser samples them, each with its teeth, and once
