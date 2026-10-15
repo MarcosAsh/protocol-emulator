@@ -12,9 +12,17 @@ module Source = struct
   let to_string { file; line; named = _ } = [%string "%{file}:%{line#Int}"]
 end
 
+(* [Caller_id] has no getter, so put back the mode Hardcaml starts in: cyclesim coverage
+   keeps a trace per signal to name its holes *)
 let traced f =
+  let ambient : Caller_id.Mode.t =
+    if Option.is_some (Sys.getenv "HARDCAML_CYCLESIM_COVERAGE")
+       || Option.is_some (Sys.getenv "HARDCAML_CYCLESIM_COVERAGE_VERBOSE")
+    then Coverage_filtered_trace
+    else Disabled
+  in
   Caller_id.set_mode Full_trace;
-  Exn.protect ~f ~finally:(fun () -> Caller_id.set_mode Disabled)
+  Exn.protect ~f ~finally:(fun () -> Caller_id.set_mode ambient)
 ;;
 
 (* [@@deriving hardcaml] code sits at the record field it maps, so a signal an interface's
