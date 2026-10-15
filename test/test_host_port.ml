@@ -288,6 +288,54 @@ let%expect_test "select routes every register but the program address" =
     |}]
 ;;
 
+(* every bit of every engine's config, of the select and of the data address set and then
+   cleared, with the third engine read through the select *)
+let%expect_test "every config bit goes both ways on every engine" =
+  Three.run ~half:4 (fun m ~watch inputs o ->
+    List.iteri inputs.status ~f:(fun n status ->
+      status.halted := Bits.vdd;
+      status.pc <--. 0x100 + n;
+      status.rx_head <--. 0xbe00 + n);
+    let widths = Engine.Config.to_list Engine.Config.port_widths in
+    let sweep value =
+      List.iter [ 0; 1; 2 ] ~f:(fun n ->
+        Spi_master.write m ~watch Reg.select [ n ];
+        List.iter Reg.configs ~f:(fun reg -> Spi_master.write m ~watch reg [ value ])
+        [@nontail])
+      [@nontail];
+      Spi_master.write m ~watch Reg.data_addr [ value ];
+      let data_addr = Spi_master.read m ~watch Reg.data_addr ~count:1 in
+      let pc = Spi_master.read m ~watch Reg.pc ~count:1 in
+      let rx = Spi_master.read m ~watch Reg.rx ~count:1 in
+      let all_set =
+        List.map o.engines ~f:(fun e ->
+          List.for_all2_exn widths (Engine.Config.to_list e.config) ~f:(fun width r ->
+            Bits.to_unsigned_int !r = value land ((1 lsl width) - 1)))
+      in
+      print_s
+        [%message
+          (value : Int.Hex.t)
+            (all_set : bool list)
+            (data_addr : int list)
+            (pc : int list)
+            (rx : int list)]
+    in
+    sweep 0xffff;
+    sweep 0;
+    Spi_master.write m ~watch Reg.select [ 0 ];
+    let select = Spi_master.read m ~watch Reg.select ~count:1 in
+    print_s [%message (select : int list)]);
+  [%expect
+    {|
+    ((value 0xffff) (all_set (true true true)) (data_addr (511)) (pc (258))
+     (rx (48642)))
+    ((value 0x0) (all_set (true true true)) (data_addr (0)) (pc (258))
+     (rx (48642)))
+    (select (0))
+    (events ("2: rx_pop" "2: rx_pop"))
+    |}]
+;;
+
 let%expect_test "waveform of a control write" =
   let display_rules =
     [ Display_rule.port_name_is "host_port$sm" ~wave_format:(Index Host_port.State.names)
