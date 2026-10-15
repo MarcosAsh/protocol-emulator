@@ -54,6 +54,7 @@ uart)
 import time
 port = UART(0, baudrate=$baud, tx=Pin(0), rx=Pin(1))
 port.read()
+print('listening')
 got = b''
 start = time.ticks_ms()
 while time.ticks_diff(time.ticks_ms(), start) < 3000:
@@ -61,10 +62,10 @@ while time.ticks_diff(time.ticks_ms(), start) < 3000:
     time.sleep_ms(5)
 print(' '.join('%02x' % b for b in got))" > "$evidence/uart_$baud.pico_b" &
         listener=$!
-        sleep 0.5
+        until grep -q listening "$evidence/uart_$baud.pico_b"; do sleep 0.1; done
         run "uart_$baud" 2500 A "'uart', $baud"
         wait $listener
-        echo "Pico B at $baud: $(cat "$evidence/uart_$baud.pico_b")"
+        echo "Pico B at $baud: $(tail -n 1 "$evidence/uart_$baud.pico_b")"
         sigrok-cli -i "$evidence/uart_$baud.sr" -P uart:rx=D4:baudrate=$baud -A uart=rx-data \
             | tee "$evidence/uart_$baud.decode"
     done
