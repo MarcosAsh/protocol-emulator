@@ -1340,3 +1340,57 @@ let%expect_test "the reaction bound rests on the single-edge assumption" =
      (premise ((arms 19) (at_captured_level 19) (left_captured_level 0))))
     |}]
 ;;
+
+(* [Kernel.Table.with_edges] stops following the marks round a loop once a pc has joined
+   [widen_after] times. For each firmware under its spacing, the fewest joins that lose
+   nothing, as every more lose nothing too. *)
+let%expect_test "edge bounds are widened only where they have not settled by widen_after" =
+  List.iter
+    [ "i2c_master", Library.find_certified_exn "i2c_master", fast_mode_plus
+    ; "uart_tx_host_rate", at_period "uart_tx_host_rate" 1600, uart_bits midi_bit
+    ; "can", at_period "can" 400, can_bits can_bit
+    ; "ps2", at_period "ps2" 1000, ps2 ()
+    ; "one_wire", at_period "one_wire" 300, one_wire ()
+    ; "ws2812", ws2812_at 20, ws2812 ()
+    ]
+    ~f:(fun (name, (c : Certified.t), spacing) ->
+      let program, config = assemble c in
+      let words = Asm.Program.words program |> ok_exn in
+      let single_capture_edge = c.single_capture_edge in
+      let table =
+        Analyser.analyse
+          ?period:c.period
+          ~single_capture_edge
+          ~config
+          program.instructions
+        |> Kernel.Table.of_analyser
+      in
+      let edges widen_after =
+        Kernel.Table.with_edges
+          ~single_capture_edge
+          ~widen_after
+          table
+          ~config
+          ~spacing:(Kernel.Spacing.of_spec config spacing)
+          ~words
+        |> [%sexp_of: Bits.t Kernel.Row.t array]
+        |> Sexp.to_string
+      in
+      let settled = edges 256 in
+      let lossless = List.init 64 ~f:(fun joins -> String.equal (edges joins) settled) in
+      let enough =
+        List.findi_exn lossless ~f:(fun n _ ->
+          List.for_all (List.drop lossless n) ~f:Fn.id)
+        |> fst
+      in
+      printf "%s: nothing lost from %d joins\n" name enough);
+  [%expect
+    {|
+    i2c_master: nothing lost from 5 joins
+    uart_tx_host_rate: nothing lost from 3 joins
+    can: nothing lost from 3 joins
+    ps2: nothing lost from 7 joins
+    one_wire: nothing lost from 3 joins
+    ws2812: nothing lost from 3 joins
+    |}]
+;;
