@@ -222,6 +222,8 @@ let run_diagram ~source ~frames : Diagram_report.t =
                 ^ ", certified once with the data memory free"
               ; "faults: " ^ Sexp.to_string (Machine.Fault.sexp_of_t fault)
               ]
+              @ List.map t.limits ~f:(fun (l : Wavedrom.Limit.t) ->
+                sprintf "edge %s: %d ns, holds" l.edge l.ns)
               @
               if t.read > 0
               then
