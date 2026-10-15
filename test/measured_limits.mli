@@ -6,19 +6,33 @@
 
 open! Core
 
-(** The pins a sample at a time, a word a sample by the engine's pin numbers. *)
+(** Each pin's edges, by the engine's pin numbers; a pin not given stays low. *)
 module Capture : sig
+  module Line : sig
+    type t =
+      { first : bool (** The level at sample 0. *)
+      ; edges : int list (** The samples it changes at, rising order. *)
+      }
+  end
+
   type t =
     { rate_hz : int
-    ; samples : int array
+    ; length : int (** In samples. *)
+    ; lines : (int * Line.t) list
     ; from_reset : bool
-    (** The first level began at the first sample, as it does in a run from reset, and not
-        before the capture did. *)
+    (** The first level began at sample 0, as in a run from reset, and not before the
+        capture did. *)
     }
 
   (** [bench]'s own run for [limit] at its clock, as [Datasheet] runs it, sampled at
       [rate_hz] from a cycle's start. *)
   val of_run : ?rate_hz:int -> Bench.t -> Datasheet.t -> t
+
+  (** What demo/edges.py writes of a bench capture: [rate HZ], [length N], then a line
+      [pin P LEVEL EDGE...] a pin. A capture read back is not [from_reset]. *)
+  val of_string : string -> t
+
+  val to_string : t -> string
 end
 
 module Verdict : sig
@@ -41,5 +55,5 @@ type t =
 val measure : Datasheet.t list -> Bench.t -> Capture.t -> t list
 
 (** A line per limit: its parameter, the limit, what the capture shows in samples and ns,
-    and the verdict. *)
+    the verdict and the sheet. *)
 val to_string : Capture.t -> t list -> string

@@ -1,0 +1,5 @@
+(executable
+ (name measure)
+ (libraries core protocol_emulator_test)
+ (preprocess
+  (pps ppx_jane)))
