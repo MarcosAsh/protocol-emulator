@@ -18,18 +18,19 @@ async def test_udp_datagram(dut):
         await host.write(reg, [word])
     await host.write(PROGRAM_ADDR, [0])
     await host.write(PROGRAM, padded(assembled("ethernet")))
-    # under the board's link interval; the test then loads a shorter one, which the
-    # chip's check, made at load, does not see
+    # under the board's link interval, which the host then loads: the core faults on any
+    # other at its first use
     await host.certify_firmware("ethernet")
     frame = ethernet.udp(b"hello from the chip")
     data = ethernet.wire(frame)
-    # what ethernet.send does, with a short link interval so the frame starts soon
-    for reg, values in ethernet.writes(frame, link_tenth=50):
+    for reg, values in ethernet.writes(frame):
         await host.write(reg, values)
 
+    # the frame goes at the first tenth of the interval, after the start's few cycles
+    await ClockCycles(dut.clk, ethernet.LINK_TENTH - 100)
     # +1 while TD+ is high, -1 while TD- is, from the first cycle the line leaves idle
     levels = []
-    for _ in range(100 + 32 * len(data) + 100):
+    for _ in range(300 + 32 * len(data) + 100):
         await ClockCycles(dut.clk, 1)
         out = int(dut.uio_out.value) & int(dut.uio_oe.value)
         level = {1: 1, 2: -1}.get(out & 3, 0)
