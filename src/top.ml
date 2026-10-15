@@ -31,6 +31,9 @@ let create ~memory ~engines (scope : Scope.t) (i : Signal.t I.t) =
   let module Engines = Engines.Make (Config) in
   let async = Reg_spec.create ~clock:i.clk ~reset:~:(i.rst_n) () in
   let%hw reset_done = pipeline async ~n:2 vdd in
+  (* Both_edges' falling pair clears from a flop of its own, a cycle behind reset_done,
+     not from the clear's tree, which a falling flop gives only half a cycle *)
+  let%hw reset_late = reg (Reg_spec.create ~clock:i.clk ()) reset_done in
   let clocking = { Clocking.clock = i.clk; clear = ~:reset_done } in
   let sync x = Clocking.pipeline clocking ~n:2 x in
   let pads = concat_msb [ i.uio_in; zero 7; i.ui_in.:[7, 3] ] in
@@ -40,7 +43,9 @@ let create ~memory ~engines (scope : Scope.t) (i : Signal.t I.t) =
   let%hw frame_pin = wire Frame_rx.pin_bits in
   (* straight off the pad, so the falling edge samples it too *)
   let rd =
-    Both_edges.hierarchical scope { clocking; pad = mux frame_pin (bits_lsb pads) }
+    Both_edges.hierarchical
+      scope
+      { clocking; falling_clear = ~:reset_late; pad = mux frame_pin (bits_lsb pads) }
   in
   let engine_outs = List.init engines ~f:(fun _ -> Engine.O.Of_signal.wires ()) in
   let check = Engines.Check.Of_signal.wires () in

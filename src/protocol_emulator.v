@@ -18296,59 +18296,59 @@ endmodule
 module both_edges (
     clock,
     clear,
+    falling_clear,
     pad,
     samples
 );
 
     input clock;
     input clear;
+    input falling_clear;
     input pad;
     output [1:0] samples;
 
     wire signal_const;
-    reg clear_late;
+    wire signal_wire;
     reg signal_reg;
     reg signal_reg_1;
     reg fell;
-    wire signal_wire;
     wire signal_wire_1;
     wire signal_wire_2;
+    wire signal_wire_3;
     reg signal_reg_2;
     reg rising;
     wire [1:0] signal_cat;
     assign signal_const = 1'b0;
-    always @(posedge signal_wire_1) begin
-        clear_late <= signal_wire;
-    end
-    always @(negedge signal_wire_1) begin
-        if (clear_late)
+    assign signal_wire = falling_clear;
+    always @(negedge signal_wire_2) begin
+        if (signal_wire)
             signal_reg <= signal_const;
         else
-            signal_reg <= signal_wire_2;
+            signal_reg <= signal_wire_3;
     end
-    always @(negedge signal_wire_1) begin
-        if (clear_late)
+    always @(negedge signal_wire_2) begin
+        if (signal_wire)
             signal_reg_1 <= signal_const;
         else
             signal_reg_1 <= signal_reg;
     end
-    always @(posedge signal_wire_1) begin
-        if (signal_wire)
+    always @(posedge signal_wire_2) begin
+        if (signal_wire_1)
             fell <= signal_const;
         else
             fell <= signal_reg_1;
     end
-    assign signal_wire = clear;
-    assign signal_wire_1 = clock;
-    assign signal_wire_2 = pad;
-    always @(posedge signal_wire_1) begin
-        if (signal_wire)
+    assign signal_wire_1 = clear;
+    assign signal_wire_2 = clock;
+    assign signal_wire_3 = pad;
+    always @(posedge signal_wire_2) begin
+        if (signal_wire_1)
             signal_reg_2 <= signal_const;
         else
-            signal_reg_2 <= signal_wire_2;
+            signal_reg_2 <= signal_wire_3;
     end
-    always @(posedge signal_wire_1) begin
-        if (signal_wire)
+    always @(posedge signal_wire_2) begin
+        if (signal_wire_1)
             rising <= signal_const;
         else
             rising <= signal_reg_2;
@@ -18415,6 +18415,8 @@ module top (
     wire [4:0] signal_select_32;
     wire [4:0] frame_pin;
     reg signal_mux;
+    reg reset_late;
+    wire signal_not;
     wire [1:0] signal_inst;
     wire [1:0] signal_wire;
     wire signal_select_33;
@@ -18635,11 +18637,11 @@ module top (
     wire [1:0] signal_select_189;
     wire signal_const_6;
     wire signal_wire_52;
-    wire signal_not;
+    wire signal_not_1;
     wire vdd;
     reg signal_reg_4;
     reg reset_done;
-    wire signal_not_1;
+    wire signal_not_2;
     wire signal_wire_53;
     wire [977:0] signal_inst_2;
     wire [19:0] signal_select_190;
@@ -18727,10 +18729,15 @@ module top (
             signal_mux <= signal_select_11;
         endcase
     end
+    always @(posedge signal_wire_53) begin
+        reset_late <= reset_done;
+    end
+    assign signal_not = ~ reset_late;
     both_edges
         both_edges
         ( .clock(signal_wire_53),
-          .clear(signal_not_1),
+          .clear(signal_not_2),
+          .falling_clear(signal_not),
           .pad(signal_mux),
           .samples(signal_inst[1:0]) );
     assign signal_wire = signal_inst;
@@ -18743,13 +18750,13 @@ module top (
     assign signal_const_1 = 5'b00000;
     assign signal_select_39 = signal_wire_51[7:3];
     always @(posedge signal_wire_53) begin
-        if (signal_not_1)
+        if (signal_not_2)
             signal_reg <= signal_const_1;
         else
             signal_reg <= signal_select_39;
     end
     always @(posedge signal_wire_53) begin
-        if (signal_not_1)
+        if (signal_not_2)
             signal_reg_1 <= signal_const_1;
         else
             signal_reg_1 <= signal_reg;
@@ -18757,13 +18764,13 @@ module top (
     assign signal_const_4 = 8'b00000000;
     assign signal_wire_1 = uio_in;
     always @(posedge signal_wire_53) begin
-        if (signal_not_1)
+        if (signal_not_2)
             signal_reg_2 <= signal_const_4;
         else
             signal_reg_2 <= signal_wire_1;
     end
     always @(posedge signal_wire_53) begin
-        if (signal_not_1)
+        if (signal_not_2)
             signal_reg_3 <= signal_const_4;
         else
             signal_reg_3 <= signal_reg_2;
@@ -18973,7 +18980,7 @@ module top (
     host_port
         host_port
         ( .clock(signal_wire_53),
-          .clear(signal_not_1),
+          .clear(signal_not_2),
           .sck(signal_select_188),
           .mosi(signal_select_187),
           .cs_n(signal_select_186),
@@ -19142,26 +19149,26 @@ module top (
     assign signal_select_189 = signal_inst_1[2:1];
     assign signal_const_6 = 1'b0;
     assign signal_wire_52 = rst_n;
-    assign signal_not = ~ signal_wire_52;
+    assign signal_not_1 = ~ signal_wire_52;
     assign vdd = 1'b1;
-    always @(posedge signal_wire_53 or posedge signal_not) begin
-        if (signal_not)
+    always @(posedge signal_wire_53 or posedge signal_not_1) begin
+        if (signal_not_1)
             signal_reg_4 <= signal_const_6;
         else
             signal_reg_4 <= vdd;
     end
-    always @(posedge signal_wire_53 or posedge signal_not) begin
-        if (signal_not)
+    always @(posedge signal_wire_53 or posedge signal_not_1) begin
+        if (signal_not_1)
             reset_done <= signal_const_6;
         else
             reset_done <= signal_reg_4;
     end
-    assign signal_not_1 = ~ reset_done;
+    assign signal_not_2 = ~ reset_done;
     assign signal_wire_53 = clk;
     engines
         engines
         ( .clock(signal_wire_53),
-          .clear(signal_not_1),
+          .clear(signal_not_2),
           .hosts$config$side_set_count_0(signal_select_189),
           .hosts$config$side_set_base_0(signal_select_136),
           .hosts$config$side_set_pindirs_0(signal_select_135),
