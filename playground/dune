@@ -39,7 +39,8 @@
   (= %{env:PLAYGROUND=no} yes))
  (deps index.html playground.bc.js))
 
-; each library diagram, and frames of host bits to send, a line a frame
+; each library diagram, and frames of bits to send, a line a frame: host bits, or a
+; receiver's peer's
 
 (rule
  (with-stdout-to
@@ -55,4 +56,6 @@
    (echo "|}, \"10100101\\n00111100\"\n  ; \"ws2812\", {|")
    (cat %{dep:../test/diagrams/ws2812.json})
    (echo
-    "|}, \"000100001111111100000000\\n100000000000000110101010\"\n  ]\n"))))
+    "|}, \"000100001111111100000000\\n100000000000000110101010\"\n  ; \"uart_rx\", {|")
+   (cat %{dep:../test/diagrams/uart_rx.json})
+   (echo "|}, \"11000101\\n00111010\"\n  ]\n"))))

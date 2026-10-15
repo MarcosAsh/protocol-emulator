@@ -179,13 +179,18 @@ let run_diagram ~source ~frames : Diagram_report.t =
   match Wavedrom.of_string source with
   | Error e -> { empty with verdict = "refused"; detail = Error.to_string_hum e }
   | Ok t ->
-    let report = { empty with steps = step_listing t; lanes = t.outputs } in
+    let lanes = if t.starts_on_edge then Option.to_list t.input else t.outputs in
+    let report = { empty with steps = step_listing t; lanes } in
     (match
        let open Or_error.Let_syntax in
        let%bind frames = frame_bits frames in
        let%bind words =
-         List.map frames ~f:(Wavedrom.host_words t) |> Or_error.all >>| List.concat
+         if t.starts_on_edge
+         then Ok []
+         else List.map frames ~f:(Wavedrom.host_words t) |> Or_error.all >>| List.concat
        in
+       (* a receiver's frames are the peer's, on the line the diagram draws *)
+       let%bind line = if t.starts_on_edge then Wavedrom.line t frames else Ok [||] in
        let%bind interpreter =
          Tables.check t.table.wiring
          |> Result.map_error ~f:(fun (r : Timed_program.Refusal.t) -> r.error)
@@ -193,9 +198,19 @@ let run_diagram ~source ~frames : Diagram_report.t =
        let longest =
          List.sum (module Int) t.steps ~f:(fun s -> s.cycles + Tables.Kind.added s.kind)
        in
-       let cycles = Int.min 400_000 (longest * (List.length words + 2)) in
+       let cycles =
+         Int.min 400_000 (Array.length line + (longest * (List.length words + 2)))
+       in
+       let inputs c =
+         if Array.is_empty line
+         then 0
+         else Bool.to_int line.(Int.min c (Array.length line - 1))
+       in
        let%map levels, read, fault =
-         Wavedrom.simulate t ~host_words:words ~inputs:(Fn.const 0) ~cycles
+         Wavedrom.simulate t ~host_words:words ~inputs ~cycles
+       in
+       let levels =
+         if Array.is_empty line then levels else Array.map line ~f:Bool.to_int
        in
        interpreter, words, levels, read, fault
      with
@@ -211,12 +226,20 @@ let run_diagram ~source ~frames : Diagram_report.t =
        ; detail =
            String.concat
              ~sep:"\n"
-             ([ sprintf
-                  "%d steps, %d host bits a %s, words of %s bits"
-                  (List.length t.steps)
-                  t.bits
-                  (if t.while_host then "pass" else "frame")
-                  (List.map t.words ~f:Int.to_string |> String.concat ~sep:" and ")
+             ([ (if t.starts_on_edge
+                 then
+                   sprintf
+                     "%d steps, %d bits read a frame, each frame from an edge on %s"
+                     (List.length t.steps)
+                     t.read
+                     (Option.value t.input ~default:"")
+                 else
+                   sprintf
+                     "%d steps, %d host bits a %s, words of %s bits"
+                     (List.length t.steps)
+                     t.bits
+                     (if t.while_host then "pass" else "frame")
+                     (List.map t.words ~f:Int.to_string |> String.concat ~sep:" and "))
               ; "interpreter: "
                 ^ Analyser.Verdict.to_string (Timed_program.verdict interpreter)
                 ^ ", certified once with the data memory free"
@@ -227,8 +250,14 @@ let run_diagram ~source ~frames : Diagram_report.t =
               @
               if t.read > 0
               then
-                [ "read (inputs held low): "
-                  ^ (List.map read ~f:(sprintf "0x%04x") |> String.concat ~sep:" ")
+                [ (if t.starts_on_edge
+                   then "read from the frames on the line: "
+                   else "read (inputs held low): ")
+                  ^ (List.map read ~f:(fun w ->
+                       Wavedrom.read_bits t w
+                       |> List.map ~f:(fun b -> if b then '1' else '0')
+                       |> String.of_list)
+                     |> String.concat ~sep:" ")
                 ]
               else [])
        ; words = List.map words ~f:(sprintf "0x%04x") |> String.concat ~sep:" "
