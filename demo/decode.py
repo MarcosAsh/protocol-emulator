@@ -9,6 +9,7 @@
 #        python3 demo/decode.py --rate 24 --write-capture can.sr TRACE
 #        python3 demo/decode.py --host-frames frames.py TRACE for demo/pico_replay.py
 #        python3 demo/decode.py --summary "the RTL" TRACE...  and a count of protocols read
+#        python3 demo/decode.py --show TRACE                  every line each decoder reads
 import argparse
 import functools
 import os
@@ -186,18 +187,23 @@ def sigrok_cli(capture, decoders, annotations):
 
 
 @functools.lru_cache
+def classes(decoder):
+    """Every annotation class sigrok names for the decoder."""
+    shown = subprocess.run(["sigrok-cli", "-P", decoder, "--show"], capture_output=True,
+                           text=True)
+    if shown.returncode:
+        raise SystemExit("sigrok has no decoder %s: %s" % (decoder, shown.stderr.strip()))
+    listed = shown.stdout.split("Annotation classes:")[1].split("Annotation rows:")[0]
+    return [line[2:].split(":")[0] for line in listed.splitlines() if line.startswith("- ")]
+
+
+@functools.lru_cache
 def errors(decoder):
     """ERRORS' classes for the decoder, or for one it does not list, every class sigrok
     names a warning or an error."""
     if decoder in ERRORS:
         return ERRORS[decoder]
-    shown = subprocess.run(["sigrok-cli", "-P", decoder, "--show"], capture_output=True,
-                           text=True)
-    if shown.returncode:
-        raise SystemExit("sigrok has no decoder %s: %s" % (decoder, shown.stderr.strip()))
-    classes = shown.stdout.split("Annotation classes:")[1].split("Annotation rows:")[0]
-    ids = [line[2:].split(":")[0] for line in classes.splitlines() if line.startswith("- ")]
-    return [c for c in ids if "warn" in c or "err" in c]
+    return [c for c in classes(decoder) if "warn" in c or "err" in c]
 
 
 def faults(decoders):
@@ -259,10 +265,43 @@ def captures(trace, args, scratch, tooth=()):
             ("joined, ", later, decoders, trace.rejected)]
 
 
+def ocaml(text):
+    return '"%s"' % text.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def show(trace, args):
+    """Every line each decoder reads from the trace, a class at a time, then the classes
+    that read something, faults aside, as a scenario's Sigrok.expect to start from."""
+    expect = []
+    with tempfile.TemporaryDirectory() as scratch:
+        _, capture, decoders, _ = captures(trace, args, scratch)[-1]
+        print("%s, by sigrok's %s" % (trace.name, " ".join(decoders)))
+        for decoder in [d.split(":")[0] for stack in decoders for d in stack.split(",")]:
+            read = []
+            for c in classes(decoder):
+                lines = sigrok_cli(capture, decoders, "%s=%s" % (decoder, c))
+                more = ", ..." if len(lines) > 4 else ""
+                print("  %s=%s: %s" % (decoder, c, "%d lines, %s%s" % (
+                    len(lines), ", ".join(lines[:4]), more) if lines else "nothing"))
+                if lines and c not in errors(decoder):
+                    read.append(c)
+            if read:
+                annotations = "%s=%s" % (decoder, ":".join(read))
+                expect.append((annotations, sigrok_cli(capture, decoders, annotations)))
+    print("expect =")
+    for n, (annotations, lines) in enumerate(expect):
+        print("  %s ( %s" % ("[" if n == 0 else ";", ocaml(annotations)))
+        print("    , [ %s ] )" % "; ".join(ocaml(line) for line in lines))
+    print("  ]" if expect else "  []")
+    return True
+
+
 def check(path, args):
     trace = Trace(path)
     if not trace.decoders:
         return True
+    if args.show:
+        return show(trace, args)
     if args.host_frames:
         return host_frames(trace, args.host_frames, args.clock_mhz)
     if args.write_capture:
@@ -365,6 +404,8 @@ def main():
     parser.add_argument("--host-frames", help="write the trace's host frames for the Pico")
     parser.add_argument("--clock-mhz", type=float, default=48.0, help="the bench's chip clock")
     parser.add_argument("--summary", help="what the traces ran on, for a count of protocols")
+    parser.add_argument("--show", action="store_true",
+                        help="print every line each decoder reads, and an expect to paste")
     args = parser.parse_args()
     results = {path: check(path, args) for path in args.traces}
     if args.summary:
