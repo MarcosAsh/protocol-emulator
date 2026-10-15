@@ -3,7 +3,9 @@
  (names generate)
  (libraries
   core.command
+  core_unix
   core_unix.command_unix
+  core_unix.sys_unix
   core
   hardcaml
   protocol_emulator

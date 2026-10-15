@@ -491,3 +491,31 @@ let%expect_test "every protocol speaks only of its own firmware" =
     check firmware "not swept" (List.map p.not_swept ~f:fst));
   [%expect {| |}]
 ;;
+
+(* What a protocol file started by [generate.exe new-protocol] still leaves to do: a
+   limit, a reason or a bench copy that says TODO, and a run sigrok judges with no payload
+   to read. *)
+let%expect_test "no protocol file is left half written" =
+  let todo text = String.is_substring text ~substring:"TODO" in
+  List.iter Library.protocols ~f:(fun p ->
+    let left =
+      List.filter_map p.limits ~f:(fun l ->
+        Option.some_if
+          (todo l.parameter
+           || todo l.sheet.part
+           || todo l.sheet.document
+           || todo l.sheet.page)
+          [%string "limit %{l.firmware} %{l.parameter}"])
+      @ List.filter_map (p.unlimited @ p.not_swept) ~f:(fun (name, why) ->
+        Option.some_if (todo why) [%string "reason %{name}"])
+      @ List.filter_map (p.bench @ p.loaded_from_hex) ~f:(fun b ->
+        Option.some_if (todo b.what) [%string "bench %{b.name}"])
+      @ List.filter_map (p.scenarios @ p.decoded) ~f:(fun s ->
+        Option.bind s.sigrok ~f:(fun sigrok ->
+          Option.some_if
+            (List.is_empty sigrok.expect || List.exists sigrok.decoders ~f:todo)
+            [%string "sigrok %{s.name}"]))
+    in
+    if not (List.is_empty left) then print_s [%message p.name (left : string list)]);
+  [%expect {| |}]
+;;
