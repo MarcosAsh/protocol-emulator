@@ -62,6 +62,26 @@ let end_to_end (p : Protocol.t) =
        | None -> "uncertified as loaded");
     let received = Protocol.lockstep scenario in
     print_s [%message (received : Int.Hex.t list)];
+    (* what the host reads from rx through the whole chip on the scenario's trace, the
+       order the engine received it in, or less *)
+    let (_ : Pin_trace.Line.t list), reads = Pin_trace.run scenario in
+    let read =
+      List.filter_map scenario.script ~f:(fun (step : Pin_trace.Step.t) ->
+        match step with
+        | Read (register, (_ : int)) -> Some register
+        | Write _ | Run _ | Until _ | Drive _ -> None)
+      |> List.zip_exn reads
+      |> List.concat_map ~f:(fun (words, register) ->
+        if register = Host_port.Reg.rx then words else [])
+    in
+    if not (List.is_prefix received ~prefix:read ~equal:Int.equal)
+    then
+      raise_s
+        [%message
+          "the chip's host read other words than the engine received"
+            scenario.name
+            (read : Int.Hex.t list)
+            (received : Int.Hex.t list)];
     Option.iter scenario.sigrok ~f:(fun sigrok ->
       printf "decode: %s/%s.trace, by sigrok's" dir scenario.name;
       List.iter sigrok.decoders ~f:(printf " %s");
