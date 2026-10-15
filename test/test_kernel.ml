@@ -1360,8 +1360,8 @@ let%expect_test "the library's tables are rows of intervals" =
     |}]
 ;;
 
-(* [Kernel.check] spaces edges only where formal/phase_spacing.sby proves it: two pins,
-   no Manchester or line code and a table of intervals. *)
+(* [Kernel.check] spaces edges only where formal/phase_spacing.sby proves it: two pins, no
+   Manchester or line code and a table of intervals. *)
 let%expect_test "a spacing is checked only where it is proved" =
   let i2c = Certified.find_exn "i2c_master" in
   List.iter
