@@ -177,14 +177,13 @@ let with_nops (certified : Certified.t) ~wait_pc k =
     if i + 1 <> line
     then [ text ]
     else (
-      (* a label on the wait's line would leave the nops behind the jumps to it *)
+      (* behind a label on the wait's line, so the jumps to it take the nops too *)
       let code = List.hd_exn (String.split text ~on:';') in
-      if String.mem code ':'
-      then
-        raise_s
-          [%message
-            "a label on the wait's line" (certified.name : string) (text : string)];
-      added @ [ text ]))
+      match String.lsplit2 code ~on:':' with
+      | Some (label, _) ->
+        let wait = String.drop_prefix text (String.length label + 1) in
+        ((label ^ ":") :: added) @ [ "   " ^ wait ]
+      | None -> added @ [ text ]))
   |> String.concat ~sep:"\n"
 ;;
 
