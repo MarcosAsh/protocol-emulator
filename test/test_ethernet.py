@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # A UDP datagram from python/ethernet.py through the data memory, read back off TD+ and
-# TD- (IO0, IO1) at four cycles a bit.
+# TD- (IO0, IO1) at four cycles a bit, with the FCS the chip's CRC unit appends checked
+# against the host's.
 
 import cocotb
 from cocotb.triggers import ClockCycles
