@@ -32,10 +32,13 @@ hw)
     exit 1
     ;;
 esac
-if [ -n "$PICO_B" ]; then
+# a tty only, as demo/rates.sh takes PICO_B as mpremote's id:<serial>
+case $PICO_B in
+/dev/*)
     stty -F "$PICO_B" raw -echo
     timeout 3 grep -a -m 1 "sys" "$PICO_B" || echo "Pico B printed nothing in 3 s" >&2
-fi
+    ;;
+esac
 # the decode lists every START, so runs of them are counted
 out=$(mktemp)
 trap 'rm -f "$out"' EXIT
