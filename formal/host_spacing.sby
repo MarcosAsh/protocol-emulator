@@ -1,0 +1,27 @@
+[tasks]
+prove
+cover
+# the tooth: engine 0's config written while it runs
+ungated teeth
+
+[options]
+prove: mode prove
+cover: mode cover
+cover: depth 140
+teeth: mode bmc
+teeth: depth 80
+teeth: expect fail
+
+[engines]
+smtbmc boolector
+
+[script]
+~teeth: read_verilog top.v
+ungated: read_verilog ungated.v
+read_verilog -formal -sv host_spacing.sv
+prep -top host_spacing
+
+[files]
+~teeth: top.v
+ungated: host_spacing_teeth/ungated.v
+host_spacing.sv

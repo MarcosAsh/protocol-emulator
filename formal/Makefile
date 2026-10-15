@@ -1,4 +1,4 @@
-all: issue_timing host_timing late_host fifo_order phase_step edge_step event_step frame_step \
+all: issue_timing host_timing host_spacing late_host fifo_order phase_step edge_step event_step frame_step \
   value_step narrow saturating chip_frame fail_safe isolation data_step teeth fsm_miter \
   sram_equiv kernel_equiv link self_check self_check_clean powerup
 
@@ -27,6 +27,19 @@ issue_timing: engine.v
 
 host_timing: engine_sram.v
 	sby -f host_timing.sby prove
+
+# the chip's host port, two engines: config moves only after a halted cycle, and neither
+# config nor a program or data word is written the cycle after a start. Seconds. The
+# tooth, engine 0's config written while it runs, has to fail.
+top.v: ../src/*.ml
+	cd .. && dune exec -- bin/generate.exe top -engines 2 > formal/top.v
+
+HOST_UNGATED = /^module host_port (/,/^endmodule/s/^\(\s*assign signal_wire_[0-9]* = \)status\$$halted_0;/\11;/
+host_spacing: top.v
+	mkdir -p host_spacing_teeth
+	sed '$(HOST_UNGATED)' top.v > host_spacing_teeth/ungated.v
+	! cmp -s top.v host_spacing_teeth/ungated.v
+	sby -f host_spacing.sby prove cover ungated
 
 # a late host word can make a time-triggered program fault, never move a pin
 late_host: engine_sram.v
