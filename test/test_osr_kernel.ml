@@ -414,3 +414,89 @@ let%expect_test "an image's bounds are the hull of the states the core reaches" 
     jmp x--, 0: exact
     |}]
 ;;
+
+(* The core starts at pc 0 with the osr anything, so the check asks pc 0's row to bound
+   nothing; narrowing it at any one bound is refused. *)
+let%expect_test "the check refuses a row at pc 0 narrower than the full range" =
+  let c = Library.find_certified_exn "uart_tx" in
+  let _, config, words, kernel, table = rows c in
+  let full = table.(0) in
+  List.iter
+    [ "shifted from 1", { full with shifted_lo = Bits.(full.shifted_lo +:. 1) }
+    ; "shifted to 31", { full with shifted_hi = Bits.(full.shifted_hi -:. 1) }
+    ; "sum from 1", { full with sum_lo = Bits.(full.sum_lo +:. 1) }
+    ; "sum one short", { full with sum_hi = Bits.(full.sum_hi -:. 1) }
+    ; "pulled", { full with pulled = Bits.vdd }
+    ]
+    ~f:(fun (name, row) ->
+      let table = Array.copy table in
+      table.(0) <- row;
+      print_s
+        [%message name (Osr_kernel.check ~config ~words ~kernel table : unit Or_error.t)]);
+  [%expect {|
+    ("shifted from 1"
+     ("Osr_kernel.check ~config ~words ~kernel table"
+      (Error "the row at pc 0 must be the full range")))
+    ("shifted to 31"
+     ("Osr_kernel.check ~config ~words ~kernel table"
+      (Error "the row at pc 0 must be the full range")))
+    ("sum from 1"
+     ("Osr_kernel.check ~config ~words ~kernel table"
+      (Error "the row at pc 0 must be the full range")))
+    ("sum one short"
+     ("Osr_kernel.check ~config ~words ~kernel table"
+      (Error "the row at pc 0 must be the full range")))
+    (pulled
+     ("Osr_kernel.check ~config ~words ~kernel table"
+      (Error "the row at pc 0 must be the full range")))
+    |}]
+;;
+
+(* [step]'s pulled against the ISA: a pull, or an out that autopulls at the threshold,
+   takes a word; a mov to the osr replaces it with one not pulled; anything else keeps
+   what it was. *)
+let%expect_test "a step's pulled follows the instruction" =
+  let module O = Osr_kernel.Make (Bits) in
+  Quickcheck.test
+    ~trials:5000
+    (Quickcheck.Generator.tuple4
+       (Int.gen_incl 0 0xffff)
+       (Int.gen_incl 0 Osr_kernel.shift_limit)
+       (Int.gen_incl 0 Isa.data_bits)
+       (Quickcheck.Generator.both Bool.quickcheck_generator Bool.quickcheck_generator))
+    ~f:(fun (word, shifted, threshold, (autopull, pulled)) ->
+      match Isa.of_word ~side_set_count:0 word with
+      | Error _ -> ()
+      | Ok instruction ->
+        let s =
+          O.step
+            ~side_set_count:(Bits.zero 2)
+            ~autopull:(Bits.of_bool autopull)
+            ~pull_threshold:(Bits.of_unsigned_int ~width:Isa.count_bits threshold)
+            ~word:(Bits.of_unsigned_int ~width:Isa.data_bits word)
+            ~shifted:
+              (Bits.of_unsigned_int ~width:Osr_kernel.Row.port_widths.shifted_lo shifted)
+            ~pulled:(Bits.of_bool pulled)
+        in
+        let takes, keeps =
+          match instruction with
+          | Op { op = Sys Pull; _ } -> true, false
+          | Op { op = Out _; _ } ->
+            autopull && Int.min shifted Isa.data_bits >= threshold, pulled
+          | Op { op = Mov { dest = Osr; _ }; _ } -> false, false
+          | Jmp _ | Op _ -> false, pulled
+        in
+        [%test_result: bool * bool]
+          (Bits.to_bool s.takes, Bits.to_bool s.next_pulled)
+          ~expect:(takes, takes || keeps)
+          ~message:
+            (Sexp.to_string_hum
+               [%message
+                 (instruction : Isa.t)
+                   (shifted : int)
+                   (threshold : int)
+                   (autopull : bool)
+                   (pulled : bool)]));
+  print_endline "agrees";
+  [%expect {| agrees |}]
+;;
