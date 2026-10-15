@@ -1256,12 +1256,9 @@ module Make_timer (Timer : Engine.Timer) = struct
       }
     ;;
 
-    (* after this many joins at a pc, its marks bound nothing, so a mark that falls round
-       a loop cannot keep it going *)
-    let widen_after = 64
-
     let with_edges
       ?(single_capture_edge = false)
+      ?(widen_after = 64)
       (table : t)
       ~(config : Program_config.t)
       ~spacing
