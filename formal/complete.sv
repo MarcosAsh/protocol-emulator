@@ -12,7 +12,7 @@ module complete (input clk);
   (* anyconst *) wire [8:0] wrap_bottom, wrap_top;
   (* anyconst *) wire [15:0] period_fraction;
   (* anyconst *) wire [8:0] base;
-  (* anyconst *) wire loaded_valid, single_edge;
+  (* anyconst *) wire loaded_valid, floor, single_edge;
   (* anyconst *) wire [15:0] loaded_value;
   (* anyseq *) wire check;
 
@@ -39,7 +39,7 @@ module complete (input clk);
   wire [7:0] sel, count, wide_count;
   wire [47:0] entry, acc;
   wire [8:0] walk_base;
-  wire walk_loaded_valid, walk_single_edge;
+  wire walk_loaded_valid, walk_floor, walk_single_edge;
   wire [15:0] walk_loaded_value;
   wire reading;
   wire [1:0] read_wait;
@@ -111,7 +111,7 @@ module complete (input clk);
     .config$capture_rising(capture_rising), .config$wrap_bottom(wrap_bottom),
     .config$wrap_top(wrap_top), .config$period_fraction(period_fraction),
     .setup$base(base), .setup$loaded$valid(loaded_valid),
-    .setup$loaded$value(loaded_value), .setup$single_edge(single_edge),
+    .setup$loaded$value(loaded_value), .setup$floor(floor), .setup$single_edge(single_edge),
     .program_word(program_word), .data_word(data_word),
     .program_read$valid(program_read_valid), .program_read$value(program_read_value),
     .data_read$valid(data_read_valid), .data_read$value(data_read_value),
@@ -123,7 +123,8 @@ module complete (input clk);
     .falls_to_next(falls_to_next), .is_jump(is_jump), .k(k), .field(field), .sel(sel),
     .count(count), .wide_count(wide_count), .entry(entry), .acc(acc),
     .walk_base(walk_base), .walk_loaded_valid(walk_loaded_valid),
-    .walk_loaded_value(walk_loaded_value), .walk_single_edge(walk_single_edge),
+    .walk_loaded_value(walk_loaded_value), .walk_floor(walk_floor),
+    .walk_single_edge(walk_single_edge),
     .reading(reading), .read_wait(read_wait), .lo(lo), .hi(hi), .ptr(ptr), .mid(mid),
     .key(key), .entry_tag(entry_tag), .stored(stored), .read_done(read_done),
     .word(word), .walk_addr(walk_addr),
@@ -225,7 +226,7 @@ module complete (input clk);
   wire [9:0] r_next, r_target;
   load_check_step walk (
     .side_set_count(side_set_count), .fraction(period_fraction != 0),
-    .loaded$valid(loaded_valid), .loaded$value(loaded_value),
+    .loaded$valid(loaded_valid), .loaded$value(loaded_value), .loaded$floor(floor),
     .capture$pin(capture_pin), .capture$rising(capture_rising),
     .capture$single_edge(single_edge), .wrap_top(wrap_top), .wrap_bottom(wrap_bottom),
     .pc(r_pc), .word(r_word), .row(r_row), .stored(r_stored),
@@ -394,7 +395,8 @@ module complete (input clk);
     assert (read_at == data[data_at]);
     if (warm) assert (data_read_value == walk_addr_before);
     if (busy) assert (walk_base == base && walk_loaded_valid == loaded_valid
-                      && walk_loaded_value == loaded_value && walk_single_edge == single_edge);
+                      && walk_loaded_value == loaded_value && walk_floor == floor
+                      && walk_single_edge == single_edge);
     assert (sm <= FINISH && purpose <= RELOADING && source <= FALLEN);
     if (sm == HEADER) assert (ptr == 0 && pc == 0 && k <= 1 && r_pc == 0 && r_ptr == 0
                               && r_row == FULL && !r_has_verdict && r_count == count_word[7:0]

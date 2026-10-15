@@ -36,6 +36,7 @@ let run
   ?rewrite_at
   ~config
   ?loaded
+  ?(floor = false)
   ?(single_edge = false)
   ~words
   ~certificate
@@ -59,6 +60,7 @@ let run
          ~f:( := );
        inputs.setup.loaded.valid := Bits.of_bool (Option.is_some loaded);
        inputs.setup.loaded.value <--. Option.value loaded ~default:0;
+       inputs.setup.floor := Bits.of_bool floor;
        inputs.setup.single_edge := Bits.of_bool single_edge;
        inputs.setup.base <--. 0;
        inputs.check := Bits.vdd;
@@ -77,6 +79,7 @@ let run
            inputs.setup.base <--. 0x155;
            inputs.setup.loaded.valid := Bits.of_bool (Option.is_none loaded);
            inputs.setup.loaded.value <--. 0xbeef;
+           inputs.setup.floor := Bits.of_bool (not floor);
            inputs.setup.single_edge := Bits.of_bool (not single_edge));
          cycle ();
          incr cycles;
@@ -113,6 +116,7 @@ let model (case : Firmware_inventory.t) ~config ~words ~certificate =
   in
   Load_check.walk
     ?loaded:case.period
+    ~floor:case.floor
     ~single_capture_edge:case.single_capture_edge
     ~config
     ~words
@@ -137,6 +141,7 @@ let%expect_test "the checker agrees with the model on every firmware" =
       run
         ~config
         ?loaded:case.period
+        ~floor:case.floor
         ~single_edge:case.single_capture_edge
         ~words
         ~certificate
@@ -235,6 +240,7 @@ let%expect_test "the checker agrees with the model on corrupted certificates" =
             ~random_initial_state:`All
             ~config
             ?loaded:case.period
+            ~floor:case.floor
             ~single_edge:case.single_capture_edge
             ~words
             ~certificate
@@ -257,7 +263,7 @@ let%expect_test "the checker agrees with the model on corrupted certificates" =
                 ~checker:(show verdict)
                 ~model:(show model)]));
   print_s [%message (!trials : int) (!refused : int)];
-  [%expect {| ((!trials 200) (!refused 126)) |}]
+  [%expect {| ((!trials 200) (!refused 127)) |}]
 ;;
 
 (* The setup is the one the host wrote before the check: writing another mid-walk, from
@@ -277,6 +283,7 @@ let%expect_test "a setup written during a walk does not reach it" =
         ?rewrite_at
         ~config
         ?loaded:case.period
+        ~floor:case.floor
         ~single_edge:case.single_capture_edge
         ~words
         ~certificate

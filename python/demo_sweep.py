@@ -45,7 +45,10 @@ def setup(host, firmware, dirty):
     host.stop()
     dirty = write_program(host, firmware["words"], dirty)
     host.certify(
-        firmware["certificate"], loaded=firmware["loaded"], single_edge=firmware["single_edge"])
+        firmware["certificate"],
+        loaded=firmware["loaded"],
+        floor=firmware["floor"],
+        single_edge=firmware["single_edge"])
     if firmware["preamble"]:
         host.push(firmware["preamble"])
     host.select(1)

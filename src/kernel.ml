@@ -67,6 +67,15 @@ end
 
 module Spaced = With_valid.Wrap.Make (Spacing)
 
+module Loaded = struct
+  type 'a t =
+    { valid : 'a
+    ; value : 'a [@bits Isa.data_bits]
+    ; floor : 'a
+    }
+  [@@deriving hardcaml]
+end
+
 module Make_timer (Timer : Engine.Timer) = struct
   let timer_bits = Timer.timer_bits
 
@@ -467,7 +476,7 @@ module Make_timer (Timer : Engine.Timer) = struct
     let step
       ~side_set_count
       ~fraction
-      ~(loaded : _ With_valid.t)
+      ~(loaded : _ Loaded.t)
       ~capture
       ~spacing
       ~word
@@ -525,7 +534,7 @@ module Make_timer (Timer : Engine.Timer) = struct
       ; bounded = c.bounded
       ; may_carry = c.advance &: fraction
       ; next_period = mux2 c.set_p c.set_value @@ mux2 c.writes_p loaded.value period
-      ; period_known = ~:(c.writes_p) |: loaded.valid
+      ; period_known = ~:(c.writes_p) |: (loaded.valid &: ~:(loaded.floor))
       ; next_x = mux2 c.set_x c.set_value @@ mux2 c.x_dec (x -:. 1) x
       ; x_known = ~:(c.writes_x)
       ; next_y = mux2 c.set_y c.set_value @@ mux2 c.y_dec (y -:. 1) y
@@ -866,7 +875,7 @@ module Make_timer (Timer : Engine.Timer) = struct
     let ways
       ~side_set_count
       ~fraction
-      ~(loaded : _ With_valid.t)
+      ~(loaded : _ Loaded.t)
       ~capture
       ~spacing
       ~word
@@ -913,7 +922,12 @@ module Make_timer (Timer : Engine.Timer) = struct
       in
       let captured_image = mux2 c.arm gnd (row.captured |: (capturing &: arm_known)) in
       let awaiting_image = mux2 c.arm vdd (row.awaiting &: ~:(c.capturing)) in
-      let period_image v = mux2 c.set_p c.set_value @@ mux2 c.writes_p loaded.value v in
+      (* a run-time write leaves the loaded period, or with [floor] at least it *)
+      let period_image ~at v = mux2 c.set_p c.set_value @@ mux2 c.writes_p at v in
+      let period_lo = period_image ~at:loaded.value row.period_lo in
+      let period_hi =
+        period_image ~at:(mux2 loaded.floor data_max loaded.value) row.period_hi
+      in
       let common_lo = mux2 (row.x_lo >: row.y_lo) row.x_lo row.y_lo in
       let common_hi = mux2 (row.x_hi <: row.y_hi) row.x_hi row.y_hi in
       (* a register's image on one way out: a counted jump decrements it on both, and
@@ -969,8 +983,8 @@ module Make_timer (Timer : Engine.Timer) = struct
               ~lo:s.period_lo
               ~hi:s.period_hi
               ~any:(c.writes_p &: ~:(loaded.valid))
-              ~image_lo:(period_image row.period_lo)
-              ~image_hi:(period_image row.period_hi)
+              ~image_lo:period_lo
+              ~image_hi:period_hi
         ; x = contains ~lo:s.x_lo ~hi:s.x_hi ~any:c.writes_x ~image_lo:x_lo ~image_hi:x_hi
         ; y = contains ~lo:s.y_lo ~hi:s.y_hi ~any:c.writes_y ~image_lo:y_lo ~image_hi:y_hi
         ; arm =
@@ -1023,8 +1037,8 @@ module Make_timer (Timer : Engine.Timer) = struct
           range
             ~known:~:(c.writes_p &: ~:(loaded.valid))
             ~all:data_max
-            (period_image row.period_lo)
-            (period_image row.period_hi)
+            period_lo
+            period_hi
         in
         let x_lo, x_hi = range ~known:~:(c.writes_x) ~all:data_max x_lo x_hi in
         let y_lo, y_hi = range ~known:~:(c.writes_y) ~all:data_max y_lo y_hi in
@@ -1484,6 +1498,7 @@ module Make_timer (Timer : Engine.Timer) = struct
   (* Whether the row at pc 0 starts open, and the pcs whose conjuncts fail. *)
   let verdicts
     ?period
+    ?period_floor
     ?(single_capture_edge = false)
     ?spacing:spec
     ~(config : Program_config.t)
@@ -1499,9 +1514,13 @@ module Make_timer (Timer : Engine.Timer) = struct
     in
     let side_set_count = Bits.of_unsigned_int ~width:2 config.side_set_count in
     let fraction = Bits.of_bool (config.period_fraction <> 0) in
+    if Option.is_some period && Option.is_some period_floor
+    then raise_s [%message "BUG: a period or a floor, not both"];
     let loaded =
-      { With_valid.valid = Bits.of_bool (Option.is_some period)
-      ; value = Bits.of_unsigned_int ~width:Isa.data_bits (Option.value period ~default:0)
+      let load = Option.first_some period period_floor in
+      { Loaded.valid = Bits.of_bool (Option.is_some load)
+      ; value = Bits.of_unsigned_int ~width:Isa.data_bits (Option.value load ~default:0)
+      ; floor = Bits.of_bool (Option.is_some period_floor)
       }
     in
     let capture =
@@ -1555,12 +1574,14 @@ module Make_timer (Timer : Engine.Timer) = struct
     starts_open, rejected
   ;;
 
-  let rejections ?period ?single_capture_edge ?spacing ~config ~words table =
-    snd (verdicts ?period ?single_capture_edge ?spacing ~config ~words table)
+  let rejections ?period ?period_floor ?single_capture_edge ?spacing ~config ~words table =
+    snd
+      (verdicts ?period ?period_floor ?single_capture_edge ?spacing ~config ~words table)
   ;;
 
   let check
     ?period
+    ?period_floor
     ?single_capture_edge
     ?spacing:spec
     ~(config : Program_config.t)
@@ -1568,7 +1589,14 @@ module Make_timer (Timer : Engine.Timer) = struct
     (table : Table.t)
     =
     let starts_open, rejected =
-      verdicts ?period ?single_capture_edge ?spacing:spec ~config ~words table
+      verdicts
+        ?period
+        ?period_floor
+        ?single_capture_edge
+        ?spacing:spec
+        ~config
+        ~words
+        table
     in
     (* what formal/phase_spacing.sby proves the spacing for *)
     let proved_spacing =
@@ -1595,7 +1623,7 @@ module Make_timer (Timer : Engine.Timer) = struct
     type 'a t =
       { side_set_count : 'a [@bits 2]
       ; fraction : 'a
-      ; loaded : 'a With_valid.t [@bits Isa.data_bits]
+      ; loaded : 'a Loaded.t
       ; capture : 'a Capture.t
       ; spacing : 'a Spaced.t
       ; word : 'a [@bits Isa.data_bits]
@@ -1650,7 +1678,7 @@ module Make_timer (Timer : Engine.Timer) = struct
       type 'a t =
         { side_set_count : 'a [@bits 2]
         ; fraction : 'a
-        ; loaded : 'a With_valid.t [@bits Isa.data_bits]
+        ; loaded : 'a Loaded.t
         ; capture : 'a Capture.t
         ; spacing : 'a Spaced.t
         ; wrap_top : 'a [@bits Isa.pc_bits]

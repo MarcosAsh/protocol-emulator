@@ -6,7 +6,7 @@
 
 module pair_step (
   input [1:0] side_set_count,
-  input fraction, loads_period,
+  input fraction, loads_period, floor_period,
   input [15:0] loaded_period,
   input [4:0] capture_pin,
   input capture_rising, single_edge,
@@ -48,7 +48,7 @@ module pair_step (
     .spacing$value$apart_b_2(apart_b[47:32]), .spacing$value$apart_b_3(apart_b[63:48])
 `define STEP_CONFIG \
     .side_set_count(side_set_count), .fraction(fraction), \
-    .loaded$valid(loads_period), .loaded$value(loaded_period), \
+    .loaded$valid(loads_period), .loaded$value(loaded_period), .loaded$floor(floor_period), \
     .capture$pin(capture_pin), .capture$rising(capture_rising), \
     .capture$single_edge(single_edge)
 
@@ -114,6 +114,8 @@ module pair_step (
       || may_carry && phase_after == next_phase - 24'd1)
     && (!capture_bounded || cycles + 24'd1 <= phase_after && phase_after <= next_phase)
     && (!period_known || period_after == next_period)
+    // a run-time write under a floor leaves at least the loaded period
+    && (period_known || !loads_period || period_after >= loaded_period)
     && (!x_known || x_after == next_x) && (!y_known || y_after == next_y);
 
   assign inside = within && accepts && side_set_count <= 2;
@@ -130,7 +132,7 @@ endmodule
 // at a time; pair_step.sby's tasks between them take every word
 module pair_step_proof;
   (* anyconst *) wire [1:0] side_set_count;
-  (* anyconst *) wire fraction, loads_period, capture_rising, single_edge;
+  (* anyconst *) wire fraction, loads_period, floor_period, capture_rising, single_edge;
   (* anyconst *) wire spaced, pair_dirs, side_set_pindirs;
   (* anyconst *) wire [4:0] capture_pin, pin_a, pin_b, side_set_base, set_base, out_base;
   (* anyconst *) wire [4:0] out_count;
@@ -146,7 +148,7 @@ module pair_step_proof;
   wire holds;
   pair_step lemma (
     .side_set_count(side_set_count), .fraction(fraction), .loads_period(loads_period),
-    .loaded_period(loaded_period), .capture_pin(capture_pin),
+    .floor_period(floor_period), .loaded_period(loaded_period), .capture_pin(capture_pin),
     .capture_rising(capture_rising), .single_edge(single_edge), .spaced(spaced),
     .pair_dirs(pair_dirs), .side_set_pindirs(side_set_pindirs), .pin_a(pin_a),
     .pin_b(pin_b), .side_set_base(side_set_base), .set_base(set_base),

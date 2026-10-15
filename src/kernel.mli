@@ -72,6 +72,17 @@ end
 (** No spacing asks nothing. *)
 module Spaced : With_valid.Wrap.S with type 'a value = 'a Spacing.t
 
+(** The period the host loads, when [valid]: what a run-time write to [p] leaves there, or
+    with [floor] the least it leaves. *)
+module Loaded : sig
+  type 'a t =
+    { valid : 'a
+    ; value : 'a
+    ; floor : 'a
+    }
+  [@@deriving hardcaml]
+end
+
 (** The parts the timer's width sizes; the chip's, [Isa.timer_bits] wide, is below. The
     width leaves an instruction's cycles below half the timer's range, so 7 bits or more. *)
 module Make_timer (_ : Engine.Timer) : sig
@@ -175,16 +186,16 @@ module Make_timer (_ : Engine.Timer) : sig
 
   (** The next entry's phase: anything unless [bounded], one less too if [may_carry].
       [next_period] holds when [period_known]. [loaded], when valid, is the assumption
-      that every run-time write to [p] carries its value. The same for [x] and [y]. A jump
-      goes to its target when [taken], if [taken_known]. [next_arm] counts the cycles
-      since [capture_arm], leaving out a capturing wait's own wait, when [next_arm_known];
-      once [next_captured], the capture is younger than that, as the arm takes effect a
-      cycle late. Only the first wait for the edge after the arm, while [awaiting],
-      captures. [capture_bounded]: this is [mov t, capture] with a captured edge, so the
-      next phase lies in [cycles + 1, next_phase]. [next_a] and [next_b]: the pair's edge
-      states, an edge showing the cycle after the entry, where out or mov data puts
-      [data_a] and [data_b] on them; [wide_a] and [wide_b]: each keeps its spacing.
-      [halts]: no next entry. *)
+      that every run-time write to [p] carries its value, or with [floor] at least it. The
+      same for [x] and [y]. A jump goes to its target when [taken], if [taken_known].
+      [next_arm] counts the cycles since [capture_arm], leaving out a capturing wait's own
+      wait, when [next_arm_known]; once [next_captured], the capture is younger than that,
+      as the arm takes effect a cycle late. Only the first wait for the edge after the
+      arm, while [awaiting], captures. [capture_bounded]: this is [mov t, capture] with a
+      captured edge, so the next phase lies in [cycles + 1, next_phase]. [next_a] and
+      [next_b]: the pair's edge states, an edge showing the cycle after the entry, where
+      out or mov data puts [data_a] and [data_b] on them; [wide_a] and [wide_b]: each
+      keeps its spacing. [halts]: no next entry. *)
   module Step : sig
     type 'a t =
       { next_phase : 'a
@@ -216,7 +227,7 @@ module Make_timer (_ : Engine.Timer) : sig
     val step
       :  side_set_count:Comb.t
       -> fraction:Comb.t
-      -> loaded:Comb.t With_valid.t
+      -> loaded:Comb.t Loaded.t
       -> capture:Comb.t Capture.t
       -> spacing:Comb.t Spaced.t
       -> word:Comb.t
@@ -238,7 +249,7 @@ module Make_timer (_ : Engine.Timer) : sig
     val conjuncts
       :  side_set_count:Comb.t
       -> fraction:Comb.t
-      -> loaded:Comb.t With_valid.t
+      -> loaded:Comb.t Loaded.t
       -> capture:Comb.t Capture.t
       -> spacing:Comb.t Spaced.t
       -> word:Comb.t
@@ -251,7 +262,7 @@ module Make_timer (_ : Engine.Timer) : sig
     val accepts
       :  side_set_count:Comb.t
       -> fraction:Comb.t
-      -> loaded:Comb.t With_valid.t
+      -> loaded:Comb.t Loaded.t
       -> capture:Comb.t Capture.t
       -> spacing:Comb.t Spaced.t
       -> word:Comb.t
@@ -266,7 +277,7 @@ module Make_timer (_ : Engine.Timer) : sig
     val fall_through
       :  side_set_count:Comb.t
       -> fraction:Comb.t
-      -> loaded:Comb.t With_valid.t
+      -> loaded:Comb.t Loaded.t
       -> capture:Comb.t Capture.t
       -> word:Comb.t
       -> row:Comb.t Row.t
@@ -280,7 +291,7 @@ module Make_timer (_ : Engine.Timer) : sig
     val one_way
       :  side_set_count:Comb.t
       -> fraction:Comb.t
-      -> loaded:Comb.t With_valid.t
+      -> loaded:Comb.t Loaded.t
       -> capture:Comb.t Capture.t
       -> word:Comb.t
       -> row:Comb.t Row.t
@@ -367,6 +378,7 @@ module Make_timer (_ : Engine.Timer) : sig
       scope aside. *)
   val rejections
     :  ?period:int
+    -> ?period_floor:int
     -> ?single_capture_edge:bool
     -> ?spacing:Spacing.Spec.t
     -> config:Program_config.t
@@ -374,12 +386,14 @@ module Make_timer (_ : Engine.Timer) : sig
     -> Table.t
     -> Rejection.t list
 
-  (** Checks every pc; words past the program read zero. [period] is [loaded]. [spacing]
-      is refused unless its pins differ and lie in the pin space, Manchester is off and
-      every row has no slope and the full offset, as [formal/phase_spacing.sby] proves it.
-      A rejection names each pc and the conjuncts that fail there. *)
+  (** Checks every pc; words past the program read zero. [period] is [loaded], and
+      [period_floor] it as a floor. [spacing] is refused unless its pins differ and lie in
+      the pin space, Manchester is off and every row has no slope and the full offset, as
+      [formal/phase_spacing.sby] proves it. A rejection names each pc and the conjuncts
+      that fail there. *)
   val check
     :  ?period:int
+    -> ?period_floor:int
     -> ?single_capture_edge:bool
     -> ?spacing:Spacing.Spec.t
     -> config:Program_config.t
@@ -392,7 +406,7 @@ module Make_timer (_ : Engine.Timer) : sig
     type 'a t =
       { side_set_count : 'a
       ; fraction : 'a
-      ; loaded : 'a With_valid.t
+      ; loaded : 'a Loaded.t
       ; capture : 'a Capture.t
       ; spacing : 'a Spaced.t
       ; word : 'a
@@ -424,7 +438,7 @@ module Make_timer (_ : Engine.Timer) : sig
       type 'a t =
         { side_set_count : 'a
         ; fraction : 'a
-        ; loaded : 'a With_valid.t
+        ; loaded : 'a Loaded.t
         ; capture : 'a Capture.t
         ; spacing : 'a Spaced.t
         ; wrap_top : 'a

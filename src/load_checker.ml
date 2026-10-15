@@ -223,7 +223,11 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
     K.one_way
       ~side_set_count
       ~fraction
-      ~loaded:setup.loaded
+      ~loaded:
+        { Kernel.Loaded.valid = setup.loaded.valid
+        ; value = setup.loaded.value
+        ; floor = setup.floor
+        }
       ~capture
       ~word:word.value
       ~row:row_value

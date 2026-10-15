@@ -10,7 +10,7 @@ open Protocol_emulator
 (** That the kernel accepts [table] at every pc, with [loaded] as the run-time load of
     [p]. *)
 val accepts
-  :  loaded:Hardcaml_verify.Comb_gates.t Hardcaml.With_valid.t
+  :  loaded:Hardcaml_verify.Comb_gates.t Kernel.Loaded.t
   -> single_capture_edge:bool
   -> config:Program_config.t
   -> words:int list

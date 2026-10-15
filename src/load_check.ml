@@ -170,7 +170,7 @@ module Step = struct
     type 'a t =
       { side_set_count : 'a [@bits 2]
       ; fraction : 'a
-      ; loaded : 'a With_valid.t [@bits Isa.data_bits]
+      ; loaded : 'a Kernel.Loaded.t
       ; capture : 'a Kernel.Capture.t
       ; wrap_top : 'a [@bits Isa.pc_bits]
       ; wrap_bottom : 'a [@bits Isa.pc_bits]
@@ -295,6 +295,7 @@ end
 
 let walk
   ?loaded
+  ?(floor = false)
   ?(single_capture_edge = false)
   ~(config : Program_config.t)
   ~words
@@ -378,8 +379,9 @@ let walk
   let side_set_count = Bits.of_unsigned_int ~width:2 config.side_set_count in
   let fraction = Bits.of_bool (config.period_fraction <> 0) in
   let loaded =
-    { With_valid.valid = Bits.of_bool (Option.is_some loaded)
+    { Kernel.Loaded.valid = Bits.of_bool (Option.is_some loaded)
     ; value = Bits.of_unsigned_int ~width:Isa.data_bits (Option.value loaded ~default:0)
+    ; floor = Bits.of_bool floor
     }
   in
   let capture =

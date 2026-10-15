@@ -34,14 +34,17 @@ module phase_step (input clk);
   (* anyconst *) wire [15:0] period_fraction;
   (* anyconst *) wire autopull_data, manchester;
   // The premises the kernel may take: p is loaded_period wherever a run-time write left it,
-  // and the capture pin makes one edge from capture_arm to the wait for it. The core is
-  // handed them and faults where they fail; CHIP's is handed none, so there they are
-  // assumed of its inputs, loaded_period free at each entry.
+  // or with floor_period at least it, and the capture pin makes one edge from capture_arm
+  // to the wait for it. The core is handed them and faults where they fail; CHIP's is
+  // handed none, so there they are assumed of its inputs, loaded_period free at each entry
+  // and no floor.
   (* anyconst *) wire loads_period;
 `ifdef CHIP
   (* anyseq *) wire [15:0] loaded_period;
+  wire floor_period = 0;
 `else
   (* anyconst *) wire [15:0] loaded_period;
+  (* anyconst *) wire floor_period;
 `endif
   (* anyconst *) wire single_edge;
   // a pair of pins whose edges the kernel spaces, each its pindirs bit if pair_dirs, and
@@ -215,7 +218,7 @@ module phase_step (input clk);
     .config$line_code(1'b0), .config$route(1'b0), .line_write$valid(1'b0),
     .line_write$addr(5'd0), .line_write$data(16'd0), .route_full(1'b0),
     .premises$period$valid(loads_period), .premises$period$value(loaded_period),
-    .premises$floor(1'b0), .premises$single_edge(single_edge),
+    .premises$floor(floor_period), .premises$single_edge(single_edge),
     .stop(stop), .flush(flush),
     .start(start), .program_write$valid(program_write_valid),
     .program_write$addr(program_write_addr), .program_write$data(program_write_data),
@@ -237,9 +240,11 @@ module phase_step (input clk);
   // an instruction completes when a jump issues, or anything else issues and goes on
   wire completes = jmp_go || advance;
 `ifndef CHIP
-  // p as the kernel takes it: loaded_period where a run-time write left it. The claims
-  // cover a run until the core flags a premise broken, a fault the chip fails safe on.
-  wire [15:0] kp = loads_period && p_loaded ? loaded_period : p;
+  // p as the kernel takes it: loaded_period where a run-time write left it, or under a
+  // floor p where it is at least that. The claims cover a run until the core flags a
+  // premise broken, a fault the chip fails safe on.
+  wire [15:0] kp = !(loads_period && p_loaded) || floor_period && p >= loaded_period ? p
+    : loaded_period;
   always @(*) assume(!assumption);
 `else
   wire [15:0] kp = p;
@@ -464,7 +469,8 @@ module phase_step (input clk);
     .next_a$fresh(next_fresh_a), .next_b$since(next_since_b),
     .next_b$level(next_level_b), .next_b$fresh(next_fresh_b), .wide_a(wide_a),
     .wide_b(wide_b),
-    .loaded$valid(loads_period), .loaded$value(e_loaded), .word(e_word),
+    .loaded$valid(loads_period), .loaded$value(e_loaded), .loaded$floor(floor_period),
+    .word(e_word),
     .capture$pin(capture_pin), .capture$rising(capture_rising),
     .capture$single_edge(single_edge), .arm(e_g), .arm_known(e_g_known),
     .captured(e_g_captured), .awaiting(e_awaiting), .next_awaiting(awaiting_next),
@@ -481,7 +487,7 @@ module phase_step (input clk);
     .a$since(16'd0), .a$level(1'b0), .a$fresh(1'b0), .b$since(16'd0), .b$level(1'b0),
     .b$fresh(1'b0), .data_a(1'b0), .data_b(1'b0), .next_a$since(), .next_a$level(),
     .next_a$fresh(), .next_b$since(), .next_b$level(), .next_b$fresh(), .wide_a(),
-    .wide_b(), .loaded$valid(1'b0),
+    .wide_b(), .loaded$valid(1'b0), .loaded$floor(1'b0),
     .loaded$value(16'd0), .capture$pin(5'd0), .capture$rising(1'b0),
     .capture$single_edge(1'b0), .arm({T{1'b0}}), .arm_known(1'b0), .captured(1'b0),
     .awaiting(1'b0), .next_awaiting(),
@@ -904,6 +910,9 @@ module phase_step (input clk);
 `else
     // p left at another value by a write, as a data base, which only a use would fault
     cover(loads_period && pending && entry && p_loaded && p != loaded_period);
+    // a use of p above its floor
+    cover(floor_period && loads_period && pending && entry && p_loaded && p > loaded_period
+      && (deadline_wait && instruction[7] || opcode == 6 && body == 8'b11001010));
 `endif
   end
 `ifdef TABLE
@@ -959,7 +968,7 @@ module phase_step (input clk);
 
 `define CONFIG(load) \
     .side_set_count(side_set_count), .fraction(period_fraction != 0), \
-    .loaded$valid(loads_period), .loaded$value(load), \
+    .loaded$valid(loads_period), .loaded$value(load), .loaded$floor(floor_period), \
     .capture$pin(capture_pin), .capture$rising(capture_rising), \
     .capture$single_edge(single_edge), .wrap_top(wrap_top), .wrap_bottom(wrap_bottom)
 `define NO_PAIR \
@@ -978,7 +987,8 @@ module phase_step (input clk);
   wire axioms, steps_into;
   row_step lemma (
     .side_set_count(side_set_count), .fraction(period_fraction != 0),
-    .loads_period(loads_period), .loaded_period(e_loaded), .capture_pin(capture_pin),
+    .loads_period(loads_period), .floor_period(floor_period), .loaded_period(e_loaded),
+    .capture_pin(capture_pin),
     .capture_rising(capture_rising), .single_edge(single_edge), .word(e_word),
     .row(e_row[439:174]), .next(e_next_row[439:174]), .target(e_target_row[439:174]),
     .phase(e_phase), .offset(e_offset), .arm(e_g), .period(e_p), .x(e_x), .y(e_y),
@@ -1043,7 +1053,8 @@ module phase_step (input clk);
   wire e_inside, steps_into;
   pair_step lemma (
     .side_set_count(side_set_count), .fraction(period_fraction != 0),
-    .loads_period(loads_period), .loaded_period(e_loaded), .capture_pin(capture_pin),
+    .loads_period(loads_period), .floor_period(floor_period), .loaded_period(e_loaded),
+    .capture_pin(capture_pin),
     .capture_rising(capture_rising), .single_edge(single_edge), .spaced(spaced),
     .pair_dirs(pair_dirs), .side_set_pindirs(side_set_pindirs), .pin_a(pin_a),
     .pin_b(pin_b), .side_set_base(side_set_base), .set_base(set_base),

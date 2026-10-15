@@ -47,6 +47,7 @@ DSHOT600 = {
         0x0000, 0x0007, 0xFFFF, 0xFFFF,
     ],
     "loaded": None,
+    "floor": 0,
     "single_edge": 0,
 }
 
@@ -108,6 +109,7 @@ SENT = {
         0x0003, 0x0003,
     ],
     "loaded": 21,
+    "floor": 1,
     "single_edge": 0,
 }
 
@@ -171,5 +173,6 @@ CEC = {
         0x0019, 0x0000, 0x0006, 0x0000, 0x000F,
     ],
     "loaded": 7,
+    "floor": 1,
     "single_edge": 0,
 }

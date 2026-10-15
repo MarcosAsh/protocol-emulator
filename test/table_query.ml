@@ -63,7 +63,9 @@ let accepts ~loaded ~single_capture_edge ~(config : Program_config.t) ~words tab
 ;;
 
 let every_load_from ~floor ~single_capture_edge ~config ~words (table : Kernel.Table.t) =
-  let loaded = { With_valid.valid = G.vdd; value = G.input "loaded" Isa.data_bits } in
+  let loaded =
+    { Kernel.Loaded.valid = G.vdd; value = G.input "loaded" Isa.data_bits; floor = G.gnd }
+  in
   let accepts =
     Array.map table ~f:(Kernel.Row.map ~f:constant)
     |> accepts ~loaded ~single_capture_edge ~config ~words
@@ -102,8 +104,9 @@ let witness
         })
   in
   let loaded =
-    { With_valid.valid = G.of_bool (Option.is_some period)
+    { Kernel.Loaded.valid = G.of_bool (Option.is_some period)
     ; value = G.of_unsigned_int ~width:Isa.data_bits (Option.value period ~default:0)
+    ; floor = G.gnd
     }
   in
   match

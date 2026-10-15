@@ -8,6 +8,7 @@ type t =
   { name : string
   ; timed : Timed_program.t
   ; period : int option
+  ; floor : bool
   ; single_capture_edge : bool
   }
 
@@ -24,6 +25,7 @@ let library =
           ~config:t.config
           t.source
     ; period
+    ; floor = Option.is_some t.period_floor
     ; single_capture_edge = t.single_capture_edge
     })
 ;;
@@ -67,7 +69,7 @@ let asm_cases =
         ~config
         (In_channel.read_all file)
     with
-    | Ok timed -> Some { name = "asm/" ^ name; timed; period; single_capture_edge }
+    | Ok timed -> Some { name = "asm/" ^ name; timed; period; floor; single_capture_edge }
     | Error _ -> None)
 ;;
 
@@ -85,6 +87,7 @@ let bench_cases =
           ~config
           source
     ; period = Option.first_some period_floor period
+    ; floor = Option.is_some period_floor
     ; single_capture_edge
     }
   in

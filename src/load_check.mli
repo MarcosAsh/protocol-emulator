@@ -78,7 +78,7 @@ module Step : sig
     type 'a t =
       { side_set_count : 'a
       ; fraction : 'a
-      ; loaded : 'a With_valid.t
+      ; loaded : 'a Kernel.Loaded.t
       ; capture : 'a Kernel.Capture.t
       ; wrap_top : 'a
       ; wrap_bottom : 'a
@@ -109,7 +109,7 @@ module Step : sig
     val step
       :  side_set_count:Comb.t
       -> fraction:Comb.t
-      -> loaded:Comb.t With_valid.t
+      -> loaded:Comb.t Kernel.Loaded.t
       -> capture:Comb.t Kernel.Capture.t
       -> pc:Comb.t
       -> word:Comb.t
@@ -126,10 +126,11 @@ module Step : sig
 end
 
 (** The chip's walk over [words], reading the certificate from [memory] at [base], under
-    [loaded] and [single_capture_edge] as the host sets them. [Ok rows] gives the row it
-    held at each pc, which [Kernel.check] accepts. *)
+    [loaded], [floor] and [single_capture_edge] as the host sets them. [Ok rows] gives the
+    row it held at each pc, which [Kernel.check] accepts. *)
 val walk
   :  ?loaded:int
+  -> ?floor:bool
   -> ?single_capture_edge:bool
   -> config:Program_config.t
   -> words:int list

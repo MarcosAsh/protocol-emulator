@@ -20,6 +20,7 @@ let certify (case : Firmware_inventory.t) =
 let walk (case : Firmware_inventory.t) ~config ~words ~certificate =
   Load_check.walk
     ?loaded:case.period
+    ~floor:case.floor
     ~single_capture_edge:case.single_capture_edge
     ~config
     ~words
@@ -41,7 +42,8 @@ let%expect_test "every firmware against the chip's walk" =
       | Ok rows ->
         (match
            Kernel.check
-             ?period:case.period
+             ?period:(if case.floor then None else case.period)
+             ?period_floor:(if case.floor then case.period else None)
              ~single_capture_edge:case.single_capture_edge
              ~config
              ~words
@@ -162,6 +164,37 @@ let%expect_test "the walk refuses what it was not given" =
     out pins, 1 [13]: refused at 10: target phase
     an entry left off: refused at 1: next period
     an entry twice: refused at 2: a table entry out of order
+    |}]
+;;
+
+(* A floor lets the host load any period from it up, so a certificate made for the period
+   exactly fails under one where the rows hold it to a point, and passes again only where
+   the analyser widened them from the start. *)
+let%expect_test "a floor certificate's rows, not an exact one's, hold every load above it"
+  =
+  let case =
+    List.find_exn Firmware_inventory.all ~f:(fun c ->
+      String.equal c.name "asm/uart_tx_host_rate")
+  in
+  let config, words, certificate = certify case in
+  let verdict ~floor =
+    match
+      Load_check.walk
+        ?loaded:case.period
+        ~floor
+        ~config
+        ~words
+        ~memory:(memory certificate)
+        ~base
+        ()
+    with
+    | Ok _ -> "accepted"
+    | Error { pc; reason } -> sprintf "refused at %d: %s" pc reason
+  in
+  printf "exact: %s\nas a floor: %s\n" (verdict ~floor:false) (verdict ~floor:true);
+  [%expect {|
+    exact: accepted
+    as a floor: refused at 3: next period
     |}]
 ;;
 

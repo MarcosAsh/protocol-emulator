@@ -23,7 +23,7 @@
 
 module row_step (
   input [1:0] side_set_count,
-  input fraction, loads_period,
+  input fraction, loads_period, floor_period,
   input [15:0] loaded_period,
   input [4:0] capture_pin,
   input capture_rising, single_edge,
@@ -44,7 +44,7 @@ module row_step (
   kernel_step step (
     .side_set_count(side_set_count), .fraction(fraction), `UNPAIRED, .data_a(1'b0),
     .data_b(1'b0),
-    .loaded$valid(loads_period), .loaded$value(loaded_period), .word(word),
+    .loaded$valid(loads_period), .loaded$value(loaded_period), .loaded$floor(floor_period), .word(word),
     .capture$pin(capture_pin), .capture$rising(capture_rising),
     .capture$single_edge(single_edge), .arm(arm), .arm_known(arm_known),
     .captured(captured), .awaiting(awaiting), .next_awaiting(next_awaiting),
@@ -68,7 +68,7 @@ module row_step (
   wire accepts, within, into_next, into_target;
   kernel_accepts check (
     .side_set_count(side_set_count), .fraction(fraction),
-    .loaded$valid(loads_period), .loaded$value(loaded_period),
+    .loaded$valid(loads_period), .loaded$value(loaded_period), .loaded$floor(floor_period),
     .capture$pin(capture_pin), .capture$rising(capture_rising),
     .capture$single_edge(single_edge), .wrap_top(9'd0), .wrap_bottom(9'd0), `UNPAIRED,
     .pc(9'd0), .word(word), .row({row, 174'd0}), .next({checked(next), 174'd0}),
@@ -79,7 +79,7 @@ module row_step (
   // the core after the step inside each successor, the kernel's own within
   kernel_accepts at_next (
     .side_set_count(side_set_count), .fraction(fraction),
-    .loaded$valid(loads_period), .loaded$value(loaded_period),
+    .loaded$valid(loads_period), .loaded$value(loaded_period), .loaded$floor(floor_period),
     .capture$pin(capture_pin), .capture$rising(capture_rising),
     .capture$single_edge(single_edge), .wrap_top(9'd0), .wrap_bottom(9'd0), `UNPAIRED,
     .pc(9'd0), .word(word), .row({next, 174'd0}), .next({next, 174'd0}),
@@ -90,7 +90,7 @@ module row_step (
     .starts_open());
   kernel_accepts at_target (
     .side_set_count(side_set_count), .fraction(fraction),
-    .loaded$valid(loads_period), .loaded$value(loaded_period),
+    .loaded$valid(loads_period), .loaded$value(loaded_period), .loaded$floor(floor_period),
     .capture$pin(capture_pin), .capture$rising(capture_rising),
     .capture$single_edge(single_edge), .wrap_top(9'd0), .wrap_bottom(9'd0), `UNPAIRED,
     .pc(9'd0), .word(word), .row({target, 174'd0}), .next({target, 174'd0}),
@@ -117,6 +117,8 @@ module row_step (
       || may_carry && phase_after == next_phase - 24'd1)
     && (!capture_bounded || cycles + 24'd1 <= phase_after && phase_after <= next_phase)
     && (!period_known || period_after == next_period)
+    // a run-time write under a floor leaves at least the loaded period
+    && (period_known || !loads_period || period_after >= loaded_period)
 `ifdef X_UNFOLLOWED
     // x after the step anything
     && (!y_known || y_after == next_y);
@@ -162,7 +164,7 @@ endmodule
 // row_step.sby's tasks between them take every word
 module row_step_proof;
   (* anyconst *) wire [1:0] side_set_count;
-  (* anyconst *) wire fraction, loads_period, capture_rising, single_edge;
+  (* anyconst *) wire fraction, loads_period, floor_period, capture_rising, single_edge;
   (* anyconst *) wire [15:0] loaded_period, word;
   (* anyconst *) wire [4:0] capture_pin;
   (* anyconst *) wire [265:0] row, next, target;
@@ -172,7 +174,7 @@ module row_step_proof;
   wire axioms, holds;
   row_step lemma (
     .side_set_count(side_set_count), .fraction(fraction), .loads_period(loads_period),
-    .loaded_period(loaded_period), .capture_pin(capture_pin),
+    .floor_period(floor_period), .loaded_period(loaded_period), .capture_pin(capture_pin),
     .capture_rising(capture_rising), .single_edge(single_edge), .word(word), .row(row),
     .next(next), .target(target), .phase(phase), .offset(offset), .arm(arm),
     .period(period), .x(x), .y(y), .arm_known(arm_known), .captured(captured),
