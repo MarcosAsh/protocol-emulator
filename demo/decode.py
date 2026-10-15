@@ -6,6 +6,7 @@
 # Usage: python3 demo/decode.py test/traces/*.trace test/traces/sigrok/*.trace
 #        python3 demo/decode.py --rate 24 TRACE...            as a 24 MHz analyser sees it
 #        python3 demo/decode.py --capture can.sr TRACE        a capture from the bench
+#        python3 demo/decode.py --analyser B --capture spi.sr test/traces/sigrok/spi_mode0.trace
 #        python3 demo/decode.py --rate 24 --write-capture can.sr TRACE
 #        python3 demo/decode.py --host-frames frames.py TRACE for demo/pico_replay.py
 #        python3 demo/decode.py --summary "the RTL" TRACE...  and a count of protocols read
@@ -41,10 +42,15 @@ ERRORS = {
     "swd": ["parity"],
 }
 
-# The bench's analyser A: the host's SCK, MOSI, MISO and CS_N, OUT0, then CAN module A's R,
-# which gives OUT1 back, SWCLK on OUT2 and SWDIO on IO5
-BENCH = {"SCK": "D0", "MOSI": "D1", "MISO": "D2", "CS_N": "D3", "OUT0": "D4", "OUT1": "D5",
-         "OUT2": "D6", "IO5": "D7"}
+# The carrier's analysers. A: the host's SCK, MOSI, MISO and CS_N, OUT0, then CAN board A's
+# R, which gives OUT1 back, SWCLK on OUT2 and SWDIO on IO5. B: the flash's SCK on OUT5, MOSI
+# on OUT4, MISO on IN0 and CS on OUT6, the NeoPixel's OUT3, DQ on IO4, SDA on IO3, SCL on IO2.
+BENCH = {
+    "A": {"SCK": "D0", "MOSI": "D1", "MISO": "D2", "CS_N": "D3", "OUT0": "D4", "OUT1": "D5",
+          "OUT2": "D6", "IO5": "D7"},
+    "B": {"OUT5": "D0", "OUT4": "D1", "IN0": "D2", "OUT6": "D3", "OUT3": "D4", "IO4": "D5",
+          "IO3": "D6", "IO2": "D7"},
+}
 
 PIN = re.compile(r"=((?:IN|OUT|IO)\d|SCK|MOSI|MISO|CS_N)\b")
 
@@ -229,7 +235,7 @@ def captures(trace, args, scratch, tooth=()):
     """The waveforms to judge, each with why it is refused if it is: the one from reset
     and, for a line the decoders join once it idles, the one from there."""
     if args.capture:
-        mapping = dict(BENCH, **dict(args.probe))
+        mapping = dict(BENCH[args.analyser], **dict(args.probe))
         missing = [n for n in trace.pins() if n not in mapping]
         if missing:
             raise SystemExit("%s: %s is not on the analyser, give --probe %s=Dn" % (
@@ -298,7 +304,8 @@ def check(path, args):
 
 def write_capture(trace, args):
     """The trace as the bench's analyser would capture it, on its channels."""
-    pins = {channel: pin for pin, channel in dict(BENCH, **dict(args.probe)).items()}
+    pins = {channel: pin
+            for pin, channel in dict(BENCH[args.analyser], **dict(args.probe)).items()}
     channels = [pins.get("D%d" % i) for i in range(8)]
     rate, samples = sample(pack([trace.wire(p) if p else None for p in channels]),
                            trace.clock, args)
@@ -359,6 +366,8 @@ def main():
     parser.add_argument("--ppm", type=float, default=30.0, help="most crystal error, either way")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--capture", help="judge this capture from the bench instead")
+    parser.add_argument("--analyser", choices=sorted(BENCH), default="A",
+                        help="the carrier's analyser the capture is from")
     parser.add_argument("--probe", type=lambda s: tuple(s.split("=")), action="append",
                         default=[], help="PIN=Dn, a pin on another channel of the analyser")
     parser.add_argument("--write-capture", help="write the trace as the bench's analyser sees it")
