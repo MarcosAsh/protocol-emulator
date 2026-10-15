@@ -202,7 +202,6 @@ module phase_step (input clk);
   always @(*) begin
     assume(side_set_count <= 2);
     assume(!start || halted);
-    assume(!program_write_valid || halted);
   end
 `ifdef ONE_RUN
   // one of the runs above, so a failure in it is the lemma's: jmp 0 written at 0, then one

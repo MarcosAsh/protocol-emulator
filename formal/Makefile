@@ -276,10 +276,14 @@ osr_step.v: ../src/*.ml
 data_step: engine.v osr_step.v
 	sby -f data_step.sby prove cover
 
-# weakened statements, which pass only by failing, and phase_step's core with its capture
-# stamped a cycle early
+# weakened statements, which pass only by failing, phase_step's core with its capture
+# stamped a cycle early, and a core whose program memory takes a write while it runs
+UNGATED = s/^\(\s*assign program_write = signal_wire_[0-9]*\) & halted_0;/\1;/
 teeth: engine.v engine_sram.v engines.v kernel_step.v osr_step.v
-	sby -f issue_timing.sby jump_in_one delay_ignores_side_set waits_are_plain
+	mkdir -p issue_timing_teeth
+	sed '$(UNGATED)' engine.v > issue_timing_teeth/write_while_running.v
+	! cmp -s engine.v issue_timing_teeth/write_while_running.v
+	sby -f issue_timing.sby jump_in_one delay_ignores_side_set waits_are_plain write_while_running
 	sby -f fifo_order.sby stale_ahead
 	mkdir -p phase_step_teeth
 	awk -f capture_early.awk engine.v engine.v > phase_step_teeth/capture_early.v
