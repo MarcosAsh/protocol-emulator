@@ -37,7 +37,7 @@ module powerup (input clk);
   wire [15:0] din_a[0:2], din_b[0:2], bm_a[0:2], bm_b[0:2], dout_a[0:2], dout_b[0:2];
   wire [`STATE_BITS - 1:0] state_a, state_b;
   wire [`FALLING_BITS - 1:0] falling_a, falling_b;
-  wire reset_done_a, reset_done_b;
+  wire reset_done_a, reset_done_b, clear_late_a, clear_late_b;
   fifo_t rx_0_a, tx_0_a, rx_1_a, tx_1_a, rx_0_b, tx_0_b, rx_1_b, tx_1_b;
   // four stamps, each the 24-bit timer and the 20 pads
   localparam STAMP = 44;
@@ -50,7 +50,8 @@ module powerup (input clk);
     .uo_out(uo_out_``side), .uio_out(uio_out_``side), .uio_oe(uio_oe_``side), \
     `PORTS(side, 0) `PORTS(side, 1) `PORTS(side, 2) \
     .state(state_``side), .falling(falling_``side), \
-    .reset_done(reset_done_``side), .rx_0(rx_0_``side), .tx_0(tx_0_``side), \
+    .reset_done(reset_done_``side), .clear_late(clear_late_``side), \
+    .rx_0(rx_0_``side), .tx_0(tx_0_``side), \
     .rx_1(rx_1_``side), .tx_1(tx_1_``side), .stamps(stamps_``side), \
     .load_checker(load_checker_``side) \
   );
@@ -102,11 +103,13 @@ module powerup (input clk);
   // the invariant beside fifo_pair; each macro reads every cycle, so from the second edge
   // on its output holds a word the premise makes the same
   always @* if (!first) assert (state_a == state_b);
-  // the clear holds until the second edge, so the falling edge before it clears the
-  // falling flops in both
+  // the clear holds until the second edge, and the falling flops' late copy of it is set
+  // from the first, so the falling edge between clears them in both
   reg fell = 0;
   always @(negedge clk) if (!first) fell <= 1;
+  always @* if (first) assert (!fell);
   always @* if (!first && !warm) assert (!reset_done_a && !reset_done_b);
+  always @* if (!first && !warm) assert (clear_late_a && clear_late_b);
   always @* if (!first && !clk || warm) assert (fell);
   always @* if (fell) assert (falling_a == falling_b);
   always @* if (warm)

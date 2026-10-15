@@ -1,6 +1,7 @@
 (** A pad sampled on both clock edges, each through two flops, so 10BASE-T gets twice the
     clock's sample rate. Bit 0 is the earlier sample. Cyclesim runs the falling flops on
-    the rising edge, so only an event or gate-level simulation shows the half cycle. *)
+    the rising edge, so only an event or gate-level simulation shows the half cycle. The
+    falling flops leave the clear a cycle after the rising ones. *)
 
 open! Core
 open! Hardcaml

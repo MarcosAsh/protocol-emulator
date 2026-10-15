@@ -22,8 +22,10 @@ gather load_checker $fields
 # FALLING_BITS: the clear reaches them at the first falling edge, not the first edge
 set falling [wires {t:$dff r:CLK_POLARITY=1'0 %i %co:+[Q] w:* %i}]
 set falling_bits [gather falling $falling]
-# and the clear they take, which holds from the first edge to the second
+# and the clear, which holds from the first edge to the second, and the copy a cycle late
+# that the falling flops take, set from the first edge on
 gather reset_done [wires w:core.top.reset_done]
+gather clear_late [wires w:core.top.both_edges.clear_late]
 
 yosys select -set ports o:*
 set flops [list w:* w:core.top.engines.engine_?.rx.* w:core.top.engines.engine_?.tx.* %u]

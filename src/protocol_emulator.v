@@ -18306,6 +18306,7 @@ module both_edges (
     output [1:0] samples;
 
     wire signal_const;
+    reg clear_late;
     reg signal_reg;
     reg signal_reg_1;
     reg fell;
@@ -18316,14 +18317,17 @@ module both_edges (
     reg rising;
     wire [1:0] signal_cat;
     assign signal_const = 1'b0;
+    always @(posedge signal_wire_1) begin
+        clear_late <= signal_wire;
+    end
     always @(negedge signal_wire_1) begin
-        if (signal_wire)
+        if (clear_late)
             signal_reg <= signal_const;
         else
             signal_reg <= signal_wire_2;
     end
     always @(negedge signal_wire_1) begin
-        if (signal_wire)
+        if (clear_late)
             signal_reg_1 <= signal_const;
         else
             signal_reg_1 <= signal_reg;
