@@ -1110,6 +1110,11 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       , "-"
       , "1 MHz"
       , "SWDIO turns around, which needs pins and pindirs in one table" )
+    ; ( "ps2_blind"
+      , "design"
+      , "10 to 16.7 kHz"
+      , "unit 960"
+      , "open drain clock and data; a clock held low sends the frame again" )
     ]
   in
   let named = List.map rows ~f:(fun (name, _, _, _, _) -> name) in
@@ -1157,5 +1162,7 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       library half 14 and up, all four modes; it shifts only while CS is low, and a table's await cannot abort on CS
     swd        no       -
       library 1 MHz; SWDIO turns around, which needs pins and pindirs in one table
+    ps2_blind  design   10 to 16.7 kHz
+      library unit 960; open drain clock and data; a clock held low sends the frame again
     |}]
 ;;

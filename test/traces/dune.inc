@@ -42,6 +42,16 @@
 
 (rule
  (with-stdout-to
+  ps2_blind.trace.gen
+  (run ./write_trace.exe ps2_blind)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff ps2_blind.trace ps2_blind.trace.gen)))
+
+(rule
+ (with-stdout-to
   wrapped_loop.trace.gen
   (run ./write_trace.exe wrapped_loop)))
 
