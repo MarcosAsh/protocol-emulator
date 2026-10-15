@@ -249,9 +249,10 @@ let%expect_test "the load checker's registers" =
   run ~half:4 (fun m ~watch inputs o ->
     (List.hd_exn inputs.status).halted := Bits.vdd;
     (List.hd_exn inputs.status).certified := Bits.vdd;
-    inputs.check.accepted := Bits.vdd;
-    inputs.check.reject_pc <--. 0x123;
-    inputs.check.reason <--. 30;
+    let verdict = List.hd_exn inputs.check in
+    verdict.accepted := Bits.vdd;
+    verdict.reject_pc <--. 0x123;
+    verdict.reason <--. 30;
     Spi_master.write m ~watch Reg.check_base [ 0x105 ];
     Spi_master.write m ~watch Reg.check_loaded [ 434 ];
     Spi_master.write m ~watch Reg.check_flags [ 0b11 ];

@@ -148,7 +148,7 @@ let status_word (s : int Host_port.Status.t) ~other_irq =
 let read
   t
   ~(statuses : int Host_port.Status.t list)
-  ~(verdict : int Load_checker.Verdict.t)
+  ~(verdicts : int Load_checker.Verdict.t list)
   ~reg
   =
   let low x = x land mask Isa.data_bits in
@@ -158,6 +158,11 @@ let read
     List.nth statuses engine
     |> Option.value
          ~default:(Host_port.Status.map Host_port.Status.port_widths ~f:(Fn.const 0))
+  in
+  let verdict =
+    List.nth verdicts engine
+    |> Option.value
+         ~default:(Load_checker.Verdict.map Load_checker.Verdict.port_widths ~f:(Fn.const 0))
   in
   if reg = Reg.program_addr
   then t.program_addr, []

@@ -109,12 +109,14 @@ module Fuzz (Config : Host_port.Config) = struct
            let statuses = List.map inputs.status ~f:(fun _ -> random_status random) in
            List.iter2_exn inputs.status statuses ~f:(fun ports status ->
              Status.iter2 ports status ~f:(fun port value -> port <--. value));
-           let verdict =
-             Load_checker.Verdict.map Load_checker.Verdict.port_widths ~f:(fun width ->
-               Splittable_random.int random ~lo:0 ~hi:((1 lsl width) - 1))
+           let verdicts =
+             List.map inputs.check ~f:(fun _ ->
+               Load_checker.Verdict.map Load_checker.Verdict.port_widths ~f:(fun width ->
+                 Splittable_random.int random ~lo:0 ~hi:((1 lsl width) - 1)))
            in
-           Load_checker.Verdict.iter2 inputs.check verdict ~f:(fun port value ->
-             port <--. value);
+           List.iter2_exn inputs.check verdicts ~f:(fun ports verdict ->
+             Load_checker.Verdict.iter2 ports verdict ~f:(fun port value ->
+               port <--. value));
            let words = List.take frame.words (Frame.complete_words frame) in
            let expected_events, expected_replies =
              if frame.write
@@ -134,7 +136,7 @@ module Fuzz (Config : Host_port.Config) = struct
                        in
                        { status with rx_head })
                    in
-                   Model.read !model ~statuses ~verdict ~reg:frame.reg)
+                   Model.read !model ~statuses ~verdicts ~reg:frame.reg)
                  |> List.unzip
                in
                List.concat events, replies)
@@ -262,9 +264,9 @@ let%expect_test "random frames with a select register in the map" =
   Three.fuzz ~seed:6 ~frames:400 ();
   [%expect
     {|
-    ((seed 5) (frames 400) (cut 163) (!strobes 228) (!words_read 270)
+    ((seed 5) (frames 400) (cut 163) (!strobes 212) (!words_read 270)
      (!miso_high_when_idle false) (!failure ()))
-    ((seed 6) (frames 400) (cut 157) (!strobes 187) (!words_read 260)
+    ((seed 6) (frames 400) (cut 157) (!strobes 181) (!words_read 260)
      (!miso_high_when_idle false) (!failure ()))
     |}]
 ;;

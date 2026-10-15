@@ -99,7 +99,7 @@ module Make (Config : Config) = struct
       ; mosi : 'a
       ; cs_n : 'a
       ; status : 'a Status.t list [@length engines]
-      ; check : 'a Load_checker.Verdict.t
+      ; check : 'a Load_checker.Verdict.t list [@length engines]
       ; frame : 'a Frame_rx.Status.t
       ; stamps : 'a Edge_stamps.O.t
       }
@@ -204,12 +204,17 @@ module Make (Config : Config) = struct
     (* the command byte's register is read while the byte arrives, [addr]'s after it *)
     let%hw spi_rx_byte = wire 8 in
     let%hw read_addr = mux2 (sm.is Command) spi_rx_byte.:[6, 0] addr in
+    (* the selected engine's own check *)
+    let verdict (field : Signal.t Load_checker.Verdict.t -> Signal.t) =
+      let values = List.map i.check ~f:field in
+      pick values ~zero:(zero (width (List.hd_exn values)))
+    in
     let%hw check_status =
       concat_msb
         [ pick (List.map i.status ~f:(fun s -> s.refused)) ~zero:gnd
         ; pick (List.map i.status ~f:(fun s -> s.certified)) ~zero:gnd
-        ; i.check.accepted
-        ; i.check.busy
+        ; verdict (fun v -> v.accepted)
+        ; verdict (fun v -> v.busy)
         ]
     in
     let%hw read_value =
@@ -219,8 +224,8 @@ module Make (Config : Config) = struct
       ; Reg.check_loaded, check_loaded.value
       ; Reg.check_flags, reg16 check_flags.value
       ; Reg.check_status, reg16 check_status
-      ; Reg.reject_pc, reg16 i.check.reject_pc
-      ; Reg.reject_reason, reg16 i.check.reason
+      ; Reg.reject_pc, reg16 (verdict (fun v -> v.reject_pc))
+      ; Reg.reject_reason, reg16 (verdict (fun v -> v.reason))
       ; Reg.line_addr, reg16 line_addr.value
       ; Reg.frame_control, reg16 (frame_pin.value @: frame_fifty.value @: gnd)
       ; Reg.frame_base, reg16 frame_base.value

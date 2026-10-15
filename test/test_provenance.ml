@@ -27,7 +27,7 @@ let%expect_test "tracing leaves the committed verilog byte for byte" =
         ~bytes:(String.length committed : int)
         ~untraced_identical:(String.equal plain committed : bool)
         ~traced_identical:(String.equal traced committed : bool)];
-  [%expect {| ((bytes 717559) (untraced_identical true) (traced_identical true)) |}]
+  [%expect {| ((bytes 725005) (untraced_identical true) (traced_identical true)) |}]
 ;;
 
 (* no module's lines are an interface's fields, where its derived code sits *)
@@ -70,24 +70,24 @@ let%expect_test "the share of verilog names that resolve to a src line" =
              : string list)]);
   [%expect
     {|
-    ((names 6927) (named_at 370) (made_at 5475) (unresolved 1082)
-     (distinct_lines 1033))
+    ((names 6994) (named_at 374) (made_at 5525) (unresolved 1095)
+     (distinct_lines 1044))
     (both_edges (names 14) (unresolved 10) (files (src/both_edges.ml)))
     (data_memory (names 69) (unresolved 36) (files (src/data_memory.ml)))
     (edge_stamps (names 111) (unresolved 89) (files (src/edge_stamps.ml)))
     (engine (names 2396) (unresolved 131)
      (files
       (src/crc.ml src/deadline.ml src/decoder.ml src/engine.ml src/pins.ml)))
-    (engines (names 731) (unresolved 267) (files (src/engines.ml)))
+    (engines (names 778) (unresolved 272) (files (src/engines.ml)))
     (frame_rx (names 116) (unresolved 20) (files (src/crc.ml src/frame_rx.ml)))
     (host_fifo (names 93) (unresolved 84) (files (src/host_fifo.ml)))
-    (host_port (names 1197) (unresolved 266) (files (src/host_port.ml)))
+    (host_port (names 1209) (unresolved 274) (files (src/host_port.ml)))
     (host_spi (names 71) (unresolved 21) (files (src/host_spi.ml)))
     (load_checker (names 1644) (unresolved 99)
      (files (src/decoder.ml src/kernel.ml src/load_checker.ml)))
     (manchester_rx (names 181) (unresolved 12) (files (src/manchester_rx.ml)))
     (protocol_emulator (names 17) (unresolved 17) (files ()))
     (sram_macro (names 21) (unresolved 19) (files (src/sram_macro.ml)))
-    (top (names 266) (unresolved 11) (files (src/top.ml)))
+    (top (names 274) (unresolved 11) (files (src/top.ml)))
     |}]
 ;;

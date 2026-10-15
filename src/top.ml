@@ -69,7 +69,7 @@ let create ~memory ~engines (scope : Scope.t) (i : Signal.t I.t) =
               ; certified
               ; refused
               })
-      ; check = check.verdict
+      ; check = check.verdicts
       ; frame
       ; stamps
       }

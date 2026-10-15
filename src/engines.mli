@@ -35,12 +35,17 @@ module Make (_ : Config) : sig
     [@@deriving hardcaml]
   end
 
-  (** The [Load_checker]'s last verdict, and each engine's: [certified], from an accepted
-      check until a program or configuration write or the next check; and [refused], a
-      start without it, which leaves the engine halted, until the next check. *)
+  (** Cycles in each engine's turn at the [Load_checker], twice the longest firmware's walk.
+      A walk longer than its turn is aborted. *)
+  val turn_cycles : int
+
+  (** Each engine's last [Load_checker] verdict, busy from the check's ask, which waits for
+      the engine's turn, until its verdict; [certified], from an accepted check until a
+      program or configuration write or the next check; and [refused], a start without it,
+      which leaves the engine halted, until the next check. *)
   module Check : sig
     type 'a t =
-      { verdict : 'a Load_checker.Verdict.t
+      { verdicts : 'a Load_checker.Verdict.t list
       ; certified : 'a list
       ; refused : 'a list
       }

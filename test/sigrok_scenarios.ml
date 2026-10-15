@@ -492,8 +492,9 @@ let low_speed_host groups () =
 let usb =
   let bit_period = Usb_host.bit_period in
   let address = 0 in
-  (* after the load, the certificate's check and the start, which take some 169k cycles *)
-  let at bits = 180_000 + (bits * bit_period) in
+  (* after the load, the certificate's check in engine 0's turn and the start, which take
+     some 294k cycles *)
+  let at bits = 300_000 + (bits * bit_period) in
   let setup = 0x2d
   and in_ = 0x69
   and out = 0xe1 in

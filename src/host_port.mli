@@ -107,7 +107,7 @@ module Make (_ : Config) : sig
       ; mosi : 'a
       ; cs_n : 'a
       ; status : 'a Status.t list
-      ; check : 'a Load_checker.Verdict.t
+      ; check : 'a Load_checker.Verdict.t list (** Each engine's. *)
       ; frame : 'a Frame_rx.Status.t
       ; stamps : 'a Edge_stamps.O.t
       }

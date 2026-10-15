@@ -28,9 +28,14 @@ let certify
     ];
   Spi_master.write m ~watch Reg.control [ 0x10 ];
   let status () = List.hd_exn (Spi_master.read m ~watch Reg.check_status ~count:1) in
+  (* the check can wait two of the checker's turns for its engine's, so poll at leisure *)
   let rec settle () =
     let status = status () in
-    if status land 1 = 1 then settle () else status
+    if status land 1 = 1
+    then (
+      watch 4_096;
+      settle ())
+    else status
   in
   let status = settle () in
   if status land 0b100 = 0

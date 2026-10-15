@@ -48,10 +48,11 @@ val write
   -> int
   -> t * (int * Event.t) list
 
-(** The word a read returns given every engine's status, and what the read does. *)
+(** The word a read returns given every engine's status and verdict, and what the read
+    does. *)
 val read
   :  t
   -> statuses:int Host_port.Status.t list
-  -> verdict:int Load_checker.Verdict.t
+  -> verdicts:int Load_checker.Verdict.t list
   -> reg:int
   -> int * (int * Event.t) list

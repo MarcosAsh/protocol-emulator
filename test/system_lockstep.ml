@@ -154,7 +154,8 @@ let run
          port.check := Bits.vdd;
          cycle ();
          port.check := Bits.gnd;
-         while Bits.to_bool !(o.check.verdict.busy) do
+         let verdict = List.nth_exn o.check.verdicts engine in
+         while Bits.to_bool !(verdict.busy) do
            cycle ()
          done;
          (* the engine's bit takes the verdict a cycle after it lands *)
@@ -165,8 +166,8 @@ let run
              [%message
                "the load checker refused the program"
                  (engine : int)
-                 ~pc:(int o.check.verdict.reject_pc : int)
-                 ~reason:(int o.check.verdict.reason : int)]);
+                 ~pc:(int verdict.reject_pc : int)
+                 ~reason:(int verdict.reason : int)]);
        (* the hardware's data memory holds whatever it held, so a program that can read it
           gets it all written *)
        feed

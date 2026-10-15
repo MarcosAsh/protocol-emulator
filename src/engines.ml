@@ -30,7 +30,7 @@ module Make (Config : Config) = struct
 
   module Check = struct
     type 'a t =
-      { verdict : 'a Load_checker.Verdict.t
+      { verdicts : 'a Load_checker.Verdict.t list [@length engines]
       ; certified : 'a list [@length engines]
       ; refused : 'a list [@length engines]
       }
@@ -50,6 +50,9 @@ module Make (Config : Config) = struct
   end
 
   module Data_memory = Data_memory.Make (Config)
+
+  let turn_bits = 16
+  let turn_cycles = 1 lsl turn_bits
 
   let any (outs : Signal.t Engine.O.t list) ~f = List.map outs ~f |> reduce ~f:( |: )
 
@@ -72,27 +75,36 @@ module Make (Config : Config) = struct
     let outs = List.init engines ~f:(fun _ -> Engine.O.Of_signal.wires ()) in
     let select_bits = Int.max 1 (Int.ceil_log2 engines) in
     (* One checker serves every engine, a halted one at a time: it reads that engine's
-       program memory and takes its turn at the data memory. *)
+       program memory and takes its turn at the data memory. With more than one engine the
+       checker goes to each in turn for [turn_cycles], whoever asks: a check waits for its
+       engine's turn and a walk still going at the turn's end is aborted, so when an
+       engine's check begins and ends never depends on another's. *)
     let checker = Load_checker.O.Of_signal.wires () in
     let%hw checked = wire select_bits in
     let%hw checking = checker.busy in
     let mine n = checking &: (checked ==:. n) in
-    let%hw_list asks =
-      List.map2_exn i.hosts outs ~f:(fun (h : _ Engine.Host.t) e -> h.check &: e.halted)
-    in
-    let%hw go = ~:checking &: List.reduce_exn asks ~f:( |: ) in
+    let%hw turn_cycle = reg_fb spec ~width:turn_bits ~f:(fun c -> c +:. 1) in
+    let%hw turn_ends = if engines = 1 then gnd else turn_cycle ==: ones turn_bits in
     let%hw chosen =
-      priority_select_with_default
-        (List.mapi asks ~f:(fun n ask ->
-           { With_valid.valid = ask; value = of_unsigned_int ~width:select_bits n }))
-        ~default:(zero select_bits)
+      reg_fb spec ~enable:turn_ends ~width:select_bits ~f:(fun owner ->
+        mux2 (owner ==:. engines - 1) (zero select_bits) (owner +:. 1))
     in
+    let%hw turn_starts = if engines = 1 then ~:checking else turn_cycle ==:. 0 in
+    (* a check asked between its engine's turns waits for the next, while it stays halted *)
+    let%hw_list waiting = List.init engines ~f:(fun _ -> wire 1) in
+    let%hw_list asks =
+      List.map3_exn i.hosts outs waiting ~f:(fun (h : _ Engine.Host.t) e waiting ->
+        (h.check |: waiting) &: e.halted)
+    in
+    let%hw go = turn_starts &: mux chosen asks in
+    let checks_begin n = go &: (chosen ==:. n) in
+    List.iteri (List.zip_exn waiting asks) ~f:(fun n (waiting, ask) ->
+      waiting <-- reg spec (ask &: ~:(checks_begin n)));
     checked <-- reg spec ~enable:go chosen;
     let pick values = mux checked values in
     let%hw accepts = checker.finished &: checker.accepted in
     (* a start counts only for a program the checker accepted, under the configuration it
        was checked with *)
-    let checks_begin n = go &: (chosen ==:. n) in
     let%hw_list certified =
       List.mapi i.hosts ~f:(fun n (h : _ Engine.Host.t) ->
         reg_fb spec ~width:1 ~f:(fun certified ->
@@ -146,7 +158,8 @@ module Make (Config : Config) = struct
           |: pick
                (List.map i.hosts ~f:(fun h ->
                   h.program_write.valid |: h.config_written |: h.line_write.valid))
-          |: pick (List.map lent ~f:( ~: )))
+          |: pick (List.map lent ~f:( ~: ))
+          |: turn_ends)
     in
     (* A received frame takes the data memory's port only where nothing it serves reads:
        no check, no host write, and every engine halted and not starting, or not pulling
@@ -265,12 +278,20 @@ module Make (Config : Config) = struct
     ; pin_out = sel_bottom pin_out ~width:Isa.num_pins
     ; pin_dir = sel_bottom (any outs ~f:(fun e -> e.pin_dir)) ~width:Isa.num_pins
     ; check =
-        { verdict =
-            { busy = checking
-            ; accepted = checker.accepted
-            ; reject_pc = checker.reject_pc
-            ; reason = checker.reason
-            }
+        { verdicts =
+            (* each engine's last, kept while the checker serves the others, and busy from
+               its ask until it is kept *)
+            List.mapi waiting ~f:(fun n waiting ->
+              let ends = checker.finished &: (checked ==:. n) in
+              let keep = reg spec ~enable:ends in
+              { Load_checker.Verdict.busy = waiting |: mine n |: ends
+              ; accepted = keep checker.accepted
+              ; reject_pc = keep checker.reject_pc
+              ; reason = keep checker.reason
+              }
+              |> Load_checker.Verdict.Of_signal.apply_names
+                   ~prefix:[%string "verdict$%{n#Int}$"]
+                   ~naming_op:(Scope.naming scope))
         ; certified
         ; refused
         }
