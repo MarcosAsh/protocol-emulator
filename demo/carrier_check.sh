@@ -14,9 +14,11 @@ mkdir -p "$evidence"
 make -C icepi REV="$rev" check-prog
 git rev-parse HEAD > "$evidence/commit"
 sha256sum "icepi/build/$rev-carrier-check.bit" > "$evidence/bitstream.sha256"
+# set -e would leave the group at a failing check, before its status is kept
 {
-    python3 demo/carrier_check.py --evidence "$evidence" "$@"
-    echo $? > "$evidence/status"
+    status=0
+    python3 demo/carrier_check.py --evidence "$evidence" "$@" || status=$?
+    echo "$status" > "$evidence/status"
 } 2>&1 | tee "$evidence/carrier_check.log"
 # the chip again, from the flash, and its status: halted, no faults
 openFPGALoader -b icepi-zero -r
