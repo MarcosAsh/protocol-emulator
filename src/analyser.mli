@@ -83,11 +83,13 @@ val captures : Program_config.t -> Isa.Wait.t -> bool
     which is what a start bit gives a receiver that arms in time; without it a wait on the
     capture pin proves nothing about the capture register, and [mov t, capture] leaves the
     phase unbounded. [period_floor], in place of [period], assumes only that every load
-    carries at least it. *)
+    carries at least it. A state that has changed [max_passes] times at an address, 256 by
+    default, is widened there: a bound that moved again is dropped. *)
 val analyse
   :  ?period:int
   -> ?period_floor:int
   -> ?single_capture_edge:bool
+  -> ?max_passes:int
   -> config:Program_config.t
   -> Isa.t list
   -> Row.t list

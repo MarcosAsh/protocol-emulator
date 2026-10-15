@@ -148,7 +148,6 @@ module Row = struct
   [@@deriving sexp_of]
 end
 
-let max_passes = 256
 let program_size = 1 lsl Isa.pc_bits
 
 let captures (c : Program_config.t) (wait : Isa.Wait.t) =
@@ -533,7 +532,14 @@ let slopes ~(config : Program_config.t) (program : Isa.t array) entry =
   slopes
 ;;
 
-let analyse ?period ?period_floor ?single_capture_edge ~config (program : Isa.t list) =
+let analyse
+  ?period
+  ?period_floor
+  ?single_capture_edge
+  ?(max_passes = 256)
+  ~config
+  (program : Isa.t list)
+  =
   if Option.is_some period && Option.is_some period_floor
   then raise_s [%message "BUG: a period or a floor, not both"];
   (* past the program the memory reads zero, [jmp 0], and the pc wraps at its end *)
