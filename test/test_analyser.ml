@@ -636,37 +636,39 @@ let soundness ?period ?preload ~config ~cycles ~seeds words =
     words
 ;;
 
+(* the firmware and what each is analysed under: config, source, period, preloaded words *)
+let corpus =
+  [ "uart tx", Program_config.default, Uart.tx ~period:16, None, []
+  ; "uart tx host rate", Program_config.default, Uart.tx_host_rate, Some 434, [ 434 ]
+  ; "uart rx", Uart.rx_config, Uart.rx ~period:16, None, []
+  ; "spi master", Spi.config, Spi.master ~half_period:8, None, []
+  ; "spi slave", Spi.slave_config, Timed_program.source Spi.slave, None, []
+  ; "i2c master", I2c.config, I2c.master ~quarter:8, None, []
+  ; "i2c slave", I2c.slave_config, Timed_program.source I2c.slave, None, [ 0x50 lsl 1 ]
+  ; "i2c logger", I2c.logger_config, Timed_program.source I2c.logger, None, []
+  ; "usb tx", Usb.config, Timed_program.source Usb.tx, Some 32, [ 32 ]
+  ; "usb rx", Usb.rx_config, Usb.rx ~half_period:16, Some 32, [ 32 ]
+  ; ( "usb device"
+    , Usb.device_config
+    , Usb.device ~address:0 ~half_period:16
+    , Some 32
+    , [ 32 ] )
+  ; "edge meter", Edge_meter.config, Edge_meter.firmware ~period:16, None, []
+  ; "edge logger", edge_logger_config ~pin:0, edge_logger ~pin:0, None, []
+  ; "start hold", I2c.start_hold_config ~scl:1, I2c.start_hold ~sda:0 ~scl:1, None, []
+  ; ( "uart tx, fractional period"
+    , { Program_config.default with period_fraction = 43691 }
+    , Uart.tx_host_rate
+    , Some 16
+    , [ 16 ] )
+  ; "ws2812", Ws2812.config, Ws2812.firmware ~third:6 ~tail:7, None, []
+  ; "1-wire", One_wire.config, Timed_program.source One_wire.firmware, Some 8, [ 8 ]
+  ; "ps/2", Ps2.config, Timed_program.source Ps2.firmware, Some 10, [ 10 ]
+  ; "jtag", Jtag.config, Jtag.firmware ~half_period:Jtag.shortest_half, None, []
+  ]
+;;
+
 let%expect_test "every firmware stays inside its analysis under random stimulus" =
-  let corpus =
-    [ "uart tx", Program_config.default, Uart.tx ~period:16, None, []
-    ; "uart tx host rate", Program_config.default, Uart.tx_host_rate, Some 434, [ 434 ]
-    ; "uart rx", Uart.rx_config, Uart.rx ~period:16, None, []
-    ; "spi master", Spi.config, Spi.master ~half_period:8, None, []
-    ; "spi slave", Spi.slave_config, Timed_program.source Spi.slave, None, []
-    ; "i2c master", I2c.config, I2c.master ~quarter:8, None, []
-    ; "i2c slave", I2c.slave_config, Timed_program.source I2c.slave, None, [ 0x50 lsl 1 ]
-    ; "i2c logger", I2c.logger_config, Timed_program.source I2c.logger, None, []
-    ; "usb tx", Usb.config, Timed_program.source Usb.tx, Some 32, [ 32 ]
-    ; "usb rx", Usb.rx_config, Usb.rx ~half_period:16, Some 32, [ 32 ]
-    ; ( "usb device"
-      , Usb.device_config
-      , Usb.device ~address:0 ~half_period:16
-      , Some 32
-      , [ 32 ] )
-    ; "edge meter", Edge_meter.config, Edge_meter.firmware ~period:16, None, []
-    ; "edge logger", edge_logger_config ~pin:0, edge_logger ~pin:0, None, []
-    ; "start hold", I2c.start_hold_config ~scl:1, I2c.start_hold ~sda:0 ~scl:1, None, []
-    ; ( "uart tx, fractional period"
-      , { Program_config.default with period_fraction = 43691 }
-      , Uart.tx_host_rate
-      , Some 16
-      , [ 16 ] )
-    ; "ws2812", Ws2812.config, Ws2812.firmware ~third:6 ~tail:7, None, []
-    ; "1-wire", One_wire.config, Timed_program.source One_wire.firmware, Some 8, [ 8 ]
-    ; "ps/2", Ps2.config, Timed_program.source Ps2.firmware, Some 10, [ 10 ]
-    ; "jtag", Jtag.config, Jtag.firmware ~half_period:Jtag.shortest_half, None, []
-    ]
-  in
   List.iter corpus ~f:(fun (name, config, source, period, preload) ->
     let words = assemble source in
     let { Soundness.issues; side_edges; reached; violations; _ } =
@@ -833,7 +835,8 @@ b:
   in
   print_s
     [%message (issues : int) (reached : int) (violations : (int * int * int * int) list)];
-  [%expect {|
+  [%expect
+    {|
       0  set p, 31                    phase ?..?
       1  mov t, now                   phase ?..?
       2  set x, 3                     phase 1
@@ -959,7 +962,8 @@ next:
   print_s
     [%message
       (issues : int) (side_edges : int) (violations : (int * int * int * int) list)];
-  [%expect {|
+  [%expect
+    {|
       0  set x, 1 side 1              phase ?..?  side ?..?  jitter ?
       1  mov osr, x side 1            phase ?..?
       2  out pins, 1 side 1           phase ?..?  edge ?..?  jitter ?  gap ?..?
@@ -1152,6 +1156,7 @@ let rows
   ?period
   ?period_floor
   ?single_capture_edge
+  ?max_passes
   source
   =
   let program = Asm.assemble source |> ok_exn in
@@ -1159,6 +1164,7 @@ let rows
     ?period
     ?period_floor
     ?single_capture_edge
+    ?max_passes
     ~config:(Asm.Program.configure program config)
     program.instructions
 ;;
@@ -1472,5 +1478,46 @@ let%expect_test "side-set holds across a write to other pins" =
     1  out pindirs, 1 side 0        phase ?..?  edge ?..?  jitter ?  gap ?..?
     2  nop side 0                   phase ?..?
     3  halt side 0                  phase ?..?
+    |}]
+;;
+
+(* Widening drops a bound that moves again after [max_passes] changes at an address, so a
+   program that settles sooner is unaffected. For each firmware, the fewest passes that
+   lose nothing, as every more lose nothing too. *)
+let%expect_test "an analysis widens only what has not settled by max_passes" =
+  List.iter corpus ~f:(fun (name, config, source, period, _) ->
+    let text max_passes =
+      let program = Asm.assemble source |> ok_exn in
+      rows ~config ?period ~max_passes source
+      |> Analyser.to_string ~side_set_count:program.side_set_count
+    in
+    let settled = text 256 in
+    let lossless = List.init 64 ~f:(fun passes -> String.equal (text passes) settled) in
+    let enough =
+      List.findi_exn lossless ~f:(fun n _ -> List.for_all (List.drop lossless n) ~f:Fn.id)
+      |> fst
+    in
+    printf "%s: nothing lost from %d passes\n" name enough);
+  [%expect
+    {|
+    uart tx: nothing lost from 1 passes
+    uart tx host rate: nothing lost from 1 passes
+    uart rx: nothing lost from 0 passes
+    spi master: nothing lost from 1 passes
+    spi slave: nothing lost from 0 passes
+    i2c master: nothing lost from 26 passes
+    i2c slave: nothing lost from 1 passes
+    i2c logger: nothing lost from 2 passes
+    usb tx: nothing lost from 11 passes
+    usb rx: nothing lost from 1 passes
+    usb device: nothing lost from 8 passes
+    edge meter: nothing lost from 1 passes
+    edge logger: nothing lost from 0 passes
+    start hold: nothing lost from 0 passes
+    uart tx, fractional period: nothing lost from 1 passes
+    ws2812: nothing lost from 2 passes
+    1-wire: nothing lost from 1 passes
+    ps/2: nothing lost from 1 passes
+    jtag: nothing lost from 1 passes
     |}]
 ;;
