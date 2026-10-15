@@ -54,6 +54,7 @@ jobs:
           ! grep failure results.xml
           make replay
           make carrier_check
+          python3 test_swd_probe.py
 
       - name: Test Summary
         uses: test-summary/action@v2.4
