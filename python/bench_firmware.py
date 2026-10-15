@@ -619,6 +619,52 @@ ONE_WIRE = {
     ],
 }
 
+# Ps2.firmware: the keyboard's end, 960 cycles a quarter clock, 12.5 kHz, data on IO0 and clock on IO1, which no demo has wired yet
+PS2 = {
+    "config": {
+        "side_set_count": 0,
+        "side_set_base": 5,
+        "side_set_pindirs": 0,
+        "in_base": 12,
+        "in_count": 16,
+        "out_base": 12,
+        "out_count": 1,
+        "set_base": 13,
+        "set_count": 1,
+        "jmp_pin": 13,
+        "capture_pin": 0,
+        "capture_rising": 1,
+        "in_shift_right": 1,
+        "out_shift_right": 1,
+        "autopush": 0,
+        "push_threshold": 16,
+        "autopull": 0,
+        "pull_threshold": 16,
+        "crc_width": 1,
+        "crc_poly": 1,
+        "crc_init": 1,
+        "crc_reflect": 0,
+        "stuff_threshold": 0,
+        "stuff_level": 1,
+        "wrap_bottom": 0,
+        "wrap_top": 511,
+        "period_fraction": 0,
+        "autopull_data": 0,
+        "manchester": 0,
+    },
+    "words": [
+        0x20E0, 0xE004, 0x80C5, 0x0A06, 0x1021, 0x0003, 0x208D, 0x80E6,
+        0x8083, 0x4001, 0x8024, 0x0203, 0xC0CA, 0xA029, 0x20C0, 0xA061,
+        0x20C0, 0x20C0, 0xA060, 0x20C0, 0x4001, 0x020E, 0x806B, 0x20C0,
+        0xA061, 0x20C0, 0x20C0, 0xA060, 0x20C0, 0x8063, 0x4066, 0xE003,
+        0x0003, 0xE004, 0xE005, 0x8083, 0x40A8, 0xA027, 0x6061, 0x0226,
+        0x40C1, 0xA041, 0x4041, 0x4065, 0x80A4, 0xA02A, 0x80E6, 0xC0CA,
+        0xC0CA, 0xC0CA, 0xC0CA, 0x6041, 0x20C0, 0x0A3E, 0x806A, 0x20C0,
+        0xA061, 0x20C0, 0x20C0, 0xA060, 0x0233, 0x0003, 0x8063, 0xE002,
+        0x0003,
+    ],
+}
+
 # Can.firmware, recessive from the start and for eleven bits after the period: the host sends the bit period, 96 cycles for 500 kbit/s
 CAN = {
     "config": {
@@ -775,6 +821,52 @@ CAN_RECEIVER = {
         0xE003, 0xA029, 0x0007, 0xA021, 0x00EA, 0xA022, 0x00EA, 0xA023,
         0x00EA, 0xA024, 0x8081, 0xE003, 0xE002, 0x20E0, 0xE004, 0x80E6,
         0xC0CA, 0x0006,
+    ],
+}
+
+# Cec.firmware: an initiator's frames, 2400 cycles a 50 us unit, on IO0, which no demo has wired yet
+CEC = {
+    "config": {
+        "side_set_count": 0,
+        "side_set_base": 5,
+        "side_set_pindirs": 0,
+        "in_base": 12,
+        "in_count": 1,
+        "out_base": 12,
+        "out_count": 1,
+        "set_base": 12,
+        "set_count": 1,
+        "jmp_pin": 0,
+        "capture_pin": 0,
+        "capture_rising": 1,
+        "in_shift_right": 0,
+        "out_shift_right": 0,
+        "autopush": 0,
+        "push_threshold": 16,
+        "autopull": 0,
+        "pull_threshold": 9,
+        "crc_width": 16,
+        "crc_poly": 40961,
+        "crc_init": 65535,
+        "crc_reflect": 1,
+        "stuff_threshold": 0,
+        "stuff_level": 1,
+        "wrap_bottom": 0,
+        "wrap_top": 511,
+        "period_fraction": 0,
+        "autopull_data": 0,
+        "manchester": 0,
+    },
+    "words": [
+        0x20E0, 0xE004, 0x80C5, 0x80E6, 0xA000, 0xA060, 0x20E0, 0xE004,
+        0x8045, 0x80E6, 0xC0CA, 0x20C0, 0xA061, 0xA03F, 0x20C0, 0x020E,
+        0xA03F, 0x20C0, 0x0211, 0xA028, 0x20C0, 0x0214, 0x20C0, 0xA060,
+        0xA02E, 0x20C0, 0x0219, 0xE004, 0x80AD, 0x20C0, 0xA061, 0xA02A,
+        0x20C0, 0x0220, 0x20C0, 0x6081, 0xA030, 0x20C0, 0x0225, 0x20C0,
+        0xA060, 0xA030, 0x20C0, 0x022A, 0x0C1D, 0x20C0, 0xA061, 0xA02A,
+        0x20C0, 0x0230, 0x20C0, 0xA060, 0xA027, 0x20C0, 0x0235, 0x20C0,
+        0x4001, 0xE003, 0xA039, 0x20C0, 0x023B, 0x041B, 0xA046, 0xA03F,
+        0x20C0, 0x0240, 0xA02F, 0x20C0, 0x0243, 0x043F, 0x0006,
     ],
 }
 

@@ -456,6 +456,68 @@ let scenario =
   }
 ;;
 
+(* the firmware on the bench's clock, sending a polling message, a header and no data, to
+   the TV at 0 *)
+let bench =
+  let unit = Bench.cycles_in ~us:50 in
+  { Bench.name = "cec"
+  ; what =
+      [%string
+        "Cec.firmware: an initiator's frames, %{unit#Int} cycles a 50 us unit, on IO0, \
+         which no demo has wired yet"]
+  ; source = firmware
+  ; config
+  ; assumption = Floor shortest_unit
+  ; clock_hz = Bench.clock_hz
+  ; load = Some unit
+  ; stimulus =
+      Some
+        { bursts = [ words { initiator = 4; destination = 0; data = [] } ]
+        ; quiet = 0
+        ; cycles = 600 * unit
+        }
+  }
+;;
+
+(* HDMI 1.3a's bit timings, the line low where anyone pulls it. A low under 1 ms is a
+   one's, to 2.5 ms a zero's and past it a start bit's; a bit runs from its fall to the
+   next, and the last of a frame, whose high runs on past 2.75 ms, has none. All are the
+   run's: the kernel's least low counts one pass of each loop of waits, two units. *)
+let limits =
+  let sheet figure page =
+    { Datasheet.Sheet.part = "HDMI-CEC"
+    ; document = "HDMI Specification 1.3a, Supplement 1 CEC"
+    ; page = [%string "%{figure}, p. %{page}"]
+    }
+  in
+  let start = sheet "CEC 5.2.1, CEC Figure 3" "CEC-8"
+  and bit = sheet "CEC 5.2.2, CEC Figure 4" "CEC-9" in
+  let ms ~clock_hz ms = Datasheet.cycles ~clock_hz (ms *. 1e6) in
+  let bits ~clock_hz levels =
+    List.filter_map (Datasheet.pairs levels) ~f:(fun ((high, low), (_, after)) ->
+      Option.some_if ((not high) && after < ms ~clock_hz 2.75) (low, low + after))
+  in
+  let lows ~from ~until f =
+    Datasheet.run ~pin:Datasheet.set_pin (fun ~clock_hz levels ->
+      List.filter_map (bits ~clock_hz levels) ~f:(fun ((low, _) as bit) ->
+        Option.some_if (low >= ms ~clock_hz from && low < ms ~clock_hz until) (f bit)))
+  in
+  let limit parameter limit sheet bound =
+    { Datasheet.firmware = "cec"; parameter; limit; sheet; margin = Cycle; bound }
+  in
+  [ limit "start low" (At_least 3.5e6) start (lows ~from:2.5 ~until:10. fst)
+  ; limit "start low" (At_most 3.9e6) start (lows ~from:2.5 ~until:10. fst)
+  ; limit "start bit" (At_least 4.3e6) start (lows ~from:2.5 ~until:10. snd)
+  ; limit "start bit" (At_most 4.7e6) start (lows ~from:2.5 ~until:10. snd)
+  ; limit "one low, T1" (At_least 0.4e6) bit (lows ~from:0. ~until:1. fst)
+  ; limit "one low, T2" (At_most 0.8e6) bit (lows ~from:0. ~until:1. fst)
+  ; limit "zero low, T5" (At_least 1.3e6) bit (lows ~from:1. ~until:2.5 fst)
+  ; limit "zero low, T6" (At_most 1.7e6) bit (lows ~from:1. ~until:2.5 fst)
+  ; limit "bit, T7" (At_least 2.05e6) bit (lows ~from:0. ~until:2.5 snd)
+  ; limit "bit, T8" (At_most 2.75e6) bit (lows ~from:0. ~until:2.5 snd)
+  ]
+;;
+
 let protocol =
   { Protocol.name = "cec"
   ; certified =
@@ -468,9 +530,9 @@ let protocol =
           config
       ]
   ; time_triggered = []
-  ; bench = []
+  ; bench = [ bench ]
   ; loaded_from_hex = []
-  ; limits = []
+  ; limits
   ; unlimited = []
   ; swept = []
   ; not_swept = [ "cec", "open drain, which a wire does not show" ]

@@ -409,6 +409,84 @@ let scenario =
   }
 ;;
 
+(* the firmware on the bench's clock, at a 20 us quarter, sending one byte *)
+let bench =
+  let quarter = Bench.cycles_in ~us:20 in
+  { Bench.name = "ps2"
+  ; what =
+      [%string
+        "Ps2.firmware: the keyboard's end, %{quarter#Int} cycles a quarter clock, \
+         %{Bench.rate ~unit:\"Hz\" (4 * quarter)}, data on IO0 and clock on IO1, which \
+         no demo has wired yet"]
+  ; source = Timed_program.source firmware
+  ; config
+  ; assumption = Floor 8
+  ; clock_hz = Bench.clock_hz
+  ; load = Some quarter
+  ; stimulus = Some { bursts = [ [ 0x1c ] ]; quiet = 0; cycles = 60 * quarter }
+  }
+;;
+
+(* IBM's receiving data timings, figure 8: T1 at each fall of the clock, since data last
+   moved, T2 at each move of data, since the clock rose, and the clock's lows and highs,
+   but the high from reset before the frame. A direction bit of 1 pulls the line low. The
+   kernel bounds a high from the device letting the clock go to its taking it again, 969
+   cycles at least, which counts a host's inhibit and request to send in between, and
+   figure 9 leaves the quarter from the host letting go to the first clock untimed; so the
+   least high is the run's. *)
+let limits =
+  let sheet parameter =
+    { Datasheet.Sheet.part = "PS/2 keyboard and auxiliary device"
+    ; document = "IBM Personal System/2 Hardware Interface Technical Reference, May 1988"
+    ; page =
+        [%string
+          "Keyboard and Auxiliary Device Controller, Figure 8, p. 13, %{parameter}"]
+    }
+  in
+  let clock (config : Program_config.t) = config.set_base
+  and data (config : Program_config.t) = config.out_base in
+  let spacing ~a ~b ~apart =
+    Datasheet.Bound.Kernel
+      (fun config -> Datasheet.spacing ~dirs:true ~a:(a config) ~b:(b config) ~apart ())
+  in
+  let highs =
+    Datasheet.run ~pin:clock (fun ~clock_hz:_ levels ->
+      List.drop levels 1 |> List.filter_map ~f:(fun (high, n) -> Option.some_if high n))
+  in
+  let limit parameter what limit bound =
+    { Datasheet.firmware = "ps2"
+    ; parameter = what
+    ; limit
+    ; sheet = sheet parameter
+    ; margin = Cycle
+    ; bound
+    }
+  in
+  [ limit
+      "T1"
+      "data to CLK fall"
+      (At_least 5_000.)
+      (spacing ~a:clock ~b:data ~apart:(fun ~own ~other:_ -> not own))
+  ; limit
+      "T2"
+      "CLK rise to data"
+      (At_least 5_000.)
+      (spacing ~a:data ~b:clock ~apart:(fun ~own:_ ~other -> not other))
+  ; limit
+      "T3"
+      "CLK low"
+      (At_least 30_000.)
+      (Datasheet.level ~dirs:true ~pin:clock ~high:true ())
+  ; limit
+      "T3"
+      "CLK low"
+      (At_most 50_000.)
+      (Datasheet.run ~pin:clock (fun ~clock_hz:_ levels -> Datasheet.lows levels))
+  ; limit "T4" "CLK high" (At_least 30_000.) highs
+  ; limit "T4" "CLK high" (At_most 50_000.) highs
+  ]
+;;
+
 let protocol =
   { Protocol.name = "ps2"
   ; certified =
@@ -420,9 +498,9 @@ let protocol =
           config
       ]
   ; time_triggered = []
-  ; bench = []
+  ; bench = [ bench ]
   ; loaded_from_hex = []
-  ; limits = []
+  ; limits
   ; unlimited = []
   ; swept = []
   ; not_swept =

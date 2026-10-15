@@ -269,6 +269,12 @@ let%expect_test "every protocol from its file to the decoded trace" =
     ps2: 65 words, 12 deadline waits, worst slack 992, the kernel accepts it, assuming period 1000, a load of 8 or more
 
     limits
+    ps2                data to CLK fall >=     5000 ns  kernel 957 (19937.5 ns)  needs  241       PS/2 keyboard and auxiliary device, IBM Personal System/2 Hardware Interface Technical Reference, May 1988 Keyboard and Auxiliary Device Controller, Figure 8, p. 13, T1; margin a cycle
+    ps2                CLK rise to data >=     5000 ns  kernel 960 (20000.0 ns)  needs  241       PS/2 keyboard and auxiliary device, IBM Personal System/2 Hardware Interface Technical Reference, May 1988 Keyboard and Auxiliary Device Controller, Figure 8, p. 13, T2; margin a cycle
+    ps2                CLK low        >=    30000 ns  kernel 1920 (40000.0 ns) needs 1441       PS/2 keyboard and auxiliary device, IBM Personal System/2 Hardware Interface Technical Reference, May 1988 Keyboard and Auxiliary Device Controller, Figure 8, p. 13, T3; margin a cycle
+    ps2                CLK low        <=    50000 ns  run    1920 (40000.0 ns) needs 2399       PS/2 keyboard and auxiliary device, IBM Personal System/2 Hardware Interface Technical Reference, May 1988 Keyboard and Auxiliary Device Controller, Figure 8, p. 13, T3; margin a cycle
+    ps2                CLK high       >=    30000 ns  run    1920 (40000.0 ns) needs 1441       PS/2 keyboard and auxiliary device, IBM Personal System/2 Hardware Interface Technical Reference, May 1988 Keyboard and Auxiliary Device Controller, Figure 8, p. 13, T4; margin a cycle
+    ps2                CLK high       <=    50000 ns  run    1920 (40000.0 ns) needs 2399       PS/2 keyboard and auxiliary device, IBM Personal System/2 Hardware Interface Technical Reference, May 1988 Keyboard and Auxiliary Device Controller, Figure 8, p. 13, T4; margin a cycle
 
     lockstep: ps2, ps2
     ("lockstep held" (cycles 174000))
@@ -337,6 +343,16 @@ let%expect_test "every protocol from its file to the decoded trace" =
     cec: 71 words, 20 deadline waits, worst slack 2493, the kernel accepts it, assuming period 2500, a load of 7 or more, no wrap
 
     limits
+    cec                start low      >=  3.5e+06 ns  run    177600 (3700000.0 ns) needs 168001       HDMI-CEC, HDMI Specification 1.3a, Supplement 1 CEC CEC 5.2.1, CEC Figure 3, p. CEC-8; margin a cycle
+    cec                start low      <=  3.9e+06 ns  run    177600 (3700000.0 ns) needs 187199       HDMI-CEC, HDMI Specification 1.3a, Supplement 1 CEC CEC 5.2.1, CEC Figure 3, p. CEC-8; margin a cycle
+    cec                start bit      >=  4.3e+06 ns  run    216000 (4500000.0 ns) needs 206401       HDMI-CEC, HDMI Specification 1.3a, Supplement 1 CEC CEC 5.2.1, CEC Figure 3, p. CEC-8; margin a cycle
+    cec                start bit      <=  4.7e+06 ns  run    216000 (4500000.0 ns) needs 225599       HDMI-CEC, HDMI Specification 1.3a, Supplement 1 CEC CEC 5.2.1, CEC Figure 3, p. CEC-8; margin a cycle
+    cec                one low, T1    >=   400000 ns  run    28800 (600000.0 ns) needs 19201       HDMI-CEC, HDMI Specification 1.3a, Supplement 1 CEC CEC 5.2.2, CEC Figure 4, p. CEC-9; margin a cycle
+    cec                one low, T2    <=   800000 ns  run    28800 (600000.0 ns) needs 38399       HDMI-CEC, HDMI Specification 1.3a, Supplement 1 CEC CEC 5.2.2, CEC Figure 4, p. CEC-9; margin a cycle
+    cec                zero low, T5   >=  1.3e+06 ns  run    72000 (1500000.0 ns) needs 62401       HDMI-CEC, HDMI Specification 1.3a, Supplement 1 CEC CEC 5.2.2, CEC Figure 4, p. CEC-9; margin a cycle
+    cec                zero low, T6   <=  1.7e+06 ns  run    72000 (1500000.0 ns) needs 81599       HDMI-CEC, HDMI Specification 1.3a, Supplement 1 CEC CEC 5.2.2, CEC Figure 4, p. CEC-9; margin a cycle
+    cec                bit, T7        >= 2.05e+06 ns  run    115200 (2400000.0 ns) needs 98401       HDMI-CEC, HDMI Specification 1.3a, Supplement 1 CEC CEC 5.2.2, CEC Figure 4, p. CEC-9; margin a cycle
+    cec                bit, T8        <= 2.75e+06 ns  run    115200 (2400000.0 ns) needs 131999       HDMI-CEC, HDMI Specification 1.3a, Supplement 1 CEC CEC 5.2.2, CEC Figure 4, p. CEC-9; margin a cycle
 
     lockstep: cec, cec
     ("lockstep held" (cycles 163600))

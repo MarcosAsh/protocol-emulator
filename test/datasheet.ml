@@ -97,7 +97,7 @@ let run ~pin widths = Bound.Run { pin; widths }
 let lows levels = List.filter_map levels ~f:(fun (high, n) -> Option.some_if (not high) n)
 
 (* every line pulled up, nothing else driving, and the host on time *)
-let run_pins (bench : Bench.t) ~quiet_pin (stimulus : Bench.Stimulus.t) =
+let run_once (bench : Bench.t) ~quiet_pin (stimulus : Bench.Stimulus.t) =
   let timed = Bench.timed bench in
   let inputs = (1 lsl Isa.num_pins) - 1 in
   let level machine = (Machine.pins machine ~inputs lsr quiet_pin) land 1 = 1 in
@@ -148,6 +148,18 @@ let run_pins (bench : Bench.t) ~quiet_pin (stimulus : Bench.Stimulus.t) =
     | [] -> []
   in
   go machine ~cycle:0 ~queued:[] ~bursts ~quiet:0
+;;
+
+(* a run of millions of cycles takes seconds, and every limit of a bench copy runs the
+   same one *)
+let runs_seen = Hashtbl.Poly.create ()
+
+let run_pins (bench : Bench.t) ~quiet_pin (stimulus : Bench.Stimulus.t) =
+  let { Bench.name; clock_hz; source; config; load; _ } = bench in
+  Hashtbl.find_or_add
+    runs_seen
+    (name, clock_hz, source, config, load, quiet_pin, stimulus)
+    ~default:(fun () -> run_once bench ~quiet_pin stimulus)
 ;;
 
 let runs levels =
