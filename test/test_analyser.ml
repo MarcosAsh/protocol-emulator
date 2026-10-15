@@ -1556,3 +1556,27 @@ loop:
       2  jmp 1
     |}]
 ;;
+
+(* A write to y the analyser cannot follow leaves it anything a 16-bit register holds. *)
+let%expect_test "y after a write the analyser cannot follow" =
+  rows
+    {|
+    set y, 5
+    mov y, osr
+    set y, 5
+    out y, 4
+    set y, 5
+    add y, 1
+    halt
+|}
+  |> print_rows ~f:(fun r -> "y " ^ Interval.to_string r.y);
+  [%expect {|
+    0  set y, 5                     y ?..?
+    1  mov y, osr                   y 5
+    2  set y, 5                     y 0..65535
+    3  out y, 4                     y 5
+    4  set y, 5                     y 0..65535
+    5  add y, 1                     y 5
+    6  halt                         y 0..65535
+    |}]
+;;
