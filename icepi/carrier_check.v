@@ -32,9 +32,32 @@ module carrier_check (
   // the 50 MHz oscillator's cycles in a microsecond
   localparam US = 50;
 
-  // pin n: IN0-IN4 (header 3 5 7 11 13), OUT0-OUT6 (8 10 12 18 22 26 28), IO0-IO7
-  // (29 31 35 33 37 36 38 40), then header 15
-  wire [20:0] pins = {usb_detach, uio, uo[7:1], ui[7:3]};
+  // Every pad is an ECP5 BB: yosys reads an inout vector that mixes inputs and outputs
+  // as a constant. Pin n: IN0-IN4 (header 3 5 7 11 13), OUT0-OUT6 (8 10 12 18 22 26 28),
+  // IO0-IO7 (29 31 35 33 37 36 38 40), then header 15.
+  wire [20:0] pins;
+  wire [20:0] drive_oe;
+  wire [20:0] drive_out;
+  wire [2:0] host;
+  wire [87:0] tx_out;
+  BB host_pad[2:0] (
+      .B(ui[2:0]),
+      .I(3'b000),
+      .T(3'b111),
+      .O(host)
+  );
+  BB miso_pad (
+      .B(uo[0]),
+      .I(tx_out[87]),
+      .T(1'b0),
+      .O()
+  );
+  BBPD pin_pad[20:0] (
+      .B({usb_detach, uio, uo[7:1], ui[7:3]}),
+      .I(drive_out),
+      .T(~drive_oe),
+      .O(pins)
+  );
 
   reg [2:0] sck_s = 0;
   reg [2:0] mosi_s = 0;
@@ -42,9 +65,9 @@ module carrier_check (
   reg [20:0] pins_m = 0;
   reg [20:0] pins_s = 0;
   always @(posedge clk) begin
-    sck_s  <= {sck_s[1:0], ui[0]};
-    mosi_s <= {mosi_s[1:0], ui[1]};
-    cs_s   <= {cs_s[1:0], ui[2]};
+    sck_s  <= {sck_s[1:0], host[0]};
+    mosi_s <= {mosi_s[1:0], host[1]};
+    cs_s   <= {cs_s[1:0], host[2]};
     pins_m <= pins;
     pins_s <= pins_m;
   end
@@ -108,24 +131,13 @@ module carrier_check (
   end
 
   wire [20:0] slot = timing && us < slot_length ? 21'd1 << slot_pin : 21'd0;
-  wire [20:0] drive_oe = oe | slot;
-  wire [20:0] drive_out = (out & ~slot) | (level ? slot : 21'd0);
-
-  genvar i;
-  generate
-    for (i = 0; i < 5; i = i + 1) begin : in_pins
-      assign ui[3+i] = drive_oe[i] ? drive_out[i] : 1'bz;
-    end
-    for (i = 0; i < 7; i = i + 1) begin : out_pins
-      assign uo[1+i] = drive_oe[5+i] ? drive_out[5+i] : 1'bz;
-    end
-    for (i = 0; i < 8; i = i + 1) begin : io_pins
-      assign uio[i] = drive_oe[12+i] ? drive_out[12+i] : 1'bz;
-    end
-  endgenerate
-  assign usb_detach = drive_oe[20] ? drive_out[20] : 1'bz;
-  assign uo[0] = tx[87];
-  assign usb_pull_dp = 1'bz;
-  assign usb_pull_dn = 1'bz;
+  assign drive_oe = oe | slot;
+  assign drive_out = (out & ~slot) | (level ? slot : 21'd0);
+  assign tx_out = tx;
+  OBZ pull_pad[1:0] (
+      .I(2'b00),
+      .T(2'b11),
+      .O({usb_pull_dn, usb_pull_dp})
+  );
 
 endmodule
