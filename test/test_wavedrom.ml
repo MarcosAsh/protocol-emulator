@@ -229,6 +229,46 @@ let%expect_test "ws2812 from a diagram: passes of 12 bits while the host's flag 
     |}]
 ;;
 
+let%expect_test "uart rx from a diagram: the start bit's edge, against the hand table" =
+  let bit = 31 in
+  let bytes = [ 0xa3; 0x00; 0xff; 0x5c; 0x81 ] in
+  (* each frame after two bits of idle *)
+  let line =
+    List.concat_map bytes ~f:(fun b ->
+      [ 1; 1; 0 ] @ List.init 8 ~f:(fun i -> (b lsr i) land 1) @ [ 1 ])
+    |> Array.of_list
+  in
+  let lead = 100 in
+  let inputs c =
+    if c < lead || (c - lead) / bit >= Array.length line
+    then 1
+    else line.((c - lead) / bit)
+  in
+  let t, _, taken =
+    against
+      "uart_rx"
+      (Tables.uart_rx ~bit)
+      ~peer:(fun () -> inputs, ignore)
+      ~cycles:(lead + (bit * Array.length line) + 200)
+      ~host_words:[]
+  in
+  let byte bits =
+    List.foldi bits ~init:0 ~f:(fun i acc b -> acc lor (Bool.to_int b lsl i))
+  in
+  print_s
+    [%message
+      ""
+        ~uart_read:(List.map taken ~f:(fun w -> byte (Wavedrom.read_bits t w)) : int list)];
+  [%expect
+    {|
+    (uart_rx (steps 10) (words_identical true) (edges 0) (edges_identical true)
+     (taken_identical true)
+     (fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+    (uart_read (163 0 255 92 129))
+    |}]
+;;
+
 let%expect_test "diagrams outside the class are refused, with the reason" =
   List.iter
     [ "not WaveJSON", "{ signal: [ { wave: '01' } "
@@ -261,6 +301,14 @@ let%expect_test "diagrams outside the class are refused, with the reason" =
     ; ( "a limit from the idle"
       , "{ signal: [ { wave: '01=0', node: 'ab' } ], edge: ['a->b >= 1us'], table: { \
          cycles: [0, 26, 26, 26] } }" )
+    ; ( "an input's edge, and an output"
+      , "{ signal: [ { wave: '0' }, { wave: '10==', input: true } ], table: { cycles: 40 \
+         } }" )
+    ; ( "an input's edge, repeated"
+      , "{ signal: [ { wave: '10===', input: true } ], table: { cycles: 40, repeat: [2, \
+         3, 2] } }" )
+    ; ( "an edge too close to its first read"
+      , "{ signal: [ { wave: '10=', input: true } ], table: { cycles: 16 } }" )
     ; ( "ws2812 as the firmware times it, while the host says"
       , "{ signal: [ { wave: '01=00' } ], table: { cycles: [0, 20, 20, 28, 2600], \
          repeat: [1, 3, 12, 'host'] } }" )
@@ -329,6 +377,19 @@ let%expect_test "diagrams outside the class are refused, with the reason" =
      (e
       ("outside the table class"
        ("an edge from the idle, whose length is the host's" (edge "a->b >= 1us")))))
+    ("an input's edge, and an output"
+     (e
+      ("outside the table class"
+       ("a frame an input's edge starts only reads, so outputs need a frame the host starts"
+        (outputs ("lane 0"))))))
+    ("an input's edge, repeated"
+     (e
+      ("outside the table class" "a frame an input's edge starts has no repeat")))
+    ("an edge too close to its first read"
+     (e
+      ("outside the table class"
+       ("a (Await(pin A)(level false)) step lasts at least 17 cycles"
+        (at "the edge, period 1") (cycles 15)))))
     ("ws2812 as the firmware times it, while the host says"
      (e
       ("outside the table class"

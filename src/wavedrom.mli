@@ -2,7 +2,10 @@
     certificate as it stands. Each period, or half period of a clock, is a step of
     [table.cycles] cycles. With data, the first period is the idle shown while the host's
     word is awaited; without, the diagram loops. Lanes: 0 1 h l levels, p n clocks, [=] a
-    host bit, [.] [|] go on; an [input: true] lane's [=] cells are bits read by Shift. *)
+    host bit, [.] [|] go on; an [input: true] lane's [=] cells are bits read by Shift. An
+    input lane that leaves its first level before its first cell, and no output lane,
+    makes a frame that starts on that edge: an Await, a read at each cell's middle, a
+    Push. *)
 
 open! Core
 
@@ -48,6 +51,7 @@ type t =
   ; bits : int (** host bits a frame, or a pass with [while_host] *)
   ; words : int list (** bits in each host word of a frame *)
   ; while_host : bool
+  ; starts_on_edge : bool (** each frame starts on the input's edge, with no host word *)
   ; read : int (** bits read a frame *)
   ; limits : Limit.t list
   }

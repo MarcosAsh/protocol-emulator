@@ -43,6 +43,7 @@ type t =
   ; bits : int
   ; words : int list
   ; while_host : bool
+  ; starts_on_edge : bool
   ; read : int
   ; limits : Limit.t list
   }
@@ -520,58 +521,73 @@ let limits
   |> Result.all
 ;;
 
-let compile (diagram : Wavejson.t) =
+let step name outputs kind cycles = { Step.name; outputs; kind; cycles }
+
+let check_steps steps =
+  let states = Tables.Wiring.states Tables.Wiring.default in
+  if List.length steps > states
+  then
+    outside
+      [%message
+        [%string "a table holds %{states#Int} steps, a repeat with the host's flag fewer"]
+          ~steps:(List.length steps : int)]
+  else check_cycles steps
+;;
+
+(* A pass's last step goes back to its head, which on the host's flag of 0 is the step
+   after the pass; -1 for neither. *)
+let table_of (steps : Step.t array) ~head ~tail =
+  let count = Array.length steps in
+  let entry state ~host_bit =
+    let state = if state = head && not host_bit then (tail + 1) % count else state in
+    let ({ outputs; kind; cycles; name = _ } : Step.t) = steps.(state) in
+    { Tables.Step.outputs =
+        List.foldi outputs ~init:0 ~f:(fun i acc (level : Level.t) ->
+          let on =
+            match level with
+            | High -> true
+            | Low -> false
+            | Bit -> host_bit
+          in
+          acc lor (Bool.to_int on lsl i))
+    ; kind
+    ; cycles
+    ; next = (if state = tail then head else (state + 1) % count)
+    }
+  in
+  let table =
+    { Tables.name = "wavedrom"
+    ; wiring = Tables.Wiring.default
+    ; state = (module State)
+    ; states = List.range 0 count
+    ; step = (fun state ~host_bit ~inputs:_ -> entry state ~host_bit)
+    }
+  in
+  let%map.Or_error (_ : int list) = Tables.words table in
+  table
+;;
+
+let compile_on_host
+  (diagram : Wavejson.t)
+  ~(lanes : Wavejson.Lane.t list)
+  ~(outputs : Wavejson.Lane.t list)
+  ~(input : Wavejson.Lane.t option)
+  ~drawn
+  ~cycles_of
+  =
   let open Or_error.Let_syntax in
-  let lanes =
-    List.mapi diagram.lanes ~f:(fun i (l : Wavejson.Lane.t) ->
-      if String.is_empty l.name then { l with name = sprintf "lane %d" i } else l)
-  in
-  let outputs, inputs =
-    List.partition_tf lanes ~f:(fun (l : Wavejson.Lane.t) -> not l.input)
-  in
   let%bind () =
-    if List.is_empty outputs
-    then outside [%message "no output lane"]
-    else if List.length outputs > Tables.output_bits
-    then
-      outside
-        [%message
-          [%string "a table drives %{Tables.output_bits#Int} outputs"]
-            ~lanes:(List.length outputs : int)]
-    else if List.length inputs > 1
-    then
-      outside
-        [%message
-          "a Shift reads one input pin"
-            ~lanes:
-              (List.map inputs ~f:(fun (l : Wavejson.Lane.t) -> l.name) : string list)]
-    else Ok ()
-  in
-  let drawn =
-    List.map lanes ~f:(fun (l : Wavejson.Lane.t) -> String.length l.wave)
-    |> List.max_elt ~compare
-    |> Option.value ~default:0
-  in
-  let%bind cycles_of =
-    match diagram.cycles with
-    | Every c -> Ok (Fn.const c)
-    | Each cs when List.length cs = drawn -> Ok (List.nth_exn cs)
-    | Each cs ->
-      outside
-        [%message
-          "table.cycles has one number a drawn period"
-            ~numbers:(List.length cs : int)
-            ~periods:(drawn : int)]
+    if List.is_empty outputs then outside [%message "no output lane"] else Ok ()
   in
   let%bind periods = periods ~drawn diagram.repeat in
   let while_host =
     Option.value_map diagram.repeat ~default:false ~f:(fun r -> r.while_host)
   in
   let%bind values = List.map outputs ~f:(fun l -> output_lane l periods) |> Result.all in
-  let%bind input =
-    match inputs with
-    | [] -> Ok None
-    | lane :: _ -> input_lane lane periods >>| Option.some
+  let%bind cells_read =
+    match input with
+    | None -> Ok None
+    | Some lane -> input_lane lane periods >>| Option.some
   in
   let%bind () =
     match
@@ -591,7 +607,7 @@ let compile (diagram : Wavejson.t) =
         [%message
           "a table shows one host bit at a time, on one lane" (lanes : string list)]
   in
-  let%bind slices = slices ~periods ~cycles_of ~outputs:values ~input in
+  let%bind slices = slices ~periods ~cycles_of ~outputs:values ~input:cells_read in
   let bits =
     List.filter_map slices ~f:(fun (s : Slice.t) -> s.shown)
     |> List.max_elt ~compare
@@ -669,7 +685,6 @@ let compile (diagram : Wavejson.t) =
   let%bind kinds =
     place_shifts drafts ~bits ~read ~cells:(cells slices) ~word_ends ~while_host
   in
-  let step name levels kind cycles = { Step.name; outputs = levels; kind; cycles } in
   let steps =
     Option.value_map idle ~default:[] ~f:(fun levels ->
       [ step "idle" levels Await_host (least Await_host) ])
@@ -680,19 +695,7 @@ let compile (diagram : Wavejson.t) =
     | Some levels when read > 0 -> [ step "push" levels Push (least Push) ]
     | _ -> []
   in
-  let count = List.length steps in
-  let%bind () =
-    if count > Tables.Wiring.states Tables.Wiring.default
-    then
-      outside
-        [%message
-          [%string
-            "a table holds %{Tables.Wiring.states Tables.Wiring.default#Int} steps, a \
-             repeat with the host's flag fewer"]
-            ~steps:(count : int)]
-    else Ok ()
-  in
-  let%bind () = check_cycles steps in
+  let%bind () = check_steps steps in
   let%bind limits =
     limits
       lanes
@@ -701,10 +704,7 @@ let compile (diagram : Wavejson.t) =
       ~idle:(Option.is_some idle)
       ~repeat:diagram.repeat
   in
-  let steps = Array.of_list steps in
   let offset = if Option.is_some idle then 1 else 0 in
-  (* a pass's last step goes back to its head, which on the host's flag of 0 is the step
-     after the pass *)
   let head, tail =
     if not while_host
     then -1, -1
@@ -715,42 +715,176 @@ let compile (diagram : Wavejson.t) =
       in
       body.(0), Array.last_exn body)
   in
-  let entry state ~host_bit =
-    let state = if state = head && not host_bit then (tail + 1) % count else state in
-    let ({ outputs; kind; cycles; name = _ } : Step.t) = steps.(state) in
-    { Tables.Step.outputs =
-        List.foldi outputs ~init:0 ~f:(fun i acc (level : Level.t) ->
-          let on =
-            match level with
-            | High -> true
-            | Low -> false
-            | Bit -> host_bit
-          in
-          acc lor (Bool.to_int on lsl i))
-    ; kind
-    ; cycles
-    ; next = (if state = tail then head else (state + 1) % count)
-    }
-  in
-  let table =
-    { Tables.name = "wavedrom"
-    ; wiring = Tables.Wiring.default
-    ; state = (module State)
-    ; states = List.range 0 count
-    ; step = (fun state ~host_bit ~inputs:_ -> entry state ~host_bit)
-    }
-  in
-  let%map (_ : int list) = Tables.words table in
+  let%map table = table_of (Array.of_list steps) ~head ~tail in
   { outputs = List.map outputs ~f:(fun (l : Wavejson.Lane.t) -> l.name)
-  ; input = List.hd inputs |> Option.map ~f:(fun (l : Wavejson.Lane.t) -> l.name)
-  ; steps = Array.to_list steps
+  ; input = Option.map input ~f:(fun (l : Wavejson.Lane.t) -> l.name)
+  ; steps
   ; table
   ; bits
   ; words
   ; while_host
+  ; starts_on_edge = false
   ; read
   ; limits
   }
+;;
+
+let level_char = function
+  | '0' | 'l' | 'L' -> Some false
+  | '1' | 'h' | 'H' -> Some true
+  | _ -> None
+;;
+
+(* An input lane that starts at a level and leaves it before its first cell starts each
+   frame on that edge: the period of the change, and the level after it. *)
+let input_edge (lane : Wavejson.Lane.t) =
+  let%bind.Option first_cell =
+    String.lfindi lane.wave ~f:(fun _ c ->
+      match c with
+      | '=' | '2' .. '9' -> true
+      | _ -> false)
+  in
+  let%bind.Option idle = level_char lane.wave.[0] in
+  List.find_map (List.range 1 first_cell) ~f:(fun p ->
+    Option.bind
+      (level_char lane.wave.[p])
+      ~f:(fun level -> Option.some_if (not (Bool.equal level idle)) (p, level)))
+;;
+
+(* An Await's cycles count from 2 after the pin's edge: Tables.uart_rx's [3 * bit / 2 - 9]
+   puts its first read at the middle of bit 0 so. *)
+let edge_seen = 2
+
+(* A frame an input's edge starts: an Await for the edge, a Shift at the middle of each
+   cell, the last held a cell's length, then a Push and back to the Await. *)
+let compile_on_edge
+  (diagram : Wavejson.t)
+  ~lanes
+  ~(outputs : Wavejson.Lane.t list)
+  ~(input : Wavejson.Lane.t)
+  ~drawn
+  ~cycles_of
+  ~edge:(at, level)
+  =
+  let open Or_error.Let_syntax in
+  let%bind () =
+    if not (List.is_empty outputs)
+    then
+      outside
+        [%message
+          "a frame an input's edge starts only reads, so outputs need a frame the host \
+           starts"
+            ~outputs:
+              (List.map outputs ~f:(fun (l : Wavejson.Lane.t) -> l.name) : string list)]
+    else if Option.is_some diagram.repeat
+    then outside [%message "a frame an input's edge starts has no repeat"]
+    else Ok ()
+  in
+  let%bind periods = periods ~drawn None in
+  let%bind cells = input_lane input periods in
+  let from_edge p = List.sum (module Int) (List.range at p) ~f:cycles_of in
+  let spans =
+    Array.to_list cells
+    |> List.filter_mapi ~f:(fun p cell ->
+      Option.map cell ~f:(fun c -> c, (from_edge p, from_edge (p + 1))))
+    |> Int.Map.of_alist_fold ~init:(Int.max_value, 0) ~f:(fun (lo, hi) (a, b) ->
+      Int.min lo a, Int.max hi b)
+    |> Map.data
+  in
+  let read = List.length spans in
+  let%bind () =
+    if read > Isa.data_bits
+    then outside [%message "a Push takes 16 bits read" (read : int)]
+    else Ok ()
+  in
+  let middle (lo, hi) = (lo + hi) / 2 in
+  let first = List.hd_exn spans in
+  let reads =
+    List.mapi spans ~f:(fun k span ->
+      let next =
+        match List.nth spans (k + 1) with
+        | Some next -> middle next
+        | None -> middle span + snd span - fst span
+      in
+      step [%string "bit %{k#Int} read"] [] Shift (next - middle span))
+  in
+  let steps =
+    (step
+       [%string "the edge, period %{at#Int}"]
+       []
+       (Await { pin = A; level })
+       (middle first - sample_after - edge_seen)
+     :: reads)
+    @ [ step "push" [] Push (least Push) ]
+  in
+  let%bind () = check_steps steps in
+  let%bind limits = limits lanes diagram.edges ~cycles_of ~idle:true ~repeat:None in
+  let%map table = table_of (Array.of_list steps) ~head:(-1) ~tail:(-1) in
+  { outputs = []
+  ; input = Some input.name
+  ; steps
+  ; table
+  ; bits = 0
+  ; words = []
+  ; while_host = false
+  ; starts_on_edge = true
+  ; read
+  ; limits
+  }
+;;
+
+let compile (diagram : Wavejson.t) =
+  let open Or_error.Let_syntax in
+  let lanes =
+    List.mapi diagram.lanes ~f:(fun i (l : Wavejson.Lane.t) ->
+      if String.is_empty l.name then { l with name = sprintf "lane %d" i } else l)
+  in
+  let outputs, inputs =
+    List.partition_tf lanes ~f:(fun (l : Wavejson.Lane.t) -> not l.input)
+  in
+  let%bind () =
+    if List.length outputs > Tables.output_bits
+    then
+      outside
+        [%message
+          [%string "a table drives %{Tables.output_bits#Int} outputs"]
+            ~lanes:(List.length outputs : int)]
+    else if List.length inputs > 1
+    then
+      outside
+        [%message
+          "a Shift reads one input pin"
+            ~lanes:
+              (List.map inputs ~f:(fun (l : Wavejson.Lane.t) -> l.name) : string list)]
+    else Ok ()
+  in
+  let drawn =
+    List.map lanes ~f:(fun (l : Wavejson.Lane.t) -> String.length l.wave)
+    |> List.max_elt ~compare
+    |> Option.value ~default:0
+  in
+  let%bind cycles_of =
+    match diagram.cycles with
+    | Every c -> Ok (Fn.const c)
+    | Each cs when List.length cs = drawn -> Ok (List.nth_exn cs)
+    | Each cs ->
+      outside
+        [%message
+          "table.cycles has one number a drawn period"
+            ~numbers:(List.length cs : int)
+            ~periods:(drawn : int)]
+  in
+  match inputs with
+  | [ input ] when Option.is_some (input_edge input) ->
+    compile_on_edge
+      diagram
+      ~lanes
+      ~outputs
+      ~input
+      ~drawn
+      ~cycles_of
+      ~edge:(Option.value_exn (input_edge input))
+  | _ -> compile_on_host diagram ~lanes ~outputs ~input:(List.hd inputs) ~drawn ~cycles_of
 ;;
 
 let of_string s = Or_error.bind (Wavejson.parse s) ~f:compile
@@ -770,7 +904,7 @@ let host_words t bits =
   then
     Or_error.error_s [%message "a frame's bits" ~bits:(n : int) ~a_frame:(t.bits : int)]
   else if t.bits = 0
-  then Ok (if t.read > 0 then [ 0 ] else [])
+  then Ok (if t.read > 0 && not t.starts_on_edge then [ 0 ] else [])
   else
     Ok
       (List.folding_map t.words ~init:bits ~f:(fun rest w ->
