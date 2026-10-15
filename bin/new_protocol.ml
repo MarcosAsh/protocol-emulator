@@ -558,7 +558,8 @@ let checklist ~name ~channels =
                 python3 demo/decode.py --show test/traces/%{name}.trace
                 python3 demo/decode.py test/traces/%{name}.trace
  7. certify   the inductive certificate, its teeth failing as they must (minutes)
-                make -C formal inductive_certificate NAME=%{name}
+                make -C formal inductive_write NAME=%{name}
+                make -C formal inductive_proof NAME=%{name}   (or: remote-run HOST formal make inductive_proof NAME=%{name})
  8. the rest  the row in test/test_tables.ml, then every test and output the library
               feeds, a fix rerun before it is promoted; CI runs the whole of runtest
                 test/only.sh -library test_%{name}.ml
