@@ -339,13 +339,30 @@ osr_step.v: ../src/*.ml
 data_step: engine.v osr_step.v
 	sby -f data_step.sby prove cover
 
+# The core's premise guards with a half taken out each: the second edge after the arm, the
+# level at the arm, the edge's fault a cycle late, and the period's. Each has to break a
+# claim at an entry of phase_step.sby, where the guard is all that holds the premise.
+SECOND_EDGE_OFF = /^module engine (/,/^endmodule/s/^\(\s*assign signal_or[_0-9]* = \)armed_at_level | second_edge;/\1armed_at_level;/
+LEVEL_AT_ARM_OFF = /^module engine (/,/^endmodule/s/^\(\s*assign signal_or[_0-9]* = \)armed_at_level | second_edge;/\1second_edge;/
+EDGE_LATE = /^module engine (/,/^endmodule/s/^\(\s*\)assign edge_off = \(.*\);/\1reg edge_late = 0;\n\1always @(posedge clock) edge_late <= \2;\n\1assign edge_off = edge_late;/
+PERIOD_OFF = /^module engine (/,/^endmodule/s/^\(\s*assign period_off = \).*;/\10;/
+guard_teeth: engine.v
+	mkdir -p guard_teeth
+	sed '$(SECOND_EDGE_OFF)' engine.v > guard_teeth/second_edge.v
+	sed '$(LEVEL_AT_ARM_OFF)' engine.v > guard_teeth/level_at_arm.v
+	sed '$(EDGE_LATE)' engine.v > guard_teeth/edge_late.v
+	sed '$(PERIOD_OFF)' engine.v > guard_teeth/period_unguarded.v
+	for tooth in second_edge level_at_arm edge_late period_unguarded; do \
+	  ! cmp -s engine.v guard_teeth/$$tooth.v || exit 1; \
+	done
+
 # weakened statements, which pass only by failing
-teeth: engine.v engine_sram.v engines.v kernel_step.v osr_step.v
+teeth: engine.v engine_sram.v engines.v kernel_step.v osr_step.v guard_teeth
 	sby -f issue_timing.sby jump_in_one delay_ignores_side_set waits_are_plain
 	sby -f fifo_order.sby stale_ahead
 	sby -f phase_step.sby jump_in_one late_wait_waits no_carry one_late_cycle_is_safe taken_backwards \
-	  second_edge level_at_arm later_edge_captured capture_a_cycle_older capture_a_cycle_younger \
-	  arm_one_short edge_one_short
+	  second_edge level_at_arm edge_late period_unguarded later_edge_captured \
+	  capture_a_cycle_older capture_a_cycle_younger arm_one_short edge_one_short
 	sby -f edge_step.sby pins_never_change side_set_only one_cycle_later flip_off_issue no_flip
 	sby -f event_step.sby late level_only wires_plain jump_late held_moves
 	sby -f frame_step.sby narrow_side narrow_set narrow_out narrow_mov no_pair side_dirs_on_out \
@@ -768,7 +785,7 @@ witness_unsat:
 # cannot have made the model vacuous, and Certifaiger has to reject the lemma's witness.
 # At least WITNESS_TEETH_<lemma> of them, so none go missing unnoticed. A copy of other
 # files than the prove task's, as the narrow core's, is another model and not a tooth here.
-WITNESS_TEETH_phase_step = 12
+WITNESS_TEETH_phase_step = 10
 WITNESS_TEETH_edge_step = 5
 WITNESS_TEETH_phase_table = 5
 WITNESS_TEETH_self_check_clean = 2
@@ -847,7 +864,7 @@ proof_bundle_tooth:
 .PHONY: witness witness_proof witness_model witness_unsat witness_teeth witness_tooth \
   witness_reject witness_bundle proof_bundle proof_bundle_tooth
 
-.PHONY: all link link_proof issue_timing host_timing late_host fifo_order phase_step phase_table \
+.PHONY: all link link_proof issue_timing host_timing late_host fifo_order phase_step phase_table guard_teeth \
   phase_table_proof phase_table_affine phase_table_affine_proof phase_spacing \
   phase_spacing_proof edge_step event_step frame_step value_step chip_frame fail_safe \
   fail_safe_teeth fail_safe_table fail_safe_table_proof data_step teeth \

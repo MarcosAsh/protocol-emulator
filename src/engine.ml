@@ -874,10 +874,10 @@ module Make (Timer : Timer) = struct
       &: (wait_index <:. Isa.pin_space)
       &: (wait_polarity ==: c.capture_rising)
     in
-    let%hw edge_off =
-      i.premises.single_edge
-      &: (arms &: capture_level |: (holding &: seen &: ~:capture_level))
-    in
+    (* the two halves of the single-edge premise: no edge before the arm, one after it *)
+    let%hw armed_at_level = arms &: capture_level in
+    let%hw second_edge = holding &: seen &: ~:capture_level in
+    let%hw edge_off = i.premises.single_edge &: (armed_at_level |: second_edge) in
     holding <-- reg spec (mux2 i.start gnd @@ mux2 arms vdd @@ mux2 releases gnd holding);
     seen
     <-- reg

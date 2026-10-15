@@ -10,8 +10,10 @@ late_wait_waits teeth
 no_carry teeth
 one_late_cycle_is_safe teeth
 taken_backwards teeth
-second_edge teeth
-level_at_arm teeth
+second_edge teeth guard_mutant
+level_at_arm teeth guard_mutant
+edge_late teeth guard_mutant
+period_unguarded teeth guard_mutant
 later_edge_captured teeth
 capture_a_cycle_older teeth
 capture_a_cycle_younger teeth
@@ -39,12 +41,20 @@ teeth: expect fail
 smtbmc boolector
 
 [script]
-read_verilog engine.v
+~guard_mutant: read_verilog engine.v
+second_edge: read_verilog second_edge.v
+level_at_arm: read_verilog level_at_arm.v
+edge_late: read_verilog edge_late.v
+period_unguarded: read_verilog period_unguarded.v
 hierarchy -top engine
 proc
 flatten
 cd engine
 expose w:jmp_go w:advance w:sample w:captured w:out_value w:mov_value
+expose w:p_loaded w:holding w:seen
+rename p_loaded eng_p_loaded
+rename holding eng_holding
+rename seen eng_seen
 rename jmp_go eng_jmp_go
 rename advance eng_advance
 rename sample eng_sample
@@ -57,8 +67,7 @@ late_wait_waits: read -define LATE_WAIT_WAITS
 no_carry: read -define NO_CARRY
 one_late_cycle_is_safe: read -define ONE_LATE_CYCLE_IS_SAFE
 taken_backwards: read -define TAKEN_BACKWARDS
-second_edge: read -define SECOND_EDGE
-level_at_arm: read -define LEVEL_AT_ARM
+guard_mutant: read -define GUARD_MUTANT
 later_edge_captured: read -define LATER_EDGE_CAPTURED
 capture_a_cycle_older: read -define CAPTURE_A_CYCLE_OLDER
 capture_a_cycle_younger: read -define CAPTURE_A_CYCLE_YOUNGER
@@ -74,6 +83,10 @@ prep -top phase_step
 ~saturating:
 ~narrow_timer: engine.v
 narrow_timer: engine.v engine_narrow.v
+second_edge: guard_teeth/second_edge.v
+level_at_arm: guard_teeth/level_at_arm.v
+edge_late: guard_teeth/edge_late.v
+period_unguarded: guard_teeth/period_unguarded.v
 --
 saturating:
 ~narrow_timer: engine.v engine_saturating.v

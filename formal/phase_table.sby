@@ -26,6 +26,10 @@ proc
 flatten
 cd engine
 expose w:jmp_go w:advance w:sample w:captured w:out_value w:mov_value
+expose w:p_loaded w:holding w:seen
+rename p_loaded eng_p_loaded
+rename holding eng_holding
+rename seen eng_seen
 rename jmp_go eng_jmp_go
 rename advance eng_advance
 rename sample eng_sample
