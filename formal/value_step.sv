@@ -2,14 +2,14 @@
 // value (ISA.md and machine.ml, restated here, not taken from the core) reaches the osr,
 // isr, their counts, the data pointer, underflow, overflow, the fifo pops and pushes, and
 // the pins, pindirs, x, y, p or t the word writes, as does a Manchester bit's second half
-// at the next issue. Pins.write of that value on the pins holds only for a constant
-// config, which edge_step.sv takes; a side-set or set under a config changed mid-run is
-// proved nowhere. Trusted: x, y, now, capture and crc where read (their other updates
+// at the next issue. Pins.write of that value on the pins holds only for a config written
+// while halted, which edge_step.sv takes; one changed mid-run the host port never makes
+// (host_spacing.sv). Trusted: x, y, now, capture and crc where read (their other updates
 // are left to the engine's tests); the fifos' head, empty and full (fifo_order.sv);
 // data_word as the memory's word at data_ptr; and when the core issues, and that these
-// registers move at no other time (phase_step.sv, edge_step.sv, constant config). Host,
-// pins, clear and config are otherwise free every cycle, and the chip has no debugger. A
-// count above 16 acts as 16, as in Pins.
+// registers move at no other time (phase_step.sv, edge_step.sv, config written while
+// halted). Host, pins, clear and config are otherwise free every cycle, and the chip has
+// no debugger. A count above 16 acts as 16, as in Pins.
 
 // the timer's width, narrower in the narrow tasks
 `ifndef TIMER_BITS

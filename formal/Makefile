@@ -66,7 +66,8 @@ phase_table: engine.v kernel_step.v kernel_accepts.v
 
 phase_table_proof:
 	sby -f phase_table.sby prove cover
-	sby -f phase_table.sby no_accepts no_open next_no_wrap target_is_next rows_while_running
+	sby -f phase_table.sby no_accepts no_open next_no_wrap target_is_next rows_while_running \
+	  config_while_running
 
 # The pair's spacing: pair_step's lemma, the kernel's check of one step carrying the pair,
 # for all inputs and an opcode at a time; then the run, which takes it, the step lemma and
@@ -117,7 +118,7 @@ phase_table_affine_proof:
 	sby -f row_step.sby no_axioms no_offset_check x_unfollowed
 	sby -f phase_table_affine.sby prove cover
 	sby -f phase_table_affine.sby offset_unchecked no_accepts no_open next_no_wrap \
-	  target_is_next rows_while_running
+	  target_is_next rows_while_running config_while_running
 
 # the fetch lemma: the core runs the word its memory holds at pc, the memory followed at
 # one free address through a probe added to engine.v. Seconds. Teeth: a config or a

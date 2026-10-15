@@ -22,17 +22,31 @@ module phase_step (input clk);
   localparam T = `TIMER_BITS;
   // a count of cycles past the timer's range, where it stops
   localparam [T:0] SATURATED = 1 << T;
-  (* anyconst *) wire [1:0] side_set_count;
-  (* anyconst *) wire [4:0] side_set_base, in_base, in_count, out_base, out_count, set_base;
-  (* anyconst *) wire [2:0] set_count;
-  (* anyconst *) wire [4:0] jmp_pin, capture_pin, push_threshold, pull_threshold;
-  (* anyconst *) wire side_set_pindirs, capture_rising, in_shift_right, out_shift_right, autopush, autopull;
-  (* anyconst *) wire [4:0] crc_width, stuff_threshold;
-  (* anyconst *) wire [15:0] crc_poly, crc_init;
-  (* anyconst *) wire crc_reflect, stuff_level;
-  (* anyconst *) wire [8:0] wrap_bottom, wrap_top;
-  (* anyconst *) wire [15:0] period_fraction;
-  (* anyconst *) wire autopull_data, manchester;
+  // The config, as the host port holds it: a write lands only while the core is halted,
+  // and not in a start's second cycle (host_spacing.sv). Free at the clear.
+  (* anyseq *) wire config_write;
+  (* anyseq *) wire [140:0] config_value;
+  reg [140:0] config_bits;
+  wire [1:0] side_set_count = config_bits[140:139];
+  wire [4:0] side_set_base = config_bits[138:134];
+  wire side_set_pindirs = config_bits[133];
+  wire [4:0] in_base = config_bits[132:128], in_count = config_bits[127:123];
+  wire [4:0] out_base = config_bits[122:118], out_count = config_bits[117:113];
+  wire [4:0] set_base = config_bits[112:108];
+  wire [2:0] set_count = config_bits[107:105];
+  wire [4:0] jmp_pin = config_bits[104:100], capture_pin = config_bits[99:95];
+  wire capture_rising = config_bits[94], in_shift_right = config_bits[93];
+  wire out_shift_right = config_bits[92], autopush = config_bits[91];
+  wire [4:0] push_threshold = config_bits[90:86];
+  wire autopull = config_bits[85];
+  wire [4:0] pull_threshold = config_bits[84:80], crc_width = config_bits[79:75];
+  wire [15:0] crc_poly = config_bits[74:59], crc_init = config_bits[58:43];
+  wire crc_reflect = config_bits[42];
+  wire [4:0] stuff_threshold = config_bits[41:37];
+  wire stuff_level = config_bits[36];
+  wire [8:0] wrap_bottom = config_bits[35:27], wrap_top = config_bits[26:18];
+  wire [15:0] period_fraction = config_bits[17:2];
+  wire autopull_data = config_bits[1], manchester = config_bits[0];
   // the assumption the kernel may take: a run-time write to p carries loaded_period as it
   // stood at the entry of the instruction that writes it, free at each entry
   (* anyconst *) wire loads_period;
@@ -233,6 +247,12 @@ module phase_step (input clk);
   // an entry is the first issue after a start or after a completion
   reg started = 0;
   always @(posedge clk) started <= core_start;
+`ifdef CONFIG_WHILE_RUNNING
+  always @(posedge clk) if (config_write) config_bits <= config_value;
+`else
+  always @(posedge clk)
+    if (config_write && halted && !started) config_bits <= config_value;
+`endif
   wire issue = !clear && !halted && stall == 0 && !started;
   reg fresh = 0;
   always @(posedge clk)
@@ -558,8 +578,9 @@ module phase_step (input clk);
     else if (arms) arm_age <= 1;
     else if (young) arm_age <= arm_age + 1;
   always @(posedge clk) if (!clear && young) assert(arm_age[T-1:0] == now - arm_now);
+  // a halted core holds no edge, so a config written then cannot leave one half-seen
   always @(posedge clk)
-    if (clear || core_start) begin
+    if (clear || core_start || halted) begin
       holding <= 0;
       seen <= 0;
     end else if (arms) begin
@@ -845,12 +866,12 @@ module phase_step (input clk);
     cover(loads_period && wrote_p && loaded_before && p != last_load);
   end
 `ifdef TABLE
-  // The theorem in one run. For any table of intervals loaded while halted, as the program
-  // is, assume the kernel's accepts at every pc entered, with the next and target rows it
-  // picks, and a start at a row that bounds nothing; then the core lies in the row of every
-  // entry and no deadline is missed. Rows have no slope and the full offset, as every
-  // library table does. With AFFINE they are whole rows, and the run rests on row_step.
-  // SPACING adds the pair's bounds to the rows, for phase_spacing.sby.
+  // The theorem in one run. For any table of intervals and config loaded while halted, as
+  // the program is, assume the kernel's accepts at every pc entered, with the next and
+  // target rows it picks, and a start at a row that bounds nothing; then the core lies in
+  // the row of every entry and no deadline is missed. Rows have no slope and the full
+  // offset, as every library table does. With AFFINE they are whole rows, and the run
+  // rests on row_step. SPACING adds the pair's bounds to the rows, for phase_spacing.sby.
 `ifdef AFFINE
   localparam ROW_BITS = 266;
 `elsif SPACING
@@ -1127,8 +1148,10 @@ module phase_step (input clk);
   always @(posedge clk)
     if (!clear) begin
       assert(flip_pending == flip_owed);
-      if (flip_owed) assert((pin_out & flip_pair) == first_half_held);
-      if (flip_owed && !halted) assert(since_out <= out_step && stall == out_step - since_out);
+      if (flip_owed && !halted) begin
+        assert((pin_out & flip_pair) == first_half_held);
+        assert(since_out <= out_step && stall == out_step - since_out);
+      end
       if (!fresh && !halted) begin
         assert(opcode == 1 && decode_ok && stall == 0 && !started);
         if (side_pins)

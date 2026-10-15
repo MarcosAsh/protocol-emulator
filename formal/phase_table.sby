@@ -6,6 +6,7 @@ no_open teeth
 next_no_wrap teeth
 target_is_next teeth
 rows_while_running teeth
+config_while_running teeth
 
 [options]
 prove: mode prove
@@ -39,6 +40,7 @@ no_open: read -define NO_OPEN
 next_no_wrap: read -define NEXT_NO_WRAP
 target_is_next: read -define TARGET_IS_NEXT
 rows_while_running: read -define ROWS_WHILE_RUNNING
+config_while_running: read -define CONFIG_WHILE_RUNNING
 read_verilog kernel_step.v
 read_verilog kernel_accepts.v
 read_verilog -formal -sv phase_step.sv
