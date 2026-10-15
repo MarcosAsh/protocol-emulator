@@ -907,8 +907,8 @@ module phase_step (input clk);
   // The offset is the phase less the row's slope times x, modulo 2^24. SMT does not follow
   // a product of two variables, so the product and each successor's offset are free, held
   // to what the true ones satisfy: no product where x is zero, the core's offset where it
-  // is at that successor's pc, and row_step's axioms. row_step's lemma holds for any
-  // inputs, so assuming it drops no run.
+  // is at that successor's pc, and row_step's axioms, which offset_axioms.smt2 proves
+  // they do. row_step's lemma holds for any inputs, so assuming it drops no run.
   (* anyseq *) wire [23:0] product, next_offset, target_offset;
   reg [23:0] e_product;
   always @(posedge clk) if (entry) e_product <= product;

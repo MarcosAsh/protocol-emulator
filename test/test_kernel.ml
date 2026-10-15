@@ -146,8 +146,8 @@ let accepted_rows_hold ?(check_spacing = Fn.id) ~step_edge () =
      in that arithmetic: after [set x, v] the offset is [phase' - slope * v]; where x is
      zero it is the phase; and with the slope the same, the offset moves as the phase does
      where x stays, and a slope further where x is one less. The proof is sound only
-     because they hold. Each is stated only where the kernel needs it, which leaves it
-     true and SAT finds far easier. *)
+     because they hold, which formal/offset_axioms.smt2 proves. Each is stated only where
+     the kernel needs it, which leaves it true and SAT finds far easier. *)
   let offset = G.input "offset" Isa.timer_bits in
   let next_offset = G.input "next_offset" Isa.timer_bits in
   let target_offset = G.input "target_offset" Isa.timer_bits in

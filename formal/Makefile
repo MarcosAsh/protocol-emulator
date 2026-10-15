@@ -1,6 +1,6 @@
 all: issue_timing host_timing late_host fifo_order phase_step edge_step event_step frame_step \
   value_step narrow saturating chip_frame fail_safe isolation data_step teeth fsm_miter \
-  sram_equiv kernel_equiv link self_check self_check_clean powerup
+  sram_equiv kernel_equiv link self_check self_check_clean powerup offset_axioms
 
 engine.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe engine > formal/engine.v
@@ -105,6 +105,13 @@ phase_table_affine_proof:
 	sby -f phase_table_affine.sby prove cover
 	sby -f phase_table_affine.sby offset_unchecked no_accepts no_open next_no_wrap \
 	  target_is_next rows_while_running
+
+# The axioms on the free offsets above, which phase_step.sv's AFFINE run and test_kernel.ml
+# take too, hold of the true phase - slope * x modulo 2^24: z3 finds each check unsat, and
+# each tooth, an axiom with one part wrong, sat. Seconds.
+offset_axioms:
+	[ "$$(z3 offset_axioms.smt2 | xargs)" = "unsat unsat unsat unsat unsat" ]
+	[ "$$(z3 offset_axioms_teeth.smt2 | xargs)" = "sat sat sat sat" ]
 
 # the edge lemma beside it: the pins change only the cycle after an entry that writes them
 edge_step: engine.v
@@ -833,4 +840,4 @@ proof_bundle_tooth:
   sram_equiv_step sram_equiv_teeth kernel_equiv kernel_equiv_proof kernel_miter sat_tools \
   narrow narrow_proof saturating saturating_proof saturating_chip self_check self_check_proof \
   self_check_clean self_check_clean_proof \
-  powerup isolation isolation_proof
+  powerup isolation isolation_proof offset_axioms
