@@ -281,8 +281,7 @@ let sent_bit t bit =
   if t.crc_sending then crc_out_bit t lxor Bool.to_int t.config.crc_complement else bit
 ;;
 
-(* The assist units see every bit that crosses a pin one at a time; a sending CRC
-   shifts. *)
+(* The assist units see every bit that crosses a pin one at a time; a sending CRC shifts. *)
 let bit_crosses t bit =
   let c = t.config in
   let crc =
