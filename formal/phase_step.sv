@@ -36,16 +36,14 @@ module phase_step (input clk);
   // The premises the kernel may take: p is loaded_period wherever a run-time write left it,
   // or with floor_period at least it, and the capture pin makes one edge from capture_arm
   // to the wait for it. The core is handed them and faults where they fail; CHIP's is
-  // handed none, so there they are assumed of its inputs, loaded_period free at each entry
-  // and no floor.
+  // handed none, so there they are assumed of its inputs, loaded_period free at each entry.
   (* anyconst *) wire loads_period;
 `ifdef CHIP
   (* anyseq *) wire [15:0] loaded_period;
-  wire floor_period = 0;
 `else
   (* anyconst *) wire [15:0] loaded_period;
-  (* anyconst *) wire floor_period;
 `endif
+  (* anyconst *) wire floor_period;
   (* anyconst *) wire single_edge;
   // a pair of pins whose edges the kernel spaces, each its pindirs bit if pair_dirs, and
   // the least cycles, four entries each, indexed by the two bits before an edge
@@ -500,7 +498,8 @@ module phase_step (input clk);
   reg wrote_p = 0;
   always @(posedge clk) wrote_p <= !clear && completes && !keeps_period;
 `ifdef CHIP
-  always @(*) if (loads_period && wrote_p) assume(p == e_loaded);
+  always @(*)
+    if (loads_period && wrote_p) assume(floor_period ? p >= e_loaded : p == e_loaded);
   // the last load, for a cover of two that differ in one run
   reg [15:0] last_load;
   reg loaded_before = 0;
@@ -558,6 +557,11 @@ module phase_step (input clk);
       assert(e_phase == e_now - e_t);
       if (!done) assert(kp == e_p && x == e_x && y == e_y);
       else if (period_known) assert(kp == next_period);
+      // a run-time write under a floor
+      else if (loads_period) assert(kp >= next_period);
+`ifndef CHIP
+      assert(e_loaded == loaded_period);
+`endif
       if (e_safe) assert(!missed_deadline);
       if (!done) begin
         assert(!fresh && !e_is_jmp);
