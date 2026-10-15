@@ -2,6 +2,10 @@ all: issue_timing host_timing late_host fifo_order phase_step edge_step event_st
   value_step narrow saturating chip_frame fail_safe isolation data_step teeth fsm_miter \
   sram_equiv kernel_equiv link self_check self_check_clean powerup
 
+# every dune here runs from the checkout's root, which a worktree inside another checkout
+# would otherwise give up for the outer one's
+export DUNE_ROOT = .
+
 engine.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe engine > formal/engine.v
 
