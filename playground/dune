@@ -38,3 +38,21 @@
  (enabled_if
   (= %{env:PLAYGROUND=no} yes))
  (deps index.html playground.bc.js))
+
+; each library diagram, and frames of host bits to send, a line a frame
+
+(rule
+ (with-stdout-to
+  diagram_example.ml
+  (progn
+   (echo "let all =\n  [ \"uart_tx\", {|")
+   (cat %{dep:../test/diagrams/uart_tx.json})
+   (echo "|}, \"11000101\\n00111010\"\n  ; \"dshot\", {|")
+   (cat %{dep:../test/diagrams/dshot.json})
+   (echo
+    "|}, \"1000001011000110\\n0000011000000110\"\n  ; \"spi_master\", {|")
+   (cat %{dep:../test/diagrams/spi_master.json})
+   (echo "|}, \"10100101\\n00111100\"\n  ; \"ws2812\", {|")
+   (cat %{dep:../test/diagrams/ws2812.json})
+   (echo
+    "|}, \"000100001111111100000000\\n100000000000000110101010\"\n  ]\n"))))
