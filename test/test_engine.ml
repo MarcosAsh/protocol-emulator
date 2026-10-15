@@ -501,3 +501,59 @@ loop:
      (gaps (20)) (missed_deadline false))
     |}]
 ;;
+
+(* [halted] stays high through a start's second cycle, which prefetches the word after pc
+   0 under the config of the time. A wrap written then has the core run [set x, 1] again at
+   pc 1. The host port never writes there (formal/host_spacing.sv). *)
+let%expect_test "a config written in a start's second cycle runs the wrong word" =
+  let program = assemble {|
+    set x, 1
+    set y, 7
+    halt
+|} in
+  let wrap ~top =
+    Engine.Config.of_program_config
+      { Program_config.default with wrap_bottom = 0; wrap_top = top }
+  in
+  Harness.run
+    ~create:(Solo.hierarchical ~memory:Flops)
+    (fun (h @ local) ~inputs:i ~outputs ->
+       let cycle () = Lws.cycle h in
+       i.clocking.clear := Bits.vdd;
+       cycle ();
+       i.clocking.clear := Bits.gnd;
+       Engine.Config.iter2 i.config (wrap ~top:0) ~f:( := );
+       List.iteri program ~f:(fun addr word ->
+         i.program_write.valid := Bits.vdd;
+         i.program_write.addr <--. addr;
+         i.program_write.data <--. word;
+         cycle ());
+       i.program_write.valid := Bits.gnd;
+       i.start := Bits.vdd;
+       cycle ();
+       i.start := Bits.gnd;
+       let o = Before_and_after_edge.after_edge outputs in
+       let halted_after_start = Bits.to_bool !(o.halted) in
+       cycle ();
+       Engine.Config.iter2 i.config (wrap ~top:511) ~f:( := );
+       List.iter (List.range 0 4) ~f:(fun _ ->
+         cycle ();
+         let o = Before_and_after_edge.after_edge outputs in
+         print_s
+           [%message
+             ""
+               ~pc:(Bits.to_unsigned_int !(o.pc) : int)
+               ~instruction:(Bits.to_unsigned_int !(o.instruction) : Int.Hex.t)
+               ~word_at_pc:
+                 (List.nth program (Bits.to_unsigned_int !(o.pc)) : Int.Hex.t option)
+               ~x:(Bits.to_unsigned_int !(o.x) : int)
+               ~y:(Bits.to_unsigned_int !(o.y) : int)]);
+       print_s [%message (halted_after_start : bool)]);
+  [%expect {|
+    ((pc 1) (instruction 0xa021) (word_at_pc (0xa047)) (x 1) (y 0))
+    ((pc 2) (instruction 0xe001) (word_at_pc (0xe001)) (x 1) (y 0))
+    ((pc 3) (instruction 0x0) (word_at_pc ()) (x 1) (y 0))
+    ((pc 3) (instruction 0x0) (word_at_pc ()) (x 1) (y 0))
+    (halted_after_start true)
+    |}]
+;;
