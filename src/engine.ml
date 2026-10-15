@@ -533,6 +533,15 @@ module Make (Timer : Timer) = struct
     in
     let%hw pin_out_base = mux2 c.side_set_pindirs pin_out_flipped pin_out_side in
     let%hw pin_dir_base = mux2 c.side_set_pindirs pin_dir_side pin_dir in
+    (* a bit no write reaches keeps the clear's zero, as formal/unreachable.sv proves, so
+       coverage waives its toggles; a random power-up value still turns off at the clear *)
+    let unwritten ~writable r =
+      List.filter (List.range 0 num_pins) ~f:(Fn.non writable)
+      |> List.concat_map ~f:(fun bit ->
+        [ { Coverage_prim.Toggle.bit; on = true }; { bit; on = false } ])
+      |> Coverage_prim.Waiver.exclude ~warn_on_waived_but_observed:false
+      |> add_register_waiver_exn r
+    in
     let out_to ~base ~count ~value =
       write_pins pin_out_base ~base ~count ~value ~writable:output_pin
     in
@@ -778,10 +787,11 @@ module Make (Timer : Timer) = struct
     now <-- reg spec (mux2 start (zero timer_bits) (now +:. 1));
     (* a jump carries no side-set, so all it does to the pins is the flip *)
     pin_out
-    <-- reg
-          spec
-          ~enable:(op_go |: (issue &: flip_pending))
-          (mux2 op_go pin_out_next pin_out_flipped);
+    <-- (reg
+           spec
+           ~enable:(op_go |: (issue &: flip_pending))
+           (mux2 op_go pin_out_next pin_out_flipped)
+         |> unwritten ~writable:output_pin);
     let%hw starts_manchester_bit =
       op_go &: is Out &: Isa.Out_dest.Of_signal.is out_dest Pins &: manchester_out
     in
@@ -790,7 +800,7 @@ module Make (Timer : Timer) = struct
           spec
           (mux2 start gnd @@ mux2 starts_manchester_bit vdd @@ mux2 issue gnd flip_pending);
     flip_bit <-- reg spec ~enable:starts_manchester_bit out_value.:(0);
-    pin_dir <-- reg spec ~enable:op_go pin_dir_next;
+    pin_dir <-- (reg spec ~enable:op_go pin_dir_next |> unwritten ~writable:bidir_pin);
     pins_sampled <-- reg spec sample;
     stall <-- reg spec stall_next;
     halted <-- reg spec ~clear_to:vdd halted_next;

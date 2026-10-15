@@ -1,4 +1,4 @@
-all: issue_timing host_timing late_host fifo_order phase_step edge_step event_step frame_step \
+all: issue_timing host_timing late_host fifo_order unreachable phase_step edge_step event_step frame_step \
   value_step narrow saturating chip_frame fail_safe isolation data_step teeth fsm_miter \
   sram_equiv kernel_equiv link self_check self_check_clean powerup
 
@@ -34,6 +34,10 @@ late_host: engine_sram.v
 
 fifo_order: engine.v
 	sby -f fifo_order.sby prove cover
+
+# the pin bits coverage waives in src/engine.ml stay zero after a clear
+unreachable: engine.v
+	sby -f unreachable.sby prove cover
 
 kernel_step.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe kernel > formal/kernel_step.v
@@ -274,6 +278,7 @@ data_step: engine.v osr_step.v
 teeth: engine.v engine_sram.v engines.v kernel_step.v osr_step.v
 	sby -f issue_timing.sby jump_in_one delay_ignores_side_set waits_are_plain
 	sby -f fifo_order.sby stale_ahead
+	sby -f unreachable.sby one_more
 	mkdir -p phase_step_teeth
 	awk -f capture_early.awk engine.v engine.v > phase_step_teeth/capture_early.v
 	sby -f phase_step.sby jump_in_one late_wait_waits no_carry one_late_cycle_is_safe taken_backwards \
@@ -821,7 +826,7 @@ proof_bundle_tooth:
 .PHONY: witness witness_proof witness_model witness_unsat witness_teeth witness_tooth \
   witness_reject witness_bundle proof_bundle proof_bundle_tooth
 
-.PHONY: all link link_proof issue_timing host_timing late_host fifo_order phase_step phase_table \
+.PHONY: all link link_proof issue_timing host_timing late_host fifo_order unreachable phase_step phase_table \
   phase_table_proof phase_table_affine phase_table_affine_proof phase_spacing \
   phase_spacing_proof edge_step event_step frame_step value_step chip_frame fail_safe \
   fail_safe_teeth fail_safe_table fail_safe_table_proof data_step teeth \
