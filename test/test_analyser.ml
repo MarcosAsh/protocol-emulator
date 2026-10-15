@@ -1226,6 +1226,7 @@ let%expect_test "counted loops of every shape" =
   let source =
     {|
     set y, 2
+    set p, 4
     mov t, now
     set x, 1
     nop
@@ -1233,6 +1234,7 @@ let%expect_test "counted loops of every shape" =
 a:
     add t, 5
     add t, y
+    add t, p
     sub t, 1
     jmp x--, a
     set x, 3
@@ -1259,23 +1261,25 @@ e:
   [%expect
     {|
      0  set y, 2                     phase ?..?  slope 0  offset ?..?
-     1  mov t, now                   phase ?..?  slope 0  offset ?..?
-     2  set x, 1                     phase 1  slope 0  offset ?..?
-     3  nop                          phase 2  slope 0  offset ?..?
-     4  set x, 3                     phase 3  slope 0  offset ?..?
-     5  add t, 5                     phase ?..4  slope 1  offset 1
-     6  add t, y                     phase ?..0  slope 1  offset -3
-     7  sub t, 1                     phase ?..-1  slope 1  offset -4
-     8  jmp x--, 5                   phase ?..1  slope 1  offset -2
-     9  set x, 3                     phase 0  slope 0  offset ?..?
-    10  jmp x--, 10                  phase 1..?  slope -2  offset 7
-    11  set x, 3                     phase 9  slope 0  offset ?..?
-    12  jmp pin, 12                  phase 10..?  slope 0  offset ?..?
-    13  jmp x--, 12                  phase 12..?  slope 0  offset ?..?
-    14  set x, 3                     phase 14..?  slope 0  offset ?..?
-    15  jmp pin, 16                  phase 15..?  slope 0  offset ?..?
-    16  jmp x--, 15                  phase 17..?  slope 0  offset ?..?
-    17  halt                         phase 19..?  slope 0  offset ?..?
+     1  set p, 4                     phase ?..?  slope 0  offset ?..?
+     2  mov t, now                   phase ?..?  slope 0  offset ?..?
+     3  set x, 1                     phase 1  slope 0  offset ?..?
+     4  nop                          phase 2  slope 0  offset ?..?
+     5  set x, 3                     phase 3  slope 0  offset ?..?
+     6  add t, 5                     phase ?..4  slope 4  offset -8
+     7  add t, y                     phase ?..0  slope 4  offset -12
+     8  add t, p                     phase ?..-1  slope 4  offset -13
+     9  sub t, 1                     phase ?..-4  slope 4  offset -16
+    10  jmp x--, 6                   phase ?..-2  slope 4  offset -14
+    11  set x, 3                     phase -12  slope 0  offset ?..?
+    12  jmp x--, 12                  phase -11..?  slope -2  offset -5
+    13  set x, 3                     phase -3  slope 0  offset ?..?
+    14  jmp pin, 14                  phase -2..?  slope 0  offset ?..?
+    15  jmp x--, 14                  phase 0..?  slope 0  offset ?..?
+    16  set x, 3                     phase 2..?  slope 0  offset ?..?
+    17  jmp pin, 18                  phase 3..?  slope 0  offset ?..?
+    18  jmp x--, 17                  phase 5..?  slope 0  offset ?..?
+    19  halt                         phase 7..?  slope 0  offset ?..?
     |}]
 ;;
 
