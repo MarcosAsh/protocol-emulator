@@ -9,7 +9,7 @@
 # them DEVICE does, DEVICE=fx2lafw:conn=1.7, the bus and address `sigrok-cli --scan` prints.
 # TRIES caps the attempts, 8 unless set.
 # Usage: [ANALYSER=A|B] demo/capture.sh OUT.sr MS [COMMAND...]
-#   demo/capture.sh pico.sr 5000 mpremote connect id:e66548545717552e run --no-follow demo/pico_uart.py
+#   ANALYSER=B demo/capture.sh pico.sr 5000 mpremote connect id:e66548545740ad29 run --no-follow demo/pico_uart.py
 set -e
 out=$1
 ms=$2
