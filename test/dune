@@ -24,3 +24,26 @@
    ../icepi/Makefile)
   (flags
    (-source-tree-root .))))
+
+; Hardcaml's cyclesim coverage of src/ over every test above, checked against
+; coverage_triage.txt: dune build @test/coverage. It reruns the tests, so it is apart from
+; runtest; the reports are left in coverage/ beside the runner.
+
+(rule
+ (alias coverage)
+ (deps
+  (glob_files *.asm)
+  (glob_files assemble/*.asm)
+  (glob_files *.hex)
+  (glob_files ../src/*.ml)
+  ../formal/Makefile
+  ../src/protocol_emulator.v
+  ../python/demo_board.py
+  ../icepi/Makefile)
+ (action
+  (progn
+   (run
+    sh
+    %{dep:coverage.sh}
+    %{dep:.protocol_emulator_test.inline-tests/inline-test-runner.exe})
+   (run python3 %{dep:check_coverage.py} %{dep:coverage_triage.txt} coverage))))
