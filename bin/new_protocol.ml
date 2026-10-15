@@ -149,12 +149,6 @@ open Pin_trace
 module Reg = Host_port.Reg
 
 (* TODO the spec: the document with its revision, and the table the timing comes from *)
-let sheet =
-  { Datasheet.Sheet.part = "TODO the part or the bus"
-  ; document = "TODO the document and its revision"
-  ; page = "TODO the timing table and its page"
-  }
-;;
 
 (* TODO the pins: OUT0 is 5, IO0 is 12 (Isa.first_bidir_pin), Bench names the bench's *)
 let pin = 5
@@ -193,13 +187,14 @@ bit:
       ~config]
 ;;
 
-(* TODO the certificates: [Certified.plain] takes ~period and ~period_floor for a period
-   the host loads, and ~no_wrap where a wait can fall far behind; [Certified.receiver] is
-   for firmware that samples a line *)
-let certified = [ Certified.plain "__NAME__" (Timed_program.source firmware) config ]
+(* TODO the certificates, under the assumptions [%firmware] checked: give ~period, the
+   period the host loads, to firmware checked at a ~period_floor, and ~no_wrap:true where
+   a wait can fall far behind, as a receiver's can *)
+let certified = [ Certified.of_firmware "__NAME__" firmware ]
 
 (* TODO the copy python/bench_firmware.py holds for the bench, at its clock, with a run
-   long enough to bound [limits] *)
+   long enough to bound [limits]; for a period the host loads, [Floor] the least and
+   [load] the one the bench loads *)
 let bench =
   { Bench.name = "__NAME__"
   ; what = "__MODULE__.firmware: TODO what the bench sees, on OUT0"
@@ -212,18 +207,18 @@ let bench =
   }
 ;;
 
-(* TODO a row for each parameter of [sheet]'s table. [Datasheet.level] and
-   [Datasheet.spacing] bound one by the kernel, [Datasheet.run] by a run of [bench] *)
-let limits =
-  [ { Datasheet.firmware = bench.name
-    ; parameter = "TODO a low"
-    ; limit = At_least 1.
-    ; sheet
-    ; margin = Cycle
-    ; bound = Datasheet.level ~pin:Datasheet.set_pin ~high:false ()
-    }
-  ]
-;;
+(* TODO a row for each parameter of the spec's timing table, then [unlimited] empty. Each
+   is bounded by the kernel over every path, [Datasheet.level] or [Datasheet.spacing], or
+   by [bench]'s run, [Datasheet.run], which a loop of waits needs as the kernel counts one
+   pass of it. For example
+   { Datasheet.firmware = bench.name
+   ; parameter = "tLOW"
+   ; limit = At_least 4700.
+   ; sheet = { part = "I2C"; document = "NXP UM10204 Rev. 7.0"; page = "Table 10" }
+   ; margin = Cycle
+   ; bound = Datasheet.level ~pin:Datasheet.set_pin ~high:false ()
+   } *)
+let limits : Datasheet.t list = []
 
 (* TODO what sigrok's __DECODER__ decoder reads. demo/decode.py --show
    test/traces/__NAME__.trace prints every line it reads, by class, to fill [expect]
@@ -261,7 +256,7 @@ let protocol =
   ; bench = [ bench ]
   ; loaded_from_hex = []
   ; limits
-  ; unlimited = []
+  ; unlimited = [ "__NAME__", "TODO the rows of the spec's timing table" ]
   ; swept = []
   ; not_swept = [ "__NAME__", "TODO why the sweep does not stamp it, or a Swept.t" ]
   ; scenarios = [ scenario ]
@@ -274,6 +269,12 @@ let protocol =
 let test_ml =
   {ocaml|open! Core
 open Protocol_emulator
+
+(* what the analyser and the kernel make of the firmware, which compiling it checked *)
+let%expect_test "the firmware's verdict" =
+  print_endline (Analyser.Verdict.to_string (Timed_program.verdict __MODULE__.firmware));
+  [%expect {| |}]
+;;
 
 (* The line, level by level with the cycles each lasted, for one host word: what to hold
    against the spec's timing diagram. TODO a model of the far end, fed the pins every
@@ -414,13 +415,16 @@ let checklist ~name =
     {|Next, from the repository's root, with the OxCaml switch and oss-cad-suite on PATH:
 
  1. spec      open the spec at its timing table; note its title, revision and table
- 2. firmware  replace the placeholder in test/%{name}.ml; each build runs the kernel on it
-                dune build --root . 2>&1 | head -40
+ 2. firmware  replace the placeholder in test/%{name}.ml: a build runs the kernel on it and
+              fails at the line it refuses; the first test prints the verdict
+                dune build --root . 2>&1 | grep -A12 %{name}
+                test/only.sh test_%{name}.ml
  3. model     a model of the far end in test/test_%{name}.ml, then its output and the
               library's, which lists the certificate, limits, lockstep and decode
                 test/only.sh test_%{name}.ml test_protocol.ml
                 test/only.sh -promote test_%{name}.ml test_protocol.ml
- 4. limits    sheet and a row a parameter in test/%{name}.ml, then step 3 again
+ 4. limits    a row a parameter of the spec's table in [limits], [unlimited] emptied,
+              then step 3 again
  5. trace     the run at the pins: twice, as the first adds the trace's rule
                 dune build --root . @test/traces/runtest; dune promote --root .
                 dune build --root . @test/traces/runtest; dune promote --root .
