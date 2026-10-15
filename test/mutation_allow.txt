@@ -11,9 +11,6 @@ src/analyser.ml ## int less than ## if next < n then arrive ~from:pc next s))); 
 src/analyser.ml ## int equal ## if Array.for_all slopes ~f:(fun slope -> slope = 0) then entry else fixpoint ~slope_at ## every slope nonzero needs every slot in a counted loop, where nothing anchors the phase, so the second fixpoint finds the same rows
 src/analyser.ml ## int greater ## when config.Program_config.side_set_count > 0 ## side_edge is read only when side_set_count is above zero
 src/analyser.ml ## bool and to or ## if slope <> 0 && List.for_all loop ~f:(fun b -> slopes.(b) = 0) ## a loop that overlaps an earlier one holds that loop's jmp x--, which has no drift, so it never gets a slope
-src/analyser.ml ## int greater ## if passes.(pc) > max_passes then State.widen ~old joined else joined ## near-equivalent: widening a pass later moves rows only for a pc whose state changes exactly 257 times and then settles
-src/analyser.ml ## int plus one ## passes.(pc) <- passes.(pc) + 1; ## near-equivalent: widening twice as early moves rows only for a pc whose state changes 129 to 256 times and then settles
-src/analyser.ml ## bool true ## Option.value_map s.since_data.lo ~default:true ~f:(fun lo -> ## near-equivalent: since_data loses its low end only to widening past max_passes
 src/kernel.ml ## at least immediate ## let base = mux2 (base >=:. space) (base -:. space) base in ## only a base of 28 differs, and a base is a pin below 28
 src/kernel.ml ## less than immediate ## ( offset <: six count &: (offset <:. Isa.data_bits) ## no run is longer than 16 pins, so offset < count keeps it below 16
 src/kernel.ml ## constant zero ## let out_hit, _ = run ~base:spacing.out_base ~count:d.shift_count ~value:gnd in ## the value only makes the bit, which is dropped
@@ -43,6 +40,3 @@ src/kernel.ml ## signed less than ## ; mark = (if Bits.(to_bool (h.mark <+ g.mar
 src/kernel.ml ## bool false ## ?(single_capture_edge = false) ## with_edges reads the capture only for a capturing wait, which edge_images never asks
 src/kernel.ml ## int not equal ## let fraction = Bits.of_bool (config.period_fraction <> 0) in ## with_edges reads the fraction only at a deadline's low image end, which its release keeps far from the timer's least
 src/kernel.ml ## constant one ## let spacing = { With_valid.valid = Bits.vdd; value = spacing } in ## edge_images reads only the spacing's value, not its valid
-src/kernel.ml ## int less than ## if joins.(next) < widen_after ## near-equivalent: marks fall round a loop only if t falls behind, where the analyser's phase and so every mark is unbounded
-src/kernel.ml ## int plus one ## joins.(next) <- joins.(next) + 1; ## near-equivalent: marks fall round a loop only if t falls behind, where the analyser's phase and so every mark is unbounded
-src/kernel.ml ## int add to subtract ## joins.(next) <- joins.(next) + 1; ## near-equivalent: marks fall round a loop only if t falls behind, where the analyser's phase and so every mark is unbounded
