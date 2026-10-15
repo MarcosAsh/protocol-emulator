@@ -43,3 +43,13 @@ val receiver
   -> string
   -> Program_config.t
   -> t
+
+(** [plain] for firmware [%firmware] checked, under the assumptions it was checked under.
+    One checked at a least period, [~period_floor], needs the [period] the host loads. *)
+val of_firmware
+  :  ?period:int
+  -> ?no_wrap:bool
+  -> ?any_data:bool
+  -> string
+  -> Timed_program.t
+  -> t
