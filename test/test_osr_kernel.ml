@@ -508,6 +508,70 @@ let%expect_test "an autopulling out's image holds the counts the core reaches" =
   [%expect {| ((exact 1013) (sound 414)) |}]
 ;;
 
+(* [ways] against the ISA, for x anywhere in the kernel's bounds: a word leaves by the
+   next pc unless it is no instruction, halts or always jumps, and by its target if it
+   jumps, [jmp x--] only from x at 1 or more and falling through only from 0. A row empty
+   in either bound is never reached and leaves by neither. *)
+let%expect_test "a row asks of the ways out the core may take" =
+  let module O = Osr_kernel.Make (Bits) in
+  let width = Osr_kernel.Row.port_widths in
+  let of_int n ~width = Bits.of_unsigned_int ~width n in
+  let row (shifted_lo, shifted_hi) (sum_lo, sum_hi) =
+    { Osr_kernel.Row.shifted_lo = of_int shifted_lo ~width:width.shifted_lo
+    ; shifted_hi = of_int shifted_hi ~width:width.shifted_hi
+    ; sum_lo = of_int sum_lo ~width:width.sum_lo
+    ; sum_hi = of_int sum_hi ~width:width.sum_hi
+    ; pulled = Bits.gnd
+    }
+  in
+  let rows =
+    [ true, row (0, Osr_kernel.shift_limit) (0, 3)
+    ; false, row (1, 0) (0, 3)
+    ; false, row (0, Osr_kernel.shift_limit) (1, 0)
+    ]
+  in
+  (* every word, and the ones that leave unusually more often than a random word does *)
+  let words =
+    Quickcheck.Generator.union
+      [ Int.gen_incl 0 0xffff
+      ; Quickcheck.Generator.of_list
+          (List.map
+             [ "halt"; "jmp 0"; "jmp x--, 0"; "jmp y--, 0"; "jmp x!=y, 0"; "nop"; "pull" ]
+             ~f:(fun source -> Bits.to_unsigned_int (assembled source)))
+      ]
+  in
+  Quickcheck.test
+    ~trials:5000
+    (Quickcheck.Generator.tuple3 words (range 2) (Quickcheck.Generator.of_list rows))
+    ~f:(fun (word, (x_lo, x_hi), (reached, row)) ->
+      let leaves x =
+        match Isa.of_word ~side_set_count:0 word with
+        | Error _ | Ok (Op { op = Sys Halt; _ }) -> false, false
+        | Ok (Jmp { cond = Always; _ }) -> false, true
+        | Ok (Jmp { cond = X_dec; _ }) -> x = 0, x <> 0
+        | Ok (Jmp _) -> true, true
+        | Ok (Op _) -> true, false
+      in
+      let leaves = List.map (List.range x_lo (x_hi + 1)) ~f:leaves in
+      let ways =
+        O.ways
+          ~side_set_count:(Bits.zero 2)
+          ~word:(of_int word ~width:Isa.data_bits)
+          ~x_lo:(of_int x_lo ~width:Isa.data_bits)
+          ~x_hi:(of_int x_hi ~width:Isa.data_bits)
+          ~row
+      in
+      [%test_result: bool * bool]
+        (Bits.to_bool ways.next, Bits.to_bool ways.target)
+        ~expect:
+          (reached && List.exists leaves ~f:fst, reached && List.exists leaves ~f:snd)
+        ~message:
+          (Sexp.to_string_hum
+             [%message (word : int) (x_lo : int) (x_hi : int) (reached : bool)]));
+  print_endline "agrees";
+  [%expect {| agrees |}]
+;;
+
 (* The core starts at pc 0 with the osr anything, so the check asks pc 0's row to bound
    nothing; narrowing it at any one bound is refused. *)
 let%expect_test "the check refuses a row at pc 0 narrower than the full range" =
