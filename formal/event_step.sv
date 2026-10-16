@@ -146,11 +146,11 @@ module event_step (input clk);
     end
   end
 
-  // a wait that holds issues again, unless the host stops or starts the core
+  // a wait that holds issues again, unless the host stops the core; a start it ignores
   reg held = 0, held_edge = 0;
   reg [8:0] held_pc = 0;
   always @(posedge clk) begin
-    held <= !clear && issue && pin_wait && !advance && !stop && !start && !reset;
+    held <= !clear && issue && pin_wait && !advance && !stop && !reset;
     held_edge <= source == 1;
 `ifdef HELD_MOVES
     held_pc <= pc + 9'd1;
@@ -160,11 +160,11 @@ module event_step (input clk);
   end
   always @(*) if (held && !clear) assert(issue && pc == held_pc);
 
-  // the jump lands where the sample says, unless the host stops or starts the core
+  // the jump lands where the sample says, unless the host stops the core
   reg jumped = 0, jump_taken = 0, jump_not_pin = 0, jump_at_wrap = 0;
   reg [8:0] jump_target = 0, jump_following = 0;
   always @(posedge clk) begin
-    jumped <= !clear && issue && pin_jump && !stop && !start && !reset;
+    jumped <= !clear && issue && pin_jump && !stop && !reset;
     jump_taken <= pin_high == (cond == 4);
     jump_not_pin <= cond == 5;
     jump_at_wrap <= pc == wrap_top && wrap_bottom != pc + 9'd1;

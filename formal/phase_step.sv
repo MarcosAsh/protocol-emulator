@@ -107,12 +107,12 @@ module phase_step (input clk);
   wire [15:0] out_value, mov_value;
 
 `ifdef CHIP
-  // the pads, the other engine's drive and faults, and this core's start and stop, which
-  // are its host's through the chip's fault gate
+  // the pads, the other engine's drive and faults, and the start and stop this core gets,
+  // its host's through the chip's fault gate
   wire [19:0] chip_out, chip_dir;
   wire [27:0] o_pin_out, o_pin_dir;
   wire o_underflow, o_overflow, o_missed_deadline, o_decode, faulted, o_faulted;
-  wire flip_pending, flip_bit, core_start, core_stop;
+  wire flip_pending, flip_bit, host_start, core_stop;
   // engine n's host fields on the wires named w and the field
 `define HOST(n, w) \
     .hosts$config$side_set_count_``n(w``side_set_count), \
@@ -166,7 +166,7 @@ module phase_step (input clk);
     .engines$opcode_onehot_``n(opcode_onehot), .engines$wait_select_``n(wait_select), \
     .engines$flip_pending_``n(flip_pending), .engines$flip_bit_``n(flip_bit), \
     .eng_jmp_go_``n(jmp_go), .eng_advance_``n(advance), .eng_sample_``n(sample), \
-    .eng_captured_``n(captured_now), .eng_start_``n(core_start), .eng_stop_``n(core_stop)
+    .eng_captured_``n(captured_now), .eng_start_``n(host_start), .eng_stop_``n(core_stop)
 `ifdef ENGINE_1
   engines_top dut (
     .clock(clk), .clear(clear), .pads(pads), .pin_out(chip_out), .pin_dir(chip_dir),
@@ -177,7 +177,7 @@ module phase_step (input clk);
     `HOST(0, ), `CORE(0), `HOST(1, o_), `DRIVE(1, o_));
 `endif
 `else
-  wire core_start = start, core_stop = stop;
+  wire host_start = start, core_stop = stop;
   engine dut (
     .clock(clk), .clear(clear),
     .config$side_set_count(side_set_count), .config$side_set_base(side_set_base),
@@ -210,13 +210,12 @@ module phase_step (input clk);
     .eng_jmp_go(jmp_go), .eng_advance(advance), .eng_sample(sample),
     .eng_captured(captured_now), .eng_out_value(out_value), .eng_mov_value(mov_value));
 `endif
+  // the start the core takes: any host's, which it ignores unless halted
+  wire core_start = host_start && halted;
   // an instruction completes when a jump issues, or anything else issues and goes on
   wire completes = jmp_go || advance;
 
-  always @(*) begin
-    assume(side_set_count <= 2);
-    assume(!start || halted);
-  end
+  always @(*) assume(side_set_count <= 2);
 `ifdef ONE_RUN
   // one of the runs above, so a failure in it is the lemma's: jmp 0 written at 0, then one
   // start and no stop; the wrap's tooth takes it to reach the timer's top in few choices

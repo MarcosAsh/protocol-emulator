@@ -15,9 +15,10 @@ level_at_arm teeth
 later_edge_captured teeth
 capture_a_cycle_older teeth
 capture_a_cycle_younger teeth
-capture_stamped_early teeth
+capture_stamped_early teeth mutant
 arm_one_short teeth
 edge_one_short teeth
+start_while_running teeth mutant
 
 [options]
 prove: mode prove
@@ -40,8 +41,9 @@ teeth: expect fail
 smtbmc boolector
 
 [script]
-~capture_stamped_early: read_verilog engine.v
+~mutant: read_verilog engine.v
 capture_stamped_early: read_verilog engine_early.v
+start_while_running: read_verilog engine_started.v
 hierarchy -top engine
 proc
 flatten
@@ -86,3 +88,4 @@ narrow_timer: engine.v engine_narrow_saturating.v
 narrow_timer: kernel_step.v kernel_step_narrow.v
 phase_step.sv
 capture_stamped_early: engine_early.v phase_step_teeth/capture_early.v
+start_while_running: engine_started.v issue_timing_teeth/start_while_running.v

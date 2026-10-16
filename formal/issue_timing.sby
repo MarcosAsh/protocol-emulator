@@ -4,7 +4,8 @@ cover
 jump_in_one teeth
 delay_ignores_side_set teeth
 waits_are_plain teeth
-write_while_running teeth
+write_while_running teeth mutant
+start_while_running teeth mutant
 
 [options]
 prove: mode prove
@@ -34,6 +35,7 @@ read -formal -sv issue_timing.sv
 prep -top issue_timing
 
 [files]
-~write_while_running: engine.v
+~mutant: engine.v
 write_while_running: engine.v issue_timing_teeth/write_while_running.v
+start_while_running: engine.v issue_timing_teeth/start_while_running.v
 issue_timing.sv

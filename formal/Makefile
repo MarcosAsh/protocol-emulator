@@ -308,20 +308,25 @@ data_step: engine.v osr_step.v
 	sby -f data_step.sby prove cover
 
 # weakened statements, which pass only by failing, phase_step's core with its capture
-# stamped a cycle early, and a core whose program memory takes a write while it runs
+# stamped a cycle early, and a core whose program memory takes a write, or that takes a
+# start, while it runs
 UNGATED = s/^\(\s*assign program_write = signal_wire_[0-9]*\) & halted_0;/\1;/
+START_UNGATED = s/^\(\s*assign starting = signal_wire_[0-9]*\) & halted_0;/\1;/
 teeth: engine.v engine_sram.v engines.v kernel_step.v osr_step.v
 	mkdir -p issue_timing_teeth
 	sed '$(UNGATED)' engine.v > issue_timing_teeth/write_while_running.v
+	sed '$(START_UNGATED)' engine.v > issue_timing_teeth/start_while_running.v
 	! cmp -s engine.v issue_timing_teeth/write_while_running.v
-	sby -f issue_timing.sby jump_in_one delay_ignores_side_set waits_are_plain write_while_running
+	! cmp -s engine.v issue_timing_teeth/start_while_running.v
+	sby -f issue_timing.sby jump_in_one delay_ignores_side_set waits_are_plain write_while_running \
+	  start_while_running
 	sby -f fifo_order.sby stale_ahead
 	sby -f unreachable.sby one_more
 	mkdir -p phase_step_teeth
 	awk -f capture_early.awk engine.v engine.v > phase_step_teeth/capture_early.v
 	sby -f phase_step.sby jump_in_one late_wait_waits no_carry one_late_cycle_is_safe taken_backwards \
 	  second_edge level_at_arm later_edge_captured capture_a_cycle_older capture_a_cycle_younger \
-	  capture_stamped_early arm_one_short edge_one_short
+	  capture_stamped_early arm_one_short edge_one_short start_while_running
 	sby -f edge_step.sby pins_never_change side_set_only one_cycle_later flip_off_issue no_flip
 	sby -f event_step.sby late level_only wires_plain jump_late held_moves
 	sby -f frame_step.sby narrow_side narrow_set narrow_out narrow_mov no_pair side_dirs_on_out \
