@@ -109,12 +109,35 @@ module Verdict : sig
     }
 end
 
-(** Every one of [limits] on [bench], found by its name. *)
-val check : t list -> Bench.t -> (t * Verdict.t) list
+(** The firmware's bound on [t] in cycles, the same at any clock; a run's widths are those
+    [Bound.Run] picks out at [bench.clock_hz]. *)
+val bound : Bench.t -> t -> int option
 
-(** A line per limit: its parameter, the limit, the bound in cycles and ns, and FAIL where
-    it does not clear the margin. *)
-val to_string : Bench.t -> (t * Verdict.t) list -> string
+(** [t] against [bound] at [clock_hz]. *)
+val verdict : t -> clock_hz:int -> bound:int option -> Verdict.t
+
+(** Every one of [limits] on [bench], found by its name, at [clock_hz], the bench's unless
+    given: the cycles stay as [bound] has them and only their ns move with the clock. *)
+val check : ?clock_hz:int -> t list -> Bench.t -> (t * Verdict.t) list
+
+(** The clocks, in Hz, a bound clears its limit at: a least in ns holds [Up_to] a highest
+    clock, a most [From] a lowest. Exact: [verdict] holds there and not a hertz past. *)
+module Cliff : sig
+  type t =
+    | Never
+    | Up_to of int
+    | From of int
+  [@@deriving sexp_of]
+end
+
+val cliff : t -> bound:int option -> Cliff.t
+
+(** Every one of [limits] on [bench] with its bound and cliff. *)
+val cliffs : t list -> Bench.t -> (t * int option * Cliff.t) list
+
+(** A line per limit: its parameter, the limit, the bound in cycles and ns at [clock_hz],
+    and FAIL where it does not clear the margin. *)
+val to_string : ?clock_hz:int -> Bench.t -> (t * Verdict.t) list -> string
 
 (** Raises unless every limit clears its margin, and for firmware with no limit that is
     not [exempt]. *)

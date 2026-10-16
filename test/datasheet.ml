@@ -233,41 +233,92 @@ let rec most ~ok ~lo ~hi =
     if ok mid then most ~ok ~lo:mid ~hi else most ~ok ~lo ~hi:mid)
 ;;
 
-let check limits (bench : Bench.t) =
-  let limits = List.filter limits ~f:(fun t -> String.equal t.firmware bench.name) in
-  List.map limits ~f:(fun t ->
-    let needed = needed ~clock_hz:bench.clock_hz t.limit t.margin in
-    let bound =
-      match t.bound, t.limit with
-      | Kernel spec, At_least _ ->
-        let ok n = kernel_accepts bench (spec bench.config n) in
-        if not (ok 0) then None else Some (most ~ok ~lo:0 ~hi:(1 lsl 16))
-      | Kernel _, At_most _ -> raise_s [%message "BUG: the kernel bounds least widths"]
-      | Run { pin; widths }, limit ->
-        let stimulus =
-          match bench.stimulus with
-          | Some stimulus -> stimulus
-          | None -> raise_s [%message "BUG: no stimulus to run" bench.name]
-        in
-        let widths =
-          widths ~clock_hz:bench.clock_hz (levels bench ~pin:(pin bench.config) stimulus)
-        in
-        (match limit with
-         | At_least _ -> List.min_elt widths ~compare
-         | At_most _ -> List.max_elt widths ~compare)
+(* in cycles, so the same at every clock: a run's widths are picked out at the clock the
+   firmware ships at *)
+let bound_once (bench : Bench.t) t =
+  match t.bound, t.limit with
+  | Kernel spec, At_least _ ->
+    let ok n = kernel_accepts bench (spec bench.config n) in
+    if not (ok 0) then None else Some (most ~ok ~lo:0 ~hi:(1 lsl 16))
+  | Kernel _, At_most _ -> raise_s [%message "BUG: the kernel bounds least widths"]
+  | Run { pin; widths }, limit ->
+    let stimulus =
+      match bench.stimulus with
+      | Some stimulus -> stimulus
+      | None -> raise_s [%message "BUG: no stimulus to run" bench.name]
     in
-    let ok =
-      match t.limit, bound with
-      | _, None -> false
-      | At_least _, Some bound -> bound >= needed
-      | At_most _, Some bound -> bound <= needed
+    let widths =
+      widths ~clock_hz:bench.clock_hz (levels bench ~pin:(pin bench.config) stimulus)
     in
-    t, { Verdict.limit = t.limit; needed; bound; ok })
+    (match limit with
+     | At_least _ -> List.min_elt widths ~compare
+     | At_most _ -> List.max_elt widths ~compare)
+;;
+
+let bounds_seen = Hashtbl.Poly.create ()
+
+let bound bench t =
+  Hashtbl.find_or_add bounds_seen (bench, t.parameter, t.limit) ~default:(fun () ->
+    bound_once bench t)
+;;
+
+let verdict t ~clock_hz ~bound =
+  let needed = needed ~clock_hz t.limit t.margin in
+  let ok =
+    match t.limit, bound with
+    | _, None -> false
+    | At_least _, Some bound -> bound >= needed
+    | At_most _, Some bound -> bound <= needed
+  in
+  { Verdict.limit = t.limit; needed; bound; ok }
+;;
+
+let check ?clock_hz limits (bench : Bench.t) =
+  let clock_hz = Option.value clock_hz ~default:bench.clock_hz in
+  List.filter limits ~f:(fun t -> String.equal t.firmware bench.name)
+  |> List.map ~f:(fun t -> t, verdict t ~clock_hz ~bound:(bound bench t))
+;;
+
+module Cliff = struct
+  type t =
+    | Never
+    | Up_to of int
+    | From of int
+  [@@deriving sexp_of]
+end
+
+(* [needed] solved for the clock: ceil (x * hz / 10^12) + cycle <= bound for a least,
+   floor (y * hz / 10^12) - cycle >= bound for a most *)
+let cliff t ~bound : Cliff.t =
+  let per_ps = 1_000_000_000_000 in
+  let cycle, margin_ps =
+    match t.margin with
+    | Cycle -> 1, 0
+    | Ns { ns; why = _ } -> 0, picoseconds ns
+  in
+  if Option.exists bound ~f:(fun bound -> bound >= Int.max_value / per_ps)
+  then raise_s [%message "BUG: a bound too long to solve for" t.firmware t.parameter];
+  match bound, t.limit with
+  | None, _ -> Never
+  | Some bound, At_least ns ->
+    let x = picoseconds ns + margin_ps in
+    if bound - cycle < 1 then Never else Up_to ((bound - cycle) * per_ps / x)
+  | Some bound, At_most ns ->
+    let y = picoseconds ns - margin_ps in
+    if y <= 0 then Never else From ((((bound + cycle) * per_ps) + y - 1) / y)
+;;
+
+let cliffs limits (bench : Bench.t) =
+  List.filter limits ~f:(fun t -> String.equal t.firmware bench.name)
+  |> List.map ~f:(fun t ->
+    let bound = bound bench t in
+    t, bound, cliff t ~bound)
 ;;
 
 let ns ~clock_hz cycles = Float.of_int cycles *. 1e9 /. Float.of_int clock_hz
 
-let to_string (bench : Bench.t) verdicts =
+let to_string ?clock_hz (bench : Bench.t) verdicts =
+  let clock_hz = Option.value clock_hz ~default:bench.clock_hz in
   List.map verdicts ~f:(fun (t, (v : Verdict.t)) ->
     let side, limit =
       match v.limit with
@@ -286,7 +337,7 @@ let to_string (bench : Bench.t) verdicts =
     in
     let bound =
       Option.value_map v.bound ~default:"none" ~f:(fun cycles ->
-        sprintf "%d (%.1f ns)" cycles (ns ~clock_hz:bench.clock_hz cycles))
+        sprintf "%d (%.1f ns)" cycles (ns ~clock_hz cycles))
     in
     sprintf
       "%-18s %-14s %s %8g ns  %-6s %-17s needs %4d%-5s  %s, %s %s; margin %s"
