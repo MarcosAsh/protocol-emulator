@@ -214,13 +214,13 @@ let%expect_test "ws2812 from a diagram: passes of 12 bits while the host's flag 
     {|
     ((steps 38)
      (limits
-      (((edge "a<->b T0H 250ns..550ns") (ns 520) (least_ns (250))
+      (((edge "a<->b T0H 250ns..550ns") (cycles 26) (ns 520) (least_ns (250))
         (most_ns (550)))
-       ((edge "a<->c T1H 650ns..950ns") (ns 940) (least_ns (650))
+       ((edge "a<->c T1H 650ns..950ns") (cycles 47) (ns 940) (least_ns (650))
         (most_ns (950)))
-       ((edge "b<->d T0L 700ns..1000ns") (ns 980) (least_ns (700))
+       ((edge "b<->d T0L 700ns..1000ns") (cycles 49) (ns 980) (least_ns (700))
         (most_ns (1000)))
-       ((edge "c<->d T1L 300ns..600ns") (ns 560) (least_ns (300))
+       ((edge "c<->d T1L 300ns..600ns") (cycles 28) (ns 560) (least_ns (300))
         (most_ns (600)))))
      (words_a_frame 5) (frames_identical true) (violations ())
      (fault
@@ -392,7 +392,7 @@ let%expect_test "diagrams outside the class are refused, with the reason" =
      (e
       ("outside the table class"
        ("the diagram's own limit does not hold" (edge "a->b T0H <= 400ns")
-        (ns 520) (least_ns ()) (most_ns (400))))))
+        (cycles 26) (ns 520) (least_ns ()) (most_ns (400))))))
     ("a limit from the idle"
      (e
       ("outside the table class"
@@ -487,9 +487,11 @@ let%expect_test "an edge's label sets a limit in ns, us or cycles, or none" =
   List.iter t.limits ~f:(fun l -> print_s [%sexp (l : Wavedrom.Limit.t)]);
   [%expect
     {|
-    ((edge "a->b >= 26 cycles") (ns 520) (least_ns (520)) (most_ns ()))
-    ((edge "a->c <= 1.2us") (ns 1040) (least_ns ()) (most_ns (1200)))
-    ((edge "b->c = 520ns") (ns 520) (least_ns (520)) (most_ns (520)))
-    ((edge "a-c 0.4us..1.1us") (ns 1040) (least_ns (400)) (most_ns (1100)))
+    ((edge "a->b >= 26 cycles") (cycles 26) (ns 520) (least_ns (520))
+     (most_ns ()))
+    ((edge "a->c <= 1.2us") (cycles 52) (ns 1040) (least_ns ()) (most_ns (1200)))
+    ((edge "b->c = 520ns") (cycles 26) (ns 520) (least_ns (520)) (most_ns (520)))
+    ((edge "a-c 0.4us..1.1us") (cycles 52) (ns 1040) (least_ns (400))
+     (most_ns (1100)))
     |}]
 ;;

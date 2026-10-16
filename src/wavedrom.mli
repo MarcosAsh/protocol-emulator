@@ -28,11 +28,13 @@ module Step : sig
 end
 
 (** An [edge] whose label has a limit, as [>= 250ns], [<= 1.2us], [= 26 cycles] or
-    [250ns..550ns], checked on the steps' cycles at [cycle_ns]. *)
+    [250ns..550ns], checked on the steps' [cycles], exact at any clock, as [ns] at the
+    clock compiled for. *)
 module Limit : sig
   type t =
     { edge : string
-    ; ns : int
+    ; cycles : int
+    ; ns : float
     ; least_ns : float option
     ; most_ns : float option
     }
@@ -41,7 +43,8 @@ end
 
 module State : Tables.State with type t = int
 
-val cycle_ns : int
+(** The chip's rated clock, info.yaml's, 50 MHz. *)
+val rated_hz : int
 
 type t =
   { outputs : string list (** lane names, out_base first *)
@@ -54,13 +57,15 @@ type t =
   ; starts_on_edge : bool (** each frame starts on the input's edge, with no host word *)
   ; read : int (** bits read a frame *)
   ; limits : Limit.t list
+  ; clock_hz : int (** The limits' clock. *)
   ; diagram : Wavejson.t (** as compiled *)
   }
 
-(** The table, or why the diagram is outside the class. *)
-val compile : Wavejson.t -> t Or_error.t
+(** The table, or why the diagram is outside the class, its limits checked at [clock_hz],
+    [rated_hz] unless given. The steps are cycles and the same at any clock. *)
+val compile : ?clock_hz:int -> Wavejson.t -> t Or_error.t
 
-val of_string : string -> t Or_error.t
+val of_string : ?clock_hz:int -> string -> t Or_error.t
 
 (** One frame's host words: [bits] bits, first sent first; with [while_host] any number of
     passes of [bits], each a word whose first bit says a pass follows, then a word of 0. *)
