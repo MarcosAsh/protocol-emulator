@@ -78,6 +78,45 @@ let can_receiver () =
   { t with lowest = lowest t.lowest (Some low); highest = highest t.highest (Some high) }
 ;;
 
+(* a diagram's limits on its steps' cycles: ns >= least up to cycles 10^9 / least, ns <=
+   most from cycles 10^9 / most *)
+let of_diagram ~name (d : Protocol_emulator.Wavedrom.t) =
+  List.fold
+    d.limits
+    ~init:{ firmware = name; shipped_hz = Bench.clock_hz; lowest = None; highest = None }
+    ~f:(fun t l ->
+      (* the label's first word, as "T1H" *)
+      let limit side ns =
+        let label =
+          String.split l.edge ~on:' ' |> List.filter ~f:(Fn.non String.is_empty)
+        in
+        sprintf "%s %s %g ns" (List.nth label 1 |> Option.value ~default:l.edge) side ns
+      in
+      let at ns ~round = Float.of_int l.cycles *. 1e9 /. ns |> round in
+      let t =
+        Option.fold l.least_ns ~init:t ~f:(fun t ns ->
+          let hz = at ns ~round:Float.iround_down_exn in
+          { t with highest = highest t.highest (Some { End.hz; limit = limit ">=" ns }) })
+      in
+      Option.fold l.most_ns ~init:t ~f:(fun t ns ->
+        let hz = at ns ~round:Float.iround_up_exn in
+        { t with lowest = lowest t.lowest (Some { End.hz; limit = limit "<=" ns }) }))
+;;
+
+let diagrams ~dir =
+  List.filter_map
+    [ "dshot"; "spi_master"; "uart_rx"; "uart_tx"; "ws2812" ]
+    ~f:(fun name ->
+      let d =
+        In_channel.read_all [%string "%{dir}/%{name}.json"]
+        |> Protocol_emulator.Wavedrom.of_string
+        |> ok_exn
+      in
+      Option.some_if
+        (not (List.is_empty d.limits))
+        (of_diagram ~name:[%string "diagram %{name}"] d))
+;;
+
 let all () =
   List.filter_map (Library.bench @ [ Uart.log ]) ~f:(fun (bench : Bench.t) ->
     if String.equal bench.name "can_receiver"
