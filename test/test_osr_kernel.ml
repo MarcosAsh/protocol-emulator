@@ -300,6 +300,91 @@ let%expect_test "the check refuses a row one short" =
     |}]
 ;;
 
+(* [accepts] is every conjunct: on uart_tx's rows, with each reached row whose count may
+   vary one short at the top in turn, it fails at exactly the pcs where a conjunct does. *)
+let%expect_test "accepts is every conjunct" =
+  let module O = Osr_kernel.Make (Bits) in
+  let module K = Kernel.Make (Bits) in
+  let c = Library.find_certified_exn "uart_tx" in
+  let _, config, words, kernel, table = rows c in
+  let words = Array.of_list words in
+  let pc_bits n = Bits.of_unsigned_int ~width:Isa.pc_bits n in
+  let side_set_count = Bits.of_unsigned_int ~width:2 config.side_set_count in
+  let autopull = Bits.of_bool config.autopull in
+  let pull_threshold = Bits.of_unsigned_int ~width:Isa.count_bits config.pull_threshold in
+  (* the pcs a table is refused at, by [accepts] and by its conjuncts *)
+  let refused table =
+    List.filter_map
+      (List.range 0 (Array.length table))
+      ~f:(fun pc ->
+        let word =
+          Bits.of_unsigned_int
+            ~width:Isa.data_bits
+            (if pc < Array.length words then words.(pc) else 0)
+        in
+        let next, target =
+          K.successors
+            ~wrap_top:(pc_bits config.wrap_top)
+            ~wrap_bottom:(pc_bits config.wrap_bottom)
+            ~pc:(pc_bits pc)
+            ~word
+        in
+        let x_lo = kernel.(pc).x_lo in
+        let x_hi = kernel.(pc).x_hi in
+        let row = table.(pc) in
+        let next = table.(Bits.to_unsigned_int next) in
+        let target = table.(Bits.to_unsigned_int target) in
+        let accepts =
+          O.accepts
+            ~side_set_count
+            ~autopull
+            ~pull_threshold
+            ~word
+            ~x_lo
+            ~x_hi
+            ~row
+            ~next
+            ~target
+        in
+        let conjuncts =
+          O.conjuncts
+            ~side_set_count
+            ~autopull
+            ~pull_threshold
+            ~word
+            ~x_lo
+            ~x_hi
+            ~row
+            ~next
+            ~target
+        in
+        let every =
+          List.for_all (Osr_kernel.Conjuncts.to_list conjuncts) ~f:Bits.to_bool
+        in
+        Option.some_if
+          (not (Bits.to_bool accepts && every))
+          (pc, Bits.to_bool accepts, every))
+  in
+  let tampered =
+    List.filter_mapi (Array.to_list table) ~f:(fun pc (row : Bits.t Osr_kernel.Row.t) ->
+      Option.some_if
+        Bits.(to_bool (row.shifted_lo <: row.shifted_hi))
+        (let table = Array.copy table in
+         table.(pc) <- { row with shifted_hi = Bits.(row.shifted_hi -:. 1) };
+         table))
+  in
+  let verdicts = List.concat_map (table :: tampered) ~f:refused in
+  print_s
+    [%message
+      ""
+        ~tampered:(List.length tampered : int)
+        ~refused:(List.length verdicts : int)
+        ~disagree:
+          (List.filter verdicts ~f:(fun (_, accepts, every) -> Bool.( <> ) accepts every)
+           : (int * bool * bool) list)];
+  [%expect {| ((tampered 7) (refused 6) (disagree ())) |}]
+;;
+
 (* bounds in order, as a row that is not empty has them *)
 let range top =
   Quickcheck.Generator.map
