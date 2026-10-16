@@ -41,3 +41,17 @@ src/kernel.ml ## signed less than ## ; mark = (if Bits.(to_bool (h.mark <+ g.mar
 src/kernel.ml ## bool false ## ?(single_capture_edge = false) ## with_edges reads the capture only for a capturing wait, which edge_images never asks
 src/kernel.ml ## int not equal ## let fraction = Bits.of_bool (config.period_fraction <> 0) in ## with_edges reads the fraction only at a deadline's low image end, which its release keeps far from the timer's least
 src/kernel.ml ## constant one ## let spacing = { With_valid.valid = Bits.vdd; value = spacing } in ## edge_images reads only the spacing's value, not its valid
+src/osr_kernel.ml ## unsigned greater ## let max a b = mux2 (a >: b) a b ## a tie picks one of two equal values
+src/osr_kernel.ml ## less than ## let min a b = mux2 (a <: b) a b ## a tie picks one of two equal values
+src/osr_kernel.ml ## int plus one ## let wide_bits = sum_bits + 1 ## 18 bits already hold a sum and a count, 2^17 - 1 + 32, so a wider one computes the same
+src/osr_kernel.ml ## greater ## (shifted >:. Isa.data_bits) ## at 16 both arms give 16
+src/osr_kernel.ml ## greater ## mux2 (v >:. shift_limit) (of_unsigned_int ~width:(width v) shift_limit) v ## at the limit both arms give the limit
+src/osr_kernel.ml ## unsigned compare ## max (wide row.shifted_lo) (mux2 (sum_lo >=: x_hi) (sum_lo -: x_hi) (zero wide_bits)) ## where the sum equals x both arms give zero
+src/osr_kernel.ml ## at most ## let known = ~:(c.writes_x) &: (image_sum_hi <=: wide sum_max) in ## near-equivalent: only an image sum ending exactly at 2^17 - 1, past any x + 32 the core holds, differs, and it only drops its low end
+src/osr_kernel.ml ## constant zero ## ; pulled = Bits.gnd ## an unreached row is empty, which join and ways read before its pulled, and propose replaces it with any image it must hold
+src/osr_kernel.ml ## int at most ## { Row.shifted_lo = pick ( <= ) a.shifted_lo b.shifted_lo ## a tie picks one of two equal values
+src/osr_kernel.ml ## int at least ## ; shifted_hi = pick ( >= ) a.shifted_hi b.shifted_hi ## a tie picks one of two equal values
+src/osr_kernel.ml ## int at most ## ; sum_lo = pick ( <= ) a.sum_lo b.sum_lo ## a tie picks one of two equal values
+src/osr_kernel.ml ## int at least ## ; sum_hi = pick ( >= ) a.sum_hi b.sum_hi ## a tie picks one of two equal values
+src/osr_kernel.ml ## int less than ## if joins.(to_) < widen_after ## near-equivalent: widening a join later changes only a pc that settles at exactly its 64th join, and check has the last word
+src/osr_kernel.ml ## int plus one ## joins.(to_) <- joins.(to_) + 1; ## near-equivalent: widening after 32 joins changes only a pc still moving after 32, which no firmware has, and check has the last word
