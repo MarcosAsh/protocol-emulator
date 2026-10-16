@@ -385,6 +385,43 @@ let%expect_test "accepts is every conjunct" =
   [%expect {| ((tampered 7) (refused 6) (disagree ())) |}]
 ;;
 
+(* A sum still moving after 64 joins at a pc is given up as full: x falls through to all
+   ones before the pull, so the sum at the counted loop would take 65535 joins to settle. *)
+let%expect_test "a sum that has not settled is widened" =
+  let source = {|
+    set x, 0
+    jmp x--, 1
+    pull
+    jmp x--, 3
+    halt
+|} in
+  let _, _, _, _, table =
+    rows
+      { Certified.name = "drain"
+      ; source
+      ; config = Program_config.default
+      ; period = None
+      ; period_floor = None
+      ; single_capture_edge = false
+      ; no_wrap = false
+      ; any_data = false
+      }
+  in
+  List.iter [ 2; 3; 4 ] ~f:(fun pc ->
+    let r = Osr_kernel.Row.map table.(pc) ~f:Bits.to_unsigned_int in
+    print_s
+      [%message
+        ""
+          (pc : int)
+          ~shifted:((r.shifted_lo, r.shifted_hi) : int * int)
+          ~sum:((r.sum_lo, r.sum_hi) : int * int)]);
+  [%expect {|
+    ((pc 2) (shifted (0 32)) (sum (65535 65567)))
+    ((pc 3) (shifted (0 0)) (sum (0 131071)))
+    ((pc 4) (shifted (0 0)) (sum (0 131071)))
+    |}]
+;;
+
 (* bounds in order, as a row that is not empty has them *)
 let range top =
   Quickcheck.Generator.map
