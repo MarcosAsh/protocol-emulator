@@ -23,8 +23,8 @@ files=$(for f in $files; do basename "$f"; done | sort -u)
 [ -n "$files" ] || { echo "usage: $0 [-promote] [-library] test_FILE.ml..." >&2; exit 1; }
 runner=.protocol_emulator_test.inline-tests/inline-test-runner.exe
 # the runner, and the files its tests read, as test/dune lists them
-deps=$(ls test/*.asm test/*.hex test/assemble/*.asm formal/Makefile src/protocol_emulator.v \
-    python/demo_board.py icepi/Makefile | sed 's|^|_build/default/|')
+deps=$(ls test/*.asm test/*.hex test/assemble/*.asm test/diagrams/*.json formal/Makefile \
+    src/protocol_emulator.v python/demo_board.py icepi/Makefile | sed 's|^|_build/default/|')
 # shellcheck disable=SC2086
 dune build --root . "_build/default/test/$runner" $deps
 for file in $files; do
