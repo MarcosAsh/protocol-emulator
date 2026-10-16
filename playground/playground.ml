@@ -305,6 +305,35 @@ let () =
        ; "cycleNs", Js.Unsafe.inject cycle_ns
       |]
   in
+  let mutate source percent =
+    let verdicts v =
+      ( Js.string (Diagram_mutation.Verdict.to_string v)
+      , Js.bool
+          (match (v : Diagram_mutation.Verdict.t) with
+           | Accepted _ -> true
+           | Refused _ -> false) )
+    in
+    match
+      let open Or_error.Let_syntax in
+      let%bind diagram = Wavejson.parse (Js.to_string source) in
+      Diagram_mutation.run diagram ~percent
+    with
+    | Error e ->
+      Js.Unsafe.obj [| "error", Js.Unsafe.inject (Js.string (Error.to_string_hum e)) |]
+    | Ok r ->
+      let original, original_ok = verdicts r.original in
+      let mutant, mutant_ok = verdicts r.mutant in
+      Js.Unsafe.obj
+        [| "original", Js.Unsafe.inject original
+         ; "originalOk", Js.Unsafe.inject original_ok
+         ; "mutant", Js.Unsafe.inject mutant
+         ; "mutantOk", Js.Unsafe.inject mutant_ok
+         ; ( "cycles"
+           , Js.Unsafe.inject
+               (Js.string (List.map r.cycles ~f:Int.to_string |> String.concat ~sep:" "))
+           )
+        |]
+  in
   Js.export
     "protocolEmulator"
     (Js.Unsafe.obj
@@ -316,6 +345,7 @@ let () =
                     Js.array [| Js.string name; Js.string source |]))) )
         ; "checkPio", Js.Unsafe.inject (Js.wrap_callback check_pio)
         ; "runDiagram", Js.Unsafe.inject (Js.wrap_callback run_diagram)
+        ; "mutateDiagram", Js.Unsafe.inject (Js.wrap_callback mutate)
         ; ( "diagramExamples"
           , Js.Unsafe.inject
               (Js.array
