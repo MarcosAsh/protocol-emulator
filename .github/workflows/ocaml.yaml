@@ -337,6 +337,9 @@ jobs:
       - name: Speed log
         run: python3 test/test_speed.py
 
+      - name: Corpus pages
+        run: python3 test/test_corpus.py
+
       - name: Ledger, against stand-ins for the bench's tools
         run: python3 test/test_ledger.py
 
