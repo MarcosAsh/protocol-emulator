@@ -5,13 +5,14 @@ let diagram name =
   In_channel.read_all [%string "diagrams/%{name}.json"] |> Wavejson.parse |> ok_exn
 ;;
 
-let%expect_test "3% too fast: the original is taken, the mutant refused" =
+let%expect_test "3% faster: which diagrams still fit the table" =
   List.iter [ "uart_tx"; "uart_rx"; "dshot"; "spi_master"; "ws2812" ] ~f:(fun name ->
     let r = Diagram_mutation.run (diagram name) ~percent:3. |> ok_exn in
     print_endline
       [%string "%{name}\noriginal: %{Diagram_mutation.Verdict.to_string r.original}"];
     print_endline [%string "mutant: %{Diagram_mutation.Verdict.to_string r.mutant}\n"]);
-  [%expect {|
+  [%expect
+    {|
     uart_tx
     original: taken, 11 steps
     mutant: refused: ("outside the table class"
@@ -49,9 +50,21 @@ let%expect_test "a percentage outside (0, 100)" =
     print_s
       [%sexp
         (Diagram_mutation.faster (diagram "uart_tx") ~percent : Wavejson.t Or_error.t)]);
-  [%expect {|
+  [%expect
+    {|
     (Error ("a mutation is a percentage in (0, 100)" (percent 0)))
     (Error ("a mutation is a percentage in (0, 100)" (percent 100)))
     (Error ("a mutation is a percentage in (0, 100)" (percent -1)))
     |}]
+;;
+
+let%expect_test "other percentages" =
+  List.iter
+    [ "spi_master", 1.; "spi_master", 5.; "uart_rx", 97.; "uart_tx", 6.4 ]
+    ~f:(fun (name, percent) ->
+      let r = Diagram_mutation.run (diagram name) ~percent |> ok_exn in
+      print_endline
+        [%string
+          "%{name} %{percent#Float}%: %{Diagram_mutation.Verdict.to_string r.mutant}"]);
+  [%expect {| |}]
 ;;

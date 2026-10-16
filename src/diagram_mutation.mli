@@ -1,7 +1,8 @@
 (** A diagram with every period's cycles cut by a percentage, certified beside the
-    original. The table interpreter refuses a step shorter than its kind needs, and a
-    diagram's own edge limits are checked on the new cycles, so a protocol drawn at its
-    margin is refused when it runs a little fast. *)
+    original. A refusal is usually the table interpreter's minimum for a step's kind, not
+    a protocol limit: a diagram drawn at that minimum fails at any percentage. A diagram's
+    own edge limits are checked on the new cycles and, when one fails, it is named. A
+    refusal at a drawn period also says which edge and cycle that is. *)
 
 open! Core
 
@@ -21,8 +22,10 @@ type t =
   ; cycles : int list (** the mutant's cycles a period *)
   }
 
-(** [cycles * (100 - faster) / 100] rounded down, so a period of any length loses a cycle;
-    a period of 0 cycles stays. [faster] is in (0, 100). *)
+(** [cycles * (1000 - tenths) / 1000] rounded down, [tenths] being [percent] to a tenth,
+    so a period of any length loses a cycle; a clock's period stays even, a positive
+    period stays at least 1 (2 for a clock) and one of 0 cycles stays. [percent] is in (0,
+    100). *)
 val faster : Wavejson.t -> percent:float -> Wavejson.t Or_error.t
 
 val run : Wavejson.t -> percent:float -> t Or_error.t
