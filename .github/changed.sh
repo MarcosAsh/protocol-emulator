@@ -19,9 +19,10 @@ tests() {
   changed . ':!*.md' ':!docs' ':!LICENSE' ':!.github' ':!test/evidence.py' ':!test/evidence.sha256'
 }
 
-# the generators, the certificate writers and the library they link, and formal/
+# the generators, the certificate writers, the translation check and the library they
+# link, and formal/
 proofs() {
-  changed src bin ppx formal test/certify test/models test/dune ':(glob)test/*.ml' \
+  changed src bin ppx formal test/certify test/models test/translation test/dune ':(glob)test/*.ml' \
     ':(glob)test/*.mli' ':(glob)test/*.asm' ':(glob)test/*.hex' ':(glob)test/*.settings' \
     dune-project 'protocol_emulator.opam*'
 }

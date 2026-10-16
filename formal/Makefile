@@ -1,6 +1,6 @@
 all: issue_timing host_timing host_spacing late_host fifo_order unreachable phase_step fetch_step edge_step event_step frame_step \
   value_step narrow saturating chip_frame fail_safe isolation data_step teeth fsm_miter \
-  sram_equiv kernel_equiv link self_check self_check_clean powerup offset_axioms
+  sram_equiv kernel_equiv translation link self_check self_check_clean powerup offset_axioms
 
 # every dune here runs from the checkout's root, which a worktree inside another checkout
 # would otherwise give up for the outer one's
@@ -560,6 +560,41 @@ kernel_miter:
 	cd $(KERNEL) && timeout 600 yosys-abc \
 	  -c 'read_aiger miter.aig; print_stats; dprove; print_status' > proof.log
 	grep 'Status = $(EXPECT) ' $(KERNEL)/proof.log
+
+# the circuit the tests simulate is the Verilog the proofs and the flow read: each module
+# of the chip, built as bin/generate.exe top -sram -engines 2, equals the committed file as
+# Yosys reads it, by Hardcaml's Sec, every UNSAT checked by cake_lpr
+# (test/translation). Seconds; translation_proof runs on a checker built already. Each
+# tooth must fail in its module alone: host_port's config gate open, the pc stepping
+# back, a fifo word written at the read address, a fifo flop's initial value and the
+# reset synchroniser's reset edge.
+TRANSLATION = ../_build/default/test/translation/check_translation.exe check \
+  -lib ../src/RM_IHPSG13_1P_512x16_c2_bm_bist.v
+translation:
+	cd .. && dune build test/translation/check_translation.exe
+	$(MAKE) translation_proof
+
+translation_proof:
+	rm -rf translation_run && mkdir translation_run
+	$(TRANSLATION) $(WRITTEN) > translation_run/check.log
+	$(MAKE) translation_tooth TOOTH=ungated FAILS='failed host_port'
+	$(MAKE) translation_tooth TOOTH=pc_back FAILS='counterexample engine'
+	$(MAKE) translation_tooth TOOTH=fifo_word FAILS='counterexample host_fifo'
+	$(MAKE) translation_tooth TOOTH=fifo_init FAILS='failed host_fifo'
+	$(MAKE) translation_tooth TOOTH=reset_edge FAILS='failed top'
+
+EDIT_ungated = $(HOST_UNGATED)
+EDIT_pc_back = /^module engine (/,/^endmodule/s/= pc_0 + /= pc_0 - /
+EDIT_fifo_word = /^module host_fifo (/,/^endmodule/s/mem\[signal_wire_2\] <=/mem[RA] <=/
+EDIT_fifo_init = /^module host_fifo (/,/^endmodule/s/USED_MINUS_1 = 4'b1111;/USED_MINUS_1 = 4'b0111;/
+EDIT_reset_edge = /^module top (/,/^endmodule/s/ or posedge / or negedge /
+translation_tooth:
+	sed "$(EDIT_$(TOOTH))" $(WRITTEN) > translation_run/$(TOOTH).v
+	! cmp -s $(WRITTEN) translation_run/$(TOOTH).v
+	! $(TRANSLATION) translation_run/$(TOOTH).v > translation_run/$(TOOTH).log
+	grep -Eq '^\($(FAILS)([ )]|$$)' translation_run/$(TOOTH).log
+	[ $$(grep -c '^(QED' translation_run/$(TOOTH).log) -eq \
+	  $$(($$(grep -c '^(QED' translation_run/check.log) - 1)) ]
 
 # Power-up is deterministic: two copies of the chip from any two states, reset at the
 # first edge and the same pins after it, drive the same pins (powerup.sv), by induction on
