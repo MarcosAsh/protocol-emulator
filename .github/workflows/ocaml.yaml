@@ -340,6 +340,9 @@ jobs:
       - name: Ledger, against stand-ins for the bench's tools
         run: python3 test/test_ledger.py
 
+      - name: Bench runner, against stand-ins for the bench's tools
+        run: python3 test/test_bench_run.py
+
       - name: Traffic checks, on made captures
         run: python3 test/test_traffic.py
 
