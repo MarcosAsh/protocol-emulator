@@ -25,6 +25,9 @@
   nav a[aria-current] { color: var(--fg); font-weight: 600; border-bottom: 2px solid var(--fg); }
   #pio-spec { height: 12rem; }
   #diagram-frames { height: 4rem; }
+  #mutation { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; }
+  #mutation h3 { margin: 0; font-size: 1rem; }
+  @media (max-width: 40rem) { #mutation { grid-template-columns: 1fr; } }
   #diagram-wave { overflow-x: auto; background: var(--code); }
   #diagram-wave svg { display: block; }
 </style>
@@ -79,6 +82,19 @@ certificate. The model of the core then runs the table on the frames below.</p>
 <textarea id="diagram-frames" spellcheck="false" aria-label="Frames"></textarea>
 <p id="diagram-verdict"></p>
 <pre id="diagram-detail"></pre>
+<h2>Mutation</h2>
+<div class="controls">
+  <label>Make every period <input id="mutation-percent" type="number" min="0.1" max="99" step="0.1" value="3"> % faster</label>
+  <button id="mutation-run">Certify both</button>
+</div>
+<p id="mutation-error" class="refused"></p>
+<div id="mutation" hidden>
+  <h3 id="mutation-original-head">Original</h3>
+  <h3 id="mutation-mutant-head">Mutant</h3>
+  <pre id="mutation-original"></pre>
+  <pre id="mutation-mutant"></pre>
+</div>
+<pre id="mutation-cycles"></pre>
 <h2>Pins</h2>
 <div id="diagram-wave"></div>
 <h2>Steps</h2>
@@ -173,9 +189,23 @@ certificate. The model of the core then runs the table on the frames below.</p>
     $("diagram-detail").textContent = r.detail;
     $("diagram-steps").textContent = r.steps;
     $("diagram-words").textContent = r.words;
+    mutate();
     if (r.levels.length > 0) wave(Array.from(r.lanes), Array.from(r.levels), r.cycleNs);
     else $("diagram-wave").replaceChildren();
   };
+  const mutate = () => {
+    const r = pe.mutateDiagram($("diagram-source").value, Number($("mutation-percent").value));
+    $("mutation-error").textContent = r.error || "";
+    $("mutation").hidden = !!r.error;
+    $("mutation-cycles").textContent = r.error ? "" : "mutant cycles a period: " + r.cycles;
+    if (r.error) return;
+    [["original", r.original, r.originalOk], ["mutant", r.mutant, r.mutantOk]].forEach(([id, text, ok]) => {
+      $("mutation-" + id).textContent = text;
+      $("mutation-" + id + "-head").textContent = (id === "original" ? "Original: " : "Mutant: ") + (ok ? "taken" : "REFUSED");
+      $("mutation-" + id + "-head").className = ok ? "accepted" : "refused";
+    });
+  };
+  $("mutation-run").onclick = mutate;
   $("diagram-example").onchange = () => { loadDiagram(); runDiagram(); };
   $("diagram-run").onclick = runDiagram;
   loadDiagram();
