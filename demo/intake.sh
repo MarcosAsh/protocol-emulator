@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # SPDX-License-Identifier: Apache-2.0
 # Spec intake: a headless Claude Code agent turns a protocol's spec (a datasheet PDF, a
 # WaveJSON file or a limit table as text) into a protocol file, firmware and test with
