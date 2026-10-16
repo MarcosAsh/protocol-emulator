@@ -20,64 +20,38 @@ let stimulus (bench : Bench.t) =
 
 let level trace pin cycle = (trace.(cycle) lsr pin) land 1 = 1
 
-(* The cycles at which [pin] changes. *)
-let changes trace pin =
-  List.filter
-    (List.range 1 (Array.length trace))
-    ~f:(fun cycle ->
-      not (Bool.equal (level trace pin (cycle - 1)) (level trace pin cycle)))
+(* The first edge that comes sooner than [needed] cycles after the edge it is spaced from,
+   as the capture of the trace shows it. *)
+let spaced_edge
+  (bench : Bench.t)
+  (entry : Datasheet.t)
+  (spec : Kernel.Spacing.Spec.t)
+  ~needed
+  =
+  let capture = Measured_limits.Capture.of_run bench entry in
+  Measured_limits.applications capture spec
+  |> List.filter ~f:(fun (_, _, since) -> since < needed)
+  |> List.min_elt ~compare:(fun (a, _, _) (b, _, _) -> Int.compare a b)
 ;;
 
-(* The first edge of the spacing's pins, counted over both, that comes sooner than [spec]
-   asks: its number, its cycle, and the cycles it came after the nearer edge it is spaced
-   from. A pin whose direction is the bit shows low when the bit is 1. *)
-let spaced_edge (spec : Kernel.Spacing.Spec.t) trace =
-  let bit pin cycle = Bool.equal (level trace pin cycle) spec.dirs |> not in
-  let edges_a = changes trace spec.a
-  and edges_b = changes trace spec.b in
-  let all =
-    List.map edges_a ~f:(fun cycle -> cycle, true)
-    @ List.map edges_b ~f:(fun cycle -> cycle, false)
-    |> List.sort ~compare:(fun (x, _) (y, _) -> Int.compare x y)
-  in
-  let since edges cycle =
-    List.filter edges ~f:(fun c -> c < cycle)
-    |> List.last
-    |> Option.map ~f:(fun last -> cycle - last)
-  in
-  let short ~least ~edges cycle =
-    Option.filter (since edges cycle) ~f:(fun since -> since < least)
-  in
-  List.find_mapi all ~f:(fun i (cycle, is_a) ->
-    let own_pin, other_pin = if is_a then spec.a, spec.b else spec.b, spec.a in
-    let own_edges, other_edges = if is_a then edges_a, edges_b else edges_b, edges_a in
-    let own = bit own_pin (cycle - 1)
-    and other = bit other_pin (cycle - 1) in
-    let hold, apart =
-      if is_a
-      then spec.hold_a ~own ~other, spec.apart_a ~own ~other
-      else spec.hold_b ~own ~other, spec.apart_b ~own ~other
-    in
-    List.filter_opt
-      [ short ~least:hold ~edges:own_edges cycle
-      ; short ~least:apart ~edges:other_edges cycle
-      ]
-    |> List.min_elt ~compare
-    |> Option.map ~f:(fun measured -> i + 1, cycle, measured))
-;;
-
-(* The first of the pin's completed level runs after which [widths] holds a width that
-   breaks the limit, by bisection as a width once broken stays so. *)
+(* The edge that ends the first width to break the limit, found by bisection over the
+   pin's completed level runs as a width once broken stays so. A width appears when its
+   last level has ended, which for the first of a pair is the one after it: so the width
+   ends at the last run if widening the last run changes it, and the run before if not. *)
 let run_edge (limit : Datasheet.Limit.t) ~needed ~widths trace pin =
   let runs =
     Datasheet.runs (Array.map trace ~f:(fun word -> (word lsr pin) land 1 = 1))
   in
-  let broken k =
-    let levels = List.take runs (k + 1) |> List.drop_last_exn in
-    let widths = widths levels in
+  let completed k = List.take runs (k + 1) |> List.drop_last_exn in
+  let worst levels =
     match limit with
-    | At_least _ -> List.exists widths ~f:(fun w -> w < needed)
-    | At_most _ -> List.exists widths ~f:(fun w -> w > needed)
+    | At_least _ -> List.min_elt (widths levels) ~compare
+    | At_most _ -> List.max_elt (widths levels) ~compare
+  in
+  let broken k =
+    match limit with
+    | At_least _ -> List.exists (widths (completed k)) ~f:(fun w -> w < needed)
+    | At_most _ -> List.exists (widths (completed k)) ~f:(fun w -> w > needed)
   in
   let last = List.length runs - 1 in
   if last < 1 || not (broken last)
@@ -91,15 +65,13 @@ let run_edge (limit : Datasheet.Limit.t) ~needed ~widths trace pin =
         if broken mid then go lo mid else go mid hi)
     in
     let k = go 0 last in
-    let levels = List.take runs (k + 1) |> List.drop_last_exn in
-    let width =
-      let widths = widths levels in
-      match limit with
-      | At_least _ -> List.min_elt widths ~compare
-      | At_most _ -> List.max_elt widths ~compare
+    let levels = completed k in
+    let widened =
+      List.mapi levels ~f:(fun i (high, n) -> if i = k - 1 then high, n + 1 else high, n)
     in
-    let cycle = List.sum (module Int) (List.take runs k) ~f:snd in
-    Option.map width ~f:(fun width -> k, cycle, width))
+    let edge = if [%equal: int option] (worst levels) (worst widened) then k - 1 else k in
+    let cycle = List.sum (module Int) (List.take runs edge) ~f:snd in
+    Option.map (worst levels) ~f:(fun width -> edge, cycle, width))
 ;;
 
 let locate (bench : Bench.t) ((entry : Datasheet.t), (verdict : Datasheet.Verdict.t)) =
@@ -112,9 +84,9 @@ let locate (bench : Bench.t) ((entry : Datasheet.t), (verdict : Datasheet.Verdic
     let spec = spec bench.config verdict.needed in
     let pins = [ spec.a; spec.b ] in
     let trace = Datasheet.run_pins bench ~quiet_pin:spec.a stimulus in
-    (match spaced_edge spec trace with
-     | Some (edge, cycle, measured) ->
-       { (none ~pins ~trace) with edge = Some edge; cycle; measured = Some measured }
+    (match spaced_edge bench entry spec ~needed:verdict.needed with
+     | Some (edge, cycle, since) ->
+       { (none ~pins ~trace) with edge = Some edge; cycle; measured = Some since }
      | None -> none ~pins ~trace)
   | Run { pin; widths } ->
     let pin = pin bench.config in
@@ -142,60 +114,56 @@ let refusals limits (bench : Bench.t) =
   |> List.map ~f:(locate bench)
 ;;
 
-let time_ns ns =
-  if Float.(abs ns < 1000.) then sprintf "%.4g ns" ns else sprintf "%.2f us" (ns /. 1000.)
+let time t cycles = Bench.time ~clock_hz:t.bench.clock_hz cycles
+
+(* the limit's ns to the nearest, in [Bench.time]'s units *)
+let limit_time ns = Bench.time ~clock_hz:1_000_000_000 (Float.iround_nearest_exn ns)
+
+(* the limit's word, the sign of a width that breaks it, and the limit in ns *)
+let side (limit : Datasheet.Limit.t) =
+  match limit with
+  | At_least ns -> "min", "<", ns
+  | At_most ns -> "max", ">", ns
 ;;
 
-let ns_of t cycles = Float.of_int cycles *. 1e9 /. Float.of_int t.bench.clock_hz
-
 let to_line t =
-  let side, limit =
-    match t.entry.limit with
-    | At_least ns -> "min", ns
-    | At_most ns -> "max", ns
-  in
+  let word, sign, limit_ns = side t.entry.limit in
+  let cycles = Option.first_some t.measured t.verdict.bound in
   let against =
     match t.measured with
     | None ->
       sprintf
-        "kernel bound %s"
-        (Option.value_map t.verdict.bound ~default:"none" ~f:(fun n ->
-           time_ns (ns_of t n)))
+        "%s bound %s"
+        (match t.entry.bound with
+         | Kernel _ -> "kernel"
+         | Run _ -> "run")
+        (Option.value_map t.verdict.bound ~default:"none" ~f:(time t))
     | Some cycles ->
-      let ns = ns_of t cycles in
+      let ns = Float.of_int cycles *. 1e9 /. Float.of_int t.bench.clock_hz in
       let breaks =
         match t.entry.limit with
         | At_least least -> Float.(ns < least)
         | At_most most -> Float.(ns > most)
       in
       if breaks
-      then
-        sprintf
-          "%s %s %s %s"
-          (time_ns ns)
-          (match t.entry.limit with
-           | At_least _ -> "<"
-           | At_most _ -> ">")
-          (time_ns limit)
-          side
+      then sprintf "%s %s %s %s" (time t cycles) sign (limit_time limit_ns) word
       else
         sprintf
           "%s, inside the %s %s but not its margin"
-          (time_ns ns)
-          (time_ns limit)
-          side
+          (time t cycles)
+          (limit_time limit_ns)
+          word
   in
-  let where = Option.value_map t.edge ~default:"" ~f:(sprintf "edge %d, ") in
   sprintf
-    "%s: %s%s %s (%s, %s %s; %d cycles at %g MHz, %d needed)"
+    "%s: %s%s %s (%s, %s %s; %s at %g MHz, %d needed)"
     t.bench.name
-    where
+    (Option.value_map t.edge ~default:"" ~f:(sprintf "edge %d, "))
     t.entry.parameter
     against
     t.entry.sheet.part
     t.entry.sheet.document
     t.entry.sheet.page
-    (Option.value t.measured ~default:0)
+    (Option.value_map cycles ~default:"no cycles" ~f:(sprintf "%d cycles"))
     (Float.of_int t.bench.clock_hz /. 1e6)
     t.verdict.needed
 ;;
@@ -288,14 +256,8 @@ let to_svg ?(names = []) t =
       (x from_)
       (bottom + 36)
       red
-      (sprintf
-         "%s, limit %s %s"
-         (time_ns (ns_of t measured))
-         (match t.entry.limit with
-          | At_least _ -> "&gt;="
-          | At_most _ -> "&lt;=")
-         (match t.entry.limit with
-          | At_least ns | At_most ns -> time_ns ns)));
+      (let word, _, limit_ns = side t.entry.limit in
+       sprintf "%s, %s %s" (time t measured) word (limit_time limit_ns)));
   add
     "<text x=\"%d\" y=\"%d\" fill=\"%s\">cycles %d to %d at %g MHz</text>\n"
     left
