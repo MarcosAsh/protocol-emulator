@@ -1,0 +1,67 @@
+You turn a protocol spec into a protocol file the kernel certifies, headless, in this
+worktree (branch intake/@NAME@, off the repository's current commit). You have no one to ask.
+
+Task: protocol "@NAME@" from the spec at @SPEC@ (@KIND@). Run directory: @DIR@.
+Read CLAUDE.md and CONVENTIONS.md first. Terse comments. Never open GUI windows or browsers.
+
+Spec
+- @SPEC_NOTE@
+- Cite the page, figure or table of every number you put in a limit row (the "Datasheet"
+  source and the row's reason), from the "=== page N ===" markers. A number you cannot place
+  on a page is not a limit: leave it out and say so in the report.
+- If the text of a table is garbled (columns merged, units lost), read the page of the
+  original PDF with Read (pages: "N"), or the neighbouring lines, before you trust a number.
+  If two places disagree, say which you used and why.
+- Do not use anything outside the spec for a limit, except sigrok's own decoder source
+  (/usr/share/libsigrokdecode/decoders/ID/pd.py): read it before writing the trace, as a
+  decoder may only emit a frame at a late edge and have no timeout.
+
+Stages (the spec, file and certificate times are written to demo/speed.tsv by new-protocol and
+the formal targets, so run those commands as written)
+ 1. spec: `dune exec --root . bin/generate.exe -- new-protocol @NAME@` (add -decoder ID if the
+    name search finds none). Its printed checklist is the order of work.
+ 2. firmware: replace the placeholder in test/@NAME@.ml. A build runs the kernel on it and
+    fails at the line it refuses; `test/only.sh test_@NAME@.ml` prints the firmware's own
+    verdict (words, deadline waits, worst slack): read it. Give [Certified.of_firmware]'s
+    ~period and ~period_floor as the firmware's assumptions say.
+ 3. model: the far end in test/test_@NAME@.ml; then `test/only.sh test_@NAME@.ml test_protocol.ml`.
+ 4. limits: one row per parameter of the spec's timing table, each with its page. The
+    scaffold's placeholder row in test/test_tables.ml is yours to fill (grep '"@NAME@"').
+ 5. trace, sigrok, certify, the rest: as the checklist. The certificate is
+    `make -C formal inductive_write NAME=@NAME@` then `make -C formal inductive_proof NAME=@NAME@`
+    (minutes, run it with run_in_background and wait for its exit; its teeth must fail as
+    they must). Do not use remote-run.
+ 6. bench: fill the "# outside:" line from Bench_wiring as the checklist prints it; if it
+    says "no analyser channel, no free one", leave that line and say so. There is no hardware
+    here.
+
+Speed and safety, learned from a blind PS/2 run (spec to certificate 54 min)
+- Never run the whole of runtest (20+ min on a shared machine, killed runs write nothing).
+  Run only `test/only.sh -library test_@NAME@.ml` (add -promote after a fix is rerun and the
+  diff shows only your protocol's lines) and `dune build --root . @test/python/runtest; dune promote --root .`.
+  Rerun after fixing a test file BEFORE promoting, or the stale .corrected overwrites the edit.
+- One dune at a time, always with --root . . Builds take minutes: give long commands a
+  generous timeout or run them in the background; do not poll in a tight loop.
+- Format only your own files: `ocamlformat --inplace test/@NAME@.ml test/test_@NAME@.ml`.
+  Never `dune build @fmt --auto-promote`.
+- After each stage that passes, `git add` your files and commit: one lowercase line, no body,
+  no attribution. A crash then leaves the work in git. Do not push.
+- Edit only the files the checklist names (test/@NAME@.ml(.mli), test/test_@NAME@.ml,
+  python/demo_@NAME@.py, test/test_tables.ml, test/library.ml, expect outputs the library
+  feeds, test/traces/@NAME@.trace). Never edit src/, the kernel, the certifier or another
+  protocol's file. Never read or write the sealed held-out list (heldout.txt, any heldout dir).
+
+Refusal
+If the kernel or analyser refuses the firmware because the spec's timing cannot be met
+(a deadline wait that may be missed, a slack that is negative), do not weaken the kernel or
+loosen the spec. Try the honest alternatives (a different firmware shape, a slower period the
+spec allows). If none works, stop and name the limit: its parameter, the spec's number and
+page, and the kernel's message.
+
+Final answer
+The last line of your final message is exactly one of
+  VERDICT: certified
+  VERDICT: refused <parameter, spec value, page>
+  VERDICT: failed <one-line reason>
+Above it: the files you changed, the limit rows with their pages, what you ran, and every
+place you guessed. No prose beyond that.
