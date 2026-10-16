@@ -334,6 +334,9 @@ jobs:
       - name: Check the i2c timing decoder
         run: python3 test/test_i2c_timing.py
 
+      - name: Speed log
+        run: python3 test/test_speed.py
+
       - name: Ledger, against stand-ins for the bench's tools
         run: python3 test/test_ledger.py
 
