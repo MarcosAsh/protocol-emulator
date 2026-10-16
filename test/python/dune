@@ -159,3 +159,9 @@
   (chdir
    ../..
    (run sha256sum --check --quiet test/clock_cliffs.sha256))))
+
+(rule
+ (alias runtest)
+ (deps ../../demo/clock_sweep.py ../../python/clock_cliffs.py ../clock_cliffs.sha256)
+ (action
+  (run python3 -B %{dep:test_clock_sweep.py} ../../demo ../..)))
