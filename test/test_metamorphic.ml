@@ -803,6 +803,39 @@ let%expect_test "a delay split into the word and a nop changes nothing" =
     |}]
 ;;
 
+(* What the split above finds: the analyser keeps a counted loop's offset only from a
+   [set x] just before it, so a nop between them loses the loop's exit phase, and a
+   program it accepted is refused. *)
+let%expect_test "a nop between set x and its counted loop loses the loop's exit phase" =
+  let source ~between =
+    String.concat
+      ~sep:"\n"
+      ([ "set p, 31"; "mov t, now"; "add t, 7"; "wait t+"; "loop:"; "set x, 3 [1]" ]
+       @ between
+       @ [ "count:"; "nop [1]"; "jmp x--, count"; "wait t+"; "jmp loop" ])
+  in
+  List.iter
+    [ "set x, 3 [1]", source ~between:[]
+    ; ( "set x, 3; nop"
+      , source ~between:[ "nop" ]
+        |> String.substr_replace_first ~pattern:"set x, 3 [1]" ~with_:"set x, 3" )
+    ]
+    ~f:(fun (name, source) ->
+      match Timed_program.check ~config:Program_config.default source with
+      | Ok t ->
+        print_s [%message name ~accepted:(Timed_program.verdict t : Analyser.Verdict.t)]
+      | Error { faults; _ } ->
+        print_s [%message name ~refused:(faults : Timed_program.Fault.t list)]);
+  [%expect {|
+    ("set x, 3 [1]" (accepted ((words 9) (deadline_waits 2) (worst_slack (5)))))
+    ("set x, 3; nop"
+     (refused
+      (((line 11) (pc (8))
+        (reason
+         "this deadline wait can be reached late, by more on each pass of a loop or after an untimed wait")))))
+    |}]
+;;
+
 (* [wait t] is [alu t, sub a; wait t; alu t, add a; wait t]: the first wait has [a + 1]
    less slack, the second [a - 2] exactly, and the rest is as it was, while [a] is below
    the slack; at the slack the first wait is refused. *)
