@@ -5,6 +5,7 @@
     driven where it reads low. *)
 
 open! Core
+open Protocol_emulator
 
 (** Each pin's edges, by the engine's pin numbers; a pin not given stays low. *)
 module Capture : sig
@@ -43,6 +44,10 @@ module Verdict : sig
     | Unmeasured (** No edge it applies at. *)
   [@@deriving sexp_of, equal]
 end
+
+(** Every spacing [spec] asks that the capture shows: the edge's number over both pins'
+    edges from 1, its sample, and the samples since the edge it is spaced from. *)
+val applications : Capture.t -> Kernel.Spacing.Spec.t -> (int * int * int) list
 
 type t =
   { limit : Datasheet.t

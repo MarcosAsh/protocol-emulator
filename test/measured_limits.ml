@@ -105,69 +105,77 @@ type t =
   ; verdict : Verdict.t
   }
 
-let least_of least since = Some (Option.value_map least ~default:since ~f:(Int.min since))
-
-(* The least spacing the capture shows where [spec] asks one: at each edge of a pin, the
-   samples since its own edge before, where its hold applies to the two pins' bits before
-   the edge, and since the other pin's last edge, where its apart does. *)
-let spacing (capture : Capture.t) (spec : Kernel.Spacing.Spec.t) =
+(* Every spacing the capture shows where [spec] asks one, as the edge's number over both
+   pins' edges from 1, its sample, and the samples since: at each edge of a pin, since its
+   own edge before, where its hold applies to the two pins' bits before the edge, and
+   since the other pin's last edge, where its apart does. The other pin moving at the same
+   sample is 0 since. *)
+let applications (capture : Capture.t) (spec : Kernel.Spacing.Spec.t) =
   let bit level = Bool.( <> ) spec.dirs level in
-  let apply ~hold ~apart ~own ~other ~own_last ~other_last ~at least =
-    List.fold
+  let apply ~hold ~apart ~own ~other ~own_last ~other_last ~at ~number =
+    List.filter_map
       [ own_last, hold ~own ~other; other_last, apart ~own ~other ]
-      ~init:least
-      ~f:(fun least (last, asked) ->
+      ~f:(fun (last, asked) ->
         match last with
-        | Some last when asked > 0 -> least_of least (at - last)
-        | _ -> least)
+        | Some last when asked > 0 -> Some (number, at, at - last)
+        | _ -> None)
   in
-  let rec go ~level_a ~level_b ~last_a ~last_b ~least edges_a edges_b =
+  let rec go ~level_a ~level_b ~last_a ~last_b ~number found edges_a edges_b =
     let next =
       List.min_elt (List.filter_opt [ List.hd edges_a; List.hd edges_b ]) ~compare
     in
     match next with
-    | None -> least
+    | None -> List.rev found
     | Some at ->
       let moves edges = Option.equal Int.equal (List.hd edges) (Some at) in
       let a = moves edges_a
       and b = moves edges_b in
       let own_a = bit level_a
       and own_b = bit level_b in
-      let least =
+      let seen_a = if b then Some at else last_b
+      and seen_b = if a then Some at else last_a in
+      let found =
         if a
         then
-          apply
-            ~hold:spec.hold_a
-            ~apart:spec.apart_a
-            ~own:own_a
-            ~other:own_b
-            ~own_last:last_a
-            ~other_last:last_b
-            ~at
-            least
-        else least
+          List.rev_append
+            (apply
+               ~hold:spec.hold_a
+               ~apart:spec.apart_a
+               ~own:own_a
+               ~other:own_b
+               ~own_last:last_a
+               ~other_last:seen_a
+               ~at
+               ~number:(number + 1))
+            found
+        else found
       in
-      let least =
+      let number = if a then number + 1 else number in
+      let found =
         if b
         then
-          apply
-            ~hold:spec.hold_b
-            ~apart:spec.apart_b
-            ~own:own_b
-            ~other:own_a
-            ~own_last:last_b
-            ~other_last:last_a
-            ~at
-            least
-        else least
+          List.rev_append
+            (apply
+               ~hold:spec.hold_b
+               ~apart:spec.apart_b
+               ~own:own_b
+               ~other:own_a
+               ~own_last:last_b
+               ~other_last:seen_b
+               ~at
+               ~number:(number + 1))
+            found
+        else found
       in
+      let number = if b then number + 1 else number in
       let after moved edges = if moved then List.tl_exn edges else edges in
       go
         ~level_a:(Bool.( <> ) level_a a)
         ~level_b:(Bool.( <> ) level_b b)
         ~last_a:(if a then Some at else last_a)
         ~last_b:(if b then Some at else last_b)
-        ~least
+        ~number
+        found
         (after a edges_a)
         (after b edges_b)
   in
@@ -178,9 +186,15 @@ let spacing (capture : Capture.t) (spec : Kernel.Spacing.Spec.t) =
     ~level_b:b.first
     ~last_a:None
     ~last_b:None
-    ~least:None
+    ~number:0
+    []
     a.edges
     b.edges
+;;
+
+let spacing capture spec =
+  List.map (applications capture spec) ~f:(fun (_, _, since) -> since)
+  |> List.min_elt ~compare
 ;;
 
 (* a [Run] bound's widths, from the levels on its pin: the first only when it began at the
