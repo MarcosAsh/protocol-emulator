@@ -1,12 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# How long a protocol takes from its spec to a kernel certificate and a bench PASS. The tools
-# append a row to demo/speed.tsv as each stage ends: generate new-protocol (spec), make -C
-# formal inductive_write (file) and inductive_proof (certificate), demo/outside.sh (bench).
-# The first row of a stage counts. A run on another machine is added with --at.
-# Baseline to quote beside it: Englhardt et al., "Exploring and Characterizing Large Language
-# Models For Embedded System Development and Debugging", arXiv 2307.03817 (v2, Nov 2023, a
-# preprint with no venue): hardware in the loop, GPT-4, "In N=50 trials, GPT-4 produces
-# functional I2C interfaces 66% of the time". That is a success rate over trials, not a time.
+# Spec to certificate to bench, per protocol, in demo/speed.tsv: new-protocol, formal's
+# inductive_write and inductive_proof, and outside.sh append a stage's row; the first counts.
 # Usage: python3 demo/speed.py mark PROTOCOL STAGE [--at ISO_TIME] [--note TEXT] [--if-started]
 #        python3 demo/speed.py table [--tsv FILE]
 
@@ -35,7 +29,11 @@ def mark(tsv, protocol, stage, at, note, if_started):
         sys.exit("stage is one of " + " ".join(STAGES))
     if if_started and not any(r["protocol"] == protocol for r in rows(tsv)):
         return
+    if any(r["protocol"] == protocol and r["stage"] == stage for r in rows(tsv)):
+        return
     when = datetime.fromisoformat(at) if at else datetime.now().astimezone()
+    if when.tzinfo is None:
+        when = when.astimezone()
     new = not tsv.exists() or tsv.stat().st_size == 0
     with open(tsv, "a", newline="") as f:
         out = csv.writer(f, delimiter="\t", lineterminator="\n")
@@ -52,7 +50,7 @@ def table(tsv):
     first = {}
     for r in rows(tsv):
         first.setdefault(r["protocol"], {}).setdefault(
-            r["stage"], datetime.fromisoformat(r["time"]))
+            r["stage"], datetime.fromisoformat(r["time"]).astimezone())
     head = ["protocol", "spec>file", "file>cert", "cert>bench", "spec>cert", "spec>bench"]
     lines = [head]
     for p, t in first.items():

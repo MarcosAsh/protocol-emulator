@@ -39,6 +39,13 @@ class Speed(unittest.TestCase):
             self.mark(stage, "2026-10-15T%s+01:00" % at)
         self.assertEqual(self.table(), ["p", "30.0", "15.0", "15.0", "45.0", "60.0"])
 
+    def test_repeat_mark_and_naive_time(self):
+        self.mark("spec", "2026-10-15T10:00:00")
+        self.mark("spec", "2026-10-15T11:00:00")
+        self.assertEqual(len(speed.rows(self.tsv)), 1)
+        self.mark("bench", "2026-10-15T10:30:00")
+        self.assertEqual(self.table()[-1], "30.0")
+
     def test_missing_stage_is_a_dash(self):
         self.mark("spec", "2026-10-15T10:00:00+01:00")
         self.assertEqual(self.table(), ["p", "-", "-", "-", "-", "-"])
