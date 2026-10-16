@@ -15,6 +15,7 @@ depends: [
   "core"
   "core_unix"
   "hardcaml"
+  "hardcaml_of_verilog"
   "hardcaml_test_harness"
   "hardcaml_verify"
   "hardcaml_waveterm"
