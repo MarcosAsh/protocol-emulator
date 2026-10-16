@@ -1,4 +1,5 @@
 open! Core
+open Protocol_emulator
 
 (* Each firmware from the lowest clock to the highest, in MHz, and the limit that fails a
    hertz past each end; "-" where none does. *)
@@ -83,5 +84,37 @@ let%expect_test "the CAN receiver's window is its tolerance" =
     ((low ((hz 47452385) (limit "sender faster, read at pc 8")))
      (high ((hz 51599998) (limit "sender slower, read at pc 194"))) (inside true)
      (outside true))
+    |}]
+;;
+
+(* The diagrams' limits as [Wavedrom.compile] checks them at a clock: it compiles at each
+   end and refuses a hertz past, naming the edge. ws2812.json's 26, 21 and 28 cycles were
+   drawn at the rated 50 MHz. *)
+let%expect_test "the diagrams' windows" =
+  let read name = In_channel.read_all [%string "diagrams/%{name}.json"] in
+  List.iter (Clock_window.diagrams ~dir:"diagrams") ~f:(fun (t : Clock_window.t) ->
+    let source = read (String.chop_prefix_exn t.firmware ~prefix:"diagram ") in
+    let compiles clock_hz = Or_error.is_ok (Wavedrom.of_string ~clock_hz source) in
+    print_endline (Clock_window.to_string [ t ]);
+    let low = (Option.value_exn t.lowest).hz
+    and high = (Option.value_exn t.highest).hz in
+    print_s
+      [%message
+        ""
+          ~compiles_at_ends:(compiles low && compiles high : bool)
+          ~refused_past:(not (compiles (low - 1) || compiles (high + 1)) : bool)]);
+  print_s
+    [%sexp
+      (Wavedrom.of_string ~clock_hz:Bench.clock_hz (read "ws2812")
+       |> Or_error.map ~f:ignore
+       : unit Or_error.t)];
+  [%expect
+    {|
+    diagram ws2812      49.474 T1H <= 950 ns                48.000  70.000 T0L >= 700 ns
+    ((compiles_at_ends true) (refused_past true))
+    (Error
+     ("outside the table class"
+      ("the diagram's own limit does not hold" (edge "a<->c T1H 650ns..950ns")
+       (cycles 47) (ns 979.16666666666663) (least_ns (650)) (most_ns (950)))))
     |}]
 ;;
