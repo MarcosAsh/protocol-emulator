@@ -39,12 +39,15 @@ class Corpus(unittest.TestCase):
             capture_output=True, text=True)
 
     def test_failures_and_gaps_are_shown(self):
-        self.assertEqual(self.run_corpus().returncode, 0)
+        (self.dir / "matrix").write_text("a\n")
+        self.assertEqual(self.run_corpus("--matrix", str(self.dir / "matrix")).returncode, 0)
         ps2 = (self.out / "ps2.html").read_text()
         self.assertIn("<td>FAIL</td>", ps2)
         self.assertIn("nop &lt;1&gt;", ps2)
         self.assertIn("Not available", ps2)
+        self.assertIn("a</code>: proved in CI by inductive_certificate", ps2)
         self.assertIn("no limits", (self.out / "nosuch.html").read_text())
+        self.assertIn("not in CI's certificate matrix", (self.out / "nosuch.html").read_text())
         self.assertIn('class="bad">1<', (self.out / "index.html").read_text())
 
     def test_same_inputs_same_bytes(self):

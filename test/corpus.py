@@ -6,7 +6,7 @@
 # Writes corpus.sha256 beside the pages, in sha256sum's format; --check verifies a tree
 # against it. No timestamps, so the same inputs give the same bytes.
 # Usage: python3 test/corpus.py --data DIR --out DIR [--speed TSV] [--ledger TSV]...
-#            [--cliffs FILE] [--refusals DIR] [--transcripts DIR]
+#            [--matrix FILE] [--cliffs FILE] [--refusals DIR] [--transcripts DIR]
 #        python3 test/corpus.py --check DIR
 import argparse
 import ast
@@ -22,6 +22,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 MANIFEST = "corpus.sha256"
 STAGES = ["spec", "file", "certificate", "bench"]
+WORKFLOW = ("https://github.com/MarcosAsh/protocol-emulator/blob/main/"
+            ".github/workflows/ocaml.yaml")
+# the protocol page each ledger demo belongs on; a demo not here is listed on the index
+DEMO_PROTOCOL = {
+    "swd": "swd", "neopixel": "ws2812", "eeprom": "i2c", "eeprom_stretch": "i2c",
+    "ds18b20": "one_wire", "can": "can", "can_node": "can_node", "keyboard": "usb",
+    "self_timing": "uart",
+}
 SPEED_NOTE = ("Times are the first mark of each stage in demo/speed.tsv; a protocol "
               "nobody timed has no row.")
 
@@ -115,6 +123,9 @@ class Inputs:
         for path in a.ledger or []:
             for r in read_tsv(path):
                 self.ledgers.append((Path(path), r))
+        self.matrix = (set(Path(a.matrix).read_text().split()) if a.matrix else
+                       {r["firmware"] for r in self.firmware
+                        if r["class"] in ("certified", "time_triggered")})
         self.cliffs = literal(a.cliffs, {"LIMITS", "WINDOWS"}) if a.cliffs else None
         self.refusals = Path(a.refusals) if a.refusals else None
         self.transcripts = Path(a.transcripts) if a.transcripts else None
@@ -128,13 +139,9 @@ def protocols(inp):
     return names
 
 
-def ledger_rows(inp, name, firmware_names):
-    """Ledger rows whose demo is the protocol or one of its firmware, or one a prefix of
-    the other. A row that fits no protocol is listed on the index."""
-    keys = [name, *firmware_names]
-    return [(p, r) for p, r in inp.ledgers
-            if any(r["demo"] == k or k.startswith(r["demo"] + "_") or
-                   r["demo"].startswith(k + "_") for k in keys)]
+def ledger_rows(inp, name):
+    """Ledger rows whose demo DEMO_PROTOCOL puts on protocol [name]."""
+    return [(p, r) for p, r in inp.ledgers if DEMO_PROTOCOL.get(r["demo"]) == name]
 
 
 def ledger_table(rows):
@@ -181,15 +188,18 @@ def protocol_page(inp, name, out):
                  f"{esc(clock)}</summary><pre>{esc(text)}</pre></details>")
     parts.append(section("Protocol file and firmware", body))
     # certificate
-    cert = [r for r in fw if r["class"] in ("certified", "time_triggered")]
+    link = f'<a href="{WORKFLOW}">ocaml.yaml</a>'
+    items = []
+    for n in names:
+        if n in inp.matrix:
+            items.append(f"<li><code>{esc(n)}</code>: proved in CI by inductive_certificate "
+                         f"({esc(n)}), {link}</li>")
+        else:
+            items.append(f"<li><code>{esc(n)}</code>: not in CI's certificate matrix</li>")
+    body = "<ul>" + "".join(items) + "</ul>"
     stamp = inp.speed.get(name, {}).get("certificate")
-    body = ("<p>Firmware CI proves a certificate of by induction: "
-            + (", ".join(f"<code>{esc(r['firmware'])}</code> ({esc(r['class'])})"
-                         for r in cert) if cert else "none") + ".</p>")
-    body += ("<p>Proof run stamped in demo/speed.tsv: "
-             f"{esc(stamp[2])}, {esc(stamp[1])}.</p>" if stamp
-             else '<p class="muted">No proof run stamped in demo/speed.tsv; CI results are on '
-                  'the results page.</p>')
+    if stamp:
+        body += f"<p>Proof run stamped in demo/speed.tsv: {esc(stamp[2])}, {esc(stamp[1])}.</p>"
     parts.append(section("Certificate", body))
     # clock window
     if inp.cliffs is None:
@@ -215,7 +225,7 @@ def protocol_page(inp, name, out):
     else:
         parts.append(section("Time taken", missing("no row in demo/speed.tsv")))
     # board evidence
-    rows = ledger_rows(inp, name, names)
+    rows = ledger_rows(inp, name)
     if rows:
         rows.sort(key=lambda pr: (pr[1]["date"], pr[0].parent.name))
         parts.append(section("Board evidence", ledger_table(rows)
@@ -258,7 +268,7 @@ def summary(inp, name):
     cert = sum(r["class"] in ("certified", "time_triggered") for r in fw)
     s = inp.speed.get(name, {})
     t = [s.get(k, (None,))[0] for k in STAGES]
-    led = ledger_rows(inp, name, sorted({r["firmware"] for r in fw}))
+    led = ledger_rows(inp, name)
     bad = sum(failed_ledger(r) for _, r in led)
     return [f'<a href="{esc(name)}.html">{esc(name)}</a>', len(fw), cert, len(lim),
             f'<span class="bad">{fails}</span>' if fails else "0",
@@ -270,10 +280,7 @@ def index_page(inp, names):
     body = table(["protocol", "firmware", "certified", "limits", "limits failed",
                   "spec to bench (min)", "board runs"], rows)
     body += f'<p class="muted">{esc(SPEED_NOTE)}</p>'
-    known = {id(r) for n in names for _, r in
-             ledger_rows(inp, n, sorted({x["firmware"] for x in inp.firmware
-                                         if x["protocol"] == n}))}
-    rest = [(p, r) for p, r in inp.ledgers if id(r) not in known]
+    rest = [(p, r) for p, r in inp.ledgers if DEMO_PROTOCOL.get(r["demo"]) not in names]
     if rest:
         body += section("Board runs tied to no protocol page", ledger_table(rest))
     body += f'<p class="muted">Hashes of every page: <a href="{MANIFEST}">{MANIFEST}</a>.</p>'
@@ -313,6 +320,8 @@ def main():
     ap.add_argument("--out")
     ap.add_argument("--speed", default=str(ROOT / "demo/speed.tsv"))
     ap.add_argument("--ledger", action="append")
+    ap.add_argument("--matrix", help="write_certificate.exe -names, else the library's "
+                    "certified and time-triggered firmware")
     ap.add_argument("--cliffs")
     ap.add_argument("--refusals")
     ap.add_argument("--transcripts")
