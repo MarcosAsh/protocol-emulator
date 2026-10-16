@@ -7,7 +7,7 @@ module Verdict = struct
 
   let to_string = function
     | Accepted (t : Wavedrom.t) ->
-      List.map t.limits ~f:(fun l -> sprintf "edge %s: %d ns, holds" l.edge l.ns)
+      List.map t.limits ~f:(fun l -> sprintf "edge %s: %g ns, holds" l.edge l.ns)
       |> List.cons (sprintf "taken, %d steps" (List.length t.steps))
       |> String.concat ~sep:"\n"
     | Refused e -> "refused: " ^ Error.to_string_hum e

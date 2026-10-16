@@ -21,7 +21,8 @@ end
 module Limit = struct
   type t =
     { edge : string
-    ; ns : int
+    ; cycles : int
+    ; ns : float
     ; least_ns : float option
     ; most_ns : float option
     }
@@ -32,8 +33,9 @@ module State = struct
   type t = int [@@deriving equal, sexp_of]
 end
 
-(* at 50 MHz *)
-let cycle_ns = 20
+(* info.yaml's clock *)
+let rated_hz = 50_000_000
+let ns ~clock_hz cycles = cycles *. 1e9 /. Float.of_int clock_hz
 
 type t =
   { outputs : string list
@@ -46,6 +48,7 @@ type t =
   ; starts_on_edge : bool
   ; read : int
   ; limits : Limit.t list
+  ; clock_hz : int
   ; diagram : Wavejson.t
   }
 
@@ -428,18 +431,18 @@ let split_unit token =
 ;;
 
 (* "400ns", "0.4us" or "20cycles", in ns; [unit] where the token has none *)
-let quantity ?(unit = "") token =
+let quantity ?(unit = "") ~clock_hz token =
   let number, given = split_unit token in
   let%bind.Option n = Float.of_string_opt number in
   match if String.is_empty given then unit else given with
   | "ns" -> Some n
   | "us" -> Some (n *. 1000.)
-  | "cycle" | "cycles" -> Some (n *. Float.of_int cycle_ns)
+  | "cycle" | "cycles" -> Some (ns ~clock_hz n)
   | _ -> None
 ;;
 
 (* the bounds a label sets, if any: a number and its unit may stand apart *)
-let bounds label =
+let bounds ~clock_hz label =
   let rec join = function
     | n :: unit :: rest
       when Option.is_some (Float.of_string_opt n)
@@ -451,7 +454,7 @@ let bounds label =
   let rec go = function
     | [] -> None
     | ((">=" | "<=" | "=") as op) :: q :: _ ->
-      Option.map (quantity q) ~f:(fun q ->
+      Option.map (quantity ~clock_hz q) ~f:(fun q ->
         match op with
         | ">=" -> Some q, None
         | "<=" -> None, Some q
@@ -460,11 +463,14 @@ let bounds label =
       (match String.substr_index t ~pattern:".." with
        | Some i ->
          let hi = String.drop_prefix t (i + 2) in
-         (match quantity ~unit:(snd (split_unit hi)) (String.prefix t i), quantity hi with
+         (match
+            ( quantity ~unit:(snd (split_unit hi)) ~clock_hz (String.prefix t i)
+            , quantity ~clock_hz hi )
+          with
           | Some lo, Some hi -> Some (Some lo, Some hi)
           | _ -> go rest)
        | None ->
-         (match quantity t with
+         (match quantity ~clock_hz t with
           | Some q -> Some (Some q, Some q)
           | None -> go rest))
   in
@@ -474,6 +480,7 @@ let bounds label =
 (* The time between two nodes is the drawn periods' cycles between them, as every step is
    exact; one at the idle, or a pair across a whole repeat, has no such time. *)
 let limits
+  ~clock_hz
   (lanes : Wavejson.Lane.t list)
   edges
   ~cycles_of
@@ -490,7 +497,7 @@ let limits
     then None
     else (
       let label = String.drop_prefix rest 1 |> String.strip in
-      Option.map (bounds label) ~f:(fun (least_ns, most_ns) ->
+      Option.map (bounds ~clock_hz label) ~f:(fun (least_ns, most_ns) ->
         match node edge.[0], node rest.[0] with
         | None, _ | _, None ->
           outside [%message "an edge names a node no lane has" (edge : string)]
@@ -504,19 +511,21 @@ let limits
           else if Option.exists repeat ~f:(fun r -> a < r.first && b > r.last)
           then outside [%message "an edge across a whole repeat" (edge : string)]
           else (
-            let ns = List.sum (module Int) (List.range a b) ~f:cycles_of * cycle_ns in
+            let cycles = List.sum (module Int) (List.range a b) ~f:cycles_of in
+            let ns = ns ~clock_hz (Float.of_int cycles) in
             let holds =
-              Option.for_all least_ns ~f:(fun l -> Float.(of_int ns >= l))
-              && Option.for_all most_ns ~f:(fun m -> Float.(of_int ns <= m))
+              Option.for_all least_ns ~f:(fun l -> Float.(ns >= l))
+              && Option.for_all most_ns ~f:(fun m -> Float.(ns <= m))
             in
             if holds
-            then Ok { Limit.edge; ns; least_ns; most_ns }
+            then Ok { Limit.edge; cycles; ns; least_ns; most_ns }
             else
               outside
                 [%message
                   "the diagram's own limit does not hold"
                     (edge : string)
-                    (ns : int)
+                    (cycles : int)
+                    (ns : float)
                     (least_ns : float option)
                     (most_ns : float option)]))))
   |> Result.all
@@ -587,6 +596,7 @@ let table_of (steps : Step.t array) ~head ~tail =
 ;;
 
 let compile_on_host
+  ~clock_hz
   (diagram : Wavejson.t)
   ~(lanes : Wavejson.Lane.t list)
   ~(outputs : Wavejson.Lane.t list)
@@ -717,6 +727,7 @@ let compile_on_host
   let%bind () = check_steps steps in
   let%bind limits =
     limits
+      ~clock_hz
       lanes
       diagram.edges
       ~cycles_of
@@ -745,6 +756,7 @@ let compile_on_host
   ; starts_on_edge = false
   ; read
   ; limits
+  ; clock_hz
   ; diagram
   }
 ;;
@@ -778,6 +790,7 @@ let edge_seen = 2
 (* A frame an input's edge starts: an Await for the edge, a Shift at the middle of each
    cell, the last held a cell's length, then a Push and back to the Await. *)
 let compile_on_edge
+  ~clock_hz
   (diagram : Wavejson.t)
   ~lanes
   ~(outputs : Wavejson.Lane.t list)
@@ -838,7 +851,9 @@ let compile_on_edge
     @ [ step "push" [] Push (least Push) ]
   in
   let%bind () = check_steps steps in
-  let%bind limits = limits lanes diagram.edges ~cycles_of ~idle:true ~repeat:None in
+  let%bind limits =
+    limits ~clock_hz lanes diagram.edges ~cycles_of ~idle:true ~repeat:None
+  in
   let%map table = table_of (Array.of_list steps) ~head:(-1) ~tail:(-1) in
   { outputs = []
   ; input = Some input.name
@@ -850,11 +865,12 @@ let compile_on_edge
   ; starts_on_edge = true
   ; read
   ; limits
+  ; clock_hz
   ; diagram
   }
 ;;
 
-let compile (diagram : Wavejson.t) =
+let compile ?(clock_hz = rated_hz) (diagram : Wavejson.t) =
   let open Or_error.Let_syntax in
   let lanes =
     List.mapi diagram.lanes ~f:(fun i (l : Wavejson.Lane.t) ->
@@ -884,6 +900,7 @@ let compile (diagram : Wavejson.t) =
   match inputs with
   | [ input ] when Option.is_some (input_edge input) ->
     compile_on_edge
+      ~clock_hz
       diagram
       ~lanes
       ~outputs
@@ -891,10 +908,18 @@ let compile (diagram : Wavejson.t) =
       ~drawn
       ~cycles_of
       ~edge:(Option.value_exn (input_edge input))
-  | _ -> compile_on_host diagram ~lanes ~outputs ~input:(List.hd inputs) ~drawn ~cycles_of
+  | _ ->
+    compile_on_host
+      ~clock_hz
+      diagram
+      ~lanes
+      ~outputs
+      ~input:(List.hd inputs)
+      ~drawn
+      ~cycles_of
 ;;
 
-let of_string s = Or_error.bind (Wavejson.parse s) ~f:compile
+let of_string ?clock_hz s = Or_error.bind (Wavejson.parse s) ~f:(compile ?clock_hz)
 
 let host_words t bits =
   let n = List.length bits in
