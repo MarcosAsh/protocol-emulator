@@ -36,6 +36,7 @@ esac
 here=$(cd "$(dirname "$0")/.." && pwd)
 root=$(git -C "$here" rev-parse --show-toplevel)
 run=$out/$name-$(date +%Y%m%d-%H%M%S)
+main=$(dirname "$(git -C "$root" rev-parse --path-format=absolute --git-common-dir)")
 tree=$root/.claude/worktrees/intake-$name
 mkdir -p "$run"
 log() { printf '%s\t%s\n' "$(date -Is)" "$*" >> "$run/stages.log"; }
@@ -109,6 +110,10 @@ fi
 
 # the agent, then the kernel's own check of what it left
 cd "$tree"
+# the untracked files of the root the agent and the flow need
+for f in env.sh CLAUDE.md CONVENTIONS.md PLAN.md; do
+    [ -f "$f" ] || [ ! -f "$main/$f" ] || cp "$main/$f" "$f"
+done
 [ ! -f env.sh ] || . ./env.sh
 command -v opam >/dev/null && eval "$(opam env --switch 5.2.0+ox --set-switch)"
 log "agent start"
