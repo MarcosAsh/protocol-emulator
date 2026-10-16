@@ -300,6 +300,28 @@ let%expect_test "the check refuses a row one short" =
     |}]
 ;;
 
+(* bounds in order, as a row that is not empty has them *)
+let range top =
+  Quickcheck.Generator.map
+    (Quickcheck.Generator.both (Int.gen_incl 0 top) (Int.gen_incl 0 top))
+    ~f:(fun (a, b) -> Int.min a b, Int.max a b)
+;;
+
+let hull = function
+  | [] -> None
+  | v :: rest ->
+    Some (List.fold rest ~init:(v, v) ~f:(fun (lo, hi) n -> Int.min lo n, Int.max hi n))
+;;
+
+let assembled source =
+  Asm.assemble source
+  |> ok_exn
+  |> Asm.Program.words
+  |> ok_exn
+  |> List.hd_exn
+  |> Bits.of_unsigned_int ~width:Isa.data_bits
+;;
+
 (* Brute force: for a word that leaves x alone or counts it down, on each way out, the
    image's shifted bounds are exactly the least and greatest counts the core steps to from
    a state the row and x's bounds allow there: the sum less x narrows the row's own, a
@@ -312,31 +334,15 @@ let%expect_test "an image's bounds are the hull of the states the core reaches" 
   let pull_threshold = Bits.zero Isa.count_bits in
   let width = Osr_kernel.Row.port_widths in
   let of_int n ~width = Bits.of_unsigned_int ~width n in
-  (* bounds in order, as a row that is not empty has them *)
-  let range top =
-    Quickcheck.Generator.map
-      (Quickcheck.Generator.both (Int.gen_incl 0 top) (Int.gen_incl 0 top))
-      ~f:(fun (a, b) -> Int.min a b, Int.max a b)
-  in
-  let hull = function
-    | [] -> None
-    | v :: rest -> Some (List.fold rest ~init:(v, v) ~f:(fun (lo, hi) n -> Int.min lo n, Int.max hi n))
-  in
   List.iter
     [ "set y, 0", false, Fn.const true, Fn.id
     ; "out pins, 3", false, Fn.const true, Fn.id
     ; "jmp x--, 0", true, (fun x -> x > 0), (fun x -> x - 1)
     ; "jmp x--, 0", false, (fun x -> x = 0), Fn.const 0xffff
+    ; "jmp 0", true, Fn.const true, Fn.id
     ]
     ~f:(fun (source, taken, goes, next_x) ->
-      let word =
-        Asm.assemble source
-        |> ok_exn
-        |> Asm.Program.words
-        |> ok_exn
-        |> List.hd_exn
-        |> of_int ~width:Isa.data_bits
-      in
+      let word = assembled source in
       Quickcheck.test
         ~trials:2000
         (Quickcheck.Generator.tuple3 (range 12) (range 24) (range 12))
@@ -412,7 +418,94 @@ let%expect_test "an image's bounds are the hull of the states the core reaches" 
     out pins, 3: exact
     jmp x--, 0 taken: exact
     jmp x--, 0: exact
+    jmp 0 taken: exact
     |}]
+;;
+
+(* With autopull, an out's image holds every count the core steps to from a state the row
+   allows, and is exact where every such state pulls or none does. *)
+let%expect_test "an autopulling out's image holds the counts the core reaches" =
+  let module O = Osr_kernel.Make (Bits) in
+  let side_set_count = Bits.zero 2 in
+  let width = Osr_kernel.Row.port_widths in
+  let of_int n ~width = Bits.of_unsigned_int ~width n in
+  let word = assembled "out pins, 3" in
+  let exact = ref 0 in
+  let sound = ref 0 in
+  Quickcheck.test
+    ~trials:2000
+    (Quickcheck.Generator.tuple4
+       (range 20)
+       (range 32)
+       (range 12)
+       (Int.gen_incl 0 Isa.data_bits))
+    ~f:(fun ((shifted_lo, shifted_hi), (sum_lo, sum_hi), (x_lo, x_hi), threshold) ->
+      let pull_threshold = of_int threshold ~width:Isa.count_bits in
+      let reached =
+        List.cartesian_product
+          (List.range shifted_lo (shifted_hi + 1))
+          (List.range x_lo (x_hi + 1))
+        |> List.filter ~f:(fun (shifted, x) ->
+          sum_lo <= shifted + x && shifted + x <= sum_hi)
+        |> List.map ~f:(fun (shifted, _) ->
+          let s =
+            O.step
+              ~side_set_count
+              ~autopull:Bits.vdd
+              ~pull_threshold
+              ~word
+              ~shifted:(of_int shifted ~width:width.shifted_lo)
+              ~pulled:Bits.gnd
+          in
+          Bits.to_bool s.takes, Bits.to_unsigned_int s.next_shifted)
+      in
+      let image =
+        O.image
+          ~side_set_count
+          ~autopull:Bits.vdd
+          ~pull_threshold
+          ~word
+          ~x_lo:(of_int x_lo ~width:Isa.data_bits)
+          ~x_hi:(of_int x_hi ~width:Isa.data_bits)
+          ~row:
+            { shifted_lo = of_int shifted_lo ~width:width.shifted_lo
+            ; shifted_hi = of_int shifted_hi ~width:width.shifted_hi
+            ; sum_lo = of_int sum_lo ~width:width.sum_lo
+            ; sum_hi = of_int sum_hi ~width:width.sum_hi
+            ; pulled = Bits.gnd
+            }
+          ~taken:false
+      in
+      let image =
+        Bits.to_unsigned_int image.shifted_lo, Bits.to_unsigned_int image.shifted_hi
+      in
+      let message =
+        Sexp.to_string_hum
+          [%message
+            (shifted_lo : int)
+              (shifted_hi : int)
+              (sum_lo : int)
+              (sum_hi : int)
+              (x_lo : int)
+              (x_hi : int)
+              (threshold : int)]
+      in
+      Option.iter
+        (hull (List.map reached ~f:snd))
+        ~f:(fun (lo, hi) ->
+          let pulls = List.map reached ~f:fst in
+          if List.for_all pulls ~f:Fn.id || not (List.exists pulls ~f:Fn.id)
+          then (
+            [%test_result: int * int] image ~expect:(lo, hi) ~message;
+            incr exact)
+          else (
+            [%test_result: bool]
+              (fst image <= lo && hi <= snd image)
+              ~expect:true
+              ~message;
+            incr sound)));
+  print_s [%message "" ~exact:(!exact : int) ~sound:(!sound : int)];
+  [%expect {| ((exact 1013) (sound 414)) |}]
 ;;
 
 (* The core starts at pc 0 with the osr anything, so the check asks pc 0's row to bound
