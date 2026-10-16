@@ -1,0 +1,14 @@
+(executables
+ (names check_translation)
+ (libraries
+  core
+  core_unix
+  core_unix.command_unix
+  hardcaml
+  hardcaml_of_verilog
+  hardcaml_verify
+  protocol_emulator
+  protocol_emulator_test
+  jsonaf)
+ (preprocess
+  (pps ppx_jane)))
