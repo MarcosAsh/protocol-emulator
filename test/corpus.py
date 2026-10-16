@@ -122,6 +122,8 @@ class Inputs:
         self.ledgers = []
         for path in a.ledger or []:
             for r in read_tsv(path):
+                # demo/bench_run.py's rows name their protocol and expect a PASS
+                r.setdefault("expected", "PASS")
                 self.ledgers.append((Path(path), r))
         self.matrix = (set(Path(a.matrix).read_text().split()) if a.matrix else
                        {r["firmware"] for r in self.firmware
@@ -139,9 +141,14 @@ def protocols(inp):
     return names
 
 
+def ledger_protocol(r):
+    """The protocol a ledger row names, else the one DEMO_PROTOCOL gives its demo."""
+    return r.get("protocol") or DEMO_PROTOCOL.get(r["demo"])
+
+
 def ledger_rows(inp, name):
-    """Ledger rows whose demo DEMO_PROTOCOL puts on protocol [name]."""
-    return [(p, r) for p, r in inp.ledgers if DEMO_PROTOCOL.get(r["demo"]) == name]
+    """Ledger rows on protocol [name]."""
+    return [(p, r) for p, r in inp.ledgers if ledger_protocol(r) == name]
 
 
 def ledger_table(rows):
@@ -280,7 +287,7 @@ def index_page(inp, names):
     body = table(["protocol", "firmware", "certified", "limits", "limits failed",
                   "spec to bench (min)", "board runs"], rows)
     body += f'<p class="muted">{esc(SPEED_NOTE)}</p>'
-    rest = [(p, r) for p, r in inp.ledgers if DEMO_PROTOCOL.get(r["demo"]) not in names]
+    rest = [(p, r) for p, r in inp.ledgers if ledger_protocol(r) not in names]
     if rest:
         body += section("Board runs tied to no protocol page", ledger_table(rest))
     body += f'<p class="muted">Hashes of every page: <a href="{MANIFEST}">{MANIFEST}</a>.</p>'

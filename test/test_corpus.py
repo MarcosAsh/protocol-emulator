@@ -50,6 +50,17 @@ class Corpus(unittest.TestCase):
         self.assertIn("not in CI's certificate matrix", (self.out / "nosuch.html").read_text())
         self.assertIn('class="bad">1<', (self.out / "index.html").read_text())
 
+    def test_a_run_row_names_its_protocol(self):
+        runs = self.dir / "runs.tsv"
+        tsv(runs, "date protocol demo result attempts commit evidence".split(),
+            [["2026-10-16", "ps2", "ps2_demo", "FAIL", "1", "abcdef012345", "ps2/ps2_demo"],
+             ["2026-10-16", "other", "x", "PASS", "1", "abcdef012345", "other/x"]])
+        self.assertEqual(self.run_corpus("--ledger", str(runs)).returncode, 0)
+        ps2 = (self.out / "ps2.html").read_text()
+        self.assertIn("<td>ps2_demo</td>", ps2)
+        self.assertIn('<tr class="bad">', ps2)
+        self.assertIn("Board runs tied to no protocol page", (self.out / "index.html").read_text())
+
     def test_same_inputs_same_bytes(self):
         self.run_corpus()
         first = (self.out / "corpus.sha256").read_text()
