@@ -565,7 +565,7 @@ kernel_miter:
 # cold adds each program SRAM's words its own in each copy until its engine first starts.
 # About 30 s each. Teeth: no reset at the first edge and the engines' pin register without
 # its clear have to fail, the latter under havoc and cold too, and with the fix for an
-# empty rx fifo's stale head reverted the invariant must not prove.
+# empty rx fifo's stale head reverted, a host read of that fifo has to fail.
 powerup:
 	mkdir -p powerup_teeth
 	awk -f powerup_unreset.awk ../src/protocol_emulator.v ../src/protocol_emulator.v \

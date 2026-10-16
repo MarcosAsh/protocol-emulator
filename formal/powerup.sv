@@ -16,7 +16,7 @@
 // By induction on an invariant, also asserted: the copies agree on every flop outside the
 // host fifos, on each macro's output from the second edge on, and on the words each fifo
 // holds (fifo_pair). powerup.tcl brings the flops out. The teeth set NO_INVARIANT, so
-// they fail on the claim alone.
+// they fail on the claim alone, from reset.
 
 `include "pairs.sv"
 
@@ -58,6 +58,27 @@ module powerup (input clk);
 
   `CHIP(a)
   `CHIP(b)
+`ifdef HOST_SCRIPT
+  // the stale tooth's host, which a bmc from reset can reach: a bit every two cycles, a
+  // write of 1 to register 0 that starts engine 0, then a read of its rx fifo, register 8,
+  // two words long; engine 0 pushes no word while the fifo holds one, so none is stored
+  reg [7:0] cycle = 0;
+  always @(posedge clk) if (cycle != 255) cycle <= cycle + 1;
+  wire frame_1 = cycle >= 4 && cycle < 54;
+  wire frame_2 = cycle >= 58 && cycle < 162;
+  wire [7:0] bit_1 = (cycle - 8'd5) >> 1, bit_2 = (cycle - 8'd59) >> 1;
+  wire [23:0] write_start = 24'h800001;
+  wire [7:0] read_rx = 8'h08;
+  wire mosi = frame_1 && cycle >= 5 && cycle < 53 ? write_start[5'd23 - bit_1[4:0]]
+    : frame_2 && cycle >= 59 && bit_2 < 8 ? read_rx[3'd7 - bit_2[2:0]] : 1'b0;
+  always @* if (!first) begin
+    assume (rst_n);
+    assume (ui_in[2] == !(frame_1 || frame_2));
+    assume (ui_in[0] == (((frame_1 && cycle >= 6) || (frame_2 && cycle >= 60)) && !cycle[0]));
+    assume (ui_in[1] == mosi);
+    assume (rx_0_a.counters.used <= 1);
+  end
+`endif
 `ifndef NO_INVARIANT
   `FIFO(rx_0)
   `FIFO(tx_0)
