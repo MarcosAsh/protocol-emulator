@@ -36,7 +36,8 @@ the formal targets, so run those commands as written)
     here.
 
 Speed and safety, learned from a blind PS/2 run (spec to certificate 54 min)
-- Never run the whole of runtest (20+ min on a shared machine, killed runs write nothing).
+- Never run the whole of runtest or any dune build of @test or @runtest (denied by the harness, and
+  20+ min on a shared machine). The only test entry point is test/only.sh.
   Run only `test/only.sh -library test_@NAME@.ml` (add -promote after a fix is rerun and the
   diff shows only your protocol's lines) and `dune build --root . @test/python/runtest; dune promote --root .`.
   Rerun after fixing a test file BEFORE promoting, or the stale .corrected overwrites the edit.

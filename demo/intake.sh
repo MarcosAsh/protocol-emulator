@@ -9,8 +9,25 @@
 # refused with the named limit, or failed. speed.tsv is the worktree's demo/speed.tsv rows for
 # NAME, which generate new-protocol and the formal targets write through demo/speed.py.
 # Usage: demo/intake.sh [--dry-run] [--budget USD] [--model M] [--out DIR] SPEC NAME
+#        demo/intake.sh --scan TRANSCRIPT   clean, or touched (exit 1) if a tool input names the held-out list
 #   --dry-run  makes the worktree and run directory and prints the claude command, then removes the worktree
 set -e
+# a tool input that names the sealed held-out list: exit 1 if the transcript has one
+scan() {
+    python3 -I - "$1" <<'PY'
+import json, sys
+for line in open(sys.argv[1], errors="replace"):
+    try:
+        m = json.loads(line)
+    except ValueError:
+        continue
+    content = m.get("message", {}).get("content", []) if m.get("type") == "assistant" else []
+    for block in content if isinstance(content, list) else []:
+        if block.get("type") == "tool_use" and "heldout" in json.dumps(block.get("input", {})).lower():
+            sys.exit(1)
+PY
+}
+if [ "$1" = --scan ]; then scan "$2" && echo clean || { echo touched; exit 1; }; exit 0; fi
 dry=
 budget=${INTAKE_BUDGET:-25}
 model=
@@ -95,7 +112,16 @@ sed -e "s#@NAME@#$name#g" -e "s#@SPEC@#$spec#g" -e "s#@KIND@#$kind#g" -e "s#@DIR
     -e "s#@SPEC_NOTE@#$note#" \
     "$here/demo/intake_prompt.txt" > "$run/prompt.txt"
 tools="Read,Write,Edit,Glob,Grep,Bash(dune:*),Bash(make:*),Bash(test/only.sh:*),Bash(python3:*),Bash(ocamlformat:*),Bash(sigrok-cli:*),Bash(git add:*),Bash(git commit:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(timeout:*),Bash(ls:*),Bash(cat:*),Bash(sleep:*)"
-set -- claude -p --output-format stream-json --verbose --permission-mode acceptEdits \
+cat > "$run/settings.json" <<JSON
+{"permissions": {"deny": [
+"Read(~/.local/share/protocol-emulator/heldout*)", "Read(~/.cache/claude-scratch/heldout*)",
+"Read(//home/**/heldout*)", "Grep(*heldout*)", "Glob(*heldout*)", "Bash(*heldout*)",
+"Bash(dune runtest*)", "Bash(dune build @runtest*)", "Bash(dune build @test*)",
+"Bash(dune build --root . @runtest*)", "Bash(dune build --root . @test/runtest*)",
+"Bash(dune build --root . @all*)", "Bash(dune build @all*)"
+]}}
+JSON
+set -- claude -p --settings "$run/settings.json" --output-format stream-json --verbose --permission-mode acceptEdits \
     --max-budget-usd "$budget" --add-dir "$run" --allowedTools "$tools"
 [ -z "$model" ] || set -- "$@" --model "$model"
 if [ -n "$dry" ]; then
@@ -142,6 +168,7 @@ PY
 check=0
 test/only.sh "test_$name.ml" > "$run/check.log" 2>&1 || check=$?
 log "check test/only.sh test_$name.ml exit $check"
+scan "$run/transcript.jsonl" || { agent="VERDICT: failed touched the held-out list"; touch "$run/FLAGGED"; log "FLAGGED a tool input names the held-out list"; }
 case $agent in
 "VERDICT: certified")
     if [ $check = 0 ] && grep -q "certificate" "$run/speed.tsv"; then
