@@ -247,7 +247,8 @@ fail_safe_table_proof:
 # word engine 1 pushes is the byte engine 0 sent in that frame, once a frame, and each
 # sample lies half a bit from the wire's edges. The proof takes about 2 min, the covers
 # (a push, and a second pull right behind a frame) 12. Teeth: a claim no run keeps,
-# the next bit pushed, a margin one wider and a receiver at 11 cycles a bit have to fail.
+# the next bit pushed, a margin one wider and a receiver at 11 cycles a bit have to fail
+# from reset.
 # link_proof runs on files written already, for CI.
 link: engines_sram.v
 	(cd .. && dune exec -- test/certify/write_link.exe) > link.sv

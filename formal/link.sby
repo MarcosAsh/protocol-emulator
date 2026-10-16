@@ -11,10 +11,13 @@ prove: mode prove
 prove: depth 4
 cover: mode cover
 cover: depth 115
-teeth: mode prove
-teeth: depth 4
-# a false claim fails the induction step with no trace from reset: sby says unknown
-teeth: expect fail,unknown
+# from reset, so what fails is a run. No push comes before step 99, so the two that need
+# one check from step 90 on
+teeth: mode bmc
+teeth: depth 130
+teeth: expect fail
+never_pushes: skip 90
+next_bit: skip 90
 
 [engines]
 smtbmc boolector
