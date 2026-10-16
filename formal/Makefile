@@ -1,6 +1,6 @@
 all: issue_timing host_timing host_spacing late_host fifo_order unreachable phase_step fetch_step edge_step event_step frame_step \
   value_step narrow saturating chip_frame fail_safe isolation data_step teeth fsm_miter \
-  sram_equiv kernel_equiv translation link self_check self_check_clean powerup offset_axioms
+  sram_equiv kernel_equiv translation frontend_equiv link self_check self_check_clean powerup offset_axioms
 
 # every dune here runs from the checkout's root, which a worktree inside another checkout
 # would otherwise give up for the outer one's
@@ -596,6 +596,25 @@ translation_tooth:
 	[ $$(grep -c '^(QED' translation_run/$(TOOTH).log) -eq \
 	  $$(($$(grep -c '^(QED' translation_run/check.log) - 1)) ]
 
+# and that Verilog means one thing to two frontends: Yosys's read_verilog and
+# yosys-slang's read_slang read it to one chip (frontend_equiv/equiv.ys). About 2 min.
+# Teeth, each another 2: the pc stepping back on slang's side alone, a fifo word written
+# at the read address on Yosys's alone
+frontend_equiv:
+	$(MAKE) frontend_equiv_step STEP=frontend_equiv_run
+	$(MAKE) frontend_equiv_step STEP=frontend_equiv_pc_back SLANG=pc_back FAILS=1
+	$(MAKE) frontend_equiv_step STEP=frontend_equiv_fifo_word YOSYS=fifo_word FAILS=1
+
+frontend_equiv_step:
+	rm -rf $(STEP) && mkdir $(STEP)
+	sed "$(EDIT_$(YOSYS))" $(WRITTEN) > $(STEP)/yosys.v
+	sed "$(EDIT_$(SLANG))" $(WRITTEN) > $(STEP)/slang.v
+	[ -z "$(FAILS)" ] || ! cmp -s $(STEP)/yosys.v $(STEP)/slang.v
+	cd $(STEP) && timeout 900 yosys -q -l equiv.log ../frontend_equiv/equiv.ys > /dev/null 2>&1; \
+	  echo $$? > status
+	if [ -z "$(FAILS)" ]; then grep -qx 0 $(STEP)/status; \
+	else grep -q "unproven \$$equiv cells in 'equiv_status -assert'" $(STEP)/equiv.log; fi
+
 # Power-up is deterministic: two copies of the chip from any two states, reset at the
 # first edge and the same pins after it, drive the same pins (powerup.sv), by induction on
 # an invariant over the flops powerup.tcl brings out. havoc proves it with the host fifos'
@@ -930,4 +949,5 @@ proof_bundle_tooth:
   sram_equiv_step sram_equiv_teeth kernel_equiv kernel_equiv_proof kernel_miter sat_tools \
   narrow narrow_proof saturating saturating_proof saturating_chip self_check self_check_proof \
   self_check_clean self_check_clean_proof \
-  powerup isolation isolation_proof offset_axioms
+  powerup isolation isolation_proof offset_axioms translation translation_proof translation_tooth \
+  frontend_equiv frontend_equiv_step

@@ -49,6 +49,7 @@ formal/isolation/
 !formal/netlist_equiv/
 !formal/sram_equiv/
 !formal/kernel_equiv/
+!formal/frontend_equiv/
 __pycache__/
 test/fpga_netlist.v
 test/fpga_top.v
