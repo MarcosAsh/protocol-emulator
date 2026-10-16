@@ -9,7 +9,8 @@
   write_bench_firmware
   write_both_roles_firmware
   write_tolerance_firmware
-  write_post_freeze_certificate)
+  write_post_freeze_certificate
+  write_clock_cliffs)
  (libraries core hardcaml protocol_emulator protocol_emulator_test)
  (preprocess
   (pps ppx_jane)))
@@ -135,3 +136,26 @@
  (alias runtest)
  (action
   (diff ../../python/tolerance_firmware.py tolerance_firmware.py.gen)))
+
+(rule
+ (deps
+  (glob_files ../diagrams/*.json))
+ (action
+  (with-stdout-to
+   clock_cliffs.py.gen
+   (run ./write_clock_cliffs.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff ../../python/clock_cliffs.py clock_cliffs.py.gen)))
+
+; the predictions are sealed: a change to them is a change to the pin
+
+(rule
+ (alias runtest)
+ (deps ../../python/clock_cliffs.py ../clock_cliffs.sha256)
+ (action
+  (chdir
+   ../..
+   (run sha256sum --check --quiet test/clock_cliffs.sha256))))
