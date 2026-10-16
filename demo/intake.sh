@@ -136,11 +136,11 @@ fi
 
 # the agent, then the kernel's own check of what it left
 cd "$tree"
-# the untracked files of the root the agent and the flow need
-for f in env.sh CLAUDE.md CONVENTIONS.md PLAN.md; do
+# the untracked notes of the main checkout, whose env.sh (and .venv) is sourced in place
+for f in CLAUDE.md CONVENTIONS.md PLAN.md; do
     [ -f "$f" ] || [ ! -f "$main/$f" ] || cp "$main/$f" "$f"
 done
-[ ! -f env.sh ] || . ./env.sh
+[ ! -f "$main/env.sh" ] || . "$main/env.sh"
 command -v opam >/dev/null && eval "$(opam env --switch 5.2.0+ox --set-switch)"
 log "agent start"
 status=0
