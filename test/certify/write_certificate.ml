@@ -36,8 +36,8 @@ let writes_pins (t : Isa.t) =
    the engine's [pin_out] register, and each flop between it and the pad adds one cycle.
 
    Two claims made wrong on purpose have to fail: OFF_BY_ONE puts the stamp a cycle after
-   the edge, which a run from reset contradicts, and NEXT_BIT says the pin shows the bit
-   after the one sent, which the invariant must not imply. *)
+   the edge, and NEXT_BIT says the pin shows the bit after the one sent, both of which a
+   run from reset contradicts. *)
 let stamp_claims ~(config : Program_config.t) (rows : Analyser.Row.t list) =
   if config.side_set_count <> 0
      || config.manchester
@@ -372,6 +372,9 @@ let data_claims ~(config : Program_config.t) ~words (rows : Analyser.Row.t list)
   monitor, claims
 ;;
 
+(* how far into the program, in instructions, the teeth row lies *)
+let teeth_steps = 6
+
 let anyseq_host =
   "  (* anyseq *) wire tx_valid, rx_pop;\n  (* anyseq *) wire [15:0] tx_value;\n"
 ;;
@@ -672,20 +675,14 @@ let inductive
       registers @ pending @ entry @ offset @ stalled @ edge)
     |> String.concat ~sep:"\n"
   in
-  (* induction proves anything from an invariant no state satisfies, so the teeth task
-     adds a claim that is false in any run and has to fail. It names the last row, which
-     no run reaches inside the base case's depth, so what fails is the induction step and
-     the failure says the invariant is one some state satisfies. *)
-  let teeth_pc = (List.last_exn rows).pc in
-  (* Teeth bmc runs from reset: the bounded row fewest instructions from pc 0 moved a
-     cycle, and a receiver's capture a cycle older or younger. *)
-  let anchors_on_edge = single_capture_edge && no_wrap && anchors_on_capture in
-  let moved =
+  (* each row's fewest instructions from pc 0, going on only from rows [through] keeps *)
+  let fewest_steps ~through =
     let steps = Hashtbl.create (module Int) in
     let rec walk depth = function
       | [] -> ()
       | pcs ->
         List.iter pcs ~f:(fun pc -> Hashtbl.set steps ~key:pc ~data:depth);
+        let pcs = List.filter pcs ~f:through in
         List.filter_map rows ~f:(fun (row : Analyser.Row.t) ->
           Option.some_if
             ((not (Hashtbl.mem steps row.pc))
@@ -695,6 +692,33 @@ let inductive
         |> walk (depth + 1)
     in
     walk 0 [ 0 ];
+    steps
+  in
+  let steps = fewest_steps ~through:(fun _ -> true) in
+  (* Teeth bmc runs from reset and has to fail, so a run meets every claim and every
+     assumption until it reaches this row: the furthest within [teeth_steps] instructions
+     of pc 0 short of a deadline's release, which may be a period away. *)
+  let before_deadline pc =
+    List.exists rows ~f:(fun (row : Analyser.Row.t) ->
+      row.pc = pc
+      &&
+      match row.instruction with
+      | Op { op = Wait (Deadline _); _ } -> false
+      | _ -> true)
+  in
+  let teeth_pc =
+    Hashtbl.to_alist (fewest_steps ~through:before_deadline)
+    |> List.filter ~f:(fun (_, depth) -> depth <= teeth_steps)
+    |> List.max_elt
+         ~compare:
+           (Comparable.lift [%compare: int * int] ~f:(fun (pc, depth) -> depth, -pc))
+    |> Option.value_exn
+    |> fst
+  in
+  (* Teeth bmc runs from reset: the bounded row fewest instructions from pc 0 moved a
+     cycle, and a receiver's capture a cycle older or younger. *)
+  let anchors_on_edge = single_capture_edge && no_wrap && anchors_on_capture in
+  let moved =
     let tooth name claim = sprintf "`ifdef %s\n      %s\n`endif\n" name claim in
     let phase =
       List.filter_map rows ~f:(fun (row : Analyser.Row.t) ->

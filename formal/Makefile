@@ -338,9 +338,9 @@ teeth: engine.v engine_sram.v engines.v kernel_step.v osr_step.v
 
 # The certificate of one firmware as an invariant proved by induction, which holds for
 # all time and not only to a depth: make inductive_certificate NAME=uart_tx16. The teeth
-# run adds one claim that is false in any run, because induction proves anything from an
-# invariant no state satisfies, so it has to fail. So does a row moved a cycle, and a
-# receiver's capture a cycle older or younger, from reset. inductive_proof runs the proof alone,
+# run adds a claim that the pc never reaches a row a few instructions in, which has to fail
+# from reset, so a run keeps every claim and assumption that far. So does a row moved a
+# cycle, and a receiver's capture a cycle older or younger. inductive_proof runs the proof alone,
 # on a certificate_$(NAME).sv written already, for CI, where make has no dune.
 # inductive_write only writes the certificate (dune, laptop), so inductive_proof can run
 # on a box with neither: remote-run HOST formal make inductive_proof NAME=...
@@ -373,8 +373,8 @@ inductive_proof: $(MACRO)
 
 # Every frame uart_tx_stamped sends carries the low 16 bits of the cycle its start bit
 # shows on the pin, and the pin shows those bits: its certificate as above with that
-# claim added. Teeth: the stamp a cycle late has to fail from reset, and the pin showing
-# the next bit has to fail the step.
+# claim added. Teeth: the stamp a cycle late, and the pin showing the next bit, have to
+# fail from reset.
 stamped_certificate: engine_sram.v $(MACRO)
 	(cd .. && dune exec -- test/certify/write_certificate.exe -inductive -stamped uart_tx_stamped) > certificate_stamped.sv
 	$(MAKE) stamped_proof
@@ -387,8 +387,10 @@ stamped_proof: $(MACRO)
 # Which bits of which host word the pins carry, for the transmitters that pull each word by
 # hand and send it through the osr alone: their certificate as above with the data claims
 # of write_certificate.ml added. Teeth: the pins showing the bit after the one sent has to
-# fail.
+# fail from reset, but at uart_tx_host_rate's 434 cycles a bit, too deep for bmc; uart_tx
+# runs the same claims at 8.
 DATA = uart_tx uart_tx16 uart_tx_host_rate spi_master jtag
+NEXT_BIT_DATA = $(filter-out uart_tx_host_rate,$(DATA))
 data_certificate: engine_sram.v $(MACRO)
 	(cd .. && dune exec -- test/certify/write_certificate.exe -inductive -data $(NAME)) > certificate_data_$(NAME).sv
 	$(MAKE) data_proof NAME=$(NAME)
@@ -396,7 +398,8 @@ data_certificate: engine_sram.v $(MACRO)
 data_proof: $(MACRO)
 	cp certificate_data_$(NAME).sv certificate.sv
 	sby -f -d certificate_data_$(NAME)_inductive certificate_inductive.sby prove
-	sby -f --prefix certificate_data_$(NAME) certificate_inductive.sby teeth next_bit
+	sby -f --prefix certificate_data_$(NAME) certificate_inductive.sby teeth \
+	  $(if $(filter $(NAME),$(NEXT_BIT_DATA)),next_bit)
 
 data_certificates: engine_sram.v
 	for name in $(DATA); do $(MAKE) data_certificate NAME=$$name || exit 1; done
