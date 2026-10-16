@@ -109,4 +109,10 @@ fi
 # shellcheck disable=SC2086
 sigrok-cli -i "$captures/$act.sr" $decode > "$captures/$act.decode"
 cat "$captures/$act.decode"
-python3 demo/traffic.py "$act" "$captures"
+verdict=$(python3 demo/traffic.py "$act" "$captures")
+echo "$verdict"
+# a protocol started with generate new-protocol gets its bench time in demo/speed.tsv
+if [ -f "$captures/$act.log" ] && [ "$(tail -n 1 "$captures/$act.log")" = PASS ] &&
+    ! echo "$verdict" | grep -qx FAIL; then
+    python3 demo/speed.py mark "$act" bench --if-started || true
+fi

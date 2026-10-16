@@ -350,6 +350,7 @@ $(MACRO):
 
 inductive_write: engine_sram.v $(MACRO)
 	(cd .. && dune exec -- test/certify/write_certificate.exe -inductive $(NAME)) > certificate_$(NAME).sv
+	-python3 ../demo/speed.py mark $(NAME) file --if-started
 
 inductive_certificate: inductive_write
 	$(MAKE) inductive_proof NAME=$(NAME)
@@ -370,6 +371,7 @@ inductive_proof: $(MACRO)
 	  sby -f --prefix certificate_$(NAME) certificate_inductive.sby capture_older
 	! grep -q CAPTURE_YOUNGER certificate.sv || \
 	  sby -f --prefix certificate_$(NAME) certificate_inductive.sby capture_younger
+	-python3 ../demo/speed.py mark $(NAME) certificate --if-started
 
 # Every frame uart_tx_stamped sends carries the low 16 bits of the cycle its start bit
 # shows on the pin, and the pin shows those bits: its certificate as above with that
