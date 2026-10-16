@@ -93,7 +93,7 @@ module event_step (input clk);
 
   // an issue, as in edge_step.sv
   reg started = 0;
-  always @(posedge clk) started <= start;
+  always @(posedge clk) started <= start && halted;
   always @(posedge clk)
     if (config_write && halted && !started) config_bits <= config_value;
   wire issue = !clear && !halted && stall == 0 && !started;

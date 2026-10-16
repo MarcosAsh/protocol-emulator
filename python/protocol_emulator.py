@@ -80,6 +80,7 @@ class Host:
         self.write(DATA, words)
 
     def start(self):
+        """Run from address 0; ignored unless the core is halted."""
         self.write(CONTROL, [1])
 
     def stop(self):

@@ -231,7 +231,9 @@ module Make (Timer : Timer) = struct
     let%hw data_ptr_next = wire Isa.data_addr_bits in
     let%hw data_moved = wire 1 in
     let%hw ir_load = wire 1 in
-    let%hw start = reg spec i.start in
+    (* a start reaches only a halted core, so none cuts a running program short *)
+    let%hw starting = i.start &: halted in
+    let%hw start = reg spec starting in
     let%hw tx_pop = wire 1 in
     let rx_push = { With_valid.valid = wire 1; value = wire data_bits } in
     (* a halted core touches neither fifo, so a flush can never race the program *)
@@ -738,8 +740,8 @@ module Make (Timer : Timer) = struct
       mux2 start (after (zero pc_bits)) @@ mux2 advance (after pc_next) pc_next
     in
     fetch_addr
-    <-- mux2 i.start (zero pc_bits) @@ mux2 jmp_go jmp_target_or_next pc_after_next;
-    let%hw refill = reg spec (jmp_go |: i.start) in
+    <-- mux2 starting (zero pc_bits) @@ mux2 jmp_go jmp_target_or_next pc_after_next;
+    let%hw refill = reg spec (jmp_go |: starting) in
     ir_load <-- (advance |: refill);
     let sticky set = reg spec ~enable:set vdd in
     let faulting =
@@ -770,7 +772,7 @@ module Make (Timer : Timer) = struct
     (* the pointer is at 0 from the start pulse on, so the word is there by the first
        issue *)
     data_ptr_next
-    <-- mux2 (i.start |: start) (zero Isa.data_addr_bits)
+    <-- mux2 (starting |: start) (zero Isa.data_addr_bits)
         @@ mux2 seeks (sel_bottom x ~width:Isa.data_addr_bits)
         @@ mux2 pulls_data (data_ptr +:. 1) data_ptr;
     data_ptr <-- reg spec data_ptr_next;

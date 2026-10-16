@@ -2,7 +2,7 @@
     one address ahead of [pc], so a jump spends its second cycle refilling.
     [program_write] counts only while halted and never with [start]. [start] fetches
     address 0 for a cycle, so the first instruction issues two cycles later at [now = 0];
-    a second [start] restarts. *)
+    a running core ignores [start]. *)
 
 open! Core
 open! Hardcaml
@@ -90,7 +90,7 @@ module I : sig
   type 'a t =
     { clocking : 'a Clocking.t
     ; config : 'a Config.t (** Held constant while running. *)
-    ; start : 'a (** Pulse while halted. *)
+    ; start : 'a (** Ignored unless halted. *)
     ; program_write : 'a Program_write.t (** Only while halted. *)
     ; data_word : 'a (** The word at [data_ptr], from [Data_memory]. *)
     ; tx : 'a With_valid.t

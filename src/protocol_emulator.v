@@ -2414,6 +2414,7 @@ module engine (
     wire signal_wire_44;
     wire signal_wire_45;
     wire signal_wire_46;
+    wire starting;
     reg start_0;
     wire halted_next;
     reg signal_reg_26;
@@ -2547,7 +2548,7 @@ module engine (
     assign signal_add = data_ptr_0 + signal_const_14;
     assign signal_mux_2 = pulls_data ? signal_add : data_ptr_0;
     assign signal_mux_3 = seeks ? signal_select_5 : signal_mux_2;
-    assign signal_or_5 = signal_wire_46 | start_0;
+    assign signal_or_5 = starting | start_0;
     assign signal_mux_4 = signal_or_5 ? signal_const_12 : signal_mux_3;
     assign data_ptr_next = signal_mux_4;
     always @(posedge signal_wire_45) begin
@@ -3481,7 +3482,7 @@ module engine (
     assign pc_next = signal_eq_25 ? signal_wire_5 : signal_add_2;
     assign signal_mux_108 = advance ? signal_mux_98 : pc_next;
     assign pc_after_next = start_0 ? signal_mux_97 : signal_mux_108;
-    assign signal_or_13 = jmp_go | signal_wire_46;
+    assign signal_or_13 = jmp_go | starting;
     always @(posedge signal_wire_45) begin
         if (signal_wire_44)
             refill <= signal_const_4;
@@ -5600,7 +5601,7 @@ module engine (
     end
     assign jmp_go = go & is_opcode$0;
     assign signal_mux_297 = jmp_go ? jmp_target_or_next : pc_after_next;
-    assign signal_mux_298 = signal_wire_46 ? signal_const_12 : signal_mux_297;
+    assign signal_mux_298 = starting ? signal_const_12 : signal_mux_297;
     assign fetch_addr = signal_mux_298;
     assign signal_mux_299 = program_write ? signal_wire_4 : fetch_addr;
     assign signal_wire_41 = program_write$valid;
@@ -5653,11 +5654,12 @@ module engine (
     assign signal_wire_44 = clear;
     assign signal_wire_45 = clock;
     assign signal_wire_46 = start;
+    assign starting = signal_wire_46 & halted_0;
     always @(posedge signal_wire_45) begin
         if (signal_wire_44)
             start_0 <= signal_const_4;
         else
-            start_0 <= signal_wire_46;
+            start_0 <= starting;
     end
     assign halted_next = start_0 ? gnd : signal_mux_302;
     always @(posedge signal_wire_45) begin

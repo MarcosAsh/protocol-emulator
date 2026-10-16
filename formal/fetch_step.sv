@@ -87,9 +87,9 @@ module fetch_step (input clk);
     .eng_jmp_go(jmp_go), .eng_advance(advance), .eng_fetch_addr(fetch_addr),
     .eng_refill(refill), .eng_dout(dout), .eng_probe_addr(probe_addr),
     .eng_probe_word(probe_word));
-  // the core's own start flop, which the clear zeroes
+  // the core's own start flop, which the clear zeroes; a running core ignores a start
   reg started = 0;
-  always @(posedge clk) started <= !clear && start;
+  always @(posedge clk) started <= !clear && start && halted;
 `ifdef CONFIG_AT_START
   // the host port's gate alone
   always @(posedge clk) if (config_write && halted) config_bits <= config_value;

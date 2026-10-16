@@ -101,15 +101,16 @@ module edge_step (input clk);
   // an instruction completes when a jump issues, or anything else issues and goes on
   wire completes = jmp_go || advance;
 
-  // an entry, as in phase_step.sv
+  // an entry, as in phase_step.sv, after a start the core takes only while halted
+  wire start_taken = start && halted;
   reg started = 0;
-  always @(posedge clk) started <= start;
+  always @(posedge clk) started <= start_taken;
   always @(posedge clk)
     if (config_write && halted && !started) config_bits <= config_value;
   wire issue = !clear && !halted && stall == 0 && !started;
   reg fresh = 0;
   always @(posedge clk)
-    if (clear || start || completes) fresh <= 1;
+    if (clear || start_taken || completes) fresh <= 1;
     else if (issue) fresh <= 0;
   wire entry = issue && fresh;
 
