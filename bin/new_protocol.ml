@@ -471,6 +471,20 @@ let format ~root files =
   | Ok () | Error _ -> ()
 ;;
 
+(* the spec stage of demo/speed.tsv, if the repository has demo/speed.py *)
+let start_clock ~root name =
+  if Sys_unix.file_exists_exn (root ^/ "demo/speed.py")
+  then (
+    match
+      Core_unix.system
+        [%string
+          "python3 %{Filename.quote (root ^/ \"demo/speed.py\")} --tsv %{Filename.quote \
+           (root ^/ \"demo/speed.tsv\")} mark %{name} spec --note new-protocol \
+           2>/dev/null"]
+    with
+    | Ok () | Error _ -> ())
+;;
+
 (* modules a test file opens or names, which a protocol of that name would shadow *)
 let taken =
   [ "array"
@@ -541,6 +555,7 @@ let checklist ~name ~channels =
     {|Next, from the repository's root, with the OxCaml switch and oss-cad-suite on PATH:
 
  1. spec      open the spec at its timing table; note its title, revision and table
+              (the clock for demo/speed.tsv started when this command ran)
  2. firmware  replace the placeholder in test/%{name}.ml: a build runs the kernel on it and
               fails at the line it refuses; the first test prints the verdict
                 dune build --root . 2>&1 | grep -A12 %{name}
@@ -622,6 +637,7 @@ let command =
           ]
         in
         format ~root written;
+        start_clock ~root name;
         add_to_library ~root name;
         printf
           "wrote %s, and added %s.protocol to test/library.ml\n"
