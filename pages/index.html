@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>Protocol Emulator</title>
 <link rel="icon" href="data:,">
-<!-- The site's root. pages.yaml sets data-pdk from the gds run and drops the results and
+<!-- The site's root. pages.yaml sets data-pdk from the gds run and drops the results, corpus and
      8x4 cards when those pages did not go up. -->
 <style>
   :root { --bg: #fff; --fg: #1a1a1a; --muted: #666; --code: #f4f4f4; --line: #ddd;
@@ -68,6 +68,12 @@ built on IHP CMOS5L through Tiny Tapeout, in 6 x 4 tiles at 50 MHz.</p>
     <p>The claims CI checks, the job that checks each, and its last run on main.</p>
   </li>
   <!-- /results -->
+  <!-- corpus -->
+  <li class="card">
+    <h2><a href="corpus/">Protocol corpus</a></h2>
+    <p>Each protocol's limits, firmware, certificate and board runs, failures included.</p>
+  </li>
+  <!-- /corpus -->
   <li class="card">
     <h2><a id="viewer" data-pdk="ihp-sg13cmos5l"
       href="https://gds-viewer.tinytapeout.com/?pdk=ihp-sg13cmos5l&amp;model=https%3A%2F%2Fmarcosash.github.io%2Fprotocol-emulator%2Ftinytapeout.oas">3D
