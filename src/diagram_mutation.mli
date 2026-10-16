@@ -11,8 +11,8 @@ module Verdict : sig
     | Accepted of Wavedrom.t
     | Refused of Error.t
 
-  (** What the playground shows: the steps and each edge's limit and time, or the refusal,
-      which names the step or the edge and the limit it breaks. *)
+  (** What the playground shows: the steps and each edge's limit and time at the clock, or
+      the refusal at the clock, which names the step or the edge and the limit it breaks. *)
   val to_string : t -> string
 end
 
@@ -28,4 +28,5 @@ type t =
     100). *)
 val faster : Wavejson.t -> percent:float -> Wavejson.t Or_error.t
 
-val run : Wavejson.t -> percent:float -> t Or_error.t
+(** Both at [clock_hz], [Wavedrom.rated_hz] unless given. *)
+val run : ?clock_hz:int -> Wavejson.t -> percent:float -> t Or_error.t

@@ -7,7 +7,13 @@ module Verdict = struct
 
   let to_string = function
     | Accepted (t : Wavedrom.t) ->
-      List.map t.limits ~f:(fun l -> sprintf "edge %s: %g ns, holds" l.edge l.ns)
+      List.map t.limits ~f:(fun l ->
+        sprintf
+          "edge %s: %d cycles, %.1f ns, holds at %s"
+          l.edge
+          l.cycles
+          l.ns
+          (Wavedrom.clock_name t.clock_hz))
       |> List.cons (sprintf "taken, %d steps" (List.length t.steps))
       |> String.concat ~sep:"\n"
     | Refused e -> "refused: " ^ Error.to_string_hum e
@@ -51,14 +57,16 @@ let edge_at (diagram : Wavejson.t) e =
   [%string "edge %{Int.max 0 (changes - 1)#Int} at cycle %{cycle#Int}"]
 ;;
 
-let verdict diagram : Verdict.t =
-  match Wavedrom.compile diagram with
+let verdict ~clock_hz diagram : Verdict.t =
+  match Wavedrom.compile ~clock_hz diagram with
   | Ok t -> Accepted t
   | Error e ->
-    Refused
-      (match edge_at diagram e with
-       | Some at -> Error.tag e ~tag:[%string "the mutant's %{at}"]
-       | None -> e)
+    let e =
+      match edge_at diagram e with
+      | Some at -> Error.tag e ~tag:[%string "the mutant's %{at}"]
+      | None -> e
+    in
+    Refused (Error.tag e ~tag:("at " ^ Wavedrom.clock_name clock_hz))
 ;;
 
 let clocked (diagram : Wavejson.t) =
@@ -86,8 +94,11 @@ let faster (diagram : Wavejson.t) ~percent =
     Ok { diagram with cycles })
 ;;
 
-let run (diagram : Wavejson.t) ~percent =
+let run ?(clock_hz = Wavedrom.rated_hz) (diagram : Wavejson.t) ~percent =
   let open Or_error.Let_syntax in
   let%map mutant = faster diagram ~percent in
-  { original = verdict diagram; mutant = verdict mutant; cycles = cycles_a_period mutant }
+  { original = verdict ~clock_hz diagram
+  ; mutant = verdict ~clock_hz mutant
+  ; cycles = cycles_a_period mutant
+  }
 ;;

@@ -124,9 +124,10 @@ module Diagram_report = struct
     }
 end
 
-let cycle_ns = 20
+let cycle_ns ~clock_hz = 1e9 /. Float.of_int clock_hz
 
 let step_listing (t : Wavedrom.t) =
+  let cycle_ns = cycle_ns ~clock_hz:t.clock_hz in
   List.mapi t.steps ~f:(fun i (s : Wavedrom.Step.t) ->
     let outputs =
       List.map2_exn t.outputs s.outputs ~f:(fun lane level ->
@@ -140,13 +141,13 @@ let step_listing (t : Wavedrom.t) =
       |> String.concat ~sep:" "
     in
     sprintf
-      "%2d  %-26s %-20s %-10s %6d cycles %8d ns"
+      "%2d  %-26s %-20s %-10s %6d cycles %10.1f ns"
       i
       s.name
       outputs
       (Sexp.to_string (Tables.Kind.sexp_of_t s.kind))
       s.cycles
-      (s.cycles * cycle_ns))
+      (Float.of_int s.cycles *. cycle_ns))
   |> String.concat ~sep:"\n"
 ;;
 
@@ -166,7 +167,8 @@ let frame_bits frames =
 ;;
 
 (* The diagram compiled, then the model of the core running it on [frames]. *)
-let run_diagram ~source ~frames : Diagram_report.t =
+let run_diagram ~source ~frames ~clock_hz : Diagram_report.t =
+  let at = Wavedrom.clock_name clock_hz in
   let empty =
     { Diagram_report.verdict = ""
     ; detail = ""
@@ -176,8 +178,12 @@ let run_diagram ~source ~frames : Diagram_report.t =
     ; levels = [||]
     }
   in
-  match Wavedrom.of_string source with
-  | Error e -> { empty with verdict = "refused"; detail = Error.to_string_hum e }
+  match Wavedrom.of_string ~clock_hz source with
+  | Error e ->
+    { empty with
+      verdict = "refused"
+    ; detail = [%string "at %{at}: %{Error.to_string_hum e}"]
+    }
   | Ok t ->
     let lanes = if t.starts_on_edge then Option.to_list t.input else t.outputs in
     let report = { empty with steps = step_listing t; lanes } in
@@ -246,7 +252,7 @@ let run_diagram ~source ~frames : Diagram_report.t =
               ; "faults: " ^ Sexp.to_string (Machine.Fault.sexp_of_t fault)
               ]
               @ List.map t.limits ~f:(fun (l : Wavedrom.Limit.t) ->
-                sprintf "edge %s: %d cycles, %.1f ns, holds" l.edge l.cycles l.ns)
+                sprintf "edge %s: %d cycles, %.1f ns, holds at %s" l.edge l.cycles l.ns at)
               @
               if t.read > 0
               then
@@ -290,9 +296,9 @@ let () =
        ; "report", Js.Unsafe.inject (Js.string report.report)
       |]
   in
-  let run_diagram source frames =
+  let run_diagram source frames clock_hz =
     let report =
-      run_diagram ~source:(Js.to_string source) ~frames:(Js.to_string frames)
+      run_diagram ~source:(Js.to_string source) ~frames:(Js.to_string frames) ~clock_hz
     in
     Js.Unsafe.obj
       [| "verdict", Js.Unsafe.inject (Js.string report.verdict)
@@ -302,10 +308,10 @@ let () =
        ; ( "lanes"
          , Js.Unsafe.inject (Js.array (Array.of_list_map report.lanes ~f:Js.string)) )
        ; "levels", Js.Unsafe.inject (Js.array report.levels)
-       ; "cycleNs", Js.Unsafe.inject cycle_ns
+       ; "cycleNs", Js.Unsafe.inject (cycle_ns ~clock_hz)
       |]
   in
-  let mutate source percent =
+  let mutate source percent clock_hz =
     let verdicts v =
       ( Js.string (Diagram_mutation.Verdict.to_string v)
       , Js.bool
@@ -316,7 +322,7 @@ let () =
     match
       let open Or_error.Let_syntax in
       let%bind diagram = Wavejson.parse (Js.to_string source) in
-      Diagram_mutation.run diagram ~percent
+      Diagram_mutation.run ~clock_hz diagram ~percent
     with
     | Error e ->
       Js.Unsafe.obj [| "error", Js.Unsafe.inject (Js.string (Error.to_string_hum e)) |]

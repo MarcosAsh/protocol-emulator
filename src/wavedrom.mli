@@ -46,6 +46,9 @@ module State : Tables.State with type t = int
 (** The chip's rated clock, info.yaml's, 50 MHz. *)
 val rated_hz : int
 
+(** As ["48 MHz"]. *)
+val clock_name : int -> string
+
 type t =
   { outputs : string list (** lane names, out_base first *)
   ; input : string option

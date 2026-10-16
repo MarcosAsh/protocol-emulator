@@ -75,6 +75,7 @@ kernel certified once with the data memory left free, so a table it takes needs 
 certificate. The model of the core then runs the table on the frames below.</p>
 <div class="controls">
   <label>Example <select id="diagram-example"></select></label>
+  <label>Clock <select id="diagram-clock"><option value="50000000">50 MHz, rated</option><option value="48000000">48 MHz, the bench</option></select></label>
   <button id="diagram-run">Compile and run</button>
 </div>
 <textarea id="diagram-source" spellcheck="false" aria-label="WaveJSON"></textarea>
@@ -183,8 +184,9 @@ certificate. The model of the core then runs the table on the frames below.</p>
     }
     $("diagram-wave").replaceChildren(root);
   };
+  const clock = () => Number($("diagram-clock").value);
   const runDiagram = () => {
-    const r = pe.runDiagram($("diagram-source").value, $("diagram-frames").value);
+    const r = pe.runDiagram($("diagram-source").value, $("diagram-frames").value, clock());
     $("diagram-verdict").textContent = r.verdict;
     $("diagram-verdict").className = r.verdict === "taken" ? "accepted" : "refused";
     $("diagram-detail").textContent = r.detail;
@@ -195,7 +197,7 @@ certificate. The model of the core then runs the table on the frames below.</p>
     else $("diagram-wave").replaceChildren();
   };
   const mutate = () => {
-    const r = pe.mutateDiagram($("diagram-source").value, Number($("mutation-percent").value));
+    const r = pe.mutateDiagram($("diagram-source").value, Number($("mutation-percent").value), clock());
     $("mutation-error").textContent = r.error || "";
     $("mutation").hidden = !!r.error;
     $("mutation-cycles").textContent = r.error ? "" : "mutant cycles a period: " + r.cycles;
@@ -209,6 +211,7 @@ certificate. The model of the core then runs the table on the frames below.</p>
   $("mutation-run").onclick = mutate;
   $("diagram-example").onchange = () => { loadDiagram(); runDiagram(); };
   $("diagram-run").onclick = runDiagram;
+  $("diagram-clock").onchange = runDiagram;
   loadDiagram();
 
   let diagramRan = false;
