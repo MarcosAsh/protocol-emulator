@@ -2,7 +2,8 @@
 # demo/margins.py on captures made from test/measure's predictions at 100 MHz, 10 ns a
 # sample, in the CSV LogicAnalyzer's TerminalCapture saves: exact edges, edges a sample
 # either way at random, one edge 300 ns late that must fail its limit, a drifting
-# analyser clock, and the same read back from a sigrok session file.
+# analyser clock, and the same read back from a sigrok session file. Then
+# python/demo_predicted.py's feed of a prediction's words, on a stand-in for the chip.
 # Usage: python3 test/test_margins.py
 
 import os
@@ -16,7 +17,8 @@ import numpy as np
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEMO = os.path.join(ROOT, "demo")
-sys.path.insert(0, DEMO)
+sys.path[:0] = [DEMO, os.path.join(ROOT, "python")]
+import demo_predicted  # noqa: E402
 import logic_analyzer  # noqa: E402
 import margins  # noqa: E402
 
@@ -78,6 +80,40 @@ def errors(out):
 
 
 failures = []
+
+
+class Chip:
+    """The host side of an engine that takes a word from its fifo at each status read."""
+
+    def __init__(self):
+        self.fifo, self.taken, self.most = [], [], 0
+
+    def select(self, engine):
+        pass
+
+    def read(self, reg, count=1):
+        return [0]
+
+    def stop(self):
+        pass
+
+    flush = start = stop
+
+    def configure(self, config):
+        pass
+
+    def load(self, words):
+        pass
+
+    def push(self, words):
+        self.fifo += words
+        self.most = max(self.most, len(self.fifo))
+
+    def status(self):
+        level = len(self.fifo)
+        if self.fifo:
+            self.taken.append(self.fifo.pop(0))
+        return {"tx_level": level}
 
 
 def check(what, ok, out):
@@ -144,6 +180,13 @@ def main():
         (matched, expected, missing, extra, off), _ = summary(out)
         check("i2c a sample either way, from a sigrok session file: nothing fails",
               status == 0 and matched == expected and off == 0 and "FAIL" not in out, out)
+    name, bursts, length = demo_predicted.read(i2c)
+    chip = Chip()
+    demo_predicted.run(chip, {"config": {}, "words": []}, bursts)
+    check("the feed: the load then i2c_standard's burst, in order, the fifo never past 8",
+          name == "i2c_standard" and length == 48400 and chip.most <= 8
+          and chip.taken == [121] + [int(w) for w in open(i2c).read().split("burst ")[1]
+                                     .split("\n")[0].split()], str(chip.taken))
     sys.exit(1 if failures else 0)
 
 
