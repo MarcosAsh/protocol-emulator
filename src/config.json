@@ -50,6 +50,10 @@
   "//": "routing overflows on 8x4 while detailed routing still closes to 0 violations at 0.15.",
   "GRT_ADJUSTMENT": 0.15,
 
+  "//": "DESIGN_REPAIR_MAX_WIRE_LENGTH - the engines sit 1.5 mm apart, by their macros. Unset, a",
+  "//": "routed push crossed on one 2.3 mm net from an o21ai_1 and missed the slow corner by 0.07 ns.",
+  "DESIGN_REPAIR_MAX_WIRE_LENGTH": 500,
+
   "//": "OPENROAD_THREADS - unset, LibreLane 3.1.0.dev3 passes '-threads None' and OpenROAD runs",
   "//": "on one thread. 4 is a GitHub runner's core count; local hardens override it with -c.",
   "OPENROAD_THREADS": 4,
