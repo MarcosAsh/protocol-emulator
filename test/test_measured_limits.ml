@@ -123,3 +123,111 @@ let%expect_test "the datasheet limits, measured on the bench copies' runs" =
     run    417  uart_log           bit              <=  8854.17 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     |}]
 ;;
+
+(* The prediction demo/margins.py holds a capture to: on each bench copy's own run, the
+   least spacing over a limit's pairs of edges, or the most for [At_most], is what
+   [measure] finds there, so the width that decides is placed. Two are not: sk6812's reset
+   and can's idle, each the run's first level, which no edge begins. *)
+let%expect_test "every limit's pairs of edges in the prediction" =
+  List.iter Library.bench ~f:(fun (bench : Bench.t) ->
+    match bench.stimulus with
+    | None -> ()
+    | Some _ ->
+      let prediction = Measured_limits.Prediction.of_bench Library.limits bench in
+      List.iter prediction.limits ~f:(fun ((limit : Datasheet.t), pairs) ->
+        let spacings =
+          List.map pairs ~f:(fun ((edge : Measured_limits.Edge.t), from) ->
+            edge.sample - from.sample)
+        in
+        let shown =
+          match limit.limit with
+          | At_least _ -> List.min_elt spacings ~compare
+          | At_most _ -> List.max_elt spacings ~compare
+        in
+        let measured =
+          Measured_limits.measure [ limit ] bench prediction.capture |> List.hd_exn
+        in
+        printf
+          "%-14s %-16s %3d pairs, %s\n"
+          bench.name
+          limit.parameter
+          (List.length pairs)
+          (if [%equal: int option] shown measured.samples
+           then "as measured"
+           else
+             sprintf
+               "%s, measured %s"
+               (Option.value_map shown ~default:"none" ~f:Int.to_string)
+               (Option.value_map measured.samples ~default:"none" ~f:Int.to_string))));
+  [%expect
+    {|
+    uart_tx_9600   bit               10 pairs, as measured
+    uart_tx_9600   bit               10 pairs, as measured
+    uart_tx_19200  bit               10 pairs, as measured
+    uart_tx_19200  bit               10 pairs, as measured
+    uart_tx_38400  bit               10 pairs, as measured
+    uart_tx_38400  bit               10 pairs, as measured
+    uart_tx_57600  bit               10 pairs, as measured
+    uart_tx_57600  bit               10 pairs, as measured
+    uart_tx_115200 bit               10 pairs, as measured
+    uart_tx_115200 bit               10 pairs, as measured
+    uart_tx_230400 bit               10 pairs, as measured
+    uart_tx_230400 bit               10 pairs, as measured
+    i2c_standard   THIGH             85 pairs, as measured
+    i2c_standard   TLOW              86 pairs, as measured
+    i2c_standard   THD:STA           52 pairs, as measured
+    i2c_standard   TSU:STA            3 pairs, as measured
+    i2c_standard   TSU:DAT           86 pairs, as measured
+    i2c_standard   TSU:STO            4 pairs, as measured
+    i2c_standard   TBUF               3 pairs, as measured
+    i2c_standard   1/fSCL            85 pairs, as measured
+    i2c_fast       THIGH             85 pairs, as measured
+    i2c_fast       TLOW              86 pairs, as measured
+    i2c_fast       THD:STA           53 pairs, as measured
+    i2c_fast       TSU:STA            3 pairs, as measured
+    i2c_fast       TSU:DAT           86 pairs, as measured
+    i2c_fast       TSU:STO            4 pairs, as measured
+    i2c_fast       TBUF               3 pairs, as measured
+    i2c_fast       1/fSCL            85 pairs, as measured
+    sk6812         T0H              144 pairs, as measured
+    sk6812         T0H               69 pairs, as measured
+    sk6812         T1H               72 pairs, as measured
+    sk6812         T1H               72 pairs, as measured
+    sk6812         T0L               69 pairs, as measured
+    sk6812         T0L               69 pairs, as measured
+    sk6812         T1L              143 pairs, as measured
+    sk6812         T1L               72 pairs, as measured
+    sk6812         T                141 pairs, as measured
+    sk6812         reset              2 pairs, 10933, measured 10907
+    one_wire       tLOW1             25 pairs, as measured
+    one_wire       tLOW1             12 pairs, as measured
+    one_wire       tLOW0             12 pairs, as measured
+    one_wire       tLOW0             12 pairs, as measured
+    one_wire       tREC              24 pairs, as measured
+    one_wire       tSLOT + tREC      23 pairs, as measured
+    one_wire       tRSTL              1 pairs, as measured
+    one_wire       tRSTH              1 pairs, as measured
+    ps2            data to CLK fall  11 pairs, as measured
+    ps2            CLK rise to data   3 pairs, as measured
+    ps2            CLK low           11 pairs, as measured
+    ps2            CLK low           11 pairs, as measured
+    ps2            CLK high          10 pairs, as measured
+    ps2            CLK high          10 pairs, as measured
+    can            recessive         10 pairs, as measured
+    can            dominant          11 pairs, as measured
+    can            idle to SOF        0 pairs, none, measured 1165
+    can_sender     recessive          9 pairs, as measured
+    can_sender     dominant          10 pairs, as measured
+    can_sender     idle to SOF        0 pairs, none, measured 1165
+    cec            start low          1 pairs, as measured
+    cec            start low          1 pairs, as measured
+    cec            start bit          1 pairs, as measured
+    cec            start bit          1 pairs, as measured
+    cec            one low, T1        2 pairs, as measured
+    cec            one low, T2        2 pairs, as measured
+    cec            zero low, T5       7 pairs, as measured
+    cec            zero low, T6       7 pairs, as measured
+    cec            bit, T7            9 pairs, as measured
+    cec            bit, T8            9 pairs, as measured
+    |}]
+;;

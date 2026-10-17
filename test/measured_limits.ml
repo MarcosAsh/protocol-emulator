@@ -31,12 +31,11 @@ module Capture = struct
     List.Assoc.find t.lines pin ~equal:Int.equal |> Option.value ~default:Line.at_rest
   ;;
 
-  let of_run ?rate_hz (bench : Bench.t) (limit : Datasheet.t) =
+  let of_pins ?rate_hz (bench : Bench.t) ~quiet_pin pins =
     let stimulus =
       Option.value_exn bench.stimulus ~message:[%string "%{bench.name} has no run"]
     in
-    let pins = pins_of bench limit in
-    let cycles = Datasheet.run_pins bench ~quiet_pin:(List.hd_exn pins) stimulus in
+    let cycles = Datasheet.run_pins bench ~quiet_pin stimulus in
     let rate_hz = Option.value rate_hz ~default:bench.clock_hz in
     let length = Array.length cycles * rate_hz / bench.clock_hz in
     let line pin =
@@ -52,6 +51,11 @@ module Capture = struct
     ; lines = List.map (List.dedup_and_sort pins ~compare) ~f:line
     ; from_reset = true
     }
+  ;;
+
+  let of_run ?rate_hz bench limit =
+    let pins = pins_of bench limit in
+    of_pins ?rate_hz bench ~quiet_pin:(List.hd_exn pins) pins
   ;;
 
   let to_string t =
@@ -105,19 +109,26 @@ type t =
   ; verdict : Verdict.t
   }
 
+module Edge = struct
+  type t =
+    { pin : int
+    ; sample : int
+    }
+end
+
 (* Every spacing the capture shows where [spec] asks one, as the edge's number over both
-   pins' edges from 1, its sample, and the samples since: at each edge of a pin, since its
-   own edge before, where its hold applies to the two pins' bits before the edge, and
-   since the other pin's last edge, where its apart does. The other pin moving at the same
+   pins' edges from 1, the edge, and the edge it is spaced from: at each edge of a pin,
+   its own edge before, where its hold applies to the two pins' bits before the edge, and
+   the other pin's last edge, where its apart does. The other pin moving at the same
    sample is 0 since. *)
-let applications (capture : Capture.t) (spec : Kernel.Spacing.Spec.t) =
+let spaced (capture : Capture.t) (spec : Kernel.Spacing.Spec.t) =
   let bit level = Bool.( <> ) spec.dirs level in
-  let apply ~hold ~apart ~own ~other ~own_last ~other_last ~at ~number =
+  let apply ~hold ~apart ~own ~other ~own_last ~other_last ~edge ~number =
     List.filter_map
       [ own_last, hold ~own ~other; other_last, apart ~own ~other ]
       ~f:(fun (last, asked) ->
         match last with
-        | Some last when asked > 0 -> Some (number, at, at - last)
+        | Some last when asked > 0 -> Some (number, edge, last)
         | _ -> None)
   in
   let rec go ~level_a ~level_b ~last_a ~last_b ~number found edges_a edges_b =
@@ -132,8 +143,10 @@ let applications (capture : Capture.t) (spec : Kernel.Spacing.Spec.t) =
       and b = moves edges_b in
       let own_a = bit level_a
       and own_b = bit level_b in
-      let seen_a = if b then Some at else last_b
-      and seen_b = if a then Some at else last_a in
+      let edge_a = { Edge.pin = spec.a; sample = at }
+      and edge_b = { Edge.pin = spec.b; sample = at } in
+      let seen_a = if b then Some edge_b else last_b
+      and seen_b = if a then Some edge_a else last_a in
       let found =
         if a
         then
@@ -145,7 +158,7 @@ let applications (capture : Capture.t) (spec : Kernel.Spacing.Spec.t) =
                ~other:own_b
                ~own_last:last_a
                ~other_last:seen_a
-               ~at
+               ~edge:edge_a
                ~number:(number + 1))
             found
         else found
@@ -162,7 +175,7 @@ let applications (capture : Capture.t) (spec : Kernel.Spacing.Spec.t) =
                ~other:own_a
                ~own_last:last_b
                ~other_last:seen_b
-               ~at
+               ~edge:edge_b
                ~number:(number + 1))
             found
         else found
@@ -172,8 +185,8 @@ let applications (capture : Capture.t) (spec : Kernel.Spacing.Spec.t) =
       go
         ~level_a:(Bool.( <> ) level_a a)
         ~level_b:(Bool.( <> ) level_b b)
-        ~last_a:(if a then Some at else last_a)
-        ~last_b:(if b then Some at else last_b)
+        ~last_a:(if a then Some edge_a else last_a)
+        ~last_b:(if b then Some edge_b else last_b)
         ~number
         found
         (after a edges_a)
@@ -190,6 +203,11 @@ let applications (capture : Capture.t) (spec : Kernel.Spacing.Spec.t) =
     []
     a.edges
     b.edges
+;;
+
+let applications capture spec =
+  List.map (spaced capture spec) ~f:(fun (number, (edge : Edge.t), (from : Edge.t)) ->
+    number, edge.sample, edge.sample - from.sample)
 ;;
 
 let spacing capture spec =
@@ -264,3 +282,99 @@ let to_string (capture : Capture.t) ts =
       t.limit.sheet.page)
   |> String.concat ~sep:"\n"
 ;;
+
+(* Where each of a run bound's widths lies on its pin: the levels one more cycle of which
+   changes it. A width is placed only on whole levels after the first that sum to it, so
+   it is never placed wrong, though one may go unplaced. *)
+let placed (capture : Capture.t) ~pin widths =
+  let { Capture.Line.first; edges } = Capture.line capture pin in
+  let edges = Array.of_list edges in
+  let levels =
+    Array.mapi edges ~f:(fun i until ->
+      let from = if i = 0 then 0 else edges.(i - 1) in
+      Bool.( <> ) first (i % 2 = 1), until - from)
+  in
+  let widths_of levels =
+    Array.of_list (widths ~clock_hz:capture.rate_hz (Array.to_list levels))
+  in
+  let base = widths_of levels in
+  let touched = Array.map base ~f:(fun _ -> Queue.create ()) in
+  Array.iteri levels ~f:(fun i (high, n) ->
+    let wider = Array.copy levels in
+    wider.(i) <- high, n + 1;
+    let moved = widths_of wider in
+    if Array.length moved = Array.length base
+    then
+      Array.iteri base ~f:(fun w width ->
+        if moved.(w) <> width then Queue.enqueue touched.(w) i));
+  Array.to_list base
+  |> List.filter_mapi ~f:(fun w width ->
+    match Queue.to_list touched.(w) with
+    | [] -> None
+    | from :: _ as span ->
+      let until = List.last_exn span in
+      let whole = [%equal: int list] span (List.range from (until + 1)) in
+      let cycles = List.sum (module Int) span ~f:(fun i -> snd levels.(i)) in
+      if whole && from >= 1 && cycles = width
+      then
+        Some
+          ({ Edge.pin; sample = edges.(until) }, { Edge.pin; sample = edges.(from - 1) })
+      else None)
+;;
+
+module Prediction = struct
+  type t =
+    { firmware : string
+    ; capture : Capture.t
+    ; limits : (Datasheet.t * (Edge.t * Edge.t) list) list
+    }
+
+  let of_bench limits (bench : Bench.t) =
+    match
+      List.filter limits ~f:(fun (l : Datasheet.t) -> String.equal l.firmware bench.name)
+    with
+    | [] -> raise_s [%message "no datasheet limits name" bench.name]
+    | first :: _ as mine ->
+      let capture =
+        Capture.of_pins
+          bench
+          ~quiet_pin:(List.hd_exn (pins_of bench first))
+          (List.concat_map mine ~f:(pins_of bench))
+      in
+      let pairs (limit : Datasheet.t) =
+        match limit.bound with
+        | Kernel spec ->
+          List.map
+            (spaced capture (spec bench.config 1))
+            ~f:(fun (_, edge, from) -> edge, from)
+        | Run { pin; widths } -> placed capture ~pin:(pin bench.config) widths
+      in
+      let limits = List.map mine ~f:(fun limit -> limit, pairs limit) in
+      let used (pin, _) =
+        List.exists limits ~f:(fun (_, pairs) ->
+          List.exists pairs ~f:(fun ((edge : Edge.t), (from : Edge.t)) ->
+            edge.pin = pin || from.pin = pin))
+      in
+      { firmware = bench.name
+      ; capture = { capture with lines = List.filter capture.lines ~f:used }
+      ; limits
+      }
+  ;;
+
+  let to_string t =
+    let limit i ((limit : Datasheet.t), pairs) =
+      let side, ns =
+        match limit.limit with
+        | At_least ns -> ">=", ns
+        | At_most ns -> "<=", ns
+      in
+      sprintf "limit %d %s %.3f %s" i side ns limit.parameter
+      :: List.map pairs ~f:(fun ((edge : Edge.t), (from : Edge.t)) ->
+        sprintf "apply %d %d %d %d %d" i edge.pin edge.sample from.pin from.sample)
+    in
+    [%string "firmware %{t.firmware}"]
+    :: Capture.to_string t.capture
+    :: List.concat_mapi t.limits ~f:limit
+    |> String.concat ~sep:"\n"
+  ;;
+end

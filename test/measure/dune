@@ -1,7 +1,29 @@
-(executable
- (name measure)
+(executables
+ (names measure predict)
  (libraries core protocol_emulator_test)
  (lint
   (pps ppx_js_style -check-doc-comments))
  (preprocess
   (pps ppx_jane)))
+
+; the predictions test/test_margins.py holds made captures to
+
+(rule
+ (with-stdout-to
+  uart_tx_115200.predicted.gen
+  (run ./predict.exe uart_tx_115200)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff uart_tx_115200.predicted uart_tx_115200.predicted.gen)))
+
+(rule
+ (with-stdout-to
+  i2c_standard.predicted.gen
+  (run ./predict.exe i2c_standard)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff i2c_standard.predicted i2c_standard.predicted.gen)))
