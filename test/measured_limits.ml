@@ -325,6 +325,8 @@ let placed (capture : Capture.t) ~pin widths =
 module Prediction = struct
   type t =
     { firmware : string
+    ; load : int option
+    ; bursts : int list list
     ; capture : Capture.t
     ; limits : (Datasheet.t * (Edge.t * Edge.t) list) list
     }
@@ -356,6 +358,8 @@ module Prediction = struct
             edge.pin = pin || from.pin = pin))
       in
       { firmware = bench.name
+      ; load = bench.load
+      ; bursts = Option.value_map bench.stimulus ~default:[] ~f:(fun s -> s.bursts)
       ; capture = { capture with lines = List.filter capture.lines ~f:used }
       ; limits
       }
@@ -372,9 +376,12 @@ module Prediction = struct
       :: List.map pairs ~f:(fun ((edge : Edge.t), (from : Edge.t)) ->
         sprintf "apply %d %d %d %d %d" i edge.pin edge.sample from.pin from.sample)
     in
-    [%string "firmware %{t.firmware}"]
-    :: Capture.to_string t.capture
-    :: List.concat_mapi t.limits ~f:limit
+    let words = List.map ~f:Int.to_string in
+    (([%string "firmware %{t.firmware}"]
+      :: List.map (Option.to_list t.load) ~f:(sprintf "load %d"))
+     @ List.map t.bursts ~f:(fun burst -> String.concat ~sep:" " ("burst" :: words burst))
+     @ [ Capture.to_string t.capture ])
+    @ List.concat_mapi t.limits ~f:limit
     |> String.concat ~sep:"\n"
   ;;
 end

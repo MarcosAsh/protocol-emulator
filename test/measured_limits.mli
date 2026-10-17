@@ -81,13 +81,16 @@ val to_string : Capture.t -> t list -> string
 module Prediction : sig
   type t =
     { firmware : string
+    ; load : int option (** As [Bench.load], the host's first word. *)
+    ; bursts : int list list (** The host's words after it, as [Bench.Stimulus]. *)
     ; capture : Capture.t (** Only the pins some edge is on. *)
     ; limits : (Datasheet.t * (Edge.t * Edge.t) list) list
     }
 
   val of_bench : Datasheet.t list -> Bench.t -> t
 
-  (** [firmware NAME], the capture as [Capture.to_string] writes it, then for each limit
+  (** [firmware NAME], [load WORD] and a line [burst WORD...] a burst for the host to
+      replay, the capture as [Capture.to_string] writes it, then for each limit
       [limit K SIDE NS PARAMETER] and a line [apply K PIN SAMPLE FROM_PIN FROM_SAMPLE] an
       edge. *)
   val to_string : t -> string
