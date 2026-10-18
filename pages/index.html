@@ -212,7 +212,7 @@
     const tiles = /^\s*tiles:\s*"?(\d+x\d+)/m.exec(yaml);
     const pdk = $("viewer").dataset.pdk;
     const proof = /(\d+) (proved for all time)/.exec(tally);
-    if (protocols) stat(protocols, "protocols");
+    if (protocols) stat(protocols, "in the corpus");
     if (proof) stat(proof[1], proof[2]);
     if (hz) stat(Number(hz[1]) / 1e6, "MHz clock");
     if (tiles) stat(tiles[1], "tiles, IHP " + pdk.replace(/^ihp-sg13/, ""));
