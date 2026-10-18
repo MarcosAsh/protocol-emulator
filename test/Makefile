@@ -153,6 +153,16 @@ tolerance_bench:
 		COCOTB_RESULTS_FILE=results_tolerance_bench.xml
 	$(PYTHON_BIN) -m cocotb_tools.check_results results_tolerance_bench.xml
 
+# A remote lab job's firmware.json on the RTL as Pico A runs it, for demo/lab.py's rtl
+# backend: make lab LAB_FIRMWARE=DIR/firmware.json LAB_OUT=DIR. Needs what outside needs;
+# the firmware is not reassembled, so no dune runs. test/lab is the examples' folder.
+.PHONY: lab
+lab:
+	$(MAKE) sim OUTSIDE=yes SIM_BUILD=sim_build/outside COCOTB_TEST_MODULES=test_lab_rtl \
+		PLUSARGS=+firmware=/dev/null CUSTOM_SIM_DEPS= \
+		COCOTB_RESULTS_FILE=results_lab.xml
+	$(PYTHON_BIN) -m cocotb_tools.check_results results_lab.xml
+
 # icepi/carrier_check.v, the bench carrier's self-test bitstream, on its own pulls and
 # models/ecp5_pads.v: make carrier_check
 carrier_check:
