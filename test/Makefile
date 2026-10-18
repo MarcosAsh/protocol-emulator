@@ -145,6 +145,14 @@ both_roles:
 		COCOTB_RESULTS_FILE=results_both_roles.xml
 	$(PYTHON_BIN) -m cocotb_tools.check_results results_both_roles.xml
 
+# demo_thermometer.py on the RTL against the DS18B20 model and a USB laptop: make thermometer.
+# Needs what outside needs.
+thermometer:
+	$(MAKE) sim OUTSIDE=yes SIM_BUILD=sim_build/outside COCOTB_TEST_MODULES=test_thermometer \
+		PLUSARGS=+firmware=/dev/null \
+		COCOTB_RESULTS_FILE=results_thermometer.xml
+	$(PYTHON_BIN) -m cocotb_tools.check_results results_thermometer.xml
+
 # demo_tolerance.py on the RTL, shortened to simulate: make tolerance_bench. Needs what
 # outside needs.
 tolerance_bench:

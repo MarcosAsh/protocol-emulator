@@ -5,10 +5,11 @@
 // OUT4, SCK from OUT5 and CS from OUT6, and answers on IN0: models/spiflash.v is picosoc's
 // model from YosysHQ/picorv32 at commit ef203c2, unchanged. Unless a test sets flash_wired,
 // the flash is deselected and a cocotb slave on the spi_* lines may answer instead.
-// IO2 is I2C SCL, IO3 SDA and IO4 a 1-Wire line, each pulled up: a cocotb model pulls
-// one low through its *_o, the chip by enabling the pin's output, whose value is 0. A CAN
-// bus is the AND of the transceivers' D: OUT1's, OUT2's once can_out2 joins it, and a
-// cocotb node's can_o; each R gives it back after a loop delay, into IN1 for the chip.
+// IO0 and IO1 are USB's D+ and D-, which a cocotb host drives through usb_in. IO2 is I2C
+// SCL, IO3 SDA and IO4 a 1-Wire line, each pulled up: a cocotb model pulls one low through
+// its *_o, the chip by enabling the pin's output, whose value is 0. A CAN bus is the AND of
+// the transceivers' D: OUT1's, OUT2's once can_out2 joins it, and a cocotb node's can_o;
+// each R gives it back after a loop delay, into IN1 for the chip.
 module tb_outside ();
 
   initial begin
@@ -26,6 +27,8 @@ module tb_outside ();
   reg sda_o = 1'b1;
   reg scl_o = 1'b1;
   reg dq_o = 1'b1;
+  // D- then D+ as a USB host drives them, idle SE0 until a test sets it
+  reg [1:0] usb_in = 2'b00;
   reg can_o = 1'b1;
   reg can_out2 = 1'b0;
   wire [7:0] uo_out;
@@ -53,7 +56,7 @@ module tb_outside ();
   tt_um_marcosash_protocol_emulator user_project (
       .ui_in  ({ui_in[7:5], can_rx, miso, ui_in[2:0]}),
       .uo_out (uo_out),
-      .uio_in ({3'b000, dq, sda, scl, 2'b00}),
+      .uio_in ({3'b000, dq, sda, scl, usb_in}),
       .uio_out(uio_out),
       .uio_oe (uio_oe),
       .ena    (ena),

@@ -106,13 +106,14 @@ def start_log(host, program, clock_hz=48_000_000):
 
 
 def serve(host, board, queue, bus_reset, log=lambda report: None, say=lambda line: None,
-          attach=None, replug=lambda: False):
+          attach=None, replug=lambda: False, tick=lambda: None):
     """Forever. Typing waits for a configuration and a HID driver, so no report sits in the
     fifo while the laptop enumerates: an IN on endpoint 0 would drop it, a word more for the
     rx fifo on a SETUP's heels. A reset puts back the report it lost, `log` gets each report
     once the laptop has taken it, and `say` each step of the enumeration and each key.
     `attach`, if given, is called once engine 0 first serves, and again each time `replug`
-    has detached the board."""
+    has detached the board. `tick` runs once a round, after the reports `log` has seen, and
+    may add to `queue`."""
     serving, halted, address, configured = False, False, 0, False
     while True:
         if bus_reset():
@@ -146,8 +147,9 @@ def serve(host, board, queue, bus_reset, log=lambda report: None, say=lambda lin
             say("configured" if configured else "unconfigured")
         if sent is not None and board.pending_report is None:
             log(sent)
-            if sent[0] == 1 and sent[2]:
+            if sent[0] == 1 and sent[2] in CHARS:
                 say("typed %s" % chr(CHARS[sent[2]]))
+        tick()
         if queue and board.configured and board.described and board.pending_report is None and not board.chunks:
             board.report(queue.pop(0))
 
