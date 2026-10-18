@@ -35,6 +35,7 @@ let firmware =
     set pins, 1              ; idle high
     set p, 24
     mov t, now
+    add t, 2                 ; a row only reset reaches, which the teeth can move
 idle:
     set x, 31
 gap:
@@ -57,10 +58,14 @@ gap:
     mov isr, null
     in osr, 8
     out null, 8
-    set x, 7
-parity:
-    out null, 1              ; through the CRC
-    jmp x--, parity
+    out null, 1              ; through the CRC, unrolled: the certificate's induction
+    out null, 1              ; cannot see a counted loop's bound across its passes
+    out null, 1
+    out null, 1
+    out null, 1
+    out null, 1
+    out null, 1
+    out null, 1
     in crc, 1
     in null, 7
     mov osr, isr

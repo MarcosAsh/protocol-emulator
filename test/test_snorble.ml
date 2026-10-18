@@ -4,7 +4,7 @@ open Protocol_emulator
 (* what the analyser and the kernel make of the firmware, which compiling it checked *)
 let%expect_test "the firmware's verdict" =
   print_endline (Analyser.Verdict.to_string (Timed_program.verdict Snorble.firmware));
-  [%expect {| 78 words, 5 deadline waits, worst slack 0 |}]
+  [%expect {| 84 words, 5 deadline waits, worst slack 0 |}]
 ;;
 
 (* SIG each cycle, the host writing every byte before the start *)
@@ -41,7 +41,8 @@ let%expect_test "the line for 0xa5, as section 6 draws it" =
   in
   List.iter frame ~f:(fun (high, n) ->
     printf "%s %4d cycles %s\n" (if high then "high" else "low ") n (Bench.time n));
-  [%expect {|
+  [%expect
+    {|
     low   384 cycles 8 us
     high   96 cycles 2 us
     low   144 cycles 3 us
@@ -72,7 +73,8 @@ let%expect_test "a receiver reads every byte" =
     decoded
     ~expect:(List.map Snorble.bytes ~f:(fun b -> b, true));
   print_s [%message (decoded : (Int.Hex.t * bool) list) (machine.fault : Machine.Fault.t)];
-  [%expect {|
+  [%expect
+    {|
     ((decoded ((0xa5 true) (0x0 true) (0xff true) (0x3c true)))
      (machine.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
@@ -91,7 +93,8 @@ let%expect_test "every byte, against the golden decoder" =
 let%expect_test "the bench's run against section 4's limits" =
   print_string
     (Datasheet.to_string Snorble.bench (Datasheet.check Snorble.limits Snorble.bench));
-  [%expect {|
+  [%expect
+    {|
     snorble            tSYN           >=     7500 ns  run    384 (8000.0 ns)   needs  361       Snorble, SNB-1 Snorble Sensor Beacon Rev. C section 4, p.1; margin a cycle
     snorble            tSYN           <=     8500 ns  run    384 (8000.0 ns)   needs  407       Snorble, SNB-1 Snorble Sensor Beacon Rev. C section 4, p.1; margin a cycle
     snorble            tL0            >=     1100 ns  kernel 58 (1208.3 ns)    needs   54       Snorble, SNB-1 Snorble Sensor Beacon Rev. C section 4, p.1; margin a cycle
@@ -100,7 +103,7 @@ let%expect_test "the bench's run against section 4's limits" =
     snorble            tL1            <=     3100 ns  run    144 (3000.0 ns)   needs  147       Snorble, SNB-1 Snorble Sensor Beacon Rev. C section 4, p.1; margin a cycle
     snorble            tH             >=     1800 ns  kernel 96 (2000.0 ns)    needs   88       Snorble, SNB-1 Snorble Sensor Beacon Rev. C section 4, p.1; margin a cycle
     snorble            tH             <=     4000 ns  run    96 (2000.0 ns)    needs  191       Snorble, SNB-1 Snorble Sensor Beacon Rev. C section 4, p.1, and note 1, p.2: inside a frame; margin a cycle
-    snorble            tIFG           >=    20000 ns  run    8583 (178812.5 ns) needs  961       Snorble, SNB-1 Snorble Sensor Beacon Rev. C section 4, p.1, and note 3, p.2; margin a cycle
-    snorble            frame rate     >=   200000 ns  run    10439 (217479.2 ns) needs 9601       Snorble, SNB-1 Snorble Sensor Beacon Rev. C section 1, p.1: about 5 kframes/s at most; margin a cycle
+    snorble            tIFG           >=    20000 ns  run    8566 (178458.3 ns) needs  961       Snorble, SNB-1 Snorble Sensor Beacon Rev. C section 4, p.1, and note 3, p.2; margin a cycle
+    snorble            frame rate     >=   200000 ns  run    10422 (217125.0 ns) needs 9601       Snorble, SNB-1 Snorble Sensor Beacon Rev. C section 1, p.1: about 5 kframes/s at most; margin a cycle
     |}]
 ;;
