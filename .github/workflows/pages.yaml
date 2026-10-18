@@ -14,6 +14,8 @@ on:
       - playground/**
       - pages/**
       - docs/die.png
+      - docs/architecture.svg
+      - info.yaml
       - test/*.asm
       - test/*.ml
       - test/corpus.py
@@ -311,7 +313,7 @@ jobs:
           PDK: ${{ steps.chip.outputs.pdk }}
         run: |
           cp repo/pages/index.html site/
-          cp repo/docs/die.png site/
+          cp repo/docs/die.png repo/docs/architecture.svg repo/info.yaml site/
           sed -i -e "s|data-pdk=\"[^\"]*\"|data-pdk=\"$PDK\"|" -e "s|?pdk=[^&]*&|?pdk=$PDK\&|" \
             site/index.html
           grep -q "data-pdk=\"$PDK\"" site/index.html
