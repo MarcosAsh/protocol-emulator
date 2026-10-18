@@ -40,20 +40,49 @@
   .card:has(h2 a:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
   .card p { color: var(--muted); }
   .card .also { position: relative; margin: 0; }
+  .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 22rem); gap: 20px;
+    align-items: center; margin: 8px 0 4px; }
+  .hero h1 { font-size: 2rem; line-height: 1.15; }
+  .hero a.die { display: block; }
+  .hero img { width: 100%; height: auto; display: block; border: 1px solid var(--line);
+    border-radius: 6px; }
+  .stats { list-style: none; padding: 0; margin: 16px 0 0; display: grid; gap: 8px;
+    grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr)); }
+  .stats li { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; }
+  .stats b { display: block; font-size: 1.5rem; line-height: 1.15; overflow-wrap: anywhere; }
+  .stats span { color: var(--muted); }
+  .card .thumb { display: block; width: 100%; height: 7rem; object-fit: cover;
+    border: 1px solid var(--line); border-radius: 4px; margin-bottom: 8px; background: var(--code); }
+  .card .thumb.fit { object-fit: contain; background: #fff; }
+  .chips { margin: 8px 0 0; display: flex; flex-wrap: wrap; gap: 6px; }
+  .chips span { border: 1px solid var(--line); border-radius: 99px; padding: 0 8px;
+    color: var(--muted); }
+  @media (max-width: 40rem) { .hero { grid-template-columns: minmax(0, 1fr); }
+    .hero h1 { font-size: 1.6rem; } }
   figure { margin: 0; }
   figure img { width: 100%; height: auto; display: block; border: 1px solid var(--line); }
   figcaption { color: var(--muted); margin-top: 6px; }
 </style>
 </head>
 <body>
-<h1>Protocol Emulator</h1>
-<p>An entry for Jane Street's protocol emulator ASIC competition, written in Hardcaml and
-built on IHP CMOS5L through Tiny Tapeout, in 6 x 4 tiles at 50 MHz.</p>
-<!-- owner: the pitch goes in the paragraph below, which stays hidden while empty -->
-<p data-owner-text="pitch"></p>
+<header class="hero">
+  <div>
+    <h1>Protocol Emulator</h1>
+    <!-- owner: the tagline and the pitch go in the paragraphs below, hidden while empty -->
+    <p data-owner-text="tagline"></p>
+    <p>An entry for Jane Street's protocol emulator ASIC competition, written in Hardcaml and
+    built on IHP CMOS5L through Tiny Tapeout, in 6 x 4 tiles at 48 MHz.</p>
+    <p data-owner-text="pitch"></p>
+    <!-- numbers from files the site already serves; the list stays hidden without any -->
+    <ul class="stats" id="stats" hidden></ul>
+  </div>
+  <a class="die" href="die/"><img src="die.png" width="1600" height="1501"
+    alt="the hardened die, each cell coloured by its RTL module"></a>
+</header>
 
 <ul class="cards">
   <li class="card">
+    <img class="thumb" src="die.png" alt="" loading="lazy">
     <h2><a href="die/">Live die</a></h2>
     <p>The hardened die, cells and wires lit as they switch.</p>
   </li>
@@ -75,6 +104,7 @@ built on IHP CMOS5L through Tiny Tapeout, in 6 x 4 tiles at 50 MHz.</p>
   </li>
   <!-- /corpus -->
   <li class="card">
+    <img class="thumb" src="gds_render.png" alt="" loading="lazy">
     <h2><a id="viewer" data-pdk="ihp-sg13cmos5l"
       href="https://gds-viewer.tinytapeout.com/?pdk=ihp-sg13cmos5l&amp;model=https%3A%2F%2Fmarcosash.github.io%2Fprotocol-emulator%2Ftinytapeout.oas">3D
       viewer</a></h2>
@@ -90,25 +120,64 @@ built on IHP CMOS5L through Tiny Tapeout, in 6 x 4 tiles at 50 MHz.</p>
     <h2><a href="https://github.com/MarcosAsh/protocol-emulator/releases/tag/v0.2.0">Release
       v0.2.0</a></h2>
     <p><code>generate-linux-x86_64</code>, the Icepi Zero and UP5K bitstreams, the chip's GDS
-    and render, and the act 3 board capture.</p>
+    and render, and the board capture.</p>
     <p class="also"><a
       href="https://github.com/MarcosAsh/protocol-emulator/releases/download/v0.2.0/act3-board-2026-10-02.zip">act3-board-2026-10-02.zip</a></p>
   </li>
   <li class="card">
+    <img class="thumb fit" src="architecture.svg" alt="" loading="lazy">
     <h2><a href="https://github.com/MarcosAsh/protocol-emulator">Repository</a></h2>
     <p>The Hardcaml source, the proofs and the tests, on GitHub.</p>
   </li>
+  <li class="card">
+    <img class="thumb" alt="" loading="lazy" onerror="this.remove()"
+      src="https://raw.githubusercontent.com/MarcosAsh/protocol-emulator-bench/HEAD/carrier/renders/render_top.png">
+    <h2><a href="https://github.com/MarcosAsh/protocol-emulator-bench">Hardware</a></h2>
+    <p class="chips"><span>KiCad</span> <span>CERN-OHL-P v2</span></p>
+    <p class="also"><a href="https://github.com/MarcosAsh/protocol-emulator-bench">protocol-emulator-bench</a></p>
+  </li>
 </ul>
 
-<figure>
-  <img src="die.png" width="1600" height="1501" loading="lazy"
-    alt="the hardened die, each cell coloured by its RTL module">
-  <figcaption>Each cell coloured by its RTL module, drawn by <code>demo/die.py</code>. The
-  plain render of the last green gds run: <a href="gds_render.png">gds_render.png</a>, full
-  size.</figcaption>
-</figure>
+<p class="muted">Each cell coloured by its RTL module, drawn by <code>demo/die.py</code>. The
+plain render of the last green gds run: <a href="gds_render.png">gds_render.png</a>, full
+size.</p>
 
 <script>
+  // numbers from files beside this page: info.yaml, the results page's tally, the corpus
+  // table; a missing source leaves its number out
+  const stats = document.getElementById("stats");
+  function stat(value, label) {
+    const li = document.createElement("li");
+    const b = document.createElement("b");
+    const span = document.createElement("span");
+    b.textContent = value;
+    span.textContent = label;
+    li.append(b, span);
+    stats.append(li);
+    stats.hidden = false;
+  }
+  const page = (path) => fetch(path).then((r) => (r.ok ? r.text() : Promise.reject(r.status)))
+    .then((t) => new DOMParser().parseFromString(t, "text/html"));
+  const info = fetch("info.yaml").then((r) => (r.ok ? r.text() : ""), () => "");
+  const results = page("results/").then((d) => {
+    const tally = [...d.querySelectorAll("body > p:not(.muted)")][0];
+    return tally ? tally.textContent.replace(/\.$/, "").split(", ") : [];
+  }, () => []);
+  const corpus = page("corpus/").then(
+    (d) => d.querySelectorAll('table a[href$=".html"]').length, () => 0);
+  Promise.all([info, results, corpus]).then(([yaml, tally, protocols]) => {
+    const hz = /^\s*clock_hz:\s*(\d+)/m.exec(yaml);
+    const tiles = /^\s*tiles:\s*"?(\d+x\d+)/m.exec(yaml);
+    if (hz) stat(Number(hz[1]) / 1e6, "MHz clock");
+    if (tiles) stat(tiles[1], "tiles");
+    const pdk = document.getElementById("viewer").dataset.pdk;
+    if (pdk) stat(pdk.replace(/^ihp-sg13/, ""), "IHP process");
+    if (protocols) stat(protocols, "protocols");
+    for (const item of tally) {
+      const m = /^(\d+) (.+)$/.exec(item);
+      if (m) stat(m[1], m[2]);
+    }
+  });
   // the viewer takes the OASIS file's URL, which is beside this page wherever it is served
   const viewer = document.getElementById("viewer");
   const model = new URL("tinytapeout.oas", location.href).href;
