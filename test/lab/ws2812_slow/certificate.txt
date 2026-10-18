@@ -1,0 +1,4 @@
+refused: ("at 48 MHz"
+ ("outside the table class"
+  ("the diagram's own limit does not hold" (edge "a<->c T1H 650ns..950ns")
+   (cycles 47) (ns 979.16666666666663) (least_ns (650)) (most_ns (950)))))

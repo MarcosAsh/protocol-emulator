@@ -1,0 +1,5 @@
+{
+ "lab": 1,
+ "diagram": "{ \"signal\": [\n    { \"name\": \"rx\", \"wave\": \"10========1\", \"data\": [\"b0\", \"b1\", \"b2\", \"b3\", \"b4\", \"b5\", \"b6\", \"b7\"], \"input\": true }\n  ],\n  \"head\": { \"text\": \"UART 8N1 in, 1.6 Mbaud: the start bit's edge starts a frame\" },\n  \"table\": { \"cycles\": 31 }\n}\n",
+ "frames": "11000101"
+}

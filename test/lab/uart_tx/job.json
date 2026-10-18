@@ -1,0 +1,1 @@
+{"lab":1,"diagram":"{ \"signal\": [\n    { \"name\": \"tx\", \"wave\": \"10========1\", \"data\": [\"b0\", \"b1\", \"b2\", \"b3\", \"b4\", \"b5\", \"b6\", \"b7\"] }\n  ],\n  \"head\": { \"text\": \"UART 8N1, 1.92 Mbaud\" },\n  \"table\": { \"cycles\": 26 }\n}","frames":"11000101\n00111010","decode":"uart:1846154"}
