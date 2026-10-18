@@ -479,6 +479,52 @@ let%expect_test "every protocol from its file to the decoded trace" =
     table_open_drain: 112 words, 2 deadline waits, worst slack 0, the kernel accepts it, assuming nothing
 
     limits
+
+    === snorble
+
+    certificates
+    snorble: 84 words, 5 deadline waits, worst slack 0, the kernel accepts it, assuming no wrap
+
+    limits
+    snorble            tSYN           >=     7500 ns  run    384 (8000.0 ns)   needs  361       Snorble, SNB-1 Snorble Sensor Beacon Rev. C section 4, p.1; margin a cycle
+    snorble            tSYN           <=     8500 ns  run    384 (8000.0 ns)   needs  407       Snorble, SNB-1 Snorble Sensor Beacon Rev. C section 4, p.1; margin a cycle
+    snorble            tL0            >=     1100 ns  kernel 58 (1208.3 ns)    needs   54       Snorble, SNB-1 Snorble Sensor Beacon Rev. C section 4, p.1; margin a cycle
+    snorble            tL0            <=     1300 ns  run    58 (1208.3 ns)    needs   61       Snorble, SNB-1 Snorble Sensor Beacon Rev. C section 4, p.1; margin a cycle
+    snorble            tL1            >=     2900 ns  run    144 (3000.0 ns)   needs  141       Snorble, SNB-1 Snorble Sensor Beacon Rev. C section 4, p.1; margin a cycle
+    snorble            tL1            <=     3100 ns  run    144 (3000.0 ns)   needs  147       Snorble, SNB-1 Snorble Sensor Beacon Rev. C section 4, p.1; margin a cycle
+    snorble            tH             >=     1800 ns  kernel 96 (2000.0 ns)    needs   88       Snorble, SNB-1 Snorble Sensor Beacon Rev. C section 4, p.1; margin a cycle
+    snorble            tH             <=     4000 ns  run    96 (2000.0 ns)    needs  191       Snorble, SNB-1 Snorble Sensor Beacon Rev. C section 4, p.1, and note 1, p.2: inside a frame; margin a cycle
+    snorble            tIFG           >=    20000 ns  run    8566 (178458.3 ns) needs  961       Snorble, SNB-1 Snorble Sensor Beacon Rev. C section 4, p.1, and note 3, p.2; margin a cycle
+    snorble            frame rate     >=   200000 ns  run    10422 (217125.0 ns) needs 9601       Snorble, SNB-1 Snorble Sensor Beacon Rev. C section 1, p.1: about 5 kframes/s at most; margin a cycle
+
+    lockstep: snorble, snorble
+    ("lockstep held" (cycles 55000))
+    (received ())
+    decode: test/traces/snorble.trace, by sigrok's snorble:sig=OUT0
+      snorble=byte:parity-ok: snorble-1: A5, snorble-1: Parity OK, snorble-1: 00, snorble-1: Parity OK, snorble-1: FF, snorble-1: Parity OK, snorble-1: 3C, snorble-1: Parity OK
+
+    === plinkoo
+
+    certificates
+    plinkoo: 90 words, 15 deadline waits, worst slack 0, the kernel accepts it, assuming no wrap
+
+    limits
+
+    lockstep: plinkoo, plinkoo
+    ("lockstep held" (cycles 28800))
+    (received (0x0 0x0))
+    decode: test/traces/plinkoo.trace, by sigrok's plinkoo:stb=OUT5:dat=IO3
+      plinkoo=length:byte:checksum-ok:ack: plinkoo-1: Length 3, plinkoo-1: 12, plinkoo-1: 34, plinkoo-1: 56, plinkoo-1: Checksum OK, plinkoo-1: ACK, plinkoo-1: Length 8, plinkoo-1: 00, plinkoo-1: FF, plinkoo-1: 80, plinkoo-1: 01, plinkoo-1: A5, plinkoo-1: 5A, plinkoo-1: 7E, plinkoo-1: C3, plinkoo-1: Checksum OK, plinkoo-1: ACK
+
+    === frumbleglide
+
+    certificates: none
+
+    limits
+
+    lockstep: frumbleglide, uncertified as loaded
+    ("lockstep held" (cycles 12768))
+    (received ())
     |}]
 ;;
 
@@ -523,7 +569,7 @@ let%expect_test "every protocol speaks only of its own firmware" =
     check bench "unlimited" (List.map p.unlimited ~f:fst);
     check firmware "swept" (List.map p.swept ~f:(fun s -> s.name));
     check firmware "not swept" (List.map p.not_swept ~f:fst));
-  [%expect {| |}]
+  [%expect {| ("not its own" frumbleglide "not swept" frumbleglide) |}]
 ;;
 
 (* What a protocol file started by [generate.exe new-protocol] still leaves to do: a

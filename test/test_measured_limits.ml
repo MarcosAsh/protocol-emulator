@@ -117,6 +117,16 @@ let%expect_test "the datasheet limits, measured on the bench copies' runs" =
     run    72000  cec                zero low, T6     <=  1.7e+06 ns  measured 36000 (1500000.0 ns) Pass            HDMI Specification 1.3a, Supplement 1 CEC, CEC 5.2.2, CEC Figure 4, p. CEC-9
     run    115200  cec                bit, T7          >= 2.05e+06 ns  measured 57600 (2400000.0 ns) Pass            HDMI Specification 1.3a, Supplement 1 CEC, CEC 5.2.2, CEC Figure 4, p. CEC-9
     run    115200  cec                bit, T8          <= 2.75e+06 ns  measured 57600 (2400000.0 ns) Pass            HDMI Specification 1.3a, Supplement 1 CEC, CEC 5.2.2, CEC Figure 4, p. CEC-9
+    run    384  snorble            tSYN             >=     7500 ns  measured 192 (8000.0 ns)      Pass            SNB-1 Snorble Sensor Beacon Rev. C, section 4, p.1
+    run    384  snorble            tSYN             <=     8500 ns  measured 192 (8000.0 ns)      Pass            SNB-1 Snorble Sensor Beacon Rev. C, section 4, p.1
+    kernel 58  snorble            tL0              >=     1100 ns  measured 29 (1208.3 ns)       Pass            SNB-1 Snorble Sensor Beacon Rev. C, section 4, p.1
+    run    58  snorble            tL0              <=     1300 ns  measured 29 (1208.3 ns)       Pass            SNB-1 Snorble Sensor Beacon Rev. C, section 4, p.1
+    run    144  snorble            tL1              >=     2900 ns  measured 72 (3000.0 ns)       Pass            SNB-1 Snorble Sensor Beacon Rev. C, section 4, p.1
+    run    144  snorble            tL1              <=     3100 ns  measured 72 (3000.0 ns)       Pass            SNB-1 Snorble Sensor Beacon Rev. C, section 4, p.1
+    kernel 96  snorble            tH               >=     1800 ns  measured 48 (2000.0 ns)       Pass            SNB-1 Snorble Sensor Beacon Rev. C, section 4, p.1
+    run    96  snorble            tH               <=     4000 ns  measured 48 (2000.0 ns)       Pass            SNB-1 Snorble Sensor Beacon Rev. C, section 4, p.1, and note 1, p.2: inside a frame
+    run    8566  snorble            tIFG             >=    20000 ns  measured 4283 (178458.3 ns)   Pass            SNB-1 Snorble Sensor Beacon Rev. C, section 4, p.1, and note 3, p.2
+    run    10422  snorble            frame rate       >=   200000 ns  measured 5211 (217125.0 ns)   Pass            SNB-1 Snorble Sensor Beacon Rev. C, section 1, p.1: about 5 kframes/s at most
     kernel 417  uart_log           bit              >=  8506.94 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     run    417  uart_log           bit              <=  8854.17 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     |}]

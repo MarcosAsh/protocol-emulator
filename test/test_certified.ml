@@ -82,6 +82,8 @@ let%expect_test "the firmware library and its certificates" =
     swd                  232        52     15  period 25, no wrap
     table                112         2      0
     table_open_drain     112         2      0
+    snorble               84         5      0  no wrap
+    plinkoo               90        15      0  no wrap
     |}]
 ;;
 

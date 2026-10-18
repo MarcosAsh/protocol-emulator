@@ -6,4 +6,8 @@ ps2	bench	2026-10-15T18:12:37+01:00	done bench, before the certificate closed
 snorble	spec	2026-10-18T21:11:14+01:00	rehearsal 10-18, spec.pdf read with pdftotext; limits read twice and agreed 21:12:03
 plinkoo	spec	2026-10-18T21:11:14+01:00	rehearsal 10-18, spec.pdf read with pdftotext; limits read twice and agreed 21:12:03
 frumbleglide	spec	2026-10-18T21:11:14+01:00	rehearsal 10-18, spec.pdf read with pdftotext; limits read twice and agreed 21:12:03
-snorble	file	2026-10-18T21:38:19+01:00	
+snorble	file	2026-10-18T22:36:52+01:00	first draft 21:38; parity loop unrolled and a reset-only row added for the certificate
+plinkoo	file	2026-10-18T22:19:08+01:00	session crash 21:41-21:48 inside it; refused at the margin: tB, tDH and tREL
+plinkoo	certificate	2026-10-18T22:21:01+01:00	the kernel certifies the firmware; the datasheet margin refuses it for the bench
+snorble	certificate	2026-10-18T22:37:42+01:00	induction failed 22:06 (17 min, an 8-pass loop past depth 20), PASS after unrolling
+frumbleglide	file	2026-10-18T22:06:51+01:00	refused: no whole cycle count is a tCELL at 48 MHz, no certificate
