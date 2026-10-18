@@ -1110,6 +1110,13 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       , "-"
       , "1 MHz"
       , "SWDIO turns around, which needs pins and pindirs in one table" )
+    ; ( "snorble"
+      , "no"
+      , "-"
+      , "sync 8 us, lows 1.2 and 3 us"
+      , "written for the core, not tried" )
+    ; "plinkoo", "TODO", "-", "-", "TODO whether the table interpreter runs it"
+    ; "frumbleglide", "TODO", "-", "-", "TODO whether the table interpreter runs it"
     ]
   in
   let named = List.map rows ~f:(fun (name, _, _, _, _) -> name) in

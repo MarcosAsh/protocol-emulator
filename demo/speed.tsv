@@ -3,3 +3,7 @@ ps2	spec	2026-10-15T17:19:40+01:00	blind run, protocol-kit-blind/times.log
 ps2	file	2026-10-15T18:02:01+01:00	after limits
 ps2	certificate	2026-10-15T18:09:07+01:00	remote prove PASS; teeth ended 18:13:00
 ps2	bench	2026-10-15T18:12:37+01:00	done bench, before the certificate closed
+snorble	spec	2026-10-18T21:11:14+01:00	rehearsal 10-18, spec.pdf read with pdftotext; limits read twice and agreed 21:12:03
+plinkoo	spec	2026-10-18T21:11:14+01:00	rehearsal 10-18, spec.pdf read with pdftotext; limits read twice and agreed 21:12:03
+frumbleglide	spec	2026-10-18T21:11:14+01:00	rehearsal 10-18, spec.pdf read with pdftotext; limits read twice and agreed 21:12:03
+snorble	file	2026-10-18T21:38:19+01:00	

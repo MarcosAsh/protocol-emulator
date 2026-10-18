@@ -20,6 +20,9 @@ let protocols =
   ; Spi_target.protocol
   ; Swd.protocol
   ; Tables.protocol
+  ; Snorble.protocol
+  ; Plinkoo.protocol
+  ; Frumbleglide.protocol
   ]
 ;;
 
