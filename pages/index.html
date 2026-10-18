@@ -20,6 +20,8 @@
     --code: #232323; --line: #333; --hover: #1d1d1d; --accent: #6aa8f0; --bad: #f2877f;
     --good: #6cc78a; }
   * { box-sizing: border-box; }
+  /* the demo and the stats set display, which would otherwise show them while hidden */
+  [hidden] { display: none !important; }
   body { font: 14px/1.4 system-ui, sans-serif; margin: 0 auto; padding: 16px;
     max-width: 60rem; background: var(--bg); color: var(--fg); }
   a { color: inherit; }
@@ -195,11 +197,14 @@
   const page = (path) => fetch(path).then((r) => (r.ok ? r.text() : Promise.reject(r.status)))
     .then((t) => new DOMParser().parseFromString(t, "text/html"));
   const info = fetch("info.yaml").then((r) => (r.ok ? r.text() : ""), () => "");
-  const results = page("results/").then((d) => {
+  // pages.yaml drops a card whose page did not go up, so only fetch the ones still linked
+  const linked = (path) => document.querySelector(`.cards a[href="${path}"]`)
+    ? page(path) : Promise.reject(404);
+  const results = linked("results/").then((d) => {
     const tally = [...d.querySelectorAll("body > p:not(.muted)")][0];
     return tally ? tally.textContent.replace(/\.$/, "") : "";
   }, () => "");
-  const corpus = page("corpus/").then(
+  const corpus = linked("corpus/").then(
     (d) => d.querySelectorAll('table a[href$=".html"]').length, () => 0);
   let clockHz = 0;
   Promise.all([info, results, corpus]).then(([yaml, tally, protocols]) => {
@@ -232,7 +237,8 @@
       const watch = new IntersectionObserver((seen) => {
         if (seen.some((e) => e.isIntersecting)) { watch.disconnect(); start(); }
       }, { rootMargin: "300px" });
-      watch.observe(demo);
+      // a hidden demo has no box to intersect, so watch the cards right below it
+      watch.observe(document.querySelector(".cards.primary"));
     }
   });
   // the playground's dshot diagram, every period made faster by the slider's percent; the
