@@ -42,6 +42,15 @@
   (= %{env:PLAYGROUND=no} yes))
  (deps index.html playground.bc.js))
 
+; The remote lab's page, which the pages workflow does not publish: PLAYGROUND=yes dune
+; build @playground/lab, then open _build/default/playground/lab.html
+
+(alias
+ (name lab)
+ (enabled_if
+  (= %{env:PLAYGROUND=no} yes))
+ (deps lab.html playground.bc.js))
+
 (library
  (name playground_checks)
  (modules checks diagram_example)
@@ -113,3 +122,15 @@
   (= %{env:PLAYGROUND=no} yes))
  (action
   (diff native.txt browser.txt)))
+
+; test/lab's jobs through the page, against the files generate.exe lab wrote for them
+
+(rule
+ (alias agree)
+ (enabled_if
+  (= %{env:PLAYGROUND=no} yes))
+ (deps
+  (glob_files ../test/lab/*.job.json)
+  (source_tree ../test/lab))
+ (action
+  (run node %{dep:lab_agree.js} %{dep:playground.bc.js} ../test/lab)))
