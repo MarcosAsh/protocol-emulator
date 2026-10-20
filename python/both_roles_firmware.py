@@ -36,6 +36,9 @@ I2C_CONTROLLER_WIRE = {
         "manchester": 0,
         "line_code": 0,
         "route": 0,
+        "crc_poly_high": 0,
+        "crc_init_high": 0,
+        "crc_complement": 1,
     },
     "words": [
         0x20E0, 0xE004, 0x80C5, 0x20E0, 0xE004, 0x80E6, 0xC0CA, 0xC0CA,
@@ -85,6 +88,9 @@ I2C_TARGET_WIRE = {
         "manchester": 0,
         "line_code": 0,
         "route": 0,
+        "crc_poly_high": 0,
+        "crc_init_high": 0,
+        "crc_complement": 1,
     },
     "words": [
         0xE004, 0x80C5, 0xA000, 0x2015, 0x20B4, 0x0A07, 0x0002, 0x2095,
@@ -133,6 +139,9 @@ SPI_CONTROLLER_WIRE_MODE0 = {
         "manchester": 0,
         "line_code": 0,
         "route": 0,
+        "crc_poly_high": 0,
+        "crc_init_high": 0,
+        "crc_complement": 1,
     },
     "words": [
         0xB090, 0x9083, 0x30E0, 0xF004, 0x7048, 0xB031, 0x90E6, 0xD0C8,
@@ -176,6 +185,9 @@ SPI_TARGET_WIRE_MODE0 = {
         "manchester": 0,
         "line_code": 0,
         "route": 0,
+        "crc_poly_high": 0,
+        "crc_init_high": 0,
+        "crc_complement": 1,
     },
     "words": [
         0x1204, 0xE004, 0x8045, 0x0005, 0x804B, 0xA000, 0x2098, 0x2018,
@@ -219,6 +231,9 @@ SPI_CONTROLLER_WIRE_MODE1 = {
         "manchester": 0,
         "line_code": 0,
         "route": 0,
+        "crc_poly_high": 0,
+        "crc_init_high": 0,
+        "crc_complement": 1,
     },
     "words": [
         0xB090, 0x9083, 0x30E0, 0xF004, 0x7048, 0xB031, 0x90E6, 0xD0C8,
@@ -262,6 +277,9 @@ SPI_TARGET_WIRE_MODE1 = {
         "manchester": 0,
         "line_code": 0,
         "route": 0,
+        "crc_poly_high": 0,
+        "crc_init_high": 0,
+        "crc_complement": 1,
     },
     "words": [
         0x1204, 0xE004, 0x8045, 0x0005, 0x804B, 0xA000, 0x2098, 0x2018,
@@ -305,6 +323,9 @@ SPI_CONTROLLER_WIRE_MODE2 = {
         "manchester": 0,
         "line_code": 0,
         "route": 0,
+        "crc_poly_high": 0,
+        "crc_init_high": 0,
+        "crc_complement": 1,
     },
     "words": [
         0xB890, 0x9883, 0x38E0, 0xF804, 0x7848, 0xB831, 0x98E6, 0xD8C8,
@@ -348,6 +369,9 @@ SPI_TARGET_WIRE_MODE2 = {
         "manchester": 0,
         "line_code": 0,
         "route": 0,
+        "crc_poly_high": 0,
+        "crc_init_high": 0,
+        "crc_complement": 1,
     },
     "words": [
         0x1204, 0xE004, 0x8045, 0x0005, 0x804B, 0xA000, 0x2098, 0x2018,
@@ -391,6 +415,9 @@ SPI_CONTROLLER_WIRE_MODE3 = {
         "manchester": 0,
         "line_code": 0,
         "route": 0,
+        "crc_poly_high": 0,
+        "crc_init_high": 0,
+        "crc_complement": 1,
     },
     "words": [
         0xB890, 0x9883, 0x38E0, 0xF804, 0x7848, 0xB831, 0x98E6, 0xD8C8,
@@ -434,6 +461,9 @@ SPI_TARGET_WIRE_MODE3 = {
         "manchester": 0,
         "line_code": 0,
         "route": 0,
+        "crc_poly_high": 0,
+        "crc_init_high": 0,
+        "crc_complement": 1,
     },
     "words": [
         0x1204, 0xE004, 0x8045, 0x0005, 0x804B, 0xA000, 0x2098, 0x2018,
@@ -477,6 +507,9 @@ UART_TX_WIRE = {
         "manchester": 0,
         "line_code": 0,
         "route": 0,
+        "crc_poly_high": 0,
+        "crc_init_high": 0,
+        "crc_complement": 1,
     },
     "words": [
         0x20E0, 0xE004, 0x80C5, 0xA001, 0x20E0, 0xE004, 0xA027, 0x80E6,
@@ -518,6 +551,9 @@ UART_RX_WIRE = {
         "manchester": 0,
         "line_code": 0,
         "route": 0,
+        "crc_poly_high": 0,
+        "crc_init_high": 0,
+        "crc_complement": 1,
     },
     "words": [
         0x20E0, 0xE004, 0x80C5, 0x209A, 0xE007, 0x201A, 0x80E7, 0xC0CA,

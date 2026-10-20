@@ -776,14 +776,14 @@ let%expect_test "a delay split into the word and a nop changes nothing" =
   print_tallies set_x;
   [%expect
     {|
-    ("delay split into the word and a nop, library" (programs 6) (variants 17)
-     (kernel_checked 4) (accepted 17) (refused 0) (violations_on_accepted 0)
+    ("delay split into the word and a nop, library" (programs 6) (variants 16)
+     (kernel_checked 4) (accepted 16) (refused 0) (violations_on_accepted 0)
      (violations_on_refused 0))
     ("delay split into the word and a nop, random" (programs 100) (variants 345)
      (kernel_checked 69) (accepted 84) (refused 261) (violations_on_accepted 0)
      (violations_on_refused 0))
-    ("delay of a set x split into it and a nop, library" (programs 0)
-     (variants 0) (kernel_checked 0) (accepted 0) (refused 0)
+    ("delay of a set x split into it and a nop, library" (programs 1)
+     (variants 1) (kernel_checked 1) (accepted 1) (refused 0)
      (violations_on_accepted 0) (violations_on_refused 0))
     ("delay of a set x split into it and a nop, random" (programs 21)
      (variants 23) (kernel_checked 5) (accepted 0) (refused 23)

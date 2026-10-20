@@ -82,7 +82,7 @@ let%expect_test "every firmware against the chip's walk" =
     edge_meter                    12     10  accepted
     ws2812                        32     48  accepted
     ws2812_standard               32     48  accepted
-    ethernet                      32     34  accepted
+    ethernet                      38     42  accepted
     one_wire                      48     49  accepted
     ps2                           65     40  accepted
     jtag                          15     15  accepted
@@ -110,7 +110,7 @@ let%expect_test "every firmware against the chip's walk" =
     asm/data_stream                4      5  accepted
     asm/edge_logger_echo          13     11  accepted
     asm/edge_logger_wire           8      8  accepted
-    asm/ethernet                  32     34  accepted
+    asm/ethernet                  38     42  accepted
     asm/fault_release              7      2  accepted
     asm/i2c_master_marked         84     66  accepted
     asm/i2c_start_watch           10      7  accepted
@@ -134,7 +134,7 @@ let%expect_test "every firmware against the chip's walk" =
     bench/i2c_standard           113     80  accepted
     bench/i2c_fast               107     80  accepted
     bench/sk6812                  35     58  accepted
-    bench/ethernet                32     34  accepted
+    bench/ethernet                38     42  accepted
     bench/one_wire                48     49  accepted
     bench/ps2                     65     40  accepted
     bench/can                     58     80  accepted

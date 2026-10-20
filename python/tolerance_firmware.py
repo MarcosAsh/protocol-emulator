@@ -40,6 +40,9 @@ SENDER = {
         "manchester": 0,
         "line_code": 0,
         "route": 0,
+        "crc_poly_high": 0,
+        "crc_init_high": 0,
+        "crc_complement": 1,
     },
     "words": [
         0x20E0, 0xE004, 0x80C5, 0xA001, 0x20E0, 0xE004, 0x80E6, 0xC0CA,
@@ -81,6 +84,9 @@ RECEIVER = {
         "manchester": 0,
         "line_code": 0,
         "route": 0,
+        "crc_poly_high": 0,
+        "crc_init_high": 0,
+        "crc_complement": 1,
     },
     "words": [
         0x20E0, 0xE004, 0x80C5, 0x209A, 0xE007, 0x201A, 0x80E7, 0xC0CA,

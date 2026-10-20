@@ -50,6 +50,9 @@ WS2812 = {
         "manchester": 0,
         "line_code": 0,
         "route": 0,
+        "crc_poly_high": 0,
+        "crc_init_high": 0,
+        "crc_complement": 1,
     },
     "words": [
         0xA086, 0x80E6, 0xC0CA, 0xC0C7, 0x0C32, 0x1032, 0x20C0, 0x20E0,
@@ -122,6 +125,9 @@ UART_TX = {
         "manchester": 0,
         "line_code": 0,
         "route": 0,
+        "crc_poly_high": 0,
+        "crc_init_high": 0,
+        "crc_complement": 1,
     },
     "words": [
         0xA09A, 0xA001, 0x80E6, 0xC0CA, 0xC0C7, 0x1056, 0x20C0, 0xA001,
@@ -195,6 +201,9 @@ SPI = {
         "manchester": 0,
         "line_code": 0,
         "route": 0,
+        "crc_poly_high": 0,
+        "crc_init_high": 0,
+        "crc_complement": 1,
     },
     "words": [
         0xB08C, 0xB026, 0xB046, 0x90E6, 0xD0CA, 0xD0C7, 0x0C44, 0x1038,

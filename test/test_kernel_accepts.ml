@@ -67,7 +67,8 @@ let%expect_test "the accepts circuit agrees with the kernel on the library's tab
         let load = Option.first_some c.period_floor c.period in
         let loaded =
           { Kernel.Loaded.valid = Bits.of_bool (Option.is_some load)
-          ; value = Bits.of_unsigned_int ~width:Isa.data_bits (Option.value load ~default:0)
+          ; value =
+              Bits.of_unsigned_int ~width:Isa.data_bits (Option.value load ~default:0)
           ; floor = Bits.of_bool (Option.is_some c.period_floor)
           }
         in
@@ -185,7 +186,7 @@ let%expect_test "the accepts circuit agrees with the kernel on the library's tab
           ~accepted:(!accepted : int)
           ~within:(!within : int)
           ~disagree:(List.rev !disagree : (string * int) list)]);
-  [%expect {| ((rows 5572) (accepted 5572) (within 3436) (disagree ())) |}]
+  [%expect {| ((rows 5584) (accepted 5584) (within 3448) (disagree ())) |}]
 ;;
 
 (* What [formal/pair_step.sby] proves on the RTL, that a row's edge bounds carry to the

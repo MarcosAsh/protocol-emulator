@@ -186,16 +186,16 @@ module Make_timer (_ : Engine.Timer) : sig
 
   (** The next entry's phase: anything unless [bounded], one less too if [may_carry].
       [next_period] holds when [period_known]. [loaded], when valid, is the assumption
-      that every run-time write to [p] carries its value, or with [floor] at least it. The same for [x] and [y]. A jump
-      goes to its target when [taken], if [taken_known]. [next_arm] counts the cycles
-      since [capture_arm], leaving out a capturing wait's own wait, when [next_arm_known];
-      once [next_captured], the capture is younger than that, as the arm takes effect a
-      cycle late. Only the first wait for the edge after the arm, while [awaiting],
-      captures. [capture_bounded]: this is [mov t, capture] with a captured edge, so the
-      next phase lies in [cycles + 1, next_phase]. [next_a] and [next_b]: the pair's edge
-      states, an edge showing the cycle after the entry, where out or mov data puts
-      [data_a] and [data_b] on them; [wide_a] and [wide_b]: each keeps its spacing.
-      [halts]: no next entry. *)
+      that every run-time write to [p] carries its value, or with [floor] at least it. The
+      same for [x] and [y]. A jump goes to its target when [taken], if [taken_known].
+      [next_arm] counts the cycles since [capture_arm], leaving out a capturing wait's own
+      wait, when [next_arm_known]; once [next_captured], the capture is younger than that,
+      as the arm takes effect a cycle late. Only the first wait for the edge after the
+      arm, while [awaiting], captures. [capture_bounded]: this is [mov t, capture] with a
+      captured edge, so the next phase lies in [cycles + 1, next_phase]. [next_a] and
+      [next_b]: the pair's edge states, an edge showing the cycle after the entry, where
+      out or mov data puts [data_a] and [data_b] on them; [wide_a] and [wide_b]: each
+      keeps its spacing. [halts]: no next entry. *)
   module Step : sig
     type 'a t =
       { next_phase : 'a
@@ -390,9 +390,9 @@ module Make_timer (_ : Engine.Timer) : sig
 
   (** Checks every pc; words past the program read zero. [period] is [loaded], and
       [period_floor] it as a floor. [spacing] is refused unless its pins differ and lie in
-      the pin space, Manchester and the line code are off and
-      every row has no slope and the full offset, as [formal/phase_spacing.sby] proves it.
-      A rejection names each pc and the conjuncts that fail there. *)
+      the pin space, Manchester and the line code are off and every row has no slope and
+      the full offset, as [formal/phase_spacing.sby] proves it. A rejection names each pc
+      and the conjuncts that fail there. *)
   val check
     :  ?period:int
     -> ?period_floor:int

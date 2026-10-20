@@ -268,9 +268,9 @@ let%expect_test "random frames with a select register in the map" =
   Three.fuzz ~seed:6 ~frames:400 ();
   [%expect
     {|
-    ((seed 5) (frames 400) (cut 163) (!strobes 212) (!words_read 270)
+    ((seed 5) (frames 400) (cut 163) (!strobes 209) (!words_read 270)
      (!miso_high_when_idle false) (!failure ()))
-    ((seed 6) (frames 400) (cut 157) (!strobes 181) (!words_read 260)
+    ((seed 6) (frames 400) (cut 157) (!strobes 174) (!words_read 260)
      (!miso_high_when_idle false) (!failure ()))
     |}]
 ;;
