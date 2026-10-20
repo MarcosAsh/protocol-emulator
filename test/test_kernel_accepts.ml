@@ -25,7 +25,7 @@ let table ?spacing (c : Certified.t) =
   let words = Asm.Program.words program |> ok_exn in
   let table =
     Analyser.analyse
-      ?period:c.period
+      ?period:(if Option.is_some c.period_floor then None else c.period)
       ?period_floor:c.period_floor
       ~single_capture_edge:c.single_capture_edge
       ~config
@@ -438,11 +438,11 @@ let%expect_test "a spacing is checked only for pins and tables it is proved for"
   [%expect
     {|
     (Error
-     "edges are spaced only for two pins, Manchester off and a table of intervals")
+     "edges are spaced only for two pins, no Manchester or line code and a table of intervals")
     (Error
-     "edges are spaced only for two pins, Manchester off and a table of intervals")
+     "edges are spaced only for two pins, no Manchester or line code and a table of intervals")
     (Error
-     "edges are spaced only for two pins, Manchester off and a table of intervals")
+     "edges are spaced only for two pins, no Manchester or line code and a table of intervals")
     |}]
 ;;
 
