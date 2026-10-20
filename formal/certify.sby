@@ -29,11 +29,10 @@ proc
 flatten
 cd load_checker
 expose w:sm w:purpose w:source w:pc w:next_fails w:target_fails w:falls_to_next w:is_jump w:jump_target
-expose w:k w:field w:sel w:count w:wide_count w:entry w:acc w:setup$base_0 w:reading w:wait w:lo w:hi w:ptr w:mid w:key w:entry_tag w:stored w:read_done w:word w:data_addr
+expose w:k w:field w:sel w:count w:wide_count w:entry w:acc w:setup$base_0 w:reading w:read_wait w:lo w:hi w:ptr w:mid w:key w:entry_tag w:stored w:read_done w:word w:data_addr
 expose w:checked_captured w:checked_awaiting
 rename data_addr walk_addr
 rename setup$base_0 walk_base
-rename wait read_wait
 expose w:failed_target$phase w:failed_target$offset w:failed_target$period w:failed_target$x w:failed_target$y w:failed_target$arm w:failed_target$captured w:failed_target$awaiting w:failed_target$edge_a w:failed_target$edge_b
 rename failed_target$phase failed_phase
 rename failed_target$offset failed_offset
