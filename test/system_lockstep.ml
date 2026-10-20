@@ -25,6 +25,13 @@ module Assumptions = struct
     |> Load_check.to_words
   ;;
 
+  let of_timed timed =
+    { period = Timed_program.period timed
+    ; period_floor = Timed_program.period_floor timed
+    ; single_capture_edge = Timed_program.single_capture_edge timed
+    }
+  ;;
+
   let loaded t = Option.first_some t.period_floor t.period
 
   let premises t =

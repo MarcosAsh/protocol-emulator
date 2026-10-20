@@ -16,6 +16,9 @@ module Assumptions : sig
 
   val none : t
 
+  (** What [timed] was analysed under. *)
+  val of_timed : Timed_program.t -> t
+
   (** The certificate for [program], as the host writes it to the data memory. *)
   val certificate : t -> config:Program_config.t -> int list -> int list
 

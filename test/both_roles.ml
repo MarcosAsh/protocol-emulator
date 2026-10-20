@@ -127,6 +127,7 @@ let setup (side : Side.t) =
   ; program = Timed_program.words side.timed
   ; preload = List.take side.words preloaded
   ; data = []
+  ; assumptions = System_lockstep.Assumptions.of_timed side.timed
   }
 ;;
 

@@ -216,11 +216,13 @@ let setups (image : Image.t) =
     ; program = Timed_program.words image.timed
     ; preload = []
     ; data = []
+    ; assumptions = System_lockstep.Assumptions.of_timed image.timed
     }
   ; { config = Timed_program.config receiver
     ; program = Timed_program.words receiver
     ; preload = []
     ; data = []
+    ; assumptions = System_lockstep.Assumptions.of_timed receiver
     }
   ]
 ;;

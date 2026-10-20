@@ -179,27 +179,32 @@ let%expect_test "every input pin reaches a core, and a second reset clears the c
        (* from pin [in_base] to the outputs from pin 5, which are [uo_out] from bit 1 *)
        let echo ~in_base ~count =
          Spi_master.write m ~watch Reg.control [ 4 ];
-         { Program_config.default with
-           in_base
-         ; in_count = count
-         ; out_base = 5
-         ; out_count = count
-         }
-         |> Engine.Config.of_program_config
+         let config =
+           { Program_config.default with
+             in_base
+           ; in_count = count
+           ; out_base = 5
+           ; out_count = count
+           }
+         in
+         Engine.Config.of_program_config config
          |> Engine.Config.map ~f:Bits.to_unsigned_int
          |> Engine.Config.to_list
          |> List.iter2_exn Reg.configs ~f:(fun reg v ->
            Spi_master.write m ~watch reg [ v ]);
-         Spi_master.write m ~watch Reg.program_addr [ 0 ];
-         Spi_master.write
-           m
-           ~watch
-           Reg.program
-           (assemble {|
+         let program = assemble {|
 loop:
     mov pins, pins
     jmp loop
-|});
+|} in
+         Spi_master.write m ~watch Reg.program_addr [ 0 ];
+         Spi_master.write m ~watch Reg.program program;
+         Spi_certify.certify
+           m
+           ~watch
+           ~assumptions:System_lockstep.Assumptions.none
+           ~config
+           program;
          Spi_master.write m ~watch Reg.control [ 1 ];
          (* pins 0 to 4 are [ui_in]'s top five bits, pins 12 to 19 [uio_in] *)
          let input k = if in_base + k < 5 then in_base + k else in_base + k - 7 in
@@ -313,19 +318,19 @@ let%expect_test "the core's area" =
   [%expect
     {|
     ("Circuit_utilization.create circuit"
-     ((name engine) (adders ((count 20) (total_bits 225) (max_instance_bits 24)))
-      (subtractors ((count 14) (total_bits 199) (max_instance_bits 24)))
-      (and_gates ((count 190) (total_bits 1156)))
-      (or_gates ((count 42) (total_bits 342)))
-      (xor_gates ((count 14) (total_bits 112)))
-      (not_gates ((count 84) (total_bits 572)))
-      (equals ((count 84) (total_bits 84) (max_instance_bits 1)))
-      (comparators ((count 20) (total_bits 20) (max_instance_bits 1)))
+     ((name engine) (adders ((count 20) (total_bits 231) (max_instance_bits 24)))
+      (subtractors ((count 14) (total_bits 201) (max_instance_bits 24)))
+      (and_gates ((count 257) (total_bits 1223)))
+      (or_gates ((count 51) (total_bits 351)))
+      (xor_gates ((count 18) (total_bits 116)))
+      (not_gates ((count 93) (total_bits 581)))
+      (equals ((count 120) (total_bits 120) (max_instance_bits 1)))
+      (comparators ((count 23) (total_bits 23) (max_instance_bits 1)))
       (multiplexers
-       ((count 353) (total_bits 14256)
+       ((count 389) (total_bits 14788)
         (multiplexers
-         (((number_of_data_elements 2) (max_instance_bits 56) (total_bits 11820)
-           (count 321))
+         (((number_of_data_elements 2) (max_instance_bits 56) (total_bits 12076)
+           (count 353))
           ((number_of_data_elements 3) (max_instance_bits 72) (total_bits 336)
            (count 6))
           ((number_of_data_elements 4) (max_instance_bits 20) (total_bits 36)
@@ -336,18 +341,18 @@ let%expect_test "the core's area" =
            (count 14))
           ((number_of_data_elements 12) (max_instance_bits 12) (total_bits 12)
            (count 1))
-          ((number_of_data_elements 16) (max_instance_bits 16) (total_bits 16)
-           (count 1))
-          ((number_of_data_elements 28) (max_instance_bits 28) (total_bits 140)
-           (count 5))))))
-      (registers ((count 71) (total_bits 516)))
+          ((number_of_data_elements 16) (max_instance_bits 16) (total_bits 208)
+           (count 2))
+          ((number_of_data_elements 28) (max_instance_bits 28) (total_bits 224)
+           (count 8))))))
+      (registers ((count 96) (total_bits 740)))
       (memories
-       ((count 2) (total_bits 256)
-        (memories (((data_width 16) (depth 8) (total_bits 128) (count 2))))))
-      (constants ((count 351) (total_bits 3061)))
-      (wires ((count 174) (total_bits 1255)))
-      (concatenation ((count 223) (total_bits 5078)))
-      (part_selects ((count 781) (total_bits 4447)))
+       ((count 2) (total_bits 512)
+        (memories (((data_width 16) (depth 16) (total_bits 256) (count 2))))))
+      (constants ((count 413) (total_bits 3477)))
+      (wires ((count 214) (total_bits 1431)))
+      (concatenation ((count 242) (total_bits 5304)))
+      (part_selects ((count 918) (total_bits 4790)))
       (instantiations ((Instantiation RM_IHPSG13_1P_512x16_c2_bm_bist)))))
     |}]
 ;;
