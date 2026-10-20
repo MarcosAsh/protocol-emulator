@@ -10,28 +10,36 @@ module fetch_step (input clk);
   // The config, as the host port holds it: a write lands only while the core is halted,
   // and not in a start's second cycle (host_spacing.sv). Free at the clear.
   (* anyseq *) wire config_write;
-  (* anyseq *) wire [140:0] config_value;
-  reg [140:0] config_bits;
-  wire [1:0] side_set_count = config_bits[140:139];
-  wire [4:0] side_set_base = config_bits[138:134];
-  wire side_set_pindirs = config_bits[133];
-  wire [4:0] in_base = config_bits[132:128], in_count = config_bits[127:123];
-  wire [4:0] out_base = config_bits[122:118], out_count = config_bits[117:113];
-  wire [4:0] set_base = config_bits[112:108];
-  wire [2:0] set_count = config_bits[107:105];
-  wire [4:0] jmp_pin = config_bits[104:100], capture_pin = config_bits[99:95];
-  wire capture_rising = config_bits[94], in_shift_right = config_bits[93];
-  wire out_shift_right = config_bits[92], autopush = config_bits[91];
-  wire [4:0] push_threshold = config_bits[90:86];
-  wire autopull = config_bits[85];
-  wire [4:0] pull_threshold = config_bits[84:80], crc_width = config_bits[79:75];
-  wire [15:0] crc_poly = config_bits[74:59], crc_init = config_bits[58:43];
-  wire crc_reflect = config_bits[42];
-  wire [4:0] stuff_threshold = config_bits[41:37];
-  wire stuff_level = config_bits[36];
-  wire [8:0] wrap_bottom = config_bits[35:27], wrap_top = config_bits[26:18];
-  wire [15:0] period_fraction = config_bits[17:2];
-  wire autopull_data = config_bits[1], manchester = config_bits[0];
+  (* anyseq *) wire [142:0] config_value;
+  reg [142:0] config_bits;
+  wire [1:0] side_set_count = config_bits[142:141];
+  wire [4:0] side_set_base = config_bits[140:136];
+  wire side_set_pindirs = config_bits[135];
+  wire [4:0] in_base = config_bits[134:130], in_count = config_bits[129:125];
+  wire [4:0] out_base = config_bits[124:120], out_count = config_bits[119:115];
+  wire [4:0] set_base = config_bits[114:110];
+  wire [2:0] set_count = config_bits[109:107];
+  wire [4:0] jmp_pin = config_bits[106:102], capture_pin = config_bits[101:97];
+  wire capture_rising = config_bits[96], in_shift_right = config_bits[95];
+  wire out_shift_right = config_bits[94], autopush = config_bits[93];
+  wire [4:0] push_threshold = config_bits[92:88];
+  wire autopull = config_bits[87];
+  wire [4:0] pull_threshold = config_bits[86:82], crc_width = config_bits[81:77];
+  wire [15:0] crc_poly = config_bits[76:61], crc_init = config_bits[60:45];
+  wire crc_reflect = config_bits[44];
+  wire [4:0] stuff_threshold = config_bits[43:39];
+  wire stuff_level = config_bits[38];
+  wire [8:0] wrap_bottom = config_bits[37:29], wrap_top = config_bits[28:20];
+  wire [15:0] period_fraction = config_bits[19:4];
+  wire autopull_data = config_bits[3], manchester = config_bits[2];
+  wire line_code = config_bits[1], route = config_bits[0];
+  // the load checker's read of the program memory, which the engine takes only while free
+  (* anyseq *) wire program_read_valid;
+  (* anyseq *) wire [8:0] program_read_value;
+  (* anyseq *) wire line_write_valid, premises_period_valid, premises_floor;
+  (* anyseq *) wire premises_single_edge, route_full;
+  (* anyseq *) wire [4:0] line_write_addr;
+  (* anyseq *) wire [15:0] line_write_data, premises_period_value;
   (* anyseq *) wire [15:0] data_word;
   (* anyseq *) wire stop, flush;
   (* anyseq *) wire start, program_write_valid, tx_valid, rx_pop, clear_irq;
@@ -70,6 +78,13 @@ module fetch_step (input clk);
     .config$wrap_bottom(wrap_bottom), .config$wrap_top(wrap_top),
     .config$period_fraction(period_fraction),
     .config$autopull_data(autopull_data), .config$manchester(manchester),
+    .config$line_code(line_code), .config$route(route),
+    .program_read$valid(program_read_valid), .program_read$value(program_read_value),
+    .line_write$valid(line_write_valid), .line_write$addr(line_write_addr),
+    .line_write$data(line_write_data),
+    .premises$period$valid(premises_period_valid), .premises$period$value(premises_period_value),
+    .premises$floor(premises_floor), .premises$single_edge(premises_single_edge),
+    .route_full(route_full),
     .stop(stop), .flush(flush),
     .start(start), .program_write$valid(program_write_valid),
     .program_write$addr(program_write_addr), .program_write$data(program_write_data),
@@ -102,12 +117,17 @@ module fetch_step (input clk);
 `endif
 
   // the address the memory read in the last cycle, and the pc after a word
-  wire [8:0] read_addr = program_write_valid && halted ? program_write_addr : fetch_addr;
+  // free as the engine has it: halted, and not starting
+  wire free = halted && !(start || started);
+  wire [8:0] read_addr = program_write_valid && halted ? program_write_addr
+    : program_read_valid && free ? program_read_value : fetch_addr;
   reg [8:0] last_read;
   reg ready = 0;
+  // checked from the cycle after one with the clear low: the core's start flop powers up
+  // as anything, so before the clear has reached it free may be either
   always @(posedge clk) begin
     last_read <= read_addr;
-    ready <= 1;
+    ready <= ready || !clear;
   end
   function [8:0] after(input [8:0] a);
     after = a == wrap_top ? wrap_bottom : a + 9'd1;
