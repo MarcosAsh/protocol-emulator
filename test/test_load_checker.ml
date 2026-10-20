@@ -297,7 +297,7 @@ let%expect_test "the checker agrees with the model on corrupted certificates" =
                 ~checker:(show verdict)
                 ~model:(show model)]));
   print_s [%message (!trials : int) (!refused : int)];
-  [%expect {| ((!trials 200) (!refused 123)) |}]
+  [%expect {| ((!trials 200) (!refused 124)) |}]
 ;;
 
 (* The setup is the one the host wrote before the check: writing another mid-walk, from
