@@ -20,7 +20,9 @@ stale: depth 280
 teeth: expect fail
 
 [engines]
-smtbmc boolector
+# the stale tooth's counterexample is 252 half-cycle steps deep, past smtbmc in hours
+~stale: smtbmc boolector
+stale: abc bmc3
 
 [script]
 read_verilog -lib RM_IHPSG13_1P_512x16_c2_bm_bist.v
