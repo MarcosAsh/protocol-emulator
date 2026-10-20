@@ -2878,7 +2878,7 @@ module engine (
     assign signal_or_4 = seen | signal_and_1;
     assign signal_mux = releases ? seen : signal_or_4;
     assign signal_mux_1 = arms ? gnd : signal_mux;
-    assign signal_mux_2 = signal_wire_58 ? gnd : signal_mux_1;
+    assign signal_mux_2 = halted_0 ? gnd : signal_mux_1;
     always @(posedge signal_wire_57) begin
         if (signal_wire_56)
             signal_reg <= signal_const_1;
@@ -2904,7 +2904,7 @@ module engine (
     assign releases = signal_and_6 & signal_eq;
     assign signal_mux_3 = releases ? gnd : holding;
     assign signal_mux_4 = arms ? vdd : signal_mux_3;
-    assign signal_mux_5 = signal_wire_58 ? gnd : signal_mux_4;
+    assign signal_mux_5 = halted_0 ? gnd : signal_mux_4;
     always @(posedge signal_wire_57) begin
         if (signal_wire_56)
             signal_reg_1 <= signal_const_1;

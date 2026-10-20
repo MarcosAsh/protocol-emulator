@@ -889,11 +889,12 @@ module Make (Timer : Timer) = struct
     let%hw armed_at_level = arms &: capture_level in
     let%hw second_edge = holding &: seen &: ~:capture_level in
     let%hw edge_off = i.premises.single_edge &: (armed_at_level |: second_edge) in
-    holding <-- reg spec (mux2 i.start gnd @@ mux2 arms vdd @@ mux2 releases gnd holding);
+    (* cleared while halted, so a start the running core ignores leaves the guard alone *)
+    holding <-- reg spec (mux2 halted gnd @@ mux2 arms vdd @@ mux2 releases gnd holding);
     seen
     <-- reg
           spec
-          (mux2 i.start gnd
+          (mux2 halted gnd
            @@ mux2 arms gnd
            @@ mux2 releases seen (seen |: (holding &: capture_level)));
     let%hw halted_next =
