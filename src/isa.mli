@@ -282,7 +282,8 @@ module Alu_reg : sig
 end
 
 (** [Push] and [Pull] never stall, so the host cannot perturb pin timing; on a full or
-    empty fifo they set a fault bit. [Seek] points data autopull at [x]. *)
+    empty fifo they set a fault bit. [Seek] points data autopull at [x]. After [Crc_send],
+    until [Crc_init], single-bit [out]s send the CRC's bits in place of the osr's. *)
 module Sys_op : sig
   module Cases : sig
     type t =
@@ -295,6 +296,7 @@ module Sys_op : sig
       | Stuff_reset
       | Capture_arm
       | Seek
+      | Crc_send
     [@@deriving sexp_of, compare ~localize, enumerate, equal]
   end
 

@@ -13,9 +13,12 @@ module fail_safe (input clk);
   (* anyconst *) wire [4:0] jmp_pin_1, capture_pin_1, push_threshold_1, pull_threshold_1;
   (* anyconst *) wire side_set_pindirs_0, capture_rising_0, in_shift_right_0, out_shift_right_0, autopush_0, autopull_0;
   (* anyconst *) wire side_set_pindirs_1, capture_rising_1, in_shift_right_1, out_shift_right_1, autopush_1, autopull_1;
-  (* anyconst *) wire [4:0] crc_width_0, stuff_threshold_0, crc_width_1, stuff_threshold_1;
+  (* anyconst *) wire [5:0] crc_width_0, crc_width_1;
+  (* anyconst *) wire [4:0] stuff_threshold_0, stuff_threshold_1;
   (* anyconst *) wire [15:0] crc_poly_0, crc_init_0, crc_poly_1, crc_init_1;
-  (* anyconst *) wire crc_reflect_0, stuff_level_0, crc_reflect_1, stuff_level_1;
+  (* anyconst *) wire [15:0] crc_poly_high_0, crc_init_high_0, crc_poly_high_1, crc_init_high_1;
+  (* anyconst *) wire crc_reflect_0, crc_complement_0, stuff_level_0;
+  (* anyconst *) wire crc_reflect_1, crc_complement_1, stuff_level_1;
   (* anyconst *) wire [8:0] wrap_bottom_0, wrap_top_0, wrap_bottom_1, wrap_top_1;
   (* anyconst *) wire [15:0] period_fraction_0, period_fraction_1;
   (* anyconst *) wire autopull_data_0, manchester_0, autopull_data_1, manchester_1;
@@ -77,6 +80,8 @@ module fail_safe (input clk);
     .hosts$tx$valid_0(tx_valid[0]), .hosts$tx$value_0(tx_value_0), .hosts$rx_pop_0(rx_pop[0]),
     .hosts$clear_irq_0(clear_irq[0]), .hosts$stop_0(stop[0]), .hosts$flush_0(flush[0]),
     .hosts$config$line_code_0(line_code_0), .hosts$config$route_0(route_0),
+    .hosts$config$crc_poly_high_0(crc_poly_high_0), .hosts$config$crc_init_high_0(crc_init_high_0),
+    .hosts$config$crc_complement_0(crc_complement_0),
     .hosts$line_write$valid_0(line_write_valid[0]),
     .hosts$line_write$addr_0(line_write_addr_0),
     .hosts$line_write$data_0(line_write_data_0),
@@ -104,6 +109,8 @@ module fail_safe (input clk);
     .hosts$tx$valid_1(tx_valid[1]), .hosts$tx$value_1(tx_value_1), .hosts$rx_pop_1(rx_pop[1]),
     .hosts$clear_irq_1(clear_irq[1]), .hosts$stop_1(stop[1]), .hosts$flush_1(flush[1]),
     .hosts$config$line_code_1(line_code_1), .hosts$config$route_1(route_1),
+    .hosts$config$crc_poly_high_1(crc_poly_high_1), .hosts$config$crc_init_high_1(crc_init_high_1),
+    .hosts$config$crc_complement_1(crc_complement_1),
     .hosts$line_write$valid_1(line_write_valid[1]),
     .hosts$line_write$addr_1(line_write_addr_1),
     .hosts$line_write$data_1(line_write_data_1),

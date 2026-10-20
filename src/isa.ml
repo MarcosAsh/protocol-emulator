@@ -282,6 +282,7 @@ module Sys_op = struct
       | Stuff_reset
       | Capture_arm
       | Seek
+      | Crc_send
     [@@deriving sexp_of, compare ~localize, enumerate, equal]
   end
 

@@ -106,6 +106,7 @@ let%expect_test "every firmware against the chip's walk" =
     table                        112     87  accepted
     table_open_drain             112     87  accepted
     asm/blink                      4      5  accepted
+    asm/crc_send                  12     12  accepted
     asm/data_stream                4      5  accepted
     asm/edge_logger_echo          13     11  accepted
     asm/edge_logger_wire           8      8  accepted

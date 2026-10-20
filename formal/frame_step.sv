@@ -22,9 +22,10 @@ module frame_step (input clk);
   (* anyconst *) wire [2:0] set_count;
   (* anyconst *) wire [4:0] jmp_pin, capture_pin, push_threshold, pull_threshold;
   (* anyconst *) wire side_set_pindirs, capture_rising, in_shift_right, out_shift_right, autopush, autopull;
-  (* anyconst *) wire [4:0] crc_width, stuff_threshold;
-  (* anyconst *) wire [15:0] crc_poly, crc_init;
-  (* anyconst *) wire crc_reflect, stuff_level;
+  (* anyconst *) wire [5:0] crc_width;
+  (* anyconst *) wire [4:0] stuff_threshold;
+  (* anyconst *) wire [15:0] crc_poly, crc_init, crc_poly_high, crc_init_high;
+  (* anyconst *) wire crc_reflect, crc_complement, stuff_level;
   (* anyconst *) wire [8:0] wrap_bottom, wrap_top;
   (* anyconst *) wire [15:0] period_fraction;
   (* anyconst *) wire autopull_data, manchester, line_code, route;
@@ -52,7 +53,9 @@ module frame_step (input clk);
 
   wire [27:0] pin_out, pin_dir;
   wire [8:0] pc;
-  wire [15:0] x, y, p, osr, isr, rx_head, instruction, crc;
+  wire [15:0] x, y, p, osr, isr, rx_head, instruction;
+  wire [31:0] crc;
+  wire crc_sending;
   wire [`TIMER_BITS-1:0] t, now, capture;
   wire [4:0] osr_count, isr_count, stall, stuff_run;
   wire halted, irq, underflow, overflow, missed_deadline, decode, capture_armed;
@@ -85,6 +88,8 @@ module frame_step (input clk);
     .program_read$valid(program_read_valid), .program_read$value(program_read_addr),
     .premises$period$valid(premise_period_valid), .premises$period$value(premise_period),
     .premises$floor(premise_floor), .premises$single_edge(premise_single_edge),
+    .config$crc_poly_high(crc_poly_high), .config$crc_init_high(crc_init_high),
+    .config$crc_complement(crc_complement),
     .stop(stop), .flush(flush),
     .start(start), .program_write$valid(program_write_valid),
     .program_write$addr(program_write_addr), .program_write$data(program_write_data),
@@ -96,7 +101,7 @@ module frame_step (input clk);
     .halted(halted), .irq(irq), .fault$underflow(underflow), .fault$overflow(overflow),
     .fault$missed_deadline(missed_deadline), .fault$decode(decode), .capture(capture),
     .capture_armed(capture_armed), .tx_level(tx_level), .rx_level(rx_level),
-    .rx_head(rx_head), .instruction(instruction), .crc(crc), .stuff_run(stuff_run),
+    .rx_head(rx_head), .instruction(instruction), .crc(crc), .crc_sending(crc_sending), .stuff_run(stuff_run),
     .decode_ok(decode_ok), .opcode_onehot(opcode_onehot), .wait_select(wait_select),
     .flip_pending(flip_pending), .flip_bit(flip_bit),
     .eng_op_go(op_go));

@@ -20,7 +20,8 @@ typedef struct packed {
   logic capture_rising, in_shift_right, out_shift_right, autopush;
   logic [4:0] push_threshold;
   logic autopull;
-  logic [4:0] pull_threshold, crc_width;
+  logic [4:0] pull_threshold;
+  logic [5:0] crc_width;
   logic [15:0] crc_poly, crc_init;
   logic crc_reflect;
   logic [4:0] stuff_threshold;
@@ -28,6 +29,8 @@ typedef struct packed {
   logic [8:0] wrap_bottom, wrap_top;
   logic [15:0] period_fraction;
   logic autopull_data, manchester, line_code, route;
+  logic [15:0] crc_poly_high, crc_init_high;
+  logic crc_complement;
 } config_t;
 
 typedef struct packed {
@@ -131,7 +134,10 @@ module isolation_copy (
     .hosts$config$period_fraction_``n(c.period_fraction), \
     .hosts$config$autopull_data_``n(c.autopull_data), \
     .hosts$config$manchester_``n(c.manchester), \
-    .hosts$config$line_code_``n(c.line_code), .hosts$config$route_``n(c.route),
+    .hosts$config$line_code_``n(c.line_code), .hosts$config$route_``n(c.route), \
+    .hosts$config$crc_poly_high_``n(c.crc_poly_high), \
+    .hosts$config$crc_init_high_``n(c.crc_init_high), \
+    .hosts$config$crc_complement_``n(c.crc_complement),
 `define HOST(n, h) \
     .hosts$start_``n(h.start), .hosts$stop_``n(h.stop), .hosts$flush_``n(h.flush), \
     .hosts$rx_pop_``n(h.rx_pop), .hosts$clear_irq_``n(h.clear_irq), \

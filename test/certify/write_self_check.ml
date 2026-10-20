@@ -290,7 +290,7 @@ let contract_checks =
 ;;
 
 (* the core's own, as write_certificate's inductive certificates have them, and the data
-   memory's read a cycle on *)
+   memory's read a cycle on; the checker has no crc_send, so its outs send the osr *)
 let core_invariants ~after =
   [%string
     {|  wire [27:0] wait_pin = 28'd1 << instruction[4:0];
@@ -315,6 +315,7 @@ let core_invariants ~after =
       assert (!started);
       assert (decode_ok && opcode_onehot == (8'd1 << instruction[15:13]));
       assert (wait_select == wait_pin);
+      assert (!crc_sending);
       if (!jumped) assert (instruction == rom(pc) && fetched == rom(after(pc)));
       if (jumped) assert (stall == 1 && fetched == rom(pc));
       if (stalled) assert (instruction[15:13] == 1);
@@ -353,8 +354,9 @@ let harness ?(invariants = false) ~edges ~base ~mutant () =
   wire decode_ok, eng_issue, eng_jmp_go;
   wire [7:0] opcode_onehot;
   wire [27:0] wait_select;
+  wire crc_sending;
 |}
-      , {|, .instruction(instruction),
+      , {|, .instruction(instruction), .crc_sending(crc_sending),
     .decode_ok(decode_ok), .opcode_onehot(opcode_onehot), .wait_select(wait_select),
     .eng_issue(eng_issue), .eng_jmp_go(eng_jmp_go)|}
       , core_invariants ~after ^ mined ~edges ~base ~program:words ~config )

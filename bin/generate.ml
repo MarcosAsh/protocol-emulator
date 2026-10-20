@@ -728,6 +728,7 @@ let predicate_settings (firmware : Predicate.Firmware.t) =
       ; crc_poly
       ; crc_init
       ; crc_reflect
+      ; crc_complement
       ; stuff_threshold
       ; stuff_level
       ; wrap_bottom
@@ -745,6 +746,9 @@ let predicate_settings (firmware : Predicate.Firmware.t) =
     | Right -> true
     | Left -> false
   in
+  (* a 32-bit CRC's polynomial and init each take two registers *)
+  let low v = v land ((1 lsl Isa.data_bits) - 1) in
+  let high v = v lsr Isa.data_bits in
   let config =
     List.map
       [ "side_set_pindirs", side_set_pindirs
@@ -754,6 +758,7 @@ let predicate_settings (firmware : Predicate.Firmware.t) =
       ; "autopush", autopush
       ; "autopull", autopull
       ; "crc_reflect", crc_reflect
+      ; "crc_complement", crc_complement
       ; "stuff_level", stuff_level
       ; "autopull_data", autopull_data
       ; "manchester", manchester
@@ -774,8 +779,10 @@ let predicate_settings (firmware : Predicate.Firmware.t) =
       ; "push_threshold", push_threshold
       ; "pull_threshold", pull_threshold
       ; "crc_width", crc_width
-      ; "crc_poly", crc_poly
-      ; "crc_init", crc_init
+      ; "crc_poly", low crc_poly
+      ; "crc_poly_high", high crc_poly
+      ; "crc_init", low crc_init
+      ; "crc_init_high", high crc_init
       ; "stuff_threshold", stuff_threshold
       ; "wrap_bottom", wrap_bottom
       ; "wrap_top", wrap_top

@@ -8,31 +8,45 @@
 
 module fetch_step (input clk);
   // The config, as the host port holds it: a write lands only while the core is halted,
-  // and not in a start's second cycle (host_spacing.sv). Free at the clear.
+  // and not in a start's second cycle (host_spacing.sv). Free at the clear. Every field,
+  // in Engine.Config's order, first field highest.
   (* anyseq *) wire config_write;
-  (* anyseq *) wire [142:0] config_value;
-  reg [142:0] config_bits;
-  wire [1:0] side_set_count = config_bits[142:141];
-  wire [4:0] side_set_base = config_bits[140:136];
-  wire side_set_pindirs = config_bits[135];
-  wire [4:0] in_base = config_bits[134:130], in_count = config_bits[129:125];
-  wire [4:0] out_base = config_bits[124:120], out_count = config_bits[119:115];
-  wire [4:0] set_base = config_bits[114:110];
-  wire [2:0] set_count = config_bits[109:107];
-  wire [4:0] jmp_pin = config_bits[106:102], capture_pin = config_bits[101:97];
-  wire capture_rising = config_bits[96], in_shift_right = config_bits[95];
-  wire out_shift_right = config_bits[94], autopush = config_bits[93];
-  wire [4:0] push_threshold = config_bits[92:88];
-  wire autopull = config_bits[87];
-  wire [4:0] pull_threshold = config_bits[86:82], crc_width = config_bits[81:77];
-  wire [15:0] crc_poly = config_bits[76:61], crc_init = config_bits[60:45];
-  wire crc_reflect = config_bits[44];
-  wire [4:0] stuff_threshold = config_bits[43:39];
-  wire stuff_level = config_bits[38];
-  wire [8:0] wrap_bottom = config_bits[37:29], wrap_top = config_bits[28:20];
-  wire [15:0] period_fraction = config_bits[19:4];
-  wire autopull_data = config_bits[3], manchester = config_bits[2];
-  wire line_code = config_bits[1], route = config_bits[0];
+  (* anyseq *) wire [176:0] config_value;
+  reg [176:0] config_bits;
+  wire [1:0] side_set_count = config_bits[176:175];
+  wire [4:0] side_set_base = config_bits[174:170];
+  wire side_set_pindirs = config_bits[169];
+  wire [4:0] in_base = config_bits[168:164];
+  wire [4:0] in_count = config_bits[163:159];
+  wire [4:0] out_base = config_bits[158:154];
+  wire [4:0] out_count = config_bits[153:149];
+  wire [4:0] set_base = config_bits[148:144];
+  wire [2:0] set_count = config_bits[143:141];
+  wire [4:0] jmp_pin = config_bits[140:136];
+  wire [4:0] capture_pin = config_bits[135:131];
+  wire capture_rising = config_bits[130];
+  wire in_shift_right = config_bits[129];
+  wire out_shift_right = config_bits[128];
+  wire autopush = config_bits[127];
+  wire [4:0] push_threshold = config_bits[126:122];
+  wire autopull = config_bits[121];
+  wire [4:0] pull_threshold = config_bits[120:116];
+  wire [5:0] crc_width = config_bits[115:110];
+  wire [15:0] crc_poly = config_bits[109:94];
+  wire [15:0] crc_init = config_bits[93:78];
+  wire crc_reflect = config_bits[77];
+  wire [4:0] stuff_threshold = config_bits[76:72];
+  wire stuff_level = config_bits[71];
+  wire [8:0] wrap_bottom = config_bits[70:62];
+  wire [8:0] wrap_top = config_bits[61:53];
+  wire [15:0] period_fraction = config_bits[52:37];
+  wire autopull_data = config_bits[36];
+  wire manchester = config_bits[35];
+  wire line_code = config_bits[34];
+  wire route = config_bits[33];
+  wire [15:0] crc_poly_high = config_bits[32:17];
+  wire [15:0] crc_init_high = config_bits[16:1];
+  wire crc_complement = config_bits[0];
   // the load checker's read of the program memory, which the engine takes only while free
   (* anyseq *) wire program_read_valid;
   (* anyseq *) wire [8:0] program_read_value;
@@ -79,6 +93,8 @@ module fetch_step (input clk);
     .config$period_fraction(period_fraction),
     .config$autopull_data(autopull_data), .config$manchester(manchester),
     .config$line_code(line_code), .config$route(route),
+    .config$crc_poly_high(crc_poly_high), .config$crc_init_high(crc_init_high),
+    .config$crc_complement(crc_complement),
     .program_read$valid(program_read_valid), .program_read$value(program_read_value),
     .line_write$valid(line_write_valid), .line_write$addr(line_write_addr),
     .line_write$data(line_write_data),

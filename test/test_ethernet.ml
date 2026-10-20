@@ -31,15 +31,16 @@ let run ~cycles ~host ~data =
 ;;
 
 let frame = Frame.udp ~payload:"hello from the chip"
-let sent = Frame.with_fcs frame
+let wire = Frame.wire frame
+
+(* the host's part: no FCS, which the CRC unit sends *)
+let data = Frame.words (Frame.preamble @ frame)
+let length = (8 * List.length frame) - 2
 
 let%expect_test "a UDP datagram goes out in 10BASE-T" =
-  let bits = 8 * List.length sent in
+  let bits = 8 * List.length wire in
   let t, receiver =
-    run
-      ~cycles:(link_tenth + (4 * (64 + bits)) + 100)
-      ~host:[ link_tenth; bits - 1 ]
-      ~data:(Frame.words sent)
+    run ~cycles:(link_tenth + (4 * bits) + 100) ~host:[ link_tenth; length ] ~data
   in
   List.iter (Receiver.frames receiver) ~f:(fun received ->
     let #(body, fcs) = List.split_n received (List.length received - 4) in
@@ -69,6 +70,59 @@ let%expect_test "a UDP datagram goes out in 10BASE-T" =
     |}]
 ;;
 
+(* The FCS the CRC unit sends, over an ARP request and datagrams of many lengths, against
+   the reference; the CRC of a frame and its FCS is the standard's residue, 0x2144df1c. *)
+let%expect_test "the chip's FCS over frames of many lengths" =
+  let arp =
+    List.init 6 ~f:(Fn.const 0xff)
+    @ [ 0x02; 0; 0; 0; 0; 0x02; 0x08; 0x06; 0; 1; 0x08; 0; 6; 4; 0; 1 ]
+    @ [ 0x02; 0; 0; 0; 0; 0x02; 10; 0; 0; 2 ]
+    @ List.init 6 ~f:(Fn.const 0)
+    @ [ 10; 0; 0; 1 ]
+    @ List.init 18 ~f:(Fn.const 0)
+  in
+  let frames =
+    arp
+    :: List.map [ 0; 1; 19; 100; 901 ] ~f:(fun length ->
+      Frame.udp ~payload:(String.init length ~f:(fun n -> Char.of_int_exn (n land 0xff))))
+  in
+  List.iter frames ~f:(fun frame ->
+    let bits = 8 * List.length (Frame.wire frame) in
+    let t, receiver =
+      run
+        ~cycles:(link_tenth + (4 * bits) + 100)
+        ~host:[ link_tenth; (8 * List.length frame) - 2 ]
+        ~data:(Frame.words (Frame.preamble @ frame))
+    in
+    let received = List.hd_exn (Receiver.frames receiver) in
+    let #(body, fcs) = List.split_n received (List.length received - 4) in
+    let fcs = List.foldi fcs ~init:0 ~f:(fun n acc byte -> acc lor (byte lsl (8 * n))) in
+    print_s
+      [%message
+        ""
+          ~bytes:(List.length received : int)
+          ~as_sent:([%equal: int list] body frame : bool)
+          ~fcs_ok:(fcs = Frame.crc32 body : bool)
+          ~residue:(Frame.crc32 received : Int.Hex.t)
+          ~violations:(Receiver.violations receiver : string list)
+          ~faulted:(not ([%equal: Machine.Fault.t] t.fault Machine.Fault.none) : bool)]);
+  [%expect
+    {|
+    ((bytes 64) (as_sent true) (fcs_ok true) (residue 0x2144df1c) (violations ())
+     (faulted false))
+    ((bytes 64) (as_sent true) (fcs_ok true) (residue 0x2144df1c) (violations ())
+     (faulted false))
+    ((bytes 64) (as_sent true) (fcs_ok true) (residue 0x2144df1c) (violations ())
+     (faulted false))
+    ((bytes 66) (as_sent true) (fcs_ok true) (residue 0x2144df1c) (violations ())
+     (faulted false))
+    ((bytes 146) (as_sent true) (fcs_ok true) (residue 0x2144df1c)
+     (violations ()) (faulted false))
+    ((bytes 948) (as_sent true) (fcs_ok true) (residue 0x2144df1c)
+     (violations ()) (faulted false))
+    |}]
+;;
+
 (* Idle for 50 ms: a link pulse every 16 ms keeps the link up. *)
 let%expect_test "link pulses while idle" =
   let t, receiver = run ~cycles:2_000_000 ~host:[ link_tenth ] ~data:[] in
@@ -92,7 +146,7 @@ let%expect_test "link pulses while idle" =
 
 (* The frame in lockstep, with a short link interval so the frame starts soon. *)
 let%expect_test "the frame in lockstep with the hardware" =
-  let bits = 8 * List.length sent in
+  let bits = 8 * List.length wire in
   let receiver = ref (Receiver.create ()) in
   let react (m : Machine.t) =
     let driven pin = ((m.pin_out land m.pin_dir) lsr pin) land 1 in
@@ -101,9 +155,9 @@ let%expect_test "the frame in lockstep with the hardware" =
   in
   let (_ : Machine.t) =
     Lockstep.lockstep
-      ~cycles:((4 * (64 + bits)) + 200)
-      ~preload:[ 50; bits - 1 ]
-      ~data:(Frame.words sent)
+      ~cycles:((4 * bits) + 200)
+      ~preload:[ 50; length ]
+      ~data
       ~config
       ~program:(Timed_program.words firmware)
       ~inputs:(fun _ -> 0)
@@ -116,7 +170,7 @@ let%expect_test "the frame in lockstep with the hardware" =
         ~frames:(List.length (Receiver.frames !receiver) : int)
         ~as_sent:
           (List.for_all (Receiver.frames !receiver) ~f:(fun f ->
-             [%equal: int list] (List.take f (List.length frame)) frame)
+             [%equal: int list] (Frame.preamble @ f) wire)
            : bool)
         ~violations:(Receiver.violations !receiver : string list)];
   [%expect
@@ -150,18 +204,24 @@ let%expect_test "the certificate" =
       2  set pindirs, 3               phase ?..?  edge ?..?  jitter ?  gap ?..?
       9  set pins, 1 [3]              phase -63995  edge -63994  gap 63996..?
      10  set pins, 0                  phase -63991  edge -63990  gap 4
-     18  set pins, 2 [1]              phase -63991  edge -63990  gap 64000..?
-     19  set pins, 1 [3]              phase -63989..?  edge -63988..?  jitter ?  gap 4 from 21, 2 from 18
-     20  set pins, 2 [1]              phase -63985..?  edge -63984..?  jitter ?  gap 4
-     22  set pins, 1 [1]              phase -63741  edge -63740  gap 4
-     23  set pins, 2 [1]              phase -63739  edge -63738  gap 2
-     24  set pins, 1 [1]              phase -63737  edge -63736  gap 2
-     25  out pins, 1 [1]              phase -63735..?  edge -63734..?  jitter ?  gap 2
-     26  jmp y--, 25                  phase -63733..?  flip -63732..?  jitter ?  gap 2
-     27  set pins, 1 [10]             phase -63731..?  edge -63730..?  jitter ?  gap 2
-     28  set pins, 0                  phase -63720..?  edge -63719..?  jitter ?  gap 11
-    ((words 32) (edge_jitter unbounded) (sample_jitter 0) (side_jitter 0)
+     18  out pins, 1 [1]              phase -63991..?  edge -63990..?  jitter ?  gap 2 from 19, 64000..? from 17
+     19  jmp x--, 18                  phase -63989..?  flip -63988..?  jitter ?  gap 2
+     20  out pins, 1 [1]              phase -63867  edge -63866  gap 2
+     21  set x, 30 [1]                phase -63865  flip -63864  gap 2
+     22  out pins, 1 [1]              phase -63863..?  edge -63862..?  jitter ?  gap 2
+     23  jmp x--, 22                  phase -63861..?  flip -63860..?  jitter ?  gap 2
+     24  out pins, 1 [1]              phase -63739  edge -63738  gap 2
+     25  crc_init [1]                 phase -63737  flip -63736  gap 2
+     26  out pins, 1 [1]              phase -63735..?  edge -63734..?  jitter ?  gap 2
+     27  jmp y--, 26                  phase -63733..?  flip -63732..?  jitter ?  gap 2
+     28  out pins, 1 [1]              phase -63731..?  edge -63730..?  jitter ?  gap 2
+     29  crc_send                     phase -63729..?  flip -63728..?  jitter ?  gap 2
+     31  out pins, 1 [1]              phase -63727..?  edge -63726..?  jitter ?  gap 2
+     32  jmp x--, 31                  phase -63725..?  flip -63724..?  jitter ?  gap 2
+     33  set pins, 1 [10]             phase -63599..?  edge -63598..?  jitter ?  gap 2
+     34  set pins, 0                  phase -63588..?  edge -63587..?  jitter ?  gap 11
+    ((words 38) (edge_jitter unbounded) (sample_jitter 0) (side_jitter 0)
      (may_miss 0))
-    ((issues 5808) (flips 2680) (gaps 5628) (violations ()))
+    ((issues 5932) (flips 2936) (gaps 5876) (violations ()))
     |}]
 ;;

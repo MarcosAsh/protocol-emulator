@@ -1355,9 +1355,9 @@ let reaction (c : Certified.t) =
 
 (* Every row the analyser gives the library has no slope and the full offset, so each
    table is one of the tables of intervals that formal/phase_table.sby covers, but for
-   ethernet's preamble, a counted loop a pin write after its [set x], which
-   formal/phase_table_affine.sby covers. The old ws2812's gap loop is not one either. *)
-let%expect_test "the library's tables are rows of intervals, but for ethernet's preamble" =
+   ethernet's counted preamble loops, which formal/phase_table_affine.sby covers, and the
+   old ws2812's gap loop. *)
+let%expect_test "the library's tables are rows of intervals" =
   let module Kernel_bits = Kernel.Make (Bits) in
   List.iter
     (Library.certified @ [ ws2812_waiting_after_gap ])

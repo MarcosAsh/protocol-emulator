@@ -79,8 +79,8 @@ let of_registers values : Program_config.t =
     ; autopull = bool c.autopull
     ; pull_threshold = c.pull_threshold
     ; crc_width = c.crc_width
-    ; crc_poly = c.crc_poly
-    ; crc_init = c.crc_init
+    ; crc_poly = (c.crc_poly_high lsl 16) lor c.crc_poly
+    ; crc_init = (c.crc_init_high lsl 16) lor c.crc_init
     ; crc_reflect = bool c.crc_reflect
     ; stuff_threshold = c.stuff_threshold
     ; stuff_level = bool c.stuff_level
@@ -91,6 +91,7 @@ let of_registers values : Program_config.t =
     ; manchester = bool c.manchester
     ; line_code = bool c.line_code
     ; route = bool c.route
+    ; crc_complement = bool c.crc_complement
     }
   in
   let written =

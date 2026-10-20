@@ -198,6 +198,7 @@ let%expect_test "the checker agrees with the model on every firmware" =
     table                        10310  accepted
     table_open_drain             10310  accepted
     asm/blink                     8251  accepted
+    asm/crc_send                  8377  accepted
     asm/data_stream               8254  accepted
     asm/edge_logger_echo          8401  accepted
     asm/edge_logger_wire          8320  accepted

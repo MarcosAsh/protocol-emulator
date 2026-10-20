@@ -5,6 +5,7 @@ out_shift_right 1
 autopush 0
 autopull 0
 crc_reflect 1
+crc_complement 1
 stuff_level 1
 autopull_data 0
 manchester 0
@@ -24,7 +25,9 @@ push_threshold 16
 pull_threshold 16
 crc_width 16
 crc_poly 40961
+crc_poly_high 0
 crc_init 65535
+crc_init_high 0
 stuff_threshold 0
 wrap_bottom 0
 wrap_top 511

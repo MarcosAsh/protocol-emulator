@@ -33,6 +33,7 @@ module State = struct
     ; rx_level : int
     ; rx_head : int option
     ; crc : int
+    ; crc_sending : bool
     ; stuff_run : int
     ; flip : int option
     ; line_tx : int
@@ -67,6 +68,7 @@ module State = struct
     ; rx_level = List.length m.rx_fifo
     ; rx_head = List.hd m.rx_fifo
     ; crc = m.crc
+    ; crc_sending = m.crc_sending
     ; stuff_run = m.stuff_run
     ; flip = m.flip
     ; line_tx = m.line_tx
@@ -110,6 +112,7 @@ module State = struct
     ; rx_level
     ; rx_head = (if rx_level = 0 then None else Some (int o.rx_head))
     ; crc = int o.crc
+    ; crc_sending = bool o.crc_sending
     ; stuff_run = int o.stuff_run
     ; flip = Option.some_if (bool o.flip_pending) (int o.flip_bit)
     ; line_tx = int o.line_tx
