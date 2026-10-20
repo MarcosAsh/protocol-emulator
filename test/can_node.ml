@@ -596,7 +596,11 @@ let can_trace ?(teeth = []) ~name ~frames ~rejected () =
   { Scenario.name
   ; peer = (fun () -> Peer.idle 0)
   ; script =
-      Scenario.load ~assumptions:(Certified.assumptions certified) ~config:Can.config ~program:(Timed_program.words Can.firmware) ()
+      Scenario.load
+        ~assumptions:(Certified.assumptions certified)
+        ~config:Can.config
+        ~program:(Timed_program.words Can.firmware)
+        ()
       @ [ Scenario.start; Write (Reg.tx, [ Can.period ]); Run (12 * Can.period) ]
       @ List.concat_map frames ~f:send
   ; sigrok =

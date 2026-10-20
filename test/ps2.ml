@@ -371,7 +371,11 @@ let scenario =
   { Scenario.name = "ps2"
   ; peer
   ; script =
-      Scenario.load ~assumptions:(Certified.assumptions certified) ~config ~program:(Timed_program.words firmware) ()
+      Scenario.load
+        ~assumptions:(Certified.assumptions certified)
+        ~config
+        ~program:(Timed_program.words firmware)
+        ()
       @ [ Scenario.start; Write (Reg.tx, [ quarter ]) ]
       @ List.concat_map bytes ~f:send
   ; sigrok =

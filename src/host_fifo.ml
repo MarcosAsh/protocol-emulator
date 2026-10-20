@@ -26,8 +26,8 @@ module O = struct
 end
 
 (* [full] is [nearly_full] at [depth], so a push beside a pop at [depth] still lands, as
-   the model pops before the instruction. Fifteen keeps the level in four bits; the
-   memory takes sixteen, so every read address is a word. *)
+   the model pops before the instruction. Fifteen keeps the level in four bits; the memory
+   takes sixteen, so every read address is a word. *)
 let create (scope : Scope.t) (i : Signal.t I.t) =
   let%hw full = wire 1 in
   let fifo =

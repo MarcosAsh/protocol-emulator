@@ -1224,9 +1224,14 @@ let scenario =
   ; peer = low_speed_host host
   ; script =
       Scenario.load
-        ~assumptions:{ System_lockstep.Assumptions.none with period = Some 32; single_capture_edge = true }
+        ~assumptions:
+          { System_lockstep.Assumptions.none with
+            period = Some 32
+          ; single_capture_edge = true
+          }
         ~config:device_config
-        ~program:(Firmware.assemble (device ~address ~half_period:(bit_period / 2))) ()
+        ~program:(Firmware.assemble (device ~address ~half_period:(bit_period / 2)))
+        ()
       @ [ Write (Reg.tx, bit_period :: reply ~endpoint:0 ~pid:data1 descriptor)
         ; Scenario.start
           (* fails if the check outlasts the host's wait: the device misses the SETUP *)

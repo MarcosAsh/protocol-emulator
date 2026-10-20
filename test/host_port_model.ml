@@ -162,7 +162,8 @@ let read
   let verdict =
     List.nth verdicts engine
     |> Option.value
-         ~default:(Load_checker.Verdict.map Load_checker.Verdict.port_widths ~f:(Fn.const 0))
+         ~default:
+           (Load_checker.Verdict.map Load_checker.Verdict.port_widths ~f:(Fn.const 0))
   in
   if reg = Reg.program_addr
   then t.program_addr, []

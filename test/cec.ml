@@ -449,7 +449,11 @@ let scenario =
   { Scenario.name = "cec"
   ; peer
   ; script =
-      Scenario.load ~assumptions:(Certified.assumptions certified) ~config ~program:(Firmware.assemble firmware) ()
+      Scenario.load
+        ~assumptions:(Certified.assumptions certified)
+        ~config
+        ~program:(Firmware.assemble firmware)
+        ()
       @ [ Scenario.start; Write (Reg.tx, [ unit ]) ]
       @ List.concat_map frames ~f:send
   ; sigrok =

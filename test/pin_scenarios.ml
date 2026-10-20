@@ -22,7 +22,8 @@ let wrapped_loop =
   ; script =
       Scenario.load
         ~config:{ Program_config.default with in_base = 5; wrap_bottom = 3; wrap_top = 4 }
-        ~program ()
+        ~program
+        ()
       @ [ Scenario.start; Run 60; Read (Reg.status, 1) ]
   ; sigrok = None
   }

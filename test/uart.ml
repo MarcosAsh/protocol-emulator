@@ -291,7 +291,8 @@ let tx_scenario =
   ; script =
       Scenario.load
         ~config:Program_config.default
-        ~program:(Firmware.assemble (tx ~period:16)) ()
+        ~program:(Firmware.assemble (tx ~period:16))
+        ()
       @ [ Write (Reg.tx, [ 0x55; 0xa3 ]); Scenario.start; Run 400; Read (Reg.status, 1) ]
   ; sigrok =
       (* the first stop bit, edge 10, 12 cycles late: sampled low, a framing error *)

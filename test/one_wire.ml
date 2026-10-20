@@ -355,7 +355,11 @@ let scenario =
   { Scenario.name = "one_wire"
   ; peer
   ; script =
-      Scenario.load ~assumptions:(Certified.assumptions certified) ~config ~program:(Timed_program.words firmware) ()
+      Scenario.load
+        ~assumptions:(Certified.assumptions certified)
+        ~config
+        ~program:(Timed_program.words firmware)
+        ()
       @ [ Scenario.start
         ; Write (Reg.tx, [ unit; reset; byte 0x33 ])
         ; Run (((160 + 96) * unit) + 1000)

@@ -53,7 +53,6 @@ module Make (Config : Config) = struct
 
   let turn_bits = 16
   let turn_cycles = 1 lsl turn_bits
-
   let any (outs : Signal.t Engine.O.t list) ~f = List.map outs ~f |> reduce ~f:( |: )
 
   (* what an engine drives: nothing once it has faulted, as at reset, until the clear *)
@@ -100,7 +99,7 @@ module Make (Config : Config) = struct
     let%hw_list waiting = List.init engines ~f:(fun _ -> wire 1) in
     let%hw_list asks =
       List.map3_exn i.hosts outs waiting ~f:(fun (h : _ Engine.Host.t) e waiting ->
-        (h.check |: waiting) &: e.halted)
+        h.check |: waiting &: e.halted)
     in
     let%hw go = turn_starts &: mux chosen asks in
     let checks_begin n = go &: (chosen ==:. n) in

@@ -1023,9 +1023,11 @@ let scenario =
   ; peer
   ; script =
       Scenario.load
-        ~assumptions:{ System_lockstep.Assumptions.none with period_floor = Some shortest_half }
+        ~assumptions:
+          { System_lockstep.Assumptions.none with period_floor = Some shortest_half }
         ~config:(Timed_program.config firmware)
-        ~program:(Timed_program.words firmware) ()
+        ~program:(Timed_program.words firmware)
+        ()
       @ [ Scenario.start
         ; Write (Reg.tx, [ half ])
         ; Run ((32 * half) + 200) (* the pull-up's sample, 32 half periods in *)
