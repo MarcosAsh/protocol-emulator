@@ -159,7 +159,13 @@ module powerup (input clk);
       always @* if (warm && read_loaded[n]) assert (dout_a[n] == dout_b[n]);
     end
   endgenerate
-  // the flags only ever rise
+  // the flags only ever rise, and read_loaded is loaded as of the last edge, which an
+  // induction over half cycles (multiclock) would otherwise take as anything
+`ifdef COLD
+  always @* if (!first) assert (read_loaded == {1'b1, ran});
+`else
+  always @* if (!first) assert (read_loaded == 3'b111);
+`endif
   always @* begin
     assert (!warm || !first);
     assert ((read_loaded | loaded) == loaded);
