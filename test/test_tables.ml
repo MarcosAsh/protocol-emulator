@@ -564,13 +564,16 @@ let%expect_test "uart tx, a bit at a time and by burst, against the library's" =
     {|
     (shift (bit 26) (bytes (163 0 255 92)) (edges_identical true)
      (model.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     (burst (bit 16) (bytes (163 0 255 92)) (edges_identical true)
      (model.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     (burst (bit 8) (bytes (163 0 255 92)) (edges_identical true)
      (model.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -621,7 +624,8 @@ let%expect_test "uart rx by awaiting the start edge, against the library's" =
      (native (51 48 221 112 94 153 208 75 50 135 133 127))
      (table (51 48 221 112 94 153 208 75 50 135 133 127))
      (model.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -690,7 +694,8 @@ let%expect_test "spi master, full duplex, against the library's" =
     ((half 26) (mosi_at_rises_identical true) (sck_rises_identical true)
      (native_read (150 240 128)) (table_read (150 240 128))
      (model.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -743,7 +748,8 @@ let%expect_test "dshot600 from host frames, against the library's" =
     ((edges_a_frame (32 32 32)) (identical true)
      (decoded (Ok ((1046 false) (2047 true) (48 false))))
      (model.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -825,12 +831,14 @@ let%expect_test "i2c slave by the second await pin, against the library's" =
      (logs_identical true) (table_log (ack ack ack nack nack ack ack ack ack))
      (idle true)
      (model.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     ((kHz 390) (native (3 170 85 128)) (table (3 170 85 128))
      (logs_identical true) (table_log (ack ack ack nack nack ack ack ack ack))
      (idle true)
      (model.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 

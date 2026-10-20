@@ -153,49 +153,85 @@ let%expect_test "the checker agrees with the model on every firmware" =
     uart_tx16                     8428  accepted
     uart_tx_host_rate             8434  accepted
     uart_rx                       8575  accepted
+    uart_rx_host_rate             8521  accepted
     spi_master                    8431  accepted
     spi_slave                     8251  accepted
-    i2c_master                   10130  accepted
+    i2c_master                   10172  accepted
     i2c_slave                     9284  accepted
-    i2c_logger                    9133  accepted
+    i2c_logger                    9154  accepted
+    i2c_master_standard          10208  accepted
+    i2c_master_fast              10193  accepted
+    i2c_controller_wire           9781  accepted
+    i2c_target_wire               9299  accepted
     usb_tx                       10631  accepted
-    usb_rx                        8901  accepted
-    usb_device                   30426  accepted
+    usb_rx                       11225  accepted
+    usb_device                   30545  accepted
     edge_meter                    8314  accepted
     ws2812                        9121  accepted
-    ethernet                      8781  accepted
-    one_wire                      9277  accepted
+    ws2812_standard               9121  accepted
+    ethernet                      8911  accepted
+    one_wire                      9361  accepted
     ps2                           9304  accepted
     jtag                          8428  accepted
     can                          10382  accepted
     dshot600                      8647  accepted
     sent                          9527  accepted
     cec                          10683  accepted
+    spi_cs_mode0                  8698  accepted
+    spi_cs_mode1                  8698  accepted
+    spi_cs_mode2                  8698  accepted
+    spi_cs_mode3                  8698  accepted
+    spi_cs_mode0_default_pins     8698  accepted
+    spi_cs_mode1_default_pins     8698  accepted
+    spi_cs_mode2_default_pins     8698  accepted
+    spi_cs_mode3_default_pins     8698  accepted
+    spi_target_mode0              8987  accepted
+    spi_target_mode1              8972  accepted
+    spi_target_mode2              8987  accepted
+    spi_target_mode3              8972  accepted
+    swd                          13926  accepted
+    table                        10310  accepted
+    table_open_drain             10310  accepted
+    asm/blink                     8251  accepted
     asm/data_stream               8254  accepted
     asm/edge_logger_echo          8401  accepted
     asm/edge_logger_wire          8320  accepted
-    asm/ethernet                  8781  accepted
-    asm/i2c_master_marked         9751  accepted
+    asm/ethernet                  8911  accepted
+    asm/fault_release             8192  accepted
+    asm/i2c_master_marked         9793  accepted
     asm/i2c_start_watch           8308  accepted
     asm/quiet_watch                392  refused at 8, reason 0
     asm/scl_rise                  8278  accepted
     asm/scrub                     8192  accepted
-    asm/self_check_wire           9667  accepted
+    asm/self_check_wire           9695  accepted
     asm/uart_rx_wire              8575  accepted
     asm/uart_tx                   8428  accepted
     asm/uart_tx_host_rate         8434  accepted
     asm/wrapped_loop              8301  accepted
-    bench/i2c_master             10136  accepted
-    bench/i2c_master_stretch     12349  accepted
-    bench/can_sender             10406  accepted
-    bench/can_receiver           18999  accepted
-    bench/sk6812                  9121  accepted
+    bench/uart_tx_9600            8434  accepted
+    bench/uart_tx_19200           8434  accepted
+    bench/uart_tx_38400           8434  accepted
+    bench/uart_tx_57600           8434  accepted
+    bench/uart_tx_115200          8434  accepted
+    bench/uart_tx_230400          8434  accepted
+    bench/i2c_master             10178  accepted
+    bench/i2c_master_stretch     12388  accepted
     bench/start_hold              8192  accepted
-    bench/swd                    13863  accepted
-    bench/spi_cs_mode0            8674  accepted
-    bench/spi_cs_mode1            8674  accepted
-    bench/spi_cs_mode2            8674  accepted
-    bench/spi_cs_mode3            8674  accepted
+    bench/i2c_standard           10208  accepted
+    bench/i2c_fast               10193  accepted
+    bench/sk6812                  9311  accepted
+    bench/ethernet                8911  accepted
+    bench/one_wire                9361  accepted
+    bench/ps2                     9304  accepted
+    bench/can                    10540  accepted
+    bench/can_sender             10564  accepted
+    bench/can_receiver           18999  accepted
+    bench/cec                    10683  accepted
+    bench/spi_cs_mode0            8698  accepted
+    bench/spi_cs_mode1            8698  accepted
+    bench/spi_cs_mode2            8698  accepted
+    bench/spi_cs_mode3            8698  accepted
+    bench/swd                    13926  accepted
     |}]
 ;;
 
@@ -255,7 +291,7 @@ let%expect_test "the checker agrees with the model on corrupted certificates" =
                 ~checker:(show verdict)
                 ~model:(show model)]));
   print_s [%message (!trials : int) (!refused : int)];
-  [%expect {| ((!trials 200) (!refused 126)) |}]
+  [%expect {| ((!trials 200) (!refused 123)) |}]
 ;;
 
 (* The setup is the one the host wrote before the check: writing another mid-walk, from

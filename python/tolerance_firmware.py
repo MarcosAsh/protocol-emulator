@@ -38,6 +38,8 @@ SENDER = {
         "period_fraction": 0,
         "autopull_data": 0,
         "manchester": 0,
+        "line_code": 0,
+        "route": 0,
     },
     "words": [
         0x20E0, 0xE004, 0x80C5, 0xA001, 0x20E0, 0xE004, 0x80E6, 0xC0CA,
@@ -77,6 +79,8 @@ RECEIVER = {
         "period_fraction": 0,
         "autopull_data": 0,
         "manchester": 0,
+        "line_code": 0,
+        "route": 0,
     },
     "words": [
         0x20E0, 0xE004, 0x80C5, 0x209A, 0xE007, 0x201A, 0x80E7, 0xC0CA,

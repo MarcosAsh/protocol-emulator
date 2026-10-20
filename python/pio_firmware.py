@@ -48,6 +48,8 @@ WS2812 = {
         "period_fraction": 0,
         "autopull_data": 0,
         "manchester": 0,
+        "line_code": 0,
+        "route": 0,
     },
     "words": [
         0xA086, 0x80E6, 0xC0CA, 0xC0C7, 0x0C32, 0x1032, 0x20C0, 0x20E0,
@@ -118,6 +120,8 @@ UART_TX = {
         "period_fraction": 2731,
         "autopull_data": 0,
         "manchester": 0,
+        "line_code": 0,
+        "route": 0,
     },
     "words": [
         0xA09A, 0xA001, 0x80E6, 0xC0CA, 0xC0C7, 0x1056, 0x20C0, 0xA001,
@@ -189,6 +193,8 @@ SPI = {
         "period_fraction": 0,
         "autopull_data": 0,
         "manchester": 0,
+        "line_code": 0,
+        "route": 0,
     },
     "words": [
         0xB08C, 0xB026, 0xB046, 0x90E6, 0xD0CA, 0xD0C7, 0x0C44, 0x1038,

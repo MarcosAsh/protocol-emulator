@@ -391,5 +391,19 @@ let%expect_test "configs outside the receiver's range are refused" =
   refused "three rates" ~per_bit:[ 8; 10; 12 ] ~per_cycle:1 ~gain:0;
   refused "three samples a bit" ~per_bit:[ 8; 3 ] ~per_cycle:1 ~gain:0;
   refused "a negative gain shift" ~per_bit:[ 8 ] ~per_cycle:1 ~gain:(-1);
-  [%expect {| |}]
+  [%expect
+    {|
+    no samples a cycle
+    ("BUG: one or two samples a cycle" (samples_per_cycle 0))
+    three samples a cycle
+    ("BUG: one or two samples a cycle" (samples_per_cycle 3))
+    no rates
+    ("BUG: one or two rates" (samples_per_bit ()))
+    three rates
+    ("BUG: one or two rates" (samples_per_bit (8 10 12)))
+    three samples a bit
+    ("BUG: four samples a bit at least" (samples_per_bit (8 3)))
+    a negative gain shift
+    ("BUG: negative gain shift" (gain_shift -1))
+    |}]
 ;;

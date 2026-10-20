@@ -183,7 +183,8 @@ let%expect_test "uart_tx sends bytes at k times its PIO edges" =
     {|
     (uart_tx (k 8) (words 65) (rtl_lockstep true)
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false)))
      (pio_edges 20) (our_edges 20) (latency (11)) (more_than_a_cycle_off 0)
      (exact true))
     |}]
@@ -205,7 +206,8 @@ let%expect_test "ws2812 sends pixels at k times its PIO edges" =
     {|
     (ws2812 (k 6) (words 73) (rtl_lockstep true)
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false)))
      (pio_edges 144) (our_edges 144) (latency (4)) (more_than_a_cycle_off 0)
      (exact true))
     |}]
@@ -229,7 +231,8 @@ let%expect_test "spi_cpha0 shifts bytes at k times its PIO edges" =
     {|
     (spi_cpha0 (k 8) (words 41) (rtl_lockstep true)
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false)))
      (pio_edges 78) (our_edges 78) (latency (2)) (more_than_a_cycle_off 0)
      (exact true))
     |}]
@@ -253,7 +256,8 @@ let%expect_test "ws2812 at a fractional k" =
     {|
     (ws2812 (k 6.25) (words 73) (rtl_lockstep true)
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false)))
      (pio_edges 144) (our_edges 144) (latency (3.5)) (more_than_a_cycle_off 0)
      (exact false))
     |}]
@@ -273,7 +277,8 @@ let%expect_test "manchester_tx at k times its PIO edges" =
     {|
     (manchester_tx (k 7) (words 86) (rtl_lockstep true)
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false)))
      (pio_edges 93) (our_edges 93) (latency (3)) (more_than_a_cycle_off 0)
      (exact true))
     |}]

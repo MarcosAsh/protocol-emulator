@@ -27,7 +27,7 @@ let%expect_test "tracing leaves the committed verilog byte for byte" =
         ~bytes:(String.length committed : int)
         ~untraced_identical:(String.equal plain committed : bool)
         ~traced_identical:(String.equal traced committed : bool)];
-  [%expect {| ((bytes 725335) (untraced_identical true) (traced_identical true)) |}]
+  [%expect {| ((bytes 730119) (untraced_identical true) (traced_identical true)) |}]
 ;;
 
 (* no module's lines are an interface's fields, where its derived code sits *)
@@ -70,21 +70,23 @@ let%expect_test "the share of verilog names that resolve to a src line" =
              : string list)]);
   [%expect
     {|
-    ((names 6998) (named_at 375) (made_at 5526) (unresolved 1097)
-     (distinct_lines 1046))
+    ((names 7024) (named_at 421) (made_at 5506) (unresolved 1097)
+     (distinct_lines 1064))
     (both_edges (names 16) (unresolved 12) (files (src/both_edges.ml)))
     (data_memory (names 69) (unresolved 36) (files (src/data_memory.ml)))
     (edge_stamps (names 111) (unresolved 89) (files (src/edge_stamps.ml)))
-    (engine (names 2396) (unresolved 131)
+    (engine (names 2403) (unresolved 131)
      (files
       (src/crc.ml src/deadline.ml src/decoder.ml src/engine.ml src/pins.ml)))
-    (engines (names 778) (unresolved 272) (files (src/engines.ml)))
+    (engines (names 799) (unresolved 272) (files (src/engines.ml)))
     (frame_rx (names 116) (unresolved 20) (files (src/crc.ml src/frame_rx.ml)))
     (host_fifo (names 93) (unresolved 84) (files (src/host_fifo.ml)))
     (host_port (names 1209) (unresolved 274) (files (src/host_port.ml)))
-    (host_spi (names 71) (unresolved 21) (files (src/host_spi.ml)))
+    (host_spi (names 69) (unresolved 21) (files (src/host_spi.ml)))
     (load_checker (names 1644) (unresolved 99)
-     (files (src/decoder.ml src/kernel.ml src/load_checker.ml)))
+     (files
+      (src/decoder.ml src/kernel_accepts.ml src/kernel_step.ml
+       src/load_checker.ml)))
     (manchester_rx (names 181) (unresolved 12) (files (src/manchester_rx.ml)))
     (protocol_emulator (names 17) (unresolved 17) (files ()))
     (sram_macro (names 21) (unresolved 19) (files (src/sram_macro.ml)))

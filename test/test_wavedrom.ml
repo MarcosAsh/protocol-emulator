@@ -161,16 +161,19 @@ let%expect_test "uart tx, dshot and spi master from diagrams, against the hand t
     (uart_tx (steps 11) (words_identical true) (edges 17) (edges_identical true)
      (taken_identical true)
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     (dshot (steps 50) (words_identical true) (edges 96) (edges_identical true)
      (taken_identical true)
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     (dshot_decoded (Ok ((1046 false) (2047 true) (48 false))))
     (spi_master (steps 18) (words_identical true) (edges 49)
      (edges_identical true) (taken_identical true)
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     (spi_read (150 240 128))
     |}]
 ;;
@@ -224,7 +227,8 @@ let%expect_test "ws2812 from a diagram: passes of 12 bits while the host's flag 
         (least_ns (300)) (most_ns (600)))))
      (words_a_frame 5) (frames_identical true) (violations ())
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     (measured ((T0H (542 542)) (T0L (979 979)) (T1H (938 938)) (T1L (583 583))))
     |}]
 ;;
@@ -282,10 +286,12 @@ let%expect_test "uart rx from a diagram: the start bit's edge, against the hand 
     (uart_rx (steps 10) (words_identical true) (edges 0) (edges_identical true)
      (taken_identical true)
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     ((uart_read (163 0 255 92 129)) (line_read (163 0 255 92 129))
      (line_fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -470,7 +476,8 @@ let%expect_test "a frame of two host words pulls the second; one with no data lo
        Shift Shift Shift Shift Shift Pull Shift Shift Shift Shift))
      (sent_identical true)
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false)))
      (clock (1 0 3 2 1 0 3 2 1 0)))
     |}]
 ;;
