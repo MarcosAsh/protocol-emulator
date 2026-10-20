@@ -665,7 +665,7 @@ translation_proof:
 EDIT_ungated = $(HOST_UNGATED)
 EDIT_pc_back = /^module engine (/,/^endmodule/s/= pc_0 + /= pc_0 - /
 EDIT_fifo_word = /^module host_fifo (/,/^endmodule/s/mem\[signal_wire_2\] <=/mem[RA] <=/
-EDIT_fifo_init = /^module host_fifo (/,/^endmodule/s/USED_MINUS_1 = 4'b1111;/USED_MINUS_1 = 4'b0111;/
+EDIT_fifo_init = /^module host_fifo (/,/^endmodule/s/USED_MINUS_1 = 5'b11111;/USED_MINUS_1 = 5'b01111;/
 EDIT_reset_edge = /^module top (/,/^endmodule/s/ or posedge / or negedge /
 translation_tooth:
 	sed "$(EDIT_$(TOOTH))" $(WRITTEN) > translation_run/$(TOOTH).v
