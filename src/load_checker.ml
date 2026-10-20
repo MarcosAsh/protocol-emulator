@@ -127,7 +127,8 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let%hw_var acc = Always.Variable.reg datapath ~width:48 in
   let%hw_var k = Always.Variable.reg spec ~width:2 in
   let%hw_var field = Always.Variable.reg spec ~width:3 in
-  let%hw_var wait = Always.Variable.reg spec ~width:2 in
+  (* not [wait], a Verilog keyword the netlist would rename *)
+  let%hw_var read_wait = Always.Variable.reg spec ~width:2 in
   let%hw_var finished = Always.Variable.reg spec ~width:1 in
   let%hw_var accepted = Always.Variable.reg spec ~width:1 in
   let%hw_var reject_pc = Always.Variable.reg spec ~width:(Isa.pc_bits + 1) in
@@ -295,7 +296,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
       ~by:1
     |> sel_bottom ~width:count_bits
   in
-  let%hw read_done = wait.value ==:. data_wait - 1 in
+  let%hw read_done = read_wait.value ==:. data_wait - 1 in
   let%hw index = mux field.value [ held.phase; held.arm; held.period; held.x; held.y ] in
   let%hw wide = field.value <:. 2 in
   let%hw last_word = mux2 wide (k.value ==:. 2) (k.value ==:. 1) in
@@ -397,7 +398,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   in
   Always.(
     compile
-      [ wait <-- mux2 (reading.value &: ~:read_done) (wait.value +:. 1) (zero 2)
+      [ read_wait <-- mux2 (reading.value &: ~:read_done) (read_wait.value +:. 1) (zero 2)
       ; finished <-- gnd
       ; sm.switch
           [ ( Idle

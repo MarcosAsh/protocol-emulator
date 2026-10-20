@@ -8613,7 +8613,7 @@ module load_checker (
     wire signal_and_127;
     wire [1:0] signal_mux_491;
     wire [1:0] signal_wire_70;
-    reg [1:0] \wait ;
+    reg [1:0] read_wait;
     wire read_done;
     wire [3:0] signal_mux_492;
     wire signal_wire_71;
@@ -9067,7 +9067,7 @@ module load_checker (
     assign signal_mux_94 = signal_eq_114 ? signal_const_315 : sm;
     assign signal_const_59 = 2'b11;
     assign signal_const_61 = 2'b01;
-    assign signal_add_14 = \wait  + signal_const_61;
+    assign signal_add_14 = read_wait + signal_const_61;
     assign signal_not_23 = ~ read_done;
     assign signal_mux_95 = from_dictionary ? vdd : gnd;
     assign signal_mux_96 = signal_eq_116 ? gnd : signal_mux_95;
@@ -11495,11 +11495,11 @@ module load_checker (
     assign signal_wire_70 = signal_mux_491;
     always @(posedge signal_wire_59) begin
         if (signal_wire_58)
-            \wait  <= signal_const_39;
+            read_wait <= signal_const_39;
         else
-            \wait  <= signal_wire_70;
+            read_wait <= signal_wire_70;
     end
-    assign read_done = \wait  == signal_const_59;
+    assign read_done = read_wait == signal_const_59;
     assign signal_mux_492 = read_done ? signal_mux_94 : sm;
     assign signal_wire_71 = check;
     assign signal_mux_493 = signal_wire_71 ? signal_const_111 : sm;
