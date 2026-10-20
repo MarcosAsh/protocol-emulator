@@ -4,52 +4,68 @@ name: gds
 # OCaml reaches it through the committed Verilog, kept current by the ocaml workflow.
 on:
   push:
+    # a tag push ignores paths, so name branches to keep tags out
+    branches: ['**']
     paths:
+      # the chip: its Verilog, macros, flow config and die art
       - src/**
+      - '!src/**.ml'
+      - '!src/**.mli'
+      - '!src/**/dune'
+      - '!src/**.md'
       - macro/**
       - info.yaml
       - librelane_plugin_sram_pdn.py
       - odb_sram_stripes.py
-      - test/**
+      - librelane_plugin_die_art.py
+      - die_art.py
       - .github/workflows/gds.yaml
+      # what the gate-level jobs run: test/Makefile and the modules and models it builds
+      # for GATES=yes (GATE_TEST_MODULES, test_replay), the firmware they load, the traces
+      # they replay, the python/ modules they import, and the decoder the traces go through
+      - test/Makefile
+      - test/firmware.mk
+      - test/requirements.txt
+      - test/icarus_sdf.py
+      - test/check_metrics.py
+      - test/tb.v
+      - test/models/RM_*.v
+      - test/test.py
+      - test/test_usb_board.py
+      - test/test_ethernet.py
+      - test/test_dshot_sent_cec.py
+      - test/test_two_engines.py
+      - test/test_board_blame.py
+      - test/test_replay.py
+      - test/*.asm
+      - test/*.hex
+      - test/*.settings
+      - test/traces/*.trace
+      - test/traces/sigrok/*.trace
+      - python/protocol_emulator.py
+      - python/usb_device_firmware.py
+      - python/usb_board.py
+      - python/certified_firmware.py
+      - python/ethernet.py
+      - python/board_blame.py
       - demo/decode.py
       - demo/sigrok.py
-      # what the gate-level test never reads: the OCaml's tests, the RTL-only demo, SWD
-      # and outside chip tests, the Icepi's testbench and models, and the scripts CI runs
-      # elsewhere
-      - '!test/assemble/**'
-      - '!test/certify/**'
-      - '!test/split/**'
-      - '!test/python/**'
-      - '!test/**.md'
-      - '!test/test_demo.py'
-      - '!test/test_demo_board.py'
-      - '!test/test_outside.py'
-      - '!test/test_swd.py'
-      - '!test/swd_target.py'
-      - '!test/tb_icepi.v'
-      - '!test/tb_outside.v'
-      - '!test/tb.gtkw'
-      - '!test/models/DP16KD.v'
-      - '!test/models/EHXPLLL.v'
-      - '!test/models/spiflash.v'
-      - '!test/mutate.py'
-      - '!test/mutation_allow.txt'
-      - '!test/results.py'
-      - '!test/check_docs.py'
-      - '!test/heldout.sha256'
-      - '!**.ml'
-      - '!**.mli'
-      - '!**/dune'
+      - demo/decoders/**
   workflow_dispatch:
 
+# main queues its runs so each commit keeps a green run for the release; branches cancel
 concurrency:
   group: gds-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   gds:
     runs-on: ubuntu-24.04
+    # id-token and attestations sign the provenance of the GDS below
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     steps:
       - name: checkout repo
         uses: actions/checkout@v6
@@ -65,6 +81,13 @@ jobs:
       - name: Check timing and signoff
         run: python3 test/check_metrics.py runs/wokwi/final/metrics.json
 
+      # a pushed main only, so a fork's pull request never signs
+      - name: Attest the GDS
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/attest-build-provenance@v3.0.0
+        with:
+          subject-path: runs/wokwi/final/gds/*.gds
+
       # a failed check is when the numbers matter most
       - name: Log the metrics
         if: success() || failure()
@@ -78,6 +101,13 @@ jobs:
         with:
           name: metrics
           path: metrics.csv
+
+      # the router's delays at each corner, for gl_sdf
+      - name: Publish the SDF
+        uses: actions/upload-artifact@v7
+        with:
+          name: sdf
+          path: runs/wokwi/final/sdf
 
   precheck:
     needs: gds
@@ -128,6 +158,71 @@ jobs:
           name: gl_traces
           path: test/gl_traces
 
+  # the gate-level tests and replays again with the router's delays, one corner a job
+  # (test/Makefile sdf_*), beside gl_test so the run takes no longer
+  gl_sdf:
+    needs: gds
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        corner: [slow, typ, fast]
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v6
+
+      - name: Download the netlist
+        uses: actions/download-artifact@v7
+        with:
+          name: tt_submission
+
+      - name: Download the SDF
+        uses: actions/download-artifact@v7
+        with:
+          name: sdf
+          path: sdf
+
+      # the cell models of the PDK revision the netlist was hardened with
+      - name: Fetch the cell models
+        run: |
+          rev=$(jq -r .PDK_VERSION tt_submission/pdk.json)
+          url=https://raw.githubusercontent.com/IHP-GmbH/IHP-Open-PDK/$rev/ihp-sg13cmos5l/libs.ref
+          for model in sg13cmos5l_io/verilog/sg13cmos5l_io.v \
+            sg13cmos5l_stdcell/verilog/sg13cmos5l_udp.v \
+            sg13cmos5l_stdcell/verilog/sg13cmos5l_stdcell.v; do
+            mkdir -p "$(dirname "$HOME/pdk/ihp-sg13cmos5l/libs.ref/$model")"
+            curl -sfL "$url/$model" -o "$HOME/pdk/ihp-sg13cmos5l/libs.ref/$model"
+          done
+          echo "PDK_ROOT=$HOME/pdk" >> "$GITHUB_ENV"
+
+      - name: Setup python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install cocotb
+        run: pip install -r test/requirements.txt
+
+      # the Icarus the gl_test action installs
+      - name: Install iverilog
+        run: |
+          wget -q https://github.com/TinyTapeout/iverilog/releases/download/v13.0/iverilog_13.0-1_amd64.deb
+          sudo apt-get update -y
+          sudo apt-get install -y ./iverilog_13.0-1_amd64.deb
+
+      - name: Test the gate level at the ${{ matrix.corner }} corner
+        run: |
+          cp tt_submission/*.v test/gate_level_netlist.v
+          make -C test sdf_${{ matrix.corner }} SDF_DIR=../sdf
+
+      - name: Publish the results
+        if: success() || failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: gl_sdf_${{ matrix.corner }}
+          path: test/results_sdf_${{ matrix.corner }}.xml
+
   # the hardened netlist equals the RTL (formal/netlist_equiv); on IHP tt_submission
   # carries the unpowered final/nl, so that is what this proves
   netlist_equiv:
@@ -164,6 +259,12 @@ jobs:
       - name: Prove the netlist equal to the RTL, and fail on five mutants
         run: |
           make -C formal netlist_equiv netlist_equiv_teeth \
+            NETLIST="$GITHUB_WORKSPACE/hardened/tt_submission/tt_um_marcosash_protocol_emulator.v"
+
+      # formal/netlist_equiv/anystate.awk, in the directory netlist_equiv left
+      - name: Prove the netlist from any state equal to the RTL after reset, and fail on two mutants
+        run: |
+          make -C formal netlist_anystate netlist_anystate_teeth \
             NETLIST="$GITHUB_WORKSPACE/hardened/tt_submission/tt_um_marcosash_protocol_emulator.v"
 
       # formal/sync/check.tcl

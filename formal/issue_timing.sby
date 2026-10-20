@@ -4,6 +4,8 @@ cover
 jump_in_one teeth
 delay_ignores_side_set teeth
 waits_are_plain teeth
+write_while_running teeth mutant
+start_while_running teeth mutant
 
 [options]
 prove: mode prove
@@ -19,6 +21,13 @@ smtbmc boolector
 
 [script]
 read -formal engine.v
+hierarchy -top engine_top
+proc
+flatten
+cd engine_top
+expose w:solo.engine.program_memory.write
+rename solo.engine.program_memory.write program_memory_write
+cd ..
 jump_in_one: read -define JUMP_IN_ONE
 delay_ignores_side_set: read -define DELAY_IGNORES_SIDE_SET
 waits_are_plain: read -define WAITS_ARE_PLAIN
@@ -26,5 +35,7 @@ read -formal -sv issue_timing.sv
 prep -top issue_timing
 
 [files]
-engine.v
+~mutant: engine.v
+write_while_running: engine.v issue_timing_teeth/write_while_running.v
+start_while_running: engine.v issue_timing_teeth/start_while_running.v
 issue_timing.sv

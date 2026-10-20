@@ -3,12 +3,13 @@ open Protocol_emulator
 
 let uart_tx ~period =
   { Certified.name = [%string "uart_tx%{period#Int}"]
-  ; source = Firmware.uart_tx ~period
+  ; source = Uart.tx ~period
   ; config = Program_config.default
   ; period = None
   ; period_floor = None
   ; single_capture_edge = false
   ; no_wrap = false
+  ; any_data = false
   }
 ;;
 

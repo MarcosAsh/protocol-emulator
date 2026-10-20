@@ -343,9 +343,11 @@ module Make_timer (_ : Engine.Timer) : sig
     val offset_bounds : slope:int -> Interval.t -> (int * int * int) option
 
     (** The edge states of the pair, from pc 0 on over every way the table reaches; not
-        trusted. *)
+        trusted. After [widen_after] joins at a pc, 64 by default, its marks bound
+        nothing, so a mark that falls round a loop cannot keep it going. *)
     val with_edges
       :  ?single_capture_edge:bool
+      -> ?widen_after:int
       -> t
       -> config:Program_config.t
       -> spacing:Bits.t Spacing.t

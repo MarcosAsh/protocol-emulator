@@ -58,7 +58,7 @@ let run source =
       let t = Machine.step t ~inputs:0 in
       loop t (Strip.step strip ~level:(level t)) schedule (n + 1))
   in
-  let t, strip = loop t (Strip.create ~cycle_ns) schedule 0 in
+  let t, strip = loop t (Strip.create ~clock_hz:Bench.clock_hz) schedule 0 in
   strip, t.fault
 ;;
 
@@ -73,7 +73,7 @@ let%expect_test "two frames come out of the string as they went in" =
         ((red 165) (green 90) (blue 195)) ((red 0) (green 0) (blue 0)))
        (((red 128) (green 1) (blue 126)))))
      (measured_ns
-      ((T0H (400 400)) (T0L (840 840)) (T1H (800 800)) (T1L (440 440))))
+      ((T0H (417 417)) (T0L (875 875)) (T1H (833 833)) (T1L (458 458))))
      (violations ())
      (fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false)
@@ -82,7 +82,7 @@ let%expect_test "two frames come out of the string as they went in" =
 ;;
 
 let%expect_test "ws2812 in lockstep" =
-  let strip = ref (Strip.create ~cycle_ns) in
+  let strip = ref (Strip.create ~clock_hz:Bench.clock_hz) in
   let schedule = ref schedule in
   let tx_level = ref 0 in
   let model =
@@ -110,7 +110,7 @@ let%expect_test "ws2812 in lockstep" =
         ((red 165) (green 90) (blue 195)) ((red 0) (green 0) (blue 0)))
        (((red 128) (green 1) (blue 126)))))
      (measured_ns
-      ((T0H (400 400)) (T0L (840 840)) (T1H (800 800)) (T1L (440 440))))
+      ((T0H (417 417)) (T0L (875 875)) (T1H (833 833)) (T1L (458 458))))
      (violations ())
      (fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false)
@@ -165,17 +165,16 @@ let%expect_test "a bit too short for the end of a word" =
     |}]
 ;;
 
-(* the firmware keeps every deadline, but a zero of 580 ns is not a zero: the string says
-   so *)
+(* the firmware keeps every deadline, but a zero of 604 ns reads as a one, and too short a
+   one: the string says so *)
 let%expect_test "a third of 29 cycles is out of tolerance" =
   let strip, fault = run (firmware ~third:29 ~tail:0) in
   print_strip strip fault;
   [%expect
     {|
-    ((frames ())
-     (measured_ns
-      ((T0H (580 580)) (T0L (1160 1160)) (T1H (1160 1160)) (T1L (580 580))))
-     (violations ("T0H of 580 ns" "T0L of 1160 ns" "T1H of 1160 ns"))
+    ((frames ()) (measured_ns ((T1H (604 1208)) (T1L (604 1208))))
+     (violations
+      ("T1H of 1208 ns" "T1H of 604 ns" "T1L of 1208 ns" "T1L of 604 ns"))
      (fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false)
        (assumption false))))

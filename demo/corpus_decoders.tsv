@@ -1,0 +1,133 @@
+# libsigrokdecode 71f451443029322d57376214c330b518efd84f88 decoders/*/pd.py
+id	inputs	tags	channels	optional_channels	longname
+ac97	logic	Audio,PC	sync,clk	out,in,rst	Audio Codec '97
+ad5626	spi	IC,Analog/digital			Analog Devices AD5626
+ad79x0	spi	IC,Analog/digital			Analog Devices AD79x0
+ade77xx	spi	Analog/digital,IC,Sensor			Analog Devices ADE77xx
+adf435x	spi	Clock/timing,IC,Wireless/RF			Analog Devices ADF4350/1
+adns5020	spi	IC,PC,Sensor			Avago ADNS-5020
+adxl345	spi	IC,Sensor			Analog Devices ADXL345
+am230x	logic	IC,Sensor	sda		Aosong AM230x/DHTxx/RHTxx
+amulet_ascii	uart	Display			Amulet LCD ASCII
+arm_etmv3	uart	Debug/trace			ARM Embedded Trace Macroblock v3
+arm_itm	uart	Debug/trace			ARM Instrumentation Trace Macroblock
+arm_tpiu	uart	Debug/trace			ARM Trace Port Interface Unit
+atsha204a	i2c	Security/crypto,IC,Memory			Microchip ATSHA204A
+aud	logic	Debug/trace	audck,naudsync,audata3,audata2,audata1,audata0		Advanced User Debugger
+avr_isp	spi	Debug/trace			AVR In-System Programming
+avr_pdi	logic	Debug/trace	reset,data		Atmel Program and Debug Interface
+caliper	logic	Analog/digital,Sensor	clk,data		Digital calipers
+can	logic	Automotive	can_rx		Controller Area Network
+cc1101	spi	IC,Wireless/RF			Texas Instruments CC1101
+cec	logic	Display,PC	cec		HDMI-CEC
+cfp	mdio	Networking			100 Gigabit C form-factor pluggable
+cjtag	logic	Debug/trace	tckc,tmsc		Compact Joint Test Action Group (IEEE 1149.7)
+counter	logic	Util	data	reset	Edge counter
+dali	logic	Embedded/industrial,Lighting	dali		Digital Addressable Lighting Interface
+dcf77	logic	Clock/timing	data		DCF77 time protocol
+dmx512	uart	Embedded/industrial,Lighting			Digital MultipleX 512
+ds1307	i2c	Clock/timing,IC			Dallas DS1307
+ds2408	onewire_network	Embedded/industrial,IC			Maxim DS2408
+ds243x	onewire_network	IC,Memory			Maxim DS2432/3
+ds28ea00	onewire_network	IC,Sensor			Maxim DS28EA00 1-Wire digital thermometer
+dsi	logic	Embedded/industrial,Lighting	dsi		Digital Serial Interface
+edid	i2c	Display,Memory,PC			Extended Display Identification Data
+eeprom24xx	i2c	IC,Memory			24xx I²C EEPROM
+eeprom93xx	microwire	IC,Memory			93xx Microwire EEPROM
+em4100	logic	IC,RFID	data		RFID EM4100
+em4305	logic	IC,RFID	data		RFID EM4205/EM4305
+enc28j60	spi	Embedded/industrial,Networking			Microchip ENC28J60
+flexray	logic	Automotive	channel		FlexRay
+graycode	logic	Encoding		?	Gray code and rotary encoder
+guess_bitrate	logic	Clock/timing,Util	data		Guess bitrate/baudrate
+hdcp	i2c	PC,Security/crypto			HDCP over HDMI
+i2c	logic	Embedded/industrial	scl,sda		Inter-Integrated Circuit
+i2cdemux	i2c	Util			I²C demultiplexer
+i2cfilter	i2c	Util			I²C filter
+i2s	logic	Audio,PC	sck,ws,sd		Integrated Interchip Sound
+ieee488	logic	PC,Retro computing	dio1	dio2,dio3,dio4,dio5,dio6,dio7,dio8,eoi,dav,nrfd,ndac,ifc,srq,atn,ren,clk	IEEE-488 GPIB/HPIB/IEC
+ir_irmp	logic	IR	ir		IR IRMP
+ir_nec	logic	IR	ir		IR NEC
+ir_rc5	logic	IR	ir		IR RC-5
+ir_rc6	logic	IR	ir		IR RC-6
+ir_sirc	logic	IR	ir		Sony IR (SIRC)
+jitter	logic	Clock/timing,Util	clk,sig		Timing jitter calculation
+jtag	logic	Debug/trace	tdi,tdo,tck,tms	trst,srst,rtck	Joint Test Action Group (IEEE 1149.1)
+jtag_ejtag	jtag	Debug/trace			Joint Test Action Group / EJTAG (MIPS)
+jtag_stm32	jtag	Debug/trace			Joint Test Action Group / ST STM32
+lfast	logic	Embedded/industrial	data		NXP LFAST interface
+lin	uart	Automotive			Local Interconnect Network
+lm75	i2c	Sensor			National LM75
+lpc	logic	PC	lframe,lclk,lad0,lad1,lad2,lad3	lreset,ldrq,serirq,clkrun,lpme,lpcpd,lsmi	Low Pin Count
+ltc242x	spi	IC,Analog/digital			Linear Technology LTC242x
+ltc26x7	i2c	IC,Analog/digital			Linear Technology LTC26x7
+maple_bus	logic	Retro computing	sdcka,sdckb		SEGA Maple bus
+max72xx	spi	Display			Maxim MAX7219/MAX7221
+mcp230xx	i2c	IC			Microchip MCP230XX
+mcs48	logic	Retro computing	?	?	Intel MCS-48
+mdio	logic	Networking	mdc,mdio		Management Data Input/Output
+microwire	logic	Embedded/industrial	cs,sk,si,so		Microwire
+midi	uart	Audio,PC			Musical Instrument Digital Interface
+miller	logic	Encoding	data		Miller encoding
+mlx90614	i2c	IC,Sensor			Melexis MLX90614
+modbus	uart	Embedded/industrial			Modbus RTU over RS232/RS485
+morse	logic	Encoding	data		Morse code
+mrf24j40	spi	IC,Wireless/RF			Microchip MRF24J40
+mxc6225xu	i2c	IC,Sensor			MEMSIC MXC6225XU
+nes_gamepad	spi	Retro computing			Nintendo Entertainment System gamepad
+nrf24l01	spi	IC,Wireless/RF			Nordic Semiconductor nRF24L01(+)
+nrf905	spi	IC,Wireless/RF			Nordic Semiconductor nRF905
+numbers_and_state	logic	Encoding,Util		?	Interpret bit patters as numbers or state enums
+nunchuk	i2c	Sensor			Nintendo Wii Nunchuk
+onewire_link	logic	Embedded/industrial	owr		1-Wire serial communication bus (link layer)
+onewire_network	onewire_link	Embedded/industrial			1-Wire serial communication bus (network layer)
+ook	logic	Encoding	data		On-off keying
+ook_oregon	ook	Sensor			Oregon Scientific
+ook_vis	ook	Encoding			On-off keying visualisation
+pan1321	uart	Wireless/RF			Panasonic PAN1321
+parallel	logic	Util		?	Parallel sync bus
+pca9571	i2c	Embedded/industrial,IC			NXP PCA9571
+pjdl	logic	Embedded/industrial	data		Padded Jittering Data Link
+pjon	pjon_link	Embedded/industrial			PJON
+ps2	logic	PC	clk,data		PS/2
+pwm	logic	Encoding	data		Pulse-width modulation
+qi	logic	Embedded/industrial,Wireless/RF	qi		Qi charger protocol
+rc_encode	logic	IC,IR	data		Remote control encoder
+rfm12	spi	Wireless/RF			HopeRF RFM12
+rgb_led_spi	spi	Display			RGB LED string decoder (SPI)
+rgb_led_ws281x	logic	Display,IC	din		RGB LED string decoder (WS281x)
+rtc8564	i2c	Clock/timing			Epson RTC-8564 JE/NB
+sae_j1850_vpw	logic	Automotive	data		SAE J1850 VPW.
+sbus_futaba	uart	Remote Control			Futaba SBUS (Serial bus)
+sda2506	logic	IC,Memory	clk,d,ce		Siemens SDA 2506-5
+sdcard_sd	logic	Memory	cmd,clk	dat0,dat1,dat2,dat3	Secure Digital card (SD mode)
+sdcard_spi	spi	Memory			Secure Digital card (SPI mode)
+sdq	logic	Embedded/industrial	sdq		Texas Instruments SDQ
+seven_segment	logic	Display	a,b,c,d,e,f,g	dp	7-segment display
+signature	logic	Debug/trace,Util,Encoding	start,stop,clk,data		Signature analysis
+sipi	lfast	Embedded/industrial			NXP SIPI interface
+sle44xx	logic	Memory	rst,clk,io		SLE44xx memory card
+spdif	logic	Audio,PC	data		Sony/Philips Digital Interface Format
+spi	logic	Embedded/industrial	clk	miso,mosi,cs	Serial Peripheral Interface
+spiflash	spi	IC,Memory			SPI flash/EEPROM chips
+ssi32	spi	Embedded/industrial			Synchronous Serial Interface (32bit)
+st25r39xx_spi	spi	IC,Wireless/RF			STMicroelectronics ST25R39xx
+st7735	logic	Display,IC	cs,clk,mosi,dc		Sitronix ST7735
+stepper_motor	logic	Embedded/industrial	step,dir		Stepper motor position / speed
+swd	logic	Debug/trace	swclk,swdio		Serial Wire Debug
+swim	logic	Debug/trace	swim		STM8 SWIM bus
+t55xx	logic	IC,RFID	data		RFID T55xx
+tca6408a	i2c	Embedded/industrial,IC			Texas Instruments TCA6408A
+tdm_audio	logic	Audio	clock,frame,data		Time division multiplex audio
+timing	logic	Clock/timing,Util	data		Timing calculation with frequency and averaging
+tlc5620	logic	IC,Analog/digital	clk,data	load,ldac	Texas Instruments TLC5620
+uart	logic	Embedded/industrial		rx,tx	Universal Asynchronous Receiver/Transmitter
+usb_packet	usb_signalling	PC			Universal Serial Bus (LS/FS) packet
+usb_power_delivery	logic	PC	cc1	cc2	USB Power Delivery
+usb_request	usb_packet	PC			Universal Serial Bus (LS/FS) transaction/request
+usb_signalling	logic	PC	dp,dm		Universal Serial Bus (LS/FS) signalling
+wiegand	logic	Embedded/industrial,RFID	d0,d1		Wiegand interface
+x2444m	spi	IC,Memory			Xicor X2444M/P
+xfp	i2c	Networking			10 Gigabit Small Form Factor Pluggable Module (XFP)
+xy2-100	logic	Embedded/industrial	clk,sync,data	status	XY2-100(E) and XY-200(E) galvanometer protocol
+z80	logic	Retro computing	?	?	Zilog Z80 CPU

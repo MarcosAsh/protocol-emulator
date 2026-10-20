@@ -1,0 +1,6 @@
+{ "signal": [
+    { "name": "dshot", "wave": "01=00", "data": ["bit"] }
+  ],
+  "head": { "text": "DShot600: 16 bits of 83 cycles, then a gap" },
+  "table": { "cycles": [0, 31, 31, 21, 248], "repeat": [1, 3, 16] }
+}

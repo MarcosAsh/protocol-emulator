@@ -1,0 +1,62 @@
+BEGIN LIMITS
+document	24AA256/24LC256/24FC256 256K I2C Serial EEPROM	DS20001203W	08/2019
+symbol	parameter	condition	min	typ	max	unit	page	where
+Max. Clock Frequency	Max. Clock Frequency	24AA256			400	kHz	1	Device Selection Table
+Max. Clock Frequency	Max. Clock Frequency	24AA256, VCC < 2.5V (Note 1)			100	kHz	1	Device Selection Table
+Max. Clock Frequency	Max. Clock Frequency	24LC256			400	kHz	1	Device Selection Table
+Max. Clock Frequency	Max. Clock Frequency	24FC256			1	MHz	1	Device Selection Table
+Max. Clock Frequency	Max. Clock Frequency	24FC256, VCC < 2.5V (Note 2)			400	kHz	1	Device Selection Table
+Page Write Time	Page Write Time				5	ms	1	text
+FCLK	Clock Frequency	1.7V ≤ VCC < 2.5V			100	kHz	4	Table 1-2
+FCLK	Clock Frequency	2.5V ≤ VCC ≤ 5.5V			400	kHz	4	Table 1-2
+FCLK	Clock Frequency	1.7V ≤ VCC < 2.5V (24FC256)			400	kHz	4	Table 1-2
+FCLK	Clock Frequency	2.5V ≤ VCC ≤ 5.5V (24FC256)			1000	kHz	4	Table 1-2
+THIGH	Clock High Time	1.7V ≤ VCC < 2.5V	4000			ns	4	Table 1-2
+THIGH	Clock High Time	2.5V ≤ VCC ≤ 5.5V	600			ns	4	Table 1-2
+THIGH	Clock High Time	1.7V ≤ VCC < 2.5V (24FC256)	600			ns	4	Table 1-2
+THIGH	Clock High Time	2.5V ≤ VCC ≤ 5.5V (24FC256)	500			ns	4	Table 1-2
+TLOW	Clock Low Time	1.7V ≤ VCC < 2.5V	4700			ns	4	Table 1-2
+TLOW	Clock Low Time	2.5V ≤ VCC ≤ 5.5V	1300			ns	4	Table 1-2
+TLOW	Clock Low Time	1.7V ≤ VCC < 2.5V (24FC256)	1300			ns	4	Table 1-2
+TLOW	Clock Low Time	2.5V ≤ VCC ≤ 5.5V (24FC256)	500			ns	4	Table 1-2
+TR	SDA and SCL Rise Time	1.7V ≤ VCC < 2.5V (Note 1)			1000	ns	4	Table 1-2
+TR	SDA and SCL Rise Time	2.5V ≤ VCC ≤ 5.5V (Note 1)			300	ns	4	Table 1-2
+TR	SDA and SCL Rise Time	1.7V ≤ VCC ≤ 5.5V (24FC256) (Note 1)			300	ns	4	Table 1-2
+TF	SDA and SCL Fall Time	All except 24FC256 (Note 1)			300	ns	4	Table 1-2
+TF	SDA and SCL Fall Time	1.7V ≤ VCC ≤ 5.5V (24FC256) (Note 1)			100	ns	4	Table 1-2
+THD:STA	Start Condition Hold Time	1.7V ≤ VCC < 2.5V	4000			ns	4	Table 1-2
+THD:STA	Start Condition Hold Time	2.5V ≤ VCC ≤ 5.5V	600			ns	4	Table 1-2
+THD:STA	Start Condition Hold Time	1.7V ≤ VCC < 2.5V (24FC256)	600			ns	4	Table 1-2
+THD:STA	Start Condition Hold Time	2.5V ≤ VCC ≤ 5.5V (24FC256)	250			ns	4	Table 1-2
+TSU:STA	Start Condition Setup Time	1.7V ≤ VCC < 2.5V	4700			ns	4	Table 1-2
+TSU:STA	Start Condition Setup Time	2.5V ≤ VCC ≤ 5.5V	600			ns	4	Table 1-2
+TSU:STA	Start Condition Setup Time	1.7V ≤ VCC < 2.5V (24FC256)	600			ns	4	Table 1-2
+TSU:STA	Start Condition Setup Time	2.5V ≤ VCC ≤ 5.5V (24FC256)	250			ns	4	Table 1-2
+THD:DAT	Data Input Hold Time	Note 2	0			ns	4	Table 1-2
+TSU:DAT	Data Input Setup Time	1.7V ≤ VCC < 2.5V	250			ns	4	Table 1-2
+TSU:DAT	Data Input Setup Time	2.5V ≤ VCC ≤ 5.5V	100			ns	4	Table 1-2
+TSU:DAT	Data Input Setup Time	1.7V ≤ VCC ≤ 5.5V (24FC256)	100			ns	4	Table 1-2
+TSU:STO	Stop Condition Setup Time	1.7V ≤ VCC < 2.5V	4000			ns	4	Table 1-2
+TSU:STO	Stop Condition Setup Time	2.5V ≤ VCC ≤ 5.5V	600			ns	4	Table 1-2
+TSU:STO	Stop Condition Setup Time	1.7V ≤ VCC < 2.5V (24FC256)	600			ns	4	Table 1-2
+TSU:STO	Stop Condition Setup Time	2.5V ≤ VCC ≤ 5.5V (24FC256)	250			ns	4	Table 1-2
+Undefined region of SCL falling edge	Internal minimum delay time to bridge the undefined region of the falling edge of SCL	Note 2	300			ns	4	Table 1-2
+TSU:WP	WP Setup Time	1.7V ≤ VCC < 2.5V	4000			ns	5	Table 1-2
+TSU:WP	WP Setup Time	2.5V ≤ VCC ≤ 5.5V	600			ns	5	Table 1-2
+TSU:WP	WP Setup Time	1.7V ≤ VCC ≤ 5.5V (24FC256)	600			ns	5	Table 1-2
+THD:WP	WP Hold Time	1.7V ≤ VCC < 2.5V	4700			ns	5	Table 1-2
+THD:WP	WP Hold Time	2.5V ≤ VCC ≤ 5.5V	1300			ns	5	Table 1-2
+THD:WP	WP Hold Time	1.7V ≤ VCC ≤ 5.5V (24FC256)	1300			ns	5	Table 1-2
+TAA	Output Valid from Clock	1.7 V ≤ VCC < 2.5V (Note 2)			3500	ns	5	Table 1-2
+TAA	Output Valid from Clock	2.5 V ≤ VCC ≤ 5.5V (Note 2)			900	ns	5	Table 1-2
+TAA	Output Valid from Clock	1.7V ≤ VCC < 2.5V (24FC256) (Note 2)			900	ns	5	Table 1-2
+TAA	Output Valid from Clock	2.5 V ≤ VCC ≤ 5.5V (24FC256) (Note 2)			400	ns	5	Table 1-2
+TBUF	Bus Free Time: The time the bus must be free before a new transmission can start	1.7V ≤ VCC < 2.5V	4700			ns	5	Table 1-2
+TBUF	Bus Free Time: The time the bus must be free before a new transmission can start	2.5V ≤ VCC ≤ 5.5V	1300			ns	5	Table 1-2
+TBUF	Bus Free Time: The time the bus must be free before a new transmission can start	1.7V ≤ VCC < 2.5V (24FC256)	1300			ns	5	Table 1-2
+TBUF	Bus Free Time: The time the bus must be free before a new transmission can start	2.5V ≤ VCC ≤ 5.5V (24FC256)	500			ns	5	Table 1-2
+TOF	Output fall time from VIH minimum to VIL maximum CB ≤ 100 pF	All except 24FC256 (Note 1)	10 + 0.1CB		250	ns	5	Table 1-2
+TOF	Output fall time from VIH minimum to VIL maximum CB ≤ 100 pF	All except 24FC256 (Note 1)			250	ns	5	Table 1-2
+TSP	Input Filter Spike Suppression (SDA and SCL pins)	All except 24FC256 (Notes 1 and 3)			50	ns	5	Table 1-2
+TWC	Write Cycle Time (byte or page)				5	ms	5	Table 1-2
+END LIMITS

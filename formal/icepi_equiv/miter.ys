@@ -1,0 +1,28 @@
+# The Icepi Zero's netlist equals the RTL for all time. From all flops 0, for every input
+# sequence on the pins, the pads' inputs, the PLL's outputs and the three macro cores'
+# outputs, uo and the inputs of the pads, the PLL and the cores agree every cycle;
+# configured.awk's miter from the configured state too. Synthesis before place and route:
+# synth_ecp5's JSON, which nextpnr-ecp5 places as it stands. The Makefile proves each
+# miter 0 with ABC scorr + dprove, which match flops by function, not name.
+#
+# Trusted: yosys's frontend, proc, flatten and memory_map; yosys's models of the ECP5
+# cells (lattice/common_sim.vh, ccu2c_sim.vh) and DP16KD.v's of the block RAM as the
+# macro core, which nextpnr-ecp5, ecppack and the silicon have to agree with; the pads,
+# the PLL and the cores as shared cut points, the cores from the same contents (INITVAL's
+# 0 on the board), and cells_io.vh's mapping of icepi_top's pads; one rising-edge clock
+# (asserted in gold.ys and gate.ys); an asynchronous reset acting in the cycle it is
+# asserted, on both sides; timing, which is nextpnr's. The host port's recoded state
+# machine is proved on its own (fsm_step, gold.ys). The x's the cell models leave on the
+# address and data of a distributed RAM write not enabled become free inputs, as does
+# DP16KD.v's port A in a mode it does not model: the proof holds for every value.
+# Teeth: make icepi_equiv_teeth.
+
+read_rtlil gold.il
+read_rtlil gate.il
+miter -equiv -flatten gold gate miter
+hierarchy -top miter
+delete t:$scopeinfo
+# for configured.awk
+write_rtlil miter_pre.il
+script ../netlist_equiv/aig.ys
+write_aiger miter.aig

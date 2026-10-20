@@ -137,7 +137,9 @@ module Make (Config : Config) = struct
       | None -> x
       | Some select -> x &: (select ==:. n)
     in
-    let configs = List.init engines ~f:(fun _ -> Engine.Config.Of_always.reg spec) in
+    let%hw_list.Engine.Config.Of_always configs =
+      List.init engines ~f:(fun _ -> Engine.Config.Of_always.reg spec)
+    in
     let config_values = List.map configs ~f:Engine.Config.Of_always.value in
     let other_irqs =
       List.mapi i.status ~f:(fun n _ ->

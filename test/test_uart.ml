@@ -21,7 +21,7 @@ let%expect_test "the uart decoder drops a frame whose stop bit is low" =
 let%expect_test "uart tx sends two bytes with exact bit periods" =
   let period = 16 in
   let t =
-    Machine.create ~config:Program_config.default ~program:(assemble (uart_tx ~period))
+    Machine.create ~config:Program_config.default ~program:(assemble (Uart.tx ~period))
     |> ok_exn
   in
   let t = Machine.write_tx t 0x55 |> ok_exn in
@@ -46,7 +46,7 @@ let%expect_test "uart tx sends two bytes with exact bit periods" =
 let%expect_test "uart tx at 115200 baud from a 50 MHz clock" =
   let period = 434 in
   let t =
-    Machine.create ~config:Program_config.default ~program:(assemble uart_tx_host_rate)
+    Machine.create ~config:Program_config.default ~program:(assemble Uart.tx_host_rate)
     |> ok_exn
   in
   let t =
@@ -72,7 +72,7 @@ let fractional = { Program_config.default with period_fraction = 43691 }
 let%expect_test "uart tx at 115200 baud from a 48 MHz clock" =
   let bit = 1250. /. 3. in
   let frame ~config ~period =
-    let t = Machine.create ~config ~program:(assemble uart_tx_host_rate) |> ok_exn in
+    let t = Machine.create ~config ~program:(assemble Uart.tx_host_rate) |> ok_exn in
     let t =
       List.fold [ period; 0x55; 0xa3 ] ~init:t ~f:(fun t w ->
         Machine.write_tx t w |> ok_exn)
@@ -120,7 +120,7 @@ let%expect_test "uart tx with a fractional period in lockstep" =
     Lockstep.lockstep
       ~cycles:(24 * 417)
       ~config:fractional
-      ~program:(assemble uart_tx_host_rate)
+      ~program:(assemble Uart.tx_host_rate)
       ~preload:[ 416; 0x55; 0xa3 ]
       ~inputs:(fun _ -> 0)
       ()
@@ -130,7 +130,7 @@ let%expect_test "uart tx with a fractional period in lockstep" =
 
 let receive levels ~period =
   let t =
-    Machine.create ~config:rx_config ~program:(assemble (uart_rx ~period)) |> ok_exn
+    Machine.create ~config:Uart.rx_config ~program:(assemble (Uart.rx ~period)) |> ok_exn
   in
   let t, received =
     List.fold levels ~init:(t, []) ~f:(fun (t, received) level ->
@@ -190,7 +190,7 @@ let%expect_test "a missing stop bit raises the interrupt" =
 ;;
 
 let%expect_test "uart tx in lockstep" =
-  let program = assemble (uart_tx ~period:16) in
+  let program = assemble (Uart.tx ~period:16) in
   let (_ : Machine.t) =
     Lockstep.lockstep
       ~config:Program_config.default
@@ -207,7 +207,7 @@ let%expect_test "uart tx at 115200 baud in lockstep" =
     Lockstep.lockstep
       ~cycles:(24 * 434)
       ~config:Program_config.default
-      ~program:(assemble uart_tx_host_rate)
+      ~program:(assemble Uart.tx_host_rate)
       ~preload:[ 434; 0x55; 0xa3 ]
       ~inputs:(fun _ -> 0)
       ()
@@ -226,8 +226,8 @@ let%expect_test "uart rx in lockstep" =
     Lockstep.lockstep
       ~cycles:(Array.length levels)
       ~premise
-      ~config:rx_config
-      ~program:(assemble (uart_rx ~period))
+      ~config:Uart.rx_config
+      ~program:(assemble (Uart.rx ~period))
       ~inputs:(fun n -> levels.(n))
       ~host:(fun _ -> { Lockstep.Host.idle with pop_rx = true })
       ()

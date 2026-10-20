@@ -2,16 +2,16 @@
 // value (ISA.md and machine.ml, restated here, not taken from the core) reaches the osr,
 // isr, their counts, the data pointer, underflow, overflow, the fifo pops and pushes, and
 // the pins, pindirs, x, y, p or t the word writes, as does a Manchester bit's second half
-// at the next issue. Pins.write of that value on the pins holds only for a constant
-// config, which edge_step.sv takes; a side-set or set under a config changed mid-run is
-// proved nowhere. Trusted: x, y, now, capture and crc where read (their other updates
+// at the next issue. Pins.write of that value on the pins holds only for a config written
+// while halted, which edge_step.sv takes; one changed mid-run the host port never makes
+// (host_spacing.sv). Trusted: x, y, now, capture and crc where read (their other updates
 // are left to the engine's tests); the fifos' head, empty and full (fifo_order.sv);
 // data_word as the memory's word at data_ptr; and when the core issues, and that these
-// registers move at no other time (phase_step.sv, edge_step.sv, constant config); and,
-// under a line code, the table's bit, level and drop (test_line_code.ml). A routed push
-// goes to the next engine, whose fifo's full the core reads instead. Host, pins, clear,
-// config, the line table, premises and the next engine are otherwise free every cycle,
-// and the chip has no debugger. A count above 16 acts as 16, as in Pins.
+// registers move at no other time (phase_step.sv, edge_step.sv, config written while
+// halted); and, under a line code, the table's bit, level and drop (test_line_code.ml). A
+// routed push goes to the next engine, whose fifo's full the core reads instead. Host,
+// pins, clear, config, the line table, premises and the next engine are otherwise free
+// every cycle, and the chip has no debugger. A count above 16 acts as 16, as in Pins.
 
 // the timer's width, narrower in the narrow tasks
 `ifndef TIMER_BITS
@@ -112,9 +112,11 @@ module value_step (input clk);
     .eng_data_moved(data_moved), .eng_line_bit(line_bit), .eng_line_drop(line_drop),
     .eng_line_level(line_level));
 
-  // an issue, as the model's step has it: running, the delay run out, no start in flight
+  // an issue, as the model's step has it: running, the delay run out, no start in flight,
+  // which the core takes only while halted
+  wire start_taken = start && halted;
   reg started = 0;
-  always @(posedge clk) started <= !clear && start;
+  always @(posedge clk) started <= !clear && start_taken;
   wire issue = !clear && !halted && stall == 0 && !started;
 
   // the ISA's decode table
@@ -301,7 +303,7 @@ module value_step (input clk);
     : movs && target == 4 || pushes ? 5'd0
     : isr_count;
   wire [8:0] want_data_ptr =
-    start || started ? 9'd0 : seeks ? x[8:0] : data_pull ? data_ptr + 9'd1 : data_ptr;
+    start_taken || started ? 9'd0 : seeks ? x[8:0] : data_pull ? data_ptr + 9'd1 : data_ptr;
   // x, y, p and t are the same codes as out and as mov destinations
   wire writes_x = (outs || movs) && target == 1;
   wire writes_y = (outs || movs) && target == 2;

@@ -273,6 +273,6 @@ let lockstep ?(cycles = 400) ?host ?react ?line_tables ?start_all ~pads setups =
   let model, mismatch = run ~cycles ?host ?react ?line_tables ?start_all ~pads setups in
   (match mismatch with
    | None -> print_s [%message "lockstep held" (cycles : int)]
-   | Some mismatch -> print_s [%message "MISMATCH" (mismatch : Mismatch.t)]);
+   | Some mismatch -> raise_s [%message "MISMATCH" (mismatch : Mismatch.t)]);
   model
 ;;

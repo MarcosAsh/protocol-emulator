@@ -1,6 +1,8 @@
 // P1: the gap between one issue and the next depends only on the word's delay field,
-// never on data, and a jump always takes two cycles, with the config free every cycle.
-// Each teeth task in issue_timing.sby gets one part wrong, and the proof must then fail.
+// never on data, and a jump always takes two cycles, with the config and the start free
+// every cycle: a running core ignores a start. Each teeth task in issue_timing.sby gets
+// one part wrong, and the proof must then fail. Beside it, the program memory takes a
+// host's write only while the core is halted, so a run fetches the program it started with.
 module issue_timing (input clk);
   (* anyseq *) wire [1:0] side_set_count;
   (* anyseq *) wire [4:0] side_set_base, in_base, in_count, out_base, out_count, set_base;
@@ -30,6 +32,7 @@ module issue_timing (input clk);
   wire [23:0] t, now, capture;
   wire [4:0] osr_count, isr_count, stall, stuff_run;
   wire halted, irq, underflow, overflow, missed_deadline, decode, capture_armed;
+  wire program_memory_write;
   wire [3:0] tx_level, rx_level;
   wire decode_ok;
   wire [7:0] opcode_onehot;
@@ -65,16 +68,18 @@ module issue_timing (input clk);
     .fault$missed_deadline(missed_deadline), .fault$decode(decode), .capture(capture),
     .capture_armed(capture_armed), .tx_level(tx_level), .rx_level(rx_level),
     .rx_head(rx_head), .instruction(instruction), .crc(crc), .stuff_run(stuff_run),
-    .decode_ok(decode_ok), .opcode_onehot(opcode_onehot), .wait_select(wait_select));
+    .decode_ok(decode_ok), .opcode_onehot(opcode_onehot), .wait_select(wait_select),
+    .program_memory_write(program_memory_write));
 
   always @(*) begin
     assume(side_set_count <= 2);
-    assume(!start || halted);
-    assume(!program_write_valid || halted);
+    assert(!program_memory_write || halted);
   end
 
+  // the start the core takes, only while halted
+  wire start_taken = start && halted;
   reg started = 0;
-  always @(posedge clk) started <= start;
+  always @(posedge clk) started <= start_taken;
   wire issue = !halted && stall == 0 && !started;
   wire [2:0] opcode = instruction[15:13];
   wire [4:0] ds = instruction[12:8];
@@ -108,7 +113,7 @@ module issue_timing (input clk);
   reg armed = 0;
   reg [4:0] remaining = 0;
   always @(posedge clk)
-    if (clear || start || stop) armed <= 0;
+    if (clear || start_taken || stop) armed <= 0;
     else if (issue && plain) begin armed <= 1; remaining <= delay; end
 `ifdef JUMP_IN_ONE
     else if (issue && jump) begin armed <= 1; remaining <= 0; end

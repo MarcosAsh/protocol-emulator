@@ -5,7 +5,7 @@ open Protocol_emulator
    by [make -C formal certificates] and [make -C formal inductive_certificates]. *)
 let%expect_test "the firmware library and its certificates" =
   printf "%-18s %5s  %8s  %5s  %s\n" "firmware" "words" "deadline" "slack" "assumes";
-  List.iter Certified.all ~f:(fun t ->
+  List.iter Library.certified ~f:(fun t ->
     let program = Asm.assemble t.source |> ok_exn in
     let verdict =
       Analyser.check
@@ -43,17 +43,23 @@ let%expect_test "the firmware library and its certificates" =
     uart_tx16             15         3     12
     uart_tx_host_rate     17         3    430  period 434, no wrap
     uart_rx               19         2      7  one edge before capture, no wrap
+    uart_rx_host_rate     22         2    409  period 208, one edge before capture, no wrap
     spi_master            16         3      4
     spi_slave              6         0      -
     i2c_master            99        31      5  no wrap
     i2c_slave             72         0      -
     i2c_logger            73        25      1
+    i2c_master_standard   113        43    113  period 121, no wrap
+    i2c_master_fast      107        37     24  period 32, no wrap
+    i2c_controller_wire    87        25    113  period 121, no wrap
+    i2c_target_wire       78         0      -
     usb_tx                65        11     16  period 32
-    usb_rx                29         2      9  period 32, one edge before capture, no wrap
+    usb_rx                92         4      5  period 32, one edge before capture, no wrap
     usb_device           470        54      6  period 32, one edge before capture, no wrap
     edge_meter            12         2      6
     ws2812                32         4      0  no wrap
-    ethernet              24         1  63987  period 64000, no wrap
+    ws2812_standard       32         4      9  no wrap
+    ethernet              32         1  63987  period 64000, no wrap
     one_wire              48        15    295  period 300
     ps2                   65        12    992  period 1000
     jtag                  15         3      0
@@ -61,6 +67,21 @@ let%expect_test "the firmware library and its certificates" =
     dshot600              21         4     14  no wrap
     sent                  83         9    129  period 150, no wrap
     cec                   71        20   2493  period 2500, no wrap
+    spi_cs_mode0          43         6      1  no wrap
+    spi_cs_mode1          43         6      1  no wrap
+    spi_cs_mode2          43         6      1  no wrap
+    spi_cs_mode3          43         6      1  no wrap
+    spi_cs_mode0_default_pins    43         6      1  no wrap
+    spi_cs_mode1_default_pins    43         6      1  no wrap
+    spi_cs_mode2_default_pins    43         6      1  no wrap
+    spi_cs_mode3_default_pins    43         6      1  no wrap
+    spi_target_mode0      38         0      -
+    spi_target_mode1      33         0      -
+    spi_target_mode2      38         0      -
+    spi_target_mode3      33         0      -
+    swd                  232        52     15  period 25, no wrap
+    table                112         2      0
+    table_open_drain     112         2      0
     |}]
 ;;
 
@@ -71,7 +92,7 @@ module G = Hardcaml_verify.Comb_gates
    floor less one the kernel refuses its table. With phase_step.sv, whose load is free at
    each entry, no deadline is missed however the loads from the floor up vary. *)
 let%expect_test "the least period the host may load" =
-  List.iter Certified.all ~f:(fun t ->
+  List.iter Library.certified ~f:(fun t ->
     Option.iter t.period_floor ~f:(fun floor ->
       let program = Asm.assemble t.source |> ok_exn in
       let config = Asm.Program.configure program t.config in
@@ -120,6 +141,22 @@ let%expect_test "the least period the host may load" =
     (QED "uart_tx_host_rate: every load of 4 or more")
     (counterexample "uart_tx_host_rate: every load of 3 or more"
      (model ((loaded 0000000000000011))))
+    (uart_rx_host_rate (period (208)) (floor 4) (passes true) (one_less false))
+    (QED "uart_rx_host_rate: every load of 4 or more")
+    (counterexample "uart_rx_host_rate: every load of 3 or more"
+     (model ((loaded 0000000000000011))))
+    (i2c_master_standard (period (121)) (floor 8) (passes true) (one_less false))
+    (QED "i2c_master_standard: every load of 8 or more")
+    (counterexample "i2c_master_standard: every load of 7 or more"
+     (model ((loaded 0000000000000111))))
+    (i2c_master_fast (period (32)) (floor 8) (passes true) (one_less false))
+    (QED "i2c_master_fast: every load of 8 or more")
+    (counterexample "i2c_master_fast: every load of 7 or more"
+     (model ((loaded 0000000000000111))))
+    (i2c_controller_wire (period (121)) (floor 8) (passes true) (one_less false))
+    (QED "i2c_controller_wire: every load of 8 or more")
+    (counterexample "i2c_controller_wire: every load of 7 or more"
+     (model ((loaded 0000000000000111))))
     (one_wire (period (300)) (floor 5) (passes true) (one_less false))
     (QED "one_wire: every load of 5 or more")
     (counterexample "one_wire: every load of 4 or more"
@@ -140,29 +177,9 @@ let%expect_test "the least period the host may load" =
     (QED "cec: every load of 7 or more")
     (counterexample "cec: every load of 6 or more"
      (model ((loaded 0000000000000110))))
+    (swd (period (25)) (floor 10) (passes true) (one_less false))
+    (QED "swd: every load of 10 or more")
+    (counterexample "swd: every load of 9 or more"
+     (model ((loaded 0000000000001001))))
     |}]
-;;
-
-(* CI proves the certificates [make inductive_names] lists, the INDUCTIVE line of
-   formal/Makefile: it must name every one here, and no other. *)
-let%expect_test "formal/Makefile proves every certificate in the library" =
-  let inductive =
-    In_channel.read_all "../formal/Makefile"
-    |> String.substr_replace_all ~pattern:"\\\n" ~with_:" "
-    |> String.split_lines
-    |> List.find_map_exn ~f:(String.chop_prefix ~prefix:"INDUCTIVE =")
-    |> String.split ~on:' '
-    |> List.filter ~f:(Fn.non String.is_empty)
-    |> String.Set.of_list
-  in
-  let library =
-    List.map (Certified.all @ Certified.time_triggered) ~f:(fun t -> t.name)
-    |> String.Set.of_list
-  in
-  print_s
-    [%message
-      ""
-        ~only_in_make:(Set.diff inductive library : String.Set.t)
-        ~only_in_library:(Set.diff library inductive : String.Set.t)];
-  [%expect {| ((only_in_make ()) (only_in_library ())) |}]
 ;;

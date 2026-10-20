@@ -11,11 +11,14 @@ import types
 from fractions import Fraction
 
 # GPIOs of ui_in, uo_out and uio, the system clock at boot, and whether a PIO has a GPIO
-# base: the RP2350B DB v3 of SDK v3, the RP2040 TT06 board of SDK v2
+# base: the RP2350B DB v3 of SDK v3, the RP2040 TT06 board of SDK v2, and Pico A on the
+# bench, whose host port alone is wired (python/etr_standin.py)
 BOARDS = {
     "dbv3": (range(17, 25), range(33, 41), range(25, 33), 150_000_000, True),
     "tt06": ([9, 10, 11, 12, 17, 18, 19, 20], [5, 6, 7, 8, 13, 14, 15, 16], range(21, 29),
              125_000_000, False),
+    "pico_a": ([2, 3, 5, 20, 21, 22, 26, 27], [4, 6, 7, 8, 9, 10, 11, 12], range(13, 20),
+               125_000_000, False),
 }
 # what a MicroPython call costs, roughly, so time passes between pin moves
 CALL_US = 2
@@ -359,6 +362,22 @@ class Port:
                 self.board.sio[g] = (byte >> i) & 1
 
 
+class StandardPin:
+    """ttboard's pin wrapper: its GPIO, and a mode that sets the pad's direction."""
+
+    def __init__(self, gpio):
+        self.gpio_num, self._mode = gpio, IN
+
+    @property
+    def mode(self):
+        return self._mode
+
+    @mode.setter
+    def mode(self, mode):
+        self._mode = mode
+        Pin(self.gpio_num, mode, value=0)
+
+
 class DemoBoard:
     """The SDK calls demo_board makes. Enable starts info.yaml's clock, as a project with
     no config.ini section gets; RP control turns the DB v3.3 button's monitor on."""
@@ -366,10 +385,9 @@ class DemoBoard:
     def __init__(self, board):
         self.board = board
         self.pins = types.SimpleNamespace()
-        # StandardPin's GPIO and direction
         for port, gpios in (("ui_in", board.ui), ("uo_out", board.uo)):
             for i, g in enumerate(gpios):
-                setattr(self.pins, "%s%d" % (port, i), types.SimpleNamespace(gpio_num=g, mode=IN))
+                setattr(self.pins, "%s%d" % (port, i), StandardPin(g))
         self.ui_in = Port(board, board.ui, writable=True)
         self.uo_out = Port(board, board.uo)
         self.uio_out = Port(board, board.uio)
@@ -377,7 +395,7 @@ class DemoBoard:
         self.manual_project_clock = None
         if board.kind == "dbv3":
             self.manual_project_clock = types.SimpleNamespace(monitoring=False)
-        self.shuttle = Shuttle(board)
+        self.shuttle = board.shuttle = Shuttle(board)
         self._mode = 0
 
     @property
@@ -396,7 +414,6 @@ class DemoBoard:
             pin = getattr(self.pins, "ui_in%d" % i)
             high = mode == 1 and (board.switches >> i) & 1
             pin.mode = OUT if mode == 1 and not high else IN
-            Pin(g, pin.mode, value=0)
         if self.manual_project_clock is not None:
             self.manual_project_clock.monitoring = mode == 1
 
@@ -416,22 +433,37 @@ class Design:
     def __init__(self, board, name):
         self.board, self.name = board, name
 
-    def enable(self):
+    def enable(self, force=False):
+        """As ProjectMux.enable: refused at a danger level above safe, else the mux goes
+        through project 0, which powers every design down, and the callback runs."""
         board = self.board
+        if self.name in board.risky and not force:
+            return False
         board.note("enable", self.name)
-        board.enabled = self.name
-        board.set_clock(50_000_000)
+        board.shuttle.disable()
+        board.shuttle.enabled = self
+        board.shuttle.design_enabled_callback(self)
+        return True
 
 
 class Shuttle:
+    """The callback is apply_user_config's, for a project with no config.ini section:
+    info.yaml's clock_hz."""
+
     def __init__(self, board):
-        self.board = board
+        self.board, self.enabled = board, None
+        self.design_enabled_callback = lambda design: board.set_clock(50_000_000)
 
     def has(self, name):
         return name in self.board.projects
 
     def get(self, name):
         return Design(self.board, name)
+
+    def disable(self):
+        self.enabled = None
+        if hasattr(self.board.chip, "power_down"):
+            self.board.chip.power_down()
 
 
 class Board:
@@ -440,15 +472,16 @@ class Board:
     last run left them, so a chip in another thread is only touched inside run."""
 
     def __init__(self, chip, kind="dbv3", switches=0,
-                 projects=("tt_um_marcosash_protocol_emulator",)):
-        self.chip, self.kind, self.switches, self.projects = chip, kind, switches, projects
+                 projects=("tt_um_marcosash_protocol_emulator", "tt_um_other"), risky=()):
+        self.chip, self.kind, self.switches = chip, kind, switches
+        self.projects, self.risky = projects, risky
         ui, uo, uio, self.sys_hz, self.has_gpio_base = BOARDS[kind]
         self.ui, self.uo, self.uio = list(ui), list(uo), list(uio)
         self.ticks, self.before = 0, Fraction(0)
         self.sio, self.outputs, self.pio_pins, self.pio_levels = {}, set(), {}, {}
         self.pios = [Pio(self, n) for n in range(3 if self.has_gpio_base else 2)]
         self.sms = {}
-        self.clock_hz, self.rst_n, self.enabled = 0, 1, None
+        self.clock_hz, self.rst_n = 0, 1
         self.pads = (0, 0)
         self.driven = None
         self.log, self.trace = [], []
@@ -551,9 +584,11 @@ class Board:
             if not ready():
                 raise TimeoutError("the board would hang here")
 
-    def install(self):
+    def install(self, sdk=None):
         """machine, rp2, micropython and ttboard in sys.modules, and demo_board and
-        demo_board_check imported fresh with this board's time."""
+        demo_board_check imported fresh with this board's time. sdk, a module to import as
+        ttboard's instead of the fake's, gets a machine.freq that sets the chip's clock to
+        half the system's, as the SDK's PWM would."""
         board = self
         Pin.board = board
         tt = DemoBoard(board)
@@ -576,7 +611,13 @@ class Board:
                             ("SHIFT_LEFT", SHIFT_LEFT), ("SHIFT_RIGHT", SHIFT_RIGHT)):
             setattr(pio, name, value)
         machine = types.ModuleType("machine")
-        machine.Pin, machine.freq = Pin, lambda hz=None: board.sys_hz
+
+        def freq(hz=None):
+            if hz is None:
+                return board.sys_hz
+            board.set_clock(hz // 2)
+
+        machine.Pin, machine.freq = Pin, freq
         micropython = types.ModuleType("micropython")
         micropython.native = lambda f: f
         ttboard = types.ModuleType("ttboard")
@@ -589,6 +630,11 @@ class Board:
             "rp2": rp2, "machine": machine, "micropython": micropython, "ttboard": ttboard,
             "ttboard.demoboard": demoboard, "ttboard.mode": mode,
         })
+        if sdk is not None:
+            sys.modules.pop(sdk, None)
+            standin = importlib.import_module(sdk)
+            sys.modules.update({"ttboard.demoboard": standin, "ttboard.mode": standin})
+            tt = standin.DemoBoard.get()
         for name in ("demo_board", "demo_board_check"):
             sys.modules.pop(name, None)
         clock = types.SimpleNamespace(

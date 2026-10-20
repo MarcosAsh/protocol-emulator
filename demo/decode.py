@@ -6,10 +6,13 @@
 # Usage: python3 demo/decode.py test/traces/*.trace test/traces/sigrok/*.trace
 #        python3 demo/decode.py --rate 24 TRACE...            as a 24 MHz analyser sees it
 #        python3 demo/decode.py --capture can.sr TRACE        a capture from the bench
+#        python3 demo/decode.py --analyser B --capture spi.sr test/traces/sigrok/spi_mode0.trace
 #        python3 demo/decode.py --rate 24 --write-capture can.sr TRACE
 #        python3 demo/decode.py --host-frames frames.py TRACE for demo/pico_replay.py
 #        python3 demo/decode.py --summary "the RTL" TRACE...  and a count of protocols read
+#        python3 demo/decode.py --show TRACE                  every line each decoder reads
 import argparse
+import functools
 import os
 import random
 import re
@@ -19,7 +22,8 @@ import tempfile
 
 import sigrok
 
-# What each decoder reports a fault in. One with none judges nothing but the payload.
+# What each decoder reports a fault in. One with none judges nothing but the payload; one
+# not here, every class sigrok names a warning or an error.
 ERRORS = {
     "uart": [
         "rx-warnings", "tx-warnings", "rx-parity-err", "tx-parity-err", "rx-break", "tx-break"
@@ -39,10 +43,15 @@ ERRORS = {
     "swd": ["parity"],
 }
 
-# The bench's analyser A: the host's SCK, MOSI, MISO and CS_N, OUT0, then CAN module A's R,
-# which gives OUT1 back, SWCLK on OUT2 and SWDIO on IO5
-BENCH = {"SCK": "D0", "MOSI": "D1", "MISO": "D2", "CS_N": "D3", "OUT0": "D4", "OUT1": "D5",
-         "OUT2": "D6", "IO5": "D7"}
+# The carrier's analysers. A: the host's SCK, MOSI, MISO and CS_N, OUT0, then CAN board A's
+# R, which gives OUT1 back, SWCLK on OUT2 and SWDIO on IO5. B: the flash's SCK on OUT5, MOSI
+# on OUT4, MISO on IN0 and CS on OUT6, the NeoPixel's OUT3, DQ on IO4, SDA on IO3, SCL on IO2.
+BENCH = {
+    "A": {"SCK": "D0", "MOSI": "D1", "MISO": "D2", "CS_N": "D3", "OUT0": "D4", "OUT1": "D5",
+          "OUT2": "D6", "IO5": "D7"},
+    "B": {"OUT5": "D0", "OUT4": "D1", "IN0": "D2", "OUT6": "D3", "OUT3": "D4", "IO4": "D5",
+          "IO3": "D6", "IO2": "D7"},
+}
 
 PIN = re.compile(r"=((?:IN|OUT|IO)\d|SCK|MOSI|MISO|CS_N)\b")
 
@@ -183,12 +192,29 @@ def sigrok_cli(capture, decoders, annotations):
     return result.stdout.splitlines()
 
 
+@functools.lru_cache
+def classes(decoder):
+    """Every annotation class sigrok names for the decoder."""
+    shown = subprocess.run(["sigrok-cli", "-P", decoder, "--show"], capture_output=True,
+                           text=True)
+    if shown.returncode:
+        raise SystemExit("sigrok has no decoder %s: %s" % (decoder, shown.stderr.strip()))
+    listed = shown.stdout.split("Annotation classes:")[1].split("Annotation rows:")[0]
+    return [line[2:].split(":")[0] for line in listed.splitlines() if line.startswith("- ")]
+
+
+@functools.lru_cache
+def errors(decoder):
+    """ERRORS' classes for the decoder, or for one it does not list, every class sigrok
+    names a warning or an error."""
+    if decoder in ERRORS:
+        return ERRORS[decoder]
+    return [c for c in classes(decoder) if "warn" in c or "err" in c]
+
+
 def faults(decoders):
     stacked = [d.split(":")[0] for stack in decoders for d in stack.split(",")]
-    unknown = [d for d in stacked if d not in ERRORS]
-    if unknown:
-        raise SystemExit("decode.py lists no error classes for %s" % ", ".join(unknown))
-    return ",".join("%s=%s" % (d, ":".join(ERRORS[d])) for d in stacked if ERRORS[d])
+    return ",".join("%s=%s" % (d, ":".join(errors(d))) for d in stacked if errors(d))
 
 
 def judge(capture, decoders, expect):
@@ -215,7 +241,7 @@ def captures(trace, args, scratch, tooth=()):
     """The waveforms to judge, each with why it is refused if it is: the one from reset
     and, for a line the decoders join once it idles, the one from there."""
     if args.capture:
-        mapping = dict(BENCH, **dict(args.probe))
+        mapping = dict(BENCH[args.analyser], **dict(args.probe))
         missing = [n for n in trace.pins() if n not in mapping]
         if missing:
             raise SystemExit("%s: %s is not on the analyser, give --probe %s=Dn" % (
@@ -245,10 +271,43 @@ def captures(trace, args, scratch, tooth=()):
             ("joined, ", later, decoders, trace.rejected)]
 
 
+def ocaml(text):
+    return '"%s"' % text.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def show(trace, args):
+    """Every line each decoder reads from the trace, a class at a time, then the classes
+    that read something, faults aside, as a scenario's Sigrok.expect to start from."""
+    expect = []
+    with tempfile.TemporaryDirectory() as scratch:
+        _, capture, decoders, _ = captures(trace, args, scratch)[-1]
+        print("%s, by sigrok's %s" % (trace.name, " ".join(decoders)))
+        for decoder in [d.split(":")[0] for stack in decoders for d in stack.split(",")]:
+            read = []
+            for c in classes(decoder):
+                lines = sigrok_cli(capture, decoders, "%s=%s" % (decoder, c))
+                more = ", ..." if len(lines) > 4 else ""
+                print("  %s=%s: %s" % (decoder, c, "%d lines, %s%s" % (
+                    len(lines), ", ".join(lines[:4]), more) if lines else "nothing"))
+                if lines and c not in errors(decoder):
+                    read.append(c)
+            if read:
+                annotations = "%s=%s" % (decoder, ":".join(read))
+                expect.append((annotations, sigrok_cli(capture, decoders, annotations)))
+    print("expect =")
+    for n, (annotations, lines) in enumerate(expect):
+        print("  %s ( %s" % ("[" if n == 0 else ";", ocaml(annotations)))
+        print("    , [ %s ] )" % "; ".join(ocaml(line) for line in lines))
+    print("  ]" if expect else "  []")
+    return True
+
+
 def check(path, args):
     trace = Trace(path)
     if not trace.decoders:
         return True
+    if args.show:
+        return show(trace, args)
     if args.host_frames:
         return host_frames(trace, args.host_frames, args.clock_mhz)
     if args.write_capture:
@@ -284,7 +343,8 @@ def check(path, args):
 
 def write_capture(trace, args):
     """The trace as the bench's analyser would capture it, on its channels."""
-    pins = {channel: pin for pin, channel in dict(BENCH, **dict(args.probe)).items()}
+    pins = {channel: pin
+            for pin, channel in dict(BENCH[args.analyser], **dict(args.probe)).items()}
     channels = [pins.get("D%d" % i) for i in range(8)]
     rate, samples = sample(pack([trace.wire(p) if p else None for p in channels]),
                            trace.clock, args)
@@ -345,12 +405,16 @@ def main():
     parser.add_argument("--ppm", type=float, default=30.0, help="most crystal error, either way")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--capture", help="judge this capture from the bench instead")
+    parser.add_argument("--analyser", choices=sorted(BENCH), default="A",
+                        help="the carrier's analyser the capture is from")
     parser.add_argument("--probe", type=lambda s: tuple(s.split("=")), action="append",
                         default=[], help="PIN=Dn, a pin on another channel of the analyser")
     parser.add_argument("--write-capture", help="write the trace as the bench's analyser sees it")
     parser.add_argument("--host-frames", help="write the trace's host frames for the Pico")
     parser.add_argument("--clock-mhz", type=float, default=48.0, help="the bench's chip clock")
     parser.add_argument("--summary", help="what the traces ran on, for a count of protocols")
+    parser.add_argument("--show", action="store_true",
+                        help="print every line each decoder reads, and an expect to paste")
     args = parser.parse_args()
     results = {path: check(path, args) for path in args.traces}
     if args.summary:

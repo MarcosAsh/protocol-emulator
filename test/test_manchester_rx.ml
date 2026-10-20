@@ -2,6 +2,7 @@ open! Core
 open Hardcaml
 open Hardcaml_lws
 open! Hardcaml_waveterm
+open Expect_test_helpers_core
 open Protocol_emulator
 open Manchester_line
 
@@ -368,4 +369,27 @@ let%expect_test "waveform of a short frame" =
     │                  ││─────┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴──────┴┴┴┴┴┴┴┴──────────────────    │
     └──────────────────┘└────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
     |}]
+;;
+
+(* The functor refuses a config it cannot build, one bound at a time past each end. *)
+let%expect_test "configs outside the receiver's range are refused" =
+  let refused name ~per_bit ~per_cycle ~gain =
+    let module S = struct
+      let samples_per_bit = per_bit
+      let samples_per_cycle = per_cycle
+      let gain_shift = gain
+    end
+    in
+    print_endline name;
+    require_does_raise (fun () ->
+      let module _ = Manchester_rx.Make (S) in
+      ())
+  in
+  refused "no samples a cycle" ~per_bit:[ 8 ] ~per_cycle:0 ~gain:0;
+  refused "three samples a cycle" ~per_bit:[ 8 ] ~per_cycle:3 ~gain:0;
+  refused "no rates" ~per_bit:[] ~per_cycle:1 ~gain:0;
+  refused "three rates" ~per_bit:[ 8; 10; 12 ] ~per_cycle:1 ~gain:0;
+  refused "three samples a bit" ~per_bit:[ 8; 3 ] ~per_cycle:1 ~gain:0;
+  refused "a negative gain shift" ~per_bit:[ 8 ] ~per_cycle:1 ~gain:(-1);
+  [%expect {| |}]
 ;;

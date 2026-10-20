@@ -37,11 +37,11 @@ module Timing : sig
     }
 end
 
-(** UM10204 table 10, Fast-mode Plus, for the timings a master drives; the SCL period is
+(** UM10204 table 11, Fast-mode Plus, for the timings a master drives; the SCL period is
     the 1 MHz most of fSCL. *)
 val fast_mode_plus : Timing.t list
 
-(** The same from UM10204 table 10's Standard-mode column, an SCL period of 10 us. *)
+(** The same from UM10204 table 11's Standard-mode column, an SCL period of 10 us. *)
 val standard_mode : Timing.t list
 
 (** The limit of the timing [name], such as ["tLOW"]. *)

@@ -117,3 +117,138 @@ loop:
     ((issues 52) (violations ()))
     |}]
 ;;
+
+let%expect_test "a data memory serves one or two engines" =
+  List.iter [ 0; 3 ] ~f:(fun engines ->
+    let made =
+      Or_error.try_with (fun () ->
+        let module _ =
+          Data_memory.Make (struct
+            let engines = engines
+          end)
+        in
+        ())
+    in
+    print_s [%message (made : unit Or_error.t)]);
+  [%expect
+    {|
+    (made (Error ("BUG: one data memory serves one or two engines" (engines 0))))
+    (made (Error ("BUG: one data memory serves one or two engines" (engines 3))))
+    |}]
+;;
+
+module Two = Data_memory.Make (struct
+    let engines = 2
+  end)
+
+module Harness = Hardcaml_test_harness.Lws_harness.Make (Two.I) (Two.O)
+
+let%expect_test "a write lands only while both engines are halted" =
+  Harness.run
+    ~random_initial_state:`All
+    ~create:(Two.hierarchical ~memory:Flops)
+    (fun (h @ local) ~inputs:i ~outputs ->
+       let open Hardcaml in
+       let words = (Before_and_after_edge.after_edge outputs).words in
+       let write = List.hd_exn i.writes in
+       let halt halted =
+         List.iter2_exn i.halted halted ~f:(fun r b -> r := Bits.of_bool b)
+       in
+       i.clocking.clear := Bits.vdd;
+       Hardcaml_lws.Lws.cycle h;
+       i.clocking.clear := Bits.gnd;
+       List.iter
+         [ [ true; true ], 0, 0x1111
+         ; [ true; true ], 1, 0x2222
+         ; [ true; false ], 0, 0xdead
+         ; [ false; true ], 1, 0xbeef
+         ]
+         ~f:(fun (halted, addr, data) ->
+           halt halted;
+           write.valid := Bits.vdd;
+           Bits.(write.addr <--. addr);
+           Bits.(write.data <--. data);
+           Hardcaml_lws.Lws.cycle h);
+       write.valid := Bits.gnd;
+       halt [ true; true ];
+       List.iteri i.reads ~f:(fun n r -> Bits.(r <--. n));
+       List.iter (List.range 0 4) ~f:(fun _ -> Hardcaml_lws.Lws.cycle h);
+       print_s [%message "" ~words:(List.map words ~f:( ! ) : Bits.Hex.t list)]);
+  [%expect {| (words (16'h1111 16'h2222)) |}]
+;;
+
+(* Each engine's word moves on its own cycle, every other one, and holds between. *)
+let%expect_test "waveform of two engines reading the shared memory" =
+  let open Hardcaml_waveterm in
+  Harness.run
+    ~create:(Two.hierarchical ~memory:Flops)
+    ~trace:`All_named
+    ~print_waves_after_test:(fun waves ->
+      let display_rules =
+        [ "halted_0"
+        ; "halted_1"
+        ; "writes$valid_0"
+        ; "writes$addr_0"
+        ; "writes$data_0"
+        ; "reads_0"
+        ; "reads_1"
+        ; "words_0"
+        ; "words_1"
+        ]
+        |> List.map ~f:(fun name ->
+          Display_rule.port_name_is name ~wave_format:(Bit_or Hex))
+      in
+      Waveform.print
+        ~display_rules
+        ~signals_width:15
+        ~display_width:80
+        ~wave_width:2
+        waves)
+    (fun (h @ local) ~inputs:i ~outputs:_ ->
+      let open Hardcaml in
+      let write = List.hd_exn i.writes in
+      i.clocking.clear := Bits.vdd;
+      Hardcaml_lws.Lws.cycle h;
+      i.clocking.clear := Bits.gnd;
+      List.iter i.halted ~f:(fun r -> r := Bits.vdd);
+      write.valid := Bits.vdd;
+      List.iteri [ 0x1111; 0x2222; 0x3333 ] ~f:(fun addr data ->
+        Bits.(write.addr <--. addr);
+        Bits.(write.data <--. data);
+        Hardcaml_lws.Lws.cycle h);
+      write.valid := Bits.gnd;
+      List.iter i.halted ~f:(fun r -> r := Bits.gnd);
+      List.iteri i.reads ~f:(fun n r -> Bits.(r <--. n));
+      Hardcaml_lws.Lws.cycle ~n:3 h;
+      List.iteri i.reads ~f:(fun n r -> Bits.(r <--. n + 1));
+      Hardcaml_lws.Lws.cycle ~n:5 h);
+  [%expect
+    {|
+    ┌Signals──────┐┌Waves──────────────────────────────────────────────────────────┐
+    │halted_0     ││      ┌─────────────────┐                                      │
+    │             ││──────┘                 └──────────────────────────────────────│
+    │halted_1     ││      ┌─────────────────┐                                      │
+    │             ││──────┘                 └──────────────────────────────────────│
+    │writes$valid_││      ┌─────────────────┐                                      │
+    │             ││──────┘                 └──────────────────────────────────────│
+    │             ││────────────┬─────┬────────────────────────────────────────────│
+    │writes$addr_0││ 000        │001  │002                                         │
+    │             ││────────────┴─────┴────────────────────────────────────────────│
+    │             ││──────┬─────┬─────┬────────────────────────────────────────────│
+    │writes$data_0││ 0000 │1111 │2222 │3333                                        │
+    │             ││──────┴─────┴─────┴────────────────────────────────────────────│
+    │             ││──────────────────────────────────────────┬────────────────────│
+    │reads_0      ││ 000                                      │001                 │
+    │             ││──────────────────────────────────────────┴────────────────────│
+    │             ││────────────────────────┬─────────────────┬────────────────────│
+    │reads_1      ││ 000                    │001              │002                 │
+    │             ││────────────────────────┴─────────────────┴────────────────────│
+    │             ││────────────────────────────────────┬───────────┬──────────────│
+    │words_0      ││ 0000                               │1111       │2222          │
+    │             ││────────────────────────────────────┴───────────┴──────────────│
+    │             ││──────────────────────────────┬───────────────────────┬────────│
+    │words_1      ││ 0000                         │2222                   │3333    │
+    │             ││──────────────────────────────┴───────────────────────┴────────│
+    └─────────────┘└───────────────────────────────────────────────────────────────┘
+    |}]
+;;

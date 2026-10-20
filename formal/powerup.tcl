@@ -1,7 +1,8 @@
 # The chip's flops as ports for powerup.sv's invariant: each host fifo and the edge
 # stamps' as one port named for it (flops.tcl); the load checker's state and the flops it
 # keeps without a clear as one port, load_checker; every other flop as one port, state,
-# whose width goes to powerup.sv as STATE_BITS.
+# whose width goes to powerup.sv as STATE_BITS. The engines' start inputs and three of
+# their flops come out too, the flops staying in state.
 
 source flops.tcl
 yosys cd tt_um_marcosash_protocol_emulator
@@ -26,6 +27,12 @@ set falling_bits [gather falling $falling]
 # it whose inverse clears the falling flops
 gather reset_done [wires w:core.top.reset_done]
 gather reset_late [wires w:core.top.reset_late]
+
+# each engine's start input, and its halted, start and refill flops, engine 0's first
+foreach {port name} {start start halted halted started start_0 refill refill} {
+  gather $port [concat [wires w:core.top.engines.engine_0.$name] \
+    [wires w:core.top.engines.engine_1.$name]]
+}
 
 yosys select -set ports o:*
 set flops [list w:* w:core.top.engines.engine_?.rx.* w:core.top.engines.engine_?.tx.* %u]

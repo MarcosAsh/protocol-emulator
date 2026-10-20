@@ -90,7 +90,7 @@ let%expect_test "usb tx builds the crc and stuffs the get descriptor packet" =
     @ [ 0x80; 0xc3; 0; 0xff ]
   in
   let t =
-    Machine.create ~config:usb_config ~program:(Timed_program.words usb_tx) |> ok_exn
+    Machine.create ~config:Usb.config ~program:(Timed_program.words Usb.tx) |> ok_exn
   in
   let feed (t : Machine.t) words =
     match words with
@@ -106,7 +106,7 @@ let%expect_test "usb tx builds the crc and stuffs the get descriptor packet" =
       let t = Machine.step t ~inputs:0 in
       let pin p = (t.pin_out lsr p) land 1 in
       let sniffer =
-        Usb_ls.Sniffer.step sniffer ~dp:(pin usb_dp_pin) ~dm:(pin usb_dm_pin)
+        Usb_ls.Sniffer.step sniffer ~dp:(pin Usb.dp_pin) ~dm:(pin Usb.dm_pin)
       in
       loop t words sniffer (n - 1))
   in
@@ -141,15 +141,15 @@ let%expect_test "usb rx decodes, unstuffs and checks two packets" =
           | Se0 -> 0, 0
         in
         List.init bit_period ~f:(fun _ ->
-          (dp lsl usb_rx_dp_pin) lor (dm lsl usb_rx_dm_pin)))
+          (dp lsl Usb.rx_dp_pin) lor (dm lsl Usb.rx_dm_pin)))
   in
   let levels =
-    List.init 40 ~f:(fun _ -> 1 lsl usb_rx_dm_pin) @ line_levels data0 @ line_levels ones
+    List.init 40 ~f:(fun _ -> 1 lsl Usb.rx_dm_pin) @ line_levels data0 @ line_levels ones
   in
   let t =
     Machine.create
-      ~config:usb_rx_config
-      ~program:(assemble (usb_rx ~half_period:(bit_period / 2)))
+      ~config:Usb.rx_config
+      ~program:(assemble (Usb.rx ~half_period:(bit_period / 2)))
     |> ok_exn
   in
   let t = Machine.write_tx t bit_period |> ok_exn in
@@ -201,15 +201,15 @@ let%expect_test "usb tx in lockstep" =
   let (_ : Machine.t) =
     Lockstep.lockstep
       ~cycles:(bit_period * 200)
-      ~config:usb_config
-      ~program:(Timed_program.words usb_tx)
+      ~config:Usb.config
+      ~program:(Timed_program.words Usb.tx)
       ~preload:[ bit_period ]
       ~inputs:(fun _ -> 0)
       ~host
       ~react:(fun m ->
         level := List.length m.tx_fifo;
         let pin p = (m.pin_out lsr p) land 1 in
-        sniffer := Usb_ls.Sniffer.step !sniffer ~dp:(pin usb_dp_pin) ~dm:(pin usb_dm_pin))
+        sniffer := Usb_ls.Sniffer.step !sniffer ~dp:(pin Usb.dp_pin) ~dm:(pin Usb.dm_pin))
       ()
   in
   print_s [%message (Usb_ls.Sniffer.packets !sniffer : int list list)];
@@ -227,7 +227,7 @@ let%expect_test "usb rx in lockstep" =
   let crc = Usb_ls.crc16 (Usb_ls.bits_of_bytes data) in
   let packet = (0xc3 :: data) @ [ crc land 0xff; crc lsr 8 ] in
   let levels =
-    List.init 40 ~f:(fun _ -> 1 lsl usb_rx_dm_pin)
+    List.init 40 ~f:(fun _ -> 1 lsl Usb.rx_dm_pin)
     @ List.concat_map
         (Usb_ls.encode packet @ List.init 4 ~f:(fun _ -> Usb_ls.Line.J))
         ~f:(fun line ->
@@ -238,15 +238,15 @@ let%expect_test "usb rx in lockstep" =
             | Se0 -> 0, 0
           in
           List.init bit_period ~f:(fun _ ->
-            (dp lsl usb_rx_dp_pin) lor (dm lsl usb_rx_dm_pin)))
+            (dp lsl Usb.rx_dp_pin) lor (dm lsl Usb.rx_dm_pin)))
     |> Array.of_list
   in
   let words = ref [] in
   let (_ : Machine.t) =
     Lockstep.lockstep
       ~cycles:(Array.length levels)
-      ~config:usb_rx_config
-      ~program:(assemble (usb_rx ~half_period:(bit_period / 2)))
+      ~config:Usb.rx_config
+      ~program:(assemble (Usb.rx ~half_period:(bit_period / 2)))
       ~preload:[ bit_period ]
       ~inputs:(fun n -> levels.(n))
       ~host:(fun _ -> { Lockstep.Host.idle with tx = None; pop_rx = true })
@@ -265,18 +265,104 @@ let%expect_test "usb rx in lockstep" =
     |}]
 ;;
 
+(* A sender off in rate, its bit [num / den] of the receiver's, each bit starting on the
+   first cycle at or after it is due. USB allows a low speed sender 1.5% off. The receiver
+   re-anchors on every J-to-K edge, at most fourteen bits apart once stuffed, so the drift
+   it has to ride out is that of fourteen bits and not of a whole packet. Every byte in
+   eight-byte DATA0 packets, then packets of all ones, the longest gaps between edges. *)
+let%expect_test "usb rx follows a sender off in rate" =
+  let bit_period = 32 in
+  let level (line : Usb_ls.Line.t) =
+    match line with
+    | J -> 1 lsl Usb.rx_dm_pin
+    | K -> 1 lsl Usb.rx_dp_pin
+    | Se0 -> 0
+  in
+  let data payload =
+    let crc = Usb_ls.crc16 (Usb_ls.bits_of_bytes payload) in
+    (0xc3 :: payload) @ [ crc land 0xff; crc lsr 8 ]
+  in
+  let receive payloads ~num ~den =
+    let packets = List.map payloads ~f:data in
+    let lines =
+      List.init 8 ~f:(fun _ -> Usb_ls.Line.J)
+      @ List.concat_map packets ~f:(fun packet -> Usb_ls.encode packet @ [ J; J ])
+      @ List.init 8 ~f:(fun _ -> Usb_ls.Line.J)
+    in
+    let start k = ((k * bit_period * num) + den - 1) / den in
+    let levels =
+      List.concat_mapi lines ~f:(fun k line ->
+        List.init (start (k + 1) - start k) ~f:(fun _ -> level line))
+    in
+    let expected =
+      List.concat_map packets ~f:(fun packet ->
+        List.map (0x80 :: packet) ~f:(fun byte -> byte lsl 8) @ [ Usb_ls.residual packet ])
+    in
+    let t =
+      Machine.create
+        ~config:Usb.rx_config
+        ~program:(assemble (Usb.rx ~half_period:(bit_period / 2)))
+      |> ok_exn
+    in
+    let t = Machine.write_tx t bit_period |> ok_exn in
+    let t, words =
+      List.fold levels ~init:(t, []) ~f:(fun (t, words) inputs ->
+        let t = Machine.step t ~inputs in
+        match Machine.read_rx t with
+        | Some (word, t) -> t, word :: words
+        | None -> t, words)
+    in
+    [%equal: int list] (List.rev words) expected, t.fault.missed_deadline
+  in
+  let every_byte = List.chunks_of (List.init 256 ~f:Fn.id) ~length:8 in
+  let all_ones = List.init 4 ~f:(fun _ -> List.init 8 ~f:(fun _ -> 0xff)) in
+  printf "%-10s %-10s %-10s %s\n" "sender" "every byte" "all ones" "missed";
+  List.iter
+    [ "4% fast", 24, 25
+    ; "2.5% fast", 39, 40
+    ; "2% fast", 49, 50
+    ; "1.5% fast", 197, 200
+    ; "exact", 1, 1
+    ; "1.5% slow", 203, 200
+    ; "3% slow", 103, 100
+    ; "4% slow", 26, 25
+    ]
+    ~f:(fun (sender, num, den) ->
+      let every_ok, every_missed = receive every_byte ~num ~den in
+      let ones_ok, ones_missed = receive all_ones ~num ~den in
+      let intact ok = if ok then "intact" else "garbled" in
+      printf
+        "%-10s %-10s %-10s %b\n"
+        sender
+        (intact every_ok)
+        (intact ones_ok)
+        (every_missed || ones_missed));
+  [%expect
+    {|
+    sender     every byte all ones   missed
+    4% fast    garbled    garbled    false
+    2.5% fast  garbled    garbled    false
+    2% fast    intact     intact     false
+    1.5% fast  intact     intact     false
+    exact      intact     intact     false
+    1.5% slow  intact     intact     false
+    3% slow    intact     intact     false
+    4% slow    garbled    garbled    false
+    |}]
+;;
+
 (* D+ and D- as a wire: the device wins where it drives, the host's level otherwise *)
 let usb_bus (t : Machine.t) ~host =
   let pin n = if (t.pin_dir lsr n) land 1 = 1 then (t.pin_out lsr n) land 1 else host n in
-  pin usb_device_dp_pin, pin usb_device_dm_pin
+  pin Usb.device_dp_pin, pin Usb.device_dm_pin
 ;;
 
 let run_usb_device ?(queue = []) ~address packets ~idle =
   let bit_period = 32 in
   let t =
     Machine.create
-      ~config:usb_device_config
-      ~program:(assemble (usb_device ~address ~half_period:(bit_period / 2)))
+      ~config:Usb.device_config
+      ~program:(assemble (Usb.device ~address ~half_period:(bit_period / 2)))
     |> ok_exn
   in
   let t =
@@ -315,8 +401,8 @@ let run_usb_device ?(queue = []) ~address packets ~idle =
         then (
           host_se0_ends := !cycle + 1;
           replied := false);
-        let host n = if n = usb_device_dp_pin then dp else dm in
-        let inputs = (dp lsl usb_device_dp_pin) lor (dm lsl usb_device_dm_pin) in
+        let host n = if n = Usb.device_dp_pin then dp else dm in
+        let inputs = (dp lsl Usb.device_dp_pin) lor (dm lsl Usb.device_dm_pin) in
         let t = Machine.step t ~inputs in
         let t =
           match Machine.read_rx t with
@@ -326,7 +412,7 @@ let run_usb_device ?(queue = []) ~address packets ~idle =
           | None -> t
         in
         let dp, dm = usb_bus t ~host in
-        let drives = (t.pin_dir lsr usb_device_dp_pin) land 1 = 1 in
+        let drives = (t.pin_dir lsr Usb.device_dp_pin) land 1 = 1 in
         if drives && dp = 1 && not !replied
         then (
           replied := true;
@@ -439,14 +525,14 @@ let%expect_test "usb device in lockstep" =
         | Se0 -> 0, 0
       in
       List.init bit_period ~f:(fun _ ->
-        (dp lsl usb_device_dp_pin) lor (dm lsl usb_device_dm_pin)))
+        (dp lsl Usb.device_dp_pin) lor (dm lsl Usb.device_dm_pin)))
     |> Array.of_list
   in
   let (_ : Machine.t) =
     Lockstep.lockstep
       ~cycles:(Array.length levels)
-      ~config:usb_device_config
-      ~program:(assemble (usb_device ~address:3 ~half_period:(bit_period / 2)))
+      ~config:Usb.device_config
+      ~program:(assemble (Usb.device ~address:3 ~half_period:(bit_period / 2)))
       ~preload:[ bit_period ]
       ~inputs:(fun n -> levels.(n))
       ()
@@ -539,14 +625,14 @@ let%expect_test "usb device takes a SETUP in lockstep" =
         | Se0 -> 0, 0
       in
       List.init bit_period ~f:(fun _ ->
-        (dp lsl usb_device_dp_pin) lor (dm lsl usb_device_dm_pin)))
+        (dp lsl Usb.device_dp_pin) lor (dm lsl Usb.device_dm_pin)))
     |> Array.of_list
   in
-  let program = assemble (usb_device ~address:0 ~half_period:(bit_period / 2)) in
+  let program = assemble (Usb.device ~address:0 ~half_period:(bit_period / 2)) in
   let (_ : Machine.t) =
     Lockstep.lockstep
       ~cycles:(Array.length levels)
-      ~config:usb_device_config
+      ~config:Usb.device_config
       ~program
       ~preload:[ bit_period ]
       ~inputs:(fun n -> levels.(n))
@@ -635,14 +721,14 @@ let%expect_test "usb device answers an IN with queued data in lockstep" =
         | Se0 -> 0, 0
       in
       List.init bit_period ~f:(fun _ ->
-        (dp lsl usb_device_dp_pin) lor (dm lsl usb_device_dm_pin)))
+        (dp lsl Usb.device_dp_pin) lor (dm lsl Usb.device_dm_pin)))
     |> Array.of_list
   in
   let (_ : Machine.t) =
     Lockstep.lockstep
       ~cycles:(Array.length levels)
-      ~config:usb_device_config
-      ~program:(assemble (usb_device ~address:0 ~half_period:(bit_period / 2)))
+      ~config:Usb.device_config
+      ~program:(assemble (Usb.device ~address:0 ~half_period:(bit_period / 2)))
       ~preload:(bit_period :: usb_reply ~pid:0x4b [ 0xff; 0xff; 0x7f; 0x2a ])
       ~inputs:(fun n -> levels.(n))
       ~host:(fun _ -> { Lockstep.Host.idle with pop_rx = true })

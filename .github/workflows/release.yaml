@@ -12,6 +12,8 @@ on:
 permissions:
   actions: read
   contents: write
+  id-token: write
+  attestations: write
 
 jobs:
   release:
@@ -99,7 +101,7 @@ jobs:
           # the bitstreams are built from here, so they are the chip only if what a gds run
           # hardens, as gds.yaml's paths filter has it, is the same here as at its commit
           if ! git diff --quiet "$commit" HEAD -- src macro info.yaml librelane_plugin_sram_pdn.py \
-            odb_sram_stripes.py ':!*.ml' ':!*.mli' ':!**/dune'; then
+            odb_sram_stripes.py librelane_plugin_die_art.py die_art.py ':!*.ml' ':!*.mli' ':!**/dune'; then
             echo "::$LEVEL::the chip's sources here differ from $commit, which gds run $run hardened"
             [ "$LEVEL" = warning ]
           fi
@@ -133,6 +135,13 @@ jobs:
 
           `tt_um_marcosash_protocol_emulator.bin` is one engine with flop program memory, to fit the iCE40 UP5K on Tiny Tapeout's classic (TT04) FPGA breakout, pins as tt-support-tools' `fpga/tt_fpga_top.pcf`. Copy it to the demo board with `mpremote cp tt_um_marcosash_protocol_emulator.bin :/bitstreams/`, reset the board, select it with `tt.shuttle.tt_um_marcosash_protocol_emulator.enable()` and clock it at 16 MHz or less.
           EOF
+
+      # the chip, both bitstreams and the assembler, signed before they are published
+      - name: Attest the release files
+        if: github.event_name == 'push'
+        uses: actions/attest-build-provenance@v3.0.0
+        with:
+          subject-path: release/*
 
       - name: Publish the release
         if: github.event_name == 'push'

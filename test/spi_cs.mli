@@ -1,5 +1,6 @@
 (** SPI master in any of the four modes, driving its chip select: MOSI on OUT0, SCK on
-    OUT1, CS on OUT2 and MISO on IN0, MSB first. Not in the certified library. *)
+    OUT1, CS on OUT2 and MISO on IN0, MSB first. The bench's copies, on its pins, are
+    certified. *)
 
 open! Core
 open Protocol_emulator
@@ -37,10 +38,17 @@ val longest_hold : int
 
 (** A host word is a byte in bits 7 to 0, and [last] to end the frame, and the core pushes
     the byte it read. CS falls [setup] cycles before the first SCK edge and rises [hold]
-    after the last, and stays high 9 cycles at least. Between bytes of a frame it stays
-    low, SCK idle, for as long as the host is slow. Raises if [setup] or [hold] is out of
-    its range. *)
-val master : mode:Mode.t -> half_period:int -> setup:int -> hold:int -> string
+    after the last, and stays high [deselect] cycles at least, and never under 9, which a
+    flash's wake from power down needs. Between bytes of a frame it stays low, SCK idle,
+    for as long as the host is slow. Raises if [setup], [hold] or [deselect], up to 248
+    cycles, is out of its range. *)
+val master
+  :  mode:Mode.t
+  -> half_period:int
+  -> setup:int
+  -> hold:int
+  -> deselect:int
+  -> string
 
 (** One frame's host words. *)
 val words : int list -> int list
@@ -59,3 +67,5 @@ module Device : sig
   val measured : t -> Measured.t
   val violations : t -> string list
 end
+
+val protocol : Protocol.t

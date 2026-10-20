@@ -2,7 +2,6 @@ open! Core
 open Protocol_emulator
 
 let pin = 5
-let cycle_ns = 20
 
 (* [zero_high] at most 31, and [bit] between [2 * zero_high] and [3 * zero_high]: what the
    firmware can be written for; whether it holds its deadlines is the kernel's to say. [t]
@@ -46,7 +45,7 @@ gap:
 ;;
 
 let dshot600 = firmware ~zero_high:31 ~bit:83
-let dshot1200 = firmware ~zero_high:16 ~bit:42
+let dshot1200 = firmware ~zero_high:15 ~bit:40
 
 let config =
   { Program_config.default with
@@ -84,25 +83,29 @@ let runs levels =
   |> List.map ~f:(fun run -> List.hd_exn run, List.length run)
 ;;
 
-let decode (rate : Rate.t) ~cycle_ns levels =
+let decode (rate : Rate.t) ~clock_hz levels =
   let open Or_error.Let_syntax in
-  let within ns ~nominal ~name =
-    if abs (ns - nominal) * 20 <= nominal
+  (* within 5%, exactly: cycles of 1e9 / clock_hz ns against ns *)
+  let within cycles ~nominal ~name =
+    if abs ((cycles * 1_000_000_000) - (nominal * clock_hz)) * 20 <= nominal * clock_hz
     then return ()
-    else Or_error.error_s [%message "out of spec" name (ns : int) (nominal : int)]
+    else (
+      let ns = Measured.ns ~clock_hz cycles in
+      Or_error.error_s [%message "out of spec" name (ns : int) (nominal : int)])
   in
-  (* each high with the low after it, in ns; a frame ends at a long low or the end *)
+  (* each high with the low after it, in cycles; a frame ends at a long low or the end *)
   let pulses =
     List.drop_while (runs levels) ~f:(fun (level, _) -> not level)
     |> List.chunks_of ~length:2
     |> List.map ~f:(function
-      | [ (_, high); (_, low) ] -> high * cycle_ns, Some (low * cycle_ns)
-      | [ (_, high) ] -> high * cycle_ns, None
+      | [ (_, high); (_, low) ] -> high, Some low
+      | [ (_, high) ] -> high, None
       | _ -> raise_s [%message "BUG: chunks of two"])
   in
   let frames =
     List.group pulses ~break:(fun (_, low) _ ->
-      Option.value_map low ~default:true ~f:(fun low -> low > 2 * rate.bit_ns))
+      Option.value_map low ~default:true ~f:(fun low ->
+        not (Measured.at_most ~clock_hz low ~ns:(2 * rate.bit_ns))))
   in
   let%bind decoded =
     List.fold_result
@@ -120,16 +123,25 @@ let decode (rate : Rate.t) ~cycle_ns levels =
             ~init:(return ([], measured))
             ~f:(fun i acc (high, low) ->
               let%bind bits, measured = acc in
-              let one = high * 2 > rate.zero_high_ns + rate.one_high_ns in
+              let one =
+                high * 2 * 1_000_000_000
+                > (rate.zero_high_ns + rate.one_high_ns) * clock_hz
+              in
               let name, nominal =
                 if one then "T1H", rate.one_high_ns else "T0H", rate.zero_high_ns
               in
               let%bind () = within high ~nominal ~name in
-              let measured = Measured.add measured ~name ~ns:high in
+              let measured =
+                Measured.add measured ~name ~ns:(Measured.ns ~clock_hz high)
+              in
               match low with
               | Some low when i < 15 ->
                 let%map () = within (high + low) ~nominal:rate.bit_ns ~name:"bit" in
-                one :: bits, Measured.add measured ~name:"bit" ~ns:(high + low)
+                ( one :: bits
+                , Measured.add
+                    measured
+                    ~name:"bit"
+                    ~ns:(Measured.ns ~clock_hz (high + low)) )
               | _ -> return (one :: bits, measured))
         in
         let word =
@@ -145,4 +157,19 @@ let decode (rate : Rate.t) ~cycle_ns levels =
   in
   let frames, measured = decoded in
   return (List.rev frames, measured)
+;;
+
+let protocol =
+  { Protocol.name = "dshot"
+  ; certified = [ Certified.plain ~no_wrap:true "dshot600" dshot600 config ]
+  ; time_triggered = []
+  ; bench = []
+  ; loaded_from_hex = []
+  ; limits = []
+  ; unlimited = []
+  ; swept = []
+  ; not_swept = [ "dshot600", "32 edges a frame in 1328 cycles: the fifo holds 8" ]
+  ; scenarios = []
+  ; decoded = []
+  }
 ;;

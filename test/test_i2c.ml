@@ -6,7 +6,7 @@ open Protocol_models
 let run_transaction words ~memory ~cycles =
   let quarter = 8 in
   let t =
-    Machine.create ~config:i2c_config ~program:(assemble (i2c_master ~quarter)) |> ok_exn
+    Machine.create ~config:I2c.config ~program:(assemble (I2c.master ~quarter)) |> ok_exn
   in
   let slave = I2c_slave.create ~address:0x50 ~memory in
   let feed (t : Machine.t) pending =
@@ -20,10 +20,10 @@ let run_transaction words ~memory ~cycles =
     then t, slave, List.rev replies
     else (
       let t, pending = feed t pending in
-      let master_sda = 1 - ((t.pin_dir lsr sda) land 1) in
+      let master_sda = 1 - ((t.pin_dir lsr I2c.sda) land 1) in
       let bus_sda = if I2c_slave.drive_low slave then 0 else master_sda in
-      let bus_scl = 1 - ((t.pin_dir lsr scl) land 1) in
-      let t = Machine.step t ~inputs:((bus_sda lsl sda) lor (bus_scl lsl scl)) in
+      let bus_scl = 1 - ((t.pin_dir lsr I2c.scl) land 1) in
+      let t = Machine.step t ~inputs:((bus_sda lsl I2c.sda) lor (bus_scl lsl I2c.scl)) in
       let slave = I2c_slave.step slave ~sda:bus_sda ~scl:bus_scl in
       let replies, t =
         match Machine.read_rx t with
@@ -44,7 +44,7 @@ let run_transaction words ~memory ~cycles =
 let%expect_test "write a register then read it back" =
   let memory = Array.create ~len:16 0 in
   run_transaction
-    [ i2c_word ~start:true 0xa0; i2c_word 3; i2c_word ~stop:true 0xaa ]
+    [ I2c.word ~start:true 0xa0; I2c.word 3; I2c.word ~stop:true 0xaa ]
     ~memory
     ~cycles:1500;
   [%expect
@@ -60,11 +60,11 @@ let%expect_test "write a register then read it back" =
   print_s [%message (memory : int array)];
   [%expect {| (memory (0 0 0 170 0 0 0 0 0 0 0 0 0 0 0 0)) |}];
   run_transaction
-    [ i2c_word ~start:true 0xa0
-    ; i2c_word 3
-    ; i2c_word ~start:true 0xa1
-    ; i2c_word ~read:true 0
-    ; i2c_word ~read:true ~stop:true 0
+    [ I2c.word ~start:true 0xa0
+    ; I2c.word 3
+    ; I2c.word ~start:true 0xa1
+    ; I2c.word ~read:true 0
+    ; I2c.word ~read:true ~stop:true 0
     ]
     ~memory:(Array.mapi memory ~f:(fun i v -> if i = 4 then 0x5c else v))
     ~cycles:2500;
@@ -83,7 +83,7 @@ let%expect_test "write a register then read it back" =
 
 let%expect_test "a slave at another address does not answer" =
   run_transaction
-    [ i2c_word ~start:true ~stop:true 0xa2 ]
+    [ I2c.word ~start:true ~stop:true 0xa2 ]
     ~memory:(Array.create ~len:16 0)
     ~cycles:800;
   [%expect
@@ -99,7 +99,7 @@ let%expect_test "a slave at another address does not answer" =
 
 let run_slave ?(replies = []) ops ~cycles =
   let t =
-    Machine.create ~config:i2c_slave_config ~program:(Timed_program.words i2c_slave)
+    Machine.create ~config:I2c.slave_config ~program:(Timed_program.words I2c.slave)
     |> ok_exn
   in
   let t =
@@ -111,10 +111,10 @@ let run_slave ?(replies = []) ops ~cycles =
     if n = 0
     then t, master, List.rev received
     else (
-      let slave_sda = 1 - ((t.pin_dir lsr sda) land 1) in
+      let slave_sda = 1 - ((t.pin_dir lsr I2c.sda) land 1) in
       let bus_sda = I2c_peer.sda master land slave_sda in
       let bus_scl = I2c_peer.scl master in
-      let t = Machine.step t ~inputs:((bus_sda lsl sda) lor (bus_scl lsl scl)) in
+      let t = Machine.step t ~inputs:((bus_sda lsl I2c.sda) lor (bus_scl lsl I2c.scl)) in
       let master = I2c_peer.step master ~sda:bus_sda in
       let received, t =
         match Machine.read_rx t with
@@ -189,7 +189,7 @@ let%expect_test "slave ignores another address" =
 let%expect_test "one core polls the slave over i2c and logs over uart" =
   let memory = Array.init 16 ~f:(fun i -> 0x10 + (0x11 * i)) in
   let t =
-    Machine.create ~config:i2c_logger_config ~program:(Timed_program.words i2c_logger)
+    Machine.create ~config:I2c.logger_config ~program:(Timed_program.words I2c.logger)
     |> ok_exn
   in
   let slave = I2c_slave.create ~address:0x50 ~memory in
@@ -197,12 +197,12 @@ let%expect_test "one core polls the slave over i2c and logs over uart" =
     if n = 0
     then t, slave, List.rev levels
     else (
-      let master_sda = 1 - ((t.pin_dir lsr sda) land 1) in
+      let master_sda = 1 - ((t.pin_dir lsr I2c.sda) land 1) in
       let bus_sda = if I2c_slave.drive_low slave then 0 else master_sda in
-      let bus_scl = 1 - ((t.pin_dir lsr scl) land 1) in
-      let t = Machine.step t ~inputs:((bus_sda lsl sda) lor (bus_scl lsl scl)) in
+      let bus_scl = 1 - ((t.pin_dir lsr I2c.scl) land 1) in
+      let t = Machine.step t ~inputs:((bus_sda lsl I2c.sda) lor (bus_scl lsl I2c.scl)) in
       let slave = I2c_slave.step slave ~sda:bus_sda ~scl:bus_scl in
-      loop t slave (n - 1) (((t.pin_out lsr logger_uart_pin) land 1) :: levels))
+      loop t slave (n - 1) (((t.pin_out lsr I2c.logger_uart_pin) land 1) :: levels))
   in
   let t, slave, levels = loop t slave 3000 [] in
   print_s
@@ -226,26 +226,26 @@ let%expect_test "i2c master in lockstep" =
   let memory = Array.create ~len:16 0 in
   let slave = ref (I2c_slave.create ~address:0x50 ~memory) in
   let words =
-    [ i2c_word ~start:true 0xa0; i2c_word 3; i2c_word ~stop:true 0xaa ] |> ref
+    [ I2c.word ~start:true 0xa0; I2c.word 3; I2c.word ~stop:true 0xaa ] |> ref
   in
   let bus (m : Machine.t) =
-    let master_sda = 1 - ((m.pin_dir lsr sda) land 1) in
+    let master_sda = 1 - ((m.pin_dir lsr I2c.sda) land 1) in
     let bus_sda = if I2c_slave.drive_low !slave then 0 else master_sda in
-    let bus_scl = 1 - ((m.pin_dir lsr scl) land 1) in
+    let bus_scl = 1 - ((m.pin_dir lsr I2c.scl) land 1) in
     bus_sda, bus_scl
   in
   let model = ref None in
   let (_ : Machine.t) =
     Lockstep.lockstep
       ~cycles:1500
-      ~config:i2c_config
-      ~program:(assemble (i2c_master ~quarter:8))
+      ~config:I2c.config
+      ~program:(assemble (I2c.master ~quarter:8))
       ~inputs:(fun _ ->
         match !model with
-        | None -> (1 lsl sda) lor (1 lsl scl)
+        | None -> (1 lsl I2c.sda) lor (1 lsl I2c.scl)
         | Some m ->
           let bus_sda, bus_scl = bus m in
-          (bus_sda lsl sda) lor (bus_scl lsl scl))
+          (bus_sda lsl I2c.sda) lor (bus_scl lsl I2c.scl))
       ~host:(fun _ ->
         match !words with
         | w :: rest ->
@@ -284,16 +284,16 @@ let%expect_test "i2c slave in lockstep" =
          ])
   in
   let bus_sda (m : Machine.t) =
-    I2c_peer.sda !master land (1 - ((m.pin_dir lsr sda) land 1))
+    I2c_peer.sda !master land (1 - ((m.pin_dir lsr I2c.sda) land 1))
   in
   let last_sda = ref 1 in
   let model =
     Lockstep.lockstep
       ~cycles:3000
-      ~config:i2c_slave_config
-      ~program:(Timed_program.words i2c_slave)
+      ~config:I2c.slave_config
+      ~program:(Timed_program.words I2c.slave)
       ~preload:[ 0x50 lsl 1; 0x12; 0x34 ]
-      ~inputs:(fun _ -> (!last_sda lsl sda) lor (I2c_peer.scl !master lsl scl))
+      ~inputs:(fun _ -> (!last_sda lsl I2c.sda) lor (I2c_peer.scl !master lsl I2c.scl))
       ~react:(fun m ->
         last_sda := bus_sda m;
         master := I2c_peer.step !master ~sda:!last_sda)
@@ -317,21 +317,21 @@ let%expect_test "i2c logger in lockstep" =
   let slave = ref (I2c_slave.create ~address:0x50 ~memory) in
   let levels = ref [] in
   let bus_sda (m : Machine.t) =
-    if I2c_slave.drive_low !slave then 0 else 1 - ((m.pin_dir lsr sda) land 1)
+    if I2c_slave.drive_low !slave then 0 else 1 - ((m.pin_dir lsr I2c.sda) land 1)
   in
   let last_sda = ref 1 in
   let last_scl = ref 1 in
   let (_ : Machine.t) =
     Lockstep.lockstep
       ~cycles:3000
-      ~config:i2c_logger_config
-      ~program:(Timed_program.words i2c_logger)
-      ~inputs:(fun _ -> (!last_sda lsl sda) lor (!last_scl lsl scl))
+      ~config:I2c.logger_config
+      ~program:(Timed_program.words I2c.logger)
+      ~inputs:(fun _ -> (!last_sda lsl I2c.sda) lor (!last_scl lsl I2c.scl))
       ~react:(fun m ->
         last_sda := bus_sda m;
-        last_scl := 1 - ((m.pin_dir lsr scl) land 1);
+        last_scl := 1 - ((m.pin_dir lsr I2c.scl) land 1);
         slave := I2c_slave.step !slave ~sda:!last_sda ~scl:!last_scl;
-        levels := ((m.pin_out lsr logger_uart_pin) land 1) :: !levels)
+        levels := ((m.pin_out lsr I2c.logger_uart_pin) land 1) :: !levels)
       ()
   in
   let logged = decode_uart (List.rev !levels) ~period:16 in
@@ -348,11 +348,11 @@ let%expect_test "i2c logger in lockstep" =
 
 (* The master's bounds at a quarter, if the analyser takes it. *)
 let bounds ~clock_mhz timings quarter =
-  let program = Asm.assemble (i2c_master ~quarter) |> ok_exn in
-  match Analyser.check ~config:(Asm.Program.configure program i2c_config) program with
+  let program = Asm.assemble (I2c.master ~quarter) |> ok_exn in
+  match Analyser.check ~config:(Asm.Program.configure program I2c.config) program with
   | Error _ -> None
   | Ok (_ : Analyser.Verdict.t) ->
-    Some (I2c_timing.check ~clock_mhz ~config:i2c_config program timings)
+    Some (I2c_timing.check ~clock_mhz ~config:I2c.config program timings)
 ;;
 
 let failing bounds =
@@ -401,39 +401,41 @@ let%expect_test "the certified master's pins keep to fast-mode plus at 50 MHz" =
          ~default:"refused"
          ~f:(fun bounds -> String.concat ~sep:", " (failing bounds))));
   let quarter, bounds = Option.value_exn (smallest_quarter ~clock_mhz timings) in
-  let certified = Certified.find_exn "i2c_master" in
+  let certified = Library.find_certified_exn "i2c_master" in
   print_s
     [%message
       (quarter : int)
-        ~certified:(String.equal certified.source (i2c_master ~quarter) : bool)
+        ~certified:(String.equal certified.source (I2c.master ~quarter) : bool)
         ~scl_khz:(clock_mhz * 1000 / (4 * quarter) : int)];
   print_bounds ~clock_mhz ~mode:"Fm+" bounds;
   let program = assemble certified.source in
-  let t = Machine.create ~config:i2c_config ~program |> ok_exn in
+  let t = Machine.create ~config:I2c.config ~program |> ok_exn in
   let t =
     List.fold
-      [ i2c_word ~start:true 0xa0
-      ; i2c_word 3
-      ; i2c_word ~stop:true 0xaa
-      ; i2c_word ~start:true 0xa0
-      ; i2c_word 3
-      ; i2c_word ~start:true 0xa1
-      ; i2c_word ~read:true ~stop:true 0
+      [ I2c.word ~start:true 0xa0
+      ; I2c.word 3
+      ; I2c.word ~stop:true 0xaa
+      ; I2c.word ~start:true 0xa0
+      ; I2c.word 3
+      ; I2c.word ~start:true 0xa1
+      ; I2c.word ~read:true ~stop:true 0
       ]
       ~init:t
       ~f:(fun t word -> Machine.write_tx t word |> ok_exn)
   in
   let slave = ref (I2c_slave.create ~address:0x50 ~memory:(Array.create ~len:16 0)) in
-  let bus_scl (m : Machine.t) = 1 - ((m.pin_dir lsr scl) land 1) in
+  let bus_scl (m : Machine.t) = 1 - ((m.pin_dir lsr I2c.scl) land 1) in
   let bus_sda (m : Machine.t) =
-    if I2c_slave.drive_low !slave then 0 else 1 - ((m.pin_dir lsr sda) land 1)
+    if I2c_slave.drive_low !slave then 0 else 1 - ((m.pin_dir lsr I2c.sda) land 1)
   in
   let t, levels =
     List.fold
       (List.range 0 (320 * quarter))
       ~init:(t, [])
       ~f:(fun (t, levels) _ ->
-        let t = Machine.step t ~inputs:((bus_sda t lsl sda) lor (bus_scl t lsl scl)) in
+        let t =
+          Machine.step t ~inputs:((bus_sda t lsl I2c.sda) lor (bus_scl t lsl I2c.scl))
+        in
         slave := I2c_slave.step !slave ~sda:(bus_sda t) ~scl:(bus_scl t);
         t, bus_scl t :: levels)
   in
@@ -527,20 +529,20 @@ let bus_events levels =
    from the host. *)
 let clear_bus ?slave ?(words = []) ~cycles () =
   let t =
-    Machine.create ~config:i2c_config ~program:(assemble (i2c_master ~quarter:8))
+    Machine.create ~config:I2c.config ~program:(assemble (I2c.master ~quarter:8))
     |> ok_exn
   in
   let t = List.fold words ~init:t ~f:(fun t w -> Machine.write_tx t w |> ok_exn) in
   let t, slave, levels =
     List.fold (List.range 0 cycles) ~init:(t, slave, []) ~f:(fun (t, slave, levels) _ ->
-      let master_sda = 1 - ((t.pin_dir lsr sda) land 1) in
+      let master_sda = 1 - ((t.pin_dir lsr I2c.sda) land 1) in
       let bus_sda =
         match slave with
         | Some slave when not (I2c_slave.drive_low slave) -> master_sda
         | Some _ | None -> 0
       in
-      let bus_scl = 1 - ((t.pin_dir lsr scl) land 1) in
-      let t = Machine.step t ~inputs:((bus_sda lsl sda) lor (bus_scl lsl scl)) in
+      let bus_scl = 1 - ((t.pin_dir lsr I2c.scl) land 1) in
+      let t = Machine.step t ~inputs:((bus_sda lsl I2c.sda) lor (bus_scl lsl I2c.scl)) in
       let slave = Option.map slave ~f:(I2c_slave.step ~sda:bus_sda ~scl:bus_scl) in
       t, slave, (bus_sda, bus_scl) :: levels)
   in
@@ -588,12 +590,12 @@ let%expect_test "the bus clear frees a slave stuck mid-read" =
     ();
   clear_bus
     ~slave:(slave_mid_read ~byte:0 ~bits:3)
-    ~words:[ i2c_word ~start:true 0xa0; i2c_word 3; i2c_word ~stop:true 0xaa ]
+    ~words:[ I2c.word ~start:true 0xa0; I2c.word 3; I2c.word ~stop:true 0xaa ]
     ~cycles:1500
     ();
   clear_bus
     ~slave:(slave_mid_read ~byte:0x5a ~bits:5)
-    ~words:[ i2c_word ~start:true 0xa0; i2c_word 3; i2c_word ~stop:true 0xaa ]
+    ~words:[ I2c.word ~start:true 0xa0; I2c.word 3; I2c.word ~stop:true 0xaa ]
     ~cycles:1500
     ();
   clear_bus ~cycles:600 ();
@@ -634,10 +636,10 @@ let%expect_test "the bus clear in lockstep, SDA held low" =
   let (m : Machine.t) =
     Lockstep.lockstep
       ~cycles:600
-      ~config:i2c_config
-      ~program:(assemble (i2c_master ~quarter:8))
-      ~inputs:(fun _ -> !bus_scl lsl scl)
-      ~react:(fun m -> bus_scl := 1 - ((m.pin_dir lsr scl) land 1))
+      ~config:I2c.config
+      ~program:(assemble (I2c.master ~quarter:8))
+      ~inputs:(fun _ -> !bus_scl lsl I2c.scl)
+      ~react:(fun m -> bus_scl := 1 - ((m.pin_dir lsr I2c.scl) land 1))
       ()
   in
   print_s [%message (m.pc : int)];
@@ -647,14 +649,14 @@ let%expect_test "the bus clear in lockstep, SDA held low" =
     |}]
 ;;
 
-(* The bench's bus, SDA on IO2 and SCL on IO3: a START held 150 cycles, as pio/i2c holds
+(* The bench's bus, SCL on IO2 and SDA on IO3: a START held 150 cycles, as pio/i2c holds
    it at 48 MHz, a data bit whose SDA falls with SCL low, a repeated START held 212, as
    the RP2040's I2C block holds it, and a STOP. *)
 let%expect_test "the start hold stamper is accepted and reads each hold in lockstep" =
-  let sda = 14 in
-  let scl = 15 in
-  let config = start_hold_config ~scl in
-  let timed = Timed_program.of_source_exn ~config (start_hold ~sda ~scl) in
+  let scl = 14 in
+  let sda = 15 in
+  let config = I2c.start_hold_config ~scl in
+  let timed = Timed_program.of_source_exn ~config (I2c.start_hold ~sda ~scl) in
   print_s
     [%message "accepted" ~verdict:(Timed_program.verdict timed : Analyser.Verdict.t)];
   let bus =

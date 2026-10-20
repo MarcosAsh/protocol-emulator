@@ -83,9 +83,10 @@ module data_step (input clk);
 
   always @(*) assume(side_set_count <= 2);
 
-  // an issue, as the model's step has it: running, the delay run out, no start in flight
+  // an issue, as the model's step has it: running, the delay run out, no start in flight,
+  // which the core takes only while halted
   reg started = 0;
-  always @(posedge clk) started <= !clear && start;
+  always @(posedge clk) started <= !clear && start && halted;
   wire issue = !clear && !halted && stall == 0 && !started;
   wire go = issue && decode_ok;
 

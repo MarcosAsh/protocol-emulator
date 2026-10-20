@@ -6,7 +6,7 @@ open Protocol_emulator
    and where a capture is armed or taken, its age. The kernel refuses every one. *)
 let%expect_test "the kernel refuses each row moved by a cycle" =
   let move by b = Bits.(b +: of_signed_int ~width:(width b) by) in
-  List.iter Certified.all ~f:(fun (c : Certified.t) ->
+  List.iter Library.certified ~f:(fun (c : Certified.t) ->
     let program = Asm.assemble c.source |> ok_exn in
     let config = Asm.Program.configure program c.config in
     let single_capture_edge = c.single_capture_edge in
@@ -71,17 +71,23 @@ let%expect_test "the kernel refuses each row moved by a cycle" =
     (uart_tx16 (phase 18) (arm 0) (capture 0) (accepted ()))
     (uart_tx_host_rate (phase 18) (arm 0) (capture 0) (accepted ()))
     (uart_rx (phase 26) (arm 2) (capture 8) (accepted ()))
+    (uart_rx_host_rate (phase 30) (arm 2) (capture 12) (accepted ()))
     (spi_master (phase 20) (arm 0) (capture 0) (accepted ()))
     (spi_slave (phase 0) (arm 0) (capture 0) (accepted ()))
     (i2c_master (phase 184) (arm 0) (capture 0) (accepted ()))
     (i2c_slave (phase 0) (arm 0) (capture 0) (accepted ()))
     (i2c_logger (phase 138) (arm 0) (capture 0) (accepted ()))
+    (i2c_master_standard (phase 208) (arm 0) (capture 0) (accepted ()))
+    (i2c_master_fast (phase 196) (arm 0) (capture 0) (accepted ()))
+    (i2c_controller_wire (phase 158) (arm 0) (capture 0) (accepted ()))
+    (i2c_target_wire (phase 0) (arm 0) (capture 0) (accepted ()))
     (usb_tx (phase 120) (arm 0) (capture 0) (accepted ()))
-    (usb_rx (phase 42) (arm 2) (capture 8) (accepted ()))
+    (usb_rx (phase 166) (arm 102) (capture 34) (accepted ()))
     (usb_device (phase 892) (arm 4) (capture 22) (accepted ()))
     (edge_meter (phase 18) (arm 14) (capture 0) (accepted ()))
     (ws2812 (phase 60) (arm 0) (capture 0) (accepted ()))
-    (ethernet (phase 30) (arm 0) (capture 0) (accepted ()))
+    (ws2812_standard (phase 60) (arm 0) (capture 0) (accepted ()))
+    (ethernet (phase 40) (arm 0) (capture 0) (accepted ()))
     (one_wire (phase 82) (arm 0) (capture 0) (accepted ()))
     (ps2 (phase 86) (arm 0) (capture 0) (accepted ()))
     (jtag (phase 20) (arm 0) (capture 0) (accepted ()))
@@ -89,5 +95,20 @@ let%expect_test "the kernel refuses each row moved by a cycle" =
     (dshot600 (phase 34) (arm 0) (capture 0) (accepted ()))
     (sent (phase 154) (arm 0) (capture 0) (accepted ()))
     (cec (phase 128) (arm 0) (capture 0) (accepted ()))
+    (spi_cs_mode0 (phase 62) (arm 0) (capture 0) (accepted ()))
+    (spi_cs_mode1 (phase 62) (arm 0) (capture 0) (accepted ()))
+    (spi_cs_mode2 (phase 62) (arm 0) (capture 0) (accepted ()))
+    (spi_cs_mode3 (phase 62) (arm 0) (capture 0) (accepted ()))
+    (spi_cs_mode0_default_pins (phase 62) (arm 0) (capture 0) (accepted ()))
+    (spi_cs_mode1_default_pins (phase 62) (arm 0) (capture 0) (accepted ()))
+    (spi_cs_mode2_default_pins (phase 62) (arm 0) (capture 0) (accepted ()))
+    (spi_cs_mode3_default_pins (phase 62) (arm 0) (capture 0) (accepted ()))
+    (spi_target_mode0 (phase 0) (arm 0) (capture 0) (accepted ()))
+    (spi_target_mode1 (phase 0) (arm 0) (capture 0) (accepted ()))
+    (spi_target_mode2 (phase 0) (arm 0) (capture 0) (accepted ()))
+    (spi_target_mode3 (phase 0) (arm 0) (capture 0) (accepted ()))
+    (swd (phase 404) (arm 0) (capture 0) (accepted ()))
+    (table (phase 182) (arm 0) (capture 0) (accepted ()))
+    (table_open_drain (phase 182) (arm 0) (capture 0) (accepted ()))
     |}]
 ;;

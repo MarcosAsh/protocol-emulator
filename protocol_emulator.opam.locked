@@ -11,6 +11,7 @@ license: "Apache-2.0"
 homepage: "https://github.com/MarcosAsh/protocol-emulator"
 bug-reports: "https://github.com/MarcosAsh/protocol-emulator/issues"
 depends: [
+  "angstrom" {= "0.16.1"}
   "astring" {= "0.8.5"}
   "async" {= "v0.18~preview.130.106+341"}
   "async_kernel" {= "v0.18~preview.130.106+341"}
@@ -28,6 +29,7 @@ depends: [
   "base_quickcheck" {= "v0.18~preview.130.106+341"}
   "basement" {= "v0.18~preview.130.106+341"}
   "bignum" {= "v0.18~preview.130.106+341"}
+  "bigstringaf" {= "0.10.0"}
   "bin_prot" {= "v0.18~preview.130.106+341"}
   "camlp-streams" {= "5.0.1"}
   "capitalization" {= "v0.18~preview.130.106+341"}
@@ -58,6 +60,7 @@ depends: [
   "either" {= "1.0.0"}
   "expect_test_helpers_base" {= "v0.18~preview.130.106+341"}
   "expect_test_helpers_core" {= "v0.18~preview.130.106+341"}
+  "faraday" {= "0.8.2"}
   "fieldslib" {= "v0.18~preview.130.106+341"}
   "fix" {= "20250919"}
   "flexible_sexp" {= "v0.18~preview.130.106+341"}
@@ -68,6 +71,7 @@ depends: [
   "hardcaml" {= "v0.18~preview.130.106+341"}
   "hardcaml_event_driven_sim" {= "v0.18~preview.130.106+341"}
   "hardcaml_lws" {= "v0.18~preview.130.106+341"}
+  "hardcaml_of_verilog" {= "v0.18~preview.130.106+341"}
   "hardcaml_step_testbench" {= "v0.18~preview.130.106+341"}
   "hardcaml_test_harness" {= "v0.18~preview.130.106+341"}
   "hardcaml_tools_config" {= "v0.18~preview.130.106+341"}
@@ -78,6 +82,7 @@ depends: [
   "integers" {= "0.8.0"}
   "jane-street-headers" {= "v0.18~preview.130.106+341"}
   "jane_rope" {= "v0.18~preview.130.106+341"}
+  "jsonaf" {= "v0.18~preview.130.106+341"}
   "jst-config" {= "v0.18~preview.130.106+341"}
   "menhir" {= "20260209"}
   "menhirCST" {= "20260209"}
@@ -92,6 +97,7 @@ depends: [
   "ocaml-compiler-libs" {= "v0.17.0+ox"}
   "ocaml-config" {= "3"}
   "ocaml-options-vanilla" {= "1"}
+  "ocaml-syntax-shims" {= "1.0.0"}
   "ocaml-variants" {= "5.2.0+ox"}
   "ocaml-version" {= "4.1.4"}
   "ocaml_intrinsics_kernel" {= "v0.18~preview.130.106+341"}
@@ -206,6 +212,7 @@ depends: [
   "ppx_int63_literal" {= "v0.18~preview.130.106+341"}
   "ppx_jane" {= "v0.18~preview.130.106+341"}
   "ppx_js_style" {= "v0.18~preview.130.106+341"}
+  "ppx_jsonaf_conv" {= "v0.18~preview.130.106+341"}
   "ppx_let" {= "v0.18~preview.130.106+341"}
   "ppx_log" {= "v0.18~preview.130.106+341"}
   "ppx_module_timer" {= "v0.18~preview.130.106+341"}

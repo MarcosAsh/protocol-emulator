@@ -59,7 +59,7 @@ let run ?(source = firmware) ~unit ~cycles () =
   let t, follower, acks =
     loop
       t
-      (Follower.create ~cycle_ns:(50_000 / unit) ~address:0)
+      (Follower.create ~clock_hz:(unit * 20_000) ~address:0)
       (unit :: List.concat_map frames ~f:words)
       cycles
       []
@@ -160,7 +160,7 @@ let followers_see ?(addresses = [ 0 ]) ?(ack_units = 12) ?(cuts = []) sends =
     List.fold
       lows
       ~init:
-        (List.map addresses ~f:(fun address -> Follower.create ~cycle_ns:50_000 ~address))
+        (List.map addresses ~f:(fun address -> Follower.create ~clock_hz:20_000 ~address))
       ~f:(fun followers low ->
         let low = low || List.exists followers ~f:Follower.drive_low in
         List.map followers ~f:(Follower.step ~low))
@@ -255,7 +255,7 @@ let%expect_test "a frame 1 bit period after a lone start bit" =
 
 let%expect_test "cec in lockstep" =
   let unit = shortest_unit + 1 in
-  let follower = ref (Follower.create ~cycle_ns:(50_000 / unit) ~address:0) in
+  let follower = ref (Follower.create ~clock_hz:(unit * 20_000) ~address:0) in
   let pending = ref (unit :: List.concat_map frames ~f:words) in
   let acks = ref [] in
   let last = ref None in

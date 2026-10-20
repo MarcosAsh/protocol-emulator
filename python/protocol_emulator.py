@@ -138,8 +138,9 @@ class Host:
             raise Refused(self.read(REJECT_PC)[0], self.read(REJECT_REASON)[0])
 
     def start(self):
-        """Counts only once the program is certified; otherwise the core stays halted and
-        check_status shows it refused."""
+        """Run from address 0; ignored unless the core is halted. Counts only once the
+        program is certified; otherwise the core stays halted and check_status shows it
+        refused."""
         self.write(CONTROL, [1])
 
     def start_all(self):

@@ -1,0 +1,71 @@
+# The reference side: icepi/icepi_top.v around src/project.v and src/protocol_emulator.v,
+# the SRAM macros IHP's model of them, as icepi/Makefile reads them, with params.ys's USB
+# and MHZ. The host port's state machine is recoded as in netlist_equiv/gold.ys, since
+# synth_ecp5 recodes it too, and fsm_step.aig proves the recoding equal to the host port
+# as written. The pads become the ECP5's as synth_ecp5 maps them, and the pads, the PLL
+# and the macros' cores (SRAM_1P_behavioral_bm_bist) are cut. The fifos' memories become
+# flops.
+
+read_verilog written.v
+hierarchy -check -top host_port
+proc
+flatten
+design -save written
+
+design -reset
+read_verilog -DFUNCTIONAL ../../icepi/icepi_top.v ../../src/project.v ../../src/protocol_emulator.v \
+  ../../test/models/RM_IHPSG13_1P_512x16_c2_bm_bist.v \
+  ../../test/models/RM_IHPSG13_1P_core_behavioral_bm_bist.v
+read_verilog -lib +/lattice/cells_bb_ecp5.v +/lattice/cells_io.vh ../icepi_equiv/pads.v
+script params.ys
+hierarchy -check -top icepi_top
+blackbox =*SRAM_1P_behavioral_bm_bist
+proc
+
+select -assert-count 1 a:fsm_encoding
+select -assert-count 1 host_port/a:fsm_encoding
+flatten host_port
+opt_expr host_port
+opt_clean host_port
+opt -nodffe -nosdff host_port
+fsm host_port
+opt host_port
+design -save recoded
+
+design -reset
+design -copy-from written -as written host_port
+design -copy-from recoded -as recoded host_port
+check -assert
+miter -equiv -flatten written recoded fsm_step
+hierarchy -top fsm_step
+delete t:$scopeinfo
+script ../netlist_equiv/aig.ys
+write_aiger fsm_step.aig
+
+design -load recoded
+flatten
+techmap -map +/lattice/cells_io.vh t:BB t:OBZ
+memory_collect
+memory_map
+opt_expr -mux_undef
+opt_clean
+delete t:$scopeinfo
+select -assert-count 3 t:*SRAM_1P_behavioral_bm_bist
+expose -evert t:TRELLIS_IO t:EHXPLLL t:*SRAM_1P_behavioral_bm_bist
+# a pad is its pins I, T and O; the pin itself, B, and the top's ports on it go
+delete -port icepi_top/uio icepi_top/usb_dp icepi_top/usb_dn icepi_top/usb_pull_dp icepi_top/usb_pull_dn
+delete -port icepi_top/*.B
+opt_clean
+
+# one clock: every flop takes the rising edge of the PLL's CLKOS
+select -assert-none t:$*latch* t:$sr %u
+select -assert-none t:$*ff* w:pll.CLKOS %co:+[CLK] %d
+select -assert-none t:$*ff* r:CLK_POLARITY=1 r:CLK_POLARITY=1'1 %u %d
+
+# no used net without a driver, which miter -flatten would make an x
+check -assert
+
+rename icepi_top gold
+hierarchy -top gold
+delete =A:blackbox
+write_rtlil gold.il

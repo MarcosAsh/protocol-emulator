@@ -117,7 +117,19 @@ module Make (Config : Config) = struct
     in
     let%hw drifted = count +: constant (samples_per_cycle * one) in
     let%hw lost = ~:(sm.is Idle) &: ~:any &: (drifted >+ timeout) in
-    count <-- reg spec (mux2 any centred @@ mux2 (sm.is Idle) count drifted);
+    (* with no gain the correction is zero, so [count] is only ever [after k] or whole
+       samples more: a multiple of [one] and never negative. Coverage waives its fraction
+       and sign bits then; a random power-up value still clears. *)
+    let never_set =
+      if gain_shift = 0 then List.range 0 fraction_bits @ [ count_bits - 1 ] else []
+    in
+    count
+    <-- (reg spec (mux2 any centred @@ mux2 (sm.is Idle) count drifted)
+         |> Fn.flip
+              add_register_waiver_exn
+              (List.concat_map never_set ~f:(fun bit ->
+                 [ { Coverage_prim.Toggle.bit; on = true }; { bit; on = false } ])
+               |> Coverage_prim.Waiver.exclude ~warn_on_waived_but_observed:false));
     let%hw shift = wire 8 in
     let%hw shifted = centre_level @: mux2 (sm.is Idle) (zero 7) shift.:[7, 1] in
     shift <-- reg spec ~enable:any shifted;

@@ -26,6 +26,9 @@ import demo_ds18b20
 import demo_eeprom
 import demo_flash
 import demo_neopixel
+import demo_pio_spi
+import demo_pio_uart_tx
+import demo_pio_ws2812
 import demo_referee
 import demo_start_hold
 
@@ -570,8 +573,8 @@ class SlowPins(Pins):
         return acc
 
 
-# SK6812 datasheet: T0H 0.3, T1H 0.6, T0L 0.9, T1L 0.6 us, each 0.15 us either way
-SK6812 = {"T0H": (150, 450), "T1H": (450, 750), "T0L": (750, 1050), "T1L": (450, 750)}
+# SK6812-012 Rev. B/1 p.7, in ns: T0L and T1L have a least and no most
+SK6812 = {"T0H": (250, 400), "T1H": (650, 1000), "T0L": (800, float("inf")), "T1L": (200, float("inf"))}
 
 
 async def neopixel(dut, gap):
@@ -628,7 +631,7 @@ async def test_neopixel(dut):
         times["T1L" if one else "T0L"].append(gap)
     for name, (low, high) in SK6812.items():
         seen = sorted(set(round(t) for t in times[name]))
-        cocotb.log.info("%s: %s ns, the SK6812 allows %d to %d", name, seen, low, high)
+        cocotb.log.info("%s: %s ns, the SK6812 allows %d to %s", name, seen, low, high)
         assert seen and all(low <= t <= high for t in seen), (name, seen)
 
 
@@ -835,7 +838,7 @@ async def test_can_node(dut):
     decoded = decode(analyser, "can_node")
     frames = sent + demo_can_node.REPLIES
     assert can_ids(decoded) == ["%d (0x%x)" % (f[0], f[0]) for f in frames], decoded
-    # sigrok 0.5.3 reads a remote frame's DLC of data bytes, test/sigrok_scenarios.ml's
+    # sigrok 0.5.3 reads a remote frame's DLC of data bytes, test/can_node.ml's
     # can_remote, so its CRC and ACK slot are not where it looks
     data_frames = [f for f in frames if not f[1]]
     assert decoded.count("can-1: ACK slot: ACK") == len(data_frames), decoded
@@ -1138,3 +1141,87 @@ async def test_referee_play(dut):
     assert ok
     assert "you 0, referee 2" in lines, lines
     assert_refereed(cheats, irqs, analyser, lines, [1, -1], [lit(RED, 1), lit(RED, 2)])
+
+
+# ws2812.pio's T1 = 3, T2 = 3 and T3 = 4 PIO cycles of 125 ns at ws2812.c's 800 kHz
+WS2812_PIO = {"T0H": 375, "T0L": 875, "T1H": 750, "T1L": 500}
+
+
+@cocotb.test()
+async def test_pio_ws2812(dut):
+    """Raspberry Pi's ws2812.pio as demo_pio_ws2812 runs it, Pico A's SPI at its clock with
+    its pause after each byte: both frames whole, no fault, and each bit's high and low
+    times those the program makes on an RP2040, inside the SK6812 B/1 sheet's."""
+    await reset(dut)
+    analyser = Analyser({4: bit(dut.uo_out, 4)})
+    half = 48_000_000 // demo_pio_ws2812.SPI_HZ // 2
+    transfer, pause_ms, log, _ = acted(dut, SlowPins(dut, half, 3))
+    assert await bridge(demo_pio_ws2812.run)(transfer, pause_ms, log=log)
+    decoded = decode(analyser, "pio_ws2812")
+    expected = []
+    for pixels in demo_pio_ws2812.FIRMWARE["data"]:
+        expected += ["rgb_led_ws281x-1: #%02x%02x%02x" % p for p in pixels]
+        expected.append("rgb_led_ws281x-1: RESET")
+    assert decoded == expected, decoded
+    edges = analyser.levels(4)
+    times = {name: set() for name in WS2812_PIO}
+    for (rise, high), (fall, _), (next_rise, _) in zip(edges[1::2], edges[2::2], edges[3::2]):
+        assert high == 1
+        width, gap = round((fall - rise) / 1000), round((next_rise - fall) / 1000)
+        if gap > 5000:
+            continue
+        one = width > 500
+        times["T1H" if one else "T0H"].add(width)
+        times["T1L" if one else "T0L"].add(gap)
+    cocotb.log.info("ns: %s, an RP2040's %s", times, WS2812_PIO)
+    assert times == {name: {ns} for name, ns in WS2812_PIO.items()}, times
+    assert all(SK6812[name][0] <= ns <= SK6812[name][1] for name, ns in WS2812_PIO.items())
+
+
+@cocotb.test()
+async def test_pio_uart_tx(dut):
+    """Raspberry Pi's uart_tx.pio sending uart_tx.c's string on OUT0, as sigrok decodes it
+    at 115200 baud, with no fault."""
+    await reset(dut)
+    analyser = Analyser({4: bit(dut.uo_out, 1)})
+    transfer, pause_ms, log, _ = acted(dut)
+    assert await bridge(demo_pio_uart_tx.run)(transfer, pause_ms, log=log)
+    decoded = decode(analyser, "pio_uart_tx")
+    data = demo_pio_uart_tx.FIRMWARE["data"].encode()
+    assert decoded == ["uart-1: %02X" % b for b in data], decoded
+
+
+async def w25q64(dut, ident):
+    """A W25Q64JV's Read JEDEC ID in mode 0 on spi_miso, which needs no flash model: the
+    command's bits taken on SCK's rising edges, the reply's put out on its falling ones."""
+    command, taken, reply = 0, 0, []
+    while True:
+        await First(RisingEdge(dut.spi_sclk), FallingEdge(dut.spi_sclk), RisingEdge(dut.spi_cs))
+        if dut.spi_cs.value == 1:
+            command, taken, reply = 0, 0, []
+            dut.spi_miso.value = 1
+        elif dut.spi_sclk.value == 1 and taken < 8:
+            command, taken = (command << 1) | int(dut.spi_mosi.value), taken + 1
+            if taken == 8 and command == 0x9F:
+                reply = [(b >> n) & 1 for b in ident for n in range(7, -1, -1)]
+        elif dut.spi_sclk.value == 0 and reply:
+            dut.spi_miso.value = reply.pop(0)
+
+
+@cocotb.test()
+async def test_pio_spi(dut):
+    """Raspberry Pi's spi.pio's spi_cpha0_cs reading the JEDEC ID of a W25Q64JV, as sigrok
+    decodes it, with no fault."""
+    await reset(dut)
+    cocotb.start_soon(w25q64(dut, (0xEF, 0x40, 0x17)))
+    analyser = Analyser({
+        0: bit(dut.uo_out, 6), 1: bit(dut.uo_out, 5), 2: bit(dut.miso), 3: bit(dut.uo_out, 7),
+    })
+    transfer, pause_ms, log, lines = acted(dut)
+    assert await bridge(demo_pio_spi.run)(transfer, pause_ms, log=log)
+    assert "JEDEC ID ef 40 17: W25Q64JV" in lines, lines
+    decoded = decode(analyser, "pio_spi")
+    jedec = re.compile(r"spiflash-1: (Manufacturer ID|Memory type|Device ID): ")
+    ident = [d for d in decoded if jedec.match(d)]
+    assert ident == ["spiflash-1: Manufacturer ID: 0xef", "spiflash-1: Memory type: 0x40",
+                     "spiflash-1: Device ID: 0x17"], decoded

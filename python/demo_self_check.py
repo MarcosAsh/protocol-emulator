@@ -162,9 +162,10 @@ def quiet(host, label, frames, track, pause=None):
 
 
 def arm(host):
-    """Engine 1 checking again from its first instruction with its irq clear, back on
-    engine 0. Only while the line idles high."""
+    """Engine 1 stopped, then checking again from its first instruction with its irq
+    clear, back on engine 0. Only while the line idles high."""
     host.select(1)
+    host.stop()
     host.clear_irq()
     host.start()
     host.select(0)

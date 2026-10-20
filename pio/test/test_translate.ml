@@ -1,0 +1,328 @@
+open! Core
+open Protocol_emulator
+open Pio
+
+let program file name =
+  In_channel.read_all ("pico_examples/" ^ file)
+  |> Pioasm.parse
+  |> ok_exn
+  |> List.find_exn ~f:(fun (p : Pioasm.Program.t) -> String.equal p.name name)
+;;
+
+let certify program ~k =
+  match Census.certify program ~k with
+  | Ok certified -> certified
+  | Error verdict -> raise_s [%sexp (verdict : Census.Verdict.t)]
+;;
+
+let every_program () =
+  Sys_unix.ls_dir "pico_examples"
+  |> List.filter ~f:(String.is_suffix ~suffix:".pio")
+  |> List.sort ~compare:String.compare
+  |> List.concat_map ~f:(fun file ->
+    In_channel.read_all ("pico_examples/" ^ file)
+    |> Pioasm.parse
+    |> ok_exn
+    |> List.map ~f:(fun program -> file, program))
+;;
+
+let%expect_test "uart_tx at k = 8: side-set shares the pin with out, so comes by set" =
+  let t, timed = certify (program "uart_tx.pio" "uart_tx") ~k:8. in
+  List.iter t.contract ~f:print_endline;
+  print_string t.source;
+  print_s [%sexp (Timed_program.verdict timed : Analyser.Verdict.t)];
+  [%expect
+    {|
+    tx words fit 16 bits
+        set p, 8
+        set pins, 1
+        mov t, now
+        add t, p
+        add t, 7
+    n0:
+        jmp tx, m0
+    m0s:
+        wait t+                  ; pull side 1 [7]
+        set pins, 1
+        wait tx
+        mov t, now
+        pull
+        add t, p
+        wait t+
+        wait t+
+        wait t+
+        wait t+
+        wait t+
+        wait t+
+        wait t+
+    n1:
+    m1:
+        wait t+                  ; set x, 7 side 0 [7]
+        set pins, 0
+        set x, 7
+        wait t+
+        wait t+
+        wait t+
+        wait t+
+        wait t+
+        wait t+
+        wait t+
+    n2:
+    m2:
+        wait t+                  ; out pins, 1
+        out pins, 1
+    n3:
+    m3:
+        wait t+                  ; jmp x-- bitloop [6]
+        wait t+
+        wait t+
+        wait t+
+        wait t+
+        wait t+
+        wait t+
+        jmp x--, n2
+        jmp tx, m0
+    m0sl1:
+        wait t+                  ; pull side 1 [7]
+        set pins, 1
+        wait tx
+        mov t, now
+        pull
+        add t, p
+        wait t+
+        wait t+
+        wait t+
+        wait t+
+        wait t+
+        wait t+
+        wait t+
+        jmp n1
+    m0:
+        wait t+                  ; pull side 1 [7]
+        set pins, 1
+        pull
+        wait t+
+        wait t+
+        wait t+
+        wait t+
+        wait t+
+        wait t+
+        wait t+
+        jmp n1
+    ((words 65) (deadline_waits 40) (worst_slack (3)))
+    |}]
+;;
+
+let%expect_test "census of pico-examples at 0d62f75" =
+  print_string
+    (Census.to_string
+       (List.map (every_program ()) ~f:(fun (file, program) -> Census.row ~file program)));
+  [%expect
+    {|
+    | file | program | verdict | least k | words | k at 48 MHz, certified |
+    |---|---|---|---|---|---|
+    | addition.pio | addition | refused: mov ~ into a register (32-bit invert) |  |  |  |
+    | apa102.pio | apa102_mini | certified | 6 | 35 |  |
+    | apa102.pio | apa102_rgb555 | refused: isr loaded whole, then shifted, isr read whole under a right shift, mov :: (32-bit reverse) |  |  |  |
+    | blink.pio | blink | refused: 32-bit shift |  |  |  |
+    | clocked_input.pio | clocked_input | certified | 5 | 17 |  |
+    | differential_manchester.pio | differential_manchester_tx | certified | 5 | 112 |  |
+    | differential_manchester.pio | differential_manchester_rx | certified | 5 | 57 |  |
+    | hello.pio | hello | certified | 5 | 23 |  |
+    | hub75.pio | hub75_row | refused: 27-bit shift, pull threshold 32 |  |  |  |
+    | hub75.pio | hub75_data_rgb888 | refused: 26-bit shift, mov :: (32-bit reverse), pull threshold 24, pull with autopull |  |  |  |
+    | i2c.pio | i2c | certified | 15 | 474 | 15.000 no, tHD;STA |
+    | i2c.pio | set_scl_sda | certified | 3 | 41 | 15.000 yes |
+    | manchester_encoding.pio | manchester_tx | certified | 5 | 86 |  |
+    | manchester_encoding.pio | manchester_rx | certified | 5 | 43 |  |
+    | nec_carrier_burst.pio | nec_carrier_burst | refused: wait irq |  |  |  |
+    | nec_carrier_control.pio | nec_carrier_control | refused: pull threshold 32 |  |  |  |
+    | nec_receive.pio | nec_receive | refused: push threshold 32 |  |  |  |
+    | onewire_library.pio | onewire | certified | 5 | 108 | 48.000 yes |
+    | pio_serialiser.pio | pio_serialiser | certified | 9 | 22 |  |
+    | pwm.pio | pwm | certified | 7 | 36 |  |
+    | quadrature_encoder.pio | quadrature_encoder | refused: isr loaded whole, then shifted, isr read whole under a right shift, mov pc, mov ~ into a register (32-bit invert) |  |  |  |
+    | quadrature_encoder_substep.pio | quadrature_encoder_substep | refused: 32-bit shift, isr loaded whole, then shifted, isr read whole under a right shift, mov :: (32-bit reverse), mov pc, mov status, mov ~ into a register (32-bit invert) |  |  |  |
+    | resistor_dac.pio | resistor_dac_5bit | certified | 9 | 22 |  |
+    | spi.pio | spi_cpha0 | certified | 5 | 41 |  |
+    | spi.pio | spi_cpha1 | certified | 6 | 27 |  |
+    | spi.pio | spi_cpha0_cs | certified | 9 | 136 |  |
+    | spi.pio | spi_cpha1_cs | certified | 9 | 100 |  |
+    | squarewave.pio | squarewave | certified | 3 | 13 |  |
+    | squarewave_fast.pio | squarewave_fast | certified | 4 | 11 |  |
+    | squarewave_wrap.pio | squarewave_wrap | certified | 3 | 13 |  |
+    | st7789_lcd.pio | st7789_lcd | certified | 6 | 35 |  |
+    | uart_rx.pio | uart_rx_mini | certified | 5 | 32 | 52.083 yes |
+    | uart_rx.pio | uart_rx | certified | 5 | 59 | 52.083 yes |
+    | uart_tx.pio | uart_tx | certified | 5 | 65 | 52.083 yes |
+    | ws2812.pio | ws2812 | certified | 5 | 73 | 6.000 yes |
+    | ws2812.pio | ws2812_parallel | refused: 32-bit shift |  |  |  |
+
+    36 programs: 25 certified, 11 refused, 0 not certified
+    |}]
+;;
+
+let%expect_test "the source printed assembles to the words translated" =
+  let certified =
+    List.filter_map (every_program ()) ~f:(fun (_, program) ->
+      match Census.least program with
+      | Certified { k; _ } ->
+        let t, _ = certify program ~k:(Float.of_int k) in
+        let assembled = Asm.assemble t.source |> ok_exn in
+        let words t = Asm.Program.words t |> ok_exn in
+        let ours =
+          List.map t.words ~f:(fun w ->
+            Isa.to_word ~side_set_count:t.config.side_set_count w |> ok_exn)
+        in
+        if not ([%equal: int list] (words assembled) ours)
+        then raise_s [%message "differ" program.name];
+        Some program.name
+      | Refused _ | Not_certified _ -> None)
+  in
+  print_s [%message "agree" ~programs:(List.length certified : int)];
+  [%expect {| (agree (programs 25)) |}]
+;;
+
+(* pico-examples#796: the START holds SDA low 10 PIO cycles before SCL falls, 3.125 us at
+   the 3.2 MHz pio_i2c.c runs, where UM10204 table 11 asks 4.0 us. At 48 MHz that rate is
+   k = 15, the deadlines certify, and the kernel bounds the hold below 192 cycles. *)
+let%expect_test "i2c certifies at its own rate, and the kernel refuses its START hold" =
+  let i2c = program "i2c.pio" "i2c" in
+  let _, timed = certify i2c ~k:(Option.value_exn (Census.real_time i2c)) in
+  let config = Timed_program.config timed in
+  let scl = config.side_set_base
+  and sda = config.set_base in
+  (* SCL falling while SDA is held low, since SDA's last edge *)
+  let bound =
+    Census.least_apart timed ~dirs:true ~a:scl ~b:sda ~apart:(fun ~own ~other ->
+      (not own) && other)
+  in
+  let needed = 4_000 * Census.clock_hz / 1_000_000_000 in
+  print_s
+    [%message
+      (bound : int option)
+        ~us:
+          (Option.map bound ~f:(fun n ->
+             Float.of_int n *. 1e6 /. Float.of_int Census.clock_hz)
+           : float option)
+        (needed : int)];
+  [%expect {| ((bound (150)) (us (3.125)) (needed 192)) |}]
+;;
+
+(* the limit is on time, so a slower clock divider clears it *)
+let%expect_test "Census.limits refuses that hold at its own rate, and not at k = 20" =
+  let i2c = program "i2c.pio" "i2c" in
+  List.iter [ 15.; 20. ] ~f:(fun k ->
+    let _, timed = certify i2c ~k in
+    List.iter (Census.limits i2c timed) ~f:(fun limit ->
+      printf
+        "k = %g, ok %b: %s\n"
+        k
+        (Census.Limit.ok limit)
+        (Census.Limit.to_string limit)));
+  [%expect
+    {|
+    k = 15, ok false: tHD;STA, SDA low to SCL low: the kernel proves 150 cycles, 3.125 us at 48 MHz, under 4.0 us (UM10204 Rev. 7.0, table 11, p.44, Standard-mode)
+    k = 20, ok true: tHD;STA, SDA low to SCL low: the kernel proves 200 cycles, 4.167 us at 48 MHz, clearing 4.0 us (UM10204 Rev. 7.0, table 11, p.44, Standard-mode)
+    |}]
+;;
+
+let%expect_test "refused features are named" =
+  let refused text =
+    let program = Pioasm.parse (".program p\n" ^ text) |> ok_exn |> List.hd_exn in
+    match Translate.translate (Translate.Setup.default program ~period:8) program with
+    | Ok _ -> printf "%-28s translates\n" text
+    | Error refusals ->
+      printf
+        "%-28s %s\n"
+        text
+        (List.map refusals ~f:(fun r -> r.feature) |> String.concat ~sep:", ")
+  in
+  List.iter
+    ~f:refused
+    [ "irq clear 3"
+    ; "wait 1 irq 2"
+    ; "wait 0 gpio 4"
+    ; "mov pc, x"
+    ; "out pc, 5"
+    ; "mov x, status"
+    ; "mov x, ~y"
+    ; "mov pins, ::x"
+    ; "out exec, 16"
+    ; "push iffull"
+    ; "pull ifempty noblock"
+    ; "out x, 32"
+    ; "in pins, 24"
+    ; "irq 3"
+    ; "irq wait 0"
+    ; "out null, 32"
+    ];
+  [%expect
+    {|
+    irq clear 3                  irq clear
+    wait 1 irq 2                 wait irq
+    wait 0 gpio 4                wait gpio
+    mov pc, x                    mov pc
+    out pc, 5                    out pc
+    mov x, status                mov status
+    mov x, ~y                    mov ~ into a register (32-bit invert)
+    mov pins, ::x                mov :: (32-bit reverse)
+    out exec, 16                 out exec without an exec table
+    push iffull                  push iffull
+    pull ifempty noblock         pull ifempty noblock
+    out x, 32                    32-bit shift
+    in pins, 24                  24-bit shift
+    irq 3                        translates
+    irq wait 0                   translates
+    out null, 32                 translates
+    |}]
+;;
+
+(* The checker's teeth: spi_cpha0's [in pins, 1 side 1 [1]] with one word changed. *)
+let%expect_test "the relation check refuses a dropped wait, a late sample and a wrong \
+                 side-set"
+  =
+  let spi = program "spi.pio" "spi_cpha0" in
+  let t, _ = certify spi ~k:8. in
+  let setup = Census.setup spi ~period:8 in
+  let words = Array.of_list t.words in
+  let step =
+    List.find_exn t.relation.steps ~f:(fun step ->
+      match Relation.instruction spi ~exec:t.exec step.site with
+      | { op = In _; _ } -> true
+      | _ -> false)
+  in
+  let marker = List.hd_exn step.markers in
+  let check name mutate =
+    let words = Array.copy words in
+    mutate words;
+    match Translate.check_relation setup spi { t with words = Array.to_list words } with
+    | Ok () -> printf "%s: passes\n" name
+    | Error error ->
+      printf
+        "%s: %s\n"
+        name
+        (List.hd_exn (String.split_lines (Error.to_string_hum error)))
+  in
+  List.iter [ 0; 1; 2 ] ~f:(fun i ->
+    print_endline (Asm.to_string ~side_set_count:1 words.(marker + i)));
+  check "as translated" ignore;
+  check "the delay's wait dropped" (fun w ->
+    w.(marker + 2) <- Op { op = Sys Nop; delay = 0; side_set = 1 });
+  check "the sample after the wait" (fun w ->
+    let sample = w.(marker + 1) in
+    w.(marker + 1) <- w.(marker + 2);
+    w.(marker + 2) <- sample);
+  check "side-set 0 for 1" (fun w ->
+    w.(marker + 1) <- Op { op = In { source = Pins; count = 1 }; delay = 0; side_set = 0 });
+  [%expect
+    {|
+    wait t+ side 0
+    in pins, 1 side 1
+    wait t+ side 1
+    as translated: passes
+    the delay's wait dropped: (Pc 1), to word 37: takes 0 waits after its marker, not 1
+    the sample after the wait: (Pc 1), to word 37: a pin event off its cycle
+    side-set 0 for 1: (Pc 1), word 13: drives side-set 0 inside the step, not 1
+    |}]
+;;

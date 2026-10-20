@@ -34,7 +34,7 @@ let dp ?ap_latency ?memory ?corrupt_parity ?corrupt_acks targetid =
     ?memory
     ?corrupt_parity
     ?corrupt_acks
-    ~cycle_ns
+    ~clock_hz:Bench.clock_hz
     ~dpidr:rp2040_dpidr
     ~targetid
     ()
@@ -211,8 +211,8 @@ let%expect_test "an RP2040's two DPs, woken from dormant and selected in turn" =
        "TARGETSEL 0x21002927: deselected" "line reset"
        "TARGETSEL 0x01002927: selected" "R DP 0x0 OK 0x0bc12477"))
      (measured_ns
-      (("SWCLK low" (200 6940)) ("SWCLK high" (200 580)) (setup (180 13180))
-       (hold (200 220))))
+      (("SWCLK low" (208 7229)) ("SWCLK high" (208 604)) (setup (188 13729))
+       (hold (208 229))))
      (violations ()))
     ((dp 1)
      (log
@@ -221,8 +221,8 @@ let%expect_test "an RP2040's two DPs, woken from dormant and selected in turn" =
        "line reset" "TARGETSEL 0x21002927: deselected" "line reset"
        "TARGETSEL 0x01002927: deselected"))
      (measured_ns
-      (("SWCLK low" (200 6940)) ("SWCLK high" (200 580)) (setup (180 3800))
-       (hold (200 220))))
+      (("SWCLK low" (208 7229)) ("SWCLK high" (208 604)) (setup (188 3958))
+       (hold (208 229))))
      (violations ()))
     ((contention ())
      (fault
@@ -249,8 +249,8 @@ let%expect_test "a read whose parity is wrong" =
       ("dormant to SWD" "line reset" "R DP 0x0 OK 0x0bc12477"
        "R DP 0x0 OK 0x0bc12477"))
      (measured_ns
-      (("SWCLK low" (200 6940)) ("SWCLK high" (200 540)) (setup (180 600))
-       (hold (200 220))))
+      (("SWCLK low" (208 7229)) ("SWCLK high" (208 563)) (setup (188 625))
+       (hold (208 229))))
      (violations ()))
     ((contention ())
      (fault
@@ -303,8 +303,8 @@ let%expect_test "ACKs the wire garbled" =
        "R DP 0x0 OK 0x0bc12477" "R DP 0x4 OK 0x00000080" "W DP 0x0 OK 0x0000001c"
        "R DP 0x4 OK 0x00000000"))
      (measured_ns
-      (("SWCLK low" (200 6940)) ("SWCLK high" (200 580)) (setup (180 10600))
-       (hold (200 220))))
+      (("SWCLK low" (208 7229)) ("SWCLK high" (208 604)) (setup (188 11042))
+       (hold (208 229))))
      (violations ()))
     ((contention ())
      (fault
@@ -316,7 +316,7 @@ let%expect_test "ACKs the wire garbled" =
 
 (* With SWDIO pulled low, as the bitstream's pad would leave it, nobody's ACK reads 0. *)
 let%expect_test "a line nobody pulls up" =
-  let bus = Bus.rp2040 ~undriven:0 ~cycle_ns () in
+  let bus = Bus.rp2040 ~undriven:0 ~clock_hz:Bench.clock_hz () in
   let items =
     [ Item.Bits dormant_to_swd
     ; Bits line_reset
@@ -336,14 +336,14 @@ let%expect_test "a line nobody pulls up" =
     ((dp 0)
      (log ("dormant to SWD" "line reset" "TARGETSEL 0x21002927: deselected"))
      (measured_ns
-      (("SWCLK low" (200 6940)) ("SWCLK high" (200 540)) (setup (200 3800))
-       (hold (200 200))))
+      (("SWCLK low" (208 7229)) ("SWCLK high" (208 563)) (setup (208 3958))
+       (hold (208 208))))
      (violations ()))
     ((dp 1)
      (log ("dormant to SWD" "line reset" "TARGETSEL 0x21002927: deselected"))
      (measured_ns
-      (("SWCLK low" (200 6940)) ("SWCLK high" (200 540)) (setup (200 3800))
-       (hold (200 200))))
+      (("SWCLK low" (208 7229)) ("SWCLK high" (208 563)) (setup (208 3958))
+       (hold (208 208))))
      (violations ()))
     ((contention ())
      (fault
@@ -463,7 +463,8 @@ let%expect_test "the shortest half period" =
   [%expect {| (("check shortest_half" true) ("check (shortest_half - 1)" false)) |}]
 ;;
 
-(* swd joins [Certified.all] once its certificate is inductive: t is stale at a host wait. *)
+(* swd joins [Library.certified] once its certificate is inductive: t is stale at a host
+   wait. *)
 let%expect_test "the kernel accepts swd at its half period" =
   let program = Asm.assemble (Timed_program.source firmware) |> ok_exn in
   let config = Asm.Program.configure program config in

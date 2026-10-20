@@ -30,14 +30,18 @@ let create ~memory ~engines (scope : Scope.t) (i : Signal.t I.t) =
   let module Host = Host_port.Make (Config) in
   let module Engines = Engines.Make (Config) in
   let async = Reg_spec.create ~clock:i.clk ~reset:~:(i.rst_n) () in
-  let%hw reset_done = pipeline async ~n:2 vdd in
+  let%hw reset_meta = reg async vdd in
+  let%hw reset_done = reg async reset_meta in
   (* Both_edges' falling pair clears from a flop of its own, a cycle behind reset_done,
      not from the clear's tree, which a falling flop gives only half a cycle *)
   let%hw reset_late = reg (Reg_spec.create ~clock:i.clk ()) reset_done in
   let clocking = { Clocking.clock = i.clk; clear = ~:reset_done } in
-  let sync x = Clocking.pipeline clocking ~n:2 x in
+  let%hw ui_meta = Clocking.reg clocking i.ui_in.:[7, 3] in
+  let%hw ui_sync = Clocking.reg clocking ui_meta in
+  let%hw uio_meta = Clocking.reg clocking i.uio_in in
+  let%hw uio_sync = Clocking.reg clocking uio_meta in
   let pads = concat_msb [ i.uio_in; zero 7; i.ui_in.:[7, 3] ] in
-  let%hw inputs = concat_msb [ sync i.uio_in; zero 7; sync i.ui_in.:[7, 3] ] in
+  let%hw inputs = concat_msb [ uio_sync; zero 7; ui_sync ] in
   let frame = Frame_rx.Status.Of_signal.wires () in
   let stamps = Edge_stamps.O.Of_signal.wires () in
   let%hw frame_pin = wire Frame_rx.pin_bits in

@@ -1,0 +1,17 @@
+# configured.awk's miter to what write_aiger takes, as aig.ys but keeping the netlist's
+# initial values: every other flop starts at 0.
+
+read_rtlil configured.il
+hierarchy -top miter
+select -assert-none a:init w:gate.* %d
+select -assert-count 1 w:started
+async2sync
+dffunmap
+check -assert
+setundef -undriven -anyseq
+opt_clean -purge
+setundef -init -zero
+techmap
+aigmap
+opt_clean -purge
+write_aiger configured.aig

@@ -1,4 +1,57 @@
 # Mutants that no test can kill: file ## operator ## the source line ## why
 src/engine.ml ## greater ## (s >:. data_bits) ## both arms of the saturation give data_bits when the sum is exactly data_bits
 src/decoder.ml ## constant one ## if n = 1 lsl width raw then vdd else raw <:. n ## no enum checked here fills its field now that the jump condition is 12 of 16, so the branch is never built
-src/engine.ml ## constant one ## let%hw decode_ok = reg spec ~enable:ir_load ~clear_to:vdd fetched.valid in ## the instruction register is always refilled between a start and the first issue, so the value after a clear is never used
+src/host_fifo.ml ## int plus one ## let level_bits = Int.ceil_log2 (depth + 1) ## at a depth of 8, ceil_log2 of 9 and of 10 are both 4
+src/host_spi.ml ## constant zero ## @@ mux2 sck_fall (d.:[6, 0] @: gnd) d) ## the filled bit never reaches the msb, as tx_byte reloads at every byte boundary after seven shifts
+src/data_memory.ml ## drop other enable ## let%hw last = reg spec ~enable:mine dout in ## two cycles running that are not an engine's turn come only during writes or after a clear, when every engine is halted, and else the cycle before is its turn and dout then is last
+src/analyser.ml ## bool false ## if Option.value_map s.osr_count.lo ~default:false ~f:(fun lo -> ## osr_count always has both ends: it starts exact, a pull sets 0 and shift_out sets both
+src/analyser.ml ## bool true ## else if Option.value_map s.osr_count.hi ~default:true ~f:(fun hi -> ## osr_count always has both ends: it starts exact, a pull sets 0 and shift_out sets both
+src/analyser.ml ## int subtract to add ## (program_size - List.length program) ## a longer padding is never reached, as every pc is taken modulo the program size
+src/analyser.ml ## int less than ## if pc < n ## every pc is below the program size, which n is at least
+src/analyser.ml ## int less than ## if next < n then arrive ~from:pc next s))); ## every pc is below the program size, which n is at least
+src/analyser.ml ## int equal ## if Array.for_all slopes ~f:(fun slope -> slope = 0) then entry else fixpoint ~slope_at ## every slope nonzero needs every slot in a counted loop, where nothing anchors the phase, so the second fixpoint finds the same rows
+src/analyser.ml ## int greater ## when config.Program_config.side_set_count > 0 ## side_edge is read only when side_set_count is above zero
+src/analyser.ml ## bool and to or ## if slope <> 0 && List.for_all loop ~f:(fun b -> slopes.(b) = 0) ## a loop that overlaps an earlier one holds that loop's jmp x--, which has no drift, so it never gets a slope
+src/kernel_step.ml ## at least immediate ## let base = mux2 (base >=:. space) (base -:. space) base in ## only a base of 28 differs, and a base is a pin below 28
+src/kernel_step.ml ## less than immediate ## ( offset <: six count &: (offset <:. Isa.data_bits) ## no run is longer than 16 pins, so offset < count keeps it below 16
+src/kernel_step.ml ## constant zero ## let out_hit, _ = run ~base:spacing.out_base ~count:d.shift_count ~value:gnd in ## the value only makes the bit, which is dropped
+src/kernel_step.ml ## constant zero ## let mov_hit, _ = run ~base:spacing.out_base ~count:spacing.out_count ~value:gnd in ## the value only makes the bit, which is dropped
+src/kernel_step.ml ## int plus one ## let width = Int.max (width duration) (Isa.data_bits + 1) in ## a bit wider still saturates to the same count
+src/kernel_accepts.ml ## int plus one ## (let width = Int.max (width duration) (Isa.data_bits + 1) in ## a bit wider still saturates to the same count
+src/kernel_accepts.ml ## int add to subtract ## (let width = Int.max (width duration) (Isa.data_bits + 1) in ## only a timer of 14 bits or fewer differs, and tables are built only at 24
+src/kernel_accepts.ml ## int minus one ## let mark_none = of_signed_int ~width:mark_bits (-(1 lsl (mark_bits - 1))) ## near-equivalent: a count less a phase is never below -2^23, so any mark at -2^24 or below bounds nothing alike
+src/kernel_accepts.ml ## signed less than ## mux2 (x <+ mark_wide mark_none) mark_none ## a tie gives mark_none either way
+src/kernel_accepts.ml ## signed greater ## @@ mux2 (x >+ mark_wide mark_max) mark_max ## a tie gives mark_max either way
+src/kernel_accepts.ml ## signed less than ## mux2 (by_mark <+ zero (width by_mark)) (zero Isa.data_bits) (saturate by_mark) ## a tie gives zero either way
+src/kernel_accepts.ml ## unsigned greater ## mux2 (by_mark >: h.since) by_mark h.since ## a tie picks one of two equal values
+src/kernel_accepts.ml ## less than ## ; since = least ~lt:( <: ) ~top:since_limit ~f:(fun h -> h.since) ## a tie picks one of two equal values
+src/kernel_accepts.ml ## signed less than ## ; mark = least ~lt:( <+ ) ~top:mark_max ~f:(fun h -> h.mark) ## a tie picks one of two equal values
+src/kernel_accepts.ml ## signed greater ## { h with mark = mux2 (dt_known &: (by_since >+ h.mark)) by_since h.mark } ## a tie picks one of two equal values
+src/kernel_accepts.ml ## signed less than ## let released x = mux2 (x <+ zero wide_bits) (zero wide_bits) x in ## a tie gives zero either way
+src/kernel_accepts.ml ## signed less than ## let stall = mux2 (stall <+ zero wide_bits) (zero wide_bits) stall in ## a tie gives zero either way
+src/kernel_accepts.ml ## signed greater ## ~lo:(mux2 (lo >+ offset_lo) lo offset_lo) ## a tie picks one of two equal values
+src/kernel_accepts.ml ## signed less than ## ~hi:(mux2 (hi <+ offset_hi) hi offset_hi) ## a tie picks one of two equal values
+src/kernel_accepts.ml ## unsigned greater ## let common_lo = mux2 (row.x_lo >: row.y_lo) row.x_lo row.y_lo in ## a tie picks one of two equal values
+src/kernel_accepts.ml ## less than ## let common_hi = mux2 (row.x_hi <: row.y_hi) row.x_hi row.y_hi in ## a tie picks one of two equal values
+src/kernel_accepts.ml ## not ## let capture_bounded = c.from_capture &: row.captured &: ~:(arm_is_full row) in ## edge_images keeps an image only where the class is bounded, which mov t, capture is not
+src/kernel_accepts.ml ## int plus one ## ~width:(Isa.Field.set_value.width + 1) ## small_value is zero-extended, so a bit wider is the same product
+src/kernel_accepts.ml ## and to or ## let fits = image_lo >=+ timer_min &: (image_hi <=+ timer_max) in ## the row's own ends lie inside the timer's, so the bounds that follow imply fits
+src/kernel_table.ml ## less than ## ; since = (if Bits.(to_bool (h.since <: g.since)) then h.since else g.since) ## a tie picks one of two equal values
+src/kernel_table.ml ## signed less than ## ; mark = (if Bits.(to_bool (h.mark <+ g.mark)) then h.mark else g.mark) ## a tie picks one of two equal values
+src/kernel_table.ml ## bool false ## ?(single_capture_edge = false) ## with_edges reads the capture only for a capturing wait, which edge_images never asks
+src/kernel_table.ml ## int not equal ## let fraction = Bits.of_bool (config.period_fraction <> 0) in ## with_edges reads the fraction only at a deadline's low image end, which its release keeps far from the timer's least
+src/kernel_table.ml ## constant one ## let spacing = { With_valid.valid = Bits.vdd; value = spacing } in ## edge_images reads only the spacing's value, not its valid
+src/osr_kernel.ml ## unsigned greater ## let max a b = mux2 (a >: b) a b ## a tie picks one of two equal values
+src/osr_kernel.ml ## less than ## let min a b = mux2 (a <: b) a b ## a tie picks one of two equal values
+src/osr_kernel.ml ## int plus one ## let wide_bits = sum_bits + 1 ## 18 bits already hold a sum and a count, 2^17 - 1 + 32, so a wider one computes the same
+src/osr_kernel.ml ## greater ## (shifted >:. Isa.data_bits) ## at 16 both arms give 16
+src/osr_kernel.ml ## greater ## mux2 (v >:. shift_limit) (of_unsigned_int ~width:(width v) shift_limit) v ## at the limit both arms give the limit
+src/osr_kernel.ml ## unsigned compare ## max (wide row.shifted_lo) (mux2 (sum_lo >=: x_hi) (sum_lo -: x_hi) (zero wide_bits)) ## where the sum equals x both arms give zero
+src/osr_kernel.ml ## at most ## let known = ~:(c.writes_x) &: (image_sum_hi <=: wide sum_max) in ## near-equivalent: only an image sum ending exactly at 2^17 - 1, past any x + 32 the core holds, differs, and it only drops its low end
+src/osr_kernel.ml ## constant zero ## ; pulled = Bits.gnd ## an unreached row is empty, which join and ways read before its pulled, and propose replaces it with any image it must hold
+src/osr_kernel.ml ## int at most ## { Row.shifted_lo = pick ( <= ) a.shifted_lo b.shifted_lo ## a tie picks one of two equal values
+src/osr_kernel.ml ## int at least ## ; shifted_hi = pick ( >= ) a.shifted_hi b.shifted_hi ## a tie picks one of two equal values
+src/osr_kernel.ml ## int at most ## ; sum_lo = pick ( <= ) a.sum_lo b.sum_lo ## a tie picks one of two equal values
+src/osr_kernel.ml ## int at least ## ; sum_hi = pick ( >= ) a.sum_hi b.sum_hi ## a tie picks one of two equal values
+src/osr_kernel.ml ## int less than ## if joins.(to_) < widen_after ## near-equivalent: widening a join later changes only a pc that settles at exactly its 64th join, and check has the last word
+src/osr_kernel.ml ## int plus one ## joins.(to_) <- joins.(to_) + 1; ## near-equivalent: widening after 32 joins changes only a pc still moving after 32, which no firmware has, and check has the last word

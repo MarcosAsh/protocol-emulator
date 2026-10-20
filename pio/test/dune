@@ -1,14 +1,36 @@
 ; pico_examples: .pio files from github.com/raspberrypi/pico-examples at 0d62f75, copied
-; unmodified (BSD-3-Clause, see pico_examples/LICENSE.TXT).
+; unmodified (BSD-3-Clause, see pico_examples/LICENSE.TXT) and pinned by SHA256SUMS.
+; holes/i2c.pio is pico_examples/i2c.pio with four delays made holes.
 
 (library
  (name pio_test)
- (libraries core core_unix.sys_unix pio)
+ (libraries
+  core
+  core_unix.sys_unix
+  protocol_emulator
+  protocol_emulator_test
+  pio)
+ (lint
+  (pps ppx_js_style -check-doc-comments))
  (preprocess
   (pps ppx_jane))
  (inline_tests
   (deps
    ../bin/pio_check.exe
-   (glob_files pico_examples/*.pio))
+   ../bin/pio_import.exe
+   (glob_files pico_examples/*.pio)
+   (glob_files holes/*))
   (flags
    (-source-tree-root .))))
+
+; the sources are pinned: a change to one is a change to the pin
+
+(rule
+ (alias runtest)
+ (deps
+  (glob_files pico_examples/*.pio)
+  pico_examples/SHA256SUMS)
+ (action
+  (chdir
+   pico_examples
+   (run sha256sum --check --quiet SHA256SUMS))))

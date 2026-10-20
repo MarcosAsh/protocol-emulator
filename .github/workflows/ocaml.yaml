@@ -1,16 +1,55 @@
 name: ocaml
-on: [push, workflow_dispatch]
+# branches only: a tag names a commit a branch push has already run
+on:
+  push:
+    branches: ['**']
+  # phase_spacing, nine jobs of up to 3.5 h, runs nightly on main and on a dispatch only.
+  # Before landing a branch: gh workflow run ocaml.yaml --ref BRANCH -f phase_spacing=true
+  schedule:
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+    inputs:
+      phase_spacing:
+        description: Prove phase_spacing too
+        type: boolean
+        default: false
 
 # a newer push cancels a branch's run; on main every run that starts finishes, and of the
-# ones waiting only the newest starts
+# ones waiting only the newest starts. The nightly and a dispatch wait apart from pushes,
+# so a push never drops them.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}${{ github.event_name != 'push' && format('-{0}', github.event_name) || '' }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  # which jobs a branch's changes reach (.github/changed.sh); the rest skip, which counts
+  # as a pass
+  changes:
+    runs-on: ubuntu-24.04
+    outputs:
+      tests: ${{ steps.changed.outputs.tests }}
+      proofs: ${{ steps.changed.outputs.proofs }}
+      fpga: ${{ steps.changed.outputs.fpga }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # to find where the branch left main
+
+      - name: List what changed
+        id: changed
+        run: .github/changed.sh tests proofs fpga | tee -a "$GITHUB_OUTPUT"
+
   # the Verilog and certificates the proof jobs read, so they start without the tests
   generate:
+    needs: changes
+    if: needs.changes.outputs.proofs == 'true'
     runs-on: ubuntu-24.04
+    # id-token and attestations sign the provenance of the proof bundle below
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     outputs:
       certificates: ${{ steps.certificates.outputs.names }}
       phase_spacing: ${{ steps.phase_spacing.outputs.parts }}
@@ -43,7 +82,9 @@ jobs:
           opam exec -- dune exec -- bin/generate.exe engine -timer-bits 7 > formal/engine_narrow.v
           opam exec -- dune exec -- bin/generate.exe kernel > formal/kernel_step.v
           opam exec -- dune exec -- bin/generate.exe kernel -timer-bits 7 > formal/kernel_step_narrow.v
+          opam exec -- dune exec -- bin/generate.exe engines -engines 2 -ungated > formal/engines.v
           opam exec -- dune exec -- bin/generate.exe engines -engines 2 -sram -ungated > formal/engines_sram.v
+          opam exec -- dune exec -- bin/generate.exe engines -engines 2 -sram > formal/engines_gated.v
           opam exec -- dune exec -- test/certify/write_link.exe > formal/link.sv
           opam exec -- dune exec -- test/certify/write_link.exe -rx-period 11 > formal/link_baud.sv
           opam exec -- dune exec -- test/certify/write_self_check.exe > formal/self_check.sv
@@ -59,7 +100,7 @@ jobs:
       - name: Write the certificates
         id: certificates
         run: |
-          names=$(make -s -C formal inductive_names)
+          names=$(opam exec -- dune exec -- test/certify/write_certificate.exe -names)
           for name in $names; do
             opam exec -- dune exec -- test/certify/write_certificate.exe -inductive $name > formal/certificate_$name.sv
           done
@@ -74,6 +115,15 @@ jobs:
       - name: List the parts of the pair's spacing
         id: phase_spacing
         run: echo "parts=$(make -s -C formal phase_spacing_parts | jq -Rc 'split(" ")')" >> "$GITHUB_OUTPUT"
+
+      # a pushed main only, so a fork's pull request never signs
+      - name: Attest the proof bundle
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/attest-build-provenance@v3.0.0
+        with:
+          subject-path: |
+            formal/engine_sram.v
+            formal/certificate_*.sv
 
       - name: Upload the certificates
         uses: actions/upload-artifact@v7
@@ -114,10 +164,13 @@ jobs:
           name: phase_table
           path: |
             formal/engine.v
+            formal/engines.v
             formal/kernel_step.v
             formal/kernel_accepts.v
 
   test:
+    needs: changes
+    if: needs.changes.outputs.tests == 'true'
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repo
@@ -168,6 +221,12 @@ jobs:
             exit 1
           fi
 
+      - name: Check the tree is formatted
+        run: opam exec -- dune build @fmt
+
+      - name: Lint with Jane Street's style checker
+        run: opam exec -- dune build @lint
+
       - name: Run tests
         run: opam exec -- dune build @runtest
 
@@ -181,11 +240,13 @@ jobs:
           fi
 
       - name: Install OSS CAD Suite
+        if: needs.changes.outputs.proofs == 'true'
         run: |
           curl -sL https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz | tar xz -C "$HOME"
           echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
 
       - name: Prove
+        if: needs.changes.outputs.proofs == 'true'
         run: |
           opam exec -- dune exec -- bin/generate.exe engine > formal/engine.v
           opam exec -- dune exec -- bin/generate.exe engine -sram > formal/engine_sram.v
@@ -200,12 +261,77 @@ jobs:
           opam exec -- dune exec -- bin/generate.exe osr > formal/osr_step.v
           opam exec -- dune exec -- test/certify/write_certificate.exe -fsm > formal/fsm_miter.sv
           opam exec -- dune exec -- test/certify/write_certificate.exe -fsm -mutant > formal/fsm_miter_mutant.sv
+          opam exec -- dune exec -- test/certify/write_certificate.exe -verilog-corpus -out formal > formal/verilog_corpus.txt
           opam exec -- dune exec -- bin/generate.exe kernel-accepts > formal/kernel_accepts.v
           opam exec -- dune exec -- bin/generate.exe memory > formal/memory_flops.v
           opam exec -- dune exec -- bin/generate.exe memory -sram > formal/memory_sram.v
           opam exec -- dune exec -- bin/generate.exe kernel-gates > formal/kernel_gates.aag
           opam exec -- dune exec -- bin/generate.exe kernel-gates -accepts > formal/kernel_accepts_gates.aag
-          make -C formal issue_timing host_timing late_host fifo_order phase_step edge_step event_step frame_step value_step narrow_proof chip_frame isolation_proof data_step teeth fsm_miter_proof sram_equiv_proof kernel_equiv_proof sync_rtl sync_rtl_teeth powerup gate certify
+          opam exec -- dune exec -- bin/generate.exe top -engines 2 > formal/top.v
+          opam exec -- dune build test/translation/check_translation.exe
+          make -C formal issue_timing host_timing host_spacing late_host fifo_order unreachable phase_step fetch_step edge_step event_step frame_step value_step narrow_proof chip_frame fail_safe isolation_proof data_step teeth fsm_miter_proof verilog_in_proof sram_equiv_proof kernel_equiv_proof translation_proof frontend_equiv sync_rtl sync_rtl_teeth powerup offset_axioms gate certify
+
+  # Hardcaml's cyclesim coverage of src/ over every test, which reruns them, so it runs
+  # beside the test job. Each point the tests leave open is in test/coverage_triage.txt
+  # with its reason, and a new one fails (test/check_coverage.py).
+  coverage:
+    needs: changes
+    if: needs.changes.outputs.tests == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Set up OxCaml
+        uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: ocaml-variants.5.2.0+ox
+          opam-repositories: |
+            ox: https://github.com/oxcaml/opam-repository.git
+            default: https://opam.ocaml.org
+
+      - name: Cache the switch
+        uses: actions/cache@v4
+        with:
+          path: _opam
+          key: opam-${{ runner.os }}-${{ runner.arch }}-5.2.0+ox-test-${{ hashFiles('protocol_emulator.opam.locked') }}
+
+      - name: Install dependencies
+        run: opam install . --deps-only --with-test --locked
+
+      # the tests' checked QEDs need them, as in the test job
+      - name: Key the SAT tools
+        id: sat_key
+        run: echo "key=sat-tools-$(sed -n '/^CADICAL = /,/^$/p' formal/Makefile | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the SAT tools
+        id: sat_tools
+        uses: actions/cache@v4
+        with:
+          path: formal/sat_tools/bin
+          key: ${{ steps.sat_key.outputs.key }}
+
+      - name: Build the SAT tools
+        run: |
+          [ "${{ steps.sat_tools.outputs.cache-hit }}" = true ] || make -C formal sat_tools
+          echo "$PWD/formal/sat_tools/bin" >> "$GITHUB_PATH"
+
+      - name: Check coverage
+        run: |
+          status=0
+          opam exec -- dune build @test/coverage > coverage_check.txt 2>&1 || status=$?
+          cat coverage_check.txt
+          { echo '```'; cat coverage_check.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          exit $status
+
+      - name: Upload the coverage report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage
+          path: |
+            _build/default/test/coverage/
+            coverage_check.txt
 
   # the pin traces judged by sigrok's protocol decoders, which we did not write: at the
   # chip's clock and as a 24 MHz analyser samples them, each with its teeth, and once
@@ -216,8 +342,8 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v6
 
-      - name: Install sigrok-cli
-        run: sudo apt-get update && sudo apt-get install -y sigrok-cli
+      - name: Install sigrok-cli and numpy, which the edge reader needs
+        run: sudo apt-get update && sudo apt-get install -y sigrok-cli python3-numpy
 
       - name: Decode
         run: |
@@ -229,9 +355,32 @@ jobs:
             python3 demo/decode.py --capture bench.sr $trace
           done
 
-  # the Icepi Zero's netlist, simulated; the firmware words it loads are the committed ones,
-  # which the test job checks are current
+      - name: Check the i2c timing decoder
+        run: python3 test/test_i2c_timing.py
+
+      - name: Speed log
+        run: python3 test/test_speed.py
+
+      - name: Corpus pages
+        run: python3 test/test_corpus.py
+
+      - name: Ledger, against stand-ins for the bench's tools
+        run: python3 test/test_ledger.py
+
+      - name: Bench runner, against stand-ins for the bench's tools
+        run: python3 test/test_bench_run.py
+
+      - name: Traffic checks, on made captures
+        run: python3 test/test_traffic.py
+
+      - name: Carrier self-test, on a model of the board
+        run: python3 test/test_carrier_check.py
+
+  # the netlists of both boards, simulated; the firmware words they load are the committed
+  # ones, which the test job checks are current
   fpga:
+    needs: changes
+    if: needs.changes.outputs.fpga == 'true'
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repo
@@ -273,6 +422,48 @@ jobs:
           make ICEPI=yes
           ! grep failure results.xml
           make replay ICEPI=yes
+
+  # the Icepi Zero's build equals the RTL (formal/icepi_equiv): synth_ecp5's netlist for
+  # each bitstream the bench loads, and the teeth on the 48 MHz one; then the bitstream
+  # and its .sha256, which a board run's evidence quotes. About 10 min, 20 with the teeth
+  icepi_equiv:
+    needs: changes
+    if: needs.changes.outputs.fpga == 'true' || needs.changes.outputs.proofs == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        mhz: [48, 40]
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Install OSS CAD Suite
+        run: |
+          curl -sL https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz | tar xz -C "$HOME"
+          echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
+
+      - name: Prove the netlist equal to the RTL
+        run: make -C icepi equiv MHZ=${{ matrix.mhz }}
+
+      - name: Fail on four mutants
+        if: matrix.mhz == 48
+        run: make -C formal icepi_equiv_teeth
+
+      - name: Build the bitstream and name it
+        run: |
+          make -C icepi MHZ=${{ matrix.mhz }}
+          cat icepi/build/*.sha256 >> "$GITHUB_STEP_SUMMARY"
+
+      # the bitstream the proof names, for a board run to load as it stands
+      - name: Keep the bitstream
+        uses: actions/upload-artifact@v7
+        with:
+          name: icepi-${{ matrix.mhz }}mhz
+          path: |
+            icepi/build/*.bit
+            icepi/build/*.sha256
 
   inductive_certificate:
     needs: generate
@@ -329,6 +520,30 @@ jobs:
       - name: Prove
         run: make -C formal phase_table_proof
 
+  # the same on each engine inside the two-engine chip, with the fail-safe as its corollary,
+  # and its teeth, which have to fail
+  fail_safe_table:
+    needs: generate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Download the Verilog
+        uses: actions/download-artifact@v8
+        with:
+          name: phase_table
+          path: formal
+
+      - name: Install OSS CAD Suite
+        run: |
+          curl -sL https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz | tar xz -C "$HOME"
+          echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
+
+      - name: Prove
+        run: make -C formal fail_safe_table_proof
+
   # the same for rows that bound the offset too, on row_step's lemma, and its teeth
   phase_table_affine:
     needs: generate
@@ -356,6 +571,7 @@ jobs:
   # phase_spacing_parts lists, which together are phase_spacing_proof
   phase_spacing:
     needs: generate
+    if: github.event_name == 'schedule' || inputs.phase_spacing
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     strategy:
@@ -460,7 +676,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        lemma: [phase_step, edge_step, self_check_clean]
+        lemma: [phase_step, edge_step, event_step, frame_step, value_step, self_check_clean, fail_safe]
     steps:
       - name: Checkout repo
         uses: actions/checkout@v6

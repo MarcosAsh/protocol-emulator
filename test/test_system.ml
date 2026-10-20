@@ -6,7 +6,9 @@ let period = 16
 
 (* a transmitter on one engine and a receiver on the other, with nothing outside the chip *)
 let cross_wired ~line ~transmitter =
-  let rx_config = { rx_config with in_base = line; jmp_pin = line; capture_pin = line } in
+  let rx_config =
+    { Uart.rx_config with in_base = line; jmp_pin = line; capture_pin = line }
+  in
   let system =
     System_lockstep.lockstep
       ~cycles:500
@@ -18,7 +20,7 @@ let cross_wired ~line ~transmitter =
         ; assumptions = System_lockstep.Assumptions.none
         }
       ; { config = rx_config
-        ; program = assemble (uart_rx_on ~pin:line ~period)
+        ; program = assemble (Uart.rx_on ~pin:line ~period)
         ; preload = []
         ; data = []
         ; assumptions =
@@ -39,7 +41,7 @@ let cross_wired ~line ~transmitter =
 let%expect_test "uart from one engine to the other over a pin" =
   cross_wired
     ~line:Isa.first_bidir_pin
-    ~transmitter:("    set pindirs, 1\n" ^ uart_tx ~period);
+    ~transmitter:("    set pindirs, 1\n" ^ Uart.tx ~period);
   [%expect
     {|
     ("lockstep held" (cycles 500))
@@ -55,7 +57,7 @@ let%expect_test "uart from one engine to the other over a pin" =
 ;;
 
 let%expect_test "uart from one engine to the other over a wire" =
-  cross_wired ~line:Isa.num_pins ~transmitter:(uart_tx ~period);
+  cross_wired ~line:Isa.num_pins ~transmitter:(Uart.tx ~period);
   [%expect
     {|
     ("lockstep held" (cycles 500))
@@ -107,6 +109,8 @@ let%expect_test "random programs on two engines in lockstep" =
     |> List.filter_opt
   in
   print_s [%message (failed : int list)];
+  if not (List.is_empty failed)
+  then raise_s [%message "random programs out of lockstep" (failed : int list)];
   [%expect {| (failed ()) |}]
 ;;
 
@@ -119,7 +123,7 @@ let%expect_test "one engine times the other's uart edges" =
   let period = 434 in
   let bytes = [ 0x55; 0xa3 ] in
   let transmitter = { Program_config.default with set_base = line; out_base = line } in
-  Timing_report.print ~config:transmitter ~period uart_tx_host_rate;
+  Timing_report.print ~config:transmitter ~period Uart.tx_host_rate;
   let random = Splittable_random.of_int 1 in
   let fifo = ref [] in
   let stamps = ref [] in
@@ -136,7 +140,7 @@ let%expect_test "one engine times the other's uart edges" =
       ~react
       ~pads:(fun _ -> 0)
       [ { config = transmitter
-        ; program = assemble uart_tx_host_rate
+        ; program = assemble Uart.tx_host_rate
         ; preload = period :: bytes
         ; data = []
         ; assumptions = { System_lockstep.Assumptions.none with period = Some period }
@@ -344,4 +348,147 @@ let%expect_test "random programs on two engines with the add-ons in lockstep" =
   in
   print_s [%message (failed : int list) (!routed : int)];
   [%expect {| ((failed ()) (!routed 11)) |}]
+
+;;
+
+(* Engine 0 drives pin 12 and OUT0, then pulls from its empty fifo, while engine 1 toggles
+   pin 13. From the edge the underflow shows the chip drives none of engine 0's pins, the
+   word after the pull included, and an edge later engine 0 halts. *)
+let%expect_test "a faulted engine stops and lets go of its pins" =
+  let pin = Isa.first_bidir_pin in
+  let rows = Queue.create () in
+  let (_ : System.t) =
+    System_lockstep.lockstep
+      ~cycles:12
+      ~react:(Queue.enqueue rows)
+      ~pads:(fun _ -> 0)
+      [ { config =
+            { Program_config.default with
+              set_base = pin
+            ; side_set_count = 1
+            ; side_set_base = Isa.first_output_pin
+            }
+        ; program =
+            assemble
+              {|
+.side_set 1
+    set pindirs, 1 side 1
+    set pins, 1 side 1
+    pull side 1
+    set pins, 0 side 0
+    halt side 0
+|}
+        ; preload = []
+        ; data = []
+        ; assumptions = System_lockstep.Assumptions.none
+        }
+      ; { config = { Program_config.default with set_base = pin + 1 }
+        ; program =
+            assemble
+              {|
+    set pindirs, 1
+loop:
+    set pins, 1
+    set pins, 0
+    jmp loop
+|}
+        ; preload = []
+        ; data = []
+        ; assumptions = System_lockstep.Assumptions.none
+        }
+      ]
+  in
+  print_endline "cycle  pin_dir  pin_out  underflow  halted";
+  Queue.iteri rows ~f:(fun cycle (system : System.t) ->
+    let halted = List.map system.engines ~f:(fun m -> m.halted) in
+    printf
+      "%5d    %05x    %05x  %9b  %s\n"
+      cycle
+      (System.pin_dir system)
+      (System.pin_out system)
+      (List.hd_exn system.engines).fault.underflow
+      (String.concat ~sep:" " (List.map halted ~f:Bool.to_string)));
+  [%expect
+    {|
+    ("lockstep held" (cycles 12))
+    cycle  pin_dir  pin_out  underflow  halted
+        0    03000    00020      false  false false
+        1    03000    03020      false  false false
+        2    02000    00000       true  false false
+        3    02000    00000       true  true false
+        4    02000    00000       true  true false
+        5    02000    02000       true  true false
+        6    02000    00000       true  true false
+        7    02000    00000       true  true false
+        8    02000    00000       true  true false
+        9    02000    02000       true  true false
+       10    02000    00000       true  true false
+       11    02000    00000       true  true false
+    |}]
+;;
+
+module Two = Engines.Make (struct
+    let engines = 2
+  end)
+
+module Harness = Hardcaml_test_harness.Lws_harness.Make (Two.I) (Two.O)
+
+(* the host starts engine 0, which underflows, then starts it again; ungated, so no
+   certificate is needed and the fault is all that stops the start *)
+let%expect_test "a start does nothing while a fault is held" =
+  Harness.run
+    ~random_initial_state:`All
+    ~create:(Two.hierarchical ~gated:false ~memory:Flops)
+    (fun (h @ local) ~inputs:i ~outputs ->
+       let open Hardcaml in
+       let cycle ?(n = 1) () =
+         for _ = 1 to n do
+           Hardcaml_lws.Lws.cycle h
+         done
+       in
+       let pulse field =
+         field := Bits.vdd;
+         cycle ();
+         field := Bits.gnd
+       in
+       let host = List.hd_exn i.hosts in
+       let show what =
+         let o = List.hd_exn (Before_and_after_edge.after_edge outputs).engines in
+         print_s
+           [%message
+             what
+               ~pc:(Bits.to_unsigned_int !(o.pc) : int)
+               ~x:(Bits.to_unsigned_int !(o.x) : int)
+               ~halted:(Bits.to_bool !(o.halted) : bool)
+               ~underflow:(Bits.to_bool !(o.fault.underflow) : bool)]
+       in
+       pulse i.clocking.clear;
+       Engine.Config.iter2
+         host.config
+         (Engine.Config.of_program_config Program_config.default)
+         ~f:( := );
+       host.program_write.valid := Bits.vdd;
+       List.iteri
+         (assemble {|
+    set x, 1
+    pull
+    set x, 2
+    set x, 3
+|})
+         ~f:(fun addr word ->
+           Bits.(host.program_write.addr <--. addr);
+           Bits.(host.program_write.data <--. word);
+           cycle ());
+       host.program_write.valid := Bits.gnd;
+       pulse host.start;
+       cycle ~n:8 ();
+       show "faulted";
+       pulse host.start;
+       cycle ~n:8 ();
+       show "started again");
+  [%expect
+    {|
+    (faulted (pc 3) (x 2) (halted true) (underflow true))
+    ("started again" (pc 3) (x 2) (halted true) (underflow true))
+    |}]
 ;;

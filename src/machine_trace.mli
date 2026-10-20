@@ -46,5 +46,5 @@ val faulted : t -> bool
     with the cycle and pc that set it. *)
 val to_string : t -> string
 
-(** The same pins as a VCD, a cycle being 20 ns as at the chip's 50 MHz. *)
+(** The same pins as a VCD, in picoseconds at the chip's 48 MHz. *)
 val to_vcd : t -> string

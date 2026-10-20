@@ -27,7 +27,7 @@ ZERO_LOAD = 1
 # driven low again.
 HIGH = 2 * QUARTER
 
-# rise time limits, 30 % to 70 % of VDD, from the I2C specification (UM10204 table 10)
+# rise time limits, 30 % to 70 % of VDD, from the I2C specification (UM10204 table 11)
 LIMITS_NS = {"standard": 1000, "fast": 300, "fast_plus": 120}
 
 

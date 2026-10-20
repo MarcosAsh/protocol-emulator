@@ -4,8 +4,18 @@
   write_ethernet_firmware
   write_certified_firmware
   write_sweep_firmware
-  write_bench_firmware)
- (libraries core hardcaml protocol_emulator protocol_emulator_test)
+  write_kernel_variants
+  write_glitch_images
+  write_bench_firmware
+  write_both_roles_firmware
+  write_tolerance_firmware
+  write_post_freeze_certificate
+  write_clock_cliffs
+  write_pio_firmware
+  write_margins)
+ (libraries core hardcaml protocol_emulator protocol_emulator_test pio)
+ (lint
+  (pps ppx_js_style -check-doc-comments))
  (preprocess
   (pps ppx_jane)))
 
@@ -62,6 +72,7 @@
  (deps
   ../../python/demo_board.py
   ../../python/demo_board_check.py
+  ../../python/etr_standin.py
   ../../python/protocol_emulator.py
   ttboard_fake.py
   ../uart_tx_host_rate.hex)
@@ -97,3 +108,99 @@
   ../../pages/die/die.bin)
  (action
   (run python3 -B %{dep:test_draw.py} ../../python ../../demo)))
+
+(rule
+ (alias runtest)
+ (deps ../../demo/kernel_vs_board.py)
+ (action
+  (run python3 -B %{dep:test_kernel_vs_board.py} ../../demo)))
+
+(rule
+ (alias runtest)
+ (deps ../../demo/glitch_map.py ../../python/demo_glitch_map.py)
+ (action
+  (run python3 -B %{dep:test_glitch_map.py} ../../demo)))
+
+(rule
+ (deps
+  (glob_files ../../pio/test/pico_examples/*.pio)
+  ../../pio/test/pico_examples/SHA256SUMS)
+ (action
+  (with-stdout-to
+   pio_firmware.py.gen
+   (run ./write_pio_firmware.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff ../../python/pio_firmware.py pio_firmware.py.gen)))
+
+(rule
+ (with-stdout-to
+  both_roles_firmware.py.gen
+  (run ./write_both_roles_firmware.exe)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff ../../python/both_roles_firmware.py both_roles_firmware.py.gen)))
+
+(rule
+ (with-stdout-to
+  tolerance_firmware.py.gen
+  (run ./write_tolerance_firmware.exe)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff ../../python/tolerance_firmware.py tolerance_firmware.py.gen)))
+
+(rule
+ (deps
+  (glob_files ../diagrams/*.json))
+ (action
+  (with-stdout-to
+   clock_cliffs.py.gen
+   (run ./write_clock_cliffs.exe))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff ../../python/clock_cliffs.py clock_cliffs.py.gen)))
+
+; the predictions are sealed: a change to them is a change to the pin
+
+(rule
+ (alias runtest)
+ (deps ../../python/clock_cliffs.py ../clock_cliffs.sha256)
+ (action
+  (chdir
+   ../..
+   (run sha256sum --check --quiet test/clock_cliffs.sha256))))
+
+(rule
+ (alias runtest)
+ (deps
+  ../../demo/clock_sweep.py
+  ../../python/clock_cliffs.py
+  ../clock_cliffs.sha256)
+ (action
+  (run python3 -B %{dep:test_clock_sweep.py} ../../demo ../..)))
+
+(rule
+ (alias runtest)
+ (deps
+  ../../demo/corpus_draw.py
+  ../../demo/corpus_decoders.tsv
+  corpus_beacon_33000000.json
+  (glob_files_rec ../traces/*.trace))
+ (action
+  (run python3 -B %{dep:test_corpus_draw.py} ../../demo ../traces)))
+
+(rule
+ (alias runtest)
+ (deps
+  ../../demo/extract.py
+  (glob_files extract/*.txt))
+ (action
+  (run python3 -B %{dep:test_extract.py} ../../demo)))

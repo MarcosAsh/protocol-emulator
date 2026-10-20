@@ -19,7 +19,6 @@ val tck_pin : int
 val tdi_pin : int
 val tms_pin : int
 val tdo_pin : int
-val cycle_ns : int
 val shortest_half : int
 val firmware : half_period:int -> string
 val config : Program_config.t
@@ -63,10 +62,12 @@ module Tap : sig
 
   val idcode : int
   val minimum_ns : int
-  val create : cycle_ns:int -> t
+  val create : clock_hz:int -> t
   val tdo : t -> int
   val step : t -> tck:int -> tms:int -> tdi:int -> t
   val user : t -> int
   val measured : t -> Measured.t
   val violations : t -> string list
 end
+
+val protocol : Protocol.t

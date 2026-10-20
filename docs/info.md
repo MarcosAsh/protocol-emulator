@@ -33,8 +33,8 @@ underflow, an overflow, a missed deadline or a word that does not decode. Side-s
 drives up to two pins on every instruction, which gives an SPI clock for free and, in
 pin-direction mode, an open-drain I2C bus.
 
-A UART transmitter at 115200 baud from the 50 MHz clock. The host sends the bit period,
-434 cycles, as its first word:
+A UART transmitter at 115200 baud from the 48 MHz clock. The host sends the bit period,
+417 cycles, as its first word:
 
 ```
     wait tx
@@ -71,7 +71,7 @@ words in one frame repeat the access, which streams the fifos and the program wi
 
 | Register | Name | Notes |
 |---|---|---|
-| 0 | control | bit 0 start, bit 1 clear irq, bit 2 stop, bit 3 flush both fifos; the program and the config are only written, and the fifos only flushed, while the core is halted; a stopped core runs again only from a start, at address 0 |
+| 0 | control | bit 0 start, bit 1 clear irq, bit 2 stop, bit 3 flush both fifos; the program and the config are only written, and the fifos only flushed, while the core is halted; a start reaches only a halted core, and a stopped core runs again only from a start, at address 0 |
 | 1 | status | pc, halted, irq, fault bits, fifo levels |
 | 2 | pc | |
 | 3, 4 | now | low and high words of the counter |
@@ -95,8 +95,8 @@ static timing analyser that bounds every pin edge of a program before it runs.
 `python/protocol_emulator.py` runs on CPython and MicroPython and needs only a function
 that exchanges one SPI frame. `python/demo_board.py` does that on the Tiny Tapeout demo
 board. To see the UART transmitter above: assemble it with
-`dune exec -- bin/generate.exe assemble -period 434 uart.asm`, then `configure`, `load`,
-`start`, `push` 434 and then two bytes. The frames appear on `uo[1]` (`OUT0`) at 115200
+`dune exec -- bin/generate.exe assemble -period 417 uart.asm`, then `configure`, `load`,
+`start`, `push` 417 and then two bytes. The frames appear on `uo[1]` (`OUT0`) at 115200
 baud.
 
 `test/test.py` is the same sequence under cocotb against the Verilog, and the OCaml

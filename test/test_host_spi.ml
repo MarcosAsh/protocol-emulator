@@ -68,6 +68,7 @@ let%expect_test "waveform of one byte each way" =
       ; "shift_in"
       ; "rx_valid"
       ; "rx_byte"
+      ; "frame_end"
       ]
       ~f:(fun name ->
         Display_rule.port_name_is ("host_spi$" ^ name) ~wave_format:(Bit_or Unsigned_int))
@@ -130,6 +131,8 @@ let%expect_test "waveform of one byte each way" =
     │                  ││──────────────────────────────────────────────┬─────────            │
     │host_spi$rx_byte  ││ 0                                            │165                  │
     │                  ││──────────────────────────────────────────────┴─────────            │
+    │host_spi$frame_end││      ┌─┐                                         ┌─┐               │
+    │                  ││──────┘ └─────────────────────────────────────────┘ └───            │
     │miso              ││                    ┌───┐   ┌───────┐   ┌───┐                       │
     │                  ││────────────────────┘   └───┘       └───┘   └───────────            │
     └──────────────────┘└────────────────────────────────────────────────────────────────────┘

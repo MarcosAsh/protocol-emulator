@@ -11,9 +11,9 @@ let assemble (t : Certified.t) =
 
 let%expect_test "only firmware that never waits on the host is time-triggered" =
   List.iter
-    (Certified.find_exn "uart_tx"
-     :: Certified.find_exn "spi_master"
-     :: Certified.time_triggered)
+    (Library.find_certified_exn "uart_tx"
+     :: Library.find_certified_exn "spi_master"
+     :: Library.time_triggered)
     ~f:(fun t ->
       let program, _ = assemble t in
       print_s [%message t.name ~_:(Feeding.time_triggered program : unit Or_error.t)]);
@@ -27,7 +27,7 @@ let%expect_test "only firmware that never waits on the host is time-triggered" =
 ;;
 
 let%expect_test "the streaming firmware keeps its certificates" =
-  List.iter Certified.time_triggered ~f:(fun t ->
+  List.iter Library.time_triggered ~f:(fun t ->
     let program, config = assemble t in
     print_endline t.name;
     print_endline
@@ -134,7 +134,9 @@ let feed (t : Certified.t) ~words =
 ;;
 
 let%expect_test "uart: each byte's deadline, on time and a cycle late" =
-  feed (Certified.find_exn "uart_tx_stream") ~words:[ 0x55; 0x33; 0x0f; 0xa5; 0x81; 0x99 ];
+  feed
+    (Library.find_certified_exn "uart_tx_stream")
+    ~words:[ 0x55; 0x33; 0x0f; 0xa5; 0x81; 0x99 ];
   [%expect
     {|
     (uart_tx_stream (deadlines (18 98 178 258 338 418)) (gaps (80 80 80 80 80)))
@@ -150,7 +152,7 @@ let%expect_test "uart: each byte's deadline, on time and a cycle late" =
 
 let%expect_test "spi: each byte's deadline, on time and a cycle late" =
   feed
-    (Certified.find_exn "spi_master_stream")
+    (Library.find_certified_exn "spi_master_stream")
     ~words:(List.map [ 0xaa; 0xc3; 0xf0; 0x96; 0x81; 0xe7 ] ~f:(fun byte -> byte lsl 8));
   [%expect
     {|

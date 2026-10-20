@@ -23,10 +23,12 @@ module State = struct
     }
   [@@deriving sexp_of, compare, equal]
 
+  (* [p] is a 16-bit register whatever it holds, so [wait t+] before any [set p] still
+     leaves the phase bounded above *)
   let initial =
     { phase = Interval.top
     ; offset = Interval.top
-    ; period = Interval.top
+    ; period = { lo = Some 0; hi = Some ((1 lsl Isa.data_bits) - 1) }
     ; x = Interval.top
     ; y = Interval.top
     ; since_arm = None
@@ -148,7 +150,6 @@ module Row = struct
   [@@deriving sexp_of]
 end
 
-let max_passes = 256
 let program_size = 1 lsl Isa.pc_bits
 
 let captures (c : Program_config.t) (wait : Isa.Wait.t) =
@@ -443,7 +444,8 @@ let step
      | Mov { dest = X; _ } | Out { dest = X; _ } | Alu { dest = X; _ } ->
        after { s with x = Interval.top; offset = Interval.top }
      | Mov { dest = Y; _ } | Out { dest = Y; _ } | Alu { dest = Y; _ } ->
-       after { s with y = Interval.top }
+       (* a 16-bit register, whatever it was written with *)
+       after { s with y = { lo = Some 0; hi = Some ((1 lsl Isa.data_bits) - 1) } }
      | Sys Capture_arm ->
        after
          { s with
@@ -511,32 +513,64 @@ let exits_loop (t : Isa.t) ~first ~last =
    it by [d] while x counts down by one, [phase + d * x] holds still round the loop: its
    slope is [-d]. The analysis keeps the phase less the slope times x as the offset at
    every pc of the loop, and where the loop falls through, x is zero and the phase lies in
-   the offset. A loop that overlaps one found before it gets no slope. *)
+   the offset. A loop that overlaps one found before it gets no slope. The straight run
+   from a [set x] into the loop takes its slope too, so the offset [set x] gives reaches
+   the loop. *)
 let slopes ~(config : Program_config.t) (program : Isa.t array) entry =
   let slopes = Array.create ~len:(Array.length program) 0 in
-  Array.iteri program ~f:(fun pc t ->
-    match t with
-    | Jmp { cond = X_dec; target } when target <= pc ->
-      let drifts =
-        List.map (List.range target pc) ~f:(fun b ->
-          if b = config.wrap_top
-          then None
-          else if exits_loop program.(b) ~first:target ~last:pc
-          then Some Isa.jmp_cycles
-          else Option.bind entry.(b) ~f:(fun s -> drift s program.(b)))
-      in
-      let loop = List.range target pc ~stop:`inclusive in
-      (match Option.all drifts with
-       | Some drifts ->
-         let slope = -(List.sum (module Int) drifts ~f:Fn.id + Isa.jmp_cycles) in
-         if slope <> 0 && List.for_all loop ~f:(fun b -> slopes.(b) = 0)
-         then List.iter loop ~f:(fun b -> slopes.(b) <- slope)
-       | None -> ())
-    | _ -> ());
+  let drift_at b = Option.bind entry.(b) ~f:(fun s -> drift s program.(b)) in
+  let loops =
+    Array.filter_mapi program ~f:(fun pc t ->
+      match t with
+      | Jmp { cond = X_dec; target } when target <= pc ->
+        let drifts =
+          List.map (List.range target pc) ~f:(fun b ->
+            if b = config.wrap_top
+            then None
+            else if exits_loop program.(b) ~first:target ~last:pc
+            then Some Isa.jmp_cycles
+            else drift_at b)
+        in
+        let loop = List.range target pc ~stop:`inclusive in
+        (match Option.all drifts with
+         | Some drifts ->
+           let slope = -(List.sum (module Int) drifts ~f:Fn.id + Isa.jmp_cycles) in
+           if slope <> 0 && List.for_all loop ~f:(fun b -> slopes.(b) = 0)
+           then (
+             List.iter loop ~f:(fun b -> slopes.(b) <- slope);
+             Some (target, slope))
+           else None
+         | None -> None)
+      | _ -> None)
+  in
+  (* after every loop is found, so that a run takes no pc a loop would *)
+  Array.iter loops ~f:(fun (target, slope) ->
+    let rec start b =
+      if b >= 0 && b <> config.wrap_top && slopes.(b) = 0 && Option.is_some (drift_at b)
+      then start (b - 1)
+      else b
+    in
+    let b = start (target - 1) in
+    let sets_x =
+      b >= 0
+      && b <> config.wrap_top
+      &&
+      match program.(b) with
+      | Op { op = Set { dest = X; _ }; _ } -> true
+      | _ -> false
+    in
+    if sets_x then List.iter (List.range (b + 1) target) ~f:(fun b -> slopes.(b) <- slope));
   slopes
 ;;
 
-let analyse ?period ?period_floor ?single_capture_edge ~config (program : Isa.t list) =
+let analyse
+  ?period
+  ?period_floor
+  ?single_capture_edge
+  ?(max_passes = 256)
+  ~config
+  (program : Isa.t list)
+  =
   if Option.is_some period && Option.is_some period_floor
   then raise_s [%message "BUG: a period or a floor, not both"];
   (* past the program the memory reads zero, [jmp 0], and the pc wraps at its end *)

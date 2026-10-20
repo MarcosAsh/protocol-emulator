@@ -231,7 +231,7 @@ let i2c_sequences ~hold =
   ]
 ;;
 
-(* UM10204 table 10, Standard-mode, at the 100 kHz pio_i2c.pio sets on a 125 MHz clock. A
+(* UM10204 table 11, Standard-mode, at the 100 kHz pio_i2c.pio sets on a 125 MHz clock. A
    slave drives sda only where the machine does not time it; it may stretch scl unless
    [no_stretch]. *)
 let check_i2c ?(no_stretch = []) ~hold program =

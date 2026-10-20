@@ -12,16 +12,12 @@ module Mode = struct
   let all = List.init 4 ~f:of_int
 end
 
-let mosi_pin = Firmware.mosi_pin
-let sck_pin = Firmware.sck_pin
+let mosi_pin = Spi.mosi_pin
+let sck_pin = Spi.sck_pin
 let cs_pin = sck_pin + 1
-let miso_pin = Firmware.miso_pin
+let miso_pin = Spi.miso_pin
 let last = 0x100
-
-let config =
-  { Firmware.spi_config with side_set_count = 2; autopush = true; push_threshold = 8 }
-;;
-
+let config = { Spi.config with side_set_count = 2; autopush = true; push_threshold = 8 }
 let shortest_half = 4
 let shortest_setup = 3
 let longest_setup = 30
@@ -32,14 +28,31 @@ let longest_hold = 36
    have, so every edge is the instruction after a wait. CPHA 0 puts a byte's first bit on
    MOSI before its leading edge, and its last trailing edge leaves MOSI be. The eighth
    [in] autopushes. *)
-let master ~(mode : Mode.t) ~half_period ~setup ~hold =
+let master ~(mode : Mode.t) ~half_period ~setup ~hold ~deselect =
   if setup < shortest_setup || setup > longest_setup
   then raise_s [%message "BUG: setup out of range" (setup : int)];
   if hold < shortest_hold || hold > longest_hold
   then raise_s [%message "BUG: hold out of range" (hold : int)];
+  if deselect > 248 then raise_s [%message "BUG: deselect out of range" (deselect : int)];
   let idle = Bool.to_int mode.cpol in
   let active = 1 - idle in
   let deselected = 2 lor idle in
+  (* CS high [deselect] cycles from its rise, when the 9 back to idle are short: no loop,
+     which would hide the time from the kernel's spacing, but adds of up to 31 through x *)
+  let rest_while_deselected =
+    if deselect <= 9
+    then ""
+    else (
+      let parts = (deselect + 30) / 31 in
+      let part = deselect / parts in
+      let rec small n = if n = 0 then [] else Int.min n 7 :: small (n - Int.min n 7) in
+      [ "    mov t, now"; [%string "    set x, %{part#Int}"] ]
+      @ List.init parts ~f:(fun _ -> "    add t, x")
+      @ List.map (small (deselect - (parts * part))) ~f:(sprintf "    add t, %d")
+      @ [ "    wait t" ]
+      |> List.map ~f:(fun line -> [%string "%{line} side %{deselected#Int}\n"])
+      |> String.concat)
+  in
   let first, leading, trailing, last_trailing =
     if mode.cpha
     then "nop", "out pins, 1", "in pins, 1", "in pins, 1"
@@ -49,6 +62,7 @@ let master ~(mode : Mode.t) ~half_period ~setup ~hold =
     {|
     .side_set 2
     set p, %{half_period#Int} side %{deselected#Int}
+    mov isr, null side %{deselected#Int}    ; the chip keeps isr from the program before
 idle:
     wait tx side %{deselected#Int}
     pull side %{deselected#Int}
@@ -83,7 +97,7 @@ deselect:
     add t, x side %{idle#Int}
     wait t side %{idle#Int}
     nop side %{deselected#Int}             ; CS rises
-    jmp idle
+%{rest_while_deselected}    jmp idle
 |}]
 ;;
 
@@ -214,3 +228,177 @@ module Device = struct
     else clock t ~sck ~mosi
   ;;
 end
+
+(* the W25Q64JV's tRES1 after ABh, kept by every frame *)
+let deselect = Bench.cycles_in ~us:3
+
+let bench mode =
+  let n = Mode.to_int mode
+  and half = Bench.spi_half in
+  { Bench.name = [%string "spi_cs_mode%{n#Int}"]
+  ; what =
+      [%string
+        "Spi_cs.master in mode %{n#Int}, half period %{half#Int}: SCK at %{Bench.rate (2 \
+         * half)} on OUT5, MOSI on OUT4, MISO on IN0, CS on OUT6 4 cycles before the \
+         first edge and 8 after the last, and high %{Bench.time deselect} between frames"]
+  ; source = master ~mode ~half_period:half ~setup:4 ~hold:8 ~deselect
+  ; config = Bench.on_spi_pins config
+  ; assumption = Nothing
+  ; clock_hz = Bench.clock_hz
+  ; load = None
+  ; stimulus = None
+  }
+;;
+
+(* W25Q64JV: CLK high and low are 45% of the 20 ns of 03h's 50 MHz, the strictest reading;
+   CS high is tRES1's 3 us, which a read after ABh needs and every frame keeps *)
+let limits firmware =
+  let sheet page =
+    { Datasheet.Sheet.part = "W25Q64JV"; document = "Winbond Rev. M"; page }
+  in
+  let sck = Datasheet.side_pin
+  and cs config = Datasheet.side_pin config + 1 in
+  let pair ?hold ?apart () =
+    Datasheet.Bound.Kernel
+      (fun config -> Datasheet.spacing ?hold ?apart ~a:(sck config) ~b:(cs config) ())
+  in
+  let cs_pair ?hold ?apart () =
+    Datasheet.Bound.Kernel
+      (fun config n ->
+        Datasheet.swap
+          (Datasheet.spacing ?hold ?apart ~a:(cs config) ~b:(sck config) () n))
+  in
+  let limit parameter ns page bound =
+    { Datasheet.firmware
+    ; parameter
+    ; limit = At_least ns
+    ; sheet = sheet page
+    ; margin = Cycle
+    ; bound
+    }
+  in
+  [ limit "tCLH" 9. "p.64" (pair ~hold:(fun ~own ~other -> own && not other) ())
+  ; limit "tCLL" 9. "p.64" (pair ~hold:(fun ~own ~other -> (not own) && not other) ())
+  ; limit "tSLCH" 3. "p.64" (pair ~apart:(fun ~own:_ ~other -> not other) ())
+  ; limit "tCHSH" 3. "p.64" (cs_pair ~apart:(fun ~own ~other:_ -> not own) ())
+  ; limit "tSHSL2" 50. "p.64" (cs_pair ~hold:(fun ~own ~other:_ -> own) ())
+  ; limit "tRES1" 3_000. "p.65" (cs_pair ~hold:(fun ~own ~other:_ -> own) ())
+  ]
+;;
+
+open Pin_trace
+module Reg = Protocol_emulator.Host_port.Reg
+
+(* The bench's chip-select master in [mode], at 3 MHz on its pins, against a slave of that
+   mode, three frames: sigrok frames each transfer by CS. The decoders join once CS has
+   been high a while. *)
+let scenario mode =
+  let bench = bench mode in
+  let half_period = Bench.spi_half
+  and mosi_pin = bench.config.out_base
+  and sck_pin = bench.config.side_set_base in
+  let cs_pin = sck_pin + 1 in
+  let frames = [ [ 0x9f; 0x00; 0x00; 0x00 ]; [ 0xa5 ]; [ 0x3c; 0xc3 ] ] in
+  let replies frame =
+    0x5a :: List.map (List.drop_last_exn frame) ~f:(fun byte -> lnot byte land 0xff)
+  in
+  let peer () =
+    let device = ref (Device.create ~mode ~first:0x5a) in
+    { Peer.inputs = (fun () -> Device.miso !device lsl miso_pin)
+    ; step =
+        (fun ~pin_out ~pin_dir:_ ->
+          device
+          := Device.step
+               !device
+               ~cs:(Peer.bit pin_out cs_pin)
+               ~sck:(Peer.bit pin_out sck_pin)
+               ~mosi:(Peer.bit pin_out mosi_pin))
+    }
+  in
+  let send frame =
+    [ Step.Write (Reg.tx, words frame)
+    ; Run ((List.length frame * 20 * half_period) + 200)
+    ; Read (Reg.rx, List.length frame)
+    ]
+  in
+  let transfers bytes =
+    Sigrok.lines
+      "spi"
+      (List.map bytes ~f:(fun b ->
+         String.concat ~sep:" " (List.map b ~f:(sprintf "%02X"))))
+  in
+  { Scenario.name = [%string "spi_mode%{Mode.to_int mode#Int}"]
+  ; peer
+  ; script =
+      Scenario.load ~config:bench.config ~program:(Firmware.assemble bench.source) ()
+      @ [ Scenario.start; Run 200 ]
+      @ List.concat_map frames ~f:send
+  ; sigrok =
+      Some
+        { clock_hz = 48_000_000
+        ; decoders =
+            [ Sigrok.decoder
+                "spi"
+                ~pins:[ "cs", cs_pin; "clk", sck_pin; "mosi", mosi_pin; "miso", miso_pin ]
+                ~options:
+                  [ "cpol", Int.to_string (Bool.to_int mode.cpol)
+                  ; "cpha", Int.to_string (Bool.to_int mode.cpha)
+                  ]
+            ]
+        ; expect =
+            [ "spi=mosi-transfer", transfers frames
+            ; "spi=miso-transfer", transfers (List.map frames ~f:replies)
+            ]
+        ; joins_after =
+            Some
+              ( 100
+              , { why =
+                    "CS is low from reset until the firmware starts, which sigrok reads \
+                     as a transfer with no bytes"
+                ; first_difference = 0
+                ; reads = "spi-1: "
+                } )
+        ; rejected = None
+        ; (* The first bit inverted, and the first frame's CS rise moved two bits early *)
+          teeth =
+            [ [ Flip { pin = mosi_pin; edge = 0; after = 0; cycles = 2 * half_period } ]
+            ; [ Shift { pin = cs_pin; edge = 2; cycles = -4 * half_period } ]
+            ]
+        }
+  }
+;;
+
+let protocol =
+  { Protocol.name = "spi_cs"
+  ; certified =
+      List.map Mode.all ~f:(fun mode ->
+        let bench = bench mode in
+        Certified.plain ~no_wrap:true bench.name bench.source bench.config)
+      (* the flash demo's master on Spi_cs.config's own pins, not the bench's *)
+      @ List.map Mode.all ~f:(fun mode ->
+        Certified.plain
+          ~no_wrap:true
+          [%string "spi_cs_mode%{Mode.to_int mode#Int}_default_pins"]
+          (master ~mode ~half_period:Bench.spi_half ~setup:4 ~hold:8 ~deselect)
+          config)
+  ; time_triggered = []
+  ; bench = List.map Mode.all ~f:bench
+  ; loaded_from_hex = []
+  ; limits =
+      List.concat_map Mode.all ~f:(fun mode ->
+        limits [%string "spi_cs_mode%{Mode.to_int mode#Int}"])
+  ; unlimited = []
+  ; swept = []
+  ; not_swept =
+      List.map Mode.all ~f:(fun mode ->
+        ( (bench mode).name
+        , "the bench's SPI demo, certified as it loads; the sweep has not stamped it on \
+           the board" ))
+      @ List.map Mode.all ~f:(fun mode ->
+        ( [%string "spi_cs_mode%{Mode.to_int mode#Int}_default_pins"]
+        , "not stamped: its decoded runs judge each mode, and both_roles.ml runs it \
+           against Spi_target" ))
+  ; scenarios = []
+  ; decoded = List.map Mode.all ~f:scenario
+  }
+;;

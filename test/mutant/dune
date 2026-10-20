@@ -1,0 +1,11 @@
+(executables
+ (names prove_mutant)
+ (libraries
+  core
+  core_unix.command_unix
+  hardcaml_verify
+  protocol_emulator_test)
+ (lint
+  (pps ppx_js_style -check-doc-comments))
+ (preprocess
+  (pps ppx_jane)))

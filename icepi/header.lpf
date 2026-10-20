@@ -40,9 +40,11 @@ LOCATE COMP "uio[0]" SITE "E1"; # header 29
 IOBUF PORT "uio[0]" IO_TYPE=LVCMOS33 PULLMODE=DOWN;
 LOCATE COMP "uio[1]" SITE "F3"; # header 31
 IOBUF PORT "uio[1]" IO_TYPE=LVCMOS33 PULLMODE=DOWN;
-LOCATE COMP "uio[2]" SITE "E3"; # header 33
+# I2C is SCL on IO2 and SDA on IO3, as on Tiny Tapeout's I2C Pmod; the bench has SDA on
+# header 33 and SCL on 35, so the two cross here
+LOCATE COMP "uio[2]" SITE "E4"; # header 35
 IOBUF PORT "uio[2]" IO_TYPE=LVCMOS33 PULLMODE=DOWN;
-LOCATE COMP "uio[3]" SITE "E4"; # header 35
+LOCATE COMP "uio[3]" SITE "E3"; # header 33
 IOBUF PORT "uio[3]" IO_TYPE=LVCMOS33 PULLMODE=DOWN;
 LOCATE COMP "uio[4]" SITE "D4"; # header 37
 IOBUF PORT "uio[4]" IO_TYPE=LVCMOS33 PULLMODE=DOWN;

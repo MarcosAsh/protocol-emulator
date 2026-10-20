@@ -1,0 +1,68 @@
+[tasks]
+prove_0 prove
+prove_1 prove engine_1
+cover
+no_accepts teeth
+edge_at_entry teeth
+unmasked mutant teeth
+late_mask mutant teeth
+unsticky mutant teeth
+flip_early mutant teeth
+
+[options]
+prove: mode prove
+prove: depth 8
+cover: mode cover
+cover: depth 24
+teeth: mode bmc
+teeth: depth 24
+teeth: expect fail
+
+[engines]
+smtbmc boolector
+
+[script]
+~mutant: read_verilog engines.v
+unmasked: read_verilog unmasked.v
+late_mask: read_verilog late_mask.v
+unsticky: read_verilog unsticky.v
+flip_early: read_verilog flip_early.v
+hierarchy -top engines_top
+proc
+flatten
+cd engines_top
+expose w:engines.engine_?.jmp_go w:engines.engine_?.advance w:engines.engine_?.sample
+expose w:engines.engine_?.captured w:engines.engine_?.start w:engines.engine_?.stop
+rename engines.engine_0.jmp_go eng_jmp_go_0
+rename engines.engine_0.advance eng_advance_0
+rename engines.engine_0.sample eng_sample_0
+rename engines.engine_0.captured eng_captured_0
+rename engines.engine_0.start eng_start_0
+rename engines.engine_0.stop eng_stop_0
+rename engines.engine_1.jmp_go eng_jmp_go_1
+rename engines.engine_1.advance eng_advance_1
+rename engines.engine_1.sample eng_sample_1
+rename engines.engine_1.captured eng_captured_1
+rename engines.engine_1.start eng_start_1
+rename engines.engine_1.stop eng_stop_1
+cd ..
+read -define TABLE CHIP
+engine_1: read -define ENGINE_1
+no_accepts: read -define NO_ACCEPTS
+edge_at_entry: read -define EDGE_AT_ENTRY
+read_verilog kernel_step.v
+read_verilog kernel_accepts.v
+read_verilog -formal -sv phase_step.sv
+prep -flatten -top phase_step
+# a tooth has to fail on the chip's claims, so every other claim is dropped
+teeth: chformal -assert -remove c:* c:on_pads c:stays_released c:certified %u %u %d
+
+[files]
+~mutant: engines.v
+unmasked: fail_safe_teeth/unmasked.v
+late_mask: fail_safe_teeth/late_mask.v
+unsticky: fail_safe_teeth/unsticky.v
+flip_early: fail_safe_teeth/flip_early.v
+kernel_step.v
+kernel_accepts.v
+phase_step.sv

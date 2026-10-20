@@ -230,7 +230,7 @@ let elsewhere =
     {|
     nop
 |}
-      ~config:Firmware.spi_config]
+      ~config:Spi.config]
 ;;
 
 let not_a_field =
@@ -299,9 +299,9 @@ let behind_open =
 |ocaml};
   [%expect
     {xxx|
-    line 23, characters 14-33:
-     23 |       ~config:Firmware.spi_config]
-                        ^^^^^^^^^^^^^^^^^^^
+    line 23, characters 14-24:
+     23 |       ~config:Spi.config]
+                        ^^^^^^^^^^
     [%firmware] checks at compile time, so this has to be a literal, integer arithmetic, a record or a name bound by a top-level let above
     line 31, characters 28-36:
      31 |       ~config:{ config with out_bass = 2 }]
@@ -341,11 +341,11 @@ let behind_open =
 (* The library's literal firmwares, checked as they compiled and again as they load. *)
 let%expect_test "the literal firmwares" =
   List.iter
-    [ "uart_tx16", Firmware.uart_tx16
-    ; "spi_slave", Firmware.spi_slave
-    ; "i2c_slave", Firmware.i2c_slave
-    ; "i2c_logger", Firmware.i2c_logger
-    ; "usb_tx", Firmware.usb_tx
+    [ "uart_tx16", Uart.tx16
+    ; "spi_slave", Spi.slave
+    ; "i2c_slave", I2c.slave
+    ; "i2c_logger", I2c.logger
+    ; "usb_tx", Usb.tx
     ; "ethernet", Ethernet.firmware
     ; "one_wire", One_wire.firmware
     ; "ps2", Ps2.firmware
@@ -355,8 +355,8 @@ let%expect_test "the literal firmwares" =
       print_s [%message name ~_:(Timed_program.verdict timed : Analyser.Verdict.t)]);
   (* the demo's literal is the library's uart_tx at period 16, word for word *)
   [%test_result: int list]
-    (Timed_program.words Firmware.uart_tx16)
-    ~expect:(Firmware.assemble (Firmware.uart_tx ~period:16));
+    (Timed_program.words Uart.tx16)
+    ~expect:(Firmware.assemble (Uart.tx ~period:16));
   [%expect
     {|
     (uart_tx16 ((words 15) (deadline_waits 3) (worst_slack (12))))
@@ -364,7 +364,7 @@ let%expect_test "the literal firmwares" =
     (i2c_slave ((words 72) (deadline_waits 0) (worst_slack ())))
     (i2c_logger ((words 73) (deadline_waits 25) (worst_slack (1))))
     (usb_tx ((words 65) (deadline_waits 11) (worst_slack (16))))
-    (ethernet ((words 24) (deadline_waits 1) (worst_slack (63987))))
+    (ethernet ((words 32) (deadline_waits 1) (worst_slack (63987))))
     (one_wire ((words 48) (deadline_waits 15) (worst_slack (0))))
     (ps2 ((words 65) (deadline_waits 12) (worst_slack (0))))
     (can ((words 56) (deadline_waits 10) (worst_slack (0))))

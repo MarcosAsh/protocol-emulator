@@ -124,18 +124,18 @@ let%expect_test "words the firmware never pulls, and the pins as a VCD" =
     rx: empty
     tx: 9 words never pulled
     faults: none
-    $timescale 1ns $end
+    $timescale 1ps $end
     $scope module core $end
     $var wire 1 ! OUT0 $end
     $upscope $end
     $enddefinitions $end
     #0
     0!
-    #20
+    #20833
     1!
-    #120
+    #125000
     0!
-    #240
+    #250000
     |}]
 ;;
 

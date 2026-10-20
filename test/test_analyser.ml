@@ -14,7 +14,7 @@ let report ?(config = Program_config.default) ?period ?single_capture_edge sourc
 ;;
 
 let%expect_test "uart tx" =
-  report (uart_tx ~period:16);
+  report (Uart.tx ~period:16);
   [%expect
     {|
      0  set p, 16                    phase ?..?
@@ -36,7 +36,7 @@ let%expect_test "uart tx" =
 ;;
 
 let%expect_test "uart rx" =
-  report ~config:rx_config ~single_capture_edge:true (uart_rx ~period:16);
+  report ~config:Uart.rx_config ~single_capture_edge:true (Uart.rx ~period:16);
   [%expect
     {|
      0  set p, 16                    phase ?..?
@@ -62,7 +62,7 @@ let%expect_test "uart rx" =
 ;;
 
 let%expect_test "spi master" =
-  report ~config:spi_config (spi_master ~half_period:8);
+  report ~config:Spi.config (Spi.master ~half_period:8);
   [%expect
     {|
      0  set p, 8 side 0              phase ?..?  side ?..?  jitter ?
@@ -85,7 +85,7 @@ let%expect_test "spi master" =
 ;;
 
 let%expect_test "i2c master" =
-  report ~config:i2c_config (i2c_master ~quarter:8);
+  report ~config:I2c.config (I2c.master ~quarter:8);
   [%expect
     {|
      0  set p, 8 side 0              phase ?..?  side ?..?  jitter ?
@@ -191,7 +191,7 @@ let%expect_test "i2c master" =
 ;;
 
 let%expect_test "a quarter of 5 is too short for the i2c dispatch" =
-  report ~config:i2c_config (i2c_master ~quarter:5);
+  report ~config:I2c.config (I2c.master ~quarter:5);
   [%expect
     {|
      0  set p, 5 side 0              phase ?..?  side ?..?  jitter ?
@@ -297,7 +297,7 @@ let%expect_test "a quarter of 5 is too short for the i2c dispatch" =
 ;;
 
 let%expect_test "i2c logger" =
-  report ~config:i2c_logger_config (Timed_program.source i2c_logger);
+  report ~config:I2c.logger_config (Timed_program.source I2c.logger);
   [%expect
     {|
      0  mov pins, !null side 0       phase ?..?  edge ?..?  jitter ?  side ?..?  jitter ?
@@ -377,7 +377,7 @@ let%expect_test "i2c logger" =
 ;;
 
 let%expect_test "usb tx" =
-  report ~config:usb_config ~period:32 (Timed_program.source usb_tx);
+  report ~config:Usb.config ~period:32 (Timed_program.source Usb.tx);
   [%expect
     {|
      0  pull                         phase ?..?
@@ -450,41 +450,104 @@ let%expect_test "usb tx" =
 
 let%expect_test "usb rx" =
   report
-    ~config:usb_rx_config
+    ~config:Usb.rx_config
     ~period:32
     ~single_capture_edge:true
-    (usb_rx ~half_period:16);
+    (Usb.rx ~half_period:16);
   [%expect
     {|
      0  pull                         phase ?..?
      1  mov p, osr                   phase ?..?
-     2  set y, 1                     phase ?..?
-     3  crc_init                     phase ?..?
-     4  stuff_reset                  phase ?..?
-     5  capture_arm                  phase ?..?
-     6  wait 1 pin 4                 phase ?..?
-     7  mov t, capture               phase ?..?
-     8  add t, 7                     phase 2
-     9  add t, 7                     phase -4
-    10  add t, 2                     phase -10
-    11  jmp stuff, 24                phase -26..-11
-    12  wait t+                      phase -24..-9  slack 9..24
-    13  mov x, pins                  phase -31  sample -31
-    14  jmp x!=y, 18                 phase -30
-    15  set x, 1                     phase -28
-    16  in x, 1                      phase -27
-    17  jmp 11                       phase -26
-    18  mov y, x                     phase -28
-    19  jmp x--, 22                  phase -27
-    20  in crc, 16                   phase -25
-    21  jmp 2                        phase -24
-    22  in null, 1                   phase -25
-    23  jmp 11                       phase -24
-    24  wait t+                      phase -24..-9  slack 9..24
-    25  mov x, pins                  phase -31  sample -31
-    26  mov y, x                     phase -30
-    27  stuff_reset                  phase -29
-    28  jmp 11                       phase -28
+     2  crc_init                     phase ?..?
+     3  stuff_reset                  phase ?..?
+     4  capture_arm                  phase ?..?
+     5  wait 1 pin 4                 phase ?..?
+     6  mov t, capture               phase ?..?
+     7  add t, p                     phase 2
+     8  add t, 7                     phase -29
+     9  add t, 7                     phase -35
+    10  in null, 1                   phase -41
+    11  jmp 18                       phase -40
+    12  wait 1 pin 4                 phase -29
+    13  mov t, capture               phase -28..?
+    14  add t, p                     phase 2..33
+    15  add t, 7                     phase -29..2
+    16  add t, 7                     phase -35..-4
+    17  in null, 1                   phase -41..-10
+    18  jmp stuff, 32                phase -40..-7
+    19  wait t+                      phase -38..-5  slack 5..38
+    20  mov x, pins                  phase -31  sample -31
+    21  jmp x--, 24                  phase -30
+    22  in crc, 16                   phase -28
+    23  jmp 2                        phase -27
+    24  jmp x--, 29                  phase -28
+    25  capture_arm                  phase -26
+    26  jmp pin, 79                  phase -25
+    27  in null, 1                   phase -23
+    28  jmp 41                       phase -22
+    29  set x, 1                     phase -26
+    30  in x, 1                      phase -25
+    31  jmp 18                       phase -24
+    32  wait t+                      phase -38..-5  slack 5..38
+    33  mov x, pins                  phase -31  sample -31
+    34  stuff_reset                  phase -30
+    35  jmp x--, 38                  phase -29
+    36  in crc, 16                   phase -27
+    37  jmp 2                        phase -26
+    38  jmp x--, 18                  phase -27
+    39  capture_arm                  phase -25
+    40  jmp pin, 86                  phase -24
+    41  jmp stuff, 53                phase -22..-19
+    42  wait t+                      phase -20..-17  slack 17..20
+    43  jmp pin, 12                  phase -31
+    44  mov x, pins                  phase -29  sample -29
+    45  jmp x--, 48                  phase -28
+    46  in crc, 16                   phase -26
+    47  jmp 2                        phase -25
+    48  capture_arm                  phase -26
+    49  jmp pin, 70                  phase -25
+    50  set x, 1                     phase -23
+    51  in x, 1                      phase -22
+    52  jmp 41                       phase -21
+    53  wait t+                      phase -20..-17  slack 17..20
+    54  jmp pin, 63                  phase -31
+    55  mov x, pins                  phase -29  sample -29
+    56  stuff_reset                  phase -28
+    57  jmp x--, 60                  phase -27
+    58  in crc, 16                   phase -25
+    59  jmp 2                        phase -24
+    60  capture_arm                  phase -25
+    61  jmp pin, 86                  phase -24
+    62  jmp 41                       phase -22
+    63  wait 1 pin 4                 phase -29
+    64  mov t, capture               phase -28..?
+    65  add t, p                     phase 2..33
+    66  add t, 7                     phase -29..2
+    67  add t, 7                     phase -35..-4
+    68  stuff_reset                  phase -41..-10
+    69  jmp 18                       phase -40..-9
+    70  mov t, now                   phase -23
+    71  add t, p                     phase 1
+    72  add t, 7                     phase -30
+    73  add t, 4                     phase -36
+    74  set x, 1                     phase -39
+    75  in x, 1                      phase -38
+    76  jmp stuff, 18                phase -37
+    77  in null, 1                   phase -35
+    78  jmp 18                       phase -34
+    79  mov t, now                   phase -23
+    80  add t, p                     phase 1
+    81  add t, 7                     phase -30
+    82  add t, 4                     phase -36
+    83  in null, 1                   phase -39
+    84  in null, 1                   phase -38
+    85  jmp 18                       phase -37
+    86  mov t, now                   phase -22
+    87  add t, p                     phase 1
+    88  add t, 7                     phase -30
+    89  add t, 4                     phase -36
+    90  in null, 1                   phase -39
+    91  jmp 18                       phase -38
     |}]
 ;;
 
@@ -496,9 +559,9 @@ let check ?(config = Program_config.default) ?period ?single_capture_edge source
 ;;
 
 let%expect_test "firmware that can miss a deadline is refused" =
-  check ~config:i2c_config (i2c_master ~quarter:8);
+  check ~config:I2c.config (I2c.master ~quarter:8);
   [%expect {| 99 words, 31 deadline waits, worst slack 0 |}];
-  check ~config:i2c_config (i2c_master ~quarter:5);
+  check ~config:I2c.config (I2c.master ~quarter:5);
   [%expect
     {|
     4 of 31 deadline waits may be missed
@@ -508,12 +571,12 @@ let%expect_test "firmware that can miss a deadline is refused" =
      91  wait t+ side 1               phase -1..3  slack -3..1  MAY MISS
     |}];
   (* a program with no deadline to miss *)
-  check ~config:spi_slave_config (Timed_program.source spi_slave);
+  check ~config:Spi.slave_config (Timed_program.source Spi.slave);
   [%expect {| 6 words, 0 deadline waits |}]
 ;;
 
 let%expect_test "a deadline is only as good as what is assumed about the world" =
-  check ~config:rx_config (uart_rx ~period:16);
+  check ~config:Uart.rx_config (Uart.rx ~period:16);
   [%expect
     {|
     2 of 2 deadline waits may be missed
@@ -521,9 +584,9 @@ let%expect_test "a deadline is only as good as what is assumed about the world" 
      15  wait t                       phase -7..?  slack ?..7  MAY MISS
     a bound of ? means none: the way here has a wait for a pin or a fifo, a capture nothing is assumed about, a period the host loads, or a loop that falls further behind on every pass
     |}];
-  check ~config:rx_config ~single_capture_edge:true (uart_rx ~period:16);
+  check ~config:Uart.rx_config ~single_capture_edge:true (Uart.rx ~period:16);
   [%expect {| 19 words, 2 deadline waits, worst slack 7 |}];
-  check (Timed_program.source usb_tx);
+  check (Timed_program.source Usb.tx);
   [%expect
     {|
     11 of 11 deadline waits may be missed
@@ -540,10 +603,10 @@ let%expect_test "a deadline is only as good as what is assumed about the world" 
      60  wait t+                      phase ?..?  slack ?..?  MAY MISS
     a bound of ? means none: the way here has a wait for a pin or a fifo, a capture nothing is assumed about, a period the host loads, or a loop that falls further behind on every pass
     |}];
-  check ~config:usb_config ~period:32 (Timed_program.source usb_tx);
+  check ~config:Usb.config ~period:32 (Timed_program.source Usb.tx);
   [%expect {| 65 words, 11 deadline waits, worst slack 16 |}];
   (* the same firmware at twelve cycles a bit, which its longest path does not fit *)
-  check ~config:usb_config ~period:12 (Timed_program.source usb_tx);
+  check ~config:Usb.config ~period:12 (Timed_program.source Usb.tx);
   [%expect
     {|
     11 of 11 deadline waits may be missed
@@ -573,37 +636,39 @@ let soundness ?period ?preload ~config ~cycles ~seeds words =
     words
 ;;
 
+(* the firmware and what each is analysed under: config, source, period, preloaded words *)
+let corpus =
+  [ "uart tx", Program_config.default, Uart.tx ~period:16, None, []
+  ; "uart tx host rate", Program_config.default, Uart.tx_host_rate, Some 434, [ 434 ]
+  ; "uart rx", Uart.rx_config, Uart.rx ~period:16, None, []
+  ; "spi master", Spi.config, Spi.master ~half_period:8, None, []
+  ; "spi slave", Spi.slave_config, Timed_program.source Spi.slave, None, []
+  ; "i2c master", I2c.config, I2c.master ~quarter:8, None, []
+  ; "i2c slave", I2c.slave_config, Timed_program.source I2c.slave, None, [ 0x50 lsl 1 ]
+  ; "i2c logger", I2c.logger_config, Timed_program.source I2c.logger, None, []
+  ; "usb tx", Usb.config, Timed_program.source Usb.tx, Some 32, [ 32 ]
+  ; "usb rx", Usb.rx_config, Usb.rx ~half_period:16, Some 32, [ 32 ]
+  ; ( "usb device"
+    , Usb.device_config
+    , Usb.device ~address:0 ~half_period:16
+    , Some 32
+    , [ 32 ] )
+  ; "edge meter", Edge_meter.config, Edge_meter.firmware ~period:16, None, []
+  ; "edge logger", edge_logger_config ~pin:0, edge_logger ~pin:0, None, []
+  ; "start hold", I2c.start_hold_config ~scl:1, I2c.start_hold ~sda:0 ~scl:1, None, []
+  ; ( "uart tx, fractional period"
+    , { Program_config.default with period_fraction = 43691 }
+    , Uart.tx_host_rate
+    , Some 16
+    , [ 16 ] )
+  ; "ws2812", Ws2812.config, Ws2812.firmware ~third:6 ~tail:7, None, []
+  ; "1-wire", One_wire.config, Timed_program.source One_wire.firmware, Some 8, [ 8 ]
+  ; "ps/2", Ps2.config, Timed_program.source Ps2.firmware, Some 10, [ 10 ]
+  ; "jtag", Jtag.config, Jtag.firmware ~half_period:Jtag.shortest_half, None, []
+  ]
+;;
+
 let%expect_test "every firmware stays inside its analysis under random stimulus" =
-  let corpus =
-    [ "uart tx", Program_config.default, uart_tx ~period:16, None, []
-    ; "uart tx host rate", Program_config.default, uart_tx_host_rate, Some 434, [ 434 ]
-    ; "uart rx", rx_config, uart_rx ~period:16, None, []
-    ; "spi master", spi_config, spi_master ~half_period:8, None, []
-    ; "spi slave", spi_slave_config, Timed_program.source spi_slave, None, []
-    ; "i2c master", i2c_config, i2c_master ~quarter:8, None, []
-    ; "i2c slave", i2c_slave_config, Timed_program.source i2c_slave, None, [ 0x50 lsl 1 ]
-    ; "i2c logger", i2c_logger_config, Timed_program.source i2c_logger, None, []
-    ; "usb tx", usb_config, Timed_program.source usb_tx, Some 32, [ 32 ]
-    ; "usb rx", usb_rx_config, usb_rx ~half_period:16, Some 32, [ 32 ]
-    ; ( "usb device"
-      , usb_device_config
-      , usb_device ~address:0 ~half_period:16
-      , Some 32
-      , [ 32 ] )
-    ; "edge meter", edge_meter_config, edge_meter ~period:16, None, []
-    ; "edge logger", edge_logger_config ~pin:0, edge_logger ~pin:0, None, []
-    ; "start hold", start_hold_config ~scl:1, start_hold ~sda:0 ~scl:1, None, []
-    ; ( "uart tx, fractional period"
-      , { Program_config.default with period_fraction = 43691 }
-      , uart_tx_host_rate
-      , Some 16
-      , [ 16 ] )
-    ; "ws2812", Ws2812.config, Ws2812.firmware ~third:6 ~tail:7, None, []
-    ; "1-wire", One_wire.config, Timed_program.source One_wire.firmware, Some 8, [ 8 ]
-    ; "ps/2", Ps2.config, Timed_program.source Ps2.firmware, Some 10, [ 10 ]
-    ; "jtag", Jtag.config, Jtag.firmware ~half_period:Jtag.shortest_half, None, []
-    ]
-  in
   List.iter corpus ~f:(fun (name, config, source, period, preload) ->
     let words = assemble source in
     let { Soundness.issues; side_edges; reached; violations; _ } =
@@ -633,7 +698,7 @@ let%expect_test "every firmware stays inside its analysis under random stimulus"
     ("i2c logger" (issues 6752) (reached 73/73) (side_edges 1200)
      (violations ()))
     ("usb tx" (issues 4466) (reached 38/65) (side_edges 0) (violations ()))
-    ("usb rx" (issues 8302) (reached 24/29) (side_edges 0) (violations ()))
+    ("usb rx" (issues 7083) (reached 73/92) (side_edges 0) (violations ()))
     ("usb device" (issues 5809) (reached 271/470) (side_edges 0) (violations ()))
     ("edge meter" (issues 6016) (reached 12/12) (side_edges 0) (violations ()))
     ("edge logger" (issues 16848) (reached 8/8) (side_edges 0) (violations ()))
@@ -641,7 +706,7 @@ let%expect_test "every firmware stays inside its analysis under random stimulus"
     ("uart tx, fractional period" (issues 4796) (reached 17/17) (side_edges 0)
      (violations ()))
     (ws2812 (issues 7368) (reached 31/32) (side_edges 0) (violations ()))
-    (1-wire (issues 4929) (reached 48/48) (side_edges 0) (violations ()))
+    (1-wire (issues 4954) (reached 48/48) (side_edges 0) (violations ()))
     (ps/2 (issues 6973) (reached 64/65) (side_edges 0) (violations ()))
     (jtag (issues 15071) (reached 15/15) (side_edges 4909) (violations ()))
     |}]
@@ -674,11 +739,11 @@ let%expect_test "a fractional period" =
   Timing_report.print
     ~config:{ Program_config.default with period_fraction = 43691 }
     ~period:416
-    uart_tx_host_rate;
+    Uart.tx_host_rate;
   report
     ~config:{ Program_config.default with period_fraction = 43691 }
     ~period:416
-    uart_tx_host_rate;
+    Uart.tx_host_rate;
   [%expect
     {|
       3  set pins, 1                  phase ?..?  edge ?..?  jitter ?  gap ?..?
@@ -911,7 +976,7 @@ next:
 ;;
 
 let%expect_test "edge meter" =
-  report ~config:edge_meter_config (edge_meter ~period:16);
+  report ~config:Edge_meter.config (Edge_meter.firmware ~period:16);
   [%expect
     {|
      0  set p, 16                    phase ?..?
@@ -952,12 +1017,12 @@ let%expect_test "a wrapped loop toggles every two cycles with no jitter" =
 ;;
 
 let%expect_test "usb device" =
-  let program = Asm.assemble (usb_device ~address:0 ~half_period:16) |> ok_exn in
+  let program = Asm.assemble (Usb.device ~address:0 ~half_period:16) |> ok_exn in
   let rows =
     Analyser.analyse
       ~period:32
       ~single_capture_edge:true
-      ~config:(Asm.Program.configure program usb_device_config)
+      ~config:(Asm.Program.configure program Usb.device_config)
       program.instructions
   in
   let report = Analyser.to_string ~side_set_count:0 rows |> String.split_lines in
@@ -1021,7 +1086,7 @@ let%expect_test "a capture is only as young as the arm once a wait has seen the 
     \    jmp 0\n"
   in
   let program = Asm.assemble source |> ok_exn in
-  let config = Asm.Program.configure program Firmware.rx_config in
+  let config = Asm.Program.configure program Uart.rx_config in
   print_s
     [%message
       (Analyser.check ~single_capture_edge:true ~config program
@@ -1062,7 +1127,7 @@ let%expect_test "only the first wait after the arm sees the captured edge" =
     \    jmp 0\n"
   in
   let program = Asm.assemble source |> ok_exn in
-  let config = Asm.Program.configure program Firmware.rx_config in
+  let config = Asm.Program.configure program Uart.rx_config in
   print_s
     [%message
       (Analyser.check ~single_capture_edge:true ~config program
@@ -1085,5 +1150,559 @@ let%expect_test "only the first wait after the arm sees the captured edge" =
     ("(!t).fault"
      ((underflow false) (overflow false) (missed_deadline true) (decode false)
       (assumption false)))
+    |}]
+;;
+
+let rows
+  ?(config = Program_config.default)
+  ?period
+  ?period_floor
+  ?single_capture_edge
+  ?max_passes
+  source
+  =
+  let program = Asm.assemble source |> ok_exn in
+  Analyser.analyse
+    ?period
+    ?period_floor
+    ?single_capture_edge
+    ?max_passes
+    ~config:(Asm.Program.configure program config)
+    program.instructions
+;;
+
+(* a line per row with what [f] picks out of it, for the fields the report leaves out *)
+let print_rows rows ~f =
+  List.iter rows ~f:(fun (r : Analyser.Row.t) ->
+    printf "%3d  %-28s %s\n" r.pc (Asm.to_string ~side_set_count:0 r.instruction) (f r))
+;;
+
+(* rx_config captures pin 0 falling; a wait on another pin, or for anything else, leaves
+   the arm awaiting *)
+let%expect_test "only a wait for the captured edge on the capture pin sees it" =
+  let source =
+    {|
+    wait 1 pin 0
+    capture_arm
+    wait tx
+    wait 0 pin 3
+    wait fall pin 3
+    wait fall pin 0
+    capture_arm
+    wait 0 pin 0
+    halt
+|}
+  in
+  List.iter [ true; false ] ~f:(fun single_capture_edge ->
+    print_s [%message (single_capture_edge : bool)];
+    print_rows (rows ~config:Uart.rx_config ~single_capture_edge source) ~f:(fun r ->
+      sprintf "awaiting %b  captured %b" r.awaiting r.captured));
+  [%expect
+    {|
+    (single_capture_edge true)
+      0  wait 1 pin 0                 awaiting false  captured false
+      1  capture_arm                  awaiting false  captured false
+      2  wait tx                      awaiting true  captured false
+      3  wait 0 pin 3                 awaiting true  captured false
+      4  wait fall pin 3              awaiting true  captured false
+      5  wait fall pin 0              awaiting true  captured false
+      6  capture_arm                  awaiting false  captured true
+      7  wait 0 pin 0                 awaiting true  captured false
+      8  halt                         awaiting false  captured true
+    (single_capture_edge false)
+      0  wait 1 pin 0                 awaiting false  captured false
+      1  capture_arm                  awaiting false  captured false
+      2  wait tx                      awaiting true  captured false
+      3  wait 0 pin 3                 awaiting true  captured false
+      4  wait fall pin 3              awaiting true  captured false
+      5  wait fall pin 0              awaiting true  captured false
+      6  capture_arm                  awaiting true  captured false
+      7  wait 0 pin 0                 awaiting true  captured false
+      8  halt                         awaiting true  captured false
+    |}]
+;;
+
+(* The slope is the cycles a pass falls behind: what each instruction adds to the phase,
+   and none for a loop with a jump that stays inside it. *)
+let%expect_test "counted loops of every shape" =
+  let source =
+    {|
+    set y, 2
+    set p, 4
+    mov t, now
+    set x, 1
+    nop
+    set x, 3
+a:
+    add t, 5
+    add t, y
+    add t, p
+    sub t, 1
+    jmp x--, a
+    set x, 3
+b:
+    jmp x--, b
+    set x, 3
+c:
+    jmp pin, c
+    jmp x--, c
+    set x, 3
+d:
+    jmp pin, e
+e:
+    jmp x--, d
+    halt
+|}
+  in
+  print_rows (rows source) ~f:(fun r ->
+    sprintf
+      "phase %s  slope %d  offset %s"
+      (Interval.to_string r.phase)
+      r.slope
+      (Interval.to_string r.offset));
+  [%expect
+    {|
+     0  set y, 2                     phase ?..?  slope 0  offset ?..?
+     1  set p, 4                     phase ?..?  slope 0  offset ?..?
+     2  mov t, now                   phase ?..?  slope 0  offset ?..?
+     3  set x, 1                     phase 1  slope 0  offset ?..?
+     4  nop                          phase 2  slope 0  offset ?..?
+     5  set x, 3                     phase 3  slope 0  offset ?..?
+     6  add t, 5                     phase ?..4  slope 4  offset -8
+     7  add t, y                     phase ?..0  slope 4  offset -12
+     8  add t, p                     phase ?..-1  slope 4  offset -13
+     9  sub t, 1                     phase ?..-4  slope 4  offset -16
+    10  jmp x--, 6                   phase ?..-2  slope 4  offset -14
+    11  set x, 3                     phase -12  slope 0  offset ?..?
+    12  jmp x--, 12                  phase -11..?  slope -2  offset -5
+    13  set x, 3                     phase -3  slope 0  offset ?..?
+    14  jmp pin, 14                  phase -2..?  slope 0  offset ?..?
+    15  jmp x--, 14                  phase 0..?  slope 0  offset ?..?
+    16  set x, 3                     phase 2..?  slope 0  offset ?..?
+    17  jmp pin, 18                  phase 3..?  slope 0  offset ?..?
+    18  jmp x--, 17                  phase 5..?  slope 0  offset ?..?
+    19  halt                         phase 7..?  slope 0  offset ?..?
+    |}]
+;;
+
+(* Unlike a jump into a loop of the same slope, one into a loop of another slope carries
+   no offset: the phase it falls through at is no tighter than the drift allows. *)
+let%expect_test "a counted loop may jump out into another of another slope" =
+  let source =
+    {|
+    set p, 31
+    mov t, now
+    set x, 3
+a:
+    jmp pin, b
+    nop
+    jmp x--, a
+    add t, p
+    wait t
+    jmp 0
+b:
+    nop [3]
+    jmp x--, b
+    add t, p
+    wait t
+    jmp 0
+|}
+  in
+  print_rows (rows source) ~f:(fun r ->
+    sprintf
+      "phase %s  slope %d  offset %s"
+      (Interval.to_string r.phase)
+      r.slope
+      (Interval.to_string r.offset));
+  [%expect
+    {|
+     0  set p, 31                    phase ?..?  slope 0  offset ?..?
+     1  mov t, now                   phase ?..?  slope 0  offset ?..?
+     2  set x, 3                     phase 1  slope 0  offset ?..?
+     3  jmp pin, 9                   phase 2..?  slope -5  offset 17
+     4  nop                          phase 4..?  slope -5  offset 19
+     5  jmp x--, 3                   phase 5..?  slope -5  offset 20
+     6  add t, p                     phase 22  slope 0  offset ?..?
+     7  wait t                       phase -8  slope 0  offset ?..?
+     8  jmp 0                        phase 1  slope 0  offset ?..?
+     9  nop [3]                      phase 4..?  slope -6  offset ?..?
+    10  jmp x--, 9                   phase 8..?  slope -6  offset ?..?
+    11  add t, p                     phase 10..?  slope 0  offset ?..?
+    12  wait t                       phase -20..?  slope 0  offset ?..?
+    13  jmp 0                        phase 1..?  slope 0  offset ?..?
+    |}]
+;;
+
+(* [now - t] is compared signed over the timer's width, so a deadline further ahead than
+   half of it reads as passed. *)
+let%expect_test "a deadline half the timer ahead" =
+  let source = {|
+    mov p, osr
+    mov t, now
+    add t, p
+    wait t
+    halt
+|} in
+  let half = 1 lsl (Isa.timer_bits - 1) in
+  List.iter
+    [ (half / 2) + 3; half + 2; half + 3 ]
+    ~f:(fun period ->
+      rows ~period source
+      |> List.filter ~f:(fun r -> Option.is_some r.slack)
+      |> Analyser.to_string ~side_set_count:0
+      |> print_endline);
+  [%expect
+    {|
+    3  wait t                       phase -4194305  slack 4194305
+    3  wait t                       phase -8388608  slack 8388608
+    3  wait t                       phase -8388609  slack 8388609  MAY MISS
+    |}]
+;;
+
+let%expect_test "a period floor leaves a load no higher than a data word" =
+  print_rows (rows ~period_floor:100 "    mov p, osr\n    halt\n") ~f:(fun r ->
+    "period " ^ Interval.to_string r.period);
+  [%expect
+    {|
+    0  mov p, osr                   period 0..65535
+    1  halt                         period 100..65535
+    |}]
+;;
+
+(* x is 1 or 3, never 10; y is 3, never 0 *)
+let%expect_test "a jump on register ranges the analysis knows goes one way" =
+  report
+    {|
+    set y, 10
+    set x, 1
+    jmp pin, a
+    set x, 3
+a:
+    jmp x!=y, c
+    set pins, 1
+c:
+    set y, 3
+    jmp y--, d
+    set pins, 0
+d:
+    halt
+|};
+  [%expect
+    {|
+    0  set y, 10                    phase ?..?
+    1  set x, 1                     phase ?..?
+    2  jmp pin, 4                   phase ?..?
+    3  set x, 3                     phase ?..?
+    4  jmp x!=y, 6                  phase ?..?
+    6  set y, 3                     phase ?..?
+    7  jmp y--, 9                   phase ?..?
+    9  halt                         phase ?..?
+    |}]
+;;
+
+(* a data pull may come straight after a seek on the way where the out reaches the
+   threshold *)
+let%expect_test "an autopull that comes on some ways in" =
+  report
+    ~config:
+      { Program_config.default with
+        autopull = true
+      ; pull_threshold = 8
+      ; autopull_data = true
+      }
+    {|
+    pull
+    jmp pin, b
+    out null, 8
+b:
+    seek
+    out x, 1
+    halt
+|};
+  [%expect
+    {|
+    0  pull                         phase ?..?
+    1  jmp pin, 3                   phase ?..?
+    2  out null, 8                  phase ?..?
+    3  seek                         phase ?..?
+    4  out x, 1                     phase ?..?  MAY UNDERRUN
+    5  halt                         phase ?..?
+    |}]
+;;
+
+(* side-set keeps its level across a write unless the write reaches one of its pins *)
+let%expect_test "side-set holds across a write to other pins" =
+  (* the second of two side-set pins is the set pin *)
+  report
+    ~config:
+      { Program_config.default with side_set_count = 2; side_set_base = 5; set_base = 6 }
+    {|
+    .side_set 2
+    nop side 0
+    set pins, 1 side 0
+    nop side 0
+    halt side 0
+|};
+  (* a Manchester bit drives out_base and the pin beside it, not side-set's *)
+  report
+    ~config:
+      { Program_config.default with
+        side_set_count = 1
+      ; side_set_base = 10
+      ; manchester = true
+      }
+    {|
+    .side_set 1
+    set x, 1 side 0
+    mov osr, x side 0
+    out pins, 1 side 0
+    nop side 0
+    halt side 0
+|};
+  (* side-set drives levels, so a write to the same pin's direction leaves it *)
+  report
+    ~config:{ Program_config.default with side_set_count = 1 }
+    {|
+    .side_set 1
+    nop side 0
+    out pindirs, 1 side 0
+    nop side 0
+    halt side 0
+|};
+  (* a set, out or mov to pins side-set does not drive leaves its level, so the same side
+     makes no edge after it *)
+  report
+    ~config:
+      { Program_config.default with
+        side_set_count = 1
+      ; side_set_base = 5
+      ; set_base = 7
+      ; out_base = 7
+      ; out_count = 1
+      }
+    {|
+    .side_set 1
+    nop side 0
+    set pins, 1 side 0
+    nop side 0
+    mov pins, x side 0
+    nop side 0
+    out pins, 1 side 0
+    nop side 0
+    halt side 0
+|};
+  [%expect
+    {|
+    0  nop side 0                   phase ?..?  side ?..?  jitter ?
+    1  set pins, 1 side 0           phase ?..?  edge ?..?  jitter ?  gap ?..?
+    2  nop side 0                   phase ?..?  side ?..?  jitter ?
+    3  halt side 0                  phase ?..?
+    0  set x, 1 side 0              phase ?..?  side ?..?  jitter ?
+    1  mov osr, x side 0            phase ?..?
+    2  out pins, 1 side 0           phase ?..?  edge ?..?  jitter ?  gap ?..?
+    3  nop side 0                   phase ?..?  flip ?..?  jitter ?  gap 1
+    4  halt side 0                  phase ?..?
+    0  nop side 0                   phase ?..?  side ?..?  jitter ?
+    1  out pindirs, 1 side 0        phase ?..?  edge ?..?  jitter ?  gap ?..?
+    2  nop side 0                   phase ?..?
+    3  halt side 0                  phase ?..?
+    0  nop side 0                   phase ?..?  side ?..?  jitter ?
+    1  set pins, 1 side 0           phase ?..?  edge ?..?  jitter ?  gap ?..?
+    2  nop side 0                   phase ?..?
+    3  mov pins, x side 0           phase ?..?  edge ?..?  jitter ?  gap 2
+    4  nop side 0                   phase ?..?
+    5  out pins, 1 side 0           phase ?..?  edge ?..?  jitter ?  gap 2
+    6  nop side 0                   phase ?..?
+    7  halt side 0                  phase ?..?
+    |}]
+;;
+
+(* Widening drops a bound that moves again after [max_passes] changes at an address, so a
+   program that settles sooner is unaffected. For each firmware, the fewest passes that
+   lose nothing, as every more lose nothing too. *)
+let%expect_test "an analysis widens only what has not settled by max_passes" =
+  List.iter corpus ~f:(fun (name, config, source, period, _) ->
+    let text max_passes =
+      let program = Asm.assemble source |> ok_exn in
+      rows ~config ?period ~max_passes source
+      |> Analyser.to_string ~side_set_count:program.side_set_count
+    in
+    let settled = text 256 in
+    let lossless = List.init 64 ~f:(fun passes -> String.equal (text passes) settled) in
+    let enough =
+      List.findi_exn lossless ~f:(fun n _ -> List.for_all (List.drop lossless n) ~f:Fn.id)
+      |> fst
+    in
+    printf "%s: nothing lost from %d passes\n" name enough);
+  [%expect
+    {|
+    uart tx: nothing lost from 1 passes
+    uart tx host rate: nothing lost from 1 passes
+    uart rx: nothing lost from 0 passes
+    spi master: nothing lost from 1 passes
+    spi slave: nothing lost from 0 passes
+    i2c master: nothing lost from 26 passes
+    i2c slave: nothing lost from 1 passes
+    i2c logger: nothing lost from 2 passes
+    usb tx: nothing lost from 11 passes
+    usb rx: nothing lost from 1 passes
+    usb device: nothing lost from 8 passes
+    edge meter: nothing lost from 1 passes
+    edge logger: nothing lost from 0 passes
+    start hold: nothing lost from 0 passes
+    uart tx, fractional period: nothing lost from 1 passes
+    ws2812: nothing lost from 2 passes
+    1-wire: nothing lost from 1 passes
+    ps/2: nothing lost from 1 passes
+    jtag: nothing lost from 1 passes
+    |}]
+;;
+
+(* A bound widening drops on the cycles since the data pointer moved is no bound, so the
+   data pull it guards may underrun; settled, the loop's own delay and the seek's keep
+   every pull clear. *)
+let%expect_test "a data pull may underrun once widening drops its settle bound" =
+  let config =
+    { Program_config.default with
+      autopull = true
+    ; pull_threshold = 8
+    ; autopull_data = true
+    }
+  in
+  let source = {|
+    seek [7]
+loop:
+    out pins, 8 [3]
+    jmp loop
+|} in
+  List.iter [ 256; 0 ] ~f:(fun max_passes ->
+    printf "max_passes %d\n" max_passes;
+    rows ~config ~max_passes source
+    |> print_rows ~f:(fun r -> if r.may_underrun then "MAY UNDERRUN" else ""));
+  [%expect
+    {|
+    max_passes 256
+      0  seek [7]
+      1  out pins, 8 [3]
+      2  jmp 1
+    max_passes 0
+      0  seek [7]
+      1  out pins, 8 [3]              MAY UNDERRUN
+      2  jmp 1
+    |}]
+;;
+
+(* A write to y the analyser cannot follow leaves it anything a 16-bit register holds. *)
+let%expect_test "y after a write the analyser cannot follow" =
+  rows
+    {|
+    set y, 5
+    mov y, osr
+    set y, 5
+    out y, 4
+    set y, 5
+    add y, 1
+    halt
+|}
+  |> print_rows ~f:(fun r -> "y " ^ Interval.to_string r.y);
+  [%expect
+    {|
+    0  set y, 5                     y ?..?
+    1  mov y, osr                   y 5
+    2  set y, 5                     y 0..65535
+    3  out y, 4                     y 5
+    4  set y, 5                     y 0..65535
+    5  add y, 1                     y 5
+    6  halt                         y 0..65535
+    |}]
+;;
+
+(* The data memory needs [Isa.data_settle] cycles after a seek: a pull that many cycles on
+   is clear, one a cycle sooner may underrun, as the core has it. *)
+let%expect_test "a data pull is clear from data_settle cycles after a seek" =
+  let config =
+    { Program_config.default with
+      autopull = true
+    ; pull_threshold = 8
+    ; autopull_data = true
+    }
+  in
+  List.iter [ "seek"; "seek [1]" ] ~f:(fun seek ->
+    let source = [%string {|
+    %{seek}
+    out pins, 8
+    halt
+|}] in
+    rows ~config source
+    |> print_rows ~f:(fun r -> if r.may_underrun then "MAY UNDERRUN" else "");
+    let program = Asm.assemble source |> ok_exn in
+    let machine =
+      Machine.create
+        ~config:(Asm.Program.configure program config)
+        ~program:(Asm.Program.words program |> ok_exn)
+      |> ok_exn
+    in
+    let machine = Machine.load_data machine [ 0x1234 ] |> ok_exn in
+    let machine = Fn.apply_n_times ~n:8 (fun m -> Machine.step m ~inputs:0) machine in
+    print_s [%message "core" ~underflow:(machine.fault.underflow : bool)]);
+  [%expect
+    {|
+      0  seek
+      1  out pins, 8                  MAY UNDERRUN
+      2  halt
+    (core (underflow true))
+      0  seek [1]
+      1  out pins, 8
+      2  halt
+    (core (underflow false))
+    |}]
+;;
+
+(* An out with exactly the threshold shifted always autopulls first, so the short out
+   after it finds a fresh word and takes none, as the core has it. *)
+let%expect_test "an out at exactly the threshold always autopulls" =
+  let config =
+    { Program_config.default with
+      autopull = true
+    ; pull_threshold = 8
+    ; autopull_data = true
+    }
+  in
+  let source =
+    {|
+    seek [7]
+    mov osr, null
+    out null, 8
+    out null, 4
+    out null, 2
+    halt
+|}
+  in
+  rows ~config source
+  |> print_rows ~f:(fun r -> if r.may_underrun then "MAY UNDERRUN" else "");
+  let program = Asm.assemble source |> ok_exn in
+  let machine =
+    Machine.create
+      ~config:(Asm.Program.configure program config)
+      ~program:(Asm.Program.words program |> ok_exn)
+    |> ok_exn
+  in
+  let machine = Machine.load_data machine [ 0x1234; 0x5678 ] |> ok_exn in
+  let machine = Fn.apply_n_times ~n:16 (fun m -> Machine.step m ~inputs:0) machine in
+  print_s
+    [%message
+      "core"
+        ~underflow:(machine.fault.underflow : bool)
+        ~data_ptr:(machine.data_ptr : int)
+        ~osr_count:(machine.osr_count : int)];
+  [%expect
+    {|
+      0  seek [7]
+      1  mov osr, null
+      2  out null, 8
+      3  out null, 4
+      4  out null, 2
+      5  halt
+    (core (underflow false) (data_ptr 1) (osr_count 6))
     |}]
 ;;

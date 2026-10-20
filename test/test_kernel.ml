@@ -148,8 +148,8 @@ let accepted_rows_hold ?(check_spacing = Fn.id) ~step_edge () =
      in that arithmetic: after [set x, v] the offset is [phase' - slope * v]; where x is
      zero it is the phase; and with the slope the same, the offset moves as the phase does
      where x stays, and a slope further where x is one less. The proof is sound only
-     because they hold. Each is stated only where the kernel needs it, which leaves it
-     true and SAT finds far easier. *)
+     because they hold, which formal/offset_axioms.smt2 proves. Each is stated only where
+     the kernel needs it, which leaves it true and SAT finds far easier. *)
   let offset = G.input "offset" Isa.timer_bits in
   let next_offset = G.input "next_offset" Isa.timer_bits in
   let target_offset = G.input "target_offset" Isa.timer_bits in
@@ -672,7 +672,7 @@ let check ?(at_pc_0 = Fn.id) ?spacing (c : Certified.t) =
 ;;
 
 let%expect_test "the kernel on the firmware library, from the analyser's rows" =
-  List.iter Certified.all ~f:(fun (c : Certified.t) ->
+  List.iter Library.certified ~f:(fun (c : Certified.t) ->
     let verdict = check c in
     print_s [%message c.name (verdict : unit Or_error.t)]);
   [%expect
@@ -681,16 +681,22 @@ let%expect_test "the kernel on the firmware library, from the analyser's rows" =
     (uart_tx16 (verdict (Ok ())))
     (uart_tx_host_rate (verdict (Ok ())))
     (uart_rx (verdict (Ok ())))
+    (uart_rx_host_rate (verdict (Ok ())))
     (spi_master (verdict (Ok ())))
     (spi_slave (verdict (Ok ())))
     (i2c_master (verdict (Ok ())))
     (i2c_slave (verdict (Ok ())))
     (i2c_logger (verdict (Ok ())))
+    (i2c_master_standard (verdict (Ok ())))
+    (i2c_master_fast (verdict (Ok ())))
+    (i2c_controller_wire (verdict (Ok ())))
+    (i2c_target_wire (verdict (Ok ())))
     (usb_tx (verdict (Ok ())))
     (usb_rx (verdict (Ok ())))
     (usb_device (verdict (Ok ())))
     (edge_meter (verdict (Ok ())))
     (ws2812 (verdict (Ok ())))
+    (ws2812_standard (verdict (Ok ())))
     (ethernet (verdict (Ok ())))
     (one_wire (verdict (Ok ())))
     (ps2 (verdict (Ok ())))
@@ -699,6 +705,21 @@ let%expect_test "the kernel on the firmware library, from the analyser's rows" =
     (dshot600 (verdict (Ok ())))
     (sent (verdict (Ok ())))
     (cec (verdict (Ok ())))
+    (spi_cs_mode0 (verdict (Ok ())))
+    (spi_cs_mode1 (verdict (Ok ())))
+    (spi_cs_mode2 (verdict (Ok ())))
+    (spi_cs_mode3 (verdict (Ok ())))
+    (spi_cs_mode0_default_pins (verdict (Ok ())))
+    (spi_cs_mode1_default_pins (verdict (Ok ())))
+    (spi_cs_mode2_default_pins (verdict (Ok ())))
+    (spi_cs_mode3_default_pins (verdict (Ok ())))
+    (spi_target_mode0 (verdict (Ok ())))
+    (spi_target_mode1 (verdict (Ok ())))
+    (spi_target_mode2 (verdict (Ok ())))
+    (spi_target_mode3 (verdict (Ok ())))
+    (swd (verdict (Ok ())))
+    (table (verdict (Ok ())))
+    (table_open_drain (verdict (Ok ())))
     |}]
 ;;
 
@@ -713,8 +734,8 @@ let cycles = cycles_at ~clock_mhz:50
    tSU;STA and tSU;STO SDA's from SCL's rise. fSCL, two edges back, is not a spacing. *)
 let i2c_spacing ~clock_mhz timings =
   let limit name = cycles_at ~clock_mhz (I2c_timing.min_ns timings name) in
-  { Kernel.Spacing.Spec.a = Firmware.scl
-  ; b = Firmware.sda
+  { Kernel.Spacing.Spec.a = I2c.scl
+  ; b = I2c.sda
   ; dirs = true
   ; hold_a = (fun ~own ~other:_ -> limit (if own then "tLOW" else "tHIGH"))
   ; apart_a = (fun ~own ~other:_ -> limit (if own then "tSU;DAT" else "tHD;STA"))
@@ -731,7 +752,7 @@ let fast_mode_plus = i2c_spacing ~clock_mhz:50 I2c_timing.fast_mode_plus
    holds SCL low 24 cycles to Fm+'s 25: each keeps every deadline, and the kernel refuses
    each once it spaces the edges. *)
 let%expect_test "i2c_master keeps Fast-mode Plus spacing, and a short SCL low is refused" =
-  let c = Certified.find_exn "i2c_master" in
+  let c = Library.find_certified_exn "i2c_master" in
   let short_low =
     { c with
       name = "i2c_master_short_low"
@@ -743,7 +764,7 @@ let%expect_test "i2c_master keeps Fast-mode Plus spacing, and a short SCL low is
     }
   in
   let short_quarter =
-    { c with name = "i2c_master_quarter_12"; source = Firmware.i2c_master ~quarter:12 }
+    { c with name = "i2c_master_quarter_12"; source = I2c.master ~quarter:12 }
   in
   List.iter [ c; short_low; short_quarter ] ~f:(fun c ->
     print_s
@@ -777,7 +798,7 @@ let%expect_test "i2c_master keeps Fast-mode Plus spacing, and a short SCL low is
    whose SDA edge before is a STOP behind the host wait, past the kernel's bound. A
    quarter of 28 is short of tSU;STA too. *)
 let%expect_test "i2c_master's bus clear is spaced, and a short pulse is refused" =
-  let c = Certified.find_exn "i2c_master" in
+  let c = Library.find_certified_exn "i2c_master" in
   let short_pulse =
     { c with
       name = "i2c_master_short_pulse"
@@ -791,7 +812,7 @@ let%expect_test "i2c_master's bus clear is spaced, and a short pulse is refused"
   let quarter n =
     { c with
       name = [%string "i2c_master_quarter_%{n#Int}"]
-    ; source = Firmware.i2c_master ~quarter:n
+    ; source = I2c.master ~quarter:n
     }
   in
   let standard_mode = i2c_spacing ~clock_mhz:6 I2c_timing.standard_mode in
@@ -832,7 +853,7 @@ let%expect_test "i2c_master's bus clear is spaced, and a short pulse is refused"
    cycles, and SCL high a quarter before SDA moves for a repeated START or a STOP, 13; a
    cycle more of either is refused. *)
 let%expect_test "the spacing i2c_master passes is its own, to the cycle" =
-  let c = Certified.find_exn "i2c_master" in
+  let c = Library.find_certified_exn "i2c_master" in
   let low n =
     { fast_mode_plus with hold_a = (fun ~own ~other:_ -> if own then n else 13) }
   in
@@ -867,7 +888,7 @@ let%expect_test "the spacing i2c_master passes is its own, to the cycle" =
 
 (* Library firmware whose host loads [period], named for it. *)
 let at_period name period =
-  let c = Certified.find_exn name in
+  let c = Library.find_certified_exn name in
   { c with name = [%string "%{name}_%{period#Int}"]; period = Some period }
 ;;
 
@@ -926,7 +947,7 @@ let ws2812 ?(low = cycles 300) ?(high = cycles 250) () =
 (* ws2812 with [third] cycles a third and [Ws2812.standard]'s tail. The standard's third
    is 20; the library's is 6, a T0H of 120 ns, which no WS2812B takes. *)
 let ws2812_at third =
-  { (Certified.find_exn "ws2812") with
+  { (Library.find_certified_exn "ws2812") with
     name = [%string "ws2812_third_%{third#Int}"]
   ; source = Ws2812.firmware ~third ~tail:2
   }
@@ -1104,7 +1125,7 @@ let%expect_test "with a spacing, the row at pc 0 bounds no pin" =
     { r with a = { r.a with at1 = { r.a.at1 with may = Bits.gnd } } }
   in
   let verdict =
-    check (Certified.find_exn "i2c_master") ~at_pc_0 ~spacing:fast_mode_plus
+    check (Library.find_certified_exn "i2c_master") ~at_pc_0 ~spacing:fast_mode_plus
   in
   print_s [%message (verdict : unit Or_error.t)];
   [%expect {| (verdict (Error "the row at pc 0 must be the full range")) |}]
@@ -1115,7 +1136,7 @@ let%expect_test "with a spacing, the row at pc 0 bounds no pin" =
    a table whose row there bounds any of them: here uart_tx's, which it accepts, with one
    bound added at pc 0. *)
 let%expect_test "the row at pc 0 bounds nothing" =
-  let c = Certified.find_exn "uart_tx" in
+  let c = Library.find_certified_exn "uart_tx" in
   let signed n = Bits.of_signed_int ~width:Isa.timer_bits n in
   let data n = Bits.of_unsigned_int ~width:Isa.data_bits n in
   List.iter
@@ -1155,7 +1176,7 @@ let%expect_test "the row at pc 0 bounds nothing" =
    know the wait after the loop to be in time; the offset does, since the phase less 23
    times x holds still round the loop and x is zero where it falls through. *)
 let ws2812_waiting_after_gap =
-  let c = Certified.find_exn "ws2812" in
+  let c = Library.find_certified_exn "ws2812" in
   { c with
     name = "ws2812_waiting_after_gap"
   ; source =
@@ -1191,7 +1212,7 @@ let print_rejection (c : Certified.t) =
 ;;
 
 let%expect_test "a rejection is the kernel's or the analyser's" =
-  List.iter Certified.all ~f:print_rejection;
+  List.iter Library.certified ~f:print_rejection;
   [%expect {| |}];
   List.iter [ ws2812_waiting_after_gap; gap_adding_x ] ~f:print_rejection;
   [%expect {| (gap_adding_x "no table passes") |}]
@@ -1201,7 +1222,7 @@ let%expect_test "a rejection is the kernel's or the analyser's" =
    firmware the kernel accepts: a receiver and a loaded period among them. *)
 let%expect_test "some table passes for firmware the kernel accepts" =
   List.iter [ "uart_tx"; "uart_rx"; "ethernet"; "jtag" ] ~f:(fun name ->
-    let passes = Table_query.some_table_passes (Certified.find_exn name) in
+    let passes = Table_query.some_table_passes (Library.find_certified_exn name) in
     print_s [%message name (passes : bool)]);
   [%expect
     {|
@@ -1233,6 +1254,7 @@ let%expect_test "the way through jmp x!=y knows x is y" =
     ; period_floor = None
     ; single_capture_edge = false
     ; no_wrap = false
+    ; any_data = false
     }
   in
   let verdict = check c in
@@ -1246,7 +1268,7 @@ let%expect_test "the way through jmp x!=y knows x is y" =
    analyser's rows. *)
 let%expect_test "ws2812's gap loop needs an offset, or its wait moved into the loop" =
   List.iter
-    [ ws2812_waiting_after_gap; Certified.find_exn "ws2812" ]
+    [ ws2812_waiting_after_gap; Library.find_certified_exn "ws2812" ]
     ~f:(fun c ->
       let intervals = Table_query.some_table_passes ~offsets:false c in
       let offsets = Table_query.some_table_passes c in
@@ -1263,7 +1285,7 @@ let%expect_test "ws2812's gap loop needs an offset, or its wait moved into the l
    captured one. The single-edge assumption asks that sck is still high when the arm
    issues, two cycles after the wait for it to rise releases. *)
 let spi_slave_captured =
-  let c = Certified.find_exn "spi_slave" in
+  let c = Library.find_certified_exn "spi_slave" in
   { c with
     name = "spi_slave_captured"
   ; source =
@@ -1271,8 +1293,7 @@ let spi_slave_captured =
         c.source
         ~pattern:"in pins, 1\n"
         ~with_:"in pins, 1\n    capture_arm\n"
-  ; config =
-      { c.config with capture_pin = Firmware.slave_sck_pin; capture_rising = false }
+  ; config = { c.config with capture_pin = Spi.slave_sck_pin; capture_rising = false }
   ; single_capture_edge = true
   }
 ;;
@@ -1306,7 +1327,7 @@ module Reaction = struct
          && Bits.to_bool Bits.(row.captured &: ~:(Kernel_bits.arm_is_full row)))
         r.pc)
     |> List.max_elt ~compare:(Comparable.lift Int.compare ~f:arm_hi)
-    |> Option.map ~f:(fun pc -> { pc; at_most = arm_hi pc + 1 })
+    |> Option.map ~f:(fun pc -> { pc; at_most = arm_hi pc })
   ;;
 end
 
@@ -1323,24 +1344,31 @@ let reaction (c : Certified.t) =
 ;;
 
 (* Every row the analyser gives the library has no slope and the full offset, so each
-   table is one of the tables of intervals that formal/phase_table.sby covers. The old
-   ws2812's gap loop is the one that is not. *)
-let%expect_test "the library's tables are rows of intervals" =
+   table is one of the tables of intervals that formal/phase_table.sby covers, but for
+   ethernet's preamble, a counted loop a pin write after its [set x], which
+   formal/phase_table_affine.sby covers. The old ws2812's gap loop is not one either. *)
+let%expect_test "the library's tables are rows of intervals, but for ethernet's preamble" =
   let module Kernel_bits = Kernel.Make (Bits) in
-  List.iter (Certified.all @ [ ws2812_waiting_after_gap ]) ~f:(fun (c : Certified.t) ->
-    let program, config = assemble c in
-    let rows =
-      Analyser.analyse
-        ?period:c.period
-        ~single_capture_edge:c.single_capture_edge
-        ~config
-        program.instructions
-    in
-    Array.iteri (Kernel.Table.of_analyser rows) ~f:(fun pc row ->
-      if Bits.to_bool Bits.(row.slope <>:. 0 |: ~:(Kernel_bits.offset_is_full row))
-      then print_s [%message c.name (pc : int)]));
+  List.iter
+    (Library.certified @ [ ws2812_waiting_after_gap ])
+    ~f:(fun (c : Certified.t) ->
+      let program, config = assemble c in
+      let rows =
+        Analyser.analyse
+          ?period:c.period
+          ~single_capture_edge:c.single_capture_edge
+          ~config
+          program.instructions
+      in
+      Array.iteri (Kernel.Table.of_analyser rows) ~f:(fun pc row ->
+        if Bits.to_bool Bits.(row.slope <>:. 0 |: ~:(Kernel_bits.offset_is_full row))
+        then print_s [%message c.name (pc : int)]));
   [%expect
     {|
+    (ethernet (pc 18))
+    (ethernet (pc 19))
+    (ethernet (pc 20))
+    (ethernet (pc 21))
     (ws2812_waiting_after_gap (pc 5))
     (ws2812_waiting_after_gap (pc 6))
     (ws2812_waiting_after_gap (pc 7))
@@ -1353,9 +1381,9 @@ let%expect_test "the library's tables are rows of intervals" =
 (* [Kernel.check] spaces edges only where formal/phase_spacing.sby proves it: two pins,
    Manchester off and a table of intervals. *)
 let%expect_test "a spacing is checked only where it is proved" =
-  let i2c = Certified.find_exn "i2c_master" in
+  let i2c = Library.find_certified_exn "i2c_master" in
   List.iter
-    [ "one pin", i2c, { fast_mode_plus with b = Firmware.scl }
+    [ "one pin", i2c, { fast_mode_plus with b = I2c.scl }
     ; ( "manchester"
       , { i2c with config = { i2c.config with manchester = true } }
       , fast_mode_plus )
@@ -1389,11 +1417,12 @@ let%expect_test "a spacing is checked only where it is proved" =
    in a loop as long as its data, has no deadline, and its pc is listed as untimed.
 
    Reaction: a row that writes pins, has seen the captured edge and bounds the arm enters
-   within [arm_hi] cycles of the core sampling the edge ([formal/phase_step.sv]); its edge
-   shows within [arm_hi + 1]. Single-edge assumption; [Top]'s synchroniser adds two. *)
+   under [arm_hi] cycles after the core samples the edge, as the arm takes effect a cycle
+   late ([formal/phase_step.sv]); its edge shows within [arm_hi]. Single-edge assumption;
+   [Top]'s synchroniser adds two. *)
 let%expect_test "a bound on the jitter of every pin edge, in firmware the kernel accepts" =
   let module Kernel_bits = Kernel.Make (Bits) in
-  List.iter (Certified.all @ [ spi_slave_captured ]) ~f:(fun (c : Certified.t) ->
+  List.iter (Library.certified @ [ spi_slave_captured ]) ~f:(fun (c : Certified.t) ->
     if Result.is_ok (check c)
     then (
       let program, config = assemble c in
@@ -1440,17 +1469,25 @@ let%expect_test "a bound on the jitter of every pin edge, in firmware the kernel
     (uart_tx16 (pc 6) (jitter_bound 0) (untimed (1)))
     (uart_tx_host_rate (pc 8) (jitter_bound 0) (untimed (3)))
     (uart_rx "writes no pins")
+    (uart_rx_host_rate "writes no pins")
     (spi_master (pc 9) (jitter_bound 2) (untimed (0 1 2 3 4 5)))
     (spi_slave "no edge has a deadline" (untimed (0 4)))
     (i2c_master (pc 50) (jitter_bound 10) (untimed (0 1 2 18 19 26 27)))
     (i2c_slave "no edge has a deadline" (untimed (2 19 22 40 43 53 60 64)))
     (i2c_logger (pc 24) (jitter_bound 2) (untimed (0 1 2 3)))
+    (i2c_master_standard (pc 62) (jitter_bound 118)
+     (untimed (0 1 2 3 4 24 25 32 33)))
+    (i2c_master_fast (pc 57) (jitter_bound 29) (untimed (0 1 2 3 4 22 23 30 31)))
+    (i2c_controller_wire (pc 36) (jitter_bound 118)
+     (untimed (0 1 2 3 4 5 12 13)))
+    (i2c_target_wire "no edge has a deadline" (untimed (2 20 23 44 47 58 65 69)))
     (usb_tx (pc 11) (jitter_bound 0) (untimed (2)))
     (usb_rx "writes no pins")
     (usb_device (pc 109) (jitter_bound 0) (untimed (2 3)))
     (edge_meter (pc 6) (jitter_bound 0) (untimed (1)))
     (ws2812 (pc 1) (jitter_bound 0) (untimed ()))
-    (ethernet (pc 9) (jitter_bound 0) (untimed (2 17 18 19 20)))
+    (ws2812_standard (pc 1) (jitter_bound 0) (untimed ()))
+    (ethernet (pc 9) (jitter_bound 0) (untimed (2 19 20 25 26 27 28)))
     (one_wire (pc 11) (jitter_bound 0) (untimed ()))
     (ps2 (pc 15) (jitter_bound 0) (untimed ()))
     (jtag (pc 8) (jitter_bound 2) (untimed (0 1 2 3 4)))
@@ -1458,8 +1495,34 @@ let%expect_test "a bound on the jitter of every pin edge, in firmware the kernel
     (dshot600 (pc 1) (jitter_bound 0) (untimed ()))
     (sent (pc 4) (jitter_bound 0) (untimed ()))
     (cec (pc 4) (jitter_bound 0) (untimed ()))
+    (spi_cs_mode0 (pc 10) (jitter_bound 3)
+     (untimed (0 1 2 3 4 5 6 22 23 24 25 26)))
+    (spi_cs_mode1 (pc 10) (jitter_bound 3)
+     (untimed (0 1 2 3 4 5 6 22 23 24 25 26)))
+    (spi_cs_mode2 (pc 10) (jitter_bound 3)
+     (untimed (0 1 2 3 4 5 6 22 23 24 25 26)))
+    (spi_cs_mode3 (pc 10) (jitter_bound 3)
+     (untimed (0 1 2 3 4 5 6 22 23 24 25 26)))
+    (spi_cs_mode0_default_pins (pc 10) (jitter_bound 3)
+     (untimed (0 1 2 3 4 5 6 22 23 24 25 26)))
+    (spi_cs_mode1_default_pins (pc 10) (jitter_bound 3)
+     (untimed (0 1 2 3 4 5 6 22 23 24 25 26)))
+    (spi_cs_mode2_default_pins (pc 10) (jitter_bound 3)
+     (untimed (0 1 2 3 4 5 6 22 23 24 25 26)))
+    (spi_cs_mode3_default_pins (pc 10) (jitter_bound 3)
+     (untimed (0 1 2 3 4 5 6 22 23 24 25 26)))
+    (spi_target_mode0 "no edge has a deadline" (untimed (5 10 15 26 36)))
+    (spi_target_mode1 "no edge has a deadline" (untimed (5 12 28)))
+    (spi_target_mode2 "no edge has a deadline" (untimed (5 10 15 26 36)))
+    (spi_target_mode3 "no edge has a deadline" (untimed (5 12 28)))
+    (swd (pc 32) (jitter_bound 6)
+     (untimed
+      (0 1 2 3 4 5 13 14 15 16 21 22 24 25 27 40 41 44 46 120 121 125 126 138 139
+       140 141)))
+    (table (pc 6) (jitter_bound 0) (untimed ()))
+    (table_open_drain (pc 6) (jitter_bound 0) (untimed ()))
     (spi_slave_captured "no edge has a deadline" (untimed (0 5))
-     (reaction ((pc 5) (at_most 3))))
+     (reaction ((pc 5) (at_most 2))))
     |}]
 ;;
 
@@ -1480,7 +1543,7 @@ module Answers = struct
   let record t (m : Machine.t) ~sck =
     if t.sck = 1 && sck = 0 then t.fall <- Some (m.now - 1);
     t.sck <- sck;
-    let miso = (m.pin_out lsr Firmware.slave_miso_pin) land 1 in
+    let miso = (m.pin_out lsr Spi.slave_miso_pin) land 1 in
     (match t.miso, t.fall with
      | Some before, Some fall when before <> miso ->
        t.worst <- Int.max t.worst (m.now - fall);
@@ -1502,10 +1565,10 @@ module Answers = struct
       ~program:(Asm.Program.words program |> ok_exn)
       ~inputs:(fun n ->
         sampled := sck n;
-        (!sampled lsl Firmware.slave_sck_pin) lor (mosi n lsl Firmware.slave_mosi_pin))
+        (!sampled lsl Spi.slave_sck_pin) lor (mosi n lsl Spi.slave_mosi_pin))
       ~react:(fun m ->
         record t m ~sck:!sampled;
-        step ((m.pin_out lsr Firmware.slave_miso_pin) land 1))
+        step ((m.pin_out lsr Spi.slave_miso_pin) land 1))
       ()
   ;;
 end
@@ -1523,8 +1586,7 @@ let answering_later cycles =
 ;;
 
 (* Each firmware against a mode 0 master over half periods and byte gaps, in lockstep with
-   the RTL. [worst] comes one under the bound, which counts the arm's own cycle, where the
-   capture cannot fall. *)
+   the RTL. [worst] meets the bound. *)
 let%expect_test "every answer to a captured edge comes within the reaction bound" =
   let module Spi_peer = Protocol_models.Spi_peer in
   List.iter
@@ -1566,13 +1628,13 @@ let%expect_test "every answer to a captured edge comes within the reaction bound
             ~premise:(Premise.count premise : Premise.Count.t)]);
   [%expect
     {|
-    (spi_slave_captured (reaction ((pc 5) (at_most 3))) (worst 2) (answers 288)
+    (spi_slave_captured (reaction ((pc 5) (at_most 2))) (worst 2) (answers 288)
      (exchanged true)
      (premise ((arms 288) (at_captured_level 0) (left_captured_level 0))))
-    (answering_1_later (reaction ((pc 6) (at_most 4))) (worst 3) (answers 144)
+    (answering_1_later (reaction ((pc 6) (at_most 3))) (worst 3) (answers 144)
      (exchanged true)
      (premise ((arms 144) (at_captured_level 0) (left_captured_level 0))))
-    (answering_4_later (reaction ((pc 6) (at_most 7))) (worst 6) (answers 144)
+    (answering_4_later (reaction ((pc 6) (at_most 6))) (worst 6) (answers 144)
      (exchanged true)
      (premise ((arms 144) (at_captured_level 0) (left_captured_level 0))))
     |}]
@@ -1602,7 +1664,61 @@ let%expect_test "the reaction bound rests on the single-edge assumption" =
         ~premise:(Premise.count premise : Premise.Count.t)];
   [%expect
     {|
-    (spi_slave_captured (reaction ((pc 5) (at_most 3))) (worst 4) (mismatch ())
+    (spi_slave_captured (reaction ((pc 5) (at_most 2))) (worst 4) (mismatch ())
      (premise ((arms 19) (at_captured_level 19) (left_captured_level 0))))
+    |}]
+;;
+
+(* [Kernel.Table.with_edges] stops following the marks round a loop once a pc has joined
+   [widen_after] times. For each firmware under its spacing, the fewest joins that lose
+   nothing, as every more lose nothing too. *)
+let%expect_test "edge bounds are widened only where they have not settled by widen_after" =
+  List.iter
+    [ "i2c_master", Library.find_certified_exn "i2c_master", fast_mode_plus
+    ; "uart_tx_host_rate", at_period "uart_tx_host_rate" 1600, uart_bits midi_bit
+    ; "can", at_period "can" 400, can_bits can_bit
+    ; "ps2", at_period "ps2" 1000, ps2 ()
+    ; "one_wire", at_period "one_wire" 300, one_wire ()
+    ; "ws2812", ws2812_at 20, ws2812 ()
+    ]
+    ~f:(fun (name, (c : Certified.t), spacing) ->
+      let program, config = assemble c in
+      let words = Asm.Program.words program |> ok_exn in
+      let single_capture_edge = c.single_capture_edge in
+      let table =
+        Analyser.analyse
+          ?period:c.period
+          ~single_capture_edge
+          ~config
+          program.instructions
+        |> Kernel.Table.of_analyser
+      in
+      let edges widen_after =
+        Kernel.Table.with_edges
+          ~single_capture_edge
+          ~widen_after
+          table
+          ~config
+          ~spacing:(Kernel.Spacing.of_spec config spacing)
+          ~words
+        |> [%sexp_of: Bits.t Kernel.Row.t array]
+        |> Sexp.to_string
+      in
+      let settled = edges 256 in
+      let lossless = List.init 64 ~f:(fun joins -> String.equal (edges joins) settled) in
+      let enough =
+        List.findi_exn lossless ~f:(fun n _ ->
+          List.for_all (List.drop lossless n) ~f:Fn.id)
+        |> fst
+      in
+      printf "%s: nothing lost from %d joins\n" name enough);
+  [%expect
+    {|
+    i2c_master: nothing lost from 5 joins
+    uart_tx_host_rate: nothing lost from 3 joins
+    can: nothing lost from 3 joins
+    ps2: nothing lost from 7 joins
+    one_wire: nothing lost from 3 joins
+    ws2812: nothing lost from 3 joins
     |}]
 ;;

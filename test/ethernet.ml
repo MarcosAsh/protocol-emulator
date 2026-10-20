@@ -2,7 +2,7 @@ open! Core
 open Protocol_emulator
 
 let td_plus = Isa.first_bidir_pin
-let cycle_ns = 25
+let cycle_ns = 1_000_000_000 / Bench.ethernet_clock_hz
 let link_tenth = 64000
 
 let config =
@@ -39,6 +39,15 @@ send:
     set x, 0
     seek
     out null, 16             ; so the next out pulls from the data memory
+    set x, 30
+    set pins, 2 [1]          ; the preamble: the first half of its first one
+preamble:
+    set pins, 1 [3]          ; a one's second half and a zero's first
+    set pins, 2 [1]          ; a zero's second half and, with the jump, a one's first
+    jmp x--, preamble
+    set pins, 1 [1]          ; the start of frame ends in two ones
+    set pins, 2 [1]
+    set pins, 1 [1]
 bit:
     out pins, 1 [1]          ; the first half of the bit, and with the jump the second
     jmp y--, bit
@@ -99,13 +108,14 @@ module Frame = struct
     frame @ List.init (length - List.length frame) ~f:(Fn.const 0)
   ;;
 
-  let wire frame =
+  let preamble = List.init 7 ~f:(Fn.const 0x55) @ [ 0xd5 ]
+
+  let with_fcs frame =
     let fcs = crc32 frame in
-    List.init 7 ~f:(Fn.const 0x55)
-    @ [ 0xd5 ]
-    @ frame
-    @ List.init 4 ~f:(fun n -> (fcs lsr (8 * n)) land 0xff)
+    frame @ List.init 4 ~f:(fun n -> (fcs lsr (8 * n)) land 0xff)
   ;;
+
+  let wire frame = preamble @ with_fcs frame
 
   let rec words = function
     | lo :: hi :: rest -> (lo lor (hi lsl 8)) :: words rest
@@ -225,3 +235,42 @@ module Receiver = struct
   let link_intervals t = List.rev t.link_intervals
   let violations t = List.rev t.violations
 end
+
+let bench =
+  { Bench.name = "ethernet"
+  ; what =
+      [%string
+        "Ethernet.firmware at the Icepi's 40 MHz: the host sends a tenth of the link \
+         pulse interval, %{link_tenth#Int} cycles for %{Bench.time \
+         ~clock_hz:Bench.ethernet_clock_hz (10 * link_tenth)}, TD+ on IO6, TD- on IO7"]
+  ; source = Timed_program.source firmware
+  ; config = { config with out_base = Bench.td_plus; set_base = Bench.td_plus }
+  ; assumption = Period link_tenth
+  ; clock_hz = Bench.ethernet_clock_hz
+  ; load = Some link_tenth
+  ; stimulus = None
+  }
+;;
+
+let protocol =
+  { Protocol.name = "ethernet"
+  ; certified =
+      [ Certified.plain
+          ~period:link_tenth
+          ~no_wrap:true
+          "ethernet"
+          (Timed_program.source firmware)
+          config
+      ]
+  ; time_triggered = []
+  ; bench = [ bench ]
+  ; loaded_from_hex = []
+  ; limits = []
+  ; unlimited = [ "ethernet", "no demo on the bench: it needs the Icepi's 40 MHz build" ]
+  ; swept = []
+  ; not_swept =
+      [ "ethernet", "half bits of 2 cycles: the logger needs up to 6 between edges" ]
+  ; scenarios = []
+  ; decoded = []
+  }
+;;

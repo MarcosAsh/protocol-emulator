@@ -7,6 +7,9 @@ type t =
   ; words : int list
   ; rows : Analyser.Row.t list
   ; verdict : Analyser.Verdict.t
+  ; period : int option
+  ; period_floor : int option
+  ; single_capture_edge : bool
   }
 [@@deriving sexp_of, fields ~getters]
 
@@ -216,7 +219,16 @@ let check ?period ?period_floor ?single_capture_edge ~config source =
       in
       refused ~faults (Error.of_list (List.map refusals ~f:snd)))
   in
-  { source; program; config = configured; words; rows; verdict }
+  { source
+  ; program
+  ; config = configured
+  ; words
+  ; rows
+  ; verdict
+  ; period
+  ; period_floor
+  ; single_capture_edge = Option.value single_capture_edge ~default:false
+  }
 ;;
 
 let of_source_exn ?period ?period_floor ?single_capture_edge ~config source =

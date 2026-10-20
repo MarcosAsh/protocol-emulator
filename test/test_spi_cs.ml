@@ -8,7 +8,9 @@ let bit v i = (v lsr i) land 1
    against a [Device] *)
 let run ?(cycles = 2000) ?late ~mode ~half_period ~setup ~hold frames =
   let program =
-    Timed_program.of_source_exn ~config (master ~mode ~half_period ~setup ~hold)
+    Timed_program.of_source_exn
+      ~config
+      (master ~mode ~half_period ~setup ~hold ~deselect:0)
   in
   let t =
     Machine.create
@@ -129,30 +131,30 @@ let%expect_test "the four modes' waveforms" =
           ~miso:(runs snd : (int * int) list)]);
   [%expect
     {|
-    ((mode 0) (cs ((1 7) (0 132) (1 31)))
+    ((mode 0) (cs ((1 8) (0 132) (1 30)))
      (sck
-      ((0 11) (1 8) (0 8) (1 8) (0 8) (1 8) (0 8) (1 8) (0 8) (1 8) (0 8)
-       (1 8) (0 8) (1 8) (0 8) (1 8) (0 39)))
-     (mosi ((0 7) (1 12) (0 16) (1 16) (0 32) (1 16) (0 16) (1 55)))
-     (miso ((1 8) (0 12) (1 16) (0 16) (1 32) (0 16) (1 16) (0 24) (1 30))))
-    ((mode 1) (cs ((1 7) (0 132) (1 31)))
+      ((0 12) (1 8) (0 8) (1 8) (0 8) (1 8) (0 8) (1 8) (0 8) (1 8) (0 8)
+       (1 8) (0 8) (1 8) (0 8) (1 8) (0 38)))
+     (mosi ((0 8) (1 12) (0 16) (1 16) (0 32) (1 16) (0 16) (1 54)))
+     (miso ((1 9) (0 12) (1 16) (0 16) (1 32) (0 16) (1 16) (0 24) (1 29))))
+    ((mode 1) (cs ((1 8) (0 132) (1 30)))
      (sck
-      ((0 11) (1 8) (0 8) (1 8) (0 8) (1 8) (0 8) (1 8) (0 8) (1 8) (0 8)
-       (1 8) (0 8) (1 8) (0 8) (1 8) (0 39)))
-     (mosi ((0 11) (1 16) (0 16) (1 16) (0 32) (1 16) (0 16) (1 47)))
-     (miso ((1 12) (0 16) (1 16) (0 16) (1 32) (0 16) (1 16) (0 16) (1 30))))
-    ((mode 2) (cs ((1 7) (0 132) (1 31)))
+      ((0 12) (1 8) (0 8) (1 8) (0 8) (1 8) (0 8) (1 8) (0 8) (1 8) (0 8)
+       (1 8) (0 8) (1 8) (0 8) (1 8) (0 38)))
+     (mosi ((0 12) (1 16) (0 16) (1 16) (0 32) (1 16) (0 16) (1 46)))
+     (miso ((1 13) (0 16) (1 16) (0 16) (1 32) (0 16) (1 16) (0 16) (1 29))))
+    ((mode 2) (cs ((1 8) (0 132) (1 30)))
      (sck
-      ((1 11) (0 8) (1 8) (0 8) (1 8) (0 8) (1 8) (0 8) (1 8) (0 8) (1 8)
-       (0 8) (1 8) (0 8) (1 8) (0 8) (1 39)))
-     (mosi ((0 7) (1 12) (0 16) (1 16) (0 32) (1 16) (0 16) (1 55)))
-     (miso ((1 8) (0 12) (1 16) (0 16) (1 32) (0 16) (1 16) (0 24) (1 30))))
-    ((mode 3) (cs ((1 7) (0 132) (1 31)))
+      ((1 12) (0 8) (1 8) (0 8) (1 8) (0 8) (1 8) (0 8) (1 8) (0 8) (1 8)
+       (0 8) (1 8) (0 8) (1 8) (0 8) (1 38)))
+     (mosi ((0 8) (1 12) (0 16) (1 16) (0 32) (1 16) (0 16) (1 54)))
+     (miso ((1 9) (0 12) (1 16) (0 16) (1 32) (0 16) (1 16) (0 24) (1 29))))
+    ((mode 3) (cs ((1 8) (0 132) (1 30)))
      (sck
-      ((1 11) (0 8) (1 8) (0 8) (1 8) (0 8) (1 8) (0 8) (1 8) (0 8) (1 8)
-       (0 8) (1 8) (0 8) (1 8) (0 8) (1 39)))
-     (mosi ((0 11) (1 16) (0 16) (1 16) (0 32) (1 16) (0 16) (1 47)))
-     (miso ((1 12) (0 16) (1 16) (0 16) (1 32) (0 16) (1 16) (0 16) (1 30))))
+      ((1 12) (0 8) (1 8) (0 8) (1 8) (0 8) (1 8) (0 8) (1 8) (0 8) (1 8)
+       (0 8) (1 8) (0 8) (1 8) (0 8) (1 38)))
+     (mosi ((0 12) (1 16) (0 16) (1 16) (0 32) (1 16) (0 16) (1 46)))
+     (miso ((1 13) (0 16) (1 16) (0 16) (1 32) (0 16) (1 16) (0 16) (1 29))))
     |}]
 ;;
 
@@ -173,14 +175,15 @@ let%expect_test "a slow host holds the frame open" =
     {|
     ((frames ((159 18))) (received (90 96))
      (measured_cycles
-      ((setup (4 4)) ("SCK high" (8 8)) ("SCK low" (8 183)) (hold (8 8))
-       ("CS low" (435 435))))
+      ((setup (4 4)) ("SCK high" (8 8)) ("SCK low" (8 182)) (hold (8 8))
+       ("CS low" (434 434))))
      (violations ()))
     |}]
 ;;
 
 let check ~mode ~half_period ~setup ~hold =
-  Timed_program.check ~config (master ~mode ~half_period ~setup ~hold) |> Result.is_ok
+  Timed_program.check ~config (master ~mode ~half_period ~setup ~hold ~deselect:0)
+  |> Result.is_ok
 ;;
 
 let%expect_test "the shortest half period" =
@@ -205,7 +208,9 @@ let%expect_test "the shortest half period" =
 
 let%expect_test "the kernel accepts each mode at the flash act's parameters" =
   List.iter Mode.all ~f:(fun mode ->
-    let program = Asm.assemble (master ~mode ~half_period ~setup ~hold) |> ok_exn in
+    let program =
+      Asm.assemble (master ~mode ~half_period ~setup ~hold ~deselect:0) |> ok_exn
+    in
     let config = Asm.Program.configure program config in
     let words = Asm.Program.words program |> ok_exn in
     let rows = Analyser.analyse ~config program.instructions in
@@ -239,7 +244,9 @@ let spacing ~half_period ~setup ~hold ~deselect =
 ;;
 
 let spaced ~mode spec =
-  let program = Asm.assemble (master ~mode ~half_period ~setup ~hold) |> ok_exn in
+  let program =
+    Asm.assemble (master ~mode ~half_period ~setup ~hold ~deselect:0) |> ok_exn
+  in
   let config = Asm.Program.configure program config in
   let words = Asm.Program.words program |> ok_exn in
   let rows = Analyser.analyse ~config program.instructions in
@@ -304,7 +311,7 @@ let%expect_test "each mode in lockstep" =
           (Timed_program.words
              (Timed_program.of_source_exn
                 ~config
-                (master ~mode ~half_period ~setup ~hold)))
+                (master ~mode ~half_period ~setup ~hold ~deselect:0)))
         ~preload:(List.concat_map [ [ 0x9f; 0x00 ]; [ 0xa5 ] ] ~f:words)
         ~inputs:(fun _ -> Device.miso !device lsl miso_pin)
         ~react:(fun m ->

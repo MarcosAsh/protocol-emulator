@@ -1,0 +1,31 @@
+# The committed Verilog means one thing to two frontends: Yosys's read_verilog and
+# yosys-slang's read_slang, a separate SystemVerilog elaborator, read the same file
+# (yosys.v and slang.v, copies the Makefile makes, so a tooth can mutate one side) and
+# the flattened chips are equal for all time from equal states: flops paired by name,
+# proved by induction on their equalities. The macros are shared cut points; an
+# asynchronous reset acts in the cycle it is asserted, on both sides.
+
+read_verilog -lib ../../src/RM_IHPSG13_1P_512x16_c2_bm_bist.v
+read_verilog yosys.v
+hierarchy -check -top protocol_emulator
+proc
+flatten
+script ../frontend_equiv/side.ys
+rename protocol_emulator gold
+design -stash gold
+
+plugin -i slang
+read_slang --top protocol_emulator --empty-blackboxes \
+  ../../src/RM_IHPSG13_1P_512x16_c2_bm_bist.v slang.v
+hierarchy -check -top protocol_emulator
+script ../frontend_equiv/side.ys
+rename protocol_emulator gate
+design -stash gate
+
+design -copy-from gold -as gold gold
+design -copy-from gate -as gate gate
+equiv_make gold gate equiv
+hierarchy -top equiv
+equiv_simple
+equiv_induct
+equiv_status -assert

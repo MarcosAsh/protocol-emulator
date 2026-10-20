@@ -61,3 +61,19 @@ def edges(samples, bit):
     levels = (np.frombuffer(samples, dtype=np.uint8) >> bit) & 1
     at = np.flatnonzero(np.diff(levels)) + 1
     return at, levels[at]
+
+
+def hz(rate):
+    """A sigrok-cli samplerate, 12M, 500k or 2000000, in Hz."""
+    scale = {"k": 1e3, "M": 1e6, "G": 1e9}.get(rate[-1:], 1)
+    return float(rate[:-1] if scale != 1 else rate) * scale
+
+
+if __name__ == "__main__":
+    # sigrok-cli's -O binary into a session file, D0 and up
+    # Usage: python3 demo/sigrok.py RAW RATE OUT.sr
+    import sys
+
+    raw, rate, out = sys.argv[1:]
+    with open(raw, "rb") as f:
+        write(out, hz(rate), f.read())

@@ -1,5 +1,5 @@
 # Written by test/python/write_sweep_firmware.ml; `dune promote` after a change.
-# Act 2's sweep: each firmware of test/certified.ml that engine 1 can stamp on wire
+# Act 2's sweep: each firmware of test/library.ml that engine 1 can stamp on wire
 # 20, as a config's changes from DEFAULTS, words, the words that park its pins low
 # first, and a stimulus. Each edge is its cycles from its frame's first: an int
 # where the kernel's rows along the model's path allow that cycle alone, else (the
@@ -316,20 +316,41 @@ SWEPT = [
 
 NOT_SWEPT = [
     ("uart_rx", "a receiver: it samples, and nothing on the chip sends to it"),
+    ("uart_rx_host_rate", "a receiver: both_roles.ml sends to it on a wire"),
     ("spi_slave", "a slave: the master's clock moves it"),
     ("i2c_master", "open drain, which a wire does not show, and a slave has to acknowledge"),
     ("i2c_slave", "a slave: the master's clock moves it"),
     ("i2c_logger", "an I2C master: open drain, and a slave has to answer"),
+    ("i2c_master_standard", "open drain, which a wire does not show, and a slave has to acknowledge"),
+    ("i2c_master_fast", "open drain, which a wire does not show, and a slave has to acknowledge"),
+    ("i2c_controller_wire", "on two wires already, and both_roles.ml's target acknowledges"),
+    ("i2c_target_wire", "a target: the controller's clock moves it"),
     ("usb_tx", "certified at 32 cycles a bit only, where 9 edges come in 256: the fifo holds 8"),
     ("usb_rx", "a receiver: nothing on the chip sends to it"),
     ("usb_device", "a device: a USB host has to talk first"),
     ("edge_meter", "toggles every 16 cycles for ever, so 9 edges come in 128: the fifo holds 8"),
     ("ws2812", "48 edges a pixel in 600 cycles: the fifo holds 8"),
+    ("ws2812_standard", "48 edges a pixel in 1488 cycles: the fifo holds 8"),
     ("ethernet", "half bits of 2 cycles: the logger needs up to 6 between edges"),
     ("one_wire", "open drain, which a wire does not show, and a slave has to answer"),
     ("ps2", "open drain, which a wire does not show, and the host holds the clock"),
     ("dshot600", "32 edges a frame in 1328 cycles: the fifo holds 8"),
     ("cec", "open drain, which a wire does not show"),
+    ("spi_cs_mode0", "the bench's SPI demo, certified as it loads; the sweep has not stamped it on the board"),
+    ("spi_cs_mode1", "the bench's SPI demo, certified as it loads; the sweep has not stamped it on the board"),
+    ("spi_cs_mode2", "the bench's SPI demo, certified as it loads; the sweep has not stamped it on the board"),
+    ("spi_cs_mode3", "the bench's SPI demo, certified as it loads; the sweep has not stamped it on the board"),
+    ("spi_cs_mode0_default_pins", "not stamped: its decoded runs judge each mode, and both_roles.ml runs it against Spi_target"),
+    ("spi_cs_mode1_default_pins", "not stamped: its decoded runs judge each mode, and both_roles.ml runs it against Spi_target"),
+    ("spi_cs_mode2_default_pins", "not stamped: its decoded runs judge each mode, and both_roles.ml runs it against Spi_target"),
+    ("spi_cs_mode3_default_pins", "not stamped: its decoded runs judge each mode, and both_roles.ml runs it against Spi_target"),
+    ("spi_target_mode0", "a target: the controller's clock moves it"),
+    ("spi_target_mode1", "a target: the controller's clock moves it"),
+    ("spi_target_mode2", "a target: the controller's clock moves it"),
+    ("spi_target_mode3", "a target: the controller's clock moves it"),
+    ("swd", "SWDIO turns round for the target's ACK, which a wire does not show, and a target has to answer"),
+    ("table", "its pins follow a table in data memory, which the sweep does not load"),
+    ("table_open_drain", "the same"),
     ("uart_tx_stream", "time-triggered: it underflows, a sticky fault, once the host stops"),
     ("spi_master_stream", "time-triggered: it underflows, a sticky fault, once the host stops"),
     ("uart_tx_stamped", "26 bits 8 cycles apart, and the chip's clock in them, which the model cannot know"),

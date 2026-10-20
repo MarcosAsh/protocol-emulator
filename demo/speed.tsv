@@ -1,0 +1,5 @@
+protocol	stage	time	note
+ps2	spec	2026-10-15T17:19:40+01:00	blind run, protocol-kit-blind/times.log
+ps2	file	2026-10-15T18:02:01+01:00	after limits
+ps2	certificate	2026-10-15T18:09:07+01:00	remote prove PASS; teeth ended 18:13:00
+ps2	bench	2026-10-15T18:12:37+01:00	done bench, before the certificate closed

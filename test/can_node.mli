@@ -69,3 +69,5 @@ module Sender : sig
   (** The least period the host may load, as [Can.shortest_period]. *)
   val shortest_period : int
 end
+
+val protocol : Protocol.t

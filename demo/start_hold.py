@@ -10,7 +10,7 @@ import sys
 
 import sigrok
 
-# UM10204 table 10, t_HD;STA in Standard-mode
+# UM10204 table 11, t_HD;STA in Standard-mode
 LIMIT_NS = 4000
 # the chip's clock, to set the reading beside its stamps
 MHZ = 48

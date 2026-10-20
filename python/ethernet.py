@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-# 10BASE-T frames at 40 MHz. The host builds the whole frame, preamble to FCS; the core
-# only times it onto the wire. CPython and MicroPython.
+# 10BASE-T frames at 40 MHz. The host builds the frame and its FCS; the core sends the
+# preamble and start of frame itself and times the rest onto the wire. CPython and
+# MicroPython.
 
 from protocol_emulator import CONTROL, DATA, DATA_ADDR, DEFAULT_CONFIG, TX
 
@@ -52,10 +53,15 @@ def udp(payload, source=(10, 0, 0, 2), port=1234):
     return frame + [0] * (length - len(frame))
 
 
+def with_fcs(frame):
+    """The frame and its FCS, what goes into the data memory."""
+    fcs = crc32(frame)
+    return frame + [(fcs >> (8 * n)) & 0xFF for n in range(4)]
+
+
 def wire(frame):
     """The bytes on the wire: preamble, start of frame, the frame and its FCS."""
-    fcs = crc32(frame)
-    return PREAMBLE + frame + [(fcs >> (8 * n)) & 0xFF for n in range(4)]
+    return PREAMBLE + with_fcs(frame)
 
 
 def words(data):
@@ -66,8 +72,8 @@ def words(data):
 def writes(frame, link_tenth=LINK_TENTH):
     """The register writes that send [frame]. The data memory takes writes only while
     every core is halted; a start runs the firmware from the top, which reads the link
-    interval and then the frame's length in bits less one."""
-    data = wire(frame)
+    interval and then the length in bits less one of the frame and its FCS."""
+    data = with_fcs(frame)
     return [
         (CONTROL, [4]), (CONTROL, [8]), (DATA_ADDR, [0]), (DATA, words(data)),
         (TX, [link_tenth, 8 * len(data) - 1]), (CONTROL, [1]),

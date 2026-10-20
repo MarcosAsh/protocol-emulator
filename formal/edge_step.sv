@@ -1,13 +1,13 @@
 // Edge lemma, on phase_step.sv's cycles; an entry is the first issue after a start or a
-// completion. For any program and constant config, pin_out and pin_dir change only the
-// cycle after an entry whose word writes them, and then to its writes in order: a
-// Manchester second half owed by the word before, side-set, then the word's set, out or
-// mov. A held wait reissues the same side-set and moves nothing. The second half shows
-// one step (the out's delay + 1) after the first, whatever the next word; a start or
-// clear drops it, a stop holds it until then. Nothing is assumed of the host: stop,
-// flush, start, program writes, fifos, the data word and the clear, which zeroes both,
-// are free every cycle, even while running. Out and mov data is the core's value in the
-// issue cycle; value_step.sv proves it the ISA's.
+// completion. For any program and any config written while halted, pin_out and pin_dir
+// change only the cycle after an entry whose word writes them, and then to its writes in
+// order: a Manchester second half owed by the word before, side-set, then the word's set,
+// out or mov. A held wait reissues the same side-set and moves nothing. The second half
+// shows one step (the out's delay + 1) after the first, whatever the next word; a start
+// or clear drops it, a stop holds it until then. Of the host only the config's halted
+// window (host_spacing.sv) is assumed: stop, flush, start, program writes, fifos, the data
+// word and the clear, which zeroes both, are free every cycle, even while running. Out
+// and mov data is the core's value in the issue cycle; value_step.sv proves it the ISA's.
 
 // the timer's width, narrower in the narrow tasks
 `ifndef TIMER_BITS
@@ -15,17 +15,32 @@
 `endif
 
 module edge_step (input clk);
-  (* anyconst *) wire [1:0] side_set_count;
-  (* anyconst *) wire [4:0] side_set_base, in_base, in_count, out_base, out_count, set_base;
-  (* anyconst *) wire [2:0] set_count;
-  (* anyconst *) wire [4:0] jmp_pin, capture_pin, push_threshold, pull_threshold;
-  (* anyconst *) wire side_set_pindirs, capture_rising, in_shift_right, out_shift_right, autopush, autopull;
-  (* anyconst *) wire [4:0] crc_width, stuff_threshold;
-  (* anyconst *) wire [15:0] crc_poly, crc_init;
-  (* anyconst *) wire crc_reflect, stuff_level;
-  (* anyconst *) wire [8:0] wrap_bottom, wrap_top;
-  (* anyconst *) wire [15:0] period_fraction;
-  (* anyconst *) wire autopull_data, manchester, line_code;
+  // The config, as the host port holds it: a write lands only while the core is halted,
+  // and not in a start's second cycle (host_spacing.sv). Free at the clear.
+  (* anyseq *) wire config_write;
+  (* anyseq *) wire [141:0] config_value;
+  reg [141:0] config_bits;
+  wire [1:0] side_set_count = config_bits[141:140];
+  wire [4:0] side_set_base = config_bits[139:135];
+  wire side_set_pindirs = config_bits[134];
+  wire [4:0] in_base = config_bits[133:129], in_count = config_bits[128:124];
+  wire [4:0] out_base = config_bits[123:119], out_count = config_bits[118:114];
+  wire [4:0] set_base = config_bits[113:109];
+  wire [2:0] set_count = config_bits[108:106];
+  wire [4:0] jmp_pin = config_bits[105:101], capture_pin = config_bits[100:96];
+  wire capture_rising = config_bits[95], in_shift_right = config_bits[94];
+  wire out_shift_right = config_bits[93], autopush = config_bits[92];
+  wire [4:0] push_threshold = config_bits[91:87];
+  wire autopull = config_bits[86];
+  wire [4:0] pull_threshold = config_bits[85:81], crc_width = config_bits[80:76];
+  wire [15:0] crc_poly = config_bits[75:60], crc_init = config_bits[59:44];
+  wire crc_reflect = config_bits[43];
+  wire [4:0] stuff_threshold = config_bits[42:38];
+  wire stuff_level = config_bits[37];
+  wire [8:0] wrap_bottom = config_bits[36:28], wrap_top = config_bits[27:19];
+  wire [15:0] period_fraction = config_bits[18:3];
+  wire autopull_data = config_bits[2], manchester = config_bits[1];
+  wire line_code = config_bits[0];
   (* anyseq *) wire [15:0] data_word;
   (* anyseq *) wire stop, flush;
   (* anyseq *) wire start, program_write_valid, tx_valid, rx_pop, clear_irq;
@@ -89,13 +104,16 @@ module edge_step (input clk);
   // an instruction completes when a jump issues, or anything else issues and goes on
   wire completes = jmp_go || advance;
 
-  // an entry, as in phase_step.sv
+  // an entry, as in phase_step.sv, after a start the core takes only while halted
+  wire start_taken = start && halted;
   reg started = 0;
-  always @(posedge clk) started <= start;
+  always @(posedge clk) started <= start_taken;
+  always @(posedge clk)
+    if (config_write && halted && !started) config_bits <= config_value;
   wire issue = !clear && !halted && stall == 0 && !started;
   reg fresh = 0;
   always @(posedge clk)
-    if (clear || start || completes) fresh <= 1;
+    if (clear || start_taken || completes) fresh <= 1;
     else if (issue) fresh <= 0;
   wire entry = issue && fresh;
 
@@ -280,9 +298,11 @@ module edge_step (input clk);
     if (!clear) begin
       assert(opcode_onehot == 8'b1 << opcode);
       assert(flip_pending == flip_owed);
-      if (flip_owed) assert((pin_out & pair) == first_half_held);
-      if (flip_owed && !halted)
+      // a stop can leave the half owed, and the start drops it before the next entry
+      if (flip_owed && !halted) begin
+        assert((pin_out & pair) == first_half_held);
         assert(since_out <= out_step && stall == out_step - since_out);
+      end
       if (!fresh && !halted) begin
         assert(opcode == 1 && decode_ok && stall == 0 && !started);
         if (side_pins) assert(sided_out == pin_out);

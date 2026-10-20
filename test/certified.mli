@@ -7,7 +7,8 @@
     in time; [no_wrap] says the proof by induction holds while the core is within 84 ms of
     its deadline and of the edge it last captured, which a program needs said of its
     24-bit clock when a wait, or a loop as long as the host says, can leave it arbitrarily
-    far behind either. *)
+    far behind either; [any_data] says the data memory reads as anything, every cycle,
+    where the rest read zeros, which covers every table a table interpreter can load. *)
 
 open! Core
 open Protocol_emulator
@@ -20,17 +21,38 @@ type t =
   ; period_floor : int option
   ; single_capture_edge : bool
   ; no_wrap : bool
+  ; any_data : bool
   }
 
-val all : t list
+val plain
+  :  ?period:int
+  -> ?period_floor:int
+  -> ?single_capture_edge:bool
+  -> ?no_wrap:bool
+  -> ?any_data:bool
+  -> string
+  -> string
+  -> Program_config.t
+  -> t
 
-(** [Firmware.uart_tx_stamped], whose proof adds that the stamp in each frame is the cycle
-    its start bit shows. Kept out of [all] until the kernel's tests take it in. *)
-val stamped : t
+(** [plain] with one edge before the capture and no wrap, as a receiver needs. *)
+val receiver
+  :  ?period:int
+  -> ?period_floor:int
+  -> string
+  -> string
+  -> Program_config.t
+  -> t
 
-(** Firmware that never waits on the host, so a late word can fault it but not move an
-    edge ([formal/late_host.sv]); [Feeding.schedule] gives the host its deadlines. *)
-val time_triggered : t list
+(** [plain] for firmware [%firmware] checked, under the assumptions it was checked under.
+    One checked at a least period, [~period_floor], needs the [period] the host loads. *)
+val of_firmware
+  :  ?period:int
+  -> ?no_wrap:bool
+  -> ?any_data:bool
+  -> string
+  -> Timed_program.t
+  -> t
 
-(** Searches [all], [stamped] and [time_triggered]. *)
-val find_exn : string -> t
+(** What the kernel checks the certificate under, the floor where there is one. *)
+val assumptions : t -> System_lockstep.Assumptions.t

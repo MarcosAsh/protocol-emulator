@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# What the editor shows for Act 1: test/firmware.ml with uart_tx16's [out pins, 1] given a
+# What the editor shows for Act 1: test/uart.ml with tx16's [out pins, 1] given a
 # delay, sent to ocamllsp as an unsaved buffer, so nothing on disk breaks. Prints each
 # diagnostic as the compiler would. Fails on any outside the literal, such as no config.
 # Usage: dune build @check, then python3 demo/squiggle.py [--delay 13]
@@ -10,12 +10,12 @@ import signal
 import subprocess
 import sys
 
-FILE = "test/firmware.ml"
+FILE = "test/uart.ml"
 
 
 def late_buffer(delay):
     lines = open(FILE).read().split("\n")
-    start = lines.index("let uart_tx16 =")
+    start = lines.index("let tx16 =")
     end = lines.index("|}]", start)
     out = lines.index("    out pins, 1", start)
     lines[out] += " [%d]" % delay
@@ -80,7 +80,7 @@ def main():
     if not found:
         print("builds")
     if any(not start <= d["range"]["start"]["line"] <= end for d in found):
-        sys.exit("a diagnostic outside uart_tx16: the editor would not show the squiggle")
+        sys.exit("a diagnostic outside tx16: the editor would not show the squiggle")
 
 
 if __name__ == "__main__":

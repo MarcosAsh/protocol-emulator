@@ -36,7 +36,7 @@ let%expect_test "the core sends every frame within the rate's timing" =
     ]
     ~f:(fun (name, source, rate, cycles) ->
       let t, levels = run source ~cycles in
-      let decoded = decode rate ~cycle_ns levels in
+      let decoded = decode rate ~clock_hz:Bench.clock_hz levels in
       Or_error.iter decoded ~f:(fun (decoded, _) ->
         [%test_result: (int * bool) list] ~message:"frames" decoded ~expect:frames);
       print_s
@@ -47,12 +47,12 @@ let%expect_test "the core sends every frame within the rate's timing" =
   [%expect
     {|
     (dshot600
-     (measured_ns (Ok ((T0H (620 620)) (bit (1660 1660)) (T1H (1240 1240)))))
+     (measured_ns (Ok ((T0H (646 646)) (bit (1729 1729)) (T1H (1292 1292)))))
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false)
        (assumption false))))
     (dshot1200
-     (measured_ns (Ok ((T0H (320 320)) (bit (840 840)) (T1H (640 640)))))
+     (measured_ns (Ok ((T0H (313 313)) (bit (833 833)) (T1H (625 625)))))
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false)
        (assumption false))))
@@ -79,15 +79,15 @@ let%expect_test "the decoder refuses a flipped bit and a short high" =
     [%message
       ""
         ~flipped:
-          (decode Rate.dshot600 ~cycle_ns flipped |> Or_error.map ~f:fst
+          (decode Rate.dshot600 ~clock_hz:Bench.clock_hz flipped |> Or_error.map ~f:fst
            : (int * bool) list Or_error.t)
         ~short:
-          (decode Rate.dshot600 ~cycle_ns short |> Or_error.map ~f:fst
+          (decode Rate.dshot600 ~clock_hz:Bench.clock_hz short |> Or_error.map ~f:fst
            : (int * bool) list Or_error.t)];
   [%expect
     {|
     ((flipped (Error (checksum (word 0x800))))
-     (short (Error ("out of spec" T0H (ns 540) (nominal 625)))))
+     (short (Error ("out of spec" T0H (ns 563) (nominal 625)))))
     |}]
 ;;
 
@@ -116,7 +116,8 @@ let%expect_test "dshot600 in lockstep" =
     [%message
       ""
         ~frames:
-          (decode Rate.dshot600 ~cycle_ns (List.rev !levels) |> Or_error.map ~f:fst
+          (decode Rate.dshot600 ~clock_hz:Bench.clock_hz (List.rev !levels)
+           |> Or_error.map ~f:fst
            : (int * bool) list Or_error.t)
         (model.fault : Machine.Fault.t)];
   [%expect
@@ -140,9 +141,9 @@ let%expect_test "every edge is placed by a deadline" =
      13  set pins, 0                  phase -30  edge -29  gap 31
     ((words 21) (edge_jitter 0) (sample_jitter 0) (side_jitter 0) (may_miss 0))
       1  set pins, 0                  phase 1  edge 2  gap ?..?
-      9  set pins, 1                  phase -15  edge -14  gap 10..?
-     11  out pins, 1                  phase -15  edge -14  gap 16
-     13  set pins, 0                  phase -15  edge -14  gap 16
+      9  set pins, 1                  phase -14  edge -13  gap 10..?
+     11  out pins, 1                  phase -14  edge -13  gap 15
+     13  set pins, 0                  phase -14  edge -13  gap 15
     ((words 20) (edge_jitter 0) (sample_jitter 0) (side_jitter 0) (may_miss 0))
     |}]
 ;;
@@ -195,7 +196,7 @@ let%expect_test "the first version, with a short gap between frames" =
         ~kernel:
           (Kernel.check ~config ~words (Kernel.Table.of_analyser rows) : unit Or_error.t)
         ~decoded:
-          (decode Rate.dshot600 ~cycle_ns levels |> Or_error.map ~f:fst
+          (decode Rate.dshot600 ~clock_hz:Bench.clock_hz levels |> Or_error.map ~f:fst
            : (int * bool) list Or_error.t)
         (t.fault : Machine.Fault.t)];
   [%expect

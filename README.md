@@ -1,7 +1,7 @@
 # protocol-emulator
 
 An entry for Jane Street's protocol emulator ASIC competition, written in Hardcaml and
-built on IHP CMOS5L through Tiny Tapeout, in 6 x 4 tiles at 50 MHz.
+built on IHP CMOS5L through Tiny Tapeout, in 6 x 4 tiles at 48 MHz.
 
 ![from firmware to silicon](docs/chain.svg)
 
@@ -15,13 +15,13 @@ the RTL is proven never to miss one of its deadlines, under the assumptions belo
 | | | Source |
 |---|---|---|
 | Process | IHP SG13CMOS5L through Tiny Tapeout, 6 x 4 tiles | `info.yaml`, `.github/workflows/gds.yaml` |
-| Clock | 50 MHz | `info.yaml` |
+| Clock | 48 MHz | `info.yaml` |
 | Cores | 2 cores, 3 IHP 512 x 16 SRAM macros: a program memory each and a data memory they share | `src/protocol_emulator.v` |
 | Pins | 4 for the host's SPI, 5 in, 7 out, 8 bidirectional, and 8 wires between the cores | `info.yaml`, `src/isa.ml` |
-| Hardened | 23,883 standard cells at 49.7% utilisation, setup slack +4.009 ns at the slow corner, precheck clean | gds run [36922636022](https://github.com/MarcosAsh/protocol-emulator/actions/runs/36922636022) |
-| Firmware | 22 library firmwares the kernel accepts | `test/test_kernel.ml` |
-| Proved | a program the kernel accepts never misses a deadline on each core's RTL, under the assumptions below | `formal/phase_table.sby` |
-| Board | the RTL on an Icepi Zero (ECP5 FPGA) passed the self-timing demo on 2026-10-01, no silicon yet | `python/demo_self_timing.py` |
+| Hardened | 23,595 standard cells at 49.7% utilisation, setup slack +3.100 ns at the slow corner, precheck clean | gds run [39073398014](https://github.com/MarcosAsh/protocol-emulator/actions/runs/39073398014) |
+| Firmware | 43 library firmwares the kernel accepts | `test/test_kernel.ml` |
+| Proved | a program the kernel accepts never misses a deadline on each core's RTL, under the assumptions below | `formal/phase_table.sby`, `formal/phase_table_affine.sby` |
+| Board | the RTL on an Icepi Zero (ECP5 FPGA) passed the self-timing demo on 2026-10-09, no silicon yet | `python/demo_self_timing.py` |
 
 ## From source to pins
 
@@ -60,14 +60,14 @@ under cocotb.
 - One theorem covers every program: if the kernel accepts it, it never misses a deadline.
   `src/kernel.ml` is a checker you can read in one sitting. `formal/phase_step.sv` with a
   SAT query in `test/test_kernel.ml` proves the theorem, and so does
-  `formal/phase_table.sby`.
+  `formal/phase_table.sby`, with `formal/phase_table_affine.sby` for Ethernet.
 - The hardened netlist equals the RTL for all time from all flops 0 (`netlist_equiv` job).
 - When and how the host talks reaches the pins only through the program's own fifo
   waits and tests, or a fault. Like the other lemmas in `formal/`, it has weakened copies
   that must fail (`make -C formal teeth`).
-- The kernel accepts all 22 library firmwares (UART, SPI, I2C, USB, WS2812, 1-Wire, PS/2,
-  JTAG, CAN, 10BASE-T, DShot600, SENT, CEC). `test/test_certified.ml` lists each with its
-  slack and assumptions.
+- The kernel accepts all 43 library firmwares (UART, SPI, I2C, USB, WS2812, 1-Wire, PS/2,
+  JTAG, CAN, 10BASE-T, DShot600, SENT, CEC, SWD). `test/test_certified.ml` lists each
+  with its slack and assumptions.
 - hardcaml_hobby_boards' `Uart.Tx`, compiled to firmware, drives the core's pin as the
   circuit drives its line, 4 cycles later, at 4 clocks a bit, for bytes at least 4 cycles
   after ready (`make -C formal fsm_miter`).
@@ -101,7 +101,6 @@ under cocotb.
     captured level, stays there until the wait releases
   - the core runs the words and configuration the kernel checked, with zeros past the
     program
-  - the host loads and starts a core only while halted
   - the configuration is fixed from power-on, the only reset
   - side-set count is at most 2
 - The theorem says nothing of the underflow and overflow a slow host can cause.
@@ -114,15 +113,15 @@ under cocotb.
     (`demo/decode.py`, the `decode` job)
   - USB enumeration, which the board does in `python/usb_board.py`
 - Nothing has run on silicon yet. On an Icepi Zero FPGA (ECP5, 48 MHz) running the chip's
-  RTL, `python/demo_self_timing.py` passed on 2026-10-01: engine 1 stamped all 52 edges of
+  RTL, `python/demo_self_timing.py` passed on 2026-10-09: engine 1 stamped all 52 edges of
   engine 0's `Jane St!` at 9600 baud on the predicted cycles, quiet and with the host
-  flooding SPI with reads. The USB keyboard (`python/demo_usb.py`) does not work there
-  yet.
+  flooding SPI with reads. The USB keyboard (`python/demo_usb.py`) passed there on
+  2026-10-02 (release v0.2.0).
 
 ## What the checks found
 
-The tests kill 111 of 114 valid mutants of the engine, decoder, pins and host port
-(mutation run 36642527804, 2026-09-29). The other 3 are equivalent, see
+The tests kill 112 of 114 valid mutants of the engine, decoder, pins and host port
+(mutation run 38969006870, 2026-10-16). The other 2 are equivalent, see
 `test/mutation_allow.txt`. Counted on 2026-09-30, of 13 bugs fixed in commits of their
 own, model tests found 3, the analyser's soundness check 3, AI review 3, proofs 2, the
 analyser 1 and a mutant 1, among them a showahead `Fifo` holding one word over its
@@ -169,15 +168,15 @@ make -C formal             # hours; CI runs the long proofs in jobs of their own
 ```
 
 `make -C test COCOTB_TEST_MODULES=test_demo` runs the self-timing and keyboard demos with
-no board in about 6 minutes. Each claim's last green run in CI is on the
+no board in about 17 minutes. Each claim's last green run in CI is on the
 [results page](https://marcosash.github.io/protocol-emulator/results/).
 
 To harden, clone TinyTapeout/tt-support-tools, branch `ihp-sg13cmos5l`, into `tt/`, then
-`tt/tt_tool.py --create-user-config --ihp` and `--harden --ihp`. Gds run 36922636022, on
-this Verilog, signs off with setup slack +4.009 ns at the slow corner, at 49.7%
-utilisation. The picture is that run's die by RTL module, drawn by `demo/die.py` from its
-`GDS_logs` artifact. 1,873 of 1,883 flops map by RTL line and net name. Each gate goes with
-the nearest flop it feeds, which gets 97.9% of gates right on the RTL synthesised a module
+`tt/tt_tool.py --create-user-config --ihp` and `--harden --ihp`. Gds run 39073398014, on
+this Verilog, signs off with setup slack +3.100 ns at the slow corner, at 49.7%
+utilisation. The picture is this harden's die by RTL module, drawn by `demo/die.py` from its
+`GDS_logs` artifact. 1,883 of 1,893 flops map by RTL line and net name. Each gate goes with
+the nearest flop it feeds, which gets 96.8% of gates right on the RTL synthesised a module
 at a time (`--check`).
 
 ![the hardened die, each cell coloured by its RTL module](docs/die.png)

@@ -47,7 +47,7 @@ val run
   -> unit
   -> Machine.t * (int * State.t * State.t) option
 
-(** [run], printing whether the two held together. *)
+(** [run], printing that the two held together, or raising at the first mismatch. *)
 val lockstep
   :  ?cycles:int
   -> ?preload:int list
@@ -65,9 +65,9 @@ val lockstep
   -> Machine.t
 
 (** [programs] runs of [run], each under a random configuration, random pins and a host
-    that writes and reads at random; prints the seeds that did not hold. Without [wrap]
-    the program counter only wraps at the end of memory. With [stops] the host also stops
-    the core at random, about once in a hundred cycles. *)
+    that writes and reads at random; prints the seeds that did not hold, and raises if any
+    did not. Without [wrap] the program counter only wraps at the end of memory. With
+    [stops] the host also stops the core at random, about once in a hundred cycles. *)
 val random_programs
   :  ?coverage:Coverage.t
   -> ?wrap:bool

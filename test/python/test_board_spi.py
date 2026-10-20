@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # python/demo_board.py and demo_board_check.py on ttboard_fake's RP2, against a model of the
 # host port a clock at a time: host_spi.ml's synchronisers and shifters over a register
-# file. The waveforms are held to SCK at most a twelfth of the clock; test/test_demo_board.py
+# file. The waveforms are held to SCK at most an eighth of the clock; test/test_demo_board.py
 # runs the same scripts on the RTL.
 import sys
 
@@ -18,19 +18,28 @@ class Chip:
     check accepts any program, the RTL test running the real checker, and a start counts
     only after one."""
 
-    def __init__(self, uart=None):
-        self.uart = uart
+    def __init__(self, uart=None, miso_lag=0):
+        self.uart, self.miso_lag = uart, miso_lag
         self.ui, self.rst_n, self.carry, self.now, self.settle = 0b100, 1, 0, 0, 0
+        self.programs, self.data = [[0] * 512 for _ in range(2)], [0] * 512
         self.reset()
 
     def reset(self):
+        """The flops; the SRAM keeps its words."""
         self.sync = [0b100, 0b100]
         self.sck, self.selected, self.count, self.shift_in, self.shift_out = 0, False, 0, 0, 0
+        self.misos = [0] * (1 + self.miso_lag)
         self.state, self.cmd, self.high, self.value = "cmd", 0, 0, 0
         self.program_addr, self.data_addr, self.select, self.accepted = 0, 0, 0, 0
-        self.engines = [dict(halted=1, tx=[], rx=[], program=[0] * 512, period=None,
+        self.engines = [dict(halted=1, tx=[], rx=[], program=program, config={}, period=None,
                              free_at=0, frames=[], certified=0, refused=0)
-                        for _ in range(2)]
+                        for program in self.programs]
+
+    def power_down(self):
+        """Deselected: every flop and SRAM word arbitrary."""
+        self.reset()
+        for words in self.programs + [self.data]:
+            words[:] = [(i * 0x6F4B + 0x3A) & 0xFFFF for i in range(len(words))]
 
     # the backend
     def run(self, board, ticks, stop=None):
@@ -38,11 +47,11 @@ class Chip:
 
     def drive(self, ui, rst_n):
         self.ui, self.rst_n = ui, rst_n
-        self.settle = 5
+        self.settle = 5 + self.miso_lag
 
     def pads(self):
-        e = self.engines[0]
-        return int(self.selected and self.shift_out >> 7) | self.line(e) << 1, 0
+        """MISO miso_lag clocks late, as longer pads and mux would have it."""
+        return self.misos[0] | self.line(self.engines[0]) << 1, 0
 
     def elapse(self, board, ticks):
         if not board.clock_hz:
@@ -83,6 +92,7 @@ class Chip:
                 self.shift_out = (self.shift_out << 1) & 0xFF
         for e in self.engines:
             self.serve(e)
+        self.misos = self.misos[1:] + [int(self.selected and self.shift_out >> 7)]
 
     # the register layer
     def byte(self, b):
@@ -137,7 +147,14 @@ class Chip:
             self.program_addr = (self.program_addr + 1) & 511
         elif reg == pe.SELECT:
             self.select = w & 1
+        elif reg == pe.DATA_ADDR:
+            self.data_addr = w & 511
+        elif reg == pe.DATA:
+            if all(x["halted"] for x in self.engines):
+                self.data[self.data_addr] = w
+            self.data_addr = (self.data_addr + 1) & 511
         elif pe.CONFIG <= reg < pe.CHECK_BASE and e["halted"]:
+            e["config"][reg] = w
             e["certified"] = 0
         elif reg == pe.TX and len(e["tx"]) < 8:
             e["tx"].append(w)
@@ -202,8 +219,8 @@ def assert_spi_timing(trace, clock_hz, sck_hz):
 
 
 def test_frames_and_timing():
-    for kind, clock_hz, sck_hz in (("dbv3", 48_000_000, None), ("dbv3", 10_000_000, None),
-                                   ("tt06", 48_000_000, 4_000_000)):
+    for kind, clock_hz, sck_hz in (("dbv3", 48_000_000, None), ("dbv3", 48_000_000, 6_000_000),
+                                   ("dbv3", 10_000_000, None), ("tt06", 48_000_000, 6_000_000)):
         chip = Chip()
         b, m = board(chip, kind=kind)
         spi = m.demo_board.DemoBoardSpi(clock_hz=clock_hz, sck_hz=sck_hz)
@@ -228,15 +245,18 @@ def test_frames_and_timing():
 
 
 def test_sck_margin():
-    """SCK at an eighth, were it allowed, reads each bit before MISO moves: the limit is
-    what the lag from the chip's pads to the PIO costs."""
-    b, m = board()
-    m.demo_board.SCK_DIVIDE = 8
-    spi = m.demo_board.DemoBoardSpi(clock_hz=48_000_000, sck_hz=6_000_000)
-    host = pe.Host(spi.transfer)
-    host.write(pe.PROGRAM_ADDR, [0x1A5])
-    assert host.read(pe.PROGRAM_ADDR) != [0x1A5]
-    b.uninstall()
+    """SCK at an eighth reads every bit with MISO up to three clocks later than the 20 ns
+    of pads and mux the fake has, and not four. Read on the rise, it failed with none."""
+    for lag, intact in ((0, True), (3, True), (4, False)):
+        b, m = board(Chip(miso_lag=lag))
+        spi = m.demo_board.DemoBoardSpi(clock_hz=48_000_000, sck_hz=6_000_000)
+        host = pe.Host(spi.transfer)
+        got = []
+        for word in (0x1A5, 0x05A, 0x1FF):
+            host.write(pe.PROGRAM_ADDR, [word])
+            got += host.read(pe.PROGRAM_ADDR)
+        assert (got == [0x1A5, 0x05A, 0x1FF]) == intact, (lag, got)
+        b.uninstall()
 
 
 def test_setup():
@@ -254,18 +274,33 @@ def test_setup():
     assert m.tt.manual_project_clock.monitoring is False
     assert m.tt.uio_oe_pico.value == 0
     assert b.sys_hz == 96_000_000 and spi.sck_hz == 3_000_000
+    assert spi.selected()
+    b.uninstall()
+    # ui[6] and ui[7] left to the input Pmod, the rest driven by the RP
+    b, m = board()
+    m.demo_board.DemoBoardSpi(ui_inputs=0b1100_0000)
+    assert [g in b.outputs for g in b.ui] == [True] * 6 + [False] * 2, b.outputs
     b.uninstall()
 
 
 def test_refusals():
     b, m = board()
-    for kwargs, message in (({"sck_hz": 4_000_001}, "over 1/12"),
-                            ({"project": "tt_um_other"}, "not on this chip")):
+    for kwargs, message in (({"sck_hz": 6_000_001}, "over 1/8"),
+                            ({"ui_inputs": 0b100}, "host port"),
+                            ({"project": "tt_um_missing"}, "not on this chip")):
         try:
             m.demo_board.DemoBoardSpi(**kwargs)
             raise AssertionError(kwargs)
         except (ValueError, RuntimeError) as e:
             assert message in str(e), e
+    b.uninstall()
+    # a danger level over safe, which ProjectMux.enable refuses without force
+    b, m = board(risky=("tt_um_marcosash_protocol_emulator",))
+    try:
+        m.demo_board.DemoBoardSpi()
+        raise AssertionError("enabled")
+    except RuntimeError as e:
+        assert "would not enable" in str(e), e
     b.uninstall()
     b, m = board(switches=0b010)
     said = []
@@ -310,8 +345,54 @@ def test_check():
         b.uninstall()
 
 
+def test_reselect():
+    """Another design selected powers ours down; ensure sees it from the SDK's enables and
+    puts back both engines' configs and programs and the data, with engine 1 selected."""
+    chip = Chip()
+    b, m = board(chip)
+    host = m.demo_board.host(sck_hz=6_000_000)
+    assert not host.ensure()
+    programs = [[(i * 0x9E37 + e) & 0xFFFF for i in range(40)] for e in range(2)]
+    for e in (0, 1):
+        host.select(e)
+        host.configure(dict(pe.DEFAULT_CONFIG, out_base=5 + e))
+        host.load([0xFFFF] * 8)
+        host.load(programs[e])
+        host.load([0x1234], address=100)
+    host.load_data([0xBEEF, 0xCAFE], address=7)
+    expect = [list(chip.programs[e]) for e in (0, 1)]
+    configs = [dict(chip.engines[e]["config"]) for e in (0, 1)]
+    assert expect[1][:41] == programs[1] + [0] and expect[1][100] == 0x1234
+    assert configs[1][pe.CONFIG + pe.CONFIG_FIELDS.index("out_base")] == 6
+    m.tt.shuttle.get("tt_um_other").enable()
+    assert not host.spi.selected() and chip.programs[0] != expect[0]
+    assert host.ensure()
+    assert [chip.programs[e] for e in (0, 1)] == expect
+    assert [chip.engines[e]["config"] for e in (0, 1)] == configs
+    assert chip.data[7:9] == [0xBEEF, 0xCAFE] and chip.select == 1
+    assert host.read(pe.SELECT) == [1] and not host.ensure()
+    # enabling ours again through the SDK powers it down too
+    m.tt.shuttle.get(m.demo_board.PROJECT).enable()
+    assert not host.spi.selected() and host.ensure()
+    assert [chip.programs[e] for e in (0, 1)] == expect
+    b.uninstall()
+
+
+def test_standin():
+    """demo/etr_standin.sh's run on Pico A, with python/etr_standin.py for the SDK."""
+    b = ttboard_fake.Board(Chip(), kind="pico_a")
+    m = b.install(sdk="etr_standin")
+    said = []
+    assert sys.modules["etr_standin"].main(say=said.append), said
+    assert sum(line.startswith("pass load") for line in said) == 3, said
+    assert "pass reselect: stale True, reloaded True" in said and said[-1] == "PASS", said
+    b.uninstall()
+
+
 test_frames_and_timing()
 test_sck_margin()
 test_setup()
 test_refusals()
 test_check()
+test_reselect()
+test_standin()

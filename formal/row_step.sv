@@ -1,8 +1,9 @@
 // The kernel's check of one step, as test_kernel.ml's SAT proof states it: for any rows,
 // word and state, an accepted row holding the core maps it into the row it goes to, for
 // any next state kernel_step allows. The offsets are free under axioms that hold of the
-// true phase - slope * x modulo 2^24, each guarded by the x it needs. row_step.sby proves
-// it for every input; phase_step.sv's AFFINE table assumes it.
+// true phase - slope * x modulo 2^24, each guarded by the x it needs, as
+// offset_axioms.smt2 proves. row_step.sby proves it for every input; phase_step.sv's AFFINE
+// table assumes it.
 
 // no pair: the kernel spaces edges only for tables of intervals
 `define UNPAIRED \

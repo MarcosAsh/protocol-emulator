@@ -56,5 +56,11 @@ val program : t -> Asm.Program.t
 val config : t -> Program_config.t
 
 val words : t -> int list
+
+(** The assumptions [check] was given. *)
+val period : t -> int option
+
+val period_floor : t -> int option
+val single_capture_edge : t -> bool
 val rows : t -> Analyser.Row.t list
 val verdict : t -> Analyser.Verdict.t

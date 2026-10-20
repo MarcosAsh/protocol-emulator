@@ -15,9 +15,8 @@ open! Core
 open Protocol_emulator
 
 val pin : int
-val cycle_ns : int
 
-(** 3 us at 50 MHz. *)
+(** 3.125 us at 48 MHz. *)
 val standard_tick : int
 
 (** The least tick the host may load: the kernel accepts the analyser's rows at every load
@@ -47,4 +46,6 @@ val words : Frame.t -> int list
     The tick is measured from each sync against the last, within 1/64, not against J2716's
     3 to 90 us, so the tests may run short ticks for speed; and every frame must have a
     pause. An oracle for this transmitter, not a general J2716 receiver. *)
-val decode : cycle_ns:int -> bool list -> (Frame.t list * Measured.t) Or_error.t
+val decode : clock_hz:int -> bool list -> (Frame.t list * Measured.t) Or_error.t
+
+val protocol : Protocol.t

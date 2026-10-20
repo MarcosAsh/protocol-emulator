@@ -3,11 +3,15 @@
  (names generate)
  (libraries
   core.command
+  core_unix
   core_unix.command_unix
+  core_unix.sys_unix
   core
   hardcaml
   protocol_emulator
   jane_rope)
+ (lint
+  (pps ppx_js_style -check-doc-comments))
  (preprocess
   (pps ppx_jane))
  (promote))

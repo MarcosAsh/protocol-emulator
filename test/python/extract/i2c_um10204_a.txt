@@ -1,0 +1,120 @@
+BEGIN LIMITS
+document	UM10204 I2C-bus specification and user manual	Rev. 7.0	1 October 2021
+symbol	parameter	condition	min	typ	max	unit	page	where
+bit rate	bit rate	Standard-mode (Sm)			100	kbit/s	33	text
+bit rate	bit rate	Fast-mode (Fm)			400	kbit/s	33	text
+bit rate	bit rate	Fast-mode Plus (Fm+)			1	Mbit/s	33	text
+bit rate	bit rate	High-speed mode (Hs-mode)			3.4	Mbit/s	33	text
+bit rate	bit rate	Ultra Fast-mode (UFm)			5	Mbit/s	33	text
+bit rate	maximum bit rate Hs-mode	capacitive bus load of 400 pF			1.7	Mbit/s	46	text
+SMBus clock	SMBus clock frequency		10		100	kHz	30	text
+SMBus time-out	SMBus clock stretch delay limit				35	ms	31	text
+SCL pull-down to close bridge	F/S-mode device pulling down SCL to close the bridge		1			μs	41	text
+bit rate	communication bit rate	Hs ↔ Hs; Hs + Fast + Standard	0		3.4	Mbit/s	40	Table 9
+bit rate	communication bit rate	Hs ↔ Hs; Hs + Fast	0		3.4	Mbit/s	40	Table 9
+bit rate	communication bit rate	Hs ↔ Hs; Hs + Standard	0		3.4	Mbit/s	40	Table 9
+bit rate	communication bit rate	Hs ↔ Fast; Hs + Fast + Standard	0		100	kbit/s	40	Table 9
+bit rate	communication bit rate	Hs ↔ Fast; Hs + Fast	0		400	kbit/s	40	Table 9
+bit rate	communication bit rate	Hs ↔ Standard; Hs + Fast + Standard	0		100	kbit/s	40	Table 9
+bit rate	communication bit rate	Hs ↔ Standard; Hs + Standard	0		100	kbit/s	40	Table 9
+bit rate	communication bit rate	Fast ↔ Standard; Hs + Fast + Standard	0		100	kbit/s	40	Table 9
+bit rate	communication bit rate	Fast ↔ Standard; Fast + Standard	0		100	kbit/s	40	Table 9
+bit rate	communication bit rate	Fast ↔ Fast; Hs + Fast + Standard	0		100	kbit/s	40	Table 9
+bit rate	communication bit rate	Fast ↔ Fast; Hs + Fast	0		400	kbit/s	40	Table 9
+bit rate	communication bit rate	Fast ↔ Fast; Fast + Standard	0		100	kbit/s	40	Table 9
+bit rate	communication bit rate	Standard ↔ Standard; Hs + Fast + Standard	0		100	kbit/s	40	Table 9
+bit rate	communication bit rate	Standard ↔ Standard; Hs + Standard	0		100	kbit/s	40	Table 9
+bit rate	communication bit rate	Standard ↔ Standard; Fast + Standard	0		100	kbit/s	40	Table 9
+tof	output fall time from VIHmin to VILmax	Standard-mode			250	ns	43	Table 10
+tof	output fall time from VIHmin to VILmax	Fast-mode	20 × (VDD / 5.5 V)		250	ns	43	Table 10
+tof	output fall time from VIHmin to VILmax	Fast-mode Plus	20 × (VDD / 5.5 V)		120	ns	43	Table 10
+tSP	pulse width of spikes that must be suppressed by the input filter	Fast-mode	0		50	ns	43	Table 10
+tSP	pulse width of spikes that must be suppressed by the input filter	Fast-mode Plus	0		50	ns	43	Table 10
+fSCL	SCL clock frequency	Standard-mode	0		100	kHz	44	Table 11
+fSCL	SCL clock frequency	Fast-mode	0		400	kHz	44	Table 11
+fSCL	SCL clock frequency	Fast-mode Plus	0		1000	kHz	44	Table 11
+tHD;STA	hold time (repeated) START condition	Standard-mode	4.0			μs	44	Table 11
+tHD;STA	hold time (repeated) START condition	Fast-mode	0.6			μs	44	Table 11
+tHD;STA	hold time (repeated) START condition	Fast-mode Plus	0.26			μs	44	Table 11
+tLOW	LOW period of the SCL clock	Standard-mode	4.7			μs	44	Table 11
+tLOW	LOW period of the SCL clock	Fast-mode	1.3			μs	44	Table 11
+tLOW	LOW period of the SCL clock	Fast-mode Plus	0.5			μs	44	Table 11
+tHIGH	HIGH period of the SCL clock	Standard-mode	4.0			μs	44	Table 11
+tHIGH	HIGH period of the SCL clock	Fast-mode	0.6			μs	44	Table 11
+tHIGH	HIGH period of the SCL clock	Fast-mode Plus	0.26			μs	44	Table 11
+tSU;STA	set-up time for a repeated START condition	Standard-mode	4.7			μs	44	Table 11
+tSU;STA	set-up time for a repeated START condition	Fast-mode	0.6			μs	44	Table 11
+tSU;STA	set-up time for a repeated START condition	Fast-mode Plus	0.26			μs	44	Table 11
+tHD;DAT	data hold time	CBUS compatible controllers (see Remark in Section 4.1); Standard-mode	5.0			μs	44	Table 11
+tHD;DAT	data hold time	I2C-bus devices; Standard-mode	0		3.45	μs	44	Table 11
+tHD;DAT	data hold time	I2C-bus devices; Fast-mode	0		0.9	μs	44	Table 11
+tHD;DAT	data hold time	I2C-bus devices; Fast-mode Plus	0			μs	44	Table 11
+tSU;DAT	data set-up time	Standard-mode	250			ns	44	Table 11
+tSU;DAT	data set-up time	Fast-mode	100			ns	44	Table 11
+tSU;DAT	data set-up time	Fast-mode Plus	50			ns	44	Table 11
+tr(max) + tSU;DAT	next data bit output before SCL released	Fast-mode device in Standard-mode system stretching SCL LOW	1250			ns	44	Table 11
+tr	rise time of both SDA and SCL signals	Standard-mode			1000	ns	44	Table 11
+tr	rise time of both SDA and SCL signals	Fast-mode	20		300	ns	44	Table 11
+tr	rise time of both SDA and SCL signals	Fast-mode Plus			120	ns	44	Table 11
+tf	fall time of both SDA and SCL signals	Standard-mode			300	ns	44	Table 11
+tf	fall time of both SDA and SCL signals	Fast-mode	20 × (VDD / 5.5 V)		300	ns	44	Table 11
+tf	fall time of both SDA and SCL signals	Fast-mode Plus	20 × (VDD / 5.5 V)		120	ns	44	Table 11
+tSU;STO	set-up time for STOP condition	Standard-mode	4.0			μs	44	Table 11
+tSU;STO	set-up time for STOP condition	Fast-mode	0.6			μs	44	Table 11
+tSU;STO	set-up time for STOP condition	Fast-mode Plus	0.26			μs	44	Table 11
+tBUF	bus free time between a STOP and START condition	Standard-mode	4.7			μs	44	Table 11
+tBUF	bus free time between a STOP and START condition	Fast-mode	1.3			μs	44	Table 11
+tBUF	bus free time between a STOP and START condition	Fast-mode Plus	0.5			μs	44	Table 11
+tVD;DAT	data valid time	Standard-mode			3.45	μs	44	Table 11
+tVD;DAT	data valid time	Fast-mode			0.9	μs	44	Table 11
+tVD;DAT	data valid time	Fast-mode Plus			0.45	μs	44	Table 11
+tVD;ACK	data valid acknowledge time	Standard-mode			3.45	μs	44	Table 11
+tVD;ACK	data valid acknowledge time	Fast-mode			0.9	μs	44	Table 11
+tVD;ACK	data valid acknowledge time	Fast-mode Plus			0.45	μs	44	Table 11
+trCL	rise time of SCLH signal	capacitive load from 10 pF to 100 pF	10		40	ns	46	Table 12
+trCL	rise time of SCLH signal	capacitive load of 400 pF	20		80	ns	46	Table 12
+tfCL	fall time of SCLH signal	capacitive load from 10 pF to 100 pF	10		40	ns	46	Table 12
+tfCL	fall time of SCLH signal	capacitive load of 400 pF	20		80	ns	46	Table 12
+tfDA	fall time of SDAH signal	capacitive load from 10 pF to 100 pF	10		80	ns	46	Table 12
+tfDA	fall time of SDAH signal	capacitive load of 400 pF	20		160	ns	46	Table 12
+tSP	pulse width of spikes that must be suppressed by the input filter	SDAH and SCLH	0		10	ns	46	Table 12
+fSCLH	SCLH clock frequency	Cb = 100 pF (max)	0		3.4	MHz	47	Table 13
+fSCLH	SCLH clock frequency	Cb = 400 pF	0		1.7	MHz	47	Table 13
+tSU;STA	set-up time for a repeated START condition	Cb = 100 pF (max)	160			ns	47	Table 13
+tSU;STA	set-up time for a repeated START condition	Cb = 400 pF	160			ns	47	Table 13
+tHD;STA	hold time (repeated) START condition	Cb = 100 pF (max)	160			ns	47	Table 13
+tHD;STA	hold time (repeated) START condition	Cb = 400 pF	160			ns	47	Table 13
+tLOW	LOW period of the SCL clock	Cb = 100 pF (max)	160			ns	47	Table 13
+tLOW	LOW period of the SCL clock	Cb = 400 pF	320			ns	47	Table 13
+tHIGH	HIGH period of the SCL clock	Cb = 100 pF (max)	60			ns	47	Table 13
+tHIGH	HIGH period of the SCL clock	Cb = 400 pF	120			ns	47	Table 13
+tSU;DAT	data set-up time	Cb = 100 pF (max)	10			ns	47	Table 13
+tSU;DAT	data set-up time	Cb = 400 pF	10			ns	47	Table 13
+tHD;DAT	data hold time	Cb = 100 pF (max)	0		70	ns	47	Table 13
+tHD;DAT	data hold time	Cb = 400 pF	0		150	ns	47	Table 13
+trCL	rise time of SCLH signal	Cb = 100 pF (max)	10		40	ns	47	Table 13
+trCL	rise time of SCLH signal	Cb = 400 pF	20		80	ns	47	Table 13
+trCL1	rise time of SCLH signal after a repeated START condition and after an acknowledge bit	Cb = 100 pF (max)	10		80	ns	47	Table 13
+trCL1	rise time of SCLH signal after a repeated START condition and after an acknowledge bit	Cb = 400 pF	20		160	ns	47	Table 13
+tfCL	fall time of SCLH signal	Cb = 100 pF (max)	10		40	ns	47	Table 13
+tfCL	fall time of SCLH signal	Cb = 400 pF	20		80	ns	47	Table 13
+trDA	rise time of SDAH signal	Cb = 100 pF (max)	10		80	ns	47	Table 13
+trDA	rise time of SDAH signal	Cb = 400 pF	20		160	ns	47	Table 13
+tfDA	fall time of SDAH signal	Cb = 100 pF (max)	10		80	ns	47	Table 13
+tfDA	fall time of SDAH signal	Cb = 400 pF	20		160	ns	47	Table 13
+tSU;STO	set-up time for STOP condition	Cb = 100 pF (max)	160			ns	47	Table 13
+tSU;STO	set-up time for STOP condition	Cb = 400 pF	160			ns	47	Table 13
+tSP	pulse width of spikes that must be suppressed by the input filter	Ultra Fast-mode			10	ns	48	Table 14
+fUSCL	USCL clock frequency	Ultra Fast-mode	0		5000	kHz	49	Table 15
+tBUF	bus free time between a STOP and START condition	Ultra Fast-mode	80			ns	49	Table 15
+tHD;STA	hold time (repeated) START condition	Ultra Fast-mode	50			ns	49	Table 15
+tSU;STA	set-up time for a repeated START condition	Ultra Fast-mode	50			ns	49	Table 15
+tSU;STO	set-up time for STOP condition	Ultra Fast-mode	50			ns	49	Table 15
+tHD;DAT	data hold time	Ultra Fast-mode	10			ns	49	Table 15
+tVD;DAT	data valid time	Ultra Fast-mode	10			ns	49	Table 15
+tSU;DAT	data set-up time	Ultra Fast-mode	30			ns	49	Table 15
+tLOW	LOW period of the USCL clock	Ultra Fast-mode	50			ns	49	Table 15
+tHIGH	HIGH period of the USCL clock	Ultra Fast-mode	50			ns	49	Table 15
+tf	fall time of both USDA and USCL signals	Ultra Fast-mode		25	50	ns	49	Table 15
+tr	rise time of both USDA and USCL signals	Ultra Fast-mode		25	50	ns	49	Table 15
+END LIMITS

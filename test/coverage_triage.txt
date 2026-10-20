@@ -1,0 +1,23 @@
+# The points of src/ the tests leave open, each with why (test/check_coverage.py).
+#   POINT [K/N] CLASS REASON   K/N: the share of the point's copies some circuit covers
+#   module NAME MAX CLASS REASON   a module whose open points are only counted
+# constant: a mux select or register bit that is a constant by construction
+# unreachable: no reachable state hits it, with the proof named
+
+# count_mask in Pins.write: a 5-stage shift by the count, one mux per count bit. The side-set
+# count is 2 bits, so stages 2-4 select a constant 0 for both side-set writes.
+a28f84fe 2/5 constant side-set writes, stages 2-4 of the count shift
+# the out, mov and set writes to the pins and to their directions: set_count is 3 bits, so
+# its stages 3 and 4 select a constant 0; every other stage of the three counts moves
+2bbb78fe 13/15 constant pin writes, stages 3-4 of set_count's shift
+1518695e 13/15 constant direction writes, stages 3-4 of set_count's shift
+
+# Hardcaml's showahead Fifo is full at used = capacity + 1 = 9, but Host_fifo stops writes
+# at 8: formal/fifo_order.sv proves level <= 8, and full is level = 9 registered
+a11d7b0a unreachable the fifo's own full register, past Host_fifo's 8 words
+
+# the kernel's checks as circuits (kernel_accepts, kernel_step) are for the proofs, not the
+# chip. The tests drive them with the library firmwares only, which never wrap a pin base,
+# write pindirs, clamp a mark or use a side-set count of 3. The kernel is being rewritten on
+# kernel-batch and mutation-1015, so its holes are counted, not closed.
+module kernel 51 open

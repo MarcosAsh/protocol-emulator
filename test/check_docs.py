@@ -1,31 +1,47 @@
 # SPDX-License-Identifier: Apache-2.0
 # Fails when README.md or docs/info.md cites a path, make target, job, commit or run that
-# is not there, or quotes a number the code, the tests or the cited run disagree with.
-# --teeth checks that wrong READMEs made from this one fail. --offline skips the runs.
-# Usage: python3 test/check_docs.py [--offline] [--teeth]
+# is not there, or quotes a number the code, the tests or the cited run disagree with,
+# naming the line, or links to a page that is gone. Board results and gds runs older than
+# CI keeps are read from the releases test/evidence.sha256 pins. --teeth checks that wrong
+# READMEs made from this one fail. --offline skips the runs, evidence and links.
+# Usage: python3 test/check_docs.py [--offline] [--teeth] [--external-links]
 import argparse
+import contextlib
 import csv
+import io
 import json
 import re
 import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 from functools import cache
 from pathlib import Path
+
+import evidence
 
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ["README.md", "docs/info.md"]
 REPO = "MarcosAsh/protocol-emulator"
 ONLINE = True
+EXTERNAL = False
+# links checked unless --external-links asks for every host
+OWN_HOSTS = ("github.com", "marcosash.github.io")
+LINK_TTL = 24 * 3600  # how long a link that answered is not asked again
+WORDS = dict(zip("one two three four five six seven eight nine ten".split(),
+                 map(str, range(1, 11))))
 WARNINGS = []
+DEADLINE = "2027-01-18"  # the competition's submission date
 
 # cited for the reader to make: tt-support-tools is cloned into tt/
 NOT_IN_REPO = ("tt/",)
 
 # what a gds run hardens, as gds.yaml's paths filter has it
 HARDENED = ["src", "macro", "info.yaml", "librelane_plugin_sram_pdn.py", "odb_sram_stripes.py",
-            ":!*.ml", ":!*.mli", ":!**/dune"]
+            "librelane_plugin_die_art.py", "die_art.py", ":!*.ml", ":!*.mli", ":!**/dune"]
 
 EXTENSIONS = "ml|mli|sv|v|sby|py|asm|hex|txt|tcl|yaml|svg|png|md|json|settings|lpf|mk"
 PATH = re.compile(rf"(?<![\w./-])((?:[\w.-]+/)+[\w.-]+\.(?:{EXTENSIONS}))(?!\.?[\w/-])")
@@ -147,9 +163,16 @@ def library_firmwares():
     return re.findall(r"^\s*\((\w+) \(verdict \(Ok \(\)\)\)\)$", test, re.M)
 
 
+@cache
+def engine_scope():
+    """The files of test/mutate.py's engine scope, whose score the docs quote."""
+    files = find(r'"engine": \{\s*"files": \[([^]]*)\]', "test/mutate.py")[1]
+    return re.findall(r'"([^"]+)"', files)
+
+
 def equivalent_mutants():
     lines = read("test/mutation_allow.txt").splitlines()
-    return sum(1 for line in lines if line.strip() and not line.startswith("#"))
+    return sum(1 for line in lines if line.split(" ## ")[0] in engine_scope())
 
 
 @cache
@@ -198,13 +221,23 @@ def same_chip(sha):
 
 
 @cache
+def green_runs(workflow):
+    """The green runs of [workflow] on main that HEAD descends from, newest first."""
+    out = gh("api", f"repos/{REPO}/actions/workflows/{workflow}/runs?branch=main&status=success"
+                    "&per_page=100")
+    return [r for r in json.loads(out or '{"workflow_runs": []}')["workflow_runs"]
+            if not not_ours(r["head_sha"])]
+
+
+@cache
+def chip_gds_runs():
+    """The green gds runs on main that hardened the chip as it is now, newest first."""
+    return [str(r["id"]) for r in green_runs("gds.yaml") if same_chip(r["head_sha"])]
+
+
 def current_gds_run():
-    """The newest green gds run on main that hardened the chip as it is now, or None."""
-    out = gh("api", f"repos/{REPO}/actions/workflows/gds.yaml/runs?branch=main&status=success")
-    for r in json.loads(out or '{"workflow_runs": []}')["workflow_runs"]:
-        if not not_ours(r["head_sha"]) and same_chip(r["head_sha"]):
-            return str(r["id"])
-    return None
+    """The newest of them, or None."""
+    return next(iter(chip_gds_runs()), None)
 
 
 @cache
@@ -221,14 +254,79 @@ def gds_metrics(run_id):
         if not (Path(tmp) / "metrics.csv").exists():
             return None, "has a metrics artifact gh could not download"
         with open(Path(tmp) / "metrics.csv") as f:
-            return next(csv.DictReader(f)), None
+            return {**next(csv.DictReader(f)), "expires_at": artifacts[0]["expires_at"][:10]}, None
+
+
+@cache
+def gds_numbers(run_id):
+    """The run's metrics row from a pinned release that keeps it, else from its artifact,
+    or None and why not."""
+    kept = evidence.gds_kept(run_id)
+    return (kept, None) if kept else gds_metrics(run_id)
+
+
+def said_gds(m):
+    """A metrics row as the docs word it."""
+    return (f"{int(m['std_cells']):,} standard cells, "
+            f"{round(float(m['utilisation']) * 100, 6):g}% utilisation, "
+            f"setup slack {float(m['setup_slow_ns']):+.3f} ns at the slow corner")
+
+
+def best_gds_run():
+    """The run the docs should cite: the newest green gds run of the chip as it is now that
+    a pinned release keeps, else the newest, or None."""
+    runs = chip_gds_runs()
+    return next((r for r in runs if evidence.gds_kept(r)), next(iter(runs), None))
+
+
+@cache
+def fresh_gds():
+    """What to cite instead: a green gds run of the chip as it is now, one a pinned release
+    keeps if there is one, and its numbers."""
+    best = best_gds_run()
+    if best is None:
+        return "no green gds run on main has hardened the chip as it is now"
+    kept = evidence.gds_kept(best)
+    where = f", kept in release {kept['release']}" if kept else ""
+    m, _ = gds_numbers(best)
+    return f"cite gds run {best}{where}" + (f": {said_gds(m)}" if m else "")
+
+
+@cache
+def failed_jobs(run_id, name):
+    """The conclusions of [run_id]'s jobs called [name] that did not succeed."""
+    jobs = json.loads(gh("api", f"repos/{REPO}/actions/runs/{run_id}/jobs?per_page=100")
+                      or '{"jobs": []}')["jobs"]
+    found = [j["conclusion"] for j in jobs if j["name"] == name]
+    return [c for c in found if c != "success"] if found else ["missing"]
+
+
+def changed_since(sha, paths):
+    return git("diff", "--name-only", sha, "HEAD", "--", *paths).stdout.split()
+
+
+@cache
+def fresh_mutation():
+    """What to cite instead: the newest green mutation run on main of the files as they
+    are, and its score."""
+    for r in green_runs("mutation.yaml"):
+        if not changed_since(r["head_sha"], engine_scope()):
+            score, _ = mutation_score(str(r["id"]))
+            if score:
+                return (f"cite mutation run {r['id']}, {r['created_at'][:10]}: killed "
+                        f"{score[0]} of {score[1]} valid mutants")
+    return ("no green mutation run on main has mutated them as they are, run mutation.yaml "
+            "on main and cite that")
 
 
 @cache
 def mutation_score(run_id):
     """(killed, valid) from the run's log, or None and why not."""
-    jobs = json.loads(gh("api", f"repos/{REPO}/actions/runs/{run_id}/jobs") or '{"jobs": []}')
-    logs = [gh("api", f"repos/{REPO}/actions/jobs/{job['id']}/logs") for job in jobs["jobs"]]
+    url = f"repos/{REPO}/actions/runs/{run_id}/jobs?per_page=100"
+    jobs = json.loads(gh("api", url) or '{"jobs": []}')["jobs"]
+    # a sharded run's score is its score job's; each shard logs only its own part
+    jobs = [job for job in jobs if job["name"] == "score"] or jobs
+    logs = [gh("api", f"repos/{REPO}/actions/jobs/{job['id']}/logs") for job in jobs]
     if not any(logs):
         return None, "has a log that expired"
     for log in filter(None, logs):
@@ -237,13 +335,56 @@ def mutation_score(run_id):
     return None, "has no score in its log"
 
 
+@cache
+def link_status(url):
+    """The status [url] answers with after redirects, or None if it does not answer. An
+    answer under 400 is cached for LINK_TTL, so CI asks GitHub once a day."""
+    path = evidence.CACHE / "links.json"
+    try:
+        seen = json.loads(path.read_text())
+    except (OSError, ValueError):
+        seen = {}
+    if (hit := seen.get(url)) and hit["status"] < 400 and time.time() - hit["at"] < LINK_TTL:
+        return hit["status"]
+    for method in ["HEAD", "GET"]:
+        ask = urllib.request.Request(url, method=method,
+                                     headers={"User-Agent": "protocol-emulator check_docs"})
+        try:
+            with urllib.request.urlopen(ask, timeout=20) as answer:
+                status = answer.status
+        except urllib.error.HTTPError as e:
+            status = e.code
+        except (urllib.error.URLError, OSError):
+            status = None
+        if status != 405:  # HEAD not allowed
+            break
+    if status is not None:
+        seen[url] = {"status": status, "at": time.time()}
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(seen, indent=1, sort_keys=True))
+    return status
+
+
 def warn(message):
-    """For a cited run that still checks but whose numbers can no longer be read."""
+    """For evidence that checks now but will not for long, or a link GitHub would not
+    answer."""
     if message not in WARNINGS:
         WARNINGS.append(message)
 
 
 # What the docs say
+
+def line_of(text, needle):
+    """The line [needle] starts on in [text], however the text wraps it, or None. A needle
+    (unit, n) is n's first line from where the paragraph or row [unit] starts."""
+    def at(needle, start=0):
+        words = str(needle).split()[:12]
+        m = words and re.compile(r"\s+".join(map(re.escape, words))).search(text, start)
+        return m.start() if m else None
+    unit, needle = needle if isinstance(needle, tuple) else (None, needle)
+    found = at(needle, (unit and at(unit)) or 0)
+    return None if found is None else text.count("\n", 0, found) + 1
+
 
 def flat(text):
     """[text] on one line, so a sentence reads the same however it wraps."""
@@ -283,7 +424,7 @@ def check_paths(doc, text):
         if path.startswith(NOT_IN_REPO) or git("check-ignore", "-q", path).returncode == 0:
             continue  # the reader makes it
         if not (ROOT / path).exists():
-            yield f"{path} does not exist"
+            yield path, f"{path} does not exist"
 
 
 def make_commands(text):
@@ -304,17 +445,17 @@ def make_commands(text):
 def check_make(doc, text):
     for directory, targets in make_commands(text):
         if not (ROOT / directory / "Makefile").exists():
-            yield f"make -C {directory}: there is no {directory}/Makefile"
+            yield f"make -C {directory}", f"make -C {directory}: there is no {directory}/Makefile"
             continue
         for target in targets:
             if target not in make_targets(directory):
-                yield f"make -C {directory} {target}: no such target"
+                yield f"make -C {directory}", f"make -C {directory} {target}: no such target"
 
 
 def check_jobs(doc, text):
     for job in sorted(set(JOB.findall(flat(text)))):
         if job not in workflow_jobs():
-            yield f"no workflow has a `{job}` job"
+            yield f"`{job}` job", f"no workflow has a `{job}` job"
 
 
 def check_commits(doc, text):
@@ -326,81 +467,173 @@ def check_commits(doc, text):
         if commit.isdigit() and why == "is not a commit":
             continue  # a number such as 16777216, unless git knows it as a commit
         if why:
-            yield f"commit {commit} {why}"
+            yield commit, f"commit {commit} {why}"
 
 
 def check_runs(doc, text):
     for run_id in sorted({m[1] or m[2] for m in RUN.finditer(flat(text))}):
         r = run(run_id)
         if r is None:
-            yield f"run {run_id} does not exist in {REPO}"
+            yield run_id, f"run {run_id} does not exist in {REPO}"
         elif r["conclusion"] != "success":
-            yield f"run {run_id} ({r['name']}) concluded {r['conclusion']}"
+            yield run_id, f"run {run_id} ({r['name']}) concluded {r['conclusion']}"
         elif why := not_ours(r["head_sha"]):
-            yield f"run {run_id} ran {r['head_sha'][:7]}, which {why}"
+            yield run_id, f"run {run_id} ran {r['head_sha'][:7]}, which {why}"
     for run_id, phrase in DATED_RUN.findall(flat(text)):
         r = run(run_id)
         if m := re.fullmatch(r"(\d{4}-\d\d-\d\d)\.?", phrase.strip()):
             if r and r["created_at"][:10] != m[1]:
-                yield f"run {run_id} is dated {m[1]} but ran on {r['created_at'][:10]}"
+                yield m[1], f"run {run_id} is dated {m[1]} but ran on {r['created_at'][:10]}"
         elif LOOKS_DATED.search(phrase):
-            yield f"run {run_id} has {phrase.strip()!r} beside it, write a date as YYYY-MM-DD"
+            yield run_id, (f"run {run_id} has {phrase.strip()!r} beside it, write a date as "
+                           "YYYY-MM-DD")
 
 
 def check_gds(doc, text):
-    """Numbers beside a gds run are that run's, and it hardened the chip as it is now."""
+    """Numbers beside a gds run are that run's, it hardened the chip as it is now, and it is
+    the newest green one on main or a release pinned in test/evidence.sha256 keeps it."""
     for unit in units(text):
         runs = set(re.findall(r"[Gg]ds run \[?(\d{10,12})", unit))
         if len(runs) > 1:
-            yield f"gds runs {', '.join(sorted(runs))} in one place, whose numbers are whose?"
+            yield ((unit, min(runs)),
+                   f"gds runs {', '.join(sorted(runs))} in one place, whose numbers are whose?")
         if len(runs) != 1:
             continue
         run_id = runs.pop()
         if not run(run_id):
             continue  # check_runs says so
-        newer = current_gds_run()
-        cite = f"cite gds run {newer}" if newer else "no green gds run on main has hardened it"
         sha = run(run_id)["head_sha"]
         if not same_chip(sha):
-            yield f"gds run {run_id} hardened {sha[:7]} and the chip has changed since, {cite}"
-        metrics, why = gds_metrics(run_id)
-        if metrics is None and "expired" in why:
-            warn(f"gds run {run_id} {why}, so the numbers beside it go unchecked, "
-                 f"{cite if newer != run_id else 'run gds again and cite that'}")
-        elif metrics is None:
-            yield f"gds run {run_id} {why}"
-        if metrics is None or unit.startswith("|"):
+            yield (unit, run_id), (f"gds run {run_id} hardened {sha[:7]} and the chip has "
+                                   f"changed since, {fresh_gds()}")
+            continue
+        if run_id != current_gds_run() and not evidence.gds_kept(run_id):
+            yield (unit, run_id), (f"gds run {run_id} is stale, a newer green gds run on main "
+                                   f"hardened this chip and no pinned release keeps it, "
+                                   f"{fresh_gds()}")
+        metrics, why = gds_numbers(run_id)
+        if metrics is None:
+            yield (unit, run_id), (f"gds run {run_id} {why}, so the numbers beside it cannot "
+                                   f"be checked, {fresh_gds()}")
+            continue
+        if metrics.get("expires_at", DEADLINE) < DEADLINE:
+            warn(f"gds run {run_id}'s metrics expire on {metrics['expires_at']}, before the "
+                 f"{DEADLINE} deadline, keep them in a release pinned in test/evidence.sha256")
+        if "precheck" in unit and (bad := failed_jobs(run_id, "precheck")):
+            yield (unit, "precheck"), f"gds run {run_id}'s precheck job is {', '.join(bad)}"
+        if unit.startswith("|"):
             continue  # check_glance holds a table row's numbers
-        quoted = {
-            "setup_slow_ns": re.findall(r"([+-]\d+\.\d+) ns at the slow corner", unit),
-            "utilisation": [round(float(u) / 100, 6)
-                            for u in re.findall(r"([\d.]+)% utilisation", unit)],
-            "std_cells": numbers(r"([\d,]+) (?:standard )?cells", unit),
-        }
-        for key, values in quoted.items():
-            for value in values:
-                if abs(float(value) - float(metrics[key])) > 1e-9:
-                    yield f"gds run {run_id} has {key} {metrics[key]}, the docs say {value}"
+        quoted = [("setup_slow_ns", s, float(s))
+                  for s in re.findall(r"([+-]\d+\.\d+) ns at the slow corner", unit)]
+        quoted += [("utilisation", s, round(float(s) / 100, 6))
+                   for s in re.findall(r"([\d.]+)% utilisation", unit)]
+        quoted += [("std_cells", s, int(s.replace(",", "")))
+                   for s in re.findall(r"([\d,]+) (?:standard )?cells", unit)]
+        for key, said, value in quoted:
+            if abs(value - float(metrics[key])) > 1e-9:
+                yield (unit, said), (f"gds run {run_id} has {key} {metrics[key]}, the docs say "
+                                     f"{said}: {said_gds(metrics)}")
 
 
 def check_mutation(doc, text):
-    """A mutation score beside a mutation run is that run's."""
+    """A mutation score beside a mutation run is that run's, and the run mutated the files
+    as they are now."""
     for unit in units(text):
         for run_id in re.findall(r"mutation run \[?(\d{10,12})", unit):
             if not run(run_id):
                 continue
+            sha = run(run_id)["head_sha"]
+            if changed := changed_since(sha, engine_scope()):
+                yield (unit, run_id), (f"mutation run {run_id} mutated {sha[:7]}, and "
+                                       f"{', '.join(changed)} changed since, {fresh_mutation()}")
             score, why = mutation_score(run_id)
-            if score is None and "expired" in why:
-                warn(f"mutation run {run_id} {why}, so the score beside it goes unchecked, "
-                     "cite a newer mutation run")
-            elif score is None:
-                yield f"mutation run {run_id} {why}"
             if score is None:
+                yield (unit, run_id), (f"mutation run {run_id} {why}, so the score beside it "
+                                       f"cannot be checked, {fresh_mutation()}")
                 continue
             for quoted in re.findall(r"(\d+) of (\d+) valid mutants", unit):
                 if tuple(map(int, quoted)) != score:
-                    yield (f"mutation run {run_id} killed {score[0]} of {score[1]}, "
-                           f"the docs say {quoted[0]} of {quoted[1]}")
+                    yield ((unit, " of ".join(quoted)),
+                           f"mutation run {run_id} killed {score[0]} of {score[1]}, the docs say "
+                           f"{quoted[0]} of {quoted[1]}")
+
+
+def check_board(doc, text):
+    """A demo the docs say passed on a date passed that day in a hashed ledger a release
+    pinned in test/evidence.sha256 keeps, with the edges and baud the docs give it."""
+    for unit in units(text):
+        for m in re.finditer(r"passed (?:the ([\w-]+) demo )?on (\d{4}-\d\d-\d\d)", unit):
+            scripts = re.findall(r"`(python/\w+\.py)`", unit[:m.start()].rsplit(". ", 1)[-1])
+            demo = m[1].replace("-", "_") if m[1] else scripts[-1] if scripts else None
+            if demo is None:
+                yield (unit, m[0]), f"{m[0]!r} names no demo or python/ script before it"
+                continue
+            found = evidence.passes(demo)
+            entry = next((e for e in found if e.get("time", "")[:10] == m[2]), None)
+            if entry is None:
+                newest = found and found[0]
+                fresh = (f"the newest is {newest.get('time', '?').replace('T', ' ')} in release "
+                         f"{newest['release']}, {newest['path']}, bitstream sha256 "
+                         f"{newest.get('bitstream_sha256', '?')[:16]}" if newest
+                         else "no pinned ledger has it passing")
+                yield ((unit, m[2]),
+                       f"no hashed board evidence shows {demo} passing on {m[2]}, {fresh}")
+                continue
+            after = unit[m.end():]
+            for n in numbers(r"all (\d+) edges", after):
+                logged = evidence.edges(entry)
+                if not logged or any(edges != n or not ok for _, edges, ok in logged):
+                    said = ", ".join(f"{edges} {label}{'' if ok else ' (not all on time)'}"
+                                     for label, edges, ok in logged)
+                    yield ((unit, f"all {n} edges"),
+                           f"{demo} on {m[2]} logged {said or 'no edges'}, the docs say all {n}")
+            bauds = re.findall(r"baudrate=(\d+)", (entry["dir"] / "run.txt").read_text())
+            for n in numbers(r"at (\d+) baud", after):
+                if str(n) not in bauds:
+                    yield ((unit, f"{n} baud"), f"{demo} on {m[2]} decoded at "
+                           f"{', '.join(bauds) or 'no'} baud, the docs say {n}")
+
+
+def check_links(doc, text):
+    """Every link to GitHub or the Pages site answers, and a 404 or 410 fails. Runs are
+    check_runs', and other hosts are asked only with --external-links."""
+    for url in sorted({u.rstrip(".,;:") for u in URL.findall(text)}):
+        host = urllib.parse.urlparse(url).hostname or ""
+        if "/actions/runs/" in url or not (EXTERNAL or host in OWN_HOSTS):
+            continue
+        status = link_status(url)
+        if status in (404, 410):
+            yield url, f"{url} answers {status}"
+        elif status is None or status >= 400:
+            warn(f"{url} answered {status or 'nothing'}, so it goes unchecked")
+
+
+@cache
+def cocotb_seconds(run_id, module):
+    """{test: real seconds} for [module]'s cocotb tests that passed in [run_id]'s logs."""
+    jobs = json.loads(gh("api", f"repos/{REPO}/actions/runs/{run_id}/jobs?per_page=100")
+                      or '{"jobs": []}')["jobs"]
+    logs = "".join(gh("api", f"repos/{REPO}/actions/jobs/{j['id']}/logs") or "" for j in jobs)
+    return {test: float(s) for test, s in re.findall(
+        rf"\*\* {module}\.(\w+) +PASS +[\d.]+ +([\d.]+) ", logs)}
+
+
+def check_demo_time(doc, text):
+    """How long the docs say a cocotb module takes, against its last three green test runs
+    on main, give or take a third."""
+    for module, said in re.findall(r"COCOTB_TEST_MODULES=(\w+)`[^.]*? in about (\d+) minutes",
+                                   flat(text)):
+        runs = [str(r["id"]) for r in green_runs("test.yaml")][:3]
+        took = [sum(cocotb_seconds(r, module).values()) for r in runs]
+        took = [s for s in took if s]
+        if not took:
+            yield module, f"no green test run on main logs {module}'s tests passing"
+            continue
+        minutes = sum(took) / len(took) / 60
+        if abs(minutes - int(said)) > max(1, int(said) / 3):
+            yield (f"in about {said} minutes",
+                   f"{module} took {minutes:.0f} minutes in test runs {', '.join(runs)} "
+                   f"({', '.join(f'{s / 60:.1f}' for s in took)}), the docs say about {said}")
 
 
 def check_counts(doc, text):
@@ -419,29 +652,51 @@ def check_counts(doc, text):
     firmwares = len(library_firmwares())
     for n in quoted["library firmwares"]:
         if n != firmwares:
-            yield f"{n} library firmwares, the kernel accepts {firmwares} in test/test_kernel.ml"
+            yield (f"{n} library firmwares",
+                   f"{n} library firmwares, the kernel accepts {firmwares} in test/test_kernel.ml")
     for killed, valid in quoted["valid mutants"]:
         for n in quoted["equivalent mutants"]:
             if n != int(valid) - int(killed) or n != equivalent_mutants():
-                yield (f"{n} equivalent mutants, but {killed} of {valid} killed leaves "
+                yield (f"other {n} are",
+                       f"{n} equivalent mutants, but {killed} of {valid} killed leaves "
                        f"{int(valid) - int(killed)} and test/mutation_allow.txt has "
                        f"{equivalent_mutants()}")
     for n in quoted["tiles"]:
         if n != tiles():
-            yield f"{n} tiles, info.yaml has {tiles()}"
+            yield f"{n} tiles", f"{n} tiles, info.yaml has {tiles()}"
     for n in numbers(r"tiles at (\d+) MHz", text):
         if n != clock_mhz():
-            yield f"{n} MHz, info.yaml has {clock_mhz()}"
+            yield f"tiles at {n} MHz", f"{n} MHz, info.yaml has {clock_mhz()}"
     for n in numbers(r"(\d+)-bit (?:clock|free-running counter)", text):
         if n != isa("timer_bits"):
-            yield f"a {n}-bit clock, src/isa.ml has timer_bits = {isa('timer_bits')}"
+            yield f"{n}-bit", f"a {n}-bit clock, src/isa.ml has timer_bits = {isa('timer_bits')}"
     for n in numbers(r"(\d+)-word IHP", text):
         if n != sram()[1]:
-            yield f"a {n}-word macro, the chip's are {sram()[1]} words"
+            yield f"{n}-word IHP", f"a {n}-word macro, the chip's are {sram()[1]} words"
     depth = int(find(r"^let depth = (\d+)$", "src/host_fifo.ml")[1])
     for n in numbers(r"(\d+)-deep fifos", text):
         if n != depth:
-            yield f"{n}-deep fifos, src/host_fifo.ml has depth = {depth}"
+            yield f"{n}-deep fifos", f"{n}-deep fifos, src/host_fifo.ml has depth = {depth}"
+    for baud, mhz, period in re.findall(r"at (\d+) baud from the (\d+) MHz clock\. The host "
+                                        r"sends the bit period, (\d+) cycles", text):
+        if int(period) != round(int(mhz) * 1e6 / int(baud)):
+            yield (f"{period} cycles", f"{period} cycles a bit, {mhz} MHz over {baud} baud is "
+                   f"{round(int(mhz) * 1e6 / int(baud))}")
+    for whole, num, den, baud, mhz in re.findall(r"(\d+) (\d+)/(\d+) for (\d+) baud at (\d+) MHz",
+                                                 text):
+        if abs(int(whole) + int(num) / int(den) - int(mhz) * 1e6 / int(baud)) > 1e-9:
+            yield (f"{whole} {num}/{den}", f"{whole} {num}/{den} cycles a bit, {mhz} MHz over "
+                   f"{baud} baud is {int(mhz) * 1e6 / int(baud):g}")
+    transmitters = len(find(r"^DATA = (.*)$", "formal/Makefile")[1].split())
+    for word in re.findall(r"all but (\w+) transmitters", text):
+        if WORDS.get(word, word) != str(transmitters):
+            yield (f"all but {word}", f"all but {word} transmitters, formal/Makefile's DATA "
+                   f"proves the host's words on {transmitters}")
+    for path, date in re.findall(r"`([\w./-]+)`[^.`]*? committed on (\d{4}-\d\d-\d\d)", text):
+        added = git("log", "--diff-filter=A", "--format=%ad", "--date=short", "--", path)
+        first = (added.stdout.split() or ["never"])[-1]
+        if first != date:
+            yield date, f"{path} committed on {date}, git first has it on {first}"
 
 
 def check_transcripts(doc, text):
@@ -455,9 +710,9 @@ def check_transcripts(doc, text):
         for line in block.splitlines():
             if m := re.match(r"\$ sed '([^']*)'", line):
                 if f'"{m[1]}"' not in read("test/assemble/dune"):
-                    yield f"no rule in test/assemble/dune makes the edit {m[1]}"
+                    yield m[1], f"no rule in test/assemble/dune makes the edit {m[1]}"
             elif not line.startswith("$ ") and line != "..." and line not in printed:
-                yield f"no test in test/assemble/ prints {line.strip()!r}"
+                yield line, f"no test in test/assemble/ prints {line.strip()!r}"
 
 
 def check_glance(doc, text):
@@ -470,7 +725,7 @@ def check_glance(doc, text):
     pins = pinout()
     hardened = None  # unchecked offline, or once the run's metrics expire
     if run_id := re.search(r"gds run \[?(\d{10,12})", table.get("Hardened", ("", ""))[1]):
-        metrics = gds_metrics(run_id[1])[0] if ONLINE and run(run_id[1]) else None
+        metrics = gds_numbers(run_id[1])[0] if ONLINE and run(run_id[1]) else None
         if metrics:
             hardened = [metrics["std_cells"], float(metrics["utilisation"]) * 100,
                         metrics["setup_slow_ns"]]
@@ -484,10 +739,10 @@ def check_glance(doc, text):
         "Hardened": hardened,
         "Firmware": [len(library_firmwares())],
         "Proved": [],
-        "Board": None,  # the bench, which no file in the repo records
+        "Board": None,  # check_board holds it to the hashed ledger
     }
     for label in table.keys() - expected.keys():
-        yield f"the table's {label} row has no check, add one to test/check_docs.py"
+        yield f"| {label} |", f"the table's {label} row has no check, add one to test/check_docs.py"
     for label, numbers in expected.items():
         if label not in table:
             yield f"the table has no {label} row"
@@ -495,22 +750,29 @@ def check_glance(doc, text):
             said, sources = row_numbers(table[label][0]), row_numbers(" ".join(map(str, numbers)))
             if said != sources:
                 said, sources = (", ".join(f"{n:g}" for n in ns) for ns in (said, sources))
-                yield f"the table's {label} row gives {said or 'no number'}, its sources {sources}"
+                yield (f"| {label} |", f"the table's {label} row gives {said or 'no number'}, "
+                       f"its sources {sources}")
     if "Process" in table and pdk() not in table["Process"][0].upper():
-        yield f"the table's Process row does not name {pdk()}, which gds.yaml hardens on"
+        yield "| Process |", (f"the table's Process row does not name {pdk()}, which gds.yaml "
+                              "hardens on")
 
 
 CHECKS = [check_paths, check_make, check_jobs, check_commits, check_counts, check_transcripts,
           check_glance]
-ONLINE_CHECKS = [check_runs, check_gds, check_mutation]
+ONLINE_CHECKS = [check_runs, check_gds, check_mutation, check_board, check_links,
+                 check_demo_time]
 
 
 def failures(docs):
     """{check: [what is wrong]} over every doc."""
     def wrong(check, doc, text):
+        def say(why):
+            needle, why = why if isinstance(why, tuple) else (None, why)
+            n = needle is not None and line_of(text, needle)
+            return f"{doc}:{n}: {why}" if n else f"{doc}: {why}"
         try:
-            return [f"{doc}: {why}" for why in check(doc, text)]
-        except Unreadable as e:
+            return [say(why) for why in check(doc, text)]
+        except (Unreadable, evidence.Unverifiable) as e:
             return [f"{doc}: {e}"]
 
     checks = CHECKS + (ONLINE_CHECKS if ONLINE else [])
@@ -537,7 +799,7 @@ def bump(s):
 
 
 # Wrong READMEs, made from what it says now: (what is wrong, how, what it needs: gh, or
-# the metrics of the cited gds run, which expire)
+# the metrics of the cited gds run, which expire), and the doc if not the README
 TEETH = [
     ("a path", first(PATH, lambda p: re.sub(r"\.(\w+)$", r"x.\1", p)), None),
     ("a directory", first(r"`((?:[\w.-]+/)+)`", lambda d: d[:-1] + "x/"), None),
@@ -564,7 +826,71 @@ TEETH = [
     ("a run date in words", first(r"run \d{10,12}, (\d{4}-\d\d-\d\d)", lambda _: "29 Sep"), "gh"),
     # the run the die picture is from, which hardened older Verilog
     ("an old gds run", first(r"[Gg]ds run (\d{10,12})", lambda _: "36615334436"), "gh"),
+    ("a stale gds run", lambda text: every(text, r"[Gg]ds run \[?(\d{10,12})",
+                                            lambda _: stale_gds_run()),
+     "an older gds run of this chip"),
+    # green, but it mutated an engine.ml that has changed since
+    ("an old mutation run", lambda text: every(text, r"mutation run \[?(\d{10,12})",
+                                                lambda _: "36642527804"), "gh"),
+    ("a board date", first(r"passed (?:the [\w-]+ demo )?on (\d{4}-\d\d-\d\d)", bump), "gh"),
+    ("the board edges", first(r"all (\d+) edges", bump), "gh"),
+    ("the board baud", first(r"at (\d+) baud", bump), "gh"),
+    ("a dead link", first(r"\]\(https://github\.com/[^)]*/issues/(\d+)\)", lambda n: n + "0000"),
+     "gh"),
+    ("a dead pages link", first(r"\]\((https://marcosash\.github\.io/[^)]*\w)/?\)",
+                                lambda u: u + "x"), "gh"),
+    ("the demo time", first(r"in about (\d+) minutes", lambda n: str(int(n) * 3 + 3)), "gh"),
+    ("the transmitters", first(r"all but (\w+) transmitters",
+                               lambda w: "seven" if w == "six" else "six"), None),
+    ("a commit date", first(r"committed on (\d{4}-\d\d-\d\d)", bump), None),
+    ("a bit period", first(r"the bit period,\s+(\d+) cycles", bump), None, "docs/info.md"),
+    ("a fractional bit period", first(r"(\d+) \d+/\d+ for \d+ baud", bump), None, "docs/info.md"),
 ]
+
+
+def every(text, pattern, change):
+    """[text] with the token [pattern]'s first match groups changed everywhere it is."""
+    m = re.search(pattern, text)
+    return m and change(m[1]) and re.sub(rf"\b{m[1]}\b", change(m[1]), text)
+
+
+def stale_gds_run():
+    """A green gds run on main of this chip that is neither the newest nor kept, or None."""
+    return next((r for r in chip_gds_runs()
+                 if r != current_gds_run() and not evidence.gds_kept(r)), None)
+
+
+def clear_caches():
+    for f in [evidence.asset, evidence.unpacked, evidence.ledger, evidence.gds_kept,
+              gds_numbers, fresh_gds, fresh_mutation]:
+        f.cache_clear()
+
+
+def tampered_pin(docs):
+    """What fails with the board evidence pinned to another asset's hash."""
+    real = evidence.pins
+    pinned = real()
+    board = next(k for k in pinned if k[1].startswith("board-evidence-"))
+    other = next(sha for k, sha in pinned.items() if k != board)
+    evidence.pins = lambda: {**pinned, board: other}
+    clear_caches()
+    try:
+        return [name for name, found in failures(docs).items() if found]
+    finally:
+        evidence.pins = real
+        clear_caches()
+
+
+def generated_table(docs):
+    """What fails with the README's table as test/results.py --readme-table writes it."""
+    import results
+
+    readme = docs["README.md"]
+    table = next(u for u in re.split(r"\n\s*\n", readme) if u.startswith("|"))
+    with contextlib.redirect_stderr(io.StringIO()):  # what it changed, which is nothing here
+        fresh = results.readme_table(readme)
+    return {name: found for name, found in
+            failures({**docs, "README.md": readme.replace(table, fresh)}).items() if found}
 
 
 def teeth():
@@ -573,34 +899,52 @@ def teeth():
         sys.exit("the docs fail as they are, so the teeth would prove nothing")
     cited = re.search(r"[Gg]ds run \[?(\d{10,12})", docs["README.md"])
     has = {None: True, "gh": ONLINE,
-           "metrics": ONLINE and cited is not None and gds_metrics(cited[1])[0] is not None}
+           "metrics": ONLINE and cited is not None and gds_numbers(cited[1])[0] is not None,
+           "an older gds run of this chip": ONLINE and stale_gds_run() is not None}
     missed = []
-    for what, tooth, needs in TEETH:
+    for what, tooth, needs, *doc in TEETH:
+        doc = doc[0] if doc else "README.md"
         if not has[needs]:
             print(f"skip {what}, which needs {needs}")
             continue
-        wrong = tooth(docs["README.md"])
-        if not wrong:
-            sys.exit(f"the tooth for {what} finds nothing to change in the README")
-        caught = [name for name, found in failures({**docs, "README.md": wrong}).items() if found]
-        line = next(b for a, b in zip(docs["README.md"].splitlines(), wrong.splitlines()) if a != b)
+        wrong = tooth(docs[doc])
+        if not wrong or wrong == docs[doc]:
+            sys.exit(f"the tooth for {what} finds nothing to change in {doc}")
+        caught = [name for name, found in failures({**docs, doc: wrong}).items() if found]
+        line = next(b for a, b in zip(docs[doc].splitlines(), wrong.splitlines()) if a != b)
         print(f"{'ok  ' if caught else 'FAIL'} {what}, caught by {', '.join(caught) or 'nothing'}")
         print(f"     {line.strip()[:88]}")
         if not caught:
             missed.append(what)
+    if ONLINE:
+        caught = tampered_pin(docs)
+        print(f"{'ok  ' if caught else 'FAIL'} a tampered evidence pin, caught by "
+              f"{', '.join(caught) or 'nothing'}")
+        if not caught:
+            missed.append("a tampered evidence pin")
+        # not a tooth: the table the generator writes has to pass
+        wrong = generated_table(docs)
+        print(f"{'FAIL' if wrong else 'ok  '} test/results.py --readme-table writes a table "
+              "that passes")
+        for why in (w for found in wrong.values() for w in found):
+            print(f"     {why}")
+        if wrong:
+            sys.exit("the table test/results.py --readme-table writes fails the checks")
     if missed:
         sys.exit(f"{len(missed)} wrong READMEs passed: {', '.join(missed)}")
 
 
 def main():
-    global ONLINE
+    global ONLINE, EXTERNAL
     p = argparse.ArgumentParser()
-    p.add_argument("--offline", action="store_true", help="skip what needs gh")
+    p.add_argument("--offline", action="store_true", help="skip what needs gh or the network")
     p.add_argument("--teeth", action="store_true", help="check that wrong READMEs fail")
+    p.add_argument("--external-links", action="store_true",
+                   help="ask every link's host, not just GitHub's")
     args = p.parse_args()
-    ONLINE = not args.offline
+    ONLINE, EXTERNAL = not args.offline, args.external_links
     if not ONLINE:
-        print("skip run ids, gds metrics and mutation scores (offline)")
+        print("skip run ids, gds metrics, mutation scores, board evidence and links (offline)")
     if args.teeth:
         return teeth()
     failed = failures(read_docs())

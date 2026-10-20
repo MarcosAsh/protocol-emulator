@@ -1,0 +1,6 @@
+{ "signal": [
+    { "name": "tx", "wave": "10========1", "data": ["b0", "b1", "b2", "b3", "b4", "b5", "b6", "b7"] }
+  ],
+  "head": { "text": "UART 8N1, 1.92 Mbaud" },
+  "table": { "cycles": 26 }
+}

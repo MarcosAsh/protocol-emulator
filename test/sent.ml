@@ -2,8 +2,7 @@ open! Core
 open Protocol_emulator
 
 let pin = 5
-let cycle_ns = 20
-let standard_tick = 3_000 / cycle_ns
+let standard_tick = 150
 let shortest_tick = 21
 
 (* [t] is the next fall on entry to [pulse], and [x] the nibble. Every loop that moves [t]
@@ -139,8 +138,9 @@ let words ({ status; data } : Frame.t) =
   | _ -> raise_s [%message "BUG: six data nibbles" (data : int list)]
 ;;
 
-let decode ~cycle_ns levels =
+let decode ~clock_hz levels =
   let open Or_error.Let_syntax in
+  let ns = Measured.ns ~clock_hz in
   let levels = Array.of_list levels in
   let edges ~falling =
     List.range 1 (Array.length levels)
@@ -179,7 +179,7 @@ let decode ~cycle_ns levels =
           Or_error.error_s [%message "sync drifts" (sync : int) (previous : int)]
         | _ -> return ()
       in
-      let measured = Measured.add measured ~name:"sync" ~ns:(sync * cycle_ns) in
+      let measured = Measured.add measured ~name:"sync" ~ns:(ns sync) in
       let nibbles, rest = List.take rest 8, List.drop rest 8 in
       if List.length nibbles < 8
       then return (List.rev decoded, measured)
@@ -196,7 +196,7 @@ let decode ~cycle_ns levels =
                 else Or_error.error_s [%message "no nibble" (n : int)]
               in
               let%map () = low_enough ~sync ~name:"nibble" low in
-              (n - 12) :: nibbles, Measured.add measured ~name:"low" ~ns:(low * cycle_ns))
+              (n - 12) :: nibbles, Measured.add measured ~name:"low" ~ns:(ns low))
         in
         let status, data, crc =
           match List.rev nibbles with
@@ -224,7 +224,38 @@ let decode ~cycle_ns levels =
             rest
             ~previous_sync:(Some sync)
             decoded
-            (Measured.add measured ~name:"pause" ~ns:(pause * cycle_ns)))
+            (Measured.add measured ~name:"pause" ~ns:(ns pause)))
   in
   frames pulses ~previous_sync:None [] Measured.empty
+;;
+
+let protocol =
+  { Protocol.name = "sent"
+  ; certified =
+      [ Certified.plain
+          ~period:standard_tick
+          ~period_floor:shortest_tick
+          ~no_wrap:true
+          "sent"
+          firmware
+          config
+      ]
+  ; time_triggered = []
+  ; bench = []
+  ; loaded_from_hex = []
+  ; limits = []
+  ; unlimited = []
+  ; swept =
+      [ (* a tick of 6.25 us at 48 MHz, where nine edges take twice a poll *)
+        { Swept.name = "sent"
+        ; watch = "line"
+        ; on_wire = Swept.line
+        ; period = Some 300
+        ; bursts = [ words { status = 0; data = [ 1; 2; 3; 4; 5; 6 ] } ]
+        }
+      ]
+  ; not_swept = []
+  ; scenarios = []
+  ; decoded = []
+  }
 ;;

@@ -26,14 +26,19 @@ end
 
 let create (scope : Scope.t) (i : Signal.t I.t) =
   let spec = Clocking.to_spec i.clocking in
-  let sync x = Clocking.pipeline i.clocking ~n:2 x in
-  let%hw sck = sync i.sck in
-  let%hw mosi = sync i.mosi in
-  let%hw selected = ~:(sync i.cs_n) in
-  let%hw sck_rise = selected &: sck &: ~:(reg spec sck) in
-  let%hw sck_fall = selected &: ~:sck &: reg spec sck in
-  let%hw frame_start = selected &: ~:(reg spec selected) in
-  let%hw frame_end = ~:selected &: reg spec selected in
+  let%hw sck_meta = reg spec i.sck in
+  let%hw sck = reg spec sck_meta in
+  let%hw mosi_meta = reg spec i.mosi in
+  let%hw mosi = reg spec mosi_meta in
+  let%hw cs_n_meta = reg spec i.cs_n in
+  let%hw cs_n = reg spec cs_n_meta in
+  let%hw selected = ~:cs_n in
+  let%hw sck_last = reg spec sck in
+  let%hw sck_rise = selected &: sck &: ~:sck_last in
+  let%hw sck_fall = selected &: ~:sck &: sck_last in
+  let%hw selected_last = reg spec selected in
+  let%hw frame_start = selected &: ~:selected_last in
+  let%hw frame_end = ~:selected &: selected_last in
   (* SPI mode 0: sample on [sck_rise], shift out on [sck_fall], reload [tx_byte] when the
      count wraps at a byte boundary. *)
   let%hw count =

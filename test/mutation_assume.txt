@@ -1,0 +1,2 @@
+# Survivors of the checker equal to the original only where the proofs or the config
+# already hold: file ## operator ## line ## formula ## where that is assumed

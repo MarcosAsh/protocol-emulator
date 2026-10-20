@@ -2,5 +2,7 @@
  (name ppx_firmware)
  (kind ppx_rewriter)
  (libraries core ppxlib protocol_emulator)
+ (lint
+  (pps ppx_js_style -check-doc-comments))
  (preprocess
   (pps ppx_jane)))

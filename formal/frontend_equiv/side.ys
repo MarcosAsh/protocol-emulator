@@ -1,0 +1,9 @@
+# one side as the other will meet it: memories as flops, an asynchronous reset acting in
+# the cycle it is asserted, the three macros' inputs outputs and their outputs inputs
+memory_map
+async2sync
+select -assert-count 3 t:RM_IHPSG13_1P_512x16_c2_bm_bist
+expose -evert t:RM_IHPSG13_1P_512x16_c2_bm_bist
+select -assert-none t:RM_IHPSG13_1P_512x16_c2_bm_bist
+delete =A:blackbox t:$scopeinfo
+check -assert

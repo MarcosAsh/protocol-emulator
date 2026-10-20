@@ -1,0 +1,51 @@
+[tasks]
+prove
+moved_own
+reach_least teeth
+reach_most teeth
+faster teeth
+slower teeth
+moved teeth
+moved_faster teeth
+moved_slower teeth
+
+[options]
+mode bmc
+teeth: expect fail
+# tolerance_proof sets the depth to what write_tolerance.exe -depth gives
+depth 400
+
+[engines]
+abc bmc3
+
+[script]
+read_verilog -lib RM_IHPSG13_1P_512x16_c2_bm_bist.v
+read_verilog engine_sram.v
+hierarchy -top engine_top
+proc
+flatten
+expose -evert -sep __ engine_top/t:RM_IHPSG13_1P_512x16_c2_bm_bist
+cd engine_top
+rename solo.engine.sram_macro.sram__A_ADDR sram_addr
+rename solo.engine.sram_macro.sram__A_DOUT sram_dout
+rename solo.data_memory.sram_macro.sram__A_DOUT data_sram_dout
+cd ..
+prove: read_verilog -formal -sv tolerance.sv
+reach_least: read_verilog -formal -sv -DREACH_LEAST tolerance.sv
+reach_most: read_verilog -formal -sv -DREACH_MOST tolerance.sv
+faster: read_verilog -formal -sv -DFASTER tolerance.sv
+slower: read_verilog -formal -sv -DSLOWER tolerance.sv
+moved: read_verilog -formal -sv tolerance_moved.sv
+moved_faster: read_verilog -formal -sv -DFASTER tolerance_moved.sv
+moved_slower: read_verilog -formal -sv -DSLOWER tolerance_moved.sv
+moved_own: read_verilog -formal -sv -DOWN tolerance_moved.sv
+prep -top tolerance
+memory_map
+# abc takes no x: each a free value, which holds whatever the silicon makes of it
+setundef -undriven -anyseq
+
+[files]
+engine_sram.v
+tolerance.sv
+tolerance_moved.sv
+../src/RM_IHPSG13_1P_512x16_c2_bm_bist.v

@@ -148,7 +148,7 @@ module Follower = struct
   end
 
   type t =
-    { cycle_ns : int
+    { clock_hz : int
     ; address : int
     ; now : int
     ; low : bool
@@ -157,7 +157,9 @@ module Follower = struct
     ; bytes : int list
     ; acks : bool list
     ; in_frame : bool
-    ; free_ns : int option (* before this frame, checked at its EOM *)
+    ; free : (int * int) option
+        (* before this frame, checked at its EOM: cycles from the last fall, and the ns of
+           its nominal period in them *)
     ; previous : Previous.t option
     ; driving_until : int option
     ; frames : (Frame.t * bool list) list
@@ -165,8 +167,8 @@ module Follower = struct
     ; violations : string list
     }
 
-  let create ~cycle_ns ~address =
-    { cycle_ns
+  let create ~clock_hz ~address =
+    { clock_hz
     ; address
     ; now = 0
     ; low = false
@@ -175,7 +177,7 @@ module Follower = struct
     ; bytes = []
     ; acks = []
     ; in_frame = false
-    ; free_ns = None
+    ; free = None
     ; previous = None
     ; driving_until = None
     ; frames = []
@@ -187,11 +189,24 @@ module Follower = struct
   let drive_low t = Option.exists t.driving_until ~f:(fun until -> t.now < until)
   let ms = 1_000_000
 
-  let checked t ~name ~ns ~lo ~hi =
+  let checked ?hi t ~name ~cycles ~lo =
+    let { clock_hz; _ } = t in
+    let ns = Measured.ns ~clock_hz cycles in
     let t = { t with measured = Measured.add t.measured ~name ~ns } in
-    if ns >= lo && ns <= hi
+    if Measured.at_least ~clock_hz cycles ~ns:lo
+       && Option.for_all hi ~f:(fun ns -> Measured.at_most ~clock_hz cycles ~ns)
     then t
     else { t with violations = [%string "%{name} of %{ns#Int} ns"] :: t.violations }
+  ;;
+
+  (* the line free for at least [least] ns past [period], the nominal end of a bit *)
+  let checked_free t ~cycles ~period ~least =
+    let { clock_hz; _ } = t in
+    let ns = Measured.ns ~clock_hz cycles - period in
+    let t = { t with measured = Measured.add t.measured ~name:"free" ~ns } in
+    if Measured.at_least ~clock_hz cycles ~ns:(period + least)
+    then t
+    else { t with violations = [%string "free of %{ns#Int} ns"] :: t.violations }
   ;;
 
   let byte bits = List.fold bits ~init:0 ~f:(fun b bit -> (b lsl 1) lor Bool.to_int bit)
@@ -208,21 +223,20 @@ module Follower = struct
   ;;
 
   let fell t =
-    let ns cycles = cycles * t.cycle_ns in
     let t =
       match t.fall with
       | Some (fall, Start) when t.in_frame ->
         checked
           t
           ~name:"start"
-          ~ns:(ns (t.now - fall))
+          ~cycles:(t.now - fall)
           ~lo:(43 * ms / 10)
           ~hi:(47 * ms / 10)
       | Some (fall, Data) when t.in_frame ->
         checked
           t
           ~name:"bit"
-          ~ns:(ns (t.now - fall))
+          ~cycles:(t.now - fall)
           ~lo:(205 * ms / 100)
           ~hi:(275 * ms / 100)
       | Some (fall, bit) ->
@@ -233,19 +247,19 @@ module Follower = struct
           | Data -> 24 * ms / 10
           | Start -> 45 * ms / 10
         in
-        let free = ns (t.now - fall) - period in
-        if Option.is_some t.previous && free < 3 * 24 * ms / 10
-        then (
-          let t =
-            checked t ~name:"free" ~ns:free ~lo:(3 * 24 * ms / 10) ~hi:Int.max_value
-          in
-          { t with free_ns = None })
-        else { t with free_ns = Some free }
+        let cycles = t.now - fall in
+        let least = 3 * 24 * ms / 10 in
+        if Option.is_some t.previous
+           && not (Measured.at_least ~clock_hz:t.clock_hz cycles ~ns:(period + least))
+        then { (checked_free t ~cycles ~period ~least) with free = None }
+        else { t with free = Some (cycles, period) }
       | None -> t
     in
     let ack_slot = t.in_frame && List.length t.bits = 9 in
     let driving_until =
-      if ack_slot && addressed t then Some (t.now + (15 * ms / 10 / t.cycle_ns)) else None
+      if ack_slot && addressed t
+      then Some (t.now + Measured.cycles ~clock_hz:t.clock_hz ~ns:(15 * ms / 10))
+      else None
     in
     { t with fall = Some (t.now, if t.in_frame then Data else Start); driving_until }
   ;;
@@ -253,8 +267,8 @@ module Follower = struct
   (* CEC 9.1's signal free time, in nominal bit periods of 2.4 ms; a retry is the same
      frame again, as Linux's cec-adap.c takes it *)
   let check_free t (frame : Frame.t) =
-    match t.free_ns, t.previous with
-    | Some ns, Some previous ->
+    match t.free, t.previous with
+    | Some (cycles, period), Some previous ->
       let blocks = ((frame.initiator lsl 4) lor frame.destination) :: frame.data in
       let retry =
         (not previous.went_through)
@@ -268,7 +282,7 @@ module Follower = struct
         | Some initiator when initiator = frame.initiator -> if retry then 3 else 7
         | Some _ | None -> 5
       in
-      checked t ~name:"free" ~ns ~lo:(periods * 24 * ms / 10) ~hi:Int.max_value
+      checked_free t ~cycles ~period ~least:(periods * 24 * ms / 10)
     | _ -> t
   ;;
 
@@ -280,21 +294,21 @@ module Follower = struct
   ;;
 
   let rose t ~fall =
-    let low_ns = (t.now - fall) * t.cycle_ns in
+    let cycles = t.now - fall in
+    (* what a sample at 1.05 ms sees *)
+    let one = Measured.at_most ~clock_hz:t.clock_hz cycles ~ns:(105 * ms / 100) in
     if not t.in_frame
     then (
-      let t =
-        checked t ~name:"start low" ~ns:low_ns ~lo:(35 * ms / 10) ~hi:(39 * ms / 10)
-      in
+      let t = checked t ~name:"start low" ~cycles ~lo:(35 * ms / 10) ~hi:(39 * ms / 10) in
       { t with in_frame = true; bits = []; bytes = []; acks = [] })
     else if List.length t.bits = 9
     then (
-      (* the ACK slot: what a sample at 1.05 ms sees *)
-      let acked = low_ns > 105 * ms / 100 in
+      (* the ACK slot *)
+      let acked = not one in
       let t =
         if acked
-        then checked t ~name:"zero low" ~ns:low_ns ~lo:(13 * ms / 10) ~hi:(17 * ms / 10)
-        else checked t ~name:"one low" ~ns:low_ns ~lo:(4 * ms / 10) ~hi:(8 * ms / 10)
+        then checked t ~name:"zero low" ~cycles ~lo:(13 * ms / 10) ~hi:(17 * ms / 10)
+        else checked t ~name:"one low" ~cycles ~lo:(4 * ms / 10) ~hi:(8 * ms / 10)
       in
       let block = List.rev t.bits in
       let t =
@@ -327,11 +341,10 @@ module Follower = struct
         | [] -> raise_s [%message "BUG: a block is in"])
       else t)
     else (
-      let one = low_ns <= 105 * ms / 100 in
       let t =
         if one
-        then checked t ~name:"one low" ~ns:low_ns ~lo:(4 * ms / 10) ~hi:(8 * ms / 10)
-        else checked t ~name:"zero low" ~ns:low_ns ~lo:(13 * ms / 10) ~hi:(17 * ms / 10)
+        then checked t ~name:"one low" ~cycles ~lo:(4 * ms / 10) ~hi:(8 * ms / 10)
+        else checked t ~name:"zero low" ~cycles ~lo:(13 * ms / 10) ~hi:(17 * ms / 10)
       in
       { t with bits = one :: t.bits })
   ;;
@@ -346,7 +359,7 @@ module Follower = struct
         | Start -> 47 * ms / 10
         | Data -> 275 * ms / 100
       in
-      (t.now - fall) * t.cycle_ns > limit
+      not (Measured.at_most ~clock_hz:t.clock_hz (t.now - fall) ~ns:limit)
     | _ -> false
   ;;
 
@@ -389,3 +402,154 @@ module Follower = struct
   let measured t = t.measured
   let violations t = List.rev t.violations
 end
+
+open Pin_trace
+module Reg = Host_port.Reg
+
+let certified =
+  Certified.plain
+    ~period:standard_unit
+    ~period_floor:shortest_unit
+    ~no_wrap:true
+    "cec"
+    firmware
+    config
+;;
+
+(* A unit of 25 cycles, as a 500 kHz clock gives, keeps the simulation short. *)
+let scenario =
+  let clock_hz = 500_000 in
+  let unit = clock_hz / 20_000 in
+  let frame ~to_ data = { Frame.initiator = 4; destination = to_; data } in
+  let frames =
+    [ frame ~to_:0 []
+    ; frame ~to_:0 [ 0x04 ]
+    ; frame ~to_:0 [ 0x47; Char.to_int 'C'; Char.to_int 'E'; Char.to_int 'C' ]
+    ; frame ~to_:15 [ 0x36 ]
+    ]
+  in
+  let peer () =
+    let follower = ref (Follower.create ~clock_hz ~address:0) in
+    let low = ref false in
+    { Peer.inputs = (fun () -> if !low then 0 else 1 lsl pin)
+    ; step =
+        (fun ~pin_out:_ ~pin_dir ->
+          low := Peer.bit pin_dir pin = 1 || Follower.drive_low !follower;
+          follower := Follower.step !follower ~low:!low)
+    }
+  in
+  (* the start bit is 90 units, a block 480, and the line is left free for 336 *)
+  let send (frame : Frame.t) =
+    let blocks = 1 + List.length frame.data in
+    [ Step.Write (Reg.tx, words frame)
+    ; Run ((90 + (480 * blocks) + 336 + 10) * unit)
+    ; Read (Reg.rx, blocks)
+    ]
+  in
+  { Scenario.name = "cec"
+  ; peer
+  ; script =
+      Scenario.load ~assumptions:(Certified.assumptions certified) ~config ~program:(Firmware.assemble firmware) ()
+      @ [ Scenario.start; Write (Reg.tx, [ unit ]) ]
+      @ List.concat_map frames ~f:send
+  ; sigrok =
+      Some
+        { clock_hz
+        ; decoders = [ Sigrok.decoder "cec" ~pins:[ "cec", pin ] ]
+        ; expect =
+            [ ( "cec=frames"
+              , List.map frames ~f:(fun frame ->
+                  ((frame.initiator lsl 4) lor frame.destination) :: frame.data
+                  |> List.map ~f:(sprintf "%02x")
+                  |> String.concat ~sep:":")
+                |> Sigrok.lines "cec" )
+            ; (* the follower at 0 pulls each ACK slot low; nobody refuses a broadcast *)
+              ( "cec=ack:nack"
+              , List.concat_map frames ~f:(fun frame ->
+                  List.init (1 + List.length frame.data) ~f:(fun _ -> "ACK"))
+                |> Sigrok.lines "cec" )
+            ]
+        ; joins_after = None
+        ; rejected = None
+        ; (* edge 5 ends the low of the header's first one: 0.9 ms, past a one's 0.8 *)
+          teeth = [ [ Shift { pin; edge = 5; cycles = 6 * unit } ] ]
+        }
+  }
+;;
+
+(* the firmware on the bench's clock, sending a polling message, a header and no data, to
+   the TV at 0 *)
+let bench =
+  let unit = Bench.cycles_in ~us:50 in
+  { Bench.name = "cec"
+  ; what =
+      [%string
+        "Cec.firmware: an initiator's frames, %{unit#Int} cycles a 50 us unit, on IO0, \
+         which no demo has wired yet"]
+  ; source = firmware
+  ; config
+  ; assumption = Floor shortest_unit
+  ; clock_hz = Bench.clock_hz
+  ; load = Some unit
+  ; stimulus =
+      Some
+        { bursts = [ words { initiator = 4; destination = 0; data = [] } ]
+        ; quiet = 0
+        ; cycles = 600 * unit
+        }
+  }
+;;
+
+(* HDMI 1.3a's bit timings, the line low where anyone pulls it. A low under 1 ms is a
+   one's, to 2.5 ms a zero's and past it a start bit's; a bit runs from its fall to the
+   next, and the last of a frame, whose high runs on past 2.75 ms, has none. All are the
+   run's: the kernel's least low counts one pass of each loop of waits, two units. *)
+let limits =
+  let sheet figure page =
+    { Datasheet.Sheet.part = "HDMI-CEC"
+    ; document = "HDMI Specification 1.3a, Supplement 1 CEC"
+    ; page = [%string "%{figure}, p. %{page}"]
+    }
+  in
+  let start = sheet "CEC 5.2.1, CEC Figure 3" "CEC-8"
+  and bit = sheet "CEC 5.2.2, CEC Figure 4" "CEC-9" in
+  let ms ~clock_hz ms = Datasheet.cycles ~clock_hz (ms *. 1e6) in
+  let bits ~clock_hz levels =
+    List.filter_map (Datasheet.pairs levels) ~f:(fun ((high, low), (_, after)) ->
+      Option.some_if ((not high) && after < ms ~clock_hz 2.75) (low, low + after))
+  in
+  let lows ~from ~until f =
+    Datasheet.run ~pin:Datasheet.set_pin (fun ~clock_hz levels ->
+      List.filter_map (bits ~clock_hz levels) ~f:(fun ((low, _) as bit) ->
+        Option.some_if (low >= ms ~clock_hz from && low < ms ~clock_hz until) (f bit)))
+  in
+  let limit parameter limit sheet bound =
+    { Datasheet.firmware = "cec"; parameter; limit; sheet; margin = Cycle; bound }
+  in
+  [ limit "start low" (At_least 3.5e6) start (lows ~from:2.5 ~until:10. fst)
+  ; limit "start low" (At_most 3.9e6) start (lows ~from:2.5 ~until:10. fst)
+  ; limit "start bit" (At_least 4.3e6) start (lows ~from:2.5 ~until:10. snd)
+  ; limit "start bit" (At_most 4.7e6) start (lows ~from:2.5 ~until:10. snd)
+  ; limit "one low, T1" (At_least 0.4e6) bit (lows ~from:0. ~until:1. fst)
+  ; limit "one low, T2" (At_most 0.8e6) bit (lows ~from:0. ~until:1. fst)
+  ; limit "zero low, T5" (At_least 1.3e6) bit (lows ~from:1. ~until:2.5 fst)
+  ; limit "zero low, T6" (At_most 1.7e6) bit (lows ~from:1. ~until:2.5 fst)
+  ; limit "bit, T7" (At_least 2.05e6) bit (lows ~from:0. ~until:2.5 snd)
+  ; limit "bit, T8" (At_most 2.75e6) bit (lows ~from:0. ~until:2.5 snd)
+  ]
+;;
+
+let protocol =
+  { Protocol.name = "cec"
+  ; certified = [ certified ]
+  ; time_triggered = []
+  ; bench = [ bench ]
+  ; loaded_from_hex = []
+  ; limits
+  ; unlimited = []
+  ; swept = []
+  ; not_swept = [ "cec", "open drain, which a wire does not show" ]
+  ; scenarios = []
+  ; decoded = [ scenario ]
+  }
+;;

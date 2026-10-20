@@ -2,7 +2,7 @@ open! Core
 open Protocol_emulator
 
 let variant name =
-  let firmware = Certified.find_exn (List.hd_exn (String.split name ~on:' ')) in
+  let firmware = Library.find_certified_exn (List.hd_exn (String.split name ~on:' ')) in
   List.find_exn (Reject_split.variants firmware) ~f:(fun (v : Reject_split.Variant.t) ->
     String.equal v.name name)
 ;;
@@ -16,9 +16,9 @@ let%expect_test "the reject split, on a sample" =
   Reject_split.print_split (sample @ [ variant "uart_tx_host_rate pc 12 jmp 11" ]);
   [%expect
     {|
-    (("List.length every" 18076) ("List.length sample" 73))
-    ((verdict Accepted) (count 68))
-    ((verdict Missed) (count 5))
+    (("List.length every" 33502) ("List.length sample" 135))
+    ((verdict Accepted) (count 123))
+    ((verdict Missed) (count 12))
     ((verdict Analyser_limit) (count 0))
     ((verdict No_table) (count 1))
     ((verdict Accepted_but_missed) (count 0))

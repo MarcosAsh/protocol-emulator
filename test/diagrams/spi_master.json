@@ -1,0 +1,8 @@
+{ "signal": [
+    { "name": "mosi", "wave": "0========", "data": ["7", "6", "5", "4", "3", "2", "1", "0"] },
+    { "name": "sck", "wave": "0nnnnnnnn" },
+    { "name": "miso", "wave": "x========", "data": ["7", "6", "5", "4", "3", "2", "1", "0"], "input": true }
+  ],
+  "head": { "text": "SPI mode 0, a byte each way" },
+  "table": { "cycles": 52 }
+}

@@ -11,7 +11,11 @@ test/sim_build
 test/__pycache__/
 test/results.xml
 test/results_replay.xml
+test/results_sdf_*.xml
 test/results_outside.xml
+test/results_both_roles.xml
+test/results_tolerance_bench.xml
+test/results_carrier_check.xml
 test/outside_*.sr
 /*.sr
 test/gate_level_netlist.v
@@ -19,6 +23,7 @@ test/gl_traces/
 
 _build
 _mutation
+_plant
 *.install
 *.merlin
 _opam
@@ -32,16 +37,22 @@ formal/engines_any_turn.v
 formal/engines.v
 formal/engines_sram.v
 formal/engines_gated.v
+formal/top.v
+formal/engine_probed.v
 formal/link*.sv
 formal/certificate*.sv
 formal/fsm_miter*.sv
 formal/self_check*.sv
+formal/tolerance_*
 formal/*_*/
+formal/proof_bundle.tar.gz
 formal/powerup/
 formal/isolation/
 !formal/netlist_equiv/
 !formal/sram_equiv/
 !formal/kernel_equiv/
+!formal/frontend_equiv/
+!formal/icepi_equiv/
 __pycache__/
 test/fpga_netlist.v
 test/fpga_top.v
@@ -60,3 +71,5 @@ formal/kernel_gates.aag
 formal/kernel_accepts_gates.aag
 test/icepi_netlist.v
 icepi/build
+formal/RM_IHPSG13_1P_512x16_c2_bm_bist.v
+formal/verilog_*

@@ -1,5 +1,12 @@
-(executable
- (name pio_check)
- (libraries core core_unix.command_unix core_unix.filename_unix pio)
+(executables
+ (names pio_check pio_holes pio_import)
+ (libraries
+  core
+  core_unix.command_unix
+  core_unix.filename_unix
+  protocol_emulator
+  pio)
+ (lint
+  (pps ppx_js_style -check-doc-comments))
  (preprocess
   (pps ppx_jane)))

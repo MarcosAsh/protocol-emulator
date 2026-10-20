@@ -1,8 +1,13 @@
 [tasks]
 prove written
-no_reset written teeth
-unreset teeth
-stale
+no_reset written teeth shallow
+unreset teeth shallow
+# a host read of an emptied rx fifo shows a word never stored, 126 cycles in
+stale teeth
+havoc havoc_rtl
+havoc_unreset havoc_unreset_rtl teeth shallow
+cold havoc_rtl cold_rtl
+cold_unreset havoc_unreset_rtl cold_rtl teeth shallow
 
 [options]
 # Both_edges' falling flops: each edge is a step, so a cycle is two
@@ -10,9 +15,9 @@ multiclock on
 ~teeth: mode prove
 ~teeth: depth 4
 teeth: mode bmc
-teeth: depth 8
+shallow: depth 8
+stale: depth 280
 teeth: expect fail
-stale: expect unknown
 
 [engines]
 smtbmc boolector
@@ -23,6 +28,8 @@ read_verilog project.v
 written: read_verilog protocol_emulator.v
 unreset: read_verilog unreset.v
 stale: read_verilog stale.v
+havoc_rtl: read_verilog -formal havoc.v
+havoc_unreset_rtl: read_verilog -formal havoc_unreset.v
 hierarchy -top tt_um_marcosash_protocol_emulator
 proc
 flatten
@@ -59,6 +66,8 @@ memory_map tt_um_marcosash_protocol_emulator
 tcl powerup.tcl
 no_reset: read -define NO_RESET
 teeth: read -define NO_INVARIANT
+stale: read -define HOST_SCRIPT
+cold_rtl: read -define COLD
 read_verilog -formal -sv powerup.sv
 prep -top powerup
 
@@ -67,6 +76,8 @@ prep -top powerup
 written: ../src/protocol_emulator.v
 unreset: powerup_teeth/unreset.v
 stale: powerup_teeth/stale.v
+havoc_rtl: powerup_teeth/havoc.v
+havoc_unreset_rtl: powerup_teeth/havoc_unreset.v
 ../src/RM_IHPSG13_1P_512x16_c2_bm_bist.v
 flops.tcl
 powerup.tcl

@@ -16,14 +16,26 @@
   pre { overflow-x: auto; white-space: pre; }
   .controls { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin: 8px 0; }
   input[type=number] { width: 5rem; }
-  #verdict { font-size: 1.2rem; font-weight: 600; }
+  #verdict, #pio-verdict, #diagram-verdict { font-size: 1.2rem; font-weight: 600; }
   .accepted { color: var(--ok); }
   .refused { color: var(--bad); }
   .muted { color: var(--muted); }
+  nav { display: flex; gap: 16px; border-bottom: 1px solid var(--muted); margin-bottom: 8px; }
+  nav a { color: var(--muted); text-decoration: none; padding: 4px 0; }
+  nav a[aria-current] { color: var(--fg); font-weight: 600; border-bottom: 2px solid var(--fg); }
+  #pio-spec { height: 12rem; }
+  #diagram-frames { height: 4rem; }
+  #mutation { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; }
+  #mutation h3 { margin: 0; font-size: 1rem; }
+  @media (max-width: 40rem) { #mutation { grid-template-columns: 1fr; } }
+  #diagram-wave { overflow-x: auto; background: var(--code); }
+  #diagram-wave svg { display: block; }
 </style>
 </head>
 <body>
 <h1>Firmware timing playground</h1>
+<nav><a href="#firmware">Firmware</a><a href="#pio">PIO</a><a href="#diagram">Diagram</a></nav>
+<section id="firmware-tab">
 <p class="muted">The assembler, the timing analyser and the kernel, compiled to JavaScript
 with js_of_ocaml. The kernel checks the analyser's rows one instruction at a time; the
 proofs that its check is sound run in CI, not here.</p>
@@ -42,6 +54,56 @@ proofs that its check is sound run in CI, not here.</p>
 <pre id="listing"></pre>
 <h2>Analyser rows</h2>
 <pre id="rows"></pre>
+</section>
+<section id="pio-tab" hidden>
+<p class="muted">pio_check, compiled to JavaScript: static timing of an RP2040 PIO program
+over every path, at the pin driver, against the rules in the spec. The kernel does not
+check this tab.</p>
+<div class="controls">
+  <label>Example <select id="pio-example"></select></label>
+  <button id="pio-check">Check</button>
+</div>
+<textarea id="pio-source" spellcheck="false" aria-label="PIO program"></textarea>
+<p class="muted">Spec: one pio_check flag a line, without its dash.</p>
+<textarea id="pio-spec" spellcheck="false" aria-label="Spec"></textarea>
+<p id="pio-verdict"></p>
+<pre id="pio-report"></pre>
+</section>
+<section id="diagram-tab" hidden>
+<p class="muted">A WaveDrom diagram compiled to a table for the table interpreter, which the
+kernel certified once with the data memory left free, so a table it takes needs no new
+certificate. The model of the core then runs the table on the frames below.</p>
+<div class="controls">
+  <label>Example <select id="diagram-example"></select></label>
+  <label>Clock <select id="diagram-clock"><option value="48000000">48 MHz, rated</option><option value="50000000">50 MHz</option></select></label>
+  <button id="diagram-run">Compile and run</button>
+</div>
+<textarea id="diagram-source" spellcheck="false" aria-label="WaveJSON"></textarea>
+<p class="muted">Frames: a line of bits each, first sent first: host bits, or for a receiver the bits its peer sends.</p>
+<textarea id="diagram-frames" spellcheck="false" aria-label="Frames"></textarea>
+<p id="diagram-verdict"></p>
+<pre id="diagram-detail"></pre>
+<h2>Mutation</h2>
+<div class="controls">
+  <label>Make every period <input id="mutation-percent" type="number" min="0.1" max="99" step="0.1" value="3"> % faster</label>
+  <button id="mutation-run">Certify both</button>
+  <span class="muted">A refusal is the interpreter's minimum step for its kind unless an edge limit is named.</span>
+</div>
+<p id="mutation-error" class="refused"></p>
+<div id="mutation" hidden>
+  <h3 id="mutation-original-head">Original</h3>
+  <h3 id="mutation-mutant-head">Mutant</h3>
+  <pre id="mutation-original"></pre>
+  <pre id="mutation-mutant"></pre>
+</div>
+<pre id="mutation-cycles"></pre>
+<h2>Pins</h2>
+<div id="diagram-wave"></div>
+<h2>Steps</h2>
+<pre id="diagram-steps"></pre>
+<h2>Host words</h2>
+<pre id="diagram-words"></pre>
+</section>
 <script src="playground.bc.js"></script>
 <script>
   const pe = protocolEmulator;
@@ -63,6 +125,107 @@ proofs that its check is sound run in CI, not here.</p>
   $("check").onclick = run;
   load();
   run();
+
+  pe.pioExamples.forEach(([name], i) => $("pio-example").add(new Option(name, i)));
+  const loadPio = () => {
+    const [, source, spec] = pe.pioExamples[$("pio-example").value];
+    $("pio-source").value = source;
+    $("pio-spec").value = spec;
+  };
+  const runPio = () => {
+    const r = pe.checkPio($("pio-source").value, $("pio-spec").value);
+    $("pio-verdict").textContent = r.verdict;
+    $("pio-verdict").className = r.verdict === "passed" ? "accepted" : "refused";
+    $("pio-report").textContent = r.report;
+  };
+  $("pio-example").onchange = () => { loadPio(); runPio(); };
+  $("pio-check").onclick = runPio;
+  loadPio();
+  runPio();
+
+  pe.diagramExamples.forEach(([name], i) => $("diagram-example").add(new Option(name, i)));
+  const loadDiagram = () => {
+    const [, source, frames] = pe.diagramExamples[$("diagram-example").value];
+    $("diagram-source").value = source;
+    $("diagram-frames").value = frames;
+  };
+  const wave = (lanes, levels, cycleNs) => {
+    const svg = "http://www.w3.org/2000/svg";
+    const scale = Math.max(0.05, Math.min(4, 1200 / Math.max(1, levels.length)));
+    const row = 28, left = 70, width = left + levels.length * scale + 10;
+    const el = (name, attrs) => {
+      const e = document.createElementNS(svg, name);
+      Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v));
+      return e;
+    };
+    const root = el("svg", { width, height: row * lanes.length + 24, fill: "none" });
+    lanes.forEach((name, i) => {
+      const y = (level) => row * i + (level ? 6 : 22);
+      const label = el("text", { x: 4, y: row * i + 18, fill: "currentColor" });
+      label.textContent = name;
+      root.appendChild(label);
+      let d = "M" + left + " " + y(levels[0] >> i & 1);
+      levels.forEach((l, c) => {
+        if (c > 0 && (l >> i & 1) !== (levels[c - 1] >> i & 1)) {
+          const x = left + c * scale;
+          d += " H" + x + " V" + y(l >> i & 1);
+        }
+      });
+      d += " H" + (left + levels.length * scale);
+      root.appendChild(el("path", { d, stroke: "currentColor", "stroke-width": 1.5 }));
+    });
+    const us = (levels.length * cycleNs) / 1000;
+    const step = Math.pow(10, Math.floor(Math.log10(Math.max(us, 1) / 2)));
+    for (let t = 0; t <= us; t += step) {
+      const tick = el("text", { x: left + (t * 1000 / cycleNs) * scale, y: row * lanes.length + 16,
+        fill: "currentColor", "font-size": 10 });
+      tick.textContent = t.toFixed(step < 1 ? 1 : 0) + " us";
+      root.appendChild(tick);
+    }
+    $("diagram-wave").replaceChildren(root);
+  };
+  const clock = () => Number($("diagram-clock").value);
+  const runDiagram = () => {
+    const r = pe.runDiagram($("diagram-source").value, $("diagram-frames").value, clock());
+    $("diagram-verdict").textContent = r.verdict;
+    $("diagram-verdict").className = r.verdict === "taken" ? "accepted" : "refused";
+    $("diagram-detail").textContent = r.detail;
+    $("diagram-steps").textContent = r.steps;
+    $("diagram-words").textContent = r.words;
+    mutate();
+    if (r.levels.length > 0) wave(Array.from(r.lanes), Array.from(r.levels), r.cycleNs);
+    else $("diagram-wave").replaceChildren();
+  };
+  const mutate = () => {
+    const r = pe.mutateDiagram($("diagram-source").value, Number($("mutation-percent").value), clock());
+    $("mutation-error").textContent = r.error || "";
+    $("mutation").hidden = !!r.error;
+    $("mutation-cycles").textContent = r.error ? "" : "mutant cycles a period: " + r.cycles;
+    if (r.error) return;
+    [["original", r.original, r.originalOk], ["mutant", r.mutant, r.mutantOk]].forEach(([id, text, ok]) => {
+      $("mutation-" + id).textContent = text;
+      $("mutation-" + id + "-head").textContent = (id === "original" ? "Original: " : "Mutant: ") + (ok ? "taken" : "REFUSED");
+      $("mutation-" + id + "-head").className = ok ? "accepted" : "refused";
+    });
+  };
+  $("mutation-run").onclick = mutate;
+  $("diagram-example").onchange = () => { loadDiagram(); runDiagram(); };
+  $("diagram-run").onclick = runDiagram;
+  $("diagram-clock").onchange = runDiagram;
+  loadDiagram();
+
+  let diagramRan = false;
+  const show = () => {
+    const tab = ["#pio", "#diagram"].includes(location.hash) ? location.hash.slice(1) : "firmware";
+    if (tab === "diagram" && !diagramRan) { diagramRan = true; runDiagram(); }
+    document.querySelectorAll("section").forEach((s) => { s.hidden = s.id !== tab + "-tab"; });
+    document.querySelectorAll("nav a").forEach((a) => {
+      if (a.hash === "#" + tab) a.setAttribute("aria-current", "page");
+      else a.removeAttribute("aria-current");
+    });
+  };
+  window.onhashchange = show;
+  show();
 </script>
 </body>
 </html>

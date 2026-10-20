@@ -3,7 +3,7 @@ open Protocol_emulator
 
 let wire = Isa.num_pins
 let period = 434
-let sender = Asm.assemble Firmware.uart_tx_host_rate |> ok_exn
+let sender = Asm.assemble Uart.tx_host_rate |> ok_exn
 let sender_config = { Program_config.default with set_base = wire; out_base = wire }
 let checker ?(base = 0) ~pin () = Asm.assemble (Self_check.checker ~pin ~base) |> ok_exn
 
@@ -246,7 +246,7 @@ let%expect_test "a firmware or bit period other than the certificate's is caught
   let delayed =
     let source =
       String.substr_replace_first
-        Firmware.uart_tx_host_rate
+        Uart.tx_host_rate
         ~pattern:"mov t, now"
         ~with_:"mov t, now [1]"
     in

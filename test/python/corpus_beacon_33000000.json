@@ -1,0 +1,24 @@
+{
+ "answers": {
+  "https://api.drand.sh": {
+   "randomness": "3267554d34a7d7bbd3f547a168cda834dd94ca2f060386d48c49680ea9366cad",
+   "round": 33000000,
+   "signature": "a6d9f863b58d8f1ea7b6fd426feef2b43b22c912b89dce0bdd787ed2b04c703954aced716aba98ff2b4a22a83e48dd35"
+  },
+  "https://api2.drand.sh": {
+   "randomness": "3267554d34a7d7bbd3f547a168cda834dd94ca2f060386d48c49680ea9366cad",
+   "round": 33000000,
+   "signature": "a6d9f863b58d8f1ea7b6fd426feef2b43b22c912b89dce0bdd787ed2b04c703954aced716aba98ff2b4a22a83e48dd35"
+  },
+  "https://api3.drand.sh": {
+   "randomness": "3267554d34a7d7bbd3f547a168cda834dd94ca2f060386d48c49680ea9366cad",
+   "round": 33000000,
+   "signature": "a6d9f863b58d8f1ea7b6fd426feef2b43b22c912b89dce0bdd787ed2b04c703954aced716aba98ff2b4a22a83e48dd35"
+  },
+  "https://drand.cloudflare.com": {
+   "randomness": "3267554d34a7d7bbd3f547a168cda834dd94ca2f060386d48c49680ea9366cad",
+   "round": 33000000,
+   "signature": "a6d9f863b58d8f1ea7b6fd426feef2b43b22c912b89dce0bdd787ed2b04c703954aced716aba98ff2b4a22a83e48dd35"
+  }
+ }
+}

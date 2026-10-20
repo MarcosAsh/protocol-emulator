@@ -1,21 +1,36 @@
-// Event lemma: for any program and constant config, a pin wait at an issue releases in
-// exactly the cycle whose sample shows its level, or for an edge that level after the
-// other, and a held wait issues again the next cycle, so no event goes unseen and none is
-// invented. A jmp on the pin goes where that cycle's sample says, as a poll and a guard
-// need. An input pin, and a bidirectional one not driven, samples that cycle's input.
+// Event lemma: for any program and config written while halted (host_spacing.sv), a pin
+// wait at an issue releases in exactly the cycle whose sample shows its level, or for an
+// edge that level after the other, and a held wait issues again the next cycle, so no
+// event goes unseen and none is invented. A jmp on the pin goes where that cycle's sample
+// says, as a poll and a guard need. An input pin, and a bidirectional one not driven,
+// samples that cycle's input.
 
 module event_step (input clk);
-  (* anyconst *) wire [1:0] side_set_count;
-  (* anyconst *) wire [4:0] side_set_base, in_base, in_count, out_base, out_count, set_base;
-  (* anyconst *) wire [2:0] set_count;
-  (* anyconst *) wire [4:0] jmp_pin, capture_pin, push_threshold, pull_threshold;
-  (* anyconst *) wire side_set_pindirs, capture_rising, in_shift_right, out_shift_right, autopush, autopull;
-  (* anyconst *) wire [4:0] crc_width, stuff_threshold;
-  (* anyconst *) wire [15:0] crc_poly, crc_init;
-  (* anyconst *) wire crc_reflect, stuff_level;
-  (* anyconst *) wire [8:0] wrap_bottom, wrap_top;
-  (* anyconst *) wire [15:0] period_fraction;
-  (* anyconst *) wire autopull_data, manchester;
+  // The config, as the host port holds it: a write lands only while the core is halted,
+  // and not in a start's second cycle (host_spacing.sv). Free at the clear.
+  (* anyseq *) wire config_write;
+  (* anyseq *) wire [140:0] config_value;
+  reg [140:0] config_bits;
+  wire [1:0] side_set_count = config_bits[140:139];
+  wire [4:0] side_set_base = config_bits[138:134];
+  wire side_set_pindirs = config_bits[133];
+  wire [4:0] in_base = config_bits[132:128], in_count = config_bits[127:123];
+  wire [4:0] out_base = config_bits[122:118], out_count = config_bits[117:113];
+  wire [4:0] set_base = config_bits[112:108];
+  wire [2:0] set_count = config_bits[107:105];
+  wire [4:0] jmp_pin = config_bits[104:100], capture_pin = config_bits[99:95];
+  wire capture_rising = config_bits[94], in_shift_right = config_bits[93];
+  wire out_shift_right = config_bits[92], autopush = config_bits[91];
+  wire [4:0] push_threshold = config_bits[90:86];
+  wire autopull = config_bits[85];
+  wire [4:0] pull_threshold = config_bits[84:80], crc_width = config_bits[79:75];
+  wire [15:0] crc_poly = config_bits[74:59], crc_init = config_bits[58:43];
+  wire crc_reflect = config_bits[42];
+  wire [4:0] stuff_threshold = config_bits[41:37];
+  wire stuff_level = config_bits[36];
+  wire [8:0] wrap_bottom = config_bits[35:27], wrap_top = config_bits[26:18];
+  wire [15:0] period_fraction = config_bits[17:2];
+  wire autopull_data = config_bits[1], manchester = config_bits[0];
   (* anyseq *) wire [15:0] data_word;
   (* anyseq *) wire stop, flush;
   (* anyseq *) wire start, program_write_valid, tx_valid, rx_pop, clear_irq;
@@ -78,7 +93,9 @@ module event_step (input clk);
 
   // an issue, as in edge_step.sv
   reg started = 0;
-  always @(posedge clk) started <= start;
+  always @(posedge clk) started <= start && halted;
+  always @(posedge clk)
+    if (config_write && halted && !started) config_bits <= config_value;
   wire issue = !clear && !halted && stall == 0 && !started;
 
   reg [27:0] previous = 0;
@@ -129,11 +146,11 @@ module event_step (input clk);
     end
   end
 
-  // a wait that holds issues again, unless the host stops or starts the core
+  // a wait that holds issues again, unless the host stops the core; a start it ignores
   reg held = 0, held_edge = 0;
   reg [8:0] held_pc = 0;
   always @(posedge clk) begin
-    held <= !clear && issue && pin_wait && !advance && !stop && !start && !reset;
+    held <= !clear && issue && pin_wait && !advance && !stop && !reset;
     held_edge <= source == 1;
 `ifdef HELD_MOVES
     held_pc <= pc + 9'd1;
@@ -143,11 +160,11 @@ module event_step (input clk);
   end
   always @(*) if (held && !clear) assert(issue && pc == held_pc);
 
-  // the jump lands where the sample says, unless the host stops or starts the core
+  // the jump lands where the sample says, unless the host stops the core
   reg jumped = 0, jump_taken = 0, jump_not_pin = 0, jump_at_wrap = 0;
   reg [8:0] jump_target = 0, jump_following = 0;
   always @(posedge clk) begin
-    jumped <= !clear && issue && pin_jump && !stop && !start && !reset;
+    jumped <= !clear && issue && pin_jump && !stop && !reset;
     jump_taken <= pin_high == (cond == 4);
     jump_not_pin <= cond == 5;
     jump_at_wrap <= pc == wrap_top && wrap_bottom != pc + 9'd1;

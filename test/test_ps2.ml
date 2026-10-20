@@ -88,7 +88,7 @@ let run ?(script = []) ~quarter ~bytes ~cycles () =
   let m, host, driver =
     loop
       (Machine.create ~config ~program:(Timed_program.words firmware) |> ok_exn)
-      (Host.create ~cycle_ns script)
+      (Host.create ~clock_hz:Bench.clock_hz script)
       (Driver.create ~quarter bytes)
       cycles
   in
@@ -107,8 +107,8 @@ let%expect_test "a key goes to the host, the host sends a command and gets its a
     ((host ("byte 0x1c" "sent 0xed, acknowledged" "byte 0xfa"))
      (core_received (0x3ed)) (resent 0)
      (measured_ns
-      ((setup (19960 19960)) ("clock low" (40000 40000))
-       ("clock high" (40000 40000)) (hold (20040 20040))))
+      ((setup (20792 20792)) ("clock low" (41667 41667))
+       ("clock high" (41667 41667)) (hold (20875 20875))))
      (violations ())
      (fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false)
@@ -128,8 +128,8 @@ let%expect_test "the host takes the clock in the middle of a frame" =
     ((host ("gave up a frame after 4 bits" inhibited "byte 0x1c"))
      (core_received ()) (resent 1)
      (measured_ns
-      ((setup (19960 19960)) ("clock low" (40000 40000))
-       ("clock high" (40000 40000)) (hold (20040 20040))))
+      ((setup (20792 20792)) ("clock low" (41667 41667))
+       ("clock high" (41667 41667)) (hold (20875 20875))))
      (violations ())
      (fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false)
@@ -140,7 +140,7 @@ let%expect_test "the host takes the clock in the middle of a frame" =
 (* a quarter of 40 cycles (a 2 MHz clock) keeps the simulation short. The host takes the
    clock mid-answer, which must be resent. *)
 let%expect_test "ps2 in lockstep" =
-  let host = ref (Host.create ~cycle_ns:500 [ 2_080, Send 0xed; 5_000, Inhibit ]) in
+  let host = ref (Host.create ~clock_hz:2_000_000 [ 2_080, Send 0xed; 5_000, Inhibit ]) in
   let driver = ref (Driver.create ~quarter:40 [ 0x1c ]) in
   let last = ref None in
   let levels = ref (1, 1) in
@@ -247,13 +247,13 @@ let%expect_test "a quarter of seven cycles is too short" =
 
 (* a 10 us quarter keeps every deadline but makes a 25 kHz clock the host rejects *)
 let%expect_test "a clock of 25 kHz is out of the standard" =
-  run ~quarter:(10_000 / cycle_ns) ~bytes:[ 0x1c ] ~cycles:26_000 ();
+  run ~quarter:(Bench.cycles_in ~us:10) ~bytes:[ 0x1c ] ~cycles:26_000 ();
   [%expect
     {|
     ((host ("byte 0x1c")) (core_received ()) (resent 0)
      (measured_ns
-      ((setup (9960 9960)) ("clock low" (20000 20000))
-       ("clock high" (20000 20000)) (hold (10040 10040))))
+      ((setup (9958 9958)) ("clock low" (20000 20000))
+       ("clock high" (20000 20000)) (hold (10042 10042))))
      (violations ("clock high of 20000 ns" "clock low of 20000 ns"))
      (fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false)

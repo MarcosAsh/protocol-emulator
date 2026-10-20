@@ -18,7 +18,7 @@ open Protocol_emulator
 
 val pin : int
 
-(** 50 us at 50 MHz. *)
+(** 52.1 us at 48 MHz. *)
 val standard_unit : int
 
 (** The least unit the host may load: the kernel accepts the analyser's rows at every load
@@ -54,7 +54,7 @@ val words : Frame.t -> int list
 module Follower : sig
   type t
 
-  val create : cycle_ns:int -> address:int -> t
+  val create : clock_hz:int -> address:int -> t
   val drive_low : t -> bool
 
   (** [low]: the line, driven by anyone, in this cycle. *)
@@ -66,3 +66,5 @@ module Follower : sig
   val measured : t -> Measured.t
   val violations : t -> string list
 end
+
+val protocol : Protocol.t

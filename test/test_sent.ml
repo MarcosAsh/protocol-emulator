@@ -55,7 +55,7 @@ let run ?(late = 0) ?(source = firmware) ~tick ~cycles () =
 
 let print_run ?late ~tick ~cycles () =
   let t, levels = run ?late ~tick ~cycles () in
-  let decoded = decode ~cycle_ns levels in
+  let decoded = decode ~clock_hz:Bench.clock_hz levels in
   Or_error.iter decoded ~f:(fun (decoded, _) ->
     [%test_result: Frame.t list] ~message:"frames" decoded ~expect:frames);
   print_s
@@ -73,13 +73,13 @@ let%expect_test "the core sends every frame, at the standard tick and the shorte
     {|
     ((tick 150)
      (measured_ns
-      (Ok ((sync (168000 168000)) (low (15000 15000)) (pause (36000 36000)))))
+      (Ok ((sync (175000 175000)) (low (15625 15625)) (pause (37500 37500)))))
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false)
        (assumption false))))
     ((tick 21)
      (measured_ns
-      (Ok ((sync (23520 23520)) (low (2100 2100)) (pause (5040 5040)))))
+      (Ok ((sync (24500 24500)) (low (2188 2188)) (pause (5250 5250)))))
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false)
        (assumption false))))
@@ -95,7 +95,7 @@ let%expect_test "a late frame lengthens the pause before it" =
     {|
     ((tick 21)
      (measured_ns
-      (Ok ((sync (23520 23520)) (low (2100 2100)) (pause (5040 116780)))))
+      (Ok ((sync (24500 24500)) (low (2188 2188)) (pause (5250 121646)))))
      (t.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false)
        (assumption false))))
@@ -125,11 +125,11 @@ let%expect_test "a frame arriving anywhere in the pause leaves 12 ticks or more"
       let t, levels = run ~late ~tick ~cycles:(late + (80 * tick)) () in
       let pause =
         match List.drop (falls levels) 19 with
-        | fall :: next :: _ -> (next - fall) * cycle_ns
+        | fall :: next :: _ -> Measured.ns ~clock_hz:Bench.clock_hz (next - fall)
         | _ -> 0
       in
       let ok =
-        Or_error.is_ok (decode ~cycle_ns levels)
+        Or_error.is_ok (decode ~clock_hz:Bench.clock_hz levels)
         && [%equal: Machine.Fault.t] t.fault Machine.Fault.none
       in
       ( Measured.add pauses ~name:"pause" ~ns:pause
@@ -137,8 +137,13 @@ let%expect_test "a frame arriving anywhere in the pause leaves 12 ticks or more"
   in
   print_s
     [%message
-      "" ~tick_ns:(tick * cycle_ns : int) (pauses : Measured.t) (failed : int list)];
-  [%expect {| ((tick_ns 420) (pauses ((pause (5040 6320)))) (failed ())) |}]
+      ""
+        ~tick_ns:(Measured.ns ~clock_hz:Bench.clock_hz tick : int)
+        (pauses : Measured.t)
+        (failed : int list)];
+  if not (List.is_empty failed)
+  then raise_s [%message "frames failed" (failed : int list)];
+  [%expect {| ((tick_ns 438) (pauses ((pause (5250 6583)))) (failed ())) |}]
 ;;
 
 let%expect_test "the decoder refuses a fall a tick late and a short low" =
@@ -161,7 +166,7 @@ let%expect_test "the decoder refuses a fall a tick late and a short low" =
     edit ~f:(fun i level ->
       level || (i >= second + (3 * standard_tick) && i < second + (5 * standard_tick)))
   in
-  let decoded levels = decode ~cycle_ns levels |> Or_error.map ~f:fst in
+  let decoded levels = decode ~clock_hz:Bench.clock_hz levels |> Or_error.map ~f:fst in
   print_s
     [%message
       ""
@@ -188,7 +193,7 @@ let%expect_test "the decoder's bounds on the pause and on every low" =
         List.init (ticks * tick) ~f:(fun i -> i >= low * tick))
     in
     (true :: levels) @ [ false ]
-    |> decode ~cycle_ns
+    |> decode ~clock_hz:Bench.clock_hz
     |> Or_error.map ~f:(fun (decoded, _) -> List.length decoded)
   in
   print_s
@@ -227,7 +232,7 @@ let%expect_test "the decoder refuses a sync more than 1/64 from the last" =
       if cut then List.init (56 * next) ~f:(fun i -> i >= 5 * next) else frame next
     in
     (true :: frame 64) @ second @ [ false ]
-    |> decode ~cycle_ns
+    |> decode ~clock_hz:Bench.clock_hz
     |> Or_error.map ~f:(fun (decoded, _) -> List.length decoded)
   in
   print_s
@@ -270,7 +275,7 @@ let%expect_test "sent in lockstep" =
     [%message
       ""
         ~frames:
-          (decode ~cycle_ns (List.rev !levels) |> Or_error.map ~f:fst
+          (decode ~clock_hz:Bench.clock_hz (List.rev !levels) |> Or_error.map ~f:fst
            : Frame.t list Or_error.t)
         (model.fault : Machine.Fault.t)];
   [%expect
@@ -439,7 +444,7 @@ let%expect_test "the versions before" =
               ~standard:(verdicts ~period:(Some standard_tick) ~floor:None : Sexp.t)
               ~from_shortest:(verdicts ~period:None ~floor:(Some shortest_tick) : Sexp.t)
               ~decoded:
-                (decode ~cycle_ns levels
+                (decode ~clock_hz:Bench.clock_hz levels
                  |> Or_error.map ~f:(fun (decoded, _) ->
                    [%equal: Frame.t list] decoded frames)
                  : bool Or_error.t)

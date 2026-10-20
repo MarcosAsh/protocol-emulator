@@ -8,9 +8,8 @@ open Protocol_emulator
 
 val swclk_pin : int
 val swdio_pin : int
-val cycle_ns : int
 
-(** Cycles in half of 1 us at 50 MHz, a 1 MHz SWCLK. *)
+(** A half period of 521 ns at 48 MHz, a 960 kHz SWCLK. *)
 val standard_half : int
 
 val shortest_half : int
@@ -109,7 +108,7 @@ module Dp : sig
     -> ?memory:(int * int) list
     -> ?corrupt_parity:bool
     -> ?corrupt_acks:int
-    -> cycle_ns:int
+    -> clock_hz:int
     -> dpidr:int
     -> targetid:int
     -> unit
@@ -132,7 +131,7 @@ module Bus : sig
   type t
 
   val create : ?undriven:int -> Dp.t list -> t
-  val rp2040 : ?undriven:int -> cycle_ns:int -> unit -> t
+  val rp2040 : ?undriven:int -> clock_hz:int -> unit -> t
   val dps : t -> Dp.t list
 
   (** The line, at [swdio_pin], as the core's input. *)
@@ -143,3 +142,5 @@ module Bus : sig
   (** Two DPs driving at once, by cycle. *)
   val contention : t -> int list
 end
+
+val protocol : Protocol.t

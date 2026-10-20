@@ -2,8 +2,7 @@ open! Core
 open Protocol_emulator
 
 let pin = 12
-let cycle_ns = 20
-let standard_unit = 6_000 / cycle_ns
+let standard_unit = 300
 
 let config =
   { Program_config.default with
@@ -38,12 +37,12 @@ slot:
     mov pindirs, !y          ; 1 unit: a one or a read lets go
     wait t+
     in pins, 1               ; 2 units: sample
-    set y, 6
+    set y, 7
 hold:
     wait t+
     jmp y--, hold
     wait t+
-    set pindirs, 0           ; 10 units: a zero lets go
+    set pindirs, 0           ; 11 units: a zero lets go
     jmp x--, slot
     in null, 8
     push
@@ -115,7 +114,7 @@ module Slave = struct
   end
 
   type t =
-    { cycle_ns : int
+    { clock_hz : int
     ; rom : int list
     ; phase : Phase.t
     ; last : Last.t
@@ -133,8 +132,8 @@ module Slave = struct
   let presence_us = 120
   let zero_hold_us = 15
 
-  let create ~cycle_ns ~rom =
-    { cycle_ns
+  let create ~clock_hz ~rom =
+    { clock_hz
     ; rom
     ; phase = Asleep
     ; last = Nothing
@@ -149,8 +148,10 @@ module Slave = struct
   ;;
 
   let drive_low t = t.drive > 0
-  let ns t cycles = cycles * t.cycle_ns
-  let cycles t us = us * 1000 / t.cycle_ns
+  let ns t cycles = Measured.ns ~clock_hz:t.clock_hz cycles
+  let cycles t us = Measured.cycles ~clock_hz:t.clock_hz ~ns:(us * 1000)
+  let at_least t cycles ns = Measured.at_least ~clock_hz:t.clock_hz cycles ~ns
+  let at_most t cycles ns = Measured.at_most ~clock_hz:t.clock_hz cycles ~ns
   let log_line t line = { t with log = line :: t.log }
   let timed t ~name ~ns = { t with measured = Measured.add t.measured ~name ~ns }
 
@@ -167,12 +168,12 @@ module Slave = struct
     let t =
       match t.last with
       | Nothing -> t
-      | Reset -> require t (high >= 480_000) ~name:"high after reset" ~ns:high
+      | Reset -> require t (at_least t t.run 480_000) ~name:"high after reset" ~ns:high
       | Slot ->
         let slot = ns t t.since_fall in
         let t = timed (timed t ~name:"slot" ~ns:slot) ~name:"high" ~ns:high in
-        let t = require t (slot >= 60_000) ~name:"slot" ~ns:slot in
-        require t (high >= 1_000) ~name:"high" ~ns:high
+        let t = require t (at_least t t.since_fall 60_000) ~name:"slot" ~ns:slot in
+        require t (at_least t t.run 1_000) ~name:"high" ~ns:high
     in
     match t.phase with
     | Rom i ->
@@ -198,7 +199,8 @@ module Slave = struct
 
   let rose t =
     let low = ns t t.run in
-    if low >= 480_000
+    let within lo hi = at_least t t.run lo && at_most t t.run hi in
+    if at_least t t.run 480_000
     then
       log_line
         (timed
@@ -208,9 +210,9 @@ module Slave = struct
         "reset"
     else (
       let t = { t with last = Slot } in
-      if 1_000 <= low && low <= 15_000
+      if within 1_000 15_000
       then shift_command (timed t ~name:"one low" ~ns:low) 1
-      else if 60_000 <= low && low <= 120_000
+      else if within 60_000 120_000
       then shift_command (timed t ~name:"zero low" ~ns:low) 0
       else require t false ~name:"low" ~ns:low)
   ;;
@@ -237,3 +239,174 @@ module Slave = struct
   let measured t = t.measured
   let violations t = List.rev t.violations
 end
+
+let bench_unit = Bench.cycles_in ~us:6
+
+(* The library's reset is 80 units, 480 us at the 6 us unit: exactly the least a DS18B20
+   takes. One more pass of its low loop makes it 84, 504 us. *)
+let bench =
+  { Bench.name = "one_wire"
+  ; what =
+      [%string
+        "One_wire.firmware with a reset of 84 units: the host sends the unit, \
+         %{bench_unit#Int} cycles for %{Bench.time bench_unit}, so %{Bench.time (84 * \
+         bench_unit)}, on IO4"]
+  ; source =
+      Bench.patch
+        (Timed_program.source firmware)
+        ~pattern:"    set x, 19\n"
+        ~with_:"    set x, 20\n"
+  ; config =
+      { config with
+        in_base = Bench.one_wire
+      ; out_base = Bench.one_wire
+      ; set_base = Bench.one_wire
+      }
+  ; assumption = Floor 5
+  ; clock_hz = Bench.clock_hz
+  ; load = Some bench_unit
+  ; stimulus =
+      Some
+        { bursts = [ [ reset; byte 0x00; byte 0xa5; byte 0xff ] ]
+        ; quiet = 0
+        ; cycles = 200_000
+        }
+  }
+;;
+
+(* DS18B20: a low under tLOW0's 60 us is a write 1 or a read, one from there to tRSTL's
+   480 a write 0, and longer a reset *)
+let limits =
+  let sheet =
+    { Datasheet.Sheet.part = "DS18B20"; document = "Maxim REV 042208"; page = "p.20" }
+  in
+  let reset ~clock_hz l = l >= Datasheet.cycles ~clock_hz 480_000. in
+  let lows_from least ?(below = Float.infinity) () =
+    Datasheet.run ~pin:Datasheet.set_pin (fun ~clock_hz levels ->
+      List.filter (Datasheet.lows levels) ~f:(fun l ->
+        l >= Datasheet.cycles ~clock_hz least
+        && Float.(of_int l < below *. of_int clock_hz /. 1e9)))
+  in
+  (* each low with the high after it *)
+  let slots f =
+    Datasheet.run ~pin:Datasheet.set_pin (fun ~clock_hz levels ->
+      List.filter_map (Datasheet.pairs levels) ~f:(fun ((high, l), (_, h)) ->
+        if high then None else f ~clock_hz l h))
+  in
+  let limit parameter limit bound =
+    { Datasheet.firmware = "one_wire"; parameter; limit; sheet; margin = Cycle; bound }
+  in
+  [ limit
+      "tLOW1"
+      (At_least 1_000.)
+      (Datasheet.level ~dirs:true ~pin:Datasheet.set_pin ~high:true ())
+  ; limit "tLOW1" (At_most 15_000.) (lows_from 0. ~below:60_000. ())
+  ; limit "tLOW0" (At_least 60_000.) (lows_from 60_000. ~below:480_000. ())
+  ; limit "tLOW0" (At_most 120_000.) (lows_from 60_000. ~below:480_000. ())
+  ; limit
+      "tREC"
+      (At_least 1_000.)
+      (Datasheet.level ~dirs:true ~pin:Datasheet.set_pin ~high:false ())
+  ; limit
+      "tSLOT + tREC"
+      (At_least 61_000.)
+      (slots (fun ~clock_hz l h -> Option.some_if (not (reset ~clock_hz l)) (l + h)))
+  ; limit "tRSTL" (At_least 480_000.) (lows_from 480_000. ())
+  ; limit
+      "tRSTH"
+      (At_least 480_000.)
+      (slots (fun ~clock_hz l h -> Option.some_if (reset ~clock_hz l) h))
+  ]
+;;
+
+open Pin_trace
+module Reg = Host_port.Reg
+
+let certified =
+  Certified.plain
+    ~period:standard_unit
+    ~period_floor:5
+    "one_wire"
+    (Timed_program.source firmware)
+    config
+;;
+
+let scenario =
+  let rom = rom ~family:0x28 ~serial:0x0123_4567_89ab in
+  let unit = standard_unit in
+  let peer () =
+    let slave = ref (Slave.create ~clock_hz:Bench.clock_hz ~rom) in
+    let low = ref false in
+    { Peer.inputs = (fun () -> if !low then 0 else 1 lsl pin)
+    ; step =
+        (fun ~pin_out:_ ~pin_dir ->
+          let master_low = Peer.bit pin_dir pin = 1 in
+          low := master_low || Slave.drive_low !slave;
+          slave := Slave.step !slave ~master_low)
+    }
+  in
+  (* a reset is 160 units and a byte 96 *)
+  let read_four =
+    [ Step.Write (Reg.tx, List.init 4 ~f:(fun _ -> byte 0xff))
+    ; Run ((4 * 96 * unit) + 1000)
+    ; Read (Reg.rx, 4)
+    ]
+  in
+  { Scenario.name = "one_wire"
+  ; peer
+  ; script =
+      Scenario.load ~assumptions:(Certified.assumptions certified) ~config ~program:(Timed_program.words firmware) ()
+      @ [ Scenario.start
+        ; Write (Reg.tx, [ unit; reset; byte 0x33 ])
+        ; Run (((160 + 96) * unit) + 1000)
+        ; Read (Reg.rx, 2)
+        ]
+      @ read_four
+      @ read_four
+  ; sigrok =
+      Some
+        { clock_hz = Bench.clock_hz
+        ; decoders =
+            [ String.concat
+                ~sep:","
+                [ Sigrok.decoder "onewire_link" ~pins:[ "owr", pin ]
+                ; Sigrok.decoder "onewire_network"
+                ]
+            ]
+        ; expect =
+            [ ( "onewire_link=reset:presence"
+              , Sigrok.lines "onewire_link" [ "Reset"; "Presence: true" ] )
+            ; ( "onewire_network"
+              , Sigrok.lines
+                  "onewire_network"
+                  [ "Reset/presence: true"
+                  ; "ROM command: 0x33 'Read ROM'"
+                  ; sprintf
+                      "ROM: 0x%016x"
+                      (List.fold_right rom ~init:0 ~f:(fun byte rest ->
+                         (rest lsl 8) lor byte))
+                  ] )
+            ]
+        ; joins_after = None
+        ; rejected = None
+        ; (* edge 6 starts the command's second slot: 14 us early, the first is 61 us *)
+          teeth = [ [ Shift { pin; edge = 6; cycles = -Bench.cycles_in ~us:14 } ] ]
+        }
+  }
+;;
+
+let protocol =
+  { Protocol.name = "one_wire"
+  ; certified = [ certified ]
+  ; time_triggered = []
+  ; bench = [ bench ]
+  ; loaded_from_hex = []
+  ; limits
+  ; unlimited = []
+  ; swept = []
+  ; not_swept =
+      [ "one_wire", "open drain, which a wire does not show, and a slave has to answer" ]
+  ; scenarios = []
+  ; decoded = [ scenario ]
+  }
+;;

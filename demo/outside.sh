@@ -1,13 +1,19 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
 # One outside chip act of BRINGUP.md: runs its script on Pico A while its analyser
-# captures, then prints the Pico's log and sigrok's decode. Reset the chip before every
+# captures, then prints the Pico's log and sigrok's decode, and FAIL last if the capture
+# lacks the demo's traffic (demo/traffic.py), whatever the Pico said. Reset the chip before every
 # act, CAN included, as faults hold until reset. Analyser A has the host port, OUT0, CAN
 # and SWD, B the flash, the stick, 1-Wire and I2C: see demo/capture.sh for picking one.
+# The capture, the Pico's log and the decode are kept as <name>.sr, .log and .decode in
+# CAPTURES, the current directory unless set.
 # Usage: PICO=id:<serial of Pico A> demo/outside.sh <act>, one of
 #   flash eeprom eeprom_stretch ds18b20 neopixel start_hold can can_node swd referee
+#   pio_ws2812 pio_uart_tx pio_spi, or a protocol whose python/demo_<act>.py has an
+#   "# outside:" line
 set -e
 act=$1
+captures=${CAPTURES:-.}
 files=
 arm=
 case $act in
@@ -69,9 +75,35 @@ referee)
         test/uart_tx_host_rate.cert.hex test/uart_tx_host_rate_rows.hex test/self_check_wire.hex
         test/self_check_wire.cert.hex test/scrub.hex"
     ;;
+pio_ws2812)
+    ms=2000
+    decode="-P rgb_led_ws281x:din=D4 -A rgb_led_ws281x=rgb:reset"
+    analyser=B
+    files="python/pio_firmware.py python/pio_upstream.py"
+    ;;
+pio_uart_tx)
+    ms=2000
+    decode="-P uart:rx=D4:baudrate=115200 -A uart=rx-data"
+    analyser=A
+    files="python/pio_firmware.py python/pio_upstream.py"
+    ;;
+pio_spi)
+    ms=2000
+    decode="-P spi:clk=D0:mosi=D1:miso=D2:cs=D3,spiflash:chip=winbond_w25q80dv -A spiflash"
+    analyser=B
+    files="python/pio_firmware.py python/pio_upstream.py"
+    ;;
 *)
-    echo "usage: PICO=id:<serial> $0 flash|eeprom|eeprom_stretch|ds18b20|neopixel|start_hold|can|can_node|swd|referee" >&2
-    exit 1
+    # any other demo is a protocol of its own, whose script's "# outside:" line gives the
+    # analyser, the capture's length and sigrok's decoders
+    line=$(sed -n 's/^# outside: //p' "python/demo_$act.py" 2>/dev/null | head -1)
+    if [ -z "$line" ]; then
+        echo "usage: PICO=id:<serial> $0 flash|eeprom|eeprom_stretch|ds18b20|neopixel|start_hold|can|can_node|swd|referee|pio_ws2812|pio_uart_tx|pio_spi|<protocol>" >&2
+        exit 1
+    fi
+    analyser=$(echo "$line" | sed -n 's/.*analyser=\([^ ]*\).*/\1/p')
+    ms=$(echo "$line" | sed -n 's/.*ms=\([0-9]*\).*/\1/p')
+    decode=$(echo "$line" | sed -n 's/.*decode=//p')
     ;;
 esac
 # shellcheck disable=SC2086
@@ -85,9 +117,22 @@ except OSError:
 # a run arms itself, but sigrok's CAN decoder takes the dominant line a reset chip leaves at
 # the start of a capture for a frame
 [ -z "$arm" ] || mpremote connect "$PICO" exec "$arm"
-ANALYSER=$analyser demo/capture.sh "$act.sr" "$ms" mpremote connect "$PICO" run --no-follow "python/demo_$act.py"
+mkdir -p "$captures"
+ANALYSER=$analyser demo/capture.sh "$captures/$act.sr" "$ms" mpremote connect "$PICO" run --no-follow "python/demo_$act.py"
 # the act ends inside the capture, and a second more lets the Pico write its log
 sleep 1
-mpremote connect "$PICO" cat :outside.log || echo "no log: the act was still running" >&2
+if mpremote connect "$PICO" cat :outside.log > "$captures/$act.log"; then
+    cat "$captures/$act.log"
+else
+    echo "no log: the demo was still running" >&2
+fi
 # shellcheck disable=SC2086
-sigrok-cli -i "$act.sr" $decode
+sigrok-cli -i "$captures/$act.sr" $decode > "$captures/$act.decode"
+cat "$captures/$act.decode"
+verdict=$(python3 demo/traffic.py "$act" "$captures")
+echo "$verdict"
+# a protocol started with generate new-protocol gets its bench time in demo/speed.tsv
+if [ -f "$captures/$act.log" ] && [ "$(tail -n 1 "$captures/$act.log")" = PASS ] &&
+    ! echo "$verdict" | grep -qx FAIL; then
+    python3 demo/speed.py mark "$act" bench --if-started || true
+fi

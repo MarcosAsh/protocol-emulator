@@ -1,0 +1,5 @@
+nandland_uart https://github.com/nandland/UART 4ae04682b0e59f4b9d93a4f99b06990e5bcb5cc2
+alexforencich_uart https://github.com/alexforencich/verilog-uart 1b867e53af738e4a8bc7c839ca2f1c07f40382dc
+ben_marshall_uart https://github.com/ben-marshall/uart 5fd2db850a41b65aa34f3a31c663fc8704c7abd8
+cyrozap_osdvu https://github.com/cyrozap/osdvu d18488c41141cfb1c7b29f5a5840510e727ae5a2
+nandland_spi https://github.com/nandland/spi-master 1ab581969f8ea2f794072a144b55cd74e5a54f34

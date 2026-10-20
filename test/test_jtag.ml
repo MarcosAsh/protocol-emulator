@@ -81,7 +81,7 @@ let%expect_test "a TAP reads its IDCODE and keeps what the user register was giv
       in
       loop t tap schedule pushed (n + 1))
   in
-  let t, tap, pushed = loop t (Tap.create ~cycle_ns) schedule [] 0 in
+  let t, tap, pushed = loop t (Tap.create ~clock_hz:Bench.clock_hz) schedule [] 0 in
   print ~pushed tap t.fault;
   [%expect
     {|
@@ -91,8 +91,8 @@ let%expect_test "a TAP reads its IDCODE and keeps what the user register was giv
        ("bypass of 0xb6" 0x16c)))
      (user 0x3c)
      (measured_ns
-      ((setup (200 14600)) ("TCK high" (200 200)) ("TCK low" (200 600))
-       (hold (200 600))))
+      ((setup (208 15208)) ("TCK high" (208 208)) ("TCK low" (208 625))
+       (hold (208 625))))
      (violations ())
      (fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false)
@@ -102,7 +102,7 @@ let%expect_test "a TAP reads its IDCODE and keeps what the user register was giv
 
 (* the host pops every word the core pushes, so the rx fifo never fills *)
 let%expect_test "jtag in lockstep" =
-  let tap = ref (Tap.create ~cycle_ns) in
+  let tap = ref (Tap.create ~clock_hz:Bench.clock_hz) in
   let schedule = ref schedule in
   let tx_level = ref 0 in
   let model =

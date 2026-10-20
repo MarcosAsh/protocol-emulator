@@ -12,13 +12,13 @@ let () =
   (* checked as the command line does, under test_analyser's certificate assumptions *)
   let program address =
     let program =
-      Asm.assemble (Firmware.usb_device ~address ~half_period:(bit_period / 2)) |> ok_exn
+      Asm.assemble (Usb.device ~address ~half_period:(bit_period / 2)) |> ok_exn
     in
     let (_ : Analyser.Verdict.t) =
       Analyser.check
         ~period:bit_period
         ~single_capture_edge:true
-        ~config:Firmware.usb_device_config
+        ~config:Usb.device_config
         program
       |> ok_exn
     in
@@ -45,7 +45,7 @@ let () =
   let config =
     Engine.Config.map2
       Engine.Config.port_names
-      (Engine.Config.of_program_config Firmware.usb_device_config)
+      (Engine.Config.of_program_config Usb.device_config)
       ~f:(fun name value -> name, Bits.to_unsigned_int value)
     |> Engine.Config.to_list
   in
@@ -53,8 +53,7 @@ let () =
   let lines words = List.chunks_of words ~length:10 |> List.map ~f:hex in
   print_endline
     "# Written by test/python/write_usb_firmware.ml; `dune promote` after a change.";
-  print_endline
-    "# Firmware.usb_device for every address, as the words that differ from address 0.";
+  print_endline "# Usb.device for every address, as the words that differ from address 0.";
   printf "\nBIT_PERIOD = %d\n\nCONFIG = {\n" bit_period;
   List.iter config ~f:(fun (name, value) -> printf "    \"%s\": %d,\n" name value);
   print_endline "}\n\nWORDS = [";

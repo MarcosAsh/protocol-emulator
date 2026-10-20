@@ -1,0 +1,9 @@
+# The miter of miter.ys, gold.il against gate.il, for anystate.awk to start from any state.
+
+read_rtlil gold.il
+read_rtlil gate.il
+miter -equiv -flatten gold gate miter
+hierarchy -top miter
+delete t:$scopeinfo
+script ../netlist_equiv/fine.ys
+write_rtlil anystate_pre.il

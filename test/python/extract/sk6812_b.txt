@@ -1,0 +1,17 @@
+BEGIN LIMITS
+document	产品规格书 SK6812-012	B/0	2024-03-02
+symbol	parameter	condition	min	typ	max	unit	page	where
+FPWM	PWM frequency			1.0		KHz	6	9. IC electrical parameters
+FDIN	Transfer rate			800		Kbps	6	9. IC electrical parameters
+T	Symbol period		1.20	--	--	µs	7	10. Suggested data transmission time
+T0H	0 code, high-level time		0.20	0.30	0.40	µs	7	10. Suggested data transmission time
+T0L	0 code, low-level time		0.80	--	--	µs	7	10. Suggested data transmission time
+T1H	1 code, high-level time		0.60	0.67	1.00	µs	7	10. Suggested data transmission time
+T1L	1 code, low-level time		0.20	--	--	µs	7	10. Suggested data transmission time
+Reset	Reset code, low-level time		>200	--	--	µs	7	10. Suggested data transmission time
+T	code period		1.2			µs	7	text
+T0L	"0" code low-level time				20	µs	7	text
+T1L	"1" code low-level time				20	µs	7	text
+Reset code	Reset code		>200			us	7	11. Data transmission method
+data transmission frequency	data transmission frequency				800	Kbps	3	text
+END LIMITS

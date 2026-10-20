@@ -6,6 +6,18 @@ open Protocol_models
 (* A sender's bit as [num / den] of the receiver's: 4% fast, exact, 4% slow. *)
 let rates = [ "4% fast", 24, 25; "exact", 1, 1; "4% slow", 26, 25 ]
 
+(* USB allows a low speed sender 1.5% off *)
+let usb_rates =
+  [ "4% fast", 24, 25
+  ; "3% fast", 97, 100
+  ; "1.5% fast", 197, 200
+  ; "exact", 1, 1
+  ; "1.5% slow", 203, 200
+  ; "3% slow", 103, 100
+  ; "4% slow", 26, 25
+  ]
+;;
+
 (* Per-bit levels to per-cycle levels, each bit starting on the first cycle at or after it
    is due, so an off-rate sender's edges drift. *)
 let clocked bits ~period ~num ~den =
@@ -69,7 +81,7 @@ let watch ?preload ?react firmware levels =
 
 let print_row name ~sender ({ count; missed; _ } : Run.t) ~received =
   printf
-    "%-18s %-8s %5d  %8d  %10d  %s%s\n"
+    "%-18s %-9s %5d  %8d  %10d  %s%s\n"
     name
     sender
     count.arms
@@ -143,10 +155,10 @@ let usb_rx_packets ~bit_period firmware =
     List.concat_map packets ~f:(fun packet ->
       List.map (0x80 :: packet) ~f:(fun byte -> byte lsl 8) @ [ Usb_ls.residual packet ])
   in
-  List.iter rates ~f:(fun (sender, num, den) ->
+  List.iter usb_rates ~f:(fun (sender, num, den) ->
     let levels =
       clocked
-        (List.map lines ~f:(usb_level ~dp:usb_rx_dp_pin ~dm:usb_rx_dm_pin))
+        (List.map lines ~f:(usb_level ~dp:Usb.rx_dp_pin ~dm:Usb.rx_dm_pin))
         ~period:bit_period
         ~num
         ~den
@@ -158,8 +170,8 @@ let usb_rx_packets ~bit_period firmware =
 (* Per eight bytes: SETUP + DATA0 (ACKed), IN (NAKed), IN, OUT + data for another address,
    and a host ACK, two bit times apart plus room for answers. *)
 let usb_device_transactions ~bit_period firmware =
-  let dp = usb_device_dp_pin in
-  let dm = usb_device_dm_pin in
+  let dp = Usb.device_dp_pin in
+  let dm = Usb.device_dm_pin in
   let packets =
     List.concat_map chunks ~f:(fun chunk ->
       [ token ~pid:0x2d ~address:0, 1
@@ -203,8 +215,8 @@ let usb_device_transactions ~bit_period firmware =
 (* The device's tightest arm: the host's next packet the minimum two bit times after the
    device's handshake. Per eight bytes: SETUP + DATA0, IN, next SETUP, each at once. *)
 let usb_device_at_once ~bit_period firmware =
-  let dp = usb_device_dp_pin in
-  let dm = usb_device_dm_pin in
+  let dp = Usb.device_dp_pin in
+  let dm = Usb.device_dm_pin in
   let j = usb_level ~dp ~dm J in
   let host lines =
     clocked (List.map lines ~f:(usb_level ~dp ~dm)) ~period:bit_period ~num:1 ~den:1
@@ -270,25 +282,27 @@ let usb_device_at_once ~bit_period firmware =
    under a sender off only in rate: at each [capture_arm], is the pin already at the
    captured level, or does it leave it before the wait releases? Either is a frame the
    certificate does not cover. UART also runs at 25 and 17 cycles a bit, and with every
-   eighth stop bit missing to reach the arm after a framing error. USB packets garble at
-   4% off (USB allows 1.5%); only the arms matter. *)
+   eighth stop bit missing to reach the arm after a framing error. USB allows 1.5% off;
+   past what a receiver follows its packets garble, and only the arms matter. The USB
+   receiver arms after every sample that reads J, so a sender it cannot follow puts edges
+   beside its samples and breaks the premise; those frames are the ones it garbles. *)
 let%expect_test "the receivers keep the premise their certificates rest on" =
   printf
-    "%-18s %-8s %5s  %8s  %10s  %s\n"
+    "%-18s %-9s %5s  %8s  %10s  %s\n"
     "receiver"
     "sender"
     "arms"
     "at level"
     "left level"
     "received";
-  List.iter Certified.all ~f:(fun firmware ->
+  List.iter Library.certified ~f:(fun firmware ->
     if firmware.single_capture_edge
     then (
       match firmware.name with
       | "uart_rx" ->
         uart ~period:16 firmware;
-        uart ~period:25 ~name:"uart_rx 25" { firmware with source = uart_rx ~period:25 };
-        uart ~period:17 ~name:"uart_rx 17" { firmware with source = uart_rx ~period:17 };
+        uart ~period:25 ~name:"uart_rx 25" { firmware with source = Uart.rx ~period:25 };
+        uart ~period:17 ~name:"uart_rx 17" { firmware with source = Uart.rx ~period:17 };
         uart ~broken:(fun byte -> byte % 8 = 7) ~period:16 ~name:"uart_rx stop" firmware
       | "usb_rx" -> usb_rx_packets ~bit_period:(Option.value_exn firmware.period) firmware
       | "usb_device" ->
@@ -298,33 +312,38 @@ let%expect_test "the receivers keep the premise their certificates rest on" =
       | name -> printf "%-18s no sender to drive it with\n" name));
   [%expect
     {|
-    receiver           sender    arms  at level  left level  received
-    uart_rx            4% fast    257         0           0  all intact
-    uart_rx            exact      257         0           0  all intact
-    uart_rx            4% slow    257         0           0  all intact
-    uart_rx 25         4% fast    257         0           0  all intact
-    uart_rx 25         exact      257         0           0  all intact
-    uart_rx 25         4% slow    257         0           0  all intact
-    uart_rx 17         4% fast    257         0           0  all intact
-    uart_rx 17         exact      257         0           0  all intact
-    uart_rx 17         4% slow    257         0           0  all intact
-    uart_rx stop       4% fast    257         0           0  all intact, 32 framing errors
-    uart_rx stop       exact      257         0           0  all intact, 32 framing errors
-    uart_rx stop       4% slow    257         0           0  all intact, 32 framing errors
-    usb_rx             4% fast     33         0           0  384 words, not as sent
-    usb_rx             exact       33         0           0  all intact
-    usb_rx             4% slow     33         0           0  416 words, not as sent
-    usb_device         4% fast    225         0           0  0 ACK and 0 NAK of 32 each
-    usb_device         exact      225         0           0  32 ACK and 32 NAK of 32 each
-    usb_device         4% slow    225         0           0  0 ACK and 0 NAK of 32 each
-    usb_device at once exact       97         0           0  32 ACK and 32 NAK of 32 each
+    receiver           sender     arms  at level  left level  received
+    uart_rx            4% fast     257         0           0  all intact
+    uart_rx            exact       257         0           0  all intact
+    uart_rx            4% slow     257         0           0  all intact
+    uart_rx 25         4% fast     257         0           0  all intact
+    uart_rx 25         exact       257         0           0  all intact
+    uart_rx 25         4% slow     257         0           0  all intact
+    uart_rx 17         4% fast     257         0           0  all intact
+    uart_rx 17         exact       257         0           0  all intact
+    uart_rx 17         4% slow     257         0           0  all intact
+    uart_rx stop       4% fast     257         0           0  all intact, 32 framing errors
+    uart_rx stop       exact       257         0           0  all intact, 32 framing errors
+    uart_rx stop       4% slow     257         0           0  all intact, 32 framing errors
+    uart_rx_host_rate  no sender to drive it with
+    usb_rx             4% fast    1392         9          19  413 words, not as sent
+    usb_rx             3% fast    1394         3           4  412 words, not as sent
+    usb_rx             1.5% fast  1394         0           0  all intact
+    usb_rx             exact      1394         0           0  all intact
+    usb_rx             1.5% slow  1394         0           0  all intact
+    usb_rx             3% slow    1394         0           0  all intact
+    usb_rx             4% slow    1396         2           2  416 words, not as sent
+    usb_device         4% fast     225         0           0  0 ACK and 0 NAK of 32 each
+    usb_device         exact       225         0           0  32 ACK and 32 NAK of 32 each
+    usb_device         4% slow     225         0           0  0 ACK and 0 NAK of 32 each
+    usb_device at once exact        97         0           0  32 ACK and 32 NAK of 32 each
     |}]
 ;;
 
 (* A halt is not a release: the host stops the armed UART and the line falls and rises
    again, a second edge before the wait released. *)
 let%expect_test "a halted wait for the edge has not released" =
-  let firmware = Certified.find_exn "uart_rx" in
+  let firmware = Library.find_certified_exn "uart_rx" in
   let program = assemble firmware.source in
   let levels = List.init 20 ~f:(fun _ -> 1) @ [ 0; 0; 1; 1 ] in
   let run ?stop config =

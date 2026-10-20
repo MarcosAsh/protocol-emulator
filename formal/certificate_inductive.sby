@@ -1,30 +1,28 @@
 [tasks]
 prove
-teeth
+# every task but prove is bmc from reset, so what fails is a run
+teeth from_reset shallow
 # only for a certificate written with -stamped, whose departure times they break;
-# next_bit also for one written with -data
-off_by_one
-next_bit
+# next_bit also for one written with -data. A stamp's bits follow a byte, 90 cycles in
+off_by_one from_reset shallow
+next_bit from_reset
 # only for a certificate that takes the period or the single-edge assumption, with the
-# period, or the line's level at the arm, left free; bmc, so what fails is a run from reset
-no_period from_reset
-level_at_arm from_reset
+# period, or the line's level at the arm, left free
+no_period from_reset shallow
+level_at_arm from_reset shallow
 # a row's phase moved a cycle either way, and a receiver's capture a cycle older or younger
-row_early from_reset
-row_late from_reset
-capture_older from_reset
-capture_younger from_reset
+row_early from_reset shallow
+row_late from_reset shallow
+capture_older from_reset shallow
+capture_younger from_reset shallow
 
 [options]
-~from_reset: mode prove
-~from_reset: depth 20
+prove: mode prove
+prove: depth 20
 from_reset: mode bmc
-from_reset: depth 40
 from_reset: expect fail
-# a false claim fails the induction step with no trace from reset: sby says unknown
-teeth: expect fail,unknown
-off_by_one: expect fail
-next_bit: expect fail,unknown
+shallow: depth 40
+next_bit: depth 100
 
 [engines]
 smtbmc boolector
@@ -68,4 +66,4 @@ memory_map
 [files]
 engine_sram.v
 certificate.sv
-../src/RM_IHPSG13_1P_512x16_c2_bm_bist.v
+RM_IHPSG13_1P_512x16_c2_bm_bist.v

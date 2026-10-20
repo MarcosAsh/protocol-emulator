@@ -22,11 +22,13 @@ def parity(value):
 
 class Dp:
     """One SW-DP and its MEM-AP, busy ap_latency clocks after each access. corrupt_acks
-    garbles that many OK ACKs, the DP going on as if the host had seen OK."""
+    garbles that many OK ACKs, the DP going on as if the host had seen OK. With a core
+    (Core) the AP is that core's instead of the memory dict's."""
 
     def __init__(self, targetid, dpidr=DPIDR, ap_latency=0, memory=None, corrupt_acks=0,
-                 cycle_ps=20834):
+                 cycle_ps=20834, core=None):
         self.targetid = targetid
+        self.core = core
         self.dpidr = dpidr
         self.ap_latency = ap_latency
         self.memory = dict(memory or {})
@@ -109,6 +111,10 @@ class Dp:
         return req | (req << 1) | (self.wdata_err << 7) | (self.sticky_err << 5)
 
     def ap_read(self, address):
+        if self.core is not None:
+            value = self.core.ap_read(self.select, address)
+            self.sticky_err = self.sticky_err or value is None
+            return value or 0
         bank = (self.select >> 4) & 0xF
         if bank == 0xF and address == 0xC:
             return AP_IDR
@@ -204,6 +210,10 @@ class Dp:
             name, value, undriven, "" if good else ", WDATAERR"))
         if not good:
             self.wdata_err = True
+        elif ap and self.core is not None:
+            self.busy = self.ap_latency
+            if not self.core.ap_write(self.select, address, value):
+                self.sticky_err = True
         elif ap:
             self.busy = self.ap_latency
             if (self.select >> 4) & 0xF == 0 and address == 0x4:
@@ -311,3 +321,129 @@ class Bus:
         for dp in self.dps:
             dp.step(swclk, host, line)
         return self.line()
+
+
+# RP2040 datasheet 2.8.3: the bootrom's vector table, then 'M', 'u', 1 and the version, 3
+# on B2 silicon
+BOOTROM = {0x00: 0x20041F00, 0x04: 0x000000EF, 0x08: 0x00000035, 0x0C: 0x00000031,
+           0x10: 0x0301754D}
+CPUID = 0x410CC601
+DHCSR, DCRSR, DCRDR, DEMCR, DFSR = 0xE000EDF0, 0xE000EDF4, 0xE000EDF8, 0xE000EDFC, 0xE000ED30
+ROM_TABLE = 0xE00FF000
+# CoreSight component IDs (ARM IHI 0029, D1.2): the Cortex-M0+ ROM table, SCS, DWT and BPU
+COMPONENTS = {ROM_TABLE: (0xB105100D, 0x4000BB4C0), 0xE000E000: (0xB105E00D, 0x4000BB008),
+              0xE0001000: (0xB105E00D, 0x4000BB00A), 0xE0002000: (0xB105E00D, 0x4000BB00B)}
+
+
+class Core:
+    """A Cortex-M0+ behind an AHB-AP (ARMv6-M ARM C1, ADIv5 C2), as much as a debugger
+    reads to halt it, read its registers and memory and resume it: the bootrom's first
+    words, SRAM, the ROM table, the SCS debug registers, DWT and BPU. Accesses elsewhere
+    are bus errors."""
+
+    def __init__(self):
+        self.csw = 0x03000042
+        self.tar = 0
+        self.memory = dict(BOOTROM)
+        self.memory.update({ROM_TABLE: 0xFFF0F003, ROM_TABLE + 4: 0xFFF02003,
+                            ROM_TABLE + 8: 0xFFF03003, 0xE000ED00: CPUID,
+                            0xE0001000: 0x20000000, 0xE0002000: 0x40})
+        for base, (cidr, pidr) in COMPONENTS.items():
+            for i in range(4):
+                self.memory[base + 0xFF0 + 4 * i] = (cidr >> (8 * i)) & 0xFF
+                self.memory[base + 0xFE0 + 4 * i] = (pidr >> (8 * i)) & 0xFF
+            self.memory[base + 0xFD0] = pidr >> 32
+        # r0 to r12, sp, lr, pc, xPSR, MSP, PSP, and CONTROL/PRIMASK (C1.6.3)
+        self.registers = {n: 0x1000 + n for n in range(13)}
+        self.registers.update({13: 0x20041F00, 14: 0x100003CD, 15: 0x10001234,
+                               16: 0x61000000, 17: 0x20041F00, 18: 0, 20: 0})
+        self.debugen = False
+        self.halted = False
+        self.dfsr = 0
+        self.dcrdr = 0
+        self.log = []
+
+    def mapped(self, address):
+        return address < 0x4000 or 0x20000000 <= address < 0x20042000 \
+            or 0xE0000000 <= address < 0xE0100000
+
+    def read(self, address):
+        address &= ~3
+        if not self.mapped(address):
+            return None
+        if address == DHCSR:
+            return (1 << 16) | (self.halted << 17) | (self.halted << 1) | self.debugen
+        if address == DFSR:
+            return self.dfsr
+        if address == DCRDR:
+            return self.dcrdr
+        return self.memory.get(address, 0)
+
+    def write(self, address, value, size):
+        address &= ~3
+        if not self.mapped(address) or address < 0x4000:
+            return False
+        if address == DHCSR:
+            if value >> 16 == 0xA05F:
+                self.debugen = bool(value & 1)
+                halt = self.debugen and bool(value & 2)
+                if halt != self.halted:
+                    self.log.append("halted" if halt else "resumed")
+                    self.dfsr |= halt
+                self.halted = halt
+        elif address == DFSR:
+            self.dfsr &= ~value
+        elif address == DCRDR:
+            self.dcrdr = value
+        elif address == DCRSR:
+            if not self.halted:
+                return True
+            if value & (1 << 16):
+                self.registers[value & 0x1F] = self.dcrdr
+            else:
+                self.dcrdr = self.registers.get(value & 0x1F, 0)
+        else:
+            mask = {0: 0xFF, 1: 0xFFFF}.get(size, 0xFFFFFFFF)
+            lane = 8 * (self.tar & 3) if size < 2 else 0
+            old = self.memory.get(address, 0)
+            self.memory[address] = (old & ~(mask << lane)) | (value & (mask << lane))
+        return True
+
+    def step(self):
+        """TAR on by the access size, if CSW's AddrInc says single increment."""
+        if (self.csw >> 4) & 3 == 1:
+            self.tar = (self.tar + (1 << (self.csw & 7))) & 0xFFFFFFFF
+
+    def ap_read(self, select, address):
+        """The register at address in SELECT's AP and bank, None for a bus error."""
+        if select >> 24:
+            return 0
+        register = (select & 0xF0) | address
+        if register == 0x00:
+            return self.csw
+        if register == 0x04:
+            return self.tar
+        if register == 0x0C:
+            value = self.read(self.tar)
+            self.step()
+            return value
+        if 0x10 <= register < 0x20:
+            return self.read((self.tar & ~0xF) | (register & 0xC))
+        return {0xF8: ROM_TABLE | 3, 0xFC: AP_IDR}.get(register, 0)
+
+    def ap_write(self, select, address, value):
+        """Whether the write took, False for a bus error."""
+        if select >> 24:
+            return True
+        register = (select & 0xF0) | address
+        if register == 0x00:
+            self.csw = (value & ~0x80) | 0x40
+        elif register == 0x04:
+            self.tar = value
+        elif register == 0x0C:
+            took = self.write(self.tar, value, self.csw & 7)
+            self.step()
+            return took
+        elif 0x10 <= register < 0x20:
+            return self.write((self.tar & ~0xF) | (register & 0xC), value, 2)
+        return True

@@ -264,7 +264,8 @@ let to_string t =
   |> String.concat_lines
 ;;
 
-let ns_per_cycle = 20
+(* info.yaml's clock, a cycle being 20833.3 ps, so each stamp rounds down *)
+let ps cycle = cycle * 1_000_000 / 48
 
 let to_vcd t =
   let id i = Char.of_int_exn (Char.to_int '!' + i) |> String.of_char in
@@ -279,17 +280,16 @@ let to_vcd t =
             Bool.( <> ) (level t ~pin ~cycle) (level t ~pin ~cycle:(cycle - 1)))
         with
         | [] -> []
-        | changed ->
-          sprintf "#%d" (cycle * ns_per_cycle) :: List.map changed ~f:(value ~cycle))
+        | changed -> sprintf "#%d" (ps cycle) :: List.map changed ~f:(value ~cycle))
   in
   List.concat
-    [ [ "$timescale 1ns $end"; "$scope module core $end" ]
+    [ [ "$timescale 1ps $end"; "$scope module core $end" ]
     ; List.map pins ~f:(fun (id, pin) ->
         sprintf "$var wire 1 %s %s $end" id (pin_name pin))
     ; [ "$upscope $end"; "$enddefinitions $end"; "#0" ]
     ; List.map pins ~f:(value ~cycle:0)
     ; changes
-    ; [ sprintf "#%d" (Array.length t.levels * ns_per_cycle) ]
+    ; [ sprintf "#%d" (ps (Array.length t.levels)) ]
     ]
   |> String.concat_lines
 ;;

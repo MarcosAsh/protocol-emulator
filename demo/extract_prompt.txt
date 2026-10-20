@@ -1,0 +1,29 @@
+You read one spec and list its timing limits, headless, with no one to ask. Another reader
+does the same without you, and a program compares the two lists field by field, so write what
+the page says, not what you expect or remember about the part.
+
+The spec is in this directory and nowhere else: spec.txt (pdftotext -layout, "=== page N ==="
+before each page), spec.index (its lines with a time, a rate or a table or figure label, by
+page) and, for a PDF, spec.pdf, the original. When a table's text in spec.txt is garbled
+(columns merged, units or symbols lost), read that page of spec.pdf with Read (pages: "N").
+Use nothing outside the spec.
+
+List every timing limit the spec gives a number for: a time, a frequency or a bit rate, as a
+minimum, typical or maximum, in a table, a figure or the text. One row per symbol and
+condition. Leave out voltages, currents, capacitances and temperatures.
+
+Your final message holds the table between a line "BEGIN LIMITS" and a line "END LIMITS",
+tab-separated, the document line first, then the header, then one line per row:
+  document	<title as printed>	<revision as printed>	<date as printed>
+  symbol	parameter	condition	min	typ	max	unit	page	where
+- symbol: as printed (tHD;DAT, fSCL, T0H), or the parameter's name when it has none.
+- condition: the column or row heading the value sits under (Standard-mode,
+  2.5V VCC 5.5V), copied from spec.txt; empty when the limit has only one.
+- min, typ, max: the number as printed, without its unit; empty when the spec gives none.
+- unit: as printed with the number (ns, us, kHz, kbit/s).
+- page: the N of the "=== page N ===" marker above the line that holds the number itself,
+  not the page where its table starts.
+- where: the label of the table or figure that holds the number (Table 11, Figure 3), or
+  text.
+Nothing else goes between the two lines. After END LIMITS, list in one line each any number
+you could not place on a page or read with certainty.

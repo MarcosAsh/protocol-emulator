@@ -1,0 +1,945 @@
+open! Core
+open Protocol_emulator
+open Pin_trace
+module Reg = Host_port.Reg
+
+let sda = 12
+let scl = 13
+
+(* UM10204 3.1.16: a master reset mid-read can leave a slave holding SDA low, and clocking
+   out its byte frees it. Each pulse is a bit's two quarters low and two high. SDA read
+   high may be a 1 bit, so a START resets the slave before the STOP. [sda_high] jumps to
+   [clear_stop] when SDA reads high; [stop] follows the START. *)
+let bus_clear_testing ?(held = "") ~sda_high ~stop () =
+  [%string
+    {|
+    set x, 8 side 0              ; nine pulses at most
+    mov t, now side 0
+    add t, p side 0
+clear:
+%{sda_high}
+    wait t+ side 0
+    nop side 1                   ; SCL low
+    wait t+ side 1
+    wait t+ side 1
+    nop side 0                   ; SCL high
+    wait t+ side 0
+    jmp x--, clear
+clear_stop:
+    wait t+ side 0
+%{held}    set pindirs, 1 side 0        ; a START, which resets any slave
+%{held}    wait t+ side 0
+    nop side 1
+%{stop}
+|}]
+;;
+
+let bus_clear ?held () =
+  bus_clear_testing
+    ?held
+    ~sda_high:"    jmp pin, clear_stop          ; SDA high"
+    ~stop:"    jmp stop"
+    ()
+;;
+
+(* host word: start[15] read[14] data[13:6] stop[5]; p is a quarter period, which [load]
+   sets *)
+let master_loading ?(held = "") ~load ~preamble () =
+  [%string
+    {|
+    .side_set 1
+%{load}%{preamble}idle:
+    wait tx side 0
+    pull side 0
+    mov t, now side 0
+    add t, p side 0
+    add t, p side 0              ; two quarters of slack for the dispatch
+    out x, 1 side 0
+    jmp x--, start
+    jmp send_or_read
+byte:
+    wait tx side 1
+    pull side 1
+    mov t, now side 1
+    add t, p side 1
+    add t, p side 1
+    out x, 1 side 1
+    jmp x--, restart
+    jmp send_or_read
+start:                           ; bus idle, both lines high
+    wait t+ side 0
+    set pindirs, 1 side 0        ; SDA low while SCL high
+%{held}    wait t+ side 0
+    nop side 1
+    add t, p side 1              ; a quarter of slack before the dispatch
+    jmp send_or_read
+restart:                         ; SCL low after a byte
+    set pindirs, 0 side 1        ; release SDA
+    wait t+ side 1
+    nop side 0
+%{held}    wait t+ side 0
+    set pindirs, 1 side 0        ; SDA low while SCL high
+%{held}    wait t+ side 0
+    nop side 1
+    add t, p side 1
+send_or_read:
+    out y, 1 side 1
+    set x, 7 side 1
+    jmp y--, read
+send:
+    wait t+ side 1
+    out y, 1 side 1
+    mov pindirs, !y side 1       ; SDA follows the bit
+    wait t+ side 1
+    nop side 0                   ; SCL high
+    wait t+ side 0
+    wait t+ side 0
+    nop side 1                   ; SCL low
+    jmp x--, send
+    wait t+ side 1
+    set pindirs, 0 side 1        ; release SDA for the ack
+    wait t+ side 1
+    nop side 0
+    wait t+ side 0
+    in pins, 1 side 0            ; ack bit, 0 means acked
+    wait t+ side 0
+    nop side 1
+    out x, 1 side 1              ; stop flag
+    jmp finish
+read:
+    set pindirs, 0 side 1        ; release SDA
+rbit:
+    wait t+ side 1
+    wait t+ side 1
+    nop side 0
+    wait t+ side 0
+    in pins, 1 side 0
+    wait t+ side 0
+    nop side 1
+    jmp x--, rbit
+    out null, 8 side 1           ; the unused data bits
+    out x, 1 side 1              ; stop flag, and nack on the last byte
+    wait t+ side 1
+    mov pindirs, !x side 1
+    wait t+ side 1
+    nop side 0
+    wait t+ side 0
+    wait t+ side 0
+    nop side 1
+    set pindirs, 0 side 1
+finish:
+    push side 1
+    jmp x--, stop
+    jmp byte
+stop:
+    wait t+ side 1
+    set pindirs, 1 side 1        ; SDA low
+    wait t+ side 1
+    nop side 0                   ; SCL high
+%{held}    wait t+ side 0
+    set pindirs, 0 side 0        ; SDA released while SCL high
+    wait t+ side 0
+    jmp idle
+|}]
+;;
+
+let master_with ~preamble ~quarter =
+  master_loading ~load:[%string "    set p, %{quarter#Int} side 0"] ~preamble ()
+;;
+
+let master = master_with ~preamble:(bus_clear ())
+let master_without_bus_clear = master_with ~preamble:"\n"
+let load_quarter = "    wait tx side 0\n    pull side 0\n    mov p, osr side 0"
+let master_host_rate = master_loading ~load:load_quarter ~preamble:(bus_clear ()) ()
+
+let master_host_rate_without_bus_clear =
+  master_loading ~load:load_quarter ~preamble:"\n" ()
+;;
+
+(* each START's hold, and repeated START's and STOP's setup, [quarters] long *)
+let master_host_rate_held ?(clear_bus = true) ~quarters () =
+  if quarters < 1 then raise_s [%message "BUG: under a quarter" (quarters : int)];
+  let held =
+    String.concat (List.init (quarters - 1) ~f:(fun _ -> "    wait t+ side 0\n"))
+  in
+  let preamble = if clear_bus then bus_clear ~held () else "\n" in
+  master_loading ~held ~load:load_quarter ~preamble ()
+;;
+
+let config =
+  { Program_config.default with
+    side_set_count = 1
+  ; side_set_base = scl
+  ; side_set_pindirs = true
+  ; out_base = sda
+  ; out_count = 1
+  ; set_base = sda
+  ; set_count = 1
+  ; in_base = sda
+  ; jmp_pin = sda
+  ; out_shift = Left
+  ; in_shift = Left
+  }
+;;
+
+(* Lets SCL go and polls it every four cycles, 65536 times at most, for a slave holding it
+   low. Once high, [t] is set where [master]'s is when SCL rises at once, so what follows
+   is timed from the poll that saw it high, 0 to 3 cycles after the input did. *)
+let scl_rise ?(stuck = "stuck") label =
+  [%string
+    {|    mov y, !null side 0          ; SCL let go
+%{label}:
+    jmp pin, %{label}_high
+    jmp y--, %{label}
+    jmp %{stuck}
+%{label}_high:
+    mov t, now side 0
+    sub t, 4 side 0              ; the plain master's t when SCL rises at once
+    add t, p side 0|}]
+;;
+
+(* [master_loading] waiting on SCL after each release. The bus clear reads SDA by
+   [mov y, pins], so the jump pin can be SCL, and does not wait on SCL: its STOP is the
+   plain master's, so a bus held low from reset answers nothing until a word comes. *)
+let master_stretch_loading ~load =
+  let bus_clear =
+    bus_clear_testing
+      ~sda_high:"    mov y, pins side 0\n    jmp y--, clear_stop"
+      ~stop:
+        {|    wait t+ side 1
+    set pindirs, 1 side 1
+    wait t+ side 1
+    nop side 0
+    wait t+ side 0
+    set pindirs, 0 side 0
+    wait t+ side 0
+    jmp idle|}
+      ()
+  in
+  [%string
+    {|
+    .side_set 1
+%{load}%{bus_clear}idle:
+    wait tx side 0
+    pull side 0
+    mov t, now side 0
+    add t, p side 0
+    add t, p side 0              ; two quarters of slack for the dispatch
+    jmp !pin, stuck              ; SCL held low: answer at once
+    out x, 1 side 0
+    jmp x--, start
+    jmp send_or_read
+byte:
+    wait tx side 1
+    pull side 1
+    mov t, now side 1
+    add t, p side 1
+    add t, p side 1
+    out x, 1 side 1
+    jmp x--, restart
+    jmp send_or_read
+start:                           ; bus idle, both lines high
+    wait t+ side 0
+    set pindirs, 1 side 0        ; SDA low while SCL high
+    wait t+ side 0
+    nop side 1
+    add t, p side 1              ; a quarter of slack before the dispatch
+    jmp send_or_read
+restart:                         ; SCL low after a byte
+    set pindirs, 0 side 1        ; release SDA
+    wait t+ side 1
+%{scl_rise "restart_rise"}
+    wait t+ side 0
+    set pindirs, 1 side 0        ; SDA low while SCL high
+    wait t+ side 0
+    nop side 1
+    add t, p side 1
+send_or_read:
+    out y, 1 side 1
+    set x, 7 side 1
+    jmp y--, read
+send:
+    wait t+ side 1
+    out y, 1 side 1
+    mov pindirs, !y side 1       ; SDA follows the bit
+    wait t+ side 1
+%{scl_rise "send_rise"}
+    wait t+ side 0
+    wait t+ side 0
+    nop side 1                   ; SCL low
+    jmp x--, send
+    wait t+ side 1
+    set pindirs, 0 side 1        ; release SDA for the ack
+    wait t+ side 1
+%{scl_rise "ack_rise"}
+    wait t+ side 0
+    in pins, 1 side 0            ; ack bit, 0 means acked
+    wait t+ side 0
+    nop side 1
+    out x, 1 side 1              ; stop flag
+    jmp finish
+read:
+    set pindirs, 0 side 1        ; release SDA
+rbit:
+    wait t+ side 1
+    wait t+ side 1
+%{scl_rise "read_rise"}
+    wait t+ side 0
+    in pins, 1 side 0
+    wait t+ side 0
+    nop side 1
+    jmp x--, rbit
+    out null, 8 side 1           ; the unused data bits
+    out x, 1 side 1              ; stop flag, and nack on the last byte
+    wait t+ side 1
+    mov pindirs, !x side 1
+    wait t+ side 1
+%{scl_rise "nack_rise"}
+    wait t+ side 0
+    wait t+ side 0
+    nop side 1
+    set pindirs, 0 side 1
+finish:
+    push side 1
+    jmp x--, stop
+    jmp byte
+stop:
+    wait t+ side 1
+    set pindirs, 1 side 1        ; SDA low
+    wait t+ side 1
+%{scl_rise ~stuck:"stop_stuck" "stop_rise"}
+    wait t+ side 0
+    set pindirs, 0 side 0        ; SDA released while SCL high
+    wait t+ side 0
+    jmp idle
+stop_stuck:                      ; held at the STOP: the word has its reply
+    mov t, now side 0
+    add t, p side 0
+    wait t side 0                ; a quarter, for an SCL let go after the last poll
+    set pindirs, 0 side 0
+    jmp aborted
+stuck:                           ; SCL held low: let both lines go
+    mov t, now side 0
+    add t, p side 0
+    wait t side 0
+    set pindirs, 0 side 0
+    mov isr, !null side 0        ; 0xffff for the word
+    push side 0
+aborted:                         ; 0xffff, off the bus, for every word up to a START
+    wait tx side 0
+    pull side 0
+    out x, 1 side 0
+    jmp x--, aborted_start
+    mov isr, !null side 0
+    push side 0
+    jmp aborted
+aborted_start:
+    mov t, now side 0
+    add t, p side 0
+    add t, p side 0
+    jmp !pin, stuck
+    jmp start
+|}]
+;;
+
+let master_stretch ~quarter =
+  master_stretch_loading ~load:[%string "    set p, %{quarter#Int} side 0"]
+;;
+
+let master_stretch_host_rate =
+  master_stretch_loading
+    ~load:"    wait tx side 0\n    pull side 0\n    mov p, osr side 0"
+;;
+
+let stretch_config = { config with jmp_pin = scl; in_count = 1 }
+
+let slave_config =
+  { Program_config.default with
+    jmp_pin = scl
+  ; out_base = sda
+  ; out_count = 1
+  ; set_base = sda
+  ; set_count = 1
+  ; in_base = sda
+  ; out_shift = Left
+  ; in_shift = Left
+  }
+;;
+
+(* Slave at the address the host sends first as [address lsl 1]. Written bytes, address
+   included, go to the host; read bytes come from it. Start and stop are only watched for
+   on the first bit of a byte. Never stretches the clock. *)
+let slave =
+  [%firmware
+    {|
+    pull
+    mov p, osr               ; address << 1
+idle:
+    set pindirs, 0           ; release SDA
+    wait 1 pin 13
+    wait fall pin 12
+    jmp pin, start           ; SCL still high: a start
+    jmp idle
+start:
+    wait 0 pin 13
+    mov isr, null
+    set x, 7
+abit:
+    wait 1 pin 13
+    in pins, 1
+    wait 0 pin 13
+    jmp x--, abit
+    mov x, isr
+    set y, 0
+    add y, p
+    jmp x!=y, maybe_read
+    push
+    set pindirs, 1           ; ack
+    wait 1 pin 13
+    wait 0 pin 13
+    set pindirs, 0
+first:                       ; a data bit, or SDA moving while SCL is high
+    wait 1 pin 13
+    in pins, 2               ; SCL and SDA together
+    mov x, isr
+watch:
+    mov isr, null
+    in pins, 2
+    mov y, isr
+    jmp x!=y, changed
+    jmp watch
+changed:
+    jmp pin, control
+    sub x, 2                 ; SCL fell: keep the bit
+    mov isr, x
+    set x, 6
+dbit:
+    wait 1 pin 13
+    in pins, 1
+    wait 0 pin 13
+    jmp x--, dbit
+    push
+    set pindirs, 1           ; ack
+    wait 1 pin 13
+    wait 0 pin 13
+    set pindirs, 0
+    jmp first
+control:
+    mov isr, null
+    in pins, 1
+    mov x, isr
+    jmp x--, idle            ; SDA rose: stop
+    jmp start                ; SDA fell: repeated start
+maybe_read:
+    add y, 1
+    jmp x!=y, idle           ; another address
+    push
+    set pindirs, 1           ; ack
+    wait 1 pin 13
+    wait 0 pin 13
+rbyte:
+    pull
+    out null, 8
+    set x, 7
+rbit:
+    out y, 1
+    mov pindirs, !y          ; SDA follows the bit
+    wait 1 pin 13
+    wait 0 pin 13
+    jmp x--, rbit
+    set pindirs, 0           ; release SDA for the master's ack
+    mov isr, null
+    wait 1 pin 13
+    in pins, 1
+    wait 0 pin 13
+    mov x, isr
+    jmp x--, idle            ; nack: the master is done
+    jmp rbyte
+|}
+      ~config:slave_config]
+;;
+
+let logger_uart_pin = 5
+
+let logger_config =
+  { config with out_base = logger_uart_pin; out_count = 1; out_shift = Left }
+;;
+
+(* Two protocols on one core: read a byte from the I2C slave at 0x50, log it over UART on
+   OUT0, forever. Periods are immediates so the timing is fixed at assembly. The data bit
+   is set on both branches of a jump so its edge lands at the same cycle either way. *)
+let logger =
+  [%firmware
+    {|
+    .side_set 1
+    mov pins, !null side 0       ; UART idle high
+    set pindirs, 0 side 0        ; SDA released
+loop:
+    set p, 8 side 0
+    mov t, now side 0
+    add t, p side 0
+    wait t+ side 0               ; START
+    set pindirs, 1 side 0
+    wait t+ side 0
+    nop side 1
+    add t, p side 1              ; a quarter of slack to build the address
+    set x, 20 side 1             ; address 0x50, read: 0xa1
+    add x, x side 1
+    add x, x side 1
+    add x, x side 1
+    add x, 1 side 1
+    mov osr, x side 1
+    out null, 8 side 1
+    set x, 7 side 1
+sbit:
+    wait t+ side 1
+    out y, 1 side 1
+    jmp y--, sone
+    set pindirs, 1 side 1        ; a zero drives SDA low
+    jmp sdone
+sone:
+    set pindirs, 0 side 1        ; a one releases it
+sdone:
+    wait t+ side 1
+    nop side 0                   ; SCL high
+    wait t+ side 0
+    wait t+ side 0
+    nop side 1                   ; SCL low
+    jmp x--, sbit
+    wait t+ side 1               ; the slave's ack
+    set pindirs, 0 side 1
+    wait t+ side 1
+    nop side 0
+    wait t+ side 0
+    wait t+ side 0
+    nop side 1
+    set x, 7 side 1
+    mov isr, null side 1
+rbit:
+    wait t+ side 1
+    wait t+ side 1
+    nop side 0
+    wait t+ side 0
+    in pins, 1 side 0
+    wait t+ side 0
+    nop side 1
+    jmp x--, rbit
+    wait t+ side 1               ; nack, SDA stays released
+    wait t+ side 1
+    nop side 0
+    wait t+ side 0
+    wait t+ side 0
+    nop side 1
+    wait t+ side 1               ; STOP
+    set pindirs, 1 side 1
+    wait t+ side 1
+    nop side 0
+    wait t+ side 0
+    set pindirs, 0 side 0
+    wait t+ side 0
+    set p, 16 side 0             ; UART frame, LSB first from the reversed byte
+    mov osr, ::isr side 0
+    set x, 7 side 0
+    mov t, now side 0
+    mov pins, null side 0        ; start bit
+    add t, p side 0
+ubit:
+    wait t+ side 0
+    out pins, 1 side 0
+    jmp x--, ubit
+    wait t+ side 0
+    mov pins, !null side 0       ; stop bit
+    wait t side 0
+    jmp loop
+|}
+      ~config:logger_config]
+;;
+
+(* Both stamps are the instruction after a pin wait, and both pins pass one synchroniser,
+   so their difference is the gap between the edges as sampled: exact to a cycle. *)
+let start_hold ~sda ~scl =
+  [%string
+    {|
+start:
+    wait fall pin %{sda#Int}
+    mov x, now               ; SDA fell
+    jmp !pin, start          ; with SCL low: a data bit
+    wait 0 pin %{scl#Int}
+    mov y, now               ; SCL fell: the START is over
+    jmp !rx, start           ; no room, so this one is dropped
+    sub y, x
+    in y, 16
+    jmp start
+|}]
+;;
+
+let start_hold_config ~scl =
+  { Program_config.default with jmp_pin = scl; autopush = true; push_threshold = 16 }
+;;
+
+let word ?(start = false) ?(read = false) ?(stop = false) data =
+  (Bool.to_int start lsl 15)
+  lor (Bool.to_int read lsl 14)
+  lor (data lsl 6)
+  lor (Bool.to_int stop lsl 5)
+;;
+
+let bench_quarter = Bench.quarter ~hz:250_000
+
+let on_bench_pins ~jmp_pin (config : Program_config.t) =
+  { config with
+    side_set_base = Bench.scl
+  ; out_base = Bench.sda
+  ; set_base = Bench.sda
+  ; in_base = Bench.sda
+  ; jmp_pin
+  }
+;;
+
+let bench =
+  [ { Bench.name = "i2c_master"
+    ; what =
+        [%string
+          "I2c.master_host_rate: the host sends the quarter, %{bench_quarter#Int} cycles \
+           for %{Bench.rate (4 * bench_quarter)}, SCL on IO2, SDA on IO3"]
+    ; source = master_host_rate
+    ; config = on_bench_pins ~jmp_pin:Bench.sda config
+    ; assumption = Floor 31
+    ; clock_hz = Bench.clock_hz
+    ; load = Some bench_quarter
+    ; stimulus = None
+    }
+  ; { name = "i2c_master_stretch"
+    ; what =
+        "I2c.master_stretch_host_rate: I2c.master waiting on SCL, SCL on IO2, SDA on IO3"
+    ; source = master_stretch_host_rate
+    ; config = on_bench_pins ~jmp_pin:Bench.scl stretch_config
+    ; assumption = Floor 31
+    ; clock_hz = Bench.clock_hz
+    ; load = Some bench_quarter
+    ; stimulus = None
+    }
+  ; { name = "start_hold"
+    ; what =
+        "I2c.start_hold for engine 1: each START's hold in cycles, SCL on IO2, SDA on \
+         IO3, both only listened to"
+    ; source = start_hold ~sda:Bench.sda ~scl:Bench.scl
+    ; config = start_hold_config ~scl:Bench.scl
+    ; assumption = Nothing
+    ; clock_hz = Bench.clock_hz
+    ; load = None
+    ; stimulus = None
+    }
+  ]
+;;
+
+(* The kernel times the master's pins, so a width from a release to the next edge loses
+   the line's rise, which [rise] gives. [times] are each parameter's least, in ns, and
+   where the sheet gives it. *)
+let limits_with ~sheet ~rise ~times firmware =
+  let scl = Datasheet.side_pin
+  and sda = Datasheet.set_pin in
+  (* the bits before an edge are true while the master holds the line low *)
+  let pair ?hold ?apart () =
+    Datasheet.Bound.Kernel
+      (fun config ->
+        Datasheet.spacing ~dirs:true ?hold ?apart ~a:(scl config) ~b:(sda config) ())
+  in
+  let sda_pair ?hold ?apart () =
+    Datasheet.Bound.Kernel
+      (fun config n ->
+        Datasheet.swap
+          (Datasheet.spacing ~dirs:true ?hold ?apart ~a:(sda config) ~b:(scl config) () n))
+  in
+  let limit parameter (margin : Datasheet.Margin.t) bound =
+    let ns, page = List.Assoc.find_exn times ~equal:String.equal parameter in
+    { Datasheet.firmware
+    ; parameter
+    ; limit = At_least ns
+    ; sheet = sheet page
+    ; margin
+    ; bound
+    }
+  in
+  [ limit "THIGH" rise (pair ~hold:(fun ~own ~other:_ -> not own) ())
+  ; limit "TLOW" Cycle (pair ~hold:(fun ~own ~other:_ -> own) ())
+  ; limit "THD:STA" Cycle (pair ~apart:(fun ~own ~other -> (not own) && other) ())
+  ; limit "TSU:STA" rise (sda_pair ~apart:(fun ~own ~other -> (not own) && not other) ())
+  ; limit "TSU:DAT" rise (pair ~apart:(fun ~own ~other:_ -> own) ())
+  ; limit "TSU:STO" rise (sda_pair ~apart:(fun ~own ~other -> own && not other) ())
+  ; limit "TBUF" rise (sda_pair ~hold:(fun ~own ~other -> (not own) && not other) ())
+  ]
+;;
+
+(* 24LC256 at 3.3 V, the 2.5 to 5.5 V rows *)
+let limits =
+  limits_with
+    ~sheet:(fun page ->
+      { Datasheet.Sheet.part = "24LC256"
+      ; document = "Microchip DS20001203W, Table 1-2"
+      ; page
+      })
+    ~rise:(Ns { ns = 300.; why = "TR, param 4" })
+    ~times:
+      [ "THIGH", (600., "p.4, param 2")
+      ; "TLOW", (1300., "p.4, param 3")
+      ; "THD:STA", (600., "p.4, param 6")
+      ; "TSU:STA", (600., "p.4, param 7")
+      ; "TSU:DAT", (100., "p.4, param 9")
+      ; "TSU:STO", (600., "p.4, param 10")
+      ; "TBUF", (1300., "p.5, param 14")
+      ]
+;;
+
+module Mode = struct
+  type t =
+    | Standard
+    | Fast
+  [@@deriving sexp_of]
+end
+
+(* UM10204's own rows, for any device on the bus, with the mode's slowest rise, tr; and
+   the clock's period from a run, as SCL's rate is at most fSCL *)
+let um10204 (mode : Mode.t) firmware =
+  let column, rate, rise, times =
+    match mode with
+    | Standard ->
+      ( "Standard-mode"
+      , 100_000.
+      , 1000.
+      , [ "THIGH", 4000.
+        ; "TLOW", 4700.
+        ; "THD:STA", 4000.
+        ; "TSU:STA", 4700.
+        ; "TSU:DAT", 250.
+        ; "TSU:STO", 4000.
+        ; "TBUF", 4700.
+        ] )
+    | Fast ->
+      ( "Fast-mode"
+      , 400_000.
+      , 300.
+      , [ "THIGH", 600.
+        ; "TLOW", 1300.
+        ; "THD:STA", 600.
+        ; "TSU:STA", 600.
+        ; "TSU:DAT", 100.
+        ; "TSU:STO", 600.
+        ; "TBUF", 1300.
+        ] )
+  in
+  let sheet page =
+    { Datasheet.Sheet.part = [%string "I2C %{column}"]
+    ; document = "NXP UM10204 Rev. 7.0"
+    ; page
+    }
+  in
+  let period =
+    { Datasheet.firmware
+    ; parameter = "1/fSCL"
+    ; limit = At_least (1e9 /. rate)
+    ; sheet = sheet "Table 11, p.44, fSCL"
+    ; margin = Cycle
+    ; bound =
+        Datasheet.run ~pin:Datasheet.side_pin (fun ~clock_hz:_ levels ->
+          List.filter_map (Datasheet.pairs levels) ~f:(fun ((high, l), (next, h)) ->
+            Option.some_if ((not high) && next) (l + h)))
+    }
+  in
+  limits_with
+    ~sheet
+    ~rise:(Ns { ns = rise; why = "tr" })
+    ~times:(List.map times ~f:(fun (parameter, ns) -> parameter, (ns, "Table 11, p.44")))
+    firmware
+  @ [ period ]
+;;
+
+(* Standard-mode and Fast-mode on the bench's bus, each at the fastest clock its limits
+   allow at 48 MHz: 99.2 kHz, and 375 kHz, as an even clock's low of 1.3 us leaves no 400 *)
+let standard_quarter = 121
+let fast_quarter = 32
+
+let standard_and_fast =
+  List.map
+    [ "i2c_standard", 3, standard_quarter; "i2c_fast", 2, fast_quarter ]
+    ~f:(fun (name, quarters, quarter) ->
+      let word = word in
+      let words =
+        [ quarter
+        ; word ~start:true 0xa0
+        ; word 0x00
+        ; word ~stop:true 0x10
+        ; word ~start:true 0xa0
+        ; word 0x00
+        ; word ~start:true 0xa1
+        ; word ~read:true 0
+        ; word ~read:true ~stop:true 0
+        ]
+      in
+      { Bench.name
+      ; what =
+          [%string
+            "I2c.master_host_rate_held ~quarters:%{quarters#Int}: the host sends the \
+             quarter, %{quarter#Int} cycles for %{Bench.rate (4 * quarter)}, SCL on IO2, \
+             SDA on IO3"]
+      ; source = master_host_rate_held ~quarters ()
+      ; config = on_bench_pins ~jmp_pin:Bench.sda config
+      ; assumption = Floor 31
+      ; clock_hz = Bench.clock_hz
+      ; load = Some quarter
+      ; stimulus = Some { bursts = [ words ]; quiet = 0; cycles = 100 * 4 * quarter }
+      })
+;;
+
+(* On wires, whose OR carries each line's pull: the master without its bus clear, whose
+   START then STOP [slave] reads as an address bit, and nothing outside can hold a wire *)
+let wire_sda = Isa.num_pins
+let wire_scl = Isa.num_pins + 1
+let wire_pins = [ sda, wire_sda; scl, wire_scl ]
+
+let on_wires (config : Program_config.t) =
+  let pin p = List.Assoc.find_exn wire_pins ~equal:Int.equal p in
+  { config with
+    side_set_base =
+      (if config.side_set_count > 0
+       then pin config.side_set_base
+       else config.side_set_base)
+  ; side_set_pindirs = false
+  ; in_base = pin config.in_base
+  ; out_base = pin config.out_base
+  ; set_base = pin config.set_base
+  ; jmp_pin = pin config.jmp_pin
+  }
+;;
+
+let master_on_wires =
+  On_wire.open_drain_on_wire ~pins:wire_pins master_host_rate_without_bus_clear
+;;
+
+let master_on_wires_config = on_wires config
+
+let slave_on_wires =
+  On_wire.open_drain_on_wire ~pins:wire_pins (Timed_program.source slave)
+;;
+
+let slave_on_wires_config = on_wires slave_config
+
+let scenario =
+  let memory = List.init 16 ~f:(fun i -> 0x10 + (0x11 * i)) in
+  (* the reads that end inside the trace *)
+  let read = List.take memory 4 in
+  let peer () =
+    let slave =
+      ref (Protocol_models.I2c_slave.create ~address:0x50 ~memory:(Array.of_list memory))
+    in
+    let bus_sda = ref 1
+    and bus_scl = ref 1 in
+    { Peer.inputs = (fun () -> (!bus_sda lsl sda) lor (!bus_scl lsl scl))
+    ; step =
+        (fun ~pin_out:_ ~pin_dir ->
+          bus_sda
+          := if Protocol_models.I2c_slave.drive_low !slave
+             then 0
+             else 1 - Peer.bit pin_dir sda;
+          bus_scl := 1 - Peer.bit pin_dir scl;
+          slave := Protocol_models.I2c_slave.step !slave ~sda:!bus_sda ~scl:!bus_scl)
+    }
+  in
+  let clock_hz = 48_000_000 in
+  { Scenario.name = "i2c_logger"
+  ; peer
+  ; script =
+      Scenario.load ~config:logger_config ~program:(Timed_program.words logger) ()
+      @ [ Scenario.start; Run 3000; Read (Reg.status, 1) ]
+  ; sigrok =
+      Some
+        { clock_hz
+        ; decoders =
+            [ Sigrok.decoder "i2c" ~pins:[ "scl", scl; "sda", sda ]
+            ; Sigrok.decoder
+                "uart"
+                ~pins:[ "tx", logger_uart_pin ]
+                ~options:[ "baudrate", Int.to_string (clock_hz / 16) ]
+            ]
+        ; expect =
+            [ ( "i2c=start:address-read:ack:data-read:nack:stop"
+              , List.concat_map read ~f:(fun byte ->
+                  [ "Start"
+                  ; "Read"
+                  ; "Address read: 50"
+                  ; "ACK"
+                  ; sprintf "Data read: %02X" byte
+                  ; "NACK"
+                  ; "Stop"
+                  ])
+                |> List.map ~f:(( ^ ) "i2c-1: ") )
+            ; "uart=tx-data", List.map read ~f:(sprintf "uart-1: %02X")
+            ]
+        ; joins_after = None
+        ; rejected = None
+        ; (* edge 6 is the slave's ACK of the first address: a NACK instead *)
+          teeth = [ [ Flip { pin = sda; edge = 6; after = 0; cycles = 32 } ] ]
+        }
+  }
+;;
+
+let protocol =
+  { Protocol.name = "i2c"
+  ; certified =
+      [ (* the smallest Fast-mode Plus quarter at 50 MHz (test_i2c.ml): assumes zero rise
+           time, with tHD;STA, tSU;STA and tSU;STO exactly at their limits *)
+        Certified.plain ~no_wrap:true "i2c_master" (master ~quarter:13) config
+      ; Certified.plain "i2c_slave" (Timed_program.source slave) slave_config
+      ; Certified.plain "i2c_logger" (Timed_program.source logger) logger_config
+        (* Standard-mode and Fast-mode at 48 MHz *)
+      ; Certified.plain
+          ~period:standard_quarter
+          ~period_floor:8
+          ~no_wrap:true
+          "i2c_master_standard"
+          (master_host_rate_held ~quarters:3 ())
+          config
+      ; Certified.plain
+          ~period:fast_quarter
+          ~period_floor:8
+          ~no_wrap:true
+          "i2c_master_fast"
+          (master_host_rate_held ~quarters:2 ())
+          config
+        (* each as both_roles.ml runs it on wires *)
+      ; Certified.plain
+          ~period:standard_quarter
+          ~period_floor:8
+          ~no_wrap:true
+          "i2c_controller_wire"
+          master_on_wires
+          master_on_wires_config
+      ; Certified.plain "i2c_target_wire" slave_on_wires slave_on_wires_config
+      ]
+  ; time_triggered = []
+  ; bench = bench @ standard_and_fast
+  ; loaded_from_hex = []
+  ; limits =
+      limits "i2c_master"
+      @ limits "i2c_master_stretch"
+      @ um10204 Standard "i2c_standard"
+      @ um10204 Fast "i2c_fast"
+  ; unlimited = [ "start_hold", "it drives no pin: it listens to Pico B's I2C" ]
+  ; swept = []
+  ; not_swept =
+      [ ( "i2c_master"
+        , "open drain, which a wire does not show, and a slave has to acknowledge" )
+      ; "i2c_slave", "a slave: the master's clock moves it"
+      ; "i2c_logger", "an I2C master: open drain, and a slave has to answer"
+      ; ( "i2c_master_standard"
+        , "open drain, which a wire does not show, and a slave has to acknowledge" )
+      ; ( "i2c_master_fast"
+        , "open drain, which a wire does not show, and a slave has to acknowledge" )
+      ; ( "i2c_controller_wire"
+        , "on two wires already, and both_roles.ml's target acknowledges" )
+      ; "i2c_target_wire", "a target: the controller's clock moves it"
+      ]
+  ; scenarios = [ scenario ]
+  ; decoded = []
+  }
+;;

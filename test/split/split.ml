@@ -7,7 +7,7 @@ let () =
   let firmware =
     match names with
     | [] -> Reject_split.firmware
-    | names -> List.map names ~f:Certified.find_exn
+    | names -> List.map names ~f:Library.find_certified_exn
   in
   Reject_split.print_split (List.concat_map firmware ~f:Reject_split.variants)
 ;;

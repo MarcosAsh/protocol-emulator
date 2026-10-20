@@ -181,7 +181,7 @@ let%expect_test "the frame lemma counts each word as the writer Writes counts it
       ~message:(sprintf "word 0x%04x" word)
       ~expect:(fields (of_program [ instruction ]))
       (fields (frame_step_writes word)));
-  List.iter Certified.all ~f:(fun t ->
+  List.iter Library.certified ~f:(fun t ->
     let _, program = firmware t in
     let writes = of_program program.instructions in
     List.iter
@@ -206,7 +206,7 @@ let%expect_test "the footprint of each firmware, and of its config under any pro
     "pin_dir"
     "any: pin_out"
     "pin_dir";
-  List.iter Certified.all ~f:(fun t ->
+  List.iter Library.certified ~f:(fun t ->
     let config, _ = firmware t in
     let mine = footprint t in
     let any = Footprint.of_config config in
@@ -224,16 +224,22 @@ let%expect_test "the footprint of each firmware, and of its config under any pro
     uart_tx16          5            -          5-20           12-19
     uart_tx_host_rate  5            -          5-20           12-19
     uart_rx            -            -          5-20           12-19
+    uart_rx_host_rate  -            -          5-20           12-19
     spi_master         5-6          -          5-20           12-19
     spi_slave          5            -          5-20           12-19
     i2c_master         -            12-13      12-27          12-19
     i2c_slave          -            12         12-27          12-19
     i2c_logger         5            12-13      5-20           12-19
+    i2c_master_standard -            12-13      12-27          12-19
+    i2c_master_fast    -            12-13      12-27          12-19
+    i2c_controller_wire 20-21        -          5-7 20-27      -
+    i2c_target_wire    20           -          5-7 20-27      -
     usb_tx             5-7          -          5-20           12-19
     usb_rx             -            -          5-20           12-19
     usb_device         12-14        12-14      12-27          12-19
     edge_meter         5            -          5-20           12-19
     ws2812             5            -          5-20           12-19
+    ws2812_standard    5            -          5-20           12-19
     ethernet           12-13        12-13      12-27          12-19
     one_wire           -            12         12-27          12-19
     ps2                -            12-13      12-27          12-19
@@ -242,6 +248,21 @@ let%expect_test "the footprint of each firmware, and of its config under any pro
     dshot600           5            -          5-20           12-19
     sent               5            -          5-20           12-19
     cec                12           12         12-27          12-19
+    spi_cs_mode0       9-11         -          9-24           12-19
+    spi_cs_mode1       9-11         -          9-24           12-19
+    spi_cs_mode2       9-11         -          9-24           12-19
+    spi_cs_mode3       9-11         -          9-24           12-19
+    spi_cs_mode0_default_pins 5-7          -          5-20           12-19
+    spi_cs_mode1_default_pins 5-7          -          5-20           12-19
+    spi_cs_mode2_default_pins 5-7          -          5-20           12-19
+    spi_cs_mode3_default_pins 5-7          -          5-20           12-19
+    spi_target_mode0   5            -          5-20           12-19
+    spi_target_mode1   5            -          5-20           12-19
+    spi_target_mode2   5            -          5-20           12-19
+    spi_target_mode3   5            -          5-20           12-19
+    swd                7 17         17         7 17-27        17-19
+    table              5-10         -          5-20           12-19
+    table_open_drain   -            12-17      5 12-27        12-19
     |}]
 ;;
 
@@ -250,7 +271,7 @@ let%expect_test "each firmware stays inside its footprint" =
   let random = Random.State.make [| 7 |] in
   let cycles = 4000 in
   printf "%-18s %-12s %s\n" "firmware" "moved out" "moved dir";
-  List.iter Certified.all ~f:(fun t ->
+  List.iter Library.certified ~f:(fun t ->
     let config, program = firmware t in
     let footprint = footprint t in
     let mask pins = List.fold pins ~init:0 ~f:(fun mask pin -> mask lor (1 lsl pin)) in
@@ -300,24 +321,45 @@ let%expect_test "each firmware stays inside its footprint" =
     uart_tx16          5            -
     uart_tx_host_rate  5            -
     uart_rx            -            -
+    uart_rx_host_rate  -            -
     spi_master         5-6          -
     spi_slave          5            -
     i2c_master         -            12-13
     i2c_slave          -            -
     i2c_logger         5            12-13
+    i2c_master_standard -            -
+    i2c_master_fast    -            -
+    i2c_controller_wire 21           -
+    i2c_target_wire    -            -
     usb_tx             7            -
     usb_rx             -            -
     usb_device         13           14
     edge_meter         5            -
     ws2812             5            -
+    ws2812_standard    5            -
     ethernet           -            12-13
     one_wire           -            -
     ps2                -            -
     jtag               5-7          -
-    can                -            -
+    can                6            -
     dshot600           5            -
     sent               5            -
     cec                -            -
+    spi_cs_mode0       9-11         -
+    spi_cs_mode1       9-11         -
+    spi_cs_mode2       9-11         -
+    spi_cs_mode3       9-11         -
+    spi_cs_mode0_default_pins 5-7          -
+    spi_cs_mode1_default_pins 5-7          -
+    spi_cs_mode2_default_pins 5-7          -
+    spi_cs_mode3_default_pins 5-7          -
+    spi_target_mode0   5            -
+    spi_target_mode1   5            -
+    spi_target_mode2   5            -
+    spi_target_mode3   5            -
+    swd                -            -
+    table              -            -
+    table_open_drain   -            -
     |}]
 ;;
 
@@ -338,8 +380,8 @@ let%expect_test "which pairs of firmware write disjoint pins" =
     ~f:(fun (a, b) ->
       let shared =
         Footprint.shared
-          (footprint (Certified.find_exn a))
-          (footprint (Certified.find_exn b))
+          (footprint (Library.find_certified_exn a))
+          (footprint (Library.find_certified_exn b))
       in
       printf
         "%-24s %s\n"

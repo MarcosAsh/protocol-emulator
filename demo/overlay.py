@@ -4,10 +4,13 @@
 # deadline t, which moves only by p within a frame, so its offset from the frame's first
 # edge is the sum of those moves plus the two phases. Assumes an idle-high line whose
 # frames start with a falling edge, as a UART's do.
+# The clock mode is for a clock the core makes by side-set, SWD's SWCLK: each high and low
+# inside a transfer against the half period the core waits, and the widths printed.
 # Usage: uv run demo/overlay.py edges CAPTURE --rows ROWS --frame 6,9*8,12 -o out.png
 #        uv run demo/overlay.py histogram CAPTURE --rows ROWS --frame 6,9*8,12 -o out.png
 #        uv run demo/overlay.py compare CAPTURE --rows ROWS --frame 6,9*8,12 \
 #            --against PICO.sr --baud 9600 -o out.png
+#        uv run demo/overlay.py clock CAPTURE --half 24 --channel D6 --name SWCLK -o out.png
 #
 # /// script
 # dependencies = ["matplotlib", "numpy"]
@@ -363,14 +366,52 @@ def plot_compare(args):
     fig.savefig(args.output, facecolor=SURFACE)
 
 
+def plot_clock(args):
+    """Each SWCLK high and low shorter than four halves, so inside a transfer, less the half
+    period the core waits between side-set edges, which bounds every half from below; the
+    ones longer are where the core turns the line round or takes the next word."""
+    cycle_ns = 1e3 / args.clock_mhz
+    half_ns = args.half * cycle_ns
+    rate, names, samples = sigrok.read(args.capture)
+    bit = {name: b for b, name in names.items()}[args.channel]
+    at, _ = sigrok.edges(samples, bit)
+    widths = np.diff(at) / rate * 1e9
+    widths = widths[widths < 4 * half_ns]
+    off = widths - half_ns
+    sample_ns = 1e9 / rate
+    at_half = int(np.sum(np.abs(off) <= sample_ns))
+    short = int(np.sum(off < -sample_ns))
+    print("%s: half %d cycles at %g MHz, %.1f ns, a %.4g MHz clock; no half shorter"
+          % (args.name, args.half, args.clock_mhz, half_ns, 1e3 / (2 * half_ns)))
+    print("measured: %d highs and lows inside transfers, a sample is %.1f ns" % (len(off), sample_ns))
+    print("  %d within a sample of the half, median %.1f ns" % (at_half, np.median(widths)))
+    print("  %d shorter by more than a sample, shortest %.1f ns, longest %.1f ns"
+          % (short, np.min(widths), np.max(widths)))
+    fig, (ax,) = figure(
+        "%s against the half period the core waits" % args.name,
+        "%d cycles at %g MHz is %.1f ns  ·  %d highs and lows inside transfers, capture at %g MHz"
+        " (one sample is %.1f ns)"
+        % (args.half, args.clock_mhz, half_ns, len(off), rate / 1e6, sample_ns),
+    )
+    ax.hist(off, bins=bins_for(off, sample_ns), color=CHIP, rwidth=0.9)
+    ax.axvspan(-0.02 * sample_ns, 0.02 * sample_ns, color=PROOF, alpha=0.9)
+    ax.set_xlabel("measured - half period (ns), bins one analyser sample wide",
+                  color=MUTED, fontsize=14)
+    ax.set_ylabel("highs and lows", color=MUTED, fontsize=14)
+    ax.text(0.98, 0.9, "%d of %d within a sample of the half\n%d shorter"
+            % (at_half, len(off), short),
+            color=TEXT, fontsize=15, ha="right", va="top", transform=ax.transAxes)
+    cycles_axis(ax, cycle_ns, "x")
+    fig.savefig(args.output, facecolor=SURFACE)
+
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("mode", choices=["edges", "histogram", "compare"])
+    parser.add_argument("mode", choices=["edges", "histogram", "compare", "clock"])
     parser.add_argument("capture", help="sigrok .sr of the chip's pin")
-    parser.add_argument("--rows", required=True, help="output of generate.exe assemble -rows")
-    parser.add_argument(
-        "--frame", required=True, help="the pcs of a frame's pin writes, like 6,9*8,12"
-    )
+    parser.add_argument("--rows", help="output of generate.exe assemble -rows")
+    parser.add_argument("--frame", help="the pcs of a frame's pin writes, like 6,9*8,12")
+    parser.add_argument("--half", type=int, help="clock: the proved half period in cycles")
     parser.add_argument("--name", default="uart_tx")
     parser.add_argument("--period", type=int, help="cycles a bit, when the rows do not set p")
     parser.add_argument("--clock-mhz", type=float, default=48.0)
@@ -383,7 +424,12 @@ def main():
     args = parser.parse_args()
     if args.mode == "compare" and not args.against:
         parser.error("compare needs --against")
-    {"edges": plot_edges, "histogram": plot_histogram, "compare": plot_compare}[args.mode](args)
+    if args.mode == "clock" and not args.half:
+        parser.error("clock needs --half")
+    if args.mode != "clock" and not (args.rows and args.frame):
+        parser.error("%s needs --rows and --frame" % args.mode)
+    {"edges": plot_edges, "histogram": plot_histogram, "compare": plot_compare,
+     "clock": plot_clock}[args.mode](args)
 
 
 if __name__ == "__main__":
