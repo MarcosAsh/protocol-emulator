@@ -28,7 +28,7 @@
 
   "//": "Hold slack margin - Increase them in case you are getting hold violations.",
   "PL_RESIZER_HOLD_SLACK_MARGIN": 0.1,
-  "GRT_RESIZER_HOLD_SLACK_MARGIN": 0.05,
+  "GRT_RESIZER_HOLD_SLACK_MARGIN": 0.1,
 
   "//": "RUN_LINTER, LINTER_INCLUDE_PDK_MODELS - Disabling the linter is not recommended!",
   "RUN_LINTER": 1,
@@ -55,9 +55,6 @@
   "//": "routed push crossed on one 2.3 mm net from an o21ai_1 and missed the slow corner by 0.07 ns.",
   "DESIGN_REPAIR_MAX_WIRE_LENGTH": 500,
 
-  "//": "OPENROAD_THREADS - unset, LibreLane 3.1.0.dev3 passes '-threads None' and OpenROAD runs",
-  "//": "on one thread. 4 is a GitHub runner's core count; local hardens override it with -c.",
-  "OPENROAD_THREADS": 4,
 
   "//": "OPENROAD_THREADS - unset, LibreLane 3.1.0.dev3 passes '-threads None' and OpenROAD runs",
   "//": "on one thread. 4 is a GitHub runner's core count; local hardens override it with -c.",
