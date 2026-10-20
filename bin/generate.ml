@@ -366,7 +366,7 @@ let manchester_rx_rtl_command =
       fun () ->
         let module Rx =
           Manchester_rx.Make (struct
-            let samples_per_bit = samples_per_bit
+            let samples_per_bit = [ samples_per_bit ]
             let samples_per_cycle = samples_per_cycle
             let gain_shift = gain_shift
           end)

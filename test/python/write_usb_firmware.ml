@@ -31,7 +31,7 @@ let () =
       ~registers_whole:true
       ~period:bit_period
       ~single_capture_edge:true
-      ~config:Firmware.usb_device_config
+      ~config:Usb.device_config
       (Array.to_list programs.(0))
     |> ok_exn
     |> Load_check.to_words

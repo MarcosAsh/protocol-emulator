@@ -69,7 +69,7 @@ let end_to_end (p : Protocol.t) =
       List.filter_map scenario.script ~f:(fun (step : Pin_trace.Step.t) ->
         match step with
         | Read (register, (_ : int)) -> Some register
-        | Write _ | Run _ | Until _ | Drive _ -> None)
+        | Write _ | Run _ | Until _ | Drive _ | Certify _ -> None)
       |> List.zip_exn reads
       |> List.concat_map ~f:(fun (words, register) ->
         if register = Host_port.Reg.rx then words else [])
@@ -216,7 +216,7 @@ let%expect_test "every protocol from its file to the decoded trace" =
     limits
 
     lockstep: usb, usb_device
-    ("lockstep held" (cycles 164800))
+    ("lockstep held" (cycles 344800))
     (received (0x1 0x160 0x80 0x0 0x1000 0xd729 0x0 0x3 0x2 0x0 0x0 0x3))
     decode: test/traces/sigrok/usb.trace, by sigrok's usb_signalling:dp=IO0:dm=IO1:signalling=low-speed,usb_packet:signalling=low-speed,usb_request
       usb_packet=packet-out:packet-in:packet-sof:packet-setup:packet-data0:packet-data1:packet-data2:packet-mdata:packet-ack:packet-nak:packet-stall:packet-nyet:packet-pre:packet-err:packet-split:packet-ping:packet-reserved:packet-invalid: usb_packet-1: SETUP ADDR 0 EP 0, usb_packet-1: DATA0 [ 80 06 00 01 00 00 08 00 ], usb_packet-1: ACK, usb_packet-1: IN ADDR 0 EP 0, usb_packet-1: DATA1 [ 12 01 10 01 00 00 00 08 ], usb_packet-1: ACK, usb_packet-1: OUT ADDR 0 EP 0, usb_packet-1: DATA1 [ ], usb_packet-1: ACK, usb_packet-1: IN ADDR 0 EP 1, usb_packet-1: DATA0 [ 02 00 FF FF ], usb_packet-1: ACK, usb_packet-1: IN ADDR 0 EP 1, usb_packet-1: NAK
@@ -465,7 +465,7 @@ let%expect_test "every protocol from its file to the decoded trace" =
     swd                SWCLK low      >=  20.8333 ns  kernel 24 (500.0 ns)     needs    2       RP2040, RP2040 datasheet, 2025-02-20 s.2.3.4 p.61; margin a cycle
 
     lockstep: swd, swd
-    ("lockstep held" (cycles 54200))
+    ("lockstep held" (cycles 54000))
     (received
      (0x1 0x7 0x2477 0xbc1 0x1 0x1 0x1 0x0 0xf000 0x1 0x1 0x0 0x0 0x1 0x0 0x0 0x2
       0x31 0x477 0x1 0x1))

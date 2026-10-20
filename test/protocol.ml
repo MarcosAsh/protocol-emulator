@@ -27,20 +27,21 @@ let configured (c : Certified.t) =
   , Asm.Program.words program |> ok_exn )
 ;;
 
-(* what [Scenario.load] wrote: the config registers in order, then the program *)
+(* what [Scenario.load] wrote: the config registers in order, then the program, as it
+   certified it, without the zeros it pads the memory with *)
 let loaded (scenario : Scenario.t) =
   let is_config reg = List.mem Reg.configs reg ~equal:Int.equal in
   ( List.filter_map scenario.script ~f:(function
       | Write (reg, [ value ]) when is_config reg -> Some value
       | _ -> None)
   , List.find_map scenario.script ~f:(function
-      | Write (reg, words) when reg = Reg.program -> Some words
+      | Certify { program; _ } -> Some program
       | _ -> None) )
 ;;
 
 let firmware t (scenario : Scenario.t) =
   let loaded = loaded scenario in
-  List.find (t.certified () @ t.time_triggered) ~f:(fun c ->
+  List.find (t.certified @ t.time_triggered) ~f:(fun c ->
     let config, words = configured c in
     [%equal: int list * int list option] loaded (config, Some words))
 ;;
@@ -88,6 +89,8 @@ let of_registers values : Program_config.t =
     ; period_fraction = c.period_fraction
     ; autopull_data = bool c.autopull_data
     ; manchester = bool c.manchester
+    ; line_code = bool c.line_code
+    ; route = bool c.route
     }
   in
   let written =
@@ -123,7 +126,7 @@ module Plan = struct
             started := true;
             plan
           | Write (reg, words) when reg = Reg.tx && not !started ->
-            { plan with preload = plan.preload () @ words }
+            { plan with preload = plan.preload @ words }
           | Write (reg, words) when reg = Reg.tx ->
             { plan with
               tx = List.rev_map words ~f:(fun word -> plan.cycles, word) @ plan.tx
@@ -138,6 +141,8 @@ module Plan = struct
               [%message
                 "a host write the lockstep does not make" (reg : int) (words : int list)]
           | Read _ -> plan
+          (* the host's check, before the start *)
+          | Certify _ -> plan
           | Run n -> { plan with cycles = plan.cycles + n }
           | Until n -> { plan with cycles = Int.max plan.cycles n }
           | Drive { pin; levels } ->

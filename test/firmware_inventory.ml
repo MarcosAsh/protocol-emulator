@@ -12,7 +12,7 @@ type t =
   }
 
 let library =
-  List.map Certified.all ~f:(fun (t : Certified.t) ->
+  List.map Library.certified ~f:(fun (t : Certified.t) ->
     (* the floor where there is one, as test_certified.ml checks the table at *)
     let period = Option.first_some t.period_floor t.period in
     { name = t.name
@@ -73,58 +73,18 @@ let asm_cases =
 
 (* the outside chip acts' firmware, as test/python/write_bench_firmware.ml checks it *)
 let bench_cases =
-  let sda = 14
-  and scl = 15 in
-  let case name ?period ?period_floor ?(single_capture_edge = false) ~config source =
-    { name = "bench/" ^ name
-    ; timed =
-        Timed_program.of_source_exn
-          ?period
-          ?period_floor
-          ~single_capture_edge
-          ~config
-          source
-    ; period = Option.first_some period_floor period
+  List.map Library.bench ~f:(fun (bench : Bench.t) ->
+    let period, single_capture_edge =
+      match bench.assumption with
+      | Nothing -> None, false
+      | Floor period | Period period -> Some period, false
+      | Receiver period -> Some period, true
+    in
+    { name = "bench/" ^ bench.name
+    ; timed = Bench.timed bench
+    ; period
     ; single_capture_edge
-    }
-  in
-  [ case
-      "i2c_master"
-      ~period_floor:31
-      ~config:Firmware.i2c_config
-      Firmware.i2c_master_host_rate
-  ; case
-      "i2c_master_stretch"
-      ~period_floor:31
-      ~config:Firmware.i2c_stretch_config
-      Firmware.i2c_master_stretch_host_rate
-  ; case
-      "can_sender"
-      ~period_floor:Can_node.Sender.shortest_period
-      ~config:Can_node.Sender.config
-      (Timed_program.source Can_node.Sender.firmware)
-  ; case
-      "can_receiver"
-      ~period:Can_node.Receiver.period
-      ~single_capture_edge:true
-      ~config:Can_node.Receiver.config
-      (Timed_program.source Can_node.Receiver.firmware)
-  ; case "sk6812" ~config:Ws2812.config (Ws2812.firmware ~third:16 ~tail:7)
-  ; case
-      "start_hold"
-      ~config:(Firmware.start_hold_config ~scl)
-      (Firmware.start_hold ~sda ~scl)
-  ; case
-      "swd"
-      ~period_floor:Swd.shortest_half
-      ~config:Swd.config
-      (Timed_program.source Swd.firmware)
-  ]
-  @ List.map Spi_cs.Mode.all ~f:(fun mode ->
-    case
-      (sprintf "spi_cs_mode%d" (Spi_cs.Mode.to_int mode))
-      ~config:Spi_cs.config
-      (Spi_cs.master ~mode ~half_period:8 ~setup:4 ~hold:8))
+    })
 ;;
 
 let all = library @ asm_cases @ bench_cases

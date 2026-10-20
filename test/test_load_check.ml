@@ -64,17 +64,23 @@ let%expect_test "every firmware against the chip's walk" =
     uart_tx16                     15     15  accepted
     uart_tx_host_rate             17     15  accepted
     uart_rx                       19     20  accepted
+    uart_rx_host_rate             22     18  accepted
     spi_master                    16     15  accepted
     spi_slave                      6      5  accepted
-    i2c_master                    99     78  accepted
+    i2c_master                    99     80  accepted
     i2c_slave                     72     39  accepted
-    i2c_logger                    73     38  accepted
+    i2c_logger                    73     40  accepted
+    i2c_master_standard          113     77  accepted
+    i2c_master_fast              107     77  accepted
+    i2c_controller_wire           87     63  accepted
+    i2c_target_wire               78     39  accepted
     usb_tx                        65     84  accepted
-    usb_rx                        29     31  accepted
-    usb_device                   470    501  accepted
+    usb_rx                        92    102  accepted
+    usb_device                   470    503  accepted
     edge_meter                    12     10  accepted
     ws2812                        32     48  accepted
-    ethernet                      24     29  accepted
+    ws2812_standard               32     48  accepted
+    ethernet                      32     34  accepted
     one_wire                      48     49  accepted
     ps2                           65     40  accepted
     jtag                          15     15  accepted
@@ -82,31 +88,61 @@ let%expect_test "every firmware against the chip's walk" =
     dshot600                      21     28  accepted
     sent                          83     58  accepted
     cec                           71     93  accepted
+    spi_cs_mode0                  43     25  accepted
+    spi_cs_mode1                  43     25  accepted
+    spi_cs_mode2                  43     25  accepted
+    spi_cs_mode3                  43     25  accepted
+    spi_cs_mode0_default_pins     43     25  accepted
+    spi_cs_mode1_default_pins     43     25  accepted
+    spi_cs_mode2_default_pins     43     25  accepted
+    spi_cs_mode3_default_pins     43     25  accepted
+    spi_target_mode0              38     30  accepted
+    spi_target_mode1              33     30  accepted
+    spi_target_mode2              38     30  accepted
+    spi_target_mode3              33     30  accepted
+    swd                          232    179  accepted
+    table                        112     87  accepted
+    table_open_drain             112     87  accepted
+    asm/blink                      4      5  accepted
     asm/data_stream                4      5  accepted
     asm/edge_logger_echo          13     11  accepted
     asm/edge_logger_wire           8      8  accepted
-    asm/ethernet                  24     29  accepted
-    asm/i2c_master_marked         84     64  accepted
+    asm/ethernet                  32     34  accepted
+    asm/fault_release              7      2  accepted
+    asm/i2c_master_marked         84     66  accepted
     asm/i2c_start_watch           10      7  accepted
     asm/quiet_watch               23     18  refused at 8: in time
     asm/scl_rise                  12      5  accepted
     asm/scrub                      4      2  accepted
-    asm/self_check_wire           69     45  accepted
+    asm/self_check_wire           69     47  accepted
     asm/uart_rx_wire              19     20  accepted
     asm/uart_tx                   15     15  accepted
     asm/uart_tx_host_rate         17     15  accepted
     asm/wrapped_loop               5     10  accepted
-    bench/i2c_master             101     78  accepted
-    bench/i2c_master_stretch     163    132  accepted
-    bench/can_sender              64     73  accepted
-    bench/can_receiver           242    275  accepted
-    bench/sk6812                  32     48  accepted
+    bench/uart_tx_9600            17     15  accepted
+    bench/uart_tx_19200           17     15  accepted
+    bench/uart_tx_38400           17     15  accepted
+    bench/uart_tx_57600           17     15  accepted
+    bench/uart_tx_115200          17     15  accepted
+    bench/uart_tx_230400          17     15  accepted
+    bench/i2c_master             101     80  accepted
+    bench/i2c_master_stretch     169    134  accepted
     bench/start_hold               9      2  accepted
-    bench/swd                    232    177  accepted
-    bench/spi_cs_mode0            33     23  accepted
-    bench/spi_cs_mode1            33     23  accepted
-    bench/spi_cs_mode2            33     23  accepted
-    bench/spi_cs_mode3            33     23  accepted
+    bench/i2c_standard           113     80  accepted
+    bench/i2c_fast               107     80  accepted
+    bench/sk6812                  35     58  accepted
+    bench/ethernet                32     34  accepted
+    bench/one_wire                48     49  accepted
+    bench/ps2                     65     40  accepted
+    bench/can                     58     80  accepted
+    bench/can_sender              66     81  accepted
+    bench/can_receiver           242    275  accepted
+    bench/cec                     71     93  accepted
+    bench/spi_cs_mode0            43     25  accepted
+    bench/spi_cs_mode1            43     25  accepted
+    bench/spi_cs_mode2            43     25  accepted
+    bench/spi_cs_mode3            43     25  accepted
+    bench/swd                    232    179  accepted
     |}]
 ;;
 
@@ -167,9 +203,9 @@ let%expect_test "the walk refuses what it was not given" =
    0 with x and y left whole passes every address's program, so the chip checks a patch
    against the certificate already in its data memory. *)
 let%expect_test "one usb certificate serves every address" =
-  let config = Firmware.usb_device_config in
+  let config = Usb.device_config in
   let program address =
-    Asm.assemble (Firmware.usb_device ~address ~half_period:16)
+    Asm.assemble (Usb.device ~address ~half_period:16)
     |> ok_exn
     |> Asm.Program.words
     |> ok_exn
