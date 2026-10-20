@@ -432,8 +432,8 @@ module Two = Engines.Make (struct
 
 module Harness = Hardcaml_test_harness.Lws_harness.Make (Two.I) (Two.O)
 
-(* the host starts engine 0, which underflows, then starts it again; ungated, so no
-   certificate is needed and the fault is all that stops the start *)
+(* the host starts engine 0, which underflows, then starts it again; ungated, as the fault
+   alone must hold it *)
 let%expect_test "a start does nothing while a fault is held" =
   Harness.run
     ~random_initial_state:`All

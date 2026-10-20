@@ -3,6 +3,7 @@ open! Hardcaml
 module Edge = Kernel_types.Edge
 module Spacing = Kernel_types.Spacing
 module Spaced = Kernel_types.Spaced
+module Loaded = Kernel_types.Loaded
 
 module Make_timer (Timer : Engine.Timer) = struct
   include Kernel_types.Make_timer (Timer)

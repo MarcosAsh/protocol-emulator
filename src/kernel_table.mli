@@ -34,6 +34,7 @@ module Make_timer (Timer : Engine.Timer) : sig
 
   val rejections
     :  ?period:int
+    -> ?period_floor:int
     -> ?single_capture_edge:bool
     -> ?spacing:Spacing.Spec.t
     -> config:Program_config.t
@@ -43,6 +44,7 @@ module Make_timer (Timer : Engine.Timer) : sig
 
   val check
     :  ?period:int
+    -> ?period_floor:int
     -> ?single_capture_edge:bool
     -> ?spacing:Spacing.Spec.t
     -> config:Program_config.t

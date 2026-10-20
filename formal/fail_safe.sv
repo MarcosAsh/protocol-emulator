@@ -1,8 +1,8 @@
 // The fault fail-safe on the two-engine chip. From the clear on, an engine with a fault
 // latched drives no pin, from the edge the fault shows; it halts within two edges and stays
 // halted with its pc held, whatever its host does, until the next clear. With no fault the
-// pins are the plain OR of both engines' drive. Host fields, pads and clear are free every
-// cycle; each config holds between clears.
+// pins are the plain OR of both engines' drive. Host fields, line tables, the frame
+// receiver, pads and clear are free every cycle; each config holds between clears.
 
 module fail_safe (input clk);
   (* anyconst *) wire [1:0] side_set_count_0, side_set_count_1;
@@ -28,6 +28,15 @@ module fail_safe (input clk);
   (* anyseq *) wire [15:0] program_write_data_0, program_write_data_1;
   (* anyseq *) wire [15:0] data_write_data_0, data_write_data_1, tx_value_0, tx_value_1;
   (* anyseq *) wire [19:0] pads;
+  (* anyseq *) wire [1:0] line_write_valid;
+  (* anyseq *) wire [4:0] line_write_addr_0, line_write_addr_1;
+  (* anyseq *) wire [15:0] line_write_data_0, line_write_data_1;
+  (* anyseq *) wire start_all;
+  (* anyseq *) wire [1:0] rd;
+  (* anyseq *) wire frame_arm, frame_fifty;
+  (* anyseq *) wire [8:0] frame_base;
+  (* anyseq *) wire [19:0] stamps_mask;
+  (* anyseq *) wire stamps_engine, stamps_flush, stamps_pop;
 
   // the top clears both engines at power-on and whenever its reset comes again
   (* anyseq *) wire reset;
@@ -60,7 +69,6 @@ module fail_safe (input clk);
     .hosts$config$stuff_level_0(stuff_level_0), .hosts$config$wrap_bottom_0(wrap_bottom_0),
     .hosts$config$wrap_top_0(wrap_top_0), .hosts$config$period_fraction_0(period_fraction_0),
     .hosts$config$autopull_data_0(autopull_data_0), .hosts$config$manchester_0(manchester_0),
-    .hosts$config$line_code_0(line_code_0), .hosts$config$route_0(route_0),
     .hosts$start_0(start[0]), .hosts$program_write$valid_0(program_write_valid[0]),
     .hosts$program_write$addr_0(program_write_addr_0),
     .hosts$program_write$data_0(program_write_data_0),
@@ -68,6 +76,10 @@ module fail_safe (input clk);
     .hosts$data_write$data_0(data_write_data_0),
     .hosts$tx$valid_0(tx_valid[0]), .hosts$tx$value_0(tx_value_0), .hosts$rx_pop_0(rx_pop[0]),
     .hosts$clear_irq_0(clear_irq[0]), .hosts$stop_0(stop[0]), .hosts$flush_0(flush[0]),
+    .hosts$config$line_code_0(line_code_0), .hosts$config$route_0(route_0),
+    .hosts$line_write$valid_0(line_write_valid[0]),
+    .hosts$line_write$addr_0(line_write_addr_0),
+    .hosts$line_write$data_0(line_write_data_0),
     .hosts$config$side_set_count_1(side_set_count_1), .hosts$config$side_set_base_1(side_set_base_1),
     .hosts$config$side_set_pindirs_1(side_set_pindirs_1), .hosts$config$in_base_1(in_base_1),
     .hosts$config$in_count_1(in_count_1), .hosts$config$out_base_1(out_base_1),
@@ -84,7 +96,6 @@ module fail_safe (input clk);
     .hosts$config$stuff_level_1(stuff_level_1), .hosts$config$wrap_bottom_1(wrap_bottom_1),
     .hosts$config$wrap_top_1(wrap_top_1), .hosts$config$period_fraction_1(period_fraction_1),
     .hosts$config$autopull_data_1(autopull_data_1), .hosts$config$manchester_1(manchester_1),
-    .hosts$config$line_code_1(line_code_1), .hosts$config$route_1(route_1),
     .hosts$start_1(start[1]), .hosts$program_write$valid_1(program_write_valid[1]),
     .hosts$program_write$addr_1(program_write_addr_1),
     .hosts$program_write$data_1(program_write_data_1),
@@ -92,6 +103,19 @@ module fail_safe (input clk);
     .hosts$data_write$data_1(data_write_data_1),
     .hosts$tx$valid_1(tx_valid[1]), .hosts$tx$value_1(tx_value_1), .hosts$rx_pop_1(rx_pop[1]),
     .hosts$clear_irq_1(clear_irq[1]), .hosts$stop_1(stop[1]), .hosts$flush_1(flush[1]),
+    .hosts$config$line_code_1(line_code_1), .hosts$config$route_1(route_1),
+    .hosts$line_write$valid_1(line_write_valid[1]),
+    .hosts$line_write$addr_1(line_write_addr_1),
+    .hosts$line_write$data_1(line_write_data_1),
+    // the load checker idle, which ungated engines.v leaves out of every start
+    .hosts$check_0(1'b0), .hosts$config_written_0(1'b0),
+    .hosts$check_1(1'b0), .hosts$config_written_1(1'b0),
+    .check_setup$base(9'd0), .check_setup$loaded$valid(1'b0),
+    .check_setup$loaded$value(16'd0), .check_setup$single_edge(1'b0),
+    .check_setup$floor(1'b0), .start_all(start_all), .rd(rd),
+    .frame$arm(frame_arm), .frame$base(frame_base), .frame$fifty(frame_fifty),
+    .stamps$mask(stamps_mask), .stamps$engine(stamps_engine), .stamps$flush(stamps_flush),
+    .stamps$pop(stamps_pop),
     .pads(pads),
     .engines$pin_out_0(pin_out_0), .engines$pin_dir_0(pin_dir_0),
     .engines$pc_0(pc_0), .engines$halted_0(halted_0),

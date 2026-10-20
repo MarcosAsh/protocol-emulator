@@ -8,6 +8,7 @@ type t =
   { name : string
   ; timed : Timed_program.t
   ; period : int option
+  ; floor : bool
   ; single_capture_edge : bool
   }
 
@@ -24,6 +25,7 @@ let library =
           ~config:t.config
           t.source
     ; period
+    ; floor = Option.is_some t.period_floor
     ; single_capture_edge = t.single_capture_edge
     })
 ;;
@@ -67,22 +69,24 @@ let asm_cases =
         ~config
         (In_channel.read_all file)
     with
-    | Ok timed -> Some { name = "asm/" ^ name; timed; period; single_capture_edge }
+    | Ok timed -> Some { name = "asm/" ^ name; timed; period; floor; single_capture_edge }
     | Error _ -> None)
 ;;
 
 (* the outside chip acts' firmware, as test/python/write_bench_firmware.ml checks it *)
 let bench_cases =
   List.map Library.bench ~f:(fun (bench : Bench.t) ->
-    let period, single_capture_edge =
+    let period, floor, single_capture_edge =
       match bench.assumption with
-      | Nothing -> None, false
-      | Floor period | Period period -> Some period, false
-      | Receiver period -> Some period, true
+      | Nothing -> None, false, false
+      | Floor period -> Some period, true, false
+      | Period period -> Some period, false, false
+      | Receiver period -> Some period, false, true
     in
     { name = "bench/" ^ bench.name
     ; timed = Bench.timed bench
     ; period
+    ; floor
     ; single_capture_edge
     })
 ;;

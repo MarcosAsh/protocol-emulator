@@ -312,7 +312,7 @@ let check_gates_command =
               K.conjuncts
                 ~side_set_count:(input i.side_set_count)
                 ~fraction:(input i.fraction)
-                ~loaded:(With_valid.map i.loaded ~f:input)
+                ~loaded:(Kernel.Loaded.map i.loaded ~f:input)
                 ~capture:(Kernel.Capture.map i.capture ~f:input)
                 ~spacing
                 ~word
@@ -387,6 +387,19 @@ let kernel_accepts_rtl_command =
         let module C = Circuit.With_interface (Kernel.Accepts.I) (Kernel.Accepts.O) in
         print_rtl ~name:"kernel_accepts_top" (fun ~name scope ->
           C.create_exn ~name (Kernel.Accepts.hierarchical scope))]
+;;
+
+let load_check_step_rtl_command =
+  Command.basic
+    ~summary:
+      "Verilog for the load check's walk at a pc, which formal/complete.sv proves the \
+       load checker keeps"
+    [%map_open.Command
+      let () = return () in
+      fun () ->
+        let module C = Circuit.With_interface (Load_check.Step.I) (Load_check.Step.O) in
+        print_rtl ~name:"load_check_step_top" (fun ~name scope ->
+          C.create_exn ~name (Load_check.Step.hierarchical scope))]
 ;;
 
 (* [FIELD=VALUE] over the record's sexp, so every field goes by its own name *)
@@ -840,6 +853,7 @@ let () =
        ; "osr", osr_rtl_command
        ; "manchester-rx", manchester_rx_rtl_command
        ; "kernel-accepts", kernel_accepts_rtl_command
+       ; "load-check-step", load_check_step_rtl_command
        ; "assemble", assemble_command
        ; "run", run_command
        ; "self-check", self_check_command

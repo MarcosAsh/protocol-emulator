@@ -75,8 +75,9 @@ let accepted_rows_hold ?(check_spacing = Fn.id) ~step_edge () =
   let side_set_count = G.input "side_set_count" 2 in
   let fraction = G.input "fraction" 1 in
   let loaded =
-    { With_valid.valid = G.input "loads_period" 1
+    { Kernel.Loaded.valid = G.input "loads_period" 1
     ; value = G.input "loaded_period" Isa.data_bits
+    ; floor = G.input "floor" 1
     }
   in
   let capture =
@@ -167,13 +168,14 @@ let accepted_rows_hold ?(check_spacing = Fn.id) ~step_edge () =
       &: (~:(x_dec &: (x <>:. 0) &: (x' ==: x -:. 1) &: same_slope)
           |: (r_offset ==: moved +: row.slope)))
   in
+  let period' = known s.period_known s.next_period "period" in
   let lies_in' r ~offset =
     K.within
       r
       ~spacing
       ~phase:phase'
       ~offset
-      ~period:(known s.period_known s.next_period "period")
+      ~period:period'
       ~x:x'
       ~y:(known s.y_known s.next_y "y")
       ~arm:s.next_arm
@@ -227,7 +229,12 @@ let accepted_rows_hold ?(check_spacing = Fn.id) ~step_edge () =
       &: (side_set_count <=:. 2)
       &: (~:(s.capture_bounded) |: in_capture_range))
   in
-  let hypothesis = G.(inside &: ~:(s.halts)) in
+  (* a run-time write under a floor leaves at least the loaded period, as the core's guard
+     holds it at each use *)
+  let floored =
+    G.(~:(~:(s.period_known) &: loaded.valid) |: (period' >=: loaded.value))
+  in
+  let hypothesis = G.(inside &: floored &: ~:(s.halts)) in
   (* a jump one condition at a time and an ALU instruction one destination and operation
      at a time *)
   let cases =
@@ -296,8 +303,9 @@ let%expect_test "the fall-through image is the tightest next row" =
   let side_set_count = G.input "side_set_count" 2 in
   let fraction = G.input "fraction" 1 in
   let loaded =
-    { With_valid.valid = G.input "loads_period" 1
+    { Kernel.Loaded.valid = G.input "loads_period" 1
     ; value = G.input "loaded_period" Isa.data_bits
+    ; floor = G.input "floor" 1
     }
   in
   let capture =
@@ -426,8 +434,9 @@ let%expect_test "one way at a time is both ways" =
   let side_set_count = G.input "side_set_count" 2 in
   let fraction = G.input "fraction" 1 in
   let loaded =
-    { With_valid.valid = G.input "loads_period" 1
+    { Kernel.Loaded.valid = G.input "loads_period" 1
     ; value = G.input "loaded_period" Isa.data_bits
+    ; floor = G.input "floor" 1
     }
   in
   let capture =
@@ -531,8 +540,9 @@ let holds_into_any_walked_row ~(stand_in : Bits.t Kernel.Row.t) =
   let side_set_count = G.input "side_set_count" 2 in
   let fraction = G.input "fraction" 1 in
   let loaded =
-    { With_valid.valid = G.input "loads_period" 1
+    { Kernel.Loaded.valid = G.input "loads_period" 1
     ; value = G.input "loaded_period" Isa.data_bits
+    ; floor = G.input "floor" 1
     }
   in
   let capture =
@@ -1378,14 +1388,17 @@ let%expect_test "the library's tables are rows of intervals, but for ethernet's 
     |}]
 ;;
 
-(* [Kernel.check] spaces edges only where formal/phase_spacing.sby proves it: two pins,
-   Manchester off and a table of intervals. *)
+(* [Kernel.check] spaces edges only where formal/phase_spacing.sby proves it: two pins, no
+   Manchester or line code and a table of intervals. *)
 let%expect_test "a spacing is checked only where it is proved" =
   let i2c = Library.find_certified_exn "i2c_master" in
   List.iter
     [ "one pin", i2c, { fast_mode_plus with b = I2c.scl }
     ; ( "manchester"
       , { i2c with config = { i2c.config with manchester = true } }
+      , fast_mode_plus )
+    ; ( "line code"
+      , { i2c with config = { i2c.config with line_code = true } }
       , fast_mode_plus )
     ; "offsets", ws2812_waiting_after_gap, fast_mode_plus
     ]
@@ -1395,13 +1408,16 @@ let%expect_test "a spacing is checked only where it is proved" =
     {|
     ("one pin"
      (Error
-      "edges are spaced only for two pins, Manchester off and a table of intervals"))
+      "edges are spaced only for two pins, no Manchester or line code and a table of intervals"))
     (manchester
      (Error
-      "edges are spaced only for two pins, Manchester off and a table of intervals"))
+      "edges are spaced only for two pins, no Manchester or line code and a table of intervals"))
+    ("line code"
+     (Error
+      "edges are spaced only for two pins, no Manchester or line code and a table of intervals"))
     (offsets
      (Error
-      "edges are spaced only for two pins, Manchester off and a table of intervals"))
+      "edges are spaced only for two pins, no Manchester or line code and a table of intervals"))
     |}]
 ;;
 

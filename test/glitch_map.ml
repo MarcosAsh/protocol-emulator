@@ -90,7 +90,7 @@ let kernel_after ~mov_pc =
     K.step
       ~side_set_count:(bits 2 config.side_set_count)
       ~fraction:(Bits.of_bool (config.period_fraction <> 0))
-      ~loaded:{ valid = Bits.gnd; value = bits Isa.data_bits 0 }
+      ~loaded:{ valid = Bits.gnd; value = bits Isa.data_bits 0; floor = Bits.gnd }
       ~capture:
         { pin = bits Isa.Field.wait_index.width config.capture_pin
         ; rising = Bits.of_bool config.capture_rising

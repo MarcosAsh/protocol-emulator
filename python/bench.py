@@ -36,7 +36,10 @@ def load(host, firmware, engine=0):
     host.configure(firmware["config"])
     host.load(firmware["words"])
     host.certify(
-        firmware["certificate"], loaded=firmware["loaded"], single_edge=firmware["single_edge"])
+        firmware["certificate"],
+        loaded=firmware["loaded"],
+        floor=firmware["floor"],
+        single_edge=firmware["single_edge"])
 
 
 def exchange(host, words, polls=100_000):

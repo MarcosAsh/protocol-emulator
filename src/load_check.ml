@@ -161,8 +161,141 @@ let names =
   }
 ;;
 
+let reason_bits = Int.ceil_log2 (List.length (Kernel.Conjuncts.to_list names))
+
+module Step = struct
+  let row_bits = Kernel.Row.sum_of_port_widths
+
+  module I = struct
+    type 'a t =
+      { side_set_count : 'a [@bits 2]
+      ; fraction : 'a
+      ; loaded : 'a Kernel.Loaded.t
+      ; capture : 'a Kernel.Capture.t
+      ; wrap_top : 'a [@bits Isa.pc_bits]
+      ; wrap_bottom : 'a [@bits Isa.pc_bits]
+      ; pc : 'a [@bits Isa.pc_bits]
+      ; word : 'a [@bits Isa.data_bits]
+      ; row : 'a [@bits row_bits]
+      ; stored : 'a
+      ; stored_row : 'a [@bits row_bits]
+      ; next : 'a [@bits row_bits]
+      ; target : 'a [@bits row_bits]
+      }
+    [@@deriving hardcaml]
+  end
+
+  module O = struct
+    type 'a t =
+      { next_pc : 'a [@bits Isa.pc_bits]
+      ; target_pc : 'a [@bits Isa.pc_bits]
+      ; after : 'a [@bits row_bits]
+      ; fails : 'a
+      ; reason : 'a [@bits reason_bits]
+      ; conjuncts : 'a Kernel.Conjuncts.t
+      }
+    [@@deriving hardcaml]
+  end
+
+  module Make (Comb : Comb.S) = struct
+    module K = Kernel.Make (Comb)
+
+    let step
+      ~side_set_count
+      ~fraction
+      ~loaded
+      ~capture
+      ~pc
+      ~word
+      ~row
+      ~stored
+      ~stored_row
+      ~next_pc
+      ~next
+      ~target
+      =
+      let empty_row =
+        Kernel.Row.map empty ~f:(fun bits -> Comb.of_constant (Bits.to_constant bits))
+      in
+      let open Comb in
+      (* one bit wider, so pc 511's way out never reads as falling through *)
+      let falls_to_next =
+        uresize next_pc ~width:(Isa.pc_bits + 1)
+        ==: uresize pc ~width:(Isa.pc_bits + 1) +:. 1
+      in
+      let fallen, falls =
+        K.fall_through ~side_set_count ~fraction ~loaded ~capture ~word ~row
+      in
+      let after =
+        Kernel.Row.map2
+          stored_row
+          (Kernel.Row.map2 fallen empty_row ~f:(mux2 (falls_to_next &: falls)))
+          ~f:(mux2 stored)
+      in
+      let conjuncts =
+        K.conjuncts
+          ~side_set_count
+          ~fraction
+          ~loaded
+          ~capture
+          ~spacing:K.no_spacing
+          ~word
+          ~row
+          ~next:(Kernel.Row.map2 after next ~f:(mux2 falls_to_next))
+          ~target
+      in
+      let holds = Kernel.Conjuncts.to_list conjuncts in
+      let reason =
+        priority_select_with_default
+          (List.mapi holds ~f:(fun n holds ->
+             { With_valid.valid = ~:holds; value = of_unsigned_int ~width:reason_bits n }))
+          ~default:(zero reason_bits)
+      in
+      after, ~:(reduce holds ~f:( &: )), reason, conjuncts
+    ;;
+  end
+
+  module Of_bits = Make (Bits)
+
+  let create (_scope : Scope.t) (i : Signal.t I.t) =
+    let module S = Make (Signal) in
+    let row = Kernel.Row.Of_signal.unpack ~rev:true in
+    let next_pc, target_pc =
+      S.K.successors ~wrap_top:i.wrap_top ~wrap_bottom:i.wrap_bottom ~pc:i.pc ~word:i.word
+    in
+    let after, fails, reason, conjuncts =
+      S.step
+        ~side_set_count:i.side_set_count
+        ~fraction:i.fraction
+        ~loaded:i.loaded
+        ~capture:i.capture
+        ~pc:i.pc
+        ~word:i.word
+        ~row:(row i.row)
+        ~stored:i.stored
+        ~stored_row:(row i.stored_row)
+        ~next_pc
+        ~next:(row i.next)
+        ~target:(row i.target)
+    in
+    { O.next_pc
+    ; target_pc
+    ; after = Kernel.Row.Of_signal.pack ~rev:true after
+    ; fails
+    ; reason
+    ; conjuncts
+    }
+  ;;
+
+  let hierarchical ?instance scope i =
+    let module H = Hierarchy.In_scope (I) (O) in
+    H.hierarchical ?instance ~scope ~name:"load_check_step" create i
+  ;;
+end
+
 let walk
   ?loaded
+  ?(floor = false)
   ?(single_capture_edge = false)
   ~(config : Program_config.t)
   ~words
@@ -246,8 +379,9 @@ let walk
   let side_set_count = Bits.of_unsigned_int ~width:2 config.side_set_count in
   let fraction = Bits.of_bool (config.period_fraction <> 0) in
   let loaded =
-    { With_valid.valid = Bits.of_bool (Option.is_some loaded)
+    { Kernel.Loaded.valid = Bits.of_bool (Option.is_some loaded)
     ; value = Bits.of_unsigned_int ~width:Isa.data_bits (Option.value loaded ~default:0)
+    ; floor = Bits.of_bool floor
     }
   in
   let capture =
@@ -273,43 +407,32 @@ let walk
           ~pc:(pc_bits pc)
           ~word:w
       in
-      let next_pc = Bits.to_unsigned_int next_pc in
       let stored = ptr < count && (entry ptr).pc = pc + 1 in
-      let after =
-        if stored
-        then decode (entry ptr)
-        else if next_pc = pc + 1
-        then (
-          let fallen, falls =
-            K.fall_through ~side_set_count ~fraction ~loaded ~capture ~word:w ~row
-          in
-          if Bits.to_bool falls then fallen else empty)
-        else empty
-      in
-      let conjuncts =
-        K.conjuncts
+      let after, fails, reason, _ =
+        Step.Of_bits.step
           ~side_set_count
           ~fraction
           ~loaded
           ~capture
-          ~spacing:K.no_spacing
+          ~pc:(pc_bits pc)
           ~word:w
           ~row
-          ~next:(if next_pc = pc + 1 then after else lookup next_pc)
+          ~stored:(Bits.of_bool stored)
+          ~stored_row:(if stored then decode (entry ptr) else empty)
+          ~next_pc
+          ~next:(lookup (Bits.to_unsigned_int next_pc))
           ~target:(lookup (Bits.to_unsigned_int target_pc))
       in
-      let fails =
-        List.filter_map
-          (Kernel.Conjuncts.to_list (Kernel.Conjuncts.zip names conjuncts))
-          ~f:(fun (name, holds) -> Option.some_if (not (Bits.to_bool holds)) name)
-      in
-      match fails with
-      | reason :: _ -> reject reason
-      | [] when pc + 1 = size ->
+      if Bits.to_bool fails
+      then
+        reject
+          (List.nth_exn (Kernel.Conjuncts.to_list names) (Bits.to_unsigned_int reason))
+      else if pc + 1 = size
+      then
         if ptr + Bool.to_int stored = count
         then Ok (Array.copy rows)
         else Error { Rejection.pc = size; reason = "a table entry left over" }
-      | [] -> step (pc + 1) after (ptr + Bool.to_int stored))
+      else step (pc + 1) after (ptr + Bool.to_int stored))
   in
   step 0 full 0
 ;;

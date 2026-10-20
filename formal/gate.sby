@@ -6,6 +6,8 @@ sticky teeth
 lend_busy teeth
 no_abort teeth
 overrun teeth
+frame_ungated teeth
+premises_live teeth
 
 [options]
 prove: mode prove
@@ -32,6 +34,8 @@ sticky: read_verilog sticky.v
 lend_busy: read_verilog lend_busy.v
 no_abort: read_verilog no_abort.v
 overrun: read_verilog overrun.v
+frame_ungated: read_verilog frame_ungated.v
+premises_live: read_verilog premises_live.v
 hierarchy -top engines_top
 proc
 flatten
@@ -41,7 +45,7 @@ expose w:engines.certified$0 w:engines.certified$1 w:engines.go w:engines.chosen
 expose w:engines.checked w:engines.checking w:engines.accepts w:engines.lent$0 w:engines.lent$1
 expose w:engines.turn_starts
 expose w:engines.engine_0.start w:engines.engine_1.start
-expose w:engines.engine_0.free w:engines.engine_1.free
+expose w:engines.engine_0.free w:engines.engine_1.free w:engines.frame_rx.writes
 rename engines.certified$0 certified_0
 rename engines.certified$1 certified_1
 rename engines.go go
@@ -56,6 +60,25 @@ rename engines.engine_0.start started_0
 rename engines.engine_1.start started_1
 rename engines.engine_0.free free_0
 rename engines.engine_1.free free_1
+rename engines.frame_rx.writes frame_write
+expose w:engines.load_checker.setup$loaded$valid_0 w:engines.load_checker.setup$loaded$value_0
+expose w:engines.load_checker.setup$floor_0 w:engines.load_checker.setup$single_edge_0
+rename engines.load_checker.setup$loaded$valid_0 walk_valid
+rename engines.load_checker.setup$loaded$value_0 walk_value
+rename engines.load_checker.setup$floor_0 walk_floor
+rename engines.load_checker.setup$single_edge_0 walk_single_edge
+expose w:engines.engine_0.premises$period$valid w:engines.engine_0.premises$period$value
+expose w:engines.engine_0.premises$floor w:engines.engine_0.premises$single_edge
+rename engines.engine_0.premises$period$valid premises_valid_0
+rename engines.engine_0.premises$period$value premises_value_0
+rename engines.engine_0.premises$floor premises_floor_0
+rename engines.engine_0.premises$single_edge premises_single_edge_0
+expose w:engines.engine_1.premises$period$valid w:engines.engine_1.premises$period$value
+expose w:engines.engine_1.premises$floor w:engines.engine_1.premises$single_edge
+rename engines.engine_1.premises$period$valid premises_valid_1
+rename engines.engine_1.premises$period$value premises_value_1
+rename engines.engine_1.premises$floor premises_floor_1
+rename engines.engine_1.premises$single_edge premises_single_edge_1
 cd ..
 short_cover: read -define SHORT_WALK
 teeth: read -define NO_INVARIANT
@@ -71,5 +94,7 @@ gate_teeth/sticky.v
 gate_teeth/lend_busy.v
 gate_teeth/no_abort.v
 gate_teeth/overrun.v
+gate_teeth/frame_ungated.v
+gate_teeth/premises_live.v
 ../src/RM_IHPSG13_1P_512x16_c2_bm_bist.v
 gate.sv

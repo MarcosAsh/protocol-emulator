@@ -287,7 +287,7 @@ module Make_timer (Timer : Engine.Timer) = struct
     let step
       ~side_set_count
       ~fraction
-      ~(loaded : _ With_valid.t)
+      ~(loaded : _ Loaded.t)
       ~capture
       ~spacing
       ~word
@@ -345,7 +345,7 @@ module Make_timer (Timer : Engine.Timer) = struct
       ; bounded = c.bounded
       ; may_carry = c.advance &: fraction
       ; next_period = mux2 c.set_p c.set_value @@ mux2 c.writes_p loaded.value period
-      ; period_known = ~:(c.writes_p) |: loaded.valid
+      ; period_known = ~:(c.writes_p) |: (loaded.valid &: ~:(loaded.floor))
       ; next_x = mux2 c.set_x c.set_value @@ mux2 c.x_dec (x -:. 1) x
       ; x_known = ~:(c.writes_x)
       ; next_y = mux2 c.set_y c.set_value @@ mux2 c.y_dec (y -:. 1) y
@@ -374,7 +374,7 @@ module Make_timer (Timer : Engine.Timer) = struct
     type 'a t =
       { side_set_count : 'a [@bits 2]
       ; fraction : 'a
-      ; loaded : 'a With_valid.t [@bits Isa.data_bits]
+      ; loaded : 'a Loaded.t
       ; capture : 'a Capture.t
       ; spacing : 'a Spaced.t
       ; word : 'a [@bits Isa.data_bits]

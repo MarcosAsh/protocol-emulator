@@ -29,7 +29,10 @@ async def start(dut, firmware, words, watch):
     await host.write(PROGRAM_ADDR, [0])
     await host.write(PROGRAM, padded(firmware["words"]))
     await host.certify(
-        firmware["certificate"], loaded=firmware["loaded"], single_edge=firmware["single_edge"])
+        firmware["certificate"],
+        loaded=firmware["loaded"],
+        floor=firmware["floor"],
+        single_edge=firmware["single_edge"])
     await host.write(CONTROL, [1])
     await host.write(TX, words)
     return host, task

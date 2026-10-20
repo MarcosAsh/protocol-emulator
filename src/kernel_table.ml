@@ -261,6 +261,7 @@ module Make_timer (Timer : Engine.Timer) = struct
   (* Whether the row at pc 0 starts open, and the pcs whose conjuncts fail. *)
   let verdicts
     ?period
+    ?period_floor
     ?(single_capture_edge = false)
     ?spacing:spec
     ~(config : Program_config.t)
@@ -276,9 +277,13 @@ module Make_timer (Timer : Engine.Timer) = struct
     in
     let side_set_count = Bits.of_unsigned_int ~width:2 config.side_set_count in
     let fraction = Bits.of_bool (config.period_fraction <> 0) in
+    if Option.is_some period && Option.is_some period_floor
+    then raise_s [%message "BUG: a period or a floor, not both"];
     let loaded =
-      { With_valid.valid = Bits.of_bool (Option.is_some period)
-      ; value = Bits.of_unsigned_int ~width:Isa.data_bits (Option.value period ~default:0)
+      let load = Option.first_some period period_floor in
+      { Loaded.valid = Bits.of_bool (Option.is_some load)
+      ; value = Bits.of_unsigned_int ~width:Isa.data_bits (Option.value load ~default:0)
+      ; floor = Bits.of_bool (Option.is_some period_floor)
       }
     in
     let capture =
@@ -332,12 +337,14 @@ module Make_timer (Timer : Engine.Timer) = struct
     starts_open, rejected
   ;;
 
-  let rejections ?period ?single_capture_edge ?spacing ~config ~words table =
-    snd (verdicts ?period ?single_capture_edge ?spacing ~config ~words table)
+  let rejections ?period ?period_floor ?single_capture_edge ?spacing ~config ~words table =
+    snd
+      (verdicts ?period ?period_floor ?single_capture_edge ?spacing ~config ~words table)
   ;;
 
   let check
     ?period
+    ?period_floor
     ?single_capture_edge
     ?spacing:spec
     ~(config : Program_config.t)
@@ -345,7 +352,14 @@ module Make_timer (Timer : Engine.Timer) = struct
     (table : Table.t)
     =
     let starts_open, rejected =
-      verdicts ?period ?single_capture_edge ?spacing:spec ~config ~words table
+      verdicts
+        ?period
+        ?period_floor
+        ?single_capture_edge
+        ?spacing:spec
+        ~config
+        ~words
+        table
     in
     (* what formal/phase_spacing.sby proves the spacing for *)
     let proved_spacing =
@@ -354,6 +368,7 @@ module Make_timer (Timer : Engine.Timer) = struct
         && a < Isa.pin_space
         && b < Isa.pin_space
         && (not config.manchester)
+        && (not config.line_code)
         && Array.for_all table ~f:(fun r ->
           Bits.to_bool Bits.(K.offset_is_full r &: (r.slope ==:. 0))))
     in
@@ -361,7 +376,8 @@ module Make_timer (Timer : Engine.Timer) = struct
     | _ when not proved_spacing ->
       Or_error.error_s
         [%message
-          "edges are spaced only for two pins, Manchester off and a table of intervals"]
+          "edges are spaced only for two pins, no Manchester or line code and a table of \
+           intervals"]
     | true, [] -> Ok ()
     | false, _ -> Or_error.error_s [%message "the row at pc 0 must be the full range"]
     | true, rejected ->

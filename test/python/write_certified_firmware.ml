@@ -53,7 +53,8 @@ let () =
         "        %s,\n"
         (String.concat ~sep:", " (List.map chunk ~f:(sprintf "0x%04X"))));
     printf
-      "    ],\n    \"loaded\": %s,\n    \"single_edge\": %d,\n}\n"
+      "    ],\n    \"loaded\": %s,\n    \"floor\": %d,\n    \"single_edge\": %d,\n}\n"
       (Option.value_map loaded ~default:"None" ~f:Int.to_string)
+      (Bool.to_int (Option.is_some period_floor))
       (Bool.to_int single_capture_edge))
 ;;

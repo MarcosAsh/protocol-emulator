@@ -327,7 +327,7 @@ module Make_timer (Timer : Engine.Timer) = struct
     let ways
       ~side_set_count
       ~fraction
-      ~(loaded : _ With_valid.t)
+      ~(loaded : _ Loaded.t)
       ~capture
       ~spacing
       ~word
@@ -374,7 +374,12 @@ module Make_timer (Timer : Engine.Timer) = struct
       in
       let captured_image = mux2 c.arm gnd (row.captured |: (capturing &: arm_known)) in
       let awaiting_image = mux2 c.arm vdd (row.awaiting &: ~:(c.capturing)) in
-      let period_image v = mux2 c.set_p c.set_value @@ mux2 c.writes_p loaded.value v in
+      (* a run-time write leaves the loaded period, or with [floor] at least it *)
+      let period_image ~at v = mux2 c.set_p c.set_value @@ mux2 c.writes_p at v in
+      let period_lo = period_image ~at:loaded.value row.period_lo in
+      let period_hi =
+        period_image ~at:(mux2 loaded.floor data_max loaded.value) row.period_hi
+      in
       let common_lo = mux2 (row.x_lo >: row.y_lo) row.x_lo row.y_lo in
       let common_hi = mux2 (row.x_hi <: row.y_hi) row.x_hi row.y_hi in
       (* a register's image on one way out: a counted jump decrements it on both, and
@@ -430,8 +435,8 @@ module Make_timer (Timer : Engine.Timer) = struct
               ~lo:s.period_lo
               ~hi:s.period_hi
               ~any:(c.writes_p &: ~:(loaded.valid))
-              ~image_lo:(period_image row.period_lo)
-              ~image_hi:(period_image row.period_hi)
+              ~image_lo:period_lo
+              ~image_hi:period_hi
         ; x = contains ~lo:s.x_lo ~hi:s.x_hi ~any:c.writes_x ~image_lo:x_lo ~image_hi:x_hi
         ; y = contains ~lo:s.y_lo ~hi:s.y_hi ~any:c.writes_y ~image_lo:y_lo ~image_hi:y_hi
         ; arm =
@@ -484,8 +489,8 @@ module Make_timer (Timer : Engine.Timer) = struct
           range
             ~known:~:(c.writes_p &: ~:(loaded.valid))
             ~all:data_max
-            (period_image row.period_lo)
-            (period_image row.period_hi)
+            period_lo
+            period_hi
         in
         let x_lo, x_hi = range ~known:~:(c.writes_x) ~all:data_max x_lo x_hi in
         let y_lo, y_hi = range ~known:~:(c.writes_y) ~all:data_max y_lo y_hi in
@@ -691,7 +696,7 @@ module Make_timer (Timer : Engine.Timer) = struct
       type 'a t =
         { side_set_count : 'a [@bits 2]
         ; fraction : 'a
-        ; loaded : 'a With_valid.t [@bits Isa.data_bits]
+        ; loaded : 'a Loaded.t
         ; capture : 'a Capture.t
         ; spacing : 'a Spaced.t
         ; wrap_top : 'a [@bits Isa.pc_bits]

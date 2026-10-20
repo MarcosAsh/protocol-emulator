@@ -291,7 +291,9 @@ let kernel_accepts ~words (table : Kernel.Table.t) =
     ; single_edge = Bits.gnd
     }
   in
-  let loaded = { With_valid.valid = Bits.gnd; value = Bits.zero Isa.data_bits } in
+  let loaded =
+    { Kernel.Loaded.valid = Bits.gnd; value = Bits.zero Isa.data_bits; floor = Bits.gnd }
+  in
   Bits.to_bool (K.starts_open table.(0) ~spacing:K.no_spacing)
   && Array.for_alli table ~f:(fun pc row ->
     Kernel.Row.equal Bits.equal row empty

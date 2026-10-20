@@ -45,8 +45,9 @@ let accepted_rows_hold ~with_kernel =
       ~side_set_count
       ~fraction:(G.input "fraction" 1)
       ~loaded:
-        { With_valid.valid = G.input "loads_period" 1
+        { Kernel.Loaded.valid = G.input "loads_period" 1
         ; value = G.input "loaded_period" Isa.data_bits
+        ; floor = G.input "floor" 1
         }
       ~capture:
         { Kernel.Capture.pin = G.input "capture_pin" Isa.Field.wait_index.width

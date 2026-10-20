@@ -24,9 +24,9 @@ let seen t n ~pads =
   pads land pin_mask land lnot driven lor level
 ;;
 
-(* engine [n]'s routed pushes land in engine [n + 1]'s tx fifo after the step, judged full
-   by the level before it; a fault stops the engine an edge after it shows, as
-   [Machine.stop] does for the host *)
+(* Engine [n]'s routed pushes land in engine [n + 1]'s tx fifo after the step, judged full
+   by the level before it. A fault stops the engine an edge after it shows, as
+   [Machine.stop] does for the host. *)
 let step t ~pads =
   let count = List.length t.engines in
   let next n = List.nth_exn t.engines ((n + 1) % count) in

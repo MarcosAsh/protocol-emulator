@@ -48,6 +48,17 @@ end
 
 module Spaced : With_valid.Wrap.S with type 'a value = 'a Spacing.t
 
+(** The period the host loads, when [valid]: what a run-time write to [p] leaves there, or
+    with [floor] the least it leaves. *)
+module Loaded : sig
+  type 'a t =
+    { valid : 'a
+    ; value : 'a
+    ; floor : 'a
+    }
+  [@@deriving hardcaml]
+end
+
 module Make_timer (_ : Engine.Timer) : sig
   val timer_bits : int
   val mark_bits : int

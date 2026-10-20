@@ -156,10 +156,10 @@ async def test_a_faulted_engine_lets_go_of_its_pins(dut):
     releaser = dict(DEFAULT_CONFIG, set_base=12, side_set_count=1, side_set_base=5)
 
     async def start_both():
-        await load(host, 1, dict(DEFAULT_CONFIG, set_base=13), assembled("blink"))
-        await host.write(CONTROL, [1])
-        await load(host, 0, releaser, assembled("fault_release"))
-        await host.write(CONTROL, [1])
+        await load(host, 1, dict(DEFAULT_CONFIG, set_base=13), "blink")
+        await load(host, 0, releaser, "fault_release")
+        await start(host, 1)
+        await start(host, 0)
         await ClockCycles(dut.clk, 10)
         assert int(dut.uio_oe.value) & 3 == 3 and int(dut.uio_out.value) & 1 == 1
         assert int(dut.uo_out.value) >> 1 & 1 == 1, "OUT0 driven high"

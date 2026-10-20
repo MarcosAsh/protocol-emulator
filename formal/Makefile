@@ -1,7 +1,7 @@
 all: issue_timing host_timing host_spacing late_host fifo_order unreachable phase_step fetch_step edge_step event_step frame_step \
   value_step narrow saturating chip_frame fail_safe isolation data_step teeth fsm_miter verilog_in \
   sram_equiv kernel_equiv translation frontend_equiv link self_check self_check_clean powerup offset_axioms \
-  gate certify
+  gate certify complete
 
 # every dune here runs from the checkout's root, which a worktree inside another checkout
 # would otherwise give up for the outer one's
@@ -292,14 +292,39 @@ certify_proof:
 	! cmp -s engines_gated.v certify_teeth/early_read.v
 	sby -f certify.sby prove cover short_cover early early_read
 
+# The load checker is complete as well as sound: for any program, configuration, setup and
+# certificate it passes a pc only where Load_check.walk does, over the kernel's own
+# conjuncts on whole rows (load_check_step.v), and finishes with the walk's verdict, reject
+# pc and reason; a rank falls every cycle of a walk, so it finishes. Covers reach a refusal
+# and, ending at pc 1, an acceptance. Teeth must fail: the successor's phase conjunct
+# dropped on chip, the reject pc one off, a read that never ends.
+NEXT_PHASE = /^module load_checker /,/^endmodule/s/^\(\s*failed_next\$$phase <= \)signal_wire_[0-9]*;/\11'b0;/
+OFF_BY_ONE = /^module load_checker /,/^endmodule/s/^\(\s*reject_pc_0 <= signal_wire_[0-9]*\);/\1 + 10'd1;/
+STALL = /^module load_checker /,/^endmodule/s/^\(\s*assign read_done = \).*;/\11'b0;/
+load_check_step.v: ../src/*.ml
+	cd .. && dune exec -- bin/generate.exe load-check-step > formal/load_check_step.v
+
+complete: engines_gated.v load_check_step.v
+	$(MAKE) complete_proof
+
+complete_proof:
+	mkdir -p complete_teeth
+	sed "$(SHORT_WALK)" engines_gated.v > complete_teeth/short.v
+	sed "$(NEXT_PHASE)" engines_gated.v > complete_teeth/next_phase.v
+	sed "$(OFF_BY_ONE)" engines_gated.v > complete_teeth/off_by_one.v
+	sed "$(STALL)" engines_gated.v > complete_teeth/stall.v
+	for t in short next_phase off_by_one stall; do ! cmp -s engines_gated.v complete_teeth/$$t.v || exit 1; done
+	sby -f complete.sby prove cover short_cover next_phase off_by_one stall
+
 # A start reaches a core only once it is certified, by an accepted walk begun after its
 # last write that held it free; and never right after the checker held its ports. A walk
 # takes thousands of cycles, so the short covers and the teeth end it at pc 1, which no
 # claim depends on: there a cover reaches a certified start, and each tooth (certified
-# never cleared, an engine lent while not free, no abort) has to fail. Each engine's turn
-# at the checker lasts 65,536 cycles, so the covers shorten it to 32 (SHORT_TURN), the
-# teeth give engine 0 every turn, a walk beginning once the checker is idle (ONE_TURN),
-# and the overrun tooth, a full walk left running past its turn, has to fail.
+# never cleared, an engine lent while not free, no abort, the frame receiver ungated, the
+# premises live) has to fail. Each engine's turn at the checker lasts 65,536 cycles, so the
+# covers shorten it to 32 (SHORT_TURN), the teeth give engine 0 every turn, a walk beginning
+# once the checker is idle (ONE_TURN), and the overrun tooth, a full walk left running past
+# its turn, has to fail.
 SHORT_WALK = /^module load_checker /,/^endmodule/s/= 9'b111111111;/= 9'b000000001;/
 STICKY = /^module engines /,/^endmodule/s/^\(\s*assign signal_mux[_0-9]* = \)signal_or[_0-9]* ? gnd : /\1/
 LEND_BUSY = /^module engines /,/^endmodule/s/^\(\s*assign lent\$$[01] = \)\(signal_and[_0-9]*\) \& signal_wire[_0-9]*;/\1\2;/
@@ -307,6 +332,11 @@ NO_ABORT = /^module engines /,/^endmodule/s/^\(\s*assign abort = \).*;/\11'b0;/
 SHORT_TURN = /^module engines /,/^endmodule/{s/^\(\s*assign turn_ends = \)turn_cycle == signal_const[_0-9]*;/\1\&turn_cycle[4:0];/;s/^\(\s*assign turn_starts = \)turn_cycle == signal_const[_0-9]*;/\1turn_cycle[4:0] == 5'b00000;/}
 ONE_TURN = /^module engines /,/^endmodule/{s/^\(\s*assign turn_ends = \)turn_cycle == signal_const[_0-9]*;/\11'b0;/;s/^\(\s*assign turn_starts = \)turn_cycle == signal_const[_0-9]*;/\1~checking;/}
 OVERRUN = /^module engines /,/^endmodule/s/^\(\s*assign signal_or[_0-9]* = signal_or[_0-9]*\) | turn_ends;/\1;/
+# the frame receiver let write any cycle, a word every cycle standing in for a frame
+FRAME_UNGATED = /^module engines /,/^endmodule/s/^\(\s*assign frame_may_write = \).*;/\11'b1;/
+FRAME_EVERY_CYCLE = /^module frame_rx /,/^endmodule/s/^\(\s*assign takes = \).*;/\11'b1;/
+# each core's period premise taken live from the host's setup rather than latched at its check
+PREMISES_LIVE = /^module engines /,/^endmodule/s/\(\.premises\$$period\$$value(\)signal_reg[_0-9]*)/\1check_setup\$$loaded\$$value)/
 gate: engines_gated.v
 	$(MAKE) gate_proof
 
@@ -320,12 +350,18 @@ gate_proof:
 	sed -e "$(SHORT_WALK)" -e "$(ONE_TURN)" -e "$(STICKY)" engines_gated.v > gate_teeth/sticky.v
 	sed -e "$(SHORT_WALK)" -e "$(ONE_TURN)" -e "$(LEND_BUSY)" engines_gated.v > gate_teeth/lend_busy.v
 	sed -e "$(SHORT_WALK)" -e "$(ONE_TURN)" -e "$(NO_ABORT)" engines_gated.v > gate_teeth/no_abort.v
+	sed -e "$(SHORT_WALK)" -e "$(ONE_TURN)" -e "$(FRAME_UNGATED)" -e "$(FRAME_EVERY_CYCLE)" \
+	  engines_gated.v > gate_teeth/frame_ungated.v
+	sed -e "$(SHORT_WALK)" -e "$(ONE_TURN)" -e "$(PREMISES_LIVE)" engines_gated.v \
+	  > gate_teeth/premises_live.v
 	sed -e "$(SHORT_TURN)" -e "$(OVERRUN)" engines_gated.v > gate_teeth/overrun.v
 	sed -e "$(SHORT_WALK)" -e "$(ONE_TURN)" engines_gated.v > gate_teeth/one_turn.v
 	test $$(diff gate_teeth/short.v gate_teeth/one_turn.v | grep -c '^>') = 2
-	for t in sticky lend_busy no_abort; do ! cmp -s gate_teeth/one_turn.v gate_teeth/$$t.v || exit 1; done
+	for t in sticky lend_busy no_abort frame_ungated premises_live; do \
+	  ! cmp -s gate_teeth/one_turn.v gate_teeth/$$t.v || exit 1; done
 	! cmp -s gate_teeth/turn.v gate_teeth/overrun.v
-	sby -f gate.sby prove cover short_cover sticky lend_busy no_abort overrun
+	sby -f gate.sby prove cover short_cover sticky lend_busy no_abort overrun frame_ungated \
+	  premises_live
 
 isolation_proof:
 	sed '$(ANY_TURN)' engines_sram.v > engines_any_turn.v
@@ -368,12 +404,27 @@ osr_step.v: ../src/*.ml
 data_step: engine.v osr_step.v
 	sby -f data_step.sby prove cover
 
+# The core's premise guards with a half taken out each: the second edge after the arm, the
+# level at the arm, and the period's. Each has to break a claim at an entry of
+# phase_step.sby, where the guard is all that holds the premise.
+SECOND_EDGE_OFF = /^module engine (/,/^endmodule/s/^\(\s*assign signal_or[_0-9]* = \)armed_at_level | second_edge;/\1armed_at_level;/
+LEVEL_AT_ARM_OFF = /^module engine (/,/^endmodule/s/^\(\s*assign signal_or[_0-9]* = \)armed_at_level | second_edge;/\1second_edge;/
+PERIOD_OFF = /^module engine (/,/^endmodule/s/^\(\s*assign period_off = \).*;/\10;/
+guard_teeth: engine.v
+	mkdir -p guard_teeth
+	sed '$(SECOND_EDGE_OFF)' engine.v > guard_teeth/second_edge.v
+	sed '$(LEVEL_AT_ARM_OFF)' engine.v > guard_teeth/level_at_arm.v
+	sed '$(PERIOD_OFF)' engine.v > guard_teeth/period_unguarded.v
+	for tooth in second_edge level_at_arm period_unguarded; do \
+	  ! cmp -s engine.v guard_teeth/$$tooth.v || exit 1; \
+	done
+
 # weakened statements, which pass only by failing, phase_step's core with its capture
 # stamped a cycle early, and a core whose program memory takes a write, or that takes a
 # start, while it runs
 UNGATED = s/^\(\s*assign program_write = signal_wire_[0-9]*\) & halted_0;/\1;/
 START_UNGATED = s/^\(\s*assign starting = signal_wire_[0-9]*\) & halted_0;/\1;/
-teeth: engine.v engine_sram.v engines.v kernel_step.v osr_step.v
+teeth: engine.v engine_sram.v engines.v kernel_step.v osr_step.v guard_teeth
 	mkdir -p issue_timing_teeth
 	sed '$(UNGATED)' engine.v > issue_timing_teeth/write_while_running.v
 	sed '$(START_UNGATED)' engine.v > issue_timing_teeth/start_while_running.v
@@ -386,8 +437,8 @@ teeth: engine.v engine_sram.v engines.v kernel_step.v osr_step.v
 	mkdir -p phase_step_teeth
 	awk -f capture_early.awk engine.v engine.v > phase_step_teeth/capture_early.v
 	sby -f phase_step.sby jump_in_one late_wait_waits no_carry one_late_cycle_is_safe taken_backwards \
-	  second_edge level_at_arm later_edge_captured capture_a_cycle_older capture_a_cycle_younger \
-	  capture_stamped_early arm_one_short edge_one_short start_while_running
+	  second_edge level_at_arm period_unguarded later_edge_captured capture_a_cycle_older \
+	  capture_a_cycle_younger capture_stamped_early arm_one_short edge_one_short start_while_running
 	sby -f edge_step.sby pins_never_change side_set_only one_cycle_later flip_off_issue no_flip
 	sby -f event_step.sby late level_only wires_plain jump_late held_moves
 	sby -f frame_step.sby narrow_side narrow_set narrow_out narrow_mov no_pair side_dirs_on_out \
@@ -776,7 +827,7 @@ netlist_equiv_teeth:
 	grep 'No output asserted in 1 frames' netlist_equiv_held_host_port_sm/proof.log
 	sed -E '/^module load_checker /,/^endmodule/s/^( *sm <= )signal_const_[0-9]+;/\1 1;/' \
 	  ../src/protocol_emulator.v > netlist_equiv_teeth/header.v
-	test $$(diff ../src/protocol_emulator.v netlist_equiv_teeth/header.v | grep -c '^>') = 1
+	test $$(diff ../src/protocol_emulator.v netlist_equiv_teeth/header.v | grep -c '^>') = 2
 	$(MAKE) netlist_equiv WRITTEN=netlist_equiv_teeth/header.v EQUIV=netlist_equiv_header EXPECT=0
 	grep 'No output asserted in 1 frames' netlist_equiv_header/proof.log
 
@@ -896,13 +947,22 @@ sync_gate:
 	$(CELL_MODELS) > $(SYNC)_gate/cells.v
 	cd $(SYNC)_gate && $(call SYNC_RUN,gate)
 
-# a second flop on ui_in[3] and a latch in the wrapper, which must be refuted
+# a second flop on ui_in[3], a latch in the wrapper, and a flop reset by uio_in[2] and one
+# reset by another flop, which must be refuted
 sync_rtl_teeth:
 	mkdir -p sync_teeth
 	sed '/^endmodule/i reg tooth; always @(posedge clk) tooth <= ui_in[3];' $(PROJECT) > sync_teeth/sample_rtl.v
 	sed '/^endmodule/i reg tooth; always @* if (ena) tooth = uo_out[0];' $(PROJECT) > sync_teeth/latch_rtl.v
+	sed '/^endmodule/i reg tooth; always @(posedge clk or posedge uio_in[2]) if (uio_in[2]) tooth <= 0; else tooth <= 1;' \
+	  $(PROJECT) > sync_teeth/pin_reset_rtl.v
+	sed '/^endmodule/i reg tick, tooth; always @(posedge clk) tick <= !tick;\
+	  always @(posedge clk or posedge tick) if (tick) tooth <= 0; else tooth <= 1;' $(PROJECT) > sync_teeth/flop_reset_rtl.v
 	$(MAKE) sync_rtl PROJECT=sync_teeth/sample_rtl.v SYNC=sync_sample FAILS='ui_in_3_ reaches one flop'
 	$(MAKE) sync_rtl PROJECT=sync_teeth/latch_rtl.v SYNC=sync_latch FAILS='no latch'
+	$(MAKE) sync_rtl PROJECT=sync_teeth/pin_reset_rtl.v SYNC=sync_pin_reset \
+	  FAILS='no pin reaches another flop by its asynchronous reset'
+	$(MAKE) sync_rtl PROJECT=sync_teeth/flop_reset_rtl.v SYNC=sync_flop_reset \
+	  FAILS='nor any flop but the second'
 
 # mutants that must be refuted, each at its own check: a second flop on ui_in[3], a
 # second reader of uio_in[0]'s first stage, a latch, a loop, and a flop clocked by a flop
@@ -949,20 +1009,21 @@ sat_tools:
 	cd sat_tools && $(CXX) -std=c++23 -O3 -DNDEBUG -DVERSION='"10.3.1"' -DGITID='"$(CERTIFAIGER)"' \
 	  -iquote aiger-$(AIGER) certifaiger-$(CERTIFAIGER)/src/certifaiger.cpp aiger.o -o bin/certifaiger
 
-# Certifaiger witnesses for the step lemmas, the self-check's and the fail-safe's. The
-# model is the lemma's prove task through SBY's own aiger flow (witness/model.ys); rIC3
-# proves it by k-induction and writes a witness circuit; each SAT check Certifaiger makes
-# of the pair must be UNSAT by an LRAT proof cake_lpr accepts. Trusted: the .sby and the
-# Verilog it reads, SBY's --dumpfiles and --dumpcfg, Yosys from parsing to write_aiger,
-# model.ys, Certifaiger's checks and the aiger library under it, aigsplit, aigtocnf,
-# cake_lpr's verified build, the C compilers, make and the shell; not rIC3 or cadical. Needs
-# make sat_tools. witness_proof runs on files written already. phase_table's peaks at 30 GB
-# and takes 6.5 h (rIC3 1.5 h, Inductive's check 4 h), past a hosted runner. CI proves
-# the others, phase_step's, edge_step's, event_step's, frame_step's, value_step's,
-# self_check_clean's and fail_safe's (2.5 to 13 min, 4.3 GB; self_check_clean's Verilog
-# from make self_check_clean, so not in WITNESSED).
-WITNESSED = phase_step edge_step event_step frame_step value_step phase_table fail_safe
-witness: engine.v engines.v kernel_step.v kernel_accepts.v
+# Certifaiger witnesses for the step lemmas, the self-check's, the fail-safe's and the load
+# checker's completeness. The model is the lemma's prove task through SBY's own aiger flow
+# (witness/model.ys); rIC3 proves it by k-induction and writes a witness circuit; each SAT
+# check Certifaiger makes of the pair must be UNSAT by an LRAT proof cake_lpr accepts.
+# Trusted: the .sby and the Verilog it reads, SBY's --dumpfiles and --dumpcfg, Yosys from
+# parsing to write_aiger, model.ys, Certifaiger's checks and the aiger library under it,
+# aigsplit, aigtocnf, cake_lpr's verified build, the C compilers, make and the shell; not
+# rIC3 or cadical. Needs make sat_tools. witness_proof runs on files written already.
+# phase_table's peaks at 30 GB and takes 6.5 h (rIC3 1.5 h, Inductive's check 4 h),
+# complete's at 25 GB, both past a hosted runner. CI proves the others, phase_step's,
+# edge_step's, event_step's, frame_step's, value_step's, self_check_clean's and fail_safe's
+# (2.5 to 13 min, 4.3 GB; self_check_clean's Verilog from make self_check_clean, so not in
+# WITNESSED).
+WITNESSED = phase_step edge_step event_step frame_step value_step phase_table fail_safe complete
+witness: engine.v engines.v kernel_step.v kernel_accepts.v engines_gated.v load_check_step.v
 	for lemma in $(WITNESSED); do $(MAKE) witness_proof LEMMA=$$lemma || exit 1; done
 
 CHECKS = Reset Safety Base Transition Liveness Decrease Closure Consistent Inductive
@@ -987,8 +1048,9 @@ witness_model:
 # One check, UNSAT only if cake_lpr verifies the LRAT proof cadical pipes to it; on disk
 # Inductive's would take GBs. Either side dying ends the other, with SIGPIPE or at EOF.
 # HEAP is cake_lpr's in MB: phase_step's, edge_step's, self_check_clean's and fail_safe's
-# checks pass in 4096, phase_table's in 24576, five of them exhausting 4096.
+# checks pass in 4096, phase_table's and complete's in 24576 (five of phase_table's not in 4096).
 WITNESS_HEAP_phase_table = 24576
+WITNESS_HEAP_complete = 24576
 HEAP = $(or $(WITNESS_HEAP_$(LEMMA)),4096)
 witness_unsat:
 	cd $(W) && aigtocnf $(CHECK).aig $(CHECK).cnf
@@ -1005,7 +1067,7 @@ witness_unsat:
 # cannot have made the model vacuous, and Certifaiger has to reject the lemma's witness.
 # At least WITNESS_TEETH_<lemma> of them, so none go missing unnoticed. A copy of other
 # files than the prove task's, as the narrow core's, is another model and not a tooth here.
-WITNESS_TEETH_phase_step = 12
+WITNESS_TEETH_phase_step = 10
 WITNESS_TEETH_edge_step = 5
 WITNESS_TEETH_event_step = 5
 WITNESS_TEETH_frame_step = 7
@@ -1013,6 +1075,7 @@ WITNESS_TEETH_value_step = 10
 WITNESS_TEETH_phase_table = 5
 WITNESS_TEETH_self_check_clean = 2
 WITNESS_TEETH_fail_safe = 3
+WITNESS_TEETH_complete = 3
 witness_teeth:
 	teeth=0; for task in $$(sby --dumptasks $(LEMMA).sby); do \
 	  sby --dumpcfg $(LEMMA).sby $$task | grep -qx 'expect fail' || continue; \
@@ -1086,7 +1149,7 @@ proof_bundle_tooth:
 .PHONY: witness witness_proof witness_model witness_unsat witness_teeth witness_tooth \
   witness_reject witness_bundle proof_bundle proof_bundle_tooth
 
-.PHONY: all link link_proof issue_timing host_timing late_host fifo_order unreachable phase_step phase_table \
+.PHONY: all link link_proof issue_timing host_timing late_host fifo_order unreachable phase_step phase_table guard_teeth \
   phase_table_proof phase_table_affine phase_table_affine_proof phase_spacing \
   phase_spacing_proof edge_step event_step frame_step value_step chip_frame fail_safe \
   fail_safe_teeth fail_safe_table fail_safe_table_proof data_step teeth \

@@ -42,7 +42,7 @@ let%expect_test "the step's capture and edge state" =
       K.step
         ~side_set_count:(Bits.zero 2)
         ~fraction:Bits.gnd
-        ~loaded:{ valid = Bits.gnd; value = Bits.zero Isa.data_bits }
+        ~loaded:{ valid = Bits.gnd; value = Bits.zero Isa.data_bits; floor = Bits.gnd }
         ~capture:
           { pin = Bits.zero Isa.Field.wait_index.width
           ; rising = Bits.gnd
@@ -154,7 +154,7 @@ let%expect_test "the narrowest timer the kernel takes" =
           K.step
             ~side_set_count:(Bits.zero 2)
             ~fraction:Bits.gnd
-            ~loaded:{ valid = Bits.gnd; value = Bits.zero Isa.data_bits }
+            ~loaded:{ valid = Bits.gnd; value = Bits.zero Isa.data_bits; floor = Bits.gnd }
             ~capture:
               { pin = Bits.zero Isa.Field.wait_index.width
               ; rising = Bits.gnd
@@ -213,7 +213,7 @@ let%expect_test "which pins a word writes" =
         K.step
           ~side_set_count:(Bits.zero 2)
           ~fraction:Bits.gnd
-          ~loaded:{ valid = Bits.gnd; value = Bits.zero Isa.data_bits }
+          ~loaded:{ valid = Bits.gnd; value = Bits.zero Isa.data_bits; floor = Bits.gnd }
           ~capture:
             { pin = Bits.zero Isa.Field.wait_index.width
             ; rising = Bits.gnd

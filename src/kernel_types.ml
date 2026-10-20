@@ -67,6 +67,15 @@ end
 
 module Spaced = With_valid.Wrap.Make (Spacing)
 
+module Loaded = struct
+  type 'a t =
+    { valid : 'a
+    ; value : 'a [@bits Isa.data_bits]
+    ; floor : 'a
+    }
+  [@@deriving hardcaml]
+end
+
 module Make_timer (Timer : Engine.Timer) = struct
   let timer_bits = Timer.timer_bits
 

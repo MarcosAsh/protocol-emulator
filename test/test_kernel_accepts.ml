@@ -26,6 +26,7 @@ let table ?spacing (c : Certified.t) =
   let table =
     Analyser.analyse
       ?period:c.period
+      ?period_floor:c.period_floor
       ~single_capture_edge:c.single_capture_edge
       ~config
       program.instructions
@@ -62,10 +63,12 @@ let%expect_test "the accepts circuit agrees with the kernel on the library's tab
         let words = Array.of_list words in
         let side_set_count = Bits.of_unsigned_int ~width:2 config.side_set_count in
         let fraction = Bits.of_bool (config.period_fraction <> 0) in
+        (* the floor where there is one, as Kernel.check takes it *)
+        let load = Option.first_some c.period_floor c.period in
         let loaded =
-          { With_valid.valid = Bits.of_bool (Option.is_some c.period)
-          ; value =
-              Bits.of_unsigned_int ~width:Isa.data_bits (Option.value c.period ~default:0)
+          { Kernel.Loaded.valid = Bits.of_bool (Option.is_some load)
+          ; value = Bits.of_unsigned_int ~width:Isa.data_bits (Option.value load ~default:0)
+          ; floor = Bits.of_bool (Option.is_some c.period_floor)
           }
         in
         let capture =
@@ -83,8 +86,7 @@ let%expect_test "the accepts circuit agrees with the kernel on the library's tab
         let wrap_bottom = pc_bits config.wrap_bottom in
         i.side_set_count := side_set_count;
         i.fraction := fraction;
-        i.loaded.valid := loaded.valid;
-        i.loaded.value := loaded.value;
+        Kernel.Loaded.iter2 i.loaded loaded ~f:( := );
         Kernel.Capture.iter2 i.capture capture ~f:( := );
         Kernel.Spaced.iter2 i.spacing spacing ~f:( := );
         i.wrap_top := wrap_top;

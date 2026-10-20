@@ -3,9 +3,9 @@
 // pc and, with Manchester off and edge_step.sv's lemma assumed, a watched pair's edges. A
 // deadline wait entered at phase <= 0 does not fault. Equalities are mod 2^T, T the
 // timer's width: 24, or 7 in the narrow tasks, which reach the wrap in a bounded run. The
-// engine is the chip's with every input free, so this holds for each engine of several;
-// CHIP runs it on one inside the two-engine chip instead. Program memories are the flop
-// stand-in for the SRAM macro.
+// engine is the chip's with every input free but its premises, the kernel's, and no line
+// code or route, so this holds for each engine of several; CHIP runs it on one inside the
+// two-engine chip instead. Program memories are the flop stand-in for the SRAM macro.
 
 `ifndef TIMER_BITS
 `define TIMER_BITS 24
@@ -47,11 +47,17 @@ module phase_step (input clk);
   wire [8:0] wrap_bottom = config_bits[35:27], wrap_top = config_bits[26:18];
   wire [15:0] period_fraction = config_bits[17:2];
   wire autopull_data = config_bits[1], manchester = config_bits[0];
-  // the assumption the kernel may take: a run-time write to p carries loaded_period as it
-  // stood at the entry of the instruction that writes it, free at each entry
+  // The premises the kernel may take: p is loaded_period wherever a run-time write left it,
+  // or with floor_period at least it, and the capture pin makes one edge from capture_arm
+  // to the wait for it. The core is handed them and faults where they fail; CHIP's is
+  // handed none, so there they are assumed of its inputs, loaded_period free at each entry.
   (* anyconst *) wire loads_period;
+`ifdef CHIP
   (* anyseq *) wire [15:0] loaded_period;
-  // and that the capture pin makes one edge from capture_arm to the wait for it
+`else
+  (* anyconst *) wire [15:0] loaded_period;
+`endif
+  (* anyconst *) wire floor_period;
   (* anyconst *) wire single_edge;
   // a pair of pins whose edges the kernel spaces, each its pindirs bit if pair_dirs, and
   // the least cycles, four entries each, indexed by the two bits before an edge
@@ -85,6 +91,16 @@ module phase_step (input clk);
   (* anyseq *) wire [8:0] data_write_addr, o_data_write_addr;
   (* anyseq *) wire [15:0] data_write_data, o_data_write_data;
   (* anyseq *) wire [19:0] pads;
+  // the other engine's line code and route, both line tables, the start of both engines at
+  // once and the frame receiver; this engine codes no line and routes nothing
+  (* anyseq *) wire o_line_code, o_route, line_write_valid, o_line_write_valid, start_all;
+  (* anyseq *) wire [4:0] line_write_addr, o_line_write_addr;
+  (* anyseq *) wire [15:0] line_write_data, o_line_write_data;
+  (* anyseq *) wire [1:0] rd;
+  (* anyseq *) wire frame_arm, frame_fifty, stamps_engine, stamps_flush, stamps_pop;
+  (* anyseq *) wire [8:0] frame_base;
+  (* anyseq *) wire [19:0] stamps_mask;
+  wire line_code = 0, route = 0;
 `endif
 
   reg clear = 1;
@@ -111,7 +127,8 @@ module phase_step (input clk);
   // its host's through the chip's fault gate
   wire [19:0] chip_out, chip_dir;
   wire [27:0] o_pin_out, o_pin_dir;
-  wire o_underflow, o_overflow, o_missed_deadline, o_decode, faulted, o_faulted;
+  wire o_underflow, o_overflow, o_missed_deadline, o_decode, o_assumption;
+  wire assumption, faulted, o_faulted;
   wire flip_pending, flip_bit, host_start, core_stop;
   // engine n's host fields on the wires named w and the field
 `define HOST(n, w) \
@@ -145,13 +162,18 @@ module phase_step (input clk);
     .hosts$data_write$data_``n(w``data_write_data), \
     .hosts$tx$valid_``n(w``tx_valid), .hosts$tx$value_``n(w``tx_value), \
     .hosts$rx_pop_``n(w``rx_pop), .hosts$clear_irq_``n(w``clear_irq), \
-    .hosts$stop_``n(w``stop), .hosts$flush_``n(w``flush)
+    .hosts$stop_``n(w``stop), .hosts$flush_``n(w``flush), \
+    .hosts$config$line_code_``n(w``line_code), .hosts$config$route_``n(w``route), \
+    .hosts$line_write$valid_``n(w``line_write_valid), \
+    .hosts$line_write$addr_``n(w``line_write_addr), \
+    .hosts$line_write$data_``n(w``line_write_data)
   // its pins, its faults and the flop holding any of them
 `define DRIVE(n, w) \
     .engines$pin_out_``n(w``pin_out), .engines$pin_dir_``n(w``pin_dir), \
     .engines$fault$underflow_``n(w``underflow), .engines$fault$overflow_``n(w``overflow), \
     .engines$fault$missed_deadline_``n(w``missed_deadline), \
-    .engines$fault$decode_``n(w``decode), .engines$faulted_``n(w``faulted)
+    .engines$fault$decode_``n(w``decode), .engines$fault$assumption_``n(w``assumption), \
+    .engines$faulted_``n(w``faulted)
   // and the rest of this engine, with the wires inside its core that the .sby brings out
 `define CORE(n) \
     `DRIVE(n, ), .engines$pc_``n(pc), .engines$x_``n(x), .engines$y_``n(y), \
@@ -167,17 +189,28 @@ module phase_step (input clk);
     .engines$flip_pending_``n(flip_pending), .engines$flip_bit_``n(flip_bit), \
     .eng_jmp_go_``n(jmp_go), .eng_advance_``n(advance), .eng_sample_``n(sample), \
     .eng_captured_``n(captured_now), .eng_start_``n(host_start), .eng_stop_``n(core_stop)
+  // the load checker idle, which ungated engines.v leaves out of every start
+`define CHECK_IDLE \
+    .hosts$check_0(1'b0), .hosts$config_written_0(1'b0), \
+    .hosts$check_1(1'b0), .hosts$config_written_1(1'b0), \
+    .check_setup$base(9'd0), .check_setup$loaded$valid(1'b0), \
+    .check_setup$loaded$value(16'd0), .check_setup$single_edge(1'b0), \
+    .check_setup$floor(1'b0), .start_all(start_all), .rd(rd), \
+    .frame$arm(frame_arm), .frame$base(frame_base), .frame$fifty(frame_fifty), \
+    .stamps$mask(stamps_mask), .stamps$engine(stamps_engine), \
+    .stamps$flush(stamps_flush), .stamps$pop(stamps_pop)
 `ifdef ENGINE_1
   engines_top dut (
     .clock(clk), .clear(clear), .pads(pads), .pin_out(chip_out), .pin_dir(chip_dir),
-    `HOST(1, ), `CORE(1), `HOST(0, o_), `DRIVE(0, o_));
+    `HOST(1, ), `CORE(1), `HOST(0, o_), `DRIVE(0, o_), `CHECK_IDLE);
 `else
   engines_top dut (
     .clock(clk), .clear(clear), .pads(pads), .pin_out(chip_out), .pin_dir(chip_dir),
-    `HOST(0, ), `CORE(0), `HOST(1, o_), `DRIVE(1, o_));
+    `HOST(0, ), `CORE(0), `HOST(1, o_), `DRIVE(1, o_), `CHECK_IDLE);
 `endif
 `else
   wire host_start = start, core_stop = stop;
+  wire assumption, p_loaded, eng_holding, eng_seen;
   engine dut (
     .clock(clk), .clear(clear),
     .config$side_set_count(side_set_count), .config$side_set_base(side_set_base),
@@ -194,6 +227,10 @@ module phase_step (input clk);
     .config$wrap_bottom(wrap_bottom), .config$wrap_top(wrap_top),
     .config$period_fraction(period_fraction),
     .config$autopull_data(autopull_data), .config$manchester(manchester),
+    .config$line_code(1'b0), .config$route(1'b0), .line_write$valid(1'b0),
+    .line_write$addr(5'd0), .line_write$data(16'd0), .route_full(1'b0),
+    .premises$period$valid(loads_period), .premises$period$value(loaded_period),
+    .premises$floor(floor_period), .premises$single_edge(single_edge),
     .stop(stop), .flush(flush),
     .start(start), .program_write$valid(program_write_valid),
     .program_write$addr(program_write_addr), .program_write$data(program_write_data),
@@ -203,10 +240,12 @@ module phase_step (input clk);
     .pin_out(pin_out), .pin_dir(pin_dir), .pc(pc), .x(x), .y(y), .p(p), .t(t), .osr(osr),
     .osr_count(osr_count), .isr(isr), .isr_count(isr_count), .now(now), .stall(stall),
     .halted(halted), .irq(irq), .fault$underflow(underflow), .fault$overflow(overflow),
-    .fault$missed_deadline(missed_deadline), .fault$decode(decode), .capture(capture),
+    .fault$missed_deadline(missed_deadline), .fault$decode(decode),
+    .fault$assumption(assumption), .capture(capture),
     .capture_armed(capture_armed), .tx_level(tx_level), .rx_level(rx_level),
     .rx_head(rx_head), .instruction(instruction), .crc(crc), .stuff_run(stuff_run),
     .decode_ok(decode_ok), .opcode_onehot(opcode_onehot), .wait_select(wait_select),
+    .eng_p_loaded(p_loaded), .eng_holding(eng_holding), .eng_seen(eng_seen),
     .eng_jmp_go(jmp_go), .eng_advance(advance), .eng_sample(sample),
     .eng_captured(captured_now), .eng_out_value(out_value), .eng_mov_value(mov_value));
 `endif
@@ -214,6 +253,16 @@ module phase_step (input clk);
   wire core_start = host_start && halted;
   // an instruction completes when a jump issues, or anything else issues and goes on
   wire completes = jmp_go || advance;
+`ifndef CHIP
+  // p as the kernel takes it: loaded_period where a run-time write left it, or under a
+  // floor p where it is at least that. The claims cover a run until the core flags a
+  // premise broken, a fault the chip fails safe on.
+  wire [15:0] kp = !(loads_period && p_loaded) || floor_period && p >= loaded_period ? p
+    : loaded_period;
+  always @(*) assume(!assumption);
+`else
+  wire [15:0] kp = p;
+`endif
 
   always @(*) assume(side_set_count <= 2);
 `ifdef ONE_RUN
@@ -345,7 +394,7 @@ module phase_step (input clk);
   always @(posedge clk) begin
     if (entry) begin
       e_word <= instruction;
-      e_p <= p;
+      e_p <= kp;
       e_loaded <= loaded_period;
       e_x <= x;
       e_y <= y;
@@ -436,7 +485,8 @@ module phase_step (input clk);
     .next_a$fresh(next_fresh_a), .next_b$since(next_since_b),
     .next_b$level(next_level_b), .next_b$fresh(next_fresh_b), .wide_a(wide_a),
     .wide_b(wide_b),
-    .loaded$valid(loads_period), .loaded$value(e_loaded), .word(e_word),
+    .loaded$valid(loads_period), .loaded$value(e_loaded), .loaded$floor(floor_period),
+    .word(e_word),
     .capture$pin(capture_pin), .capture$rising(capture_rising),
     .capture$single_edge(single_edge), .arm(e_g), .arm_known(e_g_known),
     .captured(e_g_captured), .awaiting(e_awaiting), .next_awaiting(awaiting_next),
@@ -453,7 +503,7 @@ module phase_step (input clk);
     .a$since(16'd0), .a$level(1'b0), .a$fresh(1'b0), .b$since(16'd0), .b$level(1'b0),
     .b$fresh(1'b0), .data_a(1'b0), .data_b(1'b0), .next_a$since(), .next_a$level(),
     .next_a$fresh(), .next_b$since(), .next_b$level(), .next_b$fresh(), .wide_a(),
-    .wide_b(), .loaded$valid(1'b0),
+    .wide_b(), .loaded$valid(1'b0), .loaded$floor(1'b0),
     .loaded$value(16'd0), .capture$pin(5'd0), .capture$rising(1'b0),
     .capture$single_edge(1'b0), .arm({T{1'b0}}), .arm_known(1'b0), .captured(1'b0),
     .awaiting(1'b0), .next_awaiting(),
@@ -465,7 +515,9 @@ module phase_step (input clk);
 
   reg wrote_p = 0;
   always @(posedge clk) wrote_p <= !clear && completes && !keeps_period;
-  always @(*) if (loads_period && wrote_p) assume(p == e_loaded);
+`ifdef CHIP
+  always @(*)
+    if (loads_period && wrote_p) assume(floor_period ? p >= e_loaded : p == e_loaded);
   // the last load, for a cover of two that differ in one run
   reg [15:0] last_load;
   reg loaded_before = 0;
@@ -474,6 +526,7 @@ module phase_step (input clk);
       last_load <= p;
       loaded_before <= 1;
     end
+`endif
 
   // each teeth task gets one part of the step wrong
   wire [T-1:0] e_expected =
@@ -504,8 +557,8 @@ module phase_step (input clk);
 `endif
   wire t_ok = t == e_t_after || (e_may_carry && t == e_t_after + 1'd1);
 
-  // The teeth that drop half the single-edge assumption keep only the claims at entries. The
-  // invariants between entries are there for induction and lean on the assumption too, so
+  // The teeth that weaken the single-edge premise keep only the claims at entries. The
+  // invariants between entries are there for induction and lean on the premise too, so
   // they would fail first whether or not the claims need it. So does the tooth whose core
   // stamps the capture a cycle early (capture_early.awk), and the ghost's tie to it.
 `ifdef SECOND_EDGE
@@ -514,6 +567,8 @@ module phase_step (input clk);
 `define ENTRIES_ONLY
 `elsif CAPTURE_STAMPED_EARLY
 `define ENTRIES_ONLY
+`elsif GUARD_MUTANT
+`define ENTRIES_ONLY
 `endif
 
 `ifndef ENTRIES_ONLY
@@ -521,8 +576,13 @@ module phase_step (input clk);
     if (!clear && pending && !entry) begin
       assert(!halted);
       assert(e_phase == e_now - e_t);
-      if (!done) assert(p == e_p && x == e_x && y == e_y);
-      else if (period_known) assert(p == next_period);
+      if (!done) assert(kp == e_p && x == e_x && y == e_y);
+      else if (period_known) assert(kp == next_period);
+      // a run-time write under a floor
+      else if (loads_period) assert(kp >= next_period);
+`ifndef CHIP
+      assert(e_loaded == loaded_period);
+`endif
       if (e_safe) assert(!missed_deadline);
       if (!done) begin
         assert(!fresh && !e_is_jmp);
@@ -545,9 +605,11 @@ module phase_step (input clk);
     end
 `endif
 
-  // The single-edge assumption, on the level the core sees: the capture pin is at the other
+  // The single-edge premise, on the level the core sees: the capture pin is at the other
   // level when capture_arm issues, and once at the captured level it stays there until a
-  // wait for it releases. The teeth level_at_arm and second_edge drop one half each.
+  // wait for it releases. The core's guard keeps the same two flops and faults where
+  // either half fails; CHIP assumes it, and its teeth level_at_arm and second_edge drop
+  // one half each.
   wire arms = entry && opcode == 7 && instruction[7:0] == 8'd7;
   wire capturing = opcode == 1 && !instruction[6] && instruction[4:0] == capture_pin
     && instruction[4:0] < 28 && instruction[7] == capture_rising;
@@ -587,6 +649,7 @@ module phase_step (input clk);
       arm_now <= now;
     end else if (completes && capturing && single_edge) holding <= 0;
     else if (holding && level) seen <= 1;
+`ifdef CHIP
   always @(*)
     if (single_edge) begin
 `ifndef LEVEL_AT_ARM
@@ -596,6 +659,15 @@ module phase_step (input clk);
       if (holding && seen) assume(level);
 `endif
     end
+`else
+  // the guard's flops are these, which only an entry's arm sets, so a run with no record
+  // yet has its first entry to come
+  always @(posedge clk)
+    if (!clear) begin
+      assert(eng_holding == holding && eng_seen == seen);
+      if (!halted && !pending) assert(fresh);
+    end
+`endif
 
   // what the ghost count stands for: while awaiting the edge, the cycles since the arm;
   // once captured, a bound on the capture's age
@@ -853,7 +925,7 @@ module phase_step (input clk);
       else assert(pc == e_following);
       if (x_known) assert(x == next_x);
       if (y_known) assert(y == next_y);
-      if (period_known) assert(p == next_period);
+      if (period_known) assert(kp == next_period);
       if (e_safe) assert(!missed_deadline);
     end
 
@@ -861,7 +933,15 @@ module phase_step (input clk);
     cover(pending && entry && e_may_carry && phase == e_expected - 1'd1);
     cover(pending && entry && !e_unbounded && e_deadline_wait && e_in_time);
     cover(loads_period && pending && entry && wrote_p && p == e_loaded && e_loaded > 3);
+`ifdef CHIP
     cover(loads_period && wrote_p && loaded_before && p != last_load);
+`else
+    // p left at another value by a write, as a data base, which only a use would fault
+    cover(loads_period && pending && entry && p_loaded && p != loaded_period);
+    // a use of p above its floor
+    cover(floor_period && loads_period && pending && entry && p_loaded && p > loaded_period
+      && (deadline_wait && instruction[7] || opcode == 6 && body == 8'b11001010));
+`endif
   end
 `ifdef TABLE
   // The theorem in one run. For any table of intervals and config loaded while halted, as
@@ -916,7 +996,7 @@ module phase_step (input clk);
 
 `define CONFIG(load) \
     .side_set_count(side_set_count), .fraction(period_fraction != 0), \
-    .loaded$valid(loads_period), .loaded$value(load), \
+    .loaded$valid(loads_period), .loaded$value(load), .loaded$floor(floor_period), \
     .capture$pin(capture_pin), .capture$rising(capture_rising), \
     .capture$single_edge(single_edge), .wrap_top(wrap_top), .wrap_bottom(wrap_bottom)
 `define NO_PAIR \
@@ -935,13 +1015,14 @@ module phase_step (input clk);
   wire axioms, steps_into;
   row_step lemma (
     .side_set_count(side_set_count), .fraction(period_fraction != 0),
-    .loads_period(loads_period), .loaded_period(e_loaded), .capture_pin(capture_pin),
+    .loads_period(loads_period), .floor_period(floor_period), .loaded_period(e_loaded),
+    .capture_pin(capture_pin),
     .capture_rising(capture_rising), .single_edge(single_edge), .word(e_word),
     .row(e_row[439:174]), .next(e_next_row[439:174]), .target(e_target_row[439:174]),
     .phase(e_phase), .offset(e_offset), .arm(e_g), .period(e_p), .x(e_x), .y(e_y),
     .arm_known(e_g_known), .captured(e_g_captured), .awaiting(e_g_awaiting),
     .phase_after(phase), .next_offset(next_offset), .target_offset(target_offset),
-    .period_after(p), .x_after(x), .y_after(y), .axioms(axioms), .holds(steps_into));
+    .period_after(kp), .x_after(x), .y_after(y), .axioms(axioms), .holds(steps_into));
   always @(*) begin
     assume(steps_into);
     if (entry && x == 0) assume(product == 0);
@@ -962,7 +1043,7 @@ module phase_step (input clk);
   wire unchecked_accepts;
   kernel_accepts check_unchecked (`CONFIG(loaded_period), `NO_PAIR,
     .pc(pc), .word(instruction), .row(row), .next(unchecked(next_row)),
-    .target(unchecked(target_row)), .phase(phase), .offset(offset), .period(p), .x(x),
+    .target(unchecked(target_row)), .phase(phase), .offset(offset), .period(kp), .x(x),
     .y(y), .arm(g), .arm_known(g_known), .captured(g_captured), .awaiting(g_awaiting),
     .next_pc(), .target_pc(), .accepts(unchecked_accepts), .within(), .starts_open());
   always @(*) if (entry) assume(unchecked_accepts);
@@ -975,7 +1056,7 @@ module phase_step (input clk);
   // at an entry, and at the last one, which the core keeps to between them
 `define NOW \
     .pc(pc), .word(instruction), .row(row), .next(next_row), .target(target_row), \
-    .phase(phase), .offset(offset), .period(p), .x(x), .y(y), .arm(g), \
+    .phase(phase), .offset(offset), .period(kp), .x(x), .y(y), .arm(g), \
     .arm_known(g_known), .captured(g_captured), .awaiting(g_awaiting)
 `define LAST \
     .pc(e_pc), .word(e_word), .row(e_row), .next(e_next_row), .target(e_target_row), \
@@ -1000,7 +1081,8 @@ module phase_step (input clk);
   wire e_inside, steps_into;
   pair_step lemma (
     .side_set_count(side_set_count), .fraction(period_fraction != 0),
-    .loads_period(loads_period), .loaded_period(e_loaded), .capture_pin(capture_pin),
+    .loads_period(loads_period), .floor_period(floor_period), .loaded_period(e_loaded),
+    .capture_pin(capture_pin),
     .capture_rising(capture_rising), .single_edge(single_edge), .spaced(spaced),
     .pair_dirs(pair_dirs), .side_set_pindirs(side_set_pindirs), .pin_a(pin_a),
     .pin_b(pin_b), .side_set_base(side_set_base), .set_base(set_base),
@@ -1011,7 +1093,7 @@ module phase_step (input clk);
     .captured(e_g_captured), .awaiting(e_g_awaiting), .since_a(e_since_a),
     .since_b(e_since_b), .level_a(e_level_a), .level_b(e_level_b), .fresh_a(e_fresh_a),
     .fresh_b(e_fresh_b), .data_a(e_data_a), .data_b(e_data_b), .phase_after(phase),
-    .period_after(p), .x_after(x), .y_after(y), .inside(e_inside), .holds(steps_into));
+    .period_after(kp), .x_after(x), .y_after(y), .inside(e_inside), .holds(steps_into));
   always @(*) assume(steps_into);
 `else
   wire e_accepts, e_within;
@@ -1103,9 +1185,11 @@ module phase_step (input clk);
   always @(posedge clk)
     if (!clear) begin
       on_pads: assert(chip_out == pads_out[19:0] && chip_dir == pads_dir[19:0]);
-      // the flop is the OR of the four the host reads
-      one_flop: assert(faulted == (underflow || overflow || missed_deadline || decode)
-        && o_faulted == (o_underflow || o_overflow || o_missed_deadline || o_decode));
+      // the flop is the OR of the five the host reads
+      one_flop: assert(
+        faulted == (underflow || overflow || missed_deadline || decode || assumption)
+        && o_faulted
+           == (o_underflow || o_overflow || o_missed_deadline || o_decode || o_assumption));
       if (!last_clear) begin
         stays_released: assert(!last_faulted || faulted);
         if (moved) certified: assert(releases || edge_entry);

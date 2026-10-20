@@ -74,7 +74,7 @@ module Make_timer (Timer : Engine.Timer) : sig
     val step
       :  side_set_count:Comb.t
       -> fraction:Comb.t
-      -> loaded:Comb.t With_valid.t
+      -> loaded:Comb.t Loaded.t
       -> capture:Comb.t Capture.t
       -> spacing:Comb.t Spaced.t
       -> word:Comb.t
@@ -97,7 +97,7 @@ module Make_timer (Timer : Engine.Timer) : sig
     type 'a t =
       { side_set_count : 'a
       ; fraction : 'a
-      ; loaded : 'a With_valid.t
+      ; loaded : 'a Loaded.t
       ; capture : 'a Capture.t
       ; spacing : 'a Spaced.t
       ; word : 'a
