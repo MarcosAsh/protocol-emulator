@@ -387,7 +387,8 @@ let create ~name (verilog : Verilog_in.t) (compiled : Frame_compiler.t) =
   wire takes = valid_in && idle;
   wire tx_valid = takes;
   wire [15:0] tx_value = data_in;
-  wire [3:0] tx_level, fifo_used, fifo_used_minus_1, fifo_used_plus_1;
+  wire [%{Host_fifo.level_bits - 1#Int}:0] tx_level;
+  wire [%{Int.ceil_log2 Host_fifo.depth#Int}:0] fifo_used, fifo_used_minus_1, fifo_used_plus_1;
   wire fifo_used_is_one, fifo_used_gt_one, fifo_not_empty, fifo_full, fifo_nearly_full;
 |}]
   in
