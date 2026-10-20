@@ -8,7 +8,8 @@
 // way after the first edge, and a free one in each otherwise. The copies' writes are
 // equal from then on, which is asserted, so the premise holds after it if it holds then.
 // With COLD a program macro's words are its own in each copy until its engine is first
-// started: the cores reset halted, and Host.load fills all 512 words before a start. The
+// started or lent to the load checker: the cores reset halted, and Host.load fills all 512
+// words before a check or a start. The
 // data memory keeps the premise, as nothing fills it. The havoc tasks' RTL
 // (powerup_havoc.awk) gives the host fifos' words and read buffers any value while the
 // fifo is cleared.
@@ -44,6 +45,7 @@ module powerup (input clk);
   wire [`FALLING_BITS - 1:0] falling_a, falling_b;
   wire reset_done_a, reset_done_b, reset_late_a, reset_late_b;
   wire [1:0] start_a, start_b, halted_a, halted_b, started_a, started_b, refill_a, refill_b;
+  wire [1:0] lent_a, lent_b;
   fifo_t rx_0_a, tx_0_a, rx_1_a, tx_1_a, rx_0_b, tx_0_b, rx_1_b, tx_1_b;
   // four stamps, each the 24-bit timer and the 20 pads
   localparam STAMP = 44;
@@ -58,7 +60,7 @@ module powerup (input clk);
     .state(state_``side), .falling(falling_``side), \
     .reset_done(reset_done_``side), .reset_late(reset_late_``side), \
     .start(start_``side), .halted(halted_``side), \
-    .started(started_``side), .refill(refill_``side), \
+    .started(started_``side), .refill(refill_``side), .lent(lent_``side), \
     .rx_0(rx_0_``side), .tx_0(tx_0_``side), \
     .rx_1(rx_1_``side), .tx_1(tx_1_``side), .stamps(stamps_``side), \
     .load_checker(load_checker_``side) \
@@ -106,10 +108,16 @@ module powerup (input clk);
   // and whether a macro's output holds a read of them
   reg [2:0] read_loaded = 0;
 `ifdef COLD
-  reg [1:0] ran = 0;
+  // started (ran, running) apart from lent to the checker (borrowed, read_by), as only a
+  // start lets an engine fetch
+  reg [1:0] ran = 0, borrowed = 0;
   wire [1:0] running = ran | (first ? 2'b00 : start_a);
-  wire [2:0] loaded = {1'b1, running};
-  always @(posedge clk) ran <= running;
+  wire [1:0] read_by = borrowed | (first ? 2'b00 : lent_a);
+  wire [2:0] loaded = {1'b1, running | read_by};
+  always @(posedge clk) begin
+    ran <= running;
+    borrowed <= read_by;
+  end
 `else
   wire [2:0] loaded = 3'b111;
 `endif
@@ -162,7 +170,7 @@ module powerup (input clk);
   // the flags only ever rise, and read_loaded is loaded as of the last edge, which an
   // induction over half cycles (multiclock) would otherwise take as anything
 `ifdef COLD
-  always @* if (!first) assert (read_loaded == {1'b1, ran});
+  always @* if (!first) assert (read_loaded == {1'b1, ran | borrowed});
 `else
   always @* if (!first) assert (read_loaded == 3'b111);
 `endif

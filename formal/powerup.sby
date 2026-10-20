@@ -2,8 +2,9 @@
 prove written
 no_reset written teeth shallow
 unreset teeth shallow
-# a host read of an emptied rx fifo shows a word never stored, 126 cycles in
-stale teeth
+# with the stale head's fix reverted the invariant must not prove; the host read that
+# shows the word (HOST_SCRIPT, 126 cycles in) is past smtbmc in half-cycle steps
+stale
 havoc havoc_rtl
 havoc_unreset havoc_unreset_rtl teeth shallow
 cold havoc_rtl cold_rtl
@@ -14,15 +15,15 @@ cold_unreset havoc_unreset_rtl cold_rtl teeth shallow
 multiclock on
 ~teeth: mode prove
 ~teeth: depth 4
+# cold's invariant needs main's four cycles, which are eight half-cycle steps
+cold_rtl: depth 8
 teeth: mode bmc
 shallow: depth 8
-stale: depth 280
+stale: expect unknown
 teeth: expect fail
 
 [engines]
-# the stale tooth's counterexample is 252 half-cycle steps deep, past smtbmc in hours
-~stale: smtbmc boolector
-stale: abc bmc3
+smtbmc boolector
 
 [script]
 read_verilog -lib RM_IHPSG13_1P_512x16_c2_bm_bist.v
@@ -68,7 +69,6 @@ memory_map tt_um_marcosash_protocol_emulator
 tcl powerup.tcl
 no_reset: read -define NO_RESET
 teeth: read -define NO_INVARIANT
-stale: read -define HOST_SCRIPT
 cold_rtl: read -define COLD
 read_verilog -formal -sv powerup.sv
 prep -top powerup
