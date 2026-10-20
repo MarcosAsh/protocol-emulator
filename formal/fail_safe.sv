@@ -19,6 +19,7 @@ module fail_safe (input clk);
   (* anyconst *) wire [8:0] wrap_bottom_0, wrap_top_0, wrap_bottom_1, wrap_top_1;
   (* anyconst *) wire [15:0] period_fraction_0, period_fraction_1;
   (* anyconst *) wire autopull_data_0, manchester_0, autopull_data_1, manchester_1;
+  (* anyconst *) wire line_code_0, route_0, line_code_1, route_1;
   // each engine's host fields, bit n for engine n
   (* anyseq *) wire [1:0] start, stop, flush, rx_pop, clear_irq, tx_valid;
   (* anyseq *) wire [1:0] program_write_valid, data_write_valid;
@@ -37,8 +38,8 @@ module fail_safe (input clk);
   wire [27:0] pin_out_0, pin_dir_0, pin_out_1, pin_dir_1;
   wire [8:0] pc_0, pc_1;
   wire halted_0, halted_1;
-  wire underflow_0, overflow_0, missed_deadline_0, decode_0;
-  wire underflow_1, overflow_1, missed_deadline_1, decode_1;
+  wire underflow_0, overflow_0, missed_deadline_0, decode_0, assumption_0;
+  wire underflow_1, overflow_1, missed_deadline_1, decode_1, assumption_1;
   wire any_fault_0, any_fault_1;
 
   engines_top dut (
@@ -59,6 +60,7 @@ module fail_safe (input clk);
     .hosts$config$stuff_level_0(stuff_level_0), .hosts$config$wrap_bottom_0(wrap_bottom_0),
     .hosts$config$wrap_top_0(wrap_top_0), .hosts$config$period_fraction_0(period_fraction_0),
     .hosts$config$autopull_data_0(autopull_data_0), .hosts$config$manchester_0(manchester_0),
+    .hosts$config$line_code_0(line_code_0), .hosts$config$route_0(route_0),
     .hosts$start_0(start[0]), .hosts$program_write$valid_0(program_write_valid[0]),
     .hosts$program_write$addr_0(program_write_addr_0),
     .hosts$program_write$data_0(program_write_data_0),
@@ -82,6 +84,7 @@ module fail_safe (input clk);
     .hosts$config$stuff_level_1(stuff_level_1), .hosts$config$wrap_bottom_1(wrap_bottom_1),
     .hosts$config$wrap_top_1(wrap_top_1), .hosts$config$period_fraction_1(period_fraction_1),
     .hosts$config$autopull_data_1(autopull_data_1), .hosts$config$manchester_1(manchester_1),
+    .hosts$config$line_code_1(line_code_1), .hosts$config$route_1(route_1),
     .hosts$start_1(start[1]), .hosts$program_write$valid_1(program_write_valid[1]),
     .hosts$program_write$addr_1(program_write_addr_1),
     .hosts$program_write$data_1(program_write_data_1),
@@ -94,20 +97,22 @@ module fail_safe (input clk);
     .engines$pc_0(pc_0), .engines$halted_0(halted_0),
     .engines$fault$underflow_0(underflow_0), .engines$fault$overflow_0(overflow_0),
     .engines$fault$missed_deadline_0(missed_deadline_0), .engines$fault$decode_0(decode_0),
+    .engines$fault$assumption_0(assumption_0),
     .engines$faulted_0(any_fault_0),
     .engines$pin_out_1(pin_out_1), .engines$pin_dir_1(pin_dir_1),
     .engines$pc_1(pc_1), .engines$halted_1(halted_1),
     .engines$fault$underflow_1(underflow_1), .engines$fault$overflow_1(overflow_1),
     .engines$fault$missed_deadline_1(missed_deadline_1), .engines$fault$decode_1(decode_1),
+    .engines$fault$assumption_1(assumption_1),
     .engines$faulted_1(any_fault_1),
     .pin_out(pin_out), .pin_dir(pin_dir));
 
   reg cleared = 0;
   always @(posedge clk) if (clear) cleared <= 1;
 
-  // the four sticky faults STATUS shows, and what each engine may still drive
-  wire faulted_0 = underflow_0 | overflow_0 | missed_deadline_0 | decode_0;
-  wire faulted_1 = underflow_1 | overflow_1 | missed_deadline_1 | decode_1;
+  // the five sticky faults STATUS shows, and what each engine may still drive
+  wire faulted_0 = underflow_0 | overflow_0 | missed_deadline_0 | decode_0 | assumption_0;
+  wire faulted_1 = underflow_1 | overflow_1 | missed_deadline_1 | decode_1 | assumption_1;
   // tooth 1: the chip still shows a faulted engine 0's direction bits
 `ifdef KEEP_DRIVE
   wire [27:0] live_dir_0 = pin_dir_0;
@@ -148,7 +153,7 @@ module fail_safe (input clk);
 
   always @(posedge clk)
     if (cleared) begin
-      // the flop the chip gates on is the OR of the four
+      // the flop the chip gates on is the OR of the five
       assert (any_fault_0 == faulted_0 && any_fault_1 == faulted_1);
       // F1, release: the chip shows only engines with no fault
       assert (pin_dir == combine_dir[19:0]);
