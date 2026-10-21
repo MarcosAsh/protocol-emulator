@@ -50,6 +50,7 @@ UART_TX_9600 = {
         0xFF00, 0x0400, 0x0000, 0x0004, 0xFFFF, 0x0000, 0x0007,
     ],
     "loaded": 4,
+    "floor": 1,
     "single_edge": 0,
 }
 
@@ -101,6 +102,7 @@ UART_TX_19200 = {
         0xFF00, 0x0400, 0x0000, 0x0004, 0xFFFF, 0x0000, 0x0007,
     ],
     "loaded": 4,
+    "floor": 1,
     "single_edge": 0,
 }
 
@@ -152,6 +154,7 @@ UART_TX_38400 = {
         0xFF00, 0x0400, 0x0000, 0x0004, 0xFFFF, 0x0000, 0x0007,
     ],
     "loaded": 4,
+    "floor": 1,
     "single_edge": 0,
 }
 
@@ -203,6 +206,7 @@ UART_TX_57600 = {
         0xFF00, 0x0400, 0x0000, 0x0004, 0xFFFF, 0x0000, 0x0007,
     ],
     "loaded": 4,
+    "floor": 1,
     "single_edge": 0,
 }
 
@@ -254,6 +258,7 @@ UART_TX_115200 = {
         0xFF00, 0x0400, 0x0000, 0x0004, 0xFFFF, 0x0000, 0x0007,
     ],
     "loaded": 4,
+    "floor": 1,
     "single_edge": 0,
 }
 
@@ -305,6 +310,7 @@ UART_TX_230400 = {
         0xFF00, 0x0400, 0x0000, 0x0004, 0xFFFF, 0x0000, 0x0007,
     ],
     "loaded": 4,
+    "floor": 1,
     "single_edge": 0,
 }
 
@@ -374,6 +380,7 @@ I2C_MASTER = {
         0xFFFF, 0xFFFF, 0x0000, 0x0007, 0x0000, 0xFFFE, 0x0007, 0x0007,
     ],
     "loaded": 31,
+    "floor": 1,
     "single_edge": 0,
 }
 
@@ -459,6 +466,7 @@ I2C_MASTER_STRETCH = {
         0x0000, 0x0007, 0x0000, 0xFFFE, 0x0007, 0x0007,
     ],
     "loaded": 31,
+    "floor": 1,
     "single_edge": 0,
 }
 
@@ -508,6 +516,7 @@ START_HOLD = {
         0x0000, 0x0000,
     ],
     "loaded": None,
+    "floor": 0,
     "single_edge": 0,
 }
 
@@ -579,6 +588,7 @@ I2C_STANDARD = {
         0xFFFF, 0xFFFF, 0x0000, 0x0007, 0x0000, 0xFFFE, 0x0007, 0x0007,
     ],
     "loaded": 31,
+    "floor": 1,
     "single_edge": 0,
 }
 
@@ -649,6 +659,7 @@ I2C_FAST = {
         0xFFFF, 0xFFFF, 0x0000, 0x0007, 0x0000, 0xFFFE, 0x0007, 0x0007,
     ],
     "loaded": 31,
+    "floor": 1,
     "single_edge": 0,
 }
 
@@ -708,6 +719,7 @@ SK6812 = {
         0x000F, 0x000F,
     ],
     "loaded": None,
+    "floor": 0,
     "single_edge": 0,
 }
 
@@ -765,6 +777,7 @@ ETHERNET = {
         0x0000, 0x001F,
     ],
     "loaded": 64000,
+    "floor": 0,
     "single_edge": 0,
 }
 
@@ -824,6 +837,7 @@ ONE_WIRE = {
         0x0010,
     ],
     "loaded": 5,
+    "floor": 1,
     "single_edge": 0,
 }
 
@@ -884,6 +898,7 @@ PS2 = {
         0x0008, 0xFFFF, 0x0000, 0x0009, 0x0000, 0x0007, 0x0000, 0x000A,
     ],
     "loaded": 8,
+    "floor": 1,
     "single_edge": 0,
 }
 
@@ -948,6 +963,7 @@ CAN = {
         0xFFFF, 0xFFFF, 0x0000, 0x0003, 0x0000, 0x000E, 0x0000, 0x000B,
     ],
     "loaded": 15,
+    "floor": 1,
     "single_edge": 0,
 }
 
@@ -1014,6 +1030,7 @@ CAN_SENDER = {
         0x000E,
     ],
     "loaded": 15,
+    "floor": 1,
     "single_edge": 0,
 }
 
@@ -1126,6 +1143,7 @@ CAN_RECEIVER = {
         0x000E, 0x0001, 0x0004,
     ],
     "loaded": 96,
+    "floor": 0,
     "single_edge": 1,
 }
 
@@ -1193,6 +1211,7 @@ CEC = {
         0x0019, 0x0000, 0x0006, 0x0000, 0x000F,
     ],
     "loaded": 7,
+    "floor": 1,
     "single_edge": 0,
 }
 
@@ -1249,6 +1268,7 @@ SPI_CS_MODE0 = {
         0x0003,
     ],
     "loaded": None,
+    "floor": 0,
     "single_edge": 0,
 }
 
@@ -1305,6 +1325,7 @@ SPI_CS_MODE1 = {
         0x0003,
     ],
     "loaded": None,
+    "floor": 0,
     "single_edge": 0,
 }
 
@@ -1361,6 +1382,7 @@ SPI_CS_MODE2 = {
         0x0003,
     ],
     "loaded": None,
+    "floor": 0,
     "single_edge": 0,
 }
 
@@ -1417,6 +1439,7 @@ SPI_CS_MODE3 = {
         0x0003,
     ],
     "loaded": None,
+    "floor": 0,
     "single_edge": 0,
 }
 
@@ -1515,5 +1538,6 @@ SWD = {
         0x0004, 0x0000, 0x0007,
     ],
     "loaded": 10,
+    "floor": 1,
     "single_edge": 0,
 }

@@ -325,7 +325,10 @@ let print_swept { Swept.name; watch; on_wire; period; bursts } =
      |> Load_check.to_words
      |> hex);
   printf
-    "        ],\n        \"loaded\": %s,\n        \"single_edge\": %s,\n"
+    "        ],\n\
+    \        \"loaded\": %s,\n\
+    \        \"floor\": False,\n\
+    \        \"single_edge\": %s,\n"
     (Option.value_map period ~default:"None" ~f:Int.to_string)
     (if c.single_capture_edge then "True" else "False");
   printf "        \"park\": %s,\n" (inline (hex park));

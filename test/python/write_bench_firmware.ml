@@ -14,11 +14,12 @@ let () =
     Datasheet.check_exn Library.limits ~exempt:Library.exempt bench;
     let timed = Bench.timed bench in
     (* the premises the chip's checker takes with the certificate *)
-    let loaded, single_edge =
+    let loaded, floor, single_edge =
       match bench.assumption with
-      | Nothing -> None, false
-      | Floor period | Period period -> Some period, false
-      | Receiver period -> Some period, true
+      | Nothing -> None, false, false
+      | Floor period -> Some period, true, false
+      | Period period -> Some period, false, false
+      | Receiver period -> Some period, false, true
     in
     let certificate =
       Load_check.of_table
@@ -50,7 +51,8 @@ let () =
         "        %s,\n"
         (String.concat ~sep:", " (List.map chunk ~f:(sprintf "0x%04X"))));
     printf
-      "    ],\n    \"loaded\": %s,\n    \"single_edge\": %d,\n}\n"
+      "    ],\n    \"loaded\": %s,\n    \"floor\": %d,\n    \"single_edge\": %d,\n}\n"
       (Option.value_map loaded ~default:"None" ~f:Int.to_string)
+      (Bool.to_int floor)
       (Bool.to_int single_edge))
 ;;
