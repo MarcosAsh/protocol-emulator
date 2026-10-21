@@ -784,8 +784,6 @@ ENGINE = dprove
 CELL_MODELS = sed -e '/^\s*specify/,/^\s*endspecify/d' -e 's/delayed_//g' \
   -e 's/^\(\s*\)\(ihp_[a-z0-9_]*\) *(\([A-Za-z0-9_]*\),/\1\2 u_\3 (\3,/' \
   $(STDCELL)/verilog/sg13cmos5l_stdcell.v
-# the host port's recoded state machine against its written one, for icepi_equiv
-FSM_STEP = timeout 600 yosys-abc -c 'read_aiger fsm_step.aig; print_stats; pdr; print_status'
 netlist_equiv:
 	rm -rf $(EQUIV) && mkdir $(EQUIV)
 	cp $(NETLIST) $(EQUIV)/netlist.v
@@ -892,7 +890,13 @@ ICEPI = icepi_equiv_run
 ICEPI_JSON = ../icepi/build/usb1.json
 USB = 1
 MHZ = 48
-ICEPI_PROOF = print_stats; scorr; print_stats; dprove; print_status
+# BMC on the first cycle, then, once that passes, every later one from each state the first
+# reaches, as netlist_equiv: the recoded machines power up in no state until the reset
+ICEPI_RUN = timeout 120 yosys-abc -c 'read_aiger $(1); bmc3 -F 1; print_status' > $(2); \
+  ! grep -q 'No output asserted in 1 frames' $(2) || timeout 3600 yosys-abc \
+  -c 'read_aiger $(1); $(ICEPI_PROOF)' >> $(2)
+# scorr's default 100 conflicts leave most of the 8x4's flops unmatched
+ICEPI_PROOF = print_stats; tempor -F 1; print_stats; scorr -C 10000; print_stats; dprove; print_status
 icepi_equiv:
 	rm -rf $(ICEPI) && mkdir $(ICEPI)
 	cp $(ICEPI_JSON) $(ICEPI)/netlist.json
@@ -900,21 +904,19 @@ icepi_equiv:
 	echo 'chparam -set USB_UIO $(USB) -set MHZ $(MHZ) icepi_top' > $(ICEPI)/params.ys
 	cd $(ICEPI) && yosys -q -l gold.log ../icepi_equiv/gold.ys
 	cd $(ICEPI) && yosys -q -l gate.log ../icepi_equiv/gate.ys
-	cd $(ICEPI) && $(FSM_STEP) > fsm_step.log
-	grep 'Status = 1 ' $(ICEPI)/fsm_step.log
 	cd $(ICEPI) && yosys -q -l miter.log ../icepi_equiv/miter.ys
 	cd $(ICEPI) && awk -f ../icepi_equiv/configured.awk miter_pre.il > configured.il
 	cd $(ICEPI) && yosys -q -l configured.log ../icepi_equiv/configured.ys
-	cd $(ICEPI) && timeout 3600 yosys-abc -c 'read_aiger miter.aig; $(ICEPI_PROOF)' > proof.log
+	cd $(ICEPI) && $(call ICEPI_RUN,miter.aig,proof.log)
 	grep 'Status = $(EXPECT) ' $(ICEPI)/proof.log
-	cd $(ICEPI) && timeout 3600 yosys-abc -c 'read_aiger configured.aig; $(ICEPI_PROOF)' \
-	  > configured_proof.log
+	cd $(ICEPI) && $(call ICEPI_RUN,configured.aig,configured_proof.log)
 	grep 'Status = $(EXPECT) ' $(ICEPI)/configured_proof.log
 	@echo "netlist sha256 $$(sha256sum < $(ICEPI)/netlist.json | cut -d' ' -f1)"
 
 # Mutants that must be refuted: the LUT driving uio[2] inverted, the data memory's block
-# RAM with two data bits swapped, the written host port's state held against fsm_step, and
-# a block RAM in a mode DP16KD.v does not model, which has to stop the run
+# RAM with two data bits swapped, the RTL as written with the host port's state held, whose
+# counterexample BMC alone looks for, as netlist_equiv_teeth's, and a block RAM in a mode
+# DP16KD.v does not model, which has to stop the run
 ICEPI_TEETH = icepi_equiv_teeth
 icepi_equiv_teeth:
 	rm -rf $(ICEPI_TEETH) && mkdir $(ICEPI_TEETH)
@@ -929,8 +931,8 @@ icepi_equiv_teeth:
 	$(MAKE) icepi_equiv ICEPI_JSON=$(ICEPI_TEETH)/swap.json ICEPI=icepi_equiv_swap EXPECT=0
 	! $(MAKE) icepi_equiv ICEPI_JSON=$(ICEPI_TEETH)/mode.json ICEPI=icepi_equiv_mode
 	grep -q 'DP16KD: a configuration icepi_equiv does not model' icepi_equiv_mode/gate.log
-	! $(MAKE) icepi_equiv WRITTEN=$(ICEPI_TEETH)/written.v ICEPI=icepi_equiv_written
-	grep 'Status = 0 ' icepi_equiv_written/fsm_step.log
+	$(MAKE) icepi_equiv WRITTEN=$(ICEPI_TEETH)/written.v ICEPI=icepi_equiv_written EXPECT=0 \
+	  ICEPI_PROOF='print_stats; bmc3 -T 600; print_status'
 
 # one clock, and every other pin through one two-flop synchroniser (sync/check.tcl), on
 # the RTL and on the hardened netlist; about 3 min:
