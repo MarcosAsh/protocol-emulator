@@ -20,7 +20,7 @@ CHECKER = dict(
     pe.DEFAULT_CONFIG, in_base=WIRE, in_count=1, jmp_pin=WIRE, capture_pin=WIRE,
     in_shift_right=0, autopull=1, pull_threshold=16, autopull_data=1,
 )
-FAULTS = 0x3C
+FAULTS = pe.FAULTS
 # wait 0 pin 20, as the assembler encodes it
 WAIT_FALL = 0x2000 | WIRE
 # uart_tx_host_rate's wait for a byte between frames
@@ -181,7 +181,7 @@ def glitch(host, period, pause=None):
 
 
 def faults(host):
-    """Each engine's fault bits: underflow, overflow, missed deadline, bad decode."""
+    """Each engine's fault bits, as pe.FAULTS names them."""
     found = []
     for engine in (0, 1):
         host.select(engine)

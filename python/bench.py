@@ -5,7 +5,7 @@
 
 import protocol_emulator as pe
 
-FAULTS = 0x3C
+FAULTS = pe.FAULTS
 DEPTH = 8
 # demo/capture.sh starts the analyser after mpremote returns, which takes this long
 START_MS = 1000

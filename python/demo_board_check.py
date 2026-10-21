@@ -27,7 +27,7 @@ UART_TX_CERTIFICATE = [
 
 BAUD = 115_200
 BYTES = [0x55, 0xA3, 0x00, 0xFF]
-FAULTS = 0x3C
+FAULTS = pe.FAULTS
 # the 24-bit counter wraps in 349 ms at 48 MHz. A stamp's three reads take ~1.4 ms on an
 # RP2 at 96 MHz, which put 100 ms off by up to 1.1% on Pico A
 WINDOW_MS = 300

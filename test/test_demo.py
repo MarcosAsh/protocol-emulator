@@ -15,7 +15,7 @@ from cocotb.utils import get_sim_time
 from test import AsyncHost, Pins, reset
 from test_usb_board import J, SE0, Wire, data_packet, token
 import protocol_emulator
-from protocol_emulator import CONTROL, SELECT, STATUS, TX, Host
+from protocol_emulator import CONTROL, FAULTS, SELECT, STATUS, TX, Host
 import demo_draw
 import demo_self_check
 import demo_self_timing
@@ -50,7 +50,7 @@ async def assert_no_faults(pins):
     host = AsyncHost(pins.transfer)
     for engine in (0, 1):
         await host.write(SELECT, [engine])
-        assert (await host.read(STATUS))[0] & 0x3C == 0, f"engine {engine} faulted"
+        assert (await host.read(STATUS))[0] & FAULTS == 0, f"engine {engine} faulted"
 
 
 @cocotb.test()

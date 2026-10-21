@@ -33,6 +33,10 @@ STAMP_TIME_LO = 0x4E
 STAMP_TIME_HI = 0x4F
 STAMP_PINS_LO = 0x50
 STAMP_PINS_HI = 0x51
+
+# status bits of the faults: underflow, overflow, missed deadline, bad decode, broken
+# assumption
+FAULTS = 0x403C
 PROGRAM_WORDS = 512
 
 
@@ -177,7 +181,7 @@ class Host:
             "halted": s & 1, "irq": (s >> 1) & 1, "underflow": (s >> 2) & 1,
             "overflow": (s >> 3) & 1, "missed_deadline": (s >> 4) & 1,
             "decode": (s >> 5) & 1, "tx_level": (s >> 6) & 15, "rx_level": (s >> 10) & 15,
-            "other_irq": (s >> 15) & 1,
+            "assumption": (s >> 14) & 1, "other_irq": (s >> 15) & 1,
         }
 
     def arm_frame(self, pin, base=0, fifty=True):

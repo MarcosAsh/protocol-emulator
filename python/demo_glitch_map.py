@@ -7,7 +7,7 @@ import time
 
 import protocol_emulator as pe
 
-FAULTS = 0x3C
+FAULTS = pe.FAULTS
 
 
 def program(host, words, dirty):

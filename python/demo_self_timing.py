@@ -16,7 +16,7 @@ FLOOR = 4
 TRANSMITTER = dict(pe.DEFAULT_CONFIG, set_base=WIRE, out_base=WIRE)
 # sets OUT0, the default set pin
 LOGGER = dict(pe.DEFAULT_CONFIG, jmp_pin=WIRE, autopush=1)
-FAULTS = 0x3C
+FAULTS = pe.FAULTS
 FLOOD = (pe.NOW_LO, pe.PC)
 
 
@@ -106,7 +106,7 @@ def offsets(data, stamps):
 
 
 def faults(host):
-    """Each engine's fault bits: underflow, overflow, missed deadline, bad decode."""
+    """Each engine's fault bits, as pe.FAULTS names them."""
     found = []
     for engine in (0, 1):
         host.select(engine)

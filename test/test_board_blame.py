@@ -10,7 +10,7 @@ from cocotb.triggers import ClockCycles, First, Timer
 from test import AsyncHost, Pins, assembled, padded, reset
 import board_blame
 from board_blame import SCL, SDA, i2c_word
-from protocol_emulator import CONTROL, PROGRAM, PROGRAM_ADDR, RX, SELECT, STATUS, TX, config_writes
+from protocol_emulator import CONTROL, FAULTS, PROGRAM, PROGRAM_ADDR, RX, SELECT, STATUS, TX, config_writes
 
 CLOCK_HZ = 50_000_000
 THRESHOLD = 0.5
@@ -93,11 +93,11 @@ async def measure(dut, scl_ns):
         if await rx_level(host) == len(WORDS):
             break
         await ClockCycles(dut.clk, 200)
-    faults = [(await host.read(STATUS))[0] & 0x3C]
+    faults = [(await host.read(STATUS))[0] & FAULTS]
 
     await host.write(SELECT, [1])
     stamps = await host.read(RX, await rx_level(host))
-    faults.append((await host.read(STATUS))[0] & 0x3C)
+    faults.append((await host.read(STATUS))[0] & FAULTS)
     assert faults == [0, 0], f"faults {faults}"
     with open("i2c_master_marked.asm") as f:
         names = board_blame.releases(f.read())
