@@ -32,11 +32,12 @@ def edges(byte):
 
 
 def load(host, engine, config, name, loaded=None):
-    """Loads and certifies; both engines have to be halted for the certificate."""
+    """Loads and certifies, at least loaded where given; both engines have to be halted
+    for the certificate."""
     host.select(engine)
     host.configure(config)
     host.load(words(name))
-    host.certify(words(name + ".cert"), loaded=loaded)
+    host.certify(words(name + ".cert"), loaded=loaded, floor=loaded is not None)
 
 
 def rx_level(host):

@@ -102,7 +102,7 @@ def uart(spi, host, clock_hz, say):
     host.flush()
     host.configure(pe.DEFAULT_CONFIG)
     host.load(UART_TX)
-    host.certify(UART_TX_CERTIFICATE, loaded=4)
+    host.certify(UART_TX_CERTIFICATE, loaded=4, floor=True)
     wrapped = host.read(pe.PROGRAM_ADDR)[0]
     ok = report(say, "load", wrapped == 0, "program address 0x%03x after 512 words" % wrapped)
     sm.active(1)

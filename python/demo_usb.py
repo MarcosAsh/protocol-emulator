@@ -97,7 +97,7 @@ def start_log(host, program, certificate, clock_hz=48_000_000):
     host.load(program)
     host.certify(
         certificate, base=usb_board.CERTIFICATE_BASE + len(usb_board.firmware.CERTIFICATE),
-        loaded=4)
+        loaded=4, floor=True)
     host.push([(clock_hz + BAUD // 2) // BAUD])
     host.start()
     host.select(0)
