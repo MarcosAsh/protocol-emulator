@@ -23,13 +23,16 @@ ROOT = Path(__file__).resolve().parent.parent
 # instance names in the hierarchy, and the module each is an instance of
 INSTANCES = {
     "data_memory": "data_memory",
+    "edge_stamps": "edge_stamps",
     "engine": "engine",
     "engines": "engines",
+    "frame_rx": "frame_rx",
     "host_fifo": "host_fifo",
     "host_port": "host_port",
     "host_spi": "host_spi",
     "kernel_accepts": "kernel",
     "kernel_step": "kernel",
+    "load_checker": "load_checker",
     "manchester_rx": "manchester_rx",
     "osr_step": "osr_kernel",
     "program_memory": "program_memory",
