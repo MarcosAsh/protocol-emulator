@@ -102,8 +102,9 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   (* the clear resets the flops too, as synthesis may fold a synchronous clear into the
      next-state logic, where a gate-level X from an unclear flop outlives it *)
   let spec = Reg_spec.override (Clocking.to_spec i.clocking) ~reset:i.clocking.clear in
-  (* the rows and words a walk writes before it reads them need no clear *)
-  let datapath = Reg_spec.create ~clock:i.clocking.clock () in
+  (* the rows and words a walk writes before it reads them need no clear in the next-state
+     logic, but take it as the flop's own reset, so any power-up state ends at the clear *)
+  let datapath = Reg_spec.create ~clock:i.clocking.clock ~reset:i.clocking.clear () in
   let full = constant_row (Kernel.Table.of_analyser []).(0) in
   let empty = constant_row (Kernel.Table.of_analyser []).(1) in
   let%hw.Always.State_machine sm = Always.State_machine.create (module State) spec in
