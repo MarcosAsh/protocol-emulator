@@ -55,6 +55,11 @@
   "//": "routed push crossed on one 2.3 mm net from an o21ai_1 and missed the slow corner by 0.07 ns.",
   "DESIGN_REPAIR_MAX_WIRE_LENGTH": 500,
 
+  "//": "RUN_POST_GRT_* - on 8x4, hold repair after CTS put 1.4 ns of delay cells on the routed",
+  "//": "push and nothing checked setup again, so it missed the slow corner by 1.24 ns with 104",
+  "//": "slew violations. Repairing again on the global routes closes both.",
+  "RUN_POST_GRT_DESIGN_REPAIR": true,
+  "RUN_POST_GRT_RESIZER_TIMING": true,
 
   "//": "OPENROAD_THREADS - unset, LibreLane 3.1.0.dev3 passes '-threads None' and OpenROAD runs",
   "//": "on one thread. 4 is a GitHub runner's core count; local hardens override it with -c.",
