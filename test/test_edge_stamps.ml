@@ -43,6 +43,9 @@ end
 let%expect_test "the queue follows the model" =
   let random = Random.State.make [| 5 |] in
   let int n = Random.State.int random n in
+  (* each run's clock from anywhere, so stamps carry every time bit; apart, so the draws
+     above stay as they were *)
+  let starts = Random.State.make [| 6 |] in
   let pushed = ref 0 in
   let lost = ref 0 in
   let full = ref 0 in
@@ -61,7 +64,8 @@ let%expect_test "the queue follows the model" =
          inputs.control.mask <--. mask;
          let model = ref Model.initial in
          let pads = ref 0 in
-         for now = 0 to 499 do
+         let start = Random.State.int starts ((1 lsl Isa.timer_bits) - 500) in
+         for now = start to start + 499 do
            if int 4 = 0 then pads := int (1 lsl Isa.num_pins);
            let pop = int 5 = 0 in
            let flush = int 150 = 0 in
