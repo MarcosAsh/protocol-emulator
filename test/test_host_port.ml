@@ -485,6 +485,39 @@ let%expect_test "every config bit goes both ways on every engine" =
     |}]
 ;;
 
+(* the checker's, the line table's, the frame's and the stamps' registers read back what
+   was written, each bit set and then cleared *)
+let%expect_test "every host register bit goes both ways" =
+  let regs =
+    Reg.
+      [ check_base
+      ; check_loaded
+      ; check_flags
+      ; line_addr
+      ; frame_control
+      ; frame_base
+      ; stamp_mask
+      ; stamp_control
+      ]
+  in
+  run ~half:4 (fun m ~watch _ _ ->
+    let sweep value =
+      List.iter regs ~f:(fun reg -> Spi_master.write m ~watch reg [ value ]);
+      let back =
+        List.map regs ~f:(fun reg ->
+          List.hd_exn (Spi_master.read m ~watch reg ~count:1))
+      in
+      print_s [%message (value : Int.Hex.t) (back : Int.Hex.t list)]
+    in
+    sweep 0xffff;
+    sweep 0 [@nontail]);
+  [%expect {|
+    ((value 0xffff) (back (0x1ff 0xffff 0x7 0x1f 0x7e 0x1ff 0xffff 0x1f)))
+    ((value 0x0) (back (0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0)))
+    (events ())
+    |}]
+;;
+
 let%expect_test "waveform of a control write" =
   let display_rules =
     [ Display_rule.port_name_is "host_port$sm" ~wave_format:(Index Host_port.State.names)
