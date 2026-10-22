@@ -518,3 +518,90 @@ let%expect_test "a setup written during a walk does not reach it" =
     bench/swd: accepted
     |}]
 ;;
+
+(* Walks at the edges of what a host sets up, one simulation: a certificate at the top of
+   memory, wrapping to its bottom, then at 0; a side-set count of 3, which only the host
+   can write; a loaded period of 0x5a5; a row with an arm no way into it reaches, which
+   only a dictionary holds; 150 jumps, each to the next, so the search and the entry
+   pointer pass 128; and, after a refusal at a stored row, a program wrapping at pc 0. *)
+let%expect_test "walks at the edges of the setup" =
+  let uart_tx = walk_of "uart_tx" in
+  let host_rate = walk_of "uart_tx_host_rate" in
+  let loaded = 0x5a5 in
+  let program config words =
+    { uart_tx with
+      config
+    ; loaded = None
+    ; floor = false
+    ; single_edge = false
+    ; words
+    ; certificate = Load_check.of_program ~config words |> ok_exn |> Load_check.to_words
+    }
+  in
+  let jumps =
+    List.init 150 ~f:(fun pc ->
+      Isa.to_word ~side_set_count:0 (Jmp { cond = Always; target = pc + 1 }) |> ok_exn)
+  in
+  print_walks
+    [ { uart_tx with base = 0x1ff }
+    ; uart_tx
+    ; { uart_tx with config = { uart_tx.config with side_set_count = 3 } }
+    ; { host_rate with
+        loaded = Some loaded
+      ; certificate =
+          Load_check.of_program
+            ?period:(Option.some_if (not host_rate.floor) loaded)
+            ?period_floor:(Option.some_if host_rate.floor loaded)
+            ~single_capture_edge:host_rate.single_edge
+            ~config:host_rate.config
+            host_rate.words
+          |> ok_exn
+          |> Load_check.to_words
+      }
+    ; walk_of
+        "bench/can_receiver"
+        ~edit:
+          (edit_row 29 ~f:(fun r ->
+             let width = Bits.width r.arm_lo in
+             { r with
+               arm_lo = Bits.of_unsigned_int ~width 0xffff00
+             ; arm_hi = Bits.ones width
+             }))
+    ; program Program_config.default jumps
+    ; walk_of "uart_tx" ~edit:(edit_row 2 ~f:(fun r -> { r with awaiting = Bits.vdd }))
+    ; program { Program_config.default with wrap_top = 0 } (Firmware.assemble "set x, 1")
+    ];
+  [%expect {|
+    accepted
+    accepted
+    accepted
+    accepted
+    refused at 31, reason 8
+    accepted
+    refused at 1, reason 10
+    accepted
+    |}]
+;;
+
+(* An abort on each of a walk's first 200 cycles, so in every state it passes through,
+   refuses it as aborted at the pc it reached; the walk after them is as the model's. *)
+let%expect_test "an abort refuses a walk wherever it is" =
+  let walk = walk_of "i2c_master" in
+  let aborted = List.init 200 ~f:(fun n -> { walk with abort_at = Some (n + 1) }) in
+  let verdicts = run_walks (aborted @ [ walk ]) |> List.map ~f:fst in
+  let reached =
+    List.take verdicts (List.length aborted)
+    |> List.map ~f:(function
+      | `Rejected (pc, reason) when reason = Load_checker.aborted -> pc
+      | verdict -> raise_s [%message "not aborted" (show verdict)])
+  in
+  if not (List.is_sorted reached ~compare:Int.compare)
+  then print_endline "a later abort reached an earlier pc";
+  print_s
+    [%message
+      ""
+        ~reached:(List.dedup_and_sort reached ~compare:Int.compare : int list)
+        ~last:(show (List.last_exn verdicts))
+        ~model:(show (walk_model walk))];
+  [%expect {| ((reached (0 1 2 3 4)) (last accepted) (model accepted)) |}]
+;;
