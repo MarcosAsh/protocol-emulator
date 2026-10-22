@@ -231,6 +231,73 @@ loop:
     {| ((ui_in (1 2 4 8 16)) (uio_in (1 2 4 8 16 32 64 64)) (status (1)) (pc (0))) |}]
 ;;
 
+(* The frame receiver listens on the pin the host names: a two-byte frame on an input pin
+   lands as one word, and on pins 5 to 11, the outputs, nothing comes in and it stays
+   armed. *)
+let%expect_test "the frame receiver takes the pin the host names" =
+  let random = Random.State.make [| 7 |] in
+  let samples =
+    Manchester_line.(
+      transitions ~random ~ppm:0. ~jitter:0. (bits_of_bytes (preamble @ [ 0x12; 0x34 ]))
+      |> sample ~random ~per_bit:8 ~per_cycle:2)
+  in
+  Harness.run
+    ~random_initial_state:`Mems
+    ~create:(Top.hierarchical ~memory:Flops ~engines:1)
+    (fun (h @ local) ~inputs ~outputs ->
+       let cycle ?n () = Lws.step ?n h in
+       let o = Before_and_after_edge.after_edge outputs in
+       let pins = ref 0
+       and sck = ref Bits.gnd
+       and mosi = ref Bits.gnd
+       and cs_n = ref Bits.vdd
+       and miso = ref Bits.gnd in
+       let drive () =
+         inputs.ui_in
+         := Bits.concat_msb
+              [ Bits.of_unsigned_int ~width:5 (!pins land 0x1f); !cs_n; !mosi; !sck ];
+         inputs.uio_in := Bits.of_unsigned_int ~width:8 (!pins lsr 12)
+       in
+       let watch n =
+         drive ();
+         cycle ~n ();
+         miso := Bits.lsb !(o.uo_out)
+       in
+       inputs.rst_n := Bits.gnd;
+       inputs.ena := Bits.vdd;
+       cycle ~n:3 ();
+       inputs.rst_n := Bits.vdd;
+       cycle ~n:4 ();
+       let m = Spi_master.create ~sck ~mosi ~cs_n ~miso ~half:4 in
+       let frames =
+         List.init Isa.num_pins ~f:(fun pin ->
+           Spi_master.write m ~watch Reg.frame_control [ (pin lsl 2) lor 1 ];
+           (* the line on the named pin, or on pin 0 for an output *)
+           let line = if pin >= 5 && pin < 12 then 0 else pin in
+           List.iter samples ~f:(fun sample ->
+             pins := List.hd_exn sample lsl line;
+             drive ();
+             cycle ());
+           pins := 0;
+           let status =
+             List.hd_exn (Spi_master.read m ~watch Reg.frame_status ~count:1)
+           in
+           if status land 0x400 <> 0
+           then `Words (status land 0x3ff)
+           else if status land 0x8000 <> 0
+           then `Armed
+           else `Status status)
+       in
+       print_s
+         [%message (frames : [ `Words of int | `Armed | `Status of Int.Hex.t ] list)]);
+  [%expect {|
+    (frames
+     ((Words 1) (Words 1) (Words 1) (Words 1) (Words 1) Armed Armed Armed Armed
+      Armed Armed Armed (Words 1) (Words 1) (Words 1) (Words 1) (Words 1)
+      (Words 1) (Words 1) (Words 1)))
+    |}]
+;;
+
 let%expect_test "waveform of reset and the first command" =
   let display_rules =
     [ Display_rule.port_name_is "rst_n" ~wave_format:Bit
