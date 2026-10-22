@@ -52,6 +52,7 @@ DERIVED_OWNER = {"Protocol_emulator__Engine.Config": "host_port"}
 
 FRAME = re.compile(r"^(\S+)\$(\S+):(\d+):(\d+)$")
 KINDS = ["Mux", "Cases", "Reg", "Always state"]
+SELF_LOOP = re.compile(r"!! unexpectedly saw: (\S+) -> \1")
 
 
 def instance_module(segment):
@@ -140,9 +141,12 @@ def parse_point(kind, lines):
             data[current].append(line)
         i += 1
     # a state register's random power-up value is no state, so its switch takes the
-    # default, until the clear
+    # default, until the clear. Hardcaml skips the first sample's 0 -> 0, as it assumes
+    # a zero start; a random start S gives S -> S there instead
     if any("driving (state variable)" in line for line in lines):
         unexpected = [u for u in unexpected if u != "!! unexpectedly saw: default"]
+    if kind == "Always state":
+        unexpected = [u for u in unexpected if not SELF_LOOP.fullmatch(u)]
     if names:
         module, local = split_name(names)
         anchor, where = local, local
