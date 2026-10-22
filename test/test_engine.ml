@@ -654,11 +654,14 @@ fill:
 ;;
 
 (* every fault is sticky until a clear, which lets go of all four *)
+(* the capture pin is already at its level when the arm takes effect, so the single-edge
+   premise fails too *)
 let%expect_test "a clear lets go of every fault" =
   let program =
     assemble
       [%string
         {|
+    capture_arm
     pull
     mov t, now
     wait t
@@ -677,6 +680,8 @@ fill:
          let o = Before_and_after_edge.after_edge outputs in
          Engine.Fault.map o.fault ~f:(fun r -> Bits.to_bool !r), Bits.to_bool !(o.faulted)
        in
+       i.inputs <--. 1;
+       i.premises.single_edge := Bits.vdd;
        load
          i
          ~cycle
@@ -698,12 +703,69 @@ fill:
     {|
     ((held
       (((underflow true) (overflow true) (missed_deadline true) (decode true)
-        (assumption false))
+        (assumption true))
        true))
      (cleared
       (((underflow false) (overflow false) (missed_deadline false) (decode false)
         (assumption false))
        false)))
+    |}]
+;;
+
+(* the line table's every entry bit and mode bit, written while halted, set and then
+   cleared *)
+let%expect_test "every line table bit goes both ways" =
+  Harness.run_advanced
+    ~trace:`Everything
+    ~create:(Solo.hierarchical ~memory:Flops)
+    (fun (h @ local) context ->
+       let sim =
+         match Lws_context.simulator_specific context with
+         | Cyclesim sim -> Lws_context.Simulator_specific.Cyclesim.simulator sim
+         | Evsim _ | Cosim -> assert false
+       in
+       let node name =
+         Cyclesim.lookup_node_or_reg_by_name sim ("solo$engine$" ^ name)
+         |> Option.value_exn ~message:name
+       in
+       let entries =
+         List.init Line_code.states ~f:(fun s -> node [%string "line_table$%{s#Int}"])
+       in
+       let modes = node "line_modes" in
+       let i = context.inputs in
+       let cycle () = Lws.cycle h in
+       i.clocking.clear := Bits.vdd;
+       cycle ();
+       i.clocking.clear := Bits.gnd;
+       let sweep value =
+         List.iter
+           (List.init (Line_code.modes_word + 1) ~f:Fn.id)
+           ~f:(fun addr ->
+             i.line_write.valid := Bits.vdd;
+             i.line_write.addr <--. addr;
+             i.line_write.data <--. value;
+             cycle ());
+         i.line_write.valid := Bits.gnd;
+         cycle ();
+         let back = List.map entries ~f:Cyclesim.Node.to_int in
+         print_s
+           [%message
+             (value : Int.Hex.t)
+               (back : Int.Hex.t list)
+               ~modes:(Cyclesim.Node.to_int modes : Int.Hex.t)]
+       in
+       sweep 0xffff;
+       sweep 0 [@nontail]);
+  [%expect
+    {|
+    ((value 0xffff)
+     (back
+      (0xfff 0xfff 0xfff 0xfff 0xfff 0xfff 0xfff 0xfff 0xfff 0xfff 0xfff 0xfff
+       0xfff 0xfff 0xfff 0xfff))
+     (modes 0xff))
+    ((value 0x0)
+     (back (0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0))
+     (modes 0x0))
     |}]
 ;;
 
