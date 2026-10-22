@@ -509,11 +509,29 @@ let%expect_test "every host register bit goes both ways" =
       print_s [%message (value : Int.Hex.t) (back : Int.Hex.t list)]
     in
     sweep 0xffff;
-    sweep 0 [@nontail]);
-  [%expect
-    {|
+    sweep 0;
+    (* and the registers only read, so every one the port answers is asked *)
+    let read_only =
+      List.map
+        Reg.
+          [ program_addr
+          ; data_addr
+          ; check_status
+          ; reject_pc
+          ; reject_reason
+          ; frame_status
+          ; stamp_time_lo
+          ; stamp_time_hi
+          ; stamp_pins_lo
+          ; stamp_pins_hi
+          ]
+        ~f:(fun reg -> List.hd_exn (Spi_master.read m ~watch reg ~count:1))
+    in
+    print_s [%message (read_only : Int.Hex.t list)]);
+  [%expect {|
     ((value 0xffff) (back (0x1ff 0xffff 0x7 0x1f 0x7e 0x1ff 0xffff 0x1f)))
     ((value 0x0) (back (0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0)))
+    (read_only (0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0))
     (events ())
     |}]
 ;;
