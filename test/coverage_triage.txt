@@ -12,9 +12,13 @@ a28f84fe 2/5 constant side-set writes, stages 2-4 of the count shift
 2bbb78fe 13/15 constant pin writes, stages 3-4 of set_count's shift
 1518695e 13/15 constant direction writes, stages 3-4 of set_count's shift
 
-# Hardcaml's showahead Fifo is full at used = capacity + 1 = 9, but Host_fifo stops writes
-# at 8: formal/fifo_order.sv proves level <= 8, and full is level = 9 registered
-a11d7b0a unreachable the fifo's own full register, past Host_fifo's 8 words
+# Host_fifo stops writes at 15 words of its Fifo's 16: formal/fifo_order.sv proves level
+# <= 15, so the Fifo's own full and the top bit of its count never rise
+a11d7b0a unreachable the fifo's own full register, past Host_fifo's 15 words
+47192cdd unreachable the fifo's count at 16, past Host_fifo's 15 words
+# Edge_stamps stops writes at depth, nearly full, so as above its Fifo's own full never
+# rises; the queue follows a model that never holds more (test_edge_stamps.ml)
+f090fcfe unreachable the stamp fifo's own full register, past depth
 
 # the kernel's checks as circuits (kernel_accepts, kernel_step) are for the proofs, not the
 # chip. The tests drive them with the library firmwares only, which never wrap a pin base,
