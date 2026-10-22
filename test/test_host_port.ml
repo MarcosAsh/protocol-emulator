@@ -504,14 +504,14 @@ let%expect_test "every host register bit goes both ways" =
     let sweep value =
       List.iter regs ~f:(fun reg -> Spi_master.write m ~watch reg [ value ]);
       let back =
-        List.map regs ~f:(fun reg ->
-          List.hd_exn (Spi_master.read m ~watch reg ~count:1))
+        List.map regs ~f:(fun reg -> List.hd_exn (Spi_master.read m ~watch reg ~count:1))
       in
       print_s [%message (value : Int.Hex.t) (back : Int.Hex.t list)]
     in
     sweep 0xffff;
     sweep 0 [@nontail]);
-  [%expect {|
+  [%expect
+    {|
     ((value 0xffff) (back (0x1ff 0xffff 0x7 0x1f 0x7e 0x1ff 0xffff 0x1f)))
     ((value 0x0) (back (0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0)))
     (events ())
