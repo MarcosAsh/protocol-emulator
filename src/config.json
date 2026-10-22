@@ -49,7 +49,7 @@
 
   "//": "GRT_ADJUSTMENT - Metal3 is the only horizontal signal layer; at the default 0.3 global",
   "//": "routing overflows on 8x4 while detailed routing still closes to 0 violations at 0.15.",
-  "GRT_ADJUSTMENT": 0.15,
+  "GRT_ADJUSTMENT": 0.06,
 
   "//": "DESIGN_REPAIR_MAX_WIRE_LENGTH - the engines sit 1.5 mm apart, by their macros. Unset, a",
   "//": "routed push crossed on one 2.3 mm net from an o21ai_1 and missed the slow corner by 0.07 ns.",
