@@ -500,7 +500,7 @@ let%expect_test "every host register bit goes both ways" =
       ; stamp_control
       ]
   in
-  run ~half:4 (fun m ~watch _ _ ->
+  Two.run ~half:4 (fun m ~watch _ _ ->
     let sweep value =
       List.iter regs ~f:(fun reg -> Spi_master.write m ~watch reg [ value ]);
       let back =
@@ -524,6 +524,7 @@ let%expect_test "every host register bit goes both ways" =
           ; stamp_time_hi
           ; stamp_pins_lo
           ; stamp_pins_hi
+          ; select
           ]
         ~f:(fun reg -> List.hd_exn (Spi_master.read m ~watch reg ~count:1))
     in
@@ -531,7 +532,7 @@ let%expect_test "every host register bit goes both ways" =
   [%expect {|
     ((value 0xffff) (back (0x1ff 0xffff 0x7 0x1f 0x7e 0x1ff 0xffff 0x1f)))
     ((value 0x0) (back (0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0)))
-    (read_only (0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0))
+    (read_only (0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0 0x0))
     (events ())
     |}]
 ;;
