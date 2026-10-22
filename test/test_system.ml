@@ -491,3 +491,130 @@ let%expect_test "a start does nothing while a fault is held" =
     ("started again" (pc 3) (x 2) (halted true) (underflow true))
     |}]
 ;;
+
+(* The checker serving one engine a turn: engine 0's check, asked at the clear, aborted at
+   the last pcs by the host writing the certificate under it, engine 1's accepted on its
+   turn, then each refused on a corrupted certificate. Each verdict stays its engine's
+   through the other's turn, the premises are each check's own, and engine 0's start
+   between its checks is refused, uncertified, until its next check begins. *)
+let%expect_test "each engine's check is its own, kept through the other's turn" =
+  let case =
+    List.find_exn Firmware_inventory.all ~f:(fun c -> String.equal c.name "uart_tx")
+  in
+  let config = Timed_program.config case.timed in
+  let words = Timed_program.words case.timed in
+  let certified =
+    Load_check.of_table
+      ~config
+      ~words
+      (Kernel.Table.of_analyser (Timed_program.rows case.timed))
+    |> ok_exn
+    |> Load_check.to_words
+  in
+  let corrupted = List.mapi certified ~f:(fun n w -> if n = 3 then 0xa505 else w) in
+  let model certificate =
+    match
+      Load_check.walk
+        ~floor:case.floor
+        ~single_capture_edge:case.single_capture_edge
+        ~config
+        ~words
+        ~memory:(fun at -> Option.value (List.nth certificate at) ~default:0)
+        ~base:0
+        ()
+    with
+    | Ok _ -> "accepted"
+    | Error { pc; reason } -> sprintf "refused at %d: %s" pc reason
+  in
+  print_s [%message "the model" ~certified:(model certified) ~corrupted:(model corrupted)];
+  Harness.run
+    ~create:(Two.hierarchical ~memory:Flops)
+    (fun (h @ local) ~inputs:i ~outputs ->
+       let open Hardcaml in
+       let cycle ?(n = 1) () =
+         for _ = 1 to n do
+           Hardcaml_lws.Lws.cycle h
+         done
+       in
+       let o = Before_and_after_edge.after_edge outputs in
+       let pulse field =
+         field := Bits.vdd;
+         cycle ();
+         field := Bits.gnd
+       in
+       let host n = List.nth_exn i.hosts n in
+       let write_data words =
+         let port = (host 0).data_write in
+         port.valid := Bits.vdd;
+         List.iteri words ~f:(fun addr word ->
+           Bits.(port.addr <--. addr);
+           Bits.(port.data <--. word);
+           cycle ());
+         port.valid := Bits.gnd
+       in
+       (* a value no check reads with no loaded period valid, all ones then all zeros *)
+       let loaded value = Bits.(i.check_setup.loaded.value <--. value) in
+       Bits.(i.check_setup.base <--. 0);
+       i.check_setup.floor := Bits.of_bool case.floor;
+       i.check_setup.single_edge := Bits.of_bool case.single_capture_edge;
+       loaded 0xffff;
+       (host 0).check := Bits.vdd;
+       pulse i.clocking.clear;
+       cycle ();
+       (host 0).check := Bits.gnd;
+       (* the walk over the empty memories takes 8182 cycles: write near its end *)
+       cycle ~n:8_170 ();
+       write_data certified;
+       List.iter [ 0; 1 ] ~f:(fun n ->
+         let port = (host n).program_write in
+         Engine.Config.iter2
+           (host n).config
+           (Engine.Config.of_program_config config)
+           ~f:( := );
+         port.valid := Bits.vdd;
+         List.iteri words ~f:(fun addr word ->
+           Bits.(port.addr <--. addr);
+           Bits.(port.data <--. word);
+           cycle ());
+         port.valid := Bits.gnd);
+       pulse (host 0).start;
+       pulse (host 1).check;
+       let show () =
+         let check = o.check in
+         List.iteri check.verdicts ~f:(fun n v ->
+           print_s
+             [%message
+               ""
+                 ~engine:(n : int)
+                 ~accepted:(Bits.to_bool !(v.accepted) : bool)
+                 ~reject_pc:(Bits.to_unsigned_int !(v.reject_pc) : int)
+                 ~reason:(Bits.to_unsigned_int !(v.reason) : int)
+                 ~refused:(Bits.to_bool !(List.nth_exn check.refused n) : bool)])
+       in
+       let await n =
+         let busy () = Bits.to_bool !((List.nth_exn o.check.verdicts n).busy) in
+         let waited = ref 0 in
+         while busy () do
+           cycle ();
+           incr waited;
+           if !waited > 3 * Two.turn_cycles then raise_s [%message "no verdict" (n : int)]
+         done
+       in
+       await 1;
+       show ();
+       write_data corrupted;
+       loaded 0;
+       pulse (host 0).check;
+       pulse (host 1).check;
+       await 0;
+       await 1;
+       show ());
+  [%expect
+    {|
+    ("the model" (certified accepted) (corrupted "refused at 1: next phase"))
+    ((engine 0) (accepted false) (reject_pc 510) (reason 29) (refused true))
+    ((engine 1) (accepted true) (reject_pc 510) (reason 29) (refused false))
+    ((engine 0) (accepted false) (reject_pc 1) (reason 3) (refused false))
+    ((engine 1) (accepted false) (reject_pc 1) (reason 3) (refused false))
+    |}]
+;;

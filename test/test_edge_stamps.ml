@@ -116,90 +116,104 @@ loop:
 |}
 ;;
 
-(* Pins 0, 1, 2, 4 and 16 watched, engine 0 catching pin 0's rises with its capture unit
-   in lockstep with the model, the host popping each stamp as it shows: every stamp is the
-   model's time and pads at a watched edge, and pin 0's rises carry engine 0's captures. *)
+(* Pins 0, 1, 2, 4 and 16 watched, engine 0 and then engine 1 catching pin 0's rises with
+   its capture unit in lockstep with the model, the stamps on its clock, the host popping
+   each as it shows: every stamp is the model's time and pads at a watched edge, and pin
+   0's rises carry the engine's captures. *)
 let%expect_test "stamps on the chip time edges as the engine's capture does" =
   let config = { Program_config.default with capture_pin = 0; capture_rising = true } in
   let program = Firmware.assemble catcher in
   let mask = 0b1_0000_0000_0001_0111 in
-  let random = Random.State.make [| 9 |] in
   let inputs_only = 0b1111_1111_0000_0001_1111 in
-  Chip.run
-    ~random_initial_state:`All
-    ~create:(Two.hierarchical ~gated:false ~memory:Flops)
-    (fun (h @ local) ~inputs:i ~outputs ->
-       let cycle () = Lws.cycle h in
-       let o = Before_and_after_edge.after_edge outputs in
-       let int r = Bits.to_unsigned_int !r in
-       let port = List.hd_exn i.hosts in
-       i.clocking.clear := Bits.vdd;
-       cycle ();
-       i.clocking.clear := Bits.gnd;
-       Engine.Config.iter2 port.config (Engine.Config.of_program_config config) ~f:( := );
-       List.iteri program ~f:(fun addr word ->
-         port.program_write.valid := Bits.vdd;
-         port.program_write.addr <--. addr;
-         port.program_write.data <--. word;
-         cycle ());
-       port.program_write.valid := Bits.gnd;
-       i.stamps.mask <--. mask;
-       i.stamps.flush := Bits.vdd;
-       cycle ();
-       i.stamps.flush := Bits.gnd;
-       port.start := Bits.vdd;
-       cycle ();
-       port.start := Bits.gnd;
-       cycle ();
-       let machine = Machine.create ~config ~program |> ok_exn in
-       let model = ref (System.create [ machine; Machine.stop machine ]) in
-       let pads = ref 0 in
-       let last = ref 0 in
-       let expected = Queue.create () in
-       let popped = Queue.create () in
-       let captures = Queue.create () in
-       let mismatch = ref None in
-       let n = ref 0 in
-       while !n < 1500 && Option.is_none !mismatch do
-         let m = List.hd_exn !model.engines in
-         let want = Lockstep.State.of_machine m in
-         let got = Lockstep.State.of_outputs (List.hd_exn o.engines) in
-         if not (Lockstep.State.equal want got) then mismatch := Some !n;
-         if int o.stamps.level > 0
-         then (
-           Queue.enqueue popped (int o.stamps.head.time, int o.stamps.head.pins);
-           i.stamps.pop := Bits.vdd)
-         else i.stamps.pop := Bits.gnd;
-         if Random.State.int random 6 = 0
-         then pads := Random.State.int random (1 lsl Isa.num_pins) land inputs_only;
-         if !pads lxor !last land mask <> 0 then Queue.enqueue expected (m.now, !pads);
-         last := !pads;
-         i.pads <--. !pads;
+  List.iter [ 0; 1 ] ~f:(fun engine ->
+    let random = Random.State.make [| 9 |] in
+    Chip.run
+      ~random_initial_state:`All
+      ~create:(Two.hierarchical ~gated:false ~memory:Flops)
+      (fun (h @ local) ~inputs:i ~outputs ->
+         let cycle () = Lws.cycle h in
+         let o = Before_and_after_edge.after_edge outputs in
+         let int r = Bits.to_unsigned_int !r in
+         let port = List.nth_exn i.hosts engine in
+         i.clocking.clear := Bits.vdd;
          cycle ();
-         model := System.step !model ~pads:!pads;
-         let after = List.hd_exn !model.engines in
-         if after.capture <> m.capture then Queue.enqueue captures after.capture;
-         Int.incr n
-       done;
-       let popped = Queue.to_list popped in
-       let expected = List.take (Queue.to_list expected) (List.length popped) in
-       let rises =
-         List.filter_map popped ~f:(fun (time, pins) ->
-           Option.some_if (pins land 1 = 1) time)
-       in
-       print_s
-         [%message
-           ""
-             ~lockstep:(!mismatch : int option)
-             ~stamps:(List.length popped : int)
-             ~as_model:([%equal: (int * int) list] popped expected : bool)
-             ~captures:(Queue.length captures : int)
-             ~each_capture_a_stamp:
-               (Queue.for_all captures ~f:(List.mem rises ~equal:Int.equal) : bool)
-             ~lost:(Bits.to_bool !(o.stamps.lost) : bool)]);
+         i.clocking.clear := Bits.gnd;
+         Engine.Config.iter2
+           port.config
+           (Engine.Config.of_program_config config)
+           ~f:( := );
+         List.iteri program ~f:(fun addr word ->
+           port.program_write.valid := Bits.vdd;
+           port.program_write.addr <--. addr;
+           port.program_write.data <--. word;
+           cycle ());
+         port.program_write.valid := Bits.gnd;
+         i.stamps.mask <--. mask;
+         i.stamps.engine := Bits.of_bool (engine = 1);
+         i.stamps.flush := Bits.vdd;
+         cycle ();
+         i.stamps.flush := Bits.gnd;
+         port.start := Bits.vdd;
+         cycle ();
+         port.start := Bits.gnd;
+         cycle ();
+         let machine = Machine.create ~config ~program |> ok_exn in
+         let model =
+           ref
+             (System.create
+                (List.init 2 ~f:(fun n ->
+                   if n = engine then machine else Machine.stop machine)))
+         in
+         let pads = ref 0 in
+         let last = ref 0 in
+         let expected = Queue.create () in
+         let popped = Queue.create () in
+         let captures = Queue.create () in
+         let mismatch = ref None in
+         let n = ref 0 in
+         while !n < 1500 && Option.is_none !mismatch do
+           let m = List.nth_exn !model.engines engine in
+           let want = Lockstep.State.of_machine m in
+           let got = Lockstep.State.of_outputs (List.nth_exn o.engines engine) in
+           if not (Lockstep.State.equal want got) then mismatch := Some !n;
+           if int o.stamps.level > 0
+           then (
+             Queue.enqueue popped (int o.stamps.head.time, int o.stamps.head.pins);
+             i.stamps.pop := Bits.vdd)
+           else i.stamps.pop := Bits.gnd;
+           if Random.State.int random 6 = 0
+           then pads := Random.State.int random (1 lsl Isa.num_pins) land inputs_only;
+           if !pads lxor !last land mask <> 0 then Queue.enqueue expected (m.now, !pads);
+           last := !pads;
+           i.pads <--. !pads;
+           cycle ();
+           model := System.step !model ~pads:!pads;
+           let after = List.nth_exn !model.engines engine in
+           if after.capture <> m.capture then Queue.enqueue captures after.capture;
+           Int.incr n
+         done;
+         let popped = Queue.to_list popped in
+         let expected = List.take (Queue.to_list expected) (List.length popped) in
+         let rises =
+           List.filter_map popped ~f:(fun (time, pins) ->
+             Option.some_if (pins land 1 = 1) time)
+         in
+         print_s
+           [%message
+             ""
+               (engine : int)
+               ~lockstep:(!mismatch : int option)
+               ~stamps:(List.length popped : int)
+               ~as_model:([%equal: (int * int) list] popped expected : bool)
+               ~captures:(Queue.length captures : int)
+               ~each_capture_a_stamp:
+                 (Queue.for_all captures ~f:(List.mem rises ~equal:Int.equal) : bool)
+               ~lost:(Bits.to_bool !(o.stamps.lost) : bool)]));
   [%expect
     {|
-    ((lockstep ()) (stamps 223) (as_model true) (captures 52)
+    ((engine 0) (lockstep ()) (stamps 223) (as_model true) (captures 52)
+     (each_capture_a_stamp true) (lost false))
+    ((engine 1) (lockstep ()) (stamps 223) (as_model true) (captures 52)
      (each_capture_a_stamp true) (lost false))
     |}]
 ;;

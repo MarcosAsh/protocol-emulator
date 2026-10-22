@@ -115,6 +115,11 @@ def items(data, field):
     return " ".join(data.get(field, [])).split()
 
 
+def cases(data, field):
+    """A switch's cases, states sharing a branch, printed (A | B), as one."""
+    return re.findall(r"\([^)]*\)|\S+", " ".join(data.get(field, [])))
+
+
 def parse_point(kind, lines):
     waived = False
     names, frames, data, current, unexpected = None, [], collections.defaultdict(list), None, []
@@ -159,8 +164,8 @@ def parse_point(kind, lines):
         never = {"=" + v for v in items(data, "never saw")}
         width = str(len(items(data, "saw selector values of")) + len(never))
     elif kind == "Cases":
-        never = {"=" + v for v in items(data, "never matched")}
-        width = str(len(items(data, "selector matched cases")) + len(never))
+        never = {"=" + v for v in cases(data, "never matched")}
+        width = str(len(cases(data, "selector matched cases")) + len(never))
     elif kind == "Reg":
         width = data["width"][0]
         never = {"on" + b for b in items(data, "bits never toggled ON")}
