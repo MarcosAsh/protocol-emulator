@@ -21,3 +21,35 @@ a11d7b0a unreachable the fifo's own full register, past Host_fifo's 8 words
 # write pindirs, clamp a mark or use a side-set count of 3. The kernel is being rewritten on
 # kernel-batch and mutation-1015, so its holes are counted, not closed.
 module kernel 51 open
+
+# the walk checks rows with no spacing (Kernel.one_way's no_spacing) and the full row's
+# offset ([checked] is [full] with the fields read), so the offset and edge conjuncts
+# hold by construction, both ways, and their flags stay 0
+05e4cdcf constant failed_next$offset, offset_is_full of the full row's offset
+e67fbaa2 constant failed_next$edge_a, ~:(spacing.valid) with no spacing
+db1d3026 constant failed_next$edge_b, ~:(spacing.valid) with no spacing
+99cd4ba6 constant failed_target$offset, offset_is_full of the full row's offset
+2106ac5b constant failed_target$edge_a, ~:(spacing.valid) with no spacing
+b2e2a22c constant failed_target$edge_b, ~:(spacing.valid) with no spacing
+# next_reason's priority tree: 3 of its 14 muxes select on those offset and edge_b flags,
+# 0 past the clear (a random power-up 1 is what shows more)
+3d7155fd 11/14 constant next_reason's muxes on failed_next$offset and $edge_b
+# every row the walk holds has the full offset: full, empty and the kernel's fall through
+# image alike, 0x800000 to 0x7fffff, so past the clear these bits never move
+b676d2da constant row$offset_lo, 0x800000 in every row
+cd2061e3 constant row$offset_hi, 0x7fffff in every row
+
+# reject_pc 512 is Finish's left-over refusal, which needs ptr <> count there: ptr steps
+# only past an entry Head saw below count, and at pc 511 Head refuses any entry left as
+# out of order (its 9-bit pc <= 511), so Finish always has ptr = count
+cc6ccae0 unreachable reject_pc bit 9, the left-over refusal
+bb82d10e unreachable verdict$0$reject_pc bit 9, the checker's reject_pc kept
+555b5215 unreachable verdict$1$reject_pc bit 9, the checker's reject_pc kept
+# Field steps to field 5 itself only under Reload, and enters Check only under any other
+# purpose, which neither changes: Check never takes Reload's way to Word or Finish, Field
+# never another's to Following or Check_next, and Reload's Finish needs an entry at pc
+# 512. Check -> Check needs a purpose outside its five states, which the clear rules out
+5c924522 unreachable sm: Check -> Check, Word, Finish; Field -> Following, Check_next, Finish
+# Check_next is entered with purpose Following, Stored or Fallen; Fallen is set only with
+# stored 0, and stored changes only at Head, before the next Following
+5dbded71 unreachable purpose: Target -> Reload, Fallen -> Reload
