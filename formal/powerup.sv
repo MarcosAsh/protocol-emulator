@@ -11,8 +11,8 @@
 // started or lent to the load checker: the cores reset halted, and Host.load fills all 512
 // words before a check or a start. The
 // data memory keeps the premise, as nothing fills it. The havoc tasks' RTL
-// (powerup_havoc.awk) gives the host fifos' words and read buffers any value while the
-// fifo is cleared.
+// (powerup_havoc.awk) gives the words and read buffers of the host fifos and the edge
+// stamps any value while the fifo is cleared.
 //
 // By induction on an invariant, also asserted: the copies agree on every flop outside the
 // fifos and the load checker, on each macro's output from the second edge on, on the

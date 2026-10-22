@@ -1,10 +1,11 @@
 # A miter of fine.ys from any state: every flop starts free, an input of its own in the
 # first cycle. The reset input -v reset is asserted then (-v high=1 if active high) and
-# free after; the trigger counts from the second cycle. With -v fifos=1 the host fifos'
-# words and read buffers, which have no reset, load a free value at the first edge, one
-# per name on both sides (powerup's havoc task proves the RTL with them free); finding
-# none fails. Asynchronous resets act in their cycle, as in aig.ys. Read the file twice,
-# awk -f anystate.awk m.il m.il: the first pass finds the flops and their nets' names.
+# free after; the trigger counts from the second cycle. With -v fifos=1 the words and read
+# buffers of the host fifos and the edge stamps, which have no reset, load a free value at
+# the first edge, one per name on both sides (powerup's havoc task proves the RTL with
+# them free); finding none fails. Asynchronous resets act in their cycle, as in aig.ys.
+# Read the file twice, awk -f anystate.awk m.il m.il: the first pass finds the flops and
+# their nets' names.
 
 # side.name [bit], or for the netlist's one-bit nets side.name[bit], as name|bit
 function key(sig, side,    name, bit) {
@@ -23,7 +24,7 @@ function key(sig, side,    name, bit) {
 function fifo(k) { return k ~ FIFO }
 
 BEGIN {
-  FIFO = "\\.(rx|tx)\\.(signal_multiport_mem\\[[0-9]+\\]|ram_rbw_data|data_before_collision|collision)\\|"
+  FIFO = "\\.(rx|tx|edge_stamps)\\.(signal_multiport_mem\\[[0-9]+\\]|ram_rbw_data|data_before_collision|collision)\\|"
 }
 
 NR == FNR {
@@ -60,13 +61,24 @@ FNR == 1 {
     for (m = 0; m <= count; m++) {
       if (!fifos || index(names[m], "\\" side ".") != 1 || !fifo(key(names[m], side))) continue
       name = key(names[m], side)
-      if (!(name in havoc)) havoc[name] = ++havocs
-      loads[k] = havoc[name]
+      loads[k] = name
       seen[name] = seen[name] " " side
       break
     }
   }
   for (name in seen) if (seen[name] ~ /gold/ && seen[name] ~ /gate/) shared++
+  # a bit the netlist keeps no flop for, as synthesis found it always 0 (the stamps' pads
+  # tied low), loads 0 on the RTL side, a value powerup's havoc task allows
+  for (k = 1; k <= ffs; k++) {
+    if (!(k in loads)) continue
+    name = loads[k]
+    if (seen[name] !~ /gate/) {
+      loads[k] = "1'0"
+      continue
+    }
+    if (!(name in havoc)) havoc[name] = ++havocs
+    loads[k] = "\\anystate.load_" havoc[name]
+  }
   printf "anystate.awk: %d flops, %d fifo flop bits on both sides\n", ffs, shared > "/dev/stderr"
   if (fifos && !shared) exit 1
 }
@@ -133,7 +145,7 @@ n && $1 == "end" {
     mux("reset_d", low ? value : d[n], low ? d[n] : value, arst[n], next_value)
   }
   if (n in loads)
-    mux("load", next_value, "\\anystate.load_" loads[n], "\\anystate.first", "\\anystate.next_" n)
+    mux("load", next_value, loads[n], "\\anystate.first", "\\anystate.next_" n)
   else
     printf "  connect \\anystate.next_%d %s\n", n, next_value
   n = 0

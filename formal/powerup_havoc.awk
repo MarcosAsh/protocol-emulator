@@ -1,9 +1,9 @@
-# The host fifos' words and read buffers, which have no reset, take any value while the
-# fifo is cleared, a free one per edge, as anystate.awk lets them at the netlist's first
-# edge. Reads the RTL, awk -f powerup_havoc.awk rtl.v; the havoc task proves powerup on
-# the copy. Fails when it finds no fifo memory to scramble.
+# The words and read buffers of the host fifos and the edge stamps, which have no reset,
+# take any value while the fifo is cleared, a free one per edge, as anystate.awk lets them
+# at the netlist's first edge. Reads the RTL, awk -f powerup_havoc.awk rtl.v; the havoc
+# task proves powerup on the copy. Fails when it finds no fifo memory to scramble.
 
-$1 == "module" { fifo = $2 == "host_fifo" }
+$1 == "module" { fifo = $2 == "host_fifo" || $2 == "edge_stamps" }
 
 # reg [w:0] signal_multiport_mem[0:d];
 fifo && $1 == "reg" && $3 ~ /^signal_multiport_mem\[0:[0-9]+\];$/ {
