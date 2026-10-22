@@ -28,9 +28,80 @@ let expected = function
     `Rejected (pc, code)
 ;;
 
-(* The checker over [words] and [certificate], the program memory answering a cycle after
-   an address and the data memory two, the latest either engine's turn gives. With
-   [rewrite_at], the host writes a different setup that many cycles into the walk. *)
+module Walk = struct
+  type t =
+    { config : Program_config.t
+    ; loaded : int option
+    ; floor : bool
+    ; single_edge : bool
+    ; words : int list
+    ; certificate : int list
+    }
+end
+
+(* The checker over each walk's [words] and [certificate] in turn, one simulation, the
+   program memory answering a cycle after an address and the data memory two, the latest
+   either engine's turn gives. With [rewrite_at], the host writes a different setup that
+   many cycles into a walk. *)
+let run_walks ?random_initial_state ?rewrite_at (walks : Walk.t list) =
+  Harness.run
+    ?random_initial_state
+    ~create:Load_checker.hierarchical
+    (fun (h @ local) ~inputs ~outputs ->
+       let cycle ?n () = Lws.step ?n h in
+       let outputs = Before_and_after_edge.after_edge outputs in
+       inputs.clocking.clear := Bits.vdd;
+       cycle ();
+       inputs.clocking.clear := Bits.gnd;
+       List.map
+         walks
+         ~f:(fun { config; loaded; floor; single_edge; words; certificate } ->
+           let program = Array.of_list words in
+           let data = Array.of_list certificate in
+           let word memory at = if at < Array.length memory then memory.(at) else 0 in
+           Engine.Config.iter2
+             inputs.config
+             (Engine.Config.of_program_config config)
+             ~f:( := );
+           inputs.setup.loaded.valid := Bits.of_bool (Option.is_some loaded);
+           inputs.setup.loaded.value <--. Option.value loaded ~default:0;
+           inputs.setup.floor := Bits.of_bool floor;
+           inputs.setup.single_edge := Bits.of_bool single_edge;
+           inputs.setup.base <--. 0;
+           inputs.check := Bits.vdd;
+           cycle ();
+           inputs.check := Bits.gnd;
+           let program_at = ref 0 in
+           let data_at = ref (0, 0) in
+           let cycles = ref 1 in
+           while not (Bits.to_bool !(outputs.finished)) do
+             inputs.program_word <--. word program !program_at;
+             inputs.data_word <--. word data (fst !data_at);
+             program_at := Bits.to_unsigned_int !(outputs.program_read.value);
+             data_at := snd !data_at, Bits.to_unsigned_int !(outputs.data_read.value);
+             if Option.equal Int.equal rewrite_at (Some !cycles)
+             then (
+               inputs.setup.base <--. 0x155;
+               inputs.setup.loaded.valid := Bits.of_bool (Option.is_none loaded);
+               inputs.setup.loaded.value <--. 0xbeef;
+               inputs.setup.floor := Bits.of_bool (not floor);
+               inputs.setup.single_edge := Bits.of_bool (not single_edge));
+             cycle ();
+             incr cycles;
+             if !cycles > 200_000 then raise_s [%message "the checker never finished"]
+           done;
+           let verdict =
+             if Bits.to_bool !(outputs.accepted)
+             then `Accepted
+             else
+               `Rejected
+                 ( Bits.to_unsigned_int !(outputs.reject_pc)
+                 , Bits.to_unsigned_int !(outputs.reason) )
+           in
+           verdict, !cycles)
+       [@nontail])
+;;
+
 let run
   ?random_initial_state
   ?rewrite_at
@@ -42,58 +113,11 @@ let run
   ~certificate
   ()
   =
-  let program = Array.of_list words in
-  let data = Array.of_list certificate in
-  let word memory at = if at < Array.length memory then memory.(at) else 0 in
-  Harness.run
+  run_walks
     ?random_initial_state
-    ~create:Load_checker.hierarchical
-    (fun (h @ local) ~inputs ~outputs ->
-       let cycle ?n () = Lws.step ?n h in
-       let outputs = Before_and_after_edge.after_edge outputs in
-       inputs.clocking.clear := Bits.vdd;
-       cycle ();
-       inputs.clocking.clear := Bits.gnd;
-       Engine.Config.iter2
-         inputs.config
-         (Engine.Config.of_program_config config)
-         ~f:( := );
-       inputs.setup.loaded.valid := Bits.of_bool (Option.is_some loaded);
-       inputs.setup.loaded.value <--. Option.value loaded ~default:0;
-       inputs.setup.floor := Bits.of_bool floor;
-       inputs.setup.single_edge := Bits.of_bool single_edge;
-       inputs.setup.base <--. 0;
-       inputs.check := Bits.vdd;
-       cycle ();
-       inputs.check := Bits.gnd;
-       let program_at = ref 0 in
-       let data_at = ref (0, 0) in
-       let cycles = ref 1 in
-       while not (Bits.to_bool !(outputs.finished)) do
-         inputs.program_word <--. word program !program_at;
-         inputs.data_word <--. word data (fst !data_at);
-         program_at := Bits.to_unsigned_int !(outputs.program_read.value);
-         data_at := snd !data_at, Bits.to_unsigned_int !(outputs.data_read.value);
-         if Option.equal Int.equal rewrite_at (Some !cycles)
-         then (
-           inputs.setup.base <--. 0x155;
-           inputs.setup.loaded.valid := Bits.of_bool (Option.is_none loaded);
-           inputs.setup.loaded.value <--. 0xbeef;
-           inputs.setup.floor := Bits.of_bool (not floor);
-           inputs.setup.single_edge := Bits.of_bool (not single_edge));
-         cycle ();
-         incr cycles;
-         if !cycles > 200_000 then raise_s [%message "the checker never finished"]
-       done;
-       let verdict =
-         if Bits.to_bool !(outputs.accepted)
-         then `Accepted
-         else
-           `Rejected
-             ( Bits.to_unsigned_int !(outputs.reject_pc)
-             , Bits.to_unsigned_int !(outputs.reason) )
-       in
-       verdict, !cycles)
+    ?rewrite_at
+    [ { config; loaded; floor; single_edge; words; certificate } ]
+  |> List.hd_exn
 ;;
 
 let certify (case : Firmware_inventory.t) =
@@ -299,6 +323,96 @@ let%expect_test "the checker agrees with the model on corrupted certificates" =
                 ~model:(show model)]));
   print_s [%message (!trials : int) (!refused : int)];
   [%expect {| ((!trials 200) (!refused 124)) |}]
+;;
+
+(* A one-word corruption of a firmware for each reason a random search over six firmwares
+   found the model refusing for, under the setup given, all walked in one simulation: each
+   verdict as the model's, and each refusal's flags cleared by the walk after it. *)
+let%expect_test "a refusal for every reason found, one walk after another" =
+  let corruptions =
+    (* firmware, in the program (or the certificate), at, value, loaded, floor, single
+       edge *)
+    [ "uart_tx", false, 309, 0x1e62, None, false, false
+    ; "uart_tx", false, 423, 0xa505, None, false, false
+    ; "uart_tx", false, 1, 0x1dce, Some 255, false, false
+    ; "uart_tx", true, 34, 0xe206, Some 42, false, true
+    ; "uart_rx", true, 286, 0x9041, None, false, true
+    ; "uart_rx", false, 506, 0x2880, None, false, true
+    ; "uart_tx", false, 320, 0x5bba, None, false, false
+    ; "uart_tx", true, 73, 0x88c7, None, false, false
+    ; "i2c_master", false, 102, 0x83b0, None, false, false
+    ; "uart_rx", true, 301, 0xc445, None, false, true
+    ; "i2c_master", false, 433, 0x9980, Some 218, false, false
+    ; "uart_tx", false, 482, 0x918e, None, false, false
+    ]
+  in
+  let walk name ~change =
+    let case =
+      List.find_exn Firmware_inventory.all ~f:(fun c -> String.equal c.name name)
+    in
+    let config, words, certificate = certify case in
+    change
+      { Walk.config
+      ; loaded = case.period
+      ; floor = case.floor
+      ; single_edge = case.single_capture_edge
+      ; words
+      ; certificate
+      }
+  in
+  let walks =
+    List.map
+      corruptions
+      ~f:(fun (name, in_program, at, value, loaded, floor, single_edge) ->
+        walk name ~change:(fun w ->
+          let replace list =
+            List.mapi list ~f:(fun n x -> if n = at % List.length list then value else x)
+          in
+          { w with
+            loaded
+          ; floor
+          ; single_edge
+          ; words = (if in_program then replace w.words else w.words)
+          ; certificate = (if in_program then w.certificate else replace w.certificate)
+          }))
+    @ [ walk "uart_tx" ~change:Fn.id ]
+  in
+  let model (w : Walk.t) =
+    let memory = Array.of_list w.certificate in
+    Load_check.walk
+      ?loaded:w.loaded
+      ~floor:w.floor
+      ~single_capture_edge:w.single_edge
+      ~config:w.config
+      ~words:w.words
+      ~memory:(fun at -> if at < Array.length memory then memory.(at) else 0)
+      ~base:0
+      ()
+    |> expected
+  in
+  List.iter2_exn
+    walks
+    (run_walks ~random_initial_state:`All walks)
+    ~f:(fun w (verdict, _) ->
+      let model = model w in
+      if not ([%equal: [ `Accepted | `Rejected of int * int ]] verdict model)
+      then printf "MISMATCH, the model says %s: " (show model);
+      print_endline (show verdict));
+  [%expect {|
+    refused at 8, reason 0
+    refused at 1, reason 3
+    refused at 1, reason 5
+    refused at 7, reason 6
+    refused at 1, reason 7
+    refused at 2, reason 8
+    refused at 10, reason 13
+    refused at 14, reason 15
+    refused at 24, reason 16
+    refused at 18, reason 17
+    refused at 68, reason 18
+    refused at 291, reason 30
+    accepted
+    |}]
 ;;
 
 (* The setup is the one the host wrote before the check: writing another mid-walk, from
