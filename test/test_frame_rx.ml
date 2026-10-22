@@ -174,6 +174,37 @@ let%expect_test "frames land in the data memory with their FCS judged" =
     |}]
 ;;
 
+(* A frame longer than the count holds, from the data memory's start: the count stops at
+   its top and the words past the memory are dropped. Armed again, a short frame that
+   lands whole clears the drop. *)
+let%expect_test "a long frame fills the count, and the next frame clears its drop" =
+  let random = Random.State.make [| 3 |] in
+  let long = with_fcs (List.init 2100 ~f:(fun n -> n land 0xff)) in
+  let short = with_fcs [ 0x12; 0x34; 0x56; 0x78 ] in
+  let line frame = line ~random ~fifty:false ~ppm:0. ~jitter:0. frame in
+  let show (r : Result.t) =
+    print_s
+      [%message
+        ""
+          ~words:(r.words : int)
+          ~written:(List.length r.writes : int)
+          ~fcs_ok:(r.fcs_ok : bool)
+          ~dropped:(r.dropped : bool)]
+  in
+  show (receive ~fifty:false ~base:0 ~may_write:(Fn.const true) [ line long ]);
+  show
+    (receive
+       ~rearm:(Fn.const true)
+       ~fifty:false
+       ~base:0
+       ~may_write:(Fn.const true)
+       [ line long; line short ]);
+  [%expect {|
+    ((words 1023) (written 512) (fcs_ok true) (dropped true))
+    ((words 4) (written 516) (fcs_ok true) (dropped false))
+    |}]
+;;
+
 (* One frame per arm: the second lands nowhere until the host arms again. *)
 let%expect_test "a frame disarms the receiver until the host arms it again" =
   let random = Random.State.make [| 3 |] in
