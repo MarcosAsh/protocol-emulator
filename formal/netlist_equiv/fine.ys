@@ -3,6 +3,11 @@
 # Every flop starts free (anystate.awk), so no initial value is kept.
 
 dffunmap
+# Both_edges' falling pair on each side, the only falling flops (miter.ys, gate.ys, whose
+# inverters of clk the miter folds into the netlist's), step with the others, as in the AIG
+select -set falling t:$dff t:$adff %u r:CLK_POLARITY=0 r:CLK_POLARITY=1'0 %u %i
+select -assert-count 4 @falling
+setparam -set CLK_POLARITY 1 @falling
 check -assert
 setundef -undriven -anyseq
 setattr -unset init

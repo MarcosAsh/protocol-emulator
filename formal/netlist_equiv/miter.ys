@@ -55,6 +55,8 @@ check -assert
 rename tt_um_marcosash_protocol_emulator written
 hierarchy -top written
 delete =A:blackbox
+# for anystate.ys
+write_rtlil written.il
 
 read_rtlil gate.il
 miter -equiv -flatten written gate miter

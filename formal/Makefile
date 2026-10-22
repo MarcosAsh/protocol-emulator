@@ -747,10 +747,11 @@ frontend_equiv_step:
 
 # Power-up is deterministic: two copies of the chip from any two states, reset at the
 # first edge and the same pins after it, drive the same pins (powerup.sv), by induction on
-# an invariant over the flops powerup.tcl brings out. havoc proves it with the host fifos'
-# words and read buffers free while cleared (powerup_havoc.awk), as netlist_anystate needs;
-# cold, apart below, adds each program SRAM's words its own in each copy until its engine
-# first starts or is lent to the load checker.
+# an invariant over the flops powerup.tcl brings out. havoc proves it with the words and
+# read buffers of the host fifos and the edge stamps free while cleared
+# (powerup_havoc.awk), as netlist_anystate needs; cold, apart below, adds each program
+# SRAM's words its own in each copy until its engine first starts or is lent to the load
+# checker.
 # About 2 min each, as each clock edge is a step. Teeth: no reset at the first edge and
 # the engines' pin register without its clear have to fail, the latter under havoc too,
 # and with the fix for an empty rx fifo's stale head reverted the invariant must
@@ -848,23 +849,19 @@ netlist_equiv_held:
 	test $$(diff ../src/protocol_emulator.v $(HELD) | grep -c '^>') = 1
 	$(MAKE) netlist_equiv WRITTEN=$(HELD) EQUIV=netlist_equiv_held_$(HELD_MODULE)_$(HELD_REG) EXPECT=0
 
-# the hardened netlist from any state, rst_n low at the first edge, equals the RTL from
-# any state after it (netlist_equiv/anystate.awk), and the host port's recoded state
-# machine its written one; run after netlist_equiv, in its directory. About 5 min.
+# the hardened netlist from any state, rst_n low at the first edge, equals the RTL as
+# written from any state after it (netlist_equiv/anystate.awk); run after netlist_equiv,
+# in its directory. From each state the first edge reaches (tempor), where the reset has
+# put the two sides in step. About 6 min.
 ANY_EXPECT = 1
 ANY_AIG = setundef -init -zero; aigmap; opt_clean -purge
-ANY_PROOF = read_aiger anystate.aig; print_stats; scorr -C 10000; print_stats; dprove; print_status
+ANY_PROOF = read_aiger anystate.aig; print_stats; tempor -F 1; print_stats; scorr -C 10000; \
+  print_stats; dprove; print_status
 netlist_anystate:
 	cd $(EQUIV) && yosys -q -l anystate.log ../netlist_equiv/anystate.ys
 	cd $(EQUIV) && awk -v reset=in_rst_n -v fifos=1 -f ../netlist_equiv/anystate.awk \
 	  anystate_pre.il anystate_pre.il > anystate.il
-	cd $(EQUIV) && awk -v reset=in_clear -v high=1 -f ../netlist_equiv/anystate.awk \
-	  fsm_step_pre.il fsm_step_pre.il > fsm_anystate.il
-	cd $(EQUIV) && yosys -q -p 'read_rtlil fsm_anystate.il; $(ANY_AIG); write_aiger fsm_anystate.aig'
 	cd $(EQUIV) && yosys -q -p 'read_rtlil anystate.il; $(ANY_AIG); write_aiger anystate.aig'
-	cd $(EQUIV) && timeout 600 yosys-abc \
-	  -c 'read_aiger fsm_anystate.aig; print_stats; pdr; print_status' > fsm_anystate.log
-	grep 'Status = 1 ' $(EQUIV)/fsm_anystate.log
 	cd $(EQUIV) && timeout 1800 yosys-abc -c '$(ANY_PROOF)' > anystate.proof.log
 	grep 'Status = $(ANY_EXPECT) ' $(EQUIV)/anystate.proof.log
 

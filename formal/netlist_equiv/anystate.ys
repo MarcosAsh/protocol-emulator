@@ -1,6 +1,8 @@
-# The miter of miter.ys, gold.il against gate.il, for anystate.awk to start from any state.
+# The miter of miter.ys, the chip as written against gate.il, for anystate.awk to start
+# from any state, which names the written side gold.
 
-read_rtlil gold.il
+read_rtlil written.il
+rename written gold
 read_rtlil gate.il
 miter -equiv -flatten gold gate miter
 hierarchy -top miter
