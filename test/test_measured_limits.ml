@@ -235,5 +235,15 @@ let%expect_test "every limit's pairs of edges in the prediction" =
     cec            zero low, T6       7 pairs, as measured
     cec            bit, T7            9 pairs, as measured
     cec            bit, T8            9 pairs, as measured
+    snorble        tSYN               4 pairs, as measured
+    snorble        tSYN               4 pairs, as measured
+    snorble        tL0               40 pairs, as measured
+    snorble        tL0               16 pairs, as measured
+    snorble        tL1               20 pairs, as measured
+    snorble        tL1               20 pairs, as measured
+    snorble        tH                39 pairs, as measured
+    snorble        tH                32 pairs, as measured
+    snorble        tIFG               3 pairs, as measured
+    snorble        frame rate         3 pairs, as measured
     |}]
 ;;
