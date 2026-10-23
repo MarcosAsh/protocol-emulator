@@ -2,6 +2,7 @@
 # make prog to load it or make flash to keep it. USB=0 puts uio[1:0] on the header too.
 # The bitstream's .sha256 names it and the netlist it came from, which make equiv proves
 # equal to the RTL (formal/icepi_equiv).
+# FS=1 pulls D+ up for full speed USB in place of D-, and names its bitstream apart.
 # MHZ=40 clocks the chip at 40 MHz for 10BASE-T, with USB=0 unless told, since low speed
 # USB needs 48, and names its bitstream apart. The SRAM macro is its IHP behavioural model,
 # which yosys maps to block RAM.
@@ -13,6 +14,7 @@ $(error MHZ is 48, or 40 for 10BASE-T, not $(MHZ))
 endif
 USB ?= $(if $(filter 40,$(MHZ)),0,1)
 SEED ?= 1
+FS ?= 0
 # 48 MHz is tight and placement moves with the seed (about 1 in 8 fails), so the chip
 # takes the first of these that meets timing; the same netlist always gets the same one
 SEEDS ?= 1 2 3 4 5 6 7 8
@@ -20,8 +22,8 @@ FREQ ?= $(MHZ)
 
 BUILD = build
 CLOCK = $(if $(filter-out 48,$(MHZ)),-$(MHZ)mhz)
-NAME = $(REV)$(if $(filter 0,$(USB)),-header)$(CLOCK)
-JSON = $(BUILD)/usb$(USB)$(CLOCK).json
+NAME = $(REV)$(if $(filter 0,$(USB)),-header)$(if $(filter 1,$(FS)),-fs)$(CLOCK)
+JSON = $(BUILD)/usb$(USB)$(if $(filter 1,$(FS)),-fs)$(CLOCK).json
 SOURCES = icepi_top.v ../src/project.v ../src/protocol_emulator.v \
 	../test/models/RM_IHPSG13_1P_512x16_c2_bm_bist.v \
 	../test/models/RM_IHPSG13_1P_core_behavioral_bm_bist.v
@@ -31,7 +33,7 @@ bit: $(BUILD)/$(NAME).bit
 $(JSON): $(SOURCES)
 	mkdir -p $(BUILD)
 	yosys -q -l $(JSON:.json=.log) -p "read_verilog -DFUNCTIONAL $(SOURCES); \
-		chparam -set USB_UIO $(USB) -set MHZ $(MHZ) icepi_top; synth_ecp5 -top icepi_top -json $@"
+		chparam -set USB_UIO $(USB) -set MHZ $(MHZ) -set FULL_SPEED $(FS) icepi_top; synth_ecp5 -top icepi_top -json $@"
 
 $(BUILD)/$(NAME).config: $(JSON) header.lpf $(REV).lpf
 	rm -f $@

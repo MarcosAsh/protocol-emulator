@@ -8,11 +8,12 @@
 // The chip on an Icepi Zero: its 50 MHz oscillator through the PLL to MHZ, 48 or 40 for
 // 10BASE-T, whose bit is four cycles, the pins on the 40-pin header. With USB_UIO set,
 // uio[1:0] are D+/D- on the first USB-C port with the board's pull-up on D- for low
-// speed, and their header pins mirror the bus so a host can see a bus reset. The button
-// is reset.
+// speed, or on D+ for full speed with FULL_SPEED, and their header pins mirror the bus so
+// a host can see a bus reset. The button is reset.
 module icepi_top #(
     parameter USB_UIO = 1,
-    parameter MHZ = 48
+    parameter MHZ = 48,
+    parameter FULL_SPEED = 0
 ) (
     input  wire       clk,
     input  wire       button_n,
@@ -106,14 +107,14 @@ module icepi_top #(
   // A pull pin driven high pulls its line up through a diode and 1.1 k; floating, it
   // leaves the line alone. Driven low it would add a host's 15 k pull-down.
   OBZ pull_dp_pad (
-      .I(1'b0),
-      .T(1'b1),
+      .I(1'b1),
+      .T(!USB_UIO || !FULL_SPEED || usb_detach),
       .O(usb_pull_dp)
   );
 
   OBZ pull_dn_pad (
       .I(1'b1),
-      .T(!USB_UIO || usb_detach),
+      .T(!USB_UIO || FULL_SPEED || usb_detach),
       .O(usb_pull_dn)
   );
 
