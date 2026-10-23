@@ -41,7 +41,7 @@ IN_LIBRARY = ["can", "cec", "i2c", "jtag", "onewire_link", "ps2", "rgb_led_ws281
 PAD = 64
 # the sha256 of the owner's exclusion file, committed before the round so the list cannot be
 # chosen after the randomness is known; the announced round's draw refuses any other file
-EXCLUSION_SHA256 = None
+EXCLUSION_SHA256 = "5a042b2987ffe96743e69b2ba5b7ff78ca6a22174e90db1fd04af08033b3afd1"
 
 
 def snapshot(decoders_dir, commit):
