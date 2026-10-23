@@ -509,7 +509,7 @@ module link (input clk);
   wire tx_empty;
   wire [%{used_bits - 1#Int}:0] fifo_used, fifo_used_minus_1, fifo_used_plus_1;
   wire fifo_used_is_one, fifo_used_gt_one, fifo_full_0, fifo_nearly_full;
-  wire [27:0] pins_sampled_1;
+  wire [31:0] pins_sampled_1;
   wire premise_edge_0, premise_period_0, premise_edge_1, premise_period_1;
 %{declare}
   engines_top dut (

@@ -8,7 +8,7 @@ let create engines =
 ;;
 
 let pin_mask = (1 lsl Isa.num_pins) - 1
-let wires = ((1 lsl Isa.pin_space) - 1) land lnot pin_mask
+let wires = ((1 lsl Isa.first_status_pin) - 1) land lnot pin_mask
 let output_only = (1 lsl Isa.first_bidir_pin) - 1
 let faulted (m : Machine.t) = not (Machine.Fault.equal m.fault Machine.Fault.none)
 

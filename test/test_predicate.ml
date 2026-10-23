@@ -76,9 +76,11 @@ let%expect_test "pins that cannot be read, or a budget too long for p, are refus
   [%expect
     {|
     ("compiled predicate ~latency"
-     (Error "event pin 5 is not an input, a bidirectional pin or a wire"))
+     (Error
+      "event pin 5 is not an input, a bidirectional pin, a wire or a status pin"))
     ("compiled predicate ~latency"
-     (Error "guard pin 11 is not an input, a bidirectional pin or a wire"))
+     (Error
+      "guard pin 11 is not an input, a bidirectional pin, a wire or a status pin"))
     ("compiled predicate ~latency"
      (Error "latency 70000 needs a budget of 69998, above what p holds"))
     |}];

@@ -72,7 +72,9 @@ module Make (Config : Config) = struct
     match others with
     | [] -> pads
     | others ->
-      let wires = concat_msb [ ones Isa.num_wires; zero Isa.num_pins ] in
+      let wires =
+        concat_msb [ zero Isa.num_status_pins; ones Isa.num_wires; zero Isa.num_pins ]
+      in
       let driven = any others ~f:(fun e -> e.pin_dir) in
       let level = any others ~f:(fun e -> e.pin_out &: (e.pin_dir |: wires)) in
       pads &: ~:driven |: level

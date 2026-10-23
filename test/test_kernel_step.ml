@@ -196,7 +196,7 @@ let%expect_test "the narrowest timer the kernel takes" =
 let%expect_test "which pins a word writes" =
   let default = Program_config.default in
   List.iter
-    [ "a wrapped out run", { default with out_base = 20 }, 5, false, "out pins, 16"
+    [ "a wrapped out run", { default with out_base = 24 }, 5, false, "out pins, 16"
     ; "an input", { default with out_base = 0 }, 1, false, "out pins, 2"
     ; "an input", { default with set_base = 0; set_count = 2 }, 1, false, "set pins, 3"
     ; "an output", { default with set_base = 5; set_count = 2 }, 6, false, "set pins, 3"

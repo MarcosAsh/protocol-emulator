@@ -331,7 +331,9 @@ module Make (Timer : Timer) = struct
     let%hw word = reg spec ~enable:ir_load memory.dout in
     let%hw sample =
       List.init num_pins ~f:(fun n ->
-        if n >= Isa.num_pins
+        if n >= Isa.first_status_pin
+        then i.inputs.:(n)
+        else if n >= Isa.num_pins
         then pin_out.:(n) |: i.inputs.:(n)
         else (
           let driven =
@@ -623,7 +625,7 @@ module Make (Timer : Timer) = struct
         [ Add, v +: operand; Sub, v -: operand; Xor, v ^: operand ]
     in
     (* Manchester second half, then side-set, then the instruction's write *)
-    let output_pin n = n >= first_output_pin in
+    let output_pin n = n >= first_output_pin && n < Isa.first_status_pin in
     let bidir_pin n = n >= first_bidir_pin && n < Isa.num_pins in
     let side_count = uresize c.side_set_count ~width:count_bits in
     let set_count = uresize c.set_count ~width:count_bits in
@@ -902,7 +904,6 @@ module Make (Timer : Timer) = struct
       &: (Isa.Wait_source.Of_signal.is wait_source Pin_level
           |: Isa.Wait_source.Of_signal.is wait_source Pin_edge)
       &: (wait_index ==: c.capture_pin)
-      &: (wait_index <:. Isa.pin_space)
       &: (wait_polarity ==: c.capture_rising)
     in
     (* the two halves of the single-edge premise: no edge before the arm, one after it *)

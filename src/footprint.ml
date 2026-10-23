@@ -65,7 +65,7 @@ module Make (Comb : Comb.S) = struct
   open Comb
   module Pins = Pins.Make (Comb)
 
-  let output_pin n = n >= Isa.first_output_pin
+  let output_pin n = n >= Isa.first_output_pin && n < Isa.first_status_pin
   let bidir_pin n = n >= Isa.first_bidir_pin && n < Isa.num_pins
 
   (* what a write of [count] bits from [base] reaches: ones written over no pins *)

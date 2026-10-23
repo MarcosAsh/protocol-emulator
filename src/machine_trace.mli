@@ -4,7 +4,8 @@
 
 open! Core
 
-(** IN0 to IN4, OUT0 to OUT6, IO0 to IO7, then W0 to W7 for the wires. *)
+(** IN0 to IN4, OUT0 to OUT6, IO0 to IO7, W0 to W7 for the wires, then S0 to S3 for the
+    status pins. *)
 val pin_name : int -> string
 
 (** An input held at [level] from [cycle] on, until a later one for the same pin. *)
