@@ -199,7 +199,8 @@ let%expect_test "a long frame fills the count, and the next frame clears its dro
        ~base:0
        ~may_write:(Fn.const true)
        [ line long; line short ]);
-  [%expect {|
+  [%expect
+    {|
     ((words 1023) (written 512) (fcs_ok true) (dropped true))
     ((words 4) (written 516) (fcs_ok true) (dropped false))
     |}]

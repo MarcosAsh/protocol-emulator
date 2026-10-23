@@ -571,7 +571,8 @@ let%expect_test "walks at the edges of the setup" =
     ; walk_of "uart_tx" ~edit:(edit_row 2 ~f:(fun r -> { r with awaiting = Bits.vdd }))
     ; program { Program_config.default with wrap_top = 0 } (Firmware.assemble "set x, 1")
     ];
-  [%expect {|
+  [%expect
+    {|
     accepted
     accepted
     accepted

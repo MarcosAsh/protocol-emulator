@@ -290,7 +290,8 @@ let%expect_test "the frame receiver takes the pin the host names" =
        in
        print_s
          [%message (frames : [ `Words of int | `Armed | `Status of Int.Hex.t ] list)]);
-  [%expect {|
+  [%expect
+    {|
     (frames
      ((Words 1) (Words 1) (Words 1) (Words 1) (Words 1) Armed Armed Armed Armed
       Armed Armed Armed (Words 1) (Words 1) (Words 1) (Words 1) (Words 1)
