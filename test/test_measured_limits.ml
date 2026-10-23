@@ -132,8 +132,8 @@ let%expect_test "the datasheet limits, measured on the bench copies' runs" =
     |}]
 ;;
 
-(* The prediction demo/hold_capture.py holds a capture to: on each bench copy's own run, the
-   least spacing over a limit's pairs of edges, or the most for [At_most], is what
+(* The prediction demo/hold_capture.py holds a capture to: on each bench copy's own run,
+   the least spacing over a limit's pairs of edges, or the most for [At_most], is what
    [measure] finds there, so the width that decides is placed. Two are not: sk6812's reset
    and can's idle, each the run's first level, which no edge begins. *)
 let%expect_test "every limit's pairs of edges in the prediction" =
