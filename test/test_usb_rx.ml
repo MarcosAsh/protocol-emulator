@@ -427,3 +427,101 @@ let%expect_test "the residues are the CRCs of a good packet" =
         ~rtl16:(Usb_frame_rx.crc16_residue : Int.Hex.t)];
   [%expect {| ((crc5 0x6) (crc16 0xb001) (rtl 0x6) (rtl16 0xb001)) |}]
 ;;
+
+(* Full speed transmit, a bit every four cycles: the 10BASE-T sender's loop with the line
+   table's NRZI on D+ and D-, the bits from the data memory and stuffed beforehand, as
+   [jmp stuff] would cost the loop two cycles more. The pins, sampled twice a cycle, go
+   back through the receiver. *)
+let fs_transmitter =
+  {|
+    set pins, 1              ; J
+    set pindirs, 3
+    pull                     ; the line bits less one
+    mov y, osr
+    set x, 0
+    seek
+    out null, 16             ; so the next out pulls from the data memory
+bit:
+    out pins, 1 [1]
+    jmp y--, bit
+    set pins, 0 [7]          ; SE0, two bits
+    set pins, 1 [3]          ; J
+    set pindirs, 0
+    halt
+|}
+;;
+
+let%expect_test "full speed transmit at four cycles a bit, back through the receiver" =
+  let pair = Isa.first_bidir_pin in
+  let config =
+    { Program_config.default with
+      out_base = pair
+    ; out_count = 2
+    ; set_base = pair
+    ; set_count = 2
+    ; autopull = true
+    ; autopull_data = true
+    ; line_code = true
+    }
+  in
+  let packet = Usb.data ~pid:Usb.data0 [ 0xff; 0xff; 0x3c; 0x7e; 0x01; 0xfe; 0xff ] in
+  let stuffed =
+    Usb_ls.bits_of_bytes (0x80 :: packet)
+    |> List.folding_map ~init:0 ~f:(fun ones bit ->
+      match bit, ones with
+      | 1, 5 -> 0, [ 1; 0 ]
+      | 1, _ -> ones + 1, [ 1 ]
+      | _ -> 0, [ 0 ])
+    |> List.concat
+  in
+  let words =
+    List.chunks_of stuffed ~length:16
+    |> List.map ~f:(List.foldi ~init:0 ~f:(fun n word bit -> word lor (bit lsl n)))
+  in
+  let line = Queue.create () in
+  let (_ : Machine.t) =
+    Lockstep.lockstep
+      ~cycles:(40 + (4 * List.length stuffed) + 24)
+      ~preload:[ List.length stuffed - 1 ]
+      ~data:words
+      ~line_table:Line_code.nrzi
+      ~config
+      ~program:(Firmware.assemble fs_transmitter)
+      ~inputs:(fun _ -> 0)
+      ~react:(fun m ->
+        let driven = (m.pin_dir lsr pair) land 3 = 3 in
+        Queue.enqueue line (if driven then (m.pin_out lsr pair) land 3 else 1))
+      ()
+  in
+  let line = Queue.to_list line in
+  let edges =
+    List.filter_mapi
+      (List.zip_exn (List.drop_last_exn (1 :: line)) line)
+      ~f:(fun n (before, now) -> Option.some_if (before land 1 <> now land 1) n)
+  in
+  let gaps =
+    List.zip_exn (List.drop_last_exn edges) (List.tl_exn edges)
+    |> List.map ~f:(fun (a, b) -> b - a)
+  in
+  let cycles =
+    List.map line ~f:(fun pins ->
+      let dp = pins land 1 in
+      let dm = (pins lsr 1) land 1 in
+      [ dp; dp ], [ dm; dm ])
+  in
+  let got = Both_edges_8.run cycles in
+  print_s
+    [%message
+      ""
+        ~line_bits:(List.length stuffed : int)
+        ~stuffed_zeros:(List.length stuffed - (8 * (1 + List.length packet)) : int)
+        ~edge_gaps_all_fours:(List.for_all gaps ~f:(fun g -> g % 4 = 0) : bool)
+        ~shortest_gap:(List.min_elt gaps ~compare : int option)
+        ~received:([%equal: Result.t list] got [ Result.of_packet packet ] : bool)];
+  [%expect
+    {|
+    ("lockstep held" (cycles 440))
+    ((line_bits 94) (stuffed_zeros 6) (edge_gaps_all_fours true)
+     (shortest_gap (4)) (received true))
+    |}]
+;;
