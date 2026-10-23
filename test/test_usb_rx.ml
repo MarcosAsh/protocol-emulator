@@ -692,3 +692,165 @@ let%expect_test "a packet on the chip, beside two engines streaming data" =
      (handed_as_sent true))
     |}]
 ;;
+
+(* Engine 0 streams its words and reads the status pins every eight; engine 1, the
+   receivers' owner, waits on the finished pin, then hands over the pins and the packet. *)
+let watch =
+  {|
+    set x, 0
+top:
+    seek [1]
+    set y, 7
+loop:
+    out null, 16 [1]
+    jmp y--, loop
+    in pins, 4
+    wait rx
+    push
+    jmp top
+|}
+;;
+
+let owned ~base =
+  [%string
+    {|
+    set x, %{base#Int}
+    wait 1 pin %{Isa.first_status_pin#Int}
+    in pins, 4
+    push
+    seek [2]
+loop:
+    out isr, 16
+    wait rx
+    push
+    jmp loop
+|}]
+;;
+
+(* Both engines against [System] every cycle, the status pins the chip shows given to the
+   model's owner and the packet's words to its memory once they are in. The owner sees
+   finished and good as it leaves the wait; engine 0 reads 0 on every status pin. *)
+let%expect_test "the receivers' owner waits on its status pin for a packet" =
+  let random = Random.State.make [| 7 |] in
+  let packet =
+    Usb.data ~pid:Usb.data0 (List.init 20 ~f:(fun n -> ((n * 41) + 9) land 0xff))
+  in
+  let cycles =
+    line ~random ~ppm:(-2500.) ~jitter:2. ~skew:0. ~gap:3 [ packet ]
+    |> sample ~random ~per_bit:8 ~per_cycle:2
+  in
+  let base = 24 in
+  let sent = Manchester_line.words packet in
+  let memory =
+    List.init (1 lsl Isa.data_addr_bits) ~f:(fun addr ->
+      if addr < 16 then addr * 0x1111 lxor 0xa5a5 else 0)
+  in
+  let config = { streaming with in_base = Isa.first_status_pin; in_shift = Left } in
+  let programs = [ Firmware.assemble watch; Firmware.assemble (owned ~base) ] in
+  Chip.run
+    ~random_initial_state:`All
+    ~create:(Two.hierarchical ~gated:false ~memory:Flops)
+    (fun (h @ local) ~inputs:i ~outputs ->
+       let cycle () = Lws.cycle h in
+       let o = Before_and_after_edge.after_edge outputs in
+       let int r = Bits.to_unsigned_int !r in
+       let port n = List.nth_exn i.hosts n in
+       i.clocking.clear := Bits.vdd;
+       cycle ();
+       i.clocking.clear := Bits.gnd;
+       List.iteri programs ~f:(fun n program ->
+         let p = port n in
+         Engine.Config.iter2 p.config (Engine.Config.of_program_config config) ~f:( := );
+         List.iteri program ~f:(fun addr word ->
+           p.program_write.valid := Bits.vdd;
+           p.program_write.addr <--. addr;
+           p.program_write.data <--. word;
+           cycle ());
+         p.program_write.valid := Bits.gnd);
+       let p = port 0 in
+       List.iteri memory ~f:(fun addr word ->
+         p.data_write.valid := Bits.vdd;
+         p.data_write.addr <--. addr;
+         p.data_write.data <--. word;
+         cycle ());
+       p.data_write.valid := Bits.gnd;
+       i.frame_owner := Bits.vdd;
+       i.frame_usb := Bits.vdd;
+       i.frame.base <--. base;
+       i.frame.arm := Bits.vdd;
+       cycle ();
+       i.frame.arm := Bits.gnd;
+       let machine program =
+         Machine.create ~config ~program
+         |> ok_exn
+         |> Fn.flip Machine.load_data memory
+         |> ok_exn
+       in
+       let model = ref (System.create (List.map programs ~f:machine)) in
+       List.iter [ 0; 1 ] ~f:(fun n -> (port n).start := Bits.vdd);
+       cycle ();
+       List.iter [ 0; 1 ] ~f:(fun n -> (port n).start := Bits.gnd);
+       cycle ();
+       (* finished, good, receiving and error, as the owner reads them this cycle *)
+       let status () =
+         let u = Usb_frame_rx.Status.map o.usb ~f:int in
+         u.finished
+         lor ((u.crc5_ok lor u.crc16_ok) lsl 1)
+         lor (u.receiving lsl 2)
+         lor ((u.dropped lor u.stuff_error) lsl 3)
+       in
+       let handed = Array.create ~len:2 [] in
+       let mismatch = ref None in
+       let landed = ref false in
+       let step dp dm =
+         i.rd := Bits.of_bit_list (List.rev dp);
+         i.dm := Bits.of_bit_list (List.rev dm);
+         let status = status () in
+         if status land 1 = 1 && not !landed
+         then (
+           landed := true;
+           List.iteri sent ~f:(fun n word ->
+             (List.nth_exn !model.engines 1).data.(base + n) <- word));
+         List.iter [ 0; 1 ] ~f:(fun n ->
+           let m = List.nth_exn !model.engines n in
+           let pop = not (List.is_empty m.rx_fifo) in
+           (port n).rx_pop := Bits.of_bool pop;
+           if pop
+           then (
+             handed.(n) <- int (List.nth_exn o.engines n).rx_head :: handed.(n);
+             model
+             := System.update !model n ~f:(fun m ->
+                  Machine.read_rx m |> Option.value_exn |> snd)));
+         cycle ();
+         model := System.step !model ~owner:1 ~status ~pads:0;
+         List.iteri (List.zip_exn !model.engines o.engines) ~f:(fun n (m, out) ->
+           if Option.is_none !mismatch
+              && not
+                   (Lockstep.State.equal
+                      (Lockstep.State.of_machine m)
+                      (Lockstep.State.of_outputs out))
+           then mismatch := Some n)
+       in
+       List.iter cycles ~f:(fun (dp, dm) -> step dp dm);
+       for _ = 1 to 200 do
+         step [ 1; 1 ] [ 0; 0 ]
+       done;
+       let handed = Array.map handed ~f:List.rev in
+       let owner = handed.(1) in
+       print_s
+         [%message
+           ""
+             ~lockstep:(!mismatch : int option)
+             ~owner_saw:(List.hd owner : int option)
+             ~handed_as_sent:
+               ([%equal: int list] (List.take (List.drop owner 1) (List.length sent)) sent
+                : bool)
+             ~other_reads:(handed.(0) |> List.dedup_and_sort ~compare : int list)
+             ~other_pushes:(List.length handed.(0) : int)])
+  [@nontail];
+  [%expect
+    {|
+    ((lockstep ()) (owner_saw (3)) (handed_as_sent true) (other_reads (0))
+     (other_pushes 25))
+    |}]
+;;
