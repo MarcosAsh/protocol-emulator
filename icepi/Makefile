@@ -80,7 +80,31 @@ $(CHECK).bit: $(CHECK).config
 check-prog: $(CHECK).bit
 	openFPGALoader -b icepi-zero $<
 
+# Usb_frame_rx alone on the first USB-C port at full speed (usb_fs_check.v,
+# demo/usb_fs_check.py): make usb-fs-prog loads it into SRAM only, like check-prog.
+USB_FS = $(BUILD)/$(REV)-usb-fs-check
+
+usb-fs-check: $(USB_FS).bit
+
+$(BUILD)/usb_frame_rx.v:
+	mkdir -p $(BUILD)
+	cd .. && dune exec --root . bin/generate.exe -- usb-rx > icepi/$@
+
+$(BUILD)/usb_fs_check.json: usb_fs_check.v $(BUILD)/usb_frame_rx.v
+	yosys -q -l $(BUILD)/usb_fs_check.log -p "read_verilog $^; synth_ecp5 -top usb_fs_check -json $@"
+
+$(USB_FS).config: $(BUILD)/usb_fs_check.json header.lpf $(REV).lpf
+	nextpnr-ecp5 --25k --package CABGA256 --speed 6 --json $< --lpf header.lpf \
+		--lpf $(REV).lpf --freq 48 --seed $(SEED) --textcfg $@ --log $(USB_FS).log -q
+	grep -h "Max frequency" $(USB_FS).log | tail -2
+
+$(USB_FS).bit: $(USB_FS).config
+	ecppack --compress --input $< --bit $@
+
+usb-fs-prog: $(USB_FS).bit
+	openFPGALoader -b icepi-zero $<
+
 clean:
 	rm -rf $(BUILD)
 
-.PHONY: bit equiv prog flash check check-prog clean
+.PHONY: bit equiv prog flash check check-prog usb-fs-check usb-fs-prog clean
