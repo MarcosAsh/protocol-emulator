@@ -29,9 +29,9 @@ val firmware : mode:Spi_cs.Mode.t -> Pins.t -> string
     the cycle each way the pins are registered. *)
 val shortest_half : int
 
-(** [firmware] with the byte boundary cut down: between bytes a three cycle poll of MOSI,
-    SCK and CS in place of the poll of [firmware], and the reply fetched in the eighth
-    bit. The same bytes, replies and frames; CS has to be [mosi + 2]. *)
+(** [firmware], faster: each MISO bit goes out as soon as the controller has sampled the
+    one before, and between bytes a three cycle poll of MOSI, SCK and CS replaces the poll
+    of [firmware]. The same bytes, replies and frames; CS has to be [mosi + 2]. *)
 val fast : mode:Spi_cs.Mode.t -> Pins.t -> string
 
 val fast_config : Pins.t -> Program_config.t

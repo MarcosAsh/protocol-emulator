@@ -140,7 +140,7 @@ let fast_config (pins : Pins.t) =
   { (config pins) with in_count = 3 }
 ;;
 
-let fast_shortest_half = 7
+let fast_shortest_half = 9
 
 (* the next reply into osr, which is free once its eighth bit is out *)
 let fetch_osr label =
@@ -152,77 +152,69 @@ let fetch_osr label =
 %{label}:|}]
 ;;
 
-(* Between bytes y holds MOSI, SCK and CS as last read, with SCK idle, and the wrap polls
-   them every three cycles. A change other than MOSI alone is an edge, or CS rising. The
-   reply's first bit is shown by [mov pins, ::osr], so osr keeps the whole reply for a
-   select that does not clock it. *)
+(* Between bytes y holds MOSI, SCK and CS as they read with SCK idle, and the wrap polls
+   them every three cycles. A change other than MOSI alone is a leading edge, or CS
+   rising. The reply's first bit is shown by [mov pins, ::osr], so osr keeps the whole
+   reply for a select that does not clock it. Each later bit goes out once the controller
+   has sampled the one before, which leaves it a whole period to reach MISO. *)
 let fast ~(mode : Spi_cs.Mode.t) (pins : Pins.t) =
   let leading = Bool.to_int (not mode.cpol) in
   let trailing = 1 - leading in
+  let sample, shift = if mode.cpha then trailing, leading else leading, trailing in
   let sck = pins.sck
   and cs = pins.cs in
-  let select =
-    [%string
-      {|%{fetch_osr "deselected"}
-    set pins, 0              ; MISO let go
-    wait 1 pin %{cs#Int}
-    wait 0 pin %{cs#Int}             ; selected
-    mov isr, null            ; no bits from before
-    jmp gap
-changed:
-    xor y, 1                 ; what MOSI moving alone reads
-    jmp x!=y, edge
-    jmp watch
-edge:|}]
+  let first =
+    if mode.cpha
+    then [%string {|
+    wait %{sample#Int} pin %{sck#Int}
+    in pins, 1|}]
+    else {|
+    in x, 1                  ; MOSI as the poll read it, at the leading edge|}
   in
-  let watch =
-    {|
+  let idle_y = if mode.cpol then {|
+    xor y, 2|} else "" in
+  let idle =
+    if mode.cpha then "" else [%string {|
+    wait %{trailing#Int} pin %{sck#Int}|}]
+  in
+  [%string
+    {|%{fetch_osr "start"}
+    wait 1 pin %{cs#Int}             ; not part way into a frame
+deselected:
+    set pins, 0              ; MISO let go
+    wait 0 pin %{cs#Int}             ; selected
+    mov pins, ::osr          ; the reply's first bit
+    mov isr, null
+    in pins, 1
+    mov y, isr               ; MOSI, with CS low and SCK idle, should SCK have moved%{idle_y}
+    mov isr, null            ; no bits from before
 .wrap_target
 watch:
     mov x, pins
     jmp x!=y, changed
 .wrap
-|}
-  in
-  if mode.cpha
-  then
-    [%string
-      {|%{select}
-    mov pins, ::osr          ; the first bit at once
-    jmp pin, deselected      ; CS rose instead
-    out null, 1
-    set x, 5
-    wait %{trailing#Int} pin %{sck#Int}
-    in pins, 1
-bit:
-    wait %{leading#Int} pin %{sck#Int}             ; leading edge
-    out pins, 1
-    wait %{trailing#Int} pin %{sck#Int}             ; trailing edge
-    in pins, 1
-    jmp x--, bit
-    wait %{leading#Int} pin %{sck#Int}             ; the eighth
-    out pins, 1%{fetch_osr "fetched"}
-    wait %{trailing#Int} pin %{sck#Int}
-    in pins, 1               ; pushes the byte
-gap:
-    mov y, pins%{watch}|}]
-  else
-    [%string
-      {|%{select}
-    jmp pin, deselected      ; CS rose
-    in x, 1                  ; MOSI as the poll read it, at the leading edge
+changed:
+    xor y, 1                 ; what MOSI moving alone reads
+    jmp x!=y, edge
+    jmp watch
+edge:
+    jmp pin, deselected      ; CS rose instead%{first}
     out null, 1              ; the first bit, shown already
-    set x, 6
-bit:
-    wait %{trailing#Int} pin %{sck#Int}             ; trailing edge
     out pins, 1
-    wait %{leading#Int} pin %{sck#Int}             ; leading edge
-    in pins, 1               ; the eighth pushes the byte
+    set x, 5
+bit:
+    wait %{shift#Int} pin %{sck#Int}
+    wait %{sample#Int} pin %{sck#Int}
+    in pins, 1
+    out pins, 1              ; the next bit, once the controller has this one
     jmp x--, bit%{fetch_osr "fetched"}
-    wait %{trailing#Int} pin %{sck#Int}
-gap:
-    mov pins, ::osr          ; the next reply's first bit, should the frame go on
-    mov y, pins%{watch}|}]
+    wait %{shift#Int} pin %{sck#Int}
+    wait %{sample#Int} pin %{sck#Int}             ; the eighth
+    in pins, 1               ; pushes the byte
+    mov pins, ::osr          ; the next reply's first bit%{idle}
+    mov y, pins
+    jmp watch
+|}]
 ;;
 
 let protocol =
