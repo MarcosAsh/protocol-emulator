@@ -8,6 +8,7 @@ end
 
 module Make (Config : Config) = struct
   let engines = Config.engines
+  let owner_bits = Int.max 1 (Int.ceil_log2 engines)
 
   let () =
     if engines < 1
@@ -25,6 +26,7 @@ module Make (Config : Config) = struct
       ; dm : 'a [@bits 2]
       ; frame : 'a Frame_rx.Control.t
       ; frame_usb : 'a
+      ; frame_owner : 'a [@bits owner_bits]
       ; stamps : 'a Edge_stamps.Control.t
       }
     [@@deriving hardcaml]
@@ -64,11 +66,11 @@ module Make (Config : Config) = struct
     { e with pin_out = keep e.pin_out; pin_dir = keep e.pin_dir }
   ;;
 
-  (* The pads, except bidirectional pins another engine drives, and on wires what the
-     others drive. An engine reads its own outputs back itself. Only a bidirectional pin
-     has a direction bit. *)
-  let seen ~pads ~(others : Signal.t Engine.O.t list) =
-    let pads = uresize pads ~width:Isa.pin_space in
+  (* The pads, except bidirectional pins another engine drives, on wires what the others
+     drive, and [status] on the status pins. An engine reads its own outputs back itself.
+     Only a bidirectional pin has a direction bit. *)
+  let seen ~pads ~status ~(others : Signal.t Engine.O.t list) =
+    let pads = concat_msb [ status; zero Isa.num_wires; pads ] in
     match others with
     | [] -> pads
     | others ->
@@ -162,21 +164,25 @@ module Make (Config : Config) = struct
     (* The checker borrows engine [n]'s program port and data turn only while [n] is free,
        so a running or starting core never sees it. *)
     let%hw_list lent = List.mapi outs ~f:(fun n e -> mine n &: e.free) in
+    let%hw frame_writes = wire 1 in
     (* what the walk reads, written under it, or its engine leaving halted *)
     let%hw abort =
       checking
       &: (List.map i.hosts ~f:(fun h -> h.data_write.valid)
           |> List.reduce_exn ~f:( |: )
+          |: frame_writes
           |: pick
                (List.map i.hosts ~f:(fun h ->
                   h.program_write.valid |: h.config_written |: h.line_write.valid))
           |: pick (List.map lent ~f:( ~: ))
           |: turn_ends)
     in
-    (* A received frame takes the data memory's port only where no read it serves is lost:
-       no check, no host write, and the engine whose turn it takes halted and not
+    (* A received frame takes the data memory's port only in its owner's turn, and only
+       where no read the owner needs is lost: no host write, and the owner halted and not
        starting, not pulling from data, or keeping its word. A halted engine's word is
-       refetched from its start on. *)
+       refetched from its start on, and a walk the write lands under is aborted. So when
+       words land, and so when the owner's status pins move, never depends on another
+       engine. *)
     let%hw host_writes =
       List.map outs ~f:(fun e -> e.halted)
       @ [ List.map i.hosts ~f:(fun h -> h.data_write.valid) |> List.reduce_exn ~f:( |: ) ]
@@ -187,8 +193,12 @@ module Make (Config : Config) = struct
       List.map3_exn outs i.hosts data_turn.keeps ~f:(fun e (h : _ Engine.Host.t) keeps ->
         e.free |: ~:(h.config.autopull_data) |: keeps)
     in
+    let owns n = if engines = 1 then vdd else i.frame_owner ==:. n in
+    let%hw owners_turn =
+      if engines = 1 then vdd else data_turn.whose_turn ==: i.frame_owner
+    in
     let%hw frame_may_write =
-      ~:checking &: ~:host_writes &: mux data_turn.whose_turn turn_spared
+      ~:host_writes &: owners_turn &: mux i.frame_owner turn_spared
     in
     (* one receiver at a time, armed and on the data memory's port *)
     let frame =
@@ -213,8 +223,22 @@ module Make (Config : Config) = struct
     let dma_write =
       Engine.Program_write.Of_signal.mux2 i.frame_usb usb.write frame.write
     in
-    let%hw frame_writes = dma_write.valid in
+    frame_writes <-- dma_write.valid;
     let dma_write = { dma_write with valid = frame_writes } in
+    (* finished, good, receiving and error, for the owner alone *)
+    let%hw frame_status =
+      let f = frame.status in
+      let u = usb.status in
+      mux2
+        i.frame_usb
+        (concat_msb
+           [ u.dropped |: u.stuff_error
+           ; u.receiving
+           ; u.crc5_ok |: u.crc16_ok
+           ; u.finished
+           ])
+        (concat_msb [ f.dropped; f.receiving; f.fcs_ok; f.finished ])
+    in
     let stamps =
       Edge_stamps.hierarchical
         scope
@@ -291,7 +315,11 @@ module Make (Config : Config) = struct
           ; clear_irq = host.clear_irq
           ; stop = host.stop |: faulted
           ; flush = host.flush
-          ; inputs = seen ~pads:i.pads ~others
+          ; inputs =
+              seen
+                ~pads:i.pads
+                ~status:(mux2 (owns n) frame_status (zero Isa.num_status_pins))
+                ~others
           ; line_write = host.line_write
           ; premises = List.nth_exn premises n
           ; route_full = List.nth_exn route_full n

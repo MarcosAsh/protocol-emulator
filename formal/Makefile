@@ -267,7 +267,9 @@ link_proof:
 # chip agree on engine 0's pins and what the host reads of it, for all time (isolation.sv).
 # Teeth drop one assumption each and must fail: engine 1 heard by wire or pad, engine 0's
 # pointer or engine 1's host off their side of the region, reads ignoring the turn, a load
-# while engine 1 runs, a write as engine 0 starts. isolation_proof is for CI.
+# while engine 1 runs, a write as engine 0 starts, engine 1's receivers writing the region,
+# engine 1's host loading while engine 0's receiver holds a word, the receivers changing
+# hands. isolation_proof is for CI.
 ANY_TURN = /^module data_memory/,/^endmodule/s/^\(\s*assign signal_and[_0-9]* = \)signal_eq[_0-9]* & \(signal_not[_0-9]*\);/\1\2;/
 isolation: engines_sram.v
 	$(MAKE) isolation_proof
@@ -335,6 +337,8 @@ OVERRUN = /^module engines /,/^endmodule/s/^\(\s*assign signal_or[_0-9]* = signa
 # the frame receiver let write any cycle, a word every cycle standing in for a frame
 FRAME_UNGATED = /^module engines /,/^endmodule/s/^\(\s*assign frame_may_write = \).*;/\11'b1;/
 FRAME_EVERY_CYCLE = /^module frame_rx /,/^endmodule/s/^\(\s*assign takes = \).*;/\11'b1;/
+# or in either engine's turn
+FRAME_ANY_TURN = /^module engines /,/^endmodule/s/^\(\s*assign owners_turn = \).*;/\11'b1;/
 # each core's period premise taken live from the host's setup rather than latched at its check
 PREMISES_LIVE = /^module engines /,/^endmodule/s/\(\.premises\$$period\$$value(\)signal_reg[_0-9]*)/\1check_setup\$$loaded\$$value)/
 gate: engines_gated.v
@@ -352,22 +356,24 @@ gate_proof:
 	sed -e "$(SHORT_WALK)" -e "$(ONE_TURN)" -e "$(NO_ABORT)" engines_gated.v > gate_teeth/no_abort.v
 	sed -e "$(SHORT_WALK)" -e "$(ONE_TURN)" -e "$(FRAME_UNGATED)" -e "$(FRAME_EVERY_CYCLE)" \
 	  engines_gated.v > gate_teeth/frame_ungated.v
+	sed -e "$(SHORT_WALK)" -e "$(ONE_TURN)" -e "$(FRAME_ANY_TURN)" -e "$(FRAME_EVERY_CYCLE)" \
+	  engines_gated.v > gate_teeth/frame_any_turn.v
 	sed -e "$(SHORT_WALK)" -e "$(ONE_TURN)" -e "$(PREMISES_LIVE)" engines_gated.v \
 	  > gate_teeth/premises_live.v
 	sed -e "$(SHORT_TURN)" -e "$(OVERRUN)" engines_gated.v > gate_teeth/overrun.v
 	sed -e "$(SHORT_WALK)" -e "$(ONE_TURN)" engines_gated.v > gate_teeth/one_turn.v
 	test $$(diff gate_teeth/short.v gate_teeth/one_turn.v | grep -c '^>') = 2
-	for t in sticky lend_busy no_abort frame_ungated premises_live; do \
+	for t in sticky lend_busy no_abort frame_ungated frame_any_turn premises_live; do \
 	  ! cmp -s gate_teeth/one_turn.v gate_teeth/$$t.v || exit 1; done
 	! cmp -s gate_teeth/turn.v gate_teeth/overrun.v
 	sby -f gate.sby prove cover short_cover sticky lend_busy no_abort overrun frame_ungated \
-	  premises_live
+	  frame_any_turn premises_live
 
 isolation_proof:
 	sed '$(ANY_TURN)' engines_sram.v > engines_any_turn.v
 	! cmp -s engines_sram.v engines_any_turn.v
 	sby -f isolation.sby prove cover heard pad_heard any_turn region_written outside \
-	  load_anytime start_write routed start_all frame_in_region
+	  load_anytime start_write routed start_all frame_in_region load_pending owner_moves
 
 # Self_check.checker on the core beside its contract (test/self_check_contract.ml), any
 # line, 116 cycles from the clear: the irq only after a break and by when the contract says,

@@ -1,7 +1,8 @@
 // frame_step.sv's frame lemma on the two-engine chip. For two programs whose footprints
 // share no pad, from the clear on: (a) each engine's pads show what it would drive alone,
 // and pads outside both footprints stay 0; (b) each engine reads what it would alone,
-// except where it hears the other; (c) there it reads what the other drives. The
+// the frame receivers' status pins where it owns them, except where it hears the other;
+// (c) there it reads what the other drives. The
 // pads_shared task drops the disjoint-pads assumption, which only (a) needs. Assumes, as
 // frame_step.sv does, that each word a core runs writes no more than its program says.
 // Wires are not pads: both engines may write one. An engine with a fault drives nothing.
@@ -38,7 +39,7 @@ module chip_frame (input clk);
   (* anyseq *) wire [1:0] line_write_valid;
   (* anyseq *) wire [4:0] line_write_addr_0, line_write_addr_1;
   (* anyseq *) wire [15:0] line_write_data_0, line_write_data_1;
-  (* anyseq *) wire start_all;
+  (* anyseq *) wire start_all, owner;
 
   // the top clears both engines at power-on and whenever its reset comes again
   (* anyseq *) wire reset;
@@ -46,15 +47,16 @@ module chip_frame (input clk);
   always @(posedge clk) clear <= reset;
 
   wire [19:0] pin_out, pin_dir;
-  wire [27:0] pin_out_0, pin_dir_0, pin_out_1, pin_dir_1, sample_0, sample_1;
+  wire [31:0] pin_out_0, pin_dir_0, pin_out_1, pin_dir_1, sample_0, sample_1;
   wire [4:0] fault_0, fault_1;
   wire any_fault_0, any_fault_1;
   wire [15:0] instruction_0, instruction_1;
   wire [7:0] opcode_onehot_0, opcode_onehot_1;
   wire flip_pending_0, flip_pending_1, op_go_0, op_go_1;
+  wire [3:0] frame_status;
 
   engines_top dut (
-    .clock(clk), .clear(clear),
+    .clock(clk), .clear(clear), .frame_owner(owner), .frame_status(frame_status),
     .hosts$config$side_set_count_0(side_set_count_0), .hosts$config$side_set_base_0(side_set_base_0),
     .hosts$config$side_set_pindirs_0(side_set_pindirs_0), .hosts$config$in_base_0(in_base_0),
     .hosts$config$in_count_0(in_count_0), .hosts$config$out_base_0(out_base_0),
@@ -140,7 +142,7 @@ module chip_frame (input clk);
   reg cleared = 0;
   always @(posedge clk) if (clear) cleared <= 1;
 
-  wire [27:0] footprint_out_0, footprint_dir_0, footprint_out_1, footprint_dir_1;
+  wire [31:0] footprint_out_0, footprint_dir_0, footprint_out_1, footprint_dir_1;
   engine_frame frame_0 (
     .clk(clk), .cleared(cleared),
     .side_set_count(side_set_count_0), .side_set_base(side_set_base_0),
@@ -166,8 +168,8 @@ module chip_frame (input clk);
     .footprint_out(footprint_out_1), .footprint_dir(footprint_dir_1));
 
   // the pins each engine can move, and the pads among them
-  wire [27:0] moves_0 = footprint_out_0 | footprint_dir_0;
-  wire [27:0] moves_1 = footprint_out_1 | footprint_dir_1;
+  wire [31:0] moves_0 = footprint_out_0 | footprint_dir_0;
+  wire [31:0] moves_1 = footprint_out_1 | footprint_dir_1;
   wire [19:0] pads_0 = moves_0[19:0];
   wire [19:0] pads_1 = moves_1[19:0];
   // tooth 1 and pads_shared let the footprints share a pad
@@ -176,10 +178,10 @@ module chip_frame (input clk);
 `endif
 
   // what each engine drives: nothing once it has faulted (fail_safe.sv)
-  wire [27:0] live_dir_0 = fault_0 != 0 ? 28'd0 : pin_dir_0;
-  wire [27:0] live_out_0 = fault_0 != 0 ? 28'd0 : pin_out_0;
-  wire [27:0] live_dir_1 = fault_1 != 0 ? 28'd0 : pin_dir_1;
-  wire [27:0] live_out_1 = fault_1 != 0 ? 28'd0 : pin_out_1;
+  wire [31:0] live_dir_0 = fault_0 != 0 ? 32'd0 : pin_dir_0;
+  wire [31:0] live_out_0 = fault_0 != 0 ? 32'd0 : pin_out_0;
+  wire [31:0] live_dir_1 = fault_1 != 0 ? 32'd0 : pin_dir_1;
+  wire [31:0] live_out_1 = fault_1 != 0 ? 32'd0 : pin_out_1;
 
   // a pad as the top drives it, for the chip and for each engine alone
   localparam [19:0] OUTPUT_PADS = 20'h00fe0;
@@ -193,25 +195,27 @@ module chip_frame (input clk);
 
   // what an engine reads alone: its own level where it drives (a lone engine always
   // drives its wires), the pad elsewhere
-  localparam [27:0] OWN = 28'hff00fe0;
-  localparam [27:0] BIDIRS = 28'h00ff000;
-  localparam [27:0] WIRES = 28'hff00000;
-  wire [27:0] own_0 = OWN | (pin_dir_0 & BIDIRS);
-  wire [27:0] own_1 = OWN | (pin_dir_1 & BIDIRS);
-  wire [27:0] alone_sample_0 = (pin_out_0 & own_0) | ({8'd0, pads} & ~own_0);
-  wire [27:0] alone_sample_1 = (pin_out_1 & own_1) | ({8'd0, pads} & ~own_1);
+  localparam [31:0] OWN = 32'h0ff00fe0;
+  localparam [31:0] BIDIRS = 32'h000ff000;
+  localparam [31:0] WIRES = 32'h0ff00000;
+  wire [31:0] own_0 = OWN | (pin_dir_0 & BIDIRS);
+  wire [31:0] own_1 = OWN | (pin_dir_1 & BIDIRS);
+  wire [3:0] status_0 = owner ? 4'd0 : frame_status;
+  wire [3:0] status_1 = owner ? frame_status : 4'd0;
+  wire [31:0] alone_sample_0 = (pin_out_0 & own_0) | ({status_0, 8'd0, pads} & ~own_0);
+  wire [31:0] alone_sample_1 = (pin_out_1 & own_1) | ({status_1, 8'd0, pads} & ~own_1);
   // where an engine hears the other: its live level, on a wire ORed with the engine's own
-  wire [27:0] hears_0 = (WIRES & moves_1) | (live_dir_1 & BIDIRS & ~pin_dir_0);
-  wire [27:0] hears_1 = (WIRES & moves_0) | (live_dir_0 & BIDIRS & ~pin_dir_1);
-  wire [27:0] heard_0 = live_out_1 | (pin_out_0 & WIRES);
-  wire [27:0] heard_1 = live_out_0 | (pin_out_1 & WIRES);
+  wire [31:0] hears_0 = (WIRES & moves_1) | (live_dir_1 & BIDIRS & ~pin_dir_0);
+  wire [31:0] hears_1 = (WIRES & moves_0) | (live_dir_0 & BIDIRS & ~pin_dir_1);
+  wire [31:0] heard_0 = live_out_1 | (pin_out_0 & WIRES);
+  wire [31:0] heard_1 = live_out_0 | (pin_out_1 & WIRES);
   // tooth 3: each engine reads alone on every pin
 `ifdef READ_EVERYWHERE
-  wire [27:0] apart_0 = 28'hfffffff;
-  wire [27:0] apart_1 = 28'hfffffff;
+  wire [31:0] apart_0 = 32'hffffffff;
+  wire [31:0] apart_1 = 32'hffffffff;
 `else
-  wire [27:0] apart_0 = ~hears_0;
-  wire [27:0] apart_1 = ~hears_1;
+  wire [31:0] apart_0 = ~hears_0;
+  wire [31:0] apart_1 = ~hears_1;
 `endif
 
   // tooth 2 keeps only engine 0's half of (a), where engine 1's stray drive shows
@@ -269,27 +273,27 @@ module engine_frame #(parameter KEEPS_TO = 1) (
   input [4:0] set_base, input [2:0] set_count, input [4:0] out_base, input [4:0] out_count,
   input manchester, input line_code,
   input op_go, input [15:0] instruction, input [7:0] opcode_onehot, input flip_pending,
-  input [27:0] pin_out, input [27:0] pin_dir,
-  output [27:0] footprint_out, output [27:0] footprint_dir);
+  input [31:0] pin_out, input [31:0] pin_dir,
+  output [31:0] footprint_out, output [31:0] footprint_dir);
   // what the program writes: its widest out to pins and pindirs (0 for none), and
   // whether it sets or moves to either
   (* anyconst *) wire [4:0] out_pins_width, out_dirs_width;
   (* anyconst *) wire sets_pins, sets_dirs, movs_pins, movs_dirs;
 
   // Pins.write, as in frame_step.sv
-  localparam [27:0] OUTPUTS = 28'hfffffe0;
-  localparam [27:0] BIDIRS = 28'h00ff000;
-  function [27:0] place(input [15:0] v, input [4:0] base);
-    reg [55:0] twice;
+  localparam [31:0] OUTPUTS = 32'h0fffffe0;
+  localparam [31:0] BIDIRS = 32'h000ff000;
+  function [31:0] place(input [15:0] v, input [4:0] base);
+    reg [63:0] twice;
     begin
-      twice = {12'd0, v, 12'd0, v} << (base >= 28 ? base - 5'd28 : base);
-      place = twice[55:28];
+      twice = {16'd0, v, 16'd0, v} << base;
+      place = twice[63:32];
     end
   endfunction
   function [15:0] mask(input [4:0] n);
     mask = n >= 16 ? 16'hffff : (16'd1 << n) - 16'd1;
   endfunction
-  function [27:0] window(input [4:0] base, input [4:0] n, input [27:0] takes);
+  function [31:0] window(input [4:0] base, input [4:0] n, input [31:0] takes);
     window = place(mask(n), base) & takes;
   endfunction
 

@@ -2,7 +2,8 @@
 // latched drives no pin, from the edge the fault shows; it halts within two edges and stays
 // halted with its pc held, whatever its host does, until the next clear. With no fault the
 // pins are the plain OR of both engines' drive. Host fields, line tables, the frame
-// receiver, pads and clear are free every cycle; each config holds between clears.
+// receivers and their owner, pads and clear are free every cycle; each config holds
+// between clears.
 
 module fail_safe (input clk);
   (* anyconst *) wire [1:0] side_set_count_0, side_set_count_1;
@@ -36,7 +37,7 @@ module fail_safe (input clk);
   (* anyseq *) wire [15:0] line_write_data_0, line_write_data_1;
   (* anyseq *) wire start_all;
   (* anyseq *) wire [1:0] rd;
-  (* anyseq *) wire frame_arm, frame_fifty, frame_usb;
+  (* anyseq *) wire frame_arm, frame_fifty, frame_usb, frame_owner;
   (* anyseq *) wire [1:0] dm;
   (* anyseq *) wire [8:0] frame_base;
   (* anyseq *) wire [19:0] stamps_mask;
@@ -48,7 +49,7 @@ module fail_safe (input clk);
   always @(posedge clk) clear <= reset;
 
   wire [19:0] pin_out, pin_dir;
-  wire [27:0] pin_out_0, pin_dir_0, pin_out_1, pin_dir_1;
+  wire [31:0] pin_out_0, pin_dir_0, pin_out_1, pin_dir_1;
   wire [8:0] pc_0, pc_1;
   wire halted_0, halted_1;
   wire underflow_0, overflow_0, missed_deadline_0, decode_0, assumption_0;
@@ -122,7 +123,7 @@ module fail_safe (input clk);
     .check_setup$loaded$value(16'd0), .check_setup$single_edge(1'b0),
     .check_setup$floor(1'b0), .start_all(start_all), .rd(rd), .dm(dm),
     .frame$arm(frame_arm), .frame$base(frame_base), .frame$fifty(frame_fifty),
-    .frame_usb(frame_usb),
+    .frame_usb(frame_usb), .frame_owner(frame_owner),
     .stamps$mask(stamps_mask), .stamps$engine(stamps_engine), .stamps$flush(stamps_flush),
     .stamps$pop(stamps_pop),
     .pads(pads),
@@ -148,20 +149,20 @@ module fail_safe (input clk);
   wire faulted_1 = underflow_1 | overflow_1 | missed_deadline_1 | decode_1 | assumption_1;
   // tooth 1: the chip still shows a faulted engine 0's direction bits
 `ifdef KEEP_DRIVE
-  wire [27:0] live_dir_0 = pin_dir_0;
+  wire [31:0] live_dir_0 = pin_dir_0;
 `else
-  wire [27:0] live_dir_0 = faulted_0 ? 28'd0 : pin_dir_0;
+  wire [31:0] live_dir_0 = faulted_0 ? 32'd0 : pin_dir_0;
 `endif
-  wire [27:0] live_out_0 = faulted_0 ? 28'd0 : pin_out_0;
-  wire [27:0] live_dir_1 = faulted_1 ? 28'd0 : pin_dir_1;
-  wire [27:0] live_out_1 = faulted_1 ? 28'd0 : pin_out_1;
+  wire [31:0] live_out_0 = faulted_0 ? 32'd0 : pin_out_0;
+  wire [31:0] live_dir_1 = faulted_1 ? 32'd0 : pin_dir_1;
+  wire [31:0] live_out_1 = faulted_1 ? 32'd0 : pin_out_1;
   // pins 0-11, where the chip takes an engine's level without a direction bit
-  localparam [27:0] OUTPUT_ONLY = 28'h0000fff;
-  wire [27:0] combine_dir = live_dir_0 | live_dir_1;
-  wire [27:0] combine_out = (live_out_0 & (live_dir_0 | OUTPUT_ONLY))
+  localparam [31:0] OUTPUT_ONLY = 32'h00000fff;
+  wire [31:0] combine_dir = live_dir_0 | live_dir_1;
+  wire [31:0] combine_out = (live_out_0 & (live_dir_0 | OUTPUT_ONLY))
                           | (live_out_1 & (live_dir_1 | OUTPUT_ONLY));
-  wire [27:0] raw_dir = pin_dir_0 | pin_dir_1;
-  wire [27:0] raw_out = (pin_out_0 & (pin_dir_0 | OUTPUT_ONLY))
+  wire [31:0] raw_dir = pin_dir_0 | pin_dir_1;
+  wire [31:0] raw_out = (pin_out_0 & (pin_dir_0 | OUTPUT_ONLY))
                       | (pin_out_1 & (pin_dir_1 | OUTPUT_ONLY));
 
   reg last_cleared = 0, last_clear = 1, last_faulted_0 = 0, last_faulted_1 = 0;

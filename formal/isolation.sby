@@ -11,6 +11,8 @@ start_write teeth
 routed teeth
 start_all teeth
 frame_in_region
+load_pending
+owner_moves
 
 [options]
 prove: mode prove
@@ -25,6 +27,13 @@ teeth: expect fail
 frame_in_region: mode prove
 frame_in_region: depth 3
 frame_in_region: expect fail,unknown
+# so does a word waiting to land, and engine 0 owning the receivers after engine 1
+load_pending: mode prove
+load_pending: depth 3
+load_pending: expect fail,unknown
+owner_moves: mode prove
+owner_moves: depth 3
+owner_moves: expect fail,unknown
 
 [engines]
 smtbmc boolector
@@ -42,6 +51,7 @@ expose w:engines.engine_0.pins_sampled w:engines.engine_0.start_0 w:engines.lent
 expose w:engines.data_memory.mine_1 w:engines.data_memory.words_0
 expose w:engines.data_memory.held$0 w:engines.data_memory.held_valid$0
 expose w:engines.engine_0.holding
+expose w:engines.frame_rx.pending w:engines.usb_frame_rx.pending
 rename engines.engine_0.pins_sampled pins_sampled_0
 rename engines.engine_0.start_0 started_0
 rename engines.lent$0 lent_0
@@ -50,6 +60,8 @@ rename engines.data_memory.words_0 data_word_0
 rename engines.data_memory.held$0 held_addr_0
 rename engines.data_memory.held_valid$0 held_valid_0
 rename engines.engine_0.holding holding_0
+rename engines.frame_rx.pending frame_pending
+rename engines.usb_frame_rx.pending usb_pending
 rename engines.engine_0.sram_macro.sram__A_MEN sram_0_men
 rename engines.engine_0.sram_macro.sram__A_WEN sram_0_wen
 rename engines.engine_0.sram_macro.sram__A_REN sram_0_ren
@@ -84,6 +96,8 @@ start_write: read -define START_WRITE
 routed: read -define ROUTED
 start_all: read -define START_ALL
 frame_in_region: read -define FRAME_IN_REGION
+load_pending: read -define LOAD_PENDING
+owner_moves: read -define OWNER_MOVES
 read_verilog -formal -sv isolation.sv
 prep -top isolation
 

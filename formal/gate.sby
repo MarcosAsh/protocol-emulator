@@ -7,6 +7,7 @@ lend_busy teeth
 no_abort teeth
 overrun teeth
 frame_ungated teeth
+frame_any_turn teeth
 premises_live teeth
 
 [options]
@@ -35,6 +36,7 @@ lend_busy: read_verilog lend_busy.v
 no_abort: read_verilog no_abort.v
 overrun: read_verilog overrun.v
 frame_ungated: read_verilog frame_ungated.v
+frame_any_turn: read_verilog frame_any_turn.v
 premises_live: read_verilog premises_live.v
 hierarchy -top engines_top
 proc
@@ -61,6 +63,8 @@ rename engines.engine_1.start started_1
 rename engines.engine_0.free free_0
 rename engines.engine_1.free free_1
 rename engines.frame_writes frame_write
+expose w:engines.host_writes
+rename engines.host_writes host_writes
 expose w:engines.data_memory.turn w:engines.data_memory.keeps$0 w:engines.data_memory.keeps$1
 rename engines.data_memory.turn data_turn
 rename engines.data_memory.keeps$0 keeps_0
@@ -99,6 +103,7 @@ gate_teeth/lend_busy.v
 gate_teeth/no_abort.v
 gate_teeth/overrun.v
 gate_teeth/frame_ungated.v
+gate_teeth/frame_any_turn.v
 gate_teeth/premises_live.v
 ../src/RM_IHPSG13_1P_512x16_c2_bm_bist.v
 gate.sv
