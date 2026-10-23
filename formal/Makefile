@@ -1,7 +1,7 @@
 all: issue_timing host_timing host_spacing late_host fifo_order unreachable phase_step fetch_step edge_step event_step frame_step \
   value_step narrow saturating chip_frame fail_safe isolation data_step teeth fsm_miter verilog_in \
   sram_equiv kernel_equiv translation frontend_equiv link self_check self_check_clean powerup offset_axioms \
-  gate certify complete
+  gate certify complete usb_roundtrip
 
 # every dune here runs from the checkout's root, which a worktree inside another checkout
 # would otherwise give up for the outer one's
@@ -166,6 +166,32 @@ frame_step: engine.v
 # of the shift registers, which hold what the ISA says from the clear on
 value_step: engine.v
 	sby -f value_step.sby prove cover
+
+usb_frame_rx.v: ../src/*.ml
+	cd .. && dune exec -- bin/generate.exe usb-rx > formal/usb_frame_rx.v
+
+# The USB receiver keeps what a host sends at 8 samples a bit, any packet with up to 8 data
+# bytes, and takes seven 1s in a row for a stuffing error, by k-induction. About 3 min;
+# usb_roundtrip_proof runs on Verilog written already. Each tooth, a receiver that never
+# unstuffs or packs a lone byte high, or a host that never stuffs or sends its CRC raw,
+# must fail.
+UNDESTUFFED = s/^\(\s*assign full_run = ones == \)signal_const_[0-9]*;/\13'b111;/
+HALF_HIGH = s/^\(\s*assign signal_mux = \)half_word ? signal_cat : word_next;/\1word_next;/
+usb_roundtrip: usb_frame_rx.v
+	$(MAKE) usb_roundtrip_proof
+
+usb_roundtrip_proof:
+	mkdir -p usb_roundtrip_teeth
+	sed "$(UNDESTUFFED)" usb_frame_rx.v > usb_roundtrip_teeth/undestuffed.v
+	sed "$(HALF_HIGH)" usb_frame_rx.v > usb_roundtrip_teeth/half_high.v
+	! cmp -s usb_frame_rx.v usb_roundtrip_teeth/undestuffed.v
+	! cmp -s usb_frame_rx.v usb_roundtrip_teeth/half_high.v
+	sby -f usb_roundtrip.sby prove seven cover cover_long cover_seven undestuffed half_high \
+	  seven_lenient unstuffed crc_raw
+
+# the same for any packet of up to 64 bytes, about 10 min
+usb_roundtrip_64: usb_frame_rx.v
+	sby -f usb_roundtrip.sby prove_64
 
 # the four lemmas on the narrow core, the first three each with a tooth, the step lemma's
 # the wrap's below; narrow_proof runs on files written already, for CI

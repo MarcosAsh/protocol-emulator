@@ -1,0 +1,81 @@
+[tasks]
+prove
+prove_64
+seven sevens
+cover covers
+cover_long covers
+cover_seven covers sevens
+undestuffed mutant teeth
+half_high mutant teeth
+seven_lenient mutant teeth sevens
+unstuffed teeth
+crc_raw teeth
+
+[options]
+prove: mode prove
+prove: depth 8
+# the longest full speed bulk packet, about 10 min
+prove_64: mode prove
+prove_64: depth 8
+seven: mode prove
+seven: depth 8
+covers: mode cover
+cover: depth 160
+# the longest packet's last word lands by 480 cycles, from the bus idle
+cover_long: depth 480
+cover_seven: depth 120
+# each tooth fails a claim, not a lemma, within a short packet
+teeth: mode bmc
+teeth: depth 170
+teeth: expect fail
+
+[engines]
+~teeth: smtbmc yices
+teeth: abc bmc3
+
+[script]
+~mutant: read_verilog usb_frame_rx.v
+undestuffed: read_verilog undestuffed.v
+half_high: read_verilog half_high.v
+seven_lenient: read_verilog undestuffed.v
+hierarchy -top usb_frame_rx_top
+proc
+flatten
+cd usb_frame_rx_top
+expose w:usb_frame_rx.usb_rx.phase w:usb_frame_rx.usb_rx.last_dp
+expose w:usb_frame_rx.usb_rx.sm w:usb_frame_rx.usb_rx.zeros w:usb_frame_rx.usb_rx.ones
+expose w:usb_frame_rx.usb_rx.word w:usb_frame_rx.usb_rx.word_bits
+expose w:usb_frame_rx.usb_rx.was_low
+expose w:usb_frame_rx.pending w:usb_frame_rx.ended w:usb_frame_rx.pid_bits
+expose w:usb_frame_rx.past_pid w:usb_frame_rx.crc16 w:usb_frame_rx.crc5
+rename usb_frame_rx.usb_rx.phase rx_phase
+rename usb_frame_rx.usb_rx.last_dp rx_last_dp
+rename usb_frame_rx.usb_rx.was_low rx_was_low
+rename usb_frame_rx.usb_rx.sm rx_sm
+rename usb_frame_rx.usb_rx.zeros rx_zeros
+rename usb_frame_rx.usb_rx.ones rx_ones
+rename usb_frame_rx.usb_rx.word rx_word
+rename usb_frame_rx.usb_rx.word_bits rx_word_bits
+rename usb_frame_rx.pending pending
+rename usb_frame_rx.ended ended
+rename usb_frame_rx.pid_bits pid_bits
+rename usb_frame_rx.past_pid past_pid
+rename usb_frame_rx.crc16 frame_crc16
+rename usb_frame_rx.crc5 frame_crc5
+cd ..
+prove_64: read -define BYTES=64
+sevens: read -define SEVEN NO_STUFF
+covers: read -define PINNED
+cover_long: read -define LONG
+unstuffed: read -define NO_STUFF
+crc_raw: read -define CRC_RAW SHORT
+teeth: read -define NO_LEMMAS
+read_verilog -formal -sv usb_roundtrip.sv
+prep -flatten -top usb_roundtrip
+
+[files]
+~mutant: usb_frame_rx.v
+undestuffed: usb_roundtrip_teeth/undestuffed.v
+half_high: usb_roundtrip_teeth/half_high.v
+seven_lenient: usb_roundtrip_teeth/undestuffed.v
+usb_roundtrip.sv
