@@ -1,7 +1,7 @@
 # One clock, and every pin but clk read by one two-flop synchroniser, on the flattened
-# design rtl.ys or gate.ys leaves; the frame pad, picked among the pads by a flop's mux,
-# by one on each edge, Both_edges' falling pair a falling flop in the RTL and a rising
-# one behind an inverter in the netlist. So a late pad edge can unsettle only the first
+# design rtl.ys or gate.ys leaves; the frame pad and the pad after it, D-, each picked
+# among the pads by a flop's mux, by one on each edge, each Both_edges' falling pair a
+# falling flop in the RTL and a rising one behind an inverter in the netlist. So a late pad edge can unsettle only the first
 # stage, which nothing but the second reads, and it settles to a value the pad held
 # steady would give: one the proofs' free pins already take. rst_n's release, read the
 # same way, only moves by a cycle.
@@ -31,9 +31,16 @@ check -assert
 # flops, latches, macros and any cell not a gate
 name seq {t:* t:$_*_ %d t:$_*DFF* %u t:$_DLATCH* %u t:$_SR_* %u}
 require "no latch" 0 {t:$_DLATCH* t:$_SR_* %u}
-name falling {w:core.top.both_edges.signal_reg w:core.top.both_edges.signal_reg_1 %u \
-  %ci6:+[Q] @seq %i}
-require "Both_edges' falling pair is two flops" 2 {@falling}
+proc falling_pair {instance} {
+  return "w:core.top.$instance.signal_reg w:core.top.$instance.signal_reg_1 %u \
+    %ci6:+\[Q\] @seq %i"
+}
+name falling_frame [falling_pair both_edges]
+name falling_dm [falling_pair both_edges_1]
+require "the frame pad's falling pair is two flops" 2 {@falling_frame}
+require "D-'s falling pair is two flops" 2 {@falling_dm}
+name falling {@falling_frame @falling_dm %u}
+require "and the two pairs are four" 4 {@falling}
 require "every other flop takes the rising edge, with at most an asynchronous reset" 0 \
   {t:$_*DFF* t:$_DFF_P_ %d t:$_DFF_P??_ %d @falling %d}
 require "the pins are clk, ena, rst_n, ui_in and uio_in" 19 {i:*}
@@ -43,9 +50,9 @@ require "one pin reaches the clock pins" 1 {@clock_cone i:* %i}
 require "the clock is clk" 1 {@clock_cone w:clk %i}
 require "no flop or macro drives a clock" 0 {@clock_cone %ci @seq %i}
 name falling_inverters {@falling %ci*:+[C,Y,A] t:$_NOT_ %i}
-require "the pair falls: a falling flop, or a rising one behind an inverter" 2 \
+require "the pairs fall: a falling flop, or a rising one behind an inverter" 4 \
   {@falling t:$_DFF_N* %i @falling_inverters %co*:+[Y,A,C] @falling %i %u}
-require "no gate but a buffer on the clock, or the falling pair's inverters" 0 \
+require "no gate but a buffer on the clock, or the falling pairs' inverters" 0 \
   {@clock_cone t:* %i t:$_BUF_ %d @falling_inverters %d}
 require "the inverters clock nothing else" 0 \
   {@falling_inverters %co*:+[Y,A,C] @seq %i @falling %d}
@@ -81,13 +88,15 @@ name other_reset {t:$_DFF_P* %ci:+[R] @seq %d @reset_cone %d %cie*}
 require "no pin reaches another flop by its asynchronous reset" 0 {@other_reset i:* %i}
 require "nor any flop but the second" 0 {@other_reset %ci @seq %i @reset_second %d}
 
-# the frame pick's first flops, which every pad it picks from reaches
+# the two picks' first flops, which every pad they pick from reaches
 name frame_first {w:ui_in_3_ %coe* %co @seq %i w:uio_in_0_ %coe* %co @seq %i %i}
-require "the frame pick reaches two first flops" 2 {@frame_first}
-require "one on each edge" 1 {@frame_first @falling %i}
+require "the frame and D- picks reach four first flops" 4 {@frame_first}
+require "the frame pick's one on the falling edge" 1 {@frame_first @falling_frame %i}
+require "D-'s one on the falling edge" 1 {@frame_first @falling_dm %i}
+require "and two on the rising edge" 2 {@frame_first @falling %d}
 name frame_q {@frame_first %co:+[Q] @frame_first %d %coe*}
-require "the frame pick's first stages reach no output" 0 {@frame_q o:* %i}
-require "each reaches one flop" 2 {@frame_q %co @seq %i}
+require "the picks' first stages reach no output" 0 {@frame_q o:* %i}
+require "each reaches one flop" 4 {@frame_q %co @seq %i}
 require "their D alone" 0 {@frame_q %co:-[D] @seq %i}
 require "and not themselves" 0 {@frame_q %co @frame_first %i}
 
