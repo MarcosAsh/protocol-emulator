@@ -3,8 +3,8 @@
     [words] the word at it now. A moved pointer's word arrives within two cycles, hence
     the data-pull refusal after a pull or seek. [writes] land only while all engines are
     halted. [dma] lands whenever valid, unless a host write takes the cycle, and takes
-    that cycle's read: the caller holds it off any read an engine or the checker needs. At
-    most two engines. *)
+    that cycle's read: the caller holds it off any read an engine or the checker needs, as
+    [keeps] tells. At most two engines. *)
 
 open! Core
 open! Hardcaml
@@ -26,7 +26,14 @@ module Make (_ : Config) : sig
   end
 
   module O : sig
-    type 'a t = { words : 'a list } [@@deriving hardcaml]
+    type 'a t =
+      { words : 'a list
+      ; whose_turn : 'a (** Whose read this cycle is, unless a write takes it. *)
+      ; keeps : 'a list
+      (** Engine [n] runs and its next address is the one it last read, unwritten since:
+          it skips the read, so a write may take its turn. *)
+      }
+    [@@deriving hardcaml]
   end
 
   val hierarchical

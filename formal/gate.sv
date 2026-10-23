@@ -3,7 +3,8 @@
 // only after a walk of n that began after the last program, configuration or line table
 // write to n, held n free and saw no data write, the host's or the frame receiver's,
 // throughout, and finished accepted; (c) a start never comes the cycle after the checker
-// held n's ports; (d) the frame receiver writes only while n is free or does not pull data;
+// held n's ports; (d) the frame receiver takes n's data turn only while n is free, does not
+// pull data or keeps its word;
 // (e) a walk of n checks under the setup it began with, and n's core, while certified,
 // watches the premises of that setup; (f) a walk of n runs only in n's turn at the checker.
 // Every host field is free every cycle, and so is each memory's output.
@@ -28,11 +29,12 @@ module gate (input clk);
 
   wire certified_0, certified_1, go, chosen, checked, checking, accepts, lent_0, lent_1;
   wire turn_starts;
-  wire started_0, started_1, free_0, free_1, frame_write;
+  wire started_0, started_1, free_0, free_1, frame_write, data_turn, keeps_0, keeps_1;
   wire [1:0] certified = {certified_1, certified_0};
   wire [1:0] lent = {lent_1, lent_0};
   wire [1:0] started = {started_1, started_0};
   wire [1:0] free = {free_1, free_0};
+  wire [1:0] keeps = {keeps_1, keeps_0};
 
   engines_top dut (
     .clock(clk), .clear(clear),
@@ -51,6 +53,7 @@ module gate (input clk);
     .checked(checked), .checking(checking), .accepts(accepts), .turn_starts(turn_starts),
     .lent_0(lent_0), .lent_1(lent_1), .started_0(started_0), .started_1(started_1),
     .free_0(free_0), .free_1(free_1), .frame_write(frame_write),
+    .data_turn(data_turn), .keeps_0(keeps_0), .keeps_1(keeps_1),
     .walk_valid(walk_setup[18]), .walk_value(walk_setup[17:2]),
     .walk_floor(walk_setup[1]), .walk_single_edge(walk_setup[0]),
     .premises_valid_0(premises_0[18]), .premises_value_0(premises_0[17:2]),
@@ -89,7 +92,7 @@ module gate (input clk);
         if (started[n]) assert (certified[n]);
         if (certified[n]) assert (good[n]);
         if (started[n]) assert (!was_lent[n]);
-        if (frame_write) assert (free[n] || !autopull_data[n]);
+        if (frame_write && data_turn == n) assert (free[n] || !autopull_data[n] || keeps[n]);
         if (walking) assert (walk_setup == begun_with);
         if (certified[n] || walking) assert (premises[n] == begun_with);
 `ifndef NO_INVARIANT

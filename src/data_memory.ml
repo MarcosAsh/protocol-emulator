@@ -27,7 +27,11 @@ module Make (Config : Config) = struct
   end
 
   module O = struct
-    type 'a t = { words : 'a list [@length engines] [@bits Isa.data_bits] }
+    type 'a t =
+      { words : 'a list [@length engines] [@bits Isa.data_bits]
+      ; whose_turn : 'a
+      ; keeps : 'a list [@length engines] [@bits 1]
+      }
     [@@deriving hardcaml]
   end
 
@@ -45,6 +49,7 @@ module Make (Config : Config) = struct
            { With_valid.valid = w.valid; value = f w }))
         ~default:(zero (width (f (List.hd_exn i.writes))))
     in
+    let%hw write_addr = mux2 host_write (written ~f:(fun w -> w.addr)) i.dma.addr in
     (* whose turn it is to read, one cycle each *)
     let%hw turn = wire 1 in
     turn <-- if engines = 1 then gnd else reg spec ~:turn;
@@ -54,8 +59,7 @@ module Make (Config : Config) = struct
       ; men = vdd
       ; wen = write
       ; ren = vdd
-      ; addr =
-          mux2 write (mux2 host_write (written ~f:(fun w -> w.addr)) i.dma.addr) read_addr
+      ; addr = mux2 write write_addr read_addr
       ; din = mux2 host_write (written ~f:(fun w -> w.data)) i.dma.data
       ; bm = ones Isa.data_bits
       }
@@ -65,14 +69,35 @@ module Make (Config : Config) = struct
       | Flops -> (Program_memory.hierarchical scope memory_in).dout
       | Ihp_sram -> (Sram_macro.hierarchical scope memory_in).dout
     in
+    (* A running engine keeps its word while its next address is the one it last read and
+       nothing has written there since: its last word is the word the read would give, so
+       it skips the read and a write may take its turn. *)
+    let%hw_list held =
+      List.mapi i.reads ~f:(fun n read -> reg spec ~enable:(turn ==:. n &: ~:write) read)
+    in
+    let%hw_list held_valid =
+      List.mapi (List.zip_exn held i.halted) ~f:(fun n (held, halted) ->
+        reg_fb spec ~width:1 ~f:(fun valid ->
+          mux2
+            (halted |: (write &: (write_addr ==: held)))
+            gnd
+            (valid |: (turn ==:. n &: ~:write))))
+    in
+    let%hw_list keeps =
+      List.map3_exn
+        i.reads
+        (List.zip_exn held held_valid)
+        i.halted
+        ~f:(fun read (held, valid) halted -> valid &: ~:halted &: (read ==: held))
+    in
     let words =
-      List.mapi i.reads ~f:(fun n _ ->
+      List.mapi (List.zip_exn i.reads keeps) ~f:(fun n (_, keeps) ->
         (* reads where the pointer will be, so next cycle's output is the word at it *)
-        let%hw mine = reg spec (turn ==:. n &: ~:write) in
+        let%hw mine = reg spec (turn ==:. n &: ~:write &: ~:keeps) in
         let%hw last = reg spec ~enable:mine dout in
         mux2 mine dout last)
     in
-    { O.words }
+    { O.words; whose_turn = turn; keeps }
   ;;
 
   let hierarchical ?instance ~memory scope i =

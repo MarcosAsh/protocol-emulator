@@ -168,20 +168,22 @@ module Make (Config : Config) = struct
           |: pick (List.map lent ~f:( ~: ))
           |: turn_ends)
     in
-    (* A received frame takes the data memory's port only where nothing it serves reads:
-       no check, no host write, and every engine halted and not starting, or not pulling
-       from data. A halted engine's word is refetched from its start on. *)
+    (* A received frame takes the data memory's port only where no read it serves is lost:
+       no check, no host write, and the engine whose turn it takes halted and not
+       starting, not pulling from data, or keeping its word. A halted engine's word is
+       refetched from its start on. *)
     let%hw host_writes =
       List.map outs ~f:(fun e -> e.halted)
       @ [ List.map i.hosts ~f:(fun h -> h.data_write.valid) |> List.reduce_exn ~f:( |: ) ]
       |> List.reduce_exn ~f:( &: )
     in
+    let data_turn = Data_memory.O.Of_signal.wires () in
+    let%hw_list turn_spared =
+      List.map3_exn outs i.hosts data_turn.keeps ~f:(fun e (h : _ Engine.Host.t) keeps ->
+        e.free |: ~:(h.config.autopull_data) |: keeps)
+    in
     let%hw frame_may_write =
-      ~:checking
-      &: ~:host_writes
-      &: (List.map2_exn outs i.hosts ~f:(fun e (h : _ Engine.Host.t) ->
-            e.free |: ~:(h.config.autopull_data))
-          |> List.reduce_exn ~f:( &: ))
+      ~:checking &: ~:host_writes &: mux data_turn.whose_turn turn_spared
     in
     let frame =
       Frame_rx.hierarchical
@@ -217,6 +219,7 @@ module Make (Config : Config) = struct
         ; dma = frame.write
         }
     in
+    Data_memory.O.Of_signal.assign data_turn data;
     Load_checker.hierarchical
       scope
       { clocking = i.clocking

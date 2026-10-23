@@ -61,6 +61,10 @@ rename engines.engine_1.start started_1
 rename engines.engine_0.free free_0
 rename engines.engine_1.free free_1
 rename engines.frame_rx.writes frame_write
+expose w:engines.data_memory.turn w:engines.data_memory.keeps$0 w:engines.data_memory.keeps$1
+rename engines.data_memory.turn data_turn
+rename engines.data_memory.keeps$0 keeps_0
+rename engines.data_memory.keeps$1 keeps_1
 expose w:engines.load_checker.setup$loaded$valid_0 w:engines.load_checker.setup$loaded$value_0
 expose w:engines.load_checker.setup$floor_0 w:engines.load_checker.setup$single_edge_0
 rename engines.load_checker.setup$loaded$valid_0 walk_valid

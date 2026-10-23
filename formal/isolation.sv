@@ -111,7 +111,9 @@ module isolation_copy (
   output fifo_t rx, tx,
   output [27:0] pins_sampled,
   output started, data_mine, lent,
-  output [15:0] data_word
+  output [15:0] data_word,
+  output [8:0] held_addr,
+  output held_valid
 );
 `define CONFIG(n, c) \
     .hosts$config$side_set_count_``n(c.side_set_count), \
@@ -185,7 +187,7 @@ module isolation_copy (
     .engines$data_addr_0(data_addr),
     .state_0(state), .rx_0(rx), .tx_0(tx), .pins_sampled_0(pins_sampled),
     .started_0(started), .data_mine_0(data_mine), .lent_0(lent),
-    .data_word_0(data_word));
+    .data_word_0(data_word), .held_addr_0(held_addr), .held_valid_0(held_valid));
 endmodule
 
 // The data memory of each copy, as the register its reads fill. Both read the same word
@@ -266,6 +268,8 @@ module isolation (input clk);
   wire [`STATE_BITS - 1:0] state_a, state_b;
   fifo_t rx_a, tx_a, rx_b, tx_b;
   wire started_a, started_b, data_mine_a, data_mine_b, lent_a, lent_b;
+  wire [8:0] held_addr_a, held_addr_b;
+  wire held_valid_a, held_valid_b;
 
 `define COPY(side) \
   isolation_copy side ( \
@@ -283,7 +287,8 @@ module isolation (input clk);
     .data_addr(data_addr_``side), \
     .state(state_``side), .rx(rx_``side), .tx(tx_``side), \
     .pins_sampled(pins_sampled_``side), .started(started_``side), \
-    .data_mine(data_mine_``side), .lent(lent_``side), .data_word(data_word_``side));
+    .data_mine(data_mine_``side), .lent(lent_``side), .data_word(data_word_``side), \
+    .held_addr(held_addr_``side), .held_valid(held_valid_``side));
 
   `COPY(a)
   `COPY(b)
@@ -413,10 +418,16 @@ module isolation (input clk);
       if (port_data_a.wen && region[port_data_a.addr])
         assert (port_data_a.addr == port_data_b.addr && port_data_a.din == port_data_b.din
                 && port_data_a.bm == port_data_b.bm);
-      // the word engine 0 streams agrees while it runs pulling data, which keeps the frame
-      // receiver off the memory, and as it starts once read
-      if (!status_a.halted && config_0.autopull_data) assert (data_word_a == data_word_b);
-      if (started_a) begin
+      // the word engine 0 streams agrees while it runs pulling data, as a write takes its
+      // turn only where it keeps its word and skips the read, and as it starts once read
+      if (!status_a.halted && config_0.autopull_data) begin
+        assert (data_word_a == data_word_b);
+        // and whether it keeps a word, and where, so a write takes its turn in both alike
+        assert (held_valid_a == held_valid_b);
+        if (held_valid_a) assert (held_addr_a == held_addr_b);
+      end
+      // an engine that pulls no data leaves its turn to a write and reads no word
+      if (started_a && config_0.autopull_data) begin
         assert (data_mine_a == data_mine_b);
         if (data_mine_a) assert (data_word_a == data_word_b);
       end

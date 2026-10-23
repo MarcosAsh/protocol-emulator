@@ -410,7 +410,8 @@ let on_chip ~early frame =
 
 (* A frame lands while engine 0 runs in lockstep with the model, then engine 1, whose
    model starts from the memory the frame should have left, hands it to the host word for
-   word. With engine 1 pulling from the start, the receiver keeps off and says so. *)
+   word. With engine 1 pulling from the start, every word still lands, in turns where the
+   engine keeps its word, and the engines stay in lockstep. *)
 let%expect_test "a frame on the chip, beside running engines in lockstep" =
   let frame = with_fcs (List.init 23 ~f:(fun n -> ((n * 37) + 5) land 0xff)) in
   let expected = words frame in
@@ -438,7 +439,7 @@ let%expect_test "a frame on the chip, beside running engines in lockstep" =
      (handed_as_sent true) (handed 119))
     ((early true) (lockstep ())
      (status
-      ((words 14) (finished 1) (fcs_ok 1) (half 1) (dropped 1) (receiving 0)
+      ((words 14) (finished 1) (fcs_ok 1) (half 1) (dropped 0) (receiving 0)
        (armed 0)))
      (handed_as_sent false) (handed 419))
     |}]
