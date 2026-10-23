@@ -160,14 +160,17 @@ jobs:
 
   # the gate-level tests and replays again with the router's delays, one corner a job
   # (test/Makefile sdf_*), beside gl_test so the run takes no longer
+  # each corner in three groups of modules (test/Makefile's GROUP), as one corner's whole
+  # run on the 8x4 chip would take a runner past six hours
   gl_sdf:
     needs: gds
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 300
     strategy:
       fail-fast: false
       matrix:
         corner: [slow, typ, fast]
+        group: [replay, two_engines, rest]
     steps:
       - name: checkout repo
         uses: actions/checkout@v6
@@ -211,24 +214,25 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y ./iverilog_13.0-1_amd64.deb
 
-      - name: Test the gate level at the ${{ matrix.corner }} corner
+      - name: Test the gate level at the ${{ matrix.corner }} corner, ${{ matrix.group }}
         run: |
           cp tt_submission/*.v test/gate_level_netlist.v
-          make -C test sdf_${{ matrix.corner }} SDF_DIR=../sdf
+          make -C test sdf_${{ matrix.corner }} SDF_DIR=../sdf GROUP=${{ matrix.group }}
 
       - name: Publish the results
         if: success() || failure()
         uses: actions/upload-artifact@v7
         with:
-          name: gl_sdf_${{ matrix.corner }}
-          path: test/results_sdf_${{ matrix.corner }}.xml
+          name: gl_sdf_${{ matrix.corner }}_${{ matrix.group }}
+          path: test/results_sdf_${{ matrix.corner }}_${{ matrix.group }}.xml
 
   # the hardened netlist equals the RTL (formal/netlist_equiv); on IHP tt_submission
   # carries the unpowered final/nl, so that is what this proves
   netlist_equiv:
     needs: gds
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    # about 50 minutes of proofs on a desktop, past an hour on a runner
+    timeout-minutes: 150
     steps:
       - name: checkout repo
         uses: actions/checkout@v6
