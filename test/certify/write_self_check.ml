@@ -290,7 +290,8 @@ let contract_checks =
 ;;
 
 (* the core's own, as write_certificate's inductive certificates have them, and the data
-   memory's read a cycle on; the checker has no crc_send, so its outs send the osr *)
+   memory's read a cycle on, or the word it keeps in place of the read; the checker has no
+   crc_send, so its outs send the osr *)
 let core_invariants ~after =
   [%string
     {|  wire [31:0] wait_pin = 32'd1 << instruction[4:0];
@@ -320,6 +321,7 @@ let core_invariants ~after =
       if (jumped) assert (stall == 1 && fetched == rom(pc));
       if (stalled) assert (instruction[15:13] == 1);
       assert (data_word == rows(last_data_addr));
+      if (held_valid) assert ((read_landed ? data_word : kept_word) == rows(held_addr));
     end
 |}]
 ;;
@@ -355,10 +357,14 @@ let harness ?(invariants = false) ~edges ~base ~mutant () =
   wire [7:0] opcode_onehot;
   wire [31:0] wait_select;
   wire crc_sending;
+  wire [8:0] held_addr;
+  wire [15:0] kept_word;
+  wire held_valid, read_landed;
 |}
       , {|, .instruction(instruction), .crc_sending(crc_sending),
     .decode_ok(decode_ok), .opcode_onehot(opcode_onehot), .wait_select(wait_select),
-    .eng_issue(eng_issue), .eng_jmp_go(eng_jmp_go)|}
+    .eng_issue(eng_issue), .eng_jmp_go(eng_jmp_go), .held_addr(held_addr),
+    .held_valid(held_valid), .kept_word(kept_word), .read_landed(read_landed)|}
       , core_invariants ~after ^ mined ~edges ~base ~program:words ~config )
     else "", "", contract_checks
   in

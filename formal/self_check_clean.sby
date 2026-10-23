@@ -27,6 +27,14 @@ cd engine_top
 expose w:solo.engine.issue w:solo.engine.jmp_go
 rename solo.engine.issue eng_issue
 rename solo.engine.jmp_go eng_jmp_go
+# and the data memory's kept word, which a run that holds its pointer reads in place of
+# the macro
+expose w:solo.data_memory.held$0 w:solo.data_memory.held_valid$0
+expose w:solo.data_memory.last w:solo.data_memory.mine
+rename solo.data_memory.held$0 held_addr
+rename solo.data_memory.held_valid$0 held_valid
+rename solo.data_memory.last kept_word
+rename solo.data_memory.mine read_landed
 rename solo.engine.sram_macro.sram__A_ADDR sram_addr
 rename solo.engine.sram_macro.sram__A_DOUT sram_dout
 rename solo.data_memory.sram_macro.sram__A_ADDR data_sram_addr
