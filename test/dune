@@ -40,6 +40,7 @@
   (glob_files *.asm)
   (glob_files assemble/*.asm)
   (glob_files *.hex)
+  (glob_files diagrams/*.json)
   (glob_files ../src/*.ml)
   ../formal/Makefile
   ../src/protocol_emulator.v
