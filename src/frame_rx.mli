@@ -5,9 +5,10 @@
     [arm] (re)starts it: the next frame's words land from [base] up, and its end disarms
     it with [finished], so one frame at a time stays put for the host. A word lands only
     where [may_write] lets it, and only below the data memory's end; otherwise it is
-    counted and [dropped] says so. [fcs_ok] is the CRC-32 residue at the last whole byte.
-    [half] marks a last word that holds one byte. Assumes an external line receiver with
-    squelch, idle reading low. *)
+    counted and [dropped] says so. A word waits for [may_write] until the next arrives,
+    and [finished] until the last lands. [fcs_ok] is the CRC-32 residue at the last whole
+    byte. [half] marks a last word that holds one byte. Assumes an external line receiver
+    with squelch, idle reading low. *)
 
 open! Core
 open! Hardcaml
