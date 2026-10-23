@@ -113,7 +113,9 @@ module phase_step (input clk);
   (* anyseq *) wire [4:0] line_write_addr, o_line_write_addr;
   (* anyseq *) wire [15:0] line_write_data, o_line_write_data;
   (* anyseq *) wire [1:0] rd;
-  (* anyseq *) wire frame_arm, frame_fifty, stamps_engine, stamps_flush, stamps_pop;
+  (* anyseq *) wire frame_arm, frame_fifty, frame_usb;
+  (* anyseq *) wire stamps_engine, stamps_flush, stamps_pop;
+  (* anyseq *) wire [1:0] dm;
   (* anyseq *) wire [8:0] frame_base;
   (* anyseq *) wire [19:0] stamps_mask;
   wire line_code = 0, route = 0;
@@ -216,8 +218,9 @@ module phase_step (input clk);
     .hosts$check_1(1'b0), .hosts$config_written_1(1'b0), \
     .check_setup$base(9'd0), .check_setup$loaded$valid(1'b0), \
     .check_setup$loaded$value(16'd0), .check_setup$single_edge(1'b0), \
-    .check_setup$floor(1'b0), .start_all(start_all), .rd(rd), \
+    .check_setup$floor(1'b0), .start_all(start_all), .rd(rd), .dm(dm), \
     .frame$arm(frame_arm), .frame$base(frame_base), .frame$fifty(frame_fifty), \
+    .frame_usb(frame_usb), \
     .stamps$mask(stamps_mask), .stamps$engine(stamps_engine), \
     .stamps$flush(stamps_flush), .stamps$pop(stamps_pop)
 `ifdef ENGINE_1

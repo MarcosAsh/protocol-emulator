@@ -27,6 +27,7 @@ LINE = 0x47
 FRAME_CONTROL = 0x48
 FRAME_BASE = 0x49
 FRAME_STATUS = 0x4A
+USB_STATUS = 0x4B
 STAMP_MASK = 0x4C
 STAMP_CONTROL = 0x4D
 STAMP_TIME_LO = 0x4E
@@ -196,6 +197,20 @@ class Host:
             "words": s & 0x3FF, "finished": (s >> 10) & 1, "fcs_ok": (s >> 11) & 1,
             "half": (s >> 12) & 1, "dropped": (s >> 13) & 1, "receiving": (s >> 14) & 1,
             "armed": (s >> 15) & 1,
+        }
+
+    def arm_usb(self, dp_pin, base=0):
+        """Take the next USB full speed packet into the data memory from base, D+ on
+        dp_pin and D- on the next. One packet per arm; frame_status reports it, its
+        fcs_ok the CRC-16."""
+        self.write(FRAME_BASE, [base])
+        self.write(FRAME_CONTROL, [(1 << 7) | (dp_pin << 2) | 1])
+
+    def usb_status(self):
+        s = self.read(USB_STATUS)[0]
+        return {
+            "crc5_ok": s & 1, "crc16_ok": (s >> 1) & 1, "stuff_error": (s >> 2) & 1,
+            "aligned": (s >> 3) & 1,
         }
 
     def watch_edges(self, pins, engine=0):

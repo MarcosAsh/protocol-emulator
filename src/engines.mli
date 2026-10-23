@@ -30,8 +30,10 @@ module Make (_ : Config) : sig
       ; start_all : 'a
       (** Starts every engine on one cycle, only when all are halted and, gated, all
           certified. *)
-      ; rd : 'a (** [Both_edges]' two samples of the 10BASE-T pin. *)
+      ; rd : 'a (** [Both_edges]' two samples of the 10BASE-T pin, or USB's D+. *)
+      ; dm : 'a (** And of USB's D-. *)
       ; frame : 'a Frame_rx.Control.t
+      ; frame_usb : 'a (** [Usb_frame_rx] in [Frame_rx]'s place. *)
       ; stamps : 'a Edge_stamps.Control.t
       (** On the pads, timed by engine [engine]'s [now]. *)
       }
@@ -62,6 +64,7 @@ module Make (_ : Config) : sig
       ; pin_dir : 'a
       ; check : 'a Check.t
       ; frame : 'a Frame_rx.Status.t
+      ; usb : 'a Usb_frame_rx.Status.t
       ; stamps : 'a Edge_stamps.O.t
       }
     [@@deriving hardcaml]

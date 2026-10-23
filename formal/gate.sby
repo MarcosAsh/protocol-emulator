@@ -45,7 +45,7 @@ expose w:engines.certified$0 w:engines.certified$1 w:engines.go w:engines.chosen
 expose w:engines.checked w:engines.checking w:engines.accepts w:engines.lent$0 w:engines.lent$1
 expose w:engines.turn_starts
 expose w:engines.engine_0.start w:engines.engine_1.start
-expose w:engines.engine_0.free w:engines.engine_1.free w:engines.frame_rx.writes
+expose w:engines.engine_0.free w:engines.engine_1.free w:engines.frame_writes
 rename engines.certified$0 certified_0
 rename engines.certified$1 certified_1
 rename engines.go go
@@ -60,7 +60,7 @@ rename engines.engine_0.start started_0
 rename engines.engine_1.start started_1
 rename engines.engine_0.free free_0
 rename engines.engine_1.free free_1
-rename engines.frame_rx.writes frame_write
+rename engines.frame_writes frame_write
 expose w:engines.data_memory.turn w:engines.data_memory.keeps$0 w:engines.data_memory.keeps$1
 rename engines.data_memory.turn data_turn
 rename engines.data_memory.keeps$0 keeps_0

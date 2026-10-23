@@ -62,6 +62,7 @@ typedef struct packed {
   logic arm;
   logic [8:0] base;
   logic fifty;
+  logic usb;
 } frame_t;
 
 typedef struct packed {
@@ -89,7 +90,7 @@ typedef struct packed {
 module isolation_copy (
   input clk, clear,
   input [19:0] pads,
-  input [1:0] rd,
+  input [1:0] rd, dm,
   input config_t config_0, config_1,
   input host_t host_0, host_1,
   input check_setup_t check_setup,
@@ -162,8 +163,9 @@ module isolation_copy (
     .check_setup$loaded$value(check_setup.loaded_value),
     .check_setup$single_edge(check_setup.single_edge),
     .check_setup$floor(check_setup.floor),
-    .start_all(start_all), .rd(rd),
+    .start_all(start_all), .rd(rd), .dm(dm),
     .frame$arm(frame.arm), .frame$base(frame.base), .frame$fifty(frame.fifty),
+    .frame_usb(frame.usb),
     .stamps$mask(stamps.mask), .stamps$engine(stamps.engine), .stamps$flush(stamps.flush),
     .stamps$pop(stamps.pop),
     `CONFIG(0, config_0) `HOST(0, host_0)
@@ -235,8 +237,9 @@ module isolation (input clk);
   (* anyseq *) frame_t frame;
   (* anyseq *) stamps_t stamps;
   (* anyseq *) wire start_all;
-  // the 10BASE-T pad's samples on both edges, as the top takes them off the pads
-  (* anyseq *) wire [1:0] rd;
+  // the 10BASE-T or USB D+ pad's samples on both edges, and USB D-'s, as the top takes
+  // them off the pads
+  (* anyseq *) wire [1:0] rd, dm;
   (* anyseq *) wire [15:0] dout_1_a, dout_1_b;
 
   // both copies clear at the first edge, and together whenever reset comes again
@@ -273,7 +276,7 @@ module isolation (input clk);
 
 `define COPY(side) \
   isolation_copy side ( \
-    .clk(clk), .clear(clear), .pads(pads), .rd(rd), \
+    .clk(clk), .clear(clear), .pads(pads), .rd(rd), .dm(dm), \
     .config_0(config_0), .config_1(config_1_``side), .host_0(host_0), .host_1(host_1_``side), \
     .check_setup(check_setup), .frame(frame), .stamps(stamps), .start_all(start_all), \
     .dout_0(dout_0_``side), .dout_1(dout_1_``side), .dout_data(dout_data_``side), \

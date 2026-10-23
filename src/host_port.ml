@@ -46,6 +46,7 @@ module Reg = struct
   let frame_control = 0x48
   let frame_base = 0x49
   let frame_status = 0x4a
+  let usb_status = 0x4b
   let stamp_mask = 0x4c
   let stamp_control = 0x4d
   let stamp_time_lo = 0x4e
@@ -101,6 +102,7 @@ module Make (Config : Config) = struct
       ; status : 'a Status.t list [@length engines]
       ; check : 'a Load_checker.Verdict.t list [@length engines]
       ; frame : 'a Frame_rx.Status.t
+      ; usb : 'a Usb_frame_rx.Status.t
       ; stamps : 'a Edge_stamps.O.t
       }
     [@@deriving hardcaml]
@@ -114,6 +116,7 @@ module Make (Config : Config) = struct
       ; start_all : 'a
       ; frame : 'a Frame_rx.Control.t
       ; frame_pin : 'a [@bits Frame_rx.pin_bits]
+      ; frame_usb : 'a
       ; stamps : 'a Edge_stamps.Control.t
       }
     [@@deriving hardcaml]
@@ -165,6 +168,7 @@ module Make (Config : Config) = struct
     let%hw_var check_flags = Always.Variable.reg spec ~width:3 in
     let%hw_var line_addr = Always.Variable.reg spec ~width:Line_code.address_bits in
     let%hw_var frame_fifty = Always.Variable.reg spec ~width:1 in
+    let%hw_var frame_usb = Always.Variable.reg spec ~width:1 in
     let%hw_var frame_pin = Always.Variable.reg spec ~width:Frame_rx.pin_bits in
     let%hw_var frame_base = Always.Variable.reg spec ~width:Isa.data_addr_bits in
     let%hw_var stamp_mask = Always.Variable.reg spec ~width:Isa.num_pins in
@@ -229,12 +233,25 @@ module Make (Config : Config) = struct
       ; Reg.reject_pc, reg16 (verdict (fun v -> v.reject_pc))
       ; Reg.reject_reason, reg16 (verdict (fun v -> v.reason))
       ; Reg.line_addr, reg16 line_addr.value
-      ; Reg.frame_control, reg16 (frame_pin.value @: frame_fifty.value @: gnd)
+      ; ( Reg.frame_control
+        , reg16 (frame_usb.value @: frame_pin.value @: frame_fifty.value @: gnd) )
       ; Reg.frame_base, reg16 frame_base.value
       ; ( Reg.frame_status
         , let f = i.frame in
+          let u = i.usb in
+          let pick f u = mux2 frame_usb.value u f in
           concat_msb
-            [ f.armed; f.receiving; f.dropped; f.half; f.fcs_ok; f.finished; f.words ] )
+            [ pick f.armed u.armed
+            ; pick f.receiving u.receiving
+            ; pick f.dropped u.dropped
+            ; pick f.half u.half
+            ; pick f.fcs_ok u.crc16_ok
+            ; pick f.finished u.finished
+            ; pick f.words u.words
+            ] )
+      ; ( Reg.usb_status
+        , let u = i.usb in
+          reg16 (concat_msb [ u.aligned; u.stuff_error; u.crc16_ok; u.crc5_ok ]) )
       ; Reg.stamp_mask, stamp_mask.value.:[15, 0]
       ; ( Reg.stamp_control
         , reg16 (stamp_engine.value @: stamp_mask.value.:[Isa.num_pins - 1, 16]) )
@@ -334,6 +351,7 @@ module Make (Config : Config) = struct
                  (at Reg.frame_control)
                  [ frame_fifty <-- value.:(1)
                  ; frame_pin <-- value.:[Frame_rx.pin_bits + 1, 2]
+                 ; frame_usb <-- value.:(Frame_rx.pin_bits + 2)
                  ]
              ; when_
                  (at Reg.frame_base)
@@ -386,11 +404,13 @@ module Make (Config : Config) = struct
         }
     ; start_all = strobe Reg.control &: value.:(5)
     ; frame =
-        { arm = strobe Reg.frame_control &: value.:(0)
+        { (* a cycle late, so the receiver it arms is the one the same write picks *)
+          arm = reg spec (strobe Reg.frame_control &: value.:(0))
         ; base = frame_base.value
         ; fifty = frame_fifty.value
         }
     ; frame_pin = frame_pin.value
+    ; frame_usb = frame_usb.value
     ; stamps =
         { mask = stamp_mask.value
         ; engine = stamp_engine.value

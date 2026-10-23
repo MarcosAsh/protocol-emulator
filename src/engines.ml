@@ -22,7 +22,9 @@ module Make (Config : Config) = struct
       ; check_setup : 'a Load_checker.Setup.t
       ; start_all : 'a
       ; rd : 'a [@bits 2]
+      ; dm : 'a [@bits 2]
       ; frame : 'a Frame_rx.Control.t
+      ; frame_usb : 'a
       ; stamps : 'a Edge_stamps.Control.t
       }
     [@@deriving hardcaml]
@@ -44,6 +46,7 @@ module Make (Config : Config) = struct
       ; pin_dir : 'a [@bits Isa.num_pins]
       ; check : 'a Check.t
       ; frame : 'a Frame_rx.Status.t
+      ; usb : 'a Usb_frame_rx.Status.t
       ; stamps : 'a Edge_stamps.O.t
       }
     [@@deriving hardcaml]
@@ -185,15 +188,31 @@ module Make (Config : Config) = struct
     let%hw frame_may_write =
       ~:checking &: ~:host_writes &: mux data_turn.whose_turn turn_spared
     in
+    (* one receiver at a time, armed and on the data memory's port *)
     let frame =
       Frame_rx.hierarchical
         scope
         { clocking = i.clocking
         ; rd = i.rd
-        ; control = i.frame
+        ; control = { i.frame with arm = i.frame.arm &: ~:(i.frame_usb) }
         ; may_write = frame_may_write
         }
     in
+    let usb =
+      Usb_frame_rx.hierarchical
+        scope
+        { clocking = i.clocking
+        ; dp = i.rd
+        ; dm = i.dm
+        ; control = { arm = i.frame.arm &: i.frame_usb; base = i.frame.base }
+        ; may_write = frame_may_write
+        }
+    in
+    let dma_write =
+      Engine.Program_write.Of_signal.mux2 i.frame_usb usb.write frame.write
+    in
+    let%hw frame_writes = dma_write.valid in
+    let dma_write = { dma_write with valid = frame_writes } in
     let stamps =
       Edge_stamps.hierarchical
         scope
@@ -216,7 +235,7 @@ module Make (Config : Config) = struct
         ; reads =
             List.map2_exn outs lent ~f:(fun e lent ->
               mux2 (lent &: checker.data_read.valid) checker.data_read.value e.data_addr)
-        ; dma = frame.write
+        ; dma = dma_write
         }
     in
     Data_memory.O.Of_signal.assign data_turn data;
@@ -308,6 +327,7 @@ module Make (Config : Config) = struct
         ; refused
         }
     ; frame = frame.status
+    ; usb = usb.status
     ; stamps
     }
   ;;

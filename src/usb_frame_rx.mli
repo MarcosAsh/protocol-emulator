@@ -6,7 +6,8 @@
     [arm] (re)starts it: the next packet's words land from [base] up, PID in the first low
     half, and its end disarms it with [finished]. A word lands only where [may_write] lets
     it, and only below the data memory's end; otherwise it is counted and [dropped] says
-    so. [half] marks a last word that holds one byte. *)
+    so. A word waits for [may_write] until the next arrives, and [finished] until the last
+    lands. [half] marks a last word that holds one byte. *)
 
 open! Core
 open! Hardcaml

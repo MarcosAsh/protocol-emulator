@@ -525,3 +525,170 @@ let%expect_test "full speed transmit at four cycles a bit, back through the rece
      (shortest_gap (4)) (received true))
     |}]
 ;;
+
+let ( <--. ) = Bits.( <--. )
+
+module Two = Engines.Make (struct
+    let engines = 2
+  end)
+
+module Chip = Hardcaml_test_harness.Lws_harness.Make (Two.I) (Two.O)
+
+(* Eight words from [x] over and over, a pull every four cycles, so the pointer moves
+   every other turn. *)
+let stream =
+  {|
+top:
+    seek [1]
+    set y, 7
+loop:
+    out isr, 16 [1]
+    jmp y--, loop
+    jmp top
+|}
+;;
+
+let hand_over = {|
+    seek [2]
+loop:
+    out isr, 16
+    wait rx
+    push
+    jmp loop
+|}
+
+let streaming =
+  { Program_config.default with
+    autopull = true
+  ; autopull_data = true
+  ; pull_threshold = 16
+  }
+;;
+
+(* Both engines stream their own eight words in lockstep with [System] while a data packet
+   lands at 24 between turns they keep their words. Engine 1 then hands the packet's words
+   to its host. *)
+let%expect_test "a packet on the chip, beside two engines streaming data" =
+  let random = Random.State.make [| 5 |] in
+  let packet =
+    Usb.data ~pid:Usb.data0 (List.init 20 ~f:(fun n -> ((n * 29) + 3) land 0xff))
+  in
+  let cycles =
+    line ~random ~ppm:2500. ~jitter:2. ~skew:0. ~gap:3 [ packet ]
+    |> sample ~random ~per_bit:8 ~per_cycle:2
+  in
+  let base = 24 in
+  let memory =
+    List.init (1 lsl Isa.data_addr_bits) ~f:(fun addr ->
+      if addr < 16 then addr * 0x1111 lxor 0x5a5a else 0)
+  in
+  let program_of x = Firmware.assemble ([%string "    set x, %{x#Int}\n"] ^ stream) in
+  let programs = [ program_of 0; program_of 8 ] in
+  Chip.run
+    ~random_initial_state:`All
+    ~create:(Two.hierarchical ~gated:false ~memory:Flops)
+    (fun (h @ local) ~inputs:i ~outputs ->
+       let cycle () = Lws.cycle h in
+       let o = Before_and_after_edge.after_edge outputs in
+       let int r = Bits.to_unsigned_int !r in
+       let port n = List.nth_exn i.hosts n in
+       let load n config program =
+         let p = port n in
+         Engine.Config.iter2 p.config (Engine.Config.of_program_config config) ~f:( := );
+         List.iteri program ~f:(fun addr word ->
+           p.program_write.valid := Bits.vdd;
+           p.program_write.addr <--. addr;
+           p.program_write.data <--. word;
+           cycle ());
+         p.program_write.valid := Bits.gnd
+       in
+       i.clocking.clear := Bits.vdd;
+       cycle ();
+       i.clocking.clear := Bits.gnd;
+       List.iteri programs ~f:(fun n program -> load n streaming program);
+       let p = port 0 in
+       List.iteri memory ~f:(fun addr word ->
+         p.data_write.valid := Bits.vdd;
+         p.data_write.addr <--. addr;
+         p.data_write.data <--. word;
+         cycle ());
+       p.data_write.valid := Bits.gnd;
+       let machine program =
+         Machine.create ~config:streaming ~program
+         |> ok_exn
+         |> Fn.flip Machine.load_data memory
+         |> ok_exn
+       in
+       let model = ref (System.create (List.map programs ~f:machine)) in
+       (* a start pulse, a cycle for the fetch, then the cores as [Machine.create] has
+          them *)
+       List.iter [ 0; 1 ] ~f:(fun n -> (port n).start := Bits.vdd);
+       cycle ();
+       List.iter [ 0; 1 ] ~f:(fun n -> (port n).start := Bits.gnd);
+       cycle ();
+       i.frame.base <--. base;
+       i.frame_usb := Bits.vdd;
+       i.frame.arm := Bits.vdd;
+       let mismatch = ref None in
+       let step () =
+         cycle ();
+         i.frame.arm := Bits.gnd;
+         model := System.step !model ~pads:0;
+         List.iteri (List.zip_exn !model.engines o.engines) ~f:(fun n (m, out) ->
+           if Option.is_none !mismatch
+              && not
+                   (Lockstep.State.equal
+                      (Lockstep.State.of_machine m)
+                      (Lockstep.State.of_outputs out))
+           then mismatch := Some n)
+       in
+       List.iter cycles ~f:(fun (dp, dm) ->
+         i.rd := Bits.of_bit_list (List.rev dp);
+         i.dm := Bits.of_bit_list (List.rev dm);
+         step ());
+       i.rd <--. 0b11;
+       i.dm <--. 0;
+       for _ = 1 to 100 do
+         step ()
+       done;
+       let s = Usb_frame_rx.Status.map o.usb ~f:int in
+       (* engine 1 hands the packet over *)
+       let p = port 1 in
+       p.stop := Bits.vdd;
+       cycle ();
+       p.stop := Bits.gnd;
+       load
+         1
+         streaming
+         (Firmware.assemble ([%string "    set x, %{base#Int}\n"] ^ hand_over));
+       p.start := Bits.vdd;
+       cycle ();
+       p.start := Bits.gnd;
+       let sent = Manchester_line.words packet in
+       let handed = ref [] in
+       for _ = 1 to 400 do
+         if List.length !handed < List.length sent
+            && int (List.nth_exn o.engines 1).rx_level > 0
+         then (
+           handed := int (List.nth_exn o.engines 1).rx_head :: !handed;
+           p.rx_pop := Bits.vdd)
+         else p.rx_pop := Bits.gnd;
+         cycle ()
+       done;
+       p.rx_pop := Bits.gnd;
+       print_s
+         [%message
+           ""
+             ~lockstep:(!mismatch : int option)
+             ~status:(s : int Usb_frame_rx.Status.t)
+             ~handed_as_sent:([%equal: int list] (List.rev !handed) sent : bool)])
+  [@nontail];
+  [%expect
+    {|
+    ((lockstep ())
+     (status
+      ((words 12) (finished 1) (crc5_ok 0) (crc16_ok 1) (half 1) (aligned 1)
+       (stuff_error 0) (dropped 0) (receiving 0) (armed 0)))
+     (handed_as_sent true))
+    |}]
+;;

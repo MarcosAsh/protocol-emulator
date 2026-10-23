@@ -43,14 +43,18 @@ let create ~memory ~engines (scope : Scope.t) (i : Signal.t I.t) =
   let pads = concat_msb [ i.uio_in; zero 7; i.ui_in.:[7, 3] ] in
   let%hw inputs = concat_msb [ uio_sync; zero 7; ui_sync ] in
   let frame = Frame_rx.Status.Of_signal.wires () in
+  let usb = Usb_frame_rx.Status.Of_signal.wires () in
   let stamps = Edge_stamps.O.Of_signal.wires () in
   let%hw frame_pin = wire Frame_rx.pin_bits in
   (* straight off the pad, so the falling edge samples it too *)
-  let rd =
+  let sample pin =
     Both_edges.hierarchical
       scope
-      { clocking; falling_clear = ~:reset_late; pad = mux frame_pin (bits_lsb pads) }
+      { clocking; falling_clear = ~:reset_late; pad = mux pin (bits_lsb pads) }
   in
+  let rd = sample frame_pin in
+  (* USB's D- on the pad after D+ *)
+  let dm = sample (frame_pin +:. 1) in
   let engine_outs = List.init engines ~f:(fun _ -> Engine.O.Of_signal.wires ()) in
   let check = Engines.Check.Of_signal.wires () in
   let host =
@@ -80,6 +84,7 @@ let create ~memory ~engines (scope : Scope.t) (i : Signal.t I.t) =
               })
       ; check = check.verdicts
       ; frame
+      ; usb
       ; stamps
       }
   in
@@ -94,11 +99,14 @@ let create ~memory ~engines (scope : Scope.t) (i : Signal.t I.t) =
       ; check_setup = host.check_setup
       ; start_all = host.start_all
       ; rd = rd.samples
+      ; dm = dm.samples
       ; frame = host.frame
+      ; frame_usb = host.frame_usb
       ; stamps = host.stamps
       }
   in
   Frame_rx.Status.Of_signal.assign frame cores.frame;
+  Usb_frame_rx.Status.Of_signal.assign usb cores.usb;
   Edge_stamps.O.Of_signal.assign stamps cores.stamps;
   List.iter2_exn engine_outs cores.engines ~f:Engine.O.Of_signal.assign;
   Engines.Check.Of_signal.assign check cores.check;
