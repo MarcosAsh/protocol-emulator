@@ -29,6 +29,16 @@ val firmware : mode:Spi_cs.Mode.t -> Pins.t -> string
     the cycle each way the pins are registered. *)
 val shortest_half : int
 
+(** [firmware] with the byte boundary cut down: between bytes a three cycle poll of MOSI,
+    SCK and CS in place of the poll of [firmware], and the reply fetched in the eighth
+    bit. The same bytes, replies and frames; CS has to be [mosi + 2]. *)
+val fast : mode:Spi_cs.Mode.t -> Pins.t -> string
+
+val fast_config : Pins.t -> Program_config.t
+
+(** As [shortest_half], for [fast]. *)
+val fast_shortest_half : int
+
 (** A target in each mode on [pads], certified: none waits on a deadline. Its runs against
     [Spi_cs.master] are in [Both_roles]. *)
 val protocol : Protocol.t
