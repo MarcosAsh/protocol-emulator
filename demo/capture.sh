@@ -6,7 +6,7 @@
 # at once and start its traffic after a pause, and the analyser is left alone meanwhile.
 # With two analysers plugged in, ANALYSER=A or B picks one by the USB port it is on,
 # ANALYSER_A_PORT and ANALYSER_B_PORT as /sys/bus/usb/devices names it, the carrier's
-# 3-4 and 3-3.1.3.3 unless set; without ANALYSER DEVICE does, DEVICE=fx2lafw:conn=1.7, the bus and address `sigrok-cli --scan` prints.
+# 3-4 and 3-3.1.3.3 unless set; DEVICE, when set, picks it instead, DEVICE=fx2lafw:conn=1.7, the bus and address `sigrok-cli --scan` prints.
 # TRIES caps the attempts, 8 unless set. The samples go out raw and are packed after:
 # srzip's compression runs in sigrok-cli's USB loop, which then falls behind and the
 # analyser stops early.
@@ -16,6 +16,7 @@ set -e
 out=$1
 ms=$2
 shift 2
+device=${DEVICE:-}
 raw=$out.bin
 pack() {
     python3 "$(dirname "$0")/sigrok.py" "$raw" "${RATE:-24M}" "$out" && rm -f "$raw"
@@ -35,7 +36,7 @@ fi
 for attempt in $(seq "${TRIES:-8}"); do
     [ $# -eq 0 ] || "$@"
     # read each time, as the analyser's address changes when it takes its firmware
-    if [ -n "$port" ]; then
+    if [ -z "$device" ] && [ -n "$port" ]; then
         DEVICE=fx2lafw:conn=$(cat "/sys/bus/usb/devices/$port/busnum").$(cat "/sys/bus/usb/devices/$port/devnum")
     fi
     # not tee /dev/stderr, which truncates a file that stderr goes to

@@ -58,7 +58,9 @@ class BenchRun(unittest.TestCase):
         decode.write_text("".join(d + "\n" for d in traffic.stick([p, p[1:] + p[:1]])))
         self.env = {k: v for k, v in os.environ.items() if not k.startswith("ANALYSER")}
         self.env.update(PATH="%s:%s" % (bin, os.environ["PATH"]), PICO="id:a", TMP=str(self.tmp),
-                        CAPTURE=str(self.tmp / "capture.sr"), DECODE=str(decode), TRIES="1")
+                        CAPTURE=str(self.tmp / "capture.sr"), DECODE=str(decode), TRIES="1",
+                        # not the carrier's analyser ports, which only the bench has
+                        DEVICE="fx2lafw")
 
     def run_bench(self, *args, **env):
         return subprocess.run(
