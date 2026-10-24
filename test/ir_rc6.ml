@@ -249,13 +249,38 @@ let unit = 200
 (* a frame is 58 units with the signal free time, and the next is a little after *)
 let frame_cycles = 60 * unit
 
+(* What sigrok's ir_rc6 prints, in the order it does: the header's six bits, its four
+   fields, the 16 data bits, the address and the data. It handles the six bits on each
+   edge until the next bit comes, so the first frame's fields come twice. *)
+let reading ~repeat_fields ({ toggle; address; command } : Message.t) =
+  let toggle = Bool.to_int toggle in
+  let fields =
+    [ "Synchronisation"; "Startbit"; "Field: 0"; [%string "Toggle: %{toggle#Int}"] ]
+  in
+  let data =
+    List.init 16 ~f:(fun i ->
+      Int.to_string ((((address lsl 8) lor command) lsr (15 - i)) land 1))
+  in
+  [ "1"; "1"; "0"; "0"; "0"; Int.to_string toggle ]
+  @ fields
+  @ (if repeat_fields then fields else [])
+  @ data
+  @ [ sprintf "Address: %02X" address; sprintf "Data: %02X" command ]
+;;
+
 let sigrok =
   { Sigrok.clock_hz
   ; decoders = [ Sigrok.decoder "ir_rc6" ~pins:[ "ir", pin ] ]
-  ; expect = []
+  ; expect =
+      [ ( "ir_rc6=bit:sync:startbit:field:togglebit:address:command"
+        , List.concat (List.mapi sent ~f:(fun i m -> reading ~repeat_fields:(i = 0) m))
+          |> Sigrok.lines "ir_rc6" )
+      ]
   ; joins_after = None
   ; rejected = None
-  ; teeth = []
+  ; (* edge 12 is the rise in the middle of the first data bit, a zero: a unit later it is
+       the end of the bit, which reads a one *)
+    teeth = [ [ Shift { pin; edge = 12; cycles = unit } ] ]
   }
 ;;
 
@@ -271,6 +296,7 @@ let scenario =
         ~program:(Timed_program.words firmware)
       @ [ Scenario.start; Write (Reg.tx, [ unit ]) ]
       @ List.concat_map sent ~f:send
+      @ [ Run (8 * unit) ]
   ; sigrok = Some sigrok
   }
 ;;
