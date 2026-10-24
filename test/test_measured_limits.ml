@@ -127,6 +127,37 @@ let%expect_test "the datasheet limits, measured on the bench copies' runs" =
     run    96  snorble            tH               <=     4000 ns  measured 48 (2000.0 ns)       Pass            SNB-1 Snorble Sensor Beacon Rev. C, section 4, p.1, and note 1, p.2: inside a frame
     run    8566  snorble            tIFG             >=    20000 ns  measured 4283 (178458.3 ns)   Pass            SNB-1 Snorble Sensor Beacon Rev. C, section 4, p.1, and note 3, p.2
     run    10422  snorble            frame rate       >=   200000 ns  measured 5211 (217125.0 ns)   Pass            SNB-1 Snorble Sensor Beacon Rev. C, section 1, p.1: about 5 kframes/s at most
+    run    310  microwire          SK clock range   >=     1600 ns  measured 155 (6458.3 ns)      Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    kernel 113  microwire          Write data DI setup >=      300 ns  measured 56 (2333.3 ns)       Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    kernel 42  microwire          Write data DI hold >=      800 ns  measured 21 (875.0 ns)        Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    kernel 312  microwire          Chip enable setup >=      300 ns  measured 156 (6500.0 ns)      Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    kernel 155  microwire          Chip enable hold >=      800 ns  measured 77 (3208.3 ns)       Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    run    310  microwire          SK clock range   >=     2000 ns  measured 155 (6458.3 ns)      Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    kernel 113  microwire          Write data DI setup >=      300 ns  measured 56 (2333.3 ns)       Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    kernel 312  microwire          Chip enable setup >=      400 ns  measured 156 (6500.0 ns)      Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    run    310  microwire          SK clock range   >=     4000 ns  measured 155 (6458.3 ns)      Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    run    310  microwire          SK clock range   <=   250000 ns  measured 155 (6458.3 ns)      Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    kernel 113  microwire          Write data DI setup >=     1000 ns  measured 56 (2333.3 ns)       Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    kernel 42  microwire          Write data DI hold >=      100 ns  measured 21 (875.0 ns)        Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    kernel 312  microwire          Chip enable setup >=     1000 ns  measured 156 (6500.0 ns)      Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    kernel 155  microwire          Chip enable hold >=     1000 ns  measured 77 (3208.3 ns)       Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    run    310  microwire          SK clock range   >=     5000 ns  measured 155 (6458.3 ns)      Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    run    310  microwire          SK clock range   <=   100000 ns  measured 155 (6458.3 ns)      Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    kernel 113  microwire          Write data DI setup >=      200 ns  measured 56 (2333.3 ns)       Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    kernel 42  microwire          Write data DI hold >=      200 ns  measured 21 (875.0 ns)        Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    kernel 312  microwire          Chip enable setup >=      200 ns  measured 156 (6500.0 ns)      Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    kernel 155  microwire          Chip enable hold >=      200 ns  measured 77 (3208.3 ns)       Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    run    310  microwire          SK clock range   >=     4000 ns  measured 155 (6458.3 ns)      Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    kernel 113  microwire          Write data DI setup >=      400 ns  measured 56 (2333.3 ns)       Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    kernel 42  microwire          Write data DI hold >=      400 ns  measured 21 (875.0 ns)        Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    kernel 312  microwire          Chip enable setup >=      200 ns  measured 156 (6500.0 ns)      Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    run    310  microwire          SK clock frequency >=     4000 ns  measured 155 (6458.3 ns)      Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, p.6, note 1
+    kernel 155  microwire          SK clock high time >=     1000 ns  measured 78 (3250.0 ns)       Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, p.6, note 1 and Figure 9
+    run    310  microwire          instruction cycle time >=     4000 ns  measured 155 (6458.3 ns)      Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, p.6, note 1: the SK period
+    run    310  microwire          instruction cycle time <=    10000 ns  measured 155 (6458.3 ns)      Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, p.6, note 1: the SK period
+    run    1245217  microwire          CS low period following an E/W instruction >=    1e+07 ns  measured 622609 (25942041.7 ns) Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, p.6, note 2
+    run    1245217  microwire          CS low period following an E/W instruction <=    3e+07 ns  measured 622609 (25942041.7 ns) Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, p.6, note 2
+    run    1245217  microwire          TWE, VPP width   >=    2e+07 ns  measured 622609 (25942041.7 ns) Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, p.10, listing line 83
     kernel 417  uart_log           bit              >=  8506.94 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     run    417  uart_log           bit              <=  8854.17 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     |}]
@@ -245,5 +276,36 @@ let%expect_test "every limit's pairs of edges in the prediction" =
     snorble        tH                32 pairs, as measured
     snorble        tIFG               3 pairs, as measured
     snorble        frame rate         3 pairs, as measured
+    microwire      SK clock range    80 pairs, as measured
+    microwire      Write data DI setup  84 pairs, as measured
+    microwire      Write data DI hold  29 pairs, as measured
+    microwire      Chip enable setup  84 pairs, as measured
+    microwire      Chip enable hold   5 pairs, as measured
+    microwire      SK clock range    80 pairs, as measured
+    microwire      Write data DI setup  84 pairs, as measured
+    microwire      Chip enable setup  84 pairs, as measured
+    microwire      SK clock range    80 pairs, as measured
+    microwire      SK clock range    80 pairs, as measured
+    microwire      Write data DI setup  84 pairs, as measured
+    microwire      Write data DI hold  29 pairs, as measured
+    microwire      Chip enable setup  84 pairs, as measured
+    microwire      Chip enable hold   5 pairs, as measured
+    microwire      SK clock range    80 pairs, as measured
+    microwire      SK clock range    80 pairs, as measured
+    microwire      Write data DI setup  84 pairs, as measured
+    microwire      Write data DI hold  29 pairs, as measured
+    microwire      Chip enable setup  84 pairs, as measured
+    microwire      Chip enable hold   5 pairs, as measured
+    microwire      SK clock range    80 pairs, as measured
+    microwire      Write data DI setup  84 pairs, as measured
+    microwire      Write data DI hold  29 pairs, as measured
+    microwire      Chip enable setup  84 pairs, as measured
+    microwire      SK clock frequency  80 pairs, as measured
+    microwire      SK clock high time  84 pairs, as measured
+    microwire      instruction cycle time  80 pairs, as measured
+    microwire      instruction cycle time  80 pairs, as measured
+    microwire      CS low period following an E/W instruction   1 pairs, as measured
+    microwire      CS low period following an E/W instruction   1 pairs, as measured
+    microwire      TWE, VPP width     1 pairs, as measured
     |}]
 ;;

@@ -72,6 +72,16 @@
 
 (rule
  (with-stdout-to
+  microwire.trace.gen
+  (run ./write_trace.exe microwire)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff microwire.trace microwire.trace.gen)))
+
+(rule
+ (with-stdout-to
   wrapped_loop.trace.gen
   (run ./write_trace.exe wrapped_loop)))
 

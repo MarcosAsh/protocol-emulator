@@ -14,3 +14,6 @@ plinkoo	file	2026-10-18T22:19:08+01:00	session crash 21:41-21:48 inside it; refu
 plinkoo	certificate	2026-10-18T22:21:01+01:00	the kernel certifies the firmware; the datasheet margin refuses it for the bench
 snorble	certificate	2026-10-18T22:37:42+01:00	induction failed 22:06 (17 min, an 8-pass loop past depth 20), PASS after unrolling
 frumbleglide	file	2026-10-18T22:06:51+01:00	refused: no whole cycle count is a tCELL at 48 MHz, no certificate
+microwire	spec	2026-10-24T16:48:50+01:00	new-protocol
+microwire	file	2026-10-24T17:07:04+01:00	
+microwire	certificate	2026-10-24T17:07:39+01:00	

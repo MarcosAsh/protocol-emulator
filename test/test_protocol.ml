@@ -542,6 +542,51 @@ let%expect_test "every protocol from its file to the decoded trace" =
     lockstep: frumbleglide, uncertified as loaded
     ("lockstep held" (cycles 12768))
     (received ())
+
+    === microwire
+
+    certificates
+    microwire: 69 words, 7 deadline waits, worst slack 13, the kernel accepts it, assuming nothing
+
+    limits
+    microwire          SK clock range >=     1600 ns  run    310 (6458.3 ns)   needs   78       DS8908, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          Write data DI setup >=      300 ns  kernel 113 (2354.2 ns)   needs   16       DS8908, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          Write data DI hold >=      800 ns  kernel 42 (875.0 ns)     needs   40       DS8908, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          Chip enable setup >=      300 ns  kernel 312 (6500.0 ns)   needs   16       DS8908, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          Chip enable hold >=      800 ns  kernel 155 (3229.2 ns)   needs   40       DS8908, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          SK clock range >=     2000 ns  run    310 (6458.3 ns)   needs   97       MM545X, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          Write data DI setup >=      300 ns  kernel 113 (2354.2 ns)   needs   16       MM545X, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          Chip enable setup >=      400 ns  kernel 312 (6500.0 ns)   needs   21       MM545X, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          SK clock range >=     4000 ns  run    310 (6458.3 ns)   needs  193       COP472-3, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          SK clock range <=   250000 ns  run    310 (6458.3 ns)   needs 11999       COP472-3, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          Write data DI setup >=     1000 ns  kernel 113 (2354.2 ns)   needs   49       COP472-3, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          Write data DI hold >=      100 ns  kernel 42 (875.0 ns)     needs    6       COP472-3, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          Chip enable setup >=     1000 ns  kernel 312 (6500.0 ns)   needs   49       COP472-3, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          Chip enable hold >=     1000 ns  kernel 155 (3229.2 ns)   needs   49       COP472-3, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          SK clock range >=     5000 ns  run    310 (6458.3 ns)   needs  241       COP430 (ADC83X), National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          SK clock range <=   100000 ns  run    310 (6458.3 ns)   needs 4799       COP430 (ADC83X), National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          Write data DI setup >=      200 ns  kernel 113 (2354.2 ns)   needs   11       COP430 (ADC83X), National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          Write data DI hold >=      200 ns  kernel 42 (875.0 ns)     needs   11       COP430 (ADC83X), National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          Chip enable setup >=      200 ns  kernel 312 (6500.0 ns)   needs   11       COP430 (ADC83X), National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          Chip enable hold >=      200 ns  kernel 155 (3229.2 ns)   needs   11       COP430 (ADC83X), National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          SK clock range >=     4000 ns  run    310 (6458.3 ns)   needs  193       NM93C06A, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          Write data DI setup >=      400 ns  kernel 113 (2354.2 ns)   needs   21       NM93C06A, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          Write data DI hold >=      400 ns  kernel 42 (875.0 ns)     needs   21       NM93C06A, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          Chip enable setup >=      200 ns  kernel 312 (6500.0 ns)   needs   11       NM93C06A, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          SK clock frequency >=     4000 ns  run    310 (6458.3 ns)   needs  193       NM93C06A, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 p.6, note 1; margin a cycle
+    microwire          SK clock high time >=     1000 ns  kernel 155 (3229.2 ns)   needs   49       NM93C06A, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 p.6, note 1 and Figure 9; margin a cycle
+    microwire          instruction cycle time >=     4000 ns  run    310 (6458.3 ns)   needs  193       COP420, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 p.6, note 1: the SK period; margin a cycle
+    microwire          instruction cycle time <=    10000 ns  run    310 (6458.3 ns)   needs  479       COP420, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 p.6, note 1: the SK period; margin a cycle
+    microwire          CS low period following an E/W instruction >=    1e+07 ns  run    1245217 (25942020.8 ns) needs 480001       NM93C06A, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 p.6, note 2; margin a cycle
+    microwire          CS low period following an E/W instruction <=    3e+07 ns  run    1245217 (25942020.8 ns) needs 1439999       NM93C06A, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 p.6, note 2; margin a cycle
+    microwire          TWE, VPP width >=    2e+07 ns  run    1245217 (25942020.8 ns) needs 960001       COP494, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 p.10, listing line 83; margin a cycle
+
+    lockstep: microwire, microwire
+    ("lockstep held" (cycles 22000))
+    (received (0x1ff 0x5555 0xffff))
+    decode: test/traces/microwire.trace, by sigrok's microwire:cs=OUT6:sk=OUT5:si=OUT4:so=IN0
+      microwire=start-bit:si-bit: microwire-1: Start bit, microwire-1: SI bit: 1, microwire-1: SI bit: 1, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 1, microwire-1: Start bit, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 1, microwire-1: SI bit: 0, microwire-1: SI bit: 1, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: Start bit, microwire-1: SI bit: 1, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 1, microwire-1: SI bit: 0, microwire-1: SI bit: 1, microwire-1: SI bit: 1, microwire-1: SI bit: 0, microwire-1: SI bit: 1, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 1, microwire-1: SI bit: 0, microwire-1: SI bit: 1, microwire-1: SI bit: 1, microwire-1: SI bit: 1, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 1, microwire-1: SI bit: 1
+      microwire=so-bit: microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 0, microwire-1: SO bit: 0, microwire-1: SO bit: 1, microwire-1: SO bit: 0, microwire-1: SO bit: 1, microwire-1: SO bit: 0, microwire-1: SO bit: 1, microwire-1: SO bit: 0, microwire-1: SO bit: 1, microwire-1: SO bit: 0, microwire-1: SO bit: 1, microwire-1: SO bit: 0, microwire-1: SO bit: 1, microwire-1: SO bit: 0, microwire-1: SO bit: 1, microwire-1: SO bit: 0, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1
     |}]
 ;;
 

@@ -30,6 +30,7 @@ let%expect_test "the clocks each bench firmware stays certified at" =
     spi_cs_mode3             -                              48.000  51.000 tRES1 >= 3000 ns
     swd                      -                              48.000 288.005 SWCLK high >= 20.8333 ns
     snorble             46.774 tL1 <= 3100 ns               48.000  49.310 tL1 >= 2900 ns
+    microwire           41.507 CS low period following an E/W instruction <= 3e+07 ns 48.000  51.250 Write data DI hold >= 800 ns
     uart_log            47.209 bit <= 8854.17 ns            48.000  48.901 bit >= 8506.94 ns
     |}]
 ;;
