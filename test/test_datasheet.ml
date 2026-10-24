@@ -165,6 +165,15 @@ let%expect_test "the bench firmware against its datasheet limits" =
     microwire          CS low period following an E/W instruction >=    1e+07 ns  run    1245217 (25942020.8 ns) needs 480001       NM93C06A, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 p.6, note 2; margin a cycle
     microwire          CS low period following an E/W instruction <=    3e+07 ns  run    1245217 (25942020.8 ns) needs 1439999       NM93C06A, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 p.6, note 2; margin a cycle
     microwire          TWE, VPP width >=    2e+07 ns  run    1245217 (25942020.8 ns) needs 960001       COP494, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 p.10, listing line 83; margin a cycle
+    caliper            clock high at 90 kHz >=   5555.5 ns  kernel 270 (5625.0 ns)   needs  268       Chinese digital scale, Chinese Scales web page, no revision Chinese Scale Protocol, page 1, lines 52-54; margin a cycle
+    caliper            clock low at 90 kHz >=   5555.5 ns  kernel 270 (5625.0 ns)   needs  268       Chinese digital scale, Chinese Scales web page, no revision Chinese Scale Protocol, page 1, lines 52-54; margin a cycle
+    caliper            pause before the first word >=    55000 ns  run    2705 (56354.2 ns) needs 2641       Chinese digital scale, Chinese Scales web page, no revision Chinese Scale Protocol, page 1, lines 82-84; margin a cycle
+    caliper            pause between the words >=   110000 ns  run    5400 (112500.0 ns) needs 5281       Chinese digital scale, Chinese Scales web page, no revision Chinese Scale Protocol, page 1, lines 82-84; margin a cycle
+    caliper            pause after the last word >=    55000 ns  run    5408 (112666.7 ns) needs 2641       Chinese digital scale, Chinese Scales web page, no revision Chinese Scale Protocol, page 1, lines 82-84; margin a cycle
+    xy2_100            tDS            >=       50 ns  kernel 12 (250.0 ns)     needs    4       rhothor X7, Newson XY2-100 I/O configuration, Rev. 0703 Timing specifications table, p.2; margin a cycle
+    xy2_100            tDH            >=      100 ns  kernel 12 (250.0 ns)     needs    6       rhothor X7, Newson XY2-100 I/O configuration, Rev. 0703 Timing specifications table, p.2; margin a cycle
+    lfast              data rate, shortest high bit (3.125 ns) >=    3.125 ns  kernel 10 (208.3 ns)     needs    2       LFAST, NXP AN5134 Rev. 0 p.3, text: rates up to 320 Mb/s; margin a cycle
+    lfast              data rate, shortest low bit (3.125 ns) >=    3.125 ns  kernel 10 (208.3 ns)     needs    2       LFAST, NXP AN5134 Rev. 0 p.3, text: rates up to 320 Mb/s; margin a cycle
     uart_log           bit            >=  8506.94 ns  kernel 417 (8687.5 ns)   needs  410       UART at 115200 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
     uart_log           bit            <=  8854.17 ns  run    417 (8687.5 ns)   needs  424       UART at 115200 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
     |}]

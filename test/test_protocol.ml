@@ -587,6 +587,68 @@ let%expect_test "every protocol from its file to the decoded trace" =
     decode: test/traces/microwire.trace, by sigrok's microwire:cs=OUT6:sk=OUT5:si=OUT4:so=IN0
       microwire=start-bit:si-bit: microwire-1: Start bit, microwire-1: SI bit: 1, microwire-1: SI bit: 1, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 1, microwire-1: Start bit, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 1, microwire-1: SI bit: 0, microwire-1: SI bit: 1, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: Start bit, microwire-1: SI bit: 1, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 1, microwire-1: SI bit: 0, microwire-1: SI bit: 1, microwire-1: SI bit: 1, microwire-1: SI bit: 0, microwire-1: SI bit: 1, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 1, microwire-1: SI bit: 0, microwire-1: SI bit: 1, microwire-1: SI bit: 1, microwire-1: SI bit: 1, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 1, microwire-1: SI bit: 1
       microwire=so-bit: microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 0, microwire-1: SO bit: 0, microwire-1: SO bit: 1, microwire-1: SO bit: 0, microwire-1: SO bit: 1, microwire-1: SO bit: 0, microwire-1: SO bit: 1, microwire-1: SO bit: 0, microwire-1: SO bit: 1, microwire-1: SO bit: 0, microwire-1: SO bit: 1, microwire-1: SO bit: 0, microwire-1: SO bit: 1, microwire-1: SO bit: 0, microwire-1: SO bit: 1, microwire-1: SO bit: 0, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1
+
+    === ir_rc6
+
+    certificates
+    ir_rc6: 64 words, 22 deadline waits, worst slack 21325, the kernel accepts it, assuming period 21333, a load of 14 or more, no wrap
+
+    limits
+    ir_rc6: none, the spec gives typical times and no minimum or maximum; Ir_rc6.decode holds each mark and space to 5%
+
+    lockstep: ir_rc6, ir_rc6
+    ("lockstep held" (cycles 25600))
+    (received ())
+    decode: test/traces/sigrok/ir_rc6.trace, by sigrok's ir_rc6:ir=OUT0
+      ir_rc6=bit:sync:startbit:field:togglebit:address:command: ir_rc6-1: 1, ir_rc6-1: 1, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: Synchronisation, ir_rc6-1: Startbit, ir_rc6-1: Field: 0, ir_rc6-1: Toggle: 0, ir_rc6-1: Synchronisation, ir_rc6-1: Startbit, ir_rc6-1: Field: 0, ir_rc6-1: Toggle: 0, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 1, ir_rc6-1: 1, ir_rc6-1: 0, ir_rc6-1: 1, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 1, ir_rc6-1: 1, ir_rc6-1: 0, ir_rc6-1: 1, ir_rc6-1: 0, ir_rc6-1: 1, ir_rc6-1: Address: 1A, ir_rc6-1: Data: 35, ir_rc6-1: 1, ir_rc6-1: 1, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 1, ir_rc6-1: Synchronisation, ir_rc6-1: Startbit, ir_rc6-1: Field: 0, ir_rc6-1: Toggle: 1, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 1, ir_rc6-1: 1, ir_rc6-1: 1, ir_rc6-1: 1, ir_rc6-1: 1, ir_rc6-1: 1, ir_rc6-1: 1, ir_rc6-1: 1, ir_rc6-1: Address: 00, ir_rc6-1: Data: FF
+
+    === caliper
+
+    certificates
+    caliper: 57 words, 11 deadline waits, worst slack 263, the kernel accepts it, assuming period 270, a load of 16 or more
+
+    limits
+    caliper            clock high at 90 kHz >=   5555.5 ns  kernel 270 (5625.0 ns)   needs  268       Chinese digital scale, Chinese Scales web page, no revision Chinese Scale Protocol, page 1, lines 52-54; margin a cycle
+    caliper            clock low at 90 kHz >=   5555.5 ns  kernel 270 (5625.0 ns)   needs  268       Chinese digital scale, Chinese Scales web page, no revision Chinese Scale Protocol, page 1, lines 52-54; margin a cycle
+    caliper            pause before the first word >=    55000 ns  run    2705 (56354.2 ns) needs 2641       Chinese digital scale, Chinese Scales web page, no revision Chinese Scale Protocol, page 1, lines 82-84; margin a cycle
+    caliper            pause between the words >=   110000 ns  run    5400 (112500.0 ns) needs 5281       Chinese digital scale, Chinese Scales web page, no revision Chinese Scale Protocol, page 1, lines 82-84; margin a cycle
+    caliper            pause after the last word >=    55000 ns  run    5408 (112666.7 ns) needs 2641       Chinese digital scale, Chinese Scales web page, no revision Chinese Scale Protocol, page 1, lines 82-84; margin a cycle
+
+    lockstep: caliper, caliper
+    ("lockstep held" (cycles 45000))
+    (received ())
+    decode: test/traces/caliper.trace, by sigrok's caliper:clk=OUT0:data=OUT1
+      caliper=measurement: caliper-1: 46.6mm, caliper-1: -16.384in
+
+    === xy2_100
+
+    certificates
+    xy2_100: 35 words, 10 deadline waits, worst slack 2, the kernel accepts it, assuming nothing
+
+    limits
+    xy2_100            tDS            >=       50 ns  kernel 12 (250.0 ns)     needs    4       rhothor X7, Newson XY2-100 I/O configuration, Rev. 0703 Timing specifications table, p.2; margin a cycle
+    xy2_100            tDH            >=      100 ns  kernel 12 (250.0 ns)     needs    6       rhothor X7, Newson XY2-100 I/O configuration, Rev. 0703 Timing specifications table, p.2; margin a cycle
+
+    lockstep: xy2_100, xy2_100
+    ("lockstep held" (cycles 2800))
+    (received ())
+    decode: test/traces/xy2_100.trace, by sigrok's xy2-100:clk=OUT0:sync=OUT1:data=OUT2
+      xy2-100=type:parity:position: xy2-100-1: 16 bit Position Frame, xy2-100-1: OK, xy2-100-1: -32768, xy2-100-1: 16 bit Position Frame, xy2-100-1: OK, xy2-100-1: 0, xy2-100-1: 16 bit Position Frame, xy2-100-1: OK, xy2-100-1: -1, xy2-100-1: 16 bit Position Frame, xy2-100-1: OK, xy2-100-1: 4660, xy2-100-1: 16 bit Position Frame, xy2-100-1: OK, xy2-100-1: 4660
+
+    === lfast
+
+    certificates
+    lfast: 64 words, 27 deadline waits, worst slack 6, the kernel accepts it, assuming nothing
+
+    limits
+    lfast              data rate, shortest high bit (3.125 ns) >=    3.125 ns  kernel 10 (208.3 ns)     needs    2       LFAST, NXP AN5134 Rev. 0 p.3, text: rates up to 320 Mb/s; margin a cycle
+    lfast              data rate, shortest low bit (3.125 ns) >=    3.125 ns  kernel 10 (208.3 ns)     needs    2       LFAST, NXP AN5134 Rev. 0 p.3, text: rates up to 320 Mb/s; margin a cycle
+
+    lockstep: lfast, lfast
+    ("lockstep held" (cycles 760))
+    (received ())
+    decode: test/traces/lfast.trace, by sigrok's lfast:data=OUT0
+      lfast=sync:header_pl_size:header_ch_type:header_cts:payload:sleep: lfast-1: Sync OK, lfast-1: 8 bit, lfast-1: Data Channel A, lfast-1: 1, lfast-1: 55, lfast-1: LVDS sleep mode request, lfast-1: Sync OK, lfast-1: 8 bit, lfast-1: Data Channel A, lfast-1: 1, lfast-1: A3, lfast-1: LVDS sleep mode request
     |}]
 ;;
 

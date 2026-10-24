@@ -158,6 +158,15 @@ let%expect_test "the datasheet limits, measured on the bench copies' runs" =
     run    1245217  microwire          CS low period following an E/W instruction >=    1e+07 ns  measured 622609 (25942041.7 ns) Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, p.6, note 2
     run    1245217  microwire          CS low period following an E/W instruction <=    3e+07 ns  measured 622609 (25942041.7 ns) Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, p.6, note 2
     run    1245217  microwire          TWE, VPP width   >=    2e+07 ns  measured 622609 (25942041.7 ns) Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, p.10, listing line 83
+    kernel 270  caliper            clock high at 90 kHz >=   5555.5 ns  measured 135 (5625.0 ns)      Pass            Chinese Scales web page, no revision, Chinese Scale Protocol, page 1, lines 52-54
+    kernel 270  caliper            clock low at 90 kHz >=   5555.5 ns  measured 135 (5625.0 ns)      Pass            Chinese Scales web page, no revision, Chinese Scale Protocol, page 1, lines 52-54
+    run    2705  caliper            pause before the first word >=    55000 ns  measured 1352 (56333.3 ns)    Pass            Chinese Scales web page, no revision, Chinese Scale Protocol, page 1, lines 82-84
+    run    5400  caliper            pause between the words >=   110000 ns  measured 2700 (112500.0 ns)   Pass            Chinese Scales web page, no revision, Chinese Scale Protocol, page 1, lines 82-84
+    run    5408  caliper            pause after the last word >=    55000 ns  measured 2704 (112666.7 ns)   Pass            Chinese Scales web page, no revision, Chinese Scale Protocol, page 1, lines 82-84
+    kernel 12  xy2_100            tDS              >=       50 ns  measured 6 (250.0 ns)         Pass            Newson XY2-100 I/O configuration, Rev. 0703, Timing specifications table, p.2
+    kernel 12  xy2_100            tDH              >=      100 ns  measured 6 (250.0 ns)         Pass            Newson XY2-100 I/O configuration, Rev. 0703, Timing specifications table, p.2
+    kernel 10  lfast              data rate, shortest high bit (3.125 ns) >=    3.125 ns  measured 5 (208.3 ns)         Pass            NXP AN5134 Rev. 0, p.3, text: rates up to 320 Mb/s
+    kernel 10  lfast              data rate, shortest low bit (3.125 ns) >=    3.125 ns  measured 5 (208.3 ns)         Pass            NXP AN5134 Rev. 0, p.3, text: rates up to 320 Mb/s
     kernel 417  uart_log           bit              >=  8506.94 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     run    417  uart_log           bit              <=  8854.17 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     |}]
@@ -307,5 +316,14 @@ let%expect_test "every limit's pairs of edges in the prediction" =
     microwire      CS low period following an E/W instruction   1 pairs, as measured
     microwire      CS low period following an E/W instruction   1 pairs, as measured
     microwire      TWE, VPP width     1 pairs, as measured
+    caliper        clock high at 90 kHz  96 pairs, as measured
+    caliper        clock low at 90 kHz  96 pairs, as measured
+    caliper        pause before the first word   1 pairs, as measured
+    caliper        pause between the words   1 pairs, as measured
+    caliper        pause after the last word   1 pairs, as measured
+    xy2_100        tDS               47 pairs, as measured
+    xy2_100        tDH               49 pairs, as measured
+    lfast          data rate, shortest high bit (3.125 ns)  12 pairs, as measured
+    lfast          data rate, shortest low bit (3.125 ns)  11 pairs, as measured
     |}]
 ;;

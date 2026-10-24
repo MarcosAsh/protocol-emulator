@@ -87,6 +87,10 @@ let%expect_test "the firmware library and its certificates" =
     snorble               84         5      0  no wrap
     plinkoo               90        15      0  no wrap
     microwire             69         7     13
+    ir_rc6                64        22  21325  period 21333, no wrap
+    caliper               57        11    263  period 270
+    xy2_100               35        10      2
+    lfast                 64        27      6
     |}]
 ;;
 
@@ -194,5 +198,9 @@ let%expect_test "the least period the host may load" =
     (QED "ir_rc6: every load of 14 or more")
     (counterexample "ir_rc6: every load of 13 or more"
      (model ((loaded 0000000000001101))))
+    (caliper (period (270)) (floor 16) (passes true) (one_less true))
+    (QED "caliper: every load of 16 or more")
+    (counterexample "caliper: every load of 15 or more"
+     (model ((loaded 0000000000001111))))
     |}]
 ;;

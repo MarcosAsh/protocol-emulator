@@ -122,10 +122,14 @@ let%expect_test "every deadline wait in the library, a cycle late, is refused" =
     snorble                     5 waits,  5 refused a cycle late,  5 accepted at their slack
     plinkoo                    15 waits, 15 refused a cycle late, 15 accepted at their slack
     microwire                   7 waits,  7 refused a cycle late,  7 accepted at their slack
+    ir_rc6                     22 waits, 22 refused a cycle late,  0 accepted at their slack
+    caliper                    11 waits, 11 refused a cycle late,  0 accepted at their slack
+    xy2_100                    10 waits, 10 refused a cycle late, 10 accepted at their slack
+    lfast                      27 waits, 27 refused a cycle late, 27 accepted at their slack
     uart_tx_stream              3 waits,  3 refused a cycle late,  3 accepted at their slack
     spi_master_stream           3 waits,  3 refused a cycle late,  3 accepted at their slack
     uart_tx_stamped             4 waits,  4 refused a cycle late,  4 accepted at their slack
 
-    51 firmwares, 497 deadline waits: 497 refused a cycle late, 245 accepted at their slack
+    55 firmwares, 567 deadline waits: 567 refused a cycle late, 282 accepted at their slack
     |}]
 ;;

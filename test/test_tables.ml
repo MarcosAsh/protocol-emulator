@@ -1212,5 +1212,13 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       library cells of 96 and 97 cycles; refused: no whole cycle count is a tCELL
     microwire  no       -
       library SK 154.8 kHz, half 155; written for the core, not tried
+    ir_rc6     untried  -
+      library unit 21333; a 6 unit leader mark is 128000 cycles, each step held at most 65535
+    caliper    untried  -
+      library half 270; clock and data two outputs, a 48-bit frame of 16 and 8 bit words; written for the core, not tried
+    xy2_100    untried  -
+      library SENDCK half 12 cycles; three outputs, the parity from the CRC unit; not tried against the class
+    lfast      untried  -
+      library frames of 33 bits of 10 cycles; written for the core, not tried
     |}]
 ;;

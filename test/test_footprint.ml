@@ -264,6 +264,10 @@ let%expect_test "the footprint of each firmware, and of its config under any pro
     snorble            5            -          5-20           12-19
     plinkoo            10           15         10 15-27       15-19
     microwire          9-11         -          9-24           12-19
+    ir_rc6             5            -          5-20           12-19
+    caliper            5-6          -          5-21           12-19
+    xy2_100            5-7          -          5-22           12-19
+    lfast              5            -          5-20           12-19
     |}]
 ;;
 
@@ -366,6 +370,10 @@ let%expect_test "each firmware stays inside its footprint" =
     snorble            5            -
     plinkoo            10           -
     microwire          9-11         -
+    ir_rc6             -            -
+    caliper            5-6          -
+    xy2_100            5-7          -
+    lfast              5            -
     |}]
 ;;
 

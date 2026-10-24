@@ -115,5 +115,9 @@ let%expect_test "the kernel refuses each row moved by a cycle" =
     (snorble (phase 128) (arm 0) (capture 0) (accepted ()))
     (plinkoo (phase 168) (arm 0) (capture 0) (accepted ()))
     (microwire (phase 118) (arm 0) (capture 0) (accepted ()))
+    (ir_rc6 (phase 110) (arm 0) (capture 0) (accepted ()))
+    (caliper (phase 98) (arm 0) (capture 0) (accepted ()))
+    (xy2_100 (phase 62) (arm 0) (capture 0) (accepted ()))
+    (lfast (phase 116) (arm 0) (capture 0) (accepted ()))
     |}]
 ;;
