@@ -123,7 +123,8 @@ let%expect_test "a frame as the scale sends it" =
         ~lows:(List.dedup_and_sort receiver.lows ~compare:Int.compare : int list)
         ~unstable:(receiver.unstable : int)
         ~short_hold:(receiver.short_hold : int)];
-  [%expect {|
+  [%expect
+    {|
     (("List.rev receiver.words" (0x561234 0xde9abc)) (pauses (2705 5400))
      (pause_us (56 112)) (lows (270)) (unstable 0) (short_hold 0))
     |}]

@@ -1132,6 +1132,7 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       , "-"
       , "cells of 96 and 97 cycles"
       , "refused: no whole cycle count is a tCELL" )
+    ; "caliper", "TODO", "-", "-", "TODO whether the table interpreter runs it"
     ]
   in
   let named = List.map rows ~f:(fun (name, _, _, _, _) -> name) in

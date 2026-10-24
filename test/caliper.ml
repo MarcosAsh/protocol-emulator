@@ -121,22 +121,66 @@ let bench =
   ; clock_hz = Bench.clock_hz
   ; load = Some half_period
   ; stimulus =
-      Some { bursts = [ [ 0x1234; 0x56; 0x9abc; 0xde ] ]; quiet = 0; cycles = 45_000 }
+      Some
+        { bursts = [ [ 0x1234; 0x56; 0x9abc; 0xde ]; [ 0x1235; 0x56; 0x9abd; 0xde ] ]
+        ; quiet = 0
+        ; cycles = 90_000
+        }
   }
 ;;
 
-(* TODO a row for each parameter of the spec's timing table, then [unlimited] empty. Each
-   is bounded by the kernel over every path, [Datasheet.level] or [Datasheet.spacing], or
-   by [bench]'s run, [Datasheet.run], which a loop of waits needs as the kernel counts one
-   pass of it. For example
-   { Datasheet.firmware = bench.name
-   ; parameter = "tLOW"
-   ; limit = At_least 4700.
-   ; sheet = { part = "I2C"; document = "NXP UM10204 Rev. 7.0"; page = "Table 11, p.44" }
-   ; margin = Cycle
-   ; bound = Datasheet.level ~pin:Datasheet.set_pin ~high:false ()
-   } *)
-let limits : Datasheet.t list = []
+(* The spec's timing is all nominal ("about", "~"), taken here as the least the scale
+   waits: a clock no faster than 90 kHz, so a half period of 5555.5 ns, and pauses no
+   shorter than 55, 110 and 55 us. The 300 ms and 20 ms update periods, and their 3 and 50
+   Hz, are the host's to pace, so no row bounds them. The last pause is not a high of its
+   own on the line: it runs into the next frame's first, so that row reads the two
+   together. Highs of the run: 0 is the first pause, 24 the one between the words, 48 the
+   last. *)
+let limits =
+  let sheet lines =
+    { Datasheet.Sheet.part = "Chinese digital scale"
+    ; document = "Chinese Scales web page, no revision"
+    ; page = [%string "Chinese Scale Protocol, page 1, %{lines}"]
+    }
+  in
+  let clock (config : Program_config.t) = config.set_base in
+  let pause ~parameter ~lines ~ns ~index =
+    { Datasheet.firmware = bench.name
+    ; parameter
+    ; limit = At_least ns
+    ; sheet = sheet lines
+    ; margin = Cycle
+    ; bound =
+        Datasheet.run ~pin:clock (fun ~clock_hz:_ levels ->
+          List.filter_map levels ~f:(fun (high, n) -> Option.some_if high n)
+          |> Fn.flip List.nth index
+          |> Option.to_list)
+    }
+  in
+  let half ~high =
+    { Datasheet.firmware = bench.name
+    ; parameter = (if high then "clock high at 90 kHz" else "clock low at 90 kHz")
+    ; limit = At_least 5_555.5
+    ; sheet = sheet "lines 52-54"
+    ; margin = Cycle
+    ; bound = Datasheet.level ~pin:clock ~high ()
+    }
+  in
+  [ half ~high:true
+  ; half ~high:false
+  ; pause
+      ~parameter:"pause before the first word"
+      ~lines:"lines 82-84"
+      ~ns:55_000.
+      ~index:0
+  ; pause ~parameter:"pause between the words" ~lines:"lines 82-84" ~ns:110_000. ~index:24
+  ; pause
+      ~parameter:"pause after the last word"
+      ~lines:"lines 82-84"
+      ~ns:55_000.
+      ~index:48
+  ]
+;;
 
 (* TODO what sigrok's caliper decoder reads. demo/decode.py --show
    test/traces/caliper.trace prints every line it reads, by class, to fill [expect] with.
@@ -145,8 +189,7 @@ let limits : Datasheet.t list = []
    misread it. *)
 let sigrok =
   { Sigrok.clock_hz = 48_000_000
-  ; decoders =
-      [ Sigrok.decoder "caliper" ~pins:[ "clk", pin; "data", pin + 1 (* TODO *) ] ]
+  ; decoders = [ Sigrok.decoder "caliper" ~pins:[ "clk", pin; "data", pin + 1 ] ]
   ; expect = []
   ; joins_after = None
   ; rejected = None
@@ -154,8 +197,7 @@ let sigrok =
   }
 ;;
 
-(* TODO a run at the pins: the host's words, and in [peer] a model of the far end if it
-   answers *)
+(* a frame of two positions, the clock's half period first; the receiver only listens *)
 let scenario =
   { Scenario.name = "caliper"
   ; peer = (fun () -> Peer.idle 0)
@@ -163,7 +205,10 @@ let scenario =
       Scenario.load
         ~config:(Timed_program.config firmware)
         ~program:(Timed_program.words firmware)
-      @ [ Write (Reg.tx, [ 0x55; 0xa3 ]); Scenario.start; Run 600 ]
+      @ [ Scenario.start
+        ; Write (Reg.tx, [ half_period; 0x1234; 0x56; 0x9abc; 0xde ])
+        ; Run 45_000
+        ]
   ; sigrok = Some sigrok
   }
 ;;
@@ -175,9 +220,16 @@ let protocol =
   ; bench = [ bench ]
   ; loaded_from_hex = []
   ; limits
-  ; unlimited = [ "caliper", "TODO the rows of the spec's timing table" ]
-  ; swept = []
-  ; not_swept = [ "caliper", "TODO why the sweep does not stamp it, or a Swept.t" ]
+  ; unlimited = []
+  ; swept =
+      [ { Swept.name = "caliper"
+        ; watch = "clock"
+        ; on_wire = Swept.line
+        ; period = Some half_period
+        ; bursts = [ [ 0x1234; 0x56; 0x9abc; 0xde ] ]
+        }
+      ]
+  ; not_swept = []
   ; scenarios = [ scenario ]
   ; decoded = []
   }

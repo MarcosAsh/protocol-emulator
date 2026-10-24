@@ -542,6 +542,23 @@ let%expect_test "every protocol from its file to the decoded trace" =
     lockstep: frumbleglide, uncertified as loaded
     ("lockstep held" (cycles 12768))
     (received ())
+
+    === caliper
+
+    certificates
+    caliper: 57 words, 11 deadline waits, worst slack 263, the kernel accepts it, assuming period 270, a load of 16 or more
+
+    limits
+    caliper            clock high at 90 kHz >=   5555.5 ns  kernel 270 (5625.0 ns)   needs  268       Chinese digital scale, Chinese Scales web page, no revision Chinese Scale Protocol, page 1, lines 52-54; margin a cycle
+    caliper            clock low at 90 kHz >=   5555.5 ns  kernel 270 (5625.0 ns)   needs  268       Chinese digital scale, Chinese Scales web page, no revision Chinese Scale Protocol, page 1, lines 52-54; margin a cycle
+    caliper            pause before the first word >=    55000 ns  run    2705 (56354.2 ns) needs 2641       Chinese digital scale, Chinese Scales web page, no revision Chinese Scale Protocol, page 1, lines 82-84; margin a cycle
+    caliper            pause between the words >=   110000 ns  run    5400 (112500.0 ns) needs 5281       Chinese digital scale, Chinese Scales web page, no revision Chinese Scale Protocol, page 1, lines 82-84; margin a cycle
+    caliper            pause after the last word >=    55000 ns  run    5408 (112666.7 ns) needs 2641       Chinese digital scale, Chinese Scales web page, no revision Chinese Scale Protocol, page 1, lines 82-84; margin a cycle
+
+    lockstep: caliper, caliper
+    ("lockstep held" (cycles 45000))
+    (received ())
+    decode: test/traces/caliper.trace, by sigrok's caliper:clk=OUT0:data=OUT1
     |}]
 ;;
 
@@ -616,5 +633,5 @@ let%expect_test "no protocol file is left half written" =
             [%string "sigrok %{s.name}"]))
     in
     if not (List.is_empty left) then print_s [%message p.name (left : string list)]);
-  [%expect {| |}]
+  [%expect {| (caliper (left ("sigrok caliper"))) |}]
 ;;
