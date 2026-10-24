@@ -559,6 +559,7 @@ let%expect_test "every protocol from its file to the decoded trace" =
     ("lockstep held" (cycles 45000))
     (received ())
     decode: test/traces/caliper.trace, by sigrok's caliper:clk=OUT0:data=OUT1
+      caliper=measurement: caliper-1: 46.6mm, caliper-1: -16.384in
     |}]
 ;;
 
@@ -633,5 +634,5 @@ let%expect_test "no protocol file is left half written" =
             [%string "sigrok %{s.name}"]))
     in
     if not (List.is_empty left) then print_s [%message p.name (left : string list)]);
-  [%expect {| (caliper (left ("sigrok caliper"))) |}]
+  [%expect {| |}]
 ;;
