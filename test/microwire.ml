@@ -140,17 +140,20 @@ let bits_of ~width value =
 
 (* p.6's instruction set: the start bit, two opcode bits and six more *)
 let instruction ~op ~field = bits_of ~width:9 ((1 lsl 8) lor (op lsl 6) lor field)
-let ewen = frame (instruction ~op:0b11 ~field:0b000001)
+let ewen_bits = instruction ~op:0b11 ~field:0b000001
 
 (* the 16 data bits the device drives after a dummy 0 *)
-let read address =
-  frame (instruction ~op:0b00 ~field:address @ List.init 16 ~f:(fun _ -> false))
+let read_bits address =
+  instruction ~op:0b00 ~field:address @ List.init 16 ~f:(fun _ -> false)
 ;;
 
-let write address value =
-  frame ~erase_write:true (instruction ~op:0b10 ~field:address @ bits_of ~width:16 value)
+let write_bits address value =
+  instruction ~op:0b10 ~field:address @ bits_of ~width:16 value
 ;;
 
+let ewen = frame ewen_bits
+let read address = frame (read_bits address)
+let write address value = frame ~erase_write:true (write_bits address value)
 let cycles_ms ms = Float.iround_nearest_exn (ms *. Float.of_int Bench.clock_hz /. 1e3)
 
 (* The NM93C06A as p.6 has it: 16 registers of 16 bits, shifted on SK's rise. READ drives
@@ -420,13 +423,7 @@ let limits =
       ~cs_hold_ns:200.
       ()
   (* its chip enable hold of 0 asks nothing *)
-  @ device
-      "NM93C06A"
-      ~sk_max:250.
-      ~di_setup_ns:400.
-      ~di_hold_ns:400.
-      ~cs_setup_ns:200.
-      ()
+  @ device "NM93C06A" ~sk_max:250. ~di_setup_ns:400. ~di_hold_ns:400. ~cs_setup_ns:200. ()
   @ [ limit
         ~part:"NM93C06A"
         ~page:"p.6, note 1"
@@ -472,14 +469,32 @@ let limits =
     ]
 ;;
 
+(* The scenario's frames: sigrok reads DI at each rise after the start bit, and DO at the
+   fall after it, 1 but for READ's dummy 0 and register 5's 5555 *)
 let sigrok =
+  let frames = [ ewen_bits; read_bits 5; write_bits 5 0xa5c3 ] in
+  let ones n = List.init n ~f:(fun _ -> true) in
+  let bit name b = sprintf "%s bit: %d" name (Bool.to_int b) in
   { Sigrok.clock_hz = 48_000_000
   ; decoders =
       [ Sigrok.decoder "microwire" ~pins:[ "cs", cs; "sk", sk; "si", di; "so", do_ ] ]
-  ; expect = []
+  ; expect =
+      [ ( "microwire=start-bit:si-bit"
+        , List.concat_map frames ~f:(fun bits ->
+            "Start bit" :: List.map (List.tl_exn bits) ~f:(bit "SI"))
+          |> Sigrok.lines "microwire" )
+      ; ( "microwire=so-bit"
+        , ones 8 @ ones 7 @ [ false ] @ bits_of ~width:16 0x5555 @ ones 24
+          |> List.map ~f:(bit "SO")
+          |> Sigrok.lines "microwire" )
+      ]
   ; joins_after = None
   ; rejected = None
-  ; teeth = []
+  ; (* the start bit low over its rise, and EWEN's CS fall two bits early *)
+    teeth =
+      [ [ Flip { pin = di; edge = 0; after = 0; cycles = 2 * half } ]
+      ; [ Shift { pin = cs; edge = 1; cycles = -4 * half } ]
+      ]
   }
 ;;
 
@@ -508,7 +523,11 @@ let protocol =
   ; limits
   ; unlimited = []
   ; swept = []
-  ; not_swept = [ "microwire", "TODO why the sweep does not stamp it, or a Swept.t" ]
+  ; not_swept =
+      [ ( "microwire"
+        , "an erase/write holds CS low 1245217 cycles, past the 65536 a stamp tells apart"
+        )
+      ]
   ; scenarios = [ scenario ]
   ; decoded = []
   }
