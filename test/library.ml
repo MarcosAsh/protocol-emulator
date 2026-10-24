@@ -28,6 +28,7 @@ let protocols =
   ; Ir_rc6.protocol
   ; Caliper.protocol
   ; Xy2_100.protocol
+  ; Lfast.protocol
   ]
 ;;
 

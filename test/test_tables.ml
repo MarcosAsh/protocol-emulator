@@ -1150,6 +1150,11 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       , "-"
       , "SENDCK half 12 cycles"
       , "three outputs, the parity from the CRC unit; not tried against the class" )
+    ; ( "lfast"
+      , "untried"
+      , "-"
+      , "frames of 33 bits of 10 cycles"
+      , "written for the core, not tried" )
     ]
   in
   let named = List.map rows ~f:(fun (name, _, _, _, _) -> name) in
