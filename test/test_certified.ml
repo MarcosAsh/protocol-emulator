@@ -190,5 +190,9 @@ let%expect_test "the least period the host may load" =
     (QED "nec_tx: every load of 11 or more")
     (counterexample "nec_tx: every load of 10 or more"
      (model ((loaded 0000000000001010))))
+    (ir_rc6 (period (21333)) (floor 14) (passes true) (one_less true))
+    (QED "ir_rc6: every load of 14 or more")
+    (counterexample "ir_rc6: every load of 13 or more"
+     (model ((loaded 0000000000001101))))
     |}]
 ;;

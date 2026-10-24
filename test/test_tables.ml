@@ -1133,6 +1133,13 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       , "cells of 96 and 97 cycles"
       , "refused: no whole cycle count is a tCELL" )
     ; "microwire", "no", "-", "SK 154.8 kHz, half 155", "written for the core, not tried"
+    ; ( "ir_rc6"
+      , "untried"
+      , "-"
+      , "unit 21333"
+      , [%string
+          "a 6 unit leader mark is 128000 cycles, each step held at most %{max_hold#Int}"]
+      )
     ]
   in
   let named = List.map rows ~f:(fun (name, _, _, _, _) -> name) in

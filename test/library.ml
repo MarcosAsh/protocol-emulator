@@ -25,6 +25,7 @@ let protocols =
   ; Plinkoo.protocol
   ; Frumbleglide.protocol
   ; Microwire.protocol
+  ; Ir_rc6.protocol
   ]
 ;;
 

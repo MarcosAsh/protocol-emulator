@@ -979,8 +979,8 @@ let%expect_test "a longer period lowers no slack and refuses nothing more" =
   print_tallies longer;
   [%expect
     {|
-    ("longer period, library" (programs 39) (variants 95) (kernel_checked 19)
-     (accepted 95) (refused 0) (violations_on_accepted 0)
+    ("longer period, library" (programs 40) (variants 98) (kernel_checked 20)
+     (accepted 98) (refused 0) (violations_on_accepted 0)
      (violations_on_refused 0))
     ("longer period, random" (programs 93) (variants 172) (kernel_checked 35)
      (accepted 46) (refused 126) (violations_on_accepted 0)

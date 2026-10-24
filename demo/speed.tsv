@@ -17,3 +17,6 @@ frumbleglide	file	2026-10-18T22:06:51+01:00	refused: no whole cycle count is a t
 microwire	spec	2026-10-24T16:48:50+01:00	new-protocol
 microwire	file	2026-10-24T17:07:04+01:00	
 microwire	certificate	2026-10-24T17:07:39+01:00	
+ir_rc6	spec	2026-10-24T18:12:52+01:00	new-protocol
+ir_rc6	file	2026-10-24T18:51:01+01:00	
+ir_rc6	certificate	2026-10-24T18:51:27+01:00	
