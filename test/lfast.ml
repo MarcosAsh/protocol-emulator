@@ -106,7 +106,7 @@ let certified = [ Certified.of_firmware "lfast" firmware ]
    [load] the one the bench loads *)
 let bench =
   { Bench.name = "lfast"
-  ; what = "Lfast.firmware: TODO what the bench sees, on OUT0"
+  ; what = "Lfast.firmware: LFAST frames at 4.8 Mb/s, a payload byte each, on OUT0"
   ; source = Timed_program.source firmware
   ; config
   ; assumption = Nothing
@@ -116,31 +116,55 @@ let bench =
   }
 ;;
 
-(* TODO a row for each parameter of the spec's timing table, then [unlimited] empty. Each
-   is bounded by the kernel over every path, [Datasheet.level] or [Datasheet.spacing], or
-   by [bench]'s run, [Datasheet.run], which a loop of waits needs as the kernel counts one
-   pass of it. For example
-   { Datasheet.firmware = bench.name
-   ; parameter = "tLOW"
-   ; limit = At_least 4700.
-   ; sheet = { part = "I2C"; document = "NXP UM10204 Rev. 7.0"; page = "Table 11, p.44" }
-   ; margin = Cycle
-   ; bound = Datasheet.level ~pin:Datasheet.set_pin ~high:false ()
-   } *)
-let limits : Datasheet.t list = []
+(* The one limit on the line the note gives as a maximum: the data rate, up to 320 Mb/s
+   (p.3), so no level of the line lasts under 1 / 320 MHz = 3.125 ns. Table 8 on p.12 and
+   the text on p.1, p.2 and p.25 repeat the 320 and give 5 MHz at low speed only as
+   typical, and the 10 to 264 MHz reference clock on p.25 is an input of the other chip,
+   so none of them bounds this pin. *)
+let limits : Datasheet.t list =
+  let sheet =
+    { Datasheet.Sheet.part = "LFAST"
+    ; document = "NXP AN5134 Rev. 0"
+    ; page = "p.3, text: rates up to 320 Mb/s"
+    }
+  in
+  List.map
+    [ "high", true; "low", false ]
+    ~f:(fun (name, high) ->
+      { Datasheet.firmware = bench.name
+      ; parameter = [%string "data rate, shortest %{name} bit (3.125 ns)"]
+      ; limit = At_least 3.125
+      ; sheet
+      ; margin = Cycle
+      ; bound = Datasheet.level ~pin:Datasheet.set_pin ~high ()
+      })
+;;
 
-(* TODO what sigrok's lfast decoder reads. demo/decode.py --show test/traces/lfast.trace
-   prints every line it reads, by class, to fill [expect] with. Its channels: data;
-   optional: none; options: none; classes: bit, sync, header_pl_size, header_ch_type,
-   header_cts, payload, ctrl_data, sleep, warning. Each of [teeth] changes the waveform so
-   the decoders have to misread it. *)
+(* What sigrok's lfast decoder reads. It labels the 1 stop bit a sleep request, and it
+   needs the frame's last payload bit to end a run, so a payload ends in a 1. The teeth
+   flip a sync bit, a header bit and a payload bit. *)
 let sigrok =
   { Sigrok.clock_hz = 48_000_000
   ; decoders = [ Sigrok.decoder "lfast" ~pins:[ "data", pin ] ]
-  ; expect = []
+  ; expect =
+      [ ( "lfast=sync:header_pl_size:header_ch_type:header_cts:payload:sleep"
+        , List.concat_map [ 0x55; 0xa3 ] ~f:(fun byte ->
+            [ "Sync OK"
+            ; "8 bit"
+            ; "Data Channel A"
+            ; "1"
+            ; sprintf "%02X" byte
+            ; "LVDS sleep mode request"
+            ])
+          |> Sigrok.lines "lfast" )
+      ]
   ; joins_after = None
   ; rejected = None
-  ; teeth = []
+  ; teeth =
+      [ [ Flip { pin; edge = 2; after = 0; cycles = 10 } ]
+      ; [ Flip { pin; edge = 12; after = 0; cycles = 10 } ]
+      ; [ Flip { pin; edge = 16; after = 0; cycles = 10 } ]
+      ]
   }
 ;;
 
@@ -153,7 +177,7 @@ let scenario =
       Scenario.load
         ~config:(Timed_program.config firmware)
         ~program:(Timed_program.words firmware)
-      @ [ Write (Reg.tx, [ 0x55; 0xa3 ]); Scenario.start; Run 600 ]
+      @ [ Write (Reg.tx, [ 0x55; 0xa3 ]); Scenario.start; Run 760 ]
   ; sigrok = Some sigrok
   }
 ;;
@@ -165,9 +189,9 @@ let protocol =
   ; bench = [ bench ]
   ; loaded_from_hex = []
   ; limits
-  ; unlimited = [ "lfast", "TODO the rows of the spec's timing table" ]
+  ; unlimited = []
   ; swept = []
-  ; not_swept = [ "lfast", "TODO why the sweep does not stamp it, or a Swept.t" ]
+  ; not_swept = [ "lfast", "a fixed-length frame with no field to carry a cycle stamp" ]
   ; scenarios = [ scenario ]
   ; decoded = []
   }
