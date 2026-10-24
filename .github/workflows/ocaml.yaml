@@ -343,6 +343,9 @@ jobs:
       - name: Install sigrok-cli, numpy, which the edge reader needs, and matplotlib
         run: sudo apt-get update && sudo apt-get install -y sigrok-cli python3-numpy python3-matplotlib
 
+      - name: Fetch the drawn decoders newer than Ubuntu's sigrok
+        run: demo/pinned_decoders.sh
+
       - name: Decode
         run: |
           sigrok-cli -V | head -1
