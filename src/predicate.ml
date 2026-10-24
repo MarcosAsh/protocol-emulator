@@ -81,7 +81,11 @@ let readable name pin =
   if pin < 0
      || pin >= Isa.pin_space
      || (pin >= Isa.first_output_pin && pin < Isa.first_bidir_pin)
-  then refuse "%s pin %d is not an input, a bidirectional pin or a wire" name pin
+  then
+    refuse
+      "%s pin %d is not an input, a bidirectional pin, a wire or a status pin"
+      name
+      pin
   else Ok ()
 ;;
 

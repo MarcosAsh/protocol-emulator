@@ -72,13 +72,6 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   <-- reg spec (mux2 i.control.arm gnd @@ mux2 starts vdd @@ mux2 ends gnd receiving);
   let%hw words = wire word_count_bits in
   let%hw takes = receiving &: rx.word.valid in
-  let%hw addr =
-    uresize i.control.base ~width:(word_count_bits + 1)
-    +: uresize words ~width:(word_count_bits + 1)
-  in
-  (* the data memory's end is the frame's, with no wrap *)
-  let%hw fits = addr <:. 1 lsl Isa.data_addr_bits in
-  let%hw writes = takes &: fits &: i.may_write in
   let%hw full = words ==:. (1 lsl word_count_bits) - 1 in
   words
   <-- reg
@@ -86,8 +79,23 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
         (mux2 (i.control.arm |: starts) (zero word_count_bits)
          @@ mux2 (takes &: ~:full) (words +:. 1) words);
   let restart = i.control.arm |: starts in
+  (* A word waits here for a cycle [may_write] lets through, until the next comes, as
+     [Usb_frame_rx]'s does. *)
+  let%hw pending = wire 1 in
+  let held = reg spec ~enable:takes in
+  let%hw index = held words in
+  let%hw addr =
+    uresize i.control.base ~width:(word_count_bits + 1)
+    +: uresize index ~width:(word_count_bits + 1)
+  in
+  (* the data memory's end is the frame's, with no wrap *)
+  let%hw fits = addr <:. 1 lsl Isa.data_addr_bits in
+  let%hw leaves = pending &: i.may_write in
+  let%hw writes = leaves &: fits in
+  pending <-- reg spec (mux2 restart gnd @@ mux2 takes vdd @@ mux2 leaves gnd pending);
   let%hw dropped =
-    reg_fb spec ~width:1 ~f:(fun d -> mux2 restart gnd @@ mux2 (takes &: ~:writes) vdd d)
+    reg_fb spec ~width:1 ~f:(fun d ->
+      mux2 restart gnd @@ mux2 (leaves &: ~:fits |: (takes &: pending &: ~:leaves)) vdd d)
   in
   (* the FCS over every bit after the start of frame, judged at each byte's end *)
   let module Crc_step = Crc.Make (Signal) in
@@ -109,14 +117,15 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
       mux2 starts gnd @@ mux2 (frame_bit &: (byte_bit ==:. 7)) (crc_next ==:. residue) d)
   in
   let latch v = reg_fb spec ~width:1 ~f:(fun d -> mux2 restart gnd @@ mux2 ends v d) in
-  let%hw finished = latch vdd in
+  let%hw ended = latch vdd in
+  let%hw finished = ended &: ~:pending in
   let%hw fcs_ok = latch good_so_far in
   (* the last word holds one byte where the carrier went on a half word *)
   let%hw half = latch rx.word.valid in
   { O.write =
       { valid = writes
       ; addr = sel_bottom addr ~width:Isa.data_addr_bits
-      ; data = rx.word.value
+      ; data = held rx.word.value
       }
   ; status = { words; finished; fcs_ok; half; dropped; receiving; armed }
   }

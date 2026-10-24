@@ -4,7 +4,8 @@
     taken or not, so issue timing never depends on data. Firmware sets [t], waits on it
     and advances it by [p], so pin edges are computable from the program alone. Pins are
     one flat space: inputs, outputs, bidirectional, then [num_wires] wires ORed across
-    engines. Pin shifts start at a configured base pin, as in the RP2040 PIO. *)
+    engines, then [num_status_pins] the chip's frame receivers raise, read like inputs.
+    Pin shifts start at a configured base pin, as in the RP2040 PIO. *)
 
 open! Core
 open! Hardcaml
@@ -29,8 +30,13 @@ val delay_bits : int
 val max_side_set : int
 val num_pins : int
 val num_wires : int
+val first_status_pin : int
 
-(** Pins plus wires. *)
+(** Finished, good, receiving and error, read by the receivers' owner and as 0 by the
+    others ([Engines]). *)
+val num_status_pins : int
+
+(** Pins, wires and status pins. *)
 val pin_space : int
 
 val first_output_pin : int

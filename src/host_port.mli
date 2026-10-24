@@ -10,19 +10,20 @@
     status (bit 0 busy, 1 accepted, 2 certified, 3 refused), 68 the pc and 69 the reason
     it refused; 70 the [Line_code] table's state and 71 its word (writes increment the
     state); for [Frame_rx], whatever the select, 72 its control (bit 0 arms, 1 a 50 MHz
-    clock, 6-2 the pad, 7 [Usb_frame_rx] in its place, D- on the next pad), 73 the data
-    address a frame lands at, 74 its status (bits 9-0 the words, 10 finished, 11 FCS good
-    or USB's CRC-16, 12 a half last word, 13 a word dropped, 14 in a frame, 15 armed), 75
-    USB's flags (bit 0 CRC-5 good, 1 CRC-16 good, 2 a stuffing error, 3 whole bytes); for
-    [Edge_stamps], whatever the select, 76 the mask of pins 0-15, 77 pins 16-19 in bits
-    3-0 and in bit 4 the engine whose clock times them (a write to either empties the
-    queue), 78-79 the head's time (79 bits 7-0 its top, 10-8 the queue's level, 15 lost),
-    80-81 the pads it saw (reading 81 pops). Program, data, config, table, check and flush
-    take effect only while halted, so a flush needs its own write after the stop, and a
-    start only once the engine is certified. Control bit 5 starts every engine on one
-    cycle, whatever the select, and only with all halted and certified. 43 and 44 are
-    reserved and read zero; config skips them to keep [autopull_data] and [manchester] at
-    45-46 for existing hosts.
+    clock, 6-2 the pad, 7 [Usb_frame_rx] in its place, D- on the next pad, 8 up the engine
+    they belong to, which alone sees their status pins), 73 the data address a frame lands
+    at, 74 its status (bits 9-0 the words, 10 finished, 11 FCS good or USB's CRC-16, 12 a
+    half last word, 13 a word dropped, 14 in a frame, 15 armed), 75 USB's flags (bit 0
+    CRC-5 good, 1 CRC-16 good, 2 a stuffing error, 3 whole bytes); for [Edge_stamps],
+    whatever the select, 76 the mask of pins 0-15, 77 pins 16-19 in bits 3-0 and in bit 4
+    the engine whose clock times them (a write to either empties the queue), 78-79 the
+    head's time (79 bits 7-0 its top, 10-8 the queue's level, 15 lost), 80-81 the pads it
+    saw (reading 81 pops). Program, data, config, table, check and flush take effect only
+    while halted, so a flush needs its own write after the stop, and a start only once the
+    engine is certified. Control bit 5 starts every engine on one cycle, whatever the
+    select, and only with all halted and certified. 43 and 44 are reserved and read zero;
+    config skips them to keep [autopull_data] and [manchester] at 45-46 for existing
+    hosts.
 
     Select picks the engine for every register but the two addresses; it resets to 0 and
     past the last engine reaches none and reads zero. Status bit 15 flags another engine's
@@ -126,6 +127,7 @@ module Make (_ : Config) : sig
       ; frame : 'a Frame_rx.Control.t
       ; frame_pin : 'a (** The pad [Frame_rx] decodes. *)
       ; frame_usb : 'a (** [Usb_frame_rx] takes the frames, D+ on [frame_pin]. *)
+      ; frame_owner : 'a (** [Engines.I.frame_owner]. *)
       ; stamps : 'a Edge_stamps.Control.t
       }
     [@@deriving hardcaml]

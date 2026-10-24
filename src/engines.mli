@@ -1,14 +1,18 @@
 (** The chip's cores ([engine_n], each with its own program memory and host fields) and
     the pins between them; they share one [Data_memory], written by the host only while
-    all are halted, and by [Frame_rx] where no engine pulling data runs and no check
-    reads. A pin is the OR of what engines drive, which keeps a mis-configured double
-    drive defined. An engine reads another's driven bidirectional pin instead of the pad,
-    and any engine's drive on a wire. [formal/chip_frame.sv] proves two engines sharing no
-    pad drive and read as alone, except reading the other's bidirectional pads and wires,
-    provided neither gets a new config without a clear. An engine starts only on a program
-    the [Load_checker] accepted, under the configuration it was checked with, and watches
-    the premises that check took ([Engine.Premises]). A routed engine's pushes go to the
-    next engine's tx fifo, which its host then cannot write.
+    all are halted, and by [Frame_rx] or [Usb_frame_rx] only in their owner's turns, where
+    it keeps its word or pulls no data; such a write aborts a running walk. The owner
+    reads the receiver's finished, good (FCS, or either CRC), receiving and error (a
+    dropped word or a stuffing error) on the status pins, [Isa.first_status_pin] up, and
+    the others read 0 there, so when they move depends on no other engine. A pin is the OR
+    of what engines drive, which keeps a mis-configured double drive defined. An engine
+    reads another's driven bidirectional pin instead of the pad, and any engine's drive on
+    a wire. [formal/chip_frame.sv] proves two engines sharing no pad drive and read as
+    alone, except reading the other's bidirectional pads and wires, provided neither gets
+    a new config without a clear. An engine starts only on a program the [Load_checker]
+    accepted, under the configuration it was checked with, and watches the premises that
+    check took ([Engine.Premises]). A routed engine's pushes go to the next engine's tx
+    fifo, which its host then cannot write.
 
     An engine with a fault latched halts and lets go of its pins, as at reset, until the
     clear; a start does nothing meanwhile. [formal/fail_safe.sv] proves it. *)
@@ -34,6 +38,9 @@ module Make (_ : Config) : sig
       ; dm : 'a (** And of USB's D-. *)
       ; frame : 'a Frame_rx.Control.t
       ; frame_usb : 'a (** [Usb_frame_rx] in [Frame_rx]'s place. *)
+      ; frame_owner : 'a
+      (** The engine the receivers belong to: their words land only in its data turns, and
+          it alone reads their status pins. *)
       ; stamps : 'a Edge_stamps.Control.t
       (** On the pads, timed by engine [engine]'s [now]. *)
       }

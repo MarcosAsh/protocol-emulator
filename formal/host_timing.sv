@@ -6,9 +6,9 @@
 module step (
   input clock, clear, start, stop, clear_irq,
   input [174:0] config_bits,
-  input [27:0] inputs,
+  input [31:0] inputs,
   input [15:0] fetched, pulled, data_word,
-  output [27:0] pin_out, pin_dir,
+  output [31:0] pin_out, pin_dir,
   output [8:0] sram_addr,
   output sram_men, sram_ren, sram_wen,
   output [8:0] data_addr,
@@ -29,8 +29,8 @@ module step (
 `endif
   wire [15:0] instruction;
   wire [7:0] opcode_onehot;
-  wire [27:0] wait_select;
-  wire [27:0] wait_pin = 28'd1 << instruction[4:0];
+  wire [31:0] wait_select;
+  wire [31:0] wait_pin = 32'd1 << instruction[4:0];
 
   engine_top dut (
     .clock(clock), .clear(clear),

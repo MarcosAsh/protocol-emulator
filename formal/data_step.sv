@@ -29,14 +29,14 @@ module data_step (input clk);
   (* anyseq *) wire start, program_write_valid, tx_valid, rx_pop, clear_irq;
   (* anyseq *) wire [8:0] program_write_addr;
   (* anyseq *) wire [15:0] program_write_data, tx_value;
-  (* anyseq *) wire [27:0] inputs;
+  (* anyseq *) wire [31:0] inputs;
 
   // the top clears the engine at power-on and whenever its reset comes again
   (* anyseq *) wire reset;
   reg clear = 1;
   always @(posedge clk) clear <= reset;
 
-  wire [27:0] pin_out, pin_dir;
+  wire [31:0] pin_out, pin_dir;
   wire [8:0] pc;
   wire [15:0] x, y, p, osr, isr, rx_head, instruction;
   wire [31:0] crc;
@@ -47,7 +47,7 @@ module data_step (input clk);
   wire [3:0] tx_level, rx_level;
   wire decode_ok;
   wire [7:0] opcode_onehot;
-  wire [27:0] wait_select;
+  wire [31:0] wait_select;
   // the value an out shifts, the tx fifo's head, and the core's note of a data pointer
   // that moved the cycle before
   wire [15:0] out_value, tx_head;

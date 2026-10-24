@@ -79,11 +79,12 @@ module Make (Comb : Comb.S) = struct
     let alu_op_raw = field Isa.Field.alu_op in
     let alu_is_reg = field Isa.Field.alu_is_reg in
     let alu_operand_raw = field Isa.Field.alu_operand in
+    let in_pin_space index = uresize index ~width:(width index + 1) <:. Isa.pin_space in
     let wait_index_ok =
       Wait_source.match_
         wait_source
-        [ Pin_level, wait_index <:. Isa.pin_space
-        ; Pin_edge, wait_index <:. Isa.pin_space
+        [ Pin_level, in_pin_space wait_index
+        ; Pin_edge, in_pin_space wait_index
         ; Deadline, wait_index ==:. 0
         ; Fifo, wait_index ==:. 0
         ]

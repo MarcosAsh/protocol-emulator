@@ -9,7 +9,11 @@ let program_size = 1 lsl Isa.pc_bits
 let data_size = 1 lsl Isa.data_addr_bits
 let first_output_pin = Isa.first_output_pin
 let first_bidir_pin = Isa.first_bidir_pin
-let writable_pins = ((1 lsl Isa.pin_space) - 1) land lnot ((1 lsl first_output_pin) - 1)
+
+let writable_pins =
+  ((1 lsl Isa.first_status_pin) - 1) land lnot ((1 lsl first_output_pin) - 1)
+;;
+
 let bidir_pins = ((1 lsl Isa.num_pins) - 1) land lnot ((1 lsl first_bidir_pin) - 1)
 
 module Fault = struct
@@ -189,7 +193,9 @@ let sample_pins t ~inputs =
   |> List.fold ~init:0 ~f:(fun v i ->
     let driven = i >= first_output_pin && (i < first_bidir_pin || bit t.pin_dir i = 1) in
     let level =
-      if i >= Isa.num_pins
+      if i >= Isa.first_status_pin
+      then bit inputs i
+      else if i >= Isa.num_pins
       then bit t.pin_out i lor bit inputs i
       else bit (if driven then t.pin_out else inputs) i
     in

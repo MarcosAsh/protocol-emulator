@@ -185,11 +185,12 @@ class Host:
             "assumption": (s >> 14) & 1, "other_irq": (s >> 15) & 1,
         }
 
-    def arm_frame(self, pin, base=0, fifty=True):
+    def arm_frame(self, pin, base=0, fifty=True, owner=0):
         """Take the next 10BASE-T frame on pin into the data memory from base, sampling
-        for a 50 MHz clock (else 40 MHz). One frame per arm."""
+        for a 50 MHz clock (else 40 MHz). One frame per arm. Its words land in engine
+        owner's data turns, and that engine alone reads the status pins 28-31."""
         self.write(FRAME_BASE, [base])
-        self.write(FRAME_CONTROL, [(pin << 2) | (int(fifty) << 1) | 1])
+        self.write(FRAME_CONTROL, [(owner << 8) | (pin << 2) | (int(fifty) << 1) | 1])
 
     def frame_status(self):
         s = self.read(FRAME_STATUS)[0]
@@ -199,12 +200,13 @@ class Host:
             "armed": (s >> 15) & 1,
         }
 
-    def arm_usb(self, dp_pin, base=0):
+    def arm_usb(self, dp_pin, base=0, owner=0):
         """Take the next USB full speed packet into the data memory from base, D+ on
         dp_pin and D- on the next. One packet per arm; frame_status reports it, its
-        fcs_ok the CRC-16."""
+        fcs_ok the CRC-16. Its words land in engine owner's data turns, and that engine
+        alone reads the status pins 28-31."""
         self.write(FRAME_BASE, [base])
-        self.write(FRAME_CONTROL, [(1 << 7) | (dp_pin << 2) | 1])
+        self.write(FRAME_CONTROL, [(owner << 8) | (1 << 7) | (dp_pin << 2) | 1])
 
     def usb_status(self):
         s = self.read(USB_STATUS)[0]

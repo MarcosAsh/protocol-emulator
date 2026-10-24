@@ -49,14 +49,14 @@ module event_step (input clk);
   (* anyseq *) wire start, program_write_valid, tx_valid, rx_pop, clear_irq;
   (* anyseq *) wire [8:0] program_write_addr;
   (* anyseq *) wire [15:0] program_write_data, tx_value;
-  (* anyseq *) wire [27:0] inputs;
+  (* anyseq *) wire [31:0] inputs;
 
   // the top clears the engine at power-on and whenever its reset comes again
   (* anyseq *) wire reset;
   reg clear = 1;
   always @(posedge clk) clear <= reset;
 
-  wire [27:0] pin_out, pin_dir;
+  wire [31:0] pin_out, pin_dir;
   wire [8:0] pc;
   wire [15:0] x, y, p, osr, isr, rx_head, instruction;
   wire [31:0] crc;
@@ -68,10 +68,10 @@ module event_step (input clk);
   wire [3:0] tx_level, rx_level;
   wire decode_ok;
   wire [7:0] opcode_onehot;
-  wire [27:0] wait_select;
+  wire [31:0] wait_select;
   wire jmp_go, advance;
   wire [15:0] out_value, mov_value;
-  wire [27:0] sample;
+  wire [31:0] sample;
 
   engine dut (
     .clock(clk), .clear(clear),
@@ -115,19 +115,18 @@ module event_step (input clk);
     if (config_write && halted && !started) config_bits <= config_value;
   wire issue = !clear && !halted && stall == 0 && !started;
 
-  reg [27:0] previous = 0;
-  always @(posedge clk) previous <= clear ? 28'd0 : sample;
+  reg [31:0] previous = 0;
+  always @(posedge clk) previous <= clear ? 32'd0 : sample;
 
   wire [2:0] opcode = instruction[15:13];
   wire [1:0] source = instruction[6:5];
   wire polarity = instruction[7];
   wire [4:0] index = instruction[4:0];
   wire pin_wait = decode_ok && opcode == 1 && (source == 0 || source == 1);
-  // an index past the pin space reads low
-  wire now_level = (index < 28 && sample[index]) == polarity;
-  wire was_other = (index < 28 && previous[index]) != polarity;
+  wire now_level = sample[index] == polarity;
+  wire was_other = previous[index] != polarity;
   wire [3:0] cond = instruction[12:9];
-  wire pin_jump = decode_ok && opcode == 0 && (cond == 4 || cond == 5) && jmp_pin < 28;
+  wire pin_jump = decode_ok && opcode == 0 && (cond == 4 || cond == 5);
 `ifdef JUMP_LATE
   wire pin_high = previous[jmp_pin];
 `else
@@ -147,7 +146,7 @@ module event_step (input clk);
   always @(posedge clk)
     if (!clear) begin
       assert(opcode_onehot == 8'b1 << opcode);
-      assert(wait_select == 28'd1 << index);
+      assert(wait_select == 32'd1 << index);
     end
 
   always @(*) begin
@@ -159,6 +158,7 @@ module event_step (input clk);
       assert(sample[27:20] == (inputs[27:20] | pin_out[27:20]));
 `endif
       assert(sample[4:0] == inputs[4:0]);
+      assert(sample[31:28] == inputs[31:28]);
       assert((sample[19:12] & ~pin_dir[19:12]) == (inputs[19:12] & ~pin_dir[19:12]));
     end
   end

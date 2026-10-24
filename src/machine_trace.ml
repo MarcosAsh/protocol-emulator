@@ -7,7 +7,9 @@ let pin_name pin =
   then sprintf "OUT%d" (pin - Isa.first_output_pin)
   else if pin < Isa.num_pins
   then sprintf "IO%d" (pin - Isa.first_bidir_pin)
-  else sprintf "W%d" (pin - Isa.num_pins)
+  else if pin < Isa.first_status_pin
+  then sprintf "W%d" (pin - Isa.num_pins)
+  else sprintf "S%d" (pin - Isa.first_status_pin)
 ;;
 
 let all_pins = List.init Isa.pin_space ~f:Fn.id

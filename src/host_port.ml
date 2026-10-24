@@ -87,6 +87,7 @@ end
 module Make (Config : Config) = struct
   let engines = Config.engines
   let select_bits = Int.ceil_log2 engines
+  let owner_bits = Int.max 1 select_bits
 
   let () =
     if engines < 1
@@ -117,6 +118,7 @@ module Make (Config : Config) = struct
       ; frame : 'a Frame_rx.Control.t
       ; frame_pin : 'a [@bits Frame_rx.pin_bits]
       ; frame_usb : 'a
+      ; frame_owner : 'a [@bits owner_bits]
       ; stamps : 'a Edge_stamps.Control.t
       }
     [@@deriving hardcaml]
@@ -169,6 +171,7 @@ module Make (Config : Config) = struct
     let%hw_var line_addr = Always.Variable.reg spec ~width:Line_code.address_bits in
     let%hw_var frame_fifty = Always.Variable.reg spec ~width:1 in
     let%hw_var frame_usb = Always.Variable.reg spec ~width:1 in
+    let%hw_var frame_owner = Always.Variable.reg spec ~width:owner_bits in
     let%hw_var frame_pin = Always.Variable.reg spec ~width:Frame_rx.pin_bits in
     let%hw_var frame_base = Always.Variable.reg spec ~width:Isa.data_addr_bits in
     let%hw_var stamp_mask = Always.Variable.reg spec ~width:Isa.num_pins in
@@ -234,7 +237,14 @@ module Make (Config : Config) = struct
       ; Reg.reject_reason, reg16 (verdict (fun v -> v.reason))
       ; Reg.line_addr, reg16 line_addr.value
       ; ( Reg.frame_control
-        , reg16 (frame_usb.value @: frame_pin.value @: frame_fifty.value @: gnd) )
+        , reg16
+            (concat_msb
+               [ frame_owner.value
+               ; frame_usb.value
+               ; frame_pin.value
+               ; frame_fifty.value
+               ; gnd
+               ]) )
       ; Reg.frame_base, reg16 frame_base.value
       ; ( Reg.frame_status
         , let f = i.frame in
@@ -352,6 +362,8 @@ module Make (Config : Config) = struct
                  [ frame_fifty <-- value.:(1)
                  ; frame_pin <-- value.:[Frame_rx.pin_bits + 1, 2]
                  ; frame_usb <-- value.:(Frame_rx.pin_bits + 2)
+                 ; frame_owner
+                   <-- value.:[Frame_rx.pin_bits + 2 + owner_bits, Frame_rx.pin_bits + 3]
                  ]
              ; when_
                  (at Reg.frame_base)
@@ -411,6 +423,7 @@ module Make (Config : Config) = struct
         }
     ; frame_pin = frame_pin.value
     ; frame_usb = frame_usb.value
+    ; frame_owner = frame_owner.value
     ; stamps =
         { mask = stamp_mask.value
         ; engine = stamp_engine.value

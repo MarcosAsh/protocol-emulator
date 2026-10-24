@@ -482,5 +482,5 @@ let%expect_test "random programs through random tables" =
         (!stepped : int)
         (!flagged : int)
         (!assumed : int)];
-  [%expect {| ((programs 64) (failed ()) (!stepped 63) (!flagged 38) (!assumed 26)) |}]
+  [%expect {| ((programs 64) (failed ()) (!stepped 62) (!flagged 32) (!assumed 31)) |}]
 ;;

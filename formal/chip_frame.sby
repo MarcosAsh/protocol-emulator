@@ -32,6 +32,8 @@ rename engines.engine_0.op_go op_go_0
 rename engines.engine_1.op_go op_go_1
 rename engines.engine_0.sample sample_0
 rename engines.engine_1.sample sample_1
+expose w:engines.frame_status
+rename engines.frame_status frame_status
 cd ..
 teeth: read -define TEETH
 overlap: read -define OVERLAP

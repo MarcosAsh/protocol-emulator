@@ -40,11 +40,13 @@ delete t:$scopeinfo
 check -assert
 
 # one clock: every flop takes the rising edge of clk, through the clock tree's buffers,
-# but Both_edges' falling pair, which takes it through inverters of clk alone
+# but the falling pairs of both Both_edges, the frame pad's and D-'s, which take it
+# through inverters of clk alone
 select -assert-none t:$*latch* t:$sr %u
-select -set falling w:core.top.both_edges.signal_reg w:core.top.both_edges.signal_reg_1 %u \
+select -set falling w:core.top.both_edges.signal_reg w:core.top.both_edges.signal_reg_1 \
+  w:core.top.both_edges_1.signal_reg w:core.top.both_edges_1.signal_reg_1 %u %u %u \
   %ci6:+[Q] t:$*ff* %i
-select -assert-count 2 @falling
+select -assert-count 4 @falling
 select -set falling_inverters @falling %ci2:+[CLK,Y] t:$not t:$_NOT_ %u %i
 select -assert-min 1 @falling_inverters
 select -assert-none @falling_inverters %ci1:+[A] w:* %i w:clk %d

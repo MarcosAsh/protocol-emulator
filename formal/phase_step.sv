@@ -83,7 +83,7 @@ module phase_step (input clk);
   (* anyseq *) wire start, program_write_valid, tx_valid, rx_pop, clear_irq;
   (* anyseq *) wire [8:0] program_write_addr;
   (* anyseq *) wire [15:0] program_write_data, tx_value;
-  (* anyseq *) wire [27:0] inputs;
+  (* anyseq *) wire [31:0] inputs;
 `ifdef CHIP
   // the other engine's host, its config too, both hosts' data writes and the pads
   (* anyseq *) wire [1:0] o_side_set_count;
@@ -124,7 +124,7 @@ module phase_step (input clk);
   reg clear = 1;
   always @(posedge clk) clear <= 0;
 
-  wire [27:0] pin_out, pin_dir;
+  wire [31:0] pin_out, pin_dir;
   wire [8:0] pc;
   wire [15:0] x, y, p, osr, isr, rx_head, instruction;
   wire [31:0] crc;
@@ -135,10 +135,10 @@ module phase_step (input clk);
   wire [3:0] tx_level, rx_level;
   wire decode_ok;
   wire [7:0] opcode_onehot;
-  wire [27:0] wait_select;
-  wire [27:0] wait_pin = 28'd1 << instruction[4:0];
+  wire [31:0] wait_select;
+  wire [31:0] wait_pin = 32'd1 << instruction[4:0];
   wire jmp_go, advance;
-  wire [27:0] sample;
+  wire [31:0] sample;
   wire captured_now;
   wire [15:0] out_value, mov_value;
 
@@ -146,7 +146,7 @@ module phase_step (input clk);
   // the pads, the other engine's drive and faults, and the start and stop this core gets,
   // its host's through the chip's fault gate
   wire [19:0] chip_out, chip_dir;
-  wire [27:0] o_pin_out, o_pin_dir;
+  wire [31:0] o_pin_out, o_pin_dir;
   wire o_underflow, o_overflow, o_missed_deadline, o_decode, o_assumption;
   wire assumption, faulted, o_faulted;
   wire flip_pending, flip_bit, host_start, core_stop;
@@ -392,7 +392,7 @@ module phase_step (input clk);
   // The kernel's ghost of the pair at an entry: each pin's cycles since its last edge in
   // this run, all ones before the first; its bit, the pin's at the run's first entry; and
   // whether the run has yet to write it.
-  wire [27:0] watched = pair_dirs ? pin_dir : pin_out;
+  wire [31:0] watched = pair_dirs ? pin_dir : pin_out;
   wire bit_a = watched[pin_a], bit_b = watched[pin_b];
   wire [15:0] next_since_a, next_since_b;
   wire next_level_a, next_level_b, next_fresh_a, next_fresh_b, wide_a, wide_b;
@@ -638,10 +638,8 @@ module phase_step (input clk);
   // one half each.
   wire arms = entry && opcode == 7 && instruction[7:0] == 8'd7;
   wire capturing = opcode == 1 && !instruction[6] && instruction[4:0] == capture_pin
-    && instruction[4:0] < 28 && instruction[7] == capture_rising;
-  // the core reads pin 27 for a capture pin past the pin space, as its mux does
-  wire [4:0] seen_pin = capture_pin > 27 ? 5'd27 : capture_pin;
-  wire level = sample[seen_pin] == capture_rising;
+    && instruction[7] == capture_rising;
+  wire level = sample[capture_pin] == capture_rising;
   reg holding = 0, seen = 0;
   reg [T-1:0] arm_now;
   // cycles since the arm, saturating, since a wait can outlast the timer's wrap
@@ -711,7 +709,7 @@ module phase_step (input clk);
   // the same between entries, for induction
   wire e_arms = e_word[15:13] == 7 && e_word[7:0] == 8'd7;
   wire e_capturing = e_word[15:13] == 1 && !e_word[6] && e_word[4:0] == capture_pin
-    && e_word[4:0] < 28 && e_word[7] == capture_rising;
+    && e_word[7] == capture_rising;
 `ifndef ENTRIES_ONLY
   // while holding, the edge has either not come and the capture is armed, or come once
   always @(posedge clk)
@@ -759,14 +757,14 @@ module phase_step (input clk);
 `endif
 
   // Pins.write's placing, as in edge_step.sv: the low bits of v from base up, wrapping at
-  // 28, on the pins that take them: 5 and up drive, 12 to 19 turn around
-  localparam [27:0] OUTPUTS = 28'hfffffe0;
-  localparam [27:0] BIDIRS = 28'h00ff000;
-  function [27:0] place(input [15:0] v, input [4:0] base);
-    reg [55:0] twice;
+  // 32, on the pins that take them: 5 to 27 drive, 12 to 19 turn around
+  localparam [31:0] OUTPUTS = 32'h0fffffe0;
+  localparam [31:0] BIDIRS = 32'h000ff000;
+  function [31:0] place(input [15:0] v, input [4:0] base);
+    reg [63:0] twice;
     begin
-      twice = {12'd0, v, 12'd0, v} << (base >= 28 ? base - 5'd28 : base);
-      place = twice[55:28];
+      twice = {16'd0, v, 16'd0, v} << base;
+      place = twice[63:32];
     end
   endfunction
   function [15:0] mask(input [4:0] n);
@@ -777,7 +775,7 @@ module phase_step (input clk);
   // The spacing of the pair's edges, with Manchester off. Each pin's cycles since it last
   // moved, saturating, and whether it has made a counted edge in this run: one after the
   // run's first write of it.
-  always @(*) assume(pin_a < 28 && pin_b < 28 && pin_a != pin_b);
+  always @(*) assume(pin_a != pin_b);
   reg c3_last_clear = 1, c3_last_entry = 0, last_a = 0, last_b = 0;
   always @(posedge clk) begin
     c3_last_clear <= clear;
@@ -815,21 +813,21 @@ module phase_step (input clk);
   // edge lemma for them, assumed: proved there for any host, clear and program.
   wire [2:0] w_dest = instruction[7:5];
   wire w_runs = decode_ok && opcode != 0;
-  wire [27:0] w_takes = pair_dirs ? BIDIRS : OUTPUTS;
+  wire [31:0] w_takes = pair_dirs ? BIDIRS : OUTPUTS;
   wire w_sides = w_runs && side_set_count != 0 && side_set_pindirs == pair_dirs;
   wire w_sets = w_runs && opcode == 5 && w_dest == (pair_dirs ? 3'd3 : 3'd0);
   wire w_outs = w_runs && opcode == 3 && w_dest == (pair_dirs ? 3'd4 : 3'd0);
   wire w_movs = w_runs && opcode == 4 && w_dest == (pair_dirs ? 3'd3 : 3'd0);
-  wire [27:0] w_side = w_sides ? place(mask({3'd0, side_set_count}), side_set_base) & w_takes
-    : 28'd0;
-  wire [27:0] w_set = w_sets ? place(mask({2'd0, set_count}), set_base) & w_takes : 28'd0;
-  wire [27:0] w_data = w_outs ? place(mask(instruction[4:0]), out_base) & w_takes
-    : w_movs ? place(mask(out_count), out_base) & w_takes : 28'd0;
-  wire [27:0] w_writes = w_side | w_set | w_data;
+  wire [31:0] w_side = w_sides ? place(mask({3'd0, side_set_count}), side_set_base) & w_takes
+    : 32'd0;
+  wire [31:0] w_set = w_sets ? place(mask({2'd0, set_count}), set_base) & w_takes : 32'd0;
+  wire [31:0] w_data = w_outs ? place(mask(instruction[4:0]), out_base) & w_takes
+    : w_movs ? place(mask(out_count), out_base) & w_takes : 32'd0;
+  wire [31:0] w_writes = w_side | w_set | w_data;
   wire [15:0] w_side_value =
     side_set_count == 1 ? {15'd0, instruction[12]} : {14'd0, instruction[12:11]};
-  wire [27:0] w_data_value = w_outs ? place(out_value, out_base) : place(mov_value, out_base);
-  wire [27:0] w_want = w_data & w_data_value
+  wire [31:0] w_data_value = w_outs ? place(out_value, out_base) : place(mov_value, out_base);
+  wire [31:0] w_want = w_data & w_data_value
     | ~w_data & w_set & place({11'd0, instruction[4:0]}, set_base)
     | ~w_data & ~w_set & place(w_side_value, side_set_base);
   reg l_writes_a = 0, l_writes_b = 0, l_want_a = 0, l_want_b = 0;
@@ -1179,19 +1177,19 @@ module phase_step (input clk);
   // What the chip drives for each engine, nothing once its fault flop is set, and what the
   // pads show: the two ORed, an output pin taking an engine's level, a bidirectional one
   // only where its direction bit is set.
-  wire [27:0] drive_out = faulted ? 28'd0 : pin_out;
-  wire [27:0] drive_dir = faulted ? 28'd0 : pin_dir;
-  wire [27:0] o_drive_out = o_faulted ? 28'd0 : o_pin_out;
-  wire [27:0] o_drive_dir = o_faulted ? 28'd0 : o_pin_dir;
-  localparam [27:0] OUTPUT_ONLY = 28'h0000fff;
-  wire [27:0] pads_dir = drive_dir | o_drive_dir;
-  wire [27:0] pads_out = drive_out & (drive_dir | OUTPUT_ONLY)
+  wire [31:0] drive_out = faulted ? 32'd0 : pin_out;
+  wire [31:0] drive_dir = faulted ? 32'd0 : pin_dir;
+  wire [31:0] o_drive_out = o_faulted ? 32'd0 : o_pin_out;
+  wire [31:0] o_drive_dir = o_faulted ? 32'd0 : o_pin_dir;
+  localparam [31:0] OUTPUT_ONLY = 32'h00000fff;
+  wire [31:0] pads_dir = drive_dir | o_drive_dir;
+  wire [31:0] pads_out = drive_out & (drive_dir | OUTPUT_ONLY)
     | o_drive_out & (o_drive_dir | OUTPUT_ONLY);
 
   // The corollary. Each edge of this engine's drive comes the cycle after an entry inside
   // its row, but the release, on the edge its fault shows, after which it drives nothing.
   reg last_clear = 1, last_entry = 0, last_within = 0, last_faulted = 0;
-  reg [27:0] last_drive_out = 0, last_drive_dir = 0;
+  reg [31:0] last_drive_out = 0, last_drive_dir = 0;
   always @(posedge clk) begin
     last_clear <= clear;
     last_entry <= entry;
@@ -1225,9 +1223,9 @@ module phase_step (input clk);
   // edge_step.sv's invariants, which the claim needs for induction: a Manchester second
   // half is owed from its out's entry to the next entry, and a held wait's side-set is on
   // the pins already
-  function [27:0] write
-    (input [27:0] old, input [4:0] base, input [4:0] n, input [15:0] v, input [27:0] takes);
-    reg [27:0] hit;
+  function [31:0] write
+    (input [31:0] old, input [4:0] base, input [4:0] n, input [15:0] v, input [31:0] takes);
+    reg [31:0] hit;
     begin
       hit = place(mask(n), base) & takes;
       write = old & ~hit | place(v, base) & hit;
@@ -1248,11 +1246,11 @@ module phase_step (input clk);
       since_out <= 1;
       out_step <= delay + 6'd1;
     end else if (since_out != 63) since_out <= since_out + 6'd1;
-  wire [27:0] flip_pair = place(16'd3, out_base) & OUTPUTS;
-  wire [27:0] flipped = flip_owed ? pin_out ^ flip_pair : pin_out;
+  wire [31:0] flip_pair = place(16'd3, out_base) & OUTPUTS;
+  wire [31:0] flipped = flip_owed ? pin_out ^ flip_pair : pin_out;
   wire [15:0] side_value =
     side_set_count == 1 ? {15'd0, instruction[12]} : {14'd0, instruction[12:11]};
-  wire [27:0] first_half_held = place({14'd0, flip_bit, !flip_bit}, out_base) & OUTPUTS;
+  wire [31:0] first_half_held = place({14'd0, flip_bit, !flip_bit}, out_base) & OUTPUTS;
   always @(posedge clk)
     if (!clear) begin
       assert(flip_pending == flip_owed);

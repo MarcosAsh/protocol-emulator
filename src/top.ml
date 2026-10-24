@@ -102,6 +102,7 @@ let create ~memory ~engines (scope : Scope.t) (i : Signal.t I.t) =
       ; dm = dm.samples
       ; frame = host.frame
       ; frame_usb = host.frame_usb
+      ; frame_owner = host.frame_owner
       ; stamps = host.stamps
       }
   in
