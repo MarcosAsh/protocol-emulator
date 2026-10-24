@@ -37,7 +37,7 @@ COPIED = ["src", "test", "bin", "ppx", "python", "pio", "formal/Makefile", "dune
           "demo/corpus_decoders.tsv", "demo/extract.py", "pages/die/die.bin", "test/paths/cells.json",
           "test/python/corpus_beacon_33000000.json", "src/protocol_emulator.v", "icepi/Makefile"]
 # json the tests read, which SKIPPED drops from the test/ copy above
-COPIED_JSON = ["test/diagrams"]
+COPIED_JSON = ["test/diagrams", "test/lab"]
 SKIPPED = shutil.ignore_patterns("sim_build", "__pycache__", "*.fst", "*.vcd", "*.xml", "*.v", "*.json",
                                  "test_provenance.ml*")
 
