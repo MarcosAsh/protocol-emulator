@@ -234,15 +234,12 @@ let protocol =
   ; loaded_from_hex = []
   ; limits
   ; unlimited = []
-  ; swept =
-      [ { Swept.name = "caliper"
-        ; watch = "clock"
-        ; on_wire = Swept.line
-        ; period = Some half_period
-        ; bursts = [ [ 0x1234; 0x56; 0x9abc; 0xde ] ]
-        }
+  ; swept = []
+  ; not_swept =
+      [ ( "caliper"
+        , "the data moves 3 cycles after each clock rise: the sweep's edge logger cannot \
+           follow edges so close" )
       ]
-  ; not_swept = []
   ; scenarios = [ scenario ]
   ; decoded = []
   }
