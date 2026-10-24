@@ -1,0 +1,25 @@
+{
+ "answers": {
+  "https://api.drand.sh": {
+   "round": 33346612,
+   "randomness": "c7fcca7d93e4541866ab8ba44cd6b9a4038a0643be2667731e1a5904bdca7f6c",
+   "signature": "b71045283536f9570d7230f14d839636cd9400a6f61633634717f33fcea8e046fe308c93f1e173487dfd14145fc4dd17"
+  },
+  "https://api2.drand.sh": {
+   "round": 33346612,
+   "randomness": "c7fcca7d93e4541866ab8ba44cd6b9a4038a0643be2667731e1a5904bdca7f6c",
+   "signature": "b71045283536f9570d7230f14d839636cd9400a6f61633634717f33fcea8e046fe308c93f1e173487dfd14145fc4dd17"
+  },
+  "https://api3.drand.sh": {
+   "round": 33346612,
+   "randomness": "c7fcca7d93e4541866ab8ba44cd6b9a4038a0643be2667731e1a5904bdca7f6c",
+   "signature": "b71045283536f9570d7230f14d839636cd9400a6f61633634717f33fcea8e046fe308c93f1e173487dfd14145fc4dd17"
+  },
+  "https://drand.cloudflare.com": {
+   "round": 33346612,
+   "signature": "b71045283536f9570d7230f14d839636cd9400a6f61633634717f33fcea8e046fe308c93f1e173487dfd14145fc4dd17",
+   "randomness": "c7fcca7d93e4541866ab8ba44cd6b9a4038a0643be2667731e1a5904bdca7f6c"
+  }
+ },
+ "record": "round 33346612 of drand quicknet 52db9ba70e0cc0f6, 2026-10-24T12:00:00+00:00\nrandomness c7fcca7d93e4541866ab8ba44cd6b9a4038a0643be2667731e1a5904bdca7f6c\nsignature b71045283536f9570d7230f14d839636cd9400a6f61633634717f33fcea8e046fe308c93f1e173487dfd14145fc4dd17\nrelays agreeing https://api.drand.sh https://api2.drand.sh https://api3.drand.sh https://drand.cloudflare.com\nsnapshot libsigrokdecode 71f451443029322d57376214c330b518efd84f88, sha256 c42cfd685deacc0726a6a1800c8c3eaf6d76745b567b01ab1b8dcc2a678b02c4\npool 47 decoders, sha256 204671810eda1e15d60fd4e9f261f13c4a9979fbe49f473952f325cde5bcc604\nexclusion file sha256 5a042b2987ffe96743e69b2ba5b7ff78ca6a22174e90db1fd04af08033b3afd1\nrank: sha256(randomness || id), smallest first; 0 of the first 6 withheld by the exclusion list\n\nplace\tid\tchannels\tlongname\n1\tlfast\tdata\tNXP LFAST interface\n2\tcaliper\tclk,data\tDigital calipers\n3\txy2-100\tclk,sync,data\tXY2-100(E) and XY-200(E) galvanometer protocol\n4\ttdm_audio\tclock,frame,data\tTime division multiplex audio\n5\tir_rc6\tir\tIR RC-6\n6\tmicrowire\tcs,sk,si,so\tMicrowire\n"
+}
