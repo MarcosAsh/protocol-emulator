@@ -221,8 +221,11 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
     ; awaiting = checked_awaiting
     }
   in
+  (* the word's classes registered, so the kernel's arithmetic starts at a flop: [Head]
+     takes a cycle at least, so they have settled on the word before any check reads them *)
   let conjuncts, fallen, falls =
     K.one_way
+      ~stage:(fun x -> Scope.naming scope (reg datapath x) "word_class")
       ~side_set_count
       ~fraction
       ~loaded:
