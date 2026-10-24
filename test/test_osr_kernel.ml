@@ -286,6 +286,10 @@ let%expect_test "what each out sends, in the firmware library" =
     (nec_rx (verdict (Ok ())) (sends ()))
     (snorble (verdict (Ok ())) (sends ()))
     (plinkoo (verdict (Ok ())) (sends ()))
+    (caliper (verdict (Ok ()))
+     (sends
+      ((6 "bit 0") (19 "bit 65535 - x") (27 "bit 65535 - x") (38 "bit 65535 - x")
+       (49 "bit 15 - x") (51 "bit 7 - x") (53 "bit 15 - x") (55 "bit 7 - x"))))
     (uart_tx_stream (verdict (Ok ())) (sends ((8 "not a pulled word"))))
     (spi_master_stream (verdict (Ok ()))
      (sends ((4 "not a pulled word") (8 "not a pulled word"))))

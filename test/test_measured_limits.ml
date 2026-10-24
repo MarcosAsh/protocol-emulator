@@ -127,6 +127,11 @@ let%expect_test "the datasheet limits, measured on the bench copies' runs" =
     run    96  snorble            tH               <=     4000 ns  measured 48 (2000.0 ns)       Pass            SNB-1 Snorble Sensor Beacon Rev. C, section 4, p.1, and note 1, p.2: inside a frame
     run    8566  snorble            tIFG             >=    20000 ns  measured 4283 (178458.3 ns)   Pass            SNB-1 Snorble Sensor Beacon Rev. C, section 4, p.1, and note 3, p.2
     run    10422  snorble            frame rate       >=   200000 ns  measured 5211 (217125.0 ns)   Pass            SNB-1 Snorble Sensor Beacon Rev. C, section 1, p.1: about 5 kframes/s at most
+    kernel 270  caliper            clock high at 90 kHz >=   5555.5 ns  measured 135 (5625.0 ns)      Pass            Chinese Scales web page, no revision, Chinese Scale Protocol, page 1, lines 52-54
+    kernel 270  caliper            clock low at 90 kHz >=   5555.5 ns  measured 135 (5625.0 ns)      Pass            Chinese Scales web page, no revision, Chinese Scale Protocol, page 1, lines 52-54
+    run    2705  caliper            pause before the first word >=    55000 ns  measured 1352 (56333.3 ns)    Pass            Chinese Scales web page, no revision, Chinese Scale Protocol, page 1, lines 82-84
+    run    5400  caliper            pause between the words >=   110000 ns  measured 2700 (112500.0 ns)   Pass            Chinese Scales web page, no revision, Chinese Scale Protocol, page 1, lines 82-84
+    run    5408  caliper            pause after the last word >=    55000 ns  measured 2704 (112666.7 ns)   Pass            Chinese Scales web page, no revision, Chinese Scale Protocol, page 1, lines 82-84
     kernel 417  uart_log           bit              >=  8506.94 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     run    417  uart_log           bit              <=  8854.17 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     |}]
@@ -245,5 +250,10 @@ let%expect_test "every limit's pairs of edges in the prediction" =
     snorble        tH                32 pairs, as measured
     snorble        tIFG               3 pairs, as measured
     snorble        frame rate         3 pairs, as measured
+    caliper        clock high at 90 kHz  96 pairs, as measured
+    caliper        clock low at 90 kHz  96 pairs, as measured
+    caliper        pause before the first word   1 pairs, as measured
+    caliper        pause between the words   1 pairs, as measured
+    caliper        pause after the last word   1 pairs, as measured
     |}]
 ;;

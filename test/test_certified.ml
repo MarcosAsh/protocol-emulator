@@ -86,6 +86,7 @@ let%expect_test "the firmware library and its certificates" =
     nec_rx                37         4  13493  period 13500, one edge before capture, no wrap
     snorble               84         5      0  no wrap
     plinkoo               90        15      0  no wrap
+    caliper               57        11    263  period 270
     |}]
 ;;
 
@@ -189,5 +190,9 @@ let%expect_test "the least period the host may load" =
     (QED "nec_tx: every load of 11 or more")
     (counterexample "nec_tx: every load of 10 or more"
      (model ((loaded 0000000000001010))))
+    (caliper (period (270)) (floor 16) (passes true) (one_less true))
+    (QED "caliper: every load of 16 or more")
+    (counterexample "caliper: every load of 15 or more"
+     (model ((loaded 0000000000001111))))
     |}]
 ;;

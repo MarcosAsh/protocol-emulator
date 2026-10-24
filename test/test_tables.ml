@@ -1192,5 +1192,7 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       library sync 5.17 us, bits of 16 cycles; written for the core, not tried
     frumbleglide no       -
       library cells of 96 and 97 cycles; refused: no whole cycle count is a tCELL
+    caliper    untried  -
+      library half 270; clock and data two outputs, a 48-bit frame of 16 and 8 bit words; written for the core, not tried
     |}]
 ;;
