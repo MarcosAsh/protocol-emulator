@@ -7,8 +7,8 @@ module Reg = Host_port.Reg
    word, C2-C0 then D15-D0 then even parity, at SENDCK 2 MHz (24 cycles of the 48 MHz
    clock, 12 a half). The host's word is the 16 data bits: the core sends control 001, the
    motor setpoint, and the parity, which the CRC unit counts as a 1-bit CRC started at 1
-   for the control's one. SENDCK runs on, SYNC low and DATA unchanged, while the fifo is
-   empty. *)
+   for the control's one. SENDCK starts with the first word and runs on without a break, a
+   word after a word; where the host has no next word the last is sent again. *)
 let clk_pin = 5
 let sync_pin = clk_pin + 1
 let data_pin = clk_pin + 2
@@ -45,17 +45,12 @@ let firmware =
     {|
     .side_set 2
     set p, 12 side 0
+    wait tx side 0           ; the first setpoint starts SENDCK
+    pull side 0
     mov t, now side 0        ; the only anchor
     add t, p side 0
-clock:
-    jmp tx, send
-    wait t+ side 0
-    nop side 1               ; idle rise
-    wait t+ side 1
-    nop side 0
-    jmp clock
-send:
-    pull side 0
+frame:
+    mov y, osr side 0        ; kept for the frame after, if the host has no word
     crc_init side 0
     set x, 15 side 0
     wait t+ side 0
@@ -81,7 +76,12 @@ bit:
     mov pins, isr side 1     ; parity, SYNC falls
     wait t+ side 1
     nop side 0
-    jmp clock
+    jmp tx, next
+    mov osr, y side 0        ; the setpoint again
+    jmp frame
+next:
+    pull side 0
+    jmp frame
 |}
       ~config]
 ;;
@@ -137,11 +137,12 @@ let limits =
   ]
 ;;
 
-(* TODO what sigrok's xy2-100 decoder reads. demo/decode.py --show
-   test/traces/xy2_100.trace prints every line it reads, by class, to fill [expect] with.
-   Its channels: clk, sync, data; optional: status; options: none; classes: bit, stat_bit,
-   type, command, parameter, parity, position, status, warning. Each of [teeth] changes
-   the waveform so the decoders have to misread it. *)
+(* The decoder emits a frame at the SENDCK rise after its last bit and has no timeout, so
+   a frame is read once a next one begins: the last setpoint goes out again and is read
+   twice. The positions are signed. *)
+let setpoints = [ 0x8000, -32768; 0x0000, 0; 0xffff, -1; 0x1234, 4660 ]
+let read = setpoints @ [ List.last_exn setpoints ]
+
 let sigrok =
   { Sigrok.clock_hz = 48_000_000
   ; decoders =
@@ -149,15 +150,25 @@ let sigrok =
           "xy2-100"
           ~pins:[ "clk", clk_pin; "sync", sync_pin; "data", data_pin ]
       ]
-  ; expect = []
+  ; expect =
+      [ ( "xy2-100=type:parity:position"
+        , List.concat_map read ~f:(fun (_, position) ->
+            [ "xy2-100-1: 16 bit Position Frame"
+            ; "xy2-100-1: OK"
+            ; sprintf "xy2-100-1: %d" position
+            ]) )
+      ]
   ; joins_after = None
   ; rejected = None
-  ; teeth = []
+  ; (* C0 read as 0, then D15 read inverted: parity no longer matches *)
+    teeth =
+      [ [ Flip { pin = data_pin; edge = 0; after = 0; cycles = 24 } ]
+      ; [ Flip { pin = data_pin; edge = 0; after = 24; cycles = 24 } ]
+      ]
   }
 ;;
 
-(* TODO a run at the pins: the host's words, and in [peer] a model of the far end if it
-   answers *)
+(* the four setpoints back to back, then the last again as SENDCK runs on *)
 let scenario =
   { Scenario.name = "xy2_100"
   ; peer = (fun () -> Peer.idle 0)
@@ -165,7 +176,7 @@ let scenario =
       Scenario.load
         ~config:(Timed_program.config firmware)
         ~program:(Timed_program.words firmware)
-      @ [ Write (Reg.tx, [ 0x8000; 0x0000; 0xffff; 0x1234 ]); Scenario.start; Run 2_800 ]
+      @ [ Write (Reg.tx, List.map setpoints ~f:fst); Scenario.start; Run 2_800 ]
   ; sigrok = Some sigrok
   }
 ;;

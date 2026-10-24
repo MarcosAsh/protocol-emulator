@@ -72,6 +72,16 @@
 
 (rule
  (with-stdout-to
+  xy2_100.trace.gen
+  (run ./write_trace.exe xy2_100)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff xy2_100.trace xy2_100.trace.gen)))
+
+(rule
+ (with-stdout-to
   wrapped_loop.trace.gen
   (run ./write_trace.exe wrapped_loop)))
 

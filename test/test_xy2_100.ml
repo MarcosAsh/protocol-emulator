@@ -4,7 +4,7 @@ open Protocol_emulator
 (* what the analyser and the kernel make of the firmware, which compiling it checked *)
 let%expect_test "the firmware's verdict" =
   print_endline (Analyser.Verdict.to_string (Timed_program.verdict Xy2_100.firmware));
-  [%expect {| 35 words, 12 deadline waits, worst slack 3 |}]
+  [%expect {| 35 words, 10 deadline waits, worst slack 2 |}]
 ;;
 
 (* The line, level by level with the cycles each lasted, for one host word. *)
@@ -29,11 +29,11 @@ let%expect_test "SENDCK for one host word" =
   [%expect
     {|
     (runs
-     ((false 14) (true 12) (false 12) (true 12) (false 12) (true 12) (false 12)
+     ((false 16) (true 12) (false 12) (true 12) (false 12) (true 12) (false 12)
       (true 12) (false 12) (true 12) (false 12) (true 12) (false 12) (true 12)
       (false 12) (true 12) (false 12) (true 12) (false 12) (true 12) (false 12)
       (true 12) (false 12) (true 12) (false 12) (true 12) (false 12) (true 12)
-      (false 12) (true 12) (false 12) (true 12) (false 12) (true 2)))
+      (false 12) (true 12) (false 12) (true 12) (false 12)))
     |}]
 ;;
 
@@ -166,7 +166,8 @@ let%expect_test "the deflection system reads every setpoint the host sent" =
   [%test_result: int list]
     ~message:"frames"
     (Deflection.frames deflection)
-    ~expect:(List.map words ~f:(fun data -> Xy2_100.on_wire ~data));
+    ~expect:
+      (List.map (words @ [ List.last_exn words ]) ~f:(fun data -> Xy2_100.on_wire ~data));
   print_s
     [%message
       ""
@@ -174,9 +175,10 @@ let%expect_test "the deflection system reads every setpoint the host sent" =
         ~measured_ns:(Deflection.measured deflection : Measured.t)
         ~violations:(Deflection.violations deflection : string list)
         (machine.fault : Machine.Fault.t)];
-  [%expect {|
-    ((frames (0x30000 0x20001 0x3ffff 0x22468))
-     (measured_ns ((tDS (250 19250)) (SENDCK (500 500)) (tDH (250 250))))
+  [%expect
+    {|
+    ((frames (0x30000 0x20001 0x3ffff 0x22468 0x22468))
+     (measured_ns ((tDS (250 8750)) (SENDCK (500 500)) (tDH (250 250))))
      (violations ())
      (machine.fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false))))
