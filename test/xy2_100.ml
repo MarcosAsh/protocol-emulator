@@ -5,12 +5,22 @@ module Reg = Host_port.Reg
 
 (* Newson rhothor X7 I/O configuration: XY2-100, datasheet revision 0703, p.1-2. A 20-bit
    word, C2-C0 then D15-D0 then even parity, at SENDCK 2 MHz (24 cycles of the 48 MHz
-   clock, 12 a half). The host's word is the 20 bits, parity included. SENDCK runs on,
-   SYNC low and DATA unchanged, while the fifo is empty. *)
+   clock, 12 a half). The host's word is the 16 data bits: the core sends control 001, the
+   motor setpoint, and the parity, which the CRC unit counts as a 1-bit CRC started at 1
+   for the control's one. SENDCK runs on, SYNC low and DATA unchanged, while the fifo is
+   empty. *)
 let clk_pin = 5
 let sync_pin = clk_pin + 1
 let data_pin = clk_pin + 2
 let pin = clk_pin
+
+(* the 20 bits on the wire for a setpoint, first bit highest *)
+let on_wire ~data =
+  if data < 0 || data >= 1 lsl 16
+  then raise_s [%message "BUG: data is 16 bits" (data : int)];
+  let body = (1 lsl 16) lor data in
+  (body lsl 1) lor (Int.popcount body land 1)
+;;
 
 let config =
   { Program_config.default with
@@ -18,12 +28,18 @@ let config =
   ; side_set_base = clk_pin
   ; out_base = data_pin
   ; out_count = 1
+  ; set_base = data_pin
+  ; set_count = 1
   ; out_shift = Left
+  ; crc_width = 1
+  ; crc_poly = 1
+  ; crc_init = 1
+  ; crc_reflect = false
   }
 ;;
 
-(* Side-set is SENDCK in bit 0 and SYNC in bit 1. Data changes with each rise, which
-   SYNC joins on the first bit and leaves on the last. *)
+(* Side-set is SENDCK in bit 0 and SYNC in bit 1. Data changes with each rise, which SYNC
+   joins on the first bit and leaves on the last. *)
 let firmware =
   [%firmware
     {|
@@ -40,20 +56,29 @@ clock:
     jmp clock
 send:
     pull side 0
-    out null, 12 side 0      ; the word is the low 20 bits
-    set x, 17 side 0
+    crc_init side 0
+    set x, 15 side 0
     wait t+ side 0
-    out pins, 1 side 3       ; first bit, SYNC rises
+    set pins, 0 side 3       ; C2, SYNC rises
+    wait t+ side 3
+    nop side 2
+    wait t+ side 2
+    set pins, 0 side 3       ; C1
+    wait t+ side 3
+    nop side 2
+    wait t+ side 2
+    set pins, 1 side 3       ; C0
     wait t+ side 3
     nop side 2
 bit:
     wait t+ side 2
-    out pins, 1 side 3
+    out pins, 1 side 3       ; D15 first
     wait t+ side 3
     nop side 2
     jmp x--, bit
+    in crc, 16 side 2        ; the parity so far
     wait t+ side 2
-    out pins, 1 side 1       ; parity, SYNC falls
+    mov pins, isr side 1     ; parity, SYNC falls
     wait t+ side 1
     nop side 0
     jmp clock
@@ -119,7 +144,7 @@ let scenario =
       Scenario.load
         ~config:(Timed_program.config firmware)
         ~program:(Timed_program.words firmware)
-      @ [ Write (Reg.tx, [ 0x55; 0xa3 ]); Scenario.start; Run 600 ]
+      @ [ Write (Reg.tx, [ 0x8000; 0x0000; 0xffff; 0x1234 ]); Scenario.start; Run 2_800 ]
   ; sigrok = Some sigrok
   }
 ;;
