@@ -291,6 +291,7 @@ NOT_SWEPT = [
     ("plinkoo", "refused at the margin: note 1's tB and the turnaround's tDH and tREL, see test_plinkoo"),
     ("microwire", "an erase/write holds CS low 1245217 cycles, past the 65536 a stamp tells apart"),
     ("ir_rc6", "a 6 unit mark is 128000 cycles, past the 65536 a stamp tells apart"),
+    ("caliper", "the data moves 3 cycles after each clock rise: the sweep's edge logger cannot follow edges so close"),
     ("uart_tx_stream", "time-triggered: it underflows, a sticky fault, once the host stops"),
     ("spi_master_stream", "time-triggered: it underflows, a sticky fault, once the host stops"),
     ("uart_tx_stamped", "26 bits 8 cycles apart, and the chip's clock in them, which the model cannot know"),

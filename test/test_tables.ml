@@ -1140,6 +1140,11 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       , [%string
           "a 6 unit leader mark is 128000 cycles, each step held at most %{max_hold#Int}"]
       )
+    ; ( "caliper"
+      , "untried"
+      , "-"
+      , "half 270; clock and data two outputs, a 48-bit frame of 16 and 8 bit words"
+      , "written for the core, not tried" )
     ]
   in
   let named = List.map rows ~f:(fun (name, _, _, _, _) -> name) in

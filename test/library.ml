@@ -26,6 +26,7 @@ let protocols =
   ; Frumbleglide.protocol
   ; Microwire.protocol
   ; Ir_rc6.protocol
+  ; Caliper.protocol
   ]
 ;;
 
