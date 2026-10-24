@@ -72,6 +72,16 @@
 
 (rule
  (with-stdout-to
+  caliper.trace.gen
+  (run ./write_trace.exe caliper)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff caliper.trace caliper.trace.gen)))
+
+(rule
+ (with-stdout-to
   wrapped_loop.trace.gen
   (run ./write_trace.exe wrapped_loop)))
 

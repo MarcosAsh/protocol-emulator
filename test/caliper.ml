@@ -182,18 +182,31 @@ let limits =
   ]
 ;;
 
-(* TODO what sigrok's caliper decoder reads. demo/decode.py --show
-   test/traces/caliper.trace prints every line it reads, by class, to fill [expect] with.
-   Its channels: clk, data; optional: none; options: timeout_ms, unit, changes; classes:
-   measurement, warning. Each of [teeth] changes the waveform so the decoders have to
-   misread it. *)
+(* sigrok's caliper decoder reads 24 bits at the rises of the clock, 16 of number and 8 of
+   flags, and so each word of the frame on its own: a number in 1/2000 inch if the last
+   flag is set, with the sign in the fifth. It does not take the spec's 1/20480 inch two's
+   complement. The clock rises once when the firmware starts, which it takes for a bit, so
+   it joins once the clock idles. *)
 let sigrok =
   { Sigrok.clock_hz = 48_000_000
   ; decoders = [ Sigrok.decoder "caliper" ~pins:[ "clk", pin; "data", pin + 1 ] ]
-  ; expect = []
-  ; joins_after = None
+  ; expect = [ "caliper=measurement", Sigrok.lines "caliper" [ "46.6mm"; "-16.384in" ] ]
+  ; joins_after =
+      Some
+        ( 100
+        , { why =
+              "the clock is low from reset until the firmware starts, and the rise then \
+               is a bit of the first number"
+          ; first_difference = 0
+          ; reads = "caliper-1: 93.2mm"
+          } )
   ; rejected = None
-  ; teeth = []
+  ; (* the first rise of the data held low for a bit, and a clock edge of the first word
+       moved a bit late *)
+    teeth =
+      [ [ Flip { pin = pin + 1; edge = 0; after = 0; cycles = 2 * half_period } ]
+      ; [ Shift { pin; edge = 6; cycles = 2 * half_period } ]
+      ]
   }
 ;;
 
@@ -206,7 +219,7 @@ let scenario =
         ~config:(Timed_program.config firmware)
         ~program:(Timed_program.words firmware)
       @ [ Scenario.start
-        ; Write (Reg.tx, [ half_period; 0x1234; 0x56; 0x9abc; 0xde ])
+        ; Write (Reg.tx, [ half_period; 0x1234; 0x00; 0x8000; 0xff ])
         ; Run 45_000
         ]
   ; sigrok = Some sigrok
