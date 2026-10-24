@@ -37,6 +37,8 @@ UNITS = {
     "baud": ("bd", 1), "bd": ("bd", 1), "kbaud": ("bd", 1e3), "kbd": ("bd", 1e3),
 }
 ABSENT = "(no row)"
+# a ruling that a field is blank, as an empty ruling cell is no ruling
+EMPTY = "(empty)"
 
 
 def squash(text):
@@ -232,9 +234,10 @@ def ruling_key(row, field):
 
 def rulings(path):
     """A person's rulings on disputed fields, read off the page: disputed.tsv's symbol,
-    condition and field columns and a ruling column holding the value, or "(no row)"."""
+    condition and field columns and a ruling column holding the value, "(empty)" for a field
+    the page leaves blank, or "(no row)"."""
     with open(path, newline="") as f:
-        return {ruling_key(r, r["field"]): r["ruling"]
+        return {ruling_key(r, r["field"]): "" if r["ruling"] == EMPTY else r["ruling"]
                 for r in csv.DictReader(f, delimiter="\t") if r.get("ruling", "") != ""}
 
 
@@ -262,7 +265,9 @@ def compare(a, b, ruled=None):
             if row_a and row_b and same(field, row_a, row_b):
                 agreed += 1
                 continue
-            dispute = {"symbol": either["symbol"], "condition": either["condition"],
+            # a row with no symbol is keyed by its parameter, so disputed.tsv names it so
+            dispute = {"symbol": either["symbol"] or either["parameter"],
+                       "condition": either["condition"],
                        "field": field, "a": row_a[field] if row_a else ABSENT,
                        "b": row_b[field] if row_b else ABSENT, "pages": pages}
             ruling = ruled.get(ruling_key(either, field))

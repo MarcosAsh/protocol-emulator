@@ -6,6 +6,7 @@
 import copy
 import os
 import sys
+import tempfile
 
 sys.path.insert(0, sys.argv[1])
 import extract as ex
@@ -134,8 +135,37 @@ def test_rulings():
     assert outcome(a, b, half)[0] == "limit disputed, doc.pdf p.5"
 
 
+def test_ruled_from_file():
+    # a ruling read back from disputed.tsv can leave a field blank, and reaches a row one
+    # reader wrote with no symbol, which the comparison keys by its parameter
+    head = "document\tsheet\tRev. 1\t\nsymbol\tparameter\tcondition\tmin\ttyp\tmax\tunit\tpage\twhere\n"
+    a = ex.parse(head + "\tclock frequency\t\t2\t\t\tMHz\t2\ttext\n"
+                 "tDS\tsetup\t\t50\t\t\tns\t2\ttable\n")
+    b = ex.parse(head + "fclk\tclock\t\t\t2\t\tMHz\t2\ttext\n"
+                 "tDS\tsetup\t\t50\t\t\tns\t2\ttable\n")
+    result = ex.compare(a, b)
+    assert sorted({d["symbol"] for d in result["disputes"]}) == ["clock frequency", "fclk"]
+    with tempfile.TemporaryDirectory() as run:
+        ex.write(run, result, ex.verdict("doc.pdf", result))
+        path = os.path.join(run, "disputed.tsv")
+        lines = open(path).read().splitlines()
+        ruled = [lines[0]]
+        for line in lines[1:]:
+            cells = line.split("\t")
+            keep = {"typ": "2", "page": "2", "where": "text"}
+            cells[-1] = (keep.get(cells[2], ex.EMPTY) if cells[0] == "fclk" else ex.ABSENT)
+            ruled.append("\t".join(cells))
+        open(path, "w").write("\n".join(ruled) + "\n")
+        assert outcome(a, b, ex.rulings(path)) == (
+            "limits agreed, 2 rows, 10 fields ruled by hand",
+            "agreement 7/17 fields (41.2%), 2 rows agreed, 0 fields disputed, 10 ruled")
+        fclk = [r for r in ex.compare(a, b, ex.rulings(path))["rows"] if r["symbol"] == "fclk"]
+        assert [(r["min"], r["typ"], r["max"]) for r in fclk] == [("", "2", "")]
+
+
 test_written_differently()
 test_parse()
 test_blind_run()
 test_known_misreads()
 test_rulings()
+test_ruled_from_file()
