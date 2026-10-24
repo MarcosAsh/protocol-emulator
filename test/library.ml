@@ -27,6 +27,7 @@ let protocols =
   ; Microwire.protocol
   ; Ir_rc6.protocol
   ; Caliper.protocol
+  ; Xy2_100.protocol
   ]
 ;;
 

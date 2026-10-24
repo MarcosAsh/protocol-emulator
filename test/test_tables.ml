@@ -1145,6 +1145,11 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       , "-"
       , "half 270; clock and data two outputs, a 48-bit frame of 16 and 8 bit words"
       , "written for the core, not tried" )
+    ; ( "xy2_100"
+      , "untried"
+      , "-"
+      , "SENDCK half 12 cycles"
+      , "three outputs, the parity from the CRC unit; not tried against the class" )
     ]
   in
   let named = List.map rows ~f:(fun (name, _, _, _, _) -> name) in
