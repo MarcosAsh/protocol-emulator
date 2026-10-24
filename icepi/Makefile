@@ -15,8 +15,9 @@ endif
 USB ?= $(if $(filter 40,$(MHZ)),0,1)
 SEED ?= 1
 FS ?= 0
-# 48 MHz is tight and placement moves with the seed (about 1 in 8 fails), so the chip
-# takes the first of these that meets timing; the same netlist always gets the same one
+# 48 MHz is tight and placement moves with the seed (about 1 in 3 fails at timing weight
+# 80), so the chip takes the first of these that meets timing; the same netlist always gets
+# the same one
 SEEDS ?= 1 2 3 4 5 6 7 8
 FREQ ?= $(MHZ)
 
@@ -39,7 +40,7 @@ $(BUILD)/$(NAME).config: $(JSON) header.lpf $(REV).lpf
 	rm -f $@
 	for seed in $(SEEDS); do \
 	  nextpnr-ecp5 --25k --package CABGA256 --speed 6 --json $< --lpf header.lpf \
-	    --lpf $(REV).lpf --freq $(FREQ) --seed $$seed --placer-heap-timingweight 30 \
+	    --lpf $(REV).lpf --freq $(FREQ) --seed $$seed --placer-heap-timingweight 80 \
 	    --textcfg $@ \
 	    --report $(BUILD)/$(NAME).report.json --log $(BUILD)/$(NAME).log -q \
 	    && echo "seed $$seed" && break; \
