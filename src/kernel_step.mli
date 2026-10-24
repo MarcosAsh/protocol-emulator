@@ -44,6 +44,7 @@ module Make_timer (Timer : Engine.Timer) : sig
         }
 
       val of_word : side_set_count:Comb.t -> capture:Comb.t Capture.t -> Comb.t -> t
+      val map : t -> f:(Comb.t -> Comb.t) -> t
     end
 
     (** What the word does to the watched bit of [pin]. *)
