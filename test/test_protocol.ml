@@ -552,9 +552,10 @@ let%expect_test "every protocol from its file to the decoded trace" =
     ir_rc6: none, the spec gives typical times and no minimum or maximum; Ir_rc6.decode holds each mark and space to 5%
 
     lockstep: ir_rc6, ir_rc6
-    ("lockstep held" (cycles 24000))
+    ("lockstep held" (cycles 25600))
     (received ())
     decode: test/traces/sigrok/ir_rc6.trace, by sigrok's ir_rc6:ir=OUT0
+      ir_rc6=bit:sync:startbit:field:togglebit:address:command: ir_rc6-1: 1, ir_rc6-1: 1, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: Synchronisation, ir_rc6-1: Startbit, ir_rc6-1: Field: 0, ir_rc6-1: Toggle: 0, ir_rc6-1: Synchronisation, ir_rc6-1: Startbit, ir_rc6-1: Field: 0, ir_rc6-1: Toggle: 0, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 1, ir_rc6-1: 1, ir_rc6-1: 0, ir_rc6-1: 1, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 1, ir_rc6-1: 1, ir_rc6-1: 0, ir_rc6-1: 1, ir_rc6-1: 0, ir_rc6-1: 1, ir_rc6-1: Address: 1A, ir_rc6-1: Data: 35, ir_rc6-1: 1, ir_rc6-1: 1, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 1, ir_rc6-1: Synchronisation, ir_rc6-1: Startbit, ir_rc6-1: Field: 0, ir_rc6-1: Toggle: 1, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 1, ir_rc6-1: 1, ir_rc6-1: 1, ir_rc6-1: 1, ir_rc6-1: 1, ir_rc6-1: 1, ir_rc6-1: 1, ir_rc6-1: 1, ir_rc6-1: Address: 00, ir_rc6-1: Data: FF
     |}]
 ;;
 
@@ -629,5 +630,5 @@ let%expect_test "no protocol file is left half written" =
             [%string "sigrok %{s.name}"]))
     in
     if not (List.is_empty left) then print_s [%message p.name (left : string list)]);
-  [%expect {| (ir_rc6 (left ("sigrok ir_rc6"))) |}]
+  [%expect {| |}]
 ;;

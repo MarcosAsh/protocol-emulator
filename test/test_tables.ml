@@ -1132,7 +1132,13 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       , "-"
       , "cells of 96 and 97 cycles"
       , "refused: no whole cycle count is a tCELL" )
-    ; "ir_rc6", "TODO", "-", "-", "TODO whether the table interpreter runs it"
+    ; ( "ir_rc6"
+      , "untried"
+      , "-"
+      , "unit 21333"
+      , [%string
+          "a 6 unit leader mark is 128000 cycles, each step held at most %{max_hold#Int}"]
+      )
     ]
   in
   let named = List.map rows ~f:(fun (name, _, _, _, _) -> name) in
@@ -1188,5 +1194,7 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       library sync 5.17 us, bits of 16 cycles; written for the core, not tried
     frumbleglide no       -
       library cells of 96 and 97 cycles; refused: no whole cycle count is a tCELL
+    ir_rc6     untried  -
+      library unit 21333; a 6 unit leader mark is 128000 cycles, each step held at most 65535
     |}]
 ;;
