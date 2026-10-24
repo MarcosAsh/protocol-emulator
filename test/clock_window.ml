@@ -49,6 +49,7 @@ let of_bench (bench : Bench.t) =
       | Never ->
         raise_s
           [%message "BUG: a limit that holds at no clock" bench.name limit.parameter]
+      | Always -> t
       | Up_to hz -> { t with highest = highest t.highest (at hz) }
       | From hz -> { t with lowest = lowest t.lowest (at hz) })
 ;;

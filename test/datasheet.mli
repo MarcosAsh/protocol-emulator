@@ -121,10 +121,12 @@ val verdict : t -> clock_hz:int -> bound:int option -> Verdict.t
 val check : ?clock_hz:int -> t list -> Bench.t -> (t * Verdict.t) list
 
 (** The clocks, in Hz, a bound clears its limit at: a least in ns holds [Up_to] a highest
-    clock, a most [From] a lowest. Exact: [verdict] holds there and not a hertz past. *)
+    clock, a most [From] a lowest, a least of 0 at every clock [Always]. Exact: [verdict]
+    holds there and not a hertz past. *)
 module Cliff : sig
   type t =
     | Never
+    | Always
     | Up_to of int
     | From of int
   [@@deriving sexp_of]
