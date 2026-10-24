@@ -217,7 +217,7 @@ let decode ~clock_hz levels =
   |> messages Measured.empty
 ;;
 
-(* TODO bench *)
+(* The copy python/bench_firmware.py holds: the unit the bench loads, 444 us at 48 MHz. *)
 let bench =
   { Bench.name = "ir_rc6"
   ; what =
