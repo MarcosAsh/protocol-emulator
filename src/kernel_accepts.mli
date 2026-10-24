@@ -69,8 +69,8 @@ module Make_timer (Timer : Engine.Timer) : sig
     (** [conjuncts] with no spacing on one way out against [s], the jump's where [taken]
         is high and falling through where it is low, the other way's holding; where
         [taken] is low, [fall_through] too. A way's image is then computed once, for the
-        load checker, which checks one way at a time and registers the word's classes
-        with [stage]. [test/test_kernel.ml] proves it theirs. *)
+        load checker, which checks one way at a time and registers the word's classes with
+        [stage]. [test/test_kernel.ml] proves it theirs. *)
     val one_way
       :  ?stage:(Comb.t -> Comb.t)
       -> side_set_count:Comb.t
