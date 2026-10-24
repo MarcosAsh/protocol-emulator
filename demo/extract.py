@@ -251,9 +251,13 @@ def compare(a, b, ruled=None):
         if same(field, a["document"], b["document"]):
             agreed += 1
         else:
-            disputes.append({"symbol": "document", "condition": "", "field": field,
-                             "a": a["document"][field], "b": b["document"][field],
-                             "pages": [1]})
+            dispute = {"symbol": "document", "condition": "", "field": field,
+                       "a": a["document"][field], "b": b["document"][field], "pages": [1]}
+            ruling = ruled.get(ruling_key(dispute, field))
+            if ruling is None:
+                disputes.append(dispute)
+            else:
+                settled.append(dict(dispute, ruling=ruling))
     for row_a, row_b in pair(restated(a["rows"]), restated(b["rows"])):
         either = row_a or row_b
         pages = sorted({page(r["page"]) or 0 for r in (row_a, row_b) if r})

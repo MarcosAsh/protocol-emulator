@@ -161,6 +161,14 @@ def test_ruled_from_file():
             "agreement 7/17 fields (41.2%), 2 rows agreed, 0 fields disputed, 10 ruled")
         fclk = [r for r in ex.compare(a, b, ex.rulings(path))["rows"] if r["symbol"] == "fclk"]
         assert [(r["min"], r["typ"], r["max"]) for r in fclk] == [("", "2", "")]
+    # the document line's fields settle the same way
+    dated = copy.deepcopy(b)
+    dated["document"]["date"] = "Last updated: 1 May 2020"
+    a["document"]["date"] = "1 May 2020"
+    result = ex.compare(a, dated)
+    assert [d["field"] for d in result["disputes"] if d["symbol"] == "document"] == ["date"]
+    ruled = {ex.ruling_key({"symbol": "document", "condition": ""}, "date"): "1 May 2020"}
+    assert not [d for d in ex.compare(a, dated, ruled)["disputes"] if d["symbol"] == "document"]
 
 
 test_written_differently()
