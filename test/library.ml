@@ -24,6 +24,7 @@ let protocols =
   ; Snorble.protocol
   ; Plinkoo.protocol
   ; Frumbleglide.protocol
+  ; Ir_rc6.protocol
   ]
 ;;
 

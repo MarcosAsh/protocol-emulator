@@ -542,6 +542,19 @@ let%expect_test "every protocol from its file to the decoded trace" =
     lockstep: frumbleglide, uncertified as loaded
     ("lockstep held" (cycles 12768))
     (received ())
+
+    === ir_rc6
+
+    certificates
+    ir_rc6: 64 words, 22 deadline waits, worst slack 21325, the kernel accepts it, assuming period 21333, a load of 14 or more, no wrap
+
+    limits
+    ir_rc6: none, the spec gives typical times and no minimum or maximum; Ir_rc6.decode holds each mark and space to 5%
+
+    lockstep: ir_rc6, ir_rc6
+    ("lockstep held" (cycles 24000))
+    (received ())
+    decode: test/traces/sigrok/ir_rc6.trace, by sigrok's ir_rc6:ir=OUT0
     |}]
 ;;
 
@@ -616,5 +629,5 @@ let%expect_test "no protocol file is left half written" =
             [%string "sigrok %{s.name}"]))
     in
     if not (List.is_empty left) then print_s [%message p.name (left : string list)]);
-  [%expect {| |}]
+  [%expect {| (ir_rc6 (left ("sigrok ir_rc6"))) |}]
 ;;
