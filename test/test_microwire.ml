@@ -62,7 +62,8 @@ let%expect_test "an EEPROM reads back what the host wrote" =
         (received : string list)
         ~violations:(Microwire.Eeprom.violations device : string list)
         ~fault:(machine.fault : Machine.Fault.t)];
-  [%expect {|
+  [%expect
+    {|
     ((log
       (EWEN "READ 5: 5555" "WRITE 5 A5C3 done, CS low 25.942 ms" "READ 5: A5C3"))
      (received (01FF 5555 FFFF A5C3)) (violations ())
