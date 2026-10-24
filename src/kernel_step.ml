@@ -129,6 +129,39 @@ module Make_timer (Timer : Engine.Timer) = struct
         ; decoded = d
         }
       ;;
+
+      let map t ~f =
+        { cycles = f t.cycles
+        ; deadline = f t.deadline
+        ; advance = f t.advance
+        ; anchor = f t.anchor
+        ; add_imm = f t.add_imm
+        ; add_p = f t.add_p
+        ; add_x = f t.add_x
+        ; add_y = f t.add_y
+        ; sub_imm = f t.sub_imm
+        ; imm = f t.imm
+        ; bounded = f t.bounded
+        ; jump = f t.jump
+        ; always = f t.always
+        ; x_dec = f t.x_dec
+        ; y_dec = f t.y_dec
+        ; x_ne_y = f t.x_ne_y
+        ; halts = f t.halts
+        ; set_value = f t.set_value
+        ; set_p = f t.set_p
+        ; writes_p = f t.writes_p
+        ; set_x = f t.set_x
+        ; writes_x = f t.writes_x
+        ; set_y = f t.set_y
+        ; writes_y = f t.writes_y
+        ; arm = f t.arm
+        ; capturing = f t.capturing
+        ; pin_or_fifo_wait = f t.pin_or_fifo_wait
+        ; from_capture = f t.from_capture
+        ; decoded = Decoded.map t.decoded ~f
+        }
+      ;;
     end
 
     (* Whether [pin] is in the run of [count] pins from [base], wrapping at the pin space

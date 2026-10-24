@@ -323,8 +323,9 @@ module Make_timer (Timer : Engine.Timer) = struct
 
     (* [conjuncts] on both ways out, or on the one [taken] picks with the image computed
        once, and the tightest row [next] can be for its way of falling through to hold and
-       whether that way is asked *)
+       whether that way is asked; [stage] takes each of the word's classes *)
     let ways
+      ~stage
       ~side_set_count
       ~fraction
       ~(loaded : _ Loaded.t)
@@ -334,7 +335,7 @@ module Make_timer (Timer : Engine.Timer) = struct
       ~(row : _ Row.t)
       ~on
       =
-      let c = Class.of_word ~side_set_count ~capture word in
+      let c = Class.map (Class.of_word ~side_set_count ~capture word) ~f:stage in
       let arm_known = ~:(arm_is_full row) in
       let capturing = c.capturing &: row.awaiting in
       let other_wait = c.pin_or_fifo_wait &: ~:capturing in
@@ -568,6 +569,7 @@ module Make_timer (Timer : Engine.Timer) = struct
       =
       let conjuncts, _, _ =
         ways
+          ~stage:Fn.id
           ~side_set_count
           ~fraction
           ~loaded
@@ -649,6 +651,7 @@ module Make_timer (Timer : Engine.Timer) = struct
     let fall_through ~side_set_count ~fraction ~loaded ~capture ~word ~row =
       let _, fallen, falls =
         ways
+          ~stage:Fn.id
           ~side_set_count
           ~fraction
           ~loaded
@@ -661,8 +664,19 @@ module Make_timer (Timer : Engine.Timer) = struct
       fallen, falls
     ;;
 
-    let one_way ~side_set_count ~fraction ~loaded ~capture ~word ~row ~taken s =
+    let one_way
+      ?(stage = Fn.id)
+      ~side_set_count
+      ~fraction
+      ~loaded
+      ~capture
+      ~word
+      ~row
+      ~taken
+      s
+      =
       ways
+        ~stage
         ~side_set_count
         ~fraction
         ~loaded
