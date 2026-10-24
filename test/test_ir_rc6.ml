@@ -65,7 +65,8 @@ let tx_levels source =
 
 let%expect_test "every mark and space to the nominal, and the signal free time" =
   print_decoded (tx_levels (Timed_program.source firmware));
-  [%expect {|
+  [%expect
+    {|
     ((messages
       (((toggle false) (address 26) (command 53))
        ((toggle true) (address 0) (command 255))
@@ -130,7 +131,8 @@ let%expect_test "ir_rc6 in lockstep" =
   in
   print_s [%message "" ~fault:(model.fault : Machine.Fault.t)];
   print_decoded (List.rev !levels);
-  [%expect {|
+  [%expect
+    {|
     ("lockstep held" (cycles 42100))
     (fault
      ((underflow false) (overflow false) (missed_deadline false) (decode false)))
