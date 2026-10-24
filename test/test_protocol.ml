@@ -452,6 +452,10 @@ let%expect_test "every protocol from its file to the decoded trace" =
     spi_target_mode1: 33 words, 0 deadline waits, the kernel accepts it, assuming nothing
     spi_target_mode2: 38 words, 0 deadline waits, the kernel accepts it, assuming nothing
     spi_target_mode3: 33 words, 0 deadline waits, the kernel accepts it, assuming nothing
+    spi_target_fast_mode0: 36 words, 0 deadline waits, the kernel accepts it, assuming nothing
+    spi_target_fast_mode1: 36 words, 0 deadline waits, the kernel accepts it, assuming nothing
+    spi_target_fast_mode2: 37 words, 0 deadline waits, the kernel accepts it, assuming nothing
+    spi_target_fast_mode3: 37 words, 0 deadline waits, the kernel accepts it, assuming nothing
 
     limits
 

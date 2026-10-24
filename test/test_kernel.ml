@@ -727,6 +727,10 @@ let%expect_test "the kernel on the firmware library, from the analyser's rows" =
     (spi_target_mode1 (verdict (Ok ())))
     (spi_target_mode2 (verdict (Ok ())))
     (spi_target_mode3 (verdict (Ok ())))
+    (spi_target_fast_mode0 (verdict (Ok ())))
+    (spi_target_fast_mode1 (verdict (Ok ())))
+    (spi_target_fast_mode2 (verdict (Ok ())))
+    (spi_target_fast_mode3 (verdict (Ok ())))
     (swd (verdict (Ok ())))
     (table (verdict (Ok ())))
     (table_open_drain (verdict (Ok ())))
@@ -1532,6 +1536,10 @@ let%expect_test "a bound on the jitter of every pin edge, in firmware the kernel
     (spi_target_mode1 "no edge has a deadline" (untimed (5 12 28)))
     (spi_target_mode2 "no edge has a deadline" (untimed (5 10 15 26 36)))
     (spi_target_mode3 "no edge has a deadline" (untimed (5 12 28)))
+    (spi_target_fast_mode0 "no edge has a deadline" (untimed (4 6 19 24 32)))
+    (spi_target_fast_mode1 "no edge has a deadline" (untimed (4 6 20 25 33)))
+    (spi_target_fast_mode2 "no edge has a deadline" (untimed (4 6 20 25 33)))
+    (spi_target_fast_mode3 "no edge has a deadline" (untimed (4 6 21 26 34)))
     (swd (pc 32) (jitter_bound 6)
      (untimed
       (0 1 2 3 4 5 13 14 15 16 21 22 24 25 27 40 41 44 46 120 121 125 126 138 139

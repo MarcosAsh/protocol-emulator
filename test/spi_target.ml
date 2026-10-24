@@ -225,6 +225,11 @@ let protocol =
           [%string "spi_target_mode%{Spi_cs.Mode.to_int mode#Int}"]
           (firmware ~mode pads)
           (config pads))
+      @ List.map Spi_cs.Mode.all ~f:(fun mode ->
+        Certified.plain
+          [%string "spi_target_fast_mode%{Spi_cs.Mode.to_int mode#Int}"]
+          (fast ~mode pads)
+          (fast_config pads))
   ; time_triggered = []
   ; bench = []
   ; loaded_from_hex = []
@@ -234,6 +239,9 @@ let protocol =
   ; not_swept =
       List.map Spi_cs.Mode.all ~f:(fun mode ->
         ( [%string "spi_target_mode%{Spi_cs.Mode.to_int mode#Int}"]
+        , "a target: the controller's clock moves it" ))
+      @ List.map Spi_cs.Mode.all ~f:(fun mode ->
+        ( [%string "spi_target_fast_mode%{Spi_cs.Mode.to_int mode#Int}"]
         , "a target: the controller's clock moves it" ))
   ; scenarios = []
   ; decoded = []

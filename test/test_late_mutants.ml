@@ -114,6 +114,10 @@ let%expect_test "every deadline wait in the library, a cycle late, is refused" =
     spi_target_mode1            0 waits,  0 refused a cycle late,  0 accepted at their slack
     spi_target_mode2            0 waits,  0 refused a cycle late,  0 accepted at their slack
     spi_target_mode3            0 waits,  0 refused a cycle late,  0 accepted at their slack
+    spi_target_fast_mode0       0 waits,  0 refused a cycle late,  0 accepted at their slack
+    spi_target_fast_mode1       0 waits,  0 refused a cycle late,  0 accepted at their slack
+    spi_target_fast_mode2       0 waits,  0 refused a cycle late,  0 accepted at their slack
+    spi_target_fast_mode3       0 waits,  0 refused a cycle late,  0 accepted at their slack
     swd                        52 waits, 52 refused a cycle late,  0 accepted at their slack
     table                       2 waits,  2 refused a cycle late,  2 accepted at their slack
     table_open_drain            2 waits,  2 refused a cycle late,  2 accepted at their slack
@@ -121,6 +125,6 @@ let%expect_test "every deadline wait in the library, a cycle late, is refused" =
     spi_master_stream           3 waits,  3 refused a cycle late,  3 accepted at their slack
     uart_tx_stamped             4 waits,  4 refused a cycle late,  4 accepted at their slack
 
-    46 firmwares, 444 deadline waits: 444 refused a cycle late, 215 accepted at their slack
+    50 firmwares, 444 deadline waits: 444 refused a cycle late, 215 accepted at their slack
     |}]
 ;;
