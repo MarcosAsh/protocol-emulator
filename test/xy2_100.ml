@@ -88,33 +88,54 @@ bit:
 
 let certified = [ Certified.of_firmware "xy2_100" firmware ]
 
-(* TODO the copy python/bench_firmware.py holds for the bench, at its clock, with a run
-   long enough to bound [limits]; for a period the host loads, [Floor] the least and
-   [load] the one the bench loads *)
+(* the copy python/bench_firmware.py holds for the bench: two setpoints in a run of two
+   frames' time *)
 let bench =
   { Bench.name = "xy2_100"
-  ; what = "Xy2_100.firmware: TODO what the bench sees, on OUT0"
+  ; what =
+      "Xy2_100.firmware: SENDCK at 2 MHz on OUT0, SYNC on OUT1 and DATA on OUT2, a \
+       20-bit word every 10 us"
   ; source = Timed_program.source firmware
   ; config
   ; assumption = Nothing
   ; clock_hz = Bench.clock_hz
   ; load = None
-  ; stimulus = Some { bursts = [ [ 0x55 ] ]; quiet = 0; cycles = 400 }
+  ; stimulus = Some { bursts = [ [ 0x8000; 0x1234 ] ]; quiet = 0; cycles = 1_200 }
   }
 ;;
 
-(* TODO a row for each parameter of the spec's timing table, then [unlimited] empty. Each
-   is bounded by the kernel over every path, [Datasheet.level] or [Datasheet.spacing], or
-   by [bench]'s run, [Datasheet.run], which a loop of waits needs as the kernel counts one
-   pass of it. For example
-   { Datasheet.firmware = bench.name
-   ; parameter = "tLOW"
-   ; limit = At_least 4700.
-   ; sheet = { part = "I2C"; document = "NXP UM10204 Rev. 7.0"; page = "Table 11, p.44" }
-   ; margin = Cycle
-   ; bound = Datasheet.level ~pin:Datasheet.set_pin ~high:false ()
-   } *)
-let limits : Datasheet.t list = []
+(* DATA changes only in the instruction that raises SENDCK, and is read at its fall. The
+   setup is the kernel's spacing from DATA's last change to the fall. The hold runs from
+   the fall to the next change, no sooner than the next rise: SENDCK's low time. *)
+let limits =
+  let sheet =
+    { Datasheet.Sheet.part = "rhothor X7"
+    ; document = "Newson XY2-100 I/O configuration, Rev. 0703"
+    ; page = "Timing specifications table, p.2"
+    }
+  in
+  let limit parameter ns bound =
+    { Datasheet.firmware = bench.name
+    ; parameter
+    ; limit = At_least ns
+    ; sheet
+    ; margin = Cycle
+    ; bound
+    }
+  in
+  [ limit
+      "tDS"
+      50.
+      (Datasheet.Bound.Kernel
+         (fun config ->
+           Datasheet.spacing
+             ~apart:(fun ~own ~other:_ -> own)
+             ~a:(Datasheet.side_pin config)
+             ~b:config.out_base
+             ()))
+  ; limit "tDH" 100. (Datasheet.level ~pin:Datasheet.side_pin ~high:false ())
+  ]
+;;
 
 (* TODO what sigrok's xy2-100 decoder reads. demo/decode.py --show
    test/traces/xy2_100.trace prints every line it reads, by class, to fill [expect] with.
@@ -156,9 +177,10 @@ let protocol =
   ; bench = [ bench ]
   ; loaded_from_hex = []
   ; limits
-  ; unlimited = [ "xy2_100", "TODO the rows of the spec's timing table" ]
+  ; unlimited = []
   ; swept = []
-  ; not_swept = [ "xy2_100", "TODO why the sweep does not stamp it, or a Swept.t" ]
+  ; not_swept =
+      [ "xy2_100", "SENDCK edges 12 cycles apart without a break: the fifo holds 8" ]
   ; scenarios = [ scenario ]
   ; decoded = []
   }
