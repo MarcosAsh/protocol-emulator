@@ -20,6 +20,10 @@ let%expect_test "what the host reads back in every scenario" =
     (snorble (cycles 72711) (reads ()))
     (plinkoo (cycles 48837) (reads ((0000 0000))))
     (frumbleglide (cycles 23823) (reads ()))
+    (microwire (cycles 38762) (reads ((01ff 5555 ffff))))
+    (caliper (cycles 59383) (reads ()))
+    (xy2_100 (cycles 14239) (reads ()))
+    (lfast (cycles 15655) (reads ()))
     (wrapped_loop (cycles 7275) (reads ((0000))))
     (fifo_poll (cycles 11916)
      (reads
