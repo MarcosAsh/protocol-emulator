@@ -127,6 +127,8 @@ let%expect_test "the datasheet limits, measured on the bench copies' runs" =
     run    96  snorble            tH               <=     4000 ns  measured 48 (2000.0 ns)       Pass            SNB-1 Snorble Sensor Beacon Rev. C, section 4, p.1, and note 1, p.2: inside a frame
     run    8566  snorble            tIFG             >=    20000 ns  measured 4283 (178458.3 ns)   Pass            SNB-1 Snorble Sensor Beacon Rev. C, section 4, p.1, and note 3, p.2
     run    10422  snorble            frame rate       >=   200000 ns  measured 5211 (217125.0 ns)   Pass            SNB-1 Snorble Sensor Beacon Rev. C, section 1, p.1: about 5 kframes/s at most
+    kernel 10  lfast              data rate, shortest high bit (3.125 ns) >=    3.125 ns  measured 5 (208.3 ns)         Pass            NXP AN5134 Rev. 0, p.3, text: rates up to 320 Mb/s
+    kernel 10  lfast              data rate, shortest low bit (3.125 ns) >=    3.125 ns  measured 5 (208.3 ns)         Pass            NXP AN5134 Rev. 0, p.3, text: rates up to 320 Mb/s
     kernel 417  uart_log           bit              >=  8506.94 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     run    417  uart_log           bit              <=  8854.17 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     |}]
@@ -245,5 +247,7 @@ let%expect_test "every limit's pairs of edges in the prediction" =
     snorble        tH                32 pairs, as measured
     snorble        tIFG               3 pairs, as measured
     snorble        frame rate         3 pairs, as measured
+    lfast          data rate, shortest high bit (3.125 ns)  12 pairs, as measured
+    lfast          data rate, shortest low bit (3.125 ns)  11 pairs, as measured
     |}]
 ;;

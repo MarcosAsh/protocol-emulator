@@ -24,6 +24,7 @@ let protocols =
   ; Snorble.protocol
   ; Plinkoo.protocol
   ; Frumbleglide.protocol
+  ; Lfast.protocol
   ]
 ;;
 

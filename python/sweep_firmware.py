@@ -289,6 +289,7 @@ NOT_SWEPT = [
     ("nec_rx", "a receiver: it drives no line to stamp"),
     ("snorble", "idles 8448 cycles a frame, past the sweep's window"),
     ("plinkoo", "refused at the margin: note 1's tB and the turnaround's tDH and tREL, see test_plinkoo"),
+    ("lfast", "a fixed-length frame with no field to carry a cycle stamp"),
     ("uart_tx_stream", "time-triggered: it underflows, a sticky fault, once the host stops"),
     ("spi_master_stream", "time-triggered: it underflows, a sticky fault, once the host stops"),
     ("uart_tx_stamped", "26 bits 8 cycles apart, and the chip's clock in them, which the model cannot know"),

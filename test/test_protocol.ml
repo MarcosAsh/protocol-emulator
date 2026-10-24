@@ -542,6 +542,21 @@ let%expect_test "every protocol from its file to the decoded trace" =
     lockstep: frumbleglide, uncertified as loaded
     ("lockstep held" (cycles 12768))
     (received ())
+
+    === lfast
+
+    certificates
+    lfast: 64 words, 27 deadline waits, worst slack 6, the kernel accepts it, assuming nothing
+
+    limits
+    lfast              data rate, shortest high bit (3.125 ns) >=    3.125 ns  kernel 10 (208.3 ns)     needs    2       LFAST, NXP AN5134 Rev. 0 p.3, text: rates up to 320 Mb/s; margin a cycle
+    lfast              data rate, shortest low bit (3.125 ns) >=    3.125 ns  kernel 10 (208.3 ns)     needs    2       LFAST, NXP AN5134 Rev. 0 p.3, text: rates up to 320 Mb/s; margin a cycle
+
+    lockstep: lfast, lfast
+    ("lockstep held" (cycles 760))
+    (received ())
+    decode: test/traces/lfast.trace, by sigrok's lfast:data=OUT0
+      lfast=sync:header_pl_size:header_ch_type:header_cts:payload:sleep: lfast-1: Sync OK, lfast-1: 8 bit, lfast-1: Data Channel A, lfast-1: 1, lfast-1: 55, lfast-1: LVDS sleep mode request, lfast-1: Sync OK, lfast-1: 8 bit, lfast-1: Data Channel A, lfast-1: 1, lfast-1: A3, lfast-1: LVDS sleep mode request
     |}]
 ;;
 

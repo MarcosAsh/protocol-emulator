@@ -96,14 +96,10 @@ payload:
       ~config]
 ;;
 
-(* TODO the certificates, under the assumptions [%firmware] checked: give ~period, the
-   period the host loads, to firmware checked at a ~period_floor, and ~no_wrap:true where
-   a wait can fall far behind, as a receiver's can *)
+(* The period is a constant in the firmware, so the certificate assumes nothing. *)
 let certified = [ Certified.of_firmware "lfast" firmware ]
 
-(* TODO the copy python/bench_firmware.py holds for the bench, at its clock, with a run
-   long enough to bound [limits]; for a period the host loads, [Floor] the least and
-   [load] the one the bench loads *)
+(* One 33-bit frame is 330 cycles, inside the stimulus' 400. *)
 let bench =
   { Bench.name = "lfast"
   ; what = "Lfast.firmware: LFAST frames at 4.8 Mb/s, a payload byte each, on OUT0"
@@ -168,8 +164,7 @@ let sigrok =
   }
 ;;
 
-(* TODO a run at the pins: the host's words, and in [peer] a model of the far end if it
-   answers *)
+(* Two frames at the pins. The far end only listens, so [peer] is idle. *)
 let scenario =
   { Scenario.name = "lfast"
   ; peer = (fun () -> Peer.idle 0)

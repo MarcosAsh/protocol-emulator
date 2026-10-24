@@ -8,8 +8,7 @@ let%expect_test "the firmware's verdict" =
 ;;
 
 (* The line, level by level with the cycles each lasted, for one host word: what to hold
-   against the spec's timing diagram. TODO a model of the far end, fed the pins every
-   cycle, that reads back what the host sent. *)
+   against the spec's frame in Figure 2. *)
 let%expect_test "the line for one host word" =
   let machine =
     Machine.create
@@ -28,7 +27,8 @@ let%expect_test "the line for one host word" =
     |> List.map ~f:(fun run -> List.hd_exn run, List.length run)
   in
   print_s [%message (runs : (bool * int) list)];
-  [%expect {|
+  [%expect
+    {|
     (runs
      ((false 16) (true 10) (false 10) (true 10) (false 10) (true 10) (false 40)
       (true 10) (false 20) (true 10) (false 10) (true 20) (false 40) (true 10)
@@ -105,7 +105,8 @@ let%expect_test "the far end reads each host byte back in a frame" =
     [%message
       (frames : Far_end.frame list)
         ~payloads:(List.map frames ~f:(fun frame -> frame.payload) : int list)];
-  [%expect {|
+  [%expect
+    {|
     ((frames
       (((sync 43083) (header 9) (payload 85) (stop 1))
        ((sync 43083) (header 9) (payload 163) (stop 1))))
