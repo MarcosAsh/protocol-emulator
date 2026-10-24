@@ -263,6 +263,7 @@ let%expect_test "the footprint of each firmware, and of its config under any pro
     nec_rx             -            -          5-20           12-19
     snorble            5            -          5-20           12-19
     plinkoo            10           15         10 15-27       15-19
+    xy2_100            5-7          -          5-22           12-19
     |}]
 ;;
 
@@ -364,6 +365,7 @@ let%expect_test "each firmware stays inside its footprint" =
     nec_rx             -            -
     snorble            5            -
     plinkoo            10           -
+    xy2_100            5-7          -
     |}]
 ;;
 

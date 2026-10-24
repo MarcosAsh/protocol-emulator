@@ -126,6 +126,8 @@ LIMITS = [
     {"firmware": "snorble", "limit": "tH <= 4000 ns", "bound": "run", "cycles": 96, "lowest_hz": 24250000, "highest_hz": None},
     {"firmware": "snorble", "limit": "tIFG >= 20000 ns", "bound": "run", "cycles": 8566, "lowest_hz": None, "highest_hz": 428250000},
     {"firmware": "snorble", "limit": "frame rate >= 200000 ns", "bound": "run", "cycles": 10422, "lowest_hz": None, "highest_hz": 52105000},
+    {"firmware": "xy2_100", "limit": "tDS >= 50 ns", "bound": "kernel", "cycles": 12, "lowest_hz": None, "highest_hz": 220000000},
+    {"firmware": "xy2_100", "limit": "tDH >= 100 ns", "bound": "kernel", "cycles": 12, "lowest_hz": None, "highest_hz": 110000000},
     {"firmware": "uart_log", "limit": "bit >= 8506.94 ns", "bound": "kernel", "cycles": 417, "lowest_hz": None, "highest_hz": 48901227},
     {"firmware": "uart_log", "limit": "bit <= 8854.17 ns", "bound": "run", "cycles": 417, "lowest_hz": 47209410, "highest_hz": None},
 ]
@@ -200,6 +202,9 @@ WINDOWS = [
     {"firmware": "snorble", "words_md5": "fc02cef55b8ecf966399cf70cef68b24", "shipped_hz": 48000000,
      "lowest_hz": 46774194, "lowest_limit": "tL1 <= 3100 ns",
      "highest_hz": 49310344, "highest_limit": "tL1 >= 2900 ns"},
+    {"firmware": "xy2_100", "words_md5": "32cca1096d06164ecdbd56a687e58b97", "shipped_hz": 48000000,
+     "lowest_hz": None, "lowest_limit": None,
+     "highest_hz": 110000000, "highest_limit": "tDH >= 100 ns"},
     {"firmware": "uart_log", "words_md5": "7a19bf9b29d4f7e1b618fbb399263d28", "shipped_hz": 48000000,
      "lowest_hz": 47209410, "lowest_limit": "bit <= 8854.17 ns",
      "highest_hz": 48901227, "highest_limit": "bit >= 8506.94 ns"},

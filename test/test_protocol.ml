@@ -542,6 +542,21 @@ let%expect_test "every protocol from its file to the decoded trace" =
     lockstep: frumbleglide, uncertified as loaded
     ("lockstep held" (cycles 12768))
     (received ())
+
+    === xy2_100
+
+    certificates
+    xy2_100: 35 words, 10 deadline waits, worst slack 2, the kernel accepts it, assuming nothing
+
+    limits
+    xy2_100            tDS            >=       50 ns  kernel 12 (250.0 ns)     needs    4       rhothor X7, Newson XY2-100 I/O configuration, Rev. 0703 Timing specifications table, p.2; margin a cycle
+    xy2_100            tDH            >=      100 ns  kernel 12 (250.0 ns)     needs    6       rhothor X7, Newson XY2-100 I/O configuration, Rev. 0703 Timing specifications table, p.2; margin a cycle
+
+    lockstep: xy2_100, xy2_100
+    ("lockstep held" (cycles 2800))
+    (received ())
+    decode: test/traces/xy2_100.trace, by sigrok's xy2-100:clk=OUT0:sync=OUT1:data=OUT2
+      xy2-100=type:parity:position: xy2-100-1: 16 bit Position Frame, xy2-100-1: OK, xy2-100-1: -32768, xy2-100-1: 16 bit Position Frame, xy2-100-1: OK, xy2-100-1: 0, xy2-100-1: 16 bit Position Frame, xy2-100-1: OK, xy2-100-1: -1, xy2-100-1: 16 bit Position Frame, xy2-100-1: OK, xy2-100-1: 4660, xy2-100-1: 16 bit Position Frame, xy2-100-1: OK, xy2-100-1: 4660
     |}]
 ;;
 

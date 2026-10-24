@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# TODO what this shows on the bench, and what is wired to which pin (MicroPython, Pico A).
+# A galvanometer controller's XY2-100 on OUT0 (SENDCK), OUT1 (SYNC) and OUT2 (DATA)
+# (MicroPython, Pico A): a sweep of setpoints, one word each, SENDCK running on after.
 # demo/outside.sh xy2_100 runs it, reading the analyser, the capture's length and
 # sigrok's decoders from the next line.
 # outside: analyser=A ms=2000 decode=-P xy2-100:clk=D4:sync=TODO:data=D6
@@ -9,8 +10,8 @@ import bench
 import bench_firmware
 import protocol_emulator as pe
 
-# TODO the words the firmware takes
-WORDS = [0x55, 0xA3]
+# the 16-bit setpoints, offset binary: mid-scale is the centre
+WORDS = [0x8000, 0x0000, 0xFFFF, 0x1234]
 
 
 def run(transfer, log=print):
@@ -18,7 +19,6 @@ def run(transfer, log=print):
     bench.load(host, bench_firmware.XY2_100)
     host.start()
     host.push(WORDS)
-    # TODO read back what the far end answered, and judge it
     found = bench.faults(host)
     log("faults 0x%x" % found)
     return not found

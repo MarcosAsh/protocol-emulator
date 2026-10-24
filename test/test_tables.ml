@@ -1132,6 +1132,11 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       , "-"
       , "cells of 96 and 97 cycles"
       , "refused: no whole cycle count is a tCELL" )
+    ; ( "xy2_100"
+      , "untried"
+      , "-"
+      , "SENDCK half 12 cycles"
+      , "three outputs, the parity from the CRC unit; not tried against the class" )
     ]
   in
   let named = List.map rows ~f:(fun (name, _, _, _, _) -> name) in
@@ -1187,5 +1192,7 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       library sync 5.17 us, bits of 16 cycles; written for the core, not tried
     frumbleglide no       -
       library cells of 96 and 97 cycles; refused: no whole cycle count is a tCELL
+    xy2_100    untried  -
+      library SENDCK half 12 cycles; three outputs, the parity from the CRC unit; not tried against the class
     |}]
 ;;
