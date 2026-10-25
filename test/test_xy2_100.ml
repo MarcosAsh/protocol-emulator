@@ -181,7 +181,8 @@ let%expect_test "the deflection system reads every setpoint the host sent" =
      (measured_ns ((tDS (250 8750)) (SENDCK (500 500)) (tDH (250 250))))
      (violations ())
      (machine.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 

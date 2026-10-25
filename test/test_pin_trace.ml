@@ -17,6 +17,13 @@ let%expect_test "what the host reads back in every scenario" =
     (uart_rx (cycles 143670) (reads ((0055 00a3 00ff) (0000 000f 00f0) (0400))))
     (spi_master (cycles 142214) (reads ((0081 007e) (0400))))
     (i2c_logger (cycles 147024) (reads ((0000))))
+    (snorble (cycles 199408) (reads ()))
+    (plinkoo (cycles 175918) (reads ((0000 0000))))
+    (frumbleglide (cycles 155384) (reads ()))
+    (microwire (cycles 165000) (reads ((01ff 5555 ffff))))
+    (caliper (cycles 189589) (reads ()))
+    (xy2_100 (cycles 145416) (reads ()))
+    (lfast (cycles 141712) (reads ()))
     (wrapped_loop (cycles 140244) (reads ((0000))))
     (fifo_poll (cycles 148160)
      (reads

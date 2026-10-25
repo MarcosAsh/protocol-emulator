@@ -77,7 +77,8 @@ let%expect_test "a receiver reads every byte" =
     {|
     ((decoded ((0xa5 true) (0x0 true) (0xff true) (0x3c true)))
      (machine.fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 

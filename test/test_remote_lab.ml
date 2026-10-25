@@ -47,32 +47,32 @@ let%expect_test "the corpus: what the bench takes, and what gets the model alone
     (uart_tx
      (certified (host_words 2) (cycles 2152)
       (faults
-       ((underflow false) (overflow false) (missed_deadline false)
-        (decode false)))
+       ((underflow false) (overflow false) (missed_deadline false) (decode false)
+        (assumption false)))
       (bench "takes it on OUT0, 2 ms")))
     (dshot
      (certified (host_words 1) (cycles 7953)
       (faults
-       ((underflow false) (overflow false) (missed_deadline false)
-        (decode false)))
+       ((underflow false) (overflow false) (missed_deadline false) (decode false)
+        (assumption false)))
       (bench "takes it on OUT0, 2 ms")))
     (spi_master
      (certified (host_words 1) (cycles 2610)
       (faults
-       ((underflow false) (overflow false) (missed_deadline false)
-        (decode false)))
+       ((underflow false) (overflow false) (missed_deadline false) (decode false)
+        (assumption false)))
       (bench "declines it: it reads IN0, which no peer drives on the bench")))
     (ws2812
      (certified (host_words 3) (cycles 21000)
       (faults
-       ((underflow false) (overflow false) (missed_deadline false)
-        (decode false)))
+       ((underflow false) (overflow false) (missed_deadline false) (decode false)
+        (assumption false)))
       (bench "takes it on OUT0, 2 ms")))
     (uart_rx
      (certified (host_words 0) (cycles 1857)
       (faults
-       ((underflow false) (overflow false) (missed_deadline false)
-        (decode false)))
+       ((underflow false) (overflow false) (missed_deadline false) (decode false)
+        (assumption false)))
       (bench "declines it: it reads IN0, which no peer drives on the bench")))
     |}]
 ;;
@@ -228,29 +228,27 @@ let%expect_test "the bench takes only what the tx fifo holds before the start" =
     ("uart_tx, 8 frames"
      (certified (host_words 8) (cycles 5380)
       (faults
-       ((underflow false) (overflow false) (missed_deadline false)
-        (decode false)))
+       ((underflow false) (overflow false) (missed_deadline false) (decode false)
+        (assumption false)))
       (bench "takes it on OUT0, 2 ms")))
     ("uart_tx, 9 frames"
      (certified (host_words 9) (cycles 5918)
       (faults
-       ((underflow false) (overflow false) (missed_deadline false)
-        (decode false)))
-      (bench
-       "declines it: 9 host words, past the 8 the tx fifo holds before the start")))
+       ((underflow false) (overflow false) (missed_deadline false) (decode false)
+        (assumption false)))
+      (bench "takes it on OUT0, 2 ms")))
     ("ws2812, 3 pixels"
      (certified (host_words 7) (cycles 37800)
       (faults
-       ((underflow false) (overflow false) (missed_deadline false)
-        (decode false)))
+       ((underflow false) (overflow false) (missed_deadline false) (decode false)
+        (assumption false)))
       (bench "takes it on OUT0, 2 ms")))
     ("ws2812, 4 pixels"
      (certified (host_words 9) (cycles 46200)
       (faults
-       ((underflow false) (overflow false) (missed_deadline false)
-        (decode false)))
-      (bench
-       "declines it: 9 host words, past the 8 the tx fifo holds before the start")))
+       ((underflow false) (overflow false) (missed_deadline false) (decode false)
+        (assumption false)))
+      (bench "takes it on OUT0, 2 ms")))
     |}]
 ;;
 

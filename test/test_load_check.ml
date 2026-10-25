@@ -109,6 +109,15 @@ let%expect_test "every firmware against the chip's walk" =
     swd                          232    179  accepted
     table                        112     87  accepted
     table_open_drain             112     87  accepted
+    nec_tx                        80     91  accepted
+    nec_rx                        37     39  accepted
+    snorble                       84     40  accepted
+    plinkoo                       90     49  accepted
+    microwire                     69     55  accepted
+    ir_rc6                        64     67  accepted
+    caliper                       57     74  accepted
+    xy2_100                       35     26  accepted
+    lfast                         64     15  accepted
     asm/blink                      4      5  accepted
     asm/crc_send                  12     12  accepted
     asm/data_stream                4      5  accepted
@@ -150,6 +159,14 @@ let%expect_test "every firmware against the chip's walk" =
     bench/spi_cs_mode2            43     25  accepted
     bench/spi_cs_mode3            43     25  accepted
     bench/swd                    232    179  accepted
+    bench/nec_tx                  80     91  accepted
+    bench/nec_rx                  37     39  accepted
+    bench/snorble                 84     40  accepted
+    bench/microwire               69     55  accepted
+    bench/ir_rc6                  64     67  accepted
+    bench/caliper                 57     74  accepted
+    bench/xy2_100                 35     26  accepted
+    bench/lfast                   64     15  accepted
     |}]
 ;;
 

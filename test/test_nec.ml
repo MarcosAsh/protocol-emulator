@@ -122,7 +122,8 @@ let%expect_test "nec_tx in lockstep" =
     {|
     ("lockstep held" (cycles 20836))
     (fault
-     ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+     ((underflow false) (overflow false) (missed_deadline false) (decode false)
+      (assumption false)))
     ((messages
       ((Frame (address 4) (command 8)) Repeat Repeat
        (Frame (address 0) (command 69)) (Frame (address 255) (command 0))))
@@ -163,17 +164,17 @@ let%expect_test "the receiver reads back what the transmitter sends" =
     {|
     (model (pushed (fb04 f708 ffff ffff ff00 ba45 00ff ff00)) (as_sent true)
      (faults
-      (((underflow false) (overflow false) (missed_deadline false)
-        (decode false))
-       ((underflow false) (overflow false) (missed_deadline false)
-        (decode false))))
+      (((underflow false) (overflow false) (missed_deadline false) (decode false)
+        (assumption false))
+       ((underflow false) (overflow false) (missed_deadline false) (decode false)
+        (assumption false))))
      (mismatch false))
     (rtl (pushed (fb04 f708 ffff ffff ff00 ba45 00ff ff00)) (as_sent true)
      (faults
-      (((underflow false) (overflow false) (missed_deadline false)
-        (decode false))
-       ((underflow false) (overflow false) (missed_deadline false)
-        (decode false))))
+      (((underflow false) (overflow false) (missed_deadline false) (decode false)
+        (assumption false))
+       ((underflow false) (overflow false) (missed_deadline false) (decode false)
+        (assumption false))))
      (mismatch false))
     |}]
 ;;

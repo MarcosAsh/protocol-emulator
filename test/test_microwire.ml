@@ -68,6 +68,7 @@ let%expect_test "an EEPROM reads back what the host wrote" =
       (EWEN "READ 5: 5555" "WRITE 5 A5C3 done, CS low 25.942 ms" "READ 5: A5C3"))
      (received (01FF 5555 FFFF A5C3)) (violations ())
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;

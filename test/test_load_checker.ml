@@ -296,6 +296,15 @@ let%expect_test "the checker agrees with the model on every firmware" =
     swd                          13926  accepted
     table                        10310  accepted
     table_open_drain             10310  accepted
+    nec_tx                       10660  accepted
+    nec_rx                        8974  accepted
+    snorble                       9099  accepted
+    plinkoo                       9590  accepted
+    microwire                     9439  accepted
+    ir_rc6                        9669  accepted
+    caliper                      10185  accepted
+    xy2_100                       8719  accepted
+    lfast                         8572  accepted
     asm/blink                     8251  accepted
     asm/crc_send                  8377  accepted
     asm/data_stream               8254  accepted
@@ -337,6 +346,14 @@ let%expect_test "the checker agrees with the model on every firmware" =
     bench/spi_cs_mode2            8698  accepted
     bench/spi_cs_mode3            8698  accepted
     bench/swd                    13926  accepted
+    bench/nec_tx                 10660  accepted
+    bench/nec_rx                  8974  accepted
+    bench/snorble                 9099  accepted
+    bench/microwire               9439  accepted
+    bench/ir_rc6                  9669  accepted
+    bench/caliper                10185  accepted
+    bench/xy2_100                 8719  accepted
+    bench/lfast                   8572  accepted
     |}]
 ;;
 

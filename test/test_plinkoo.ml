@@ -67,7 +67,8 @@ let%expect_test "a peripheral takes both frames and acknowledges them" =
        ((0x8 0x0 0xff 0x80 0x1 0xa5 0x5a 0x7e 0xc3 0x38) true)))
      (acks (0 0))
      (fault
-      ((underflow false) (overflow false) (missed_deadline false) (decode false))))
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 

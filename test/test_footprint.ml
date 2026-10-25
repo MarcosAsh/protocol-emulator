@@ -382,7 +382,7 @@ let%expect_test "each firmware stays inside its footprint" =
     plinkoo            10           -
     microwire          9-11         -
     ir_rc6             -            -
-    caliper            5-6          -
+    caliper            5            -
     xy2_100            5-7          -
     lfast              5            -
     |}]

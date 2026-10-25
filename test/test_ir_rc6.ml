@@ -135,7 +135,8 @@ let%expect_test "ir_rc6 in lockstep" =
     {|
     ("lockstep held" (cycles 42100))
     (fault
-     ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+     ((underflow false) (overflow false) (missed_deadline false) (decode false)
+      (assumption false)))
     ((messages
       (((toggle false) (address 26) (command 53))
        ((toggle true) (address 0) (command 255))
