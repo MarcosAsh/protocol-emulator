@@ -36,6 +36,10 @@ on:
         description: 'only these of the proofs, as test/mutate.py PROVED names them, space separated'
         type: string
         default: ''
+      parallel:
+        description: 'shards at a time; 6 leaves the other branches the rest of the shared runners'
+        type: number
+        default: 6
 
 # the held-out sample is a function of this seed and the mutant, fixed before any run
 env:
@@ -80,7 +84,7 @@ jobs:
     timeout-minutes: 350
     strategy:
       fail-fast: false
-      max-parallel: 6
+      max-parallel: ${{ fromJSON(inputs.parallel || 6) }}
       matrix:
         shard: ${{ fromJSON(needs.plan.outputs.shards) }}
     env:
