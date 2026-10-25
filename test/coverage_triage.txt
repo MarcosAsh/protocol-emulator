@@ -24,7 +24,7 @@ f090fcfe unreachable the stamp fifo's own full register, past depth
 # chip. The tests drive them with the library firmwares only, which never wrap a pin base,
 # write pindirs, clamp a mark or use a side-set count of 3. The kernel is being rewritten on
 # kernel-batch and mutation-1015, so its holes are counted, not closed.
-module kernel 51 open
+module kernel 47 open
 
 # the walk checks rows with no spacing (Kernel.one_way's no_spacing) and the full row's
 # offset ([checked] is [full] with the fields read), so the offset and edge conjuncts
@@ -57,3 +57,8 @@ bb82d10e unreachable verdict$0$reject_pc bit 9, the checker's reject_pc kept
 # Check_next is entered with purpose Following, Stored or Fallen; Fallen is set only with
 # stored 0, and stored changes only at Head, before the next Following
 5dbded71 unreachable purpose: Target -> Reload, Fallen -> Reload
+# the word's classes as staged: set_value is the word's 5 bits widened to 16, cycles
+# (delay + 1, at most 32) and imm (3 bits) widened to the timer's 24, so past the clear
+# the top bits are 0; every bit below them goes both ways
+058f1f3b constant word_class set_value, bits 5-15 of a 5-bit field
+27afc96a constant word_class cycles and imm, bits 6-23 and 3-23 of a timer
