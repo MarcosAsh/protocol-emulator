@@ -129,3 +129,23 @@
  (alias runtest)
  (action
   (diff swd.trace swd.trace.gen)))
+
+(rule
+ (with-stdout-to
+  nec.trace.gen
+  (run ../write_trace.exe nec)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff nec.trace nec.trace.gen)))
+
+(rule
+ (with-stdout-to
+  ir_rc6.trace.gen
+  (run ../write_trace.exe ir_rc6)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff ir_rc6.trace ir_rc6.trace.gen)))

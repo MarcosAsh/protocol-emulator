@@ -381,7 +381,7 @@ def test_reselect():
 def test_standin():
     """demo/etr_standin.sh's run on Pico A, with python/etr_standin.py for the SDK."""
     b = ttboard_fake.Board(Chip(), kind="pico_a")
-    m = b.install(sdk="etr_standin")
+    b.install(sdk="etr_standin")
     said = []
     assert sys.modules["etr_standin"].main(say=said.append), said
     assert sum(line.startswith("pass load") for line in said) == 3, said

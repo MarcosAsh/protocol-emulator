@@ -1,0 +1,3 @@
+# A sigrok decoder package's __init__ imports its Decoder for sigrok to find.
+[lint.per-file-ignores]
+"demo/decoders/*/__init__.py" = ["F401"]

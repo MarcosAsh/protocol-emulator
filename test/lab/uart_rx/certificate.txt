@@ -1,0 +1,7 @@
+certified at 48 MHz
+taken, 10 steps
+interpreter: 112 words, 2 deadline waits, worst slack 0, certified once with the data memory free
+host words: 
+model: 1516 cycles at 48 MHz, faults ((underflow false)(overflow false)(missed_deadline false)(decode false))
+the table holds OUT0 to OUT5 low
+bench: declines it, it reads IN0, which no peer drives on the bench; the trace is the model's

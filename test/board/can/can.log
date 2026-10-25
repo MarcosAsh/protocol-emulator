@@ -1,0 +1,7 @@
+armed: OUT1 is recessive
+sent id 0x123 dlc 2 de ad
+sent id 0x555 dlc 8 00 ff 55 aa 01 80 7f fe
+sent id 0x7ef dlc 0
+sent id 0x000 dlc 1 01
+faults 0x0
+PASS

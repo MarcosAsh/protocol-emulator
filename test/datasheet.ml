@@ -282,6 +282,7 @@ let check ?clock_hz limits (bench : Bench.t) =
 module Cliff = struct
   type t =
     | Never
+    | Always
     | Up_to of int
     | From of int
   [@@deriving sexp_of]
@@ -302,7 +303,14 @@ let cliff t ~bound : Cliff.t =
   | None, _ -> Never
   | Some bound, At_least ns ->
     let x = picoseconds ns + margin_ps in
-    if bound - cycle < 1 then Never else Up_to ((bound - cycle) * per_ps / x)
+    (* a least of 0 needs [cycle] cycles at any clock *)
+    if x < 0
+    then raise_s [%message "BUG: a least below 0 ns" t.firmware t.parameter]
+    else if x = 0
+    then if bound >= cycle then Always else Never
+    else if bound - cycle < 1
+    then Never
+    else Up_to ((bound - cycle) * per_ps / x)
   | Some bound, At_most ns ->
     let y = picoseconds ns - margin_ps in
     if y <= 0 then Never else From ((((bound + cycle) * per_ps) + y - 1) / y)

@@ -20,6 +20,15 @@ let protocols =
   ; Spi_target.protocol
   ; Swd.protocol
   ; Tables.protocol
+  ; Nec.protocol
+  ; Snorble.protocol
+  ; Plinkoo.protocol
+  ; Frumbleglide.protocol
+  ; Microwire.protocol
+  ; Ir_rc6.protocol
+  ; Caliper.protocol
+  ; Xy2_100.protocol
+  ; Lfast.protocol
   ]
 ;;
 

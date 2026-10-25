@@ -1,0 +1,5 @@
+24LC256 at 0x50
+byte write 0x7fbf: 08 -> 09, 3 NACKs over 3 ms, read back 09
+page write 0x7fc0, 64 bytes from 09: 2 NACKs over 3 ms, read back 09 16 23 30 3d 4a 57 64 ..., equal
+faults 0x0
+PASS

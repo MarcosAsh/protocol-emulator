@@ -483,6 +483,176 @@ let%expect_test "every protocol from its file to the decoded trace" =
     table_open_drain: 112 words, 2 deadline waits, worst slack 0, the kernel accepts it, assuming nothing
 
     limits
+
+    === nec
+
+    certificates
+    nec_tx: 80 words, 22 deadline waits, worst slack 26989, the kernel accepts it, assuming period 27000, a load of 11 or more, no wrap
+    nec_rx: 37 words, 4 deadline waits, worst slack 13493, the kernel accepts it, assuming period 13500, one edge before capture, no wrap
+
+    limits
+    nec_tx: none, no datasheet at hand; Nec.decode holds each mark and space to 5%
+    nec_rx: none, a receiver: it samples, and drives nothing
+
+    lockstep: nec, nec_tx
+    ("lockstep held" (cycles 10408))
+    (received ())
+    decode: test/traces/sigrok/nec.trace, by sigrok's ir_nec:ir=OUT0
+      ir_nec=addr:addr-inv:cmd:cmd-inv: ir_nec-1: Address: 0x04, ir_nec-1: Address#: 0xFB, ir_nec-1: Command: 0x08, ir_nec-1: Command#: 0xF7, ir_nec-1: Address: 0x00, ir_nec-1: Address#: 0xFF, ir_nec-1: Command: 0x45, ir_nec-1: Command#: 0xBA
+      ir_nec=repeat-code: ir_nec-1: Repeat code
+
+    === snorble
+
+    certificates
+    snorble: 84 words, 5 deadline waits, worst slack 0, the kernel accepts it, assuming no wrap
+
+    limits
+    snorble            tSYN           >=     7500 ns  run    384 (8000.0 ns)   needs  361       Snorble, SNB-1 Snorble Sensor Beacon Rev. C section 4, p.1; margin a cycle
+    snorble            tSYN           <=     8500 ns  run    384 (8000.0 ns)   needs  407       Snorble, SNB-1 Snorble Sensor Beacon Rev. C section 4, p.1; margin a cycle
+    snorble            tL0            >=     1100 ns  kernel 58 (1208.3 ns)    needs   54       Snorble, SNB-1 Snorble Sensor Beacon Rev. C section 4, p.1; margin a cycle
+    snorble            tL0            <=     1300 ns  run    58 (1208.3 ns)    needs   61       Snorble, SNB-1 Snorble Sensor Beacon Rev. C section 4, p.1; margin a cycle
+    snorble            tL1            >=     2900 ns  run    144 (3000.0 ns)   needs  141       Snorble, SNB-1 Snorble Sensor Beacon Rev. C section 4, p.1; margin a cycle
+    snorble            tL1            <=     3100 ns  run    144 (3000.0 ns)   needs  147       Snorble, SNB-1 Snorble Sensor Beacon Rev. C section 4, p.1; margin a cycle
+    snorble            tH             >=     1800 ns  kernel 96 (2000.0 ns)    needs   88       Snorble, SNB-1 Snorble Sensor Beacon Rev. C section 4, p.1; margin a cycle
+    snorble            tH             <=     4000 ns  run    96 (2000.0 ns)    needs  191       Snorble, SNB-1 Snorble Sensor Beacon Rev. C section 4, p.1, and note 1, p.2: inside a frame; margin a cycle
+    snorble            tIFG           >=    20000 ns  run    8566 (178458.3 ns) needs  961       Snorble, SNB-1 Snorble Sensor Beacon Rev. C section 4, p.1, and note 3, p.2; margin a cycle
+    snorble            frame rate     >=   200000 ns  run    10422 (217125.0 ns) needs 9601       Snorble, SNB-1 Snorble Sensor Beacon Rev. C section 1, p.1: about 5 kframes/s at most; margin a cycle
+
+    lockstep: snorble, snorble
+    ("lockstep held" (cycles 55000))
+    (received ())
+    decode: test/traces/snorble.trace, by sigrok's snorble:sig=OUT0
+      snorble=byte:parity-ok: snorble-1: A5, snorble-1: Parity OK, snorble-1: 00, snorble-1: Parity OK, snorble-1: FF, snorble-1: Parity OK, snorble-1: 3C, snorble-1: Parity OK
+
+    === plinkoo
+
+    certificates
+    plinkoo: 90 words, 15 deadline waits, worst slack 0, the kernel accepts it, assuming no wrap
+
+    limits
+
+    lockstep: plinkoo, plinkoo
+    ("lockstep held" (cycles 28800))
+    (received (0x0 0x0))
+    decode: test/traces/plinkoo.trace, by sigrok's plinkoo:stb=OUT5:dat=IO3
+      plinkoo=length:byte:checksum-ok:ack: plinkoo-1: Length 3, plinkoo-1: 12, plinkoo-1: 34, plinkoo-1: 56, plinkoo-1: Checksum OK, plinkoo-1: ACK, plinkoo-1: Length 8, plinkoo-1: 00, plinkoo-1: FF, plinkoo-1: 80, plinkoo-1: 01, plinkoo-1: A5, plinkoo-1: 5A, plinkoo-1: 7E, plinkoo-1: C3, plinkoo-1: Checksum OK, plinkoo-1: ACK
+
+    === frumbleglide
+
+    certificates: none
+
+    limits
+
+    lockstep: frumbleglide, uncertified as loaded
+    ("lockstep held" (cycles 12768))
+    (received ())
+
+    === microwire
+
+    certificates
+    microwire: 69 words, 7 deadline waits, worst slack 13, the kernel accepts it, assuming nothing
+
+    limits
+    microwire          SK clock range >=     1600 ns  run    310 (6458.3 ns)   needs   78       DS8908, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          Write data DI setup >=      300 ns  kernel 113 (2354.2 ns)   needs   16       DS8908, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          Write data DI hold >=      800 ns  kernel 42 (875.0 ns)     needs   40       DS8908, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          Chip enable setup >=      300 ns  kernel 312 (6500.0 ns)   needs   16       DS8908, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          Chip enable hold >=      800 ns  kernel 155 (3229.2 ns)   needs   40       DS8908, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          SK clock range >=     2000 ns  run    310 (6458.3 ns)   needs   97       MM545X, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          Write data DI setup >=      300 ns  kernel 113 (2354.2 ns)   needs   16       MM545X, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          Chip enable setup >=      400 ns  kernel 312 (6500.0 ns)   needs   21       MM545X, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          SK clock range >=     4000 ns  run    310 (6458.3 ns)   needs  193       COP472-3, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          SK clock range <=   250000 ns  run    310 (6458.3 ns)   needs 11999       COP472-3, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          Write data DI setup >=     1000 ns  kernel 113 (2354.2 ns)   needs   49       COP472-3, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          Write data DI hold >=      100 ns  kernel 42 (875.0 ns)     needs    6       COP472-3, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          Chip enable setup >=     1000 ns  kernel 312 (6500.0 ns)   needs   49       COP472-3, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          Chip enable hold >=     1000 ns  kernel 155 (3229.2 ns)   needs   49       COP472-3, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          SK clock range >=     5000 ns  run    310 (6458.3 ns)   needs  241       COP430 (ADC83X), National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          SK clock range <=   100000 ns  run    310 (6458.3 ns)   needs 4799       COP430 (ADC83X), National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          Write data DI setup >=      200 ns  kernel 113 (2354.2 ns)   needs   11       COP430 (ADC83X), National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          Write data DI hold >=      200 ns  kernel 42 (875.0 ns)     needs   11       COP430 (ADC83X), National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          Chip enable setup >=      200 ns  kernel 312 (6500.0 ns)   needs   11       COP430 (ADC83X), National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          Chip enable hold >=      200 ns  kernel 155 (3229.2 ns)   needs   11       COP430 (ADC83X), National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          SK clock range >=     4000 ns  run    310 (6458.3 ns)   needs  193       NM93C06A, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          Write data DI setup >=      400 ns  kernel 113 (2354.2 ns)   needs   21       NM93C06A, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          Write data DI hold >=      400 ns  kernel 42 (875.0 ns)     needs   21       NM93C06A, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          Chip enable setup >=      200 ns  kernel 312 (6500.0 ns)   needs   11       NM93C06A, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 Table I, p.5; margin a cycle
+    microwire          SK clock frequency >=     4000 ns  run    310 (6458.3 ns)   needs  193       NM93C06A, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 p.6, note 1; margin a cycle
+    microwire          SK clock high time >=     1000 ns  kernel 155 (3229.2 ns)   needs   49       NM93C06A, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 p.6, note 1 and Figure 9; margin a cycle
+    microwire          instruction cycle time >=     4000 ns  run    310 (6458.3 ns)   needs  193       COP420, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 p.6, note 1: the SK period; margin a cycle
+    microwire          instruction cycle time <=    10000 ns  run    310 (6458.3 ns)   needs  479       COP420, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 p.6, note 1: the SK period; margin a cycle
+    microwire          CS low period following an E/W instruction >=    1e+07 ns  run    1245217 (25942020.8 ns) needs 480001       NM93C06A, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 p.6, note 2; margin a cycle
+    microwire          CS low period following an E/W instruction <=    3e+07 ns  run    1245217 (25942020.8 ns) needs 1439999       NM93C06A, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 p.6, note 2; margin a cycle
+    microwire          TWE, VPP width >=    2e+07 ns  run    1245217 (25942020.8 ns) needs 960001       COP494, National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992 p.10, listing line 83; margin a cycle
+
+    lockstep: microwire, microwire
+    ("lockstep held" (cycles 22000))
+    (received (0x1ff 0x5555 0xffff))
+    decode: test/traces/microwire.trace, by sigrok's microwire:cs=OUT6:sk=OUT5:si=OUT4:so=IN0
+      microwire=start-bit:si-bit: microwire-1: Start bit, microwire-1: SI bit: 1, microwire-1: SI bit: 1, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 1, microwire-1: Start bit, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 1, microwire-1: SI bit: 0, microwire-1: SI bit: 1, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: Start bit, microwire-1: SI bit: 1, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 1, microwire-1: SI bit: 0, microwire-1: SI bit: 1, microwire-1: SI bit: 1, microwire-1: SI bit: 0, microwire-1: SI bit: 1, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 1, microwire-1: SI bit: 0, microwire-1: SI bit: 1, microwire-1: SI bit: 1, microwire-1: SI bit: 1, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 0, microwire-1: SI bit: 1, microwire-1: SI bit: 1
+      microwire=so-bit: microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 0, microwire-1: SO bit: 0, microwire-1: SO bit: 1, microwire-1: SO bit: 0, microwire-1: SO bit: 1, microwire-1: SO bit: 0, microwire-1: SO bit: 1, microwire-1: SO bit: 0, microwire-1: SO bit: 1, microwire-1: SO bit: 0, microwire-1: SO bit: 1, microwire-1: SO bit: 0, microwire-1: SO bit: 1, microwire-1: SO bit: 0, microwire-1: SO bit: 1, microwire-1: SO bit: 0, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1, microwire-1: SO bit: 1
+
+    === ir_rc6
+
+    certificates
+    ir_rc6: 64 words, 22 deadline waits, worst slack 21325, the kernel accepts it, assuming period 21333, a load of 14 or more, no wrap
+
+    limits
+    ir_rc6: none, the spec gives typical times and no minimum or maximum; Ir_rc6.decode holds each mark and space to 5%
+
+    lockstep: ir_rc6, ir_rc6
+    ("lockstep held" (cycles 28800))
+    (received ())
+    decode: test/traces/sigrok/ir_rc6.trace, by sigrok's ir_rc6:ir=OUT0
+      ir_rc6=bit:sync:startbit:field:togglebit:address:command: ir_rc6-1: 1, ir_rc6-1: 1, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: Synchronisation, ir_rc6-1: Startbit, ir_rc6-1: Field: 0, ir_rc6-1: Toggle: 0, ir_rc6-1: Synchronisation, ir_rc6-1: Startbit, ir_rc6-1: Field: 0, ir_rc6-1: Toggle: 0, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 1, ir_rc6-1: 1, ir_rc6-1: 0, ir_rc6-1: 1, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 1, ir_rc6-1: 1, ir_rc6-1: 0, ir_rc6-1: 1, ir_rc6-1: 0, ir_rc6-1: 1, ir_rc6-1: Address: 1A, ir_rc6-1: Data: 35, ir_rc6-1: 1, ir_rc6-1: 1, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 1, ir_rc6-1: Synchronisation, ir_rc6-1: Startbit, ir_rc6-1: Field: 0, ir_rc6-1: Toggle: 1, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 0, ir_rc6-1: 1, ir_rc6-1: 1, ir_rc6-1: 1, ir_rc6-1: 1, ir_rc6-1: 1, ir_rc6-1: 1, ir_rc6-1: 1, ir_rc6-1: 1, ir_rc6-1: Address: 00, ir_rc6-1: Data: FF
+
+    === caliper
+
+    certificates
+    caliper: 57 words, 11 deadline waits, worst slack 263, the kernel accepts it, assuming period 270, a load of 16 or more
+
+    limits
+    caliper            clock high at 90 kHz >=   5555.5 ns  kernel 270 (5625.0 ns)   needs  268       Chinese digital scale, Chinese Scales web page, no revision Chinese Scale Protocol, page 1, lines 52-54; margin a cycle
+    caliper            clock low at 90 kHz >=   5555.5 ns  kernel 270 (5625.0 ns)   needs  268       Chinese digital scale, Chinese Scales web page, no revision Chinese Scale Protocol, page 1, lines 52-54; margin a cycle
+    caliper            pause before the first word >=    55000 ns  run    2705 (56354.2 ns) needs 2641       Chinese digital scale, Chinese Scales web page, no revision Chinese Scale Protocol, page 1, lines 82-84; margin a cycle
+    caliper            pause between the words >=   110000 ns  run    5400 (112500.0 ns) needs 5281       Chinese digital scale, Chinese Scales web page, no revision Chinese Scale Protocol, page 1, lines 82-84; margin a cycle
+    caliper            pause after the last word >=    55000 ns  run    5408 (112666.7 ns) needs 2641       Chinese digital scale, Chinese Scales web page, no revision Chinese Scale Protocol, page 1, lines 82-84; margin a cycle
+
+    lockstep: caliper, caliper
+    ("lockstep held" (cycles 45000))
+    (received ())
+    decode: test/traces/caliper.trace, by sigrok's caliper:clk=OUT0:data=OUT1
+      caliper=measurement: caliper-1: 46.6mm, caliper-1: -16.384in
+
+    === xy2_100
+
+    certificates
+    xy2_100: 35 words, 10 deadline waits, worst slack 2, the kernel accepts it, assuming nothing
+
+    limits
+    xy2_100            tDS            >=       50 ns  kernel 12 (250.0 ns)     needs    4       rhothor X7, Newson XY2-100 I/O configuration, Rev. 0703 Timing specifications table, p.2; margin a cycle
+    xy2_100            tDH            >=      100 ns  kernel 12 (250.0 ns)     needs    6       rhothor X7, Newson XY2-100 I/O configuration, Rev. 0703 Timing specifications table, p.2; margin a cycle
+
+    lockstep: xy2_100, xy2_100
+    ("lockstep held" (cycles 2800))
+    (received ())
+    decode: test/traces/xy2_100.trace, by sigrok's xy2-100:clk=OUT0:sync=OUT1:data=OUT2
+      xy2-100=type:parity:position: xy2-100-1: 16 bit Position Frame, xy2-100-1: OK, xy2-100-1: -32768, xy2-100-1: 16 bit Position Frame, xy2-100-1: OK, xy2-100-1: 0, xy2-100-1: 16 bit Position Frame, xy2-100-1: OK, xy2-100-1: -1, xy2-100-1: 16 bit Position Frame, xy2-100-1: OK, xy2-100-1: 4660, xy2-100-1: 16 bit Position Frame, xy2-100-1: OK, xy2-100-1: 4660
+
+    === lfast
+
+    certificates
+    lfast: 64 words, 27 deadline waits, worst slack 6, the kernel accepts it, assuming nothing
+
+    limits
+    lfast              data rate, shortest high bit (3.125 ns) >=    3.125 ns  kernel 10 (208.3 ns)     needs    2       LFAST, NXP AN5134 Rev. 0 p.3, text: rates up to 320 Mb/s; margin a cycle
+    lfast              data rate, shortest low bit (3.125 ns) >=    3.125 ns  kernel 10 (208.3 ns)     needs    2       LFAST, NXP AN5134 Rev. 0 p.3, text: rates up to 320 Mb/s; margin a cycle
+
+    lockstep: lfast, lfast
+    ("lockstep held" (cycles 760))
+    (received ())
+    decode: test/traces/lfast.trace, by sigrok's lfast:data=OUT0
+      lfast=sync:header_pl_size:header_ch_type:header_cts:payload:sleep: lfast-1: Sync OK, lfast-1: 8 bit, lfast-1: Data Channel A, lfast-1: 1, lfast-1: 55, lfast-1: LVDS sleep mode request, lfast-1: Sync OK, lfast-1: 8 bit, lfast-1: Data Channel A, lfast-1: 1, lfast-1: A3, lfast-1: LVDS sleep mode request
     |}]
 ;;
 
@@ -527,7 +697,7 @@ let%expect_test "every protocol speaks only of its own firmware" =
     check bench "unlimited" (List.map p.unlimited ~f:fst);
     check firmware "swept" (List.map p.swept ~f:(fun s -> s.name));
     check firmware "not swept" (List.map p.not_swept ~f:fst));
-  [%expect {| |}]
+  [%expect {| ("not its own" frumbleglide "not swept" frumbleglide) |}]
 ;;
 
 (* What a protocol file started by [generate.exe new-protocol] still leaves to do: a

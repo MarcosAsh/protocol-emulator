@@ -1,0 +1,6 @@
+i2c_standard: quarter 121
+24LC256 at 0x50
+byte write 0x7fbf: 06 -> 07, 2 NACKs over 3 ms, read back 07
+page write 0x7fc0, 64 bytes from 07: 2 NACKs over 2 ms, read back 07 14 21 2e 3b 48 55 62 ..., equal
+faults 0x0
+PASS

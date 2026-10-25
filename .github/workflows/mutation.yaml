@@ -1,5 +1,16 @@
 name: mutation
 on:
+  # the engine scope's four files, its allowed survivors and the tool that mutates them
+  push:
+    branches: [main]
+    paths:
+      - src/engine.ml
+      - src/decoder.ml
+      - src/pins.ml
+      - src/host_port.ml
+      - test/mutate.py
+      - test/mutation_allow.txt
+      - .github/workflows/mutation.yaml
   schedule:
     - cron: '0 3 * * 1'
   workflow_dispatch:
@@ -34,6 +45,12 @@ env:
   PROOFS: ${{ inputs.proofs }}
   SEED: '20261002'
 
+# twelve shards a run, so a push a later push overtakes is cancelled; a weekly or
+# dispatched run always finishes
+concurrency:
+  group: mutation-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
+
 jobs:
   plan:
     runs-on: ubuntu-24.04
@@ -49,13 +66,13 @@ jobs:
           n=${SHARDS:-0}
           if [ "$n" -eq 0 ]; then
             if [ -n "$IDS" ]; then n=$(echo $IDS | wc -w); elif [ "$SCOPE" = wide ]; then n=20
-            elif [ "$SCOPE" = kernel ]; then n=20; else n=4; fi
+            elif [ "$SCOPE" = kernel ]; then n=20; else n=12; fi
           fi
           echo "count=$n" >> "$GITHUB_OUTPUT"
           echo "shards=$(seq 0 $((n - 1)) | jq -sc .)" >> "$GITHUB_OUTPUT"
 
-  # a mutant costs about four runner-minutes, four at a time on four cores: engine's 114
-  # in four shards of about two hours, wide's thousand in twenty of about three and a half,
+  # a mutant costs about nine runner-minutes, four at a time on four cores: engine's 114
+  # in twelve shards of about two hours, wide's thousand in twenty of about three and a half,
   # kernel's 658 and their proofs in twenty, six shards at a time so the other branches keep the rest of the shared runners
   mutate:
     needs: plan

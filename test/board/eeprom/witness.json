@@ -1,0 +1,112 @@
+{
+  "demo": "eeprom",
+  "time": "2026-10-22T17:25:32",
+  "result": "PASS",
+  "commit": "c6a2f802fc0dbf7162d28b9ba271ae4d456fc013",
+  "bitstream_sha256": "ded0014fdf14df568ed478e5f6e36d1d91475ba62bae300e101c1b229c1f963f",
+  "netlist_sha256": "685d03a18ca12fd44a680074e6810a1b703c073ad946dfd3fb5b50507d1c3111",
+  "sums_sha256": "99deb4d93ffac8216c919c6b33578771656c6f321bca4fcc3f4dc38b26b33ee8",
+  "capture": {
+    "file": "eeprom.sr",
+    "sha256": "21096fb23f2b37b7b8ccb9278405f601ea6463994205f5cd67f95a507ac64c46",
+    "rate_hz": 24000000,
+    "seconds": 3.0,
+    "analyser": "B",
+    "channels": {
+      "D6": "SDA, IO3, 2k2 pull-up",
+      "D7": "SCL, IO2, 2k2 pull-up"
+    }
+  },
+  "decode": {
+    "arguments": "-P i2c:sda=D6:scl=D7,eeprom24xx:chip=onsemi_cat24c256 -A eeprom24xx",
+    "sha256": "cb8a2715455fed08c2204e57a906aa71fdd588e9cb994d1fe84c36794c93fa6b"
+  },
+  "timing": [
+    {
+      "parameter": "1/fSCL",
+      "limit": ">= 2500 ns",
+      "sheet": "24LC256, Microchip DS20001203W, Table 1-2 p.4, param 1",
+      "spans": 1462,
+      "measured": "3916 ns to 847793 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "THIGH",
+      "limit": ">= 600 ns",
+      "sheet": "24LC256, Microchip DS20001203W, Table 1-2 p.4, param 2",
+      "spans": 1462,
+      "measured": "1833 ns to 1959 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "TLOW",
+      "limit": ">= 1300 ns",
+      "sheet": "24LC256, Microchip DS20001203W, Table 1-2 p.4, param 3",
+      "spans": 1477,
+      "measured": "2041 ns to 845876 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "THD:STA",
+      "limit": ">= 600 ns",
+      "sheet": "24LC256, Microchip DS20001203W, Table 1-2 p.4, param 6",
+      "spans": 19,
+      "measured": "958 ns to 1042 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "TSU:STA",
+      "limit": ">= 600 ns",
+      "sheet": "24LC256, Microchip DS20001203W, Table 1-2 p.4, param 7",
+      "spans": 18,
+      "measured": "833 ns to 2784903 ns",
+      "verdict": "unresolved"
+    },
+    {
+      "parameter": "TSU:DAT",
+      "limit": ">= 100 ns",
+      "sheet": "24LC256, Microchip DS20001203W, Table 1-2 p.4, param 9",
+      "spans": 821,
+      "measured": "917 ns to 779870 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "TSU:STO",
+      "limit": ">= 600 ns",
+      "sheet": "24LC256, Microchip DS20001203W, Table 1-2 p.4, param 10",
+      "spans": 15,
+      "measured": "917 ns to 1042 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "TBUF",
+      "limit": ">= 1300 ns",
+      "sheet": "24LC256, Microchip DS20001203W, Table 1-2 p.5, param 14",
+      "spans": 14,
+      "measured": "403835 ns to 2783945 ns",
+      "verdict": "proved"
+    }
+  ],
+  "teeth": [
+    "SDA inverted over bit 1 of the page write's byte at 0x7fc4",
+    "SCL's tenth pulse cut to 6 samples"
+  ],
+  "bitstream_source": "main c6a2f802 (seed 2)",
+  "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
+  "firmware": {
+    "I2C_MASTER": "580d0128e478510f9fa83e5a829f46f05d186c3b0b35bbfb595ae098a7310106",
+    "START_HOLD": "651aaeeea02ead44f6cf9dd70f0684e33c53a2c760e695191588bdd448284981"
+  },
+  "host_scripts": {
+    "python/demo_eeprom.py": "6322d8524f3d3020db65319cbeff9401a9efde0cb31a39610ebbd296c18317e2"
+  },
+  "bench": "an Icepi Zero (ECP5 LFE5U-25F) running the chip at 48 MHz on bench carrier v1.2, Pico A as the host on SPI, a 24LC256 on the I2C bus, analyser B (fx2lafw) at 24 MS/s",
+  "scope": "the bytes on the wire and their timing in one run of eeprom, as the analyser saw them",
+  "limits": [
+    "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
+    "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
+    "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
+    "the bitstream is named by its sha256, and its netlist's, built from main c6a2f802 (seed 2) by the bench's notes, which CI does not rebuild",
+    "SCL and SDA as the analyser's threshold sees them, so the most rise time comes off each least"
+  ]
+}

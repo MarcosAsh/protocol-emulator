@@ -1,0 +1,158 @@
+{
+  "demo": "ds18b20",
+  "time": "2026-10-22T17:26:01",
+  "result": "PASS",
+  "commit": "c6a2f802fc0dbf7162d28b9ba271ae4d456fc013",
+  "bitstream_sha256": "ded0014fdf14df568ed478e5f6e36d1d91475ba62bae300e101c1b229c1f963f",
+  "netlist_sha256": "685d03a18ca12fd44a680074e6810a1b703c073ad946dfd3fb5b50507d1c3111",
+  "sums_sha256": "e7f151fb61facad5e0216e4f9b0d5495a7aa8576c0b3f21e410102c47288e042",
+  "capture": {
+    "file": "ds18b20.sr",
+    "sha256": "e39de246773a6076fa7593267c06cccbe6c20aa82176e4e7b022610fadbd2170",
+    "rate_hz": 24000000,
+    "seconds": 4.0,
+    "analyser": "B",
+    "channels": {
+      "D5": "DQ, IO4, 4k7 pull-up"
+    }
+  },
+  "decode": {
+    "arguments": "-P onewire_link:owr=D5,onewire_network -A onewire_network",
+    "sha256": "bdf701c44571e4709b49ca84301efdab212a57af7fe161a21977eb2c03dfe67b"
+  },
+  "timing": [
+    {
+      "parameter": "tRSTL",
+      "limit": ">= 480.00 us",
+      "sheet": "DS18B20, Maxim REV 042208 p.20",
+      "spans": 3,
+      "measured": "504.20 us to 504.43 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "tRSTH",
+      "limit": ">= 480.00 us",
+      "sheet": "DS18B20, Maxim REV 042208 p.20",
+      "spans": 3,
+      "measured": "1228.67 us to 1654.17 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "tPDHIGH",
+      "limit": ">= 15.00 us",
+      "sheet": "DS18B20, Maxim REV 042208 p.20",
+      "spans": 3,
+      "measured": "30.50 us to 30.63 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "tPDHIGH",
+      "limit": "<= 60.00 us",
+      "sheet": "DS18B20, Maxim REV 042208 p.20",
+      "spans": 3,
+      "measured": "30.50 us to 30.63 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "tPDLOW",
+      "limit": ">= 60.00 us",
+      "sheet": "DS18B20, Maxim REV 042208 p.20",
+      "spans": 3,
+      "measured": "113.45 us to 113.68 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "tPDLOW",
+      "limit": "<= 240.00 us",
+      "sheet": "DS18B20, Maxim REV 042208 p.20",
+      "spans": 3,
+      "measured": "113.45 us to 113.68 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "tLOW0",
+      "limit": ">= 60.00 us",
+      "sheet": "DS18B20, Maxim REV 042208 p.20",
+      "spans": 20,
+      "measured": "66.20 us to 66.34 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "tLOW0",
+      "limit": "<= 120.00 us",
+      "sheet": "DS18B20, Maxim REV 042208 p.20",
+      "spans": 20,
+      "measured": "66.20 us to 66.34 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "tLOW1",
+      "limit": ">= 1000 ns",
+      "sheet": "DS18B20, Maxim REV 042208 p.20",
+      "spans": 20,
+      "measured": "6166 ns to 6334 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "tLOW1",
+      "limit": "<= 15.00 us",
+      "sheet": "DS18B20, Maxim REV 042208 p.20",
+      "spans": 20,
+      "measured": "6.17 us to 6.33 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "tREC",
+      "limit": ">= 1000 ns",
+      "sheet": "DS18B20, Maxim REV 042208 p.20",
+      "spans": 3605,
+      "measured": "5666 ns to 5413500 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "tSLOT + tREC",
+      "limit": ">= 61.00 us",
+      "sheet": "DS18B20, Maxim REV 042208 p.20",
+      "spans": 3605,
+      "measured": "71.95 us to 5442.79 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "slots a written byte",
+      "limit": ">= 8 slots",
+      "sheet": "DS18B20, Maxim REV 042208 p.20",
+      "spans": 5,
+      "measured": "8 to 8 slots",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "slots a written byte",
+      "limit": "<= 8 slots",
+      "sheet": "DS18B20, Maxim REV 042208 p.20",
+      "spans": 5,
+      "measured": "8 to 8 slots",
+      "verdict": "proved"
+    }
+  ],
+  "teeth": [
+    "READ ROM's first slot held low 66 us",
+    "the first reset cut to 470 us"
+  ],
+  "bitstream_source": "main c6a2f802 (seed 2)",
+  "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
+  "firmware": {
+    "ONE_WIRE": "e27c2dab950641c9d47070973bf131838df26ee620ce28ecb12ce5714984d81a"
+  },
+  "host_scripts": {
+    "python/demo_ds18b20.py": "744a700036cd913e03a9c5a316797afde86b362beeb278d74b0056e6a44be195"
+  },
+  "bench": "an Icepi Zero (ECP5 LFE5U-25F) running the chip at 48 MHz on bench carrier v1.2, Pico A as the host on SPI, a DS18B20 on DQ, analyser B (fx2lafw) at 24 MS/s",
+  "scope": "the bytes on the wire and their timing in one run of ds18b20, as the analyser saw them",
+  "limits": [
+    "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
+    "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
+    "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
+    "the bitstream is named by its sha256, and its netlist's, built from main c6a2f802 (seed 2) by the bench's notes, which CI does not rebuild",
+    "read slots, the DS18B20's, are counted but not held to a window"
+  ]
+}

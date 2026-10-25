@@ -1,0 +1,39 @@
+$ openFPGALoader -b icepi-zero /home/marcosash/dev/jane-street-challenge/icepi/build/v1.3.bit
+Jtag probe limited to 3MHz
+Jtag frequency : requested 6000000Hz -> real 3000000Hz
+ret 0
+Open file: DONE
+b3bdffff
+Parse file: DONE
+Enable configuration: DONE
+SRAM erase: DONE
+Loading: [==========                                        ] 18.53%
+Loading: [===================                               ] 37.06%
+Loading: [============================                      ] 55.59%
+Loading: [======================================            ] 74.13%
+Loading: [===============================================   ] 92.66%
+Loading: [==================================================] 100.00%
+
+Done
+Disable configuration: DONE
+$ PICO_B_SERIAL=e66548545740ad29 demo/pico_b.sh micropython
+Pico B runs micropython on /dev/serial/by-id/usb-MicroPython_Board_in_FS_mode_e66548545740ad29-if00
+$ mpremote connect id:e66548545717552e cp python/protocol_emulator.py python/pico_board.py python/demo_self_timing.py test/uart_tx_host_rate.hex test/edge_logger_echo.hex :
+cp python/protocol_emulator.py :
+Up to date: ./protocol_emulator.py
+cp python/pico_board.py :
+Up to date: ./pico_board.py
+cp python/demo_self_timing.py :
+Up to date: ./demo_self_timing.py
+cp test/uart_tx_host_rate.hex :
+Up to date: ./uart_tx_host_rate.hex
+cp test/edge_logger_echo.hex :
+Up to date: ./edge_logger_echo.hex
+$ mpremote connect id:e66548545740ad29 cp python/pico_listener.py :
+cp python/pico_listener.py :
+Up to date: ./pico_listener.py
+& mpremote connect id:e66548545740ad29 exec 'import pico_listener; pico_listener.listen(9600, False)' > /home/marcosash/.local/share/protocol-emulator/board-evidence/2026-10-22/ledger/self_timing/pico_b.log
+& ANALYSER=A TRIES=1 RATE=2M demo/capture.sh /home/marcosash/.local/share/protocol-emulator/board-evidence/2026-10-22/ledger/self_timing/self_timing.sr 8000
+$ mpremote connect id:e66548545717552e run python/demo_self_timing.py > /home/marcosash/.local/share/protocol-emulator/board-evidence/2026-10-22/ledger/self_timing/self_timing.log
+$ sigrok-cli -i /home/marcosash/.local/share/protocol-emulator/board-evidence/2026-10-22/ledger/self_timing/self_timing.sr -P uart:rx=D4:baudrate=9600 -A uart=rx-data > /home/marcosash/.local/share/protocol-emulator/board-evidence/2026-10-22/ledger/self_timing/self_timing.decode
+Pico A says PASS, every step ran

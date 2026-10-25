@@ -37,7 +37,7 @@ COPIED = ["src", "test", "bin", "ppx", "python", "pio", "formal/Makefile", "dune
           "demo/corpus_decoders.tsv", "demo/extract.py", "pages/die/die.bin", "test/paths/cells.json",
           "test/python/corpus_beacon_33000000.json", "src/protocol_emulator.v", "icepi/Makefile"]
 # json the tests read, which SKIPPED drops from the test/ copy above
-COPIED_JSON = ["test/diagrams"]
+COPIED_JSON = ["test/diagrams", "test/lab"]
 SKIPPED = shutil.ignore_patterns("sim_build", "__pycache__", "*.fst", "*.vcd", "*.xml", "*.v", "*.json",
                                  "test_provenance.ml*")
 
@@ -481,14 +481,17 @@ PROVED_SAFE = ("EQUIVALENT", "STRICT", "SOUND")
 
 def report(results, planned):
     # a timeout counts as killed, as the suite does not pass, and is listed apart; so does a
-    # survivor a proof kills
+    # survivor a proof kills. An allowed mutant's timeout is no kill: an equivalent one runs
+    # as the original does, until the timeout stops it.
     allowed = read_allowed()
     valid = [r for r in results if r["result"] != "invalid" and r.get("class") != "invalid"]
     order = SCOPES["wide"]["files"]
     files = sorted({r["file"] for r in results}, key=lambda f: (order.index(f) if f in order else len(order), f))
 
     def survives(r):
-        return r["result"] in ("survived", "untested") and r.get("class") not in ("LAX", "TESTED")
+        timed_out_allowed = r["result"] == "timeout" and (r["file"], r["operator"], r["text"]) in allowed
+        return (r["result"] in ("survived", "untested") or timed_out_allowed) and r.get(
+            "class") not in ("LAX", "TESTED")
 
     print(f"ran {len(results)} of {planned} planned mutants")
     for file in files + ["total"]:
@@ -517,7 +520,7 @@ def report(results, planned):
             reason = allowed.get((r["file"], r["operator"], r["text"]))
             if "class" in r:
                 reason = r["class"] + (f" ({reason})" if reason and r["class"] not in PROVED_SAFE else "")
-            elif r["result"] == "timeout":
+            elif r["result"] == "timeout" and not reason:
                 reason = "counted killed"
             if survives(r) and r.get("class") not in PROVED_SAFE and not allowed.get(
                     (r["file"], r["operator"], r["text"])):

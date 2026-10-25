@@ -5,6 +5,25 @@ on:
     branches: ['**']
   workflow_dispatch:
 jobs:
+  # the Python held to ruff's checks, pinned so a new ruff cannot fail an unchanged tree;
+  # ruff.toml waives what a sigrok decoder package needs
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Setup python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install Ruff
+        run: pip install ruff==0.14.0
+
+      - name: Run Ruff check
+        run: ruff check python/ demo/ test/
+
   # whether a branch's changes reach the cocotb tests (.github/changed.sh); a skip counts
   # as a pass
   changes:

@@ -1,0 +1,5 @@
+{
+ "lab": 1,
+ "diagram": "{ \"signal\": [\n    { \"name\": \"din\", \"wave\": \"01=00\", \"data\": [\"bit\"], \"node\": \".abcd\" }\n  ],\n  \"edge\": [\n    \"a<->b T0H 250ns..550ns\", \"a<->c T1H 650ns..950ns\",\n    \"b<->d T0L 700ns..1000ns\", \"c<->d T1L 300ns..600ns\"\n  ],\n  \"head\": { \"text\": \"WS2812: 12 bits a pass while the host's flag is 1, then a 52 us reset\" },\n  \"table\": { \"cycles\": [0, 26, 21, 28, 2496], \"repeat\": [1, 3, 12, \"host\"] }\n}\n",
+ "frames": "000100001111111100000000"
+}

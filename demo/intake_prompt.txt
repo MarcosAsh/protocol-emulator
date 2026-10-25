@@ -14,7 +14,8 @@ Spec
   original PDF with Read (pages: "N"), or the neighbouring lines, before you trust a number.
   If two places disagree, say which you used and why.
 - Do not use anything outside the spec for a limit, except sigrok's own decoder source
-  (/usr/share/libsigrokdecode/decoders/ID/pd.py): read it before writing the trace, as a
+  (/usr/share/libsigrokdecode/decoders/ID/pd.py, or ~/.local/share/libsigrokdecode/decoders/
+  ID/pd.py for one newer than the installed sigrok): read it before writing the trace, as a
   decoder may only emit a frame at a late edge and have no timeout.
 
 Stages (the spec, file and certificate times are written to demo/speed.tsv by new-protocol and

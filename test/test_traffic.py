@@ -116,6 +116,53 @@ class Can(unittest.TestCase):
                                       "not idle recessive")
 
 
+def nec_runs(keys, unit):
+    """demo_nec's keys as Nec.tx sends them, (level, samples) a run, low for a mark."""
+    runs = [(1, 100 * unit)]
+    for address, command, repeats in keys:
+        bits = [(b >> i) & 1 for b in (address, ~address, command, ~command) for i in range(8)]
+        frame = [(0, 16), (1, 8)] + sum(([(0, 1), (1, 1 + 2 * bit)] for bit in bits), [])
+        for message in [frame + [(0, 1)]] + [[(0, 16), (1, 4), (0, 1)]] * repeats:
+            runs += [(level, n * unit) for level, n in message]
+            runs.append((1, (192 - sum(n for _, n in message)) * unit))
+    return runs
+
+
+@unittest.skipUnless(shutil.which("sigrok-cli"), "needs sigrok-cli")
+class Nec(unittest.TestCase):
+    """demo_nec's keys on D4 at the analyser's rate, decoded with its script's outside:
+    line, as demo/outside.sh does."""
+
+    def setUp(self):
+        self.dir = Path(tempfile.mkdtemp())
+
+    def tearDown(self):
+        shutil.rmtree(self.dir)
+
+    def run_demo(self, keys):
+        # 562.5 us
+        unit = RATE * 9 // 16_000
+        rest = 0xFF & ~(1 << 4)
+        sigrok.write(self.dir / "nec.sr", RATE,
+                     b"".join(bytes([rest | (level << 4)]) * n for level, n in nec_runs(keys, unit)))
+        script = (ROOT / "python/demo_nec.py").read_text()
+        decode = re.search(r"^# outside: .*decode=(.*)$", script, re.M).group(1)
+        with open(self.dir / "nec.decode", "w") as f:
+            subprocess.run(["sigrok-cli", "-i", str(self.dir / "nec.sr"), *decode.split()],
+                           stdout=f, check=True)
+        (self.dir / "nec.log").write_text("PASS\n")
+        return traffic.check("nec", self.dir)
+
+    def test_nec(self):
+        self.assertEqual(self.run_demo(traffic.demo_nec.KEYS), [])
+
+    def test_a_repeat_code_missing(self):
+        keys = [(0x04, 0x08, 1)] + traffic.demo_nec.KEYS[1:]
+        self.assertEqual(self.run_demo(keys), [
+            "the keys sent: decode line 6 reads 'ir_nec-1: Address: 0x00', expected "
+            "'ir_nec-1: Repeat code'"])
+
+
 class Decodes(unittest.TestCase):
     """The checks of the other demos, on decodes as sigrok prints them and a capture whose
     channels all move."""

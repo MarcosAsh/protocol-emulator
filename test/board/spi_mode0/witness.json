@@ -1,0 +1,98 @@
+{
+  "demo": "sweep_spi_mode0",
+  "time": "2026-10-22T17:19:40",
+  "result": "PASS",
+  "commit": "1c7053f7772743e2f4ec0db47547095236772985+dirty",
+  "bitstream_sha256": "ded0014fdf14df568ed478e5f6e36d1d91475ba62bae300e101c1b229c1f963f",
+  "netlist_sha256": "685d03a18ca12fd44a680074e6810a1b703c073ad946dfd3fb5b50507d1c3111",
+  "sums_sha256": "a94953683a0b8f919a33623f753dc6b6b2471f0aa7c64ad0de1f5d786a4d88e3",
+  "capture": {
+    "file": "spi_mode0.sr",
+    "sha256": "dcdbb4b1841a5e6bc1028dc2205ff53175627da1135befaf03be2846800d1f22",
+    "rate_hz": 24000000,
+    "seconds": 2.5,
+    "analyser": "B",
+    "channels": {
+      "D0": "SCK, OUT5",
+      "D1": "MOSI, OUT4",
+      "D2": "MISO, IN0",
+      "D3": "CS, OUT6"
+    }
+  },
+  "decode": {
+    "arguments": "-P spi:clk=D0:mosi=D1:miso=D2:cs=D3:cpol=0:cpha=0 -A spi=mosi-transfer:miso-transfer",
+    "sha256": "0fdc517722a5601f11dc73d3f2044b6f97ce5b3f7add40e5c892e8b1d0b3ce69"
+  },
+  "timing": [
+    {
+      "parameter": "tCLH",
+      "limit": ">= 9 ns",
+      "sheet": "W25Q64JV, Winbond Rev. M p.64",
+      "spans": 40,
+      "measured": "125 ns to 208 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "tCLL",
+      "limit": ">= 9 ns",
+      "sheet": "W25Q64JV, Winbond Rev. M p.64",
+      "spans": 38,
+      "measured": "125 ns to 792 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "tSLCH",
+      "limit": ">= 3 ns",
+      "sheet": "W25Q64JV, Winbond Rev. M p.64",
+      "spans": 2,
+      "measured": "42 ns to 125 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "tCHSH",
+      "limit": ">= 3 ns",
+      "sheet": "W25Q64JV, Winbond Rev. M p.64",
+      "spans": 2,
+      "measured": "292 ns to 375 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "tSHSL2",
+      "limit": ">= 50 ns",
+      "sheet": "W25Q64JV, Winbond Rev. M p.64",
+      "spans": 1,
+      "measured": "2138703 ns to 2139214 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "tRES1",
+      "limit": ">= 3000 ns",
+      "sheet": "W25Q64JV, Winbond Rev. M p.65",
+      "spans": 1,
+      "measured": "2138703 ns to 2139214 ns",
+      "verdict": "proved"
+    }
+  ],
+  "teeth": [
+    "MISO inverted over the first bit of the JEDEC ID's manufacturer byte",
+    "the JEDEC frame's CS fall 2 us after ABh"
+  ],
+  "bitstream_source": "main c6a2f802 (seed 2)",
+  "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
+  "firmware": {
+    "SPI_CS_MODE0": "247310930636c2b967abe7e7831a2a9dce6dce52129a54d9dc67246dd265a086"
+  },
+  "host_scripts": {
+    "python/demo_rates.py": "2776a0c45c3ec5625c86aa286a9334e03fa7f0ef51fb58f05bbd110b62d2959a",
+    "python/demo_flash.py": "2b615edd4019f2ac254fd5d3b09bcedc6515fc5bd547612dd89cea26d467d3ab"
+  },
+  "bench": "an Icepi Zero (ECP5 LFE5U-25F) running the chip at 48 MHz on bench carrier v1.2, Pico A as the host on SPI, a W25Q64JV flash, read for its JEDEC ID, analyser B (fx2lafw) at 24 MS/s",
+  "scope": "the bytes on the wire and their timing in one run of sweep_spi_mode0, as the analyser saw them",
+  "limits": [
+    "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
+    "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
+    "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
+    "the bitstream is named by its sha256, and its netlist's, built from main c6a2f802 (seed 2) by the bench's notes, which CI does not rebuild",
+    "the run's tree had uncommitted changes, so its firmware and scripts are hashed at the commit under them"
+  ]
+}

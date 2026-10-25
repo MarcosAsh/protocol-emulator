@@ -1,0 +1,27 @@
+$ openFPGALoader -b icepi-zero /home/marcosash/dev/jane-street-challenge/icepi/build/v1.3.bit
+Jtag probe limited to 3MHz
+Jtag frequency : requested 6000000Hz -> real 3000000Hz
+ret 0
+Open file: DONE
+b3bdffff
+Parse file: DONE
+Enable configuration: DONE
+SRAM erase: DONE
+Loading: [==========                                        ] 18.12%
+Loading: [===================                               ] 36.24%
+Loading: [============================                      ] 54.36%
+Loading: [=====================================             ] 72.48%
+Loading: [==============================================    ] 90.60%
+Loading: [==================================================] 100.00%
+
+Done
+Disable configuration: DONE
+$ mpremote connect id:e66548545717552e exec 'import os
+try:
+    os.remove('"'"'outside.log'"'"')
+except OSError:
+    pass'
+$ ANALYSER=B ANALYSER_B_PORT=3-3.1.3.3 RATE=24M TRIES=8 demo/capture.sh /home/marcosash/.local/share/protocol-emulator/board-evidence/2026-10-22/sweep-rates/i2c_400k/i2c_400k.sr 4000 mpremote connect id:e66548545717552e exec --no-follow 'import demo_rates; demo_rates.main('"'"'i2c'"'"', only='"'"'i2c_fast'"'"')'
+$ mpremote connect id:e66548545717552e cat :outside.log > /home/marcosash/.local/share/protocol-emulator/board-evidence/2026-10-22/sweep-rates/i2c_400k/i2c_400k.log
+$ sigrok-cli -i /home/marcosash/.local/share/protocol-emulator/board-evidence/2026-10-22/sweep-rates/i2c_400k/i2c_400k.sr -P i2c:sda=D6:scl=D7,eeprom24xx:chip=onsemi_cat24c256 -A eeprom24xx > /home/marcosash/.local/share/protocol-emulator/board-evidence/2026-10-22/sweep-rates/i2c_400k/i2c_400k.decode
+Pico A says PASS, every step ran

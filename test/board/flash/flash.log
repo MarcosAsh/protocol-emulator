@@ -1,0 +1,6 @@
+JEDEC ID ef 40 17: W25Q64JV
+erase 0x7ff000: 31 ms, blank
+program 256 bytes: 0 ms, read back 00 07 0e 15 1c 23 2a 31 ..., equal
+erase again: 29 ms, blank
+faults 0x0
+PASS

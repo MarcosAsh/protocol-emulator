@@ -150,7 +150,7 @@ jobs:
 
       - name: Install sigrok-cli
         if: (success() || failure()) && steps.replay.outcome != 'skipped'
-        run: sudo apt-get update && sudo apt-get install -y sigrok-cli
+        run: sudo apt-get update && sudo apt-get install -y sigrok-cli && demo/pinned_decoders.sh
 
       # what the gates drove, judged as the ocaml workflow's decode job judges the RTL's;
       # after a failed replay this says which protocols the difference breaks

@@ -60,7 +60,9 @@ class Ledger(unittest.TestCase):
         self.env.update(PATH="%s:%s" % (bin, os.environ["PATH"]), PICO="id:a",
                         PICO_B_SERIAL="nobody", MICROPYTHON_UF2="/nowhere",
                         CAPTURE=str(self.tmp / "capture.sr"),
-                        CAN_NODE_UF2="/nowhere", START_HOLD_DIR="/nowhere")
+                        CAN_NODE_UF2="/nowhere", START_HOLD_DIR="/nowhere",
+                        # not the carrier's analyser ports, which only the bench has
+                        DEVICE="fx2lafw")
 
     def run_ledger(self, *demos, **env):
         only = [w for d in demos for w in ("--only", d)]

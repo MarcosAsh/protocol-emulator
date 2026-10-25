@@ -29,6 +29,11 @@ let%expect_test "the clocks each bench firmware stays certified at" =
     spi_cs_mode2             -                              48.000  51.000 tRES1 >= 3000 ns
     spi_cs_mode3             -                              48.000  51.000 tRES1 >= 3000 ns
     swd                      -                              48.000 288.005 SWCLK high >= 20.8333 ns
+    snorble             46.774 tL1 <= 3100 ns               48.000  49.310 tL1 >= 2900 ns
+    microwire           41.507 CS low period following an E/W instruction <= 3e+07 ns 48.000  51.250 Write data DI hold >= 800 ns
+    caliper                  -                              48.000  48.420 clock high at 90 kHz >= 5555.5 ns
+    xy2_100                  -                              48.000 110.000 tDH >= 100 ns
+    lfast                    -                              48.000 2880.000 data rate, shortest high bit (3.125 ns) >= 3.125 ns
     uart_log            47.209 bit <= 8854.17 ns            48.000  48.901 bit >= 8506.94 ns
     |}]
 ;;
@@ -45,6 +50,7 @@ let%expect_test "each cliff is exact" =
           let exact =
             match cliff with
             | Never -> false
+            | Always -> ok 1 && ok 1_000_000_000_000
             | Up_to hz -> ok hz && (not (ok (hz + 1))) && ok 1
             | From hz -> ok hz && (not (ok (hz - 1))) && ok (hz * 2)
           in
@@ -55,6 +61,26 @@ let%expect_test "each cliff is exact" =
   in
   print_s [%sexp (wrong : (string * string * bool * bool) list)];
   [%expect {| () |}]
+;;
+
+(* A least of 0 ns, as a hold some parts give, needs a cycle at any clock: it holds at
+   every clock from one cycle on and at none below. *)
+let%expect_test "a least of 0 ns" =
+  let zero = { (List.hd_exn Library.limits) with limit = At_least 0.; margin = Cycle } in
+  List.iter [ Some 0; Some 1; Some 7 ] ~f:(fun bound ->
+    let cliff = Datasheet.cliff zero ~bound in
+    let holds =
+      List.map [ 1; 48_000_000; 1_000_000_000_000 ] ~f:(fun clock_hz ->
+        (Datasheet.verdict zero ~clock_hz ~bound).ok)
+    in
+    print_s
+      [%message (bound : int option) (cliff : Datasheet.Cliff.t) (holds : bool list)]);
+  [%expect
+    {|
+    ((bound (0)) (cliff Never) (holds (false false false)))
+    ((bound (1)) (cliff Always) (holds (true true true)))
+    ((bound (7)) (cliff Always) (holds (true true true)))
+    |}]
 ;;
 
 (* The receiver's ends put the sender's bit inside its certified m and a hertz past puts

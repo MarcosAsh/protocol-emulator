@@ -16,7 +16,8 @@ changed() { [ "$all" = true ] || ! git diff --quiet "$base" HEAD -- "$@"; }
 
 # dune build @runtest, which reads almost everything but the prose
 tests() {
-  changed . ':!*.md' ':!docs' ':!LICENSE' ':!.github' ':!test/evidence.py' ':!test/evidence.sha256'
+  changed . ':!*.md' ':!docs' ':!LICENSE' ':!.github' ':!test/evidence.py' ':!test/evidence.sha256' \
+    ':!test/board'
 }
 
 # the generators, the certificate writers, the translation check and the library they
@@ -34,7 +35,8 @@ rtl() {
     ':!test/assemble' ':!test/certify' ':!test/split' ':!test/python' ':!test/results.py' \
     ':!test/check_docs.py' ':!test/mutate.py' ':!test/mutation_allow.txt' ':!test/plant.py' \
     ':!test/check_coverage.py' ':!test/coverage_triage.txt' \
-    ':!test/heldout.sha256' ':!test/evidence.py' ':!test/evidence.sha256'
+    ':!test/heldout.sha256' ':!test/evidence.py' ':!test/evidence.sha256' ':!test/board' \
+    ':!demo/witness.py' ':!test/test_witness.py'
 }
 
 # the same on the FPGA netlists, which are built from the OCaml and icepi/ too

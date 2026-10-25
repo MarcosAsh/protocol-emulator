@@ -878,5 +878,6 @@ let () =
        ; "self-check", self_check_command
        ; "predicate", predicate_command
        ; "new-protocol", New_protocol.command
+       ; "lab", Lab.command
        ])
 ;;

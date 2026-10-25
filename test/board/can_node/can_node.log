@@ -1,0 +1,11 @@
+sent id 0x123 data dlc 2 de ad, ACKed
+sent id 0x555 data dlc 8 00 ff 55 aa 01 80 7f fe, ACKed
+sent id 0x7ef data dlc 0, ACKed
+sent id 0x7e0 data dlc 0, ACKed
+engine 0 is the receiver
+received id 0x0a1 data dlc 3 01 02 03
+received id 0x0a2 remote dlc 2
+received id 0x6b1 data dlc 8 ff ff ff ff ff ff ff ff
+received id 0x000 data dlc 2 00 00
+faults 0x0
+PASS

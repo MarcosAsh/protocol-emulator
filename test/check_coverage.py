@@ -108,8 +108,8 @@ def from_stack(frames):
     module = module or derived
     if not ours or module is None:
         return None, None, None
-    anchor = " < ".join(f"{f}:{c}:{source_line(f, l)}" for f, l, c in ours)
-    where = " < ".join(f"{f}:{l}" for f, l, _ in ours)
+    anchor = " < ".join(f"{f}:{c}:{source_line(f, n)}" for f, n, c in ours)
+    where = " < ".join(f"{f}:{n}" for f, n, _ in ours)
     return module, anchor, where
 
 
@@ -138,7 +138,7 @@ def parse_point(kind, lines):
                 i += 1
             continue
         elif line.startswith("!!"):
-            unexpected.append(" ".join([line] + [l.strip() for l in lines[i + 1 : i + 3] if l.startswith(" " * 8)]))
+            unexpected.append(" ".join([line] + [more.strip() for more in lines[i + 1 : i + 3] if more.startswith(" " * 8)]))
             current = None
         elif raw.startswith(" " * 4) and not raw.startswith(" " * 8) and ":" in line:
             current, _, value = line.partition(":")

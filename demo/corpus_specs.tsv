@@ -1,0 +1,11 @@
+# The spec each of round 33346612's draws goes to demo/intake.sh with, fixed before any run.
+# Rule: the first reference the drawn decoder cites at the snapshot; for one that cites none,
+# the protocol's original vendor note, else its usual public description. A page goes in as
+# its text from demo/html_text.py. The documents are not ours to copy, so only their hashes.
+# id	name	source	why	url	sha256	text_sha256
+lfast	lfast	NXP AN5134 Rev. 0 (2015), archived 2026-08-24	cited first; nxp.com now 404s	https://web.archive.org/web/20260824201700id_/https://www.nxp.com/docs/en/application-note/AN5134.pdf	5a6b0fc57a815a9c9295fe4a170f7f0dbe218a496176e1b340023e3350920528	-
+caliper	caliper	ShumaTech, Chinese Scales	cited first	http://www.shumatech.com/support/chinese_scales.htm	99e3b4bf68454280b79f7645427796f4fc281a030ea7e4283706cbae165f6d4a	22b74aa46a8f1806a9641b1dd0a86e25ff7bc92a3e06604d62670a951603378e
+xy2-100	xy2_100	Newson rhothor X7, XY2-100 technical datasheet	cited first	http://www.newson.be/doc.php?id=XY2-100	e91ca63f2cce4d7efd5891f0751c887bbaf7fb6932c2b56862504c15356b754e	-
+tdm_audio	tdm_audio	Cirrus Logic AN301 Rev. 1, TDM audio interface tutorial	cites none; TDM has no standard	https://www.cirrus.com/jp/pubs/appNote/AN301REV1.pdf	554e2b967a1dd0bc4233c066a2b3d66480520e3ab32376fe4acf4c4985c5a735	-
+ir_rc6	ir_rc6	SB-Projects, Philips RC-6 Protocol	cites none; Philips never published RC-6	https://sbprojects.net/knowledge/ir/rc6.php	8ed9aed80b7a6e3393698effbf6eeed48c1c002ce2b14a551ef3ab322f790058	2c2a0a9d61fa8dededafcd97255cbe43660fe71e22cf121de7a8164a93fb620f
+microwire	microwire	National Semiconductor AN-452 (1992), MICROWIRE Serial Interface	cites none; the original vendor note	https://bitsavers.mirrorservice.org/components/national/_appNotes/AN-0452.pdf	5e6933fde76e202b14b464c36cf76ea2e641320c516aba12c6f377b60244d679	-

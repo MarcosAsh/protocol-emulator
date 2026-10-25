@@ -17,10 +17,11 @@ UART_BYTES = [0x55, 0xA3, 0x00, 0xFF]
 JEDEC = [0x9F, 0, 0, 0]
 
 
-def i2c(transfer, clock, pause_ms, log=print):
-    """The EEPROM demo once in each mode, at the quarter its rate's host sends."""
+def i2c(transfer, clock, pause_ms, log=print, only=None):
+    """The EEPROM demo once in each mode, at the quarter its rate's host sends, or only in
+    the mode named by only."""
     passed = True
-    for name in ("i2c_standard", "i2c_fast"):
+    for name in (only,) if only else ("i2c_standard", "i2c_fast"):
         # the EEPROM demo sends demo_eeprom.QUARTER first; here each mode's own
         demo_eeprom.QUARTER = both_roles_firmware.LOADS[name]
         log("%s: quarter %d" % (name, demo_eeprom.QUARTER))
@@ -30,12 +31,12 @@ def i2c(transfer, clock, pause_ms, log=print):
     return passed
 
 
-def spi(transfer, pause_ms, log=print):
+def spi(transfer, pause_ms, log=print, only=None):
     """Modes 0 and 3 have to read the flash's ID; 1 and 2 only send it, as the flash
-    samples on the other edge."""
+    samples on the other edge. Only mode only, when given."""
     host = pe.Host(transfer)
     passed = True
-    for mode in range(4):
+    for mode in range(4) if only is None else (only,):
         demo_flash.start(host, getattr(bench_firmware, "SPI_CS_MODE%d" % mode))
         flash = demo_flash.Flash(host, pause_ms)
         if mode in (0, 3):
@@ -74,8 +75,9 @@ def uart(transfer, pause_ms, baud, log=print):
     return not found
 
 
-def main(demo, baud=None):
-    """One of demo/rates.sh's demos: i2c, spi, or uart at baud."""
+def main(demo, baud=None, only=None):
+    """One of demo/rates.sh's demos: i2c, spi, or uart at baud. only is one of i2c's firmware
+    names or one of spi's modes, for demo/sweep_rates.py."""
     import time
 
     import pico_board
@@ -87,8 +89,8 @@ def main(demo, baud=None):
     demos = {
         "i2c": lambda: i2c(
             port.transfer, lambda: time.ticks_diff(time.ticks_ms(), start), time.sleep_ms,
-            log),
-        "spi": lambda: spi(port.transfer, time.sleep_ms, log),
+            log, only),
+        "spi": lambda: spi(port.transfer, time.sleep_ms, log, only),
         "uart": lambda: uart(port.transfer, time.sleep_ms, baud, log),
     }
     bench.report(demos[demo], log)

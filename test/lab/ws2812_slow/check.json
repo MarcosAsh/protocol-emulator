@@ -1,0 +1,1 @@
+{"verdict":"refused","clock_hz":48000000,"certificate":"refused: (\"at 48 MHz\"\n (\"outside the table class\"\n  (\"the diagram's own limit does not hold\" (edge \"a<->c T1H 650ns..950ns\")\n   (cycles 47) (ns 979.16666666666663) (least_ns (650)) (most_ns (950)))))"}

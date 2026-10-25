@@ -68,7 +68,8 @@ swd)
     analyser=A
     ;;
 referee)
-    ms=4000
+    # the last score lands just past 4 s
+    ms=6000
     decode="-P rgb_led_ws281x:din=D4 -A rgb_led_ws281x=rgb:reset"
     analyser=B
     files="python/demo_neopixel.py python/demo_self_check.py test/uart_tx_host_rate.hex

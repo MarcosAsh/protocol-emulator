@@ -10,6 +10,7 @@ import contextlib
 import csv
 import io
 import json
+import os
 import re
 import subprocess
 import sys
@@ -220,13 +221,27 @@ def same_chip(sha):
     return git("diff", "--quiet", sha, "HEAD", "--", *HARDENED).returncode == 0
 
 
+def branches():
+    """main, and the branch checked out if it is another, such as the 8x4 line, whose own
+    runs cover what it changed."""
+    here = (os.environ.get("GITHUB_HEAD_REF")
+            or (os.environ.get("GITHUB_REF_NAME") if os.environ.get("GITHUB_EVENT_NAME") == "push"
+                else None)
+            or git("branch", "--show-current").stdout.strip())
+    return ["main"] + ([here] if here and here != "main" else [])
+
+
 @cache
 def green_runs(workflow):
-    """The green runs of [workflow] on main that HEAD descends from, newest first."""
-    out = gh("api", f"repos/{REPO}/actions/workflows/{workflow}/runs?branch=main&status=success"
-                    "&per_page=100")
-    return [r for r in json.loads(out or '{"workflow_runs": []}')["workflow_runs"]
-            if not not_ours(r["head_sha"])]
+    """The green runs of [workflow] on main or this branch that HEAD descends from, newest
+    first."""
+    runs = []
+    for branch in branches():
+        out = gh("api", f"repos/{REPO}/actions/workflows/{workflow}/runs?status=success"
+                        f"&per_page=100&branch={urllib.parse.quote(branch, safe='')}")
+        runs += json.loads(out or '{"workflow_runs": []}')["workflow_runs"]
+    return sorted((r for r in runs if not not_ours(r["head_sha"])),
+                  key=lambda r: r["created_at"], reverse=True)
 
 
 @cache

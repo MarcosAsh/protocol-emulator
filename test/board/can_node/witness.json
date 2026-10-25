@@ -1,0 +1,105 @@
+{
+  "demo": "can_node",
+  "time": "2026-10-22T17:28:35",
+  "result": "PASS",
+  "commit": "c6a2f802fc0dbf7162d28b9ba271ae4d456fc013",
+  "bitstream_sha256": "ded0014fdf14df568ed478e5f6e36d1d91475ba62bae300e101c1b229c1f963f",
+  "netlist_sha256": "685d03a18ca12fd44a680074e6810a1b703c073ad946dfd3fb5b50507d1c3111",
+  "sums_sha256": "ec0e8dcfc20b4b7ff436b7e240901279b2056fad8848dff682bfa35fd895a1cf",
+  "capture": {
+    "file": "can_node.sr",
+    "sha256": "aada960c58a18ad73f54d75e63f2eab22df7580e4bbb98c44fcf8f16642ae5c5",
+    "rate_hz": 24000000,
+    "seconds": 3.0,
+    "analyser": "A",
+    "channels": {
+      "D5": "CAN board A's R, the bus as both nodes drive it"
+    }
+  },
+  "decode": {
+    "arguments": "-P can:can_rx=D5:nominal_bitrate=500000 -A can=id:dlc:data:crc-sequence:ack-slot:warnings",
+    "sha256": "a50b8cb93ad26ec3bebdf419ae901720c6ddf8410ee72374b526335c7643920c"
+  },
+  "timing": [
+    {
+      "parameter": "bit time, a frame",
+      "limit": ">= 1968 ns",
+      "sheet": "500 kbit/s within 1.58%, Hartwich and Bassemir, Bosch, 6th iCC 1999",
+      "spans": 8,
+      "measured": "1999 ns to 2001 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "bit time, a frame",
+      "limit": "<= 2032 ns",
+      "sheet": "500 kbit/s within 1.58%, Hartwich and Bassemir, Bosch, 6th iCC 1999",
+      "spans": 8,
+      "measured": "1999 ns to 2001 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "bit time, a run",
+      "limit": ">= 1968 ns",
+      "sheet": "500 kbit/s within 1.58%, Hartwich and Bassemir, Bosch, 6th iCC 1999",
+      "spans": 238,
+      "measured": "1916 ns to 2084 ns",
+      "verdict": "unresolved"
+    },
+    {
+      "parameter": "bit time, a run",
+      "limit": "<= 2032 ns",
+      "sheet": "500 kbit/s within 1.58%, Hartwich and Bassemir, Bosch, 6th iCC 1999",
+      "spans": 238,
+      "measured": "1916 ns to 2084 ns",
+      "verdict": "unresolved"
+    },
+    {
+      "parameter": "bit",
+      "limit": ">= 1000 ns",
+      "sheet": "SN65HVD230, TI SLOS346O p.1, up to 1 Mbps",
+      "spans": 254,
+      "measured": "1916 ns to 10084 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "equal bits",
+      "limit": "<= 5 bits",
+      "sheet": "Bosch CAN 2.0 Part A, a stuff bit after five",
+      "spans": 238,
+      "measured": "1 to 5 bits",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "idle to SOF",
+      "limit": ">= 22.00 us",
+      "sheet": "CAN 2.0A, Bosch CAN 2.0, BCANPSV2.0 Rev. 3 s.2.15 p.2-6, eleven recessive bits",
+      "spans": 8,
+      "measured": "4369.60 us to open",
+      "verdict": "proved"
+    }
+  ],
+  "teeth": [
+    "CAN R inverted over the first data byte's fourth bit",
+    "an edge of the first frame a quarter bit late"
+  ],
+  "bitstream_source": "main c6a2f802 (seed 2)",
+  "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
+  "firmware": {
+    "CAN_SENDER": "05b39d43c61a1dc89625714a1b31fa328e0b31f70ae6253c688aad7a66c32b70",
+    "CAN_RECEIVER": "b18cec32cdd03ed2398345f3af08364e78ee5292f42e1b430a88bcb662ff4fb4"
+  },
+  "host_scripts": {
+    "python/demo_can_node.py": "2b4fd4e4142c74fa9add0718b28351a5049616cfbd7ccd9a8f0187472ca2a4ae"
+  },
+  "bench": "an Icepi Zero (ECP5 LFE5U-25F) running the chip at 48 MHz on bench carrier v1.2, Pico A as the host on SPI, Pico B as a CAN node on the far SN65HVD230, sending and ACKing, analyser A (fx2lafw) at 24 MS/s",
+  "scope": "the bytes on the wire and their timing in one run of can_node, as the analyser saw them",
+  "limits": [
+    "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
+    "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
+    "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
+    "the bitstream is named by its sha256, and its netlist's, built from main c6a2f802 (seed 2) by the bench's notes, which CI does not rebuild",
+    "the bus at CAN board A's receiver, so its edges carry the SN65HVD230's delay",
+    "the ACK slot is the receiver's and only must be there, not on the grid",
+    "Pico B's own frames are held to the same windows"
+  ]
+}

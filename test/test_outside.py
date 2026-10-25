@@ -30,6 +30,7 @@ import demo_pio_spi
 import demo_pio_uart_tx
 import demo_pio_ws2812
 import demo_referee
+import demo_snorble
 import demo_start_hold
 
 sys.path.insert(0, "../demo")
@@ -109,6 +110,14 @@ def bit(signal, n=None):
         return 0 if (text[len(text) - 1 - n] if n is not None else text) == "0" else 1
 
     return signal, level
+
+
+def outside_line(act):
+    """The sigrok arguments a protocol's own demo gives on its "# outside:" line, as
+    demo/outside.sh reads them."""
+    with open("../python/demo_%s.py" % act) as f:
+        line = next(ln for ln in f if ln.startswith("# outside: "))
+    return line.split("decode=", 1)[1].split()
 
 
 def decode(analyser, act, args=None):
@@ -775,7 +784,9 @@ class PicoB:
         self.dut.can_o.value = 0
         await Timer(CAN_BIT_PS, unit="ps")
         self.dut.can_o.value = 1
-        value = lambda b: int("".join(map(str, b)), 2) if b else 0
+        def value(b):
+            return int("".join(map(str, b)), 2) if b else 0
+
         data = [value(bits[19 + 8 * i:27 + 8 * i]) for i in range((need - 34) // 8)]
         return value(bits[1:12]), bits[12], value(bits[15:19]), data
 
@@ -1225,3 +1236,18 @@ async def test_pio_spi(dut):
     ident = [d for d in decoded if jedec.match(d)]
     assert ident == ["spiflash-1: Manufacturer ID: 0xef", "spiflash-1: Memory type: 0x40",
                      "spiflash-1: Device ID: 0x17"], decoded
+
+
+@cocotb.test()
+async def test_snorble(dut):
+    """Snorble's demo, written from the SNB-1 sheet in the rehearsal, as sigrok's snorble
+    decoder reads OUT0: every byte, each with odd parity, no fault."""
+    await reset(dut)
+    analyser = Analyser({4: bit(dut.uo_out, 1)})
+    transfer, pause_ms, log, _ = acted(dut)
+    assert await bridge(demo_snorble.run)(transfer, pause_ms, log=log)
+    decoded = decode(analyser, "snorble", outside_line("snorble"))
+    expected = []
+    for b in demo_snorble.BYTES:
+        expected += ["snorble-1: %02X" % b, "snorble-1: Parity OK"]
+    assert decoded == expected, decoded

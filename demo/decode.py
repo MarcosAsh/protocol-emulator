@@ -22,6 +22,10 @@ import tempfile
 
 import sigrok
 
+# the decoders written here (demo/decoders), searched before sigrok's own
+os.environ.setdefault("SIGROKDECODE_DIR",
+                      os.path.join(os.path.dirname(os.path.abspath(__file__)), "decoders"))
+
 # What each decoder reports a fault in. One with none judges nothing but the payload; one
 # not here, every class sigrok names a warning or an error.
 ERRORS = {

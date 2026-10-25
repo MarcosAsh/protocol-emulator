@@ -35,6 +35,7 @@ let () =
       let lowest, highest =
         match cliff with
         | Never -> raise_s [%message "BUG: a limit that holds at no clock"]
+        | Always -> None, None
         | Up_to hz -> None, Some hz
         | From hz -> Some hz, None
       in

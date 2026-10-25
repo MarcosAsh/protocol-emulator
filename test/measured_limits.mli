@@ -29,6 +29,9 @@ module Capture : sig
       [rate_hz] from a cycle's start. *)
   val of_run : ?rate_hz:int -> Bench.t -> Datasheet.t -> t
 
+  (** The same on [pins], fed as [Datasheet.run_pins] feeds it for [quiet_pin]. *)
+  val of_pins : ?rate_hz:int -> Bench.t -> quiet_pin:int -> int list -> t
+
   (** What demo/edges.py writes of a bench capture: [rate HZ], [length N], then a line
       [pin P LEVEL EDGE...] a pin. A capture read back is not [from_reset]. *)
   val of_string : string -> t
@@ -43,6 +46,13 @@ module Verdict : sig
     | Fail
     | Unmeasured (** No edge it applies at. *)
   [@@deriving sexp_of, equal]
+end
+
+module Edge : sig
+  type t =
+    { pin : int
+    ; sample : int
+    }
 end
 
 (** Every spacing [spec] asks that the capture shows: the edge's number over both pins'
@@ -62,3 +72,26 @@ val measure : Datasheet.t list -> Bench.t -> Capture.t -> t list
 (** A line per limit: its parameter, the limit, what the capture shows in samples and ns,
     the verdict and the sheet. *)
 val to_string : Capture.t -> t list -> string
+
+(** A bench copy's own run at its clock, a sample a cycle, on the pins its limits read,
+    and every edge each limit bounds with the edge it is measured from: a spacing's, as
+    [applications] finds them, or the levels a run bound's width spans. A width is placed
+    only where it is a run of whole levels after the first. The run is fed as for the
+    first limit's pin, the host on time. *)
+module Prediction : sig
+  type t =
+    { firmware : string
+    ; load : int option (** As [Bench.load], the host's first word. *)
+    ; bursts : int list list (** The host's words after it, as [Bench.Stimulus]. *)
+    ; capture : Capture.t (** Only the pins some edge is on. *)
+    ; limits : (Datasheet.t * (Edge.t * Edge.t) list) list
+    }
+
+  val of_bench : Datasheet.t list -> Bench.t -> t
+
+  (** [firmware NAME], [load WORD] and a line [burst WORD...] a burst for the host to
+      replay, the capture as [Capture.to_string] writes it, then for each limit
+      [limit K SIDE NS PARAMETER] and a line [apply K PIN SAMPLE FROM_PIN FROM_SAMPLE] an
+      edge. *)
+  val to_string : t -> string
+end

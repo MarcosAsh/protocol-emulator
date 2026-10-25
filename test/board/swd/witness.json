@@ -1,0 +1,71 @@
+{
+  "demo": "swd",
+  "time": "2026-10-22T17:26:52",
+  "result": "PASS",
+  "commit": "c6a2f802fc0dbf7162d28b9ba271ae4d456fc013",
+  "bitstream_sha256": "ded0014fdf14df568ed478e5f6e36d1d91475ba62bae300e101c1b229c1f963f",
+  "netlist_sha256": "685d03a18ca12fd44a680074e6810a1b703c073ad946dfd3fb5b50507d1c3111",
+  "sums_sha256": "18b4e73d77c409338ce768a888e0388eee1b4e4acf2d1a59f81a8d7194ec5f2f",
+  "capture": {
+    "file": "swd.sr",
+    "sha256": "3fa7cdb1b2ad4f9427fb5fdd40b9bcae6dc0c5c82061fddfbc7ddc497f80e94a",
+    "rate_hz": 24000000,
+    "seconds": 3.0,
+    "analyser": "A",
+    "channels": {
+      "D6": "SWCLK, OUT2",
+      "D7": "SWDIO, IO5, 4k7 pull-up"
+    }
+  },
+  "decode": {
+    "arguments": "-P swd:swclk=D6:swdio=D7 -A swd",
+    "sha256": "68c506c0d5174cf0f4a8c5f793c668de80ac89961fc3e02374f06f8e182ae547"
+  },
+  "timing": [
+    {
+      "parameter": "SWCLK high",
+      "limit": ">= 21 ns",
+      "sheet": "RP2040, RP2040 datasheet, 2025-02-20 s.2.3.4 p.61",
+      "spans": 1345,
+      "measured": "458 ns to 3150898 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "SWCLK low",
+      "limit": ">= 21 ns",
+      "sheet": "RP2040, RP2040 datasheet, 2025-02-20 s.2.3.4 p.61",
+      "spans": 1344,
+      "measured": "417 ns to 542 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "line reset",
+      "limit": ">= 50 cycles",
+      "sheet": "ADIv5.2, Arm IHI 0031, B4.3.3, SWDIO high",
+      "spans": 4,
+      "measured": "64 to 68 cycles",
+      "verdict": "proved"
+    }
+  ],
+  "teeth": [
+    "SWDIO inverted over a bit of AP 0's IDR",
+    "the first line reset's rise 20 cycles late"
+  ],
+  "bitstream_source": "main c6a2f802 (seed 2)",
+  "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
+  "firmware": {
+    "SWD": "71736c3d0d515a7886c9f567b2d12b5b234635324cac2952ec5b3cc1d27c12c5"
+  },
+  "host_scripts": {
+    "python/demo_swd.py": "62a074c0a681c51105ee5eedfd98c17dc499917e58963cc5715d03c127199856"
+  },
+  "bench": "an Icepi Zero (ECP5 LFE5U-25F) running the chip at 48 MHz on bench carrier v1.2, Pico A as the host on SPI, Pico B's RP2040 as the SWD target, analyser A (fx2lafw) at 24 MS/s",
+  "scope": "the bytes on the wire and their timing in one run of swd, as the analyser saw them",
+  "limits": [
+    "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
+    "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
+    "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
+    "the bitstream is named by its sha256, and its netlist's, built from main c6a2f802 (seed 2) by the bench's notes, which CI does not rebuild",
+    "sigrok misreads the dormant wake and TARGETSEL, so only reads are held to the bytes"
+  ]
+}

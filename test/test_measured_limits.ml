@@ -117,7 +117,213 @@ let%expect_test "the datasheet limits, measured on the bench copies' runs" =
     run    72000  cec                zero low, T6     <=  1.7e+06 ns  measured 36000 (1500000.0 ns) Pass            HDMI Specification 1.3a, Supplement 1 CEC, CEC 5.2.2, CEC Figure 4, p. CEC-9
     run    115200  cec                bit, T7          >= 2.05e+06 ns  measured 57600 (2400000.0 ns) Pass            HDMI Specification 1.3a, Supplement 1 CEC, CEC 5.2.2, CEC Figure 4, p. CEC-9
     run    115200  cec                bit, T8          <= 2.75e+06 ns  measured 57600 (2400000.0 ns) Pass            HDMI Specification 1.3a, Supplement 1 CEC, CEC 5.2.2, CEC Figure 4, p. CEC-9
+    run    384  snorble            tSYN             >=     7500 ns  measured 192 (8000.0 ns)      Pass            SNB-1 Snorble Sensor Beacon Rev. C, section 4, p.1
+    run    384  snorble            tSYN             <=     8500 ns  measured 192 (8000.0 ns)      Pass            SNB-1 Snorble Sensor Beacon Rev. C, section 4, p.1
+    kernel 58  snorble            tL0              >=     1100 ns  measured 29 (1208.3 ns)       Pass            SNB-1 Snorble Sensor Beacon Rev. C, section 4, p.1
+    run    58  snorble            tL0              <=     1300 ns  measured 29 (1208.3 ns)       Pass            SNB-1 Snorble Sensor Beacon Rev. C, section 4, p.1
+    run    144  snorble            tL1              >=     2900 ns  measured 72 (3000.0 ns)       Pass            SNB-1 Snorble Sensor Beacon Rev. C, section 4, p.1
+    run    144  snorble            tL1              <=     3100 ns  measured 72 (3000.0 ns)       Pass            SNB-1 Snorble Sensor Beacon Rev. C, section 4, p.1
+    kernel 96  snorble            tH               >=     1800 ns  measured 48 (2000.0 ns)       Pass            SNB-1 Snorble Sensor Beacon Rev. C, section 4, p.1
+    run    96  snorble            tH               <=     4000 ns  measured 48 (2000.0 ns)       Pass            SNB-1 Snorble Sensor Beacon Rev. C, section 4, p.1, and note 1, p.2: inside a frame
+    run    8566  snorble            tIFG             >=    20000 ns  measured 4283 (178458.3 ns)   Pass            SNB-1 Snorble Sensor Beacon Rev. C, section 4, p.1, and note 3, p.2
+    run    10422  snorble            frame rate       >=   200000 ns  measured 5211 (217125.0 ns)   Pass            SNB-1 Snorble Sensor Beacon Rev. C, section 1, p.1: about 5 kframes/s at most
+    run    310  microwire          SK clock range   >=     1600 ns  measured 155 (6458.3 ns)      Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    kernel 113  microwire          Write data DI setup >=      300 ns  measured 56 (2333.3 ns)       Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    kernel 42  microwire          Write data DI hold >=      800 ns  measured 21 (875.0 ns)        Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    kernel 312  microwire          Chip enable setup >=      300 ns  measured 156 (6500.0 ns)      Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    kernel 155  microwire          Chip enable hold >=      800 ns  measured 77 (3208.3 ns)       Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    run    310  microwire          SK clock range   >=     2000 ns  measured 155 (6458.3 ns)      Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    kernel 113  microwire          Write data DI setup >=      300 ns  measured 56 (2333.3 ns)       Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    kernel 312  microwire          Chip enable setup >=      400 ns  measured 156 (6500.0 ns)      Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    run    310  microwire          SK clock range   >=     4000 ns  measured 155 (6458.3 ns)      Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    run    310  microwire          SK clock range   <=   250000 ns  measured 155 (6458.3 ns)      Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    kernel 113  microwire          Write data DI setup >=     1000 ns  measured 56 (2333.3 ns)       Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    kernel 42  microwire          Write data DI hold >=      100 ns  measured 21 (875.0 ns)        Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    kernel 312  microwire          Chip enable setup >=     1000 ns  measured 156 (6500.0 ns)      Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    kernel 155  microwire          Chip enable hold >=     1000 ns  measured 77 (3208.3 ns)       Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    run    310  microwire          SK clock range   >=     5000 ns  measured 155 (6458.3 ns)      Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    run    310  microwire          SK clock range   <=   100000 ns  measured 155 (6458.3 ns)      Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    kernel 113  microwire          Write data DI setup >=      200 ns  measured 56 (2333.3 ns)       Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    kernel 42  microwire          Write data DI hold >=      200 ns  measured 21 (875.0 ns)        Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    kernel 312  microwire          Chip enable setup >=      200 ns  measured 156 (6500.0 ns)      Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    kernel 155  microwire          Chip enable hold >=      200 ns  measured 77 (3208.3 ns)       Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    run    310  microwire          SK clock range   >=     4000 ns  measured 155 (6458.3 ns)      Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    kernel 113  microwire          Write data DI setup >=      400 ns  measured 56 (2333.3 ns)       Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    kernel 42  microwire          Write data DI hold >=      400 ns  measured 21 (875.0 ns)        Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    kernel 312  microwire          Chip enable setup >=      200 ns  measured 156 (6500.0 ns)      Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, Table I, p.5
+    run    310  microwire          SK clock frequency >=     4000 ns  measured 155 (6458.3 ns)      Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, p.6, note 1
+    kernel 155  microwire          SK clock high time >=     1000 ns  measured 78 (3250.0 ns)       Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, p.6, note 1 and Figure 9
+    run    310  microwire          instruction cycle time >=     4000 ns  measured 155 (6458.3 ns)      Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, p.6, note 1: the SK period
+    run    310  microwire          instruction cycle time <=    10000 ns  measured 155 (6458.3 ns)      Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, p.6, note 1: the SK period
+    run    1245217  microwire          CS low period following an E/W instruction >=    1e+07 ns  measured 622609 (25942041.7 ns) Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, p.6, note 2
+    run    1245217  microwire          CS low period following an E/W instruction <=    3e+07 ns  measured 622609 (25942041.7 ns) Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, p.6, note 2
+    run    1245217  microwire          TWE, VPP width   >=    2e+07 ns  measured 622609 (25942041.7 ns) Pass            National Semiconductor AN-452, MICROWIRE Serial Interface, January 1992, p.10, listing line 83
+    kernel 270  caliper            clock high at 90 kHz >=   5555.5 ns  measured 135 (5625.0 ns)      Pass            Chinese Scales web page, no revision, Chinese Scale Protocol, page 1, lines 52-54
+    kernel 270  caliper            clock low at 90 kHz >=   5555.5 ns  measured 135 (5625.0 ns)      Pass            Chinese Scales web page, no revision, Chinese Scale Protocol, page 1, lines 52-54
+    run    2705  caliper            pause before the first word >=    55000 ns  measured 1352 (56333.3 ns)    Pass            Chinese Scales web page, no revision, Chinese Scale Protocol, page 1, lines 82-84
+    run    5400  caliper            pause between the words >=   110000 ns  measured 2700 (112500.0 ns)   Pass            Chinese Scales web page, no revision, Chinese Scale Protocol, page 1, lines 82-84
+    run    5408  caliper            pause after the last word >=    55000 ns  measured 2704 (112666.7 ns)   Pass            Chinese Scales web page, no revision, Chinese Scale Protocol, page 1, lines 82-84
+    kernel 12  xy2_100            tDS              >=       50 ns  measured 6 (250.0 ns)         Pass            Newson XY2-100 I/O configuration, Rev. 0703, Timing specifications table, p.2
+    kernel 12  xy2_100            tDH              >=      100 ns  measured 6 (250.0 ns)         Pass            Newson XY2-100 I/O configuration, Rev. 0703, Timing specifications table, p.2
+    kernel 10  lfast              data rate, shortest high bit (3.125 ns) >=    3.125 ns  measured 5 (208.3 ns)         Pass            NXP AN5134 Rev. 0, p.3, text: rates up to 320 Mb/s
+    kernel 10  lfast              data rate, shortest low bit (3.125 ns) >=    3.125 ns  measured 5 (208.3 ns)         Pass            NXP AN5134 Rev. 0, p.3, text: rates up to 320 Mb/s
     kernel 417  uart_log           bit              >=  8506.94 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     run    417  uart_log           bit              <=  8854.17 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
+    |}]
+;;
+
+(* The prediction demo/hold_capture.py holds a capture to: on each bench copy's own run,
+   the least spacing over a limit's pairs of edges, or the most for [At_most], is what
+   [measure] finds there, so the width that decides is placed. Two are not: sk6812's reset
+   and can's idle, each the run's first level, which no edge begins. *)
+let%expect_test "every limit's pairs of edges in the prediction" =
+  List.iter Library.bench ~f:(fun (bench : Bench.t) ->
+    match bench.stimulus with
+    | None -> ()
+    | Some _ ->
+      let prediction = Measured_limits.Prediction.of_bench Library.limits bench in
+      List.iter prediction.limits ~f:(fun ((limit : Datasheet.t), pairs) ->
+        let spacings =
+          List.map pairs ~f:(fun ((edge : Measured_limits.Edge.t), from) ->
+            edge.sample - from.sample)
+        in
+        let shown =
+          match limit.limit with
+          | At_least _ -> List.min_elt spacings ~compare
+          | At_most _ -> List.max_elt spacings ~compare
+        in
+        let measured =
+          Measured_limits.measure [ limit ] bench prediction.capture |> List.hd_exn
+        in
+        printf
+          "%-14s %-16s %3d pairs, %s\n"
+          bench.name
+          limit.parameter
+          (List.length pairs)
+          (if [%equal: int option] shown measured.samples
+           then "as measured"
+           else
+             sprintf
+               "%s, measured %s"
+               (Option.value_map shown ~default:"none" ~f:Int.to_string)
+               (Option.value_map measured.samples ~default:"none" ~f:Int.to_string))));
+  [%expect
+    {|
+    uart_tx_9600   bit               10 pairs, as measured
+    uart_tx_9600   bit               10 pairs, as measured
+    uart_tx_19200  bit               10 pairs, as measured
+    uart_tx_19200  bit               10 pairs, as measured
+    uart_tx_38400  bit               10 pairs, as measured
+    uart_tx_38400  bit               10 pairs, as measured
+    uart_tx_57600  bit               10 pairs, as measured
+    uart_tx_57600  bit               10 pairs, as measured
+    uart_tx_115200 bit               10 pairs, as measured
+    uart_tx_115200 bit               10 pairs, as measured
+    uart_tx_230400 bit               10 pairs, as measured
+    uart_tx_230400 bit               10 pairs, as measured
+    i2c_standard   THIGH             85 pairs, as measured
+    i2c_standard   TLOW              86 pairs, as measured
+    i2c_standard   THD:STA           52 pairs, as measured
+    i2c_standard   TSU:STA            3 pairs, as measured
+    i2c_standard   TSU:DAT           86 pairs, as measured
+    i2c_standard   TSU:STO            4 pairs, as measured
+    i2c_standard   TBUF               3 pairs, as measured
+    i2c_standard   1/fSCL            85 pairs, as measured
+    i2c_fast       THIGH             85 pairs, as measured
+    i2c_fast       TLOW              86 pairs, as measured
+    i2c_fast       THD:STA           53 pairs, as measured
+    i2c_fast       TSU:STA            3 pairs, as measured
+    i2c_fast       TSU:DAT           86 pairs, as measured
+    i2c_fast       TSU:STO            4 pairs, as measured
+    i2c_fast       TBUF               3 pairs, as measured
+    i2c_fast       1/fSCL            85 pairs, as measured
+    sk6812         T0H              144 pairs, as measured
+    sk6812         T0H               69 pairs, as measured
+    sk6812         T1H               72 pairs, as measured
+    sk6812         T1H               72 pairs, as measured
+    sk6812         T0L               69 pairs, as measured
+    sk6812         T1L              143 pairs, as measured
+    sk6812         T                141 pairs, as measured
+    sk6812         reset              2 pairs, 10933, measured 10907
+    one_wire       tLOW1             25 pairs, as measured
+    one_wire       tLOW1             12 pairs, as measured
+    one_wire       tLOW0             12 pairs, as measured
+    one_wire       tLOW0             12 pairs, as measured
+    one_wire       tREC              24 pairs, as measured
+    one_wire       tSLOT + tREC      23 pairs, as measured
+    one_wire       tRSTL              1 pairs, as measured
+    one_wire       tRSTH              1 pairs, as measured
+    ps2            data to CLK fall  11 pairs, as measured
+    ps2            CLK rise to data   3 pairs, as measured
+    ps2            CLK low           11 pairs, as measured
+    ps2            CLK low           11 pairs, as measured
+    ps2            CLK high          10 pairs, as measured
+    ps2            CLK high          10 pairs, as measured
+    can            recessive         10 pairs, as measured
+    can            dominant          11 pairs, as measured
+    can            idle to SOF        0 pairs, none, measured 1165
+    can_sender     recessive          9 pairs, as measured
+    can_sender     dominant          10 pairs, as measured
+    can_sender     idle to SOF        0 pairs, none, measured 1165
+    cec            start low          1 pairs, as measured
+    cec            start low          1 pairs, as measured
+    cec            start bit          1 pairs, as measured
+    cec            start bit          1 pairs, as measured
+    cec            one low, T1        2 pairs, as measured
+    cec            one low, T2        2 pairs, as measured
+    cec            zero low, T5       7 pairs, as measured
+    cec            zero low, T6       7 pairs, as measured
+    cec            bit, T7            9 pairs, as measured
+    cec            bit, T8            9 pairs, as measured
+    snorble        tSYN               4 pairs, as measured
+    snorble        tSYN               4 pairs, as measured
+    snorble        tL0               40 pairs, as measured
+    snorble        tL0               16 pairs, as measured
+    snorble        tL1               20 pairs, as measured
+    snorble        tL1               20 pairs, as measured
+    snorble        tH                39 pairs, as measured
+    snorble        tH                32 pairs, as measured
+    snorble        tIFG               3 pairs, as measured
+    snorble        frame rate         3 pairs, as measured
+    microwire      SK clock range    80 pairs, as measured
+    microwire      Write data DI setup  84 pairs, as measured
+    microwire      Write data DI hold  29 pairs, as measured
+    microwire      Chip enable setup  84 pairs, as measured
+    microwire      Chip enable hold   5 pairs, as measured
+    microwire      SK clock range    80 pairs, as measured
+    microwire      Write data DI setup  84 pairs, as measured
+    microwire      Chip enable setup  84 pairs, as measured
+    microwire      SK clock range    80 pairs, as measured
+    microwire      SK clock range    80 pairs, as measured
+    microwire      Write data DI setup  84 pairs, as measured
+    microwire      Write data DI hold  29 pairs, as measured
+    microwire      Chip enable setup  84 pairs, as measured
+    microwire      Chip enable hold   5 pairs, as measured
+    microwire      SK clock range    80 pairs, as measured
+    microwire      SK clock range    80 pairs, as measured
+    microwire      Write data DI setup  84 pairs, as measured
+    microwire      Write data DI hold  29 pairs, as measured
+    microwire      Chip enable setup  84 pairs, as measured
+    microwire      Chip enable hold   5 pairs, as measured
+    microwire      SK clock range    80 pairs, as measured
+    microwire      Write data DI setup  84 pairs, as measured
+    microwire      Write data DI hold  29 pairs, as measured
+    microwire      Chip enable setup  84 pairs, as measured
+    microwire      SK clock frequency  80 pairs, as measured
+    microwire      SK clock high time  84 pairs, as measured
+    microwire      instruction cycle time  80 pairs, as measured
+    microwire      instruction cycle time  80 pairs, as measured
+    microwire      CS low period following an E/W instruction   1 pairs, as measured
+    microwire      CS low period following an E/W instruction   1 pairs, as measured
+    microwire      TWE, VPP width     1 pairs, as measured
+    caliper        clock high at 90 kHz  96 pairs, as measured
+    caliper        clock low at 90 kHz  96 pairs, as measured
+    caliper        pause before the first word   1 pairs, as measured
+    caliper        pause between the words   1 pairs, as measured
+    caliper        pause after the last word   1 pairs, as measured
+    xy2_100        tDS               47 pairs, as measured
+    xy2_100        tDH               49 pairs, as measured
+    lfast          data rate, shortest high bit (3.125 ns)  12 pairs, as measured
+    lfast          data rate, shortest low bit (3.125 ns)  11 pairs, as measured
     |}]
 ;;

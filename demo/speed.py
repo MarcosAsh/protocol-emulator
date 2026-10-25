@@ -57,10 +57,10 @@ def table(tsv):
         s, f, c, b = (t.get(k) for k in STAGES)
         lines.append([p, minutes(s, f), minutes(f, c), minutes(c, b), minutes(s, c),
                       minutes(s, b)])
-    widths = [max(len(l[i]) for l in lines) for i in range(len(head))]
+    widths = [max(len(row[i]) for row in lines) for i in range(len(head))]
     print("minutes, from demo/speed.tsv")
-    for l in lines:
-        print("  ".join(x.ljust(w) for x, w in zip(l, widths)).rstrip())
+    for row in lines:
+        print("  ".join(x.ljust(w) for x, w in zip(row, widths)).rstrip())
 
 
 def main():

@@ -1,0 +1,8 @@
+certified at 48 MHz
+taken, 11 steps
+interpreter: 112 words, 2 deadline waits, worst slack 0, certified once with the data memory free
+host words: 0xc500 0x3a00
+model: 2152 cycles at 48 MHz, faults ((underflow false)(overflow false)(missed_deadline false)(decode false))
+lane tx: OUT0, Pico B GP1 via 1k, analyser A D4
+the table holds OUT1 to OUT5 low
+bench: takes it, analyser A D4, the engine stopped after 2 ms

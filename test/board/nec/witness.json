@@ -1,0 +1,166 @@
+{
+  "demo": "nec",
+  "time": "2026-10-22T18:22:42",
+  "result": "PASS",
+  "commit": "b5aba39a9f5decb9c23687b684c5e66ce12311bc",
+  "bitstream_sha256": "ded0014fdf14df568ed478e5f6e36d1d91475ba62bae300e101c1b229c1f963f",
+  "netlist_sha256": "685d03a18ca12fd44a680074e6810a1b703c073ad946dfd3fb5b50507d1c3111",
+  "sums_sha256": "a63b32fc9e3ffa0527f191904e4401ca9179dfeccf56210879fac8dbee340c61",
+  "capture": {
+    "file": "nec.sr",
+    "sha256": "34ef6e800bfd346e47c2ccdc228108d817377dcc19814195fd7485623683cc23",
+    "rate_hz": 24000000,
+    "seconds": 4.0,
+    "analyser": "A",
+    "channels": {
+      "D4": "OUT0, low for a mark"
+    }
+  },
+  "decode": {
+    "arguments": "-P ir_nec:ir=D4 -A ir_nec=addr:addr-inv:cmd:cmd-inv:repeat-code",
+    "sha256": "45cbf71f3e17afe4e40ab9e739ae30610e44516b2bc7aadb54e5876df95b239c"
+  },
+  "timing": [
+    {
+      "parameter": "leader mark",
+      "limit": ">= 8550.00 us",
+      "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
+      "spans": 5,
+      "measured": "8999.52 us to 9001.40 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "leader mark",
+      "limit": "<= 9450.00 us",
+      "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
+      "spans": 5,
+      "measured": "8999.52 us to 9001.40 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "leader space",
+      "limit": ">= 4275.00 us",
+      "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
+      "spans": 3,
+      "measured": "4499.72 us to 4500.74 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "leader space",
+      "limit": "<= 4725.00 us",
+      "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
+      "spans": 3,
+      "measured": "4499.72 us to 4500.74 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "repeat space",
+      "limit": ">= 2137.50 us",
+      "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
+      "spans": 2,
+      "measured": "2249.86 us to 2250.39 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "repeat space",
+      "limit": "<= 2362.50 us",
+      "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
+      "spans": 2,
+      "measured": "2249.86 us to 2250.39 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "bit mark",
+      "limit": ">= 534.37 us",
+      "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
+      "spans": 96,
+      "measured": "562.40 us to 562.64 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "bit mark",
+      "limit": "<= 590.62 us",
+      "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
+      "spans": 96,
+      "measured": "562.40 us to 562.64 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "zero space",
+      "limit": ">= 534.37 us",
+      "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
+      "spans": 48,
+      "measured": "562.40 us to 562.64 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "zero space",
+      "limit": "<= 590.62 us",
+      "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
+      "spans": 48,
+      "measured": "562.40 us to 562.64 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "one space",
+      "limit": ">= 1603.12 us",
+      "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
+      "spans": 48,
+      "measured": "1687.37 us to 1687.84 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "one space",
+      "limit": "<= 1771.88 us",
+      "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
+      "spans": 48,
+      "measured": "1687.37 us to 1687.84 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "final mark",
+      "limit": ">= 534.37 us",
+      "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
+      "spans": 5,
+      "measured": "562.40 us to 562.64 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "final mark",
+      "limit": "<= 590.62 us",
+      "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
+      "spans": 5,
+      "measured": "562.40 us to 562.64 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "period",
+      "limit": ">= 102600.00 us",
+      "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
+      "spans": 4,
+      "measured": "107994.74 us to 109387.44 us",
+      "verdict": "proved"
+    }
+  ],
+  "teeth": [
+    "the first command's bits 3 and 4 swapped",
+    "the first leader mark a unit short"
+  ],
+  "bitstream_source": "main c6a2f802 (seed 2)",
+  "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
+  "firmware": {
+    "NEC_TX": "6d275939b994bb55ae3115aafc0bc8809980b152b61e0d12d06ef2ae4fea2c7b"
+  },
+  "host_scripts": {
+    "python/demo_nec.py": "d94d82a21c296bd2ab52541c346529604e28d0485db70a2127140c3e24759b64"
+  },
+  "bench": "an Icepi Zero (ECP5 LFE5U-25F) running the chip at 48 MHz on bench carrier v1.2, Pico A as the host on SPI, nothing, OUT0 as an IR receiver module's output would be, Pico B idle on it, analyser A (fx2lafw) at 24 MS/s",
+  "scope": "the bytes on the wire and their timing in one run of nec, as the analyser saw them",
+  "limits": [
+    "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
+    "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
+    "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
+    "the bitstream is named by its sha256, and its netlist's, built from main c6a2f802 (seed 2) by the bench's notes, which CI does not rebuild",
+    "NEC has no datasheet table, so its windows are test/nec.ml's frames and Nec.decode's 5%"
+  ]
+}

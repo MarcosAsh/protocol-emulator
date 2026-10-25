@@ -353,8 +353,11 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v6
 
-      - name: Install sigrok-cli and numpy, which the edge reader needs
-        run: sudo apt-get update && sudo apt-get install -y sigrok-cli python3-numpy
+      - name: Install sigrok-cli, numpy, which the edge reader needs, and matplotlib
+        run: sudo apt-get update && sudo apt-get install -y sigrok-cli python3-numpy python3-matplotlib
+
+      - name: Fetch the drawn decoders newer than Ubuntu's sigrok
+        run: demo/pinned_decoders.sh
 
       - name: Decode
         run: |
@@ -368,6 +371,9 @@ jobs:
 
       - name: Check the i2c timing decoder
         run: python3 test/test_i2c_timing.py
+
+      - name: Margins, on made 100 MHz captures against test/measure's predictions
+        run: python3 test/test_hold_capture.py
 
       - name: Speed log
         run: python3 test/test_speed.py
@@ -383,6 +389,14 @@ jobs:
 
       - name: Traffic checks, on made captures
         run: python3 test/test_traffic.py
+
+      # real bench captures, test/board: their hashes, sigrok's decode, the bytes, the
+      # datasheet windows, and each one's teeth
+      - name: Board witnesses
+        run: python3 demo/witness.py check test/board/*/
+
+      - name: Board witnesses' own teeth
+        run: python3 test/test_witness.py
 
       - name: Carrier self-test, on a model of the board
         run: python3 test/test_carrier_check.py

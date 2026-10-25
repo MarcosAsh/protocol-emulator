@@ -1,0 +1,12 @@
+; The examples' result files, current with Remote_lab: test/lab/check.sh -update
+; _build/default/bin/generate.exe test/lab after a change.
+
+(rule
+ (alias runtest)
+ (deps
+  (glob_files *.job.json)
+  (source_tree uart_tx)
+  (source_tree uart_rx)
+  (source_tree ws2812_slow))
+ (action
+  (run sh %{dep:check.sh} %{dep:../../bin/generate.exe} .)))

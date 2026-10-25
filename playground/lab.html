@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Remote Lab</title>
+<!-- Not published: the pages workflow uploads index.html and playground.bc.js alone. The
+     job file goes to demo/lab.py's queue by hand until the owner switches the lab on. -->
+<style>
+  :root { --bg: #fff; --fg: #1a1a1a; --muted: #666; --code: #f4f4f4; --ok: #1a7f37; --bad: #c62828; --warn: #8a5a00; --model: #6b7bd6; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #161616; --fg: #e8e8e8; --muted: #9a9a9a; --code: #232323; --ok: #57c27a; --bad: #ef6a6a; --warn: #e0b050; --model: #9aa6ee; }
+  }
+  :root[data-theme="dark"] { --bg: #161616; --fg: #e8e8e8; --muted: #9a9a9a; --code: #232323; --ok: #57c27a; --bad: #ef6a6a; --warn: #e0b050; --model: #9aa6ee; }
+  body { font: 14px/1.4 system-ui, sans-serif; margin: 0 auto; padding: 16px; max-width: 60rem; background: var(--bg); color: var(--fg); }
+  textarea, pre { font: 13px/1.4 ui-monospace, monospace; width: 100%; box-sizing: border-box; background: var(--code); color: var(--fg); border: 0; padding: 8px; }
+  textarea { height: 14rem; }
+  #frames { height: 4rem; }
+  pre { overflow-x: auto; white-space: pre; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin: 8px 0; }
+  input[type=number] { width: 7rem; }
+  .verdict { font-size: 1.2rem; font-weight: 600; margin: 8px 0 0; }
+  .ok { color: var(--ok); }
+  .bad { color: var(--bad); }
+  .warn { color: var(--warn); }
+  .muted { color: var(--muted); }
+  nav { display: flex; gap: 16px; border-bottom: 1px solid var(--muted); margin-bottom: 8px; }
+  nav a { color: var(--muted); text-decoration: none; padding: 4px 0; }
+  nav a[aria-current] { color: var(--fg); font-weight: 600; border-bottom: 2px solid var(--fg); }
+  .wave { overflow-x: auto; background: var(--code); }
+  .wave svg { display: block; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  td { padding: 2px 8px 2px 0; vertical-align: top; }
+  td:first-child { color: var(--muted); white-space: nowrap; }
+  td code { word-break: break-all; }
+</style>
+</head>
+<body>
+<h1>Remote lab</h1>
+<nav><a href="#draw">Draw</a><a href="#result">Result</a></nav>
+<section id="draw-tab">
+<p class="muted">The kernel checks the diagram here, in the same code the bench's worker
+runs. A job file holds the diagram and its frames, never firmware: the chip only ever
+runs the table interpreter the kernel certified once.</p>
+<div class="controls">
+  <label>Example <select id="example"></select></label>
+  <label>Decode <select id="decode"><option value="none">none</option><option value="ws281x">ws281x</option><option value="uart">uart</option></select></label>
+  <label id="baud-label" hidden>Baud <input id="baud" type="number" min="300" max="4000000" value="115200"></label>
+  <button id="check">Check</button>
+</div>
+<textarea id="diagram" spellcheck="false" aria-label="WaveJSON"></textarea>
+<p class="muted">Frames: a line of bits each, first sent first, as the playground takes them.</p>
+<textarea id="frames" spellcheck="false" aria-label="Frames"></textarea>
+<p id="verdict" class="verdict"></p>
+<p id="bench"></p>
+<div class="controls"><a id="download" hidden>Download the job file</a><span id="job-id" class="muted"></span></div>
+<h2>Certificate</h2>
+<pre id="certificate"></pre>
+<h2>The model's trace</h2>
+<p class="muted">Simulated: the model of the core at 48 MHz, not the bench.</p>
+<div id="draw-wave" class="wave"></div>
+</section>
+<section id="result-tab" hidden>
+<p class="muted">A result folder from demo/lab.py: open its result.json, or every file in
+it to check each against the hashes result.json records.</p>
+<div class="controls"><input id="open" type="file" multiple accept=".json,.txt,.sr,.log"></div>
+<p id="result-verdict" class="verdict"></p>
+<p id="result-label"></p>
+<pre id="match"></pre>
+<div id="result-wave" class="wave"></div>
+<h2>Certificate</h2>
+<pre id="result-certificate"></pre>
+<h2>Decode</h2>
+<pre id="decode-out"></pre>
+<h2>Pico A's log</h2>
+<pre id="pico-log"></pre>
+<h2>Provenance</h2>
+<table id="provenance"></table>
+<h2>Files</h2>
+<table id="files"></table>
+</section>
+<script src="playground.bc.js"></script>
+<script>
+  const pe = protocolEmulator;
+  const $ = (id) => document.getElementById(id);
+  const svgNs = "http://www.w3.org/2000/svg";
+  const el = (name, attrs, text) => {
+    const e = document.createElementNS(svgNs, name);
+    Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v));
+    if (text !== undefined) e.textContent = text;
+    return e;
+  };
+  const hex = async (bytes) => {
+    if (!(window.crypto && crypto.subtle)) return null;
+    const d = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+    return Array.from(d, (b) => b.toString(16).padStart(2, "0")).join("");
+  };
+  const row = (table, key, value) => {
+    const tr = document.createElement("tr");
+    const k = document.createElement("td"), v = document.createElement("td");
+    k.textContent = key;
+    const code = document.createElement("code");
+    code.textContent = value;
+    v.appendChild(code);
+    tr.append(k, v);
+    table.appendChild(tr);
+    return v;
+  };
+
+  // lanes: { name, first, changes: [[ns, level]], colour }, drawn over [from, to] ns
+  const wave = (target, lanes, from, to) => {
+    const width = 900, left = 150, rowH = 30;
+    const x = (t) => left + ((t - from) / Math.max(1, to - from)) * (width - left - 10);
+    const root = el("svg", { width, height: rowH * lanes.length + 26, fill: "none", role: "img" });
+    lanes.forEach((lane, i) => {
+      const y = (level) => rowH * i + (level ? 6 : 24);
+      root.appendChild(el("text", { x: 4, y: rowH * i + 19, fill: "currentColor", "font-size": 12 }, lane.name));
+      const before = lane.changes.filter(([t]) => t < from);
+      let d = "M" + left + " " + y(before.length ? before[before.length - 1][1] : lane.first);
+      lane.changes.filter(([t]) => t >= from && t <= to).forEach(([t, l]) => {
+        d += " H" + x(t).toFixed(1) + " V" + y(l);
+      });
+      d += " H" + (width - 10);
+      root.appendChild(el("path", { d, stroke: lane.colour || "currentColor", "stroke-width": 1.5 }));
+    });
+    const span = (to - from) / 1000;
+    const step = Math.pow(10, Math.floor(Math.log10(Math.max(span, 0.001) / 2)));
+    for (let t = Math.ceil(from / 1000 / step) * step; t <= to / 1000; t += step) {
+      root.appendChild(el("text", { x: x(t * 1000), y: rowH * lanes.length + 18, fill: "currentColor", "font-size": 10 },
+        (step < 1 ? t.toFixed(Math.min(3, -Math.floor(Math.log10(step)))) : t.toFixed(0)) + " us"));
+    }
+    target.replaceChildren(root);
+  };
+  // simulated.json's lane, changes by cycle, as ns
+  const modelLane = (simulated, lane, name) => {
+    const ns = 1e9 / simulated.clock_hz;
+    return { name, first: lane.edges[0][1], changes: lane.edges.slice(1).map(([c, l]) => [c * ns, l]), colour: "var(--model)" };
+  };
+
+  pe.diagramExamples.forEach(([name], i) => $("example").add(new Option(name, i)));
+  const load = () => {
+    const [name, source, frames] = pe.diagramExamples[$("example").value];
+    $("diagram").value = source;
+    $("frames").value = frames.split("\n")[0];
+    $("decode").value = { ws2812: "ws281x", uart_tx: "uart" }[name] || "none";
+    if (name === "uart_tx") $("baud").value = 1846154;
+    $("baud-label").hidden = $("decode").value !== "uart";
+  };
+  const decode = () => $("decode").value === "uart" ? "uart:" + $("baud").value : $("decode").value;
+  let url = null;
+  const check = async () => {
+    const job = JSON.stringify({ lab: 1, diagram: $("diagram").value, frames: $("frames").value, decode: decode() });
+    const files = Object.fromEntries(Array.from(pe.labCheck(job), (f) => Array.from(f)));
+    const result = JSON.parse(files["check.json"]);
+    $("verdict").textContent = result.verdict;
+    $("verdict").className = "verdict " + (result.verdict === "certified" ? "ok" : "bad");
+    $("certificate").textContent = result.certificate || result.why || "";
+    if (url) URL.revokeObjectURL(url);
+    url = null;
+    $("download").hidden = true;
+    $("job-id").textContent = "";
+    $("bench").textContent = "";
+    $("draw-wave").replaceChildren();
+    if (result.verdict !== "certified") {
+      $("bench").textContent = result.verdict === "refused"
+        ? "Refused before anything reaches the bench." : "Not a job the lab takes.";
+      return;
+    }
+    const bench = result.bench;
+    $("bench").textContent = bench.takes
+      ? "The bench takes it: " + bench.pin + " on analyser " + bench.analyser + " " + bench.channel + ", the engine stopped after " + bench.run_ms + " ms."
+      : "Simulated only: the bench declines it, " + bench.why + ".";
+    $("bench").className = bench.takes ? "ok" : "warn";
+    const simulated = JSON.parse(files["simulated.json"]);
+    const lanes = simulated.lanes.map((l) => modelLane(simulated, l, l.name + " (" + l.pin + ")"));
+    if (simulated.input) lanes.push(modelLane(simulated, simulated.input, simulated.input.name + " (peer)"));
+    const last = Math.max(...lanes.map((l) => l.changes.length ? l.changes[l.changes.length - 1][0] : 0));
+    if (lanes.length) wave($("draw-wave"), lanes, 0, Math.max(1000, last * 1.05));
+    const text = files["job.json"];
+    url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+    const id = await hex(new TextEncoder().encode(text));
+    $("download").href = url;
+    $("download").download = "lab-job-" + (id ? id.slice(0, 16) : "new") + ".json";
+    $("download").hidden = false;
+    $("job-id").textContent = id ? "job " + id.slice(0, 16) : "";
+  };
+  $("example").onchange = () => { load(); check(); };
+  $("decode").onchange = () => { $("baud-label").hidden = $("decode").value !== "uart"; };
+  $("check").onclick = check;
+  load();
+  check();
+
+  const show = async (result, others) => {
+    $("result-verdict").textContent = result.verdict + (result.id ? ", job " + result.id : "");
+    $("result-verdict").className = "verdict " + (result.verdict === "certified" ? "ok" : "bad");
+    $("result-label").textContent = result.label ? result.label + (result.why ? ": " + result.why : "") : (result.why || (result.check && result.check.why) || "");
+    $("result-label").className = result.run === "bench" ? "ok" : "warn";
+    const m = result.match;
+    $("match").textContent = m ? m.verdict + (m.why ? ": " + m.why : "") + "\n" + Object.entries(m)
+      .filter(([k]) => !["verdict", "why"].includes(k)).map(([k, v]) => k + ": " + v).join("\n") : "";
+    $("result-certificate").textContent = result.certificate || (result.check && (result.check.certificate || result.check.why)) || "";
+    $("decode-out").textContent = result.decode || "";
+    $("pico-log").textContent = result.pico_log || "";
+    $("result-wave").replaceChildren();
+    if (result.simulated && result.simulated.lanes.length) {
+      const model = modelLane(result.simulated, result.simulated.lanes[0], "model (simulated)");
+      const lanes = [model];
+      const c = result.captured;
+      if (c && c.changes.length && model.changes.length) {
+        // the capture shifted onto the model at the change the worker lined up
+        const shift = model.changes[0][0] - c.changes[0][0];
+        lanes.push({ name: result.run === "bench" ? "captured, " + c.channel : "RTL, " + c.channel,
+          first: 1 - c.changes[0][1], changes: c.changes.map(([t, l]) => [t + shift, l]) });
+      }
+      const last = model.changes.length ? model.changes[model.changes.length - 1][0] : 1000;
+      const first = model.changes.length ? model.changes[0][0] : 0;
+      wave($("result-wave"), lanes, Math.max(0, first - 2000), last + 2000);
+    }
+    const p = $("provenance");
+    p.replaceChildren();
+    [["received", result.received], ["started", result.started], ["finished", result.finished],
+     ["commit", result.commit], ["job sha256", result.job_sha256],
+     ["interpreter sha256", result.interpreter_sha256], ["firmware sha256", result.firmware_sha256],
+     ["bitstream sha256", result.bitstream_sha256],
+     ["capture sha256", result.captured && result.captured.capture_sha256]]
+      .filter(([, v]) => v).forEach(([k, v]) => row(p, k, v));
+    const f = $("files");
+    f.replaceChildren();
+    for (const [name, want] of Object.entries(result.files || {})) {
+      const cell = row(f, name, want);
+      const file = others[name.split("/").pop()];
+      if (!file) continue;
+      const got = await hex(await file.arrayBuffer());
+      const mark = document.createElement("span");
+      mark.textContent = got === null ? " (no hashing here)" : got === want ? " matches" : " DIFFERS: " + got;
+      mark.className = got === want ? "ok" : "bad";
+      cell.appendChild(mark);
+    }
+  };
+  $("open").onchange = async () => {
+    const files = Object.fromEntries(Array.from($("open").files, (f) => [f.name, f]));
+    if (!files["result.json"]) { $("result-verdict").textContent = "no result.json among them"; return; }
+    show(JSON.parse(await files["result.json"].text()), files);
+  };
+  // a result served beside the page: lab.html?result=RESULTS/ID/result.json#result
+  const served = new URLSearchParams(location.search).get("result");
+  if (served) fetch(served).then((r) => r.json()).then((r) => show(r, {}));
+
+  const tab = () => {
+    const name = location.hash === "#result" ? "result" : "draw";
+    document.querySelectorAll("section").forEach((s) => { s.hidden = s.id !== name + "-tab"; });
+    document.querySelectorAll("nav a").forEach((a) => {
+      if (a.hash === "#" + name) a.setAttribute("aria-current", "page");
+      else a.removeAttribute("aria-current");
+    });
+  };
+  window.onhashchange = tab;
+  tab();
+</script>
+</body>
+</html>

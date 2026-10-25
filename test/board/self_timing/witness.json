@@ -1,0 +1,71 @@
+{
+  "demo": "self_timing",
+  "time": "2026-10-22T17:29:51",
+  "result": "PASS",
+  "commit": "c6a2f802fc0dbf7162d28b9ba271ae4d456fc013",
+  "bitstream_sha256": "ded0014fdf14df568ed478e5f6e36d1d91475ba62bae300e101c1b229c1f963f",
+  "netlist_sha256": "685d03a18ca12fd44a680074e6810a1b703c073ad946dfd3fb5b50507d1c3111",
+  "sums_sha256": "7a5349047f79199bc3268c9f431de8fd7248b785f9c575c3d294df5fa9d49397",
+  "capture": {
+    "file": "self_timing.sr",
+    "sha256": "8aa781bab14618eb002bdb7224a6f92b08937df3c4742987af3c7efc5c2806b4",
+    "rate_hz": 2000000,
+    "seconds": 8.0,
+    "analyser": "A",
+    "channels": {
+      "D4": "OUT0, engine 1's echo of wire 20"
+    }
+  },
+  "decode": {
+    "arguments": "-P uart:rx=D4:baudrate=9600 -A uart=rx-data",
+    "sha256": "dd84d7e4552cedf8ae69de271b732a8aeac34f63fc93f5c21dad563a21461256"
+  },
+  "timing": [
+    {
+      "parameter": "bit",
+      "limit": ">= 102.08 us",
+      "sheet": "UART at 9600 baud, Maxim AN2141 p.4, 2%",
+      "spans": 88,
+      "measured": "103.49 us to 105.01 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "bit",
+      "limit": "<= 106.25 us",
+      "sheet": "UART at 9600 baud, Maxim AN2141 p.4, 2%",
+      "spans": 88,
+      "measured": "103.49 us to 105.01 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "edge after its start bit",
+      "limit": "where the chip's edge log puts it",
+      "sheet": "Pico A's log, the chip's cycles at 48 MHz",
+      "spans": 104,
+      "measured": "16 frames of 16 logged, misses 0 ns",
+      "verdict": "proved"
+    }
+  ],
+  "teeth": [
+    "half of the first byte's bit 0 inverted",
+    "the first frame's second edge 12 samples late"
+  ],
+  "bitstream_source": "main c6a2f802 (seed 2)",
+  "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
+  "firmware": {
+    "test/uart_tx_host_rate.hex": "b0ff359cce682ac2f0eeca87a9c486772ee8501020ca7394066844dd0b0b3701",
+    "test/edge_logger_echo.hex": "4f1d8af16b1aab5db3ce1a90035708647b6e6010e7738e52b775c2c42bdee5c7"
+  },
+  "host_scripts": {
+    "python/demo_self_timing.py": "5f7fad9ee47d1d3d46c45b632c694ad3f4da9becc6af3663523ab98557512581"
+  },
+  "bench": "an Icepi Zero (ECP5 LFE5U-25F) running the chip at 48 MHz on bench carrier v1.2, Pico A as the host on SPI, Pico B listening on OUT0, analyser A (fx2lafw) at 2 MS/s",
+  "scope": "the bytes on the wire and their timing in one run of self_timing, as the analyser saw them",
+  "limits": [
+    "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
+    "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
+    "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
+    "the bitstream is named by its sha256, and its netlist's, built from main c6a2f802 (seed 2) by the bench's notes, which CI does not rebuild",
+    "the echo's delay is the same for every edge, so only offsets from each start bit are compared"
+  ]
+}

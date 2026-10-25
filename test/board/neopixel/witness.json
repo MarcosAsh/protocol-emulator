@@ -1,0 +1,110 @@
+{
+  "demo": "neopixel",
+  "time": "2026-10-22T17:26:38",
+  "result": "PASS",
+  "commit": "c6a2f802fc0dbf7162d28b9ba271ae4d456fc013",
+  "bitstream_sha256": "ded0014fdf14df568ed478e5f6e36d1d91475ba62bae300e101c1b229c1f963f",
+  "netlist_sha256": "685d03a18ca12fd44a680074e6810a1b703c073ad946dfd3fb5b50507d1c3111",
+  "sums_sha256": "5c7891afdec35f80bdde285c8e8e705e8ff17f2eb8f33a0e8a76fc08650ce6ff",
+  "capture": {
+    "file": "neopixel.sr",
+    "sha256": "ae053a497ed87490801b28377a28506fe6d4c60f871f90e125685f128b5d7fa9",
+    "rate_hz": 24000000,
+    "seconds": 2.0,
+    "analyser": "B",
+    "channels": {
+      "D4": "OUT3 at the 74AHCT125's input, not the stick's DIN"
+    }
+  },
+  "decode": {
+    "arguments": "-P rgb_led_ws281x:din=D4 -A rgb_led_ws281x=rgb:reset",
+    "sha256": "08d130c97e3811adfece57154fd8c96877c02ca7538a7ebf489fea63cd334f5c"
+  },
+  "timing": [
+    {
+      "parameter": "T0H",
+      "limit": ">= 250 ns",
+      "sheet": "SK6812, OSK-SPC-SK6812-012 Rev. B/1 p.7",
+      "spans": 342,
+      "measured": "292 ns to 417 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "T0H",
+      "limit": "<= 400 ns",
+      "sheet": "SK6812, OSK-SPC-SK6812-012 Rev. B/1 p.7",
+      "spans": 342,
+      "measured": "292 ns to 417 ns",
+      "verdict": "unresolved"
+    },
+    {
+      "parameter": "T1H",
+      "limit": ">= 650 ns",
+      "sheet": "SK6812, OSK-SPC-SK6812-012 Rev. B/1 p.7",
+      "spans": 42,
+      "measured": "667 ns to 750 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "T1H",
+      "limit": "<= 1000 ns",
+      "sheet": "SK6812, OSK-SPC-SK6812-012 Rev. B/1 p.7",
+      "spans": 42,
+      "measured": "667 ns to 750 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "T0L",
+      "limit": ">= 800 ns",
+      "sheet": "SK6812, OSK-SPC-SK6812-012 Rev. B/1 p.7",
+      "spans": 340,
+      "measured": "792 ns to 917 ns",
+      "verdict": "unresolved"
+    },
+    {
+      "parameter": "T1L",
+      "limit": ">= 200 ns",
+      "sheet": "SK6812, OSK-SPC-SK6812-012 Rev. B/1 p.7",
+      "spans": 42,
+      "measured": "458 ns to 583 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "T",
+      "limit": ">= 1200 ns",
+      "sheet": "SK6812, OSK-SPC-SK6812-012 Rev. B/1 p.7, note 2",
+      "spans": 382,
+      "measured": "1167 ns to 1292 ns",
+      "verdict": "unresolved"
+    },
+    {
+      "parameter": "reset",
+      "limit": ">= 200.00 us",
+      "sheet": "SK6812, OSK-SPC-SK6812-012 Rev. B/1 p.7",
+      "spans": 3,
+      "measured": "1889.81 us to open",
+      "verdict": "proved"
+    }
+  ],
+  "teeth": [
+    "the first bit held high 700 ns",
+    "the first 1 held high 400 ns longer"
+  ],
+  "bitstream_source": "main c6a2f802 (seed 2)",
+  "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
+  "firmware": {
+    "SK6812": "6aaec5af099c70248238732339efea94956f174af1e1e9531918678a5b2007ef"
+  },
+  "host_scripts": {
+    "python/demo_neopixel.py": "0ca6df63928c17496b863d308585b9b3e5879a7fe4db15e67e0a2d643a86c1dd"
+  },
+  "bench": "an Icepi Zero (ECP5 LFE5U-25F) running the chip at 48 MHz on bench carrier v1.2, Pico A as the host on SPI, an SK6812 stick behind a 74AHCT125, analyser B (fx2lafw) at 24 MS/s",
+  "scope": "the bytes on the wire and their timing in one run of neopixel, as the analyser saw them",
+  "limits": [
+    "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
+    "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
+    "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
+    "the bitstream is named by its sha256, and its netlist's, built from main c6a2f802 (seed 2) by the bench's notes, which CI does not rebuild",
+    "the SK6812's windows are a few samples wide, so some stay unresolved"
+  ]
+}

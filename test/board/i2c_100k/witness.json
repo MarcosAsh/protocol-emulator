@@ -1,0 +1,112 @@
+{
+  "demo": "sweep_i2c_100k",
+  "time": "2026-10-22T17:17:50",
+  "result": "PASS",
+  "commit": "1c7053f7772743e2f4ec0db47547095236772985",
+  "bitstream_sha256": "ded0014fdf14df568ed478e5f6e36d1d91475ba62bae300e101c1b229c1f963f",
+  "netlist_sha256": "685d03a18ca12fd44a680074e6810a1b703c073ad946dfd3fb5b50507d1c3111",
+  "sums_sha256": "67002c4a51f389d52683e1c3ca119a9dcb4d1b788f8c09efe9d39ac8f1c503ce",
+  "capture": {
+    "file": "i2c_100k.sr",
+    "sha256": "a26b8ae3ab4cb728467cd7ade2506d9b20f52dbddb6f10d589789ede22b77d61",
+    "rate_hz": 24000000,
+    "seconds": 4.0,
+    "analyser": "B",
+    "channels": {
+      "D6": "SDA, IO3, 2k2 pull-up",
+      "D7": "SCL, IO2, 2k2 pull-up"
+    }
+  },
+  "decode": {
+    "arguments": "-P i2c:sda=D6:scl=D7,eeprom24xx:chip=onsemi_cat24c256 -A eeprom24xx",
+    "sha256": "5d8e3e8663acc58fa0d1e51a008e59e296d2b015393ac3707a51a3d9c55c0377"
+  },
+  "timing": [
+    {
+      "parameter": "1/fSCL",
+      "limit": ">= 10.00 us",
+      "sheet": "I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
+      "spans": 1453,
+      "measured": "10.00 us to 881.25 us",
+      "verdict": "unresolved"
+    },
+    {
+      "parameter": "THIGH",
+      "limit": ">= 4000 ns",
+      "sheet": "I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
+      "spans": 1453,
+      "measured": "4875 ns to 15085 ns",
+      "verdict": "unresolved"
+    },
+    {
+      "parameter": "TLOW",
+      "limit": ">= 4700 ns",
+      "sheet": "I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
+      "spans": 1467,
+      "measured": "5083 ns to 876296 ns",
+      "verdict": "unresolved"
+    },
+    {
+      "parameter": "THD:STA",
+      "limit": ">= 4000 ns",
+      "sheet": "I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
+      "spans": 18,
+      "measured": "7499 ns to 7626 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "TSU:STA",
+      "limit": ">= 4700 ns",
+      "sheet": "I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
+      "spans": 17,
+      "measured": "7374 ns to 2988049 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "TSU:DAT",
+      "limit": ">= 250 ns",
+      "sheet": "I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
+      "spans": 808,
+      "measured": "2458 ns to 876171 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "TSU:STO",
+      "limit": ">= 4000 ns",
+      "sheet": "I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
+      "spans": 14,
+      "measured": "7499 ns to 7626 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "TBUF",
+      "limit": ">= 4700 ns",
+      "sheet": "I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
+      "spans": 13,
+      "measured": "421375 ns to 2980506 ns",
+      "verdict": "proved"
+    }
+  ],
+  "teeth": [
+    "SDA inverted over bit 1 of the page write's byte at 0x7fc4",
+    "SCL's tenth pulse cut to 6 samples"
+  ],
+  "bitstream_source": "main c6a2f802 (seed 2)",
+  "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
+  "firmware": {
+    "I2C_STANDARD": "daad5a7d4aa433c74552073cb78219aa77e4c15dea9bb04352e09bce31c9aedd"
+  },
+  "host_scripts": {
+    "python/demo_rates.py": "2776a0c45c3ec5625c86aa286a9334e03fa7f0ef51fb58f05bbd110b62d2959a",
+    "python/demo_eeprom.py": "6322d8524f3d3020db65319cbeff9401a9efde0cb31a39610ebbd296c18317e2"
+  },
+  "bench": "an Icepi Zero (ECP5 LFE5U-25F) running the chip at 48 MHz on bench carrier v1.2, Pico A as the host on SPI, a 24LC256 on the I2C bus, analyser B (fx2lafw) at 24 MS/s",
+  "scope": "the bytes on the wire and their timing in one run of sweep_i2c_100k, as the analyser saw them",
+  "limits": [
+    "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
+    "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
+    "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
+    "the bitstream is named by its sha256, and its netlist's, built from main c6a2f802 (seed 2) by the bench's notes, which CI does not rebuild",
+    "SCL and SDA as the analyser's threshold sees them, so the most rise time comes off each least"
+  ]
+}

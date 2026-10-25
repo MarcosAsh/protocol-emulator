@@ -1,0 +1,6 @@
+i2c_fast: quarter 32
+24LC256 at 0x50
+byte write 0x7fbf: 07 -> 08, 3 NACKs over 4 ms, read back 08
+page write 0x7fc0, 64 bytes from 08: 2 NACKs over 3 ms, read back 08 15 22 2f 3c 49 56 63 ..., equal
+faults 0x0
+PASS

@@ -566,11 +566,11 @@ let%expect_test "a delay before a deadline wait takes exactly its slack" =
     ("nops before a wait, random" (programs 26) (variants 178)
      (kernel_checked 36) (accepted 123) (refused 55) (violations_on_accepted 0)
      (violations_on_refused 0))
-    ("jump over dead code before a wait, library" (programs 39) (variants 110)
-     (kernel_checked 22) (accepted 91) (refused 19) (violations_on_accepted 0)
+    ("jump over dead code before a wait, library" (programs 48) (variants 137)
+     (kernel_checked 28) (accepted 118) (refused 19) (violations_on_accepted 0)
      (violations_on_refused 0))
     ("jump over dead code before a wait, random" (programs 26) (variants 55)
-     (kernel_checked 11) (accepted 45) (refused 10) (violations_on_accepted 0)
+     (kernel_checked 11) (accepted 46) (refused 9) (violations_on_accepted 0)
      (violations_on_refused 0))
     ("delay field before a wait, library" (programs 31) (variants 204)
      (kernel_checked 41) (accepted 149) (refused 55) (violations_on_accepted 0)
@@ -908,8 +908,8 @@ let%expect_test "a deadline wait split at an earlier deadline changes nothing af
   print_tallies split;
   [%expect
     {|
-    ("deadline wait split in two, library" (programs 35) (variants 110)
-     (kernel_checked 22) (accepted 68) (refused 42) (violations_on_accepted 0)
+    ("deadline wait split in two, library" (programs 44) (variants 130)
+     (kernel_checked 26) (accepted 86) (refused 44) (violations_on_accepted 0)
      (violations_on_refused 0))
     ("deadline wait split in two, random" (programs 24) (variants 62)
      (kernel_checked 13) (accepted 40) (refused 22) (violations_on_accepted 0)
@@ -979,8 +979,8 @@ let%expect_test "a longer period lowers no slack and refuses nothing more" =
   print_tallies longer;
   [%expect
     {|
-    ("longer period, library" (programs 36) (variants 87) (kernel_checked 18)
-     (accepted 87) (refused 0) (violations_on_accepted 0)
+    ("longer period, library" (programs 43) (variants 105) (kernel_checked 21)
+     (accepted 105) (refused 0) (violations_on_accepted 0)
      (violations_on_refused 0))
     ("longer period, random" (programs 93) (variants 172) (kernel_checked 35)
      (accepted 46) (refused 126) (violations_on_accepted 0)

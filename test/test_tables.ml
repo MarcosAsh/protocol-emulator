@@ -1118,6 +1118,51 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       , "-"
       , "1 MHz"
       , "SWDIO turns around, which needs pins and pindirs in one table" )
+    ; ( "nec"
+      , "untried"
+      , "-"
+      , "unit 27000, half 13500"
+      , [%string
+          "a 108 ms frame is at least %{((108 * clock / 1000) + max_hold - 1) / \
+           max_hold#Int} steps, each held at most %{max_hold#Int} cycles"] )
+    ; ( "snorble"
+      , "no"
+      , "-"
+      , "sync 8 us, lows 1.2 and 3 us"
+      , "written for the core, not tried" )
+    ; ( "plinkoo"
+      , "no"
+      , "-"
+      , "sync 5.17 us, bits of 16 cycles"
+      , "written for the core, not tried" )
+    ; ( "frumbleglide"
+      , "no"
+      , "-"
+      , "cells of 96 and 97 cycles"
+      , "refused: no whole cycle count is a tCELL" )
+    ; "microwire", "no", "-", "SK 154.8 kHz, half 155", "written for the core, not tried"
+    ; ( "ir_rc6"
+      , "untried"
+      , "-"
+      , "unit 21333"
+      , [%string
+          "a 6 unit leader mark is 128000 cycles, each step held at most %{max_hold#Int}"]
+      )
+    ; ( "caliper"
+      , "untried"
+      , "-"
+      , "half 270; clock and data two outputs, a 48-bit frame of 16 and 8 bit words"
+      , "written for the core, not tried" )
+    ; ( "xy2_100"
+      , "untried"
+      , "-"
+      , "SENDCK half 12 cycles"
+      , "three outputs, the parity from the CRC unit; not tried against the class" )
+    ; ( "lfast"
+      , "untried"
+      , "-"
+      , "frames of 33 bits of 10 cycles"
+      , "written for the core, not tried" )
     ]
   in
   let named = List.map rows ~f:(fun (name, _, _, _, _) -> name) in
@@ -1165,5 +1210,23 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       library half 14 and up, all four modes; it shifts only while CS is low, and a table's await cannot abort on CS
     swd        no       -
       library 1 MHz; SWDIO turns around, which needs pins and pindirs in one table
+    nec        untried  -
+      library unit 27000, half 13500; a 108 ms frame is at least 83 steps, each held at most 65535 cycles
+    snorble    no       -
+      library sync 8 us, lows 1.2 and 3 us; written for the core, not tried
+    plinkoo    no       -
+      library sync 5.17 us, bits of 16 cycles; written for the core, not tried
+    frumbleglide no       -
+      library cells of 96 and 97 cycles; refused: no whole cycle count is a tCELL
+    microwire  no       -
+      library SK 154.8 kHz, half 155; written for the core, not tried
+    ir_rc6     untried  -
+      library unit 21333; a 6 unit leader mark is 128000 cycles, each step held at most 65535
+    caliper    untried  -
+      library half 270; clock and data two outputs, a 48-bit frame of 16 and 8 bit words; written for the core, not tried
+    xy2_100    untried  -
+      library SENDCK half 12 cycles; three outputs, the parity from the CRC unit; not tried against the class
+    lfast      untried  -
+      library frames of 33 bits of 10 cycles; written for the core, not tried
     |}]
 ;;

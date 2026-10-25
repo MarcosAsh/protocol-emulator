@@ -90,6 +90,20 @@ let () =
            )
         |]
   in
+  (* a lab job file through the worker's own check: the files its result folder starts
+     with, check.json first among them *)
+  let lab_check text =
+    let files =
+      match
+        Or_error.bind (Remote_lab.Job.of_string (Js.to_string text)) ~f:Remote_lab.check
+      with
+      | Error e -> Remote_lab.malformed e
+      | Ok t -> Remote_lab.files t
+    in
+    Js.array
+      (Array.of_list_map files ~f:(fun (name, contents) ->
+         Js.array [| Js.string name; Js.string contents |]))
+  in
   Js.export
     "protocolEmulator"
     (Js.Unsafe.obj
@@ -103,6 +117,7 @@ let () =
         ; "checkPio", Js.Unsafe.inject (Js.wrap_callback check_pio)
         ; "runDiagram", Js.Unsafe.inject (Js.wrap_callback run_diagram)
         ; "mutateDiagram", Js.Unsafe.inject (Js.wrap_callback mutate)
+        ; "labCheck", Js.Unsafe.inject (Js.wrap_callback lab_check)
         ; ( "diagramExamples"
           , Js.Unsafe.inject
               (Js.array

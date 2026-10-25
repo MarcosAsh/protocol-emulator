@@ -1,0 +1,20 @@
+$ openFPGALoader -b icepi-zero /home/marcosash/dev/jane-street-challenge/icepi/build/v1.3.bit
+Jtag probe limited to 3MHz
+Jtag frequency : requested 6000000Hz -> real 3000000Hz
+ret 0
+Open file: DONE
+b3bdffff
+Parse file: DONE
+Enable configuration: DONE
+SRAM erase: DONE
+Loading: [=========                                         ] 17.71%
+Loading: [==================                                ] 35.83%
+Loading: [===========================                       ] 53.95%
+Loading: [====================================              ] 71.66%
+Loading: [=============================================     ] 89.36%
+Loading: [==================================================] 100.00%
+
+Done
+Disable configuration: DONE
+$ CAPTURES=/home/marcosash/.local/share/protocol-emulator/board-evidence/2026-10-22/ledger/nec PICO=id:e66548545717552e demo/outside.sh nec > /home/marcosash/.local/share/protocol-emulator/board-evidence/2026-10-22/ledger/nec/outside.txt
+Pico A says PASS, every step ran

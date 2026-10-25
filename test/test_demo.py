@@ -575,8 +575,12 @@ class Pico:
         se0_reset = demo_usb.se0_reset
         self.patch(demo_usb, "se0_reset",
                    lambda *args, **kwargs: self.costly("bus_reset", se0_reset(*args, **kwargs)))
-        one = lambda *args: 1
-        count = lambda host, count=1: count
+        def one(*args):
+            return 1
+
+        def count(host, count=1):
+            return count
+
         for owner, prefix in ((Host, "Host"), (getattr(pico_board, "PicoHost", None), "PicoHost")):
             if owner is None:
                 continue

@@ -17,6 +17,7 @@ import demo_can  # noqa: E402
 import demo_can_node  # noqa: E402
 import demo_ds18b20  # noqa: E402
 import demo_flash  # noqa: E402
+import demo_nec  # noqa: E402
 import demo_neopixel  # noqa: E402
 import demo_referee  # noqa: E402
 import demo_swd  # noqa: E402
@@ -295,6 +296,11 @@ def keyboard(_levels):
     return judge
 
 
+def nec(_levels):
+    expected = demo_nec.lines(demo_nec.KEYS)
+    return lambda decoded, _log: exactly(decoded, expected, "the keys sent")
+
+
 def sweep(levels):
     """OUT0 echoes wire 20, so it has at least every edge the chip stamped."""
     edges = levels[4][0]
@@ -331,6 +337,7 @@ CHECKS = {
     "start_hold": (I2C, start_hold),
     "self_timing": (OUT0, self_timing),
     "keyboard": (OUT0, keyboard),
+    "nec": (OUT0, nec),
     "sweep": (OUT0, sweep),
     "pio_ws2812": (NEO, pio_ws2812),
     "pio_uart_tx": (OUT0, pio_uart_tx),
@@ -350,25 +357,35 @@ def check(demo, directory):
     d = Path(directory)
     if name not in CHECKS:
         return []
-    channels, make = CHECKS[name]
     if not (d / (name + ".sr")).exists():
         return ["no capture %s" % (d / (name + ".sr"))]
     try:
         _, _, samples = sigrok.read(d / (name + ".sr"))
     except (OSError, KeyError, ValueError, zipfile.BadZipFile) as e:
         return ["the capture %s does not read: %s" % (d / (name + ".sr"), e)]
-    levels = {c: line(samples, c) for c in channels}
+    levels = lines(name, samples)
     del samples
+    decode, log = d / (name + ".decode"), d / (name + ".log")
+    decoded = decode.read_text(errors="replace").splitlines() if decode.exists() else []
+    return judge(name, levels, decoded, log.read_text(errors="replace") if log.exists() else "")
+
+
+def lines(name, samples):
+    """line() of each of the demo's analyser channels."""
+    return {c: line(samples, c) for c in CHECKS[name][0]}
+
+
+def judge(name, levels, decoded, log):
+    """What the demo's traffic lacks, from its channels' lines(), sigrok's decode and Pico
+    A's log."""
+    channels, make = CHECKS[name]
     # a line that never moves explains whatever the decode lacks
     stuck = ["D%d (%s) never changes in the capture: %s throughout" % (
         c, what, "no samples" if first is None else "high" if first else "low")
         for c, what in channels.items() for edges, first, _ in [levels[c]] if not edges]
     if stuck:
         return stuck
-    judge = make(levels)
-    decode, log = d / (name + ".decode"), d / (name + ".log")
-    decoded = decode.read_text(errors="replace").splitlines() if decode.exists() else []
-    return judge(decoded, log.read_text(errors="replace") if log.exists() else "")
+    return make(levels)(decoded, log)
 
 
 def main():

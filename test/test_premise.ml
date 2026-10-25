@@ -337,6 +337,7 @@ let%expect_test "the receivers keep the premise their certificates rest on" =
     usb_device         exact       225         0           0  32 ACK and 32 NAK of 32 each
     usb_device         4% slow     225         0           0  0 ACK and 0 NAK of 32 each
     usb_device at once exact        97         0           0  32 ACK and 32 NAK of 32 each
+    nec_rx             no sender to drive it with
     |}]
 ;;
 
