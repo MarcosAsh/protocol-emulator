@@ -336,6 +336,60 @@ let%expect_test "a token, a stuffed data packet and a stuffing error into the da
     |}]
 ;;
 
+(* A data packet of 1100 bytes from 0x40, past the data memory's end, then a token: the
+   words past the end are dropped and still counted, and the token's count starts again. *)
+let%expect_test "a packet past the data memory's end, then a token" =
+  let module Harness =
+    Hardcaml_test_harness.Lws_harness.Make (Usb_frame_rx.I) (Usb_frame_rx.O)
+  in
+  let random = Random.State.make [| 3 |] in
+  let long =
+    Usb.data ~pid:Usb.data0 (List.init 1100 ~f:(fun _ -> Random.State.int random 256))
+  in
+  let token = Usb.token ~address:5 ~pid:in_ ~endpoint:1 in
+  Harness.run ~create:Usb_frame_rx.hierarchical (fun (h @ local) ~inputs ~outputs ->
+    let outputs = Before_and_after_edge.after_edge outputs in
+    inputs.clocking.clear := Bits.vdd;
+    Lws.step h;
+    inputs.clocking.clear := Bits.gnd;
+    inputs.may_write := Bits.vdd;
+    List.iter
+      [ "long", long; "token", token ]
+      ~f:(fun (name, packet) ->
+        inputs.control.arm := Bits.vdd;
+        inputs.control.base := Bits.of_unsigned_int ~width:Isa.data_addr_bits 0x40;
+        Lws.step h;
+        inputs.control.arm := Bits.gnd;
+        let writes = ref [] in
+        line ~random ~ppm:2500. ~jitter:2. ~skew:0. ~gap:3 [ packet ]
+        |> sample ~random ~per_bit:8 ~per_cycle:2
+        |> List.iter ~f:(fun (dp, dm) ->
+          inputs.dp := Bits.of_bit_list (List.rev dp);
+          inputs.dm := Bits.of_bit_list (List.rev dm);
+          Lws.step h;
+          if Bits.to_bool !(outputs.write.valid)
+          then writes := Bits.to_unsigned_int !(outputs.write.addr) :: !writes);
+        let s = outputs.status in
+        let flag x = Bits.to_bool !x in
+        print_s
+          [%message
+            name
+              ~sent:(List.length (Manchester_line.words packet) : int)
+              ~writes:(List.length !writes : int)
+              ~last:(List.hd !writes : Int.Hex.t option)
+              ~words:(Bits.to_unsigned_int !(s.words) : int)
+              ~finished:(flag s.finished : bool)
+              ~crc_ok:(flag s.crc5_ok || flag s.crc16_ok : bool)
+              ~dropped:(flag s.dropped : bool)]) [@nontail]);
+  [%expect
+    {|
+    (long (sent 552) (writes 448) (last (0x1ff)) (words 552) (finished true)
+     (crc_ok true) (dropped true))
+    (token (sent 2) (writes 2) (last (0x41)) (words 2) (finished true)
+     (crc_ok true) (dropped false))
+    |}]
+;;
+
 (* An ACK at 0 ppm and no jitter, from SYNC's last bits: the PID alone in a low half, then
    the EOP. *)
 let%expect_test "waveform of an ACK" =
