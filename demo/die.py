@@ -39,9 +39,11 @@ MUTED = "#898781"
 BLOCKS = [
     ("engine 0", "#2a78d6", "fetch, decode, ALU, shifters, timers, pins"),
     ("engine 1", "#4a3aa7", "a second, identical engine"),
-    ("host FIFOs", "#eda100", "rx and tx per engine, 8 x 16 bits"),
+    ("host FIFOs", "#eda100", "rx and tx per engine, 15 x 16 bits"),
     ("host port", "#e87ba4", "SPI, registers, each engine's config"),
     ("data memory", "#008300", "ports of the shared data SRAM"),
+    ("load checker", "#d6452a", "walks a program against its certificate"),
+    ("receivers", "#1a9e9e", "USB and 10BASE-T frames, CRCs, edge stamps"),
     ("glue", "#52514e", "reset, pad sync and sharing, clock tree"),
 ]
 
@@ -160,6 +162,14 @@ def block_of(path, module):
         "sram_macro": "data memory",
         "host_port": "host port",
         "host_spi": "host port",
+        "load_checker": "load checker",
+        "frame_rx": "receivers",
+        "usb_frame_rx": "receivers",
+        "usb_rx": "receivers",
+        "manchester_rx": "receivers",
+        "both_edges": "receivers",
+        "crc": "receivers",
+        "edge_stamps": "receivers",
     }.get(module, "glue")
 
 
@@ -414,7 +424,9 @@ def draw(die, components, lib, labels, notes, output):
     width, margin = 8.5, 0.3
     die_height = (width - 2 * margin) * (y1 - y0) / (x1 - x0)
     legend = margin + die_height + 0.6
-    height = legend + 4 * 0.48 + 0.2 * len(notes) + 0.2
+    # the blocks and the macros in two columns
+    per_column = (len(BLOCKS) + 2) // 2
+    height = legend + per_column * 0.48 + 0.2 * len(notes) + 0.2
     fig = plt.figure(figsize=(width, height), dpi=1600 / width)
     fig.patch.set_facecolor(SURFACE)
 
@@ -446,8 +458,8 @@ def draw(die, components, lib, labels, notes, output):
 
     rows = BLOCKS + [("SRAM macros", MACRO, "two program, one data, 512 x 16 each")]
     for n, (name, colour, detail) in enumerate(rows):
-        x, y = margin + 4.1 * (n // 4), legend + 0.48 * (n % 4)
-        if n % 4 == 0:
+        x, y = margin + 4.1 * (n // per_column), legend + 0.48 * (n % per_column)
+        if n % per_column == 0:
             fig.text(*at(x + 2.95, y - 0.3), "cells", color=MUTED, fontsize=9, ha="right")
             fig.text(*at(x + 3.75, y - 0.3), "area", color=MUTED, fontsize=9, ha="right")
         fig.patches.append(
@@ -473,7 +485,7 @@ def draw(die, components, lib, labels, notes, output):
             ha="right",
         )
     for n, note in enumerate(notes):
-        fig.text(*at(margin, legend + 4 * 0.48 + 0.2 * n), note, color=MUTED, fontsize=8.5)
+        fig.text(*at(margin, legend + per_column * 0.48 + 0.2 * n), note, color=MUTED, fontsize=8.5)
     fig.savefig(output, facecolor=SURFACE)
     return count, area, total
 
