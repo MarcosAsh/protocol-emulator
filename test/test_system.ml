@@ -494,7 +494,8 @@ let%expect_test "a start does nothing while a fault is held" =
 
 (* The checker serving one engine a turn: engine 0's check, asked at the clear, aborted at
    the last pcs by the host writing the certificate under it, engine 1's accepted on its
-   turn, then each refused on a corrupted certificate. Each verdict stays its engine's
+   turn, then each refused on a corrupted certificate, and twice on one whose first entry
+   is out of order, under both premises and then neither. Each verdict stays its engine's
    through the other's turn, the premises are each check's own, and engine 0's start
    between its checks is refused, uncertified, until its next check begins. *)
 let%expect_test "each engine's check is its own, kept through the other's turn" =
@@ -512,6 +513,7 @@ let%expect_test "each engine's check is its own, kept through the other's turn" 
     |> Load_check.to_words
   in
   let corrupted = List.mapi certified ~f:(fun n w -> if n = 3 then 0xa505 else w) in
+  let misordered = List.mapi certified ~f:(fun n w -> if n = 2 then 0 else w) in
   let model certificate =
     match
       Load_check.walk
@@ -526,7 +528,12 @@ let%expect_test "each engine's check is its own, kept through the other's turn" 
     | Ok _ -> "accepted"
     | Error { pc; reason } -> sprintf "refused at %d: %s" pc reason
   in
-  print_s [%message "the model" ~certified:(model certified) ~corrupted:(model corrupted)];
+  print_s
+    [%message
+      "the model"
+        ~certified:(model certified)
+        ~corrupted:(model corrupted)
+        ~misordered:(model misordered)];
   Harness.run
     ~create:(Two.hierarchical ~memory:Flops)
     (fun (h @ local) ~inputs:i ~outputs ->
@@ -608,13 +615,28 @@ let%expect_test "each engine's check is its own, kept through the other's turn" 
        pulse (host 1).check;
        await 0;
        await 1;
-       show ());
+       show ();
+       write_data misordered;
+       List.iter [ true; false ] ~f:(fun premise ->
+         i.check_setup.floor := Bits.of_bool premise;
+         i.check_setup.single_edge := Bits.of_bool premise;
+         pulse (host 0).check;
+         pulse (host 1).check;
+         await 0;
+         await 1;
+         show ())
+       [@nontail]);
   [%expect
     {|
-    ("the model" (certified accepted) (corrupted "refused at 1: next phase"))
+    ("the model" (certified accepted) (corrupted "refused at 1: next phase")
+     (misordered "refused at 0: a table entry out of order"))
     ((engine 0) (accepted false) (reject_pc 510) (reason 29) (refused true))
     ((engine 1) (accepted true) (reject_pc 510) (reason 29) (refused false))
     ((engine 0) (accepted false) (reject_pc 1) (reason 3) (refused false))
     ((engine 1) (accepted false) (reject_pc 1) (reason 3) (refused false))
+    ((engine 0) (accepted false) (reject_pc 0) (reason 30) (refused false))
+    ((engine 1) (accepted false) (reject_pc 0) (reason 30) (refused false))
+    ((engine 0) (accepted false) (reject_pc 0) (reason 30) (refused false))
+    ((engine 1) (accepted false) (reject_pc 0) (reason 30) (refused false))
     |}]
 ;;
