@@ -41,6 +41,8 @@ INSTANCES = {
     "sram_macro": "sram_macro",
     "top": "top",
     "tx": "host_fifo",
+    "usb_frame_rx": "usb_frame_rx",
+    "usb_rx": "usb_rx",
 }
 
 # the files of a module split in parts
