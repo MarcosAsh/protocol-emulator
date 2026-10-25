@@ -233,7 +233,7 @@ loop:
 
 (* The frame receiver listens on the pin the host names: a two-byte frame on an input pin
    lands as one word, and on pins 5 to 11, the outputs, nothing comes in and it stays
-   armed. *)
+   armed. So too past the last pin, with nothing driven. *)
 let%expect_test "the frame receiver takes the pin the host names" =
   let random = Random.State.make [| 7 |] in
   let samples =
@@ -270,12 +270,12 @@ let%expect_test "the frame receiver takes the pin the host names" =
        cycle ~n:4 ();
        let m = Spi_master.create ~sck ~mosi ~cs_n ~miso ~half:4 in
        let frames =
-         List.init Isa.num_pins ~f:(fun pin ->
+         List.init (1 lsl Frame_rx.pin_bits) ~f:(fun pin ->
            Spi_master.write m ~watch Reg.frame_control [ (pin lsl 2) lor 1 ];
            (* the line on the named pin, or on pin 0 for an output *)
            let line = if pin >= 5 && pin < 12 then 0 else pin in
            List.iter samples ~f:(fun sample ->
-             pins := List.hd_exn sample lsl line;
+             pins := if pin < Isa.num_pins then List.hd_exn sample lsl line else 0;
              drive ();
              cycle ());
            pins := 0;
@@ -295,7 +295,8 @@ let%expect_test "the frame receiver takes the pin the host names" =
     (frames
      ((Words 1) (Words 1) (Words 1) (Words 1) (Words 1) Armed Armed Armed Armed
       Armed Armed Armed (Words 1) (Words 1) (Words 1) (Words 1) (Words 1)
-      (Words 1) (Words 1) (Words 1)))
+      (Words 1) (Words 1) (Words 1) Armed Armed Armed Armed Armed Armed Armed
+      Armed Armed Armed Armed Armed))
     |}]
 ;;
 
