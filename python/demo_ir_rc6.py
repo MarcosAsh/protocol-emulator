@@ -12,8 +12,9 @@ import protocol_emulator as pe
 UNIT = 21333
 # (toggle, address, command), as test/ir_rc6.ml sends them
 FRAMES = [(0, 0x1A, 0x35), (1, 0x00, 0xFF)]
-# a frame is 59 units with its signal free time, 26.2 ms
-FRAME_MS = 30
+# a frame is 59 units with its signal free time, 26.2 ms; sigrok's ir_rc6 needs 68 from one
+# frame's start to the next (test/ir_rc6.ml), 30.2 ms, before the host's own delay
+FRAME_MS = 34
 
 
 def words(toggle, address, command):
