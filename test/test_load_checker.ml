@@ -289,6 +289,10 @@ let%expect_test "the checker agrees with the model on every firmware" =
     spi_target_mode1              8972  accepted
     spi_target_mode2              8987  accepted
     spi_target_mode3              8972  accepted
+    spi_target_fast_mode0         8799  accepted
+    spi_target_fast_mode1         8802  accepted
+    spi_target_fast_mode2         8802  accepted
+    spi_target_fast_mode3         8805  accepted
     swd                          13926  accepted
     table                        10310  accepted
     table_open_drain             10310  accepted

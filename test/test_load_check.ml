@@ -102,6 +102,10 @@ let%expect_test "every firmware against the chip's walk" =
     spi_target_mode1              33     30  accepted
     spi_target_mode2              38     30  accepted
     spi_target_mode3              33     30  accepted
+    spi_target_fast_mode0         36     27  accepted
+    spi_target_fast_mode1         36     27  accepted
+    spi_target_fast_mode2         37     27  accepted
+    spi_target_fast_mode3         37     27  accepted
     swd                          232    179  accepted
     table                        112     87  accepted
     table_open_drain             112     87  accepted
