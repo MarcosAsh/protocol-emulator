@@ -246,8 +246,10 @@ let sent =
 let clock_hz = 450_000
 let unit = 200
 
-(* a frame is 58 units with the signal free time, and the next is a little after *)
-let frame_cycles = 60 * unit
+(* a frame is 58 units with the signal free time; sigrok's ir_rc6 ends a frame only after
+   12 half-bits of silence and misreads a leader within 3.5 more, so the next comes after
+   68 *)
+let frame_cycles = 68 * unit
 
 (* What sigrok's ir_rc6 prints, in the order it does: the header's six bits, its four
    fields, the 16 data bits, the address and the data. It handles the six bits on each
