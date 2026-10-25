@@ -73,3 +73,6 @@ test/icepi_netlist.v
 icepi/build
 formal/RM_IHPSG13_1P_512x16_c2_bm_bist.v
 formal/verilog_*
+
+# the Python venv, or a worktree's link to it
+.venv
