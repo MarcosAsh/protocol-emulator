@@ -216,39 +216,44 @@ let%expect_test "the bench takes only what the tx fifo holds before the start" =
       ~frames:(String.concat (List.init n ~f:(Fn.const "000100001111111100000000")))
       (diagram "ws2812")
   in
+  (* a frame a word, and a pixel two after the first *)
+  let frames = Machine.fifo_depth in
+  let pixels_fit = (Machine.fifo_depth - 1) / 2 in
   List.iter
-    [ "uart_tx, 8 frames", uart 8
-    ; "uart_tx, 9 frames", uart 9
-    ; "ws2812, 3 pixels", pixels 3
-    ; "ws2812, 4 pixels", pixels 4
+    [ [%string "uart_tx, %{frames#Int} frames"], uart frames
+    ; [%string "uart_tx, %{frames + 1#Int} frames"], uart (frames + 1)
+    ; [%string "ws2812, %{pixels_fit#Int} pixels"], pixels pixels_fit
+    ; [%string "ws2812, %{pixels_fit + 1#Int} pixels"], pixels (pixels_fit + 1)
     ]
     ~f:(fun (what, checked) -> print_s [%message what ~_:(summary checked : Sexp.t)]);
   [%expect
     {|
-    ("uart_tx, 8 frames"
-     (certified (host_words 8) (cycles 5380)
+    ("uart_tx, 15 frames"
+     (certified (host_words 15) (cycles 9146)
       (faults
        ((underflow false) (overflow false) (missed_deadline false) (decode false)
         (assumption false)))
       (bench "takes it on OUT0, 2 ms")))
-    ("uart_tx, 9 frames"
-     (certified (host_words 9) (cycles 5918)
+    ("uart_tx, 16 frames"
+     (certified (host_words 16) (cycles 9684)
       (faults
        ((underflow false) (overflow false) (missed_deadline false) (decode false)
         (assumption false)))
-      (bench "takes it on OUT0, 2 ms")))
-    ("ws2812, 3 pixels"
-     (certified (host_words 7) (cycles 37800)
+      (bench
+       "declines it: 16 host words, past the 15 the tx fifo holds before the start")))
+    ("ws2812, 7 pixels"
+     (certified (host_words 15) (cycles 71400)
       (faults
        ((underflow false) (overflow false) (missed_deadline false) (decode false)
         (assumption false)))
-      (bench "takes it on OUT0, 2 ms")))
-    ("ws2812, 4 pixels"
-     (certified (host_words 9) (cycles 46200)
+      (bench "takes it on OUT0, 3 ms")))
+    ("ws2812, 8 pixels"
+     (certified (host_words 17) (cycles 79800)
       (faults
        ((underflow false) (overflow false) (missed_deadline false) (decode false)
         (assumption false)))
-      (bench "takes it on OUT0, 2 ms")))
+      (bench
+       "declines it: 17 host words, past the 15 the tx fifo holds before the start")))
     |}]
 ;;
 
