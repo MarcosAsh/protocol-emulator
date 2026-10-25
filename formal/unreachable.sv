@@ -1,7 +1,8 @@
 // The pin bits Hardcaml's coverage waives in src/engine.ml: no write reaches an input
 // pin's output bit, nor the direction of a pin that is not bidirectional, so after a
 // clear they stay zero for any config, program and inputs. Pins 0-4 are inputs, 5-11
-// outputs, 12-19 bidirectional and 20-27 the wires between the engines.
+// outputs, 12-19 bidirectional, 20-27 the wires between the engines and 28-31 the status
+// pins, inputs again.
 module unreachable (input clk);
   (* anyseq *) wire [1:0] side_set_count;
   (* anyseq *) wire [4:0] side_set_base, in_base, in_count, out_base, out_count, set_base;
@@ -20,12 +21,12 @@ module unreachable (input clk);
   (* anyseq *) wire start, program_write_valid, tx_valid, rx_pop, clear_irq;
   (* anyseq *) wire [8:0] program_write_addr;
   (* anyseq *) wire [15:0] program_write_data, tx_value;
-  (* anyseq *) wire [27:0] inputs;
+  (* anyseq *) wire [31:0] inputs;
 
   reg clear = 1;
   always @(posedge clk) clear <= 0;
 
-  wire [27:0] pin_out, pin_dir;
+  wire [31:0] pin_out, pin_dir;
   wire [8:0] pc;
   wire [15:0] x, y, p, osr, isr, rx_head, instruction, crc;
   wire [23:0] t, now, capture;
@@ -34,7 +35,7 @@ module unreachable (input clk);
   wire [3:0] tx_level, rx_level;
   wire decode_ok;
   wire [7:0] opcode_onehot;
-  wire [27:0] wait_select;
+  wire [31:0] wait_select;
 
   engine_top dut (
     .clock(clk), .clear(clear),
@@ -75,8 +76,9 @@ module unreachable (input clk);
 `else
       assert(pin_out[4:0] == 0);
 `endif
+      assert(pin_out[31:28] == 0);
       assert(pin_dir[11:0] == 0);
-      assert(pin_dir[27:20] == 0);
+      assert(pin_dir[31:20] == 0);
     end
 
   // the neighbours of the waived bits do move

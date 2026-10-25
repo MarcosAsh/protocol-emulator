@@ -351,19 +351,10 @@ module Make_timer (Timer : Engine.Timer) = struct
     ~words
     (table : Table.t)
     =
-    let starts_open, rejected =
-      verdicts
-        ?period
-        ?period_floor
-        ?single_capture_edge
-        ?spacing:spec
-        ~config
-        ~words
-        table
-    in
-    (* what formal/phase_spacing.sby proves the spacing for *)
+    (* what formal/phase_spacing.sby proves the spacing for, judged first since a pin past
+       the pin space has no place in the kernel's fields *)
     let proved_spacing =
-      Option.for_all spec ~f:(fun { a; b; _ } ->
+      Option.for_all spec ~f:(fun ({ a; b; _ } : Kernel_types.Spacing.Spec.t) ->
         a <> b
         && a < Isa.pin_space
         && b < Isa.pin_space
@@ -372,15 +363,28 @@ module Make_timer (Timer : Engine.Timer) = struct
         && Array.for_all table ~f:(fun r ->
           Bits.to_bool Bits.(K.offset_is_full r &: (r.slope ==:. 0))))
     in
-    match starts_open, rejected with
-    | _ when not proved_spacing ->
+    if not proved_spacing
+    then
       Or_error.error_s
         [%message
           "edges are spaced only for two pins, no Manchester or line code and a table of \
            intervals"]
-    | true, [] -> Ok ()
-    | false, _ -> Or_error.error_s [%message "the row at pc 0 must be the full range"]
-    | true, rejected ->
-      Or_error.error_s [%message "rows the kernel rejects" (rejected : Rejection.t list)]
+    else (
+      let starts_open, rejected =
+        verdicts
+          ?period
+          ?period_floor
+          ?single_capture_edge
+          ?spacing:spec
+          ~config
+          ~words
+          table
+      in
+      match starts_open, rejected with
+      | true, [] -> Ok ()
+      | false, _ -> Or_error.error_s [%message "the row at pc 0 must be the full range"]
+      | true, rejected ->
+        Or_error.error_s
+          [%message "rows the kernel rejects" (rejected : Rejection.t list)])
   ;;
 end

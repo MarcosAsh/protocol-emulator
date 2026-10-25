@@ -165,14 +165,11 @@ module Make_timer (Timer : Engine.Timer) = struct
     end
 
     (* Whether [pin] is in the run of [count] pins from [base], wrapping at the pin space
-       as [Pins.write] does, and the bit of [value] it takes there. *)
+       as [Pins.write] does, and the bit of [value] it takes there. The pin space is all
+       of a pin's five bits, so the offset wraps with it. *)
     let in_run ~pin ~base ~count ~value =
-      let space = Isa.pin_space in
       let six x = uresize x ~width:6 in
-      let base = mux2 (base >=:. space) (base -:. space) base in
-      let offset =
-        mux2 (pin >=: base) (six pin -: six base) (six pin +:. space -: six base)
-      in
+      let offset = six (pin -: base) in
       ( offset <: six count &: (offset <:. Isa.data_bits)
       , mux offset (bits_lsb (uresize value ~width:Isa.data_bits)) )
     ;;
@@ -193,7 +190,7 @@ module Make_timer (Timer : Engine.Timer) = struct
           mux2
             spacing.dirs
             (pin >=:. Isa.first_bidir_pin &: (pin <:. Isa.num_pins))
-            (pin >=:. Isa.first_output_pin &: (pin <:. Isa.pin_space))
+            (pin >=:. Isa.first_output_pin &: (pin <:. Isa.first_status_pin))
         in
         let run = in_run ~pin in
         let side_hit, side_bit =

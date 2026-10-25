@@ -111,6 +111,20 @@ let directed coverage =
     ~words:[ 32; 0x80; 0xc3; 0; 0xff ]
     ~config:Usb.config
     (Timed_program.source Usb.tx);
+  (* test_engine.ml's, as the random programs reach [crc_send] only now and then *)
+  run
+    ~cycles:500
+    ~words:[ 30; 0x1234; 0x5678 ]
+    ~config:
+      { Program_config.default with
+        set_count = 2
+      ; out_shift = Left
+      ; autopull = true
+      ; crc_width = 32
+      ; crc_poly = 0x04c11db7
+      ; crc_init = 0xffffffff
+      }
+    (In_channel.read_all "crc_send.asm");
   let lines =
     List.concat_map
       (Usb_ls.encode [ 0xc3; 0x80; 0x06 ])

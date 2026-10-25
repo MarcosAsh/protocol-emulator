@@ -59,13 +59,13 @@ module fetch_step (input clk);
   (* anyseq *) wire start, program_write_valid, tx_valid, rx_pop, clear_irq;
   (* anyseq *) wire [8:0] program_write_addr;
   (* anyseq *) wire [15:0] program_write_data, tx_value;
-  (* anyseq *) wire [27:0] inputs;
+  (* anyseq *) wire [31:0] inputs;
 
   (* anyseq *) wire reset;
   reg clear = 1;
   always @(posedge clk) clear <= reset;
 
-  wire [27:0] pin_out, pin_dir, wait_select;
+  wire [31:0] pin_out, pin_dir, wait_select;
   wire [8:0] pc, fetch_addr, probe_addr;
   wire [15:0] x, y, p, osr, isr, rx_head, instruction, crc;
   wire [15:0] dout, probe_word;

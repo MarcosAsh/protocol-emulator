@@ -8,7 +8,7 @@ let create engines =
 ;;
 
 let pin_mask = (1 lsl Isa.num_pins) - 1
-let wires = ((1 lsl Isa.pin_space) - 1) land lnot pin_mask
+let wires = ((1 lsl Isa.first_status_pin) - 1) land lnot pin_mask
 let output_only = (1 lsl Isa.first_bidir_pin) - 1
 let faulted (m : Machine.t) = not (Machine.Fault.equal m.fault Machine.Fault.none)
 
@@ -17,23 +17,28 @@ let driving (m : Machine.t) = if faulted m then 0, 0 else m.pin_out, m.pin_dir
 let any drives ~f = List.fold drives ~init:0 ~f:(fun v drive -> v lor f drive)
 
 (* what engine [n] is handed as [inputs] for the next step *)
-let seen t n ~pads =
+let seen t n ~pads ~owner ~status =
   let others = List.filteri t.engines ~f:(fun m _ -> m <> n) |> List.map ~f:driving in
   let driven = any others ~f:snd in
   let level = any others ~f:(fun (out, dir) -> out land (dir lor wires)) in
-  pads land pin_mask land lnot driven lor level
+  let status =
+    if n = owner
+    then (status land ((1 lsl Isa.num_status_pins) - 1)) lsl Isa.first_status_pin
+    else 0
+  in
+  pads land pin_mask land lnot driven lor level lor status
 ;;
 
 (* Engine [n]'s routed pushes land in engine [n + 1]'s tx fifo after the step, judged full
    by the level before it. A fault stops the engine an edge after it shows, as
    [Machine.stop] does for the host. *)
-let step t ~pads =
+let step ?(owner = 0) ?(status = 0) t ~pads =
   let count = List.length t.engines in
   let next n = List.nth_exn t.engines ((n + 1) % count) in
   let stepped =
     List.mapi t.engines ~f:(fun n m ->
       let route_full = List.length (next n).tx_fifo >= Machine.fifo_depth in
-      let stepped = Machine.step m ~route_full ~inputs:(seen t n ~pads) in
+      let stepped = Machine.step m ~route_full ~inputs:(seen t n ~pads ~owner ~status) in
       if faulted m then Machine.stop stepped else stepped)
   in
   let routed n = (List.nth_exn stepped ((n + count - 1) % count)).routed in

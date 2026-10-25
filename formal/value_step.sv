@@ -46,14 +46,14 @@ module value_step (input clk);
   (* anyseq *) wire start, program_write_valid, tx_valid, rx_pop, clear_irq;
   (* anyseq *) wire [8:0] program_write_addr;
   (* anyseq *) wire [15:0] program_write_data, tx_value;
-  (* anyseq *) wire [27:0] inputs;
+  (* anyseq *) wire [31:0] inputs;
 
   // the top clears the engine at power-on and whenever its reset comes again
   (* anyseq *) wire reset;
   reg clear = 1;
   always @(posedge clk) clear <= reset;
 
-  wire [27:0] pin_out, pin_dir;
+  wire [31:0] pin_out, pin_dir;
   wire [8:0] pc, data_ptr;
   wire [15:0] x, y, p, t_fraction, osr, isr, rx_head, instruction;
   wire [31:0] crc;
@@ -65,7 +65,7 @@ module value_step (input clk);
   wire [3:0] tx_level, rx_level;
   wire decode_ok;
   wire [7:0] opcode_onehot;
-  wire [27:0] wait_select;
+  wire [31:0] wait_select;
   // the fifos' ports, and the core's note of a data pointer that moved the cycle before
   wire [15:0] tx_head, rx_push_value;
   wire tx_empty, tx_pop, rx_full, rx_push, data_moved;
@@ -129,7 +129,7 @@ module value_step (input clk);
   function decodes(input [15:0] w);
     case (w[15:13])
       0: decodes = w[12:9] < 12;
-      1: decodes = w[6:5] < 2 ? w[4:0] < 28 : w[4:0] == 0;
+      1: decodes = w[6:5] < 2 || w[4:0] == 0;
       2, 3: decodes = w[4:0] >= 1 && w[4:0] <= 16;
       4: decodes = w[4:3] < 3;
       5: decodes = w[7:5] < 5;
@@ -149,21 +149,21 @@ module value_step (input clk);
   wire movs = go && opcode == 4;
   wire syss = go && opcode == 7;
 
-  // Pins: the low [n] bits on a run from [base] up, wrapping at 28
+  // Pins: the low [n] bits on a run from [base] up, wrapping at 32
   function [15:0] mask(input [4:0] count);
     mask = count >= 16 ? 16'hffff : (16'd1 << count) - 16'd1;
   endfunction
-  function [27:0] place(input [15:0] v, input [4:0] base);
-    reg [55:0] twice;
+  function [31:0] place(input [15:0] v, input [4:0] base);
+    reg [63:0] twice;
     begin
-      twice = {12'd0, v, 12'd0, v} << (base >= 28 ? base - 5'd28 : base);
-      place = twice[55:28];
+      twice = {16'd0, v, 16'd0, v} << base;
+      place = twice[63:32];
     end
   endfunction
-  function [15:0] pick(input [27:0] v, input [4:0] base);
-    reg [55:0] twice;
+  function [15:0] pick(input [31:0] v, input [4:0] base);
+    reg [63:0] twice;
     begin
-      twice = {v, v} >> (base >= 28 ? base - 5'd28 : base);
+      twice = {v, v} >> base;
       pick = twice[15:0];
     end
   endfunction
@@ -177,11 +177,11 @@ module value_step (input clk);
   endfunction
 
   // a read of the pins; a wire sees what any core drives
-  localparam [27:0] INPUTS = 28'h000001f;
-  localparam [27:0] OUTS = 28'h0000fe0;
-  localparam [27:0] BIDIRS = 28'h00ff000;
-  localparam [27:0] WIRES = 28'hff00000;
-  wire [27:0] level =
+  localparam [31:0] INPUTS = 32'hf000001f;
+  localparam [31:0] OUTS = 32'h00000fe0;
+  localparam [31:0] BIDIRS = 32'h000ff000;
+  localparam [31:0] WIRES = 32'h0ff00000;
+  wire [31:0] level =
       (pin_out & (OUTS | (BIDIRS & pin_dir)))
     | (inputs & (INPUTS | (BIDIRS & ~pin_dir)))
     | ((pin_out | inputs) & WIRES);
@@ -330,22 +330,22 @@ module value_step (input clk);
   wire [15:0] value = outs ? out_bits : mov_bits;
   wire [T-1:0] t_value = outs ? out_bits : mov_bits_t;
   // Pins.write takes only pins that drive (5 and up) or turn around (12 to 19)
-  localparam [27:0] OUTPUTS = 28'hfffffe0;
+  localparam [31:0] OUTPUTS = 32'h0fffffe0;
   wire manchester_bit = outs && target == 0 && manchester && n == 1;
   // a line-coded bit drives the table's level and its complement, out_count wide to 2
   wire line_out = outs && target == 0 && line_code && !manchester && n == 1;
   wire [4:0] line_width = out_count >= 2 ? 5'd2 : out_count;
-  wire [27:0] run_out =
+  wire [31:0] run_out =
       manchester_bit ? place(16'd3, out_base) & OUTPUTS
     : line_out ? place(mask(line_width), out_base) & OUTPUTS
     : outs && target == 0 ? place(mask(n), out_base) & OUTPUTS
     : movs && target == 0 ? place(mask(out_count), out_base) & OUTPUTS
-    : 28'd0;
-  wire [27:0] run_dir =
+    : 32'd0;
+  wire [31:0] run_dir =
       outs && target == 4 ? place(mask(n), out_base) & BIDIRS
     : movs && target == 3 ? place(mask(out_count), out_base) & BIDIRS
-    : 28'd0;
-  wire [27:0] shown = place(
+    : 32'd0;
+  wire [31:0] shown = place(
       manchester_bit ? {14'd0, out_bits[0], !out_bits[0]}
     : line_out ? {14'd0, !line_level, line_level}
     : value, out_base);
@@ -372,15 +372,15 @@ module value_step (input clk);
   wire [15:0] second_half = {14'd0, !owed_bit, owed_bit};
 `endif
   // the flip yields to side-set (none on a jump or undecoded word), set and the run
-  wire [27:0] side_run =
+  wire [31:0] side_run =
       go && opcode != 0 && !side_set_pindirs
-    ? place(mask({3'd0, side_set_count}), side_set_base) : 28'd0;
-  wire [27:0] set_run =
-    go && opcode == 5 && target == 0 ? place(mask({2'd0, set_count}), set_base) : 28'd0;
-  wire [27:0] flip_run =
+    ? place(mask({3'd0, side_set_count}), side_set_base) : 32'd0;
+  wire [31:0] set_run =
+    go && opcode == 5 && target == 0 ? place(mask({2'd0, set_count}), set_base) : 32'd0;
+  wire [31:0] flip_run =
       issue && owed
-    ? place(16'd3, flip_base) & OUTPUTS & ~side_run & ~set_run & ~run_out : 28'd0;
-  wire [27:0] flip_shown = place(second_half, flip_base);
+    ? place(16'd3, flip_base) & OUTPUTS & ~side_run & ~set_run & ~run_out : 32'd0;
+  wire [31:0] flip_shown = place(second_half, flip_base);
 
   reg powered = 0;
   reg [15:0] last_want_osr, last_want_isr, last_value;
@@ -389,7 +389,7 @@ module value_step (input clk);
   reg last_want_underflow, last_want_overflow, last_want_crc_sending;
   reg last_writes_x, last_writes_y, last_writes_p, last_writes_t;
   reg [T-1:0] last_t_value, last_reversed_over_data;
-  reg [27:0] last_run_out, last_run_dir, last_shown, last_flip_run, last_flip_shown;
+  reg [31:0] last_run_out, last_run_dir, last_shown, last_flip_run, last_flip_shown;
   always @(posedge clk) begin
     powered <= 1;
     last_want_osr <= clear ? 16'd0 : want_osr;
@@ -410,7 +410,7 @@ module value_step (input clk);
     last_run_out <= run_out;
     last_run_dir <= run_dir;
     last_shown <= shown;
-    last_flip_run <= clear ? 28'd0 : flip_run;
+    last_flip_run <= clear ? 32'd0 : flip_run;
     last_flip_shown <= flip_shown;
   end
 
@@ -461,7 +461,7 @@ module value_step (input clk);
   reg [2:0] last_target, last_mov_source;
   reg [1:0] last_mov_op;
   reg [15:0] last_osr, last_isr;
-  reg [27:0] last_pin_out, last_pin_dir;
+  reg [31:0] last_pin_out, last_pin_dir;
   always @(posedge clk) begin
     last_clear <= clear;
     last_outs <= outs;

@@ -467,7 +467,7 @@ let writes (c : Program_config.t) (spec : Kernel.Spacing.Spec.t) ~pin (i : Isa.t
   let takes =
     if spec.dirs
     then pin >= Isa.first_bidir_pin && pin < Isa.num_pins
-    else pin >= Isa.first_output_pin && pin < Isa.pin_space
+    else pin >= Isa.first_output_pin && pin < Isa.first_status_pin
   in
   let to_pins (dest : [ `Pins | `Pindirs ]) =
     Bool.equal

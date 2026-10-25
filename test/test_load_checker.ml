@@ -397,7 +397,7 @@ let%expect_test "the checker agrees with the model on corrupted certificates" =
                 ~checker:(show verdict)
                 ~model:(show model)]));
   print_s [%message (!trials : int) (!refused : int)];
-  [%expect {| ((!trials 200) (!refused 124)) |}]
+  [%expect {| ((!trials 200) (!refused 126)) |}]
 ;;
 
 (* A one-word corruption of a firmware for each reason a random search over six firmwares

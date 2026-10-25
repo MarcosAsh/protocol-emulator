@@ -22,12 +22,12 @@ module issue_timing (input clk);
   (* anyseq *) wire start, program_write_valid, tx_valid, rx_pop, clear_irq;
   (* anyseq *) wire [8:0] program_write_addr;
   (* anyseq *) wire [15:0] program_write_data, tx_value;
-  (* anyseq *) wire [27:0] inputs;
+  (* anyseq *) wire [31:0] inputs;
 
   reg clear = 1;
   always @(posedge clk) clear <= 0;
 
-  wire [27:0] pin_out, pin_dir;
+  wire [31:0] pin_out, pin_dir;
   wire [8:0] pc;
   wire [15:0] x, y, p, osr, isr, rx_head, instruction;
   wire [31:0] crc;
@@ -39,8 +39,8 @@ module issue_timing (input clk);
   wire [3:0] tx_level, rx_level;
   wire decode_ok;
   wire [7:0] opcode_onehot;
-  wire [27:0] wait_select;
-  wire [27:0] wait_pin = 28'd1 << instruction[4:0];
+  wire [31:0] wait_select;
+  wire [31:0] wait_pin = 32'd1 << instruction[4:0];
 
   engine_top dut (
     .clock(clk), .clear(clear),
@@ -94,7 +94,7 @@ module issue_timing (input clk);
   wire [4:0] delay = side_set_count == 0 ? ds : side_set_count == 1 ? ds[3:0] : ds[2:0];
 `endif
   wire [4:0] count = instruction[4:0];
-  wire waits = opcode == 1 && (instruction[6] ? count == 0 : count < 28);
+  wire waits = opcode == 1 && (!instruction[6] || count == 0);
   wire plain =
 `ifdef WAITS_ARE_PLAIN
       waits ||

@@ -170,7 +170,7 @@ let%expect_test "frames land in the data memory with their FCS judged" =
   [%expect
     {|
     (("at 50 MHz" 59) ("good, accepted" 81) ("odd length" 46)
-     ("spoilt, refused" 39) ("words dropped" 38))
+     ("spoilt, refused" 39) ("words dropped" 26))
     |}]
 ;;
 

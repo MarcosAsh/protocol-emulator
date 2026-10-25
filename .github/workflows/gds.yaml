@@ -72,10 +72,21 @@ jobs:
         with:
           submodules: recursive
 
+      # inside the job's 6 h, so a router that never converges still leaves its logs
       - name: Build GDS
+        timeout-minutes: 330
         uses: TinyTapeout/tt-gds-action@ihp-cmos5l
         with:
           pdk: ihp-sg13cmos5l
+
+      - name: Publish the routing logs of a harden that failed
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: routing_logs
+          path: |
+            runs/wokwi/*-openroad-globalrouting*/
+            runs/wokwi/*-openroad-detailedrouting*/
 
       # the flow has no setup checker and goes green on negative slack
       - name: Check timing and signoff

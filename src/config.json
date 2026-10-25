@@ -49,8 +49,9 @@
 
   "//": "GRT_ADJUSTMENT - Metal3 is the only horizontal signal layer; at the default 0.3 global",
   "//": "routing overflows on 8x4. At 0.15 detailed routing closes but runs past CI's 6 h; at 0.06",
-  "//": "the whole harden took 3 h 37 min with the slow corner +0.43 ns.",
-  "GRT_ADJUSTMENT": 0.06,
+  "//": "the whole harden took 3 h 37 min with the slow corner +0.43 ns. With the status pins 0.06",
+  "//": "left 97 violations past 6 h, and 0.10 routed in 3 h 20 min.",
+  "GRT_ADJUSTMENT": 0.10,
 
   "//": "DESIGN_REPAIR_MAX_WIRE_LENGTH - the engines sit 1.5 mm apart, by their macros. Unset, a",
   "//": "routed push crossed on one 2.3 mm net from an o21ai_1 and missed the slow corner by 0.07 ns.",

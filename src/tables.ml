@@ -89,7 +89,12 @@ module Wiring = struct
       ; pin "in_base" t.in_base ~lo:0 ~hi:(Isa.pin_space - t.inputs)
       ; (if t.open_drain
          then pin "out_base" t.out_base ~lo:Isa.first_bidir_pin ~hi:(first_wire - 6)
-         else pin "out_base" t.out_base ~lo:Isa.first_output_pin ~hi:(Isa.pin_space - 6))
+         else
+           pin
+             "out_base"
+             t.out_base
+             ~lo:Isa.first_output_pin
+             ~hi:(Isa.first_status_pin - 6))
       ; pin "await_a" t.await_a ~lo:0 ~hi:(Isa.pin_space - 1)
       ; pin "await_b" t.await_b ~lo:0 ~hi:(Isa.pin_space - 1)
       ]

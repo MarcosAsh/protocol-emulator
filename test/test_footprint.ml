@@ -6,18 +6,17 @@ module G = Comb_gates
 module Footprint_gates = Footprint.Make (G)
 
 (* formal/frame_step.sv's footprint over gates: the window of [n] pins from [base] is the
-   top half of the doubled word, shifted up by [base] mod 28. *)
+   top half of the doubled word, shifted up by [base]. *)
 module Frame_step = struct
   open G
 
-  let outputs = of_unsigned_int ~width:Isa.pin_space 0xfffffe0
+  let outputs = of_unsigned_int ~width:Isa.pin_space 0x0fffffe0
   let bidirs = of_unsigned_int ~width:Isa.pin_space 0x00ff000
   let five v = uresize v ~width:5
 
   let place v ~base =
-    let base = mux2 (base >=:. 28) (base -:. 28) base in
-    log_shift ~f:sll (concat_msb [ zero 12; v; zero 12; v ]) ~by:base
-    |> select ~high:55 ~low:28
+    log_shift ~f:sll (concat_msb [ zero 16; v; zero 16; v ]) ~by:base
+    |> select ~high:63 ~low:32
   ;;
 
   let mask n = mux2 (n >=:. 16) (ones 16) (log_shift ~f:sll (one 16) ~by:n -:. 1)
@@ -195,7 +194,7 @@ let%expect_test "the frame lemma counts each word as the writer Writes counts it
     "%d of the %d words decode under some side-set count\n"
     (List.map decoded ~f:fst |> Int.Set.of_list |> Set.length)
     (1 lsl Isa.word_bits);
-  [%expect {| 34624 of the 65536 words decode under some side-set count |}]
+  [%expect {| 35136 of the 65536 words decode under some side-set count |}]
 ;;
 
 let%expect_test "the footprint of each firmware, and of its config under any program" =
@@ -232,8 +231,8 @@ let%expect_test "the footprint of each firmware, and of its config under any pro
     i2c_logger         5            12-13      5-20           12-19
     i2c_master_standard -            12-13      12-27          12-19
     i2c_master_fast    -            12-13      12-27          12-19
-    i2c_controller_wire 20-21        -          5-7 20-27      -
-    i2c_target_wire    20           -          5-7 20-27      -
+    i2c_controller_wire 20-21        -          20-27          -
+    i2c_target_wire    20           -          20-27          -
     usb_tx             5-7          -          5-20           12-19
     usb_rx             -            -          5-20           12-19
     usb_device         12-14        12-14      12-27          12-19

@@ -1,7 +1,7 @@
 // Frame lemma, beside edge_step.sv: from the clear on, a pin outside the engine's
 // footprint never moves in pin_out or pin_dir, whatever the host and the pins do. The
 // footprint is what the program's writers reach under the config, on the pins each write
-// takes (5 and up drive, 12 to 19 turn around), wrapping at 28 as Pins.write does:
+// takes (5 to 27 drive, 12 to 19 turn around), wrapping at 32 as Pins.write does:
 // side-set on every word but a jump (a count of 3 carries two bits, so its third pin only
 // gets 0); set; out to the widest out the program has (an out writes its own count,
 // whatever out_count is), two wide for a one-bit Manchester or line-coded out; mov to
@@ -38,7 +38,7 @@ module frame_step (input clk);
   (* anyseq *) wire start, program_write_valid, tx_valid, rx_pop, clear_irq;
   (* anyseq *) wire [8:0] program_write_addr;
   (* anyseq *) wire [15:0] program_write_data, tx_value;
-  (* anyseq *) wire [27:0] inputs;
+  (* anyseq *) wire [31:0] inputs;
   (* anyseq *) wire line_write_valid, program_read_valid, route_full;
   (* anyseq *) wire [4:0] line_write_addr;
   (* anyseq *) wire [8:0] program_read_addr;
@@ -51,7 +51,7 @@ module frame_step (input clk);
   reg clear = 1;
   always @(posedge clk) clear <= reset;
 
-  wire [27:0] pin_out, pin_dir;
+  wire [31:0] pin_out, pin_dir;
   wire [8:0] pc;
   wire [15:0] x, y, p, osr, isr, rx_head, instruction;
   wire [31:0] crc;
@@ -63,7 +63,7 @@ module frame_step (input clk);
   wire [3:0] tx_level, rx_level;
   wire decode_ok;
   wire [7:0] opcode_onehot;
-  wire [27:0] wait_select;
+  wire [31:0] wait_select;
   wire op_go;
 
   engine dut (
@@ -107,23 +107,23 @@ module frame_step (input clk);
     .eng_op_go(op_go));
 
   // Pins.write, as in edge_step.sv
-  localparam [27:0] OUTPUTS = 28'hfffffe0;
-  localparam [27:0] BIDIRS = 28'h00ff000;
-  function [27:0] place(input [15:0] v, input [4:0] base);
-    reg [55:0] twice;
+  localparam [31:0] OUTPUTS = 32'h0fffffe0;
+  localparam [31:0] BIDIRS = 32'h000ff000;
+  function [31:0] place(input [15:0] v, input [4:0] base);
+    reg [63:0] twice;
     begin
-      twice = {12'd0, v, 12'd0, v} << (base >= 28 ? base - 5'd28 : base);
+      twice = {16'd0, v, 16'd0, v} << base;
 `ifdef NO_WRAP
-      place = twice[27:0];
+      place = twice[31:0];
 `else
-      place = twice[55:28];
+      place = twice[63:32];
 `endif
     end
   endfunction
   function [15:0] mask(input [4:0] n);
     mask = n >= 16 ? 16'hffff : (16'd1 << n) - 16'd1;
   endfunction
-  function [27:0] window(input [4:0] base, input [4:0] n, input [27:0] takes);
+  function [31:0] window(input [4:0] base, input [4:0] n, input [31:0] takes);
     window = place(mask(n), base) & takes;
   endfunction
 
@@ -186,16 +186,16 @@ module frame_step (input clk);
   wire side_on_dir = side_set_count != 0 && side_set_pindirs;
 `endif
 
-  wire [27:0] side_out = side_on_out ? window(side_set_base, side_width, OUTPUTS) : 0;
-  wire [27:0] side_dir = side_on_dir ? window(side_set_base, side_width, BIDIRS) : 0;
-  wire [27:0] set_out = sets_pins ? window(set_base, set_width, OUTPUTS) : 0;
-  wire [27:0] set_dir = sets_dirs ? window(set_base, set_width, BIDIRS) : 0;
-  wire [27:0] out_out = window(out_base, pair_width, OUTPUTS);
-  wire [27:0] out_dir = window(out_base, out_dir_width, BIDIRS);
-  wire [27:0] mov_out = movs_pins ? window(out_base, mov_width, OUTPUTS) : 0;
-  wire [27:0] mov_dir = movs_dirs ? window(out_base, mov_width, BIDIRS) : 0;
-  wire [27:0] footprint_out = side_out | set_out | out_out | mov_out;
-  wire [27:0] footprint_dir = side_dir | set_dir | out_dir | mov_dir;
+  wire [31:0] side_out = side_on_out ? window(side_set_base, side_width, OUTPUTS) : 0;
+  wire [31:0] side_dir = side_on_dir ? window(side_set_base, side_width, BIDIRS) : 0;
+  wire [31:0] set_out = sets_pins ? window(set_base, set_width, OUTPUTS) : 0;
+  wire [31:0] set_dir = sets_dirs ? window(set_base, set_width, BIDIRS) : 0;
+  wire [31:0] out_out = window(out_base, pair_width, OUTPUTS);
+  wire [31:0] out_dir = window(out_base, out_dir_width, BIDIRS);
+  wire [31:0] mov_out = movs_pins ? window(out_base, mov_width, OUTPUTS) : 0;
+  wire [31:0] mov_dir = movs_dirs ? window(out_base, mov_width, BIDIRS) : 0;
+  wire [31:0] footprint_out = side_out | set_out | out_out | mov_out;
+  wire [31:0] footprint_dir = side_dir | set_dir | out_dir | mov_dir;
 
   // the lemma, in every cycle after the first clear
   reg cleared = 0;
@@ -211,20 +211,16 @@ module frame_step (input clk);
 
   // covers: each writer moves a pin of its window while the pin just above, written but
   // outside the footprint, stays put; a one-bit out moves a Manchester pair's second pin
-  function [27:0] pin_at(input [4:0] base, input [4:0] n);
-    reg [5:0] k;
-    begin
-      k = (base >= 28 ? base - 5'd28 : base) + n;
-      pin_at = 28'd1 << (k >= 28 ? k - 6'd28 : k);
-    end
+  function [31:0] pin_at(input [4:0] base, input [4:0] n);
+    pin_at = 32'd1 << (base + n);
   endfunction
-  function past(input [27:0] beside, input [27:0] takes, input [27:0] footprint);
+  function past(input [31:0] beside, input [31:0] takes, input [31:0] footprint);
     past = (beside & takes & ~footprint) != 0;
   endfunction
   reg last_clear = 1, last_cleared = 0, last_op_go = 0, last_flip_pending = 0;
   reg last_set_pins, last_set_dirs, last_out_pins, last_out_dirs, last_mov_pins, last_mov_dirs;
   reg [4:0] last_count;
-  reg [27:0] last_out, last_dir;
+  reg [31:0] last_out, last_dir;
   always @(posedge clk) begin
     last_clear <= clear;
     last_cleared <= cleared;
@@ -242,8 +238,8 @@ module frame_step (input clk);
   end
   // a step of the core's own, not the clear's, with no second half owed
   wire went = last_cleared && !last_clear && !clear && last_op_go && !last_flip_pending;
-  wire [27:0] moved_out = pin_out ^ last_out;
-  wire [27:0] moved_dir = pin_dir ^ last_dir;
+  wire [31:0] moved_out = pin_out ^ last_out;
+  wire [31:0] moved_dir = pin_dir ^ last_dir;
   wire side_alone_out = !last_set_pins && !last_out_pins && !last_mov_pins;
   wire side_alone_dir = !last_set_dirs && !last_out_dirs && !last_mov_dirs;
   always @(posedge clk) begin

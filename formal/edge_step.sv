@@ -59,14 +59,14 @@ module edge_step (input clk);
   (* anyseq *) wire start, program_write_valid, tx_valid, rx_pop, clear_irq;
   (* anyseq *) wire [8:0] program_write_addr;
   (* anyseq *) wire [15:0] program_write_data, tx_value;
-  (* anyseq *) wire [27:0] inputs;
+  (* anyseq *) wire [31:0] inputs;
 
   // the top clears the engine at power-on and whenever its reset comes again
   (* anyseq *) wire reset;
   reg clear = 1;
   always @(posedge clk) clear <= reset;
 
-  wire [27:0] pin_out, pin_dir;
+  wire [31:0] pin_out, pin_dir;
   wire [8:0] pc;
   wire [15:0] x, y, p, osr, isr, rx_head, instruction;
   wire [31:0] crc;
@@ -78,7 +78,7 @@ module edge_step (input clk);
   wire [3:0] tx_level, rx_level;
   wire decode_ok;
   wire [7:0] opcode_onehot;
-  wire [27:0] wait_select;
+  wire [31:0] wait_select;
   wire jmp_go, advance;
   wire [15:0] out_value, mov_value;
   wire line_level;
@@ -168,23 +168,23 @@ module edge_step (input clk);
       out_step <= delay + 6'd1;
     end else if (since_out != 63) since_out <= since_out + 6'd1;
 
-  // Pins.write: the low [n] bits of [v] from [base] up, wrapping at 28, on the pins that
-  // take them: 5 and up drive, 12 to 19 turn around
-  localparam [27:0] OUTPUTS = 28'hfffffe0;
-  localparam [27:0] BIDIRS = 28'h00ff000;
-  function [27:0] place(input [15:0] v, input [4:0] base);
-    reg [55:0] twice;
+  // Pins.write: the low [n] bits of [v] from [base] up, wrapping at 32, on the pins that
+  // take them: 5 to 27 drive, 12 to 19 turn around
+  localparam [31:0] OUTPUTS = 32'h0fffffe0;
+  localparam [31:0] BIDIRS = 32'h000ff000;
+  function [31:0] place(input [15:0] v, input [4:0] base);
+    reg [63:0] twice;
     begin
-      twice = {12'd0, v, 12'd0, v} << (base >= 28 ? base - 5'd28 : base);
-      place = twice[55:28];
+      twice = {16'd0, v, 16'd0, v} << base;
+      place = twice[63:32];
     end
   endfunction
   function [15:0] mask(input [4:0] n);
     mask = n >= 16 ? 16'hffff : (16'd1 << n) - 16'd1;
   endfunction
-  function [27:0] write
-    (input [27:0] old, input [4:0] base, input [4:0] n, input [15:0] v, input [27:0] takes);
-    reg [27:0] hit;
+  function [31:0] write
+    (input [31:0] old, input [4:0] base, input [4:0] n, input [15:0] v, input [31:0] takes);
+    reg [31:0] hit;
     begin
       hit = place(mask(n), base) & takes;
       write = old & ~hit | place(v, base) & hit;
@@ -196,30 +196,30 @@ module edge_step (input clk);
   wire [15:0] set_value = {11'd0, count};
   // a Manchester out drives its bit on the pin above out_base and the complement on it
   wire [15:0] first_half = {14'd0, out_value[0], !out_value[0]};
-  wire [27:0] pair = place(16'd3, out_base) & OUTPUTS;
+  wire [31:0] pair = place(16'd3, out_base) & OUTPUTS;
   wire [15:0] line_pair = {14'd0, !line_level, line_level};
   wire [4:0] line_count = out_count >= 2 ? 5'd2 : out_count;
 
   // the pins the cycle after an entry
 `ifdef NO_FLIP
-  wire [27:0] flipped = pin_out;
+  wire [31:0] flipped = pin_out;
 `else
-  wire [27:0] flipped = flip_owed ? pin_out ^ pair : pin_out;
+  wire [31:0] flipped = flip_owed ? pin_out ^ pair : pin_out;
 `endif
-  wire [27:0] sided_out =
+  wire [31:0] sided_out =
       side_pins ? write(flipped, side_set_base, side_set_count, side_value, OUTPUTS)
     : flipped;
-  wire [27:0] want_out =
+  wire [31:0] want_out =
       set_pins ? write(sided_out, set_base, set_count, set_value, OUTPUTS)
     : manchester_bit ? write(sided_out, out_base, 5'd2, first_half, OUTPUTS)
     : line_bit ? write(sided_out, out_base, line_count, line_pair, OUTPUTS)
     : out_pins ? write(sided_out, out_base, count, out_value, OUTPUTS)
     : mov_pins ? write(sided_out, out_base, out_count, mov_value, OUTPUTS)
     : sided_out;
-  wire [27:0] sided_dir =
+  wire [31:0] sided_dir =
       side_dirs ? write(pin_dir, side_set_base, side_set_count, side_value, BIDIRS)
     : pin_dir;
-  wire [27:0] want_dir =
+  wire [31:0] want_dir =
       set_dirs ? write(sided_dir, set_base, set_count, set_value, BIDIRS)
     : out_dirs ? write(sided_dir, out_base, count, out_value, BIDIRS)
     : mov_dirs ? write(sided_dir, out_base, out_count, mov_value, BIDIRS)
@@ -229,7 +229,7 @@ module edge_step (input clk);
   reg last_writes_out, last_writes_dir, last_side_pins, last_side_dirs;
   reg last_set_pins, last_set_dirs, last_out_pins, last_out_dirs;
   reg last_mov_pins, last_mov_dirs, last_manchester_bit;
-  reg [27:0] last_out, last_dir, last_want_out, last_want_dir;
+  reg [31:0] last_out, last_dir, last_want_out, last_want_dir;
   always @(posedge clk) begin
     last_clear <= clear;
     last_entry <= entry;
@@ -254,7 +254,7 @@ module edge_step (input clk);
   // the entry whose writes the pins show now; each teeth task gets one part wrong
 `ifdef ONE_CYCLE_LATER
   reg shown_entry = 0, shown_flip_owed = 0, shown_writes_out, shown_writes_dir;
-  reg [27:0] shown_want_out, shown_want_dir;
+  reg [31:0] shown_want_out, shown_want_dir;
   always @(posedge clk) begin
     shown_entry <= last_entry;
     shown_flip_owed <= last_flip_owed;
@@ -266,7 +266,7 @@ module edge_step (input clk);
 `else
   wire shown_entry = last_entry, shown_flip_owed = last_flip_owed;
   wire shown_writes_out = last_writes_out, shown_writes_dir = last_writes_dir;
-  wire [27:0] shown_want_out = last_want_out, shown_want_dir = last_want_dir;
+  wire [31:0] shown_want_out = last_want_out, shown_want_dir = last_want_dir;
 `endif
 `ifdef PINS_NEVER_CHANGE
   wire moves_out = 0;
@@ -310,7 +310,7 @@ module edge_step (input clk);
 `endif
 
   // invariants for induction
-  wire [27:0] first_half_held = place({14'd0, flip_bit, !flip_bit}, out_base) & OUTPUTS;
+  wire [31:0] first_half_held = place({14'd0, flip_bit, !flip_bit}, out_base) & OUTPUTS;
   always @(posedge clk)
     if (!clear) begin
       assert(opcode_onehot == 8'b1 << opcode);

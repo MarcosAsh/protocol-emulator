@@ -55,7 +55,7 @@ let side_set_moves (c : Program_config.t) (m : Machine.t) value =
     let movable =
       if c.side_set_pindirs
       then pin >= Isa.first_bidir_pin && pin < Isa.num_pins
-      else pin >= Isa.first_output_pin
+      else pin >= Isa.first_output_pin && pin < Isa.first_status_pin
     in
     movable && (level lsr pin) land 1 <> (value lsr j) land 1)
 ;;

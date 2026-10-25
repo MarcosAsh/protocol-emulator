@@ -283,7 +283,7 @@ let%expect_test "random tables of every kind: RTL, model and reference agree" =
         ~words_pushed:(!pushed_words : int)
         (unreached : int list)];
   [%expect
-    {| ((tables 64) (cycles 3000) (differing 0) (words_pushed 477) (unreached (0))) |}]
+    {| ((tables 64) (cycles 3000) (differing 0) (words_pushed 566) (unreached (0))) |}]
 ;;
 
 let%expect_test "the kernel accepts the interpreter at every wiring, with data memory \

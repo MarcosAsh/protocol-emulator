@@ -44,7 +44,10 @@ let pins = G.input "pins" Isa.pin_space
 let base = G.input "base" Reference.pin_bits
 let count = G.input "count" Isa.count_bits
 let value = G.input "value" Isa.data_bits
-let in_range = G.(base <:. Isa.pin_space &: (count <=:. Isa.data_bits))
+
+let in_range =
+  G.(uresize base ~width:(width base + 1) <:. Isa.pin_space &: (count <=:. Isa.data_bits))
+;;
 
 let prove ?(solver = Checked_unsat.solver) name ~claim =
   match Solver.solve ~solver (G.cnf G.(in_range &: ~:claim)) with
@@ -63,7 +66,8 @@ let claims =
   ("read", G.(Pins.read pins ~base ~count ==: Reference.read pins ~base ~count))
   :: List.map
        [ "write any pin", Fn.const true
-       ; ("write output pins", fun i -> i >= Isa.first_output_pin)
+       ; ( "write output pins"
+         , fun i -> i >= Isa.first_output_pin && i < Isa.first_status_pin )
        ; ( "write bidirectional pins"
          , fun i -> i >= Isa.first_bidir_pin && i < Isa.num_pins )
        ]
@@ -95,19 +99,19 @@ let%expect_test "no QED once cake_lpr refuses the proof, or for a false claim" =
     ("solver failed" read
      (e
       ("cake_lpr rejects the proof"
-       "c Checking failed at line: 0. Reason: clause index has no reduction sequence: 9646\n")))
+       "c Checking failed at line: 0. Reason: clause index has no reduction sequence: 9865\n")))
     ("solver failed" "write any pin"
      (e
       ("cake_lpr rejects the proof"
-       "c Checking failed at line: 0. Reason: clause index has no reduction sequence: 80921\n")))
+       "c Checking failed at line: 0. Reason: clause index has no reduction sequence: 76410\n")))
     ("solver failed" "write output pins"
      (e
       ("cake_lpr rejects the proof"
-       "c Checking failed at line: 0. Reason: clause index has no reduction sequence: 66761\n")))
+       "c Checking failed at line: 0. Reason: clause index has no reduction sequence: 55678\n")))
     ("solver failed" "write bidirectional pins"
      (e
       ("cake_lpr rejects the proof"
-       "c Checking failed at line: 0. Reason: clause index has no reduction sequence: 24849\n")))
+       "c Checking failed at line: 0. Reason: clause index has no reduction sequence: 21002\n")))
     (counterexample "write output pins as any pin")
     |}]
 ;;
