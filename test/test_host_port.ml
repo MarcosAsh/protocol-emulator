@@ -321,6 +321,21 @@ let%expect_test "a select past the last engine reads zeros" =
     |}]
 ;;
 
+(* on three engines the frame receivers' owner takes two bits, the top of the control *)
+let%expect_test "the frame owner names each of three engines" =
+  Three.run ~half:4 (fun m ~watch _ _ ->
+    let owners =
+      List.map [ 1; 2; 0 ] ~f:(fun owner ->
+        Spi_master.write m ~watch Reg.frame_control [ owner lsl (Frame_rx.pin_bits + 3) ];
+        List.hd_exn (Spi_master.read m ~watch Reg.frame_control ~count:1))
+    in
+    print_s [%message (owners : Int.Hex.t list)]);
+  [%expect {|
+    (owners (0x100 0x200 0x0))
+    (events ())
+    |}]
+;;
+
 let%expect_test "select routes every register but the program address" =
   Two.run ~half:4 (fun m ~watch inputs o ->
     List.iteri inputs.status ~f:(fun n status ->
