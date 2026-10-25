@@ -170,6 +170,7 @@ let scenario =
       Scenario.load
         ~config:(Timed_program.config firmware)
         ~program:(Timed_program.words firmware)
+        ()
       @ [ Write (Reg.tx, words)
         ; Scenario.start
         ; Run ((List.length words + 1) * cycles_a_frame)

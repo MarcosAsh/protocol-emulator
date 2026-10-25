@@ -503,8 +503,10 @@ let scenario =
   ; peer
   ; script =
       Scenario.load
+        ~assumptions:(Certified.assumptions (List.hd_exn certified))
         ~config:(Timed_program.config firmware)
         ~program:(Timed_program.words firmware)
+        ()
       @ [ Write (Reg.tx, List.concat [ ewen; read 5; write 5 0xa5c3 ])
         ; Scenario.start
         ; Run 22_000

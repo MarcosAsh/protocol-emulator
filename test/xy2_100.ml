@@ -174,8 +174,10 @@ let scenario =
   ; peer = (fun () -> Peer.idle 0)
   ; script =
       Scenario.load
+        ~assumptions:(Certified.assumptions (List.hd_exn certified))
         ~config:(Timed_program.config firmware)
         ~program:(Timed_program.words firmware)
+        ()
       @ [ Write (Reg.tx, List.map setpoints ~f:fst); Scenario.start; Run 2_800 ]
   ; sigrok = Some sigrok
   }

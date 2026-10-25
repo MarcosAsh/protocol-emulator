@@ -381,8 +381,10 @@ let scenario =
   ; peer
   ; script =
       Scenario.load
+        ~assumptions:(Certified.assumptions (List.hd_exn certified))
         ~config:(Timed_program.config firmware)
         ~program:(Timed_program.words firmware)
+        ()
       @ [ Write (Reg.tx, words (List.hd_exn frames))
         ; Scenario.start
         ; Run cycles_a_frame

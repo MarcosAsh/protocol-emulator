@@ -216,8 +216,10 @@ let scenario =
   ; peer = (fun () -> Peer.idle 0)
   ; script =
       Scenario.load
+        ~assumptions:(Certified.assumptions (List.hd_exn certified))
         ~config:(Timed_program.config firmware)
         ~program:(Timed_program.words firmware)
+        ()
       @ [ Scenario.start
         ; Write (Reg.tx, [ half_period; 0x1234; 0x00; 0x8000; 0xff ])
         ; Run 45_000

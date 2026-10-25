@@ -347,7 +347,13 @@ let scenario =
   { Scenario.name = "nec"
   ; peer = (fun () -> Peer.idle 0)
   ; script =
-      Scenario.load ~config:(Timed_program.config tx) ~program:(Timed_program.words tx)
+      Scenario.load
+        ~assumptions:
+          (Certified.assumptions
+             (Certified.of_firmware ~period:standard_unit ~no_wrap:true "nec_tx" tx))
+        ~config:(Timed_program.config tx)
+        ~program:(Timed_program.words tx)
+        ()
       @ [ Scenario.start; Write (Reg.tx, [ unit ]) ]
       @ List.concat_map sent ~f:send
   ; sigrok =

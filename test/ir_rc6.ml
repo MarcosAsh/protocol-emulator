@@ -294,8 +294,10 @@ let scenario =
   ; peer = (fun () -> Peer.idle 0)
   ; script =
       Scenario.load
+        ~assumptions:(Certified.assumptions (List.hd_exn certified))
         ~config:(Timed_program.config firmware)
         ~program:(Timed_program.words firmware)
+        ()
       @ [ Scenario.start; Write (Reg.tx, [ unit ]) ]
       @ List.concat_map sent ~f:send
       @ [ Run (8 * unit) ]
