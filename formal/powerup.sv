@@ -51,6 +51,7 @@ module powerup (input clk);
   localparam STAMP = 44;
   wire [7 * STAMP + 6 + 4 + 9 - 1:0] stamps_a, stamps_b;
   load_checker_t load_checker_a, load_checker_b;
+  wire [`WORD_CLASS_BITS - 1:0] word_class_a, word_class_b;
 
 `define CHIP(side) \
   tt_um_marcosash_protocol_emulator side ( \
@@ -63,7 +64,7 @@ module powerup (input clk);
     .started(started_``side), .refill(refill_``side), .lent(lent_``side), \
     .rx_0(rx_0_``side), .tx_0(tx_0_``side), \
     .rx_1(rx_1_``side), .tx_1(tx_1_``side), .stamps(stamps_``side), \
-    .load_checker(load_checker_``side) \
+    .load_checker(load_checker_``side), .word_class(word_class_``side) \
   );
 `define PORTS(side, n) \
     .m``n``_men(men_``side[n]), .m``n``_wen(wen_``side[n]), .m``n``_ren(ren_``side[n]), \
@@ -102,6 +103,9 @@ module powerup (input clk);
   fifo_pair #(.WORD(STAMP), .ADDR(2), .USED(3), .NEARLY(4)) stamps (
     .check(!first), .a(stamps_a), .b(stamps_b));
   load_checker_pair load_checker (.check(!first), .a(load_checker_a), .b(load_checker_b));
+  // the classes registered from the word, a cycle behind it, so the same from Target on, as
+  // the word is from Head on and only Word moves it
+  always @* if (!first && load_checker_a.sm > 3) assert (word_class_a == word_class_b);
 `endif
 
   // which macros hold the host's words, the same in both copies: all of them, unless COLD,
