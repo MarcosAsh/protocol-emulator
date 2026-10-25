@@ -61,6 +61,7 @@ end
 module O : sig
   type 'a t =
     { write : 'a Engine.Program_write.t
+    ; ready : 'a (** A word waits that fits: [write.valid] is [ready &: may_write]. *)
     ; status : 'a Status.t
     }
   [@@deriving hardcaml]

@@ -164,13 +164,14 @@ module Make (Config : Config) = struct
     (* The checker borrows engine [n]'s program port and data turn only while [n] is free,
        so a running or starting core never sees it. *)
     let%hw_list lent = List.mapi outs ~f:(fun n e -> mine n &: e.free) in
-    let%hw frame_writes = wire 1 in
-    (* what the walk reads, written under it, or its engine leaving halted *)
+    let%hw frame_could_write = wire 1 in
+    (* what the walk reads, written or maybe written under it, or its engine leaving
+       halted *)
     let%hw abort =
       checking
       &: (List.map i.hosts ~f:(fun h -> h.data_write.valid)
           |> List.reduce_exn ~f:( |: )
-          |: frame_writes
+          |: frame_could_write
           |: pick
                (List.map i.hosts ~f:(fun h ->
                   h.program_write.valid |: h.config_written |: h.line_write.valid))
@@ -180,9 +181,10 @@ module Make (Config : Config) = struct
     (* A received frame takes the data memory's port only in its owner's turn, and only
        where no read the owner needs is lost: no host write, and the owner halted and not
        starting, not pulling from data, or keeping its word. A halted engine's word is
-       refetched from its start on, and a walk the write lands under is aborted. So when
-       words land, and so when the owner's status pins move, never depends on another
-       engine. *)
+       refetched from its start on. So when words land, and so when the owner's status
+       pins move, never depends on another engine. A walk is aborted wherever a word could
+       land, whether or not the owner's read lets it, which keeps the owner's fetch off
+       the abort's path. *)
     let%hw host_writes =
       List.map outs ~f:(fun e -> e.halted)
       @ [ List.map i.hosts ~f:(fun h -> h.data_write.valid) |> List.reduce_exn ~f:( |: ) ]
@@ -197,9 +199,8 @@ module Make (Config : Config) = struct
     let%hw owners_turn =
       if engines = 1 then vdd else data_turn.whose_turn ==: i.frame_owner
     in
-    let%hw frame_may_write =
-      ~:host_writes &: owners_turn &: mux i.frame_owner turn_spared
-    in
+    let%hw frame_may_land = ~:host_writes &: owners_turn in
+    let%hw frame_may_write = frame_may_land &: mux i.frame_owner turn_spared in
     (* one receiver at a time, armed and on the data memory's port *)
     let frame =
       Frame_rx.hierarchical
@@ -220,10 +221,11 @@ module Make (Config : Config) = struct
         ; may_write = frame_may_write
         }
     in
+    frame_could_write <-- (mux2 i.frame_usb usb.ready frame.ready &: frame_may_land);
     let dma_write =
       Engine.Program_write.Of_signal.mux2 i.frame_usb usb.write frame.write
     in
-    frame_writes <-- dma_write.valid;
+    let%hw frame_writes = dma_write.valid in
     let dma_write = { dma_write with valid = frame_writes } in
     (* finished, good, receiving and error, for the owner alone *)
     let%hw frame_status =

@@ -53,6 +53,7 @@ end
 module O = struct
   type 'a t =
     { write : 'a Engine.Program_write.t
+    ; ready : 'a
     ; status : 'a Status.t
     }
   [@@deriving hardcaml]
@@ -91,7 +92,8 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   (* the data memory's end is the frame's, with no wrap *)
   let%hw fits = addr <:. 1 lsl Isa.data_addr_bits in
   let%hw leaves = pending &: i.may_write in
-  let%hw writes = leaves &: fits in
+  let%hw ready = pending &: fits in
+  let%hw writes = ready &: i.may_write in
   pending <-- reg spec (mux2 restart gnd @@ mux2 takes vdd @@ mux2 leaves gnd pending);
   let%hw dropped =
     reg_fb spec ~width:1 ~f:(fun d ->
@@ -127,6 +129,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
       ; addr = sel_bottom addr ~width:Isa.data_addr_bits
       ; data = held rx.word.value
       }
+  ; ready
   ; status = { words; finished; fcs_ok; half; dropped; receiving; armed }
   }
 ;;
