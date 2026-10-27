@@ -315,7 +315,10 @@ def verdict(cwd, file, jobs, timeout):
         for args in ELABORATE.get(file, []):
             if dune(cwd, "exec", "--", "./bin/generate.exe", *args, jobs=jobs, timeout=timeout)[0] != 0:
                 return "invalid", []
-        code, err = dune(cwd, "build", "@runtest", jobs=jobs, timeout=timeout)
+        # the first failing test is kill enough, and stopping there keeps a mutant that also
+        # hangs some other test from running out the clock as a timeout
+        code, err = dune(cwd, "build", "--stop-on-first-error", "@runtest", jobs=jobs,
+                         timeout=timeout)
         if code == 0:
             return "survived", []
         return "killed", sorted(set(FAILED.findall(COLOUR.sub("", err))))
