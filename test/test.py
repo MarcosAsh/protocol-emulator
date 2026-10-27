@@ -353,13 +353,20 @@ async def test_crc_send(dut):
     data = b"123456789"
     words = [(data[i] << 8) | (data[i + 1] if i + 1 < len(data) else 0) for i in range(0, len(data), 2)]
     await host.write(TX, [8 * len(data) - 2] + words + [0, 0])
-    await host.write(CONTROL, [1])
 
-    # OUT0 is uo_out[1], OUT1 uo_out[2]; a bit every six cycles from the cycle after OUT1
+    # OUT0 is uo_out[1], OUT1 uo_out[2]; a bit every six cycles from the cycle after OUT1,
+    # which can rise before the host's write returns, so the recording starts first
     levels = []
-    for _ in range(6 * (8 * len(data) + 32) + 40):
-        await ClockCycles(dut.clk, 1)
-        levels.append((int(dut.uo_out.value) >> 1) & 3)
+
+    async def record():
+        while True:
+            await ClockCycles(dut.clk, 1)
+            levels.append((int(dut.uo_out.value) >> 1) & 3)
+
+    recording = cocotb.start_soon(record())
+    await host.write(CONTROL, [1])
+    await ClockCycles(dut.clk, 6 * (8 * len(data) + 32) + 40)
+    recording.cancel()
     start = next(n for n, level in enumerate(levels) if level & 2)
     sent = [levels[start + 1 + 6 * k + 3] & 1 for k in range(8 * len(data) + 32)]
     assert sent[:-32] == [(byte >> (7 - n)) & 1 for byte in data for n in range(8)]
