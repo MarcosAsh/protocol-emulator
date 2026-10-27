@@ -105,6 +105,9 @@ class Chip:
     def load(self, words):
         pass
 
+    def certify(self, certificate, **_):
+        pass
+
     def push(self, words):
         self.fifo += words
         self.most = max(self.most, len(self.fifo))
@@ -182,7 +185,9 @@ def main():
               status == 0 and matched == expected and off == 0 and "FAIL" not in out, out)
     name, bursts, length = demo_predicted.read(i2c)
     chip = Chip()
-    demo_predicted.run(chip, {"config": {}, "words": []}, bursts)
+    firmware = {"config": {}, "words": [], "certificate": [], "loaded": None, "floor": False,
+                "single_edge": False}
+    demo_predicted.run(chip, firmware, bursts)
     check("the feed: the load then i2c_standard's burst, in order, the fifo never past 8",
           name == "i2c_standard" and length == 48400 and chip.most <= 8
           and chip.taken == [121] + [int(w) for w in open(i2c).read().split("burst ")[1]
