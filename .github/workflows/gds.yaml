@@ -73,7 +73,7 @@ jobs:
           submodules: recursive
 
       - name: Build GDS
-        uses: TinyTapeout/tt-gds-action@ihp-cmos5l
+        uses: TinyTapeout/tt-gds-action@ttihp27a
         with:
           pdk: ihp-sg13cmos5l
 
@@ -114,7 +114,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Run Tiny Tapeout Precheck
-        uses: TinyTapeout/tt-gds-action/precheck@ihp-cmos5l
+        uses: TinyTapeout/tt-gds-action/precheck@ttihp27a
 
   gl_test:
     needs: gds
@@ -126,7 +126,7 @@ jobs:
           submodules: recursive
 
       - name: GL test
-        uses: TinyTapeout/tt-gds-action/gl_test@ihp-cmos5l
+        uses: TinyTapeout/tt-gds-action/gl_test@ttihp27a
 
       # the action leaves the netlist, the PDK and cocotb in place; each trace is written
       # again with the outputs the gates drove, even one that differs from the RTL's

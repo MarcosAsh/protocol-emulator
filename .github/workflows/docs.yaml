@@ -18,7 +18,7 @@ jobs:
           submodules: recursive
 
       - name: Build docs
-        uses: TinyTapeout/tt-gds-action/docs@ihp-cmos5l
+        uses: TinyTapeout/tt-gds-action/docs@ttihp27a
 
   # what README.md and docs/info.md cite and quote, against the repo, its runs, the pinned
   # evidence releases and the links' pages, then wrong copies of the README that have to
