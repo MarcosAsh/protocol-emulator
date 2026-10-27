@@ -5,9 +5,10 @@
 # generate new-protocol, and the kernel certifies it. Makes a worktree intake-NAME on a branch
 # intake/NAME off the current commit and a run directory holding the prompt (demo/intake_prompt.txt),
 # the spec as text with page markers (pdftotext -layout) and an index of its limits, the full
-# transcript (transcript.jsonl, stream-json), stages.log, speed.tsv and verdict.txt: certified,
-# refused with the named limit, or failed. speed.tsv is the worktree's demo/speed.tsv rows for
-# NAME, which generate new-protocol and the formal targets write through demo/speed.py.
+# transcript (transcript.jsonl, stream-json), stages.log, speed.tsv and verdict.txt: certified
+# with how many of the spec's limit rows have a min or max, refused with the named limit, or
+# failed. speed.tsv is the worktree's demo/speed.tsv rows for NAME, which generate
+# new-protocol and the formal targets write through demo/speed.py.
 # Before the agent, demo/extract.py reads the spec's limits twice, blind: a disagreement stops
 # the run with "limit disputed, SPEC p.N" (exit 3) and keeps both readings in disputed.tsv.
 # Once a person has ruled on them (demo/extract.py rule), --limits that run directory goes on.
@@ -70,6 +71,17 @@ verdict() {
     log "verdict $*"
     echo "$*"
     echo "run directory: $run"
+}
+# how much of the spec the limits are: rows with a min or max bound the firmware, typical
+# values alone bound nothing, and a certificate held to none is hollow
+spec_class() {
+    python3 -I - "$run/limits.tsv" <<'PY'
+import csv, sys
+rows = list(csv.DictReader(open(sys.argv[1]), delimiter="\t"))
+bounded = sum(1 for r in rows if (r["min"] or "").strip() or (r["max"] or "").strip())
+line = f"{len(rows)} limit rows, {bounded} with a min or max, {len(rows) - bounded} typical only"
+print(line + ("; hollow: the spec bounds nothing" if bounded == 0 else ""))
+PY
 }
 log "start $name from $spec"
 
@@ -215,7 +227,7 @@ scan "$run/transcript.jsonl" || { agent="VERDICT: failed touched the held-out li
 case $agent in
 "VERDICT: certified")
     if [ $check = 0 ] && grep -q "certificate" "$run/speed.tsv"; then
-        verdict certified
+        verdict "certified; $(spec_class)"
     else
         verdict "failed: the agent said certified, but the check exited $check or no certificate stage was marked"
     fi
