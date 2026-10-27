@@ -141,7 +141,7 @@ def test_ruled_from_file():
     head = "document\tsheet\tRev. 1\t\nsymbol\tparameter\tcondition\tmin\ttyp\tmax\tunit\tpage\twhere\n"
     a = ex.parse(head + "\tclock frequency\t\t2\t\t\tMHz\t2\ttext\n"
                  "tDS\tsetup\t\t50\t\t\tns\t2\ttable\n")
-    b = ex.parse(head + "fclk\tclock\t\t\t2\t\tMHz\t2\ttext\n"
+    b = ex.parse(head + "fclk\tclock\t\t\t2\t5\tMHz\t2\ttext\n"
                  "tDS\tsetup\t\t50\t\t\tns\t2\ttable\n")
     result = ex.compare(a, b)
     assert sorted({d["symbol"] for d in result["disputes"]}) == ["clock frequency", "fclk"]
@@ -171,9 +171,31 @@ def test_ruled_from_file():
     assert not [d for d in ex.compare(a, dated, ruled)["disputes"] if d["symbol"] == "document"]
 
 
+def test_one_reader_typical():
+    # a row only one reader wrote, typical values only, bounds nothing: kept and marked, no
+    # dispute. One with a bound is disputed, and a person's ruling on either still counts
+    head = "document\tsheet\tRev. 1\t\nsymbol\tparameter\tcondition\tmin\ttyp\tmax\tunit\tpage\twhere\n"
+    shared = "tDS\tsetup\t\t50\t\t\tns\t2\ttable\n"
+    a = ex.parse(head + shared + "fclock\tclock\tnominal\t\t90\t\tkHz\t1\ttext\n"
+                 "TWE\twrite cycle\t\t\t\t20\tms\t10\ttext\n")
+    b = ex.parse(head + shared)
+    result = ex.compare(a, b)
+    assert [d["symbol"] for d in result["disputes"]] == ["TWE"] * len(ex.FIELDS)
+    kept = [r for r in result["rows"] if r["symbol"] == "fclock"]
+    assert [r["condition"] for r in kept] == ["nominal " + ex.ONE_READER]
+    struck = {ex.ruling_key({"symbol": "fclock", "condition": "nominal"}, f): ex.ABSENT
+              for f in ex.FIELDS}
+    struck |= {ex.ruling_key({"symbol": "TWE", "condition": ""}, f): v
+               for f, v in zip(ex.FIELDS, ["", "", "20", "10", "text"])}
+    assert outcome(a, b, struck)[0] == "limits agreed, 2 rows, 10 fields ruled by hand"
+    assert outcome(a, b, {k: v for k, v in struck.items() if k[0] == "twe"})[0] == (
+        "limits agreed, 3 rows, 1 of them typical only from one reader, 5 fields ruled by hand")
+
+
 test_written_differently()
 test_parse()
 test_blind_run()
 test_known_misreads()
 test_rulings()
 test_ruled_from_file()
+test_one_reader_typical()
