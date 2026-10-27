@@ -144,8 +144,8 @@ let check (swept : Swept.t) (certified : Certified.t) ~edges k ~source =
   }
 ;;
 
-(* The deadline wait with the least slack and its pc, the first of any tie. *)
-let tightest (swept : Swept.t) (certified : Certified.t) =
+(* Each deadline wait's least slack and its pc, in program order. *)
+let waits (swept : Swept.t) (certified : Certified.t) =
   let timed =
     Timed_program.of_source_exn
       ?period:swept.period
@@ -156,6 +156,11 @@ let tightest (swept : Swept.t) (certified : Certified.t) =
   Timed_program.rows timed
   |> List.filter_map ~f:(fun (r : Analyser.Row.t) ->
     Option.bind r.slack ~f:(fun s -> s.lo) |> Option.map ~f:(fun slack -> slack, r.pc))
+;;
+
+(* The deadline wait with the least slack and its pc, the first of any tie. *)
+let tightest swept certified =
+  waits swept certified
   |> List.min_elt ~compare:[%compare: int * int]
   |> Option.value_exn ~message:"no deadline wait"
 ;;
@@ -196,14 +201,22 @@ let variant t k =
     ~source:(with_nops t.certified ~wait_pc:t.wait_pc k)
 ;;
 
+let edges (swept : Swept.t) certified =
+  let program, config = assembled swept certified certified.source in
+  fst (ran swept ~config ~words:(Asm.Program.words program |> ok_exn))
+;;
+
 let of_swept (swept : Swept.t) =
   let certified = Library.find_certified_exn swept.name in
   let slack, wait_pc = tightest swept certified in
-  let edges =
-    let program, config = assembled swept certified certified.source in
-    fst (ran swept ~config ~words:(Asm.Program.words program |> ok_exn))
-  in
-  { swept; certified; wait_pc; slack; edges }
+  { swept; certified; wait_pc; slack; edges = edges swept certified }
+;;
+
+let every_wait (swept : Swept.t) =
+  let certified = Library.find_certified_exn swept.name in
+  let edges = edges swept certified in
+  List.map (waits swept certified) ~f:(fun (slack, wait_pc) ->
+    { swept; certified; wait_pc; slack; edges })
 ;;
 
 let every t = List.init (t.slack + 4) ~f:(variant t)

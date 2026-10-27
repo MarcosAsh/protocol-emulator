@@ -49,6 +49,60 @@ let%expect_test "the kernel's verdict on delay variants" =
     |}]
 ;;
 
+(* Planted timing bugs: at every deadline wait of the swept firmware, one to three cycles
+   of nops, half the slack, and every count from one short of it to three past, each run
+   on the model under the sweep's stimulus. Whatever the kernel certifies must never run
+   late; what it refuses either runs late or is late only on a way into the wait the
+   stimulus does not take. *)
+let%expect_test "planted delays: none the kernel certifies runs late" =
+  let totals = Array.create ~len:5 0 in
+  List.iter Library.swept ~f:(fun swept ->
+    let row = Array.create ~len:5 0 in
+    List.iter (Delay_variants.every_wait swept) ~f:(fun t ->
+      [ 1; 2; 3; t.slack / 2 ] @ List.init 5 ~f:(fun i -> t.slack - 1 + i)
+      |> List.filter ~f:(fun k -> k >= 1)
+      |> List.dedup_and_sort ~compare:Int.compare
+      |> List.iter ~f:(fun k ->
+        let v = Delay_variants.variant t k in
+        let certified = Delay_variants.Variant.accepted v in
+        let late = Delay_variants.Variant.late v in
+        let bump i =
+          row.(i) <- row.(i) + 1;
+          totals.(i) <- totals.(i) + 1
+        in
+        bump 0;
+        bump (if certified then 1 else 2);
+        if certified && late then bump 3;
+        if (not certified) && late then bump 4));
+    printf
+      "%-18s %4d planted: %4d certified, %d ran late; %3d refused, %3d ran late\n"
+      swept.name
+      row.(0)
+      row.(1)
+      row.(3)
+      row.(2)
+      row.(4));
+  printf
+    "%-18s %4d planted: %4d certified, %d ran late; %3d refused, %3d ran late\n"
+    "total"
+    totals.(0)
+    totals.(1)
+    totals.(3)
+    totals.(2)
+    totals.(4);
+  [%expect
+    {|
+    uart_tx              22 planted:   13 certified, 0 ran late;   9 refused,   9 ran late
+    uart_tx16            27 planted:   18 certified, 0 ran late;   9 refused,   9 ran late
+    uart_tx_host_rate    27 planted:   18 certified, 0 ran late;   9 refused,   9 ran late
+    spi_master           23 planted:   14 certified, 0 ran late;   9 refused,   9 ran late
+    jtag                 13 planted:    4 certified, 0 ran late;   9 refused,   9 ran late
+    can                  90 planted:   60 certified, 0 ran late;  30 refused,  22 ran late
+    sent                 81 planted:   54 certified, 0 ran late;  27 refused,  25 ran late
+    total               283 planted:  181 certified, 0 ran late; 102 refused,  92 ran late
+    |}]
+;;
+
 let%expect_test "nops fill the delay field before adding another" =
   List.iter
     [ 0, 0, 0; 0, 0, 1; 0, 0, 33; 1, 1, 17; 2, 0, 8 ]

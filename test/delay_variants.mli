@@ -53,6 +53,9 @@ val with_nops : Certified.t -> wait_pc:int -> int -> string
 (** Finds the tightest wait. *)
 val of_swept : Swept.t -> t
 
+(** Each deadline wait, in program order. *)
+val every_wait : Swept.t -> t list
+
 (** The variant with [k] extra cycles. *)
 val variant : t -> int -> Variant.t
 
