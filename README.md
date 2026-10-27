@@ -1,33 +1,47 @@
 # protocol-emulator
 
-An entry for Jane Street's protocol emulator ASIC competition, written in Hardcaml and
-built on IHP CMOS5L through Tiny Tapeout, in 6 x 4 tiles at 48 MHz.
+A small chip that bit-bangs protocols from firmware, and won't start any firmware whose
+timing it can't prove. Written in Hardcaml for Jane Street's protocol emulator ASIC
+competition, built on IHP CMOS5L through Tiny Tapeout, in 8 x 4 tiles at 48 MHz.
 
 ![from firmware to silicon](docs/chain.svg)
 
-Two small cores bit-bang the pins from firmware. The timing is explicit: there is a 24-bit
-clock, a deadline register `t` and a period `p`. `wait t+` releases on the exact cycle and
-moves the deadline on by one period, so a frame never drifts. An analyser certifies each
-program's timing, and a small kernel, proved sound against the RTL, refuses any program
-whose certificate it cannot check. So if a firmware assembles with the timing check on,
-the RTL is proven never to miss one of its deadlines, under the assumptions below.
+Two small cores drive the pins from firmware, much like the RP2040's PIO. The difference is
+time. Each core has a 24-bit clock, a deadline register `t` and a period `p`. `wait t+`
+releases on the exact cycle of the deadline and moves it on by one period, so a frame never
+drifts. A UART bit or an I2C hold time is a deadline written in the program, not a count of
+instructions you hope adds up.
+
+A small kernel checks a certificate of each program's timing and refuses anything it can't
+check. The kernel is proved against the RTL. If it accepts a program, that program never
+misses a deadline on the chip, under the assumptions listed further down.
+
+The chip runs that check itself. Before it lets an engine start, it walks the program
+against its certificate, and it refuses the start if the walk fails. If a deadline is ever
+missed anyway, the engine lets go of its pins and halts, and that is proved too. The chip
+also takes USB full speed packets off the pins into the data memory with their CRCs
+checked, and 10BASE-T frames when clocked at 40 or 50 MHz.
 
 | | | Source |
 |---|---|---|
-| Process | IHP SG13CMOS5L through Tiny Tapeout, 6 x 4 tiles | `info.yaml`, `.github/workflows/gds.yaml` |
+| Process | IHP SG13CMOS5L through Tiny Tapeout, 8 x 4 tiles | `info.yaml`, `.github/workflows/gds.yaml` |
 | Clock | 48 MHz | `info.yaml` |
 | Cores | 2 cores, 3 IHP 512 x 16 SRAM macros: a program memory each and a data memory they share | `src/protocol_emulator.v` |
 | Pins | 4 for the host's SPI, 5 in, 7 out, 8 bidirectional, and 8 wires between the cores | `info.yaml`, `src/isa.ml` |
-| Hardened | 23,517 standard cells at 49.6% utilisation, setup slack +3.487 ns at the slow corner, precheck clean | gds run [39277515192](https://github.com/MarcosAsh/protocol-emulator/actions/runs/39277515192) |
-| Firmware | 52 library firmwares the kernel accepts | `test/test_kernel.ml` |
+| Hardened | 46,336 standard cells at 63.9% utilisation, setup slack +1.456 ns at the slow corner, precheck clean | gds run [40214165955](https://github.com/MarcosAsh/protocol-emulator/actions/runs/40214165955) |
+| Firmware | 56 library firmwares the kernel accepts | `test/test_kernel.ml` |
 | Proved | a program the kernel accepts never misses a deadline on each core's RTL, under the assumptions below | `formal/phase_table.sby`, `formal/phase_table_affine.sby` |
-| Board | the RTL on an Icepi Zero (ECP5 FPGA) passed the self-timing demo on 2026-10-09, no silicon yet | `python/demo_self_timing.py` |
+| Board | the 6 x 4 RTL on an Icepi Zero (ECP5 FPGA) passed the self-timing demo on 2026-10-09. The 8 x 4 build has not run on a board yet, no silicon yet | `python/demo_self_timing.py` |
 
-## From source to pins
+## Try it
 
+No install: the [playground](https://marcosash.github.io/protocol-emulator/playground/) runs
+the kernel in your browser. Paste firmware and it accepts or refuses it, and says why.
+
+With the OxCaml switch, `5.2.0+ox`, here is the same thing on the command line.
 `test/uart_tx.asm` is a UART transmitter at 16 cycles a bit. Give its `out` 13 cycles of
-delay and the bit loop no longer fits in a period: the assembler says where and exits 1.
-With 12 it passes, at slack 0. The commands need the OxCaml switch, `5.2.0+ox`.
+delay and the bit loop no longer fits in a period, so the assembler says where and exits 1.
+With 12 it passes, at slack 0.
 
 ```
 $ dune exec -- bin/generate.exe assemble -listing test/uart_tx.asm
@@ -55,34 +69,82 @@ On the Tiny Tapeout demo board that sends 0x55 and 0xA3 as two frames on `uo[1]`
 Tapeout board has run it yet. `make -C test COCOTB_TEST_FILTER=test_uart_over_spi` runs it
 under cocotb.
 
+## One piece of Hardcaml, two uses
+
+The deadline compare is the heart of the timing, and it is this, from `src/deadline.ml`:
+
+```ocaml
+module Make (Comb : Comb.S) = struct
+  open Comb
+
+  let phase ~now ~t = now -: t
+  let release ~now ~t = ~:(msb (phase ~now ~t))
+  let late ~now ~t = release ~now ~t &: (phase ~now ~t <>:. 0)
+end
+```
+
+The engine builds it from `Signal`, so it becomes gates on the chip. `test/test_deadline.ml`
+builds the same functor from `Comb_gates` and has a SAT solver prove, for every value of the
+clock and the deadline, that release means `now - t >= 0` as a signed number, wrapping and
+all. The chip and the proof can't drift apart because they are the same code.
+
+## Compared with PIO and PRU
+
+The brief asks what we would do differently. PIO and PRU both give you exact cycles, and
+adding them up is your job. If you get it wrong, an edge is late and nothing tells you.
+
+Here the deadline is in the instruction set, the chip checks the sum before it lets the
+program start, and a late edge at run time is a fault that takes the engine off its pins. None of the parts
+are new on their own. Timed waits come from FlexPRET, and XMOS's XTA checked timing at
+compile time. What this adds is a deadline theorem on the RTL itself, for every program the
+kernel accepts.
+
 ## What is proved
 
 - One theorem covers every program: if the kernel accepts it, it never misses a deadline.
   `src/kernel.ml` is a checker you can read in one sitting. `formal/phase_step.sv` with a
   SAT query in `test/test_kernel.ml` proves the theorem, and so does
   `formal/phase_table.sby`, with `formal/phase_table_affine.sby` for Ethernet.
-- The hardened netlist equals the RTL for all time from all flops 0 (`netlist_equiv` job).
-- When and how the host talks reaches the pins only through the program's own fifo
-  waits and tests, or a fault. Like the other lemmas in `formal/`, it has weakened copies
-  that must fail (`make -C formal teeth`).
-- The kernel accepts all 52 library firmwares (UART, SPI, I2C, USB, WS2812, 1-Wire, PS/2,
-  JTAG, CAN, 10BASE-T, DShot600, SENT, CEC, SWD). `test/test_certified.ml` lists each
-  with its slack and assumptions.
+- The hardened netlist equals the RTL for all time from all flops 0, and from any state
+  once reset (`netlist_equiv` job).
+- When and how the host talks reaches the pins only through the program's own fifo waits
+  and tests, or a fault. Like the other lemmas in `formal/`, it has weakened copies that
+  must fail (`make -C formal teeth`).
+- The chip refuses firmware it cannot certify. A start reaches an engine only while it is
+  certified, and it is certified only by a walk that began after the last program,
+  configuration or line table write, saw no data written and accepted (`formal/gate.sby`).
+  An accepted walk checked every pc against the rows at its successor and its target
+  (`formal/certify.sby`). The walk always ends, with the verdict, reject pc and reason of
+  the model in `src/load_check.ml` (`formal/complete.sby`). Their covers and weakened
+  copies use a short walk and a 32 cycle turn, as a full turn is 65,536 cycles. A walk
+  takes 8,192 to 30,545 cycles.
+- Engine 0's pins and host reads are the same whatever engine 1 is given, from the clear,
+  as long as no word is routed between them, no start starts both, engine 1's frames land
+  above engine 0's region and engine 1 loads nothing while engine 0 has a frame word
+  waiting (`formal/isolation.sby`).
+- A fault is fail-safe: from the edge it shows, a faulted engine drives no pin, halts within
+  two edges and stays halted until the next clear, whatever the host does
+  (`formal/fail_safe.sby`).
+- The USB receiver writes any one packet to the data memory as it was sent, at any sampling
+  phase: data up to 8 bytes with its CRC-16, a token with its CRC-5, or a handshake. Seven
+  1s in a row flag a stuffing error (`formal/usb_roundtrip.sby`). It assumes exactly 8
+  samples a bit. `make -C formal usb_roundtrip_64` proves packets up to 64 bytes, and CI
+  does not run it.
+- Two engines composed: uart_tx on engine 0 to uart_rx on engine 1 over an on-chip wire,
+  10 cycles a bit, is proved for all time. Engine 1 pushes the low byte of each word engine
+  0 pulled, once a frame (`formal/link.sby`, the `link` job).
 - hardcaml_hobby_boards' `Uart.Tx`, compiled to firmware, drives the core's pin as the
   circuit drives its line, 4 cycles later, at 4 clocks a bit, for bytes at least 4 cycles
   after ready (`make -C formal fsm_miter`).
-- Two engines composed: uart_tx on engine 0 to uart_rx on engine 1 over an on-chip wire,
-  10 cycles a bit, is proved for all time: engine 1 pushes the low byte of each word
-  engine 0 pulled, once a frame (`formal/link.sby`, the `link` job).
-- `Self_check.checker`, firmware that checks a pin's edges against rows from the kernel:
-  for one set of edges on pin 0, rows at 0, on one engine with a private data memory (not
-  the chip's shared one), its program and rows as ROMs and the host idle, no irq, no halt
-  and none of its own deadlines missed until the line leaves its rows, for all time
-  (`formal/self_check_clean.sby`, witness checked by cake_lpr in the `witness` job). Its
-  irq by the contract's deadline after a break is proved only for 116 cycles from the
-  clear, which reach the first frame's deadline only if the first fall comes by about
-  cycle 22 (`formal/self_check.sby`).
-- Power-up is deterministic: two copies of the chip from any two states of their flops and
+- `Self_check.checker` is firmware that checks a pin's edges against rows from the kernel.
+  For one set of edges on pin 0, rows at 0, on one engine with a private data memory (not
+  the chip's shared one), its program and rows as ROMs and the host idle, it raises no irq,
+  never halts and misses none of its own deadlines until the line leaves its rows, for all
+  time (`formal/self_check_clean.sby`, witness checked by cake_lpr in the `witness` job).
+  Its irq by the contract's deadline after a break is proved only for 116 cycles from the
+  clear, which reach the first frame's deadline only if the first fall comes by about cycle
+  22 (`formal/self_check.sby`).
+- Power-up is deterministic. Two copies of the chip from any two states of their flops and
   fifos, with the same words in their SRAMs, reset at the first edge and given the same
   pins, drive the same pins (`formal/powerup.sby`).
 - Each UNSAT in the SAT proofs is checked by cake_lpr, an LRAT checker verified in HOL4.
@@ -90,11 +152,11 @@ under cocotb.
 
 ## What is not proved
 
-- Trusted: Yosys, SymbiYosys, boolector, ABC, cake_lpr, Certifaiger and the aiger tools
-  for the witnesses, hardcaml_verify's translation of gates into clauses, `Bits` agreeing
-  with `Comb_gates`, stated facts of arithmetic modulo 2^24, IHP's behavioural SRAM model,
-  the self-check's contract (`test/self_check_contract.ml`), and the PDK's models and the
-  flow's timing analysis.
+- Trusted: Yosys, SymbiYosys, boolector, ABC, cake_lpr, Certifaiger and the aiger tools for
+  the witnesses, hardcaml_verify's translation of gates into clauses, `Bits` agreeing with
+  `Comb_gates`, stated facts of arithmetic modulo 2^24, IHP's behavioural SRAM model, the
+  self-check's contract (`test/self_check_contract.ml`), and the PDK's models and the flow's
+  timing analysis.
 - The theorem assumes that:
   - every write to `p` other than a `set` leaves the checked period
   - a receiver's capture pin is at the other level at `capture_arm` and, once at the
@@ -103,45 +165,75 @@ under cocotb.
     program
   - the configuration is fixed from power-on, the only reset
   - side-set count is at most 2
+- The chip's certificate rows carry no spacing and no slope, so it refuses firmware that
+  needs either, even where the host's kernel would accept it.
 - The theorem says nothing of the underflow and overflow a slow host can cause.
 - Tested, not proved:
-  - the core against its model beyond the decoder, deadline compare, pin rotation and
-    data path values, on every library firmware and on random programs
+  - the core against its model beyond the decoder, deadline compare, pin rotation and data
+    path values, on every library firmware and on random programs
   - which host words the pins carry, for all but five transmitters
   - the protocols, against models we wrote, and at the RTL's pins against sigrok's decoders
     for UART, SPI, I2C, CAN data frames, CEC, 1-Wire, PS/2, JTAG, low speed USB and WS2812
     (`demo/decode.py`, the `decode` job)
   - USB enumeration, which the board does in `python/usb_board.py`
-- Nothing has run on silicon yet. On an Icepi Zero FPGA (ECP5, 48 MHz) running the chip's
-  RTL, `python/demo_self_timing.py` passed on 2026-10-09: engine 1 stamped all 52 edges of
-  engine 0's `Jane St!` at 9600 baud on the predicted cycles, quiet and with the host
-  flooding SPI with reads. The USB keyboard (`python/demo_usb.py`) passed there on
+  - the 10BASE-T receiver, the edge stamps and the line code tables. No sigrok decoder
+    reads USB full speed, so the USB receiver's traces are checked against our model only
+- Nothing has run on silicon yet, and the 8 x 4 build has not run on a board. On an Icepi
+  Zero FPGA (ECP5, 48 MHz) running the 6 x 4 chip's RTL, `python/demo_self_timing.py`
+  passed on 2026-10-09: engine 1 stamped all 52 edges of engine 0's `Jane St!` at 9600
+  baud on the predicted cycles, quiet and with the host flooding SPI with reads. The USB keyboard (`python/demo_usb.py`) passed there on
   2026-10-02 (release v0.2.0).
 
-## What the checks found
+## Trying to break it
 
-The tests kill 112 of 114 valid mutants of the engine, decoder, pins and host port
-(mutation run 39462087759, 2026-10-20). The other 2 are equivalent, see
-`test/mutation_allow.txt`. Counted on 2026-09-30, of 13 bugs fixed in commits of their
-own, model tests found 3, the analyser's soundness check 3, AI review 3, proofs 2, the
-analyser 1 and a mutant 1, among them a showahead `Fifo` holding one word over its
-capacity (mutant, a67aa23), a stale power-up word at an empty rx fifo's head (proof,
-ae5e91d) and an `add t, x` after a spent `jmp x--` certified 65536 cycles wrong (soundness
-check, 99d55ee).
+A checker is only worth something if it fails when it should, so most checks here come with
+a way to make them fail.
 
-Eight held-out protocols, none of them in the firmware library, are sealed in
-`test/heldout.sha256`, the SHA-256 of a salted list committed on 2026-10-02. When the list
-is opened in November, an agent writes each one from its public spec, then the kernel
-checks it and one of sigrok's decoders reads it from simulation. Every result goes here,
-failures included.
+| Check | What we did | Result |
+|---|---|---|
+| Planted delays, run | at every deadline wait of the 7 swept firmwares, 1 to 3 cycles of `nop`, half the slack, and every count from one short of the slack to three past, each run on the model (`test/test_delay_variants.ml`) | 283 planted. The kernel certified 181 and none ran late. It refused 102, and 92 of those did run late. The other 10 are late only on paths the test's input never takes |
+| One cycle late, everywhere | every deadline wait in the library given one cycle more than its slack (`test/test_late_mutants.ml`) | all 567 refused |
+| Mutants | the tests against mutants of the engine, decoder, pins and host port | the tests kill 129 of 131 valid mutants (mutation run 40214211955, 2026-10-25). The other 2 are equivalent, see `test/mutation_allow.txt` |
+| Weakened proofs | each lemma in `formal/` has copies with a premise dropped (`make -C formal teeth`) | every copy fails, as it must |
+| Loose limits | which firmware its datasheet limits don't hold within a factor of two (`test/test_datasheet.ml`) | lfast and swd are loose, ir_rc6 and nec_tx have no limits, each listed with why |
 
-## AI-assisted verification
+Counted on 2026-09-30, of 13 bugs fixed in commits of their own, model tests found 3, the
+analyser's soundness check 3, AI review 3, proofs 2, the analyser 1 and a mutant 1. Among
+them were a showahead `Fifo` holding one word over its capacity (mutant, a67aa23), a stale
+power-up word at an empty rx fifo's head (proof, ae5e91d) and an `add t, x` after a spent
+`jmp x--` certified 65536 cycles wrong (soundness check, 99d55ee).
 
-Agents write firmware, models, checkers and proof harnesses, and review them. Each output
-passes a gate, and a finding counts only with a reproducer that fails on the code. Not
-every gate is apart from the agents: one agent wrote the DShot600, SENT and CEC firmware
-and their decoders, and an agent wrote the self-check's contract (4ea99d7), which is
-trusted. The method is not new. Counts are per finding as filed, so one bug can count
+## Protocols drawn at random
+
+To show it handles protocols it wasn't built for, we let a public random beacon pick six
+from sigrok's decoders, pinned each one's spec before any run, and had an agent write the
+firmware blind from the spec (`demo/corpus_draw_33346612.json`, `demo/corpus_specs.tsv`,
+`demo/intake.sh`). Two readers pulled the timing limits out of each spec separately, and I
+ruled where they disagreed. Each run took 24 to 50 minutes.
+
+| Protocol | Spec | Result |
+|---|---|---|
+| Microwire | National AN-452 | certified against the limits in its tables |
+| XY2-100 | rhothor X7 datasheet | certified against its setup and hold limits |
+| Caliper | ShumaTech's page | certified, but the page only gives "about" values, read as minimums |
+| LFAST | NXP AN5134 | certified, but its one limit is a top speed, so it binds nothing |
+| RC-6 | SB-Projects page | certified, but the page gives no limits at all |
+| TDM audio | Cirrus AN301 | failed: the note has no timing limits to check against |
+
+So three real certificates, two that are hollow because the spec is, and one failure. Every
+result stays here, including the ones that don't flatter us.
+
+Eight more protocols, none of them in the library, are sealed in `test/heldout.sha256`, the
+SHA-256 of a salted list committed on 2026-10-02. When the list is opened in November they
+go through the same pipeline, and the results go here too.
+
+## How AI was used
+
+Agents wrote much of this: firmware, models, checkers, proof harnesses and reviews. Nothing
+an agent wrote counts until it passes a gate, and a finding counts only with a reproducer
+that fails on the code. Not every gate is independent of the agents. One agent wrote the
+DShot600, SENT and CEC firmware and their decoders, and an agent wrote the self-check's
+contract (4ea99d7), which is trusted. Counts are per finding as filed, so one bug can count
 twice.
 
 | AI does | Gate | Result | Against it |
@@ -155,8 +247,7 @@ twice.
 ## Build
 
 Needs the OxCaml switch, and OSS CAD Suite and cocotb for `formal/` and `test/`. Without
-OCaml, the [playground](https://marcosash.github.io/protocol-emulator/playground/) shows the
-kernel accept or refuse pasted firmware, and the [latest release](https://github.com/MarcosAsh/protocol-emulator/releases/latest)
+OCaml, the [latest release](https://github.com/MarcosAsh/protocol-emulator/releases/latest)
 has `generate-linux-x86_64` (Ubuntu 24.04 or newer).
 
 ```
@@ -167,16 +258,16 @@ dune exec -- bin/generate.exe top -sram -engines 2 > src/protocol_emulator.v
 make -C formal             # hours; CI runs the long proofs in jobs of their own
 ```
 
-`make -C test COCOTB_TEST_MODULES=test_demo` runs the self-timing and keyboard demos with
-no board in about 17 minutes. Each claim's last green run in CI is on the
+`make -C test COCOTB_TEST_MODULES=test_demo` runs the self-timing and keyboard demos with no
+board in about 45 minutes. Each claim's last green run in CI is on the
 [results page](https://marcosash.github.io/protocol-emulator/results/).
 
 To harden, clone TinyTapeout/tt-support-tools, branch `ihp-sg13cmos5l`, into `tt/`, then
-`tt/tt_tool.py --create-user-config --ihp` and `--harden --ihp`. Gds run 39277515192, on
-this Verilog, signs off with setup slack +3.487 ns at the slow corner, at 49.6%
+`tt/tt_tool.py --create-user-config --ihp` and `--harden --ihp`. Gds run 40214165955, on
+this Verilog, signs off with setup slack +1.456 ns at the slow corner, at 63.9%
 utilisation. The picture is this harden's die by RTL module, drawn by `demo/die.py` from its
-`GDS_logs` artifact. 1,883 of 1,893 flops map by RTL line and net name. Each gate goes with
-the nearest flop it feeds, which gets 96.7% of gates right on the RTL synthesised a module
-at a time (`--check`).
+`GDS_logs` artifact. 4,231 of 4,241 flops map by RTL line and net name. Each gate goes with
+the nearest flop it feeds, which gets 96.5% of gates right on the RTL synthesised a module at
+a time (`--check`).
 
 ![the hardened die, each cell coloured by its RTL module](docs/die.png)

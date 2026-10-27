@@ -71,6 +71,6 @@
     <line x1="660" y1="368" x2="806" y2="368" stroke="#4a6fa5" stroke-width="1.5" marker-start="url(#c)" marker-end="url(#b)"/>
     <text x="826" y="64" font-size="11" text-anchor="start">pins</text>
     <text x="826" y="372" font-size="11" text-anchor="start">pins</text>
-    <text x="430" y="436" font-size="11" fill="#52606d">6 x 4 Tiny Tapeout tiles on IHP CMOS5L, three IHP SRAM macros, generated from Hardcaml</text>
+    <text x="430" y="436" font-size="11" fill="#52606d">8 x 4 Tiny Tapeout tiles on IHP CMOS5L, three IHP SRAM macros, generated from Hardcaml</text>
   </g>
 </svg>
