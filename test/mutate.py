@@ -287,17 +287,24 @@ def plan(scope, files, seed, held_out):
     return todo
 
 
-def dune(cwd, command, *args, jobs=None, timeout=None):
+def dune(cwd, command, *args, jobs=None, timeout=None, keep=False):
+    # with keep, what the command prints too
     flags = ["-j", str(jobs)] if jobs else []
     p = subprocess.Popen(["dune", command, "--root", ".", *flags, *args], cwd=cwd, text=True,
-                         stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, start_new_session=True)
+                         stdout=subprocess.PIPE if keep else subprocess.DEVNULL,
+                         stderr=subprocess.PIPE, start_new_session=True)
     try:
-        _, err = p.communicate(timeout=timeout)
+        out, err = p.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
         os.killpg(p.pid, signal.SIGKILL)
         p.communicate()
         raise
-    return p.returncode, err
+    return (p.returncode, err, out) if keep else (p.returncode, err)
+
+
+def digest(outputs):
+    # the Verilog of each of a file's generators, as one hash
+    return hashlib.sha256("\0".join(outputs).encode()).hexdigest()
 
 
 # dune names the file of each test that fails; CI forces colour, so codes are stripped first
@@ -308,22 +315,29 @@ COLOUR = re.compile(r"\x1b\[[0-9;]*m")
 def verdict(cwd, file, jobs, timeout):
     # a mutant that does not compile, or that Hardcaml refuses to elaborate, is not a mutant;
     # one whose generator loops would hang the tests too. A kill comes with the files of the
-    # tests that failed.
+    # tests that failed; each result with the digest of the Verilog the mutant elaborates to,
+    # if its file makes any.
+    verilog = None
     try:
         if dune(cwd, "build", "./bin/generate.exe", jobs=jobs, timeout=timeout)[0] != 0:
-            return "invalid", []
+            return "invalid", [], verilog
+        outputs = []
         for args in ELABORATE.get(file, []):
-            if dune(cwd, "exec", "--", "./bin/generate.exe", *args, jobs=jobs, timeout=timeout)[0] != 0:
-                return "invalid", []
+            code, _, out = dune(cwd, "exec", "--", "./bin/generate.exe", *args, jobs=jobs,
+                                timeout=timeout, keep=True)
+            if code != 0:
+                return "invalid", [], verilog
+            outputs.append(out)
+        verilog = digest(outputs) if outputs else None
         # the first failing test is kill enough, and stopping there keeps a mutant that also
         # hangs some other test from running out the clock as a timeout
         code, err = dune(cwd, "build", "--stop-on-first-error", "@runtest", jobs=jobs,
                          timeout=timeout)
         if code == 0:
-            return "survived", []
-        return "killed", sorted(set(FAILED.findall(COLOUR.sub("", err))))
+            return "survived", [], verilog
+        return "killed", sorted(set(FAILED.findall(COLOUR.sub("", err)))), verilog
     except subprocess.TimeoutExpired:
-        return "timeout", []
+        return "timeout", [], verilog
 
 
 def makefile_tasks(root, name):
@@ -485,9 +499,17 @@ PROVED_SAFE = ("EQUIVALENT", "STRICT", "SOUND")
 def report(results, planned):
     # a timeout counts as killed, as the suite does not pass, and is listed apart; so does a
     # survivor a proof kills. An allowed mutant's timeout is no kill: an equivalent one runs
-    # as the original does, until the timeout stops it.
+    # as the original does, until the timeout stops it. Nor is a mutant the tests do not kill
+    # whose Verilog is the original's: it changes no gate, and is left out of the score.
     allowed = read_allowed()
+
+    def same(r):
+        return r.get("same_verilog") and r["result"] in ("survived", "untested", "timeout") and r.get(
+            "class") not in ("LAX", "TESTED")
+
     valid = [r for r in results if r["result"] != "invalid" and r.get("class") != "invalid"]
+    equivalent = [r for r in valid if same(r)]
+    valid = [r for r in valid if not same(r)]
     order = SCOPES["wide"]["files"]
     files = sorted({r["file"] for r in results}, key=lambda f: (order.index(f) if f in order else len(order), f))
 
@@ -501,9 +523,10 @@ def report(results, planned):
         rows = [r for r in valid if file in (r["file"], "total")]
         killed = sum(1 for r in rows if not survives(r))
         timeouts = sum(1 for r in rows if r["result"] == "timeout")
-        invalid = sum(1 for r in results if file in (r["file"], "total") and r not in valid)
+        same_gates = sum(1 for r in equivalent if file in (r["file"], "total"))
+        invalid = sum(1 for r in results if file in (r["file"], "total") and r not in valid) - same_gates
         print(f"{file}: killed {killed} of {len(rows)} valid mutants"
-              f" ({timeouts} timed out, {invalid} invalid)")
+              f" ({timeouts} timed out, {invalid} invalid, {same_gates} with the original's Verilog)")
     parts = [("all", [False, True])]
     if any(r["held_out"] for r in results):
         parts += [("in-sample", [False]), ("held-out", [True])]
@@ -517,6 +540,9 @@ def report(results, planned):
         for r in classed:
             counts[r["class"]] = counts.get(r["class"], 0) + 1
         print("proved: " + ", ".join(f"{n} {c}" for c, n in sorted(counts.items())))
+    for r in equivalent:
+        print(f"{r['result']}: {r['operator']} at {r['file']}:{r['line']} [{r['id']}]:"
+              f" the original's Verilog, left out\n    - {r['text']}\n    + {r['after']}")
     unexpected = []
     for r in sorted(valid, key=lambda r: (r["held_out"], files.index(r["file"]), r["line"])):
         if r["result"] in ("survived", "untested", "timeout"):
@@ -595,13 +621,14 @@ def main():
         start = time.monotonic()
         original = (copy / m["file"]).read_text()
         proved = {}
+        verilog = None
         try:
             (copy / m["file"]).write_text(m["mutated"])
             if args.prove_only:
                 built = dune(copy, "build", "./bin/generate.exe", jobs=args.dune_jobs, timeout=timeout)[0]
                 result, by = ("untested" if built == 0 else "invalid"), []
             else:
-                result, by = verdict(copy, m["file"], args.dune_jobs, timeout)
+                result, by, verilog = verdict(copy, m["file"], args.dune_jobs, timeout)
             if proving and m["file"] in PROVED and result in ("survived", "untested"):
                 proved = prove(copy, m, work / "original", work / "prove_mutant.exe", timeout,
                                args.proof_timeout, args.prove_only, args.proofs)
@@ -610,6 +637,8 @@ def main():
             copies.put(copy)
         row = {k: v for k, v in m.items() if k != "mutated"}
         row |= {"result": result, "by": by, "seconds": round(time.monotonic() - start)} | proved
+        if verilog is not None and verilog == original_verilog.get(m["file"]):
+            row["same_verilog"] = True
         with lock:
             print(f"{result:9} {proved.get('class', ''):10} {m['operator']} at {m['file']}:{m['line']}"
                   f" [{m['id']}]", flush=True)
@@ -665,10 +694,18 @@ def main():
                         sys.exit(f"the prover on {mutant.name} exits {p.returncode}\n{p.stdout}{p.stderr}")
         # a copy that cannot build or elaborate the design would count every mutant invalid
         elaborate = sorted({tuple(a) for m in todo for a in ELABORATE.get(m["file"], [])})
-        commands = [["exec", "--", "./bin/generate.exe", *a] for a in elaborate]
-        for command in [["build", "./bin/generate.exe"]] + commands:
-            if dune(work / "0", *command, jobs=args.dune_jobs)[0] != 0:
-                sys.exit(f"the unmutated copy fails dune {' '.join(command)}")
+        if dune(work / "0", "build", "./bin/generate.exe", jobs=args.dune_jobs)[0] != 0:
+            sys.exit("the unmutated copy fails dune build ./bin/generate.exe")
+        elaborated = {}
+        for a in elaborate:
+            code, _, verilog = dune(work / "0", "exec", "--", "./bin/generate.exe", *a,
+                                    jobs=args.dune_jobs, keep=True)
+            if code != 0:
+                sys.exit(f"the unmutated copy fails dune exec -- ./bin/generate.exe {' '.join(a)}")
+            elaborated[a] = verilog
+        # trivial compiler equivalence: a mutant whose Verilog is the original's changes no gate
+        original_verilog = {f: digest([elaborated[tuple(a)] for a in ELABORATE[f]])
+                            for f in {m["file"] for m in todo} if ELABORATE.get(f)}
         start = time.monotonic()
         if args.prove_only:
             timeout = timeout or 1800
