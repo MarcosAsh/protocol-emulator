@@ -203,6 +203,51 @@ let%expect_test "every bench firmware has its limits, or a reason it has none" =
   [%expect {| (Error ("no datasheet limits, and no reason why" new_demo)) |}]
 ;;
 
+(* A certificate is only as strong as the limits it is held to. Each firmware's tightest
+   limit, as the share of its bound the limit needs: one under a half leaves the firmware
+   free to run at twice its speed, or half, and still pass, so it is loose. *)
+let%expect_test "firmware its limits do not hold within a factor of two" =
+  let share (v : Datasheet.Verdict.t) =
+    Option.map v.bound ~f:(fun bound ->
+      match v.limit with
+      | At_least _ -> Float.of_int v.needed /. Float.of_int bound
+      | At_most _ -> Float.of_int bound /. Float.of_int v.needed)
+  in
+  List.iter (Uart.log :: Library.bench) ~f:(fun bench ->
+    let tightest =
+      Datasheet.check Library.limits bench
+      |> List.filter_map ~f:(fun ((t : Datasheet.t), v) ->
+        Option.map (share v) ~f:(fun share -> share, t, v))
+      |> List.max_elt ~compare:(fun (a, _, _) (b, _, _) -> Float.compare a b)
+    in
+    match tightest with
+    | Some (share, _, _) when Float.( >= ) share 0.5 -> ()
+    | Some (share, t, v) ->
+      printf
+        "%-18s loose  %-24s needs %d of %d cycles (%.0f%%)\n"
+        bench.name
+        t.parameter
+        v.needed
+        (Option.value_exn v.bound)
+        (100. *. share)
+    | None ->
+      printf
+        "%-18s none   %s\n"
+        bench.name
+        (List.Assoc.find Library.exempt bench.name ~equal:String.equal
+         |> Option.value ~default:""));
+  [%expect
+    {|
+    start_hold         none   it drives no pin: it listens to Pico B's I2C
+    ethernet           none   no demo on the bench: it needs the Icepi's 40 MHz build
+    swd                loose  SWCLK high               needs 2 of 7 cycles (29%)
+    nec_tx             none   no datasheet at hand; Nec.decode holds each mark and space to 5%
+    nec_rx             none   a receiver: it samples, and drives nothing
+    ir_rc6             none   the spec gives typical times and no minimum or maximum; Ir_rc6.decode holds each mark and space to 5%
+    lfast              loose  data rate, shortest high bit (3.125 ns) needs 2 of 10 cycles (20%)
+    |}]
+;;
+
 let before name ~source = { (Library.find_bench_exn name) with source }
 
 let undo (bench : Bench.t) ~fix ~was =
