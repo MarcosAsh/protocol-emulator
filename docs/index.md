@@ -4,6 +4,55 @@ A small chip that bit-bangs protocols from firmware, and a checker that proves t
 timing before it ever runs. Written in Hardcaml for Jane Street's protocol emulator ASIC
 competition, built on IHP CMOS5L through Tiny Tapeout, in 6 x 4 tiles at 48 MHz.
 
+<!-- numbers from files the site already serves: info.yaml, the results page's tally, the
+     corpus table; a missing source leaves its number out -->
+<style>
+  .stats { list-style: none; padding: 0; margin: 0 0 4px; }
+  .stats li { display: inline; }
+  .stats li + li::before { content: " \00b7\00a0"; color: var(--pst-color-text-muted); }
+  .stats span::before { content: " "; }
+</style>
+<ul class="stats" id="stats" hidden></ul>
+<p id="tally" hidden><a href="results/"></a></p>
+<script>
+  (() => {
+    const stats = document.getElementById("stats");
+    const stat = (value, label) => {
+      const li = document.createElement("li");
+      const b = document.createElement("b");
+      const span = document.createElement("span");
+      b.textContent = value;
+      span.textContent = label;
+      li.append(b, span);
+      stats.append(li);
+      stats.hidden = false;
+    };
+    const text = (path) => fetch(path).then((r) => (r.ok ? r.text() : ""), () => "");
+    const page = (path) => text(path).then((t) => new DOMParser().parseFromString(t, "text/html"));
+    const results = page("results/").then((d) => {
+      const tally = [...d.querySelectorAll("body > p:not(.muted)")][0];
+      return tally ? tally.textContent.replace(/\.$/, "") : "";
+    });
+    const corpus = page("corpus/").then((d) => d.querySelectorAll('table a[href$=".html"]').length);
+    Promise.all([text("info.yaml"), results, corpus]).then(([yaml, tally, protocols]) => {
+      const hz = /^\s*clock_hz:\s*(\d+)/m.exec(yaml);
+      const tiles = /^\s*tiles:\s*"?(\d+x\d+)/m.exec(yaml);
+      const viewer = document.getElementById("viewer");
+      const pdk = viewer ? new URL(viewer.href).searchParams.get("pdk") || "" : "";
+      const proof = /(\d+) (proved for all time)/.exec(tally);
+      if (protocols) stat(protocols, "in the corpus");
+      if (proof) stat(proof[1], proof[2]);
+      if (hz) stat(Number(hz[1]) / 1e6, "MHz clock");
+      if (tiles) stat(tiles[1], "tiles, IHP " + pdk.replace(/^ihp-sg13/, ""));
+      if (tally) {
+        const p = document.getElementById("tally");
+        p.firstChild.textContent = tally;
+        p.hidden = false;
+      }
+    });
+  })();
+</script>
+
 ![from firmware to silicon](chain.svg)
 
 Two small cores drive the pins from firmware, much like the RP2040's PIO. The difference is
