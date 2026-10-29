@@ -1,0 +1,26 @@
+name: Run a diagram on the bench
+description: Queue a WaveDrom diagram for the Icepi Zero bench. Easiest from the lab page, which fills this in.
+title: "lab: "
+labels: [lab]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The lab page checks your diagram in the browser and fills the job in for you.
+        The bench is a home PC, so the answer comes as a comment here when it is free.
+        Everything in this issue is public.
+  - type: textarea
+    id: job
+    attributes:
+      label: Job
+      description: The lab job JSON, as the lab page gives it.
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: note
+    attributes:
+      label: Note
+      description: Anything you want the owner to know. Optional.
+    validations:
+      required: false
