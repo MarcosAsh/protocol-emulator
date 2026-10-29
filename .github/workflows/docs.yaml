@@ -18,7 +18,7 @@ jobs:
           submodules: recursive
 
       - name: Build docs
-        uses: TinyTapeout/tt-gds-action/docs@ihp-cmos5l
+        uses: TinyTapeout/tt-gds-action/docs@ttihp27a
 
   # the site's pages, as pages.yaml builds them on main
   site:
