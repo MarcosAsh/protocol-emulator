@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # LFAST frames from the library's transmitter (MicroPython, Pico A): OUT0 idles low, 4.8 Mb/s.
-# demo/outside.sh lfast runs it, reading the analyser, the capture's length and
-# sigrok's decoders from the next line.
+# demo/outside.sh lfast runs it, taking its settings from the next line.
 # outside: analyser=A ms=2000 decode=-P lfast:data=D4
 
 import bench

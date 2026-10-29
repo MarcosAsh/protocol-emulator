@@ -2,11 +2,10 @@
 # The sealed clock windows (python/clock_cliffs.py) against a clock sweep on the bench.
 # Stub: plan prints the clocks to run each firmware at, compare reads what the sweep saw.
 # Driving the clock and capturing the pins are not here yet.
-# A results file has a line per run, tab separated:
+# A results file has a tab separated line per run:
 #   firmware  clock_hz  words_md5  wire  device
-# clock_hz as measured on the chip's clock pin, not as asked for; wire is pass, fail or
-# within (demo/edges.py's capture against the limits, test/measured_limits.ml); device
-# is works, fails or - (the part on the other end, if any).
+# clock_hz is as measured on the chip's clock pin. wire is pass, fail or within (demo/edges.py's
+# capture against test/measured_limits.ml). device is works, fails or - (no part).
 # Usage: python3 demo/clock_sweep.py plan [--step PPM]
 #        python3 demo/clock_sweep.py compare RESULTS
 import argparse

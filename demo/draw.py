@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
-# Act 3's mouse draws the die: demo/outline.py's pen path as HID mouse reports, which the
-# chip sends from python/demo_draw.py on Pico A. Renders the reports as a flat-profile host
-# adds them up, beside the die, and fails if that strays from the path. Ctrl-C releases.
+# The mouse draws the die: demo/outline.py's pen path as HID mouse reports, which the chip
+# sends from python/demo_draw.py on Pico A. Renders the reports as a flat-profile host adds
+# them up, beside the die, and fails if that strays from the path. Ctrl-C releases.
 # Usage: python3 demo/draw.py --dry-run [--out DIR]        render and check only
-#        python3 demo/draw.py --pico id:<serial of Pico A>  the bench, after BRINGUP's act 3
+#        python3 demo/draw.py --pico id:<serial of Pico A>  the bench, after BRINGUP's draw demo
 import argparse
 import math
 import os

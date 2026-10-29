@@ -97,7 +97,7 @@ class PicoSpi:
 
 
 class PicoHost(Host):
-    """Host with act 3's hot calls in native code."""
+    """Host with the USB demo's hot calls in native code."""
 
     def __init__(self, spi):
         super().__init__(spi.transfer)

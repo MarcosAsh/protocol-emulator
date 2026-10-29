@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Act 3: engine 0 is a USB keyboard and mouse that types TEXT (MicroPython). D+ is uio[0],
+# Engine 0 is a USB keyboard and mouse that types TEXT (MicroPython). D+ is uio[0],
 # D- uio[1], pulled up from D- for low speed. On the Icepi Zero a Pico is the host over
 # pico_board's pins, watches the bus on header 29 (D+) -> GP6 and 31 (D-) -> GP7, and from
 # GP8 -> header 15 keeps the board detached until engine 0 serves, and a press on GP9 (the

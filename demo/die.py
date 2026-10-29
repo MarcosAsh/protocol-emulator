@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# Draws the hardened die with every standard cell coloured by the RTL module it came from.
-# A flop's module comes from the RTL line yosys keeps for it and its output net's name.
-# Gates keep neither, so each takes the module of the nearest flop or named net it drives,
-# else the nearest either way. --check scores that on the RTL synthesised a module at a time.
+# Draws the hardened die with every standard cell coloured by its RTL module. A flop's module
+# comes from the RTL line yosys keeps and its output net's name. Gates keep neither, so each
+# takes the module of the nearest flop or named net it drives, else the nearest either way.
+# --check scores that on the RTL synthesised a module at a time.
 # Usage: gh run download RUN -R MarcosAsh/protocol-emulator -n GDS_logs -D gds
 #        source env.sh && uv run demo/die.py gds/runs/wokwi -o docs/die.png [--check]
 #

@@ -51,11 +51,10 @@ module Search : sig
   [@@deriving sexp_of]
 end
 
-(** Tries every assignment in order of cost and stops after the first cost at which one
-    passes. Every cheaper assignment was tried and failed, so none of them passes: that is
-    the proof the fix is minimal, relative to [passes]. [minimal = None] means no
-    assignment passes at all, every one tried. Errors when the space has more than
-    [max_checks] assignments up to the cost where it stops. *)
+(** Tries every assignment in order of cost, stopping after the first cost at which one
+    passes: every cheaper one failed, so the fix is minimal relative to [passes].
+    [minimal = None] means none passes. Errors when more than [max_checks] assignments
+    lie up to the cost where it stops. *)
 val solve
   :  ?max_checks:int
   -> t

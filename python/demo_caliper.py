@@ -2,8 +2,7 @@
 # A Chinese digital scale's output (Chinese Scales, page 1) on OUT0, the clock, which
 # analyser A's D4 watches, and OUT1, the data (MicroPython, Pico A): two 24-bit positions,
 # LSB first, 270 cycles a half clock period.
-# demo/outside.sh caliper runs it, reading the analyser, the capture's length and
-# sigrok's decoders from the next line.
+# demo/outside.sh caliper runs it, taking its settings from the next line.
 # outside: analyser=A ms=2000 decode=-P caliper:clk=D4:data=TODO
 # TODO outside: OUT1 has no analyser channel, see Bench_wiring
 

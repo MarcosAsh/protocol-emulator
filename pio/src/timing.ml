@@ -169,14 +169,9 @@ module Clock = struct
     }
   [@@deriving sexp_of]
 
-  (* pico-sdk's pio_calculate_clkdiv8_from_float, in single precision, with
-     PICO_CLKDIV_ROUND_NEAREST on as it is by default:
-     {v
-       div += 0.5f / 256;
-       div_int = (uint16_t)div;
-       div_frac8 = div_int == 0 ? 0 : (uint8_t)((div - div_int) * 256);
-     v}
-     An integer part of 0 is the hardware's 65536. *)
+  (* pico-sdk's pio_calculate_clkdiv8_from_float in single precision, with
+     PICO_CLKDIV_ROUND_NEAREST on (the default). An integer part of 0 is the hardware's
+     65536. *)
   let effective_div { clkdiv; _ } =
     let single value = Int32.float_of_bits (Int32.bits_of_float value) in
     let div = single (single clkdiv +. (0.5 /. 256.)) in

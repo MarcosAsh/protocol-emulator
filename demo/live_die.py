@@ -1,8 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-# Data for pages/die: every cell and wire of a hardened run, and which nets switch on each
-# cycle of its netlist sending "Jane St!" (demo/live_die_stimulus.py). Fails unless the
-# netlist's pins equal the RTL's on every cycle. Cells are coloured as demo/die.py does,
-# and carry the src line demo/die.py's sources gives them, at the run's commit.
+# Data for pages/die: every cell and wire of a hardened run, and which nets switch each cycle
+# of its netlist sending "Jane St!" (demo/live_die_stimulus.py). Fails unless the netlist's
+# pins equal the RTL's on every cycle. Cells are coloured and given src lines by demo/die.py.
 # Usage: source env.sh && make -C pages/die, or
 #        demo/live_die.py GDS --provenance JSON -o pages/die/die.bin
 import argparse

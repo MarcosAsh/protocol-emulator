@@ -3,15 +3,14 @@
 # Spec intake: a headless Claude Code agent turns a protocol's spec (a datasheet PDF, a
 # WaveJSON file or a limit table as text) into a protocol file, firmware and test with
 # generate new-protocol, and the kernel certifies it. Makes a worktree intake-NAME on a branch
-# intake/NAME off the current commit and a run directory holding the prompt (demo/intake_prompt.txt),
-# the spec as text with page markers (pdftotext -layout) and an index of its limits, the full
-# transcript (transcript.jsonl, stream-json), stages.log, speed.tsv and verdict.txt: certified
-# with how many of the spec's limit rows have a min or max, refused with the named limit, or
-# failed. speed.tsv is the worktree's demo/speed.tsv rows for NAME, which generate
-# new-protocol and the formal targets write through demo/speed.py.
-# Before the agent, demo/extract.py reads the spec's limits twice, blind: a disagreement stops
+# intake/NAME off the current commit and a run directory holding the prompt
+# (demo/intake_prompt.txt), the spec as text with page markers (pdftotext -layout) and an
+# index of its limits, transcript.jsonl, stages.log, speed.tsv (the worktree's demo/speed.tsv
+# rows for NAME) and verdict.txt: certified with how many limit rows have a min or max,
+# refused with the named limit, or failed.
+# Before the agent, demo/extract.py reads the spec's limits twice, blind. A disagreement stops
 # the run with "limit disputed, SPEC p.N" (exit 3) and keeps both readings in disputed.tsv.
-# Once a person has ruled on them (demo/extract.py rule), --limits that run directory goes on.
+# Once a person has ruled on them (demo/extract.py rule), pass --limits with that run directory.
 # Usage: demo/intake.sh [--dry-run] [--limits-only] [--limits RUN] [--budget USD] [--model M] [--out DIR] SPEC NAME
 #        demo/intake.sh --scan TRANSCRIPT   clean, or touched (exit 1) if a tool input names the held-out list
 #   --dry-run  makes the worktree and run directory and prints the claude commands, then removes the worktree

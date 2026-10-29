@@ -1,11 +1,8 @@
 """
 LibreLane plugin: rewrite Metal4 PDN stripes onto the IHP SRAM's power columns.
 
-LibreLane imports every module on the Python path whose name starts with
-``librelane_plugin_`` (librelane/plugins.py).  ``python -m librelane`` and the
-Tiny Tapeout GDS action both run from the repository root, so this file is
-found without installing anything.  ``src/config.json`` inserts the step
-after GeneratePDN:
+LibreLane imports modules named ``librelane_plugin_*`` from the repository root
+(librelane/plugins.py). ``src/config.json`` inserts the step:
 
     "meta": {
       "substituting_steps": {
@@ -30,10 +27,8 @@ class ExtendPowerStripes(OdbpyStep):
         return os.path.join(HERE, "odb_sram_stripes.py")
 
 
-# --- netgen writes IHP SRAM power pin names (VDD!, VSS!, VDDARRAY!) into its
-# LVS JSON with a stray backslash ("\VDD!"), which is not a valid JSON escape,
-# and librelane.steps.netgen.LVS then dies in json.loads before the LVS
-# checker runs.  Same monkeypatch as ihp-um-janestreet-prism.
+# netgen writes IHP SRAM pin names into its LVS JSON with a stray backslash ("\VDD!"),
+# an invalid JSON escape that kills librelane's LVS step. As in ihp-um-janestreet-prism.
 import json as _json
 import re as _re
 import types as _types

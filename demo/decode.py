@@ -1,8 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-# Judges pin traces from test/traces, or a capture from the bench, by sigrok's protocol
-# decoders. A trace's "# sigrok" lines (test/pin_trace.ml) name the decoders, every line
-# they must print and the teeth, changes to the waveform they must refuse. Any error or
-# warning annotation fails the check too.
+# Judges pin traces from test/traces, or a bench capture, by sigrok's decoders. A trace's
+# "# sigrok" lines (test/pin_trace.ml) name the decoders, every line they must print and the
+# teeth, changes to the waveform they must refuse. Any error or warning annotation fails too.
 # Usage: python3 demo/decode.py test/traces/*.trace test/traces/sigrok/*.trace
 #        python3 demo/decode.py --rate 24 TRACE...            as a 24 MHz analyser sees it
 #        python3 demo/decode.py --capture can.sr TRACE        a capture from the bench

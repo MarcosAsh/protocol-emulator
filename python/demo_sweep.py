@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Act 2 for every firmware engine 1 can stamp, on the host Pico (MicroPython): each runs
+# The self-timing for every firmware engine 1 can stamp, on the host Pico (MicroPython): each runs
 # on engine 0 with its watched output on wire 20, and every edge's stamp is held to the
 # cycle the model gives it and the interval the kernel's rows allow along the model's
 # path, from its frame's first edge. sweep_firmware.py says what runs, and why the rest
@@ -55,7 +55,7 @@ def setup(host, firmware, dirty):
 
 
 def polls(cycles, pause):
-    """How long to wait for edges cycles after a push: act 2's bound on the Pico, and with
+    """How long to wait for edges cycles after a push: the self-timing demo's bound on the Pico, and with
     a pause of POLL cycles, that long and a few more."""
     return 100_000 if pause is None else cycles // sf.POLL + 8
 
@@ -91,7 +91,7 @@ def verdict(edge, got):
 
 def sweep(host, firmware, drain, pause):
     """Exact, within and out counts over every edge, a missing or extra one out, and a
-    line for each frame that is not exact. The setup's edges are dropped, as act 2 drops
+    line for each frame that is not exact. The setup's edges are dropped, as the self-timing demo drops
     the line going idle."""
     counts = [0, 0, 0]
     notes = []

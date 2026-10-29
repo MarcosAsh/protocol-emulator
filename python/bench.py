@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# What the outside chip acts share (MicroPython and CPython): loading a bench_firmware.py
+# What the outside chip demos share (MicroPython and CPython): loading a bench_firmware.py
 # entry into an engine, a stream of host words that never overflows either fifo, and the
 # log demo/outside.sh reads back from Pico A once the capture is done.
 

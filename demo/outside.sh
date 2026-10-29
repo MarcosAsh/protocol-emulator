@@ -1,12 +1,11 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
-# One outside chip act of BRINGUP.md: runs its script on Pico A while its analyser
-# captures, then prints the Pico's log and sigrok's decode, and FAIL last if the capture
-# lacks the demo's traffic (demo/traffic.py), whatever the Pico said. Reset the chip before every
-# act, CAN included, as faults hold until reset. Analyser A has the host port, OUT0, CAN
-# and SWD, B the flash, the stick, 1-Wire and I2C: see demo/capture.sh for picking one.
-# The capture, the Pico's log and the decode are kept as <name>.sr, .log and .decode in
-# CAPTURES, the current directory unless set.
+# One outside chip demo of BRINGUP.md: runs its script on Pico A while its analyser captures,
+# then prints the Pico's log and sigrok's decode, and FAIL last if the capture lacks the
+# demo's traffic (demo/traffic.py), whatever the Pico said. Reset the chip before every demo,
+# as faults hold until reset. Analyser A has the host port, OUT0, CAN and SWD, B the flash,
+# the stick, 1-Wire and I2C (see demo/capture.sh). The capture, log and decode are kept as
+# <name>.sr, .log and .decode in CAPTURES, the current directory unless set.
 # Usage: PICO=id:<serial of Pico A> demo/outside.sh <act>, one of
 #   flash eeprom eeprom_stretch ds18b20 neopixel start_hold can can_node swd referee
 #   pio_ws2812 pio_uart_tx pio_spi, or a protocol whose python/demo_<act>.py has an
@@ -114,12 +113,11 @@ try:
     os.remove('outside.log')
 except OSError:
     pass"
-# a run arms itself, but sigrok's CAN decoder takes the dominant line a reset chip leaves at
-# the start of a capture for a frame
+# sigrok's CAN decoder takes the dominant line a reset chip leaves at the start for a frame
 [ -z "$arm" ] || mpremote connect "$PICO" exec "$arm"
 mkdir -p "$captures"
 ANALYSER=$analyser demo/capture.sh "$captures/$act.sr" "$ms" mpremote connect "$PICO" run --no-follow "python/demo_$act.py"
-# the act ends inside the capture, and a second more lets the Pico write its log
+# the demo ends inside the capture, and a second more lets the Pico write its log
 sleep 1
 if mpremote connect "$PICO" cat :outside.log > "$captures/$act.log"; then
     cat "$captures/$act.log"

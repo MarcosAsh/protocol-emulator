@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # The parts' timing margins on the bench: every point test/python/write_margins.exe lists
 # run on Pico A by python/demo_margins.py while analyser B captures, each repeat judged by
-# what the part did, and the capture measured for what the chip drove and the part
-# answered. A point already in OUT is kept, so a stopped run resumes where it stopped.
+# what the part did, and the capture measured for what the chip drove and the part answered.
+# A point already in OUT is kept, so a stopped run resumes.
 # Usage:
 #   PICO=id:<Pico A> ANALYSER_B_PORT=<port> demo/margins.py run MARGINS.json OUT
 #       [--part P] [--parameter X] [--repeats N] [--cycles C,...]

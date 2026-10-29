@@ -1,9 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# One bench demo, unattended: loads the chip, runs demo/outside.sh (flash, capture, decode),
-# measures the capture against the datasheet limits, marks demo/speed.tsv and keeps
-# EVIDENCE/<date>/<protocol>/<demo>/ with a result.txt and a line in demo/runs.tsv. A stage
-# past its timeout, or a run with a step missing, resets the Icepi to its flash and runs
-# once more; both attempts are kept (attempt1/, attempt2/), a FAIL verdict is not retried.
+# One bench demo, unattended: loads the chip, runs demo/outside.sh, measures the capture
+# against the datasheet limits, marks demo/speed.tsv, keeps EVIDENCE/<date>/<protocol>/<demo>/
+# and adds a line to demo/runs.tsv. A timeout or a missing step resets the Icepi and runs
+# once more (attempt1/, attempt2/). A FAIL verdict is not retried.
 # Usage: PICO=id:<serial of Pico A> python3 demo/bench_run.py DEMO [--bitstream FILE |
 #            --from-flash] [--measure FIRMWARE --probe PIN=Dn...] [--dry-run]
 
@@ -28,7 +27,7 @@ EVIDENCE = ledger.EVIDENCE
 RESULTS = ROOT / "demo/runs.tsv"
 COLUMNS = ["date", "protocol", "demo", "result", "attempts", "commit", "bitstream_sha256",
            "capture_sha256", "measured", "evidence"]
-# the protocol page a demo belongs on, as test/corpus.py names them
+# the protocol a demo belongs to, as test/corpus.py names it
 PROTOCOL = {
     "swd": "swd", "neopixel": "ws2812", "referee": "ws2812", "eeprom": "i2c",
     "eeprom_stretch": "i2c", "start_hold": "i2c", "flash": "spi", "ds18b20": "one_wire",
@@ -54,8 +53,8 @@ class Stage:
 
 
 class Runner:
-    """Runs commands from the repository root, each in its own process group so a timeout
-    stops what it started, and logs them to run.txt. With dry_run only prints them."""
+    """Runs commands from the repository root in their own process groups, logging to
+    run.txt. With dry_run only prints them."""
 
     def __init__(self, dry_run):
         self.dry_run = dry_run

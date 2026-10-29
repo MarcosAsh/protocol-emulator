@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
 # The kernel's verdicts against the board. Runs every delay variant from
 # test/python/write_kernel_variants.exe on the chip through Pico A, in batches of
-# python/demo_kernel_vs_board.py, reloading the bitstream after any variant that faults, as
-# faults hold until reset. A variant the kernel accepts must run on time; one it refuses
-# that runs on time is the kernel's pessimism, counted. With --chip the chip checks each
-# variant's certificate itself and must refuse exactly what the kernel refuses.
+# python/demo_kernel_vs_board.py, reloading the bitstream after a fault, as faults hold
+# until reset. A variant the kernel accepts must run on time. One it refuses that runs on
+# time is the kernel's pessimism, counted. With --chip the chip checks each variant's
+# certificate itself and must refuse exactly what the kernel refuses.
 # Usage: PICO=id:<serial> python3 demo/kernel_vs_board.py VARIANTS --bitstream BIT --out DIR
 #            [--python DIR] [--chip] [--batch N] [--only FIRMWARE...]
 import argparse

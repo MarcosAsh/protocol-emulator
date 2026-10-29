@@ -1,8 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # A galvanometer controller's XY2-100 on OUT0 (SENDCK), OUT1 (SYNC) and OUT2 (DATA)
 # (MicroPython, Pico A): a sweep of setpoints, one word each, SENDCK running on after.
-# demo/outside.sh xy2_100 runs it, reading the analyser, the capture's length and
-# sigrok's decoders from the next line.
+# demo/outside.sh xy2_100 runs it, taking its settings from the next line.
 # outside: analyser=A ms=2000 decode=-P xy2-100:clk=D4:sync=TODO:data=D6
 # TODO outside: OUT1 has no analyser channel, see Bench_wiring
 

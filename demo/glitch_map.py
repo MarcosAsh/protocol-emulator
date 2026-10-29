@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # The glitch map on the board. Runs every image from test/python/write_glitch_images.exe
 # on the chip through Pico A, in batches of python/demo_glitch_map.py, and holds each
-# frame's bytes and framing error to what the receiver's rows say. Nothing touches a pad:
-# both engines meet on wire 20.
+# frame's bytes and framing error to the receiver's rows. Both engines meet on wire 20, so
+# no pad is touched.
 # Usage: PICO=id:<serial> python3 demo/glitch_map.py IMAGES --bitstream BIT --out DIR
 #            [--frames N] [--batch N]
 import argparse

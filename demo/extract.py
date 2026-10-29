@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
-# The intake's double extraction: two headless agents read the spec's timing limits blind
-# (each confined to its own copy of the spec, neither sees the other's) and their tables are
-# compared field by field. A row one reader alone wrote with typical values only is kept,
-# marked, as it bounds nothing. Any other disagreement stops the intake with "limit disputed,
-# DOC p.N" and keeps both readings in disputed.tsv; a person who reads the page may fill its
-# ruling column and settle the run with rule. Writes limits.tsv (agreed), disputed.tsv, ruled.tsv and
-# agreement.txt in RUN_DIR and a row of agreement.tsv beside it. Exit 0 agreed, 3 disputed.
+# The intake's double extraction: two headless agents read the spec's timing limits blind,
+# each confined to its own copy of the spec, and their tables are compared field by field. A
+# row one reader alone wrote with typical values only is kept, marked, as it bounds nothing.
+# Any other disagreement stops the intake with "limit disputed, DOC p.N" and keeps both
+# readings in disputed.tsv, where a person fills the ruling column and settles it with rule.
+# Writes limits.tsv, disputed.tsv, ruled.tsv and agreement.txt in RUN_DIR and a row of
+# agreement.tsv beside it. Exit 0 agreed, 3 disputed.
 # Usage: python3 demo/extract.py run RUN_DIR DOC [--budget USD] [--model M] [--dry-run]
 #        python3 demo/extract.py rule RUN_DIR DOC RULINGS   RULINGS: disputed.tsv, ruled
 import argparse
@@ -265,8 +265,7 @@ def compare(a, b, ruled=None):
         either = row_a or row_b
         pages = sorted({page(r["page"]) or 0 for r in (row_a, row_b) if r})
         row, open_fields = dict(either), []
-        # a row one reader alone wrote with no min or max bounds nothing, whoever is right, so
-        # it is kept as a typical, marked, and nobody is asked to rule on it
+        # bounds nothing whoever is right, so kept as a marked typical, not put to a ruling
         if (not (row_a and row_b)
                 and not any(value(either[f], either["unit"]) for f in ("min", "max"))
                 and not any(ruling_key(either, f) in ruled for f in FIELDS)):

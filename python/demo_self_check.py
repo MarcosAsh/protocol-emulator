@@ -10,7 +10,7 @@ import protocol_emulator as pe
 
 WIRE = 20
 # The rows certify uart_tx_host_rate at 434 cycles a bit, 9 us at 48 MHz. A checked frame
-# ends inside 2^14 cycles, so act 2's 5000 cannot be checked.
+# ends inside 2^14 cycles, so the self-timing demo's 5000 cannot be checked.
 PERIOD = 434
 # the rows' base, as test_two_engines loads them
 BASE = 256
@@ -219,7 +219,7 @@ def run(transfer, frames=FRAMES, pause=None):
         else:
             print("NO ALARM: engine 1 status 0x%04x pc %d" % (s, pc))
 
-    # started again on a line already high, as after act 2
+    # started again on a line already high, as after the self-timing demo
     arm(host)
     ok = quiet(host, "re-armed", min(frames, 256), track, pause) and ok
     found = faults(host)

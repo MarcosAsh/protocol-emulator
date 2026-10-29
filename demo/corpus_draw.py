@@ -1,9 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # The public draw of the corpus: a drand round fixed in advance picks N protocols from a pinned
-# snapshot of sigrok's decoder list. This file is the rule (chain, round, N, snapshot, who is
-# eligible), committed before the round. Each eligible decoder ranks by sha256(randomness || id)
-# and the first N not on the owner's salted exclusion list are drawn. Only the owner makes that
-# list (seal) and commits its sha256 before the round; the sealed list never reaches an agent.
+# snapshot of sigrok's decoder list. This file is the rule, committed before the round. Eligible
+# decoders rank by sha256(randomness || id) and the first N not on the owner's salted exclusion
+# list are drawn. Only the owner makes that list (seal) and commits its sha256 beforehand.
 # Usage: python3 demo/corpus_draw.py pool                   the eligible pool and why each other is out
 #        python3 demo/corpus_draw.py seal < IDS > EXCLUDE    the owner, on their own list, one id a line
 #        python3 demo/corpus_draw.py draw --exclude EXCLUDE [--round R] [--beacon JSON] [--record FILE]
@@ -39,8 +38,8 @@ MAX_CHANNELS = 8
 IN_LIBRARY = ["can", "cec", "i2c", "jtag", "onewire_link", "ps2", "rgb_led_ws281x", "spi", "swd",
               "uart", "usb_signalling"]
 PAD = 64
-# the sha256 of the owner's exclusion file, committed before the round so the list cannot be
-# chosen after the randomness is known; the announced round's draw refuses any other file
+# the sha256 of the owner's exclusion file, committed before the round, so the draw refuses
+# any other file
 EXCLUSION_SHA256 = "5a042b2987ffe96743e69b2ba5b7ff78ca6a22174e90db1fd04af08033b3afd1"
 
 

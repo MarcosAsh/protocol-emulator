@@ -1,10 +1,10 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
 # The bench carrier's self-test: loads icepi/carrier_check.v into the Icepi's SRAM, runs
-# demo/carrier_check.py on both Picos, then reboots the Icepi from its flash, which holds
-# the chip, and reads the chip's status through Pico A. Both Picos on MicroPython, and
-# env.sh sourced for the FPGA tools. The log, captures, commit and bitstream hash go in
-# EVIDENCE. Flags go on to carrier_check.py: --analysers, --no-button.
+# demo/carrier_check.py on both Picos, then reboots the Icepi from its flash, which holds the
+# chip, and reads the chip's status through Pico A. Needs both Picos on MicroPython and env.sh
+# sourced. Log, captures, commit and bitstream hash go in EVIDENCE. Flags pass to
+# carrier_check.py: --analysers, --no-button.
 # Usage: PICO=id:<serial of Pico A> [PICO_B_SERIAL=<serial>] [REV=v1.3] demo/carrier_check.sh [FLAGS]
 set -e
 : "${PICO:?PICO=id:<serial of Pico A>}"

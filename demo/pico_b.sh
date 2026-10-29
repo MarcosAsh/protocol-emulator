@@ -1,6 +1,6 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
-# Puts an act's firmware on Pico B, which stays wired for every act: MicroPython for the
+# Puts a demo's firmware on Pico B, which stays wired for every demo: MicroPython for the
 # listener, demo/can_node for can and can_node, demo/start_hold_master's pio or hw build
 # for start_hold. Pico B reaches its bootloader through mpremote from MicroPython, and from
 # the C builds through picotool or, without it, a 1200 baud open of their serial port. The
