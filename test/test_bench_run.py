@@ -100,6 +100,15 @@ class BenchRun(unittest.TestCase):
         self.assertEqual((row["result"], row["attempts"], row["measured"]), ("FAIL", "1", "fail"))
         self.assertEqual(row["bitstream_sha256"], "flash")
 
+    def test_measured_is_what_the_limits_said(self):
+        """measure.exe's own outcome, whatever else made the verdict."""
+        self.run_bench("--from-flash", "--measure", "sk6812", "--probe", "IO0=D4",
+                       VERDICT="FAIL")
+        self.run_bench("--from-flash", "--measure", "sk6812", "--probe", "IO0=D4",
+                       LIMITS_EXIT="2")
+        self.assertEqual([(row["result"], row["measured"]) for row in self.rows()],
+                         [("FAIL", "hold"), ("ERROR", "error")])
+
     def test_hung_capture_resets_to_flash_and_retries(self):
         (self.tmp / "hang_once").write_text("")
         run = self.run_bench("--bitstream", str(self.bit), "--timeout-run", "3")

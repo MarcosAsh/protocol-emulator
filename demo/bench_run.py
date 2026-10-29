@@ -198,6 +198,15 @@ class Job:
         notes.append("measured: %s" % ("a datasheet limit fails" if m.status else "limits hold"))
         return m.status == 1
 
+    def measured(self, stages):
+        """measure.exe's own outcome in the last attempt, whatever else made its verdict."""
+        if not self.firmware:
+            return "-"
+        status = {s.name: s.status for s in stages}
+        if status.get("edges") == 0 and status.get("measure") in (0, 1):
+            return "fail" if status["measure"] else "hold"
+        return "error"
+
     def seal(self, folder, attempts, day, head, bit_hash):
         """result.txt and SHA256SUMS in folder, the last attempt's files copied up, and the
         row for the TSV."""
@@ -207,7 +216,6 @@ class Job:
             if p.name != "run.txt":
                 shutil.copy(p, folder / p.name)
         captures = sorted(folder.glob("*.sr"))
-        measure = folder / "measure.txt"
         info = [("protocol", self.protocol), ("demo", self.demo), ("verdict", verdict),
                 ("attempts", str(len(attempts))), ("final", final.name),
                 ("time", datetime.datetime.now().isoformat(timespec="seconds")),
@@ -228,8 +236,7 @@ class Job:
         return {"date": day, "protocol": self.protocol, "demo": self.demo, "result": verdict,
                 "attempts": str(len(attempts)), "commit": head, "bitstream_sha256": bit_hash,
                 "capture_sha256": ledger.sha256(captures[0]) if captures else "-",
-                "measured": ("-" if not self.firmware else "fail" if verdict == "FAIL" and
-                             measure.exists() else "hold" if measure.exists() else "error"),
+                "measured": self.measured(stages),
                 "evidence": str(folder.relative_to(self.args.evidence))}
 
     def go(self):
