@@ -1,10 +1,8 @@
 # The chip on an Icepi Zero (ECP5 LFE5U-25F): make [REV=v1.4] [USB=1] [SEEDS='1 2'], then
 # make prog to load it or make flash to keep it. USB=0 puts uio[1:0] on the header too.
-# The bitstream's .sha256 names it and the netlist it came from, which make equiv proves
-# equal to the RTL (formal/icepi_equiv).
-# MHZ=40 clocks the chip at 40 MHz for 10BASE-T, with USB=0 unless told, since low speed
-# USB needs 48, and names its bitstream apart. The SRAM macro is its IHP behavioural model,
-# which yosys maps to block RAM.
+# The bitstream's .sha256 names it and its netlist, which make equiv proves equal to the
+# RTL (formal/icepi_equiv). MHZ=40 is for 10BASE-T and defaults USB=0, as low speed USB
+# needs 48. The SRAM macro is its IHP behavioural model, mapped to block RAM.
 
 REV ?= v1.4
 MHZ ?= 48
@@ -13,8 +11,7 @@ $(error MHZ is 48, or 40 for 10BASE-T, not $(MHZ))
 endif
 USB ?= $(if $(filter 40,$(MHZ)),0,1)
 SEED ?= 1
-# 48 MHz is tight and placement moves with the seed (about 1 in 8 fails), so the chip
-# takes the first of these that meets timing; the same netlist always gets the same one
+# 48 MHz is tight and about 1 seed in 8 fails, so take the first that meets timing
 SEEDS ?= 1 2 3 4 5 6 7 8
 FREQ ?= $(MHZ)
 

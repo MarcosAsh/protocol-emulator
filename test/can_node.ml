@@ -445,9 +445,9 @@ end
 
 let bench_bit = Bench.bit ~hz:500_000
 
-(* The library's line is dominant from reset until a bit after the period, and a frame can
-   follow a bit later. On a bus it goes recessive at once and stays so eleven bits after
-   the period, which a node needs to join the bus. *)
+(* The library's line is dominant from reset until a bit after the period. On a bus it
+   goes recessive at once and stays so eleven bits after the period, as a node joining
+   needs. *)
 let bench_firmware firmware =
   Bench.patch
     (Timed_program.source firmware)

@@ -104,7 +104,6 @@ let%expect_test "the step's capture and edge state" =
     ~awaiting:false
     ~a:fresh
     ~b:fresh;
-  (* an edge of a 2 cycles after b's *)
   step
     ~source:"set pins, 1"
     ~arm_known:true

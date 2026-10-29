@@ -108,8 +108,7 @@ let accepted_rows_hold ~with_kernel =
       (lies_in next ~shifted:o.next_shifted ~x:x' ~pulled:o.next_pulled)
       ~f:(fun target next -> lands ~target ~next)
   in
-  (* each bound on its own, from the conjuncts that ask for it, which SAT finds far easier
-     than all at once; [accepts] is every conjunct, so it implies each *)
+  (* each bound on its own, from the conjuncts that ask for it; [accepts] is every conjunct *)
   let claims =
     Osr_kernel.Holds.map3
       conjuncts.next
@@ -463,9 +462,9 @@ let assembled source =
 
 (* Brute force: for a word that leaves x alone or counts it down, on each way out, the
    image's shifted bounds are exactly the least and greatest counts the core steps to from
-   a state the row and x's bounds allow there: the sum less x narrows the row's own, a
-   [jmp x--] is taken only from x at 1 or more and falls through only from 0. Its sum
-   bounds are exact too where every sum in the row's is reached. *)
+   a state the row and x's bounds allow. [jmp x--] is taken only from x at 1 or more and
+   falls through only from 0. The sum bounds are exact where every sum in the row's is
+   reached. *)
 let%expect_test "an image's bounds are the hull of the states the core reaches" =
   let module O = Osr_kernel.Make (Bits) in
   let side_set_count = Bits.zero 2 in

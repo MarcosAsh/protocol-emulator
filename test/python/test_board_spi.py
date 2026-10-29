@@ -235,7 +235,7 @@ def test_frames_and_timing():
 
 def test_sck_margin():
     """SCK at an eighth reads every bit with MISO up to three clocks later than the 20 ns
-    of pads and mux the fake has, and not four. Read on the rise, it failed with none."""
+    of pads and mux the fake has, and not four."""
     for lag, intact in ((0, True), (3, True), (4, False)):
         b, m = board(Chip(miso_lag=lag))
         spi = m.demo_board.DemoBoardSpi(clock_hz=48_000_000, sck_hz=6_000_000)

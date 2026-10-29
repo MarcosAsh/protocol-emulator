@@ -1,8 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-"""The SWD act's own Python (python/demo_swd.py) on the RTL at the bench's 48 MHz, run
-blocking in a thread as Pico A runs it, against two RP2040 SW-DPs modelled from the spec
-(swd_target.py). Then what the act never sees: WAIT, FAULT, bad parity, a garbled ACK and
-Pico B unpowered."""
+"""python/demo_swd.py on the RTL at 48 MHz, blocking in a thread as Pico A runs it, against
+two RP2040 SW-DPs modelled from the spec (swd_target.py), then WAIT, FAULT, bad parity, a
+garbled ACK and Pico B unpowered."""
 
 import os
 import re
@@ -41,7 +40,7 @@ async def reset(dut):
 
 def wire(dut, bus, samples=None):
     """SWCLK from OUT2 and SWDIO on IO5, pulled up, to the DPs, every cycle, and the two
-    lines into samples on D6 and D7, the analyser channels the act puts them on."""
+    lines into samples on D6 and D7, the analyser channels the demo puts them on."""
     async def every_cycle():
         while True:
             swclk = (int(dut.uo_out.value) >> SWCLK) & 1
@@ -78,7 +77,7 @@ def decode(samples):
 
 
 def acted(dut):
-    """transfer for the act's thread, and the log it writes to."""
+    """transfer for the demo's thread, and the log it writes to."""
     pins = Pins(dut)
     lines = []
 
@@ -101,7 +100,7 @@ def clean(bus):
 
 
 def let_go(dut):
-    """SWCLK low and SWDIO not driven, as the act leaves them."""
+    """SWCLK low and SWDIO not driven, as the demo leaves them."""
     return (int(dut.uo_out.value) >> SWCLK) & 1 == 0 and (int(dut.uio_oe.value) >> SWDIO) & 1 == 0
 
 
@@ -218,7 +217,7 @@ async def test_swd_parity(dut):
 async def test_swd_garbled_ack(dut):
     """A DP whose first two OK ACKs the wire garbles and which goes on with the data phase:
     the core lets the line be through RDATA and WDATA, so the DP takes the pull-up's ones,
-    whose parity fails. After a line reset the DP answers, WDATAERR set until the act's
+    whose parity fails. After a line reset the DP answers, WDATAERR set until the demo's
     ABORT clears it."""
     await reset(dut)
     bus = swd_target.Bus([swd_target.Dp(swd_target.CORE0, corrupt_acks=2)])
@@ -250,7 +249,7 @@ async def test_swd_garbled_ack(dut):
 
 @cocotb.test()
 async def test_swd_unpowered(dut):
-    """Pico B unpowered, so SWDIO reads low let go: the act stops before driving either
+    """Pico B unpowered, so SWDIO reads low let go: the demo stops before driving either
     line."""
     await reset(dut)
     bus = swd_target.Bus(undriven=0)
@@ -274,7 +273,7 @@ async def test_swd_unpowered(dut):
 @cocotb.test()
 async def test_swd_unpowered_after_a_stopped_run(dut):
     """An earlier run stopped part-way through a sequence, SWCLK high and SWDIO driven
-    high, then Pico B unpowered with no reset: the act lets SWDIO go before it reads it,
+    high, then Pico B unpowered with no reset: the demo lets SWDIO go before it reads it,
     and stops without driving either line again."""
     await reset(dut)
     bus = swd_target.Bus(undriven=0)
@@ -323,7 +322,7 @@ def levels(transfer):
 @cocotb.test()
 async def test_swd_stopped_mid_sequence(dut):
     """Ctrl-C between the two pushes of the wake-up's eleven words, eight deep, the core
-    holding SWCLK high and SWDIO driven for the rest, and again as the act lets go: it
+    holding SWCLK high and SWDIO driven for the rest, and again as the demo lets go: it
     still lets both lines go."""
     await reset(dut)
     bus = swd_target.Bus()
@@ -367,7 +366,7 @@ async def test_swd_stopped_mid_sequence(dut):
 
 
 async def stopped_reading(dut, link_fails):
-    """Ctrl-C while the act polls for core 0's DPIDR with replies waiting, and the SPI
+    """Ctrl-C while the demo polls for core 0's DPIDR with replies waiting, and the SPI
     link failing from then on if link_fails. What run raised, whether the lines are let
     go, and the log."""
     await reset(dut)
@@ -404,7 +403,7 @@ async def stopped_reading(dut, link_fails):
 
 @cocotb.test()
 async def test_swd_stopped_with_replies_waiting(dut):
-    """Replies left in the rx fifo do not stop the act letting go, nor hide the Ctrl-C."""
+    """Replies left in the rx fifo do not stop the demo letting go, nor hide the Ctrl-C."""
     raised, released, _ = await stopped_reading(dut, link_fails=False)
     assert isinstance(raised, KeyboardInterrupt), repr(raised)
     assert released
@@ -412,7 +411,7 @@ async def test_swd_stopped_with_replies_waiting(dut):
 
 @cocotb.test()
 async def test_swd_letting_go_fails(dut):
-    """The SPI link failing as the act lets go: the Ctrl-C is still what it raises, and the
+    """The SPI link failing as the demo lets go: the Ctrl-C is still what it raises, and the
     log says the lines may be held."""
     raised, _, lines = await stopped_reading(dut, link_fails=True)
     assert isinstance(raised, KeyboardInterrupt), repr(raised)

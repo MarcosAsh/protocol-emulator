@@ -73,7 +73,6 @@ module Frame = struct
 
   let big16 n = [ n lsr 8; n land 0xff ]
 
-  (* the ones' complement sum of the header's sixteen bit words, complemented *)
   let ip_checksum header =
     let rec sum = function
       | hi :: lo :: rest -> ((hi lsl 8) lor lo) + sum rest

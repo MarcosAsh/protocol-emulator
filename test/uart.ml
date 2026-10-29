@@ -112,11 +112,10 @@ bit:
 let stream_config = { Program_config.default with autopull = true; pull_threshold = 8 }
 
 (* Half period one short: the sample lands a cycle after the release. The capture is armed
-   only while the line is high, as the certificate assumes of every arm: after the stop
-   bit is seen high, or after a framing error once the line is high again, two cycles
-   after [check]. [check] (rounded (9p - 27) / 19 cycles into the stop bit) balances a
-   slow sender's stop bit against a fast sender's next start edge; from 16 cycles a bit up
-   that tolerates 4% either way (at 16, 4.3% fast to 4.1% slow). *)
+   only while the line is high, as the certificate assumes of every arm. [check] (rounded
+   (9p - 27) / 19 cycles into the stop bit) balances a slow sender's stop bit against a
+   fast sender's next start edge, tolerating 4% either way from 16 cycles a bit up (at 16,
+   4.3% fast to 4.1% slow). *)
 let rx_on ~pin ~period =
   let check = ((9 * period) - 18) / 19 in
   [%string
@@ -149,9 +148,9 @@ bit:
 let rx ~period = rx_on ~pin:0 ~period
 
 (* [rx_on] with half the bit period from the host, so the first sample, a period and a
-   half from the start edge, is three halves: a period the kernel bounds from below at
-   every load, as no halving in the core would. The stop bit is checked at its middle,
-   which tolerates a sender 4% off either way from 52 cycles a bit, 5% from 104. *)
+   half from the start edge, is three halves, a period the kernel bounds at every load.
+   The stop bit is checked at its middle: 4% sender error either way from 52 cycles a bit,
+   5% from 104. *)
 let rx_host_rate_on ~pin =
   [%string
     {|

@@ -137,9 +137,8 @@ let limits =
   ]
 ;;
 
-(* The decoder emits a frame at the SENDCK rise after its last bit and has no timeout, so
-   a frame is read once a next one begins: the last setpoint goes out again and is read
-   twice. The positions are signed. *)
+(* The decoder has no timeout, so a frame is read once a next one begins: the last setpoint
+   goes out again and is read twice. The positions are signed. *)
 let setpoints = [ 0x8000, -32768; 0x0000, 0; 0xffff, -1; 0x1234, 4660 ]
 let read = setpoints @ [ List.last_exn setpoints ]
 

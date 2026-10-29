@@ -791,8 +791,6 @@ let%expect_test "a delay split into the word and a nop changes nothing" =
     |}]
 ;;
 
-(* What the split above found: a nop between [set x] and its counted loop lost the loop's
-   exit phase, and a program accepted without it was refused. *)
 let%expect_test "a nop between set x and its counted loop keeps the loop's exit phase" =
   let source ~between =
     String.concat

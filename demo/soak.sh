@@ -2,9 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # The overnight self-check soak (python/soak.py) on the bench carrier: Pico A (J13) drives
 # the chip's host port, the Icepi boots the chip from its flash. install puts it on Pico A
-# as main.py, so it starts on power with no laptop; collect copies the logs off into DIR and
-# takes main.py away again; test runs it here for MINUTES with a glitch every two minutes.
-# Both reset the Icepi to its flash first and check the chip's status through Pico A.
+# as main.py, collect copies the logs into DIR and removes main.py, test runs it here for
+# MINUTES with a glitch every two minutes. Each resets the Icepi first and checks its status.
 # Usage: PICO=id:<pico a> demo/soak.sh install|collect DIR|test MINUTES
 set -e
 cd "$(dirname "$0")/.."

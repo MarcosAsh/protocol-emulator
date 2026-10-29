@@ -167,9 +167,8 @@ let%expect_test "the kernel accepts both rates" =
     |}]
 ;;
 
-(* The first version's gap after a frame: the kernel accepted it, but the frames ran
-   together, as the line was low for 2.4 us after each, under the decoder's two bits. The
-   kernel checks deadlines, not how long the protocol wants the line idle. *)
+(* The kernel accepts a 2.4 us gap after a frame, but the decoder wants two bits of idle:
+   the kernel checks deadlines, not how long the protocol wants the line idle. *)
 let%expect_test "the first version, with a short gap between frames" =
   let pattern =
     "    set y, 7\ngap:\n    wait t+\n    jmp y--, gap             ; low between frames\n"

@@ -4,13 +4,11 @@ open Protocol_emulator
 open Protocol_emulator_test
 
 (* A UART receiver's tolerance on the RTL, every frame of a stream by induction on frames.
-   The sender runs free at m 2^-16 cycles a bit from any phase, as Tolerance models it and
-   engine 1's fractional period sends; the bytes, m within the bounds and the start are
-   free. The word the host reads is the byte sent, with no irq and no fault, and the next
-   frame's start edge, right behind the stop bit, is captured as far after the first's as
-   it comes, so the next frame meets the receiver as the first did, at another phase,
-   which the proof already covers. With m a step past either bound, or the receiver's
-   sample point a cycle late at the bounds of the one on time, a run has to fail. *)
+   The sender runs free at m 2^-16 cycles a bit from any phase, as Tolerance models it;
+   the bytes, m within the bounds and the start are free. The host reads the byte sent, with
+   no irq and no fault, and the next frame meets the receiver at another phase the proof
+   already covers. With m a step past either bound, or the sample point a cycle late, a
+   run has to fail. *)
 
 module Firmware = struct
   type t =
@@ -212,9 +210,8 @@ endmodule
 
 (* The SPI target in mode 0 under a controller whose every SCK phase is free from [active]
    or [idle] cycles to [slack] more, each on its own, the setup from CS too: two bytes,
-   MOSI moving on SCK's falling edge in the cycle it falls. The target follows the clock,
-   so no rate error builds up; what it needs is the phases this long. FASTER takes one
-   cycle off the shortest active phase, SLOWER off the shortest idle one. *)
+   MOSI moving on SCK's falling edge in the cycle it falls. FASTER takes one cycle off
+   the shortest active phase, SLOWER off the shortest idle one. *)
 let write_spi ~active ~idle ~slack =
   let mode = Spi_cs.Mode.of_int 0 in
   let pins = Spi_target.pads in

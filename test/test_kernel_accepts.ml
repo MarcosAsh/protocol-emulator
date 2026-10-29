@@ -186,10 +186,9 @@ let%expect_test "the accepts circuit agrees with the kernel on the library's tab
   [%expect {| ((rows 6732) (accepted 6732) (within 4097) (disagree ())) |}]
 ;;
 
-(* What [formal/pair_step.sby] proves on the RTL, that a row's edge bounds carry to the
-   rows after it, the kernel checks of each row; so a bound made one step tighter than
-   every way in brings is refused at a row before it. Each tamper is one bit's bound of
-   one pin at one reached row of [c]'s table. *)
+(* What [formal/pair_step.sby] proves on the RTL: a row's edge bounds carry to the rows
+   after it, so a bound one step tighter than every way in is refused at a row before it.
+   Each tamper is one bit's bound of one pin at one reached row of [c]'s table. *)
 let tamper_edges ?(spacing = uart_bits) (c : Certified.t) =
   let config, words, table = table ~spacing c in
   let refused table =

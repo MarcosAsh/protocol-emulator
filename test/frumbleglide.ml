@@ -178,8 +178,8 @@ let scenario =
   }
 ;;
 
-(* refused, so neither on the bench nor among the library's limits: [bench] and [limits]
-   stay for the refusal its tests name *)
+(* refused, so not on the bench or in the library's limits: [bench] and [limits] stay for
+   the tests' named refusal *)
 let protocol =
   { Protocol.name = "frumbleglide"
   ; certified = []

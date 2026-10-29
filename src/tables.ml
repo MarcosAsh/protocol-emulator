@@ -101,13 +101,11 @@ let entries = 256
 let max_hold = (1 lsl Isa.data_bits) - 1
 let burst_bits = 12
 
-(* Two words an entry: its hold, then outputs (6 bits), kind (4) and next state (6), read
-   low bits first. The entry at [d << 7 | state << k | inputs], d the host bit p[15],
-   comes next. The kinds are tried in [Kind.all]'s order by counting x down, and every
-   code from the last on runs the last. Each path adds its [Kind.added] to [t] before the
-   paths join, as the analyser keeps one interval a pc. A wait for the host or a pin
-   clears [t] first and re-anchors after: its phase grows without bound, and a bound on it
-   alone would wrap with the clock. *)
+(* Two words an entry: its hold, then outputs (6 bits), kind (4) and next state (6), low
+   bits first. The entry is at [d << 7 | state << k | inputs], d the host bit p[15]. Kinds
+   are tried in [Kind.all]'s order by counting x down, the last taking every later code.
+   Each path adds its [Kind.added] to [t] before the paths join. A wait for the host or a
+   pin clears [t] first and re-anchors after, as its phase is unbounded. *)
 let interpreter (w : Wiring.t) =
   Wiring.validate w |> ok_exn;
   let drive = if w.open_drain then "pindirs" else "pins" in

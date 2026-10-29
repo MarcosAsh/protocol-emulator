@@ -3,10 +3,8 @@
     each word the circuit takes, and the engine's pin is the circuit's [lag] cycles later,
     given no valid in the first cycles after reset and takes at least [gap] apart.
 
-    The coupling invariants are mined, not written: per cycle since the take, the
-    circuit's registers as [Bit_sim] has them and the engine's as [Machine] shows them
-    over many runs, keeping what every run agrees on, in terms of the word taken. A wrong
-    one fails the proof; it cannot make a wrong claim pass. *)
+    The coupling invariants are mined from many runs of [Bit_sim] and [Machine], keeping
+    what every run agrees on per cycle since the take. A wrong one fails the proof. *)
 
 open! Core
 open Protocol_emulator

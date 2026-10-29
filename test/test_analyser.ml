@@ -805,9 +805,8 @@ let%expect_test "x-- leaves all ones when it falls through" =
     |}]
 ;;
 
-(* The offset is the phase less the slope times x, which a jump out of one loop into
-   another of the same slope keeps, as it leaves x alone: both fall through to an exact
-   phase. *)
+(* A jump out of one loop into another of the same slope leaves x alone, so the offset
+   is kept and both fall through to an exact phase. *)
 let%expect_test "a counted loop may jump out into another of the same slope" =
   let source =
     {|
@@ -1515,9 +1514,7 @@ let%expect_test "side-set holds across a write to other pins" =
     |}]
 ;;
 
-(* Widening drops a bound that moves again after [max_passes] changes at an address, so a
-   program that settles sooner is unaffected. For each firmware, the fewest passes that
-   lose nothing, as every more lose nothing too. *)
+(* For each firmware, the fewest [max_passes] before widening that lose nothing. *)
 let%expect_test "an analysis widens only what has not settled by max_passes" =
   List.iter corpus ~f:(fun (name, config, source, period, _) ->
     let text max_passes =

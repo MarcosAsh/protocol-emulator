@@ -7,9 +7,8 @@ open Protocol_emulator_test
    chip for all time: each word engine 1 pushes is the low byte of the word engine 0
    pulled for that frame, once a frame, with every sample half a bit from the wire's
    edges. The invariant is a table of both engines' state by steps since the start, the
-   pull and the start bit; a simulation proposes it, the proof checks it for any words at
-   any times. Engine 1's claims hold until its host lets the fifo overflow, which halts it
-   and lets go of its pins. *)
+   pull and the start bit, proposed by simulation and checked for any words at any times.
+   Engine 1's claims hold until its host lets the fifo overflow, which halts it. *)
 
 let wire = 20
 

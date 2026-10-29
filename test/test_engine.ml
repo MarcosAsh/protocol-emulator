@@ -411,7 +411,6 @@ loop:
     |}]
 ;;
 
-(* clears the core, writes [config] and [program] and starts it *)
 let load (i : _ Solo.I.t) ~cycle ~config program =
   i.clocking.clear := Bits.vdd;
   cycle ();
