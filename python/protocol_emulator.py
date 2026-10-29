@@ -98,7 +98,10 @@ class Host:
         self.write(TX, words)
 
     def pop(self, count=1):
-        return self.read(RX, count)
+        """count words, zeros past rx_level: an RX read of an empty fifo reads 0 and drops
+        a word the engine pushes during it, so none is made."""
+        level = min(count, self.status()["rx_level"])
+        return (self.read(RX, level) if level else []) + [0] * (count - level)
 
     def status(self):
         s = self.read(STATUS)[0]
