@@ -111,6 +111,15 @@
 
 (rule
  (alias runtest)
+ (deps
+  ../../python/usb_board.py
+  ../../python/usb_device_firmware.py
+  ../../python/protocol_emulator.py)
+ (action
+  (run python3 -B %{dep:test_board_usb.py} ../../python)))
+
+(rule
+ (alias runtest)
  (deps ../../demo/kernel_vs_board.py)
  (action
   (run python3 -B %{dep:test_kernel_vs_board.py} ../../demo)))
