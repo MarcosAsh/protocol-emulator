@@ -37,6 +37,7 @@ module I = struct
     { clocking : 'a Clocking.t
     ; check : 'a
     ; abort : 'a
+    ; written : 'a With_valid.t [@bits Isa.data_addr_bits]
     ; config : 'a Engine.Config.t
     ; setup : 'a Setup.t
     ; program_word : 'a [@bits Isa.word_bits]
@@ -138,6 +139,19 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let%hw_var reason = Always.Variable.reg spec ~width:reason_bits in
   let%hw_var data_addr = Always.Variable.wire ~default:(zero Isa.data_addr_bits) () in
   let%hw_var reading = Always.Variable.wire ~default:gnd () in
+  (* registered, so the walk's address arithmetic ends at a flop and not at the memory *)
+  let%hw read_valid = reg spec reading.value in
+  let%hw read_at = reg spec data_addr.value in
+  (* How far from [base] the walk has read: a write below that may change a word it has
+     read, and ends it. A word written before the walk reads it is read as written. *)
+  let offset addr = uresize (addr -: setup.base) ~width:(Isa.data_addr_bits + 1) in
+  let%hw reach = offset read_at +:. 1 in
+  let%hw span =
+    reg_fb spec ~width:(Isa.data_addr_bits + 1) ~f:(fun span ->
+      mux2 (sm.is Idle) (zero (width span))
+      @@ mux2 (read_valid &: (reach >: span)) reach span)
+  in
+  let%hw overwritten = i.written.valid &: (offset i.written.value <: span) in
   (* the row at [pc]; a successor's or a target's is checked a field at a time as it is
      read, and the conjuncts each way fails kept *)
   let row = Kernel.Row.Of_always.reg datapath in
@@ -412,13 +426,28 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
       ; finished <-- gnd
       ; sm.switch
           [ ( Idle
-            , [ when_
+            , [ (* nothing the last walk left, whichever engine's, but the words and rows
+                   a walk writes before it reads them *)
+                when_
                   i.check
                   [ pc <-- zero Isa.pc_bits
                   ; ptr <-- zero count_bits
                   ; k <-- zero 2
                   ; Kernel.Row.Of_always.assign row full
                   ; sm.set_next Header
+                  ; purpose.set_next Target
+                  ; source.set_next Dictionary
+                  ; count <-- zero count_bits
+                  ; wide_count <-- zero count_bits
+                  ; stored <-- gnd
+                  ; key <-- zero Isa.pc_bits
+                  ; lo <-- zero count_bits
+                  ; hi <-- zero count_bits
+                  ; sel <-- zero count_bits
+                  ; field <-- zero 3
+                  ; accepted <-- gnd
+                  ; reject_pc <-- zero (Isa.pc_bits + 1)
+                  ; reason <-- zero reason_bits
                   ]
               ] )
           ; ( Header
@@ -576,14 +605,11 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
           ]
         (* last, so it wins over the state's own assignments *)
       ; when_
-          (i.abort &: ~:(sm.is Idle))
+          (i.abort |: overwritten &: ~:(sm.is Idle))
           (reject
              ~at:(uresize pc.value ~width:(Isa.pc_bits + 1))
              (of_unsigned_int ~width:reason_bits aborted))
       ]);
-  (* registered, so the walk's address arithmetic ends at a flop and not at the memory *)
-  let%hw read_valid = reg spec reading.value in
-  let%hw read_at = reg spec data_addr.value in
   { O.program_read = { valid = sm.is Word; value = pc.value }
   ; data_read = { valid = read_valid; value = read_at }
   ; busy = ~:(sm.is Idle)

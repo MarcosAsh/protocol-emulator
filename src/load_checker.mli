@@ -4,7 +4,8 @@
     reads nothing from the host but the certificate, so what it accepts is the program the
     engine will run. [finished] pulses once, with [accepted], or [reject_pc] and [reason]:
     the index of the first failing conjunct in [Kernel.Conjuncts.to_list] order, or
-    [out_of_order] or [left_over], or [aborted] if [abort] came while it walked. *)
+    [out_of_order] or [left_over], or [aborted] if [abort] came while it walked. Each walk
+    starts from nothing the last one left. *)
 
 open! Core
 open! Hardcaml
@@ -47,6 +48,9 @@ module I : sig
     { clocking : 'a Clocking.t
     ; check : 'a
     ; abort : 'a (** Ends a walk unaccepted: something it reads was written. *)
+    ; written : 'a With_valid.t
+    (** A data word written this cycle. It ends the walk as [abort] does if it lies no
+        further from [base] than a word the walk has read. *)
     ; config : 'a Engine.Config.t
     ; setup : 'a Setup.t
     ; program_word : 'a (** The word at [program_read], a cycle later. *)

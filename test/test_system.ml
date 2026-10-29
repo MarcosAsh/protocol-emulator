@@ -631,12 +631,97 @@ let%expect_test "each engine's check is its own, kept through the other's turn" 
     ("the model" (certified accepted) (corrupted "refused at 1: next phase")
      (misordered "refused at 0: a table entry out of order"))
     ((engine 0) (accepted false) (reject_pc 510) (reason 29) (refused true))
-    ((engine 1) (accepted true) (reject_pc 510) (reason 29) (refused false))
+    ((engine 1) (accepted true) (reject_pc 0) (reason 0) (refused false))
     ((engine 0) (accepted false) (reject_pc 1) (reason 3) (refused false))
     ((engine 1) (accepted false) (reject_pc 1) (reason 3) (refused false))
     ((engine 0) (accepted false) (reject_pc 0) (reason 30) (refused false))
     ((engine 1) (accepted false) (reject_pc 0) (reason 30) (refused false))
     ((engine 0) (accepted false) (reject_pc 0) (reason 30) (refused false))
     ((engine 1) (accepted false) (reject_pc 0) (reason 30) (refused false))
+    |}]
+;;
+
+(* A host writes data word 500, outside engine 0's certificate, while engine 0's walk
+   runs: engine 1's host's write is dropped and the walk runs on and accepts, while engine
+   0's own host's, which takes the walk's data turn, ends it. *)
+let%expect_test "another engine's host's data write leaves a walk running" =
+  let case =
+    List.find_exn Firmware_inventory.all ~f:(fun c -> String.equal c.name "uart_tx")
+  in
+  let config = Timed_program.config case.timed in
+  let words = Timed_program.words case.timed in
+  let certificate =
+    Load_check.of_table
+      ~config
+      ~words
+      (Kernel.Table.of_analyser (Timed_program.rows case.timed))
+    |> ok_exn
+    |> Load_check.to_words
+  in
+  Harness.run
+    ~create:(Two.hierarchical ~memory:Flops)
+    (fun (h @ local) ~inputs:i ~outputs ->
+       let open Hardcaml in
+       let now = ref 0 in
+       let cycle ?(n = 1) () =
+         for _ = 1 to n do
+           Hardcaml_lws.Lws.cycle h;
+           incr now
+         done
+       in
+       let o = Before_and_after_edge.after_edge outputs in
+       let pulse field =
+         field := Bits.vdd;
+         cycle ();
+         field := Bits.gnd
+       in
+       let host n = List.nth_exn i.hosts n in
+       let write (port : _ Engine.Program_write.t) words =
+         port.valid := Bits.vdd;
+         List.iter words ~f:(fun (addr, word) ->
+           Bits.(port.addr <--. addr);
+           Bits.(port.data <--. word);
+           cycle ());
+         port.valid := Bits.gnd
+       in
+       pulse i.clocking.clear;
+       now := 0;
+       Bits.(i.check_setup.base <--. 0);
+       i.check_setup.floor := Bits.of_bool case.floor;
+       i.check_setup.single_edge := Bits.of_bool case.single_capture_edge;
+       i.check_setup.loaded.valid := Bits.of_bool (Option.is_some case.period);
+       Bits.(i.check_setup.loaded.value <--. Option.value case.period ~default:0);
+       write (host 0).data_write (List.mapi certificate ~f:Tuple2.create);
+       Engine.Config.iter2
+         (host 0).config
+         (Engine.Config.of_program_config config)
+         ~f:( := );
+       write (host 0).program_write (List.mapi words ~f:Tuple2.create);
+       let verdict = List.hd_exn o.check.verdicts in
+       (* host [n] writes 3,000 cycles into engine 0's walk, which begins at engine 0's
+          next turn *)
+       let check_beside n =
+         pulse (host 0).check;
+         let turns = 2 * Two.turn_cycles in
+         cycle ~n:((((!now / turns) + 1) * turns) + 3_000 - !now) ();
+         write (host n).data_write [ 500, 0x1234 ];
+         while Bits.to_bool !(verdict.busy) do
+           cycle ();
+           if !now > 10 * turns then raise_s [%message "no verdict"]
+         done;
+         print_s
+           [%message
+             ""
+               ~host:(n : int)
+               ~accepted:(Bits.to_bool !(verdict.accepted) : bool)
+               ~reason:(Bits.to_unsigned_int !(verdict.reason) : int)
+               ~certified:(Bits.to_bool !(List.hd_exn o.check.certified) : bool)]
+       in
+       check_beside 1;
+       check_beside 0 [@nontail]);
+  [%expect
+    {|
+    ((host 1) (accepted true) (reason 0) (certified true))
+    ((host 0) (accepted false) (reason 29) (certified false))
     |}]
 ;;

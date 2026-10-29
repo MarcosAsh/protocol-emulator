@@ -2,8 +2,9 @@
 // accepted walk checked every pc, a field at a time, against the rows it then holds at the
 // pc's successor and target, the full row at pc 0, each entry decoding as the layout below
 // gives; a missed lookup's empty row and a skipped lookup's full row are test_kernel.ml's.
-// Program and data memory hold still through an accepted walk (gate.sv); a data word is
-// free until its address has held two cycles.
+// Program memory, and each data word from the walk's first read of it, hold still through
+// an accepted walk, and no write takes its read (gate.sv), so it reads the memory as it
+// ends; a data word is free until its address has held two cycles.
 
 module certify (input clk);
   (* anyconst *) wire [1:0] side_set_count;
@@ -100,6 +101,7 @@ module certify (input clk);
 
   load_checker dut (
     .clock(clk), .clear(clear), .check(check), .abort(1'b0),
+    .written$valid(1'b0), .written$value(9'd0),
     .config$side_set_count(side_set_count), .config$capture_pin(capture_pin),
     .config$capture_rising(capture_rising), .config$wrap_bottom(wrap_bottom),
     .config$wrap_top(wrap_top), .config$period_fraction(period_fraction),

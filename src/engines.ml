@@ -165,16 +165,21 @@ module Make (Config : Config) = struct
        so a running or starting core never sees it. *)
     let%hw_list lent = List.mapi outs ~f:(fun n e -> mine n &: e.free) in
     let%hw frame_could_write = wire 1 in
-    (* what the walk reads, written or maybe written under it, or its engine leaving
-       halted *)
+    let owns n = if engines = 1 then vdd else i.frame_owner ==:. n in
+    let data_turn = Data_memory.O.Of_signal.wires () in
+    (* What the walk reads written, or maybe written, under it, or its engine leaving
+       halted. Only its own host's data words land while it walks, and its own receivers'
+       land in its turn, so either may take its read; another engine's receivers' land in
+       their own turn, and end the walk only where it has read (Load_checker). *)
     let%hw abort =
       checking
-      &: (List.map i.hosts ~f:(fun h -> h.data_write.valid)
-          |> List.reduce_exn ~f:( |: )
-          |: frame_could_write
-          |: pick
-               (List.map i.hosts ~f:(fun h ->
-                  h.program_write.valid |: h.config_written |: h.line_write.valid))
+      &: (pick
+            (List.mapi i.hosts ~f:(fun n h ->
+               h.program_write.valid
+               |: h.config_written
+               |: h.line_write.valid
+               |: (frame_could_write &: owns n)))
+          |: data_turn.host_write
           |: pick (List.map lent ~f:( ~: ))
           |: turn_ends)
     in
@@ -182,20 +187,14 @@ module Make (Config : Config) = struct
        where no read the owner needs is lost: no host write, and the owner halted and not
        starting, not pulling from data, or keeping its word. A halted engine's word is
        refetched from its start on. So when words land, and so when the owner's status
-       pins move, never depends on another engine. A walk is aborted wherever a word could
-       land, whether or not the owner's read lets it, which keeps the owner's fetch off
-       the abort's path. *)
-    let%hw host_writes =
-      List.map outs ~f:(fun e -> e.halted)
-      @ [ List.map i.hosts ~f:(fun h -> h.data_write.valid) |> List.reduce_exn ~f:( |: ) ]
-      |> List.reduce_exn ~f:( &: )
-    in
-    let data_turn = Data_memory.O.Of_signal.wires () in
+       pins move, never depends on another engine. The owner's walk is aborted wherever a
+       word could land, whether or not the owner's read lets it, which keeps the owner's
+       fetch off the abort's path. *)
+    let%hw host_writes = data_turn.host_write in
     let%hw_list turn_spared =
       List.map3_exn outs i.hosts data_turn.keeps ~f:(fun e (h : _ Engine.Host.t) keeps ->
         e.free |: ~:(h.config.autopull_data) |: keeps)
     in
-    let owns n = if engines = 1 then vdd else i.frame_owner ==:. n in
     let%hw owners_turn =
       if engines = 1 then vdd else data_turn.whose_turn ==: i.frame_owner
     in
@@ -254,6 +253,7 @@ module Make (Config : Config) = struct
         scope
         { clocking = i.clocking
         ; halted = List.map outs ~f:(fun e -> e.halted)
+        ; walked = List.init engines ~f:mine
         ; writes = List.map i.hosts ~f:(fun h -> h.data_write)
         ; reads =
             List.map2_exn outs lent ~f:(fun e lent ->
@@ -267,6 +267,7 @@ module Make (Config : Config) = struct
       { clocking = i.clocking
       ; check = go
       ; abort
+      ; written = data.written
       ; config =
           Engine.Config.Of_signal.mux checked (List.map i.hosts ~f:(fun h -> h.config))
       ; setup = i.check_setup

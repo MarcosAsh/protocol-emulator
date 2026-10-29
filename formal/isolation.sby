@@ -1,18 +1,20 @@
 [tasks]
 prove
-cover
-heard teeth
-pad_heard teeth
+cover ungated
+heard teeth ungated
+pad_heard teeth ungated
 any_turn teeth
-region_written teeth
-outside teeth
-load_anytime teeth
-start_write teeth
-routed teeth
-start_all teeth
-frame_in_region
-load_pending
-owner_moves
+region_written teeth ungated
+outside teeth ungated
+load_anytime teeth ungated
+start_write teeth ungated
+routed teeth ungated
+start_all teeth ungated
+abort_any teeth
+cert_outside
+frame_in_region ungated
+load_pending ungated
+owner_moves ungated
 
 [options]
 prove: mode prove
@@ -27,21 +29,28 @@ teeth: expect fail
 frame_in_region: mode prove
 frame_in_region: depth 3
 frame_in_region: expect fail,unknown
-# so does a word waiting to land, and engine 0 owning the receivers after engine 1
+# so does a word waiting to land, engine 0 owning the receivers after engine 1, and a word
+# of engine 1's receivers landing where engine 0's walk has read
 load_pending: mode prove
 load_pending: depth 3
 load_pending: expect fail,unknown
 owner_moves: mode prove
 owner_moves: depth 3
 owner_moves: expect fail,unknown
+cert_outside: mode prove
+cert_outside: depth 3
+cert_outside: expect fail,unknown
 
 [engines]
 smtbmc boolector
 
 [script]
 read_verilog -lib RM_IHPSG13_1P_512x16_c2_bm_bist.v
-~any_turn: read_verilog engines_sram.v
+prove: read_verilog engines_gated.v
+ungated: read_verilog engines_sram.v
 any_turn: read_verilog engines_any_turn.v
+abort_any: read_verilog abort_any.v
+cert_outside: read_verilog engines_gated.v
 hierarchy -top engines_top
 proc
 flatten
@@ -97,13 +106,17 @@ routed: read -define ROUTED
 start_all: read -define START_ALL
 frame_in_region: read -define FRAME_IN_REGION
 load_pending: read -define LOAD_PENDING
+cert_outside: read -define CERT_OUTSIDE
 owner_moves: read -define OWNER_MOVES
 read_verilog -formal -sv isolation.sv
 prep -top isolation
 
 [files]
-~any_turn: engines_sram.v
+prove: engines_gated.v
+ungated: engines_sram.v
 any_turn: engines_any_turn.v
+abort_any: isolation_teeth/abort_any.v
+cert_outside: engines_gated.v
 ../src/RM_IHPSG13_1P_512x16_c2_bm_bist.v
 flops.tcl
 isolation.tcl

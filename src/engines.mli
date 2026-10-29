@@ -1,9 +1,11 @@
 (** The chip's cores ([engine_n], each with its own program memory and host fields) and
     the pins between them; they share one [Data_memory], written by the host only while
-    all are halted, and by [Frame_rx] or [Usb_frame_rx] only in their owner's turns, where
-    it keeps its word or pulls no data; a word waiting in that turn aborts a running walk,
-    whether it lands or not. The owner reads the receiver's finished, good (FCS, or the
-    CRC its PID names), receiving and error (a dropped word or a stuffing error) on the status pins,
+    all are halted, and by engine [n]'s host only while the checker walks no other engine,
+    and by [Frame_rx] or [Usb_frame_rx] only in their owner's turns, where it keeps its
+    word or pulls no data. A walk ends on its own host's data word, on a received word
+    waiting in its engine's turn, whether it lands or not, and on any word landing where
+    it has read. The owner reads the receiver's finished, good (FCS, or the CRC its PID
+    names), receiving and error (a dropped word or a stuffing error) on the status pins,
     [Isa.first_status_pin] up, and the others read 0 there, so when they move depends on
     no other engine. A pin is the OR of what engines drive, which keeps a mis-configured
     double drive defined. An engine reads another's driven bidirectional pin instead of

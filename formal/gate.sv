@@ -1,12 +1,13 @@
 // The start gate on the two-engine chip as it is built. From the clear on, for each
 // engine n: (a) a start reaches the core only while n is certified; (b) n is certified
 // only after a walk of n that began after the last program, configuration or line table
-// write to n, held n free and saw no data write, the host's or the frame receiver's,
-// throughout, and finished accepted; (c) a start never comes the cycle after the checker
-// held n's ports; (d) the frame receivers write only in their owner's data turn, while it
-// is free, does not pull data or keeps its word, and never beside a host write;
-// (e) a walk of n checks under the setup it began with, and n's core, while certified,
-// watches the premises of that setup; (f) a walk of n runs only in n's turn at the checker.
+// write to n, held n free throughout, saw no data write land in n's data turn, which
+// would take its read, nor at a word it had read (any word, watch), and finished
+// accepted; (c) a start never comes the cycle after the checker held n's ports; (d) the
+// frame receivers write only in their owner's data turn, while it is free, does not pull
+// data or keeps its word, and never beside a host write; (e) a walk of n checks under the
+// setup it began with, and n's core, while certified, watches the premises of that setup;
+// (f) a walk of n runs only in n's turn at the checker.
 // Every host field is free every cycle, and so is each memory's output.
 
 module gate (input clk);
@@ -15,6 +16,7 @@ module gate (input clk);
   (* anyseq *) wire [1:0] line_write, autopull_data;
   (* anyseq *) wire setup_valid, setup_floor, setup_single_edge, owner;
   (* anyseq *) wire [15:0] setup_value;
+  (* anyconst *) wire [8:0] watch;
   // the premises of a check's setup: the loaded period, the floor and the single edge
   wire [18:0] setup = {setup_valid, setup_value, setup_floor, setup_single_edge};
   wire [18:0] walk_setup, premises_0, premises_1;
@@ -30,7 +32,9 @@ module gate (input clk);
   wire certified_0, certified_1, go, chosen, checked, checking, accepts, lent_0, lent_1;
   wire turn_starts;
   wire started_0, started_1, free_0, free_1, frame_write, data_turn, keeps_0, keeps_1;
-  wire host_writes;
+  wire host_writes, port_write, walk_reads;
+  wire [8:0] port_addr, walk_read_at, walk_base;
+  wire [9:0] walk_span;
   wire [1:0] certified = {certified_1, certified_0};
   wire [1:0] lent = {lent_1, lent_0};
   wire [1:0] started = {started_1, started_0};
@@ -51,6 +55,8 @@ module gate (input clk);
     .check_setup$loaded$valid(setup_valid), .check_setup$loaded$value(setup_value),
     .check_setup$floor(setup_floor), .check_setup$single_edge(setup_single_edge),
     .frame_owner(owner), .host_writes(host_writes),
+    .port_write(port_write), .port_addr(port_addr), .walk_reads(walk_reads),
+    .walk_read_at(walk_read_at), .walk_span(walk_span), .walk_base(walk_base),
     .certified_0(certified_0), .certified_1(certified_1), .go(go), .chosen(chosen),
     .checked(checked), .checking(checking), .accepts(accepts), .turn_starts(turn_starts),
     .lent_0(lent_0), .lent_1(lent_1), .started_0(started_0), .started_1(started_1),
@@ -64,8 +70,10 @@ module gate (input clk);
     .premises_floor_1(premises_1[1]), .premises_single_edge_1(premises_1[0]));
 
   // what each walk of n saw: begun after n's last write (fresh), with n free and no data
-  // write while it ran (quiet), and whether it ended accepted with both (good)
-  reg [1:0] fresh = 0, quiet = 0, good = 0, was_lent = 0;
+  // write in its turn or at watch once read (quiet), and whether it ended accepted with
+  // both (good); whether it has read watch (seen), and the other engine's host wrote data
+  // while it ran (beside)
+  reg [1:0] fresh = 0, quiet = 0, good = 0, was_lent = 0, seen = 0, beside = 0;
   genvar n;
   generate
     for (n = 0; n < 2; n = n + 1) begin : engine
@@ -82,8 +90,14 @@ module gate (input clk);
         end else begin
           if (begins) fresh[n] <= 1;
           else if (program_write[n] || config_written[n] || line_write[n]) fresh[n] <= 0;
+          if (begins) seen[n] <= 0;
+          else if (walking && walk_reads && walk_read_at == watch) seen[n] <= 1;
+          if (begins) beside[n] <= 0;
+          else if (walking && data_write[1 - n]) beside[n] <= 1;
           if (begins) quiet[n] <= 1;
-          else if (walking && (!free[n] || |data_write || frame_write)) quiet[n] <= 0;
+          else if (walking && (!free[n] || port_write && data_turn == n
+                               || port_write && port_addr == watch && seen[n]))
+            quiet[n] <= 0;
           if (begins || program_write[n] || config_written[n] || line_write[n])
             good[n] <= 0;
           else if (accepts && checked == n && fresh[n] && quiet[n]) good[n] <= 1;
@@ -101,6 +115,8 @@ module gate (input clk);
         // a walk of n runs fresh and quiet, as a write or n leaving free ends it, and
         // holds n uncertified and not yet good; a good walk leaves n fresh
         if (walking) assert (fresh[n] && quiet[n] && !certified[n] && !good[n]);
+        // the checker's span covers what the walk has read
+        if (walking && seen[n]) assert ({1'b0, watch - walk_base} < walk_span);
         if (good[n]) assert (fresh[n] && quiet[n]);
 `endif
       end
@@ -123,6 +139,8 @@ module gate (input clk);
 `ifdef SHORT_WALK
     cover (started[0]);
     cover (started[0] && checking && checked == 1);
+    // engine 0 accepted with engine 1's host writing data through its walk
+    cover (accepts && checked == 0 && beside[0]);
 `else
     cover (lent[0]);
     cover (lent[1]);

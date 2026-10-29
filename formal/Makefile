@@ -290,14 +290,17 @@ link_proof:
 	sby -f link.sby prove cover never_pushes next_bit wider baud
 
 # Engine 0 cannot tell what engine 1 or engine 1's host does: two copies of the two-engine
-# chip agree on engine 0's pins and what the host reads of it, for all time (isolation.sv).
-# Teeth drop one assumption each and must fail: engine 1 heard by wire or pad, engine 0's
-# pointer or engine 1's host off their side of the region, reads ignoring the turn, a load
-# while engine 1 runs, a write as engine 0 starts, engine 1's receivers writing the region,
-# engine 1's host loading while engine 0's receiver holds a word, the receivers changing
-# hands. isolation_proof is for CI.
+# chip as built agree on engine 0's pins and what the host reads of it, its check's verdict
+# too, for all time (isolation.sv). Teeth drop one assumption each and must fail: engine 1
+# heard by wire or pad, engine 0's pointer or engine 1's host off their side of the region,
+# reads ignoring the turn, a load while engine 1 runs, a write as engine 0 starts, engine
+# 1's receivers writing the region, engine 1's host loading while engine 0's receiver
+# holds a word, the receivers changing hands, engine 0's certificate outside its region,
+# and engine 1's host's data writes ending engine 0's walk. Those that need engine 0
+# running drop the gate. isolation_proof is for CI.
 ANY_TURN = /^module data_memory/,/^endmodule/s/^\(\s*assign signal_and[_0-9]* = \)signal_eq[_0-9]* & \(signal_not[_0-9]*\);/\1\2;/
-isolation: engines_sram.v
+ABORT_ANY = /^module engines /,/^endmodule/s/^\(\s*assign abort = .*\);/\1 | hosts$$data_write$$valid_1;/
+isolation: engines_sram.v engines_gated.v
 	$(MAKE) isolation_proof
 
 # The load checker's walk, for any program, configuration, setup and data memory: an
@@ -348,8 +351,8 @@ complete_proof:
 # last write that held it free; and never right after the checker held its ports. A walk
 # takes thousands of cycles, so the short covers and the teeth end it at pc 1, which no
 # claim depends on: there a cover reaches a certified start, and each tooth (certified
-# never cleared, an engine lent while not free, no abort, the frame receiver ungated, the
-# premises live) has to fail. Each engine's turn at the checker lasts 65,536 cycles, so the
+# never cleared, an engine lent while not free, no abort, no abort on a write where the
+# walk has read, the frame receiver ungated, the premises live) has to fail. Each engine's turn at the checker lasts 65,536 cycles, so the
 # covers shorten it to 32 (SHORT_TURN), the teeth give engine 0 every turn, a walk beginning
 # once the checker is idle (ONE_TURN), and the overrun tooth, a full walk left running past
 # its turn, has to fail.
@@ -357,6 +360,8 @@ SHORT_WALK = /^module load_checker /,/^endmodule/s/= 9'b111111111;/= 9'b00000000
 STICKY = /^module engines /,/^endmodule/s/^\(\s*assign signal_mux[_0-9]* = \)signal_or[_0-9]* ? gnd : /\1/
 LEND_BUSY = /^module engines /,/^endmodule/s/^\(\s*assign lent\$$[01] = \)\(signal_and[_0-9]*\) \& signal_wire[_0-9]*;/\1\2;/
 NO_ABORT = /^module engines /,/^endmodule/s/^\(\s*assign abort = \).*;/\11'b0;/
+# a write landing where the walk has read leaving it running
+OVERWRITE = /^module load_checker /,/^endmodule/s/^\(\s*assign overwritten = \).*;/\11'b0;/
 SHORT_TURN = /^module engines /,/^endmodule/{s/^\(\s*assign turn_ends = \)turn_cycle == signal_const[_0-9]*;/\1\&turn_cycle[4:0];/;s/^\(\s*assign turn_starts = \)turn_cycle == signal_const[_0-9]*;/\1turn_cycle[4:0] == 5'b00000;/}
 ONE_TURN = /^module engines /,/^endmodule/{s/^\(\s*assign turn_ends = \)turn_cycle == signal_const[_0-9]*;/\11'b0;/;s/^\(\s*assign turn_starts = \)turn_cycle == signal_const[_0-9]*;/\1~checking;/}
 OVERRUN = /^module engines /,/^endmodule/s/^\(\s*assign signal_or[_0-9]* = signal_or[_0-9]*\) | turn_ends;/\1;/
@@ -380,6 +385,7 @@ gate_proof:
 	sed -e "$(SHORT_WALK)" -e "$(ONE_TURN)" -e "$(STICKY)" engines_gated.v > gate_teeth/sticky.v
 	sed -e "$(SHORT_WALK)" -e "$(ONE_TURN)" -e "$(LEND_BUSY)" engines_gated.v > gate_teeth/lend_busy.v
 	sed -e "$(SHORT_WALK)" -e "$(ONE_TURN)" -e "$(NO_ABORT)" engines_gated.v > gate_teeth/no_abort.v
+	sed -e "$(SHORT_WALK)" -e "$(ONE_TURN)" -e "$(OVERWRITE)" engines_gated.v > gate_teeth/overwrite.v
 	sed -e "$(SHORT_WALK)" -e "$(ONE_TURN)" -e "$(FRAME_UNGATED)" -e "$(FRAME_EVERY_CYCLE)" \
 	  engines_gated.v > gate_teeth/frame_ungated.v
 	sed -e "$(SHORT_WALK)" -e "$(ONE_TURN)" -e "$(FRAME_ANY_TURN)" -e "$(FRAME_EVERY_CYCLE)" \
@@ -389,17 +395,21 @@ gate_proof:
 	sed -e "$(SHORT_TURN)" -e "$(OVERRUN)" engines_gated.v > gate_teeth/overrun.v
 	sed -e "$(SHORT_WALK)" -e "$(ONE_TURN)" engines_gated.v > gate_teeth/one_turn.v
 	test $$(diff gate_teeth/short.v gate_teeth/one_turn.v | grep -c '^>') = 2
-	for t in sticky lend_busy no_abort frame_ungated frame_any_turn premises_live; do \
+	for t in sticky lend_busy no_abort overwrite frame_ungated frame_any_turn premises_live; do \
 	  ! cmp -s gate_teeth/one_turn.v gate_teeth/$$t.v || exit 1; done
 	! cmp -s gate_teeth/turn.v gate_teeth/overrun.v
-	sby -f gate.sby prove cover short_cover sticky lend_busy no_abort overrun frame_ungated \
+	sby -f gate.sby prove cover short_cover sticky lend_busy no_abort overwrite overrun frame_ungated \
 	  frame_any_turn premises_live
 
 isolation_proof:
 	sed '$(ANY_TURN)' engines_sram.v > engines_any_turn.v
 	! cmp -s engines_sram.v engines_any_turn.v
+	mkdir -p isolation_teeth
+	sed '$(ABORT_ANY)' engines_gated.v > isolation_teeth/abort_any.v
+	! cmp -s engines_gated.v isolation_teeth/abort_any.v
 	sby -f isolation.sby prove cover heard pad_heard any_turn region_written outside \
-	  load_anytime start_write routed start_all frame_in_region load_pending owner_moves
+	  load_anytime start_write routed start_all abort_any cert_outside frame_in_region \
+	  load_pending owner_moves
 
 # Self_check.checker on the core beside its contract (test/self_check_contract.ml), any
 # line, 116 cycles from the clear: the irq only after a break and by when the contract says,

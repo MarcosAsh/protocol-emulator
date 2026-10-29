@@ -35,6 +35,7 @@ let create ~memory (scope : Scope.t) (i : Signal.t I.t) =
       scope
       { clocking = i.clocking
       ; halted = [ out.halted ]
+      ; walked = [ gnd ]
       ; writes = [ i.data_write ]
       ; reads = [ out.data_addr ]
       ; dma = Engine.Program_write.Of_signal.zero ()

@@ -1,14 +1,18 @@
 // Engine 0 cannot tell what engine 1 or engine 1's host does. Two copies of the two-engine
-// chip share the clear, the pads and all of engine 0's inputs; engine 1's are free in each.
-// From the first clear on, engine 0's pins and what the host reads of it agree, by induction
-// on engine 0's flops (isolation.tcl), and on the frame receivers' when engine 0 owns them.
-// The data memory's turns are proved to hide engine 1's reads, and the checker's fixed
+// chip as built, starts gated, share the clear, the pads and all of engine 0's inputs;
+// engine 1's are free in each. From the first clear on, engine 0's pins and what the host
+// reads of it, its check's verdict too, agree, by induction on engine 0's flops
+// (isolation.tcl), the frame receivers' when engine 0 owns them, and the load checker's
+// while neither copy has walked engine 1 since engine 0's last check. The data memory's
+// turns are proved to hide engine 1's reads, and the checker's fixed
 // turns its checks; the assumptions below close the other channels, and a tooth drops
-// each. Four are premises on how the chip is used, not channels it closes: no routed
+// each. Five are premises on how the chip is used, not channels it closes: no routed
 // pushes between the two (ROUTED), no start of every engine at once (START_ALL), the
 // receivers' words above engine 0's region while engine 1 owns them (FRAME_IN_REGION),
-// and no load by engine 1's host while a word engine 0's receiver took waits to land
-// (LOAD_PENDING). The owner is fixed.
+// no load by engine 1's host while a word engine 0's receiver took waits to land
+// (LOAD_PENDING), and engine 0's certificate in its region (CERT_OUTSIDE). The owner is
+// fixed. The teeth that need engine 0 running drop the gate, as a certified start takes a
+// full walk.
 
 `include "pairs.sv"
 
@@ -88,6 +92,13 @@ typedef struct packed {
   logic [23:0] now, capture;
 } status_t;
 
+// engine 0's check as the host reads it
+typedef struct packed {
+  logic busy, accepted;
+  logic [9:0] reject_pc;
+  logic [4:0] reason;
+} verdict_t;
+
 // One copy, its macros pulled out, and what the miter reads of it.
 module isolation_copy (
   input clk, clear,
@@ -119,7 +130,16 @@ module isolation_copy (
   output [8:0] held_addr,
   output held_valid,
   output [`RECEIVER_BITS - 1:0] receivers,
-  output pending
+  output pending,
+  output certified, refused,
+  output verdict_t verdict,
+  output checking, checked, chosen, turn_starts, finished, read_done,
+  output load_checker_t load_checker,
+  output [`WORD_CLASS_BITS - 1:0] word_class,
+  output [`CHECKER_BITS - 1:0] checker_flops,
+  output [9:0] walk_span,
+  output [8:0] walk_base, walk_read_at,
+  output walk_reads
 );
 `define CONFIG(n, c) \
     .hosts$config$side_set_count_``n(c.side_set_count), \
@@ -196,7 +216,14 @@ module isolation_copy (
     .state_0(state), .rx_0(rx), .tx_0(tx), .pins_sampled_0(pins_sampled),
     .started_0(started), .data_mine_0(data_mine), .lent_0(lent),
     .data_word_0(data_word), .held_addr_0(held_addr), .held_valid_0(held_valid),
-    .receivers(receivers), .frame_pending(frame_pending), .usb_pending(usb_pending));
+    .receivers(receivers), .frame_pending(frame_pending), .usb_pending(usb_pending),
+    .check$certified_0(certified), .check$refused_0(refused),
+    .check$verdicts$busy_0(verdict.busy), .check$verdicts$accepted_0(verdict.accepted),
+    .check$verdicts$reject_pc_0(verdict.reject_pc), .check$verdicts$reason_0(verdict.reason),
+    .checking(checking), .checked(checked), .chosen(chosen), .turn_starts(turn_starts),
+    .finished(finished), .read_done(read_done), .load_checker(load_checker),
+    .word_class(word_class), .checker_flops(checker_flops), .walk_span(walk_span),
+    .walk_base(walk_base), .walk_read_at(walk_read_at), .walk_reads(walk_reads));
   assign pending = frame_pending || usb_pending;
 endmodule
 
@@ -267,10 +294,6 @@ module isolation (input clk);
   config_t last_config_0;
   always @(posedge clk) last_config_0 <= config_0;
 
-  // the checker held engine 0's ports last cycle, in either copy
-  reg was_lent = 0;
-  always @(posedge clk) was_lent <= lent_a || lent_b;
-
   wire [15:0] dout_0_a, dout_0_b, dout_data_a, dout_data_b, held_a, held_b;
   port_t port_0_a, port_0_b, port_1_a, port_1_b, port_data_a, port_data_b;
   wire [31:0] pin_out_0_a, pin_dir_0_a, pin_out_1_a, pin_dir_1_a;
@@ -289,6 +312,16 @@ module isolation (input clk);
   wire held_valid_a, held_valid_b;
   wire [`RECEIVER_BITS - 1:0] receivers_a, receivers_b;
   wire pending_a, pending_b;
+  wire certified_a, certified_b, refused_a, refused_b;
+  verdict_t verdict_a, verdict_b;
+  wire checking_a, checking_b, checked_a, checked_b, chosen_a, chosen_b;
+  wire turn_starts_a, turn_starts_b, finished_a, finished_b, read_done_a, read_done_b;
+  load_checker_t load_checker_a, load_checker_b;
+  wire [`WORD_CLASS_BITS - 1:0] word_class_a, word_class_b;
+  wire [`CHECKER_BITS - 1:0] checker_a, checker_b;
+  wire [9:0] walk_span_a, walk_span_b;
+  wire [8:0] walk_base_a, walk_base_b, walk_read_at_a, walk_read_at_b;
+  wire walk_reads_a, walk_reads_b;
 
 `define COPY(side) \
   isolation_copy side ( \
@@ -309,10 +342,22 @@ module isolation (input clk);
     .pins_sampled(pins_sampled_``side), .started(started_``side), \
     .data_mine(data_mine_``side), .lent(lent_``side), .data_word(data_word_``side), \
     .held_addr(held_addr_``side), .held_valid(held_valid_``side), \
-    .receivers(receivers_``side), .pending(pending_``side));
+    .receivers(receivers_``side), .pending(pending_``side), \
+    .certified(certified_``side), .refused(refused_``side), .verdict(verdict_``side), \
+    .checking(checking_``side), .checked(checked_``side), .chosen(chosen_``side), \
+    .turn_starts(turn_starts_``side), .finished(finished_``side), \
+    .read_done(read_done_``side), .load_checker(load_checker_``side), \
+    .word_class(word_class_``side), .checker_flops(checker_``side), \
+    .walk_span(walk_span_``side), .walk_base(walk_base_``side), \
+    .walk_read_at(walk_read_at_``side), .walk_reads(walk_reads_``side));
 
   `COPY(a)
   `COPY(b)
+
+  // engine 0's walk, and the words from its base it has read past, as a rotated mask
+  wire walk_0_a = checking_a && !checked_a, walk_0_b = checking_b && !checked_b;
+  wire [1023:0] below_span = (1024'd1 << walk_span_a) - 1'd1;
+  wire [1023:0] walked = {below_span[511:0], below_span[511:0]} << walk_base_a;
 
   // engine 0's program is the same in both (powerup.sv's premise); engine 1's words are
   // free in each
@@ -380,10 +425,12 @@ module isolation (input clk);
     if (host_1_a.data_valid) assume (!region[host_1_a.data_addr]);
     if (host_1_b.data_valid) assume (!region[host_1_b.data_addr]);
 `endif
-    // Data writes land only while both engines are halted, so the host writes engine 0's
-    // only while engine 1 is.
+    // Data writes land only while both engines are halted and the checker walks no other
+    // engine, so the host writes engine 0's only while engine 1 is halted and not walked.
 `ifndef LOAD_ANYTIME
-    if (host_0.data_valid) assume (halted_1_a && halted_1_b);
+    if (host_0.data_valid)
+      assume (halted_1_a && halted_1_b && !(checking_a && checked_a)
+              && !(checking_b && checked_b));
 `endif
     // No data write lands in the cycle engine 0 starts or the next, while its pointer
     // waits for the word at 0.
@@ -409,6 +456,14 @@ module isolation (input clk);
 `ifndef LOAD_PENDING
     if (!owner && pending_a) assume (!host_1_a.data_valid && !host_1_b.data_valid);
 `endif
+    // Engine 0's certificate lies in its region: every word its walk reads, and every word
+    // from its base up to the furthest it has read.
+`ifndef CERT_OUTSIDE
+    if (walk_0_a) begin
+      if (walk_reads_a) assume (region[walk_read_at_a]);
+      assume ((walked[1023:512] & ~region) == 0);
+    end
+`endif
     // Engine 0's config changes only while it is halted, as the host port writes it.
     if (!status_a.halted) assume (config_0 == last_config_0);
   end
@@ -424,6 +479,8 @@ module isolation (input clk);
     assert (((pin_out_a ^ pin_out_b) & ~drives_1) == 0);
     assert (((pin_dir_a ^ pin_dir_b) & ~drives_1) == 0);
     assert (status_a == status_b);
+    assert (certified_a == certified_b && refused_a == refused_b);
+    assert (verdict_a == verdict_b);
   end
 
 `ifndef NO_INVARIANT
@@ -439,7 +496,8 @@ module isolation (input clk);
       assert (((pins_sampled_a ^ pins_sampled_b) & listens) == 0);
       assert (opcode_onehot_a == 8'd1 << opcode);
       assert (wait_select_a == 32'd1 << instruction_a[4:0]);
-      if (!lent_a && !lent_b) assert (port_0_a == port_0_b);
+      // engine 0's program port, the checker's while lent
+      assert (port_0_a == port_0_b);
       assert (held_a == held_b);
       // each write into the region lands in both alike
       assert ((port_data_a.wen && region[port_data_a.addr])
@@ -460,9 +518,27 @@ module isolation (input clk);
         assert (data_mine_a == data_mine_b);
         if (data_mine_a) assert (data_word_a == data_word_b);
       end
+      // The checker runs engine 0's walks alike in both, engine 1's as each copy has them:
+      // a walk runs in its engine's turn, and none at a turn's start.
+      if (checking_a) assert (checked_a == chosen_a);
+      if (checking_b) assert (checked_b == chosen_b);
+      if (turn_starts_a) assert (!checking_a && !checking_b);
+      assert (walk_0_a == walk_0_b);
+      if (finished_a && !checked_a || finished_b && !checked_b)
+        assert (finished_a && finished_b && !checked_a && !checked_b);
+      // the checker's flops alike while neither copy has walked engine 1 since engine 0's
+      // check, its words and rows from its write of them (load_checker_pair)
+      if (!checked_a && !checked_b) begin
+        assert (checker_a == checker_b);
+        if (load_checker_a.sm > 3) assert (word_class_a == word_class_b);
+      end
+      // the word a walk of engine 0 takes, read in its turn
+      if (walk_0_a && read_done_a) assert (data_word_a == data_word_b);
     end
-    if (warm && !was_lent) assert (dout_0_a == dout_0_b);
+    if (warm) assert (dout_0_a == dout_0_b);
   end
+  load_checker_pair walk (
+    .check(cleared && !checked_a && !checked_b), .a(load_checker_a), .b(load_checker_b));
 `endif
 
   // Engine 0 moves a pin while engine 1 drives differently in the copies, and ten cycles

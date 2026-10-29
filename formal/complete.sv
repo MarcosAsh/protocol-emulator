@@ -107,6 +107,7 @@ module complete (input clk);
 
   load_checker dut (
     .clock(clk), .clear(clear), .check(check), .abort(1'b0),
+    .written$valid(1'b0), .written$value(9'd0),
     .config$side_set_count(side_set_count), .config$capture_pin(capture_pin),
     .config$capture_rising(capture_rising), .config$wrap_bottom(wrap_bottom),
     .config$wrap_top(wrap_top), .config$period_fraction(period_fraction),

@@ -19,6 +19,7 @@ module Make (Config : Config) = struct
     type 'a t =
       { clocking : 'a Clocking.t
       ; halted : 'a list [@length engines] [@bits 1]
+      ; walked : 'a list [@length engines] [@bits 1]
       ; writes : 'a Engine.Program_write.t list [@length engines]
       ; reads : 'a list [@length engines] [@bits Isa.data_addr_bits]
       ; dma : 'a Engine.Program_write.t
@@ -31,6 +32,8 @@ module Make (Config : Config) = struct
       { words : 'a list [@length engines] [@bits Isa.data_bits]
       ; whose_turn : 'a
       ; keeps : 'a list [@length engines] [@bits 1]
+      ; host_write : 'a
+      ; written : 'a With_valid.t [@bits Isa.data_addr_bits]
       }
     [@@deriving hardcaml]
   end
@@ -38,15 +41,21 @@ module Make (Config : Config) = struct
   let create ~(memory : Engine.Memory.t) (scope : Scope.t) (i : Signal.t I.t) =
     let spec = Clocking.to_spec i.clocking in
     let%hw writes_open = List.reduce_exn i.halted ~f:( &: ) in
-    let%hw host_write =
-      writes_open &: List.reduce_exn (List.map i.writes ~f:(fun w -> w.valid)) ~f:( |: )
+    (* nor while the checker walks another engine, whose reads a write would take *)
+    let%hw_list lands =
+      List.mapi i.writes ~f:(fun n (w : _ Engine.Program_write.t) ->
+        w.valid
+        &: writes_open
+        &: ~:(List.filteri i.walked ~f:(fun m _ -> m <> n)
+              |> List.fold ~init:gnd ~f:( |: )))
     in
+    let%hw host_write = List.reduce_exn lands ~f:( |: ) in
     (* the caller lets the other writer in only where no read it serves is lost *)
     let%hw write = host_write |: i.dma.valid in
     let written ~f =
       priority_select_with_default
-        (List.map i.writes ~f:(fun (w : _ Engine.Program_write.t) ->
-           { With_valid.valid = w.valid; value = f w }))
+        (List.map2_exn i.writes lands ~f:(fun (w : _ Engine.Program_write.t) lands ->
+           { With_valid.valid = lands; value = f w }))
         ~default:(zero (width (f (List.hd_exn i.writes))))
     in
     let%hw write_addr = mux2 host_write (written ~f:(fun w -> w.addr)) i.dma.addr in
@@ -97,7 +106,12 @@ module Make (Config : Config) = struct
         let%hw last = reg spec ~enable:mine dout in
         mux2 mine dout last)
     in
-    { O.words; whose_turn = turn; keeps }
+    { O.words
+    ; whose_turn = turn
+    ; keeps
+    ; host_write
+    ; written = { valid = write; value = write_addr }
+    }
   ;;
 
   let hierarchical ?instance ~memory scope i =
