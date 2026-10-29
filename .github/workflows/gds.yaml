@@ -80,7 +80,7 @@ jobs:
       # stops inside the job's 6 h, so a router that never converges still leaves its logs
       - name: Build GDS
         timeout-minutes: 355
-        uses: TinyTapeout/tt-gds-action@ihp-cmos5l
+        uses: TinyTapeout/tt-gds-action@ttihp27a
         with:
           pdk: ihp-sg13cmos5l
 
@@ -130,7 +130,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Run Tiny Tapeout Precheck
-        uses: TinyTapeout/tt-gds-action/precheck@ihp-cmos5l
+        uses: TinyTapeout/tt-gds-action/precheck@ttihp27a
 
   gl_test:
     needs: gds
@@ -142,7 +142,7 @@ jobs:
           submodules: recursive
 
       - name: GL test
-        uses: TinyTapeout/tt-gds-action/gl_test@ihp-cmos5l
+        uses: TinyTapeout/tt-gds-action/gl_test@ttihp27a
 
   # replays the pin traces on the gate level, in three jobs beside gl_test (the action's
   # tests take two and a half hours and the replays nearly four). Each trace is rewritten
