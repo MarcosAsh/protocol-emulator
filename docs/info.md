@@ -72,8 +72,8 @@ words in one frame repeat the access, which streams the fifos and the program wi
 | Register | Name | Notes |
 |---|---|---|
 | 0 | control | bit 0 start, bit 1 clear irq, bit 2 stop, bit 3 flush both fifos; the program and the config are only written, and the fifos only flushed, while the core is halted; a start reaches only a halted core, and a stopped core runs again only from a start, at address 0 |
-| 1 | status | pc, halted, irq, fault bits, fifo levels |
-| 2 | pc | |
+| 1 | status | bit 0 halted, 1 irq, 2-5 underflow, overflow, missed deadline and decode faults, 6-9 tx level, 10-13 rx level, 15 the other core's irq |
+| 2 | pc | the core's program counter |
 | 3, 4 | now | low and high words of the counter |
 | 5, 6 | capture | low and high words of the last captured time |
 | 7 | tx fifo | write pushes a word for the core |
