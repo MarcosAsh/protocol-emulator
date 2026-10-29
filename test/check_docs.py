@@ -583,7 +583,8 @@ def check_board(doc, text):
     """A demo the docs say passed on a date passed that day in a hashed ledger a release
     pinned in test/evidence.sha256 keeps, with the edges and baud the docs give it."""
     for unit in units(text):
-        for m in re.finditer(r"passed (?:the ([\w-]+) demo )?on (\d{4}-\d\d-\d\d)", unit):
+        for m in re.finditer(r"passed (?:there |the ([\w-]+) demo )?on (\d{4}-\d\d-\d\d)",
+                             unit):
             scripts = re.findall(r"`(python/\w+\.py)`", unit[:m.start()].rsplit(". ", 1)[-1])
             demo = m[1].replace("-", "_") if m[1] else scripts[-1] if scripts else None
             if demo is None:
@@ -858,7 +859,7 @@ TEETH = [
     ("an old mutation run", lambda text: every(text, r"mutation run \[?(\d{10,12})",
                                                 lambda _: "36642527804"), "gh",
      "docs/verification.md"),
-    ("a board date", first(r"passed (?:the [\w-]+ demo )?on (\d{4}-\d\d-\d\d)", bump), "gh"),
+    ("a board date", first(r"passed (?:there |the [\w-]+ demo )?on (\d{4}-\d\d-\d\d)", bump), "gh"),
     ("the board edges", first(r"all (\d+) edges", bump), "gh", "docs/verification.md"),
     ("the board baud", first(r"at (\d+) baud", bump), "gh", "docs/verification.md"),
     ("a dead link", first(r"\]\(https://github\.com/[^)]*/issues/(\d+)\)", lambda n: n + "0000"),
