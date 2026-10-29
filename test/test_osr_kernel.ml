@@ -226,6 +226,8 @@ let%expect_test "what each out sends, in the firmware library" =
     (i2c_logger (verdict (Ok ())) (sends ((67 "not a pulled word"))))
     (i2c_master_standard (verdict (Ok ())) (sends ()))
     (i2c_master_fast (verdict (Ok ())) (sends ()))
+    (i2c_master_standard_asym (verdict (Ok ())) (sends ()))
+    (i2c_master_fast_asym (verdict (Ok ())) (sends ()))
     (i2c_controller_wire (verdict (Ok ())) (sends ()))
     (i2c_target_wire (verdict (Ok ())) (sends ()))
     (usb_tx (verdict (Ok ()))

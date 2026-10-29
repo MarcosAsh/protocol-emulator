@@ -257,6 +257,8 @@ NOT_SWEPT = [
     ("i2c_logger", "an I2C master: open drain, and a slave has to answer"),
     ("i2c_master_standard", "open drain, which a wire does not show, and a slave has to acknowledge"),
     ("i2c_master_fast", "open drain, which a wire does not show, and a slave has to acknowledge"),
+    ("i2c_master_standard_asym", "open drain, which a wire does not show, and a slave has to acknowledge"),
+    ("i2c_master_fast_asym", "open drain, which a wire does not show, and a slave has to acknowledge"),
     ("i2c_controller_wire", "on two wires already, and both_roles.ml's target acknowledges"),
     ("i2c_target_wire", "a target: the controller's clock moves it"),
     ("usb_tx", "certified at 32 cycles a bit only, where 9 edges come in 256: the fifo holds 8"),

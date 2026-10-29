@@ -51,6 +51,8 @@ let%expect_test "the firmware library and its certificates" =
     i2c_logger            73        25      1
     i2c_master_standard   113        43    113  period 121, no wrap
     i2c_master_fast      107        37     24  period 32, no wrap
+    i2c_master_standard_asym   121        43     90  period 127, no wrap
+    i2c_master_fast_asym   111        37     22  period 32, no wrap
     i2c_controller_wire    87        25    113  period 121, no wrap
     i2c_target_wire       78         0      -
     usb_tx                67        11     16  period 32

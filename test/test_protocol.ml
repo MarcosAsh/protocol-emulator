@@ -163,6 +163,8 @@ let%expect_test "every protocol from its file to the decoded trace" =
     i2c_logger: 73 words, 25 deadline waits, worst slack 1, the kernel accepts it, assuming nothing
     i2c_master_standard: 113 words, 43 deadline waits, worst slack 113, the kernel accepts it, assuming period 121, a load of 8 or more, no wrap
     i2c_master_fast: 107 words, 37 deadline waits, worst slack 24, the kernel accepts it, assuming period 32, a load of 8 or more, no wrap
+    i2c_master_standard_asym: 121 words, 43 deadline waits, worst slack 90, the kernel accepts it, assuming period 127, no wrap
+    i2c_master_fast_asym: 111 words, 37 deadline waits, worst slack 22, the kernel accepts it, assuming period 32, no wrap
     i2c_controller_wire: 87 words, 25 deadline waits, worst slack 113, the kernel accepts it, assuming period 121, a load of 8 or more, no wrap
     i2c_target_wire: 78 words, 0 deadline waits, the kernel accepts it, assuming nothing
 
@@ -198,6 +200,22 @@ let%expect_test "every protocol from its file to the decoded trace" =
     i2c_fast           TSU:STO        >=      600 ns  kernel 64 (1333.3 ns)    needs   44       I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44; margin 300 ns, tr
     i2c_fast           TBUF           >=     1300 ns  kernel 101 (2104.2 ns)   needs   77       I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44; margin 300 ns, tr
     i2c_fast           1/fSCL         >=     2500 ns  run    128 (2666.7 ns)   needs  121       I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44, fSCL; margin a cycle
+    i2c_standard_asym  THIGH          >=     4000 ns  kernel 254 (5291.7 ns)   needs  240       I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 11, p.44; margin 1000 ns, tr
+    i2c_standard_asym  TLOW           >=     4700 ns  kernel 227 (4729.2 ns)   needs  227       I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 11, p.44; margin a cycle
+    i2c_standard_asym  THD:STA        >=     4000 ns  kernel 380 (7916.7 ns)   needs  193       I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 11, p.44; margin a cycle
+    i2c_standard_asym  TSU:STA        >=     4700 ns  kernel 381 (7937.5 ns)   needs  274       I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 11, p.44; margin 1000 ns, tr
+    i2c_standard_asym  TSU:DAT        >=      250 ns  kernel 126 (2625.0 ns)   needs   60       I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 11, p.44; margin 1000 ns, tr
+    i2c_standard_asym  TSU:STO        >=     4000 ns  kernel 381 (7937.5 ns)   needs  240       I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 11, p.44; margin 1000 ns, tr
+    i2c_standard_asym  TBUF           >=     4700 ns  kernel 386 (8041.7 ns)   needs  274       I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 11, p.44; margin 1000 ns, tr
+    i2c_standard_asym  1/fSCL         >=    10000 ns  run    481 (10020.8 ns)  needs  481       I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 11, p.44, fSCL; margin a cycle
+    i2c_fast_asym      THIGH          >=      600 ns  kernel 57 (1187.5 ns)    needs   44       I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44; margin 300 ns, tr
+    i2c_fast_asym      TLOW           >=     1300 ns  kernel 64 (1333.3 ns)    needs   64       I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44; margin a cycle
+    i2c_fast_asym      THD:STA        >=      600 ns  kernel 64 (1333.3 ns)    needs   30       I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44; margin a cycle
+    i2c_fast_asym      TSU:STA        >=      600 ns  kernel 64 (1333.3 ns)    needs   44       I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44; margin 300 ns, tr
+    i2c_fast_asym      TSU:DAT        >=      100 ns  kernel 31 (645.8 ns)     needs   20       I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44; margin 300 ns, tr
+    i2c_fast_asym      TSU:STO        >=      600 ns  kernel 64 (1333.3 ns)    needs   44       I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44; margin 300 ns, tr
+    i2c_fast_asym      TBUF           >=     1300 ns  kernel 101 (2104.2 ns)   needs   77       I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44; margin 300 ns, tr
+    i2c_fast_asym      1/fSCL         >=     2500 ns  run    121 (2520.8 ns)   needs  121       I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44, fSCL; margin a cycle
 
     lockstep: i2c_logger, i2c_logger
     ("lockstep held" (cycles 3000))

@@ -17,6 +17,8 @@ let%expect_test "the clocks each bench firmware stays certified at" =
     i2c_master_stretch       -                              48.000  53.333 TSU:STA >= 600 ns
     i2c_standard             -                              48.000  48.300 1/fSCL >= 10000 ns
     i2c_fast                 -                              48.000  48.462 TLOW >= 1300 ns
+    i2c_standard_asym        -                              48.000  48.000 1/fSCL >= 10000 ns
+    i2c_fast_asym            -                              48.000  48.000 1/fSCL >= 2500 ns
     sk6812              45.000 T0H <= 400 ns                48.000  48.333 T >= 1200 ns
     one_wire            26.408 tLOW0 <= 120000 ns           48.000  48.615 tRSTH >= 480000 ns
     ps2                 38.420 CLK low <= 50000 ns          48.000  63.967 CLK low >= 30000 ns

@@ -97,6 +97,8 @@ let%expect_test "every deadline wait in the library, a cycle late, is refused" =
     i2c_logger                 25 waits, 25 refused a cycle late,  0 too long, 25 accepted at their slack
     i2c_master_standard        43 waits, 43 refused a cycle late,  0 too long,  0 accepted at their slack
     i2c_master_fast            37 waits, 37 refused a cycle late,  0 too long,  0 accepted at their slack
+    i2c_master_standard_asym   43 waits, 43 refused a cycle late,  0 too long, 43 accepted at their slack
+    i2c_master_fast_asym       37 waits, 37 refused a cycle late,  0 too long, 37 accepted at their slack
     i2c_controller_wire        25 waits, 25 refused a cycle late,  0 too long,  0 accepted at their slack
     i2c_target_wire             0 waits,  0 refused a cycle late,  0 too long,  0 accepted at their slack
     usb_tx                     11 waits, 11 refused a cycle late,  0 too long, 11 accepted at their slack
@@ -141,6 +143,6 @@ let%expect_test "every deadline wait in the library, a cycle late, is refused" =
     spi_master_stream           3 waits,  3 refused a cycle late,  0 too long,  3 accepted at their slack
     uart_tx_stamped             4 waits,  4 refused a cycle late,  0 too long,  4 accepted at their slack
 
-    55 firmwares, 567 deadline waits: 521 refused a cycle late, 46 too long to assemble a cycle late, 282 accepted at their slack
+    57 firmwares, 647 deadline waits: 601 refused a cycle late, 46 too long to assemble a cycle late, 362 accepted at their slack
     |}]
 ;;
