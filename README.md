@@ -104,12 +104,14 @@ kernel accepts.
 - The hardened netlist equals the RTL for all time from all flops 0 (`netlist_equiv` job).
 - When and how the host talks reaches the pins only through the program's own fifo waits
   and tests, or a fault. Like the other lemmas in `formal/`, it has weakened copies that
-  must fail (`make -C formal teeth`).
+  must fail (`make -C formal teeth` and the other `*_teeth` targets, all run in CI).
 - A fault is fail-safe: from the edge it shows, a faulted engine drives no pin, and it halts
-  until the next clear, whatever the host does (`formal/fail_safe.sv`).
+  until the next clear, whatever the host does with its fifos, pads and clear. The proof
+  holds each engine's configuration fixed (`formal/fail_safe.sv`).
 - Two engines composed: uart_tx on engine 0 to uart_rx on engine 1 over an on-chip wire,
-  10 cycles a bit, is proved for all time. Engine 1 pushes the low byte of each word engine
-  0 pulled, once a frame (`formal/link.sby`, the `link` job).
+  10 cycles a bit, is proved for all time, as long as engine 1's rx fifo never overflows.
+  Engine 1 pushes the low byte of each word engine 0 pulled, once a frame
+  (`formal/link.sby`, the `link` job).
 - hardcaml_hobby_boards' `Uart.Tx`, compiled to firmware, drives the core's pin as the
   circuit drives its line, 4 cycles later, at 4 clocks a bit, for bytes at least 4 cycles
   after ready (`make -C formal fsm_miter`).
@@ -167,9 +169,9 @@ a way to make them fail.
 | Check | What we did | Result |
 |---|---|---|
 | Planted delays, run | at every deadline wait of the 7 swept firmwares, 1 to 3 cycles of `nop`, half the slack, and every count from one short of the slack to three past, each run on the model (`test/test_delay_variants.ml`) | 283 planted. The kernel certified 181 and none ran late. It refused 102, and 92 of those did run late. The other 10 are late only on paths the test's input never takes |
-| One cycle late, everywhere | every deadline wait in the library given one cycle more than its slack (`test/test_late_mutants.ml`) | all 567 refused |
+| One cycle late, everywhere | every deadline wait in the library given one cycle more than its slack (`test/test_late_mutants.ml`) | 521 refused by the kernel. The other 46, all of ir_rc6 and nec_tx and one each in ethernet and nec_rx, can't be planted: the extra cycles push the program past its 512 words, so the assembler refuses it first |
 | Mutants | the tests against mutants of the engine, decoder, pins and host port | the tests kill 112 of 114 valid mutants (mutation run 39462087759, 2026-10-20). The other 2 are equivalent, see `test/mutation_allow.txt` |
-| Weakened proofs | each lemma in `formal/` has copies with a premise dropped (`make -C formal teeth`) | every copy fails, as it must |
+| Weakened proofs | each lemma in `formal/` has copies with a premise dropped (`make -C formal teeth` and the other `*_teeth` targets) | every copy fails, as it must |
 | Loose limits | which firmware its datasheet limits don't hold within a factor of two (`test/test_datasheet.ml`) | lfast and swd are loose, ir_rc6 and nec_tx have no limits, each listed with why |
 
 Counted on 2026-09-30, of 13 bugs fixed in commits of their own, model tests found 3, the
@@ -239,7 +241,7 @@ board in about 17 minutes. Each claim's last green run in CI is on the
 
 To harden, clone TinyTapeout/tt-support-tools, branch `ihp-sg13cmos5l`, into `tt/`, then
 `tt/tt_tool.py --create-user-config --ihp` and `--harden --ihp`. Gds run 39277515192, on
-this Verilog, signs off with setup slack +3.487 ns at the slow corner, at 49.6%
+this Verilog, signs off with setup slack +3.487 ns at the slow corner against a 50 MHz clock, at 49.6%
 utilisation. The picture is this harden's die by RTL module, drawn by `demo/die.py` from its
 `GDS_logs` artifact. 1,883 of 1,893 flops map by RTL line and net name. Each gate goes with
 the nearest flop it feeds, which gets 96.7% of gates right on the RTL synthesised a module at
