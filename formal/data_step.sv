@@ -1,14 +1,12 @@
-// Data lemma: which bits of which word an out sends. A ghost count of bits shifted out
-// since the osr last took a word (on past 16 to 32), and whether a pull or an autopull
-// took it, move as osr_step.v (the checker's own step) says. From the clear on, osr_count
-// is the count stopped at 16, the osr holds the word shifted by it, and each out whose
-// word was pulled sends bits [c, c + n) of it from the end the osr shifts from (c the
-// count, 0 after an autopull), or underflow is set by that out or before. A take finds
-// no word from an empty fifo or a data pointer moved the cycle before; a mov to the osr
-// writes none. The word is the tx fifo's head (fifo_order.sv) or the data memory's word;
-// the value reaches the pins by edge_step.sv. Nothing is assumed of the host (stop, flush,
-// start, program writes, fifos, data word, clear all free); the config holds still with
-// side-set on at most 2 pins, as in phase_step.sv.
+// Data lemma: which bits of which word an out sends. A ghost count of bits shifted out since
+// the osr last took a word (on past 16 to 32), and whether a pull or autopull took it, move
+// as osr_step.v says. From the clear on, osr_count is the count stopped at 16, the osr holds
+// the word shifted by it, and each out sends bits [c, c + n) of the pulled word (c the
+// count, 0 after an autopull), or underflow is set by that out or before. A take finds no
+// word from an empty fifo or a data pointer moved the cycle before; a mov to the osr writes
+// none. The word is the tx fifo's head (fifo_order.sv) or the data memory's; it reaches the
+// pins by edge_step.sv. Nothing is assumed of the host; config holds still, side-set on at
+// most 2 pins, as in phase_step.sv.
 
 module data_step (input clk);
   (* anyconst *) wire [1:0] side_set_count;

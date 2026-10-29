@@ -1,13 +1,11 @@
-// A late message can make the core fault, never make it jitter. For a program with no
-// fifo wait and no jump on a fifo test, two runs from the same start whose host sends and
-// reads the same words at different times drive the same pins every cycle until one sets
-// underflow or overflow. This is host_timing's induction step, fifo reports free in each
-// copy, under that restriction; the base is the shared reset. Pops are compared too, so
-// the k-th pull of each takes the k-th word sent (fifo_order proves the fifo keeps
-// order), hence one shared pull port. With no pushes (never_pushes) only underflow
-// remains. Prior art: Kopetz's temporal firewall and Giotto's logical execution time
-// (Henzinger, Horowitz, Kirsch 2001); new here is the proof on RTL. Each teeth task in
-// late_host.sby removes one part, and must fail.
+// A late message can make the core fault, never make it jitter. For a program with no fifo
+// wait and no jump on a fifo test, two runs from the same start whose host sends and reads
+// the same words at different times drive the same pins every cycle until one sets underflow
+// or overflow. This is host_timing's induction step under that restriction, fifo reports
+// free in each copy; the base is the shared reset. Pops are compared too, so the k-th pull
+// of each takes the k-th word sent (fifo_order), hence one shared pull port. With no pushes
+// (never_pushes) only underflow remains. Prior art: Kopetz's temporal firewall, Giotto's
+// logical execution time (Henzinger, Horowitz, Kirsch 2001).
 module late_step (
   input clock, clear, start, stop, clear_irq,
   input [140:0] config_bits,

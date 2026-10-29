@@ -1,22 +1,20 @@
-// Power-up is deterministic. Two copies of the chip start from independent arbitrary
-// states, every flop and fifo word, and see the same pins every cycle, rst_n low at the
-// first edge and free after it. From the cycle after that edge on, their pins and the
-// inputs of their three SRAM macros are equal, forever.
+// Power-up is deterministic. Two copies of the chip start from independent arbitrary states,
+// every flop and fifo word, and see the same pins every cycle, rst_n low at the first edge
+// and free after it. From the cycle after that edge on, their pins and their three SRAM
+// macros' inputs are equal, forever.
 //
-// Premise: the two copies' macros hold the same words after the first edge. A macro is its
-// output register: a read takes a value, the same in both copies when both read the same
-// way after the first edge, and a free one in each otherwise. The copies' writes are
-// equal from then on, which is asserted, so the premise holds after it if it holds then.
-// With COLD a program macro's words are its own in each copy until its engine is first
-// started: the cores reset halted, and Host.load fills all 512 words before a start. The
-// data memory keeps the premise, as nothing fills it. The havoc tasks' RTL
-// (powerup_havoc.awk) gives the host fifos' words and read buffers any value while the
-// fifo is cleared.
+// Premise: the copies' macros hold the same words after the first edge. A macro is its
+// output register: a read takes a value, equal in both copies when both read the same way,
+// free otherwise. The copies' writes are equal from then on, which is asserted. With COLD a
+// program macro's words are its own in each copy until its engine first starts: the cores
+// reset halted, and Host.load fills all 512 words before a start. The data memory keeps the
+// premise, as nothing fills it. The havoc tasks' RTL (powerup_havoc.awk) gives the host
+// fifos' words and read buffers any value while the fifo is cleared.
 //
 // By induction on an invariant, also asserted: the copies agree on every flop outside the
-// host fifos, on each macro's output from the second edge on, and on the words each fifo
-// holds (fifo_pair). powerup.tcl brings the flops out. The teeth set NO_INVARIANT, so
-// they fail on the claim alone, from reset.
+// host fifos, on each macro's output from the second edge on, and on each fifo's words
+// (fifo_pair). powerup.tcl brings the flops out. The teeth set NO_INVARIANT, so they fail on
+// the claim alone, from reset.
 
 `include "pairs.sv"
 
