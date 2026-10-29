@@ -132,12 +132,21 @@ async def test_uart_over_spi(dut):
     await host.write(PROGRAM_REG, padded(PROGRAM))
     await host.certify_firmware("uart_tx")
     await host.write(TX, [0x55, 0xA3])
-    await host.write(CONTROL, [1])
 
+    # the line can go idle and start before the host's write returns, so the recording
+    # starts first and is read from the idle on
     levels = []
-    for _ in range(400):
-        await ClockCycles(dut.clk, 1)
-        levels.append((int(dut.uo_out.value) >> 1) & 1)
+
+    async def record():
+        while True:
+            await ClockCycles(dut.clk, 1)
+            levels.append((int(dut.uo_out.value) >> 1) & 1)
+
+    recording = cocotb.start_soon(record())
+    await host.write(CONTROL, [1])
+    await ClockCycles(dut.clk, 400)
+    recording.cancel()
+    levels = levels[levels.index(1):]
     assert decode_uart(levels, 16) == [0x55, 0xA3], levels
     assert (await host.read(STATUS))[0] == 0
 
@@ -189,18 +198,28 @@ async def test_data_memory(dut):
     await host.write(DATA_ADDR, [0])
     await host.write(DATA, [0x2211, 0x4433, 0x6655, 0x8877])
     assert (await host.read(DATA_ADDR))[0] == 4, "the address counts the words written"
-    await host.write(CONTROL, [1])
+    # a byte every six cycles, the first of which can come before the host's write returns,
+    # so the recording starts first; past the four words written the memory holds nothing
+    def level():
+        value = dut.uio_out.value
+        return int(value) if value.is_resolvable else None
 
-    # a byte every six cycles; past the four words written the memory holds nothing
-    shown = []
-    for _ in range(100):
-        if len(shown) == 8:
-            break
-        await ClockCycles(dut.clk, 1)
-        byte = int(dut.uio_out.value)
-        if not shown or shown[-1] != byte:
-            shown.append(byte)
-    assert shown == [0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88], shown
+    idle = level()
+    samples = []
+
+    async def record():
+        while True:
+            await ClockCycles(dut.clk, 1)
+            samples.append(level())
+
+    recording = cocotb.start_soon(record())
+    await host.write(CONTROL, [1])
+    await ClockCycles(dut.clk, 100)
+    recording.cancel()
+    shown = [byte for n, byte in enumerate(samples) if n == 0 or samples[n - 1] != byte]
+    while shown and shown[0] == idle:
+        shown = shown[1:]
+    assert shown[:8] == [0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88], shown
     assert (await host.read(STATUS))[0] & 0x3D == 0, "running, no fault"
 
 
