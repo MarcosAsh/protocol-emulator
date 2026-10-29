@@ -67,7 +67,7 @@ last green run in CI is on the [results page](https://marcosash.github.io/protoc
   RTL, `python/demo_self_timing.py` passed on 2026-10-09: engine 1 stamped all 52 edges of
   engine 0's `Jane St!` at 9600 baud on the predicted cycles, quiet and with the host
   flooding SPI with reads. The USB keyboard (`python/demo_usb.py`) passed there on
-  2026-10-02 (release v0.2.0).
+  2026-10-15 (release evidence-2026-10-15).
 
 ## Trying to break it
 
