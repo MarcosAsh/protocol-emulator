@@ -75,6 +75,7 @@ loop:
   let m =
     lockstep
       ~cycles:60
+      ~restarts:[ 30 ]
       ~config:{ Program_config.default with in_base = 5 }
       ~program
       ~inputs:(fun _ -> 0)
@@ -84,7 +85,32 @@ loop:
   print_s [%message (m.halted : bool) (m.x : int)];
   [%expect {|
     ("lockstep held" (cycles 60))
-    ((m.halted true) (m.x 3))
+    ((m.halted true) (m.x 4))
+    |}]
+;;
+
+(* The core samples its pins halted too, so a pin high from before a start, the first or a
+   later one, is no rising edge at the first issue *)
+let%expect_test "a pin already high at the start is not a rising edge" =
+  let program = assemble {|
+    wait rise pin 0
+    add x, 1
+    halt
+|} in
+  let m =
+    lockstep
+      ~cycles:60
+      ~before_start:1
+      ~restarts:[ 28 ]
+      ~config:Program_config.default
+      ~program
+      ~inputs:(fun n -> Bool.to_int (n < 10 || (n >= 20 && n < 35) || n >= 40))
+      ()
+  in
+  print_s [%message (m.halted : bool) (m.x : int)];
+  [%expect {|
+    ("lockstep held" (cycles 60))
+    ((m.halted true) (m.x 2))
     |}]
 ;;
 

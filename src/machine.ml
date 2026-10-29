@@ -121,6 +121,24 @@ let read_rx t =
 
 let clear_irq t = { t with irq = false }
 let stop t = { t with halted = true }
+
+(* as the chip's start pulse leaves it, a cycle after the pulse *)
+let start t =
+  if not t.halted
+  then t
+  else
+    { t with
+      halted = false
+    ; pc = 0
+    ; now = 0
+    ; stall = 0
+    ; data_ptr = 0
+    ; data_age = Isa.data_settle
+    ; crc = t.config.crc_init
+    ; stuff_run = 0
+    ; flip = None
+    }
+;;
 let flush t = if t.halted then { t with tx_fifo = []; rx_fifo = [] } else t
 let bit v i = (v lsr i) land 1
 let set_bit v i b = if b then v lor (1 lsl i) else v land lnot (1 lsl i)
@@ -149,6 +167,7 @@ let sample_pins t ~inputs =
 ;;
 
 let pins = sample_pins
+let pins_before t ~inputs = { t with pins_sampled = sample_pins t ~inputs }
 
 let reverse_bits v ~width =
   List.init width ~f:(fun i -> bit v i lsl (width - 1 - i))

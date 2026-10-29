@@ -121,6 +121,8 @@ end
 
 let run
   ?(cycles = 400)
+  ?(before_start = 0)
+  ?(restarts = [])
   ?(preload = [])
   ?(data = [])
   ?(host = fun _ -> Host.idle)
@@ -167,6 +169,7 @@ let run
       let model =
         ref
           (Machine.create ~config ~program
+           |> Or_error.map ~f:(fun m -> Machine.pins_before m ~inputs:before_start)
            |> Or_error.bind ~f:(fun m -> Machine.load_data m data)
            |> ok_exn)
       in
@@ -176,6 +179,7 @@ let run
         cycle ();
         model := Machine.write_tx !model word |> ok_exn);
       i.tx.valid := Bits.gnd;
+      i.inputs <--. before_start;
       i.start := Bits.vdd;
       cycle ();
       i.start := Bits.gnd;
@@ -201,6 +205,8 @@ let run
           i.clear_irq := Bits.of_bool action.clear_irq;
           i.stop := Bits.of_bool action.stop;
           i.flush := Bits.of_bool action.flush;
+          let restart = List.mem restarts n ~equal:Int.equal in
+          i.start := Bits.of_bool restart;
           if action.clear_irq then model := Machine.clear_irq !model;
           if action.pop_rx
           then (
@@ -221,6 +227,17 @@ let run
            | Some word when not flushed -> model := Machine.write_tx !model word |> ok_exn
            | Some _ | None -> ());
           react !model;
+          if restart
+          then (
+            (* the pulse's registered cycle, in which nothing issues *)
+            i.start := Bits.gnd;
+            i.tx.valid := Bits.gnd;
+            i.rx_pop := Bits.gnd;
+            i.clear_irq := Bits.gnd;
+            i.stop := Bits.gnd;
+            i.flush := Bits.gnd;
+            cycle ();
+            model := Machine.step !model ~inputs:levels |> Machine.start);
           Int.incr cycle_number)
       done;
       !model, !mismatch)
@@ -228,6 +245,8 @@ let run
 
 let lockstep
   ?(cycles = 400)
+  ?before_start
+  ?restarts
   ?preload
   ?data
   ?host
@@ -240,7 +259,20 @@ let lockstep
   ()
   =
   let model, mismatch =
-    run ~cycles ?preload ?data ?host ?react ?coverage ?premise ~config ~program ~inputs ()
+    run
+      ~cycles
+      ?before_start
+      ?restarts
+      ?preload
+      ?data
+      ?host
+      ?react
+      ?coverage
+      ?premise
+      ~config
+      ~program
+      ~inputs
+      ()
   in
   (match mismatch with
    | None -> print_s [%message "lockstep held" (cycles : int)]

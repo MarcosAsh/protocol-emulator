@@ -84,6 +84,10 @@ val step : t -> inputs:int -> t
 (** The level on every pin: what the core drives, else [inputs]; wires read ORed. *)
 val pins : t -> inputs:int -> int
 
+(** The pins at [inputs] the cycle before, which the chip samples halted too: an edge wait
+    at the first issue compares against them. [create] takes them low. *)
+val pins_before : t -> inputs:int -> t
+
 (** Host side of the fifos and the interrupt flag. *)
 val write_tx : t -> int -> t Or_error.t
 
@@ -92,6 +96,11 @@ val clear_irq : t -> t
 
 (** Halts the core; this cycle's issue still takes effect and pins hold. *)
 val stop : t -> t
+
+(** A halted core as the chip leaves it a cycle after a start pulse: from address 0 with
+    [now] at 0. Registers, fifos, pins, capture and faults carry over. Ignored unless
+    halted. *)
+val start : t -> t
 
 (** Empties both fifos; ignored unless halted. *)
 val flush : t -> t
