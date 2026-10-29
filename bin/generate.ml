@@ -475,7 +475,9 @@ let timing_check =
       flag "-no-timing-check" no_arg ~doc:" assemble firmware that may miss a deadline"
     in
     fun ?(verdicts = Out_channel.stderr) ~config ~source (program : Asm.Program.t) ->
-      if no_timing_check
+      if Option.is_some period && Option.is_some period_floor
+      then Or_error.error_s [%message "-period or -period-floor, not both"]
+      else if no_timing_check
       then
         Ok
           (Analyser.analyse

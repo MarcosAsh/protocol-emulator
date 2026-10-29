@@ -1,0 +1,1 @@
+../uart_tx.asm: "-period or -period-floor, not both"
