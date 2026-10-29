@@ -17,12 +17,11 @@ let config =
   }
 ;;
 
-(* LFAST frame, MSB first, as the spec's Figure 2 gives it: sync 0xA84B, an 8-bit header,
-   the payload, a single 1 stop bit. The note leaves the header's fields to the reference
-   manual, so they are sigrok's: 0b000_0100_1 is an 8-bit payload on data channel A with
-   CTS set. The host's word is the payload byte, not 0x00, whose eight low bits would
-   outrun the decoder's timeout. The line idles low, five megabaud at 48 MHz is 9.6 cycles
-   a bit and the firmware takes 10. *)
+(* LFAST frame, MSB first, per the spec's Figure 2: sync 0xA84B, 8-bit header, payload, a
+   1 stop bit. The note leaves the header fields to the reference manual, so they are
+   sigrok's: 0b000_0100_1 is an 8-bit payload on channel A with CTS set. The host's word
+   is not 0x00, whose low bits would outrun the decoder's timeout. 5 Mbaud at 48 MHz is
+   9.6 cycles a bit and the firmware takes 10. *)
 let firmware =
   [%firmware
     {|
@@ -112,11 +111,9 @@ let bench =
   }
 ;;
 
-(* The one limit on the line the note gives as a maximum: the data rate, up to 320 Mb/s
-   (p.3), so no level of the line lasts under 1 / 320 MHz = 3.125 ns. Table 8 on p.12 and
-   the text on p.1, p.2 and p.25 repeat the 320 and give 5 MHz at low speed only as
-   typical, and the 10 to 264 MHz reference clock on p.25 is an input of the other chip,
-   so none of them bounds this pin. *)
+(* The one maximum the note gives for the line: data rate up to 320 Mb/s (p.3), so no level
+   lasts under 1 / 320 MHz = 3.125 ns. Table 8 p.12 and p.1, p.2, p.25 repeat the 320 and
+   give 5 MHz only as typical, and the p.25 reference clock is an input of the other chip. *)
 let limits : Datasheet.t list =
   let sheet =
     { Datasheet.Sheet.part = "LFAST"

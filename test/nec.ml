@@ -144,10 +144,9 @@ let rx_config ~pin =
   }
 ;;
 
-(* In halves of a unit, each sample in the middle of what it tells apart: 16 into a mark a
-   leader's from a bit's, 9 past the leader's end a frame's space from a repeat code's
-   final mark, and 5 into a bit the next mark of a zero from the space of a one. A bit is
-   timed from the fall the capture holds, armed in the space before it. *)
+(* In halves of a unit, each sample mid-way between what it tells apart: 16 into a mark
+   (leader from bit), 9 past the leader (frame from repeat), 5 into a bit (zero from one).
+   A bit is timed from the fall the capture holds, armed in the space before it. *)
 let rx_on ~pin =
   [%string
     {|

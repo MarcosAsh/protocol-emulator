@@ -1,29 +1,22 @@
 (** 1-Wire master at standard speed on one open drain pin, IO0.
 
-    Everything is a whole number of units, and the host sends the unit in cycles as its
-    first word: 6 us, 288 cycles at 48 MHz. Every slot is the same five deadlines whatever
-    it carries: the line falls, after one unit it takes the value of the bit, so a one or
-    a read lets go after 6 us, after two units the line is sampled, at 12 us, after eleven
-    units a zero lets go, at 66 us, and the next slot starts after twelve, at 72 us. That
-    is 13.9 kbit/s, a unit clear of the 60 us least the standard gives a zero and a slot.
-    A read is a write of 0xff, and every byte comes back as it was seen on the line, so a
-    write reads back as itself unless something held the line. A reset is 80 units low,
-    480 us, the presence sample 12 units after the release, at 72 us, and 68 units more to
-    make up the 480 us the line has to stay high.
+    The host sends the unit in cycles as its first word: 6 us, 288 cycles at 48 MHz. Every
+    slot is five deadlines: the line falls, a one or a read lets go after 1 unit (6 us),
+    the line is sampled at 2 (12 us), a zero lets go at 11 (66 us) and the next slot
+    starts at 12 (72 us). That is 13.9 kbit/s, a unit clear of the standard's 60 us. A
+    read is a write of 0xff and every byte comes back as seen on the line. A reset is 80
+    units low (480 us), the presence sample 12 units after the release, and 68 units more
+    to make up the 480 us high.
 
     Host words after the unit: [reset], which answers 0 when a device pulled the line low
     and 1 when none did, and [byte b], which answers the byte sampled.
 
-    Each edge is the instruction after a deadline wait, so the resolution is one cycle,
-    20.8 ns, and the times above are exact, but for the end of the reset pulse and the
-    presence sample, which sit behind the jump that ends a loop and come two cycles later:
-    the reset is 480.04 us. The shortest unit the program keeps up with is 5 cycles, which
-    the dispatch of a host word needs; the standard has no use for it, but overdrive
-    slots, a unit of 1 us, fit with room to spare.
+    Each edge follows a deadline wait, so the times are exact to one cycle (20.8 ns),
+    except the reset's end and the presence sample, two cycles later (reset 480.04 us).
+    The shortest unit kept up with is 5 cycles, which dispatching a host word needs.
 
-    The CRC of the ROM is checked by the host. The core's CRC unit would do the
-    polynomial, but it sees every single bit shift, the ones written to open a read slot
-    as well as the bits read in it, so it cannot be pointed at the read bits alone. *)
+    The host checks the ROM's CRC: the core's CRC unit sees every bit shift, including
+    the ones that open a read slot, so it cannot be pointed at the read bits alone. *)
 
 open! Core
 open Protocol_emulator

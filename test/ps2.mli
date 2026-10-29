@@ -1,26 +1,21 @@
 (** PS/2 device, the keyboard's end of the wire: open drain data on IO0 and clock on IO1.
 
-    The host's first word is a quarter of the clock period in cycles; 1000 cycles, 20.8 us
-    at 48 MHz, makes a 12 kHz clock, inside the 10 to 16.7 kHz the bus allows. After that
-    every word is a byte to send. The start bit, the odd parity and the stop bit are added
-    here, the parity by the core's CRC unit set one bit wide. Data moves in the middle of
-    clock high and the host samples it a quarter later when the clock falls, so setup is a
-    quarter less the two cycles a jump takes and hold a quarter and two cycles. Before a
-    frame the bus has been left alone for a whole clock period, and before each bit the
+    The host's first word is a quarter of the clock period in cycles: 1000 cycles, 20.8 us
+    at 48 MHz, makes a 12 kHz clock, inside the bus's 10 to 16.7 kHz. After that every
+    word is a byte to send, with start bit, odd parity (the CRC unit set one bit wide) and
+    stop bit added here. Data moves mid clock high and the host samples a quarter later at
+    the fall, so setup is a quarter less the two cycles of a jump and hold a quarter and
+    two. Before a frame the bus has been idle a whole period, and before each bit the
     clock is looked at: if the host holds it low the frame is dropped, data is let go and
-    the interrupt is raised, for the host of the core to write the byte again.
+    the interrupt is raised, for the host to write the byte again.
 
-    When the host holds the clock low and lets it go with data low, that is its request to
-    send: the device clocks in eight data bits, parity and stop, sampling in the middle of
-    clock high, pulls data low for one more clock as the acknowledge and pushes
-    [data lor (parity lsl 8) lor (stop lsl 9)]. The parity is for the host of the core to
-    check, as a keyboard acknowledges a byte before it asks for it again.
+    A host request to send (clock held low, released with data low) makes the device clock
+    in eight data bits, parity and stop, pull data low one more clock as the acknowledge
+    and push [data lor (parity lsl 8) lor (stop lsl 9)]. The host checks the parity.
 
-    Every edge is placed by a deadline wait, so the resolution is one cycle, 20.8 ns, and
-    the clock is exact. The shortest quarter the program keeps up with is 8 cycles, a
-    clock of 1.5 MHz at 48 MHz, far beyond anything PS/2 asks for; what sets it is the
-    look at data between the host letting the clock go and the first clock of a byte it
-    sends. *)
+    Every edge is placed by a deadline wait, so the clock is exact to one cycle (20.8 ns).
+    The shortest quarter kept up with is 8 cycles (1.5 MHz at 48 MHz), set by the look at
+    data between the host letting the clock go and the first clock of a byte it sends. *)
 
 open! Core
 open Protocol_emulator

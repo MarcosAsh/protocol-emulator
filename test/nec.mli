@@ -1,14 +1,11 @@
-(** NEC infrared remote control on one line, OUT0, as a receiver module's output gives it:
-    low for a mark, where the light is on, high between. Every time is a whole number of
-    units of 562.5 us, which the host loads. A frame is a leader of 16 units marked and 8
-    not, 32 bits LSB first, the address, its inverse, the command and its inverse, each a
-    unit's mark and a space of 1 unit for a zero or 3 for a one, and a final mark. A
-    repeat code, sent while a key is held, is 16 units marked, 4 not and a final mark. One
-    begins every 192 units, 108 ms.
+(** NEC infrared remote control on one line, OUT0, as a receiver module's output gives
+    it: low for a mark. Every time is a whole number of 562.5 us units, which the host
+    loads. A frame is a leader, then the address, its inverse, the command and its
+    inverse, each bit a unit's mark and a space of 1 unit for a zero or 3 for a one, and
+    a final mark. A repeat code is sent while a key is held, one every 192 units, 108 ms.
 
-    The host sends the unit once, then per key the three words of [words]. The address
-    word is taken after the leader's mark and the command word after the address, and a
-    word late is an underflow fault. *)
+    The host sends the unit once, then per key the three words of [words]. A word late
+    is an underflow fault. *)
 
 open! Core
 open Protocol_emulator

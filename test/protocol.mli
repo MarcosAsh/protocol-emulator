@@ -1,8 +1,7 @@
-(** A protocol written once, in a file of its own: its firmware, each with what its
-    certificate rests on, the copies the bench demos load with the datasheet limits they
-    are held to, and runs at the pins that sigrok's decoders judge and the engine and its
-    model run in lockstep. [Library.protocols] lists every one, and the certificates CI
-    proves, the bench's firmware, the limits and the pin traces all come from there. *)
+(** A protocol written once, in a file of its own: its firmware with what each
+    certificate rests on, the bench copies with the datasheet limits they are held to,
+    and runs at the pins that sigrok's decoders judge and the engine and model run in
+    lockstep. [Library.protocols] lists every one. *)
 
 open! Core
 

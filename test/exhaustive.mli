@@ -2,16 +2,13 @@
     over a small timing alphabet, each run on [Machine] for its ground truth and checked
     by the kernel, as [Timed_program.check] does after assembly.
 
-    The truth is exact for the alphabet. Nothing in it reads [now], [t] or the pins, so a
-    run's path depends on [x] and [p] alone, and waits only stall. At start [now] is zero
-    and [x], [p] and [t] are anything, as [Kernel.check] takes them:
-    - a deadline wait reached before any [mov t, now] is late for some start [t], as its
-      phase is the start's plus a constant;
-    - [p] only moves [t] on, so a smaller [p] makes every later entry no earlier, and the
-      model's start, zero, is the worst;
-    - [x] is the one start value left, so a program that may count it down before setting
-      it is out of scope. A run is safe once its state at an issue repeats: pc, [x], [p]
-      and, after the first [mov t, now], the phase. *)
+    The truth is exact for the alphabet: nothing reads [now], [t] or the pins, so a run's
+    path depends on [x] and [p] alone. Start [now] is zero and [x], [p], [t] are anything:
+    - a deadline wait before any [mov t, now] is late for some start [t];
+    - a smaller [p] makes every later entry no earlier, so the model's start, zero, is
+      the worst;
+    - a program that may count [x] down before setting it is out of scope. A run is safe
+      once its state at an issue repeats: pc, [x], [p] and, after [mov t, now], the phase. *)
 
 open! Core
 open Protocol_emulator

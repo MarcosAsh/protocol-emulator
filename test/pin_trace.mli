@@ -3,10 +3,10 @@
     the recorded inputs into the Verilog, the gate level netlist and the FPGA netlist and
     expects the recorded outputs back.
 
-    Cyclesim does not model the asynchronous reset: its registers start at zero, which is
-    the state [rst_n] low leaves the reset synchroniser in. Cycle 0 of a trace is
-    therefore the first rising clock edge after [rst_n] is released, and the replay holds
-    [rst_n] low before it. Outputs are the values after the edge. *)
+    Cyclesim does not model the asynchronous reset: registers start at zero, the state
+    [rst_n] low leaves the synchroniser in. Cycle 0 is the first rising clock edge after
+    [rst_n] is released, and the replay holds [rst_n] low before it. Outputs are the
+    values after the edge. *)
 
 open! Core
 open Protocol_emulator

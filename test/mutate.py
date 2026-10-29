@@ -28,9 +28,8 @@ ALLOW = Path(__file__).with_name("mutation_allow.txt")
 # file ## operator ## line ## formula ## why it holds: the inputs where a survivor of the
 # checker is compared with the original, for one that differs only outside them
 ASSUME = Path(__file__).with_name("mutation_assume.txt")
-# test_provenance prints the byte and name counts of the chip's verilog, which a mutant of
-# the chip changes whether or not it changes behaviour, so the mutants run without it; the
-# committed verilog is still copied, as test/dune depends on it
+# test_provenance prints counts of the chip's verilog, which any mutant changes, so mutants
+# run without it; the committed verilog is still copied, as test/dune depends on it
 COPIED = ["src", "test", "bin", "ppx", "python", "pio", "formal/Makefile", "dune-project", ".ocamlformat",
           "demo/paths.py", "demo/outline.py", "demo/draw.py", "demo/kernel_vs_board.py",
           "demo/glitch_map.py", "demo/clock_sweep.py", "demo/corpus_draw.py",
@@ -157,9 +156,9 @@ SCOPES = {
 
 # The trusted checker: the generator of its check of a row, as Kernel.check and
 # Osr_kernel.check decide it, the outputs that must match and the groups whose and
-# accepts; the lines where it is software the gates leave out; and the proofs, fastest
-# first, a mutant that accepts more must pass: an sby run each, or one a task of a task list
-# of formal/Makefile, those of the second list, the slowest, last.
+# accepts; the lines where it is software the gates leave out; and the proofs a mutant
+# that accepts more must pass, fastest first: an sby run each, or a task of a task list
+# of formal/Makefile, the second list's, the slowest, last.
 KERNEL_PROVED = {
     "check": ["check-gates"],
     "equal": ["next_pc", "target_pc"],
@@ -313,10 +312,9 @@ COLOUR = re.compile(r"\x1b\[[0-9;]*m")
 
 
 def verdict(cwd, file, jobs, timeout):
-    # a mutant that does not compile, or that Hardcaml refuses to elaborate, is not a mutant;
-    # one whose generator loops would hang the tests too. A kill comes with the files of the
-    # tests that failed; each result with the digest of the Verilog the mutant elaborates to,
-    # if its file makes any.
+    # a mutant that does not compile or elaborate is not a mutant. A kill comes with the
+    # files of the tests that failed, each result with the digest of the Verilog it
+    # elaborates to, if its file makes any.
     verilog = None
     try:
         if dune(cwd, "build", "./bin/generate.exe", jobs=jobs, timeout=timeout)[0] != 0:
@@ -392,13 +390,12 @@ def run_logged(command, cwd, log, timeout):
 
 
 def prove(cwd, m, original, prover, timeout, proof_timeout, untested, only):
-    # A survivor of the checker, by its gates against the original's: EQUIVALENT if its
-    # decision is the same for every input, STRICT if it accepts only what the original
-    # does, so the original's theorem holds of it, either under the formula of
-    # test/mutation_assume.txt if any. Else it accepts more: LAX if the SAT lemma or a
-    # proof then fails on it, the trace the counterexample, SOUND if every one holds, TESTED
-    # if, untested before, a test of the lemma's file fails but every proof holds. OUTSIDE:
-    # software of the checker the gates leave out, which only a test can kill.
+    # A survivor of the checker, by its gates against the original's, under the formula of
+    # test/mutation_assume.txt if any: EQUIVALENT if the decision is the same for every
+    # input, STRICT if it accepts only what the original does. Else it accepts more: LAX
+    # if the SAT lemma or a proof fails on it, SOUND if every one holds, TESTED if,
+    # untested before, a test of the lemma's file fails but every proof holds. OUTSIDE:
+    # software the gates leave out, which only a test can kill.
     spec = PROVED[m["file"]]
     logs = cwd / "_prove"
     logs.mkdir(exist_ok=True)
@@ -497,10 +494,9 @@ PROVED_SAFE = ("EQUIVALENT", "STRICT", "SOUND")
 
 
 def report(results, planned):
-    # a timeout counts as killed, as the suite does not pass, and is listed apart; so does a
-    # survivor a proof kills. An allowed mutant's timeout is no kill: an equivalent one runs
-    # as the original does, until the timeout stops it. Nor is a mutant the tests do not kill
-    # whose Verilog is the original's: it changes no gate, and is left out of the score.
+    # a timeout counts as killed and is listed apart, as is a survivor a proof kills. An
+    # allowed mutant's timeout is no kill: an equivalent one runs as the original does. A
+    # survivor whose Verilog is the original's changes no gate and is left out of the score.
     allowed = read_allowed()
 
     def same(r):

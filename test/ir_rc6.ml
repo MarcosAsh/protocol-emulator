@@ -3,8 +3,8 @@ open Protocol_emulator
 open Pin_trace
 module Reg = Host_port.Reg
 
-(* SB-Projects, "Philips RC-6 Protocol", last updated 17 July 2025, page 1: the symbols of
-   mode 0, in units of 1t, 16 carrier periods or 444 us
+(* SB-Projects, "Philips RC-6 Protocol", 17 July 2025, page 1: mode 0 symbols, in units
+   of 1t, 16 carrier periods or 444 us
    {v
    leader   mark 6, space 2
    cell     a one is a mark then a space, a zero the reverse, 1 each
@@ -12,7 +12,7 @@ module Reg = Host_port.Reg
    frame    leader, start bit 1, mode bits 000, trailer, 8 address bits, 8 command bits
    free     6 after the last cell
    v}
-   The line is the demodulated one: high for a mark, with no carrier on it. *)
+   The line is demodulated: high for a mark, no carrier. *)
 
 let pin = 5
 let standard_unit = 21_333

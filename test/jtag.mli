@@ -1,16 +1,11 @@
 (** JTAG master: TCK on IO5 by side-set, TDI on IO6 and TMS on IO7, TDO on input 0.
 
-    JTAG is SPI mode 0 with a second output. TMS and TDI change as TCK falls and the TAP
-    takes them as it rises, half a period later; TDO is taken on the same rising edge,
-    half a period after the TAP moved it on the fall. The host writes a word per eight
-    clocks, the pairs from bit 0 up, TDI in the even bit and TMS in the odd, and reads
-    back a word per eight clocks with TDO in bits 8 to 15, the first clock in bit 8. TCK
-    stays low between words, which JTAG allows, so the host can stop anywhere and walk the
-    TAP wherever it likes; [reset], [scan_ir] and [scan_dr] are the usual walks.
-
-    Every edge is the instruction after a deadline wait, so TCK is exact and TMS and TDI
-    are set up and held for exactly half a period. The shortest half period the program
-    keeps up with is [shortest_half] cycles. *)
+    TMS and TDI change as TCK falls and the TAP takes them on the rise, half a period
+    later. The host writes a word per eight clocks, TDI in the even bits and TMS in the
+    odd from bit 0 up, and reads a word per eight clocks with TDO in bits 8 to 15, the
+    first clock in bit 8. TCK stays low between words, which JTAG allows. Every edge
+    follows a deadline wait, so TCK is exact and TMS and TDI are set and held for exactly
+    half a period. The shortest half period kept up with is [shortest_half] cycles. *)
 
 open! Core
 open Protocol_emulator

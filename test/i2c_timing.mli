@@ -4,13 +4,10 @@
     SCL is high is a START or a STOP by the level it leaves.
 
     From every edge the program can make, every way through it is followed to the edge the
-    timing ends on, each instruction timed from the phase the analyser gives the edge's
-    own and from the deadline each wait keeps, which for a program the kernel accepts is
-    when it releases; a wait for the host or a pin may last any time. So a bound holds for
-    every run, whatever the host sends and whenever. A way that comes back to an
-    instruction it has passed is not followed further, since coming round again only takes
-    longer. What is bounded is the schedule at the pins: the bus's rise and fall times are
-    not in it. *)
+    timing ends on, each instruction timed from the analyser's phase and each wait's
+    deadline. A wait for the host or a pin may last any time, so a bound holds for every
+    run. A way that revisits an instruction is cut, as coming round again only takes
+    longer. The schedule at the pins is bounded, not the bus's rise and fall times. *)
 
 open! Core
 open Protocol_emulator
