@@ -363,7 +363,7 @@ let%expect_test "the literal firmwares" =
     (spi_slave ((words 6) (deadline_waits 0) (worst_slack ())))
     (i2c_slave ((words 72) (deadline_waits 0) (worst_slack ())))
     (i2c_logger ((words 73) (deadline_waits 25) (worst_slack (1))))
-    (usb_tx ((words 65) (deadline_waits 11) (worst_slack (16))))
+    (usb_tx ((words 67) (deadline_waits 11) (worst_slack (16))))
     (ethernet ((words 32) (deadline_waits 1) (worst_slack (63987))))
     (one_wire ((words 48) (deadline_waits 15) (worst_slack (0))))
     (ps2 ((words 65) (deadline_waits 12) (worst_slack (0))))

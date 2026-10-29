@@ -123,6 +123,48 @@ let%expect_test "usb tx builds the crc and stuffs the get descriptor packet" =
     |}]
 ;;
 
+(* Every change of the line, the EOP's SE0 and the J after it too, lands on the bit grid
+   the SYNC's first edge sets. USB 2.0 table 7-10 allows the EOP -40 to +100 ns (TLDEOP),
+   under two cycles early at 48 MHz. *)
+let%expect_test "usb tx keeps every line change on the bit grid, the eop's too" =
+  let bit_period = 32 in
+  let data = [ 0x80; 0x06; 0x00; 0x01; 0x00; 0x00; 0x40; 0x00 ] in
+  let words = bit_period :: 0x80 :: 0xc3 :: (List.length data - 1) :: data in
+  let t =
+    Machine.create ~config:Usb.config ~program:(Timed_program.words Usb.tx) |> ok_exn
+  in
+  let line (t : Machine.t) =
+    let pin p = (t.pin_out lsr p) land 1 in
+    pin Usb.dp_pin, pin Usb.dm_pin
+  in
+  let changes = Queue.create () in
+  let rec loop (t : Machine.t) words cycle =
+    if cycle < bit_period * 120
+    then (
+      let t, words =
+        match words with
+        | w :: rest when List.length t.tx_fifo < Machine.fifo_depth ->
+          Machine.write_tx t w |> ok_exn, rest
+        | words -> t, words
+      in
+      let after = Machine.step t ~inputs:0 in
+      if not ([%equal: int * int] (line t) (line after))
+      then Queue.enqueue changes (cycle, line after);
+      loop after words (cycle + 1))
+  in
+  loop t words 0;
+  let changes = Queue.to_list changes in
+  let first = fst (List.nth_exn changes 1) in
+  let off_grid =
+    List.filter_map (List.drop changes 1) ~f:(fun (cycle, (dp, dm)) ->
+      let off = (cycle - first) % bit_period in
+      if off = 0 then None else Some (off - bit_period, dp, dm))
+  in
+  print_s
+    [%message (List.length changes : int) (off_grid : (int * int * int) list)];
+  [%expect {| (("List.length changes" 80) (off_grid ())) |}]
+;;
+
 let%expect_test "usb rx decodes, unstuffs and checks two packets" =
   let bit_period = 32 in
   let data = [ 0x80; 0x06; 0x00; 0x01; 0x00; 0x00; 0x40; 0x00 ] in

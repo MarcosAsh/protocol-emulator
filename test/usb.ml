@@ -23,7 +23,7 @@ let config =
 (* USB low speed transmitter. The host sends the bit period, then per packet SYNC, PID,
    data length less one and the data; the core adds CRC-16, bit stuffing and EOP. Each
    data bit goes out on a scratch pin first so the CRC sees it and [jmp pin] reads it
-   back. Every toggle lands four cycles after its deadline on either path. *)
+   back. Every change of the line, the EOP's too, lands four cycles after its deadline. *)
 let tx =
   [%firmware
     {|
@@ -76,9 +76,11 @@ ckeep:
     jmp stuff, estuff
 eop:
     wait t+
+    nop [2]
     set pins, 0              ; SE0
     wait t+
     wait t+
+    nop [2]
     set pins, 2              ; J
     wait t+
     jmp packet
