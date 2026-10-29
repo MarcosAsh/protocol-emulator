@@ -129,3 +129,13 @@
  (alias runtest)
  (action
   (diff fifo_poll.trace fifo_poll.trace.gen)))
+
+(rule
+ (with-stdout-to
+  bridge.trace.gen
+  (run ./write_trace.exe bridge)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff bridge.trace bridge.trace.gen)))
