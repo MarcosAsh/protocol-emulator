@@ -1199,7 +1199,7 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
     spi_cs     design   SCK 1.11 MHz
       library half 4 and up; CS a third output, each mode a different table
     spi_target no       -
-      library half 14 and up, all four modes; it shifts only while CS is low, and a table's await cannot abort on CS
+      library half 16 and up, all four modes; it shifts only while CS is low, and a table's await cannot abort on CS
     swd        no       -
       library 1 MHz; SWDIO turns around, which needs pins and pindirs in one table
     nec        untried  -

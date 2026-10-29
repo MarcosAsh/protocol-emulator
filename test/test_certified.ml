@@ -75,10 +75,10 @@ let%expect_test "the firmware library and its certificates" =
     spi_cs_mode1_default_pins    43         6      1  no wrap
     spi_cs_mode2_default_pins    43         6      1  no wrap
     spi_cs_mode3_default_pins    43         6      1  no wrap
-    spi_target_mode0      38         0      -
-    spi_target_mode1      33         0      -
-    spi_target_mode2      38         0      -
-    spi_target_mode3      33         0      -
+    spi_target_mode0      47         0      -
+    spi_target_mode1      35         0      -
+    spi_target_mode2      45         0      -
+    spi_target_mode3      34         0      -
     swd                  232        52     15  period 25, no wrap
     table                112         2      0
     table_open_drain     112         2      0

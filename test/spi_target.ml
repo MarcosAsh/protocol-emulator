@@ -27,21 +27,20 @@ let config (pins : Pins.t) =
   ; out_shift = Left
   ; autopush = true
   ; push_threshold = 8
+  ; pull_threshold = 8
   }
 ;;
 
-let shortest_half = 14
+let shortest_half = 16
 
-(* the next reply into y *)
-let fetch label =
+(* the next reply into y, or 0xff with none queued; [preset] where y is 0xff already *)
+let fetch ?(preset = false) label =
+  let default = if preset then "" else "\n    mov y, !null             ; none queued: 0xff" in
   [%string
-    {|
-    jmp !tx, none_%{label}
+    {|%{default}
+    jmp !tx, got_%{label}
     pull
     mov y, osr               ; the next reply
-    jmp got_%{label}
-none_%{label}:
-    mov y, !null             ; none queued: 0xff
 got_%{label}:|}]
 ;;
 
@@ -71,8 +70,46 @@ gap_one:
     jmp gap|}
 ;;
 
-(* CPHA 0 shows a byte's first bit before its leading edge, so the next reply's first bit
-   goes out as a byte ends, and again at the next select should CS rise instead *)
+(* Inside a byte the same read finds the leading edge at [label]_edge, and CS rising cuts the
+   byte short. SCK is tested first, so a poll that finds the edge there takes five cycles.
+   With CPOL 1 the idle branch goes after the program, so both low readings fall through. *)
+let poll ~(mode : Spi_cs.Mode.t) label =
+  if mode.cpol
+  then
+    ( [%string
+        {|
+%{label}:
+    mov x, pins
+    jmp x--, %{label}_one
+    jmp %{label}_edge          ; SCK low
+%{label}_one:
+    jmp x--, %{label}_idle
+%{label}_edge:|}]
+    , [%string
+        {|
+%{label}_idle:
+    jmp pin, cut             ; SCK high, and CS high cuts the byte short
+    jmp %{label}|}] )
+  else
+    ( [%string
+        {|
+%{label}:
+    mov x, pins
+    jmp x--, %{label}_one
+    jmp pin, cut             ; SCK low, and CS high cuts the byte short
+    jmp %{label}
+%{label}_one:
+    jmp x--, %{label}_edge     ; SCK high
+    jmp pin, cut
+    jmp %{label}
+%{label}_edge:|}]
+    , "" )
+;;
+
+(* [osr] counts the byte's bits out, so x is free for the polls. A byte cut short goes back
+   to [cut], which drops the bits it took and takes the next reply. CPHA 0 shows a byte's
+   first bit before its leading edge, so the next reply's first bit goes out as a byte ends,
+   and again at the next select should CS rise instead. *)
 let firmware ~(mode : Spi_cs.Mode.t) (pins : Pins.t) =
   let leading = Bool.to_int (not mode.cpol) in
   let trailing = 1 - leading in
@@ -81,6 +118,7 @@ let firmware ~(mode : Spi_cs.Mode.t) (pins : Pins.t) =
   let select =
     [%string
       {|
+cut:%{fetch "first"}
 deselected:
     set pins, 0              ; MISO let go
     wait 1 pin %{cs#Int}
@@ -88,50 +126,43 @@ deselected:
     mov isr, null            ; no bits from before, a byte cut short or another program's
     mov osr, y               ; this byte's reply|}]
   in
+  let bit, bit_idle = poll ~mode "bit" in
   if mode.cpha
   then
     [%string
-      {|%{fetch "first"}%{select}
-    set x, 7
-bit:
-    wait %{leading#Int} pin %{sck#Int}             ; leading edge
-    out pins, 1
-    wait %{trailing#Int} pin %{sck#Int}             ; trailing edge
-    in pins, 1               ; the eighth pushes the byte
-    jmp x--, bit
-%{fetch "next"}
-    mov osr, y%{gap ~mode}
+      {|%{select}%{gap ~mode}
 lead:
     out pins, 1
-    set x, 6
+    wait %{trailing#Int} pin %{sck#Int}             ; trailing edge
+    in pins, 1%{bit}
+    out pins, 1
     wait %{trailing#Int} pin %{sck#Int}
-    in pins, 1
-    jmp bit
+    in pins, 1               ; the eighth pushes the byte
+    jmp !osre, bit%{fetch "next"}
+    mov osr, y
+    jmp gap%{bit_idle}
 |}]
-  else
+  else (
+    let last, last_idle = poll ~mode "last" in
     [%string
-      {|%{fetch "first"}%{select}
+      {|%{select}
     out pins, 1              ; its first bit, before the leading edge
-    set x, 6
-bit:
-    wait %{leading#Int} pin %{sck#Int}             ; leading edge
+    jmp gap%{bit}
     in pins, 1
     wait %{trailing#Int} pin %{sck#Int}             ; trailing edge
     out pins, 1
-    jmp x--, bit
-    wait %{leading#Int} pin %{sck#Int}
-    in pins, 1               ; the eighth pushes the byte
-%{fetch "next"}
+    jmp !osre, bit           ; to the seventh bit%{last}
+    in pins, 1               ; the eighth pushes the byte%{fetch ~preset:true "next"}
     wait %{trailing#Int} pin %{sck#Int}
     mov osr, y
     out pins, 1              ; the next reply's first bit, should the frame go on%{gap ~mode}
 lead:
     in pins, 1
-    set x, 5
     wait %{trailing#Int} pin %{sck#Int}
     out pins, 1
-    jmp bit
-|}]
+    mov y, !null             ; for the fetch after the eighth bit
+    jmp bit%{bit_idle}%{last_idle}
+|}])
 ;;
 
 let protocol =

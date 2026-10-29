@@ -1197,10 +1197,10 @@ let%expect_test "a bound on the jitter of every pin edge, in firmware the kernel
      (untimed (0 1 2 3 4 5 6 22 23 24 25 26)))
     (spi_cs_mode3_default_pins (pc 10) (jitter_bound 3)
      (untimed (0 1 2 3 4 5 6 22 23 24 25 26)))
-    (spi_target_mode0 "no edge has a deadline" (untimed (5 10 15 26 36)))
-    (spi_target_mode1 "no edge has a deadline" (untimed (5 12 28)))
-    (spi_target_mode2 "no edge has a deadline" (untimed (5 10 15 26 36)))
-    (spi_target_mode3 "no edge has a deadline" (untimed (5 12 28)))
+    (spi_target_mode0 "no edge has a deadline" (untimed (4 9 20 35 44)))
+    (spi_target_mode1 "no edge has a deadline" (untimed (4 15 25)))
+    (spi_target_mode2 "no edge has a deadline" (untimed (4 9 17 29 38)))
+    (spi_target_mode3 "no edge has a deadline" (untimed (4 15 22)))
     (swd (pc 32) (jitter_bound 6)
      (untimed
       (0 1 2 3 4 5 13 14 15 16 21 22 24 25 27 40 41 44 46 120 121 125 126 138 139

@@ -1,9 +1,9 @@
-(** SPI target in any of the four modes, MSB first, for a controller that frames whole
-    bytes, as [Spi_cs.master] does. It shifts only while CS is low, starts each frame with
-    nothing shifted in, lets MISO go to 0 while CS is high, and pushes each byte it takes.
-    Replies are host words [byte lsl 8], taken a byte ahead: the reply for a byte is
-    fetched as the byte before it ends, or at the start, and one the frame does not clock
-    keeps for the next frame's first byte. With none queued the reply is 0xff. *)
+(** SPI target in any of the four modes, MSB first. It shifts only while CS is low, lets
+    MISO go to 0 while CS is high, and pushes each byte it takes; CS rising inside a byte
+    drops that byte's bits and its reply. Replies are host words [byte lsl 8], taken a byte
+    ahead: the reply for a byte is fetched as the byte before it ends, or at the start, and
+    one the frame does not clock keeps for the next frame's first byte. With none queued
+    the reply is 0xff. *)
 
 open! Core
 open Protocol_emulator
@@ -25,7 +25,7 @@ val pads : Pins.t
 val config : Pins.t -> Program_config.t
 val firmware : mode:Spi_cs.Mode.t -> Pins.t -> string
 
-(** SCK's least half period: between bytes the poll of SCK and CS takes up to this, less
+(** SCK's least half period: the poll of SCK and CS before each bit takes up to this, less
     the cycle each way the pins are registered. *)
 val shortest_half : int
 

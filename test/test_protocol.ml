@@ -448,10 +448,10 @@ let%expect_test "every protocol from its file to the decoded trace" =
     === spi_target
 
     certificates
-    spi_target_mode0: 38 words, 0 deadline waits, the kernel accepts it, assuming nothing
-    spi_target_mode1: 33 words, 0 deadline waits, the kernel accepts it, assuming nothing
-    spi_target_mode2: 38 words, 0 deadline waits, the kernel accepts it, assuming nothing
-    spi_target_mode3: 33 words, 0 deadline waits, the kernel accepts it, assuming nothing
+    spi_target_mode0: 47 words, 0 deadline waits, the kernel accepts it, assuming nothing
+    spi_target_mode1: 35 words, 0 deadline waits, the kernel accepts it, assuming nothing
+    spi_target_mode2: 45 words, 0 deadline waits, the kernel accepts it, assuming nothing
+    spi_target_mode3: 34 words, 0 deadline waits, the kernel accepts it, assuming nothing
 
     limits
 

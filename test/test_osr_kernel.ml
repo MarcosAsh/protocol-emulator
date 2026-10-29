@@ -264,16 +264,16 @@ let%expect_test "what each out sends, in the firmware library" =
      (sends ((11 "bit 14 - x") (16 "bit 65550 - x"))))
     (spi_target_mode0 (verdict (Ok ()))
      (sends
-      ((10 "not a pulled word") (15 "not a pulled word") (26 "not a pulled word")
-       (36 "not a pulled word"))))
+      ((9 "not a pulled word") (20 "not a pulled word") (35 "not a pulled word")
+       (44 "not a pulled word"))))
     (spi_target_mode1 (verdict (Ok ()))
-     (sends ((12 "not a pulled word") (28 "not a pulled word"))))
+     (sends ((15 "not a pulled word") (25 "not a pulled word"))))
     (spi_target_mode2 (verdict (Ok ()))
      (sends
-      ((10 "not a pulled word") (15 "not a pulled word") (26 "not a pulled word")
-       (36 "not a pulled word"))))
+      ((9 "not a pulled word") (17 "not a pulled word") (29 "not a pulled word")
+       (38 "not a pulled word"))))
     (spi_target_mode3 (verdict (Ok ()))
-     (sends ((12 "not a pulled word") (28 "not a pulled word"))))
+     (sends ((15 "not a pulled word") (22 "not a pulled word"))))
     (swd (verdict (Ok ()))
      (sends
       ((33 "bit 15 - x") (53 "bit 1") (62 "bit 7 - x") (100 "bit 15 - x")
