@@ -361,8 +361,7 @@ let replace source changes =
 ;;
 
 (* The fourth: the sync's loop moved [t] 51 ticks on with no wait, which the rows bound at
-   one tick but not from a floor. The anchor before the idle level came last, for the
-   report's jitter. *)
+   one tick but not from a floor. *)
 let fourth =
   replace
     firmware

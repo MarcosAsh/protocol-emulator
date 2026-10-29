@@ -398,9 +398,9 @@ let reads (r : Receiver.t) =
 ;;
 
 (* An arm checked for an edge that came first, at more than one place, is a receiver that
-   re-anchors on every edge and, when it sees one late, on [now]: the reads after that are
-   timed from no captured edge, so no bound from the rows holds for it. One such arm, as
-   the CAN receiver's at the SOF, starts a frame and leaves the rest timed. *)
+   re-anchors on every edge and, on seeing one late, on [now]: the reads after that are
+   timed from no captured edge, so no bound from the rows holds. One such arm, as the
+   CAN receiver's at the SOF, starts a frame and leaves the rest timed. *)
 let applies (r : Receiver.t) =
   let program, config = assemble r in
   let arms = List.length (recovers config program.instructions) / 2 in

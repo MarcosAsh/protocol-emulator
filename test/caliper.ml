@@ -12,8 +12,8 @@ module Reg = Host_port.Reg
 (* the clock is OUT0 and the data OUT1 *)
 let pin = 5
 
-(* 270 cycles is 5.625 us, a clock of 88.9 kHz: under the spec's 90 kHz, and ten of them
-   are 56 us and twenty 113 us, over the 55 and 110 us pauses *)
+(* 270 cycles is 5.625 us, 88.9 kHz, under the spec's 90 kHz. Ten are 56 us and twenty
+   113 us, over the 55 and 110 us pauses. *)
 let half_period = 270
 
 let config =
@@ -25,10 +25,9 @@ let config =
   }
 ;;
 
-(* The host's first word is the half period of the clock in cycles, and each frame is four
-   words: the 24 bits of a position as 16 and 8. Every [wait t+] is a half period on, so
-   the pauses are counts of them: ten high before the first fall, twenty between the words
-   and ten after the last rise. *)
+(* The host's first word is the half period in cycles, then four words a frame: each
+   24-bit position as 16 and 8. Pauses are counts of half periods: ten before the first
+   fall, twenty between the words, ten after the last rise. *)
 let firmware =
   [%firmware
     {|
@@ -129,13 +128,11 @@ let bench =
   }
 ;;
 
-(* The spec's timing is all nominal ("about", "~"), taken here as the least the scale
-   waits: a clock no faster than 90 kHz, so a half period of 5555.5 ns, and pauses no
-   shorter than 55, 110 and 55 us. The 300 ms and 20 ms update periods, and their 3 and 50
-   Hz, are the host's to pace, so no row bounds them. The last pause is not a high of its
-   own on the line: it runs into the next frame's first, so that row reads the two
-   together. Highs of the run: 0 is the first pause, 24 the one between the words, 48 the
-   last. *)
+(* The spec's timing is nominal, taken as the least the scale waits: a clock no faster
+   than 90 kHz (half period 5555.5 ns) and pauses of at least 55, 110 and 55 us. The host
+   paces the update periods, so no row bounds them. The last pause runs into the next
+   frame's first, so that row reads both. Highs of the run: 0 is the first pause, 24 the
+   one between the words, 48 the last. *)
 let limits =
   let sheet lines =
     { Datasheet.Sheet.part = "Chinese digital scale"
@@ -182,11 +179,10 @@ let limits =
   ]
 ;;
 
-(* sigrok's caliper decoder reads 24 bits at the rises of the clock, 16 of number and 8 of
-   flags, and so each word of the frame on its own: a number in 1/2000 inch if the last
-   flag is set, with the sign in the fifth. It does not take the spec's 1/20480 inch two's
-   complement. The clock rises once when the firmware starts, which it takes for a bit, so
-   it joins once the clock idles. *)
+(* sigrok's caliper decoder reads 24 bits at the clock's rises, 16 of number and 8 of
+   flags, so each word on its own: 1/2000 inch if the last flag is set, sign in the fifth,
+   not the spec's 1/20480 inch two's complement. The clock rises once at start, which it
+   takes for a bit, so it joins once the clock idles. *)
 let sigrok =
   { Sigrok.clock_hz = 48_000_000
   ; decoders = [ Sigrok.decoder "caliper" ~pins:[ "clk", pin; "data", pin + 1 ] ]

@@ -52,10 +52,10 @@ let bytes = [ 0x55; 0xa3; 0x00; 0xff ]
 module G = Hardcaml_verify.Comb_gates
 
 (* Each edge loads p from its row, so the analyser's table is for every load of min_gap or
-   more, and the kernel accepts it at each, by checked SAT; phase_step.sv's load is free
-   at each entry, so no deadline is missed however the rows' loads vary. Every frame is
-   anchored on [now] after a wait on the pin, so this holds whatever the line does, with
-   nothing assumed of the capture. At one less the kernel refuses. *)
+   more, and the kernel accepts it at each, by checked SAT. phase_step.sv's load is free
+   at each entry, and every frame is anchored on [now] after a wait on the pin, so no
+   deadline is missed whatever the line does, with nothing assumed of the capture. At one
+   less the kernel refuses. *)
 let%expect_test "the kernel accepts the checker at every load from min_gap" =
   let checker = checker ~pin:wire () in
   let checker_config = Self_check.checker_config ~pin:wire in
@@ -398,11 +398,10 @@ let long_frame ?glitch ?every ~rtl edges =
     m.irq)
 ;;
 
-(* The checker once compared 14 bits of the capture, and before [rows] refused frames this
-   long a glitch 2^14 cycles after the first edge stamped as that edge had and went
-   unseen. It compares 16 now and catches that glitch and one a cycle either side, on the
-   model and the rtl, with the frame quiet without them; [rows] still refuses the frame.
-   The next frame comes late, as an idle line's would. *)
+(* The checker compares 16 bits of the capture, so a glitch 2^14 cycles after the first
+   edge no longer stamps as that edge and goes unseen. It and one a cycle either side are
+   caught, on the model and the rtl, with the frame quiet without them. The next frame
+   comes late, as an idle line's would. *)
 let%expect_test "a frame spanning the capture's 14 bits is refused" =
   let edges = [ 100; 8000; 16000; 16500; 16600 ] in
   let quiet = not (long_frame ~every:17000 ~rtl:false edges) in

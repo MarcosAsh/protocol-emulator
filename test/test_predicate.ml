@@ -441,7 +441,7 @@ let changes samples ~pin =
 ;;
 
 (* Runs of the pin at least [min_run] long, some ending before a verdict is due and some
-   after, the first as short as any; the pulse sweep below covers the prologue. *)
+   after, the first as short as any. *)
 let quiet_samples ~min_run ~due =
   let open Quickcheck.Generator.Let_syntax in
   let%map runs =
@@ -513,9 +513,9 @@ let%expect_test "on the model, a quiet verdict comes latency to latency + jitter
     |}]
 ;;
 
-(* One pulse off a steady level, or a step, starting at every cycle through the prologue
-   and a whole half. A pulse [min_run] long is always seen; one a cycle shorter is missed
-   at some start, so [min_run] is tight. *)
+(* A pulse off a steady level, or a step, starting at every cycle through the prologue and
+   a whole half. A pulse [min_run] long is always seen, one a cycle shorter is missed at
+   some start, so [min_run] is tight. *)
 let%expect_test "a pulse of min_run is seen from every start, one shorter is not" =
   List.iter [ 12; 20; 36; 200 ] ~f:(fun latency ->
     let firmware = Predicate.compile quiet ~latency |> ok_exn in

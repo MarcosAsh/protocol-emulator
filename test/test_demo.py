@@ -94,7 +94,7 @@ async def test_self_timing(dut):
 
 @cocotb.test()
 async def test_sweep(dut):
-    """Act 2 for every swept firmware, each poll taking as long as the table lets the Pico
+    """Demo 2 for every swept firmware, each poll taking as long as the table lets the Pico
     take; every edge has to land where the kernel's rows along the model's path put it."""
     await reset(dut)
     pins = Pins(dut)
@@ -145,7 +145,7 @@ def assert_typed(dut, out0, period, taken, text):
 
 
 async def act3(dut, queue, logs):
-    """Act 3's enumeration as the Pico runs it, serving queue and logging with logs(host).
+    """Demo 3's enumeration as the Pico runs it, serving queue and logging with logs(host).
     Returns the host's handles, OUT0's edges, the board, and end(), which stops the Pico
     and checks neither engine faulted."""
     await reset(dut)
@@ -272,7 +272,7 @@ def start_log(host):
 
 @cocotb.test()
 async def test_keyboard(dut):
-    """Act 3 typing: after a SET_IDLE the keyboard's reports, while engine 1 sends each key
+    """Demo 3 typing: after a SET_IDLE the keyboard's reports, while engine 1 sends each key
     the host took out of OUT0, every edge on its certified cycle."""
     laptop = await act3(dut, demo_usb.reports("hi"), start_log)
     board = laptop.board
@@ -341,16 +341,12 @@ async def test_mouse_draw(dut):
         assert taken[n] < frames[3 * n][0], f"report {n} logged before it was taken"
 
 
-# test_keyboard's Python takes no sim time, so it passed while the bench overflowed the rx
-# fifo. test_keyboard_slow_host charges each call what it costs Pico A and enumerates the
-# way the bench laptop did. It runs in real time, a cycle being one of the chip's 48 MHz
-# for the laptop's sleeps and the Pico's ms() too: the fifo race is in microseconds against
-# 32 cycle bits, and a compressed millisecond would let a reload or a collection, charged
-# in real cycles, outlast the 10 ms after SET_ADDRESS. That is 330 ms of chip, an hour on
-# icarus, so only Verilator runs it:
+# test_keyboard_slow_host charges each call what it costs Pico A and enumerates as the
+# bench laptop did. It runs in real time (48 MHz cycles, also for sleeps and ms()), as a
+# compressed millisecond would let a reload outlast the 10 ms after SET_ADDRESS. That is
+# 330 ms of chip, an hour on icarus, so only Verilator runs it:
 #   make SIM=verilator COCOTB_TEST_MODULES=test_demo COCOTB_TEST_FILTER=slow_host
-# PICO_SCALE=k multiplies every cost, for the margin, and TURNAROUND_US the laptop's time
-# between transfers.
+# PICO_SCALE=k multiplies every cost, TURNAROUND_US is the laptop's time between transfers.
 
 # Pico A's costs in microseconds: before the call's SPI frame and after it, per word moved
 # (before a write's frame, after a read's), and the bytes allocated, per call and per word.
@@ -787,7 +783,7 @@ def timeline(laptop, levels, halts, pico, start, end, span_us=12_000):
 
 @cocotb.test(skip=cocotb.SIM_NAME != "Verilator")
 async def test_keyboard_slow_host(dut):
-    """Act 3 as demo_usb.run runs it on Pico A, at Pico A's pace, against the bench laptop."""
+    """Demo 3 as demo_usb.run runs it on Pico A, at Pico A's pace, against the bench laptop."""
     await reset(dut)
     start = cycle()
     scale = float(os.environ.get("PICO_SCALE", 1))

@@ -481,10 +481,10 @@ let%expect_test "i2c_master keeps Fast-mode Plus spacing, and a short SCL low is
 ;;
 
 (* The bus clear's SCL low cut to a quarter keeps every deadline, and the kernel refuses
-   it once it spaces the edges. At 6 MHz a quarter of 29, the fastest Standard mode
-   (test_i2c.ml), is refused only at pc 47: the SCL fall for a host word with no START,
-   whose SDA edge before is a STOP behind the host wait, past the kernel's bound. A
-   quarter of 28 is short of tSU;STA too. *)
+   it once it spaces the edges. At 6 MHz a quarter of 29 (test_i2c.ml) is refused only at
+   pc 47: the SCL fall for a host word with no START, whose SDA edge before is a STOP
+   behind the host wait, past the kernel's bound. A quarter of 28 is short of tSU;STA
+   too. *)
 let%expect_test "i2c_master's bus clear is spaced, and a short pulse is refused" =
   let c = Library.find_certified_exn "i2c_master" in
   let short_pulse =
@@ -857,12 +857,10 @@ let%expect_test "the row at pc 0 bounds nothing" =
     |}]
 ;;
 
-(* ws2812 as it was first written, with the wait of its reset gap after the loop rather
-   than in it. The line stays low as long, but each pass moves [t] 23 cycles further ahead
-   of [now], so the row at the head of the loop, which has to hold its own image one pass
-   on, has no bound on the phase short of the full range. Rows of intervals alone do not
-   know the wait after the loop to be in time; the offset does, since the phase less 23
-   times x holds still round the loop and x is zero where it falls through. *)
+(* ws2812 with the wait of its reset gap after the loop rather than in it. Each pass moves
+   [t] 23 cycles further ahead of [now], so the loop head's row has no phase bound short
+   of the full range. Intervals alone cannot show the wait in time; the offset can, as
+   the phase less 23 times x holds still round the loop and x is zero at its exit. *)
 let ws2812_waiting_after_gap =
   let c = Library.find_certified_exn "ws2812" in
   { c with
@@ -1096,13 +1094,13 @@ let%expect_test "a spacing is checked only where it is proved" =
 (* The kernel's row is the phase [now - t] an instruction enters at
    ([formal/phase_step.sv]), and a pin edge shows the cycle after the entry of an
    instruction that writes pins ([formal/edge_step.sv]): a set, out or mov to pins or
-   pindirs, any instruction that carries side-set, and the one that lands the second half
-   of a Manchester bit, all as the analyser's rows mark them. So the widest of those rows,
-   in cycles, bounds the jitter of every edge against its deadline; the first pc with it
-   is named. It is a bound and not the jitter of any one edge: side-set counts even where
-   it drives the level the pins already hold, which neither lemma knows. A row the kernel
-   leaves unbounded, before the first [mov t, now], after a wait on a pin or the host, or
-   in a loop as long as its data, has no deadline, and its pc is listed as untimed.
+   pindirs, any instruction with side-set, and the one that lands a Manchester bit's
+   second half, as the analyser's rows mark them. So the widest such row, in cycles,
+   bounds every edge's jitter against its deadline; its first pc is named. It is a bound,
+   not any one edge's jitter: side-set counts even where it drives the level the pins
+   already hold. A row left unbounded (before the first [mov t, now], after a wait on a
+   pin or the host, or in a loop as long as its data) has no deadline and is listed as
+   untimed.
 
    Reaction: a row that writes pins, has seen the captured edge and bounds the arm enters
    under [arm_hi] cycles after the core samples the edge, as the arm takes effect a cycle

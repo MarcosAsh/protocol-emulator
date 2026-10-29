@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""The outside chip acts' own Python on the RTL at the bench's 48 MHz, run blocking in a
+"""The outside chip demos' own Python on the RTL at the bench's 48 MHz, run blocking in a
 thread as Pico A runs it, against a third-party model of the part where there is one. The
 pins are sampled as the analyser samples them and decoded with the sigrok decoders
 demo/outside.sh runs on the bench's capture."""

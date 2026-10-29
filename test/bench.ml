@@ -28,12 +28,10 @@ type t =
   ; stimulus : Stimulus.t option
   }
 
-(* The Icepi's USB build drives IO0 and IO1's header pins with the USB lines, so I2C moves
-   to IO2 and IO3, SCL first as on Tiny Tapeout's I2C Pmod, 1-Wire to IO4 and 10BASE-T to
-   IO6 and IO7. The bench is wired once for every demo: CAN's TX keeps OUT1 and SWD keeps
-   OUT2 and IO5, so the SK6812 moves to OUT3 and the SPI masters to MOSI on OUT4, SCK on
-   OUT5 and CS on OUT6. The CAN node's CRX is on IN1. Bench_wiring has the analyser
-   channels. *)
+(* The Icepi's USB build uses IO0 and IO1, so I2C is on IO2 (SCL) and IO3, 1-Wire on IO4,
+   10BASE-T on IO6 and IO7. CAN's TX keeps OUT1, SWD OUT2 and IO5, the SK6812 is OUT3 and
+   the SPI masters are MOSI OUT4, SCK OUT5, CS OUT6. CAN's CRX is IN1. Bench_wiring has
+   the analyser channels. *)
 let neopixel = 8
 let mosi = 9
 let sck = 10

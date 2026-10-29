@@ -981,7 +981,6 @@ let scenario =
     |> List.concat_map ~f:(fun chunk ->
       send chunk ~bits:(16 * List.length chunk) ~replies:0)
   in
-  (* request, turnaround, ACK, turnaround, data, parity and eight idle cycles *)
   let transfer transfer =
     send
       (Transfer.words transfer)
@@ -990,7 +989,6 @@ let scenario =
   in
   let read ?(ap = false) address = Transfer.Read { ap; address } in
   let write address value = Transfer.Write { ap = false; address; value } in
-  (* each transfer as sigrok names it, its ACK and the data the DP has for it *)
   let transfers =
     [ read 0x0, "IDCODE", Some rp2040_dpidr
     ; write 0x0 0x1c, "W ABORT", Some 0x1c

@@ -113,9 +113,8 @@ let%expect_test "the bench's run against section 4's limits" =
     |}]
 ;;
 
-(* tDS, tDH and tREL are DAT against STB, two pins, so a limit's one pin cannot bound
-   them: the bench's run does, rise by rise, at the same one-cycle margin. tREL is the
-   checksum's last rise, the one before the ack's, where DAT was low and is let go. *)
+(* tDS, tDH and tREL are DAT against STB, two pins, so no single-pin limit bounds them:
+   the bench's run does, rise by rise, at the same one-cycle margin. *)
 let%expect_test "DAT against STB on the bench's run" =
   let stimulus = Option.value_exn Plinkoo.bench.stimulus in
   let pins = Datasheet.run_pins Plinkoo.bench ~quiet_pin:Plinkoo.stb stimulus in

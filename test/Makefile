@@ -127,26 +127,23 @@ icepi_netlist.v: $(SRC_DIR)/project.v $(SRC_DIR)/protocol_emulator.v ../icepi/ic
 	$(MAKE) -C ../icepi build/usb1.json
 	yosys -q -p "read_json ../icepi/build/usb1.json; write_verilog -noattr icepi_netlist.v"
 
-# The outside chip acts of BRINGUP.md on the RTL, against picosoc's SPI flash model,
-# cocotbext-i2c's memory and cocotbext-spi's loopback slave, each capture judged by sigrok's
-# decoders. Needs cocotbext-i2c 0.1.2, cocotbext-spi 0.5.0 with cocotb-bus 0.3.0, and
-# sigrok-cli beside cocotb.
+# The outside chip demos of BRINGUP.md on the RTL, against picosoc's SPI flash model,
+# cocotbext-i2c's memory and cocotbext-spi's loopback slave, judged by sigrok's decoders.
+# Needs cocotbext-i2c 0.1.2, cocotbext-spi 0.5.0, cocotb-bus 0.3.0 and sigrok-cli.
 outside:
 	$(MAKE) sim OUTSIDE=yes SIM_BUILD=sim_build/outside COCOTB_TEST_MODULES=test_outside \
 		PLUSARGS=+firmware=/dev/null \
 		COCOTB_RESULTS_FILE=results_outside.xml
 	$(PYTHON_BIN) -m cocotb_tools.check_results results_outside.xml
 
-# demo_both_roles.py and demo_rates.py on the RTL beside the outside chip demos' models,
-# as the bench runs them: make both_roles. Needs what outside needs.
+# demo_both_roles.py and demo_rates.py on the RTL, as the bench runs them. Needs outside's.
 both_roles:
 	$(MAKE) sim OUTSIDE=yes SIM_BUILD=sim_build/outside COCOTB_TEST_MODULES=test_both_roles_bench \
 		PLUSARGS=+firmware=/dev/null \
 		COCOTB_RESULTS_FILE=results_both_roles.xml
 	$(PYTHON_BIN) -m cocotb_tools.check_results results_both_roles.xml
 
-# demo_tolerance.py on the RTL, shortened to simulate: make tolerance_bench. Needs what
-# outside needs.
+# demo_tolerance.py on the RTL, shortened to simulate. Needs outside's.
 tolerance_bench:
 	$(MAKE) sim OUTSIDE=yes SIM_BUILD=sim_build/outside COCOTB_TEST_MODULES=test_tolerance_bench \
 		PLUSARGS=+firmware=/dev/null \
@@ -154,8 +151,8 @@ tolerance_bench:
 	$(PYTHON_BIN) -m cocotb_tools.check_results results_tolerance_bench.xml
 
 # demo_margins.py on the RTL against models with thresholds of their own, judged as
-# demo/margins.py judges the bench: make margins_bench MARGINS=margins.json, the JSON
-# test/python/write_margins.exe writes. Needs what outside needs.
+# demo/margins.py judges the bench: MARGINS=margins.json from test/python/write_margins.exe.
+# Needs outside's.
 margins_bench:
 	$(MAKE) sim OUTSIDE=yes SIM_BUILD=sim_build/outside COCOTB_TEST_MODULES=test_margins_bench \
 		PLUSARGS=+firmware=/dev/null MARGINS=$(abspath $(MARGINS)) \
@@ -163,8 +160,8 @@ margins_bench:
 	$(PYTHON_BIN) -m cocotb_tools.check_results results_margins_bench.xml
 
 # A remote lab job's firmware.json on the RTL as Pico A runs it, for demo/lab.py's rtl
-# backend: make lab LAB_FIRMWARE=DIR/firmware.json LAB_OUT=DIR. Needs what outside needs;
-# the firmware is not reassembled, so no dune runs. test/lab is the examples' folder.
+# backend: make lab LAB_FIRMWARE=DIR/firmware.json LAB_OUT=DIR. Needs outside's. The
+# firmware is not reassembled, so no dune runs.
 .PHONY: lab
 lab:
 	$(MAKE) sim OUTSIDE=yes SIM_BUILD=sim_build/outside COCOTB_TEST_MODULES=test_lab_rtl \
@@ -189,9 +186,9 @@ replay:
 	$(PYTHON_BIN) -m cocotb_tools.check_results results_replay.xml
 
 # The gate level's tests and replays with the router's delays at one corner (sdf_slow,
-# sdf_typ, sdf_fast) or all three (sdf), from the flow's SDF in SDF_DIR, at the chip's
-# 50 MHz, in one run each since annotating takes minutes. Icarus has no timing checks, so a
-# violation shows only as a wrong value.
+# sdf_typ, sdf_fast) or all three (sdf), from SDF_DIR, at 50 MHz, one run each as
+# annotating takes minutes. Icarus has no timing checks, so a violation shows only as a
+# wrong value.
 SDF_DIR ?= ../runs/wokwi/final/sdf
 CORNERS = slow typ fast
 sdf_file = $(or $(wildcard $(SDF_DIR)/nom_$(1)_*/*.sdf),$(error no $(1) SDF in $(SDF_DIR)))

@@ -25,19 +25,17 @@ let writes_pins (t : Isa.t) =
      stamp's, from the next one to send;
    - from each [out] to the next, the pin shows the stamp bit it sent.
 
-   What makes the first inductive is the line's level where the program knows it, since
-   every instruction after a [set pins] finds the level it set up to the next pin write,
-   and the delay left at each pc, which is no more than its ways in leave.
+   The first is inductive through the line's level where the program knows it (after a
+   [set pins] it holds to the next pin write) and the delay left at each pc.
 
-   It assumes no more than the certificate: inputs and the host's fifo traffic are free,
-   and the host never halts the core. No bound on the clock is needed, since the stamp is
-   [now] modulo 2^16 and so wraps with it; a receiver that wants the whole cycle unwraps
-   it, which takes frames less than 65536 cycles apart or a count of its own. The pin is
-   the engine's [pin_out] register, and each flop between it and the pad adds one cycle.
+   Assumes no more than the certificate: inputs and fifo traffic are free and the host
+   never halts the core. No clock bound is needed, as the stamp is [now] modulo 2^16 and
+   wraps with it. A receiver wanting the whole cycle unwraps it, which takes frames less
+   than 65536 cycles apart. The pin is the engine's [pin_out] register, and each flop
+   between it and the pad adds one cycle.
 
-   Two claims made wrong on purpose have to fail: OFF_BY_ONE puts the stamp a cycle after
-   the edge, and NEXT_BIT says the pin shows the bit after the one sent, both of which a
-   run from reset contradicts. *)
+   Two claims wrong on purpose have to fail: OFF_BY_ONE puts the stamp a cycle after the
+   edge, NEXT_BIT says the pin shows the bit after the one sent. *)
 let stamp_claims ~(config : Program_config.t) (rows : Analyser.Row.t list) =
   if config.side_set_count <> 0
      || config.manchester
@@ -379,31 +377,24 @@ let anyseq_host =
   "  (* anyseq *) wire tx_valid, rx_pop;\n  (* anyseq *) wire [15:0] tx_value;\n"
 ;;
 
-(* The same certificate as an invariant for induction, which holds for all time rather
-   than to a depth. The program is a ROM behind the macro's port, read a cycle late as the
-   macro is, so nothing about it can be wrong in the state induction starts from. At every
-   cycle the core runs:
+(* The same certificate as an invariant for induction, which holds for all time. The
+   program is a ROM behind the macro's port, read a cycle late, so nothing about it can
+   be wrong in the state induction starts from. At every cycle the core runs:
 
    - the instruction register holds the word at the pc and the memory's output the word
-     after it, but in the second cycle of a jump, when the output is the word at the new
-     pc and the register still the jump;
-   - the opcode, the decode flag and the wait pin, which the core registers beside the
-     word, say what the word says: they are state of their own, and induction would start
-     them disagreeing with it and let a wait retire before its deadline;
+     after it, except in a jump's second cycle (output at the new pc, register the jump);
+   - the opcode, decode flag and wait pin, registered beside the word, say what it says,
+     since induction could start them disagreeing and retire a wait early;
    - what is left of a delay brings the next issue to the phase its row allows;
-   - in a counted loop, the phase less the loop's slope times x lies in the row's offset,
-     which is what carries the phase to where the loop falls through;
+   - in a counted loop, phase less slope times x lies in the row's offset;
    - a wait that stalls has reached its row and, on a deadline, not yet the deadline;
-   - x, y and p hold what the analyser says they hold on the way into the pc;
-   - the pc is one the analyser reaches, and the instruction that issued last is one it
-     says the pc can follow;
+   - x, y and p hold what the analyser says on the way into the pc;
+   - the pc is one the analyser reaches, after an instruction it says can precede it;
    - a Manchester bit's second half is pending only where the analyser says it can be;
-   - where the program moves the capture, the captured edge is a cycle that has passed,
-     which is what the analyser takes [mov t, capture] to load; the clock and the capture
-     start together at zero and the clock has moved on by the first issue;
-   - the cycles since the last pin edge are what the analyser says for the way in from
-     that instruction, on the way in and while a delay or a wait holds the core, which is
-     what makes the gaps between edges hold in a loop that anchors no deadline;
+   - where the program moves the capture, the captured edge has passed, which is what the
+     analyser takes [mov t, capture] to load, and the clock and capture start at zero;
+   - the cycles since the last pin edge are what the analyser says for the way in, also
+     while a delay or wait holds the core, which holds the gaps in a loop with no deadline;
    - under the single-edge assumption, the capture is armed until the edge, which comes
      after the arm, and after the wait for it is as old as the analyser says. *)
 let inductive
@@ -754,15 +745,12 @@ let inductive
     in
     phase ^ capture
   in
-  (* The one thing a certificate assumes of time, [no_wrap]. A wait for the host or for a
-     pin can stall for as long as the world likes, so the rows after it have a floor under
-     their phase and no ceiling: the core can fall arbitrarily far behind its deadline and
-     24 bits of the difference wrap. A loop that anchors no deadline does the same from
-     the other side, since intervals cannot say that its counter runs out, and the
-     captured edge a receiver anchors on can lie as far back on a line that stays idle.
-     The core's own release compares the same 24 bits, so this is a bound the hardware
-     keeps as well: a deadline more than about 168 ms away at 50 MHz is one it reads the
-     wrong way round. Keeping the core within 84 ms of its deadline, and of that edge,
+  (* The one thing a certificate assumes of time, [no_wrap]. A wait for the host or a pin
+     can stall indefinitely, so the rows after it have no ceiling on phase and 24 bits of
+     the difference wrap. A loop that anchors no deadline does the same, and a captured
+     edge can lie as far back on an idle line. The core's own release compares the same
+     24 bits (a deadline over about 168 ms away at 50 MHz reads the wrong way round), so
+     the hardware keeps this bound too. Within 84 ms of the deadline and of that edge
      covers all three. *)
   let no_wrap =
     if not no_wrap

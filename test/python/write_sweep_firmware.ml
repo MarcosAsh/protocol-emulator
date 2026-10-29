@@ -11,9 +11,8 @@ open Protocol_emulator_test
 
 let wire = Swept.wire
 
-(* The most cycles the host may take from one poll to the next: 150 us at 48 MHz, about
-   twice the Pico's drain. A burst of more edges than engine 1's fifo holds must take
-   twice this over every [fifo_depth + 1] of them. *)
+(* The most cycles between host polls: 150 us at 48 MHz, about twice the Pico's drain. A
+   burst longer than engine 1's fifo takes twice this per [fifo_depth + 1] edges. *)
 let poll = 7200
 
 (* act 2's logger, which echoes the wire on OUT0 for the analyser *)
@@ -61,7 +60,6 @@ let simulate ~config ~words ~preamble ~bursts =
     | Op { op = Mov { dest = T; _ }; _ } | Op { op = Out { dest = T; _ }; _ } -> true
     | _ -> false
   in
-  (* the host starts the logger first, so it is waiting by engine 0's first edge *)
   let logger =
     Fn.apply_n_times
       ~n:16
@@ -92,7 +90,6 @@ let simulate ~config ~words ~preamble ~bursts =
       first := false;
       since_edge := 0);
     if issued && anchors before.pc then first := true;
-    (* the host takes every stamp *)
     let rec drain (m : Machine.t) =
       match Machine.read_rx m with
       | Some (stamp, m) ->
@@ -221,7 +218,6 @@ let fields config =
   |> Engine.Config.to_list
 ;;
 
-(* items, a comma after each, wrapped at 88 columns *)
 let print_items indent items =
   let flush line = if not (String.is_empty line) then printf "%s%s\n" indent line in
   List.fold items ~init:"" ~f:(fun line item ->
@@ -239,7 +235,6 @@ let print_items indent items =
 let hex = List.map ~f:(sprintf "0x%04X")
 let inline items = "[" ^ String.concat ~sep:", " items ^ "]"
 
-(* the fields where [config] is not [Program_config.default], as a dict *)
 let print_changes indent config =
   let changes =
     List.filter_map
