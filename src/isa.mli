@@ -1,10 +1,10 @@
 (** The core's instruction set: 16-bit words; registers [x], [y], [p] (16 bits), deadline
     [t] and free-running [now] (24 bits), shift registers [osr] and [isr]. An instruction
     takes [1 + delay] cycles plus any [wait] stall; a [jmp] always takes [jmp_cycles],
-    taken or not, so issue timing never depends on data. Firmware sets [t], waits on it
-    and advances it by [p], so pin edges are computable from the program alone. Pins are
-    one flat space: inputs, outputs, bidirectional, then [num_wires] wires ORed across
-    engines. Pin shifts start at a configured base pin, as in the RP2040 PIO. *)
+    taken or not. Firmware sets [t], waits on it and advances it by [p], so pin edges are
+    computable from the program alone. Pins are one flat space: inputs, outputs,
+    bidirectional, then [num_wires] wires ORed across engines. Pin shifts start at a
+    configured base pin, as in the RP2040 PIO. *)
 
 open! Core
 open! Hardcaml

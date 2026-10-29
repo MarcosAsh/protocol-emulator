@@ -16,12 +16,10 @@ module Pin_event : sig
   [@@deriving sexp_of]
 end
 
-(** What side-set does to its pins, on every instruction that carries it: [at] is the
-    phase the level shows on the pins. A wait drives them when it is reached and holds
-    them while it stalls, so [at] is the wait's own phase and not its release. [changes]
-    is false when the pins hold that level already on every way in, which makes the
-    instruction a hold and not an edge; otherwise [at] covers only the ways in that can
-    change the level, which after a plain write to the same pins is any of them. *)
+(** What side-set does to its pins: [at] is the phase the level shows on the pins. A wait
+    drives them when it is reached, so [at] is its own phase and not its release.
+    [changes] is false when the pins hold that level already on every way in, a hold and
+    not an edge; otherwise [at] covers only the ways in that can change the level. *)
 module Side_event : sig
   type t =
     { at : Interval.t
@@ -37,10 +35,8 @@ module Row : sig
     ; phase : Interval.t
     ; slope : int
     ; offset : Interval.t
-    (** The phase less [slope * x] on the way in. In a counted loop, a [jmp x--] back over
-        instructions that move the phase alike on every pass, the phase drifts and has no
-        bound, but this holds still; where the loop falls through, x is zero and the phase
-        lies in it. The straight run into the loop from its [set x] shares the slope.
+    (** The phase less [slope * x] on the way in. In a counted loop the phase drifts but
+        this holds still; where the loop falls through, x is zero and the phase lies in it.
         [slope] is zero and [offset] unbounded elsewhere. *)
     ; slack : Interval.t option
     ; may_miss : bool
@@ -50,10 +46,8 @@ module Row : sig
     (** Where the second half of a Manchester bit shows, which is where this instruction
         issues when it is the next after a Manchester [out]. *)
     ; gaps : (int * Interval.t) list
-    (** For an instruction that makes a pin edge, a write or a flip, the cycles since the
-        edge before it, for each instruction it can follow: a timing that needs no
-        deadline, so it holds inside a loop with none, like one sending a bit every four
-        cycles, where the first bit's gap back to the idle line is another matter. *)
+    (** For an instruction that makes a pin edge, the cycles since the edge before it, for
+        each instruction it can follow: a timing that needs no deadline. *)
     ; since_edge : (int * Interval.t) list
     (** For every instruction, the cycles on the way in since the last pin edge showed,
         for each instruction it can follow; [gaps] is this plus the cycle to its own edge. *)
@@ -78,14 +72,11 @@ end
 val captures : Program_config.t -> Isa.Wait.t -> bool
 
 (** Assumptions about the world, each named so a report can say what it rests on. [period]
-    is the value every run-time load of [p] carries, for firmware that takes its bit
-    period from the host. [single_capture_edge] says the capture pin is at the other level
-    when [capture_arm] issues and holds the captured level until the wait for it releases,
-    which is what a start bit gives a receiver that arms in time; without it a wait on the
-    capture pin proves nothing about the capture register, and [mov t, capture] leaves the
-    phase unbounded. [period_floor], in place of [period], assumes only that every load
-    carries at least it. A state that has changed [max_passes] times at an address, 256 by
-    default, is widened there: a bound that moved again is dropped. *)
+    is the value every run-time load of [p] carries. [single_capture_edge] says the capture
+    pin is at the other level when [capture_arm] issues and holds the captured level until
+    the wait for it releases; without it [mov t, capture] leaves the phase unbounded.
+    [period_floor], in place of [period], assumes only that every load carries at least
+    it. A state changed [max_passes] times at an address, 256 by default, is widened. *)
 val analyse
   :  ?period:int
   -> ?period_floor:int
@@ -95,9 +86,8 @@ val analyse
   -> Isa.t list
   -> Row.t list
 
-(** A line per row: address, instruction, phase, the slack of a deadline wait, [edge] or
-    [sample] for what the instruction does to the pins and [side] where side-set changes
-    its pins, each with its jitter when there is any, and [MAY UNDERRUN] on a data pull
+(** A line per row: address, instruction, phase, the slack of a deadline wait, [edge],
+    [sample] or [side] for what it does to the pins, and [MAY UNDERRUN] on a data pull
     that may come too soon. *)
 val to_string : side_set_count:int -> Row.t list -> string
 
@@ -113,10 +103,9 @@ module Verdict : sig
 end
 
 (** Analyses a program under its own side-set count and wrap addresses and refuses it if
-    any deadline wait can be reached with a phase above zero, which includes a phase with
-    no upper bound, or any data autopull may come too soon. The error lists every such row
-    as [to_string] prints it: address, instruction, phase and slack. Only rows the program
-    can reach are counted. The assumptions are [analyse]'s. *)
+    any deadline wait can be reached with a phase above zero, or any data autopull may
+    come too soon. The error lists every such row as [to_string] prints it. Only reachable
+    rows count. The assumptions are [analyse]'s. *)
 val check
   :  ?period:int
   -> ?period_floor:int

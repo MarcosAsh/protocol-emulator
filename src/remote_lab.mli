@@ -13,9 +13,8 @@ open! Core
 (** [Wavedrom.rated_hz]: a job has no clock of its own. *)
 val clock_hz : int
 
-(** OUT0, analyser A's D4. The interpreter drives OUT0 to OUT5 (Bench_wiring has what each
-    reaches, all inputs behind a resistor or a buffer) and holds the lanes it is not given
-    low, but only OUT0 is captured and wired to nothing that minds a toggle. *)
+(** OUT0, analyser A's D4. The interpreter drives OUT0 to OUT5 and holds the lanes it is
+    not given low, but only OUT0 is captured and wired to nothing that minds a toggle. *)
 val bench_pins : int list
 
 (** Which of sigrok's decoders to run on the capture, from a fixed list. *)

@@ -36,8 +36,7 @@ let cycles n = [%string "%{n#Int} %{if n = 1 then \"cycle\" else \"cycles\"}"]
 (* For a deadline wait that is the only wait in the innermost loop round it, a [jmp] or
    [jmp x--] back over a straight run: the cycles a pass takes and what it adds to [t].
    Once late the wait does not stall, so a pass that takes more than it adds leaves it
-   that much later each time round. A [jmp x--] reached with x zero never jumps back, so
-   closes no loop. *)
+   that much later each time round. *)
 let late_pass ~(config : Program_config.t) (rows : Analyser.Row.t list) ~pc =
   let open Option.Let_syntax in
   let known (i : Interval.t) =

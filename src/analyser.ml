@@ -11,10 +11,9 @@ module State = struct
     ; since_arm : Interval.t option
     ; captured : bool
     (** A wait for the captured edge has released since the last [capture_arm], on every
-        way in; until then the capture register holds an older edge. *)
+        way in. *)
     ; awaiting : bool
-    (** Armed and no wait for the edge has released since, on every way in: only such a
-        wait sees the edge the assumption is about. *)
+    (** Armed and no wait for the edge has released since, on every way in. *)
     ; since_edge : Interval.t (** Cycles since the last pin edge showed. *)
     ; since_data : Interval.t (** Cycles since the data pointer last moved. *)
     ; osr_count : Interval.t (** Bits shifted out since the last pull. *)
@@ -23,8 +22,7 @@ module State = struct
     }
   [@@deriving sexp_of, compare, equal]
 
-  (* [p] is a 16-bit register whatever it holds, so [wait t+] before any [set p] still
-     leaves the phase bounded above *)
+  (* [p] is 16 bits whatever it holds, so the phase stays bounded above *)
   let initial =
     { phase = Interval.top
     ; offset = Interval.top
@@ -172,8 +170,7 @@ let writes_side_set (c : Program_config.t) (op : Isa.Op.t) =
   | Set { dest = Pins; _ } -> to_pins && overlaps ~base:c.set_base ~count:c.set_count
   | Set { dest = Pindirs; _ } ->
     c.side_set_pindirs && overlaps ~base:c.set_base ~count:c.set_count
-  (* a Manchester bit drives the pin beside too; its second half needs nothing more, as
-     side-set's level is lost already and an instruction's own side-set lands after it *)
+  (* a Manchester bit drives the pin beside too; its second half needs nothing more *)
   | Out { dest = Pins; count = 1 } when c.manchester ->
     to_pins && overlaps ~base:c.out_base ~count:2
   | Out { dest = Pins; count } -> to_pins && overlaps ~base:c.out_base ~count
@@ -193,8 +190,7 @@ let writes_pins (op : Isa.Op.t) =
   | _ -> false
 ;;
 
-(* Whether an instruction arriving in [s] makes a pin edge, the cycle after it issues: a
-   pin write always does, and so does the second half of a Manchester bit it brings. *)
+(* Whether an instruction arriving in [s] makes a pin edge, the cycle after it issues. *)
 let makes_edge (s : State.t) (t : Isa.t) =
   match t, s.flip with
   | Op { op; _ }, _ when writes_pins op -> Some true
@@ -273,8 +269,7 @@ let count_down (r : Interval.t) =
 ;;
 
 (* Successors of [pc] with the state after the instruction. A wait on a pin or a fifo can
-   take any time, so the phase only gets a lower bound. [slope_at] gives each pc's slope,
-   which the offset on the way into it is taken against: see [slopes]. *)
+   take any time, so the phase only gets a lower bound. *)
 let step
   ?period
   ?period_floor
@@ -379,8 +374,8 @@ let step
          }
      | Wait ((Pin_level _ | Pin_edge _ | Fifo _) as wait) ->
        let unbounded (i : Interval.t) = { i with hi = None } in
-       (* The capture is the edge the wait releases on, or an earlier one since the arm,
-          but only if the line made one edge; otherwise it can be any age. *)
+       (* The capture is the edge the wait releases on, or an earlier one since the arm, if the
+          line made one edge; otherwise any age. *)
        let capturing = single_capture_edge && captures config wait && s.awaiting in
        let since_arm =
          match s.since_arm with
@@ -400,9 +395,8 @@ let step
      | Mov { dest = T; op = Copy; source = Now } ->
        after { s with phase = Interval.exactly 0; offset = Interval.top }
      | Mov { dest = T; op = Copy; source = Capture } ->
-       (* the capture is at least a cycle old, since a register shows the cycle after it
-          is written, and once the line made an edge, a cycle younger than the arm, which
-          takes effect a cycle late *)
+       (* the capture is at least a cycle old, as a register shows the cycle after it is
+          written, and once the line made an edge, a cycle younger than the arm *)
        let phase =
          { Interval.lo = Some 1
          ; hi =
@@ -471,9 +465,8 @@ let relate ~slope_at pc (t : Isa.t) successors =
     else next, { s with offset = Interval.top })
 ;;
 
-(* What an instruction adds to the phase alike on every pass through it, in the state the
-   analysis joins over all of them: nothing known for a jump, a wait, a write to x, or a
-   write to t other than adding a known amount. *)
+(* What an instruction adds to the phase alike on every pass through it: nothing known
+   for a jump, a wait, a write to x, or a write to t other than adding a known amount. *)
 let drift (s : State.t) (t : Isa.t) =
   let known (i : Interval.t) =
     match i.lo, i.hi with
@@ -508,14 +501,10 @@ let exits_loop (t : Isa.t) ~first ~last =
   | Jmp { target; _ } -> target < first || target > last
 ;;
 
-(* A counted loop is a [jmp x--] back over a straight run of instructions that each move
-   the phase alike on every pass, or jump out of the loop leaving x alone. If a pass moves
-   it by [d] while x counts down by one, [phase + d * x] holds still round the loop: its
-   slope is [-d]. The analysis keeps the phase less the slope times x as the offset at
-   every pc of the loop, and where the loop falls through, x is zero and the phase lies in
-   the offset. A loop that overlaps one found before it gets no slope. The straight run
-   from a [set x] into the loop takes its slope too, so the offset [set x] gives reaches
-   the loop. *)
+(* A counted loop is a [jmp x--] back over instructions that each move the phase alike on
+   every pass, or jump out leaving x alone. If a pass moves it by [d] while x counts down
+   by one, [phase + d * x] holds still: the slope is [-d]. A loop overlapping an earlier
+   one gets none. The straight run from a [set x] into the loop shares its slope. *)
 let slopes ~(config : Program_config.t) (program : Isa.t array) entry =
   let slopes = Array.create ~len:(Array.length program) 0 in
   let drift_at b = Option.bind entry.(b) ~f:(fun s -> drift s program.(b)) in

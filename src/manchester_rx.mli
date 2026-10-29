@@ -5,7 +5,7 @@
     the expected position of the last one is the next mid-bit transition: its bit is the
     level after it, and the expected position moves by its error over [2^gain_shift].
     Earlier ones are bit boundaries and are ignored. With none for 3/2 of a bit the
-    carrier is gone: the TP_IDL after a frame, or a broken one.
+    carrier is gone.
 
     After 0xd5 the bits are a frame, packed sixteen to a word, first bit lowest, so the
     first byte lands in the low half as the data memory holds it. A frame that ends on a

@@ -180,9 +180,7 @@ let event_source ~(edge : Edge.t) ~(guard : Level.t option) ~header ~budget =
 ;;
 
 (* A half per level of the pin: it anchors, polls in a counted loop, pads to the latency,
-   polls once more and pulses the verdict, then waits for the level to change. Every way
-   into an anchor, the first poll's fall through and the wrap included, is a sample
-   [to_anchor] cycles before. *)
+   polls once more and pulses the verdict, then waits for the level to change. *)
 let quiet_source ~pin ~header ~budget ~loops ~stretch =
   let half ~name ~other ~high =
     let leave = [%string "jmp %{if high then \"!pin\" else \"pin\"}, %{other}"] in

@@ -8,13 +8,8 @@ module type Config = sig
   val gain_shift : int
 end
 
-(* A first-order digital PLL on the transitions themselves:
-   {v
-   A Manchester bit always has a transition at its centre. Measure each transition from
-   where the last centre was expected; one past 3/4 of a bit is the next centre, and
-   moves the expectation by error * 2^-gain_shift.
-   IEEE 802.3-2008 14.3.1.3.1: a station accepts 13.5 ns of jitter on its edges.
-   v} *)
+(* A first-order digital PLL on the transitions: see the .mli.
+   IEEE 802.3-2008 14.3.1.3.1: a station accepts 13.5 ns of jitter on its edges. *)
 module Make (Config : Config) = struct
   open Config
 

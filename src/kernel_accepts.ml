@@ -49,9 +49,8 @@ module Make_timer (Timer : Engine.Timer) = struct
     ;;
 
     (* A row bounds a pin at each bit it may hold by the least cycles since its last edge
-       and by [mark], the least of those cycles less the phase, [t] less the edge's entry,
-       which the phase's jitter leaves alone. [mark_none] bounds nothing; a mark above
-       [mark_max] only a saturated count keeps. *)
+       and by [mark], those cycles less the phase, which jitter leaves alone. [mark_none]
+       bounds nothing; a mark above [mark_max] only a saturated count keeps. *)
     let mark_none = of_signed_int ~width:mark_bits (-(1 lsl (mark_bits - 1)))
     let mark_max = of_signed_int ~width:mark_bits ((1 lsl (timer_bits - 1)) + 0xffff)
     let mark_wide x = sresize x ~width:(mark_bits + 2)
@@ -87,8 +86,8 @@ module Make_timer (Timer : Engine.Timer) = struct
 
     (* A pin's bounds after the word: at the bit it keeps, the counts go on by the least
        [duration] and the mark by the least move of [t], if known; at the bit it moves to,
-       they restart. Where the next phase is known to be [next_phase_hi] or less, the
-       count less that bounds the mark too, so a mark lost to a wait comes back. *)
+       they restart. Where the next phase is [next_phase_hi] or less, the count less that
+       bounds the mark too. *)
     let pin_image
       (w : Watched.t)
       (r : _ Pin.t)
@@ -226,8 +225,7 @@ module Make_timer (Timer : Engine.Timer) = struct
 
     (* Both pins' bounds after the word from the row's, and whether each keeps its
        spacing: the least duration is the cycles and a deadline wait's least stall, and
-       [t] moves by the analyser's classes. A mark follows only where [phase_fits]: the
-       next phase is bounded, by [image_hi] above, and does not wrap. *)
+       [t] moves by the analyser's classes. A mark follows only where [phase_fits]. *)
     let row_edges
       ~side_set_count
       ~(spacing : _ Spaced.t)
@@ -408,9 +406,9 @@ module Make_timer (Timer : Engine.Timer) = struct
           else mux2 c.x_dec fallen_lo image_lo, mux2 c.x_dec fallen_hi image_hi
         in
         let fits = image_lo >=+ timer_min &: (image_hi <=+ timer_max) in
-        (* The offset's image, where [s.slope * x] is known on this way out: after
-           [set x], from the phase's image; with the slope the same and x the same, or one
-           less on the way a counted jump takes, from this row's offset. *)
+        (* The offset's image, where [s.slope * x] is known on this way out: after [set x],
+           from the phase's image; with the slope and x the same, or x one less on a
+           counted jump's way, from this row's offset. *)
         let offset_known, offset_image_lo, offset_image_hi =
           let wider x = sresize x ~width:offset_bits in
           let product = wider (s.slope *+ small_value) in

@@ -206,7 +206,7 @@ module Make_timer (Timer : Engine.Timer) = struct
 
     (* A pin's edge state after the word, [duration] or more cycles on, where out or mov
        data puts [data] on it: the cycles since its last edge count on, or restart where
-       it moves. Its first write in a run sets it and is not counted as an edge. *)
+       it moves. A first write in a run is not an edge. *)
     let edge_after (w : Watched.t) (e : _ Edge.t) ~data ~duration =
       let level = mux2 w.data data @@ mux2 w.written w.bit e.level in
       let changes = level <>: e.level in

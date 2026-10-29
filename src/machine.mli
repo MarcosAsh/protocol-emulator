@@ -13,11 +13,9 @@
     the direction bit is set), 20-27 wires (read ORed with what [inputs] says others
     drive). Writes to inputs are dropped.
 
-    Nothing touching a fifo stalls: a push into a full fifo drops and sets [overflow], a
-    pull from an empty one leaves [osr] and sets [underflow]. A late deadline release sets
-    [missed_deadline]; an undecodable word halts and sets [decode]. CRC and stuff counter
-    see only single-bit [in]/[out]; [jmp stuff_pending] compares the run with the
-    threshold. *)
+    A push into a full fifo drops and sets [overflow], a pull from an empty one leaves
+    [osr] and sets [underflow]. A late deadline release sets [missed_deadline], an
+    undecodable word halts and sets [decode]. *)
 
 open! Core
 

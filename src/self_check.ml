@@ -178,9 +178,9 @@ let edges ?period ~config (program : Asm.Program.t) ~first ~last =
   later @ [ final + gap ]
 ;;
 
-(* [checker]'s wait for a check ends [lead] cycles before the edge and its wait for the
-   least [least_lead] cycles before it; each frame's [t] is anchored [anchor] cycles after
-   its first edge. *)
+(* [checker]'s wait for a check ends [lead] cycles before the edge, its wait for the least
+   [least_lead] before it. Each frame's [t] is anchored [anchor] cycles after its first
+   edge. *)
 let lead = 2
 let least_lead = 5
 let anchor = 10

@@ -7,12 +7,11 @@
     says, for any program; [test/test_kernel.ml] proves by SAT that [accepts] keeps [step]
     inside the rows and a deadline wait at or below zero. SAT cannot follow a
     multiplication, so that proof takes the offsets as free inputs under axioms of modular
-    arithmetic, which it states and rests on. So a program whose rows all pass, with the
-    full range at pc 0, never misses a deadline. An empty row is a pc never reached; the
-    full range is an unknown phase. Rows also bound a pair of pins' edges, so that with a
-    [Spacing] no edge comes too soon: [formal/phase_spacing.sby] proves that on the RTL
-    for tables of intervals, taking the one-run theorem, the step lemmas and
-    [pair_step.sby]'s as their own runs prove them. *)
+    arithmetic, which it states. So a program whose rows all pass, with the full range at
+    pc 0, never misses a deadline. An empty row is a pc never reached; the full range is
+    an unknown phase. Rows also bound a pair of pins' edges, so that with a [Spacing] no
+    edge comes too soon: [formal/phase_spacing.sby] proves that on the RTL, taking the
+    one-run theorem, the step lemmas and [pair_step.sby]'s as their own runs prove them. *)
 
 open! Core
 open! Hardcaml
@@ -98,12 +97,11 @@ module Make_timer (_ : Engine.Timer) : sig
   end
 
   (** [slope] is signed. [offset_lo] and [offset_hi] bound [phase - slope * x], taken
-      modulo the timer and read as signed, and their full range bounds nothing. A counted
-      loop that moves [t] by the same amount on every pass keeps it: its phase has no
-      bound short of the full range, but where [jmp x--] falls through, x is zero and the
-      phase lies inside the offset. The kernel follows it across [set x] and across a step
-      that adds to the phase and leaves x alone or counts it down, with the slope the same
-      on both rows; on any other step the next row's offset has to be full. *)
+      modulo the timer and read as signed; their full range bounds nothing. Where a
+      counted loop's [jmp x--] falls through, x is zero and the phase lies inside the
+      offset. The kernel follows it across [set x] and across a step that adds to the
+      phase and leaves x alone or counts it down, with the slope the same on both rows;
+      on any other step the next row's offset has to be full. *)
   module Row : sig
     type 'a t =
       { phase_lo : 'a
@@ -175,7 +173,7 @@ module Make_timer (_ : Engine.Timer) : sig
 
   (** The next entry's phase: anything unless [bounded], one less too if [may_carry].
       [next_period] holds when [period_known]. [loaded], when valid, is the assumption
-      that every run-time write to [p] carries its value. The same for [x] and [y]. A jump
+      that every run-time write to [p] carries its value, likewise [x] and [y]. A jump
       goes to its target when [taken], if [taken_known]. [next_arm] counts the cycles
       since [capture_arm], leaving out a capturing wait's own wait, when [next_arm_known];
       once [next_captured], the capture is younger than that, as the arm takes effect a
