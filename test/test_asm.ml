@@ -175,6 +175,24 @@ let%expect_test "errors name the line" =
     |}]
 ;;
 
+let%expect_test "a jump past program memory names its line" =
+  let try_ source =
+    print_s [%sexp (Asm.assemble source |> Or_error.ignore_m : unit Or_error.t)]
+  in
+  try_ "jmp 600";
+  try_ "jmp x--, -1";
+  (* a label one past a full memory *)
+  try_ (String.concat ~sep:"\n" (("jmp end" :: List.init 511 ~f:(fun _ -> "nop")) @ [ "end:" ]));
+  [%expect {|
+    (Error
+     ((line 1 "jmp 600") (target "out of range" (value 600) (lo 0) (hi 511))))
+    (Error
+     ((line 1 "jmp x--, -1") (target "out of range" (value -1) (lo 0) (hi 511))))
+    (Error
+     ((line 1 "jmp end") (target "out of range" (value 512) (lo 0) (hi 511))))
+    |}]
+;;
+
 let%expect_test "a tab separates tokens as a space does" =
   listing "loop:\tset pins, 1\t[2]\t; idle\n\tjmp\tloop";
   [%expect {|
