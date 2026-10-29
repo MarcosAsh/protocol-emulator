@@ -384,11 +384,11 @@ let%expect_test "every edge and every sample is placed by a deadline" =
       0  set pindirs, 0 side 0        phase ?..?  edge ?..?  jitter ?  side ?..?  jitter ?
       1  set pins, 0 side 0           phase ?..?  edge ?..?  jitter ?  gap 1
      10  in pins, 1 side 0            phase -22  sample -22
-     15  set pindirs, 1 side 0        phase -17..?  edge -16..?  jitter ?  gap 5..?
-     22  out y, 1 side 1              phase -15..?  side 4
+     15  set pindirs, 1 side 0        phase ?..?  edge ?..?  jitter ?  gap 5..?
+     22  out y, 1 side 1              phase ?..?  side 4
      33  out pins, 1 side 0           phase -24  edge -23  side -23  gap 44..?
      35  nop side 1                   phase -24  side -23
-     44  set pindirs, 0 side 0        phase -8..?  edge -7..?  jitter ?  side -7..?  jitter ?  gap 36..?
+     44  set pindirs, 0 side 0        phase ?..?  edge ?..?  jitter ?  side ?..?  jitter ?  gap 36..?
      49  set pins, 1 side 0           phase -24  edge -23  side -23  gap 58..?
      51  nop side 1                   phase -24  side -23
      53  out pins, 1 side 0           phase -24  edge -23  side -23  gap 50

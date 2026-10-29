@@ -106,16 +106,16 @@ let%expect_test "i2c master" =
     15  nop side 1                   phase -7  side -6
     16  jmp 91                       phase -6
     17  wait tx side 0               phase -5
-    18  pull side 0                  phase -4..?
-    19  mov t, now side 0            phase -3..?
+    18  pull side 0                  phase ?..?
+    19  mov t, now side 0            phase ?..?
     20  add t, p side 0              phase 1
     21  add t, p side 0              phase -6
     22  out x, 1 side 0              phase -13
     23  jmp x--, 33                  phase -12
     24  jmp 47                       phase -10
     25  wait tx side 1               phase 0..2
-    26  pull side 1                  phase 1..?
-    27  mov t, now side 1            phase 2..?
+    26  pull side 1                  phase ?..?
+    27  mov t, now side 1            phase ?..?
     28  add t, p side 1              phase 1
     29  add t, p side 1              phase -6
     30  out x, 1 side 1              phase -13
@@ -212,16 +212,16 @@ let%expect_test "a quarter of 5 is too short for the i2c dispatch" =
     15  nop side 1                   phase -4  side -3
     16  jmp 91                       phase -3
     17  wait tx side 0               phase -2
-    18  pull side 0                  phase -1..?
-    19  mov t, now side 0            phase 0..?
+    18  pull side 0                  phase ?..?
+    19  mov t, now side 0            phase ?..?
     20  add t, p side 0              phase 1
     21  add t, p side 0              phase -3
     22  out x, 1 side 0              phase -7
     23  jmp x--, 33                  phase -6
     24  jmp 47                       phase -4
     25  wait tx side 1               phase 3..5
-    26  pull side 1                  phase 4..?
-    27  mov t, now side 1            phase 5..?
+    26  pull side 1                  phase ?..?
+    27  mov t, now side 1            phase ?..?
     28  add t, p side 1              phase 1
     29  add t, p side 1              phase -3
     30  out x, 1 side 1              phase -7
@@ -389,7 +389,7 @@ let%expect_test "usb tx" =
      6  set y, 1                     phase -30
      7  pull                         phase -29..-23
      8  set x, 7                     phase -28..-22
-     9  jmp stuff, 45                phase -27..-21
+     9  jmp stuff, 47                phase -27..-21
     10  wait t+                      phase -25..-19  slack 19..25
     11  out pins, 1                  phase -31  edge -30  gap 25..?
     12  jmp pin, 14                  phase -30
@@ -401,7 +401,7 @@ let%expect_test "usb tx" =
     18  mov y, osr                   phase -22..-21
     19  pull                         phase -24..-20
     20  set x, 7                     phase -23..-19
-    21  jmp stuff, 50                phase -26..-18
+    21  jmp stuff, 52                phase -26..-18
     22  wait t+                      phase -24..-16  slack 16..24
     23  out pins, 1                  phase -31  edge -30  gap 22..39
     24  jmp pin, 26                  phase -30
@@ -411,40 +411,42 @@ let%expect_test "usb tx" =
     28  in crc, 16                   phase -24..-23
     29  mov osr, !isr                phase -23..-22
     30  set x, 15                    phase -22..-21
-    31  jmp stuff, 55                phase -26..-20
+    31  jmp stuff, 57                phase -26..-20
     32  wait t+                      phase -24..-18  slack 18..24
     33  out pins, 1                  phase -31  edge -30  gap 24..37
     34  jmp pin, 36                  phase -30
     35  mov pins, !pins              phase -28  edge -27  gap 3
     36  jmp x--, 31                  phase -28..-27
-    37  jmp stuff, 60                phase -26..-25
+    37  jmp stuff, 62                phase -26..-25
     38  wait t+                      phase -24..-23  slack 23..24
-    39  set pins, 0                  phase -31  edge -30  gap 28..32
-    40  wait t+                      phase -30  slack 30
-    41  wait t+                      phase -31  slack 31
-    42  set pins, 2                  phase -31  edge -30  gap 64
-    43  wait t+                      phase -30  slack 30
-    44  jmp 3                        phase -31
-    45  wait t+                      phase -25..-19  slack 19..25
-    46  nop [2]                      phase -31
-    47  mov pins, !pins              phase -28  edge -27  gap 28..?
-    48  stuff_reset                  phase -27
-    49  jmp 9                        phase -26
-    50  wait t+                      phase -24..-16  slack 16..24
-    51  nop [2]                      phase -31
-    52  mov pins, !pins              phase -28  edge -27  gap 25..42
-    53  stuff_reset                  phase -27
-    54  jmp 21                       phase -26
-    55  wait t+                      phase -24..-18  slack 18..24
-    56  nop [2]                      phase -31
-    57  mov pins, !pins              phase -28  edge -27  gap 27..40
-    58  stuff_reset                  phase -27
-    59  jmp 31                       phase -26
-    60  wait t+                      phase -24..-23  slack 23..24
-    61  nop [2]                      phase -31
-    62  mov pins, !pins              phase -28  edge -27  gap 32..35
-    63  stuff_reset                  phase -27
-    64  jmp 38                       phase -26
+    39  nop [2]                      phase -31
+    40  set pins, 0                  phase -28  edge -27  gap 31..35
+    41  wait t+                      phase -27  slack 27
+    42  wait t+                      phase -31  slack 31
+    43  nop [2]                      phase -31
+    44  set pins, 2                  phase -28  edge -27  gap 64
+    45  wait t+                      phase -27  slack 27
+    46  jmp 3                        phase -31
+    47  wait t+                      phase -25..-19  slack 19..25
+    48  nop [2]                      phase -31
+    49  mov pins, !pins              phase -28  edge -27  gap 28..?
+    50  stuff_reset                  phase -27
+    51  jmp 9                        phase -26
+    52  wait t+                      phase -24..-16  slack 16..24
+    53  nop [2]                      phase -31
+    54  mov pins, !pins              phase -28  edge -27  gap 25..42
+    55  stuff_reset                  phase -27
+    56  jmp 21                       phase -26
+    57  wait t+                      phase -24..-18  slack 18..24
+    58  nop [2]                      phase -31
+    59  mov pins, !pins              phase -28  edge -27  gap 27..40
+    60  stuff_reset                  phase -27
+    61  jmp 31                       phase -26
+    62  wait t+                      phase -24..-23  slack 23..24
+    63  nop [2]                      phase -31
+    64  mov pins, !pins              phase -28  edge -27  gap 32..35
+    65  stuff_reset                  phase -27
+    66  jmp 38                       phase -26
     |}]
 ;;
 
@@ -469,7 +471,7 @@ let%expect_test "usb rx" =
     10  in null, 1                   phase -41
     11  jmp 18                       phase -40
     12  wait 1 pin 4                 phase -29
-    13  mov t, capture               phase -28..?
+    13  mov t, capture               phase ?..?
     14  add t, p                     phase 2..33
     15  add t, 7                     phase -29..2
     16  add t, 7                     phase -35..-4
@@ -520,7 +522,7 @@ let%expect_test "usb rx" =
     61  jmp pin, 86                  phase -24
     62  jmp 41                       phase -22
     63  wait 1 pin 4                 phase -29
-    64  mov t, capture               phase -28..?
+    64  mov t, capture               phase ?..?
     65  add t, p                     phase 2..33
     66  add t, 7                     phase -29..2
     67  add t, 7                     phase -35..-4
@@ -580,7 +582,7 @@ let%expect_test "a deadline is only as good as what is assumed about the world" 
   [%expect
     {|
     2 of 2 deadline waits may be missed
-      9  wait t+                      phase -18..?  slack ?..18  MAY MISS
+      9  wait t+                      phase ?..?  slack ?..?  MAY MISS
      15  wait t                       phase -7..?  slack ?..7  MAY MISS
     a bound of ? means none: the way here has a wait for a pin or a fifo, a capture nothing is assumed about, a period the host loads, or a loop that falls further behind on every pass
     |}];
@@ -594,17 +596,17 @@ let%expect_test "a deadline is only as good as what is assumed about the world" 
      22  wait t+                      phase ?..?  slack ?..?  MAY MISS
      32  wait t+                      phase ?..?  slack ?..?  MAY MISS
      38  wait t+                      phase ?..?  slack ?..?  MAY MISS
-     40  wait t+                      phase ?..?  slack ?..?  MAY MISS
      41  wait t+                      phase ?..?  slack ?..?  MAY MISS
-     43  wait t+                      phase ?..?  slack ?..?  MAY MISS
+     42  wait t+                      phase ?..?  slack ?..?  MAY MISS
      45  wait t+                      phase ?..?  slack ?..?  MAY MISS
-     50  wait t+                      phase ?..?  slack ?..?  MAY MISS
-     55  wait t+                      phase ?..?  slack ?..?  MAY MISS
-     60  wait t+                      phase ?..?  slack ?..?  MAY MISS
+     47  wait t+                      phase ?..?  slack ?..?  MAY MISS
+     52  wait t+                      phase ?..?  slack ?..?  MAY MISS
+     57  wait t+                      phase ?..?  slack ?..?  MAY MISS
+     62  wait t+                      phase ?..?  slack ?..?  MAY MISS
     a bound of ? means none: the way here has a wait for a pin or a fifo, a capture nothing is assumed about, a period the host loads, or a loop that falls further behind on every pass
     |}];
   check ~config:Usb.config ~period:32 (Timed_program.source Usb.tx);
-  [%expect {| 65 words, 11 deadline waits, worst slack 16 |}];
+  [%expect {| 67 words, 11 deadline waits, worst slack 16 |}];
   (* the same firmware at twelve cycles a bit, which its longest path does not fit *)
   check ~config:Usb.config ~period:12 (Timed_program.source Usb.tx);
   [%expect
@@ -614,13 +616,13 @@ let%expect_test "a deadline is only as good as what is assumed about the world" 
      22  wait t+                      phase -4..?  slack ?..4  MAY MISS
      32  wait t+                      phase -4..?  slack ?..4  MAY MISS
      38  wait t+                      phase -4..?  slack ?..4  MAY MISS
-     40  wait t+                      phase -10..?  slack ?..10  MAY MISS
-     41  wait t+                      phase -11..?  slack ?..11  MAY MISS
-     43  wait t+                      phase -10..?  slack ?..10  MAY MISS
-     45  wait t+                      phase -5..?  slack ?..5  MAY MISS
-     50  wait t+                      phase -4..?  slack ?..4  MAY MISS
-     55  wait t+                      phase -4..?  slack ?..4  MAY MISS
-     60  wait t+                      phase -4..?  slack ?..4  MAY MISS
+     41  wait t+                      phase -7..?  slack ?..7  MAY MISS
+     42  wait t+                      phase -11..?  slack ?..11  MAY MISS
+     45  wait t+                      phase -7..?  slack ?..7  MAY MISS
+     47  wait t+                      phase -5..?  slack ?..5  MAY MISS
+     52  wait t+                      phase -4..?  slack ?..4  MAY MISS
+     57  wait t+                      phase -4..?  slack ?..4  MAY MISS
+     62  wait t+                      phase -4..?  slack ?..4  MAY MISS
     a bound of ? means none: the way here has a wait for a pin or a fifo, a capture nothing is assumed about, a period the host loads, or a loop that falls further behind on every pass
     |}]
 ;;
@@ -697,7 +699,7 @@ let%expect_test "every firmware stays inside its analysis under random stimulus"
     ("i2c slave" (issues 13883) (reached 59/72) (side_edges 0) (violations ()))
     ("i2c logger" (issues 6752) (reached 73/73) (side_edges 1200)
      (violations ()))
-    ("usb tx" (issues 4466) (reached 38/65) (side_edges 0) (violations ()))
+    ("usb tx" (issues 4466) (reached 38/67) (side_edges 0) (violations ()))
     ("usb rx" (issues 7083) (reached 73/92) (side_edges 0) (violations ()))
     ("usb device" (issues 5809) (reached 271/470) (side_edges 0) (violations ()))
     ("edge meter" (issues 6016) (reached 12/12) (side_edges 0) (violations ()))
@@ -1058,7 +1060,7 @@ let%expect_test "usb device" =
     111  set pins, 2                  phase -27  edge -26  gap 163..?
     113  set pins, 6                  phase -25  edge -24  gap 165..?
     115  set pins, 2                  phase -25  edge -24  gap 165..?
-    363  mov t, capture               phase -9..?
+    363  mov t, capture               phase ?..?
     379  set pins, 6                  phase -31  edge -30  gap 168..?
     380  set pindirs, 7               phase -30  edge -29  gap 1
     384  mov pins, !pins              phase -28  edge -27  gap 31..35
@@ -1102,7 +1104,7 @@ let%expect_test "a capture is only as young as the arm once a wait has seen the 
     ("Analyser.check ~single_capture_edge:true ~config program"
      (Error
        "1 of 1 deadline waits may be missed\
-      \n  4  wait t                       phase -10..?  slack ?..10  MAY MISS\
+      \n  4  wait t                       phase ?..?  slack ?..?  MAY MISS\
       \na bound of ? means none: the way here has a wait for a pin or a fifo, a capture nothing is assumed about, a period the host loads, or a loop that falls further behind on every pass"))
     ("(!t).fault"
      ((underflow false) (overflow false) (missed_deadline true) (decode false)))
@@ -1143,7 +1145,7 @@ let%expect_test "only the first wait after the arm sees the captured edge" =
     ("Analyser.check ~single_capture_edge:true ~config program"
      (Error
        "1 of 1 deadline waits may be missed\
-      \n 10  wait t                       phase -34..?  slack ?..34  MAY MISS\
+      \n 10  wait t                       phase ?..?  slack ?..?  MAY MISS\
       \na bound of ? means none: the way here has a wait for a pin or a fifo, a capture nothing is assumed about, a period the host loads, or a loop that falls further behind on every pass"))
     ("(!t).fault"
      ((underflow false) (overflow false) (missed_deadline true) (decode false)))
@@ -1540,7 +1542,7 @@ let%expect_test "an analysis widens only what has not settled by max_passes" =
     i2c slave: nothing lost from 1 passes
     i2c logger: nothing lost from 2 passes
     usb tx: nothing lost from 11 passes
-    usb rx: nothing lost from 1 passes
+    usb rx: nothing lost from 0 passes
     usb device: nothing lost from 8 passes
     edge meter: nothing lost from 1 passes
     edge logger: nothing lost from 0 passes
@@ -1699,5 +1701,37 @@ let%expect_test "an out at exactly the threshold always autopulls" =
       4  out null, 2
       5  halt
     (core (underflow false) (data_ptr 1) (osr_count 6))
+    |}]
+;;
+
+(* [now - t] is 24 bits, so a wait on a pin longer than 2^23 cycles wraps it negative, and
+   a capture from before this run, as at power-up, can be no older than [now]: neither
+   leaves the phase a lower bound. *)
+let%expect_test "a wait on a pin or a capture from before the run bounds no phase below" =
+  report {|
+    mov t, now
+    wait 1 pin 0
+    nop
+    jmp 2
+|};
+  let capture = {|
+    mov t, capture
+    nop
+    jmp 0
+|} in
+  report capture;
+  let { Soundness.violations; _ } =
+    soundness ~config:Program_config.default ~cycles:200 ~seeds:2 (assemble capture)
+  in
+  print_s [%message (List.take violations 2 : (int * int * int * int) list)];
+  [%expect {|
+      0  mov t, now                   phase ?..?
+      1  wait 1 pin 0                 phase 1
+      2  nop                          phase ?..?
+      3  jmp 2                        phase ?..?
+      0  mov t, capture               phase ?..?
+      1  nop                          phase ?..?
+      2  jmp 0                        phase ?..?
+    ("List.take violations 2" ())
     |}]
 ;;

@@ -382,9 +382,10 @@ let step
          | Some since when capturing -> Some { since with lo = Some 0 }
          | since -> Option.map since ~f:unbounded
        in
+       (* [now - t] is 24 bits, and a wait this long can wrap it negative *)
        after
          { s with
-           phase = unbounded s.phase
+           phase = Interval.top
          ; offset = Interval.top
          ; since_arm
          ; captured = s.captured || (capturing && Option.is_some s.since_arm)
@@ -395,15 +396,14 @@ let step
      | Mov { dest = T; op = Copy; source = Now } ->
        after { s with phase = Interval.exactly 0; offset = Interval.top }
      | Mov { dest = T; op = Copy; source = Capture } ->
-       (* the capture is at least a cycle old, as a register shows the cycle after it is
-          written, and once the line made an edge, a cycle younger than the arm *)
+       (* A capture since an arm in this run is at least a cycle old, as a register shows
+          the cycle after it is written, and a cycle younger than the arm. Any other, as
+          at power-up or from an earlier run, is of any age. *)
        let phase =
-         { Interval.lo = Some 1
-         ; hi =
-             Option.bind s.since_arm ~f:(fun since ->
-               Option.bind (Option.some_if s.captured since) ~f:(fun since ->
-                 Option.map since.hi ~f:(fun hi -> hi - 1)))
-         }
+         match s.since_arm with
+         | Some { hi = Some hi; _ } when s.captured ->
+           { Interval.lo = Some 1; hi = Some (hi - 1) }
+         | _ -> Interval.top
        in
        after { s with phase; offset = Interval.top }
      | Mov { dest = T; _ } | Out { dest = T; _ } ->

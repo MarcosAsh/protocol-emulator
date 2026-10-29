@@ -16,14 +16,13 @@ let%expect_test "the reject split, on a sample" =
   Reject_split.print_split (sample @ [ variant "uart_tx_host_rate pc 12 jmp 11" ]);
   [%expect
     {|
-    (("List.length every" 47561) ("List.length sample" 191))
-    ((verdict Accepted) (count 170))
-    ((verdict Missed) (count 20))
+    (("List.length every" 47420) ("List.length sample" 190))
+    ((verdict Accepted) (count 165))
+    ((verdict Missed) (count 25))
     ((verdict Analyser_limit) (count 0))
-    ((verdict No_table) (count 2))
+    ((verdict No_table) (count 1))
     ((verdict Accepted_but_missed) (count 0))
     ((verdict Witness_refused) (count 0))
-    ("microwire pc 56 delay 20" (verdict No_table) (cycles 80000))
     ("uart_tx_host_rate pc 12 jmp 11" (verdict No_table) (cycles 80000))
     |}]
 ;;
