@@ -51,6 +51,10 @@
   "//": "on one thread. 4 is a GitHub runner's core count; local hardens override it with -c.",
   "OPENROAD_THREADS": 4,
 
+  "//": "SYNTH_STRATEGY - LibreLane 3.1.0.dev4 (ttihp27a) moved the default from AREA 0 to DELAY 4,",
+  "//": "which adds ~3,200 buffers and 19% cell area, and the 6x4 no longer routes. Pin the old default.",
+  "SYNTH_STRATEGY": "AREA 0",
+
   "//": "SRAM macro integration, see odb_sram_stripes.py",
   "MACROS": {
     "RM_IHPSG13_1P_512x16_c2_bm_bist": {
