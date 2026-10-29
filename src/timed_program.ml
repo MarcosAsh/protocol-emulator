@@ -165,6 +165,17 @@ let check ?period ?period_floor ?single_capture_edge ~config source =
     { Fault.line = Option.value line ~default:1; pc = Some pc; reason }
   in
   let configured = Asm.Program.configure program config in
+  (* what the chip's registers would hold truncated, as [Machine.create] refuses it *)
+  let%bind () =
+    Or_error.combine_errors_unit
+      (Program_config.validate configured
+       :: List.filter_map
+            [ "period", period; "period_floor", period_floor ]
+            ~f:(fun (name, load) ->
+              Option.map load ~f:(fun load ->
+                Isa.in_range name load ~lo:0 ~hi:((1 lsl Isa.data_bits) - 1))))
+    |> Result.map_error ~f:(fun error -> { Refusal.faults = []; verdict = None; error })
+  in
   let rows =
     Analyser.analyse
       ?period

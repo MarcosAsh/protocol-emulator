@@ -220,3 +220,26 @@ loop:
     (kernel_accepts false)
     |}]
 ;;
+
+let refused_with ?period ~config source =
+  match Timed_program.check ?period ~config source with
+  | Ok _ -> print_s [%message "accepted"]
+  | Error { error; _ } -> print_s [%sexp (error : Error.t)]
+;;
+
+(* the chip's registers would hold these truncated, so [Machine.create] refuses them too *)
+let%expect_test "a config the chip cannot hold is refused" =
+  let source = In_channel.read_all "uart_tx.asm" in
+  refused_with ~config:{ config with pull_threshold = 40; set_base = 99 } source;
+  refused_with ~config:{ config with capture_pin = 40 } source;
+  [%expect {|
+    ((set_base "out of range" (value 99) (lo 0) (hi 27))
+     (pull_threshold "out of range" (value 40) (lo 1) (hi 16)))
+    (capture_pin "out of range" (value 40) (lo 0) (hi 27))
+    |}]
+;;
+
+let%expect_test "a period p cannot hold is refused" =
+  refused_with ~period:65536 ~config (In_channel.read_all "uart_tx_host_rate.asm");
+  [%expect {| (period "out of range" (value 65536) (lo 0) (hi 65535)) |}]
+;;
