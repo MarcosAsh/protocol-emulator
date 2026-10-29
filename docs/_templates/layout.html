@@ -1,0 +1,6 @@
+{%- extends "!layout.html" %}
+{# the front page's heading is the project's name, so its tab shows it once #}
+{%- block htmltitle %}
+{%- if pagename == root_doc %}<title>{{ docstitle|striptags|e }}</title>
+{%- else %}{{ super() }}{% endif %}
+{%- endblock %}
