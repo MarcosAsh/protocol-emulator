@@ -36,7 +36,7 @@ type t [@@deriving sexp_of]
 (** The rows of [table] at the wrap and jump targets, the program being [words] under
     [config]. [registers_whole] stores x and y as their whole ranges, so one certificate
     serves programs that differ only in what they set them to. Fails if a dictionary
-    outgrows its indices. *)
+    outgrows its indices, or the certificate the data memory. *)
 val of_table
   :  ?registers_whole:bool
   -> config:Program_config.t

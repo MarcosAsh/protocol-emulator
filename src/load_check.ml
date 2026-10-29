@@ -84,14 +84,25 @@ let of_table ?(registers_whole = false) ~config ~words (table : Kernel.Table.t) 
       })
   in
   let fits dictionary = List.length !dictionary < 1 lsl index_bits in
-  if fits wide && fits narrow
-  then Ok { entries; wide = !wide; narrow = !narrow }
-  else
+  (* as [to_words] lays it out *)
+  let length =
+    2 + (3 * List.length entries) + (3 * List.length !wide) + (2 * List.length !narrow)
+  in
+  if not (fits wide && fits narrow)
+  then
     Or_error.error_s
       [%message
         "a dictionary outgrows its indices"
           ~wide:(List.length !wide : int)
           ~narrow:(List.length !narrow : int)]
+  else if length > 1 lsl Isa.data_addr_bits
+  then
+    Or_error.error_s
+      [%message
+        "the certificate outgrows the data memory"
+          (length : int)
+          ~data_words:(1 lsl Isa.data_addr_bits : int)]
+  else Ok { entries; wide = !wide; narrow = !narrow }
 ;;
 
 let of_program

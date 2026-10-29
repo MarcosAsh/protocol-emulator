@@ -290,3 +290,33 @@ let%expect_test "one usb certificate serves every address" =
   print_s [%message (List.length certificate : int) (refused : int list)];
   [%expect {| (("List.length certificate" 483) (refused ())) |}]
 ;;
+
+(* A program of 510 jumps, each to one of [targets] places: the host refuses to make a
+   certificate longer than the data memory, which the chip would read wrapped. *)
+let%expect_test "a certificate past the data memory's end is refused" =
+  List.iter [ 2; 250 ] ~f:(fun targets ->
+    let source =
+      "    set x, 31\n"
+      ^ String.concat
+          (List.init 510 ~f:(fun n ->
+             let k = n + 1 in
+             sprintf
+               "l%d:\n    jmp x--, l%d\n"
+               k
+               (1 + (k * 37 % targets * (510 / targets)))))
+      ^ "l511:\n    jmp l1\n"
+    in
+    let words = Asm.assemble source |> ok_exn |> Asm.Program.words |> ok_exn in
+    match Load_check.of_program ~config:Program_config.default words with
+    | Ok certificate ->
+      printf
+        "%d targets: %d words\n"
+        targets
+        (List.length (Load_check.to_words certificate))
+    | Error error -> printf "%d targets: %s\n" targets (Error.to_string_hum error));
+  [%expect
+    {|
+    2 targets: 10 words
+    250 targets: ("the certificate outgrows the data memory" (length 758) (data_words 512))
+    |}]
+;;
