@@ -303,7 +303,7 @@ async def test_swd_unpowered_after_a_stopped_run(dut):
     watcher.cancel()
     await unwire(dut, task)
     first = driven.index(False)
-    assert not any(driven[first:]), "a line driven after the act let go"
+    assert not any(driven[first:]), "a line driven after the demo let go"
     assert "SWDIO is low" in lines[0], lines
 
 

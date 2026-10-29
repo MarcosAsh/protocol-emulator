@@ -6,7 +6,7 @@ open Protocol_emulator_test
 let () =
   print_string
     "# Written by test/python/write_bench_firmware.ml; `dune promote` after a change.\n\
-     # The outside chip acts' firmware (BRINGUP.md) as words and the configuration it runs\n\
+     # The outside chip demos' firmware (BRINGUP.md) as words and the configuration it runs\n\
      # under, at the bench's 48 MHz but for 10BASE-T's 40.\n";
   (* the keyboard's log is not written here, but held to its limits all the same *)
   Datasheet.check_exn Library.limits ~exempt:Library.exempt Uart.log;

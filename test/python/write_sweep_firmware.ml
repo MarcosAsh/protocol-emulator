@@ -3,7 +3,7 @@ open Hardcaml
 open Protocol_emulator
 open Protocol_emulator_test
 
-(* Act 2's sweep: every library firmware engine 1 can stamp, its watched output moved to
+(* The sweep demo: every library firmware engine 1 can stamp, its watched output moved to
    wire 20 and its other outputs beside it, with a stimulus and, for every edge from its
    frame's first, the cycle the model of both engines gives and the interval the kernel's
    rows allow along the model's path. Each is checked at the period it runs at, as the
@@ -15,7 +15,7 @@ let wire = Swept.wire
    burst longer than engine 1's fifo takes twice this per [fifo_depth + 1] edges. *)
 let poll = 7200
 
-(* act 2's logger, which echoes the wire on OUT0 for the analyser *)
+(* the sweep demo's logger, which echoes the wire on OUT0 for the analyser *)
 let logger_config = { Program_config.default with jmp_pin = wire; autopush = true }
 let logger_words = In_channel.read_all "../edge_logger_echo.asm" |> Firmware.assemble
 
@@ -332,7 +332,7 @@ let () =
       then raise_s [%message "neither swept nor said why not" name]);
   print_string
     "# Written by test/python/write_sweep_firmware.ml; `dune promote` after a change.\n\
-     # Act 2's sweep: each firmware of test/library.ml that engine 1 can stamp on wire\n\
+     # The sweep demo: each firmware of test/library.ml that engine 1 can stamp on wire\n\
      # 20, as a config's changes from DEFAULTS, words, the words that park its pins low\n\
      # first, and a stimulus. Each edge is its cycles from its frame's first: an int\n\
      # where the kernel's rows along the model's path allow that cycle alone, else (the\n\

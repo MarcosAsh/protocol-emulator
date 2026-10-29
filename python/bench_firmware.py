@@ -1,5 +1,5 @@
 # Written by test/python/write_bench_firmware.ml; `dune promote` after a change.
-# The outside chip acts' firmware (BRINGUP.md) as words and the configuration it runs
+# The outside chip demos' firmware (BRINGUP.md) as words and the configuration it runs
 # under, at the bench's 48 MHz but for 10BASE-T's 40.
 
 # Uart.tx_host_rate: the host sends the bit period, 5000 cycles for 9.6 kbaud, on OUT0
