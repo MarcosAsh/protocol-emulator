@@ -74,7 +74,7 @@ jobs:
 
       # inside the job's 6 h, so a router that never converges still leaves its logs
       - name: Build GDS
-        timeout-minutes: 330
+        timeout-minutes: 355
         uses: TinyTapeout/tt-gds-action@ihp-cmos5l
         with:
           pdk: ihp-sg13cmos5l
