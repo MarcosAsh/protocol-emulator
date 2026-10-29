@@ -212,6 +212,46 @@ top:
     |}]
 ;;
 
+(* With side-set on pin directions a side value says whether the pin drives, not its
+   level, so the first edge's level is not known. *)
+let%expect_test "a side-set direction leaves the first edge's level unknown" =
+  let config =
+    { Program_config.default with
+      side_set_pindirs = true
+    ; side_set_base = Isa.first_bidir_pin
+    }
+  in
+  let edges ~idle ~frame =
+    let program =
+      Asm.assemble
+        [%string
+          {|.side_set 1
+    set p, 20        side %{idle#Int}
+top:
+    wait tx          side %{idle#Int}
+    pull             side %{idle#Int}
+    mov t, now       side %{idle#Int}
+    nop              side %{frame#Int}
+    nop [15]         side %{frame#Int}
+    nop [15]         side %{frame#Int}
+    set pins, 0      side %{idle#Int}
+    nop [15]         side %{idle#Int}
+    nop [15]         side %{idle#Int}
+    jmp top
+|}]
+      |> ok_exn
+    in
+    print_s [%sexp (Self_check.edges ~config program ~first:4 ~last:7 : int list Or_error.t)]
+  in
+  (* driven low first, then let go; and the other way round *)
+  edges ~idle:0 ~frame:1;
+  edges ~idle:1 ~frame:0;
+  [%expect {|
+    (Error ("first edge's level not known" (pc 4)))
+    (Error ("first edge's level not known" (pc 4)))
+    |}]
+;;
+
 let%expect_test "an edge a cycle early or late is caught" =
   let rows = rows ~base:0 in
   print_s [%message "on time" ~caught:(caught ~rows bytes : bool)];
