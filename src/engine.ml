@@ -535,7 +535,8 @@ module Make (Timer : Timer) = struct
     in
     let%hw pin_out_base = mux2 c.side_set_pindirs pin_out_flipped pin_out_side in
     let%hw pin_dir_base = mux2 c.side_set_pindirs pin_dir_side pin_dir in
-    (* a bit no write reaches keeps the clear's zero, as formal/unreachable.sv proves *)
+    (* a bit no write reaches keeps the clear's zero, as formal/unreachable.sv proves, so
+       coverage waives its toggles; a random power-up value still turns off at the clear *)
     let unwritten ~writable r =
       List.filter (List.range 0 num_pins) ~f:(Fn.non writable)
       |> List.concat_map ~f:(fun bit ->

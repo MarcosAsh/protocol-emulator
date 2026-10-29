@@ -1,13 +1,20 @@
-# Rewrites the tile Metal4 PDN over the IHP SRAM so its rails become the PDN.
-# From WilliamZhang20/protocol-emulator, after ihp-um-janestreet-prism/odb_stripes.py
-# (both Apache-2.0). The 1024x8 LEF declares three Metal4 PIN rectangles, but its Metal4
-# OBS leaves ~3.33 um corridors on a ~5.62 um pitch: the legal supply columns.
-#   1. Find the corridors from the OBS and PINs, label VPWR/VGND by alternation.
-#   2. Cluster them into array L / band / array R at wide OBS gaps.
-#   3. allocate_sram(): move each crossing tile stripe to the nearest legal column, then
-#      complete VPWR/VGND pairs per region.
-#   4. Replace every tile stripe through the footprint by full-height ones on those
-#      columns, with M1 to M4 rail vias outside the macro.
+# Rewrite the tile Metal4 PDN over the IHP SRAM so its rails become the PDN.
+#
+# From WilliamZhang20/protocol-emulator, modeled on ihp-um-janestreet-prism/
+# odb_stripes.py (both Apache-2.0). The 1024x8 LEF only
+# declares three Metal4 PIN rectangles (VSS! / VDD! / VDDARRAY!), but the
+# Metal4 OBS leaves many repeating ~3.33 um corridors on a ~5.62 um pitch —
+# the same legal supply columns allocate_sram() selects on larger IHP SRAMs.
+# This step:
+#
+#   1. Discovers those corridors from the master OBS + declared PINs, assigns
+#      VPWR/VGND polarity from the known pins and the 5.62 um alternation.
+#   2. Clusters them into array L / band / array R (wide OBS gaps).
+#   3. Runs PRISM allocate_sram(): map crossing tile stripes → nearest legal
+#      column, then complete VPWR/VGND pairs within each region.
+#   4. Removes every tile stripe through the footprint and draws full-height
+#      replacements on the chosen columns, with M1↔M4 rail vias outside the
+#      macro; tidy() leaves one full-height box + pin per stripe x.
 import click
 import odb
 import os
@@ -35,8 +42,11 @@ def is_sram(master):
 
 
 def lef_tall_metal4_obs():
-    """Master-frame (x0, x1) for tall Metal4 OBS rects, parsed from the LEF text so no
-    odb getObstructions() version matters."""
+    """Master-frame (x0, x1) for tall Metal4 OBS rects, from the LEF text.
+
+    Parsing the LEF avoids depending on odb's getObstructions() polygon
+    decomposition across LibreLane / OpenROAD versions.
+    """
     if not os.path.isfile(LEF_PATH):
         raise click.ClickException(f"SRAM LEF not found: {LEF_PATH}")
     text = open(LEF_PATH, encoding="utf-8", errors="replace").read()
@@ -379,7 +389,11 @@ def extend(reader, layer):
         )
 
     def allocate_sram(inst, grid):
-        """PRISM allocate_sram: map grid to columns, complete pairs, seed pins."""
+        """PRISM allocate_sram: map grid → columns, complete pairs, seed pins.
+
+        Columns come from OBS corridors + declared PINs (see obs_corridors),
+        not from the three top-level PIN rectangles alone.
+        """
         cols = sram_legal[inst.getName()]
         ib = inst.getBBox()
         regions = [
