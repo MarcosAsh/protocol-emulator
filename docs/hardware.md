@@ -41,7 +41,8 @@ evidence. `test/test_outside.py` runs the same demos' Python on the RTL at the b
 
 ## Downloads
 
-[Release v0.2.0](https://github.com/MarcosAsh/protocol-emulator/releases/tag/v0.2.0) has
-`generate-linux-x86_64`, the Icepi Zero and UP5K bitstreams, the chip's GDS and render, and
-the [board capture](https://github.com/MarcosAsh/protocol-emulator/releases/download/v0.2.0/act3-board-2026-10-02.zip)
+[Release v0.4.0](https://github.com/MarcosAsh/protocol-emulator/releases/tag/v0.4.0) has
+`generate-linux-x86_64`, the Icepi Zero and UP5K bitstreams, and the chip's GDS and render.
+Release v0.2.0 holds the
+[board capture](https://github.com/MarcosAsh/protocol-emulator/releases/download/v0.2.0/act3-board-2026-10-02.zip)
 from 2026-10-02.
