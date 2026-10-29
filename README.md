@@ -17,7 +17,7 @@ Documentation: https://marcosash.github.io/protocol-emulator/
 | Cores | 2 cores, 3 IHP 512 x 16 SRAM macros: a program memory each and a data memory they share | `src/protocol_emulator.v` |
 | Pins | 4 for the host's SPI, 5 in, 7 out, 8 bidirectional, and 8 wires between the cores | `info.yaml`, `src/isa.ml` |
 | Hardened | 23,517 standard cells at 49.6% utilisation, setup slack +3.487 ns at the slow corner, precheck clean | gds run [39277515192](https://github.com/MarcosAsh/protocol-emulator/actions/runs/39277515192) |
-| Firmware | 52 library firmwares the kernel accepts | `test/test_kernel.ml` |
+| Firmware | 54 library firmwares the kernel accepts | `test/test_kernel.ml` |
 | Proved | a program the kernel accepts never misses a deadline on each core's RTL, under the assumptions below | `formal/phase_table.sby`, `formal/phase_table_affine.sby` |
 | Board | the RTL on an Icepi Zero (ECP5 FPGA) passed the self-timing demo on 2026-10-09, no silicon yet | `python/demo_self_timing.py` |
 

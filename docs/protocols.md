@@ -1,13 +1,13 @@
 # Protocols
 
 The library is `test/library.ml`, a protocol to a module, in the order of the certificates.
-These are the 52 library firmwares the kernel accepts in `test/test_kernel.ml`.
+These are the 54 library firmwares the kernel accepts in `test/test_kernel.ml`.
 
 | Protocol | Firmware the kernel accepts |
 |---|---|
 | UART | uart_tx, uart_tx16, uart_tx_host_rate, uart_rx, uart_rx_host_rate |
 | SPI | spi_master, spi_slave |
-| I2C | i2c_master, i2c_slave, i2c_logger, i2c_master_standard, i2c_master_fast, i2c_controller_wire, i2c_target_wire |
+| I2C | i2c_master, i2c_slave, i2c_logger, i2c_master_standard, i2c_master_fast, i2c_master_standard_asym, i2c_master_fast_asym, i2c_controller_wire, i2c_target_wire |
 | USB, low speed | usb_tx, usb_rx, usb_device |
 | Edge meter | edge_meter, which stamps every rising edge of OUT0 wired back to IN0 |
 | WS2812 | ws2812, ws2812_standard |
