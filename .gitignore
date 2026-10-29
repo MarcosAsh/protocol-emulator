@@ -76,3 +76,4 @@ formal/verilog_*
 
 # the Python venv, or a worktree's link to it
 .venv
+docs/_build/

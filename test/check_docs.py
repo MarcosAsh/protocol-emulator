@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Fails when README.md or docs/info.md cites a path, make target, job, commit or run that
+# Fails when README.md or a docs/ page cites a path, make target, job, commit or run that
 # is not there, or quotes a number the code, the tests or the cited run disagree with,
 # naming the line, or links to a page that is gone. Board results and gds runs older than
 # CI keeps are read from the releases test/evidence.sha256 pins. --teeth checks that wrong
@@ -25,7 +25,12 @@ from pathlib import Path
 import evidence
 
 ROOT = Path(__file__).resolve().parent.parent
-DOCS = ["README.md", "docs/info.md"]
+# the README and every page of the site, info.md among them
+DOCS = ["README.md"] + sorted(
+    str(p.relative_to(ROOT)) for p in (ROOT / "docs").glob("*.md"))
+# what has to be quoted somewhere, and where, so a check cannot pass by the quote moving
+QUOTED_IN = {"library firmwares": "README.md", "tiles": "README.md",
+             "valid mutants": "docs/verification.md", "equivalent mutants": "docs/verification.md"}
 REPO = "MarcosAsh/protocol-emulator"
 ONLINE = True
 EXTERNAL = False
@@ -48,8 +53,9 @@ EXTENSIONS = "ml|mli|sv|v|sby|py|asm|hex|txt|tcl|yaml|svg|png|md|json|settings|l
 PATH = re.compile(rf"(?<![\w./-])((?:[\w.-]+/)+[\w.-]+\.(?:{EXTENSIONS}))(?!\.?[\w/-])")
 # and any backticked token with a slash, whatever its extension
 BACKTICKED = re.compile(r"`(?![^`]*://)([^`\s*]*/[^`\s*]*)`")
-URL = re.compile(r"https?://[^\s)]+")
-FENCE = re.compile(r"^```[\w-]*\n(.*?)^```", re.M | re.S)
+# a url ends at a toctree entry's > and an html attribute's quote too
+URL = re.compile(r"https?://[^\s)<>\"]+")
+FENCE = re.compile(r"^```[^`\n]*\n(.*?)^```", re.M | re.S)
 MAKE = re.compile(r"make -C ([\w./-]+)([^#\n]*)")
 JOB = re.compile(r"`([\w-]+)` job")
 # a run id is all digits and longer, a word such as "defaced" has no digit, and an all-digit
@@ -660,10 +666,9 @@ def check_counts(doc, text):
         "equivalent mutants": numbers(r"other (\d+) are equivalent", text),
         "tiles": re.findall(r"(\d+ x \d+) tiles", text),
     }
-    if doc == "README.md":
-        for what, values in quoted.items():
-            if not values:
-                yield f"nothing quotes the {what}, if it was reworded update test/check_docs.py"
+    for what, values in quoted.items():
+        if QUOTED_IN[what] == doc and not values:
+            yield f"nothing quotes the {what}, if it was reworded update test/check_docs.py"
     firmwares = len(library_firmwares())
     for n in quoted["library firmwares"]:
         if n != firmwares:
