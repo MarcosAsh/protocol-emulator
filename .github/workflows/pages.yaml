@@ -1,8 +1,8 @@
 name: pages
 
-# The landing page, the playground from main, the results page and the live die, beside the
-# 3D viewer of the last green gds run on main and the staged 8x4 chip, the only workflow that
-# deploys the site. Runs after gds and results.
+# The docs from docs/ as the site's root, the playground from main, the results page and the
+# live die, beside the 3D viewer of the last green gds run on main and the staged 8x4 chip, the
+# only workflow that deploys the site. Runs after gds and results.
 # js_of_ocaml is never locked.
 on:
   push:
@@ -13,8 +13,7 @@ on:
       - pio/test/pico_examples/i2c.pio
       - playground/**
       - pages/**
-      - docs/die.png
-      - docs/architecture.svg
+      - docs/**
       - info.yaml
       - test/*.asm
       - test/*.ml
@@ -213,6 +212,19 @@ jobs:
             docs
           path: repo
 
+      # docs/ in Sphinx, the site's root, which the pages below go up beside
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Build the docs
+        run: |
+          pip install -r repo/docs/requirements.txt
+          sphinx-build -W -b html repo/docs docs-html
+          cp -r docs-html/. site/
+          rm -rf site/.doctrees site/.buildinfo
+
       - name: Add the live die
         run: |
           mkdir -p site/die
@@ -315,17 +327,14 @@ jobs:
           echo "8x4 chip from gds run $run, $branch at $sha" >> "$GITHUB_STEP_SUMMARY"
           echo "8x4 die by module left out, it needs the PDK's LEFs" >> "$GITHUB_STEP_SUMMARY"
 
-      # the pdk as the gds run has it, and the results and 8x4 cards only when their pages
-      # went up
-      - name: Add the landing page
+      # the viewer's pdk as the gds run has it, and the results, corpus and 8x4 links only
+      # when their pages went up
+      - name: Finish the landing page
         env:
           PDK: ${{ steps.chip.outputs.pdk }}
         run: |
-          cp repo/pages/index.html site/
           cp repo/docs/die.png repo/docs/architecture.svg repo/info.yaml site/
-          sed -i -e "s|data-pdk=\"[^\"]*\"|data-pdk=\"$PDK\"|" -e "s|?pdk=[^&]*&|?pdk=$PDK\&|" \
-            site/index.html
-          grep -q "data-pdk=\"$PDK\"" site/index.html
+          sed -i -e "s|?pdk=[^&]*&|?pdk=$PDK\&|" site/index.html
           grep -q "?pdk=$PDK&" site/index.html
           [ -f site/results/index.html ] || sed -i '/<!-- results -->/,/<!-- \/results -->/d' site/index.html
           [ -f site/corpus/index.html ] || sed -i '/<!-- corpus -->/,/<!-- \/corpus -->/d' site/index.html
