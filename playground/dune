@@ -134,3 +134,12 @@
   (source_tree ../test/lab))
  (action
   (run node %{dep:lab_agree.js} %{dep:playground.bc.js} ../test/lab)))
+
+; lab.html's submit block: the pre-filled link, the result comment, the issue states
+
+(rule
+ (alias agree)
+ (enabled_if
+  (= %{env:PLAYGROUND=no} yes))
+ (action
+  (run node %{dep:lab_submit_test.js} %{dep:lab.html})))
