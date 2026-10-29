@@ -40,6 +40,7 @@ formal/engines_sram.v
 formal/top.v
 formal/engine_probed.v
 formal/link*.sv
+formal/bridge.sv
 formal/certificate*.sv
 formal/fsm_miter*.sv
 formal/self_check*.sv

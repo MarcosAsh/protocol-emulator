@@ -86,6 +86,7 @@ jobs:
           opam exec -- dune exec -- bin/generate.exe engines -engines 2 -sram > formal/engines_sram.v
           opam exec -- dune exec -- test/certify/write_link.exe > formal/link.sv
           opam exec -- dune exec -- test/certify/write_link.exe -rx-period 11 > formal/link_baud.sv
+          opam exec -- dune exec -- test/certify/write_bridge.exe > formal/bridge.sv
           opam exec -- dune exec -- test/certify/write_self_check.exe > formal/self_check.sv
           opam exec -- dune exec -- test/certify/write_self_check.exe -mutant stamp > formal/self_check_stamp.sv
           opam exec -- dune exec -- test/certify/write_self_check.exe -mutant least > formal/self_check_least.sv
@@ -140,6 +141,7 @@ jobs:
             formal/engines_sram.v
             formal/link.sv
             formal/link_baud.sv
+            formal/bridge.sv
 
       - name: Upload the Verilog of the self-check
         uses: actions/upload-artifact@v7
@@ -256,6 +258,7 @@ jobs:
           opam exec -- dune exec -- bin/generate.exe engines -engines 2 -sram > formal/engines_sram.v
           opam exec -- dune exec -- test/certify/write_link.exe > formal/link.sv
           opam exec -- dune exec -- test/certify/write_link.exe -rx-period 11 > formal/link_baud.sv
+          opam exec -- dune exec -- test/certify/write_bridge.exe > formal/bridge.sv
           opam exec -- dune exec -- bin/generate.exe osr > formal/osr_step.v
           opam exec -- dune exec -- test/certify/write_certificate.exe -fsm > formal/fsm_miter.sv
           opam exec -- dune exec -- test/certify/write_certificate.exe -fsm -mutant > formal/fsm_miter_mutant.sv
@@ -670,7 +673,8 @@ jobs:
       - name: Prove
         run: make -C formal self_check_proof self_check_clean_proof
 
-  # the uart link between two engines by induction, its cover and teeth
+  # the uart link between two engines and the bridge across both, by induction, with
+  # their covers and teeth
   link:
     needs: generate
     runs-on: ubuntu-24.04
@@ -691,7 +695,7 @@ jobs:
           echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
 
       - name: Prove
-        run: make -C formal link_proof
+        run: make -C formal link_proof bridge_proof
 
   # each step lemma's and the self-check's Certifaiger witness, every check's LRAT proof
   # verified by cake_lpr, and its teeth, whose models have to fail; phase_table's outgrows a

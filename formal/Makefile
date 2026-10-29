@@ -1,6 +1,6 @@
 all: issue_timing host_timing host_spacing late_host fifo_order unreachable phase_step fetch_step edge_step event_step frame_step \
   value_step narrow saturating chip_frame fail_safe isolation data_step teeth fsm_miter verilog_in \
-  sram_equiv kernel_equiv translation frontend_equiv link self_check self_check_clean powerup offset_axioms
+  sram_equiv kernel_equiv translation frontend_equiv link bridge self_check self_check_clean powerup offset_axioms
 
 # dune runs from this checkout's root, not an enclosing worktree's
 export DUNE_ROOT = .
@@ -237,6 +237,18 @@ link: engines_sram.v
 
 link_proof:
 	sby -f link.sby prove cover never_pushes next_bit wider baud
+
+# The UART to SPI bridge across both engines, by induction on the two-engine chip
+# (bridge.sv): each frame on IN0 goes out on the wire, then on SCK and MOSI, every edge a
+# fixed number of steps after its stop bit. Assumes frames Bridge.spacing apart; about
+# 1 min. Teeth: the next bit, a margin one wider, the fall a step early, SCK's first rise
+# a step late.
+bridge: engines_sram.v
+	(cd .. && dune exec -- test/certify/write_bridge.exe) > bridge.sv
+	$(MAKE) bridge_proof
+
+bridge_proof:
+	sby -f bridge.sby prove next_bit wider early late
 
 # Engine 0 cannot tell what engine 1 or its host does: two chip copies agree on engine 0's
 # pins and host reads, for all time (isolation.sv). Teeth drop one assumption each: engine 1

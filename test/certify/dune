@@ -1,5 +1,6 @@
 (executables
  (names
+  write_bridge
   write_certificate
   write_corpus
   write_link
