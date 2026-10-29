@@ -336,6 +336,57 @@ let%expect_test "a token, a stuffed data packet and a stuffing error into the da
     |}]
 ;;
 
+(* Good is the CRC-16's for a data packet and the CRC-5's for a token. The corrupt DATA0
+   leaves the CRC-5 at its residue, as about 1 in 32 do, and is not good. *)
+let%expect_test "good follows the packet's type" =
+  let module Harness =
+    Hardcaml_test_harness.Lws_harness.Make (Usb_frame_rx.I) (Usb_frame_rx.O)
+  in
+  let random = Random.State.make [| 3 |] in
+  let packets =
+    [ "token", Usb.token ~address:5 ~pid:in_ ~endpoint:1
+    ; "data", Usb.data ~pid:Usb.data0 [ 0x12; 0x34 ]
+    ; "corrupt data", [ 0xc3; 0xa8; 0xb8; 0xa8; 0x9b ]
+    ]
+  in
+  Harness.run ~create:Usb_frame_rx.hierarchical (fun (h @ local) ~inputs ~outputs ->
+    let outputs = Before_and_after_edge.after_edge outputs in
+    inputs.clocking.clear := Bits.vdd;
+    Lws.step h;
+    inputs.clocking.clear := Bits.gnd;
+    inputs.may_write := Bits.vdd;
+    List.iter packets ~f:(fun (name, packet) ->
+      inputs.control.arm := Bits.vdd;
+      Lws.step h;
+      inputs.control.arm := Bits.gnd;
+      line ~random ~ppm:0. ~jitter:0. ~skew:0. ~gap:3 [ packet ]
+      |> sample ~random ~per_bit:8 ~per_cycle:2
+      |> List.iter ~f:(fun (dp, dm) ->
+        inputs.dp := Bits.of_bit_list (List.rev dp);
+        inputs.dm := Bits.of_bit_list (List.rev dm);
+        Lws.step h);
+      let s = outputs.status in
+      let flag x = Bits.to_bool !x in
+      print_s
+        [%message
+          name
+            ~bytes:(packet : Int.Hex.t list)
+            ~finished:(flag s.finished : bool)
+            ~crc5_ok:(flag s.crc5_ok : bool)
+            ~crc16_ok:(flag s.crc16_ok : bool)
+            ~good:(flag s.good : bool)])
+    [@nontail]);
+  [%expect
+    {|
+    (token (bytes (0x69 0x85 0x60)) (finished true) (crc5_ok true)
+     (crc16_ok false) (good true))
+    (data (bytes (0xc3 0x12 0x34 0xf3 0x38)) (finished true) (crc5_ok false)
+     (crc16_ok true) (good true))
+    ("corrupt data" (bytes (0xc3 0xa8 0xb8 0xa8 0x9b)) (finished true)
+     (crc5_ok true) (crc16_ok false) (good false))
+    |}]
+;;
+
 (* A data packet of 1100 bytes from 0x40, past the data memory's end, then a token: the
    words past the end are dropped and still counted, and the token's count starts again. *)
 let%expect_test "a packet past the data memory's end, then a token" =
@@ -741,8 +792,8 @@ let%expect_test "a packet on the chip, beside two engines streaming data" =
     {|
     ((lockstep ())
      (status
-      ((words 12) (finished 1) (crc5_ok 0) (crc16_ok 1) (half 1) (aligned 1)
-       (stuff_error 0) (dropped 0) (receiving 0) (armed 0)))
+      ((words 12) (finished 1) (crc5_ok 0) (crc16_ok 1) (good 1) (half 1)
+       (aligned 1) (stuff_error 0) (dropped 0) (receiving 0) (armed 0)))
      (handed_as_sent true))
     |}]
 ;;
@@ -849,7 +900,7 @@ let%expect_test "the receivers' owner waits on its status pin for a packet" =
        let status () =
          let u = Usb_frame_rx.Status.map o.usb ~f:int in
          u.finished
-         lor ((u.crc5_ok lor u.crc16_ok) lsl 1)
+         lor (u.good lsl 1)
          lor (u.receiving lsl 2)
          lor ((u.dropped lor u.stuff_error) lsl 3)
        in

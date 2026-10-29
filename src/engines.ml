@@ -233,12 +233,7 @@ module Make (Config : Config) = struct
       let u = usb.status in
       mux2
         i.frame_usb
-        (concat_msb
-           [ u.dropped |: u.stuff_error
-           ; u.receiving
-           ; u.crc5_ok |: u.crc16_ok
-           ; u.finished
-           ])
+        (concat_msb [ u.dropped |: u.stuff_error; u.receiving; u.good; u.finished ])
         (concat_msb [ f.dropped; f.receiving; f.fcs_ok; f.finished ])
     in
     let stamps =

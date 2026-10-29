@@ -27,7 +27,7 @@ let%expect_test "tracing leaves the committed verilog byte for byte" =
         ~bytes:(String.length committed : int)
         ~untraced_identical:(String.equal plain committed : bool)
         ~traced_identical:(String.equal traced committed : bool)];
-  [%expect {| ((bytes 818585) (untraced_identical true) (traced_identical true)) |}]
+  [%expect {| ((bytes 819975) (untraced_identical true) (traced_identical true)) |}]
 ;;
 
 (* no module's lines are an interface's fields, where its derived code sits *)
@@ -70,15 +70,15 @@ let%expect_test "the share of verilog names that resolve to a src line" =
              : string list)]);
   [%expect
     {|
-    ((names 7786) (named_at 552) (made_at 6039) (unresolved 1195)
-     (distinct_lines 1212))
+    ((names 7801) (named_at 555) (made_at 6049) (unresolved 1197)
+     (distinct_lines 1213))
     (both_edges (names 16) (unresolved 12) (files (src/both_edges.ml)))
     (data_memory (names 113) (unresolved 41) (files (src/data_memory.ml)))
     (edge_stamps (names 111) (unresolved 89) (files (src/edge_stamps.ml)))
     (engine (names 2525) (unresolved 141)
      (files
       (src/crc.ml src/deadline.ml src/decoder.ml src/engine.ml src/pins.ml)))
-    (engines (names 880) (unresolved 287) (files (src/engines.ml)))
+    (engines (names 881) (unresolved 287) (files (src/engines.ml)))
     (frame_rx (names 132) (unresolved 20) (files (src/crc.ml src/frame_rx.ml)))
     (host_fifo (names 93) (unresolved 84) (files (src/host_fifo.ml)))
     (host_port (names 1315) (unresolved 310) (files (src/host_port.ml)))
@@ -90,8 +90,8 @@ let%expect_test "the share of verilog names that resolve to a src line" =
     (manchester_rx (names 181) (unresolved 12) (files (src/manchester_rx.ml)))
     (protocol_emulator (names 17) (unresolved 17) (files ()))
     (sram_macro (names 21) (unresolved 19) (files (src/sram_macro.ml)))
-    (top (names 330) (unresolved 11) (files (src/top.ml)))
-    (usb_frame_rx (names 165) (unresolved 18)
+    (top (names 332) (unresolved 11) (files (src/top.ml)))
+    (usb_frame_rx (names 177) (unresolved 20)
      (files (src/crc.ml src/usb_frame_rx.ml)))
     (usb_rx (names 144) (unresolved 12) (files (src/usb_rx.ml)))
     |}]

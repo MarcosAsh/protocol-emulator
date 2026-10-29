@@ -29,6 +29,7 @@ module Status = struct
     ; finished : 'a
     ; crc5_ok : 'a
     ; crc16_ok : 'a
+    ; good : 'a
     ; half : 'a
     ; aligned : 'a
     ; stuff_error : 'a
@@ -104,6 +105,12 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   pid_bits <-- reg spec (mux2 starts (zero 3) @@ mux2 packet_bit (pid_bits +:. 1) pid_bits);
   past_pid
   <-- reg spec (mux2 starts gnd @@ mux2 (packet_bit &: (pid_bits ==:. 7)) vdd past_pid);
+  (* a data PID ends in 11, sent first (USB 2.0 8.3.1) *)
+  let%hw data_pid =
+    reg_fb spec ~width:1 ~f:(fun d ->
+      mux2 starts vdd
+      @@ mux2 (packet_bit &: ~:past_pid &: (pid_bits <:. 2)) (d &: rx.bit.value) d)
+  in
   let crc ~width ~poly =
     let crc = wire width in
     let next =
@@ -124,6 +131,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let%hw finished = ended &: ~:pending in
   let%hw crc5_ok = latch (crc5 ==:. crc5_residue) in
   let%hw crc16_ok = latch (crc16 ==:. crc16_residue) in
+  let%hw good = mux2 data_pid crc16_ok crc5_ok in
   let%hw half = latch rx.word.valid in
   let%hw aligned = latch rx.aligned in
   let%hw stuff_error = latch rx.stuff_error in
@@ -138,6 +146,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
       ; finished
       ; crc5_ok
       ; crc16_ok
+      ; good
       ; half
       ; aligned
       ; stuff_error

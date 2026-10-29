@@ -34,6 +34,7 @@ module Status : sig
     ; finished : 'a
     ; crc5_ok : 'a
     ; crc16_ok : 'a
+    ; good : 'a (** [crc16_ok] after a data PID, else [crc5_ok]. *)
     ; half : 'a
     ; aligned : 'a
     ; stuff_error : 'a
