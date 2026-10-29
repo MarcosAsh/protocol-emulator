@@ -9,9 +9,10 @@
     own write after the stop. 43, 44 and 64-71 are reserved and read zero; config skips
     43-44 to keep [autopull_data] and [manchester] at 45-46 for existing hosts.
 
-    Select picks the engine for every register but the two addresses; it resets to 0 and
-    past the last engine reaches none and reads zero. Status bit 15 flags another engine's
-    irq. With one engine there is no select and bit 15 stays low. *)
+    Select picks the engine for every register but the two addresses. It resets to 0 and
+    keeps its low [ceil_log2 engines] bits, so on two engines 2 is engine 0; a value past
+    the last engine, as 3 on three, reaches none and reads zero. Status bit 15 flags
+    another engine's irq. With one engine there is no select and bit 15 stays low. *)
 
 open! Core
 open! Hardcaml

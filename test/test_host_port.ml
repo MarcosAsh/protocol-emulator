@@ -288,6 +288,23 @@ let%expect_test "select routes every register but the program address" =
     |}]
 ;;
 
+(* the select keeps its low bits, so on two engines 2 is engine 0 *)
+let%expect_test "a select past the last of two engines wraps to the first" =
+  Two.run ~half:4 (fun m ~watch inputs _ ->
+    List.iteri inputs.status ~f:(fun n status ->
+      status.halted := Bits.vdd;
+      status.pc <--. 0x100 + n);
+    Spi_master.write m ~watch Reg.select [ 2 ];
+    let select = Spi_master.read m ~watch Reg.select ~count:1 in
+    let pc = Spi_master.read m ~watch Reg.pc ~count:1 in
+    Spi_master.write m ~watch Reg.tx [ 0x55 ];
+    print_s [%message (select : int list) (pc : int list)]);
+  [%expect {|
+    ((select (0)) (pc (256)))
+    (events ("0: tx <- 85"))
+    |}]
+;;
+
 (* every bit of every engine's config, of the select and of the data address set and then
    cleared, with the third engine read through the select *)
 let%expect_test "every config bit goes both ways on every engine" =
