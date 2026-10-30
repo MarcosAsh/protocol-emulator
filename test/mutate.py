@@ -348,8 +348,20 @@ def plan(scope, files, seed, held_out):
     return todo
 
 
+DEADLINE = None
+
+
+def clip(timeout):
+    # a --budget is a hard bound: no command runs past it, and its mutant is left a timeout
+    if DEADLINE is None:
+        return timeout
+    left = max(1, round(DEADLINE - time.monotonic()))
+    return min(timeout, left) if timeout else left
+
+
 def dune(cwd, command, *args, jobs=None, timeout=None, keep=False):
     # with keep, what the command prints too
+    timeout = clip(timeout)
     flags = ["-j", str(jobs)] if jobs else []
     p = subprocess.Popen(["dune", command, "--root", ".", *flags, *args], cwd=cwd, text=True,
                          stdout=subprocess.PIPE if keep else subprocess.DEVNULL,
@@ -411,7 +423,7 @@ def verdict(cwd, file, jobs, timeout, full_timeout):
             p = subprocess.run([f"{cwd}/_build/default/{RUNNER[2:]}", "inline-test-runner",
                                 "protocol_emulator_test", "-source-tree-root", ".", *only],
                                cwd=f"{cwd}/_build/default/test", capture_output=True, text=True,
-                               timeout=timeout)
+                               timeout=clip(timeout))
         except subprocess.TimeoutExpired:
             p = None
         if p is not None and p.returncode != 0:
@@ -834,6 +846,8 @@ def main():
                     shutil.copytree(work / "0", work / str(n), symlinks=True)
             copies.put(work / str(n))
         began = time.monotonic()
+        global DEADLINE
+        DEADLINE = began + args.budget + 120 if args.budget else None
         with ThreadPoolExecutor(args.jobs) as pool:
             results = [r for r in pool.map(run, todo) if r]
             todo = todo[: len(results)] if args.budget else todo
