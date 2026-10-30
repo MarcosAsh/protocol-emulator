@@ -43,9 +43,9 @@ ANALYSER=B RATE=$rate demo/capture.sh "$out/recorded.sr" "$capture_ms" \
     mpremote connect "$pico_b" run --no-follow python/learn_replay.py
 left=$(python3 -c "print(max(0, $record_ms / 1000 + 3 - ($(date +%s) - $started)))")
 sleep "$left"
-mpremote connect "$PICO" cat :record.edges > "$out/chip.edges"
-mpremote connect "$PICO" cat :record.log > "$out/record.log"
+mpremote connect "$PICO" cat :record.log > "$out/record.log" || true
 cat "$out/record.log"
+mpremote connect "$PICO" cat :record.edges > "$out/chip.edges"
 python3 demo/learn_prepare.py edges "$out/recorded.sr" $probes > "$out/analyser_recorded.edges"
 if [ "$kind" = clocked ]; then
     pins="-clocked OUT5,OUT4"

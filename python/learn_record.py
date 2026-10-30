@@ -36,7 +36,7 @@ def load(host, engine):
 
 SELECTS = [bytes((0x80 | pe.SELECT, 0, engine)) for engine in range(2)]
 # stamps an engine can hold, a recording's worth
-MOST = 6000
+MOST = 3000
 
 
 @micropython.native
@@ -75,8 +75,8 @@ def record(spi, host, engines, ms):
         host.select(e["engine"])
         host.start()
     n = len(engines)
-    words = [array.array("H", bytes(2 * MOST)) for _ in range(n)]
-    times = [array.array("i", bytes(4 * MOST)) for _ in range(n)]
+    words = [array.array("H", (0 for _ in range(MOST))) for _ in range(n)]
+    times = [array.array("i", (0 for _ in range(MOST))) for _ in range(n)]
     counts = [0] * n
     last = [0] * n
     clock = [0] * n
