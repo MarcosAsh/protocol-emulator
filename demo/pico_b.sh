@@ -52,7 +52,7 @@ elif [ -z "$name" ]; then
 elif echo "$name" | grep -q MicroPython; then
     mpremote connect "id:$serial" bootloader || true
 elif command -v picotool >/dev/null; then
-    picotool reboot -f -u --ser "$serial"
+    picotool reboot -f -u --serial "$serial" || picotool reboot -f -u --ser "$serial"
 else
     # the SDK's USB serial port reboots to the bootloader when opened at 1200 baud
     stty -F "/dev/serial/by-id/$name" 1200 || true
