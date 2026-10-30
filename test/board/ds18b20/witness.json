@@ -1,14 +1,14 @@
 {
   "demo": "ds18b20",
-  "time": "2026-10-22T17:26:01",
+  "time": "2026-10-30T16:05:02",
   "result": "PASS",
-  "commit": "c6a2f802fc0dbf7162d28b9ba271ae4d456fc013",
+  "commit": "b5c0748c56eea8ab598d269fd6da6bef709d06eb",
   "bitstream_sha256": "ded0014fdf14df568ed478e5f6e36d1d91475ba62bae300e101c1b229c1f963f",
-  "netlist_sha256": "685d03a18ca12fd44a680074e6810a1b703c073ad946dfd3fb5b50507d1c3111",
-  "sums_sha256": "e7f151fb61facad5e0216e4f9b0d5495a7aa8576c0b3f21e410102c47288e042",
+  "netlist_sha256": "1db23ccd02406ef95731f3ffd7de23fbfa9a66a0410741d78cbcb04edc717f5f",
+  "sums_sha256": "5ea514b92d12642f7590c158cb297dc39b7b8536cd56707b4698cfa6e3fb0780",
   "capture": {
     "file": "ds18b20.sr",
-    "sha256": "e39de246773a6076fa7593267c06cccbe6c20aa82176e4e7b022610fadbd2170",
+    "sha256": "ce9bade51cee1a874aa4422645adca5cac9e51e9e2cdf8c5a81e6ac493d049cc",
     "rate_hz": 24000000,
     "seconds": 4.0,
     "analyser": "B",
@@ -18,7 +18,7 @@
   },
   "decode": {
     "arguments": "-P onewire_link:owr=D5,onewire_network -A onewire_network",
-    "sha256": "bdf701c44571e4709b49ca84301efdab212a57af7fe161a21977eb2c03dfe67b"
+    "sha256": "2aad557d49f430f7b3a02b98a2e7c25ac6f5874a8b7774153edb237960a37d97"
   },
   "timing": [
     {
@@ -26,7 +26,7 @@
       "limit": ">= 480.00 us",
       "sheet": "DS18B20, Maxim REV 042208 p.20",
       "spans": 3,
-      "measured": "504.20 us to 504.43 us",
+      "measured": "504.24 us to 504.43 us",
       "verdict": "proved"
     },
     {
@@ -34,7 +34,7 @@
       "limit": ">= 480.00 us",
       "sheet": "DS18B20, Maxim REV 042208 p.20",
       "spans": 3,
-      "measured": "1228.67 us to 1654.17 us",
+      "measured": "1642.67 us to 2137.21 us",
       "verdict": "proved"
     },
     {
@@ -42,7 +42,7 @@
       "limit": ">= 15.00 us",
       "sheet": "DS18B20, Maxim REV 042208 p.20",
       "spans": 3,
-      "measured": "30.50 us to 30.63 us",
+      "measured": "30.54 us to 30.67 us",
       "verdict": "proved"
     },
     {
@@ -50,7 +50,7 @@
       "limit": "<= 60.00 us",
       "sheet": "DS18B20, Maxim REV 042208 p.20",
       "spans": 3,
-      "measured": "30.50 us to 30.63 us",
+      "measured": "30.54 us to 30.67 us",
       "verdict": "proved"
     },
     {
@@ -58,7 +58,7 @@
       "limit": ">= 60.00 us",
       "sheet": "DS18B20, Maxim REV 042208 p.20",
       "spans": 3,
-      "measured": "113.45 us to 113.68 us",
+      "measured": "113.61 us to 113.76 us",
       "verdict": "proved"
     },
     {
@@ -66,7 +66,7 @@
       "limit": "<= 240.00 us",
       "sheet": "DS18B20, Maxim REV 042208 p.20",
       "spans": 3,
-      "measured": "113.45 us to 113.68 us",
+      "measured": "113.61 us to 113.76 us",
       "verdict": "proved"
     },
     {
@@ -105,16 +105,16 @@
       "parameter": "tREC",
       "limit": ">= 1000 ns",
       "sheet": "DS18B20, Maxim REV 042208 p.20",
-      "spans": 3605,
-      "measured": "5666 ns to 5413500 ns",
+      "spans": 2805,
+      "measured": "5666 ns to 6481690 ns",
       "verdict": "proved"
     },
     {
       "parameter": "tSLOT + tREC",
       "limit": ">= 61.00 us",
       "sheet": "DS18B20, Maxim REV 042208 p.20",
-      "spans": 3605,
-      "measured": "71.95 us to 5442.79 us",
+      "spans": 2805,
+      "measured": "71.95 us to 6487.98 us",
       "verdict": "proved"
     },
     {
