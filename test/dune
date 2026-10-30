@@ -24,6 +24,7 @@
    (glob_files *.hex)
    (glob_files diagrams/*.json)
    (glob_files learn/*.edges)
+   (source_tree board)
    ../formal/Makefile
    ../src/protocol_emulator.v
    ../python/demo_board.py
