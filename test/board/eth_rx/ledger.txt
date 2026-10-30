@@ -1,0 +1,11 @@
+demo: eth_rx
+result: PASS
+pico_a_says: PASS
+expected: PASS
+time: 2026-10-30T21:29:52
+commit: e8e5c8b69fca6b157013728a81653fb6d7bb1c3e
+bitstream: /home/marcos/ethrx-board/v1.3-header-40mhz.bit
+bitstream_sha256: 5b81e4822584d95770d53a655057d369d3aed0b35ddff1b755b54be2b7758d75
+netlist_sha256: 3f425c64c5099c224624bbd29fa560c53ad46c88c86de3cef98f41d35750d816
+pico_a: id:e66548545717552e
+pico_b: e66548545740ad29 micropython
