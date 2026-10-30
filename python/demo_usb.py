@@ -193,15 +193,5 @@ def run(text="hello jane street ", say=print):
           replug)
 
 
-def run_demo_board(text="hello jane street ", clock_hz=48_000_000):
-    import demo_board
-
-    spi = demo_board.DemoBoardSpi(clock_hz=clock_hz)
-    bus_reset = se0_reset(lambda: int(spi.tt.uio_out.value), time.ticks_ms)
-    host = demo_board.Host(spi.transfer)
-    log = start_log(host, words("uart_tx_host_rate"), clock_hz)
-    serve(host, usb_board.Board(DESCRIPTORS), reports(text), bus_reset, log, print)
-
-
 if __name__ == "__main__":
     run()

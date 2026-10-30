@@ -9,7 +9,6 @@
   write_bench_firmware
   write_both_roles_firmware
   write_tolerance_firmware
-  write_post_freeze_certificate
   write_clock_cliffs
   write_pio_firmware
   write_margins)
