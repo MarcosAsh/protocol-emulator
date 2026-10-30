@@ -4,8 +4,9 @@ open Protocol_emulator
 (* The OCaml half of each learn demo's witness in test/board/learn_*/,
    demo/learn_witness.py the sigrok half: what the chip recorded is learned again here and
    must give the firmware the board ran, and the analyser's and Pico B's edges of the
-   chip's speech must read back as the message sent. Each has teeth: the speech and the
-   recording, each with two edges taken out, must be refused. *)
+   chip's speech must read back as the message sent. Each has teeth: the speech with two
+   edges taken out must read otherwise, and the recording a tenth slower must give other
+   firmware. *)
 
 let read dir name = In_channel.read_all (dir ^/ name)
 let recording dir name = Recording.of_string (read dir name) |> ok_exn
@@ -90,6 +91,18 @@ let without_two (t : Learn.t) (r : Recording.t) ~at =
   }
 ;;
 
+(* The recording a tenth slower: every time learned from it, so the firmware too, must
+   change. *)
+let slowed (r : Recording.t) =
+  let later e = e + (e / 10) in
+  { r with
+    length = later r.length
+  ; lines =
+      List.map r.lines ~f:(fun line ->
+        { line with edges = Array.map line.edges ~f:later })
+  }
+;;
+
 let check name =
   let dir = "board" ^/ name in
   let chip = recording dir "chip.edges" in
@@ -104,7 +117,7 @@ let check name =
   in
   let toothed_speech = read_back t (without_two t spoken ~at:(fun n -> n / 4)) in
   let toothed_learning =
-    match Learn.learn (without_two t chip ~at:(fun n -> n / 2)) with
+    match Learn.learn (slowed chip) with
     | Error e -> "refused: " ^ Error.to_string_hum e
     | Ok t' ->
       (match Learn_firmware.generate ~clock_hz:48e6 ~pins:(pins t') t' with
@@ -129,7 +142,7 @@ let check name =
            then "MISSED: read as sent"
            else "refused: read otherwise"
            : string)
-        ~recording_with_two_edges_taken_out:(toothed_learning : string)]
+        ~recording_a_tenth_slower:(toothed_learning : string)]
 ;;
 
 let%expect_test "every learn demo the board ran" =
@@ -138,5 +151,84 @@ let%expect_test "every learn demo the board ran" =
   |> List.filter ~f:(String.is_prefix ~prefix:"learn_")
   |> List.sort ~compare:String.compare
   |> List.iter ~f:check;
-  [%expect {| |}]
+  [%expect
+    {|
+    (learn_clocked
+     (learned
+      "clocked, clock IO2 at 4990.5 Hz idle 1, data IO3 read on the rising edge")
+     (firmware_is_the_one_the_board_ran true)
+     (verdict "31 words, 6 deadline waits, worst slack 4802")
+     (sent (10100101000000010000000001101011 10100101000000010000000001101011))
+     (analyser_reads
+      (10100101000000010000000001101011 10100101000000010000000001101011))
+     (pico_b_reads ())
+     (referee
+      ("IO2: 640 edges, each where the analyser saw it within 0.14 us, crystals +47 ppm apart"
+       "IO3: 168 edges, each where the analyser saw it within 0.13 us, crystals +48 ppm apart"))
+     (speech_with_two_edges_taken_out "refused: read otherwise")
+     (recording_a_tenth_slower "refused: other firmware"))
+    (learn_modbus (learned "uart, 7390.5 baud (bit 135.31 us), 8N1")
+     (firmware_is_the_one_the_board_ran true)
+     (verdict "32 words, 6 deadline waits, worst slack 6488")
+     (sent
+      (1000000011000000110000001000000000000000010000001010100111110001
+       1000000011000000110000001000000000000000010000001010100111110001))
+     (analyser_reads
+      (1000000011000000110000001000000000000000010000001010100111110001
+       1000000011000000110000001000000000000000010000001010100111110001))
+     (pico_b_reads
+      ((1000000011000000110000001000000000000000010000001010100111110001)))
+     (referee
+      ("IO3: 714 edges, each where the analyser saw it within 0.14 us, crystals +47 ppm apart"))
+     (speech_with_two_edges_taken_out "refused: read otherwise")
+     (recording_a_tenth_slower "refused: other firmware"))
+    (learn_nec
+     (learned "pulse, unit 557.0 us, 0 = mark 1 space 1, 1 = mark 1 space 3")
+     (firmware_is_the_one_the_board_ran true)
+     (verdict "71 words, 24 deadline waits, worst slack 26726")
+     (sent (00000000111111111000001001111101 00000000111111111000001001111101))
+     (analyser_reads
+      (00000000111111111000001001111101 00000000111111111000001001111101))
+     (pico_b_reads
+      ((00000000111111111000001001111101 00000000111111111000001001111101)))
+     (referee
+      ("IO3: 724 edges, each where the analyser saw it within 0.14 us, crystals +47 ppm apart"))
+     (speech_with_two_edges_taken_out "refused: read otherwise")
+     (recording_a_tenth_slower "refused: other firmware"))
+    (learn_pt2262
+     (learned "pulse, unit 315.2 us, 0 = mark 1 space 3, 1 = mark 3 space 1")
+     (firmware_is_the_one_the_board_ran true)
+     (verdict "36 words, 11 deadline waits, worst slack 15121")
+     (sent (000100010001000101000100 000100010001000101000100))
+     (analyser_reads (000100010001000101000100 000100010001000101000100))
+     (pico_b_reads ((000100010001000101000100 000100010001000101000100)))
+     (referee
+      ("IO3: 1601 edges, each where the analyser saw it within 0.14 us, crystals +47 ppm apart"))
+     (speech_with_two_edges_taken_out "refused: read otherwise")
+     (recording_a_tenth_slower "refused: other firmware"))
+    (learn_rc5
+     (learned
+      "manchester, half bit 876.6 us, a one idle then active, the first half hidden in the idle")
+     (firmware_is_the_one_the_board_ran true)
+     (verdict "30 words, 6 deadline waits, worst slack 42064")
+     (sent (11100101000000 11100101000000))
+     (analyser_reads (11100101000000 11100101000000))
+     (pico_b_reads ((11100101000000 11100101000000)))
+     (referee
+      ("IO3: 497 edges, each where the analyser saw it within 0.14 us, crystals +47 ppm apart"))
+     (speech_with_two_edges_taken_out "refused: read otherwise")
+     (recording_a_tenth_slower "refused: other firmware"))
+    (learn_rc6
+     (learned
+      "manchester, half bit 446.2 us, a one active then idle, bit 4 twice as wide")
+     (firmware_is_the_one_the_board_ran true)
+     (verdict "79 words, 23 deadline waits, worst slack 21406")
+     (sent (100010000000000001010 100010000000000001010))
+     (analyser_reads (100010000000000001010 100010000000000001010))
+     (pico_b_reads ((100010000000000001010 100010000000000001010)))
+     (referee
+      ("IO3: 936 edges, each where the analyser saw it within 0.14 us, crystals +47 ppm apart"))
+     (speech_with_two_edges_taken_out "refused: read otherwise")
+     (recording_a_tenth_slower "refused: other firmware"))
+    |}]
 ;;
