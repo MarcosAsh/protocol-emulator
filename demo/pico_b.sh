@@ -54,8 +54,9 @@ elif echo "$name" | grep -q MicroPython; then
 elif command -v picotool >/dev/null; then
     picotool reboot --ser "$serial" -f -u || picotool reboot -f -u --ser "$serial"
 else
-    # the SDK's USB serial port reboots to the bootloader when opened at 1200 baud
-    stty -F "/dev/serial/by-id/$name" 1200 || true
+    # the SDK's USB serial port reboots to the bootloader when opened at 1200 baud; a
+    # firmware that never reads its port leaves stty stuck in set_termios, hence the timeout
+    timeout -s KILL 10 stty -F "/dev/serial/by-id/$name" 1200 || true
 fi
 wait_for drive || { echo "Pico B never showed its RPI-RP2 drive" >&2; exit 1; }
 if command -v picotool >/dev/null; then
