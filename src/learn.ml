@@ -1141,7 +1141,12 @@ let decode t (recording : Recording.t) =
     in
     clocked_frames ~rate ~clock ~data ~sample_rising bursts |> List.filter_map ~f:frame
   | Pulse _ | Manchester _ | Uart _ ->
-    let%map.Or_error line = line t.line in
+    (* a recording of one line is the line, whatever pin it was taken from *)
+    let%map.Or_error line =
+      match recording.lines with
+      | [ only ] -> Ok only
+      | _ -> line t.line
+    in
     let threshold =
       Some (Float.iround_nearest_exn (Float.of_int (Int.max 8 (t.gap / 2)) *. unit))
     in

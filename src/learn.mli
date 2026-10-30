@@ -136,7 +136,8 @@ val new_message : ?value:int -> t -> (Field.t * Frame.t) Or_error.t
     with the UART's parity and stop bits. Not for clocked protocols. *)
 val runs : t -> kind:int -> bool array -> Run.t list
 
-(** Frames of a recording read with what was learned: kind, bits and when. *)
+(** Frames of a recording read with what was learned: kind, bits and when. A recording of
+    one line is read as the learned line, whatever its name. *)
 val decode : t -> Recording.t -> Frame.t list Or_error.t
 
 (** A recording of [frames] sent as [runs] says, each after [gap] idle units, sampled at
