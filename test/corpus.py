@@ -6,13 +6,15 @@
 # Writes corpus.sha256 beside the pages, in sha256sum's format; --check verifies a tree
 # against it. No timestamps, so the same inputs give the same bytes.
 # Usage: python3 test/corpus.py --data DIR --out DIR [--speed TSV] [--ledger TSV]...
-#            [--matrix FILE] [--cliffs FILE] [--refusals DIR] [--transcripts DIR]
+#            [--witnesses DIR] [--matrix FILE] [--cliffs FILE] [--refusals DIR]
+#            [--transcripts DIR]
 #        python3 test/corpus.py --check DIR
 import argparse
 import ast
 import csv
 import hashlib
 import html
+import json
 import shutil
 import sys
 from datetime import datetime
@@ -27,7 +29,8 @@ WORKFLOW = ("https://github.com/MarcosAsh/protocol-emulator/blob/main/"
 DEMO_PROTOCOL = {
     "swd": "swd", "neopixel": "ws2812", "eeprom": "i2c", "eeprom_stretch": "i2c",
     "ds18b20": "one_wire", "can": "can", "can_node": "can_node", "keyboard": "usb",
-    "self_timing": "uart",
+    "self_timing": "uart", "flash": "spi_cs", "sweep_i2c_100k": "i2c",
+    "sweep_i2c_400k": "i2c", "sweep_spi_mode0": "spi_cs", "sweep_spi_mode3": "spi_cs",
 }
 SPEED_NOTE = ("Times are the first mark of each stage in demo/speed.tsv; a protocol "
               "nobody timed has no row.")
@@ -124,6 +127,11 @@ class Inputs:
                 # demo/bench_run.py's rows name their protocol and expect a PASS
                 r.setdefault("expected", "PASS")
                 self.ledgers.append((Path(path), r))
+        # test/board's runs, whose witness.json CI checks again (demo/witness.py)
+        self.witnesses = []
+        if a.witnesses and Path(a.witnesses).is_dir():
+            for path in sorted(Path(a.witnesses).glob("*/witness.json")):
+                self.witnesses.append((path.parent.name, json.loads(path.read_text())))
         self.matrix = (set(Path(a.matrix).read_text().split()) if a.matrix else
                        {r["firmware"] for r in self.firmware
                         if r["class"] in ("certified", "time_triggered")})
@@ -141,13 +149,35 @@ def protocols(inp):
 
 
 def ledger_protocol(r):
-    """The protocol a ledger row names, else the one DEMO_PROTOCOL gives its demo."""
-    return r.get("protocol") or DEMO_PROTOCOL.get(r["demo"])
+    """The protocol a ledger row names, else the one DEMO_PROTOCOL gives its demo, else the
+    demo's own name."""
+    return r.get("protocol") or DEMO_PROTOCOL.get(r["demo"], r["demo"])
 
 
 def ledger_rows(inp, name):
     """Ledger rows on protocol [name]."""
     return [(p, r) for p, r in inp.ledgers if ledger_protocol(r) == name]
+
+
+def witness_rows(inp, name):
+    """test/board's witnesses on protocol [name]."""
+    return [(d, w) for d, w in inp.witnesses if ledger_protocol(w) == name]
+
+
+def board_runs(inp, name):
+    """The distinct bench runs on protocol [name], a ledger row and the witness made of the
+    same run counted once, by the run's SHA256SUMS."""
+    seen = {r.get("sums_sha256") or id(r) for _, r in ledger_rows(inp, name)}
+    return len(seen | {w["sums_sha256"] for _, w in witness_rows(inp, name)})
+
+
+def witness_table(rows):
+    body = [[esc(d), esc(w["time"]), esc(w["demo"]), esc(w["result"]), esc(w["commit"][:10]),
+             esc("%d of %d" % (sum(t["verdict"] == "proved" for t in w["timing"]),
+                               len(w["timing"]))),
+             esc("; ".join(w["teeth"]))] for d, w in rows]
+    return table(["test/board", "time", "demo", "result", "commit", "windows proved",
+                  "teeth"], body, lambda r: "bad" if r[3] != "PASS" else None)
 
 
 def ledger_table(rows):
@@ -231,6 +261,11 @@ def protocol_page(inp, name, out):
     else:
         parts.append(section("Time taken", missing("no row in demo/speed.tsv")))
     # board evidence
+    seen = witness_rows(inp, name)
+    if seen:
+        parts.append(section("Board witnesses", witness_table(seen) + (
+            "<p class=\"muted\">CI decodes each capture again and holds it to the bytes "
+            "sent and the windows, each tooth refused: demo/witness.py check.</p>")))
     rows = ledger_rows(inp, name)
     if rows:
         rows.sort(key=lambda pr: (pr[1]["date"], pr[0].parent.name))
@@ -278,17 +313,21 @@ def summary(inp, name):
     bad = sum(failed_ledger(r) for _, r in led)
     return [f'<a href="{esc(name)}.html">{esc(name)}</a>', len(fw), cert, len(lim),
             f'<span class="bad">{fails}</span>' if fails else "0",
-            minutes(t[0], t[3]), f"{len(led)}" + (f' ({bad} off)' if bad else "")]
+            minutes(t[0], t[3]), f"{board_runs(inp, name)}" + (f' ({bad} off)' if bad else ""),
+            len(witness_rows(inp, name))]
 
 
 def index_page(inp, names):
     rows = [summary(inp, n) for n in names]
     body = table(["protocol", "firmware", "certified", "limits", "limits failed",
-                  "spec to bench (min)", "board runs"], rows)
+                  "spec to bench (min)", "board runs", "witnessed in CI"], rows)
     body += f'<p class="muted">{esc(SPEED_NOTE)}</p>'
     rest = [(p, r) for p, r in inp.ledgers if ledger_protocol(r) not in names]
     if rest:
         body += section("Board runs tied to no protocol page", ledger_table(rest))
+    loose = [(d, w) for d, w in inp.witnesses if ledger_protocol(w) not in names]
+    if loose:
+        body += section("Board witnesses tied to no protocol page", witness_table(loose))
     body += f'<p class="muted">Hashes of every page: <a href="{MANIFEST}">{MANIFEST}</a>.</p>'
     return page("Protocol corpus", body)
 
@@ -326,6 +365,8 @@ def main():
     ap.add_argument("--out")
     ap.add_argument("--speed", default=str(ROOT / "demo/speed.tsv"))
     ap.add_argument("--ledger", action="append")
+    ap.add_argument("--witnesses", default=str(ROOT / "test/board"),
+                    help="test/board's runs, each a directory with its witness.json")
     ap.add_argument("--matrix", help="write_certificate.exe -names, else the library's "
                     "certified and time-triggered firmware")
     ap.add_argument("--cliffs")
