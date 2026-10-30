@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # The chip speaks what it learned (MicroPython, Pico A): send.json's firmware, written by
-# generate.exe learn and accepted by the kernel, into engine 0, the period it was checked
-# under, then each frame's words, PAUSE_MS apart so a receiver sees separate presses.
+# generate.exe learn and accepted by the kernel, into engine 0 with the period it was
+# checked under (start, before the analyser runs), then each frame's words, PAUSE_MS apart
+# so a receiver sees separate presses.
 
 import json
 import time
@@ -15,14 +16,20 @@ PAUSE_MS = 150
 START_MS = 3000
 
 
-def run(transfer, log):
+def start(transfer):
+    """Loads and starts the firmware, which sets the idle levels: run before the analyser
+    starts, so a clock's first move to idle is not read as a bit."""
     send = json.load(open("send.json"))
     host = pe.Host(transfer)
     bench.load(host, {"config": send["config"], "words": send["words"]})
     host.start()
     host.push([send["period"]])
-    # the firmware sets the idle levels as it starts, before sigrok samples, so a clock's
-    # first move to idle is not read as a bit
+
+
+def run(transfer, log):
+    """The frames, into the firmware start left running."""
+    send = json.load(open("send.json"))
+    host = pe.Host(transfer)
     time.sleep_ms(START_MS)
     for frame in send["frames"]:
         words = list(frame["words"])

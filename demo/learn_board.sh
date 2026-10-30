@@ -68,6 +68,8 @@ decode=$(echo "$decode" | sed "s/BAUD/${baud:-0}/")
 # a fresh load, as faults from the recording would hold
 openFPGALoader -b icepi-zero "$BIT" > "$out/load_speak.txt" 2>&1
 mpremote connect "$PICO" cp "$out/learned/send.json" : > /dev/null
+# the firmware running, so its idle levels are set, before the analyser samples
+mpremote connect "$PICO" exec "import learn_send, pico_board; learn_send.start(pico_board.PicoSpi().transfer)"
 [ "$kind" = clocked ] || mpremote connect "$pico_b" run --no-follow python/learn_listen.py
 ANALYSER=$analyser RATE=$rate demo/capture.sh "$out/spoken.sr" 6000 \
     mpremote connect "$PICO" run --no-follow python/learn_send.py
