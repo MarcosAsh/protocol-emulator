@@ -108,7 +108,8 @@ let accepted_rows_hold ~with_kernel =
       (lies_in next ~shifted:o.next_shifted ~x:x' ~pulled:o.next_pulled)
       ~f:(fun target next -> lands ~target ~next)
   in
-  (* each bound on its own, from the conjuncts that ask for it; [accepts] is every conjunct *)
+  (* each bound on its own, from the conjuncts that ask for it; [accepts] is every
+     conjunct *)
   let claims =
     Osr_kernel.Holds.map3
       conjuncts.next

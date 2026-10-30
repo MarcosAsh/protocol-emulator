@@ -3,11 +3,11 @@
 
     The host sends the unit in cycles once, then per frame the number of blocks less one
     and a word per block, [words]. The start bit is 74 units low and 90 in all (3.7 and
-    4.5 ms). A bit is 12 units low for a one and 30 for a zero (0.6 and 1.5 ms), 48 in all.
-    In each ACK slot the initiator sends a one, samples at 21 units (1.05 ms) and pushes
-    what it saw, 0 when a follower acknowledged. After a frame the line stays free for
-    seven bit periods (16.8 ms), CEC 9.1's wait before an initiator's next frame, which
-    covers a retry's three. A late block word is an underflow fault.
+    4.5 ms). A bit is 12 units low for a one and 30 for a zero (0.6 and 1.5 ms), 48 in
+    all. In each ACK slot the initiator sends a one, samples at 21 units (1.05 ms) and
+    pushes what it saw, 0 when a follower acknowledged. After a frame the line stays free
+    for seven bit periods (16.8 ms), CEC 9.1's wait before an initiator's next frame,
+    which covers a retry's three. A late block word is an underflow fault.
 
     No arbitration: the initiator does not watch the line before a frame or read back its
     bits, and sends every block whatever the ACK. *)

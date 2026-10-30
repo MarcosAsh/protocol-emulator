@@ -139,6 +139,7 @@ let start t =
     ; flip = None
     }
 ;;
+
 let flush t = if t.halted then { t with tx_fifo = []; rx_fifo = [] } else t
 let bit v i = (v lsr i) land 1
 let set_bit v i b = if b then v lor (1 lsl i) else v land lnot (1 lsl i)

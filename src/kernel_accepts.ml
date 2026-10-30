@@ -406,9 +406,9 @@ module Make_timer (Timer : Engine.Timer) = struct
           else mux2 c.x_dec fallen_lo image_lo, mux2 c.x_dec fallen_hi image_hi
         in
         let fits = image_lo >=+ timer_min &: (image_hi <=+ timer_max) in
-        (* The offset's image, where [s.slope * x] is known on this way out: after [set x],
-           from the phase's image; with the slope and x the same, or x one less on a
-           counted jump's way, from this row's offset. *)
+        (* The offset's image, where [s.slope * x] is known on this way out: after
+           [set x], from the phase's image; with the slope and x the same, or x one less
+           on a counted jump's way, from this row's offset. *)
         let offset_known, offset_image_lo, offset_image_hi =
           let wider x = sresize x ~width:offset_bits in
           let product = wider (s.slope *+ small_value) in

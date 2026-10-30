@@ -5,8 +5,8 @@
     The truth is exact for the alphabet: nothing reads [now], [t] or the pins, so a run's
     path depends on [x] and [p] alone. Start [now] is zero and [x], [p], [t] are anything:
     - a deadline wait before any [mov t, now] is late for some start [t];
-    - a smaller [p] makes every later entry no earlier, so the model's start, zero, is
-      the worst;
+    - a smaller [p] makes every later entry no earlier, so the model's start, zero, is the
+      worst;
     - a program that may count [x] down before setting it is out of scope. A run is safe
       once its state at an issue repeats: pc, [x], [p] and, after [mov t, now], the phase. *)
 

@@ -241,12 +241,14 @@ top:
 |}]
       |> ok_exn
     in
-    print_s [%sexp (Self_check.edges ~config program ~first:4 ~last:7 : int list Or_error.t)]
+    print_s
+      [%sexp (Self_check.edges ~config program ~first:4 ~last:7 : int list Or_error.t)]
   in
   (* driven low first, then let go; and the other way round *)
   edges ~idle:0 ~frame:1;
   edges ~idle:1 ~frame:0;
-  [%expect {|
+  [%expect
+    {|
     (Error ("first edge's level not known" (pc 4)))
     (Error ("first edge's level not known" (pc 4)))
     |}]

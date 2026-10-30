@@ -121,7 +121,8 @@ let%expect_test "a frame cut short inside a byte loses that byte and no more" =
           ~mode:(Spi_cs.Mode.to_int mode : int)
           (received : Int.Hex.t list)
           ~miso:(miso : (int * Int.Hex.t) list)]);
-  [%expect {|
+  [%expect
+    {|
     ((mode 0) (received (0xa5 0x3c)) (miso ((4 0x8) (8 0x7e) (8 0x42))))
     ((mode 1) (received (0xa5 0x3c)) (miso ((4 0x8) (8 0x7e) (8 0x42))))
     ((mode 2) (received (0xa5 0x3c)) (miso ((4 0x8) (8 0x7e) (8 0x42))))

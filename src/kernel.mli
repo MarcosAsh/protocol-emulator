@@ -100,8 +100,8 @@ module Make_timer (_ : Engine.Timer) : sig
       modulo the timer and read as signed; their full range bounds nothing. Where a
       counted loop's [jmp x--] falls through, x is zero and the phase lies inside the
       offset. The kernel follows it across [set x] and across a step that adds to the
-      phase and leaves x alone or counts it down, with the slope the same on both rows;
-      on any other step the next row's offset has to be full. *)
+      phase and leaves x alone or counts it down, with the slope the same on both rows; on
+      any other step the next row's offset has to be full. *)
   module Row : sig
     type 'a t =
       { phase_lo : 'a

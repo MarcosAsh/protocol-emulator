@@ -21,9 +21,9 @@ type t =
   ; cycles : int list (** the mutant's cycles a period *)
   }
 
-(** [cycles * (1000 - tenths) / 1000] rounded down, [tenths] being [percent] to a tenth.
-    A clock's period stays even, a positive period stays at least 1 (2 for a clock) and
-    one of 0 cycles stays. [percent] is in (0, 100). *)
+(** [cycles * (1000 - tenths) / 1000] rounded down, [tenths] being [percent] to a tenth. A
+    clock's period stays even, a positive period stays at least 1 (2 for a clock) and one
+    of 0 cycles stays. [percent] is in (0, 100). *)
 val faster : Wavejson.t -> percent:float -> Wavejson.t Or_error.t
 
 (** Both at [clock_hz], [Wavedrom.rated_hz] unless given. *)

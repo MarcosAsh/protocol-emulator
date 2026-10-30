@@ -485,8 +485,7 @@ let%expect_test "i2c_master keeps Fast-mode Plus spacing, and a short SCL low is
 (* The bus clear's SCL low cut to a quarter keeps every deadline, and the kernel refuses
    it once it spaces the edges. At 6 MHz a quarter of 29 (test_i2c.ml) is refused only at
    pc 47: the SCL fall for a host word with no START, whose SDA edge before is a STOP
-   behind the host wait, past the kernel's bound. A quarter of 28 is short of tSU;STA
-   too. *)
+   behind the host wait, past the kernel's bound. A quarter of 28 is short of tSU;STA too. *)
 let%expect_test "i2c_master's bus clear is spaced, and a short pulse is refused" =
   let c = Library.find_certified_exn "i2c_master" in
   let short_pulse =
@@ -861,8 +860,8 @@ let%expect_test "the row at pc 0 bounds nothing" =
 
 (* ws2812 with the wait of its reset gap after the loop rather than in it. Each pass moves
    [t] 23 cycles further ahead of [now], so the loop head's row has no phase bound short
-   of the full range. Intervals alone cannot show the wait in time; the offset can, as
-   the phase less 23 times x holds still round the loop and x is zero at its exit. *)
+   of the full range. Intervals alone cannot show the wait in time; the offset can, as the
+   phase less 23 times x holds still round the loop and x is zero at its exit. *)
 let ws2812_waiting_after_gap =
   let c = Library.find_certified_exn "ws2812" in
   { c with

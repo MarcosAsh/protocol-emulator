@@ -1,9 +1,9 @@
 (** SPI target in any of the four modes, MSB first. It shifts only while CS is low, lets
     MISO go to 0 while CS is high, and pushes each byte it takes; CS rising inside a byte
-    drops that byte's bits and its reply. Replies are host words [byte lsl 8], taken a byte
-    ahead: the reply for a byte is fetched as the byte before it ends, or at the start, and
-    one the frame does not clock keeps for the next frame's first byte. With none queued
-    the reply is 0xff. *)
+    drops that byte's bits and its reply. Replies are host words [byte lsl 8], taken a
+    byte ahead: the reply for a byte is fetched as the byte before it ends, or at the
+    start, and one the frame does not clock keeps for the next frame's first byte. With
+    none queued the reply is 0xff. *)
 
 open! Core
 open Protocol_emulator

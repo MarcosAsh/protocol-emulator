@@ -3,10 +3,10 @@ open Protocol_emulator
 open Pin_trace
 module Reg = Host_port.Reg
 
-(* National Semiconductor AN-452, MICROWIRE Serial Interface (January 1992): Table I (p.5),
-   notes 1-2 and Figure 9 (p.6) for the NM93C06A, the COP494 listing (p.10). At 48 MHz SK
-   is 310 cycles (154.8 kHz, 6.46 us), high 155 then low 155. DI moves 42 after a fall, CS
-   rises 2 SK highs before the first rise and falls one after the last fall. An
+(* National Semiconductor AN-452, MICROWIRE Serial Interface (January 1992): Table I
+   (p.5), notes 1-2 and Figure 9 (p.6) for the NM93C06A, the COP494 listing (p.10). At 48
+   MHz SK is 310 cycles (154.8 kHz, 6.46 us), high 155 then low 155. DI moves 42 after a
+   fall, CS rises 2 SK highs before the first rise and falls one after the last fall. An
    erase/write frame then holds CS low 25.94 ms. *)
 
 let di = 9
@@ -33,9 +33,9 @@ let config =
 (* A frame is a header word, bit 15 erase/write and the rest its bits less one, then its
    bits MSB first, 16 a word, by autopull. [set pins] drives SK in bit 0 and CS in bit 1.
    DO is sampled after each fall, where sigrok reads it, and the last 16 samples are
-   pushed. [t] is the next rise on entry to [bit]. An erase/write frame holds CS low
-   65536 waits of 19 cycles from a p after its fall, then high two SK highs with no
-   clock, the status window, then low. *)
+   pushed. [t] is the next rise on entry to [bit]. An erase/write frame holds CS low 65536
+   waits of 19 cycles from a p after its fall, then high two SK highs with no clock, the
+   status window, then low. *)
 let firmware =
   [%firmware
     {|

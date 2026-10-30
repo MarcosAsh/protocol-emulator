@@ -160,8 +160,7 @@ let%expect_test "usb tx keeps every line change on the bit grid, the eop's too" 
       let off = (cycle - first) % bit_period in
       if off = 0 then None else Some (off - bit_period, dp, dm))
   in
-  print_s
-    [%message (List.length changes : int) (off_grid : (int * int * int) list)];
+  print_s [%message (List.length changes : int) (off_grid : (int * int * int) list)];
   [%expect {| (("List.length changes" 80) (off_grid ())) |}]
 ;;
 

@@ -2,8 +2,8 @@
     shifted out since ([shifted], run on to [shift_limit] past the core's 16), that plus x
     ([sum], which a counted loop keeps), and whether a pull or an autopull took the word
     ([pulled]). formal/data_step.sv proves the core follows [step]; test_osr_kernel.ml
-    proves by SAT that [accepts] keeps it in the rows given the kernel's x. Meaningful only
-    for a program the kernel accepts. An empty row is never reached. *)
+    proves by SAT that [accepts] keeps it in the rows given the kernel's x. Meaningful
+    only for a program the kernel accepts. An empty row is never reached. *)
 
 open! Core
 open! Hardcaml

@@ -419,8 +419,8 @@ let bench =
    at each data move since the clock rose, and the clock's lows and highs, the high from
    reset before the frame. A direction bit of 1 pulls the line low. The kernel's high runs
    from the device letting the clock go to its taking it again (969 cycles at least),
-   which counts a host's inhibit and request to send, and figure 9 leaves the quarter
-   from release to first clock untimed, so the least high is the run's. *)
+   which counts a host's inhibit and request to send, and figure 9 leaves the quarter from
+   release to first clock untimed, so the least high is the run's. *)
 let limits =
   let sheet parameter =
     { Datasheet.Sheet.part = "PS/2 keyboard and auxiliary device"

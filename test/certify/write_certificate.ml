@@ -378,8 +378,8 @@ let anyseq_host =
 ;;
 
 (* The same certificate as an invariant for induction, which holds for all time. The
-   program is a ROM behind the macro's port, read a cycle late, so nothing about it can
-   be wrong in the state induction starts from. At every cycle the core runs:
+   program is a ROM behind the macro's port, read a cycle late, so nothing about it can be
+   wrong in the state induction starts from. At every cycle the core runs:
 
    - the instruction register holds the word at the pc and the memory's output the word
      after it, except in a jump's second cycle (output at the new pc, register the jump);
@@ -394,7 +394,8 @@ let anyseq_host =
    - where the program moves the capture, the captured edge has passed, which is what the
      analyser takes [mov t, capture] to load, and the clock and capture start at zero;
    - the cycles since the last pin edge are what the analyser says for the way in, also
-     while a delay or wait holds the core, which holds the gaps in a loop with no deadline;
+     while a delay or wait holds the core, which holds the gaps in a loop with no
+     deadline;
    - under the single-edge assumption, the capture is armed until the edge, which comes
      after the arm, and after the wait for it is as old as the analyser says. *)
 let inductive
@@ -748,10 +749,10 @@ let inductive
   (* The one thing a certificate assumes of time, [no_wrap]. A wait for the host or a pin
      can stall indefinitely, so the rows after it have no ceiling on phase and 24 bits of
      the difference wrap. A loop that anchors no deadline does the same, and a captured
-     edge can lie as far back on an idle line. The core's own release compares the same
-     24 bits (a deadline over about 168 ms away at 50 MHz reads the wrong way round), so
-     the hardware keeps this bound too. Within 84 ms of the deadline and of that edge
-     covers all three. *)
+     edge can lie as far back on an idle line. The core's own release compares the same 24
+     bits (a deadline over about 168 ms away at 50 MHz reads the wrong way round), so the
+     hardware keeps this bound too. Within 84 ms of the deadline and of that edge covers
+     all three. *)
   let no_wrap =
     if not no_wrap
     then ""

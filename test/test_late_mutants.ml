@@ -5,8 +5,8 @@ open Protocol_emulator
    string, the ppx, the table compiler. Each deadline wait, given one cycle of [nop] more
    than its slack, is reached late on its worst path, and the kernel has to refuse it, so
    a slip in whatever wrote the firmware costs a refusal and never a late edge. Given its
-   slack exactly, the wait is still on time. A mutant past program memory never reaches the
-   check, so it is counted apart from the refusals. *)
+   slack exactly, the wait is still on time. A mutant past program memory never reaches
+   the check, so it is counted apart from the refusals. *)
 
 let accepted (c : Certified.t) source =
   let check ?period ?period_floor () =
@@ -84,7 +84,8 @@ let%expect_test "every deadline wait in the library, a cycle late, is refused" =
     refused
     long
     on_time;
-  [%expect {|
+  [%expect
+    {|
     uart_tx                     3 waits,  3 refused a cycle late,  0 too long,  3 accepted at their slack
     uart_tx16                   3 waits,  3 refused a cycle late,  0 too long,  3 accepted at their slack
     uart_tx_host_rate           3 waits,  3 refused a cycle late,  0 too long,  0 accepted at their slack

@@ -8,8 +8,8 @@ module type Config = sig
   val gain_shift : int
 end
 
-(* A first-order digital PLL on the transitions: see the .mli.
-   IEEE 802.3-2008 14.3.1.3.1: a station accepts 13.5 ns of jitter on its edges. *)
+(* A first-order digital PLL on the transitions: see the .mli. IEEE 802.3-2008 14.3.1.3.1:
+   a station accepts 13.5 ns of jitter on its edges. *)
 module Make (Config : Config) = struct
   open Config
 

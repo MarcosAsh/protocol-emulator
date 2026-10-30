@@ -35,7 +35,9 @@ let shortest_half = 16
 
 (* the next reply into y, or 0xff with none queued; [preset] where y is 0xff already *)
 let fetch ?(preset = false) label =
-  let default = if preset then "" else "\n    mov y, !null             ; none queued: 0xff" in
+  let default =
+    if preset then "" else "\n    mov y, !null             ; none queued: 0xff"
+  in
   [%string
     {|%{default}
     jmp !tx, got_%{label}
@@ -70,9 +72,10 @@ gap_one:
     jmp gap|}
 ;;
 
-(* Inside a byte the same read finds the leading edge at [label]_edge, and CS rising cuts the
-   byte short. SCK is tested first, so a poll that finds the edge there takes five cycles.
-   With CPOL 1 the idle branch goes after the program, so both low readings fall through. *)
+(* Inside a byte the same read finds the leading edge at [label]_edge, and CS rising cuts
+   the byte short. SCK is tested first, so a poll that finds the edge there takes five
+   cycles. With CPOL 1 the idle branch goes after the program, so both low readings fall
+   through. *)
 let poll ~(mode : Spi_cs.Mode.t) label =
   if mode.cpol
   then
@@ -89,7 +92,8 @@ let poll ~(mode : Spi_cs.Mode.t) label =
         {|
 %{label}_idle:
     jmp pin, cut             ; SCK high, and CS high cuts the byte short
-    jmp %{label}|}] )
+    jmp %{label}|}]
+    )
   else
     ( [%string
         {|
@@ -106,10 +110,10 @@ let poll ~(mode : Spi_cs.Mode.t) label =
     , "" )
 ;;
 
-(* [osr] counts the byte's bits out, so x is free for the polls. A byte cut short goes back
-   to [cut], which drops the bits it took and takes the next reply. CPHA 0 shows a byte's
-   first bit before its leading edge, so the next reply's first bit goes out as a byte ends,
-   and again at the next select should CS rise instead. *)
+(* [osr] counts the byte's bits out, so x is free for the polls. A byte cut short goes
+   back to [cut], which drops the bits it took and takes the next reply. CPHA 0 shows a
+   byte's first bit before its leading edge, so the next reply's first bit goes out as a
+   byte ends, and again at the next select should CS rise instead. *)
 let firmware ~(mode : Spi_cs.Mode.t) (pins : Pins.t) =
   let leading = Bool.to_int (not mode.cpol) in
   let trailing = 1 - leading in

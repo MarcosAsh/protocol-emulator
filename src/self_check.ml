@@ -23,8 +23,8 @@ let written_level ~(config : Program_config.t) (row : Analyser.Row.t) =
     Some 0
   | Op { op = Mov { dest = Pins; op = Invert; source = Null }; _ }, Some (Edge _), _ ->
     Some 1
-  | Op { side_set; _ }, None, Some { changes = true; _ } when not config.side_set_pindirs ->
-    Some (side_set land 1)
+  | Op { side_set; _ }, None, Some { changes = true; _ } when not config.side_set_pindirs
+    -> Some (side_set land 1)
   | _ -> None
 ;;
 

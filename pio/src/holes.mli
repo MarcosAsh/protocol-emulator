@@ -53,8 +53,8 @@ end
 
 (** Tries every assignment in order of cost, stopping after the first cost at which one
     passes: every cheaper one failed, so the fix is minimal relative to [passes].
-    [minimal = None] means none passes. Errors when more than [max_checks] assignments
-    lie up to the cost where it stops. *)
+    [minimal = None] means none passes. Errors when more than [max_checks] assignments lie
+    up to the cost where it stops. *)
 val solve
   :  ?max_checks:int
   -> t

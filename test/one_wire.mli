@@ -15,8 +15,8 @@
     except the reset's end and the presence sample, two cycles later (reset 480.04 us).
     The shortest unit kept up with is 5 cycles, which dispatching a host word needs.
 
-    The host checks the ROM's CRC: the core's CRC unit sees every bit shift, including
-    the ones that open a read slot, so it cannot be pointed at the read bits alone. *)
+    The host checks the ROM's CRC: the core's CRC unit sees every bit shift, including the
+    ones that open a read slot, so it cannot be pointed at the read bits alone. *)
 
 open! Core
 open Protocol_emulator

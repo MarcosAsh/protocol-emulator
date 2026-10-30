@@ -171,6 +171,7 @@ module Clock = struct
 
   (* pico-sdk's pio_calculate_clkdiv8_from_float in single precision, with
      PICO_CLKDIV_ROUND_NEAREST on (the default). An integer part of 0 is the hardware's
+
      65536. *)
   let effective_div { clkdiv; _ } =
     let single value = Int32.float_of_bits (Int32.bits_of_float value) in

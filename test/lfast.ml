@@ -111,9 +111,10 @@ let bench =
   }
 ;;
 
-(* The one maximum the note gives for the line: data rate up to 320 Mb/s (p.3), so no level
-   lasts under 1 / 320 MHz = 3.125 ns. Table 8 p.12 and p.1, p.2, p.25 repeat the 320 and
-   give 5 MHz only as typical, and the p.25 reference clock is an input of the other chip. *)
+(* The one maximum the note gives for the line: data rate up to 320 Mb/s (p.3), so no
+   level lasts under 1 / 320 MHz = 3.125 ns. Table 8 p.12 and p.1, p.2, p.25 repeat the
+   320 and give 5 MHz only as typical, and the p.25 reference clock is an input of the
+   other chip. *)
 let limits : Datasheet.t list =
   let sheet =
     { Datasheet.Sheet.part = "LFAST"

@@ -807,8 +807,8 @@ let%expect_test "x-- leaves all ones when it falls through" =
     |}]
 ;;
 
-(* A jump out of one loop into another of the same slope leaves x alone, so the offset
-   is kept and both fall through to an exact phase. *)
+(* A jump out of one loop into another of the same slope leaves x alone, so the offset is
+   kept and both fall through to an exact phase. *)
 let%expect_test "a counted loop may jump out into another of the same slope" =
   let source =
     {|
@@ -1724,7 +1724,8 @@ let%expect_test "a wait on a pin or a capture from before the run bounds no phas
     soundness ~config:Program_config.default ~cycles:200 ~seeds:2 (assemble capture)
   in
   print_s [%message (List.take violations 2 : (int * int * int * int) list)];
-  [%expect {|
+  [%expect
+    {|
       0  mov t, now                   phase ?..?
       1  wait 1 pin 0                 phase 1
       2  nop                          phase ?..?

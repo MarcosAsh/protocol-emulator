@@ -232,7 +232,8 @@ let%expect_test "a config the chip cannot hold is refused" =
   let source = In_channel.read_all "uart_tx.asm" in
   refused_with ~config:{ config with pull_threshold = 40; set_base = 99 } source;
   refused_with ~config:{ config with capture_pin = 40 } source;
-  [%expect {|
+  [%expect
+    {|
     ((set_base "out of range" (value 99) (lo 0) (hi 27))
      (pull_threshold "out of range" (value 40) (lo 1) (hi 16)))
     (capture_pin "out of range" (value 40) (lo 0) (hi 27))

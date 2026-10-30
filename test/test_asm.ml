@@ -182,8 +182,12 @@ let%expect_test "a jump past program memory names its line" =
   try_ "jmp 600";
   try_ "jmp x--, -1";
   (* a label one past a full memory *)
-  try_ (String.concat ~sep:"\n" (("jmp end" :: List.init 511 ~f:(fun _ -> "nop")) @ [ "end:" ]));
-  [%expect {|
+  try_
+    (String.concat
+       ~sep:"\n"
+       (("jmp end" :: List.init 511 ~f:(fun _ -> "nop")) @ [ "end:" ]));
+  [%expect
+    {|
     (Error
      ((line 1 "jmp 600") (target "out of range" (value 600) (lo 0) (hi 511))))
     (Error

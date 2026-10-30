@@ -374,8 +374,8 @@ let step
          }
      | Wait ((Pin_level _ | Pin_edge _ | Fifo _) as wait) ->
        let unbounded (i : Interval.t) = { i with hi = None } in
-       (* The capture is the edge the wait releases on, or an earlier one since the arm, if the
-          line made one edge; otherwise any age. *)
+       (* The capture is the edge the wait releases on, or an earlier one since the arm,
+          if the line made one edge; otherwise any age. *)
        let capturing = single_capture_edge && captures config wait && s.awaiting in
        let since_arm =
          match s.since_arm with
@@ -465,8 +465,8 @@ let relate ~slope_at pc (t : Isa.t) successors =
     else next, { s with offset = Interval.top })
 ;;
 
-(* What an instruction adds to the phase alike on every pass through it: nothing known
-   for a jump, a wait, a write to x, or a write to t other than adding a known amount. *)
+(* What an instruction adds to the phase alike on every pass through it: nothing known for
+   a jump, a wait, a write to x, or a write to t other than adding a known amount. *)
 let drift (s : State.t) (t : Isa.t) =
   let known (i : Interval.t) =
     match i.lo, i.hi with

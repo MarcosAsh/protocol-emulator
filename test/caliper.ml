@@ -12,8 +12,8 @@ module Reg = Host_port.Reg
 (* the clock is OUT0 and the data OUT1 *)
 let pin = 5
 
-(* 270 cycles is 5.625 us, 88.9 kHz, under the spec's 90 kHz. Ten are 56 us and twenty
-   113 us, over the 55 and 110 us pauses. *)
+(* 270 cycles is 5.625 us, 88.9 kHz, under the spec's 90 kHz. Ten are 56 us and twenty 113
+   us, over the 55 and 110 us pauses. *)
 let half_period = 270
 
 let config =

@@ -36,8 +36,8 @@ module Row : sig
     ; slope : int
     ; offset : Interval.t
     (** The phase less [slope * x] on the way in. In a counted loop the phase drifts but
-        this holds still; where the loop falls through, x is zero and the phase lies in it.
-        [slope] is zero and [offset] unbounded elsewhere. *)
+        this holds still; where the loop falls through, x is zero and the phase lies in
+        it. [slope] is zero and [offset] unbounded elsewhere. *)
     ; slack : Interval.t option
     ; may_miss : bool
     ; pin_event : Pin_event.t option
@@ -72,11 +72,12 @@ end
 val captures : Program_config.t -> Isa.Wait.t -> bool
 
 (** Assumptions about the world, each named so a report can say what it rests on. [period]
-    is the value every run-time load of [p] carries. [single_capture_edge] says the capture
-    pin is at the other level when [capture_arm] issues and holds the captured level until
-    the wait for it releases; without it [mov t, capture] leaves the phase unbounded.
-    [period_floor], in place of [period], assumes only that every load carries at least
-    it. A state changed [max_passes] times at an address, 256 by default, is widened. *)
+    is the value every run-time load of [p] carries. [single_capture_edge] says the
+    capture pin is at the other level when [capture_arm] issues and holds the captured
+    level until the wait for it releases; without it [mov t, capture] leaves the phase
+    unbounded. [period_floor], in place of [period], assumes only that every load carries
+    at least it. A state changed [max_passes] times at an address, 256 by default, is
+    widened. *)
 val analyse
   :  ?period:int
   -> ?period_floor:int
