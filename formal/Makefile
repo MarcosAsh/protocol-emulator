@@ -931,11 +931,14 @@ netlist_anystate_teeth:
 # (icepi_equiv/miter.ys), from all 0 and from the state the bitstream configures
 # (configured.awk). About 5 min in CI:
 #   make -C icepi build/usb1.json && make icepi_equiv
-# ICEPI_JSON, USB and MHZ name another build, as icepi/Makefile's equiv target does.
+# ICEPI_JSON, USB, MHZ, FS and PROBE name another build, as icepi/Makefile's equiv target
+# does.
 ICEPI = icepi_equiv_run
 ICEPI_JSON = ../icepi/build/usb1.json
 USB = 1
 MHZ = 48
+FS = 0
+PROBE = 0
 # BMC on the first cycle, then, once that passes, every later one from each state the first
 # reaches, as netlist_equiv: the recoded machines power up in no state until the reset
 ICEPI_RUN = timeout 120 yosys-abc -c 'read_aiger $(1); bmc3 -F 1; print_status' > $(2); \
@@ -947,7 +950,8 @@ icepi_equiv:
 	rm -rf $(ICEPI) && mkdir $(ICEPI)
 	cp $(ICEPI_JSON) $(ICEPI)/netlist.json
 	cp $(WRITTEN) $(ICEPI)/written.v
-	echo 'chparam -set USB_UIO $(USB) -set MHZ $(MHZ) icepi_top' > $(ICEPI)/params.ys
+	echo 'chparam -set USB_UIO $(USB) -set MHZ $(MHZ) -set FULL_SPEED $(FS) -set USB_PROBE $(PROBE) icepi_top' \
+	  > $(ICEPI)/params.ys
 	cd $(ICEPI) && yosys -q -l gold.log ../icepi_equiv/gold.ys
 	cd $(ICEPI) && yosys -q -l gate.log ../icepi_equiv/gate.ys
 	cd $(ICEPI) && yosys -q -l miter.log ../icepi_equiv/miter.ys
