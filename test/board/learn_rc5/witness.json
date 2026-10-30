@@ -1,0 +1,22 @@
+{
+  "demo": "learn_rc5",
+  "bitstream_sha256": "ded0014fdf14df568ed478e5f6e36d1d91475ba62bae300e101c1b229c1f963f",
+  "sums_sha256": "6da8a1b48b111f4ba441e9f08b62e54a8635d0042fa45f166e411014e5bd23c5",
+  "recorded_probes": [
+    "IO3=D6"
+  ],
+  "spoken_probes": [
+    "OUT0=D4"
+  ],
+  "decode": "-P ir_rc5:ir=D4 -A ir_rc5=fields",
+  "expect": [
+    "ir_rc5-1: Address: 5 (Video cassette recorder 1)\nir_rc5-1: Command: 0 (0)"
+  ],
+  "tooth": [
+    "D4",
+    12078238,
+    12684737
+  ],
+  "bench": "an Icepi Zero running the chip at 48 MHz on bench carrier v1.2, Pico A as the host, Pico B replaying the recording and listening on OUT0, analyser B on IO3/IO2 while the chip records and A on OUT0 (B on OUT5/OUT4 for a clocked bus) while it speaks, both fx2lafw",
+  "scope": "the chip's recording of a transmitter it was not told about, what was learned from it, the firmware written for a message never recorded, and that message on the wire"
+}

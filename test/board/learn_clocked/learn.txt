@@ -1,0 +1,22 @@
+line IO3, idle 1
+clocked, clock IO2 at 4990.5 Hz idle 1, data IO3 read on the rising edge
+marks read 0.0 us long, as a receiver stretches them
+gap at least 51 units, 10 frames, 0 outliers
+kind 0: 10 frames, leader [], 32 bits, trailer []
+kind 0 check: crc-8 poly 0x2f init 0xff (with xorout, from frames of one length) xorout 0xff over bits 0.., check sent high bit first, which is CRC-8/AUTOSAR (64 bits against 2^17.6)
+kind 0 field: bits 13..15, 6 values seen
+kind 0 field: bits 16..23, 10 values seen
+  2.852934 s  kind 0  10100101000000010001000011000101
+  2.864344 s  kind 0  10100101000000100010000000001100
+  2.875754 s  kind 0  10100101000000110011001100111010
+  2.887164 s  kind 0  10100101000000010100011101000000
+  2.898574 s  kind 0  10100101000001000000010111000100
+  2.909984 s  kind 0  10100101000000101001100101001010
+  2.921394 s  kind 0  10100101000001011100100011101100
+  2.932804 s  kind 0  10100101000000110000111000100011
+  2.944214 s  kind 0  10100101000001100111000110111110
+  2.955624 s  kind 0  10100101000000011110111010101000
+new message: kind 0, field bits 16..23 = 0 (seen 5 14 16 32 51 71 113 153 200 238), bits 10100101000000010000000001101011
+firmware: 31 words, 6 deadline waits, worst slack 4802, period 4809 cycles x 1 a unit
+kernel: accepted, so no deadline is missed by the step lemma
+model: sends the 2 frames, read back with what was learned
