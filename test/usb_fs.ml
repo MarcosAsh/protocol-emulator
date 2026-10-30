@@ -29,7 +29,7 @@ let config =
   }
 ;;
 
-let line_table = Line_code.nrzi
+let line_table = Line_code.usb_stuffing
 
 (* the adds that put the reply [turnaround] cycles after [mov t, now] *)
 let adds =
@@ -58,6 +58,90 @@ let send ~name ~then_ =
     ]
 ;;
 
+(* A reply's record from x: its data bits plus one, 0 for a handshake, SYNC and the PID,
+   then the data. Every bit is four cycles: the PID's last bit decides whether data
+   follows, [crc_init] lands after it and [crc_send] after the data, so the CRC unit sends
+   the CRC-16; the line stuffs, and after the CRC's last bit [stuff_reset] has the outs
+   pay what it owes. *)
+let send_data ~name ~then_ =
+  let handshake = name ^ "_handshake" in
+  let packet = name ^ "_packet" in
+  let head = name ^ "_head" in
+  let pid = name ^ "_pid" in
+  let empty = name ^ "_empty" in
+  let more = name ^ "_more" in
+  let data = name ^ "_data" in
+  let crc = name ^ "_crc" in
+  let owed = name ^ "_owed" in
+  (* SE0 for two bits, as [crc_init] stops the CRC sending and y goes back to [none] *)
+  let eop =
+    [ "    set pins, 0"
+    ; "    crc_init"
+    ; [%string "    set y, %{none#Int} [5]"]
+    ; "    set pins, 1 [3]"
+    ; "    set pindirs, 0"
+    ; [%string "    jmp %{then_}"]
+    ]
+  in
+  List.concat
+    [ [ [%string "%{name}:"]
+      ; "    seek"
+      ; add (List.nth_exn adds 0)
+      ; add (List.nth_exn adds 1)
+      ; "    out y, 16"
+      ; "    set pindirs, 3"
+      ; "    set x, 13"
+      ; add (List.nth_exn adds 2)
+      ; [%string "    jmp y--, %{packet}"]
+      ; "    wait t"
+      ; [%string "%{handshake}:"]
+      ; "    out pins, 1 [1]"
+      ; [%string "    jmp x--, %{handshake}"]
+      ; "    out pins, 1 [3]"
+      ; "    out pins, 1 [3]"
+      ]
+    ; eop
+    ; [ [%string "%{packet}:"]
+      ; "    wait t"
+      ; [%string "%{head}:"]
+      ; "    out pins, 1 [1]"
+      ; [%string "    jmp x--, %{head}"]
+      ; "    out pins, 1"
+      ; [%string "    jmp y--, %{pid}"]
+      ; "    nop"
+      ; "    out pins, 1"
+      ; "    crc_init"
+      ; "    crc_send"
+      ; "    set x, 15"
+      ; [%string "%{empty}:"]
+      ; "    out pins, 1 [1]"
+      ; [%string "    jmp x--, %{empty}"]
+      ]
+    ; eop
+    ; [ [%string "%{pid}:"]
+      ; "    nop"
+      ; "    out pins, 1"
+      ; "    crc_init"
+      ; "    set x, 14"
+      ; [%string "%{more}:"]
+      ; "    nop"
+      ; [%string "%{data}:"]
+      ; "    out pins, 1"
+      ; [%string "    jmp y--, %{more}"]
+      ; "    crc_send"
+      ; [%string "%{crc}:"]
+      ; "    out pins, 1 [1]"
+      ; [%string "    jmp x--, %{crc}"]
+      ; "    out pins, 1"
+      ; "    stuff_reset"
+      ; [%string "    jmp stuff, %{owed}"]
+      ]
+    ; eop
+    ; [ [%string "%{owed}:"]; "    out pins, 1 [1]"; [%string "    jmp stuff, %{owed}"] ]
+    ; eop
+    ]
+;;
+
 (* [v] of the PID in x, xored with IN's, its low nibble then its check nibble; falls
    through where both are [v], else to [ignore] *)
 let pid_is v ~ignore =
@@ -77,9 +161,8 @@ let pid_is v ~ignore =
 (* Registers: p the IN token word for endpoint 0 at this address, y the pending reply's
    (none is 1, which no token is), x scratch. The receiver lands each packet from rx_base;
    the program waits on receiving then good, anchors t and compares word 0 in one jmp, so
-   every reply's SYNC starts [turnaround] cycles after the anchor. A bit is four cycles:
-   out and a jmp, which leaves no room for [jmp stuff] or a CRC sent from the engine, so
-   the host stuffs each record and adds its CRC-16 once, before the start. *)
+   every reply's SYNC starts [turnaround] cycles after the anchor. A bit is four cycles,
+   with no room for [jmp stuff], so the line table's [tx_stuff] stuffs. *)
 let device =
   List.concat
     [ [ "    set pins, 1"
@@ -118,9 +201,8 @@ let device =
       ; "    jmp !tx, nak"
       ; "    pull"
       ; "    out x, 16"
-      ; [%string "    set y, %{none#Int}"]
       ]
-    ; send ~name:"reply" ~then_:"await_ack"
+    ; send_data ~name:"reply" ~then_:"await_ack"
     ; [ "other:"
       ; "    xor x, p"
       ; "    mov x, ::x"
@@ -233,7 +315,7 @@ let device =
   |> String.concat ~sep:"\n"
 ;;
 
-(* SYNC and the packet's bits, first bit first, a 0 after every six 1s *)
+(* SYNC and the packet's bits, first bit first, a 0 after every six 1s, for a handshake *)
 let line_bits packet =
   Usb_ls.bits_of_bytes (0x80 :: packet)
   |> List.folding_map ~init:0 ~f:(fun ones bit ->
@@ -251,6 +333,17 @@ let record packet =
       |> List.map ~f:(List.foldi ~init:0 ~f:(fun n word bit -> word lor (bit lsl n))))
 ;;
 
+let data_record = function
+  | [] -> raise_s [%message "BUG: a packet needs its PID"]
+  | [ pid ] when pid land 3 = 2 -> [ 0; 0x80 lor (pid lsl 8) ]
+  | pid :: data ->
+    ((8 * List.length data) + 1)
+    :: (0x80 lor (pid lsl 8))
+    :: (List.chunks_of data ~length:2
+        |> List.map
+             ~f:(List.foldi ~init:0 ~f:(fun n word byte -> word lor (byte lsl (8 * n)))))
+;;
+
 let in_token ~address ~endpoint = 0x69 lor (address lsl 8) lor ((endpoint land 1) lsl 15)
 
 module Layout = struct
@@ -261,15 +354,15 @@ module Layout = struct
 
   let create packets =
     let words = Array.create ~len:(1 lsl Isa.data_addr_bits) 0 in
-    let put at packet =
-      List.iteri (record packet) ~f:(fun n word -> words.(at + n) <- word);
-      at + List.length (record packet)
+    let put at record =
+      List.iteri record ~f:(fun n word -> words.(at + n) <- word);
+      at + List.length record
     in
-    let (_ : int) = put nak_record [ 0x5a ] in
-    let (_ : int) = put ack_record [ 0xd2 ] in
+    let (_ : int) = put nak_record (record [ 0x5a ]) in
+    let (_ : int) = put ack_record (record [ 0xd2 ]) in
     let _, addresses =
       List.fold_map packets ~init:first_record ~f:(fun at packet ->
-        put at packet, (packet, at))
+        put at (data_record packet), (packet, at))
     in
     { words; addresses }
   ;;

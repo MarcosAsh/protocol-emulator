@@ -309,8 +309,11 @@ let%expect_test "what each out sends, in the firmware library" =
     (lfast (verdict (Ok ())) (sends ((57 "bit 15 - x"))))
     (usb_fs_device (verdict (Ok ()))
      (sends
-      ((40 "bit 1 to 32") (59 "bit 1 to 32") (141 "bit 1 to 32")
-       (175 "bit 1 to 32"))))
+      ((41 "bit 1 to 29") (43 "bit 1 to 30") (44 "bit 1 to 31")
+       (52 "bit 1 to 29") (54 "bit 1 to 30") (57 "bit 1 to 31")
+       (61 "bit 1 to 32") (70 "bit 1 to 31") (74 "bit 1 to 32")
+       (77 "bit 1 to 32") (79 "bit 1 to 32") (88 "bit 1 to 32")
+       (109 "bit 1 to 32") (191 "bit 1 to 32") (225 "bit 1 to 32"))))
     (uart_tx_stream (verdict (Ok ())) (sends ((8 "not a pulled word"))))
     (spi_master_stream (verdict (Ok ()))
      (sends ((4 "not a pulled word") (8 "not a pulled word"))))

@@ -41,20 +41,28 @@ val turnaround : int
     and an OUT's ACK sends tag 2. After a record goes out, the host's ACK sends tag 3, and
     anything else tag 4. Between packets, with nothing pending, the program takes the next
     word from the fifo: a reply's IN token word, its record's address following it, or
-    another address's IN token word, which becomes the address from then on. A record
-    holds its line bits less one, then the line bits, sixteen a word, first bit lowest.
-    Endpoint bits 1-3 of an IN are not compared. *)
+    another address's IN token word, which becomes the address from then on. The core adds
+    a reply's CRC-16 and stuffs its bits ([data_record]). Endpoint bits 1-3 of an IN are
+    not compared. *)
 val device : string
 
-(** The words of [packet]'s record, its bytes after SYNC, PID first: SYNC and the bit
-    stuffing are added, and the line table adds the NRZI. *)
+(** The firmware that sends a reply from the record at x, its SYNC [turnaround] cycles
+    after [t], then jumps to [then_]. *)
+val send_data : name:string -> then_:string -> string list
+
+(** A handshake's record, its PID after SYNC as line bits; the line table adds the NRZI. *)
 val record : int list -> int list
+
+(** A reply's record from its PID and data: the data bits plus one, or 0 for a handshake,
+    SYNC and the PID, then the data, two bytes a word, first lowest. The chip adds a data
+    packet's CRC-16 and the stuffing. *)
+val data_record : int list -> int list
 
 (** The token word a reply for an IN to this address and endpoint waits behind. *)
 val in_token : address:int -> endpoint:int -> int
 
-(** The data memory the host loads: NAK and ACK at their fixed places, then each packet's
-    record. *)
+(** The data memory the host loads: NAK and ACK at their fixed places, then a record for
+    each data packet, given as its PID and data. *)
 module Layout : sig
   type t =
     { words : int array

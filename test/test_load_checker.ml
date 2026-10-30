@@ -305,7 +305,7 @@ let%expect_test "the checker agrees with the model on every firmware" =
     caliper                      10185  accepted
     xy2_100                       8719  accepted
     lfast                         8572  accepted
-    usb_fs_device                11422  accepted
+    usb_fs_device                12660  accepted
     asm/blink                     8251  accepted
     asm/crc_send                  8377  accepted
     asm/data_stream               8254  accepted

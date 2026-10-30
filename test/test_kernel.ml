@@ -1565,8 +1565,10 @@ let%expect_test "a bound on the jitter of every pin edge, in firmware the kernel
     (caliper (pc 14) (jitter_bound 0) (untimed (3 6)))
     (xy2_100 (pc 5) (jitter_bound 5) (untimed (0 1 2 3)))
     (lfast (pc 8) (jitter_bound 0) (untimed (1)))
-    (usb_fs_device (pc 172) (jitter_bound 6)
-     (untimed (0 1 40 42 43 44 59 61 62 63 141 143 144 145 175 177 178 179)))
+    (usb_fs_device (pc 222) (jitter_bound 6)
+     (untimed
+      (0 1 41 43 44 45 48 49 52 54 57 61 63 66 67 70 74 77 79 82 85 86 88 90 93
+       94 109 111 112 113 191 193 194 195 225 227 228 229)))
     (spi_slave_captured "no edge has a deadline" (untimed (0 5))
      (reaction ((pc 5) (at_most 2))))
     |}]

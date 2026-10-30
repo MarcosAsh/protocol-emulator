@@ -35,6 +35,38 @@ def crc5(address, endpoint):
     return reg ^ 0x1F
 
 
+def crc16(data):
+    """USB's CRC-16 over the bytes, complemented as sent."""
+    crc = 0xFFFF
+    for byte in data:
+        for i in range(8):
+            if (crc ^ (byte >> i)) & 1:
+                crc = (crc >> 1) ^ 0xA001
+            else:
+                crc >>= 1
+    return crc ^ 0xFFFF
+
+
+def data_packet(pid, payload):
+    """A host's data packet, its bytes after SYNC, CRC-16 last."""
+    crc = crc16(payload)
+    return [pid] + list(payload) + [crc & 0xFF, crc >> 8]
+
+
+def line_bits(packet):
+    """SYNC and the packet, first bit first, a 0 after every six 1s."""
+    bits, ones = [], 0
+    for byte in [0x80] + list(packet):
+        for i in range(8):
+            bit = (byte >> i) & 1
+            bits.append(bit)
+            ones = ones + 1 if bit else 0
+            if ones == 6:
+                bits.append(0)
+                ones = 0
+    return bits
+
+
 def token(pid, address, endpoint):
     return [pid, address | ((endpoint & 1) << 7), (endpoint >> 1) | (crc5(address, endpoint) << 3)]
 
@@ -42,7 +74,7 @@ def token(pid, address, endpoint):
 def encode(packet):
     """Line states a bit at a time: SYNC, NRZI with stuffing, EOP."""
     lines, state = [], J
-    for bit in usb_fs_board.line_bits(packet):
+    for bit in line_bits(packet):
         if not bit:
             state = K if state == J else J
         lines.append(state)
@@ -138,7 +170,7 @@ class Bus:
 async def control(bus, address, setup, out_data=False):
     """A control transfer, retrying each NAKed IN as a host does; the data read, or the
     PID the device ended it with."""
-    reply = await bus.transaction(token(SETUP, address, 0), usb_fs_board.data_packet(DATA0, setup))
+    reply = await bus.transaction(token(SETUP, address, 0), data_packet(DATA0, setup))
     assert reply == [ACK], f"SETUP {setup}: {reply}"
     length = setup[6] | (setup[7] << 8)
     data, toggle = [], DATA1
@@ -163,7 +195,7 @@ async def control(bus, address, setup, out_data=False):
         if setup[0] & 0x80 == 0 or len(payload) < 8 or len(data) >= length:
             break
     if setup[0] & 0x80:
-        reply = await bus.transaction(token(OUT, address, 0), usb_fs_board.data_packet(DATA1, []))
+        reply = await bus.transaction(token(OUT, address, 0), data_packet(DATA1, []))
         assert reply == [ACK], f"status OUT: {reply}"
         await bus.idle(10)
     return data
@@ -171,7 +203,7 @@ async def control(bus, address, setup, out_data=False):
 
 def check_crc(packet):
     payload, crc = packet[1:-2], packet[-2] | (packet[-1] << 8)
-    return usb_fs_board.crc16(payload) == crc
+    return crc16(payload) == crc
 
 
 def get_descriptor(kind, index, length, request_type=0x80, language=0):

@@ -3,9 +3,8 @@
 
 The chip takes in every packet itself, clock recovery, NRZI, unstuffing and both CRCs
 in Usb_frame_rx, and its engine answers inside the turnaround from records in the data
-memory: ACK and NAK at fixed places, and each data packet this board encodes once, before
-the start, with SYNC, CRC-16 and bit stuffing; the line table adds the NRZI. The board
-does the rest: SETUPs, descriptors, data toggles, the address, which record answers the
+memory: ACK and NAK at fixed places, and each reply's PID and data, which the chip sends
+with its CRC-16, bit stuffing and NRZI. The board does the rest: SETUPs, descriptors, data toggles, the address, which record answers the
 next IN on each endpoint.
 
 `Board` does no I/O: `memory` is what to load into the data memory, `feed` takes the
@@ -35,45 +34,25 @@ LENGTHS = (2, 4, 8, 9, 18, 34, 64, 255)
 DEVICE, CONFIGURATION, STRING, REPORT = 1, 2, 3, 0x22
 
 
-def crc16(data):
-    """USB's CRC-16 over the bytes, complemented as sent."""
-    crc = 0xFFFF
-    for byte in data:
-        for i in range(8):
-            if (crc ^ (byte >> i)) & 1:
-                crc = (crc >> 1) ^ 0xA001
-            else:
-                crc >>= 1
-    return crc ^ 0xFFFF
-
-
 def data_packet(pid, payload):
-    """A data packet's bytes after SYNC, PID first, CRC-16 last."""
-    crc = crc16(payload)
-    return [pid] + list(payload) + [crc & 0xFF, crc >> 8]
+    """A reply's PID and data; the chip adds the CRC-16."""
+    return [pid] + list(payload)
 
 
-def line_bits(packet):
-    """SYNC and the packet, first bit first, a 0 after every six 1s."""
-    bits, ones = [], 0
-    for byte in [0x80] + list(packet):
-        for i in range(8):
-            bit = (byte >> i) & 1
-            bits.append(bit)
-            ones = ones + 1 if bit else 0
-            if ones == 6:
-                bits.append(0)
-                ones = 0
-    return bits
+def handshake_record(pid):
+    """A handshake at a fixed place: its line bits less one, then SYNC and the PID."""
+    return [15, 0x80 | (pid << 8)]
 
 
 def record(packet):
-    """The line bits less one, then the line bits sixteen to a word, first bit lowest."""
-    bits = line_bits(packet)
-    words = [0] * ((len(bits) + 15) // 16)
-    for n, bit in enumerate(bits):
-        words[n >> 4] |= bit << (n & 15)
-    return [len(bits) - 1] + words
+    """A reply's record: its data bits plus one, or 0 for a handshake, SYNC and the PID,
+    then the data two bytes to a word, first lowest."""
+    pid, data = packet[0], list(packet[1:])
+    if pid & 3 == 2:
+        return [0, 0x80 | (pid << 8)]
+    words = [data[n] | ((data[n + 1] if n + 1 < len(data) else 0) << 8)
+             for n in range(0, len(data), 2)]
+    return [8 * len(data) + 1, 0x80 | (pid << 8)] + words
 
 
 def in_token(address, endpoint):
@@ -103,8 +82,8 @@ class Board:
         for payload in reports:
             packets += [data_packet(DATA0, payload), data_packet(DATA1, payload)]
         memory = [0] * firmware.FIRST_RECORD
-        memory[firmware.NAK_RECORD:firmware.NAK_RECORD + 2] = record([NAK])
-        memory[firmware.ACK_RECORD:firmware.ACK_RECORD + 2] = record([ACK])
+        memory[firmware.NAK_RECORD:firmware.NAK_RECORD + 2] = handshake_record(NAK)
+        memory[firmware.ACK_RECORD:firmware.ACK_RECORD + 2] = handshake_record(ACK)
         self.records = {}
         for packet in packets:
             key = bytes(packet)

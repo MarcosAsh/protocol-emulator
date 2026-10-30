@@ -657,7 +657,7 @@ let%expect_test "every protocol from its file to the decoded trace" =
     === usb_fs
 
     certificates
-    usb_fs_device: 201 words, 4 deadline waits, worst slack 0, the kernel accepts it, assuming no wrap
+    usb_fs_device: 251 words, 5 deadline waits, worst slack 0, the kernel accepts it, assuming no wrap
 
     limits
     |}]

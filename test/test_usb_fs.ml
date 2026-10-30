@@ -31,9 +31,87 @@ let%expect_test "the firmware's verdict and certificate" =
         ~certificate_words:(List.length certificate : int)];
   [%expect
     {|
-    ((analyser (Ok ((words 201) (deadline_waits 4) (worst_slack (0)))))
-     (kernel (Ok ())) (certificate_words 94))
+    ((analyser (Ok ((words 251) (deadline_waits 5) (worst_slack (0)))))
+     (kernel (Ok ())) (certificate_words 132))
     |}]
+;;
+
+(* One data packet sent from its record, with the model and the RTL in lockstep: what the
+   pins carry is [Usb.data] of the payload, the reference's CRC-16 and stuffing, for any
+   PID and up to eight bytes, mostly of 0xff to stuff the most, and a STALL as it is.
+   Prints the most bits owed. *)
+let%expect_test "every data packet the chip sends is the reference encoding" =
+  let program =
+    [ "    set pins, 1"; "    set pindirs, 0"; "    set x, 0"; "    mov t, now" ]
+    @ Usb_fs.send_data ~name:"reply" ~then_:"done"
+    @ [ "done:"; "    halt" ]
+    |> String.concat ~sep:"\n"
+    |> Asm.assemble
+    |> ok_exn
+  in
+  let config = Asm.Program.configure program Usb_fs.config in
+  let words = Asm.Program.words program |> ok_exn in
+  let most_owed = ref 0 in
+  let byte =
+    Quickcheck.Generator.weighted_union
+      [ 4., Quickcheck.Generator.return 0xff
+      ; 1., Quickcheck.Generator.of_list [ 0x00; 0x7f; 0xfe; 0x3f; 0xfc ]
+      ; 2., Int.gen_incl 0 255
+      ]
+  in
+  let packet =
+    Quickcheck.Generator.both
+      (Quickcheck.Generator.of_list [ 0xc3; 0x4b ])
+      (Quickcheck.Generator.bind (Int.gen_incl 0 8) ~f:(fun n ->
+         List.gen_with_length n byte))
+  in
+  Quickcheck.test
+    ~trials:300
+    ~examples:[ 0x4b, List.init 8 ~f:(Fn.const 0xff); 0xc3, []; 0x1e, [] ]
+    packet
+    ~sexp_of:[%sexp_of: int * int list]
+    ~f:(fun (pid, payload) ->
+      let sniffer = ref (Usb_ls.Sniffer.create ~bit_period:4) in
+      let react (m : Machine.t) =
+        let pin n = (m.pin_out lsr n) land 1 in
+        most_owed := Int.max !most_owed m.line_count;
+        sniffer
+        := Usb_ls.Sniffer.step !sniffer ~dp:(pin Usb_fs.dm_pin) ~dm:(pin Usb_fs.dp_pin)
+      in
+      let model, mismatch =
+        Lockstep.run
+          ~cycles:600
+          ~data:(Usb_fs.data_record (pid :: payload))
+          ~line_table:Usb_fs.line_table
+          ~react
+          ~config
+          ~program:words
+          ~inputs:(Fn.const 0)
+          ()
+      in
+      Expect_test_helpers_core.require_equal
+        ~message:"lockstep"
+        (module struct
+          type t = int option [@@deriving equal, sexp_of]
+        end)
+        (Option.map mismatch ~f:Tuple3.get1)
+        None;
+      Expect_test_helpers_core.require_equal
+        ~message:"packet"
+        (module struct
+          type t = int list list [@@deriving equal, sexp_of]
+        end)
+        (Usb_ls.Sniffer.packets !sniffer)
+        [ (if pid land 3 = 2 then [ pid ] else Usb.data ~pid payload) ];
+      Expect_test_helpers_core.require_equal
+        ~message:"halted, nothing owed"
+        (module struct
+          type t = bool * int [@@deriving equal, sexp_of]
+        end)
+        (model.halted, model.line_count)
+        (true, 0));
+  print_s [%message (!most_owed : int)];
+  [%expect {| (!most_owed 11) |}]
 ;;
 
 let device_descriptor =
@@ -45,14 +123,14 @@ let data1 = 0x4b
 let ack = 0xd2
 let nak = 0x5a
 
-(* a control read's data stage, DATA1 first *)
+(* a control read's data stage, DATA1 first, each packet its PID and data: the chip adds
+   the CRC-16 *)
 let chunks payload =
   List.chunks_of payload ~length:8
-  |> List.mapi ~f:(fun n chunk ->
-    Usb.data ~pid:(if n % 2 = 0 then data1 else data0) chunk)
+  |> List.mapi ~f:(fun n chunk -> (if n % 2 = 0 then data1 else data0) :: chunk)
 ;;
 
-let zero_length = Usb.data ~pid:data1 []
+let zero_length = [ data1 ]
 
 module Line = Usb_ls.Line
 
@@ -329,7 +407,8 @@ let control_reads ?(board_latency = 100) ?(rearm = true) requests =
          let reply = transaction [ Usb.token ~address ~pid:0x69 ~endpoint:1 ] in
          Queue.enqueue log [%message "IN 1" (reply : Int.Hex.t list option)];
          let reply =
-           transaction [ Usb.token ~address ~pid:0xe1 ~endpoint:0; zero_length ]
+           transaction
+             [ Usb.token ~address ~pid:0xe1 ~endpoint:0; Usb.data ~pid:data1 [] ]
          in
          let words = board () in
          Queue.enqueue
