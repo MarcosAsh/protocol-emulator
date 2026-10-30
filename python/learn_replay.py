@@ -15,6 +15,9 @@ from machine import Pin
 OVERHEAD = 4
 # demo/capture.sh starts the analyser after mpremote returns, and it takes up to 3 s
 START_MS = 3000
+# the lines stay at the recording's idle this long after it, past the chip's recording,
+# so a line that idles low is low at both of the recording's ends
+HOLD_MS = 5000
 
 
 @rp2.asm_pio(set_init=(rp2.PIO.IN_LOW,) * 2, out_init=(rp2.PIO.IN_LOW,) * 2,
@@ -49,6 +52,6 @@ def send(segs):
 
 if __name__ == "__main__":
     replay = json.load(open("replay.json"))
-    time.sleep_ms(START_MS)
-    send(replay["segments"] + [[0, 1000]])
+    segs = replay["segments"]
+    send([[segs[0][0], START_MS * 1000]] + segs + [[segs[-1][0], HOLD_MS * 1000], [0, 1000]])
     print("sent %d segments" % len(replay["segments"]))
