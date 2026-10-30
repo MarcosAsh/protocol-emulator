@@ -32,3 +32,9 @@ lfast	certificate	2026-10-24T20:31:31+01:00
 tdm_audio	spec	2026-10-30T13:48:18+00:00	new-protocol
 tdm_audio	file	2026-10-30T14:03:25+00:00	
 tdm_audio	certificate	2026-10-30T14:03:46+00:00	
+lfast	bench	2026-10-30T14:19:56+00:00	board run, test/board/lfast
+microwire	bench	2026-10-30T14:59:16+00:00	board run, test/board/microwire
+xy2_100	bench	2026-10-30T14:59:30+00:00	board run, test/board/xy2_100
+caliper	bench	2026-10-30T14:59:43+00:00	board run, test/board/caliper
+ir_rc6	bench	2026-10-30T14:59:56+00:00	board run, test/board/ir_rc6
+tdm_audio	bench	2026-10-30T15:00:09+00:00	board run, test/board/tdm_audio
