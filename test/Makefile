@@ -85,6 +85,8 @@ COCOTB_TEST_MODULES = test,test_usb_board,test_ethernet,test_dshot_sent_cec
 # the kit build has one engine, the chip two
 ifneq ($(FPGA),yes)
 COCOTB_TEST_MODULES := $(COCOTB_TEST_MODULES),test_two_engines,test_board_blame
+else
+export REPLAY_ENGINES = 1
 endif
 GATE_TEST_MODULES := $(COCOTB_TEST_MODULES)
 # the bench demos' rehearsals simulate milliseconds, so on the RTL alone
