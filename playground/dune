@@ -53,7 +53,7 @@
 
 (library
  (name playground_checks)
- (modules checks diagram_example)
+ (modules checks diagram_example isa_view)
  (libraries core pio protocol_emulator)
  (lint
   (pps ppx_js_style -check-doc-comments))

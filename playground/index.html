@@ -35,12 +35,18 @@
   #dares { border-collapse: collapse; width: 100%; }
   #dares th, #dares td { text-align: left; vertical-align: top; padding: 4px 8px; border-top: 1px solid var(--muted); }
   #dares pre { max-height: 9rem; overflow: auto; margin: 0; }
+  #isa-bits { display: flex; flex-wrap: wrap; gap: 2px; margin: 8px 0; }
+  #isa-bits button { width: 2.4rem; padding: 4px 0; font: 13px ui-monospace, monospace; color: var(--fg); border: 1px solid var(--muted); }
+  #isa-bits small { display: block; color: var(--muted); font-size: 10px; }
+  #isa-fields, #isa-table table { border-collapse: collapse; }
+  #isa-fields th, #isa-fields td, #isa-table td, #isa-table th { text-align: left; padding: 2px 10px; border-top: 1px solid var(--muted); vertical-align: top; }
+  .swatch { display: inline-block; width: 0.8rem; height: 0.8rem; margin-right: 6px; }
   .win-ok { fill: var(--ok); } .win-bad { fill: var(--bad); }
 </style>
 </head>
 <body>
 <h1>Firmware timing playground</h1>
-<nav><a href="#firmware">Firmware</a><a href="#pio">PIO</a><a href="#diagram">Diagram</a></nav>
+<nav><a href="#firmware">Firmware</a><a href="#pio">PIO</a><a href="#diagram">Diagram</a><a href="#isa">ISA</a></nav>
 <section id="firmware-tab">
 <p class="muted">The assembler, the timing analyser and the kernel, compiled to JavaScript
 with js_of_ocaml. The kernel checks the analyser's rows one instruction at a time; the
@@ -135,6 +141,21 @@ certificate. The model of the core then runs the table on the frames below.</p>
 <pre id="diagram-steps"></pre>
 <h2>Host words</h2>
 <pre id="diagram-words"></pre>
+</section>
+<section id="isa-tab" hidden>
+<p class="muted">The 16-bit instruction word, decoded by the same Isa module the assembler and the hardware decoder use. The fields and their values come from it, not from this page.</p>
+<!-- TODO(owner): a paragraph on the instruction word -->
+<div class="controls">
+  <label>Side-set bits <select id="isa-side"></select></label>
+  <label>Instruction <input id="isa-line" size="28" value="set x, 5" spellcheck="false"></label>
+  <button id="isa-assemble">Assemble</button>
+  <label>Word 0x <input id="isa-hex" size="5" maxlength="4" spellcheck="false"></label>
+</div>
+<div id="isa-bits"></div>
+<p id="isa-text"></p>
+<table id="isa-fields"><thead><tr><th>Field</th><th>Bits</th><th>Value</th><th>Name</th></tr></thead><tbody id="isa-rows"></tbody></table>
+<h2>Every opcode</h2>
+<div id="isa-table"></div>
 </section>
 <script src="playground.bc.js"></script>
 <script>
@@ -424,9 +445,87 @@ certificate. The model of the core then runs the table on the frames below.</p>
   $("diagram-clock").onchange = runDiagram;
   loadDiagram();
 
+  const hue = (i) => "hsl(" + (i * 67 % 360) + " 55% 55% / 0.45)";
+  let isaWord = 0;
+  const isaSide = () => Number($("isa-side").value);
+  const isaShow = () => {
+    const d = pe.isaDecode(isaWord, isaSide());
+    const slots = Array.from(d.slots).map(([[name, lsb, width, value], cases]) => ({ name, lsb, width, value, cases: Array.from(cases) }));
+    $("isa-hex").value = isaWord.toString(16).padStart(4, "0");
+    $("isa-text").textContent = d.error ? "refused by the decoder: " + d.error : "decodes to: " + d.text;
+    $("isa-text").className = d.error ? "refused" : "accepted";
+    const bits = [];
+    for (let b = 15; b >= 0; b--) {
+      const k = slots.findIndex((s) => b >= s.lsb && b < s.lsb + s.width);
+      const button = document.createElement("button");
+      button.innerHTML = (isaWord >> b & 1) + "<small>" + b + "</small>";
+      button.title = k < 0 ? "bit " + b + ": no field" : slots[k].name;
+      button.style.background = k < 0 ? "transparent" : hue(k);
+      button.onclick = () => { isaWord ^= 1 << b; isaShow(); };
+      bits.push(button);
+    }
+    $("isa-bits").replaceChildren(...bits);
+    $("isa-rows").replaceChildren(...slots.map((s, k) => {
+      const tr = document.createElement("tr");
+      const name = document.createElement("td");
+      name.innerHTML = '<span class="swatch" style="background:' + hue(k) + '"></span>' + s.name;
+      const range = document.createElement("td");
+      range.textContent = s.width === 1 ? "[" + s.lsb + "]" : "[" + (s.lsb + s.width - 1) + ":" + s.lsb + "]";
+      const value = document.createElement("td");
+      const set = (v) => { isaWord = (isaWord & ~(((1 << s.width) - 1) << s.lsb)) | (v << s.lsb); isaShow(); };
+      const meaning = document.createElement("td");
+      const named = s.cases.find(([v]) => v === s.value);
+      if (s.cases.length) {
+        const sel = document.createElement("select");
+        s.cases.forEach(([v, n]) => sel.add(new Option(v + " " + n, v)));
+        if (!named) sel.add(new Option(s.value + " reserved", s.value));
+        sel.value = String(s.value);
+        sel.onchange = () => set(Number(sel.value));
+        value.append(sel);
+        meaning.textContent = named ? named[1] : "reserved";
+      } else {
+        const num = document.createElement("input");
+        num.type = "number"; num.min = 0; num.max = (1 << s.width) - 1; num.value = s.value;
+        num.onchange = () => set(Math.max(0, Math.min((1 << s.width) - 1, Number(num.value) || 0)));
+        value.append(num);
+      }
+      tr.append(name, range, value, meaning);
+      return tr;
+    }));
+  };
+  const isaLayout = () => {
+    $("isa-table").replaceChildren(...Array.from(pe.isaTable(isaSide())).map(([value, name, slots]) => {
+      const box = document.createElement("div");
+      const head = document.createElement("h3");
+      head.textContent = name + "  (op = " + value + ")";
+      const table = document.createElement("table");
+      Array.from(slots).forEach(([[n, lsb, width], cases]) => {
+        const tr = document.createElement("tr");
+        const list = Array.from(cases).map(([v, c]) => v + " " + c).join(", ");
+        tr.append(...[n, width === 1 ? "[" + lsb + "]" : "[" + (lsb + width - 1) + ":" + lsb + "]", list].map((t) => { const td = document.createElement("td"); td.textContent = t; return td; }));
+        table.append(tr);
+      });
+      box.append(head, table);
+      return box;
+    }));
+  };
+  for (let n = 0; n <= pe.maxSideSet; n++) $("isa-side").add(new Option(n, n));
+  const isaAssemble = () => {
+    const r = pe.isaAssemble($("isa-line").value, isaSide());
+    if (r.error !== undefined) { $("isa-text").textContent = "refused by the assembler: " + r.error; $("isa-text").className = "refused"; return; }
+    isaWord = r.word;
+    isaShow();
+  };
+  $("isa-assemble").onclick = isaAssemble;
+  $("isa-line").onkeydown = (e) => { if (e.key === "Enter") isaAssemble(); };
+  $("isa-side").onchange = () => { isaLayout(); isaShow(); };
+  $("isa-hex").onchange = () => { const v = parseInt($("isa-hex").value, 16); if (v >= 0 && v < 65536) { isaWord = v; } isaShow(); };
+  isaAssemble();
+  isaLayout();
+
   let diagramRan = false;
   const show = () => {
-    const tab = ["#pio", "#diagram"].includes(location.hash) ? location.hash.slice(1) : "firmware";
+    const tab = ["#pio", "#diagram", "#isa"].includes(location.hash) ? location.hash.slice(1) : "firmware";
     if (tab === "diagram" && !diagramRan) { diagramRan = true; runDiagram(); }
     document.querySelectorAll("section").forEach((s) => { s.hidden = s.id !== tab + "-tab"; });
     document.querySelectorAll("nav a").forEach((a) => {
