@@ -47,6 +47,11 @@
   "//": "net on the power-up build (64 -> 7 -> 1 -> 1).",
   "DRT_ANTENNA_REPAIR_ITERS": 6,
 
+  "//": "SYNTH_ARITH_TREE - yosys 0.66's arith_tree folds a narrower add or sub into a wider one",
+  "//": "and keeps the carry the narrower one drops (fixed upstream in e5c56c640), so the netlist",
+  "//": "stops being the RTL. The 8x4 load checker's reach = {0, read_at - base} + 1 hit it.",
+  "SYNTH_ARITH_TREE": false,
+
   "//": "OPENROAD_THREADS - unset, LibreLane 3.1.0.dev3 passes '-threads None' and OpenROAD runs",
   "//": "on one thread. 4 is a GitHub runner's core count; local hardens override it with -c.",
   "OPENROAD_THREADS": 4,
