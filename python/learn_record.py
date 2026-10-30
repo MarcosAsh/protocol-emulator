@@ -38,6 +38,8 @@ SELECTS = [bytes((0x80 | pe.SELECT, 0, engine)) for engine in range(2)]
 # stamps an engine can hold, a recording's worth
 MOST = 3000
 NOW = array.array("i", [0])
+# where a recording got to: the step of the loop, and the polls done
+AT = array.array("i", [0, 0])
 
 
 @micropython.native
@@ -45,7 +47,11 @@ def poll(spi, engine, words, count):
     """Selects engine, puts its waiting words in words from count, and returns how many
     there are then; the low half of its clock, read after the drain, goes in NOW. Nothing
     here allocates, as the heap is locked while recording."""
-    cs_n, bus, status, rx_in = spi.cs_n, spi.spi, spi.status, spi.rx_in
+    # one name a line: four names at once would build a tuple
+    cs_n = spi.cs_n
+    bus = spi.spi
+    status = spi.status
+    rx_in = spi.rx_in
     cs_n(0)
     bus.write(SELECTS[engine])
     cs_n(1)
@@ -89,27 +95,34 @@ def record(spi, host, engines, ms):
     # a collection mid-recording is what makes a poll late, and a locked heap raises
     # MemoryError at the first allocation rather than running out seconds later
     gc.collect()
+    AT[0] = 0
     micropython.heap_lock()
     try:
         while time.ticks_diff(time.ticks_ms(), start) < ms:
             for k in range(n):
+                AT[0] = 1
                 before = counts[k]
                 count = poll(spi, ids[k], words[k], before)
+                AT[0] = 2
                 now = NOW[0]
                 counts[k] = count
                 t = time.ticks_us()
                 gap = time.ticks_diff(t, then[k])
                 then[k] = t
+                AT[0] = 3
                 # whole 65536s of the clock from the Pico's microseconds, the rest from it
                 low = (now - last[k]) & 0xFFFF
                 wraps = (gap * (CLOCK_HZ // 1_000_000) - low + 32768) >> 16
                 clock[k] += low + (wraps << 16 if wraps > 0 else 0)
                 last[k] = now
+                AT[0] = 4
                 if count > before and gap > LATE_US:
                     # a stamp could be a wrap older than it reads
                     late += 1
+                AT[0] = 5
                 for i in range(before, count):
                     times[k][i] = clock[k] - ((now - words[k][i]) & 0xFFFF)
+                AT[1] += 1
     finally:
         micropython.heap_unlock()
     words = [list(w[:c]) for w, c in zip(words, counts)]
@@ -172,7 +185,7 @@ if __name__ == "__main__":
     try:
         run(log)
     except Exception as e:
-        log("stopped: %r" % e)
+        log("stopped: %r at step %d of poll %d, %d bytes free" % (e, AT[0], AT[1], gc.mem_free()))
         log("FAIL")
     with open("record.log", "w") as f:
         f.write("\n".join(lines) + "\n")
