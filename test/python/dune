@@ -1,6 +1,7 @@
 (executables
  (names
   write_usb_firmware
+  write_usb_fs_firmware
   write_ethernet_firmware
   write_certified_firmware
   write_sweep_firmware
@@ -28,6 +29,16 @@
  (alias runtest)
  (action
   (diff ../../python/usb_device_firmware.py usb_device_firmware.py.gen)))
+
+(rule
+ (with-stdout-to
+  usb_fs_device_firmware.py.gen
+  (run ./write_usb_fs_firmware.exe)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff ../../python/usb_fs_device_firmware.py usb_fs_device_firmware.py.gen)))
 
 (rule
  (with-stdout-to
