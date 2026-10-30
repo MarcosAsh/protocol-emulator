@@ -2,7 +2,7 @@
 # A 24LC256 on the library's I2C master (MicroPython, Pico A): SCL on IO2, SDA on IO3, each
 # pulled up to 3.3 V. Finds the chip, then a byte write and a page write, each ACK polled to
 # the end of its write cycle and read back. The old contents seed what is written, so a run
-# that writes nothing cannot pass. Pico B shares the bus for the start hold demo, so the run
+# that writes nothing cannot pass. Pico B shares the bus for the start hold act, so the run
 # first listens and refuses if Pico B is mastering it. demo/outside.sh eeprom copies what it
 # needs and runs it.
 
