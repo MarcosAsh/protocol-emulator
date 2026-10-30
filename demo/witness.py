@@ -690,7 +690,7 @@ def microwire(sk, di, cs):
         return out
 
     def timing(samples, rate, _capture, _decode, _log):
-        d_at = edges(samples, di)[0].tolist()
+        d_at = edges(samples, di)[0]
         n = {k: [] for k in ["SK period", "SK high", "DI setup", "DI hold", "CS setup",
                              "CS hold", "CS low after an erase/write"]}
         found = frames(samples)
@@ -841,14 +841,20 @@ def nominal(levels):
     return out
 
 
+def first_rise(found, idle):
+    """The index in runs() of the first high after more than idle samples low, or after
+    the start of the capture."""
+    return next((k for k, (level, _, n) in enumerate(found)
+                 if level and (k == 0 or found[k - 1][2] > idle)), len(found))
+
+
 def framed(samples, line, idle, frames):
     """The line's runs from the first rise after more than idle samples low, paired with
     each frame's in turn, as (expected level, count, samples), a low run between frames
     skipped; and each such low as (samples, the frame's trailing low units in it). A frame
     whose runs disagree in level or number ends it, as its bytes will show."""
     found = runs(samples, line)
-    i = next((k for k, (level, _, n) in enumerate(found)
-              if level and (k == 0 or found[k - 1][2] > idle)), len(found))
+    i = first_rise(found, idle)
     paired, gaps = [], []
     for levels in frames:
         trailing = len(levels) - len("".join(map(str, levels)).rstrip("0"))
@@ -893,8 +899,7 @@ def lfast(line, words):
 
     def start(samples, rate):
         found = runs(samples, line)
-        return next(f for i, (level, f, _) in enumerate(found[1:], 1)
-                    if level and found[i - 1][2] > 40 * LFAST_BIT * rate)
+        return found[first_rise(found, 40 * LFAST_BIT * rate)][1]
 
     def byte_tooth(samples, rate, _capture, _decode):
         """The first payload's first bit inverted."""
