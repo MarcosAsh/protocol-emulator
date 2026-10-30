@@ -834,7 +834,8 @@ let selected ~(clock : Recording.Line.t) (select : Recording.Line.t) =
   Array.to_list starts
   |> List.filter_map ~f:(fun start ->
     let until =
-      Array.find select.edges ~f:(fun e -> e > start) |> Option.value ~default:Int.max_value
+      Array.find select.edges ~f:(fun e -> e > start)
+      |> Option.value ~default:Int.max_value
     in
     let inside = Array.filter clock.edges ~f:(fun e -> e > start && e < until) in
     Option.some_if (not (Array.is_empty inside)) inside)

@@ -213,7 +213,8 @@ let%expect_test "Modbus RTU on an inverted RS-232 line, 8E1" =
 
 let%expect_test "SPI to a MAX7219: the clock, the edge it reads on and the select found" =
   show ~speak:false "spi_max7219";
-  [%expect {|
+  [%expect
+    {|
     line D2, idle 0
     clocked, clock D3 at 29411.8 Hz idle 0, data D2 read on the rising edge, D1 selects
     marks read 0.0 us long, as a receiver stretches them
