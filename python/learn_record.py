@@ -2,11 +2,13 @@
 # The chip records a transmitter it was never told about (MicroPython, Pico A): each engine
 # runs the edge logger on its line and stamps every edge with its own 16-bit clock, and this
 # drains the stamps and reads the clock after each drain, which extends every stamp to whole
-# cycles as long as no two reads are 65536 cycles apart (1.4 ms at 48 MHz). A poll later
-# than that marks the recording broken rather than guess. With two lines, engine 1 starts
+# cycles; the Pico's microseconds count the clock's wraps between reads. A drain that finds
+# stamps more than 65536 cycles (1.4 ms at 48 MHz) after the last marks the recording
+# broken rather than guess. With two lines, engine 1 starts
 # first and stamps the wire engine 0 raises as it starts, which puts both on one clock.
 # record.json (demo/learn_prepare.py) has the loggers; record.edges and record.log are kept.
 
+import gc
 import json
 import time
 
@@ -67,24 +69,33 @@ def record(spi, host, engines, ms):
     times = [[] for _ in range(n)]
     last = [0] * n
     clock = [0] * n
-    seen = [0] * n
     late = 0
     then = [time.ticks_us()] * n
     start = time.ticks_ms()
-    while time.ticks_diff(time.ticks_ms(), start) < ms:
-        for k in range(n):
-            got = words[k]
-            before = len(got)
-            now = poll(spi, engines[k]["engine"], got)
-            t = time.ticks_us()
-            if time.ticks_diff(t, then[k]) > LATE_US:
-                late += 1
-            then[k] = t
-            clock[k] += (now - last[k]) & 0xFFFF
-            last[k] = now
-            for i in range(before, len(got)):
-                times[k].append(clock[k] - ((now - got[i]) & 0xFFFF))
-            seen[k] = len(got)
+    # a collection mid-recording is what makes a poll late
+    gc.collect()
+    gc.disable()
+    try:
+        while time.ticks_diff(time.ticks_ms(), start) < ms:
+            for k in range(n):
+                got = words[k]
+                before = len(got)
+                now = poll(spi, engines[k]["engine"], got)
+                t = time.ticks_us()
+                gap = time.ticks_diff(t, then[k])
+                then[k] = t
+                # whole 65536s of the clock from the Pico's microseconds, the rest from it
+                low = (now - last[k]) & 0xFFFF
+                wraps = (gap * (CLOCK_HZ // 1_000_000) - low + 32768) >> 16
+                clock[k] += low + (wraps << 16 if wraps > 0 else 0)
+                last[k] = now
+                if len(got) > before and gap > LATE_US:
+                    # a stamp could be a wrap older than it reads
+                    late += 1
+                for i in range(before, len(got)):
+                    times[k].append(clock[k] - ((now - got[i]) & 0xFFFF))
+    finally:
+        gc.enable()
     faults = []
     for e in engines:
         host.select(e["engine"])
@@ -122,7 +133,7 @@ def run(log=print):
         f.write("\n".join(out + pins) + "\n")
     for (e, _, edges), fault in zip(lines, faults):
         log("%s: %d edges stamped by engine %d, faults 0x%x" % (e["name"], len(edges), e["engine"], fault))
-    log("polls more than %d us apart: %d" % (LATE_US, late))
+    log("drains with stamps more than %d us apart: %d" % (LATE_US, late))
     ok = not late and not any(faults) and all(len(edges) for _, _, edges in lines)
     log("PASS" if ok else "FAIL")
     return ok

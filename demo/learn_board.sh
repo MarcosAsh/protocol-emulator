@@ -50,7 +50,7 @@ python3 demo/learn_prepare.py edges "$out/recorded.sr" $probes > "$out/analyser_
 if [ "$kind" = clocked ]; then
     pins="-clocked OUT5,OUT4"
     analyser=B
-    spoken="CLK=D0 DATA=D1"
+    spoken="IO2=D0 IO3=D1"
     decode="-P spi:clk=D0:mosi=D1:cpol=1:cpha=1 -A spi=mosi-data"
 else
     pins="-pin OUT0"

@@ -21,6 +21,9 @@ def run(transfer, log):
     bench.load(host, {"config": send["config"], "words": send["words"]})
     host.start()
     host.push([send["period"]])
+    # the firmware sets the idle levels as it starts, before sigrok samples, so a clock's
+    # first move to idle is not read as a bit
+    time.sleep_ms(START_MS)
     for frame in send["frames"]:
         words = list(frame["words"])
         # as the fifo has room; the firmware pulls a word no sooner than a unit apart
@@ -40,5 +43,4 @@ def run(transfer, log):
 if __name__ == "__main__":
     log = bench.Log()
     spi = pico_board.PicoSpi()
-    time.sleep_ms(START_MS)
     bench.report(lambda: run(spi.transfer, log), log)
