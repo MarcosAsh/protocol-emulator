@@ -29,6 +29,7 @@ let protocols =
   ; Caliper.protocol
   ; Xy2_100.protocol
   ; Lfast.protocol
+  ; Usb_fs.protocol
   ]
 ;;
 
