@@ -1,7 +1,7 @@
 all: issue_timing host_timing host_spacing late_host fifo_order unreachable phase_step fetch_step edge_step event_step frame_step \
   value_step narrow saturating chip_frame fail_safe isolation data_step teeth fsm_miter verilog_in \
   sram_equiv kernel_equiv translation frontend_equiv link self_check self_check_clean powerup offset_axioms \
-  gate certify complete usb_roundtrip
+  gate certify complete usb_roundtrip frame_roundtrip
 
 # every dune here runs from the checkout's root, which a worktree inside another checkout
 # would otherwise give up for the outer one's
@@ -188,6 +188,32 @@ usb_roundtrip_proof:
 	! cmp -s usb_frame_rx.v usb_roundtrip_teeth/half_high.v
 	sby -f usb_roundtrip.sby prove seven cover cover_long cover_seven undestuffed half_high \
 	  seven_lenient unstuffed crc_raw
+
+frame_rx.v: ../src/*.ml
+	cd .. && dune exec -- bin/generate.exe frame-rx > formal/frame_rx.v
+
+# The 10BASE-T receiver keeps every frame of any length a sender puts on the line, from
+# any phase, through 3.1 ns of jitter on each edge at 40 MHz (5 ns at 50) with each half
+# bit within 0.2% of its length, or 1% with none, and judges its FCS, by k-induction in
+# seconds; the covers and teeth take about ten minutes. Each tooth, a receiver that takes
+# edges half a bit on, never corrects its phase or judges the FCS the wrong way round, or
+# a sender with 9.4 ns of jitter or 100 ns of TP_IDL, must fail.
+BLANK_HALF = s/^\(\s*assign blank = \)\(\w*\) ? .*;/\1\2 ? 11'b00010100000 : 11'b00010000000;/
+FREE_RUNNING = s/^\(\s*assign centred = \)\(.*\);/\1sm == 2'd0 ? \2 : drifted - bit_length;/
+INVERTED = s/^\(\s*assign \w* = crc_next \)==/\1!=/
+frame_roundtrip: frame_rx.v
+	$(MAKE) frame_roundtrip_proof
+
+frame_roundtrip_proof:
+	mkdir -p frame_roundtrip_teeth
+	sed "$(BLANK_HALF)" frame_rx.v > frame_roundtrip_teeth/blank_half.v
+	sed "$(FREE_RUNNING)" frame_rx.v > frame_roundtrip_teeth/free_running.v
+	sed "$(INVERTED)" frame_rx.v > frame_roundtrip_teeth/inverted.v
+	! cmp -s frame_rx.v frame_roundtrip_teeth/blank_half.v
+	! cmp -s frame_rx.v frame_roundtrip_teeth/free_running.v
+	! cmp -s frame_rx.v frame_roundtrip_teeth/inverted.v
+	sby -f frame_roundtrip.sby prove prove_fifty prove_drift cover blank_half free_running \
+	  inverted jitter_beyond short_idle
 
 # the same for any packet of up to 64 bytes, about 10 min
 usb_roundtrip_64: usb_frame_rx.v
