@@ -143,6 +143,11 @@ let command =
         flag "-repeat" (optional_with_default 2 int) ~doc:"N times the host sends it (2)"
       and clock_hz =
         flag "-clock-hz" (optional_with_default 48e6 float) ~doc:"HZ the chip's clock"
+      and decode =
+        flag
+          "-decode"
+          (optional string)
+          ~doc:"FILE print the frames another recording holds, read with what was learned"
       in
       fun () ->
         let result =
@@ -152,10 +157,15 @@ let command =
               ?lines:(Option.some_if (not (List.is_empty lines)) lines)
               recording
           in
-          print_string (Learn.to_string learned);
-          match out with
-          | None -> Ok ()
-          | Some out ->
+          match decode, out with
+          | Some other, _ ->
+            let%bind.Or_error other = Recording.of_string (In_channel.read_all other) in
+            let%map.Or_error frames = Learn.decode learned other in
+            List.iter frames ~f:(fun f ->
+              printf "%10.6f s  kind %d  %s\n" f.at f.kind (bits_string f.bits))
+          | None, None -> Ok (print_string (Learn.to_string learned))
+          | None, Some out ->
+            print_string (Learn.to_string learned);
             speak ~clock_hz ~pins:(pins_of ~pin ~clocked) ~value ~repeat ~out learned
         in
         match result with
