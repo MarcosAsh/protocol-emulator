@@ -373,7 +373,10 @@ FAILED = re.compile(r'^File "([^"]+)", line', re.M)
 COLOUR = re.compile(r"\x1b\[[0-9;]*m")
 
 
-def verdict(cwd, file, jobs, timeout):
+QUICK = ["@test/traces/runtest", "@test/traces/sigrok/runtest"]
+
+
+def verdict(cwd, file, jobs, timeout, full_timeout):
     # a mutant that does not compile or elaborate is not a mutant. A kill comes with the
     # files of the tests that failed, each result with the digest of the Verilog it
     # elaborates to, if its file makes any.
@@ -391,8 +394,11 @@ def verdict(cwd, file, jobs, timeout):
         verilog = digest(outputs) if outputs else None
         # the first failing test is kill enough, and stopping there keeps a mutant that also
         # hangs some other test from running out the clock as a timeout
-        code, err = dune(cwd, "build", "--stop-on-first-error", "@runtest", jobs=jobs,
-                         timeout=timeout)
+        # the traces kill most mutants in a fraction of the suite's time, so they go first
+        code, err = dune(cwd, "build", "--stop-on-first-error", *QUICK, jobs=jobs, timeout=timeout)
+        if code == 0:
+            code, err = dune(cwd, "build", "--stop-on-first-error", "@runtest", jobs=jobs,
+                             timeout=full_timeout or timeout)
         if code == 0:
             return "survived", [], verilog
         return "killed", sorted(set(FAILED.findall(COLOUR.sub("", err)))), verilog
@@ -637,6 +643,7 @@ def main():
     p.add_argument("--report", nargs="+", help="score the --json files of every shard")
     p.add_argument("--prove", action="store_true", help="take each survivor of the checker to the proofs")
     p.add_argument("--prove-only", action="store_true", help="take every mutant of the checker, untested")
+    p.add_argument("--full-timeout", type=int, help="seconds for the whole suite, after the traces pass")
     p.add_argument("--proof-timeout", type=int, default=4 * 3600, help="seconds per proof")
     p.add_argument("--work", help="keep the copies here between runs, so a chunk starts warm")
     p.add_argument("--resume", action="store_true", help="skip the mutants already in --json")
@@ -695,7 +702,7 @@ def main():
                 built = dune(copy, "build", "./bin/generate.exe", jobs=args.dune_jobs, timeout=timeout)[0]
                 result, by = ("untested" if built == 0 else "invalid"), []
             else:
-                result, by, verilog = verdict(copy, m["file"], args.dune_jobs, timeout)
+                result, by, verilog = verdict(copy, m["file"], args.dune_jobs, timeout, args.full_timeout)
             if proving and m["file"] in PROVED and result in ("survived", "untested"):
                 proved = prove(copy, m, work / "original", work / "prove_mutant.exe", timeout,
                                args.proof_timeout, args.prove_only, args.proofs)
