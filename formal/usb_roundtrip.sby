@@ -10,6 +10,10 @@ half_high mutant teeth
 seven_lenient mutant teeth sevens
 unstuffed teeth
 crc_raw teeth
+twice
+cover_twice covers
+unrearmed mutant rearm_teeth
+unrestarted mutant rearm_teeth
 
 [options]
 prove: mode prove
@@ -28,14 +32,25 @@ cover_seven: depth 120
 teeth: mode bmc
 teeth: depth 170
 teeth: expect fail
+twice: mode prove
+twice: depth 8
+# two packets of up to a byte of data, the second's last word in by 440 cycles from idle
+cover_twice: depth 440
+# each fails by a handshake and the next token's SYNC
+rearm_teeth: mode bmc
+rearm_teeth: depth 160
+rearm_teeth: expect fail
 
 [engines]
 ~teeth: smtbmc yices
 teeth: abc bmc3
+rearm_teeth: abc bmc3
 
 [script]
 ~mutant: read_verilog usb_frame_rx.v
 undestuffed: read_verilog undestuffed.v
+unrearmed: read_verilog unrearmed.v
+unrestarted: read_verilog unrestarted.v
 half_high: read_verilog half_high.v
 seven_lenient: read_verilog undestuffed.v
 hierarchy -top usb_frame_rx_top
@@ -70,12 +85,18 @@ cover_long: read -define LONG
 unstuffed: read -define NO_STUFF
 crc_raw: read -define CRC_RAW SHORT
 teeth: read -define NO_LEMMAS
+twice: read -define TWICE
+cover_twice: read -define TWICE NO_LEMMAS BYTES=1
+unrearmed: read -define TWICE SHORT_TWICE NO_LEMMAS BYTES=1
+unrestarted: read -define TWICE SHORT_TWICE NO_LEMMAS BYTES=1
 read_verilog -formal -sv usb_roundtrip.sv
 prep -flatten -top usb_roundtrip
 
 [files]
 ~mutant: usb_frame_rx.v
 undestuffed: usb_roundtrip_teeth/undestuffed.v
+unrearmed: usb_roundtrip_teeth/unrearmed.v
+unrestarted: usb_roundtrip_teeth/unrestarted.v
 half_high: usb_roundtrip_teeth/half_high.v
 seven_lenient: usb_roundtrip_teeth/undestuffed.v
 usb_roundtrip.sv

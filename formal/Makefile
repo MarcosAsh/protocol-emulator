@@ -171,12 +171,15 @@ usb_frame_rx.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe usb-rx > formal/usb_frame_rx.v
 
 # The USB receiver keeps what a host sends at 8 samples a bit, any packet with up to 8 data
-# bytes, and takes seven 1s in a row for a stuffing error, by k-induction. About 3 min;
-# usb_roundtrip_proof runs on Verilog written already. Each tooth, a receiver that never
-# unstuffs or packs a lone byte high, or a host that never stuffs or sends its CRC raw,
-# must fail.
+# bytes, and takes seven 1s in a row for a stuffing error, by k-induction; re-armed, any
+# second packet lands from the base as the first did. About 4 min; usb_roundtrip_proof
+# runs on Verilog written already. Each tooth, a receiver that never unstuffs, packs a
+# lone byte high, disarms at a packet's end whatever rearm says or restarts its count on
+# the arm alone, or a host that never stuffs or sends its CRC raw, must fail.
 UNDESTUFFED = s/^\(\s*assign full_run = ones == \)signal_const_[0-9]*;/\13'b111;/
 HALF_HIGH = s/^\(\s*assign signal_mux = \)half_word ? signal_cat : word_next;/\1word_next;/
+UNREARMED = s/^\(\s*assign signal_and_[0-9]* = ends\) & signal_not_[0-9]*;/\1;/
+UNRESTARTED = s/^\(\s*assign signal_or_[0-9]* = signal_wire_[0-9]*\) | starts;/\1;/
 usb_roundtrip: usb_frame_rx.v
 	$(MAKE) usb_roundtrip_proof
 
@@ -184,10 +187,14 @@ usb_roundtrip_proof:
 	mkdir -p usb_roundtrip_teeth
 	sed "$(UNDESTUFFED)" usb_frame_rx.v > usb_roundtrip_teeth/undestuffed.v
 	sed "$(HALF_HIGH)" usb_frame_rx.v > usb_roundtrip_teeth/half_high.v
+	sed "$(UNREARMED)" usb_frame_rx.v > usb_roundtrip_teeth/unrearmed.v
+	sed "$(UNRESTARTED)" usb_frame_rx.v > usb_roundtrip_teeth/unrestarted.v
 	! cmp -s usb_frame_rx.v usb_roundtrip_teeth/undestuffed.v
 	! cmp -s usb_frame_rx.v usb_roundtrip_teeth/half_high.v
+	! cmp -s usb_frame_rx.v usb_roundtrip_teeth/unrearmed.v
+	! cmp -s usb_frame_rx.v usb_roundtrip_teeth/unrestarted.v
 	sby -f usb_roundtrip.sby prove seven cover cover_long cover_seven undestuffed half_high \
-	  seven_lenient unstuffed crc_raw
+	  seven_lenient unstuffed crc_raw twice cover_twice unrearmed unrestarted
 
 # the same for any packet of up to 64 bytes, about 10 min
 usb_roundtrip_64: usb_frame_rx.v
