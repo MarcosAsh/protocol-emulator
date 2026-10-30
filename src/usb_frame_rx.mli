@@ -4,10 +4,12 @@
     packet if [crc16_ok].
 
     [arm] (re)starts it: the next packet's words land from [base] up, PID in the first low
-    half, and its end disarms it with [finished]. A word lands only where [may_write] lets
-    it, and only below the data memory's end; otherwise it is counted and [dropped] says
-    so. A word waits for [may_write] until the next arrives, and [finished] until the last
-    lands. [half] marks a last word that holds one byte. *)
+    half, and its end disarms it with [finished]. With [rearm] it stays armed, so each
+    packet lands from [base] in turn, with no host write between two a device must answer,
+    and [finished] holds from one's end to the next one's SYNC. A word lands only where
+    [may_write] lets it, and only below the data memory's end; otherwise it is counted and
+    [dropped] says so. A word waits for [may_write] until the next arrives, and [finished]
+    until the last lands. [half] marks a last word that holds one byte. *)
 
 open! Core
 open! Hardcaml
@@ -24,6 +26,7 @@ module Control : sig
   type 'a t =
     { arm : 'a
     ; base : 'a
+    ; rearm : 'a (** Each packet's end arms it again, for the next from [base] too. *)
     }
   [@@deriving hardcaml]
 end

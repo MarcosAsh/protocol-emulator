@@ -14051,6 +14051,7 @@ module usb_frame_rx (
     dm,
     control$arm,
     control$base,
+    control$rearm,
     may_write,
     write$valid,
     write$addr,
@@ -14075,6 +14076,7 @@ module usb_frame_rx (
     input [1:0] dm;
     input control$arm;
     input [8:0] control$base;
+    input control$rearm;
     input may_write;
     output write$valid;
     output [8:0] write$addr;
@@ -14221,12 +14223,14 @@ module usb_frame_rx (
     wire takes;
     wire signal_mux_29;
     wire signal_select_11;
-    wire [1:0] signal_wire_10;
+    wire signal_wire_10;
+    wire signal_not_5;
     wire [1:0] signal_wire_11;
+    wire [1:0] signal_wire_12;
     wire [23:0] signal_inst;
     wire signal_select_12;
-    wire signal_wire_12;
     wire signal_wire_13;
+    wire signal_wire_14;
     wire vdd;
     wire gnd;
     wire signal_mux_30;
@@ -14235,12 +14239,13 @@ module usb_frame_rx (
     reg signal_reg_6;
     wire receiving;
     wire ends;
+    wire signal_and_10;
     wire signal_mux_33;
     wire signal_mux_34;
     reg signal_reg_7;
     wire armed;
     wire starts;
-    wire signal_wire_14;
+    wire signal_wire_15;
     wire signal_or_2;
     wire signal_mux_35;
     reg signal_reg_8;
@@ -14257,8 +14262,8 @@ module usb_frame_rx (
     assign signal_mux = signal_or ? vdd : dropped;
     assign signal_mux_1 = signal_or_2 ? gnd : signal_mux;
     assign signal_wire = signal_mux_1;
-    always @(posedge signal_wire_13) begin
-        if (signal_wire_12)
+    always @(posedge signal_wire_14) begin
+        if (signal_wire_13)
             dropped <= signal_const;
         else
             dropped <= signal_wire;
@@ -14267,8 +14272,8 @@ module usb_frame_rx (
     assign signal_mux_2 = ends ? signal_select : stuff_error;
     assign signal_mux_3 = signal_or_2 ? gnd : signal_mux_2;
     assign signal_wire_1 = signal_mux_3;
-    always @(posedge signal_wire_13) begin
-        if (signal_wire_12)
+    always @(posedge signal_wire_14) begin
+        if (signal_wire_13)
             stuff_error <= signal_const;
         else
             stuff_error <= signal_wire_1;
@@ -14277,8 +14282,8 @@ module usb_frame_rx (
     assign signal_mux_4 = ends ? signal_select_1 : aligned;
     assign signal_mux_5 = signal_or_2 ? gnd : signal_mux_4;
     assign signal_wire_2 = signal_mux_5;
-    always @(posedge signal_wire_13) begin
-        if (signal_wire_12)
+    always @(posedge signal_wire_14) begin
+        if (signal_wire_13)
             aligned <= signal_const;
         else
             aligned <= signal_wire_2;
@@ -14286,8 +14291,8 @@ module usb_frame_rx (
     assign signal_mux_6 = ends ? signal_select_10 : half;
     assign signal_mux_7 = signal_or_2 ? gnd : signal_mux_6;
     assign signal_wire_3 = signal_mux_7;
-    always @(posedge signal_wire_13) begin
-        if (signal_wire_12)
+    always @(posedge signal_wire_14) begin
+        if (signal_wire_13)
             half <= signal_const;
         else
             half <= signal_wire_3;
@@ -14301,8 +14306,8 @@ module usb_frame_rx (
     assign signal_mux_8 = signal_and_5 ? signal_and_3 : data_pid;
     assign signal_mux_9 = starts ? vdd : signal_mux_8;
     assign signal_wire_4 = signal_mux_9;
-    always @(posedge signal_wire_13) begin
-        if (signal_wire_12)
+    always @(posedge signal_wire_14) begin
+        if (signal_wire_13)
             data_pid <= signal_const;
         else
             data_pid <= signal_wire_4;
@@ -14322,8 +14327,8 @@ module usb_frame_rx (
     assign signal_and_6 = packet_bit & past_pid;
     assign signal_mux_11 = signal_and_6 ? signal_mux_10 : crc16;
     assign signal_mux_12 = starts ? signal_const_9 : signal_mux_11;
-    always @(posedge signal_wire_13) begin
-        if (signal_wire_12)
+    always @(posedge signal_wire_14) begin
+        if (signal_wire_13)
             signal_reg <= signal_const_8;
         else
             signal_reg <= signal_mux_12;
@@ -14333,8 +14338,8 @@ module usb_frame_rx (
     assign signal_mux_13 = ends ? signal_eq : crc16_ok;
     assign signal_mux_14 = signal_or_2 ? gnd : signal_mux_13;
     assign signal_wire_5 = signal_mux_14;
-    always @(posedge signal_wire_13) begin
-        if (signal_wire_12)
+    always @(posedge signal_wire_14) begin
+        if (signal_wire_13)
             crc16_ok <= signal_const;
         else
             crc16_ok <= signal_wire_5;
@@ -14357,8 +14362,8 @@ module usb_frame_rx (
     assign signal_add = pid_bits + signal_const_22;
     assign signal_mux_16 = packet_bit ? signal_add : pid_bits;
     assign signal_mux_17 = starts ? signal_const_20 : signal_mux_16;
-    always @(posedge signal_wire_13) begin
-        if (signal_wire_12)
+    always @(posedge signal_wire_14) begin
+        if (signal_wire_13)
             signal_reg_1 <= signal_const_20;
         else
             signal_reg_1 <= signal_mux_17;
@@ -14368,8 +14373,8 @@ module usb_frame_rx (
     assign signal_and_7 = packet_bit & signal_eq_1;
     assign signal_mux_18 = signal_and_7 ? vdd : past_pid;
     assign signal_mux_19 = starts ? gnd : signal_mux_18;
-    always @(posedge signal_wire_13) begin
-        if (signal_wire_12)
+    always @(posedge signal_wire_14) begin
+        if (signal_wire_13)
             signal_reg_2 <= signal_const;
         else
             signal_reg_2 <= signal_mux_19;
@@ -14380,8 +14385,8 @@ module usb_frame_rx (
     assign signal_and_8 = packet_bit & past_pid;
     assign signal_mux_20 = signal_and_8 ? signal_mux_15 : crc5;
     assign signal_mux_21 = starts ? signal_const_15 : signal_mux_20;
-    always @(posedge signal_wire_13) begin
-        if (signal_wire_12)
+    always @(posedge signal_wire_14) begin
+        if (signal_wire_13)
             signal_reg_3 <= signal_const_14;
         else
             signal_reg_3 <= signal_mux_21;
@@ -14391,8 +14396,8 @@ module usb_frame_rx (
     assign signal_mux_22 = ends ? signal_eq_2 : crc5_ok;
     assign signal_mux_23 = signal_or_2 ? gnd : signal_mux_22;
     assign signal_wire_6 = signal_mux_23;
-    always @(posedge signal_wire_13) begin
-        if (signal_wire_12)
+    always @(posedge signal_wire_14) begin
+        if (signal_wire_13)
             crc5_ok <= signal_const;
         else
             crc5_ok <= signal_wire_6;
@@ -14401,16 +14406,16 @@ module usb_frame_rx (
     assign signal_mux_24 = ends ? vdd : ended;
     assign signal_mux_25 = signal_or_2 ? gnd : signal_mux_24;
     assign signal_wire_7 = signal_mux_25;
-    always @(posedge signal_wire_13) begin
-        if (signal_wire_12)
+    always @(posedge signal_wire_14) begin
+        if (signal_wire_13)
             ended <= signal_const;
         else
             ended <= signal_wire_7;
     end
     assign finished = ended & signal_not_3;
     assign signal_select_8 = signal_inst[23:8];
-    always @(posedge signal_wire_13) begin
-        if (signal_wire_12)
+    always @(posedge signal_wire_14) begin
+        if (signal_wire_13)
             signal_reg_4 <= signal_const_8;
         else
             if (takes)
@@ -14426,17 +14431,17 @@ module usb_frame_rx (
     assign signal_not_4 = ~ full;
     assign signal_and_9 = takes & signal_not_4;
     assign signal_mux_26 = signal_and_9 ? signal_add_1 : words;
-    assign signal_or_1 = signal_wire_14 | starts;
+    assign signal_or_1 = signal_wire_15 | starts;
     assign signal_mux_27 = signal_or_1 ? signal_const_26 : signal_mux_26;
-    always @(posedge signal_wire_13) begin
-        if (signal_wire_12)
+    always @(posedge signal_wire_14) begin
+        if (signal_wire_13)
             signal_reg_5 <= signal_const_26;
         else
             signal_reg_5 <= signal_mux_27;
     end
     assign words = signal_reg_5;
-    always @(posedge signal_wire_13) begin
-        if (signal_wire_12)
+    always @(posedge signal_wire_14) begin
+        if (signal_wire_13)
             index <= signal_const_26;
         else
             if (takes)
@@ -14457,14 +14462,16 @@ module usb_frame_rx (
     assign takes = receiving & signal_select_10;
     assign signal_mux_29 = takes ? vdd : signal_mux_28;
     assign signal_select_11 = signal_inst[3:3];
-    assign signal_wire_10 = dm;
-    assign signal_wire_11 = dp;
+    assign signal_wire_10 = control$rearm;
+    assign signal_not_5 = ~ signal_wire_10;
+    assign signal_wire_11 = dm;
+    assign signal_wire_12 = dp;
     usb_rx
         usb_rx
-        ( .clock(signal_wire_13),
-          .clear(signal_wire_12),
-          .dp(signal_wire_11),
-          .dm(signal_wire_10),
+        ( .clock(signal_wire_14),
+          .clear(signal_wire_13),
+          .dp(signal_wire_12),
+          .dm(signal_wire_11),
           .bit$valid(signal_inst[0:0]),
           .bit$value(signal_inst[1:1]),
           .packet_active(signal_inst[2:2]),
@@ -14475,36 +14482,37 @@ module usb_frame_rx (
           .word$valid(signal_inst[7:7]),
           .word$value(signal_inst[23:8]) );
     assign signal_select_12 = signal_inst[4:4];
-    assign signal_wire_12 = clear;
-    assign signal_wire_13 = clock;
+    assign signal_wire_13 = clear;
+    assign signal_wire_14 = clock;
     assign vdd = 1'b1;
     assign gnd = 1'b0;
     assign signal_mux_30 = ends ? gnd : receiving;
     assign signal_mux_31 = starts ? vdd : signal_mux_30;
-    assign signal_mux_32 = signal_wire_14 ? gnd : signal_mux_31;
-    always @(posedge signal_wire_13) begin
-        if (signal_wire_12)
+    assign signal_mux_32 = signal_wire_15 ? gnd : signal_mux_31;
+    always @(posedge signal_wire_14) begin
+        if (signal_wire_13)
             signal_reg_6 <= signal_const;
         else
             signal_reg_6 <= signal_mux_32;
     end
     assign receiving = signal_reg_6;
     assign ends = receiving & signal_select_12;
-    assign signal_mux_33 = ends ? gnd : armed;
-    assign signal_mux_34 = signal_wire_14 ? vdd : signal_mux_33;
-    always @(posedge signal_wire_13) begin
-        if (signal_wire_12)
+    assign signal_and_10 = ends & signal_not_5;
+    assign signal_mux_33 = signal_and_10 ? gnd : armed;
+    assign signal_mux_34 = signal_wire_15 ? vdd : signal_mux_33;
+    always @(posedge signal_wire_14) begin
+        if (signal_wire_13)
             signal_reg_7 <= signal_const;
         else
             signal_reg_7 <= signal_mux_34;
     end
     assign armed = signal_reg_7;
     assign starts = armed & signal_select_11;
-    assign signal_wire_14 = control$arm;
-    assign signal_or_2 = signal_wire_14 | starts;
+    assign signal_wire_15 = control$arm;
+    assign signal_or_2 = signal_wire_15 | starts;
     assign signal_mux_35 = signal_or_2 ? gnd : signal_mux_29;
-    always @(posedge signal_wire_13) begin
-        if (signal_wire_12)
+    always @(posedge signal_wire_14) begin
+        if (signal_wire_13)
             signal_reg_8 <= signal_const;
         else
             signal_reg_8 <= signal_mux_35;
@@ -16549,6 +16557,7 @@ module engines (
           .dm(signal_wire_125),
           .control$arm(signal_and_24),
           .control$base(signal_wire_139),
+          .control$rearm(signal_wire_138),
           .may_write(frame_may_write),
           .write$valid(signal_inst_1[0:0]),
           .write$addr(signal_inst_1[9:1]),

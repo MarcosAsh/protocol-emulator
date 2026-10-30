@@ -216,7 +216,11 @@ module Make (Config : Config) = struct
         { clocking = i.clocking
         ; dp = i.rd
         ; dm = i.dm
-        ; control = { arm = i.frame.arm &: i.frame_usb; base = i.frame.base }
+        ; control =
+            { arm = i.frame.arm &: i.frame_usb
+            ; base = i.frame.base
+            ; rearm = i.frame.fifty
+            }
         ; may_write = frame_may_write
         }
     in
