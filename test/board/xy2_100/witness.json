@@ -1,0 +1,65 @@
+{
+  "demo": "xy2_100",
+  "time": "2026-10-30T14:59:30",
+  "result": "PASS",
+  "commit": "b82b5eccd88bf54bdf2ae420cc35e87a128efd54",
+  "bitstream_sha256": "ded0014fdf14df568ed478e5f6e36d1d91475ba62bae300e101c1b229c1f963f",
+  "netlist_sha256": "1db23ccd02406ef95731f3ffd7de23fbfa9a66a0410741d78cbcb04edc717f5f",
+  "sums_sha256": "5cf42a8088f7a604b8b6322235e92949ee3dd5b93a9e4911defe908aa95f6fb4",
+  "capture": {
+    "file": "xy2_100.sr",
+    "sha256": "6e8aa06a1f4794d323e902e6fd5354f6eb407eb94a092121ecb401c3d8e7060a",
+    "rate_hz": 24000000,
+    "seconds": 2.0,
+    "analyser": "B",
+    "channels": {
+      "D4": "SENDCK, OUT3",
+      "D1": "SYNC, OUT4, the flash's DI",
+      "D3": "DATA, OUT6, the flash's CS"
+    }
+  },
+  "decode": {
+    "arguments": "-P xy2-100:clk=D4:sync=D1:data=D3 -A xy2-100=type:parity:position",
+    "sha256": "f20673a6899bac46f4ab441fe1a3b6915bc91de5fcd5977409d87e96f1a52ee2"
+  },
+  "timing": [
+    {
+      "parameter": "tDS",
+      "limit": ">= 50 ns",
+      "sheet": "Newson rhothor X7 XY2-100 datasheet rev. 0703, p.2",
+      "spans": 638,
+      "measured": "208 ns to 292 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "tDH",
+      "limit": ">= 100 ns",
+      "sheet": "Newson rhothor X7 XY2-100 datasheet rev. 0703, p.2",
+      "spans": 638,
+      "measured": "208 ns to 292 ns",
+      "verdict": "proved"
+    }
+  ],
+  "teeth": [
+    "DATA inverted over the first D15",
+    "a DATA move put on the SENDCK fall after it"
+  ],
+  "bitstream_source": "main cb872768 by icepi/Makefile REV=v1.3 (seed 2, 49.47 MHz), the pc's pe-bench run 2026-10-30-0904; its Verilog is a5566412's",
+  "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
+  "firmware": {
+    "XY2_100": "ed875fee9572d5122789f275d227ca092539f4e32d271ae0c3eb1c3780acc766"
+  },
+  "host_scripts": {
+    "python/demo_xy2_100.py": "069126d07dd03ff61f64a31716ca0006ddaec415e284c073d8297e96d0184bd5"
+  },
+  "bench": "an Icepi Zero (ECP5 LFE5U-25F) running the chip at 48 MHz on bench carrier v1.2, Pico A as the host on SPI, nothing, the flash's clock held still, analyser B (fx2lafw) at 24 MS/s",
+  "scope": "the bytes on the wire and their timing in one run of xy2_100, as the analyser saw them",
+  "limits": [
+    "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
+    "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
+    "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
+    "the bitstream is named by its sha256, and its netlist's, built from main cb872768 by icepi/Makefile REV=v1.3 (seed 2, 49.47 MHz), the pc's pe-bench run 2026-10-30-0904; its Verilog is a5566412's by the bench's notes, which CI does not rebuild",
+    "drawn at random and written blind from its spec (docs/flexibility.md)",
+    "tDS and tDH are held on DATA only, as the library holds them"
+  ]
+}
