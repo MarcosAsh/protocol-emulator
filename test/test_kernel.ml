@@ -743,6 +743,7 @@ let%expect_test "the kernel on the firmware library, from the analyser's rows" =
     (caliper (verdict (Ok ())))
     (xy2_100 (verdict (Ok ())))
     (lfast (verdict (Ok ())))
+    (usb_fs_device (verdict (Ok ())))
     |}]
 ;;
 
@@ -1564,6 +1565,8 @@ let%expect_test "a bound on the jitter of every pin edge, in firmware the kernel
     (caliper (pc 14) (jitter_bound 0) (untimed (3 6)))
     (xy2_100 (pc 5) (jitter_bound 5) (untimed (0 1 2 3)))
     (lfast (pc 8) (jitter_bound 0) (untimed (1)))
+    (usb_fs_device (pc 172) (jitter_bound 6)
+     (untimed (0 1 40 42 43 44 59 61 62 63 141 143 144 145 175 177 178 179)))
     (spi_slave_captured "no edge has a deadline" (untimed (0 5))
      (reaction ((pc 5) (at_most 2))))
     |}]
