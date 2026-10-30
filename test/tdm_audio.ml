@@ -194,13 +194,16 @@ let certified = [ Certified.of_firmware "tdm_audio" firmware ]
    one to bound *)
 let samples = [ 0x8000; 0x7fff; 0x1234; 0xa5a5; 0x0001; 0xffff; 0x5555; 0xc3c3 ]
 
+(* The bench's OUT1 reaches no analyser channel, so all three go to analyser B: SCLK and
+   FSYNC on OUT3 and OUT4, SDATA on OUT6. OUT5, the flash's clock, stays still, so the
+   flash takes none of it for a command. *)
 let bench =
   { Bench.name = "tdm_audio"
   ; what =
-      "Tdm_audio.firmware: SCLK at 8 MHz on OUT0, FSYNC on OUT1 and SDATA on OUT2, eight \
+      "Tdm_audio.firmware: SCLK at 8 MHz on OUT3, FSYNC on OUT4 and SDATA on OUT6, eight \
        32-bit channel blocks every 32 us"
   ; source = Timed_program.source firmware
-  ; config
+  ; config = { config with side_set_base = Bench.neopixel; out_base = 11; set_base = 11 }
   ; assumption = Nothing
   ; clock_hz = Bench.clock_hz
   ; load = None

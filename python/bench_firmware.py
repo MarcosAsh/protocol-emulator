@@ -1572,17 +1572,17 @@ LFAST = {
     ],
 }
 
-# Tdm_audio.firmware: SCLK at 8 MHz on OUT0, FSYNC on OUT1 and SDATA on OUT2, eight 32-bit channel blocks every 32 us
+# Tdm_audio.firmware: SCLK at 8 MHz on OUT3, FSYNC on OUT4 and SDATA on OUT6, eight 32-bit channel blocks every 32 us
 TDM_AUDIO = {
     "config": {
         "side_set_count": 2,
-        "side_set_base": 5,
+        "side_set_base": 8,
         "side_set_pindirs": 0,
         "in_base": 0,
         "in_count": 16,
-        "out_base": 7,
+        "out_base": 11,
         "out_count": 1,
-        "set_base": 7,
+        "set_base": 11,
         "set_count": 1,
         "jmp_pin": 0,
         "capture_pin": 0,
