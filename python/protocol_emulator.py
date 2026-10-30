@@ -200,13 +200,16 @@ class Host:
             "armed": (s >> 15) & 1,
         }
 
-    def arm_usb(self, dp_pin, base=0, owner=0):
+    def arm_usb(self, dp_pin, base=0, owner=0, rearm=False):
         """Take the next USB full speed packet into the data memory from base, D+ on
-        dp_pin and D- on the next. One packet per arm; frame_status reports it, its
-        fcs_ok the CRC-16. Its words land in engine owner's data turns, and that engine
-        alone reads the status pins 28-31."""
+        dp_pin and D- on the next. One packet per arm, or with rearm every packet from
+        base in turn; frame_status reports the last, its fcs_ok the CRC-16. Its words land
+        in engine owner's data turns, and that engine alone reads the status pins 28-31."""
         self.write(FRAME_BASE, [base])
-        self.write(FRAME_CONTROL, [(owner << 8) | (1 << 7) | (dp_pin << 2) | 1])
+        self.write(
+            FRAME_CONTROL,
+            [(owner << 8) | (1 << 7) | (dp_pin << 2) | (int(rearm) << 1) | 1],
+        )
 
     def usb_status(self):
         s = self.read(USB_STATUS)[0]

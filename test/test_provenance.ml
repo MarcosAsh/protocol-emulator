@@ -27,7 +27,7 @@ let%expect_test "tracing leaves the committed verilog byte for byte" =
         ~bytes:(String.length committed : int)
         ~untraced_identical:(String.equal plain committed : bool)
         ~traced_identical:(String.equal traced committed : bool)];
-  [%expect {| ((bytes 825571) (untraced_identical true) (traced_identical true)) |}]
+  [%expect {| ((bytes 825874) (untraced_identical true) (traced_identical true)) |}]
 ;;
 
 (* no module's lines are an interface's fields, where its derived code sits *)
@@ -70,7 +70,7 @@ let%expect_test "the share of verilog names that resolve to a src line" =
              : string list)]);
   [%expect
     {|
-    ((names 7854) (named_at 563) (made_at 6086) (unresolved 1205)
+    ((names 7858) (named_at 563) (made_at 6088) (unresolved 1207)
      (distinct_lines 1223))
     (both_edges (names 16) (unresolved 12) (files (src/both_edges.ml)))
     (data_memory (names 125) (unresolved 44) (files (src/data_memory.ml)))
@@ -91,7 +91,7 @@ let%expect_test "the share of verilog names that resolve to a src line" =
     (protocol_emulator (names 17) (unresolved 17) (files ()))
     (sram_macro (names 21) (unresolved 19) (files (src/sram_macro.ml)))
     (top (names 332) (unresolved 11) (files (src/top.ml)))
-    (usb_frame_rx (names 177) (unresolved 20)
+    (usb_frame_rx (names 181) (unresolved 22)
      (files (src/crc.ml src/usb_frame_rx.ml)))
     (usb_rx (names 144) (unresolved 12) (files (src/usb_rx.ml)))
     |}]
