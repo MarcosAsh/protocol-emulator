@@ -444,9 +444,6 @@ tolerance_proof:
 	sby -f tolerance_$(NAME).sby $(or $(TOLERANCE_PROOFS_$(NAME)),$(TOLERANCE_PROOFS))
 	sby -f tolerance_$(NAME).sby $(or $(TOLERANCE_TEETH_$(NAME)),$(TOLERANCE_TEETH))
 
-tolerance_names:
-	@echo $(TOLERANCE)
-
 # fsm compiler's miter (write_certificate.ml -fsm): hardcaml_hobby_boards' Uart.Tx,
 # unmodified, beside the engine running its compiled firmware. Proof ~20 s, teeth ~1.5 min.
 fsm_miter: engine_sram.v
