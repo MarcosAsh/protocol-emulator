@@ -63,6 +63,12 @@
   "RUN_POST_GRT_DESIGN_REPAIR": true,
   "RUN_POST_GRT_RESIZER_TIMING": true,
 
+  "//": "SYNTH_ARITH_TREE - yosys 0.66's arith_tree folds a narrower add or sub into a wider one",
+  "//": "and keeps the carry the narrower one drops (fixed upstream in e5c56c640): the load",
+  "//": "checker's reach = {0, read_at - base} + 1 came out 10 bits wide, so the netlist was not",
+  "//": "the RTL and netlist_equiv could not close.",
+  "SYNTH_ARITH_TREE": false,
+
   "//": "OPENROAD_THREADS - unset, LibreLane 3.1.0.dev3 passes '-threads None' and OpenROAD runs",
   "//": "on one thread. 4 is a GitHub runner's core count; local hardens override it with -c.",
   "OPENROAD_THREADS": 4,
