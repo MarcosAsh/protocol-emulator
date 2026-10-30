@@ -814,6 +814,30 @@ let bursts ~half (clock : Recording.Line.t) =
   |> List.rev_map ~f:(fun b -> Array.of_list (List.rev b))
 ;;
 
+(* A chip select: every clock edge comes while it is at one level, the active one. *)
+let selects ~(clock : Recording.Line.t) (line : Recording.Line.t) =
+  Array.length line.edges >= 2
+  && Array.length clock.edges > 0
+  &&
+  let levels = Array.map clock.edges ~f:(Recording.Line.level_at line) in
+  Array.for_all levels ~f:(Bool.equal levels.(0))
+;;
+
+(* The clock's edges in each span the select is active, as bursts. *)
+let selected ~(clock : Recording.Line.t) (select : Recording.Line.t) =
+  let active = Recording.Line.level_at select clock.edges.(0) in
+  let starts =
+    Array.filteri select.edges ~f:(fun j _ -> Bool.equal (level_after select j) active)
+  in
+  Array.to_list starts
+  |> List.filter_map ~f:(fun start ->
+    let until =
+      Array.find select.edges ~f:(fun e -> e > start) |> Option.value ~default:Int.max_value
+    in
+    let inside = Array.filter clock.edges ~f:(fun e -> e > start && e < until) in
+    Option.some_if (not (Array.is_empty inside)) inside)
+;;
+
 let clock_edges (clock : Recording.Line.t) ~rising =
   Array.filteri clock.edges ~f:(fun j _ -> Bool.equal (level_after clock j) rising)
 ;;
@@ -858,17 +882,23 @@ let learn_clocked ~rate (lines : Recording.Line.t list) =
     then Or_error.error_s [%message "unknown: no line runs at one rate, as a clock does"]
     else (
       let clock_idle = idle_level clock in
-      let bursts = bursts ~half clock in
+      let others = List.filter lines ~f:(fun l -> not (String.equal l.name clock.name)) in
+      let select = List.find others ~f:(fun l -> selects ~clock l) in
+      let bursts =
+        match select with
+        | Some select -> selected ~clock select
+        | None -> bursts ~half clock
+      in
       let within margin e =
         List.exists bursts ~f:(fun b ->
           e >= b.(0) - margin && e <= b.(Array.length b - 1) + margin)
       in
       let in_burst = within (Float.to_int half) in
-      let others = List.filter lines ~f:(fun l -> not (String.equal l.name clock.name)) in
       let quiet (l : Recording.Line.t) = Array.for_all l.edges ~f:(Fn.non (within 0)) in
-      let select = List.find others ~f:quiet in
       let data =
-        List.filter others ~f:(fun l -> not (quiet l))
+        List.filter others ~f:(fun l ->
+          (not (quiet l))
+          && not (Option.exists select ~f:(fun s -> String.equal s.name l.name)))
         |> List.max_elt ~compare:(fun (a : Recording.Line.t) b ->
           Int.compare (Array.length a.edges) (Array.length b.edges))
       in
@@ -1096,11 +1126,17 @@ let decode t (recording : Recording.t) =
     | None -> Or_error.error_s [%message "the recording has no line" name]
   in
   match t.coding with
-  | Clocked { clock; sample_rising; _ } ->
+  | Clocked { clock; sample_rising; select; _ } ->
     let%bind.Or_error clock = line clock in
-    let%map.Or_error data = line t.line in
-    clocked_frames ~rate ~clock ~data ~sample_rising (bursts ~half:unit clock)
-    |> List.filter_map ~f:frame
+    let%bind.Or_error data = line t.line in
+    let%map.Or_error bursts =
+      match select with
+      | Some name ->
+        let%map.Or_error select = line name in
+        selected ~clock select
+      | None -> Ok (bursts ~half:unit clock)
+    in
+    clocked_frames ~rate ~clock ~data ~sample_rising bursts |> List.filter_map ~f:frame
   | Pulse _ | Manchester _ | Uart _ ->
     let%map.Or_error line = line t.line in
     let threshold =
