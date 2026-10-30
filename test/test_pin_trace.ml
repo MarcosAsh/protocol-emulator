@@ -24,6 +24,7 @@ let%expect_test "what the host reads back in every scenario" =
     (caliper (cycles 59383) (reads ()))
     (xy2_100 (cycles 14239) (reads ()))
     (lfast (cycles 15655) (reads ()))
+    (tdm_audio (cycles 25647) (reads ()))
     (wrapped_loop (cycles 7275) (reads ((0000))))
     (fifo_poll (cycles 11916)
      (reads
