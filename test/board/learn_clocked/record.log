@@ -1,0 +1,4 @@
+IO2: 640 edges stamped by engine 0, faults 0x0
+IO3: 168 edges stamped by engine 1, faults 0x0
+drains with stamps more than 1000 us apart: 0
+PASS

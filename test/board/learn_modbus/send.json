@@ -1,0 +1,8 @@
+{"config": {"side_set_count": 0, "side_set_base": 5, "side_set_pindirs": 0, "in_base": 0, "in_count": 16, "out_base": 5, "out_count": 1, "set_base": 5, "set_count": 1, "jmp_pin": 0, "capture_pin": 0, "capture_rising": 1, "in_shift_right": 1, "out_shift_right": 1, "autopush": 0, "push_threshold": 16, "autopull": 0, "pull_threshold": 16, "crc_width": 16, "crc_poly": 40961, "crc_init": 65535, "crc_reflect": 1, "stuff_threshold": 0, "stuff_level": 1, "wrap_bottom": 0, "wrap_top": 511, "period_fraction": 0, "autopull_data": 0, "manchester": 0},
+ "words": [40961, 8416, 57348, 32965, 8416, 57348, 32998, 49354, 41031, 8384, 40960, 40999, 8384, 24577, 524, 8384, 40961, 1043, 21, 57348, 9, 8384, 40961, 41027, 41023, 8384, 537, 1048, 40997, 8384, 541, 4],
+ "period": 6495,
+ "unit_us": 135.308,
+ "gap": 135,
+ "slack": 6488,
+ "frames": [{"kind": 0, "bits": "1000000011000000110000001000000000000000010000001010100111110001", "words": [1, 3, 3, 1, 0, 2, 149, 143]},
+  {"kind": 0, "bits": "1000000011000000110000001000000000000000010000001010100111110001", "words": [1, 3, 3, 1, 0, 2, 149, 143]}]}

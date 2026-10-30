@@ -1,0 +1,22 @@
+line IO3, idle 1
+pulse, unit 557.0 us, 0 = mark 1 space 1, 1 = mark 1 space 3
+marks read 24.1 us long, as a receiver stretches them
+gap at least 850 units, 9 frames, 1 outliers
+kind 0: 9 frames, leader [+16 -8], 32 bits, trailer [+1 -71 +16 -4 +1]
+kind 0 check: byte 3 = ~byte 2 (72 bits against 2^4.0)
+kind 0 field: bits 16..18, 6 values seen
+kind 0 field: bits 20..20, 2 values seen
+kind 0 field: bits 22..22, 2 values seen
+  2.938912 s  kind 0  00000000111111111010001001011101
+  3.533804 s  kind 0  00000000111111110110001010011101
+  4.136946 s  kind 0  00000000111111111110001000011101
+  4.747691 s  kind 0  00000000111111110010001011011101
+  5.459104 s  kind 0  00000000111111110000001011111101
+  6.164735 s  kind 0  00000000111111111100001000111101
+  6.844420 s  kind 0  00000000111111111110000000011111
+  7.438006 s  kind 0  00000000111111111010100001010111
+  8.782290 s  kind 0  00000000111111110110100010010111
+new message: kind 0, field bits 16..18 = 1 (seen 0 3 4 5 6 7), bits 00000000111111111000001001111101
+firmware: 71 words, 24 deadline waits, worst slack 26726, period 26736 cycles x 1 a unit
+kernel: accepted, so no deadline is missed by the step lemma
+model: sends the 2 frames, read back with what was learned

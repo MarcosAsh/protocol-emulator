@@ -52,7 +52,8 @@ elif [ -z "$name" ]; then
 elif echo "$name" | grep -q MicroPython; then
     mpremote connect "id:$serial" bootloader || true
 elif command -v picotool >/dev/null; then
-    picotool reboot --ser "$serial" -f -u || picotool reboot -f -u --ser "$serial"
+    # reboot's own flags before the device's, and the serial in the SDK's upper case
+    picotool reboot -u -f --ser "$(echo "$name" | sed 's/.*_\([0-9A-Fa-f]*\)-if00$/\1/')"
 else
     # the SDK's USB serial port reboots to the bootloader when opened at 1200 baud; a
     # firmware that never reads its port leaves stty stuck in set_termios, hence the timeout

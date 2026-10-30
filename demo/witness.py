@@ -18,6 +18,7 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+import learn_witness
 import numpy as np
 import sigrok
 import sweep_rates
@@ -1280,6 +1281,8 @@ def check(directory):
     directory = Path(directory)
     w = json.loads((directory / "witness.json").read_text())
     demo = w["demo"]
+    if demo.startswith("learn_"):
+        return learn_witness.check(directory)
     d = DEMOS[demo]
     name = d.name(demo)
     problems = []
@@ -1380,8 +1383,10 @@ def main():
         for what, why in bitten:
             print("TOOTH %s: %s refused: %s" % (name, what, why[:200]) if why else
                   "MISSED %s: %s passed" % (name, what))
-        if not problems:
-            w = json.loads((Path(directory) / "witness.json").read_text())
+        w = json.loads((Path(directory) / "witness.json").read_text())
+        if not problems and w["demo"].startswith("learn_"):
+            print("PASS %s: sigrok reads the chip's message, the edges are the captures'" % name)
+        elif not problems:
             proved = sum(r["verdict"] == "proved" for r in w["timing"])
             print("PASS %s: %s, bitstream %s, %d of %d windows proved, %d unresolved" % (
                 name, w["capture"]["sha256"][:16], w["bitstream_sha256"][:16], proved,
