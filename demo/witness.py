@@ -23,6 +23,10 @@ import sigrok
 import sweep_rates
 import traffic
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "python"))
+import demo_ir_rc6  # noqa: E402
+import demo_lfast  # noqa: E402
+
 ROOT = Path(__file__).resolve().parent.parent
 # copied from the ledger run, each listed in its SHA256SUMS
 KEPT = ["{}.sr", "{}.log", "ledger.txt", "run.txt"]
@@ -663,6 +667,309 @@ def nec(line):
     return timing, byte_tooth, edge_tooth
 
 
+# The protocols drawn at random (docs/flexibility.md). The windows are their specs' limits
+# where the spec has any, else the nominal times the library's firmware and decoder hold to,
+# each named for where it comes from.
+AN452 = "National AN-452 (1992), %s"
+
+
+def microwire(sk, di, cs):
+    """Each window the strictest the library's AN-452 parts give."""
+
+    def frames(samples):
+        """Each CS high with SK rising inside: its rise, its fall, SK's rises and falls."""
+        cs_at, cs_to = edges(samples, cs)
+        k_at, k_to = edges(samples, sk)
+        rises = [a for a, t in zip(k_at, k_to) if t]
+        falls = [a for a, t in zip(k_at, k_to) if not t]
+        out = []
+        for up, down in zip([a for a, t in zip(cs_at, cs_to) if t],
+                            [a for a, t in zip(cs_at, cs_to) if not t and a > cs_at[0]]):
+            inside = [r for r in rises if up < r < down]
+            out.append((up, down, inside, [f for f in falls if up < f < down]))
+        return out
+
+    def timing(samples, rate, _capture, _decode, _log):
+        d_at = edges(samples, di)[0].tolist()
+        n = {k: [] for k in ["SK period", "SK high", "DI setup", "DI hold", "CS setup",
+                             "CS hold", "CS low after an erase/write"]}
+        found = frames(samples)
+        for up, down, rises, falls in found:
+            if not rises:
+                continue
+            n["CS setup"].append(rises[0] - up)
+            n["CS hold"].append(down - max(rises[-1], falls[-1] if falls else 0))
+            n["SK period"] += [b - a for a, b in zip(rises, rises[1:])]
+            n["SK high"] += [after(falls, r) - r for r in rises if after(falls, r)]
+            for last, r, nxt in zip([up] + rises, rises, rises[1:] + [down]):
+                moves = [a for a in d_at if last < a <= r]
+                if moves:
+                    n["DI setup"].append(r - moves[-1])
+                moves = [a for a in d_at if r < a < nxt]
+                if moves:
+                    n["DI hold"].append(moves[0] - r)
+        # an erase/write's CS low ends in a status window, a CS high with no SK in it
+        for (_, down, rises, _), (up, _, later, _) in zip(found, found[1:]):
+            if rises and not later:
+                n["CS low after an erase/write"].append(up - down)
+        windows = [("SK period", "COP430, Table I p.5", 5000e-9, None),
+                   ("SK period", "COP420, p.6 note 1", None, 10e-6),
+                   ("SK high", "NM93C06A, p.6 note 1", 1000e-9, None),
+                   ("DI setup", "COP472-3, Table I p.5", 1000e-9, None),
+                   ("DI hold", "DS8908, Table I p.5", 800e-9, None),
+                   ("CS setup", "COP472-3, Table I p.5", 1000e-9, None),
+                   ("CS hold", "COP472-3, Table I p.5", 1000e-9, None),
+                   ("CS low after an erase/write", "COP494 TWE, p.10", 20e-3, None),
+                   ("CS low after an erase/write", "NM93C06A, p.6 note 2", None, 30e-3)]
+        return [bound(p, AN452 % sheet, [span(x, rate) for x in n[p]], at_least=least,
+                      at_most=most) for p, sheet, least, most in windows]
+
+    def byte_tooth(samples, _rate, _capture, _decode):
+        """DI inverted over EWEN's second bit, its first opcode bit."""
+        _, _, rises, falls = frames(samples)[0]
+        return (changed(samples, di, before(falls, rises[1]), after(falls, rises[1])),
+                "DI inverted over EWEN's first opcode bit")
+
+    def edge_tooth(samples, rate):
+        """EWEN's CS rise half a microsecond before SK's first rise."""
+        up, _, rises, _ = frames(samples)[0]
+        return (moved(samples, cs, up, rises[0] - round(0.5e-6 * rate)),
+                "EWEN's CS rise 0.5 us before SK's first rise", "CS setup")
+
+    return timing, byte_tooth, edge_tooth
+
+
+XY2 = "Newson rhothor X7 XY2-100 datasheet rev. 0703, p.2"
+
+
+def xy2_100(sendck, data):
+    """DATA moves at SENDCK's rise and is read at its fall."""
+
+    def clock(samples):
+        c_at, c_to = edges(samples, sendck)
+        return [a for a, t in zip(c_at, c_to) if t], [a for a, t in zip(c_at, c_to) if not t]
+
+    def timing(samples, rate, _capture, _decode, _log):
+        rises, falls = clock(samples)
+        d_at = edges(samples, data)[0]
+        n = {"tDS": [], "tDH": []}
+        for last, f, nxt in zip(falls, falls[1:], falls[2:]):
+            # DATA's last move up to this fall since the one before, and its next after it
+            i = int(np.searchsorted(d_at, f, side="right"))
+            if i and d_at[i - 1] > last:
+                n["tDS"].append(f - int(d_at[i - 1]))
+            if i < len(d_at) and d_at[i] < nxt:
+                n["tDH"].append(int(d_at[i]) - f)
+        return [bound("tDS", XY2, [span(x, rate) for x in n["tDS"]], at_least=50e-9),
+                bound("tDH", XY2, [span(x, rate) for x in n["tDH"]], at_least=100e-9)]
+
+    def byte_tooth(samples, _rate, _capture, _decode):
+        """DATA inverted over the first word's D15, its fourth bit: the parity no longer
+        holds."""
+        rises, _ = clock(samples)
+        return changed(samples, data, rises[3], rises[4]), "DATA inverted over the first D15"
+
+    def edge_tooth(samples, _rate):
+        """DATA's first move after the first word's tenth fall put on the next fall."""
+        rises, falls = clock(samples)
+        d_at = edges(samples, data)[0]
+        at = int(d_at[np.searchsorted(d_at, falls[10], side="right")])
+        return (moved(samples, data, at, after(falls, at)),
+                "a DATA move put on the SENDCK fall after it", "tDS")
+
+    return timing, byte_tooth, edge_tooth
+
+
+CALIPER = "ShumaTech, Chinese Scales, page 1, %s"
+
+
+def caliper(clk, data):
+    """The page's nominal clock and pauses, which the library reads as least times. A pause
+    is a clock high over four half periods."""
+    half = 270 / 48e6
+
+    def clock(samples, rate):
+        found = [(level, first, n) for level, first, n in runs(samples, clk)]
+        pauses = [r for r in found if r[0] and r[2] > 4 * half * rate]
+        return found, pauses
+
+    def timing(samples, rate, _capture, _decode, _log):
+        found, pauses = clock(samples, rate)
+        firsts = {p[1] for p in pauses}
+        # the first pause runs from the firmware's start, and a frame's last into the next
+        # frame's first: first, between, last and first, between, ...
+        n = {"clock high": [w for level, f, w in found if level and f not in firsts],
+             "clock low": [w for level, _, w in found if not level],
+             "first pause": [p[2] for p in pauses[0::2]],
+             "pause between the words": [p[2] for p in pauses[1::2]],
+             "last pause": [p[2] for p in pauses[2::2]]}
+        windows = [("clock high", "lines 52-54, 90 kHz", 5555.5e-9),
+                   ("clock low", "lines 52-54, 90 kHz", 5555.5e-9),
+                   ("first pause", "lines 55-57", 55e-6),
+                   ("pause between the words", "lines 58-60", 110e-6),
+                   ("last pause", "lines 61-63", 55e-6)]
+        return [bound(p, CALIPER % sheet, [span(x, rate) for x in n[p]], at_least=least)
+                for p, sheet, least in windows]
+
+    def byte_tooth(samples, rate, _capture, _decode):
+        """DATA inverted from the first fall to just past the first rise, which sigrok
+        samples it at: the first position's bit 0."""
+        found, pauses = clock(samples, rate)
+        fall = pauses[0][1] + pauses[0][2]
+        rise = next(f for level, f, _ in found if level and f > fall)
+        return changed(samples, data, fall, rise + 2), "DATA inverted over the first bit"
+
+    def edge_tooth(samples, rate):
+        """The first clock low a microsecond short."""
+        found, pauses = clock(samples, rate)
+        fall = pauses[0][1] + pauses[0][2]
+        rise = next(f for level, f, _ in found if level and f > fall)
+        return (moved(samples, clk, rise, rise - round(1e-6 * rate)),
+                "the first clock low 1 us short", "clock low")
+
+    return timing, byte_tooth, edge_tooth
+
+
+def nominal(levels):
+    """levels, one a bit or a unit, as runs of (level, count)."""
+    out = []
+    for level in levels:
+        if out and out[-1][0] == level:
+            out[-1][1] += 1
+        else:
+            out.append([level, 1])
+    return out
+
+
+def framed(samples, line, idle, frames):
+    """The line's runs from the first rise after more than idle samples low, paired with
+    each frame's in turn, as (expected level, count, samples), a low run between frames
+    skipped; and each such low as (samples, the frame's trailing low units in it). A frame
+    whose runs disagree in level or number ends it, as its bytes will show."""
+    found = runs(samples, line)
+    i = next((k for k, (level, _, n) in enumerate(found)
+              if level and (k == 0 or found[k - 1][2] > idle)), len(found))
+    paired, gaps = [], []
+    for levels in frames:
+        trailing = len(levels) - len("".join(map(str, levels)).rstrip("0"))
+        expected = nominal(levels[:len(levels) - trailing])
+        got = found[i:i + len(expected)]
+        if [g[0] for g in got] != [e[0] for e in expected]:
+            break
+        paired.append([(e[0], e[1], g[2]) for e, g in zip(expected, got)])
+        i += len(expected)
+        if i < len(found) - 1:
+            gaps.append((found[i][2], trailing))
+        i += 1
+    return paired, gaps
+
+
+LFAST_BIT = 10 / 48e6
+LFAST = ("10 cycles at 48 MHz, the firmware's bit, to half a bit: past it sigrok's lfast "
+         "counts another (NXP AN5134 gives no least or most for it)")
+
+
+def lfast_bits(byte):
+    """A frame on the wire, MSB first: sync 0xA84B, header 0x09, the byte, the stop bit."""
+    return [(w >> (n - 1 - i)) & 1 for w, n in ((0xA84B, 16), (0x09, 8), (byte, 8), (1, 1))
+            for i in range(n)]
+
+
+def lfast(line, words):
+    def frames(samples, rate):
+        return framed(samples, line, 40 * LFAST_BIT * rate, [lfast_bits(w) for w in words])[0]
+
+    def timing(samples, rate, _capture, _decode, _log):
+        n = {}
+        for frame in frames(samples, rate):
+            for _, k, w in frame:
+                n.setdefault(k, []).append(w)
+        return ([bound("%d-bit level" % k, LFAST, [span(w, rate) for w in n.get(k, [])],
+                       at_least=(k - 0.5) * LFAST_BIT) for k in sorted(n)]
+                + [bound("%d-bit level" % k, LFAST, [span(w, rate) for w in n.get(k, [])],
+                         at_most=(k + 0.5) * LFAST_BIT) for k in sorted(n)]
+                + [bound("a level", "NXP AN5134 Rev. 0, p.3: rates up to 320 Mb/s",
+                         [span(w, rate) for v in n.values() for w in v], at_least=3.125e-9)])
+
+    def start(samples, rate):
+        found = runs(samples, line)
+        return next(f for i, (level, f, _) in enumerate(found[1:], 1)
+                    if level and found[i - 1][2] > 40 * LFAST_BIT * rate)
+
+    def byte_tooth(samples, rate, _capture, _decode):
+        """The first payload's first bit inverted."""
+        at = start(samples, rate) + round(24 * LFAST_BIT * rate)
+        return (changed(samples, line, at, at + round(LFAST_BIT * rate)),
+                "the first payload's first bit inverted")
+
+    def edge_tooth(samples, rate):
+        """The first frame's first bit 0.8 of a bit long."""
+        at = start(samples, rate)
+        end = at + next(n for level, f, n in runs(samples, line) if f == at)
+        return (moved(samples, line, end, end + round(0.8 * LFAST_BIT * rate)),
+                "the first sync bit 1.8 bits long", "1-bit level")
+
+    return timing, byte_tooth, edge_tooth
+
+
+RC6_UNIT = 444e-6
+RC6 = ("SB-Projects' RC-6 page, 444 us a unit, to Ir_rc6.decode's 5% (the page gives no "
+       "tolerance)")
+
+
+def rc6_units(toggle, address, command):
+    """A mode 0 frame's levels a unit each, high a mark: the leader, the start bit, mode
+    000, the trailer bit of two units a half, then address and command MSB first."""
+    def bit(b, width=1):
+        return [1] * width + [0] * width if b else [0] * width + [1] * width
+
+    out = [1] * 6 + [0] * 2 + bit(1) + bit(0) + bit(0) + bit(0) + bit(toggle, 2)
+    for i in range(16):
+        out += bit(((address << 8 | command) >> (15 - i)) & 1)
+    return out
+
+
+def ir_rc6(line, frames_sent):
+    def frames(samples, rate):
+        return framed(samples, line, 8 * RC6_UNIT * rate,
+                      [rc6_units(*f) for f in frames_sent])
+
+    def timing(samples, rate, _capture, _decode, _log):
+        n = {}
+        found, gaps = frames(samples, rate)
+        for frame in found:
+            for level, k, w in frame:
+                n.setdefault("%s %dt" % ("mark" if level else "space", k), []).append(w)
+        # the low to the next frame, less the units of the last bit's space in it
+        free = [w - round(k * RC6_UNIT * rate) for w, k in gaps]
+        records = []
+        for p in sorted(n, key=lambda p: (p[:4], int(p.split()[1][:-1]))):
+            k = int(p.split()[1][:-1])
+            spans = [span(w, rate) for w in n[p]]
+            records.append(bound(p, RC6, spans, at_least=0.95 * k * RC6_UNIT))
+            records.append(bound(p, RC6, spans, at_most=1.05 * k * RC6_UNIT))
+        return records + [bound("signal free time", RC6, [span(w, rate) for w in free],
+                                at_least=0.95 * 6 * RC6_UNIT)]
+
+    def byte_tooth(samples, rate, _capture, _decode):
+        """The first frame's first address bit, its halves swapped: 20 units in, after the
+        leader, the start bit, the mode and the trailer bit."""
+        start = next(f for level, f, n in runs(samples, line)
+                     if level and n > 5 * RC6_UNIT * rate)
+        unit = round(RC6_UNIT * rate)
+        return (changed(samples, line, start + 20 * unit, start + 22 * unit),
+                "the first address bit's halves swapped")
+
+    def edge_tooth(samples, rate):
+        """The first leader mark a unit short."""
+        start, n = next((f, n) for level, f, n in runs(samples, line)
+                        if level and n > 5 * RC6_UNIT * rate)
+        return (moved(samples, line, start + n, start + n - round(RC6_UNIT * rate)),
+                "the first leader mark a unit short", "mark 6t")
+
+    return timing, byte_tooth, edge_tooth
+
+
 @dataclass(frozen=True)
 class Demo:
     # demo/outside.sh's sigrok arguments, or demo/ledger.py's
@@ -702,6 +1009,17 @@ CAN_PINS = {"D5": "CAN board A's R, the bus as both nodes drive it"}
 CAN_LIMITS = ("the bus at CAN board A's receiver, so its edges carry the SN65HVD230's delay",
               "the ACK slot is the receiver's and only must be there, not on the grid")
 SPI_PINS = {"D0": "SCK, OUT5", "D1": "MOSI, OUT4", "D2": "MISO, IN0", "D3": "CS, OUT6"}
+
+
+def outside(name):
+    """The sigrok arguments on python/demo_<name>.py's "# outside:" line."""
+    for line in (ROOT / "python" / ("demo_%s.py" % name)).read_text().splitlines():
+        if line.startswith("# outside: "):
+            return line.split("decode=", 1)[1]
+    raise ValueError("python/demo_%s.py has no outside: line" % name)
+
+
+DRAWN = ("drawn at random and written blind from its spec (docs/flexibility.md)",)
 
 
 def sweep_i2c(mode, firmware):
@@ -759,6 +1077,37 @@ DEMOS = {
                 nec(4),
                 ("NEC has no datasheet table, so its windows are test/nec.ml's frames and "
                  "Nec.decode's 5%",)),
+    "microwire": Demo(outside("microwire"), "B",
+                      {"D0": "SK, OUT5, the flash's CLK", "D1": "DI, OUT4, the flash's DI",
+                       "D2": "DO, IN0, the flash's DO", "D3": "CS, OUT6, the flash's CS"},
+                      ("MICROWIRE",), ("python/demo_microwire.py",),
+                      "nothing: the flash on the same pins is deselected while CS is high",
+                      microwire(0, 1, 3),
+                      DRAWN + ("no bench part answers MICROWIRE, so DO is not held to "
+                               "anything",
+                               "each window is the strictest the library's AN-452 parts "
+                               "give")),
+    "xy2_100": Demo(outside("xy2_100"), "B",
+                    {"D4": "SENDCK, OUT3", "D1": "SYNC, OUT4, the flash's DI",
+                     "D3": "DATA, OUT6, the flash's CS"},
+                    ("XY2_100",), ("python/demo_xy2_100.py",),
+                    "nothing, the flash's clock held still", xy2_100(4, 3),
+                    DRAWN + ("tDS and tDH are held on DATA only, as the library holds them",)),
+    "caliper": Demo(outside("caliper"), "A",
+                    {"D4": "CLK, OUT0", "D6": "DATA, OUT2, SWCLK to Pico B's idle RP2040"},
+                    ("CALIPER",), ("python/demo_caliper.py",),
+                    "nothing, Pico B idle on OUT0", caliper(4, 6),
+                    DRAWN + ("the page gives its times as about, which the library holds as "
+                             "least times",)),
+    "lfast": Demo(outside("lfast"), "A", {"D4": "OUT0"}, ("LFAST",), ("python/demo_lfast.py",),
+                  "nothing, Pico B idle on OUT0", lfast(4, demo_lfast.WORDS),
+                  DRAWN + ("AN5134's one limit is a top rate, so the bit windows are the "
+                           "firmware's own bit to half a bit",)),
+    "ir_rc6": Demo(outside("ir_rc6"), "A", {"D4": "OUT0, high for a mark, no carrier"},
+                   ("IR_RC6",), ("python/demo_ir_rc6.py",),
+                   "nothing, Pico B idle on OUT0", ir_rc6(4, demo_ir_rc6.FRAMES),
+                   DRAWN + ("the page gives no tolerance, so the windows are its nominal "
+                            "times to Ir_rc6.decode's 5%",)),
     "self_timing": Demo("-P uart:rx=D4:baudrate=9600 -A uart=rx-data", "A",
                         {"D4": "OUT0, engine 1's echo of wire 20"},
                         ("test/uart_tx_host_rate.hex", "test/edge_logger_echo.hex"),

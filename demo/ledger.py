@@ -102,6 +102,12 @@ DEMOS = [
     outside("referee"),
     # Pico B idle, as its GP1 shares OUT0's net
     outside("nec", pico_b="micropython"),
+    # the protocols drawn at random (docs/flexibility.md); Pico B idle again where OUT0 is used
+    outside("microwire"),
+    outside("xy2_100"),
+    outside("caliper", pico_b="micropython"),
+    outside("lfast", pico_b="micropython"),
+    outside("ir_rc6", pico_b="micropython"),
     outside("can", pico_b="can_node"),
     outside("can_node", pico_b="can_node"),
     Demo("start_hold_pio", "start_hold", expect="FAIL",
@@ -165,9 +171,10 @@ def keep_bitstream(bitstream, runs, bit_hash):
 def commit():
     head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True,
                           text=True).stdout.strip() or "unknown"
-    # the ledger's own lines do not count
+    # the ledger's own lines do not count, nor the bench times demo/outside.sh marks
     dirty = subprocess.run(["git", "status", "--porcelain", "--untracked-files=no", "--", ".",
-                            ":!demo/ledger.tsv"], cwd=ROOT, capture_output=True,
+                            ":!demo/ledger.tsv", ":!demo/speed.tsv"], cwd=ROOT,
+                           capture_output=True,
                            text=True).stdout.strip()
     return head + ("+dirty" if dirty else "")
 
