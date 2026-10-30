@@ -4,9 +4,8 @@ open Protocol_emulator
 (* The OCaml half of each learn demo's witness in test/board/learn_*/,
    demo/learn_witness.py the sigrok half: what the chip recorded is learned again here and
    must give the firmware the board ran, and the analyser's and Pico B's edges of the
-   chip's speech must read back as the message sent. Each has teeth: the speech with one
-   edge moved a unit, and the recording with one edge of the field dropped, must be
-   refused. *)
+   chip's speech must read back as the message sent. Each has teeth: the speech and the
+   recording, each with two edges taken out, must be refused. *)
 
 let read dir name = In_channel.read_all (dir ^/ name)
 let recording dir name = Recording.of_string (read dir name) |> ok_exn
@@ -75,32 +74,17 @@ let referee (chip : Recording.t) (analyser : Recording.t) =
         ((ratio -. 1.) *. 1e6))
 ;;
 
-(* The line with the field's middle edge moved a unit later. *)
-let moved (t : Learn.t) (r : Recording.t) =
-  let unit = Float.iround_nearest_exn (t.unit_s *. r.rate_hz) in
+(* The learned line with the two edges from the i-th taken out, at i of n: a mark or space
+   gone, two bits run into one. *)
+let without_two (t : Learn.t) (r : Recording.t) ~at =
   { r with
     lines =
       List.map r.lines ~f:(fun line ->
-        if String.equal line.name t.line
+        if String.equal line.name t.line || List.length r.lines = 1
         then (
-          let edges = Array.copy line.edges in
-          let i = Array.length edges / 4 in
-          edges.(i) <- edges.(i) + unit;
-          { line with edges })
-        else line)
-  }
-;;
-
-let dropped (t : Learn.t) (r : Recording.t) =
-  { r with
-    lines =
-      List.map r.lines ~f:(fun line ->
-        if String.equal line.name t.line
-        then (
-          let n = Array.length line.edges in
+          let i = at (Array.length line.edges) in
           { line with
-            edges =
-              Array.filteri line.edges ~f:(fun i _ -> i <> n / 2 && i <> (n / 2) + 1)
+            edges = Array.filteri line.edges ~f:(fun j _ -> j <> i && j <> i + 1)
           })
         else line)
   }
@@ -118,9 +102,9 @@ let check name =
     then Some (read_back t (recording dir "listen.edges"))
     else None
   in
-  let toothed_speech = read_back t (moved t spoken) in
+  let toothed_speech = read_back t (without_two t spoken ~at:(fun n -> n / 4)) in
   let toothed_learning =
-    match Learn.learn (dropped t chip) with
+    match Learn.learn (without_two t chip ~at:(fun n -> n / 2)) with
     | Error e -> "refused: " ^ Error.to_string_hum e
     | Ok t' ->
       (match Learn_firmware.generate ~clock_hz:48e6 ~pins:(pins t') t' with
@@ -140,12 +124,12 @@ let check name =
         ~analyser_reads:(read_back t spoken : string list)
         ~pico_b_reads:(listened : string list option)
         ~referee:(referee chip (recording dir "analyser_recorded.edges") : string list)
-        ~speech_with_an_edge_moved:
+        ~speech_with_two_edges_taken_out:
           (if [%equal: string list] toothed_speech wanted
            then "MISSED: read as sent"
            else "refused: read otherwise"
            : string)
-        ~recording_with_an_edge_dropped:(toothed_learning : string)]
+        ~recording_with_two_edges_taken_out:(toothed_learning : string)]
 ;;
 
 let%expect_test "every learn demo the board ran" =
