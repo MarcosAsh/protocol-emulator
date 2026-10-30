@@ -520,7 +520,9 @@ let fields_of t =
         else if varying i
         then (
           let j = ref i in
-          while !j < k.bits && varying !j do
+          (* fields of whole bytes do not run across a byte's end *)
+          let bytes = k.bits % 8 = 0 in
+          while !j < k.bits && varying !j && not (bytes && !j > i && !j % 8 = 0) do
             incr j
           done;
           runs !j ((i, !j - i) :: acc))

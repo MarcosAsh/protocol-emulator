@@ -219,7 +219,8 @@ let%expect_test "SPI to a MAX7219: the clock, the edge it reads on and the selec
     marks read 0.0 us long, as a receiver stretches them
     gap at least 2 units, 27 frames, 2 outliers
     kind 0: 27 frames, leader [], 16 bits, trailer []
-    kind 0 field: bits 4..15, 22 values seen
+    kind 0 field: bits 4..7, 14 values seen
+    kind 0 field: bits 8..15, 10 values seen
     |}]
 ;;
 
