@@ -675,14 +675,14 @@ def main():
         return
     root = Path(__file__).resolve().parent.parent
     work = Path(args.work) if args.work else root / "_mutation"
-    began = time.monotonic()
+    began = None
     out = Path(args.json).open("a") if args.json else None
     lock = threading.Lock()
     copies = Queue()
     timeout = args.timeout
 
     def run(m):
-        if args.budget and time.monotonic() - began > args.budget:
+        if args.budget and began and time.monotonic() - began > args.budget:
             return None
         copy = copies.get()
         start = time.monotonic()
@@ -795,6 +795,7 @@ def main():
                 if not (work / str(n)).exists():
                     shutil.copytree(work / "0", work / str(n), symlinks=True)
             copies.put(work / str(n))
+        began = time.monotonic()
         with ThreadPoolExecutor(args.jobs) as pool:
             results = [r for r in pool.map(run, todo) if r]
             todo = todo[: len(results)] if args.budget else todo
