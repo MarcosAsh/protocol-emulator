@@ -42,8 +42,7 @@
   (= %{env:PLAYGROUND=no} yes))
  (deps index.html playground.bc.js))
 
-; The remote lab's page, which the pages workflow does not publish: PLAYGROUND=yes dune
-; build @playground/lab, then open _build/default/playground/lab.html
+; The remote lab's page, published beside the playground by the pages workflow
 
 (alias
  (name lab)

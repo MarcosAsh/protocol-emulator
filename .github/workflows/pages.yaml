@@ -63,6 +63,7 @@ jobs:
         with:
           path: |
             _build/default/playground/index.html
+            _build/default/playground/lab.html
             _build/default/playground/playground.bc.js
           key: playground-${{ hashFiles('src/**', 'pio/src/**', 'pio/test/pico_examples/i2c.pio', 'playground/**', 'test/*.asm', 'test/*.ml', 'test/dune', 'test/diagrams/**', 'bin/**', 'ppx/**', 'dune-project', 'protocol_emulator.opam.locked', '.github/workflows/pages.yaml') }}
 
@@ -100,7 +101,7 @@ jobs:
       # the release profile links the whole program, 0.8 MB against 31 MB
       - name: Build the playground
         if: steps.built.outputs.cache-hit != 'true'
-        run: PLAYGROUND=yes opam exec -- dune build --profile release @playground/page
+        run: PLAYGROUND=yes opam exec -- dune build --profile release @playground/page @playground/lab
 
       # the page is the cli: each library firmware through both, and each diagram at 48
       # and 50 MHz through the page and a native build, byte for byte
@@ -133,6 +134,7 @@ jobs:
           name: playground
           path: |
             _build/default/playground/index.html
+            _build/default/playground/lab.html
             _build/default/playground/playground.bc.js
 
   # test/corpus.py's pages from the library and the repo's data files; the site goes up
