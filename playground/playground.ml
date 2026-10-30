@@ -34,6 +34,48 @@ let () =
       (Js.to_string source)
     |> report
   in
+  let simulate
+    source
+    period
+    single_capture_edge
+    capture_pin
+    capture_falling
+    tx
+    inputs
+    cycles
+    =
+    let r =
+      Checks.simulate
+        ?period:(Js.Opt.to_option period)
+        ~single_capture_edge:(Js.to_bool single_capture_edge)
+        ~config:
+          { Program_config.default with
+            capture_pin
+          ; capture_rising = not (Js.to_bool capture_falling)
+          }
+        ~tx:(Js.to_string tx)
+        ~inputs:(Js.to_string inputs)
+        ~cycles
+        (Js.to_string source)
+    in
+    Js.Unsafe.obj
+      [| "error", Js.Unsafe.inject (Js.string r.error)
+       ; "lanes", Js.Unsafe.inject (Js.array (Array.of_list_map r.lanes ~f:Js.string))
+       ; "levels", Js.Unsafe.inject (Js.array r.levels)
+       ; "edges", Js.Unsafe.inject (Js.array r.edges)
+       ; "releases", Js.Unsafe.inject (Js.array r.releases)
+       ; ( "waits"
+         , Js.Unsafe.inject
+             (Js.array
+                (Array.of_list_map r.waits ~f:(fun (pc, text, slack) ->
+                   Js.array
+                     [| Js.Unsafe.inject pc
+                      ; Js.Unsafe.inject (Js.string text)
+                      ; Js.Unsafe.inject (Js.string slack)
+                     |]))) )
+       ; "summary", Js.Unsafe.inject (Js.string r.summary)
+      |]
+  in
   let check_pio source spec =
     let report =
       Checks.check_pio ~source:(Js.to_string source) ~spec:(Js.to_string spec)
@@ -114,6 +156,7 @@ let () =
               (Js.array
                  (Array.of_list_map Example.all ~f:(fun (name, source) ->
                     Js.array [| Js.string name; Js.string source |]))) )
+        ; "simulate", Js.Unsafe.inject (Js.wrap_callback simulate)
         ; "checkPio", Js.Unsafe.inject (Js.wrap_callback check_pio)
         ; "runDiagram", Js.Unsafe.inject (Js.wrap_callback run_diagram)
         ; "mutateDiagram", Js.Unsafe.inject (Js.wrap_callback mutate)

@@ -28,8 +28,11 @@
   #mutation { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; }
   #mutation h3 { margin: 0; font-size: 1rem; }
   @media (max-width: 40rem) { #mutation { grid-template-columns: 1fr; } }
-  #diagram-wave { overflow-x: auto; background: var(--code); }
-  #diagram-wave svg { display: block; }
+  #diagram-wave, #sim-wave { overflow-x: auto; background: var(--code); }
+  #diagram-wave svg, #sim-wave svg { display: block; }
+  #waits { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+  #waits button[aria-pressed=true] { outline: 2px solid #e08a00; }
+  .win-ok { fill: var(--ok); } .win-bad { fill: var(--bad); }
 </style>
 </head>
 <body>
@@ -50,6 +53,21 @@ proofs that its check is sound run in CI, not here.</p>
 <textarea id="source" spellcheck="false"></textarea>
 <p id="verdict"></p>
 <pre id="detail"></pre>
+<h2>Waveform</h2>
+<p class="muted">Model run in your browser: the OCaml cycle model of the core, compiled with js_of_ocaml. Not the chip.</p>
+<div class="controls">
+  <label>Host words <input id="sim-tx" value="0xa5" size="14" title="WORD[@CYCLE], comma separated"></label>
+  <label>Input pins <input id="sim-inputs" size="14" placeholder="IN0=1@40" title="PIN=LEVEL[@CYCLE], comma separated"></label>
+  <label>Cycles <input id="sim-cycles" type="number" min="1" max="20000" value="1000"></label>
+  <label>Zoom <input id="sim-zoom" type="range" min="0" max="40" value="0"></label>
+  <button id="simulate">Simulate</button>
+</div>
+<p id="sim-error" class="refused"></p>
+<div id="sim-wave"></div>
+<p class="muted">Green or red band: where the analyser says the edge may land. Triangle: a deadline wait releasing. Click a wait to see its edge.</p>
+<div id="waits"></div>
+<pre id="wait-detail"></pre>
+<pre id="sim-summary"></pre>
 <h2>Listing</h2>
 <pre id="listing"></pre>
 <h2>Analyser rows</h2>
@@ -120,7 +138,99 @@ certificate. The model of the core then runs the table on the frames below.</p>
     $("detail").textContent = r.detail;
     $("listing").textContent = r.listing;
     $("rows").textContent = r.rows;
+    simulate();
   };
+
+  let sim = null, picked = null;
+  const SVG = "http://www.w3.org/2000/svg";
+  const el = (name, attrs) => {
+    const e = document.createElementNS(SVG, name);
+    Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v));
+    return e;
+  };
+  const simulate = () => {
+    const period = $("period").value === "" ? null : Number($("period").value);
+    const r = pe.simulate($("source").value, period, $("single-edge").checked,
+      Number($("capture-pin").value) || 0, $("capture-falling").checked,
+      $("sim-tx").value, $("sim-inputs").value, Number($("sim-cycles").value) || 1000);
+    $("sim-error").textContent = r.error;
+    picked = null;
+    sim = r.error ? null : {
+      lanes: Array.from(r.lanes), levels: Array.from(r.levels),
+      edges: chunks(Array.from(r.edges), 5).map(([cycle, pc, lo, hi, ok]) => ({ cycle, pc, lo, hi, ok })),
+      releases: chunks(Array.from(r.releases), 2).map(([cycle, pc]) => ({ cycle, pc })),
+    };
+    $("sim-summary").textContent = r.error ? "" : r.summary;
+    $("waits").replaceChildren(...(r.error ? [] : Array.from(r.waits).map(([pc, text, slack]) => {
+      const b = document.createElement("button");
+      b.textContent = pc + ": " + text + "  slack " + slack;
+      b.onclick = () => { picked = picked === pc ? null : pc; draw(); };
+      b.dataset.pc = pc;
+      return b;
+    })));
+    draw();
+  };
+  const chunks = (a, n) => Array.from({ length: Math.ceil(a.length / n) }, (_, i) => a.slice(i * n, i * n + n));
+  const draw = () => {
+    document.querySelectorAll("#waits button").forEach((b) => b.setAttribute("aria-pressed", String(Number(b.dataset.pc) === picked)));
+    if (!sim) { $("sim-wave").replaceChildren(); $("wait-detail").textContent = ""; return; }
+    const { lanes, levels, edges, releases } = sim;
+    let last = 0;
+    levels.forEach((l, c) => { if (c > 0 && l !== levels[c - 1]) last = c; });
+    const shown = Math.min(levels.length, Math.max(last + 40, 100));
+    const zoom = 1 + Number($("sim-zoom").value) / 4;
+    const scale = Math.max(0.05, 1000 / shown) * zoom;
+    const row = 30, left = 60, top = 4, height = row * lanes.length + 34;
+    const x = (c) => left + c * scale;
+    const root = el("svg", { width: left + shown * scale + 10, height, fill: "none" });
+    edges.filter((e) => e.cycle < shown).forEach((e) => {
+      if (e.lo >= 0) {
+        const t = el("title", {}); t.textContent = "pc " + e.pc + ": window cycles " + e.lo + " to " + e.hi + ", edge at " + e.cycle;
+        const r = el("rect", { x: x(e.lo), y: top, width: Math.max(2, (e.hi - e.lo + 1) * scale), height: row * lanes.length, class: e.ok ? "win-ok" : "win-bad", opacity: 0.3 });
+        r.appendChild(t); root.appendChild(r);
+      }
+    });
+    lanes.forEach((name, i) => {
+      const y = (level) => top + row * i + (level ? 6 : 22);
+      const label = el("text", { x: 4, y: top + row * i + 18, fill: "currentColor" });
+      label.textContent = name; root.appendChild(label);
+      let d = "M" + left + " " + y(levels[0] >> i & 1);
+      for (let c = 1; c < shown; c++) {
+        if ((levels[c] >> i & 1) !== (levels[c - 1] >> i & 1)) d += " H" + x(c) + " V" + y(levels[c] >> i & 1);
+      }
+      d += " H" + x(shown);
+      root.appendChild(el("path", { d, stroke: "currentColor", "stroke-width": 1.5 }));
+    });
+    const base = top + row * lanes.length;
+    releases.filter((r) => r.cycle < shown).forEach((r) => {
+      const on = r.pc === picked, px = x(r.cycle);
+      const t = el("title", {}); t.textContent = "pc " + r.pc + " releases at cycle " + r.cycle;
+      const tri = el("path", { d: "M" + (px - 4) + " " + (base + 14) + " L" + (px + 4) + " " + (base + 14) + " L" + px + " " + (base + 6) + " Z", fill: on ? "#e08a00" : "currentColor", opacity: on ? 1 : 0.5 });
+      tri.appendChild(t); root.appendChild(tri);
+      if (on) root.appendChild(el("line", { x1: px, x2: px, y1: top, y2: base, stroke: "#e08a00", "stroke-width": 1, "stroke-dasharray": "3 2" }));
+    });
+    const hit = [];
+    if (picked !== null) {
+      releases.filter((r) => r.pc === picked).forEach((r) => {
+        const e = edges.find((e) => e.cycle >= r.cycle);
+        if (e && e.cycle < shown) {
+          hit.push({ r, e });
+          root.appendChild(el("line", { x1: x(e.cycle), x2: x(e.cycle), y1: top, y2: base, stroke: "#e08a00", "stroke-width": 3 }));
+        }
+      });
+    }
+    for (let c = 0; c < shown; c += Math.max(1, Math.round(80 / scale / 10) * 10)) {
+      const tick = el("text", { x: x(c), y: height - 2, fill: "currentColor", "font-size": 10 });
+      tick.textContent = c; root.appendChild(tick);
+    }
+    $("sim-wave").replaceChildren(root);
+    $("wait-detail").textContent = picked === null ? "" : hit.length === 0
+      ? "pc " + picked + " never released before an edge in " + levels.length + " cycles"
+      : hit.map(({ r, e }) => "pc " + picked + " released at cycle " + r.cycle + ", next edge at cycle " + e.cycle
+        + (e.lo >= 0 ? ", window " + e.lo + " to " + e.hi + ", " + (e.ok ? "inside" : "OUTSIDE") : ", no window")).join("\n");
+  };
+  $("simulate").onclick = simulate;
+  $("sim-zoom").oninput = draw;
   $("example").onchange = () => { load(); run(); };
   $("check").onclick = run;
   load();

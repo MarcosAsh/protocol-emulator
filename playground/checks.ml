@@ -73,6 +73,196 @@ let check ?period ?period_floor ~single_capture_edge ~config source : Report.t =
        })
 ;;
 
+module Sim_report = struct
+  type t =
+    { error : string
+    ; lanes : string list
+    ; levels : int array
+    ; edges : int array
+    ; releases : int array
+    ; waits : (int * string * string) list
+    ; summary : string
+    }
+end
+
+(* [now - t] on entry, as the signed 24-bit number the deadline wait compares *)
+let phase ~now ~t =
+  let modulus = 1 lsl Isa.timer_bits in
+  let d = (now - t) land (modulus - 1) in
+  if d >= modulus / 2 then d - modulus else d
+;;
+
+let comma_list text parse =
+  String.split text ~on:','
+  |> List.map ~f:String.strip
+  |> List.filter ~f:(Fn.non String.is_empty)
+  |> List.map ~f:parse
+;;
+
+(* the host writes in order, stopping at the first word not yet due or with no room *)
+let rec write_tx machine (tx : Machine_trace.Tx.t list) ~cycle =
+  match tx with
+  | word :: rest when word.cycle <= cycle ->
+    (match Machine.write_tx machine word.word with
+     | Ok machine -> write_tx machine rest ~cycle
+     | Error _ -> machine, tx)
+  | _ -> machine, tx
+;;
+
+let rec drain_rx machine =
+  match Machine.read_rx machine with
+  | None -> machine
+  | Some (_, machine) -> drain_rx machine
+;;
+
+(* The model run as the host would drive it: [tx] words written as room allows, [inputs]
+   held from their cycle, the rx fifo emptied each cycle. Each instruction that makes a
+   pin edge is checked against the analyser's window for it, at the first issue of each
+   visit, and each deadline wait's releases are recorded. *)
+let simulate ?period ?period_floor ~single_capture_edge ~config ~tx ~inputs ~cycles source
+  : Sim_report.t
+  =
+  let failed e =
+    { Sim_report.error = Error.to_string_hum e
+    ; lanes = []
+    ; levels = [||]
+    ; edges = [||]
+    ; releases = [||]
+    ; waits = []
+    ; summary = ""
+    }
+  in
+  match
+    let open Or_error.Let_syntax in
+    let%bind program = Asm.assemble source in
+    let%bind words = Asm.Program.words program in
+    let config = Asm.Program.configure program config in
+    let%bind machine = Machine.create ~config ~program:words in
+    let%bind tx =
+      Or_error.try_with (fun () -> comma_list tx Machine_trace.Tx.of_string)
+    in
+    let%map inputs =
+      Or_error.try_with (fun () -> comma_list inputs Machine_trace.Input.of_string)
+    in
+    let rows =
+      Analyser.analyse
+        ?period
+        ?period_floor
+        ~single_capture_edge
+        ~config
+        program.instructions
+      |> Array.of_list
+    in
+    program, machine, tx, inputs, rows
+  with
+  | Error e -> failed e
+  | Ok (program, machine, tx, inputs, rows) ->
+    let cycles = Int.max 1 (Int.min cycles 20_000) in
+    let input_at cycle =
+      List.filter inputs ~f:(fun (input : Machine_trace.Input.t) -> input.cycle <= cycle)
+      |> List.stable_sort ~compare:(fun (a : Machine_trace.Input.t) b ->
+        Int.compare a.cycle b.cycle)
+      |> List.fold ~init:0 ~f:(fun level (input : Machine_trace.Input.t) ->
+        if input.level
+        then level lor (1 lsl input.pin)
+        else level land lnot (1 lsl input.pin))
+    in
+    let is_deadline_wait pc =
+      match List.nth program.instructions pc with
+      | Some (Op { op = Wait (Deadline _); _ }) -> true
+      | _ -> false
+    in
+    let levels = Array.create ~len:cycles 0 in
+    let machine, _, _, edges, releases, faults =
+      List.fold
+        (List.range 0 cycles)
+        ~init:(machine, tx, None, [], [], [])
+        ~f:(fun (machine, tx, last, edges, releases, faults) cycle ->
+          let machine, tx = write_tx machine tx ~cycle in
+          let inputs = input_at cycle in
+          let issues = (not machine.halted) && machine.stall = 0 in
+          let pc = machine.pc in
+          let next = Machine.step machine ~inputs in
+          levels.(cycle) <- Machine.pins next ~inputs;
+          let first_issue = issues && not (Option.equal Int.equal last (Some pc)) in
+          let edges =
+            match
+              if first_issue && pc < Array.length rows then Some rows.(pc) else None
+            with
+            | Some { phase = window; pin_event = Some (Edge _); _ } ->
+              let here = phase ~now:machine.now ~t:machine.t in
+              let band =
+                match window with
+                | { Interval.lo = Some lo; hi = Some hi } ->
+                  [ cycle - here + lo; cycle - here + hi ]
+                | _ -> [ -1; -1 ]
+              in
+              ((cycle :: pc :: band) @ [ Bool.to_int (Interval.contains window here) ])
+              :: edges
+            | _ -> edges
+          in
+          let releases =
+            if issues && is_deadline_wait pc && next.pc <> pc
+            then [ cycle; pc ] :: releases
+            else releases
+          in
+          let faults =
+            if Machine.Fault.equal next.fault Machine.Fault.none
+               || not (Machine.Fault.equal machine.fault Machine.Fault.none)
+            then faults
+            else
+              sprintf
+                "%s at cycle %d, pc %d"
+                (Sexp.to_string (Machine.Fault.sexp_of_t next.fault))
+                cycle
+                pc
+              :: faults
+          in
+          let last = if issues then Some pc else last in
+          drain_rx next, tx, last, edges, releases, faults)
+    in
+    ignore (machine : Machine.t);
+    let edges = List.rev edges in
+    let outside = List.count edges ~f:(fun e -> List.last_exn e = 0) in
+    let driven = List.map inputs ~f:(fun (input : Machine_trace.Input.t) -> input.pin) in
+    let lanes =
+      List.filter (List.range 0 Isa.pin_space) ~f:(fun pin ->
+        List.mem driven pin ~equal:Int.equal
+        || Array.exists levels ~f:(fun l -> (l lsr pin) land 1 = 1))
+      |> fun lanes -> if List.is_empty lanes then [ Isa.first_output_pin ] else lanes
+    in
+    let masks =
+      Array.map levels ~f:(fun l ->
+        List.foldi lanes ~init:0 ~f:(fun i m pin -> m lor (((l lsr pin) land 1) lsl i)))
+    in
+    { error = ""
+    ; lanes = List.map lanes ~f:Machine_trace.pin_name
+    ; levels = masks
+    ; edges = Array.of_list (List.concat edges)
+    ; releases = Array.of_list (List.concat (List.rev releases))
+    ; waits =
+        List.filter_map (Array.to_list rows) ~f:(fun r ->
+          Option.map r.slack ~f:(fun slack ->
+            ( r.pc
+            , Asm.to_string ~side_set_count:program.side_set_count r.instruction
+            , Interval.to_string slack )))
+    ; summary =
+        String.concat
+          ~sep:"\n"
+          ([ sprintf
+               "%d cycles run, %d edges checked against the analyser's windows, %d \
+                outside"
+               cycles
+               (List.length edges)
+               outside
+           ]
+           @
+           match List.rev faults with
+           | [] -> [ "faults: none" ]
+           | faults -> List.map faults ~f:(fun f -> "fault: " ^ f))
+    }
+;;
+
 module Pio_report = struct
   type t =
     { verdict : string
