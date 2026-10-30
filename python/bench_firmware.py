@@ -1440,7 +1440,7 @@ IR_RC6 = {
     ],
 }
 
-# Caliper.firmware: a scale's two 24-bit position words, clock on OUT0 and data on OUT1, 270 cycles a half period, 88.89 kHz
+# Caliper.firmware: a scale's two 24-bit position words, clock on OUT0 and data on OUT2, 270 cycles a half period, 88.89 kHz
 CALIPER = {
     "config": {
         "side_set_count": 0,
@@ -1448,7 +1448,7 @@ CALIPER = {
         "side_set_pindirs": 0,
         "in_base": 0,
         "in_count": 16,
-        "out_base": 6,
+        "out_base": 7,
         "out_count": 1,
         "set_base": 5,
         "set_count": 1,
@@ -1485,17 +1485,17 @@ CALIPER = {
     ],
 }
 
-# Xy2_100.firmware: SENDCK at 2 MHz on OUT0, SYNC on OUT1 and DATA on OUT2, a 20-bit word every 10 us
+# Xy2_100.firmware: SENDCK at 2 MHz on OUT3, SYNC on OUT4 and DATA on OUT6, a 20-bit word every 10 us
 XY2_100 = {
     "config": {
         "side_set_count": 2,
-        "side_set_base": 5,
+        "side_set_base": 8,
         "side_set_pindirs": 0,
         "in_base": 0,
         "in_count": 16,
-        "out_base": 7,
+        "out_base": 11,
         "out_count": 1,
-        "set_base": 7,
+        "set_base": 11,
         "set_count": 1,
         "jmp_pin": 0,
         "capture_pin": 0,

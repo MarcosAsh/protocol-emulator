@@ -90,13 +90,16 @@ let certified = [ Certified.of_firmware "xy2_100" firmware ]
 
 (* the copy python/bench_firmware.py holds for the bench: two setpoints in a run of two
    frames' time *)
+(* The bench's OUT1 reaches no analyser channel, so all three go to analyser B: SENDCK
+   and SYNC on OUT3 and OUT4, DATA on OUT6. OUT5, the flash's clock, stays still, so the
+   flash takes none of it for a command. *)
 let bench =
   { Bench.name = "xy2_100"
   ; what =
-      "Xy2_100.firmware: SENDCK at 2 MHz on OUT0, SYNC on OUT1 and DATA on OUT2, a \
+      "Xy2_100.firmware: SENDCK at 2 MHz on OUT3, SYNC on OUT4 and DATA on OUT6, a \
        20-bit word every 10 us"
   ; source = Timed_program.source firmware
-  ; config
+  ; config = { config with side_set_base = Bench.neopixel; out_base = 11; set_base = 11 }
   ; assumption = Nothing
   ; clock_hz = Bench.clock_hz
   ; load = None

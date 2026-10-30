@@ -107,15 +107,16 @@ rel_hi_next:
 
 let certified = [ Certified.of_firmware ~period:half_period "caliper" firmware ]
 
+(* the bench's OUT1 reaches no analyser channel, so the data goes out on OUT2 *)
 let bench =
   { Bench.name = "caliper"
   ; what =
       [%string
         "Caliper.firmware: a scale's two 24-bit position words, clock on OUT0 and data \
-         on OUT1, %{half_period#Int} cycles a half period, %{Bench.rate ~unit:\"Hz\" (2 \
+         on OUT2, %{half_period#Int} cycles a half period, %{Bench.rate ~unit:\"Hz\" (2 \
          * half_period)}"]
   ; source = Timed_program.source firmware
-  ; config
+  ; config = { config with out_base = pin + 2 }
   ; assumption = Floor 16
   ; clock_hz = Bench.clock_hz
   ; load = Some half_period
