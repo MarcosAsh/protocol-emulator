@@ -52,6 +52,9 @@ def test_parse():
     text = "notes\nBEGIN LIMITS\ndocument\tX\tA\t2020\nsymbol\tparameter\n" \
         "tA\tsetup\t\t5\t\t\tns\t3\ttext\nEND LIMITS\nleft out: none"
     assert ex.parse(text)["rows"][0]["page"] == "3"
+    # AN301's first reader, 2026-10-24: a tutorial with no limits, read as an empty table
+    empty = "BEGIN LIMITS\ndocument\tX\tA\t2006\nsymbol\tparameter\nEND LIMITS\nno limits"
+    assert ex.parse(empty)["rows"] == []
     for broken in ("BEGIN LIMITS\ndocument\tX\n", "symbol\tparameter\ntA\tsetup\n",
                    "document\tX\tA\t2020\n"):
         try:

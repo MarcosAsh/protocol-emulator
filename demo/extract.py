@@ -140,7 +140,9 @@ def parse(text):
     """A reading's document line and rows, from the agent's text between BEGIN LIMITS and END
     LIMITS (or a whole table file)."""
     lines = text.splitlines()
-    if any(line.strip() == "BEGIN LIMITS" for line in lines):
+    # a reader's table may hold no rows, the spec bounding nothing; a bare table file may not
+    marked = any(line.strip() == "BEGIN LIMITS" for line in lines)
+    if marked:
         start = next(i for i, line in enumerate(lines) if line.strip() == "BEGIN LIMITS")
         end = next((i for i in range(start, len(lines)) if lines[i].strip() == "END LIMITS"),
                    None)
@@ -161,7 +163,7 @@ def parse(text):
             rows.append(dict(zip(COLUMNS, cells[:len(COLUMNS)])))
     if document is None:
         raise ValueError("no document line")
-    if not rows:
+    if not rows and not marked:
         raise ValueError("no limit rows")
     return {"document": document, "rows": rows}
 
