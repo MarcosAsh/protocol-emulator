@@ -108,6 +108,7 @@ DEMOS = [
     outside("caliper", pico_b="micropython"),
     outside("lfast", pico_b="micropython"),
     outside("ir_rc6", pico_b="micropython"),
+    outside("tdm_audio"),
     outside("can", pico_b="can_node"),
     outside("can_node", pico_b="can_node"),
     Demo("start_hold_pio", "start_hold", expect="FAIL",

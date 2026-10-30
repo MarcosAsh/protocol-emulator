@@ -975,6 +975,60 @@ def ir_rc6(line, frames_sent):
     return timing, byte_tooth, edge_tooth
 
 
+TDM_BIT = 6 / 48e6
+AN301 = "Cirrus Logic AN301 Rev. 1, %s"
+
+
+def tdm_audio(sclk, fsync, sdata):
+    """AN301 gives no times, only the frame in SCLK periods: FSYNC high for one at least,
+    and eight 32-bit blocks a frame as the firmware and sigrok's options take it."""
+
+    def clock(samples):
+        c_at, c_to = edges(samples, sclk)
+        f_at, f_to = edges(samples, fsync)
+        return ([a for a, t in zip(c_at, c_to) if t], [a for a, t in zip(c_at, c_to) if not t],
+                [a for a, t in zip(f_at, f_to) if t], [a for a, t in zip(f_at, f_to) if not t])
+
+    def timing(samples, rate, _capture, _decode, _log):
+        rises, _, ups, downs = clock(samples)
+        at = np.array(rises)
+
+        def between(a, b):
+            return int(np.searchsorted(at, b) - np.searchsorted(at, a))
+
+        high = [between(u, d) for u, d in zip(ups, [d for d in downs if d > ups[0]])]
+        frames = [between(a, b) for a, b in zip(ups, ups[1:])]
+        periods = [b - a for a, b in zip(rises, rises[1:])]
+        return [count("SCLK periods FSYNC is high", AN301 % "p.3 and Figure 4", high,
+                      at_least=1, unit="periods"),
+                count("SCLK rises a frame", AN301 % "Figure 3, 8 channels of 32 bits", frames,
+                      at_least=256, unit="rises"),
+                count("SCLK rises a frame", AN301 % "Figure 3, 8 channels of 32 bits", frames,
+                      at_most=256, unit="rises"),
+                bound("SCLK period", "6 cycles at 48 MHz, the firmware's SCLK, to half a period "
+                      "(AN301 gives no least or most)", [span(p, rate) for p in periods],
+                      at_least=0.5 * TDM_BIT),
+                bound("SCLK period", "6 cycles at 48 MHz, the firmware's SCLK, to half a period "
+                      "(AN301 gives no least or most)", [span(p, rate) for p in periods],
+                      at_most=1.5 * TDM_BIT)]
+
+    def byte_tooth(samples, _rate, _capture, _decode):
+        """SDATA inverted over channel 1's MSB, from FSYNC's fall to the next SCLK fall."""
+        _, falls, _, downs = clock(samples)
+        return (changed(samples, sdata, downs[0], after(falls, downs[0])),
+                "SDATA inverted over channel 1's MSB")
+
+    def edge_tooth(samples, rate):
+        """The second FSYNC rise six bits early."""
+        _, _, ups, downs = clock(samples)
+        early = ups[1] - round(6 * TDM_BIT * rate)
+        out = moved(samples, fsync, downs[1], early + (downs[1] - ups[1]))
+        return (moved(out, fsync, ups[1], early), "the second FSYNC six bits early",
+                "SCLK rises a frame")
+
+    return timing, byte_tooth, edge_tooth
+
+
 @dataclass(frozen=True)
 class Demo:
     # demo/outside.sh's sigrok arguments, or demo/ledger.py's
@@ -1113,6 +1167,14 @@ DEMOS = {
                    "nothing, Pico B idle on OUT0", ir_rc6(4, demo_ir_rc6.FRAMES),
                    DRAWN + ("the page gives no tolerance, so the windows are its nominal "
                             "times to Ir_rc6.decode's 5%",)),
+    "tdm_audio": Demo(outside("tdm_audio"), "B",
+                      {"D4": "SCLK, OUT3", "D1": "FSYNC, OUT4, the flash's DI",
+                       "D3": "SDATA, OUT6, the flash's CS"},
+                      ("TDM_AUDIO",), ("python/demo_tdm_audio.py",),
+                      "nothing, the flash's clock held still", tdm_audio(4, 1, 3),
+                      DRAWN + ("AN301 gives no times, so the SCLK window is the firmware's own "
+                               "period to half a period, and the frame is held in SCLK "
+                               "periods",)),
     "self_timing": Demo("-P uart:rx=D4:baudrate=9600 -A uart=rx-data", "A",
                         {"D4": "OUT0, engine 1's echo of wire 20"},
                         ("test/uart_tx_host_rate.hex", "test/edge_logger_echo.hex"),

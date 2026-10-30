@@ -25,6 +25,7 @@ import demo_nec  # noqa: E402
 import demo_neopixel  # noqa: E402
 import demo_referee  # noqa: E402
 import demo_swd  # noqa: E402
+import demo_tdm_audio  # noqa: E402
 import demo_xy2_100  # noqa: E402
 import pio_firmware  # noqa: E402
 
@@ -338,6 +339,17 @@ def ir_rc6(_levels):
     return lambda decoded, _log: exactly(decoded, expected, "the frames sent")
 
 
+def tdm_audio(_levels):
+    """The frame of samples, then silence a channel at a time until the halt."""
+    words = demo_tdm_audio.WORDS
+
+    def judge(decoded, _log):
+        expected = demo_tdm_audio.lines(words, max(0, len(decoded) - len(words)))
+        return exactly(decoded, expected, "the samples sent")
+
+    return judge
+
+
 def sweep(levels):
     """OUT0 echoes wire 20, so it has at least every edge the chip stamped."""
     edges = levels[4][0]
@@ -384,6 +396,7 @@ CHECKS = {
     "caliper": ({4: "CLK", 6: "DATA"}, caliper),
     "lfast": (OUT0, lfast),
     "ir_rc6": (OUT0, ir_rc6),
+    "tdm_audio": ({4: "SCLK", 1: "FSYNC", 3: "SDATA"}, tdm_audio),
 }
 
 
