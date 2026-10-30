@@ -8,6 +8,7 @@
 # ethernet_rx.hex and ethernet_rx.cert.hex on the Pico.
 
 import array
+import gc
 import random
 import time
 
@@ -106,6 +107,7 @@ def receive(host, sender, data):
     host.arm_frame(IO0, base=BASE, fifty=False, owner=0)
     host.push([BASE])
     host.start()
+    gc.collect()
     sender.send(line_words(data))
     status = host.frame_status()
     for _ in range(100):
@@ -188,9 +190,12 @@ def run(transfer, log=print):
 if __name__ == "__main__":
     import pico_board
 
-    log = bench.Log()
+    # the frames' hex lines would fill the Pico's heap if kept, so they are only printed,
+    # for the ledger's copy of Pico A's output
     spi = pico_board.PicoSpi(baudrate=SPI_HZ)
     try:
-        log("PASS" if run(spi.transfer, log) else "FAIL")
-    finally:
-        log.save("ethernet_rx.log")
+        ok = run(spi.transfer)
+    except Exception as e:
+        print("stopped: %s" % e)
+        ok = False
+    print("PASS" if ok else "FAIL")
