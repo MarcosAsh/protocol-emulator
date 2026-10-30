@@ -8,8 +8,10 @@
 # first and stamps the wire engine 0 raises as it starts, which puts both on one clock.
 # record.json (demo/learn_prepare.py) has the loggers; record.edges and record.log are kept.
 
+import array
 import gc
 import json
+import os
 import time
 
 import micropython
@@ -32,13 +34,19 @@ def load(host, engine):
     host.load(engine["words"])
 
 
+SELECTS = [bytes((0x80 | pe.SELECT, 0, engine)) for engine in range(2)]
+# stamps an engine can hold, a recording's worth
+MOST = 6000
+
+
 @micropython.native
-def poll(spi, engine, words):
-    """Selects engine, appends its waiting words to words, then returns the low half of its
-    clock, read after the drain."""
+def poll(spi, engine, words, count):
+    """Selects engine, puts its waiting words in words from count, and returns how many
+    there are then and the low half of its clock, read after the drain. Nothing here
+    allocates, as the collector is off while recording."""
     cs_n, bus, status, rx_in = spi.cs_n, spi.spi, spi.status, spi.rx_in
     cs_n(0)
-    bus.write(bytes((0x80 | pe.SELECT, 0, engine)))
+    bus.write(SELECTS[engine])
     cs_n(1)
     cs_n(0)
     bus.write_readinto(spi.reads[pe.STATUS], status)
@@ -50,11 +58,13 @@ def poll(spi, engine, words):
         bus.write_readinto(out, into)
         cs_n(1)
         for i in range(1, 1 + 2 * level, 2):
-            words.append(rx_in[i] << 8 | rx_in[i + 1])
+            if count < MOST:
+                words[count] = rx_in[i] << 8 | rx_in[i + 1]
+                count += 1
     cs_n(0)
     bus.write_readinto(spi.reads[pe.NOW_LO], status)
     cs_n(1)
-    return status[1] << 8 | status[2]
+    return count, status[1] << 8 | status[2]
 
 
 def record(spi, host, engines, ms):
@@ -65,8 +75,9 @@ def record(spi, host, engines, ms):
         host.select(e["engine"])
         host.start()
     n = len(engines)
-    words = [[] for _ in range(n)]
-    times = [[] for _ in range(n)]
+    words = [array.array("H", bytes(2 * MOST)) for _ in range(n)]
+    times = [array.array("i", bytes(4 * MOST)) for _ in range(n)]
+    counts = [0] * n
     last = [0] * n
     clock = [0] * n
     late = 0
@@ -78,9 +89,9 @@ def record(spi, host, engines, ms):
     try:
         while time.ticks_diff(time.ticks_ms(), start) < ms:
             for k in range(n):
-                got = words[k]
-                before = len(got)
-                now = poll(spi, engines[k]["engine"], got)
+                before = counts[k]
+                count, now = poll(spi, engines[k]["engine"], words[k], before)
+                counts[k] = count
                 t = time.ticks_us()
                 gap = time.ticks_diff(t, then[k])
                 then[k] = t
@@ -89,13 +100,15 @@ def record(spi, host, engines, ms):
                 wraps = (gap * (CLOCK_HZ // 1_000_000) - low + 32768) >> 16
                 clock[k] += low + (wraps << 16 if wraps > 0 else 0)
                 last[k] = now
-                if len(got) > before and gap > LATE_US:
+                if count > before and gap > LATE_US:
                     # a stamp could be a wrap older than it reads
                     late += 1
-                for i in range(before, len(got)):
-                    times[k].append(clock[k] - ((now - got[i]) & 0xFFFF))
+                for i in range(before, count):
+                    times[k][i] = clock[k] - ((now - words[k][i]) & 0xFFFF)
     finally:
         gc.enable()
+    words = [list(w[:c]) for w, c in zip(words, counts)]
+    times = [list(t[:c]) for t, c in zip(times, counts)]
     faults = []
     for e in engines:
         host.select(e["engine"])
@@ -105,6 +118,11 @@ def record(spi, host, engines, ms):
 
 
 def run(log=print):
+    # an earlier run's recording is not this one's
+    try:
+        os.remove("record.edges")
+    except OSError:
+        pass
     settings = json.load(open("record.json"))
     engines = settings["engines"]
     spi = pico_board.PicoSpi()
@@ -149,7 +167,7 @@ if __name__ == "__main__":
     try:
         run(log)
     except Exception as e:
-        log("stopped: %s" % e)
+        log("stopped: %r" % e)
         log("FAIL")
     with open("record.log", "w") as f:
         f.write("\n".join(lines) + "\n")
