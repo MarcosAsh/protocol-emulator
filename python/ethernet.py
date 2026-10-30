@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 # 10BASE-T frames at 40 MHz. The host builds the frame behind its preamble; the core times
-# it onto the wire and its CRC unit appends the FCS. CPython and MicroPython.
+# it onto the wire and its CRC unit appends the FCS. Frames come back in through the chip's
+# receiver and test/ethernet_rx.asm. CPython and MicroPython.
 
-from protocol_emulator import CONTROL, DATA, DATA_ADDR, DEFAULT_CONFIG, TX
+from protocol_emulator import CONTROL, DATA, DATA_ADDR, DEFAULT_CONFIG, STATUS, TX, hex_words
 
 PREAMBLE = [0x55] * 7 + [0xD5]
 LINK_TENTH = 64000  # cycles in a tenth of the 16 ms between link pulses
@@ -78,3 +79,72 @@ def writes(frame, link_tenth=LINK_TENTH):
 def send(host, frame, link_tenth=LINK_TENTH):
     for reg, values in writes(frame, link_tenth):
         host.write(reg, values)
+
+
+def halves(data, idle=6):
+    """What a sender puts on the line for data behind the preamble, a level a half bit:
+    each bit its complement then itself, first bit lowest, then TP_IDL high for idle half
+    bits and the line at rest."""
+    levels = []
+    for byte in PREAMBLE + list(data):
+        for n in range(8):
+            bit = (byte >> n) & 1
+            levels += [1 - bit, bit]
+    return levels + [1] * idle + [0]
+
+
+def received(words, count):
+    """count bytes from words as the chip's receiver packs them, two to a word, low first."""
+    return [(words[n // 2] >> (8 * (n % 2))) & 0xFF for n in range(count)]
+
+
+# test/ethernet_rx.asm's: it hands a frame to the host from the address pushed first
+RX_CONFIG = dict(DEFAULT_CONFIG, autopull=1, autopull_data=1, pull_threshold=16)
+
+
+def load_receiver(host, engine, name="ethernet_rx"):
+    """test/ethernet_rx.asm, its words and certificate in name.hex and name.cert.hex, into
+    engine, which is left selected. Both engines have to be halted."""
+    def words(path):
+        with open(path) as f:
+            return hex_words(f.read())
+
+    host.select(engine)
+    host.configure(RX_CONFIG)
+    host.load(words(name + ".hex"))
+    host.certify(words(name + ".cert.hex"))
+
+
+def heard(host, frame, td_plus, base, polls=200):
+    """Engine 0, running the transmit firmware, sends frame while engine 1, running the
+    receiver's, waits for the chip's receiver to take it back off td_plus into base up:
+    the receiver's status, the bytes on the wire after the start of frame, and what
+    engine 1 hands over of them. The data memory takes writes only while both cores are
+    halted."""
+    data = wire(frame)[len(PREAMBLE):]
+    for engine in (1, 0):
+        host.select(engine)
+        host.stop()
+        host.flush()
+    host.write(DATA_ADDR, [0])
+    host.write(DATA, words(PREAMBLE + frame))
+    host.arm_frame(td_plus, base=base, fifty=False, owner=1)
+    host.select(1)
+    host.push([base])
+    host.start()
+    host.select(0)
+    host.push([LINK_TENTH, 8 * len(frame) - 2])
+    host.start()
+    status = host.frame_status()
+    for _ in range(polls):
+        if status["finished"]:
+            break
+        status = host.frame_status()
+    host.select(1)
+    got = []
+    while status["finished"] and len(got) < status["words"]:
+        level = (host.read(STATUS)[0] >> 10) & 15
+        if level:
+            got += host.pop(level)
+    host.select(0)
+    return status, data, received(got, len(data))

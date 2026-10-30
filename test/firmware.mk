@@ -10,6 +10,7 @@ uart_rx_wire.hex uart_rx_wire.cert.hex: ASSUME = -single-capture-edge -capture-p
 uart_tx_host_rate.hex uart_tx_host_rate.cert.hex: ASSUME = -period-floor 4
 ethernet.hex ethernet.cert.hex: ASSUME = -period 64000 -autopull-data 16
 data_stream.hex data_stream.cert.hex: ASSUME = -autopull-data 16
+ethernet_rx.hex ethernet_rx.cert.hex: ASSUME = -autopull-data 16
 # The checker loads a bit period per edge from its rows, each min_gap or more.
 self_check_wire.hex self_check_wire.cert.hex: ASSUME = -period-floor 17 -capture-pin 20 -capture-falling \
   -autopull-data 16

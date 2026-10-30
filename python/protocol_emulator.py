@@ -189,16 +189,11 @@ class Host:
         """Take the next 10BASE-T frame on pin into the data memory from base, sampling
         for a 50 MHz clock (else 40 MHz). One frame per arm. Its words land in engine
         owner's data turns, and that engine alone reads the status pins 28-31."""
-        self.write(FRAME_BASE, [base])
-        self.write(FRAME_CONTROL, [(owner << 8) | (pin << 2) | (int(fifty) << 1) | 1])
+        for reg, words in arm_frame_writes(pin, base, fifty, owner):
+            self.write(reg, words)
 
     def frame_status(self):
-        s = self.read(FRAME_STATUS)[0]
-        return {
-            "words": s & 0x3FF, "finished": (s >> 10) & 1, "fcs_ok": (s >> 11) & 1,
-            "half": (s >> 12) & 1, "dropped": (s >> 13) & 1, "receiving": (s >> 14) & 1,
-            "armed": (s >> 15) & 1,
-        }
+        return frame_fields(self.read(FRAME_STATUS)[0])
 
     def arm_usb(self, dp_pin, base=0, owner=0):
         """Take the next USB full speed packet into the data memory from base, D+ on
@@ -242,6 +237,21 @@ class Host:
             if again == hi:
                 return (hi << 16) | lo
             hi = again
+
+
+def arm_frame_writes(pin, base=0, fifty=True, owner=0):
+    """Host.arm_frame's register writes, for a host that cannot call it."""
+    control = (owner << 8) | (pin << 2) | (int(fifty) << 1) | 1
+    return [(FRAME_BASE, [base]), (FRAME_CONTROL, [control])]
+
+
+def frame_fields(s):
+    """FRAME_STATUS's fields."""
+    return {
+        "words": s & 0x3FF, "finished": (s >> 10) & 1, "fcs_ok": (s >> 11) & 1,
+        "half": (s >> 12) & 1, "dropped": (s >> 13) & 1, "receiving": (s >> 14) & 1,
+        "armed": (s >> 15) & 1,
+    }
 
 
 def hex_words(text):

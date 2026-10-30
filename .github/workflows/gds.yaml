@@ -33,6 +33,7 @@ on:
       - test/test.py
       - test/test_usb_board.py
       - test/test_ethernet.py
+      - test/test_ethernet_rx.py
       - test/test_dshot_sent_cec.py
       - test/test_two_engines.py
       - test/test_board_blame.py

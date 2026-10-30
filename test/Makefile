@@ -42,6 +42,7 @@ endif
 else
 
 # Gate level simulation:
+export GATES
 COMPILE_ARGS    += -DGL_TEST
 COMPILE_ARGS    += -DSIM
 VERILOG_SOURCES += $(PDK_ROOT)/ihp-sg13cmos5l/libs.ref/sg13cmos5l_io/verilog/sg13cmos5l_io.v
@@ -84,7 +85,7 @@ endif
 COCOTB_TEST_MODULES = test,test_usb_board,test_ethernet,test_dshot_sent_cec
 # the kit build has one engine, the chip two
 ifneq ($(FPGA),yes)
-COCOTB_TEST_MODULES := $(COCOTB_TEST_MODULES),test_two_engines,test_board_blame
+COCOTB_TEST_MODULES := $(COCOTB_TEST_MODULES),test_two_engines,test_board_blame,test_ethernet_rx
 endif
 GATE_TEST_MODULES := $(COCOTB_TEST_MODULES)
 # the bench demos' rehearsals simulate milliseconds, so on the RTL alone
