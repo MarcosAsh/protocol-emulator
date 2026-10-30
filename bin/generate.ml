@@ -819,5 +819,6 @@ let () =
        ; "predicate", predicate_command
        ; "new-protocol", New_protocol.command
        ; "lab", Lab.command
+       ; "learn", Learn_protocol.command
        ])
 ;;
