@@ -104,7 +104,52 @@ SOFTWARE = [
     ("max to min", r"\bInt\.max\b", "Int.min"),
     ("min to max", r"\bInt\.min\b", "Int.max"),
 ]
-PARSED = {name for name, _, _ in SOFTWARE}
+
+# the campaign's operators on top of those: off-by-one on every constant, bit index and range,
+# a mux arm stuck, a condition inverted, a gate swapped for another
+CAMPAIGN_HARDWARE = [
+    ("add constant", r" \+:\. (\d+)", lambda m: f" +:. {int(m.group(1)) + 1}"),
+    ("subtract constant", r" -:\. (\d+)", lambda m: f" -:. {int(m.group(1)) + 1}"),
+    ("not equal constant", r" <>:\. (\d+)", lambda m: f" <>:. {int(m.group(1)) + 1}"),
+    ("less than constant", r" <:\. (\d+)", lambda m: f" <:. {int(m.group(1)) + 1}"),
+    ("greater constant", r" >:\. (\d+)", lambda m: f" >:. {max(int(m.group(1)) - 1, 0)}"),
+    ("at most constant", r" <=:\. (\d+)", lambda m: f" <=:. {int(m.group(1)) + 1}"),
+    ("at least constant", r" >=:\. (\d+)", lambda m: f" >=:. {max(int(m.group(1)) - 1, 0)}"),
+    ("bit index", r"\.:\((\d+)\)", lambda m: f".:({int(m.group(1)) + 1})"),
+    ("range top", r"\.:\[(\d+), (\d+)\]", lambda m: f".:[{int(m.group(1)) - 1}, {m.group(2)}]"),
+    ("range bottom", r"\.:\[(\d+), (\d+)\]", lambda m: f".:[{m.group(1)}, {int(m.group(2)) + 1}]"),
+    ("shift amount", r"\b(sll|srl) (\w+) (\d+)\b", lambda m: f"{m.group(1)} {m.group(2)} {int(m.group(3)) + 1}"),
+    ("constant value", r"(of_unsigned_int ~width:\w+ )(\d+)\b", lambda m: f"{m.group(1)}{int(m.group(2)) + 1}"),
+    ("and to xor", r" &: ", " ^: "),
+    ("or to xor", r" \|: ", " ^: "),
+    ("xor to and", r" \^: ", " &: "),
+    ("mux2 false arm stuck", r"mux2 (\w+) (\w+) (\w+)\b", r"mux2 \1 \2 (zero (width \2))"),
+    ("mux2 true arm stuck", r"mux2 (\w+) (\w+) (\w+)\b", r"mux2 \1 (zero (width \3)) \3"),
+    ("mux2 false arm high", r"mux2 (\w+) (\w+) (\w+)\b", r"mux2 \1 \2 (ones (width \2))"),
+    ("mux2 true arm high", r"mux2 (\w+) (\w+) (\w+)\b", r"mux2 \1 (ones (width \3)) \3"),
+    ("mux2 one arm", r"mux2 (\w+) (\w+) (\w+)\b", r"mux2 \1 \2 \2"),
+    ("when inverted", r"\bwhen_ (\w+)", r"when_ ~:\1"),
+    ("unless inverted", r"\bunless_ (\w+)", r"unless_ ~:\1"),
+]
+CAMPAIGN_SOFTWARE = [("if inverted", r"\bif (\w+) then", r"if not \1 then")]
+
+# a named signal stuck at zero or one: the expression of a [let%hw x = ... in] binding
+STUCK = [("stuck at zero", "zero (width ({}))"), ("stuck at one", "ones (width ({}))")]
+LET = re.compile(r"^ *let%hw (\w+) =", re.M)
+
+
+def stuck_spans(masked):
+    # where each such expression starts and ends: the first line end at depth 0 after [in]
+    for m in LET.finditer(masked):
+        depth, i = 0, m.end()
+        while i < len(masked):
+            depth += masked[i] in "([{" and 1 or masked[i] in ")]}" and -1 or 0
+            if depth < 0 or (depth == 0 and masked[i] == "\n" and masked[i - 3 : i] == " in"):
+                break
+            i += 1
+        if depth == 0 and i < len(masked):
+            yield m.end() + 1, i - 3
+PARSED = {name for name, _, _ in SOFTWARE + CAMPAIGN_SOFTWARE} | {n for n, _ in STUCK}
 
 # what each file is mutated with and the Verilog a mutant must still elaborate to
 CHIP = [["top"], ["top", "-sram", "-engines", "2"]]
@@ -144,6 +189,14 @@ SCOPES = {
             SOFTWARE if file in ["src/analyser.ml", "src/interval.ml"]
             else HARDWARE + MORE_HARDWARE + SOFTWARE),
         "max_per_operator": None,
+    },
+    "campaign": {
+        "files": RTL + list(APART) + ["src/analyser.ml", "src/interval.ml"],
+        "operators": lambda file: (
+            SOFTWARE + CAMPAIGN_SOFTWARE if file in ["src/analyser.ml", "src/interval.ml"]
+            else HARDWARE + MORE_HARDWARE + CAMPAIGN_HARDWARE + SOFTWARE + CAMPAIGN_SOFTWARE),
+        "max_per_operator": None,
+        "stuck": True,
     },
     "kernel": {
         "files": [
@@ -269,6 +322,15 @@ def mutants(scope, file, source):
             after = mutated.split("\n")[line - 1]
             yield {"file": file, "operator": name, "line": line, "text": lines[line - 1].strip(),
                    "after": after.strip(), "mutated": mutated}
+    if SCOPES[scope].get("stuck") and file not in ("src/analyser.ml", "src/interval.ml"):
+        for start, end in stuck_spans(masked):
+            for name, wrap in STUCK:
+                mutated = source[:start] + wrap.format(source[start:end]) + source[end:]
+                line = source.count("\n", 0, start) + 1
+                if mutated not in seen and parses(mutated):
+                    seen.add(mutated)
+                    yield {"file": file, "operator": name, "line": line, "text": lines[line - 1].strip(),
+                           "after": mutated.split("\n")[line - 1].strip(), "mutated": mutated}
 
 
 def plan(scope, files, seed, held_out):
