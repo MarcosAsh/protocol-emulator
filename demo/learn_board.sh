@@ -65,6 +65,8 @@ cat "$out/learn.txt" | grep -v " s  kind " || true
 baud=$(sed -n 's/^uart, \([0-9]*\)\.[0-9]* baud.*/\1/p' "$out/learn.txt")
 decode=$(echo "$decode" | sed "s/BAUD/${baud:-0}/")
 [ -f "$out/learned/send.json" ] || { echo "nothing learned to send"; exit 1; }
+# a fresh load, as faults from the recording would hold
+openFPGALoader -b icepi-zero "$BIT" > "$out/load_speak.txt" 2>&1
 mpremote connect "$PICO" cp "$out/learned/send.json" : > /dev/null
 [ "$kind" = clocked ] || mpremote connect "$pico_b" run --no-follow python/learn_listen.py
 ANALYSER=$analyser RATE=$rate demo/capture.sh "$out/spoken.sr" 6000 \
