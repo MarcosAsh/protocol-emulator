@@ -638,6 +638,9 @@ def main():
     p.add_argument("--prove", action="store_true", help="take each survivor of the checker to the proofs")
     p.add_argument("--prove-only", action="store_true", help="take every mutant of the checker, untested")
     p.add_argument("--proof-timeout", type=int, default=4 * 3600, help="seconds per proof")
+    p.add_argument("--work", help="keep the copies here between runs, so a chunk starts warm")
+    p.add_argument("--resume", action="store_true", help="skip the mutants already in --json")
+    p.add_argument("--budget", type=int, help="seconds after which no new mutant starts")
     p.add_argument("--proofs", nargs="+", help="only these of PROVED's sby proofs, by name")
     args = p.parse_args()
     proving = args.prove or args.prove_only
@@ -659,6 +662,9 @@ def main():
     if missing := set(args.id or []) - {m["id"] for m in todo}:
         sys.exit(f"no mutant {' '.join(sorted(missing))} in this scope")
     todo = todo[shard::shards]
+    if args.resume and args.json and Path(args.json).exists():
+        done = {json.loads(l)["id"] for l in Path(args.json).read_text().splitlines() if '"result"' in l}
+        todo = [m for m in todo if m["id"] not in done]
     if args.list:
         for m in todo:
             tag = " held out" if m["held_out"] else ""
@@ -668,13 +674,16 @@ def main():
         print(f"total: {len(todo)} mutants, {sum(1 for m in todo if m['held_out'])} held out")
         return
     root = Path(__file__).resolve().parent.parent
-    work = root / "_mutation"
+    work = Path(args.work) if args.work else root / "_mutation"
+    began = time.monotonic()
     out = Path(args.json).open("a") if args.json else None
     lock = threading.Lock()
     copies = Queue()
     timeout = args.timeout
 
     def run(m):
+        if args.budget and time.monotonic() - began > args.budget:
+            return None
         copy = copies.get()
         start = time.monotonic()
         original = (copy / m["file"]).read_text()
@@ -711,15 +720,21 @@ def main():
             out.write(json.dumps({"scope": args.scope, "shard": args.shard, "seed": args.seed,
                                   "planned": len(todo)}) + "\n")
             out.flush()
-        (work / "0").mkdir(parents=True)
-        for item in COPIED:
-            (work / "0" / item).parent.mkdir(parents=True, exist_ok=True)
-            if (root / item).is_dir():
-                shutil.copytree(root / item, work / "0" / item, ignore=SKIPPED)
-            else:
-                shutil.copy(root / item, work / "0" / item)
-        for item in COPIED_JSON:
-            shutil.copytree(root / item, work / "0" / item, dirs_exist_ok=True)
+        def fill(copy):
+            copy.mkdir(parents=True, exist_ok=True)
+            for item in COPIED:
+                (copy / item).parent.mkdir(parents=True, exist_ok=True)
+                if (root / item).is_dir():
+                    shutil.copytree(root / item, copy / item, ignore=SKIPPED, dirs_exist_ok=True)
+                else:
+                    shutil.copy(root / item, copy / item)
+            for item in COPIED_JSON:
+                shutil.copytree(root / item, copy / item, dirs_exist_ok=True)
+
+        # a kept copy is brought up to the tree's files, its build kept
+        for n in range(args.jobs):
+            if n == 0 or (work / str(n)).exists():
+                fill(work / str(n))
         if proving:
             # the proofs' files, and the original's check and the prover, made once
             tracked = subprocess.run(["git", "ls-files", "formal"], cwd=root, capture_output=True,
@@ -777,12 +792,15 @@ def main():
                   f" {len(todo)} mutants, {timeout} s each at most", flush=True)
         for n in range(args.jobs):
             if n > 0:
-                shutil.copytree(work / "0", work / str(n), symlinks=True)
+                if not (work / str(n)).exists():
+                    shutil.copytree(work / "0", work / str(n), symlinks=True)
             copies.put(work / str(n))
         with ThreadPoolExecutor(args.jobs) as pool:
-            results = list(pool.map(run, todo))
+            results = [r for r in pool.map(run, todo) if r]
+            todo = todo[: len(results)] if args.budget else todo
     finally:
-        shutil.rmtree(work, ignore_errors=True)
+        if not args.work:
+            shutil.rmtree(work, ignore_errors=True)
     code = report(results, len(todo))
     # a shard's survivors are judged at --report, beside every other shard's
     sys.exit(0 if args.json else code)
