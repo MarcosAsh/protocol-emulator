@@ -261,6 +261,7 @@ let%expect_test "firmware its limits do not hold within a factor of two" =
     nec_rx             none   a receiver: it samples, and drives nothing
     ir_rc6             none   the spec gives typical times and no minimum or maximum; Ir_rc6.decode holds each mark and space to 5%
     lfast              loose  data rate, shortest high bit (3.125 ns) needs 2 of 10 cycles (20%)
+    tdm_audio          none   AN301 has no timing table: SCLK 12.288 MHz (p.2) is typical only, the example for 8 x 32-bit blocks at 48 kHz, with no minimum or maximum
     |}]
 ;;
 

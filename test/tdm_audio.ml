@@ -190,8 +190,8 @@ word8:
 
 let certified = [ Certified.of_firmware "tdm_audio" firmware ]
 
-(* the copy python/bench_firmware.py holds for the bench: a frame of eight samples, then
-   one of silence *)
+(* a frame of samples, channel 1 first; the bench copy has no run as there is no limit for
+   one to bound *)
 let samples = [ 0x8000; 0x7fff; 0x1234; 0xa5a5; 0x0001; 0xffff; 0x5555; 0xc3c3 ]
 
 let bench =
@@ -204,7 +204,7 @@ let bench =
   ; assumption = Nothing
   ; clock_hz = Bench.clock_hz
   ; load = None
-  ; stimulus = Some { bursts = [ samples ]; quiet = 0; cycles = 3_200 }
+  ; stimulus = None
   }
 ;;
 

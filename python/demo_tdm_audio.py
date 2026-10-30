@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# TODO what this shows on the bench, and what is wired to which pin (MicroPython, Pico A).
+# A TDM audio transmitter on OUT0 (SCLK), OUT1 (FSYNC) and OUT2 (SDATA) (MicroPython,
+# Pico A): a frame of eight 16-bit samples, then silence as SCLK runs on.
 # demo/outside.sh tdm_audio runs it, reading the analyser, the capture's length and
 # sigrok's decoders from the next line.
 # outside: analyser=A ms=2000 decode=-P tdm_audio:clock=D4:frame=TODO:data=D6
@@ -9,8 +10,8 @@ import bench
 import bench_firmware
 import protocol_emulator as pe
 
-# TODO the words the firmware takes
-WORDS = [0x55, 0xA3]
+# a sample a channel, channel 1 first, the top 16 bits of the 24-bit audio word
+WORDS = [0x8000, 0x7FFF, 0x1234, 0xA5A5, 0x0001, 0xFFFF, 0x5555, 0xC3C3]
 
 
 def run(transfer, log=print):
@@ -18,7 +19,6 @@ def run(transfer, log=print):
     bench.load(host, bench_firmware.TDM_AUDIO)
     host.start()
     host.push(WORDS)
-    # TODO read back what the far end answered, and judge it
     found = bench.faults(host)
     log("faults 0x%x" % found)
     return not found

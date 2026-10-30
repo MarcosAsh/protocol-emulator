@@ -26,7 +26,8 @@ let%expect_test "SCLK for one host word" =
     |> List.map ~f:(fun run -> List.hd_exn run, List.length run)
   in
   print_s [%message (runs : (bool * int) list)];
-  [%expect {|
+  [%expect
+    {|
     (runs
      ((false 5) (true 3) (false 3) (true 3) (false 3) (true 3) (false 3)
       (true 3) (false 3) (true 3) (false 3) (true 3) (false 3) (true 3) (false 3)
@@ -188,7 +189,8 @@ let%expect_test "the converter reads every sample the host sent, then silence" =
         ~measured_ns:(Converter.measured converter : Measured.t)
         ~violations:(Converter.violations converter : string list)
         (machine.fault : Machine.Fault.t)];
-  [%expect {|
+  [%expect
+    {|
     ((frames
       ((0x800000 0x7fff00 0x123400 0xa5a500 0x100 0xffff00 0x555500 0xc3c300)
        (0x7fff00 0x800000 0xedcb00 0x5a5a00 0xfffe00 0x0 0xaaaa00 0x3c3c00)
