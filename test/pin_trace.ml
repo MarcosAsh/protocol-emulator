@@ -224,6 +224,14 @@ let run (scenario : Scenario.t) =
        List.rev !lines, reads)
 ;;
 
+(* one more than the highest engine the script selects *)
+let engines (scenario : Scenario.t) =
+  List.fold scenario.script ~init:1 ~f:(fun engines -> function
+    | Write (reg, words) when reg = Reg.select ->
+      List.fold words ~init:engines ~f:(fun engines word -> Int.max engines (word + 1))
+    | Write _ | Read _ | Run _ | Until _ | Drive _ -> engines)
+;;
+
 let to_string (scenario : Scenario.t) lines =
   let runs =
     List.group lines ~break:(fun a b -> not (Line.equal a b))
@@ -235,6 +243,9 @@ let to_string (scenario : Scenario.t) lines =
      ; "# cycles ui_in uio_in uo_out uio_out uio_oe; cycle 0 is the first rising edge\n"
      ; "# after rst_n rises, outputs are the values after the edge\n"
      ]
+     @ (match engines scenario with
+        | 1 -> []
+        | engines -> [ sprintf "# engines %d\n" engines ])
      @ Option.value_map scenario.sigrok ~default:[] ~f:Sigrok.header
      @ runs)
 ;;

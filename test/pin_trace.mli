@@ -125,5 +125,6 @@ val run : Scenario.t -> Line.t list * int list list
 
 (** One line per run of identical cycles: the run length in decimal, then [ui_in],
     [uio_in], [uo_out], [uio_out] and [uio_oe] in hex. Lines starting with [#] are
-    comments, and those starting with [# sigrok] carry [Sigrok.t]. *)
+    comments, those starting with [# sigrok] carry [Sigrok.t], and [# engines n] says the
+    script loads [n] engines, so a top with fewer cannot replay it. *)
 val to_string : Scenario.t -> Line.t list -> string

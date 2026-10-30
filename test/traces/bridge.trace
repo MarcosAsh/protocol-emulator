@@ -1,6 +1,7 @@
 # bridge, from test/pin_trace.ml: do not edit
 # cycles ui_in uio_in uo_out uio_out uio_oe; cycle 0 is the first rising edge
 # after rst_n rises, outputs are the values after the edge
+# engines 2
 # sigrok clock 48000000
 # sigrok decoder uart:rx=IN0:baudrate=4800000
 # sigrok decoder spi:clk=OUT1:mosi=OUT0
