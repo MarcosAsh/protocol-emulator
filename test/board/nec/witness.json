@@ -1,14 +1,14 @@
 {
   "demo": "nec",
-  "time": "2026-10-22T18:22:42",
+  "time": "2026-10-30T16:07:07",
   "result": "PASS",
-  "commit": "b5aba39a9f5decb9c23687b684c5e66ce12311bc",
+  "commit": "b5c0748c56eea8ab598d269fd6da6bef709d06eb",
   "bitstream_sha256": "ded0014fdf14df568ed478e5f6e36d1d91475ba62bae300e101c1b229c1f963f",
-  "netlist_sha256": "685d03a18ca12fd44a680074e6810a1b703c073ad946dfd3fb5b50507d1c3111",
-  "sums_sha256": "a63b32fc9e3ffa0527f191904e4401ca9179dfeccf56210879fac8dbee340c61",
+  "netlist_sha256": "1db23ccd02406ef95731f3ffd7de23fbfa9a66a0410741d78cbcb04edc717f5f",
+  "sums_sha256": "cd0e96c9c4bc9af60570c3609119adcd2f7dd4d001e0c2fcf6ff65539b962485",
   "capture": {
     "file": "nec.sr",
-    "sha256": "34ef6e800bfd346e47c2ccdc228108d817377dcc19814195fd7485623683cc23",
+    "sha256": "253fb7fdc71bd128ddca0a8263bbf58640a757ba794a9c04eb13395a71ea7563",
     "rate_hz": 24000000,
     "seconds": 4.0,
     "analyser": "A",
@@ -58,7 +58,7 @@
       "limit": ">= 2137.50 us",
       "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
       "spans": 2,
-      "measured": "2249.86 us to 2250.39 us",
+      "measured": "2249.82 us to 2250.39 us",
       "verdict": "proved"
     },
     {
@@ -66,7 +66,7 @@
       "limit": "<= 2362.50 us",
       "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
       "spans": 2,
-      "measured": "2249.86 us to 2250.39 us",
+      "measured": "2249.82 us to 2250.39 us",
       "verdict": "proved"
     },
     {
@@ -138,7 +138,7 @@
       "limit": ">= 102600.00 us",
       "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
       "spans": 4,
-      "measured": "107994.74 us to 109387.44 us",
+      "measured": "107994.62 us to 109415.11 us",
       "verdict": "proved"
     }
   ],

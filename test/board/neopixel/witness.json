@@ -1,14 +1,14 @@
 {
   "demo": "neopixel",
-  "time": "2026-10-22T17:26:38",
+  "time": "2026-10-30T16:06:30",
   "result": "PASS",
-  "commit": "c6a2f802fc0dbf7162d28b9ba271ae4d456fc013",
+  "commit": "b5c0748c56eea8ab598d269fd6da6bef709d06eb",
   "bitstream_sha256": "ded0014fdf14df568ed478e5f6e36d1d91475ba62bae300e101c1b229c1f963f",
-  "netlist_sha256": "685d03a18ca12fd44a680074e6810a1b703c073ad946dfd3fb5b50507d1c3111",
-  "sums_sha256": "5c7891afdec35f80bdde285c8e8e705e8ff17f2eb8f33a0e8a76fc08650ce6ff",
+  "netlist_sha256": "1db23ccd02406ef95731f3ffd7de23fbfa9a66a0410741d78cbcb04edc717f5f",
+  "sums_sha256": "34e184d879644af3fb6282d012d973c98198a046cf8ecc2a23811c191d16e36d",
   "capture": {
     "file": "neopixel.sr",
-    "sha256": "ae053a497ed87490801b28377a28506fe6d4c60f871f90e125685f128b5d7fa9",
+    "sha256": "9eb47f907029d2f3381f233cce3a2f3345f47993e91ab3cee07a19a68acb7a81",
     "rate_hz": 24000000,
     "seconds": 2.0,
     "analyser": "B",
@@ -58,8 +58,8 @@
       "limit": ">= 800 ns",
       "sheet": "SK6812, OSK-SPC-SK6812-012 Rev. B/1 p.7",
       "spans": 340,
-      "measured": "792 ns to 917 ns",
-      "verdict": "unresolved"
+      "measured": "833 ns to 917 ns",
+      "verdict": "proved"
     },
     {
       "parameter": "T1L",
@@ -82,7 +82,7 @@
       "limit": ">= 200.00 us",
       "sheet": "SK6812, OSK-SPC-SK6812-012 Rev. B/1 p.7",
       "spans": 3,
-      "measured": "1889.81 us to open",
+      "measured": "1980.14 us to open",
       "verdict": "proved"
     }
   ],
@@ -96,7 +96,7 @@
     "SK6812": "6aaec5af099c70248238732339efea94956f174af1e1e9531918678a5b2007ef"
   },
   "host_scripts": {
-    "python/demo_neopixel.py": "0ca6df63928c17496b863d308585b9b3e5879a7fe4db15e67e0a2d643a86c1dd"
+    "python/demo_neopixel.py": "ae3cb7507119b16425adee22c97e106af517a422e4ac15ef8e4380eec838c546"
   },
   "bench": "an Icepi Zero (ECP5 LFE5U-25F) running the chip at 48 MHz on bench carrier v1.2, Pico A as the host on SPI, an SK6812 stick behind a 74AHCT125, analyser B (fx2lafw) at 24 MS/s",
   "scope": "the bytes on the wire and their timing in one run of neopixel, as the analyser saw them",
