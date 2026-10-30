@@ -653,6 +653,13 @@ let%expect_test "every protocol from its file to the decoded trace" =
     (received ())
     decode: test/traces/lfast.trace, by sigrok's lfast:data=OUT0
       lfast=sync:header_pl_size:header_ch_type:header_cts:payload:sleep: lfast-1: Sync OK, lfast-1: 8 bit, lfast-1: Data Channel A, lfast-1: 1, lfast-1: 55, lfast-1: LVDS sleep mode request, lfast-1: Sync OK, lfast-1: 8 bit, lfast-1: Data Channel A, lfast-1: 1, lfast-1: A3, lfast-1: LVDS sleep mode request
+
+    === usb_fs
+
+    certificates
+    usb_fs_device: 201 words, 4 deadline waits, worst slack 0, the kernel accepts it, assuming no wrap
+
+    limits
     |}]
 ;;
 

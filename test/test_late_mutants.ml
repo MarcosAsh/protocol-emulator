@@ -130,10 +130,11 @@ let%expect_test "every deadline wait in the library, a cycle late, is refused" =
     caliper                    11 waits, 11 refused a cycle late,  0 accepted at their slack
     xy2_100                    10 waits, 10 refused a cycle late, 10 accepted at their slack
     lfast                      27 waits, 27 refused a cycle late, 27 accepted at their slack
+    usb_fs_device               4 waits,  4 refused a cycle late,  4 accepted at their slack
     uart_tx_stream              3 waits,  3 refused a cycle late,  3 accepted at their slack
     spi_master_stream           3 waits,  3 refused a cycle late,  3 accepted at their slack
     uart_tx_stamped             4 waits,  4 refused a cycle late,  4 accepted at their slack
 
-    59 firmwares, 567 deadline waits: 567 refused a cycle late, 282 accepted at their slack
+    60 firmwares, 571 deadline waits: 571 refused a cycle late, 286 accepted at their slack
     |}]
 ;;

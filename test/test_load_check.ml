@@ -118,6 +118,7 @@ let%expect_test "every firmware against the chip's walk" =
     caliper                       57     74  accepted
     xy2_100                       35     26  accepted
     lfast                         64     15  accepted
+    usb_fs_device                201     94  accepted
     asm/blink                      4      5  accepted
     asm/crc_send                  12     12  accepted
     asm/data_stream                4      5  accepted
