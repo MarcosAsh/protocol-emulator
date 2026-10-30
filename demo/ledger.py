@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Every bench demo in turn, each from a fresh load of BITSTREAM as its reset. A demo keeps
+# Every bench demo at BITSTREAM's clock in turn, each from a fresh load of it as its reset. A demo keeps
 # its capture, decode, Pico logs and a SHA256SUMS in EVIDENCE/<date>/ledger/<demo>/, beside
 # the day's other bench runs, and adds a line to demo/ledger.tsv. --keyboard adds the USB
 # keyboard demo, which types into the focused window. PICO_B_SERIAL picks Pico B, as for
@@ -56,6 +56,8 @@ class Demo:
     decode: str | None = None
     timeout_s: int | None = None
     why: str = ""
+    # the chip's clock the demo needs, which the bitstream's name gives
+    mhz: int = 48
 
 
 SMOKE = """import pico_board
@@ -105,6 +107,17 @@ DEMOS = [
     outside("nec", pico_b="micropython"),
     outside("can", pico_b="can_node"),
     outside("can_node", pico_b="can_node"),
+    # 10BASE-T wants the 40 MHz build: the chip hears its own frames on TD+, then frames
+    # from a PIO on Pico A, which the analyser is too slow to follow
+    Demo("ethernet", "pico",
+         files=("python/bench.py", "python/bench_firmware.py", "python/ethernet.py",
+                "python/demo_pi_ethernet.py", "test/ethernet_rx.hex",
+                "test/ethernet_rx.cert.hex"),
+         run="python/demo_pi_ethernet.py", timeout_s=300, mhz=40),
+    Demo("eth_rx", "pico",
+         files=("python/bench.py", "python/ethernet.py", "python/demo_ethernet_rx.py",
+                "test/ethernet_rx.hex", "test/ethernet_rx.cert.hex"),
+         run="python/demo_ethernet_rx.py", timeout_s=300, mhz=40),
     Demo("start_hold_pio", "start_hold", expect="FAIL",
          why="pico-examples' pio_i2c holds a START 3.125 us, under 4.0 (#796)"),
     Demo("start_hold_hw", "start_hold"),
@@ -434,11 +447,20 @@ def append(results, rows):
             f.write("\t".join(row[c] for c in COLUMNS) + "\n")
 
 
+def clock(bitstream):
+    """icepi/Makefile names a bitstream for another clock than 48 MHz, -40mhz.bit."""
+    found = re.search(r"-(\d+)mhz\.bit$", str(bitstream))
+    return int(found.group(1)) if found else 48
+
+
 def plan(args):
-    chosen = [d for d in DEMOS if (d.name != "keyboard" or args.keyboard)
-              and (not args.only or d.name in args.only)]
     if args.only and "keyboard" in args.only and not args.keyboard:
         sys.exit("keyboard types into the focused window: add --keyboard")
+    mhz = clock(args.bitstream)
+    chosen = [d for d in DEMOS if (d.name != "keyboard" or args.keyboard)
+              and (not args.only or d.name in args.only) and d.mhz == mhz]
+    if args.only and not chosen:
+        sys.exit("none of %s runs at the bitstream's %d MHz" % (" ".join(args.only), mhz))
     return chosen
 
 

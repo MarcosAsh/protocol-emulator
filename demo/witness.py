@@ -18,6 +18,7 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+import frames
 import numpy as np
 import sigrok
 import sweep_rates
@@ -26,6 +27,8 @@ import traffic
 ROOT = Path(__file__).resolve().parent.parent
 # copied from the ledger run, each listed in its SHA256SUMS
 KEPT = ["{}.sr", "{}.log", "ledger.txt", "run.txt"]
+# a demo with no capture keeps its log alone
+LOG_KEPT = ["{}.log", "ledger.txt", "run.txt"]
 # the analyser's crystal against the chip's, either way
 PPM = 100e-6
 # 24LC256, Table 1-2 param 4: SDA and SCL rise in up to 300 ns, which the analyser's
@@ -776,6 +779,31 @@ LIMITS = (
 )
 
 
+@dataclass(frozen=True)
+class LogDemo:
+    # what the chip runs, test/ files, and what Pico A runs
+    firmware: tuple
+    scripts: tuple
+    peer: str
+    # the log's tally and problems, and its teeth
+    judge: object
+    teeth: object
+    limits: tuple = ()
+
+
+LOG_DEMOS = {
+    "eth_rx": LogDemo(
+        ("test/ethernet_rx.hex", "test/ethernet_rx.cert.hex"),
+        ("python/demo_ethernet_rx.py", "python/ethernet.py", "python/bench.py"),
+        "Pico A's PIO as the 10BASE-T sender on IO0, at 10 Mb/s off its own crystal",
+        frames.judge, frames.teeth,
+        ("10 Mb/s is past the analyser, so the log is the run's only record: CI judges its "
+         "frames again from the bytes it says were sent",
+         "the line is Pico A's 3.3 V logic, as a line receiver with squelch would give "
+         "the chip, not a twisted pair through a transformer")),
+}
+
+
 def firmware_hash(name, text_at):
     """sha256 of a test/ file, or of one of python/bench_firmware.py's entries as sorted
     JSON. text_at(path) reads a file as the run had it."""
@@ -826,8 +854,62 @@ def teeth(demo, samples, rate, capture, log, scratch):
 
 
 def files(demo):
+    if demo in LOG_DEMOS:
+        return [k.format(demo) for k in LOG_KEPT]
     name = DEMOS[demo].name(demo)
     return [k.format(name) for k in KEPT]
+
+
+def log_witness(directory):
+    """witness.json's fields a run with no capture makes, and its teeth."""
+    fields = ledger_fields(directory)
+    demo = fields["demo"]
+    d = LOG_DEMOS[demo]
+    log = (directory / ("%s.log" % demo)).read_text(errors="replace")
+    tally, _ = d.judge(log)
+    bitten = d.teeth(log)
+    return {
+        "demo": demo,
+        "time": fields["time"],
+        "result": fields["result"],
+        "commit": fields["commit"],
+        "bitstream_sha256": fields["bitstream_sha256"],
+        "netlist_sha256": fields.get("netlist_sha256", "not recorded"),
+        "sums_sha256": sha256((directory / "SHA256SUMS").read_bytes()),
+        "log": {"file": "%s.log" % demo, "sha256": sums(directory)["%s.log" % demo]},
+        "tally": tally,
+        "teeth": [what for what, _ in bitten],
+    }, bitten
+
+
+def check_log(directory, w):
+    """check() for a demo with no capture."""
+    demo = w["demo"]
+    d = LOG_DEMOS[demo]
+    problems = []
+    listed = sums(directory)
+    for kept in files(demo):
+        if kept not in listed:
+            problems.append("SHA256SUMS lists no %s" % kept)
+        elif sha256((directory / kept).read_bytes()) != listed[kept]:
+            problems.append("%s does not match SHA256SUMS" % kept)
+    if sha256((directory / "SHA256SUMS").read_bytes()) != w["sums_sha256"]:
+        problems.append("SHA256SUMS is not the one the ledger row names")
+    for firmware in d.firmware:
+        if firmware_hash(firmware, in_tree) != w["firmware"].get(firmware):
+            problems.append("%s is not the firmware the board ran" % firmware)
+    for script in d.scripts:
+        if sha256(in_tree(script)) != w["host_scripts"].get(script):
+            problems.append("%s is not the script Pico A ran" % script)
+    if problems:
+        return problems, []
+    made, bitten = log_witness(directory)
+    for key, value in made.items():
+        if w.get(key) != value:
+            problems.append("witness.json's %s is not what the run makes: %s" % (
+                key, json.dumps(value)[:400]))
+    log = (directory / ("%s.log" % demo)).read_text(errors="replace")
+    return problems + d.judge(log)[1], bitten
 
 
 def witness(directory, scratch):
@@ -864,6 +946,8 @@ def check(directory):
     directory = Path(directory)
     w = json.loads((directory / "witness.json").read_text())
     demo = w["demo"]
+    if demo in LOG_DEMOS:
+        return check_log(directory, w)
     d = DEMOS[demo]
     name = d.name(demo)
     problems = []
@@ -908,13 +992,16 @@ def write(run, directory, carrier, bitstream):
     run, directory = Path(run), Path(directory)
     fields = ledger_fields(run)
     demo = fields["demo"]
-    d = DEMOS[demo]
+    d = LOG_DEMOS.get(demo) or DEMOS[demo]
     directory.mkdir(parents=True, exist_ok=True)
     for kept in files(demo) + ["SHA256SUMS"]:
         shutil.copy(run / kept, directory / kept)
     ran = at_commit(fields["commit"])
-    with tempfile.TemporaryDirectory() as scratch:
-        made, _ = witness(directory, scratch)
+    if demo in LOG_DEMOS:
+        made, _ = log_witness(directory)
+    else:
+        with tempfile.TemporaryDirectory() as scratch:
+            made, _ = witness(directory, scratch)
     built = ("the bitstream is named by its sha256, and its netlist's, built from %s by the "
              "bench's notes, which CI does not rebuild" % bitstream if bitstream else
              "the bitstream is named by its sha256, which CI cannot rebuild, and its source "
@@ -928,12 +1015,17 @@ def write(run, directory, carrier, bitstream):
                            "or of the test/ file, at the run's commit",
         "firmware": {f: firmware_hash(f, ran) for f in d.firmware},
         "host_scripts": {f: sha256(ran(f)) for f in d.scripts},
-        "bench": ("an Icepi Zero (ECP5 LFE5U-25F) running the chip at 48 MHz on bench carrier "
-                  "%s, Pico A as the host on SPI, %s, analyser %s (fx2lafw) at %g MS/s" % (
-                      carrier, d.peer, d.analyser, made["capture"]["rate_hz"] / 1e6)),
-        "scope": "the bytes on the wire and their timing in one run of %s, as the analyser "
-                 "saw them" % demo,
-        "limits": list(LIMITS + (built,) + dirty + d.limits),
+        "bench": ("an Icepi Zero (ECP5 LFE5U-25F) running the chip at %s on bench carrier "
+                  "%s, Pico A as the host on SPI, %s%s" % (
+                      "40 MHz" if demo in LOG_DEMOS else "48 MHz", carrier, d.peer,
+                      "" if demo in LOG_DEMOS else ", analyser %s (fx2lafw) at %g MS/s" % (
+                          d.analyser, made["capture"]["rate_hz"] / 1e6))),
+        "scope": ("each frame's bytes and the receiver's verdict in one run of %s, as Pico "
+                  "A logged them" % demo if demo in LOG_DEMOS else
+                  "the bytes on the wire and their timing in one run of %s, as the analyser "
+                  "saw them" % demo),
+        "limits": list((LIMITS[0],) + (built,) + dirty + d.limits if demo in LOG_DEMOS
+                       else LIMITS + (built,) + dirty + d.limits),
     }
     (directory / "witness.json").write_text(json.dumps(w, indent=2) + "\n")
     problems, _ = check(directory)
@@ -964,7 +1056,11 @@ def main():
         for what, why in bitten:
             print("TOOTH %s: %s refused: %s" % (name, what, why[:200]) if why else
                   "MISSED %s: %s passed" % (name, what))
-        if not problems:
+        if not problems and "tally" in json.loads((Path(directory) / "witness.json").read_text()):
+            t = json.loads((Path(directory) / "witness.json").read_text())["tally"]
+            print("PASS %s: %d of %d frames received whole, %d with a bad FCS refused" % (
+                name, t["received_whole"], t["frames"], t["bad_fcs"]))
+        elif not problems:
             w = json.loads((Path(directory) / "witness.json").read_text())
             proved = sum(r["verdict"] == "proved" for r in w["timing"])
             print("PASS %s: %s, bitstream %s, %d of %d windows proved, %d unresolved" % (
