@@ -373,6 +373,15 @@ FAILED = re.compile(r'^File "([^"]+)", line', re.M)
 COLOUR = re.compile(r"\x1b\[[0-9;]*m")
 
 
+# inline tests that pass in seconds unmutated and exercise the RTL, run before anything slower
+FAST = [
+    "test_engine", "test_decoder", "test_pins", "test_host_port", "test_host_fifo", "test_host_spi",
+    "test_data_memory", "test_program_memory", "test_deadline", "test_crc", "test_isa", "test_top",
+    "test_system", "test_bridge", "test_machine", "test_machine_trace", "test_feeding",
+    "test_timed_program", "test_exhaustive", "test_pin_trace", "test_host_port_fuzz",
+    "test_usb", "test_uart", "test_spi", "test_i2c", "test_ws2812", "test_can",
+]
+RUNNER = "./test/.protocol_emulator_test.inline-tests/inline-test-runner.exe"
 QUICK = ["@test/traces/runtest", "@test/traces/sigrok/runtest"]
 
 
@@ -394,6 +403,19 @@ def verdict(cwd, file, jobs, timeout, full_timeout):
         verilog = digest(outputs) if outputs else None
         # the first failing test is kill enough, and stopping there keeps a mutant that also
         # hangs some other test from running out the clock as a timeout
+        code, _ = dune(cwd, "build", RUNNER, jobs=jobs, timeout=timeout)
+        if code != 0:
+            return "invalid", [], verilog
+        only = [a for f in FAST for a in ("-only-test", f"{f}.ml")]
+        try:
+            p = subprocess.run([f"{cwd}/_build/default/{RUNNER[2:]}", "inline-test-runner",
+                                "protocol_emulator_test", "-source-tree-root", ".", *only],
+                               cwd=f"{cwd}/_build/default/test", capture_output=True, text=True,
+                               timeout=timeout)
+        except subprocess.TimeoutExpired:
+            p = None
+        if p is not None and p.returncode != 0:
+            return "killed", ["fast"], verilog
         # the traces kill most mutants in a fraction of the suite's time, so they go first
         code, err = dune(cwd, "build", "--stop-on-first-error", *QUICK, jobs=jobs, timeout=timeout)
         if code == 0:
@@ -561,6 +583,9 @@ def wilson(k, n, z=1.96):
 PROVED_SAFE = ("EQUIVALENT", "STRICT", "SOUND")
 
 
+TIMEOUT_KILLS = True
+
+
 def report(results, planned):
     # a timeout counts as killed and is listed apart, as is a survivor a proof kills. An
     # allowed mutant's timeout is no kill: an equivalent one runs as the original does. A
@@ -578,7 +603,8 @@ def report(results, planned):
     files = sorted({r["file"] for r in results}, key=lambda f: (order.index(f) if f in order else len(order), f))
 
     def survives(r):
-        timed_out_allowed = r["result"] == "timeout" and (r["file"], r["operator"], r["text"]) in allowed
+        timed_out_allowed = r["result"] == "timeout" and (
+            not TIMEOUT_KILLS or (r["file"], r["operator"], r["text"]) in allowed)
         return (r["result"] in ("survived", "untested") or timed_out_allowed) and r.get(
             "class") not in ("LAX", "TESTED")
 
@@ -614,7 +640,7 @@ def report(results, planned):
             if "class" in r:
                 reason = r["class"] + (f" ({reason})" if reason and r["class"] not in PROVED_SAFE else "")
             elif r["result"] == "timeout" and not reason:
-                reason = "counted killed"
+                reason = "counted killed" if TIMEOUT_KILLS else "unresolved, to rerun"
             if survives(r) and r.get("class") not in PROVED_SAFE and not allowed.get(
                     (r["file"], r["operator"], r["text"])):
                 unexpected.append(r)
@@ -651,8 +677,13 @@ def main():
     p.add_argument("--proofs", nargs="+", help="only these of PROVED's sby proofs, by name")
     args = p.parse_args()
     proving = args.prove or args.prove_only
+    global TIMEOUT_KILLS
+    TIMEOUT_KILLS = args.scope != "campaign"
     if args.report:
         lines = [json.loads(line) for f in args.report for line in Path(f).read_text().splitlines()]
+        # a mutant rerun after a timeout supersedes its earlier row
+        last = {l["id"]: i for i, l in enumerate(lines) if "result" in l}
+        lines = [l for i, l in enumerate(lines) if "result" not in l or last[l["id"]] == i]
         heads = [line for line in lines if "planned" in line]
         seen = {h["shard"] for h in heads}
         wanted = {f"{i}/{n}" for n in {int(s.split("/")[1]) for s in seen} for i in range(n)}
@@ -670,7 +701,7 @@ def main():
         sys.exit(f"no mutant {' '.join(sorted(missing))} in this scope")
     todo = todo[shard::shards]
     if args.resume and args.json and Path(args.json).exists():
-        done = {json.loads(l)["id"] for l in Path(args.json).read_text().splitlines() if '"result"' in l}
+        done = {json.loads(l)["id"] for l in Path(args.json).read_text().splitlines() if '"result"' in l and '"result": "timeout"' not in l}
         todo = [m for m in todo if m["id"] not in done]
     if args.list:
         for m in todo:
