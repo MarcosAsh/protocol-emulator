@@ -210,8 +210,15 @@ let bench =
 
 let limits : Datasheet.t list = []
 
-(* TODO what sigrok's tdm_audio decoder reads *)
+(* sigrok's tdm_audio reads a whole block a channel, pad and all, at the rise of its last
+   bit, and starts a frame at the bit after FSYNC is seen high: the frame of samples, then
+   the frame of silence. The teeth flip channel 1's MSB, and bring the second FSYNC a bit
+   early so channel 8 is cut short and never read. *)
 let sigrok =
+  let frame samples =
+    List.mapi samples ~f:(fun i sample ->
+      sprintf "tdm_audio-1: Channel %d: %08x" (i + 1) (audio_word ~sample lsl 8))
+  in
   { Sigrok.clock_hz = 48_000_000
   ; decoders =
       [ Sigrok.decoder
@@ -219,10 +226,16 @@ let sigrok =
           ~pins:[ "clock", clk_pin; "frame", sync_pin; "data", data_pin ]
           ~options:[ "bps", Int.to_string block_bits; "channels", Int.to_string channels ]
       ]
-  ; expect = []
+  ; expect =
+      [ ( "tdm_audio=ch0:ch1:ch2:ch3:ch4:ch5:ch6:ch7"
+        , frame samples @ frame (List.map samples ~f:(Fn.const 0)) )
+      ]
   ; joins_after = None
   ; rejected = None
-  ; teeth = []
+  ; teeth =
+      [ [ Flip { pin = data_pin; edge = 0; after = 0; cycles = 6 } ]
+      ; [ Shift { pin = sync_pin; edge = 2; cycles = -6 } ]
+      ]
   }
 ;;
 
