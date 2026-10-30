@@ -90,9 +90,9 @@ let certified = [ Certified.of_firmware "xy2_100" firmware ]
 
 (* the copy python/bench_firmware.py holds for the bench: two setpoints in a run of two
    frames' time *)
-(* The bench's OUT1 reaches no analyser channel, so all three go to analyser B: SENDCK
-   and SYNC on OUT3 and OUT4, DATA on OUT6. OUT5, the flash's clock, stays still, so the
-   flash takes none of it for a command. *)
+(* The bench's OUT1 reaches no analyser channel, so all three go to analyser B: SENDCK and
+   SYNC on OUT3 and OUT4, DATA on OUT6. OUT5, the flash's clock, stays still, so the flash
+   takes none of it for a command. *)
 let bench =
   { Bench.name = "xy2_100"
   ; what =

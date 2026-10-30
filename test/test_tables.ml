@@ -1159,8 +1159,8 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       , "untried"
       , "-"
       , "SCLK half 3 cycles, 256-bit frames"
-      , "three outputs, no waits, the halves timed by instructions; not tried against the \
-         class" )
+      , "three outputs, no waits, the halves timed by instructions; not tried against \
+         the class" )
     ]
   in
   let named = List.map rows ~f:(fun (name, _, _, _, _) -> name) in
