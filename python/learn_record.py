@@ -37,13 +37,14 @@ def load(host, engine):
 SELECTS = [bytes((0x80 | pe.SELECT, 0, engine)) for engine in range(2)]
 # stamps an engine can hold, a recording's worth
 MOST = 3000
+NOW = array.array("i", [0])
 
 
 @micropython.native
 def poll(spi, engine, words, count):
     """Selects engine, puts its waiting words in words from count, and returns how many
-    there are then and the low half of its clock, read after the drain. Nothing here
-    allocates, as the collector is off while recording."""
+    there are then; the low half of its clock, read after the drain, goes in NOW. Nothing
+    here allocates, as the heap is locked while recording."""
     cs_n, bus, status, rx_in = spi.cs_n, spi.spi, spi.status, spi.rx_in
     cs_n(0)
     bus.write(SELECTS[engine])
@@ -64,7 +65,8 @@ def poll(spi, engine, words, count):
     cs_n(0)
     bus.write_readinto(spi.reads[pe.NOW_LO], status)
     cs_n(1)
-    return count, status[1] << 8 | status[2]
+    NOW[0] = status[1] << 8 | status[2]
+    return count
 
 
 def record(spi, host, engines, ms):
@@ -75,6 +77,7 @@ def record(spi, host, engines, ms):
         host.select(e["engine"])
         host.start()
     n = len(engines)
+    ids = [e["engine"] for e in engines]
     words = [array.array("H", (0 for _ in range(MOST))) for _ in range(n)]
     times = [array.array("i", (0 for _ in range(MOST))) for _ in range(n)]
     counts = [0] * n
@@ -83,14 +86,16 @@ def record(spi, host, engines, ms):
     late = 0
     then = [time.ticks_us()] * n
     start = time.ticks_ms()
-    # a collection mid-recording is what makes a poll late
+    # a collection mid-recording is what makes a poll late, and a locked heap raises
+    # MemoryError at the first allocation rather than running out seconds later
     gc.collect()
-    gc.disable()
+    micropython.heap_lock()
     try:
         while time.ticks_diff(time.ticks_ms(), start) < ms:
             for k in range(n):
                 before = counts[k]
-                count, now = poll(spi, engines[k]["engine"], words[k], before)
+                count = poll(spi, ids[k], words[k], before)
+                now = NOW[0]
                 counts[k] = count
                 t = time.ticks_us()
                 gap = time.ticks_diff(t, then[k])
@@ -106,7 +111,7 @@ def record(spi, host, engines, ms):
                 for i in range(before, count):
                     times[k][i] = clock[k] - ((now - words[k][i]) & 0xFFFF)
     finally:
-        gc.enable()
+        micropython.heap_unlock()
     words = [list(w[:c]) for w, c in zip(words, counts)]
     times = [list(t[:c]) for t, c in zip(times, counts)]
     faults = []
