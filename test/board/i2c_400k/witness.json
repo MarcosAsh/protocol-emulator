@@ -1,14 +1,14 @@
 {
   "demo": "sweep_i2c_400k",
-  "time": "2026-10-22T17:18:12",
+  "time": "2026-10-30T16:50:57",
   "result": "PASS",
-  "commit": "1c7053f7772743e2f4ec0db47547095236772985",
+  "commit": "b5c0748c56eea8ab598d269fd6da6bef709d06eb",
   "bitstream_sha256": "ded0014fdf14df568ed478e5f6e36d1d91475ba62bae300e101c1b229c1f963f",
-  "netlist_sha256": "685d03a18ca12fd44a680074e6810a1b703c073ad946dfd3fb5b50507d1c3111",
-  "sums_sha256": "e1920833a6f541fe4b093be05850134af57e4c4b73fe7aecd39cf21913207561",
+  "netlist_sha256": "1db23ccd02406ef95731f3ffd7de23fbfa9a66a0410741d78cbcb04edc717f5f",
+  "sums_sha256": "33fdeb56574df6e3fbb5c209511e4cb5e3a33102aa77eb86a0f5648055e69d9a",
   "capture": {
     "file": "i2c_400k.sr",
-    "sha256": "a9ca1dbef5eda51ca48474c153e31e49e965310528778772a00f1caeb736c517",
+    "sha256": "957968ff0c378ba2dc87ecf340be90d40177ba8ad16f531627510aa406d83fd7",
     "rate_hz": 24000000,
     "seconds": 4.0,
     "analyser": "B",
@@ -19,38 +19,38 @@
   },
   "decode": {
     "arguments": "-P i2c:sda=D6:scl=D7,eeprom24xx:chip=onsemi_cat24c256 -A eeprom24xx",
-    "sha256": "955b0626d3147fcd3ab48d391813119c191c30573e01a67aebad1c697b6aa285"
+    "sha256": "e2d922f6b62e10fc725284793c8cf618c61a0fea0a79f99d0ab0ba7178776607"
   },
   "timing": [
     {
       "parameter": "1/fSCL",
       "limit": ">= 2500 ns",
       "sheet": "I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
-      "spans": 1462,
-      "measured": "2583 ns to 878755 ns",
+      "spans": 1444,
+      "measured": "2583 ns to 6672626 ns",
       "verdict": "unresolved"
     },
     {
       "parameter": "THIGH",
       "limit": ">= 600 ns",
       "sheet": "I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
-      "spans": 1462,
-      "measured": "1167 ns to 2584 ns",
+      "spans": 1444,
+      "measured": "1167 ns to 2625 ns",
       "verdict": "proved"
     },
     {
       "parameter": "TLOW",
       "limit": ">= 1300 ns",
       "sheet": "I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
-      "spans": 1477,
-      "measured": "1375 ns to 877546 ns",
+      "spans": 1457,
+      "measured": "1375 ns to 6671375 ns",
       "verdict": "unresolved"
     },
     {
       "parameter": "THD:STA",
       "limit": ">= 600 ns",
       "sheet": "I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
-      "spans": 19,
+      "spans": 17,
       "measured": "1292 ns to 1375 ns",
       "verdict": "proved"
     },
@@ -58,23 +58,23 @@
       "parameter": "TSU:STA",
       "limit": ">= 600 ns",
       "sheet": "I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
-      "spans": 18,
-      "measured": "1167 ns to 2837659 ns",
+      "spans": 16,
+      "measured": "1167 ns to 3305122 ns",
       "verdict": "proved"
     },
     {
       "parameter": "TSU:DAT",
       "limit": ">= 100 ns",
       "sheet": "I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
-      "spans": 813,
-      "measured": "583 ns to 847960 ns",
+      "spans": 807,
+      "measured": "583 ns to 6671209 ns",
       "verdict": "proved"
     },
     {
       "parameter": "TSU:STO",
       "limit": ">= 600 ns",
       "sheet": "I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
-      "spans": 15,
+      "spans": 13,
       "measured": "1250 ns to 1375 ns",
       "verdict": "proved"
     },
@@ -82,8 +82,8 @@
       "parameter": "TBUF",
       "limit": ">= 1300 ns",
       "sheet": "I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
-      "spans": 14,
-      "measured": "435040 ns to 2836325 ns",
+      "spans": 12,
+      "measured": "447205 ns to 3303789 ns",
       "verdict": "proved"
     }
   ],
@@ -98,7 +98,7 @@
   },
   "host_scripts": {
     "python/demo_rates.py": "2776a0c45c3ec5625c86aa286a9334e03fa7f0ef51fb58f05bbd110b62d2959a",
-    "python/demo_eeprom.py": "6322d8524f3d3020db65319cbeff9401a9efde0cb31a39610ebbd296c18317e2"
+    "python/demo_eeprom.py": "df366be5288c928a10ebebbdbbb4ccc5a61b137fed1374e8642eb728466b25a9"
   },
   "bench": "an Icepi Zero (ECP5 LFE5U-25F) running the chip at 48 MHz on bench carrier v1.2, Pico A as the host on SPI, a 24LC256 on the I2C bus, analyser B (fx2lafw) at 24 MS/s",
   "scope": "the bytes on the wire and their timing in one run of sweep_i2c_400k, as the analyser saw them",
