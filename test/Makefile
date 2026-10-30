@@ -89,7 +89,7 @@ endif
 GATE_TEST_MODULES := $(COCOTB_TEST_MODULES)
 # the bench demos' rehearsals simulate milliseconds, so on the RTL alone
 ifeq ($(FPGA)$(GATES)$(ICEPI),)
-COCOTB_TEST_MODULES := $(COCOTB_TEST_MODULES),test_demo,test_swd,test_demo_board,test_pyocd
+COCOTB_TEST_MODULES := $(COCOTB_TEST_MODULES),test_demo,test_swd,test_demo_board,test_pyocd,test_usb_fs
 endif
 
 # Where there is a dune the firmware words are reassembled first, so an encoding change
