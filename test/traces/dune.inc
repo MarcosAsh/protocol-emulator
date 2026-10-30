@@ -112,6 +112,16 @@
 
 (rule
  (with-stdout-to
+  tdm_audio.trace.gen
+  (run ./write_trace.exe tdm_audio)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff tdm_audio.trace tdm_audio.trace.gen)))
+
+(rule
+ (with-stdout-to
   wrapped_loop.trace.gen
   (run ./write_trace.exe wrapped_loop)))
 

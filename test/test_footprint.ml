@@ -270,6 +270,7 @@ let%expect_test "the footprint of each firmware, and of its config under any pro
     caliper            5-6          -          5-21           12-19
     xy2_100            5-7          -          5-22           12-19
     lfast              5            -          5-20           12-19
+    tdm_audio          5-7          -          5-22           12-19
     |}]
 ;;
 
@@ -378,6 +379,7 @@ let%expect_test "each firmware stays inside its footprint" =
     caliper            5-6          -
     xy2_100            5-7          -
     lfast              5            -
+    tdm_audio          5-7          -
     |}]
 ;;
 

@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """test/corpus.py on a two-protocol fixture: a failed limit and a missing source are shown,
-nothing is hand-written per protocol, and the manifest catches an edited page."""
+nothing is hand-written per protocol, a board witness counts as a run once, and the
+manifest catches an edited page."""
 
+import json
 import subprocess
 import sys
 import tempfile
@@ -33,10 +35,11 @@ class Corpus(unittest.TestCase):
         self.out = self.dir / "out"
 
     def run_corpus(self, *args):
+        witnesses = [] if "--witnesses" in args else ["--witnesses", str(self.dir / "none")]
         return subprocess.run(
             [sys.executable, str(HERE / "corpus.py"), "--data", str(self.dir / "data"),
-             "--out", str(self.out), "--speed", str(self.dir / "none.tsv"), *args],
-            capture_output=True, text=True)
+             "--out", str(self.out), "--speed", str(self.dir / "none.tsv"), *witnesses,
+             *args], capture_output=True, text=True)
 
     def test_failures_and_gaps_are_shown(self):
         (self.dir / "matrix").write_text("a\n")
@@ -60,6 +63,25 @@ class Corpus(unittest.TestCase):
         self.assertIn("<td>ps2_demo</td>", ps2)
         self.assertIn('<tr class="bad">', ps2)
         self.assertIn("Board runs tied to no protocol page", (self.out / "index.html").read_text())
+
+    def test_a_witness_is_a_run(self):
+        board = self.dir / "board"
+        (board / "ps2_run").mkdir(parents=True)
+        witness = {"demo": "ps2", "time": "2026-10-30T12:00:00", "result": "PASS",
+                   "commit": "abcdef012345", "sums_sha256": "aa",
+                   "timing": [{"verdict": "proved"}, {"verdict": "unresolved"}],
+                   "teeth": ["a bit flipped", "an edge moved"]}
+        (board / "ps2_run/witness.json").write_text(json.dumps(witness))
+        runs = self.dir / "runs.tsv"
+        tsv(runs, "date demo result expected commit sums_sha256 evidence".split(),
+            [["2026-10-30", "ps2", "PASS", "PASS", "abcdef012345", "aa", "ps2"],
+             ["2026-10-30", "ps2", "PASS", "PASS", "abcdef012345", "bb", "ps2.2"]])
+        self.assertEqual(
+            self.run_corpus("--witnesses", str(board), "--ledger", str(runs)).returncode, 0)
+        self.assertIn("<td>2</td><td>1</td></tr>", (self.out / "index.html").read_text())
+        ps2 = (self.out / "ps2.html").read_text()
+        self.assertIn("<td>ps2_run</td>", ps2)
+        self.assertIn("<td>1 of 2</td>", ps2)
 
     def test_same_inputs_same_bytes(self):
         self.run_corpus()

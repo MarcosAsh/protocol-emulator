@@ -130,7 +130,8 @@ cat "$captures/$act.decode"
 verdict=$(python3 demo/traffic.py "$act" "$captures")
 echo "$verdict"
 # a protocol started with generate new-protocol gets its bench time in demo/speed.tsv
-if [ -f "$captures/$act.log" ] && [ "$(tail -n 1 "$captures/$act.log")" = PASS ] &&
+# (the Pico's log ends its lines in CRLF)
+if [ -f "$captures/$act.log" ] && [ "$(tail -n 1 "$captures/$act.log" | tr -d '\r')" = PASS ] &&
     ! echo "$verdict" | grep -qx FAIL; then
     python3 demo/speed.py mark "$act" bench --if-started || true
 fi

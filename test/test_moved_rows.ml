@@ -121,5 +121,6 @@ let%expect_test "the kernel refuses each row moved by a cycle" =
     (caliper (phase 98) (arm 0) (capture 0) (accepted ()))
     (xy2_100 (phase 62) (arm 0) (capture 0) (accepted ()))
     (lfast (phase 116) (arm 0) (capture 0) (accepted ()))
+    (tdm_audio (phase 0) (arm 0) (capture 0) (accepted ()))
     |}]
 ;;

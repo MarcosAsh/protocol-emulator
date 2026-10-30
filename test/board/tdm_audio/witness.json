@@ -1,0 +1,89 @@
+{
+  "demo": "tdm_audio",
+  "time": "2026-10-30T15:00:09",
+  "result": "PASS",
+  "commit": "b82b5eccd88bf54bdf2ae420cc35e87a128efd54",
+  "bitstream_sha256": "ded0014fdf14df568ed478e5f6e36d1d91475ba62bae300e101c1b229c1f963f",
+  "netlist_sha256": "1db23ccd02406ef95731f3ffd7de23fbfa9a66a0410741d78cbcb04edc717f5f",
+  "sums_sha256": "f4973ad7093c44985ed58ef45ce085fedeb809b5450934f9a624e2de5b1f39a3",
+  "capture": {
+    "file": "tdm_audio.sr",
+    "sha256": "0da2d792363c622251b0b6fb3b0a3c34dbb33a674fb47c54f61be0d5e2c2602f",
+    "rate_hz": 24000000,
+    "seconds": 2.0,
+    "analyser": "B",
+    "channels": {
+      "D4": "SCLK, OUT3",
+      "D1": "FSYNC, OUT4, the flash's DI",
+      "D3": "SDATA, OUT6, the flash's CS"
+    }
+  },
+  "decode": {
+    "arguments": "-P tdm_audio:clock=D4:frame=D1:data=D3:bps=32:channels=8 -A tdm_audio=ch0:ch1:ch2:ch3:ch4:ch5:ch6:ch7",
+    "sha256": "055b3bf82346a8efd8b9946bdd1b4a38895e5f7eb8b94d07c45c0e1a3ed3f5da"
+  },
+  "timing": [
+    {
+      "parameter": "SCLK periods FSYNC is high",
+      "limit": ">= 1 periods",
+      "sheet": "Cirrus Logic AN301 Rev. 1, p.3 and Figure 4",
+      "spans": 51,
+      "measured": "1 to 1 periods",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "SCLK rises a frame",
+      "limit": ">= 256 rises",
+      "sheet": "Cirrus Logic AN301 Rev. 1, Figure 3, 8 channels of 32 bits",
+      "spans": 50,
+      "measured": "256 to 256 rises",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "SCLK rises a frame",
+      "limit": "<= 256 rises",
+      "sheet": "Cirrus Logic AN301 Rev. 1, Figure 3, 8 channels of 32 bits",
+      "spans": 50,
+      "measured": "256 to 256 rises",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "SCLK period",
+      "limit": ">= 62 ns",
+      "sheet": "6 cycles at 48 MHz, the firmware's SCLK, to half a period (AN301 gives no least or most)",
+      "spans": 12889,
+      "measured": "42 ns to 208 ns",
+      "verdict": "unresolved"
+    },
+    {
+      "parameter": "SCLK period",
+      "limit": "<= 188 ns",
+      "sheet": "6 cycles at 48 MHz, the firmware's SCLK, to half a period (AN301 gives no least or most)",
+      "spans": 12889,
+      "measured": "42 ns to 208 ns",
+      "verdict": "unresolved"
+    }
+  ],
+  "teeth": [
+    "SDATA inverted over channel 1's MSB",
+    "the second FSYNC six bits early"
+  ],
+  "bitstream_source": "main cb872768 by icepi/Makefile REV=v1.3 (seed 2, 49.47 MHz), the pc's pe-bench run 2026-10-30-0904; its Verilog is a5566412's",
+  "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
+  "firmware": {
+    "TDM_AUDIO": "fde56633905ec6cd0fb6b128050e7e09c0207d6235ec2e0eb21ac2b640071d43"
+  },
+  "host_scripts": {
+    "python/demo_tdm_audio.py": "016b9e0dd4461e94bb1025294f701fa414c963fe65b40efd8b6149a99d3c2d97"
+  },
+  "bench": "an Icepi Zero (ECP5 LFE5U-25F) running the chip at 48 MHz on bench carrier v1.2, Pico A as the host on SPI, nothing, the flash's clock held still, analyser B (fx2lafw) at 24 MS/s",
+  "scope": "the bytes on the wire and their timing in one run of tdm_audio, as the analyser saw them",
+  "limits": [
+    "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
+    "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
+    "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
+    "the bitstream is named by its sha256, and its netlist's, built from main cb872768 by icepi/Makefile REV=v1.3 (seed 2, 49.47 MHz), the pc's pe-bench run 2026-10-30-0904; its Verilog is a5566412's by the bench's notes, which CI does not rebuild",
+    "drawn at random and written blind from its spec (docs/flexibility.md)",
+    "AN301 gives no times, so the SCLK window is the firmware's own period to half a period, and the frame is held in SCLK periods"
+  ]
+}

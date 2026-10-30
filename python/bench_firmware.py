@@ -1440,7 +1440,7 @@ IR_RC6 = {
     ],
 }
 
-# Caliper.firmware: a scale's two 24-bit position words, clock on OUT0 and data on OUT1, 270 cycles a half period, 88.89 kHz
+# Caliper.firmware: a scale's two 24-bit position words, clock on OUT0 and data on OUT2, 270 cycles a half period, 88.89 kHz
 CALIPER = {
     "config": {
         "side_set_count": 0,
@@ -1448,7 +1448,7 @@ CALIPER = {
         "side_set_pindirs": 0,
         "in_base": 0,
         "in_count": 16,
-        "out_base": 6,
+        "out_base": 7,
         "out_count": 1,
         "set_base": 5,
         "set_count": 1,
@@ -1485,17 +1485,17 @@ CALIPER = {
     ],
 }
 
-# Xy2_100.firmware: SENDCK at 2 MHz on OUT0, SYNC on OUT1 and DATA on OUT2, a 20-bit word every 10 us
+# Xy2_100.firmware: SENDCK at 2 MHz on OUT3, SYNC on OUT4 and DATA on OUT6, a 20-bit word every 10 us
 XY2_100 = {
     "config": {
         "side_set_count": 2,
-        "side_set_base": 5,
+        "side_set_base": 8,
         "side_set_pindirs": 0,
         "in_base": 0,
         "in_count": 16,
-        "out_base": 7,
+        "out_base": 11,
         "out_count": 1,
-        "set_base": 7,
+        "set_base": 11,
         "set_count": 1,
         "jmp_pin": 0,
         "capture_pin": 0,
@@ -1569,5 +1569,57 @@ LFAST = {
         0xA000, 0x20C0, 0xA000, 0x20C0, 0xA000, 0x20C0, 0xA000, 0x20C0,
         0xA001, 0x20C0, 0xA000, 0x20C0, 0xA000, 0x20C0, 0xA001, 0xA027,
         0x20C0, 0x6001, 0x0238, 0x20C0, 0xA001, 0x20C0, 0xA000, 0x0002,
+    ],
+}
+
+# Tdm_audio.firmware: SCLK at 8 MHz on OUT3, FSYNC on OUT4 and SDATA on OUT6, eight 32-bit channel blocks every 32 us
+TDM_AUDIO = {
+    "config": {
+        "side_set_count": 2,
+        "side_set_base": 8,
+        "side_set_pindirs": 0,
+        "in_base": 0,
+        "in_count": 16,
+        "out_base": 11,
+        "out_count": 1,
+        "set_base": 11,
+        "set_count": 1,
+        "jmp_pin": 0,
+        "capture_pin": 0,
+        "capture_rising": 1,
+        "in_shift_right": 1,
+        "out_shift_right": 0,
+        "autopush": 0,
+        "push_threshold": 16,
+        "autopull": 0,
+        "pull_threshold": 16,
+        "crc_width": 16,
+        "crc_poly": 40961,
+        "crc_init": 65535,
+        "crc_reflect": 1,
+        "stuff_threshold": 0,
+        "stuff_level": 1,
+        "wrap_bottom": 0,
+        "wrap_top": 511,
+        "period_fraction": 0,
+        "autopull_data": 0,
+        "manchester": 0,
+    },
+    "words": [
+        0xA000, 0x20E0, 0xB22F, 0xFA04, 0x6201, 0xE800, 0x0204, 0xA000,
+        0xA12D, 0xEA00, 0xE200, 0xE800, 0x020A, 0xA02F, 0x1011, 0x88A3,
+        0x0012, 0xEA04, 0x6201, 0xE800, 0x0212, 0xA000, 0xA12D, 0xEA00,
+        0xE200, 0xE800, 0x0218, 0xA02F, 0x101F, 0x88A3, 0x0020, 0xEA04,
+        0x6201, 0xE800, 0x0220, 0xA000, 0xA12D, 0xEA00, 0xE200, 0xE800,
+        0x0226, 0xA02F, 0x102D, 0x88A3, 0x002E, 0xEA04, 0x6201, 0xE800,
+        0x022E, 0xA000, 0xA12D, 0xEA00, 0xE200, 0xE800, 0x0234, 0xA02F,
+        0x103B, 0x88A3, 0x003C, 0xEA04, 0x6201, 0xE800, 0x023C, 0xA000,
+        0xA12D, 0xEA00, 0xE200, 0xE800, 0x0242, 0xA02F, 0x1049, 0x88A3,
+        0x004A, 0xEA04, 0x6201, 0xE800, 0x024A, 0xA000, 0xA12D, 0xEA00,
+        0xE200, 0xE800, 0x0250, 0xA02F, 0x1057, 0x88A3, 0x0058, 0xEA04,
+        0x6201, 0xE800, 0x0258, 0xA000, 0xA12D, 0xEA00, 0xE200, 0xE800,
+        0x025E, 0xA02F, 0x1065, 0x88A3, 0x0066, 0xEA04, 0x6201, 0xE800,
+        0x0266, 0xA000, 0xA12D, 0xEA00, 0xE200, 0xE800, 0x026C, 0xB02F,
+        0x1073, 0x98A3, 0x0004, 0xF804, 0x0004,
     ],
 }

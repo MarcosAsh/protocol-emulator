@@ -13,14 +13,20 @@ from pathlib import Path
 import sigrok
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "python"))
+import demo_caliper  # noqa: E402
 import demo_can  # noqa: E402
 import demo_can_node  # noqa: E402
 import demo_ds18b20  # noqa: E402
 import demo_flash  # noqa: E402
+import demo_ir_rc6  # noqa: E402
+import demo_lfast  # noqa: E402
+import demo_microwire  # noqa: E402
 import demo_nec  # noqa: E402
 import demo_neopixel  # noqa: E402
 import demo_referee  # noqa: E402
 import demo_swd  # noqa: E402
+import demo_tdm_audio  # noqa: E402
+import demo_xy2_100  # noqa: E402
 import pio_firmware  # noqa: E402
 
 
@@ -301,6 +307,49 @@ def nec(_levels):
     return lambda decoded, _log: exactly(decoded, expected, "the keys sent")
 
 
+def microwire(_levels):
+    expected = demo_microwire.lines(demo_microwire.FRAMES)
+    return lambda decoded, _log: exactly(decoded, expected, "the frames' DI")
+
+
+def xy2_100(_levels):
+    """The setpoints in order, then the last again, as SENDCK runs on until the halt."""
+    expected = demo_xy2_100.lines(demo_xy2_100.WORDS)
+    last = demo_xy2_100.frame(demo_xy2_100.WORDS[-1])
+
+    def judge(decoded, _log):
+        again = max(1, (len(decoded) - len(expected)) // len(last))
+        return exactly(decoded, expected + last * again, "the setpoints")
+
+    return judge
+
+
+def caliper(_levels):
+    expected = demo_caliper.lines(demo_caliper.FRAMES)
+    return lambda decoded, _log: exactly(decoded, expected, "the positions sent")
+
+
+def lfast(_levels):
+    expected = demo_lfast.lines(demo_lfast.WORDS)
+    return lambda decoded, _log: exactly(decoded, expected, "the payloads sent")
+
+
+def ir_rc6(_levels):
+    expected = demo_ir_rc6.lines(demo_ir_rc6.FRAMES)
+    return lambda decoded, _log: exactly(decoded, expected, "the frames sent")
+
+
+def tdm_audio(_levels):
+    """The frame of samples, then silence a channel at a time until the halt."""
+    words = demo_tdm_audio.WORDS
+
+    def judge(decoded, _log):
+        expected = demo_tdm_audio.lines(words, max(0, len(decoded) - len(words)))
+        return exactly(decoded, expected, "the samples sent")
+
+    return judge
+
+
 def sweep(levels):
     """OUT0 echoes wire 20, so it has at least every edge the chip stamped."""
     edges = levels[4][0]
@@ -342,6 +391,12 @@ CHECKS = {
     "pio_ws2812": (NEO, pio_ws2812),
     "pio_uart_tx": (OUT0, pio_uart_tx),
     "pio_spi": ({0: "SCK", 1: "MOSI", 2: "MISO", 3: "CS"}, pio_spi),
+    "microwire": ({0: "SK", 1: "DI", 3: "CS"}, microwire),
+    "xy2_100": ({4: "SENDCK", 1: "SYNC", 3: "DATA"}, xy2_100),
+    "caliper": ({4: "CLK", 6: "DATA"}, caliper),
+    "lfast": (OUT0, lfast),
+    "ir_rc6": (OUT0, ir_rc6),
+    "tdm_audio": ({4: "SCLK", 1: "FSYNC", 3: "SDATA"}, tdm_audio),
 }
 
 

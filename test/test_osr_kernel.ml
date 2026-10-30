@@ -296,6 +296,11 @@ let%expect_test "what each out sends, in the firmware library" =
        (49 "bit 15 - x") (51 "bit 7 - x") (53 "bit 15 - x") (55 "bit 7 - x"))))
     (xy2_100 (verdict (Ok ())) (sends ((21 "not a pulled word"))))
     (lfast (verdict (Ok ())) (sends ((57 "bit 15 - x"))))
+    (tdm_audio (verdict (Ok ()))
+     (sends
+      ((4 "not a pulled word") (18 "not a pulled word") (32 "not a pulled word")
+       (46 "not a pulled word") (60 "not a pulled word") (74 "not a pulled word")
+       (88 "not a pulled word") (102 "not a pulled word"))))
     (uart_tx_stream (verdict (Ok ())) (sends ((8 "not a pulled word"))))
     (spi_master_stream (verdict (Ok ()))
      (sends ((4 "not a pulled word") (8 "not a pulled word"))))
