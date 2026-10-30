@@ -333,6 +333,7 @@ let host_bits bits =
     word lor (Bool.to_int bit lsl (Isa.data_bits - 1 - i)))
 ;;
 
+(* a host word a [Burst] sends: 1 to 12 bits, the first first *)
 let burst_word bits =
   let n = List.length bits in
   if n < 1 || n > burst_bits then raise_s [%message "BUG: 1 to 12 bits a burst" (n : int)];

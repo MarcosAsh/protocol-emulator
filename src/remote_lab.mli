@@ -3,19 +3,15 @@
     program the chip runs is the one the kernel certified once; a job brings data words
     and nothing else. A refusal names the limit before anything reaches the bench.
 
-    The bench takes a certified job only when every output lane lands on a pin in
-    [bench_pins] and nothing is read, and everything the host sends fits the tx fifo
-    before the start, so the host's own timing cannot shape the waveform. Anything else is
-    run on the model alone and labelled simulated. *)
+    The bench takes a certified job only when every output lane lands on OUT0, the one pin
+    analyser A captures, and nothing is read, and everything the host sends fits the tx
+    fifo before the start, so the host's own timing cannot shape the waveform. Anything
+    else is run on the model alone and labelled simulated. *)
 
 open! Core
 
 (** [Wavedrom.rated_hz]: a job has no clock of its own. *)
 val clock_hz : int
-
-(** OUT0, analyser A's D4. The interpreter drives OUT0 to OUT5 and holds the lanes it is
-    not given low, but only OUT0 is captured and wired to nothing that minds a toggle. *)
-val bench_pins : int list
 
 (** Which of sigrok's decoders to run on the capture, from a fixed list. *)
 module Decode : sig
@@ -90,9 +86,6 @@ type t =
 
 (** An error is a malformed job, as frames that do not fit the diagram, not a refusal. *)
 val check : Job.t -> t Or_error.t
-
-(** STATUS's fault bits, as python/bench.py reads them. *)
-val fault_bits : Machine.Fault.t -> int
 
 (** The result folder's files from the check, name and contents: [job.json],
     [certificate.txt] and [check.json], when certified [simulated.json] (each lane's

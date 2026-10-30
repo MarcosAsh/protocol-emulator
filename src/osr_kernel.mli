@@ -117,7 +117,6 @@ module Make (Comb : Comb.S) : sig
     -> Comb.t
 
   val is_full : Comb.t Row.t -> Comb.t
-  val sum_is_full : Comb.t Row.t -> Comb.t
 end
 
 module Table : sig

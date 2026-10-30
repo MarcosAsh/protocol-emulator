@@ -106,9 +106,6 @@ val words : _ t -> int list Or_error.t
 (** A host word whose bits the host bit shows in turn as [Shift] moves them up. *)
 val host_bits : bool list -> int
 
-(** A host word a [Burst] sends: 1 to 12 bits, the first first. *)
-val burst_word : bool list -> int
-
 module Uart_tx : State
 module Uart_rx : State
 module Uart_burst : State
