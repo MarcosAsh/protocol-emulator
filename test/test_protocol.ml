@@ -667,6 +667,19 @@ let%expect_test "every protocol from its file to the decoded trace" =
     (received ())
     decode: test/traces/lfast.trace, by sigrok's lfast:data=OUT0
       lfast=sync:header_pl_size:header_ch_type:header_cts:payload:sleep: lfast-1: Sync OK, lfast-1: 8 bit, lfast-1: Data Channel A, lfast-1: 1, lfast-1: 55, lfast-1: LVDS sleep mode request, lfast-1: Sync OK, lfast-1: 8 bit, lfast-1: Data Channel A, lfast-1: 1, lfast-1: A3, lfast-1: LVDS sleep mode request
+
+    === tdm_audio
+
+    certificates
+    tdm_audio: 117 words, 0 deadline waits, the kernel accepts it, assuming nothing
+
+    limits
+    tdm_audio: none, AN301 has no timing table: SCLK 12.288 MHz (p.2) is typical only, the example for 8 x 32-bit blocks at 48 kHz, with no minimum or maximum
+
+    lockstep: tdm_audio, tdm_audio
+    ("lockstep held" (cycles 3200))
+    (received ())
+    decode: test/traces/tdm_audio.trace, by sigrok's tdm_audio:clock=OUT0:frame=OUT1:data=OUT2:bps=32:channels=8
     |}]
 ;;
 
@@ -741,5 +754,5 @@ let%expect_test "no protocol file is left half written" =
             [%string "sigrok %{s.name}"]))
     in
     if not (List.is_empty left) then print_s [%message p.name (left : string list)]);
-  [%expect {| |}]
+  [%expect {| (tdm_audio (left ("sigrok tdm_audio"))) |}]
 ;;
