@@ -29,6 +29,7 @@ let protocols =
   ; Caliper.protocol
   ; Xy2_100.protocol
   ; Lfast.protocol
+  ; Tdm_audio.protocol
   ]
 ;;
 

@@ -1155,6 +1155,7 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       , "-"
       , "frames of 33 bits of 10 cycles"
       , "written for the core, not tried" )
+    ; "tdm_audio", "TODO", "-", "-", "TODO whether the table interpreter runs it"
     ]
   in
   let named = List.map rows ~f:(fun (name, _, _, _, _) -> name) in
