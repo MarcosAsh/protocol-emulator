@@ -8,6 +8,9 @@ let flag_bit = state_bits + 1
 let entry_bits = state_bits + 2
 let modes_word = states
 let state_mask = states - 1
+let tx_stuff_bit = 4 + state_bits
+let modes_bits = tx_stuff_bit + 1
+let owed_max = 15
 
 module Entry = struct
   type t =
@@ -34,6 +37,7 @@ module Modes = struct
     ; tx_toggle : bool
     ; rx_toggle : bool
     ; rx_start : int
+    ; tx_stuff : bool
     }
   [@@deriving sexp_of, compare, equal]
 
@@ -43,13 +47,14 @@ module Modes = struct
     ; tx_toggle = false
     ; rx_toggle = false
     ; rx_start = 0
+    ; tx_stuff = false
     }
   ;;
 
   let to_int t =
     List.foldi
       [ t.tx_relative; t.rx_relative; t.tx_toggle; t.rx_toggle ]
-      ~init:(t.rx_start lsl 4)
+      ~init:((t.rx_start lsl 4) lor (Bool.to_int t.tx_stuff lsl tx_stuff_bit))
       ~f:(fun n word b -> word lor (Bool.to_int b lsl n))
   ;;
 
@@ -60,6 +65,7 @@ module Modes = struct
     ; tx_toggle = bit 2
     ; rx_toggle = bit 3
     ; rx_start = (v lsr 4) land state_mask
+    ; tx_stuff = bit tx_stuff_bit
     }
   ;;
 end
@@ -92,7 +98,7 @@ let of_words words =
     let modes = List.hd_exn modes in
     let past_entries = lnot (entry_mask lor (entry_mask lsl 8)) in
     if List.exists states ~f:(fun w -> w land past_entries <> 0)
-       || modes land lnot 0xff <> 0
+       || modes land lnot ((1 lsl modes_bits) - 1) <> 0
     then
       Or_error.error_s [%message "bits past the entries or the modes" (words : int list)]
     else Ok { words = Array.of_list states; modes = Modes.of_int modes })
@@ -178,6 +184,10 @@ let can_receive =
         }
     in
     take ~moved:false, take ~moved:true)
+;;
+
+let usb_stuffing =
+  { usb_transmit with modes = { usb_transmit.modes with tx_stuff = true } }
 ;;
 
 (* both sides of one engine: transmit in states 0 to 5, receive from 6 *)

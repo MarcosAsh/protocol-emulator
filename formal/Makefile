@@ -1,7 +1,7 @@
 all: issue_timing host_timing host_spacing late_host fifo_order unreachable phase_step fetch_step edge_step event_step frame_step \
   value_step narrow saturating chip_frame fail_safe isolation data_step teeth fsm_miter verilog_in \
   sram_equiv kernel_equiv translation frontend_equiv link self_check self_check_clean powerup offset_axioms \
-  gate certify complete usb_roundtrip
+  gate certify complete usb_roundtrip line_stuff
 
 # every dune here runs from the checkout's root, which a worktree inside another checkout
 # would otherwise give up for the outer one's
@@ -195,6 +195,30 @@ usb_roundtrip_proof:
 	! cmp -s usb_frame_rx.v usb_roundtrip_teeth/unrestarted.v
 	sby -f usb_roundtrip.sby prove seven cover cover_long cover_seven undestuffed half_high \
 	  seven_lenient unstuffed crc_raw twice cover_twice unrearmed unrestarted
+
+line_stuff.v: ../src/*.ml
+	cd .. && dune exec -- bin/generate.exe line-stuff > formal/line_stuff.v
+
+# The line path's stuffing sends any stream of up to 96 bits, at most 15 of them stuffed,
+# as USB stuffs it, each bit once and in order, and drains to nothing owed: every such
+# stream, from the clear to its drain's end, by BMC. Each tooth, a stuffed slot sending its
+# own bit, the oldest owed bit read one along, or a drain that takes bits, must fail.
+# line_stuff_proof runs on Verilog written already.
+UNSTUFFED = s/^\(\s*assign signal_and_[0-9]* = \)signal_not_[0-9]* \& \(signal_mux_[0-9]*\);/\1\2;/
+OLDEST_OFF = s/^\(\s*assign signal_sub = count_0\) - signal_const_[0-9]*;/\1;/
+DRAIN_TAKES = s/^\(\s*assign taking = \).*;/\11'b1;/
+line_stuff: line_stuff.v
+	$(MAKE) line_stuff_proof
+
+line_stuff_proof:
+	mkdir -p line_stuff_teeth
+	sed "$(UNSTUFFED)" line_stuff.v > line_stuff_teeth/unstuffed.v
+	sed "$(OLDEST_OFF)" line_stuff.v > line_stuff_teeth/oldest_off.v
+	sed "$(DRAIN_TAKES)" line_stuff.v > line_stuff_teeth/drain_takes.v
+	! cmp -s line_stuff.v line_stuff_teeth/unstuffed.v
+	! cmp -s line_stuff.v line_stuff_teeth/oldest_off.v
+	! cmp -s line_stuff.v line_stuff_teeth/drain_takes.v
+	sby -f line_stuff.sby prove cover unstuffed oldest_off drain_takes
 
 # the same for any packet of up to 64 bytes, about 10 min
 usb_roundtrip_64: usb_frame_rx.v

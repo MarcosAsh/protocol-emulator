@@ -84,6 +84,9 @@ type t =
   ; line_rx : int
   ; line_flag : bool
   ; line_last : int
+  ; line_held : int
+  ; line_count : int
+  ; line_draining : bool
   ; premises : Premises.t
   ; p_loaded : bool
   ; holding : bool
@@ -139,6 +142,9 @@ let create ~config ~program =
   ; line_rx = 0
   ; line_flag = false
   ; line_last = 0
+  ; line_held = 0
+  ; line_count = 0
+  ; line_draining = false
   ; premises = Premises.none
   ; p_loaded = false
   ; holding = false
@@ -308,7 +314,7 @@ let bit_crosses t bit =
 
 let stuff_pending t =
   if t.config.line_code
-  then t.line_flag
+  then t.line_flag || t.line_count > 0
   else t.config.stuff_threshold > 0 && t.stuff_run >= t.config.stuff_threshold
 ;;
 
@@ -392,6 +398,37 @@ let in_source t (source : Isa.In_source.Cases.t) ~count ~sample =
   | Capture -> t.capture land data_mask
 ;;
 
+(* [Line_stuff]: the bit the transmit table takes for an out of [bit], and what stays
+   owed. A flagged step's next out sends a 0; while bits are owed each out sends the
+   oldest; a drain takes no bits until an out finds nothing owed and no stuffing. *)
+let stuff t bit =
+  if not t.line_table.modes.tx_stuff
+  then t, bit
+  else (
+    let stuffing = t.line_flag in
+    let empty = t.line_count = 0 in
+    let taking = (not t.line_draining) || (empty && not stuffing) in
+    let sent =
+      if stuffing
+      then 0
+      else if empty
+      then bit
+      else (t.line_held lsr (t.line_count - 1)) land 1
+    in
+    let line_count =
+      match stuffing, taking with
+      | true, true -> Int.min Line_code.owed_max (t.line_count + 1)
+      | true, false | false, true -> t.line_count
+      | false, false -> t.line_count - 1
+    in
+    let line_held =
+      if taking
+      then (t.line_held lsl 1) lor bit land ((1 lsl Line_code.owed_max) - 1)
+      else t.line_held
+    in
+    { t with line_held; line_count; line_draining = t.line_draining && not taking }, sent)
+;;
+
 (* the two pins of a Manchester bit: the complement on [out_base], the bit beside it *)
 let manchester_pair bit = bit lxor 1 lor (bit lsl 1)
 
@@ -405,6 +442,7 @@ let out_dest t (dest : Isa.Out_dest.Cases.t) ~count ~value =
     let c = t.config in
     let modes = t.line_table.modes in
     let pin = get_pins t.pin_out ~base:c.out_base ~count:1 in
+    let t, value = stuff t value in
     let input = if modes.tx_relative then value lxor pin else value in
     let e = Line_code.entry t.line_table ~state:t.line_tx ~input in
     let level = if modes.tx_toggle then pin lxor e.out else e.out in
@@ -502,7 +540,10 @@ let sys t (op : Isa.Sys_op.Cases.t) =
   | Push -> push t
   | Pull -> pull t
   | Crc_init -> { t with crc = t.config.crc_init; crc_sending = false }
-  | Stuff_reset -> { t with stuff_run = 0; line_flag = false }
+  | Stuff_reset ->
+    if t.line_table.modes.tx_stuff
+    then { t with stuff_run = 0; line_draining = true }
+    else { t with stuff_run = 0; line_flag = false }
   | Capture_arm -> { t with capture_armed = true }
   | Seek -> { t with data_ptr = t.x % data_size; data_age = 0 }
   | Crc_send -> { t with crc_sending = true }

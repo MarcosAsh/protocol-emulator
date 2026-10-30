@@ -279,8 +279,9 @@ jobs:
           opam exec -- dune exec -- bin/generate.exe kernel-gates -accepts > formal/kernel_accepts_gates.aag
           opam exec -- dune exec -- bin/generate.exe top -engines 2 > formal/top.v
           opam exec -- dune exec -- bin/generate.exe usb-rx > formal/usb_frame_rx.v
+          opam exec -- dune exec -- bin/generate.exe line-stuff > formal/line_stuff.v
           opam exec -- dune build test/translation/check_translation.exe
-          make -C formal issue_timing host_timing host_spacing late_host fifo_order unreachable phase_step fetch_step edge_step event_step frame_step value_step narrow_proof chip_frame fail_safe isolation_proof data_step teeth fsm_miter_proof verilog_in_proof sram_equiv_proof kernel_equiv_proof translation_proof frontend_equiv sync_rtl sync_rtl_teeth powerup offset_axioms gate certify usb_roundtrip_proof
+          make -C formal issue_timing host_timing host_spacing late_host fifo_order unreachable phase_step fetch_step edge_step event_step frame_step value_step narrow_proof chip_frame fail_safe isolation_proof data_step teeth fsm_miter_proof verilog_in_proof sram_equiv_proof kernel_equiv_proof translation_proof frontend_equiv sync_rtl sync_rtl_teeth powerup offset_axioms gate certify usb_roundtrip_proof line_stuff_proof
 
   # Hardcaml's cyclesim coverage of src/ over every test, which reruns them, so it runs
   # beside the test job. Each point the tests leave open is in test/coverage_triage.txt

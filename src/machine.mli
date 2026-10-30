@@ -92,6 +92,9 @@ type t = private
   ; line_rx : int
   ; line_flag : bool
   ; line_last : int (** The pin the last line-coded [in] read. *)
+  ; line_held : int (** [Line_stuff]'s bits taken, latest lowest. *)
+  ; line_count : int (** How many of them are owed. *)
+  ; line_draining : bool
   ; premises : Premises.t
   ; p_loaded : bool (** [p] was last written other than by a set. *)
   ; holding : bool (** From [capture_arm] until a wait for the captured edge releases. *)

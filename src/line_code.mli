@@ -15,7 +15,11 @@
     the bit is dropped, past the CRC and the stuff counter too. Either way the state moves
     to [next], and [flag] is what [jmp stuff] reads until [stuff_reset] or the next step.
     [stuff_reset] leaves the states, so a table that stuffs moves to the state after the
-    stuffed bit, which the firmware drives, as it raises [flag]. *)
+    stuffed bit, which the firmware drives, as it raises [flag].
+
+    With [tx_stuff] the core sends the stuffed bit itself ([Line_stuff]): the out after a
+    flagged step sends a 0 and keeps its own bit owed, [stuff_reset] ends the data and
+    leaves [flag], and [jmp stuff] reads whether a bit is owed. *)
 
 open! Core
 
@@ -37,6 +41,14 @@ val address_bits : int
 (** The word that holds the modes. *)
 val modes_word : int
 
+(** Where [tx_stuff] sits in the modes word, and the bits the modes take. *)
+val tx_stuff_bit : int
+
+val modes_bits : int
+
+(** The most bits [tx_stuff] keeps owed; past it the oldest is lost. *)
+val owed_max : int
+
 module Entry : sig
   type t =
     { next : int
@@ -53,6 +65,7 @@ module Modes : sig
     ; tx_toggle : bool
     ; rx_toggle : bool
     ; rx_start : int
+    ; tx_stuff : bool
     }
   [@@deriving sexp_of, compare, equal]
 
@@ -87,6 +100,10 @@ val nrzi : t
 (** USB transmit: NRZI on D+ (and D- with [out_count] 2), and [flag] at the sixth one,
     where the firmware flips the pair for the stuffed zero. *)
 val usb_transmit : t
+
+(** [usb_transmit] with [tx_stuff]: the core stuffs at full speed, with no firmware time
+    to spare between bits. *)
+val usb_stuffing : t
 
 (** USB receive from D+: a 1 where the line held and a 0 where it moved, and the zero
     after six ones dropped. *)

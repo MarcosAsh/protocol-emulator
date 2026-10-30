@@ -68,6 +68,8 @@ formal/osr_step.v
 formal/kernel_accepts.v
 formal/load_check_step.v
 formal/usb_frame_rx.v
+formal/line_stuff.v
+formal/line_stuff_teeth/
 formal/memory_flops.v
 formal/memory_sram.v
 formal/kernel_gates.aag
