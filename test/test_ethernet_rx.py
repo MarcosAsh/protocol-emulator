@@ -7,7 +7,7 @@ import os
 import zlib
 
 import cocotb
-from cocotb.triggers import ClockCycles, Edge, First, RisingEdge, Timer
+from cocotb.triggers import ClockCycles, First, RisingEdge, Timer
 from cocotb.utils import get_sim_time
 
 from test import AsyncHost, Pins, assembled, padded, reset
@@ -111,7 +111,7 @@ async def test_own_frame_received(dut):
 
     async def pad():
         while True:
-            await First(Edge(dut.uio_out), Edge(dut.uio_oe))
+            await First(dut.uio_out.value_change, dut.uio_oe.value_change)
             out, oe = dut.uio_out.value, dut.uio_oe.value
             if out.is_resolvable and oe.is_resolvable:
                 dut.uio_in.value = int(out) & int(oe)
