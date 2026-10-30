@@ -46,7 +46,7 @@ COMPILE_ARGS    += -DGL_TEST
 COMPILE_ARGS    += -DSIM
 VERILOG_SOURCES += $(PDK_ROOT)/ihp-sg13cmos5l/libs.ref/sg13cmos5l_io/verilog/sg13cmos5l_io.v
 VERILOG_SOURCES += $(PDK_ROOT)/ihp-sg13cmos5l/libs.ref/sg13cmos5l_stdcell/verilog/sg13cmos5l_udp.v
-VERILOG_SOURCES += $(PDK_ROOT)/ihp-sg13cmos5l/libs.ref/sg13cmos5l_stdcell/verilog/sg13cmos5l_stdcell.v
+VERILOG_SOURCES += $(CURDIR)/sim_build/cells/sg13cmos5l_stdcell.v
 VERILOG_SOURCES += models/RM_IHPSG13_1P_core_behavioral_bm_bist.v models/RM_IHPSG13_1P_512x16_c2_bm_bist.v
 
 ifeq ($(SDF),)
@@ -104,6 +104,18 @@ endif
 
 # include cocotb's make rules to take care of the simulator setup
 include $(shell cocotb-config --makefiles)/Makefile.sim
+
+# The PDK's cells with every flop held 0 through its first two clock edges, the first of
+# which may meet the inputs still X, so the gates start from a known state. Icarus would
+# keep a flop X whose clear the gates feed its own X back into, though either value
+# clears. netlist_anystate proves no power-up state outlasts reset.
+CELLS_SRC = $(PDK_ROOT)/ihp-sg13cmos5l/libs.ref/sg13cmos5l_stdcell/verilog/sg13cmos5l_stdcell.v
+$(CURDIR)/sim_build/cells/sg13cmos5l_stdcell.v: $(CELLS_SRC)
+	mkdir -p $(@D)
+	sed '/^[[:space:]]*ihp_dff[a-z0-9_]* (int_fwire_IQ,/a\
+	initial begin force int_fwire_IQ = 1'\''b0; repeat (2) @(posedge CLK); #0.01 release int_fwire_IQ; end' \
+	  $< > $@
+	test "$$(grep -c 'force int_fwire_IQ' $@)" = "$$(grep -c 'ihp_dff[a-z0-9_]* (int_fwire_IQ,' $<)"
 
 # The kit has no SRAM macro, so the program memory is the flop variant, which yosys
 # maps to block RAM.
