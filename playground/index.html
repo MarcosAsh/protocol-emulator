@@ -32,6 +32,9 @@
   #diagram-wave svg, #sim-wave svg { display: block; }
   #waits { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
   #waits button[aria-pressed=true] { outline: 2px solid #e08a00; }
+  #dares { border-collapse: collapse; width: 100%; }
+  #dares th, #dares td { text-align: left; vertical-align: top; padding: 4px 8px; border-top: 1px solid var(--muted); }
+  #dares pre { max-height: 9rem; overflow: auto; margin: 0; }
   .win-ok { fill: var(--ok); } .win-bad { fill: var(--bad); }
 </style>
 </head>
@@ -68,6 +71,17 @@ proofs that its check is sound run in CI, not here.</p>
 <div id="waits"></div>
 <pre id="wait-detail"></pre>
 <pre id="sim-summary"></pre>
+<h2>Make it late</h2>
+<p class="muted">Each button edits the firmware above, then runs the real assembler, analyser and kernel, and the model in your browser.</p>
+<!-- TODO(owner): a paragraph on what the dare shows -->
+<div class="controls">
+  <button id="dare-run">Run all four on this firmware</button>
+  <button id="dare-restore">Restore the example</button>
+</div>
+<table id="dares" hidden>
+  <thead><tr><th>Edit</th><th>Verdict</th><th>Kernel message</th><th>Model</th></tr></thead>
+  <tbody id="dare-rows"></tbody>
+</table>
 <h2>Listing</h2>
 <pre id="listing"></pre>
 <h2>Analyser rows</h2>
@@ -230,6 +244,92 @@ certificate. The model of the core then runs the table on the frames below.</p>
         + (e.lo >= 0 ? ", window " + e.lo + " to " + e.hi + ", " + (e.ok ? "inside" : "OUTSIDE") : ", no window")).join("\n");
   };
   $("simulate").onclick = simulate;
+
+  // each edit returns the new source and a one-line description, or null if the firmware has nothing to edit
+  const lineIndex = (lines, re) => lines.findIndex((l) => re.test(l.split(";")[0]));
+  const deadlineWait = /^\s*wait\s+t\+?(\s|$)/;
+  const stretch = (k) => (source) => {
+    const lines = source.split("\n");
+    const from = Math.max(0, lineIndex(lines, deadlineWait));
+    const j = lineIndex(lines.slice(from), /^\s*(out|set\s+pins|mov\s+pins)\b/);
+    const i = j < 0 ? -1 : from + j;
+    if (i < 0) return null;
+    const [code, ...comment] = lines[i].split(";");
+    const tail = comment.length ? " ;" + comment.join(";") : "";
+    const body = /\[\d+\]/.test(code)
+      ? code.replace(/\[(\d+)\]/, (_, n) => "[" + (Number(n) + k) + "]")
+      : code.trimEnd() + " [" + k + "]";
+    const before = lines[i].trim();
+    lines[i] = body + tail;
+    return [lines.join("\n"), "line " + (i + 1) + ": " + before + "  ->  " + lines[i].trim()];
+  };
+  const dropWait = (source) => {
+    const lines = source.split("\n");
+    const i = lineIndex(lines, deadlineWait);
+    if (i < 0) return null;
+    const [gone] = lines.splice(i, 1);
+    return [lines.join("\n"), "line " + (i + 1) + " removed: " + gone.trim()];
+  };
+  const longLoop = (source) => {
+    const lines = source.split("\n");
+    const i = Math.max(0, lineIndex(lines, deadlineWait));
+    const side = /^\s*\.side_set/m.test(source) ? " side 0" : "";
+    lines.splice(i, 0, "    set y, 31" + side, "dare_spin:", "    jmp y--, dare_spin");
+    return [lines.join("\n"), "3 lines added before line " + (i + 1) + ": a 31-turn loop"];
+  };
+  const dares = [
+    ["Stretch an out by 1 cycle", stretch(1)],
+    ["Stretch an out by 12 cycles", stretch(12)],
+    ["Drop a wait", dropWait],
+    ["Add a long loop", longLoop],
+  ];
+  let dareBase = "";
+  // the real tools on [source]: what the page's checker says, and what the model does
+  const judge = (source) => {
+    const period = $("period").value === "" ? null : Number($("period").value);
+    const pin = Number($("capture-pin").value) || 0;
+    const c = pe.check(source, period, $("single-edge").checked, pin, $("capture-falling").checked);
+    const m = pe.simulate(source, period, $("single-edge").checked, pin, $("capture-falling").checked,
+      $("sim-tx").value, $("sim-inputs").value, Number($("sim-cycles").value) || 1000);
+    return { c, m };
+  };
+  const cell = (text, cls) => {
+    const td = document.createElement("td");
+    if (cls) td.className = cls;
+    td.textContent = text;
+    return td;
+  };
+  const dareAll = () => {
+    dareBase = $("source").value;
+    $("dares").hidden = false;
+    $("dare-rows").replaceChildren(...dares.map(([label, edit]) => {
+      const tr = document.createElement("tr");
+      const done = edit(dareBase);
+      const button = document.createElement("button");
+      button.textContent = label;
+      if (!done) {
+        tr.append(cell(label), cell("n/a"), cell("nothing in this firmware to edit"), cell(""));
+        return tr;
+      }
+      const [edited, what] = done;
+      const { c, m } = judge(edited);
+      const pre = document.createElement("pre");
+      pre.textContent = c.detail || "(no message)";
+      const message = document.createElement("td");
+      message.append(pre);
+      button.onclick = () => { $("source").value = edited; run(); };
+      const first = document.createElement("td");
+      const note = document.createElement("div");
+      note.className = "muted";
+      note.textContent = what;
+      first.append(button, note);
+      tr.append(first, cell(c.verdict, c.verdict === "accepted" ? "accepted" : "refused"), message,
+        cell(m.error || m.summary));
+      return tr;
+    }));
+  };
+  $("dare-run").onclick = dareAll;
+  $("dare-restore").onclick = () => { load(); run(); dareAll(); };
   $("sim-zoom").oninput = draw;
   $("example").onchange = () => { load(); run(); };
   $("check").onclick = run;

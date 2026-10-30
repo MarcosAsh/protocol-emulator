@@ -85,6 +85,16 @@ module Sim_report = struct
     }
 end
 
+let fault_names { Machine.Fault.underflow; overflow; missed_deadline; decode } =
+  List.filter_map
+    [ "underflow", underflow
+    ; "overflow", overflow
+    ; "missed_deadline", missed_deadline
+    ; "decode", decode
+    ]
+    ~f:(fun (name, set) -> Option.some_if set name)
+;;
+
 (* [now - t] on entry, as the signed 24-bit number the deadline wait compares *)
 let phase ~now ~t =
   let modulus = 1 lsl Isa.timer_bits in
@@ -213,7 +223,7 @@ let simulate ?period ?period_floor ~single_capture_edge ~config ~tx ~inputs ~cyc
             else
               sprintf
                 "%s at cycle %d, pc %d"
-                (Sexp.to_string (Machine.Fault.sexp_of_t next.fault))
+                (fault_names next.fault |> String.concat ~sep:" ")
                 cycle
                 pc
               :: faults
