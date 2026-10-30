@@ -79,9 +79,6 @@ def record(spi, host, engines, ms):
     # engine 1, if there are two, first: it waits for engine 0's wire
     for e in sorted(engines, key=lambda e: -e["engine"]):
         load(host, e)
-    for e in sorted(engines, key=lambda e: -e["engine"]):
-        host.select(e["engine"])
-        host.start()
     n = len(engines)
     ids = [e["engine"] for e in engines]
     words = [array.array("H", (0 for _ in range(MOST))) for _ in range(n)]
@@ -90,12 +87,18 @@ def record(spi, host, engines, ms):
     last = [0] * n
     clock = [0] * n
     late = 0
+    # a collection mid-recording is what makes a poll late
+    gc.collect()
+    # the clocks start here, so the first poll's wraps are counted from now, not from
+    # before the arrays were made
+    for e in sorted(engines, key=lambda e: -e["engine"]):
+        host.select(e["engine"])
+        host.start()
     then = [time.ticks_us()] * n
     start = time.ticks_ms()
-    # a collection mid-recording is what makes a poll late, and a locked heap raises
-    # MemoryError at the first allocation rather than running out seconds later
-    gc.collect()
     AT[0] = 0
+    # a locked heap raises MemoryError at the first allocation rather than running out
+    # seconds later
     micropython.heap_lock()
     try:
         while time.ticks_diff(time.ticks_ms(), start) < ms:
