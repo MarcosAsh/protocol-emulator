@@ -124,11 +124,14 @@
  (with-stdout-to
   dali.trace.gen
   (run ./write_trace.exe dali)))
+  lin.trace.gen
+  (run ./write_trace.exe lin)))
 
 (rule
  (alias runtest)
  (action
   (diff dali.trace dali.trace.gen)))
+  (diff lin.trace lin.trace.gen)))
 
 (rule
  (with-stdout-to

@@ -41,3 +41,6 @@ tdm_audio	bench	2026-10-30T15:00:09+00:00	board run, test/board/tdm_audio
 dali	spec	2026-11-02T19:19:19+00:00	new-protocol
 dali	file	2026-11-02T19:38:15+00:00	
 dali	certificate	2026-11-02T19:38:40+00:00	
+lin	spec	2026-11-02T19:56:07+00:00	new-protocol
+lin	file	2026-11-02T20:32:08+00:00	
+lin	certificate	2026-11-02T20:41:25+00:00	

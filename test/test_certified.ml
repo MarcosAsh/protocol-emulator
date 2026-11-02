@@ -95,6 +95,7 @@ let%expect_test "the firmware library and its certificates" =
     lfast                 64        27      6
     tdm_audio            117         0      -
     dali                  34         8  19993  period 20000, no wrap
+    lin                   60        17   1247  period 1250, no wrap
     |}]
 ;;
 
@@ -210,6 +211,10 @@ let%expect_test "the least period the host may load" =
     (QED "dali: every load of 8 or more")
     (counterexample "dali: every load of 7 or more"
      (model ((loaded 0000000000000111))))
+    (lin (period (1250)) (floor 16) (passes true) (one_less true))
+    (QED "lin: every load of 16 or more")
+    (counterexample "lin: every load of 15 or more"
+     (model ((loaded 0000000000001111))))
     |}]
 ;;
 

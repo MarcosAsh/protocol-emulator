@@ -184,6 +184,7 @@ let%expect_test "the accepts circuit agrees with the kernel on the library's tab
           ~within:(!within : int)
           ~disagree:(List.rev !disagree : (string * int) list)]);
   [%expect {| ((rows 7540) (accepted 7540) (within 4665) (disagree ())) |}]
+  [%expect {| ((rows 7592) (accepted 7592) (within 4694) (disagree ())) |}]
 ;;
 
 (* What [formal/pair_step.sby] proves on the RTL: a row's edge bounds carry to the rows

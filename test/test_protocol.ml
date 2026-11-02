@@ -696,6 +696,26 @@ let%expect_test "every protocol from its file to the decoded trace" =
     (received ())
     decode: test/traces/dali.trace, by sigrok's dali:dali=OUT0
       dali=bit:startbit:ybit:address:command:reply:raw: dali-1: 1, dali-1: 0, dali-1: 0, dali-1: 0, dali-1: 0, dali-1: 0, dali-1: 0, dali-1: 1, dali-1: 1, dali-1: 1, dali-1: 0, dali-1: 1, dali-1: 0, dali-1: 0, dali-1: 0, dali-1: 0, dali-1: 0, dali-1: Startbit: 1, dali-1: Startbit: 1, dali-1: Raw data: 03, dali-1: Raw data: A0, dali-1: Command, dali-1: YBit: 0, dali-1: Short address: 1, dali-1: Command: 160 (Query Level), dali-1: 1, dali-1: 1, dali-1: 1, dali-1: 1, dali-1: 1, dali-1: 1, dali-1: 1, dali-1: 1, dali-1: 0, dali-1: Startbit: 1, dali-1: Startbit: 1, dali-1: Reply: FE, dali-1: Reply: 254
+    === lin
+
+    certificates
+    lin: 60 words, 17 deadline waits, worst slack 1247, the kernel accepts it, assuming period 1250, a load of 16 or more, no wrap
+
+    limits
+    lin                break field    >=   677083 ns  run    33750 (703125.0 ns) needs 32501       LIN master, LIN Specification Package Revision 2.2A 2.3.1.1, p. 30; margin a cycle
+    lin                break delimiter >=  52083.3 ns  run    3750 (78125.0 ns) needs 2501       LIN master, LIN Specification Package Revision 2.2A 2.3.1.1, p. 30; margin a cycle
+    lin                break field length (dominant + delimiter) >=   729167 ns  run    37500 (781250.0 ns) needs 35002       LIN master, LIN Specification Package Revision 2.2A Table 2.3, p. 52; margin a cycle
+    lin                THeader_Maximum, 1.4 * THeader_Nominal of 34 TBit <= 2.47917e+06 ns  run    87500 (1822916.7 ns) needs 118999       LIN master, LIN Specification Package Revision 2.2A 2.3.2 eq. (3), p. 32, eq. (6), p. 33; margin a cycle
+    lin                FTOL_RES_MASTER, bit >=  51822.9 ns  run    2500 (52083.3 ns) needs 2489       LIN master, LIN Specification Package Revision 2.2A Table 6.1, p. 113; margin a cycle
+    lin                FTOL_RES_MASTER, bit <=  52343.8 ns  run    2500 (52083.3 ns) needs 2511       LIN master, LIN Specification Package Revision 2.2A Table 6.1, p. 113; margin a cycle
+    lin                bit rate, 20 kbit/s >=    50000 ns  run    2500 (52083.3 ns) needs 2401       LIN master, LIN Specification Package Revision 2.2A 6.3, p. 112; margin a cycle
+    lin                bit rate, 1 kbit/s <=    1e+06 ns  run    2500 (52083.3 ns) needs 47999       LIN master, LIN Specification Package Revision 2.2A 6.3, p. 112; margin a cycle
+
+    lockstep: lin, lin
+    ("lockstep held" (cycles 2880))
+    (received (0x4c 0x49 0x4e 0x45))
+    decode: test/traces/lin.trace, by sigrok's uart:rx=IO0:baudrate=19200,lin
+      lin=data:control: lin-1: Break condition, lin-1: Sync, lin-1: ID: 16 Parity: 3 (ok), lin-1: Data: 0x4C, lin-1: Data: 0x49, lin-1: Data: 0x4E, lin-1: Checksum: 0x45
     |}]
 ;;
 

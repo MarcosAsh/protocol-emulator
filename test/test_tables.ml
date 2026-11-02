@@ -1167,6 +1167,11 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       , "half bit 20000"
       , [%string
           "a 27 half bit idle is 540000 cycles, each step held at most %{max_hold#Int}"]
+    ; ( "lin"
+      , "untried"
+      , "-"
+      , "half 16 and up, 1250 for 19200 baud"
+      , "open drain, the response's start edges by a pin wait; not tried against the class"
       )
     ]
   in
@@ -1237,5 +1242,7 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       library SCLK half 3 cycles, 256-bit frames; three outputs, no waits, the halves timed by instructions; not tried against the class
     dali       untried  -
       library half bit 20000; a 27 half bit idle is 540000 cycles, each step held at most 65535
+    lin        untried  -
+      library half 16 and up, 1250 for 19200 baud; open drain, the response's start edges by a pin wait; not tried against the class
     |}]
 ;;

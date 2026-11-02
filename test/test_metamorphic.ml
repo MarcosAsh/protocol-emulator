@@ -562,6 +562,8 @@ let%expect_test "a delay before a deadline wait takes exactly its slack" =
     {|
     ("nops before a wait, library" (programs 51) (variants 492)
      (kernel_checked 99) (accepted 348) (refused 144) (violations_on_accepted 0)
+    ("nops before a wait, library" (programs 51) (variants 494)
+     (kernel_checked 99) (accepted 350) (refused 144) (violations_on_accepted 0)
      (violations_on_refused 0))
     ("nops before a wait, random" (programs 26) (variants 180)
      (kernel_checked 36) (accepted 125) (refused 55) (violations_on_accepted 0)
@@ -908,6 +910,8 @@ let%expect_test "a deadline wait split at an earlier deadline changes nothing af
     {|
     ("deadline wait split in two, library" (programs 47) (variants 138)
      (kernel_checked 28) (accepted 92) (refused 46) (violations_on_accepted 0)
+    ("deadline wait split in two, library" (programs 47) (variants 136)
+     (kernel_checked 28) (accepted 92) (refused 44) (violations_on_accepted 0)
      (violations_on_refused 0))
     ("deadline wait split in two, random" (programs 24) (variants 60)
      (kernel_checked 12) (accepted 40) (refused 20) (violations_on_accepted 0)

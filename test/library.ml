@@ -31,6 +31,7 @@ let protocols =
   ; Lfast.protocol
   ; Tdm_audio.protocol
   ; Dali.protocol
+  ; Lin.protocol
   ]
 ;;
 
