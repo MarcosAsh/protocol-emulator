@@ -11,10 +11,11 @@
 # Before the agent, demo/extract.py reads the spec's limits twice, blind. A disagreement stops
 # the run with "limit disputed, SPEC p.N" (exit 3) and keeps both readings in disputed.tsv.
 # Once a person has ruled on them (demo/extract.py rule), pass --limits with that run directory.
-# Usage: demo/intake.sh [--dry-run] [--limits-only] [--limits RUN] [--budget USD] [--model M] [--out DIR] SPEC NAME
+# Usage: demo/intake.sh [--dry-run] [--limits-only] [--limits RUN] [--scenario TEXT] [--budget USD] [--model M] [--out DIR] SPEC NAME
 #        demo/intake.sh --scan TRANSCRIPT   clean, or touched (exit 1) if a tool input names the held-out list
 #   --dry-run  makes the worktree and run directory and prints the claude commands, then removes the worktree
 #   --limits-only  stops after the two readings
+#   --scenario  what the test and trace must show, fixed in advance ("a 26-bit card read on two wires")
 set -e
 # a tool input that names the sealed held-out list: exit 1 if the transcript has one
 scan() {
@@ -35,6 +36,7 @@ if [ "$1" = --scan ]; then scan "$2" && echo clean || { echo touched; exit 1; };
 dry=
 limits_only=
 settled=
+scenario=
 budget=${INTAKE_BUDGET:-25}
 model=
 out=${INTAKE_OUT:-$HOME/.local/share/protocol-emulator/intake}
@@ -43,6 +45,7 @@ while [ $# -gt 0 ]; do
     --dry-run) dry=yes ;;
     --limits-only) limits_only=yes ;;
     --limits) settled=$(realpath "$2"); shift ;;
+    --scenario) scenario=$2; shift ;;
     --budget) budget=$2; shift ;;
     --model) model=$2; shift ;;
     --out) out=$2; shift ;;
@@ -162,8 +165,9 @@ fi
 git -C "$root" worktree add -q -b "intake/$name" "$tree" HEAD ||
     { verdict "failed: could not make the worktree $tree"; exit 1; }
 log "worktree $tree"
+[ -z "$scenario" ] || scenario="Scenario, fixed before this run: the test and the trace show $scenario."
 sed -e "s#@NAME@#$name#g" -e "s#@SPEC@#$spec#g" -e "s#@KIND@#$kind#g" -e "s#@DIR@#$run#g" \
-    -e "s#@SPEC_NOTE@#$note#" -e "s#@LIMITS_NOTE@#$limits_note#" \
+    -e "s#@SPEC_NOTE@#$note#" -e "s#@LIMITS_NOTE@#$limits_note#" -e "s#@SCENARIO@#$scenario#" \
     "$here/demo/intake_prompt.txt" > "$run/prompt.txt"
 tools="Read,Write,Edit,Glob,Grep,Bash(dune:*),Bash(make:*),Bash(test/only.sh:*),Bash(python3:*),Bash(ocamlformat:*),Bash(sigrok-cli:*),Bash(git add:*),Bash(git commit:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(timeout:*),Bash(ls:*),Bash(cat:*),Bash(sleep:*)"
 cat > "$run/settings.json" <<JSON

@@ -2,6 +2,7 @@ You turn a protocol spec into a protocol file the kernel certifies, headless, in
 worktree (branch intake/@NAME@, off the repository's current commit). You have no one to ask.
 
 Task: protocol "@NAME@" from the spec at @SPEC@ (@KIND@). Run directory: @DIR@.
+@SCENARIO@
 Read CLAUDE.md and CONVENTIONS.md first. Terse comments. Never open GUI windows or browsers.
 
 Spec
