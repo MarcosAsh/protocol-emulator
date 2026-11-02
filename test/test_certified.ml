@@ -98,6 +98,7 @@ let%expect_test "the firmware library and its certificates" =
     lin                   60        17   1247  period 1250, no wrap
     spdif                108        40      2
     usb_power_delivery   113        74     13
+    dmx512                51        14    182  period 192, no wrap
     |}]
 ;;
 

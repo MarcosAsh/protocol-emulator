@@ -582,6 +582,8 @@ let%expect_test "a delay before a deadline wait takes exactly its slack" =
      (kernel_checked 49) (accepted 182) (refused 63) (violations_on_accepted 0)
     ("delay field before a wait, library" (programs 40) (variants 244)
      (kernel_checked 49) (accepted 181) (refused 63) (violations_on_accepted 0)
+    ("delay field before a wait, library" (programs 40) (variants 234)
+     (kernel_checked 47) (accepted 174) (refused 60) (violations_on_accepted 0)
      (violations_on_refused 0))
     ("delay field before a wait, random" (programs 24) (variants 124)
      (kernel_checked 25) (accepted 90) (refused 34) (violations_on_accepted 0)

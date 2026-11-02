@@ -305,6 +305,7 @@ let%expect_test "what each out sends, in the firmware library" =
     (lin (verdict (Ok ())) (sends ()))
     (spdif (verdict (Ok ())) (sends ()))
     (usb_power_delivery (verdict (Ok ())) (sends ()))
+    (dmx512 (verdict (Ok ())) (sends ((21 "bit 7 - x") (43 "bit 0 to 32"))))
     (uart_tx_stream (verdict (Ok ())) (sends ((8 "not a pulled word"))))
     (spi_master_stream (verdict (Ok ()))
      (sends ((4 "not a pulled word") (8 "not a pulled word"))))

@@ -275,6 +275,7 @@ let%expect_test "the footprint of each firmware, and of its config under any pro
     lin                12           12         12-27          12-19
     spdif              5            -          5-20           12-19
     usb_power_delivery 5            -          5-20           12-19
+    dmx512             5            -          5-20           12-19
     |}]
 ;;
 
@@ -388,6 +389,7 @@ let%expect_test "each firmware stays inside its footprint" =
     lin                -            -
     spdif              5            -
     usb_power_delivery 5            -
+    dmx512             5            -
     |}]
 ;;
 

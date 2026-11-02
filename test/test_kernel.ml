@@ -415,6 +415,7 @@ let%expect_test "the kernel on the firmware library, from the analyser's rows" =
     (lin (verdict (Ok ())))
     (spdif (verdict (Ok ())))
     (usb_power_delivery (verdict (Ok ())))
+    (dmx512 (verdict (Ok ())))
     |}]
 ;;
 
@@ -1236,6 +1237,7 @@ let%expect_test "a bound on the jitter of every pin edge, in firmware the kernel
     (lin (pc 14) (jitter_bound 0) (untimed (3 4)))
     (spdif (pc 10) (jitter_bound 1) (untimed (0)))
     (usb_power_delivery (pc 17) (jitter_bound 0) (untimed (0)))
+    (dmx512 (pc 7) (jitter_bound 0) (untimed (0)))
     (spi_slave_captured "no edge has a deadline" (untimed (0 5))
      (reaction ((pc 5) (at_most 2))))
     |}]

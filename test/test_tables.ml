@@ -1184,6 +1184,11 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       , "-"
       , "BMC at 300 kbps, halves of 80 cycles"
       , "written for the core, not tried" )
+    ; ( "dmx512"
+      , "untried"
+      , "-"
+      , "bits of 192 cycles, break 25 bits"
+      , "written for the core, not tried against the class" )
     ]
   in
   let named = List.map rows ~f:(fun (name, _, _, _, _) -> name) in
@@ -1259,5 +1264,7 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       library halves of 8 32991/65536 cycles, 44.1 kHz; transitions by reading the line back, a 192-frame block count; not tried against the class
     usb_power_delivery untried  -
       library BMC at 300 kbps, halves of 80 cycles; written for the core, not tried
+    dmx512     untried  -
+      library bits of 192 cycles, break 25 bits; written for the core, not tried against the class
     |}]
 ;;

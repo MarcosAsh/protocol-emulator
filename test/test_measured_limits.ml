@@ -203,6 +203,17 @@ let%expect_test "the datasheet limits, measured on the bench copies' runs" =
     run    0  usb_power_delivery pBitRate 0.25 %: 32 bits against the preamble's last 32, of 32 UI at 300 kbps <=  266.667 ns  measured 0 (0.0 ns)           Pass            USB Power Delivery Specification r3.2 v1.2, Aug 2026, Table 5.10, p.110, and 5.3.4.8 p.108; 300 kbps nominal, Table 5.9
     kernel 80  usb_power_delivery tHoldLowBMC: every low >=     1000 ns  measured 40 (1666.7 ns)       Pass            USB Power Delivery Specification r3.2 v1.2, Aug 2026, Table 5.10, p.110
     run    1367  usb_power_delivery tInterFrameGap: each idle low >=    25000 ns  measured 684 (28500.0 ns)     Pass            USB Power Delivery Specification r3.2 v1.2, Aug 2026, Table 5.10, p.110
+    kernel 192  dmx512             bit at 250 kbit/s, shortest low >=     4000 ns  measured 96 (4000.0 ns)       Within_a_sample Wikipedia, DMX512, oldid 1380777110, page 1, line 291
+    kernel 192  dmx512             bit at 250 kbit/s, shortest high >=     4000 ns  measured 96 (4000.0 ns)       Within_a_sample Wikipedia, DMX512, oldid 1380777110, page 1, line 291
+    run    192  dmx512             bit at 250 kbit/s, longest channel low <=     4000 ns  measured 96 (4000.0 ns)       Within_a_sample Wikipedia, DMX512, oldid 1380777110, page 1, line 291
+    run    4800  dmx512             BREAK transmitted >=    92000 ns  measured 2400 (100000.0 ns)   Pass            Wikipedia, DMX512, oldid 1380777110, page 1, table, lines 303-306
+    run    4800  dmx512             BREAK receiver recognized >=    88000 ns  measured 2400 (100000.0 ns)   Pass            Wikipedia, DMX512, oldid 1380777110, page 1, table, lines 303, 308-309
+    run    768  dmx512             MAB transmitted  >=    12000 ns  measured 384 (16000.0 ns)     Pass            Wikipedia, DMX512, oldid 1380777110, page 1, table, lines 304-305, 307
+    run    768  dmx512             MAB receiver recognized >=     8000 ns  measured 384 (16000.0 ns)     Pass            Wikipedia, DMX512, oldid 1380777110, page 1, table, lines 304, 308, 310
+    run    768  dmx512             MAB since 1990   >=     8000 ns  measured 384 (16000.0 ns)     Pass            Wikipedia, DMX512, oldid 1380777110, page 1, line 301
+    run    1092101  dmx512             break to break transmitted >= 1.204e+06 ns  measured 546050 (22752083.3 ns) Pass            Wikipedia, DMX512, oldid 1380777110, page 1, line 313
+    run    1092101  dmx512             break to break receivers handle >= 1.196e+06 ns  measured 546050 (22752083.3 ns) Pass            Wikipedia, DMX512, oldid 1380777110, page 1, line 313
+    run    1092101  dmx512             refresh rate of 512 channels, at most 44 Hz >= 2.27273e+07 ns  measured 546050 (22752083.3 ns) Pass            Wikipedia, DMX512, oldid 1380777110, page 1, line 312
     kernel 417  uart_log           bit              >=  8506.94 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     run    417  uart_log           bit              <=  8854.17 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     |}]
@@ -397,5 +408,16 @@ let%expect_test "every limit's pairs of edges in the prediction" =
     usb_power_delivery pBitRate 0.25 %: 32 bits against the preamble's last 32, of 32 UI at 300 kbps   0 pairs, none, measured 0
     usb_power_delivery tHoldLowBMC: every low 290 pairs, as measured
     usb_power_delivery tInterFrameGap: each idle low   1 pairs, 1368, measured 1367
+    dmx512         bit at 250 kbit/s, shortest low 2564 pairs, as measured
+    dmx512         bit at 250 kbit/s, shortest high 2563 pairs, as measured
+    dmx512         bit at 250 kbit/s, longest channel low 2560 pairs, as measured
+    dmx512         BREAK transmitted   2 pairs, as measured
+    dmx512         BREAK receiver recognized   2 pairs, as measured
+    dmx512         MAB transmitted    2 pairs, as measured
+    dmx512         MAB receiver recognized   2 pairs, as measured
+    dmx512         MAB since 1990     2 pairs, as measured
+    dmx512         break to break transmitted   1 pairs, as measured
+    dmx512         break to break receivers handle   1 pairs, as measured
+    dmx512         refresh rate of 512 channels, at most 44 Hz   1 pairs, as measured
     |}]
 ;;
