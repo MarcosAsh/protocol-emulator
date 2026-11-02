@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # The chip speaks what it learned (MicroPython, Pico A): send.json's firmware, written by
-# generate.exe learn and accepted by the kernel, into engine 0 with the period it was
-# checked under (start, before the analyser runs), then each frame's words, PAUSE_MS apart
-# so a receiver sees separate presses.
+# generate.exe learn and accepted by the kernel, into engine 0 with its certificate and the
+# period it was checked under (start, before the analyser runs), then each frame's words,
+# PAUSE_MS apart so a receiver sees separate presses.
 
 import json
 import time
@@ -21,7 +21,7 @@ def start(transfer):
     starts, so a clock's first move to idle is not read as a bit."""
     send = json.load(open("send.json"))
     host = pe.Host(transfer)
-    bench.load(host, {"config": send["config"], "words": send["words"]})
+    bench.load(host, send)
     host.start()
     host.push([send["period"]])
 

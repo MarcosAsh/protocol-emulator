@@ -27,11 +27,13 @@ LATE_US = 1000
 
 
 def load(host, engine):
+    """The logger loaded and certified; every engine must be halted for the certificate."""
     host.select(engine["engine"])
     host.stop()
     host.flush()
     host.configure(dict(pe.DEFAULT_CONFIG, **engine["config"]))
     host.load(engine["words"])
+    host.certify(engine["certificate"])
 
 
 SELECTS = [bytes((0x80 | pe.SELECT, 0, engine)) for engine in range(2)]

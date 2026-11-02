@@ -74,6 +74,18 @@ let speak ~clock_hz ~pins ~value ~repeat ~out (learned : Learn.t) =
   in
   let got = List.map read ~f:(fun (f : Learn.Frame.t) -> f.kind, f.bits) in
   let show l = List.map l ~f:(fun (k, b) -> k, bits_string b) in
+  let timed = firmware.timed in
+  (* the certificate the chip checks the firmware against before a start counts, and the
+     premises it takes with it, as the host passes them on *)
+  let%bind certificate =
+    Load_check.of_table
+      ~config:(Timed_program.config timed)
+      ~words:(Timed_program.words timed)
+      (Kernel.Table.of_analyser (Timed_program.rows timed))
+  in
+  let loaded =
+    Option.first_some (Timed_program.period_floor timed) (Timed_program.period timed)
+  in
   let%map () =
     if [%equal: (int * bool array) list] sent got
     then (
@@ -99,13 +111,21 @@ let speak ~clock_hz ~pins ~value ~repeat ~out (learned : Learn.t) =
       (sprintf
          "{\"config\": {%s},\n\
          \ \"words\": %s,\n\
+         \ \"certificate\": %s,\n\
+         \ \"loaded\": %s,\n\
+         \ \"floor\": %d,\n\
+         \ \"single_edge\": %d,\n\
          \ \"period\": %d,\n\
          \ \"unit_us\": %.3f,\n\
          \ \"gap\": %d,\n\
          \ \"slack\": %s,\n\
          \ \"frames\": [%s]}\n"
-         (config_json (Timed_program.config firmware.timed))
-         (int_list (Timed_program.words firmware.timed))
+         (config_json (Timed_program.config timed))
+         (int_list (Timed_program.words timed))
+         (int_list (Load_check.to_words certificate))
+         (Option.value_map loaded ~default:"null" ~f:Int.to_string)
+         (Bool.to_int (Option.is_some (Timed_program.period_floor timed)))
+         (Bool.to_int (Timed_program.single_capture_edge timed))
          firmware.period
          (learned.unit_s *. 1e6)
          learned.gap

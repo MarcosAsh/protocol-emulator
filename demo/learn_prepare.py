@@ -40,9 +40,10 @@ def logger(pin, prefix):
     ]) + "\n"
 
 
-def assemble(generate, path, config):
-    flags = ",".join("%s=%s" % (k, "true" if v is True else v) for k, v in config.items())
-    done = subprocess.run([generate, "assemble", "-config", flags, str(path)],
+def assemble(generate, path, config, *flags):
+    """The words, or with -certificate the certificate the chip checks them against."""
+    fields = ",".join("%s=%s" % (k, "true" if v is True else v) for k, v in config.items())
+    done = subprocess.run([generate, "assemble", "-config", fields, *flags, str(path)],
                           capture_output=True, text=True)
     if done.returncode:
         sys.exit("%s refused: %s" % (path, done.stderr))
@@ -68,7 +69,9 @@ def logger_files(directory, generate, lines, ms):
         path = directory / ("logger_%s.asm" % name)
         path.write_text(logger(pin, prefix))
         words = assemble(generate, path, config)
+        certificate = assemble(generate, path, config, "-certificate")
         engines.append({"engine": engine, "name": name, "sync": sync, "words": words,
+                        "certificate": certificate,
                         "config": {k: int(v) for k, v in config.items()}})
     (directory / "record.json").write_text(json.dumps({"engines": engines, "ms": ms}) + "\n")
 
