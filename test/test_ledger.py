@@ -160,10 +160,17 @@ class Ledger(unittest.TestCase):
             [sys.executable, str(ROOT / "demo/ledger.py"), "chip.bit", "--dry-run", "--keyboard",
              "--evidence", str(self.tmp / "evidence"), "--results", str(self.tmp / "ledger.tsv")],
             env=self.env, capture_output=True, text=True, check=True)
-        for demo in ledger.NAMES:
-            self.assertIn("\n%s, expect" % demo, run.stdout)
+        for demo in ledger.DEMOS:
+            self.assertEqual("\n%s, expect" % demo.name in run.stdout, demo.mhz == 48)
         self.assertFalse((self.tmp / "evidence").exists())
         self.assertFalse((self.tmp / "ledger.tsv").exists())
+        # the 40 MHz build's demos alone
+        run = subprocess.run(
+            [sys.executable, str(ROOT / "demo/ledger.py"), "chip-40mhz.bit", "--dry-run",
+             "--evidence", str(self.tmp / "evidence"), "--results", str(self.tmp / "ledger.tsv")],
+            env=self.env, capture_output=True, text=True, check=True)
+        for demo in ledger.DEMOS:
+            self.assertEqual("\n%s, expect" % demo.name in run.stdout, demo.mhz == 40)
 
     def test_keyboard_needs_its_flag(self):
         run = self.run_ledger("keyboard")

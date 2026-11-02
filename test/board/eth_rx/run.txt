@@ -1,0 +1,32 @@
+$ openFPGALoader -b icepi-zero /home/marcos/ethrx-board/v1.3-header-40mhz.bit
+Jtag probe limited to 3MHz
+Jtag frequency : requested 6000000Hz -> real 3000000Hz
+ret 0
+Open file: DONE
+b3bdffff
+Parse file: DONE
+Enable configuration: DONE
+SRAM erase: DONE
+Loading: [========                                          ] 15.07%
+Loading: [================                                  ] 30.14%
+Loading: [=======================                           ] 45.22%
+Loading: [===============================                   ] 60.29%
+Loading: [======================================            ] 75.36%
+Loading: [==============================================    ] 90.43%
+Loading: [==================================================] 100.00%
+
+Done
+Disable configuration: DONE
+$ mpremote connect id:e66548545717552e cp python/protocol_emulator.py python/pico_board.py python/bench.py python/ethernet.py python/demo_ethernet_rx.py test/ethernet_rx.hex test/ethernet_rx.cert.hex :
+cp python/protocol_emulator.py :
+cp python/pico_board.py :
+cp python/bench.py :
+cp python/ethernet.py :
+Up to date: ./ethernet.py
+cp python/demo_ethernet_rx.py :
+cp test/ethernet_rx.hex :
+Up to date: ./ethernet_rx.hex
+cp test/ethernet_rx.cert.hex :
+Up to date: ./ethernet_rx.cert.hex
+$ mpremote connect id:e66548545717552e run python/demo_ethernet_rx.py > /home/marcos/ethrx-board/evidence/2026-10-30/ledger/eth_rx.2/eth_rx.log
+Pico A says PASS, every step ran

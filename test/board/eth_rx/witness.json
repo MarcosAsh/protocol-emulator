@@ -1,0 +1,67 @@
+{
+  "demo": "eth_rx",
+  "time": "2026-10-30T21:29:52",
+  "result": "PASS",
+  "commit": "e8e5c8b69fca6b157013728a81653fb6d7bb1c3e",
+  "bitstream_sha256": "5b81e4822584d95770d53a655057d369d3aed0b35ddff1b755b54be2b7758d75",
+  "netlist_sha256": "3f425c64c5099c224624bbd29fa560c53ad46c88c86de3cef98f41d35750d816",
+  "sums_sha256": "fa0bdf9918bba7ff908d8bc0720211371b7a628a68bf594ebe713fe9ef966f36",
+  "log": {
+    "file": "eth_rx.log",
+    "sha256": "1ac7437048a40be404d61939d9ba34332524e5d3beb26d0130dd498cfd6989ca"
+  },
+  "tally": {
+    "frames": 146,
+    "good_fcs": 142,
+    "bad_fcs": 4,
+    "past_the_data_memory": 1,
+    "received_whole": 100,
+    "bytes": 73604,
+    "steps_received_whole": [
+      -11,
+      -10,
+      -9,
+      -8,
+      -7,
+      -6,
+      -5,
+      -4,
+      -3,
+      -2,
+      -1,
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+    ]
+  },
+  "teeth": [
+    "frame 0's first byte handed back with its low bit flipped",
+    "frame 9, its FCS bad, said to be judged good"
+  ],
+  "bitstream_source": "make -C icepi REV=v1.3 MHZ=40 on the branch's src/, which make equiv proved equal to the RTL (netlist 3f425c64)",
+  "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
+  "firmware": {
+    "test/ethernet_rx.hex": "092fd995972caf7d51674e906915556001c70974df3998c45f30d1c6ba360f5f",
+    "test/ethernet_rx.cert.hex": "ff9d7556ff439772f1ad19d559a23cb3037d64bffdb4fa1ee5507ebec6567626"
+  },
+  "host_scripts": {
+    "python/demo_ethernet_rx.py": "214ecd57f92d5f0003ec0904263f832fbb8a56171531a10dfd7552569f7d99dd",
+    "python/ethernet.py": "b75a703540bd048e94c4c67931347ce0d2021e42d4542882892c765d9380eaa8",
+    "python/bench.py": "7eee68c84d04c308c99bcf8c4d0710c081d19b9fd6ce553f39606d3b6e7a13c0"
+  },
+  "bench": "an Icepi Zero (ECP5 LFE5U-25F) running the chip at 40 MHz on bench carrier v1.2, Pico A as the host on SPI, Pico A's PIO as the 10BASE-T sender on IO0, at 10 Mb/s off its own crystal",
+  "scope": "each frame's bytes and the receiver's verdict in one run of eth_rx, as Pico A logged them",
+  "limits": [
+    "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
+    "the bitstream is named by its sha256, and its netlist's, built from make -C icepi REV=v1.3 MHZ=40 on the branch's src/, which make equiv proved equal to the RTL (netlist 3f425c64) by the bench's notes, which CI does not rebuild",
+    "10 Mb/s is past the analyser, so the log is the run's only record: CI judges its frames again from the bytes it says were sent",
+    "the line is Pico A's 3.3 V logic, as a line receiver with squelch would give the chip, not a twisted pair through a transformer"
+  ]
+}

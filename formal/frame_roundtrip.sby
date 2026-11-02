@@ -1,0 +1,80 @@
+[tasks]
+prove
+prove_fifty
+prove_drift
+cover covers
+blank_half mutant teeth
+free_running mutant teeth
+inverted mutant teeth
+jitter_beyond teeth
+short_idle teeth
+
+[options]
+prove: mode prove
+prove: depth 8
+prove_fifty: mode prove
+prove_fifty: depth 8
+prove_drift: mode prove
+prove_drift: depth 8
+covers: mode cover
+covers: depth 190
+# each tooth fails a claim, not a lemma, within a frame or two of bytes
+teeth: mode bmc
+teeth: depth 110
+teeth: expect fail
+
+[engines]
+smtbmc yices
+
+[script]
+~mutant: read_verilog frame_rx.v
+blank_half: read_verilog blank_half.v
+free_running: read_verilog free_running.v
+inverted: read_verilog inverted.v
+hierarchy -top frame_rx_top
+proc
+flatten
+cd frame_rx_top
+expose w:frame_rx.manchester_rx.count w:frame_rx.manchester_rx.sm
+expose w:frame_rx.manchester_rx.shift w:frame_rx.manchester_rx.word
+expose w:frame_rx.manchester_rx.word_bits w:frame_rx.manchester_rx.last_sample
+expose w:frame_rx.crc w:frame_rx.byte_bit w:frame_rx.good_so_far w:frame_rx.pending
+expose w:frame_rx.ended w:frame_rx.index
+rename frame_rx.manchester_rx.count rx_count
+rename frame_rx.manchester_rx.sm rx_sm
+rename frame_rx.manchester_rx.shift rx_shift
+rename frame_rx.manchester_rx.word rx_word
+rename frame_rx.manchester_rx.word_bits rx_word_bits
+rename frame_rx.manchester_rx.last_sample rx_last
+rename frame_rx.crc rx_crc
+rename frame_rx.byte_bit rx_byte_bit
+rename frame_rx.good_so_far rx_good
+rename frame_rx.pending pending
+rename frame_rx.ended ended
+rename frame_rx.index rx_index
+cd ..
+# the chip at 40 MHz: 3.1 ns of jitter, each half bit within 0.2%
+prove: read -define PER_BIT=8 JITTER=1024 DRIFT=32
+# at 50 MHz: 5 ns, within 0.16%
+prove_fifty: read -define PER_BIT=10 JITTER=2048 DRIFT=32
+# at 40 MHz with no jitter, each half bit within 1%
+prove_drift: read -define PER_BIT=8 JITTER=0 DRIFT=164
+# a tooth or a cover needs no more freedom than it takes to fail or be reached, which
+# keeps each to minutes
+covers: read -define PER_BIT=8 PINNED
+blank_half: read -define PER_BIT=8
+inverted: read -define PER_BIT=8
+free_running: read -define PER_BIT=8 DRIFT=164
+# 9.4 ns at 40 MHz, past what the receiver can take
+jitter_beyond: read -define PER_BIT=8 JITTER=3072 JITTER_TOOTH
+short_idle: read -define PER_BIT=8 SHORT_IDLE
+teeth: read -define NO_LEMMAS TEETH_PINNED
+read_verilog -formal -sv frame_roundtrip.sv
+prep -flatten -top frame_roundtrip
+
+[files]
+~mutant: frame_rx.v
+blank_half: frame_roundtrip_teeth/blank_half.v
+free_running: frame_roundtrip_teeth/free_running.v
+inverted: frame_roundtrip_teeth/inverted.v
+frame_roundtrip.sv

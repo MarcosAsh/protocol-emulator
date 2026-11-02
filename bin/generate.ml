@@ -398,6 +398,17 @@ let line_stuff_rtl_command =
           C.create_exn ~name (Line_stuff.hierarchical scope))]
 ;;
 
+let frame_rx_rtl_command =
+  Command.basic
+    ~summary:"Verilog for the 10BASE-T receiver into the data memory, unwired"
+    [%map_open.Command
+      let () = return () in
+      fun () ->
+        let module C = Circuit.With_interface (Frame_rx.I) (Frame_rx.O) in
+        print_rtl ~name:"frame_rx_top" (fun ~name scope ->
+          C.create_exn ~name (Frame_rx.hierarchical scope))]
+;;
+
 let kernel_accepts_rtl_command =
   Command.basic
     ~summary:
@@ -885,6 +896,7 @@ let () =
        ; "manchester-rx", manchester_rx_rtl_command
        ; "usb-rx", usb_rx_rtl_command
        ; "line-stuff", line_stuff_rtl_command
+       ; "frame-rx", frame_rx_rtl_command
        ; "kernel-accepts", kernel_accepts_rtl_command
        ; "load-check-step", load_check_step_rtl_command
        ; "assemble", assemble_command
