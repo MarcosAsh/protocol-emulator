@@ -421,10 +421,11 @@ def can(rx):
                 "CAN R inverted over the first data byte's fourth bit")
 
     def edge_tooth(samples, rate):
-        """An edge after a one-bit run of the first frame, a quarter bit late."""
+        """An edge after a one-bit run of the first frame, a quarter bit late. A run is a
+        sample either side of a bit, as the analyser's clock is not the chip's."""
         frame = frames(samples, rate)[0]
         bit = round(CAN_BIT * rate)
-        at = next(b for a, b in zip(frame, frame[1:-2]) if b - a == bit)
+        at = next(b for a, b in zip(frame, frame[1:-2]) if abs(b - a - bit) <= 1)
         return (moved(samples, rx, at, at + bit // 4),
                 "an edge of the first frame a quarter bit late", "bit time, a run")
 
