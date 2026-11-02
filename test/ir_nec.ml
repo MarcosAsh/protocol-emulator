@@ -433,15 +433,41 @@ let sigrok =
           ~pins:[ "ir", pin ]
           ~options:[ "polarity", "active-high"; "cd_freq", "38000" ]
       ]
-  ; expect = []
+  ; expect =
+      (let bits byte = List.init 8 ~f:(fun i -> Int.to_string ((byte lsr i) land 1)) in
+       let field name byte = bits byte @ [ sprintf "%s: 0x%02X" name byte ] in
+       [ ( "ir_nec=bit:agc-pulse:longpause:shortpause:stop-bit:leader-code:addr:addr-inv:cmd:cmd-inv:repeat-code:remote"
+         , [ "AGC pulse"; "Long pause"; "Leader code" ]
+           @ field "Address" 0x59
+           @ field "Address#" 0xa6
+           @ field "Command" 0x16
+           @ field "Command#" 0xe9
+           @ [ "Stop bit"
+             ; "Unknown device: Unknown"
+             ; "AGC pulse"
+             ; "Short pause"
+             ; "Stop bit"
+             ; "Repeat code"
+             ]
+           |> Sigrok.lines "ir_nec" )
+       ])
   ; joins_after = None
   ; rejected = None
-  ; teeth = []
+  ; (* a pulse 100 thirds into the 4.5 ms space, after the AGC burst's last fall, edge
+       685; and the second data burst's first rise, edge 730, 128 thirds early, so the
+       address's first bit, a one, reads a zero *)
+    teeth =
+      [ [ Flip { pin; edge = 685; after = 100 * shortest_third; cycles = shortest_third }
+        ]
+      ; [ Shift { pin; edge = 730; cycles = -128 * shortest_third } ]
+      ]
   }
 ;;
 
-(* The frame and a repeat code: sigrok's ir_nec ends a frame only at the next AGC burst's
-   rise, and reads a repeat code at its burst's. *)
+(* The frame and a repeat code, the frame 10 ms after the load: sigrok's ir_nec times its
+   first edge from the capture's start and reads a repeat code there if that is 11.25 ms.
+   It ends a frame only at the next AGC burst's rise, and reads a repeat code at its
+   burst's. *)
 let scenario =
   { Scenario.name = "ir_nec"
   ; peer = (fun () -> Peer.idle 0)
@@ -450,7 +476,9 @@ let scenario =
         ~config:(Timed_program.config firmware)
         ~program:(Timed_program.words firmware)
       @ [ Scenario.start
-        ; Write (Reg.tx, shortest_third :: List.concat_map (List.take sent 2) ~f:words)
+        ; Write (Reg.tx, [ shortest_third ])
+        ; Run (1_140 * shortest_third)
+        ; Write (Reg.tx, List.concat_map (List.take sent 2) ~f:words)
         ; Run ((message_thirds + 1_500) * shortest_third)
         ]
   ; sigrok = Some sigrok

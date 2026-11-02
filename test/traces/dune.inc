@@ -136,6 +136,8 @@
   (run ./write_trace.exe wiegand)))
   swd_blind.trace.gen
   (run ./write_trace.exe swd_blind)))
+  ir_nec.trace.gen
+  (run ./write_trace.exe ir_nec)))
 
 (rule
  (alias runtest)
@@ -147,6 +149,7 @@
   (diff dmx512.trace dmx512.trace.gen)))
   (diff wiegand.trace wiegand.trace.gen)))
   (diff swd_blind.trace swd_blind.trace.gen)))
+  (diff ir_nec.trace ir_nec.trace.gen)))
 
 (rule
  (with-stdout-to

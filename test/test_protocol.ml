@@ -828,9 +828,10 @@ let%expect_test "every protocol from its file to the decoded trace" =
     ir_nec             Repeat code burst >=   560000 ns  run    27008 (562666.7 ns) needs 26881       NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 37; margin a cycle
 
     lockstep: ir_nec, ir_nec
-    ("lockstep held" (cycles 225600))
+    ("lockstep held" (cycles 243840))
     (received ())
     decode: test/traces/ir_nec.trace, by sigrok's ir_nec:ir=OUT0:polarity=active-high:cd_freq=38000
+      ir_nec=bit:agc-pulse:longpause:shortpause:stop-bit:leader-code:addr:addr-inv:cmd:cmd-inv:repeat-code:remote: ir_nec-1: AGC pulse, ir_nec-1: Long pause, ir_nec-1: Leader code, ir_nec-1: 1, ir_nec-1: 0, ir_nec-1: 0, ir_nec-1: 1, ir_nec-1: 1, ir_nec-1: 0, ir_nec-1: 1, ir_nec-1: 0, ir_nec-1: Address: 0x59, ir_nec-1: 0, ir_nec-1: 1, ir_nec-1: 1, ir_nec-1: 0, ir_nec-1: 0, ir_nec-1: 1, ir_nec-1: 0, ir_nec-1: 1, ir_nec-1: Address#: 0xA6, ir_nec-1: 0, ir_nec-1: 1, ir_nec-1: 1, ir_nec-1: 0, ir_nec-1: 1, ir_nec-1: 0, ir_nec-1: 0, ir_nec-1: 0, ir_nec-1: Command: 0x16, ir_nec-1: 1, ir_nec-1: 0, ir_nec-1: 0, ir_nec-1: 1, ir_nec-1: 0, ir_nec-1: 1, ir_nec-1: 1, ir_nec-1: 1, ir_nec-1: Command#: 0xE9, ir_nec-1: Stop bit, ir_nec-1: Unknown device: Unknown, ir_nec-1: AGC pulse, ir_nec-1: Short pause, ir_nec-1: Stop bit, ir_nec-1: Repeat code
     |}]
 ;;
 
@@ -905,5 +906,5 @@ let%expect_test "no protocol file is left half written" =
             [%string "sigrok %{s.name}"]))
     in
     if not (List.is_empty left) then print_s [%message p.name (left : string list)]);
-  [%expect {| (ir_nec (left ("sigrok ir_nec"))) |}]
+  [%expect {| |}]
 ;;
