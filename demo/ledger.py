@@ -2,8 +2,8 @@
 # Every bench demo at BITSTREAM's clock in turn, each from a fresh load of it as its reset. A demo keeps
 # its capture, decode, Pico logs and a SHA256SUMS in EVIDENCE/<date>/ledger/<demo>/, beside
 # the day's other bench runs, and adds a line to demo/ledger.tsv. --keyboard adds the USB
-# keyboard demo, which types into the focused window. PICO_B_SERIAL picks Pico B, as for
-# demo/pico_b.sh.
+# keyboard demo, whose keys demo/keys.py grabs from the desktop under sudo and holds to the
+# text. PICO_B_SERIAL picks Pico B, as for demo/pico_b.sh.
 # Usage: PICO=id:<serial of Pico A> python3 demo/ledger.py BITSTREAM [--keyboard]
 #            [--only DEMO]... [--evidence DIR] [--results TSV] [--dry-run]
 
@@ -20,6 +20,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+import keys
 import traffic
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -34,6 +35,8 @@ ARM_S = 3
 # a demo that runs until reset is stopped after this
 KEYBOARD_S = 30
 TEXT = "hello jane street "
+# how long the keyboard waits past its attach to type, for demo/keys.py to grab it first
+SETTLE_MS = 3000
 # Pico A's GP8 to usb_detach, high: the USB port stays detached while a bitstream loads
 DETACH = "from machine import Pin; Pin(8, Pin.OUT, value=1)"
 
@@ -98,7 +101,8 @@ DEMOS = [
     Demo("keyboard", "pico", pico_b="micropython",
          files=("python/usb_board.py", "python/usb_device_firmware.py", "python/demo_usb.py",
                 "test/uart_tx_host_rate.hex", "test/uart_tx_host_rate.cert.hex"),
-         run="python/demo_usb.py", listen=115_200, capture_ms=KEYBOARD_S * 1000, rate="2M",
+         exec="import demo_usb; demo_usb.run(settle_ms=%d)" % SETTLE_MS, listen=115_200,
+         capture_ms=KEYBOARD_S * 1000, rate="2M",
          decode="-P uart:rx=D4:baudrate=115200 -A uart=rx-data", timeout_s=KEYBOARD_S),
     outside("flash"),
     outside("eeprom"),
@@ -336,7 +340,13 @@ class Ledger:
         Pico A, then decodes. The name of Pico A's log and whether every step ran."""
         b, d = self.bench, demo.name
         ok = b.run(self.mpremote("cp", *BASE, *demo.files, ":")) == 0
-        listener = capture = None
+        listener = capture = grabber = None
+        if ok and d == "keyboard":
+            # the keys go to demo/keys.py alone, which must be up before the first
+            grabber = b.start(["sudo", "-n", sys.executable, "demo/keys.py",
+                               str(ARM_S + KEYBOARD_S + 15)], out="keyboard.keys")
+            b.sleep(1)
+            ok = b.dry_run or grabber.poll() is None
         if ok and demo.listen:
             pico_b = "id:" + self.serial
             ok = b.run(self.mpremote("cp", "python/pico_listener.py", ":", pico=pico_b)) == 0
@@ -355,6 +365,10 @@ class Ledger:
         if ok:
             script = ("run", demo.run) if demo.run else ("exec", demo.exec)
             status = b.run(self.mpremote(*script), out=d + ".log", timeout=demo.timeout_s)
+        if grabber or (b.dry_run and d == "keyboard"):
+            # stopped and detached before the grab ends
+            b.run(self.mpremote("exec", DETACH))
+            ok = b.wait(grabber, ARM_S + KEYBOARD_S + 20) == 0 and ok
         ok = ok and b.wait(capture, (demo.capture_ms or 0) / 1000 + 60) == 0
         b.wait(listener, 0, kill=True)
         # the demo that runs until reset is stopped, which is how it ends
@@ -416,6 +430,10 @@ class Ledger:
                         else last_verdict(text))
                 b.note("Pico A says %s, every step %s" % (said, "ran" if ok else "did not"))
                 problems = traffic.check(demo.name, b.dir) if ok else []
+                if ok and demo.name == "keyboard":
+                    took = keys.taken((b.dir / "keyboard.keys").read_text())
+                    if took != TEXT:
+                        problems.append("the pc took %r, not %r" % (took, TEXT))
                 for problem in problems:
                     b.note("traffic: " + problem)
                 name = traffic.stem(demo.name)
@@ -470,7 +488,9 @@ def clock(bitstream):
 
 def plan(args):
     if args.only and "keyboard" in args.only and not args.keyboard:
-        sys.exit("keyboard types into the focused window: add --keyboard")
+        sys.exit("keyboard needs sudo for demo/keys.py: add --keyboard")
+    if args.keyboard and not args.dry_run and subprocess.run(["sudo", "-n", "true"]).returncode:
+        sys.exit("keyboard needs sudo without a password for demo/keys.py")
     mhz = clock(args.bitstream)
     chosen = [d for d in DEMOS if (d.name != "keyboard" or args.keyboard)
               and (not args.only or d.name in args.only) and d.mhz == mhz]
@@ -483,7 +503,7 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("bitstream")
     p.add_argument("--keyboard", action="store_true",
-                   help="also the USB keyboard demo, which types into the focused window")
+                   help="also the USB keyboard demo, its keys grabbed under sudo")
     p.add_argument("--only", action="append", choices=NAMES, metavar="DEMO",
                    help="this demo, again for more: " + " ".join(NAMES))
     p.add_argument("--evidence", type=Path, default=EVIDENCE)

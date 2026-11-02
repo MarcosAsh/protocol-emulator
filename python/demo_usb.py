@@ -113,13 +113,13 @@ def start_log(host, program, certificate, clock_hz=48_000_000):
 
 
 def serve(host, board, queue, bus_reset, log=lambda report: None, say=lambda line: None,
-          attach=None, replug=lambda: False):
-    """Forever. Typing waits for a configuration and a HID driver, so no report sits in the
-    fifo while the laptop enumerates: an IN on endpoint 0 would drop it, a word more for the
-    rx fifo on a SETUP's heels. A reset puts back the report it lost, `log` gets each report
-    once the laptop has taken it, and `say` each step of the enumeration and each key.
-    `attach`, if given, is called once engine 0 first serves, and again each time `replug`
-    has detached the board."""
+          attach=None, replug=lambda: False, ready=lambda: True):
+    """Forever. Typing waits for a configuration, a HID driver and ready(), so no report
+    sits in the fifo while the laptop enumerates: an IN on endpoint 0 would drop it, a word
+    more for the rx fifo on a SETUP's heels. A reset puts back the report it lost, `log`
+    gets each report once the laptop has taken it, and `say` each step of the enumeration
+    and each key. `attach`, if given, is called once engine 0 first serves, and again each
+    time `replug` has detached the board."""
     serving, halted, address, configured = False, False, 0, False
     while True:
         if bus_reset():
@@ -155,7 +155,8 @@ def serve(host, board, queue, bus_reset, log=lambda report: None, say=lambda lin
             log(sent)
             if sent[0] == 1 and sent[2]:
                 say("typed %s" % chr(CHARS[sent[2]]))
-        if queue and board.configured and board.described and board.pending_report is None and not board.chunks:
+        if (queue and board.configured and board.described and board.pending_report is None
+                and not board.chunks and ready()):
             board.report(queue.pop(0))
 
 
@@ -192,12 +193,21 @@ def pico_a():
     return pico_board.host(), bus_reset, attach, replug
 
 
-def run(text="hello jane street ", say=print):
-    """On the Icepi Zero, from the host Pico."""
+def run(text="hello jane street ", say=print, settle_ms=0):
+    """On the Icepi Zero, from the host Pico. Typing waits settle_ms past each attach, for
+    demo/keys.py to grab the keyboard before its first key."""
     host, bus_reset, attach, replug = pico_a()
+    attached = time.ticks_ms()
+
+    def attach_timed():
+        nonlocal attached
+        attach()
+        attached = time.ticks_ms()
+
     log = start_log(host, words("uart_tx_host_rate"), words("uart_tx_host_rate.cert"))
-    serve(host, usb_board.Board(DESCRIPTORS), reports(text), bus_reset, log, say, attach,
-          replug)
+    serve(host, usb_board.Board(DESCRIPTORS), reports(text), bus_reset, log, say,
+          attach_timed, replug,
+          lambda: time.ticks_diff(time.ticks_ms(), attached) >= settle_ms)
 
 
 if __name__ == "__main__":
