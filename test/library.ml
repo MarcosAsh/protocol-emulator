@@ -36,6 +36,7 @@ let protocols =
   ; Usb_power_delivery.protocol
   ; Dmx512.protocol
   ; Wiegand.protocol
+  ; Swd_blind.protocol
   ]
 ;;
 

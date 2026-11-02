@@ -1194,6 +1194,7 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       , "-"
       , "pulses of 16 cycles and up, 3 apart; DATA0 and DATA1 two outputs"
       , "written for the core, not tried" )
+    ; "swd_blind", "TODO", "-", "-", "TODO whether the table interpreter runs it"
     ]
   in
   let named = List.map rows ~f:(fun (name, _, _, _, _) -> name) in

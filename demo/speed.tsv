@@ -56,3 +56,4 @@ dmx512	certificate	2026-11-02T18:54:52+00:00
 wiegand	spec	2026-11-02T16:33:26+00:00	new-protocol
 wiegand	file	2026-11-02T16:49:22+00:00	
 wiegand	certificate	2026-11-02T16:50:07+00:00	
+swd_blind	spec	2026-11-02T21:04:13+00:00	new-protocol
