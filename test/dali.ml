@@ -254,14 +254,36 @@ let limits =
 let trace_clock_hz = 240_000
 let trace_half_bit = 100
 
-(* sigrok's dali prints a frame once its line has stayed high a bit past the last *)
+(* What sigrok's dali prints for a frame, once the line has stayed high a bit past it:
+   each bit with the start bit first, the start bit twice, then the raw bytes and the
+   fields, here those of [query] alone *)
+let reading frame =
+  let bits value n =
+    "1" :: List.init n ~f:(fun i -> Int.to_string ((value lsr (n - 1 - i)) land 1))
+  in
+  let start = [ "Startbit: 1"; "Startbit: 1" ] in
+  match (frame : Frame.t) with
+  | Forward { address; opcode } ->
+    bits ((address lsl 8) lor opcode) 16
+    @ start
+    @ [ sprintf "Raw data: %02X" address; sprintf "Raw data: %02X" opcode ]
+    @ [ "Command"; "YBit: 0"; "Short address: 1"; "Command: 160 (Query Level)" ]
+  | Backward answer ->
+    bits answer 8 @ start @ [ sprintf "Reply: %02X" answer; sprintf "Reply: %d" answer ]
+;;
+
 let sigrok =
   { Sigrok.clock_hz = trace_clock_hz
   ; decoders = [ Sigrok.decoder "dali" ~pins:[ "dali", pin ] ]
-  ; expect = []
+  ; expect =
+      [ ( "dali=bit:startbit:ybit:address:command:reply:raw"
+        , List.concat_map [ query; answer ] ~f:reading |> Sigrok.lines "dali" )
+      ]
   ; joins_after = None
   ; rejected = None
-  ; teeth = []
+  ; (* edge 0 is the line's rise to idle and edge 3 starts the low half of the first data
+       bit, a zero: held high instead, three half bits high read as the stop *)
+    teeth = [ [ Flip { pin; edge = 3; after = 0; cycles = trace_half_bit } ] ]
   }
 ;;
 
