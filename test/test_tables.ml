@@ -1161,7 +1161,11 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       , "SCLK half 3 cycles, 256-bit frames"
       , "three outputs, no waits, the halves timed by instructions; not tried against \
          the class" )
-    ; "dmx512", "TODO", "-", "-", "TODO whether the table interpreter runs it"
+    ; ( "dmx512"
+      , "untried"
+      , "-"
+      , "bits of 192 cycles, break 25 bits"
+      , "written for the core, not tried against the class" )
     ]
   in
   let named = List.map rows ~f:(fun (name, _, _, _, _) -> name) in

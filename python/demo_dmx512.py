@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# TODO what this shows on the bench, and what is wired to which pin (MicroPython, Pico A).
+# A DMX512 controller on OUT0, which analyser A's D4 watches (MicroPython, Pico A): a packet
+# of start code 0x00 and 512 channels at 250 kbit/s, then the next packet's break.
 # demo/outside.sh dmx512 runs it, reading the analyser, the capture's length and
 # sigrok's decoders from the next line.
 # outside: analyser=A ms=2000 decode=-P dmx512:dmx=D4
@@ -8,19 +9,31 @@ import bench
 import bench_firmware
 import protocol_emulator as pe
 
-# TODO the words the firmware takes
-WORDS = [0x55, 0xA3]
+# channel n is (37 n + 11) mod 256, as test/dmx512.ml's scenario sends
+CHANNELS = [(37 * n + 11) & 0xFF for n in range(512)]
+
+# the bit, 192 cycles of 48 MHz for 250 kbit/s, then the start code, the channels two a
+# word, low byte first, and the next start code
+PERIOD = 192
+WORDS = ([PERIOD, 0x00] + [lo | hi << 8 for lo, hi in zip(CHANNELS[::2], CHANNELS[1::2])]
+         + [0x00])
 
 
-def run(transfer, log=print):
+def run(transfer, log=print, polls=100_000):
     host = pe.Host(transfer)
     bench.load(host, bench_firmware.DMX512)
     host.start()
-    host.push(WORDS)
-    # TODO read back what the far end answered, and judge it
+    waiting = list(WORDS)
+    for _ in range(polls):
+        if not waiting:
+            break
+        room = bench.DEPTH - host.status()["tx_level"]
+        if room:
+            host.push(waiting[:room])
+            waiting = waiting[room:]
     found = bench.faults(host)
-    log("faults 0x%x" % found)
-    return not found
+    log("%d words left, faults 0x%x" % (len(waiting), found))
+    return not found and not waiting
 
 
 if __name__ == "__main__":
