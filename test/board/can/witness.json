@@ -1,14 +1,14 @@
 {
   "demo": "can",
-  "time": "2026-10-30T16:26:06",
+  "time": "2026-11-02T15:58:49",
   "result": "PASS",
-  "commit": "b5c0748c56eea8ab598d269fd6da6bef709d06eb",
-  "bitstream_sha256": "ded0014fdf14df568ed478e5f6e36d1d91475ba62bae300e101c1b229c1f963f",
-  "netlist_sha256": "1db23ccd02406ef95731f3ffd7de23fbfa9a66a0410741d78cbcb04edc717f5f",
-  "sums_sha256": "68e9c65bd5655240b40f5c0d94e5ad0347222ce7d5ee0697a07395c0f6fab3c0",
+  "commit": "e195e44b0aaf396107f1bede62ddd74622476fe9",
+  "bitstream_sha256": "c70acd0de0e64cb5904f953e58f811dcd8e82e0c2f767999a0a80b4feb987cc3",
+  "netlist_sha256": "95eb429f4a4eb5a8b661b264d41c66f77d37780daa283731c654e8ca5d31e9cb",
+  "sums_sha256": "1938f3ed18756556ce75c4987a5dc2817932366217641fd3fbf64d014b830d83",
   "capture": {
     "file": "can.sr",
-    "sha256": "08b2ea7a0f7250c9502c753fbe9e637b2a753bf623e7b52eee206aff59263d49",
+    "sha256": "d436139b1c8c070a54f09fa02bb6406defb7c26dec18c7d5be1eddea14c04a87",
     "rate_hz": 24000000,
     "seconds": 2.0,
     "analyser": "A",
@@ -26,7 +26,7 @@
       "limit": ">= 1968 ns",
       "sheet": "500 kbit/s within 1.58%, Hartwich and Bassemir, Bosch, 6th iCC 1999",
       "spans": 4,
-      "measured": "1999 ns to 2001 ns",
+      "measured": "1999 ns to 2003 ns",
       "verdict": "proved"
     },
     {
@@ -34,7 +34,7 @@
       "limit": "<= 2032 ns",
       "sheet": "500 kbit/s within 1.58%, Hartwich and Bassemir, Bosch, 6th iCC 1999",
       "spans": 4,
-      "measured": "1999 ns to 2001 ns",
+      "measured": "1999 ns to 2003 ns",
       "verdict": "proved"
     },
     {
@@ -74,7 +74,7 @@
       "limit": ">= 22.00 us",
       "sheet": "CAN 2.0A, Bosch CAN 2.0, BCANPSV2.0 Rev. 3 s.2.15 p.2-6, eleven recessive bits",
       "spans": 4,
-      "measured": "3710.13 us to open",
+      "measured": "3701.00 us to open",
       "verdict": "proved"
     }
   ],
@@ -82,10 +82,10 @@
     "CAN R inverted over the first data byte's fourth bit",
     "an edge of the first frame a quarter bit late"
   ],
-  "bitstream_source": "main c6a2f802 (seed 2)",
+  "bitstream_source": "board-8x4's Verilog, neq8x4 3e23b13e's and unchanged through e195e44b, by icepi/Makefile REV=v1.3 (seed 2, 48.45 MHz) on the pc",
   "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
   "firmware": {
-    "CAN": "f7f93dc526247901a3e7c256c7d039c5b0b53d1acc082973367e24b2ca9c4d54"
+    "CAN": "97e976a413767b7ddd0c4c86050f0c1ca4b5e53506df7c5419f124489e80ea50"
   },
   "host_scripts": {
     "python/demo_can.py": "19a8d5f01007eada2f561ed276a966cf32d699f8d58323c444acef00f96a2fd8"
@@ -96,7 +96,7 @@
     "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
     "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
     "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
-    "the bitstream is named by its sha256, and its netlist's, built from main c6a2f802 (seed 2) by the bench's notes, which CI does not rebuild",
+    "the bitstream is named by its sha256, and its netlist's, built from board-8x4's Verilog, neq8x4 3e23b13e's and unchanged through e195e44b, by icepi/Makefile REV=v1.3 (seed 2, 48.45 MHz) on the pc by the bench's notes, which CI does not rebuild",
     "the bus at CAN board A's receiver, so its edges carry the SN65HVD230's delay",
     "the ACK slot is the receiver's and only must be there, not on the grid"
   ]

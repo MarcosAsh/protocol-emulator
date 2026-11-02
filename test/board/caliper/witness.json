@@ -1,14 +1,14 @@
 {
   "demo": "caliper",
-  "time": "2026-10-30T14:59:43",
+  "time": "2026-11-02T15:53:47",
   "result": "PASS",
-  "commit": "b82b5eccd88bf54bdf2ae420cc35e87a128efd54",
-  "bitstream_sha256": "ded0014fdf14df568ed478e5f6e36d1d91475ba62bae300e101c1b229c1f963f",
-  "netlist_sha256": "1db23ccd02406ef95731f3ffd7de23fbfa9a66a0410741d78cbcb04edc717f5f",
-  "sums_sha256": "21cbacd2639f50ebf8db4c43f60bccc0504f378d037f5b351777c9821a3ca3fa",
+  "commit": "5757c5ca43fcc4d8365ad473ca91412e3e99f795",
+  "bitstream_sha256": "c70acd0de0e64cb5904f953e58f811dcd8e82e0c2f767999a0a80b4feb987cc3",
+  "netlist_sha256": "95eb429f4a4eb5a8b661b264d41c66f77d37780daa283731c654e8ca5d31e9cb",
+  "sums_sha256": "d4fddb8f809d411f90129d26e13c1fee428a01c8555ba9735489faec3813ad69",
   "capture": {
     "file": "caliper.sr",
-    "sha256": "581ce5ee0e7aaea50a23d946fd58ebe2088e1a799ea05edace430e27ebdb703c",
+    "sha256": "ae46363dea7ec39e10ab475441a7731c0848169ccb3c0667a1b8bd39c2a9ddbf",
     "rate_hz": 24000000,
     "seconds": 2.0,
     "analyser": "A",
@@ -27,7 +27,7 @@
       "limit": ">= 5556 ns",
       "sheet": "ShumaTech, Chinese Scales, page 1, lines 52-54, 90 kHz",
       "spans": 92,
-      "measured": "5583 ns to 5667 ns",
+      "measured": "5583 ns to 5709 ns",
       "verdict": "proved"
     },
     {
@@ -35,7 +35,7 @@
       "limit": ">= 5556 ns",
       "sheet": "ShumaTech, Chinese Scales, page 1, lines 52-54, 90 kHz",
       "spans": 96,
-      "measured": "5583 ns to 5667 ns",
+      "measured": "5583 ns to 5709 ns",
       "verdict": "proved"
     },
     {
@@ -43,7 +43,7 @@
       "limit": ">= 55.00 us",
       "sheet": "ShumaTech, Chinese Scales, page 1, lines 55-57",
       "spans": 2,
-      "measured": "20412.88 us to 21128.11 us",
+      "measured": "20394.42 us to 21010.73 us",
       "verdict": "proved"
     },
     {
@@ -51,7 +51,7 @@
       "limit": ">= 110.00 us",
       "sheet": "ShumaTech, Chinese Scales, page 1, lines 58-60",
       "spans": 2,
-      "measured": "112.45 us to 112.59 us",
+      "measured": "112.45 us to 112.55 us",
       "verdict": "proved"
     },
     {
@@ -59,7 +59,7 @@
       "limit": ">= 55.00 us",
       "sheet": "ShumaTech, Chinese Scales, page 1, lines 61-63",
       "spans": 1,
-      "measured": "21123.80 us to 21128.11 us",
+      "measured": "21006.44 us to 21010.73 us",
       "verdict": "proved"
     }
   ],
@@ -67,10 +67,10 @@
     "DATA inverted over the first bit",
     "the first clock low 1 us short"
   ],
-  "bitstream_source": "main cb872768 by icepi/Makefile REV=v1.3 (seed 2, 49.47 MHz), the pc's pe-bench run 2026-10-30-0904; its Verilog is a5566412's",
+  "bitstream_source": "board-8x4's Verilog, neq8x4 3e23b13e's and unchanged through e195e44b, by icepi/Makefile REV=v1.3 (seed 2, 48.45 MHz) on the pc",
   "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
   "firmware": {
-    "CALIPER": "1cc0eb4b4c3ea2f3c584d56800377cb7d60e0bd1ec9847a5213c1f6875be26a2"
+    "CALIPER": "680125c89ef4590730ecfe0aed14640de4036c33c468d13eed01d1d4e91d9e93"
   },
   "host_scripts": {
     "python/demo_caliper.py": "414f1bf603812f43682be60599afb44a18abb00e46063338569d4aa8701e3372"
@@ -81,7 +81,7 @@
     "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
     "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
     "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
-    "the bitstream is named by its sha256, and its netlist's, built from main cb872768 by icepi/Makefile REV=v1.3 (seed 2, 49.47 MHz), the pc's pe-bench run 2026-10-30-0904; its Verilog is a5566412's by the bench's notes, which CI does not rebuild",
+    "the bitstream is named by its sha256, and its netlist's, built from board-8x4's Verilog, neq8x4 3e23b13e's and unchanged through e195e44b, by icepi/Makefile REV=v1.3 (seed 2, 48.45 MHz) on the pc by the bench's notes, which CI does not rebuild",
     "drawn at random and written blind from its spec (docs/flexibility.md)",
     "the page gives its times as about, which the library holds as least times"
   ]

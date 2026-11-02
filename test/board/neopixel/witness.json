@@ -1,14 +1,14 @@
 {
   "demo": "neopixel",
-  "time": "2026-10-30T16:06:30",
+  "time": "2026-11-02T15:52:48",
   "result": "PASS",
-  "commit": "b5c0748c56eea8ab598d269fd6da6bef709d06eb",
-  "bitstream_sha256": "ded0014fdf14df568ed478e5f6e36d1d91475ba62bae300e101c1b229c1f963f",
-  "netlist_sha256": "1db23ccd02406ef95731f3ffd7de23fbfa9a66a0410741d78cbcb04edc717f5f",
-  "sums_sha256": "34e184d879644af3fb6282d012d973c98198a046cf8ecc2a23811c191d16e36d",
+  "commit": "5757c5ca43fcc4d8365ad473ca91412e3e99f795",
+  "bitstream_sha256": "c70acd0de0e64cb5904f953e58f811dcd8e82e0c2f767999a0a80b4feb987cc3",
+  "netlist_sha256": "95eb429f4a4eb5a8b661b264d41c66f77d37780daa283731c654e8ca5d31e9cb",
+  "sums_sha256": "e3a98f9e7be472d89f657e7f58caa5777fffaf3fa0860a0100ac84a637711852",
   "capture": {
     "file": "neopixel.sr",
-    "sha256": "9eb47f907029d2f3381f233cce3a2f3345f47993e91ab3cee07a19a68acb7a81",
+    "sha256": "85840b5b7f29baaafe53b02a72a5adf45329eeefc865b15434da26584d5968f8",
     "rate_hz": 24000000,
     "seconds": 2.0,
     "analyser": "B",
@@ -42,7 +42,7 @@
       "limit": ">= 650 ns",
       "sheet": "SK6812, OSK-SPC-SK6812-012 Rev. B/1 p.7",
       "spans": 42,
-      "measured": "667 ns to 750 ns",
+      "measured": "667 ns to 792 ns",
       "verdict": "proved"
     },
     {
@@ -50,7 +50,7 @@
       "limit": "<= 1000 ns",
       "sheet": "SK6812, OSK-SPC-SK6812-012 Rev. B/1 p.7",
       "spans": 42,
-      "measured": "667 ns to 750 ns",
+      "measured": "667 ns to 792 ns",
       "verdict": "proved"
     },
     {
@@ -58,8 +58,8 @@
       "limit": ">= 800 ns",
       "sheet": "SK6812, OSK-SPC-SK6812-012 Rev. B/1 p.7",
       "spans": 340,
-      "measured": "833 ns to 917 ns",
-      "verdict": "proved"
+      "measured": "792 ns to 917 ns",
+      "verdict": "unresolved"
     },
     {
       "parameter": "T1L",
@@ -82,7 +82,7 @@
       "limit": ">= 200.00 us",
       "sheet": "SK6812, OSK-SPC-SK6812-012 Rev. B/1 p.7",
       "spans": 3,
-      "measured": "1980.14 us to open",
+      "measured": "711.80 us to open",
       "verdict": "proved"
     }
   ],
@@ -90,10 +90,10 @@
     "the first bit held high 700 ns",
     "the first 1 held high 400 ns longer"
   ],
-  "bitstream_source": "main c6a2f802 (seed 2)",
+  "bitstream_source": "board-8x4's Verilog, neq8x4 3e23b13e's and unchanged through e195e44b, by icepi/Makefile REV=v1.3 (seed 2, 48.45 MHz) on the pc",
   "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
   "firmware": {
-    "SK6812": "6aaec5af099c70248238732339efea94956f174af1e1e9531918678a5b2007ef"
+    "SK6812": "b3cc3a26e99ecc5c271fdcfe1d43f6d10d349230b26e5454521a8e13868fa8d0"
   },
   "host_scripts": {
     "python/demo_neopixel.py": "ae3cb7507119b16425adee22c97e106af517a422e4ac15ef8e4380eec838c546"
@@ -104,7 +104,7 @@
     "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
     "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
     "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
-    "the bitstream is named by its sha256, and its netlist's, built from main c6a2f802 (seed 2) by the bench's notes, which CI does not rebuild",
+    "the bitstream is named by its sha256, and its netlist's, built from board-8x4's Verilog, neq8x4 3e23b13e's and unchanged through e195e44b, by icepi/Makefile REV=v1.3 (seed 2, 48.45 MHz) on the pc by the bench's notes, which CI does not rebuild",
     "the SK6812's windows are a few samples wide, so some stay unresolved"
   ]
 }

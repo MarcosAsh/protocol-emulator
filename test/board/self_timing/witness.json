@@ -1,14 +1,14 @@
 {
   "demo": "self_timing",
-  "time": "2026-10-30T21:26:36",
+  "time": "2026-11-02T15:31:19",
   "result": "PASS",
-  "commit": "68fc0e2ab056cc49d68c9824ae1d044f5da7b571",
-  "bitstream_sha256": "ded0014fdf14df568ed478e5f6e36d1d91475ba62bae300e101c1b229c1f963f",
-  "netlist_sha256": "1db23ccd02406ef95731f3ffd7de23fbfa9a66a0410741d78cbcb04edc717f5f",
-  "sums_sha256": "407cb73b272493289e49d64d986dc358519802bebf39a9950eecee1b6074e7d2",
+  "commit": "aaae258a2876ff8daab4975185a2f5feaadd9651",
+  "bitstream_sha256": "c70acd0de0e64cb5904f953e58f811dcd8e82e0c2f767999a0a80b4feb987cc3",
+  "netlist_sha256": "95eb429f4a4eb5a8b661b264d41c66f77d37780daa283731c654e8ca5d31e9cb",
+  "sums_sha256": "90a3b5ca4e00d67eb8e477057fc5a1e981d69df835cf0a734da8cea47b381d10",
   "capture": {
     "file": "self_timing.sr",
-    "sha256": "c09fe48f5596490657ce3906f9d4705eecf1c41a34bd7621d54547ff22918275",
+    "sha256": "c169752802e9bea7293fbc6171fa4b03d32fd0ca9f457a6a6d405c5734b1f28c",
     "rate_hz": 2000000,
     "seconds": 8.0,
     "analyser": "A",
@@ -50,14 +50,14 @@
     "half of the first byte's bit 0 inverted",
     "the first frame's second edge 12 samples late"
   ],
-  "bitstream_source": "main c6a2f802 (seed 2)",
+  "bitstream_source": "board-8x4's Verilog, neq8x4 3e23b13e's and unchanged through e195e44b, by icepi/Makefile REV=v1.3 (seed 2, 48.45 MHz) on the pc",
   "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
   "firmware": {
     "test/uart_tx_host_rate.hex": "b0ff359cce682ac2f0eeca87a9c486772ee8501020ca7394066844dd0b0b3701",
     "test/edge_logger_echo.hex": "4f1d8af16b1aab5db3ce1a90035708647b6e6010e7738e52b775c2c42bdee5c7"
   },
   "host_scripts": {
-    "python/demo_self_timing.py": "3f15d8dddbbea8f07bc28789fb76f4890b0abe82cc648bcbf746e03e762e401c"
+    "python/demo_self_timing.py": "cdfc86827e210aeb00c3b9eba441723cd06fc5fdbafcaa15f2d1b47ea94142d1"
   },
   "bench": "an Icepi Zero (ECP5 LFE5U-25F) running the chip at 48 MHz on bench carrier v1.2, Pico A as the host on SPI, Pico B listening on OUT0, analyser A (fx2lafw) at 2 MS/s",
   "scope": "the bytes on the wire and their timing in one run of self_timing, as the analyser saw them",
@@ -65,7 +65,7 @@
     "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
     "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
     "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
-    "the bitstream is named by its sha256, and its netlist's, built from main c6a2f802 (seed 2) by the bench's notes, which CI does not rebuild",
+    "the bitstream is named by its sha256, and its netlist's, built from board-8x4's Verilog, neq8x4 3e23b13e's and unchanged through e195e44b, by icepi/Makefile REV=v1.3 (seed 2, 48.45 MHz) on the pc by the bench's notes, which CI does not rebuild",
     "the echo's delay is the same for every edge, so only offsets from each start bit are compared"
   ]
 }

@@ -1,4 +1,4 @@
-$ openFPGALoader -b icepi-zero /home/marcos/board-corpus/bit/v1.3.bit
+$ openFPGALoader -b icepi-zero /home/marcos/board-8x4/bit/v1.3.bit
 Jtag probe limited to 3MHz
 Jtag frequency : requested 6000000Hz -> real 3000000Hz
 ret 0
@@ -7,13 +7,15 @@ b3bdffff
 Parse file: DONE
 Enable configuration: DONE
 SRAM erase: DONE
-Loading: [===========                                       ] 21.00%
-Loading: [======================                            ] 42.00%
-Loading: [================================                  ] 62.60%
-Loading: [==========================================        ] 83.60%
+Loading: [========                                          ] 15.32%
+Loading: [================                                  ] 30.64%
+Loading: [=======================                           ] 45.96%
+Loading: [===============================                   ] 61.28%
+Loading: [=======================================           ] 76.60%
+Loading: [==============================================    ] 91.92%
 Loading: [==================================================] 100.00%
 
 Done
 Disable configuration: DONE
-$ CAPTURES=/home/marcos/board-corpus/evidence/2026-10-30/ledger/caliper PICO=id:e66548545717552e demo/outside.sh caliper > /home/marcos/board-corpus/evidence/2026-10-30/ledger/caliper/outside.txt
+$ CAPTURES=/home/marcos/board-8x4/evidence/2026-11-02/ledger/caliper.2 PICO=id:e66548545717552e demo/outside.sh caliper > /home/marcos/board-8x4/evidence/2026-11-02/ledger/caliper.2/outside.txt
 Pico A says PASS, every step ran
