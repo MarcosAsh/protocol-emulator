@@ -45,7 +45,8 @@ let%expect_test "the kernel's verdict on delay variants" =
     (jtag (wait_pc 8) (slack 0) (accepted (0)) (late (1-3)))
     (can (wait_pc 36) (slack 1785) (accepted (0-3 1782-1785)) (late ()))
     (sent (wait_pc 26) (slack 279) (accepted (0-3 276-279)) (late (280-282)))
-    (wiegand (wait_pc 20) (slack 289) (accepted (0-3 286-289)) (late (290-292)))
+    (wiegand (wait_pc 20) (slack 1189) (accepted (0-3 1186-1189))
+     (late (1190-1192)))
     |}]
 ;;
 

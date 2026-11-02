@@ -164,12 +164,13 @@ let protocol =
            or any other timing" )
       ]
   ; swept =
-      [ (* 300-cycle pulses 3 apart, DATA0 on the wire and DATA1 beside it *)
+      [ (* 1200-cycle pulses 10 apart, slow enough for the host's polls and inside a
+           stamp; DATA0 on the wire and DATA1 beside it *)
         { Swept.name = "wiegand"
         ; watch = "DATA0"
         ; on_wire = Swept.line
-        ; period = Some 300
-        ; bursts = [ 3 :: card ~facility:0x2a ~id:0x1234 ]
+        ; period = Some 1200
+        ; bursts = [ 10 :: card ~facility:0x2a ~id:0x1234 ]
         }
       ]
   ; not_swept = []
