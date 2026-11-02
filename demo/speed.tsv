@@ -59,3 +59,4 @@ wiegand	certificate	2026-11-02T16:50:07+00:00
 swd_blind	spec	2026-11-02T21:04:13+00:00	new-protocol
 swd_blind	file	2026-11-02T21:25:50+00:00	
 swd_blind	certificate	2026-11-02T21:26:14+00:00	
+ir_nec	spec	2026-11-02T23:27:42+00:00	new-protocol

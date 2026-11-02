@@ -37,6 +37,7 @@ let protocols =
   ; Dmx512.protocol
   ; Wiegand.protocol
   ; Swd_blind.protocol
+  ; Ir_nec.protocol
   ]
 ;;
 

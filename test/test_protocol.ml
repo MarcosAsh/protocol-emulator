@@ -808,6 +808,29 @@ let%expect_test "every protocol from its file to the decoded trace" =
       0x900 0x5e00 0x1000 0x8700 0x100 0x0 0x0 0x0 0x1000 0x0))
     decode: test/traces/swd_blind.trace, by sigrok's swd:swclk=OUT2:swdio=IO5
       swd=reset:read:ack:data: swd-1: LINERESET, swd-1: IDCODE, swd-1: OK, swd-1: 0x0bc12477, swd-1: R AP0, swd-1: OK, swd-1: 0x00000000
+    === ir_nec
+
+    certificates
+    ir_nec: 107 words, 34 deadline waits, worst slack 409, the kernel accepts it, assuming period 422, a load of 16 or more
+
+    limits
+    ir_nec             Carrier frequency, as its period >=  26315.8 ns  run    1266 (26375.0 ns) needs 1265       NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 17; margin a cycle
+    ir_nec             Bit time, logical 0 >= 1.125e+06 ns  run    54438 (1134125.0 ns) needs 54001       NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 18; margin a cycle
+    ir_nec             Bit time, logical 1 >= 2.25e+06 ns  run    108454 (2259458.3 ns) needs 108001       NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 18; margin a cycle
+    ir_nec             Carrier burst length >=   560000 ns  run    27008 (562666.7 ns) needs 26881       NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 21; margin a cycle
+    ir_nec             AGC burst, message start >=    9e+06 ns  run    433394 (9029041.7 ns) needs 432001       NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 28; margin a cycle
+    ir_nec             Space after AGC burst, message start >=  4.5e+06 ns  run    216486 (4510125.0 ns) needs 216001       NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 29; margin a cycle
+    ir_nec             Extra burst at end of message >=   560000 ns  run    27008 (562666.7 ns) needs 26881       NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 34; margin a cycle
+    ir_nec             AGC pulse, repeat code >=    9e+06 ns  run    433394 (9029041.7 ns) needs 432001       NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 37; margin a cycle
+    ir_nec             Space after AGC pulse, repeat code >= 2.25e+06 ns  run    108454 (2259458.3 ns) needs 108001       NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 37; margin a cycle
+    ir_nec             Burst, repeat code >=   560000 ns  run    27008 (562666.7 ns) needs 26881       NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 37; margin a cycle
+    ir_nec             Repeat code space >= 2.25e+06 ns  run    108454 (2259458.3 ns) needs 108001       NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 37; margin a cycle
+    ir_nec             Repeat code burst >=   560000 ns  run    27008 (562666.7 ns) needs 26881       NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 37; margin a cycle
+
+    lockstep: ir_nec, ir_nec
+    ("lockstep held" (cycles 225600))
+    (received ())
+    decode: test/traces/ir_nec.trace, by sigrok's ir_nec:ir=OUT0:polarity=active-high:cd_freq=38000
     |}]
 ;;
 
@@ -882,5 +905,5 @@ let%expect_test "no protocol file is left half written" =
             [%string "sigrok %{s.name}"]))
     in
     if not (List.is_empty left) then print_s [%message p.name (left : string list)]);
-  [%expect {| |}]
+  [%expect {| (ir_nec (left ("sigrok ir_nec"))) |}]
 ;;

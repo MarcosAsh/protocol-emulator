@@ -1201,6 +1201,7 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       , "SWCLK half 12 and up, 24 at 1 MHz"
       , "SWDIO turns around, its direction from the host word; not tried against the \
          class" )
+    ; "ir_nec", "TODO", "-", "-", "TODO whether the table interpreter runs it"
     ]
   in
   let named = List.map rows ~f:(fun (name, _, _, _, _) -> name) in
