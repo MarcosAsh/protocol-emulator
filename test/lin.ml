@@ -323,18 +323,85 @@ let bench =
   }
 ;;
 
-(* TODO a row for each parameter of the spec's timing table, then [unlimited] empty. Each
-   is bounded by the kernel over every path, [Datasheet.level] or [Datasheet.spacing], or
-   by [bench]'s run, [Datasheet.run], which a loop of waits needs as the kernel counts one
-   pass of it. For example
-   { Datasheet.firmware = bench.name
-   ; parameter = "tLOW"
-   ; limit = At_least 4700.
-   ; sheet = { part = "I2C"; document = "NXP UM10204 Rev. 7.0"; page = "Table 11, p.44" }
-   ; margin = Cycle
-   ; bound = Datasheet.level ~pin:Datasheet.set_pin ~high:false ()
-   } *)
-let limits : Datasheet.t list = []
+(* The header's timing at the pin, every row the run's: the break is a loop of waits,
+   which the kernel counts one pass of. A header runs from the break's fall to the PID's
+   start bit, the seventh fall, and its ten bits after (2.3.1, 2.3.2). Single bits, the
+   levels under a bit and a half, carry the bit rate. Slave-side, wake up, sleep and
+   transport layer rows do not apply to this firmware. *)
+let limits =
+  let sheet page =
+    { Datasheet.Sheet.part = "LIN master"
+    ; document = "LIN Specification Package Revision 2.2A"
+    ; page
+    }
+  in
+  let tbit = 1e9 /. 19_200. in
+  let bit ~clock_hz = clock_hz / 19_200 in
+  (* each break, from its low on *)
+  let headers ~clock_hz levels =
+    let rec from = function
+      | [] -> []
+      | (false, low) :: _ as rest when low >= 11 * bit ~clock_hz ->
+        rest :: from (List.tl_exn rest)
+      | _ :: rest -> from rest
+    in
+    from levels
+  in
+  let run f = Datasheet.run ~pin:Datasheet.set_pin f in
+  let break =
+    run (fun ~clock_hz levels ->
+      List.map (headers ~clock_hz levels) ~f:(fun header -> snd (List.hd_exn header)))
+  and delimiter =
+    run (fun ~clock_hz levels ->
+      List.filter_map (headers ~clock_hz levels) ~f:(fun header ->
+        Option.map (List.nth header 1) ~f:snd))
+  and break_field =
+    run (fun ~clock_hz levels ->
+      List.filter_map (headers ~clock_hz levels) ~f:(function
+        | (_, low) :: (_, high) :: _ -> Some (low + high)
+        | _ -> None))
+  and header =
+    run (fun ~clock_hz levels ->
+      List.filter_map (headers ~clock_hz levels) ~f:(fun header ->
+        let falls =
+          List.folding_map header ~init:0 ~f:(fun at (high, cycles) ->
+            at + cycles, Option.some_if (not high) at)
+          |> List.filter_opt
+        in
+        Option.map (List.nth falls 6) ~f:(fun pid -> pid + (10 * bit ~clock_hz))))
+  and bits =
+    run (fun ~clock_hz levels ->
+      List.concat_map (headers ~clock_hz levels) ~f:(fun header ->
+        List.filter_map (List.tl_exn header) ~f:(fun (_, cycles) ->
+          Option.some_if (2 * cycles < 3 * bit ~clock_hz) cycles)))
+  in
+  let limit parameter limit page bound =
+    { Datasheet.firmware = bench.name
+    ; parameter
+    ; limit
+    ; sheet = sheet page
+    ; margin = Cycle
+    ; bound
+    }
+  in
+  [ limit "break field" (At_least (13. *. tbit)) "2.3.1.1, p. 30" break
+  ; limit "break delimiter" (At_least tbit) "2.3.1.1, p. 30" delimiter
+  ; limit
+      "break field length (dominant + delimiter)"
+      (At_least (14. *. tbit))
+      "Table 2.3, p. 52"
+      break_field
+  ; limit
+      "THeader_Maximum, 1.4 * THeader_Nominal of 34 TBit"
+      (At_most (1.4 *. 34. *. tbit))
+      "2.3.2 eq. (3), p. 32, eq. (6), p. 33"
+      header
+  ; limit "FTOL_RES_MASTER, bit" (At_least (tbit *. 0.995)) "Table 6.1, p. 113" bits
+  ; limit "FTOL_RES_MASTER, bit" (At_most (tbit *. 1.005)) "Table 6.1, p. 113" bits
+  ; limit "bit rate, 20 kbit/s" (At_least 50_000.) "6.3, p. 112" bits
+  ; limit "bit rate, 1 kbit/s" (At_most 1e6) "6.3, p. 112" bits
+  ]
+;;
 
 (* 32 cycles a bit at 19200 baud keeps the run short *)
 let trace_bit = 32
@@ -399,9 +466,11 @@ let protocol =
   ; bench = [ bench ]
   ; loaded_from_hex = []
   ; limits
-  ; unlimited = [ "lin", "TODO the rows of the spec's timing table" ]
+  ; unlimited = []
   ; swept = []
-  ; not_swept = [ "lin", "TODO why the sweep does not stamp it, or a Swept.t" ]
+  ; not_swept =
+      [ "lin", "open drain, which a wire does not show, and it waits for a slave's answer"
+      ]
   ; scenarios = [ scenario ]
   ; decoded = []
   }

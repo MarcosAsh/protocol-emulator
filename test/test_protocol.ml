@@ -688,7 +688,14 @@ let%expect_test "every protocol from its file to the decoded trace" =
     lin: 61 words, 17 deadline waits, worst slack 1247, the kernel accepts it, assuming period 1250, a load of 16 or more, one edge before capture, no wrap
 
     limits
-    lin: none, TODO the rows of the spec's timing table
+    lin                break field    >=   677083 ns  run    33750 (703125.0 ns) needs 32501       LIN master, LIN Specification Package Revision 2.2A 2.3.1.1, p. 30; margin a cycle
+    lin                break delimiter >=  52083.3 ns  run    3750 (78125.0 ns) needs 2501       LIN master, LIN Specification Package Revision 2.2A 2.3.1.1, p. 30; margin a cycle
+    lin                break field length (dominant + delimiter) >=   729167 ns  run    37500 (781250.0 ns) needs 35002       LIN master, LIN Specification Package Revision 2.2A Table 2.3, p. 52; margin a cycle
+    lin                THeader_Maximum, 1.4 * THeader_Nominal of 34 TBit <= 2.47917e+06 ns  run    87500 (1822916.7 ns) needs 118999       LIN master, LIN Specification Package Revision 2.2A 2.3.2 eq. (3), p. 32, eq. (6), p. 33; margin a cycle
+    lin                FTOL_RES_MASTER, bit >=  51822.9 ns  run    2500 (52083.3 ns) needs 2489       LIN master, LIN Specification Package Revision 2.2A Table 6.1, p. 113; margin a cycle
+    lin                FTOL_RES_MASTER, bit <=  52343.8 ns  run    2500 (52083.3 ns) needs 2511       LIN master, LIN Specification Package Revision 2.2A Table 6.1, p. 113; margin a cycle
+    lin                bit rate, 20 kbit/s >=    50000 ns  run    2500 (52083.3 ns) needs 2401       LIN master, LIN Specification Package Revision 2.2A 6.3, p. 112; margin a cycle
+    lin                bit rate, 1 kbit/s <=    1e+06 ns  run    2500 (52083.3 ns) needs 47999       LIN master, LIN Specification Package Revision 2.2A 6.3, p. 112; margin a cycle
 
     lockstep: lin, lin
     ("lockstep held" (cycles 2880))
@@ -768,5 +775,5 @@ let%expect_test "no protocol file is left half written" =
             [%string "sigrok %{s.name}"]))
     in
     if not (List.is_empty left) then print_s [%message p.name (left : string list)]);
-  [%expect {| (lin (left ("unlimited lin" "not swept lin" "sigrok lin"))) |}]
+  [%expect {| (lin (left ("sigrok lin"))) |}]
 ;;
