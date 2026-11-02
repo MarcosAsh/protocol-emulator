@@ -282,7 +282,8 @@ let%expect_test "the receiver keeps its certificate's premises through its own A
         ~frames:(Or_error.map run.events ~f:List.length : int Or_error.t)
         ~acked:(run.acked : bool list)
         ~fault:(run.fault : Machine.Fault.t)];
-  [%expect {|
+  [%expect
+    {|
     ((premises ((period (96)) (floor false) (single_edge true))) (frames (Ok 13))
      (acked (true true true true true true true true true true true true true))
      (fault
