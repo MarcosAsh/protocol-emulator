@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# TODO what this shows on the bench, and what is wired to which pin (MicroPython, Pico A).
+# A Wiegand reader's 26-bit card read (Wikipedia, oldid 1374164469) on OUT0, DATA0, and
+# OUT1, DATA1, both idling high (MicroPython, Pico A): 50 us pulses every 500 us.
 # demo/outside.sh wiegand runs it, reading the analyser, the capture's length and
 # sigrok's decoders from the next line.
 # outside: analyser=A ms=2000 decode=-P wiegand:d0=D4:d1=TODO
@@ -9,16 +10,31 @@ import bench
 import bench_firmware
 import protocol_emulator as pe
 
-# TODO the words the firmware takes
-WORDS = [0x55, 0xA3]
+# the pulse width in cycles and the interval in pulse widths: the spec gives neither
+PULSE = 2400
+INTERVAL = 10
+
+
+def card(facility, card_id):
+    """The words of a 26-bit read: its bits less one, then the bits MSB first, even parity
+    over the first 12 and odd over the last 12."""
+    data = facility << 16 | card_id
+    even = bin(data >> 12).count("1") & 1
+    odd = 1 ^ bin(data & 0xFFF).count("1") & 1
+    bits = even << 25 | data << 1 | odd
+    return [25, bits >> 10, (bits & 0x3FF) << 6]
+
+
+WORDS = card(42, 4660)
 
 
 def run(transfer, log=print):
     host = pe.Host(transfer)
     bench.load(host, bench_firmware.WIEGAND)
     host.start()
-    host.push(WORDS)
-    # TODO read back what the far end answered, and judge it
+    host.push([PULSE, INTERVAL] + WORDS)
+    log("sent: %s" % " ".join("%04X" % w for w in WORDS))
+    # the panel only listens: the check is sigrok's read of the capture
     found = bench.faults(host)
     log("faults 0x%x" % found)
     return not found
