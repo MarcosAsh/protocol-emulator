@@ -548,11 +548,29 @@ let%expect_test "CTX off the bus" =
         ~ack_cycles:(run.ack_low_cycles : int)
         ~fault:(run.fault : Machine.Fault.t)
         ~single_edge:(run.single_edge : bool)];
+  (* so a frame whose CRC ends recessive leaves the capture armed past its ACK, and
+     another node's error flag in its EOF falls and rises: the frame after is taken *)
+  let line = List.nth_exn can2040_lines 3 in
+  let flagged = line @ [ true; true; true ] @ List.init 6 ~f:(fun _ -> false) in
+  let run =
+    receive ~ctx_on_bus:false (Node.create ~gap:20 [ flagged; List.hd_exn can2040_lines ])
+  in
+  print_s
+    [%message
+      "an error flag in the EOF"
+        ~events:(run.events : Receiver.Event.t list Or_error.t)
+        ~single_edge:(run.single_edge : bool)];
   [%expect
     {|
     ((frames (Ok 13)) (ack_cycles 1252)
      (fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false)))
+     (single_edge true))
+    ("an error flag in the EOF"
+     (events
+      (Ok
+       ((Frame ((id 0) (rtr false) (dlc 1) (data (1))))
+        (Frame ((id 291) (rtr false) (dlc 2) (data (222 173)))))))
      (single_edge true))
     |}]
 ;;
