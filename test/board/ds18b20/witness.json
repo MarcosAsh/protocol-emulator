@@ -1,14 +1,14 @@
 {
   "demo": "ds18b20",
-  "time": "2026-11-02T15:32:52",
+  "time": "2026-11-02T16:53:36",
   "result": "PASS",
-  "commit": "aaae258a2876ff8daab4975185a2f5feaadd9651",
-  "bitstream_sha256": "c70acd0de0e64cb5904f953e58f811dcd8e82e0c2f767999a0a80b4feb987cc3",
-  "netlist_sha256": "95eb429f4a4eb5a8b661b264d41c66f77d37780daa283731c654e8ca5d31e9cb",
-  "sums_sha256": "d2f06bfbf5bc5de51b95c1d394706643b37496bc2698b7136e7ec983a493bdb8",
+  "commit": "a68c75ab9ba58b62a58a2cf95f7f0cc1db1ae3e7",
+  "bitstream_sha256": "d814478c5e4d849ecbb71da7bfb32cc851d6a92cf371ef12b7669a2e97be072d",
+  "netlist_sha256": "28bfa97f1d03607ca9c2f3914f401b1b6990e3ee20542ba3d89d2347e67cff56",
+  "sums_sha256": "c5c44bd6bf4b3d8cd636cd417f3b10b9ac08a95afbac02e74657f409ab9164c0",
   "capture": {
     "file": "ds18b20.sr",
-    "sha256": "2eddd1d35f563a28e8395038908559b4538bef30a7be832f99576f6c17625603",
+    "sha256": "00127911aee98284df2abc3c5b8767d13b9a4f7a4a85a908a1c2cfa9cad0abb2",
     "rate_hz": 24000000,
     "seconds": 4.0,
     "analyser": "B",
@@ -18,7 +18,7 @@
   },
   "decode": {
     "arguments": "-P onewire_link:owr=D5,onewire_network -A onewire_network",
-    "sha256": "408260cd0763787e9b004a3652ea257e91cc6de617aa6a1610c1fd2f7a6fe248"
+    "sha256": "ed8f06ac8b97e10a373fa050fa00323ec1b304daa9fc6095bc8e936f8160f91f"
   },
   "timing": [
     {
@@ -26,7 +26,7 @@
       "limit": ">= 480.00 us",
       "sheet": "DS18B20, Maxim REV 042208 p.20",
       "spans": 3,
-      "measured": "504.24 us to 504.43 us",
+      "measured": "504.20 us to 504.43 us",
       "verdict": "proved"
     },
     {
@@ -34,7 +34,7 @@
       "limit": ">= 480.00 us",
       "sheet": "DS18B20, Maxim REV 042208 p.20",
       "spans": 3,
-      "measured": "1656.63 us to 2349.65 us",
+      "measured": "1710.54 us to 2119.09 us",
       "verdict": "proved"
     },
     {
@@ -42,7 +42,7 @@
       "limit": ">= 15.00 us",
       "sheet": "DS18B20, Maxim REV 042208 p.20",
       "spans": 3,
-      "measured": "30.37 us to 30.54 us",
+      "measured": "30.41 us to 30.59 us",
       "verdict": "proved"
     },
     {
@@ -50,7 +50,7 @@
       "limit": "<= 60.00 us",
       "sheet": "DS18B20, Maxim REV 042208 p.20",
       "spans": 3,
-      "measured": "30.37 us to 30.54 us",
+      "measured": "30.41 us to 30.59 us",
       "verdict": "proved"
     },
     {
@@ -105,16 +105,16 @@
       "parameter": "tREC",
       "limit": ">= 1000 ns",
       "sheet": "DS18B20, Maxim REV 042208 p.20",
-      "spans": 2797,
-      "measured": "5666 ns to 6356761 ns",
+      "spans": 2741,
+      "measured": "5708 ns to 5554472 ns",
       "verdict": "proved"
     },
     {
       "parameter": "tSLOT + tREC",
       "limit": ">= 61.00 us",
       "sheet": "DS18B20, Maxim REV 042208 p.20",
-      "spans": 2797,
-      "measured": "71.95 us to 6385.85 us",
+      "spans": 2741,
+      "measured": "71.95 us to 5583.68 us",
       "verdict": "proved"
     },
     {
@@ -138,7 +138,7 @@
     "READ ROM's first slot held low 66 us",
     "the first reset cut to 470 us"
   ],
-  "bitstream_source": "board-8x4's Verilog, neq8x4 3e23b13e's and unchanged through e195e44b, by icepi/Makefile REV=v1.3 (seed 2, 48.45 MHz) on the pc",
+  "bitstream_source": "board-8x4-features' Verilog, a68c75ab's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 1, 48.75 MHz) on the pc",
   "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
   "firmware": {
     "ONE_WIRE": "6015cf7ed0c5c4d58d28e0bc8d58a05dcdae475328d0d2f65b9384cf349fff7d"
@@ -152,7 +152,7 @@
     "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
     "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
     "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
-    "the bitstream is named by its sha256, and its netlist's, built from board-8x4's Verilog, neq8x4 3e23b13e's and unchanged through e195e44b, by icepi/Makefile REV=v1.3 (seed 2, 48.45 MHz) on the pc by the bench's notes, which CI does not rebuild",
+    "the bitstream is named by its sha256, and its netlist's, built from board-8x4-features' Verilog, a68c75ab's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 1, 48.75 MHz) on the pc by the bench's notes, which CI does not rebuild",
     "read slots, the DS18B20's, are counted but not held to a window"
   ]
 }

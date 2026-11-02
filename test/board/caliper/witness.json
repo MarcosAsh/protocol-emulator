@@ -1,14 +1,14 @@
 {
   "demo": "caliper",
-  "time": "2026-11-02T15:53:47",
+  "time": "2026-11-02T16:57:22",
   "result": "PASS",
-  "commit": "5757c5ca43fcc4d8365ad473ca91412e3e99f795",
-  "bitstream_sha256": "c70acd0de0e64cb5904f953e58f811dcd8e82e0c2f767999a0a80b4feb987cc3",
-  "netlist_sha256": "95eb429f4a4eb5a8b661b264d41c66f77d37780daa283731c654e8ca5d31e9cb",
-  "sums_sha256": "d4fddb8f809d411f90129d26e13c1fee428a01c8555ba9735489faec3813ad69",
+  "commit": "a68c75ab9ba58b62a58a2cf95f7f0cc1db1ae3e7",
+  "bitstream_sha256": "d814478c5e4d849ecbb71da7bfb32cc851d6a92cf371ef12b7669a2e97be072d",
+  "netlist_sha256": "28bfa97f1d03607ca9c2f3914f401b1b6990e3ee20542ba3d89d2347e67cff56",
+  "sums_sha256": "54c83dbf4a69c991761a68a3911c605c8012c436f9d03c47bab50f5d28188171",
   "capture": {
     "file": "caliper.sr",
-    "sha256": "ae46363dea7ec39e10ab475441a7731c0848169ccb3c0667a1b8bd39c2a9ddbf",
+    "sha256": "2d6c125faae0b91ae416e7cfdd8cc06397e80a26e2da24f9b9074388561cfc5e",
     "rate_hz": 24000000,
     "seconds": 2.0,
     "analyser": "A",
@@ -35,7 +35,7 @@
       "limit": ">= 5556 ns",
       "sheet": "ShumaTech, Chinese Scales, page 1, lines 52-54, 90 kHz",
       "spans": 96,
-      "measured": "5583 ns to 5709 ns",
+      "measured": "5583 ns to 5667 ns",
       "verdict": "proved"
     },
     {
@@ -43,7 +43,7 @@
       "limit": ">= 55.00 us",
       "sheet": "ShumaTech, Chinese Scales, page 1, lines 55-57",
       "spans": 2,
-      "measured": "20394.42 us to 21010.73 us",
+      "measured": "20405.92 us to 21039.35 us",
       "verdict": "proved"
     },
     {
@@ -59,7 +59,7 @@
       "limit": ">= 55.00 us",
       "sheet": "ShumaTech, Chinese Scales, page 1, lines 61-63",
       "spans": 1,
-      "measured": "21006.44 us to 21010.73 us",
+      "measured": "21035.06 us to 21039.35 us",
       "verdict": "proved"
     }
   ],
@@ -67,7 +67,7 @@
     "DATA inverted over the first bit",
     "the first clock low 1 us short"
   ],
-  "bitstream_source": "board-8x4's Verilog, neq8x4 3e23b13e's and unchanged through e195e44b, by icepi/Makefile REV=v1.3 (seed 2, 48.45 MHz) on the pc",
+  "bitstream_source": "board-8x4-features' Verilog, a68c75ab's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 1, 48.75 MHz) on the pc",
   "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
   "firmware": {
     "CALIPER": "680125c89ef4590730ecfe0aed14640de4036c33c468d13eed01d1d4e91d9e93"
@@ -81,7 +81,7 @@
     "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
     "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
     "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
-    "the bitstream is named by its sha256, and its netlist's, built from board-8x4's Verilog, neq8x4 3e23b13e's and unchanged through e195e44b, by icepi/Makefile REV=v1.3 (seed 2, 48.45 MHz) on the pc by the bench's notes, which CI does not rebuild",
+    "the bitstream is named by its sha256, and its netlist's, built from board-8x4-features' Verilog, a68c75ab's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 1, 48.75 MHz) on the pc by the bench's notes, which CI does not rebuild",
     "drawn at random and written blind from its spec (docs/flexibility.md)",
     "the page gives its times as about, which the library holds as least times"
   ]

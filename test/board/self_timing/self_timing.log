@@ -19,7 +19,7 @@ byte       predicted, cycles after the start bit
 '!' 0x21       0  5000 10000 30000 35000 45000
                0  5000 10000 30000 35000 45000  ok
 
-flooded, 211 SPI frames:
+flooded, 204 SPI frames:
 byte       predicted, cycles after the start bit
            measured
 'J' 0x4a       0 10000 15000 20000 25000 35000 40000 45000

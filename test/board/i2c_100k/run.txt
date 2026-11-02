@@ -1,4 +1,4 @@
-$ openFPGALoader -b icepi-zero /home/marcos/board-8x4/bit/v1.3.bit
+$ openFPGALoader -b icepi-zero /home/marcos/board-8x4/fbit/v1.3.bit
 Jtag probe limited to 3MHz
 Jtag frequency : requested 6000000Hz -> real 3000000Hz
 ret 0
@@ -7,12 +7,12 @@ b3bdffff
 Parse file: DONE
 Enable configuration: DONE
 SRAM erase: DONE
-Loading: [========                                          ] 15.32%
-Loading: [================                                  ] 30.64%
-Loading: [=======================                           ] 45.96%
-Loading: [===============================                   ] 60.98%
-Loading: [=======================================           ] 76.30%
-Loading: [==============================================    ] 91.62%
+Loading: [========                                          ] 15.20%
+Loading: [================                                  ] 30.41%
+Loading: [=======================                           ] 45.61%
+Loading: [===============================                   ] 60.82%
+Loading: [=======================================           ] 76.02%
+Loading: [==============================================    ] 91.23%
 Loading: [==================================================] 100.00%
 
 Done
@@ -22,7 +22,7 @@ try:
     os.remove('"'"'outside.log'"'"')
 except OSError:
     pass'
-$ ANALYSER=B ANALYSER_B_PORT=3-1 RATE=24M TRIES=8 demo/capture.sh /home/marcos/board-8x4/evidence/2026-11-02/sweep-rates/i2c_100k.4/i2c_100k.sr 4000 mpremote connect id:e66548545717552e exec --no-follow 'import demo_rates; demo_rates.main('"'"'i2c'"'"', only='"'"'i2c_standard'"'"')'
-$ mpremote connect id:e66548545717552e cat :outside.log > /home/marcos/board-8x4/evidence/2026-11-02/sweep-rates/i2c_100k.4/i2c_100k.log
-$ sigrok-cli -i /home/marcos/board-8x4/evidence/2026-11-02/sweep-rates/i2c_100k.4/i2c_100k.sr -P i2c:sda=D6:scl=D7,eeprom24xx:chip=onsemi_cat24c256 -A eeprom24xx > /home/marcos/board-8x4/evidence/2026-11-02/sweep-rates/i2c_100k.4/i2c_100k.decode
+$ ANALYSER=B ANALYSER_B_PORT=3-1 RATE=24M TRIES=8 demo/capture.sh /home/marcos/board-8x4/features/2026-11-02/sweep-rates/i2c_100k/i2c_100k.sr 4000 mpremote connect id:e66548545717552e exec --no-follow 'import demo_rates; demo_rates.main('"'"'i2c'"'"', only='"'"'i2c_standard'"'"')'
+$ mpremote connect id:e66548545717552e cat :outside.log > /home/marcos/board-8x4/features/2026-11-02/sweep-rates/i2c_100k/i2c_100k.log
+$ sigrok-cli -i /home/marcos/board-8x4/features/2026-11-02/sweep-rates/i2c_100k/i2c_100k.sr -P i2c:sda=D6:scl=D7,eeprom24xx:chip=onsemi_cat24c256 -A eeprom24xx > /home/marcos/board-8x4/features/2026-11-02/sweep-rates/i2c_100k/i2c_100k.decode
 Pico A says PASS, every step ran

@@ -1,4 +1,4 @@
-$ openFPGALoader -b icepi-zero /home/marcos/board-8x4/bit/v1.3.bit
+$ openFPGALoader -b icepi-zero /home/marcos/board-8x4/fbit/v1.3.bit
 Jtag probe limited to 3MHz
 Jtag frequency : requested 6000000Hz -> real 3000000Hz
 ret 0
@@ -7,22 +7,21 @@ b3bdffff
 Parse file: DONE
 Enable configuration: DONE
 SRAM erase: DONE
-Loading: [========                                          ] 15.32%
-Loading: [================                                  ] 30.64%
-Loading: [=======================                           ] 45.96%
-Loading: [===============================                   ] 61.28%
-Loading: [=======================================           ] 76.60%
-Loading: [==============================================    ] 91.92%
+Loading: [========                                          ] 15.20%
+Loading: [================                                  ] 30.41%
+Loading: [=======================                           ] 45.61%
+Loading: [===============================                   ] 60.82%
+Loading: [=======================================           ] 76.02%
+Loading: [==============================================    ] 91.23%
 Loading: [==================================================] 100.00%
 
 Done
 Disable configuration: DONE
 $ PICO_B_SERIAL=e66548545740ad29 demo/pico_b.sh can_node
-The device was asked to reboot into BOOTSEL mode.
 Loading into Flash:   [                              ]  0%Loading into Flash:   [===                           ]  10%Loading into Flash:   [======                        ]  21%Loading into Flash:   [=========                     ]  32%Loading into Flash:   [============                  ]  42%Loading into Flash:   [===============               ]  53%Loading into Flash:   [===================           ]  64%Loading into Flash:   [======================        ]  75%Loading into Flash:   [=========================     ]  85%Loading into Flash:   [============================  ]  96%Loading into Flash:   [==============================]  100%
 
 The device was rebooted to start the application.
 Pico B runs can_node on /dev/serial/by-id/usb-Raspberry_Pi_Pico_E66548545740AD29-if00
-& sh -c 'stty -F "$0" raw -echo && exec cat "$0"' /dev/serial/by-id/usb-Raspberry_Pi_Pico_E66548545740AD29-if00 > /home/marcos/board-8x4/evidence/2026-11-02/ledger/can.4/pico_b.log
-$ CAPTURES=/home/marcos/board-8x4/evidence/2026-11-02/ledger/can.4 PICO=id:e66548545717552e demo/outside.sh can > /home/marcos/board-8x4/evidence/2026-11-02/ledger/can.4/outside.txt
+& sh -c 'stty -F "$0" raw -echo && exec cat "$0"' /dev/serial/by-id/usb-Raspberry_Pi_Pico_E66548545740AD29-if00 > /home/marcos/board-8x4/features/2026-11-02/ledger/can/pico_b.log
+$ CAPTURES=/home/marcos/board-8x4/features/2026-11-02/ledger/can PICO=id:e66548545717552e demo/outside.sh can > /home/marcos/board-8x4/features/2026-11-02/ledger/can/outside.txt
 Pico A says PASS, every step ran

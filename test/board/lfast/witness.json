@@ -1,14 +1,14 @@
 {
   "demo": "lfast",
-  "time": "2026-11-02T15:54:01",
+  "time": "2026-11-02T16:57:36",
   "result": "PASS",
-  "commit": "5757c5ca43fcc4d8365ad473ca91412e3e99f795",
-  "bitstream_sha256": "c70acd0de0e64cb5904f953e58f811dcd8e82e0c2f767999a0a80b4feb987cc3",
-  "netlist_sha256": "95eb429f4a4eb5a8b661b264d41c66f77d37780daa283731c654e8ca5d31e9cb",
-  "sums_sha256": "a993619c051c1b58b3ebfe8a1fdb2230266505d88589099ad54752524076f53f",
+  "commit": "a68c75ab9ba58b62a58a2cf95f7f0cc1db1ae3e7",
+  "bitstream_sha256": "d814478c5e4d849ecbb71da7bfb32cc851d6a92cf371ef12b7669a2e97be072d",
+  "netlist_sha256": "28bfa97f1d03607ca9c2f3914f401b1b6990e3ee20542ba3d89d2347e67cff56",
+  "sums_sha256": "af193b93f68156cbcf71daddbfe5a0275e3502600f13ade3cacb62ac6018cbd5",
   "capture": {
     "file": "lfast.sr",
-    "sha256": "64e7ec835562e3930aadc4346401db2bd47f16a5179c976e80916d456e41eeb0",
+    "sha256": "5c4985d878b98dfe1608e489b29e31e33d262655381ff79f8125006568f50137",
     "rate_hz": 24000000,
     "seconds": 2.0,
     "analyser": "A",
@@ -98,7 +98,7 @@
     "the first payload's first bit inverted",
     "the first sync bit 1.8 bits long"
   ],
-  "bitstream_source": "board-8x4's Verilog, neq8x4 3e23b13e's and unchanged through e195e44b, by icepi/Makefile REV=v1.3 (seed 2, 48.45 MHz) on the pc",
+  "bitstream_source": "board-8x4-features' Verilog, a68c75ab's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 1, 48.75 MHz) on the pc",
   "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
   "firmware": {
     "LFAST": "176173c1ece34fe093b4a10436e1bfba78f3c0a29ef16b715895bd8c44242770"
@@ -112,7 +112,7 @@
     "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
     "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
     "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
-    "the bitstream is named by its sha256, and its netlist's, built from board-8x4's Verilog, neq8x4 3e23b13e's and unchanged through e195e44b, by icepi/Makefile REV=v1.3 (seed 2, 48.45 MHz) on the pc by the bench's notes, which CI does not rebuild",
+    "the bitstream is named by its sha256, and its netlist's, built from board-8x4-features' Verilog, a68c75ab's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 1, 48.75 MHz) on the pc by the bench's notes, which CI does not rebuild",
     "drawn at random and written blind from its spec (docs/flexibility.md)",
     "AN5134's one limit is a top rate, so the bit windows are the firmware's own bit to half a bit"
   ]

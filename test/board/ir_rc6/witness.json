@@ -1,14 +1,14 @@
 {
   "demo": "ir_rc6",
-  "time": "2026-11-02T15:54:14",
+  "time": "2026-11-02T16:57:49",
   "result": "PASS",
-  "commit": "5757c5ca43fcc4d8365ad473ca91412e3e99f795",
-  "bitstream_sha256": "c70acd0de0e64cb5904f953e58f811dcd8e82e0c2f767999a0a80b4feb987cc3",
-  "netlist_sha256": "95eb429f4a4eb5a8b661b264d41c66f77d37780daa283731c654e8ca5d31e9cb",
-  "sums_sha256": "29f934e9cf0e3682f0f4f3ebdad035524e71e801d20158f69fd16f4f4eb594a7",
+  "commit": "a68c75ab9ba58b62a58a2cf95f7f0cc1db1ae3e7",
+  "bitstream_sha256": "d814478c5e4d849ecbb71da7bfb32cc851d6a92cf371ef12b7669a2e97be072d",
+  "netlist_sha256": "28bfa97f1d03607ca9c2f3914f401b1b6990e3ee20542ba3d89d2347e67cff56",
+  "sums_sha256": "fcb1262f6dee18091951d358e99b68621afc33577ef98148ff4c9ba54a4bb063",
   "capture": {
     "file": "ir_rc6.sr",
-    "sha256": "53b6c0ce4a661d6053ae4a7fe872f0c961f32a59931d5fa52b01cda5d8ebe482",
+    "sha256": "7100b09fb3256e7d9e4945ca9fdc2d0f7dca3813c38edc45d397fb761055a3d7",
     "rate_hz": 24000000,
     "seconds": 2.0,
     "analyser": "A",
@@ -58,7 +58,7 @@
       "limit": ">= 1265.40 us",
       "sheet": "SB-Projects' RC-6 page, 444 us a unit, to Ir_rc6.decode's 5% (the page gives no tolerance)",
       "spans": 1,
-      "measured": "1333.24 us to 1333.59 us",
+      "measured": "1333.20 us to 1333.55 us",
       "verdict": "proved"
     },
     {
@@ -66,7 +66,7 @@
       "limit": "<= 1398.60 us",
       "sheet": "SB-Projects' RC-6 page, 444 us a unit, to Ir_rc6.decode's 5% (the page gives no tolerance)",
       "spans": 1,
-      "measured": "1333.24 us to 1333.59 us",
+      "measured": "1333.20 us to 1333.55 us",
       "verdict": "proved"
     },
     {
@@ -138,7 +138,7 @@
       "limit": ">= 2530.80 us",
       "sheet": "SB-Projects' RC-6 page, 444 us a unit, to Ir_rc6.decode's 5% (the page gives no tolerance)",
       "spans": 1,
-      "measured": "12031.38 us to 12033.87 us",
+      "measured": "12044.75 us to 12047.25 us",
       "verdict": "proved"
     }
   ],
@@ -146,7 +146,7 @@
     "the first address bit's halves swapped",
     "the first leader mark a unit short"
   ],
-  "bitstream_source": "board-8x4's Verilog, neq8x4 3e23b13e's and unchanged through e195e44b, by icepi/Makefile REV=v1.3 (seed 2, 48.45 MHz) on the pc",
+  "bitstream_source": "board-8x4-features' Verilog, a68c75ab's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 1, 48.75 MHz) on the pc",
   "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
   "firmware": {
     "IR_RC6": "ccadc74466b71dfde1603c971f568359d388da862ce71086e133555e34b81181"
@@ -160,7 +160,7 @@
     "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
     "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
     "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
-    "the bitstream is named by its sha256, and its netlist's, built from board-8x4's Verilog, neq8x4 3e23b13e's and unchanged through e195e44b, by icepi/Makefile REV=v1.3 (seed 2, 48.45 MHz) on the pc by the bench's notes, which CI does not rebuild",
+    "the bitstream is named by its sha256, and its netlist's, built from board-8x4-features' Verilog, a68c75ab's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 1, 48.75 MHz) on the pc by the bench's notes, which CI does not rebuild",
     "drawn at random and written blind from its spec (docs/flexibility.md)",
     "the page gives no tolerance, so the windows are its nominal times to Ir_rc6.decode's 5%"
   ]

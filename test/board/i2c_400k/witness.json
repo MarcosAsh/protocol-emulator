@@ -1,14 +1,14 @@
 {
   "demo": "sweep_i2c_400k",
-  "time": "2026-11-02T16:00:44",
+  "time": "2026-11-02T17:01:55",
   "result": "PASS",
-  "commit": "e195e44b0aaf396107f1bede62ddd74622476fe9",
-  "bitstream_sha256": "c70acd0de0e64cb5904f953e58f811dcd8e82e0c2f767999a0a80b4feb987cc3",
-  "netlist_sha256": "95eb429f4a4eb5a8b661b264d41c66f77d37780daa283731c654e8ca5d31e9cb",
-  "sums_sha256": "5546ebc74c70c8eced624e9cab549b321d066652300a1aca4c824795b43622ef",
+  "commit": "a68c75ab9ba58b62a58a2cf95f7f0cc1db1ae3e7",
+  "bitstream_sha256": "d814478c5e4d849ecbb71da7bfb32cc851d6a92cf371ef12b7669a2e97be072d",
+  "netlist_sha256": "28bfa97f1d03607ca9c2f3914f401b1b6990e3ee20542ba3d89d2347e67cff56",
+  "sums_sha256": "fa272e9a477cf03f5de990992238861dd19cc24f85b3faa7871668372e61b5ec",
   "capture": {
     "file": "i2c_400k.sr",
-    "sha256": "6c693fc1d1f9b85d5e267f656fff6e8d963a511b745cd5f9ef6ba157fb018522",
+    "sha256": "6d5434ad11620c6865cfd88f0478cbf77f66ee60b5011106e5100f4fb71965af",
     "rate_hz": 24000000,
     "seconds": 4.0,
     "analyser": "B",
@@ -19,62 +19,62 @@
   },
   "decode": {
     "arguments": "-P i2c:sda=D6:scl=D7,eeprom24xx:chip=onsemi_cat24c256 -A eeprom24xx",
-    "sha256": "dbd666767ac52acaad358f3b11082b4953aa27c691bf2f5176bff7c7e803e15c"
+    "sha256": "56e503dcb8d091ab4e7e95b87da73d751281d5afbb487fd6d530fe5bd3a541d7"
   },
   "timing": [
     {
       "parameter": "1/fSCL",
       "limit": ">= 2500 ns",
       "sheet": "I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
-      "spans": 1444,
-      "measured": "2583 ns to 1309048 ns",
+      "spans": 1435,
+      "measured": "2583 ns to 1348885 ns",
       "verdict": "unresolved"
     },
     {
       "parameter": "THIGH",
       "limit": ">= 600 ns",
       "sheet": "I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
-      "spans": 1444,
-      "measured": "1167 ns to 2625 ns",
+      "spans": 1435,
+      "measured": "1167 ns to 2584 ns",
       "verdict": "proved"
     },
     {
       "parameter": "TLOW",
       "limit": ">= 1300 ns",
       "sheet": "I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
-      "spans": 1457,
-      "measured": "1375 ns to 1307839 ns",
+      "spans": 1447,
+      "measured": "1375 ns to 1347676 ns",
       "verdict": "unresolved"
     },
     {
       "parameter": "THD:STA",
       "limit": ">= 600 ns",
       "sheet": "I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
-      "spans": 17,
-      "measured": "1292 ns to 1375 ns",
+      "spans": 16,
+      "measured": "1292 ns to 1417 ns",
       "verdict": "proved"
     },
     {
       "parameter": "TSU:STA",
       "limit": ">= 600 ns",
       "sheet": "I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
-      "spans": 16,
-      "measured": "1167 ns to 3413841 ns",
+      "spans": 15,
+      "measured": "1167 ns to 3369670 ns",
       "verdict": "proved"
     },
     {
       "parameter": "TSU:DAT",
       "limit": ">= 100 ns",
       "sheet": "I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
-      "spans": 818,
-      "measured": "583 ns to 1282920 ns",
+      "spans": 805,
+      "measured": "583 ns to 1326591 ns",
       "verdict": "proved"
     },
     {
       "parameter": "TSU:STO",
       "limit": ">= 600 ns",
       "sheet": "I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
-      "spans": 13,
+      "spans": 12,
       "measured": "1250 ns to 1375 ns",
       "verdict": "proved"
     },
@@ -82,8 +82,8 @@
       "parameter": "TBUF",
       "limit": ">= 1300 ns",
       "sheet": "I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44",
-      "spans": 12,
-      "measured": "420875 ns to 3412550 ns",
+      "spans": 11,
+      "measured": "412459 ns to 3368337 ns",
       "verdict": "proved"
     }
   ],
@@ -91,7 +91,7 @@
     "SDA inverted over bit 1 of the page write's byte at 0x7fc4",
     "SCL's tenth pulse cut to 6 samples"
   ],
-  "bitstream_source": "board-8x4's Verilog, neq8x4 3e23b13e's and unchanged through e195e44b, by icepi/Makefile REV=v1.3 (seed 2, 48.45 MHz) on the pc",
+  "bitstream_source": "board-8x4-features' Verilog, a68c75ab's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 1, 48.75 MHz) on the pc",
   "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
   "firmware": {
     "I2C_FAST": "4e0f0f5dd3282eddf52d0e45f28f59ceda17e3a4de759f1943a011b573c3ef77"
@@ -106,7 +106,7 @@
     "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
     "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
     "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
-    "the bitstream is named by its sha256, and its netlist's, built from board-8x4's Verilog, neq8x4 3e23b13e's and unchanged through e195e44b, by icepi/Makefile REV=v1.3 (seed 2, 48.45 MHz) on the pc by the bench's notes, which CI does not rebuild",
+    "the bitstream is named by its sha256, and its netlist's, built from board-8x4-features' Verilog, a68c75ab's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 1, 48.75 MHz) on the pc by the bench's notes, which CI does not rebuild",
     "SCL and SDA as the analyser's threshold sees them, so the most rise time comes off each least"
   ]
 }
