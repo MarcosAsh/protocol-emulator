@@ -1,14 +1,14 @@
 {
   "demo": "flash",
-  "time": "2026-10-30T16:04:24",
+  "time": "2026-11-02T15:32:05",
   "result": "PASS",
-  "commit": "b5c0748c56eea8ab598d269fd6da6bef709d06eb",
-  "bitstream_sha256": "ded0014fdf14df568ed478e5f6e36d1d91475ba62bae300e101c1b229c1f963f",
-  "netlist_sha256": "1db23ccd02406ef95731f3ffd7de23fbfa9a66a0410741d78cbcb04edc717f5f",
-  "sums_sha256": "1cca77d6ab68836748ef800d4b16254d5a1c4e6d5601e19fed448347d1abc3b6",
+  "commit": "aaae258a2876ff8daab4975185a2f5feaadd9651",
+  "bitstream_sha256": "c70acd0de0e64cb5904f953e58f811dcd8e82e0c2f767999a0a80b4feb987cc3",
+  "netlist_sha256": "95eb429f4a4eb5a8b661b264d41c66f77d37780daa283731c654e8ca5d31e9cb",
+  "sums_sha256": "46a913a8bd09e00320c90bd288c5a602caef377faadb42741edd631530ed8e5a",
   "capture": {
     "file": "flash.sr",
-    "sha256": "48e9aefd911567d0c4eaf202640da6d03b8ca84c24102edd6a56d4db4efaf647",
+    "sha256": "b42e45cb726e35bdba71d20d5151abecc4ba52de993a670e27b92d8f45f8bdf0",
     "rate_hz": 24000000,
     "seconds": 4.0,
     "analyser": "B",
@@ -21,14 +21,14 @@
   },
   "decode": {
     "arguments": "-P spi:clk=D0:mosi=D1:miso=D2:cs=D3,spiflash:chip=winbond_w25q80dv -A spiflash",
-    "sha256": "2ac54e2ff171203fe3087c20ac8054c59ac9cf2926cbe4acef31be9e52299136"
+    "sha256": "37ea9e92ecb5fb54e58c7de8b1c381661f9901ded4533f30fef3246bfc3f2335"
   },
   "timing": [
     {
       "parameter": "tCLH",
       "limit": ">= 9 ns",
       "sheet": "W25Q64JV, Winbond Rev. M p.64",
-      "spans": 9488,
+      "spans": 9520,
       "measured": "125 ns to 250 ns",
       "verdict": "proved"
     },
@@ -36,32 +36,32 @@
       "parameter": "tCLL",
       "limit": ">= 9 ns",
       "sheet": "W25Q64JV, Winbond Rev. M p.64",
-      "spans": 9412,
-      "measured": "83 ns to 6220789 ns",
+      "spans": 9442,
+      "measured": "83 ns to 6551155 ns",
       "verdict": "proved"
     },
     {
       "parameter": "tSLCH",
       "limit": ">= 3 ns",
       "sheet": "W25Q64JV, Winbond Rev. M p.64",
-      "spans": 76,
-      "measured": "0 ns to 125 ns",
-      "verdict": "unresolved"
+      "spans": 78,
+      "measured": "42 ns to 125 ns",
+      "verdict": "proved"
     },
     {
       "parameter": "tCHSH",
       "limit": ">= 3 ns",
       "sheet": "W25Q64JV, Winbond Rev. M p.64",
-      "spans": 76,
-      "measured": "292 ns to 375 ns",
+      "spans": 78,
+      "measured": "250 ns to 375 ns",
       "verdict": "proved"
     },
     {
       "parameter": "tSHSL2",
       "limit": ">= 50 ns",
       "sheet": "W25Q64JV, Winbond Rev. M p.64",
-      "spans": 75,
-      "measured": "1376612 ns to 6998366 ns",
+      "spans": 77,
+      "measured": "1352948 ns to 4004067 ns",
       "verdict": "proved"
     },
     {
@@ -69,7 +69,7 @@
       "limit": ">= 3000 ns",
       "sheet": "W25Q64JV, Winbond Rev. M p.65",
       "spans": 1,
-      "measured": "2603781 ns to 2604385 ns",
+      "measured": "2545995 ns to 2546588 ns",
       "verdict": "proved"
     }
   ],
@@ -77,10 +77,10 @@
     "MISO inverted over the first bit of the JEDEC ID's manufacturer byte",
     "the JEDEC frame's CS fall 2 us after ABh"
   ],
-  "bitstream_source": "main c6a2f802 (seed 2)",
+  "bitstream_source": "board-8x4's Verilog, neq8x4 3e23b13e's and unchanged through e195e44b, by icepi/Makefile REV=v1.3 (seed 2, 48.45 MHz) on the pc",
   "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
   "firmware": {
-    "SPI_CS_MODE0": "247310930636c2b967abe7e7831a2a9dce6dce52129a54d9dc67246dd265a086"
+    "SPI_CS_MODE0": "10acb35323acfc351ae7949ad88128b4944ca23893fe28376209d3c0a6f02b08"
   },
   "host_scripts": {
     "python/demo_flash.py": "2b615edd4019f2ac254fd5d3b09bcedc6515fc5bd547612dd89cea26d467d3ab"
@@ -91,6 +91,6 @@
     "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
     "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
     "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
-    "the bitstream is named by its sha256, and its netlist's, built from main c6a2f802 (seed 2) by the bench's notes, which CI does not rebuild"
+    "the bitstream is named by its sha256, and its netlist's, built from board-8x4's Verilog, neq8x4 3e23b13e's and unchanged through e195e44b, by icepi/Makefile REV=v1.3 (seed 2, 48.45 MHz) on the pc by the bench's notes, which CI does not rebuild"
   ]
 }

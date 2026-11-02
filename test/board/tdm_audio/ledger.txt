@@ -3,11 +3,11 @@ result: PASS
 pico_a_says: PASS
 traffic: held to the capture
 expected: PASS
-time: 2026-10-30T15:00:09
-commit: b82b5eccd88bf54bdf2ae420cc35e87a128efd54
-bitstream: /home/marcos/board-corpus/bit/v1.3.bit
-bitstream_sha256: ded0014fdf14df568ed478e5f6e36d1d91475ba62bae300e101c1b229c1f963f
-netlist_sha256: 1db23ccd02406ef95731f3ffd7de23fbfa9a66a0410741d78cbcb04edc717f5f
+time: 2026-11-02T15:54:28
+commit: 5757c5ca43fcc4d8365ad473ca91412e3e99f795
+bitstream: /home/marcos/board-8x4/bit/v1.3.bit
+bitstream_sha256: c70acd0de0e64cb5904f953e58f811dcd8e82e0c2f767999a0a80b4feb987cc3
+netlist_sha256: 95eb429f4a4eb5a8b661b264d41c66f77d37780daa283731c654e8ca5d31e9cb
 pico_a: id:e66548545717552e
 pico_b: e66548545740ad29 micropython
 rate: 24M

@@ -1,4 +1,4 @@
-$ openFPGALoader -b icepi-zero /home/marcos/board-corpus/bit/v1.3.bit
+$ openFPGALoader -b icepi-zero /home/marcos/board-8x4/bit/v1.3.bit
 Jtag probe limited to 3MHz
 Jtag frequency : requested 6000000Hz -> real 3000000Hz
 ret 0
@@ -7,10 +7,12 @@ b3bdffff
 Parse file: DONE
 Enable configuration: DONE
 SRAM erase: DONE
-Loading: [===========                                       ] 21.00%
-Loading: [======================                            ] 42.00%
-Loading: [================================                  ] 63.01%
-Loading: [==========================================        ] 83.60%
+Loading: [========                                          ] 15.32%
+Loading: [================                                  ] 30.64%
+Loading: [=======================                           ] 45.96%
+Loading: [===============================                   ] 61.28%
+Loading: [=======================================           ] 76.60%
+Loading: [==============================================    ] 91.92%
 Loading: [==================================================] 100.00%
 
 Done
@@ -20,7 +22,7 @@ try:
     os.remove('"'"'outside.log'"'"')
 except OSError:
     pass'
-$ ANALYSER=B ANALYSER_B_PORT=3-1 RATE=24M TRIES=8 demo/capture.sh /home/marcos/bench-rerun/evidence/2026-10-30/sweep-rates/spi_mode3/spi_mode3.sr 2500 mpremote connect id:e66548545717552e exec --no-follow 'import demo_rates; demo_rates.main('"'"'spi'"'"', only=3)'
-$ mpremote connect id:e66548545717552e cat :outside.log > /home/marcos/bench-rerun/evidence/2026-10-30/sweep-rates/spi_mode3/spi_mode3.log
-$ sigrok-cli -i /home/marcos/bench-rerun/evidence/2026-10-30/sweep-rates/spi_mode3/spi_mode3.sr -P spi:clk=D0:mosi=D1:miso=D2:cs=D3:cpol=1:cpha=1 -A spi=mosi-transfer:miso-transfer > /home/marcos/bench-rerun/evidence/2026-10-30/sweep-rates/spi_mode3/spi_mode3.decode
+$ ANALYSER=B ANALYSER_B_PORT=3-1 RATE=24M TRIES=8 demo/capture.sh /home/marcos/board-8x4/evidence/2026-11-02/sweep-rates/spi_mode3.2/spi_mode3.sr 2500 mpremote connect id:e66548545717552e exec --no-follow 'import demo_rates; demo_rates.main('"'"'spi'"'"', only=3)'
+$ mpremote connect id:e66548545717552e cat :outside.log > /home/marcos/board-8x4/evidence/2026-11-02/sweep-rates/spi_mode3.2/spi_mode3.log
+$ sigrok-cli -i /home/marcos/board-8x4/evidence/2026-11-02/sweep-rates/spi_mode3.2/spi_mode3.sr -P spi:clk=D0:mosi=D1:miso=D2:cs=D3:cpol=1:cpha=1 -A spi=mosi-transfer:miso-transfer > /home/marcos/board-8x4/evidence/2026-11-02/sweep-rates/spi_mode3.2/spi_mode3.decode
 Pico A says PASS, every step ran

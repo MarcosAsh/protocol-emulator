@@ -1,14 +1,14 @@
 {
   "demo": "eeprom",
-  "time": "2026-10-30T16:04:42",
+  "time": "2026-11-02T15:32:21",
   "result": "PASS",
-  "commit": "b5c0748c56eea8ab598d269fd6da6bef709d06eb",
-  "bitstream_sha256": "ded0014fdf14df568ed478e5f6e36d1d91475ba62bae300e101c1b229c1f963f",
-  "netlist_sha256": "1db23ccd02406ef95731f3ffd7de23fbfa9a66a0410741d78cbcb04edc717f5f",
-  "sums_sha256": "b3a83f81714c6b2e04d7836d4cea63b9ac340fb6f45b49078024ba04b9e8e225",
+  "commit": "aaae258a2876ff8daab4975185a2f5feaadd9651",
+  "bitstream_sha256": "c70acd0de0e64cb5904f953e58f811dcd8e82e0c2f767999a0a80b4feb987cc3",
+  "netlist_sha256": "95eb429f4a4eb5a8b661b264d41c66f77d37780daa283731c654e8ca5d31e9cb",
+  "sums_sha256": "050ff831413e1133965dd02803034283650b16fab899afe8d77a5a1a4a6c91f7",
   "capture": {
     "file": "eeprom.sr",
-    "sha256": "e0bd1693e8d646dbe3ddf776ee660a9a8d7d9f2358d438d721a89f4d734698cc",
+    "sha256": "d11b5d3a8c471a12e1172c3a1baa980238a57fa009b6e4042246af0843e1770f",
     "rate_hz": 24000000,
     "seconds": 3.0,
     "analyser": "B",
@@ -19,7 +19,7 @@
   },
   "decode": {
     "arguments": "-P i2c:sda=D6:scl=D7,eeprom24xx:chip=onsemi_cat24c256 -A eeprom24xx",
-    "sha256": "7d9cf034bfde059a6b386db8fb928ffd834376c58401c0a6dd80c91484eb0569"
+    "sha256": "219c5e221f824dfe956770d0bfd43cd1dd6dac380ac111e9f03f91f00190cbc6"
   },
   "timing": [
     {
@@ -27,7 +27,7 @@
       "limit": ">= 2500 ns",
       "sheet": "24LC256, Microchip DS20001203W, Table 1-2 p.4, param 1",
       "spans": 1444,
-      "measured": "3916 ns to 1258668 ns",
+      "measured": "3916 ns to 1256417 ns",
       "verdict": "proved"
     },
     {
@@ -43,7 +43,7 @@
       "limit": ">= 1300 ns",
       "sheet": "24LC256, Microchip DS20001203W, Table 1-2 p.4, param 3",
       "spans": 1457,
-      "measured": "2041 ns to 1256751 ns",
+      "measured": "2041 ns to 1254542 ns",
       "verdict": "proved"
     },
     {
@@ -59,15 +59,15 @@
       "limit": ">= 600 ns",
       "sheet": "24LC256, Microchip DS20001203W, Table 1-2 p.4, param 7",
       "spans": 16,
-      "measured": "833 ns to 3229281 ns",
+      "measured": "833 ns to 6471564 ns",
       "verdict": "unresolved"
     },
     {
       "parameter": "TSU:DAT",
       "limit": ">= 100 ns",
       "sheet": "24LC256, Microchip DS20001203W, Table 1-2 p.4, param 9",
-      "spans": 813,
-      "measured": "917 ns to 1256501 ns",
+      "spans": 820,
+      "measured": "917 ns to 1222789 ns",
       "verdict": "proved"
     },
     {
@@ -83,7 +83,7 @@
       "limit": ">= 1300 ns",
       "sheet": "24LC256, Microchip DS20001203W, Table 1-2 p.5, param 14",
       "spans": 12,
-      "measured": "424208 ns to 3228281 ns",
+      "measured": "385378 ns to 6470564 ns",
       "verdict": "proved"
     }
   ],
@@ -91,11 +91,11 @@
     "SDA inverted over bit 1 of the page write's byte at 0x7fc4",
     "SCL's tenth pulse cut to 6 samples"
   ],
-  "bitstream_source": "main c6a2f802 (seed 2)",
+  "bitstream_source": "board-8x4's Verilog, neq8x4 3e23b13e's and unchanged through e195e44b, by icepi/Makefile REV=v1.3 (seed 2, 48.45 MHz) on the pc",
   "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
   "firmware": {
-    "I2C_MASTER": "580d0128e478510f9fa83e5a829f46f05d186c3b0b35bbfb595ae098a7310106",
-    "START_HOLD": "651aaeeea02ead44f6cf9dd70f0684e33c53a2c760e695191588bdd448284981"
+    "I2C_MASTER": "99a137445d048bffe935c5d6858959a6ea3701373dd59fdfc29945b673f9af3f",
+    "START_HOLD": "f6132e93e4d11a65912cdb2673d2e40ef267a4e2865fa32d22c5cd4062ae2b9e"
   },
   "host_scripts": {
     "python/demo_eeprom.py": "df366be5288c928a10ebebbdbbb4ccc5a61b137fed1374e8642eb728466b25a9"
@@ -106,7 +106,7 @@
     "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
     "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
     "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
-    "the bitstream is named by its sha256, and its netlist's, built from main c6a2f802 (seed 2) by the bench's notes, which CI does not rebuild",
+    "the bitstream is named by its sha256, and its netlist's, built from board-8x4's Verilog, neq8x4 3e23b13e's and unchanged through e195e44b, by icepi/Makefile REV=v1.3 (seed 2, 48.45 MHz) on the pc by the bench's notes, which CI does not rebuild",
     "SCL and SDA as the analyser's threshold sees them, so the most rise time comes off each least"
   ]
 }
