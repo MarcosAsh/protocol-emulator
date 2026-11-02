@@ -4,7 +4,7 @@ open Protocol_emulator
 (* what the analyser and the kernel make of the firmware, which compiling it checked *)
 let%expect_test "the firmware's verdict" =
   print_endline (Analyser.Verdict.to_string (Timed_program.verdict Dmx512.firmware));
-  [%expect {| 52 words, 14 deadline waits, worst slack 182 |}]
+  [%expect {| 53 words, 14 deadline waits, worst slack 182 |}]
 ;;
 
 (* The line, level by level with the cycles each lasted, for a start code's word: the
@@ -29,7 +29,7 @@ let%expect_test "the line for a start code" =
   in
   print_s [%message (runs : (bool * int) list)];
   [%expect
-    {| (runs ((false 4) (true 4) (false 4800) (true 768) (false 1728) (true 696))) |}]
+    {| (runs ((false 5) (true 4) (false 4800) (true 768) (false 1728) (true 695))) |}]
 ;;
 
 (* A receiver as the spec describes it (lines 291-297, 303-310): a low of at least 88 us

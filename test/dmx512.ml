@@ -9,8 +9,9 @@ module Reg = Host_port.Reg
    table at lines 303-310. Bits of 192 cycles at 48 MHz. *)
 let pin = 5
 
-(* The analyser takes [add p, p] for a load, so the four instructions that make it are
-   given as the period they make. *)
+(* [set] reaches 31, so the firmware builds the bit in x and writes p once. The analyser
+   and the certificate take any write to p for a load, assumed to be this, which here it
+   is. *)
 let period = 24 * 8
 
 let config =
@@ -29,10 +30,11 @@ let config =
 let firmware =
   [%firmware
     {|
-    set p, 24
-    add p, p
-    add p, p
-    add p, p                 ; a bit, 192 cycles
+    set x, 24
+    add x, x
+    add x, x
+    add x, x
+    mov p, x                 ; a bit, 192 cycles
     set pins, 1              ; mark while idle
 packet:
     wait tx                  ; the start code's word
