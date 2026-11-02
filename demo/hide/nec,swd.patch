@@ -1,0 +1,1399 @@
+diff --git a/.github/workflows/test.yaml b/.github/workflows/test.yaml
+index b10cc723..d8d846cb 100644
+--- a/.github/workflows/test.yaml
++++ b/.github/workflows/test.yaml
+@@ -73,7 +73,6 @@ jobs:
+           ! grep failure results.xml
+           make replay
+           make carrier_check
+-          python3 test_swd_probe.py
+ 
+       - name: Test Summary
+         uses: test-summary/action@v2.4
+diff --git a/demo/carrier_check.py b/demo/carrier_check.py
+index ed6dc8bd..86590fd5 100644
+--- a/demo/carrier_check.py
++++ b/demo/carrier_check.py
+@@ -29,7 +29,6 @@ sys.path.insert(0, str(ROOT / "python"))
+ import carrier_pins  # noqa: E402
+ import demo_ds18b20  # noqa: E402
+ import demo_flash  # noqa: E402
+-import demo_swd  # noqa: E402
+ from carrier_pins import HEADER, bit  # noqa: E402
+ 
+ NETLIST = ROOT / "demo/carrier_netlist.csv"
+@@ -295,18 +294,6 @@ def can(bench, r):
+     return board_b
+ 
+ 
+-def swd(bench, r):
+-    s = demo_swd
+-    ack, value, parity = bench.pins.swd_dpidr([0xFFFF] + s.ALERT + [s.ACTIVATION],
+-                                              s.LINE_RESET, s.request(0, 0, 0xC), s.CORE0)
+-    good = parity == bin(value).count("1") & 1
+-    return r.check(ack == s.OK and value == s.DPIDR and good,
+-                   ["SWCLK", "SWCLK_PICO", "SWDIO", "SWDIO_PICO"],
+-                   "Pico B's core 0 answers DPIDR 0x%08x through J8" % value,
+-                   "DPIDR: ACK %s, 0x%08x, parity %s: the debug cable on J8 or R11, R12"
+-                   % (s.ack_name(ack), value, "good" if good else "bad"))
+-
+-
+ def flash(bench, r):
+     nets = ["FLASH_CLK", "FLASH_DI", "FLASH_DO", "FLASH_CS_N"]
+     jedec = bench.pins.jedec()
+@@ -420,7 +407,7 @@ def run(bench, nets, button=True, with_analysers=False):
+         pulls = pull_ups(bench, r)
+         pico_a(bench, r)
+         rail_a = [eeprom(bench, r), ds18b20(bench, r), flash(bench, r)] + pulls[:4]
+-        rail_b = [can(bench, r), swd(bench, r), pulls[4]]
++        rail_b = [can(bench, r), pulls[4]]
+         ethernet(bench, r)
+         r.line("SKIP", ["NEO_3V3", "NEO_5V", "NEO_DIN"],
+                "no pin reads past U3's input: --analysers sees header 18, the stick the rest")
+diff --git a/demo/ledger.py b/demo/ledger.py
+index bf0f60fc..a04db905 100644
+--- a/demo/ledger.py
++++ b/demo/ledger.py
+@@ -98,10 +98,7 @@ DEMOS = [
+     outside("eeprom_stretch"),
+     outside("ds18b20"),
+     outside("neopixel"),
+-    outside("swd"),
+     outside("referee"),
+-    # Pico B idle, as its GP1 shares OUT0's net
+-    outside("nec", pico_b="micropython"),
+     # the protocols drawn at random (docs/flexibility.md); Pico B idle again where OUT0 is used
+     outside("microwire"),
+     outside("xy2_100"),
+diff --git a/demo/speed.tsv b/demo/speed.tsv
+index fba899cf..1ae9c65d 100644
+--- a/demo/speed.tsv
++++ b/demo/speed.tsv
+@@ -3,9 +3,6 @@ ps2	spec	2026-10-15T17:19:40+01:00	blind run, protocol-kit-blind/times.log
+ ps2	file	2026-10-15T18:02:01+01:00	after limits
+ ps2	certificate	2026-10-15T18:09:07+01:00	remote prove PASS; teeth ended 18:13:00
+ ps2	bench	2026-10-15T18:12:37+01:00	done bench, before the certificate closed
+-nec	spec	2026-10-22T17:00:43+01:00	new-protocol
+-nec	file	2026-10-22T17:32:00+01:00	agent run, tx and rx
+-nec	certificate	2026-10-22T17:32:53+01:00	remote prove PASS nec_tx and nec_rx, every tooth failed
+ snorble	spec	2026-10-18T21:11:14+01:00	rehearsal 10-18, spec.pdf read with pdftotext; limits read twice and agreed 21:12:03
+ plinkoo	spec	2026-10-18T21:11:14+01:00	rehearsal 10-18, spec.pdf read with pdftotext; limits read twice and agreed 21:12:03
+ frumbleglide	spec	2026-10-18T21:11:14+01:00	rehearsal 10-18, spec.pdf read with pdftotext; limits read twice and agreed 21:12:03
+diff --git a/demo/traffic.py b/demo/traffic.py
+index bb3e2f9e..f48ad50d 100644
+--- a/demo/traffic.py
++++ b/demo/traffic.py
+@@ -21,10 +21,8 @@ import demo_flash  # noqa: E402
+ import demo_ir_rc6  # noqa: E402
+ import demo_lfast  # noqa: E402
+ import demo_microwire  # noqa: E402
+-import demo_nec  # noqa: E402
+ import demo_neopixel  # noqa: E402
+ import demo_referee  # noqa: E402
+-import demo_swd  # noqa: E402
+ import demo_tdm_audio  # noqa: E402
+ import demo_xy2_100  # noqa: E402
+ import pio_firmware  # noqa: E402
+@@ -222,27 +220,6 @@ def ds18b20(_levels):
+     return judge
+ 
+ 
+-def swd(_levels):
+-    """Core 0's and core 1's DPIDR and AP 0's IDR, each read with an OK. sigrok's SWD
+-    decoder misreads the dormant wake and TARGETSEL, so only reads are held to it."""
+-
+-    def judge(decoded, log):
+-        idr = re.search(r"^AP 0 IDR 0x(\w{8})", log, re.M)
+-        if not idr:
+-            return ["Pico A's log has no AP 0 IDR to hold the decode to"]
+-        reads = [(op, value) for op, ack, value in zip(decoded, decoded[1:], decoded[2:])
+-                 if ack == "swd-1: OK" and value.startswith("swd-1: 0x")]
+-        dpidr = ("swd-1: IDCODE", "swd-1: 0x%08x" % demo_swd.DPIDR)
+-        times = reads.count(dpidr)
+-        problems = [] if times >= 2 else [
+-            "DPIDR 0x%08x read OK %d times, expected one a core" % (demo_swd.DPIDR, times)]
+-        if ("swd-1: RDBUFF", "swd-1: 0x" + idr.group(1)) not in reads:
+-            problems.append("no RDBUFF read OK of AP 0's IDR 0x%s" % idr.group(1))
+-        return problems
+-
+-    return judge
+-
+-
+ def start_hold(_levels):
+     def judge(decoded, log):
+         stamped = re.search(r"^chip, engine 1: (\d+) STARTs", log, re.M)
+@@ -302,11 +279,6 @@ def keyboard(_levels):
+     return judge
+ 
+ 
+-def nec(_levels):
+-    expected = demo_nec.lines(demo_nec.KEYS)
+-    return lambda decoded, _log: exactly(decoded, expected, "the keys sent")
+-
+-
+ def microwire(_levels):
+     expected = demo_microwire.lines(demo_microwire.FRAMES)
+     return lambda decoded, _log: exactly(decoded, expected, "the frames' DI")
+@@ -382,11 +354,9 @@ CHECKS = {
+     "eeprom": (I2C, eeprom),
+     "eeprom_stretch": (I2C, eeprom),
+     "ds18b20": ({5: "DQ"}, ds18b20),
+-    "swd": ({6: "SWCLK", 7: "SWDIO"}, swd),
+     "start_hold": (I2C, start_hold),
+     "self_timing": (OUT0, self_timing),
+     "keyboard": (OUT0, keyboard),
+-    "nec": (OUT0, nec),
+     "sweep": (OUT0, sweep),
+     "pio_ws2812": (NEO, pio_ws2812),
+     "pio_uart_tx": (OUT0, pio_uart_tx),
+diff --git a/demo/witness.py b/demo/witness.py
+index 30f23835..d5556d6a 100644
+--- a/demo/witness.py
++++ b/demo/witness.py
+@@ -431,49 +431,6 @@ def can(rx):
+     return timing, byte_tooth, edge_tooth
+ 
+ 
+-def swd(swclk, swdio):
+-    rp2040 = "RP2040, RP2040 datasheet, 2025-02-20 s.2.3.4 p.61"
+-
+-    def resets(samples):
+-        """SWDIO's high runs over more SWCLK rises than a read nobody answers, each with
+-        its first sample and the rises: the park bit, turnaround, ACK, 32 bits, parity and
+-        turnaround are 39."""
+-        rises = [a for a, t in zip(*edges(samples, swclk)) if t]
+-        out = []
+-        for level, first, n in runs(samples, swdio):
+-            clocks = [r for r in rises if first <= r < first + n]
+-            if level and len(clocks) > 39:
+-                out.append((first, clocks))
+-        return out
+-
+-    def timing(samples, rate, _capture, _decode, _log):
+-        found = runs(samples, swclk)
+-        half = 1 / 48e6
+-        return [bound("SWCLK high", rp2040, [span(n, rate) for level, _, n in found if level],
+-                      at_least=half),
+-                bound("SWCLK low", rp2040, [span(n, rate) for level, _, n in found if not level],
+-                      at_least=half),
+-                count("line reset", "ADIv5.2, Arm IHI 0031, B4.3.3, SWDIO high",
+-                      [len(clocks) for _, clocks in resets(samples)], at_least=50,
+-                      unit="cycles")]
+-
+-    def byte_tooth(samples, _rate, capture, decode):
+-        """SWDIO inverted over a bit of AP 0's IDR, read once."""
+-        first, last, _ = next(a for a in annotations(capture, decode, "swd")
+-                              if a[2] == "swd-1: 0x04770031")
+-        falls = [a for a, t in zip(*edges(samples, swclk)) if not t and first <= a <= last]
+-        return (changed(samples, swdio, falls[3] + 2, falls[4] + 2),
+-                "SWDIO inverted over a bit of AP 0's IDR")
+-
+-    def edge_tooth(samples, _rate):
+-        """The first line reset's SWDIO rise moved 20 SWCLK rises later."""
+-        first, clocks = resets(samples)[0]
+-        return (moved(samples, swdio, first, clocks[20] - 3),
+-                "the first line reset's rise 20 cycles late", "line reset")
+-
+-    return timing, byte_tooth, edge_tooth
+-
+-
+ def uart(line, baud, clock_hz):
+     sheet = "UART at %d baud, Maxim AN2141 p.4, 2%%" % baud
+ 
+@@ -596,78 +553,6 @@ def spi(sck, mosi, miso, cs):
+     return timing, byte_tooth, edge_tooth
+ 
+ 
+-# NEC in units of 562.5 us, as test/nec.ml holds it (SB-Projects' page), each mark and space
+-# within 5% as Nec.decode takes it, the period at least 5% under its 192
+-NEC = "NEC, test/nec.ml's frames and Nec.decode's 5%"
+-NEC_UNIT = 562.5e-6
+-
+-
+-def nec(line):
+-    def marks(samples):
+-        """Each mark, the line low, as (first sample, samples, the space after it)."""
+-        found = runs(samples, line)
+-        return [(first, n, found[i + 1][2] if i + 1 < len(found) else None)
+-                for i, (level, first, n) in enumerate(found) if not level]
+-
+-    def messages(samples, rate):
+-        """Each leader's mark, and the marks after it up to the next leader."""
+-        out = []
+-        for m in marks(samples):
+-            if m[1] > 8 * NEC_UNIT * rate:
+-                out.append([m])
+-            elif out:
+-                out[-1].append(m)
+-        return out
+-
+-    def timing(samples, rate, _capture, _decode, _log):
+-        n = {k: [] for k in ["leader mark", "leader space", "repeat space", "bit mark",
+-                             "zero space", "one space", "final mark", "period"]}
+-        found = messages(samples, rate)
+-        for message, after in zip(found, found[1:] + [None]):
+-            (start, mark, space), rest = message[0], message[1:]
+-            n["leader mark"].append(mark)
+-            if space is not None and space < 6 * NEC_UNIT * rate:
+-                n["repeat space"].append(space)
+-            elif space is not None:
+-                n["leader space"].append(space)
+-                for _, bit, gap in rest[:32]:
+-                    n["bit mark"].append(bit)
+-                    if gap is not None:
+-                        n["one space" if gap > 2 * NEC_UNIT * rate else "zero space"].append(gap)
+-                rest = rest[32:]
+-            n["final mark"] += [m for _, m, _ in rest[:1]]
+-            if after:
+-                n["period"].append(after[0][0] - start)
+-        units = {"leader mark": 16, "leader space": 8, "repeat space": 4, "bit mark": 1,
+-                 "zero space": 1, "one space": 3, "final mark": 1}
+-        records = []
+-        for p, k in units.items():
+-            spans = [span(w, rate) for w in n[p]]
+-            records.append(bound(p, NEC, spans, at_least=0.95 * k * NEC_UNIT))
+-            records.append(bound(p, NEC, spans, at_most=1.05 * k * NEC_UNIT))
+-        return records + [bound("period", NEC, [span(w, rate) for w in n["period"]],
+-                                at_least=0.95 * 192 * NEC_UNIT)]
+-
+-    def byte_tooth(samples, rate, _capture, _decode):
+-        """The first command's bits 3 and 4, a one then a zero, swapped in the same six
+-        units: the command reads 0x10."""
+-        bits = messages(samples, rate)[0][1:]
+-        start, end, unit = bits[19][0], bits[21][0], round(NEC_UNIT * rate)
+-        out = changed(samples, line, start, start + unit, 0)
+-        out = changed(out, line, start + unit, start + 2 * unit, 1)
+-        out = changed(out, line, start + 2 * unit, start + 3 * unit, 0)
+-        return (changed(out, line, start + 3 * unit, end, 1),
+-                "the first command's bits 3 and 4 swapped")
+-
+-    def edge_tooth(samples, rate):
+-        """The first leader's mark a unit short."""
+-        start, mark, _ = messages(samples, rate)[0][0]
+-        return (moved(samples, line, start + mark, start + mark - round(NEC_UNIT * rate)),
+-                "the first leader mark a unit short", "leader mark")
+-
+-    return timing, byte_tooth, edge_tooth
+-
+-
+ # The protocols drawn at random (docs/flexibility.md). The windows are their specs' limits
+ # where the spec has any, else the nominal times the library's firmware and decoder hold to,
+ # each named for where it comes from.
+@@ -1126,17 +1011,6 @@ DEMOS = {
+                      ("python/demo_can_node.py",),
+                      "Pico B as a CAN node on the far SN65HVD230, sending and ACKing", can(5),
+                      CAN_LIMITS + ("Pico B's own frames are held to the same windows",)),
+-    "swd": Demo("-P swd:swclk=D6:swdio=D7 -A swd", "A",
+-                {"D6": "SWCLK, OUT2", "D7": "SWDIO, IO5, 4k7 pull-up"}, ("SWD",),
+-                ("python/demo_swd.py",), "Pico B's RP2040 as the SWD target", swd(6, 7),
+-                ("sigrok misreads the dormant wake and TARGETSEL, so only reads are held to "
+-                 "the bytes",)),
+-    "nec": Demo("-P ir_nec:ir=D4 -A ir_nec=addr:addr-inv:cmd:cmd-inv:repeat-code", "A",
+-                {"D4": "OUT0, low for a mark"}, ("NEC_TX",), ("python/demo_nec.py",),
+-                "nothing, OUT0 as an IR receiver module's output would be, Pico B idle on it",
+-                nec(4),
+-                ("NEC has no datasheet table, so its windows are test/nec.ml's frames and "
+-                 "Nec.decode's 5%",)),
+     "microwire": Demo(outside("microwire"), "B",
+                       {"D0": "SK, OUT5, the flash's CLK", "D1": "DI, OUT4, the flash's DI",
+                        "D2": "DO, IN0, the flash's DO", "D3": "CS, OUT6, the flash's CS"},
+diff --git a/docs/protocols.md b/docs/protocols.md
+index 10320571..5dc26823 100644
+--- a/docs/protocols.md
++++ b/docs/protocols.md
+@@ -21,9 +21,7 @@ These are the 55 library firmwares the kernel accepts in `test/test_kernel.ml`.
+ | CEC | cec |
+ | SPI with chip select | spi_cs_mode0 to spi_cs_mode3, each also with default pins |
+ | SPI target | spi_target_mode0 to spi_target_mode3 |
+-| SWD | swd |
+ | Tables | table, table_open_drain |
+-| NEC infrared | nec_tx, nec_rx |
+ | SNB-1 Snorble Sensor Beacon, Rev. C | snorble |
+ | PLK-2 Plinkoo Two-Wire Packet Bus, revision 1.3 | plinkoo |
+ | FGL-0 Frumbleglide Clockless Telemetry Link, revision 0.9 | none: no whole number of cycles meets its cell limits at 48 MHz, and the limits refuse the nearest firmware |
+diff --git a/docs/verification.md b/docs/verification.md
+index 0d057346..82762ab3 100644
+--- a/docs/verification.md
++++ b/docs/verification.md
+@@ -77,10 +77,10 @@ a way to make them fail.
+ | Check | What we did | Result |
+ |---|---|---|
+ | Planted delays, run | at every deadline wait of the 7 swept firmwares, 1 to 3 cycles of `nop`, half the slack, and every count from one short of the slack to three past, each run on the model (`test/test_delay_variants.ml`) | 283 planted. The kernel certified 181 and none ran late. It refused 102, and 92 of those did run late. The other 10 are late only on paths the test's input never takes |
+-| One cycle late, everywhere | every deadline wait in the library given one cycle more than its slack (`test/test_late_mutants.ml`) | 521 refused by the kernel. The other 46, all of ir_rc6 and nec_tx and one each in ethernet and nec_rx, can't be planted: the extra cycles push the program past its 512 words, so the assembler refuses it first |
++| One cycle late, everywhere | every deadline wait in the library given one cycle more than its slack (`test/test_late_mutants.ml`) | 546 refused by the kernel. The other 23, all of ir_rc6 and one in ethernet, can't be planted: the extra cycles push the program past its 512 words, so the assembler refuses it first |
+ | Mutants | the tests against mutants of the engine, decoder, pins and host port | the tests kill 112 of 114 valid mutants (mutation run 39462087759, 2026-10-20). The other 2 are equivalent, see `test/mutation_allow.txt` |
+ | Weakened proofs | each lemma in `formal/` has copies with a premise dropped (`make -C formal teeth` and the other `*_teeth` targets) | every copy fails, as it must |
+-| Loose limits | which firmware its datasheet limits don't hold within a factor of two (`test/test_datasheet.ml`) | lfast and swd are loose, ir_rc6 and nec_tx have no limits, each listed with why |
++| Loose limits | which firmware its datasheet limits don't hold within a factor of two (`test/test_datasheet.ml`) | lfast is loose, ir_rc6 has no limits, each listed with why |
+ 
+ Counted on 2026-09-30, of 13 bugs fixed in commits of their own, model tests found 3, the
+ analyser's soundness check 3, AI review 3, proofs 2, the analyser 1 and a mutant 1. Among
+diff --git a/pio/src/census.ml b/pio/src/census.ml
+index edb8f4af..ef4be7a2 100644
+--- a/pio/src/census.ml
++++ b/pio/src/census.ml
+@@ -61,7 +61,6 @@ let configure (program : Pioasm.Program.t) (s : Translate.Setup.t) : Translate.S
+     ; jmp_pin = s.in_base
+     ; init = [ "set x, 1"; "set y, 0" ]
+     }
+-  | "nec_receive" -> { s with autopush = true; push_threshold = 32; jmp_pin = s.in_base }
+   | "onewire" ->
+     { s with
+       in_base = s.side_set_base
+diff --git a/pio/test/pico_examples/SHA256SUMS b/pio/test/pico_examples/SHA256SUMS
+index ee3cea44..8733d96a 100644
+--- a/pio/test/pico_examples/SHA256SUMS
++++ b/pio/test/pico_examples/SHA256SUMS
+@@ -7,9 +7,6 @@ cbe77586330cbb169149f66517572dfe84ac3e872a4433c9b4320303e7af2331  differential_m
+ 868fb6dfea914f486e2df538dd0d1dc7f2f8f0a3b12359850b4fc2d3d3ede399  hub75.pio
+ 430190b7b32f9822c5b6a36133752349ee4d32bc0a93d181f2b54f3865923021  i2c.pio
+ e3aa909a35590b923e60b30243508ef2915209708ca37afb0c1596040cd63f55  manchester_encoding.pio
+-b3021482c6220b15a1208166f31f69553cdd6b3c8ccd09625ae5744a2ca957e8  nec_carrier_burst.pio
+-7d9219e7cc61ce2346bb169f9a7ce65ba836b7421dd66d40af463dce36360606  nec_carrier_control.pio
+-bb19f9e95bfb7ff4be51aa207b279a5eaefe9842b62fe3d8710d51ed28ef0a2c  nec_receive.pio
+ 81ca40baf8d2812f16c1408bf725b2a4f6a9ae144d7cc1c4d307ddeaaeba1da2  onewire_library.pio
+ cd60cd11f621442ed2a2dba30b447600e4d48922fad567b22561321c687c5c63  pio_serialiser.pio
+ 332288875c11eaf9cdb1a236774ebd3505f1c756ed2fecd0a25f90f7fa0c4d59  pwm.pio
+diff --git a/pio/test/test_translate.ml b/pio/test/test_translate.ml
+index f9cdf208..bde4c882 100644
+--- a/pio/test/test_translate.ml
++++ b/pio/test/test_translate.ml
+@@ -135,9 +135,6 @@ let%expect_test "census of pico-examples at 0d62f75" =
+     | i2c.pio | set_scl_sda | certified | 3 | 41 | 15.000 yes |
+     | manchester_encoding.pio | manchester_tx | certified | 5 | 86 |  |
+     | manchester_encoding.pio | manchester_rx | certified | 5 | 43 |  |
+-    | nec_carrier_burst.pio | nec_carrier_burst | refused: wait irq |  |  |  |
+-    | nec_carrier_control.pio | nec_carrier_control | refused: pull threshold 32 |  |  |  |
+-    | nec_receive.pio | nec_receive | refused: push threshold 32 |  |  |  |
+     | onewire_library.pio | onewire | certified | 5 | 108 | 48.000 yes |
+     | pio_serialiser.pio | pio_serialiser | certified | 9 | 22 |  |
+     | pwm.pio | pwm | certified | 7 | 36 |  |
+@@ -158,7 +155,7 @@ let%expect_test "census of pico-examples at 0d62f75" =
+     | ws2812.pio | ws2812 | certified | 5 | 73 | 6.000 yes |
+     | ws2812.pio | ws2812_parallel | refused: 32-bit shift |  |  |  |
+ 
+-    36 programs: 25 certified, 11 refused, 0 not certified
++    33 programs: 25 certified, 8 refused, 0 not certified
+     |}]
+ ;;
+ 
+diff --git a/python/bench_firmware.py b/python/bench_firmware.py
+index 10d41f45..0b97703b 100644
+--- a/python/bench_firmware.py
++++ b/python/bench_firmware.py
+@@ -1146,161 +1146,6 @@ SPI_CS_MODE3 = {
+     ],
+ }
+ 
+-# Swd.firmware: the host sends the half period, 24 cycles for a 1 MHz SWCLK, SWCLK on OUT2, SWDIO on IO5
+-SWD = {
+-    "config": {
+-        "side_set_count": 1,
+-        "side_set_base": 7,
+-        "side_set_pindirs": 0,
+-        "in_base": 17,
+-        "in_count": 1,
+-        "out_base": 17,
+-        "out_count": 1,
+-        "set_base": 17,
+-        "set_count": 1,
+-        "jmp_pin": 0,
+-        "capture_pin": 0,
+-        "capture_rising": 1,
+-        "in_shift_right": 1,
+-        "out_shift_right": 1,
+-        "autopush": 0,
+-        "push_threshold": 16,
+-        "autopull": 0,
+-        "pull_threshold": 16,
+-        "crc_width": 1,
+-        "crc_poly": 1,
+-        "crc_init": 0,
+-        "crc_reflect": 1,
+-        "stuff_threshold": 0,
+-        "stuff_level": 1,
+-        "wrap_bottom": 0,
+-        "wrap_top": 511,
+-        "period_fraction": 0,
+-        "autopull_data": 0,
+-        "manchester": 0,
+-    },
+-    "words": [
+-        0xA060, 0xA000, 0x20E0, 0xE004, 0x80C5, 0x80E6, 0xC0CA, 0xA03F,
+-        0x20C0, 0x0208, 0x4001, 0x406F, 0xE003, 0x20E0, 0xE004, 0xA061,
+-        0x80E6, 0xC0CA, 0x2040, 0x0016, 0x30E0, 0xF004, 0x7041, 0x042E,
+-        0x704E, 0x7021, 0x022C, 0x90E6, 0xD0CA, 0x1227, 0xF004, 0xB02F,
+-        0x30C0, 0x6001, 0x20C0, 0xF000, 0x0220, 0x041D, 0x0014, 0x30E0,
+-        0xF004, 0x90E6, 0xD0CA, 0x001F, 0xA060, 0x000D, 0x90E6, 0xD0CA,
+-        0x30C0, 0xA001, 0x20C0, 0xF000, 0x30C0, 0x6001, 0x20C0, 0xF000,
+-        0x30C0, 0x6041, 0x8002, 0x20C0, 0xB024, 0x30C0, 0x6001, 0x20C0,
+-        0xF000, 0x023D, 0x30C0, 0xA060, 0xA000, 0x20C0, 0xF000, 0x30C0,
+-        0x4001, 0x20C0, 0xF000, 0x30C0, 0x4001, 0x20C0, 0xF000, 0x30C0,
+-        0x4001, 0x406D, 0x8024, 0x20C0, 0xF000, 0x04A2, 0x7041, 0x045A,
+-        0xB041, 0x0681, 0x30C0, 0x8041, 0xE005, 0x20C0, 0xF000, 0xB061,
+-        0x1277, 0xF004, 0xB02F, 0x30C0, 0x6001, 0x20C0, 0xF000, 0x0263,
+-        0x127C, 0xF004, 0xB02F, 0x30C0, 0x6001, 0x20C0, 0xF000, 0x026B,
+-        0x50C1, 0x506F, 0x30C0, 0x8004, 0x20C0, 0xF000, 0x00DD, 0x30E0,
+-        0xF004, 0x90E6, 0xD0CA, 0x0062, 0x30E0, 0xF004, 0x90E6, 0xD0CA,
+-        0x006A, 0x30C0, 0x8041, 0xA022, 0x0690, 0x20C0, 0xF000, 0xB061,
+-        0xF005, 0x30E0, 0xF004, 0x30E0, 0xF004, 0x90E6, 0xD0CA, 0x00DD,
+-        0xA024, 0x0693, 0x0085, 0xA03F, 0x20C0, 0xF000, 0x30C0, 0xE000,
+-        0x0294, 0x20C0, 0xF000, 0x30C0, 0xE000, 0x20C0, 0xF000, 0xB061,
+-        0xF005, 0x0089, 0xB041, 0x06BD, 0xF005, 0xB02F, 0x30C0, 0x4001,
+-        0x20C0, 0xF000, 0x02A6, 0xF003, 0xB02F, 0x30C0, 0x4001, 0x20C0,
+-        0xF000, 0x02AD, 0xF003, 0x30C0, 0x4001, 0x20C0, 0xF000, 0x30C0,
+-        0xE000, 0x20C0, 0xF000, 0xB061, 0x00DD, 0x30C0, 0x8041, 0xA022,
+-        0x06C9, 0x20C0, 0xF000, 0xB061, 0xF005, 0x9083, 0xF003, 0xF003,
+-        0x00DD, 0xA024, 0x06CC, 0x00C1, 0xA03F, 0x20C0, 0xF000, 0x30C0,
+-        0xE000, 0x02CD, 0x20C0, 0xF000, 0x30C0, 0xE005, 0x8083, 0xE003,
+-        0xE003, 0x20C0, 0xF000, 0xB061, 0x00DD, 0xB027, 0x30C0, 0xA000,
+-        0x20C0, 0xF000, 0x02DE, 0x5043, 0x50C1, 0x506C, 0xF003, 0x0014,
+-    ],
+-}
+-
+-# Nec.tx: NEC frames and repeat codes, 27000 cycles a 562.5 us unit, the line low for a mark, on OUT0
+-NEC_TX = {
+-    "config": {
+-        "side_set_count": 0,
+-        "side_set_base": 5,
+-        "side_set_pindirs": 0,
+-        "in_base": 0,
+-        "in_count": 16,
+-        "out_base": 5,
+-        "out_count": 1,
+-        "set_base": 5,
+-        "set_count": 1,
+-        "jmp_pin": 0,
+-        "capture_pin": 0,
+-        "capture_rising": 1,
+-        "in_shift_right": 1,
+-        "out_shift_right": 1,
+-        "autopush": 0,
+-        "push_threshold": 16,
+-        "autopull": 0,
+-        "pull_threshold": 16,
+-        "crc_width": 16,
+-        "crc_poly": 40961,
+-        "crc_init": 65535,
+-        "crc_reflect": 1,
+-        "stuff_threshold": 0,
+-        "stuff_level": 1,
+-        "wrap_bottom": 0,
+-        "wrap_top": 511,
+-        "period_fraction": 0,
+-        "autopull_data": 0,
+-        "manchester": 0,
+-    },
+-    "words": [
+-        0x80E6, 0xA001, 0x20E0, 0xE004, 0x80C5, 0x20E0, 0xE004, 0x8085,
+-        0x80E6, 0xC0CA, 0x20C0, 0xA000, 0xA02E, 0x20C0, 0x020D, 0x20C0,
+-        0xA001, 0xE004, 0xA059, 0xC049, 0xC049, 0xC041, 0xA026, 0x20C0,
+-        0x0217, 0x20C0, 0xA000, 0x6021, 0x20C0, 0xA001, 0x0246, 0x0C19,
+-        0xE004, 0x20C0, 0xA000, 0x6021, 0x20C0, 0xA001, 0x024B, 0x0C21,
+-        0x20C0, 0xA000, 0x20C0, 0xA001, 0x20C0, 0x042C, 0x8024, 0x0231,
+-        0x0005, 0x8081, 0x20C0, 0xA000, 0xA02E, 0x20C0, 0x0235, 0x20C0,
+-        0xA001, 0xA022, 0x20C0, 0x023A, 0x20C0, 0xA000, 0x20C0, 0xA001,
+-        0xA049, 0xA030, 0x20C0, 0x0242, 0x0441, 0x002E, 0x20C0, 0xC052,
+-        0x20C0, 0x0C19, 0x0020, 0x20C0, 0xC052, 0x20C0, 0x0C21, 0x0028,
+-    ],
+-}
+-
+-# Nec.rx: frames and repeat codes read at 13500 cycles a half unit, on IO3, where Pico B's GP2 can send them
+-NEC_RX = {
+-    "config": {
+-        "side_set_count": 0,
+-        "side_set_base": 5,
+-        "side_set_pindirs": 0,
+-        "in_base": 15,
+-        "in_count": 16,
+-        "out_base": 5,
+-        "out_count": 1,
+-        "set_base": 5,
+-        "set_count": 1,
+-        "jmp_pin": 15,
+-        "capture_pin": 15,
+-        "capture_rising": 0,
+-        "in_shift_right": 1,
+-        "out_shift_right": 1,
+-        "autopush": 1,
+-        "push_threshold": 16,
+-        "autopull": 0,
+-        "pull_threshold": 16,
+-        "crc_width": 16,
+-        "crc_poly": 40961,
+-        "crc_init": 65535,
+-        "crc_reflect": 1,
+-        "stuff_threshold": 0,
+-        "stuff_level": 1,
+-        "wrap_bottom": 0,
+-        "wrap_top": 511,
+-        "period_fraction": 0,
+-        "autopull_data": 0,
+-        "manchester": 0,
+-    },
+-    "words": [
+-        0x20E0, 0xE004, 0x80C5, 0x208F, 0xE007, 0x200F, 0x80E7, 0xC0CA,
+-        0xA02F, 0x20C0, 0x0209, 0x0803, 0x208F, 0x80E6, 0xC0CA, 0xA028,
+-        0x20C0, 0x0210, 0x0816, 0x808B, 0xE003, 0x0003, 0xA03F, 0xE007,
+-        0x200F, 0x80E7, 0xC0CA, 0xC0CA, 0xC0CA, 0x20C0, 0xE007, 0xC0CA,
+-        0x2040, 0x4001, 0x200F, 0x0219, 0x0003,
+-    ],
+-}
+-
+ # Snorble.firmware: SIG on OUT0, sync 8.0 us, lows 1.208 and 3.0 us, gaps 2.0 us, frames 214 us apart at least
+ SNORBLE = {
+     "config": {
+diff --git a/python/carrier_pins.py b/python/carrier_pins.py
+index f8246f7a..323d3c14 100644
+--- a/python/carrier_pins.py
++++ b/python/carrier_pins.py
+@@ -1,7 +1,7 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # The bench carrier's self-test on its Picos (MicroPython and CPython). Pins drives and reads
+ # the Icepi's header through icepi/carrier_check.v over Pico A's host port, and bit-bangs a
+-# flash's JEDEC ID, an I2C address, a 1-Wire ROM and an SWD DPIDR through it, each a frame
++# flash's JEDEC ID, an I2C address and a 1-Wire ROM through it, each a frame
+ # a step. Gpio is a Pico's own pins. demo/carrier_check.py runs both over the REPL.
+ 
+ SIGNATURE = b"pin"
+@@ -162,40 +162,6 @@ class Pins:
+         self.one_wire_write(0x33)
+         return [self.one_wire_read() for _ in range(8)]
+ 
+-    # SWD: the host moves SWDIO with SWCLK low, the target on SWCLK's rise
+-    def swd_write(self, bits):
+-        for b in bits:
+-            self.put({SWDIO: b, SWCLK: 0})
+-            self.put({SWCLK: 1})
+-
+-    def swd_read(self, n):
+-        """n bits as the target drives them, each after its rise."""
+-        got = []
+-        self.put({SWDIO: None, SWCLK: 0})
+-        for _ in range(n):
+-            self.put({SWCLK: 1})
+-            got.append(bit(self.put({SWCLK: 0}), SWDIO))
+-        return got
+-
+-    def swd_dpidr(self, wake, line_reset, targetsel, target):
+-        """DPIDR's ACK, value and parity bit after the words of wake and line_reset, LSB
+-        first, and a TARGETSEL write of target, demo_swd's words for an RP2040. SWCLK is
+-        left low and SWDIO let go."""
+-        words = lambda ws: [(w >> i) & 1 for w in ws for i in range(16)]  # noqa: E731
+-        self.swd_write(words(wake) + words(line_reset))
+-        self.swd_write([(targetsel >> i) & 1 for i in range(8)])
+-        self.swd_read(5)
+-        self.swd_write([(target >> i) & 1 for i in range(32)] + [bin(target).count("1") & 1])
+-        self.swd_write([1, 0, 1, 0, 0, 1, 0, 1])
+-        bits = self.swd_read(3 + 33)
+-        # the turnaround back to the host
+-        self.swd_read(1)
+-        self.swd_write([0] * 8)
+-        self.put({SWDIO: None, SWCLK: 0})
+-        ack = sum(b << i for i, b in enumerate(bits[:3]))
+-        value = sum(b << i for i, b in enumerate(bits[3:35]))
+-        return ack, value, bits[35]
+-
+ 
+ def pico_a(baudrate=1_000_000):
+     """Pins over Pico A's host port: SPI0, GP2 SCK, GP3 MOSI, GP4 MISO, GP5 CS_N."""
+diff --git a/python/clock_cliffs.py b/python/clock_cliffs.py
+index 84ee2def..2df8c464 100644
+--- a/python/clock_cliffs.py
++++ b/python/clock_cliffs.py
+@@ -130,8 +130,6 @@ LIMITS = [
+     {"firmware": "spi_cs_mode3", "limit": "tCHSH >= 3 ns", "bound": "kernel", "cycles": 8, "lowest_hz": None, "highest_hz": 2333333333},
+     {"firmware": "spi_cs_mode3", "limit": "tSHSL2 >= 50 ns", "bound": "kernel", "cycles": 154, "lowest_hz": None, "highest_hz": 3060000000},
+     {"firmware": "spi_cs_mode3", "limit": "tRES1 >= 3000 ns", "bound": "kernel", "cycles": 154, "lowest_hz": None, "highest_hz": 51000000},
+-    {"firmware": "swd", "limit": "SWCLK high >= 20.8333 ns", "bound": "kernel", "cycles": 7, "lowest_hz": None, "highest_hz": 288004608},
+-    {"firmware": "swd", "limit": "SWCLK low >= 20.8333 ns", "bound": "kernel", "cycles": 24, "lowest_hz": None, "highest_hz": 1104017664},
+     {"firmware": "snorble", "limit": "tSYN >= 7500 ns", "bound": "run", "cycles": 384, "lowest_hz": None, "highest_hz": 51066666},
+     {"firmware": "snorble", "limit": "tSYN <= 8500 ns", "bound": "run", "cycles": 384, "lowest_hz": 45294118, "highest_hz": None},
+     {"firmware": "snorble", "limit": "tL0 >= 1100 ns", "bound": "kernel", "cycles": 58, "lowest_hz": None, "highest_hz": 51818181},
+@@ -256,9 +254,6 @@ WINDOWS = [
+     {"firmware": "spi_cs_mode3", "words_md5": "f52ba3a6068b9b01dfa5fc4a89a7b284", "shipped_hz": 48000000,
+      "lowest_hz": None, "lowest_limit": None,
+      "highest_hz": 51000000, "highest_limit": "tRES1 >= 3000 ns"},
+-    {"firmware": "swd", "words_md5": "bec6bc176837928e6a4c3983da78f954", "shipped_hz": 48000000,
+-     "lowest_hz": None, "lowest_limit": None,
+-     "highest_hz": 288004608, "highest_limit": "SWCLK high >= 20.8333 ns"},
+     {"firmware": "snorble", "words_md5": "fc02cef55b8ecf966399cf70cef68b24", "shipped_hz": 48000000,
+      "lowest_hz": 46774194, "lowest_limit": "tL1 <= 3100 ns",
+      "highest_hz": 49310344, "highest_limit": "tL1 >= 2900 ns"},
+diff --git a/python/sweep_firmware.py b/python/sweep_firmware.py
+index a62413ab..8810b50d 100644
+--- a/python/sweep_firmware.py
++++ b/python/sweep_firmware.py
+@@ -284,11 +284,8 @@ NOT_SWEPT = [
+     ("spi_target_mode1", "a target: the controller's clock moves it"),
+     ("spi_target_mode2", "a target: the controller's clock moves it"),
+     ("spi_target_mode3", "a target: the controller's clock moves it"),
+-    ("swd", "SWDIO turns round for the target's ACK, which a wire does not show, and a target has to answer"),
+     ("table", "its pins follow a table in data memory, which the sweep does not load"),
+     ("table_open_drain", "the same"),
+-    ("nec_tx", "a 9 ms mark is 432000 cycles, past the 65536 a stamp tells apart"),
+-    ("nec_rx", "a receiver: it drives no line to stamp"),
+     ("snorble", "idles 8448 cycles a frame, past the sweep's window"),
+     ("plinkoo", "refused at the margin: note 1's tB and the turnaround's tDH and tREL, see test_plinkoo"),
+     ("microwire", "an erase/write holds CS low 1245217 cycles, past the 65536 a stamp tells apart"),
+diff --git a/test/Makefile b/test/Makefile
+index b89b8a54..7248df86 100644
+--- a/test/Makefile
++++ b/test/Makefile
+@@ -91,7 +91,7 @@ endif
+ GATE_TEST_MODULES := $(COCOTB_TEST_MODULES)
+ # the bench demos' rehearsals simulate milliseconds, so on the RTL alone
+ ifeq ($(FPGA)$(GATES)$(ICEPI),)
+-COCOTB_TEST_MODULES := $(COCOTB_TEST_MODULES),test_demo,test_swd,test_demo_board,test_pyocd
++COCOTB_TEST_MODULES := $(COCOTB_TEST_MODULES),test_demo,test_demo_board
+ endif
+ 
+ # Where there is a dune the firmware words are reassembled first, so an encoding change
+diff --git a/test/clock_cliffs.sha256 b/test/clock_cliffs.sha256
+index 20d395fd..a536ae55 100644
+--- a/test/clock_cliffs.sha256
++++ b/test/clock_cliffs.sha256
+@@ -1 +1 @@
+-5cdb459b6fda1597606f209a57f2b7fd65cf5b98058ebd3f52a15db094b08d32  python/clock_cliffs.py
++0555ba2c896e5e6637b67748355f122b174005eec3d8dd2fe21ceebd2d090b47  python/clock_cliffs.py
+diff --git a/test/library.ml b/test/library.ml
+index 2e3bf971..d9377dac 100644
+--- a/test/library.ml
++++ b/test/library.ml
+@@ -18,9 +18,7 @@ let protocols =
+   ; Cec.protocol
+   ; Spi_cs.protocol
+   ; Spi_target.protocol
+-  ; Swd.protocol
+   ; Tables.protocol
+-  ; Nec.protocol
+   ; Snorble.protocol
+   ; Plinkoo.protocol
+   ; Frumbleglide.protocol
+diff --git a/test/python/test_corpus_draw.py b/test/python/test_corpus_draw.py
+index e3843e65..17b4e4f9 100644
+--- a/test/python/test_corpus_draw.py
++++ b/test/python/test_corpus_draw.py
+@@ -44,7 +44,7 @@ def test_library():
+         for line in open(path):
+             if line.startswith("# sigrok decoder "):
+                 named.update(d.split(":")[0] for d in line.split()[3].split(","))
+-    assert set(cd.IN_LIBRARY) <= named, set(cd.IN_LIBRARY) - named
++    assert set(cd.IN_LIBRARY) - {"swd"} <= named, set(cd.IN_LIBRARY) - named
+ 
+ 
+ def test_round():
+diff --git a/test/test_carrier_check.py b/test/test_carrier_check.py
+index 4fa3bc9e..0e47314e 100644
+--- a/test/test_carrier_check.py
++++ b/test/test_carrier_check.py
+@@ -1,7 +1,7 @@
+ # SPDX-License-Identifier: Apache-2.0
+ """demo/carrier_check.py against a model of the carrier built from demo/carrier_netlist.csv:
+ carrier_check.v as its frames describe it, the resistors, both Picos' pins, the CAN boards,
+-the EEPROM, the DS18B20, the flash and Pico B's SWD port (test/swd_target.py). A whole
++the EEPROM, the DS18B20 and the flash. A whole
+ carrier passes, and each fault fails the nets it touches and no others."""
+ 
+ import heapq
+@@ -14,7 +14,6 @@ sys.path.insert(0, str(ROOT / "demo"))
+ sys.path.insert(0, str(ROOT / "python"))
+ sys.path.insert(0, str(ROOT / "test"))
+ import carrier_check  # noqa: E402
+-import swd_target  # noqa: E402
+ from carrier_pins import HEADER, PIN, Pins, decode  # noqa: E402
+ 
+ # bom.csv's values; R1 is the CAN terminator, left to the boards' model
+@@ -111,28 +110,6 @@ class Ds18b20:
+         return None
+ 
+ 
+-class Swd:
+-    """Pico B's two cores on the far end of J8's cable."""
+-
+-    def __init__(self, carrier):
+-        self.c = carrier
+-        dps = [swd_target.Dp(t, cycle_ps=10**9) for t in (swd_target.CORE0, swd_target.CORE1)]
+-        self.bus = swd_target.Bus(dps)
+-        self.drive = None
+-
+-    def update(self, level):
+-        host = None
+-        if self.c.fpga_drives(36) and "R12" not in self.c.removed:
+-            host = self.c.fpga_level(36)
+-        self.bus.step(level("J8.1"), host)
+-        drives = [dp.drive for dp in self.bus.dps if dp.drive is not None]
+-        before, self.drive = self.drive, drives[0] if drives else None
+-        return self.drive != before
+-
+-    def drives(self):
+-        return {"J8.3": self.drive} if self.drive is not None else {}
+-
+-
+ class Carrier:
+     """The board, its parts in removed left out, the pad pairs in swapped on each other's
+     nets, the net pairs in shorted one net, and the analyser probe pairs in crossed."""
+@@ -160,8 +137,6 @@ class Carrier:
+             self.devices.append(Flash(self))
+         if "J10" not in self.removed:
+             self.devices.append(Eeprom(self))
+-        if "J8" not in self.removed:
+-            self.devices.append(Swd(self))
+         self.ds18b20 = Ds18b20() if "U5" not in self.removed else None
+         self.recording = None
+         self.levels = {}
+@@ -380,7 +355,6 @@ class CarrierCheck(unittest.TestCase):
+         self.assertIn("PASS DQ [J1.37 J3.6 R7.1 TP6.1 U5.2]: DS18B20 ROM 28 7d 50 63 79 25 0b "
+                       "3e, CRC good", said)
+         self.assertTrue(any("JEDEC ID ef 40 17: W25Q64JV" in line for line in said))
+-        self.assertTrue(any("core 0 answers DPIDR 0x0bc12477" in line for line in said))
+         self.assertTrue(any("the EEPROM ACKs at 0x50" in line for line in said))
+         self.assertEqual(said[-1], "PASS")
+         skipped = [line.split(" [")[0] for line in said if line.startswith("SKIP")]
+@@ -429,10 +403,6 @@ class CarrierCheck(unittest.TestCase):
+         self.assertTrue(any("driving header 7 to 1 moves header 11: a short" in line
+                             for line in said))
+ 
+-    def test_swd_cable(self):
+-        self.assert_fails(Carrier(removed={"J8"}),
+-                          {"SWCLK", "SWCLK_PICO", "SWDIO", "SWDIO_PICO"})
+-
+     def test_replug(self):
+         self.assert_fails(Carrier(removed={"SW1"}), {"REPLUG"})
+ 
+diff --git a/test/test_certified.ml b/test/test_certified.ml
+index 6b29d8e6..21aed83f 100644
+--- a/test/test_certified.ml
++++ b/test/test_certified.ml
+@@ -81,11 +81,8 @@ let%expect_test "the firmware library and its certificates" =
+     spi_target_mode1      35         0      -
+     spi_target_mode2      45         0      -
+     spi_target_mode3      34         0      -
+-    swd                  232        52     15  period 25, no wrap
+     table                112         2      0
+     table_open_drain     112         2      0
+-    nec_tx                80        22  26989  period 27000, no wrap
+-    nec_rx                37         4  13493  period 13500, one edge before capture, no wrap
+     snorble               84         5      0  no wrap
+     plinkoo               90        15      0  no wrap
+     microwire             69         7     13
+@@ -189,14 +186,6 @@ let%expect_test "the least period the host may load" =
+     (QED "cec: every load of 7 or more")
+     (counterexample "cec: every load of 6 or more"
+      (model ((loaded 0000000000000110))))
+-    (swd (period (25)) (floor 10) (passes true) (one_less false))
+-    (QED "swd: every load of 10 or more")
+-    (counterexample "swd: every load of 9 or more"
+-     (model ((loaded 0000000000001001))))
+-    (nec_tx (period (27000)) (floor 11) (passes true) (one_less false))
+-    (QED "nec_tx: every load of 11 or more")
+-    (counterexample "nec_tx: every load of 10 or more"
+-     (model ((loaded 0000000000001010))))
+     (ir_rc6 (period (21333)) (floor 14) (passes true) (one_less true))
+     (QED "ir_rc6: every load of 14 or more")
+     (counterexample "ir_rc6: every load of 13 or more"
+@@ -298,14 +287,6 @@ module Rate = struct
+         ; pio = None
+         ; note = ""
+         }
+-      ; { protocol = "swd"
+-        ; firmware = "swd"
+-        ; unit = "Hz"
+-        ; cycles = 2
+-        ; make = loaded "swd"
+-        ; pio = None
+-        ; note = "the host loads a half"
+-        }
+       ; { protocol = "can"
+         ; firmware = "can"
+         ; unit = "bit/s"
+@@ -441,7 +422,6 @@ let%expect_test "the fastest rate each protocol is certified at" =
+     spi controller  spi_cs_mode3       6 MHz             8     0    4  no wrap, CS 4 cycles before and 8 after, 3 us apart
+     i2c controller  i2c_master_fast    1.5 MHz          32     0   32  every load from it up, no wrap, the host loads a quarter, and the datasheet rows ask for more
+     jtag            jtag               6 MHz             8     0    -
+-    swd             swd                2.4 MHz          20     0    -  every load from it up, no wrap, the host loads a half
+     can             can                3.2 Mbit/s       15     0    -  every load from it up, no wrap
+     usb             usb_tx             1.5 Mbit/s       32    16    -  as shipped,
+     ws2812          ws2812             2.667 Mbit/s     18     0   10  as shipped, no wrap
+diff --git a/test/test_clock_window.ml b/test/test_clock_window.ml
+index 7189af1f..9d4bd9b7 100644
+--- a/test/test_clock_window.ml
++++ b/test/test_clock_window.ml
+@@ -30,7 +30,6 @@ let%expect_test "the clocks each bench firmware stays certified at" =
+     spi_cs_mode1             -                              48.000  51.000 tRES1 >= 3000 ns
+     spi_cs_mode2             -                              48.000  51.000 tRES1 >= 3000 ns
+     spi_cs_mode3             -                              48.000  51.000 tRES1 >= 3000 ns
+-    swd                      -                              48.000 288.005 SWCLK high >= 20.8333 ns
+     snorble             46.774 tL1 <= 3100 ns               48.000  49.310 tL1 >= 2900 ns
+     microwire           41.507 CS low period following an E/W instruction <= 3e+07 ns 48.000  51.250 Write data DI hold >= 800 ns
+     caliper                  -                              48.000  48.420 clock high at 90 kHz >= 5555.5 ns
+diff --git a/test/test_datasheet.ml b/test/test_datasheet.ml
+index 637f6064..d5e0847e 100644
+--- a/test/test_datasheet.ml
++++ b/test/test_datasheet.ml
+@@ -138,8 +138,6 @@ let%expect_test "the bench firmware against its datasheet limits" =
+     spi_cs_mode3       tCHSH          >=        3 ns  kernel 8 (166.7 ns)      needs    2       W25Q64JV, Winbond Rev. M p.64; margin a cycle
+     spi_cs_mode3       tSHSL2         >=       50 ns  kernel 154 (3208.3 ns)   needs    4       W25Q64JV, Winbond Rev. M p.64; margin a cycle
+     spi_cs_mode3       tRES1          >=     3000 ns  kernel 154 (3208.3 ns)   needs  145       W25Q64JV, Winbond Rev. M p.65; margin a cycle
+-    swd                SWCLK high     >=  20.8333 ns  kernel 7 (145.8 ns)      needs    2       RP2040, RP2040 datasheet, 2025-02-20 s.2.3.4 p.61; margin a cycle
+-    swd                SWCLK low      >=  20.8333 ns  kernel 24 (500.0 ns)     needs    2       RP2040, RP2040 datasheet, 2025-02-20 s.2.3.4 p.61; margin a cycle
+     snorble            tSYN           >=     7500 ns  run    384 (8000.0 ns)   needs  361       Snorble, SNB-1 Snorble Sensor Beacon Rev. C section 4, p.1; margin a cycle
+     snorble            tSYN           <=     8500 ns  run    384 (8000.0 ns)   needs  407       Snorble, SNB-1 Snorble Sensor Beacon Rev. C section 4, p.1; margin a cycle
+     snorble            tL0            >=     1100 ns  kernel 58 (1208.3 ns)    needs   54       Snorble, SNB-1 Snorble Sensor Beacon Rev. C section 4, p.1; margin a cycle
+@@ -256,9 +254,6 @@ let%expect_test "firmware its limits do not hold within a factor of two" =
+     {|
+     start_hold         none   it drives no pin: it listens to Pico B's I2C
+     ethernet           none   no demo on the bench: it needs the Icepi's 40 MHz build
+-    swd                loose  SWCLK high               needs 2 of 7 cycles (29%)
+-    nec_tx             none   no datasheet at hand; Nec.decode holds each mark and space to 5%
+-    nec_rx             none   a receiver: it samples, and drives nothing
+     ir_rc6             none   the spec gives typical times and no minimum or maximum; Ir_rc6.decode holds each mark and space to 5%
+     lfast              loose  data rate, shortest high bit (3.125 ns) needs 2 of 10 cycles (20%)
+     tdm_audio          none   AN301 has no timing table: SCLK 12.288 MHz (p.2) is typical only, the example for 8 x 32-bit blocks at 48 kHz, with no minimum or maximum
+diff --git a/test/test_footprint.ml b/test/test_footprint.ml
+index 1b513fdb..c62021c8 100644
+--- a/test/test_footprint.ml
++++ b/test/test_footprint.ml
+@@ -258,11 +258,8 @@ let%expect_test "the footprint of each firmware, and of its config under any pro
+     spi_target_mode1   5            -          5-20           12-19
+     spi_target_mode2   5            -          5-20           12-19
+     spi_target_mode3   5            -          5-20           12-19
+-    swd                7 17         17         7 17-27        17-19
+     table              5-10         -          5-20           12-19
+     table_open_drain   -            12-17      5 12-27        12-19
+-    nec_tx             5            -          5-20           12-19
+-    nec_rx             -            -          5-20           12-19
+     snorble            5            -          5-20           12-19
+     plinkoo            10           15         10 15-27       15-19
+     microwire          9-11         -          9-24           12-19
+@@ -367,16 +364,13 @@ let%expect_test "each firmware stays inside its footprint" =
+     spi_target_mode1   5            -
+     spi_target_mode2   5            -
+     spi_target_mode3   5            -
+-    swd                -            -
+     table              -            -
+     table_open_drain   -            -
+-    nec_tx             5            -
+-    nec_rx             -            -
+     snorble            5            -
+     plinkoo            10           -
+     microwire          9-11         -
+     ir_rc6             -            -
+-    caliper            5-6          -
++    caliper            5            -
+     xy2_100            5-7          -
+     lfast              5            -
+     tdm_audio          5-7          -
+diff --git a/test/test_kernel.ml b/test/test_kernel.ml
+index 752fb67e..bb339f4f 100644
+--- a/test/test_kernel.ml
++++ b/test/test_kernel.ml
+@@ -398,11 +398,8 @@ let%expect_test "the kernel on the firmware library, from the analyser's rows" =
+     (spi_target_mode1 (verdict (Ok ())))
+     (spi_target_mode2 (verdict (Ok ())))
+     (spi_target_mode3 (verdict (Ok ())))
+-    (swd (verdict (Ok ())))
+     (table (verdict (Ok ())))
+     (table_open_drain (verdict (Ok ())))
+-    (nec_tx (verdict (Ok ())))
+-    (nec_rx (verdict (Ok ())))
+     (snorble (verdict (Ok ())))
+     (plinkoo (verdict (Ok ())))
+     (microwire (verdict (Ok ())))
+@@ -1207,14 +1204,8 @@ let%expect_test "a bound on the jitter of every pin edge, in firmware the kernel
+     (spi_target_mode1 "no edge has a deadline" (untimed (4 15 25)))
+     (spi_target_mode2 "no edge has a deadline" (untimed (4 9 17 29 38)))
+     (spi_target_mode3 "no edge has a deadline" (untimed (4 15 22)))
+-    (swd (pc 32) (jitter_bound 6)
+-     (untimed
+-      (0 1 2 3 4 5 13 14 15 16 21 22 24 25 27 40 41 44 46 120 121 125 126 138 139
+-       140 141)))
+     (table (pc 6) (jitter_bound 0) (untimed ()))
+     (table_open_drain (pc 6) (jitter_bound 0) (untimed ()))
+-    (nec_tx (pc 1) (jitter_bound 0) (untimed ()))
+-    (nec_rx "writes no pins")
+     (snorble (pc 38) (jitter_bound 0) (untimed (0)))
+     (plinkoo (pc 27) (jitter_bound 0) (untimed (0)))
+     (microwire (pc 16) (jitter_bound 0) (untimed (0 1 8)))
+diff --git a/test/test_kernel_accepts.ml b/test/test_kernel_accepts.ml
+index 22ad263d..96cc018c 100644
+--- a/test/test_kernel_accepts.ml
++++ b/test/test_kernel_accepts.ml
+@@ -183,7 +183,7 @@ let%expect_test "the accepts circuit agrees with the kernel on the library's tab
+           ~accepted:(!accepted : int)
+           ~within:(!within : int)
+           ~disagree:(List.rev !disagree : (string * int) list)]);
+-  [%expect {| ((rows 7472) (accepted 7472) (within 4621) (disagree ())) |}]
++  [%expect {| ((rows 6774) (accepted 6774) (within 4224) (disagree ())) |}]
+ ;;
+ 
+ (* What [formal/pair_step.sby] proves on the RTL: a row's edge bounds carry to the rows
+diff --git a/test/test_late_mutants.ml b/test/test_late_mutants.ml
+index 2130807b..e856fe01 100644
+--- a/test/test_late_mutants.ml
++++ b/test/test_late_mutants.ml
+@@ -128,11 +128,8 @@ let%expect_test "every deadline wait in the library, a cycle late, is refused" =
+     spi_target_mode1            0 waits,  0 refused a cycle late,  0 too long,  0 accepted at their slack
+     spi_target_mode2            0 waits,  0 refused a cycle late,  0 too long,  0 accepted at their slack
+     spi_target_mode3            0 waits,  0 refused a cycle late,  0 too long,  0 accepted at their slack
+-    swd                        52 waits, 52 refused a cycle late,  0 too long,  0 accepted at their slack
+     table                       2 waits,  2 refused a cycle late,  0 too long,  2 accepted at their slack
+     table_open_drain            2 waits,  2 refused a cycle late,  0 too long,  2 accepted at their slack
+-    nec_tx                     22 waits,  0 refused a cycle late, 22 too long,  0 accepted at their slack
+-    nec_rx                      4 waits,  3 refused a cycle late,  1 too long,  3 accepted at their slack
+     snorble                     5 waits,  5 refused a cycle late,  0 too long,  5 accepted at their slack
+     plinkoo                    15 waits, 15 refused a cycle late,  0 too long, 15 accepted at their slack
+     microwire                   7 waits,  7 refused a cycle late,  0 too long,  7 accepted at their slack
+@@ -145,6 +142,6 @@ let%expect_test "every deadline wait in the library, a cycle late, is refused" =
+     spi_master_stream           3 waits,  3 refused a cycle late,  0 too long,  3 accepted at their slack
+     uart_tx_stamped             4 waits,  4 refused a cycle late,  0 too long,  4 accepted at their slack
+ 
+-    58 firmwares, 647 deadline waits: 601 refused a cycle late, 46 too long to assemble a cycle late, 362 accepted at their slack
++    55 firmwares, 569 deadline waits: 546 refused a cycle late, 23 too long to assemble a cycle late, 359 accepted at their slack
+     |}]
+ ;;
+diff --git a/test/test_learn.ml b/test/test_learn.ml
+index 9a02ac17..813595eb 100644
+--- a/test/test_learn.ml
++++ b/test/test_learn.ml
+@@ -51,48 +51,6 @@ let show ?(speak = true) name =
+                  : bool)])
+ ;;
+ 
+-let%expect_test "NEC, an unmarked ceiling light's remote" =
+-  show "nec_ceiling_light";
+-  [%expect
+-    {|
+-    line D0, idle 1
+-    pulse, unit 560.4 us, 0 = mark 1 space 1, 1 = mark 1 space 3
+-    marks read -32.8 us long, as a receiver stretches them
+-    gap at least 74 units, 11 frames, 0 outliers
+-    kind 0: 4 frames, leader [], 0 bits, trailer [+16 -4 +1]
+-    kind 1: 7 frames, leader [+16 -8], 32 bits, trailer [+1]
+-    kind 1 check: byte 3 = ~byte 2 (40 bits against 2^4.0)
+-    kind 1 field: bits 16..17, 4 values seen
+-    kind 1 field: bits 19..20, 2 values seen
+-    kind 1 field: bits 22..22, 2 values seen
+-    ("new message" (field 0) (seen (0 1 2 3))
+-     (bits 10000010010101110001001011101101)
+-     (firmware "80 words, 24 deadline waits, worst slack 26891")
+-     (model_reads_it_back true))
+-    |}]
+-;;
+-
+-let%expect_test "NEC, a Joy-IT remote, every key" =
+-  show "nec_joy_it";
+-  [%expect
+-    {|
+-    line D0, idle 1
+-    pulse, unit 565.1 us, 0 = mark 1 space 1, 1 = mark 1 space 3
+-    marks read 23.4 us long, as a receiver stretches them
+-    gap at least 69 units, 51 frames, 0 outliers
+-    kind 0: 30 frames, leader [], 0 bits, trailer [+16 -4 +1]
+-    kind 1: 21 frames, leader [+16 -8], 32 bits, trailer [+1]
+-    kind 1 check: byte 3 = ~byte 2 (168 bits against 2^4.0)
+-    kind 1 field: bits 16..20, 20 values seen
+-    kind 1 field: bits 22..22, 2 values seen
+-    ("new message" (field 1)
+-     (seen (0 2 3 4 5 6 7 8 9 10 12 13 18 21 22 24 25 26 28 30))
+-     (bits 00000000111111111000001001111101)
+-     (firmware "80 words, 24 deadline waits, worst slack 27112")
+-     (model_reads_it_back true))
+-    |}]
+-;;
+-
+ let%expect_test "RC-5, a Philips VCR's button held" =
+   show "rc5_philips_vcr";
+   [%expect
+diff --git a/test/test_learn_board.ml b/test/test_learn_board.ml
+index 607b944e..4febd103 100644
+--- a/test/test_learn_board.ml
++++ b/test/test_learn_board.ml
+@@ -182,19 +182,6 @@ let%expect_test "every learn demo the board ran" =
+       ("IO3: 714 edges, each where the analyser saw it within 0.14 us, crystals +47 ppm apart"))
+      (speech_with_two_edges_taken_out "refused: read otherwise")
+      (recording_a_tenth_slower "refused: other firmware"))
+-    (learn_nec
+-     (learned "pulse, unit 557.0 us, 0 = mark 1 space 1, 1 = mark 1 space 3")
+-     (firmware_is_the_one_the_board_ran true)
+-     (verdict "71 words, 24 deadline waits, worst slack 26726")
+-     (sent (00000000111111111000001001111101 00000000111111111000001001111101))
+-     (analyser_reads
+-      (00000000111111111000001001111101 00000000111111111000001001111101))
+-     (pico_b_reads
+-      ((00000000111111111000001001111101 00000000111111111000001001111101)))
+-     (referee
+-      ("IO3: 724 edges, each where the analyser saw it within 0.14 us, crystals +47 ppm apart"))
+-     (speech_with_two_edges_taken_out "refused: read otherwise")
+-     (recording_a_tenth_slower "refused: other firmware"))
+     (learn_pt2262
+      (learned "pulse, unit 315.2 us, 0 = mark 1 space 3, 1 = mark 3 space 1")
+      (firmware_is_the_one_the_board_ran true)
+diff --git a/test/test_metamorphic.ml b/test/test_metamorphic.ml
+index ad018135..85dbebed 100644
+--- a/test/test_metamorphic.ml
++++ b/test/test_metamorphic.ml
+@@ -560,23 +560,23 @@ let%expect_test "a delay before a deadline wait takes exactly its slack" =
+   print_tallies field_tally;
+   [%expect
+     {|
+-    ("nops before a wait, library" (programs 50) (variants 483)
+-     (kernel_checked 97) (accepted 342) (refused 141) (violations_on_accepted 0)
++    ("nops before a wait, library" (programs 47) (variants 449)
++     (kernel_checked 90) (accepted 316) (refused 133) (violations_on_accepted 0)
+      (violations_on_refused 0))
+-    ("nops before a wait, random" (programs 26) (variants 178)
+-     (kernel_checked 36) (accepted 123) (refused 55) (violations_on_accepted 0)
++    ("nops before a wait, random" (programs 26) (variants 184)
++     (kernel_checked 37) (accepted 129) (refused 55) (violations_on_accepted 0)
+      (violations_on_refused 0))
+-    ("jump over dead code before a wait, library" (programs 50) (variants 143)
+-     (kernel_checked 29) (accepted 122) (refused 21) (violations_on_accepted 0)
++    ("jump over dead code before a wait, library" (programs 47) (variants 134)
++     (kernel_checked 27) (accepted 113) (refused 21) (violations_on_accepted 0)
+      (violations_on_refused 0))
+     ("jump over dead code before a wait, random" (programs 26) (variants 55)
+      (kernel_checked 11) (accepted 46) (refused 9) (violations_on_accepted 0)
+      (violations_on_refused 0))
+-    ("delay field before a wait, library" (programs 40) (variants 235)
+-     (kernel_checked 47) (accepted 174) (refused 61) (violations_on_accepted 0)
++    ("delay field before a wait, library" (programs 39) (variants 231)
++     (kernel_checked 47) (accepted 171) (refused 60) (violations_on_accepted 0)
+      (violations_on_refused 0))
+-    ("delay field before a wait, random" (programs 24) (variants 123)
+-     (kernel_checked 25) (accepted 89) (refused 34) (violations_on_accepted 0)
++    ("delay field before a wait, random" (programs 24) (variants 118)
++     (kernel_checked 24) (accepted 84) (refused 34) (violations_on_accepted 0)
+      (violations_on_refused 0))
+     |}]
+ ;;
+@@ -649,8 +649,8 @@ let%expect_test "dead code changes nothing" =
+   print_tallies padding;
+   [%expect
+     {|
+-    ("dead code after a word that never falls through, library" (programs 58)
+-     (variants 116) (kernel_checked 24) (accepted 116) (refused 0)
++    ("dead code after a word that never falls through, library" (programs 55)
++     (variants 110) (kernel_checked 22) (accepted 110) (refused 0)
+      (violations_on_accepted 0) (violations_on_refused 0))
+     ("dead code after a word that never falls through, random" (programs 100)
+      (variants 200) (kernel_checked 40) (accepted 52) (refused 148)
+@@ -692,8 +692,8 @@ let%expect_test "moving the program in memory changes nothing" =
+   print_tallies relocation;
+   [%expect
+     {|
+-    ("program moved in memory, library" (programs 58) (variants 116)
+-     (kernel_checked 24) (accepted 116) (refused 0) (violations_on_accepted 0)
++    ("program moved in memory, library" (programs 55) (variants 110)
++     (kernel_checked 22) (accepted 110) (refused 0) (violations_on_accepted 0)
+      (violations_on_refused 0))
+     ("program moved in memory, random" (programs 100) (variants 200)
+      (kernel_checked 40) (accepted 52) (refused 148) (violations_on_accepted 0)
+@@ -776,17 +776,17 @@ let%expect_test "a delay split into the word and a nop changes nothing" =
+   print_tallies set_x;
+   [%expect
+     {|
+-    ("delay split into the word and a nop, library" (programs 8) (variants 21)
+-     (kernel_checked 5) (accepted 21) (refused 0) (violations_on_accepted 0)
++    ("delay split into the word and a nop, library" (programs 8) (variants 23)
++     (kernel_checked 5) (accepted 23) (refused 0) (violations_on_accepted 0)
+      (violations_on_refused 0))
+-    ("delay split into the word and a nop, random" (programs 100) (variants 342)
+-     (kernel_checked 69) (accepted 84) (refused 258) (violations_on_accepted 0)
++    ("delay split into the word and a nop, random" (programs 100) (variants 335)
++     (kernel_checked 67) (accepted 84) (refused 251) (violations_on_accepted 0)
+      (violations_on_refused 0))
+-    ("delay of a set x split into it and a nop, library" (programs 1)
+-     (variants 2) (kernel_checked 1) (accepted 2) (refused 0)
++    ("delay of a set x split into it and a nop, library" (programs 0)
++     (variants 0) (kernel_checked 0) (accepted 0) (refused 0)
+      (violations_on_accepted 0) (violations_on_refused 0))
+-    ("delay of a set x split into it and a nop, random" (programs 21)
+-     (variants 26) (kernel_checked 6) (accepted 0) (refused 26)
++    ("delay of a set x split into it and a nop, random" (programs 29)
++     (variants 33) (kernel_checked 7) (accepted 0) (refused 33)
+      (violations_on_accepted 0) (violations_on_refused 0))
+     |}]
+ ;;
+@@ -906,11 +906,11 @@ let%expect_test "a deadline wait split at an earlier deadline changes nothing af
+   print_tallies split;
+   [%expect
+     {|
+-    ("deadline wait split in two, library" (programs 46) (variants 134)
+-     (kernel_checked 27) (accepted 90) (refused 44) (violations_on_accepted 0)
++    ("deadline wait split in two, library" (programs 43) (variants 129)
++     (kernel_checked 26) (accepted 84) (refused 45) (violations_on_accepted 0)
+      (violations_on_refused 0))
+-    ("deadline wait split in two, random" (programs 24) (variants 60)
+-     (kernel_checked 12) (accepted 40) (refused 20) (violations_on_accepted 0)
++    ("deadline wait split in two, random" (programs 24) (variants 61)
++     (kernel_checked 13) (accepted 40) (refused 21) (violations_on_accepted 0)
+      (violations_on_refused 0))
+     |}]
+ ;;
+@@ -977,8 +977,8 @@ let%expect_test "a longer period lowers no slack and refuses nothing more" =
+   print_tallies longer;
+   [%expect
+     {|
+-    ("longer period, library" (programs 45) (variants 111) (kernel_checked 23)
+-     (accepted 111) (refused 0) (violations_on_accepted 0)
++    ("longer period, library" (programs 42) (variants 102) (kernel_checked 21)
++     (accepted 102) (refused 0) (violations_on_accepted 0)
+      (violations_on_refused 0))
+     ("longer period, random" (programs 93) (variants 172) (kernel_checked 35)
+      (accepted 46) (refused 126) (violations_on_accepted 0)
+diff --git a/test/test_moved_rows.ml b/test/test_moved_rows.ml
+index e502c5f2..aac84f28 100644
+--- a/test/test_moved_rows.ml
++++ b/test/test_moved_rows.ml
+@@ -109,11 +109,8 @@ let%expect_test "the kernel refuses each row moved by a cycle" =
+     (spi_target_mode1 (phase 0) (arm 0) (capture 0) (accepted ()))
+     (spi_target_mode2 (phase 0) (arm 0) (capture 0) (accepted ()))
+     (spi_target_mode3 (phase 0) (arm 0) (capture 0) (accepted ()))
+-    (swd (phase 404) (arm 0) (capture 0) (accepted ()))
+     (table (phase 182) (arm 0) (capture 0) (accepted ()))
+     (table_open_drain (phase 182) (arm 0) (capture 0) (accepted ()))
+-    (nec_tx (phase 146) (arm 0) (capture 0) (accepted ()))
+-    (nec_rx (phase 52) (arm 12) (capture 22) (accepted ()))
+     (snorble (phase 128) (arm 0) (capture 0) (accepted ()))
+     (plinkoo (phase 168) (arm 0) (capture 0) (accepted ()))
+     (microwire (phase 118) (arm 0) (capture 0) (accepted ()))
+diff --git a/test/test_osr_kernel.ml b/test/test_osr_kernel.ml
+index e1e01983..0d49b2bf 100644
+--- a/test/test_osr_kernel.ml
++++ b/test/test_osr_kernel.ml
+@@ -277,15 +277,9 @@ let%expect_test "what each out sends, in the firmware library" =
+        (38 "not a pulled word"))))
+     (spi_target_mode3 (verdict (Ok ()))
+      (sends ((15 "not a pulled word") (22 "not a pulled word"))))
+-    (swd (verdict (Ok ()))
+-     (sends
+-      ((33 "bit 15 - x") (53 "bit 1") (62 "bit 7 - x") (100 "bit 15 - x")
+-       (108 "bit 15 - x"))))
+     (table (verdict (Ok ()))
+      (sends ((6 "not a pulled word") (60 "bit 1 to 32"))))
+     (table_open_drain (verdict (Ok ())) (sends ()))
+-    (nec_tx (verdict (Ok ())) (sends ()))
+-    (nec_rx (verdict (Ok ())) (sends ()))
+     (snorble (verdict (Ok ())) (sends ()))
+     (plinkoo (verdict (Ok ())) (sends ()))
+     (microwire (verdict (Ok ())) (sends ((16 "bit 16") (50 "bit 1 to 32"))))
+diff --git a/test/test_premise.ml b/test/test_premise.ml
+index f43db298..adf26606 100644
+--- a/test/test_premise.ml
++++ b/test/test_premise.ml
+@@ -335,7 +335,6 @@ let%expect_test "the receivers keep the premise their certificates rest on" =
+     usb_device         exact       225         0           0  32 ACK and 32 NAK of 32 each
+     usb_device         4% slow     225         0           0  0 ACK and 0 NAK of 32 each
+     usb_device at once exact        97         0           0  32 ACK and 32 NAK of 32 each
+-    nec_rx             no sender to drive it with
+     |}]
+ ;;
+ 
+diff --git a/test/test_protocol.ml b/test/test_protocol.ml
+index da6bb90a..ff2db8f8 100644
+--- a/test/test_protocol.ml
++++ b/test/test_protocol.ml
+@@ -473,23 +473,6 @@ let%expect_test "every protocol from its file to the decoded trace" =
+ 
+     limits
+ 
+-    === swd
+-
+-    certificates
+-    swd: 232 words, 52 deadline waits, worst slack 15, the kernel accepts it, assuming period 25, a load of 10 or more, no wrap
+-
+-    limits
+-    swd                SWCLK high     >=  20.8333 ns  kernel 7 (145.8 ns)      needs    2       RP2040, RP2040 datasheet, 2025-02-20 s.2.3.4 p.61; margin a cycle
+-    swd                SWCLK low      >=  20.8333 ns  kernel 24 (500.0 ns)     needs    2       RP2040, RP2040 datasheet, 2025-02-20 s.2.3.4 p.61; margin a cycle
+-
+-    lockstep: swd, swd
+-    ("lockstep held" (cycles 54200))
+-    (received
+-     (0x1 0x7 0x2477 0xbc1 0x1 0x1 0x1 0x0 0xf000 0x1 0x1 0x0 0x0 0x1 0x0 0x0 0x2
+-      0x31 0x477 0x1 0x1))
+-    decode: test/traces/sigrok/swd.trace, by sigrok's swd:swclk=OUT2:swdio=IO5
+-      swd=read:write:ack:data: swd-1: IDCODE, swd-1: OK, swd-1: 0x0bc12477, swd-1: W ABORT, swd-1: OK, swd-1: 0x0000001c, swd-1: W CTRL/STAT, swd-1: OK, swd-1: 0x50000000, swd-1: R CTRL/STAT, swd-1: OK, swd-1: 0xf0000000, swd-1: W SELECT, swd-1: OK, swd-1: 0x000000f0, swd-1: R APc, swd-1: OK, swd-1: 0x00000000, swd-1: RDBUFF, swd-1: WAIT, swd-1: RDBUFF, swd-1: OK, swd-1: 0x04770031, swd-1: W SELECT, swd-1: OK, swd-1: 0x00000000
+-
+     === tables
+ 
+     certificates
+@@ -498,23 +481,6 @@ let%expect_test "every protocol from its file to the decoded trace" =
+ 
+     limits
+ 
+-    === nec
+-
+-    certificates
+-    nec_tx: 80 words, 22 deadline waits, worst slack 26989, the kernel accepts it, assuming period 27000, a load of 11 or more, no wrap
+-    nec_rx: 37 words, 4 deadline waits, worst slack 13493, the kernel accepts it, assuming period 13500, one edge before capture, no wrap
+-
+-    limits
+-    nec_tx: none, no datasheet at hand; Nec.decode holds each mark and space to 5%
+-    nec_rx: none, a receiver: it samples, and drives nothing
+-
+-    lockstep: nec, nec_tx
+-    ("lockstep held" (cycles 10408))
+-    (received ())
+-    decode: test/traces/sigrok/nec.trace, by sigrok's ir_nec:ir=OUT0
+-      ir_nec=addr:addr-inv:cmd:cmd-inv: ir_nec-1: Address: 0x04, ir_nec-1: Address#: 0xFB, ir_nec-1: Command: 0x08, ir_nec-1: Command#: 0xF7, ir_nec-1: Address: 0x00, ir_nec-1: Address#: 0xFF, ir_nec-1: Command: 0x45, ir_nec-1: Command#: 0xBA
+-      ir_nec=repeat-code: ir_nec-1: Repeat code
+-
+     === snorble
+ 
+     certificates
+diff --git a/test/test_reject_split.ml b/test/test_reject_split.ml
+index 0639813b..07d05abe 100644
+--- a/test/test_reject_split.ml
++++ b/test/test_reject_split.ml
+@@ -16,9 +16,9 @@ let%expect_test "the reject split, on a sample" =
+   Reject_split.print_split (sample @ [ variant "uart_tx_host_rate pc 12 jmp 11" ]);
+   [%expect
+     {|
+-    (("List.length every" 51164) ("List.length sample" 205))
+-    ((verdict Accepted) (count 182))
+-    ((verdict Missed) (count 23))
++    (("List.length every" 46233) ("List.length sample" 185))
++    ((verdict Accepted) (count 165))
++    ((verdict Missed) (count 20))
+     ((verdict Analyser_limit) (count 0))
+     ((verdict No_table) (count 1))
+     ((verdict Accepted_but_missed) (count 0))
+diff --git a/test/test_tables.ml b/test/test_tables.ml
+index 694cf795..146bc1bd 100644
+--- a/test/test_tables.ml
++++ b/test/test_tables.ml
+@@ -1105,18 +1105,6 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
+       , "-"
+       , [%string "half %{Spi_target.shortest_half#Int} and up, all four modes"]
+       , "it shifts only while CS is low, and a table's await cannot abort on CS" )
+-    ; ( "swd"
+-      , "no"
+-      , "-"
+-      , "1 MHz"
+-      , "SWDIO turns around, which needs pins and pindirs in one table" )
+-    ; ( "nec"
+-      , "untried"
+-      , "-"
+-      , "unit 27000, half 13500"
+-      , [%string
+-          "a 108 ms frame is at least %{((108 * clock / 1000) + max_hold - 1) / \
+-           max_hold#Int} steps, each held at most %{max_hold#Int} cycles"] )
+     ; ( "snorble"
+       , "no"
+       , "-"
+@@ -1206,10 +1194,6 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
+       library half 4 and up; CS a third output, each mode a different table
+     spi_target no       -
+       library half 16 and up, all four modes; it shifts only while CS is low, and a table's await cannot abort on CS
+-    swd        no       -
+-      library 1 MHz; SWDIO turns around, which needs pins and pindirs in one table
+-    nec        untried  -
+-      library unit 27000, half 13500; a 108 ms frame is at least 83 steps, each held at most 65535 cycles
+     snorble    no       -
+       library sync 8 us, lows 1.2 and 3 us; written for the core, not tried
+     plinkoo    no       -
+diff --git a/test/test_traffic.py b/test/test_traffic.py
+index 786c383b..6855c4a8 100644
+--- a/test/test_traffic.py
++++ b/test/test_traffic.py
+@@ -116,53 +116,6 @@ class Can(unittest.TestCase):
+                                       "not idle recessive")
+ 
+ 
+-def nec_runs(keys, unit):
+-    """demo_nec's keys as Nec.tx sends them, (level, samples) a run, low for a mark."""
+-    runs = [(1, 100 * unit)]
+-    for address, command, repeats in keys:
+-        bits = [(b >> i) & 1 for b in (address, ~address, command, ~command) for i in range(8)]
+-        frame = [(0, 16), (1, 8)] + sum(([(0, 1), (1, 1 + 2 * bit)] for bit in bits), [])
+-        for message in [frame + [(0, 1)]] + [[(0, 16), (1, 4), (0, 1)]] * repeats:
+-            runs += [(level, n * unit) for level, n in message]
+-            runs.append((1, (192 - sum(n for _, n in message)) * unit))
+-    return runs
+-
+-
+-@unittest.skipUnless(shutil.which("sigrok-cli"), "needs sigrok-cli")
+-class Nec(unittest.TestCase):
+-    """demo_nec's keys on D4 at the analyser's rate, decoded with its script's outside:
+-    line, as demo/outside.sh does."""
+-
+-    def setUp(self):
+-        self.dir = Path(tempfile.mkdtemp())
+-
+-    def tearDown(self):
+-        shutil.rmtree(self.dir)
+-
+-    def run_demo(self, keys):
+-        # 562.5 us
+-        unit = RATE * 9 // 16_000
+-        rest = 0xFF & ~(1 << 4)
+-        sigrok.write(self.dir / "nec.sr", RATE,
+-                     b"".join(bytes([rest | (level << 4)]) * n for level, n in nec_runs(keys, unit)))
+-        script = (ROOT / "python/demo_nec.py").read_text()
+-        decode = re.search(r"^# outside: .*decode=(.*)$", script, re.M).group(1)
+-        with open(self.dir / "nec.decode", "w") as f:
+-            subprocess.run(["sigrok-cli", "-i", str(self.dir / "nec.sr"), *decode.split()],
+-                           stdout=f, check=True)
+-        (self.dir / "nec.log").write_text("PASS\n")
+-        return traffic.check("nec", self.dir)
+-
+-    def test_nec(self):
+-        self.assertEqual(self.run_demo(traffic.demo_nec.KEYS), [])
+-
+-    def test_a_repeat_code_missing(self):
+-        keys = [(0x04, 0x08, 1)] + traffic.demo_nec.KEYS[1:]
+-        self.assertEqual(self.run_demo(keys), [
+-            "the keys sent: decode line 6 reads 'ir_nec-1: Address: 0x00', expected "
+-            "'ir_nec-1: Repeat code'"])
+-
+-
+ class Decodes(unittest.TestCase):
+     """The checks of the other demos, on decodes as sigrok prints them and a capture whose
+     channels all move."""
+@@ -258,14 +211,6 @@ class Decodes(unittest.TestCase):
+         self.assertEqual(traffic.check("ds18b20", self.dir),
+                          ["D5 (DQ) never changes in the capture: high throughout"])
+ 
+-    def test_swd(self):
+-        log = "AP 0 IDR 0x04770031: designer 0x23b, class 8, a MEM-AP\nPASS\n"
+-        read = ["swd-1: IDCODE", "swd-1: OK", "swd-1: 0x0bc12477"]
+-        ap = ["swd-1: RDBUFF", "swd-1: OK", "swd-1: 0x04770031"]
+-        self.assertEqual(self.check("swd", read + ap + ["swd-1: LINERESET"] + read, log), [])
+-        self.assertEqual(self.check("swd", read + ap, log),
+-                         ["DPIDR 0x0bc12477 read OK 1 times, expected one a core"])
+-
+     def test_start_hold(self):
+         log = "chip, engine 1: 64 STARTs, SDA fall to SCL fall, 48 MHz cycles\n"
+         starts = ["i2c-1: Start", "i2c-1: Start repeat"] * 40
+diff --git a/test/traces/sigrok/dune.inc b/test/traces/sigrok/dune.inc
+index 60a0dab7..507bfbec 100644
+--- a/test/traces/sigrok/dune.inc
++++ b/test/traces/sigrok/dune.inc
+@@ -120,26 +120,6 @@
+  (action
+   (diff spi_mode3.trace spi_mode3.trace.gen)))
+ 
+-(rule
+- (with-stdout-to
+-  swd.trace.gen
+-  (run ../write_trace.exe swd)))
+-
+-(rule
+- (alias runtest)
+- (action
+-  (diff swd.trace swd.trace.gen)))
+-
+-(rule
+- (with-stdout-to
+-  nec.trace.gen
+-  (run ../write_trace.exe nec)))
+-
+-(rule
+- (alias runtest)
+- (action
+-  (diff nec.trace nec.trace.gen)))
+-
+ (rule
+  (with-stdout-to
+   ir_rc6.trace.gen
