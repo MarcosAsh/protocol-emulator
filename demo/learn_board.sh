@@ -29,8 +29,8 @@ else
     probes="IO3=D6"
 fi
 seconds=$(sed 's/.*, \([0-9.]*\) s/\1/' "$out/prep/replay.txt")
-# Pico B starts 3 s after its mpremote returns, a second after Pico A's
-record_ms=$(python3 -c "print(int(($seconds + 6.5) * 1000))")
+# Pico B starts 3 s after its mpremote returns, two seconds after Pico A's
+record_ms=$(python3 -c "print(int(($seconds + 7.5) * 1000))")
 capture_ms=$(python3 -c "print(int(($seconds + 4.5) * 1000))")
 python3 demo/learn_prepare.py logger "$out/prep" "$gen" $lines --ms "$record_ms" 2> "$out/logger.txt"
 mpremote connect "$PICO" cp python/protocol_emulator.py python/pico_board.py python/bench.py \
@@ -39,6 +39,9 @@ mpremote connect "$pico_b" cp python/learn_replay.py python/learn_listen.py \
     "$out/prep/replay.json" : > /dev/null
 started=$(date +%s)
 mpremote connect "$PICO" run --no-follow python/learn_record.py
+# the loggers loaded, certified and started before Pico B sets the line's idle, which a
+# line idling low would otherwise show the chip as no edge at all
+sleep 1
 ANALYSER=B RATE=$rate demo/capture.sh "$out/recorded.sr" "$capture_ms" \
     mpremote connect "$pico_b" run --no-follow python/learn_replay.py
 left=$(python3 -c "print(max(0, $record_ms / 1000 + 3 - ($(date +%s) - $started)))")
