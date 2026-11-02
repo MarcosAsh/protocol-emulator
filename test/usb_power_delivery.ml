@@ -269,7 +269,98 @@ let bench =
   }
 ;;
 
-let limits : Datasheet.t list = []
+(* Each packet's bit cells in cycles: a level under 2.5 us, 3/4 UI, is a half and pairs
+   with the next, a longer one is a whole cell, a low past 5 us is idle. *)
+let cells ~clock_hz levels =
+  let ns n = n * 1_000_000_000 / clock_hz in
+  let idle (high, n) = (not high) && ns n > 5_000 in
+  let rec packet cells = function
+    | [] -> List.rev cells, []
+    | run :: rest when idle run -> List.rev cells, rest
+    | (_, a) :: ((_, b) as next) :: rest when ns a < 2_500 && not (idle next) ->
+      packet ((a + b) :: cells) rest
+    | (_, n) :: rest -> packet (n :: cells) rest
+  in
+  let rec packets acc = function
+    | [] -> List.rev acc
+    | run :: rest when idle run -> packets acc rest
+    | levels ->
+      let cells, rest = packet [] levels in
+      packets (cells :: acc) rest
+  in
+  packets [] levels
+;;
+
+(* Tables 5.9 and 5.10, p.110, the transmitter's. Not here: tStartDrive and tEndDriveBMC,
+   as OUT0 has no third state to start or stop driving from; tRise and tFall, the slew of
+   the driver or an RC after it (5.3.4 rule 1, p.96). *)
+let limits =
+  let sheet page =
+    { Datasheet.Sheet.part = "USB PD BMC transmitter"
+    ; document = "USB Power Delivery Specification r3.2 v1.2, Aug 2026"
+    ; page
+    }
+  in
+  let limit parameter limit page bound =
+    { Datasheet.firmware = bench.name
+    ; parameter
+    ; limit
+    ; sheet = sheet page
+    ; margin = Cycle
+    ; bound
+    }
+  in
+  let every_cell =
+    Datasheet.run ~pin:Datasheet.set_pin (fun ~clock_hz levels ->
+      List.concat (cells ~clock_hz levels))
+  in
+  (* each window of 32 bits from the preamble's last on, against the preamble's last 32 *)
+  let drift =
+    Datasheet.run ~pin:Datasheet.set_pin (fun ~clock_hz levels ->
+      List.concat_map (cells ~clock_hz levels) ~f:(fun cells ->
+        let cells = Array.of_list cells in
+        let sum ~last =
+          Array.sub cells ~pos:(last - 31) ~len:32 |> Array.sum (module Int) ~f:Fn.id
+        in
+        if Array.length cells < 64
+        then []
+        else (
+          let reference = sum ~last:63 in
+          List.range 64 (Array.length cells)
+          |> List.map ~f:(fun last -> abs (sum ~last - reference)))))
+  in
+  let gaps =
+    Datasheet.run ~pin:Datasheet.set_pin (fun ~clock_hz levels ->
+      List.filter (Datasheet.lows levels) ~f:(fun n ->
+        n * 1_000_000_000 / clock_hz > 5_000))
+  in
+  let table_9 = "Table 5.9, p.110"
+  and table_10 = "Table 5.10, p.110" in
+  [ limit
+      "fBitRate max 330 kbps: each bit cell"
+      (At_least (1e6 /. 330.))
+      table_9
+      every_cell
+  ; limit
+      "fBitRate min 270 kbps: each bit cell"
+      (At_most (1e6 /. 270.))
+      table_9
+      every_cell
+  ; limit "tUnitInterval min" (At_least 3_030.) table_9 every_cell
+  ; limit "tUnitInterval max" (At_most 3_700.) table_9 every_cell
+  ; limit
+      "pBitRate 0.25 %: 32 bits against the preamble's last 32, of 32 UI at 300 kbps"
+      (At_most (0.0025 *. 32. *. (1e6 /. 300.)))
+      (table_10 ^ ", and 5.3.4.8 p.108; 300 kbps nominal, Table 5.9")
+      drift
+  ; limit
+      "tHoldLowBMC: every low"
+      (At_least 1_000.)
+      table_10
+      (Datasheet.level ~pin:Datasheet.set_pin ~high:false ())
+  ; limit "tInterFrameGap: each idle low" (At_least 25_000.) table_10 gaps
+  ]
+;;
 
 let sigrok =
   { Sigrok.clock_hz = 48_000_000
@@ -306,10 +397,13 @@ let protocol =
   ; bench = [ bench ]
   ; loaded_from_hex = []
   ; limits
-  ; unlimited = [ "usb_power_delivery", "TODO the rows of the spec's timing table" ]
+  ; unlimited = []
   ; swept = []
   ; not_swept =
-      [ "usb_power_delivery", "TODO why the sweep does not stamp it, or a Swept.t" ]
+      [ ( "usb_power_delivery"
+        , "the host computes each packet's CRC-32, which a stamp the engine put in would \
+           break" )
+      ]
   ; scenarios = [ scenario ]
   ; decoded = []
   }
