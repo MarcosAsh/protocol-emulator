@@ -9,10 +9,8 @@ module Reg = Host_port.Reg
    table at lines 303-310. Bits of 192 cycles at 48 MHz. *)
 let pin = 5
 
-(* [set] reaches 31, so the firmware builds the bit in x and writes p once. The analyser
-   and the certificate take any write to p for a load, assumed to be this, which here it
-   is. *)
-let period = 24 * 8
+(* The bit at 48 MHz, which the host loads first: [set] reaches only 31. *)
+let period = 48_000_000 / 250_000
 
 let config =
   { Program_config.default with
@@ -23,19 +21,17 @@ let config =
   }
 ;;
 
-(* A packet a host word with the start code in its low byte, then 256 words of two
-   channels, low byte first. Break 25 bits (100 us), mark after break 4 (16 us). A late
-   word stretches the mark before a channel's start bit, which the spec leaves free (line
-   311). *)
+(* The bit's cycles once, then for each packet a host word with the start code in its low
+   byte, then 256 words of two channels, low byte first. Break 25 bits (100 us), mark
+   after break 4 (16 us). A late word stretches the mark before a channel's start bit,
+   which the spec leaves free (line 311). *)
 let firmware =
   [%firmware
     {|
-    set x, 24
-    add x, x
-    add x, x
-    add x, x
-    mov p, x                 ; a bit, 192 cycles
     set pins, 1              ; mark while idle
+    wait tx                  ; the bit in cycles
+    pull
+    mov p, osr
 packet:
     wait tx                  ; the start code's word
     pull
@@ -94,7 +90,8 @@ bit:
       ~period]
 ;;
 
-let certified = [ Certified.of_firmware "dmx512" firmware ]
+(* [wait tx] can hold the core for ever, far behind its last deadline *)
+let certified = [ Certified.of_firmware ~no_wrap:true "dmx512" firmware ]
 
 (* the start code, then the 512 channels two a word, low byte first *)
 let packet ~start_code channels =
@@ -114,13 +111,14 @@ let channels = List.init 512 ~f:(fun n -> ((n * 37) + 11) land 0xff)
 let bench =
   { Bench.name = "dmx512"
   ; what =
-      "Dmx512.firmware: a packet of 512 channels at 250 kbit/s on OUT0, then the next \
-       packet's break"
+      [%string
+        "Dmx512.firmware: the host sends the bit, %{period#Int} cycles for 250 kbit/s, \
+         then a packet of 512 channels on OUT0 and the next packet's break"]
   ; source = Timed_program.source firmware
   ; config
   ; assumption = Period period
   ; clock_hz = Bench.clock_hz
-  ; load = None
+  ; load = Some period
   ; stimulus =
       Some
         { bursts =
@@ -284,7 +282,7 @@ let scenario =
       Scenario.load
         ~config:(Timed_program.config firmware)
         ~program:(Timed_program.words firmware)
-      @ [ Scenario.start; Run 2_000 ]
+      @ [ Step.Write (Reg.tx, [ period ]); Scenario.start; Run 2_000 ]
       @ writes
   ; sigrok = Some sigrok
   }

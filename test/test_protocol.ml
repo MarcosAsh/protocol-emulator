@@ -685,7 +685,7 @@ let%expect_test "every protocol from its file to the decoded trace" =
     === dmx512
 
     certificates
-    dmx512: 53 words, 14 deadline waits, worst slack 182, the kernel accepts it, assuming period 192
+    dmx512: 51 words, 14 deadline waits, worst slack 182, the kernel accepts it, assuming period 192, no wrap
 
     limits
     dmx512             bit at 250 kbit/s, shortest low >=     4000 ns  kernel 192 (4000.0 ns)   needs  192       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, line 291; margin 0 ns, the rate has no tolerance: a bit is 192 cycles at 48 MHz

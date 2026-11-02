@@ -4,7 +4,7 @@ open Protocol_emulator
 (* what the analyser and the kernel make of the firmware, which compiling it checked *)
 let%expect_test "the firmware's verdict" =
   print_endline (Analyser.Verdict.to_string (Timed_program.verdict Dmx512.firmware));
-  [%expect {| 53 words, 14 deadline waits, worst slack 182 |}]
+  [%expect {| 51 words, 14 deadline waits, worst slack 182 |}]
 ;;
 
 (* The line, level by level with the cycles each lasted, for a start code's word: the
@@ -17,6 +17,7 @@ let%expect_test "the line for a start code" =
       ~program:(Timed_program.words Dmx512.firmware)
     |> ok_exn
   in
+  let machine = Machine.write_tx machine Dmx512.period |> ok_exn in
   let machine = Machine.write_tx machine 0x0000 |> ok_exn in
   let levels =
     List.folding_map (List.range 0 8_000) ~init:machine ~f:(fun machine _ ->
@@ -29,7 +30,7 @@ let%expect_test "the line for a start code" =
   in
   print_s [%message (runs : (bool * int) list)];
   [%expect
-    {| (runs ((false 5) (true 4) (false 4800) (true 768) (false 1728) (true 695))) |}]
+    {| (runs ((true 7) (false 4800) (true 768) (false 1728) (true 697))) |}]
 ;;
 
 (* A receiver as the spec describes it (lines 291-297, 303-310): a low of at least 88 us
@@ -193,7 +194,7 @@ let run ~cycles words =
         (Receiver.step receiver ~level:((machine.pin_out lsr Dmx512.pin) land 1))
         (n - 1))
   in
-  loop machine words Receiver.create cycles
+  loop machine (Dmx512.period :: words) Receiver.create cycles
 ;;
 
 let%expect_test "a receiver reads a full packet, and the next packet's break" =
