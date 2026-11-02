@@ -47,3 +47,6 @@ lin	certificate	2026-11-02T20:41:25+00:00
 spdif	spec	2026-11-02T21:45:01+00:00	new-protocol
 spdif	file	2026-11-02T22:16:16+00:00	
 spdif	certificate	2026-11-02T22:16:47+00:00	
+usb_power_delivery	spec	2026-11-02T22:34:15+00:00	new-protocol
+usb_power_delivery	file	2026-11-02T22:50:24+00:00	
+usb_power_delivery	certificate	2026-11-02T22:50:56+00:00	

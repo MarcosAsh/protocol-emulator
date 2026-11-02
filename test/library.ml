@@ -33,6 +33,7 @@ let protocols =
   ; Dali.protocol
   ; Lin.protocol
   ; Spdif.protocol
+  ; Usb_power_delivery.protocol
   ]
 ;;
 

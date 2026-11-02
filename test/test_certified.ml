@@ -97,6 +97,7 @@ let%expect_test "the firmware library and its certificates" =
     dali                  34         8  19993  period 20000, no wrap
     lin                   60        17   1247  period 1250, no wrap
     spdif                108        40      2
+    usb_power_delivery   113        74     13
     |}]
 ;;
 

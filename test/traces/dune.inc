@@ -128,6 +128,8 @@
   (run ./write_trace.exe lin)))
   spdif.trace.gen
   (run ./write_trace.exe spdif)))
+  usb_power_delivery.trace.gen
+  (run ./write_trace.exe usb_power_delivery)))
 
 (rule
  (alias runtest)
@@ -135,6 +137,7 @@
   (diff dali.trace dali.trace.gen)))
   (diff lin.trace lin.trace.gen)))
   (diff spdif.trace spdif.trace.gen)))
+  (diff usb_power_delivery.trace usb_power_delivery.trace.gen)))
 
 (rule
  (with-stdout-to

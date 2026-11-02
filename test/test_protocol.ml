@@ -732,6 +732,25 @@ let%expect_test "every protocol from its file to the decoded trace" =
     decode: test/traces/spdif.trace, by sigrok's spdif:data=OUT0
       spdif=preamble: spdif-1: Preamble W, spdif-1: Preamble M, spdif-1: Preamble W, spdif-1: Preamble M, spdif-1: Preamble W, spdif-1: Preamble M, spdif-1: Preamble W, spdif-1: Preamble M, spdif-1: Preamble W
       spdif=samples: spdif-1: Audio 0xfedc00, spdif-1: Audio 0x800100, spdif-1: Audio 0x7ffe00, spdif-1: Audio 0xff00, spdif-1: Audio 0xa5a500, spdif-1: Audio 0x0, spdif-1: Audio 0x0, spdif-1: Audio 0x0
+    === usb_power_delivery
+
+    certificates
+    usb_power_delivery: 113 words, 74 deadline waits, worst slack 13, the kernel accepts it, assuming nothing
+
+    limits
+    usb_power_delivery fBitRate max 330 kbps: each bit cell >=   3030.3 ns  run    160 (3333.3 ns)   needs  147       USB PD BMC transmitter, USB Power Delivery Specification r3.2 v1.2, Aug 2026 Table 5.9, p.110; margin a cycle
+    usb_power_delivery fBitRate min 270 kbps: each bit cell <=   3703.7 ns  run    160 (3333.3 ns)   needs  176       USB PD BMC transmitter, USB Power Delivery Specification r3.2 v1.2, Aug 2026 Table 5.9, p.110; margin a cycle
+    usb_power_delivery tUnitInterval min >=     3030 ns  run    160 (3333.3 ns)   needs  147       USB PD BMC transmitter, USB Power Delivery Specification r3.2 v1.2, Aug 2026 Table 5.9, p.110; margin a cycle
+    usb_power_delivery tUnitInterval max <=     3700 ns  run    160 (3333.3 ns)   needs  176       USB PD BMC transmitter, USB Power Delivery Specification r3.2 v1.2, Aug 2026 Table 5.9, p.110; margin a cycle
+    usb_power_delivery pBitRate 0.25 %: 32 bits against the preamble's last 32, of 32 UI at 300 kbps <=  266.667 ns  run    0 (0.0 ns)        needs   11       USB PD BMC transmitter, USB Power Delivery Specification r3.2 v1.2, Aug 2026 Table 5.10, p.110, and 5.3.4.8 p.108; 300 kbps nominal, Table 5.9; margin a cycle
+    usb_power_delivery tHoldLowBMC: every low >=     1000 ns  kernel 80 (1666.7 ns)    needs   49       USB PD BMC transmitter, USB Power Delivery Specification r3.2 v1.2, Aug 2026 Table 5.10, p.110; margin a cycle
+    usb_power_delivery tInterFrameGap: each idle low >=    25000 ns  run    1367 (28479.2 ns) needs 1201       USB PD BMC transmitter, USB Power Delivery Specification r3.2 v1.2, Aug 2026 Table 5.10, p.110; margin a cycle
+
+    lockstep: usb_power_delivery, usb_power_delivery
+    ("lockstep held" (cycles 89540))
+    (received ())
+    decode: test/traces/usb_power_delivery.trace, by sigrok's usb_power_delivery:cc1=OUT0
+      usb_power_delivery=preamble:sop:header:data:crc:eop:sym:warnings:src:payload: usb_power_delivery-1: Preamble, usb_power_delivery-1: SYNC-1, usb_power_delivery-1: SYNC-1, usb_power_delivery-1: SYNC-1, usb_power_delivery-1: SYNC-2, usb_power_delivery-1: SOP, usb_power_delivery-1: 0x1, usb_power_delivery-1: 0xA, usb_power_delivery-1: 0x1, usb_power_delivery-1: 0x1, usb_power_delivery-1: H:11a1, usb_power_delivery-1: (r3) SRC[0]: SOURCE CAP, usb_power_delivery-1: 0xC, usb_power_delivery-1: 0x2, usb_power_delivery-1: 0x1, usb_power_delivery-1: 0x9, usb_power_delivery-1: 0x1, usb_power_delivery-1: 0x0, usb_power_delivery-1: 0x0, usb_power_delivery-1: 0x0, usb_power_delivery-1: [0]0001912c, usb_power_delivery-1: [1] [Fixed] 5V 3A (15W), usb_power_delivery-1: 0xA, usb_power_delivery-1: 0xD, usb_power_delivery-1: 0xE, usb_power_delivery-1: 0x2, usb_power_delivery-1: 0xC, usb_power_delivery-1: 0x2, usb_power_delivery-1: 0x1, usb_power_delivery-1: 0x3, usb_power_delivery-1: CRC:312c2eda, usb_power_delivery-1: EOP, usb_power_delivery-1: EOP
     |}]
 ;;
 

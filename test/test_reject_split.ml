@@ -29,6 +29,15 @@ let%expect_test "the reject split, on a sample" =
     ((verdict Accepted_but_missed) (count 0))
     ((verdict Witness_refused) (count 0))
     ("spdif pc 69 delay 17" (verdict No_table) (cycles 80000))
+    (("List.length every" 54261) ("List.length sample" 218))
+    ((verdict Accepted) (count 185))
+    ((verdict Missed) (count 31))
+    ((verdict Analyser_limit) (count 0))
+    ((verdict No_table) (count 3))
+    ((verdict Accepted_but_missed) (count 0))
+    ((verdict Witness_refused) (count 0))
+    ("usb_power_delivery pc 94 delay 21" (verdict No_table) (cycles 80000))
+    ("usb_power_delivery pc 102 delay 23" (verdict No_table) (cycles 80000))
     ("uart_tx_host_rate pc 12 jmp 11" (verdict No_table) (cycles 80000))
     |}]
 ;;

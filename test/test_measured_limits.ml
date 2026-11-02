@@ -196,6 +196,13 @@ let%expect_test "the datasheet limits, measured on the bench copies' runs" =
     run    208979  spdif              a block of 192 frames, 44.1 kHz and 1100 ppm >= 4.34896e+06 ns  measured 104489 (4353708.3 ns) Pass            Wikipedia, S/PDIF, revision 1378032122 (2 October 2026), p.1, S/PDIF control word components, byte 3, spec.txt l.222-224
     run    208979  spdif              a block of 192 frames, 44.1 kHz less 1100 ppm <= 4.35854e+06 ns  measured 104489 (4353708.3 ns) Pass            Wikipedia, S/PDIF, revision 1378032122 (2 October 2026), p.1, S/PDIF control word components, byte 3, spec.txt l.222-224
     run    1088  spdif              a frame, Mode 0's 192 kHz at most >=  5208.33 ns  measured 544 (22666.7 ns)     Pass            Wikipedia, S/PDIF, revision 1378032122 (2 October 2026), p.1, text, spec.txt l.180
+    run    160  usb_power_delivery fBitRate max 330 kbps: each bit cell >=   3030.3 ns  measured 80 (3333.3 ns)       Pass            USB Power Delivery Specification r3.2 v1.2, Aug 2026, Table 5.9, p.110
+    run    160  usb_power_delivery fBitRate min 270 kbps: each bit cell <=   3703.7 ns  measured 80 (3333.3 ns)       Pass            USB Power Delivery Specification r3.2 v1.2, Aug 2026, Table 5.9, p.110
+    run    160  usb_power_delivery tUnitInterval min >=     3030 ns  measured 80 (3333.3 ns)       Pass            USB Power Delivery Specification r3.2 v1.2, Aug 2026, Table 5.9, p.110
+    run    160  usb_power_delivery tUnitInterval max <=     3700 ns  measured 80 (3333.3 ns)       Pass            USB Power Delivery Specification r3.2 v1.2, Aug 2026, Table 5.9, p.110
+    run    0  usb_power_delivery pBitRate 0.25 %: 32 bits against the preamble's last 32, of 32 UI at 300 kbps <=  266.667 ns  measured 0 (0.0 ns)           Pass            USB Power Delivery Specification r3.2 v1.2, Aug 2026, Table 5.10, p.110, and 5.3.4.8 p.108; 300 kbps nominal, Table 5.9
+    kernel 80  usb_power_delivery tHoldLowBMC: every low >=     1000 ns  measured 40 (1666.7 ns)       Pass            USB Power Delivery Specification r3.2 v1.2, Aug 2026, Table 5.10, p.110
+    run    1367  usb_power_delivery tInterFrameGap: each idle low >=    25000 ns  measured 684 (28500.0 ns)     Pass            USB Power Delivery Specification r3.2 v1.2, Aug 2026, Table 5.10, p.110
     kernel 417  uart_log           bit              >=  8506.94 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     run    417  uart_log           bit              <=  8854.17 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     |}]
@@ -383,5 +390,12 @@ let%expect_test "every limit's pairs of edges in the prediction" =
     spdif          a block of 192 frames, 44.1 kHz and 1100 ppm   1 pairs, as measured
     spdif          a block of 192 frames, 44.1 kHz less 1100 ppm   1 pairs, as measured
     spdif          a frame, Mode 0's 192 kHz at most 194 pairs, as measured
+    usb_power_delivery fBitRate max 330 kbps: each bit cell 378 pairs, as measured
+    usb_power_delivery fBitRate min 270 kbps: each bit cell 378 pairs, as measured
+    usb_power_delivery tUnitInterval min 378 pairs, as measured
+    usb_power_delivery tUnitInterval max 378 pairs, as measured
+    usb_power_delivery pBitRate 0.25 %: 32 bits against the preamble's last 32, of 32 UI at 300 kbps   0 pairs, none, measured 0
+    usb_power_delivery tHoldLowBMC: every low 290 pairs, as measured
+    usb_power_delivery tInterFrameGap: each idle low   1 pairs, 1368, measured 1367
     |}]
 ;;
