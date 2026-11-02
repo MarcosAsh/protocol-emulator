@@ -362,13 +362,44 @@ let limits =
   ]
 ;;
 
+(* What sigrok's usb_power_delivery prints for a Source_Capabilities of Fixed 5 V 3 A
+   PDOs: each symbol, then each field it ends; the EOP comes as a symbol and a part. *)
+let reading ({ Message.header; data_objects } as message) =
+  let nibbles n ~count =
+    List.init count ~f:(fun i -> sprintf "0x%X" ((n lsr (4 * i)) land 0xf))
+  in
+  [ "Preamble"; "SYNC-1"; "SYNC-1"; "SYNC-1"; "SYNC-2"; "SOP" ]
+  @ nibbles header ~count:4
+  @ [ sprintf "H:%04x" header
+    ; sprintf "(r3) SRC[%d]: SOURCE CAP" ((header lsr 9) land 7)
+    ]
+  @ List.concat_mapi data_objects ~f:(fun i pdo ->
+    nibbles pdo ~count:8
+    @ [ sprintf "[%d]%08x" i pdo; sprintf "[%d] [Fixed] 5V 3A (15W)" (i + 1) ])
+  @ nibbles (Message.crc message) ~count:8
+  @ [ sprintf "CRC:%08x" (Message.crc message); "EOP"; "EOP" ]
+;;
+
+(* The pin inverted for 80 cycles from 40 into a line bit: a stray half bit. Edges count
+   from the preamble's first, 96 of them, then one a bit and one more a 1. *)
+let glitch message ~bit =
+  let bits = Message.line_bits message in
+  let edge = 96 + List.sum (module Int) (List.take bits bit) ~f:(fun b -> 1 + b) in
+  [ Sigrok.Corruption.Flip { pin; edge; after = 40; cycles = 80 } ]
+;;
+
 let sigrok =
+  let message = List.hd_exn sent in
   { Sigrok.clock_hz = 48_000_000
   ; decoders = [ Sigrok.decoder "usb_power_delivery" ~pins:[ "cc1", pin ] ]
-  ; expect = []
+  ; expect =
+      [ ( "usb_power_delivery=preamble:sop:header:data:crc:eop:sym:warnings:src:payload"
+        , reading message |> Sigrok.lines "usb_power_delivery" )
+      ]
   ; joins_after = None
   ; rejected = None
-  ; teeth = []
+  ; (* in the header, the PDO and the CRC *)
+    teeth = List.map [ 22; 50; 90 ] ~f:(fun bit -> glitch message ~bit)
   }
 ;;
 

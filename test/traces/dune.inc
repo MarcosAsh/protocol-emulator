@@ -122,6 +122,16 @@
 
 (rule
  (with-stdout-to
+  usb_power_delivery.trace.gen
+  (run ./write_trace.exe usb_power_delivery)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff usb_power_delivery.trace usb_power_delivery.trace.gen)))
+
+(rule
+ (with-stdout-to
   wrapped_loop.trace.gen
   (run ./write_trace.exe wrapped_loop)))
 
