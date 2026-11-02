@@ -145,72 +145,11 @@ let%expect_test "every deadline wait in the library, a cycle late, is refused" =
     xy2_100                    10 waits, 10 refused a cycle late,  0 too long, 10 accepted at their slack
     lfast                      27 waits, 27 refused a cycle late,  0 too long, 27 accepted at their slack
     tdm_audio                   0 waits,  0 refused a cycle late,  0 too long,  0 accepted at their slack
+    usb_fs_device               5 waits,  5 refused a cycle late,  0 too long,  5 accepted at their slack
     uart_tx_stream              3 waits,  3 refused a cycle late,  0 too long,  3 accepted at their slack
     spi_master_stream           3 waits,  3 refused a cycle late,  0 too long,  3 accepted at their slack
     uart_tx_stamped             4 waits,  4 refused a cycle late,  0 too long,  4 accepted at their slack
 
-    62 firmwares, 647 deadline waits: 601 refused a cycle late, 46 too long to assemble a cycle late, 362 accepted at their slack
-    uart_tx                     3 waits,  3 refused a cycle late,  3 accepted at their slack
-    uart_tx16                   3 waits,  3 refused a cycle late,  3 accepted at their slack
-    uart_tx_host_rate           3 waits,  3 refused a cycle late,  0 accepted at their slack
-    uart_rx                     2 waits,  2 refused a cycle late,  2 accepted at their slack
-    uart_rx_host_rate           2 waits,  2 refused a cycle late,  0 accepted at their slack
-    spi_master                  3 waits,  3 refused a cycle late,  3 accepted at their slack
-    spi_slave                   0 waits,  0 refused a cycle late,  0 accepted at their slack
-    i2c_master                 31 waits, 31 refused a cycle late, 31 accepted at their slack
-    i2c_slave                   0 waits,  0 refused a cycle late,  0 accepted at their slack
-    i2c_logger                 25 waits, 25 refused a cycle late, 25 accepted at their slack
-    i2c_master_standard        43 waits, 43 refused a cycle late,  0 accepted at their slack
-    i2c_master_fast            37 waits, 37 refused a cycle late,  0 accepted at their slack
-    i2c_controller_wire        25 waits, 25 refused a cycle late,  0 accepted at their slack
-    i2c_target_wire             0 waits,  0 refused a cycle late,  0 accepted at their slack
-    usb_tx                     11 waits, 11 refused a cycle late, 11 accepted at their slack
-    usb_rx                      4 waits,  4 refused a cycle late,  4 accepted at their slack
-    usb_device                 54 waits, 54 refused a cycle late, 54 accepted at their slack
-    edge_meter                  2 waits,  2 refused a cycle late,  2 accepted at their slack
-    ws2812                      4 waits,  4 refused a cycle late,  4 accepted at their slack
-    ws2812_standard             4 waits,  4 refused a cycle late,  4 accepted at their slack
-    ethernet                    1 waits,  1 refused a cycle late,  0 accepted at their slack
-    one_wire                   15 waits, 15 refused a cycle late,  0 accepted at their slack
-    ps2                        12 waits, 12 refused a cycle late,  0 accepted at their slack
-    jtag                        3 waits,  3 refused a cycle late,  3 accepted at their slack
-    can                        10 waits, 10 refused a cycle late,  0 accepted at their slack
-    dshot600                    4 waits,  4 refused a cycle late,  4 accepted at their slack
-    sent                        9 waits,  9 refused a cycle late,  0 accepted at their slack
-    cec                        20 waits, 20 refused a cycle late,  0 accepted at their slack
-    spi_cs_mode0                6 waits,  6 refused a cycle late,  6 accepted at their slack
-    spi_cs_mode1                6 waits,  6 refused a cycle late,  6 accepted at their slack
-    spi_cs_mode2                6 waits,  6 refused a cycle late,  6 accepted at their slack
-    spi_cs_mode3                6 waits,  6 refused a cycle late,  6 accepted at their slack
-    spi_cs_mode0_default_pins   6 waits,  6 refused a cycle late,  6 accepted at their slack
-    spi_cs_mode1_default_pins   6 waits,  6 refused a cycle late,  6 accepted at their slack
-    spi_cs_mode2_default_pins   6 waits,  6 refused a cycle late,  6 accepted at their slack
-    spi_cs_mode3_default_pins   6 waits,  6 refused a cycle late,  6 accepted at their slack
-    spi_target_mode0            0 waits,  0 refused a cycle late,  0 accepted at their slack
-    spi_target_mode1            0 waits,  0 refused a cycle late,  0 accepted at their slack
-    spi_target_mode2            0 waits,  0 refused a cycle late,  0 accepted at their slack
-    spi_target_mode3            0 waits,  0 refused a cycle late,  0 accepted at their slack
-    spi_target_fast_mode0       0 waits,  0 refused a cycle late,  0 accepted at their slack
-    spi_target_fast_mode1       0 waits,  0 refused a cycle late,  0 accepted at their slack
-    spi_target_fast_mode2       0 waits,  0 refused a cycle late,  0 accepted at their slack
-    spi_target_fast_mode3       0 waits,  0 refused a cycle late,  0 accepted at their slack
-    swd                        52 waits, 52 refused a cycle late,  0 accepted at their slack
-    table                       2 waits,  2 refused a cycle late,  2 accepted at their slack
-    table_open_drain            2 waits,  2 refused a cycle late,  2 accepted at their slack
-    nec_tx                     22 waits, 22 refused a cycle late,  0 accepted at their slack
-    nec_rx                      4 waits,  4 refused a cycle late,  3 accepted at their slack
-    snorble                     5 waits,  5 refused a cycle late,  5 accepted at their slack
-    plinkoo                    15 waits, 15 refused a cycle late, 15 accepted at their slack
-    microwire                   7 waits,  7 refused a cycle late,  7 accepted at their slack
-    ir_rc6                     22 waits, 22 refused a cycle late,  0 accepted at their slack
-    caliper                    11 waits, 11 refused a cycle late,  0 accepted at their slack
-    xy2_100                    10 waits, 10 refused a cycle late, 10 accepted at their slack
-    lfast                      27 waits, 27 refused a cycle late, 27 accepted at their slack
-    usb_fs_device               5 waits,  5 refused a cycle late,  5 accepted at their slack
-    uart_tx_stream              3 waits,  3 refused a cycle late,  3 accepted at their slack
-    spi_master_stream           3 waits,  3 refused a cycle late,  3 accepted at their slack
-    uart_tx_stamped             4 waits,  4 refused a cycle late,  4 accepted at their slack
-
-    60 firmwares, 572 deadline waits: 572 refused a cycle late, 287 accepted at their slack
+    63 firmwares, 652 deadline waits: 606 refused a cycle late, 46 too long to assemble a cycle late, 367 accepted at their slack
     |}]
 ;;

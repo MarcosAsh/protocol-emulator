@@ -315,6 +315,7 @@ let%expect_test "the checker agrees with the model on every firmware" =
     asm/edge_logger_echo          8401  accepted
     asm/edge_logger_wire          8320  accepted
     asm/ethernet                  9162  accepted
+    asm/ethernet_rx               8263  accepted
     asm/fault_release             8192  accepted
     asm/i2c_master_marked         9793  accepted
     asm/i2c_start_watch           8308  accepted
