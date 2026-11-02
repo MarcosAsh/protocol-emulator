@@ -1,0 +1,66 @@
+{
+  "demo": "keyboard",
+  "time": "2026-11-02T18:51:38",
+  "result": "PASS",
+  "commit": "d94c3a70f6f8ecdab5fb59fe3c14b1455acf961c",
+  "bitstream_sha256": "d814478c5e4d849ecbb71da7bfb32cc851d6a92cf371ef12b7669a2e97be072d",
+  "netlist_sha256": "28bfa97f1d03607ca9c2f3914f401b1b6990e3ee20542ba3d89d2347e67cff56",
+  "sums_sha256": "29973e241979a2bf7fca7d9c10754bb022fc76fd2e7a968025bc76ab6ae7f612",
+  "capture": {
+    "file": "keyboard.sr",
+    "sha256": "3b6272b2cff647c992cfe788166335add9e1613e7af1522ceca7ed2b47f22855",
+    "rate_hz": 2000000,
+    "seconds": 30.0,
+    "analyser": "A",
+    "channels": {
+      "D4": "OUT0, engine 1's byte for each key the pc took"
+    }
+  },
+  "decode": {
+    "arguments": "-P uart:rx=D4:baudrate=115200 -A uart=rx-data",
+    "sha256": "5255afe24dab8875649941dfc742928597791aa78ee1503f2f54a47b245f8d4a"
+  },
+  "timing": [
+    {
+      "parameter": "bit",
+      "limit": ">= 8507 ns",
+      "sheet": "UART at 115200 baud, Maxim AN2141 p.4, 2%",
+      "spans": 94,
+      "measured": "7999 ns to 9501 ns",
+      "verdict": "unresolved"
+    },
+    {
+      "parameter": "bit",
+      "limit": "<= 8854 ns",
+      "sheet": "UART at 115200 baud, Maxim AN2141 p.4, 2%",
+      "spans": 94,
+      "measured": "7999 ns to 9501 ns",
+      "verdict": "unresolved"
+    }
+  ],
+  "teeth": [
+    "half of the first byte's bit 0 inverted",
+    "the first frame's second edge 12 samples late",
+    "keyboard.keys's first key changed"
+  ],
+  "bitstream_source": "board-8x4-features' Verilog, a68c75ab's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 1, 48.75 MHz) on the pc",
+  "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
+  "firmware": {
+    "python/usb_device_firmware.py": "784b56f554e5f48822c6089762f15c35c8ac9f7e60805b8e0225890760a7e1d9",
+    "test/uart_tx_host_rate.hex": "b0ff359cce682ac2f0eeca87a9c486772ee8501020ca7394066844dd0b0b3701"
+  },
+  "host_scripts": {
+    "python/demo_usb.py": "92c6e5fb155411613acb6956b3994b56cb3b72eb74607e1e64e80178132fb896",
+    "python/usb_board.py": "541ca1cf3a6432bf99cde0197026472d3e865f18aa6d19deb94b528dd24662e0"
+  },
+  "bench": "an Icepi Zero (ECP5 LFE5U-25F) running the chip at 48 MHz on bench carrier v1.2, Pico A as the host on SPI, the pc as the USB host at low speed, its input devices for the chip grabbed by demo/keys.py, analyser A (fx2lafw) at 2 MS/s",
+  "scope": "the bytes on the wire and their timing in one run of keyboard, as the analyser saw them",
+  "limits": [
+    "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
+    "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
+    "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
+    "the bitstream is named by its sha256, and its netlist's, built from board-8x4-features' Verilog, a68c75ab's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 1, 48.75 MHz) on the pc by the bench's notes, which CI does not rebuild",
+    "at 2 MS/s a bit is 17 samples, so a window over one bit is unresolved, not passed",
+    "the pc's keys are the kernel's input events, as demo/keys.py read them under its grab"
+  ]
+}

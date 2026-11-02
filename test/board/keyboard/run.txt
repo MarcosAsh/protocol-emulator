@@ -1,0 +1,44 @@
+$ mpremote connect id:e66548545717552e exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero /home/marcos/board-gaps/bit/v1.3.bit
+Jtag probe limited to 3MHz
+Jtag frequency : requested 6000000Hz -> real 3000000Hz
+ret 0
+Open file: DONE
+b3bdffff
+Parse file: DONE
+Enable configuration: DONE
+SRAM erase: DONE
+Loading: [========                                          ] 15.20%
+Loading: [================                                  ] 30.41%
+Loading: [=======================                           ] 45.61%
+Loading: [===============================                   ] 60.82%
+Loading: [=======================================           ] 76.02%
+Loading: [==============================================    ] 91.23%
+Loading: [==================================================] 100.00%
+
+Done
+Disable configuration: DONE
+$ mpremote connect id:e66548545717552e cp python/protocol_emulator.py python/pico_board.py python/usb_board.py python/usb_device_firmware.py python/demo_usb.py test/uart_tx_host_rate.hex test/uart_tx_host_rate.cert.hex :
+cp python/protocol_emulator.py :
+Up to date: ./protocol_emulator.py
+cp python/pico_board.py :
+Up to date: ./pico_board.py
+cp python/usb_board.py :
+cp python/usb_device_firmware.py :
+cp python/demo_usb.py :
+cp test/uart_tx_host_rate.hex :
+Up to date: ./uart_tx_host_rate.hex
+cp test/uart_tx_host_rate.cert.hex :
+Up to date: ./uart_tx_host_rate.cert.hex
+& sudo -n /nix/store/xahxrjs30p3mw0a42bqg9ikgkikskw8m-python3-3.14.8/bin/python3 demo/keys.py 48 > /home/marcos/board-gaps/evidence/2026-11-02/ledger/keyboard/keyboard.keys
+$ mpremote connect id:e66548545740ad29 cp python/pico_listener.py :
+cp python/pico_listener.py :
+Up to date: ./pico_listener.py
+& mpremote connect id:e66548545740ad29 exec 'import pico_listener; pico_listener.listen(115200, True)' > /home/marcos/board-gaps/evidence/2026-11-02/ledger/keyboard/pico_b.log
+& ANALYSER=A TRIES=1 RATE=2M demo/capture.sh /home/marcos/board-gaps/evidence/2026-11-02/ledger/keyboard/keyboard.sr 30000
+$ mpremote connect id:e66548545717552e exec 'import demo_usb; demo_usb.run(settle_ms=3000)' > /home/marcos/board-gaps/evidence/2026-11-02/ledger/keyboard/keyboard.log
+stopped after 30 s
+$ mpremote connect id:e66548545717552e exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ sigrok-cli -i /home/marcos/board-gaps/evidence/2026-11-02/ledger/keyboard/keyboard.sr -P uart:rx=D4:baudrate=115200 -A uart=rx-data > /home/marcos/board-gaps/evidence/2026-11-02/ledger/keyboard/keyboard.decode
+$ journalctl -k -o short-iso-precise --since @1793645452 --grep 'usb|hid|input' > /home/marcos/board-gaps/evidence/2026-11-02/ledger/keyboard/keyboard.kernel
+Pico A says PASS, every step ran

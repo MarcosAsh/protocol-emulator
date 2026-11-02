@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import frames
+import keys
 import learn_witness
 import numpy as np
 import sigrok
@@ -478,7 +479,8 @@ def swd(swclk, swdio):
     return timing, byte_tooth, edge_tooth
 
 
-def uart(line, baud, clock_hz):
+def uart(line, baud, clock_hz, logged=True):
+    """logged: Pico A's log has the chip's edge log of each frame to hold the edges to."""
     sheet = "UART at %d baud, Maxim AN2141 p.4, 2%%" % baud
 
     def frames(samples, rate):
@@ -514,6 +516,8 @@ def uart(line, baud, clock_hz):
                 misses.append(max(0.0, lo - c / clock_hz, c / clock_hz - hi))
         records = [bound("bit", sheet, spans, at_least=(1 - 0.02) / baud),
                    bound("bit", sheet, spans, at_most=(1 + 0.02) / baud)]
+        if not logged:
+            return records
         records.append({
             "parameter": "edge after its start bit",
             "limit": "where the chip's edge log puts it",
@@ -1052,6 +1056,10 @@ class Demo:
     # what the capture, sigrok's decode and Pico A's log lack of the demo's bytes, from
     # demo/traffic.py unless given
     judge: object = None
+    # files kept beside KEPT's, and what is wrong with the first of them, from its text and
+    # Pico A's log
+    also: tuple = ()
+    also_problems: object = None
 
     def name(self, demo):
         return self.stem or demo
@@ -1188,6 +1196,27 @@ DEMOS = {
                         ("the echo's delay is the same for every edge, so only offsets from "
                          "each start bit are compared",)),
 }
+
+
+def pc_keys(text, log):
+    """The keys the pc's kernel took, as demo/keys.py grabbed them from the desktop, against
+    the keys Pico A typed."""
+    took, typed = keys.taken(text), traffic.typed(log)
+    if not took or not re.search(r"^grab ", text, re.M):
+        return ["demo/keys.py grabbed no keyboard"]
+    return [] if took == typed else ["the pc took %r, Pico A typed %r" % (took, typed)]
+
+
+DEMOS["keyboard"] = Demo(
+    "-P uart:rx=D4:baudrate=115200 -A uart=rx-data", "A",
+    {"D4": "OUT0, engine 1's byte for each key the pc took"},
+    ("python/usb_device_firmware.py", "test/uart_tx_host_rate.hex"),
+    ("python/demo_usb.py", "python/usb_board.py"),
+    "the pc as the USB host at low speed, its input devices for the chip grabbed by "
+    "demo/keys.py", uart(4, 115200, 48e6, logged=False),
+    ("at 2 MS/s a bit is 17 samples, so a window over one bit is unresolved, not passed",
+     "the pc's keys are the kernel's input events, as demo/keys.py read them under its grab"),
+    also=("keyboard.keys",), also_problems=pc_keys)
 LIMITS = (
     "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
     "the run's files are the bench's own record, tied together by SHA256SUMS, and CI "
@@ -1268,6 +1297,12 @@ def teeth(demo, samples, rate, capture, log, scratch):
               if r["parameter"] == parameter and r["verdict"] == "fail"]
     out.append((what, "%s %s measured %s" % (parameter, failed[0]["limit"], failed[0]["measured"])
                 if failed else None))
+    if d.also_problems:
+        text = (Path(capture).parent / d.also[0]).read_text()
+        first = re.search(r"^key \S+ (.)$", text, re.M)
+        toothed = text[:first.start(1)] + ("x" if first[1] != "x" else "y") + text[first.end(1):]
+        wrong = d.also_problems(toothed, log)
+        out.append(("%s's first key changed" % d.also[0], wrong[0] if wrong else None))
     return out
 
 
@@ -1275,7 +1310,7 @@ def files(demo):
     if demo in LOG_DEMOS:
         return [k.format(demo) for k in LOG_KEPT]
     name = DEMOS[demo].name(demo)
-    return [k.format(name) for k in KEPT]
+    return [k.format(name) for k in KEPT] + list(DEMOS[demo].also)
 
 
 def log_witness(directory):
@@ -1400,6 +1435,8 @@ def check(directory):
     _, _, samples = sigrok.read(capture)
     log = (directory / ("%s.log" % name)).read_text(errors="replace")
     problems += d.problems(demo, capture, samples, decoded.decode(), log)
+    if d.also_problems:
+        problems += d.also_problems((directory / d.also[0]).read_text(), log)
     problems += ["%s %s: %s, measured %s" % (r["parameter"], r["limit"], r["verdict"],
                                              r["measured"])
                  for r in made["timing"] if r["verdict"] in ("fail", "absent")]

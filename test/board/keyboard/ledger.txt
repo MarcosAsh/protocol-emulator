@@ -1,0 +1,13 @@
+demo: keyboard
+result: PASS
+pico_a_says: PASS
+traffic: held to the capture
+expected: PASS
+time: 2026-11-02T18:51:38
+commit: d94c3a70f6f8ecdab5fb59fe3c14b1455acf961c
+bitstream: /home/marcos/board-gaps/bit/v1.3.bit
+bitstream_sha256: d814478c5e4d849ecbb71da7bfb32cc851d6a92cf371ef12b7669a2e97be072d
+netlist_sha256: 28bfa97f1d03607ca9c2f3914f401b1b6990e3ee20542ba3d89d2347e67cff56
+pico_a: id:e66548545717552e
+pico_b: e66548545740ad29 micropython
+rate: 2M
