@@ -32,6 +32,7 @@ let protocols =
   ; Tdm_audio.protocol
   ; Dali.protocol
   ; Lin.protocol
+  ; Spdif.protocol
   ]
 ;;
 

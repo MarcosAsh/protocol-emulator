@@ -1173,6 +1173,12 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       , "half 16 and up, 1250 for 19200 baud"
       , "open drain, the response's start edges by a pin wait; not tried against the class"
       )
+    ; ( "spdif"
+      , "untried"
+      , "-"
+      , "halves of 8 32991/65536 cycles, 44.1 kHz"
+      , "transitions by reading the line back, a 192-frame block count; not tried against \
+         the class" )
     ]
   in
   let named = List.map rows ~f:(fun (name, _, _, _, _) -> name) in
@@ -1244,5 +1250,7 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       library half bit 20000; a 27 half bit idle is 540000 cycles, each step held at most 65535
     lin        untried  -
       library half 16 and up, 1250 for 19200 baud; open drain, the response's start edges by a pin wait; not tried against the class
+    spdif      untried  -
+      library halves of 8 32991/65536 cycles, 44.1 kHz; transitions by reading the line back, a 192-frame block count; not tried against the class
     |}]
 ;;

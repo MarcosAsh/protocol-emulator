@@ -124,5 +124,6 @@ let%expect_test "the kernel refuses each row moved by a cycle" =
     (tdm_audio (phase 0) (arm 0) (capture 0) (accepted ()))
     (dali (phase 48) (arm 0) (capture 0) (accepted ()))
     (lin (phase 94) (arm 0) (capture 0) (accepted ()))
+    (spdif (phase 206) (arm 0) (capture 0) (accepted ()))
     |}]
 ;;

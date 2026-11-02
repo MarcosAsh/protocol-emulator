@@ -716,6 +716,22 @@ let%expect_test "every protocol from its file to the decoded trace" =
     (received (0x4c 0x49 0x4e 0x45))
     decode: test/traces/lin.trace, by sigrok's uart:rx=IO0:baudrate=19200,lin
       lin=data:control: lin-1: Break condition, lin-1: Sync, lin-1: ID: 16 Parity: 3 (ok), lin-1: Data: 0x4C, lin-1: Data: 0x49, lin-1: Data: 0x4E, lin-1: Checksum: 0x45
+    === spdif
+
+    certificates
+    spdif: 108 words, 40 deadline waits, worst slack 2, the kernel accepts it, assuming nothing
+
+    limits
+    spdif              a block of 192 frames, 44.1 kHz and 1100 ppm >= 4.34896e+06 ns  run    208979 (4353729.2 ns) needs 208751       S/PDIF, IEC 60958 type II, Wikipedia, S/PDIF, revision 1378032122 (2 October 2026) p.1, S/PDIF control word components, byte 3, spec.txt l.222-224; margin a cycle
+    spdif              a block of 192 frames, 44.1 kHz less 1100 ppm <= 4.35854e+06 ns  run    208979 (4353729.2 ns) needs 209208       S/PDIF, IEC 60958 type II, Wikipedia, S/PDIF, revision 1378032122 (2 October 2026) p.1, S/PDIF control word components, byte 3, spec.txt l.222-224; margin a cycle
+    spdif              a frame, Mode 0's 192 kHz at most >=  5208.33 ns  run    1088 (22666.7 ns) needs  251       S/PDIF, IEC 60958 type II, Wikipedia, S/PDIF, revision 1378032122 (2 October 2026) p.1, text, spec.txt l.180; margin a cycle
+
+    lockstep: spdif, spdif
+    ("lockstep held" (cycles 5445))
+    (received ())
+    decode: test/traces/spdif.trace, by sigrok's spdif:data=OUT0
+      spdif=preamble: spdif-1: Preamble W, spdif-1: Preamble M, spdif-1: Preamble W, spdif-1: Preamble M, spdif-1: Preamble W, spdif-1: Preamble M, spdif-1: Preamble W, spdif-1: Preamble M, spdif-1: Preamble W
+      spdif=samples: spdif-1: Audio 0xfedc00, spdif-1: Audio 0x800100, spdif-1: Audio 0x7ffe00, spdif-1: Audio 0xff00, spdif-1: Audio 0xa5a500, spdif-1: Audio 0x0, spdif-1: Audio 0x0, spdif-1: Audio 0x0
     |}]
 ;;
 

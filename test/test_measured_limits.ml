@@ -193,6 +193,9 @@ let%expect_test "the datasheet limits, measured on the bench copies' runs" =
     run    2500  lin                FTOL_RES_MASTER, bit <=  52343.8 ns  measured 1250 (52083.3 ns)    Pass            LIN Specification Package Revision 2.2A, Table 6.1, p. 113
     run    2500  lin                bit rate, 20 kbit/s >=    50000 ns  measured 1250 (52083.3 ns)    Pass            LIN Specification Package Revision 2.2A, 6.3, p. 112
     run    2500  lin                bit rate, 1 kbit/s <=    1e+06 ns  measured 1250 (52083.3 ns)    Pass            LIN Specification Package Revision 2.2A, 6.3, p. 112
+    run    208979  spdif              a block of 192 frames, 44.1 kHz and 1100 ppm >= 4.34896e+06 ns  measured 104489 (4353708.3 ns) Pass            Wikipedia, S/PDIF, revision 1378032122 (2 October 2026), p.1, S/PDIF control word components, byte 3, spec.txt l.222-224
+    run    208979  spdif              a block of 192 frames, 44.1 kHz less 1100 ppm <= 4.35854e+06 ns  measured 104489 (4353708.3 ns) Pass            Wikipedia, S/PDIF, revision 1378032122 (2 October 2026), p.1, S/PDIF control word components, byte 3, spec.txt l.222-224
+    run    1088  spdif              a frame, Mode 0's 192 kHz at most >=  5208.33 ns  measured 544 (22666.7 ns)     Pass            Wikipedia, S/PDIF, revision 1378032122 (2 October 2026), p.1, text, spec.txt l.180
     kernel 417  uart_log           bit              >=  8506.94 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     run    417  uart_log           bit              <=  8854.17 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     |}]
@@ -377,5 +380,8 @@ let%expect_test "every limit's pairs of edges in the prediction" =
     lin            FTOL_RES_MASTER, bit  13 pairs, as measured
     lin            bit rate, 20 kbit/s  13 pairs, as measured
     lin            bit rate, 1 kbit/s  13 pairs, as measured
+    spdif          a block of 192 frames, 44.1 kHz and 1100 ppm   1 pairs, as measured
+    spdif          a block of 192 frames, 44.1 kHz less 1100 ppm   1 pairs, as measured
+    spdif          a frame, Mode 0's 192 kHz at most 194 pairs, as measured
     |}]
 ;;

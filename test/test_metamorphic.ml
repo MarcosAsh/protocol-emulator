@@ -576,6 +576,8 @@ let%expect_test "a delay before a deadline wait takes exactly its slack" =
      (violations_on_refused 0))
     ("delay field before a wait, library" (programs 40) (variants 241)
      (kernel_checked 49) (accepted 179) (refused 62) (violations_on_accepted 0)
+    ("delay field before a wait, library" (programs 40) (variants 245)
+     (kernel_checked 49) (accepted 182) (refused 63) (violations_on_accepted 0)
      (violations_on_refused 0))
     ("delay field before a wait, random" (programs 24) (variants 124)
      (kernel_checked 25) (accepted 90) (refused 34) (violations_on_accepted 0)
@@ -983,6 +985,8 @@ let%expect_test "a longer period lowers no slack and refuses nothing more" =
     {|
     ("longer period, library" (programs 46) (variants 114) (kernel_checked 23)
      (accepted 114) (refused 0) (violations_on_accepted 0)
+    ("longer period, library" (programs 46) (variants 113) (kernel_checked 23)
+     (accepted 113) (refused 0) (violations_on_accepted 0)
      (violations_on_refused 0))
     ("longer period, random" (programs 93) (variants 172) (kernel_checked 35)
      (accepted 46) (refused 126) (violations_on_accepted 0)

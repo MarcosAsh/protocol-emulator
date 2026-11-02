@@ -126,12 +126,15 @@
   (run ./write_trace.exe dali)))
   lin.trace.gen
   (run ./write_trace.exe lin)))
+  spdif.trace.gen
+  (run ./write_trace.exe spdif)))
 
 (rule
  (alias runtest)
  (action
   (diff dali.trace dali.trace.gen)))
   (diff lin.trace lin.trace.gen)))
+  (diff spdif.trace spdif.trace.gen)))
 
 (rule
  (with-stdout-to

@@ -413,6 +413,7 @@ let%expect_test "the kernel on the firmware library, from the analyser's rows" =
     (tdm_audio (verdict (Ok ())))
     (dali (verdict (Ok ())))
     (lin (verdict (Ok ())))
+    (spdif (verdict (Ok ())))
     |}]
 ;;
 
@@ -1232,6 +1233,7 @@ let%expect_test "a bound on the jitter of every pin edge, in firmware the kernel
        105 106 107 108 109 111 113 115)))
     (dali (pc 12) (jitter_bound 0) (untimed (0)))
     (lin (pc 14) (jitter_bound 0) (untimed (3 4)))
+    (spdif (pc 10) (jitter_bound 1) (untimed (0)))
     (spi_slave_captured "no edge has a deadline" (untimed (0 5))
      (reaction ((pc 5) (at_most 2))))
     |}]
