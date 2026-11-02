@@ -42,8 +42,8 @@ let%expect_test "each receiver's tolerance, from its certificate" =
     (Error
      ("formula does not apply: re-anchors on every edge, from [now] where it saw one late"
       usb_rx (arms 4)))
-    (can_rx (fast 1.140%) (slow 7.499%) (least 6219679) (most 6763315)
-     (fastest ((pc 8) (d (1992 1992)) (since 5) (until (21))))
+    (can_rx (fast 0.892%) (slow 7.499%) (least 6235283) (most 6763315)
+     (fastest ((pc 12) (d (1997 1997)) (since 5) (until (21))))
      (slowest ((pc 194) (d (1032 1032)) (since 10) (until (11))))
      (holds_at_both true) (fails_one_faster true) (fails_one_slower true))
     |}]
@@ -65,17 +65,17 @@ let%expect_test "the CAN receiver's window by the transceiver's loop" =
           ~fast_read:(b.fastest_read.pc : int)]);
   [%expect
     {|
-    ((echo 0) (fast 1.289%) (slow 7.499%) (fast_read 8))
-    ((echo 1) (fast 1.240%) (slow 7.499%) (fast_read 8))
-    ((echo 2) (fast 1.190%) (slow 7.499%) (fast_read 8))
-    ((echo 3) (fast 1.140%) (slow 7.499%) (fast_read 8))
-    ((echo 4) (fast 1.091%) (slow 7.499%) (fast_read 8))
-    ((echo 5) (fast 1.041%) (slow 7.499%) (fast_read 8))
-    ((echo 6) (fast 0.992%) (slow 7.499%) (fast_read 8))
-    ((echo 7) (fast 0.942%) (slow 7.499%) (fast_read 8))
-    ((echo 8) (fast 0.892%) (slow 7.499%) (fast_read 8))
-    ((echo 9) (fast 0.843%) (slow 7.499%) (fast_read 8))
-    ((echo 10) (fast 0.793%) (slow 7.499%) (fast_read 8))
+    ((echo 0) (fast 1.041%) (slow 7.499%) (fast_read 12))
+    ((echo 1) (fast 0.992%) (slow 7.499%) (fast_read 12))
+    ((echo 2) (fast 0.942%) (slow 7.499%) (fast_read 12))
+    ((echo 3) (fast 0.892%) (slow 7.499%) (fast_read 12))
+    ((echo 4) (fast 0.843%) (slow 7.499%) (fast_read 12))
+    ((echo 5) (fast 0.793%) (slow 7.499%) (fast_read 12))
+    ((echo 6) (fast 0.744%) (slow 7.499%) (fast_read 12))
+    ((echo 7) (fast 0.694%) (slow 7.499%) (fast_read 12))
+    ((echo 8) (fast 0.644%) (slow 7.499%) (fast_read 12))
+    ((echo 9) (fast 0.595%) (slow 7.499%) (fast_read 12))
+    ((echo 10) (fast 0.545%) (slow 7.499%) (fast_read 12))
     |}]
 ;;
 
@@ -96,7 +96,7 @@ let%expect_test "the CAN receiver's window with its premises watched" =
   in
   print_s
     [%message "" ~at_fast_end:(fails b.least : int) ~at_slow_end:(fails b.most : int)];
-  [%expect {| ((at_fast_end 64) (at_slow_end 0)) |}]
+  [%expect {| ((at_fast_end 0) (at_slow_end 0)) |}]
 ;;
 
 (* the CAN frames hold the longest runs: ten bits between falling edges inside a frame,

@@ -33,7 +33,10 @@ module Receiver : sig
     ; wired : sender:int -> pin_out:int -> int
     (** The inputs from the sender's word and what the receiver drives. *)
     ; echo : int (** Cycles what the receiver drives takes to reach [wired]. *)
-    ; premises : Machine.Premises.t (** What the model's core watches. *)
+    ; premises : Machine.Premises.t
+    (** What the model's core watches, the CAN receiver's certificate's as the chip does;
+        with the single edge, a read the firmware checks for an edge that came first is a
+        read like any other, as such an edge faults it. *)
     }
 
   (** [Uart.rx], [Uart.rx_host_rate] at half period [half], [Usb.rx] and the CAN node's

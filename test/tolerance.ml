@@ -143,7 +143,8 @@ module Receiver = struct
   let can_rx ?(echo = Can_node.Receiver.ack_back) ~period ~sample () =
     let rx = 1 lsl Can_node.rx_pin in
     let source = Can_node.Receiver.source ~period ~sample in
-    { firmware = Certified.receiver ~period "can_rx" source Can_node.Receiver.config
+    let firmware = Certified.receiver ~period "can_rx" source Can_node.Receiver.config in
+    { firmware
     ; nominal = period
     ; preload = []
     ; idle = rx
@@ -159,7 +160,7 @@ module Receiver = struct
         (fun ~sender ~pin_out ->
           if (pin_out lsr Can.tx_pin) land 1 = 1 then sender else sender land lnot rx)
     ; echo
-    ; premises = Machine.Premises.none
+    ; premises = System_lockstep.Assumptions.premises (Certified.assumptions firmware)
     }
   ;;
 end
@@ -316,7 +317,10 @@ let recovers (config : Program_config.t) (instructions : Isa.t list) =
 
 let reads (r : Receiver.t) =
   let program, config = assemble r in
-  let recovers = recovers config program.instructions in
+  (* where the core watches the single edge, an edge before the arm faults it *)
+  let recovers =
+    if r.premises.single_edge then [] else recovers config program.instructions
+  in
   let rows =
     Analyser.analyse
       ?period:r.firmware.period

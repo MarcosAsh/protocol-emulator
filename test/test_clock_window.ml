@@ -24,7 +24,7 @@ let%expect_test "the clocks each bench firmware stays certified at" =
     ps2                 38.420 CLK low <= 50000 ns          48.000  63.967 CLK low >= 30000 ns
     can                      -                              48.000  52.909 idle to SOF >= 22000 ns
     can_sender               -                              48.000  52.909 idle to SOF >= 22000 ns
-    can_receiver        47.452 sender faster, read at pc 8  48.000  51.600 sender slower, read at pc 194
+    can_receiver        47.571 sender faster, read at pc 12 48.000  51.600 sender slower, read at pc 194
     cec                 45.958 start bit <= 4.7e+06 ns      48.000  50.232 start bit >= 4.3e+06 ns
     spi_cs_mode0             -                              48.000  51.000 tRES1 >= 3000 ns
     spi_cs_mode1             -                              48.000  51.000 tRES1 >= 3000 ns
@@ -109,7 +109,7 @@ let%expect_test "the CAN receiver's window is its tolerance" =
         ~outside:(m (low.hz - 1) < m' b.least && m (high.hz + 1) > m' b.most : bool)];
   [%expect
     {|
-    ((low ((hz 47452385) (limit "sender faster, read at pc 8")))
+    ((low ((hz 47571435) (limit "sender faster, read at pc 12")))
      (high ((hz 51599998) (limit "sender slower, read at pc 194"))) (inside true)
      (outside true))
     |}]
