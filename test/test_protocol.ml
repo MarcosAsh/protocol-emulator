@@ -688,10 +688,12 @@ let%expect_test "every protocol from its file to the decoded trace" =
     spdif: 105 words, 40 deadline waits, worst slack 2, the kernel accepts it, assuming nothing
 
     limits
-    spdif: none, TODO the rows of the spec's timing table
+    spdif              a block of 192 frames, 44.1 kHz and 1100 ppm >= 4.34896e+06 ns  run    208979 (4353729.2 ns) needs 208751       S/PDIF, IEC 60958 type II, Wikipedia, S/PDIF, revision 1378032122 (2 October 2026) p.1, S/PDIF control word components, byte 3, spec.txt l.222-224; margin a cycle
+    spdif              a block of 192 frames, 44.1 kHz less 1100 ppm <= 4.35854e+06 ns  run    208979 (4353729.2 ns) needs 209208       S/PDIF, IEC 60958 type II, Wikipedia, S/PDIF, revision 1378032122 (2 October 2026) p.1, S/PDIF control word components, byte 3, spec.txt l.222-224; margin a cycle
+    spdif              a frame, Mode 0's 192 kHz at most >=  5208.33 ns  run    1088 (22666.7 ns) needs  251       S/PDIF, IEC 60958 type II, Wikipedia, S/PDIF, revision 1378032122 (2 October 2026) p.1, text, spec.txt l.180; margin a cycle
 
     lockstep: spdif, spdif
-    ("lockstep held" (cycles 600))
+    ("lockstep held" (cycles 5445))
     (received ())
     decode: test/traces/spdif.trace, by sigrok's spdif:data=OUT0
     |}]
@@ -768,8 +770,5 @@ let%expect_test "no protocol file is left half written" =
             [%string "sigrok %{s.name}"]))
     in
     if not (List.is_empty left) then print_s [%message p.name (left : string list)]);
-  [%expect {|
-    (spdif
-     (left ("unlimited spdif" "not swept spdif" "bench spdif" "sigrok spdif")))
-    |}]
+  [%expect {| (spdif (left ("sigrok spdif"))) |}]
 ;;
