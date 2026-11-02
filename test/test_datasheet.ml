@@ -190,6 +190,14 @@ let%expect_test "the bench firmware against its datasheet limits" =
     xy2_100            tDH            >=      100 ns  kernel 12 (250.0 ns)     needs    6       rhothor X7, Newson XY2-100 I/O configuration, Rev. 0703 Timing specifications table, p.2; margin a cycle
     lfast              data rate, shortest high bit (3.125 ns) >=    3.125 ns  kernel 10 (208.3 ns)     needs    2       LFAST, NXP AN5134 Rev. 0 p.3, text: rates up to 320 Mb/s; margin a cycle
     lfast              data rate, shortest low bit (3.125 ns) >=    3.125 ns  kernel 10 (208.3 ns)     needs    2       LFAST, NXP AN5134 Rev. 0 p.3, text: rates up to 320 Mb/s; margin a cycle
+    lin                break field    >=   677083 ns  run    33750 (703125.0 ns) needs 32501       LIN master, LIN Specification Package Revision 2.2A 2.3.1.1, p. 30; margin a cycle
+    lin                break delimiter >=  52083.3 ns  run    3750 (78125.0 ns) needs 2501       LIN master, LIN Specification Package Revision 2.2A 2.3.1.1, p. 30; margin a cycle
+    lin                break field length (dominant + delimiter) >=   729167 ns  run    37500 (781250.0 ns) needs 35002       LIN master, LIN Specification Package Revision 2.2A Table 2.3, p. 52; margin a cycle
+    lin                THeader_Maximum, 1.4 * THeader_Nominal of 34 TBit <= 2.47917e+06 ns  run    87500 (1822916.7 ns) needs 118999       LIN master, LIN Specification Package Revision 2.2A 2.3.2 eq. (3), p. 32, eq. (6), p. 33; margin a cycle
+    lin                FTOL_RES_MASTER, bit >=  51822.9 ns  run    2500 (52083.3 ns) needs 2489       LIN master, LIN Specification Package Revision 2.2A Table 6.1, p. 113; margin a cycle
+    lin                FTOL_RES_MASTER, bit <=  52343.8 ns  run    2500 (52083.3 ns) needs 2511       LIN master, LIN Specification Package Revision 2.2A Table 6.1, p. 113; margin a cycle
+    lin                bit rate, 20 kbit/s >=    50000 ns  run    2500 (52083.3 ns) needs 2401       LIN master, LIN Specification Package Revision 2.2A 6.3, p. 112; margin a cycle
+    lin                bit rate, 1 kbit/s <=    1e+06 ns  run    2500 (52083.3 ns) needs 47999       LIN master, LIN Specification Package Revision 2.2A 6.3, p. 112; margin a cycle
     uart_log           bit            >=  8506.94 ns  kernel 417 (8687.5 ns)   needs  410       UART at 115200 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
     uart_log           bit            <=  8854.17 ns  run    417 (8687.5 ns)   needs  424       UART at 115200 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
     |}]

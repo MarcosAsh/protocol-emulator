@@ -183,6 +183,14 @@ let%expect_test "the datasheet limits, measured on the bench copies' runs" =
     kernel 12  xy2_100            tDH              >=      100 ns  measured 6 (250.0 ns)         Pass            Newson XY2-100 I/O configuration, Rev. 0703, Timing specifications table, p.2
     kernel 10  lfast              data rate, shortest high bit (3.125 ns) >=    3.125 ns  measured 5 (208.3 ns)         Pass            NXP AN5134 Rev. 0, p.3, text: rates up to 320 Mb/s
     kernel 10  lfast              data rate, shortest low bit (3.125 ns) >=    3.125 ns  measured 5 (208.3 ns)         Pass            NXP AN5134 Rev. 0, p.3, text: rates up to 320 Mb/s
+    run    33750  lin                break field      >=   677083 ns  measured 16875 (703125.0 ns)  Pass            LIN Specification Package Revision 2.2A, 2.3.1.1, p. 30
+    run    3750  lin                break delimiter  >=  52083.3 ns  measured 1875 (78125.0 ns)    Pass            LIN Specification Package Revision 2.2A, 2.3.1.1, p. 30
+    run    37500  lin                break field length (dominant + delimiter) >=   729167 ns  measured 18750 (781250.0 ns)  Pass            LIN Specification Package Revision 2.2A, Table 2.3, p. 52
+    run    87500  lin                THeader_Maximum, 1.4 * THeader_Nominal of 34 TBit <= 2.47917e+06 ns  measured 43750 (1822916.7 ns) Pass            LIN Specification Package Revision 2.2A, 2.3.2 eq. (3), p. 32, eq. (6), p. 33
+    run    2500  lin                FTOL_RES_MASTER, bit >=  51822.9 ns  measured 1250 (52083.3 ns)    Pass            LIN Specification Package Revision 2.2A, Table 6.1, p. 113
+    run    2500  lin                FTOL_RES_MASTER, bit <=  52343.8 ns  measured 1250 (52083.3 ns)    Pass            LIN Specification Package Revision 2.2A, Table 6.1, p. 113
+    run    2500  lin                bit rate, 20 kbit/s >=    50000 ns  measured 1250 (52083.3 ns)    Pass            LIN Specification Package Revision 2.2A, 6.3, p. 112
+    run    2500  lin                bit rate, 1 kbit/s <=    1e+06 ns  measured 1250 (52083.3 ns)    Pass            LIN Specification Package Revision 2.2A, 6.3, p. 112
     kernel 417  uart_log           bit              >=  8506.94 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     run    417  uart_log           bit              <=  8854.17 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     |}]
@@ -357,5 +365,13 @@ let%expect_test "every limit's pairs of edges in the prediction" =
     xy2_100        tDH               49 pairs, as measured
     lfast          data rate, shortest high bit (3.125 ns)  12 pairs, as measured
     lfast          data rate, shortest low bit (3.125 ns)  11 pairs, as measured
+    lin            break field        1 pairs, as measured
+    lin            break delimiter    1 pairs, as measured
+    lin            break field length (dominant + delimiter)   1 pairs, as measured
+    lin            THeader_Maximum, 1.4 * THeader_Nominal of 34 TBit   0 pairs, none, measured 87500
+    lin            FTOL_RES_MASTER, bit  13 pairs, as measured
+    lin            FTOL_RES_MASTER, bit  13 pairs, as measured
+    lin            bit rate, 20 kbit/s  13 pairs, as measured
+    lin            bit rate, 1 kbit/s  13 pairs, as measured
     |}]
 ;;

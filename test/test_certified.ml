@@ -94,6 +94,7 @@ let%expect_test "the firmware library and its certificates" =
     xy2_100               35        10      2
     lfast                 64        27      6
     tdm_audio            117         0      -
+    lin                   60        17   1247  period 1250, no wrap
     |}]
 ;;
 
@@ -204,6 +205,10 @@ let%expect_test "the least period the host may load" =
     (caliper (period (270)) (floor 16) (passes true) (one_less true))
     (QED "caliper: every load of 16 or more")
     (counterexample "caliper: every load of 15 or more"
+     (model ((loaded 0000000000001111))))
+    (lin (period (1250)) (floor 16) (passes true) (one_less true))
+    (QED "lin: every load of 16 or more")
+    (counterexample "lin: every load of 15 or more"
      (model ((loaded 0000000000001111))))
     |}]
 ;;

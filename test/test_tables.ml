@@ -1165,7 +1165,8 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       , "untried"
       , "-"
       , "half 16 and up, 1250 for 19200 baud"
-      , "open drain, the response's start edges captured; not tried against the class" )
+      , "open drain, the response's start edges by a pin wait; not tried against the class"
+      )
     ]
   in
   let named = List.map rows ~f:(fun (name, _, _, _, _) -> name) in
@@ -1233,5 +1234,7 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       library frames of 33 bits of 10 cycles; written for the core, not tried
     tdm_audio  untried  -
       library SCLK half 3 cycles, 256-bit frames; three outputs, no waits, the halves timed by instructions; not tried against the class
+    lin        untried  -
+      library half 16 and up, 1250 for 19200 baud; open drain, the response's start edges by a pin wait; not tried against the class
     |}]
 ;;

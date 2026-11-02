@@ -301,6 +301,7 @@ let%expect_test "what each out sends, in the firmware library" =
       ((4 "not a pulled word") (18 "not a pulled word") (32 "not a pulled word")
        (46 "not a pulled word") (60 "not a pulled word") (74 "not a pulled word")
        (88 "not a pulled word") (102 "not a pulled word"))))
+    (lin (verdict (Ok ())) (sends ()))
     (uart_tx_stream (verdict (Ok ())) (sends ((8 "not a pulled word"))))
     (spi_master_stream (verdict (Ok ()))
      (sends ((4 "not a pulled word") (8 "not a pulled word"))))
