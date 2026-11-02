@@ -30,7 +30,7 @@ module Receiver = struct
     ; expected = bytes
     ; wired = plain
     ; echo = 0
-    ; single_edge = false
+    ; single_edge = firmware.single_capture_edge
     }
   ;;
 
