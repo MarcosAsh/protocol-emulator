@@ -73,7 +73,8 @@ DEMOS = [
     # 2 MS/s is plenty for 9600 and 115200 baud and keeps a 30 s capture at 60 MB
     Demo("self_timing", "pico", pico_b="micropython",
          files=("python/demo_self_timing.py", "test/uart_tx_host_rate.hex",
-                "test/edge_logger_echo.hex"),
+                "test/uart_tx_host_rate.cert.hex", "test/edge_logger_echo.hex",
+                "test/edge_logger_echo.cert.hex"),
          run="python/demo_self_timing.py", listen=9600, capture_ms=8000, rate="2M",
          decode="-P uart:rx=D4:baudrate=9600 -A uart=rx-data"),
     # OUT0 echoes wire 20 through every firmware, too many bauds for one decode
@@ -85,12 +86,13 @@ DEMOS = [
     # wire 20 never leaves the chip: nothing to capture
     Demo("self_check", "pico",
          files=("python/demo_self_check.py", "test/uart_tx_host_rate.hex",
-                "test/self_check_wire.hex", "test/uart_tx_host_rate_rows.hex"),
+                "test/uart_tx_host_rate.cert.hex", "test/self_check_wire.hex",
+                "test/self_check_wire.cert.hex", "test/uart_tx_host_rate_rows.hex"),
          run="python/demo_self_check.py"),
     # engine 1 sends each key the laptop took out of OUT0
     Demo("keyboard", "pico", pico_b="micropython",
          files=("python/usb_board.py", "python/usb_device_firmware.py", "python/demo_usb.py",
-                "test/uart_tx_host_rate.hex"),
+                "test/uart_tx_host_rate.hex", "test/uart_tx_host_rate.cert.hex"),
          run="python/demo_usb.py", listen=115_200, capture_ms=KEYBOARD_S * 1000, rate="2M",
          decode="-P uart:rx=D4:baudrate=115200 -A uart=rx-data", timeout_s=KEYBOARD_S),
     outside("flash"),
