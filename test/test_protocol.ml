@@ -688,10 +688,20 @@ let%expect_test "every protocol from its file to the decoded trace" =
     dmx512: 52 words, 14 deadline waits, worst slack 182, the kernel accepts it, assuming period 192
 
     limits
-    dmx512: none, TODO the rows of the spec's timing table
+    dmx512             bit at 250 kbit/s, shortest low >=     4000 ns  kernel 192 (4000.0 ns)   needs  192       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, line 291; margin 0 ns, the rate has no tolerance: a bit is 192 cycles at 48 MHz
+    dmx512             bit at 250 kbit/s, shortest high >=     4000 ns  kernel 192 (4000.0 ns)   needs  192       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, line 291; margin 0 ns, the rate has no tolerance: a bit is 192 cycles at 48 MHz
+    dmx512             bit at 250 kbit/s, longest channel low <=     4000 ns  run    192 (4000.0 ns)   needs  192       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, line 291; margin 0 ns, the rate has no tolerance: a bit is 192 cycles at 48 MHz
+    dmx512             BREAK transmitted >=    92000 ns  run    4800 (100000.0 ns) needs 4417       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, table, lines 303-306; margin a cycle
+    dmx512             BREAK receiver recognized >=    88000 ns  run    4800 (100000.0 ns) needs 4225       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, table, lines 303, 308-309; margin a cycle
+    dmx512             MAB transmitted >=    12000 ns  run    768 (16000.0 ns)  needs  577       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, table, lines 304-305, 307; margin a cycle
+    dmx512             MAB receiver recognized >=     8000 ns  run    768 (16000.0 ns)  needs  385       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, table, lines 304, 308, 310; margin a cycle
+    dmx512             MAB since 1990 >=     8000 ns  run    768 (16000.0 ns)  needs  385       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, line 301; margin a cycle
+    dmx512             break to break transmitted >= 1.204e+06 ns  run    1092101 (22752104.2 ns) needs 57793       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, line 313; margin a cycle
+    dmx512             break to break receivers handle >= 1.196e+06 ns  run    1092101 (22752104.2 ns) needs 57409       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, line 313; margin a cycle
+    dmx512             refresh rate of 512 channels, at most 44 Hz >= 2.27273e+07 ns  run    1092101 (22752104.2 ns) needs 1090911       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, line 312; margin a cycle
 
     lockstep: dmx512, dmx512
-    ("lockstep held" (cycles 600))
+    ("lockstep held" (cycles 1146320))
     (received ())
     decode: test/traces/dmx512.trace, by sigrok's dmx512:dmx=OUT0
     |}]
@@ -768,9 +778,5 @@ let%expect_test "no protocol file is left half written" =
             [%string "sigrok %{s.name}"]))
     in
     if not (List.is_empty left) then print_s [%message p.name (left : string list)]);
-  [%expect {|
-    (dmx512
-     (left
-      ("unlimited dmx512" "not swept dmx512" "bench dmx512" "sigrok dmx512")))
-    |}]
+  [%expect {| (dmx512 (left ("sigrok dmx512"))) |}]
 ;;

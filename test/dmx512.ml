@@ -92,64 +92,180 @@ bit:
       ~period]
 ;;
 
-(* TODO the certificates, under the assumptions [%firmware] checked: give ~period, the
-   period the host loads, to firmware checked at a ~period_floor, and ~no_wrap:true where
-   a wait can fall far behind, as a receiver's can *)
 let certified = [ Certified.of_firmware "dmx512" firmware ]
 
-(* TODO the copy python/bench_firmware.py holds for the bench, at its clock, with a run
-   long enough to bound [limits]; for a period the host loads, [Floor] the least and
-   [load] the one the bench loads *)
+(* the start code, then the 512 channels two a word, low byte first *)
+let packet ~start_code channels =
+  let rec pairs = function
+    | lo :: hi :: rest -> (lo lor (hi lsl 8)) :: pairs rest
+    | _ -> []
+  in
+  if List.length channels <> 512
+  then raise_s [%message "BUG: a packet has 512 channels" (List.length channels : int)];
+  start_code :: pairs channels
+;;
+
+let channels = List.init 512 ~f:(fun n -> ((n * 37) + 11) land 0xff)
+
+(* The copy python/bench_firmware.py holds: a packet of channels 0x55, every low a bit,
+   and the next packet's break. *)
 let bench =
   { Bench.name = "dmx512"
-  ; what = "Dmx512.firmware: TODO what the bench sees, on OUT0"
+  ; what =
+      "Dmx512.firmware: a packet of 512 channels at 250 kbit/s on OUT0, then the next \
+       packet's break"
   ; source = Timed_program.source firmware
   ; config
-  ; assumption = Nothing
+  ; assumption = Period period
   ; clock_hz = Bench.clock_hz
   ; load = None
-  ; stimulus = Some { bursts = [ [ 0x55 ] ]; quiet = 0; cycles = 400 }
+  ; stimulus =
+      Some
+        { bursts =
+            [ packet ~start_code:0x00 (List.init 512 ~f:(Fn.const 0x55)) @ [ 0x00 ] ]
+        ; quiet = 0
+        ; cycles = 1_110_000
+        }
   }
 ;;
 
-(* TODO a row for each parameter of the spec's timing table, then [unlimited] empty. Each
-   is bounded by the kernel over every path, [Datasheet.level] or [Datasheet.spacing], or
-   by [bench]'s run, [Datasheet.run], which a loop of waits needs as the kernel counts one
-   pass of it. For example
-   { Datasheet.firmware = bench.name
-   ; parameter = "tLOW"
-   ; limit = At_least 4700.
-   ; sheet = { part = "I2C"; document = "NXP UM10204 Rev. 7.0"; page = "Table 11, p.44" }
-   ; margin = Cycle
-   ; bound = Datasheet.level ~pin:Datasheet.set_pin ~high:false ()
-   } *)
-let limits : Datasheet.t list = []
+(* Bits of the line in the run. No slot is low longer than a start bit and eight zeros, so
+   a longer low is a break; one that is short enough to pass for a slot leaves no break,
+   and the row no bound. Packet time, about 23 ms (line 312), is typical and no row. *)
+let limits =
+  let sheet line =
+    { Datasheet.Sheet.part = "DMX512"
+    ; document = "Wikipedia, DMX512, oldid 1380777110"
+    ; page = [%string "page 1, %{line}"]
+    }
+  in
+  let is_break ~clock_hz n = n * 250_000 > 10 * clock_hz in
+  let breaks ~clock_hz levels =
+    List.filter (Datasheet.lows levels) ~f:(is_break ~clock_hz)
+  in
+  let marks_after_break ~clock_hz levels =
+    List.filter_map (Datasheet.pairs levels) ~f:(fun ((high, n), (_, mark)) ->
+      Option.some_if ((not high) && is_break ~clock_hz n) mark)
+  in
+  let break_to_break ~clock_hz levels =
+    let starts =
+      List.folding_map levels ~init:0 ~f:(fun at (high, n) ->
+        at + n, Option.some_if ((not high) && is_break ~clock_hz n) at)
+      |> List.filter_opt
+    in
+    List.map2_exn (List.drop_last_exn starts) (List.tl_exn starts) ~f:(fun a b -> b - a)
+  in
+  (* the lows of the channels, each one bit of 0x55; a start code is not one *)
+  let channel_lows ~clock_hz levels =
+    List.folding_map levels ~init:false ~f:(fun after_code (high, n) ->
+      match high with
+      | true -> after_code, None
+      | false when is_break ~clock_hz n -> false, None
+      | false -> true, Option.some_if after_code n)
+    |> List.filter_opt
+  in
+  let row ?(margin = Datasheet.Margin.Cycle) parameter ~line limit bound =
+    { Datasheet.firmware = bench.name
+    ; parameter
+    ; limit
+    ; sheet = sheet line
+    ; margin
+    ; bound
+    }
+  in
+  let run widths = Datasheet.run ~pin:Datasheet.set_pin widths in
+  let exact =
+    Datasheet.Margin.Ns
+      { ns = 0.; why = "the rate has no tolerance: a bit is 192 cycles at 48 MHz" }
+  in
+  [ row
+      "bit at 250 kbit/s, shortest low"
+      ~line:"line 291"
+      ~margin:exact
+      (At_least 4_000.)
+      (Datasheet.level ~pin:Datasheet.set_pin ~high:false ())
+  ; row
+      "bit at 250 kbit/s, shortest high"
+      ~line:"line 291"
+      ~margin:exact
+      (At_least 4_000.)
+      (Datasheet.level ~pin:Datasheet.set_pin ~high:true ())
+  ; row
+      "bit at 250 kbit/s, longest channel low"
+      ~line:"line 291"
+      ~margin:exact
+      (At_most 4_000.)
+      (run channel_lows)
+  ; row "BREAK transmitted" ~line:"table, lines 303-306" (At_least 92_000.) (run breaks)
+  ; row
+      "BREAK receiver recognized"
+      ~line:"table, lines 303, 308-309"
+      (At_least 88_000.)
+      (run breaks)
+  ; row
+      "MAB transmitted"
+      ~line:"table, lines 304-305, 307"
+      (At_least 12_000.)
+      (run marks_after_break)
+  ; row
+      "MAB receiver recognized"
+      ~line:"table, lines 304, 308, 310"
+      (At_least 8_000.)
+      (run marks_after_break)
+  ; row "MAB since 1990" ~line:"line 301" (At_least 8_000.) (run marks_after_break)
+  ; row
+      "break to break transmitted"
+      ~line:"line 313"
+      (At_least 1_204_000.)
+      (run break_to_break)
+  ; row
+      "break to break receivers handle"
+      ~line:"line 313"
+      (At_least 1_196_000.)
+      (run break_to_break)
+  ; row
+      "refresh rate of 512 channels, at most 44 Hz"
+      ~line:"line 312"
+      (At_least (1e9 /. 44.))
+      (run break_to_break)
+  ]
+;;
 
-(* TODO what sigrok's dmx512 decoder reads. demo/decode.py --show test/traces/dmx512.trace
-   prints every line it reads, by class, to fill [expect] with. Its channels: dmx;
-   optional: none; options: none; classes: bit, break, mab, startbit, stopbits, startcode,
-   channel, interframe, interpacket, data, error. Each of [teeth] changes the waveform so
-   the decoders have to misread it. *)
+(* What sigrok's dmx512 decoder reads of the packet. The line is low from reset until the
+   firmware starts, longer than a break, so the decoder joins once the line has idled
+   high; from reset it reads that low as a break. The teeth cut the break to 83 us, under
+   the 88 a receiver recognises, and flip channel 1's first bit. *)
 let sigrok =
   { Sigrok.clock_hz = 48_000_000
   ; decoders = [ Sigrok.decoder "dmx512" ~pins:[ "dmx", pin ] ]
   ; expect = []
   ; joins_after = None
   ; rejected = None
-  ; teeth = []
+  ; teeth =
+      [ [ Shift { pin; edge = 2; cycles = -(4 * period) } ]
+      ; [ Flip { pin; edge = 5; after = period; cycles = period } ]
+      ]
   }
 ;;
 
-(* TODO a run at the pins: the host's words, and in [peer] a model of the far end if it
-   answers *)
+(* The host writes eight words, then waits out the bits they take, 194 for the first with
+   the break, 176 for the rest, and a few more: the mark stretches before every eighth
+   word. Then the next packet's start code. *)
 let scenario =
+  let words = packet ~start_code:0x00 channels @ [ 0x00 ] in
+  let writes =
+    List.chunks_of words ~length:Machine.fifo_depth
+    |> List.concat_mapi ~f:(fun n chunk ->
+      [ Step.Write (Reg.tx, chunk); Run ((if n = 0 then 200 else 180) * period) ])
+  in
   { Scenario.name = "dmx512"
   ; peer = (fun () -> Peer.idle 0)
   ; script =
       Scenario.load
         ~config:(Timed_program.config firmware)
         ~program:(Timed_program.words firmware)
-      @ [ Write (Reg.tx, [ 0x55; 0xa3 ]); Scenario.start; Run 600 ]
+      @ [ Scenario.start; Run 2_000 ]
+      @ writes
   ; sigrok = Some sigrok
   }
 ;;
@@ -161,9 +277,10 @@ let protocol =
   ; bench = [ bench ]
   ; loaded_from_hex = []
   ; limits
-  ; unlimited = [ "dmx512", "TODO the rows of the spec's timing table" ]
+  ; unlimited = []
   ; swept = []
-  ; not_swept = [ "dmx512", "TODO why the sweep does not stamp it, or a Swept.t" ]
+  ; not_swept =
+      [ "dmx512", "a packet is 1092101 cycles, past the 65536 a stamp tells apart" ]
   ; scenarios = [ scenario ]
   ; decoded = []
   }

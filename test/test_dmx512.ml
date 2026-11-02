@@ -166,17 +166,9 @@ module Receiver = struct
   ;;
 end
 
-(* a start code word, then the 512 channels two a word, low byte first *)
 let start_code = 0x00
-let channels = List.init 512 ~f:(fun n -> ((n * 37) + 11) land 0xff)
-
-let words =
-  let rec pairs = function
-    | lo :: hi :: rest -> (lo lor (hi lsl 8)) :: pairs rest
-    | _ -> []
-  in
-  start_code :: pairs channels
-;;
+let channels = Dmx512.channels
+let words = Dmx512.packet ~start_code channels
 
 (* The host writes every word as the fifo has room. *)
 let run ~cycles words =
