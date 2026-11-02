@@ -18,15 +18,14 @@ let config =
   ; set_base = pin
   ; set_count = 1
   ; jmp_pin = pin
-  ; capture_pin = pin
-  ; capture_rising = false
   }
 ;;
 
 (* The master: a header, then the slave's response read back a byte a word. The host loads
    half a bit, then per frame the response's bytes less one (checksum included) and the
    PID. [t] steps half a bit; each pin write follows its [wait t+]. A response sampled as
-   [Uart.rx_host_rate_on] does, its start edges captured. *)
+   [Uart.rx_host_rate_on] does; the core already waits at each start edge, so [now] a
+   cycle after the wait releases is the edge's cycle and one. *)
 let firmware =
   [%firmware
     {|
@@ -75,14 +74,13 @@ pid:
     wait t+
     set pindirs, 0           ; stop bit
     wait t                   ; its middle: the slave may start only after it ends
-arm:
-    capture_arm
-    wait 0 pin 12            ; start bit, its edge cycle is in capture
-    mov t, capture
+byte:
+    wait 0 pin 12            ; start bit
+    mov t, now
     add t, p
     add t, p
     add t, p
-    sub t, 1                 ; middle of bit 0, less the cycle the sample lands after
+    sub t, 2                 ; middle of bit 0, less the cycle the sample lands after
     set x, 7
 bit:
     wait t+
@@ -96,12 +94,11 @@ bit:
     irq                      ; framing error
     jmp frame
 stop:
-    jmp y--, arm
+    jmp y--, byte
     jmp frame
 |}
       ~config
-      ~period_floor:16
-      ~single_capture_edge:true]
+      ~period_floor:16]
 ;;
 
 (* half a bit at 19200 baud on the bench's 48 MHz *)
@@ -311,7 +308,7 @@ let bench =
          ~unit:\"baud\" (2 * half)}, on IO0"]
   ; source = Timed_program.source firmware
   ; config
-  ; assumption = Receiver half
+  ; assumption = Floor 16
   ; clock_hz = Bench.clock_hz
   ; load = Some half
   ; stimulus =

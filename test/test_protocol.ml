@@ -685,7 +685,7 @@ let%expect_test "every protocol from its file to the decoded trace" =
     === lin
 
     certificates
-    lin: 61 words, 17 deadline waits, worst slack 1247, the kernel accepts it, assuming period 1250, a load of 16 or more, one edge before capture, no wrap
+    lin: 60 words, 17 deadline waits, worst slack 1247, the kernel accepts it, assuming period 1250, a load of 16 or more, no wrap
 
     limits
     lin                break field    >=   677083 ns  run    33750 (703125.0 ns) needs 32501       LIN master, LIN Specification Package Revision 2.2A 2.3.1.1, p. 30; margin a cycle
