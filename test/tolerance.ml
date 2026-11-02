@@ -30,7 +30,7 @@ module Receiver = struct
     ; expected = bytes
     ; wired = plain
     ; echo = 0
-    ; premises = Machine.Premises.none
+    ; premises = System_lockstep.Assumptions.premises (Certified.assumptions firmware)
     }
   ;;
 
