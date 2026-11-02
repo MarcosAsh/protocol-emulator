@@ -678,7 +678,7 @@ jobs:
   link:
     needs: generate
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
+    timeout-minutes: 180
     steps:
       - name: Checkout repo
         uses: actions/checkout@v6
