@@ -357,13 +357,32 @@ let send words =
   ]
 ;;
 
+(* sigrok's swd takes our bits on rises and the target's on falls, skipping a fall for the
+   first turnaround and a rise for the last. SWDIO's edge 8 is ACK's second bit falling, 9
+   RDATA's bit 0 rising: the teeth bring ACK half a clock early, so OK reads 000, and
+   invert RDATA's bit 0. *)
 let sigrok =
   { Sigrok.clock_hz = Bench.clock_hz
   ; decoders = [ Sigrok.decoder "swd" ~pins:[ "swclk", swclk_pin; "swdio", swdio_pin ] ]
-  ; expect = []
+  ; expect =
+      [ ( "swd=reset:read:ack:data"
+        , Sigrok.lines
+            "swd"
+            [ "LINERESET"
+            ; "IDCODE"
+            ; "OK"
+            ; sprintf "0x%08x" Target.dpidr
+            ; "R AP0"
+            ; "OK"
+            ; "0x00000000"
+            ] )
+      ]
   ; joins_after = None
   ; rejected = None
-  ; teeth = []
+  ; teeth =
+      [ [ Shift { pin = swdio_pin; edge = 8; cycles = -(standard_half + 6) } ]
+      ; [ Flip { pin = swdio_pin; edge = 9; after = 0; cycles = 2 * standard_half } ]
+      ]
   }
 ;;
 
@@ -514,7 +533,10 @@ let protocol =
   ; limits
   ; unlimited = []
   ; swept = []
-  ; not_swept = [ "swd_blind", "TODO why the sweep does not stamp it, or a Swept.t" ]
+  ; not_swept =
+      [ ( "swd_blind"
+        , "SWDIO turns around, which a wire does not show, and a target answers" )
+      ]
   ; scenarios = [ scenario ]
   ; decoded = []
   }
