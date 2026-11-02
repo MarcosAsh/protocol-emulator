@@ -7,16 +7,16 @@ b3bdffff
 Parse file: DONE
 Enable configuration: DONE
 SRAM erase: DONE
-Loading: [========                                          ] 15.32%
-Loading: [================                                  ] 30.64%
-Loading: [=======================                           ] 45.96%
-Loading: [===============================                   ] 61.28%
-Loading: [=======================================           ] 76.60%
-Loading: [==============================================    ] 91.92%
+Loading: [========                                          ] 15.02%
+Loading: [================                                  ] 30.04%
+Loading: [=======================                           ] 45.06%
+Loading: [===============================                   ] 60.08%
+Loading: [======================================            ] 75.10%
+Loading: [==============================================    ] 90.12%
 Loading: [==================================================] 100.00%
 
 Done
 Disable configuration: DONE
-& sh -c 'stty -F "$0" raw -echo && exec cat "$0"' /dev/serial/by-id/usb-Raspberry_Pi_Pico_E66548545740AD29-if00 > /home/marcos/board-8x4/evidence/2026-11-02/ledger/can_node.4/pico_b.log
-$ CAPTURES=/home/marcos/board-8x4/evidence/2026-11-02/ledger/can_node.4 PICO=id:e66548545717552e demo/outside.sh can_node > /home/marcos/board-8x4/evidence/2026-11-02/ledger/can_node.4/outside.txt
+& sh -c 'stty -F "$0" raw -echo && exec cat "$0"' /dev/serial/by-id/usb-Raspberry_Pi_Pico_E66548545740AD29-if00 > /home/marcos/can-fix/evidence-8x4/2026-11-02/ledger/can_node/pico_b.log
+$ CAPTURES=/home/marcos/can-fix/evidence-8x4/2026-11-02/ledger/can_node PICO=id:e66548545717552e demo/outside.sh can_node > /home/marcos/can-fix/evidence-8x4/2026-11-02/ledger/can_node/outside.txt
 Pico A says PASS, every step ran

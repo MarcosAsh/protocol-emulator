@@ -1,14 +1,14 @@
 {
   "demo": "can",
-  "time": "2026-11-02T15:58:49",
+  "time": "2026-11-02T20:28:53",
   "result": "PASS",
-  "commit": "e195e44b0aaf396107f1bede62ddd74622476fe9",
+  "commit": "93290364e2ddfe627db97f082125a569c28acb21",
   "bitstream_sha256": "c70acd0de0e64cb5904f953e58f811dcd8e82e0c2f767999a0a80b4feb987cc3",
   "netlist_sha256": "95eb429f4a4eb5a8b661b264d41c66f77d37780daa283731c654e8ca5d31e9cb",
-  "sums_sha256": "1938f3ed18756556ce75c4987a5dc2817932366217641fd3fbf64d014b830d83",
+  "sums_sha256": "622d4fa60e7d39b9045e16d65bffe30691d1f18b577e313d916342d43b5e6cc5",
   "capture": {
     "file": "can.sr",
-    "sha256": "d436139b1c8c070a54f09fa02bb6406defb7c26dec18c7d5be1eddea14c04a87",
+    "sha256": "d35d38b11bbdd88295658530d77d865d57b13eae59fb6a8819d0d1f218e624cc",
     "rate_hz": 24000000,
     "seconds": 2.0,
     "analyser": "A",
@@ -74,7 +74,7 @@
       "limit": ">= 22.00 us",
       "sheet": "CAN 2.0A, Bosch CAN 2.0, BCANPSV2.0 Rev. 3 s.2.15 p.2-6, eleven recessive bits",
       "spans": 4,
-      "measured": "3701.00 us to open",
+      "measured": "3621.93 us to open",
       "verdict": "proved"
     }
   ],
@@ -82,7 +82,7 @@
     "CAN R inverted over the first data byte's fourth bit",
     "an edge of the first frame a quarter bit late"
   ],
-  "bitstream_source": "board-8x4's Verilog, neq8x4 3e23b13e's and unchanged through e195e44b, by icepi/Makefile REV=v1.3 (seed 2, 48.45 MHz) on the pc",
+  "bitstream_source": "board-8x4's Verilog, neq8x4 3e23b13e's and unchanged through 93290364, by icepi/Makefile REV=v1.3 (seed 2, 48.45 MHz) on the pc",
   "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
   "firmware": {
     "CAN": "97e976a413767b7ddd0c4c86050f0c1ca4b5e53506df7c5419f124489e80ea50"
@@ -96,7 +96,7 @@
     "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
     "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
     "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
-    "the bitstream is named by its sha256, and its netlist's, built from board-8x4's Verilog, neq8x4 3e23b13e's and unchanged through e195e44b, by icepi/Makefile REV=v1.3 (seed 2, 48.45 MHz) on the pc by the bench's notes, which CI does not rebuild",
+    "the bitstream is named by its sha256, and its netlist's, built from board-8x4's Verilog, neq8x4 3e23b13e's and unchanged through 93290364, by icepi/Makefile REV=v1.3 (seed 2, 48.45 MHz) on the pc by the bench's notes, which CI does not rebuild",
     "the bus at CAN board A's receiver, so its edges carry the SN65HVD230's delay",
     "the ACK slot is the receiver's and only must be there, not on the grid"
   ]
