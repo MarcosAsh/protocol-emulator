@@ -15,6 +15,6 @@ SRAM erase: DONE
 
 Done
 Disable configuration: DONE
-& sh -c 'stty -F "$0" raw -echo && exec cat "$0"' /dev/serial/by-id/usb-Raspberry_Pi_Pico_E66548545740AD29-if00 > /home/marcos/bench-rerun/evidence/2026-10-30/ledger/can_node.2/pico_b.log
-$ CAPTURES=/home/marcos/bench-rerun/evidence/2026-10-30/ledger/can_node.2 PICO=id:e66548545717552e demo/outside.sh can_node > /home/marcos/bench-rerun/evidence/2026-10-30/ledger/can_node.2/outside.txt
+& sh -c 'stty -F "$0" raw -echo && exec cat "$0"' /dev/serial/by-id/usb-Raspberry_Pi_Pico_E66548545740AD29-if00 > /home/marcos/can-fix/evidence-6x4/2026-11-02/ledger/can_node/pico_b.log
+$ CAPTURES=/home/marcos/can-fix/evidence-6x4/2026-11-02/ledger/can_node PICO=id:e66548545717552e demo/outside.sh can_node > /home/marcos/can-fix/evidence-6x4/2026-11-02/ledger/can_node/outside.txt
 Pico A says PASS, every step ran
