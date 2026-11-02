@@ -34,6 +34,8 @@ ARM_S = 3
 # a demo that runs until reset is stopped after this
 KEYBOARD_S = 30
 TEXT = "hello jane street "
+# Pico A's GP8 to usb_detach, high: the USB port stays detached while a bitstream loads
+DETACH = "from machine import Pin; Pin(8, Pin.OUT, value=1)"
 
 
 @dataclass(frozen=True)
@@ -310,7 +312,10 @@ class Ledger:
         return ["mpremote", "connect", pico or self.pico, *words]
 
     def reset(self):
-        """A fresh load of the bitstream, as faults hold until reset."""
+        """A fresh load of the bitstream, as faults hold until reset. Pico A holds the USB
+        port detached across it, or the host meets a device nothing serves yet and retries
+        it to error -71."""
+        self.bench.run(self.mpremote("exec", DETACH))
         return self.bench.run(["openFPGALoader", "-b", "icepi-zero", self.args.bitstream]) == 0
 
     def load_pico_b(self, firmware):
