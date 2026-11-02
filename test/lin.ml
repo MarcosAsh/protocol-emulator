@@ -424,7 +424,8 @@ let peer () =
   }
 ;;
 
-(* sigrok's lin stacks on its uart, which reads 8N1 at the bit rate *)
+(* sigrok's lin stacks on its uart, which reads 8N1 at the bit rate. It shows a frame once
+   the line idles two byte times; a valid checksum is a data line. *)
 let sigrok =
   { Sigrok.clock_hz = trace_hz
   ; decoders =
@@ -432,10 +433,25 @@ let sigrok =
         ^ ","
         ^ Sigrok.decoder "lin"
       ]
-  ; expect = []
+  ; expect =
+      [ ( "lin=data:control"
+        , Sigrok.lines
+            "lin"
+            ([ "Break condition"
+             ; "Sync"
+             ; sprintf "ID: %02X Parity: %d (ok)" id (pid id lsr 6)
+             ]
+             @ List.map data ~f:(sprintf "Data: 0x%02X")
+             @ [ sprintf "Checksum: 0x%02X" (enhanced ~pid:(pid id) data) ]) )
+      ]
   ; joins_after = None
   ; rejected = None
-  ; teeth = []
+  ; teeth =
+      [ (* edge 1 ends the break at 8.5 bits, under the uart's 10 for a break *)
+        [ Shift { pin; edge = 1; cycles = -5 * trace_bit } ]
+      ; (* edge 18 starts the response: its first data bit flipped, the checksum wrong *)
+        [ Flip { pin; edge = 18; after = trace_bit; cycles = trace_bit } ]
+      ]
   }
 ;;
 

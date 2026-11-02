@@ -122,6 +122,16 @@
 
 (rule
  (with-stdout-to
+  lin.trace.gen
+  (run ./write_trace.exe lin)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff lin.trace lin.trace.gen)))
+
+(rule
+ (with-stdout-to
   wrapped_loop.trace.gen
   (run ./write_trace.exe wrapped_loop)))
 
