@@ -38,3 +38,6 @@ xy2_100	bench	2026-10-30T14:59:30+00:00	board run, test/board/xy2_100
 caliper	bench	2026-10-30T14:59:43+00:00	board run, test/board/caliper
 ir_rc6	bench	2026-10-30T14:59:56+00:00	board run, test/board/ir_rc6
 tdm_audio	bench	2026-10-30T15:00:09+00:00	board run, test/board/tdm_audio
+lin	spec	2026-11-02T19:56:07+00:00	new-protocol
+lin	file	2026-11-02T20:32:08+00:00	
+lin	certificate	2026-11-02T20:41:25+00:00	
