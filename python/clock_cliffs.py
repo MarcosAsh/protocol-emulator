@@ -239,7 +239,7 @@ WINDOWS = [
      "lowest_hz": None, "lowest_limit": None,
      "highest_hz": 52909090, "highest_limit": "idle to SOF >= 22000 ns"},
     {"firmware": "can_receiver", "words_md5": "414a9a8fb0b1de8aa12c921bd72952a6", "shipped_hz": 48000000,
-     "lowest_hz": 47452385, "lowest_limit": "sender faster, read at pc 8",
+     "lowest_hz": 47571435, "lowest_limit": "sender faster, read at pc 12",
      "highest_hz": 51599998, "highest_limit": "sender slower, read at pc 194"},
     {"firmware": "cec", "words_md5": "7380c9964f9504336ccc70fcf6e3bc24", "shipped_hz": 48000000,
      "lowest_hz": 45957660, "lowest_limit": "start bit <= 4.7e+06 ns",

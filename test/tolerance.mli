@@ -35,7 +35,8 @@ module Receiver : sig
     ; echo : int (** Cycles what the receiver drives takes to reach [wired]. *)
     ; single_edge : bool
     (** Whether a run counts a failed [Single_edge] as a lost frame, as the certificate
-        assumes it held. *)
+        assumes it held, the CAN receiver's; then a read the firmware checks for an edge
+        that came first is a read like any other, as such an edge breaks it. *)
     }
 
   (** [Uart.rx], [Uart.rx_host_rate] at half period [half], [Usb.rx] and the CAN node's

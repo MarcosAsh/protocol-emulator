@@ -159,7 +159,7 @@ module Receiver = struct
         (fun ~sender ~pin_out ->
           if (pin_out lsr Can.tx_pin) land 1 = 1 then sender else sender land lnot rx)
     ; echo
-    ; single_edge = false
+    ; single_edge = true
     }
   ;;
 end
@@ -323,7 +323,8 @@ let recovers (config : Program_config.t) (instructions : Isa.t list) =
 
 let reads (r : Receiver.t) =
   let program, config = assemble r in
-  let recovers = recovers config program.instructions in
+  (* where the single edge is watched, an edge before the arm breaks it *)
+  let recovers = if r.single_edge then [] else recovers config program.instructions in
   let rows =
     Analyser.analyse
       ?period:r.firmware.period
