@@ -1,7 +1,7 @@
 {
   "demo": "learn_rc6",
-  "bitstream_sha256": "ded0014fdf14df568ed478e5f6e36d1d91475ba62bae300e101c1b229c1f963f",
-  "sums_sha256": "7fa9cfc5279413c5ed7d87724abc59ed490ff667da23399777cbbbef7d0e1bd0",
+  "bitstream_sha256": "c70acd0de0e64cb5904f953e58f811dcd8e82e0c2f767999a0a80b4feb987cc3",
+  "sums_sha256": "ba34b2e4cbe2ad26fa46678949318d84125778bb06f6e6d530ede7b3917811e2",
   "recorded_probes": [
     "IO3=D6"
   ],
@@ -14,8 +14,8 @@
   ],
   "tooth": [
     "D4",
-    12065251,
-    12671095
+    12074895,
+    12681824
   ],
   "bench": "an Icepi Zero running the chip at 48 MHz on bench carrier v1.2, Pico A as the host, Pico B replaying the recording and listening on OUT0, analyser B on IO3/IO2 while the chip records and A on OUT0 (B on OUT5/OUT4 for a clocked bus) while it speaks, both fx2lafw",
   "scope": "the chip's recording of a transmitter it was not told about, what was learned from it, the firmware written for a message never recorded, and that message on the wire"
