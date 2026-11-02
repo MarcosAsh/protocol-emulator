@@ -694,6 +694,7 @@ let%expect_test "every protocol from its file to the decoded trace" =
     ("lockstep held" (cycles 672000))
     (received ())
     decode: test/traces/wiegand.trace, by sigrok's wiegand:d0=OUT0:d1=OUT1:bitwidth_ms=1
+      wiegand=state: wiegand-1: 26 bits 00010101000010010001101001
     |}]
 ;;
 
@@ -768,5 +769,5 @@ let%expect_test "no protocol file is left half written" =
             [%string "sigrok %{s.name}"]))
     in
     if not (List.is_empty left) then print_s [%message p.name (left : string list)]);
-  [%expect {| (wiegand (left ("not swept wiegand" "sigrok wiegand"))) |}]
+  [%expect {| |}]
 ;;

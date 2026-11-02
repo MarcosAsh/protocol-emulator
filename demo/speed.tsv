@@ -39,3 +39,5 @@ caliper	bench	2026-10-30T14:59:43+00:00	board run, test/board/caliper
 ir_rc6	bench	2026-10-30T14:59:56+00:00	board run, test/board/ir_rc6
 tdm_audio	bench	2026-10-30T15:00:09+00:00	board run, test/board/tdm_audio
 wiegand	spec	2026-11-02T16:33:26+00:00	new-protocol
+wiegand	file	2026-11-02T16:49:22+00:00	
+wiegand	certificate	2026-11-02T16:50:07+00:00	

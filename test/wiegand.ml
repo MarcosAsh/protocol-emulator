@@ -97,12 +97,7 @@ let bench =
   ; assumption = Floor 16
   ; clock_hz = Bench.clock_hz
   ; load = Some pulse
-  ; stimulus =
-      Some
-        { bursts = [ [ interval ] @ card ~facility:0x2a ~id:0x1234 ]
-        ; quiet = 0
-        ; cycles = 30 * interval * pulse
-        }
+  ; stimulus = None
   }
 ;;
 

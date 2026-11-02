@@ -45,6 +45,7 @@ let%expect_test "the kernel's verdict on delay variants" =
     (jtag (wait_pc 8) (slack 0) (accepted (0)) (late (1-3)))
     (can (wait_pc 36) (slack 1785) (accepted (0-3 1782-1785)) (late ()))
     (sent (wait_pc 26) (slack 279) (accepted (0-3 276-279)) (late (280-282)))
+    (wiegand (wait_pc 20) (slack 289) (accepted (0-3 286-289)) (late (290-292)))
     |}]
 ;;
 
@@ -96,7 +97,8 @@ let%expect_test "planted delays: none the kernel certifies runs late" =
     jtag                 13 planted:    4 certified, 0 ran late;   9 refused,   9 ran late
     can                  90 planted:   60 certified, 0 ran late;  30 refused,  22 ran late
     sent                 81 planted:   54 certified, 0 ran late;  27 refused,  25 ran late
-    total               283 planted:  181 certified, 0 ran late; 102 refused,  92 ran late
+    wiegand              36 planted:   24 certified, 0 ran late;  12 refused,  11 ran late
+    total               319 planted:  205 certified, 0 ran late; 114 refused, 103 ran late
     |}]
 ;;
 
