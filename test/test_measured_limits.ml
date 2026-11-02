@@ -183,6 +183,9 @@ let%expect_test "the datasheet limits, measured on the bench copies' runs" =
     kernel 12  xy2_100            tDH              >=      100 ns  measured 6 (250.0 ns)         Pass            Newson XY2-100 I/O configuration, Rev. 0703, Timing specifications table, p.2
     kernel 10  lfast              data rate, shortest high bit (3.125 ns) >=    3.125 ns  measured 5 (208.3 ns)         Pass            NXP AN5134 Rev. 0, p.3, text: rates up to 320 Mb/s
     kernel 10  lfast              data rate, shortest low bit (3.125 ns) >=    3.125 ns  measured 5 (208.3 ns)         Pass            NXP AN5134 Rev. 0, p.3, text: rates up to 320 Mb/s
+    run    208979  spdif              a block of 192 frames, 44.1 kHz and 1100 ppm >= 4.34896e+06 ns  measured 104489 (4353708.3 ns) Pass            Wikipedia, S/PDIF, revision 1378032122 (2 October 2026), p.1, S/PDIF control word components, byte 3, spec.txt l.222-224
+    run    208979  spdif              a block of 192 frames, 44.1 kHz less 1100 ppm <= 4.35854e+06 ns  measured 104489 (4353708.3 ns) Pass            Wikipedia, S/PDIF, revision 1378032122 (2 October 2026), p.1, S/PDIF control word components, byte 3, spec.txt l.222-224
+    run    1088  spdif              a frame, Mode 0's 192 kHz at most >=  5208.33 ns  measured 544 (22666.7 ns)     Pass            Wikipedia, S/PDIF, revision 1378032122 (2 October 2026), p.1, text, spec.txt l.180
     kernel 417  uart_log           bit              >=  8506.94 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     run    417  uart_log           bit              <=  8854.17 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     |}]
@@ -357,5 +360,8 @@ let%expect_test "every limit's pairs of edges in the prediction" =
     xy2_100        tDH               49 pairs, as measured
     lfast          data rate, shortest high bit (3.125 ns)  12 pairs, as measured
     lfast          data rate, shortest low bit (3.125 ns)  11 pairs, as measured
+    spdif          a block of 192 frames, 44.1 kHz and 1100 ppm   1 pairs, as measured
+    spdif          a block of 192 frames, 44.1 kHz less 1100 ppm   1 pairs, as measured
+    spdif          a frame, Mode 0's 192 kHz at most 194 pairs, as measured
     |}]
 ;;

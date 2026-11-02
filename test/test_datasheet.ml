@@ -190,6 +190,9 @@ let%expect_test "the bench firmware against its datasheet limits" =
     xy2_100            tDH            >=      100 ns  kernel 12 (250.0 ns)     needs    6       rhothor X7, Newson XY2-100 I/O configuration, Rev. 0703 Timing specifications table, p.2; margin a cycle
     lfast              data rate, shortest high bit (3.125 ns) >=    3.125 ns  kernel 10 (208.3 ns)     needs    2       LFAST, NXP AN5134 Rev. 0 p.3, text: rates up to 320 Mb/s; margin a cycle
     lfast              data rate, shortest low bit (3.125 ns) >=    3.125 ns  kernel 10 (208.3 ns)     needs    2       LFAST, NXP AN5134 Rev. 0 p.3, text: rates up to 320 Mb/s; margin a cycle
+    spdif              a block of 192 frames, 44.1 kHz and 1100 ppm >= 4.34896e+06 ns  run    208979 (4353729.2 ns) needs 208751       S/PDIF, IEC 60958 type II, Wikipedia, S/PDIF, revision 1378032122 (2 October 2026) p.1, S/PDIF control word components, byte 3, spec.txt l.222-224; margin a cycle
+    spdif              a block of 192 frames, 44.1 kHz less 1100 ppm <= 4.35854e+06 ns  run    208979 (4353729.2 ns) needs 209208       S/PDIF, IEC 60958 type II, Wikipedia, S/PDIF, revision 1378032122 (2 October 2026) p.1, S/PDIF control word components, byte 3, spec.txt l.222-224; margin a cycle
+    spdif              a frame, Mode 0's 192 kHz at most >=  5208.33 ns  run    1088 (22666.7 ns) needs  251       S/PDIF, IEC 60958 type II, Wikipedia, S/PDIF, revision 1378032122 (2 October 2026) p.1, text, spec.txt l.180; margin a cycle
     uart_log           bit            >=  8506.94 ns  kernel 417 (8687.5 ns)   needs  410       UART at 115200 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
     uart_log           bit            <=  8854.17 ns  run    417 (8687.5 ns)   needs  424       UART at 115200 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
     |}]

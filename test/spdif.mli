@@ -1,4 +1,5 @@
-(** spdif, TODO: what it is and the spec this file follows, with its revision. *)
+(** An S/PDIF transmitter: stereo 16-bit samples at 44.1 kHz, biphase mark, B every 192
+    frames, silence when the host has none. Wikipedia's S/PDIF, revision 1378032122. *)
 
 open! Core
 open Protocol_emulator

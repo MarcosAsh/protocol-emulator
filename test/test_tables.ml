@@ -1161,7 +1161,12 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       , "SCLK half 3 cycles, 256-bit frames"
       , "three outputs, no waits, the halves timed by instructions; not tried against \
          the class" )
-    ; "spdif", "TODO", "-", "-", "TODO whether the table interpreter runs it"
+    ; ( "spdif"
+      , "untried"
+      , "-"
+      , "halves of 8 32991/65536 cycles, 44.1 kHz"
+      , "transitions by reading the line back, a 192-frame block count; not tried against \
+         the class" )
     ]
   in
   let named = List.map rows ~f:(fun (name, _, _, _, _) -> name) in
@@ -1229,5 +1234,7 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       library frames of 33 bits of 10 cycles; written for the core, not tried
     tdm_audio  untried  -
       library SCLK half 3 cycles, 256-bit frames; three outputs, no waits, the halves timed by instructions; not tried against the class
+    spdif      untried  -
+      library halves of 8 32991/65536 cycles, 44.1 kHz; transitions by reading the line back, a 192-frame block count; not tried against the class
     |}]
 ;;
