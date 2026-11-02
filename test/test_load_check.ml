@@ -121,6 +121,7 @@ let%expect_test "every firmware against the chip's walk" =
     xy2_100                       35     26  accepted
     lfast                         64     15  accepted
     tdm_audio                    117     80  accepted
+    usb_fs_device                251    132  accepted
     asm/blink                      4      5  accepted
     asm/crc_send                  12     12  accepted
     asm/data_stream                4      5  accepted

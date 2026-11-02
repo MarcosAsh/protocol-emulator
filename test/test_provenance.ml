@@ -27,7 +27,7 @@ let%expect_test "tracing leaves the committed verilog byte for byte" =
         ~bytes:(String.length committed : int)
         ~untraced_identical:(String.equal plain committed : bool)
         ~traced_identical:(String.equal traced committed : bool)];
-  [%expect {| ((bytes 825571) (untraced_identical true) (traced_identical true)) |}]
+  [%expect {| ((bytes 838791) (untraced_identical true) (traced_identical true)) |}]
 ;;
 
 (* no module's lines are an interface's fields, where its derived code sits *)
@@ -70,19 +70,20 @@ let%expect_test "the share of verilog names that resolve to a src line" =
              : string list)]);
   [%expect
     {|
-    ((names 7854) (named_at 563) (made_at 6086) (unresolved 1205)
-     (distinct_lines 1223))
+    ((names 7991) (named_at 582) (made_at 6184) (unresolved 1225)
+     (distinct_lines 1251))
     (both_edges (names 16) (unresolved 12) (files (src/both_edges.ml)))
     (data_memory (names 125) (unresolved 44) (files (src/data_memory.ml)))
     (edge_stamps (names 111) (unresolved 89) (files (src/edge_stamps.ml)))
-    (engine (names 2525) (unresolved 141)
+    (engine (names 2544) (unresolved 141)
      (files
       (src/crc.ml src/deadline.ml src/decoder.ml src/engine.ml src/pins.ml)))
-    (engines (names 890) (unresolved 286) (files (src/engines.ml)))
+    (engines (names 920) (unresolved 286) (files (src/engines.ml)))
     (frame_rx (names 132) (unresolved 20) (files (src/crc.ml src/frame_rx.ml)))
     (host_fifo (names 93) (unresolved 84) (files (src/host_fifo.ml)))
     (host_port (names 1315) (unresolved 310) (files (src/host_port.ml)))
     (host_spi (names 69) (unresolved 21) (files (src/host_spi.ml)))
+    (line_stuff (names 84) (unresolved 18) (files (src/line_stuff.ml)))
     (load_checker (names 1706) (unresolved 107)
      (files
       (src/decoder.ml src/kernel_accepts.ml src/kernel_step.ml
@@ -91,7 +92,7 @@ let%expect_test "the share of verilog names that resolve to a src line" =
     (protocol_emulator (names 17) (unresolved 17) (files ()))
     (sram_macro (names 21) (unresolved 19) (files (src/sram_macro.ml)))
     (top (names 332) (unresolved 11) (files (src/top.ml)))
-    (usb_frame_rx (names 177) (unresolved 20)
+    (usb_frame_rx (names 181) (unresolved 22)
      (files (src/crc.ml src/usb_frame_rx.ml)))
     (usb_rx (names 144) (unresolved 12) (files (src/usb_rx.ml)))
     |}]

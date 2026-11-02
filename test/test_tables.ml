@@ -1169,6 +1169,12 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       , "SCLK half 3 cycles, 256-bit frames"
       , "three outputs, no waits, the halves timed by instructions; not tried against \
          the class" )
+    ; ( "usb_fs"
+      , "no"
+      , "-"
+      , "full speed device, 4 cycles a bit"
+      , "the receiver recovers the clock, undoes NRZI and stuffing and checks both CRCs; \
+         the host stuffs each reply and adds its CRC-16" )
     ]
   in
   let named = List.map rows ~f:(fun (name, _, _, _, _) -> name) in
@@ -1236,5 +1242,7 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       library frames of 33 bits of 10 cycles; written for the core, not tried
     tdm_audio  untried  -
       library SCLK half 3 cycles, 256-bit frames; three outputs, no waits, the halves timed by instructions; not tried against the class
+    usb_fs     no       -
+      library full speed device, 4 cycles a bit; the receiver recovers the clock, undoes NRZI and stuffing and checks both CRCs; the host stuffs each reply and adds its CRC-16
     |}]
 ;;

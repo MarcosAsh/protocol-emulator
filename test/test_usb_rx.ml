@@ -441,6 +441,85 @@ let%expect_test "a packet past the data memory's end, then a token" =
     |}]
 ;;
 
+(* A SETUP, its DATA0 and an IN three bits apart, as a host sends a control read, armed
+   once: with [rearm] each lands from the base as it ends, and finished falls at the next
+   SYNC; without it the first alone lands. *)
+let%expect_test "re-armed, packets three bits apart each land from the base" =
+  let module Harness =
+    Hardcaml_test_harness.Lws_harness.Make (Usb_frame_rx.I) (Usb_frame_rx.O)
+  in
+  let packets =
+    [ Usb.token ~address:5 ~pid:0x2d ~endpoint:0
+    ; Usb.data ~pid:Usb.data0 [ 0x80; 0x06; 0x00; 0x01; 0x00; 0x00; 0x40; 0x00 ]
+    ; Usb.token ~address:5 ~pid:in_ ~endpoint:0
+    ]
+  in
+  List.iter [ true; false ] ~f:(fun rearm ->
+    let random = Random.State.make [| 11 |] in
+    let cycles =
+      line ~random ~ppm:2500. ~jitter:2. ~skew:0. ~gap:3 packets
+      |> sample ~random ~per_bit:8 ~per_cycle:2
+    in
+    Harness.run
+      ~random_initial_state:`All
+      ~create:Usb_frame_rx.hierarchical
+      (fun (h @ local) ~inputs ~outputs ->
+         let outputs = Before_and_after_edge.after_edge outputs in
+         let flag x = Bits.to_bool !x in
+         inputs.clocking.clear := Bits.vdd;
+         Lws.step h;
+         inputs.clocking.clear := Bits.gnd;
+         inputs.may_write := Bits.vdd;
+         inputs.control.rearm := Bits.of_bool rearm;
+         inputs.control.base := Bits.of_unsigned_int ~width:Isa.data_addr_bits 0x40;
+         inputs.control.arm := Bits.vdd;
+         Lws.step h;
+         inputs.control.arm := Bits.gnd;
+         let writes = ref [] in
+         let ends = ref [] in
+         let was_finished = ref false in
+         List.iter cycles ~f:(fun (dp, dm) ->
+           inputs.dp := Bits.of_bit_list (List.rev dp);
+           inputs.dm := Bits.of_bit_list (List.rev dm);
+           Lws.step h;
+           let s = outputs.status in
+           if flag outputs.write.valid
+           then
+             writes
+             := (Bits.to_unsigned_int !(outputs.write.addr), !(outputs.write.data))
+                :: !writes;
+           let finished = flag s.finished in
+           if finished && not !was_finished
+           then (
+             ends
+             := (List.rev !writes, Bits.to_unsigned_int !(s.words), flag s.good) :: !ends;
+             writes := []);
+           was_finished := finished);
+         print_s
+           [%message
+             ""
+               (rearm : bool)
+               ~ends:(List.rev !ends : ((Int.Hex.t * Bits.Hex.t) list * int * bool) list)
+               ~sent:(List.map packets ~f:Manchester_line.words : Int.Hex.t list list)
+               ~armed:(flag outputs.status.armed : bool)])
+    [@nontail]);
+  [%expect
+    {|
+    ((rearm true)
+     (ends
+      ((((0x40 16'h052d) (0x41 16'h00d0)) 2 true)
+       (((0x40 16'h80c3) (0x41 16'h0006) (0x42 16'h0001) (0x43 16'h4000)
+         (0x44 16'hdd00) (0x45 16'h0094))
+        6 true)
+       (((0x40 16'h0569) (0x41 16'h00d0)) 2 true)))
+     (sent ((0x52d 0xd0) (0x80c3 0x6 0x1 0x4000 0xdd00 0x94) (0x569 0xd0)))
+     (armed true))
+    ((rearm false) (ends ((((0x40 16'h052d) (0x41 16'h00d0)) 2 true)))
+     (sent ((0x52d 0xd0) (0x80c3 0x6 0x1 0x4000 0xdd00 0x94) (0x569 0xd0)))
+     (armed false))
+    |}]
+;;
+
 (* An ACK at 0 ppm and no jitter, from SYNC's last bits: the PID alone in a low half, then
    the EOP. *)
 let%expect_test "waveform of an ACK" =

@@ -61,7 +61,8 @@ let%expect_test "every compare of timer values in the core and the kernel's step
   [%expect
     {|
     (memory Flops)
-    (circuits (engine_top data_memory engine program_memory solo host_fifo))
+    (circuits
+     (engine_top data_memory engine program_memory solo line_stuff host_fifo))
     (engine
      (((at (deadline_late)) (compare "(now -: t) ==: 0")
        (verdict (Safe Difference_against_constant)))
@@ -70,7 +71,8 @@ let%expect_test "every compare of timer values in the core and the kernel's step
       ((at (deadline_ready)) (compare "msb(now -: t)")
        (verdict (Safe Difference_against_constant)))))
     (memory Ihp_sram)
-    (circuits (engine_top data_memory sram_macro engine solo host_fifo))
+    (circuits
+     (engine_top data_memory sram_macro engine solo line_stuff host_fifo))
     (engine
      (((at (deadline_late)) (compare "(now -: t) ==: 0")
        (verdict (Safe Difference_against_constant)))

@@ -3,6 +3,9 @@
 // its CRC-16, a token with its CRC-5, or a handshake. Each word written is the bytes sent
 // as the receiver packs them, at base + its index; at finished the counts, half, aligned
 // and CRC are right. With SEVEN, any bits after SYNC with seven 1s end in stuff_error.
+// With TWICE, armed once with rearm held, a packet of its own follows the first once that
+// has landed: finished falls as it starts, its words land from base as the first's did,
+// and the checks hold of it.
 
 `ifndef BYTES
 `define BYTES 8
@@ -16,11 +19,34 @@ module usb_roundtrip (input clk);
   localparam GAP = 3'd0, SYNC = 3'd1, MESSAGE = 3'd2, EOP = 3'd3, DONE = 3'd4;
   localparam IDLE = 2'd0, HUNT = 2'd1, PACKET = 2'd2;
 
-  (* anyconst *) wire [1:0] kind;
-  (* anyconst *) wire [7:0] pid;
-  (* anyconst *) wire [7:0] len;
-  (* anyconst *) wire [8*N-1:0] payload;
-  (* anyconst *) wire [10:0] token;
+  (* anyconst *) wire [1:0] kind_1;
+  (* anyconst *) wire [7:0] pid_1;
+  (* anyconst *) wire [7:0] len_1;
+  (* anyconst *) wire [8*N-1:0] payload_1;
+  (* anyconst *) wire [10:0] token_1;
+  // which packet is on the line: the first, or with TWICE the second once its gap starts
+  reg round = 0;
+`ifdef TWICE
+  (* anyconst *) wire [1:0] kind_2;
+  (* anyconst *) wire [7:0] pid_2;
+  (* anyconst *) wire [7:0] len_2;
+  (* anyconst *) wire [8*N-1:0] payload_2;
+  (* anyconst *) wire [10:0] token_2;
+  wire [1:0] kind = round ? kind_2 : kind_1;
+  wire [7:0] pid = round ? pid_2 : pid_1;
+  wire [7:0] len = round ? len_2 : len_1;
+  wire [8*N-1:0] payload = round ? payload_2 : payload_1;
+  wire [10:0] token = round ? token_2 : token_1;
+  always @(*) assume(kind_2 != 3 && len_2 <= N);
+  wire rearm = 1;
+`else
+  wire [1:0] kind = kind_1;
+  wire [7:0] pid = pid_1;
+  wire [7:0] len = len_1;
+  wire [8*N-1:0] payload = payload_1;
+  wire [10:0] token = token_1;
+  wire rearm = 0;
+`endif
   (* anyconst *) wire [2:0] offset;
   (* anyconst *) wire [1:0] gap;
   (* anyconst *) wire [8:0] base;
@@ -29,13 +55,17 @@ module usb_roundtrip (input clk);
   (* anyseq *) wire raw;
 
   always @(*) begin
-    assume(kind != 3);
-    assume(len <= N);
+    assume(kind_1 != 3);
+    assume(len_1 <= N);
   end
 
 `ifdef SHORT
   // a tooth's packet, short enough to fail fast
   always @(*) assume(gap == 0 && offset == 0 && len == 0);
+`endif
+`ifdef SHORT_TWICE
+  // a tooth's two packets: a handshake, then a token
+  always @(*) assume(gap == 0 && offset == 0 && kind_1 == HANDSHAKE && kind_2 == TOKEN);
 `endif
 `ifdef PINNED
   // each cover from the bus idle as soon as may be, DATA0 with all 1s to stuff the most,
@@ -78,6 +108,8 @@ module usb_roundtrip (input clk);
     : kind == TOKEN ? {{M-24{1'b0}}, crc5_sent, token, pid} : {{M-8{1'b0}}, pid};
 
   reg [2:0] state = GAP;
+  // cycles idle after the packet, while may_write comes
+  reg [1:0] idle = 0;
   reg [9:0] count = 0;
   reg [2:0] ones = 0;
   reg seven = 0;
@@ -156,6 +188,12 @@ module usb_roundtrip (input clk);
       default: begin
         next_line = J;
         next_count = count;
+`ifdef TWICE
+        if (!round && idle == 3) begin
+          next_state = GAP;
+          next_count = 0;
+        end
+`endif
       end
     endcase
   end
@@ -177,6 +215,11 @@ module usb_roundtrip (input clk);
       if (state == MESSAGE && !stuff && count < message_bits && ones == 6 && data_bit)
         seven <= 1;
       if (state == MESSAGE && stuff) stuffed <= 1;
+      if (state == DONE && next_state == GAP) begin
+        round <= 1;
+        crc16 <= 16'hffff;
+        crc5 <= 5'h1f;
+      end
     end
   end
 
@@ -196,7 +239,8 @@ module usb_roundtrip (input clk);
   usb_frame_rx_top dut (
     .clock(clk), .clear(clear),
     .dp({second[1], first[1]}), .dm({second[0], first[0]}),
-    .control$arm(arm), .control$base(base), .may_write(may_write),
+    .control$arm(arm), .control$base(base), .control$rearm(rearm),
+    .may_write(may_write),
     .write$valid(write_valid), .write$addr(write_addr), .write$data(write_data),
     .status$words(words), .status$finished(finished), .status$crc5_ok(crc5_ok),
     .status$crc16_ok(crc16_ok), .status$half(half), .status$aligned(aligned),
@@ -214,11 +258,14 @@ module usb_roundtrip (input clk);
   wire [15:0] expected = message_word[15:0];
 
   reg [9:0] wrote = 0;
-  always @(posedge clk) if (!clear && write_valid) wrote <= wrote + 10'd1;
+  always @(posedge clk)
+    if (state == DONE && next_state == GAP && decide) wrote <= 0;
+    else if (!clear && write_valid) wrote <= wrote + 10'd1;
 
   // may_write comes once the line is idle, so the last word lands
-  reg [1:0] idle = 0;
-  always @(posedge clk) if (state == DONE && idle != 3) idle <= idle + 2'd1;
+  always @(posedge clk)
+    if (state != DONE || (decide && next_state != DONE)) idle <= 0;
+    else if (idle != 3) idle <= idle + 2'd1;
   always @(*) if (state == DONE) assume(may_write);
 
   always @(*) if (!clear) begin
@@ -229,7 +276,7 @@ module usb_roundtrip (input clk);
       assert(dropped || index == wrote);
     end
     assert(!stuff_error);
-    if (finished) begin
+    if (finished && (!round || state >= EOP)) begin
       assert(words == expected_words);
       assert(half == bytes[0]);
       assert(aligned);
@@ -238,6 +285,10 @@ module usb_roundtrip (input clk);
       if (kind == TOKEN) assert(crc5_ok);
     end
     if (idle >= 2) assert(finished);
+`ifdef TWICE
+    if (round) assert(armed);
+    if (round && state == MESSAGE && count != 0) assert(!finished);
+`endif
 `else
     // seven 1s in a row: a stuffing error, never a good packet
     if (finished && seven) assert(stuff_error);
@@ -268,6 +319,8 @@ module usb_roundtrip (input clk);
   endfunction
 
   wire taking = sub == 5 || sub == 6;
+  // the second packet's count, until the frame takes its SYNC, is still the first's
+  wire stale = round && (state < MESSAGE || (state == MESSAGE && count == 0 && taking));
   wire heard = state > SYNC || (state == SYNC && (count != 0 || (sub >= 1 && sub <= 4)));
   wire [M+15:0] received = {message, 16'd0} >> count;
   wire [15:0] known = count >= 16 ? 16'hffff : ~(16'hffff >> count);
@@ -294,6 +347,9 @@ module usb_roundtrip (input clk);
     assert(ones <= 6);
 `endif
     if (!seven) assert(!(state == MESSAGE && ones == 7));
+`ifndef TWICE
+    assert(!round);
+`endif
   end
 
   // the receiver
@@ -316,10 +372,13 @@ module usb_roundtrip (input clk);
 
   // the frame, as of the last bit decided
   always @(*) if (age >= 2 && !taking) begin
-    assert(armed == (!seven && state <= MESSAGE));
+    if (rearm) assert(armed);
+    else assert(armed == (!seven && state <= MESSAGE));
     assert(receiving == (!seven && state == MESSAGE));
-    assert(ended == (seven || state >= EOP));
-    if (state < MESSAGE) assert(words == 0 && !pending && !dropped && wrote == 0);
+    // the first packet's verdict holds until the second's SYNC
+    assert(ended == (seven || state >= EOP || (round && state < MESSAGE)));
+    if (state < MESSAGE) assert(!pending && wrote == 0);
+    if (state < MESSAGE && !round) assert(words == 0 && !dropped);
     if (seven) assert(stuff_error);
 `ifndef SEVEN
     if (state == MESSAGE) begin
@@ -343,7 +402,7 @@ module usb_roundtrip (input clk);
   always @(*) if (age >= 2) begin
 `ifndef SEVEN
     if (pending) assert(index + 9'd1 == words && write_data == expected);
-    if (!dropped) assert(wrote + pending == words);
+    if (!dropped && !stale) assert(wrote + pending == words);
 `endif
     if (idle >= 1) assert(!pending);
   end
@@ -352,6 +411,9 @@ module usb_roundtrip (input clk);
   always @(*) if (!clear) begin
 `ifdef SEVEN
     cover(finished && seven && stuff_error);
+`elsif TWICE
+    cover(round && idle == 3 && kind == DATA && crc16_ok && !dropped);
+    cover(round && idle == 3 && kind == TOKEN && crc5_ok && !dropped);
 `elsif LONG
     cover(finished && stuffed && !dropped && crc16_ok);
 `else

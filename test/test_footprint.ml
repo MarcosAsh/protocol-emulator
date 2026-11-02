@@ -278,6 +278,7 @@ let%expect_test "the footprint of each firmware, and of its config under any pro
     xy2_100            5-7          -          5-22           12-19
     lfast              5            -          5-20           12-19
     tdm_audio          5-7          -          5-22           12-19
+    usb_fs_device      12-13        12-13      12-27          12-19
     |}]
 ;;
 
@@ -391,6 +392,7 @@ let%expect_test "each firmware stays inside its footprint" =
     xy2_100            5-7          -
     lfast              5            -
     tdm_audio          5-7          -
+    usb_fs_device      12           -
     |}]
 ;;
 

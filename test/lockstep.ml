@@ -40,6 +40,9 @@ module State = struct
     ; line_rx : int
     ; line_flag : bool
     ; line_last : int
+    ; line_held : int
+    ; line_count : int
+    ; line_draining : bool
     }
   [@@deriving sexp_of, compare, equal]
 
@@ -75,6 +78,9 @@ module State = struct
     ; line_rx = m.line_rx
     ; line_flag = m.line_flag
     ; line_last = m.line_last
+    ; line_held = m.line_held
+    ; line_count = m.line_count
+    ; line_draining = m.line_draining
     }
   ;;
 
@@ -119,6 +125,9 @@ module State = struct
     ; line_rx = int o.line_rx
     ; line_flag = bool o.line_flag
     ; line_last = int o.line_last
+    ; line_held = int o.line_stuff.held
+    ; line_count = int o.line_stuff.count
+    ; line_draining = bool o.line_stuff.draining
     }
   ;;
 end

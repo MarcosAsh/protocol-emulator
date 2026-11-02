@@ -1,7 +1,7 @@
 all: issue_timing host_timing host_spacing late_host fifo_order unreachable phase_step fetch_step edge_step event_step frame_step \
   value_step narrow saturating chip_frame fail_safe isolation data_step teeth fsm_miter verilog_in \
   sram_equiv kernel_equiv translation frontend_equiv link bridge self_check self_check_clean powerup \
-  offset_axioms gate certify complete usb_roundtrip
+  offset_axioms gate certify complete usb_roundtrip line_stuff
 
 # dune runs from this checkout's root, not an enclosing worktree's
 export DUNE_ROOT = .
@@ -160,12 +160,15 @@ usb_frame_rx.v: ../src/*.ml
 	cd .. && dune exec -- bin/generate.exe usb-rx > formal/usb_frame_rx.v
 
 # The USB receiver keeps what a host sends at 8 samples a bit, any packet with up to 8 data
-# bytes, and takes seven 1s in a row for a stuffing error, by k-induction. About 3 min;
-# usb_roundtrip_proof runs on Verilog written already. Each tooth, a receiver that never
-# unstuffs or packs a lone byte high, or a host that never stuffs or sends its CRC raw,
-# must fail.
+# bytes, and takes seven 1s in a row for a stuffing error, by k-induction; re-armed, any
+# second packet lands from the base as the first did. About 4 min; usb_roundtrip_proof
+# runs on Verilog written already. Each tooth, a receiver that never unstuffs, packs a
+# lone byte high, disarms at a packet's end whatever rearm says or restarts its count on
+# the arm alone, or a host that never stuffs or sends its CRC raw, must fail.
 UNDESTUFFED = s/^\(\s*assign full_run = ones == \)signal_const_[0-9]*;/\13'b111;/
 HALF_HIGH = s/^\(\s*assign signal_mux = \)half_word ? signal_cat : word_next;/\1word_next;/
+UNREARMED = s/^\(\s*assign signal_and_[0-9]* = ends\) & signal_not_[0-9]*;/\1;/
+UNRESTARTED = s/^\(\s*assign signal_or_[0-9]* = signal_wire_[0-9]*\) | starts;/\1;/
 usb_roundtrip: usb_frame_rx.v
 	$(MAKE) usb_roundtrip_proof
 
@@ -173,10 +176,38 @@ usb_roundtrip_proof:
 	mkdir -p usb_roundtrip_teeth
 	sed "$(UNDESTUFFED)" usb_frame_rx.v > usb_roundtrip_teeth/undestuffed.v
 	sed "$(HALF_HIGH)" usb_frame_rx.v > usb_roundtrip_teeth/half_high.v
+	sed "$(UNREARMED)" usb_frame_rx.v > usb_roundtrip_teeth/unrearmed.v
+	sed "$(UNRESTARTED)" usb_frame_rx.v > usb_roundtrip_teeth/unrestarted.v
 	! cmp -s usb_frame_rx.v usb_roundtrip_teeth/undestuffed.v
 	! cmp -s usb_frame_rx.v usb_roundtrip_teeth/half_high.v
+	! cmp -s usb_frame_rx.v usb_roundtrip_teeth/unrearmed.v
+	! cmp -s usb_frame_rx.v usb_roundtrip_teeth/unrestarted.v
 	sby -f usb_roundtrip.sby prove seven cover cover_long cover_seven undestuffed half_high \
-	  seven_lenient unstuffed crc_raw
+	  seven_lenient unstuffed crc_raw twice cover_twice unrearmed unrestarted
+
+line_stuff.v: ../src/*.ml
+	cd .. && dune exec -- bin/generate.exe line-stuff > formal/line_stuff.v
+
+# The line path's stuffing sends any stream of up to 96 bits, at most 15 of them stuffed,
+# as USB stuffs it, each bit once and in order, and drains to nothing owed: every such
+# stream, from the clear to its drain's end, by BMC. Each tooth, a stuffed slot sending its
+# own bit, the oldest owed bit read one along, or a drain that takes bits, must fail.
+# line_stuff_proof runs on Verilog written already.
+UNSTUFFED = s/^\(\s*assign signal_and_[0-9]* = \)signal_not_[0-9]* \& \(signal_mux_[0-9]*\);/\1\2;/
+OLDEST_OFF = s/^\(\s*assign signal_sub = count_0\) - signal_const_[0-9]*;/\1;/
+DRAIN_TAKES = s/^\(\s*assign taking = \).*;/\11'b1;/
+line_stuff: line_stuff.v
+	$(MAKE) line_stuff_proof
+
+line_stuff_proof:
+	mkdir -p line_stuff_teeth
+	sed "$(UNSTUFFED)" line_stuff.v > line_stuff_teeth/unstuffed.v
+	sed "$(OLDEST_OFF)" line_stuff.v > line_stuff_teeth/oldest_off.v
+	sed "$(DRAIN_TAKES)" line_stuff.v > line_stuff_teeth/drain_takes.v
+	! cmp -s line_stuff.v line_stuff_teeth/unstuffed.v
+	! cmp -s line_stuff.v line_stuff_teeth/oldest_off.v
+	! cmp -s line_stuff.v line_stuff_teeth/drain_takes.v
+	sby -f line_stuff.sby prove cover unstuffed oldest_off drain_takes
 
 # the same for any packet of up to 64 bytes, about 10 min
 usb_roundtrip_64: usb_frame_rx.v
@@ -896,11 +927,14 @@ netlist_anystate_teeth:
 # icepi_top.v around the chip's Verilog, macro cores cut on both sides (icepi_equiv/miter.ys),
 # from all 0 and from the bitstream's configured state (configured.awk). About 5 min:
 #   make -C icepi build/usb1.json && make icepi_equiv
-# ICEPI_JSON, USB and MHZ select another build, as in icepi/Makefile's equiv target.
+# ICEPI_JSON, USB, MHZ, FS and PROBE select another build, as in icepi/Makefile's equiv
+# target.
 ICEPI = icepi_equiv_run
 ICEPI_JSON = ../icepi/build/usb1.json
 USB = 1
 MHZ = 48
+FS = 0
+PROBE = 0
 # BMC on the first cycle, then, once that passes, every later one from each state the first
 # reaches, as netlist_equiv: the recoded machines power up in no state until the reset
 ICEPI_RUN = timeout 120 yosys-abc -c 'read_aiger $(1); bmc3 -F 1; print_status' > $(2); \
@@ -912,7 +946,8 @@ icepi_equiv:
 	rm -rf $(ICEPI) && mkdir $(ICEPI)
 	cp $(ICEPI_JSON) $(ICEPI)/netlist.json
 	cp $(WRITTEN) $(ICEPI)/written.v
-	echo 'chparam -set USB_UIO $(USB) -set MHZ $(MHZ) icepi_top' > $(ICEPI)/params.ys
+	echo 'chparam -set USB_UIO $(USB) -set MHZ $(MHZ) -set FULL_SPEED $(FS) -set USB_PROBE $(PROBE) icepi_top' \
+	  > $(ICEPI)/params.ys
 	cd $(ICEPI) && yosys -q -l gold.log ../icepi_equiv/gold.ys
 	cd $(ICEPI) && yosys -q -l gate.log ../icepi_equiv/gate.ys
 	cd $(ICEPI) && yosys -q -l miter.log ../icepi_equiv/miter.ys

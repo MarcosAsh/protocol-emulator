@@ -239,6 +239,7 @@ module Make (Timer : Timer) = struct
       ; line_rx : 'a [@bits Line_code.state_bits]
       ; line_flag : 'a
       ; line_last : 'a
+      ; line_stuff : 'a Line_stuff.O.t
       }
     [@@deriving hardcaml]
   end
@@ -277,6 +278,7 @@ module Make (Timer : Timer) = struct
     let%hw line_rx = wire Line_code.state_bits in
     let%hw line_flag = wire 1 in
     let%hw line_last = wire 1 in
+    let%hw line_owed = wire 1 in
     let%hw holding = wire 1 in
     let%hw seen = wire 1 in
     let%hw fetch_addr = wire pc_bits in
@@ -414,15 +416,16 @@ module Make (Timer : Timer) = struct
           ~enable:(writes_word s)
           (d.:[8 + entry_bits - 1, 8] @: d.:[entry_bits - 1, 0]))
     in
-    (* transmit relative, receive relative, transmit toggle, receive toggle, and the
-       receive side's first state *)
+    (* transmit relative, receive relative, transmit toggle, receive toggle, the receive
+       side's first state, and transmit stuffing *)
     let%hw line_modes =
       reg
         spec
         ~enable:(writes_word Line_code.modes_word)
-        i.line_write.data.:[4 + Line_code.state_bits - 1, 0]
+        i.line_write.data.:[Line_code.modes_bits - 1, 0]
     in
     let%hw line_rx_start = line_modes.:[4 + Line_code.state_bits - 1, 4] in
+    let%hw line_stuffs = line_modes.:(Line_code.tx_stuff_bit) in
     let%hw line_pair = mux (mux2 (is In) line_rx line_tx) line_table in
     let line_entry ~input =
       mux2
@@ -457,7 +460,7 @@ module Make (Timer : Timer) = struct
         ; ( Stuff_pending
           , mux2
               c.line_code
-              line_flag
+              (line_flag |: line_owed)
               (c.stuff_threshold <>:. 0 &: (stuff_run >=: c.stuff_threshold)) )
         ; Tx_not_empty, ~:(tx.empty)
         ; Tx_empty, tx.empty
@@ -681,8 +684,24 @@ module Make (Timer : Timer) = struct
        out's own write *)
     let%hw line_out = c.line_code &: ~:(c.manchester) &: (shift_count ==:. 1) in
     let%hw out_pin = pin_of pin_out_base c.out_base in
+    let%hw line_steps_out =
+      op_go &: is Out &: Isa.Out_dest.Of_signal.is out_dest Pins &: line_out
+    in
+    let line_stuff =
+      Line_stuff.hierarchical
+        scope
+        { clocking = i.clocking
+        ; start
+        ; enable = line_stuffs
+        ; step = line_steps_out
+        ; stuffing = line_flag
+        ; data = out_value.:(0)
+        ; finish = op_go &: is_sys Stuff_reset
+        }
+    in
+    line_owed <-- line_stuff.owed;
     let%hw line_tx_entry =
-      line_entry ~input:(out_value.:(0) ^: (line_modes.:(0) &: out_pin))
+      line_entry ~input:(line_stuff.sent ^: (line_modes.:(0) &: out_pin))
     in
     let%hw line_level =
       line_tx_entry.:(Line_code.out_bit) ^: (line_modes.:(2) &: out_pin)
@@ -1051,9 +1070,6 @@ module Make (Timer : Timer) = struct
       reg spec (mux2 start (zero count_bits) @@ mux2 go stuff_run_next stuff_run)
     in
     stuff_run <-- stuff_run_reg;
-    let%hw line_steps_out =
-      op_go &: is Out &: Isa.Out_dest.Of_signal.is out_dest Pins &: line_out
-    in
     let%hw line_steps_in = op_go &: line_in in
     let next_state entry = sel_bottom entry ~width:Line_code.state_bits in
     let%hw line_tx_reg =
@@ -1077,7 +1093,7 @@ module Make (Timer : Timer) = struct
       reg
         spec
         (mux2 start gnd
-         @@ mux2 (op_go &: is_sys Stuff_reset) gnd
+         @@ mux2 (op_go &: is_sys Stuff_reset &: ~:line_stuffs) gnd
          @@ mux2 line_steps_out line_tx_entry.:(Line_code.flag_bit)
          @@ mux2 line_steps_in line_rx_entry.:(Line_code.flag_bit) line_flag)
     in
@@ -1131,6 +1147,7 @@ module Make (Timer : Timer) = struct
     ; line_rx
     ; line_flag
     ; line_last
+    ; line_stuff
     }
   ;;
 

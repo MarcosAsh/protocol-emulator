@@ -195,6 +195,7 @@ module Make (_ : Timer) : sig
       ; line_rx : 'a
       ; line_flag : 'a
       ; line_last : 'a
+      ; line_stuff : 'a Line_stuff.O.t
       }
     [@@deriving hardcaml]
   end

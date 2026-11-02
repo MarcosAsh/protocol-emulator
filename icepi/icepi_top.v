@@ -9,11 +9,14 @@
 // 10BASE-T, whose bit is four cycles, the pins on the 40-pin header. With USB_UIO set,
 // uio[1:0] are D+/D- on the first USB-C port with the board's pull-up on D- for low
 // speed, or on D+ for full speed with FULL_SPEED, and their header pins mirror the bus so
-// a host can see a bus reset. The button is reset.
+// a host can see a bus reset. USB_PROBE puts the bus on header 8 (D+) and 12 (D-) in
+// place of OUT0 and OUT2, where the bench carrier's analyser A reads D4 and D6. The button
+// is reset.
 module icepi_top #(
     parameter USB_UIO = 1,
     parameter MHZ = 48,
-    parameter FULL_SPEED = 0
+    parameter FULL_SPEED = 0,
+    parameter USB_PROBE = 0
 ) (
     input  wire       clk,
     input  wire       button_n,
@@ -81,6 +84,7 @@ module icepi_top #(
   wire [7:0] uio_in;
   wire [7:0] uio_out;
   wire [7:0] uio_oe;
+  wire [7:0] uo_out;
   wire [7:0] header_in;
   wire [1:0] usb_in;
 
@@ -119,9 +123,11 @@ module icepi_top #(
   );
 
   // The core synchronises reset and its inputs itself.
+  assign uo = USB_PROBE ? {uo_out[7:4], usb_in[1], uo_out[2], usb_in[0], uo_out[0]} : uo_out;
+
   tt_um_marcosash_protocol_emulator chip (
       .ui_in(ui),
-      .uo_out(uo),
+      .uo_out(uo_out),
       .uio_in(uio_in),
       .uio_out(uio_out),
       .uio_oe(uio_oe),

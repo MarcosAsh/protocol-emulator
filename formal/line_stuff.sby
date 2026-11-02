@@ -1,0 +1,36 @@
+[tasks]
+prove
+cover
+unstuffed mutant
+oldest_off mutant
+drain_takes mutant
+
+[options]
+# every stream from the clear, whose drain has ended by 140 cycles, in about a minute
+prove: mode bmc
+prove: depth 140
+cover: mode cover
+cover: depth 140
+mutant: mode bmc
+mutant: depth 140
+mutant: expect fail
+
+[engines]
+prove: abc bmc3
+cover: smtbmc yices
+mutant: abc bmc3
+
+[script]
+~mutant: read_verilog line_stuff.v
+unstuffed: read_verilog unstuffed.v
+oldest_off: read_verilog oldest_off.v
+drain_takes: read_verilog drain_takes.v
+read_verilog -formal -sv line_stuff.sv
+prep -flatten -top line_stuff_check
+
+[files]
+~mutant: line_stuff.v
+unstuffed: line_stuff_teeth/unstuffed.v
+oldest_off: line_stuff_teeth/oldest_off.v
+drain_takes: line_stuff_teeth/drain_takes.v
+line_stuff.sv

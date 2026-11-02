@@ -19,6 +19,7 @@ module Control = struct
   type 'a t =
     { arm : 'a
     ; base : 'a [@bits Isa.data_addr_bits]
+    ; rearm : 'a
     }
   [@@deriving hardcaml]
 end
@@ -67,7 +68,8 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let%hw receiving = wire 1 in
   let%hw starts = armed &: rx.sync_seen in
   let%hw ends = receiving &: rx.packet_end in
-  armed <-- reg spec (mux2 i.control.arm vdd @@ mux2 ends gnd armed);
+  armed
+  <-- reg spec (mux2 i.control.arm vdd @@ mux2 (ends &: ~:(i.control.rearm)) gnd armed);
   receiving
   <-- reg spec (mux2 i.control.arm gnd @@ mux2 starts vdd @@ mux2 ends gnd receiving);
   let%hw words = wire word_count_bits in

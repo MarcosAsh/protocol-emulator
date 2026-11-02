@@ -314,6 +314,13 @@ let%expect_test "what each out sends, in the firmware library" =
       ((4 "not a pulled word") (18 "not a pulled word") (32 "not a pulled word")
        (46 "not a pulled word") (60 "not a pulled word") (74 "not a pulled word")
        (88 "not a pulled word") (102 "not a pulled word"))))
+    (usb_fs_device (verdict (Ok ()))
+     (sends
+      ((41 "bit 1 to 29") (43 "bit 1 to 30") (44 "bit 1 to 31")
+       (52 "bit 1 to 29") (54 "bit 1 to 30") (57 "bit 1 to 31")
+       (61 "bit 1 to 32") (70 "bit 1 to 31") (74 "bit 1 to 32")
+       (77 "bit 1 to 32") (79 "bit 1 to 32") (88 "bit 1 to 32")
+       (109 "bit 1 to 32") (191 "bit 1 to 32") (225 "bit 1 to 32"))))
     (uart_tx_stream (verdict (Ok ())) (sends ((8 "not a pulled word"))))
     (spi_master_stream (verdict (Ok ()))
      (sends ((4 "not a pulled word") (8 "not a pulled word"))))
