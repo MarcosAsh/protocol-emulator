@@ -183,6 +183,17 @@ let%expect_test "the datasheet limits, measured on the bench copies' runs" =
     kernel 12  xy2_100            tDH              >=      100 ns  measured 6 (250.0 ns)         Pass            Newson XY2-100 I/O configuration, Rev. 0703, Timing specifications table, p.2
     kernel 10  lfast              data rate, shortest high bit (3.125 ns) >=    3.125 ns  measured 5 (208.3 ns)         Pass            NXP AN5134 Rev. 0, p.3, text: rates up to 320 Mb/s
     kernel 10  lfast              data rate, shortest low bit (3.125 ns) >=    3.125 ns  measured 5 (208.3 ns)         Pass            NXP AN5134 Rev. 0, p.3, text: rates up to 320 Mb/s
+    kernel 192  dmx512             bit at 250 kbit/s, shortest low >=     4000 ns  measured 96 (4000.0 ns)       Within_a_sample Wikipedia, DMX512, oldid 1380777110, page 1, line 291
+    kernel 192  dmx512             bit at 250 kbit/s, shortest high >=     4000 ns  measured 96 (4000.0 ns)       Within_a_sample Wikipedia, DMX512, oldid 1380777110, page 1, line 291
+    run    192  dmx512             bit at 250 kbit/s, longest channel low <=     4000 ns  measured 96 (4000.0 ns)       Within_a_sample Wikipedia, DMX512, oldid 1380777110, page 1, line 291
+    run    4800  dmx512             BREAK transmitted >=    92000 ns  measured 2400 (100000.0 ns)   Pass            Wikipedia, DMX512, oldid 1380777110, page 1, table, lines 303-306
+    run    4800  dmx512             BREAK receiver recognized >=    88000 ns  measured 2400 (100000.0 ns)   Pass            Wikipedia, DMX512, oldid 1380777110, page 1, table, lines 303, 308-309
+    run    768  dmx512             MAB transmitted  >=    12000 ns  measured 384 (16000.0 ns)     Pass            Wikipedia, DMX512, oldid 1380777110, page 1, table, lines 304-305, 307
+    run    768  dmx512             MAB receiver recognized >=     8000 ns  measured 384 (16000.0 ns)     Pass            Wikipedia, DMX512, oldid 1380777110, page 1, table, lines 304, 308, 310
+    run    768  dmx512             MAB since 1990   >=     8000 ns  measured 384 (16000.0 ns)     Pass            Wikipedia, DMX512, oldid 1380777110, page 1, line 301
+    run    1092101  dmx512             break to break transmitted >= 1.204e+06 ns  measured 546050 (22752083.3 ns) Pass            Wikipedia, DMX512, oldid 1380777110, page 1, line 313
+    run    1092101  dmx512             break to break receivers handle >= 1.196e+06 ns  measured 546050 (22752083.3 ns) Pass            Wikipedia, DMX512, oldid 1380777110, page 1, line 313
+    run    1092101  dmx512             refresh rate of 512 channels, at most 44 Hz >= 2.27273e+07 ns  measured 546050 (22752083.3 ns) Pass            Wikipedia, DMX512, oldid 1380777110, page 1, line 312
     kernel 417  uart_log           bit              >=  8506.94 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     run    417  uart_log           bit              <=  8854.17 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     |}]
@@ -357,5 +368,16 @@ let%expect_test "every limit's pairs of edges in the prediction" =
     xy2_100        tDH               49 pairs, as measured
     lfast          data rate, shortest high bit (3.125 ns)  12 pairs, as measured
     lfast          data rate, shortest low bit (3.125 ns)  11 pairs, as measured
+    dmx512         bit at 250 kbit/s, shortest low 2564 pairs, as measured
+    dmx512         bit at 250 kbit/s, shortest high 2563 pairs, as measured
+    dmx512         bit at 250 kbit/s, longest channel low 2560 pairs, as measured
+    dmx512         BREAK transmitted   2 pairs, as measured
+    dmx512         BREAK receiver recognized   2 pairs, as measured
+    dmx512         MAB transmitted    2 pairs, as measured
+    dmx512         MAB receiver recognized   2 pairs, as measured
+    dmx512         MAB since 1990     2 pairs, as measured
+    dmx512         break to break transmitted   1 pairs, as measured
+    dmx512         break to break receivers handle   1 pairs, as measured
+    dmx512         refresh rate of 512 channels, at most 44 Hz   1 pairs, as measured
     |}]
 ;;

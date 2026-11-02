@@ -1233,5 +1233,7 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       library frames of 33 bits of 10 cycles; written for the core, not tried
     tdm_audio  untried  -
       library SCLK half 3 cycles, 256-bit frames; three outputs, no waits, the halves timed by instructions; not tried against the class
+    dmx512     untried  -
+      library bits of 192 cycles, break 25 bits; written for the core, not tried against the class
     |}]
 ;;

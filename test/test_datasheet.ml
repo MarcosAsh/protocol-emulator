@@ -190,6 +190,17 @@ let%expect_test "the bench firmware against its datasheet limits" =
     xy2_100            tDH            >=      100 ns  kernel 12 (250.0 ns)     needs    6       rhothor X7, Newson XY2-100 I/O configuration, Rev. 0703 Timing specifications table, p.2; margin a cycle
     lfast              data rate, shortest high bit (3.125 ns) >=    3.125 ns  kernel 10 (208.3 ns)     needs    2       LFAST, NXP AN5134 Rev. 0 p.3, text: rates up to 320 Mb/s; margin a cycle
     lfast              data rate, shortest low bit (3.125 ns) >=    3.125 ns  kernel 10 (208.3 ns)     needs    2       LFAST, NXP AN5134 Rev. 0 p.3, text: rates up to 320 Mb/s; margin a cycle
+    dmx512             bit at 250 kbit/s, shortest low >=     4000 ns  kernel 192 (4000.0 ns)   needs  192       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, line 291; margin 0 ns, the rate has no tolerance: a bit is 192 cycles at 48 MHz
+    dmx512             bit at 250 kbit/s, shortest high >=     4000 ns  kernel 192 (4000.0 ns)   needs  192       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, line 291; margin 0 ns, the rate has no tolerance: a bit is 192 cycles at 48 MHz
+    dmx512             bit at 250 kbit/s, longest channel low <=     4000 ns  run    192 (4000.0 ns)   needs  192       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, line 291; margin 0 ns, the rate has no tolerance: a bit is 192 cycles at 48 MHz
+    dmx512             BREAK transmitted >=    92000 ns  run    4800 (100000.0 ns) needs 4417       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, table, lines 303-306; margin a cycle
+    dmx512             BREAK receiver recognized >=    88000 ns  run    4800 (100000.0 ns) needs 4225       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, table, lines 303, 308-309; margin a cycle
+    dmx512             MAB transmitted >=    12000 ns  run    768 (16000.0 ns)  needs  577       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, table, lines 304-305, 307; margin a cycle
+    dmx512             MAB receiver recognized >=     8000 ns  run    768 (16000.0 ns)  needs  385       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, table, lines 304, 308, 310; margin a cycle
+    dmx512             MAB since 1990 >=     8000 ns  run    768 (16000.0 ns)  needs  385       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, line 301; margin a cycle
+    dmx512             break to break transmitted >= 1.204e+06 ns  run    1092101 (22752104.2 ns) needs 57793       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, line 313; margin a cycle
+    dmx512             break to break receivers handle >= 1.196e+06 ns  run    1092101 (22752104.2 ns) needs 57409       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, line 313; margin a cycle
+    dmx512             refresh rate of 512 channels, at most 44 Hz >= 2.27273e+07 ns  run    1092101 (22752104.2 ns) needs 1090911       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, line 312; margin a cycle
     uart_log           bit            >=  8506.94 ns  kernel 417 (8687.5 ns)   needs  410       UART at 115200 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
     uart_log           bit            <=  8854.17 ns  run    417 (8687.5 ns)   needs  424       UART at 115200 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
     |}]

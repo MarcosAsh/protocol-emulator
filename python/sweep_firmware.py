@@ -297,6 +297,7 @@ NOT_SWEPT = [
     ("xy2_100", "SENDCK edges 12 cycles apart without a break: the fifo holds 8"),
     ("lfast", "a fixed-length frame with no field to carry a cycle stamp"),
     ("tdm_audio", "a fixed 256-bit frame with no field to carry a cycle stamp"),
+    ("dmx512", "a packet is 1092101 cycles, past the 65536 a stamp tells apart"),
     ("uart_tx_stream", "time-triggered: it underflows, a sticky fault, once the host stops"),
     ("spi_master_stream", "time-triggered: it underflows, a sticky fault, once the host stops"),
     ("uart_tx_stamped", "26 bits 8 cycles apart, and the chip's clock in them, which the model cannot know"),
