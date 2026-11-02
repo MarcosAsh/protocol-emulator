@@ -13,6 +13,8 @@ module Receiver = struct
     ; bits : int array
     ; expected : int list
     ; wired : sender:int -> pin_out:int -> int
+    ; echo : int
+    ; single_edge : bool
     }
 
   let plain ~sender ~pin_out:_ = sender
@@ -27,6 +29,8 @@ module Receiver = struct
     ; bits = Array.of_list (List.concat_map bytes ~f:frame)
     ; expected = bytes
     ; wired = plain
+    ; echo = 0
+    ; single_edge = false
     }
   ;;
 
@@ -84,6 +88,8 @@ module Receiver = struct
             List.map (0x80 :: packet) ~f:(fun byte -> byte lsl 8)
             @ [ Usb_ls.residual packet ])
     ; wired = plain
+    ; echo = 0
+    ; single_edge = false
     }
   ;;
 
@@ -134,7 +140,7 @@ module Receiver = struct
       ]
   ;;
 
-  let can_rx ~period ~sample () =
+  let can_rx ?(echo = 0) ~period ~sample () =
     let rx = 1 lsl Can_node.rx_pin in
     let source = Can_node.Receiver.source ~period ~sample in
     { firmware = Certified.receiver ~period "can_rx" source Can_node.Receiver.config
@@ -152,6 +158,8 @@ module Receiver = struct
     ; wired =
         (fun ~sender ~pin_out ->
           if (pin_out lsr Can.tx_pin) land 1 = 1 then sender else sender land lnot rx)
+    ; echo
+    ; single_edge = false
     }
   ;;
 end
@@ -210,6 +218,7 @@ module Run = struct
     { words : int list
     ; irqs : int
     ; fault : Machine.Fault.t
+    ; single_edge : bool (** [Single_edge] held, where the receiver watches it. *)
     }
 end
 
@@ -232,22 +241,33 @@ let run ?(observe = fun (_ : Machine.t) -> ()) (r : Receiver.t) ~m ~phase =
     | Some (word, t) -> drain t (word :: words)
     | None -> t, words
   in
-  let t, words, irqs =
+  (* what the receiver drove [r.echo] cycles before, as it reaches its own input *)
+  let driven = Queue.of_list (List.init r.echo ~f:(fun _ -> machine.pin_out)) in
+  let t, words, irqs, edge =
     List.fold
       (List.range 0 cycles)
-      ~init:(machine, [], 0)
-      ~f:(fun (t, words, irqs) cycle ->
+      ~init:(machine, [], 0, Single_edge.create ())
+      ~f:(fun (t, words, irqs, edge) cycle ->
         observe t;
         let sender =
           match bit_at ~start ~m ~phase cycle with
           | Some k when k < length -> r.bits.(k)
           | _ -> r.idle
         in
-        let t = Machine.step t ~inputs:(r.wired ~sender ~pin_out:t.pin_out) in
+        Queue.enqueue driven t.pin_out;
+        let pin_out = Queue.dequeue_exn driven in
+        let inputs = r.wired ~sender ~pin_out in
+        let before = t in
+        let t = Machine.step t ~inputs in
+        let edge = Single_edge.step edge ~before ~inputs ~after:t in
         let t, words = drain t words in
-        if t.irq then Machine.clear_irq t, words, irqs + 1 else t, words, irqs)
+        if t.irq then Machine.clear_irq t, words, irqs + 1, edge else t, words, irqs, edge)
   in
-  { Run.words = List.rev words; irqs; fault = t.fault }
+  { Run.words = List.rev words
+  ; irqs
+  ; fault = t.fault
+  ; single_edge = (not r.single_edge) || Single_edge.held edge
+  }
 ;;
 
 let receives r ~m ~phase =
@@ -255,6 +275,7 @@ let receives r ~m ~phase =
   [%equal: int list] run.words r.expected
   && run.irqs = 0
   && Machine.Fault.equal run.fault Machine.Fault.none
+  && run.single_edge
 ;;
 
 let range ~base ~count = ((1 lsl count) - 1) lsl base
