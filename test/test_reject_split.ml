@@ -22,6 +22,8 @@ let%expect_test "the reject split, on a sample" =
     ((verdict Accepted) (count 189))
     (("List.length every" 52571) ("List.length sample" 211))
     ((verdict Accepted) (count 188))
+    (("List.length every" 51982) ("List.length sample" 208))
+    ((verdict Accepted) (count 185))
     ((verdict Missed) (count 23))
     (("List.length every" 53961) ("List.length sample" 216))
     ((verdict Accepted) (count 183))

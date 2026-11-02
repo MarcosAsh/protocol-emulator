@@ -99,6 +99,7 @@ let%expect_test "the firmware library and its certificates" =
     spdif                108        40      2
     usb_power_delivery   113        74     13
     dmx512                51        14    182  period 192, no wrap
+    wiegand               32         4   2389  period 2400
     |}]
 ;;
 
@@ -217,6 +218,9 @@ let%expect_test "the least period the host may load" =
     (lin (period (1250)) (floor 16) (passes true) (one_less true))
     (QED "lin: every load of 16 or more")
     (counterexample "lin: every load of 15 or more"
+    (wiegand (period (2400)) (floor 16) (passes true) (one_less true))
+    (QED "wiegand: every load of 16 or more")
+    (counterexample "wiegand: every load of 15 or more"
      (model ((loaded 0000000000001111))))
     |}]
 ;;

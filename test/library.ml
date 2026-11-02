@@ -35,6 +35,7 @@ let protocols =
   ; Spdif.protocol
   ; Usb_power_delivery.protocol
   ; Dmx512.protocol
+  ; Wiegand.protocol
   ]
 ;;
 

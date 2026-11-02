@@ -132,6 +132,8 @@
   (run ./write_trace.exe usb_power_delivery)))
   dmx512.trace.gen
   (run ./write_trace.exe dmx512)))
+  wiegand.trace.gen
+  (run ./write_trace.exe wiegand)))
 
 (rule
  (alias runtest)
@@ -141,6 +143,7 @@
   (diff spdif.trace spdif.trace.gen)))
   (diff usb_power_delivery.trace usb_power_delivery.trace.gen)))
   (diff dmx512.trace dmx512.trace.gen)))
+  (diff wiegand.trace wiegand.trace.gen)))
 
 (rule
  (with-stdout-to

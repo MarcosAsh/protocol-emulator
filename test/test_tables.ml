@@ -1189,6 +1189,11 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       , "-"
       , "bits of 192 cycles, break 25 bits"
       , "written for the core, not tried against the class" )
+    ; ( "wiegand"
+      , "untried"
+      , "-"
+      , "pulses of 16 cycles and up, 3 apart; DATA0 and DATA1 two outputs"
+      , "written for the core, not tried" )
     ]
   in
   let named = List.map rows ~f:(fun (name, _, _, _, _) -> name) in
@@ -1266,5 +1271,7 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       library BMC at 300 kbps, halves of 80 cycles; written for the core, not tried
     dmx512     untried  -
       library bits of 192 cycles, break 25 bits; written for the core, not tried against the class
+    wiegand    untried  -
+      library pulses of 16 cycles and up, 3 apart; DATA0 and DATA1 two outputs; written for the core, not tried
     |}]
 ;;
