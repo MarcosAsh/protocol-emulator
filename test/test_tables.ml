@@ -1161,6 +1161,13 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       , "SCLK half 3 cycles, 256-bit frames"
       , "three outputs, no waits, the halves timed by instructions; not tried against \
          the class" )
+    ; ( "dali"
+      , "untried"
+      , "-"
+      , "half bit 20000"
+      , [%string
+          "a 27 half bit idle is 540000 cycles, each step held at most %{max_hold#Int}"]
+      )
     ]
   in
   let named = List.map rows ~f:(fun (name, _, _, _, _) -> name) in
@@ -1228,5 +1235,7 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       library frames of 33 bits of 10 cycles; written for the core, not tried
     tdm_audio  untried  -
       library SCLK half 3 cycles, 256-bit frames; three outputs, no waits, the halves timed by instructions; not tried against the class
+    dali       untried  -
+      library half bit 20000; a 27 half bit idle is 540000 cycles, each step held at most 65535
     |}]
 ;;

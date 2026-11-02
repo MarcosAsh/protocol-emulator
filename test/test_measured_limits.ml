@@ -183,6 +183,8 @@ let%expect_test "the datasheet limits, measured on the bench copies' runs" =
     kernel 12  xy2_100            tDH              >=      100 ns  measured 6 (250.0 ns)         Pass            Newson XY2-100 I/O configuration, Rev. 0703, Timing specifications table, p.2
     kernel 10  lfast              data rate, shortest high bit (3.125 ns) >=    3.125 ns  measured 5 (208.3 ns)         Pass            NXP AN5134 Rev. 0, p.3, text: rates up to 320 Mb/s
     kernel 10  lfast              data rate, shortest low bit (3.125 ns) >=    3.125 ns  measured 5 (208.3 ns)         Pass            NXP AN5134 Rev. 0, p.3, text: rates up to 320 Mb/s
+    run    540010  dali               idle after a frame >= 2.45e+06 ns  measured 270005 (11250208.3 ns) Pass            Wikipedia, Digital Addressable Lighting Interface, oldid 1363488623, p.1, line 178
+    run    1220010  dali               40 commands a second, forward frames 25 ms apart >=  2.5e+07 ns  measured 610005 (25416875.0 ns) Pass            Wikipedia, Digital Addressable Lighting Interface, oldid 1363488623, p.1, line 188
     kernel 417  uart_log           bit              >=  8506.94 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     run    417  uart_log           bit              <=  8854.17 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     |}]
@@ -357,5 +359,7 @@ let%expect_test "every limit's pairs of edges in the prediction" =
     xy2_100        tDH               49 pairs, as measured
     lfast          data rate, shortest high bit (3.125 ns)  12 pairs, as measured
     lfast          data rate, shortest low bit (3.125 ns)  11 pairs, as measured
+    dali           idle after a frame   2 pairs, as measured
+    dali           40 commands a second, forward frames 25 ms apart   1 pairs, as measured
     |}]
 ;;

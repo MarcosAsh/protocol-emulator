@@ -122,6 +122,16 @@
 
 (rule
  (with-stdout-to
+  dali.trace.gen
+  (run ./write_trace.exe dali)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff dali.trace dali.trace.gen)))
+
+(rule
+ (with-stdout-to
   wrapped_loop.trace.gen
   (run ./write_trace.exe wrapped_loop)))
 

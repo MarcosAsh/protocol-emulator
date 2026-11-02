@@ -681,6 +681,21 @@ let%expect_test "every protocol from its file to the decoded trace" =
     (received ())
     decode: test/traces/tdm_audio.trace, by sigrok's tdm_audio:clock=OUT0:frame=OUT1:data=OUT2:bps=32:channels=8
       tdm_audio=ch0:ch1:ch2:ch3:ch4:ch5:ch6:ch7: tdm_audio-1: Channel 1: 80000000, tdm_audio-1: Channel 2: 7fff0000, tdm_audio-1: Channel 3: 12340000, tdm_audio-1: Channel 4: a5a50000, tdm_audio-1: Channel 5: 00010000, tdm_audio-1: Channel 6: ffff0000, tdm_audio-1: Channel 7: 55550000, tdm_audio-1: Channel 8: c3c30000, tdm_audio-1: Channel 1: 00000000, tdm_audio-1: Channel 2: 00000000, tdm_audio-1: Channel 3: 00000000, tdm_audio-1: Channel 4: 00000000, tdm_audio-1: Channel 5: 00000000, tdm_audio-1: Channel 6: 00000000, tdm_audio-1: Channel 7: 00000000, tdm_audio-1: Channel 8: 00000000
+
+    === dali
+
+    certificates
+    dali: 34 words, 8 deadline waits, worst slack 19993, the kernel accepts it, assuming period 20000, a load of 8 or more, no wrap
+
+    limits
+    dali               idle after a frame >= 2.45e+06 ns  run    540010 (11250208.3 ns) needs 117601       DALI, Wikipedia, Digital Addressable Lighting Interface, oldid 1363488623 p.1, line 178; margin a cycle
+    dali               40 commands a second, forward frames 25 ms apart >=  2.5e+07 ns  run    1220010 (25416875.0 ns) needs 1200001       DALI, Wikipedia, Digital Addressable Lighting Interface, oldid 1363488623 p.1, line 188; margin a cycle
+
+    lockstep: dali, dali
+    ("lockstep held" (cycles 12200))
+    (received ())
+    decode: test/traces/dali.trace, by sigrok's dali:dali=OUT0
+      dali=bit:startbit:ybit:address:command:reply:raw: dali-1: 1, dali-1: 0, dali-1: 0, dali-1: 0, dali-1: 0, dali-1: 0, dali-1: 0, dali-1: 1, dali-1: 1, dali-1: 1, dali-1: 0, dali-1: 1, dali-1: 0, dali-1: 0, dali-1: 0, dali-1: 0, dali-1: 0, dali-1: Startbit: 1, dali-1: Startbit: 1, dali-1: Raw data: 03, dali-1: Raw data: A0, dali-1: Command, dali-1: YBit: 0, dali-1: Short address: 1, dali-1: Command: 160 (Query Level), dali-1: 1, dali-1: 1, dali-1: 1, dali-1: 1, dali-1: 1, dali-1: 1, dali-1: 1, dali-1: 1, dali-1: 0, dali-1: Startbit: 1, dali-1: Startbit: 1, dali-1: Reply: FE, dali-1: Reply: 254
     |}]
 ;;
 
