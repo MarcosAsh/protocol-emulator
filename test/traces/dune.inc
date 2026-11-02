@@ -122,6 +122,16 @@
 
 (rule
  (with-stdout-to
+  dmx512.trace.gen
+  (run ./write_trace.exe dmx512)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff dmx512.trace dmx512.trace.gen)))
+
+(rule
+ (with-stdout-to
   wrapped_loop.trace.gen
   (run ./write_trace.exe wrapped_loop)))
 

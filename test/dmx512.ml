@@ -236,10 +236,28 @@ let limits =
    high; from reset it reads that low as a break. The teeth cut the break to 83 us, under
    the 88 a receiver recognises, and flip channel 1's first bit. *)
 let sigrok =
+  let line = sprintf "dmx512-1: %s" in
+  let byte b = line (sprintf "%d / 0x%x" b b) in
+  let opening = [ line "Break"; line "MAB"; line "Start code"; byte 0x00 ] in
   { Sigrok.clock_hz = 48_000_000
   ; decoders = [ Sigrok.decoder "dmx512" ~pins:[ "dmx", pin ] ]
-  ; expect = []
-  ; joins_after = None
+  ; expect =
+      [ ( "dmx512=break:mab:startcode:channel:interpacket:data"
+        , opening
+          @ List.concat_mapi channels ~f:(fun n b ->
+            [ line (sprintf "Channel %d" (n + 1)); byte b ])
+          @ (line "Interpacket" :: opening) )
+      ]
+  ; joins_after =
+      Some
+        ( 1_000
+        , { why =
+              "the line is low from reset until the firmware starts, which sigrok takes \
+               for a break and reads the real one as the start code, framing the \
+               channels on the wrong edges"
+          ; first_difference = 5
+          ; reads = "dmx512-1: 7 / 0x7"
+          } )
   ; rejected = None
   ; teeth =
       [ [ Shift { pin; edge = 2; cycles = -(4 * period) } ]
