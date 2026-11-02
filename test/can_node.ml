@@ -16,6 +16,13 @@ module Receiver = struct
   let sample = 72
   let shortest_period = 63
 
+  (* Cycles from the ACK's start until the receiver sees it on CRX, the transceiver's loop
+     and the synchroniser, as the tests' bus has them. The receiver waits for its own ACK
+     there, which releases the capture it armed (the single edge assumption allows no
+     second edge while one is armed), and retimes to it less these cycles, which keeps the
+     bits after on the sender's. A slower loop moves them that much later. *)
+  let ack_back = 3
+
   let config =
     { Program_config.default with
       in_base = rx_pin
@@ -172,7 +179,7 @@ module Receiver = struct
   ;;
 
   let source ~period ~sample =
-    if sample < 1 || sample > period - 5
+    if sample < 1 || sample > period - 6
     then raise_s [%message "BUG: no room for the ACK" (period : int) (sample : int)];
     lines
       (load_period period
@@ -221,10 +228,17 @@ module Receiver = struct
          ; "    jmp form"
          ; "delimited:"
          ; "    jmp x--, crc_error"
+         ; "    capture_arm              ; for the ACK's own fall on CRX"
          ]
-       @ delay (period - sample - 5)
-       @ [ "    set pins, 0              ; ACK, from the slot's start"; "    wait t+" ]
-       @ delay (period - sample - 1)
+       @ delay (period - sample - 6)
+       @ [ "    set pins, 0              ; ACK, from the slot's start"
+         ; [%string
+             "    wait 0 pin %{rx_pin#Int}             ; back on CRX, which it retimes to"]
+         ; "    mov t, capture"
+         ; "    add t, p"
+         ]
+       @ add_to_t (sample - 1 - ack_back)
+       @ delay (period - ack_back - List.length (add_to_t (sample - 1 - ack_back)) - 3)
        @ [ "    set pins, 1              ; to its end"
          ; "    mov isr, null"
          ; "    push"

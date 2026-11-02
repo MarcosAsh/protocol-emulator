@@ -13,6 +13,7 @@ module Receiver = struct
     ; bits : int array
     ; expected : int list
     ; wired : sender:int -> pin_out:int -> int
+    ; echo : int
     }
 
   let plain ~sender ~pin_out:_ = sender
@@ -27,6 +28,7 @@ module Receiver = struct
     ; bits = Array.of_list (List.concat_map bytes ~f:frame)
     ; expected = bytes
     ; wired = plain
+    ; echo = 0
     }
   ;;
 
@@ -84,6 +86,7 @@ module Receiver = struct
             List.map (0x80 :: packet) ~f:(fun byte -> byte lsl 8)
             @ [ Usb_ls.residual packet ])
     ; wired = plain
+    ; echo = 0
     }
   ;;
 
@@ -152,6 +155,7 @@ module Receiver = struct
     ; wired =
         (fun ~sender ~pin_out ->
           if (pin_out lsr Can.tx_pin) land 1 = 1 then sender else sender land lnot rx)
+    ; echo = Can_node.Receiver.ack_back
     }
   ;;
 end
@@ -232,6 +236,8 @@ let run ?(observe = fun (_ : Machine.t) -> ()) (r : Receiver.t) ~m ~phase =
     | Some (word, t) -> drain t (word :: words)
     | None -> t, words
   in
+  (* what the receiver drove [r.echo] cycles before, as it reaches its own input *)
+  let driven = Queue.of_list (List.init r.echo ~f:(fun _ -> machine.pin_out)) in
   let t, words, irqs =
     List.fold
       (List.range 0 cycles)
@@ -243,7 +249,9 @@ let run ?(observe = fun (_ : Machine.t) -> ()) (r : Receiver.t) ~m ~phase =
           | Some k when k < length -> r.bits.(k)
           | _ -> r.idle
         in
-        let t = Machine.step t ~inputs:(r.wired ~sender ~pin_out:t.pin_out) in
+        Queue.enqueue driven t.pin_out;
+        let pin_out = Queue.dequeue_exn driven in
+        let t = Machine.step t ~inputs:(r.wired ~sender ~pin_out) in
         let t, words = drain t words in
         if t.irq then Machine.clear_irq t, words, irqs + 1 else t, words, irqs)
   in
@@ -311,6 +319,18 @@ let reads (r : Receiver.t) =
       program.instructions
     |> Array.of_list
   in
+  let start = lead r in
+  let length = Array.length r.bits in
+  (* whether the sender's line, not the receiver's drive, has the captured level at
+     [cycle], at the nominal rate the reads are taken at *)
+  let sender_made cycle =
+    let sender =
+      match bit_at ~start ~m:(r.nominal * unit) ~phase:0 cycle with
+      | Some k when k < length -> r.bits.(k)
+      | _ -> r.idle
+    in
+    Bool.equal ((sender lsr config.capture_pin) land 1 = 1) config.capture_rising
+  in
   let anchor = ref None in
   let since_wait = ref [] in
   let seen = Queue.create () in
@@ -336,7 +356,11 @@ let reads (r : Receiver.t) =
        | _ -> ());
       since_wait := if issue.wait then [] else issue :: !since_wait;
       match instruction with
-      | Op { op = Mov { dest = T; source = Capture; _ }; _ } -> anchor := Some t.capture
+      | Op { op = Mov { dest = T; source = Capture; _ }; _ } ->
+        (* an edge the receiver drove itself, as the CAN receiver's own ACK, moves with
+           its clock and not the sender's: the reads after it stay timed from the last
+           edge the sender made, the cycles between fixed by the program *)
+        if sender_made t.capture then anchor := Some t.capture
       | Op { op = Mov { dest = T; _ }; _ } -> anchor := None
       | _ -> ())
   in
@@ -344,8 +368,6 @@ let reads (r : Receiver.t) =
   let run = run r ~m ~phase:0 ~observe in
   if not ([%equal: int list] run.words r.expected && run.irqs = 0)
   then raise_s [%message "BUG: the receiver fails at its own rate" r.firmware.name];
-  let start = lead r in
-  let length = Array.length r.bits in
   let bit cycle = bit_at ~start ~m ~phase:0 cycle |> Option.value_exn in
   Queue.to_list seen
   |> List.filter_map ~f:(fun (s : Seen.t) ->

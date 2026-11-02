@@ -160,7 +160,12 @@ end
 (* The receiver on a bus with [node], CRX [delay] cycles behind the bus for the
    transceiver and the synchroniser. The host drains the rx fifo every cycle, and after
    each irq clears it and writes a word, as the receiver asks. *)
-let receive ?(delay = 3) ?(firmware = Receiver.firmware) node =
+let receive
+  ?(delay = 3)
+  ?(firmware = Receiver.firmware)
+  ?(premises = Machine.Premises.none)
+  node
+  =
   let ack_cycles = Node.ack_cycles node in
   let rec loop (t : Machine.t) ~cycle ~line ~words ~segments ~acked ~low =
     if cycle = Node.cycles node
@@ -192,6 +197,7 @@ let receive ?(delay = 3) ?(firmware = Receiver.firmware) node =
       ~config:(Timed_program.config firmware)
       ~program:(Timed_program.words firmware)
     |> ok_exn
+    |> fun t -> Machine.assume t premises
   in
   let t, segments, acked, low =
     loop
@@ -257,6 +263,31 @@ let%expect_test "the receiver takes can2040's lines and ACKs each" =
       ((underflow false) (overflow false) (missed_deadline false) (decode false)
        (assumption false))))
     (ack_bits 13)
+    |}]
+;;
+
+(* As the chip runs it: watching the premises its certificate was checked under, the
+   single edge among them, with its own ACK coming back on CRX *)
+let%expect_test "the receiver keeps its certificate's premises through its own ACKs" =
+  let premises = System_lockstep.Assumptions.(premises (of_timed Receiver.firmware)) in
+  let run =
+    receive
+      ~premises
+      (Node.create (List.map can2040 ~f:(fun (_, _, line) -> bits_of_string line)))
+  in
+  print_s
+    [%message
+      ""
+        (premises : Machine.Premises.t)
+        ~frames:(Or_error.map run.events ~f:List.length : int Or_error.t)
+        ~acked:(run.acked : bool list)
+        ~fault:(run.fault : Machine.Fault.t)];
+  [%expect {|
+    ((premises ((period (96)) (floor false) (single_edge true))) (frames (Ok 13))
+     (acked (true true true true true true true true true true true true true))
+     (fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
     |}]
 ;;
 
@@ -418,9 +449,9 @@ let%expect_test "every sample and the ACK's edges are placed by a deadline" =
     161  in pins, 1                   phase -95  sample -95
     178  in pins, 1                   phase -95  sample -95
     199  in pins, 1                   phase -95  sample -95
-    219  set pins, 0                  phase -72  edge -71  gap 323..?
-    222  set pins, 1                  phase -72  edge -71  gap 96
-    ((words 242) (edge_jitter unbounded) (sample_jitter 0) (side_jitter 0)
+    220  set pins, 0                  phase -72  edge -71  gap 303..?
+    232  set pins, 1                  phase -71..-52  edge -70..-51  jitter 19  gap 94..?
+    ((words 252) (edge_jitter unbounded) (sample_jitter 0) (side_jitter 0)
      (may_miss 0))
     |}]
 ;;
@@ -456,9 +487,9 @@ let%expect_test "the kernel accepts the receiver from its shortest period up" =
            : bool)];
   [%expect
     {|
-    ((bench (Ok ((words 242) (deadline_waits 16) (worst_slack (24)))))
+    ((bench (Ok ((words 252) (deadline_waits 15) (worst_slack (24)))))
      (shortest 63)
-     (accepted (Ok ((words 234) (deadline_waits 16) (worst_slack (1)))))
+     (accepted (Ok ((words 242) (deadline_waits 15) (worst_slack (1)))))
      (one_less
       (Error
        (((209) "this deadline wait can be reached 1 cycle late (slack -1..92)"))))

@@ -20,9 +20,13 @@ module Receiver : sig
   (** The least period whose firmware, sampled three quarters in, the kernel accepts. *)
   val shortest_period : int
 
+  (** Cycles from the ACK's start until it is back on CRX, which the firmware retimes to
+      less these, as the single edge assumption needs a wait for the capture it armed. *)
+  val ack_back : int
+
   val config : Program_config.t
 
-  (** The firmware for a bit period and sample point, [sample] from 1 to [period - 5]. *)
+  (** The firmware for a bit period and sample point, [sample] from 1 to [period - 6]. *)
   val source : period:int -> sample:int -> string
 
   (** [Timed_program.check] of [source] at [period], with the single capture edge. *)
