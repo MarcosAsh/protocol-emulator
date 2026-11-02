@@ -1,7 +1,7 @@
 # Protocols
 
 The library is `test/library.ml`, a protocol to a module, in the order of the certificates.
-These are the 54 library firmwares the kernel accepts in `test/test_kernel.ml`.
+These are the 55 library firmwares the kernel accepts in `test/test_kernel.ml`.
 
 | Protocol | Firmware the kernel accepts |
 |---|---|
@@ -32,8 +32,9 @@ These are the 54 library firmwares the kernel accepts in `test/test_kernel.ml`.
 | Caliper | caliper |
 | XY2-100 | xy2_100 |
 | LFAST | lfast |
+| TDM audio | tdm_audio |
 
-Microwire, XY2-100, Caliper, LFAST and RC-6 came from the [random draw](flexibility.md).
+Microwire, XY2-100, Caliper, LFAST, RC-6 and TDM audio came from the [random draw](flexibility.md).
 `test/test_datasheet.ml` checks firmware against its datasheet's timing limits, where the
 datasheet gives any.
 

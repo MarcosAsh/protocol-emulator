@@ -15,10 +15,11 @@ ruled where they disagreed. Each run took 24 to 50 minutes.
 | Caliper | ShumaTech's page | certified, but the page only gives "about" values, read as minimums |
 | LFAST | NXP AN5134 | certified, but its one limit is a top speed, so it binds nothing |
 | RC-6 | SB-Projects page | certified, but the page gives no limits at all |
-| TDM audio | Cirrus AN301 | failed: the note has no timing limits to check against |
+| TDM audio | Cirrus AN301 | certified, but the note gives no timing limits, so nothing binds |
 
-So three real certificates, two that are hollow because the spec is, and one failure. Every
-result stays here, including the ones that don't flatter us.
+So three real certificates and three that are hollow because the spec is. TDM was listed
+here as a failure at first, and is now certified with no limits, like RC-6. Every result stays
+here, including the ones that don't flatter us.
 
 ## The held-out list
 
