@@ -42,9 +42,9 @@ let%expect_test "each receiver's tolerance, from its certificate" =
     (Error
      ("formula does not apply: re-anchors on every edge, from [now] where it saw one late"
       usb_rx (arms 4)))
-    (can_rx (fast 0.892%) (slow 7.499%) (least 6235283) (most 6763315)
-     (fastest ((pc 12) (d (1997 1997)) (since 5) (until (21))))
-     (slowest ((pc 194) (d (1032 1032)) (since 10) (until (11))))
+    (can_rx (fast 1.041%) (slow 7.499%) (least 6225920) (most 6763315)
+     (fastest ((pc 240) (d (1994 1994)) (since 5) (until (21))))
+     (slowest ((pc 191) (d (1032 1032)) (since 10) (until (11))))
      (holds_at_both true) (fails_one_faster true) (fails_one_slower true))
     |}]
 ;;
@@ -52,30 +52,37 @@ let%expect_test "each receiver's tolerance, from its certificate" =
 (* The CAN receiver's window with its own ACK back on CRX [echo] cycles later, the
    transceiver's loop and the synchroniser *)
 let%expect_test "the CAN receiver's window by the transceiver's loop" =
-  List.iter (List.range 0 11) ~f:(fun echo ->
-    let r = Receiver.can_rx ~echo ~period:96 ~sample:72 () in
-    let b = bounds r in
-    let fast, slow = Bounds.ppm b ~nominal:r.nominal in
-    print_s
-      [%message
-        ""
-          (echo : int)
-          ~fast:(percent fast)
-          ~slow:(percent slow)
-          ~fast_read:(b.fastest_read.pc : int)]);
+  let longest = Can_node.Receiver.longest_loop in
+  List.iter
+    (List.range 0 11 @ [ longest; longest + 1 ])
+    ~f:(fun echo ->
+      let r = Receiver.can_rx ~echo ~period:96 ~sample:72 () in
+      match bounds r with
+      | b ->
+        let fast, slow = Bounds.ppm b ~nominal:r.nominal in
+        print_s
+          [%message
+            ""
+              (echo : int)
+              ~fast:(percent fast)
+              ~slow:(percent slow)
+              ~fast_read:(b.fastest_read.pc : int)]
+      | exception exn -> print_s [%message "" (echo : int) (exn : exn)]);
   [%expect
     {|
-    ((echo 0) (fast 1.041%) (slow 7.499%) (fast_read 12))
-    ((echo 1) (fast 0.992%) (slow 7.499%) (fast_read 12))
-    ((echo 2) (fast 0.942%) (slow 7.499%) (fast_read 12))
-    ((echo 3) (fast 0.892%) (slow 7.499%) (fast_read 12))
-    ((echo 4) (fast 0.843%) (slow 7.499%) (fast_read 12))
-    ((echo 5) (fast 0.793%) (slow 7.499%) (fast_read 12))
-    ((echo 6) (fast 0.744%) (slow 7.499%) (fast_read 12))
-    ((echo 7) (fast 0.694%) (slow 7.499%) (fast_read 12))
-    ((echo 8) (fast 0.644%) (slow 7.499%) (fast_read 12))
-    ((echo 9) (fast 0.595%) (slow 7.499%) (fast_read 12))
-    ((echo 10) (fast 0.545%) (slow 7.499%) (fast_read 12))
+    ((echo 0) (fast 1.041%) (slow 7.499%) (fast_read 240))
+    ((echo 1) (fast 1.041%) (slow 7.499%) (fast_read 240))
+    ((echo 2) (fast 1.041%) (slow 7.499%) (fast_read 240))
+    ((echo 3) (fast 1.041%) (slow 7.499%) (fast_read 240))
+    ((echo 4) (fast 1.041%) (slow 7.499%) (fast_read 240))
+    ((echo 5) (fast 1.041%) (slow 7.499%) (fast_read 240))
+    ((echo 6) (fast 1.041%) (slow 7.499%) (fast_read 240))
+    ((echo 7) (fast 1.041%) (slow 7.499%) (fast_read 240))
+    ((echo 8) (fast 1.041%) (slow 7.499%) (fast_read 240))
+    ((echo 9) (fast 1.041%) (slow 7.499%) (fast_read 240))
+    ((echo 10) (fast 1.041%) (slow 7.499%) (fast_read 240))
+    ((echo 72) (fast 1.041%) (slow 7.499%) (fast_read 240))
+    ((echo 73) (exn ("BUG: the receiver fails at its own rate" can_rx)))
     |}]
 ;;
 
