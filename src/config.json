@@ -62,6 +62,11 @@
   "//": "routed push crossed on one 2.3 mm net from an o21ai_1 and missed the slow corner by 0.07 ns.",
   "DESIGN_REPAIR_MAX_WIRE_LENGTH": 500,
 
+  "//": "MAX_TRANSITION_CONSTRAINT - unset, routed _1 gates on the load checker's reject path",
+  "//": "switched in up to 2 ns and the slow corner missed by 0.18 ns, though the resizer saw it",
+  "//": "met on the global routes. 1.5 still missed by 1.54 ns; 1.0 met it by 1.25 ns.",
+  "MAX_TRANSITION_CONSTRAINT": 1.0,
+
   "//": "RUN_POST_GRT_* - on 8x4, hold repair after CTS put 1.4 ns of delay cells on the routed",
   "//": "push and nothing checked setup again, so it missed the slow corner by 1.24 ns with 104",
   "//": "slew violations. Repairing again on the global routes closes both.",
