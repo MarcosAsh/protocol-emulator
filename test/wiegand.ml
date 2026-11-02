@@ -39,7 +39,7 @@ let firmware =
     pull
     mov x, osr
     sub x, 3
-    mov isr, x               ; the periods high between pulses, less one
+    mov isr, x               ; the gap's waits, less one
 read:
     wait tx
     pull
@@ -53,11 +53,12 @@ next:
     pull                     ; the next 16 bits
 have:
     out x, 1
-    wait t+
     jmp x--, one
+    wait t+
     set pins, 2              ; a 0 pulls DATA0 low
     jmp held
 one:
+    wait t+
     set pins, 1              ; a 1 pulls DATA1 low
 held:
     wait t+

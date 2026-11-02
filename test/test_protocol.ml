@@ -681,6 +681,19 @@ let%expect_test "every protocol from its file to the decoded trace" =
     (received ())
     decode: test/traces/tdm_audio.trace, by sigrok's tdm_audio:clock=OUT0:frame=OUT1:data=OUT2:bps=32:channels=8
       tdm_audio=ch0:ch1:ch2:ch3:ch4:ch5:ch6:ch7: tdm_audio-1: Channel 1: 80000000, tdm_audio-1: Channel 2: 7fff0000, tdm_audio-1: Channel 3: 12340000, tdm_audio-1: Channel 4: a5a50000, tdm_audio-1: Channel 5: 00010000, tdm_audio-1: Channel 6: ffff0000, tdm_audio-1: Channel 7: 55550000, tdm_audio-1: Channel 8: c3c30000, tdm_audio-1: Channel 1: 00000000, tdm_audio-1: Channel 2: 00000000, tdm_audio-1: Channel 3: 00000000, tdm_audio-1: Channel 4: 00000000, tdm_audio-1: Channel 5: 00000000, tdm_audio-1: Channel 6: 00000000, tdm_audio-1: Channel 7: 00000000, tdm_audio-1: Channel 8: 00000000
+
+    === wiegand
+
+    certificates
+    wiegand: 32 words, 4 deadline waits, worst slack 2389, the kernel accepts it, assuming period 2400, a load of 16 or more
+
+    limits
+    wiegand: none, the spec, Wikipedia's Wiegand interface page, gives no pulse width, interval or any other timing
+
+    lockstep: wiegand, wiegand
+    ("lockstep held" (cycles 672000))
+    (received ())
+    decode: test/traces/wiegand.trace, by sigrok's wiegand:d0=OUT0:d1=OUT1:bitwidth_ms=1
     |}]
 ;;
 
@@ -755,5 +768,5 @@ let%expect_test "no protocol file is left half written" =
             [%string "sigrok %{s.name}"]))
     in
     if not (List.is_empty left) then print_s [%message p.name (left : string list)]);
-  [%expect {| |}]
+  [%expect {| (wiegand (left ("not swept wiegand" "sigrok wiegand"))) |}]
 ;;
