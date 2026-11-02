@@ -25,21 +25,25 @@ let config =
 
 (* Two 16-bit samples a frame from the host, left then right, LSB first in slots 12 to 27,
    the rest 0: the channel status says consumer, PCM, 44.1 kHz, accuracy code 00. Every
-   subframe starts and ends low, so the preambles are fixed levels and the parity bit is
-   the last half slot low. [y] counts the frames to the next B, [isr] says whether left
-   had a sample, and right takes one only then: an empty fifo is a silent frame. *)
+   subframe starts and ends high, so the preambles are fixed levels and the parity bit is
+   the last half slot high. [y] counts the frames to the next B, [isr] says whether left
+   had a sample, and right takes one only then: an empty fifo is a silent frame. The line
+   idles high four half slots before the first preamble, where sigrok's decoder joins. *)
 let firmware =
   [%firmware
     {|
-    set pins, 0              ; idle low
+    set pins, 1              ; idle high
     set p, 8
     set y, 0
     wait tx
     mov t, now
     add t, p
+    add t, p
+    add t, p
+    add t, p
 frame:
     wait t+
-    set pins, 1              ; B or M, 111 first
+    set pins, 0              ; B or M, 000 first
     jmp !tx, quiet
     pull
     mov isr, !null
@@ -52,17 +56,17 @@ quiet:
 counted:
     wait t+
     wait t+
-    set pins, 0
+    set pins, 1
     jmp y--, m
     set y, 23                ; B: 191 more frames in the block
     add y, y
     wait t+
-    set pins, 1
+    set pins, 0
     add y, y
     add y, y
     add y, 7
     wait t+
-    set pins, 0
+    set pins, 1
     wait t+
     wait t+
     jmp left
@@ -70,9 +74,9 @@ m:
     wait t+
     wait t+
     wait t+
-    set pins, 1
-    wait t+
     set pins, 0
+    wait t+
+    set pins, 1
 left:
     set x, 7
 laux:
@@ -102,9 +106,9 @@ lzero:
     wait t+
     mov pins, !pins          ; P
     wait t+
-    set pins, 0
+    set pins, 1
     wait t+
-    set pins, 1              ; W, 11100100
+    set pins, 0              ; W, 00011011
     mov x, isr
     jmp x--, rpull
     mov osr, null
@@ -116,12 +120,12 @@ rpull:
 right:
     wait t+
     wait t+
-    set pins, 0
-    wait t+
-    wait t+
     set pins, 1
     wait t+
+    wait t+
     set pins, 0
+    wait t+
+    set pins, 1
     wait t+
     set x, 7
 raux:
@@ -151,7 +155,7 @@ rzero:
     wait t+
     mov pins, !pins
     wait t+
-    set pins, 0
+    set pins, 1
     jmp frame
 |}
       ~config]
@@ -258,14 +262,36 @@ let limits =
   ]
 ;;
 
-(* sigrok's spdif decoder spends the first subframe on finding its three pulse widths *)
+(* sigrok's spdif decoder spends the first subframe, B and the first left, on finding its
+   three pulse widths. It joins 34 cycles into the 37 the line idles high. *)
 let sigrok =
   { Sigrok.clock_hz = Bench.clock_hz
   ; decoders = [ Sigrok.decoder "spdif" ~pins:[ "data", pin ] ]
-  ; expect = []
-  ; joins_after = None
+  ; expect =
+      [ ( "spdif=preamble"
+        , List.init 9 ~f:(fun i -> if i % 2 = 0 then "Preamble W" else "Preamble M")
+          |> Sigrok.lines "spdif" )
+      ; ( "spdif=samples"
+        , List.tl_exn words @ [ 0; 0; 0 ]
+          |> List.map ~f:(fun sample -> sprintf "Audio 0x%x" (sample lsl 8))
+          |> Sigrok.lines "spdif" )
+      ]
+  ; joins_after =
+      Some
+        ( 34
+        , { why =
+              "sigrok's spdif decoder times its first pulse from the capture's start, so \
+               the line low from reset is one of its three widths and no preamble reads"
+          ; first_difference = 0
+          ; reads = ""
+          } )
   ; rejected = None
-  ; teeth = []
+  ; teeth =
+      [ (* edge 54 is the middle of bit 2 of the first right, 0xfedc: gone, it reads 0 *)
+        [ Flip { pin; edge = 54; after = 0; cycles = 10 * 1089 } ]
+      ; (* edge 84 ends the first M's three halves low: two, and it reads no preamble *)
+        [ Shift { pin; edge = 84; cycles = -8 } ]
+      ]
   }
 ;;
 

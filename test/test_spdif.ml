@@ -4,7 +4,7 @@ open Protocol_emulator
 (* what the analyser and the kernel make of the firmware, which compiling it checked *)
 let%expect_test "the firmware's verdict" =
   print_endline (Analyser.Verdict.to_string (Timed_program.verdict Spdif.firmware));
-  [%expect {| 105 words, 40 deadline waits, worst slack 2 |}]
+  [%expect {| 108 words, 40 deadline waits, worst slack 2 |}]
 ;;
 
 (* The far end, fed the line every cycle. Each pulse is the whole half slots nearest its

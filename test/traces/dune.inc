@@ -122,6 +122,16 @@
 
 (rule
  (with-stdout-to
+  spdif.trace.gen
+  (run ./write_trace.exe spdif)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff spdif.trace spdif.trace.gen)))
+
+(rule
+ (with-stdout-to
   wrapped_loop.trace.gen
   (run ./write_trace.exe wrapped_loop)))
 
