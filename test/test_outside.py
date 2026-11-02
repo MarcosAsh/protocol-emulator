@@ -53,7 +53,8 @@ def decoders():
         text = f.read()
     return {
         act: args.split()
-        for act, args in re.findall(r"^(\w+)\)\n\s+ms=\d+\n\s+decode=\"([^\"]*)\"", text, re.M)
+        for act, args in re.findall(
+            r"^(\w+)\)\n(?:\s+#.*\n)*\s+ms=\d+\n\s+decode=\"([^\"]*)\"", text, re.M)
     }
 
 
@@ -125,8 +126,10 @@ def decode(analyser, act, args=None):
     path = "outside_%s.sr" % act
     analyser.write(path)
     args = args or decoders()[act]
-    # sigrok's decoders run in the system's Python, not the simulator's
+    # sigrok's decoders run in the system's Python, not the simulator's, and ours are
+    # beside its own, as demo/decode.py gives them
     env = {k: v for k, v in os.environ.items() if not k.startswith("PYTHON")}
+    env.setdefault("SIGROKDECODE_DIR", os.path.abspath("../demo/decoders"))
     run = subprocess.run(
         ["sigrok-cli", "-i", path] + args, capture_output=True, text=True, env=env
     )
