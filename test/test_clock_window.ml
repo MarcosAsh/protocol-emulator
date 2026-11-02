@@ -36,6 +36,7 @@ let%expect_test "the clocks each bench firmware stays certified at" =
     caliper                  -                              48.000  48.420 clock high at 90 kHz >= 5555.5 ns
     xy2_100                  -                              48.000 110.000 tDH >= 100 ns
     lfast                    -                              48.000 2880.000 data rate, shortest high bit (3.125 ns) >= 3.125 ns
+    usb_power_delivery  43.514 tUnitInterval max <= 3700 ns 48.000  52.470 fBitRate max 330 kbps: each bit cell >= 3030.3 ns
     uart_log            47.209 bit <= 8854.17 ns            48.000  48.901 bit >= 8506.94 ns
     |}]
 ;;

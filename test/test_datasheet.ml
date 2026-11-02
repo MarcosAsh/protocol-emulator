@@ -190,6 +190,13 @@ let%expect_test "the bench firmware against its datasheet limits" =
     xy2_100            tDH            >=      100 ns  kernel 12 (250.0 ns)     needs    6       rhothor X7, Newson XY2-100 I/O configuration, Rev. 0703 Timing specifications table, p.2; margin a cycle
     lfast              data rate, shortest high bit (3.125 ns) >=    3.125 ns  kernel 10 (208.3 ns)     needs    2       LFAST, NXP AN5134 Rev. 0 p.3, text: rates up to 320 Mb/s; margin a cycle
     lfast              data rate, shortest low bit (3.125 ns) >=    3.125 ns  kernel 10 (208.3 ns)     needs    2       LFAST, NXP AN5134 Rev. 0 p.3, text: rates up to 320 Mb/s; margin a cycle
+    usb_power_delivery fBitRate max 330 kbps: each bit cell >=   3030.3 ns  run    160 (3333.3 ns)   needs  147       USB PD BMC transmitter, USB Power Delivery Specification r3.2 v1.2, Aug 2026 Table 5.9, p.110; margin a cycle
+    usb_power_delivery fBitRate min 270 kbps: each bit cell <=   3703.7 ns  run    160 (3333.3 ns)   needs  176       USB PD BMC transmitter, USB Power Delivery Specification r3.2 v1.2, Aug 2026 Table 5.9, p.110; margin a cycle
+    usb_power_delivery tUnitInterval min >=     3030 ns  run    160 (3333.3 ns)   needs  147       USB PD BMC transmitter, USB Power Delivery Specification r3.2 v1.2, Aug 2026 Table 5.9, p.110; margin a cycle
+    usb_power_delivery tUnitInterval max <=     3700 ns  run    160 (3333.3 ns)   needs  176       USB PD BMC transmitter, USB Power Delivery Specification r3.2 v1.2, Aug 2026 Table 5.9, p.110; margin a cycle
+    usb_power_delivery pBitRate 0.25 %: 32 bits against the preamble's last 32, of 32 UI at 300 kbps <=  266.667 ns  run    0 (0.0 ns)        needs   11       USB PD BMC transmitter, USB Power Delivery Specification r3.2 v1.2, Aug 2026 Table 5.10, p.110, and 5.3.4.8 p.108; 300 kbps nominal, Table 5.9; margin a cycle
+    usb_power_delivery tHoldLowBMC: every low >=     1000 ns  kernel 80 (1666.7 ns)    needs   49       USB PD BMC transmitter, USB Power Delivery Specification r3.2 v1.2, Aug 2026 Table 5.10, p.110; margin a cycle
+    usb_power_delivery tInterFrameGap: each idle low >=    25000 ns  run    1367 (28479.2 ns) needs 1201       USB PD BMC transmitter, USB Power Delivery Specification r3.2 v1.2, Aug 2026 Table 5.10, p.110; margin a cycle
     uart_log           bit            >=  8506.94 ns  kernel 417 (8687.5 ns)   needs  410       UART at 115200 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
     uart_log           bit            <=  8854.17 ns  run    417 (8687.5 ns)   needs  424       UART at 115200 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
     |}]

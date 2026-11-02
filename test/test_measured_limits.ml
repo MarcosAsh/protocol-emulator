@@ -183,6 +183,13 @@ let%expect_test "the datasheet limits, measured on the bench copies' runs" =
     kernel 12  xy2_100            tDH              >=      100 ns  measured 6 (250.0 ns)         Pass            Newson XY2-100 I/O configuration, Rev. 0703, Timing specifications table, p.2
     kernel 10  lfast              data rate, shortest high bit (3.125 ns) >=    3.125 ns  measured 5 (208.3 ns)         Pass            NXP AN5134 Rev. 0, p.3, text: rates up to 320 Mb/s
     kernel 10  lfast              data rate, shortest low bit (3.125 ns) >=    3.125 ns  measured 5 (208.3 ns)         Pass            NXP AN5134 Rev. 0, p.3, text: rates up to 320 Mb/s
+    run    160  usb_power_delivery fBitRate max 330 kbps: each bit cell >=   3030.3 ns  measured 80 (3333.3 ns)       Pass            USB Power Delivery Specification r3.2 v1.2, Aug 2026, Table 5.9, p.110
+    run    160  usb_power_delivery fBitRate min 270 kbps: each bit cell <=   3703.7 ns  measured 80 (3333.3 ns)       Pass            USB Power Delivery Specification r3.2 v1.2, Aug 2026, Table 5.9, p.110
+    run    160  usb_power_delivery tUnitInterval min >=     3030 ns  measured 80 (3333.3 ns)       Pass            USB Power Delivery Specification r3.2 v1.2, Aug 2026, Table 5.9, p.110
+    run    160  usb_power_delivery tUnitInterval max <=     3700 ns  measured 80 (3333.3 ns)       Pass            USB Power Delivery Specification r3.2 v1.2, Aug 2026, Table 5.9, p.110
+    run    0  usb_power_delivery pBitRate 0.25 %: 32 bits against the preamble's last 32, of 32 UI at 300 kbps <=  266.667 ns  measured 0 (0.0 ns)           Pass            USB Power Delivery Specification r3.2 v1.2, Aug 2026, Table 5.10, p.110, and 5.3.4.8 p.108; 300 kbps nominal, Table 5.9
+    kernel 80  usb_power_delivery tHoldLowBMC: every low >=     1000 ns  measured 40 (1666.7 ns)       Pass            USB Power Delivery Specification r3.2 v1.2, Aug 2026, Table 5.10, p.110
+    run    1367  usb_power_delivery tInterFrameGap: each idle low >=    25000 ns  measured 684 (28500.0 ns)     Pass            USB Power Delivery Specification r3.2 v1.2, Aug 2026, Table 5.10, p.110
     kernel 417  uart_log           bit              >=  8506.94 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     run    417  uart_log           bit              <=  8854.17 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     |}]
@@ -357,5 +364,12 @@ let%expect_test "every limit's pairs of edges in the prediction" =
     xy2_100        tDH               49 pairs, as measured
     lfast          data rate, shortest high bit (3.125 ns)  12 pairs, as measured
     lfast          data rate, shortest low bit (3.125 ns)  11 pairs, as measured
+    usb_power_delivery fBitRate max 330 kbps: each bit cell 378 pairs, as measured
+    usb_power_delivery fBitRate min 270 kbps: each bit cell 378 pairs, as measured
+    usb_power_delivery tUnitInterval min 378 pairs, as measured
+    usb_power_delivery tUnitInterval max 378 pairs, as measured
+    usb_power_delivery pBitRate 0.25 %: 32 bits against the preamble's last 32, of 32 UI at 300 kbps   0 pairs, none, measured 0
+    usb_power_delivery tHoldLowBMC: every low 290 pairs, as measured
+    usb_power_delivery tInterFrameGap: each idle low   1 pairs, 1368, measured 1367
     |}]
 ;;

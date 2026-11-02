@@ -185,11 +185,19 @@ let%expect_test "the far end reads back what the host sent" =
   List.iter received ~f:(fun { Message.header; data_objects } ->
     print_s [%message "" (header : Int.Hex.t) (data_objects : Int.Hex.t list)]);
   [%test_result: Message.t list] received ~expect:sent;
-  [%expect {|
+  [%expect
+    {|
     (widths ((80 404) (160 176) (1367 1) (1368 1) (2665 1)))
     ((header 0x11a1) (data_objects (0x1912c)))
     ((header 0x13a1) (data_objects (0x1912c)))
     |}]
+;;
+
+(* What the host writes for the first, as python/demo_usb_power_delivery.py does *)
+let%expect_test "the host's words" =
+  let words = Message.words (List.hd_exn Usb_power_delivery.sent) in
+  print_s [%message (words : Int.Hex.t list)];
+  [%expect {| (words (0x7c 0xe318 0x6c98 0x9a4a 0x99a6 0xf7bc 0x7376 0x69aa 0xdaa)) |}]
 ;;
 
 (* The packet's first edge, a rise 26.7 us in, and its end: the trailing edge, here from
@@ -200,7 +208,8 @@ let%expect_test "the packet's start and end" =
   let first = List.take levels 4
   and last = List.drop levels (List.length levels - 4) in
   print_s [%message (first : (bool * int) list) (last : (bool * int) list)];
-  [%expect {|
+  [%expect
+    {|
     ((first ((false 1367) (true 160) (false 80) (true 80)))
      (last ((true 80) (false 80) (true 160) (false 733))))
     |}]

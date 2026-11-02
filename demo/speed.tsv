@@ -39,3 +39,5 @@ caliper	bench	2026-10-30T14:59:43+00:00	board run, test/board/caliper
 ir_rc6	bench	2026-10-30T14:59:56+00:00	board run, test/board/ir_rc6
 tdm_audio	bench	2026-10-30T15:00:09+00:00	board run, test/board/tdm_audio
 usb_power_delivery	spec	2026-11-02T22:34:15+00:00	new-protocol
+usb_power_delivery	file	2026-11-02T22:50:24+00:00	
+usb_power_delivery	certificate	2026-11-02T22:50:56+00:00	

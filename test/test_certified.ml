@@ -94,6 +94,7 @@ let%expect_test "the firmware library and its certificates" =
     xy2_100               35        10      2
     lfast                 64        27      6
     tdm_audio            117         0      -
+    usb_power_delivery   113        74     13
     |}]
 ;;
 

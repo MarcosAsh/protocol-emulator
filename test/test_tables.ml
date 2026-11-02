@@ -1161,7 +1161,11 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       , "SCLK half 3 cycles, 256-bit frames"
       , "three outputs, no waits, the halves timed by instructions; not tried against \
          the class" )
-    ; "usb_power_delivery", "TODO", "-", "-", "TODO whether the table interpreter runs it"
+    ; ( "usb_power_delivery"
+      , "untried"
+      , "-"
+      , "BMC at 300 kbps, halves of 80 cycles"
+      , "written for the core, not tried" )
     ]
   in
   let named = List.map rows ~f:(fun (name, _, _, _, _) -> name) in
@@ -1229,5 +1233,7 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       library frames of 33 bits of 10 cycles; written for the core, not tried
     tdm_audio  untried  -
       library SCLK half 3 cycles, 256-bit frames; three outputs, no waits, the halves timed by instructions; not tried against the class
+    usb_power_delivery untried  -
+      library BMC at 300 kbps, halves of 80 cycles; written for the core, not tried
     |}]
 ;;
