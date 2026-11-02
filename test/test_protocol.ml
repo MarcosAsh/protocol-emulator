@@ -701,6 +701,7 @@ let%expect_test "every protocol from its file to the decoded trace" =
     ("lockstep held" (cycles 2880))
     (received (0x4c 0x49 0x4e 0x45))
     decode: test/traces/lin.trace, by sigrok's uart:rx=IO0:baudrate=19200,lin
+      lin=data:control: lin-1: Break condition, lin-1: Sync, lin-1: ID: 16 Parity: 3 (ok), lin-1: Data: 0x4C, lin-1: Data: 0x49, lin-1: Data: 0x4E, lin-1: Checksum: 0x45
     |}]
 ;;
 
@@ -775,5 +776,5 @@ let%expect_test "no protocol file is left half written" =
             [%string "sigrok %{s.name}"]))
     in
     if not (List.is_empty left) then print_s [%message p.name (left : string list)]);
-  [%expect {| (lin (left ("sigrok lin"))) |}]
+  [%expect {| |}]
 ;;
