@@ -1,4 +1,5 @@
 open! Core
+open Protocol_emulator
 open Tolerance
 
 let percent ppm = sprintf "%d.%03d%%" (ppm / 10_000) (ppm % 10_000 / 10)
@@ -104,6 +105,35 @@ let%expect_test "the CAN receiver's window with its premises watched" =
   print_s
     [%message "" ~at_fast_end:(fails b.least : int) ~at_slow_end:(fails b.most : int)];
   [%expect {| ((at_fast_end 0) (at_slow_end 0)) |}]
+;;
+
+(* The UART receivers as the chip runs them, the single edge watched: a frame lost one
+   step past the fast bound is the next start edge before the arm, which faults the
+   premise as well as the deadline the stale capture misses *)
+let%expect_test "the UART receivers past the fast bound, premises watched" =
+  List.iter
+    [ "uart_rx", Receiver.uart_rx ~period:16 ()
+    ; "uart_rx_host_rate", Receiver.uart_rx_host_rate ~half:208 ()
+    ]
+    ~f:(fun (name, r) ->
+      let b = bounds r in
+      print_s
+        [%message
+          name
+            ~premises:(r.premises : Machine.Premises.t)
+            ~fault:(fault r ~m:(b.least - 1) ~phase:b.fast_witness : Machine.Fault.t)]);
+  [%expect
+    {|
+    (uart_rx (premises ((period ()) (floor false) (single_edge true)))
+     (fault
+      ((underflow false) (overflow false) (missed_deadline true) (decode false)
+       (assumption true))))
+    (uart_rx_host_rate
+     (premises ((period (208)) (floor false) (single_edge true)))
+     (fault
+      ((underflow false) (overflow false) (missed_deadline true) (decode false)
+       (assumption true))))
+    |}]
 ;;
 
 (* the CAN frames hold the longest runs: ten bits between falling edges inside a frame,

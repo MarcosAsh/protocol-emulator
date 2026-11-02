@@ -108,10 +108,13 @@ val predicts : Receiver.t -> m:int -> bool
 
 (** Whether a sender at [m] from phase 0 surely faults the receiver missed_deadline: the
     first read [predicts] finds wrong is a [capture_arm], so the edge came before it and
-    the capture still holds the last frame's. Past a first wrong read of another kind the
-    receiver is out of step, so [false] rules no fault out. [faults r] runs the model
-    once. *)
+    the capture still holds the last frame's, and with the single edge watched the arm
+    faults it too. Past a first wrong read of another kind the receiver is out of step, so
+    [false] rules no fault out. [faults r] runs the model once. *)
 val faults : Receiver.t -> m:int -> bool
+
+(** The faults the model's run at [m] and [phase] ends with. *)
+val fault : Receiver.t -> m:int -> phase:int -> Machine.Fault.t
 
 (** Whether the model's run at [m] and [phase] ends with a fault. *)
 val faulted : Receiver.t -> m:int -> phase:int -> bool

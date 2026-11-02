@@ -519,9 +519,8 @@ let faults r =
     | None -> false
 ;;
 
-let faulted r ~m ~phase =
-  not (Machine.Fault.equal (run r ~m ~phase).fault Machine.Fault.none)
-;;
+let fault r ~m ~phase = (run r ~m ~phase).fault
+let faulted r ~m ~phase = not (Machine.Fault.equal (fault r ~m ~phase) Machine.Fault.none)
 
 module Bench = struct
   let half = 2500
