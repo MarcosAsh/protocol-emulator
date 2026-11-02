@@ -106,9 +106,15 @@ pio_spi)
     decode=$(echo "$line" | sed -n 's/.*decode=//p')
     ;;
 esac
+# only the firmware the demo names: Pico A compiles all of bench_firmware.py at import,
+# which takes long enough to push the traffic past the capture
+firmware=$(mktemp -d)
+# shellcheck disable=SC2086
+python3 demo/pico_firmware.py "$firmware/bench_firmware.py" "python/demo_$act.py" $files
 # shellcheck disable=SC2086
 mpremote connect "$PICO" cp python/protocol_emulator.py python/pico_board.py python/bench.py \
-    python/bench_firmware.py "python/demo_$act.py" $files :
+    "$firmware/bench_firmware.py" "python/demo_$act.py" $files :
+rm -r "$firmware"
 mpremote connect "$PICO" exec "import os
 try:
     os.remove('outside.log')
