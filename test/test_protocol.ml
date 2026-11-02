@@ -681,6 +681,19 @@ let%expect_test "every protocol from its file to the decoded trace" =
     (received ())
     decode: test/traces/tdm_audio.trace, by sigrok's tdm_audio:clock=OUT0:frame=OUT1:data=OUT2:bps=32:channels=8
       tdm_audio=ch0:ch1:ch2:ch3:ch4:ch5:ch6:ch7: tdm_audio-1: Channel 1: 80000000, tdm_audio-1: Channel 2: 7fff0000, tdm_audio-1: Channel 3: 12340000, tdm_audio-1: Channel 4: a5a50000, tdm_audio-1: Channel 5: 00010000, tdm_audio-1: Channel 6: ffff0000, tdm_audio-1: Channel 7: 55550000, tdm_audio-1: Channel 8: c3c30000, tdm_audio-1: Channel 1: 00000000, tdm_audio-1: Channel 2: 00000000, tdm_audio-1: Channel 3: 00000000, tdm_audio-1: Channel 4: 00000000, tdm_audio-1: Channel 5: 00000000, tdm_audio-1: Channel 6: 00000000, tdm_audio-1: Channel 7: 00000000, tdm_audio-1: Channel 8: 00000000
+
+    === spdif
+
+    certificates
+    spdif: 105 words, 40 deadline waits, worst slack 2, the kernel accepts it, assuming nothing
+
+    limits
+    spdif: none, TODO the rows of the spec's timing table
+
+    lockstep: spdif, spdif
+    ("lockstep held" (cycles 600))
+    (received ())
+    decode: test/traces/spdif.trace, by sigrok's spdif:data=OUT0
     |}]
 ;;
 
@@ -755,5 +768,8 @@ let%expect_test "no protocol file is left half written" =
             [%string "sigrok %{s.name}"]))
     in
     if not (List.is_empty left) then print_s [%message p.name (left : string list)]);
-  [%expect {| |}]
+  [%expect {|
+    (spdif
+     (left ("unlimited spdif" "not swept spdif" "bench spdif" "sigrok spdif")))
+    |}]
 ;;
