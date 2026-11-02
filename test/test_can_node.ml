@@ -158,10 +158,12 @@ module Run = struct
 end
 
 (* The receiver on a bus with [node], CRX [delay] cycles behind the bus for the
-   transceiver and the synchroniser. The host drains the rx fifo every cycle, and after
-   each irq clears it and writes a word, as the receiver asks. *)
+   transceiver and the synchroniser, and CTX on the bus unless [ctx_on_bus] is false, as a
+   transceiver in standby has it. The host drains the rx fifo every cycle, and after each
+   irq clears it and writes a word, as the receiver asks. *)
 let receive
   ?(delay = 3)
+  ?(ctx_on_bus = true)
   ?(firmware = Receiver.firmware)
   ?(premises = Machine.Premises.none)
   node
@@ -171,7 +173,9 @@ let receive
     if cycle = Node.cycles node
     then t, List.rev (List.rev words :: segments), List.rev acked, low
     else (
-      let bus = Node.drive node ~cycle && bit t.pin_out Can.tx_pin in
+      let bus =
+        Node.drive node ~cycle && ((not ctx_on_bus) || bit t.pin_out Can.tx_pin)
+      in
       let acked = if List.mem ack_cycles cycle ~equal then not bus :: acked else acked in
       let low = if bit t.pin_out Can.tx_pin then low else low + 1 in
       let line = line @ [ bus ] in
@@ -348,9 +352,10 @@ let msb_first value ~width =
   List.init width ~f:(fun i -> (value lsr (width - 1 - i)) land 1 = 1)
 ;;
 
-let line_of fields =
+(* [crc_xor] spoils the CRC *)
+let line_of ?(crc_xor = 0) fields =
   let unstuffed = false :: fields in
-  stuff (unstuffed @ msb_first (Can.crc15 unstuffed) ~width:15) @ [ true ]
+  stuff (unstuffed @ msb_first (Can.crc15 unstuffed lxor crc_xor) ~width:15) @ [ true ]
 ;;
 
 let flip line n = List.mapi line ~f:(fun i b -> if i = n then not b else b)
@@ -433,6 +438,158 @@ let%expect_test "frames it refuses, and the one after" =
       (Ok ((Error Form) (Frame ((id 291) (rtr false) (dlc 2) (data (222 173)))))))
      (acked (false true)))
     |}]
+;;
+
+let watched = System_lockstep.Assumptions.(premises (of_timed Receiver.firmware))
+let can2040_lines = List.map can2040 ~f:(fun (_, _, line) -> bits_of_string line)
+
+(* As the chip watches it: the frames that end with the capture armed, after a recessive
+   bit, then a frame it takes. The bus falls again before long, for another node's ACK or
+   the frame going on, and rises after. *)
+let%expect_test "no frame leaves the capture armed" =
+  let good = to_delimiter (Can.Frame.data ~id:0x123 [ 0xde; 0xad ]) in
+  let extended id =
+    line_of
+      (msb_first 0x123 ~width:11
+       @ [ true; true ]
+       @ msb_first id ~width:18
+       @ [ false; false; false ]
+       @ msb_first 1 ~width:4
+       @ msb_first 0x55 ~width:8)
+  in
+  let crc_error =
+    line_of
+      ~crc_xor:1
+      (msb_first 0x123 ~width:11
+       @ [ false; false; false ]
+       @ msb_first 2 ~width:4
+       @ msb_first 0xdead ~width:16)
+  in
+  List.iter
+    [ "an extended frame, its 18th bit recessive", extended 0x2a000
+    ; "an extended frame, its 18th bit dominant", extended 0x28000
+    ; "a CRC error, the CRC ending recessive, another node ACKing", crc_error @ [ false ]
+    ; "six recessive bits", flip (to_delimiter (Can.Frame.data ~id:0x7ff [])) 6
+    ; ( "the CRC delimiter dominant after a recessive CRC"
+      , let line = List.nth_exn can2040_lines 3 in
+        flip line (List.length line - 1) )
+    ]
+    ~f:(fun (what, bad) ->
+      let run = receive ~premises:watched (Node.create ~gap:20 [ bad; good ]) in
+      print_s
+        [%message
+          what
+            ~events:(run.events : Receiver.Event.t list Or_error.t)
+            ~assumption:(run.fault.assumption : bool)]);
+  [%expect
+    {|
+    ("an extended frame, its 18th bit recessive"
+     (events
+      (Ok
+       ((Error Refused) (Frame ((id 291) (rtr false) (dlc 2) (data (222 173)))))))
+     (assumption true))
+    ("an extended frame, its 18th bit dominant"
+     (events
+      (Ok
+       ((Error Refused) (Frame ((id 291) (rtr false) (dlc 2) (data (222 173)))))))
+     (assumption false))
+    ("a CRC error, the CRC ending recessive, another node ACKing"
+     (events
+      (Ok ((Error Crc) (Frame ((id 291) (rtr false) (dlc 2) (data (222 173)))))))
+     (assumption true))
+    ("six recessive bits"
+     (events
+      (Ok
+       ((Error Stuffing) (Frame ((id 291) (rtr false) (dlc 2) (data (222 173)))))))
+     (assumption true))
+    ("the CRC delimiter dominant after a recessive CRC"
+     (events
+      (Ok ((Error Form) (Frame ((id 291) (rtr false) (dlc 2) (data (222 173)))))))
+     (assumption true))
+    |}]
+;;
+
+(* CRX [delay] cycles behind CTX: the ACK's length, and the fastest sender back to back,
+   in steps of 0.05% from 1.5% fast, that every frame gets through from with the premises
+   watched *)
+let%expect_test "the ACK and the fastest sender by the transceiver's loop" =
+  List.iter (List.range 1 11) ~f:(fun delay ->
+    let run = receive ~delay ~premises:watched (Node.create can2040_lines) in
+    let takes period_milli =
+      let run =
+        receive ~delay ~premises:watched (Node.create ~gap:10 ~period_milli can2040_lines)
+      in
+      [%equal: int option] (Or_error.ok run.events |> Option.map ~f:List.length) (Some 13)
+      && Machine.Fault.equal run.fault Machine.Fault.none
+    in
+    let fastest =
+      List.find (List.range 94_560 96_001 ~stride:48) ~f:takes
+      |> Option.map ~f:(fun milli ->
+        sprintf "%.2f%%" (Float.of_int (96_000 - milli) /. 960.))
+    in
+    print_s
+      [%message
+        ""
+          (delay : int)
+          ~ack_cycles:(run.ack_low_cycles / 13 : int)
+          ~over:(run.ack_low_cycles % 13 : int)
+          ~assumption:(run.fault.assumption : bool)
+          (fastest : string option)]);
+  [%expect
+    {|
+    ((delay 1) (ack_cycles 95) (over 4) (assumption false) (fastest (1.10%)))
+    ((delay 2) (ack_cycles 96) (over 4) (assumption false) (fastest (1.05%)))
+    ((delay 3) (ack_cycles 97) (over 4) (assumption false) (fastest (1.00%)))
+    ((delay 4) (ack_cycles 98) (over 4) (assumption false) (fastest (0.95%)))
+    ((delay 5) (ack_cycles 99) (over 4) (assumption false) (fastest (0.85%)))
+    ((delay 6) (ack_cycles 100) (over 4) (assumption false) (fastest (0.85%)))
+    ((delay 7) (ack_cycles 101) (over 4) (assumption false) (fastest (0.75%)))
+    ((delay 8) (ack_cycles 102) (over 4) (assumption false) (fastest (0.75%)))
+    ((delay 9) (ack_cycles 103) (over 4) (assumption false) (fastest (0.65%)))
+    ((delay 10) (ack_cycles 104) (over 4) (assumption false) (fastest (0.60%)))
+    |}]
+;;
+
+(* A transceiver in standby leaves CTX off the bus, so CRX never shows the ACK. *)
+let%expect_test "CTX off the bus" =
+  let run = receive ~ctx_on_bus:false ~premises:watched (Node.create can2040_lines) in
+  print_s
+    [%message
+      ""
+        ~frames:(Or_error.map run.events ~f:List.length : int Or_error.t)
+        ~ack_cycles:(run.ack_low_cycles : int)
+        ~fault:(run.fault : Machine.Fault.t)];
+  [%expect
+    {|
+    ((frames (Error ("neither a frame nor an error" (words (0 2 0)))))
+     (ack_cycles 10549)
+     (fault
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
+       (assumption false))))
+    |}]
+;;
+
+(* Every sample point at the bench's period: the source has no room for it or takes from
+   [t], or the kernel refuses or accepts the firmware. *)
+let%expect_test "the sample points the firmware is made for" =
+  let outcome sample =
+    match Receiver.source ~period:Receiver.period ~sample with
+    | exception _ -> "no room"
+    | source when String.is_substring source ~substring:"add t, -" -> "adds less than 0"
+    | _ ->
+      (match Receiver.check ~period:Receiver.period ~sample with
+       | Ok _ -> "accepted"
+       | Error _ -> "refused")
+  in
+  List.map (List.range 1 (Receiver.period + 1)) ~f:(fun sample -> sample, outcome sample)
+  |> List.group ~break:(fun (_, a) (_, b) -> not (String.equal a b))
+  |> List.map ~f:(fun group ->
+    let first, outcome = List.hd_exn group in
+    first, fst (List.last_exn group), outcome)
+  |> [%sexp_of: (int * int * string) list]
+  |> print_s;
+  [%expect
+    {| ((1 3 "adds less than 0") (4 48 refused) (49 90 accepted) (91 96 "no room")) |}]
 ;;
 
 let%expect_test "every sample and the ACK's edges are placed by a deadline" =

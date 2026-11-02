@@ -33,6 +33,7 @@ module Receiver : sig
     ; wired : sender:int -> pin_out:int -> int
     (** The inputs from the sender's word and what the receiver drives. *)
     ; echo : int (** Cycles what the receiver drives takes to reach [wired]. *)
+    ; premises : Machine.Premises.t (** What the model's core watches. *)
     }
 
   (** [Uart.rx], [Uart.rx_host_rate] at half period [half], [Usb.rx] and the CAN node's
@@ -42,7 +43,7 @@ module Receiver : sig
 
   val uart_rx_host_rate : ?bytes:int list -> ?source:string -> half:int -> unit -> t
   val usb_rx : unit -> t
-  val can_rx : period:int -> sample:int -> unit -> t
+  val can_rx : ?echo:int -> period:int -> sample:int -> unit -> t
 
   (** The CAN receiver's frames: a few by hand, and of 4000 seeded ones the frame with the
       longest run of bits between falling edges and the one with the longest from its

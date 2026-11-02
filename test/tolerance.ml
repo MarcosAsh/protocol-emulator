@@ -14,6 +14,7 @@ module Receiver = struct
     ; expected : int list
     ; wired : sender:int -> pin_out:int -> int
     ; echo : int
+    ; premises : Machine.Premises.t
     }
 
   let plain ~sender ~pin_out:_ = sender
@@ -29,6 +30,7 @@ module Receiver = struct
     ; expected = bytes
     ; wired = plain
     ; echo = 0
+    ; premises = Machine.Premises.none
     }
   ;;
 
@@ -87,6 +89,7 @@ module Receiver = struct
             @ [ Usb_ls.residual packet ])
     ; wired = plain
     ; echo = 0
+    ; premises = Machine.Premises.none
     }
   ;;
 
@@ -137,7 +140,7 @@ module Receiver = struct
       ]
   ;;
 
-  let can_rx ~period ~sample () =
+  let can_rx ?(echo = Can_node.Receiver.ack_back) ~period ~sample () =
     let rx = 1 lsl Can_node.rx_pin in
     let source = Can_node.Receiver.source ~period ~sample in
     { firmware = Certified.receiver ~period "can_rx" source Can_node.Receiver.config
@@ -155,7 +158,8 @@ module Receiver = struct
     ; wired =
         (fun ~sender ~pin_out ->
           if (pin_out lsr Can.tx_pin) land 1 = 1 then sender else sender land lnot rx)
-    ; echo = Can_node.Receiver.ack_back
+    ; echo
+    ; premises = Machine.Premises.none
     }
   ;;
 end
@@ -225,7 +229,9 @@ let run ?(observe = fun (_ : Machine.t) -> ()) (r : Receiver.t) ~m ~phase =
     List.fold
       r.preload
       ~init:
-        (Machine.create ~config ~program:(Asm.Program.words program |> ok_exn) |> ok_exn)
+        (Machine.create ~config ~program:(Asm.Program.words program |> ok_exn)
+         |> ok_exn
+         |> fun t -> Machine.assume t r.premises)
       ~f:(fun t word -> Machine.write_tx t word |> ok_exn)
   in
   let start = lead r in

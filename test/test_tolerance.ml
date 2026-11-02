@@ -49,6 +49,56 @@ let%expect_test "each receiver's tolerance, from its certificate" =
     |}]
 ;;
 
+(* The CAN receiver's window with its own ACK back on CRX [echo] cycles later, the
+   transceiver's loop and the synchroniser *)
+let%expect_test "the CAN receiver's window by the transceiver's loop" =
+  List.iter (List.range 0 11) ~f:(fun echo ->
+    let r = Receiver.can_rx ~echo ~period:96 ~sample:72 () in
+    let b = bounds r in
+    let fast, slow = Bounds.ppm b ~nominal:r.nominal in
+    print_s
+      [%message
+        ""
+          (echo : int)
+          ~fast:(percent fast)
+          ~slow:(percent slow)
+          ~fast_read:(b.fastest_read.pc : int)]);
+  [%expect
+    {|
+    ((echo 0) (fast 1.289%) (slow 7.499%) (fast_read 8))
+    ((echo 1) (fast 1.240%) (slow 7.499%) (fast_read 8))
+    ((echo 2) (fast 1.190%) (slow 7.499%) (fast_read 8))
+    ((echo 3) (fast 1.140%) (slow 7.499%) (fast_read 8))
+    ((echo 4) (fast 1.091%) (slow 7.499%) (fast_read 8))
+    ((echo 5) (fast 1.041%) (slow 7.499%) (fast_read 8))
+    ((echo 6) (fast 0.992%) (slow 7.499%) (fast_read 8))
+    ((echo 7) (fast 0.942%) (slow 7.499%) (fast_read 8))
+    ((echo 8) (fast 0.892%) (slow 7.499%) (fast_read 8))
+    ((echo 9) (fast 0.843%) (slow 7.499%) (fast_read 8))
+    ((echo 10) (fast 0.793%) (slow 7.499%) (fast_read 8))
+    |}]
+;;
+
+(* As the chip runs it, watching the premises the certificate was checked under: the
+   phases, of 64, at which a frame is lost or a premise fails at each end of the window *)
+let%expect_test "the CAN receiver's window with its premises watched" =
+  let r = Receiver.can_rx ~period:96 ~sample:72 () in
+  let b = bounds r in
+  let watched =
+    { r with
+      premises = System_lockstep.Assumptions.premises (Certified.assumptions r.firmware)
+    }
+  in
+  let fails m =
+    List.count
+      (List.init 64 ~f:(fun i -> i * unit / 64))
+      ~f:(fun phase -> not (receives watched ~m ~phase))
+  in
+  print_s
+    [%message "" ~at_fast_end:(fails b.least : int) ~at_slow_end:(fails b.most : int)];
+  [%expect {| ((at_fast_end 64) (at_slow_end 0)) |}]
+;;
+
 (* the CAN frames hold the longest runs: ten bits between falling edges inside a frame,
    five dominant and five recessive, and from the CRC's last fall to the next SOF *)
 (* Not certified: where the formula does not apply, the model from 16 phases, walked out
