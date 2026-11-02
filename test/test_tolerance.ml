@@ -53,19 +53,21 @@ let%expect_test "each receiver's tolerance, from its certificate" =
    transceiver's loop and the synchroniser *)
 let%expect_test "the CAN receiver's window by the transceiver's loop" =
   let longest = Can_node.Receiver.longest_loop in
-  List.iter (List.range 0 11 @ [ longest; longest + 1 ]) ~f:(fun echo ->
-    let r = Receiver.can_rx ~echo ~period:96 ~sample:72 () in
-    match bounds r with
-    | b ->
-      let fast, slow = Bounds.ppm b ~nominal:r.nominal in
-      print_s
-        [%message
-          ""
-            (echo : int)
-            ~fast:(percent fast)
-            ~slow:(percent slow)
-            ~fast_read:(b.fastest_read.pc : int)]
-    | exception exn -> print_s [%message "" (echo : int) (exn : exn)]);
+  List.iter
+    (List.range 0 11 @ [ longest; longest + 1 ])
+    ~f:(fun echo ->
+      let r = Receiver.can_rx ~echo ~period:96 ~sample:72 () in
+      match bounds r with
+      | b ->
+        let fast, slow = Bounds.ppm b ~nominal:r.nominal in
+        print_s
+          [%message
+            ""
+              (echo : int)
+              ~fast:(percent fast)
+              ~slow:(percent slow)
+              ~fast_read:(b.fastest_read.pc : int)]
+      | exception exn -> print_s [%message "" (echo : int) (exn : exn)]);
   [%expect
     {|
     ((echo 0) (fast 1.041%) (slow 7.499%) (fast_read 240))

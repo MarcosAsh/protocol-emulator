@@ -551,8 +551,8 @@ let bench =
     ; what =
         [%string
           "Can_node.Receiver.firmware: %{Bench.rate ~unit:\"bit/s\" Receiver.period} \
-           sampled %{Receiver.sample#Int} cycles in, CRX on IN1, the ACK on OUT1 and back on \
-           CRX within %{Receiver.longest_loop#Int} cycles or not at all"]
+           sampled %{Receiver.sample#Int} cycles in, CRX on IN1, the ACK on OUT1 and \
+           back on CRX within %{Receiver.longest_loop#Int} cycles or not at all"]
     ; source = Timed_program.source Receiver.firmware
     ; config = Receiver.config
     ; assumption = Receiver Receiver.period

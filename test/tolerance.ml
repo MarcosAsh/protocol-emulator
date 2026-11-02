@@ -348,7 +348,7 @@ let reads (r : Receiver.t) =
   let seen = Queue.create () in
   let observe (t : Machine.t) ~sender ~inputs =
     (* the pins in [mask] as the receiver drives them, not as the sender does *)
-    let own mask = (inputs lxor sender) land mask <> 0 in
+    let own mask = inputs lxor sender land mask <> 0 in
     if t.stall = 0 && not t.halted
     then (
       let instruction =
