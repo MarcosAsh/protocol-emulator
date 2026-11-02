@@ -16,16 +16,16 @@ on:
   workflow_dispatch:
     inputs:
       scope:
-        description: 'engine: the four files of the published score; wide: every file that makes RTL, the kernel and the analyser; kernel: the trusted checker alone'
+        description: 'engine: the four files of the published score; wide: every file that makes RTL, the kernel and the analyser; kernel: the trusted checker alone; campaign: every rtl file, more operators, tests only'
         type: choice
-        options: [engine, wide, kernel]
+        options: [engine, wide, kernel, campaign]
         default: engine
       ids:
         description: 'only these mutants of the scope, as --list names them, space separated'
         type: string
         default: ''
       shards:
-        description: 'jobs to split the mutants over; 0: 4 for engine, 20 for wide, 20 for kernel, one a mutant for ids'
+        description: 'jobs to split the mutants over; 0: 4 for engine, 20 for wide, 20 for kernel, 48 for campaign, one a mutant for ids'
         type: number
         default: 0
       untested:
@@ -66,7 +66,7 @@ jobs:
           n=${SHARDS:-0}
           if [ "$n" -eq 0 ]; then
             if [ -n "$IDS" ]; then n=$(echo $IDS | wc -w); elif [ "$SCOPE" = wide ]; then n=20
-            elif [ "$SCOPE" = kernel ]; then n=20; else n=12; fi
+            elif [ "$SCOPE" = kernel ]; then n=20; elif [ "$SCOPE" = campaign ]; then n=48; else n=12; fi
           fi
           echo "count=$n" >> "$GITHUB_OUTPUT"
           echo "shards=$(seq 0 $((n - 1)) | jq -sc .)" >> "$GITHUB_OUTPUT"
@@ -144,7 +144,11 @@ jobs:
         timeout-minutes: 330
         run: |
           prove=
-          if [ "$SCOPE" != engine ]; then
+          # the campaign's 2,206 mutants run the tests alone, in 48 shards of about three hours,
+          # and a shard starts no mutant past 4 h 50 so it ends inside the job's timeout
+          if [ "$SCOPE" = campaign ]; then
+            prove="--budget 17400 --full-timeout 2400"
+          elif [ "$SCOPE" != engine ]; then
             if [ "$UNTESTED" = true ]; then prove=--prove-only; else prove=--prove; fi
             prove="$prove --proof-timeout $([ -n "$IDS" ] && echo 18000 || echo 5400) ${PROOFS:+--proofs $PROOFS}"
           fi
