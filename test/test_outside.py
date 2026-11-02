@@ -836,7 +836,10 @@ async def test_can_node(dut):
     ACKed and the ACK read back, the last asking for Pico B's four, which the receiver ACKs.
     sigrok decodes both ways on module A's R."""
     await reset(dut)
-    pico_b = PicoB(dut, demo_can_node.REQUEST, REPLY_LINES, delay_ms=5, gap_ms=2)
+    # demo/can_node.c waits 300 ms; shorter here, but past the host's switch to the
+    # receiver, which loads, certifies and waits for its check's turn: 6.7 ms after the
+    # request
+    pico_b = PicoB(dut, demo_can_node.REQUEST, REPLY_LINES, delay_ms=10, gap_ms=2)
     transfer, pause_ms, log, _ = acted(dut)
     await bridge(demo_can_node.arm)(transfer, log=log)
     await ClockCycles(dut.clk, 2 * demo_can_node.PERIOD)
