@@ -182,6 +182,8 @@ LIMITS = [
     {"firmware": "xy2_100", "limit": "tDH >= 100 ns", "bound": "kernel", "cycles": 12, "lowest_hz": None, "highest_hz": 110000000},
     {"firmware": "lfast", "limit": "data rate, shortest high bit (3.125 ns) >= 3.125 ns", "bound": "kernel", "cycles": 10, "lowest_hz": None, "highest_hz": 2880000000},
     {"firmware": "lfast", "limit": "data rate, shortest low bit (3.125 ns) >= 3.125 ns", "bound": "kernel", "cycles": 10, "lowest_hz": None, "highest_hz": 2880000000},
+    {"firmware": "dali", "limit": "idle after a frame >= 2.45e+06 ns", "bound": "run", "cycles": 540010, "lowest_hz": None, "highest_hz": 220411836},
+    {"firmware": "dali", "limit": "40 commands a second, forward frames 25 ms apart >= 2.5e+07 ns", "bound": "run", "cycles": 1220010, "lowest_hz": None, "highest_hz": 48800360},
     {"firmware": "uart_log", "limit": "bit >= 8506.94 ns", "bound": "kernel", "cycles": 417, "lowest_hz": None, "highest_hz": 48901227},
     {"firmware": "uart_log", "limit": "bit <= 8854.17 ns", "bound": "run", "cycles": 417, "lowest_hz": 47209410, "highest_hz": None},
 ]
@@ -274,6 +276,9 @@ WINDOWS = [
     {"firmware": "lfast", "words_md5": "bacd62835d1e37aed4a383bae17d767a", "shipped_hz": 48000000,
      "lowest_hz": None, "lowest_limit": None,
      "highest_hz": 2880000000, "highest_limit": "data rate, shortest high bit (3.125 ns) >= 3.125 ns"},
+    {"firmware": "dali", "words_md5": "790dd32f9b2822a13276b24ea4f4f7f5", "shipped_hz": 48000000,
+     "lowest_hz": None, "lowest_limit": None,
+     "highest_hz": 48800360, "highest_limit": "40 commands a second, forward frames 25 ms apart >= 2.5e+07 ns"},
     {"firmware": "uart_log", "words_md5": "7a19bf9b29d4f7e1b618fbb399263d28", "shipped_hz": 48000000,
      "lowest_hz": 47209410, "lowest_limit": "bit <= 8854.17 ns",
      "highest_hz": 48901227, "highest_limit": "bit >= 8506.94 ns"},

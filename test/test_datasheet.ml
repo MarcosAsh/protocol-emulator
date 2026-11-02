@@ -190,6 +190,8 @@ let%expect_test "the bench firmware against its datasheet limits" =
     xy2_100            tDH            >=      100 ns  kernel 12 (250.0 ns)     needs    6       rhothor X7, Newson XY2-100 I/O configuration, Rev. 0703 Timing specifications table, p.2; margin a cycle
     lfast              data rate, shortest high bit (3.125 ns) >=    3.125 ns  kernel 10 (208.3 ns)     needs    2       LFAST, NXP AN5134 Rev. 0 p.3, text: rates up to 320 Mb/s; margin a cycle
     lfast              data rate, shortest low bit (3.125 ns) >=    3.125 ns  kernel 10 (208.3 ns)     needs    2       LFAST, NXP AN5134 Rev. 0 p.3, text: rates up to 320 Mb/s; margin a cycle
+    dali               idle after a frame >= 2.45e+06 ns  run    540010 (11250208.3 ns) needs 117601       DALI, Wikipedia, Digital Addressable Lighting Interface, oldid 1363488623 p.1, line 178; margin a cycle
+    dali               40 commands a second, forward frames 25 ms apart >=  2.5e+07 ns  run    1220010 (25416875.0 ns) needs 1200001       DALI, Wikipedia, Digital Addressable Lighting Interface, oldid 1363488623 p.1, line 188; margin a cycle
     uart_log           bit            >=  8506.94 ns  kernel 417 (8687.5 ns)   needs  410       UART at 115200 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
     uart_log           bit            <=  8854.17 ns  run    417 (8687.5 ns)   needs  424       UART at 115200 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
     |}]
