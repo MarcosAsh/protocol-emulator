@@ -41,7 +41,8 @@ module Receiver : sig
 
   (** [Uart.rx], [Uart.rx_host_rate] at half period [half], [Usb.rx] and the CAN node's
       receiver at [period], fed every byte, all-bytes DATA0 packets, or a set of frames
-      with each SOF in the third bit of the intermission. *)
+      with each SOF in the third bit of the intermission, the CAN receiver's ACK back on
+      its input [echo] cycles later, 7 by default. *)
   val uart_rx : ?bytes:int list -> ?source:string -> period:int -> unit -> t
 
   val uart_rx_host_rate : ?bytes:int list -> ?source:string -> half:int -> unit -> t

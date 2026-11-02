@@ -140,7 +140,8 @@ module Receiver = struct
       ]
   ;;
 
-  let can_rx ?(echo = 0) ~period ~sample () =
+  (* about the bench's: tb_outside.v's 100 ns and two flops at 48 MHz *)
+  let can_rx ?(echo = 7) ~period ~sample () =
     let rx = 1 lsl Can_node.rx_pin in
     let source = Can_node.Receiver.source ~period ~sample in
     { firmware = Certified.receiver ~period "can_rx" source Can_node.Receiver.config
@@ -223,8 +224,14 @@ module Run = struct
 end
 
 (* The receiver on the sender at [m] and [phase]; the host reads every word and clears
-   every irq. [observe] sees the core before each cycle. *)
-let run ?(observe = fun (_ : Machine.t) -> ()) (r : Receiver.t) ~m ~phase =
+   every irq. [observe] sees the core before each cycle, with the sender's word and the
+   inputs. *)
+let run
+  ?(observe = fun (_ : Machine.t) ~sender:_ ~inputs:_ -> ())
+  (r : Receiver.t)
+  ~m
+  ~phase
+  =
   let program, config = assemble r in
   let machine =
     List.fold
@@ -248,7 +255,6 @@ let run ?(observe = fun (_ : Machine.t) -> ()) (r : Receiver.t) ~m ~phase =
       (List.range 0 cycles)
       ~init:(machine, [], 0, Single_edge.create ())
       ~f:(fun (t, words, irqs, edge) cycle ->
-        observe t;
         let sender =
           match bit_at ~start ~m ~phase cycle with
           | Some k when k < length -> r.bits.(k)
@@ -257,6 +263,7 @@ let run ?(observe = fun (_ : Machine.t) -> ()) (r : Receiver.t) ~m ~phase =
         Queue.enqueue driven t.pin_out;
         let pin_out = Queue.dequeue_exn driven in
         let inputs = r.wired ~sender ~pin_out in
+        observe t ~sender ~inputs;
         let before = t in
         let t = Machine.step t ~inputs in
         let edge = Single_edge.step edge ~before ~inputs ~after:t in
@@ -335,8 +342,13 @@ let reads (r : Receiver.t) =
   in
   let anchor = ref None in
   let since_wait = ref [] in
+  (* the wait issuing: its pc, the cycle it first issued, and whether the receiver's own
+     drive moved the capture pin *)
+  let waiting = ref None in
   let seen = Queue.create () in
-  let observe (t : Machine.t) =
+  let observe (t : Machine.t) ~sender ~inputs =
+    (* the pins in [mask] as the receiver drives them, not as the sender does *)
+    let own mask = (inputs lxor sender) land mask <> 0 in
     if t.stall = 0 && not t.halted
     then (
       let instruction =
@@ -352,15 +364,31 @@ let reads (r : Receiver.t) =
              | _ -> false)
         }
       in
+      (* a read of what the receiver drives itself, as the CAN receiver's of its ACK,
+         bounds nothing of the sender *)
       (match read_mask config instruction, !anchor with
-       | Some mask, Some anchor when not (List.mem recovers t.pc ~equal) ->
+       | Some mask, Some anchor
+         when (not (List.mem recovers t.pc ~equal)) && not (own mask) ->
          Queue.enqueue seen { Seen.issue; mask; anchor; before = !since_wait }
        | _ -> ());
       since_wait := if issue.wait then [] else issue :: !since_wait;
-      match instruction with
-      | Op { op = Mov { dest = T; source = Capture; _ }; _ } -> anchor := Some t.capture
-      | Op { op = Mov { dest = T; _ }; _ } -> anchor := None
-      | _ -> ())
+      (match instruction with
+       | Op { op = Mov { dest = T; source = Capture; _ }; _ } -> anchor := Some t.capture
+       | Op { op = Mov { dest = T; source = Now; _ }; _ } ->
+         (* After a wait released at once by the receiver's own drive, as the CAN
+            receiver's on its ACK, [now] is a fixed number of cycles from the deadline
+            before, so the reads after stay timed from the last captured edge. *)
+         (match !waiting with
+          | Some (_, first, true) when first = t.now - 1 -> ()
+          | _ -> anchor := None)
+       | Op { op = Mov { dest = T; _ }; _ } -> anchor := None
+       | _ -> ());
+      waiting
+      := match instruction, !waiting with
+         | Op { op = Wait _; _ }, Some (pc, first, _) when pc = t.pc ->
+           Some (pc, first, own (1 lsl config.capture_pin))
+         | Op { op = Wait _; _ }, _ -> Some (t.pc, t.now, own (1 lsl config.capture_pin))
+         | _ -> None)
   in
   let m = r.nominal * unit in
   let run = run r ~m ~phase:0 ~observe in
