@@ -122,6 +122,16 @@
 
 (rule
  (with-stdout-to
+  wiegand.trace.gen
+  (run ./write_trace.exe wiegand)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff wiegand.trace wiegand.trace.gen)))
+
+(rule
+ (with-stdout-to
   wrapped_loop.trace.gen
   (run ./write_trace.exe wrapped_loop)))
 

@@ -110,8 +110,8 @@ let bench =
 let limits : Datasheet.t list = []
 
 (* sigrok's decoder ends a bit at the next pulse or [bitwidth_ms] after its start, so the
-   interval is under 1 ms and the run idles 1 ms after the last pulse. Both lines are low
-   from reset until the firmware starts, which it reads as invalid. *)
+   interval is under 1 ms and the run idles 1 ms after the last pulse. Its state class
+   prints the whole read. *)
 let sigrok =
   { Sigrok.clock_hz = 48_000_000
   ; decoders =
@@ -120,10 +120,23 @@ let sigrok =
           ~pins:[ "d0", pin; "d1", pin + 1 ]
           ~options:[ "bitwidth_ms", "1" ]
       ]
-  ; expect = []
-  ; joins_after = None
+  ; expect =
+      [ "wiegand=state", Sigrok.lines "wiegand" [ "26 bits 00010101000010010001101001" ] ]
+  ; joins_after =
+      Some
+        ( 100
+        , { why =
+              "both lines are low from reset until the firmware starts, which the \
+               decoder reads as invalid"
+          ; first_difference = 0
+          ; reads = "wiegand-1: invalid"
+          } )
   ; rejected = None
-  ; teeth = []
+  ; (* the first 0's pulse held high, and the first 1's split in two *)
+    teeth =
+      [ [ Flip { pin; edge = 1; after = 0; cycles = pulse } ]
+      ; [ Flip { pin = pin + 1; edge = 1; after = pulse / 3; cycles = pulse / 3 } ]
+      ]
   }
 ;;
 
@@ -155,8 +168,16 @@ let protocol =
         , "the spec, Wikipedia's Wiegand interface page, gives no pulse width, interval \
            or any other timing" )
       ]
-  ; swept = []
-  ; not_swept = [ "wiegand", "TODO why the sweep does not stamp it, or a Swept.t" ]
+  ; swept =
+      [ (* 300-cycle pulses 3 apart, DATA0 on the wire and DATA1 beside it *)
+        { Swept.name = "wiegand"
+        ; watch = "DATA0"
+        ; on_wire = Swept.line
+        ; period = Some 300
+        ; bursts = [ 3 :: card ~facility:0x2a ~id:0x1234 ]
+        }
+      ]
+  ; not_swept = []
   ; scenarios = [ scenario ]
   ; decoded = []
   }
