@@ -477,8 +477,9 @@ let bench =
 ;;
 
 (* The spec counts SWCLK cycles; at the bench's 1 MHz a cycle is 1 us. Trn: the host lets
-   go for a data period at least, the kernel's bound on SWDIO undriven. The rest are the
-   bench run's labelled runs of SWDIO. *)
+   go for a data period at least, the kernel's bound on SWDIO's direction. An analyser
+   sees SWDIO's level, where a driven 1 looks the same, so a measured Trn reads 48, a bit.
+   The rest are the bench run's labelled runs of SWDIO. *)
 let limits =
   let us = 1_000. in
   let sheet page =

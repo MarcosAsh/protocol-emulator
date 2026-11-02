@@ -221,6 +221,13 @@ let%expect_test "the bench firmware against its datasheet limits" =
     dmx512             break to break transmitted >= 1.204e+06 ns  run    1092101 (22752104.2 ns) needs 57793       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, line 313; margin a cycle
     dmx512             break to break receivers handle >= 1.196e+06 ns  run    1092101 (22752104.2 ns) needs 57409       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, line 313; margin a cycle
     dmx512             refresh rate of 512 channels, at most 44 Hz >= 2.27273e+07 ns  run    1092101 (22752104.2 ns) needs 1090911       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, line 312; margin a cycle
+    swd_blind          Trn            >=     1000 ns  kernel 50 (1041.7 ns)    needs   49       SW-DP, ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813 Table 2-10, p.2-52; margin a cycle
+    swd_blind          line reset     >=    50000 ns  run    2910 (60625.0 ns) needs 2401       SW-DP, ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813 4.4.3, p.4-104; margin a cycle
+    swd_blind          idle cycles    >=     2000 ns  run    394 (8208.3 ns)   needs   97       SW-DP, ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813 4.4.3, p.4-104; margin a cycle
+    swd_blind          JTAG-to-SWD    >=    50000 ns  run    2758 (57458.3 ns) needs 2401       SW-DP, ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813 5.2.1, p.5-111; margin a cycle
+    swd_blind          JTAG-to-DS     >=     5000 ns  run    548 (11416.7 ns)  needs  241       SW-DP, ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813 5.3.2, p.5-115; margin a cycle
+    swd_blind          SWD-to-DS      >=    50000 ns  run    2758 (57458.3 ns) needs 2401       SW-DP, ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813 5.3.3, p.5-116; margin a cycle
+    swd_blind          DS-to-SWD      >=    50000 ns  run    2758 (57458.3 ns) needs 2401       SW-DP, ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813 5.3.4, p.5-117; margin a cycle
     uart_log           bit            >=  8506.94 ns  kernel 417 (8687.5 ns)   needs  410       UART at 115200 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
     uart_log           bit            <=  8854.17 ns  run    417 (8687.5 ns)   needs  424       UART at 115200 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
     |}]

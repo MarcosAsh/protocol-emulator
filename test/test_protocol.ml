@@ -787,6 +787,27 @@ let%expect_test "every protocol from its file to the decoded trace" =
     (received ())
     decode: test/traces/wiegand.trace, by sigrok's wiegand:d0=OUT0:d1=OUT1:bitwidth_ms=1
       wiegand=state: wiegand-1: 26 bits 00010101000010010001101001
+    === swd_blind
+
+    certificates
+    swd_blind: 22 words, 2 deadline waits, worst slack 13, the kernel accepts it, assuming period 24, a load of 12 or more
+
+    limits
+    swd_blind          Trn            >=     1000 ns  kernel 50 (1041.7 ns)    needs   49       SW-DP, ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813 Table 2-10, p.2-52; margin a cycle
+    swd_blind          line reset     >=    50000 ns  run    2910 (60625.0 ns) needs 2401       SW-DP, ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813 4.4.3, p.4-104; margin a cycle
+    swd_blind          idle cycles    >=     2000 ns  run    394 (8208.3 ns)   needs   97       SW-DP, ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813 4.4.3, p.4-104; margin a cycle
+    swd_blind          JTAG-to-SWD    >=    50000 ns  run    2758 (57458.3 ns) needs 2401       SW-DP, ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813 5.2.1, p.5-111; margin a cycle
+    swd_blind          JTAG-to-DS     >=     5000 ns  run    548 (11416.7 ns)  needs  241       SW-DP, ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813 5.3.2, p.5-115; margin a cycle
+    swd_blind          SWD-to-DS      >=    50000 ns  run    2758 (57458.3 ns) needs 2401       SW-DP, ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813 5.3.3, p.5-116; margin a cycle
+    swd_blind          DS-to-SWD      >=    50000 ns  run    2758 (57458.3 ns) needs 2401       SW-DP, ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813 5.3.4, p.5-117; margin a cycle
+
+    lockstep: swd_blind, swd_blind
+    ("lockstep held" (cycles 9600))
+    (received
+     (0xff00 0xff00 0xff00 0xff00 0xff00 0xff00 0xff00 0x0 0xa500 0xb900 0x2300
+      0x900 0x5e00 0x1000 0x8700 0x100 0x0 0x0 0x0 0x1000 0x0))
+    decode: test/traces/swd_blind.trace, by sigrok's swd:swclk=OUT2:swdio=IO5
+      swd=reset:read:ack:data: swd-1: LINERESET, swd-1: IDCODE, swd-1: OK, swd-1: 0x0bc12477, swd-1: R AP0, swd-1: OK, swd-1: 0x00000000
     |}]
 ;;
 

@@ -100,6 +100,7 @@ let%expect_test "the firmware library and its certificates" =
     usb_power_delivery   113        74     13
     dmx512                51        14    182  period 192, no wrap
     wiegand               32         4   2389  period 2400
+    swd_blind             22         2     13  period 24
     |}]
 ;;
 
@@ -222,6 +223,10 @@ let%expect_test "the least period the host may load" =
     (QED "wiegand: every load of 16 or more")
     (counterexample "wiegand: every load of 15 or more"
      (model ((loaded 0000000000001111))))
+    (swd_blind (period (24)) (floor 12) (passes true) (one_less true))
+    (QED "swd_blind: every load of 12 or more")
+    (counterexample "swd_blind: every load of 11 or more"
+     (model ((loaded 0000000000001011))))
     |}]
 ;;
 

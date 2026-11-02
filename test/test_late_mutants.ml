@@ -147,6 +147,7 @@ let%expect_test "every deadline wait in the library, a cycle late, is refused" =
     usb_power_delivery         74 waits, 74 refused a cycle late,  0 too long, 74 accepted at their slack
     dmx512                     14 waits, 14 refused a cycle late,  0 too long, 14 accepted at their slack
     wiegand                     4 waits,  4 refused a cycle late,  0 too long,  0 accepted at their slack
+    swd_blind                   2 waits,  2 refused a cycle late,  0 too long,  0 accepted at their slack
     uart_tx_stream              3 waits,  3 refused a cycle late,  0 too long,  3 accepted at their slack
     spi_master_stream           3 waits,  3 refused a cycle late,  0 too long,  3 accepted at their slack
     uart_tx_stamped             4 waits,  4 refused a cycle late,  0 too long,  4 accepted at their slack
@@ -157,5 +158,6 @@ let%expect_test "every deadline wait in the library, a cycle late, is refused" =
     59 firmwares, 721 deadline waits: 675 refused a cycle late, 46 too long to assemble a cycle late, 436 accepted at their slack
     59 firmwares, 661 deadline waits: 615 refused a cycle late, 46 too long to assemble a cycle late, 376 accepted at their slack
     59 firmwares, 651 deadline waits: 605 refused a cycle late, 46 too long to assemble a cycle late, 362 accepted at their slack
+    56 firmwares, 571 deadline waits: 548 refused a cycle late, 23 too long to assemble a cycle late, 359 accepted at their slack
     |}]
 ;;

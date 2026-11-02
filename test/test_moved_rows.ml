@@ -128,5 +128,6 @@ let%expect_test "the kernel refuses each row moved by a cycle" =
     (usb_power_delivery (phase 212) (arm 0) (capture 0) (accepted ()))
     (dmx512 (phase 84) (arm 0) (capture 0) (accepted ()))
     (wiegand (phase 34) (arm 0) (capture 0) (accepted ()))
+    (swd_blind (phase 30) (arm 0) (capture 0) (accepted ()))
     |}]
 ;;

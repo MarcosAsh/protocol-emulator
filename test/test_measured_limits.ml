@@ -214,6 +214,15 @@ let%expect_test "the datasheet limits, measured on the bench copies' runs" =
     run    1092101  dmx512             break to break transmitted >= 1.204e+06 ns  measured 546050 (22752083.3 ns) Pass            Wikipedia, DMX512, oldid 1380777110, page 1, line 313
     run    1092101  dmx512             break to break receivers handle >= 1.196e+06 ns  measured 546050 (22752083.3 ns) Pass            Wikipedia, DMX512, oldid 1380777110, page 1, line 313
     run    1092101  dmx512             refresh rate of 512 channels, at most 44 Hz >= 2.27273e+07 ns  measured 546050 (22752083.3 ns) Pass            Wikipedia, DMX512, oldid 1380777110, page 1, line 312
+    ("the run disagrees with the bound" swd_blind Trn (exact.samples (48))
+     (checked.bound (50)))
+    kernel 50  swd_blind          Trn              >=     1000 ns  measured 24 (1000.0 ns)       Within_a_sample ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813, Table 2-10, p.2-52
+    run    2910  swd_blind          line reset       >=    50000 ns  measured 1455 (60625.0 ns)    Pass            ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813, 4.4.3, p.4-104
+    run    394  swd_blind          idle cycles      >=     2000 ns  measured 197 (8208.3 ns)      Pass            ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813, 4.4.3, p.4-104
+    run    2758  swd_blind          JTAG-to-SWD      >=    50000 ns  measured 1379 (57458.3 ns)    Pass            ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813, 5.2.1, p.5-111
+    run    548  swd_blind          JTAG-to-DS       >=     5000 ns  measured 274 (11416.7 ns)     Pass            ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813, 5.3.2, p.5-115
+    run    2758  swd_blind          SWD-to-DS        >=    50000 ns  measured 1379 (57458.3 ns)    Pass            ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813, 5.3.3, p.5-116
+    run    2758  swd_blind          DS-to-SWD        >=    50000 ns  measured 1379 (57458.3 ns)    Pass            ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813, 5.3.4, p.5-117
     kernel 417  uart_log           bit              >=  8506.94 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     run    417  uart_log           bit              <=  8854.17 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     |}]
@@ -419,5 +428,12 @@ let%expect_test "every limit's pairs of edges in the prediction" =
     dmx512         break to break transmitted   1 pairs, as measured
     dmx512         break to break receivers handle   1 pairs, as measured
     dmx512         refresh rate of 512 channels, at most 44 Hz   1 pairs, as measured
+    swd_blind      Trn               73 pairs, as measured
+    swd_blind      line reset         1 pairs, as measured
+    swd_blind      idle cycles        1 pairs, as measured
+    swd_blind      JTAG-to-SWD        1 pairs, as measured
+    swd_blind      JTAG-to-DS         1 pairs, as measured
+    swd_blind      SWD-to-DS          1 pairs, as measured
+    swd_blind      DS-to-SWD          1 pairs, as measured
     |}]
 ;;
