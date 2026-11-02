@@ -4,8 +4,7 @@
 # before anything reaches the chip. A job the bench takes runs on the backend (bench: Pico A
 # and analyser A, the Icepi reset before and after; rtl: the same script on the RTL in
 # cocotb; model: none), anything else gets the model's trace, labelled simulated. Results go
-# to RESULTS/<id>/ (result.json for playground/lab.html, SHA256SUMS), a bench run's also to
-# EVIDENCE/<date>/lab/. Nothing listens: queues are polled files.
+# to RESULTS/<id>/, a bench run's also to EVIDENCE/<date>/lab/. Queues are polled files.
 # Usage: python3 demo/lab.py submit JOB --queue DIR [--as NAME]
 #        python3 demo/lab.py fake --queue DIR
 #        [PICO=id:<serial of Pico A>] python3 demo/lab.py work (--queue DIR | --issues FILE)

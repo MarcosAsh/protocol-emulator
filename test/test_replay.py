@@ -7,7 +7,8 @@
 # edge; outputs are sampled on the next falling edge.
 # REPLAY_TRACES gives other globs under test/; REPLAY_RECORD a folder where each trace is
 # written again with the outputs the netlist drove, an x or z as 0, for demo/decode.py.
-# A trace that differs still runs to its end and is written, then fails.
+# A trace that differs still runs to its end and is written, then fails. One whose header
+# says "# engines N" is skipped where REPLAY_ENGINES, the netlist's engines, is fewer.
 
 import os
 from pathlib import Path
@@ -25,6 +26,16 @@ TRACES = sorted(
     for trace in HERE.glob(pattern)
 )
 RECORD = os.environ.get("REPLAY_RECORD")
+ENGINES = os.environ.get("REPLAY_ENGINES")
+
+
+def engines(path):
+    for line in path.read_text().splitlines():
+        if not line.startswith("#"):
+            return 1
+        if line.startswith("# engines "):
+            return int(line.split()[2])
+    return 1
 
 
 def read_trace(path):
@@ -92,7 +103,7 @@ def make_test(path):
         await replay(dut, path)
 
     test.__name__ = test.__qualname__ = f"replay_{path.stem}"
-    return cocotb.test()(test)
+    return cocotb.test(skip=ENGINES is not None and engines(path) > int(ENGINES))(test)
 
 
 for trace in TRACES:

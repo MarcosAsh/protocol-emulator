@@ -272,3 +272,24 @@
  (alias runtest)
  (action
   (diff ../quiet_watch_slow.settings quiet_watch_slow.settings.gen)))
+
+; a period and a floor are two answers to what p carries, so the command takes one
+
+(rule
+ (with-outputs-to
+  period_and_floor.gen
+  (with-accepted-exit-codes
+   1
+   (run
+    %{exe:../../bin/generate.exe}
+    assemble
+    -period
+    16
+    -period-floor
+    10
+    %{dep:../uart_tx.asm}))))
+
+(rule
+ (alias runtest)
+ (action
+  (diff period_and_floor.expected period_and_floor.gen)))

@@ -31,7 +31,8 @@ end
 (** Assembles, then [Analyser.check] under its assumptions, then the kernel on the
     analyser's rows, which are not trusted; the kernel covers less, so it can refuse what
     the analyser passes. A [period_floor] is checked at its two ends, which covers every
-    load between. Lines count from 1. *)
+    load between. A config [Program_config.validate] refuses, or a period [p] cannot hold,
+    is refused. Lines count from 1. *)
 val check
   :  ?period:int
   -> ?period_floor:int

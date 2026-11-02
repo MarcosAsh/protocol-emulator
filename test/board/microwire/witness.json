@@ -1,0 +1,123 @@
+{
+  "demo": "microwire",
+  "time": "2026-10-30T14:59:16",
+  "result": "PASS",
+  "commit": "b82b5eccd88bf54bdf2ae420cc35e87a128efd54",
+  "bitstream_sha256": "ded0014fdf14df568ed478e5f6e36d1d91475ba62bae300e101c1b229c1f963f",
+  "netlist_sha256": "1db23ccd02406ef95731f3ffd7de23fbfa9a66a0410741d78cbcb04edc717f5f",
+  "sums_sha256": "5bb3c243f9b739aebe1ad3af361ae3fa7741b2da4afd595bca30b3acc3c4ad78",
+  "capture": {
+    "file": "microwire.sr",
+    "sha256": "7d204b282ceeb44b0c2ee32ac713971f72053f9c59ab0eb7b40ccbbedcbc6742",
+    "rate_hz": 24000000,
+    "seconds": 2.0,
+    "analyser": "B",
+    "channels": {
+      "D0": "SK, OUT5, the flash's CLK",
+      "D1": "DI, OUT4, the flash's DI",
+      "D2": "DO, IN0, the flash's DO",
+      "D3": "CS, OUT6, the flash's CS"
+    }
+  },
+  "decode": {
+    "arguments": "-P microwire:cs=D3:sk=D0:si=D1:so=D2 -A microwire=start-bit:si-bit",
+    "sha256": "4f4de5592b2cf83c6ba02036dcff26c8588976d3d29b28ebb107c193f18b3236"
+  },
+  "timing": [
+    {
+      "parameter": "SK period",
+      "limit": ">= 5000 ns",
+      "sheet": "National AN-452 (1992), COP430, Table I p.5",
+      "spans": 80,
+      "measured": "6416 ns to 6501 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "SK period",
+      "limit": "<= 10.00 us",
+      "sheet": "National AN-452 (1992), COP420, p.6 note 1",
+      "spans": 80,
+      "measured": "6.42 us to 6.50 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "SK high",
+      "limit": ">= 1000 ns",
+      "sheet": "National AN-452 (1992), NM93C06A, p.6 note 1",
+      "spans": 84,
+      "measured": "3166 ns to 3292 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "DI setup",
+      "limit": ">= 1000 ns",
+      "sheet": "National AN-452 (1992), COP472-3, Table I p.5",
+      "spans": 28,
+      "measured": "2333 ns to 3292 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "DI hold",
+      "limit": ">= 800 ns",
+      "sheet": "National AN-452 (1992), DS8908, Table I p.5",
+      "spans": 26,
+      "measured": "4041 ns to 4125 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "CS setup",
+      "limit": ">= 1000 ns",
+      "sheet": "National AN-452 (1992), COP472-3, Table I p.5",
+      "spans": 4,
+      "measured": "6458 ns to 6542 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "CS hold",
+      "limit": ">= 1000 ns",
+      "sheet": "National AN-452 (1992), COP472-3, Table I p.5",
+      "spans": 4,
+      "measured": "3166 ns to 3292 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "CS low after an erase/write",
+      "limit": ">= 20000.00 us",
+      "sheet": "National AN-452 (1992), COP494 TWE, p.10",
+      "spans": 1,
+      "measured": "25940.61 us to 25945.89 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "CS low after an erase/write",
+      "limit": "<= 30000.00 us",
+      "sheet": "National AN-452 (1992), NM93C06A, p.6 note 2",
+      "spans": 1,
+      "measured": "25940.61 us to 25945.89 us",
+      "verdict": "proved"
+    }
+  ],
+  "teeth": [
+    "DI inverted over EWEN's first opcode bit",
+    "EWEN's CS rise 0.5 us before SK's first rise"
+  ],
+  "bitstream_source": "main cb872768 by icepi/Makefile REV=v1.3 (seed 2, 49.47 MHz), the pc's pe-bench run 2026-10-30-0904; its Verilog is a5566412's",
+  "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
+  "firmware": {
+    "MICROWIRE": "82e923b72907c044e1fe1d4e5107dbd9ea695e7b439c5a44bda46930026ce6f2"
+  },
+  "host_scripts": {
+    "python/demo_microwire.py": "1baa85dfd5abb370158c9842b465d22c6d7b8be28b1e98707bd8758c633d7a5a"
+  },
+  "bench": "an Icepi Zero (ECP5 LFE5U-25F) running the chip at 48 MHz on bench carrier v1.2, Pico A as the host on SPI, nothing: the flash on the same pins is deselected while CS is high, analyser B (fx2lafw) at 24 MS/s",
+  "scope": "the bytes on the wire and their timing in one run of microwire, as the analyser saw them",
+  "limits": [
+    "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
+    "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
+    "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
+    "the bitstream is named by its sha256, and its netlist's, built from main cb872768 by icepi/Makefile REV=v1.3 (seed 2, 49.47 MHz), the pc's pe-bench run 2026-10-30-0904; its Verilog is a5566412's by the bench's notes, which CI does not rebuild",
+    "drawn at random and written blind from its spec (docs/flexibility.md)",
+    "no bench part answers MICROWIRE, so DO is not held to anything",
+    "each window is the strictest the library's AN-452 parts give"
+  ]
+}

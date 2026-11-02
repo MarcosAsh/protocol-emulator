@@ -59,6 +59,22 @@ let%expect_test "the bench firmware against its datasheet limits" =
     i2c_fast           TSU:STO        >=      600 ns  kernel 64 (1333.3 ns)    needs   44       I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44; margin 300 ns, tr
     i2c_fast           TBUF           >=     1300 ns  kernel 101 (2104.2 ns)   needs   77       I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44; margin 300 ns, tr
     i2c_fast           1/fSCL         >=     2500 ns  run    128 (2666.7 ns)   needs  121       I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44, fSCL; margin a cycle
+    i2c_standard_asym  THIGH          >=     4000 ns  kernel 254 (5291.7 ns)   needs  240       I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 11, p.44; margin 1000 ns, tr
+    i2c_standard_asym  TLOW           >=     4700 ns  kernel 227 (4729.2 ns)   needs  227       I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 11, p.44; margin a cycle
+    i2c_standard_asym  THD:STA        >=     4000 ns  kernel 380 (7916.7 ns)   needs  193       I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 11, p.44; margin a cycle
+    i2c_standard_asym  TSU:STA        >=     4700 ns  kernel 381 (7937.5 ns)   needs  274       I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 11, p.44; margin 1000 ns, tr
+    i2c_standard_asym  TSU:DAT        >=      250 ns  kernel 126 (2625.0 ns)   needs   60       I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 11, p.44; margin 1000 ns, tr
+    i2c_standard_asym  TSU:STO        >=     4000 ns  kernel 381 (7937.5 ns)   needs  240       I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 11, p.44; margin 1000 ns, tr
+    i2c_standard_asym  TBUF           >=     4700 ns  kernel 386 (8041.7 ns)   needs  274       I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 11, p.44; margin 1000 ns, tr
+    i2c_standard_asym  1/fSCL         >=    10000 ns  run    481 (10020.8 ns)  needs  481       I2C Standard-mode, NXP UM10204 Rev. 7.0 Table 11, p.44, fSCL; margin a cycle
+    i2c_fast_asym      THIGH          >=      600 ns  kernel 57 (1187.5 ns)    needs   44       I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44; margin 300 ns, tr
+    i2c_fast_asym      TLOW           >=     1300 ns  kernel 64 (1333.3 ns)    needs   64       I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44; margin a cycle
+    i2c_fast_asym      THD:STA        >=      600 ns  kernel 64 (1333.3 ns)    needs   30       I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44; margin a cycle
+    i2c_fast_asym      TSU:STA        >=      600 ns  kernel 64 (1333.3 ns)    needs   44       I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44; margin 300 ns, tr
+    i2c_fast_asym      TSU:DAT        >=      100 ns  kernel 31 (645.8 ns)     needs   20       I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44; margin 300 ns, tr
+    i2c_fast_asym      TSU:STO        >=      600 ns  kernel 64 (1333.3 ns)    needs   44       I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44; margin 300 ns, tr
+    i2c_fast_asym      TBUF           >=     1300 ns  kernel 101 (2104.2 ns)   needs   77       I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44; margin 300 ns, tr
+    i2c_fast_asym      1/fSCL         >=     2500 ns  run    121 (2520.8 ns)   needs  121       I2C Fast-mode, NXP UM10204 Rev. 7.0 Table 11, p.44, fSCL; margin a cycle
     sk6812             T0H            >=      250 ns  kernel 17 (354.2 ns)     needs   13       SK6812, OSK-SPC-SK6812-012 Rev. B/1 p.7; margin a cycle
     sk6812             T0H            <=      400 ns  run    17 (354.2 ns)     needs   18       SK6812, OSK-SPC-SK6812-012 Rev. B/1 p.7; margin a cycle
     sk6812             T1H            >=      650 ns  run    34 (708.3 ns)     needs   33       SK6812, OSK-SPC-SK6812-012 Rev. B/1 p.7; margin a cycle
@@ -245,6 +261,7 @@ let%expect_test "firmware its limits do not hold within a factor of two" =
     nec_rx             none   a receiver: it samples, and drives nothing
     ir_rc6             none   the spec gives typical times and no minimum or maximum; Ir_rc6.decode holds each mark and space to 5%
     lfast              loose  data rate, shortest high bit (3.125 ns) needs 2 of 10 cycles (20%)
+    tdm_audio          none   AN301 has no timing table: SCLK 12.288 MHz (p.2) is typical only, the example for 8 x 32-bit blocks at 48 kHz, with no minimum or maximum
     |}]
 ;;
 

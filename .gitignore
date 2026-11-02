@@ -41,6 +41,7 @@ formal/engines_gated.v
 formal/top.v
 formal/engine_probed.v
 formal/link*.sv
+formal/bridge.sv
 formal/certificate*.sv
 formal/fsm_miter*.sv
 formal/self_check*.sv
@@ -79,3 +80,4 @@ formal/verilog_*
 
 # the Python venv, or a worktree's link to it
 .venv
+docs/_build/

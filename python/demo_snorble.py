@@ -1,8 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Snorble (SNB-1 Rev. C) on SIG, OUT0, which analyser A's D4 watches (MicroPython, Pico A):
 # four bytes, each a frame of sync, eight bits and odd parity, frames 214 us apart.
-# demo/outside.sh snorble runs it, reading the analyser, the capture's length and
-# sigrok's decoders from the next line.
+# demo/outside.sh snorble runs it, taking its settings from the next line.
 # outside: analyser=A ms=2000 decode=-P snorble:sig=D4 -A snorble=byte:parity-ok
 
 import bench

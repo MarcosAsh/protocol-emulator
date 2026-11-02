@@ -74,9 +74,11 @@ let%expect_test "every firmware against the chip's walk" =
     i2c_logger                    73     40  accepted
     i2c_master_standard          113     77  accepted
     i2c_master_fast              107     77  accepted
+    i2c_master_standard_asym     121     80  accepted
+    i2c_master_fast_asym         111     80  accepted
     i2c_controller_wire           87     63  accepted
     i2c_target_wire               78     39  accepted
-    usb_tx                        65     84  accepted
+    usb_tx                        67     84  accepted
     usb_rx                        92    102  accepted
     usb_device                   470    503  accepted
     edge_meter                    12     10  accepted
@@ -98,10 +100,10 @@ let%expect_test "every firmware against the chip's walk" =
     spi_cs_mode1_default_pins     43     25  accepted
     spi_cs_mode2_default_pins     43     25  accepted
     spi_cs_mode3_default_pins     43     25  accepted
-    spi_target_mode0              38     30  accepted
-    spi_target_mode1              33     30  accepted
-    spi_target_mode2              38     30  accepted
-    spi_target_mode3              33     30  accepted
+    spi_target_mode0              47     35  accepted
+    spi_target_mode1              35     26  accepted
+    spi_target_mode2              45     43  accepted
+    spi_target_mode3              34     31  accepted
     spi_target_fast_mode0         36     27  accepted
     spi_target_fast_mode1         36     27  accepted
     spi_target_fast_mode2         37     27  accepted
@@ -118,6 +120,7 @@ let%expect_test "every firmware against the chip's walk" =
     caliper                       57     74  accepted
     xy2_100                       35     26  accepted
     lfast                         64     15  accepted
+    tdm_audio                    117     80  accepted
     asm/blink                      4      5  accepted
     asm/crc_send                  12     12  accepted
     asm/data_stream                4      5  accepted
@@ -146,6 +149,8 @@ let%expect_test "every firmware against the chip's walk" =
     bench/start_hold               9      2  accepted
     bench/i2c_standard           113     80  accepted
     bench/i2c_fast               107     80  accepted
+    bench/i2c_standard_asym      121     80  accepted
+    bench/i2c_fast_asym          111     80  accepted
     bench/sk6812                  35     58  accepted
     bench/ethernet                38     42  accepted
     bench/one_wire                48     49  accepted
@@ -167,6 +172,7 @@ let%expect_test "every firmware against the chip's walk" =
     bench/caliper                 57     74  accepted
     bench/xy2_100                 35     26  accepted
     bench/lfast                   64     15  accepted
+    bench/tdm_audio              117     80  accepted
     |}]
 ;;
 

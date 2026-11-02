@@ -106,9 +106,6 @@ val words : _ t -> int list Or_error.t
 (** A host word whose bits the host bit shows in turn as [Shift] moves them up. *)
 val host_bits : bool list -> int
 
-(** A host word a [Burst] sends: 1 to 12 bits, the first first. *)
-val burst_word : bool list -> int
-
 module Uart_tx : State
 module Uart_rx : State
 module Uart_burst : State
@@ -135,8 +132,8 @@ val uart_tx_burst : bit:int -> Uart_burst.t t
 val uart_frame : int -> int
 
 (** SPI mode 0, full duplex: MOSI on out_base, SCK on the next pin, MISO on in_base. Each
-    host word is a byte in its high 8 bits; the byte read comes back in the low 8 bits of
-    a pushed word. SCK is low for [half] cycles and high for [half]. *)
+    host word is a byte in its high 8 bits, and the byte read comes back in the low 8 bits
+    of a pushed word. SCK is low for [half] cycles and high for [half]. *)
 val spi_master : half:int -> Spi_master.t t
 
 (** DShot from host frame words, MSB first, on out_base. *)

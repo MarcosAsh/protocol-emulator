@@ -1,14 +1,14 @@
 {
   "demo": "flash",
-  "time": "2026-10-22T17:25:17",
+  "time": "2026-10-30T16:04:24",
   "result": "PASS",
-  "commit": "c6a2f802fc0dbf7162d28b9ba271ae4d456fc013",
+  "commit": "b5c0748c56eea8ab598d269fd6da6bef709d06eb",
   "bitstream_sha256": "ded0014fdf14df568ed478e5f6e36d1d91475ba62bae300e101c1b229c1f963f",
-  "netlist_sha256": "685d03a18ca12fd44a680074e6810a1b703c073ad946dfd3fb5b50507d1c3111",
-  "sums_sha256": "0c47bf149e43275c29303a42aeac99ada27a2071c2c993cf0024e5e781cb0820",
+  "netlist_sha256": "1db23ccd02406ef95731f3ffd7de23fbfa9a66a0410741d78cbcb04edc717f5f",
+  "sums_sha256": "1cca77d6ab68836748ef800d4b16254d5a1c4e6d5601e19fed448347d1abc3b6",
   "capture": {
     "file": "flash.sr",
-    "sha256": "92eff8726bfbb7383857bf8c7fb608275810b9369c7732149b902ebae96a8841",
+    "sha256": "48e9aefd911567d0c4eaf202640da6d03b8ca84c24102edd6a56d4db4efaf647",
     "rate_hz": 24000000,
     "seconds": 4.0,
     "analyser": "B",
@@ -21,14 +21,14 @@
   },
   "decode": {
     "arguments": "-P spi:clk=D0:mosi=D1:miso=D2:cs=D3,spiflash:chip=winbond_w25q80dv -A spiflash",
-    "sha256": "1a477ce7ae25f60b083c4896661a9cb8d775205630b125c0b02f907798998d6e"
+    "sha256": "2ac54e2ff171203fe3087c20ac8054c59ac9cf2926cbe4acef31be9e52299136"
   },
   "timing": [
     {
       "parameter": "tCLH",
       "limit": ">= 9 ns",
       "sheet": "W25Q64JV, Winbond Rev. M p.64",
-      "spans": 9504,
+      "spans": 9488,
       "measured": "125 ns to 250 ns",
       "verdict": "proved"
     },
@@ -36,32 +36,32 @@
       "parameter": "tCLL",
       "limit": ">= 9 ns",
       "sheet": "W25Q64JV, Winbond Rev. M p.64",
-      "spans": 9427,
-      "measured": "83 ns to 5774327 ns",
+      "spans": 9412,
+      "measured": "83 ns to 6220789 ns",
       "verdict": "proved"
     },
     {
       "parameter": "tSLCH",
       "limit": ">= 3 ns",
       "sheet": "W25Q64JV, Winbond Rev. M p.64",
-      "spans": 77,
-      "measured": "42 ns to 125 ns",
-      "verdict": "proved"
+      "spans": 76,
+      "measured": "0 ns to 125 ns",
+      "verdict": "unresolved"
     },
     {
       "parameter": "tCHSH",
       "limit": ">= 3 ns",
       "sheet": "W25Q64JV, Winbond Rev. M p.64",
-      "spans": 77,
-      "measured": "250 ns to 375 ns",
+      "spans": 76,
+      "measured": "292 ns to 375 ns",
       "verdict": "proved"
     },
     {
       "parameter": "tSHSL2",
       "limit": ">= 50 ns",
       "sheet": "W25Q64JV, Winbond Rev. M p.64",
-      "spans": 76,
-      "measured": "949405 ns to 3830550 ns",
+      "spans": 75,
+      "measured": "1376612 ns to 6998366 ns",
       "verdict": "proved"
     },
     {
@@ -69,7 +69,7 @@
       "limit": ">= 3000 ns",
       "sheet": "W25Q64JV, Winbond Rev. M p.65",
       "spans": 1,
-      "measured": "2131079 ns to 2131588 ns",
+      "measured": "2603781 ns to 2604385 ns",
       "verdict": "proved"
     }
   ],

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Act 3's mouse draws the die (MicroPython). demo/draw.py writes draw.bin, a byte of seconds
+# A mouse draws the die (MicroPython). demo/draw.py writes draw.bin, a byte of seconds
 # to wait once the laptop has configured the chip, then three bytes a report: buttons, dx,
 # dy. This serves them through demo_usb.serve on Pico A while engine 1 sends each report's
 # three bytes, once taken, to pico_listener. Ctrl-C on the console releases the button, and

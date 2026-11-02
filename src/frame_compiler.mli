@@ -14,8 +14,8 @@
     - The data is at most 16 bits, the tx fifo's word. Inputs other than reset, valid,
       data and [tied] are unknown.
 
-    An unknown pin is refused with what it depends on: each input, and each register
-    unknown in the idle state, that made known alone makes the pin known.
+    An unknown pin is refused with each input and idle-state register that made known
+    alone makes it known.
 
     Every run of the pin starts at a deadline: [wait t+] on [p], the commonest run length,
     then [set pins] or [out pins, 1], then [add t] or extra waits for a run of another
@@ -72,8 +72,7 @@ module Timing : sig
     ; gap : int
     (** The fewest cycles from one take to the next, at least [length] and [settled]. *)
     ; shortest : int
-    (** The fewest the engine follows the circuit at in simulation, which [gap] may exceed
-        because the invariants want both settled. *)
+    (** The fewest the engine follows the circuit at in simulation. [gap] may exceed it. *)
     ; settled : int
     (** Cycles after a take by which both are back where they wait, and stay. *)
     }

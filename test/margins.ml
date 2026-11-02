@@ -328,10 +328,8 @@ module Sk6812 = struct
   let unit = 31
 
   (* A frame is one pixel, 24 bits, three host words of a byte each, MSB first by
-     autopull. The next bit is taken during the high and the low chosen by it, so every
-     edge is the instruction after a deadline wait and [y] is free as a counter within
-     each level. The line is low for [gap] between frames, exactly when the next frame's
-     words are already in. *)
+     autopull. Every edge is the instruction after a deadline wait and [y] is free as a
+     counter within each level. The line is low for [gap] between frames. *)
   let firmware (timing : Timing.t) =
     let fresh = labels "a" in
     let advance = advance ~fresh ~unit ~counter:"y" in

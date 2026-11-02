@@ -1,4 +1,4 @@
-$ openFPGALoader -b icepi-zero /home/marcosash/dev/jane-street-challenge/icepi/build/v1.3.bit
+$ openFPGALoader -b icepi-zero /home/marcos/board-corpus/bit/v1.3.bit
 Jtag probe limited to 3MHz
 Jtag frequency : requested 6000000Hz -> real 3000000Hz
 ret 0
@@ -8,13 +8,13 @@ Parse file: DONE
 Enable configuration: DONE
 SRAM erase: DONE
 Loading: [==========                                        ] 18.12%
-Loading: [===================                               ] 36.24%
-Loading: [============================                      ] 54.36%
-Loading: [=====================================             ] 72.89%
-Loading: [==============================================    ] 91.42%
+Loading: [===================                               ] 37.06%
+Loading: [============================                      ] 54.77%
+Loading: [=====================================             ] 72.48%
+Loading: [==============================================    ] 90.19%
 Loading: [==================================================] 100.00%
 
 Done
 Disable configuration: DONE
-$ CAPTURES=/home/marcosash/.local/share/protocol-emulator/board-evidence/2026-10-22/ledger/neopixel PICO=id:e66548545717552e demo/outside.sh neopixel > /home/marcosash/.local/share/protocol-emulator/board-evidence/2026-10-22/ledger/neopixel/outside.txt
+$ CAPTURES=/home/marcos/bench-rerun/evidence/2026-10-30/ledger/neopixel PICO=id:e66548545717552e demo/outside.sh neopixel > /home/marcos/bench-rerun/evidence/2026-10-30/ledger/neopixel/outside.txt
 Pico A says PASS, every step ran

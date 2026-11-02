@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # TODO what this shows on the bench, and what is wired to which pin (MicroPython, Pico A).
-# demo/outside.sh frumbleglide runs it, reading the analyser, the capture's length and
-# sigrok's decoders from the next line.
+# demo/outside.sh frumbleglide runs it, taking its settings from the next line.
 # outside: analyser=A ms=2000 decode=-P TODO:TODO=D4
 
 import bench

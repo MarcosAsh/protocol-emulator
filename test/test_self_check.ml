@@ -52,10 +52,10 @@ let bytes = [ 0x55; 0xa3; 0x00; 0xff ]
 module G = Hardcaml_verify.Comb_gates
 
 (* Each edge loads p from its row, so the analyser's table is for every load of min_gap or
-   more, and the kernel accepts it at each, by checked SAT; phase_step.sv's load is free
-   at each entry, so no deadline is missed however the rows' loads vary. Every frame is
-   anchored on [now] after a wait on the pin, so this holds whatever the line does, with
-   nothing assumed of the capture. At one less the kernel refuses. *)
+   more, and the kernel accepts it at each, by checked SAT. phase_step.sv's load is free
+   at each entry, and every frame is anchored on [now] after a wait on the pin, so no
+   deadline is missed whatever the line does, with nothing assumed of the capture. At one
+   less the kernel refuses. *)
 let%expect_test "the kernel accepts the checker at every load from min_gap" =
   let checker = checker ~pin:wire () in
   let checker_config = Self_check.checker_config ~pin:wire in
@@ -209,6 +209,48 @@ top:
   [%expect {|
     (Ok (33 39))
     (Error ("frame starts with a rise" (pc 4)))
+    |}]
+;;
+
+(* With side-set on pin directions a side value says whether the pin drives, not its
+   level, so the first edge's level is not known. *)
+let%expect_test "a side-set direction leaves the first edge's level unknown" =
+  let config =
+    { Program_config.default with
+      side_set_pindirs = true
+    ; side_set_base = Isa.first_bidir_pin
+    }
+  in
+  let edges ~idle ~frame =
+    let program =
+      Asm.assemble
+        [%string
+          {|.side_set 1
+    set p, 20        side %{idle#Int}
+top:
+    wait tx          side %{idle#Int}
+    pull             side %{idle#Int}
+    mov t, now       side %{idle#Int}
+    nop              side %{frame#Int}
+    nop [15]         side %{frame#Int}
+    nop [15]         side %{frame#Int}
+    set pins, 0      side %{idle#Int}
+    nop [15]         side %{idle#Int}
+    nop [15]         side %{idle#Int}
+    jmp top
+|}]
+      |> ok_exn
+    in
+    print_s
+      [%sexp (Self_check.edges ~config program ~first:4 ~last:7 : int list Or_error.t)]
+  in
+  (* driven low first, then let go; and the other way round *)
+  edges ~idle:0 ~frame:1;
+  edges ~idle:1 ~frame:0;
+  [%expect
+    {|
+    (Error ("first edge's level not known" (pc 4)))
+    (Error ("first edge's level not known" (pc 4)))
     |}]
 ;;
 
@@ -408,11 +450,10 @@ let long_frame ?glitch ?every ~rtl edges =
     m.irq)
 ;;
 
-(* The checker once compared 14 bits of the capture, and before [rows] refused frames this
-   long a glitch 2^14 cycles after the first edge stamped as that edge had and went
-   unseen. It compares 16 now and catches that glitch and one a cycle either side, on the
-   model and the rtl, with the frame quiet without them; [rows] still refuses the frame.
-   The next frame comes late, as an idle line's would. *)
+(* The checker compares 16 bits of the capture, so a glitch 2^14 cycles after the first
+   edge no longer stamps as that edge and goes unseen. It and one a cycle either side are
+   caught, on the model and the rtl, with the frame quiet without them. The next frame
+   comes late, as an idle line's would. *)
 let%expect_test "a frame spanning the capture's 14 bits is refused" =
   let edges = [ 100; 8000; 16000; 16500; 16600 ] in
   let quiet = not (long_frame ~every:17000 ~rtl:false edges) in

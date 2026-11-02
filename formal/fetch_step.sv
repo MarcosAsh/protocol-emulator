@@ -1,10 +1,9 @@
-// Fetch lemma: at every issue the core runs the word its program memory holds at pc, for
-// any program and any config written while halted but not in a start's second cycle, with
-// no program word written in a start's two cycles (both host_spacing.sv). That second
-// cycle prefetches the word after pc 0 under the config of the time, so the teeth, a
-// config or a word written then, break it (test_engine.ml shows the first). The memory is
-// the flop stand-in for the SRAM macro (sram_equiv), followed at one free address. Stop,
-// flush, start, fifos, data and the clear are free.
+// Fetch lemma: at every issue the core runs the word its program memory holds at pc, for any
+// program and config written while halted but not in a start's second cycle, with no program
+// word written in a start's two cycles (both host_spacing.sv). That second cycle prefetches
+// the word after pc 0 under the config of the time, so the teeth, a config or a word
+// written then, break it (test_engine.ml shows the first). The memory is the flop stand-in
+// for the SRAM macro (sram_equiv), followed at one free address.
 
 module fetch_step (input clk);
   // The config, as the host port holds it: a write lands only while the core is halted,

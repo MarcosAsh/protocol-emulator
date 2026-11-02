@@ -37,8 +37,8 @@ let cycles_a_period (diagram : Wavejson.t) =
   | Each cs -> cs
 ;;
 
-(* The refusal names the period it was drawn at: the edge is the level changes of the
-   first lane up to it, the cycle the periods before it, in the first pass of a repeat. *)
+(* The refusal names the period it was drawn at: the edge counts level changes of the
+   first lane up to it, the cycle the periods before it, in a repeat's first pass. *)
 let edge_at (diagram : Wavejson.t) e =
   let open Option.Let_syntax in
   let text = Sexp.to_string (Error.sexp_of_t e) in

@@ -109,8 +109,8 @@ let accepted_rows_hold ~with_kernel =
       (lies_in next ~shifted:o.next_shifted ~x:x' ~pulled:o.next_pulled)
       ~f:(fun target next -> lands ~target ~next)
   in
-  (* each bound on its own, from the conjuncts that ask for it, which SAT finds far easier
-     than all at once; [accepts] is every conjunct, so it implies each *)
+  (* each bound on its own, from the conjuncts that ask for it; [accepts] is every
+     conjunct *)
   let claims =
     Osr_kernel.Holds.map3
       conjuncts.next
@@ -228,6 +228,8 @@ let%expect_test "what each out sends, in the firmware library" =
     (i2c_logger (verdict (Ok ())) (sends ((67 "not a pulled word"))))
     (i2c_master_standard (verdict (Ok ())) (sends ()))
     (i2c_master_fast (verdict (Ok ())) (sends ()))
+    (i2c_master_standard_asym (verdict (Ok ())) (sends ()))
+    (i2c_master_fast_asym (verdict (Ok ())) (sends ()))
     (i2c_controller_wire (verdict (Ok ())) (sends ()))
     (i2c_target_wire (verdict (Ok ())) (sends ()))
     (usb_tx (verdict (Ok ()))
@@ -270,16 +272,16 @@ let%expect_test "what each out sends, in the firmware library" =
      (sends ((11 "bit 14 - x") (16 "bit 65550 - x"))))
     (spi_target_mode0 (verdict (Ok ()))
      (sends
-      ((10 "not a pulled word") (15 "not a pulled word") (26 "not a pulled word")
-       (36 "not a pulled word"))))
+      ((9 "not a pulled word") (20 "not a pulled word") (35 "not a pulled word")
+       (44 "not a pulled word"))))
     (spi_target_mode1 (verdict (Ok ()))
-     (sends ((12 "not a pulled word") (28 "not a pulled word"))))
+     (sends ((15 "not a pulled word") (25 "not a pulled word"))))
     (spi_target_mode2 (verdict (Ok ()))
      (sends
-      ((10 "not a pulled word") (15 "not a pulled word") (26 "not a pulled word")
-       (36 "not a pulled word"))))
+      ((9 "not a pulled word") (17 "not a pulled word") (29 "not a pulled word")
+       (38 "not a pulled word"))))
     (spi_target_mode3 (verdict (Ok ()))
-     (sends ((12 "not a pulled word") (28 "not a pulled word"))))
+     (sends ((15 "not a pulled word") (22 "not a pulled word"))))
     (spi_target_fast_mode0 (verdict (Ok ()))
      (sends ((19 "not a pulled word") (24 "not a pulled word"))))
     (spi_target_fast_mode1 (verdict (Ok ()))
@@ -307,6 +309,11 @@ let%expect_test "what each out sends, in the firmware library" =
        (49 "bit 15 - x") (51 "bit 7 - x") (53 "bit 15 - x") (55 "bit 7 - x"))))
     (xy2_100 (verdict (Ok ())) (sends ((21 "not a pulled word"))))
     (lfast (verdict (Ok ())) (sends ((57 "bit 15 - x"))))
+    (tdm_audio (verdict (Ok ()))
+     (sends
+      ((4 "not a pulled word") (18 "not a pulled word") (32 "not a pulled word")
+       (46 "not a pulled word") (60 "not a pulled word") (74 "not a pulled word")
+       (88 "not a pulled word") (102 "not a pulled word"))))
     (uart_tx_stream (verdict (Ok ())) (sends ((8 "not a pulled word"))))
     (spi_master_stream (verdict (Ok ()))
      (sends ((4 "not a pulled word") (8 "not a pulled word"))))
@@ -476,9 +483,9 @@ let assembled source =
 
 (* Brute force: for a word that leaves x alone or counts it down, on each way out, the
    image's shifted bounds are exactly the least and greatest counts the core steps to from
-   a state the row and x's bounds allow there: the sum less x narrows the row's own, a
-   [jmp x--] is taken only from x at 1 or more and falls through only from 0. Its sum
-   bounds are exact too where every sum in the row's is reached. *)
+   a state the row and x's bounds allow. [jmp x--] is taken only from x at 1 or more and
+   falls through only from 0. The sum bounds are exact where every sum in the row's is
+   reached. *)
 let%expect_test "an image's bounds are the hull of the states the core reaches" =
   let module O = Osr_kernel.Make (Bits) in
   let side_set_count = Bits.zero 2 in

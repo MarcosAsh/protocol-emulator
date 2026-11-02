@@ -1,0 +1,22 @@
+{
+  "demo": "learn_rc6",
+  "bitstream_sha256": "ded0014fdf14df568ed478e5f6e36d1d91475ba62bae300e101c1b229c1f963f",
+  "sums_sha256": "7fa9cfc5279413c5ed7d87724abc59ed490ff667da23399777cbbbef7d0e1bd0",
+  "recorded_probes": [
+    "IO3=D6"
+  ],
+  "spoken_probes": [
+    "OUT0=D4"
+  ],
+  "decode": "-P ir_rc6:ir=D4 -A ir_rc6=fields",
+  "expect": [
+    "ir_rc6-1: Address: 00\nir_rc6-1: Data: 0A"
+  ],
+  "tooth": [
+    "D4",
+    12065251,
+    12671095
+  ],
+  "bench": "an Icepi Zero running the chip at 48 MHz on bench carrier v1.2, Pico A as the host, Pico B replaying the recording and listening on OUT0, analyser B on IO3/IO2 while the chip records and A on OUT0 (B on OUT5/OUT4 for a clocked bus) while it speaks, both fx2lafw",
+  "scope": "the chip's recording of a transmitter it was not told about, what was learned from it, the firmware written for a message never recorded, and that message on the wire"
+}

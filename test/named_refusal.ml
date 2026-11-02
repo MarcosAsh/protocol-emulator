@@ -34,10 +34,10 @@ let spaced_edge
   |> List.min_elt ~compare:(fun (a, _, _) (b, _, _) -> Int.compare a b)
 ;;
 
-(* The edge that ends the first width to break the limit, found by bisection over the
-   pin's completed level runs as a width once broken stays so. A width appears when its
-   last level has ended, which for the first of a pair is the one after it: so the width
-   ends at the last run if widening the last run changes it, and the run before if not. *)
+(* The edge that ends the first width to break the limit, by bisection over the pin's
+   completed level runs, since a broken width stays broken. A width appears once its last
+   level has ended, so it ends at the last run if widening that run changes it, else the
+   run before. *)
 let run_edge (limit : Datasheet.Limit.t) ~needed ~widths trace pin =
   let runs =
     Datasheet.runs (Array.map trace ~f:(fun word -> (word lsr pin) land 1 = 1))

@@ -1,0 +1,13 @@
+demo: caliper
+result: PASS
+pico_a_says: PASS
+traffic: held to the capture
+expected: PASS
+time: 2026-10-30T14:59:43
+commit: b82b5eccd88bf54bdf2ae420cc35e87a128efd54
+bitstream: /home/marcos/board-corpus/bit/v1.3.bit
+bitstream_sha256: ded0014fdf14df568ed478e5f6e36d1d91475ba62bae300e101c1b229c1f963f
+netlist_sha256: 1db23ccd02406ef95731f3ffd7de23fbfa9a66a0410741d78cbcb04edc717f5f
+pico_a: id:e66548545717552e
+pico_b: e66548545740ad29 micropython
+rate: 24M

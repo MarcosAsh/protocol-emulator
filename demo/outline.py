@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # One outline per block of the hardened die, from pages/die/die.bin's cells, as a pen path
-# for python/demo_draw.py. Each block's cells are rasterised, blurred and traced, the
-# traces simplified together to a budget of segments; the SRAM macros and the tile are
-# their own rectangles. Pure Python, and the same path for the same die.bin.
+# for python/demo_draw.py. Each block's cells are rasterised, blurred and traced, the traces
+# simplified together to a budget of segments. The SRAM macros and the tile are their own
+# rectangles. Deterministic for a die.bin.
 import gzip
 import json
 import os

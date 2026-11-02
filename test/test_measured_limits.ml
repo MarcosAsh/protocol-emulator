@@ -79,6 +79,22 @@ let%expect_test "the datasheet limits, measured on the bench copies' runs" =
     kernel 64  i2c_fast           TSU:STO          >=      600 ns  measured 32 (1333.3 ns)       Pass            NXP UM10204 Rev. 7.0, Table 11, p.44
     kernel 101  i2c_fast           TBUF             >=     1300 ns  measured 50 (2083.3 ns)       Pass            NXP UM10204 Rev. 7.0, Table 11, p.44
     run    128  i2c_fast           1/fSCL           >=     2500 ns  measured 64 (2666.7 ns)       Pass            NXP UM10204 Rev. 7.0, Table 11, p.44, fSCL
+    kernel 254  i2c_standard_asym  THIGH            >=     4000 ns  measured 127 (5291.7 ns)      Pass            NXP UM10204 Rev. 7.0, Table 11, p.44
+    kernel 227  i2c_standard_asym  TLOW             >=     4700 ns  measured 113 (4708.3 ns)      Within_a_sample NXP UM10204 Rev. 7.0, Table 11, p.44
+    kernel 380  i2c_standard_asym  THD:STA          >=     4000 ns  measured 190 (7916.7 ns)      Pass            NXP UM10204 Rev. 7.0, Table 11, p.44
+    kernel 381  i2c_standard_asym  TSU:STA          >=     4700 ns  measured 191 (7958.3 ns)      Pass            NXP UM10204 Rev. 7.0, Table 11, p.44
+    kernel 126  i2c_standard_asym  TSU:DAT          >=      250 ns  measured 63 (2625.0 ns)       Pass            NXP UM10204 Rev. 7.0, Table 11, p.44
+    kernel 381  i2c_standard_asym  TSU:STO          >=     4000 ns  measured 190 (7916.7 ns)      Pass            NXP UM10204 Rev. 7.0, Table 11, p.44
+    kernel 386  i2c_standard_asym  TBUF             >=     4700 ns  measured 193 (8041.7 ns)      Pass            NXP UM10204 Rev. 7.0, Table 11, p.44
+    run    481  i2c_standard_asym  1/fSCL           >=    10000 ns  measured 240 (10000.0 ns)     Within_a_sample NXP UM10204 Rev. 7.0, Table 11, p.44, fSCL
+    kernel 57  i2c_fast_asym      THIGH            >=      600 ns  measured 28 (1166.7 ns)       Pass            NXP UM10204 Rev. 7.0, Table 11, p.44
+    kernel 64  i2c_fast_asym      TLOW             >=     1300 ns  measured 32 (1333.3 ns)       Within_a_sample NXP UM10204 Rev. 7.0, Table 11, p.44
+    kernel 64  i2c_fast_asym      THD:STA          >=      600 ns  measured 32 (1333.3 ns)       Pass            NXP UM10204 Rev. 7.0, Table 11, p.44
+    kernel 64  i2c_fast_asym      TSU:STA          >=      600 ns  measured 32 (1333.3 ns)       Pass            NXP UM10204 Rev. 7.0, Table 11, p.44
+    kernel 31  i2c_fast_asym      TSU:DAT          >=      100 ns  measured 15 (625.0 ns)        Pass            NXP UM10204 Rev. 7.0, Table 11, p.44
+    kernel 64  i2c_fast_asym      TSU:STO          >=      600 ns  measured 32 (1333.3 ns)       Pass            NXP UM10204 Rev. 7.0, Table 11, p.44
+    kernel 101  i2c_fast_asym      TBUF             >=     1300 ns  measured 50 (2083.3 ns)       Pass            NXP UM10204 Rev. 7.0, Table 11, p.44
+    run    121  i2c_fast_asym      1/fSCL           >=     2500 ns  measured 60 (2500.0 ns)       Within_a_sample NXP UM10204 Rev. 7.0, Table 11, p.44, fSCL
     kernel 17  sk6812             T0H              >=      250 ns  measured 8 (333.3 ns)         Pass            OSK-SPC-SK6812-012 Rev. B/1, p.7
     run    17  sk6812             T0H              <=      400 ns  measured 9 (375.0 ns)         Within_a_sample OSK-SPC-SK6812-012 Rev. B/1, p.7
     run    34  sk6812             T1H              >=      650 ns  measured 17 (708.3 ns)        Pass            OSK-SPC-SK6812-012 Rev. B/1, p.7
@@ -237,6 +253,22 @@ let%expect_test "every limit's pairs of edges in the prediction" =
     i2c_fast       TSU:STO            4 pairs, as measured
     i2c_fast       TBUF               3 pairs, as measured
     i2c_fast       1/fSCL            85 pairs, as measured
+    i2c_standard_asym THIGH             85 pairs, as measured
+    i2c_standard_asym TLOW              86 pairs, as measured
+    i2c_standard_asym THD:STA           52 pairs, as measured
+    i2c_standard_asym TSU:STA            3 pairs, as measured
+    i2c_standard_asym TSU:DAT           86 pairs, as measured
+    i2c_standard_asym TSU:STO            4 pairs, as measured
+    i2c_standard_asym TBUF               3 pairs, as measured
+    i2c_standard_asym 1/fSCL            85 pairs, as measured
+    i2c_fast_asym  THIGH             85 pairs, as measured
+    i2c_fast_asym  TLOW              86 pairs, as measured
+    i2c_fast_asym  THD:STA           53 pairs, as measured
+    i2c_fast_asym  TSU:STA            3 pairs, as measured
+    i2c_fast_asym  TSU:DAT           86 pairs, as measured
+    i2c_fast_asym  TSU:STO            4 pairs, as measured
+    i2c_fast_asym  TBUF               3 pairs, as measured
+    i2c_fast_asym  1/fSCL            85 pairs, as measured
     sk6812         T0H              144 pairs, as measured
     sk6812         T0H               69 pairs, as measured
     sk6812         T1H               72 pairs, as measured

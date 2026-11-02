@@ -1,6 +1,6 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
-# Puts an act's firmware on Pico B, which stays wired for every act: MicroPython for the
+# Puts a demo's firmware on Pico B, which stays wired for every demo: MicroPython for the
 # listener, demo/can_node for can and can_node, demo/start_hold_master's pio or hw build
 # for start_hold. Pico B reaches its bootloader through mpremote from MicroPython, and from
 # the C builds through picotool or, without it, a 1200 baud open of their serial port. The
@@ -52,10 +52,12 @@ elif [ -z "$name" ]; then
 elif echo "$name" | grep -q MicroPython; then
     mpremote connect "id:$serial" bootloader || true
 elif command -v picotool >/dev/null; then
-    picotool reboot -f -u --ser "$serial"
+    # reboot's own flags before the device's, and the serial in the SDK's upper case
+    picotool reboot -u -f --ser "$(echo "$name" | sed 's/.*_\([0-9A-Fa-f]*\)-if00$/\1/')"
 else
-    # the SDK's USB serial port reboots to the bootloader when opened at 1200 baud
-    stty -F "/dev/serial/by-id/$name" 1200 || true
+    # the SDK's USB serial port reboots to the bootloader when opened at 1200 baud; a
+    # firmware that never reads its port leaves stty stuck in set_termios, hence the timeout
+    timeout -s KILL 10 stty -F "/dev/serial/by-id/$name" 1200 || true
 fi
 wait_for drive || { echo "Pico B never showed its RPI-RP2 drive" >&2; exit 1; }
 if command -v picotool >/dev/null; then

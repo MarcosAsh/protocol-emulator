@@ -162,10 +162,9 @@ let config env (e : expression) =
     fail ~loc:e.pexp_loc [%string "not a Program_config.t: %{Exn.to_string exn}"]
 ;;
 
-(* Where line [n] of a quoted string is, given where its contents start and end, from its
-   first non-blank to the end of its instruction, so the squiggle sits under the
-   instruction and not its comment. The lexer keeps a CRLF in a quoted string as a bare
-   \n, so the lines are measured in the file, while it still holds the string. *)
+(* Line [n] of a quoted string, from its first non-blank to the end of its instruction, so
+   the squiggle skips the comment. Measured in the file, as the lexer turns a CRLF in the
+   string into a bare \n. *)
 let line_location (loc : Location.t) source n =
   let contents = loc.loc_start.pos_cnum in
   let in_file =

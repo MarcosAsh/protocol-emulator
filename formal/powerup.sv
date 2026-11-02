@@ -1,7 +1,7 @@
-// Power-up is deterministic. Two copies of the chip start from independent arbitrary
-// states, every flop and fifo word, and see the same pins every cycle, rst_n low at the
-// first edge and free after it. From the cycle after that edge on, their pins and the
-// inputs of their three SRAM macros are equal, forever.
+// Power-up is deterministic. Two copies of the chip start from independent arbitrary states,
+// every flop and fifo word, and see the same pins every cycle, rst_n low at the first edge
+// and free after it. From the cycle after that edge on, their pins and their three SRAM
+// macros' inputs are equal, forever.
 //
 // Premise: the two copies' macros hold the same words after the first edge. A macro is its
 // output register: a read takes a value, the same in both copies when both read the same

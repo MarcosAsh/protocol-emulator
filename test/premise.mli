@@ -1,9 +1,8 @@
 (** Watches the single-edge premise a receiver's certificate rests on, as
     [formal/phase_step.sv] assumes it: the capture pin is at the other level when
     [capture_arm] issues and, once at the captured level, stays there until a wait for it
-    releases. A wait for it is a wait on the capture pin for the captured level or edge.
-    Like [Coverage] it only watches the model from outside, so it runs beside the
-    [Machine] or in [Lockstep.run]. *)
+    releases. Like [Coverage] it only watches the model, so it runs beside the [Machine]
+    or in [Lockstep.run]. *)
 
 open! Core
 open Protocol_emulator

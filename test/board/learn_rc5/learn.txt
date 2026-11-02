@@ -1,0 +1,35 @@
+line IO3, idle 1
+manchester, half bit 876.6 us, a one idle then active, the first half hidden in the idle
+marks read 17.0 us long, as a receiver stretches them
+gap at least 11 units, 24 frames, 0 outliers
+kind 0: 24 frames, leader [], 14 bits, trailer []
+kind 0 field: bits 2..2, 2 values seen
+kind 0 field: bits 10..13, 3 values seen
+  2.929611 s  kind 0  11100101000001
+  3.042225 s  kind 0  11100101000001
+  3.154857 s  kind 0  11100101000001
+  3.267495 s  kind 0  11100101000001
+  3.380123 s  kind 0  11100101000001
+  3.492751 s  kind 0  11100101000001
+  3.605378 s  kind 0  11100101000001
+  3.718006 s  kind 0  11100101000001
+  3.751691 s  kind 0  11000101000010
+  3.864230 s  kind 0  11000101000010
+  3.976769 s  kind 0  11000101000010
+  4.089309 s  kind 0  11000101000010
+  4.201847 s  kind 0  11000101000010
+  4.314386 s  kind 0  11000101000010
+  4.426926 s  kind 0  11000101000010
+  4.539465 s  kind 0  11000101000010
+  4.572282 s  kind 0  11000101001100
+  4.684866 s  kind 0  11000101001100
+  4.797456 s  kind 0  11000101001100
+  4.910040 s  kind 0  11000101001100
+  5.022628 s  kind 0  11000101001100
+  5.135213 s  kind 0  11000101001100
+  5.247801 s  kind 0  11000101001100
+  5.360385 s  kind 0  11000101001100
+new message: kind 0, field bits 10..13 = 0 (seen 1 2 12), bits 11100101000000
+firmware: 30 words, 6 deadline waits, worst slack 42064, period 42074 cycles x 1 a unit
+kernel: accepted, so no deadline is missed by the step lemma
+model: sends the 2 frames, read back with what was learned

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Fails when README.md or docs/info.md cites a path, make target, job, commit or run that
+# Fails when README.md or a docs/ page cites a path, make target, job, commit or run that
 # is not there, or quotes a number the code, the tests or the cited run disagree with,
 # naming the line, or links to a page that is gone. Board results and gds runs older than
 # CI keeps are read from the releases test/evidence.sha256 pins. --teeth checks that wrong
@@ -25,7 +25,12 @@ from pathlib import Path
 import evidence
 
 ROOT = Path(__file__).resolve().parent.parent
-DOCS = ["README.md", "docs/info.md"]
+# the README and every page of the site, info.md among them
+DOCS = ["README.md"] + sorted(
+    str(p.relative_to(ROOT)) for p in (ROOT / "docs").glob("*.md"))
+# what has to be quoted somewhere, and where, so a check cannot pass by the quote moving
+QUOTED_IN = {"library firmwares": "README.md", "tiles": "README.md",
+             "valid mutants": "docs/verification.md", "equivalent mutants": "docs/verification.md"}
 REPO = "MarcosAsh/protocol-emulator"
 ONLINE = True
 EXTERNAL = False
@@ -48,8 +53,9 @@ EXTENSIONS = "ml|mli|sv|v|sby|py|asm|hex|txt|tcl|yaml|svg|png|md|json|settings|l
 PATH = re.compile(rf"(?<![\w./-])((?:[\w.-]+/)+[\w.-]+\.(?:{EXTENSIONS}))(?!\.?[\w/-])")
 # and any backticked token with a slash, whatever its extension
 BACKTICKED = re.compile(r"`(?![^`]*://)([^`\s*]*/[^`\s*]*)`")
-URL = re.compile(r"https?://[^\s)]+")
-FENCE = re.compile(r"^```[\w-]*\n(.*?)^```", re.M | re.S)
+# a url ends at a toctree entry's > and an html attribute's quote too
+URL = re.compile(r"https?://[^\s)<>\"]+")
+FENCE = re.compile(r"^```[^`\n]*\n(.*?)^```", re.M | re.S)
 MAKE = re.compile(r"make -C ([\w./-]+)([^#\n]*)")
 JOB = re.compile(r"`([\w-]+)` job")
 # a run id is all digits and longer, a word such as "defaced" has no digit, and an all-digit
@@ -577,7 +583,8 @@ def check_board(doc, text):
     """A demo the docs say passed on a date passed that day in a hashed ledger a release
     pinned in test/evidence.sha256 keeps, with the edges and baud the docs give it."""
     for unit in units(text):
-        for m in re.finditer(r"passed (?:the ([\w-]+) demo )?on (\d{4}-\d\d-\d\d)", unit):
+        for m in re.finditer(r"passed (?:there |the ([\w-]+) demo )?on (\d{4}-\d\d-\d\d)",
+                             unit):
             scripts = re.findall(r"`(python/\w+\.py)`", unit[:m.start()].rsplit(". ", 1)[-1])
             demo = m[1].replace("-", "_") if m[1] else scripts[-1] if scripts else None
             if demo is None:
@@ -660,10 +667,9 @@ def check_counts(doc, text):
         "equivalent mutants": numbers(r"other (\d+) are equivalent", text),
         "tiles": re.findall(r"(\d+ x \d+) tiles", text),
     }
-    if doc == "README.md":
-        for what, values in quoted.items():
-            if not values:
-                yield f"nothing quotes the {what}, if it was reworded update test/check_docs.py"
+    for what, values in quoted.items():
+        if QUOTED_IN[what] == doc and not values:
+            yield f"nothing quotes the {what}, if it was reworded update test/check_docs.py"
     firmwares = len(library_firmwares())
     for n in quoted["library firmwares"]:
         if n != firmwares:
@@ -813,17 +819,20 @@ def bump(s):
     return s[:i] + str((int(s[i]) + 1) % 10) + s[i + 1:]
 
 
-# Wrong READMEs, made from what it says now: (what is wrong, how, what it needs: gh, or
+# Wrong docs, made from what they say now: (what is wrong, how, what it needs: gh, or
 # the metrics of the cited gds run, which expire), and the doc if not the README
 TEETH = [
     ("a path", first(PATH, lambda p: re.sub(r"\.(\w+)$", r"x.\1", p)), None),
     ("a directory", first(r"`((?:[\w.-]+/)+)`", lambda d: d[:-1] + "x/"), None),
     ("a make target", first(r"make -C \S+ ([a-z]\w*)(?![\w=])", lambda t: t + "x"), None),
-    ("a job", first(JOB, lambda j: j + "x"), None),
-    ("a commit", first(r"\b(?=\w*[a-f])(?=\w*\d)([0-9a-f]{7})\b", bump), None),
+    ("a job", first(JOB, lambda j: j + "x"), None, "docs/verification.md"),
+    ("a commit", first(r"\b(?=\w*[a-f])(?=\w*\d)([0-9a-f]{7})\b", bump), None,
+     "docs/verification.md"),
     ("the firmware count", first(r"(\d+) library firmwares", bump), None),
-    ("the mutation score", first(r"(\d+) of \d+ valid mutants", bump), None),
-    ("the equivalent mutants", first(r"other (\d+) are equivalent", bump), None),
+    ("the mutation score", first(r"(\d+) of \d+ valid mutants", bump), None,
+     "docs/verification.md"),
+    ("the equivalent mutants", first(r"other (\d+) are equivalent", bump), None,
+     "docs/verification.md"),
     ("the tiles", first(r"(\d+ x \d+) tiles", bump), None),
     ("the clock", first(r"\| (\d+) MHz", bump), None),
     ("the cores", first(r"(\d+) cores", bump), None),
@@ -837,27 +846,32 @@ TEETH = [
     ("the utilisation", first(r"([\d.]+)% utilisation", bump), "metrics"),
     ("the cells", first(r"([\d,]+) standard cells", bump), "metrics"),
     ("a run id", first(r"run \[?(\d{10,12})", bump), "gh"),
-    ("a run date", first(r"run \d{10,12}, (\d{4}-\d\d-\d\d)", bump), "gh"),
-    ("a run date in words", first(r"run \d{10,12}, (\d{4}-\d\d-\d\d)", lambda _: "29 Sep"), "gh"),
+    ("a run date", first(r"run \d{10,12}, (\d{4}-\d\d-\d\d)", bump), "gh", "docs/verification.md"),
+    ("a run date in words", first(r"run \d{10,12}, (\d{4}-\d\d-\d\d)", lambda _: "29 Sep"), "gh",
+     "docs/verification.md"),
     # the run the die picture is from, which hardened older Verilog
-    ("an old gds run", first(r"[Gg]ds run (\d{10,12})", lambda _: "36615334436"), "gh"),
+    ("an old gds run", first(r"[Gg]ds run (\d{10,12})", lambda _: "36615334436"), "gh",
+     "docs/hardware.md"),
     ("a stale gds run", lambda text: every(text, r"[Gg]ds run \[?(\d{10,12})",
                                             lambda _: stale_gds_run()),
      "an older gds run of this chip"),
     # green, but it mutated an engine.ml that has changed since
     ("an old mutation run", lambda text: every(text, r"mutation run \[?(\d{10,12})",
-                                                lambda _: "36642527804"), "gh"),
-    ("a board date", first(r"passed (?:the [\w-]+ demo )?on (\d{4}-\d\d-\d\d)", bump), "gh"),
-    ("the board edges", first(r"all (\d+) edges", bump), "gh"),
-    ("the board baud", first(r"at (\d+) baud", bump), "gh"),
+                                                lambda _: "36642527804"), "gh",
+     "docs/verification.md"),
+    ("a board date", first(r"passed (?:there |the [\w-]+ demo )?on (\d{4}-\d\d-\d\d)", bump), "gh"),
+    ("the board edges", first(r"all (\d+) edges", bump), "gh", "docs/verification.md"),
+    ("the board baud", first(r"at (\d+) baud", bump), "gh", "docs/verification.md"),
     ("a dead link", first(r"\]\(https://github\.com/[^)]*/issues/(\d+)\)", lambda n: n + "0000"),
-     "gh"),
+     "gh", "docs/ai-use.md"),
     ("a dead pages link", first(r"\]\((https://marcosash\.github\.io/[^)]*\w)/?\)",
                                 lambda u: u + "x"), "gh"),
-    ("the demo time", first(r"in about (\d+) minutes", lambda n: str(int(n) * 3 + 3)), "gh"),
+    ("the demo time", first(r"in about (\d+) minutes", lambda n: str(int(n) * 3 + 3)), "gh",
+     "docs/getting-started.md"),
     ("the transmitters", first(r"all but (\w+) transmitters",
-                               lambda w: "seven" if w == "six" else "six"), None),
-    ("a commit date", first(r"committed on (\d{4}-\d\d-\d\d)", bump), None),
+                               lambda w: "seven" if w == "six" else "six"), None,
+     "docs/verification.md"),
+    ("a commit date", first(r"committed on (\d{4}-\d\d-\d\d)", bump), None, "docs/flexibility.md"),
     ("a bit period", first(r"the bit period,\s+(\d+) cycles", bump), None, "docs/info.md"),
     ("a fractional bit period", first(r"(\d+) \d+/\d+ for \d+ baud", bump), None, "docs/info.md"),
 ]

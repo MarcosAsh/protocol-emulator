@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Prints what the chip's UART sends (MicroPython, Pico B): OUT0 -> GP1 (UART0 RX). OUT1 is
 # CAN's TX on the bench, so not listened to. The baud rate is the chip's clock over the
-# firmware's period. For act 3, listen(text=True) prints the keys engine 1 logs as text.
+# firmware's period. For demo_usb, listen(text=True) prints the keys engine 1 logs as text.
 
 import time
 

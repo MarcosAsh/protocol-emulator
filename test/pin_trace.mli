@@ -3,10 +3,10 @@
     the recorded inputs into the Verilog, the gate level netlist and the FPGA netlist and
     expects the recorded outputs back.
 
-    Cyclesim does not model the asynchronous reset: its registers start at zero, which is
-    the state [rst_n] low leaves the reset synchroniser in. Cycle 0 of a trace is
-    therefore the first rising clock edge after [rst_n] is released, and the replay holds
-    [rst_n] low before it. Outputs are the values after the edge. *)
+    Cyclesim does not model the asynchronous reset: registers start at zero, the state
+    [rst_n] low leaves the synchroniser in. Cycle 0 is the first rising clock edge after
+    [rst_n] is released, and the replay holds [rst_n] low before it. Outputs are the
+    values after the edge. *)
 
 open! Core
 open Protocol_emulator
@@ -136,5 +136,6 @@ val run : Scenario.t -> Line.t list * int list list
 
 (** One line per run of identical cycles: the run length in decimal, then [ui_in],
     [uio_in], [uo_out], [uio_out] and [uio_oe] in hex. Lines starting with [#] are
-    comments, and those starting with [# sigrok] carry [Sigrok.t]. *)
+    comments, those starting with [# sigrok] carry [Sigrok.t], and [# engines n] says the
+    script loads [n] engines, so a top with fewer cannot replay it. *)
 val to_string : Scenario.t -> Line.t list -> string

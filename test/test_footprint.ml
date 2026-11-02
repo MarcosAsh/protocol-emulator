@@ -231,6 +231,8 @@ let%expect_test "the footprint of each firmware, and of its config under any pro
     i2c_logger         5            12-13      5-20           12-19
     i2c_master_standard -            12-13      12-27          12-19
     i2c_master_fast    -            12-13      12-27          12-19
+    i2c_master_standard_asym -            12-13      12-27          12-19
+    i2c_master_fast_asym -            12-13      12-27          12-19
     i2c_controller_wire 20-21        -          20-27          -
     i2c_target_wire    20           -          20-27          -
     usb_tx             5-7          -          5-20           12-19
@@ -275,6 +277,7 @@ let%expect_test "the footprint of each firmware, and of its config under any pro
     caliper            5-6          -          5-21           12-19
     xy2_100            5-7          -          5-22           12-19
     lfast              5            -          5-20           12-19
+    tdm_audio          5-7          -          5-22           12-19
     |}]
 ;;
 
@@ -341,7 +344,9 @@ let%expect_test "each firmware stays inside its footprint" =
     i2c_logger         5            12-13
     i2c_master_standard -            -
     i2c_master_fast    -            -
-    i2c_controller_wire 21           -
+    i2c_master_standard_asym -            -
+    i2c_master_fast_asym -            -
+    i2c_controller_wire -            -
     i2c_target_wire    -            -
     usb_tx             7            -
     usb_rx             -            -
@@ -351,9 +356,9 @@ let%expect_test "each firmware stays inside its footprint" =
     ws2812_standard    5            -
     ethernet           -            12-13
     one_wire           -            -
-    ps2                -            -
+    ps2                -            13
     jtag               5-7          -
-    can                6            -
+    can                -            -
     dshot600           5            -
     sent               5            -
     cec                -            -
@@ -381,10 +386,11 @@ let%expect_test "each firmware stays inside its footprint" =
     snorble            5            -
     plinkoo            10           -
     microwire          9-11         -
-    ir_rc6             -            -
+    ir_rc6             5            -
     caliper            5            -
     xy2_100            5-7          -
     lfast              5            -
+    tdm_audio          5-7          -
     |}]
 ;;
 

@@ -79,9 +79,11 @@ let%expect_test "the kernel refuses each row moved by a cycle" =
     (i2c_logger (phase 138) (arm 0) (capture 0) (accepted ()))
     (i2c_master_standard (phase 208) (arm 0) (capture 0) (accepted ()))
     (i2c_master_fast (phase 196) (arm 0) (capture 0) (accepted ()))
+    (i2c_master_standard_asym (phase 224) (arm 0) (capture 0) (accepted ()))
+    (i2c_master_fast_asym (phase 204) (arm 0) (capture 0) (accepted ()))
     (i2c_controller_wire (phase 158) (arm 0) (capture 0) (accepted ()))
     (i2c_target_wire (phase 0) (arm 0) (capture 0) (accepted ()))
-    (usb_tx (phase 120) (arm 0) (capture 0) (accepted ()))
+    (usb_tx (phase 124) (arm 0) (capture 0) (accepted ()))
     (usb_rx (phase 166) (arm 102) (capture 34) (accepted ()))
     (usb_device (phase 892) (arm 4) (capture 22) (accepted ()))
     (edge_meter (phase 18) (arm 14) (capture 0) (accepted ()))
@@ -123,5 +125,6 @@ let%expect_test "the kernel refuses each row moved by a cycle" =
     (caliper (phase 98) (arm 0) (capture 0) (accepted ()))
     (xy2_100 (phase 62) (arm 0) (capture 0) (accepted ()))
     (lfast (phase 116) (arm 0) (capture 0) (accepted ()))
+    (tdm_audio (phase 0) (arm 0) (capture 0) (accepted ()))
     |}]
 ;;

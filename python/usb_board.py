@@ -131,6 +131,7 @@ class Board:
                 self.new_address = value
             elif request == 9:  # SET_CONFIGURATION; the status packet goes ahead of a report
                 self.configured = value != 0
+                self.report_toggle = DATA0  # USB 2.0 9.4.5: the endpoint starts over
             self.chunks = [[]]
         self._next_chunk()
 

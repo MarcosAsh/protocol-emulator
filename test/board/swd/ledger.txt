@@ -3,11 +3,11 @@ result: PASS
 pico_a_says: PASS
 traffic: held to the capture
 expected: PASS
-time: 2026-10-22T17:26:52
-commit: c6a2f802fc0dbf7162d28b9ba271ae4d456fc013
-bitstream: /home/marcosash/dev/jane-street-challenge/icepi/build/v1.3.bit
+time: 2026-10-30T16:06:48
+commit: b5c0748c56eea8ab598d269fd6da6bef709d06eb
+bitstream: /home/marcos/board-corpus/bit/v1.3.bit
 bitstream_sha256: ded0014fdf14df568ed478e5f6e36d1d91475ba62bae300e101c1b229c1f963f
-netlist_sha256: 685d03a18ca12fd44a680074e6810a1b703c073ad946dfd3fb5b50507d1c3111
+netlist_sha256: 1db23ccd02406ef95731f3ffd7de23fbfa9a66a0410741d78cbcb04edc717f5f
 pico_a: id:e66548545717552e
-pico_b: e66548545740ad29 unknown
+pico_b: e66548545740ad29 micropython
 rate: 24M

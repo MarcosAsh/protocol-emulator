@@ -9,7 +9,6 @@
   write_bench_firmware
   write_both_roles_firmware
   write_tolerance_firmware
-  write_post_freeze_certificate
   write_clock_cliffs
   write_pio_firmware
   write_margins)
@@ -108,6 +107,21 @@
   ../../pages/die/die.bin)
  (action
   (run python3 -B %{dep:test_draw.py} ../../python ../../demo)))
+
+(rule
+ (alias runtest)
+ (deps
+  ../../python/usb_board.py
+  ../../python/usb_device_firmware.py
+  ../../python/protocol_emulator.py)
+ (action
+  (run python3 -B %{dep:test_board_usb.py} ../../python)))
+
+(rule
+ (alias runtest)
+ (deps ../../demo/margins.py ../../demo/sigrok.py)
+ (action
+  (run python3 -B %{dep:test_margins_judge.py} ../../demo)))
 
 (rule
  (alias runtest)

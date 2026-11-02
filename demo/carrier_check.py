@@ -1,12 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
 # The bench carrier v1.2's self-test, with icepi/carrier_check.v in the Icepi and MicroPython
-# on both Picos: a line for each net of demo/carrier_netlist.csv, or group of them, with its
-# pads, PASS or FAIL where a pin reaches it and SKIP where none does. Pico A and B run
-# python/carrier_pins.py, pasted into their raw REPLs. --analysers pulses every analysed net
-# a count of its own while each analyser captures, which finds a probe on the wrong pin.
-# The flash breakout may be left out: a JEDEC ID of all 00 or ff is a SKIP.
+# on both Picos: a line per net of demo/carrier_netlist.csv, or group, with its pads. PASS or
+# FAIL where a pin reaches it, SKIP where none does. Both Picos run python/carrier_pins.py.
+# --analysers pulses every analysed net a count of its own while each analyser captures,
+# which finds a probe on the wrong pin. A flash JEDEC ID of all 00 or ff is a SKIP.
+# --button-only checks SW1 alone, which waits for a press.
 # demo/carrier_check.sh loads the bitstream, runs this, and puts the chip back.
-# --button-only checks SW1 alone, which waits for the owner's press.
 # Usage: PICO=id:<serial of Pico A> [PICO_B_SERIAL=<serial>] python3 demo/carrier_check.py
 #            [--analysers] [--no-button | --button-only] [--evidence DIR]
 
@@ -59,9 +58,8 @@ PULL_UPS = [
 PULSED = [(8, 1), (10, 0), (12, 1), (36, 0), (26, 1), (22, 1), (3, 1), (28, 0), (18, 1),
           (37, 0), (33, 0), (35, 0)]
 ANALYSERS = {"A": "J2", "B": "J3"}
-# The analysers stop early, often within half a second, so Pico A repeats the pulses
-# for longer than a capture lasts and the check reads one whole train from the middle.
-# A train takes some 90 ms; inside one no net waits more than a couple of milliseconds.
+# The analysers often stop within half a second, so Pico A repeats the pulses past the
+# capture and the check reads one whole train from the middle. A train takes some 90 ms.
 TRAINS, TRAIN_GAP_US, SPLIT_S = 60, 30_000, 0.015
 CAPTURE_MS = 8000
 BUTTON_MS = 120_000

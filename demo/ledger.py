@@ -1,9 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# Every bench demo in turn, each from a fresh load of BITSTREAM as its reset. A demo keeps
-# its capture, decode, Pico logs and a SHA256SUMS in EVIDENCE/<date>/ledger/<demo>/, beside
-# the day's other bench runs, and adds a line to demo/ledger.tsv. --keyboard adds the USB
-# keyboard demo, which types into the focused window. PICO_B_SERIAL picks Pico B, as for
-# demo/pico_b.sh.
+# Every bench demo in turn, each from a fresh load of BITSTREAM. A demo keeps its capture,
+# decode, Pico logs and SHA256SUMS in EVIDENCE/<date>/ledger/<demo>/ and adds a line to
+# demo/ledger.tsv. --keyboard adds the USB keyboard demo, which types into the focused
+# window. PICO_B_SERIAL picks Pico B, as for demo/pico_b.sh.
 # Usage: PICO=id:<serial of Pico A> python3 demo/ledger.py BITSTREAM [--keyboard]
 #            [--only DEMO]... [--evidence DIR] [--results TSV] [--dry-run]
 
@@ -103,6 +102,13 @@ DEMOS = [
     outside("referee"),
     # Pico B idle, as its GP1 shares OUT0's net
     outside("nec", pico_b="micropython"),
+    # the protocols drawn at random (docs/flexibility.md); Pico B idle again where OUT0 is used
+    outside("microwire"),
+    outside("xy2_100"),
+    outside("caliper", pico_b="micropython"),
+    outside("lfast", pico_b="micropython"),
+    outside("ir_rc6", pico_b="micropython"),
+    outside("tdm_audio"),
     outside("can", pico_b="can_node"),
     outside("can_node", pico_b="can_node"),
     Demo("start_hold_pio", "start_hold", expect="FAIL",
@@ -166,9 +172,10 @@ def keep_bitstream(bitstream, runs, bit_hash):
 def commit():
     head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True,
                           text=True).stdout.strip() or "unknown"
-    # the ledger's own lines do not count
+    # the ledger's own lines do not count, nor the bench times demo/outside.sh marks
     dirty = subprocess.run(["git", "status", "--porcelain", "--untracked-files=no", "--", ".",
-                            ":!demo/ledger.tsv"], cwd=ROOT, capture_output=True,
+                            ":!demo/ledger.tsv", ":!demo/speed.tsv"], cwd=ROOT,
+                           capture_output=True,
                            text=True).stdout.strip()
     return head + ("+dirty" if dirty else "")
 

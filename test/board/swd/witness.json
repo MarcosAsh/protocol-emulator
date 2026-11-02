@@ -1,14 +1,14 @@
 {
   "demo": "swd",
-  "time": "2026-10-22T17:26:52",
+  "time": "2026-10-30T16:06:48",
   "result": "PASS",
-  "commit": "c6a2f802fc0dbf7162d28b9ba271ae4d456fc013",
+  "commit": "b5c0748c56eea8ab598d269fd6da6bef709d06eb",
   "bitstream_sha256": "ded0014fdf14df568ed478e5f6e36d1d91475ba62bae300e101c1b229c1f963f",
-  "netlist_sha256": "685d03a18ca12fd44a680074e6810a1b703c073ad946dfd3fb5b50507d1c3111",
-  "sums_sha256": "18b4e73d77c409338ce768a888e0388eee1b4e4acf2d1a59f81a8d7194ec5f2f",
+  "netlist_sha256": "1db23ccd02406ef95731f3ffd7de23fbfa9a66a0410741d78cbcb04edc717f5f",
+  "sums_sha256": "715e1d5fef38baa510a7b57c3c903bae1d55eed25821322fc69bfb998d3b2976",
   "capture": {
     "file": "swd.sr",
-    "sha256": "3fa7cdb1b2ad4f9427fb5fdd40b9bcae6dc0c5c82061fddfbc7ddc497f80e94a",
+    "sha256": "5f193f80d864c1b91d944faf36b7b8352b9806512f47e783bb439042d6eaf6f8",
     "rate_hz": 24000000,
     "seconds": 3.0,
     "analyser": "A",
@@ -19,7 +19,7 @@
   },
   "decode": {
     "arguments": "-P swd:swclk=D6:swdio=D7 -A swd",
-    "sha256": "68c506c0d5174cf0f4a8c5f793c668de80ac89961fc3e02374f06f8e182ae547"
+    "sha256": "56db11f484f9f8420d30d4bf969b6500dc4eb5a89d0f68799eba60242e0ecc8a"
   },
   "timing": [
     {
@@ -27,7 +27,7 @@
       "limit": ">= 21 ns",
       "sheet": "RP2040, RP2040 datasheet, 2025-02-20 s.2.3.4 p.61",
       "spans": 1345,
-      "measured": "458 ns to 3150898 ns",
+      "measured": "458 ns to 3748708 ns",
       "verdict": "proved"
     },
     {

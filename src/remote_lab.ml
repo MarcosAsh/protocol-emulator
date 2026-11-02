@@ -2,6 +2,9 @@ open! Core
 open! Hardcaml
 
 let clock_hz = Wavedrom.rated_hz
+
+(* OUT0, analyser A's D4. The interpreter holds the lanes it is not given low, and only
+   OUT0 is captured and wired to nothing that minds a toggle. *)
 let bench_pins = [ Isa.first_output_pin ]
 
 (* the playground's cap on the model's run, 8.3 ms at 48 MHz *)
@@ -229,6 +232,7 @@ let channel (w : Bench_wiring.t) =
     w.channel
 ;;
 
+(* STATUS's fault bits, as python/bench.py reads them *)
 let fault_bits (f : Machine.Fault.t) =
   List.sum
     (module Int)

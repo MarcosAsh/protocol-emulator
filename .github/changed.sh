@@ -21,9 +21,10 @@ tests() {
 }
 
 # the generators, the certificate writers, the translation check and the library they
-# link, and formal/
+# link, formal/, and the workflow whose Prove step names the proofs
 proofs() {
   changed src bin ppx formal test/certify test/models test/translation test/dune ':(glob)test/*.ml' \
+    .github/workflows/ocaml.yaml \
     ':(glob)test/*.mli' ':(glob)test/*.asm' ':(glob)test/*.hex' ':(glob)test/*.settings' \
     dune-project 'protocol_emulator.opam*'
 }

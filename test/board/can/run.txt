@@ -1,4 +1,4 @@
-$ openFPGALoader -b icepi-zero /home/marcosash/dev/jane-street-challenge/icepi/build/v1.3.bit
+$ openFPGALoader -b icepi-zero /home/marcos/board-corpus/bit/v1.3.bit
 Jtag probe limited to 3MHz
 Jtag frequency : requested 6000000Hz -> real 3000000Hz
 ret 0
@@ -7,17 +7,19 @@ b3bdffff
 Parse file: DONE
 Enable configuration: DONE
 SRAM erase: DONE
-Loading: [==========                                        ] 18.12%
-Loading: [===================                               ] 36.24%
-Loading: [============================                      ] 54.36%
-Loading: [=====================================             ] 72.48%
-Loading: [==============================================    ] 91.01%
+Loading: [===========                                       ] 21.00%
+Loading: [======================                            ] 42.00%
+Loading: [================================                  ] 63.01%
+Loading: [===========================================       ] 84.01%
 Loading: [==================================================] 100.00%
 
 Done
 Disable configuration: DONE
 $ PICO_B_SERIAL=e66548545740ad29 demo/pico_b.sh can_node
+Loading into Flash:   [                              ]  0%Loading into Flash:   [===                           ]  10%Loading into Flash:   [======                        ]  21%Loading into Flash:   [=========                     ]  32%Loading into Flash:   [============                  ]  42%Loading into Flash:   [===============               ]  53%Loading into Flash:   [===================           ]  64%Loading into Flash:   [======================        ]  75%Loading into Flash:   [=========================     ]  85%Loading into Flash:   [============================  ]  96%Loading into Flash:   [==============================]  100%
+
+The device was rebooted to start the application.
 Pico B runs can_node on /dev/serial/by-id/usb-Raspberry_Pi_Pico_E66548545740AD29-if00
-& sh -c 'stty -F "$0" raw -echo && exec cat "$0"' /dev/serial/by-id/usb-Raspberry_Pi_Pico_E66548545740AD29-if00 > /home/marcosash/.local/share/protocol-emulator/board-evidence/2026-10-22/ledger/can/pico_b.log
-$ CAPTURES=/home/marcosash/.local/share/protocol-emulator/board-evidence/2026-10-22/ledger/can PICO=id:e66548545717552e demo/outside.sh can > /home/marcosash/.local/share/protocol-emulator/board-evidence/2026-10-22/ledger/can/outside.txt
+& sh -c 'stty -F "$0" raw -echo && exec cat "$0"' /dev/serial/by-id/usb-Raspberry_Pi_Pico_E66548545740AD29-if00 > /home/marcos/bench-rerun/evidence/2026-10-30/ledger/can.2/pico_b.log
+$ CAPTURES=/home/marcos/bench-rerun/evidence/2026-10-30/ledger/can.2 PICO=id:e66548545717552e demo/outside.sh can > /home/marcos/bench-rerun/evidence/2026-10-30/ledger/can.2/outside.txt
 Pico A says PASS, every step ran

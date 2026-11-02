@@ -18,9 +18,8 @@ PROJECT = "tt_um_marcosash_protocol_emulator"
 STATE_MACHINE = 4
 # a FIFO's depth, so a chunk out and its replies back never stall either side
 CHUNK = 4
-# the chip's register layer needs SCK at most an eighth of its clock (host_spi.mli). MISO
-# moves 3 clocks after SCK falls and is read on the next fall, which leaves 5 clocks for
-# the pads, the mux and the PIO's input synchroniser
+# SCK at most an eighth of the chip's clock (host_spi.mli): MISO moves 3 clocks after SCK
+# falls and is read on the next fall, leaving 5 for the pads, mux and input synchroniser
 SCK_DIVIDE = 8
 # designs the SDK has enabled, ours included, since watch_enables: a deselected design is
 # powered down, so a count that moved since a select means the chip lost its program
@@ -60,10 +59,10 @@ def watch_enables(mux):
 
 
 def claim_pio(index, gpios, programs):
-    """Stop PIO index's state machines and clear its programs, so a second instance in the
-    same session starts clean. Only a named removal resets a program's stored offset, and
-    rp2_pio.c lets one never loaded through, so check asm_pio's [data, offsets...] first.
-    On the RP2350B a PIO sees 32 GPIOs from 0 or from 16."""
+    """Stop PIO index's state machines and clear its programs, so a second instance starts
+    clean. Only a named removal resets a stored offset, and rp2_pio.c lets one never loaded
+    through, so check asm_pio's [data, offsets...] first. On the RP2350B a PIO sees 32
+    GPIOs from 0 or from 16."""
     for n in range(4):
         rp2.StateMachine(4 * index + n).active(0)
     pio = rp2.PIO(index)

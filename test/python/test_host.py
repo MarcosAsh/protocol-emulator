@@ -23,4 +23,27 @@ def test_now_across_a_carry():
         assert start <= got <= clock[0], (hex(start), hex(clock[0]), hex(got))
 
 
+def test_pop_reads_no_further_than_the_level():
+    """A read of RX past rx_level reads 0 and drops a word the engine pushes during it
+    (host_port.ml pops at the low byte's end), so pop never makes one."""
+    rx, frames = [0x1234], []
+
+    def transfer(data):
+        frames.append((data[0] & 0x7F, (len(data) - 1) // 2))
+        reg, count = frames[-1]
+        if reg == pe.STATUS:
+            words = [len(rx) << 10]
+        else:
+            words = [rx.pop(0) if reg == pe.RX and rx else 0 for _ in range(count)]
+        return [0] + [b for w in words for b in ((w >> 8) & 0xFF, w & 0xFF)]
+
+    host = pe.Host(transfer)
+    assert host.pop(3) == [0x1234, 0, 0]
+    assert frames == [(pe.STATUS, 1), (pe.RX, 1)], frames
+    frames.clear()
+    assert host.pop(2) == [0, 0]
+    assert frames == [(pe.STATUS, 1)], frames
+
+
 test_now_across_a_carry()
+test_pop_reads_no_further_than_the_level()

@@ -34,6 +34,98 @@ let () =
       (Js.to_string source)
     |> report
   in
+  let simulate
+    source
+    period
+    single_capture_edge
+    capture_pin
+    capture_falling
+    tx
+    inputs
+    cycles
+    =
+    let r =
+      Checks.simulate
+        ?period:(Js.Opt.to_option period)
+        ~single_capture_edge:(Js.to_bool single_capture_edge)
+        ~config:
+          { Program_config.default with
+            capture_pin
+          ; capture_rising = not (Js.to_bool capture_falling)
+          }
+        ~tx:(Js.to_string tx)
+        ~inputs:(Js.to_string inputs)
+        ~cycles
+        (Js.to_string source)
+    in
+    Js.Unsafe.obj
+      [| "error", Js.Unsafe.inject (Js.string r.error)
+       ; "lanes", Js.Unsafe.inject (Js.array (Array.of_list_map r.lanes ~f:Js.string))
+       ; "levels", Js.Unsafe.inject (Js.array r.levels)
+       ; "edges", Js.Unsafe.inject (Js.array r.edges)
+       ; "releases", Js.Unsafe.inject (Js.array r.releases)
+       ; ( "waits"
+         , Js.Unsafe.inject
+             (Js.array
+                (Array.of_list_map r.waits ~f:(fun (pc, text, slack) ->
+                   Js.array
+                     [| Js.Unsafe.inject pc
+                      ; Js.Unsafe.inject (Js.string text)
+                      ; Js.Unsafe.inject (Js.string slack)
+                     |]))) )
+       ; "summary", Js.Unsafe.inject (Js.string r.summary)
+      |]
+  in
+  let slot_row ((slot : Isa_view.Slot.t), value) =
+    Js.array
+      [| Js.Unsafe.inject (Js.string slot.name)
+       ; Js.Unsafe.inject slot.lsb
+       ; Js.Unsafe.inject slot.width
+       ; Js.Unsafe.inject value
+      |]
+  in
+  let cases_array (slot : Isa_view.Slot.t) =
+    Js.array
+      (Array.of_list_map slot.cases ~f:(fun (value, name) ->
+         Js.array [| Js.Unsafe.inject value; Js.Unsafe.inject (Js.string name) |]))
+  in
+  let isa_decode word side_set_count =
+    let d = Isa_view.decode ~side_set_count word in
+    Js.Unsafe.obj
+      [| "text", Js.Unsafe.inject (Js.string d.text)
+       ; "error", Js.Unsafe.inject (Js.string d.error)
+       ; ( "slots"
+         , Js.Unsafe.inject
+             (Js.array
+                (Array.of_list_map d.slots ~f:(fun (slot, value) ->
+                   Js.array
+                     [| Js.Unsafe.inject (slot_row (slot, value))
+                      ; Js.Unsafe.inject (cases_array slot)
+                     |]))) )
+      |]
+  in
+  let isa_assemble line side_set_count =
+    match Isa_view.assemble ~side_set_count (Js.to_string line) with
+    | Ok word -> Js.Unsafe.obj [| "word", Js.Unsafe.inject word |]
+    | Error e -> Js.Unsafe.obj [| "error", Js.Unsafe.inject (Js.string e) |]
+  in
+  let isa_table side_set_count =
+    Js.array
+      (Array.of_list_map
+         (Isa_view.opcodes ~side_set_count)
+         ~f:(fun (value, name, slots) ->
+           Js.array
+             [| Js.Unsafe.inject value
+              ; Js.Unsafe.inject (Js.string name)
+              ; Js.Unsafe.inject
+                  (Js.array
+                     (Array.of_list_map slots ~f:(fun slot ->
+                        Js.array
+                          [| Js.Unsafe.inject (slot_row (slot, 0))
+                           ; Js.Unsafe.inject (cases_array slot)
+                          |])))
+             |]))
+  in
   let check_pio source spec =
     let report =
       Checks.check_pio ~source:(Js.to_string source) ~spec:(Js.to_string spec)
@@ -114,6 +206,11 @@ let () =
               (Js.array
                  (Array.of_list_map Example.all ~f:(fun (name, source) ->
                     Js.array [| Js.string name; Js.string source |]))) )
+        ; "simulate", Js.Unsafe.inject (Js.wrap_callback simulate)
+        ; "isaDecode", Js.Unsafe.inject (Js.wrap_callback isa_decode)
+        ; "isaAssemble", Js.Unsafe.inject (Js.wrap_callback isa_assemble)
+        ; "isaTable", Js.Unsafe.inject (Js.wrap_callback isa_table)
+        ; "maxSideSet", Js.Unsafe.inject Isa.max_side_set
         ; "checkPio", Js.Unsafe.inject (Js.wrap_callback check_pio)
         ; "runDiagram", Js.Unsafe.inject (Js.wrap_callback run_diagram)
         ; "mutateDiagram", Js.Unsafe.inject (Js.wrap_callback mutate)

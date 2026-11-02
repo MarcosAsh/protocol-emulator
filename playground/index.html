@@ -28,13 +28,25 @@
   #mutation { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; }
   #mutation h3 { margin: 0; font-size: 1rem; }
   @media (max-width: 40rem) { #mutation { grid-template-columns: 1fr; } }
-  #diagram-wave { overflow-x: auto; background: var(--code); }
-  #diagram-wave svg { display: block; }
+  #diagram-wave, #sim-wave { overflow-x: auto; background: var(--code); }
+  #diagram-wave svg, #sim-wave svg { display: block; }
+  #waits { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+  #waits button[aria-pressed=true] { outline: 2px solid #e08a00; }
+  #dares { border-collapse: collapse; width: 100%; }
+  #dares th, #dares td { text-align: left; vertical-align: top; padding: 4px 8px; border-top: 1px solid var(--muted); }
+  #dares pre { max-height: 9rem; overflow: auto; margin: 0; }
+  #isa-bits { display: flex; flex-wrap: wrap; gap: 2px; margin: 8px 0; }
+  #isa-bits button { width: 2.4rem; padding: 4px 0; font: 13px ui-monospace, monospace; color: var(--fg); border: 1px solid var(--muted); }
+  #isa-bits small { display: block; color: var(--muted); font-size: 10px; }
+  #isa-fields, #isa-table table { border-collapse: collapse; }
+  #isa-fields th, #isa-fields td, #isa-table td, #isa-table th { text-align: left; padding: 2px 10px; border-top: 1px solid var(--muted); vertical-align: top; }
+  .swatch { display: inline-block; width: 0.8rem; height: 0.8rem; margin-right: 6px; }
+  .win-ok { fill: var(--ok); } .win-bad { fill: var(--bad); }
 </style>
 </head>
 <body>
 <h1>Firmware timing playground</h1>
-<nav><a href="#firmware">Firmware</a><a href="#pio">PIO</a><a href="#diagram">Diagram</a></nav>
+<nav><a href="#firmware">Firmware</a><a href="#pio">PIO</a><a href="#diagram">Diagram</a><a href="#isa">ISA</a></nav>
 <section id="firmware-tab">
 <p class="muted">The assembler, the timing analyser and the kernel, compiled to JavaScript
 with js_of_ocaml. The kernel checks the analyser's rows one instruction at a time; the
@@ -50,6 +62,32 @@ proofs that its check is sound run in CI, not here.</p>
 <textarea id="source" spellcheck="false"></textarea>
 <p id="verdict"></p>
 <pre id="detail"></pre>
+<h2>Waveform</h2>
+<p class="muted">Model run in your browser: the OCaml cycle model of the core, compiled with js_of_ocaml. Not the chip.</p>
+<div class="controls">
+  <label>Host words <input id="sim-tx" value="0xa5" size="14" title="WORD[@CYCLE], comma separated"></label>
+  <label>Input pins <input id="sim-inputs" size="14" placeholder="IN0=1@40" title="PIN=LEVEL[@CYCLE], comma separated"></label>
+  <label>Cycles <input id="sim-cycles" type="number" min="1" max="20000" value="1000"></label>
+  <label>Zoom <input id="sim-zoom" type="range" min="0" max="40" value="0"></label>
+  <button id="simulate">Simulate</button>
+</div>
+<p id="sim-error" class="refused"></p>
+<div id="sim-wave"></div>
+<p class="muted">Green or red band: where the analyser says the edge may land. Triangle: a deadline wait releasing. Click a wait to see its edge.</p>
+<div id="waits"></div>
+<pre id="wait-detail"></pre>
+<pre id="sim-summary"></pre>
+<h2>Make it late</h2>
+<p class="muted">Each button edits the firmware above, then runs the real assembler, analyser and kernel, and the model in your browser.</p>
+<!-- TODO(owner): a paragraph on what the dare shows -->
+<div class="controls">
+  <button id="dare-run">Run all four on this firmware</button>
+  <button id="dare-restore">Restore the example</button>
+</div>
+<table id="dares" hidden>
+  <thead><tr><th>Edit</th><th>Verdict</th><th>Kernel message</th><th>Model</th></tr></thead>
+  <tbody id="dare-rows"></tbody>
+</table>
 <h2>Listing</h2>
 <pre id="listing"></pre>
 <h2>Analyser rows</h2>
@@ -104,6 +142,21 @@ certificate. The model of the core then runs the table on the frames below.</p>
 <h2>Host words</h2>
 <pre id="diagram-words"></pre>
 </section>
+<section id="isa-tab" hidden>
+<p class="muted">The 16-bit instruction word, decoded by the same Isa module the assembler and the hardware decoder use. The fields and their values come from it, not from this page.</p>
+<!-- TODO(owner): a paragraph on the instruction word -->
+<div class="controls">
+  <label>Side-set bits <select id="isa-side"></select></label>
+  <label>Instruction <input id="isa-line" size="28" value="set x, 5" spellcheck="false"></label>
+  <button id="isa-assemble">Assemble</button>
+  <label>Word 0x <input id="isa-hex" size="5" maxlength="4" spellcheck="false"></label>
+</div>
+<div id="isa-bits"></div>
+<p id="isa-text"></p>
+<table id="isa-fields"><thead><tr><th>Field</th><th>Bits</th><th>Value</th><th>Name</th></tr></thead><tbody id="isa-rows"></tbody></table>
+<h2>Every opcode</h2>
+<div id="isa-table"></div>
+</section>
 <script src="playground.bc.js"></script>
 <script>
   const pe = protocolEmulator;
@@ -120,7 +173,185 @@ certificate. The model of the core then runs the table on the frames below.</p>
     $("detail").textContent = r.detail;
     $("listing").textContent = r.listing;
     $("rows").textContent = r.rows;
+    simulate();
   };
+
+  let sim = null, picked = null;
+  const SVG = "http://www.w3.org/2000/svg";
+  const el = (name, attrs) => {
+    const e = document.createElementNS(SVG, name);
+    Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v));
+    return e;
+  };
+  const simulate = () => {
+    const period = $("period").value === "" ? null : Number($("period").value);
+    const r = pe.simulate($("source").value, period, $("single-edge").checked,
+      Number($("capture-pin").value) || 0, $("capture-falling").checked,
+      $("sim-tx").value, $("sim-inputs").value, Number($("sim-cycles").value) || 1000);
+    $("sim-error").textContent = r.error;
+    picked = null;
+    sim = r.error ? null : {
+      lanes: Array.from(r.lanes), levels: Array.from(r.levels),
+      edges: chunks(Array.from(r.edges), 5).map(([cycle, pc, lo, hi, ok]) => ({ cycle, pc, lo, hi, ok })),
+      releases: chunks(Array.from(r.releases), 2).map(([cycle, pc]) => ({ cycle, pc })),
+    };
+    $("sim-summary").textContent = r.error ? "" : r.summary;
+    $("waits").replaceChildren(...(r.error ? [] : Array.from(r.waits).map(([pc, text, slack]) => {
+      const b = document.createElement("button");
+      b.textContent = pc + ": " + text + "  slack " + slack;
+      b.onclick = () => { picked = picked === pc ? null : pc; draw(); };
+      b.dataset.pc = pc;
+      return b;
+    })));
+    draw();
+  };
+  const chunks = (a, n) => Array.from({ length: Math.ceil(a.length / n) }, (_, i) => a.slice(i * n, i * n + n));
+  const draw = () => {
+    document.querySelectorAll("#waits button").forEach((b) => b.setAttribute("aria-pressed", String(Number(b.dataset.pc) === picked)));
+    if (!sim) { $("sim-wave").replaceChildren(); $("wait-detail").textContent = ""; return; }
+    const { lanes, levels, edges, releases } = sim;
+    let last = 0;
+    levels.forEach((l, c) => { if (c > 0 && l !== levels[c - 1]) last = c; });
+    const shown = Math.min(levels.length, Math.max(last + 40, 100));
+    const zoom = 1 + Number($("sim-zoom").value) / 4;
+    const scale = Math.max(0.05, 1000 / shown) * zoom;
+    const row = 30, left = 60, top = 4, height = row * lanes.length + 34;
+    const x = (c) => left + c * scale;
+    const root = el("svg", { width: left + shown * scale + 10, height, fill: "none" });
+    edges.filter((e) => e.cycle < shown).forEach((e) => {
+      if (e.lo >= 0) {
+        const t = el("title", {}); t.textContent = "pc " + e.pc + ": window cycles " + e.lo + " to " + e.hi + ", edge at " + e.cycle;
+        const r = el("rect", { x: x(e.lo), y: top, width: Math.max(2, (e.hi - e.lo + 1) * scale), height: row * lanes.length, class: e.ok ? "win-ok" : "win-bad", opacity: 0.3 });
+        r.appendChild(t); root.appendChild(r);
+      }
+    });
+    lanes.forEach((name, i) => {
+      const y = (level) => top + row * i + (level ? 6 : 22);
+      const label = el("text", { x: 4, y: top + row * i + 18, fill: "currentColor" });
+      label.textContent = name; root.appendChild(label);
+      let d = "M" + left + " " + y(levels[0] >> i & 1);
+      for (let c = 1; c < shown; c++) {
+        if ((levels[c] >> i & 1) !== (levels[c - 1] >> i & 1)) d += " H" + x(c) + " V" + y(levels[c] >> i & 1);
+      }
+      d += " H" + x(shown);
+      root.appendChild(el("path", { d, stroke: "currentColor", "stroke-width": 1.5 }));
+    });
+    const base = top + row * lanes.length;
+    releases.filter((r) => r.cycle < shown).forEach((r) => {
+      const on = r.pc === picked, px = x(r.cycle);
+      const t = el("title", {}); t.textContent = "pc " + r.pc + " releases at cycle " + r.cycle;
+      const tri = el("path", { d: "M" + (px - 4) + " " + (base + 14) + " L" + (px + 4) + " " + (base + 14) + " L" + px + " " + (base + 6) + " Z", fill: on ? "#e08a00" : "currentColor", opacity: on ? 1 : 0.5 });
+      tri.appendChild(t); root.appendChild(tri);
+      if (on) root.appendChild(el("line", { x1: px, x2: px, y1: top, y2: base, stroke: "#e08a00", "stroke-width": 1, "stroke-dasharray": "3 2" }));
+    });
+    const hit = [];
+    if (picked !== null) {
+      releases.filter((r) => r.pc === picked).forEach((r) => {
+        const e = edges.find((e) => e.cycle >= r.cycle);
+        if (e && e.cycle < shown) {
+          hit.push({ r, e });
+          root.appendChild(el("line", { x1: x(e.cycle), x2: x(e.cycle), y1: top, y2: base, stroke: "#e08a00", "stroke-width": 3 }));
+        }
+      });
+    }
+    for (let c = 0; c < shown; c += Math.max(1, Math.round(80 / scale / 10) * 10)) {
+      const tick = el("text", { x: x(c), y: height - 2, fill: "currentColor", "font-size": 10 });
+      tick.textContent = c; root.appendChild(tick);
+    }
+    $("sim-wave").replaceChildren(root);
+    $("wait-detail").textContent = picked === null ? "" : hit.length === 0
+      ? "pc " + picked + " never released before an edge in " + levels.length + " cycles"
+      : hit.map(({ r, e }) => "pc " + picked + " released at cycle " + r.cycle + ", next edge at cycle " + e.cycle
+        + (e.lo >= 0 ? ", window " + e.lo + " to " + e.hi + ", " + (e.ok ? "inside" : "OUTSIDE") : ", no window")).join("\n");
+  };
+  $("simulate").onclick = simulate;
+
+  // each edit returns the new source and a one-line description, or null if the firmware has nothing to edit
+  const lineIndex = (lines, re) => lines.findIndex((l) => re.test(l.split(";")[0]));
+  const deadlineWait = /^\s*wait\s+t\+?(\s|$)/;
+  const stretch = (k) => (source) => {
+    const lines = source.split("\n");
+    const from = Math.max(0, lineIndex(lines, deadlineWait));
+    const j = lineIndex(lines.slice(from), /^\s*(out|set\s+pins|mov\s+pins)\b/);
+    const i = j < 0 ? -1 : from + j;
+    if (i < 0) return null;
+    const [code, ...comment] = lines[i].split(";");
+    const tail = comment.length ? " ;" + comment.join(";") : "";
+    const body = /\[\d+\]/.test(code)
+      ? code.replace(/\[(\d+)\]/, (_, n) => "[" + (Number(n) + k) + "]")
+      : code.trimEnd() + " [" + k + "]";
+    const before = lines[i].trim();
+    lines[i] = body + tail;
+    return [lines.join("\n"), "line " + (i + 1) + ": " + before + "  ->  " + lines[i].trim()];
+  };
+  const dropWait = (source) => {
+    const lines = source.split("\n");
+    const i = lineIndex(lines, deadlineWait);
+    if (i < 0) return null;
+    const [gone] = lines.splice(i, 1);
+    return [lines.join("\n"), "line " + (i + 1) + " removed: " + gone.trim()];
+  };
+  const longLoop = (source) => {
+    const lines = source.split("\n");
+    const i = Math.max(0, lineIndex(lines, deadlineWait));
+    const side = /^\s*\.side_set/m.test(source) ? " side 0" : "";
+    lines.splice(i, 0, "    set y, 31" + side, "dare_spin:", "    jmp y--, dare_spin");
+    return [lines.join("\n"), "3 lines added before line " + (i + 1) + ": a 31-turn loop"];
+  };
+  const dares = [
+    ["Stretch an out by 1 cycle", stretch(1)],
+    ["Stretch an out by 12 cycles", stretch(12)],
+    ["Drop a wait", dropWait],
+    ["Add a long loop", longLoop],
+  ];
+  let dareBase = "";
+  // the real tools on [source]: what the page's checker says, and what the model does
+  const judge = (source) => {
+    const period = $("period").value === "" ? null : Number($("period").value);
+    const pin = Number($("capture-pin").value) || 0;
+    const c = pe.check(source, period, $("single-edge").checked, pin, $("capture-falling").checked);
+    const m = pe.simulate(source, period, $("single-edge").checked, pin, $("capture-falling").checked,
+      $("sim-tx").value, $("sim-inputs").value, Number($("sim-cycles").value) || 1000);
+    return { c, m };
+  };
+  const cell = (text, cls) => {
+    const td = document.createElement("td");
+    if (cls) td.className = cls;
+    td.textContent = text;
+    return td;
+  };
+  const dareAll = () => {
+    dareBase = $("source").value;
+    $("dares").hidden = false;
+    $("dare-rows").replaceChildren(...dares.map(([label, edit]) => {
+      const tr = document.createElement("tr");
+      const done = edit(dareBase);
+      const button = document.createElement("button");
+      button.textContent = label;
+      if (!done) {
+        tr.append(cell(label), cell("n/a"), cell("nothing in this firmware to edit"), cell(""));
+        return tr;
+      }
+      const [edited, what] = done;
+      const { c, m } = judge(edited);
+      const pre = document.createElement("pre");
+      pre.textContent = c.detail || "(no message)";
+      const message = document.createElement("td");
+      message.append(pre);
+      button.onclick = () => { $("source").value = edited; run(); };
+      const first = document.createElement("td");
+      const note = document.createElement("div");
+      note.className = "muted";
+      note.textContent = what;
+      first.append(button, note);
+      tr.append(first, cell(c.verdict, c.verdict === "accepted" ? "accepted" : "refused"), message,
+        cell(m.error || m.summary));
+      return tr;
+    }));
+  };
+  $("dare-run").onclick = dareAll;
+  $("dare-restore").onclick = () => { load(); run(); dareAll(); };
+  $("sim-zoom").oninput = draw;
   $("example").onchange = () => { load(); run(); };
   $("check").onclick = run;
   load();
@@ -214,9 +445,87 @@ certificate. The model of the core then runs the table on the frames below.</p>
   $("diagram-clock").onchange = runDiagram;
   loadDiagram();
 
+  const hue = (i) => "hsl(" + (i * 67 % 360) + " 55% 55% / 0.45)";
+  let isaWord = 0;
+  const isaSide = () => Number($("isa-side").value);
+  const isaShow = () => {
+    const d = pe.isaDecode(isaWord, isaSide());
+    const slots = Array.from(d.slots).map(([[name, lsb, width, value], cases]) => ({ name, lsb, width, value, cases: Array.from(cases) }));
+    $("isa-hex").value = isaWord.toString(16).padStart(4, "0");
+    $("isa-text").textContent = d.error ? "refused by the decoder: " + d.error : "decodes to: " + d.text;
+    $("isa-text").className = d.error ? "refused" : "accepted";
+    const bits = [];
+    for (let b = 15; b >= 0; b--) {
+      const k = slots.findIndex((s) => b >= s.lsb && b < s.lsb + s.width);
+      const button = document.createElement("button");
+      button.innerHTML = (isaWord >> b & 1) + "<small>" + b + "</small>";
+      button.title = k < 0 ? "bit " + b + ": no field" : slots[k].name;
+      button.style.background = k < 0 ? "transparent" : hue(k);
+      button.onclick = () => { isaWord ^= 1 << b; isaShow(); };
+      bits.push(button);
+    }
+    $("isa-bits").replaceChildren(...bits);
+    $("isa-rows").replaceChildren(...slots.map((s, k) => {
+      const tr = document.createElement("tr");
+      const name = document.createElement("td");
+      name.innerHTML = '<span class="swatch" style="background:' + hue(k) + '"></span>' + s.name;
+      const range = document.createElement("td");
+      range.textContent = s.width === 1 ? "[" + s.lsb + "]" : "[" + (s.lsb + s.width - 1) + ":" + s.lsb + "]";
+      const value = document.createElement("td");
+      const set = (v) => { isaWord = (isaWord & ~(((1 << s.width) - 1) << s.lsb)) | (v << s.lsb); isaShow(); };
+      const meaning = document.createElement("td");
+      const named = s.cases.find(([v]) => v === s.value);
+      if (s.cases.length) {
+        const sel = document.createElement("select");
+        s.cases.forEach(([v, n]) => sel.add(new Option(v + " " + n, v)));
+        if (!named) sel.add(new Option(s.value + " reserved", s.value));
+        sel.value = String(s.value);
+        sel.onchange = () => set(Number(sel.value));
+        value.append(sel);
+        meaning.textContent = named ? named[1] : "reserved";
+      } else {
+        const num = document.createElement("input");
+        num.type = "number"; num.min = 0; num.max = (1 << s.width) - 1; num.value = s.value;
+        num.onchange = () => set(Math.max(0, Math.min((1 << s.width) - 1, Number(num.value) || 0)));
+        value.append(num);
+      }
+      tr.append(name, range, value, meaning);
+      return tr;
+    }));
+  };
+  const isaLayout = () => {
+    $("isa-table").replaceChildren(...Array.from(pe.isaTable(isaSide())).map(([value, name, slots]) => {
+      const box = document.createElement("div");
+      const head = document.createElement("h3");
+      head.textContent = name + "  (op = " + value + ")";
+      const table = document.createElement("table");
+      Array.from(slots).forEach(([[n, lsb, width], cases]) => {
+        const tr = document.createElement("tr");
+        const list = Array.from(cases).map(([v, c]) => v + " " + c).join(", ");
+        tr.append(...[n, width === 1 ? "[" + lsb + "]" : "[" + (lsb + width - 1) + ":" + lsb + "]", list].map((t) => { const td = document.createElement("td"); td.textContent = t; return td; }));
+        table.append(tr);
+      });
+      box.append(head, table);
+      return box;
+    }));
+  };
+  for (let n = 0; n <= pe.maxSideSet; n++) $("isa-side").add(new Option(n, n));
+  const isaAssemble = () => {
+    const r = pe.isaAssemble($("isa-line").value, isaSide());
+    if (r.error !== undefined) { $("isa-text").textContent = "refused by the assembler: " + r.error; $("isa-text").className = "refused"; return; }
+    isaWord = r.word;
+    isaShow();
+  };
+  $("isa-assemble").onclick = isaAssemble;
+  $("isa-line").onkeydown = (e) => { if (e.key === "Enter") isaAssemble(); };
+  $("isa-side").onchange = () => { isaLayout(); isaShow(); };
+  $("isa-hex").onchange = () => { const v = parseInt($("isa-hex").value, 16); if (v >= 0 && v < 65536) { isaWord = v; } isaShow(); };
+  isaAssemble();
+  isaLayout();
+
   let diagramRan = false;
   const show = () => {
-    const tab = ["#pio", "#diagram"].includes(location.hash) ? location.hash.slice(1) : "firmware";
+    const tab = ["#pio", "#diagram", "#isa"].includes(location.hash) ? location.hash.slice(1) : "firmware";
     if (tab === "diagram" && !diagramRan) { diagramRan = true; runDiagram(); }
     document.querySelectorAll("section").forEach((s) => { s.hidden = s.id !== tab + "-tab"; });
     document.querySelectorAll("nav a").forEach((a) => {

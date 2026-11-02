@@ -699,6 +699,8 @@ let%expect_test "the kernel on the firmware library, from the analyser's rows" =
     (i2c_logger (verdict (Ok ())))
     (i2c_master_standard (verdict (Ok ())))
     (i2c_master_fast (verdict (Ok ())))
+    (i2c_master_standard_asym (verdict (Ok ())))
+    (i2c_master_fast_asym (verdict (Ok ())))
     (i2c_controller_wire (verdict (Ok ())))
     (i2c_target_wire (verdict (Ok ())))
     (usb_tx (verdict (Ok ())))
@@ -743,6 +745,7 @@ let%expect_test "the kernel on the firmware library, from the analyser's rows" =
     (caliper (verdict (Ok ())))
     (xy2_100 (verdict (Ok ())))
     (lfast (verdict (Ok ())))
+    (tdm_audio (verdict (Ok ())))
     |}]
 ;;
 
@@ -816,10 +819,9 @@ let%expect_test "i2c_master keeps Fast-mode Plus spacing, and a short SCL low is
 ;;
 
 (* The bus clear's SCL low cut to a quarter keeps every deadline, and the kernel refuses
-   it once it spaces the edges. At 6 MHz a quarter of 29, the fastest Standard mode
-   (test_i2c.ml), is refused only at pc 47: the SCL fall for a host word with no START,
-   whose SDA edge before is a STOP behind the host wait, past the kernel's bound. A
-   quarter of 28 is short of tSU;STA too. *)
+   it once it spaces the edges. At 6 MHz a quarter of 29 (test_i2c.ml) is refused only at
+   pc 47: the SCL fall for a host word with no START, whose SDA edge before is a STOP
+   behind the host wait, past the kernel's bound. A quarter of 28 is short of tSU;STA too. *)
 let%expect_test "i2c_master's bus clear is spaced, and a short pulse is refused" =
   let c = Library.find_certified_exn "i2c_master" in
   let short_pulse =
@@ -1192,12 +1194,10 @@ let%expect_test "the row at pc 0 bounds nothing" =
     |}]
 ;;
 
-(* ws2812 as it was first written, with the wait of its reset gap after the loop rather
-   than in it. The line stays low as long, but each pass moves [t] 23 cycles further ahead
-   of [now], so the row at the head of the loop, which has to hold its own image one pass
-   on, has no bound on the phase short of the full range. Rows of intervals alone do not
-   know the wait after the loop to be in time; the offset does, since the phase less 23
-   times x holds still round the loop and x is zero where it falls through. *)
+(* ws2812 with the wait of its reset gap after the loop rather than in it. Each pass moves
+   [t] 23 cycles further ahead of [now], so the loop head's row has no phase bound short
+   of the full range. Intervals alone cannot show the wait in time; the offset can, as the
+   phase less 23 times x holds still round the loop and x is zero at its exit. *)
 let ws2812_waiting_after_gap =
   let c = Library.find_certified_exn "ws2812" in
   { c with
@@ -1437,13 +1437,13 @@ let%expect_test "a spacing is checked only where it is proved" =
 (* The kernel's row is the phase [now - t] an instruction enters at
    ([formal/phase_step.sv]), and a pin edge shows the cycle after the entry of an
    instruction that writes pins ([formal/edge_step.sv]): a set, out or mov to pins or
-   pindirs, any instruction that carries side-set, and the one that lands the second half
-   of a Manchester bit, all as the analyser's rows mark them. So the widest of those rows,
-   in cycles, bounds the jitter of every edge against its deadline; the first pc with it
-   is named. It is a bound and not the jitter of any one edge: side-set counts even where
-   it drives the level the pins already hold, which neither lemma knows. A row the kernel
-   leaves unbounded, before the first [mov t, now], after a wait on a pin or the host, or
-   in a loop as long as its data, has no deadline, and its pc is listed as untimed.
+   pindirs, any instruction with side-set, and the one that lands a Manchester bit's
+   second half, as the analyser's rows mark them. So the widest such row, in cycles,
+   bounds every edge's jitter against its deadline; its first pc is named. It is a bound,
+   not any one edge's jitter: side-set counts even where it drives the level the pins
+   already hold. A row left unbounded (before the first [mov t, now], after a wait on a
+   pin or the host, or in a loop as long as its data) has no deadline and is listed as
+   untimed.
 
    Reaction: a row that writes pins, has seen the captured edge and bounds the arm enters
    under [arm_hi] cycles after the core samples the edge, as the arm takes effect a cycle
@@ -1507,6 +1507,10 @@ let%expect_test "a bound on the jitter of every pin edge, in firmware the kernel
     (i2c_master_standard (pc 62) (jitter_bound 118)
      (untimed (0 1 2 3 4 24 25 32 33)))
     (i2c_master_fast (pc 57) (jitter_bound 29) (untimed (0 1 2 3 4 22 23 30 31)))
+    (i2c_master_standard_asym (pc 62) (jitter_bound 155)
+     (untimed (0 1 2 3 4 24 25 32 33)))
+    (i2c_master_fast_asym (pc 57) (jitter_bound 29)
+     (untimed (0 1 2 3 4 22 23 30 31)))
     (i2c_controller_wire (pc 36) (jitter_bound 118)
      (untimed (0 1 2 3 4 5 12 13)))
     (i2c_target_wire "no edge has a deadline" (untimed (2 20 23 44 47 58 65 69)))
@@ -1541,10 +1545,10 @@ let%expect_test "a bound on the jitter of every pin edge, in firmware the kernel
      (untimed (0 1 2 3 4 5 6 22 23 24 25 26)))
     (spi_cs_mode3_default_pins (pc 10) (jitter_bound 3)
      (untimed (0 1 2 3 4 5 6 22 23 24 25 26)))
-    (spi_target_mode0 "no edge has a deadline" (untimed (5 10 15 26 36)))
-    (spi_target_mode1 "no edge has a deadline" (untimed (5 12 28)))
-    (spi_target_mode2 "no edge has a deadline" (untimed (5 10 15 26 36)))
-    (spi_target_mode3 "no edge has a deadline" (untimed (5 12 28)))
+    (spi_target_mode0 "no edge has a deadline" (untimed (4 9 20 35 44)))
+    (spi_target_mode1 "no edge has a deadline" (untimed (4 15 25)))
+    (spi_target_mode2 "no edge has a deadline" (untimed (4 9 17 29 38)))
+    (spi_target_mode3 "no edge has a deadline" (untimed (4 15 22)))
     (spi_target_fast_mode0 "no edge has a deadline" (untimed (4 6 19 24 32)))
     (spi_target_fast_mode1 "no edge has a deadline" (untimed (4 6 20 25 33)))
     (spi_target_fast_mode2 "no edge has a deadline" (untimed (4 6 20 25 33)))
@@ -1564,6 +1568,12 @@ let%expect_test "a bound on the jitter of every pin edge, in firmware the kernel
     (caliper (pc 14) (jitter_bound 0) (untimed (3 6)))
     (xy2_100 (pc 5) (jitter_bound 5) (untimed (0 1 2 3)))
     (lfast (pc 8) (jitter_bound 0) (untimed (1)))
+    (tdm_audio "no edge has a deadline"
+     (untimed
+      (0 1 2 3 4 5 7 8 9 10 11 13 15 17 18 19 21 22 23 24 25 27 29 31 32 33 35 36
+       37 38 39 41 43 45 46 47 49 50 51 52 53 55 57 59 60 61 63 64 65 66 67 69 71
+       73 74 75 77 78 79 80 81 83 85 87 88 89 91 92 93 94 95 97 99 101 102 103
+       105 106 107 108 109 111 113 115)))
     (spi_slave_captured "no edge has a deadline" (untimed (0 5))
      (reaction ((pc 5) (at_most 2))))
     |}]

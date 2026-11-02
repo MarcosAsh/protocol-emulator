@@ -283,9 +283,7 @@ let usb_device_at_once ~bit_period firmware =
    captured level, or does it leave it before the wait releases? Either is a frame the
    certificate does not cover. UART also runs at 25 and 17 cycles a bit, and with every
    eighth stop bit missing to reach the arm after a framing error. USB allows 1.5% off;
-   past what a receiver follows its packets garble, and only the arms matter. The USB
-   receiver arms after every sample that reads J, so a sender it cannot follow puts edges
-   beside its samples and breaks the premise; those frames are the ones it garbles. *)
+   past what its receiver follows, packets garble and only the arms matter. *)
 let%expect_test "the receivers keep the premise their certificates rest on" =
   printf
     "%-18s %-9s %5s  %8s  %10s  %s\n"

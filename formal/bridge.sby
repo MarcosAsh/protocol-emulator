@@ -1,0 +1,59 @@
+[tasks]
+prove
+next_bit teeth
+wider teeth
+early teeth
+late teeth
+
+[options]
+prove: mode prove
+prove: depth 4
+# from reset, so what fails is a run; the first sample is near step 35, the wire's fall
+# near 115, SCK's first rise near 235
+teeth: mode bmc
+teeth: expect fail
+next_bit: depth 125
+next_bit: skip 100
+wider: depth 45
+early: depth 125
+early: skip 100
+late: depth 245
+late: skip 220
+
+[engines]
+smtbmc boolector
+
+[script]
+read_verilog -lib RM_IHPSG13_1P_512x16_c2_bm_bist.v
+read_verilog engines_sram.v
+hierarchy -top engines_top
+proc
+flatten
+expose -evert -sep __ engines_top/t:RM_IHPSG13_1P_512x16_c2_bm_bist
+cd engines_top
+expose w:engines.engine_0.pins_sampled w:engines.engine_1.pins_sampled
+rename engines.engine_0.pins_sampled pins_sampled_0
+rename engines.engine_1.pins_sampled pins_sampled_1
+rename engines.engine_0.sram_macro.sram__A_ADDR sram_addr_0
+rename engines.engine_0.sram_macro.sram__A_MEN sram_men_0
+rename engines.engine_0.sram_macro.sram__A_REN sram_ren_0
+rename engines.engine_0.sram_macro.sram__A_DOUT sram_dout_0
+rename engines.engine_1.sram_macro.sram__A_ADDR sram_addr_1
+rename engines.engine_1.sram_macro.sram__A_MEN sram_men_1
+rename engines.engine_1.sram_macro.sram__A_REN sram_ren_1
+rename engines.engine_1.sram_macro.sram__A_DOUT sram_dout_1
+rename engines.data_memory.sram_macro.sram__A_DOUT data_sram_dout
+cd ..
+prove: read_verilog -formal -sv bridge.sv
+next_bit: read_verilog -formal -sv -DNEXT_BIT bridge.sv
+wider: read_verilog -formal -sv -DWIDER bridge.sv
+early: read_verilog -formal -sv -DEARLY bridge.sv
+late: read_verilog -formal -sv -DLATE bridge.sv
+prep -top bridge
+# as memories, the roms are state induction starts anywhere; as logic, fixed
+memory_map
+
+[files]
+engines_sram.v
+bridge.sv
+../src/RM_IHPSG13_1P_512x16_c2_bm_bist.v

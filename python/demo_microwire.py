@@ -4,7 +4,7 @@
 # B's D1; DO on IN0, the flash's DO, B's D2. CS high deselects the flash. EWEN, READ 5,
 # WRITE 5 with its 25.94 ms CS low, READ 5: no bench part answers, so DO is not judged.
 # demo/outside.sh microwire runs it.
-# outside: analyser=B ms=2000 decode=-P microwire:cs=D3:sk=D0:si=D1:so=D2 -A microwire=start-bit:si-bit:so-bit
+# outside: analyser=B ms=2000 decode=-P microwire:cs=D3:sk=D0:si=D1:so=D2 -A microwire=start-bit:si-bit
 
 import bench
 import bench_firmware
@@ -31,24 +31,27 @@ def instruction(op, field):
     return bits(0x100 | op << 6 | field, 9)
 
 
-EWEN = frame(instruction(0b11, 0b000001))
+# EWEN, READ 5, WRITE 5, READ 5: READ clocks 16 bits more for DO
+FRAMES = [instruction(0b11, 0b000001), instruction(0b00, 5) + [0] * 16,
+          instruction(0b10, 5) + bits(0xA5C3, 16), instruction(0b00, 5) + [0] * 16]
+ERASE_WRITE = 2
 
 
-def read(address):
-    return frame(instruction(0b00, address) + [0] * 16)
-
-
-def write(address, value):
-    return frame(instruction(0b10, address) + bits(value, 16), erase_write=True)
+def lines(frames):
+    """What sigrok's microwire prints of the frames' DI with outside:'s -A, in order: the
+    start bit, then each bit after it at SK's rise."""
+    return ["microwire-1: " + text for f in frames
+            for text in ["Start bit"] + ["SI bit: %d" % b for b in f[1:]]]
 
 
 def run(transfer, pause_ms, log=print):
     host = pe.Host(transfer)
     bench.load(host, bench_firmware.MICROWIRE)
     host.start()
-    host.push(EWEN + read(5) + write(5, 0xA5C3))
+    first = [w for i, f in enumerate(FRAMES[:3]) for w in frame(f, i == ERASE_WRITE)]
+    host.push(first)
     pause_ms(40)
-    host.push(read(5))
+    host.push(frame(FRAMES[3]))
     pause_ms(2)
     words = host.pop(4)
     log("DO's last 16 bits a frame: %s" % " ".join("%04X" % w for w in words))

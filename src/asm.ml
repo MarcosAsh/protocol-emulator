@@ -206,7 +206,10 @@ let parse_instruction tokens ~labels ~side_set_count =
   | "jmp" :: args ->
     if Option.is_some side_set || delay <> 0
     then Or_error.error_s [%message "jmp takes no side-set or delay"]
-    else parse_jmp args ~labels
+    else (
+      let%bind t = parse_jmp args ~labels in
+      let%map (_ : int) = Isa.to_word ~side_set_count t in
+      t)
   | mnemonic :: args ->
     let%bind op = parse_op mnemonic args in
     let%bind side_set =

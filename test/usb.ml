@@ -23,7 +23,7 @@ let config =
 (* USB low speed transmitter. The host sends the bit period, then per packet SYNC, PID,
    data length less one and the data; the core adds CRC-16, bit stuffing and EOP. Each
    data bit goes out on a scratch pin first so the CRC sees it and [jmp pin] reads it
-   back. Every toggle lands four cycles after its deadline on either path. *)
+   back. Every change of the line, the EOP's too, lands four cycles after its deadline. *)
 let tx =
   [%firmware
     {|
@@ -76,9 +76,11 @@ ckeep:
     jmp stuff, estuff
 eop:
     wait t+
+    nop [2]
     set pins, 0              ; SE0
     wait t+
     wait t+
+    nop [2]
     set pins, 2              ; J
     wait t+
     jmp packet
@@ -115,11 +117,10 @@ estuff:
    so the analyser can follow it. The line state lives in the program counter, a J half
    and a K half. Every J-to-K edge re-anchors the sampling: the capture is armed after
    each sample that reads J, and when the next finds D+ high, [t] goes to that edge plus a
-   bit and a half. The first K of SYNC is such an edge. If D+ is already high just after
-   an arm, the edge may have come before it, so [t] is anchored on [now] instead and the
-   capture is not read stale. Bits go through [in] one at a time so the CRC sees them;
-   after the EOP the CRC register follows as one more word for the host to check. Stuffed
-   zeros are dropped. *)
+   bit and a half. If D+ is already high just after an arm, the edge may have come before
+   it, so [t] is anchored on [now] instead and the capture is not read stale. Bits go
+   through [in] one at a time so the CRC sees them; after the EOP the CRC register follows
+   as one more word for the host to check. Stuffed zeros are dropped. *)
 let rx ~half_period =
   let rec adds n = if n <= 7 then [ n ] else 7 :: adds (n - 7) in
   let add n =
@@ -299,11 +300,7 @@ end
    leaving y to count bits. Token address and endpoint are compared, CRC5 included,
    against a constant for [address] endpoint 0, so the CRC unit stays on CRC-16; endpoint
    1 is the only other match. The first PID nibble is walked as a tree, so telling packets
-   apart costs no cycles. To the host: SETUP/OUT data as tag 1 (DATA0) or 2 (DATA1), then
-   16-bit words, first bit on top; ACK if the CRC checks, else the interrupt and silence.
-   A host ACK is tag 3; a reply queued for the other endpoint is dropped as tag 4 and
-   answered NAK. From the host, per IN reply: endpoint low / PID high, data bits low /
-   data words high, then the data. Nothing queued: NAK. *)
+   apart costs no cycles. *)
 let device ~address ~half_period =
   let open Usb_line in
   let label name line = [%string "%{name}_%{suffix line}"] in

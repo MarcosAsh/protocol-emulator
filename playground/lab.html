@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Remote Lab</title>
-<!-- Not published: the pages workflow uploads index.html and playground.bc.js alone. The
-     job file goes to demo/lab.py's queue by hand until the owner switches the lab on. -->
+<!-- Not published: the pages workflow uploads index.html and playground.bc.js alone until
+     the owner switches the lab on. Jobs go in through .github/ISSUE_TEMPLATE/lab.yml. -->
 <style>
   :root { --bg: #fff; --fg: #1a1a1a; --muted: #666; --code: #f4f4f4; --ok: #1a7f37; --bad: #c62828; --warn: #8a5a00; --model: #6b7bd6; }
   @media (prefers-color-scheme: dark) {
@@ -42,6 +42,15 @@
 <p class="muted">The kernel checks the diagram here, in the same code the bench's worker
 runs. A job file holds the diagram and its frames, never firmware: the chip only ever
 runs the table interpreter the kernel certified once.</p>
+<details open id="how">
+<summary><strong>How this runs</strong></summary>
+<p>Your diagram becomes data for a table interpreter that the kernel certified once. It is never firmware. This page checks it in your browser first.</p>
+<p>The run happens on an Icepi Zero FPGA (ECP5) running the chip's RTL at 48 MHz, on my desk. It is not on silicon. None exists yet.</p>
+<p>The bench is a home PC. Jobs queue and are answered when it is free. It pauses while I am using it, sometimes for hours. Each person gets 3 bench runs an hour and 10 a day, and 30 jobs an hour. The whole lab takes 30 bench runs an hour.</p>
+<p>Logic analyser A captures OUT0 at 24 MS/s.</p>
+<p>The reply says which run it was: captured on the bench, rehearsed on the RTL in cocotb, or simulated on the model.</p>
+<p>Everything stays public in the GitHub issue, refusals included.</p>
+</details>
 <div class="controls">
   <label>Example <select id="example"></select></label>
   <label>Decode <select id="decode"><option value="none">none</option><option value="ws281x">ws281x</option><option value="uart">uart</option></select></label>
@@ -54,6 +63,12 @@ runs the table interpreter the kernel certified once.</p>
 <p id="verdict" class="verdict"></p>
 <p id="bench"></p>
 <div class="controls"><a id="download" hidden>Download the job file</a><span id="job-id" class="muted"></span></div>
+<div class="controls">
+  <button id="run" hidden>Run on the real chip</button>
+  <button id="copy-job" hidden>Copy the job</button>
+  <a id="blank-form" hidden target="_blank" rel="noopener">Open an empty form</a>
+  <span id="run-note" class="muted"></span>
+</div>
 <h2>Certificate</h2>
 <pre id="certificate"></pre>
 <h2>The model's trace</h2>
@@ -61,7 +76,12 @@ runs the table interpreter the kernel certified once.</p>
 <div id="draw-wave" class="wave"></div>
 </section>
 <section id="result-tab" hidden>
-<p class="muted">A result folder from demo/lab.py: open its result.json, or every file in
+<div class="controls">
+  <label>Already submitted? Issue # <input id="issue" type="number" min="1" style="width:6rem"></label>
+  <button id="fetch">Fetch the answer</button>
+  <span id="issue-state" class="muted"></span>
+</div>
+<p class="muted">Or a result folder from demo/lab.py: open its result.json, or every file in
 it to check each against the hashes result.json records.</p>
 <div class="controls"><input id="open" type="file" multiple accept=".json,.txt,.sr,.log"></div>
 <p id="result-verdict" class="verdict"></p>
@@ -137,6 +157,47 @@ it to check each against the hashes result.json records.</p>
     return { name, first: lane.edges[0][1], changes: lane.edges.slice(1).map(([c, l]) => [c * ns, l]), colour: "var(--model)" };
   };
 
+  // lab-submit begin
+  const REPO = "MarcosAsh/protocol-emulator";
+  const MARKER = "<!-- lab-result v1 -->";
+  const URL_MAX = 7000;
+  // the pre-filled issue form for a job, or null when the link would be too long
+  const issueUrl = (name, jobText) => {
+    const q = "template=lab.yml&title=" + encodeURIComponent("lab: " + name) + "&job=" + encodeURIComponent(jobText);
+    const url = "https://github.com/" + REPO + "/issues/new?" + q;
+    return url.length <= URL_MAX ? url : null;
+  };
+  const blankFormUrl = () => "https://github.com/" + REPO + "/issues/new?template=lab.yml";
+  // the sealed result in the first lab-result comment, or null while none has been posted
+  const resultOf = (comments) => {
+    for (const c of comments) {
+      const body = (c.body || "").replace(/\r\n/g, "\n");
+      if (!body.trimStart().startsWith(MARKER)) continue;
+      const found = /```json\s*\n([\s\S]*?)\n```/.exec(body);
+      if (!found) continue;
+      try { return JSON.parse(found[1]); } catch (e) { continue; }
+    }
+    return null;
+  };
+  // { state: queued | answered | not-lab | missing | limited | error, result?, why? }
+  const fetchAnswer = async (n, get) => {
+    const api = "https://api.github.com/repos/" + REPO + "/issues/" + n;
+    const limited = (r) => r.status === 403 || r.status === 429;
+    const issue = await get(api);
+    if (limited(issue)) return { state: "limited" };
+    if (issue.status === 404) return { state: "missing" };
+    if (!issue.ok) return { state: "error", why: "GitHub answered " + issue.status };
+    const meta = await issue.json();
+    if (meta.pull_request || !(meta.labels || []).some((l) => l.name === "lab" || l.name === "lab-done"))
+      return { state: "not-lab" };
+    const comments = await get(api + "/comments?per_page=100");
+    if (limited(comments)) return { state: "limited" };
+    if (!comments.ok) return { state: "error", why: "GitHub answered " + comments.status };
+    const result = resultOf(await comments.json());
+    return result ? { state: "answered", result } : { state: "queued" };
+  };
+  // lab-submit end
+
   pe.diagramExamples.forEach(([name], i) => $("example").add(new Option(name, i)));
   const load = () => {
     const [name, source, frames] = pe.diagramExamples[$("example").value];
@@ -161,6 +222,8 @@ it to check each against the hashes result.json records.</p>
     $("job-id").textContent = "";
     $("bench").textContent = "";
     $("draw-wave").replaceChildren();
+    ["run", "copy-job", "blank-form"].forEach((id) => { $(id).hidden = true; });
+    $("run-note").textContent = "";
     if (result.verdict !== "certified") {
       $("bench").textContent = result.verdict === "refused"
         ? "Refused before anything reaches the bench." : "Not a job the lab takes.";
@@ -183,6 +246,26 @@ it to check each against the hashes result.json records.</p>
     $("download").download = "lab-job-" + (id ? id.slice(0, 16) : "new") + ".json";
     $("download").hidden = false;
     $("job-id").textContent = id ? "job " + id.slice(0, 16) : "";
+    const name = $("example").selectedOptions[0].text;
+    const compact = JSON.stringify(JSON.parse(text));
+    const link = issueUrl(name, compact);
+    $("run").hidden = false;
+    $("run").onclick = () => {
+      if (link) window.open(link, "_blank", "noopener");
+    };
+    $("run").disabled = !link;
+    if (link) {
+      $("run-note").textContent = "Opens a GitHub issue with the job filled in. You need a GitHub account to submit it.";
+    } else {
+      $("run-note").textContent = "This job is too long for a pre-filled link. Copy it and paste it into an empty form.";
+      $("copy-job").hidden = false;
+      $("blank-form").hidden = false;
+      $("blank-form").href = blankFormUrl();
+      $("copy-job").onclick = async () => {
+        try { await navigator.clipboard.writeText(compact); $("run-note").textContent = "Copied. Paste it into the Job field."; }
+        catch (e) { $("run-note").textContent = "Copying failed. Use Download the job file instead."; }
+      };
+    }
   };
   $("example").onchange = () => { load(); check(); };
   $("decode").onchange = () => { $("baud-label").hidden = $("decode").value !== "uart"; };
@@ -241,6 +324,28 @@ it to check each against the hashes result.json records.</p>
     const files = Object.fromEntries(Array.from($("open").files, (f) => [f.name, f]));
     if (!files["result.json"]) { $("result-verdict").textContent = "no result.json among them"; return; }
     show(JSON.parse(await files["result.json"].text()), files);
+  };
+  $("fetch").onclick = async () => {
+    const n = parseInt($("issue").value, 10);
+    const say = (t, cls) => { $("issue-state").textContent = t; $("issue-state").className = cls || "muted"; };
+    if (!(n > 0)) { say("Enter an issue number."); return; }
+    say("Asking GitHub...");
+    let a;
+    try { a = await fetchAnswer(n, (u) => fetch(u, { headers: { Accept: "application/vnd.github+json" } })); }
+    catch (e) { say("Could not reach GitHub.", "bad"); return; }
+    if (a.state === "answered") {
+      say("Answered.", "ok");
+      location.hash = "#result";
+      show(a.result, {});
+      return;
+    }
+    say({
+      queued: "Not answered yet. The bench is a home PC, so it may be a while. Check again later.",
+      "not-lab": "Issue #" + n + " is not a lab issue.",
+      missing: "There is no issue #" + n + ".",
+      limited: "GitHub's limit for anonymous requests is used up. Try again in a few minutes, or read the answer in the issue itself.",
+      error: a.why,
+    }[a.state], a.state === "queued" ? "warn" : "bad");
   };
   // a result served beside the page: lab.html?result=RESULTS/ID/result.json#result
   const served = new URLSearchParams(location.search).get("result");

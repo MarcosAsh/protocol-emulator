@@ -117,9 +117,8 @@ module Edge = struct
 end
 
 (* Every spacing the capture shows where [spec] asks one, as the edge's number over both
-   pins' edges from 1, the edge, and the edge it is spaced from: at each edge of a pin,
-   its own edge before, where its hold applies to the two pins' bits before the edge, and
-   the other pin's last edge, where its apart does. The other pin moving at the same
+   pins' edges from 1, the edge, and the edge it is spaced from: its own edge before, for
+   a hold, or the other pin's last edge, for an apart. The other pin moving at the same
    sample is 0 since. *)
 let spaced (capture : Capture.t) (spec : Kernel.Spacing.Spec.t) =
   let bit level = Bool.( <> ) spec.dirs level in

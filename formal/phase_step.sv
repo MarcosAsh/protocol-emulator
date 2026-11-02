@@ -968,12 +968,11 @@ module phase_step (input clk);
 `endif
   end
 `ifdef TABLE
-  // The theorem in one run. For any table of intervals and config loaded while halted, as
-  // the program is, assume the kernel's accepts at every pc entered, with the next and
-  // target rows it picks, and a start at a row that bounds nothing; then the core lies in
-  // the row of every entry and no deadline is missed. Rows have no slope and the full
-  // offset, as every library table does. With AFFINE they are whole rows, and the run
-  // rests on row_step. SPACING adds the pair's bounds to the rows, for phase_spacing.sby.
+  // The theorem in one run. For any table and config loaded while halted, assume the kernel's
+  // accepts at every pc entered, with the next and target rows it picks, and a start at a row
+  // that bounds nothing; then the core lies in the row of every entry and no deadline is
+  // missed. Rows have no slope and the full offset, as library tables do. With AFFINE they
+  // are whole rows and the run rests on row_step. SPACING adds the pair's bounds.
 `ifdef AFFINE
   localparam ROW_BITS = 266;
 `elsif SPACING
@@ -1027,11 +1026,11 @@ module phase_step (input clk);
     `PAIR(1'b0), .a$since(16'd0), .a$level(1'b0), .a$fresh(1'b0), .b$since(16'd0), \
     .b$level(1'b0), .b$fresh(1'b0)
 `ifdef AFFINE
-  // The offset is the phase less the row's slope times x, modulo 2^24. SMT does not follow
-  // a product of two variables, so the product and each successor's offset are free, held
-  // to what the true ones satisfy: no product where x is zero, the core's offset where it
-  // is at that successor's pc, and row_step's axioms, which offset_axioms.smt2 proves
-  // they do. row_step's lemma holds for any inputs, so assuming it drops no run.
+  // The offset is the phase less slope * x, mod 2^24. SMT does not follow a product of two
+  // variables, so the product and each successor's offset are free, held to what the true
+  // ones satisfy: no product where x is zero, the core's offset at that successor's pc, and
+  // row_step's axioms (proved in offset_axioms.smt2). row_step's lemma holds for any inputs,
+  // so assuming it drops no run.
   (* anyseq *) wire [23:0] product, next_offset, target_offset;
   reg [23:0] e_product;
   always @(posedge clk) if (entry) e_product <= product;
@@ -1089,8 +1088,7 @@ module phase_step (input clk);
   wire accepts, within, starts_open;
 `ifdef SPACING
   // With the pair's bounds, whose spacing the tooth drops. The last entry's check is
-  // pair_step's; its lemma, from the last entry to now, holds for any inputs, so assuming
-  // it drops no run.
+  // pair_step's, whose lemma holds for any inputs, so assuming it drops no run.
 `ifdef NO_SPACING
   wire spacing = 0;
 `else

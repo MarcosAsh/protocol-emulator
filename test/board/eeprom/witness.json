@@ -1,14 +1,14 @@
 {
   "demo": "eeprom",
-  "time": "2026-10-22T17:25:32",
+  "time": "2026-10-30T16:04:42",
   "result": "PASS",
-  "commit": "c6a2f802fc0dbf7162d28b9ba271ae4d456fc013",
+  "commit": "b5c0748c56eea8ab598d269fd6da6bef709d06eb",
   "bitstream_sha256": "ded0014fdf14df568ed478e5f6e36d1d91475ba62bae300e101c1b229c1f963f",
-  "netlist_sha256": "685d03a18ca12fd44a680074e6810a1b703c073ad946dfd3fb5b50507d1c3111",
-  "sums_sha256": "99deb4d93ffac8216c919c6b33578771656c6f321bca4fcc3f4dc38b26b33ee8",
+  "netlist_sha256": "1db23ccd02406ef95731f3ffd7de23fbfa9a66a0410741d78cbcb04edc717f5f",
+  "sums_sha256": "b3a83f81714c6b2e04d7836d4cea63b9ac340fb6f45b49078024ba04b9e8e225",
   "capture": {
     "file": "eeprom.sr",
-    "sha256": "21096fb23f2b37b7b8ccb9278405f601ea6463994205f5cd67f95a507ac64c46",
+    "sha256": "e0bd1693e8d646dbe3ddf776ee660a9a8d7d9f2358d438d721a89f4d734698cc",
     "rate_hz": 24000000,
     "seconds": 3.0,
     "analyser": "B",
@@ -19,22 +19,22 @@
   },
   "decode": {
     "arguments": "-P i2c:sda=D6:scl=D7,eeprom24xx:chip=onsemi_cat24c256 -A eeprom24xx",
-    "sha256": "cb8a2715455fed08c2204e57a906aa71fdd588e9cb994d1fe84c36794c93fa6b"
+    "sha256": "7d9cf034bfde059a6b386db8fb928ffd834376c58401c0a6dd80c91484eb0569"
   },
   "timing": [
     {
       "parameter": "1/fSCL",
       "limit": ">= 2500 ns",
       "sheet": "24LC256, Microchip DS20001203W, Table 1-2 p.4, param 1",
-      "spans": 1462,
-      "measured": "3916 ns to 847793 ns",
+      "spans": 1444,
+      "measured": "3916 ns to 1258668 ns",
       "verdict": "proved"
     },
     {
       "parameter": "THIGH",
       "limit": ">= 600 ns",
       "sheet": "24LC256, Microchip DS20001203W, Table 1-2 p.4, param 2",
-      "spans": 1462,
+      "spans": 1444,
       "measured": "1833 ns to 1959 ns",
       "verdict": "proved"
     },
@@ -42,15 +42,15 @@
       "parameter": "TLOW",
       "limit": ">= 1300 ns",
       "sheet": "24LC256, Microchip DS20001203W, Table 1-2 p.4, param 3",
-      "spans": 1477,
-      "measured": "2041 ns to 845876 ns",
+      "spans": 1457,
+      "measured": "2041 ns to 1256751 ns",
       "verdict": "proved"
     },
     {
       "parameter": "THD:STA",
       "limit": ">= 600 ns",
       "sheet": "24LC256, Microchip DS20001203W, Table 1-2 p.4, param 6",
-      "spans": 19,
+      "spans": 17,
       "measured": "958 ns to 1042 ns",
       "verdict": "proved"
     },
@@ -58,23 +58,23 @@
       "parameter": "TSU:STA",
       "limit": ">= 600 ns",
       "sheet": "24LC256, Microchip DS20001203W, Table 1-2 p.4, param 7",
-      "spans": 18,
-      "measured": "833 ns to 2784903 ns",
+      "spans": 16,
+      "measured": "833 ns to 3229281 ns",
       "verdict": "unresolved"
     },
     {
       "parameter": "TSU:DAT",
       "limit": ">= 100 ns",
       "sheet": "24LC256, Microchip DS20001203W, Table 1-2 p.4, param 9",
-      "spans": 821,
-      "measured": "917 ns to 779870 ns",
+      "spans": 813,
+      "measured": "917 ns to 1256501 ns",
       "verdict": "proved"
     },
     {
       "parameter": "TSU:STO",
       "limit": ">= 600 ns",
       "sheet": "24LC256, Microchip DS20001203W, Table 1-2 p.4, param 10",
-      "spans": 15,
+      "spans": 13,
       "measured": "917 ns to 1042 ns",
       "verdict": "proved"
     },
@@ -82,8 +82,8 @@
       "parameter": "TBUF",
       "limit": ">= 1300 ns",
       "sheet": "24LC256, Microchip DS20001203W, Table 1-2 p.5, param 14",
-      "spans": 14,
-      "measured": "403835 ns to 2783945 ns",
+      "spans": 12,
+      "measured": "424208 ns to 3228281 ns",
       "verdict": "proved"
     }
   ],
@@ -98,7 +98,7 @@
     "START_HOLD": "651aaeeea02ead44f6cf9dd70f0684e33c53a2c760e695191588bdd448284981"
   },
   "host_scripts": {
-    "python/demo_eeprom.py": "6322d8524f3d3020db65319cbeff9401a9efde0cb31a39610ebbd296c18317e2"
+    "python/demo_eeprom.py": "df366be5288c928a10ebebbdbbb4ccc5a61b137fed1374e8642eb728466b25a9"
   },
   "bench": "an Icepi Zero (ECP5 LFE5U-25F) running the chip at 48 MHz on bench carrier v1.2, Pico A as the host on SPI, a 24LC256 on the I2C bus, analyser B (fx2lafw) at 24 MS/s",
   "scope": "the bytes on the wire and their timing in one run of eeprom, as the analyser saw them",

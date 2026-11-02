@@ -44,7 +44,7 @@ let bus_clear ?held () =
 
 (* host word: start[15] read[14] data[13:6] stop[5]; p is a quarter period, which [load]
    sets *)
-let master_loading ?(held = "") ~load ~preamble () =
+let master_loading ?(held = "") ?(high = "") ?(low = "") ~load ~preamble () =
   [%string
     {|
     .side_set 1
@@ -92,15 +92,15 @@ send:
     mov pindirs, !y side 1       ; SDA follows the bit
     wait t+ side 1
     nop side 0                   ; SCL high
-    wait t+ side 0
+%{high}    wait t+ side 0
     wait t+ side 0
     nop side 1                   ; SCL low
-    jmp x--, send
+%{low}    jmp x--, send
     wait t+ side 1
     set pindirs, 0 side 1        ; release SDA for the ack
     wait t+ side 1
     nop side 0
-    wait t+ side 0
+%{high}    wait t+ side 0
     in pins, 1 side 0            ; ack bit, 0 means acked
     wait t+ side 0
     nop side 1
@@ -112,18 +112,18 @@ rbit:
     wait t+ side 1
     wait t+ side 1
     nop side 0
-    wait t+ side 0
+%{high}    wait t+ side 0
     in pins, 1 side 0
     wait t+ side 0
     nop side 1
-    jmp x--, rbit
+%{low}    jmp x--, rbit
     out null, 8 side 1           ; the unused data bits
     out x, 1 side 1              ; stop flag, and nack on the last byte
     wait t+ side 1
     mov pindirs, !x side 1
     wait t+ side 1
     nop side 0
-    wait t+ side 0
+%{high}    wait t+ side 0
     wait t+ side 0
     nop side 1
     set pindirs, 0 side 1
@@ -157,13 +157,13 @@ let master_host_rate_without_bus_clear =
 ;;
 
 (* each START's hold, and repeated START's and STOP's setup, [quarters] long *)
-let master_host_rate_held ?(clear_bus = true) ~quarters () =
+let master_host_rate_held ?(clear_bus = true) ?high ?low ~quarters () =
   if quarters < 1 then raise_s [%message "BUG: under a quarter" (quarters : int)];
   let held =
     String.concat (List.init (quarters - 1) ~f:(fun _ -> "    wait t+ side 0\n"))
   in
   let preamble = if clear_bus then bus_clear ~held () else "\n" in
-  master_loading ~held ~load:load_quarter ~preamble ()
+  master_loading ~held ?high ?low ~load:load_quarter ~preamble ()
 ;;
 
 let config =
@@ -759,10 +759,27 @@ let um10204 (mode : Mode.t) firmware =
 let standard_quarter = 121
 let fast_quarter = 32
 
+(* The same, with a clock's low or high cut short, so that its period is the 1/fSCL row's
+   one-cycle margin past the limit, as 4 quarters is too long: the low is two quarters, or
+   what TLOW needs, and the high is what is left. 481 cycles is 99.79 kHz, and 121 is
+   396.69 kHz. [sub t] goes by 7 at most. *)
+let asym_standard_quarter = 127
+
+let asym_standard_low =
+  "    sub t, 7 side 1\n    sub t, 7 side 1\n    sub t, 7 side 1\n    sub t, 6 side 1\n"
+;;
+
+let asym_fast_quarter = 32
+let asym_fast_high = "    sub t, 7 side 0\n"
+
 let standard_and_fast =
   List.map
-    [ "i2c_standard", 3, standard_quarter; "i2c_fast", 2, fast_quarter ]
-    ~f:(fun (name, quarters, quarter) ->
+    [ "i2c_standard", 3, standard_quarter, None, None, 0
+    ; "i2c_fast", 2, fast_quarter, None, None, 0
+    ; "i2c_standard_asym", 3, asym_standard_quarter, None, Some asym_standard_low, -27
+    ; "i2c_fast_asym", 2, asym_fast_quarter, Some asym_fast_high, None, -7
+    ]
+    ~f:(fun (name, quarters, quarter, high, low, trim) ->
       let word = word in
       let words =
         [ quarter
@@ -780,11 +797,12 @@ let standard_and_fast =
       ; what =
           [%string
             "I2c.master_host_rate_held ~quarters:%{quarters#Int}: the host sends the \
-             quarter, %{quarter#Int} cycles for %{Bench.rate (4 * quarter)}, SCL on IO2, \
-             SDA on IO3"]
-      ; source = master_host_rate_held ~quarters ()
+             quarter, %{quarter#Int} cycles for %{Bench.rate ((4 * quarter) + trim)}, \
+             SCL on IO2, SDA on IO3"]
+      ; source = master_host_rate_held ?high ?low ~quarters ()
       ; config = on_bench_pins ~jmp_pin:Bench.sda config
-      ; assumption = Floor 31
+      ; assumption =
+          (if Option.is_some high || Option.is_some low then Period quarter else Floor 31)
       ; clock_hz = Bench.clock_hz
       ; load = Some quarter
       ; stimulus = Some { bursts = [ words ]; quiet = 0; cycles = 100 * 4 * quarter }
@@ -906,6 +924,19 @@ let protocol =
           "i2c_master_fast"
           (master_host_rate_held ~quarters:2 ())
           config
+        (* and as near 100 and 400 kHz as the datasheet rows allow *)
+      ; Certified.plain
+          ~period:asym_standard_quarter
+          ~no_wrap:true
+          "i2c_master_standard_asym"
+          (master_host_rate_held ~low:asym_standard_low ~quarters:3 ())
+          config
+      ; Certified.plain
+          ~period:asym_fast_quarter
+          ~no_wrap:true
+          "i2c_master_fast_asym"
+          (master_host_rate_held ~high:asym_fast_high ~quarters:2 ())
+          config
         (* each as both_roles.ml runs it on wires *)
       ; Certified.plain
           ~period:standard_quarter
@@ -924,6 +955,8 @@ let protocol =
       @ limits "i2c_master_stretch"
       @ um10204 Standard "i2c_standard"
       @ um10204 Fast "i2c_fast"
+      @ um10204 Standard "i2c_standard_asym"
+      @ um10204 Fast "i2c_fast_asym"
   ; unlimited = [ "start_hold", "it drives no pin: it listens to Pico B's I2C" ]
   ; swept = []
   ; not_swept =
@@ -934,6 +967,10 @@ let protocol =
       ; ( "i2c_master_standard"
         , "open drain, which a wire does not show, and a slave has to acknowledge" )
       ; ( "i2c_master_fast"
+        , "open drain, which a wire does not show, and a slave has to acknowledge" )
+      ; ( "i2c_master_standard_asym"
+        , "open drain, which a wire does not show, and a slave has to acknowledge" )
+      ; ( "i2c_master_fast_asym"
         , "open drain, which a wire does not show, and a slave has to acknowledge" )
       ; ( "i2c_controller_wire"
         , "on two wires already, and both_roles.ml's target acknowledges" )

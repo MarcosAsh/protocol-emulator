@@ -11,7 +11,7 @@
 # new-protocol and the formal targets write through demo/speed.py.
 # Before the agent, demo/extract.py reads the spec's limits twice, blind: a disagreement stops
 # the run with "limit disputed, SPEC p.N" (exit 3) and keeps both readings in disputed.tsv.
-# Once a person has ruled on them (demo/extract.py rule), --limits that run directory goes on.
+# Once a person has ruled on them (demo/extract.py rule), pass --limits with that run directory.
 # Usage: demo/intake.sh [--dry-run] [--limits-only] [--limits RUN] [--budget USD] [--model M] [--out DIR] SPEC NAME
 #        demo/intake.sh --scan TRANSCRIPT   clean, or touched (exit 1) if a tool input names the held-out list
 #   --dry-run  makes the worktree and run directory and prints the claude commands, then removes the worktree

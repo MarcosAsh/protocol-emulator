@@ -60,5 +60,4 @@ type t =
   }
 [@@deriving sexp_of]
 
-val of_value : Value.t -> t Or_error.t
 val parse : string -> t Or_error.t

@@ -1,15 +1,13 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
-# Runs COMMAND, then captures the fx2lafw analyser for MS milliseconds, again until the
-# analyser sends every sample: on this bench it often stops early, and the last try is
-# kept, which is still whole up to where it stopped. COMMAND should return
-# at once and start its traffic after a pause, and the analyser is left alone meanwhile.
-# With two analysers plugged in, ANALYSER=A or B picks one by the USB port it is on,
-# ANALYSER_A_PORT and ANALYSER_B_PORT as /sys/bus/usb/devices names it, the carrier's
-# 3-4 and 3-3.1.3.3 unless set; DEVICE, when set, picks it instead, DEVICE=fx2lafw:conn=1.7, the bus and address `sigrok-cli --scan` prints.
-# TRIES caps the attempts, 8 unless set. The samples go out raw and are packed after:
-# srzip's compression runs in sigrok-cli's USB loop, which then falls behind and the
-# analyser stops early.
+# Runs COMMAND, then captures the fx2lafw analyser for MS milliseconds, again until it sends
+# every sample. It often stops early here, so the last try is kept, whole up to where it
+# stopped. COMMAND should return at once and start its traffic after a pause.
+# With two analysers, ANALYSER=A or B picks one by USB port, ANALYSER_A_PORT and
+# ANALYSER_B_PORT as /sys/bus/usb/devices names, the carrier's 3-4 and 3-3.1.3.3 unless set.
+# DEVICE picks it instead, e.g. fx2lafw:conn=1.7 as `sigrok-cli --scan` prints.
+# TRIES caps the attempts, 8 unless set. Samples go out raw and are packed after, as srzip's
+# compression in sigrok-cli's USB loop makes the analyser stop early.
 # Usage: [ANALYSER=A|B] demo/capture.sh OUT.sr MS [COMMAND...]
 #   ANALYSER=B demo/capture.sh pico.sr 5000 mpremote connect id:e66548545740ad29 run --no-follow demo/pico_uart.py
 set -e

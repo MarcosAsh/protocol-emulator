@@ -1,11 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 # The receiver's tolerance, measured (MicroPython, Pico A): engine 1 sends the same bytes
-# back to back from one anchor at each rate tolerance_firmware.py lists, in steps of
-# 2^-16 of a cycle a bit through its period fraction, and engine 0's uart_rx_host_rate
-# takes them off a wire no pin shows. Each step is held to what the model predicts; the
-# first failure either side should fall just past the bound the certificate gives. Just
-# past the fast bound the start edge beats the arm and the receiver faults
-# missed_deadline, which holds until reset: of those steps only the nearest runs, last.
+# back to back from one anchor at each rate tolerance_firmware.py lists, in steps of 2^-16
+# of a cycle a bit, to engine 0's uart_rx_host_rate on a wire no pin shows. Each step is
+# held to what the model predicts. Just past the fast bound the receiver faults
+# missed_deadline, which holds until reset, so only the nearest such step runs, last.
 # demo/tolerance.sh runs it.
 
 import gc

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# libsigrokdecode's face on timing.py. It reads SCL and SDA itself, not the i2c decoder's
-# output, since the timing is between raw edges. Run beside -P i2c to see the bytes.
+# libsigrokdecode's face on timing.py. Reads SCL and SDA itself, since timing is between raw
+# edges. Run beside -P i2c to see the bytes.
 
 import sigrokdecode as srd
 

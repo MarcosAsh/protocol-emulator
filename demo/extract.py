@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
-# The intake's double extraction: two headless agents read the spec's timing limits blind
-# (each confined to its own copy of the spec, neither sees the other's) and their tables are
-# compared field by field. Any disagreement stops the intake with "limit disputed, DOC p.N" and
-# keeps both readings in disputed.tsv; a person who reads the page may fill its ruling column
-# and settle the run with rule. Writes limits.tsv (agreed), disputed.tsv, ruled.tsv and
-# agreement.txt in RUN_DIR and a row of agreement.tsv beside it. Exit 0 agreed, 3 disputed.
+# The intake's double extraction: two headless agents read the spec's timing limits blind,
+# each confined to its own copy of the spec, and their tables are compared field by field. A
+# row one reader alone wrote with typical values only is kept, marked, as it bounds nothing.
+# Any other disagreement stops the intake with "limit disputed, DOC p.N" and keeps both
+# readings in disputed.tsv, where a person fills the ruling column and settles it with rule.
+# Writes limits.tsv, disputed.tsv, ruled.tsv and agreement.txt in RUN_DIR and a row of
+# agreement.tsv beside it. Exit 0 agreed, 3 disputed.
 # Usage: python3 demo/extract.py run RUN_DIR DOC [--budget USD] [--model M] [--dry-run]
 #        python3 demo/extract.py rule RUN_DIR DOC RULINGS   RULINGS: disputed.tsv, ruled
 import argparse
@@ -39,6 +40,8 @@ UNITS = {
 ABSENT = "(no row)"
 # a ruling that a field is blank, as an empty ruling cell is no ruling
 EMPTY = "(empty)"
+# the condition's mark on a row one reader alone wrote, with typical values only
+ONE_READER = "(one reader, typical only)"
 
 
 def squash(text):
@@ -137,7 +140,9 @@ def parse(text):
     """A reading's document line and rows, from the agent's text between BEGIN LIMITS and END
     LIMITS (or a whole table file)."""
     lines = text.splitlines()
-    if any(line.strip() == "BEGIN LIMITS" for line in lines):
+    # a reader's table may hold no rows, the spec bounding nothing; a bare table file may not
+    marked = any(line.strip() == "BEGIN LIMITS" for line in lines)
+    if marked:
         start = next(i for i, line in enumerate(lines) if line.strip() == "BEGIN LIMITS")
         end = next((i for i in range(start, len(lines)) if lines[i].strip() == "END LIMITS"),
                    None)
@@ -158,7 +163,7 @@ def parse(text):
             rows.append(dict(zip(COLUMNS, cells[:len(COLUMNS)])))
     if document is None:
         raise ValueError("no document line")
-    if not rows:
+    if not rows and not marked:
         raise ValueError("no limit rows")
     return {"document": document, "rows": rows}
 
@@ -245,7 +250,7 @@ def compare(a, b, ruled=None):
     """Every compared field's agreement, the disputes with both readings, the fields settled by
     [ruled] (a person's rulings), and the agreed rows."""
     ruled = ruled or {}
-    disputes, settled, agreed, compared, rows = [], [], 0, 0, []
+    disputes, settled, agreed, compared, rows, typical = [], [], 0, 0, [], 0
     for field in DOCUMENT_FIELDS:
         compared += 1
         if same(field, a["document"], b["document"]):
@@ -262,6 +267,15 @@ def compare(a, b, ruled=None):
         either = row_a or row_b
         pages = sorted({page(r["page"]) or 0 for r in (row_a, row_b) if r})
         row, open_fields = dict(either), []
+        # bounds nothing whoever is right, so kept as a marked typical, not put to a ruling
+        if (not (row_a and row_b)
+                and not any(value(either[f], either["unit"]) for f in ("min", "max"))
+                and not any(ruling_key(either, f) in ruled for f in FIELDS)):
+            compared += len(FIELDS)
+            typical += 1
+            row["condition"] = (row["condition"] + " " + ONE_READER).strip()
+            rows.append(row)
+            continue
         if row_a and row_b and condition_key(row_a) != condition_key(row_b):
             row["condition"] = row_a["condition"] + " | " + row_b["condition"]
         for field in FIELDS:
@@ -286,7 +300,7 @@ def compare(a, b, ruled=None):
     disputes.sort(key=lambda d: (d["pages"], d["symbol"], d["condition"],
                                  FIELDS.index(d["field"]) if d["field"] in FIELDS else -1))
     return {"disputes": disputes, "settled": settled, "agreed": agreed, "compared": compared,
-            "rows": rows}
+            "rows": rows, "typical": typical}
 
 
 def verdict(doc, result):
@@ -294,7 +308,9 @@ def verdict(doc, result):
         pages = result["disputes"][0]["pages"]
         return "limit disputed, %s p.%s" % (doc, "/".join(str(p) for p in pages))
     ruled = ", %d fields ruled by hand" % len(result["settled"]) if result["settled"] else ""
-    return "limits agreed, %d rows%s" % (len(result["rows"]), ruled)
+    typical = (", %d of them typical only from one reader" % result["typical"]
+               if result["typical"] else "")
+    return "limits agreed, %d rows%s%s" % (len(result["rows"]), typical, ruled)
 
 
 def agreement(result):

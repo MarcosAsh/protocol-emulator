@@ -1,14 +1,14 @@
 {
   "demo": "sweep_spi_mode0",
-  "time": "2026-10-22T17:19:40",
+  "time": "2026-10-30T16:49:57",
   "result": "PASS",
-  "commit": "1c7053f7772743e2f4ec0db47547095236772985+dirty",
+  "commit": "b5c0748c56eea8ab598d269fd6da6bef709d06eb",
   "bitstream_sha256": "ded0014fdf14df568ed478e5f6e36d1d91475ba62bae300e101c1b229c1f963f",
-  "netlist_sha256": "685d03a18ca12fd44a680074e6810a1b703c073ad946dfd3fb5b50507d1c3111",
-  "sums_sha256": "a94953683a0b8f919a33623f753dc6b6b2471f0aa7c64ad0de1f5d786a4d88e3",
+  "netlist_sha256": "1db23ccd02406ef95731f3ffd7de23fbfa9a66a0410741d78cbcb04edc717f5f",
+  "sums_sha256": "9963b9c8147b56f71363e6015f4b6e2b1fdc1616db262c843a90966e44f93135",
   "capture": {
     "file": "spi_mode0.sr",
-    "sha256": "dcdbb4b1841a5e6bc1028dc2205ff53175627da1135befaf03be2846800d1f22",
+    "sha256": "ee1b9a17862fabbff3baa59356be57efeebea15909be5abb2b4a4284f0050e1e",
     "rate_hz": 24000000,
     "seconds": 2.5,
     "analyser": "B",
@@ -29,7 +29,7 @@
       "limit": ">= 9 ns",
       "sheet": "W25Q64JV, Winbond Rev. M p.64",
       "spans": 40,
-      "measured": "125 ns to 208 ns",
+      "measured": "125 ns to 250 ns",
       "verdict": "proved"
     },
     {
@@ -37,7 +37,7 @@
       "limit": ">= 9 ns",
       "sheet": "W25Q64JV, Winbond Rev. M p.64",
       "spans": 38,
-      "measured": "125 ns to 792 ns",
+      "measured": "83 ns to 750 ns",
       "verdict": "proved"
     },
     {
@@ -53,7 +53,7 @@
       "limit": ">= 3 ns",
       "sheet": "W25Q64JV, Winbond Rev. M p.64",
       "spans": 2,
-      "measured": "292 ns to 375 ns",
+      "measured": "250 ns to 375 ns",
       "verdict": "proved"
     },
     {
@@ -61,7 +61,7 @@
       "limit": ">= 50 ns",
       "sheet": "W25Q64JV, Winbond Rev. M p.64",
       "spans": 1,
-      "measured": "2138703 ns to 2139214 ns",
+      "measured": "2599323 ns to 2599927 ns",
       "verdict": "proved"
     },
     {
@@ -69,7 +69,7 @@
       "limit": ">= 3000 ns",
       "sheet": "W25Q64JV, Winbond Rev. M p.65",
       "spans": 1,
-      "measured": "2138703 ns to 2139214 ns",
+      "measured": "2599323 ns to 2599927 ns",
       "verdict": "proved"
     }
   ],
@@ -92,7 +92,6 @@
     "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
     "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
     "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
-    "the bitstream is named by its sha256, and its netlist's, built from main c6a2f802 (seed 2) by the bench's notes, which CI does not rebuild",
-    "the run's tree had uncommitted changes, so its firmware and scripts are hashed at the commit under them"
+    "the bitstream is named by its sha256, and its netlist's, built from main c6a2f802 (seed 2) by the bench's notes, which CI does not rebuild"
   ]
 }

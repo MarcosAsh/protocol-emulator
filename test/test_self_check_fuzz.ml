@@ -24,9 +24,8 @@ let show ?(rtl = false) name (c : Case.t) =
 
 let four = [| 500; 1000; 1500; 2000 |]
 
-(* The old checker took the capture it read after each check as the next stamp, so a fall
-   just after a check that moved nothing, of a low pulse of any width, went unseen; so did
-   a high pulse's fall just before a check. The stamp is now the edge's own cycle. *)
+(* A fall just after a check that moved nothing, of a low pulse of any width, is seen, as
+   is a high pulse's fall just before a check: the stamp is the edge's own cycle. *)
 let%expect_test "a fall just after or just before a check" =
   let e = 100 + 1000 in
   show
@@ -70,9 +69,8 @@ let%expect_test "a fall just after or just before a check" =
     |}]
 ;;
 
-(* The old checker armed the capture after the least and looked at the line again only
-   about 22 cycles later, and a next frame starting in that span was anchored late. The
-   checker now waits for the next frame from the least itself. *)
+(* A next frame starting within about 22 cycles of the least is anchored on time: the
+   checker waits for it from the least itself. *)
 let%expect_test "the span between a frame's least and the next frame" =
   let edges = [| 300; 600 |] in
   let levels = [| 0; 1 |] in
@@ -120,10 +118,9 @@ let%expect_test "the span between a frame's least and the next frame" =
     |}]
 ;;
 
-(* A glitch after the old checker's last check disarmed the capture, and the next frame
-   was anchored on the glitch's stamp; a deadline it then missed raised no irq. The anchor
-   is now the fall the wait releases on, checked against the capture, and the kernel
-   proves no deadline is missed from any anchor. *)
+(* A glitch after the last check does not disarm the capture. The anchor is the fall the
+   wait releases on, checked against the capture, and the kernel proves no deadline is
+   missed from any anchor. *)
 let%expect_test "a glitch after the least" =
   let edges = [| 40; 300; 600 |] in
   let levels = [| 0; 1; 1 |] in
@@ -169,8 +166,7 @@ let%expect_test "a glitch after the least" =
     |}]
 ;;
 
-(* The old checker raised a false alarm on back to back frames whose first check was the
-   least its rows took. *)
+(* Back to back frames whose first check is the least its rows took raise no false alarm. *)
 let%expect_test "back to back frames at the least first edge" =
   show "first 32, back to back" (Case.frames [| 32; 61; 90 |] [| 0; 1; 1 |] ~idle:[ 0 ]);
   let alarms =
@@ -269,10 +265,8 @@ let%expect_test "the first frame" =
     |}]
 ;;
 
-(* A fall in the first cycle the checker reads took the capture, and the old checker
-   restarted on its stale stamp in the middle of the next frame. The stale stamp now
-   stands for the first frame's, blind to a fall 2^16 cycles on; a cycle either side is
-   caught. *)
+(* A fall in the first cycle the checker reads takes the capture. The stale stamp stands
+   for the first frame's, blind to a fall 2^16 cycles on; a cycle either side is caught. *)
 let%expect_test "a fall before the line is first high" =
   let stale = [ Case.Pulse { at = watch_from; width = 1 } ] in
   show

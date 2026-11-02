@@ -3,7 +3,7 @@ open Hardcaml
 open Protocol_emulator
 open Protocol_emulator_test
 
-(* Act 2's sweep: every library firmware engine 1 can stamp, its watched output moved to
+(* The sweep demo: every library firmware engine 1 can stamp, its watched output moved to
    wire 20 and its other outputs beside it, with a stimulus and, for every edge from its
    frame's first, the cycle the model of both engines gives and the interval the kernel's
    rows allow along the model's path. Each is checked at the period it runs at, as the
@@ -11,12 +11,11 @@ open Protocol_emulator_test
 
 let wire = Swept.wire
 
-(* The most cycles the host may take from one poll to the next: 150 us at 48 MHz, about
-   twice the Pico's drain. A burst of more edges than engine 1's fifo holds must take
-   twice this over every [fifo_depth + 1] of them. *)
+(* The most cycles between host polls: 150 us at 48 MHz, about twice the Pico's drain. A
+   burst longer than engine 1's fifo takes twice this per [fifo_depth + 1] edges. *)
 let poll = 7200
 
-(* act 2's logger, which echoes the wire on OUT0 for the analyser *)
+(* the sweep demo's logger, which echoes the wire on OUT0 for the analyser *)
 let logger_config = { Program_config.default with jmp_pin = wire; autopush = true }
 let logger_words = In_channel.read_all "../edge_logger_echo.asm" |> Firmware.assemble
 
@@ -61,7 +60,6 @@ let simulate ~config ~words ~preamble ~bursts =
     | Op { op = Mov { dest = T; _ }; _ } | Op { op = Out { dest = T; _ }; _ } -> true
     | _ -> false
   in
-  (* the host starts the logger first, so it is waiting by engine 0's first edge *)
   let logger =
     Fn.apply_n_times
       ~n:16
@@ -92,7 +90,6 @@ let simulate ~config ~words ~preamble ~bursts =
       first := false;
       since_edge := 0);
     if issued && anchors before.pc then first := true;
-    (* the host takes every stamp *)
     let rec drain (m : Machine.t) =
       match Machine.read_rx m with
       | Some (stamp, m) ->
@@ -221,7 +218,6 @@ let fields config =
   |> Engine.Config.to_list
 ;;
 
-(* items, a comma after each, wrapped at 88 columns *)
 let print_items indent items =
   let flush line = if not (String.is_empty line) then printf "%s%s\n" indent line in
   List.fold items ~init:"" ~f:(fun line item ->
@@ -239,7 +235,6 @@ let print_items indent items =
 let hex = List.map ~f:(sprintf "0x%04X")
 let inline items = "[" ^ String.concat ~sep:", " items ^ "]"
 
-(* the fields where [config] is not [Program_config.default], as a dict *)
 let print_changes indent config =
   let changes =
     List.filter_map
@@ -363,7 +358,7 @@ let () =
       then raise_s [%message "neither swept nor said why not" name]);
   print_string
     "# Written by test/python/write_sweep_firmware.ml; `dune promote` after a change.\n\
-     # Act 2's sweep: each firmware of test/library.ml that engine 1 can stamp on wire\n\
+     # The sweep demo: each firmware of test/library.ml that engine 1 can stamp on wire\n\
      # 20, as a config's changes from DEFAULTS, words, the words that park its pins low\n\
      # first, and a stimulus. Each edge is its cycles from its frame's first: an int\n\
      # where the kernel's rows along the model's path allow that cycle alone, else (the\n\

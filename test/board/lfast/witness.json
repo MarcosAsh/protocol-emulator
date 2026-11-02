@@ -1,0 +1,119 @@
+{
+  "demo": "lfast",
+  "time": "2026-10-30T14:19:56",
+  "result": "PASS",
+  "commit": "3c6961ce32db4a42c11026355ae933ef60367226",
+  "bitstream_sha256": "ded0014fdf14df568ed478e5f6e36d1d91475ba62bae300e101c1b229c1f963f",
+  "netlist_sha256": "1db23ccd02406ef95731f3ffd7de23fbfa9a66a0410741d78cbcb04edc717f5f",
+  "sums_sha256": "f53d07e772c245c3963008fdbb153db9be4d52b7097a2fd7647af9e31e139063",
+  "capture": {
+    "file": "lfast.sr",
+    "sha256": "3af79a41e517da19168c0bfdcd210299865335fe4d8a990d56963c17227cb876",
+    "rate_hz": 24000000,
+    "seconds": 2.0,
+    "analyser": "A",
+    "channels": {
+      "D4": "OUT0"
+    }
+  },
+  "decode": {
+    "arguments": "-P lfast:data=D4 -A lfast=sync:header_pl_size:header_ch_type:header_cts:payload:sleep",
+    "sha256": "24d4534c626c458d1b6a51928d1c55acdaf7d22fda008170a29fe5f32f1b34c2"
+  },
+  "timing": [
+    {
+      "parameter": "1-bit level",
+      "limit": ">= 104 ns",
+      "sheet": "10 cycles at 48 MHz, the firmware's bit, to half a bit: past it sigrok's lfast counts another (NXP AN5134 gives no least or most for it)",
+      "spans": 28,
+      "measured": "167 ns to 250 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "2-bit level",
+      "limit": ">= 312 ns",
+      "sheet": "10 cycles at 48 MHz, the firmware's bit, to half a bit: past it sigrok's lfast counts another (NXP AN5134 gives no least or most for it)",
+      "spans": 8,
+      "measured": "375 ns to 458 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "3-bit level",
+      "limit": ">= 521 ns",
+      "sheet": "10 cycles at 48 MHz, the firmware's bit, to half a bit: past it sigrok's lfast counts another (NXP AN5134 gives no least or most for it)",
+      "spans": 2,
+      "measured": "583 ns to 667 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "4-bit level",
+      "limit": ">= 729 ns",
+      "sheet": "10 cycles at 48 MHz, the firmware's bit, to half a bit: past it sigrok's lfast counts another (NXP AN5134 gives no least or most for it)",
+      "spans": 4,
+      "measured": "792 ns to 875 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "1-bit level",
+      "limit": "<= 312 ns",
+      "sheet": "10 cycles at 48 MHz, the firmware's bit, to half a bit: past it sigrok's lfast counts another (NXP AN5134 gives no least or most for it)",
+      "spans": 28,
+      "measured": "167 ns to 250 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "2-bit level",
+      "limit": "<= 521 ns",
+      "sheet": "10 cycles at 48 MHz, the firmware's bit, to half a bit: past it sigrok's lfast counts another (NXP AN5134 gives no least or most for it)",
+      "spans": 8,
+      "measured": "375 ns to 458 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "3-bit level",
+      "limit": "<= 729 ns",
+      "sheet": "10 cycles at 48 MHz, the firmware's bit, to half a bit: past it sigrok's lfast counts another (NXP AN5134 gives no least or most for it)",
+      "spans": 2,
+      "measured": "583 ns to 667 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "4-bit level",
+      "limit": "<= 938 ns",
+      "sheet": "10 cycles at 48 MHz, the firmware's bit, to half a bit: past it sigrok's lfast counts another (NXP AN5134 gives no least or most for it)",
+      "spans": 4,
+      "measured": "792 ns to 875 ns",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "a level",
+      "limit": ">= 3 ns",
+      "sheet": "NXP AN5134 Rev. 0, p.3: rates up to 320 Mb/s",
+      "spans": 42,
+      "measured": "167 ns to 875 ns",
+      "verdict": "proved"
+    }
+  ],
+  "teeth": [
+    "the first payload's first bit inverted",
+    "the first sync bit 1.8 bits long"
+  ],
+  "bitstream_source": "main cb872768 by icepi/Makefile REV=v1.3 (seed 2, 49.47 MHz), the pc's pe-bench run 2026-10-30-0904; its Verilog is a5566412's",
+  "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
+  "firmware": {
+    "LFAST": "c7286adbf8ff569aca336346f5fd4099c56395e60f7d6014405f08d7874ec359"
+  },
+  "host_scripts": {
+    "python/demo_lfast.py": "1762ac2bedb9974ec828846141b13b7d886c32a5b2b282e035a0286c0af8b799"
+  },
+  "bench": "an Icepi Zero (ECP5 LFE5U-25F) running the chip at 48 MHz on bench carrier v1.2, Pico A as the host on SPI, nothing, Pico B idle on OUT0, analyser A (fx2lafw) at 24 MS/s",
+  "scope": "the bytes on the wire and their timing in one run of lfast, as the analyser saw them",
+  "limits": [
+    "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
+    "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
+    "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
+    "the bitstream is named by its sha256, and its netlist's, built from main cb872768 by icepi/Makefile REV=v1.3 (seed 2, 49.47 MHz), the pc's pe-bench run 2026-10-30-0904; its Verilog is a5566412's by the bench's notes, which CI does not rebuild",
+    "drawn at random and written blind from its spec (docs/flexibility.md)",
+    "AN5134's one limit is a top rate, so the bit windows are the firmware's own bit to half a bit"
+  ]
+}

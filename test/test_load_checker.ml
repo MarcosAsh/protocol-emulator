@@ -261,9 +261,11 @@ let%expect_test "the checker agrees with the model on every firmware" =
     i2c_logger                    9154  accepted
     i2c_master_standard          10208  accepted
     i2c_master_fast              10193  accepted
+    i2c_master_standard_asym     10232  accepted
+    i2c_master_fast_asym         10205  accepted
     i2c_controller_wire           9781  accepted
     i2c_target_wire               9299  accepted
-    usb_tx                       10631  accepted
+    usb_tx                       10637  accepted
     usb_rx                       11225  accepted
     usb_device                   30545  accepted
     edge_meter                    8314  accepted
@@ -285,10 +287,10 @@ let%expect_test "the checker agrees with the model on every firmware" =
     spi_cs_mode1_default_pins     8698  accepted
     spi_cs_mode2_default_pins     8698  accepted
     spi_cs_mode3_default_pins     8698  accepted
-    spi_target_mode0              8987  accepted
-    spi_target_mode1              8972  accepted
-    spi_target_mode2              8987  accepted
-    spi_target_mode3              8972  accepted
+    spi_target_mode0              9256  accepted
+    spi_target_mode1              8949  accepted
+    spi_target_mode2              9422  accepted
+    spi_target_mode3              9058  accepted
     spi_target_fast_mode0         8799  accepted
     spi_target_fast_mode1         8802  accepted
     spi_target_fast_mode2         8802  accepted
@@ -305,6 +307,7 @@ let%expect_test "the checker agrees with the model on every firmware" =
     caliper                      10185  accepted
     xy2_100                       8719  accepted
     lfast                         8572  accepted
+    tdm_audio                    11034  accepted
     asm/blink                     8251  accepted
     asm/crc_send                  8377  accepted
     asm/data_stream               8254  accepted
@@ -333,6 +336,8 @@ let%expect_test "the checker agrees with the model on every firmware" =
     bench/start_hold              8192  accepted
     bench/i2c_standard           10208  accepted
     bench/i2c_fast               10193  accepted
+    bench/i2c_standard_asym      10232  accepted
+    bench/i2c_fast_asym          10205  accepted
     bench/sk6812                  9311  accepted
     bench/ethernet                9162  accepted
     bench/one_wire                9361  accepted
@@ -354,6 +359,7 @@ let%expect_test "the checker agrees with the model on every firmware" =
     bench/caliper                10185  accepted
     bench/xy2_100                 8719  accepted
     bench/lfast                   8572  accepted
+    bench/tdm_audio              11034  accepted
     |}]
 ;;
 

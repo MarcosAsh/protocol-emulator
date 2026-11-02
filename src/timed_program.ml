@@ -36,8 +36,7 @@ let cycles n = [%string "%{n#Int} %{if n = 1 then \"cycle\" else \"cycles\"}"]
 (* For a deadline wait that is the only wait in the innermost loop round it, a [jmp] or
    [jmp x--] back over a straight run: the cycles a pass takes and what it adds to [t].
    Once late the wait does not stall, so a pass that takes more than it adds leaves it
-   that much later each time round. A [jmp x--] reached with x zero never jumps back, so
-   closes no loop. *)
+   that much later each time round. *)
 let late_pass ~(config : Program_config.t) (rows : Analyser.Row.t list) ~pc =
   let open Option.Let_syntax in
   let known (i : Interval.t) =
@@ -166,6 +165,17 @@ let check ?period ?period_floor ?single_capture_edge ~config source =
     { Fault.line = Option.value line ~default:1; pc = Some pc; reason }
   in
   let configured = Asm.Program.configure program config in
+  (* what the chip's registers would hold truncated, as [Machine.create] refuses it *)
+  let%bind () =
+    Or_error.combine_errors_unit
+      (Program_config.validate configured
+       :: List.filter_map
+            [ "period", period; "period_floor", period_floor ]
+            ~f:(fun (name, load) ->
+              Option.map load ~f:(fun load ->
+                Isa.in_range name load ~lo:0 ~hi:((1 lsl Isa.data_bits) - 1))))
+    |> Result.map_error ~f:(fun error -> { Refusal.faults = []; verdict = None; error })
+  in
   let rows =
     Analyser.analyse
       ?period

@@ -25,8 +25,16 @@ val master_host_rate_without_bus_clear : string
 (** [master_host_rate] with each START held, and each repeated START and STOP set up,
     [quarters] quarter periods where it has one, as UM10204's tHD;STA, tSU;STA and tSU;STO
     need at its clock: Standard-mode 3, Fast-mode 2. Without [clear_bus] it starts at
-    [idle]. *)
-val master_host_rate_held : ?clear_bus:bool -> quarters:int -> unit -> string
+    [idle]. [high] and [low] are instructions, each ending in a newline and carrying the
+    side-set of its level, run after every data bit's or ack's SCL going high, or going
+    low before a bit or ack, to cut the high or the low short: [sub t] by 7 at most. *)
+val master_host_rate_held
+  :  ?clear_bus:bool
+  -> ?high:string
+  -> ?low:string
+  -> quarters:int
+  -> unit
+  -> string
 
 val config : Program_config.t
 

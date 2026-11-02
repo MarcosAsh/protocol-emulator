@@ -1,10 +1,9 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
-# One protocol on the bench: Pico A plays a trace's host frames into the chip while
-# ANALYSER (A unless set) captures for MS milliseconds, then sigrok's decoders judge the
-# capture against the trace. Needs a trace at the bench's 48 MHz whose pins the analyser
-# has: uart_tx, can, ws2812 and swd on A, the spi_mode traces on B, others with --probe and
-# whatever their peer is.
+# One protocol on the bench: Pico A plays a trace's host frames into the chip while ANALYSER
+# (A unless set) captures for MS milliseconds, then sigrok's decoders judge the capture
+# against the trace. Needs a trace at 48 MHz whose pins the analyser has: uart_tx, can, ws2812
+# and swd on A, the spi_mode traces on B, others with --probe and their peer.
 # Usage: PICO=id:<serial of Pico A> [ANALYSER=A|B] demo/bench_decode.sh TRACE [--probe PIN=Dn...]
 #   PICO=id:e66548545717552e demo/bench_decode.sh test/traces/sigrok/can.trace
 set -e

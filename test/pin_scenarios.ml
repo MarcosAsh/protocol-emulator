@@ -48,4 +48,4 @@ let fifo_poll =
   }
 ;;
 
-let all = Library.scenarios @ [ wrapped_loop; fifo_poll ]
+let all = Library.scenarios @ [ wrapped_loop; fifo_poll; Bridge.scenario ]

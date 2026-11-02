@@ -1,5 +1,5 @@
 # Written by test/python/write_sweep_firmware.ml; `dune promote` after a change.
-# Act 2's sweep: each firmware of test/library.ml that engine 1 can stamp on wire
+# The sweep demo: each firmware of test/library.ml that engine 1 can stamp on wire
 # 20, as a config's changes from DEFAULTS, words, the words that park its pins low
 # first, and a stimulus. Each edge is its cycles from its frame's first: an int
 # where the kernel's rows along the model's path allow that cycle alone, else (the
@@ -331,6 +331,8 @@ NOT_SWEPT = [
     ("i2c_logger", "an I2C master: open drain, and a slave has to answer"),
     ("i2c_master_standard", "open drain, which a wire does not show, and a slave has to acknowledge"),
     ("i2c_master_fast", "open drain, which a wire does not show, and a slave has to acknowledge"),
+    ("i2c_master_standard_asym", "open drain, which a wire does not show, and a slave has to acknowledge"),
+    ("i2c_master_fast_asym", "open drain, which a wire does not show, and a slave has to acknowledge"),
     ("i2c_controller_wire", "on two wires already, and both_roles.ml's target acknowledges"),
     ("i2c_target_wire", "a target: the controller's clock moves it"),
     ("usb_tx", "certified at 32 cycles a bit only, where 9 edges come in 256: the fifo holds 8"),
@@ -372,6 +374,7 @@ NOT_SWEPT = [
     ("caliper", "the data moves 3 cycles after each clock rise: the sweep's edge logger cannot follow edges so close"),
     ("xy2_100", "SENDCK edges 12 cycles apart without a break: the fifo holds 8"),
     ("lfast", "a fixed-length frame with no field to carry a cycle stamp"),
+    ("tdm_audio", "a fixed 256-bit frame with no field to carry a cycle stamp"),
     ("uart_tx_stream", "time-triggered: it underflows, a sticky fault, once the host stops"),
     ("spi_master_stream", "time-triggered: it underflows, a sticky fault, once the host stops"),
     ("uart_tx_stamped", "26 bits 8 cycles apart, and the chip's clock in them, which the model cannot know"),

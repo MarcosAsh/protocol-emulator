@@ -90,13 +90,16 @@ let certified = [ Certified.of_firmware "xy2_100" firmware ]
 
 (* the copy python/bench_firmware.py holds for the bench: two setpoints in a run of two
    frames' time *)
+(* The bench's OUT1 reaches no analyser channel, so all three go to analyser B: SENDCK and
+   SYNC on OUT3 and OUT4, DATA on OUT6. OUT5, the flash's clock, stays still, so the flash
+   takes none of it for a command. *)
 let bench =
   { Bench.name = "xy2_100"
   ; what =
-      "Xy2_100.firmware: SENDCK at 2 MHz on OUT0, SYNC on OUT1 and DATA on OUT2, a \
+      "Xy2_100.firmware: SENDCK at 2 MHz on OUT3, SYNC on OUT4 and DATA on OUT6, a \
        20-bit word every 10 us"
   ; source = Timed_program.source firmware
-  ; config
+  ; config = { config with side_set_base = Bench.neopixel; out_base = 11; set_base = 11 }
   ; assumption = Nothing
   ; clock_hz = Bench.clock_hz
   ; load = None
@@ -137,9 +140,8 @@ let limits =
   ]
 ;;
 
-(* The decoder emits a frame at the SENDCK rise after its last bit and has no timeout, so
-   a frame is read once a next one begins: the last setpoint goes out again and is read
-   twice. The positions are signed. *)
+(* The decoder has no timeout, so a frame is read once a next one begins: the last
+   setpoint goes out again and is read twice. The positions are signed. *)
 let setpoints = [ 0x8000, -32768; 0x0000, 0; 0xffff, -1; 0x1234, 4660 ]
 let read = setpoints @ [ List.last_exn setpoints ]
 

@@ -134,7 +134,6 @@ let%expect_test "the fifo matches a queue" =
     |}]
 ;;
 
-(* Fill it, pop and push together when full, push when full, then flush with a push. *)
 let%expect_test "waveform of the corners at full and flush" =
   let display_rules =
     [ "push$valid"; "push$value"; "pop"; "flush"; "head"; "level"; "empty"; "full" ]

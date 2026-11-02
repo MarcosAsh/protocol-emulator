@@ -1,0 +1,10 @@
+modbus-1: Slave ID: 1
+modbus-1: Function 3: Read Holding Registers
+modbus-1: Start at address 0x301 / 30770
+modbus-1: Read 2 units of data
+modbus-1: CRC correct
+modbus-1: Slave ID: 1
+modbus-1: Function 3: Read Holding Registers
+modbus-1: Start at address 0x301 / 30770
+modbus-1: Read 2 units of data
+modbus-1: CRC correct

@@ -1,14 +1,14 @@
 {
   "demo": "can",
-  "time": "2026-10-22T17:28:20",
+  "time": "2026-10-30T16:26:06",
   "result": "PASS",
-  "commit": "c6a2f802fc0dbf7162d28b9ba271ae4d456fc013",
+  "commit": "b5c0748c56eea8ab598d269fd6da6bef709d06eb",
   "bitstream_sha256": "ded0014fdf14df568ed478e5f6e36d1d91475ba62bae300e101c1b229c1f963f",
-  "netlist_sha256": "685d03a18ca12fd44a680074e6810a1b703c073ad946dfd3fb5b50507d1c3111",
-  "sums_sha256": "a0e5136cada9135e7d1601f19eeb49a0af89347932acc8456c8cd2a85d768051",
+  "netlist_sha256": "1db23ccd02406ef95731f3ffd7de23fbfa9a66a0410741d78cbcb04edc717f5f",
+  "sums_sha256": "68e9c65bd5655240b40f5c0d94e5ad0347222ce7d5ee0697a07395c0f6fab3c0",
   "capture": {
     "file": "can.sr",
-    "sha256": "54c95474b7637d6721184c8e82b8357d61f582eda112d2ff6d61f8cbe8430c6b",
+    "sha256": "08b2ea7a0f7250c9502c753fbe9e637b2a753bf623e7b52eee206aff59263d49",
     "rate_hz": 24000000,
     "seconds": 2.0,
     "analyser": "A",
@@ -26,7 +26,7 @@
       "limit": ">= 1968 ns",
       "sheet": "500 kbit/s within 1.58%, Hartwich and Bassemir, Bosch, 6th iCC 1999",
       "spans": 4,
-      "measured": "1999 ns to 2003 ns",
+      "measured": "1999 ns to 2001 ns",
       "verdict": "proved"
     },
     {
@@ -34,7 +34,7 @@
       "limit": "<= 2032 ns",
       "sheet": "500 kbit/s within 1.58%, Hartwich and Bassemir, Bosch, 6th iCC 1999",
       "spans": 4,
-      "measured": "1999 ns to 2003 ns",
+      "measured": "1999 ns to 2001 ns",
       "verdict": "proved"
     },
     {
@@ -74,7 +74,7 @@
       "limit": ">= 22.00 us",
       "sheet": "CAN 2.0A, Bosch CAN 2.0, BCANPSV2.0 Rev. 3 s.2.15 p.2-6, eleven recessive bits",
       "spans": 4,
-      "measured": "3167.64 us to open",
+      "measured": "3710.13 us to open",
       "verdict": "proved"
     }
   ],

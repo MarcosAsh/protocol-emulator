@@ -1,0 +1,4 @@
+sent toggle 0 address 0x1a command 0x35
+sent toggle 1 address 0x00 command 0xff
+faults 0x0
+PASS

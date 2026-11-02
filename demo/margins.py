@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # The parts' timing margins on the bench: every point test/python/write_margins.exe lists
 # run on Pico A by python/demo_margins.py while analyser B captures, each repeat judged by
-# what the part did, and the capture measured for what the chip drove and the part
-# answered. A point already in OUT is kept, so a stopped run resumes where it stopped.
+# what the part did, and the capture measured for what the chip drove and the part answered.
+# A point already in OUT is kept, so a stopped run resumes.
 # Usage:
 #   PICO=id:<Pico A> ANALYSER_B_PORT=<port> demo/margins.py run MARGINS.json OUT
 #       [--part P] [--parameter X] [--repeats N] [--cycles C,...]
@@ -165,7 +165,10 @@ def judge(sweep, out, repeats):
                                             "pass" if r == expected else "FAIL")
                  for r in replies]
     else:
-        rom = out["before"][1]
+        present, rom = out["before"][0], out["before"][1]
+        if not present or crc8(rom) != 0:
+            return [False] * repeats, ["reference: %s, ROM %s: no part answers" % (
+                "presence" if present else "NO presence", " ".join("%02x" % b for b in rom))]
         ok, lines = [], []
         for i, r in enumerate(replies):
             if kind(sweep) == "reset":
@@ -173,8 +176,9 @@ def judge(sweep, out, repeats):
                 text = "presence %s, ROM %s" % ("yes" if r[1] == 0 else "NO",
                                                 " ".join("%02x" % b for b in r[3:11]))
             elif kind(sweep) == "read":
-                good = r[2:10] == rom
-                text = "ROM %s" % " ".join("%02x" % b for b in r[2:10])
+                good = r[0] == 0 and r[2:10] == rom
+                text = "presence %s, ROM %s" % ("yes" if r[0] == 0 else "NO",
+                                                " ".join("%02x" % b for b in r[2:10]))
             else:
                 th, tl, config = PATTERNS[i % 2]
                 pad = r[-9:]

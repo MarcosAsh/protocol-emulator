@@ -20,7 +20,24 @@ jobs:
       - name: Build docs
         uses: TinyTapeout/tt-gds-action/docs@ihp-cmos5l
 
-  # what README.md and docs/info.md cite and quote, against the repo, its runs, the pinned
+  # the site's pages, as pages.yaml builds them on main
+  site:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Build the site
+        run: |
+          pip install -r docs/requirements.txt
+          sphinx-build -W -b html docs docs/_build/html
+
+  # what README.md and the docs/ pages cite and quote, against the repo, its runs, the pinned
   # evidence releases and the links' pages, then wrong copies of the README that have to
   # fail (test/check_docs.py)
   check:

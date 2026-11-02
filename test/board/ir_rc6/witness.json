@@ -1,0 +1,167 @@
+{
+  "demo": "ir_rc6",
+  "time": "2026-10-30T14:59:56",
+  "result": "PASS",
+  "commit": "b82b5eccd88bf54bdf2ae420cc35e87a128efd54",
+  "bitstream_sha256": "ded0014fdf14df568ed478e5f6e36d1d91475ba62bae300e101c1b229c1f963f",
+  "netlist_sha256": "1db23ccd02406ef95731f3ffd7de23fbfa9a66a0410741d78cbcb04edc717f5f",
+  "sums_sha256": "ac49a763a49a893259e0643686aca711596f518e25826998cd68839e31447bc9",
+  "capture": {
+    "file": "ir_rc6.sr",
+    "sha256": "764715714a5b208cc89e908a90d554dd6924f6215919ffd02394c1d9d433eec1",
+    "rate_hz": 24000000,
+    "seconds": 2.0,
+    "analyser": "A",
+    "channels": {
+      "D4": "OUT0, high for a mark, no carrier"
+    }
+  },
+  "decode": {
+    "arguments": "-P ir_rc6:ir=D4 -A ir_rc6=address:command",
+    "sha256": "879e041fc51a2ba6d81c1e3ee4d0704647e01134dc527e12c69fd7e94f118d51"
+  },
+  "timing": [
+    {
+      "parameter": "mark 1t",
+      "limit": ">= 421.80 us",
+      "sheet": "SB-Projects' RC-6 page, 444 us a unit, to Ir_rc6.decode's 5% (the page gives no tolerance)",
+      "spans": 27,
+      "measured": "444.25 us to 444.67 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "mark 1t",
+      "limit": "<= 466.20 us",
+      "sheet": "SB-Projects' RC-6 page, 444 us a unit, to Ir_rc6.decode's 5% (the page gives no tolerance)",
+      "spans": 27,
+      "measured": "444.25 us to 444.67 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "mark 2t",
+      "limit": ">= 843.60 us",
+      "sheet": "SB-Projects' RC-6 page, 444 us a unit, to Ir_rc6.decode's 5% (the page gives no tolerance)",
+      "spans": 7,
+      "measured": "888.79 us to 889.17 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "mark 2t",
+      "limit": "<= 932.40 us",
+      "sheet": "SB-Projects' RC-6 page, 444 us a unit, to Ir_rc6.decode's 5% (the page gives no tolerance)",
+      "spans": 7,
+      "measured": "888.79 us to 889.17 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "mark 3t",
+      "limit": ">= 1265.40 us",
+      "sheet": "SB-Projects' RC-6 page, 444 us a unit, to Ir_rc6.decode's 5% (the page gives no tolerance)",
+      "spans": 1,
+      "measured": "1333.20 us to 1333.55 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "mark 3t",
+      "limit": "<= 1398.60 us",
+      "sheet": "SB-Projects' RC-6 page, 444 us a unit, to Ir_rc6.decode's 5% (the page gives no tolerance)",
+      "spans": 1,
+      "measured": "1333.20 us to 1333.55 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "mark 6t",
+      "limit": ">= 2530.80 us",
+      "sheet": "SB-Projects' RC-6 page, 444 us a unit, to Ir_rc6.decode's 5% (the page gives no tolerance)",
+      "spans": 2,
+      "measured": "2666.44 us to 2667.06 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "mark 6t",
+      "limit": "<= 2797.20 us",
+      "sheet": "SB-Projects' RC-6 page, 444 us a unit, to Ir_rc6.decode's 5% (the page gives no tolerance)",
+      "spans": 2,
+      "measured": "2666.44 us to 2667.06 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "space 1t",
+      "limit": ">= 421.80 us",
+      "sheet": "SB-Projects' RC-6 page, 444 us a unit, to Ir_rc6.decode's 5% (the page gives no tolerance)",
+      "spans": 25,
+      "measured": "444.25 us to 444.67 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "space 1t",
+      "limit": "<= 466.20 us",
+      "sheet": "SB-Projects' RC-6 page, 444 us a unit, to Ir_rc6.decode's 5% (the page gives no tolerance)",
+      "spans": 25,
+      "measured": "444.25 us to 444.67 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "space 2t",
+      "limit": ">= 843.60 us",
+      "sheet": "SB-Projects' RC-6 page, 444 us a unit, to Ir_rc6.decode's 5% (the page gives no tolerance)",
+      "spans": 9,
+      "measured": "888.70 us to 889.09 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "space 2t",
+      "limit": "<= 932.40 us",
+      "sheet": "SB-Projects' RC-6 page, 444 us a unit, to Ir_rc6.decode's 5% (the page gives no tolerance)",
+      "spans": 9,
+      "measured": "888.70 us to 889.09 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "space 3t",
+      "limit": ">= 1265.40 us",
+      "sheet": "SB-Projects' RC-6 page, 444 us a unit, to Ir_rc6.decode's 5% (the page gives no tolerance)",
+      "spans": 1,
+      "measured": "1333.20 us to 1333.55 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "space 3t",
+      "limit": "<= 1398.60 us",
+      "sheet": "SB-Projects' RC-6 page, 444 us a unit, to Ir_rc6.decode's 5% (the page gives no tolerance)",
+      "spans": 1,
+      "measured": "1333.20 us to 1333.55 us",
+      "verdict": "proved"
+    },
+    {
+      "parameter": "signal free time",
+      "limit": ">= 2530.80 us",
+      "sheet": "SB-Projects' RC-6 page, 444 us a unit, to Ir_rc6.decode's 5% (the page gives no tolerance)",
+      "spans": 1,
+      "measured": "12121.66 us to 12124.17 us",
+      "verdict": "proved"
+    }
+  ],
+  "teeth": [
+    "the first address bit's halves swapped",
+    "the first leader mark a unit short"
+  ],
+  "bitstream_source": "main cb872768 by icepi/Makefile REV=v1.3 (seed 2, 49.47 MHz), the pc's pe-bench run 2026-10-30-0904; its Verilog is a5566412's",
+  "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
+  "firmware": {
+    "IR_RC6": "bc266c7e07fffeab2674e8e03e62f0a598c70e042aed6363ec047616be75687e"
+  },
+  "host_scripts": {
+    "python/demo_ir_rc6.py": "16ff8682eca353bbf8717250cf70263e953c73b4a670d868c756c314916a44b0"
+  },
+  "bench": "an Icepi Zero (ECP5 LFE5U-25F) running the chip at 48 MHz on bench carrier v1.2, Pico A as the host on SPI, nothing, Pico B idle on OUT0, analyser A (fx2lafw) at 24 MS/s",
+  "scope": "the bytes on the wire and their timing in one run of ir_rc6, as the analyser saw them",
+  "limits": [
+    "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
+    "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
+    "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
+    "the bitstream is named by its sha256, and its netlist's, built from main cb872768 by icepi/Makefile REV=v1.3 (seed 2, 49.47 MHz), the pc's pe-bench run 2026-10-30-0904; its Verilog is a5566412's by the bench's notes, which CI does not rebuild",
+    "drawn at random and written blind from its spec (docs/flexibility.md)",
+    "the page gives no tolerance, so the windows are its nominal times to Ir_rc6.decode's 5%"
+  ]
+}

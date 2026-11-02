@@ -5,12 +5,12 @@
 #   a REPORT is a coverage.txt the test runner writes with HARDCAML_CYCLESIM_COVERAGE_VERBOSE=1,
 #   or a directory of them (test/coverage.sh); all are merged as one
 #
-# Hardcaml merges only circuits that are structurally equal, so the engine inside every
-# test bench counts apart. Here a point is a src/ signal: its module and local name, or,
-# unnamed, the src/ frames of the stack that made it. Copies of a point in one circuit
-# (loop iterations, a second engine) are covered only when all of them are; a point is
-# closed when some circuit covered every copy. Signal waivers are already out of the
-# report. Line numbers are only for reading: a point is told by the text of its lines.
+# Hardcaml merges only structurally equal circuits, so the engine in every test bench
+# counts apart. A point is a src/ signal: its module and local name, or, unnamed, the src/
+# frames of the stack that made it. Copies of a point in one circuit (loop iterations, a
+# second engine) are covered only when all are; a point is closed when some circuit covered
+# every copy. Signal waivers are already out of the report. Line numbers are for reading
+# only: a point is told by the text of its lines.
 import argparse
 import collections
 import hashlib

@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
 # A capture of a bench copy held to its prediction: test/measure/predict.exe's run at the
 # chip's clock, with every edge each datasheet limit bounds. Aligns the capture's first edge
-# at or after --from (a trigger's sample) on the first predicted edge of that pin and level,
-# matches each later edge to the nearest of its level, following the analyser's drift, then
-# fits an offset and the drift. A line an edge: predicted, measured, the error, and the margin
-# to each limit the edge ends. A margin within a sample either way can't tell.
-# Exits 1 if a limit fails, or an edge is missing or off by more than --tolerance.
+# at or after --from on the first predicted edge of that pin and level, matches later edges
+# to the nearest of their level, then fits an offset and the analyser's drift. A line an
+# edge: predicted, measured, the error, and the margin to each limit it ends. A margin
+# within a sample either way can't tell. Exits 1 if a limit fails or an edge is missing or
+# off by more than --tolerance.
 # Usage: dune exec --root . test/measure/predict.exe -- i2c_standard > i2c.predicted
 #        python3 demo/hold_capture.py i2c.predicted CAPTURE.csv --rate 100M IO2=1 IO3=2 -o i2c.png
 #        python3 demo/hold_capture.py uart.predicted CAPTURE.sr OUT0=D4
