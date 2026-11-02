@@ -86,6 +86,12 @@ jobs:
     env:
       SHARDS: ${{ needs.plan.outputs.count }}
     steps:
+      # four copies of the tree with their _build outgrow the runner's free 14 GB
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+
       - name: Checkout repo
         uses: actions/checkout@v6
 
