@@ -1,0 +1,15 @@
+protocol-emulator held-out protocols, sealed 2026-10-02
+salt 40baa1b19e469c60a7f98ae30702d607d917d41e48e6ba9c5ef99e5165692433
+
+None of these is in the firmware library. When the list is opened, an agent writes each one
+from its public spec, the kernel certifies it, the named sigrok decoder decodes it from
+simulation byte for byte, and every result is published, failures included.
+
+1. SWD (swd): a DP IDCODE read and an AP read, 1 MHz, with turnaround
+2. LIN 2.x (lin): a master header and a slave response with the enhanced checksum, 19200 baud
+3. DMX512 (dmx512): a full 512-slot frame with break and mark-after-break in spec
+4. DALI (dali): a forward frame and a backward frame, 1200 baud Manchester
+5. NEC IR (ir_nec): an address and command frame and a repeat code, with the 38 kHz carrier
+6. Wiegand (wiegand): a 26-bit card read on two wires
+7. S/PDIF (spdif): stereo 16-bit samples at 44.1 kHz, biphase mark
+8. USB Power Delivery (usb_power_delivery): a Source_Capabilities message over BMC at 300 kbps
