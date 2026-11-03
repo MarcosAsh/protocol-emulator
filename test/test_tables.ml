@@ -1167,6 +1167,7 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       , "half bit 20000"
       , [%string
           "a 27 half bit idle is 540000 cycles, each step held at most %{max_hold#Int}"]
+      )
     ; ( "lin"
       , "untried"
       , "-"
@@ -1194,14 +1195,12 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       , "-"
       , "pulses of 16 cycles and up, 3 apart; DATA0 and DATA1 two outputs"
       , "written for the core, not tried" )
-    ; "swd_blind", "TODO", "-", "-", "TODO whether the table interpreter runs it"
     ; ( "swd_blind"
       , "untried"
       , "-"
       , "SWCLK half 12 and up, 24 at 1 MHz"
       , "SWDIO turns around, its direction from the host word; not tried against the \
          class" )
-    ; "ir_nec", "TODO", "-", "-", "TODO whether the table interpreter runs it"
     ; ( "ir_nec"
       , "untried"
       , "-"
