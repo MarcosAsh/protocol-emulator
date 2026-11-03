@@ -191,16 +191,27 @@ replay:
 # The gate level's tests and replays with the router's delays at one corner (sdf_slow,
 # sdf_typ, sdf_fast) or all three (sdf), from the flow's SDF in SDF_DIR, at the chip's
 # 50 MHz, in one run each since annotating takes minutes. Icarus has no timing checks, so a
-# violation shows only as a wrong value. GROUP=replay, two_engines or rest runs a third of
-# the modules, as CI does to stay under a runner's six hours.
+# violation shows only as a wrong value. GROUP picks a part of the tests, by module and
+# name, as CI runs each corner in eight jobs: whole groups of three passed five hours on 8x4.
 SDF_DIR ?= ../runs/wokwi/final/sdf
 GROUP ?= all
 comma := ,
 space := $(subst ,, )
 SDF_MODULES_all = $(GATE_TEST_MODULES),test_replay
-SDF_MODULES_replay = test_replay
-SDF_MODULES_two_engines = test_two_engines
-SDF_MODULES_rest = $(subst $(space),$(comma),$(filter-out test_two_engines,$(subst $(comma),$(space),$(GATE_TEST_MODULES))))
+SDF_MODULES_replay_a = test_replay
+SDF_FILTER_replay_a = [.]replay_[a-o]
+SDF_MODULES_replay_b = test_replay
+SDF_FILTER_replay_b = [.]replay_[p-z]
+SDF_MODULES_two_engines_a = test_two_engines
+SDF_FILTER_two_engines_a = [.]test_[a-o]
+SDF_MODULES_two_engines_b = test_two_engines
+SDF_FILTER_two_engines_b = [.]test_[p-z]
+SDF_MODULES_blame_a = test_board_blame
+SDF_FILTER_blame_a = [.]test_[a-s]
+SDF_MODULES_blame_b = test_board_blame
+SDF_FILTER_blame_b = [.]test_[t-z]
+SDF_MODULES_core = test
+SDF_MODULES_boards = $(subst $(space),$(comma),$(filter-out test test_two_engines test_board_blame,$(subst $(comma),$(space),$(GATE_TEST_MODULES))))
 SDF_RESULTS = results_sdf_$(1)$(if $(filter-out all,$(GROUP)),_$(GROUP)).xml
 CORNERS = slow typ fast
 sdf_file = $(or $(wildcard $(SDF_DIR)/nom_$(1)_*/*.sdf),$(error no $(1) SDF in $(SDF_DIR)))
@@ -211,6 +222,6 @@ sdf: $(addprefix sdf_,$(CORNERS))
 sdf_%:
 	mkdir -p sim_build/sdf
 	$(PYTHON_BIN) icarus_sdf.py sdf < $(call sdf_file,$*) > sim_build/sdf/$*.sdf
-	$(MAKE) sim GATES=yes SDF=sim_build/sdf/$*.sdf COCOTB_RESULTS_FILE=$(call SDF_RESULTS,$*) \
-		COCOTB_TEST_MODULES=$(SDF_MODULES_$(GROUP))
+	COCOTB_TEST_FILTER='$(SDF_FILTER_$(GROUP))' $(MAKE) sim GATES=yes SDF=sim_build/sdf/$*.sdf \
+		COCOTB_RESULTS_FILE=$(call SDF_RESULTS,$*) COCOTB_TEST_MODULES=$(SDF_MODULES_$(GROUP))
 	$(PYTHON_BIN) -m cocotb_tools.check_results $(call SDF_RESULTS,$*)
