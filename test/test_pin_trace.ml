@@ -25,6 +25,17 @@ let%expect_test "what the host reads back in every scenario" =
     (xy2_100 (cycles 14239) (reads ()))
     (lfast (cycles 15655) (reads ()))
     (tdm_audio (cycles 25647) (reads ()))
+    (dali (cycles 23789) (reads ()))
+    (lin (cycles 18128) (reads ((004c 0049 004e) (0400))))
+    (spdif (cycles 26484) (reads ()))
+    (usb_power_delivery (cycles 111603) (reads ()))
+    (dmx512 (cycles 1194922) (reads ()))
+    (wiegand (cycles 683183) (reads ()))
+    (swd_blind (cycles 25267)
+     (reads
+      ((ff00 ff00 ff00 ff00) (ff00 ff00 ff00 0000) (a500 b900 2300 0900)
+       (5e00 1000 8700 0100) (0000 0000 0000 1000) (0000))))
+    (ir_nec (cycles 264570) (reads ()))
     (wrapped_loop (cycles 7275) (reads ((0000))))
     (fifo_poll (cycles 11916)
      (reads

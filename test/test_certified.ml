@@ -94,6 +94,14 @@ let%expect_test "the firmware library and its certificates" =
     xy2_100               35        10      2
     lfast                 64        27      6
     tdm_audio            117         0      -
+    dali                  34         8  19993  period 20000, no wrap
+    lin                   60        17   1247  period 1250, no wrap
+    spdif                108        40      2
+    usb_power_delivery   113        74     13
+    dmx512                51        14    182  period 192, no wrap
+    wiegand               32         4   2389  period 2400
+    swd_blind             22         2     13  period 24
+    ir_nec               107        34    409  period 422
     |}]
 ;;
 
@@ -204,6 +212,26 @@ let%expect_test "the least period the host may load" =
     (caliper (period (270)) (floor 16) (passes true) (one_less true))
     (QED "caliper: every load of 16 or more")
     (counterexample "caliper: every load of 15 or more"
+     (model ((loaded 0000000000001111))))
+    (dali (period (20000)) (floor 8) (passes true) (one_less true))
+    (QED "dali: every load of 8 or more")
+    (counterexample "dali: every load of 7 or more"
+     (model ((loaded 0000000000000111))))
+    (lin (period (1250)) (floor 16) (passes true) (one_less true))
+    (QED "lin: every load of 16 or more")
+    (counterexample "lin: every load of 15 or more"
+     (model ((loaded 0000000000001111))))
+    (wiegand (period (2400)) (floor 16) (passes true) (one_less true))
+    (QED "wiegand: every load of 16 or more")
+    (counterexample "wiegand: every load of 15 or more"
+     (model ((loaded 0000000000001111))))
+    (swd_blind (period (24)) (floor 12) (passes true) (one_less true))
+    (QED "swd_blind: every load of 12 or more")
+    (counterexample "swd_blind: every load of 11 or more"
+     (model ((loaded 0000000000001011))))
+    (ir_nec (period (422)) (floor 16) (passes true) (one_less true))
+    (QED "ir_nec: every load of 16 or more")
+    (counterexample "ir_nec: every load of 15 or more"
      (model ((loaded 0000000000001111))))
     |}]
 ;;

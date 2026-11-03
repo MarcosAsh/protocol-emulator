@@ -1,7 +1,7 @@
 # Protocols
 
 The library is `test/library.ml`, a protocol to a module, in the order of the certificates.
-These are the 55 library firmwares the kernel accepts in `test/test_kernel.ml`.
+These are the 63 library firmwares the kernel accepts in `test/test_kernel.ml`.
 
 | Protocol | Firmware the kernel accepts |
 |---|---|
@@ -33,8 +33,17 @@ These are the 55 library firmwares the kernel accepts in `test/test_kernel.ml`.
 | XY2-100 | xy2_100 |
 | LFAST | lfast |
 | TDM audio | tdm_audio |
+| DALI | dali |
+| LIN 2.x | lin |
+| S/PDIF | spdif |
+| USB Power Delivery | usb_power_delivery |
+| DMX512 | dmx512 |
+| Wiegand | wiegand |
+| SWD, written blind | swd_blind |
+| NEC infrared, written blind | ir_nec |
 
 Microwire, XY2-100, Caliper, LFAST, RC-6 and TDM audio came from the [random draw](flexibility.md).
+DALI to NEC infrared, written blind, are the [held-out list](flexibility.md#the-held-out-list).
 `test/test_datasheet.ml` checks firmware against its datasheet's timing limits, where the
 datasheet gives any.
 

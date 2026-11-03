@@ -36,6 +36,13 @@ let%expect_test "the clocks each bench firmware stays certified at" =
     caliper                  -                              48.000  48.420 clock high at 90 kHz >= 5555.5 ns
     xy2_100                  -                              48.000 110.000 tDH >= 100 ns
     lfast                    -                              48.000 2880.000 data rate, shortest high bit (3.125 ns) >= 3.125 ns
+    dali                     -                              48.000  48.800 40 commands a second, forward frames 25 ms apart >= 2.5e+07 ns
+    lin                 47.780 FTOL_RES_MASTER, bit <= 52343.8 ns 48.000  48.222 FTOL_RES_MASTER, bit >= 51822.9 ns
+    spdif               47.947 a block of 192 frames, 44.1 kHz less 1100 ppm <= 4.35854e+06 ns 48.000  48.052 a block of 192 frames, 44.1 kHz and 1100 ppm >= 4.34896e+06 ns
+    usb_power_delivery  43.514 tUnitInterval max <= 3700 ns 48.000  52.470 fBitRate max 330 kbps: each bit cell >= 3030.3 ns
+    dmx512              48.000 bit at 250 kbit/s, longest channel low <= 4000 ns 48.000  48.000 bit at 250 kbit/s, shortest low >= 4000 ns
+    swd_blind                -                              48.000  49.000 Trn >= 1000 ns
+    ir_nec                   -                              48.000  48.070 Carrier frequency, as its period >= 26315.8 ns
     uart_log            47.209 bit <= 8854.17 ns            48.000  48.901 bit >= 8506.94 ns
     |}]
 ;;

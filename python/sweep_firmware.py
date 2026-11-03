@@ -246,6 +246,33 @@ SWEPT = [
             ]},
         ],
     },
+    {
+        "name": "wiegand",
+        "watch": "DATA0",
+        "config": {
+            "out_base": 20, "out_count": 2, "set_base": 20, "set_count": 2,
+            "out_shift_right": 0,
+        },
+        "words": [
+            0xA003, 0x20E0, 0xE004, 0x80C5, 0x20E0, 0xE004, 0x8025, 0xC013, 0x8081,
+            0x20E0, 0xE004, 0x8045, 0x20E0, 0xE004, 0x80E6, 0xC0CA, 0x0C12, 0xE004,
+            0x6021, 0x0217, 0x20C0, 0xA002, 0x0019, 0x20C0, 0xA001, 0x20C0, 0xA003,
+            0x8024, 0x20C0, 0x021C, 0x0410, 0x0009,
+        ],
+        "park": [0x8003, 0xE001],
+        "preamble": [1200],
+        "setup": {"edges": 1, "cycles": 1},
+        "bursts": [
+            {"words": [0x000A, 0x0019, 0x1509, 0x1A40], "cycles": 290412, "frames": [
+                [
+                    0, 1200, 12000, 13200, 24000, 25200, 48000, 49200, 72000, 73200,
+                    96000, 97200, 108000, 109200, 120000, 121200, 132000, 133200,
+                    156000, 157200, 168000, 169200, 192000, 193200, 204000, 205200,
+                    216000, 217200, 252000, 253200, 276000, 277200, 288000, 289200,
+                ],
+            ]},
+        ],
+    },
 ]
 
 NOT_SWEPT = [
@@ -297,6 +324,13 @@ NOT_SWEPT = [
     ("xy2_100", "SENDCK edges 12 cycles apart without a break: the fifo holds 8"),
     ("lfast", "a fixed-length frame with no field to carry a cycle stamp"),
     ("tdm_audio", "a fixed 256-bit frame with no field to carry a cycle stamp"),
+    ("dali", "a half bit is 20000 cycles and the idle 540000, past the 65536 a stamp tells apart"),
+    ("lin", "open drain, which a wire does not show, and it waits for a slave's answer"),
+    ("spdif", "a fixed 64-slot subframe with no field to carry a cycle stamp"),
+    ("usb_power_delivery", "the host computes each packet's CRC-32, which a stamp the engine put in would break"),
+    ("dmx512", "a packet is 1092101 cycles, past the 65536 a stamp tells apart"),
+    ("swd_blind", "SWDIO turns around, which a wire does not show, and a target answers"),
+    ("ir_nec", "the 4.5 ms space after the AGC burst is 216000 cycles, past the 65536 a stamp tells apart"),
     ("uart_tx_stream", "time-triggered: it underflows, a sticky fault, once the host stops"),
     ("spi_master_stream", "time-triggered: it underflows, a sticky fault, once the host stops"),
     ("uart_tx_stamped", "26 bits 8 cycles apart, and the chip's clock in them, which the model cannot know"),

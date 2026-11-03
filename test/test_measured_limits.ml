@@ -183,6 +183,58 @@ let%expect_test "the datasheet limits, measured on the bench copies' runs" =
     kernel 12  xy2_100            tDH              >=      100 ns  measured 6 (250.0 ns)         Pass            Newson XY2-100 I/O configuration, Rev. 0703, Timing specifications table, p.2
     kernel 10  lfast              data rate, shortest high bit (3.125 ns) >=    3.125 ns  measured 5 (208.3 ns)         Pass            NXP AN5134 Rev. 0, p.3, text: rates up to 320 Mb/s
     kernel 10  lfast              data rate, shortest low bit (3.125 ns) >=    3.125 ns  measured 5 (208.3 ns)         Pass            NXP AN5134 Rev. 0, p.3, text: rates up to 320 Mb/s
+    run    540010  dali               idle after a frame >= 2.45e+06 ns  measured 270005 (11250208.3 ns) Pass            Wikipedia, Digital Addressable Lighting Interface, oldid 1363488623, p.1, line 178
+    run    1220010  dali               40 commands a second, forward frames 25 ms apart >=  2.5e+07 ns  measured 610005 (25416875.0 ns) Pass            Wikipedia, Digital Addressable Lighting Interface, oldid 1363488623, p.1, line 188
+    run    33750  lin                break field      >=   677083 ns  measured 16875 (703125.0 ns)  Pass            LIN Specification Package Revision 2.2A, 2.3.1.1, p. 30
+    run    3750  lin                break delimiter  >=  52083.3 ns  measured 1875 (78125.0 ns)    Pass            LIN Specification Package Revision 2.2A, 2.3.1.1, p. 30
+    run    37500  lin                break field length (dominant + delimiter) >=   729167 ns  measured 18750 (781250.0 ns)  Pass            LIN Specification Package Revision 2.2A, Table 2.3, p. 52
+    run    87500  lin                THeader_Maximum, 1.4 * THeader_Nominal of 34 TBit <= 2.47917e+06 ns  measured 43750 (1822916.7 ns) Pass            LIN Specification Package Revision 2.2A, 2.3.2 eq. (3), p. 32, eq. (6), p. 33
+    run    2500  lin                FTOL_RES_MASTER, bit >=  51822.9 ns  measured 1250 (52083.3 ns)    Pass            LIN Specification Package Revision 2.2A, Table 6.1, p. 113
+    run    2500  lin                FTOL_RES_MASTER, bit <=  52343.8 ns  measured 1250 (52083.3 ns)    Pass            LIN Specification Package Revision 2.2A, Table 6.1, p. 113
+    run    2500  lin                bit rate, 20 kbit/s >=    50000 ns  measured 1250 (52083.3 ns)    Pass            LIN Specification Package Revision 2.2A, 6.3, p. 112
+    run    2500  lin                bit rate, 1 kbit/s <=    1e+06 ns  measured 1250 (52083.3 ns)    Pass            LIN Specification Package Revision 2.2A, 6.3, p. 112
+    run    208979  spdif              a block of 192 frames, 44.1 kHz and 1100 ppm >= 4.34896e+06 ns  measured 104489 (4353708.3 ns) Pass            Wikipedia, S/PDIF, revision 1378032122 (2 October 2026), p.1, S/PDIF control word components, byte 3, spec.txt l.222-224
+    run    208979  spdif              a block of 192 frames, 44.1 kHz less 1100 ppm <= 4.35854e+06 ns  measured 104489 (4353708.3 ns) Pass            Wikipedia, S/PDIF, revision 1378032122 (2 October 2026), p.1, S/PDIF control word components, byte 3, spec.txt l.222-224
+    run    1088  spdif              a frame, Mode 0's 192 kHz at most >=  5208.33 ns  measured 544 (22666.7 ns)     Pass            Wikipedia, S/PDIF, revision 1378032122 (2 October 2026), p.1, text, spec.txt l.180
+    run    160  usb_power_delivery fBitRate max 330 kbps: each bit cell >=   3030.3 ns  measured 80 (3333.3 ns)       Pass            USB Power Delivery Specification r3.2 v1.2, Aug 2026, Table 5.9, p.110
+    run    160  usb_power_delivery fBitRate min 270 kbps: each bit cell <=   3703.7 ns  measured 80 (3333.3 ns)       Pass            USB Power Delivery Specification r3.2 v1.2, Aug 2026, Table 5.9, p.110
+    run    160  usb_power_delivery tUnitInterval min >=     3030 ns  measured 80 (3333.3 ns)       Pass            USB Power Delivery Specification r3.2 v1.2, Aug 2026, Table 5.9, p.110
+    run    160  usb_power_delivery tUnitInterval max <=     3700 ns  measured 80 (3333.3 ns)       Pass            USB Power Delivery Specification r3.2 v1.2, Aug 2026, Table 5.9, p.110
+    run    0  usb_power_delivery pBitRate 0.25 %: 32 bits against the preamble's last 32, of 32 UI at 300 kbps <=  266.667 ns  measured 0 (0.0 ns)           Pass            USB Power Delivery Specification r3.2 v1.2, Aug 2026, Table 5.10, p.110, and 5.3.4.8 p.108; 300 kbps nominal, Table 5.9
+    kernel 80  usb_power_delivery tHoldLowBMC: every low >=     1000 ns  measured 40 (1666.7 ns)       Pass            USB Power Delivery Specification r3.2 v1.2, Aug 2026, Table 5.10, p.110
+    run    1367  usb_power_delivery tInterFrameGap: each idle low >=    25000 ns  measured 684 (28500.0 ns)     Pass            USB Power Delivery Specification r3.2 v1.2, Aug 2026, Table 5.10, p.110
+    kernel 192  dmx512             bit at 250 kbit/s, shortest low >=     4000 ns  measured 96 (4000.0 ns)       Within_a_sample Wikipedia, DMX512, oldid 1380777110, page 1, line 291
+    kernel 192  dmx512             bit at 250 kbit/s, shortest high >=     4000 ns  measured 96 (4000.0 ns)       Within_a_sample Wikipedia, DMX512, oldid 1380777110, page 1, line 291
+    run    192  dmx512             bit at 250 kbit/s, longest channel low <=     4000 ns  measured 96 (4000.0 ns)       Within_a_sample Wikipedia, DMX512, oldid 1380777110, page 1, line 291
+    run    4800  dmx512             BREAK transmitted >=    92000 ns  measured 2400 (100000.0 ns)   Pass            Wikipedia, DMX512, oldid 1380777110, page 1, table, lines 303-306
+    run    4800  dmx512             BREAK receiver recognized >=    88000 ns  measured 2400 (100000.0 ns)   Pass            Wikipedia, DMX512, oldid 1380777110, page 1, table, lines 303, 308-309
+    run    768  dmx512             MAB transmitted  >=    12000 ns  measured 384 (16000.0 ns)     Pass            Wikipedia, DMX512, oldid 1380777110, page 1, table, lines 304-305, 307
+    run    768  dmx512             MAB receiver recognized >=     8000 ns  measured 384 (16000.0 ns)     Pass            Wikipedia, DMX512, oldid 1380777110, page 1, table, lines 304, 308, 310
+    run    768  dmx512             MAB since 1990   >=     8000 ns  measured 384 (16000.0 ns)     Pass            Wikipedia, DMX512, oldid 1380777110, page 1, line 301
+    run    1092101  dmx512             break to break transmitted >= 1.204e+06 ns  measured 546050 (22752083.3 ns) Pass            Wikipedia, DMX512, oldid 1380777110, page 1, line 313
+    run    1092101  dmx512             break to break receivers handle >= 1.196e+06 ns  measured 546050 (22752083.3 ns) Pass            Wikipedia, DMX512, oldid 1380777110, page 1, line 313
+    run    1092101  dmx512             refresh rate of 512 channels, at most 44 Hz >= 2.27273e+07 ns  measured 546050 (22752083.3 ns) Pass            Wikipedia, DMX512, oldid 1380777110, page 1, line 312
+    ("the run disagrees with the bound" swd_blind Trn (exact.samples (48))
+     (checked.bound (50)))
+    kernel 50  swd_blind          Trn              >=     1000 ns  measured 24 (1000.0 ns)       Within_a_sample ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813, Table 2-10, p.2-52
+    run    2910  swd_blind          line reset       >=    50000 ns  measured 1455 (60625.0 ns)    Pass            ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813, 4.4.3, p.4-104
+    run    394  swd_blind          idle cycles      >=     2000 ns  measured 197 (8208.3 ns)      Pass            ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813, 4.4.3, p.4-104
+    run    2758  swd_blind          JTAG-to-SWD      >=    50000 ns  measured 1379 (57458.3 ns)    Pass            ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813, 5.2.1, p.5-111
+    run    548  swd_blind          JTAG-to-DS       >=     5000 ns  measured 274 (11416.7 ns)     Pass            ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813, 5.3.2, p.5-115
+    run    2758  swd_blind          SWD-to-DS        >=    50000 ns  measured 1379 (57458.3 ns)    Pass            ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813, 5.3.3, p.5-116
+    run    2758  swd_blind          DS-to-SWD        >=    50000 ns  measured 1379 (57458.3 ns)    Pass            ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813, 5.3.4, p.5-117
+    run    1266  ir_nec             Carrier frequency, as its period >=  26315.8 ns  measured 633 (26375.0 ns)     Pass            SB-Projects, NEC Protocol, updated 17 July 2025, page 1, line 17
+    run    54438  ir_nec             Bit time, logical 0 >= 1.125e+06 ns  measured 27219 (1134125.0 ns) Pass            SB-Projects, NEC Protocol, updated 17 July 2025, page 1, line 18
+    run    108454  ir_nec             Bit time, logical 1 >= 2.25e+06 ns  measured 54227 (2259458.3 ns) Pass            SB-Projects, NEC Protocol, updated 17 July 2025, page 1, line 18
+    run    27008  ir_nec             Carrier burst length >=   560000 ns  measured 13504 (562666.7 ns)  Pass            SB-Projects, NEC Protocol, updated 17 July 2025, page 1, line 21
+    run    433394  ir_nec             AGC burst, message start >=    9e+06 ns  measured 216697 (9029041.7 ns) Pass            SB-Projects, NEC Protocol, updated 17 July 2025, page 1, line 28
+    run    216486  ir_nec             Space after AGC burst, message start >=  4.5e+06 ns  measured 108243 (4510125.0 ns) Pass            SB-Projects, NEC Protocol, updated 17 July 2025, page 1, line 29
+    run    27008  ir_nec             Extra burst at end of message >=   560000 ns  measured 13504 (562666.7 ns)  Pass            SB-Projects, NEC Protocol, updated 17 July 2025, page 1, line 34
+    run    433394  ir_nec             AGC pulse, repeat code >=    9e+06 ns  measured 216697 (9029041.7 ns) Pass            SB-Projects, NEC Protocol, updated 17 July 2025, page 1, line 37
+    run    108454  ir_nec             Space after AGC pulse, repeat code >= 2.25e+06 ns  measured 54227 (2259458.3 ns) Pass            SB-Projects, NEC Protocol, updated 17 July 2025, page 1, line 37
+    run    27008  ir_nec             Burst, repeat code >=   560000 ns  measured 13504 (562666.7 ns)  Pass            SB-Projects, NEC Protocol, updated 17 July 2025, page 1, line 37
+    run    108454  ir_nec             Repeat code space >= 2.25e+06 ns  measured 54227 (2259458.3 ns) Pass            SB-Projects, NEC Protocol, updated 17 July 2025, page 1, line 37
+    run    27008  ir_nec             Repeat code burst >=   560000 ns  measured 13504 (562666.7 ns)  Pass            SB-Projects, NEC Protocol, updated 17 July 2025, page 1, line 37
     kernel 417  uart_log           bit              >=  8506.94 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     run    417  uart_log           bit              <=  8854.17 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     |}]
@@ -357,5 +409,55 @@ let%expect_test "every limit's pairs of edges in the prediction" =
     xy2_100        tDH               49 pairs, as measured
     lfast          data rate, shortest high bit (3.125 ns)  12 pairs, as measured
     lfast          data rate, shortest low bit (3.125 ns)  11 pairs, as measured
+    dali           idle after a frame   2 pairs, as measured
+    dali           40 commands a second, forward frames 25 ms apart   1 pairs, as measured
+    lin            break field        1 pairs, as measured
+    lin            break delimiter    1 pairs, as measured
+    lin            break field length (dominant + delimiter)   1 pairs, as measured
+    lin            THeader_Maximum, 1.4 * THeader_Nominal of 34 TBit   0 pairs, none, measured 87500
+    lin            FTOL_RES_MASTER, bit  13 pairs, as measured
+    lin            FTOL_RES_MASTER, bit  13 pairs, as measured
+    lin            bit rate, 20 kbit/s  13 pairs, as measured
+    lin            bit rate, 1 kbit/s  13 pairs, as measured
+    spdif          a block of 192 frames, 44.1 kHz and 1100 ppm   1 pairs, as measured
+    spdif          a block of 192 frames, 44.1 kHz less 1100 ppm   1 pairs, as measured
+    spdif          a frame, Mode 0's 192 kHz at most 194 pairs, as measured
+    usb_power_delivery fBitRate max 330 kbps: each bit cell 378 pairs, as measured
+    usb_power_delivery fBitRate min 270 kbps: each bit cell 378 pairs, as measured
+    usb_power_delivery tUnitInterval min 378 pairs, as measured
+    usb_power_delivery tUnitInterval max 378 pairs, as measured
+    usb_power_delivery pBitRate 0.25 %: 32 bits against the preamble's last 32, of 32 UI at 300 kbps   0 pairs, none, measured 0
+    usb_power_delivery tHoldLowBMC: every low 290 pairs, as measured
+    usb_power_delivery tInterFrameGap: each idle low   1 pairs, 1368, measured 1367
+    dmx512         bit at 250 kbit/s, shortest low 2564 pairs, as measured
+    dmx512         bit at 250 kbit/s, shortest high 2563 pairs, as measured
+    dmx512         bit at 250 kbit/s, longest channel low 2560 pairs, as measured
+    dmx512         BREAK transmitted   2 pairs, as measured
+    dmx512         BREAK receiver recognized   2 pairs, as measured
+    dmx512         MAB transmitted    2 pairs, as measured
+    dmx512         MAB receiver recognized   2 pairs, as measured
+    dmx512         MAB since 1990     2 pairs, as measured
+    dmx512         break to break transmitted   1 pairs, as measured
+    dmx512         break to break receivers handle   1 pairs, as measured
+    dmx512         refresh rate of 512 channels, at most 44 Hz   1 pairs, as measured
+    swd_blind      Trn               73 pairs, as measured
+    swd_blind      line reset         1 pairs, as measured
+    swd_blind      idle cycles        1 pairs, as measured
+    swd_blind      JTAG-to-SWD        1 pairs, as measured
+    swd_blind      JTAG-to-DS         1 pairs, as measured
+    swd_blind      SWD-to-DS          1 pairs, as measured
+    swd_blind      DS-to-SWD          1 pairs, as measured
+    ir_nec         Carrier frequency, as its period 1398 pairs, as measured
+    ir_nec         Bit time, logical 0  16 pairs, as measured
+    ir_nec         Bit time, logical 1  16 pairs, as measured
+    ir_nec         Carrier burst length  34 pairs, as measured
+    ir_nec         AGC burst, message start   1 pairs, as measured
+    ir_nec         Space after AGC burst, message start   1 pairs, as measured
+    ir_nec         Extra burst at end of message   1 pairs, as measured
+    ir_nec         AGC pulse, repeat code   1 pairs, as measured
+    ir_nec         Space after AGC pulse, repeat code   1 pairs, as measured
+    ir_nec         Burst, repeat code   1 pairs, as measured
+    ir_nec         Repeat code space   1 pairs, as measured
+    ir_nec         Repeat code burst   1 pairs, as measured
     |}]
 ;;

@@ -190,6 +190,56 @@ let%expect_test "the bench firmware against its datasheet limits" =
     xy2_100            tDH            >=      100 ns  kernel 12 (250.0 ns)     needs    6       rhothor X7, Newson XY2-100 I/O configuration, Rev. 0703 Timing specifications table, p.2; margin a cycle
     lfast              data rate, shortest high bit (3.125 ns) >=    3.125 ns  kernel 10 (208.3 ns)     needs    2       LFAST, NXP AN5134 Rev. 0 p.3, text: rates up to 320 Mb/s; margin a cycle
     lfast              data rate, shortest low bit (3.125 ns) >=    3.125 ns  kernel 10 (208.3 ns)     needs    2       LFAST, NXP AN5134 Rev. 0 p.3, text: rates up to 320 Mb/s; margin a cycle
+    dali               idle after a frame >= 2.45e+06 ns  run    540010 (11250208.3 ns) needs 117601       DALI, Wikipedia, Digital Addressable Lighting Interface, oldid 1363488623 p.1, line 178; margin a cycle
+    dali               40 commands a second, forward frames 25 ms apart >=  2.5e+07 ns  run    1220010 (25416875.0 ns) needs 1200001       DALI, Wikipedia, Digital Addressable Lighting Interface, oldid 1363488623 p.1, line 188; margin a cycle
+    lin                break field    >=   677083 ns  run    33750 (703125.0 ns) needs 32501       LIN master, LIN Specification Package Revision 2.2A 2.3.1.1, p. 30; margin a cycle
+    lin                break delimiter >=  52083.3 ns  run    3750 (78125.0 ns) needs 2501       LIN master, LIN Specification Package Revision 2.2A 2.3.1.1, p. 30; margin a cycle
+    lin                break field length (dominant + delimiter) >=   729167 ns  run    37500 (781250.0 ns) needs 35002       LIN master, LIN Specification Package Revision 2.2A Table 2.3, p. 52; margin a cycle
+    lin                THeader_Maximum, 1.4 * THeader_Nominal of 34 TBit <= 2.47917e+06 ns  run    87500 (1822916.7 ns) needs 118999       LIN master, LIN Specification Package Revision 2.2A 2.3.2 eq. (3), p. 32, eq. (6), p. 33; margin a cycle
+    lin                FTOL_RES_MASTER, bit >=  51822.9 ns  run    2500 (52083.3 ns) needs 2489       LIN master, LIN Specification Package Revision 2.2A Table 6.1, p. 113; margin a cycle
+    lin                FTOL_RES_MASTER, bit <=  52343.8 ns  run    2500 (52083.3 ns) needs 2511       LIN master, LIN Specification Package Revision 2.2A Table 6.1, p. 113; margin a cycle
+    lin                bit rate, 20 kbit/s >=    50000 ns  run    2500 (52083.3 ns) needs 2401       LIN master, LIN Specification Package Revision 2.2A 6.3, p. 112; margin a cycle
+    lin                bit rate, 1 kbit/s <=    1e+06 ns  run    2500 (52083.3 ns) needs 47999       LIN master, LIN Specification Package Revision 2.2A 6.3, p. 112; margin a cycle
+    spdif              a block of 192 frames, 44.1 kHz and 1100 ppm >= 4.34896e+06 ns  run    208979 (4353729.2 ns) needs 208751       S/PDIF, IEC 60958 type II, Wikipedia, S/PDIF, revision 1378032122 (2 October 2026) p.1, S/PDIF control word components, byte 3, spec.txt l.222-224; margin a cycle
+    spdif              a block of 192 frames, 44.1 kHz less 1100 ppm <= 4.35854e+06 ns  run    208979 (4353729.2 ns) needs 209208       S/PDIF, IEC 60958 type II, Wikipedia, S/PDIF, revision 1378032122 (2 October 2026) p.1, S/PDIF control word components, byte 3, spec.txt l.222-224; margin a cycle
+    spdif              a frame, Mode 0's 192 kHz at most >=  5208.33 ns  run    1088 (22666.7 ns) needs  251       S/PDIF, IEC 60958 type II, Wikipedia, S/PDIF, revision 1378032122 (2 October 2026) p.1, text, spec.txt l.180; margin a cycle
+    usb_power_delivery fBitRate max 330 kbps: each bit cell >=   3030.3 ns  run    160 (3333.3 ns)   needs  147       USB PD BMC transmitter, USB Power Delivery Specification r3.2 v1.2, Aug 2026 Table 5.9, p.110; margin a cycle
+    usb_power_delivery fBitRate min 270 kbps: each bit cell <=   3703.7 ns  run    160 (3333.3 ns)   needs  176       USB PD BMC transmitter, USB Power Delivery Specification r3.2 v1.2, Aug 2026 Table 5.9, p.110; margin a cycle
+    usb_power_delivery tUnitInterval min >=     3030 ns  run    160 (3333.3 ns)   needs  147       USB PD BMC transmitter, USB Power Delivery Specification r3.2 v1.2, Aug 2026 Table 5.9, p.110; margin a cycle
+    usb_power_delivery tUnitInterval max <=     3700 ns  run    160 (3333.3 ns)   needs  176       USB PD BMC transmitter, USB Power Delivery Specification r3.2 v1.2, Aug 2026 Table 5.9, p.110; margin a cycle
+    usb_power_delivery pBitRate 0.25 %: 32 bits against the preamble's last 32, of 32 UI at 300 kbps <=  266.667 ns  run    0 (0.0 ns)        needs   11       USB PD BMC transmitter, USB Power Delivery Specification r3.2 v1.2, Aug 2026 Table 5.10, p.110, and 5.3.4.8 p.108; 300 kbps nominal, Table 5.9; margin a cycle
+    usb_power_delivery tHoldLowBMC: every low >=     1000 ns  kernel 80 (1666.7 ns)    needs   49       USB PD BMC transmitter, USB Power Delivery Specification r3.2 v1.2, Aug 2026 Table 5.10, p.110; margin a cycle
+    usb_power_delivery tInterFrameGap: each idle low >=    25000 ns  run    1367 (28479.2 ns) needs 1201       USB PD BMC transmitter, USB Power Delivery Specification r3.2 v1.2, Aug 2026 Table 5.10, p.110; margin a cycle
+    dmx512             bit at 250 kbit/s, shortest low >=     4000 ns  kernel 192 (4000.0 ns)   needs  192       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, line 291; margin 0 ns, the rate has no tolerance: a bit is 192 cycles at 48 MHz
+    dmx512             bit at 250 kbit/s, shortest high >=     4000 ns  kernel 192 (4000.0 ns)   needs  192       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, line 291; margin 0 ns, the rate has no tolerance: a bit is 192 cycles at 48 MHz
+    dmx512             bit at 250 kbit/s, longest channel low <=     4000 ns  run    192 (4000.0 ns)   needs  192       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, line 291; margin 0 ns, the rate has no tolerance: a bit is 192 cycles at 48 MHz
+    dmx512             BREAK transmitted >=    92000 ns  run    4800 (100000.0 ns) needs 4417       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, table, lines 303-306; margin a cycle
+    dmx512             BREAK receiver recognized >=    88000 ns  run    4800 (100000.0 ns) needs 4225       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, table, lines 303, 308-309; margin a cycle
+    dmx512             MAB transmitted >=    12000 ns  run    768 (16000.0 ns)  needs  577       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, table, lines 304-305, 307; margin a cycle
+    dmx512             MAB receiver recognized >=     8000 ns  run    768 (16000.0 ns)  needs  385       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, table, lines 304, 308, 310; margin a cycle
+    dmx512             MAB since 1990 >=     8000 ns  run    768 (16000.0 ns)  needs  385       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, line 301; margin a cycle
+    dmx512             break to break transmitted >= 1.204e+06 ns  run    1092101 (22752104.2 ns) needs 57793       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, line 313; margin a cycle
+    dmx512             break to break receivers handle >= 1.196e+06 ns  run    1092101 (22752104.2 ns) needs 57409       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, line 313; margin a cycle
+    dmx512             refresh rate of 512 channels, at most 44 Hz >= 2.27273e+07 ns  run    1092101 (22752104.2 ns) needs 1090911       DMX512, Wikipedia, DMX512, oldid 1380777110 page 1, line 312; margin a cycle
+    swd_blind          Trn            >=     1000 ns  kernel 50 (1041.7 ns)    needs   49       SW-DP, ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813 Table 2-10, p.2-52; margin a cycle
+    swd_blind          line reset     >=    50000 ns  run    2910 (60625.0 ns) needs 2401       SW-DP, ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813 4.4.3, p.4-104; margin a cycle
+    swd_blind          idle cycles    >=     2000 ns  run    394 (8208.3 ns)   needs   97       SW-DP, ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813 4.4.3, p.4-104; margin a cycle
+    swd_blind          JTAG-to-SWD    >=    50000 ns  run    2758 (57458.3 ns) needs 2401       SW-DP, ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813 5.2.1, p.5-111; margin a cycle
+    swd_blind          JTAG-to-DS     >=     5000 ns  run    548 (11416.7 ns)  needs  241       SW-DP, ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813 5.3.2, p.5-115; margin a cycle
+    swd_blind          SWD-to-DS      >=    50000 ns  run    2758 (57458.3 ns) needs 2401       SW-DP, ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813 5.3.3, p.5-116; margin a cycle
+    swd_blind          DS-to-SWD      >=    50000 ns  run    2758 (57458.3 ns) needs 2401       SW-DP, ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813 5.3.4, p.5-117; margin a cycle
+    ir_nec             Carrier frequency, as its period >=  26315.8 ns  run    1266 (26375.0 ns) needs 1265       NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 17; margin a cycle
+    ir_nec             Bit time, logical 0 >= 1.125e+06 ns  run    54438 (1134125.0 ns) needs 54001       NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 18; margin a cycle
+    ir_nec             Bit time, logical 1 >= 2.25e+06 ns  run    108454 (2259458.3 ns) needs 108001       NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 18; margin a cycle
+    ir_nec             Carrier burst length >=   560000 ns  run    27008 (562666.7 ns) needs 26881       NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 21; margin a cycle
+    ir_nec             AGC burst, message start >=    9e+06 ns  run    433394 (9029041.7 ns) needs 432001       NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 28; margin a cycle
+    ir_nec             Space after AGC burst, message start >=  4.5e+06 ns  run    216486 (4510125.0 ns) needs 216001       NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 29; margin a cycle
+    ir_nec             Extra burst at end of message >=   560000 ns  run    27008 (562666.7 ns) needs 26881       NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 34; margin a cycle
+    ir_nec             AGC pulse, repeat code >=    9e+06 ns  run    433394 (9029041.7 ns) needs 432001       NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 37; margin a cycle
+    ir_nec             Space after AGC pulse, repeat code >= 2.25e+06 ns  run    108454 (2259458.3 ns) needs 108001       NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 37; margin a cycle
+    ir_nec             Burst, repeat code >=   560000 ns  run    27008 (562666.7 ns) needs 26881       NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 37; margin a cycle
+    ir_nec             Repeat code space >= 2.25e+06 ns  run    108454 (2259458.3 ns) needs 108001       NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 37; margin a cycle
+    ir_nec             Repeat code burst >=   560000 ns  run    27008 (562666.7 ns) needs 26881       NEC infrared remote, SB-Projects, NEC Protocol, updated 17 July 2025 page 1, line 37; margin a cycle
     uart_log           bit            >=  8506.94 ns  kernel 417 (8687.5 ns)   needs  410       UART at 115200 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
     uart_log           bit            <=  8854.17 ns  run    417 (8687.5 ns)   needs  424       UART at 115200 baud, Maxim AN2141 p.4, +-3/152, 2%; margin a cycle
     |}]
@@ -262,6 +312,7 @@ let%expect_test "firmware its limits do not hold within a factor of two" =
     ir_rc6             none   the spec gives typical times and no minimum or maximum; Ir_rc6.decode holds each mark and space to 5%
     lfast              loose  data rate, shortest high bit (3.125 ns) needs 2 of 10 cycles (20%)
     tdm_audio          none   AN301 has no timing table: SCLK 12.288 MHz (p.2) is typical only, the example for 8 x 32-bit blocks at 48 kHz, with no minimum or maximum
+    wiegand            none   the spec, Wikipedia's Wiegand interface page, gives no pulse width, interval or any other timing
     |}]
 ;;
 

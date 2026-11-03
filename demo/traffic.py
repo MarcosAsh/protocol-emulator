@@ -6,7 +6,9 @@
 # Usage: python3 demo/traffic.py DEMO [DIR]   prints each thing missing and then FAIL
 
 import re
+import subprocess
 import sys
+import tempfile
 import zipfile
 from pathlib import Path
 
@@ -14,18 +16,26 @@ import sigrok
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "python"))
 import demo_caliper  # noqa: E402
+import demo_dali  # noqa: E402
+import demo_dmx512  # noqa: E402
 import demo_can  # noqa: E402
 import demo_can_node  # noqa: E402
 import demo_ds18b20  # noqa: E402
 import demo_flash  # noqa: E402
+import demo_ir_nec  # noqa: E402
 import demo_ir_rc6  # noqa: E402
 import demo_lfast  # noqa: E402
+import demo_lin  # noqa: E402
 import demo_microwire  # noqa: E402
 import demo_nec  # noqa: E402
 import demo_neopixel  # noqa: E402
 import demo_referee  # noqa: E402
+import demo_spdif  # noqa: E402
 import demo_swd  # noqa: E402
+import demo_swd_blind  # noqa: E402
 import demo_tdm_audio  # noqa: E402
+import demo_usb_power_delivery  # noqa: E402
+import demo_wiegand  # noqa: E402
 import demo_xy2_100  # noqa: E402
 import pio_firmware  # noqa: E402
 
@@ -189,6 +199,17 @@ def in_order(decoded, expected, what):
     return []
 
 
+def run_of(decoded, expected, what):
+    """The first line where the decode differs from expected, unless expected is in it as
+    one unbroken run; what a line idle from reset makes the decoder read before it aside."""
+    starts = [i for i, got in enumerate(decoded) if got == expected[0]]
+    if any(decoded[i:i + len(expected)] == expected for i in starts):
+        return []
+    if not starts:
+        return ["%s: no %r in the decode" % (what, expected[0])]
+    return exactly(decoded[starts[0]:starts[0] + len(expected)], expected, what)
+
+
 def ds18b20(_levels):
     """Pico A's readback, checked again from its log: both CRCs, the family, and a
     temperature the part can read that is not its power-on 85 C. Then the same ROM and
@@ -350,6 +371,48 @@ def tdm_audio(_levels):
     return judge
 
 
+# the held-out protocols (test/heldout.txt): each demo's own values as sigrok prints them
+def dali(_levels):
+    expected = demo_dali.lines(demo_dali.FRAMES)
+    return lambda decoded, _log: exactly(decoded, expected, "the frames sent")
+
+
+def dmx512(_levels):
+    expected = demo_dmx512.lines(demo_dmx512.CHANNELS)
+    return lambda decoded, _log: run_of(decoded, expected, "the packet sent")
+
+
+def spdif(_levels):
+    expected = demo_spdif.lines(demo_spdif.WORDS)
+    return lambda decoded, _log: run_of(decoded, expected, "the samples sent")
+
+
+def usb_power_delivery(_levels):
+    m = demo_usb_power_delivery
+    expected = m.lines(m.HEADER, m.PDOS)
+    return lambda decoded, _log: exactly(decoded, expected, "the message sent")
+
+
+def wiegand(_levels):
+    expected = demo_wiegand.lines(demo_wiegand.WORDS)
+    return lambda decoded, _log: run_of(decoded, expected, "the card sent")
+
+
+def ir_nec(_levels):
+    expected = demo_ir_nec.lines()
+    return lambda decoded, _log: exactly(decoded, expected, "the frame and repeat code sent")
+
+
+def lin(_levels):
+    expected = demo_lin.lines(demo_lin.WORDS[1])
+    return lambda decoded, _log: exactly(decoded, expected, "the header sent")
+
+
+def swd_blind(_levels):
+    expected = demo_swd_blind.lines(0x0BC12477)
+    return lambda decoded, _log: in_order(decoded, expected, "the DPIDR read")
+
+
 def sweep(levels):
     """OUT0 echoes wire 20, so it has at least every edge the chip stamped."""
     edges = levels[4][0]
@@ -397,7 +460,42 @@ CHECKS = {
     "lfast": (OUT0, lfast),
     "ir_rc6": (OUT0, ir_rc6),
     "tdm_audio": ({4: "SCLK", 1: "FSYNC", 3: "SDATA"}, tdm_audio),
+    "dali": (OUT0, dali),
+    "dmx512": (OUT0, dmx512),
+    "spdif": (OUT0, spdif),
+    "usb_power_delivery": (OUT0, usb_power_delivery),
+    "wiegand": ({4: "DATA0", 5: "DATA1, CAN board A's R"}, wiegand),
+    "ir_nec": (OUT0, ir_nec),
+    "lin": ({7: "LIN, IO5"}, lin),
+    "swd_blind": ({6: "SWCLK", 7: "SWDIO"}, swd_blind),
 }
+
+
+# sigrok's spdif takes its clock from the first pulses it sees, and a line low from reset
+# until the firmware starts throws it off for good. So it decodes these as demo/decode.py
+# joins their traces: from once the channel has idled high for the trace's joins_after, in
+# 48 MHz cycles (test/traces/spdif.trace). Kept as DEMO.joined.decode.
+JOINED = {"spdif": (4, 34)}
+
+
+def joined_decode(name, d, rate, samples):
+    """sigrok's decode, with the demo's outside: arguments, of the capture from once channel
+    JOINED[name] has idled high long enough."""
+    bit, cycles = JOINED[name]
+    count = round(cycles * rate / 48e6)
+    levels = samples.translate(bytes((b >> bit) & 1 for b in range(256)))
+    at = levels.find(b"\x01" * count)
+    if at < 0:
+        return []
+    script = Path(__file__).resolve().parent.parent / "python" / ("demo_%s.py" % name)
+    args = re.search(r"^# outside: .*decode=(.*)$", script.read_text(), re.M).group(1)
+    with tempfile.TemporaryDirectory() as scratch:
+        path = Path(scratch) / "joined.sr"
+        sigrok.write(path, rate, samples[at + count:])
+        out = subprocess.run(["sigrok-cli", "-i", str(path), *args.split()],
+                             capture_output=True, text=True).stdout
+    (d / (name + ".joined.decode")).write_text(out)
+    return out.splitlines()
 
 
 def stem(demo):
@@ -415,13 +513,15 @@ def check(demo, directory):
     if not (d / (name + ".sr")).exists():
         return ["no capture %s" % (d / (name + ".sr"))]
     try:
-        _, _, samples = sigrok.read(d / (name + ".sr"))
+        rate, _, samples = sigrok.read(d / (name + ".sr"))
     except (OSError, KeyError, ValueError, zipfile.BadZipFile) as e:
         return ["the capture %s does not read: %s" % (d / (name + ".sr"), e)]
     levels = lines(name, samples)
-    del samples
     decode, log = d / (name + ".decode"), d / (name + ".log")
     decoded = decode.read_text(errors="replace").splitlines() if decode.exists() else []
+    if name in JOINED:
+        decoded = joined_decode(name, d, rate, samples)
+    del samples
     return judge(name, levels, decoded, log.read_text(errors="replace") if log.exists() else "")
 
 
