@@ -150,7 +150,9 @@ let () =
     List.iter fields ~f:(fun (field, value) -> printf "        \"%s\": %d,\n" field value);
     print_string "    },\n    \"words\": [\n";
     words_lines (Timed_program.words timed);
-    printf "    ],\n    \"data\": %s,\n    \"tx\": [\n" run.data;
+    print_string "    ],\n";
+    Certificate_entry.print_timed timed;
+    printf "    \"data\": %s,\n    \"tx\": [\n" run.data;
     List.iter run.pio_words ~f:(fun piece ->
       print_string "      [\n";
       words_lines (List.concat_map piece ~f:(Translate.tx_words setup t));
