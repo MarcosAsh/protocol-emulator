@@ -1230,6 +1230,8 @@ async def test_pio_spi(dut):
     """Raspberry Pi's spi.pio's spi_cpha0_cs reading the JEDEC ID of a W25Q64JV, as sigrok
     decodes it, with no fault."""
     await reset(dut)
+    # test_flash leaves the flash wired
+    dut.flash_wired.value = 0
     cocotb.start_soon(w25q64(dut, (0xEF, 0x40, 0x17)))
     analyser = Analyser({
         0: bit(dut.uo_out, 6), 1: bit(dut.uo_out, 5), 2: bit(dut.miso), 3: bit(dut.uo_out, 7),
