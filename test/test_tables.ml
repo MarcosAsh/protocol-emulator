@@ -1166,20 +1166,19 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       , "-"
       , "half bit 20000"
       , [%string
-          "a 27 half bit idle is 540000 cycles, each step held at most %{max_hold#Int}"]
-      )
+          "a 27 half bit idle is 540000 cycles, each step held at most %{max_hold#Int}"] )
     ; ( "lin"
       , "untried"
       , "-"
       , "half 16 and up, 1250 for 19200 baud"
-      , "open drain, the response's start edges by a pin wait; not tried against the class"
-      )
+      , "open drain, the response's start edges by a pin wait; not tried against the \
+         class" )
     ; ( "spdif"
       , "untried"
       , "-"
       , "halves of 8 32991/65536 cycles, 44.1 kHz"
-      , "transitions by reading the line back, a 192-frame block count; not tried against \
-         the class" )
+      , "transitions by reading the line back, a 192-frame block count; not tried \
+         against the class" )
     ; ( "usb_power_delivery"
       , "untried"
       , "-"

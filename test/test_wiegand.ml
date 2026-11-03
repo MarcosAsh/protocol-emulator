@@ -121,7 +121,8 @@ let%expect_test "a 26-bit card read on two wires" =
         ~lows:(dedup panel.lows : int list)
         ~intervals:(dedup panel.intervals : int list)
         ~both_low:(panel.both_low : int)];
-  [%expect {|
+  [%expect
+    {|
     ((count 26) (facility 42) (id 4660) (even_parity true) (odd_parity true)
      (lows (2400)) (intervals (24000)) (both_low 0))
     |}]
@@ -141,7 +142,8 @@ let%expect_test "the shortest pulses, back to back" =
         ~lows:(dedup panel.lows : int list)
         ~intervals:(dedup panel.intervals : int list)
         ~both_low:(panel.both_low : int)];
-  [%expect {|
+  [%expect
+    {|
     (("List.length panel.bits" 34) ("read = bits" true) (lows (16))
      (intervals (48)) (both_low 0))
     |}]

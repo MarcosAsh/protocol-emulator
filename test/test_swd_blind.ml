@@ -54,7 +54,8 @@ let%expect_test "a line reset, the DPIDR, then an AP read" =
         ~log:(Target.log target : string list)
         ~violations:(Target.violations target : string list)];
   [%test_result: int] dpidr.data ~expect:Target.dpidr;
-  [%expect {|
+  [%expect
+    {|
     ((dpidr ((ack 1) (data 0xbc12477) (parity_ok true)))
      (ap ((ack 1) (data 0x0) (parity_ok true)))
      (log ("line reset" "read DP 0x0: 0x0bc12477" "read AP 0x0: 0x00000000"))
@@ -86,7 +87,8 @@ let%expect_test "a write to the AP, then two reads" =
         (rdbuff : Answer.t)
         ~log:(Target.log target : string list)
         ~violations:(Target.violations target : string list)];
-  [%expect {|
+  [%expect
+    {|
     ((ap ((ack 1) (data 0x0) (parity_ok true)))
      (rdbuff ((ack 1) (data 0x23000052) (parity_ok true)))
      (log
@@ -118,7 +120,8 @@ let%expect_test "what the target refuses" =
      @ List.mapi dpidr ~f:(fun i clock -> if i = 5 then Clock.Drive false else clock)
      @ idle 3);
   show ~first:57 "one idle cycle" (line_reset @ idle 1 @ dpidr @ idle 3);
-  [%expect {|
+  [%expect
+    {|
     ("drives the first turnaround"
      (answer ((ack 0) (data 0xbc12477) (parity_ok true)))
      (log ("line reset" "read DP 0x0: 0x0bc12477"))
@@ -159,7 +162,8 @@ let%expect_test "the line for a DPIDR read" =
     |> List.map ~f:(fun run -> List.hd_exn run, List.length run)
   in
   print_s [%message (runs : ((int * int * int) * int) list)];
-  [%expect {|
+  [%expect
+    {|
     (runs
      (((0 0 0) 8) ((0 1 0) 6) ((0 1 1) 17) ((1 1 1) 24) ((0 1 1) 3) ((0 0 1) 21)
       ((1 0 1) 24) ((0 0 1) 3) ((0 1 1) 21) ((1 1 1) 24) ((0 1 1) 3) ((0 0 1) 21)

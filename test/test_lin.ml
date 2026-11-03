@@ -118,7 +118,8 @@ let%expect_test "a slave 2% off the master" =
       ~id:0x3b
       ~data:[ 0x00; 0xff; 0x01; 0x80; 0x55; 0xaa; 0x0f; 0xf0 ]
       ());
-  [%expect {|
+  [%expect
+    {|
     ((headers (0xfb)) (irq false)
      (fault
       ((underflow false) (overflow false) (missed_deadline false) (decode false)))

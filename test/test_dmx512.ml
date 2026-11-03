@@ -29,8 +29,7 @@ let%expect_test "the line for a start code" =
     |> List.map ~f:(fun run -> List.hd_exn run, List.length run)
   in
   print_s [%message (runs : (bool * int) list)];
-  [%expect
-    {| (runs ((true 7) (false 4800) (true 768) (false 1728) (true 697))) |}]
+  [%expect {| (runs ((true 7) (false 4800) (true 768) (false 1728) (true 697))) |}]
 ;;
 
 (* A receiver as the spec describes it (lines 291-297, 303-310): a low of at least 88 us
