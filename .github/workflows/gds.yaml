@@ -182,7 +182,9 @@ jobs:
       fail-fast: false
       matrix:
         corner: [slow, typ, fast]
-        group: [replay_a, replay_b, two_engines_a, two_engines_b, blame_a, blame_b, core, boards]
+        group:
+          [replay_a, replay_b, two_engines_fault, two_engines_one, two_engines_uart,
+           two_engines_chip, blame_a, blame_b, core_a, core_b, boards, boards_usb]
     steps:
       - name: checkout repo
         uses: actions/checkout@v6
