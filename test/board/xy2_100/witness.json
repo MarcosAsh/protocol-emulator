@@ -1,14 +1,14 @@
 {
   "demo": "xy2_100",
-  "time": "2026-11-02T16:57:08",
+  "time": "2026-11-03T07:58:03",
   "result": "PASS",
-  "commit": "a68c75ab9ba58b62a58a2cf95f7f0cc1db1ae3e7",
-  "bitstream_sha256": "d814478c5e4d849ecbb71da7bfb32cc851d6a92cf371ef12b7669a2e97be072d",
+  "commit": "b938551d48f1bd77a7431558e9eeace139ff0175",
+  "bitstream_sha256": "012dc5e1b0769f12efaf6f47a34d56f5ffd4ed225f891e43e81a25e3518bb009",
   "netlist_sha256": "28bfa97f1d03607ca9c2f3914f401b1b6990e3ee20542ba3d89d2347e67cff56",
-  "sums_sha256": "1ef58aa02c55f8ffed4460387d68aff60b3e07fe1ed7de414398bd7b27f4274c",
+  "sums_sha256": "b0ad122885fbe3f88eb43139a53c8ea9b8efa011464baad64422e408164c587a",
   "capture": {
     "file": "xy2_100.sr",
-    "sha256": "3b6511fcafe1ae8767a0cc8f5ebed25e637ee1ddf28b74176827a75fddf58b54",
+    "sha256": "31adae882d5c4083156a203de1b5ce887bbb72c399b1db0b6d6def72f26cf5e0",
     "rate_hz": 24000000,
     "seconds": 2.0,
     "analyser": "B",
@@ -27,7 +27,7 @@
       "parameter": "tDS",
       "limit": ">= 50 ns",
       "sheet": "Newson rhothor X7 XY2-100 datasheet rev. 0703, p.2",
-      "spans": 454,
+      "spans": 450,
       "measured": "167 ns to 292 ns",
       "verdict": "proved"
     },
@@ -35,7 +35,7 @@
       "parameter": "tDH",
       "limit": ">= 100 ns",
       "sheet": "Newson rhothor X7 XY2-100 datasheet rev. 0703, p.2",
-      "spans": 454,
+      "spans": 450,
       "measured": "208 ns to 333 ns",
       "verdict": "proved"
     }
@@ -44,7 +44,7 @@
     "DATA inverted over the first D15",
     "a DATA move put on the SENDCK fall after it"
   ],
-  "bitstream_source": "board-8x4-features' Verilog, a68c75ab's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 1, 48.75 MHz) on the pc",
+  "bitstream_source": "land-8x4's Verilog, b938551d's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 7, 49.65 MHz) on the pc",
   "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
   "firmware": {
     "XY2_100": "fb3e1028e0f1ae611ec066f6da6c03ca7fc085410b543fe424e8ef00c3753379"
@@ -58,7 +58,7 @@
     "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
     "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
     "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
-    "the bitstream is named by its sha256, and its netlist's, built from board-8x4-features' Verilog, a68c75ab's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 1, 48.75 MHz) on the pc by the bench's notes, which CI does not rebuild",
+    "the bitstream is named by its sha256, and its netlist's, built from land-8x4's Verilog, b938551d's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 7, 49.65 MHz) on the pc by the bench's notes, which CI does not rebuild",
     "drawn at random and written blind from its spec (docs/flexibility.md)",
     "tDS and tDH are held on DATA only, as the library holds them"
   ]

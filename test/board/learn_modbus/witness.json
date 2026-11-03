@@ -1,7 +1,7 @@
 {
   "demo": "learn_modbus",
-  "bitstream_sha256": "d814478c5e4d849ecbb71da7bfb32cc851d6a92cf371ef12b7669a2e97be072d",
-  "sums_sha256": "6209b894764154b65db6546839cb8fa080dbe3f027dcfa73175b94bbecdb123e",
+  "bitstream_sha256": "012dc5e1b0769f12efaf6f47a34d56f5ffd4ed225f891e43e81a25e3518bb009",
+  "sums_sha256": "8ba1b92254a09e7a88c48ebf05a2a83d416f336deb51da9ba8cd54a65a839ca6",
   "recorded_probes": [
     "IO3=D6"
   ],
@@ -15,8 +15,8 @@
   ],
   "tooth": [
     "D4",
-    12031718,
-    12638037
+    12030000,
+    12700000
   ],
   "bench": "an Icepi Zero running the chip at 48 MHz on bench carrier v1.2, Pico A as the host, Pico B replaying the recording and listening on OUT0, analyser B on IO3/IO2 while the chip records and A on OUT0 (B on OUT5/OUT4 for a clocked bus) while it speaks, both fx2lafw",
   "scope": "the chip's recording of a transmitter it was not told about, what was learned from it, the firmware written for a message never recorded, and that message on the wire"

@@ -1,14 +1,14 @@
 {
   "demo": "eeprom",
-  "time": "2026-11-02T16:53:03",
+  "time": "2026-11-03T07:53:59",
   "result": "PASS",
-  "commit": "a68c75ab9ba58b62a58a2cf95f7f0cc1db1ae3e7",
-  "bitstream_sha256": "d814478c5e4d849ecbb71da7bfb32cc851d6a92cf371ef12b7669a2e97be072d",
+  "commit": "b938551d48f1bd77a7431558e9eeace139ff0175",
+  "bitstream_sha256": "012dc5e1b0769f12efaf6f47a34d56f5ffd4ed225f891e43e81a25e3518bb009",
   "netlist_sha256": "28bfa97f1d03607ca9c2f3914f401b1b6990e3ee20542ba3d89d2347e67cff56",
-  "sums_sha256": "e255cb6dc50caa98cfa9e3eaa216e99419dfd53c7c177c4b144f2d6d8a840aff",
+  "sums_sha256": "81b25da51fac00b89f23aaa1c72ffe8b8ceeef1b6565550cce62e752c8df566b",
   "capture": {
     "file": "eeprom.sr",
-    "sha256": "4ecab16dcce721084965c1f0a84fff5410406ccecec64040e85df29e8adbdec4",
+    "sha256": "060bff71158d480cc953e8dcbce7992c30650a415e82047c396137f5636f05f5",
     "rate_hz": 24000000,
     "seconds": 3.0,
     "analyser": "B",
@@ -19,7 +19,7 @@
   },
   "decode": {
     "arguments": "-P i2c:sda=D6:scl=D7,eeprom24xx:chip=onsemi_cat24c256 -A eeprom24xx",
-    "sha256": "145e23c5d865ca498a73cfa8d30ca766a0a0617aee09712b237b65f971d29b88"
+    "sha256": "e1223f88659adbc760eadc8e7df2ea9c876ebb8a6920af95501c0394b9d517ce"
   },
   "timing": [
     {
@@ -27,7 +27,7 @@
       "limit": ">= 2500 ns",
       "sheet": "24LC256, Microchip DS20001203W, Table 1-2 p.4, param 1",
       "spans": 1444,
-      "measured": "3916 ns to 1274169 ns",
+      "measured": "3916 ns to 1267377 ns",
       "verdict": "proved"
     },
     {
@@ -43,7 +43,7 @@
       "limit": ">= 1300 ns",
       "sheet": "24LC256, Microchip DS20001203W, Table 1-2 p.4, param 3",
       "spans": 1457,
-      "measured": "2041 ns to 1272252 ns",
+      "measured": "2041 ns to 1265502 ns",
       "verdict": "proved"
     },
     {
@@ -51,7 +51,7 @@
       "limit": ">= 600 ns",
       "sheet": "24LC256, Microchip DS20001203W, Table 1-2 p.4, param 6",
       "spans": 17,
-      "measured": "958 ns to 1042 ns",
+      "measured": "958 ns to 1083 ns",
       "verdict": "proved"
     },
     {
@@ -59,15 +59,15 @@
       "limit": ">= 600 ns",
       "sheet": "24LC256, Microchip DS20001203W, Table 1-2 p.4, param 7",
       "spans": 16,
-      "measured": "833 ns to 3262410 ns",
+      "measured": "833 ns to 3263618 ns",
       "verdict": "unresolved"
     },
     {
       "parameter": "TSU:DAT",
       "limit": ">= 100 ns",
       "sheet": "24LC256, Microchip DS20001203W, Table 1-2 p.4, param 9",
-      "spans": 822,
-      "measured": "917 ns to 1226914 ns",
+      "spans": 824,
+      "measured": "917 ns to 1265210 ns",
       "verdict": "proved"
     },
     {
@@ -83,7 +83,7 @@
       "limit": ">= 1300 ns",
       "sheet": "24LC256, Microchip DS20001203W, Table 1-2 p.5, param 14",
       "spans": 12,
-      "measured": "391253 ns to 3261409 ns",
+      "measured": "382837 ns to 3262660 ns",
       "verdict": "proved"
     }
   ],
@@ -91,7 +91,7 @@
     "SDA inverted over bit 1 of the page write's byte at 0x7fc4",
     "SCL's tenth pulse cut to 6 samples"
   ],
-  "bitstream_source": "board-8x4-features' Verilog, a68c75ab's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 1, 48.75 MHz) on the pc",
+  "bitstream_source": "land-8x4's Verilog, b938551d's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 7, 49.65 MHz) on the pc",
   "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
   "firmware": {
     "I2C_MASTER": "99a137445d048bffe935c5d6858959a6ea3701373dd59fdfc29945b673f9af3f",
@@ -106,7 +106,7 @@
     "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
     "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
     "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
-    "the bitstream is named by its sha256, and its netlist's, built from board-8x4-features' Verilog, a68c75ab's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 1, 48.75 MHz) on the pc by the bench's notes, which CI does not rebuild",
+    "the bitstream is named by its sha256, and its netlist's, built from land-8x4's Verilog, b938551d's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 7, 49.65 MHz) on the pc by the bench's notes, which CI does not rebuild",
     "SCL and SDA as the analyser's threshold sees them, so the most rise time comes off each least"
   ]
 }

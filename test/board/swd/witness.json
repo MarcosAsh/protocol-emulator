@@ -1,14 +1,14 @@
 {
   "demo": "swd",
-  "time": "2026-11-02T16:54:34",
+  "time": "2026-11-03T07:55:30",
   "result": "PASS",
-  "commit": "a68c75ab9ba58b62a58a2cf95f7f0cc1db1ae3e7",
-  "bitstream_sha256": "d814478c5e4d849ecbb71da7bfb32cc851d6a92cf371ef12b7669a2e97be072d",
+  "commit": "b938551d48f1bd77a7431558e9eeace139ff0175",
+  "bitstream_sha256": "012dc5e1b0769f12efaf6f47a34d56f5ffd4ed225f891e43e81a25e3518bb009",
   "netlist_sha256": "28bfa97f1d03607ca9c2f3914f401b1b6990e3ee20542ba3d89d2347e67cff56",
-  "sums_sha256": "665e8fcc6ee9577fb32b9027e0005c6bc124c810d85e5be454cb6bf6f3139618",
+  "sums_sha256": "7ad29229a4e8a9acd8bdd855fef2e1030b9e9ac3343ed56b5ba6868e2a3a5059",
   "capture": {
     "file": "swd.sr",
-    "sha256": "7e668547451213d249764929adbd5f7b471c74d57a351c3ada21890aa900ecbb",
+    "sha256": "4ae31dab3a66d308fa4f6d1bb846a7e4bc20a70eb961e279f2ea3ab6c434308f",
     "rate_hz": 24000000,
     "seconds": 3.0,
     "analyser": "A",
@@ -19,7 +19,7 @@
   },
   "decode": {
     "arguments": "-P swd:swclk=D6:swdio=D7 -A swd",
-    "sha256": "0a34f3317c721b69a2e04386dce3b692b5aed0a7c046c261cce17a29f4b57af9"
+    "sha256": "bc45a228b99f03c111142619688f369c5cc00e6c4ed1690158827d9dd1acc4d9"
   },
   "timing": [
     {
@@ -27,7 +27,7 @@
       "limit": ">= 21 ns",
       "sheet": "RP2040, RP2040 datasheet, 2025-02-20 s.2.3.4 p.61",
       "spans": 1345,
-      "measured": "458 ns to 3687202 ns",
+      "measured": "458 ns to 3703787 ns",
       "verdict": "proved"
     },
     {
@@ -35,7 +35,7 @@
       "limit": ">= 21 ns",
       "sheet": "RP2040, RP2040 datasheet, 2025-02-20 s.2.3.4 p.61",
       "spans": 1344,
-      "measured": "458 ns to 542 ns",
+      "measured": "417 ns to 542 ns",
       "verdict": "proved"
     },
     {
@@ -51,7 +51,7 @@
     "SWDIO inverted over a bit of AP 0's IDR",
     "the first line reset's rise 20 cycles late"
   ],
-  "bitstream_source": "board-8x4-features' Verilog, a68c75ab's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 1, 48.75 MHz) on the pc",
+  "bitstream_source": "land-8x4's Verilog, b938551d's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 7, 49.65 MHz) on the pc",
   "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
   "firmware": {
     "SWD": "594332e3837a323666c3494ac34c6c8324b0e1a5c2ff96acec6f7670d11f383b"
@@ -65,7 +65,7 @@
     "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
     "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
     "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
-    "the bitstream is named by its sha256, and its netlist's, built from board-8x4-features' Verilog, a68c75ab's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 1, 48.75 MHz) on the pc by the bench's notes, which CI does not rebuild",
+    "the bitstream is named by its sha256, and its netlist's, built from land-8x4's Verilog, b938551d's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 7, 49.65 MHz) on the pc by the bench's notes, which CI does not rebuild",
     "sigrok misreads the dormant wake and TARGETSEL, so only reads are held to the bytes"
   ]
 }

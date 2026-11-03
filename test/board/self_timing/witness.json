@@ -1,14 +1,14 @@
 {
   "demo": "self_timing",
-  "time": "2026-11-02T16:52:00",
+  "time": "2026-11-03T07:52:58",
   "result": "PASS",
-  "commit": "a68c75ab9ba58b62a58a2cf95f7f0cc1db1ae3e7",
-  "bitstream_sha256": "d814478c5e4d849ecbb71da7bfb32cc851d6a92cf371ef12b7669a2e97be072d",
+  "commit": "b938551d48f1bd77a7431558e9eeace139ff0175",
+  "bitstream_sha256": "012dc5e1b0769f12efaf6f47a34d56f5ffd4ed225f891e43e81a25e3518bb009",
   "netlist_sha256": "28bfa97f1d03607ca9c2f3914f401b1b6990e3ee20542ba3d89d2347e67cff56",
-  "sums_sha256": "a3133a2ea4247f36d6e67a7d9f9fb4973f0d32cecae0e67cf5d8eb4ebb55ce1a",
+  "sums_sha256": "02266757e4840daae0da223a0dfc20e11474caff2443ef5e591aaeaaf76ce353",
   "capture": {
     "file": "self_timing.sr",
-    "sha256": "37f3f1112af6a636ad00f5f6bf6dd386dbfbe0de618298838f074026fb14cdc3",
+    "sha256": "92eea006f23b5c4768007c8ee9fa16f0a8c75e919c4bbcbd615be01da8cf1e0b",
     "rate_hz": 2000000,
     "seconds": 8.0,
     "analyser": "A",
@@ -50,7 +50,7 @@
     "half of the first byte's bit 0 inverted",
     "the first frame's second edge 12 samples late"
   ],
-  "bitstream_source": "board-8x4-features' Verilog, a68c75ab's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 1, 48.75 MHz) on the pc",
+  "bitstream_source": "land-8x4's Verilog, b938551d's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 7, 49.65 MHz) on the pc",
   "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
   "firmware": {
     "test/uart_tx_host_rate.hex": "b0ff359cce682ac2f0eeca87a9c486772ee8501020ca7394066844dd0b0b3701",
@@ -65,7 +65,7 @@
     "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
     "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
     "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
-    "the bitstream is named by its sha256, and its netlist's, built from board-8x4-features' Verilog, a68c75ab's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 1, 48.75 MHz) on the pc by the bench's notes, which CI does not rebuild",
+    "the bitstream is named by its sha256, and its netlist's, built from land-8x4's Verilog, b938551d's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 7, 49.65 MHz) on the pc by the bench's notes, which CI does not rebuild",
     "the echo's delay is the same for every edge, so only offsets from each start bit are compared"
   ]
 }

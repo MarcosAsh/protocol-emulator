@@ -1,14 +1,14 @@
 {
   "demo": "nec",
-  "time": "2026-11-02T16:56:39",
+  "time": "2026-11-03T07:57:34",
   "result": "PASS",
-  "commit": "a68c75ab9ba58b62a58a2cf95f7f0cc1db1ae3e7",
-  "bitstream_sha256": "d814478c5e4d849ecbb71da7bfb32cc851d6a92cf371ef12b7669a2e97be072d",
+  "commit": "b938551d48f1bd77a7431558e9eeace139ff0175",
+  "bitstream_sha256": "012dc5e1b0769f12efaf6f47a34d56f5ffd4ed225f891e43e81a25e3518bb009",
   "netlist_sha256": "28bfa97f1d03607ca9c2f3914f401b1b6990e3ee20542ba3d89d2347e67cff56",
-  "sums_sha256": "e8155276c24ed54003d0eef4ed048bba749d6e610ce698697c7989db328e15e1",
+  "sums_sha256": "083649182bb71380657e1527c732cc73c8f2d349d8340e28a0327566c7804216",
   "capture": {
     "file": "nec.sr",
-    "sha256": "d7cfad8b3412a993f7e0543ac2faf0a62f7c0e691473a7a0ba9010e7b5a5026b",
+    "sha256": "ecc024d9d9519f712ab7a9ea0068f1d520e001c8b1151b09486ad105a50dddd5",
     "rate_hz": 24000000,
     "seconds": 4.0,
     "analyser": "A",
@@ -26,7 +26,7 @@
       "limit": ">= 8550.00 us",
       "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
       "spans": 5,
-      "measured": "8999.52 us to 9001.40 us",
+      "measured": "8999.52 us to 9001.44 us",
       "verdict": "proved"
     },
     {
@@ -34,7 +34,7 @@
       "limit": "<= 9450.00 us",
       "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
       "spans": 5,
-      "measured": "8999.52 us to 9001.40 us",
+      "measured": "8999.52 us to 9001.44 us",
       "verdict": "proved"
     },
     {
@@ -42,7 +42,7 @@
       "limit": ">= 4275.00 us",
       "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
       "spans": 3,
-      "measured": "4499.76 us to 4500.74 us",
+      "measured": "4499.72 us to 4500.74 us",
       "verdict": "proved"
     },
     {
@@ -50,7 +50,7 @@
       "limit": "<= 4725.00 us",
       "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
       "spans": 3,
-      "measured": "4499.76 us to 4500.74 us",
+      "measured": "4499.72 us to 4500.74 us",
       "verdict": "proved"
     },
     {
@@ -58,7 +58,7 @@
       "limit": ">= 2137.50 us",
       "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
       "spans": 2,
-      "measured": "2249.86 us to 2250.39 us",
+      "measured": "2249.82 us to 2250.39 us",
       "verdict": "proved"
     },
     {
@@ -66,7 +66,7 @@
       "limit": "<= 2362.50 us",
       "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
       "spans": 2,
-      "measured": "2249.86 us to 2250.39 us",
+      "measured": "2249.82 us to 2250.39 us",
       "verdict": "proved"
     },
     {
@@ -122,7 +122,7 @@
       "limit": ">= 534.37 us",
       "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
       "spans": 5,
-      "measured": "562.44 us to 562.64 us",
+      "measured": "562.40 us to 562.64 us",
       "verdict": "proved"
     },
     {
@@ -130,7 +130,7 @@
       "limit": "<= 590.62 us",
       "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
       "spans": 5,
-      "measured": "562.44 us to 562.64 us",
+      "measured": "562.40 us to 562.64 us",
       "verdict": "proved"
     },
     {
@@ -138,7 +138,7 @@
       "limit": ">= 102600.00 us",
       "sheet": "NEC, test/nec.ml's frames and Nec.decode's 5%",
       "spans": 4,
-      "measured": "107994.70 us to 109285.97 us",
+      "measured": "107994.74 us to 109293.80 us",
       "verdict": "proved"
     }
   ],
@@ -146,7 +146,7 @@
     "the first command's bits 3 and 4 swapped",
     "the first leader mark a unit short"
   ],
-  "bitstream_source": "board-8x4-features' Verilog, a68c75ab's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 1, 48.75 MHz) on the pc",
+  "bitstream_source": "land-8x4's Verilog, b938551d's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 7, 49.65 MHz) on the pc",
   "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
   "firmware": {
     "NEC_TX": "8e658ebd8f49db67d49c064a1c4c641ac21f726c9796dc102ddd750cb96b2fa8"
@@ -160,7 +160,7 @@
     "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
     "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
     "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
-    "the bitstream is named by its sha256, and its netlist's, built from board-8x4-features' Verilog, a68c75ab's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 1, 48.75 MHz) on the pc by the bench's notes, which CI does not rebuild",
+    "the bitstream is named by its sha256, and its netlist's, built from land-8x4's Verilog, b938551d's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 7, 49.65 MHz) on the pc by the bench's notes, which CI does not rebuild",
     "NEC has no datasheet table, so its windows are test/nec.ml's frames and Nec.decode's 5%"
   ]
 }

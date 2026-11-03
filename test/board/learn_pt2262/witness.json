@@ -1,7 +1,7 @@
 {
   "demo": "learn_pt2262",
-  "bitstream_sha256": "d814478c5e4d849ecbb71da7bfb32cc851d6a92cf371ef12b7669a2e97be072d",
-  "sums_sha256": "a77abff8727bb42a0c8f098d67a2ce9aebdb95e3efef3ea79c3af556c78ec45c",
+  "bitstream_sha256": "012dc5e1b0769f12efaf6f47a34d56f5ffd4ed225f891e43e81a25e3518bb009",
+  "sums_sha256": "06168cef99fe270406f412296102a4a71026fdc0e7ff61e1e755f5fff699fbce",
   "recorded_probes": [
     "IO3=D6"
   ],

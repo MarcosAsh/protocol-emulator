@@ -1,14 +1,14 @@
 {
   "demo": "flash",
-  "time": "2026-11-02T16:52:47",
+  "time": "2026-11-03T07:53:43",
   "result": "PASS",
-  "commit": "a68c75ab9ba58b62a58a2cf95f7f0cc1db1ae3e7",
-  "bitstream_sha256": "d814478c5e4d849ecbb71da7bfb32cc851d6a92cf371ef12b7669a2e97be072d",
+  "commit": "b938551d48f1bd77a7431558e9eeace139ff0175",
+  "bitstream_sha256": "012dc5e1b0769f12efaf6f47a34d56f5ffd4ed225f891e43e81a25e3518bb009",
   "netlist_sha256": "28bfa97f1d03607ca9c2f3914f401b1b6990e3ee20542ba3d89d2347e67cff56",
-  "sums_sha256": "62a1274dff088d3fb67bdb538fc774f98e08243d6b5f32b253752270d6a76432",
+  "sums_sha256": "147b7662cf52e697fa5d0b14351b60c5b08e2f3caef3cdbb37fc2aa945bae03c",
   "capture": {
     "file": "flash.sr",
-    "sha256": "0dd9006ee9d1e9ddae8669b09c67d2db27b2fff42d5239198a968435ee5c7907",
+    "sha256": "352e0c1e5b8e90cee99b566eb5c049e05fe9bae1142d5aaf8bf7c03b4f58df34",
     "rate_hz": 24000000,
     "seconds": 4.0,
     "analyser": "B",
@@ -21,14 +21,14 @@
   },
   "decode": {
     "arguments": "-P spi:clk=D0:mosi=D1:miso=D2:cs=D3,spiflash:chip=winbond_w25q80dv -A spiflash",
-    "sha256": "37ea9e92ecb5fb54e58c7de8b1c381661f9901ded4533f30fef3246bfc3f2335"
+    "sha256": "de80ab330bff07f3708f2d87c3f77f954718222487a051061cc16a1a36084779"
   },
   "timing": [
     {
       "parameter": "tCLH",
       "limit": ">= 9 ns",
       "sheet": "W25Q64JV, Winbond Rev. M p.64",
-      "spans": 9520,
+      "spans": 9392,
       "measured": "125 ns to 250 ns",
       "verdict": "proved"
     },
@@ -36,32 +36,32 @@
       "parameter": "tCLL",
       "limit": ">= 9 ns",
       "sheet": "W25Q64JV, Winbond Rev. M p.64",
-      "spans": 9442,
-      "measured": "83 ns to 5840959 ns",
+      "spans": 9322,
+      "measured": "83 ns to 5885422 ns",
       "verdict": "proved"
     },
     {
       "parameter": "tSLCH",
       "limit": ">= 3 ns",
       "sheet": "W25Q64JV, Winbond Rev. M p.64",
-      "spans": 78,
-      "measured": "42 ns to 167 ns",
-      "verdict": "proved"
+      "spans": 70,
+      "measured": "0 ns to 125 ns",
+      "verdict": "unresolved"
     },
     {
       "parameter": "tCHSH",
       "limit": ">= 3 ns",
       "sheet": "W25Q64JV, Winbond Rev. M p.64",
-      "spans": 78,
-      "measured": "292 ns to 375 ns",
+      "spans": 70,
+      "measured": "292 ns to 417 ns",
       "verdict": "proved"
     },
     {
       "parameter": "tSHSL2",
       "limit": ">= 50 ns",
       "sheet": "W25Q64JV, Winbond Rev. M p.64",
-      "spans": 77,
-      "measured": "1377321 ns to 4339017 ns",
+      "spans": 69,
+      "measured": "1385361 ns to 4291804 ns",
       "verdict": "proved"
     },
     {
@@ -69,7 +69,7 @@
       "limit": ">= 3000 ns",
       "sheet": "W25Q64JV, Winbond Rev. M p.65",
       "spans": 1,
-      "measured": "2558161 ns to 2558756 ns",
+      "measured": "2578200 ns to 2578800 ns",
       "verdict": "proved"
     }
   ],
@@ -77,7 +77,7 @@
     "MISO inverted over the first bit of the JEDEC ID's manufacturer byte",
     "the JEDEC frame's CS fall 2 us after ABh"
   ],
-  "bitstream_source": "board-8x4-features' Verilog, a68c75ab's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 1, 48.75 MHz) on the pc",
+  "bitstream_source": "land-8x4's Verilog, b938551d's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 7, 49.65 MHz) on the pc",
   "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
   "firmware": {
     "SPI_CS_MODE0": "10acb35323acfc351ae7949ad88128b4944ca23893fe28376209d3c0a6f02b08"
@@ -91,6 +91,6 @@
     "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
     "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
     "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
-    "the bitstream is named by its sha256, and its netlist's, built from board-8x4-features' Verilog, a68c75ab's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 1, 48.75 MHz) on the pc by the bench's notes, which CI does not rebuild"
+    "the bitstream is named by its sha256, and its netlist's, built from land-8x4's Verilog, b938551d's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 7, 49.65 MHz) on the pc by the bench's notes, which CI does not rebuild"
   ]
 }

@@ -1,4 +1,5 @@
-$ openFPGALoader -b icepi-zero /home/marcos/board-8x4/fbit/v1.3-header-40mhz.bit
+$ mpremote connect id:e66548545717552e exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero /home/marcos/land-8x4/bit/v1.3-header-40mhz.bit
 Jtag probe limited to 3MHz
 Jtag frequency : requested 6000000Hz -> real 3000000Hz
 ret 0
@@ -32,5 +33,5 @@ cp test/ethernet_rx.hex :
 Up to date: ./ethernet_rx.hex
 cp test/ethernet_rx.cert.hex :
 Up to date: ./ethernet_rx.cert.hex
-$ mpremote connect id:e66548545717552e run python/demo_ethernet_rx.py > /home/marcos/board-8x4/features/2026-11-02/ledger/eth_rx/eth_rx.log
+$ mpremote connect id:e66548545717552e run python/demo_ethernet_rx.py > /home/marcos/land-8x4/evidence/ethernet/2026-11-03/ledger/eth_rx/eth_rx.log
 Pico A says PASS, every step ran

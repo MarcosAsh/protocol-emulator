@@ -1,21 +1,21 @@
 {
   "demo": "eth_rx",
-  "time": "2026-11-02T17:08:53",
+  "time": "2026-11-03T08:20:32",
   "result": "PASS",
-  "commit": "a68c75ab9ba58b62a58a2cf95f7f0cc1db1ae3e7",
+  "commit": "b938551d48f1bd77a7431558e9eeace139ff0175",
   "bitstream_sha256": "c426327526b6b574ab9e186c1ab5a495095a335e974f3852f78d33ad93809a71",
   "netlist_sha256": "efb10f7f9a0a04bdd7f53588c3705543381b3f1a75227342b556b78f76e7826e",
-  "sums_sha256": "89b3d881e6649291d6164b089b61beff9bf0024780ef99d8db6eac8f270b4a3d",
+  "sums_sha256": "f8f021cbbef30106a43c846b9f368d429808155eab0dc4d2bdbe1ab6baa26e1b",
   "log": {
     "file": "eth_rx.log",
-    "sha256": "6e16d30f358e6754114381699529220a7ef1e11d2dd64ce190ef0a39897c130e"
+    "sha256": "427b147597824d8b1169d8acb2f0a0908603353b11d2b42b1f83148233e41c2a"
   },
   "tally": {
     "frames": 146,
     "good_fcs": 142,
     "bad_fcs": 4,
     "past_the_data_memory": 1,
-    "received_whole": 100,
+    "received_whole": 101,
     "bytes": 73604,
     "steps_received_whole": [
       -11,
@@ -45,7 +45,7 @@
     "frame 0's first byte handed back with its low bit flipped",
     "frame 9, its FCS bad, said to be judged good"
   ],
-  "bitstream_source": "board-8x4-features' Verilog, a68c75ab's (src/ as dd604449's), by make -C icepi REV=v1.3 MHZ=40 (seed 1, 49.10 MHz) on the pc",
+  "bitstream_source": "land-8x4's Verilog, b938551d's (src/ as dd604449's), by make -C icepi REV=v1.3 MHZ=40 (seed 1, 49.10 MHz) on the pc",
   "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
   "firmware": {
     "test/ethernet_rx.hex": "092fd995972caf7d51674e906915556001c70974df3998c45f30d1c6ba360f5f",
@@ -60,7 +60,7 @@
   "scope": "each frame's bytes and the receiver's verdict in one run of eth_rx, as Pico A logged them",
   "limits": [
     "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
-    "the bitstream is named by its sha256, and its netlist's, built from board-8x4-features' Verilog, a68c75ab's (src/ as dd604449's), by make -C icepi REV=v1.3 MHZ=40 (seed 1, 49.10 MHz) on the pc by the bench's notes, which CI does not rebuild",
+    "the bitstream is named by its sha256, and its netlist's, built from land-8x4's Verilog, b938551d's (src/ as dd604449's), by make -C icepi REV=v1.3 MHZ=40 (seed 1, 49.10 MHz) on the pc by the bench's notes, which CI does not rebuild",
     "10 Mb/s is past the analyser, so the log is the run's only record: CI judges its frames again from the bytes it says were sent",
     "the line is Pico A's 3.3 V logic, as a line receiver with squelch would give the chip, not a twisted pair through a transformer"
   ]

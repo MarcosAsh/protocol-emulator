@@ -1,16 +1,16 @@
 {
   "demo": "sweep_spi_mode0",
-  "time": "2026-11-02T17:00:27",
+  "time": "2026-11-03T08:27:28",
   "result": "PASS",
-  "commit": "a68c75ab9ba58b62a58a2cf95f7f0cc1db1ae3e7",
-  "bitstream_sha256": "d814478c5e4d849ecbb71da7bfb32cc851d6a92cf371ef12b7669a2e97be072d",
+  "commit": "87b14d1e1920959362627bc214e90c356d3af6e9",
+  "bitstream_sha256": "012dc5e1b0769f12efaf6f47a34d56f5ffd4ed225f891e43e81a25e3518bb009",
   "netlist_sha256": "28bfa97f1d03607ca9c2f3914f401b1b6990e3ee20542ba3d89d2347e67cff56",
-  "sums_sha256": "448d1f71e29ff1c04cf35e97fb2b87bc45c1e63f4a8c5cf7ccd2ab93f52ac3e4",
+  "sums_sha256": "04e0d19d7d4bd3900515bb501c639dfe0b8eba6d0883dc628a6c42e5712ed237",
   "capture": {
     "file": "spi_mode0.sr",
-    "sha256": "d0f6674c2a84278b2c91f62b61397a37728d72206ff6666f09a18c510fc56bd3",
+    "sha256": "c33ea73bdfd03edb57800519864268ff93efdcc54515fb96e97e8155ff5c60be",
     "rate_hz": 24000000,
-    "seconds": 2.5,
+    "seconds": 4.0,
     "analyser": "B",
     "channels": {
       "D0": "SCK, OUT5",
@@ -61,7 +61,7 @@
       "limit": ">= 50 ns",
       "sheet": "W25Q64JV, Winbond Rev. M p.64",
       "spans": 1,
-      "measured": "1668958 ns to 1669375 ns",
+      "measured": "2619530 ns to 2620137 ns",
       "verdict": "proved"
     },
     {
@@ -69,7 +69,7 @@
       "limit": ">= 3000 ns",
       "sheet": "W25Q64JV, Winbond Rev. M p.65",
       "spans": 1,
-      "measured": "1668958 ns to 1669375 ns",
+      "measured": "2619530 ns to 2620137 ns",
       "verdict": "proved"
     }
   ],
@@ -77,7 +77,7 @@
     "MISO inverted over the first bit of the JEDEC ID's manufacturer byte",
     "the JEDEC frame's CS fall 2 us after ABh"
   ],
-  "bitstream_source": "board-8x4-features' Verilog, a68c75ab's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 1, 48.75 MHz) on the pc",
+  "bitstream_source": "land-8x4's Verilog, b938551d's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 7, 49.65 MHz) on the pc",
   "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
   "firmware": {
     "SPI_CS_MODE0": "10acb35323acfc351ae7949ad88128b4944ca23893fe28376209d3c0a6f02b08"
@@ -92,6 +92,6 @@
     "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
     "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
     "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
-    "the bitstream is named by its sha256, and its netlist's, built from board-8x4-features' Verilog, a68c75ab's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 1, 48.75 MHz) on the pc by the bench's notes, which CI does not rebuild"
+    "the bitstream is named by its sha256, and its netlist's, built from land-8x4's Verilog, b938551d's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 7, 49.65 MHz) on the pc by the bench's notes, which CI does not rebuild"
   ]
 }

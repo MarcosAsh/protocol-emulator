@@ -1,7 +1,7 @@
 {
   "demo": "learn_rc5",
-  "bitstream_sha256": "d814478c5e4d849ecbb71da7bfb32cc851d6a92cf371ef12b7669a2e97be072d",
-  "sums_sha256": "3eb481a46f0b51811aea5cc90a62560f4a55fbe0a959d500d2e430125475980f",
+  "bitstream_sha256": "012dc5e1b0769f12efaf6f47a34d56f5ffd4ed225f891e43e81a25e3518bb009",
+  "sums_sha256": "1a87b21abcbe612dc00747994a3cec5f14e04bffea790728c7b3b61f55dc4adc",
   "recorded_probes": [
     "IO3=D6"
   ],

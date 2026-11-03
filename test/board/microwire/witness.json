@@ -1,14 +1,14 @@
 {
   "demo": "microwire",
-  "time": "2026-11-02T16:56:53",
+  "time": "2026-11-03T07:57:49",
   "result": "PASS",
-  "commit": "a68c75ab9ba58b62a58a2cf95f7f0cc1db1ae3e7",
-  "bitstream_sha256": "d814478c5e4d849ecbb71da7bfb32cc851d6a92cf371ef12b7669a2e97be072d",
+  "commit": "b938551d48f1bd77a7431558e9eeace139ff0175",
+  "bitstream_sha256": "012dc5e1b0769f12efaf6f47a34d56f5ffd4ed225f891e43e81a25e3518bb009",
   "netlist_sha256": "28bfa97f1d03607ca9c2f3914f401b1b6990e3ee20542ba3d89d2347e67cff56",
-  "sums_sha256": "fc3602f90b3184fcd140cbab4d7984150821cd1d78bedc6fbbb0fb36fdbd4ab7",
+  "sums_sha256": "e57cfaf2e6c95eaec858f32dcbbb24d5b79151ce0dcada835d4e97e8d7cafaf9",
   "capture": {
     "file": "microwire.sr",
-    "sha256": "9ce47f8d1335cfb5477f0baa7c7cc340133e5590876bace1fcba2e095452d266",
+    "sha256": "313852973a6c995a747841381b1c7614ea9e01bb7cd81814733dd84142c39d6c",
     "rate_hz": 24000000,
     "seconds": 2.0,
     "analyser": "B",
@@ -29,7 +29,7 @@
       "limit": ">= 5000 ns",
       "sheet": "National AN-452 (1992), COP430, Table I p.5",
       "spans": 80,
-      "measured": "6416 ns to 6501 ns",
+      "measured": "6416 ns to 6542 ns",
       "verdict": "proved"
     },
     {
@@ -37,7 +37,7 @@
       "limit": "<= 10.00 us",
       "sheet": "National AN-452 (1992), COP420, p.6 note 1",
       "spans": 80,
-      "measured": "6.42 us to 6.50 us",
+      "measured": "6.42 us to 6.54 us",
       "verdict": "proved"
     },
     {
@@ -101,7 +101,7 @@
     "DI inverted over EWEN's first opcode bit",
     "EWEN's CS rise 0.5 us before SK's first rise"
   ],
-  "bitstream_source": "board-8x4-features' Verilog, a68c75ab's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 1, 48.75 MHz) on the pc",
+  "bitstream_source": "land-8x4's Verilog, b938551d's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 7, 49.65 MHz) on the pc",
   "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
   "firmware": {
     "MICROWIRE": "d33f2cde271f53873c9c4dc0ac236954d6ac22f0b8809197719101cd265d1a9a"
@@ -115,7 +115,7 @@
     "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
     "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
     "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
-    "the bitstream is named by its sha256, and its netlist's, built from board-8x4-features' Verilog, a68c75ab's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 1, 48.75 MHz) on the pc by the bench's notes, which CI does not rebuild",
+    "the bitstream is named by its sha256, and its netlist's, built from land-8x4's Verilog, b938551d's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 7, 49.65 MHz) on the pc by the bench's notes, which CI does not rebuild",
     "drawn at random and written blind from its spec (docs/flexibility.md)",
     "no bench part answers MICROWIRE, so DO is not held to anything",
     "each window is the strictest the library's AN-452 parts give"

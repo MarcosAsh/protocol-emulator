@@ -1,14 +1,14 @@
 {
   "demo": "tdm_audio",
-  "time": "2026-11-02T16:58:03",
+  "time": "2026-11-03T07:58:58",
   "result": "PASS",
-  "commit": "a68c75ab9ba58b62a58a2cf95f7f0cc1db1ae3e7",
-  "bitstream_sha256": "d814478c5e4d849ecbb71da7bfb32cc851d6a92cf371ef12b7669a2e97be072d",
+  "commit": "b938551d48f1bd77a7431558e9eeace139ff0175",
+  "bitstream_sha256": "012dc5e1b0769f12efaf6f47a34d56f5ffd4ed225f891e43e81a25e3518bb009",
   "netlist_sha256": "28bfa97f1d03607ca9c2f3914f401b1b6990e3ee20542ba3d89d2347e67cff56",
-  "sums_sha256": "ad55806369b4621a2912c173dd0b32512e85ee88464c0e5241e705bdee4d1466",
+  "sums_sha256": "7137c856272a60dc90f6e6e5fa7a9d5f68b38ccecdffb8d996e113bb42e9f747",
   "capture": {
     "file": "tdm_audio.sr",
-    "sha256": "17557c891568e4e069efbdbbacadcff8f9113cbf9fa9bd4aca35fac3a81c5855",
+    "sha256": "1ce500d032a4c3f42079d43fb5fdcf6edd24a93870f14a80610f791e9763f524",
     "rate_hz": 24000000,
     "seconds": 2.0,
     "analyser": "B",
@@ -20,7 +20,7 @@
   },
   "decode": {
     "arguments": "-P tdm_audio:clock=D4:frame=D1:data=D3:bps=32:channels=8 -A tdm_audio=ch0:ch1:ch2:ch3:ch4:ch5:ch6:ch7",
-    "sha256": "5db739d36be7d9fc62216838ef08ffafd8be9d154057532074114b3560582bad"
+    "sha256": "8746ad4495a9ef132026f3d8cd618048fd3b8d1864afa35d048f7fe55f72fb5f"
   },
   "timing": [
     {
@@ -51,7 +51,7 @@
       "parameter": "SCLK period",
       "limit": ">= 62 ns",
       "sheet": "6 cycles at 48 MHz, the firmware's SCLK, to half a period (AN301 gives no least or most)",
-      "spans": 10921,
+      "spans": 10897,
       "measured": "42 ns to 208 ns",
       "verdict": "unresolved"
     },
@@ -59,7 +59,7 @@
       "parameter": "SCLK period",
       "limit": "<= 188 ns",
       "sheet": "6 cycles at 48 MHz, the firmware's SCLK, to half a period (AN301 gives no least or most)",
-      "spans": 10921,
+      "spans": 10897,
       "measured": "42 ns to 208 ns",
       "verdict": "unresolved"
     }
@@ -68,7 +68,7 @@
     "SDATA inverted over channel 1's MSB",
     "the second FSYNC six bits early"
   ],
-  "bitstream_source": "board-8x4-features' Verilog, a68c75ab's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 1, 48.75 MHz) on the pc",
+  "bitstream_source": "land-8x4's Verilog, b938551d's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 7, 49.65 MHz) on the pc",
   "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
   "firmware": {
     "TDM_AUDIO": "13bfadd3b94c1735b8cdbd5210bbf8b40136340a3b339acf2d687cc6b73b241d"
@@ -82,7 +82,7 @@
     "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
     "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
     "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
-    "the bitstream is named by its sha256, and its netlist's, built from board-8x4-features' Verilog, a68c75ab's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 1, 48.75 MHz) on the pc by the bench's notes, which CI does not rebuild",
+    "the bitstream is named by its sha256, and its netlist's, built from land-8x4's Verilog, b938551d's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 7, 49.65 MHz) on the pc by the bench's notes, which CI does not rebuild",
     "drawn at random and written blind from its spec (docs/flexibility.md)",
     "AN301 gives no times, so the SCLK window is the firmware's own period to half a period, and the frame is held in SCLK periods"
   ]

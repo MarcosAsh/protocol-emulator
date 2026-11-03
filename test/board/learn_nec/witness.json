@@ -1,7 +1,7 @@
 {
   "demo": "learn_nec",
-  "bitstream_sha256": "d814478c5e4d849ecbb71da7bfb32cc851d6a92cf371ef12b7669a2e97be072d",
-  "sums_sha256": "e3def3d3b7de926a508c79f6c0a27bb9f5c24256eef4d562ac2ede570652ce3d",
+  "bitstream_sha256": "012dc5e1b0769f12efaf6f47a34d56f5ffd4ed225f891e43e81a25e3518bb009",
+  "sums_sha256": "dc40263141d4838cf2f4b8bd98bdc5dfc597d03b678c5a9967d7116ad1bf48e3",
   "recorded_probes": [
     "IO3=D6"
   ],

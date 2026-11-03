@@ -1,14 +1,14 @@
 {
   "demo": "keyboard",
-  "time": "2026-11-02T18:51:38",
+  "time": "2026-11-03T08:18:01",
   "result": "PASS",
-  "commit": "d94c3a70f6f8ecdab5fb59fe3c14b1455acf961c",
-  "bitstream_sha256": "d814478c5e4d849ecbb71da7bfb32cc851d6a92cf371ef12b7669a2e97be072d",
+  "commit": "b938551d48f1bd77a7431558e9eeace139ff0175",
+  "bitstream_sha256": "012dc5e1b0769f12efaf6f47a34d56f5ffd4ed225f891e43e81a25e3518bb009",
   "netlist_sha256": "28bfa97f1d03607ca9c2f3914f401b1b6990e3ee20542ba3d89d2347e67cff56",
-  "sums_sha256": "29973e241979a2bf7fca7d9c10754bb022fc76fd2e7a968025bc76ab6ae7f612",
+  "sums_sha256": "22547992914d76ae3571c9930da77e48e81fac347ae2c955785e4ca17e924654",
   "capture": {
     "file": "keyboard.sr",
-    "sha256": "3b6272b2cff647c992cfe788166335add9e1613e7af1522ceca7ed2b47f22855",
+    "sha256": "3064c8ac9dda4172a3e340fc121ae66d411fcfbef97ae27c9218d26b4f2cf724",
     "rate_hz": 2000000,
     "seconds": 30.0,
     "analyser": "A",
@@ -43,7 +43,7 @@
     "the first frame's second edge 12 samples late",
     "keyboard.keys's first key changed"
   ],
-  "bitstream_source": "board-8x4-features' Verilog, a68c75ab's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 1, 48.75 MHz) on the pc",
+  "bitstream_source": "land-8x4's Verilog, b938551d's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 7, 49.65 MHz) on the pc",
   "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
   "firmware": {
     "python/usb_device_firmware.py": "784b56f554e5f48822c6089762f15c35c8ac9f7e60805b8e0225890760a7e1d9",
@@ -59,7 +59,7 @@
     "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
     "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
     "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
-    "the bitstream is named by its sha256, and its netlist's, built from board-8x4-features' Verilog, a68c75ab's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 1, 48.75 MHz) on the pc by the bench's notes, which CI does not rebuild",
+    "the bitstream is named by its sha256, and its netlist's, built from land-8x4's Verilog, b938551d's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 7, 49.65 MHz) on the pc by the bench's notes, which CI does not rebuild",
     "at 2 MS/s a bit is 17 samples, so a window over one bit is unresolved, not passed",
     "the pc's keys are the kernel's input events, as demo/keys.py read them under its grab"
   ]

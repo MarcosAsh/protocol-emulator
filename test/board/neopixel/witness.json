@@ -1,14 +1,14 @@
 {
   "demo": "neopixel",
-  "time": "2026-11-02T16:54:18",
+  "time": "2026-11-03T07:55:14",
   "result": "PASS",
-  "commit": "a68c75ab9ba58b62a58a2cf95f7f0cc1db1ae3e7",
-  "bitstream_sha256": "d814478c5e4d849ecbb71da7bfb32cc851d6a92cf371ef12b7669a2e97be072d",
+  "commit": "b938551d48f1bd77a7431558e9eeace139ff0175",
+  "bitstream_sha256": "012dc5e1b0769f12efaf6f47a34d56f5ffd4ed225f891e43e81a25e3518bb009",
   "netlist_sha256": "28bfa97f1d03607ca9c2f3914f401b1b6990e3ee20542ba3d89d2347e67cff56",
-  "sums_sha256": "a32a621586673b221b6d8dedfb4d343cffc74a3014bbb6623d4c9da43b54bd89",
+  "sums_sha256": "0d01cb31583d505db540547f8e8e873b60b1f0d9059d86c57ed7291924479d79",
   "capture": {
     "file": "neopixel.sr",
-    "sha256": "d2f7b76e9271bc7c0ef04f4f5684f0a73267f47e68f3f78d4e3a42cdc0828115",
+    "sha256": "1c1b58ca4f280bc69f6bc77462a18008a11e8a2bb0a4aa0e8f979f19398000c2",
     "rate_hz": 24000000,
     "seconds": 2.0,
     "analyser": "B",
@@ -42,7 +42,7 @@
       "limit": ">= 650 ns",
       "sheet": "SK6812, OSK-SPC-SK6812-012 Rev. B/1 p.7",
       "spans": 42,
-      "measured": "667 ns to 750 ns",
+      "measured": "667 ns to 792 ns",
       "verdict": "proved"
     },
     {
@@ -50,7 +50,7 @@
       "limit": "<= 1000 ns",
       "sheet": "SK6812, OSK-SPC-SK6812-012 Rev. B/1 p.7",
       "spans": 42,
-      "measured": "667 ns to 750 ns",
+      "measured": "667 ns to 792 ns",
       "verdict": "proved"
     },
     {
@@ -82,7 +82,7 @@
       "limit": ">= 200.00 us",
       "sheet": "SK6812, OSK-SPC-SK6812-012 Rev. B/1 p.7",
       "spans": 3,
-      "measured": "1668.54 us to open",
+      "measured": "1667.96 us to open",
       "verdict": "proved"
     }
   ],
@@ -90,7 +90,7 @@
     "the first bit held high 700 ns",
     "the first 1 held high 400 ns longer"
   ],
-  "bitstream_source": "board-8x4-features' Verilog, a68c75ab's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 1, 48.75 MHz) on the pc",
+  "bitstream_source": "land-8x4's Verilog, b938551d's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 7, 49.65 MHz) on the pc",
   "firmware_sha256": "of each python/bench_firmware.py entry as sorted, compact JSON, or of the test/ file, at the run's commit",
   "firmware": {
     "SK6812": "b3cc3a26e99ecc5c271fdcfe1d43f6d10d349230b26e5454521a8e13868fa8d0"
@@ -104,7 +104,7 @@
     "one run of one board, the ECP5 build of the chip's RTL, not the ASIC",
     "the run's files are the bench's own record, tied together by SHA256SUMS, and CI derives the decode and the timing from the capture alone",
     "each edge is known to a sample either way and the analyser's crystal to 100 ppm, and a window the capture cannot settle is unresolved, not passed",
-    "the bitstream is named by its sha256, and its netlist's, built from board-8x4-features' Verilog, a68c75ab's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 1, 48.75 MHz) on the pc by the bench's notes, which CI does not rebuild",
+    "the bitstream is named by its sha256, and its netlist's, built from land-8x4's Verilog, b938551d's (src/ as dd604449's), by icepi/Makefile REV=v1.3 (seed 7, 49.65 MHz) on the pc by the bench's notes, which CI does not rebuild",
     "the SK6812's windows are a few samples wide, so some stay unresolved"
   ]
 }

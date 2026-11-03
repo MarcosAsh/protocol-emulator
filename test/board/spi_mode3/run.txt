@@ -1,4 +1,5 @@
-$ openFPGALoader -b icepi-zero /home/marcos/board-8x4/fbit/v1.3.bit
+$ mpremote connect id:e66548545717552e exec 'from machine import Pin; Pin(8, Pin.OUT, value=1)'
+$ openFPGALoader -b icepi-zero /home/marcos/land-8x4/bit/v1.3.bit
 Jtag probe limited to 3MHz
 Jtag frequency : requested 6000000Hz -> real 3000000Hz
 ret 0
@@ -7,12 +8,12 @@ b3bdffff
 Parse file: DONE
 Enable configuration: DONE
 SRAM erase: DONE
-Loading: [========                                          ] 15.20%
-Loading: [================                                  ] 30.41%
-Loading: [=======================                           ] 45.61%
-Loading: [===============================                   ] 60.82%
-Loading: [=======================================           ] 76.02%
-Loading: [==============================================    ] 91.23%
+Loading: [========                                          ] 14.66%
+Loading: [===============                                   ] 29.91%
+Loading: [=======================                           ] 45.17%
+Loading: [==============================                    ] 59.82%
+Loading: [======================================            ] 74.78%
+Loading: [==============================================    ] 90.03%
 Loading: [==================================================] 100.00%
 
 Done
@@ -22,7 +23,7 @@ try:
     os.remove('"'"'outside.log'"'"')
 except OSError:
     pass'
-$ ANALYSER=B ANALYSER_B_PORT=3-1 RATE=24M TRIES=8 demo/capture.sh /home/marcos/board-8x4/features/2026-11-02/sweep-rates/spi_mode3/spi_mode3.sr 2500 mpremote connect id:e66548545717552e exec --no-follow 'import demo_rates; demo_rates.main('"'"'spi'"'"', only=3)'
-$ mpremote connect id:e66548545717552e cat :outside.log > /home/marcos/board-8x4/features/2026-11-02/sweep-rates/spi_mode3/spi_mode3.log
-$ sigrok-cli -i /home/marcos/board-8x4/features/2026-11-02/sweep-rates/spi_mode3/spi_mode3.sr -P spi:clk=D0:mosi=D1:miso=D2:cs=D3:cpol=1:cpha=1 -A spi=mosi-transfer:miso-transfer > /home/marcos/board-8x4/features/2026-11-02/sweep-rates/spi_mode3/spi_mode3.decode
+$ ANALYSER=B ANALYSER_B_PORT=3-1 RATE=24M TRIES=8 demo/capture.sh /home/marcos/land-8x4/evidence/sweep3/2026-11-03/sweep-rates/spi_mode3/spi_mode3.sr 4000 mpremote connect id:e66548545717552e exec --no-follow 'import demo_rates; demo_rates.main('"'"'spi'"'"', only=3)'
+$ mpremote connect id:e66548545717552e cat :outside.log > /home/marcos/land-8x4/evidence/sweep3/2026-11-03/sweep-rates/spi_mode3/spi_mode3.log
+$ sigrok-cli -i /home/marcos/land-8x4/evidence/sweep3/2026-11-03/sweep-rates/spi_mode3/spi_mode3.sr -P spi:clk=D0:mosi=D1:miso=D2:cs=D3:cpol=1:cpha=1 -A spi=mosi-transfer:miso-transfer > /home/marcos/land-8x4/evidence/sweep3/2026-11-03/sweep-rates/spi_mode3/spi_mode3.decode
 Pico A says PASS, every step ran
