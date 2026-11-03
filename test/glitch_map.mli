@@ -54,12 +54,14 @@ module Outcome : sig
   type t =
     { words : int list (** What the receiver pushed. *)
     ; framing_error : bool
+    ; refused : bool (** The receiver's assumption fault: the pulse was a second edge. *)
     }
   [@@deriving sexp_of, equal]
 end
 
 (** What the rows say a pulse at [k] does: a data bit's sample clears that bit, the
-    check's raises the framing error, and a pulse after the re-arm is a start bit. *)
+    check's raises the framing error, one at the re-arm is a second edge the receiver
+    refuses, and one after it is a start bit. *)
 val predict : int -> Outcome.t
 
 (** One frame, its word pushed at cycle 10, on the model alone, each engine watching its

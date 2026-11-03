@@ -66,7 +66,8 @@ let%expect_test "the receiver's samples, from the start bit" =
 
 let show (o : Outcome.t) =
   String.concat ~sep:" " (List.map o.words ~f:(sprintf "%02x"))
-  ^ if o.framing_error then " framing error" else ""
+  ^ (if o.framing_error then " framing error" else "")
+  ^ if o.refused then " refused" else ""
 ;;
 
 (* Every k on the model and on [Engines] beside it, runs of equal outcome on a line. *)
@@ -135,7 +136,8 @@ let%expect_test "the sweep" =
     k 136      rows 7f                model 7f                rtl 7f
     k 137-149  rows ff                model ff                rtl ff
     k 150      rows ff framing error  model ff framing error  rtl ff framing error
-    k 151-152  rows ff                model ff                rtl ff
+    k 151      rows ff                model ff                rtl ff
+    k 152      rows ff refused        model ff refused        rtl ff refused
     k 153-191  rows ff ff             model ff ff             rtl ff ff
     (("List.length seen" 175) (differ 0))
     bit 0  kernel 24       seen at 24

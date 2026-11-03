@@ -184,6 +184,7 @@ module Outcome = struct
   type t =
     { words : int list
     ; framing_error : bool
+    ; refused : bool
     }
   [@@deriving sexp_of, equal]
 end
@@ -208,6 +209,7 @@ let predict k =
   let rearmed = k > check_at + Isa.jmp_cycles in
   { Outcome.words = (if rearmed then [ byte; 0xff ] else [ byte ])
   ; framing_error = k = check_at
+  ; refused = k = check_at + Isa.jmp_cycles
   }
 ;;
 
@@ -236,7 +238,10 @@ let host n =
 
 let outcome (system : System.t) =
   let receiver = List.nth_exn system.engines 1 in
-  { Outcome.words = receiver.rx_fifo; framing_error = receiver.irq }
+  { Outcome.words = receiver.rx_fifo
+  ; framing_error = receiver.irq
+  ; refused = receiver.fault.assumption
+  }
 ;;
 
 let model image =

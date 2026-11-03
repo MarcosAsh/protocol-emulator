@@ -15,6 +15,8 @@ import tempfile
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+# the assumption fault: the receiver refuses a second edge its certificate rules out
+ASSUMPTION = 0x4000
 
 
 def mpremote(*args, log):
@@ -58,17 +60,22 @@ def parse(line):
             "words": words}
 
 
+def refused(result):
+    return result["faults"] == ASSUMPTION
+
+
 def verdict(image, result):
-    if result["faults"]:
+    if result["faults"] and not refused(result):
         return "FAULT %x" % result["faults"]
     same = (result["words"] == image["predict"]
-            and result["framing_error"] == image["framing_error"])
+            and result["framing_error"] == image["framing_error"]
+            and refused(result) == image.get("refused", False))
     return "ok" if same else "DIFFERS"
 
 
-def show(words, framing_error):
+def show(words, framing_error, refused=False):
     text = " ".join("%02x" % w for w in words) or "nothing"
-    return text + (" framing error" if framing_error else "")
+    return text + (" framing error" if framing_error else "") + (" refused" if refused else "")
 
 
 def summary(images, results):
@@ -79,8 +86,10 @@ def summary(images, results):
     rows = []
     for image in images:
         got = by_k.get(image["k"], [])
-        seen = sorted({show(r["words"], r["framing_error"]) for r in got}) or ["not run"]
-        rows.append((image["k"], show(image["predict"], image["framing_error"]),
+        seen = sorted({show(r["words"], r["framing_error"], refused(r)) for r in got}) or [
+            "not run"]
+        rows.append((image["k"], show(image["predict"], image["framing_error"],
+                                      image.get("refused", False)),
                      " | ".join(seen)))
     lines = ["k         rows                board"]
     start = 0
@@ -143,8 +152,9 @@ def main():
         with open(os.path.join(args.out, "results.jsonl"), "a") as f:
             for r in got:
                 f.write(json.dumps(r) + "\n")
+        # a fault holds until reset, so a k that faults has no later frame
         done_ks = {r["k"] for r in got
-                   if sum(g["k"] == r["k"] for g in got) == args.frames}
+                   if r["faults"] or sum(g["k"] == r["k"] for g in got) == args.frames}
         pending = [i for i in pending if i["k"] not in done_ks]
         if "DONE" not in out:
             empty = 0 if got else empty + 1

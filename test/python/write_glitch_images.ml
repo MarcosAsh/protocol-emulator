@@ -49,15 +49,16 @@ let () =
     Glitch_map.period;
   List.iter Glitch_map.pulses ~f:(fun k ->
     let image = Glitch_map.image k in
-    let { Glitch_map.Outcome.words; framing_error } = Glitch_map.predict k in
+    let { Glitch_map.Outcome.words; framing_error; refused } = Glitch_map.predict k in
     printf
       "{\"k\": %d, \"pulse\": %s, \"words\": %s, \"config\": %s, \"check\": %s, \
-       \"predict\": %s, \"framing_error\": %b}\n"
+       \"predict\": %s, \"framing_error\": %b, \"refused\": %b}\n"
       k
       (at image.pulse)
       (ints (Timed_program.words image.timed))
       (config (Timed_program.config image.timed))
       (check image.timed)
       (ints words)
-      framing_error)
+      framing_error
+      refused)
 ;;

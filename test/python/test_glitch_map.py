@@ -19,6 +19,10 @@ def test_verdicts():
     assert verdict([0xFF, 0xFF], False, "RESULT 160 1 0 0 ff ff") == "ok"
     assert verdict([0xFF, 0xFF], False, "RESULT 160 1 0 0 ff") == "DIFFERS"
     assert verdict([0xFF], False, "RESULT 30 0 0 8 ff") == "FAULT 8"
+    refused = {"predict": [0xFF], "framing_error": False, "refused": True}
+    assert gm.verdict(refused, gm.parse("RESULT 152 0 0 4000 ff")) == "ok"
+    assert gm.verdict(refused, gm.parse("RESULT 152 0 0 0 ff")) == "DIFFERS"
+    assert verdict([0xFF], False, "RESULT 152 0 0 4000 ff") == "DIFFERS"
     assert gm.parse("DONE") is None
 
 
