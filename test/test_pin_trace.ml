@@ -29,7 +29,7 @@ let%expect_test "what the host reads back in every scenario" =
     (lin (cycles 148921) (reads ((004c 0049 004e) (0400))))
     (spdif (cycles 151570) (reads ()))
     (usb_power_delivery (cycles 232465) (reads ()))
-    (dmx512 (cycles 805934) (reads ()))
+    (dmx512 (cycles 1325459) (reads ()))
     (wiegand (cycles 816152) (reads ()))
     (swd_blind (cycles 158492)
      (reads

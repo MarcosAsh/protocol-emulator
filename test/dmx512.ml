@@ -272,7 +272,7 @@ let sigrok =
 let scenario =
   let words = packet ~start_code:0x00 channels @ [ 0x00 ] in
   let writes =
-    List.chunks_of words ~length:Machine.fifo_depth
+    List.chunks_of words ~length:8
     |> List.concat_mapi ~f:(fun n chunk ->
       [ Step.Write (Reg.tx, chunk); Run ((if n = 0 then 200 else 180) * period) ])
   in
