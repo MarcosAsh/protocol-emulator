@@ -159,7 +159,7 @@ let%expect_test "every firmware against the chip's walk" =
     bench/ps2                     65     40  accepted
     bench/can                     58     80  accepted
     bench/can_sender              66     81  accepted
-    bench/can_receiver           252    275  accepted
+    bench/can_receiver           267    305  accepted
     bench/cec                     71     93  accepted
     bench/spi_cs_mode0            43     25  accepted
     bench/spi_cs_mode1            43     25  accepted

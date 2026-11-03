@@ -346,7 +346,7 @@ let%expect_test "the checker agrees with the model on every firmware" =
     bench/ps2                     9304  accepted
     bench/can                    10540  accepted
     bench/can_sender             10564  accepted
-    bench/can_receiver           19029  accepted
+    bench/can_receiver           20121  accepted
     bench/cec                    10683  accepted
     bench/spi_cs_mode0            8698  accepted
     bench/spi_cs_mode1            8698  accepted
@@ -606,7 +606,7 @@ let%expect_test "walks at the edges of the setup" =
     accepted
     accepted
     accepted
-    refused at 31, reason 8
+    refused at 28, reason 8
     accepted
     refused at 1, reason 10
     accepted

@@ -66,17 +66,26 @@ let of_tolerance (b : Tolerance.Bounds.t) ~rate =
   , { End.hz = b.most * rate / unit; limit = named b.slowest_read ~faster:false } )
 ;;
 
+(* the tolerance at each end of the loops the firmware is made for, and the bench's *)
 let can_receiver () =
   let bench = Library.find_bench_exn "can_receiver" in
   let period = Can_node.Receiver.period in
-  let receiver = Tolerance.Receiver.can_rx ~period ~sample:Can_node.Receiver.sample () in
-  if not (String.equal receiver.firmware.source bench.source)
-  then raise_s [%message "BUG: the tolerance is of other firmware than the bench's"];
-  let low, high =
-    of_tolerance (Tolerance.bounds receiver) ~rate:(bench.clock_hz / period)
-  in
-  let t = of_bench bench in
-  { t with lowest = lowest t.lowest (Some low); highest = highest t.highest (Some high) }
+  List.fold
+    [ 0; 7; Can_node.Receiver.longest_loop ]
+    ~init:(of_bench bench)
+    ~f:(fun t echo ->
+      let receiver =
+        Tolerance.Receiver.can_rx ~echo ~period ~sample:Can_node.Receiver.sample ()
+      in
+      if not (String.equal receiver.firmware.source bench.source)
+      then raise_s [%message "BUG: the tolerance is of other firmware than the bench's"];
+      let low, high =
+        of_tolerance (Tolerance.bounds receiver) ~rate:(bench.clock_hz / period)
+      in
+      { t with
+        lowest = lowest t.lowest (Some low)
+      ; highest = highest t.highest (Some high)
+      })
 ;;
 
 (* a diagram's limits on its steps' cycles: ns >= least up to cycles 10^9 / least, ns <=

@@ -3,11 +3,11 @@ result: PASS
 pico_a_says: PASS
 traffic: held to the capture
 expected: PASS
-time: 2026-11-02T16:58:22
-commit: a68c75ab9ba58b62a58a2cf95f7f0cc1db1ae3e7
-bitstream: /home/marcos/board-8x4/fbit/v1.3.bit
-bitstream_sha256: d814478c5e4d849ecbb71da7bfb32cc851d6a92cf371ef12b7669a2e97be072d
-netlist_sha256: 28bfa97f1d03607ca9c2f3914f401b1b6990e3ee20542ba3d89d2347e67cff56
+time: 2026-11-02T20:28:53
+commit: 93290364e2ddfe627db97f082125a569c28acb21
+bitstream: /home/marcos/board-8x4/bit/v1.3.bit
+bitstream_sha256: c70acd0de0e64cb5904f953e58f811dcd8e82e0c2f767999a0a80b4feb987cc3
+netlist_sha256: 95eb429f4a4eb5a8b661b264d41c66f77d37780daa283731c654e8ca5d31e9cb
 pico_a: id:e66548545717552e
 pico_b: e66548545740ad29 can_node
 rate: 24M

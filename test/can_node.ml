@@ -16,12 +16,9 @@ module Receiver = struct
   let sample = 72
   let shortest_period = 63
 
-  (* Cycles from the ACK's start until the receiver sees it on CRX, the transceiver's loop
-     and the synchroniser, as the tests' bus has them. The receiver waits for its own ACK
-     there, which releases the capture it armed (the single edge assumption allows no
-     second edge while one is armed), and retimes to it less these cycles, which keeps the
-     bits after on the sender's. A slower loop moves them that much later. *)
-  let ack_back = 3
+  (* CRX shows CTX this many cycles later at most, or never: the ACK must be on CRX by the
+     slot's sample, where the firmware looks for it *)
+  let longest_loop = sample
 
   let config =
     { Program_config.default with
@@ -179,8 +176,9 @@ module Receiver = struct
   ;;
 
   let source ~period ~sample =
-    if sample < 1 || sample > period - 6
+    if sample < 1 || sample > period - 5
     then raise_s [%message "BUG: no room for the ACK" (period : int) (sample : int)];
+    let wait_dominant = [%string "    wait 0 pin %{rx_pin#Int}"] in
     lines
       (load_period period
        @ [ "    set pins, 1              ; recessive"
@@ -195,13 +193,9 @@ module Receiver = struct
          ; "recessive:"
          ; "    jmp x--, quiet           ; eleven recessive bits: the bus is idle"
          ; "sof:"
-         ; "    capture_arm"
-         ; "    jmp pin, armed"
-         ; "    mov t, now               ; a SOF edge came a few cycles before the arm"
-         ; "    jmp sofed"
-         ; "armed:"
-         ; [%string "    wait 0 pin %{rx_pin#Int}             ; SOF, its edge in capture"]
-         ; "    mov t, capture"
+         ; wait_dominant ^ "             ; SOF, or one a cycle or two before"
+         ; "    mov t, now"
+         ; "    sub t, 1                 ; the cycle it showed, as a capture has it"
          ; "sofed:"
          ]
        @ add_to_t (sample - 1)
@@ -218,7 +212,12 @@ module Receiver = struct
          ; field "data" ~sample ~high_end:"data_high_end" ~low_end:"data_low_end"
          ; data_end "high"
          ; data_end "low"
-         ; field "crc" ~sample ~high_end:"crc_end" ~low_end:"crc_end"
+         ; field "crc" ~sample ~high_end:"crc_high_end" ~low_end:"crc_low_end"
+         ; "crc_high_end:"
+         ; "    set y, 1                 ; armed after its last bit"
+         ; "    jmp crc_end"
+         ; "crc_low_end:"
+         ; "    set y, 0"
          ; "crc_end:"
          ; "    mov isr, null"
          ; "    in crc, 15"
@@ -228,37 +227,65 @@ module Receiver = struct
          ; "    jmp form"
          ; "delimited:"
          ; "    jmp x--, crc_error"
-         ; "    capture_arm              ; for the ACK's own fall on CRX"
          ]
-       @ delay (period - sample - 6)
+       @ delay (period - sample - 5)
        @ [ "    set pins, 0              ; ACK, from the slot's start"
-         ; [%string
-             "    wait 0 pin %{rx_pin#Int}             ; back on CRX, which it retimes to"]
-         ; "    mov t, capture"
-         ; "    add t, p"
+         ; "    wait t+"
+         ; "    jmp pin, unechoed        ; not on CRX: its transceiver in standby"
+         ; wait_dominant ^ "             ; at once, which releases an armed capture"
+         ; "    mov t, now"
          ]
-       @ add_to_t (sample - 1 - ack_back)
-       @ delay (period - ack_back - List.length (add_to_t (sample - 1 - ack_back)) - 3)
+       @ delay (period - sample - 5)
        @ [ "    set pins, 1              ; to its end"
+         ; "    add t, p"
+         ; "    sub t, 4                 ; the deadline again"
+         ; "    jmp acked"
+         ; "unechoed:"
+         ]
+       @ delay (period - sample - 3)
+       @ [ "    set pins, 1              ; to its end"
+         ; "acked:"
          ; "    mov isr, null"
          ; "    push"
          ; "    set x, 9                 ; ACK delimiter, EOF, two of the intermission"
-         ; "    jmp quiet"
+         ; "eof:"
+         ; "    wait t+"
+         ; "    jmp pin, eof_recessive"
+         ; wait_dominant ^ "             ; an error or overload flag, at once"
+         ; "    mov t, now"
+         ; "    add t, p"
+         ; "    jmp idle"
+         ; "eof_recessive:"
+         ; "    capture_arm              ; for the SOF, in step with the frame"
+         ; "    jmp x--, eof"
+         ; wait_dominant
+         ; "    mov t, capture"
+         ; "    jmp sofed"
          ; "stuffing:"
          ; "    set x, 1"
-         ; "    jmp error"
+         ; "    jmp error_armed"
          ; "refused:"
          ; "    set x, 2"
-         ; "    jmp error"
+         ; "    jmp error_armed"
          ; "form:"
+         ; wait_dominant ^ "             ; at once, which releases an armed capture"
          ; "    set x, 3"
          ; "    jmp error"
+         ; "error_armed:"
+         ; "    mov isr, x"
+         ; "    push"
+         ; "    irq"
+         ; wait_dominant
+           ^ "             ; the bus's next dominant bit releases the capture"
+         ; "    jmp host"
          ; "crc_error:"
          ; "    set x, 4"
+         ; "    jmp y--, error_armed"
          ; "error:"
          ; "    mov isr, x"
          ; "    push"
          ; "    irq"
+         ; "host:"
          ; "    wait tx                  ; the host has read the words and cleared irq"
          ; "    pull"
          ; "    mov t, now"
@@ -524,7 +551,8 @@ let bench =
     ; what =
         [%string
           "Can_node.Receiver.firmware: %{Bench.rate ~unit:\"bit/s\" Receiver.period} \
-           sampled %{Receiver.sample#Int} cycles in, CRX on IN1, the ACK on OUT1"]
+           sampled %{Receiver.sample#Int} cycles in, CRX on IN1, the ACK on OUT1 and \
+           back on CRX within %{Receiver.longest_loop#Int} cycles or not at all"]
     ; source = Timed_program.source Receiver.firmware
     ; config = Receiver.config
     ; assumption = Receiver Receiver.period

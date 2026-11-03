@@ -34,7 +34,8 @@ val of_bench : Bench.t -> t
 val of_tolerance : Tolerance.Bounds.t -> rate:int -> End.t * End.t
 
 (** The CAN receiver's bench copy, listening to a node on the bus at 500 kbit/s: its ACK
-    limit and its tolerance. *)
+    limit and its tolerance with its ACK back on CRX at once, as on the bench, and at
+    [Can_node.Receiver.longest_loop]. *)
 val can_receiver : unit -> t
 
 (** A WaveDrom diagram's limits, its steps' cycles at [Bench.clock_hz]. *)
