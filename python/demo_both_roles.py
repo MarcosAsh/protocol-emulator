@@ -19,11 +19,18 @@ def levels(host):
 
 
 def load(host, case):
-    """Both engines stopped and flushed, the controller on engine 0 and the target on 1."""
+    """Both engines stopped and flushed, the controller on engine 0 and the target on 1,
+    each certified."""
     bench.load(host, case["controller"], engine=0)
+    target = case["target"]
     host.select(1)
-    host.configure(case["target"]["config"])
-    host.load(case["target"]["words"])
+    host.configure(target["config"])
+    host.load(target["words"])
+    host.certify(
+        target["certificate"],
+        loaded=target["loaded"],
+        floor=target["floor"],
+        single_edge=target["single_edge"])
 
 
 def run_case(host, case, polls=20_000):

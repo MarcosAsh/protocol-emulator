@@ -19,7 +19,9 @@ let entry name timed =
     printf
       "        %s,\n"
       (String.concat ~sep:", " (List.map chunk ~f:(sprintf "0x%04X"))));
-  print_string "    ],\n}\n"
+  print_string "    ],\n";
+  Certificate_entry.print_timed timed;
+  print_string "}\n"
 ;;
 
 let words list = String.concat ~sep:", " (List.map list ~f:(sprintf "0x%X"))

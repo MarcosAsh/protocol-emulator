@@ -149,7 +149,10 @@ let model ?(pads = 0) ~cycles ~controller ~target () =
       let setup = setup side in
       List.fold
         setup.preload
-        ~init:(Machine.create ~config:setup.config ~program:setup.program |> ok_exn)
+        ~init:
+          (Machine.assume
+             (Machine.create ~config:setup.config ~program:setup.program |> ok_exn)
+             (System_lockstep.Assumptions.premises setup.assumptions))
         ~f:(fun m word -> Machine.write_tx m word |> ok_exn))
     |> System.create
   in

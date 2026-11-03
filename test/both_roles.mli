@@ -37,7 +37,8 @@ module Outcome : sig
 end
 
 (** [controller] on engine 0 and [target] on engine 1, started together, on the [System]
-    model alone, the pads at [pads], 0 unless given. *)
+    model alone, the pads at [pads], 0 unless given, each watching its certificate's
+    premises as the chip does. *)
 val model
   :  ?pads:int
   -> cycles:int
