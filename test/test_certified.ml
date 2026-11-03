@@ -220,6 +220,7 @@ let%expect_test "the least period the host may load" =
     (lin (period (1250)) (floor 16) (passes true) (one_less true))
     (QED "lin: every load of 16 or more")
     (counterexample "lin: every load of 15 or more"
+     (model ((loaded 0000000000001111))))
     (wiegand (period (2400)) (floor 16) (passes true) (one_less true))
     (QED "wiegand: every load of 16 or more")
     (counterexample "wiegand: every load of 15 or more"

@@ -272,7 +272,7 @@ let%expect_test "the footprint of each firmware, and of its config under any pro
     lfast              5            -          5-20           12-19
     tdm_audio          5-7          -          5-22           12-19
     dali               5            -          5-20           12-19
-    lin                12           12         12-27          12-19
+    lin                17           17         17-27          17-19
     spdif              5            -          5-20           12-19
     usb_power_delivery 5            -          5-20           12-19
     dmx512             5            -          5-20           12-19
