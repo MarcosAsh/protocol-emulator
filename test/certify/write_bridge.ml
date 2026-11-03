@@ -77,7 +77,8 @@ let bit v n = (v lsr n) land 1
 
 let run ~sends ~steps =
   let scope = Scope.create ~flatten_design:true () in
-  let sim = Sim.create (Chip.hierarchical ~memory:Flops scope) in
+  (* ungated, as engines_sram.v, which the proof reads, is *)
+  let sim = Sim.create (Chip.hierarchical ~gated:false ~memory:Flops scope) in
   let i = Cyclesim.inputs sim in
   let o = Cyclesim.outputs sim in
   let hosts = List.zip_exn i.hosts firmware in
