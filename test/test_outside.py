@@ -53,7 +53,8 @@ def decoders():
         text = f.read()
     return {
         act: args.split()
-        for act, args in re.findall(r"^(\w+)\)\n\s+ms=\d+\n\s+decode=\"([^\"]*)\"", text, re.M)
+        for act, args in re.findall(
+            r"^(\w+)\)\n(?:\s+#.*\n)*\s+ms=\d+\n\s+decode=\"([^\"]*)\"", text, re.M)
     }
 
 
@@ -125,8 +126,10 @@ def decode(analyser, act, args=None):
     path = "outside_%s.sr" % act
     analyser.write(path)
     args = args or decoders()[act]
-    # sigrok's decoders run in the system's Python, not the simulator's
+    # sigrok's decoders run in the system's Python, not the simulator's, and ours are
+    # beside its own, as demo/decode.py gives them
     env = {k: v for k, v in os.environ.items() if not k.startswith("PYTHON")}
+    env.setdefault("SIGROKDECODE_DIR", os.path.abspath("../demo/decoders"))
     run = subprocess.run(
         ["sigrok-cli", "-i", path] + args, capture_output=True, text=True, env=env
     )
@@ -836,7 +839,10 @@ async def test_can_node(dut):
     ACKed and the ACK read back, the last asking for Pico B's four, which the receiver ACKs.
     sigrok decodes both ways on module A's R."""
     await reset(dut)
-    pico_b = PicoB(dut, demo_can_node.REQUEST, REPLY_LINES, delay_ms=5, gap_ms=2)
+    # demo/can_node.c waits 300 ms; shorter here, but past the host's switch to the
+    # receiver, which loads, certifies and waits for its check's turn: 6.7 ms after the
+    # request
+    pico_b = PicoB(dut, demo_can_node.REQUEST, REPLY_LINES, delay_ms=10, gap_ms=2)
     transfer, pause_ms, log, _ = acted(dut)
     await bridge(demo_can_node.arm)(transfer, log=log)
     await ClockCycles(dut.clk, 2 * demo_can_node.PERIOD)
