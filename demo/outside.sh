@@ -102,7 +102,8 @@ pio_spi)
         exit 1
     fi
     analyser=$(echo "$line" | sed -n 's/.*analyser=\([^ ]*\).*/\1/p')
-    ms=$(echo "$line" | sed -n 's/.*ms=\([0-9]*\).*/\1/p')
+    # ms= as a word of its own, as a decoder option may end in it (wiegand's bitwidth_ms=)
+    ms=$(echo "$line" | sed -n 's/.* ms=\([0-9]*\).*/\1/p')
     decode=$(echo "$line" | sed -n 's/.*decode=//p')
     ;;
 esac

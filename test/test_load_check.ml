@@ -122,6 +122,14 @@ let%expect_test "every firmware against the chip's walk" =
     lfast                         64     15  accepted
     tdm_audio                    117     80  accepted
     usb_fs_device                251    132  accepted
+    dali                          34     35  accepted
+    lin                           60     48  accepted
+    spdif                        108     85  accepted
+    usb_power_delivery           113     57  accepted
+    dmx512                        51     37  accepted
+    wiegand                       32     37  accepted
+    swd_blind                     22     29  accepted
+    ir_nec                       107    123  accepted
     asm/blink                      4      5  accepted
     asm/crc_send                  12     12  accepted
     asm/data_stream                4      5  accepted
@@ -175,6 +183,14 @@ let%expect_test "every firmware against the chip's walk" =
     bench/xy2_100                 35     26  accepted
     bench/lfast                   64     15  accepted
     bench/tdm_audio              117     80  accepted
+    bench/dali                    34     35  accepted
+    bench/lin                     60     48  accepted
+    bench/spdif                  108     85  accepted
+    bench/usb_power_delivery     113     57  accepted
+    bench/dmx512                  51     37  accepted
+    bench/wiegand                 32     37  accepted
+    bench/swd_blind               22     29  accepted
+    bench/ir_nec                 107    123  accepted
     |}]
 ;;
 

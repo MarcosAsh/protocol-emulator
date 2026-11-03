@@ -12,10 +12,15 @@
 # Before the agent, demo/extract.py reads the spec's limits twice, blind: a disagreement stops
 # the run with "limit disputed, SPEC p.N" (exit 3) and keeps both readings in disputed.tsv.
 # Once a person has ruled on them (demo/extract.py rule), pass --limits with that run directory.
-# Usage: demo/intake.sh [--dry-run] [--limits-only] [--limits RUN] [--budget USD] [--model M] [--out DIR] SPEC NAME
+# Usage: demo/intake.sh [--dry-run] [--limits-only] [--limits RUN] [--scenario TEXT] [--hide LIST] [--budget USD] [--model M] [--out DIR] SPEC NAME
 #        demo/intake.sh --scan TRANSCRIPT   clean, or touched (exit 1) if a tool input names the held-out list
 #   --dry-run  makes the worktree and run directory and prints the claude commands, then removes the worktree
 #   --limits-only  stops after the two readings
+#   --scenario  what the test and trace must show, fixed in advance ("a 26-bit card read on two wires")
+#   --hide  library protocols the agent must not see, e.g. nec,swd: the tree is then a new repository
+#     of one commit, HEAD less the paths in demo/hide/LIST.files, the rows demo/hide/LIST.patch takes
+#     out and demo/hide, and the settings deny reads of the checkouts, the run's neighbours and the
+#     hidden paths. A command that reads a path without naming it (python3, dune's cache) is not stopped.
 set -e
 # a tool input that names the sealed held-out list: exit 1 if the transcript has one
 scan() {
@@ -36,6 +41,8 @@ if [ "$1" = --scan ]; then scan "$2" && echo clean || { echo touched; exit 1; };
 dry=
 limits_only=
 settled=
+scenario=
+hide=
 budget=${INTAKE_BUDGET:-25}
 model=
 out=${INTAKE_OUT:-$HOME/.local/share/protocol-emulator/intake}
@@ -44,6 +51,8 @@ while [ $# -gt 0 ]; do
     --dry-run) dry=yes ;;
     --limits-only) limits_only=yes ;;
     --limits) settled=$(realpath "$2"); shift ;;
+    --scenario) scenario=$2; shift ;;
+    --hide) hide=$2; shift ;;
     --budget) budget=$2; shift ;;
     --model) model=$2; shift ;;
     --out) out=$2; shift ;;
@@ -58,6 +67,9 @@ name=$2
 [ -f "$spec" ] || { echo "no spec at $1" >&2; exit 2; }
 case $name in
 *[!a-z0-9_]* | [!a-z]*) echo "NAME is lowercase letters, digits and _" >&2; exit 2 ;;
+esac
+case $hide in
+*[!a-z0-9_,]*) echo "--hide takes names and commas" >&2; exit 2 ;;
 esac
 here=$(cd "$(dirname "$0")/.." && pwd)
 root=$(git -C "$here" rev-parse --show-toplevel)
@@ -159,12 +171,51 @@ if [ -n "$limits_only" ]; then
     exit 0
 fi
 
-# the worktree and the prompt
-git -C "$root" worktree add -q -b "intake/$name" "$tree" HEAD ||
-    { verdict "failed: could not make the worktree $tree"; exit 1; }
-log "worktree $tree"
+# the worktree and the prompt; with --hide a new repository instead, so no ref or object of
+# the hidden code is in reach of git log, git diff or Grep
+deny=
+if [ -n "$hide" ]; then
+    hidden=$root/demo/hide/$hide
+    [ -f "$hidden.files" ] && [ -f "$hidden.patch" ] ||
+        { verdict "failed: --hide $hide has no demo/hide/$hide.files and .patch"; exit 1; }
+    tree=${INTAKE_TREES:-$HOME/.cache/protocol-emulator-intake}/$(basename "$run")
+    base=$(git -C "$root" rev-parse --short HEAD)
+    mkdir -p "$tree"
+    git -C "$root" archive HEAD | tar -x -C "$tree"
+    git -C "$tree" init -q -b "intake/$name"
+    missing=$(cd "$tree" && while read -r f; do [ -e "$f" ] || echo "$f"; done < "$hidden.files")
+    [ -z "$missing" ] && git -C "$tree" apply "$hidden.patch" ||
+        { verdict "failed: demo/hide/$hide does not fit $base${missing:+, no $missing}"; exit 1; }
+    (cd "$tree" && xargs -d '\n' rm -r -- < "$hidden.files" && rm -rf demo/hide) ||
+        { verdict "failed: could not take $hide out of $tree"; exit 1; }
+    git -C "$tree" add -A
+    git -C "$tree" -c user.name=intake -c user.email=intake@localhost commit -q -m "$base with $hide hidden"
+    log "tree $tree, a new repository: $base with $hide hidden"
+    deny=$(python3 -I - "$hidden.files" "$run" "$out" "$(dirname "$spec")" "$root" "$main" "$HOME" "$settled" "$tree" <<'PY'
+import json, os, sys
+files, run, out, spec_dir, root, main, home, settled, tree = sys.argv[1:]
+# the checkouts, other agents' scratch and transcripts, and the run's neighbours but the spec's
+paths = {root, main, home + "/.cache/claude-scratch", home + "/.cache/remote-dune", home + "/.claude"}
+for d in [out] + ([os.path.dirname(out)] if os.path.dirname(out) != home else []):
+    paths |= {os.path.join(d, e) for e in os.listdir(d)} - {run, out, spec_dir, settled}
+paths = {p for p in paths if not (tree + "/").startswith(p + "/")}
+tmp = "/tmp/claude-%d/" % os.getuid()
+rules = [r for p in sorted(paths) for r in ("Read(/%s)" % p, "Read(/%s/**)" % p, "Bash(*%s*)" % p)]
+rules += ["Read(/%s%s*/**)" % (tmp, p.replace("/", "-").replace(".", "-")) for p in sorted({root, main})]
+# the hidden paths in any checkout; a directory only with its slash, so swd_blind is not swd
+for f in open(files).read().split():
+    rules += ["Read(**/%s)" % f, "Read(**/%s/**)" % f, "Bash(*%s%s*)" % (f, "" if "." in f else "/")]
+print("".join(", " + json.dumps(r) for r in rules))
+PY
+)
+else
+    git -C "$root" worktree add -q -b "intake/$name" "$tree" HEAD ||
+        { verdict "failed: could not make the worktree $tree"; exit 1; }
+    log "worktree $tree"
+fi
+[ -z "$scenario" ] || scenario="Scenario, fixed before this run: the test and the trace show $scenario."
 sed -e "s#@NAME@#$name#g" -e "s#@SPEC@#$spec#g" -e "s#@KIND@#$kind#g" -e "s#@DIR@#$run#g" \
-    -e "s#@SPEC_NOTE@#$note#" -e "s#@LIMITS_NOTE@#$limits_note#" \
+    -e "s#@SPEC_NOTE@#$note#" -e "s#@LIMITS_NOTE@#$limits_note#" -e "s#@SCENARIO@#$scenario#" \
     "$here/demo/intake_prompt.txt" > "$run/prompt.txt"
 tools="Read,Write,Edit,Glob,Grep,Bash(dune:*),Bash(make:*),Bash(test/only.sh:*),Bash(python3:*),Bash(ocamlformat:*),Bash(sigrok-cli:*),Bash(git add:*),Bash(git commit:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(timeout:*),Bash(ls:*),Bash(cat:*),Bash(sleep:*)"
 cat > "$run/settings.json" <<JSON
@@ -173,7 +224,7 @@ cat > "$run/settings.json" <<JSON
 "Read(//home/**/heldout*)", "Grep(*heldout*)", "Glob(*heldout*)", "Bash(*heldout*)",
 "Bash(dune runtest*)", "Bash(dune build @runtest*)", "Bash(dune build @test*)",
 "Bash(dune build --root . @runtest*)", "Bash(dune build --root . @test/runtest*)",
-"Bash(dune build --root . @all*)", "Bash(dune build @all*)"
+"Bash(dune build --root . @all*)", "Bash(dune build @all*)"$deny
 ]}}
 JSON
 set -- claude -p --settings "$run/settings.json" --output-format stream-json --verbose --permission-mode acceptEdits \
@@ -183,8 +234,12 @@ if [ -n "$dry" ]; then
     echo "worktree: $tree"
     echo "run directory: $run (prompt.txt, spec.txt, spec.index)"
     echo "would run in the worktree: $* < $run/prompt.txt > $run/transcript.jsonl"
-    git -C "$root" worktree remove --force "$tree"
-    git -C "$root" branch -D "intake/$name" >/dev/null
+    if [ -n "$hide" ]; then
+        rm -rf "$tree"
+    else
+        git -C "$root" worktree remove --force "$tree"
+        git -C "$root" branch -D "intake/$name" >/dev/null
+    fi
     log "dry run, worktree removed"
     exit 0
 fi

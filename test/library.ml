@@ -31,6 +31,14 @@ let protocols =
   ; Lfast.protocol
   ; Tdm_audio.protocol
   ; Usb_fs.protocol
+  ; Dali.protocol
+  ; Lin.protocol
+  ; Spdif.protocol
+  ; Usb_power_delivery.protocol
+  ; Dmx512.protocol
+  ; Wiegand.protocol
+  ; Swd_blind.protocol
+  ; Ir_nec.protocol
   ]
 ;;
 

@@ -122,6 +122,86 @@
 
 (rule
  (with-stdout-to
+  dali.trace.gen
+  (run ./write_trace.exe dali)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff dali.trace dali.trace.gen)))
+
+(rule
+ (with-stdout-to
+  lin.trace.gen
+  (run ./write_trace.exe lin)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff lin.trace lin.trace.gen)))
+
+(rule
+ (with-stdout-to
+  spdif.trace.gen
+  (run ./write_trace.exe spdif)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff spdif.trace spdif.trace.gen)))
+
+(rule
+ (with-stdout-to
+  usb_power_delivery.trace.gen
+  (run ./write_trace.exe usb_power_delivery)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff usb_power_delivery.trace usb_power_delivery.trace.gen)))
+
+(rule
+ (with-stdout-to
+  dmx512.trace.gen
+  (run ./write_trace.exe dmx512)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff dmx512.trace dmx512.trace.gen)))
+
+(rule
+ (with-stdout-to
+  wiegand.trace.gen
+  (run ./write_trace.exe wiegand)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff wiegand.trace wiegand.trace.gen)))
+
+(rule
+ (with-stdout-to
+  swd_blind.trace.gen
+  (run ./write_trace.exe swd_blind)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff swd_blind.trace swd_blind.trace.gen)))
+
+(rule
+ (with-stdout-to
+  ir_nec.trace.gen
+  (run ./write_trace.exe ir_nec)))
+
+(rule
+ (alias runtest)
+ (action
+  (diff ir_nec.trace ir_nec.trace.gen)))
+
+(rule
+ (with-stdout-to
   wrapped_loop.trace.gen
   (run ./write_trace.exe wrapped_loop)))
 

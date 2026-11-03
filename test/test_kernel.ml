@@ -747,6 +747,14 @@ let%expect_test "the kernel on the firmware library, from the analyser's rows" =
     (lfast (verdict (Ok ())))
     (tdm_audio (verdict (Ok ())))
     (usb_fs_device (verdict (Ok ())))
+    (dali (verdict (Ok ())))
+    (lin (verdict (Ok ())))
+    (spdif (verdict (Ok ())))
+    (usb_power_delivery (verdict (Ok ())))
+    (dmx512 (verdict (Ok ())))
+    (wiegand (verdict (Ok ())))
+    (swd_blind (verdict (Ok ())))
+    (ir_nec (verdict (Ok ())))
     |}]
 ;;
 
@@ -1579,6 +1587,14 @@ let%expect_test "a bound on the jitter of every pin edge, in firmware the kernel
      (untimed
       (0 1 41 43 44 45 48 49 52 54 57 61 63 66 67 70 74 77 79 82 85 86 88 90 93
        94 109 111 112 113 191 193 194 195 225 227 228 229)))
+    (dali (pc 12) (jitter_bound 0) (untimed (0)))
+    (lin (pc 14) (jitter_bound 0) (untimed (3 4)))
+    (spdif (pc 10) (jitter_bound 1) (untimed (0)))
+    (usb_power_delivery (pc 17) (jitter_bound 0) (untimed (0)))
+    (dmx512 (pc 7) (jitter_bound 0) (untimed (0)))
+    (wiegand (pc 21) (jitter_bound 0) (untimed (0)))
+    (swd_blind (pc 8) (jitter_bound 2) (untimed (0 1 2 3 4 5 6)))
+    (ir_nec (pc 28) (jitter_bound 0) (untimed (3)))
     (spi_slave_captured "no edge has a deadline" (untimed (0 5))
      (reaction ((pc 5) (at_most 2))))
     |}]

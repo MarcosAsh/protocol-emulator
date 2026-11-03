@@ -163,8 +163,8 @@ let%expect_test "every learn demo the board ran" =
       (10100101000000010000000001101011 10100101000000010000000001101011))
      (pico_b_reads ())
      (referee
-      ("IO2: 640 edges, each where the analyser saw it within 0.14 us, crystals +48 ppm apart"
-       "IO3: 168 edges, each where the analyser saw it within 0.13 us, crystals +48 ppm apart"))
+      ("IO2: 640 edges, each where the analyser saw it within 0.14 us, crystals +49 ppm apart"
+       "IO3: 168 edges, each where the analyser saw it within 0.14 us, crystals +49 ppm apart"))
      (speech_with_two_edges_taken_out "refused: read otherwise")
      (recording_a_tenth_slower "refused: other firmware"))
     (learn_modbus (learned "uart, 7390.5 baud (bit 135.31 us), 8N1")
@@ -179,7 +179,7 @@ let%expect_test "every learn demo the board ran" =
      (pico_b_reads
       ((1000000011000000110000001000000000000000010000001010100111110001)))
      (referee
-      ("IO3: 714 edges, each where the analyser saw it within 0.14 us, crystals +48 ppm apart"))
+      ("IO3: 714 edges, each where the analyser saw it within 0.14 us, crystals +49 ppm apart"))
      (speech_with_two_edges_taken_out "refused: read otherwise")
      (recording_a_tenth_slower "refused: other firmware"))
     (learn_nec
@@ -192,7 +192,7 @@ let%expect_test "every learn demo the board ran" =
      (pico_b_reads
       ((00000000111111111000001001111101 00000000111111111000001001111101)))
      (referee
-      ("IO3: 724 edges, each where the analyser saw it within 0.14 us, crystals +48 ppm apart"))
+      ("IO3: 724 edges, each where the analyser saw it within 0.14 us, crystals +49 ppm apart"))
      (speech_with_two_edges_taken_out "refused: read otherwise")
      (recording_a_tenth_slower "refused: other firmware"))
     (learn_pt2262
@@ -203,7 +203,7 @@ let%expect_test "every learn demo the board ran" =
      (analyser_reads (000100010001000101000100 000100010001000101000100))
      (pico_b_reads ((000100010001000101000100 000100010001000101000100)))
      (referee
-      ("IO3: 1601 edges, each where the analyser saw it within 0.14 us, crystals +48 ppm apart"))
+      ("IO3: 1601 edges, each where the analyser saw it within 0.14 us, crystals +49 ppm apart"))
      (speech_with_two_edges_taken_out "refused: read otherwise")
      (recording_a_tenth_slower "refused: other firmware"))
     (learn_rc5
@@ -215,7 +215,7 @@ let%expect_test "every learn demo the board ran" =
      (analyser_reads (11100101000000 11100101000000))
      (pico_b_reads ((11100101000000 11100101000000)))
      (referee
-      ("IO3: 497 edges, each where the analyser saw it within 0.14 us, crystals +48 ppm apart"))
+      ("IO3: 497 edges, each where the analyser saw it within 0.14 us, crystals +49 ppm apart"))
      (speech_with_two_edges_taken_out "refused: read otherwise")
      (recording_a_tenth_slower "refused: other firmware"))
     (learn_rc6
@@ -227,7 +227,7 @@ let%expect_test "every learn demo the board ran" =
      (analyser_reads (100010000000000001010 100010000000000001010))
      (pico_b_reads ((100010000000000001010 100010000000000001010)))
      (referee
-      ("IO3: 936 edges, each where the analyser saw it within 0.14 us, crystals +48 ppm apart"))
+      ("IO3: 936 edges, each where the analyser saw it within 0.14 us, crystals +49 ppm apart"))
      (speech_with_two_edges_taken_out "refused: read otherwise")
      (recording_a_tenth_slower "refused: other firmware"))
     |}]

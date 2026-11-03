@@ -32,7 +32,7 @@ ASSUME = Path(__file__).with_name("mutation_assume.txt")
 # run without it; the committed verilog is still copied, as test/dune depends on it
 COPIED = ["src", "test", "bin", "ppx", "python", "pio", "formal/Makefile", "dune-project", ".ocamlformat",
           "demo/paths.py", "demo/outline.py", "demo/draw.py", "demo/kernel_vs_board.py",
-          "demo/glitch_map.py", "demo/clock_sweep.py", "demo/corpus_draw.py",
+          "demo/glitch_map.py", "demo/clock_sweep.py", "demo/margins.py", "demo/sigrok.py", "demo/corpus_draw.py",
           "demo/corpus_decoders.tsv", "demo/extract.py", "pages/die/die.bin", "test/paths/cells.json",
           "test/python/corpus_beacon_33000000.json", "src/protocol_emulator.v", "icepi/Makefile"]
 # json the tests read, which SKIPPED drops from the test/ copy above

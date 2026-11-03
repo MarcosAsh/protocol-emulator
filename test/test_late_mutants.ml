@@ -146,10 +146,18 @@ let%expect_test "every deadline wait in the library, a cycle late, is refused" =
     lfast                      27 waits, 27 refused a cycle late,  0 too long, 27 accepted at their slack
     tdm_audio                   0 waits,  0 refused a cycle late,  0 too long,  0 accepted at their slack
     usb_fs_device               5 waits,  5 refused a cycle late,  0 too long,  5 accepted at their slack
+    dali                        8 waits,  0 refused a cycle late,  8 too long,  0 accepted at their slack
+    lin                        17 waits, 17 refused a cycle late,  0 too long,  0 accepted at their slack
+    spdif                      40 waits, 40 refused a cycle late,  0 too long, 40 accepted at their slack
+    usb_power_delivery         74 waits, 74 refused a cycle late,  0 too long, 74 accepted at their slack
+    dmx512                     14 waits, 14 refused a cycle late,  0 too long, 14 accepted at their slack
+    wiegand                     4 waits,  4 refused a cycle late,  0 too long,  0 accepted at their slack
+    swd_blind                   2 waits,  2 refused a cycle late,  0 too long,  0 accepted at their slack
+    ir_nec                     34 waits, 34 refused a cycle late,  0 too long,  0 accepted at their slack
     uart_tx_stream              3 waits,  3 refused a cycle late,  0 too long,  3 accepted at their slack
     spi_master_stream           3 waits,  3 refused a cycle late,  0 too long,  3 accepted at their slack
     uart_tx_stamped             4 waits,  4 refused a cycle late,  0 too long,  4 accepted at their slack
 
-    63 firmwares, 652 deadline waits: 606 refused a cycle late, 46 too long to assemble a cycle late, 367 accepted at their slack
+    71 firmwares, 845 deadline waits: 791 refused a cycle late, 54 too long to assemble a cycle late, 495 accepted at their slack
     |}]
 ;;

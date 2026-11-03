@@ -120,6 +120,16 @@ DEMOS = [
     outside("lfast", pico_b="micropython"),
     outside("ir_rc6", pico_b="micropython"),
     outside("tdm_audio"),
+    # the held-out protocols (test/heldout.txt), Pico B idle where OUT0 is used
+    outside("dali", pico_b="micropython"),
+    outside("dmx512", pico_b="micropython"),
+    outside("spdif", pico_b="micropython"),
+    outside("usb_power_delivery", pico_b="micropython"),
+    # CAN board B recessive, so CAN board A's R follows OUT1 (DATA1) onto D5
+    outside("wiegand", pico_b="can_node"),
+    outside("ir_nec", pico_b="micropython"),
+    outside("lin"),
+    outside("swd_blind"),
     outside("can", pico_b="can_node"),
     outside("can_node", pico_b="can_node"),
     # 10BASE-T wants the 40 MHz build: the chip hears its own frames on TD+, then frames

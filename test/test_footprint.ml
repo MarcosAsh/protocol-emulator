@@ -279,6 +279,14 @@ let%expect_test "the footprint of each firmware, and of its config under any pro
     lfast              5            -          5-20           12-19
     tdm_audio          5-7          -          5-22           12-19
     usb_fs_device      12-13        12-13      12-27          12-19
+    dali               5            -          5-20           12-19
+    lin                17           17         17-27          17-19
+    spdif              5            -          5-20           12-19
+    usb_power_delivery 5            -          5-20           12-19
+    dmx512             5            -          5-20           12-19
+    wiegand            5-6          -          5-20           12-19
+    swd_blind          7 17         17         7 17-27        17-19
+    ir_nec             5            -          5-20           12-19
     |}]
 ;;
 
@@ -393,6 +401,14 @@ let%expect_test "each firmware stays inside its footprint" =
     lfast              5            -
     tdm_audio          5-7          -
     usb_fs_device      12           -
+    dali               5            -
+    lin                -            -
+    spdif              5            -
+    usb_power_delivery 5            -
+    dmx512             5            -
+    wiegand            5-6          -
+    swd_blind          17           17
+    ir_nec             -            -
     |}]
 ;;
 

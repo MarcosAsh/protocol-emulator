@@ -309,6 +309,14 @@ let%expect_test "the checker agrees with the model on every firmware" =
     lfast                         8572  accepted
     tdm_audio                    11034  accepted
     usb_fs_device                12660  accepted
+    dali                          8937  accepted
+    lin                           9310  accepted
+    spdif                        10732  accepted
+    usb_power_delivery            9935  accepted
+    dmx512                        9049  accepted
+    wiegand                       8935  accepted
+    swd_blind                     8744  accepted
+    ir_nec                       11823  accepted
     asm/blink                     8251  accepted
     asm/crc_send                  8377  accepted
     asm/data_stream               8254  accepted
@@ -362,6 +370,14 @@ let%expect_test "the checker agrees with the model on every firmware" =
     bench/xy2_100                 8719  accepted
     bench/lfast                   8572  accepted
     bench/tdm_audio              11034  accepted
+    bench/dali                    8937  accepted
+    bench/lin                     9310  accepted
+    bench/spdif                  10732  accepted
+    bench/usb_power_delivery      9935  accepted
+    bench/dmx512                  9049  accepted
+    bench/wiegand                 8935  accepted
+    bench/swd_blind               8744  accepted
+    bench/ir_nec                 11823  accepted
     |}]
 ;;
 

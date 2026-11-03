@@ -6,7 +6,7 @@
  (preprocess
   (pps ppx_jane)))
 
-; the predictions test/test_margins.py holds made captures to
+; the predictions test/test_hold_capture.py holds made captures to
 
 (rule
  (with-stdout-to

@@ -1175,6 +1175,50 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       , "full speed device, 4 cycles a bit"
       , "the receiver recovers the clock, undoes NRZI and stuffing and checks both CRCs; \
          the host stuffs each reply and adds its CRC-16" )
+    ; ( "dali"
+      , "untried"
+      , "-"
+      , "half bit 20000"
+      , [%string
+          "a 27 half bit idle is 540000 cycles, each step held at most %{max_hold#Int}"] )
+    ; ( "lin"
+      , "untried"
+      , "-"
+      , "half 16 and up, 1250 for 19200 baud"
+      , "open drain, the response's start edges by a pin wait; not tried against the \
+         class" )
+    ; ( "spdif"
+      , "untried"
+      , "-"
+      , "halves of 8 32991/65536 cycles, 44.1 kHz"
+      , "transitions by reading the line back, a 192-frame block count; not tried \
+         against the class" )
+    ; ( "usb_power_delivery"
+      , "untried"
+      , "-"
+      , "BMC at 300 kbps, halves of 80 cycles"
+      , "written for the core, not tried" )
+    ; ( "dmx512"
+      , "untried"
+      , "-"
+      , "bits of 192 cycles, break 25 bits"
+      , "written for the core, not tried against the class" )
+    ; ( "wiegand"
+      , "untried"
+      , "-"
+      , "pulses of 16 cycles and up, 3 apart; DATA0 and DATA1 two outputs"
+      , "written for the core, not tried" )
+    ; ( "swd_blind"
+      , "untried"
+      , "-"
+      , "SWCLK half 12 and up, 24 at 1 MHz"
+      , "SWDIO turns around, its direction from the host word; not tried against the \
+         class" )
+    ; ( "ir_nec"
+      , "untried"
+      , "-"
+      , "third 422, a 38 kHz carrier at duty 1/3"
+      , "written for the core, not tried" )
     ]
   in
   let named = List.map rows ~f:(fun (name, _, _, _, _) -> name) in
@@ -1244,5 +1288,21 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       library SCLK half 3 cycles, 256-bit frames; three outputs, no waits, the halves timed by instructions; not tried against the class
     usb_fs     no       -
       library full speed device, 4 cycles a bit; the receiver recovers the clock, undoes NRZI and stuffing and checks both CRCs; the host stuffs each reply and adds its CRC-16
+    dali       untried  -
+      library half bit 20000; a 27 half bit idle is 540000 cycles, each step held at most 65535
+    lin        untried  -
+      library half 16 and up, 1250 for 19200 baud; open drain, the response's start edges by a pin wait; not tried against the class
+    spdif      untried  -
+      library halves of 8 32991/65536 cycles, 44.1 kHz; transitions by reading the line back, a 192-frame block count; not tried against the class
+    usb_power_delivery untried  -
+      library BMC at 300 kbps, halves of 80 cycles; written for the core, not tried
+    dmx512     untried  -
+      library bits of 192 cycles, break 25 bits; written for the core, not tried against the class
+    wiegand    untried  -
+      library pulses of 16 cycles and up, 3 apart; DATA0 and DATA1 two outputs; written for the core, not tried
+    swd_blind  untried  -
+      library SWCLK half 12 and up, 24 at 1 MHz; SWDIO turns around, its direction from the host word; not tried against the class
+    ir_nec     untried  -
+      library third 422, a 38 kHz carrier at duty 1/3; written for the core, not tried
     |}]
 ;;
