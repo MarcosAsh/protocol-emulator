@@ -30,6 +30,8 @@ let%expect_test "the reject split, on a sample" =
     ((verdict Missed) (count 32))
     (("List.length every" 46511) ("List.length sample" 187))
     ((verdict Accepted) (count 167))
+    (("List.length every" 48883) ("List.length sample" 196))
+    ((verdict Accepted) (count 176))
     ((verdict Missed) (count 20))
     ((verdict Analyser_limit) (count 0))
     ((verdict No_table) (count 2))

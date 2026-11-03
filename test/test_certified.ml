@@ -101,6 +101,7 @@ let%expect_test "the firmware library and its certificates" =
     dmx512                51        14    182  period 192, no wrap
     wiegand               32         4   2389  period 2400
     swd_blind             22         2     13  period 24
+    ir_nec               107        34    409  period 422
     |}]
 ;;
 
@@ -227,6 +228,10 @@ let%expect_test "the least period the host may load" =
     (QED "swd_blind: every load of 12 or more")
     (counterexample "swd_blind: every load of 11 or more"
      (model ((loaded 0000000000001011))))
+    (ir_nec (period (422)) (floor 16) (passes true) (one_less true))
+    (QED "ir_nec: every load of 16 or more")
+    (counterexample "ir_nec: every load of 15 or more"
+     (model ((loaded 0000000000001111))))
     |}]
 ;;
 

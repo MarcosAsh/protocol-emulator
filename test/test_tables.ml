@@ -1202,6 +1202,11 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       , "SWDIO turns around, its direction from the host word; not tried against the \
          class" )
     ; "ir_nec", "TODO", "-", "-", "TODO whether the table interpreter runs it"
+    ; ( "ir_nec"
+      , "untried"
+      , "-"
+      , "third 422, a 38 kHz carrier at duty 1/3"
+      , "written for the core, not tried" )
     ]
   in
   let named = List.map rows ~f:(fun (name, _, _, _, _) -> name) in
@@ -1283,5 +1288,7 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
       library pulses of 16 cycles and up, 3 apart; DATA0 and DATA1 two outputs; written for the core, not tried
     swd_blind  untried  -
       library SWCLK half 12 and up, 24 at 1 MHz; SWDIO turns around, its direction from the host word; not tried against the class
+    ir_nec     untried  -
+      library third 422, a 38 kHz carrier at duty 1/3; written for the core, not tried
     |}]
 ;;

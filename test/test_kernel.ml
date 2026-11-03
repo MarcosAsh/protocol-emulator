@@ -418,6 +418,7 @@ let%expect_test "the kernel on the firmware library, from the analyser's rows" =
     (dmx512 (verdict (Ok ())))
     (wiegand (verdict (Ok ())))
     (swd_blind (verdict (Ok ())))
+    (ir_nec (verdict (Ok ())))
     |}]
 ;;
 
@@ -1242,6 +1243,7 @@ let%expect_test "a bound on the jitter of every pin edge, in firmware the kernel
     (dmx512 (pc 7) (jitter_bound 0) (untimed (0)))
     (wiegand (pc 21) (jitter_bound 0) (untimed (0)))
     (swd_blind (pc 8) (jitter_bound 2) (untimed (0 1 2 3 4 5 6)))
+    (ir_nec (pc 28) (jitter_bound 0) (untimed (3)))
     (spi_slave_captured "no edge has a deadline" (untimed (0 5))
      (reaction ((pc 5) (at_most 2))))
     |}]

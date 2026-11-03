@@ -223,6 +223,18 @@ let%expect_test "the datasheet limits, measured on the bench copies' runs" =
     run    548  swd_blind          JTAG-to-DS       >=     5000 ns  measured 274 (11416.7 ns)     Pass            ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813, 5.3.2, p.5-115
     run    2758  swd_blind          SWD-to-DS        >=    50000 ns  measured 1379 (57458.3 ns)    Pass            ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813, 5.3.3, p.5-116
     run    2758  swd_blind          DS-to-SWD        >=    50000 ns  measured 1379 (57458.3 ns)    Pass            ARM IHI 0031C ADIv5.0 to ADIv5.2, ID080813, 5.3.4, p.5-117
+    run    1266  ir_nec             Carrier frequency, as its period >=  26315.8 ns  measured 633 (26375.0 ns)     Pass            SB-Projects, NEC Protocol, updated 17 July 2025, page 1, line 17
+    run    54438  ir_nec             Bit time, logical 0 >= 1.125e+06 ns  measured 27219 (1134125.0 ns) Pass            SB-Projects, NEC Protocol, updated 17 July 2025, page 1, line 18
+    run    108454  ir_nec             Bit time, logical 1 >= 2.25e+06 ns  measured 54227 (2259458.3 ns) Pass            SB-Projects, NEC Protocol, updated 17 July 2025, page 1, line 18
+    run    27008  ir_nec             Carrier burst length >=   560000 ns  measured 13504 (562666.7 ns)  Pass            SB-Projects, NEC Protocol, updated 17 July 2025, page 1, line 21
+    run    433394  ir_nec             AGC burst, message start >=    9e+06 ns  measured 216697 (9029041.7 ns) Pass            SB-Projects, NEC Protocol, updated 17 July 2025, page 1, line 28
+    run    216486  ir_nec             Space after AGC burst, message start >=  4.5e+06 ns  measured 108243 (4510125.0 ns) Pass            SB-Projects, NEC Protocol, updated 17 July 2025, page 1, line 29
+    run    27008  ir_nec             Extra burst at end of message >=   560000 ns  measured 13504 (562666.7 ns)  Pass            SB-Projects, NEC Protocol, updated 17 July 2025, page 1, line 34
+    run    433394  ir_nec             AGC pulse, repeat code >=    9e+06 ns  measured 216697 (9029041.7 ns) Pass            SB-Projects, NEC Protocol, updated 17 July 2025, page 1, line 37
+    run    108454  ir_nec             Space after AGC pulse, repeat code >= 2.25e+06 ns  measured 54227 (2259458.3 ns) Pass            SB-Projects, NEC Protocol, updated 17 July 2025, page 1, line 37
+    run    27008  ir_nec             Burst, repeat code >=   560000 ns  measured 13504 (562666.7 ns)  Pass            SB-Projects, NEC Protocol, updated 17 July 2025, page 1, line 37
+    run    108454  ir_nec             Repeat code space >= 2.25e+06 ns  measured 54227 (2259458.3 ns) Pass            SB-Projects, NEC Protocol, updated 17 July 2025, page 1, line 37
+    run    27008  ir_nec             Repeat code burst >=   560000 ns  measured 13504 (562666.7 ns)  Pass            SB-Projects, NEC Protocol, updated 17 July 2025, page 1, line 37
     kernel 417  uart_log           bit              >=  8506.94 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     run    417  uart_log           bit              <=  8854.17 ns  measured 209 (8708.3 ns)      Pass            Maxim AN2141, p.4, +-3/152, 2%
     |}]
@@ -435,5 +447,17 @@ let%expect_test "every limit's pairs of edges in the prediction" =
     swd_blind      JTAG-to-DS         1 pairs, as measured
     swd_blind      SWD-to-DS          1 pairs, as measured
     swd_blind      DS-to-SWD          1 pairs, as measured
+    ir_nec         Carrier frequency, as its period 1398 pairs, as measured
+    ir_nec         Bit time, logical 0  16 pairs, as measured
+    ir_nec         Bit time, logical 1  16 pairs, as measured
+    ir_nec         Carrier burst length  34 pairs, as measured
+    ir_nec         AGC burst, message start   1 pairs, as measured
+    ir_nec         Space after AGC burst, message start   1 pairs, as measured
+    ir_nec         Extra burst at end of message   1 pairs, as measured
+    ir_nec         AGC pulse, repeat code   1 pairs, as measured
+    ir_nec         Space after AGC pulse, repeat code   1 pairs, as measured
+    ir_nec         Burst, repeat code   1 pairs, as measured
+    ir_nec         Repeat code space   1 pairs, as measured
+    ir_nec         Repeat code burst   1 pairs, as measured
     |}]
 ;;
