@@ -3,8 +3,8 @@
 # OUT1, DATA1, both idling high (MicroPython, Pico A): 50 us pulses every 500 us.
 # demo/outside.sh wiegand runs it, reading the analyser, the capture's length and
 # sigrok's decoders from the next line.
-# outside: analyser=A ms=2000 decode=-P wiegand:d0=D4:d1=TODO
-# TODO outside: OUT1 has no analyser channel, see Bench_wiring
+# outside: analyser=A ms=2000 decode=-P wiegand:d0=D4:d1=D5:bitwidth_ms=1 -A wiegand=state
+# OUT1 reaches analyser A D5 through CAN board A, whose R follows its T on an idle bus
 
 import bench
 import bench_firmware
