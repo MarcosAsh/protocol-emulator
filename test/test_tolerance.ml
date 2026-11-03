@@ -136,6 +136,32 @@ let%expect_test "the UART receivers past the fast bound, premises watched" =
     |}]
 ;;
 
+(* usb_rx as the chip runs it, its certificate's premises watched: from every phase at the
+   nominal rate the run ends clean *)
+let%expect_test "usb_rx at the nominal rate, premises watched" =
+  let r = Receiver.usb_rx () in
+  let phases = List.init 16 ~f:(fun i -> i * unit / 16) in
+  print_s
+    [%message
+      ""
+        ~premises:(r.premises : Machine.Premises.t)
+        ~faults:
+          (List.map phases ~f:(fun phase -> fault r ~m:(r.nominal * unit) ~phase)
+           |> List.dedup_and_sort ~compare:Machine.Fault.compare
+           : Machine.Fault.t list)
+        ~received:
+          (List.for_all phases ~f:(fun phase -> receives r ~m:(r.nominal * unit) ~phase)
+           : bool)];
+  [%expect
+    {|
+    ((premises ((period (32)) (floor false) (single_edge true)))
+     (faults
+      (((underflow false) (overflow false) (missed_deadline false) (decode false)
+        (assumption false))))
+     (received true))
+    |}]
+;;
+
 (* the CAN frames hold the longest runs: ten bits between falling edges inside a frame,
    five dominant and five recessive, and from the CRC's last fall to the next SOF *)
 (* Not certified: where the formula does not apply, the model from 16 phases, walked out

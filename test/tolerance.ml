@@ -70,7 +70,8 @@ module Receiver = struct
         let crc = Usb_ls.crc16 (Usb_ls.bits_of_bytes payload) in
         (0xc3 :: payload) @ [ crc land 0xff; crc lsr 8 ])
     in
-    { firmware = Library.find_certified_exn "usb_rx"
+    let firmware = Library.find_certified_exn "usb_rx" in
+    { firmware
     ; nominal = 32
     ; preload = [ 32 ]
     ; idle = usb_word J
@@ -89,7 +90,7 @@ module Receiver = struct
             @ [ Usb_ls.residual packet ])
     ; wired = plain
     ; echo = 0
-    ; premises = Machine.Premises.none
+    ; premises = System_lockstep.Assumptions.premises (Certified.assumptions firmware)
     }
   ;;
 
