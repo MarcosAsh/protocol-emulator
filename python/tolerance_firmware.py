@@ -5,7 +5,9 @@
 # 48 MHz. LEAST and MOST are the bounds the receiver's certificate gives, which
 # formal/tolerance.sby proves on the RTL at short half periods; STEPS pairs each m
 # with what the model predicts, and FAULTS are the steps it predicts fault the
-# receiver missed_deadline. Both firmwares pass the kernel at every step.
+# receiver missed_deadline, with FAULT its status bits. Both firmwares pass the kernel at
+# every step, and the sender's one certificate, under the floor of the steps' periods,
+# the chip's walk.
 
 SENDER = {
     "config": {
@@ -35,7 +37,7 @@ SENDER = {
         "stuff_level": 1,
         "wrap_bottom": 0,
         "wrap_top": 511,
-        "period_fraction": 0,
+        "period_fraction": 1,
         "autopull_data": 0,
         "manchester": 0,
         "line_code": 0,
@@ -49,6 +51,14 @@ SENDER = {
         0x20C0, 0xA000, 0xA027, 0x20C0, 0x6001, 0x020B, 0x20C0, 0xA001,
         0x1204, 0xE004, 0x0008,
     ],
+    "certificate": [
+        0x0003, 0x0002, 0x0200, 0x0001, 0x0000, 0x0400, 0x4001, 0x0000,
+        0x0580, 0x8001, 0x0400, 0xFF00, 0x03FF, 0xEDDD, 0xFF00, 0x03FF,
+        0xEDDA, 0x122A, 0xFFFF, 0x0000, 0x0007,
+    ],
+    "loaded": 4650,
+    "floor": 1,
+    "single_edge": 0,
 }
 
 RECEIVER = {
@@ -93,6 +103,14 @@ RECEIVER = {
         0xC0CA, 0xC0CA, 0xC0D1, 0xA027, 0x20C0, 0x4001, 0xC0CA, 0x020C,
         0x4068, 0xE003, 0x2040, 0x0804, 0xE002, 0x0003,
     ],
+    "certificate": [
+        0x0003, 0x0001, 0x0180, 0x0001, 0x0000, 0x0200, 0x0001, 0x0000,
+        0x0640, 0x4001, 0x0400, 0xFFE2, 0xBCFF, 0xEC7D, 0x09C4, 0x09C4,
+        0x0000, 0x0007,
+    ],
+    "loaded": 2500,
+    "floor": 0,
+    "single_edge": 1,
 }
 
 HALF = 2500
@@ -200,3 +218,31 @@ STEPS = [
 ]
 
 FAULTS = [311314637, 311315149, 311315405, 311315533, 311315597, 311315613, 311315629, 311315637, 311315645, 311315649, 311315653, 311315655, 311315657, 311315658, 311315659, 311315660]
+FAULT = 0x4010
+
+# test/test_tolerance_bench.py's, at a half period of SHORT_HALF with SHORT_BYTES: the
+# certificates, the sender's under the floor of a step a tenth fast, and the fault one
+# step past the fast bound.
+SHORT_HALF = 26
+SHORT_BYTES = [0x00, 0x55, 0xA5, 0x7F]
+SHORT_SENDER = {
+    "certificate": [
+        0x0003, 0x0002, 0x0200, 0x0001, 0x0000, 0x0400, 0x4001, 0x0000,
+        0x0580, 0x8001, 0x0400, 0xFF00, 0x03FF, 0xFFD9, 0xFF00, 0x03FF,
+        0xFFD6, 0x002E, 0xFFFF, 0x0000, 0x0007,
+    ],
+    "loaded": 46,
+    "floor": 1,
+    "single_edge": 0,
+}
+SHORT_RECEIVER = {
+    "certificate": [
+        0x0003, 0x0001, 0x0180, 0x0001, 0x0000, 0x0200, 0x0001, 0x0000,
+        0x0640, 0x4001, 0x0400, 0xFFFF, 0xBAFF, 0xFFD1, 0x001A, 0x001A,
+        0x0000, 0x0007,
+    ],
+    "loaded": 26,
+    "floor": 0,
+    "single_edge": 1,
+}
+SHORT_FAULT = 0x4010

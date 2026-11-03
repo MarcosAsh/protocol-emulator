@@ -11,7 +11,7 @@ from test_outside import acted, reset
 import demo_tolerance
 import tolerance_firmware as tf
 
-HALF = 26
+HALF = tf.SHORT_HALF
 UNIT = 65536
 NOMINAL = 2 * HALF * UNIT
 # test/tolerance.ml's bounds at this half period: the arm 19 halves and 2 cycles after
@@ -23,10 +23,14 @@ MOST = UNIT * 19 * HALF // 9
 @cocotb.test()
 async def test_tolerance(dut):
     """Every frame through at the nominal rate and at both bounds, lost 10% either side,
-    and one step past the fast bound a missed_deadline, each as predicted."""
+    and one step past the fast bound a missed_deadline and the single edge, each as
+    predicted."""
     await reset(dut)
     tf.HALF = HALF
-    tf.BYTES = [0x00, 0x55, 0xA5, 0x7F]
+    tf.BYTES = tf.SHORT_BYTES
+    tf.SENDER = dict(tf.SENDER, **tf.SHORT_SENDER)
+    tf.RECEIVER = dict(tf.RECEIVER, **tf.SHORT_RECEIVER)
+    tf.FAULT = tf.SHORT_FAULT
     tf.LEAST, tf.MOST = LEAST, MOST
     # test/tolerance.ml's faults at this half period and these bytes
     tf.FAULTS = [LEAST - 1]

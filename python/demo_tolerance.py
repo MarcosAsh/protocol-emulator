@@ -3,7 +3,8 @@
 # back to back from one anchor at each rate tolerance_firmware.py lists, in steps of 2^-16
 # of a cycle a bit, to engine 0's uart_rx_host_rate on a wire no pin shows. Each step is
 # held to what the model predicts. Just past the fast bound the receiver faults
-# missed_deadline, which holds until reset, so only the nearest such step runs, last.
+# missed_deadline and the single edge, which hold until reset, so only the nearest such
+# step runs, last.
 # demo/tolerance.sh runs it.
 
 import gc
@@ -13,7 +14,6 @@ import protocol_emulator as pe
 import tolerance_firmware as tf
 
 DEPTH = bench.DEPTH
-MISSED_DEADLINE = 0x10
 
 
 def levels(host):
@@ -27,9 +27,16 @@ def ppm(m):
     return (m - nominal) * 1_000_000 // nominal
 
 
+def certify(host, firmware):
+    host.certify(
+        firmware["certificate"], loaded=firmware["loaded"], floor=firmware["floor"],
+        single_edge=firmware["single_edge"])
+
+
 def load(host, m):
     """Both engines stopped and flushed; engine 0 the receiver, engine 1 the sender at m,
-    the whole cycles of its period as its first host word and the rest as its fraction."""
+    the whole cycles of its period as its first host word and the rest as its fraction,
+    each certified."""
     for engine in (1, 0):
         host.select(engine)
         found = bench.faults(host)
@@ -42,11 +49,13 @@ def load(host, m):
     host.select(0)
     host.configure(tf.RECEIVER["config"])
     host.load(tf.RECEIVER["words"])
+    certify(host, tf.RECEIVER)
     host.select(1)
     config = dict(tf.SENDER["config"])
     config["period_fraction"] = m % tf.UNIT
     host.configure(config)
     host.load(tf.SENDER["words"])
+    certify(host, tf.SENDER)
 
 
 def run_step(host, m, polls=20_000):
@@ -108,11 +117,11 @@ def run(transfer, log=print):
     for m, predicted in steps:
         got, status = run_step(host, m)
         if m in tf.FAULTS:
-            ok = (status[0] & bench.FAULTS) == MISSED_DEADLINE and not status[1] & bench.FAULTS
+            ok = (status[0] & bench.FAULTS) == tf.FAULT and not status[1] & bench.FAULTS
             agree = agree and ok
             log("%s m %d (%+d ppm): faults 0x%x 0x%x, predicted 0x%x 0x0" % (
                 "ok  " if ok else "FAIL", m, ppm(m), status[0] & bench.FAULTS,
-                status[1] & bench.FAULTS, MISSED_DEADLINE))
+                status[1] & bench.FAULTS, tf.FAULT))
             if m < tf.LEAST and (first_faster is None or m > first_faster):
                 first_faster = m
             if m > tf.MOST and (first_slower is None or m < first_slower):
