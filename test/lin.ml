@@ -440,6 +440,8 @@ let sigrok =
              ]
              @ List.map data ~f:(sprintf "Data: 0x%02X")
              @ [ sprintf "Checksum: 0x%02X" (enhanced ~pid:(pid id) data) ]) )
+      ; (* the break is a uart break and frame error, once each; one more is a fault *)
+        "uart=rx-warnings:rx-break", Sigrok.lines "uart" [ "Frame error"; "Break condition" ]
       ]
   ; joins_after = None
   ; rejected = None

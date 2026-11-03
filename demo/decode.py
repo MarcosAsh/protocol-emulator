@@ -215,15 +215,21 @@ def errors(decoder):
     return [c for c in classes(decoder) if "warn" in c or "err" in c]
 
 
-def faults(decoders):
+def faults(decoders, expect=()):
+    """The fault classes to report, but for those the trace expects lines of, which its
+    lines judge: lin's break is a uart break and frame error by design."""
+    named = {(d, c) for annotations, _ in expect for part in annotations.split(",")
+             for d, _, cs in [part.partition("=")] for c in cs.split(":")}
     stacked = [d.split(":")[0] for stack in decoders for d in stack.split(",")]
-    return ",".join("%s=%s" % (d, ":".join(errors(d))) for d in stacked if errors(d))
+    left = [(d, [c for c in errors(d) if (d, c) not in named]) for d in stacked]
+    return ",".join("%s=%s" % (d, ":".join(cs)) for d, cs in left if cs)
 
 
 def judge(capture, decoders, expect):
     """Every fault sigrok reports, and for each payload it reads otherwise, the classes,
     the first line that differs, what sigrok prints there and what was expected."""
-    reported = sigrok_cli(capture, decoders, faults(decoders)) if faults(decoders) else []
+    reported = (sigrok_cli(capture, decoders, faults(decoders, expect))
+                if faults(decoders, expect) else [])
     mismatches = []
     for annotations, lines in expect:
         got = sigrok_cli(capture, decoders, annotations)
