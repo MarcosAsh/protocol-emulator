@@ -133,9 +133,9 @@ offset_axioms:
 # Fetch lemma: the core runs the word its memory holds at pc, followed at one free address
 # by a probe added to engine.v. Seconds. Teeth: config or program written in a start's second
 # cycle, which host_spacing rules out.
-PROBE = /^module program_memory (/,/^endmodule/s/^\(\s*\)reg \[15:0\] signal_multiport_mem\[0:511\];/&\n\1wire [8:0] probe_addr = $$anyconst;\n\1wire [15:0] probe_word = signal_multiport_mem[probe_addr];/
+FETCH_PROBE = /^module program_memory (/,/^endmodule/s/^\(\s*\)reg \[15:0\] signal_multiport_mem\[0:511\];/&\n\1wire [8:0] probe_addr = $$anyconst;\n\1wire [15:0] probe_word = signal_multiport_mem[probe_addr];/
 fetch_step: engine.v
-	sed '$(PROBE)' engine.v > engine_probed.v
+	sed '$(FETCH_PROBE)' engine.v > engine_probed.v
 	! cmp -s engine.v engine_probed.v
 	sby -f fetch_step.sby prove cover config_at_start program_at_start
 
