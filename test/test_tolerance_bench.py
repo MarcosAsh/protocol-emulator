@@ -23,8 +23,7 @@ MOST = UNIT * 19 * HALF // 9
 @cocotb.test()
 async def test_tolerance(dut):
     """Every frame through at the nominal rate and at both bounds, lost 10% either side,
-    and one step past the fast bound a missed_deadline and the single edge, each as
-    predicted."""
+    and one step past the fast bound the single edge's fault, each as predicted."""
     await reset(dut)
     tf.HALF = HALF
     tf.BYTES = tf.SHORT_BYTES

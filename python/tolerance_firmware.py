@@ -5,7 +5,7 @@
 # 48 MHz. LEAST and MOST are the bounds the receiver's certificate gives, which
 # formal/tolerance.sby proves on the RTL at short half periods; STEPS pairs each m
 # with what the model predicts, and FAULTS are the steps it predicts fault the
-# receiver missed_deadline, with FAULT its status bits. Both firmwares pass the kernel at
+# receiver, with FAULT its status bits. Both firmwares pass the kernel at
 # every step, and the sender's one certificate, under the floor of the steps' periods,
 # the chip's walk.
 
@@ -218,7 +218,7 @@ STEPS = [
 ]
 
 FAULTS = [311314637, 311315149, 311315405, 311315533, 311315597, 311315613, 311315629, 311315637, 311315645, 311315649, 311315653, 311315655, 311315657, 311315658, 311315659, 311315660]
-FAULT = 0x4010
+FAULT = 0x4000
 
 # test/test_tolerance_bench.py's, at a half period of SHORT_HALF with SHORT_BYTES: the
 # certificates, the sender's under the floor of a step a tenth fast, and the fault one
@@ -245,4 +245,4 @@ SHORT_RECEIVER = {
     "floor": 0,
     "single_edge": 1,
 }
-SHORT_FAULT = 0x4010
+SHORT_FAULT = 0x4000

@@ -108,8 +108,7 @@ let () =
      # 48 MHz. LEAST and MOST are the bounds the receiver's certificate gives, which\n\
      # formal/tolerance.sby proves on the RTL at short half periods; STEPS pairs each m\n\
      # with what the model predicts, and FAULTS are the steps it predicts fault the\n\
-     # receiver missed_deadline, with FAULT its status bits. Both firmwares pass the \
-     kernel at\n\
+     # receiver, with FAULT its status bits. Both firmwares pass the kernel at\n\
      # every step, and the sender's one certificate, under the floor of the steps' \
      periods,\n\
      # the chip's walk.\n";

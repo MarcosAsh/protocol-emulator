@@ -109,7 +109,7 @@ let%expect_test "the CAN receiver's window with its premises watched" =
 
 (* The UART receivers as the chip runs them, the single edge watched: a frame lost one
    step past the fast bound is the next start edge before the arm, which faults the
-   premise as well as the deadline the stale capture misses *)
+   premise, and the fault stops the core before the deadline the stale capture misses *)
 let%expect_test "the UART receivers past the fast bound, premises watched" =
   List.iter
     [ "uart_rx", Receiver.uart_rx ~period:16 ()
@@ -126,12 +126,12 @@ let%expect_test "the UART receivers past the fast bound, premises watched" =
     {|
     (uart_rx (premises ((period ()) (floor false) (single_edge true)))
      (fault
-      ((underflow false) (overflow false) (missed_deadline true) (decode false)
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
        (assumption true))))
     (uart_rx_host_rate
      (premises ((period (208)) (floor false) (single_edge true)))
      (fault
-      ((underflow false) (overflow false) (missed_deadline true) (decode false)
+      ((underflow false) (overflow false) (missed_deadline false) (decode false)
        (assumption true))))
     |}]
 ;;

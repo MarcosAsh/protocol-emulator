@@ -224,9 +224,9 @@ module Run = struct
     }
 end
 
-(* The receiver on the sender at [m] and [phase]; the host reads every word and clears
-   every irq. [observe] sees the core before each cycle, with the sender's word and the
-   inputs. *)
+(* The receiver on the sender at [m] and [phase], stopped by a fault as the chip stops it;
+   the host reads every word and clears every irq. [observe] sees the core before each
+   cycle, with the sender's word and the inputs. *)
 let run
   ?(observe = fun (_ : Machine.t) ~sender:_ ~inputs:_ -> ())
   (r : Receiver.t)
@@ -267,7 +267,10 @@ let run
         let pin_out = Queue.dequeue_exn driven in
         let inputs = r.wired ~sender ~pin_out in
         observe t ~sender ~inputs;
+        (* a fault stops the core an edge after it shows, as [System.step] has the chip *)
+        let faulted = not (Machine.Fault.equal t.fault Machine.Fault.none) in
         let t = Machine.step t ~inputs in
+        let t = if faulted then Machine.stop t else t in
         let t, words = drain t words in
         if t.irq then Machine.clear_irq t, words, irqs + 1 else t, words, irqs)
   in
