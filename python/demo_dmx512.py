@@ -20,6 +20,14 @@ PACKET = [0x00] + [lo | hi << 8 for lo, hi in zip(CHANNELS[::2], CHANNELS[1::2])
 WORDS = [PERIOD] + PACKET * 2 + [0x00]
 
 
+def lines(channels):
+    """What sigrok's dmx512 prints of one packet with outside:'s -A, start code 0."""
+    out = ["dmx512-1: Break", "dmx512-1: MAB", "dmx512-1: Start code", "dmx512-1: 0 / 0x0"]
+    for n, value in enumerate(channels):
+        out += ["dmx512-1: Channel %d" % (n + 1), "dmx512-1: %d / 0x%x" % (value, value)]
+    return out
+
+
 def run(transfer, log=print, polls=100_000):
     host = pe.Host(transfer)
     bench.load(host, bench_firmware.DMX512)

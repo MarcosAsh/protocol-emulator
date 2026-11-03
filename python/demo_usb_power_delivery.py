@@ -42,6 +42,21 @@ def words(header, pdos):
     return [len(bits) - 1] + packed
 
 
+def lines(header, pdos):
+    """What sigrok's usb_power_delivery prints with outside:'s -A of a Source_Capabilities
+    message from a Revision 3.x source, each PDO a Fixed one."""
+    payload = [header & 0xFF, header >> 8]
+    for pdo in pdos:
+        payload += [(pdo >> (8 * i)) & 0xFF for i in range(4)]
+    out = ["H:%04x" % header, "(r3) SRC[%d]: SOURCE CAP" % ((header >> 9) & 7)]
+    for n, pdo in enumerate(pdos):
+        volts, amps = ((pdo >> 10) & 0x3FF) / 20, (pdo & 0x3FF) / 100
+        out += ["[%d]%08x" % (n, pdo),
+                "[%d] [Fixed] %gV %gA (%gW)" % (n + 1, volts, amps, volts * amps)]
+    out += ["CRC:%08x" % crc32(payload)]
+    return ["usb_power_delivery-1: " + line for line in out]
+
+
 def run(transfer, log=print):
     host = pe.Host(transfer)
     bench.load(host, bench_firmware.USB_POWER_DELIVERY)

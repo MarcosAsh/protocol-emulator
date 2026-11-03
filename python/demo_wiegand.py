@@ -28,6 +28,14 @@ def card(facility, card_id):
 WORDS = card(42, 4660)
 
 
+def lines(words):
+    """What sigrok's wiegand prints of the read: its bits, MSB first."""
+    count = words[0] + 1
+    bits = (words[1] << 16 | words[2]) >> (32 - count)
+    return ["wiegand-1: %d bits %s" % (count, "".join(
+        str((bits >> i) & 1) for i in reversed(range(count))))]
+
+
 def run(transfer, log=print):
     host = pe.Host(transfer)
     bench.load(host, bench_firmware.WIEGAND)

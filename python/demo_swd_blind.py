@@ -61,6 +61,11 @@ def words(clocks):
     return out
 
 
+def lines(dpidr):
+    """What sigrok's swd must print, in order, of the DPIDR read with outside:'s -A."""
+    return ["swd-1: LINERESET", "swd-1: IDCODE", "swd-1: OK", "swd-1: 0x%08x" % dpidr]
+
+
 def run(transfer, log=print):
     host = pe.Host(transfer)
     bench.load(host, bench_firmware.SWD_BLIND)

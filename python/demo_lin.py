@@ -16,6 +16,12 @@ HALF = 1250
 WORDS = [3, 0xD6]
 
 
+def lines(pid):
+    """What sigrok's lin prints of a header with outside:'s -A."""
+    return ["lin-1: Break condition", "lin-1: Sync",
+            "lin-1: ID: %02X Parity: %d (ok)" % (pid & 0x3F, pid >> 6)]
+
+
 def run(transfer, log=print):
     host = pe.Host(transfer)
     bench.load(host, bench_firmware.LIN)
