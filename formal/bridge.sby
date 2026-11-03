@@ -32,8 +32,14 @@ flatten
 expose -evert -sep __ engines_top/t:RM_IHPSG13_1P_512x16_c2_bm_bist
 cd engines_top
 expose w:engines.engine_0.pins_sampled w:engines.engine_1.pins_sampled
+expose w:engines.engine_0.premises$single_edge w:engines.engine_0.premises$period$valid
+expose w:engines.engine_1.premises$single_edge w:engines.engine_1.premises$period$valid
 rename engines.engine_0.pins_sampled pins_sampled_0
 rename engines.engine_1.pins_sampled pins_sampled_1
+rename engines.engine_0.premises$single_edge premise_edge_0
+rename engines.engine_0.premises$period$valid premise_period_0
+rename engines.engine_1.premises$single_edge premise_edge_1
+rename engines.engine_1.premises$period$valid premise_period_1
 rename engines.engine_0.sram_macro.sram__A_ADDR sram_addr_0
 rename engines.engine_0.sram_macro.sram__A_MEN sram_men_0
 rename engines.engine_0.sram_macro.sram__A_REN sram_ren_0

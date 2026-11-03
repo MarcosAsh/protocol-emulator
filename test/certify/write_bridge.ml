@@ -623,6 +623,7 @@ module bridge (input clk);
   end
 
   wire [27:0] pins_sampled_0, pins_sampled_1;
+  wire premise_edge_0, premise_period_0, premise_edge_1, premise_period_1;
 %{declare}
   engines_top dut (
     %{connect},
@@ -631,14 +632,18 @@ module bridge (input clk);
     .sram_addr_1(sram_addr_1), .sram_men_1(sram_men_1), .sram_ren_1(sram_ren_1),
     .sram_dout_1(sram_dout_1),
     .data_sram_dout(16'b0),
-    .pins_sampled_0(pins_sampled_0), .pins_sampled_1(pins_sampled_1));
+    .pins_sampled_0(pins_sampled_0), .pins_sampled_1(pins_sampled_1),
+    .premise_edge_0(premise_edge_0), .premise_period_0(premise_period_0),
+    .premise_edge_1(premise_edge_1), .premise_period_1(premise_period_1));
 
   reg [8:0] last_pc_0 = 0, last_pc_1 = 0;
   reg last_pad = 1, last_wire = 0, last_sck = 0;
   wire faulted_0 = engines_fault_underflow_0 | engines_fault_overflow_0
-    | engines_fault_missed_deadline_0 | engines_fault_decode_0;
+    | engines_fault_missed_deadline_0 | engines_fault_decode_0
+    | engines_fault_assumption_0;
   wire faulted_1 = engines_fault_underflow_1 | engines_fault_overflow_1
-    | engines_fault_missed_deadline_1 | engines_fault_decode_1;
+    | engines_fault_missed_deadline_1 | engines_fault_decode_1
+    | engines_fault_assumption_1;
   // the wire as engine 1 reads it, and the pins
   wire wire_level = (!faulted_0 && engines_pin_out_0[%{wire#Int}]) | (!faulted_1 && engines_pin_out_1[%{wire#Int}]);
   wire sck = pin_out[%{Bridge.sck_pin#Int}];
@@ -716,6 +721,11 @@ module bridge (input clk);
 `else
   localparam first_at = %{first#Int};
 `endif
+
+  // no check runs, so the premises the cores watch stay as the clear left them
+  always @(*)
+    if (since_start != 0)
+      assert (!premise_edge_0 && !premise_period_0 && !premise_edge_1 && !premise_period_1);
 
   always @(*) begin
     assert (boot == 2 ? since_start != 0 : since_start == 0);
