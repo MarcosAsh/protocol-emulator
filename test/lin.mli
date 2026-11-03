@@ -4,7 +4,7 @@
 open! Core
 open Protocol_emulator
 
-(** IO0, open drain. *)
+(** IO5, open drain. *)
 val pin : int
 
 val config : Program_config.t

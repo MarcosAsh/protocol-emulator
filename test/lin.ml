@@ -6,8 +6,9 @@ module Reg = Host_port.Reg
 (* LIN Specification Package, Revision 2.2A (LIN Consortium, December 31, 2010): the frame
    of 2.3.1-2.3.2 (pp. 29-33), the bit rate tolerances of Tables 6.1-6.3 (p. 113) *)
 
-(* IO0, open drain: the bus is a wired AND, dominant low *)
-let pin = Isa.first_bidir_pin
+(* IO5, open drain: the bus is a wired AND, dominant low. On the bench IO5 is analyser A's
+   D7; IO0 reaches no analyser *)
+let pin = Isa.first_bidir_pin + 5
 
 let config =
   { Program_config.default with
@@ -75,7 +76,7 @@ pid:
     set pindirs, 0           ; stop bit
     wait t                   ; its middle: the slave may start only after it ends
 byte:
-    wait 0 pin 12            ; start bit
+    wait 0 pin 17            ; start bit, on IO5
     mov t, now
     add t, p
     add t, p
@@ -305,7 +306,7 @@ let bench =
   ; what =
       [%string
         "Lin.firmware: a master's header, %{half#Int} cycles a half bit for %{Bench.rate \
-         ~unit:\"baud\" (2 * half)}, on IO0"]
+         ~unit:\"baud\" (2 * half)}, on IO5"]
   ; source = Timed_program.source firmware
   ; config
   ; assumption = Floor 16

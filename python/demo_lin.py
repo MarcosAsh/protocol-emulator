@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
-# Lin.firmware as a LIN master on IO0, open drain: the header of frame 0x16 at 19200 baud.
+# Lin.firmware as a LIN master on IO5, open drain: the header of frame 0x16 at 19200 baud.
 # Nothing on the bench answers, so the firmware is left waiting for a response; the run
-# passes on a clean header. IO0 reaches no analyser channel (MicroPython, Pico A).
+# passes on a clean header. IO5 is analyser A's D7 (MicroPython, Pico A).
 # demo/outside.sh lin runs it, reading the analyser, the capture's length and
 # sigrok's decoders from the next line.
-# outside: analyser=TODO ms=2000 decode=-P lin:
+# outside: analyser=A ms=2000 decode=-P uart:rx=D7:baudrate=19200,lin -A lin=data:control
 
 import bench
 import bench_firmware
