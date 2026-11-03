@@ -122,6 +122,9 @@ def main():
             time.strftime("%Y-%m-%d %H:%M:%S"), args.bitstream, digest, len(images),
             args.images, args.frames))
     load_bitstream(args.bitstream, log)
+    python = os.path.join(HERE, "..", "python")
+    mpremote("cp", os.path.join(python, "protocol_emulator.py"),
+             os.path.join(python, "pico_board.py"), ":", log=log)
     by_k = {i["k"]: i for i in images}
     results, pending, empty = [], list(images), 0
     while pending:
