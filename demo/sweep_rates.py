@@ -55,7 +55,7 @@ class Run:
     capture_ms: int
 
 
-RUNS = [Run("spi_mode%d" % n, "spi", n, 2500) for n in range(4)] + [
+RUNS = [Run("spi_mode%d" % n, "spi", n, 4000) for n in range(4)] + [
     Run("i2c_100k", "i2c", "standard", 4000), Run("i2c_400k", "i2c", "fast", 4000)]
 NAMES = [r.name for r in RUNS]
 I2C_FIRMWARE = {"standard": "i2c_standard", "fast": "i2c_fast"}
