@@ -242,7 +242,9 @@ let outcome (system : System.t) =
 let model image =
   let system =
     List.map (setups image) ~f:(fun s ->
-      Machine.create ~config:s.config ~program:s.program |> ok_exn)
+      Machine.assume
+        (Machine.create ~config:s.config ~program:s.program |> ok_exn)
+        (System_lockstep.Assumptions.premises s.assumptions))
     |> System.create
   in
   let system =

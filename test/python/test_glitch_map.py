@@ -34,11 +34,12 @@ def test_summary():
 
 
 def test_batch_script():
-    head = {"receiver": [1, 2], "config": {"in_base": 20}}
-    script = gm.batch_script(head, [{"k": 17, "words": [3], "config": {"set_base": 20}}], 2)
+    head = {"receiver": [1, 2], "config": {"in_base": 20}, "check": {"certificate": [4]}}
+    image = {"k": 17, "words": [3], "config": {"set_base": 20}, "check": {"certificate": [5]}}
+    script = gm.batch_script(head, [image], 2)
     assert "def run(" in script
-    assert "run(spi.transfer, [1, 2], {\"in_base\": 20}, [[17, [3], {\"set_base\": 20}]], " \
-        "frames=2)" in script
+    assert "run(spi.transfer, [1, 2], {\"in_base\": 20}, {\"certificate\": [4]}, " \
+        "[[17, [3], {\"set_base\": 20}, {\"certificate\": [5]}]], frames=2)" in script
 
 
 test_verdicts()

@@ -17,30 +17,44 @@ def program(host, words, dirty):
     return len(words)
 
 
-def run(transfer, receiver, receiver_config, images, frames=2):
-    """images: (k, words, config) each. A line a frame: RESULT k frame irq faults words."""
+def certify(host, check):
+    """The selected engine's certificate, with every engine halted."""
+    host.certify(
+        check["certificate"], loaded=check["loaded"], floor=check["floor"],
+        single_edge=check["single_edge"])
+
+
+def run(transfer, receiver, receiver_config, receiver_check, images, frames=2):
+    """images: (k, words, config, check) each, check what the host certifies the words
+    with. A line a frame: RESULT k frame irq faults words."""
     host = pe.Host(transfer)
     for engine in (0, 1):
         host.select(engine)
         if host.read(pe.STATUS)[0] & FAULTS:
             print("HELD")
             return
+    host.select(0)
+    host.stop()
     host.select(1)
     host.stop()
     host.flush()
     host.configure(receiver_config)
     host.load(receiver)
+    certify(host, receiver_check)
     # nothing is known of engine 0's memory yet
     dirty = pe.PROGRAM_WORDS
-    for k, words, config in images:
+    for k, words, config, check in images:
+        # both halted for the certificate's write
+        host.select(1)
+        host.stop()
         host.select(0)
         host.stop()
         host.flush()
         host.configure(config)
         dirty = program(host, words, dirty)
+        certify(host, check)
         # the receiver from its start, which waits for the line to idle high
         host.select(1)
-        host.stop()
         host.flush()
         host.clear_irq()
         host.start()

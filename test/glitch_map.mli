@@ -62,7 +62,8 @@ end
     check's raises the framing error, and a pulse after the re-arm is a start bit. *)
 val predict : int -> Outcome.t
 
-(** One frame, its word pushed at cycle 10, on the model alone. *)
+(** One frame, its word pushed at cycle 10, on the model alone, each engine watching its
+    certificate's premises as the chip does. *)
 val model : Image.t -> Outcome.t
 
 (** The same on [Engines] beside the model, with any mismatch. *)

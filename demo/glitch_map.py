@@ -38,13 +38,13 @@ def batch_script(head, batch, frames):
     """The Pico side inline, so nothing is copied to the Pico's flash."""
     with open(os.path.join(HERE, "..", "python", "demo_glitch_map.py")) as f:
         source = f.read()
-    images = [(i["k"], i["words"], i["config"]) for i in batch]
+    images = [(i["k"], i["words"], i["config"], i["check"]) for i in batch]
     return source + (
         "\nimport pico_board\n"
         "spi = pico_board.PicoSpi()\n"
-        "run(spi.transfer, %s, %s, %s, frames=%d)\n"
-        % (json.dumps(head["receiver"]), json.dumps(head["config"]), json.dumps(images),
-           frames))
+        "run(spi.transfer, %s, %s, %s, %s, frames=%d)\n"
+        % (json.dumps(head["receiver"]), json.dumps(head["config"]),
+           json.dumps(head["check"]), json.dumps(images), frames))
 
 
 def parse(line):
