@@ -93,15 +93,13 @@ module Make (Config : Config) = struct
           ; inputs = seen ~pads:i.pads ~others
           }
         |> Engine.O.Of_signal.assign out);
+    (* a bidirectional pin's level shows only where an engine drives it, one or more *)
     let pin_out =
-      match drives with
-      | [ engine ] -> engine.pin_out
-      | drives ->
-        let output_only =
-          concat_msb
-            [ zero (Isa.pin_space - Isa.first_bidir_pin); ones Isa.first_bidir_pin ]
-        in
-        any drives ~f:(fun e -> e.pin_out &: (e.pin_dir |: output_only))
+      let output_only =
+        concat_msb
+          [ zero (Isa.pin_space - Isa.first_bidir_pin); ones Isa.first_bidir_pin ]
+      in
+      any drives ~f:(fun e -> e.pin_out &: (e.pin_dir |: output_only))
     in
     { O.engines = outs
     ; pin_out = sel_bottom pin_out ~width:Isa.num_pins
