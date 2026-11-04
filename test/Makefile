@@ -192,17 +192,33 @@ replay:
 # sdf_typ, sdf_fast) or all three (sdf), from the flow's SDF in SDF_DIR, at the chip's
 # 50 MHz, in one run each since annotating takes minutes. Icarus has no timing checks, so a
 # violation shows only as a wrong value. GROUP picks a part of the tests, by module and
-# name, as CI runs each corner in twelve jobs: a runner can take twice another's time, and
+# name, as CI runs each corner in sixteen jobs: a runner can take twice another's time, and
 # a job has five hours, so no group takes much past two on a quick one.
 SDF_DIR ?= ../runs/wokwi/final/sdf
 GROUP ?= all
 comma := ,
 space := $(subst ,, )
 SDF_MODULES_all = $(GATE_TEST_MODULES),test_replay
-SDF_MODULES_replay_a = test_replay
-SDF_FILTER_replay_a = [.]replay_[a-o]
-SDF_MODULES_replay_b = test_replay
-SDF_FILTER_replay_b = [.]replay_[p-z]
+# the replays by their time at the slow corner, dmx512 alone over two hours; replay_rest
+# takes every trace the others do not name, so a new one runs somewhere
+SDF_REPLAYS_dmx512 = dmx512
+SDF_REPLAYS_wiegand = wiegand|ir_nec
+SDF_REPLAYS_bridge = bridge|usb_power_delivery|snorble
+SDF_REPLAYS_c = caliper|dali|fifo_poll|frumbleglide|i2c_logger|lfast|lin
+SDF_REPLAYS_m = microwire|plinkoo|spdif|spi_master|swd_blind
+SDF_REPLAYS_named = $(foreach g,dmx512 wiegand bridge c m,$(SDF_REPLAYS_$(g)))
+SDF_MODULES_replay_dmx512 = test_replay
+SDF_FILTER_replay_dmx512 = [.]replay_($(SDF_REPLAYS_dmx512))$$
+SDF_MODULES_replay_wiegand = test_replay
+SDF_FILTER_replay_wiegand = [.]replay_($(SDF_REPLAYS_wiegand))$$
+SDF_MODULES_replay_bridge = test_replay
+SDF_FILTER_replay_bridge = [.]replay_($(SDF_REPLAYS_bridge))$$
+SDF_MODULES_replay_c = test_replay
+SDF_FILTER_replay_c = [.]replay_($(SDF_REPLAYS_c))$$
+SDF_MODULES_replay_m = test_replay
+SDF_FILTER_replay_m = [.]replay_($(SDF_REPLAYS_m))$$
+SDF_MODULES_replay_rest = test_replay
+SDF_FILTER_replay_rest = [.]replay_(?!($(subst $(space),|,$(SDF_REPLAYS_named)))$$)
 SDF_MODULES_two_engines_fault = test_two_engines
 SDF_FILTER_two_engines_fault = [.]test_a_faulted_
 SDF_MODULES_two_engines_one = test_two_engines
