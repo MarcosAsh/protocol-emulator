@@ -567,8 +567,10 @@ let%expect_test "a setup written during a walk does not reach it" =
 (* Walks at the edges of what a host sets up, one simulation: a certificate at the top of
    memory, wrapping to its bottom, then at 0; a side-set count of 3, which only the host
    can write; a loaded period of 0x5a5; a row with an arm no way into it reaches, which
-   only a dictionary holds; 150 jumps, each to the next, so the search and the entry
-   pointer pass 128; and, after a refusal at a stored row, a program wrapping at pc 0. *)
+   only a dictionary holds, and the same arm in a row only a jump reaches, so the walk
+   holds it; 170 jumps, each to the next, so the search and the entry pointer pass 128 and
+   the certificate fills all 512 words; and, after a refusal at a stored row, a program
+   wrapping at pc 0. *)
 let%expect_test "walks at the edges of the setup" =
   let uart_tx = walk_of "uart_tx" in
   let host_rate = walk_of "uart_tx_host_rate" in
@@ -583,9 +585,28 @@ let%expect_test "walks at the edges of the setup" =
     ; certificate = Load_check.of_program ~config words |> ok_exn |> Load_check.to_words
     }
   in
-  let jumps =
-    List.init 150 ~f:(fun pc ->
-      Isa.to_word ~side_set_count:0 (Jmp { cond = Always; target = pc + 1 }) |> ok_exn)
+  let jump target =
+    Isa.to_word ~side_set_count:0 (Jmp { cond = Always; target }) |> ok_exn
+  in
+  let jumps = List.init 170 ~f:(fun pc -> jump (pc + 1)) in
+  let far_arm (r : _ Kernel.Row.t) =
+    let width = Bits.width r.arm_lo in
+    { r with arm_lo = Bits.of_unsigned_int ~width 0xffff00; arm_hi = Bits.ones width }
+  in
+  (* pc 0 jumps over pc 1, so the walk takes pc 1's row as stored, with no check into it *)
+  let jumped_to_far_arm =
+    let config = Program_config.default in
+    let words = List.map [ 2; 1; 1 ] ~f:jump in
+    let table =
+      List.map words ~f:(fun w -> Isa.of_word ~side_set_count:0 w |> ok_exn)
+      |> Analyser.analyse ~config
+      |> Kernel.Table.of_analyser
+      |> edit_row 1 ~f:far_arm
+    in
+    { (program config words) with
+      certificate =
+        Load_check.of_table ~config ~words table |> ok_exn |> Load_check.to_words
+    }
   in
   print_walks
     [ { uart_tx with base = 0x1ff }
@@ -603,15 +624,8 @@ let%expect_test "walks at the edges of the setup" =
           |> ok_exn
           |> Load_check.to_words
       }
-    ; walk_of
-        "bench/can_receiver"
-        ~edit:
-          (edit_row 29 ~f:(fun r ->
-             let width = Bits.width r.arm_lo in
-             { r with
-               arm_lo = Bits.of_unsigned_int ~width 0xffff00
-             ; arm_hi = Bits.ones width
-             }))
+    ; walk_of "bench/can_receiver" ~edit:(edit_row 29 ~f:far_arm)
+    ; jumped_to_far_arm
     ; program Program_config.default jumps
     ; walk_of "uart_tx" ~edit:(edit_row 2 ~f:(fun r -> { r with awaiting = Bits.vdd }))
     ; program { Program_config.default with wrap_top = 0 } (Firmware.assemble "set x, 1")
@@ -623,6 +637,7 @@ let%expect_test "walks at the edges of the setup" =
     accepted
     accepted
     refused at 28, reason 8
+    refused at 1, reason 18
     accepted
     refused at 1, reason 10
     accepted
