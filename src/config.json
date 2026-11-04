@@ -71,6 +71,10 @@
   "//": "push and nothing checked setup again, so it missed the slow corner by 1.24 ns with 104",
   "//": "slew violations. Repairing again on the global routes closes both.",
   "RUN_POST_GRT_DESIGN_REPAIR": true,
+
+  "//": "GRT_DESIGN_REPAIR_MAX_SLEW_PCT - at the default 10 the resizer left engine_0's A_DIN[8],",
+  "//": "[11] and [12] at 0.9 to 1.1 ns on buf_1 fanout nets even with LAYERS_RC; 30 repairs them.",
+  "GRT_DESIGN_REPAIR_MAX_SLEW_PCT": 30,
   "RUN_POST_GRT_RESIZER_TIMING": true,
 
   "//": "LAYERS_RC - the tech LEF's wire caps are about half what RCX extracts (Metal3 0.092",
