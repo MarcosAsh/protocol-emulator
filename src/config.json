@@ -73,6 +73,19 @@
   "RUN_POST_GRT_DESIGN_REPAIR": true,
   "RUN_POST_GRT_RESIZER_TIMING": true,
 
+  "//": "LAYERS_RC - the tech LEF's wire caps are about half what RCX extracts (Metal3 0.092",
+  "//": "against 0.209 fF/um), so the resizer saw engine_0's A_ADDR[7] at 0.92 ns and it routed",
+  "//": "to 1.74 ns against the SRAM's 0.595. Fitted to the signoff SPEF's 46,577 routed nets.",
+  "LAYERS_RC": {
+    "*": {
+      "Metal1": {"res": 8.4e-4, "cap": 1.2e-4},
+      "Metal2": {"res": 5.2e-4, "cap": 1.57e-4},
+      "Metal3": {"res": 5.2e-4, "cap": 2.09e-4},
+      "Metal4": {"res": 5.2e-4, "cap": 1.65e-4},
+      "TopMetal1": {"res": 1.3e-5, "cap": 1.1e-4}
+    }
+  },
+
   "//": "SYNTH_ARITH_TREE - yosys 0.66's arith_tree folds a narrower add or sub into a wider one",
   "//": "and keeps the carry the narrower one drops (fixed upstream in e5c56c640): the load",
   "//": "checker's reach = {0, read_at - base} + 1 came out 10 bits wide, so the netlist was not",
