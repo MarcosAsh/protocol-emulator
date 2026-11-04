@@ -140,14 +140,65 @@ jobs:
       - name: GL test
         uses: TinyTapeout/tt-gds-action/gl_test@ihp-cmos5l
 
-      # the action leaves the netlist, the PDK and cocotb in place; each trace is written
-      # again with the outputs the gates drove, even one that differs from the RTL's
-      - name: Replay the pin traces on the gate level
+  # the pin traces replayed on the gate level, in three jobs beside gl_test, as the action's
+  # tests take two and a half hours and the replays near four; each trace is written again
+  # with the outputs the gates drove, even one that differs from the RTL's
+  gl_replay:
+    needs: gds
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - part: a-o
+            traces: traces/[a-o]*.trace
+          - part: p-z
+            traces: traces/[p-z]*.trace
+          - part: sigrok
+            traces: traces/sigrok/*.trace
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v6
+
+      - name: Download the netlist
+        uses: actions/download-artifact@v7
+        with:
+          name: tt_submission
+
+      # the cell models of the PDK revision the netlist was hardened with
+      - name: Fetch the cell models
+        run: |
+          rev=$(jq -r .PDK_VERSION tt_submission/pdk.json)
+          url=https://raw.githubusercontent.com/IHP-GmbH/IHP-Open-PDK/$rev/ihp-sg13cmos5l/libs.ref
+          for model in sg13cmos5l_io/verilog/sg13cmos5l_io.v \
+            sg13cmos5l_stdcell/verilog/sg13cmos5l_udp.v \
+            sg13cmos5l_stdcell/verilog/sg13cmos5l_stdcell.v; do
+            mkdir -p "$(dirname "$HOME/pdk/ihp-sg13cmos5l/libs.ref/$model")"
+            curl -sfL "$url/$model" -o "$HOME/pdk/ihp-sg13cmos5l/libs.ref/$model"
+          done
+          echo "PDK_ROOT=$HOME/pdk" >> "$GITHUB_ENV"
+
+      - name: Setup python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install cocotb
+        run: pip install -r test/requirements.txt
+
+      # the Icarus the gl_test action installs
+      - name: Install iverilog
+        run: |
+          wget -q https://github.com/TinyTapeout/iverilog/releases/download/v13.0/iverilog_13.0-1_amd64.deb
+          sudo apt-get update -y
+          sudo apt-get install -y ./iverilog_13.0-1_amd64.deb
+
+      - name: Replay the pin traces on the gate level, ${{ matrix.part }}
         id: replay
         run: |
+          cp tt_submission/*.v test/gate_level_netlist.v
           cd test
-          REPLAY_TRACES='traces/*.trace traces/sigrok/*.trace' REPLAY_RECORD=gl_traces \
-            make replay GATES=yes
+          REPLAY_TRACES='${{ matrix.traces }}' REPLAY_RECORD=gl_traces make replay GATES=yes
 
       - name: Install sigrok-cli
         if: (success() || failure()) && steps.replay.outcome != 'skipped'
@@ -167,7 +218,7 @@ jobs:
         if: success() || failure()
         uses: actions/upload-artifact@v7
         with:
-          name: gl_traces
+          name: gl_traces_${{ matrix.part }}
           path: test/gl_traces
 
   # the gate-level tests and replays again with the router's delays, one corner a job
