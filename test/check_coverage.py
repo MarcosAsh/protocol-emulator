@@ -32,6 +32,7 @@ INSTANCES = {
     "host_spi": "host_spi",
     "kernel_accepts": "kernel",
     "kernel_step": "kernel",
+    "line_stuff": "line_stuff",
     "load_checker": "load_checker",
     "manchester_rx": "manchester_rx",
     "osr_step": "osr_kernel",
