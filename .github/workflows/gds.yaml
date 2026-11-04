@@ -16,6 +16,8 @@ on:
       - macro/**
       - info.yaml
       - librelane_plugin_sram_pdn.py
+      - librelane_plugin_sram_inputs.py
+      - openroad_sram_inputs.tcl
       - odb_sram_stripes.py
       - librelane_plugin_die_art.py
       - die_art.py
