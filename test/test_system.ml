@@ -497,7 +497,8 @@ let%expect_test "a start does nothing while a fault is held" =
    turn, then each refused on a corrupted certificate, and twice on one whose first entry
    is out of order, under both premises and then neither. Each verdict stays its engine's
    through the other's turn, the premises are each check's own, and engine 0's start
-   between its checks is refused, uncertified, until its next check begins. *)
+   between its checks is refused, uncertified, until its next check begins. Last, engine
+   1's start after its refusals is refused, until a check on the certificate accepts it. *)
 let%expect_test "each engine's check is its own, kept through the other's turn" =
   let case =
     List.find_exn Firmware_inventory.all ~f:(fun c -> String.equal c.name "uart_tx")
@@ -624,8 +625,15 @@ let%expect_test "each engine's check is its own, kept through the other's turn" 
          pulse (host 1).check;
          await 0;
          await 1;
-         show ())
-       [@nontail]);
+         show ());
+       write_data certified;
+       i.check_setup.floor := Bits.of_bool case.floor;
+       i.check_setup.single_edge := Bits.of_bool case.single_capture_edge;
+       pulse (host 1).start;
+       show ();
+       pulse (host 1).check;
+       await 1;
+       show () [@nontail]);
   [%expect
     {|
     ("the model" (certified accepted) (corrupted "refused at 1: next phase")
@@ -638,6 +646,10 @@ let%expect_test "each engine's check is its own, kept through the other's turn" 
     ((engine 1) (accepted false) (reject_pc 0) (reason 30) (refused false))
     ((engine 0) (accepted false) (reject_pc 0) (reason 30) (refused false))
     ((engine 1) (accepted false) (reject_pc 0) (reason 30) (refused false))
+    ((engine 0) (accepted false) (reject_pc 0) (reason 30) (refused false))
+    ((engine 1) (accepted false) (reject_pc 0) (reason 30) (refused true))
+    ((engine 0) (accepted false) (reject_pc 0) (reason 30) (refused false))
+    ((engine 1) (accepted true) (reject_pc 0) (reason 0) (refused false))
     |}]
 ;;
 
