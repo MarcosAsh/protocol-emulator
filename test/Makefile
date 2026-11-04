@@ -200,7 +200,8 @@ comma := ,
 space := $(subst ,, )
 SDF_MODULES_all = $(GATE_TEST_MODULES),test_replay
 # the replays by their time at the slow corner, dmx512 alone over two hours; replay_rest
-# takes every trace the others do not name, so a new one runs somewhere
+# takes every trace the others do not name, so a new one runs somewhere. cocotb puts the
+# filter in its shell line unquoted, so it goes in quoted, and ends on \Z, not a $
 SDF_REPLAYS_dmx512 = dmx512
 SDF_REPLAYS_wiegand = wiegand|ir_nec
 SDF_REPLAYS_bridge = bridge|usb_power_delivery|snorble
@@ -208,17 +209,17 @@ SDF_REPLAYS_c = caliper|dali|fifo_poll|frumbleglide|i2c_logger|lfast|lin
 SDF_REPLAYS_m = microwire|plinkoo|spdif|spi_master|swd_blind
 SDF_REPLAYS_named = $(foreach g,dmx512 wiegand bridge c m,$(SDF_REPLAYS_$(g)))
 SDF_MODULES_replay_dmx512 = test_replay
-SDF_FILTER_replay_dmx512 = [.]replay_($(SDF_REPLAYS_dmx512))$$
+SDF_FILTER_replay_dmx512 = [.]replay_($(SDF_REPLAYS_dmx512))\Z
 SDF_MODULES_replay_wiegand = test_replay
-SDF_FILTER_replay_wiegand = [.]replay_($(SDF_REPLAYS_wiegand))$$
+SDF_FILTER_replay_wiegand = [.]replay_($(SDF_REPLAYS_wiegand))\Z
 SDF_MODULES_replay_bridge = test_replay
-SDF_FILTER_replay_bridge = [.]replay_($(SDF_REPLAYS_bridge))$$
+SDF_FILTER_replay_bridge = [.]replay_($(SDF_REPLAYS_bridge))\Z
 SDF_MODULES_replay_c = test_replay
-SDF_FILTER_replay_c = [.]replay_($(SDF_REPLAYS_c))$$
+SDF_FILTER_replay_c = [.]replay_($(SDF_REPLAYS_c))\Z
 SDF_MODULES_replay_m = test_replay
-SDF_FILTER_replay_m = [.]replay_($(SDF_REPLAYS_m))$$
+SDF_FILTER_replay_m = [.]replay_($(SDF_REPLAYS_m))\Z
 SDF_MODULES_replay_rest = test_replay
-SDF_FILTER_replay_rest = [.]replay_(?!($(subst $(space),|,$(SDF_REPLAYS_named)))$$)
+SDF_FILTER_replay_rest = [.]replay_(?!($(subst $(space),|,$(SDF_REPLAYS_named)))\Z)
 SDF_MODULES_two_engines_fault = test_two_engines
 SDF_FILTER_two_engines_fault = [.]test_a_faulted_
 SDF_MODULES_two_engines_one = test_two_engines
@@ -247,6 +248,6 @@ sdf: $(addprefix sdf_,$(CORNERS))
 sdf_%:
 	mkdir -p sim_build/sdf
 	$(PYTHON_BIN) icarus_sdf.py sdf < $(call sdf_file,$*) > sim_build/sdf/$*.sdf
-	COCOTB_TEST_FILTER='$(SDF_FILTER_$(GROUP))' $(MAKE) sim GATES=yes SDF=sim_build/sdf/$*.sdf \
+	COCOTB_TEST_FILTER="'$(SDF_FILTER_$(GROUP))'" $(MAKE) sim GATES=yes SDF=sim_build/sdf/$*.sdf \
 		COCOTB_RESULTS_FILE=$(call SDF_RESULTS,$*) COCOTB_TEST_MODULES=$(SDF_MODULES_$(GROUP))
 	$(PYTHON_BIN) -m cocotb_tools.check_results $(call SDF_RESULTS,$*)
