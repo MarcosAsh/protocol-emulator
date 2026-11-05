@@ -61,12 +61,12 @@ releases on the exact cycle of the deadline and moves it on by one period, so a 
 drifts. A UART bit or an I2C hold time is a deadline written in the program, not a count of
 instructions you hope adds up.
 
-Before a program is loaded, a small kernel checks a certificate of its timing and refuses
-anything it can't check. The kernel is proved against the RTL. If it accepts a program, that
-program never misses a deadline on the chip, under the assumptions in
-[What is not proved](verification.md#what-is-not-proved). If a deadline is ever missed
-anyway, by firmware that skipped the check, the engine lets go of its pins and halts, and
-that is proved too.
+A small kernel checks a certificate of each program's timing and refuses anything it can't
+check. The kernel is proved against the RTL. If it accepts a program, that program never
+misses a deadline on the chip, under the assumptions in
+[What is not proved](verification.md#what-is-not-proved). The chip runs that check itself
+and refuses to start an engine whose walk fails. If a deadline is ever missed anyway, the
+engine lets go of its pins and halts, and that is proved too.
 
 Start with [Getting started](getting-started.md), or paste firmware into the playground.
 

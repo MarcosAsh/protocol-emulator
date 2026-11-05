@@ -20,7 +20,7 @@ assembler refuses firmware that can make one. In Manchester mode an
 the next instruction issues, which is what lets a four-cycle loop send 10BASE-T.
 
 Instructions are 16-bit words with eight opcodes: `jmp`, `wait`, `in`, `out`, `mov`,
-`set`, `alu` and `sys`. Each takes one cycle plus its delay field; a jump always takes
+`set`, `alu` and `sys`. Each takes one cycle plus its delay field, and a jump always takes
 two. Timing comes from a 24-bit free-running counter `now` and a deadline register `t`:
 `wait t` stalls until `now` reaches `t`, and `wait t+` also moves `t` on by the period
 register `p`, so a loop makes edges at exact multiples of `p` however many instructions
@@ -28,7 +28,7 @@ run in between. A period that is not a whole number of cycles, 416 2/3 for 11520
 at 48 MHz, takes its fraction from the configuration and never drifts. An input capture
 unit latches `now` on a chosen pin edge so a receiver can anchor its deadlines to the
 incoming signal. Two 15-deep fifos carry data to and
-from the host; they never stall the core, and a sticky fault register records an
+from the host. They never stall the core, and a sticky fault register records an
 underflow, an overflow, a missed deadline or a word that does not decode. Side-set
 drives up to two pins on every instruction, which gives an SPI clock for free and, in
 pin-direction mode, an open-drain I2C bus.
@@ -66,7 +66,7 @@ of the two.
 
 The host port is an SPI slave on `ui[0]` (SCK), `ui[1]` (MOSI), `ui[2]` (CS_N) and
 `uo[0]` (MISO), SCK at most one eighth of the clock. A frame is a command byte, write
-bit then a seven-bit register number, followed by 16-bit words high byte first; several
+bit then a seven-bit register number, followed by 16-bit words high byte first. Several
 words in one frame repeat the access, which streams the fifos and the program window.
 
 | Register | Name | Notes |
@@ -106,5 +106,5 @@ and against the hardware.
 
 ## External hardware
 
-None required. A USB serial adapter on `OUT0` shows the UART demo; an I2C sensor or an
-SPI flash on the `IO` pins for the other firmware.
+None required. A USB serial adapter on `OUT0` shows the UART demo, and an I2C sensor or an
+SPI flash on the `IO` pins serves the other firmware.

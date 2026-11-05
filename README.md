@@ -31,7 +31,7 @@ checked, and 10BASE-T frames when clocked at 40 or 50 MHz.
 | Hardened | 46,336 standard cells at 63.9% utilisation, setup slack +1.456 ns at the slow corner, precheck clean | gds run [40214165955](https://github.com/MarcosAsh/protocol-emulator/actions/runs/40214165955) |
 | Firmware | 68 library firmwares the kernel accepts | `test/test_kernel.ml` |
 | Proved | a program the kernel accepts never misses a deadline on each core's RTL, under the assumptions below | `formal/phase_table.sby`, `formal/phase_table_affine.sby` |
-| Board | the 6 x 4 RTL on an Icepi Zero (ECP5 FPGA) passed the self-timing demo on 2026-10-09. The 8 x 4 build has not run on a board yet, no silicon yet | `python/demo_self_timing.py` |
+| Board | the 8 x 4 RTL on an Icepi Zero (ECP5 FPGA): all 21 bench demos PASS, self-timing and USB keyboard included, witnesses recorded 2026-11-03. No silicon yet | `test/board/` |
 
 ## Try it
 
@@ -71,7 +71,7 @@ under cocotb.
 
 ## One piece of Hardcaml, two uses
 
-The deadline compare is the heart of the timing, and it is this, from `src/deadline.ml`:
+Every deadline release comes from one compare, in `src/deadline.ml`:
 
 ```ocaml
 module Make (Comb : Comb.S) = struct
@@ -94,8 +94,8 @@ The brief asks what we would do differently. PIO and PRU both give you exact cyc
 adding them up is your job. If you get it wrong, an edge is late and nothing tells you.
 
 Here the deadline is in the instruction set, the chip checks the sum before it lets the
-program start, and a late edge at run time is a fault that takes the engine off its pins. None of the parts
-are new on their own. Timed waits come from FlexPRET, and XMOS's XTA checked timing at
+program start, and a late edge at run time is a fault that takes the engine off its pins.
+None of the parts are new on their own. Timed waits come from FlexPRET, and XMOS's XTA checked timing at
 compile time. What this adds is a deadline theorem on the RTL itself, for every program the
 kernel accepts.
 
@@ -178,11 +178,14 @@ kernel accepts.
   - USB enumeration, which the board does in `python/usb_board.py`
   - the 10BASE-T receiver, the edge stamps and the line code tables. No sigrok decoder
     reads USB full speed, so the USB receiver's traces are checked against our model only
-- Nothing has run on silicon yet, and the 8 x 4 build has not run on a board. On an Icepi
-  Zero FPGA (ECP5, 48 MHz) running the 6 x 4 chip's RTL, `python/demo_self_timing.py`
-  passed on 2026-10-09: engine 1 stamped all 52 edges of engine 0's `Jane St!` at 9600
-  baud on the predicted cycles, quiet and with the host flooding SPI with reads. The USB keyboard (`python/demo_usb.py`) passed there on
-  2026-10-15 (release evidence-2026-10-15).
+- Nothing has run on silicon yet. On an Icepi Zero FPGA (ECP5, 48 MHz) running the 6 x 4
+  chip's RTL, `python/demo_self_timing.py` passed on 2026-10-09: engine 1 stamped all 52
+  edges of engine 0's `Jane St!` at 9600 baud on the predicted cycles, quiet and with the
+  host flooding SPI with reads. The USB keyboard (`python/demo_usb.py`) passed there on
+  2026-10-15 (release evidence-2026-10-15). The 8 x 4 chip's RTL has since run all 21 bench
+  demos on the same board, self-timing and keyboard included, and each one's witness in
+  `test/board/` (capture, decode, bitstream hash, recorded 2026-11-03) says PASS. Those
+  runs are not in a pinned evidence release yet.
 
 ## Trying to break it
 
@@ -192,7 +195,7 @@ a way to make them fail.
 | Check | What we did | Result |
 |---|---|---|
 | Planted delays, run | at every deadline wait of the 7 swept firmwares, 1 to 3 cycles of `nop`, half the slack, and every count from one short of the slack to three past, each run on the model (`test/test_delay_variants.ml`) | 283 planted. The kernel certified 181 and none ran late. It refused 102, and 92 of those did run late. The other 10 are late only on paths the test's input never takes |
-| One cycle late, everywhere | every deadline wait in the library given one cycle more than its slack (`test/test_late_mutants.ml`) | all 567 refused |
+| One cycle late, everywhere | every deadline wait in the library given one cycle more than its slack (`test/test_late_mutants.ml`) | 791 of 845 refused by the kernel. The other 54, all of ir_rc6, nec_tx and dali and one each in ethernet and nec_rx, can't be planted: the extra cycles push the program past its 512 words, so the assembler refuses it first |
 | Mutants | the tests against mutants of the engine, decoder, pins and host port | the tests kill 127 of 128 valid mutants (mutation run 41723309873, 2026-11-03). The other one is equivalent, see `test/mutation_allow.txt` |
 | Weakened proofs | each lemma in `formal/` has copies with a premise dropped (`make -C formal teeth`) | every copy fails, as it must |
 | Loose limits | which firmware its datasheet limits don't hold within a factor of two (`test/test_datasheet.ml`) | lfast and swd are loose, ir_rc6 and nec_tx have no limits, each listed with why |
@@ -218,14 +221,16 @@ ruled where they disagreed. Each run took 24 to 50 minutes.
 | Caliper | ShumaTech's page | certified, but the page only gives "about" values, read as minimums |
 | LFAST | NXP AN5134 | certified, but its one limit is a top speed, so it binds nothing |
 | RC-6 | SB-Projects page | certified, but the page gives no limits at all |
-| TDM audio | Cirrus AN301 | failed: the note has no timing limits to check against |
+| TDM audio | Cirrus AN301 | certified, but the note gives no timing limits, so nothing binds |
 
-So three real certificates, two that are hollow because the spec is, and one failure. Every
-result stays here, including the ones that don't flatter us.
+So three real certificates and three that are hollow because the spec is. TDM was listed
+here as a failure at first, and is now certified with no limits, like RC-6. Every result
+stays here, including the ones that don't flatter us.
 
-Eight more protocols, none of them in the library, are sealed in `test/heldout.sha256`, the
-SHA-256 of a salted list committed on 2026-10-02. When the list is opened in November they
-go through the same pipeline, and the results go here too.
+Eight more protocols, none of them in the library when sealed, went into `test/heldout.sha256`,
+the SHA-256 of a salted list committed on 2026-10-02. The list was opened on 2026-11-02 and
+all eight went through the same pipeline. Their results are on
+[Flexibility](docs/flexibility.md#the-held-out-list).
 
 ## How AI was used
 

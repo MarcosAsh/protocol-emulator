@@ -15,13 +15,13 @@ instructions you hope adds up.
 
 ## The kernel
 
-Before a program is loaded, a small kernel checks a certificate of its timing and refuses
-anything it can't check. `src/kernel.ml` is a checker you can read in one sitting. What it
+A small kernel checks a certificate of each program's timing and refuses anything it can't
+check, and the chip runs that check itself before it starts an engine. `src/kernel.ml` is a checker you can read in one sitting. What it
 guarantees, and under which assumptions, is on [Verification](verification.md).
 
 ## One piece of Hardcaml, two uses
 
-The deadline compare is the heart of the timing, and it is this, from `src/deadline.ml`:
+Every deadline release comes from one compare, in `src/deadline.ml`:
 
 ```ocaml
 module Make (Comb : Comb.S) = struct

@@ -1,17 +1,17 @@
 # Hardware
 
-Nothing has run on silicon yet. The chip's RTL runs on an Icepi Zero FPGA, and the bench
-measures it there. What passed on the board is on
+Nothing has run on silicon yet. The 8 x 4 chip's RTL runs on an Icepi Zero FPGA, and the
+bench measures it there. What passed on the board is on
 [Verification](verification.md#what-is-not-proved).
 
 ## Harden
 
 To harden, clone TinyTapeout/tt-support-tools, branch `ihp-sg13cmos5l`, into `tt/`, then
-`tt/tt_tool.py --create-user-config --ihp` and `--harden --ihp`. Gds run 41112876511, on
-this Verilog, signs off with setup slack +3.487 ns at the slow corner against a 50 MHz clock, at 49.6%
+`tt/tt_tool.py --create-user-config --ihp` and `--harden --ihp`. Gds run 40214165955, on
+this Verilog, signs off with setup slack +1.456 ns at the slow corner, at 63.9%
 utilisation. The picture is this harden's die by RTL module, drawn by `demo/die.py` from its
-`GDS_logs` artifact. 1,883 of 1,893 flops map by RTL line and net name. Each gate goes with
-the nearest flop it feeds, which gets 96.7% of gates right on the RTL synthesised a module at
+`GDS_logs` artifact. 4,231 of 4,241 flops map by RTL line and net name. Each gate goes with
+the nearest flop it feeds, which gets 96.5% of gates right on the RTL synthesised a module at
 a time (`--check`).
 
 ![the hardened die, each cell coloured by its RTL module](die.png)
@@ -25,7 +25,8 @@ wires as they switch. The last green gds run on main is also in Tiny Tapeout's
 `make -C icepi` builds the chip for an Icepi Zero (ECP5 LFE5U-25F) with yosys and nextpnr:
 its 50 MHz oscillator through the PLL to 48 MHz, or 40 MHz for 10BASE-T, and the pins on
 the 40-pin header. The SRAM macro is its IHP behavioural model, mapped to block RAM. 48 MHz
-is tight and about 1 seed in 8 fails, so the build takes the first seed that meets timing.
+is tight and placement moves with the seed, so the build takes the first of 16 seeds whose
+clock reaches 1.6 MHz over 48 MHz.
 `make -C icepi equiv` proves the bitstream's netlist equal to the RTL (`formal/icepi_equiv`,
 the `icepi_equiv` job).
 

@@ -23,13 +23,11 @@ here, including the ones that don't flatter us.
 
 ## The held-out list
 
-Eight more protocols, none of them in the library, are sealed in `test/heldout.sha256`, the
-SHA-256 of a salted list committed on 2026-10-02. When the list is opened in November they
-go through the same pipeline, and the results go here too.
-
-Opened on 2026-11-02 (`test/heldout.txt`, specs pinned in `demo/heldout_specs.tsv`). Each spec's
-limits were read twice blind; all eight readings disagreed somewhere and were ruled by hand
-(rulings in each run directory). Limit rows are all, then those with a min or max, then those
+Eight more protocols, none of them in the library when sealed, went into
+`test/heldout.sha256`, the SHA-256 of a salted list committed on 2026-10-02. The list was
+opened on 2026-11-02 (`test/heldout.txt`, specs pinned in `demo/heldout_specs.tsv`) and all
+eight went through the same pipeline. Each spec's limits were read twice blind. All eight
+readings disagreed somewhere and were ruled by hand (rulings in each run directory). Limit rows are all, then those with a min or max, then those
 typical only. The binding rows are the limits that fail a hertz past each end of the firmware's
 clock window (`test/test_clock_window.ml`). Times, cost and turns are the intake agent's run.
 Board runs on 2026-11-03, Icepi Zero with main's 6x4 bitstream (`v1.3.bit`).
