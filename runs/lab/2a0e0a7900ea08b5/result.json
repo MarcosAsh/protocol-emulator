@@ -1,0 +1,216 @@
+{
+ "lab": 1,
+ "received": "2026-10-30T15:10:15Z",
+ "started": "2026-11-03T14:06:33Z",
+ "commit": "18516b1e03de951d478f59e7cef6cc2b5917903c",
+ "verdict": "certified",
+ "run": "bench",
+ "check": {
+  "verdict": "certified",
+  "clock_hz": 48000000,
+  "certificate": "certified at 48 MHz\ntaken, 11 steps\ninterpreter: 112 words, 2 deadline waits, worst slack 0, certified once with the data memory free\nhost words: 0xc500 0x3a00\nmodel: 2152 cycles at 48 MHz, faults ((underflow false)(overflow false)(missed_deadline false)(decode false))\nlane tx: OUT0, Pico B GP1 via 1k, analyser A D4\nthe table holds OUT1 to OUT5 low\nbench: takes it, analyser A D4, the engine stopped after 2 ms\n",
+  "lanes": [
+   {
+    "name": "tx",
+    "pin": "OUT0",
+    "net": "Pico B GP1 via 1k",
+    "channel": "analyser A D4"
+   }
+  ],
+  "host_words": [
+   50432,
+   14848
+  ],
+  "cycles": 2152,
+  "faults": 0,
+  "bench": {
+   "takes": true,
+   "pin": "OUT0",
+   "analyser": "A",
+   "channel": "D4",
+   "run_ms": 2,
+   "decode": [
+    "-P",
+    "uart:rx=D4:baudrate=1846154",
+    "-A",
+    "uart=rx-data"
+   ]
+  }
+ },
+ "id": "2a0e0a7900ea08b5",
+ "job_sha256": "2a0e0a7900ea08b5bb4865202a8c2d73c1fe5455bba285a499099d5c1c4b9b3d",
+ "label": "captured on the bench, analyser A on OUT0",
+ "why": null,
+ "simulated": {
+  "clock_hz": 48000000,
+  "cycles": 2152,
+  "lanes": [
+   {
+    "name": "tx",
+    "pin": "OUT0",
+    "edges": [
+     [
+      0,
+      0
+     ],
+     [
+      12,
+      1
+     ],
+     [
+      52,
+      0
+     ],
+     [
+      78,
+      1
+     ],
+     [
+      130,
+      0
+     ],
+     [
+      208,
+      1
+     ],
+     [
+      234,
+      0
+     ],
+     [
+      260,
+      1
+     ],
+     [
+      352,
+      0
+     ],
+     [
+      430,
+      1
+     ],
+     [
+      508,
+      0
+     ],
+     [
+      534,
+      1
+     ],
+     [
+      560,
+      0
+     ],
+     [
+      586,
+      1
+     ]
+    ]
+   }
+  ],
+  "input": null,
+  "faults": 0
+ },
+ "certificate": "certified at 48 MHz\ntaken, 11 steps\ninterpreter: 112 words, 2 deadline waits, worst slack 0, certified once with the data memory free\nhost words: 0xc500 0x3a00\nmodel: 2152 cycles at 48 MHz, faults ((underflow false)(overflow false)(missed_deadline false)(decode false))\nlane tx: OUT0, Pico B GP1 via 1k, analyser A D4\nthe table holds OUT1 to OUT5 low\nbench: takes it, analyser A D4, the engine stopped after 2 ms\n",
+ "interpreter_sha256": "ee4a8eefaf7368f58a2d4543d031603bbcc3e865706c8e9b69bc998370d28e28",
+ "firmware_sha256": "6bb8f00c52d8406d7535e658492aeaa70386b7832178d34a2c3ed2fa31282c29",
+ "bitstream_sha256": "ded0014fdf14df568ed478e5f6e36d1d91475ba62bae300e101c1b229c1f963f",
+ "pico_log": "ran 2 ms, faults 0x0, the model's 0x0\nPASS\n",
+ "match": {
+  "model_changes": 13,
+  "lined_up": 13,
+  "worst_ns": 0.0,
+  "tolerance": "two samples (83.3 ns) and 200 ppm an interval",
+  "verdict": "matches the model",
+  "start": 0,
+  "extra": 0
+ },
+ "captured": {
+  "rate": 24000000.0,
+  "channel": "D4",
+  "pin": "OUT0",
+  "first": 0,
+  "capture_sha256": "71b52e9bfdb4af683d4bddbdd33b3a0d6ecdcdac87ddbcf53eb03c6ba155aa6b",
+  "changes": [
+   [
+    1274207416.7,
+    1
+   ],
+   [
+    1274208250.0,
+    0
+   ],
+   [
+    1274208791.7,
+    1
+   ],
+   [
+    1274209875.0,
+    0
+   ],
+   [
+    1274211500.0,
+    1
+   ],
+   [
+    1274212041.7,
+    0
+   ],
+   [
+    1274212583.3,
+    1
+   ],
+   [
+    1274214500.0,
+    0
+   ],
+   [
+    1274216125.0,
+    1
+   ],
+   [
+    1274217750.0,
+    0
+   ],
+   [
+    1274218291.7,
+    1
+   ],
+   [
+    1274218833.3,
+    0
+   ],
+   [
+    1274219375.0,
+    1
+   ]
+  ]
+ },
+ "decode": "uart-1: A3\nuart-1: 5C\n",
+ "finished": "2026-11-03T14:06:54Z",
+ "files": {
+  "certificate.txt": "a6839cf45ed906b11c214d3a4f4fb5cbc3564b35cc234ad8e67fbbd7f1003cbd",
+  "check.json": "992bc2c4fa8bdea180bbd8b6bdacd56941a6525474428d925fda08eea15596c9",
+  "check.txt": "dfe8348f8809bbae3813cae56dfe9e3f2f4ff3ac054762ffbd59334918ca7562",
+  "decode.txt": "582c07b5c10d6e89ad451101247dd2695b6a7828e3808c552606a6c717a51cb6",
+  "firmware.json": "6bb8f00c52d8406d7535e658492aeaa70386b7832178d34a2c3ed2fa31282c29",
+  "job.json": "2a0e0a7900ea08b5bb4865202a8c2d73c1fe5455bba285a499099d5c1c4b9b3d",
+  "lab.log": "6b7a27829986c83b528b06a979511c1c8e60f02baf07d670a6e2a510121dc77c",
+  "lab.sr": "71b52e9bfdb4af683d4bddbdd33b3a0d6ecdcdac87ddbcf53eb03c6ba155aa6b",
+  "run.txt": "952c0e6ef3e167b70f5b2d495b86e50c010d8d6eb5807e4bf80a6af934c55106",
+  "scan.txt": "d9dba965f1387d7d51c58d5d2e630950b71e5a9f45b084cea61ea7fa9caae9f4",
+  "simulated.json": "82ac11a2d0ea3a7734fe0f324d01228320ce2e476abc1bee7cf3b65ae3558335"
+ },
+ "public": [
+  "certificate.txt",
+  "check.json",
+  "check.txt",
+  "decode.txt",
+  "firmware.json",
+  "job.json",
+  "lab.log",
+  "lab.sr",
+  "result.json",
+  "simulated.json"
+ ]
+}

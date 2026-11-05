@@ -1,0 +1,2 @@
+uart-1: A3
+uart-1: 5C
