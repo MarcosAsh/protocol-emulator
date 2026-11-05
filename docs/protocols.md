@@ -1,7 +1,7 @@
 # Protocols
 
 The library is `test/library.ml`, a protocol to a module, in the order of the certificates.
-These are the 63 library firmwares the kernel accepts in `test/test_kernel.ml`.
+These are the 68 library firmwares the kernel accepts in `test/test_kernel.ml`.
 
 | Protocol | Firmware the kernel accepts |
 |---|---|

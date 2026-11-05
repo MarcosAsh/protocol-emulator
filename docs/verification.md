@@ -78,7 +78,7 @@ a way to make them fail.
 |---|---|---|
 | Planted delays, run | at every deadline wait of the 7 swept firmwares, 1 to 3 cycles of `nop`, half the slack, and every count from one short of the slack to three past, each run on the model (`test/test_delay_variants.ml`) | 283 planted. The kernel certified 181 and none ran late. It refused 102, and 92 of those did run late. The other 10 are late only on paths the test's input never takes |
 | One cycle late, everywhere | every deadline wait in the library given one cycle more than its slack (`test/test_late_mutants.ml`) | 521 refused by the kernel. The other 46, all of ir_rc6 and nec_tx and one each in ethernet and nec_rx, can't be planted: the extra cycles push the program past its 512 words, so the assembler refuses it first |
-| Mutants | the tests against mutants of the engine, decoder, pins and host port | the tests kill 112 of 114 valid mutants (mutation run 39462087759, 2026-10-20). The other 2 are equivalent, see `test/mutation_allow.txt` |
+| Mutants | the tests against mutants of the engine, decoder, pins and host port | the tests kill 127 of 128 valid mutants (mutation run 41723309873, 2026-11-03). The other one is equivalent, see `test/mutation_allow.txt` |
 | Weakened proofs | each lemma in `formal/` has copies with a premise dropped (`make -C formal teeth` and the other `*_teeth` targets) | every copy fails, as it must |
 | Loose limits | which firmware its datasheet limits don't hold within a factor of two (`test/test_datasheet.ml`) | lfast and swd are loose, ir_rc6 and nec_tx have no limits, each listed with why |
 

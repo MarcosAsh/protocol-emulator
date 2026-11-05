@@ -51,7 +51,7 @@ make -C formal             # hours; CI runs the long proofs in jobs of their own
 ```
 
 `make -C test COCOTB_TEST_MODULES=test_demo` runs the self-timing and keyboard demos with no
-board in about 17 minutes. Each claim's last green run in CI is on the
+board in about 75 minutes. Each claim's last green run in CI is on the
 [results page](https://marcosash.github.io/protocol-emulator/results/).
 
 To harden the chip, see [Hardware](hardware.md#harden).

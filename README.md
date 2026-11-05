@@ -29,7 +29,7 @@ checked, and 10BASE-T frames when clocked at 40 or 50 MHz.
 | Cores | 2 cores, 3 IHP 512 x 16 SRAM macros: a program memory each and a data memory they share | `src/protocol_emulator.v` |
 | Pins | 4 for the host's SPI, 5 in, 7 out, 8 bidirectional, and 8 wires between the cores | `info.yaml`, `src/isa.ml` |
 | Hardened | 46,336 standard cells at 63.9% utilisation, setup slack +1.456 ns at the slow corner, precheck clean | gds run [40214165955](https://github.com/MarcosAsh/protocol-emulator/actions/runs/40214165955) |
-| Firmware | 56 library firmwares the kernel accepts | `test/test_kernel.ml` |
+| Firmware | 68 library firmwares the kernel accepts | `test/test_kernel.ml` |
 | Proved | a program the kernel accepts never misses a deadline on each core's RTL, under the assumptions below | `formal/phase_table.sby`, `formal/phase_table_affine.sby` |
 | Board | the 6 x 4 RTL on an Icepi Zero (ECP5 FPGA) passed the self-timing demo on 2026-10-09. The 8 x 4 build has not run on a board yet, no silicon yet | `python/demo_self_timing.py` |
 
@@ -182,7 +182,7 @@ kernel accepts.
   Zero FPGA (ECP5, 48 MHz) running the 6 x 4 chip's RTL, `python/demo_self_timing.py`
   passed on 2026-10-09: engine 1 stamped all 52 edges of engine 0's `Jane St!` at 9600
   baud on the predicted cycles, quiet and with the host flooding SPI with reads. The USB keyboard (`python/demo_usb.py`) passed there on
-  2026-10-02 (release v0.2.0).
+  2026-10-15 (release evidence-2026-10-15).
 
 ## Trying to break it
 
@@ -193,7 +193,7 @@ a way to make them fail.
 |---|---|---|
 | Planted delays, run | at every deadline wait of the 7 swept firmwares, 1 to 3 cycles of `nop`, half the slack, and every count from one short of the slack to three past, each run on the model (`test/test_delay_variants.ml`) | 283 planted. The kernel certified 181 and none ran late. It refused 102, and 92 of those did run late. The other 10 are late only on paths the test's input never takes |
 | One cycle late, everywhere | every deadline wait in the library given one cycle more than its slack (`test/test_late_mutants.ml`) | all 567 refused |
-| Mutants | the tests against mutants of the engine, decoder, pins and host port | the tests kill 129 of 131 valid mutants (mutation run 40214211955, 2026-10-25). The other 2 are equivalent, see `test/mutation_allow.txt` |
+| Mutants | the tests against mutants of the engine, decoder, pins and host port | the tests kill 127 of 128 valid mutants (mutation run 41723309873, 2026-11-03). The other one is equivalent, see `test/mutation_allow.txt` |
 | Weakened proofs | each lemma in `formal/` has copies with a premise dropped (`make -C formal teeth`) | every copy fails, as it must |
 | Loose limits | which firmware its datasheet limits don't hold within a factor of two (`test/test_datasheet.ml`) | lfast and swd are loose, ir_rc6 and nec_tx have no limits, each listed with why |
 
@@ -259,7 +259,7 @@ make -C formal             # hours; CI runs the long proofs in jobs of their own
 ```
 
 `make -C test COCOTB_TEST_MODULES=test_demo` runs the self-timing and keyboard demos with no
-board in about 45 minutes. Each claim's last green run in CI is on the
+board in about 75 minutes. Each claim's last green run in CI is on the
 [results page](https://marcosash.github.io/protocol-emulator/results/).
 
 To harden, clone TinyTapeout/tt-support-tools, branch `ihp-sg13cmos5l`, into `tt/`, then

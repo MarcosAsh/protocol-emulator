@@ -2,7 +2,7 @@
 
 A small chip that bit-bangs protocols from firmware, and a checker that proves the firmware's
 timing before it ever runs. Written in Hardcaml for Jane Street's protocol emulator ASIC
-competition, built on IHP CMOS5L through Tiny Tapeout, in 6 x 4 tiles at 48 MHz.
+competition, built on IHP CMOS5L through Tiny Tapeout, in 8 x 4 tiles at 48 MHz.
 
 <!-- numbers from files the site already serves: info.yaml, the results page's tally, the
      corpus table; a missing source leaves its number out -->
