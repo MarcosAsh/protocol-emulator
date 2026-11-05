@@ -665,7 +665,7 @@ def check_counts(doc, text):
     quoted = {
         "library firmwares": numbers(r"(\d+) library firmwares", text),
         "valid mutants": re.findall(r"(\d+) of (\d+) valid mutants", text),
-        "equivalent mutants": numbers(r"other (\d+) are equivalent", text),
+        "equivalent mutants": re.findall(r"(other (\d+|one) (?:are|is)) equivalent", text),
         "tiles": re.findall(r"(\d+ x \d+) tiles", text),
     }
     for what, values in quoted.items():
@@ -677,9 +677,10 @@ def check_counts(doc, text):
             yield (f"{n} library firmwares",
                    f"{n} library firmwares, the kernel accepts {firmwares} in test/test_kernel.ml")
     for killed, valid in quoted["valid mutants"]:
-        for n in quoted["equivalent mutants"]:
+        for said, n in quoted["equivalent mutants"]:
+            n = int(WORDS.get(n, n))
             if n != int(valid) - int(killed) or n != equivalent_mutants():
-                yield (f"other {n} are",
+                yield (said,
                        f"{n} equivalent mutants, but {killed} of {valid} killed leaves "
                        f"{int(valid) - int(killed)} and test/mutation_allow.txt has "
                        f"{equivalent_mutants()}")
