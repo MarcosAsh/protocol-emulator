@@ -104,7 +104,52 @@ SOFTWARE = [
     ("max to min", r"\bInt\.max\b", "Int.min"),
     ("min to max", r"\bInt\.min\b", "Int.max"),
 ]
-PARSED = {name for name, _, _ in SOFTWARE}
+
+# the campaign's operators on top of those: off-by-one on every constant, bit index and range,
+# a mux arm stuck, a condition inverted, a gate swapped for another
+CAMPAIGN_HARDWARE = [
+    ("add constant", r" \+:\. (\d+)", lambda m: f" +:. {int(m.group(1)) + 1}"),
+    ("subtract constant", r" -:\. (\d+)", lambda m: f" -:. {int(m.group(1)) + 1}"),
+    ("not equal constant", r" <>:\. (\d+)", lambda m: f" <>:. {int(m.group(1)) + 1}"),
+    ("less than constant", r" <:\. (\d+)", lambda m: f" <:. {int(m.group(1)) + 1}"),
+    ("greater constant", r" >:\. (\d+)", lambda m: f" >:. {max(int(m.group(1)) - 1, 0)}"),
+    ("at most constant", r" <=:\. (\d+)", lambda m: f" <=:. {int(m.group(1)) + 1}"),
+    ("at least constant", r" >=:\. (\d+)", lambda m: f" >=:. {max(int(m.group(1)) - 1, 0)}"),
+    ("bit index", r"\.:\((\d+)\)", lambda m: f".:({int(m.group(1)) + 1})"),
+    ("range top", r"\.:\[(\d+), (\d+)\]", lambda m: f".:[{int(m.group(1)) - 1}, {m.group(2)}]"),
+    ("range bottom", r"\.:\[(\d+), (\d+)\]", lambda m: f".:[{m.group(1)}, {int(m.group(2)) + 1}]"),
+    ("shift amount", r"\b(sll|srl) (\w+) (\d+)\b", lambda m: f"{m.group(1)} {m.group(2)} {int(m.group(3)) + 1}"),
+    ("constant value", r"(of_unsigned_int ~width:\w+ )(\d+)\b", lambda m: f"{m.group(1)}{int(m.group(2)) + 1}"),
+    ("and to xor", r" &: ", " ^: "),
+    ("or to xor", r" \|: ", " ^: "),
+    ("xor to and", r" \^: ", " &: "),
+    ("mux2 false arm stuck", r"mux2 (\w+) (\w+) (\w+)\b", r"mux2 \1 \2 (zero (width \2))"),
+    ("mux2 true arm stuck", r"mux2 (\w+) (\w+) (\w+)\b", r"mux2 \1 (zero (width \3)) \3"),
+    ("mux2 false arm high", r"mux2 (\w+) (\w+) (\w+)\b", r"mux2 \1 \2 (ones (width \2))"),
+    ("mux2 true arm high", r"mux2 (\w+) (\w+) (\w+)\b", r"mux2 \1 (ones (width \3)) \3"),
+    ("mux2 one arm", r"mux2 (\w+) (\w+) (\w+)\b", r"mux2 \1 \2 \2"),
+    ("when inverted", r"\bwhen_ (\w+)", r"when_ ~:\1"),
+    ("unless inverted", r"\bunless_ (\w+)", r"unless_ ~:\1"),
+]
+CAMPAIGN_SOFTWARE = [("if inverted", r"\bif (\w+) then", r"if not \1 then")]
+
+# a named signal stuck at zero or one: the expression of a [let%hw x = ... in] binding
+STUCK = [("stuck at zero", "zero (width ({}))"), ("stuck at one", "ones (width ({}))")]
+LET = re.compile(r"^ *let%hw (\w+) =", re.M)
+
+
+def stuck_spans(masked):
+    # where each such expression starts and ends: the first line end at depth 0 after [in]
+    for m in LET.finditer(masked):
+        depth, i = 0, m.end()
+        while i < len(masked):
+            depth += masked[i] in "([{" and 1 or masked[i] in ")]}" and -1 or 0
+            if depth < 0 or (depth == 0 and masked[i] == "\n" and masked[i - 3 : i] == " in"):
+                break
+            i += 1
+        if depth == 0 and i < len(masked):
+            yield m.end() + 1, i - 3
+PARSED = {name for name, _, _ in SOFTWARE + CAMPAIGN_SOFTWARE} | {n for n, _ in STUCK}
 
 # what each file is mutated with and the Verilog a mutant must still elaborate to
 CHIP = [["top"], ["top", "-sram", "-engines", "2"]]
@@ -144,6 +189,14 @@ SCOPES = {
             SOFTWARE if file in ["src/analyser.ml", "src/interval.ml"]
             else HARDWARE + MORE_HARDWARE + SOFTWARE),
         "max_per_operator": None,
+    },
+    "campaign": {
+        "files": RTL + list(APART) + ["src/analyser.ml", "src/interval.ml"],
+        "operators": lambda file: (
+            SOFTWARE + CAMPAIGN_SOFTWARE if file in ["src/analyser.ml", "src/interval.ml"]
+            else HARDWARE + MORE_HARDWARE + CAMPAIGN_HARDWARE + SOFTWARE + CAMPAIGN_SOFTWARE),
+        "max_per_operator": None,
+        "stuck": True,
     },
     "kernel": {
         "files": [
@@ -269,6 +322,15 @@ def mutants(scope, file, source):
             after = mutated.split("\n")[line - 1]
             yield {"file": file, "operator": name, "line": line, "text": lines[line - 1].strip(),
                    "after": after.strip(), "mutated": mutated}
+    if SCOPES[scope].get("stuck") and file not in ("src/analyser.ml", "src/interval.ml"):
+        for start, end in stuck_spans(masked):
+            for name, wrap in STUCK:
+                mutated = source[:start] + wrap.format(source[start:end]) + source[end:]
+                line = source.count("\n", 0, start) + 1
+                if mutated not in seen and parses(mutated):
+                    seen.add(mutated)
+                    yield {"file": file, "operator": name, "line": line, "text": lines[line - 1].strip(),
+                           "after": mutated.split("\n")[line - 1].strip(), "mutated": mutated}
 
 
 def plan(scope, files, seed, held_out):
@@ -286,8 +348,20 @@ def plan(scope, files, seed, held_out):
     return todo
 
 
+DEADLINE = None
+
+
+def clip(timeout):
+    # a --budget is a hard bound: no command runs past it, and its mutant is left a timeout
+    if DEADLINE is None:
+        return timeout
+    left = max(1, round(DEADLINE - time.monotonic()))
+    return min(timeout, left) if timeout else left
+
+
 def dune(cwd, command, *args, jobs=None, timeout=None, keep=False):
     # with keep, what the command prints too
+    timeout = clip(timeout)
     flags = ["-j", str(jobs)] if jobs else []
     p = subprocess.Popen(["dune", command, "--root", ".", *flags, *args], cwd=cwd, text=True,
                          stdout=subprocess.PIPE if keep else subprocess.DEVNULL,
@@ -311,7 +385,19 @@ FAILED = re.compile(r'^File "([^"]+)", line', re.M)
 COLOUR = re.compile(r"\x1b\[[0-9;]*m")
 
 
-def verdict(cwd, file, jobs, timeout):
+# inline tests that pass in seconds unmutated and exercise the RTL, run before anything slower
+FAST = [
+    "test_engine", "test_decoder", "test_pins", "test_host_port", "test_host_fifo", "test_host_spi",
+    "test_data_memory", "test_program_memory", "test_deadline", "test_crc", "test_isa", "test_top",
+    "test_system", "test_bridge", "test_machine", "test_machine_trace", "test_feeding",
+    "test_timed_program", "test_exhaustive", "test_pin_trace", "test_host_port_fuzz",
+    "test_usb", "test_uart", "test_spi", "test_i2c", "test_ws2812", "test_can",
+]
+RUNNER = "./test/.protocol_emulator_test.inline-tests/inline-test-runner.exe"
+QUICK = ["@test/traces/runtest", "@test/traces/sigrok/runtest"]
+
+
+def verdict(cwd, file, jobs, timeout, full_timeout):
     # a mutant that does not compile, or that Hardcaml refuses to elaborate, is not a mutant;
     # one whose generator loops would hang the tests too. A kill comes with the files of the
     # tests that failed; each result with the digest of the Verilog the mutant elaborates to,
@@ -330,8 +416,24 @@ def verdict(cwd, file, jobs, timeout):
         verilog = digest(outputs) if outputs else None
         # the first failing test is kill enough, and stopping there keeps a mutant that also
         # hangs some other test from running out the clock as a timeout
-        code, err = dune(cwd, "build", "--stop-on-first-error", "@runtest", jobs=jobs,
-                         timeout=timeout)
+        code, _ = dune(cwd, "build", RUNNER, jobs=jobs, timeout=timeout)
+        if code != 0:
+            return "invalid", [], verilog
+        only = [a for f in FAST for a in ("-only-test", f"{f}.ml")]
+        try:
+            p = subprocess.run([f"{cwd}/_build/default/{RUNNER[2:]}", "inline-test-runner",
+                                "protocol_emulator_test", "-source-tree-root", ".", *only],
+                               cwd=f"{cwd}/_build/default/test", capture_output=True, text=True,
+                               timeout=clip(timeout))
+        except subprocess.TimeoutExpired:
+            p = None
+        if p is not None and p.returncode != 0:
+            return "killed", ["fast"], verilog
+        # the traces kill most mutants in a fraction of the suite's time, so they go first
+        code, err = dune(cwd, "build", "--stop-on-first-error", *QUICK, jobs=jobs, timeout=timeout)
+        if code == 0:
+            code, err = dune(cwd, "build", "--stop-on-first-error", "@runtest", jobs=jobs,
+                             timeout=full_timeout or timeout)
         if code == 0:
             return "survived", [], verilog
         return "killed", sorted(set(FAILED.findall(COLOUR.sub("", err)))), verilog
@@ -494,6 +596,9 @@ def wilson(k, n, z=1.96):
 PROVED_SAFE = ("EQUIVALENT", "STRICT", "SOUND")
 
 
+TIMEOUT_KILLS = True
+
+
 def report(results, planned):
     # a timeout counts as killed, as the suite does not pass, and is listed apart; so does a
     # survivor a proof kills. An allowed mutant's timeout is no kill: an equivalent one runs
@@ -512,7 +617,8 @@ def report(results, planned):
     files = sorted({r["file"] for r in results}, key=lambda f: (order.index(f) if f in order else len(order), f))
 
     def survives(r):
-        timed_out_allowed = r["result"] == "timeout" and (r["file"], r["operator"], r["text"]) in allowed
+        timed_out_allowed = r["result"] == "timeout" and (
+            not TIMEOUT_KILLS or (r["file"], r["operator"], r["text"]) in allowed)
         return (r["result"] in ("survived", "untested") or timed_out_allowed) and r.get(
             "class") not in ("LAX", "TESTED")
 
@@ -548,7 +654,7 @@ def report(results, planned):
             if "class" in r:
                 reason = r["class"] + (f" ({reason})" if reason and r["class"] not in PROVED_SAFE else "")
             elif r["result"] == "timeout" and not reason:
-                reason = "counted killed"
+                reason = "counted killed" if TIMEOUT_KILLS else "unresolved, to rerun"
             if survives(r) and r.get("class") not in PROVED_SAFE and not allowed.get(
                     (r["file"], r["operator"], r["text"])):
                 unexpected.append(r)
@@ -577,12 +683,21 @@ def main():
     p.add_argument("--report", nargs="+", help="score the --json files of every shard")
     p.add_argument("--prove", action="store_true", help="take each survivor of the checker to the proofs")
     p.add_argument("--prove-only", action="store_true", help="take every mutant of the checker, untested")
+    p.add_argument("--full-timeout", type=int, help="seconds for the whole suite, after the traces pass")
     p.add_argument("--proof-timeout", type=int, default=4 * 3600, help="seconds per proof")
+    p.add_argument("--work", help="keep the copies here between runs, so a chunk starts warm")
+    p.add_argument("--resume", action="store_true", help="skip the mutants already in --json")
+    p.add_argument("--budget", type=int, help="seconds after which no new mutant starts")
     p.add_argument("--proofs", nargs="+", help="only these of PROVED's sby proofs, by name")
     args = p.parse_args()
     proving = args.prove or args.prove_only
+    global TIMEOUT_KILLS
+    TIMEOUT_KILLS = args.scope != "campaign"
     if args.report:
         lines = [json.loads(line) for f in args.report for line in Path(f).read_text().splitlines()]
+        # a mutant rerun after a timeout supersedes its earlier row
+        last = {row["id"]: i for i, row in enumerate(lines) if "result" in row}
+        lines = [row for i, row in enumerate(lines) if "result" not in row or last[row["id"]] == i]
         heads = [line for line in lines if "planned" in line]
         seen = {h["shard"] for h in heads}
         wanted = {f"{i}/{n}" for n in {int(s.split("/")[1]) for s in seen} for i in range(n)}
@@ -599,6 +714,10 @@ def main():
     if missing := set(args.id or []) - {m["id"] for m in todo}:
         sys.exit(f"no mutant {' '.join(sorted(missing))} in this scope")
     todo = todo[shard::shards]
+    if args.resume and args.json and Path(args.json).exists():
+        done = {json.loads(row)["id"] for row in Path(args.json).read_text().splitlines()
+                if '"result"' in row and '"result": "timeout"' not in row}
+        todo = [m for m in todo if m["id"] not in done]
     if args.list:
         for m in todo:
             tag = " held out" if m["held_out"] else ""
@@ -608,13 +727,16 @@ def main():
         print(f"total: {len(todo)} mutants, {sum(1 for m in todo if m['held_out'])} held out")
         return
     root = Path(__file__).resolve().parent.parent
-    work = root / "_mutation"
+    work = Path(args.work) if args.work else root / "_mutation"
+    began = None
     out = Path(args.json).open("a") if args.json else None
     lock = threading.Lock()
     copies = Queue()
     timeout = args.timeout
 
     def run(m):
+        if args.budget and began and time.monotonic() - began > args.budget:
+            return None
         copy = copies.get()
         start = time.monotonic()
         original = (copy / m["file"]).read_text()
@@ -626,7 +748,7 @@ def main():
                 built = dune(copy, "build", "./bin/generate.exe", jobs=args.dune_jobs, timeout=timeout)[0]
                 result, by = ("untested" if built == 0 else "invalid"), []
             else:
-                result, by, verilog = verdict(copy, m["file"], args.dune_jobs, timeout)
+                result, by, verilog = verdict(copy, m["file"], args.dune_jobs, timeout, args.full_timeout)
             if proving and m["file"] in PROVED and result in ("survived", "untested"):
                 proved = prove(copy, m, work / "original", work / "prove_mutant.exe", timeout,
                                args.proof_timeout, args.prove_only, args.proofs)
@@ -651,15 +773,21 @@ def main():
             out.write(json.dumps({"scope": args.scope, "shard": args.shard, "seed": args.seed,
                                   "planned": len(todo)}) + "\n")
             out.flush()
-        (work / "0").mkdir(parents=True)
-        for item in COPIED:
-            (work / "0" / item).parent.mkdir(parents=True, exist_ok=True)
-            if (root / item).is_dir():
-                shutil.copytree(root / item, work / "0" / item, ignore=SKIPPED)
-            else:
-                shutil.copy(root / item, work / "0" / item)
-        for item in COPIED_JSON:
-            shutil.copytree(root / item, work / "0" / item, dirs_exist_ok=True)
+        def fill(copy):
+            copy.mkdir(parents=True, exist_ok=True)
+            for item in COPIED:
+                (copy / item).parent.mkdir(parents=True, exist_ok=True)
+                if (root / item).is_dir():
+                    shutil.copytree(root / item, copy / item, ignore=SKIPPED, dirs_exist_ok=True)
+                else:
+                    shutil.copy(root / item, copy / item)
+            for item in COPIED_JSON:
+                shutil.copytree(root / item, copy / item, dirs_exist_ok=True)
+
+        # a kept copy is brought up to the tree's files, its build kept
+        for n in range(args.jobs):
+            if n == 0 or (work / str(n)).exists():
+                fill(work / str(n))
         if proving:
             # the proofs' files, and the original's check and the prover, made once
             tracked = subprocess.run(["git", "ls-files", "formal"], cwd=root, capture_output=True,
@@ -717,12 +845,18 @@ def main():
                   f" {len(todo)} mutants, {timeout} s each at most", flush=True)
         for n in range(args.jobs):
             if n > 0:
-                shutil.copytree(work / "0", work / str(n), symlinks=True)
+                if not (work / str(n)).exists():
+                    shutil.copytree(work / "0", work / str(n), symlinks=True)
             copies.put(work / str(n))
+        began = time.monotonic()
+        global DEADLINE
+        DEADLINE = began + args.budget + 120 if args.budget else None
         with ThreadPoolExecutor(args.jobs) as pool:
-            results = list(pool.map(run, todo))
+            results = [r for r in pool.map(run, todo) if r]
+            todo = todo[: len(results)] if args.budget else todo
     finally:
-        shutil.rmtree(work, ignore_errors=True)
+        if not args.work:
+            shutil.rmtree(work, ignore_errors=True)
     code = report(results, len(todo))
     # a shard's survivors are judged at --report, beside every other shard's
     sys.exit(0 if args.json else code)
