@@ -173,8 +173,9 @@ def board_runs(inp, name):
 
 def witness_table(rows):
     body = [[esc(d), esc(w["time"]), esc(w["demo"]), esc(w["result"]), esc(w["commit"][:10]),
+             # eth_rx judges frames, not timing windows
              esc("%d of %d" % (sum(t["verdict"] == "proved" for t in w["timing"]),
-                               len(w["timing"]))),
+                               len(w["timing"])) if "timing" in w else "-"),
              esc("; ".join(w["teeth"]))] for d, w in rows]
     return table(["test/board", "time", "demo", "result", "commit", "windows proved",
                   "teeth"], body, lambda r: "bad" if r[3] != "PASS" else None)
@@ -326,8 +327,15 @@ def index_page(inp, names):
     if rest:
         body += section("Board runs tied to no protocol page", ledger_table(rest))
     loose = [(d, w) for d, w in inp.witnesses if ledger_protocol(w) not in names]
+    # learn runs keep a different record: what was decoded, not a timed bench run
+    learned = [(d, w) for d, w in loose if "result" not in w]
+    loose = [(d, w) for d, w in loose if "result" in w]
     if loose:
         body += section("Board witnesses tied to no protocol page", witness_table(loose))
+    if learned:
+        body += section("Learn runs on the board", table(
+            ["test/board", "demo", "decoded"],
+            [[esc(d), esc(w["demo"]), esc("; ".join(w["expect"]))] for d, w in learned]))
     body += f'<p class="muted">Hashes of every page: <a href="{MANIFEST}">{MANIFEST}</a>.</p>'
     return page("Protocol corpus", body)
 
