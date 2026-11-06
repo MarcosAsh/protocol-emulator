@@ -33,7 +33,7 @@ let print ?period ?single_capture_edge ~config source =
   let pin_events ~f =
     List.filter_map rows ~f:(fun (r : Analyser.Row.t) -> Option.bind r.pin_event ~f)
   in
-  (* the second half of a Manchester bit is an edge like any other *)
+  (* The second half of a Manchester bit is an edge like any other. *)
   let edge_jitter =
     worst_jitter
       (pin_events ~f:(function

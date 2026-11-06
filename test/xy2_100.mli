@@ -1,7 +1,7 @@
 (** The XY2-100 controller's side: SENDCK, SYNC and DATA, as Newson's rhothor X7 datasheet
-    (revision 0703) gives them. SENDCK runs at 2 MHz without a break and a 20-bit word
-    follows another with no gap. The host writes the 16 data bits of each setpoint; the
-    clock starts with the first and the last is sent again where there is no next. *)
+    (revision 0703) gives them. SENDCK runs at 2 MHz without a break, and each 20-bit
+    word follows the last with no gap. The host writes the 16 data bits of each setpoint.
+    The clock starts with the first, and the last is sent again where there is no next. *)
 
 open! Core
 open Protocol_emulator
@@ -13,7 +13,7 @@ val clk_pin : int
 val sync_pin : int
 val data_pin : int
 
-(** The 20 bits on the wire for a setpoint, the first sent highest: control 001, the 16
+(** The 20 bits on the wire for a setpoint, first bit sent highest: control 001, the 16
     data bits, even parity. The host's word is the data. *)
 val on_wire : data:int -> int
 

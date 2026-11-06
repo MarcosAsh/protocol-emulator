@@ -4,17 +4,17 @@ open Pin_trace
 module Reg = Host_port.Reg
 
 (* Newson rhothor X7 I/O configuration: XY2-100, datasheet revision 0703, p.1-2. A 20-bit
-   word, C2-C0 then D15-D0 then even parity, at SENDCK 2 MHz (24 cycles of the 48 MHz
-   clock, 12 a half). The host's word is the 16 data bits: the core sends control 001, the
-   motor setpoint, and the parity, which the CRC unit counts as a 1-bit CRC started at 1
-   for the control's one. SENDCK starts with the first word and runs on without a break, a
-   word after a word; where the host has no next word the last is sent again. *)
+   word: C2-C0, then D15-D0, then even parity, at SENDCK 2 MHz (24 cycles of the 48 MHz
+   clock, 12 per half). The host's word is the 16 data bits. The core sends control 001,
+   the motor setpoint, and the parity, which the CRC unit counts as a 1-bit CRC started
+   at 1 for the control's one. SENDCK starts with the first word and runs on without a
+   break, one word after another. Where the host has no next word the last is sent again. *)
 let clk_pin = 5
 let sync_pin = clk_pin + 1
 let data_pin = clk_pin + 2
 let pin = clk_pin
 
-(* the 20 bits on the wire for a setpoint, first bit highest *)
+(* The 20 bits on the wire for a setpoint, first bit highest. *)
 let on_wire ~data =
   if data < 0 || data >= 1 lsl 16
   then raise_s [%message "BUG: data is 16 bits" (data : int)];
@@ -38,7 +38,7 @@ let config =
   }
 ;;
 
-(* Side-set is SENDCK in bit 0 and SYNC in bit 1. Data changes with each rise, which SYNC
+(* Side-set is SENDCK in bit 0 and SYNC in bit 1. Data changes with each rise, and SYNC
    joins on the first bit and leaves on the last. *)
 let firmware =
   [%firmware
@@ -88,11 +88,11 @@ next:
 
 let certified = [ Certified.of_firmware "xy2_100" firmware ]
 
-(* the copy python/bench_firmware.py holds for the bench: two setpoints in a run of two
-   frames' time *)
-(* The bench's OUT1 reaches no analyser channel, so all three go to analyser B: SENDCK and
-   SYNC on OUT3 and OUT4, DATA on OUT6. OUT5, the flash's clock, stays still, so the flash
-   takes none of it for a command. *)
+(* The copy python/bench_firmware.py holds for the bench: two setpoints in a run of two
+   frames' time. *)
+(* The bench's OUT1 reaches no analyser channel, so all three signals go to analyser B:
+   SENDCK and SYNC on OUT3 and OUT4, DATA on OUT6. OUT5, the flash's clock, stays still,
+   so the flash takes none of it for a command. *)
 let bench =
   { Bench.name = "xy2_100"
   ; what =
@@ -109,7 +109,8 @@ let bench =
 
 (* DATA changes only in the instruction that raises SENDCK, and is read at its fall. The
    setup is the kernel's spacing from DATA's last change to the fall. The hold runs from
-   the fall to the next change, no sooner than the next rise: SENDCK's low time. *)
+   the fall to the next change, which comes no sooner than the next rise: SENDCK's low
+   time. *)
 let limits =
   let sheet =
     { Datasheet.Sheet.part = "rhothor X7"
@@ -140,7 +141,7 @@ let limits =
   ]
 ;;
 
-(* The decoder has no timeout, so a frame is read once a next one begins: the last
+(* The decoder has no timeout, so a frame is read once the next one begins: the last
    setpoint goes out again and is read twice. The positions are signed. *)
 let setpoints = [ 0x8000, -32768; 0x0000, 0; 0xffff, -1; 0x1234, 4660 ]
 let read = setpoints @ [ List.last_exn setpoints ]
@@ -162,7 +163,7 @@ let sigrok =
       ]
   ; joins_after = None
   ; rejected = None
-  ; (* C0 read as 0, then D15 read inverted: parity no longer matches *)
+  ; (* C0 read as 0, then D15 read inverted: parity no longer matches. *)
     teeth =
       [ [ Flip { pin = data_pin; edge = 0; after = 0; cycles = 24 } ]
       ; [ Flip { pin = data_pin; edge = 0; after = 24; cycles = 24 } ]
@@ -170,7 +171,7 @@ let sigrok =
   }
 ;;
 
-(* the four setpoints back to back, then the last again as SENDCK runs on *)
+(* The four setpoints back to back, then the last again as SENDCK runs on. *)
 let scenario =
   { Scenario.name = "xy2_100"
   ; peer = (fun () -> Peer.idle 0)

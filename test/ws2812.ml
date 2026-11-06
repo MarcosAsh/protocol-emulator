@@ -3,10 +3,10 @@ open Protocol_emulator
 
 let pin = 5
 
-(* y is bits in the word less one: 15 then 7 per pixel. Both paths round a word's end take
-   thirteen cycles, fourteen with a tail over 7. The reset gap waits on every pass of its
-   loop, not once after, so [t] is never more than five thirds ahead of [now] and the
-   kernel accepts the loop; y counts its turns before a frame takes it. *)
+(* y is the bits in the word less one: 15, then 7 per pixel. Both paths around a word's
+   end take thirteen cycles, or fourteen with a tail over 7. The reset gap waits on every
+   pass of its loop rather than once after, so [t] is never more than five thirds ahead
+   of [now] and the kernel accepts the loop. y counts its turns before a frame takes it. *)
 let latching ~gaps ~third ~tail =
   if gaps < 1 || gaps > 32 || tail < 0 || tail > 14
   then raise_s [%message "BUG: gaps or tail out of range" (gaps : int) (tail : int)];
@@ -98,7 +98,7 @@ module Strip = struct
     { clock_hz : int
     ; level : int
     ; run : int
-    ; pending : int option (* the bit whose low time is running *)
+    ; pending : int option (* The bit whose low time is running. *)
     ; bits : int list
     ; frames : Pixel.t list list
     ; measured : Measured.t
@@ -196,7 +196,7 @@ module Strip = struct
   let violations t = List.rev t.violations
 end
 
-(* SK6812, 012 B/0: a bit of 1.2 us at least and a reset of 200 us *)
+(* SK6812, 012 B/0: a bit of 1.2 us at least and a reset of 200 us. *)
 let bench_third = 17
 let bench_tail = 8
 let bench_gaps = (Bench.cycles_in ~us:200 / (160 * bench_third)) + 1
@@ -229,8 +229,8 @@ let bench =
   }
 ;;
 
-(* SK6812: the low of a bit is under 20 us (012 B/1, note 3), so a longer one latches, and
-   a high under 500 ns is a zero, between the B/1 sheet's T0H and T1H. A cycle of margin
+(* SK6812: the low of a bit is under 20 us (012 B/1, note 3), so a longer one latches. A
+   high under 500 ns is a zero, between the B/1 sheet's T0H and T1H. A cycle of margin
    covers the 74AHCT125's skew between rise and fall, 5.5 ns at most. *)
 let limits =
   let b1 =
@@ -284,7 +284,7 @@ let scenario =
     ; [ pixel 0x12 0x34 0x56; pixel 0xab 0xcd 0xef ]
     ]
   in
-  (* a bit is 62 cycles, and 3200 low latch the string *)
+  (* A bit is 62 cycles, and 3200 low latch the string. *)
   let send pixels =
     [ Step.Write (Reg.tx, List.concat_map pixels ~f:Pixel.words)
     ; Run ((List.length pixels * 24 * 62) + 3200 + 2000)
@@ -310,7 +310,7 @@ let scenario =
             ]
         ; joins_after = None
         ; rejected = None
-        ; (* the first bit's high stretched from T0H to T1H *)
+        ; (* The first bit's high stretched from T0H to T1H. *)
           teeth = [ [ Shift { pin; edge = 1; cycles = 20 } ] ]
         }
   }

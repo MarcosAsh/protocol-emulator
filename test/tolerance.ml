@@ -61,8 +61,8 @@ module Receiver = struct
     | Se0 -> 0
   ;;
 
-  (* DATA0 packets of eight bytes, every byte once and then all ones, the longest a low
-     speed packet stuffs to, a J apart *)
+  (* DATA0 packets of eight bytes, every byte once and then all ones (the longest a low
+     speed packet stuffs to), a J apart. *)
   let usb_rx () =
     let packets =
       List.chunks_of every_byte ~length:8 @ [ List.init 8 ~f:(fun _ -> 0xff) ]
@@ -76,7 +76,7 @@ module Receiver = struct
     ; preload = [ 32 ]
     ; idle = usb_word J
     ; bits =
-        (* the first again, so the last one's end has a packet after it *)
+        (* The first again, so the last one's end has a packet after it. *)
         List.concat_map
           (packets @ [ List.hd_exn packets ])
           ~f:(fun packet -> Usb_ls.encode packet @ [ J ])
@@ -95,13 +95,13 @@ module Receiver = struct
   ;;
 
   (* A frame on the bus from SOF to the ACK slot, which the sender leaves recessive, then
-     the ACK delimiter, EOF and two bits of intermission: the next SOF is the third. *)
+     the ACK delimiter, EOF and two bits of intermission. The next SOF is the third. *)
   let can_line frame =
     let line = Can.line frame in
     List.take line (List.length line - 12) @ List.init 11 ~f:(fun _ -> true)
   ;;
 
-  (* the bits from each recessive-to-dominant edge to the next, SOF to SOF *)
+  (* The bits from each recessive-to-dominant edge to the next, SOF to SOF. *)
   let can_segments frame =
     let falls =
       List.filter_mapi (can_line frame) ~f:(fun i level -> Option.some_if (not level) i)
@@ -111,8 +111,8 @@ module Receiver = struct
     List.map2_exn falls ends ~f:(fun a b -> b - a)
   ;;
 
-  (* Seeded frames, kept where one has the longest segment inside a frame, five dominant
-     bits and five recessive, or the longest from the CRC's last fall to the next SOF. *)
+  (* Seeded frames, kept where one has the longest segment inside a frame (five dominant
+     bits and five recessive) or the longest from the CRC's last fall to the next SOF. *)
   let can_frames =
     let state = Random.State.make [| 2026 |] in
     let random () =
@@ -141,7 +141,7 @@ module Receiver = struct
       ]
   ;;
 
-  (* about the bench's: tb_outside.v's 100 ns and two flops at 48 MHz *)
+  (* About the bench's: tb_outside.v's 100 ns and two flops at 48 MHz. *)
   let can_rx ?(echo = 7) ~period ~sample () =
     let rx = 1 lsl Can_node.rx_pin in
     let source = Can_node.Receiver.source ~period ~sample in
@@ -195,14 +195,14 @@ module Bounds = struct
   ;;
 end
 
-(* the bit the sender shows at [cycle], once it has begun *)
+(* The bit the sender shows at [cycle], once it has begun. *)
 let bit_at ~start ~m ~phase cycle =
   if cycle < start
   then None
   else Some (((((cycle - start + 1) * unit) - phase + m - 1) / m) - 1)
 ;;
 
-(* long enough for the CAN receiver's eleven idle bits *)
+(* Long enough for the CAN receiver's eleven idle bits. *)
 let lead (r : Receiver.t) = 16 * r.nominal
 
 let signed x =
@@ -224,8 +224,8 @@ module Run = struct
     }
 end
 
-(* The receiver on the sender at [m] and [phase], stopped by a fault as the chip stops it;
-   the host reads every word and clears every irq. [observe] sees the core before each
+(* The receiver on the sender at [m] and [phase], stopped by a fault as the chip stops it.
+   The host reads every word and clears every irq. [observe] sees the core before each
    cycle, with the sender's word and the inputs. *)
 let run
   ?(observe = fun (_ : Machine.t) ~sender:_ ~inputs:_ -> ())
@@ -251,7 +251,7 @@ let run
     | Some (word, t) -> drain t (word :: words)
     | None -> t, words
   in
-  (* what the receiver drove [r.echo] cycles before, as it reaches its own input *)
+  (* What the receiver drove [r.echo] cycles before, as it reaches its own input. *)
   let driven = Queue.of_list (List.init r.echo ~f:(fun _ -> machine.pin_out)) in
   let t, words, irqs =
     List.fold
@@ -267,7 +267,7 @@ let run
         let pin_out = Queue.dequeue_exn driven in
         let inputs = r.wired ~sender ~pin_out in
         observe t ~sender ~inputs;
-        (* a fault stops the core an edge after it shows, as [System.step] has the chip *)
+        (* A fault stops the core an edge after it shows, as [System.step] has the chip. *)
         let faulted = not (Machine.Fault.equal t.fault Machine.Fault.none) in
         let t = Machine.step t ~inputs in
         let t = if faulted then Machine.stop t else t in
@@ -286,7 +286,7 @@ let receives r ~m ~phase =
 
 let range ~base ~count = ((1 lsl count) - 1) lsl base
 
-(* the pins an instruction reads, a capture's arm reading the capture pin *)
+(* The pins an instruction reads, with a capture's arm reading the capture pin. *)
 let read_mask (config : Program_config.t) (instruction : Isa.t) =
   match instruction with
   | Jmp { cond = Pin | Not_pin; _ } -> Some (1 lsl config.jmp_pin)
@@ -315,8 +315,8 @@ module Seen = struct
     }
 end
 
-(* An arm with a jump on the capture pin right after it checks for an edge that came
-   first, which the firmware then times another way: neither bounds the sender. *)
+(* An arm followed right away by a jump on the capture pin checks for an edge that came
+   first, which the firmware then times another way. Neither bounds the sender. *)
 let recovers (config : Program_config.t) (instructions : Isa.t list) =
   List.concat_mapi
     (List.zip_exn (List.drop_last_exn instructions) (List.tl_exn instructions))
@@ -329,7 +329,7 @@ let recovers (config : Program_config.t) (instructions : Isa.t list) =
 
 let reads (r : Receiver.t) =
   let program, config = assemble r in
-  (* where the core watches the single edge, an edge before the arm faults it *)
+  (* Where the core watches the single edge: an edge before the arm faults it. *)
   let recovers =
     if r.premises.single_edge then [] else recovers config program.instructions
   in
@@ -345,12 +345,12 @@ let reads (r : Receiver.t) =
   let length = Array.length r.bits in
   let anchor = ref None in
   let since_wait = ref [] in
-  (* the wait issuing: its pc, the cycle it first issued, and whether the receiver's own
-     drive moved the capture pin *)
+  (* The wait issuing: its pc, the cycle it first issued, and whether the receiver's own
+     drive moved the capture pin. *)
   let waiting = ref None in
   let seen = Queue.create () in
   let observe (t : Machine.t) ~sender ~inputs =
-    (* the pins in [mask] as the receiver drives them, not as the sender does *)
+    (* The pins in [mask] as the receiver drives them, not as the sender does. *)
     let own mask = inputs lxor sender land mask <> 0 in
     if t.stall = 0 && not t.halted
     then (
@@ -367,8 +367,8 @@ let reads (r : Receiver.t) =
              | _ -> false)
         }
       in
-      (* a read of what the receiver drives itself, as the CAN receiver's of its ACK,
-         bounds nothing of the sender *)
+      (* A read of what the receiver drives itself, like the CAN receiver's of its ACK,
+         bounds nothing about the sender. *)
       (match read_mask config instruction, !anchor with
        | Some mask, Some anchor
          when (not (List.mem recovers t.pc ~equal)) && not (own mask) ->
@@ -378,7 +378,7 @@ let reads (r : Receiver.t) =
       (match instruction with
        | Op { op = Mov { dest = T; source = Capture; _ }; _ } -> anchor := Some t.capture
        | Op { op = Mov { dest = T; source = Now; _ }; _ } ->
-         (* After a wait released at once by the receiver's own drive, as the CAN
+         (* After a wait released at once by the receiver's own drive, like the CAN
             receiver's on its ACK, [now] is a fixed number of cycles from the deadline
             before, so the reads after stay timed from the last captured edge. *)
          (match !waiting with
@@ -407,8 +407,8 @@ let reads (r : Receiver.t) =
       let e = bit s.anchor in
       if start + (e * r.nominal) <> s.anchor
       then raise_s [%message "BUG: a capture off the sender's edges" (s.anchor : int)];
-      (* each row from the last wait to the read bounds it, by its phase and the cycles
-         since, which the instructions between fix; the read is in all of them *)
+      (* Each row from the last wait to the read bounds it, by its phase and the cycles
+         since, which the instructions between fix. The read is in all of them. *)
       let from (issue : Issue.t) ~gap =
         let phase = signed (issue.now - issue.deadline) in
         match rows.(issue.pc).phase with
@@ -449,9 +449,9 @@ let reads (r : Receiver.t) =
 ;;
 
 (* An arm checked for an edge that came first, at more than one place, is a receiver that
-   re-anchors on every edge and, on seeing one late, on [now]: the reads after that are
-   timed from no captured edge, so no bound from the rows holds. One such arm, as the CAN
-   receiver's at the SOF, starts a frame and leaves the rest timed. *)
+   re-anchors on every edge and, on seeing one late, on [now]. The reads after that are
+   timed from no captured edge, so no bound from the rows holds. One such arm, like the
+   CAN receiver's at the SOF, starts a frame and leaves the rest timed. *)
 let applies (r : Receiver.t) =
   let program, config = assemble r in
   let arms = List.length (recovers config program.instructions) / 2 in
@@ -483,8 +483,8 @@ let bounds r =
   let least, fastest_read =
     List.max_elt fastest ~compare:(Comparable.lift Int.compare ~f:fst) |> Option.value_exn
   in
-  (* the phases that put the binding read's edge last in its cycle, or first, one step
-     past the bound *)
+  (* The phases that put the binding read's edge last in its cycle, or first, one step
+     past the bound. *)
   let at_edge (read : Read.t) ~m ~phase = (phase - (read.edge * m)) % unit in
   { Bounds.least
   ; most
@@ -495,8 +495,8 @@ let bounds r =
   }
 ;;
 
-(* bit k of the stimulus starts floor(k * m / 2^16) cycles in, so the captured edge at bit
-   e sits at phase e * m mod 2^16 *)
+(* Bit k of the stimulus starts floor(k * m / 2^16) cycles in, so the captured edge at bit
+   e sits at phase e * m mod 2^16. *)
 let holds (read : Read.t) ~m =
   let phase = read.edge * m % unit in
   let after bits = (phase + (bits * m)) / unit in
@@ -509,8 +509,8 @@ let predicts r =
   fun ~m -> List.for_all reads ~f:(holds ~m)
 ;;
 
-(* the first wrong read an arm: the edge came before it, so [mov t, capture] takes the
-   last frame's edge and the next deadline is long past *)
+(* The first wrong read an arm: the edge came before it, so [mov t, capture] takes the
+   last frame's edge and the next deadline is long past. *)
 let faults r =
   let program, _ = assemble r in
   let reads = reads r in

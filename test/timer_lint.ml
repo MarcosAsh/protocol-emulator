@@ -158,7 +158,7 @@ let may_carry (s : Signal.t) =
 ;;
 
 (* The outermost sum in [s] that may carry out of its width. Differences are modular on
-   purpose and not looked into. *)
+   purpose, so we don't look into them. *)
 let rec wrapping_sum (s : Signal.t) =
   let d = behind_wires s in
   match d with
@@ -183,7 +183,7 @@ let rec touches_timer (s : Signal.t) =
   | _ -> Option.exists (extended d) ~f:touches_timer
 ;;
 
-(* What an operand can be, through wires, muxes and resizes. *)
+(* What an operand can be, looking through wires, muxes and resizes. *)
 let rec sources (s : Signal.t) =
   let d = behind_wires s in
   match d with
@@ -198,7 +198,7 @@ let rec sources (s : Signal.t) =
 module Text = struct
   type t =
     | Atom of string
-    | Infix of string * string (** the operator, and the whole *)
+    | Infix of string * string (** The operator, and the whole expression. *)
 
   let hole = Atom "_"
 
@@ -219,7 +219,7 @@ module Text = struct
     | Infix (_, s) -> "(" ^ s ^ ")"
   ;;
 
-  (* infix operators associate left, so a sum's left operand needs no parentheses *)
+  (* Infix operators associate left, so a sum's left operand needs no parentheses. *)
   let left_operand ~op t =
     let additive op = List.mem [ "+:"; "-:" ] op ~equal:String.equal in
     match t with
@@ -241,8 +241,8 @@ let operator (op : Signal.Type.Op.t) =
   | Lt -> "<:"
 ;;
 
-(* Names, constants and arithmetic to [depth] operators down; a mux shows its cases, not
-   its control, and anything else is [_]. *)
+(* Names, constants and arithmetic down to [depth] operators. A mux shows its cases but
+   not its control, and anything else is [_]. *)
 let rec text ~depth (s : Signal.t) : Text.t =
   let under ~f args =
     let args = List.map args ~f:(text ~depth:(depth - 1)) in
@@ -260,7 +260,7 @@ let rec text ~depth (s : Signal.t) : Text.t =
   | Wire _, None, _ ->
     Option.value_map (Signal.Type.wire_driver s) ~default:Text.hole ~f:(text ~depth)
   | Cat { args = top :: _; _ }, None, Some x ->
-    (* a resize costs no depth; a value narrower than a timer shows only by name *)
+    (* A resize costs no depth, and a value narrower than a timer shows only by name. *)
     let resize = if is_zero top then "uresize" else "sresize" in
     let depth = if Signal.width x < timer_bits then 0 else depth in
     (match text ~depth x with
@@ -313,7 +313,7 @@ module Compare = struct
     | Equal of Signal.t * Signal.t
     | Sign of Signal.t
 
-  (* shallower than a fault, which shows what is wrong in full *)
+  (* Shallower than a fault, which shows what is wrong in full. *)
   let to_string t =
     let operand s = Text.operand (text ~depth:5 s) in
     match t with
@@ -359,8 +359,8 @@ let rec differences_in (sum : Signal.t) =
   | _ -> []
 ;;
 
-(* A sum is a count: it must not wrap, nor add up a difference, which may be negative, and
-   where it is [signed] it must stay below its sign bit. *)
+(* A sum is a count, so it must not wrap or add up a difference (which may be negative),
+   and where it is [signed] it must stay below its sign bit. *)
 let count_faults ~signed (sum : Signal.t) : Fault.t list =
   List.concat
     [ Option.value_map (wrapping_sum sum) ~default:[] ~f:(fun wraps ->
@@ -373,7 +373,7 @@ let count_faults ~signed (sum : Signal.t) : Fault.t list =
 ;;
 
 (* An operand compared as unsigned, or either side of an equality of two values, is a
-   count, and anything in it but a sum or a constant is [raw]. *)
+   count, and anything in it other than a sum or a constant is [raw]. *)
 let as_count ~raw s =
   List.concat_map (sources s) ~f:(fun (source : Signal.t) ->
     match source with
@@ -384,8 +384,8 @@ let as_count ~raw s =
 ;;
 
 (* A value compared against a constant or tested by its sign. A difference of two timer
-   values wraps on purpose; a difference with a constant is judged as the value would be;
-   a sum is a count. *)
+   values wraps on purpose, a difference with a constant is judged as the value would be,
+   and a sum is a count. *)
 let rec against_constant ~signed s : Safe.t list * Fault.t list =
   let judged =
     List.map (sources s) ~f:(fun (source : Signal.t) ->
@@ -403,7 +403,7 @@ let rec against_constant ~signed s : Safe.t list * Fault.t list =
   List.concat_map judged ~f:fst, List.concat_map judged ~f:snd
 ;;
 
-(* The faults of a compare, none when it is safe for the reason given. *)
+(* The faults of a compare, or none when it is safe for the reason given. *)
 let judge (compare : Compare.t) =
   let against_constant ~signed x : Safe.t * Fault.t list =
     let safe, faults = against_constant ~signed x in
@@ -443,7 +443,7 @@ let compares circuit =
     |> Option.value_map ~default:[] ~f:Set.to_list
     |> List.filter_map ~f:(Map.find signals)
   in
-  (* Not a sign test where [s] only feeds a sign extension of [x], the flip [<+] makes, or
+  (* Not a sign test where [s] only feeds a sign extension of [x] (the flip [<+] makes) or
      a reordering of all of [x]'s bits. *)
   let untested (s : Signal.t) x =
     let is_x (a : Signal.t) = uid a = uid x in
@@ -523,7 +523,7 @@ let compares circuit =
           (List.exists (Compare.operands compare) ~f:touches_timer)
           (s, compare)))
   in
-  (* the named signals a compare first reaches *)
+  (* The named signals a compare first reaches. *)
   let at (s : Signal.t) =
     let seen = Hash_set.create (module Int) in
     let rec go (s : Signal.t) =

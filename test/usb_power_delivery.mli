@@ -1,6 +1,6 @@
-(** USB Power Delivery r3.2 v1.2 (Aug 2026), a packet's transmitter: preamble, SOP, 4b5b
+(** USB Power Delivery r3.2 v1.2 (Aug 2026), a packet transmitter: preamble, SOP, 4b5b
     payload and CRC-32, EOP, all in BMC at 300 kbps on one line. The host encodes the 4b5b
-    symbols and CRC, as the core's CRC is 16 bits at most, and writes a packet's words
+    symbols and CRC, since the core's CRC is 16 bits at most, and writes a packet's words
     within the 213 us of its preamble. *)
 
 open! Core
@@ -9,7 +9,7 @@ open Protocol_emulator
 (** The line the firmware drives. *)
 val pin : int
 
-(** Cycles a bit at 48 MHz. *)
+(** Cycles per bit at 48 MHz. *)
 val bit_cycles : int
 
 val config : Program_config.t

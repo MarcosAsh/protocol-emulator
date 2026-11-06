@@ -1,5 +1,5 @@
-(** UART, 8N1 LSB first: transmitters at a bit period fixed at assembly, from the host, or
-    from one anchor, and a receiver that samples mid bit. *)
+(** UART, 8N1 LSB first: transmitters with the bit period fixed at assembly, taken from
+    the host, or timed from one anchor, and a receiver that samples mid-bit. *)
 
 open! Core
 open Protocol_emulator
@@ -10,7 +10,8 @@ val tx : period:int -> string
 val tx16 : Timed_program.t
 
 (** Each host word goes out as a 26-bit frame: start bit, the low byte, the low 16 bits of
-    [now] in the cycle the start bit first shows on the pin, stop bit, all LSB first. *)
+    [now] in the cycle the start bit first shows on the pin, then a stop bit, all LSB
+    first. *)
 val tx_stamped : period:int -> string
 
 (** [tx] with the bit period from the host, as its first word. *)
@@ -31,8 +32,8 @@ val rx_host_rate_on : pin:int -> string
 
 val rx_host_rate : string
 
-(** 9600 to 230400 baud, each on the bench as [tx_host_rate] at OUT0, uart_tx_<baud>, held
-    to 2% of the baud rate. *)
+(** 9600 to 230400 baud, each on the bench as [tx_host_rate] at OUT0 (uart_tx_<baud>),
+    held to 2% of the baud rate. *)
 val bauds : int list
 
 (** [tx_stamped], whose proof adds that the stamp in each frame is the cycle its start bit

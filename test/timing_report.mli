@@ -1,6 +1,6 @@
 (** The analyser's certificate for a firmware, cut down to the lines a protocol is judged
-    by: every pin edge, the second half of a Manchester bit among them, every pin sample,
-    every edge side-set makes and every deadline that may be missed, then a one line
+    by: every pin edge (including the second half of a Manchester bit), every pin sample,
+    every edge side-set makes and every deadline that may be missed, then a one-line
     verdict. *)
 
 open! Core

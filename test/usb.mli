@@ -1,22 +1,23 @@
-(** USB low speed: a transmitter, a receiver and a device on the core, and a host port and
-    the demo board around a [Machine] that runs [device], with D+ and D- as a shared wire.
-    The host side sends tokens and data and listens; the board side reads the words the
-    core pushes, answers requests from a table of descriptors after [latency] cycles,
-    which is what makes the core send NAKs, and reloads the core when the address changes. *)
+(** USB low speed: a transmitter, a receiver and a device on the core, plus a host port
+    and the demo board around a [Machine] that runs [device], with D+ and D- as a shared
+    wire. The host side sends tokens and data and listens. The board side reads the words
+    the core pushes, answers requests from a table of descriptors after [latency] cycles
+    (which is what makes the core send NAKs), and reloads the core when the address
+    changes. *)
 
 open! Core
 open Protocol_emulator
 
 (** Low speed USB packets with the core's CRC and stuff counter. Host words: the bit
-    period once, then per packet SYNC, PID, data bytes less one, the data. *)
+    period once, then per packet SYNC, PID, data bytes less one, and the data. *)
 val tx : Timed_program.t
 
 val dp_pin : int
 val dm_pin : int
 val config : Program_config.t
 
-(** Receives low speed packets on [rx_dp_pin] and [rx_dm_pin]: one host word per byte, the
-    byte in the high half, then the CRC register as a final word. *)
+(** Receives low speed packets on [rx_dp_pin] and [rx_dm_pin]: one host word per byte (the
+    byte in the high half), then the CRC register as a final word. *)
 val rx : half_period:int -> string
 
 val rx_dm_pin : int
@@ -25,15 +26,15 @@ val rx_config : Program_config.t
 
 (** USB low speed device for [address], endpoints 0 and 1. The host sends the bit period
     first. A token that is not ours is ignored together with the data that follows it.
-    After a SETUP or OUT that is ours the data goes to the host, a tag word first (1 for
-    DATA0, 2 for DATA1), and is acknowledged if its CRC is good; a bad one raises the
-    interrupt. An IN that is ours gets a NAK two and a half bit times after the end of its
-    EOP, or, when the host has queued a reply for that endpoint, the reply: a word with
-    the endpoint in the low byte and the PID in the high byte, a word with the number of
-    data bits in the low byte and of data words in the high byte, then the data two bytes
-    a word, the first byte low, all of it in the fifo before the token arrives. SYNC, the
-    CRC-16 and the bit stuffing are added here. A reply queued for the other endpoint is
-    dropped, which the host hears of as tag 4, and that IN gets a NAK. The host's ACK
+    After a SETUP or OUT that is ours the data goes to the host, tag word first (1 for
+    DATA0, 2 for DATA1), and is acknowledged if its CRC is good. A bad one raises the
+    interrupt. An IN that is ours gets a NAK two and a half bit times after the end of
+    its EOP, or the reply if the host has queued one for that endpoint. A reply is a word
+    with the endpoint in the low byte and the PID in the high byte, a word with the
+    number of data bits in the low byte and of data words in the high byte, then the data
+    two bytes per word (first byte low), all in the fifo before the token arrives. SYNC,
+    the CRC-16 and the bit stuffing are added here. A reply queued for the other endpoint
+    is dropped, which the host hears of as tag 4, and that IN gets a NAK. The host's ACK
     comes back as tag 3. D+ is IO0, D- is IO1, and IO2 is a flag the program keeps for
     itself. *)
 val device : address:int -> half_period:int -> string
@@ -58,7 +59,7 @@ end
 
 type t
 
-(** Cycles to a bit: 48 MHz. *)
+(** Cycles per bit at 48 MHz. *)
 val bit_period : int
 
 (** PIDs, with their check bits. *)

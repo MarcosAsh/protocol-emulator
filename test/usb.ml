@@ -21,8 +21,8 @@ let config =
 ;;
 
 (* USB low speed transmitter. The host sends the bit period, then per packet SYNC, PID,
-   data length less one and the data; the core adds CRC-16, bit stuffing and EOP. Each
-   data bit goes out on a scratch pin first so the CRC sees it and [jmp pin] reads it
+   data length less one and the data. The core adds CRC-16, bit stuffing and EOP. Each
+   data bit goes out on a scratch pin first so the CRC sees it, and [jmp pin] reads it
    back. Every change of the line, the EOP's too, lands four cycles after its deadline. *)
 let tx =
   [%firmware
@@ -113,21 +113,21 @@ estuff:
       ~period:32]
 ;;
 
-(* USB low speed receiver. The host sends the bit period; the half period is an immediate
-   so the analyser can follow it. The line state lives in the program counter, a J half
-   and a K half. Every J-to-K edge re-anchors the sampling: the capture is armed after
-   each sample that reads J, and when the next finds D+ high, [t] goes to that edge plus a
-   bit and a half. If D+ is already high just after an arm, the edge may have come before
-   it, so [t] is anchored on [now] instead and the capture is not read stale. Bits go
-   through [in] one at a time so the CRC sees them; after the EOP the CRC register follows
-   as one more word for the host to check. Stuffed zeros are dropped. *)
+(* USB low speed receiver. The host sends the bit period, and the half period is an
+   immediate so the analyser can follow it. The line state lives in the program counter,
+   as a J half and a K half. Every J-to-K edge re-anchors the sampling: the capture is
+   armed after each sample that reads J, and when the next sample finds D+ high, [t] goes
+   to that edge plus a bit and a half. If D+ is already high just after an arm, the edge
+   may have come before it, so [t] is anchored on [now] instead and the capture is not
+   read stale. Bits go through [in] one at a time so the CRC sees them. After the EOP the
+   CRC register follows as one more word for the host to check. Stuffed zeros are dropped. *)
 let rx ~half_period =
   let rec adds n = if n <= 7 then [ n ] else 7 :: adds (n - 7) in
   let add n =
     List.map (adds n) ~f:(fun n -> [%string "    add t, %{n#Int}"])
     |> String.concat ~sep:"\n"
   in
-  (* from the captured edge, and from [now] a few cycles after an edge *)
+  (* From the captured edge, and from [now] a few cycles after an edge. *)
   let after_edge = add (half_period - 2) in
   let after_late = add (half_period - 5) in
   [%string
@@ -296,9 +296,9 @@ module Usb_line = struct
 end
 
 (* USB low speed device. [mov x, pins] reads J as 2, K as 1, SE0 as 0. The previous line
-   state lives in the program counter (each sampling piece exists for J and for K),
-   leaving y to count bits. Token address and endpoint are compared, CRC5 included,
-   against a constant for [address] endpoint 0, so the CRC unit stays on CRC-16; endpoint
+   state lives in the program counter (each sampling piece exists for J and for K), which
+   leaves y to count bits. Token address and endpoint are compared, CRC5 included,
+   against a constant for [address] endpoint 0, so the CRC unit stays on CRC-16. Endpoint
    1 is the only other match. The first PID nibble is walked as a tree, so telling packets
    apart costs no cycles. *)
 let device ~address ~half_period =
@@ -306,7 +306,7 @@ let device ~address ~half_period =
   let label name line = [%string "%{name}_%{suffix line}"] in
   let bits_of value ~count = List.init count ~f:(fun i -> (value lsr i) land 1) in
   let msb_first bits = List.fold bits ~init:0 ~f:(fun acc bit -> (acc lsl 1) lor bit) in
-  (* the sixteen bits after a token's PID, for one of our endpoints *)
+  (* The sixteen bits after a token's PID, for one of our endpoints. *)
   let token endpoint =
     let bits = bits_of address ~count:7 @ bits_of endpoint ~count:4 in
     let crc5 =
@@ -316,8 +316,8 @@ let device ~address ~half_period =
     in
     msb_first (bits @ bits_of crc5 ~count:5)
   in
-  (* a constant in isr, most significant chunk first; more than a bit at a time, so the
-     CRC and stuff counter do not see it *)
+  (* A constant in isr, most significant chunk first. It goes in more than a bit at a time,
+     so the CRC and stuff counter do not see it. *)
   let load_isr ?(through = "y") value ~bits =
     let rec chunks left =
       if left = 0
@@ -349,8 +349,8 @@ let device ~address ~half_period =
       | J -> same, changed
       | K -> changed, same
     in
-    (* EOP is looked for only where one can be; elsewhere SE0 reads as J and the packet
-       fails a later check *)
+    (* EOP is looked for only where one can be. Elsewhere SE0 reads as J and the packet
+       fails a later check. *)
     let first =
       match se0 with
       | Some se0 ->
@@ -365,7 +365,7 @@ let device ~address ~half_period =
     @ [ [%string "    jmp x--, %{stays}"]; [%string "    jmp %{moves}"] ]
   in
   let node name ~one ~zero = both (fun line -> sample name line ~one ~zero) in
-  (* [count] bits that are only counted *)
+  (* [count] bits that are only counted. *)
   let skip name ~count ~next =
     both (fun line ->
       [ [%string "%{label name line}:"]; [%string "    set y, %{count - 1#Int}"] ]
@@ -375,7 +375,7 @@ let device ~address ~half_period =
         ; [%string "    jmp %{label next line}"]
         ])
   in
-  (* [count] bits shifted into isr, past the CRC and the stuff counter *)
+  (* [count] bits shifted into isr, past the CRC and the stuff counter. *)
   let field name ~count ~next =
     both (fun line ->
       [ [%string "%{label name line}:"]
@@ -399,9 +399,9 @@ let device ~address ~half_period =
         ; [%string "    jmp %{label (name ^ \"_b\") (other line)}"]
         ])
   in
-  (* what follows a field does not sample, so one copy serves both line states *)
+  (* What follows a field does not sample, so one copy serves both line states. *)
   let join name = both (fun line -> [ [%string "%{label name line}:"] ]) in
-  (* the CRC-16 residue of a good packet *)
+  (* The CRC-16 residue of a good packet. *)
   let residual =
     List.fold (bits_of 0 ~count:16) ~init:0xffff ~f:(fun crc bit ->
       Crc.step ~width:16 ~poly:0xa001 ~reflect:true crc ~bit)
@@ -561,8 +561,8 @@ let device ~address ~half_period =
       ; "    out null, 8"
       ; "    out x, 8"
       ]
-      (* at most four data words, unrolled: a loop on a host count has no bound the
-         analyser can see *)
+      (* At most four data words, unrolled: a loop on a host count has no bound the
+         analyser can see. *)
     ; List.concat_map [ 1; 2; 3 ] ~f:(fun n ->
         [ [%string "    jmp x--, drain_%{n#Int}"]
         ; "    jmp drained"
@@ -706,7 +706,7 @@ module Request = struct
   ;;
 end
 
-(* The demo board (RP2040) side. [latency] models its slowness; the core covers with NAKs. *)
+(* The demo board (RP2040) side. [latency] models its slowness, and the core covers with NAKs. *)
 module Board = struct
   type parse =
     | Tag
@@ -780,7 +780,7 @@ module Board = struct
       in
       let data = List.take descriptor r.length in
       let chunks = List.chunks_of data ~length:max_packet in
-      (* a short transfer ending on a full packet ends with an empty one *)
+      (* A short transfer ending on a full packet ends with an empty one. *)
       let short = List.length data < r.length && List.length data % max_packet = 0 in
       t.chunks <- (if short then chunks @ [ [] ] else chunks);
       next_chunk t
@@ -793,7 +793,7 @@ module Board = struct
       next_chunk t
   ;;
 
-  (* the first bit received is the top bit of a word *)
+  (* The first bit received is the top bit of a word. *)
   let bytes_of_word w =
     let reverse byte =
       List.init 8 ~f:(fun i -> ((byte lsr i) land 1) lsl (7 - i))
@@ -815,7 +815,7 @@ module Board = struct
                  && (not t.dropped)
                  && Option.is_none t.new_address
          then (
-           (* the report went out *)
+           (* The report went out. *)
            t.report <- None;
            t.report_toggle <- (if t.report_toggle = data0 then data1 else data0))
          else (
@@ -854,7 +854,7 @@ module Board = struct
     send_report t payload
   ;;
 
-  (* a report the core had to drop goes back in once the control transfer is through *)
+  (* A report the core had to drop goes back in once the control transfer is through. *)
   let requeue t =
     match t.report with
     | Some payload when t.dropped && List.is_empty t.chunks && List.is_empty t.due ->
@@ -881,7 +881,7 @@ type t =
   ; board : Board.t
   }
 
-(* the program's first instruction pulls the bit period, behind whatever is [queued] *)
+(* The program's first instruction pulls the bit period, behind whatever is [queued]. *)
 let load ~queued ~address =
   let machine =
     Machine.create
@@ -893,7 +893,7 @@ let load ~queued ~address =
     Machine.write_tx machine word |> ok_exn)
 ;;
 
-(* two and a half milliseconds at 48 MHz *)
+(* Two and a half milliseconds at 48 MHz. *)
 let reset_cycles = 120_000
 let faults t = t.machine.fault
 let naks t = t.naks
@@ -910,7 +910,7 @@ let reload t ~address =
 
 let recording t = List.rev ((t.address_loaded, List.rev t.cycles) :: t.loads)
 
-(* one clock of host, board and sniffer *)
+(* One clock of host, board and sniffer. *)
 let cycle t (line : Usb_ls.Line.t) =
   let dp, dm =
     match line with
@@ -936,7 +936,7 @@ let cycle t (line : Usb_ls.Line.t) =
      t.machine <- machine;
      Board.word t.board word
    | None -> ());
-  (* at most one word a cycle, as over SPI, whole replies only *)
+  (* At most one word a cycle, as over SPI, whole replies only. *)
   let written =
     match t.board.due with
     | (0, []) :: rest ->
@@ -963,12 +963,12 @@ let cycle t (line : Usb_ls.Line.t) =
   in
   let dp = pin device_dp_pin dp in
   let dm = pin device_dm_pin dm in
-  (* a packet is over when the line comes back from SE0 *)
+  (* A packet is over when the line comes back from SE0. *)
   let se0 = dp = 0 && dm = 0 in
   if t.se0 && not se0
   then (
     t.ends <- t.ends + 1;
-    (* an SE0 of 2.5 ms is a bus reset: back to address 0, nothing pending *)
+    (* An SE0 of 2.5 ms is a bus reset: back to address 0, nothing pending. *)
     if t.se0_cycles >= t.reset_cycles
     then (
       reload t ~address:0;
@@ -998,15 +998,15 @@ let create ?(reset_cycles = reset_cycles) ~descriptors ~latency () =
     ; board = Board.create ~descriptors ~latency
     }
   in
-  (* settle time after attach; the core needs a few cycles *)
+  (* Settle time after attach: the core needs a few cycles. *)
   bits t J ~count:20;
   t
 ;;
 
 let send t packet = List.iter (Usb_ls.encode packet) ~f:(fun line -> bits t line ~count:1)
 
-(* bus released until the device ends a packet; times out after the longest packet, not
-   the standard's eighteen bit times *)
+(* Bus released until the device ends a packet. Times out after the longest packet, not
+   the standard's eighteen bit times. *)
 let listen t =
   let ends = t.ends in
   let rec wait left =
@@ -1045,7 +1045,7 @@ let expect_ack t what =
   | other -> raise_s [%message "no ACK" what (other : int list option)]
 ;;
 
-(* an IN, again after every NAK; the payload once the CRC has been checked *)
+(* An IN, again after every NAK, giving the payload once the CRC has been checked. *)
 let rec in_ t ~endpoint ~tries =
   send t (token ~address:t.address ~pid:0x69 ~endpoint);
   match listen t with
@@ -1099,7 +1099,7 @@ let control_out t request =
   (match in_ t ~endpoint:0 ~tries:50 with
    | Some [] -> ()
    | other -> raise_s [%message "no status packet" (other : int list option)]);
-  (* reload with the new address once the status stage is acknowledged *)
+  (* Reload with the new address once the status stage is acknowledged. *)
   bits t J ~count:((t.board.latency / bit_period) + 10);
   match t.board.reload with
   | Some address ->
@@ -1110,7 +1110,7 @@ let control_out t request =
   | None -> ()
 ;;
 
-(* a host resets the bus for ten milliseconds or more; three are enough here *)
+(* A host resets the bus for ten milliseconds or more. Three are enough here. *)
 let reset t =
   Fn.apply_n_times ~n:(t.reset_cycles + (t.reset_cycles / 5)) (fun () -> cycle t Se0) ();
   t.address <- 0;
@@ -1189,13 +1189,13 @@ let low_speed_host groups () =
 ;;
 
 (* The first request of an enumeration, GET_DESCRIPTOR for eight bytes of the device
-   descriptor, then a mouse report on the interrupt endpoint, a pixel up and left, whose
-   0xff bytes need stuff bits, and an IN with nothing queued, which gets a NAK. *)
+   descriptor, then a mouse report on the interrupt endpoint (a pixel up and left, whose
+   0xff bytes need stuff bits), and an IN with nothing queued, which gets a NAK. *)
 let scenario =
   let bit_period = bit_period in
   let address = 0 in
-  (* after the load, the certificate's check in engine 0's turn and the start, which take
-     some 294k cycles *)
+  (* After the load come the certificate's check in engine 0's turn and the start, which
+     take some 294k cycles. *)
   let at bits = 300_000 + (bits * bit_period) in
   let setup = 0x2d
   and in_ = 0x69
@@ -1231,7 +1231,7 @@ let scenario =
         ()
       @ [ Write (Reg.tx, bit_period :: reply ~endpoint:0 ~pid:data1 descriptor)
         ; Scenario.start
-          (* fails if the check outlasts the host's wait: the device misses the SETUP *)
+          (* Fails if the check outlasts the host's wait: the device misses the SETUP. *)
         ; Until (at 0)
         ; Until (at 280)
         ; Read (Reg.rx, 7)
@@ -1259,7 +1259,7 @@ let scenario =
                 ]
             ]
         ; expect =
-            [ ( (* every packet class, so one more of any kind is a difference *)
+            [ ( (* Every packet class, so one more of any kind is a difference. *)
                 [ "out"
                 ; "in"
                 ; "sof"
@@ -1311,14 +1311,14 @@ let scenario =
             ]
         ; joins_after = None
         ; rejected = None
-        ; (* a bit time of the descriptor the device sends inverted on both lines, 46
-             cycles past a K to J, edges 152 of D+ and 156 of D- *)
+        ; (* A bit time of the descriptor the device sends, inverted on both lines, 46
+             cycles past a K to J: edges 152 of D+ and 156 of D-. *)
           teeth =
             [ [ Flip { pin = device_dp_pin; edge = 152; after = 46; cycles = 32 }
               ; Flip { pin = device_dm_pin; edge = 156; after = 46; cycles = 32 }
               ]
-            ; (* the report's second stuff bit a bit time late, edges 349 of D+ and 357 of
-                 D-: seven ones in a row *)
+            ; (* The report's second stuff bit a bit time late, at edges 349 of D+ and 357
+                 of D-: seven ones in a row. *)
               [ Shift { pin = device_dp_pin; edge = 349; cycles = 32 }
               ; Shift { pin = device_dm_pin; edge = 357; cycles = 32 }
               ]

@@ -10,7 +10,7 @@ module Reg = Host_port.Reg
 
 let pin = 5
 
-(* 300 kbps at 48 MHz: 160 cycles a bit, four waits of [p] a half *)
+(* 300 kbps at 48 MHz: 160 cycles per bit, four waits of [p] per half. *)
 let bit_cycles = 160
 
 let config =
@@ -24,11 +24,11 @@ let config =
   }
 ;;
 
-(* The host's first word is the line bits after the preamble less one, then the bits, 16 a
-   word, first bit in bit 0. The firmware sends 26.7 us of low (tInterFrameGap), the
-   preamble, the bits in BMC, and the trailing edge of 5.3.4 p.96 rules 4-6. The level is
-   in the program counter: [low] and [high] start a bit from that level, so every edge is
-   a [set]. *)
+(* The host's first word is the line bits after the preamble less one, then the bits, 16
+   per word with the first bit in bit 0. The firmware sends 26.7 us of low
+   (tInterFrameGap), the preamble, the bits in BMC, and the trailing edge of 5.3.4 p.96
+   rules 4-6. The level lives in the program counter: [low] and [high] start a bit from
+   that level, so every edge is a [set]. *)
 let firmware =
   [%firmware
     {|
@@ -163,7 +163,7 @@ end_high:
 (* The period is a constant in the firmware, so the certificate assumes nothing. *)
 let certified = [ Certified.of_firmware "usb_power_delivery" firmware ]
 
-(* Table 5.2 p.89: the 5b symbol of each nibble, b0 first on the line *)
+(* Table 5.2 p.89: the 5b symbol of each nibble, b0 first on the line. *)
 let data_symbols =
   [| 0b11110
    ; 0b01001
@@ -195,7 +195,7 @@ module Message = struct
     }
   [@@deriving sexp_of, compare, equal]
 
-  (* Table 6.2 p.117: Revision 3.x, a Source and DFP; type 00001b, Table 6.5 p.125 *)
+  (* Table 6.2 p.117: Revision 3.x, a Source and DFP; type 00001b, Table 6.5 p.125. *)
   let source_capabilities ~message_id data_objects =
     { header =
         (List.length data_objects lsl 12)
@@ -208,7 +208,7 @@ module Message = struct
     }
   ;;
 
-  (* Table 6.8 p.127-128: 5 V in 50 mV units, 3 A in 10 mA units *)
+  (* Table 6.8 p.127-128: 5 V in 50 mV units, 3 A in 10 mA units. *)
   let fixed_5v_3a = (100 lsl 10) lor 300
 
   let payload { header; data_objects } =
@@ -216,10 +216,10 @@ module Message = struct
     little ~bytes:2 header @ List.concat_map data_objects ~f:(little ~bytes:4)
   ;;
 
-  (* 5.3.1.1.4 p.90: the CRC-32 of USB3 and Ethernet, sent LSB first *)
+  (* 5.3.1.1.4 p.90: the CRC-32 of USB3 and Ethernet, sent LSB first. *)
   let crc t = Ethernet.Frame.crc32 (payload t)
 
-  (* Figure 5.1 p.88: SOP, then payload and CRC low nibble first, then EOP *)
+  (* Figure 5.1 p.88: SOP, then payload and CRC low nibble first, then EOP. *)
   let symbols t =
     let crc = crc t in
     let bytes = payload t @ List.init 4 ~f:(fun i -> (crc lsr (8 * i)) land 0xff) in
@@ -241,7 +241,7 @@ module Message = struct
       List.foldi chunk ~init:0 ~f:(fun i word bit -> word lor (bit lsl i)))
   ;;
 
-  (* the gap, the preamble, the bits and at most two UI of trailing edge *)
+  (* The gap, the preamble, the bits and at most two UI of trailing edge. *)
   let cycles t = (64 * 20) + 100 + ((64 + List.length (line_bits t) + 2) * bit_cycles)
 end
 
@@ -269,8 +269,8 @@ let bench =
   }
 ;;
 
-(* Each packet's bit cells in cycles: a level under 2.5 us, 3/4 UI, is a half and pairs
-   with the next, a longer one is a whole cell, a low past 5 us is idle. *)
+(* Each packet's bit cells in cycles. A level under 2.5 us (3/4 UI) is a half and pairs
+   with the next, a longer one is a whole cell, and a low past 5 us is idle. *)
 let cells ~clock_hz levels =
   let ns n = n * 1_000_000_000 / clock_hz in
   let idle (high, n) = (not high) && ns n > 5_000 in
@@ -291,9 +291,9 @@ let cells ~clock_hz levels =
   packets [] levels
 ;;
 
-(* Tables 5.9 and 5.10, p.110, the transmitter's. Not here: tStartDrive and tEndDriveBMC,
-   as OUT0 has no third state to start or stop driving from; tRise and tFall, the slew of
-   the driver or an RC after it (5.3.4 rule 1, p.96). *)
+(* Tables 5.9 and 5.10, p.110, the transmitter's. Not covered here: tStartDrive and
+   tEndDriveBMC, as OUT0 has no third state to start or stop driving from, and tRise and
+   tFall, which are the slew of the driver or an RC after it (5.3.4 rule 1, p.96). *)
 let limits =
   let sheet page =
     { Datasheet.Sheet.part = "USB PD BMC transmitter"
@@ -314,7 +314,7 @@ let limits =
     Datasheet.run ~pin:Datasheet.set_pin (fun ~clock_hz levels ->
       List.concat (cells ~clock_hz levels))
   in
-  (* each window of 32 bits from the preamble's last on, against the preamble's last 32 *)
+  (* Each window of 32 bits from the preamble's last on, against the preamble's last 32. *)
   let drift =
     Datasheet.run ~pin:Datasheet.set_pin (fun ~clock_hz levels ->
       List.concat_map (cells ~clock_hz levels) ~f:(fun cells ->
@@ -363,7 +363,7 @@ let limits =
 ;;
 
 (* What sigrok's usb_power_delivery prints for a Source_Capabilities of Fixed 5 V 3 A
-   PDOs: each symbol, then each field it ends; the EOP comes as a symbol and a part. *)
+   PDOs: each symbol, then each field it ends. The EOP comes as a symbol and a part. *)
 let reading ({ Message.header; data_objects } as message) =
   let nibbles n ~count =
     List.init count ~f:(fun i -> sprintf "0x%X" ((n lsr (4 * i)) land 0xf))
@@ -380,8 +380,8 @@ let reading ({ Message.header; data_objects } as message) =
   @ [ sprintf "CRC:%08x" (Message.crc message); "EOP"; "EOP" ]
 ;;
 
-(* The pin inverted for 80 cycles from 40 into a line bit: a stray half bit. Edges count
-   from the preamble's first, 96 of them, then one a bit and one more a 1. *)
+(* The pin inverted for 80 cycles from 40 into a line bit: a stray half bit. Edges are
+   counted from the preamble's first, 96 of them, then one a bit and one more a 1. *)
 let glitch message ~bit =
   let bits = Message.line_bits message in
   let edge = 96 + List.sum (module Int) (List.take bits bit) ~f:(fun b -> 1 + b) in
@@ -398,13 +398,13 @@ let sigrok =
       ]
   ; joins_after = None
   ; rejected = None
-  ; (* in the header, the PDO and the CRC *)
+  ; (* In the header, the PDO and the CRC. *)
     teeth = List.map [ 22; 50; 90 ] ~f:(fun bit -> glitch message ~bit)
   }
 ;;
 
 (* One Source_Capabilities. sigrok's decoder ends a packet only after 1 ms of quiet, so
-   the run goes on 1.2 ms past it. *)
+   the run goes on for 1.2 ms past it. *)
 let scenario =
   let message = List.hd_exn sent in
   { Scenario.name = "usb_power_delivery"

@@ -1,17 +1,16 @@
-(** USB full speed: a device on engine 0, which [Usb_frame_rx], re-armed, feeds every
-    packet, and which answers from records the host loads into the data memory before the
-    start. *)
+(** USB full speed: a device on engine 0, fed every packet by [Usb_frame_rx] (re-armed),
+    that answers from records the host loads into the data memory before the start. *)
 
 open! Core
 open Protocol_emulator
 
-(** D+ is IO0 and D- IO1; the receiver's finished, good and receiving are status pins. *)
+(** D+ is IO0 and D- is IO1. The receiver's finished, good and receiving are status pins. *)
 val dp_pin : int
 
 val dm_pin : int
 
-(** Out through the line table's NRZI on D+, D- its complement; set on both, so SE0 and J
-    go out as they are. *)
+(** Out through the line table's NRZI on D+, with D- its complement. Set on both, so SE0
+    and J go out as they are. *)
 val config : Program_config.t
 
 val line_table : Line_code.t
@@ -29,30 +28,30 @@ val first_record : int
     starts at, on every way to a reply. *)
 val turnaround : int
 
-(** The device. The host sends its IN token word for endpoint 0 first. A packet with a bad
-    CRC wakes nothing. An IN that matches the pending reply's token word gets its record,
-    if the record's word is in the fifo; any other IN to this address gets a NAK, as does
-    one whose record is still on its way. A SETUP or OUT to this address and endpoint 0
-    readies an ACK for the data packet after it: a SETUP's PID and eight bytes go to the
-    host as five words, the first holding the PID low, after which the record is ACKed,
-    and an OUT's ACK sends tag 2. After a record goes out, the host's ACK sends tag 3, and
-    anything else tag 4. Between packets, with nothing pending, the program takes the next
-    word from the fifo: a reply's IN token word, its record's address following it, or
-    another address's IN token word, which becomes the address from then on. The core adds
-    a reply's CRC-16 and stuffs its bits ([data_record]). Endpoint bits 1-3 of an IN are
-    not compared. *)
+(** The device. The host sends its IN token word for endpoint 0 first. A packet with a
+    bad CRC wakes nothing. An IN that matches the pending reply's token word gets its
+    record, if the record's word is in the fifo. Any other IN to this address gets a NAK,
+    as does one whose record is still on its way. A SETUP or OUT to this address and
+    endpoint 0 readies an ACK for the data packet after it. A SETUP's PID and eight bytes
+    go to the host as five words, the first holding the PID low, after which the record
+    is ACKed, and an OUT's ACK sends tag 2. After a record goes out, the host's ACK sends
+    tag 3 and anything else sends tag 4. Between packets with nothing pending, the program
+    takes the next word from the fifo: a reply's IN token word followed by its record's
+    address, or another address's IN token word, which becomes the address from then on.
+    The core adds a reply's CRC-16 and stuffs its bits ([data_record]). Endpoint bits 1-3
+    of an IN are not compared. *)
 val device : string
 
 (** The firmware that sends a reply from the record at x, its SYNC [turnaround] cycles
     after [t], then jumps to [then_]. *)
 val send_data : name:string -> then_:string -> string list
 
-(** A handshake's record, its PID after SYNC as line bits; the line table adds the NRZI. *)
+(** A handshake's record: its PID after SYNC as line bits. The line table adds the NRZI. *)
 val record : int list -> int list
 
-(** A reply's record from its PID and data: the data bits plus one, or 0 for a handshake,
-    SYNC and the PID, then the data, two bytes a word, first lowest. The chip adds a data
-    packet's CRC-16 and the stuffing. *)
+(** A reply's record from its PID and data: the data bits plus one (0 for a handshake),
+    SYNC and the PID, then the data, two bytes per word, first lowest. The chip adds a
+    data packet's CRC-16 and the stuffing. *)
 val data_record : int list -> int list
 
 (** The token word a reply for an IN to this address and endpoint waits behind. *)
@@ -71,7 +70,8 @@ module Layout : sig
 end
 
 (** Certified with the data memory read as anything, as packets land in it, and the core
-    within 84 ms of its deadline, as it waits on the bus for as long as the host is quiet. *)
+    within 84 ms of its deadline, since it waits on the bus for as long as the host is
+    quiet. *)
 val certified : Certified.t
 
 val protocol : Protocol.t

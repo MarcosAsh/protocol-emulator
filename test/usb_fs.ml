@@ -31,7 +31,7 @@ let config =
 
 let line_table = Line_code.usb_stuffing
 
-(* the adds that put the reply [turnaround] cycles after [mov t, now] *)
+(* The adds that put the reply [turnaround] cycles after [mov t, now]. *)
 let adds =
   let rec go n = if n <= 7 then [ n ] else 7 :: go (n - 7) in
   go turnaround
@@ -40,7 +40,7 @@ let adds =
 let add n = [%string "    add t, %{n#Int}"]
 
 (* [record] sent from the data memory: [seek] to x, the bit count, then the line bits
-   through the line table's NRZI at four cycles a bit, SE0 for two bits and J for one *)
+   through the line table's NRZI at four cycles per bit, SE0 for two bits and J for one. *)
 let send ~name ~then_ =
   [ [%string "%{name}:"]
   ; "    seek"
@@ -58,11 +58,11 @@ let send ~name ~then_ =
     ]
 ;;
 
-(* A reply's record from x: its data bits plus one, 0 for a handshake, SYNC and the PID,
-   then the data. Every bit is four cycles: the PID's last bit decides whether data
-   follows, [crc_init] lands after it and [crc_send] after the data, so the CRC unit sends
-   the CRC-16; the line stuffs, and after the CRC's last bit [stuff_reset] has the outs
-   pay what it owes. *)
+(* A reply's record from x: its data bits plus one (0 for a handshake), then SYNC and the
+   PID, then the data. Every bit takes four cycles. The PID's last bit decides whether
+   data follows. [crc_init] lands after it and [crc_send] after the data, so the CRC unit
+   sends the CRC-16. The line stuffs, and after the CRC's last bit [stuff_reset] has the
+   outs pay what it owes. *)
 let send_data ~name ~then_ =
   let handshake = name ^ "_handshake" in
   let packet = name ^ "_packet" in
@@ -73,7 +73,7 @@ let send_data ~name ~then_ =
   let data = name ^ "_data" in
   let crc = name ^ "_crc" in
   let owed = name ^ "_owed" in
-  (* SE0 for two bits, as [crc_init] stops the CRC sending and y goes back to [none] *)
+  (* SE0 for two bits, as [crc_init] stops the CRC sending and y goes back to [none]. *)
   let eop =
     [ "    set pins, 0"
     ; "    crc_init"
@@ -142,8 +142,8 @@ let send_data ~name ~then_ =
     ]
 ;;
 
-(* [v] of the PID in x, xored with IN's, its low nibble then its check nibble; falls
-   through where both are [v], else to [ignore] *)
+(* [v] of the PID in x, xored with IN's, its low nibble then its check nibble. Falls
+   through where both are [v], else goes to [ignore]. *)
 let pid_is v ~ignore =
   let subs n =
     let rec go n = if n <= 7 then [ n ] else 7 :: go (n - 7) in
@@ -158,11 +158,12 @@ let pid_is v ~ignore =
     ]
 ;;
 
-(* Registers: p the IN token word for endpoint 0 at this address, y the pending reply's
-   (none is 1, which no token is), x scratch. The receiver lands each packet from rx_base;
-   the program waits on receiving then good, anchors t and compares word 0 in one jmp, so
-   every reply's SYNC starts [turnaround] cycles after the anchor. A bit is four cycles,
-   with no room for [jmp stuff], so the line table's [tx_stuff] stuffs. *)
+(* Registers: p is the IN token word for endpoint 0 at this address, y is the pending
+   reply's (none is 1, which no token is), x is scratch. The receiver lands each packet
+   from rx_base. The program waits on receiving then good, then anchors t and compares
+   word 0 in one jmp, so every reply's SYNC starts [turnaround] cycles after the anchor.
+   A bit takes four cycles, which leaves no room for [jmp stuff], so the line table's
+   [tx_stuff] does the stuffing. *)
 let device =
   List.concat
     [ [ "    set pins, 1"
@@ -273,8 +274,8 @@ let device =
           ; "    mov t, now"
           ; "    out x, 16"
           ]
-          (* a SETUP's PID and first byte go to the host before the ACK, as its echo lands
-             over them *)
+          (* A SETUP's PID and first byte go to the host before the ACK, as its echo lands
+             over them. *)
           @ (if forwards
              then [ "    mov isr, x"; "    push" ]
              else [ "    mov isr, null" ])
@@ -315,7 +316,7 @@ let device =
   |> String.concat ~sep:"\n"
 ;;
 
-(* SYNC and the packet's bits, first bit first, a 0 after every six 1s, for a handshake *)
+(* SYNC and the packet's bits, first bit first, with a 0 after every six 1s, for a handshake. *)
 let line_bits packet =
   Usb_ls.bits_of_bytes (0x80 :: packet)
   |> List.folding_map ~init:0 ~f:(fun ones bit ->

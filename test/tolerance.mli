@@ -1,17 +1,17 @@
 (** Each receiver's allowed sender clock error, from its certificate.
 
-    The sender is free-running at [m] 2^-16 cycles a bit, bit [k] starting at cycle
-    [start + (phase + k * m) / 2^16] for any [phase] below 2^16: engine 1's fractional
-    period exactly. Each read the receiver makes after [mov t, capture] lands [d] cycles
-    after the captured edge, [d] being the sum of the program's adds to [t] plus the
-    read's phase row. With the captured edge at bit [e] and the read in the run of equal
-    bits [r0, r1], it is right for every phase iff
+    The sender free-runs at [m] 2^-16 cycles per bit, with bit [k] starting at cycle
+    [start + (phase + k * m) / 2^16] for any [phase] below 2^16. This is engine 1's
+    fractional period exactly. Each read the receiver makes after [mov t, capture] lands
+    [d] cycles after the captured edge, where [d] is the sum of the program's adds to [t]
+    plus the read's phase row. With the captured edge at bit [e] and the read in the run
+    of equal bits [r0, r1], the read is right for every phase iff
 
     {v
       (r0 - e) * m <= 2^16 * d_lo   and   (r1 + 1 - e) * m >= 2^16 * (d_hi + 1)
     v}
 
-    as bit [k]'s edge lies [floor] or [ceil] of [(k - e) * m / 2^16] cycles after bit
+    because bit [k]'s edge lies [floor] or [ceil] of [(k - e) * m / 2^16] cycles after bit
     [e]'s, and some phase gives each. A [capture_arm] is a read of the capture pin. The
     bounds are the tightest of these over the reads of a stimulus that holds every run the
     protocol allows. *)
@@ -25,33 +25,33 @@ val unit : int
 module Receiver : sig
   type t =
     { firmware : Certified.t
-    ; nominal : int (** Cycles a bit, the rate the error is counted from. *)
+    ; nominal : int (** Cycles per bit: the rate the error is counted from. *)
     ; preload : int list (** Host words before the start. *)
     ; idle : int (** The inputs between frames. *)
-    ; bits : int array (** The inputs, a word a bit: frames back to back. *)
+    ; bits : int array (** The inputs, one word per bit, with frames back to back. *)
     ; expected : int list (** What the host reads off the fifo. *)
     ; wired : sender:int -> pin_out:int -> int
-    (** The inputs from the sender's word and what the receiver drives. *)
-    ; echo : int (** Cycles what the receiver drives takes to reach [wired]. *)
+    (** The inputs, from the sender's word and what the receiver drives. *)
+    ; echo : int (** Cycles it takes what the receiver drives to reach [wired]. *)
     ; premises : Machine.Premises.t
-    (** What the model's core watches, the certificate's as the chip does; with the single
-        edge, a read the firmware checks for an edge that came first is a read like any
-        other, as such an edge faults it. *)
+    (** What the model's core watches: the certificate's, as the chip does. With the
+        single edge, a read the firmware checks for an edge that came first is a read like
+        any other, since such an edge faults it. *)
     }
 
   (** [Uart.rx], [Uart.rx_host_rate] at half period [half], [Usb.rx] and the CAN node's
-      receiver at [period], fed every byte, all-bytes DATA0 packets, or a set of frames
-      with each SOF in the third bit of the intermission, the CAN receiver's ACK back on
-      its input [echo] cycles later, 7 by default. *)
+      receiver at [period]. Each is fed every byte, all-bytes DATA0 packets, or a set of
+      frames with each SOF in the third bit of the intermission. The CAN receiver's ACK
+      comes back on its input [echo] cycles later, 7 by default. *)
   val uart_rx : ?bytes:int list -> ?source:string -> period:int -> unit -> t
 
   val uart_rx_host_rate : ?bytes:int list -> ?source:string -> half:int -> unit -> t
   val usb_rx : unit -> t
   val can_rx : ?echo:int -> period:int -> sample:int -> unit -> t
 
-  (** The CAN receiver's frames: a few by hand, and of 4000 seeded ones the frame with the
-      longest run of bits between falling edges and the one with the longest from its
-      CRC's last fall to the next SOF. *)
+  (** The CAN receiver's frames: a few by hand, and from 4000 seeded ones the frame with
+      the longest run of bits between falling edges and the one with the longest run from
+      its CRC's last fall to the next SOF. *)
   val can_frames : Can.Frame.t list
 
   (** The bits from each falling edge of a frame on the bus to the next, SOF to SOF. *)
@@ -61,7 +61,7 @@ end
 module Read : sig
   type t =
     { pc : int
-    ; d : int * int (** Cycles after the captured edge, least and most. *)
+    ; d : int * int (** Cycles after the captured edge, smallest and largest. *)
     ; since : int (** Bits from the captured edge to the run's first. *)
     ; until : int option (** Bits from the captured edge to the run's end. *)
     ; edge : int (** The captured edge's bit in the stimulus. *)
@@ -87,9 +87,9 @@ end
 (** The reads of a run at [nominal], each checked against its row of the certificate. *)
 val reads : Receiver.t -> Read.t list
 
-(** An error for a receiver that re-anchors on every edge and from [now] where it saw one
-    late, as [Usb.rx] does: an arm checked for an edge that came first at more than one
-    place. Reads timed from [now] follow no captured edge, so no bound from the rows
+(** An error for a receiver that re-anchors on every edge, and from [now] where it saw
+    one late, as [Usb.rx] does: an arm checked for an edge that came first at more than
+    one place. Reads timed from [now] follow no captured edge, so no bound from the rows
     holds. *)
 val applies : Receiver.t -> unit Or_error.t
 
@@ -97,31 +97,32 @@ val applies : Receiver.t -> unit Or_error.t
 val bounds : Receiver.t -> Bounds.t
 
 (** The words the host reads with the sender at [m] and [phase], and whether the run
-    stayed clean: every word as [expected], no irq, no fault. *)
+    stayed clean (every word as [expected], no irq, no fault). *)
 val receives : Receiver.t -> m:int -> phase:int -> bool
 
 (** Whether a sender at [m] from phase 0, as engine 1 sends from an anchor, gets every
-    frame through: each read against the bounds above at its own edge's phase. Exact where
-    every read sees the bit it sees at the nominal rate, and every wrong read shows in
-    what the host reads. [predicts r] runs the model once. *)
+    frame through, checking each read against the bounds above at its own edge's phase.
+    Exact where every read sees the bit it sees at the nominal rate and every wrong read
+    shows in what the host reads. [predicts r] runs the model once. *)
 val predicts : Receiver.t -> m:int -> bool
 
-(** Whether a sender at [m] from phase 0 surely faults the receiver: the first read
-    [predicts] finds wrong is a [capture_arm], so the edge came before it and the capture
-    still holds the last frame's, which misses a deadline, or with the single edge watched
-    faults the arm first. Past a first wrong read of another kind the receiver is out of
-    step, so [false] rules no fault out. [faults r] runs the model once. *)
+(** Whether a sender at [m] from phase 0 surely faults the receiver. That holds when the
+    first wrong read [predicts] finds is a [capture_arm]: the edge came before it and the
+    capture still holds the last frame's, which misses a deadline (or, with the single
+    edge watched, faults the arm first). After a first wrong read of another kind the
+    receiver is out of step, so [false] rules no fault out. [faults r] runs the model
+    once. *)
 val faults : Receiver.t -> m:int -> bool
 
-(** The faults the model's run at [m] and [phase] ends with, its core stopped an edge
-    after the first shows, as the chip stops it. *)
+(** The faults the model's run at [m] and [phase] ends with. Its core stops an edge after
+    the first fault shows, as the chip does. *)
 val fault : Receiver.t -> m:int -> phase:int -> Machine.Fault.t
 
 (** Whether the model's run at [m] and [phase] ends with a fault. *)
 val faulted : Receiver.t -> m:int -> phase:int -> bool
 
-(** The bench: engine 1 sends [bytes] back to back from one anchor at m 2^-16 cycles a
-    bit, the whole cycles from the host and the rest as its period fraction, to engine 0
+(** The bench: engine 1 sends [bytes] back to back from one anchor at m 2^-16 cycles per
+    bit (the whole cycles from the host, the rest as its period fraction) to engine 0
     running [Uart.rx_host_rate] on a wire, at 9600 baud from 48 MHz. *)
 module Bench : sig
   val half : int
@@ -135,11 +136,11 @@ module Bench : sig
   val receiver_source : string
   val receiver_config : Program_config.t
 
-  (** Each m the bench tries, fine steps either side of each bound and every half percent
+  (** Each m the bench tries: fine steps either side of each bound and every half percent
       from -7% to 7%, and whether [predicts] passes it. *)
   val steps : unit -> (int * bool) list
 
-  (** The steps [faults] says fault, which a run can show only one of, as a fault holds
+  (** The steps [faults] says fault. A run can show only one of them, since a fault holds
       until reset. *)
   val faults : unit -> int list
 end

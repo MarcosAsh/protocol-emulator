@@ -1,24 +1,23 @@
-(** WS2812B LED strings: one wire, 24 bits a pixel, green first, each bit a high pulse
+(** WS2812B LED strings: one wire, 24 bits per pixel, green first, each bit a high pulse
     whose width is the data.
 
-    A bit is three deadlines: rise, then [third] cycles later the line takes the value of
-    the bit, then [third] cycles later it falls, and the next bit starts [third + tail]
-    cycles after that. Every edge is the instruction after a deadline wait, so none of
-    them depends on the data, on the word boundaries or on when the host wrote. With
-    [third] 20 and [tail] 2 at 48 MHz that is T0H 417 ns, T1H 833 ns, T0L 875 ns, T1L 458
-    ns and a bit of 1292 ns, each time within 34 ns of the datasheet's against a tolerance
-    of 150 ns.
+    A bit is three deadlines: rise; [third] cycles later the line takes the value of the
+    bit; [third] cycles after that it falls; and the next bit starts [third + tail]
+    cycles later. Every edge is the instruction after a deadline wait, so none depends on
+    the data, the word boundaries or when the host wrote. With [third] 20 and [tail] 2 at
+    48 MHz that gives T0H 417 ns, T1H 833 ns, T0L 875 ns, T1L 458 ns and a bit of 1292
+    ns, each within 34 ns of the datasheet's against a tolerance of 150 ns.
 
     The shortest bit this structure can make is [third] 6 and [tail] 7, 25 cycles: the
-    thirteen cycles from the falling edge round the end of a word to the next rise have to
-    fit in [third + tail], and [tail] is an immediate of at most 7. A [tail] up to 14
-    takes a second add, a cycle more round a word's end.
+    thirteen cycles from the falling edge around the end of a word to the next rise have
+    to fit in [third + tail], and [tail] is an immediate of at most 7. A [tail] up to 14
+    takes a second add, which costs a cycle more around a word's end.
 
-    The host writes two words a pixel, [Pixel.words]. When the next pixel is not in the
-    fifo as the last one ends, the line stays low for 160 times [third] cycles, 67 us at
-    the standard timing, so the string latches, and the next word starts a new frame at
-    the first LED. Strings that want a longer reset take [latching]. A pixel whose second
-    word is late sets the underflow fault. *)
+    The host writes two words per pixel ([Pixel.words]). When the next pixel is not in
+    the fifo as the last one ends, the line stays low for 160 times [third] cycles (67 us
+    at the standard timing), so the string latches, and the next word starts a new frame
+    at the first LED. Strings that want a longer reset take [latching]. A pixel whose
+    second word is late sets the underflow fault. *)
 
 open! Core
 open Protocol_emulator
@@ -26,7 +25,7 @@ open Protocol_emulator
 val pin : int
 val firmware : third:int -> tail:int -> string
 
-(** [firmware] with the line low for [gaps] times 160 thirds before a frame, from 1 to 32. *)
+(** [firmware] with the line low for [gaps] times 160 thirds before a frame, [gaps] from 1 to 32. *)
 val latching : gaps:int -> third:int -> tail:int -> string
 
 val standard : string

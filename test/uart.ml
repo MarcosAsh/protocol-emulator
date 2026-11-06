@@ -26,7 +26,7 @@ bit:
 
 let tx ~period = [%string "    set p, %{period#Int}%{frame}"]
 
-(* [tx ~period:16], checked when it compiles *)
+(* [tx ~period:16], checked when it compiles. *)
 let tx16 =
   [%firmware
     {|
@@ -50,8 +50,8 @@ bit:
 |}]
 ;;
 
-(* 26-bit frame: start, the host's byte, the low 16 bits of the cycle the start bit shows,
-   both LSB first, stop. [mov y, now] reads four cycles before that edge. *)
+(* 26-bit frame: start, the host's byte, the low 16 bits of the cycle the start bit shows
+   (both LSB first), stop. [mov y, now] reads four cycles before that edge. *)
 let tx_stamped ~period =
   [%string
     {|
@@ -83,7 +83,7 @@ stamp:
 |}]
 ;;
 
-(* the first word from the host is the bit period *)
+(* The first word from the host is the bit period. *)
 let tx_host_rate = [%string "    wait tx\n    pull\n    mov p, osr%{frame}"]
 
 (* Time-triggered: a frame every ten periods from one anchor. Each byte autopulls at a
@@ -114,8 +114,8 @@ let stream_config = { Program_config.default with autopull = true; pull_threshol
 (* Half period one short: the sample lands a cycle after the release. The capture is armed
    only while the line is high, as the certificate assumes of every arm. [check] (rounded
    (9p - 27) / 19 cycles into the stop bit) balances a slow sender's stop bit against a
-   fast sender's next start edge, tolerating 4% either way from 16 cycles a bit up (at 16,
-   4.3% fast to 4.1% slow). *)
+   fast sender's next start edge, and tolerates 4% either way from 16 cycles a bit up (at
+   16, 4.3% fast to 4.1% slow). *)
 let rx_on ~pin ~period =
   let check = ((9 * period) - 18) / 19 in
   [%string
@@ -149,8 +149,8 @@ let rx ~period = rx_on ~pin:0 ~period
 
 (* [rx_on] with half the bit period from the host, so the first sample, a period and a
    half from the start edge, is three halves, a period the kernel bounds at every load.
-   The stop bit is checked at its middle: 4% sender error either way from 52 cycles a bit,
-   5% from 104. *)
+   The stop bit is checked at its middle, which tolerates 4% sender error either way from
+   52 cycles a bit, and 5% from 104. *)
 let rx_host_rate_on ~pin =
   [%string
     {|
@@ -197,8 +197,8 @@ let stamped =
   Certified.plain "uart_tx_stamped" (tx_stamped ~period:8) Program_config.default
 ;;
 
-(* the keyboard demo loads the certified copy, at the period python/demo_usb.py works out
-   from the clock the same way *)
+(* The keyboard demo loads the certified copy, at the period python/demo_usb.py works out
+   from the clock the same way. *)
 let log =
   let baud = 115_200 in
   let period = (Bench.clock_hz + (baud / 2)) / baud in
@@ -218,7 +218,7 @@ let log =
 
 let bauds = [ 9600; 19200; 38400; 57600; 115200; 230400 ]
 
-(* the bit within 2% of the rate, the 'nasty link' budget a receiver shares *)
+(* The bit within 2% of the rate, the 'nasty link' budget a receiver shares. *)
 let limits_at ~baud firmware =
   let sheet =
     { Datasheet.Sheet.part = [%string "UART at %{baud#Int} baud"]
@@ -248,7 +248,7 @@ let limits_at ~baud firmware =
 
 let limits = limits_at ~baud:115_200 "uart_log"
 
-(* [tx_host_rate] on OUT0 at each common rate, the bit rounded to the nearest cycle *)
+(* [tx_host_rate] on OUT0 at each common rate, with the bit rounded to the nearest cycle. *)
 let at_rate baud =
   let period = (Bench.clock_hz + (baud / 2)) / baud in
   { Bench.name = [%string "uart_tx_%{baud#Int}"]
@@ -265,7 +265,7 @@ let at_rate baud =
   }
 ;;
 
-(* bits of 16 cycles: 3 Mbaud at 48 MHz *)
+(* Bits of 16 cycles: 3 Mbaud at 48 MHz. *)
 let trace_hz = 48_000_000
 
 let sigrok ?(teeth = []) ~channel ~pin bytes =
@@ -294,7 +294,7 @@ let tx_scenario =
         ()
       @ [ Write (Reg.tx, [ 0x55; 0xa3 ]); Scenario.start; Run 400; Read (Reg.status, 1) ]
   ; sigrok =
-      (* the first stop bit, edge 10, 12 cycles late: sampled low, a framing error *)
+      (* The first stop bit, edge 10, 12 cycles late: sampled low, a framing error. *)
       Some
         (sigrok
            ~channel:"tx"
@@ -306,8 +306,8 @@ let tx_scenario =
   }
 ;;
 
-(* A read frame ends with the next rx head on miso; after emptying the fifo that is
-   unwritten RAM, zero here but X in Verilog. So the host always leaves a word behind. *)
+(* A read frame ends with the next rx head on miso. After emptying the fifo that is
+   unwritten RAM, zero here but X in Verilog, so the host always leaves a word behind. *)
 let rx_scenario =
   let period = 16 in
   let first = [ 0x55; 0xa3; 0xff; 0x00 ]
@@ -331,7 +331,7 @@ let rx_scenario =
         ; Read (Reg.status, 1)
         ]
   ; sigrok =
-      (* the first stop bit, edge 9, 12 cycles late: a framing error *)
+      (* The first stop bit, edge 9, 12 cycles late: a framing error. *)
       Some
         (sigrok
            ~channel:"rx"
@@ -346,7 +346,7 @@ let protocol =
   { Protocol.name = "uart"
   ; certified =
       [ plain "uart_tx" (tx ~period:8) Program_config.default
-        (* the same UART at the slower bit period the tests use *)
+        (* The same UART at the slower bit period the tests use. *)
       ; plain "uart_tx16" (Timed_program.source tx16) Program_config.default
       ; plain
           ~period:434
@@ -356,7 +356,7 @@ let protocol =
           tx_host_rate
           Program_config.default
       ; Certified.receiver "uart_rx" (rx ~period:16) rx_config
-        (* half the bit at 115200 baud and 48 MHz *)
+        (* Half the bit at 115200 baud and 48 MHz. *)
       ; Certified.receiver
           ~period:208
           ~period_floor:4
