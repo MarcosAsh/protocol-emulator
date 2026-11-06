@@ -27,9 +27,9 @@ let config =
   }
 ;;
 
-(* The host loads the unit in cycles, then for each frame the trailer bit as 0 or 1, then
-   the address and command as one word, msb first. [t] is the next unit throughout and
-   every wait takes one. *)
+(* The host loads the unit in cycles, then per frame the trailer bit as 0 or 1, then the
+   address and command as one word, msb first. [t] is the next unit throughout and every
+   wait takes one. *)
 let firmware =
   [%firmware
     {|
@@ -111,7 +111,7 @@ f0:
       ~period_floor:shortest_unit]
 ;;
 
-(* The certificate holds at the unit the bench loads, and the firmware at any from
+(* The certificate holds at the unit the bench loads; the firmware works at any unit from
    [shortest_unit]. *)
 let certified =
   [ Certified.of_firmware ~period:standard_unit ~no_wrap:true "ir_rc6" firmware ]
@@ -251,9 +251,9 @@ let unit = 200
    68 *)
 let frame_cycles = 68 * unit
 
-(* What sigrok's ir_rc6 prints, in the order it does: the header's six bits, its four
-   fields, the 16 data bits, the address and the data. It handles the six bits on each
-   edge until the next bit comes, so the first frame's fields come twice. *)
+(* What sigrok's ir_rc6 prints, in its order: the header's six bits, its four fields, the
+   16 data bits, the address and the data. It handles the six bits on each edge until the
+   next bit comes, so the first frame's fields come twice. *)
 let reading ~repeat_fields ({ toggle; address; command } : Message.t) =
   let toggle = Bool.to_int toggle in
   let fields =

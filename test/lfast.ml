@@ -21,7 +21,7 @@ let config =
    1 stop bit. The note leaves the header fields to the reference manual, so they are
    sigrok's: 0b000_0100_1 is an 8-bit payload on channel A with CTS set. The host's word
    is not 0x00, whose low bits would outrun the decoder's timeout. 5 Mbaud at 48 MHz is
-   9.6 cycles a bit and the firmware takes 10. *)
+   9.6 cycles per bit; the firmware uses 10. *)
 let firmware =
   [%firmware
     {|
@@ -111,7 +111,7 @@ let bench =
   }
 ;;
 
-(* The one maximum the note gives for the line: data rate up to 320 Mb/s (p.3), so no
+(* The one maximum the note gives for the line is a data rate up to 320 Mb/s (p.3), so no
    level lasts under 1 / 320 MHz = 3.125 ns. Table 8 p.12 and p.1, p.2, p.25 repeat the
    320 and give 5 MHz only as typical, and the p.25 reference clock is an input of the
    other chip. *)
@@ -134,9 +134,9 @@ let limits : Datasheet.t list =
       })
 ;;
 
-(* What sigrok's lfast decoder reads. It labels the 1 stop bit a sleep request, and it
-   needs the frame's last payload bit to end a run, so a payload ends in a 1. The teeth
-   flip a sync bit, a header bit and a payload bit. *)
+(* What sigrok's lfast decoder reads. It labels the 1 stop bit a sleep request and needs a
+   frame's last payload bit to end a run, so a payload ends in a 1. The teeth flip a sync
+   bit, a header bit and a payload bit. *)
 let sigrok =
   { Sigrok.clock_hz = 48_000_000
   ; decoders = [ Sigrok.decoder "lfast" ~pins:[ "data", pin ] ]

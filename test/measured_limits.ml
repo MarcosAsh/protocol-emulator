@@ -214,8 +214,8 @@ let spacing capture spec =
   |> List.min_elt ~compare
 ;;
 
-(* a [Run] bound's widths, from the levels on its pin: the first only when it began at the
-   capture's start, and never the last, which has not ended *)
+(* a [Run] bound's widths, from the levels on its pin: the first only if it began at the
+   capture's start, and never the last, which hasn't ended *)
 let widths (capture : Capture.t) ~pin widths =
   let { Capture.Line.first; edges } = Capture.line capture pin in
   let bounds = 0 :: edges in
@@ -282,9 +282,9 @@ let to_string (capture : Capture.t) ts =
   |> String.concat ~sep:"\n"
 ;;
 
-(* Where each of a run bound's widths lies on its pin: the levels one more cycle of which
-   changes it. A width is placed only on whole levels after the first that sum to it, so
-   it is never placed wrong, though one may go unplaced. *)
+(* Where each of a run bound's widths lies on its pin: the levels that one more cycle would
+   change. A width is placed only on whole levels after the first that sum to it, so it is
+   never placed wrong, though one may go unplaced. *)
 let placed (capture : Capture.t) ~pin widths =
   let { Capture.Line.first; edges } = Capture.line capture pin in
   let edges = Array.of_list edges in

@@ -41,7 +41,7 @@ val rom : family:int -> serial:int -> int list
     its eight bytes. It is the datasheet's worst case where that is the master's problem:
     a zero it sends is held for 15 us from the falling edge and no longer. It times what
     the master drives: a low of 1 to 15 us is a one or a read, 60 to 120 us a zero, 480 us
-    or more a reset and anything else a violation, as is a slot shorter than 60 us, less
+    or more a reset, and anything else a violation, as is a slot shorter than 60 us, less
     than 1 us between slots or less than 480 us high after a reset. *)
 module Slave : sig
   type t

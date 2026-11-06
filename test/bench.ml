@@ -28,10 +28,10 @@ type t =
   ; stimulus : Stimulus.t option
   }
 
-(* The Icepi's USB build uses IO0 and IO1, so I2C is on IO2 (SCL) and IO3, 1-Wire on IO4,
-   10BASE-T on IO6 and IO7. CAN's TX keeps OUT1, SWD OUT2 and IO5, the SK6812 is OUT3 and
-   the SPI masters are MOSI OUT4, SCK OUT5, CS OUT6. CAN's CRX is IN1. Bench_wiring has
-   the analyser channels. *)
+(* The Icepi's USB build takes IO0 and IO1, so I2C is on IO2 (SCL) and IO3, 1-Wire on IO4,
+   10BASE-T on IO6 and IO7. CAN TX is OUT1, SWD is OUT2 and IO5, the SK6812 is OUT3, and the
+   SPI masters use MOSI OUT4, SCK OUT5, CS OUT6. CAN RX is IN1. Bench_wiring has the
+   analyser channels. *)
 let neopixel = 8
 let mosi = 9
 let sck = 10
@@ -40,7 +40,7 @@ let sda = 15
 let one_wire = 16
 let td_plus = 18
 
-(* side-set bit 0 is SCK and bit 1, for Spi_cs, CS *)
+(* side-set bit 0 is SCK, bit 1 is CS (Spi_cs only) *)
 let on_spi_pins (config : Program_config.t) =
   { config with out_base = mosi; set_base = mosi; side_set_base = sck }
 ;;
@@ -51,8 +51,8 @@ let patch source ~pattern ~with_ =
   String.substr_replace_first source ~pattern ~with_
 ;;
 
-(* The Icepi's PLL and the demo board's [clock_hz] both run the chip at 48 MHz; 10BASE-T
-   needs the Icepi's 40 MHz build. *)
+(* The Icepi PLL and the demo board's [clock_hz] both give 48 MHz; 10BASE-T needs the
+   Icepi's 40 MHz build. *)
 let clock_hz = 48_000_000
 let ethernet_clock_hz = 40_000_000
 let bit ~hz = clock_hz / hz
@@ -60,7 +60,7 @@ let half ~hz = clock_hz / (2 * hz)
 let quarter ~hz = clock_hz / (4 * hz)
 let cycles_in ~us = clock_hz / 1_000_000 * us
 
-(* labels from the cycles and the clock, never written by hand *)
+(* labels come from the cycles and the clock, never typed by hand *)
 let time ?(clock_hz = clock_hz) cycles =
   let ns = Float.of_int cycles *. 1e9 /. Float.of_int clock_hz in
   if Float.(ns < 1e3)

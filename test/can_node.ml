@@ -16,7 +16,7 @@ module Receiver = struct
   let sample = 72
   let shortest_period = 63
 
-  (* CRX shows CTX this many cycles later at most, or never: the ACK must be on CRX by the
+(* CRX shows CTX at most this many cycles later, or never. The ACK has to be on CRX by the
      slot's sample, where the firmware looks for it *)
   let longest_loop = sample
 
@@ -54,8 +54,8 @@ module Receiver = struct
            :: (if (period lsr bit) land 1 = 1 then [ "    add p, 1" ] else []))
   ;;
 
-  (* n added to t through y, which the caller sets again after: k equal parts of at most
-     31, the rest in immediates of at most 7 *)
+(* adds n to t through y, which the caller must set again afterwards: k equal parts of at
+     most 31, the rest in immediates of at most 7 *)
   let add_to_t n =
     let parts = (n + 30) / 31 in
     let part = n / Int.max parts 1 in
@@ -71,9 +71,9 @@ module Receiver = struct
     @ if n % 32 = 0 then [] else [ [%string "    nop [%{n % 32 - 1#Int}]"] ]
   ;;
 
-  (* One field's bits: x counts them down, y the run to a stuff bit, and the loop half is
-     the last level. A recessive bit arms the capture, so the next fall retimes the bits,
-     as can2040 does. Leaves at [high_end] or [low_end] by the last level. *)
+(* One field's bits: x counts them down, y counts the run to a stuff bit, and the loop half
+     is the last level. A recessive bit arms the capture, so the next fall retimes the
+     bits, as can2040 does. Leaves at [high_end] or [low_end] depending on the last level. *)
   let field name ~sample ~high_end ~low_end =
     lines
       ([ [%string "%{name}_high:"]
@@ -117,9 +117,10 @@ module Receiver = struct
          ])
   ;;
 
-  (* isr holds RTR, IDE, r0 and the DLC, the ID gone in the first word. A frame with IDE
-     or r0 recessive is refused; otherwise they go to the host and x is the data bits less
-     one. An odd number of bytes starts with a zero byte, so they fill whole words. *)
+(* isr holds RTR, IDE, r0 and the DLC (the ID went out in the first word). A frame with IDE
+     or r0 recessive is refused; otherwise they go to the host and x is the number of data
+     bits minus one. An odd number of bytes starts with a zero byte so they fill whole
+     words. *)
   let header_end level =
     lines
       [ [%string "header_%{level}_end:"]
@@ -392,8 +393,8 @@ let sender_config =
   }
 ;;
 
-(* [Can.firmware] to the CRC delimiter, then the bus 11 cycles before the ACK slot ends,
-   after which the deadlines go back to the bit's edges. *)
+(* [Can.firmware] up to the CRC delimiter, then a read of the bus 11 cycles before the ACK
+   slot ends, after which the deadlines return to the bit edges. *)
 let sender =
   [%firmware
     {|
@@ -486,9 +487,9 @@ end
 
 let bench_bit = Bench.bit ~hz:500_000
 
-(* The library's line is dominant from reset until a bit after the period. On a bus it
-   goes recessive at once and stays so eleven bits after the period, as a node joining
-   needs. *)
+(* The library's line is dominant from reset until a bit after the period. On a bus it goes
+   recessive at once and stays that way for eleven bits after the period, as a joining
+   node must. *)
 let bench_firmware firmware =
   Bench.patch
     (Timed_program.source firmware)
@@ -626,8 +627,8 @@ let certified =
     Can.config
 ;;
 
-(* The host waits eleven bits after the period before the first frame, as a node joining
-   the bus has to: the firmware sends whenever it has words. *)
+(* The host waits eleven bits after the period before the first frame, as a joining node
+   must; the firmware sends whenever it has words. *)
 let can_trace ?(teeth = []) ~name ~frames ~rejected () =
   let clock_hz = 48_000_000 in
   let send frame =

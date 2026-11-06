@@ -44,8 +44,8 @@ let words line = String.split line ~on:' ' |> List.filter ~f:(Fn.non String.is_e
 let holding literal = if literal > 0 then '1' else '0'
 
 (* The value the model gives each variable, ['-'] where it gives none, from every word
-   after the answer, as hardcaml_verify's model reader takes them. A variable set twice,
-   of which that reader keeps the last, is refused. *)
+   after the answer, as hardcaml_verify's model reader takes them. A variable set twice is
+   refused, since that reader keeps the last one. *)
 let read_model model ~variables =
   let values = Bytes.make (variables + 1) '-' in
   let set literal =
@@ -135,8 +135,8 @@ let solve ~bad_proof ~bad_model ~dimacs_in ~result_out () =
       let%bind.Or_error () =
         cadical ~binary:(not bad_proof) ~dimacs:dimacs_in ~proof ~result:result_out ()
       in
-      (* SAT needs its model to hold, UNSAT its proof and any other answer is refused, so
-         none reads unchecked *)
+(* SAT needs its model to hold and UNSAT its proof; any other answer is refused, so nothing
+         reads unchecked *)
       match In_channel.read_lines result_out with
       | "s SATISFIABLE" :: _ as model ->
         if bad_model then Out_channel.write_lines result_out (negate_first_value model);

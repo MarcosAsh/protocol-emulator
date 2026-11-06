@@ -1,15 +1,16 @@
 (** 10BASE-T transmit from a 40 MHz clock: a bit every four cycles, Manchester coded by
     the assist on TD+ (IO0) and TD- (IO1). The host puts the preamble, start of frame and
-    frame into the data memory, and then pushes the frame's length in bits less two; the
+    frame into the data memory, then pushes the frame's length in bits minus two. The
     first word it ever sends is a tenth of the link pulse interval in cycles. Between
-    frames the line is idle but for a 100 ns link pulse every ten of those, 16 ms
-    at 64000.
+    frames the line is idle except for a 100 ns link pulse every ten of those (16 ms at
+    64000).
 
-    Each bit is an [out] of two cycles, its first half, and the jump of two that follows
-    it, its second, so the loops need no deadline. A loop's last bit is unrolled so that
-    two cycles of other work are its second half: a [crc_init] after the start of frame, a
+    Each bit is an [out] of two cycles (its first half) and the jump of two that follows
+    (its second), so the loops need no deadline. A loop's last bit is unrolled so that two
+    cycles of other work are its second half: a [crc_init] after the start of frame, a
     [crc_send] after the frame, whose outs then send the FCS from the CRC unit. After the
-    FCS the line stays high 275 ns, the TP_IDL the standard asks for, and goes idle. *)
+    FCS the line stays high for 275 ns (the TP_IDL the standard asks for), then goes
+    idle. *)
 
 open! Core
 open Protocol_emulator
@@ -39,10 +40,10 @@ module Frame : sig
 end
 
 (** The far end of the cable. It samples TD+ and TD- every cycle and holds them to the
-    standard: inside a frame every half bit is two cycles, TD- the complement of TD+ and
-    every bit has its edge in the middle; the frame is whole bytes behind seven of 0x55
-    and 0xd5, and ends high for 250 to 350 ns before the line goes idle; a link pulse is
-    100 ns, 80 to 200 allowed, and 8 to 24 ms after the last one. *)
+    standard. Inside a frame every half bit is two cycles, TD- is the complement of TD+
+    and every bit has its edge in the middle. The frame is whole bytes behind seven of
+    0x55 and 0xd5, and ends high for 250 to 350 ns before the line goes idle. A link pulse
+    is 100 ns (80 to 200 allowed) and comes 8 to 24 ms after the last one. *)
 module Receiver : sig
   type t
 

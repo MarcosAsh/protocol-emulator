@@ -1,12 +1,12 @@
 (** The bus timings an I2C master drives, bounded from the analyser's certificate. SCL is
     the one side-set pin and SDA the pin [set pindirs] and [mov pindirs] write, both open
     drain: a direction of 1 pulls the line low and 0 lets it go high. A write to SDA while
-    SCL is high is a START or a STOP by the level it leaves.
+    SCL is high is a START or a STOP, depending on the level it leaves.
 
     From every edge the program can make, every way through it is followed to the edge the
     timing ends on, each instruction timed from the analyser's phase and each wait's
     deadline. A wait for the host or a pin may last any time, so a bound holds for every
-    run. A way that revisits an instruction is cut, as coming round again only takes
+    run. A way that revisits an instruction is cut, since coming round again only takes
     longer. The schedule at the pins is bounded, not the bus's rise and fall times. *)
 
 open! Core
@@ -34,7 +34,7 @@ module Timing : sig
     }
 end
 
-(** UM10204 table 11, Fast-mode Plus, for the timings a master drives; the SCL period is
+(** UM10204 table 11, Fast-mode Plus, for the timings a master drives. The SCL period is
     the 1 MHz most of fSCL. *)
 val fast_mode_plus : Timing.t list
 

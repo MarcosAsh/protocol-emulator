@@ -1,5 +1,6 @@
-(** I2C: a master the host drives a byte a word, the same waiting on a slave that
-    stretches SCL, a slave, and a logger that reads a slave and sends each byte over UART. *)
+(** I2C: a master the host drives one byte per word, the same master waiting on a slave
+    that stretches SCL, a slave, and a logger that reads a slave and sends each byte over
+    UART. *)
 
 open! Core
 open Protocol_emulator
@@ -7,27 +8,28 @@ open Protocol_emulator
 val sda : int
 val scl : int
 
-(** Master with SCL a quarter period [quarter] cycles. It first clears the bus (UM10204
+(** Master with an SCL quarter period of [quarter] cycles. It first clears the bus (UM10204
     3.1.16): up to nine SCL pulses while SDA reads low, then a START and a STOP. *)
 val master : quarter:int -> string
 
 (** The master without the bus clear, as the bench's marked copy runs it. *)
 val master_without_bus_clear : quarter:int -> string
 
-(** [master] with the quarter period from the host, as its first word: a bus slower than a
-    quarter of 31 cycles, which is as long as [set] makes one. *)
+(** [master] with the quarter period from the host as its first word, for buses slower than
+    a 31-cycle quarter (the longest [set] can make). *)
 val master_host_rate : string
 
-(** [master_host_rate] without the bus clear, whose START then STOP [slave] reads as the
-    first bit of an address: for a bus no outside slave can hold. *)
+(** [master_host_rate] without the bus clear. Its START then STOP is read by [slave] as the
+    first bit of an address, so use it on a bus no outside slave can hold. *)
 val master_host_rate_without_bus_clear : string
 
-(** [master_host_rate] with each START held, and each repeated START and STOP set up,
-    [quarters] quarter periods where it has one, as UM10204's tHD;STA, tSU;STA and tSU;STO
-    need at its clock: Standard-mode 3, Fast-mode 2. Without [clear_bus] it starts at
+(** [master_host_rate] with each START held, and each repeated START and STOP set up, for
+    [quarters] quarter periods where it has one. UM10204's tHD;STA, tSU;STA and tSU;STO
+    need that at its clock: Standard-mode 3, Fast-mode 2. Without [clear_bus] it starts at
     [idle]. [high] and [low] are instructions, each ending in a newline and carrying the
-    side-set of its level, run after every data bit's or ack's SCL going high, or going
-    low before a bit or ack, to cut the high or the low short: [sub t] by 7 at most. *)
+    side-set of its level. They run after every data bit's or ack's SCL going high, or
+    going low before a bit or ack, to cut the high or the low short: [sub t] by 7 at
+    most. *)
 val master_host_rate_held
   :  ?clear_bus:bool
   -> ?high:string
@@ -55,15 +57,15 @@ val slave : Timed_program.t
 
 val slave_config : Program_config.t
 
-(** Reads bytes from the slave at 0x50 and logs each one over UART on [logger_uart_pin], a
-    quarter period of 8 and a bit period of 16. *)
+(** Reads bytes from the slave at 0x50 and logs each one over UART on [logger_uart_pin],
+    with a quarter period of 8 and a bit period of 16. *)
 val logger : Timed_program.t
 
 val logger_uart_pin : int
 val logger_config : Program_config.t
 
-(** Listens to an I2C bus and pushes, for every START or repeated START, the cycles from
-    SDA's fall to SCL's, UM10204's t_HD;STA, low 16 bits. Drives no pin. A START that
+(** Listens to an I2C bus and, for every START or repeated START, pushes the cycles from
+    SDA's fall to SCL's (UM10204's t_HD;STA), low 16 bits. Drives no pin. A START that
     finds the rx fifo full is dropped. *)
 val start_hold : sda:int -> scl:int -> string
 
@@ -72,14 +74,14 @@ val start_hold_config : scl:int -> Program_config.t
 (** A host word for [master]: start[15] read[14] data[13:6] stop[5]. *)
 val word : ?start:bool -> ?read:bool -> ?stop:bool -> int -> int
 
-(** The quarters for Standard-mode, 121 for 99.2 kHz, and Fast-mode, 32 for 375 kHz, the
-    fastest UM10204's limits allow at 48 MHz with an even clock. *)
+(** The quarters for Standard-mode (121, 99.2 kHz) and Fast-mode (32, 375 kHz): the fastest
+    UM10204's limits allow at 48 MHz with an even clock. *)
 val standard_quarter : int
 
 val fast_quarter : int
 
-(** [master] and [slave] on wires 20 (SDA) and 21 (SCL) by [On_wire.open_drain_on_wire],
-    the master without its bus clear. Host words as theirs. *)
+(** [master] and [slave] on wires 20 (SDA) and 21 (SCL) via [On_wire.open_drain_on_wire],
+    with the master lacking its bus clear. Host words are theirs. *)
 val wire_sda : int
 
 val wire_scl : int

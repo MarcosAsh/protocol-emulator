@@ -6,8 +6,8 @@ let wire = Isa.num_pins
 let sck_pin = Spi.sck_pin
 let mosi_pin = Spi.mosi_pin
 
-(* [Uart.rx_on ~pin:0 ~period:10], its push gone and a good stop bit sending [isr] on the
-   wire as [Uart.tx] sends a host word, both at [p] cycles a bit *)
+(* [Uart.rx_on ~pin:0 ~period:10] with its push removed. A good stop bit sends [isr] on the
+   wire like [Uart.tx] sends a host word, both at [p] cycles a bit *)
 let relay_source =
   {|
     set p, 10
@@ -49,8 +49,8 @@ wire_bit:
 |}
 ;;
 
-(* [Uart.rx_on ~pin:20 ~period:10] the same, a good stop bit clocking [isr]'s low byte out
-   as [Spi.master ~half_period:10] does a host word's; no MISO, so its [in] shifts null *)
+(* [Uart.rx_on ~pin:20 ~period:10] again: a good stop bit clocks [isr]'s low byte out like
+   [Spi.master ~half_period:10] does a host word. No MISO, so [in] shifts in null *)
 let controller_source =
   {|
     .side_set 1
@@ -151,9 +151,9 @@ module Outcome = struct
   [@@deriving sexp_of]
 end
 
-(* The pins after each cycle's edge, which show from the next cycle, as IN0's level shows
-   in its cycle: the wire as engine 0 drives it, SCK and MOSI as the chip does. Each frame
-   is the wire's falls, then SCK's rises and falls in eights. *)
+(* The pins after each cycle's edge, seen from the next cycle (IN0's level shows in its own
+   cycle). The wire is as engine 0 drives it, SCK and MOSI as the chip does. A frame is the
+   wire's falls, then SCK's rises and falls, eight of each. *)
 module Watch = struct
   type t =
     { mutable cycle : int
@@ -259,9 +259,9 @@ let rtl ~cycles frames =
   outcome watch frames system mismatch
 ;;
 
-(* On the Tiny Tapeout top: the host loads and certifies engine 1, then engine 0, as a
-   certificate lands only while both are halted, and starts both on one cycle; then IN0
-   carries four frames as far apart as the bridge allows *)
+(* On the Tiny Tapeout top: the host loads and certifies engine 1, then engine 0 (a
+   certificate only lands while both are halted), starts both on one cycle, then IN0
+   carries four frames as close together as the bridge allows *)
 let scenario =
   let open Pin_trace in
   let bytes = [ 0xa5; 0x3c; 0x00; 0xff ] in

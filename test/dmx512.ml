@@ -3,10 +3,10 @@ open Protocol_emulator
 open Pin_trace
 module Reg = Host_port.Reg
 
-(* DMX512, Wikipedia oldid 1380777110, one page; numbers are its line numbers. 250 kbit/s,
+(* DMX512, Wikipedia oldid 1380777110, one page; numbers are its line numbers. 250 kbit/s;
    a slot is a start bit, 8 bits LSB first and two stop bits (line 291). A packet is a
-   break, a mark after break, the start code and 512 channels (lines 292-297), the timing
-   table at lines 303-310. Bits of 192 cycles at 48 MHz. *)
+   break, a mark after break, the start code and 512 channels (lines 292-297); the timing
+   table is at lines 303-310. Bits are 192 cycles at 48 MHz. *)
 let pin = 5
 
 (* The bit at 48 MHz, which the host loads first: [set] reaches only 31. *)
@@ -21,10 +21,10 @@ let config =
   }
 ;;
 
-(* The bit's cycles once, then for each packet a host word with the start code in its low
-   byte, then 256 words of two channels, low byte first. Break 25 bits (100 us), mark
-   after break 4 (16 us). A late word stretches the mark before a channel's start bit,
-   which the spec leaves free (line 311). *)
+(* The bit's cycles once, then per packet a host word with the start code in its low byte,
+   then 256 words of two channels, low byte first. Break is 25 bits (100 us), mark after
+   break 4 (16 us). A late word stretches the mark before a channel's start bit, which the
+   spec leaves free (line 311). *)
 let firmware =
   [%firmware
     {|
@@ -90,7 +90,7 @@ bit:
       ~period]
 ;;
 
-(* [wait tx] can hold the core for ever, far behind its last deadline *)
+(* [wait tx] can hold the core indefinitely, far behind its last deadline *)
 let certified = [ Certified.of_firmware ~no_wrap:true "dmx512" firmware ]
 
 (* the start code, then the 512 channels two a word, low byte first *)
@@ -129,9 +129,9 @@ let bench =
   }
 ;;
 
-(* Bits of the line in the run. No slot is low longer than a start bit and eight zeros, so
-   a longer low is a break; one that is short enough to pass for a slot leaves no break,
-   and the row no bound. Packet time, about 23 ms (line 312), is typical and no row. *)
+(* Bits of the line in the run. No slot is low longer than a start bit plus eight zeros, so
+   a longer low is a break. A low short enough to pass for a slot leaves no break, so the
+   row has no bound. Packet time, about 23 ms (line 312), is typical, so no row. *)
 let limits =
   let sheet line =
     { Datasheet.Sheet.part = "DMX512"
@@ -232,9 +232,9 @@ let limits =
 ;;
 
 (* What sigrok's dmx512 decoder reads of the packet. The line is low from reset until the
-   firmware starts, longer than a break, so the decoder joins once the line has idled
-   high; from reset it reads that low as a break. The teeth cut the break to 83 us, under
-   the 88 a receiver recognises, and flip channel 1's first bit. *)
+   firmware starts, longer than a break, so the decoder only joins once the line has idled
+   high (from reset it would read that low as a break). The teeth cut the break to 83 us,
+   under the 88 a receiver recognises, and flip channel 1's first bit. *)
 let sigrok =
   let line = sprintf "dmx512-1: %s" in
   let byte b = line (sprintf "%d / 0x%x" b b) in
@@ -266,8 +266,8 @@ let sigrok =
   }
 ;;
 
-(* The host writes eight words, then waits out the bits they take, 194 for the first with
-   the break, 176 for the rest, and a few more: the mark stretches before every eighth
+(* The host writes eight words, then waits out the bits they take: 194 for the first with
+   the break, 176 for the rest, and a few more. The mark stretches before every eighth
    word. Then the next packet's start code. *)
 let scenario =
   let words = packet ~start_code:0x00 channels @ [ 0x00 ] in

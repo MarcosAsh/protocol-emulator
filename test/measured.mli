@@ -1,5 +1,5 @@
-(** The times a pin-side model has measured, by name, as the shortest and the longest seen
-    of each, in the order the names first came up. *)
+(** The times a pin-side model has measured, by name: the shortest and longest seen of
+    each, in the order the names first came up. *)
 
 open! Core
 
@@ -11,8 +11,8 @@ val add : t -> name:string -> ns:int -> t
 (** [cycles] at [clock_hz] in ns, to the nearest, as a reading. *)
 val ns : clock_hz:int -> int -> int
 
-(** Whether [cycles] at [clock_hz] last at least, or at most, [ns]: exact, where a reading
-    to the nearest ns is not. *)
+(** Whether [cycles] at [clock_hz] last at least, or at most, [ns]: exact, unlike a reading
+    rounded to the nearest ns. *)
 val at_least : clock_hz:int -> int -> ns:int -> bool
 
 val at_most : clock_hz:int -> int -> ns:int -> bool

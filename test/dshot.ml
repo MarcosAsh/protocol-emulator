@@ -3,9 +3,9 @@ open Protocol_emulator
 
 let pin = 5
 
-(* [zero_high] at most 31, [bit] between [2 * zero_high] and [3 * zero_high]: what the
-   firmware can be written for, not whether the kernel accepts it. [t] is the next rise on
-   entry to [bit], so the tail comes off in steps of the largest immediate. *)
+(* Limits on what the firmware can be written for, not on what the kernel accepts:
+   [zero_high] at most 31, [bit] between [2 * zero_high] and [3 * zero_high]. [t] is the
+   next rise on entry to [bit], so the tail is trimmed in steps of the largest immediate. *)
 let firmware ~zero_high ~bit =
   let tail = (3 * zero_high) - bit in
   if zero_high < 1 || zero_high > 31 || tail < 0 || tail > zero_high

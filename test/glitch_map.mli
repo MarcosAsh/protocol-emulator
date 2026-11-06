@@ -1,15 +1,15 @@
-(** The glitch map. Engine 0 sends 0xFF UART frames on wire 20, each with a low pulse one
-    cycle wide [k] cycles after its start bit shows, and engine 1's [uart_rx] reads them.
-    The receiver's rows name the one [k] each sample sees; a sweep of [k] over the frame
-    holds every byte the receiver pushes to that. *)
+(** The glitch map. Engine 0 sends 0xFF UART frames on wire 20, each with a one-cycle low
+    pulse [k] cycles after its start bit shows, and engine 1's [uart_rx] reads them. The
+    receiver's rows name the one [k] each sample sees, so a sweep of [k] over the frame
+    decides every byte the receiver pushes. *)
 
 open! Core
 open Protocol_emulator
 
-(** Cycles a bit, the one [Certified]'s [uart_rx] is proved at. *)
+(** Cycles per bit, the period [Certified]'s [uart_rx] is proved at. *)
 val period : int
 
-(** Every [k] swept: from the first that leaves the start bit, to two periods past the
+(** Every [k] swept: from the first one that leaves the start bit to two periods past the
     stop bit. *)
 val pulses : int list
 
@@ -46,8 +46,8 @@ module Capture_age : sig
   [@@deriving sexp_of]
 end
 
-(** The receiver's samples along a frame, from its rows, the last the stop bit check. The
-    re-arm after it is [Isa.jmp_cycles] later. *)
+(** The receiver's samples along a frame, from its rows, the last being the stop bit
+    check. The re-arm follows [Isa.jmp_cycles] later. *)
 val samples : Capture_age.t -> Sample.t list
 
 module Outcome : sig
@@ -59,13 +59,13 @@ module Outcome : sig
   [@@deriving sexp_of, equal]
 end
 
-(** What the rows say a pulse at [k] does: a data bit's sample clears that bit, the
-    check's raises the framing error, one at the re-arm is a second edge the receiver
-    refuses, and one after it is a start bit. *)
+(** What the rows say a pulse at [k] does: a data bit's sample clears that bit; the check's
+    raises the framing error; one at the re-arm is a second edge, which the receiver
+    refuses; one after it is a start bit. *)
 val predict : int -> Outcome.t
 
-(** One frame, its word pushed at cycle 10, on the model alone, each engine watching its
-    certificate's premises as the chip does. *)
+(** One frame, its word pushed at cycle 10, on the model alone, with each engine watching
+    its certificate's premises as the chip does. *)
 val model : Image.t -> Outcome.t
 
 (** The same on [Engines] beside the model, with any mismatch. *)

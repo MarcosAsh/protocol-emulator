@@ -78,8 +78,8 @@ end
 
 let rows = Array.of_list (Timed_program.rows receiver)
 
-(* The kernel's step on [mov t, capture] from its row's count since the arm: its next
-   phase is the most [now - capture] it allows at the next entry. *)
+(* The kernel's step on [mov t, capture] from its row's count since the arm: the next phase
+   is the largest [now - capture] it allows at the next entry. *)
 let kernel_after ~mov_pc =
   let open Hardcaml in
   let module K = Kernel.Make (Bits) in
@@ -128,7 +128,7 @@ let capture_offset (age : Capture_age.t) ~mov_pc =
   Interval.minus (Interval.exactly 2) after
 ;;
 
-(* Follows a frame from the capturing wait, the line high at the check, with [t] counted
+(* Follows a frame from the capturing wait with the line high at the check and [t] counted
    from the capture: each pin read samples in the cycle it issues, at its phase past [t]. *)
 let samples age =
   let config = Timed_program.config receiver in

@@ -71,12 +71,12 @@ module Outcome = struct
   [@@deriving sexp_of]
 end
 
-(* the host fills each tx fifo before the start, as a bench host does *)
+(* the host fills each tx fifo before the start, like a bench host *)
 let preloaded = Machine.fifo_depth
 
-(* The host of both engines: a word to each as its tx fifo has room, and a pop of each
-   word the core pushes. [after] sees the model once a cycle has stepped, and [actions]
-   gives the next cycle's. *)
+(* The host for both engines: gives each a word when its tx fifo has room and pops every
+   word the core pushes. [after] sees the model once a cycle has stepped, [actions] gives
+   the next cycle's. *)
 module Host = struct
   type t =
     { queued : int list array
@@ -140,7 +140,7 @@ let outcome (host : Host.t) (system : System.t) mismatch =
   }
 ;;
 
-(* as [System_lockstep] steps the model: pops before the step, tx words after it *)
+(* same order as [System_lockstep] steps the model: pops before the step, tx words after *)
 let model ?(pads = 0) ~cycles ~controller ~target () =
   let sides = [ controller; target ] in
   let host = Host.create sides in
@@ -255,8 +255,8 @@ module Case = struct
 
   let address = 0x42
 
-  (* a write of two bytes, a read of two after a repeated start, then a call to 0x77,
-     which nothing on the wires or the bench's bus answers *)
+(* write two bytes, read two after a repeated start, then call 0x77, which nothing on the
+     wires or the bench bus answers *)
   let i2c_words quarter =
     let word = I2c.word in
     quarter
@@ -303,7 +303,7 @@ module Case = struct
 
   let uart_bytes = [ 0x55; 0xa3; 0x00; 0xff ]
 
-  (* the receiver gets half the bit period, the transmitter the whole *)
+(* the receiver gets half the bit period, the transmitter all of it *)
   let uart_half baud = ((Bench.clock_hz / baud) + 1) / 2
 
   let uart baud =

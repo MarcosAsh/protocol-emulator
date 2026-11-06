@@ -18,10 +18,10 @@ let labels stem =
     [%string "%{stem}%{!n#Int}"]
 ;;
 
-(* [cycles] onto [t] from the deadline last waited on, for the next [wait t]: the part
-   below a [p] of [unit] cycles in adds of up to 7, then a [p] and the other whole [p]s by
-   [wait t+], so the phase is bounded round every loop, in loops of [counter] where one is
-   free. [side] goes on every instruction but [jmp]. *)
+(* Adds [cycles] to [t] from the last deadline waited on, for the next [wait t]. The part
+   below a [p] of [unit] cycles goes in adds of up to 7, then a [p] and the other whole
+   [p]s go by [wait t+], so the phase stays bounded round every loop. Uses loops of
+   [counter] where one is free. [side] goes on every instruction but [jmp]. *)
 let advance ?(side = "") ?counter ~unit ~fresh cycles =
   if cycles < 0 then raise_s [%message "BUG: a deadline behind the last" (cycles : int)];
   let line text = [%string "    %{text}%{side}\n"] in
@@ -268,8 +268,9 @@ module Sweep = struct
 end
 
 (* A point: the kernel accepts [bench] or says why not, and a model run gives every row's
-   value. The sweep's limit set is the rows with each one the point breaks at the point's
-   own value, and the swept parameter's least in the swept timing exactly the design. *)
+   value. The sweep's limit set is the rows, each one the point breaks taken at the
+   point's own value, and the swept parameter's least in the swept timing exactly as
+   designed. *)
 let point ~rows ~parameter ~cycles ~measure ~words ~run_cycles (bench : Bench.t) =
   match
     Timed_program.check ?period:(Bench.period bench) ~config:bench.config bench.source
@@ -327,9 +328,9 @@ module Sk6812 = struct
   (* [p], the longest [set] takes *)
   let unit = 31
 
-  (* A frame is one pixel, 24 bits, three host words of a byte each, MSB first by
-     autopull. Every edge is the instruction after a deadline wait and [y] is free as a
-     counter within each level. The line is low for [gap] between frames. *)
+(* A frame is one pixel: 24 bits, three host words of a byte each, MSB first by autopull.
+     Every edge is the instruction after a deadline wait, and [y] is free as a counter
+     within each level. The line is low for [gap] between frames. *)
   let firmware (timing : Timing.t) =
     let fresh = labels "a" in
     let advance = advance ~fresh ~unit ~counter:"y" in
@@ -633,9 +634,9 @@ module Eeprom = struct
   let setup_overhead = 1
   let free_overhead = 6
 
-  (* [I2c.master_host_rate] without its bus clear, with each START's and repeated START's
-     hold, the data's setup before SCL rises, and the bus free time from a STOP to the
-     next START moved where [timing] says. *)
+(* [I2c.master_host_rate] without its bus clear, with each START's and repeated START's
+     hold, the data setup before SCL rises, and the bus free time from a STOP to the next
+     START moved to where [timing] says. *)
   let firmware (timing : Timing.t) =
     let fresh = labels "e" in
     let advance ~side =
@@ -899,8 +900,8 @@ module Ds18b20 = struct
     }
   ;;
 
-  (* Events of a slot from its fall, in order, actions of one instant together and a
-     sample after a release. The bits are in [osr] inverted, so [out pindirs, 1] lets a
+(* Events of a slot from its fall, in order, with the actions of one instant together and
+     a sample after a release. The bits are in [osr] inverted, so [out pindirs, 1] lets a
      one go. *)
   let slot_events (t : Timing.t) =
     if t.low1 > t.low0
@@ -956,7 +957,7 @@ reset_%{name}:
 |}]
   ;;
 
-  (* Host words after the unit: reset[0], swept[1], byte[9:2]. Each word is answered as
+(* Host words after the unit: reset[0], swept[1], byte[9:2]. Each word is answered like
      the library's: the byte as sampled, or 0 for a presence. [swept] picks the second
      timing for that word. *)
   let firmware ~swept =

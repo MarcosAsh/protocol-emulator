@@ -193,8 +193,9 @@ let phase (m : Machine.t) =
   if d >= 1 lsl (Isa.timer_bits - 1) then d - (1 lsl Isa.timer_bits) else d
 ;;
 
-(* Two repeats end a run: of the state, or of the state less the phase with no deadline
-   wait in between, as only a wait reads the phase; so does a pc no wait lies ahead of. *)
+(* A run ends on a repeat of the state, or of the state less the phase when no deadline
+   wait lies in between (only a wait reads the phase). The same goes for a pc with no wait
+   ahead of it. *)
 let truth ?(horizon = 4_000_000) program =
   if not (sets_x_first program)
   then raise_s [%message "counts x down before setting it" (to_string program : string)];
@@ -270,8 +271,8 @@ module K = Kernel.Make (Hardcaml.Bits)
 
 let empty = (Kernel.Table.of_analyser []).(1)
 
-(* [Kernel.check] with no premises, at the pcs [of_analyser] did not leave empty: the
-   conjuncts of an empty row hold, as [Kernel.conjuncts] gates each on [is_empty]. *)
+(* [Kernel.check] with no premises, at the pcs where [of_analyser] left a row: the
+   conjuncts of an empty row hold, since [Kernel.conjuncts] gates each on [is_empty]. *)
 (* [accepts] by its inputs, which repeat across programs *)
 let accepted = Hashtbl.create (module String)
 

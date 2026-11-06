@@ -1,7 +1,6 @@
-(** Both roles on one chip: engine 0 a controller and engine 1 a target, each the
-    library's firmware, talking on wires no pad shows. A wire is the OR of what the
-    engines drive on it, so I2C rides on wires as [I2c.master_on_wires] and
-    [I2c.slave_on_wires]. *)
+(** Both roles on one chip: engine 0 is a controller, engine 1 a target, each running the
+    library's firmware over wires no pad shows. A wire is the OR of what the engines drive
+    on it, so I2C uses [I2c.master_on_wires] and [I2c.slave_on_wires]. *)
 
 open! Core
 open Protocol_emulator
@@ -15,8 +14,8 @@ module Wire_spi : sig
   val target : Spi_cs.Mode.t -> string
 end
 
-(** One engine's firmware, and the host words it gets: a fifo's worth before the start,
-    the rest each as soon as the fifo has room. *)
+(** One engine's firmware and its host words: a fifo's worth before the start, the rest as
+    soon as the fifo has room. *)
 module Side : sig
   type t =
     { timed : Timed_program.t
@@ -30,14 +29,14 @@ module Outcome : sig
     ; target : int list
     ; faults : Machine.Fault.t list
     ; irq : bool list
-    ; mismatch : System_lockstep.Mismatch.t option (** On the RTL, the first. *)
+    ; mismatch : System_lockstep.Mismatch.t option (** The first mismatch, on the RTL. *)
     }
   [@@deriving sexp_of]
 end
 
 (** [controller] on engine 0 and [target] on engine 1, started together, on the [System]
-    model alone, the pads at [pads], 0 unless given, each watching its certificate's
-    premises as the chip does. *)
+    model alone. The pads read [pads] (0 by default). Each engine watches its certificate's
+    premises, as the chip does. *)
 val model
   :  ?pads:int
   -> cycles:int
@@ -56,10 +55,10 @@ val rtl
   -> Outcome.t
 
 (** What the bench runs: each pair with its host words, every firmware passed by the
-    kernel. I2C writes two bytes to the target at 0x42 and reads two back after a repeated
-    START, then calls 0x77, which nothing answers, in Standard-mode and Fast-mode; SPI
-    sends three frames in each mode, the target answering each byte; UART sends four bytes
-    at each of [Uart.bauds]. *)
+    kernel. I2C: write two bytes to the target at 0x42, read two back after a repeated
+    START, then call 0x77 (nothing answers), in Standard-mode and Fast-mode. SPI: three
+    frames in each mode, the target answering each byte. UART: four bytes at each of
+    [Uart.bauds]. *)
 module Case : sig
   type t =
     { name : string

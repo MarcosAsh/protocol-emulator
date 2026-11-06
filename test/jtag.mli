@@ -27,7 +27,7 @@ module Clock : sig
   [@@deriving sexp_of]
 end
 
-(** Five clocks with TMS high reach Test-Logic-Reset from anywhere, one low goes on to
+(** Five clocks with TMS high reach Test-Logic-Reset from anywhere; one low then goes on to
     Run-Test/Idle. *)
 val reset : Clock.t list
 

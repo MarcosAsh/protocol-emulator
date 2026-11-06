@@ -1,4 +1,5 @@
-(** lfast, TODO: what it is and the spec this file follows, with its revision. *)
+(** LFAST (NXP AN5134 Rev. 0, "Introduction to the Zipwire Interface"): a 33-bit frame of
+    sync, header, payload and stop bit on one pin. *)
 
 open! Core
 open Protocol_emulator

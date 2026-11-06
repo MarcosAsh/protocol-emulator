@@ -20,9 +20,9 @@ val config : Program_config.t
 (** Checked by the kernel when this file compiles. *)
 val firmware : Timed_program.t
 
-(** The host's words for a frame of [bits], MSB first: a header, then 16 bits a word. An
-    [erase_write] frame holds CS low 25.94 ms after it, then a status window. Each frame
-    pushes the last 16 bits sampled from DO. *)
+(** The host's words for a frame of [bits], MSB first: a header, then 16 bits per word. An
+    [erase_write] frame holds CS low 25.94 ms after it, then runs a status window. Each
+    frame pushes the last 16 bits sampled from DO. *)
 val frame : ?erase_write:bool -> bool list -> int list
 
 val ewen : int list

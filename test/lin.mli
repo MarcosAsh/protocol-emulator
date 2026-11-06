@@ -10,7 +10,7 @@ val pin : int
 val config : Program_config.t
 
 (** Checked by the kernel when this file compiles. Takes half a bit, then per frame the
-    response's bytes less one and the PID; pushes each response byte, checksum last. A
+    response's bytes minus one and the PID; pushes each response byte, checksum last. A
     response that never comes stalls it. *)
 val firmware : Timed_program.t
 
@@ -23,7 +23,7 @@ val enhanced : pid:int -> int list -> int
 (** The host words of a frame. *)
 val words : id:int -> data:int list -> int list
 
-(** A slave at [bit] cycles a bit that answers each identifier in [publishes] with its
+(** A slave at [bit] cycles per bit that answers each identifier in [publishes] with its
     data and enhanced checksum, a bit after the PID's stop bit. *)
 module Slave : sig
   type t

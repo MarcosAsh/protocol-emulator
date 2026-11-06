@@ -1,7 +1,7 @@
-(** Datasheet limits on the bench firmware's pins, each with the sheet it is read from,
-    and the firmware's bound at the clock it ships at: the kernel's, on the analyser's
-    rows, or for a width the pin's levels cannot tell apart, an exact run of the words
-    with the host on time. A bound has to clear its limit by the margin, not just meet it. *)
+(** Datasheet limits on the bench firmware's pins, each with the sheet it comes from and the
+    firmware's bound at its shipped clock. The bound is the kernel's on the analyser's rows
+    or, for a width the pin's levels can't tell apart, an exact run of the words with the
+    host on time. A bound has to clear its limit by the margin, not just meet it. *)
 
 open! Core
 open Protocol_emulator
@@ -53,8 +53,8 @@ type t =
   ; bound : Bound.t
   }
 
-(** [spacing ~a ~b () n]: [n] cycles at least before an edge of [a] where [hold] holds of
-    the two pins' bits before it, and since [b]'s last edge where [apart] does. With
+(** [spacing ~a ~b () n]: at least [n] cycles before an edge of [a] where [hold] holds of
+    the two pins' bits before it, and since [b]'s last edge where [apart] holds. With
     [dirs] the bits are the directions. *)
 val spacing
   :  ?dirs:bool
@@ -85,10 +85,10 @@ val run
 
 val lows : Levels.t -> int list
 
-(** Every pin on each cycle of [bench]'s run of [stimulus], a word a cycle by the engine's
-    pin numbers: every line pulled up, nothing else driving, and each burst in once the
-    one before is in the core, its fifo empty and [quiet_pin] quiet for the stimulus'
-    [quiet] cycles. [Bound.Run] takes the levels of its pin's run. *)
+(** Every pin on each cycle of [bench]'s run of [stimulus], one word per cycle by the
+    engine's pin numbers: every line pulled up, nothing else driving, and each burst going
+    in once the previous one is in the core, its fifo empty and [quiet_pin] quiet for the
+    stimulus' [quiet] cycles. [Bound.Run] takes the levels of its pin's run. *)
 val run_pins : Bench.t -> quiet_pin:int -> Bench.Stimulus.t -> int array
 
 (** The levels in a run, one a sample. *)
@@ -116,13 +116,13 @@ val bound : Bench.t -> t -> int option
 (** [t] against [bound] at [clock_hz]. *)
 val verdict : t -> clock_hz:int -> bound:int option -> Verdict.t
 
-(** Every one of [limits] on [bench], found by its name, at [clock_hz], the bench's unless
-    given: the cycles stay as [bound] has them and only their ns move with the clock. *)
+(** Every one of [limits] on [bench], found by name, at [clock_hz] (the bench's by
+    default). The cycles stay as [bound] has them; only their ns move with the clock. *)
 val check : ?clock_hz:int -> t list -> Bench.t -> (t * Verdict.t) list
 
-(** The clocks, in Hz, a bound clears its limit at: a least in ns holds [Up_to] a highest
-    clock, a most [From] a lowest, a least of 0 at every clock [Always]. Exact: [verdict]
-    holds there and not a hertz past. *)
+(** The clocks, in Hz, at which a bound clears its limit: a least in ns holds [Up_to] a
+    highest clock, a most [From] a lowest, and a least of 0 at every clock [Always]. Exact:
+    [verdict] holds there and fails a hertz past. *)
 module Cliff : sig
   type t =
     | Never
@@ -138,9 +138,9 @@ val cliff : t -> bound:int option -> Cliff.t
 val cliffs : t list -> Bench.t -> (t * int option * Cliff.t) list
 
 (** A line per limit: its parameter, the limit, the bound in cycles and ns at [clock_hz],
-    and FAIL where it does not clear the margin. *)
+    and FAIL where it doesn't clear the margin. *)
 val to_string : ?clock_hz:int -> Bench.t -> (t * Verdict.t) list -> string
 
-(** Raises unless every limit clears its margin, and for firmware with no limit that is
-    not [exempt]. *)
+(** Raises unless every limit clears its margin, and for firmware with no limit that isn't
+    [exempt]. *)
 val check_exn : t list -> exempt:(string * string) list -> Bench.t -> unit

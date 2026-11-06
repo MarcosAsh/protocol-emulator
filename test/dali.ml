@@ -28,9 +28,9 @@ let config =
   }
 ;;
 
-(* The host loads the half bit in cycles, then for each frame its data bits less one and
-   the data, msb first from bit 15. Every edge follows a [wait t+]. Each frame is followed
-   by 27 half bits of idle, so forward frames start 61 half bits, 25.4 ms, apart. *)
+(* The host loads the half bit in cycles, then per frame its data bits minus one and the
+   data, msb first from bit 15. Every edge follows a [wait t+]. Each frame is followed by
+   27 half bits of idle, so forward frames start 61 half bits (25.4 ms) apart. *)
 let firmware =
   [%firmware
     {|
@@ -107,9 +107,9 @@ end
 let idle_ns = 2_450_000
 
 (* The far end: each run of the line within 5% of a whole number of half bits of 1/2400 s,
-   a high of more than two ending the frame. The last bit ends a start bit's low after its
-   middle edge; the idle runs from there to the next fall. Where the levels end, the last
-   frame's high, if any, is taken as whole and its idle as cut short. *)
+   with a high of more than two ending the frame. The last bit ends a start bit's low
+   after its middle edge; the idle runs from there to the next fall. If the levels end
+   first, the last frame's high is taken as whole and its idle as cut short. *)
 let read ?(check_idle = true) ~clock_hz levels =
   let open Or_error.Let_syntax in
   let halves cycles = ((cycles * 4800) + clock_hz) / (2 * clock_hz) in
@@ -196,7 +196,7 @@ let rec gaps = function
   | [] | [ _ ] -> []
 ;;
 
-(* QUERY ACTUAL LEVEL (line 247) to short address 1, its S bit set for a command (line
+(* QUERY ACTUAL LEVEL (line 247) to short address 1, with its S bit set for a command (line
    207), and the answer, full brightness (line 202) *)
 let query = Frame.Forward { address = (1 lsl 1) lor 1; opcode = 0xa0 }
 let answer = Frame.Backward 254
@@ -221,9 +221,10 @@ let bench =
   }
 ;;
 
-(* Only the rows with a least or a most: the rate (1200 bit/s, line 157), a packet's 25 ms
-   (line 170), 1.5 s for 64 addresses (line 170) and UP and DOWN's 200 ms fades (lines
-   221-222) are typical. Both bounds are the run's, as the idle is a loop of waits. *)
+(* Only rows with a least or a most are bounded. The rate (1200 bit/s, line 157), a
+   packet's 25 ms (line 170), 1.5 s for 64 addresses (line 170) and UP and DOWN's 200 ms
+   fades (lines 221-222) are typical values, so no row. Both bounds are the run's, as the
+   idle is a loop of waits. *)
 let limits =
   let sheet line =
     { Datasheet.Sheet.part = "DALI"
@@ -281,8 +282,8 @@ let sigrok =
       ]
   ; joins_after = None
   ; rejected = None
-  ; (* edge 0 is the line's rise to idle and edge 3 starts the low half of the first data
-       bit, a zero: held high instead, three half bits high read as the stop *)
+  ; (* edge 0 is the line's rise to idle and edge 3 starts the low half of the first data bit,
+       a zero. Held high instead, three half bits high read as the stop *)
     teeth = [ [ Flip { pin; edge = 3; after = 0; cycles = trace_half_bit } ] ]
   }
 ;;

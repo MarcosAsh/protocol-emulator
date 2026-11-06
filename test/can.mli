@@ -1,10 +1,10 @@
-(** CAN 2.0A transmitter on [tx_pin], recessive high, with the core's CRC-15.
+(** CAN 2.0A transmitter on [tx_pin] (recessive high), with the core's CRC-15.
 
-    The host sends the bit period once, then per frame the number of bits after SOF less
-    one and those bits, ID to the last data bit, MSB first, sixteen to a word. The
+    The host sends the bit period once, then per frame the number of bits after SOF minus
+    one, and those bits (ID to the last data bit, MSB first, sixteen per word). The
     firmware sends SOF, the bits, the CRC, delimiter, ACK slot, ACK delimiter, EOF and
-    intermission, with a stuff bit after five equal bits from SOF to the CRC's last. A
-    frame's words fit the fifo; a late one is an underflow fault, not a moved edge.
+    intermission, with a stuff bit after five equal bits from SOF to the end of the CRC. A
+    frame's words must fit the fifo; a late word is an underflow fault, not a moved edge.
 
     No arbitration, and the ACK slot is not read. The pin is dominant from reset until a
     bit after the period arrives. *)
@@ -19,8 +19,8 @@ val config : Program_config.t
 (** 500 kbit/s at 48 MHz. *)
 val period : int
 
-(** The least period the host may load: the kernel accepts the analyser's rows at every
-    load of it or more. *)
+(** The shortest period the host may load: the kernel accepts the analyser's rows at this
+    load and any longer one. *)
 val shortest_period : int
 
 module Frame : sig
@@ -48,6 +48,6 @@ val line : Frame.t -> bool list
 (** The host words of one frame. *)
 val words : Frame.t -> int list
 
-(** Levels one per bit from SOF, as a decoder samples them: removes the stuff bits, then
+(** Levels, one per bit from SOF, as a decoder samples them. Removes the stuff bits, then
     checks each stuff bit, the CRC, the delimiters, the ACK slot and EOF. *)
 val decode : bool list -> Frame.t Or_error.t

@@ -1,6 +1,6 @@
-(** A CAN 2.0A node on one transceiver, CTX on OUT1 and CRX on IN1, from two firmwares
+(** A CAN 2.0A node on one transceiver (CTX on OUT1, CRX on IN1), built from two firmwares
     kept out of the library: [Receiver] and [Sender]. Engines OR what they drive, so only
-    one of them runs on CTX at a time. Neither arbitrates, sends error or overload frames,
+    one of them may use CTX at a time. Neither arbitrates, sends error or overload frames,
     or counts errors; both take standard data and remote frames only. *)
 
 open! Core
@@ -9,21 +9,22 @@ open Protocol_emulator
 val rx_pin : int
 
 (** CAN 2.0A frames off CRX, resynced on every falling edge, ACKed on CTX when the CRC
-    holds; the ACK delimiter and EOF are not checked. Each frame pushes [words], an error
-    its [Error_code] and [irq], after which it waits for a host word, and first for a
-    dominant bit where the error may leave the capture armed. It takes its ACK not back on
-    CRX by the slot's sample for a transceiver in standby. *)
+    holds. The ACK delimiter and EOF are not checked. Each frame pushes [words]. An error
+    pushes its [Error_code] and [irq], then waits for a host word, and first for a dominant
+    bit, since the error may leave the capture armed. If the ACK is not back on CRX by the
+    slot's sample, it assumes a transceiver in standby. *)
 module Receiver : sig
   (** 500 kbit/s at 48 MHz, sampled at 75%. *)
   val period : int
 
   val sample : int
 
-  (** The least period whose firmware, sampled three quarters in, the kernel accepts. *)
+(** The shortest period the kernel accepts for the firmware sampling three quarters in. *)
   val shortest_period : int
 
-  (** The most cycles CRX may show CTX after, the transceiver's loop and the synchroniser,
-      [sample]: the single edge assumption holds with CRX this late or never showing CTX. *)
+(** The most cycles CRX may take to show CTX (transceiver loop plus synchroniser) at
+      [sample]. The single edge assumption holds up to this delay, or if CRX never shows
+      CTX. *)
   val longest_loop : int
 
   val config : Program_config.t

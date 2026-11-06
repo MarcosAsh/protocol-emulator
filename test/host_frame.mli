@@ -1,7 +1,7 @@
-(** One chip select low period. [bits] is how many clock edges the host gets through
-    before it lets go, fewer than all when it gives up part way, with the clock left high
-    if [release_high]. [stray] clock pulses come first, with chip select high. [half] is
-    the clock's half period, 4 being the clk/8 host_spi.mli allows. [lead], [trail] and
+(** One chip select low period. [bits] is how many clock edges the host gets through before
+    it lets go: fewer than all when it gives up part way, with the clock left high if
+    [release_high]. [stray] clock pulses come first, with chip select high. [half] is the
+    clock's half period (4 is the clk/8 that host_spi.mli allows). [lead], [trail] and
     [gap] are the cycles around the chip select edges. *)
 
 open! Core
@@ -23,6 +23,6 @@ type t =
 (** Words whose last bit was clocked, which are the ones that count. *)
 val complete_words : t -> int
 
-(** Four frames in ten are cut short. [halves] are the half periods to pick from and
-    [edge] the fewest cycles between a chip select edge and a clock edge. *)
+(** Four frames in ten are cut short. [halves] are the half periods to pick from, [edge]
+    the fewest cycles between a chip select edge and a clock edge. *)
 val random : halves:int list -> edge:int -> Splittable_random.t -> t

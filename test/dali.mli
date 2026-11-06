@@ -37,8 +37,8 @@ module Read : sig
 end
 
 (** A model of the far end on the line's levels: each run within 5% of a whole number of
-    half bits, frames of 8 or 16 data bits, and unless [check_idle] is false an idle of at
-    least 2.45 ms after each but the last. *)
+    half bits, frames of 8 or 16 data bits, and (unless [check_idle] is false) an idle of
+    at least 2.45 ms after each frame but the last. *)
 val read
   :  ?check_idle:bool
   -> clock_hz:int

@@ -4,11 +4,11 @@ open Pin_trace
 module Reg = Host_port.Reg
 
 (* FGL-0 Frumbleglide Clockless Telemetry Link, revision 0.9: section 4's timing (p.1) and
-   notes 1-4 (p.2). tCELL's 2.005 to 2.015 us is 96.24 to 96.72 cycles at 48 MHz, and no
-   whole number lies between: a cell is 96 (2.000 us) or 97 (2.021 us), and note 1 holds
-   each cell to the limits, not their average. This firmware is the nearest: two waits of
-   24 and 7864/65536 a half cell, so cells of 96 and 97 averaging 2.010 us, which the
-   limits refuse. *)
+   notes 1-4 (p.2). tCELL's 2.005 to 2.015 us is 96.24 to 96.72 cycles at 48 MHz and no
+   whole number lies between, so a cell is 96 (2.000 us) or 97 (2.021 us), and note 1
+   holds each cell to the limits, not their average. This firmware is the nearest: two
+   waits of 24 and 7864/65536 per half cell, so cells of 96 and 97 averaging 2.010 us,
+   which the limits refuse. *)
 
 let pin = 5
 
@@ -23,9 +23,9 @@ let config =
   }
 ;;
 
-(* Each host word MSB first after six cells of 1, a 1 high then low, a 0 low then high;
-   two [wait t+] step half a cell, as the analyser bounds only a [p] that [set] makes, and
-   [y] holds the bit. *)
+(* Each host word MSB first after six cells of 1; a 1 is high then low, a 0 low then high.
+   Two [wait t+] step half a cell, since the analyser only bounds a [p] that [set] makes,
+   and [y] holds the bit. *)
 let firmware =
   [%firmware
     {|
@@ -93,8 +93,8 @@ let bench =
   }
 ;;
 
-(* Transitions in a frame, from its first rise: after a mid-cell one the next is a cell's
-   boundary within 1.5 us, half a cell, else the next cell's middle. A low past 3 us is
+(* Transitions in a frame, from its first rise: after a mid-cell one, the next is a cell
+   boundary within 1.5 us (half a cell), else the next cell's middle. A low past 3 us is
    idle. *)
 let mids ~clock_hz (levels : (bool * int) list) =
   let idle n = n >= Datasheet.cycles ~clock_hz 3_000. in
@@ -179,7 +179,7 @@ let scenario =
   }
 ;;
 
-(* refused, so not on the bench or in the library's limits: [bench] and [limits] stay for
+(* refused, so not on the bench or in the library's limits; [bench] and [limits] stay for
    the tests' named refusal *)
 let protocol =
   { Protocol.name = "frumbleglide"

@@ -2,9 +2,9 @@
 
 open! Core
 
-(** Transitions in ns, idle low, then per bit its complement and its value, then TP_IDL
-    (high 300 ns) and idle again; each edge moved independently by up to [jitter] ns, the
-    bit [ppm] long or short. Returns them with a time past the end. *)
+(** Transitions in ns: idle low, then per bit its complement and its value, then TP_IDL
+    (high 300 ns) and idle again. Each edge is moved independently by up to [jitter] ns,
+    and the bit is [ppm] long or short. Returns them with a time past the end. *)
 val transitions
   :  random:Random.State.t
   -> ppm:float

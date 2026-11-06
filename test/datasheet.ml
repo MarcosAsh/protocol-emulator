@@ -49,8 +49,8 @@ type t =
 let none ~own:_ ~other:_ = 0
 let never ~own:_ ~other:_ = false
 
-(* [n] cycles at least before an edge of [a] where [hold] holds of the two bits before it,
-   and since [b]'s last edge where [apart] does *)
+(* at least [n] cycles before an edge of [a] where [hold] holds of the two bits before it,
+   and since [b]'s last edge where [apart] holds *)
 let spacing ?(dirs = false) ?(hold = never) ?(apart = never) ~a ~b () n =
   let at f ~own ~other = if f ~own ~other then n else 0 in
   let hold = at hold
@@ -150,7 +150,7 @@ let run_once (bench : Bench.t) ~quiet_pin (stimulus : Bench.Stimulus.t) =
   go machine ~cycle:0 ~queued:[] ~bursts ~quiet:0
 ;;
 
-(* a run of millions of cycles takes seconds, and every limit of a bench copy runs the
+(* a run of millions of cycles takes seconds, and every limit of a bench copy reuses the
    same one *)
 let runs_seen = Hashtbl.Poly.create ()
 
@@ -233,7 +233,7 @@ let rec most ~ok ~lo ~hi =
     if ok mid then most ~ok ~lo:mid ~hi else most ~ok ~lo ~hi:mid)
 ;;
 
-(* in cycles, so the same at every clock: a run's widths are picked out at the clock the
+(* in cycles, so the same at every clock; a run's widths are picked out at the clock the
    firmware ships at *)
 let bound_once (bench : Bench.t) t =
   match t.bound, t.limit with

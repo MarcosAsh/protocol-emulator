@@ -333,7 +333,7 @@ let decode ~clock_hz levels =
 ;;
 
 (* A unit of 18 cycles, as a 32 kHz clock gives, keeps the simulation short: a frame and a
-   repeat code, then a frame on its own, which the host sends 108 ms on. *)
+   repeat code, then a frame on its own, sent by the host 108 ms later. *)
 let scenario =
   let clock_hz = 32_000 in
   let unit = 18 in

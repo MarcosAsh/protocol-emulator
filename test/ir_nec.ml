@@ -19,16 +19,17 @@ module Reg = Host_port.Reg
 
 let pin = 5
 
-(* A third of a 38 kHz period: 422 cycles at 48 MHz is 8.79 us, a 37.9 kHz carrier, so
-   every count of thirds below, made for 38 kHz exactly, comes out at or over its time. *)
+(* A third of a 38 kHz period. 422 cycles at 48 MHz is 8.79 us (a 37.9 kHz carrier), so
+   every count of thirds below, worked out for exactly 38 kHz, comes out at or over its
+   time. *)
 let standard_third = 422
 let shortest_third = 16
 let config = { Program_config.default with set_base = pin; set_count = 1 }
 
-(* The host loads the third once, then per message a word, 0 for a frame and anything else
-   for a repeat code, and for a frame the address and command as one word. The firmware
-   sends each byte then its inverse, so a frame is always 7780 thirds and each message
-   starts at least 12540 thirds, 110 ms, after the one before. [t] is the next third
+(* The host loads the third once, then per message a word: 0 for a frame, anything else for
+   a repeat code. A frame also gets the address and command as one word. The firmware
+   sends each byte then its inverse, so a frame is always 7780 thirds, and each message
+   starts at least 12540 thirds (110 ms) after the one before. [t] is the next third
    throughout; a pulse is high a third and low two. The osr holds the address and its
    inverse, then [isr]'s command and its inverse; a repeat code leaves it empty and [isr]
    zero. *)
@@ -352,9 +353,9 @@ let bench =
 ;;
 
 (* A row for each of limits.tsv's, by its line of spec.txt, each nominal taken as the
-   least. All are the run's, the bursts and spaces being loops of waits. Not the 110 ms
-   repeat code interval, line 36: 5.3 million cycles at 48 MHz, past what [Datasheet]
-   solves a clock for; [decode] holds it to 5%. *)
+   least. All are the run's, since the bursts and spaces are loops of waits. Not the 110 ms
+   repeat code interval (line 36): 5.3 million cycles at 48 MHz is past what [Datasheet]
+   solves a clock for, and [decode] holds it to 5%. *)
 let limits =
   let sheet lines =
     { Datasheet.Sheet.part = "NEC infrared remote"
@@ -453,9 +454,9 @@ let sigrok =
        ])
   ; joins_after = None
   ; rejected = None
-  ; (* a pulse 100 thirds into the 4.5 ms space, after the AGC burst's last fall, edge
-       685; and the second data burst's first rise, edge 730, 128 thirds early, so the
-       address's first bit, a one, reads a zero *)
+  ; (* a pulse 100 thirds into the 4.5 ms space, after the AGC burst's last fall (edge 685);
+       and the second data burst's first rise (edge 730) 128 thirds early, so the address's
+       first bit, a one, reads as a zero *)
     teeth =
       [ [ Flip { pin; edge = 685; after = 100 * shortest_third; cycles = shortest_third }
         ]

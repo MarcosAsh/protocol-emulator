@@ -1,6 +1,6 @@
-(** A bench copy's datasheet limits measured on a capture of its pins, from the rows the
-    kernel and its run check them by: a [Datasheet.Bound.Run]'s own widths, and for a
-    [Datasheet.Bound.Kernel] the spacing the kernel bounds, at every edge it applies at.
+(** A bench copy's datasheet limits measured on a capture of its pins, using the rows the
+    kernel and its run check them by: a [Datasheet.Bound.Run]'s own widths and, for a
+    [Datasheet.Bound.Kernel], the spacing the kernel bounds at every edge it applies at.
     So one table is certified, run and measured. An open drain pin ([dirs]) is taken as
     driven where it reads low. *)
 
@@ -73,11 +73,11 @@ val measure : Datasheet.t list -> Bench.t -> Capture.t -> t list
     the verdict and the sheet. *)
 val to_string : Capture.t -> t list -> string
 
-(** A bench copy's own run at its clock, a sample a cycle, on the pins its limits read,
-    and every edge each limit bounds with the edge it is measured from: a spacing's, as
+(** A bench copy's own run at its clock (a sample per cycle) on the pins its limits read,
+    with every edge each limit bounds and the edge it is measured from: a spacing's, as
     [applications] finds them, or the levels a run bound's width spans. A width is placed
     only where it is a run of whole levels after the first. The run is fed as for the
-    first limit's pin, the host on time. *)
+    first limit's pin, with the host on time. *)
 module Prediction : sig
   type t =
     { firmware : string

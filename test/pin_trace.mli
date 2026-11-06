@@ -1,12 +1,12 @@
-(** Runs a firmware on the Tiny Tapeout top the way a board would, host on the SPI pins
-    and a peer on the rest, and records every pin on every cycle. The cocotb replay drives
-    the recorded inputs into the Verilog, the gate level netlist and the FPGA netlist and
-    expects the recorded outputs back.
+(** Runs a firmware on the Tiny Tapeout top the way a board would, with the host on the SPI
+    pins and a peer on the rest, and records every pin on every cycle. The cocotb replay
+    drives the recorded inputs into the Verilog, the gate level netlist and the FPGA
+    netlist and expects the recorded outputs back.
 
-    Cyclesim does not model the asynchronous reset: registers start at zero, the state
-    [rst_n] low leaves the synchroniser in. Cycle 0 is the first rising clock edge after
-    [rst_n] is released, and the replay holds [rst_n] low before it. Outputs are the
-    values after the edge. *)
+    Cyclesim does not model the asynchronous reset, so registers start at zero (the state
+    [rst_n] low leaves the synchroniser in). Cycle 0 is the first rising clock edge after
+    [rst_n] is released, and the replay holds [rst_n] low before it. Outputs are the values
+    after the edge. *)
 
 open! Core
 open Protocol_emulator
@@ -88,12 +88,12 @@ module Sigrok : sig
     ; expect : (string * string list) list
     (** Per [-A] of sigrok-cli, classes that carry the payload, every line it prints. *)
     ; joins_after : (int * Refusal.t) option
-    (** Cycles the first pin idles high before the decoders join, as a CAN node waits for
-        eleven recessive bits, and how they misread the line before: the check from reset
-        then has to fail just so. *)
+(** Cycles the first pin idles high before the decoders join (as a CAN node waits for
+        eleven recessive bits), and how the decoders misread the line before that: the check
+        from reset then has to fail just so. *)
     ; rejected : Refusal.t option
-    (** How the decoders refuse the waveform, when they are known to: the check then has
-        to fail just so. *)
+(** How the decoders refuse the waveform, when that is known: the check then has to fail
+        just so. *)
     ; teeth : Corruption.t list list (** Each must make the check fail. *)
     }
 

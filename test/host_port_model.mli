@@ -1,6 +1,6 @@
 (** The register map of [Host_port] as the host sees it, one 16-bit word at a time. Only a
-    complete word does anything: a frame cut short before the last bit of a word leaves
-    that word without effect. *)
+    complete word does anything: a frame cut short before a word's last bit leaves that
+    word without effect. *)
 
 open! Core
 open Protocol_emulator

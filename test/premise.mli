@@ -13,7 +13,7 @@ val create : unit -> t
 
 (** [after] is [Machine.step before], perhaps stopped or resumed since. An instruction
     completed when [before] was neither halted nor stalled and [after] has moved past it
-    or begun its delay, and the level is the one [after] sampled. *)
+    or begun its delay; the level is the one [after] sampled. *)
 val record : t -> before:Machine.t -> after:Machine.t -> unit
 
 module Count : sig

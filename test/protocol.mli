@@ -1,6 +1,6 @@
 (** A protocol written once, in a file of its own: its firmware with what each certificate
     rests on, the bench copies with the datasheet limits they are held to, and runs at the
-    pins that sigrok's decoders judge and the engine and model run in lockstep.
+    pins that sigrok's decoders judge and that the engine and model run in lockstep.
     [Library.protocols] lists every one. *)
 
 open! Core
@@ -32,8 +32,8 @@ type t =
     configuration it is certified under, if it is one. *)
 val firmware : t -> Pin_trace.Scenario.t -> Certified.t option
 
-(** [scenario] at a lone engine, the program and configuration it loads, the RTL and
-    [Machine] compared after every edge as [Lockstep.lockstep] does and printing the same.
+(** [scenario] at a lone engine: the program and configuration it loads, the RTL and
+    [Machine] compared after every edge as [Lockstep.lockstep] does, printing the same.
     The tx words written before the start are in the fifo at the start, later ones go in
     as it has room, and every rx word is taken as it comes, with no host port in between,
     so the cycles are not the trace's. Returns the rx words; raises if the engine faults. *)

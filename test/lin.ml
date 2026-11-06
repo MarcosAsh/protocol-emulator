@@ -22,11 +22,11 @@ let config =
   }
 ;;
 
-(* The master: a header, then the slave's response read back a byte a word. The host loads
-   half a bit, then per frame the response's bytes less one (checksum included) and the
-   PID. [t] steps half a bit; each pin write follows its [wait t+]. A response sampled as
-   [Uart.rx_host_rate_on] does; the core already waits at each start edge, so [now] a
-   cycle after the wait releases is the edge's cycle and one. *)
+(* The master: a header, then the slave's response read back one byte per word. The host
+   loads half a bit, then per frame the response's bytes minus one (checksum included) and
+   the PID. [t] steps half a bit; each pin write follows its [wait t+]. The response is
+   sampled as [Uart.rx_host_rate_on] does: the core already waits at each start edge, so
+   [now] a cycle after the wait releases is the edge's cycle plus one. *)
 let firmware =
   [%firmware
     {|
@@ -130,7 +130,7 @@ let words ~id ~data = [ List.length data; pid id ]
 
 (* A slave node at the master's bit rate. It takes a dominant run of 11 bits for a break
    (2.3.1.1), samples each byte field mid bit from its start edge, and answers a PID it
-   publishes a bit after the PID's stop bit with its data and enhanced checksum. *)
+   publishes with its data and enhanced checksum, a bit after the PID's stop bit. *)
 module Slave = struct
   module Field = struct
     type t =
@@ -321,11 +321,11 @@ let bench =
   }
 ;;
 
-(* The header's timing at the pin, every row the run's: the break is a loop of waits,
-   which the kernel counts one pass of. A header runs from the break's fall to the PID's
-   start bit, the seventh fall, and its ten bits after (2.3.1, 2.3.2). Single bits, the
-   levels under a bit and a half, carry the bit rate. Slave-side, wake up, sleep and
-   transport layer rows do not apply to this firmware. *)
+(* The header's timing at the pin, every row the run's: the break is a loop of waits, so
+   the kernel counts one pass of it. A header runs from the break's fall to the PID's start
+   bit (the seventh fall) and its ten bits after (2.3.1, 2.3.2). Single bits, the levels
+   under a bit and a half, carry the bit rate. Slave-side, wake up, sleep and transport
+   layer rows don't apply to this firmware. *)
 let limits =
   let sheet page =
     { Datasheet.Sheet.part = "LIN master"
@@ -457,7 +457,7 @@ let sigrok =
 ;;
 
 (* One frame: the header, then the slave's three bytes and enhanced checksum. The host
-   reads the data and leaves the checksum, as a read never empties the fifo. *)
+   reads the data and leaves the checksum, since a read never empties the fifo. *)
 let scenario =
   { Scenario.name = "lin"
   ; peer

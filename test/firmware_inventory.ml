@@ -2,7 +2,7 @@ open! Core
 open Protocol_emulator
 
 (* Every firmware the repo runs: the library, each test/*.asm under test/firmware.mk's
-   assumptions, and the outside chip acts' firmware. *)
+   assumptions, and the outside chip demos' firmware. *)
 
 type t =
   { name : string
@@ -73,7 +73,7 @@ let asm_cases =
     | Error _ -> None)
 ;;
 
-(* the outside chip acts' firmware, as test/python/write_bench_firmware.ml checks it *)
+(* the outside chip demos' firmware, as test/python/write_bench_firmware.ml checks it *)
 let bench_cases =
   List.map Library.bench ~f:(fun (bench : Bench.t) ->
     let period, floor, single_capture_edge =

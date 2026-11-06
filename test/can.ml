@@ -21,9 +21,9 @@ let config =
   }
 ;;
 
-(* The level before each bit is read back from the pin: a change starts a run, the same
-   level counts it down in y, and y running out is five equal bits. A stuff bit is the
-   complement of the pin and starts a run. SOF is not shifted through the CRC, but a
+(* The level before each bit is read back from the pin. A change starts a run, an equal
+   level counts it down in y, and y running out means five equal bits. A stuff bit is the
+   complement of the pin and starts a run. SOF isn't shifted through the CRC, but a
    dominant bit from 0 leaves it at 0. *)
 let firmware =
   [%firmware
@@ -159,8 +159,8 @@ let words f =
           word lor (Bool.to_int bit lsl (15 - i)))))
 ;;
 
-(* A cursor over the line that removes stuff bits while [stuffed] and fails on one that
-   does not change the level. *)
+(* A cursor over the line that removes stuff bits while [stuffed], and fails on one that
+   doesn't change the level. *)
 let decode levels =
   let open Or_error.Let_syntax in
   let rest = ref levels

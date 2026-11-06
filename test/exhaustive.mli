@@ -67,7 +67,8 @@ end
 val truth : ?horizon:int -> Isa.t array -> Truth.t
 
 (** What [Timed_program.check] decides after assembly: the analyser finds no late row and
-    [Kernel.check] passes its table. Fast, as it checks only the rows the analyser fills. *)
+    [Kernel.check] passes its table. Fast, since it only checks the rows the analyser
+    fills. *)
 val admits : Isa.t array -> bool
 
 (** Why the kernel refuses, from [Kernel.check] itself: the analyser's late rows, else the
@@ -84,7 +85,7 @@ module Report : sig
     ; programs : int
     ; out_of_scope : int (** May count [x] down before setting it. *)
     ; checked : int
-    (** Verdicts [Kernel.check] itself confirmed: every one a figure below names and a
+(** Verdicts [Kernel.check] itself confirmed: every program a figure below names, and a
         sample. *)
     ; truths : (string * int) list
     ; safe : int * int (** Safe programs, and how many of them are admitted. *)
@@ -104,10 +105,10 @@ module Report : sig
 end
 
 (** [admits] of every program in scope, and [refusal] of every one a figure names and
-    every [check_every]th by index, 1000 by default; raises if they disagree. [shard]
+    every [check_every]th by index (1000 by default). Raises if they disagree. [shard]
     [(k, n)] takes the indices [k] modulo [n]. *)
 val run : ?horizon:int -> ?check_every:int -> ?shard:int * int -> Bound.t -> Report.t
 
-(** Counts, precision, the classes and the [top] refusal groups, 10 by default, those
-    whose run waits first, each with whether a table exists for its example if [witness]. *)
+(** Counts, precision, the classes and the [top] refusal groups (10 by default) whose run
+    waits first, each with whether a table exists for its example if [witness]. *)
 val print : ?top:int -> ?witness:bool -> Report.t -> unit

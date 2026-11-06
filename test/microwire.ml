@@ -30,12 +30,12 @@ let config =
   }
 ;;
 
-(* A frame is a header word, bit 15 erase/write and the rest its bits less one, then its
-   bits MSB first, 16 a word, by autopull. [set pins] drives SK in bit 0 and CS in bit 1.
-   DO is sampled after each fall, where sigrok reads it, and the last 16 samples are
-   pushed. [t] is the next rise on entry to [bit]. An erase/write frame holds CS low 65536
-   waits of 19 cycles from a p after its fall, then high two SK highs with no clock, the
-   status window, then low. *)
+(* A frame is a header word (bit 15 erase/write, the rest its bits minus one), then its
+   bits MSB first, 16 per word, by autopull. [set pins] drives SK in bit 0 and CS in bit
+   1. DO is sampled after each fall, where sigrok reads it, and the last 16 samples are
+   pushed. [t] is the next rise on entry to [bit]. An erase/write frame holds CS low for
+   65536 waits of 19 cycles starting a p after its fall, then high for two SK highs with
+   no clock (the status window), then low. *)
 let firmware =
   [%firmware
     {|
@@ -157,8 +157,8 @@ let cycles_ms ms = Float.iround_nearest_exn (ms *. Float.of_int Bench.clock_hz /
 
 (* The NM93C06A as p.6 has it: 16 registers of 16 bits, shifted on SK's rise. READ drives
    a dummy 0 at its last address bit, then the register MSB first, then DI. An erase or
-   write is done if enabled and CS then stays low 10 to 30 ms (note 2). DO is 1 otherwise:
-   ready, or let go and pulled up. *)
+   write is done if enabled, and CS then stays low 10 to 30 ms (note 2). DO is 1
+   otherwise: ready, or let go and pulled up. *)
 module Eeprom = struct
   type t =
     { cs : bool
@@ -340,7 +340,7 @@ let bench =
 
 (* SK's rises inside a frame, rise to rise: a low longer than two highs is the idle
    between frames, where SK stops. A CS low after an erase/write is one the status window
-   ends: a high under 3 SK highs, as a frame's is 4 at least. *)
+   ends: a high under 3 SK highs, since a frame's is at least 4. *)
 let limits =
   let sheet ~part page =
     { Datasheet.Sheet.part

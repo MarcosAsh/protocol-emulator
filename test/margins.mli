@@ -1,7 +1,7 @@
-(** Sweeps of a part's datasheet timings past the sheet's limits, a firmware a point, to
-    find where the part stops answering. The library's limits are never loosened: a point
-    is certified only against its own limit set, with each row it breaks set at its own
-    value, and every point names the rows it breaks. *)
+(** Sweeps of a part's datasheet timings past the sheet's limits, one firmware per point,
+    to find where the part stops answering. The library's limits are never loosened: a
+    point is certified only against its own limit set, with each row it breaks set at its
+    own value, and every point names the rows it breaks. *)
 
 open! Core
 
@@ -17,8 +17,8 @@ module Measured : sig
   val to_alist : t -> (string * (int * int)) list
 end
 
-(** The core from reset, every line pulled up and nothing else driving, each word in as
-    soon as the fifo has room. Raises if it faults. *)
+(** The core from reset with every line pulled up and nothing else driving, each word going
+    in as soon as the fifo has room. Raises if it faults. *)
 module Run : sig
   type t =
     { pins : int array (** Every pin, a word a cycle. *)
@@ -75,7 +75,7 @@ module Sweep : sig
     }
 end
 
-(** A pixel a frame: three host words, green, red, blue, a byte each in the top bits. *)
+(** One pixel per frame: three host words (green, red, blue), a byte each in the top bits. *)
 module Sk6812 : sig
   val words : int * int * int -> int list
   val sweeps : unit -> Sweep.t list
@@ -89,7 +89,7 @@ module Eeprom : sig
   val sweeps : unit -> Sweep.t list
 end
 
-(** Host words after the unit, 1 us: reset[0], swept[1], byte[9:2], each answered as
+(** Host words after the unit (1 us): reset[0], swept[1], byte[9:2], each answered as
     [One_wire]'s are. [swept] picks the point's timing for that word, else the library
     bench's. *)
 module Ds18b20 : sig

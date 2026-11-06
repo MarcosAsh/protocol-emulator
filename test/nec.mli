@@ -2,9 +2,9 @@
     low for a mark. Every time is a whole number of 562.5 us units, which the host loads.
     A frame is a leader, then the address, its inverse, the command and its inverse, each
     bit a unit's mark and a space of 1 unit for a zero or 3 for a one, and a final mark. A
-    repeat code is sent while a key is held, one every 192 units, 108 ms.
+    repeat code is sent while a key is held, one every 192 units (108 ms).
 
-    The host sends the unit once, then per key the three words of [words]. A word late is
+    The host sends the unit once, then per key the three words of [words]. A late word is
     an underflow fault. *)
 
 open! Core
@@ -17,8 +17,8 @@ val standard_unit : int
 
 val standard_half : int
 
-(** The least unit [tx] takes: the kernel accepts the analyser's rows at every load of it
-    or more. *)
+(** The shortest unit [tx] takes: the kernel accepts the analyser's rows at this load and
+    any longer one. *)
 val shortest_unit : int
 
 val config : Program_config.t
@@ -27,17 +27,17 @@ val config : Program_config.t
     next key's leader no sooner. *)
 val tx : Timed_program.t
 
-(** A receiver on [pin], at the half unit the host loads, for a line low in a mark, as
-    from a receiver module. It pushes a frame's 32 bits as two words, the address with its
-    inverse in the high byte, then the command's, and 0xffff for a repeat code. A mark too
-    short for a leader is ignored, but nothing checks a frame's bits, so one cut short
-    leaves the receiver waiting for the rest. *)
+(** A receiver on [pin], at the half unit the host loads, for a line low in a mark, as from
+    a receiver module. It pushes a frame's 32 bits as two words (the address with its
+    inverse in the high byte, then the command's), and 0xffff for a repeat code. A mark too
+    short for a leader is ignored. Nothing checks a frame's bits, so one cut short leaves
+    the receiver waiting for the rest. *)
 val rx_on : pin:int -> string
 
 val rx_config : pin:int -> Program_config.t
 
 (** [rx_on] checked by the kernel at the one load [half]: a bit's capture is armed a
-    deadline wait before its fall, which a range of loads leaves unbounded. *)
+    deadline wait before its fall, which a range of loads would leave unbounded. *)
 val receiver : pin:int -> half:int -> Timed_program.t
 
 (** IO3, the bench's SDA, which Pico B's GP2 can drive and analyser B sees. *)
@@ -58,9 +58,9 @@ end
 (** A key's frame with [repeats] repeat codes after it. *)
 val words : address:int -> command:int -> repeats:int -> int list
 
-(** Decodes one level per cycle, low a mark: every mark and space must be within 5% of its
-    nominal, and each frame's inverses must hold; from one leader or repeat to the next at
-    least 95% of 108 ms. *)
+(** Decodes one level per cycle, low a mark. Every mark and space must be within 5% of its
+    nominal and each frame's inverses must hold. From one leader or repeat to the next must
+    be at least 95% of 108 ms. *)
 val decode : clock_hz:int -> bool list -> (Message.t list * Measured.t) Or_error.t
 
 val protocol : Protocol.t

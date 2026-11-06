@@ -28,25 +28,25 @@ val check_model : dimacs:string -> result:string -> unit Or_error.t
     accepts the model. *)
 val solver : Solver.run_solver
 
-(** A text LRAT proof with its first lemma's first literal negated, which the lemma's
-    hints no longer derive. *)
+(** A text LRAT proof with the first literal of its first lemma negated, so the lemma's
+    hints no longer derive it. *)
 val negate_first_lemma : string list -> string list
 
-(** [solver], but writing a text proof with [negate_first_lemma] applied: teeth, on which
-    a QED's UNSAT must fail [check]. *)
+(** [solver], but writing a text proof with [negate_first_lemma] applied. A teeth check: a
+    QED's UNSAT must then fail [check]. *)
 val solver_with_a_bad_proof : Solver.run_solver
 
-(** cadical's model with its first value negated: the lowest bit the CNF uses of the first
-    input made. *)
+(** cadical's model with its first value negated: the lowest bit of the first input that
+    the CNF uses. *)
 val negate_first_value : string list -> string list
 
-(** [solver], but with [negate_first_value] applied to a model: teeth, on which a
-    counterexample that rests on that bit must fail [check_model]. *)
+(** [solver], but with [negate_first_value] applied to the model. A teeth check: a
+    counterexample that rests on that bit must then fail [check_model]. *)
 val solver_with_a_bad_model : Solver.run_solver
 
-(** Prints QED when every case holds [claim] and the cases cover every input, one query at
-    a time, which SAT finds far easier than all at once. A counterexample prints the
-    inputs in [show], or all of them. *)
+(** Prints QED when every case holds [claim] and the cases cover every input. Cases run one
+    query at a time, which SAT finds far easier than all at once. A counterexample prints
+    the inputs in [show], or all of them. *)
 val prove
   :  ?show:string list
   -> string

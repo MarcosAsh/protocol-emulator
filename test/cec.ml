@@ -5,8 +5,9 @@ let pin = 12
 let standard_unit = 2_500
 let shortest_unit = 7
 
-(* [t] is the next unit on the line throughout; each loop waits it out a unit a pass, [x]
-   counting all but the last. The bit loop ends when the nine bits of a block are out. *)
+(* [t] is the next unit on the line throughout. Each loop waits it out one unit per pass,
+   with [x] counting all but the last. The bit loop ends when the nine bits of a block are
+   out. *)
 let firmware =
   {|
     wait tx
@@ -137,7 +138,7 @@ module Follower = struct
     [@@deriving sexp_of]
   end
 
-  (* the last frame, to its EOM or as far as it came before its initiator gave it up *)
+(* the last frame, to its EOM or as far as it got before its initiator gave up *)
   module Previous = struct
     type t =
       { initiator : int option
@@ -158,8 +159,8 @@ module Follower = struct
     ; acks : bool list
     ; in_frame : bool
     ; free : (int * int) option
-        (* before this frame, checked at its EOM: cycles from the last fall, and the ns of
-           its nominal period in them *)
+(* before this frame, checked at its EOM: cycles since the last fall, and the ns of its
+           nominal period within them *)
     ; previous : Previous.t option
     ; driving_until : int option
     ; frames : (Frame.t * bool list) list
@@ -240,8 +241,8 @@ module Follower = struct
           ~lo:(205 * ms / 100)
           ~hi:(275 * ms / 100)
       | Some (fall, bit) ->
-        (* free from the end of the last bit's nominal period, or a start bit's given up;
-           3 bit periods at least, whatever the frame; which of 3, 5 or 7 at its EOM *)
+(* free from the end of the last bit's nominal period, or from a start bit given up: at
+           least 3 bit periods for any frame; which of 3, 5 or 7 applies is decided at its EOM *)
         let period =
           match bit with
           | Data -> 24 * ms / 10
@@ -264,8 +265,8 @@ module Follower = struct
     { t with fall = Some (t.now, if t.in_frame then Data else Start); driving_until }
   ;;
 
-  (* CEC 9.1's signal free time, in nominal bit periods of 2.4 ms; a retry is the same
-     frame again, as Linux's cec-adap.c takes it *)
+(* CEC 9.1's signal free time, in nominal bit periods of 2.4 ms. A retry is the same frame
+     again, as Linux's cec-adap.c treats it *)
   let check_free t (frame : Frame.t) =
     match t.free, t.previous with
     | Some (cycles, period), Some previous ->
@@ -349,8 +350,8 @@ module Follower = struct
       { t with bits = one :: t.bits })
   ;;
 
-  (* a start bit's period is at most 4.7 ms and a bit's 2.75; the line high past that
-     inside a frame is the initiator giving it up *)
+(* a start bit lasts at most 4.7 ms and a bit 2.75; the line staying high longer inside a
+     frame means the initiator gave up *)
   let aborted t ~low =
     match t.fall with
     | Some (fall, bit) when t.in_frame && not low ->
@@ -481,7 +482,7 @@ let scenario =
   }
 ;;
 
-(* the firmware on the bench's clock, sending a polling message, a header and no data, to
+(* the firmware on the bench's clock, sending a polling message (a header and no data) to
    the TV at 0 *)
 let bench =
   let unit = Bench.cycles_in ~us:50 in
@@ -504,10 +505,10 @@ let bench =
   }
 ;;
 
-(* HDMI 1.3a's bit timings, the line low where anyone pulls it. A low under 1 ms is a
-   one's, to 2.5 ms a zero's and past it a start bit's; a bit runs from its fall to the
-   next, and the last of a frame, whose high runs on past 2.75 ms, has none. All are the
-   run's: the kernel's least low counts one pass of each loop of waits, two units. *)
+(* HDMI 1.3a's bit timings, with the line low wherever anyone pulls it. A low under 1 ms is
+   a one, up to 2.5 ms a zero, and longer a start bit. A bit runs from its fall to the
+   next, and a frame's last bit, whose high runs on past 2.75 ms, has none. All of these
+   are the run's: the kernel's least low counts one pass of each wait loop, two units. *)
 let limits =
   let sheet figure page =
     { Datasheet.Sheet.part = "HDMI-CEC"

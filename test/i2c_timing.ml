@@ -83,8 +83,8 @@ module Bound = struct
     }
 end
 
-(* An instruction's bus edges given SCL before it, and SCL after. Edges show the cycle
-   after issue. *)
+(* An instruction's bus edges, given SCL before it and after it. Edges show the cycle after
+   issue. *)
 let bus_edges (instruction : Isa.t) ~scl =
   match instruction with
   | Jmp _ -> [], scl
@@ -110,7 +110,7 @@ let bus_edges (instruction : Isa.t) ~scl =
     sda @ scl_edge, released
 ;;
 
-(* the later of two times, an end that is [None] being as early or as late as can be *)
+(* the later of two times; a [None] end is as early or as late as possible *)
 let later (a : Interval.t) (b : Interval.t) : Interval.t =
   { lo = Option.merge a.lo b.lo ~f:Int.max; hi = Option.map2 a.hi b.hi ~f:Int.max }
 ;;

@@ -182,9 +182,10 @@ let config =
   }
 ;;
 
-(* Lets SCL go and polls it every four cycles, 65536 times at most, for a slave holding it
-   low. Once high, [t] is set where [master]'s is when SCL rises at once, so what follows
-   is timed from the poll that saw it high, 0 to 3 cycles after the input did. *)
+(* Lets SCL go and polls it every four cycles (65536 times at most) in case a slave is
+   holding it low. Once it reads high, [t] is set where [master]'s is when SCL rises at
+   once, so what follows is timed from the poll that saw it high, 0 to 3 cycles after the
+   input did. *)
 let scl_rise ?(stuck = "stuck") label =
   [%string
     {|    mov y, !null side 0          ; SCL let go
@@ -198,9 +199,9 @@ let scl_rise ?(stuck = "stuck") label =
     add t, p side 0|}]
 ;;
 
-(* [master_loading] waiting on SCL after each release. The bus clear reads SDA by
-   [mov y, pins], so the jump pin can be SCL, and does not wait on SCL: its STOP is the
-   plain master's, so a bus held low from reset answers nothing until a word comes. *)
+(* This is [master_loading] with a wait on SCL after each release. The bus clear reads SDA
+   with [mov y, pins], so the jump pin can be SCL, and it does not wait on SCL. Its STOP is
+   the plain master's, so a bus held low from reset answers nothing until a word comes. *)
 let master_stretch_loading ~load =
   let bus_clear =
     bus_clear_testing
@@ -465,9 +466,9 @@ let logger_config =
   { config with out_base = logger_uart_pin; out_count = 1; out_shift = Left }
 ;;
 
-(* Two protocols on one core: read a byte from the I2C slave at 0x50, log it over UART on
-   OUT0, forever. Periods are immediates so the timing is fixed at assembly. The data bit
-   is set on both branches of a jump so its edge lands at the same cycle either way. *)
+(* Two protocols on one core: read a byte from the I2C slave at 0x50 and log it over UART
+   on OUT0, forever. Periods are immediates, so the timing is fixed at assembly. The data
+   bit is set on both branches of a jump so its edge lands on the same cycle either way. *)
 let logger =
   [%firmware
     {|
@@ -555,8 +556,8 @@ ubit:
       ~config:logger_config]
 ;;
 
-(* Both stamps are the instruction after a pin wait, and both pins pass one synchroniser,
-   so their difference is the gap between the edges as sampled: exact to a cycle. *)
+(* Both stamps are the instruction after a pin wait and both pins pass one synchroniser,
+   so their difference is the gap between the edges as sampled, exact to a cycle. *)
 let start_hold ~sda ~scl =
   [%string
     {|
@@ -633,9 +634,9 @@ let bench =
   ]
 ;;
 
-(* The kernel times the master's pins, so a width from a release to the next edge loses
-   the line's rise, which [rise] gives. [times] are each parameter's least, in ns, and
-   where the sheet gives it. *)
+(* The kernel times the master's pins, so a width from a release to the next edge loses the
+   line's rise, which [rise] gives. [times] holds each parameter's least in ns, where the
+   sheet gives one. *)
 let limits_with ~sheet ~rise ~times firmware =
   let scl = Datasheet.side_pin
   and sda = Datasheet.set_pin in
@@ -698,8 +699,8 @@ module Mode = struct
   [@@deriving sexp_of]
 end
 
-(* UM10204's own rows, for any device on the bus, with the mode's slowest rise, tr; and
-   the clock's period from a run, as SCL's rate is at most fSCL *)
+(* UM10204's own rows, for any device on the bus, using the mode's slowest rise, tr; and
+   the clock period from a run, since SCL's rate is at most fSCL *)
 let um10204 (mode : Mode.t) firmware =
   let column, rate, rise, times =
     match mode with
@@ -755,13 +756,13 @@ let um10204 (mode : Mode.t) firmware =
 ;;
 
 (* Standard-mode and Fast-mode on the bench's bus, each at the fastest clock its limits
-   allow at 48 MHz: 99.2 kHz, and 375 kHz, as an even clock's low of 1.3 us leaves no 400 *)
+   allow at 48 MHz: 99.2 kHz and 375 kHz (an even clock with a 1.3 us low can't reach 400) *)
 let standard_quarter = 121
 let fast_quarter = 32
 
-(* The same, with a clock's low or high cut short, so that its period is the 1/fSCL row's
-   one-cycle margin past the limit, as 4 quarters is too long: the low is two quarters, or
-   what TLOW needs, and the high is what is left. 481 cycles is 99.79 kHz, and 121 is
+(* The same, with a clock's low or high cut short so its period is the 1/fSCL row's
+   one-cycle margin past the limit (4 quarters is too long): the low is two quarters, or
+   what TLOW needs, and the high is what is left. 481 cycles is 99.79 kHz and 121 is
    396.69 kHz. [sub t] goes by 7 at most. *)
 let asym_standard_quarter = 127
 
@@ -809,8 +810,8 @@ let standard_and_fast =
       })
 ;;
 
-(* On wires, whose OR carries each line's pull: the master without its bus clear, whose
-   START then STOP [slave] reads as an address bit, and nothing outside can hold a wire *)
+(* On wires, whose OR carries each line's pull: the master without its bus clear (its START
+   then STOP is read by [slave] as an address bit), and nothing outside can hold a wire *)
 let wire_sda = Isa.num_pins
 let wire_scl = Isa.num_pins + 1
 let wire_pins = [ sda, wire_sda; scl, wire_scl ]

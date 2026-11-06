@@ -3,17 +3,17 @@ open Protocol_emulator
 open Pin_trace
 module Reg = Host_port.Reg
 
-(* Chinese Scales (no revision), page 1, "Chinese Scale Protocol", lines 51-84 of the
-   spec: a 48-bit frame of two 24-bit position words, LSB first, clocked at about 90 kHz
-   with the clock idling high and pausing before, between and after the words. This is the
-   scale's end: data moves just after each rise, so it holds through the fall the receiver
-   samples at. The host feeds the frames and so paces the 300 ms and 20 ms update periods. *)
+(* Chinese Scales (no revision), page 1, "Chinese Scale Protocol", spec lines 51-84. A frame
+   is 48 bits: two 24-bit position words, LSB first, clocked at about 90 kHz. The clock
+   idles high and pauses before, between and after the words. This is the scale's end: data
+   moves just after each rise, so it is stable at the fall the receiver samples. The host
+   feeds the frames, so it sets the 300 ms and 20 ms update periods. *)
 
 (* the clock is OUT0 and the data OUT1 *)
 let pin = 5
 
-(* 270 cycles is 5.625 us, 88.9 kHz, under the spec's 90 kHz. Ten are 56 us and twenty 113
-   us, over the 55 and 110 us pauses. *)
+(* 270 cycles = 5.625 us = 88.9 kHz, under the spec's 90 kHz. Ten half periods are 56 us
+   and twenty 113 us, over the 55 and 110 us pauses. *)
 let half_period = 270
 
 let config =
@@ -25,9 +25,9 @@ let config =
   }
 ;;
 
-(* The host's first word is the half period in cycles, then four words a frame: each
-   24-bit position as 16 and 8. Pauses are counts of half periods: ten before the first
-   fall, twenty between the words, ten after the last rise. *)
+(* The host's first word is the half period in cycles. Then four words per frame: each
+   24-bit position as 16 bits and 8 bits. Pauses are counts of half periods: ten before the
+   first fall, twenty between the words, ten after the last rise. *)
 let firmware =
   [%firmware
     {|
@@ -129,11 +129,11 @@ let bench =
   }
 ;;
 
-(* The spec's timing is nominal, taken as the least the scale waits: a clock no faster
-   than 90 kHz (half period 5555.5 ns) and pauses of at least 55, 110 and 55 us. The host
-   paces the update periods, so no row bounds them. The last pause runs into the next
-   frame's first, so that row reads both. Highs of the run: 0 is the first pause, 24 the
-   one between the words, 48 the last. *)
+(* The spec's timing is nominal, so we take it as the minimum the scale waits: a clock no
+   faster than 90 kHz (half period 5555.5 ns) and pauses of at least 55, 110 and 55 us.
+   The host paces the update periods, so no row bounds them. The last pause runs into the
+   next frame's first, so that row covers both. Highs of the run: 0 is the first pause, 24
+   the one between the words, 48 the last. *)
 let limits =
   let sheet lines =
     { Datasheet.Sheet.part = "Chinese digital scale"
@@ -181,9 +181,9 @@ let limits =
 ;;
 
 (* sigrok's caliper decoder reads 24 bits at the clock's rises, 16 of number and 8 of
-   flags, so each word on its own: 1/2000 inch if the last flag is set, sign in the fifth,
-   not the spec's 1/20480 inch two's complement. The clock rises once at start, which it
-   takes for a bit, so it joins once the clock idles. *)
+   flags, so each word is decoded on its own: 1/2000 inch if the last flag is set, sign in
+   the fifth, not the spec's 1/20480 inch two's complement. The clock rises once at start,
+   which it takes for a bit, so it only joins once the clock idles. *)
 let sigrok =
   { Sigrok.clock_hz = 48_000_000
   ; decoders = [ Sigrok.decoder "caliper" ~pins:[ "clk", pin; "data", pin + 1 ] ]
