@@ -286,7 +286,7 @@ module Make (Timer : Timer) = struct
     let%hw data_ptr_next = wire Isa.data_addr_bits in
     let%hw data_moved = wire 1 in
     let%hw ir_load = wire 1 in
-    (* a start reaches only a halted core, so none cuts a running program short *)
+    (* only a halted core sees start, so it can't cut a running program short *)
     let%hw starting = i.start &: halted in
     let%hw start = reg spec starting in
     let%hw tx_pop = wire 1 in
@@ -305,9 +305,9 @@ module Make (Timer : Timer) = struct
         scope
         { clocking = i.clocking; push = rx_push; pop = i.rx_pop; flush }
     in
-    (* an empty fifo's head is a stale word, from power-up until its memory has filled *)
+    (* an empty fifo's head is stale (power-up junk until its memory has filled) *)
     let%hw rx_head = mux2 rx.empty (zero data_bits) rx.head in
-    (* a write or a read while the core runs would take the memory from the fetch *)
+    (* a host read or write while the core runs would steal the memory from the fetch *)
     let%hw program_write = i.program_write.valid &: halted in
     (* halted stays high through a start and the fetch of pc 0 a cycle later *)
     let%hw free = halted &: ~:(i.start |: start) in
@@ -329,7 +329,7 @@ module Make (Timer : Timer) = struct
       | Flops -> Program_memory.hierarchical scope memory_in
       | Ihp_sram -> Sram_macro.hierarchical scope memory_in
     in
-    (* refilled after a jump or start, which is the jump's second cycle *)
+    (* refill after a jump or start; for a jump this is its second cycle *)
     let%hw word = reg spec ~enable:ir_load memory.dout in
     let%hw sample =
       List.init num_pins ~f:(fun n ->
@@ -378,8 +378,8 @@ module Make (Timer : Timer) = struct
       =
       d
     in
-    (* decoded off the memory and registered, so register enables start from a flop;
-       neither depends on the config *)
+    (* decode straight off the memory and register it, so register enables start at a
+       flop. Neither depends on the config. *)
     let fetched = D.decode ~side_set_count:c.side_set_count memory.dout in
     let%hw decode_ok = reg spec ~enable:ir_load ~clear_to:vdd fetched.valid in
     let%hw_list is_opcode =
@@ -390,7 +390,8 @@ module Make (Timer : Timer) = struct
           ~clear_to:(of_bool (Isa.Opcode.to_int op = 0))
           (Isa.Opcode.Of_signal.is fetched.opcode op))
     in
-    (* on flops of its own, away from [word]'s fanout, once the slowest path to memory *)
+    (* its own flops, away from [word]'s fanout: this used to be the slowest path to
+       memory *)
     let%hw wait_select =
       reg
         spec
@@ -400,11 +401,11 @@ module Make (Timer : Timer) = struct
     in
     let is op = List.nth_exn is_opcode (Isa.Opcode.to_int op) in
     let is_sys op = is Sys &: Isa.Sys_op.Of_signal.is sys_op op in
-    (* routed, the rx fifo is the next engine's tx fifo *)
+    (* when routed, our rx fifo is the next engine's tx fifo *)
     let%hw rx_full = mux2 c.route i.route_full rx.full in
-    (* The line table, written like the program while halted: a state's two entries, and
-       the modes. One lookup serves both sides, at the state an in or an out steps, off
-       flops, so the serial bit only picks one of the two. *)
+    (* The line table, written like the program while halted: two entries per state, plus
+       the modes. One registered lookup at the state an in or out steps serves both sides,
+       so the serial bit only has to pick one of the two entries. *)
     let%hw line_write = i.line_write.valid &: halted in
     let writes_word n = line_write &: (i.line_write.addr ==:. n) in
     let entry_bits = Line_code.entry_bits in
@@ -416,8 +417,8 @@ module Make (Timer : Timer) = struct
           ~enable:(writes_word s)
           (d.:[8 + entry_bits - 1, 8] @: d.:[entry_bits - 1, 0]))
     in
-    (* transmit relative, receive relative, transmit toggle, receive toggle, the receive
-       side's first state, and transmit stuffing *)
+    (* modes: transmit relative, receive relative, transmit toggle, receive toggle, the
+       receive side's first state, transmit stuffing *)
     let%hw line_modes =
       reg
         spec
@@ -474,7 +475,8 @@ module Make (Timer : Timer) = struct
     let%hw op_go = go &: ~:(is Jmp) in
     let%hw wait_holds = is Wait &: ~:wait_ready in
     let%hw advance = op_go &: ~:wait_holds in
-    (* off [pc] and the config alone, so the fetch reads ahead across the wrap for free *)
+    (* depends only on [pc] and the config, so the fetch reads ahead across the wrap for
+       free *)
     let after addr = mux2 (addr ==: c.wrap_top) c.wrap_bottom (addr +:. 1) in
     let%hw pc_next = after pc in
     let%hw jmp_target_or_next = mux2 jmp_taken jmp_target pc_next in
@@ -492,7 +494,7 @@ module Make (Timer : Timer) = struct
     let%hw line_bit =
       line_rx_entry.:(Line_code.out_bit) ^: (line_modes.:(3) &: line_last)
     in
-    (* a dropped bit reaches nothing but the state *)
+    (* a dropped bit only changes the state *)
     let%hw line_drop = line_in &: line_rx_entry.:(Line_code.flag_bit) in
     let%hw in_source_value =
       Isa.In_source.Of_signal.match_
@@ -547,7 +549,7 @@ module Make (Timer : Timer) = struct
     let%hw crc_poly = c.crc_poly_high @: c.crc_poly in
     let%hw crc_init = c.crc_init_high @: c.crc_init in
     let%hw crc_out_bit = Crc_step.out_bit ~width:c.crc_width ~reflect:c.crc_reflect crc in
-    (* a single bit out of a sending CRC replaces the osr's *)
+    (* while a CRC is being sent, its bit goes out instead of the osr's *)
     let%hw out_value =
       mux2
         (crc_sending &: (shift_count ==:. 1))
@@ -627,13 +629,13 @@ module Make (Timer : Timer) = struct
         alu_op
         [ Add, v +: operand; Sub, v -: operand; Xor, v ^: operand ]
     in
-    (* Manchester second half, then side-set, then the instruction's write *)
+    (* pin writes, in order: Manchester's second half, the side-set, the instruction's own *)
     let output_pin n = n >= first_output_pin && n < Isa.first_status_pin in
     let bidir_pin n = n >= first_bidir_pin && n < Isa.num_pins in
     let side_count = uresize c.side_set_count ~width:count_bits in
     let set_count = uresize c.set_count ~width:count_bits in
     let two = of_unsigned_int ~width:count_bits 2 in
-    (* the complement on [out_base] and the bit beside it *)
+    (* [out_base] gets the complement and the pin after it gets the bit *)
     let manchester_pair bit = uresize (bit @: ~:bit) ~width:data_bits in
     let%hw pin_out_flipped =
       mux2
@@ -664,8 +666,8 @@ module Make (Timer : Timer) = struct
     in
     let%hw pin_out_base = mux2 c.side_set_pindirs pin_out_flipped pin_out_side in
     let%hw pin_dir_base = mux2 c.side_set_pindirs pin_dir_side pin_dir in
-    (* a bit no write reaches keeps the clear's zero, as formal/unreachable.sv proves, so
-       coverage waives its toggles; a random power-up value still turns off at the clear *)
+    (* a bit no write can reach stays at the clear's zero (formal/unreachable.sv proves
+       it), so coverage waives its toggles. A random power-up value still clears. *)
     let unwritten ~writable r =
       List.filter (List.range 0 num_pins) ~f:(Fn.non writable)
       |> List.concat_map ~f:(fun bit ->
@@ -680,8 +682,8 @@ module Make (Timer : Timer) = struct
       write_pins pin_dir_base ~base ~count ~value ~writable:bidir_pin
     in
     let%hw manchester_out = c.manchester &: (shift_count ==:. 1) in
-    (* the table drives the pin, or flips it, and the next as its complement, through the
-       out's own write *)
+    (* with a line code, the table drives or flips the pin (and the next one as its
+       complement) through the out instruction's own write *)
     let%hw line_out = c.line_code &: ~:(c.manchester) &: (shift_count ==:. 1) in
     let%hw out_pin = pin_of pin_out_base c.out_base in
     let%hw line_steps_out =
@@ -805,7 +807,7 @@ module Make (Timer : Timer) = struct
     let%hw releases_deadline =
       is Wait &: Isa.Wait_source.Of_signal.is wait_source Deadline &: wait_ready
     in
-    (* the part of the period below the cycle builds up under [t] and carries into it *)
+    (* the period's fraction of a cycle accumulates below [t] and carries into it *)
     let%hw fraction_sum =
       let wide x = uresize x ~width:(fraction_bits + 1) in
       wide t_fraction +: wide c.period_fraction
@@ -827,7 +829,7 @@ module Make (Timer : Timer) = struct
         ; Alu, mux2 (Isa.Alu_dest.Of_signal.is alu_dest T) (alu_apply t) t
         ]
     in
-    (* any other write to [t] starts it on a whole cycle *)
+    (* any other write to [t] clears its fraction *)
     let%hw t_fraction_next =
       by_opcode
         ~default:t_fraction
@@ -879,11 +881,12 @@ module Make (Timer : Timer) = struct
       &: (pin_of sample c.capture_pin <>: pin_of pins_sampled c.capture_pin)
       &: (pin_of sample c.capture_pin ==: c.capture_rising)
     in
-    (* The premises a certificate may rest on, as Machine watches them. Where the kernel
-       takes p as a period, a p last written other than by a set carries the loaded
-       period, or at least it. The capture pin is at the other level when capture_arm
-       takes effect and, once at the captured level, stays there until a wait for it
-       releases. The fault rises the cycle one fails. *)
+    (* The premises a certificate may rest on, watched the same way Machine does:
+       - where the kernel treats p as a period, a p not last written by a set holds the
+         loaded period (or at least it, with a floor);
+       - the capture pin is at the other level when capture_arm takes effect, and once it
+         reaches the captured level it stays there until a wait on it releases. The fault
+         rises in the cycle a premise fails. *)
     let%hw writes_p =
       is Mov
       &: Isa.Mov_dest.Of_signal.is mov_dest P
@@ -929,7 +932,8 @@ module Make (Timer : Timer) = struct
     let%hw armed_at_level = arms &: capture_level in
     let%hw second_edge = holding &: seen &: ~:capture_level in
     let%hw edge_off = i.premises.single_edge &: (armed_at_level |: second_edge) in
-    (* cleared while halted, so a start the running core ignores leaves the guard alone *)
+    (* only cleared while halted, so a start the running core ignores leaves the guard
+       alone *)
     holding <-- reg spec (mux2 halted gnd @@ mux2 arms vdd @@ mux2 releases gnd holding);
     seen
     <-- reg
@@ -954,7 +958,8 @@ module Make (Timer : Timer) = struct
       @@ mux2 jmp_go jmp_target_or_next
       @@ mux2 advance pc_next pc
     in
-    (* sums taken off the register, so no adder follows control on the way to memory *)
+    (* add from the registered value, so no adder sits after the control logic on the path
+       to memory *)
     let%hw pc_after_next =
       mux2 start (after (zero pc_bits)) @@ mux2 advance (after pc_next) pc_next
     in
@@ -976,8 +981,8 @@ module Make (Timer : Timer) = struct
       }
     in
     let%hw.Fault.Of_signal fault = Fault.map faulting ~f:sticky in
-    (* every fault in one flop, so a gate on any fault starts at a flop and not at their
-       OR *)
+    (* all faults ORed into one flop, so logic gated on "any fault" starts at a flop
+       instead of an OR tree *)
     let%hw faulted = sticky (Fault.to_list faulting |> reduce ~f:( |: )) in
     let%hw pushed = op_go &: pushes &: ~:rx_full in
     let%hw push_value = mux2 (is In) isr_shifted isr in
@@ -998,7 +1003,7 @@ module Make (Timer : Timer) = struct
     t_fraction <-- t_fraction_reg;
     let%hw seeks = op_go &: is_sys Seek in
     let%hw pulls_data = op_go &: is Out &: pull_data_ok in
-    (* the pointer is at 0 from the start pulse on, so the word is there by the first
+    (* the pointer sits at 0 from the start pulse on, so the word is ready by the first
        issue *)
     data_ptr_next
     <-- mux2 (starting |: start) (zero Isa.data_addr_bits)

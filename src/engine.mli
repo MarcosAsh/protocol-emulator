@@ -1,8 +1,8 @@
-(** The core, with [Machine]'s semantics; the tests keep them in lockstep. Memory reads
-    one address ahead of [pc], so a jump spends its second cycle refilling.
-    [program_write] counts only while halted and never with [start]. [start] fetches
-    address 0 for a cycle, so the first instruction issues two cycles later at [now = 0];
-    a running core ignores [start]. *)
+(** The core. It implements [Machine]'s semantics, and the tests run the two in lockstep.
+    Memory reads one address ahead of [pc], so a jump spends its second cycle refilling.
+    [program_write] only counts while halted, and never together with [start]. [start]
+    fetches address 0 for one cycle, so the first instruction issues two cycles later at
+    [now = 0]. A running core ignores [start]. *)
 
 open! Core
 open! Hardcaml
@@ -67,10 +67,10 @@ module Fault : sig
   [@@deriving hardcaml]
 end
 
-(** What the chip's check took the certificate to assume, as [Load_checker.Setup] and
-    [Machine.Premises]: the period every write to [p] other than a set carries, or with
-    [floor] the least, and the single-edge assumption. The core faults the cycle either
-    fails. *)
+(** The assumptions the chip's check accepted the certificate under (as in
+    [Load_checker.Setup] and [Machine.Premises]): the period every write to [p] other than
+    a set carries (with [floor], the minimum), and the single-edge assumption. The core
+    faults in the cycle either one fails. *)
 module Premises : sig
   type 'a t =
     { period : 'a With_valid.t
@@ -141,9 +141,9 @@ module I : sig
   [@@deriving hardcaml]
 end
 
-(** The timer's width, [Isa.timer_bits] on the chip. A narrower one wraps within reach of
-    a bounded proof; [t], [now] and [capture] narrow with it, and a mov or an in of one
-    reads it zero-extended. *)
+(** Timer width, [Isa.timer_bits] on the chip. A narrower timer wraps within reach of a
+    bounded proof. [t], [now] and [capture] shrink with it, and a mov or in of one reads
+    it zero-extended. *)
 module type Timer = sig
   val timer_bits : int
 end
@@ -170,8 +170,8 @@ module Make (_ : Timer) : sig
       ; stall : 'a (** Cycles until the next issue. *)
       ; halted : 'a
       ; free : 'a
-      (** Halted, and not starting now or a cycle ago: the program port and data turn
-          serve no fetch. *)
+      (** Halted, and not starting now or in the last cycle, so no fetch is using the
+          program port or the data turn. *)
       ; irq : 'a
       ; fault : 'a Fault.t
       ; faulted : 'a (** Any of [fault], as one flop. *)

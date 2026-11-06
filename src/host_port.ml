@@ -54,7 +54,7 @@ module Reg = struct
   let stamp_pins_lo = 0x50
   let stamp_pins_hi = 0x51
 
-  (* unused, so the fields after 0x2b and 0x2c stay where existing hosts write them *)
+  (* 0x2b and 0x2c are unused so the fields after them stay where existing hosts expect *)
   let reserved = [ 0x2b; 0x2c ]
 
   let configs =
@@ -126,7 +126,7 @@ module Make (Config : Config) = struct
 
   let create (scope : Scope.t) (i : Signal.t I.t) =
     let spec = Clocking.to_spec i.clocking in
-    (* one engine needs no select, and the chip with one stays as it was *)
+    (* with one engine there's no select, so that build is unchanged *)
     let select =
       Option.some_if
         (engines > 1)
@@ -183,7 +183,7 @@ module Make (Config : Config) = struct
     let at n = addr ==:. n in
     let reg16 x = uresize x ~width:Isa.data_bits in
     let key n = of_unsigned_int ~width:(width addr) n in
-    (* read beside each engine, so one word per engine crosses the chip *)
+    (* muxed next to each engine, so only one word per engine crosses the chip *)
     let engine_read read_addr ((s : _ Status.t), other_irq) =
       let status_word =
         concat_msb
@@ -416,7 +416,7 @@ module Make (Config : Config) = struct
         }
     ; start_all = strobe Reg.control &: value.:(5)
     ; frame =
-        { (* a cycle late, so the receiver it arms is the one the same write picks *)
+        { (* a cycle late, so it arms the receiver that the same write selects *)
           arm = reg spec (strobe Reg.frame_control &: value.:(0))
         ; base = frame_base.value
         ; fifty = frame_fifty.value

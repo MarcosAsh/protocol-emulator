@@ -1,35 +1,65 @@
 (** The host's SPI view of the core. A frame is a command byte (write bit, 7-bit register)
-    then 16-bit words high byte first; more words repeat the access.
+    followed by 16-bit words, high byte first. Extra words repeat the access.
 
-    Registers: 0 control (bit 0 start, 1 clear irq, 2 stop, 3 flush, 4 check, 5 start
-    every engine at once), 1 status, 2 pc, 3-4 now, 5-6 capture, 7 tx, 8 rx (read pops), 9
-    program address, 10 program word, 11 select, 12 data address, 13 data word (writes to
-    10 and 13 increment the address), 16 on the config fields, write-only and reading
-    zero; for [Load_checker], 64 the certificate's base, 65 the loaded period, 66 its
-    flags (bit 0 loaded, 1 single edge, 2 the loaded period a floor), 67 the check's
-    status (bit 0 busy, 1 accepted, 2 certified, 3 refused), 68 the pc and 69 the reason
-    it refused; 70 the [Line_code] table's state and 71 its word (writes increment the
-    state); for [Frame_rx], whatever the select, 72 its control (bit 0 arms, 1 a 50 MHz
-    clock or for USB a re-arm at each packet's end, 6-2 the pad, 7 [Usb_frame_rx] in its
-    place, D- on the next pad, 8 up the engine they belong to, which alone sees their
-    status pins), 73 the data address a frame lands at, 74 its status (bits 9-0 the words,
-    10 finished, 11 FCS good or USB's CRC-16, 12 a half last word, 13 a word dropped, 14
-    in a frame, 15 armed), 75 USB's flags (bit 0 CRC-5 good, 1 CRC-16 good, 2 a stuffing
-    error, 3 whole bytes); for [Edge_stamps], whatever the select, 76 the mask of pins
-    0-15, 77 pins 16-19 in bits 3-0 and in bit 4 the engine whose clock times them (a
-    write to either empties the queue), 78-79 the head's time (79 bits 7-0 its top, 10-8
-    the queue's level, 15 lost), 80-81 the pads it saw (reading 81 pops). Program, data,
-    config, table, check and flush take effect only while halted, so a flush needs its own
-    write after the stop, and a start only once the engine is certified. Control bit 5
-    starts every engine on one cycle, whatever the select, and only with all halted and
-    certified. 43 and 44 are reserved and read zero; config skips them to keep
-    [autopull_data] and [manchester] at 45-46 for existing hosts.
+    {v
+     0      control: bit 0 start, 1 clear irq, 2 stop, 3 flush, 4 check,
+            5 start every engine at once
+     1      status
+     2      pc
+     3-4    now
+     5-6    capture
+     7      tx
+     8      rx (reading pops)
+     9      program address
+     10     program word (writing increments the address)
+     11     select
+     12     data address
+     13     data word (writing increments the address)
+     16-    config fields, write-only, read as zero. 43 and 44 are reserved and
+            read zero, so autopull_data and manchester stay at 45-46 for
+            existing hosts.
 
-    Select picks the engine for every register but the two addresses. It resets to 0 and
-    keeps its low [ceil_log2 engines] bits, so on two engines 2 is engine 0; a value past
-    the last engine, as 3 on three, reaches none and reads zero. Status bit 15 flags
-    another engine's irq and bit 14 [Engine.Fault.assumption]. With one engine there is no
-    select and bit 15 stays low. *)
+     Load_checker
+     64     certificate base
+     65     loaded period
+     66     flags: bit 0 loaded, 1 single edge, 2 loaded period is a floor
+     67     check status: bit 0 busy, 1 accepted, 2 certified, 3 refused
+     68     pc it refused at
+     69     why it refused
+
+     Line_code
+     70     table state
+     71     table word (writing increments the state)
+
+     Frame_rx, whatever the select
+     72     control: bit 0 arm, 1 50 MHz clock (USB: re-arm at each packet's
+            end), 6-2 pad, 7 Usb_frame_rx instead (D- on the next pad),
+            8 and up the engine it belongs to, the only one that sees its
+            status pins
+     73     data address a frame lands at
+     74     status: bits 9-0 words, 10 finished, 11 FCS good (USB: CRC-16),
+            12 half last word, 13 word dropped, 14 in a frame, 15 armed
+     75     USB flags: bit 0 CRC-5 good, 1 CRC-16 good, 2 stuffing error,
+            3 whole bytes
+
+     Edge_stamps, whatever the select
+     76     mask of pins 0-15
+     77     pins 16-19 in bits 3-0, and in bit 4 the engine whose clock times
+            them (writing 76 or 77 empties the queue)
+     78-79  head's time (79: bits 7-0 its top, 10-8 queue level, 15 lost)
+     80-81  pads it saw (reading 81 pops)
+    v}
+
+    Program, data, config, table, check and flush only take effect while halted, so a
+    flush needs its own write after the stop, and a start only works once the engine is
+    certified. Control bit 5 starts every engine on the same cycle, whatever the select,
+    and only when all are halted and certified.
+
+    Select picks the engine for every register except the two addresses. It resets to 0
+    and keeps only its low [ceil_log2 engines] bits, so with two engines 2 means engine 0.
+    A value past the last engine (3 with three engines) reaches none and reads zero.
+    Status bit 15 flags another engine's irq, and bit 14 [Engine.Fault.assumption]. With
+    one engine there is no select and bit 15 stays low. *)
 
 open! Core
 open! Hardcaml
