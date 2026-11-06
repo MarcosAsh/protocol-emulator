@@ -25,15 +25,7 @@ let pins_of ~pin ~clocked =
   | Some (clock, data) -> Clocked { clock; data; deselect = true }
 ;;
 
-let pin_arg =
-  Command.Arg_type.create (fun name ->
-    match Int.of_string_opt name with
-    | Some pin -> pin
-    | None ->
-      List.init 28 ~f:Fn.id
-      |> List.find ~f:(fun pin -> String.equal (Machine_trace.pin_name pin) name)
-      |> Option.value_exn ~message:"no such pin")
-;;
+let pin_arg = Command.Arg_type.create Machine_trace.pin_of_string
 
 let clocked_arg =
   Command.Arg_type.comma_separated pin_arg
@@ -75,8 +67,7 @@ let speak ~clock_hz ~pins ~value ~repeat ~out (learned : Learn.t) =
   let got = List.map read ~f:(fun (f : Learn.Frame.t) -> f.kind, f.bits) in
   let show l = List.map l ~f:(fun (k, b) -> k, bits_string b) in
   let timed = firmware.timed in
-  (* the certificate the chip checks the firmware against before a start counts, and the
-     premises it takes with it, as the host passes them on *)
+  (* what the chip checks the firmware against before it starts it *)
   let%bind certificate =
     Load_check.of_table
       ~config:(Timed_program.config timed)
@@ -150,7 +141,7 @@ let command =
       and pin =
         flag
           "-pin"
-          (optional_with_default 5 pin_arg)
+          (optional_with_default Isa.first_output_pin pin_arg)
           ~doc:"PIN the output, OUT0 by default"
       and clocked =
         flag

@@ -8,6 +8,9 @@ open! Core
     status pins. *)
 val pin_name : int -> string
 
+(** A pin by name or number. *)
+val pin_of_string : string -> int
+
 (** An input held at [level] from [cycle] on, until a later one for the same pin. *)
 module Input : sig
   type t =
