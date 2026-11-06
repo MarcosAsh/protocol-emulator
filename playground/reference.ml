@@ -52,6 +52,13 @@ let config_flags config =
   | fields -> [ "-config"; String.concat ~sep:"," fields ]
 ;;
 
+(* The page's ints have 32 bits, too few for a CRC-32's polynomial and init (ethernet), so
+   agree.js leaves that firmware out. *)
+let fits_the_page (config : Program_config.t) =
+  let fits n = n <= Int32.(to_int_exn max_value) in
+  fits config.crc_poly && fits config.crc_init
+;;
+
 let firmware
   ~kind
   ~name
@@ -147,10 +154,16 @@ let () =
   let diagrams = Sys.get_argv () |> Array.to_list |> List.tl_exn in
   let firmware =
     List.concat_map Library.protocols ~f:(fun p ->
-      List.map p.certified ~f:(certified "certified")
-      @ List.map p.time_triggered ~f:(certified "time_triggered")
-      @ List.map p.bench ~f:(bench "bench")
-      @ List.map p.loaded_from_hex ~f:(bench "hex"))
+      let certified_on_page kind (c : Certified.t) =
+        Option.some_if (fits_the_page c.config) (certified kind c)
+      in
+      let bench_on_page kind (b : Bench.t) =
+        Option.some_if (fits_the_page b.config) (bench kind b)
+      in
+      List.filter_map p.certified ~f:(certified_on_page "certified")
+      @ List.filter_map p.time_triggered ~f:(certified_on_page "time_triggered")
+      @ List.filter_map p.bench ~f:(bench_on_page "bench")
+      @ List.filter_map p.loaded_from_hex ~f:(bench_on_page "hex"))
     @ [ certified "certified" Library.stamped ]
   in
   json_object
