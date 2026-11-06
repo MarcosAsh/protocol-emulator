@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Draws the hardened die with every standard cell coloured by its RTL module. A flop's module
-# comes from the RTL line yosys keeps and its output net's name. Gates keep neither, so each
-# takes the module of the nearest flop or named net it drives, else the nearest either way.
-# --check scores that on the RTL synthesised a module at a time.
+# comes from the RTL line yosys keeps and from its output net's name. Gates keep neither, so
+# each takes the module of the nearest flop or named net it drives, or failing that the
+# nearest one in either direction. --check scores this on RTL synthesised one module at a time.
 # Usage: gh run download RUN -R MarcosAsh/protocol-emulator -n GDS_logs -D gds
 #        source env.sh && uv run demo/die.py gds/runs/wokwi -o docs/die.png [--check]
 #
@@ -26,7 +26,7 @@ from matplotlib.collections import PolyCollection  # noqa: E402
 from matplotlib.patches import Rectangle  # noqa: E402
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# Clock, reset and enable nets join everything; leave out nets with more pins than this.
+# clock, reset and enable nets touch everything, so skip nets with more pins than this
 MAX_FANOUT = 32
 
 SURFACE = "#fcfcfb"
@@ -49,7 +49,7 @@ BLOCKS = [
 
 
 def lef_cells(paths):
-    """Each cell's class, size and output pins."""
+    """Returns each cell's class, size and output pins."""
     cells = {}
     for path in paths:
         cell = None
@@ -71,8 +71,8 @@ def lef_cells(paths):
 
 
 def read_def(path):
-    """Die box, components as name -> (cell, x, y) in um, and nets as name ->
-    [(component, pin)], clock nets left out."""
+    """Returns the die box, components as name -> (cell, x, y) in um, and nets as
+    name -> [(component, pin)]. Clock nets are left out."""
     text = open(path).read()
     scale = float(re.search(r"UNITS DISTANCE MICRONS (\d+)", text).group(1))
     box = re.search(r"DIEAREA \( (\S+) (\S+) \) \( (\S+) (\S+) \)", text)
@@ -95,8 +95,8 @@ def read_def(path):
 
 
 def read_hierarchy(verilog, root):
-    """Instance path -> module, each module's names that come from outside it (its inputs
-    and plain copies of them), and the module each RTL line is in."""
+    """Returns instance path -> module, each module's names that come from outside it
+    (its inputs and plain copies of them), and the module each RTL line is in."""
     text = open(verilog).read()
     children, outside, starts = {}, {}, []
     for m in re.finditer(r"^module (\w+)(.*?)^endmodule", text, re.S | re.M):
@@ -118,7 +118,7 @@ def read_hierarchy(verilog, root):
 
 
 def flop_lines(synthesis):
-    """Each flop output's names -> the RTL line yosys kept for the flop."""
+    """Maps each flop output's names to the RTL line yosys kept for the flop."""
     design = json.load(open(synthesis))["modules"]
     top = next(m for m in design.values() if m.get("attributes", {}).get("top"))
     names = bit_names(top)
@@ -131,7 +131,7 @@ def flop_lines(synthesis):
 
 
 def flop_modules(synthesis, starts):
-    """Each flop output's names -> the RTL module of the line yosys kept for the flop."""
+    """Maps each flop output's names to the RTL module of the line yosys kept for the flop."""
     return {
         n: [m for start, m in starts if start <= line][-1]
         for n, line in flop_lines(synthesis).items()
@@ -149,7 +149,7 @@ def bit_names(top):
 
 
 def block_of(path, module):
-    """The block of instance [path] of [module]; None for an engine outside an engine."""
+    """Returns the block of instance [path] of [module]; None for an engine outside an engine."""
     engine = re.search(r"engine_(\d+)", path or "")
     if module == "host_fifo":
         return "host FIFOs"
@@ -174,10 +174,10 @@ def block_of(path, module):
 
 
 def owner(name, by_path, rtl, outside):
-    """The block of the cell driving a hierarchical net if the name tells, and a block it
-    cannot be in. Without [rtl] that is the instance the name is in. With [rtl], a flop's
-    module, it is the instance of that module on the name's path, else below it, else
-    any. A name copied from an input is driven from outside the instance it is in."""
+    """Returns the block of the cell driving a hierarchical net, if the name says, and a
+    block it cannot be in. Without [rtl] that is the instance the name is in. With [rtl]
+    (a flop's module) it is the instance of that module on the name's path, else below the
+    path, else any. A name copied from an input is driven from outside its own instance."""
     parts = name.split(".")
     paths = [".".join(parts[:n]) for n in range(len(parts) - 1, 0, -1)]
     named_in = next((p for p in paths if p in by_path), None)
@@ -197,8 +197,8 @@ def owner(name, by_path, rtl, outside):
 
 
 def spread(seeds, edges, allowed, barred):
-    """Labels every allowed cell [edges] reach from [seeds] with the label most of its
-    nearest labelled cells carry, but never one [barred] rules out for it."""
+    """Labels every allowed cell reachable through [edges] from [seeds] with the label
+    that most of its nearest labelled cells carry, never one that [barred] rules out."""
     labels = dict(seeds)
     frontier = list(seeds)
     while frontier:
@@ -214,8 +214,8 @@ def spread(seeds, edges, allowed, barred):
 
 
 def graph(cells, nets, lib):
-    """Each net's drivers, each cell's neighbours, and the drivers of the nets each cell
-    reads, nets with more than MAX_FANOUT pins left out of the last two."""
+    """Returns each net's drivers, each cell's neighbours, and the drivers of the nets each
+    cell reads. Nets with more than MAX_FANOUT pins are left out of the last two."""
     drivers_of = []
     neighbours = collections.defaultdict(list)
     upstream = collections.defaultdict(list)
@@ -231,9 +231,9 @@ def graph(cells, nets, lib):
 
 
 def label(cells, nets, lib, hierarchy, from_rtl):
-    """Each cell's block, and the seeds: flops, named nets' drivers and macros. [nets] is
-    [(hierarchical names, [(cell, pin)])]. Gates take the block of the nearest seed they
-    drive first, flops of the nearest either way."""
+    """Returns each cell's block, and the seeds (flops, named nets' drivers and macros).
+    [nets] is [(hierarchical names, [(cell, pin)])]. A gate takes the block of the nearest
+    seed it drives; a flop takes the nearest seed in either direction."""
     by_path, outside, _ = hierarchy
     seeds = {}
     barred = collections.defaultdict(set)
@@ -261,7 +261,7 @@ def label(cells, nets, lib, hierarchy, from_rtl):
 
 
 def registers(verilog):
-    """Each clocked always block's first RTL line -> its module and the register it sets."""
+    """Maps each clocked always block's first RTL line to its module and the register it sets."""
     found, module = {}, None
     lines = open(verilog).read().split("\n")
     for n, line in enumerate(lines, 1):
@@ -276,8 +276,8 @@ def registers(verilog):
 
 
 def from_instances(verilog):
-    """Each module's names that an instance in it drives: what its outputs connect to,
-    and plain copies of that."""
+    """Returns each module's names that an instance in it drives: what its outputs connect
+    to, and plain copies of those."""
     text = open(verilog).read()
     bodies = dict(re.findall(r"^module (\w+)(.*?)^endmodule", text, re.S | re.M))
     outputs = {
@@ -300,8 +300,8 @@ def from_instances(verilog):
 
 
 def read_provenance(path, commit):
-    """generate.exe provenance's JSON, its lines moved to where they are at [commit]. A
-    line the sources changed since is dropped."""
+    """Loads generate.exe provenance's JSON, moving its lines to where they are at [commit].
+    A line that the sources have changed since is dropped."""
     provenance = json.load(open(path))
     files = {v.rpartition(":")[0] for names in provenance.values() for v in names.values() if v}
     moved = {}
@@ -331,9 +331,9 @@ def read_provenance(path, commit):
 
 
 def sources(cells, nets, lib, hierarchy, flops, provenance, inner):
-    """Each cell's src line, else its module, from its flop's register or a net its instance
-    names, else the nearest such cell's, and the cells that had their own. [flops] maps
-    flop outputs' names to [registers], [inner] is [from_instances]."""
+    """Returns each cell's src line, else its module. It comes from the cell's flop register
+    or a net its instance names, else from the nearest such cell. Also returns the cells that
+    had their own. [flops] maps flop output names to [registers]; [inner] is [from_instances]."""
     by_path, outside, _ = hierarchy
     drivers_of, neighbours, upstream = graph(cells, nets, lib)
     seeds, rank = {}, {}
@@ -359,8 +359,8 @@ def sources(cells, nets, lib, hierarchy, flops, provenance, inner):
 
 
 def check(verilog, lib, hierarchy, keep, liberty):
-    """Synthesises the RTL a module at a time with yosys, then flattens it, so each gate's
-    name gives its instance. Labels it from the names in [keep] only, and counts the gates
+    """Synthesises the RTL one module at a time with yosys, then flattens it, so each gate's
+    name gives its instance. Labels it using only the names in [keep], and counts the gates
     that get their own block."""
     src = os.path.dirname(verilog)
     top = re.search(r"module (\w+)", open(os.path.join(src, "project.v")).read()).group(1)
@@ -424,7 +424,7 @@ def draw(die, components, lib, labels, notes, output):
     width, margin = 8.5, 0.3
     die_height = (width - 2 * margin) * (y1 - y0) / (x1 - x0)
     legend = margin + die_height + 0.6
-    # the blocks and the macros in two columns
+    # blocks and macros in two columns
     per_column = (len(BLOCKS) + 2) // 2
     height = legend + per_column * 0.48 + 0.2 * len(notes) + 0.2
     fig = plt.figure(figsize=(width, height), dpi=1600 / width)

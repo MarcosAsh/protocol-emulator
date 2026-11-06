@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# The mouse draws the die: demo/outline.py's pen path as HID mouse reports, which the chip
-# sends from python/demo_draw.py on Pico A. Renders the reports as a flat-profile host adds
-# them up, beside the die, and fails if that strays from the path. Ctrl-C releases.
+# The mouse draws the die. demo/outline.py's pen path becomes HID mouse reports, which the
+# chip sends from python/demo_draw.py on Pico A. Renders the reports the way a flat-profile
+# host adds them up, next to the die, and fails if that strays from the path. Ctrl-C
+# releases the button.
 # Usage: python3 demo/draw.py --dry-run [--out DIR]        render and check only
 #        python3 demo/draw.py --pico id:<serial of Pico A>  the bench, after BRINGUP's draw demo
 import argparse
@@ -19,9 +20,9 @@ sys.path[:0] = [HERE, os.path.join(REPO, "python")]
 import demo_draw  # noqa: E402
 import outline  # noqa: E402
 
-# the endpoint's bInterval, demo_usb.CONFIGURATION's last byte
+# the endpoint's bInterval: the last byte of demo_usb.CONFIGURATION
 POLL_MS = 10
-# what Pico A needs beside draw.bin
+# files Pico A needs besides draw.bin
 PICO_FILES = [
     "python/protocol_emulator.py",
     "python/pico_board.py",
@@ -32,10 +33,10 @@ PICO_FILES = [
     "test/uart_tx_host_rate.hex",
     "test/uart_tx_host_rate.cert.hex",
 ]
-# said when Pico A cannot tell how its run ended
+# printed when Pico A can't tell how its run ended
 UNKNOWN = ("no word from Pico A on the button: if it is still down, unplug the Icepi's first"
            " USB port")
-# the chip's vendor and product, which name its input devices on Linux
+# the chip's vendor and product IDs, which Linux uses to name its input devices
 DEVICE = "1209:0001"
 MARGIN = 12
 INK = (11, 11, 11)
@@ -46,8 +47,8 @@ SURFACE = (252, 252, 251)
 
 
 def replay(data):
-    """What a host with a flat pointer profile makes of draw.bin from (0, 0): the polylines
-    drawn with the button held, the moves with it up, and where the pointer ends."""
+    """Simulates a host with a flat pointer profile playing draw.bin from (0, 0). Returns
+    the polylines drawn with the button held, the moves with it up, and where the pointer ends."""
     x = y = held = 0
     drawn, lifted = [], []
     for at in range(1, len(data), 3):
@@ -70,8 +71,8 @@ def polyline_distance(p, line):
 
 
 def drift(strokes, drawn, end):
-    """The farthest, in pixels, a drawn point is from its stroke or a stroke's corner from
-    the drawing, or the pointer ends from where it began."""
+    """Returns the worst error in pixels: how far a drawn point is from its stroke, how far
+    a stroke's corner is from the drawing, or how far the pointer ends from where it began."""
     if len(drawn) != len(strokes):
         return math.inf
     worst = math.hypot(*end)
@@ -96,7 +97,7 @@ class Canvas:
             self.pixels[at : at + len(row)] = row
 
     def line(self, a, b, colour, weight=1):
-        """Bresenham's, with a square pen weight pixels wide."""
+        """Bresenham's line algorithm with a square pen, weight pixels wide."""
         (x0, y0), (x1, y1) = (tuple(map(round, p)) for p in (a, b))
         dx, dy = abs(x1 - x0), -abs(y1 - y0)
         sx, sy = (1 if x1 > x0 else -1), (1 if y1 > y0 else -1)
@@ -135,8 +136,9 @@ def rgb(colour):
 
 
 def render(die, cells, colours, found, strokes, drawn, lifted, width, png, svg):
-    """Left the die, every cell in its block's colour under the outlines before simplifying,
-    right the pen path pale under what the host draws, and the moves between in grey."""
+    """Left: the die, every cell in its block's colour, under the outlines before
+    simplifying. Right: the pen path in pale colour under what the host draws, with the
+    moves between strokes in grey."""
     scale = width / die[0]
     height = round(die[1] * scale)
     panel = width + 2 * MARGIN
@@ -200,7 +202,7 @@ def gsetting(key):
 
 
 def flat_profile():
-    """The commands that make the chip's pointer flat, and undo it, for X11 and GNOME."""
+    """Returns the commands that make the chip's pointer flat, and undo it, for X11 and GNOME."""
     ids = ("$(xinput list | sed -n 's/.*%s.*id=\\([0-9]*\\).*slave  pointer.*/\\1/p')"
            % DEVICE)
     xinput = "for id in %s; do xinput set-prop $id 'libinput Accel Profile Enabled' %%s;" \
@@ -219,9 +221,9 @@ def flat_profile():
 
 
 def bench(pico, path):
-    """Copies Pico A's files and runs demo_draw there. A Ctrl-C here ends mpremote but not
-    the Pico's script, so a second mpremote sends the Ctrl-C that releases the button. It
-    drops what the Pico prints meanwhile, so the outcome is read back from `ended`."""
+    """Copies Pico A's files and runs demo_draw there. Ctrl-C here ends mpremote but not
+    the Pico's script, so a second mpremote sends the Ctrl-C that releases the button. That
+    loses whatever the Pico prints meanwhile, so we read the outcome back from `ended`."""
     mpremote = ["mpremote", "connect", pico]
     files = [os.path.join(REPO, f) for f in PICO_FILES] + [path]
     subprocess.run(mpremote + ["cp"] + files + [":"], check=True)
@@ -229,7 +231,7 @@ def bench(pico, path):
         subprocess.run(mpremote + ["run", os.path.join(REPO, "python", "demo_draw.py")])
     except KeyboardInterrupt:
         print("\nreleasing the button")
-        # resume keeps the run's globals until the read back, then the soft reset as before
+        # resume keeps the run's globals until we read them back, then soft reset as before
         read_back = "print(globals().get('ended', %r))" % UNKNOWN
         if subprocess.run(mpremote + ["resume", "exec", read_back, "soft-reset"]).returncode:
             print(UNKNOWN)

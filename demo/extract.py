@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
-# The intake's double extraction: two headless agents read the spec's timing limits blind,
-# each confined to its own copy of the spec, and their tables are compared field by field. A
-# row one reader alone wrote with typical values only is kept, marked, as it bounds nothing.
-# Any other disagreement stops the intake with "limit disputed, DOC p.N" and keeps both
-# readings in disputed.tsv, where a person fills the ruling column and settles it with rule.
-# Writes limits.tsv, disputed.tsv, ruled.tsv and agreement.txt in RUN_DIR and a row of
-# agreement.tsv beside it. Exit 0 agreed, 3 disputed.
+# The intake's double extraction. Two headless agents read the spec's timing limits blind,
+# each confined to its own copy of the spec, and we compare their tables field by field. A
+# row that only one reader wrote, with typical values only, is kept and marked because it
+# bounds nothing. Any other disagreement stops the intake with "limit disputed, DOC p.N" and
+# keeps both readings in disputed.tsv, where a person fills in the ruling column and settles
+# it with `rule`. Writes limits.tsv, disputed.tsv, ruled.tsv and agreement.txt in RUN_DIR,
+# and a row of agreement.tsv next to it. Exit 0 means agreed, 3 means disputed.
 # Usage: python3 demo/extract.py run RUN_DIR DOC [--budget USD] [--model M] [--dry-run]
 #        python3 demo/extract.py rule RUN_DIR DOC RULINGS   RULINGS: disputed.tsv, ruled
 import argparse
@@ -24,10 +24,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 PROMPT = os.path.join(HERE, "extract_prompt.txt")
 SPEC_FILES = ["spec.txt", "spec.index", "spec.pdf"]
 COLUMNS = ["symbol", "parameter", "condition", "min", "typ", "max", "unit", "page", "where"]
-# what each row's comparison covers; the unit is folded into min, typ and max
+# what each row's comparison covers (the unit is folded into min, typ and max)
 FIELDS = ["min", "typ", "max", "page", "where"]
 DOCUMENT_FIELDS = ["revision", "date"]
-# each unit's quantity and scale to it
+# each unit's quantity, and its scale to the base unit
 UNITS = {
     "s": ("s", 1), "ms": ("s", 1e-3), "us": ("s", 1e-6), "µs": ("s", 1e-6), "μs": ("s", 1e-6),
     "ns": ("s", 1e-9), "ps": ("s", 1e-12),
@@ -38,9 +38,9 @@ UNITS = {
     "baud": ("bd", 1), "bd": ("bd", 1), "kbaud": ("bd", 1e3), "kbd": ("bd", 1e3),
 }
 ABSENT = "(no row)"
-# a ruling that a field is blank, as an empty ruling cell is no ruling
+# a ruling that a field is blank (an empty ruling cell means no ruling)
 EMPTY = "(empty)"
-# the condition's mark on a row one reader alone wrote, with typical values only
+# mark added to the condition of a row that one reader alone wrote, typical values only
 ONE_READER = "(one reader, typical only)"
 
 
@@ -58,9 +58,9 @@ def condition_key(row):
 
 
 def value(cell, unit, implied=""):
-    """A min, typ or max as (bound, quantity, number in that quantity's base unit), or its
-    squashed text when it is not a plain number. A bound its column already says (">" under
-    min) is dropped."""
+    """Parses a min, typ or max into (bound, quantity, number in the quantity's base unit),
+    or returns its squashed text if it isn't a plain number. A bound that the column already
+    implies (">" under min) is dropped."""
     text = cell.strip().replace("−", "-").replace(",", "")
     if implied and text[:1] in implied:
         text = text.lstrip(implied + "=").strip()
@@ -86,7 +86,7 @@ def page(cell):
 
 
 def where(cell):
-    """A table or figure label, a numbered section, or the squashed text."""
+    """Normalises a table or figure label or a numbered section; otherwise returns the squashed text."""
     text = cell.lower()
     label = re.search(r"\b(table|figure|fig)\.?\s*([0-9]+(?:[-.][0-9]+)*)", text)
     if label:
@@ -102,7 +102,7 @@ def revision(cell):
 
 
 def same_revision(a, b):
-    """Equal, or one is the other's document number with its revision letter (DS20001203W, W)."""
+    """True if equal, or if one is the other's document number plus its revision letter (DS20001203W, W)."""
     short, long = sorted([revision(a), revision(b)], key=len)
     if short == long:
         return True
@@ -110,7 +110,7 @@ def same_revision(a, b):
 
 
 def date(cell):
-    """A printed date as a datetime.date when it has one of the usual shapes, else squashed."""
+    """Parses a printed date into a datetime.date if it has a usual shape, else returns it squashed."""
     text = re.sub(r"\s+", " ", cell.replace(",", " ")).strip()
     for shape in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%d %B %Y", "%B %d %Y", "%d %b %Y",
                   "%b %d %Y", "%d-%b-%Y", "%B %Y", "%b %Y", "%m/%Y"):
@@ -137,10 +137,10 @@ def same(field, a, b):
 
 
 def parse(text):
-    """A reading's document line and rows, from the agent's text between BEGIN LIMITS and END
-    LIMITS (or a whole table file)."""
+    """Parses a reading's document line and rows from the agent's text between BEGIN LIMITS
+    and END LIMITS (or from a whole table file)."""
     lines = text.splitlines()
-    # a reader's table may hold no rows, the spec bounding nothing; a bare table file may not
+    # a reader's table may have no rows (the spec bounds nothing); a bare table file may not
     marked = any(line.strip() == "BEGIN LIMITS" for line in lines)
     if marked:
         start = next(i for i, line in enumerate(lines) if line.strip() == "BEGIN LIMITS")
@@ -171,12 +171,12 @@ def parse(text):
 
 
 def named(row):
-    """Whether the symbol column holds a parameter's name, the spec printing no symbol."""
+    """True if the symbol column holds a parameter's name because the spec prints no symbol."""
     return " " in row["symbol"].strip()
 
 
 def near(a, b):
-    """At most one character inserted, dropped or changed (I2C-bus against pdftotext's I C-bus)."""
+    """True if the strings differ by at most one inserted, dropped or changed character (I2C-bus vs pdftotext's I C-bus)."""
     if abs(len(a) - len(b)) > 1:
         return False
     i = next((i for i, (x, y) in enumerate(zip(a, b)) if x != y), min(len(a), len(b)))
@@ -184,10 +184,10 @@ def near(a, b):
 
 
 def pair(a_rows, b_rows):
-    """Rows of the two readings matched by symbol and condition. Then, among the leftovers, the
-    same symbol, page and place with a condition one character apart, the same symbol with the
-    same min, typ and max (the condition worded differently), and two names with the same
-    numbers, page and place (the name worded differently). Then each leftover alone."""
+    """Matches rows of the two readings by symbol and condition. Among the leftovers it then
+    matches: the same symbol, page and place with conditions one character apart; the same
+    symbol with the same min, typ and max (condition worded differently); and two names with
+    the same numbers, page and place (name worded differently). Anything left stays alone."""
     def keyed(rows):
         seen, out = {}, []
         for row in rows:
@@ -223,8 +223,8 @@ def pair(a_rows, b_rows):
 
 
 def restated(rows):
-    """[rows] without a row that repeats an earlier one's symbol, condition and numbers (a note
-    restating a table's limit)."""
+    """Returns [rows] minus any row that repeats an earlier row's symbol, condition and
+    numbers (a note restating a table's limit)."""
     kept = []
     for row in rows:
         if not any(symbol_key(k) == symbol_key(row) and condition_key(k) == condition_key(row)
@@ -238,17 +238,17 @@ def ruling_key(row, field):
 
 
 def rulings(path):
-    """A person's rulings on disputed fields, read off the page: disputed.tsv's symbol,
-    condition and field columns and a ruling column holding the value, "(empty)" for a field
-    the page leaves blank, or "(no row)"."""
+    """Reads a person's rulings on disputed fields. The file has disputed.tsv's symbol,
+    condition and field columns plus a ruling column holding the value read off the page,
+    "(empty)" for a field the page leaves blank, or "(no row)"."""
     with open(path, newline="") as f:
         return {ruling_key(r, r["field"]): "" if r["ruling"] == EMPTY else r["ruling"]
                 for r in csv.DictReader(f, delimiter="\t") if r.get("ruling", "") != ""}
 
 
 def compare(a, b, ruled=None):
-    """Every compared field's agreement, the disputes with both readings, the fields settled by
-    [ruled] (a person's rulings), and the agreed rows."""
+    """Returns every compared field's agreement, the disputes with both readings, the fields
+    settled by [ruled] (a person's rulings), and the agreed rows."""
     ruled = ruled or {}
     disputes, settled, agreed, compared, rows, typical = [], [], 0, 0, [], 0
     for field in DOCUMENT_FIELDS:
@@ -267,7 +267,7 @@ def compare(a, b, ruled=None):
         either = row_a or row_b
         pages = sorted({page(r["page"]) or 0 for r in (row_a, row_b) if r})
         row, open_fields = dict(either), []
-        # bounds nothing whoever is right, so kept as a marked typical, not put to a ruling
+        # bounds nothing whoever is right, so keep it as a marked typical instead of asking for a ruling
         if (not (row_a and row_b)
                 and not any(value(either[f], either["unit"]) for f in ("min", "max"))
                 and not any(ruling_key(either, f) in ruled for f in FIELDS)):
@@ -283,7 +283,7 @@ def compare(a, b, ruled=None):
             if row_a and row_b and same(field, row_a, row_b):
                 agreed += 1
                 continue
-            # a row with no symbol is keyed by its parameter, so disputed.tsv names it so
+            # a row with no symbol is keyed by its parameter, and disputed.tsv names it that way
             dispute = {"symbol": either["symbol"] or either["parameter"],
                        "condition": either["condition"],
                        "field": field, "a": row_a[field] if row_a else ABSENT,
@@ -320,7 +320,7 @@ def agreement(result):
 
 
 def result_text(path):
-    """The agent's final message in a stream-json transcript, or the file itself."""
+    """Returns the agent's final message from a stream-json transcript, or the file itself."""
     text = open(path, errors="replace").read()
     last = None
     for line in text.splitlines():
@@ -367,8 +367,8 @@ def ledger(path, doc, spec, result, line):
 
 
 def reader(run_dir, name, budget, model):
-    """One blind reader: its own directory holding a copy of the spec, and the claude command
-    whose file tools reach only there."""
+    """Sets up one blind reader: its own directory holding a copy of the spec, and a claude
+    command whose file tools can only reach that directory."""
     own = os.path.join(run_dir, "read-" + name)
     os.makedirs(own, exist_ok=True)
     for f in SPEC_FILES:
@@ -383,8 +383,8 @@ def reader(run_dir, name, budget, model):
 
 
 def settle(run_dir, doc, rulings_path=None):
-    """Compares the two readings in [run_dir], with a person's rulings if given, and records
-    the outcome there and in agreement.tsv beside it."""
+    """Compares the two readings in [run_dir], applying a person's rulings if given, and
+    records the outcome there and in the agreement.tsv next to it."""
     readings = []
     for name in "ab":
         transcript = os.path.join(run_dir, "read-" + name, "transcript.jsonl")
