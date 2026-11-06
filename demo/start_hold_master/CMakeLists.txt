@@ -1,4 +1,4 @@
-# Pico B as the bus master for the start hold act, in two builds: start_hold_pio through
+# Pico B as the bus master for the start hold demo, in two builds: start_hold_pio through
 # pico-examples' pio_i2c at a pinned commit (BSD-3-Clause, fetched at configure time, not
 # kept here, built unmodified), start_hold_hw through the RP2040's I2C block. Needs
 # pico-sdk 2.x and arm-none-eabi-gcc:

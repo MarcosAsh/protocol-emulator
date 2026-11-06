@@ -6,16 +6,16 @@
 # as faults hold until reset. Analyser A has the host port, OUT0, CAN and SWD, B the flash,
 # the stick, 1-Wire and I2C (see demo/capture.sh). The capture, log and decode are kept as
 # <name>.sr, .log and .decode in CAPTURES, the current directory unless set.
-# Usage: PICO=id:<serial of Pico A> demo/outside.sh <act>, one of
+# Usage: PICO=id:<serial of Pico A> demo/outside.sh <demo>, one of
 #   flash eeprom eeprom_stretch ds18b20 neopixel start_hold can can_node swd referee
-#   pio_ws2812 pio_uart_tx pio_spi, or a protocol whose python/demo_<act>.py has an
+#   pio_ws2812 pio_uart_tx pio_spi, or a protocol whose python/demo_<demo>.py has an
 #   "# outside:" line
 set -e
-act=$1
+name=$1
 captures=${CAPTURES:-.}
 files=
 arm=
-case $act in
+case $name in
 flash)
     ms=4000
     decode="-P spi:clk=D0:mosi=D1:miso=D2:cs=D3,spiflash:chip=winbond_w25q80dv -A spiflash"
@@ -96,7 +96,7 @@ pio_spi)
 *)
     # any other demo is a protocol of its own, whose script's "# outside:" line gives the
     # analyser, the capture's length and sigrok's decoders
-    line=$(sed -n 's/^# outside: //p' "python/demo_$act.py" 2>/dev/null | head -1)
+    line=$(sed -n 's/^# outside: //p' "python/demo_$name.py" 2>/dev/null | head -1)
     if [ -z "$line" ]; then
         echo "usage: PICO=id:<serial> $0 flash|eeprom|eeprom_stretch|ds18b20|neopixel|start_hold|can|can_node|swd|referee|pio_ws2812|pio_uart_tx|pio_spi|<protocol>" >&2
         exit 1
@@ -111,10 +111,10 @@ esac
 # which takes long enough to push the traffic past the capture
 firmware=$(mktemp -d)
 # shellcheck disable=SC2086
-python3 demo/pico_firmware.py "$firmware/bench_firmware.py" "python/demo_$act.py" $files
+python3 demo/pico_firmware.py "$firmware/bench_firmware.py" "python/demo_$name.py" $files
 # shellcheck disable=SC2086
 mpremote connect "$PICO" cp python/protocol_emulator.py python/pico_board.py python/bench.py \
-    "$firmware/bench_firmware.py" "python/demo_$act.py" $files :
+    "$firmware/bench_firmware.py" "python/demo_$name.py" $files :
 rm -r "$firmware"
 mpremote connect "$PICO" exec "import os
 try:
@@ -124,22 +124,22 @@ except OSError:
 # sigrok's CAN decoder takes the dominant line a reset chip leaves at the start for a frame
 [ -z "$arm" ] || mpremote connect "$PICO" exec "$arm"
 mkdir -p "$captures"
-ANALYSER=$analyser demo/capture.sh "$captures/$act.sr" "$ms" mpremote connect "$PICO" run --no-follow "python/demo_$act.py"
+ANALYSER=$analyser demo/capture.sh "$captures/$name.sr" "$ms" mpremote connect "$PICO" run --no-follow "python/demo_$name.py"
 # the demo ends inside the capture, and a second more lets the Pico write its log
 sleep 1
-if mpremote connect "$PICO" cat :outside.log > "$captures/$act.log"; then
-    cat "$captures/$act.log"
+if mpremote connect "$PICO" cat :outside.log > "$captures/$name.log"; then
+    cat "$captures/$name.log"
 else
     echo "no log: the demo was still running" >&2
 fi
 # shellcheck disable=SC2086
-sigrok-cli -i "$captures/$act.sr" $decode > "$captures/$act.decode"
-cat "$captures/$act.decode"
-verdict=$(python3 demo/traffic.py "$act" "$captures")
+sigrok-cli -i "$captures/$name.sr" $decode > "$captures/$name.decode"
+cat "$captures/$name.decode"
+verdict=$(python3 demo/traffic.py "$name" "$captures")
 echo "$verdict"
 # a protocol started with generate new-protocol gets its bench time in demo/speed.tsv
 # (the Pico's log ends its lines in CRLF)
-if [ -f "$captures/$act.log" ] && [ "$(tail -n 1 "$captures/$act.log" | tr -d '\r')" = PASS ] &&
+if [ -f "$captures/$name.log" ] && [ "$(tail -n 1 "$captures/$name.log" | tr -d '\r')" = PASS ] &&
     ! echo "$verdict" | grep -qx FAIL; then
-    python3 demo/speed.py mark "$act" bench --if-started || true
+    python3 demo/speed.py mark "$name" bench --if-started || true
 fi

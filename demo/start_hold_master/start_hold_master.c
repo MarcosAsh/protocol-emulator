@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Pico B as the bus master for the start hold act: every 20 ms the same 24LC256 read, a
+// Pico B as the bus master for the start hold demo: every 20 ms the same 24LC256 read, a
 // write of the address, then a read of four bytes, so two STARTs, SDA on GP2 and SCL on
 // GP3 at 100 kHz. start_hold_pio calls pico-examples' pio_i2c as shipped, start_hold_hw
 // the RP2040's I2C block. Once a second it prints its clocks and the hold they predict.

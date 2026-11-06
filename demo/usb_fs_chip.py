@@ -2,9 +2,10 @@
 # The chip's own USB full speed receiver on the board against a real host: loads the
 # chip built with FS=1, whose D+ pull-up makes the laptop enumerate the first USB-C port
 # at full speed, and has Pico A (demo/usb_fs_chip_pico.py), holding the port detached as it
-# loads, arm the receiver over the host port and read its verdict on every packet. Tokens (two words, one half) must carry a good
-# CRC-5 and data packets a good CRC-16, with no stuffing error and no word dropped. The
-# chip never answers, so the host gives up; openFPGALoader -r then brings back the flash.
+# loads, arm the receiver over the host port and read its verdict on every packet. Tokens
+# (two words, one half) must carry a good CRC-5 and data packets a good CRC-16, with no
+# stuffing error and no word dropped. The chip never answers, so the host gives up;
+# openFPGALoader -r then brings back the flash.
 # Usage: PICO_A=<serial of Pico A> [REV=v1.3] python3 demo/usb_fs_chip.py [--out DIR]
 
 import argparse

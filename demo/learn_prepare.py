@@ -20,7 +20,6 @@ from pathlib import Path
 # the chip's pin numbers: IO2 is SCL and Pico B's GP3, IO3 SDA and Pico B's GP2
 PINS = {"IO3": 15, "IO2": 14}
 WIRE = 20
-CONFIG_FIELDS = {"in_base", "in_count", "autopush", "push_threshold", "set_base", "set_count"}
 
 
 def logger(pin, prefix):

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Pico B as a CAN node at 500 kbit/s for the CAN acts: Kevin O'Connor's can2040 on PIO 0,
+// Pico B as a CAN node at 500 kbit/s for the CAN demos: Kevin O'Connor's can2040 on PIO 0,
 // RX on GP6 from the transceiver's R, TX on GP7 to its D. It ACKs and prints every whole
 // frame and the parse errors it counts. ID REQUEST is answered after REPLY_DELAY_MS with
 // REPLIES, REPLY_GAP_MS apart, each printed once ACKed: can2040 resends until one is.
@@ -31,7 +31,7 @@ static const struct can2040_msg replies[] = {
 
 static struct can2040 bus;
 
-// written by the PIO interrupt and read by the loop: the act sends a frame every 2 ms,
+// written by the PIO interrupt and read by the loop: the demo sends a frame every 2 ms,
 // which the loop prints long before the next
 static volatile struct can2040_msg last;
 static volatile uint32_t received;
