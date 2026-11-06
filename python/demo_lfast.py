@@ -7,13 +7,13 @@ import bench
 import bench_firmware
 import protocol_emulator as pe
 
-# payload bytes, one per frame (not 0x00)
+# payload bytes, one frame each; not 0x00
 WORDS = [0x55, 0xA3]
 
 
 def lines(words):
-    """What sigrok's lfast decoder prints for these frames, in order, with the -A fields
-    from the outside: line. It labels the stop bit a sleep request."""
+    """What sigrok's lfast prints of the frames with outside:'s -A, in order: it labels the
+    stop bit a sleep request."""
     return ["lfast-1: " + text for word in words
             for text in ["Sync OK", "8 bit", "Data Channel A", "1", "%02X" % word,
                          "LVDS sleep mode request"]]

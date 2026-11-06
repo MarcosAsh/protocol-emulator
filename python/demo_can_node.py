@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
-# The chip as a CAN node at 500 kbit/s on one SN65HVD230 (MicroPython, Pico A): OUT1 to
-# its D, its R to IN1, the bus to Pico B running demo/can_node. Engine 0 first runs the
-# sender, which sends four frames and reads each ACK slot; the last frame asks Pico B for
-# frames of its own. Then engine 0 switches to the receiver, which ACKs Pico B's four.
-# OUT1 is dominant from reset until the sender gets its period, so the run sends that first.
+# The chip as a CAN node at 500 kbit/s on one SN65HVD230 (MicroPython, Pico A): OUT1 into
+# its D, its R into IN1, the bus to Pico B running demo/can_node. Engine 0 sends four
+# frames with the sender, which reads each ACK slot, the last asking Pico B for frames of
+# its own; then engine 0 takes the receiver, which ACKs Pico B's four. OUT1 is dominant
+# from reset until the sender has its period, which the run gives first.
 
 import bench
 import bench_firmware
@@ -23,7 +23,7 @@ REPLIES = [
     (0x6B1, 0, 8, [0xFF] * 8),
     (0x000, 0, 2, [0x00, 0x00]),
 ]
-# the replies finish about 0.5 s in, and even a failed run must end within the capture
+# the replies end about 0.5 s in, and a failed run must still end inside the capture
 LISTEN_MS = 1000
 POLL_MS = 1
 # Can_node.Receiver.Error_code's words
@@ -32,7 +32,7 @@ ERRORS = {1: "stuff error", 2: "refused: IDE or r0 recessive", 3: "CRC delimiter
 
 
 def arm(transfer, log=print):
-    """Load the sender and send it the period; after that the pin stays recessive."""
+    """Loads the sender and sends the period, after which the pin stays recessive."""
     host = pe.Host(transfer)
     bench.load(host, bench_firmware.CAN_SENDER)
     host.start()
@@ -41,10 +41,10 @@ def arm(transfer, log=print):
 
 
 def frames(words):
-    """Parse Can_node.Receiver.read's whole frames from the front of words. Returns the
-    frames as (id, rtr, dlc, data) plus the leftover words. A frame is the ID, RTR (bit 6)
-    with the DLC, the data two bytes per word (zero-padded if odd), then 0. A frame ended
-    by an error stays in, with its error code where the 0 would be."""
+    """Can_node.Receiver.read's whole frames from the front of words, as (id, rtr, dlc,
+    data), and the words after them: the ID, RTR at bit 6 with the DLC, the data two bytes
+    a word behind a zero byte if odd, then 0. A frame an error ended stays, its code where
+    the 0 would be."""
     found = []
     while len(words) >= 2:
         ident, control = words[0], words[1]
@@ -67,9 +67,9 @@ def describe(ident, rtr, dlc, data):
 
 
 def listen(host, pause_ms, log):
-    """Collect frames off the bus until REPLIES of them arrive or LISTEN_MS passes. An
-    error raises irq and its code is the last word. We drop the frame it ended, clear
-    irq and push a word so the receiver listens again."""
+    """Frames off the bus until REPLIES' number have come or LISTEN_MS. An error comes with
+    irq, its code the last word: the frame it ended is dropped, irq cleared, and a word
+    lets the receiver listen again."""
     words, heard = [], []
     for _ in range(LISTEN_MS // POLL_MS):
         irq = host.status()["irq"]
@@ -97,8 +97,8 @@ def run(transfer, pause_ms, log=print):
     if bench.faults(host):
         log("engine 0 holds faults 0x%x: reset first" % bench.faults(host))
         return False
-    # load the sender again: it may be armed from reset or an earlier run (demo/capture.sh
-    # can run this more than once), and a stopped engine leaves OUT1 at the level it had
+    # the sender again, armed from reset or by an earlier run, as demo/capture.sh may run
+    # this more than once: a stopped engine leaves OUT1 at the level it had
     bench.load(host, bench_firmware.CAN_SENDER)
     host.start()
     host.push([PERIOD])
@@ -112,7 +112,7 @@ def run(transfer, pause_ms, log=print):
         log("sent %s, %s" % (describe(ident, 0, len(data), data),
                              "ACKed" if ack == [0] else "no ACK %s" % ack))
     faults = bench.faults(host)
-    # the sender stops with OUT1 recessive and the receiver keeps it that way
+    # the sender stops with OUT1 recessive, and the receiver keeps it so
     bench.load(host, bench_firmware.CAN_RECEIVER)
     host.start()
     log("engine 0 is the receiver")
@@ -123,9 +123,9 @@ def run(transfer, pause_ms, log=print):
 
 
 class Quiet(bench.Log):
-    """Keep the lines for demo/outside.sh without printing them. It starts this with
-    mpremote's --no-follow, and a print to a USB port nobody reads can stall the polls for
-    longer than Pico B waits between frames."""
+    """Keeps the lines for demo/outside.sh without printing them: it starts this with
+    mpremote's --no-follow, and a USB port nobody reads can stall a print, and the polls
+    behind it, for longer than Pico B waits between frames."""
 
     def __call__(self, text=""):
         self.lines.append(text)

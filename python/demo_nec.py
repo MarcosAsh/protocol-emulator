@@ -1,8 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-# NEC infrared from the library's transmitter (MicroPython, Pico A). OUT0 is low for a
-# mark, like an IR receiver module's output, and is seen by analyser A's D4 and Pico B's
-# GP1. Sends a key held for two repeat codes, then two keys tapped, with a frame or repeat
-# code every 108 ms.
+# NEC infrared from the library's transmitter (MicroPython, Pico A): OUT0 low for a mark, as
+# an IR receiver module's output, which analyser A's D4 and Pico B's GP1 see. A key held for
+# two repeat codes, then two keys tapped, a frame or repeat code every 108 ms.
 # outside: analyser=A ms=4000 decode=-P ir_nec:ir=D4 -A ir_nec=addr:addr-inv:cmd:cmd-inv:repeat-code
 
 import bench
@@ -23,8 +22,7 @@ def words(address, command, repeats):
 
 
 def lines(keys):
-    """What sigrok's ir_nec decoder prints for the keys, in order, using the -A fields from
-    the outside: line."""
+    """What sigrok's ir_nec prints of the keys with outside:'s -A, in order."""
     out = []
     for address, command, repeats in keys:
         for name, byte in (("Address", address), ("Address#", ~address & 0xFF),
@@ -40,7 +38,7 @@ def run(transfer, pause_ms, log=print):
     host.start()
     host.push([UNIT])
     for address, command, repeats in KEYS:
-        # push all three at once; the address word is taken 9 ms into the frame
+        # all three at once: the address word is taken 9 ms into the frame
         host.push(words(address, command, repeats))
         pause_ms(PERIOD_MS * (repeats + 1))
         log("sent address 0x%02x command 0x%02x, %d repeat codes" % (address, command, repeats))

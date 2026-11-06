@@ -1,14 +1,14 @@
 # SPDX-License-Identifier: Apache-2.0
-# 10BASE-T frames at 40 MHz (CPython and MicroPython). The host builds the frame after its
-# preamble, and the core times it onto the wire and appends the FCS with its CRC unit.
-# Frames come back in through the chip's receiver and test/ethernet_rx.asm.
+# 10BASE-T frames at 40 MHz. The host builds the frame behind its preamble; the core times
+# it onto the wire and its CRC unit appends the FCS. Frames come back in through the chip's
+# receiver and test/ethernet_rx.asm. CPython and MicroPython.
 
 from protocol_emulator import CONTROL, DATA, DATA_ADDR, DEFAULT_CONFIG, STATUS, TX, hex_words
 
 PREAMBLE = [0x55] * 7 + [0xD5]
 LINK_TENTH = 64000  # cycles in a tenth of the 16 ms between link pulses
 
-# TD+ on IO0, TD- on IO1 (a Manchester pair)
+# TD+ on IO0, TD- on IO1, a Manchester pair
 CONFIG = dict(
     DEFAULT_CONFIG, out_base=12, set_base=12, set_count=2, manchester=1, autopull=1,
     autopull_data=1, crc_width=32, crc_poly=0x8320, crc_poly_high=0xEDB8, crc_init=0xFFFF,
@@ -16,8 +16,8 @@ CONFIG = dict(
 
 
 def crc32(data):
-    """The IEEE 802.3 FCS over bytes taken LSB first. The chip computes it too, and the
-    tests check that the two agree."""
+    """The FCS of IEEE 802.3, over bytes taken least significant bit first; the chip
+    computes it too, and the tests check the two agree."""
     crc = 0xFFFFFFFF
     for byte in data:
         crc ^= byte
@@ -38,8 +38,8 @@ def _ip_checksum(header):
 
 
 def udp(payload, source=(10, 0, 0, 2), port=1234):
-    """A broadcast UDP datagram over IPv4, padded to the minimum frame size and an even
-    length, without the FCS."""
+    """A broadcast UDP datagram over IPv4, padded to the shortest frame and to an even
+    length, without its FCS."""
     payload = list(payload)
     datagram = _big16(port) + _big16(port) + _big16(8 + len(payload)) + _big16(0)
 
@@ -62,14 +62,14 @@ def wire(frame):
 
 
 def words(data):
-    """Pack two bytes per word, the first in the low half, as the data memory takes them."""
+    """Two bytes to a word, the first in the low half, as the data memory takes them."""
     return [data[i] | (data[i + 1] << 8) for i in range(0, len(data), 2)]
 
 
 def writes(frame, link_tenth=LINK_TENTH):
-    """Return the register writes that send [frame]. The data memory only takes writes
-    while every core is halted. A start runs the firmware from the top, which reads the
-    link interval and then the frame's length in bits minus two."""
+    """The register writes that send [frame]. The data memory takes writes only while
+    every core is halted; a start runs the firmware from the top, which reads the link
+    interval and then the frame's length in bits less two."""
     return [
         (CONTROL, [4]), (CONTROL, [8]), (DATA_ADDR, [0]), (DATA, words(PREAMBLE + frame)),
         (TX, [link_tenth, 8 * len(frame) - 2]), (CONTROL, [1]),
@@ -82,9 +82,9 @@ def send(host, frame, link_tenth=LINK_TENTH):
 
 
 def halves(data, idle=6):
-    """What a sender puts on the line for data after the preamble, one level per half bit:
-    each bit's complement then the bit itself, first bit lowest, then TP_IDL high for idle
-    half bits and the line at rest."""
+    """What a sender puts on the line for data behind the preamble, a level a half bit:
+    each bit its complement then itself, first bit lowest, then TP_IDL high for idle half
+    bits and the line at rest."""
     levels = []
     for byte in PREAMBLE + list(data):
         for n in range(8):
@@ -94,8 +94,7 @@ def halves(data, idle=6):
 
 
 def received(words, count):
-    """Unpack count bytes from words as the chip's receiver packs them: two per word, low
-    first."""
+    """count bytes from words as the chip's receiver packs them, two to a word, low first."""
     return [(words[n // 2] >> (8 * (n % 2))) & 0xFF for n in range(count)]
 
 
@@ -104,8 +103,8 @@ RX_CONFIG = dict(DEFAULT_CONFIG, autopull=1, autopull_data=1, pull_threshold=16)
 
 
 def load_receiver(host, engine, name="ethernet_rx"):
-    """Load test/ethernet_rx.asm (words in name.hex, certificate in name.cert.hex) into
-    engine and leave it selected. Both engines must be halted."""
+    """test/ethernet_rx.asm, its words and certificate in name.hex and name.cert.hex, into
+    engine, which is left selected. Both engines have to be halted."""
     def words(path):
         with open(path) as f:
             return hex_words(f.read())
@@ -117,11 +116,11 @@ def load_receiver(host, engine, name="ethernet_rx"):
 
 
 def heard(host, frame, td_plus, base, polls=200):
-    """Send frame from engine 0 (the transmit firmware) while engine 1 (the receiver
-    firmware) waits for the chip's receiver to take it back off td_plus into base and up.
-    Returns the receiver's status, the bytes on the wire after the start of frame, and
-    the part of them engine 1 hands over. The data memory only takes writes while both
-    cores are halted."""
+    """Engine 0, running the transmit firmware, sends frame while engine 1, running the
+    receiver's, waits for the chip's receiver to take it back off td_plus into base up:
+    the receiver's status, the bytes on the wire after the start of frame, and what
+    engine 1 hands over of them. The data memory takes writes only while both cores are
+    halted."""
     data = wire(frame)[len(PREAMBLE):]
     for engine in (1, 0):
         host.select(engine)

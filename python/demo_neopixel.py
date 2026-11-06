@@ -1,30 +1,30 @@
 # SPDX-License-Identifier: Apache-2.0
 # An Adafruit NeoPixel Stick 8 (SK6812) on the library's WS2812 firmware (MicroPython,
-# Pico A): OUT3, pulled down by 10 k, through a 74AHCT125 at 5 V to DIN. Sends two frames,
-# PIXELS and then the same rotated by one, which the stick keeps showing.
-# demo/outside.sh neopixel copies what it needs.
+# Pico A): OUT3, pulled down by 10 k, through a 74AHCT125 at 5 V to DIN. Two frames:
+# PIXELS, then the same turned by one, which the stick keeps showing. demo/outside.sh
+# neopixel copies what it needs.
 
 import bench
 import bench_firmware
 import protocol_emulator as pe
 
-# red, green, blue; kept low enough for USB to power the stick
+# red, green, blue, low enough that USB powers the stick
 PIXELS = [
     (0x20, 0x00, 0x00), (0x00, 0x20, 0x00), (0x00, 0x00, 0x20), (0x20, 0x20, 0x00),
     (0x00, 0x20, 0x20), (0x20, 0x00, 0x20), (0x12, 0x34, 0x56), (0x01, 0x02, 0x04),
 ]
-# A pixel is 24 bits of 55 cycles, so the firmware takes a word every 13.75 us on average.
-# A frame's words go out in one SPI frame at 2 MHz, a word every 8 us (9.5 with the
-# RP2040's pause after each byte). That is never late, with at most seven waiting. A late
-# word would latch the stick early, and a push into a full fifo is dropped; neither raises
-# a fault, so test_outside.py checks every frame both ways.
+# A pixel takes 24 bits of 55 cycles, so the firmware takes a word every 13.75 us on
+# average. A frame's words go in one SPI frame at 2 MHz, a word every 8 us, 9.5 with the
+# RP2040's pause after each byte: never late, at most seven waiting. A late word would
+# latch the stick early and a push into a full fifo is dropped, both without a fault, so
+# test_outside.py checks every frame whole both ways.
 SPI_HZ = 2_000_000
-# the SK6812 latches after 80 us low, and the firmware's own gap is 53 us
+# The SK6812 latches after 80 us low, and the firmware's own gap is 53 us
 LATCH_MS = 1
 
 
 def words(pixels):
-    """Ws2812.Pixel.words: green and red, then blue, each sent top bit first."""
+    """Ws2812.Pixel.words: green and red, then blue, each sent from the top bit."""
     out = []
     for red, green, blue in pixels:
         out += [(green << 8) | red, blue << 8]
@@ -32,12 +32,11 @@ def words(pixels):
 
 
 def show(host, frames, pause_ms, engine=0, hold_ms=LATCH_MS):
-    """Run the SK6812 firmware on engine, holding each frame for hold_ms and keeping the
-    last one until the next load. Loading stops the other engine. Pico A's SPI must be at
-    SPI_HZ."""
+    """engine runs the SK6812 firmware, each frame held hold_ms and the last kept until a
+    load. Loading it stops the other engine; Pico A's SPI must be at SPI_HZ."""
     bench.load(host, bench_firmware.SK6812, engine)
     host.start()
-    # the firmware starts by holding the line low for its latch gap and takes no word
+    # the firmware first holds the line low for its latch gap, taking no word
     pause_ms(LATCH_MS)
     for pixels in frames:
         host.push(words(pixels))

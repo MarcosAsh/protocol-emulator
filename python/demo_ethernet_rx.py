@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
-# 10BASE-T into the chip (MicroPython, Pico A). A PIO on GP6 sends frames at 10 Mb/s, off
-# Pico A's own crystal, into IO0 (header 29) and the chip's receiver, which samples for a
-# 40 MHz clock. Engine 0's ethernet_rx hands each frame to the host, which checks the bytes
-# and the receiver's FCS verdict against what it sent: good and bad FCSs, odd and even
-# lengths, one frame past the end of the data memory, then the rate stepped both ways until
-# frames fail. Needs the Icepi's 40 MHz header build, the host SPI at 5 MHz, and bench.py,
-# ethernet.py, ethernet_rx.hex and ethernet_rx.cert.hex on the Pico.
+# 10BASE-T into the chip (MicroPython, Pico A): frames from a PIO on GP6 at 10 Mb/s, off
+# Pico A's own crystal, into IO0 (header 29) and the chip's receiver, sampling for its
+# 40 MHz. Engine 0's ethernet_rx hands each frame to the host, which holds the bytes and
+# the receiver's FCS verdict to what it sent: good and bad FCSs, odd and even lengths, one
+# past the data memory's end, then the rate stepped both ways until frames fail. Needs
+# the Icepi's 40 MHz header build, the host SPI at 5 MHz, and bench.py, ethernet.py,
+# ethernet_rx.hex and ethernet_rx.cert.hex on the Pico.
 
 import array
 import gc
@@ -24,12 +24,12 @@ SPI_HZ = 5_000_000
 IO0 = 12
 LINE = 6
 BASE = 16
-# the number of bytes that fit in the data memory from BASE
+# the bytes that fit in the data memory from BASE
 ROOM = 2 * (512 - BASE)
 SEED = 802
-# The PIO divides the 200 MHz system clock by 2 + step/256 and uses five PIO cycles per
-# half bit, so one step changes the rate by 0.195% and each edge moves by up to one 5 ns
-# system cycle relative to step 0. Below are the steps a pass needs, then the sweep.
+# the PIO's divider from the 200 MHz system clock is 2 + step/256, five PIO cycles a half
+# bit, so a step is 0.195% on the rate and each edge moves by up to one 5 ns system cycle
+# off step 0; the steps a pass needs, then the sweep
 CLAIMED = (-1, 0, 1)
 SWEEP = range(-16, 17)
 PIO0_SM0_CLKDIV = 0x502000C8
@@ -41,14 +41,14 @@ def halves():
     out(pins, 1)[4]  # noqa: F821
 
 
-# each byte as sixteen half bits, first one lowest: a bit's complement, then the bit
+# each byte as its sixteen half bits, first lowest: a bit's complement, then the bit
 CODES = [sum((1 - ((b >> n) & 1)) << (2 * n) | ((b >> n) & 1) << (2 * n + 1) for n in range(8))
          for b in range(256)]
 
 
 def line_words(data, idle=6):
-    """The PIO's words for data after the preamble, as ethernet.halves has it: one half bit
-    per bit of each word, first one lowest, then TP_IDL and the line at rest."""
+    """The PIO's words for data behind the preamble: as ethernet.halves has it, a half bit
+    a bit of each word, first lowest, then TP_IDL and the line at rest."""
     sent = ethernet.PREAMBLE + list(data)
     words = array.array("I", bytes(4 * (len(sent) // 2 + 2)))
     for n, byte in enumerate(sent):
@@ -74,8 +74,8 @@ class Sender:
         return machine.mem32[PIO0_SM0_CLKDIV] >> 8
 
     def send(self, words):
-        """Send the words, with the first eight in the fifo before the machine starts and
-        interrupts off so the line has no gap. The last level, at rest, stays."""
+        """The words, the first eight in the fifo before the machine starts, with
+        interrupts off so the line has no gap; its last level, at rest, stays."""
         first, rest = words[:8], words[8:]
         self.sm.restart()
         state = machine.disable_irq()
@@ -101,7 +101,7 @@ def setup(host):
 
 
 def receive(host, sender, data):
-    """Return the receiver's status and the bytes engine 0 hands over (at most what fits)."""
+    """The receiver's status and the bytes engine 0 hands over, at most what fits."""
     host.stop()
     host.flush()
     host.arm_frame(IO0, base=BASE, fifty=False, owner=0)
@@ -136,8 +136,8 @@ def frame(length, bad):
 
 
 def judge(status, got, data, bad, log, label):
-    """Return one frame's lines (whether it was received whole, then what was sent and
-    what came back) in the format demo/frames.py reads."""
+    """One frame's lines: whether it was received whole, then what was sent and handed
+    back, as demo/frames.py reads them."""
     fits = len(data) <= ROOM
     ok = (status["finished"] and status["fcs_ok"] == (not bad)
           and status["words"] == (len(data) + 1) // 2 and status["half"] == len(data) % 2
@@ -190,8 +190,8 @@ def run(transfer, log=print):
 if __name__ == "__main__":
     import pico_board
 
-    # the frames' hex lines would fill the Pico's heap if kept, so we only print them (for
-    # the ledger's copy of Pico A's output)
+    # the frames' hex lines would fill the Pico's heap if kept, so they are only printed,
+    # for the ledger's copy of Pico A's output
     spi = pico_board.PicoSpi(baudrate=SPI_HZ)
     try:
         ok = run(spi.transfer)

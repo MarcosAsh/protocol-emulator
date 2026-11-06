@@ -1,14 +1,14 @@
 # SPDX-License-Identifier: Apache-2.0
-# Self-timing on the host Pico (MicroPython). Engine 0 sends UART frames over wire 20 and
-# engine 1 stamps every edge and echoes the wire on OUT0 for the listener Pico and the
-# analyser. An engine's set and out pins are one contiguous run from their base, so it
-# can't drive OUT0 and the wire together, hence the echo. Needs protocol_emulator.py,
-# pico_board.py and the two .hex and two .cert.hex files on the Pico.
+# Self-timing on the host Pico (MicroPython): engine 0 sends UART frames over wire 20, engine 1
+# stamps every edge and echoes the wire on OUT0 for the listener Pico and the analyser.
+# An engine's set and out pins are one run from their base, so it cannot drive OUT0 and
+# the wire together: hence the echo. Needs protocol_emulator.py, pico_board.py and the
+# two .hex and two .cert.hex files on the Pico.
 
 import protocol_emulator as pe
 
 WIRE = 20
-# 9600 baud at 48 MHz. `assemble -period 5000 test/uart_tx_host_rate.asm` accepts it, so
+# 9600 baud at 48 MHz; `assemble -period 5000 test/uart_tx_host_rate.asm` accepts it, so
 # every edge lands a whole number of periods after its start bit
 PERIOD = 5000
 # the least period test/firmware.mk certifies uart_tx_host_rate for, so any load from it up
@@ -26,14 +26,14 @@ def words(name):
 
 
 def edges(byte):
-    """Return the bit positions of a frame, start bit first, where the line changes."""
+    """The bits of a frame, start bit first, at which the line changes."""
     levels = [0] + [(byte >> i) & 1 for i in range(8)] + [1]
     return [bit for bit in range(10) if levels[bit] != (levels[bit - 1] if bit else 1)]
 
 
 def load(host, engine, config, name, loaded=None):
-    """Load and certify, with loaded as the least period if given. Both engines must be
-    halted for the certificate."""
+    """Loads and certifies, at least loaded where given; both engines have to be halted
+    for the certificate."""
     host.select(engine)
     host.configure(config)
     host.load(words(name))
@@ -45,7 +45,7 @@ def rx_level(host):
 
 
 def setup(host, period=PERIOD):
-    """Start both engines, with the wire idle and no stamp waiting."""
+    """Both engines running, the wire idle and no stamp waiting."""
     for engine in (1, 0):
         host.select(engine)
         host.stop()
@@ -58,7 +58,7 @@ def setup(host, period=PERIOD):
     host.push([period])
     host.start()
     host.select(1)
-    # the line going idle (unless a previous run already left it there)
+    # the line going idle, unless a previous run left it there
     for _ in range(4):
         level = rx_level(host)
         if level:
@@ -67,7 +67,7 @@ def setup(host, period=PERIOD):
 
 def host_drain(host):
     """The poll as Host makes it, for the cocotb rehearsal: append the selected engine's
-    waiting stamps to stamps, then read each register in reads."""
+    waiting stamps, then read each register in reads."""
 
     def drain(stamps, reads):
         level = rx_level(host)
@@ -80,8 +80,7 @@ def host_drain(host):
 
 
 def send(host, drain, data, flood=False, pause=None, polls=100_000):
-    """Return the stamps of every edge. When flooding, the host reads two more registers
-    on each poll."""
+    """The stamps of every edge. Flooding, the host reads two more registers each poll."""
     expected = sum(len(edges(b)) for b in data)
     host.select(0)
     host.push(list(data))
@@ -97,7 +96,7 @@ def send(host, drain, data, flood=False, pause=None, polls=100_000):
 
 
 def offsets(data, stamps):
-    """For each byte, the time of each edge after its start bit."""
+    """Per byte, each edge's time after its start bit."""
     frames = []
     for byte in data:
         n = len(edges(byte))
@@ -107,7 +106,7 @@ def offsets(data, stamps):
 
 
 def faults(host):
-    """Each engine's fault bits (masked with pe.FAULTS)."""
+    """Each engine's fault bits, as pe.FAULTS names them."""
     found = []
     for engine in (0, 1):
         host.select(engine)
@@ -130,7 +129,7 @@ def table(data, measured, period=PERIOD):
 
 
 class Counted:
-    """Return the SPI frames sent, through Host or a transport's own drain."""
+    """The SPI frames sent, through Host or a transport's own drain."""
 
     def __init__(self, transfer, drain=None):
         self.inner = transfer
@@ -146,9 +145,9 @@ class Counted:
 
 
 def run(transfer, text=b"Jane St!", pause=None, drain=None):
-    """Run quiet, then with the host flooding SPI. Returns both tables and whether they
-    agree. A transport's own drain (like host_drain's, but returning the frames it sent)
-    replaces Host's where the host is too slow to poll through it."""
+    """Quiet, then with the host flooding SPI: both tables, and whether they agree. A
+    transport's own drain, like host_drain's but returning the frames it sent, stands in
+    for Host's where the host is too slow to poll through it."""
     data = bytes(text)
     assert len(data) <= 8, "the tx fifo holds eight"
     spi = Counted(transfer, drain)

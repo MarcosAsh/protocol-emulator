@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
-# Engine 0 is a USB keyboard and mouse that types TEXT (MicroPython). D+ is uio[0] and
-# D- is uio[1], pulled up from D- for low speed. On the Icepi Zero a Pico is the host over
-# pico_board's pins: it watches the bus on header 29 (D+) -> GP6 and 31 (D-) -> GP7, keeps
-# the board detached from GP8 -> header 15 until engine 0 serves, and detaches it again
-# when GP9 (the carrier's REPLUG) is pressed. The TT demo board reads uio_out itself.
-# Meanwhile engine 1 sends each key the laptop took out of OUT0 at 115200 baud, for
-# pico_listener. Needs uart_tx_host_rate.hex and uart_tx_host_rate.cert.hex on the Pico.
-# Not tried on a board yet; test/test_demo.py runs `start_log` and `serve` on the RTL.
+# Engine 0 is a USB keyboard and mouse that types TEXT (MicroPython). D+ is uio[0],
+# D- uio[1], pulled up from D- for low speed. On the Icepi Zero a Pico is the host over
+# pico_board's pins, watches the bus on header 29 (D+) -> GP6 and 31 (D-) -> GP7, and from
+# GP8 -> header 15 keeps the board detached until engine 0 serves, and a press on GP9 (the
+# carrier's REPLUG) detaches it again; the TT demo board reads uio_out itself. Meanwhile
+# engine 1 sends each key the laptop took out of OUT0 at 115200 baud, for pico_listener.
+# Needs uart_tx_host_rate.hex and uart_tx_host_rate.cert.hex on the Pico.
+# Untested on a board; test/test_demo.py runs `start_log` and `serve` on the RTL.
 
 import time
 
@@ -37,11 +37,11 @@ KEYS[" "] = 0x2C
 CHARS = {code: ord(c) for c, code in KEYS.items()}
 
 BAUD = 115_200
-# Pico A's pin to usb_detach (high turns the board's D- pull-up off), and how long the
+# Pico A's pin to usb_detach, which high turns the board's D- pull-up off, and how long the
 # laptop sees no device before the attach
 DETACH_PIN = 8
 DETACH_MS = 200
-# Pico A's button to ground, and how soon after the last replug a press counts as bounce
+# Pico A's button to ground, and how close to the last replug a press is that one's bounce
 REPLUG_PIN = 9
 REPLUG_MS = 1000
 # uart_tx_host_rate on OUT0, the default set and out pin
@@ -49,7 +49,7 @@ LOGGER = pe.DEFAULT_CONFIG
 
 
 def reports(text):
-    """Press and release each character, then move the mouse three pixels right."""
+    """Each character pressed, released, and the mouse three pixels to the right."""
     queue = []
     for c in text:
         queue += [[1, 0, KEYS[c], 0, 0, 0, 0, 0], [1, 0, 0, 0, 0, 0, 0, 0], [2, 0, 3, 0]]
@@ -57,10 +57,10 @@ def reports(text):
 
 
 def se0_reset(lines, ms, least=2):
-    """A bus_reset for `serve`. lines() is D+ | D- << 1 and ms() counts milliseconds. SE0
-    held past `least` of them is a reset (an EOP's SE0 lasts two bits). Returns True once
-    a reset happens. SE0 only counts if a second read also sees it, since two reads that
-    each land on an EOP, milliseconds apart, would otherwise look like a reset."""
+    """A bus_reset for `serve`. lines() is D+ | D- << 1 and ms() counts milliseconds: SE0
+    held past `least` of them is a reset, where an EOP's is two bits. True once a reset.
+    SE0 counts only when a second read finds it too, as two reads that each land on an
+    EOP, milliseconds apart, would otherwise make one."""
     since, fired = None, False
 
     def bus_reset():
@@ -84,10 +84,10 @@ def words(name):
 
 
 def start_log(host, program, certificate, clock_hz=48_000_000):
-    """Run `program` (uart_tx_host_rate, which the kernel accepts at any period from 4) on
-    engine 1. Both certificates go in first, while every core is halted: engine 0's, which
-    usb_board.load checks against, then engine 1's. Returns the `log` for `serve`, which
-    sends the key of each report taken."""
+    """Engine 1 runs `program`, uart_tx_host_rate, which the kernel accepts at any period
+    from 4. Both certificates go in first, while every core is halted: engine 0's, which
+    usb_board.load checks against, and after it engine 1's. Returns the `log` for `serve`,
+    which sends the key of each report taken."""
     for engine in (0, 1):
         host.select(engine)
         host.stop()
@@ -102,7 +102,7 @@ def start_log(host, program, certificate, clock_hz=48_000_000):
     host.start()
     host.select(0)
 
-    # a key takes three reports at the 10 ms poll, so its byte left the fifo long ago
+    # a key takes three reports at the 10 ms poll, so its byte has long left the fifo
     def log(report):
         if report[0] == 1 and report[2]:
             host.select(1)
@@ -114,12 +114,12 @@ def start_log(host, program, certificate, clock_hz=48_000_000):
 
 def serve(host, board, queue, bus_reset, log=lambda report: None, say=lambda line: None,
           attach=None, replug=lambda: False, ready=lambda: True):
-    """Serve forever. Typing waits for a configuration, a HID driver and ready(), so no
-    report sits in the fifo while the laptop enumerates (an IN on endpoint 0 would drop
-    it, and a SETUP followed by one more word would overflow the rx fifo). A reset puts
-    back the report it lost. `log` gets each report once the laptop has taken it, and
-    `say` gets each enumeration step and each key. `attach`, if given, is called when
-    engine 0 first serves and again each time `replug` has detached the board."""
+    """Forever. Typing waits for a configuration, a HID driver and ready(), so no report
+    sits in the fifo while the laptop enumerates: an IN on endpoint 0 would drop it, a word
+    more for the rx fifo on a SETUP's heels. A reset puts back the report it lost, `log`
+    gets each report once the laptop has taken it, and `say` each step of the enumeration
+    and each key. `attach`, if given, is called once engine 0 first serves, and again each
+    time `replug` has detached the board."""
     serving, halted, address, configured = False, False, 0, False
     while True:
         if bus_reset():
@@ -130,14 +130,14 @@ def serve(host, board, queue, bus_reset, log=lambda report: None, say=lambda lin
             say("bus reset")
         sent = board.pending_report
         status = usb_board.service(host, board)
-        # a power glitch reloads the bitstream from flash, leaving engine 0 halted
+        # a power glitch reloads the bitstream from flash, which leaves engine 0 halted
         if serving and status & 1 and not halted:
             say("engine 0 halted: the chip was reset, a full load follows the next bus reset")
         halted = bool(status & 1)
         if not serving:
             serving = True
             if attach is None:
-                # the board pulled D- up at its bitstream, but nothing answered the laptop
+                # the board pulled D- up at its bitstream, when nothing answered the laptop
                 say("engine 0 is serving: plug the Icepi's first USB port in again")
             else:
                 attach()
@@ -161,8 +161,8 @@ def serve(host, board, queue, bus_reset, log=lambda report: None, say=lambda lin
 
 
 def pico_a():
-    """The host Pico's port to the Icepi Zero: a bus_reset from D+ and D- on GP6 and GP7,
-    plus serve's attach and replug. The board stays detached until attach."""
+    """The host Pico's port to the Icepi Zero, a bus_reset from D+ and D- on GP6 and GP7,
+    and serve's attach and replug. The board is detached from here until attach."""
     from machine import Pin
 
     import pico_board
@@ -194,8 +194,8 @@ def pico_a():
 
 
 def run(text="hello jane street ", say=print, settle_ms=0):
-    """Run on the Icepi Zero from the host Pico. Typing waits settle_ms after each attach,
-    so demo/keys.py can grab the keyboard before the first key."""
+    """On the Icepi Zero, from the host Pico. Typing waits settle_ms past each attach, for
+    demo/keys.py to grab the keyboard before its first key."""
     host, bus_reset, attach, replug = pico_a()
     attached = time.ticks_ms()
 

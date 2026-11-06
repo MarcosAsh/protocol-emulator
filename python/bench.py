@@ -1,18 +1,18 @@
 # SPDX-License-Identifier: Apache-2.0
-# Shared by the outside chip demos (MicroPython and CPython): loading a bench_firmware.py
-# entry into an engine, streaming host words without overflowing either fifo, and the log
-# demo/outside.sh reads back from Pico A after the capture.
+# What the outside chip demos share (MicroPython and CPython): loading a bench_firmware.py
+# entry into an engine, a stream of host words that never overflows either fifo, and the
+# log demo/outside.sh reads back from Pico A once the capture is done.
 
 import protocol_emulator as pe
 
 FAULTS = pe.FAULTS
 DEPTH = 8
-# demo/capture.sh only starts the analyser once mpremote returns, which takes this long
+# demo/capture.sh starts the analyser after mpremote returns, which takes this long
 START_MS = 1000
 
 
 def faults(host):
-    """Fault bits of the selected engine (underflow, overflow, missed deadline, bad decode)."""
+    """The selected engine's fault bits: underflow, overflow, missed deadline, bad decode."""
     return host.read(pe.STATUS)[0] & FAULTS
 
 
@@ -21,9 +21,9 @@ def rx_level(host):
 
 
 def load(host, firmware, engine=0):
-    """Stop and flush both engines, load a bench_firmware.py entry into engine, check its
-    certificate and leave it selected. Faults stick until reset, so a fault left by an
-    earlier run is refused rather than blamed on this one."""
+    """Both engines stopped and flushed, then engine loaded with a bench_firmware.py entry,
+    its certificate checked, and left selected. Faults hold until reset, so one left from an earlier run is refused
+    rather than reported as this one's."""
     for other in (1, 0):
         host.select(other)
         found = faults(host)
@@ -43,8 +43,8 @@ def load(host, firmware, engine=0):
 
 
 def exchange(host, words, polls=100_000):
-    """Return the reply to each word, for firmware that answers every word. Never more than
-    a fifo's depth is outstanding, so neither fifo overflows."""
+    """The reply to each word, for firmware that answers every host word with one. No more
+    than a fifo's depth is ever waiting, so neither fifo can overflow."""
     replies = []
     sent = 0
     for _ in range(polls):
@@ -66,7 +66,7 @@ def hexs(data):
 
 
 class Log:
-    """Print each line and keep it for demo/outside.sh to read back as outside.log."""
+    """Prints each line and keeps it, for demo/outside.sh to read back as outside.log."""
 
     def __init__(self):
         self.lines = []
@@ -81,7 +81,7 @@ class Log:
 
 
 def report(act, log):
-    """Run act, log PASS, FAIL or what stopped it, and save the log."""
+    """Runs act, then logs PASS, FAIL or what stopped it, and saves the log."""
     try:
         ok = act()
     except Exception as e:

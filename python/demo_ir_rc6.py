@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-# Philips RC-6 mode 0 from the library's transmitter (MicroPython, Pico A). OUT0 is high
-# for a mark, with no 36 kHz carrier, and is seen by analyser A's D4 and Pico B's GP1.
-# Sends two frames, with the trailer bit low, then high.
+# Philips RC-6 mode 0 from the library's transmitter (MicroPython, Pico A): OUT0 high for a
+# mark, without the 36 kHz carrier, which analyser A's D4 and Pico B's GP1 see. Two frames,
+# the trailer bit low then high.
 # outside: analyser=A ms=2000 decode=-P ir_rc6:ir=D4 -A ir_rc6=address:command
 
 import bench
@@ -12,19 +12,18 @@ import protocol_emulator as pe
 UNIT = 21333
 # (toggle, address, command), as test/ir_rc6.ml sends them
 FRAMES = [(0, 0x1A, 0x35), (1, 0x00, 0xFF)]
-# a frame plus its signal free time is 59 units, 26.2 ms; sigrok's ir_rc6 needs 68 units
-# (30.2 ms) from one frame's start to the next (test/ir_rc6.ml), before the host's delay
+# a frame is 59 units with its signal free time, 26.2 ms; sigrok's ir_rc6 needs 68 from one
+# frame's start to the next (test/ir_rc6.ml), 30.2 ms, before the host's own delay
 FRAME_MS = 34
 
 
 def words(toggle, address, command):
-    """Ir_rc6.words: the trailer bit, then the address and command in one word."""
+    """Ir_rc6.words: the trailer bit, then the address and the command in one word."""
     return [toggle, (address << 8) | command]
 
 
 def lines(frames):
-    """What sigrok's ir_rc6 decoder prints for the frames, in order, with the -A fields
-    from the outside: line."""
+    """What sigrok's ir_rc6 prints of the frames with outside:'s -A, in order."""
     out = []
     for _, address, command in frames:
         out += ["ir_rc6-1: Address: %02X" % address, "ir_rc6-1: Data: %02X" % command]
@@ -37,7 +36,7 @@ def run(transfer, pause_ms, log=print):
     host.start()
     host.push([UNIT])
     for toggle, address, command in FRAMES:
-        # push both words at once; the second is taken after the leader
+        # both words at once: the second is taken after the leader
         host.push(words(toggle, address, command))
         pause_ms(FRAME_MS)
         log("sent toggle %d address 0x%02x command 0x%02x" % (toggle, address, command))
