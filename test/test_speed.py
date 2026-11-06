@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-"""demo/speed.py: rows only for a protocol that started, the first row of a stage counts, and
-the table's minutes."""
+"""demo/speed.py: only a started protocol gets a row, the first row of a stage wins, and
+the table reports minutes."""
 
 import io
 import sys

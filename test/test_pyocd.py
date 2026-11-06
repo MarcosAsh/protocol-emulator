@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """A stock pyOCD session through demo/swd_probe.py and python/bridge.py on the RTL at the
-bench's 48 MHz and 1 MHz SWCLK, run blocking in a thread as Pico A runs the bridge, against
-an RP2040's two DPs and core 0 (swd_target.py): connect, halt, read pc and the bootrom's
-magic, resume. test_swd_probe.py runs the same in a second on a model of the firmware."""
+bench's 48 MHz and 1 MHz SWCLK. It runs blocking in a thread like Pico A's bridge, against
+an RP2040's two DPs and core 0 (swd_target.py): connect, halt, read pc and the bootrom
+magic, resume. test_swd_probe.py does the same in a second against a firmware model."""
 
 import sys
 
@@ -62,7 +62,8 @@ async def test_pyocd_halt_read_resume(dut):
     assert let_go(dut)
     await unwire(dut, task)
     cocotb.log.info("%d bridge lines, core 0: %s", len(link.lines), core.log)
-    # pyOCD's ABORT sets STKCMPCLR, SBZ on a MINDP DP: its own, as test_swd_probe.py says
+    # pyOCD's ABORT sets STKCMPCLR, which is SBZ on a MINDP DP. That's pyOCD's doing, see
+    # test_swd_probe.py
     for dp in bus.dps:
         dp.violations = [v for v in dp.violations if v != "STKCMPCLR written to a MINDP DP"]
     clean(bus)

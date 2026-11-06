@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# A test firmware's certificate, as firmware.mk writes it beside its words, and the
-# assumptions firmware.mk makes it under, read from firmware.mk itself.
+# Reads a test firmware's certificate (written by firmware.mk) and the assumptions
+# firmware.mk certified it under.
 import re
 
 
@@ -10,9 +10,9 @@ def certificate(name):
 
 
 def assumptions(name):
-    """certify's loaded, floor and single_edge for the firmware: -period or
-    -period-floor, or the budget a compiled predicate's settings give, and
-    -single-capture-edge."""
+    """The loaded, floor and single_edge values certify needs for this firmware. loaded
+    comes from -period / -period-floor, or from the budget in a compiled predicate's
+    settings."""
     with open("firmware.mk") as f:
         text = f.read().replace("\\\n", " ")
     match = re.search(rf"^{re.escape(name)}\.hex .*?ASSUME = (.*)$", text, re.M)

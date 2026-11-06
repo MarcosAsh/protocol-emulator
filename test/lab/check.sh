@@ -1,7 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
-# Each NAME.job.json's result files as generate.exe lab writes them, against NAME/, which
-# test/test_lab_worker.py's stand-in for the checker hands the worker. -update rewrites
+# Compares the result files generate.exe lab writes for each NAME.job.json against NAME/,
+# which test/test_lab_worker.py's checker stand-in hands to the worker. -update rewrites
 # NAME/ instead, after a change to Remote_lab.
 # Usage: test/lab/check.sh [-update] GENERATE.EXE DIR
 set -e

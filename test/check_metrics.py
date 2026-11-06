@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# Fails when LibreLane's metrics miss timing or signoff; the flow itself goes green on
-# negative slack.
+# Fails when LibreLane's metrics miss timing or signoff. The flow itself stays green on
+# negative slack, so we check here.
 # Usage: python3 test/check_metrics.py [--csv] runs/wokwi/final/metrics.json
 #        python3 test/check_metrics.py --fpga test/fpga_kit.log
 import argparse
@@ -33,7 +33,7 @@ def failures(metrics):
     for key in AT_LEAST_ZERO + EXACTLY_ZERO:
         value = metrics.get(key)
         if value is None:
-            # a flow that stopped early leaves the metric out, which is not a pass
+            # a flow that stopped early leaves the metric out, and that isn't a pass
             ok = False
         elif key in AT_LEAST_ZERO:
             ok = value >= 0
@@ -45,7 +45,7 @@ def failures(metrics):
 
 
 def csv(metrics):
-    """One row for a log of the chip over time, under its header."""
+    """Print a header and one row, for logging the chip over time."""
     commit = subprocess.run(
         ["git", "log", "-1", "--format=%h,%cs"], capture_output=True, text=True
     ).stdout.strip()
@@ -56,7 +56,7 @@ def csv(metrics):
 
 
 def fpga(log):
-    """The kit build's size and clock; nextpnr prints the routed frequency last."""
+    """Print the kit build's size and clock (nextpnr prints the routed frequency last)."""
     cells = re.findall(r"ICESTORM_LC:\s*(\d+)/\s*(\d+)", log)
     clocks = re.findall(r"Max frequency for clock .*: ([\d.]+) MHz", log)
     if not cells or not clocks:

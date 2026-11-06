@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Known bugs planted one at a time, to score a reviewer: a finding counts only if its
+# Plants known bugs one at a time to score a reviewer. A finding counts only if its
 # reproducer fails on the planted copy and passes on a clean one. Copies go under _plant/.
 # Usage: python3 test/plant.py screen [--plant NAME ...] [--jobs N]  which bugs runtest misses
 #        python3 test/plant.py export NAME DIR  a planted copy, without this file
@@ -88,7 +88,7 @@ def find(name):
 
 
 def copy(dest, plant=None):
-    # dune's _build stays, so the next copy, and the next screen, rebuilds only what changed
+    # keep dune's _build so the next copy (and the next screen) rebuilds only what changed
     dest.mkdir(parents=True, exist_ok=True)
     for item in dest.iterdir():
         if item.name != "_build":
@@ -111,8 +111,8 @@ def dune(cwd, jobs, *args):
                           capture_output=True, text=True)
 
 
-# A build that fails past type checking (a [%firmware] refusal, or a rule that runs the
-# kernel on firmware) has caught the plant. One that fails to type check is no plant.
+# A build that fails after type checking (a [%firmware] refusal, or a rule that runs the
+# kernel on firmware) has caught the plant. One that fails type checking isn't a plant.
 def verdict(work, jobs):
     if dune(work, jobs, "build").returncode != 0:
         check = dune(work, jobs, "build", "@check")
@@ -138,7 +138,7 @@ def screen(names, jobs):
     print(f"{killed} of {len(plants)} killed")
 
 
-# A reproducer is DIR/repro.sh, run from the copy's root: it must pass on the clean copy
+# A reproducer is DIR/repro.sh, run from the copy's root. It must pass on the clean copy
 # and fail on the planted one.
 def grade(name, finding):
     repro = (Path(finding) / "repro.sh").resolve()

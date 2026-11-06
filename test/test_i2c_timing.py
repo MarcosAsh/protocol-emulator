@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-# demo/i2c_timing.py on two synthetic Standard-mode captures at 10 MHz, 100 ns a sample:
-# a clean one, and one with a transaction per violation and three within a sample of
-# their limit. The sigrok decoder must flag the same samples, when sigrok-cli is here.
+# Runs demo/i2c_timing.py on two synthetic Standard-mode captures at 10 MHz (100 ns per
+# sample): a clean one, and one with a transaction per violation plus three within a
+# sample of their limit. If sigrok-cli is installed, its decoder must flag the same samples.
 # Usage: python3 test/test_i2c_timing.py
 
 import os
@@ -17,19 +17,19 @@ import i2c_timing  # noqa: E402
 import sigrok  # noqa: E402
 
 RATE = 10_000_000
-# samples: each clears its Standard-mode limit by more than a sample
+# in samples; each clears its Standard-mode limit by more than one sample
 CLEAN = {"hd_sta": 50, "hd_dat": 10, "su_dat": 40, "high": 55, "su_sta": 50, "su_sto": 50,
          "buf": 60}
 
 
-# transaction, its changes from CLEAN, and the (parameter, verdict) pairs it is flagged with
+# transaction, its changes from CLEAN, and the (parameter, verdict) pairs it should be flagged with
 BAD = [
     ("first", {}, set()),
     ("hd_sta", {"hd_sta": 30}, {("tHD;STA", "fail")}),
     ("su_sta", {"su_sta": 40}, {("tSU;STA", "fail")}),
     ("su_sto", {"su_sto": 30}, {("tSU;STO", "fail")}),
     ("buf", {"buf": 30}, {("tBUF", "fail")}),
-    # these two keep each period over the 100 samples 100 kHz allows
+    # these two keep each period within the 100 samples that 100 kHz allows
     ("low", {"su_dat": 30, "high": 65}, {("tLOW", "fail")}),
     ("high", {"su_dat": 65, "high": 30}, {("tHIGH", "fail")}),
     ("su_dat", {"hd_dat": 49, "su_dat": 1}, {("tSU;DAT", "fail")}),
@@ -41,7 +41,7 @@ BAD = [
 
 
 class Bus:
-    """SCL on D7 and SDA on D6, as on the bench; marks name samples for the expectations."""
+    """SCL on D7 and SDA on D6 as on the bench. Marks name samples for the expectations."""
 
     def __init__(self):
         self.samples = bytearray()
@@ -55,7 +55,7 @@ class Bus:
         self.marks[name] = len(self.samples)
 
     def bit(self, value, t, name=None):
-        """From SCL high: SCL falls, SDA takes value, SCL rises and stays high."""
+        """Starting with SCL high: SCL falls, SDA takes value, SCL rises and stays high."""
         self.scl = 0
         if name:
             self.mark(name + ".fall")
@@ -70,13 +70,13 @@ class Bus:
         self.hold(t["high"])
 
     def byte(self, value, t, name=None, at=None):
-        """Eight bits and the ACK; the bit numbered [at] gets [name]'s marks."""
+        """Eight bits and the ACK. Bit number at gets name's marks."""
         for i in range(9):
             self.bit((value >> (7 - i)) & 1 if i < 8 else 0, t, name if i == at else None)
 
     def transaction(self, name, **changes):
-        """START, a byte, a repeated START, a byte, STOP: each time from CLEAN unless
-        changed, and marks named for each condition."""
+        """START, a byte, a repeated START, a byte, STOP. Timings come from CLEAN unless
+        changed, and each condition gets a named mark."""
         t = dict(CLEAN, **changes)
         self.hold(t["buf"])
         self.mark(name + ".start")
@@ -106,7 +106,7 @@ def flagged(results):
 
 
 def sigrok_flags(path):
-    """The decoder's own fails and can't-tells, by sigrok-cli."""
+    """The decoder's own fails and can't-tells, as reported by sigrok-cli."""
     env = dict(os.environ, SIGROKDECODE_DIR=os.path.join(DEMO, "decoders"))
     out = subprocess.run(
         ["sigrok-cli", "-i", path, "-P", "i2c_timing:scl=D7:sda=D6", "-A",
@@ -157,7 +157,7 @@ def main():
         ]:
             assert expect in flags, expect
 
-        # every fault here is a Standard-mode one
+        # every fault here is a Standard-mode fault
         _, results, _ = i2c_timing.check(bad_path, "fast")
         assert not [r for r in results if r.verdict == "fail"]
 

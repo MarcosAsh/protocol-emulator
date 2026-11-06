@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# Rewrites the flow's SDF, or the netlist, into what Icarus's annotator takes: the SRAM
-# macros' escaped names become plain ones, each macro's per-bit IOPATHs one path per bus at
-# the slowest bit's delay, and wires onto a macro's bus pins, which crash vvp, are dropped,
-# as are the timing checks, which Icarus ignores and cannot parse on a bus bit.
+# Rewrites the flow's SDF or netlist so Icarus's annotator accepts it. SRAM macro names
+# lose their escapes, each macro's per-bit IOPATHs collapse to one path per bus at the
+# slowest bit's delay, and interconnects to macro bus pins (which crash vvp) and timing
+# checks (which Icarus ignores and can't parse on a bus bit) are dropped.
 # python3 icarus_sdf.py sdf|netlist < in > out
 
 import re

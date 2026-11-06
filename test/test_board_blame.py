@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-"""The board-blame meter against an open-drain bus whose pull-up charges the line: a pad
-reads high a fixed R C ln(1 / (1 - threshold)) after the chip lets go of it."""
+"""The board-blame meter against an open-drain bus with an RC pull-up. A pad reads high
+R C ln(1 / (1 - threshold)) after the chip lets go of it."""
 
 import math
 
@@ -25,8 +25,8 @@ def rise_ns(ohms, pf=BUS_PF):
 
 
 class Bus:
-    """uio[bit] reads 0 while the chip pulls it low and 1 once it has been let go for
-    [rise_ns[bit]]; nothing else drives it."""
+    """uio[bit] reads 0 while the chip pulls it low, and 1 once it has been released for
+    rise_ns[bit]. Nothing else drives it."""
 
     def __init__(self, dut, rise_ns):
         self.dut = dut
@@ -75,7 +75,7 @@ async def rx_level(host):
 
 
 async def measure(dut, scl_ns):
-    """The meter's words for WORDS, read once the master has pushed a word per byte."""
+    """Read the meter's words for WORDS once the master has pushed one word per byte."""
     await reset(dut)
     bus = Bus(dut, {SCL - FIRST_IO: scl_ns, SDA - FIRST_IO: rise_ns(2200)})
     cocotb.start_soon(bus.run())
@@ -126,7 +126,7 @@ async def check_rise(dut, ohms):
 
 @cocotb.test()
 async def test_zero_load(dut):
-    """A line that rises at once reads ZERO_LOAD: the chip's own part of every word."""
+    """A line that rises at once reads ZERO_LOAD, the chip's own share of every word."""
     _, _, stamps = await measure(dut, 0)
     assert stamps == [board_blame.ZERO_LOAD] * FIFO_DEPTH, stamps
 
@@ -139,8 +139,8 @@ async def test_strong_pull_up_passes(dut):
 
 @cocotb.test()
 async def test_weak_pull_up_blames_the_board(dut):
-    """47 k on 20 pF: about 650 ns to half the supply, 800 ns 30-70 %, over fast mode's
-    300 ns and under standard mode's 1000 ns."""
+    """47 k on 20 pF takes about 650 ns to reach half the supply and 800 ns for 30-70 %.
+    That is over fast mode's 300 ns and under standard mode's 1000 ns."""
     vs = await check_rise(dut, 47_000)
     assert all(v["board"] for v in vs)
     assert not any(board_blame.verdict(v["cycles"], clock_hz=CLOCK_HZ, mode="standard")["board"] for v in vs)
@@ -148,8 +148,8 @@ async def test_weak_pull_up_blames_the_board(dut):
 
 @cocotb.test()
 async def test_line_that_never_rises_in_time(dut):
-    """47 k on 100 pF takes 3.3 us, longer than the 1.2 us high time: only the stop, which
-    leaves SCL released, lets the pad rise, and the first release's word says so."""
+    """47 k on 100 pF takes 3.3 us, longer than the 1.2 us high time. Only the stop, which
+    leaves SCL released, lets the pad rise, and the first release's word shows it."""
     names, pcs, stamps = await measure(dut, rise_ns(47_000, pf=100))
     assert len(stamps) == 1, stamps
     (v,) = verdicts(dut, names, pcs, stamps, 47_000)

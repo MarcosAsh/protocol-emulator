@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-"""demo/witness.py's own teeth, on a copy of test/board/self_timing: an edited file, a
-SHA256SUMS made again to match it, firmware the board did not run and a witness.json that
-claims more than the capture shows must each fail."""
+"""Checks that demo/witness.py actually rejects bad input, on a copy of
+test/board/self_timing. Each of these must fail: an edited file, a SHA256SUMS regenerated
+to match it, firmware the board didn't run, and a witness.json that claims more than the
+capture shows."""
 
 import hashlib
 import json

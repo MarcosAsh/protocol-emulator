@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-"""python/demo_board.py and demo_board_check.py on the RTL, run blocking in a thread as the
-demo board's RP2 runs them, over test/python/ttboard_fake.py's PIO interpreter. The chip's
-clock is the testbench's 50 MHz, which the PWM is asked for."""
+"""Runs python/demo_board.py and demo_board_check.py on the RTL, blocking in a thread like
+the demo board's RP2, over test/python/ttboard_fake.py's PIO interpreter. The chip clock
+is the testbench's 50 MHz, which is what the PWM is asked for."""
 
 import sys
 
@@ -20,7 +20,7 @@ CLOCK_HZ = 50_000_000
 
 
 def bits(signal):
-    """A port's value with X and Z read as 0: outputs not yet driven."""
+    """A port's value with X and Z read as 0 (outputs not driven yet)."""
     return int("".join("1" if c == "1" else "0" for c in str(signal.value)), 2)
 
 
@@ -49,7 +49,7 @@ class Rtl:
 
 
 async def watch_out0(dut, edges):
-    """(ns, level) of each change on uo[1]."""
+    """Collect (ns, level) for each change on uo[1]."""
     while True:
         await dut.uo_out.value_change
         level = bits(dut.uo_out) >> 1 & 1
@@ -58,7 +58,7 @@ async def watch_out0(dut, edges):
 
 
 def uart_bytes(edges, bit_ns):
-    """Frames from the line's edges, each bit read mid-period from its start bit."""
+    """Decode frames from the line's edges, reading each bit mid-period from its start bit."""
     def level(at):
         return [lv for t, lv in edges if t <= at][-1]
 
@@ -72,7 +72,7 @@ def uart_bytes(edges, bit_ns):
 
 @cocotb.test()
 async def test_bringup_check(dut):
-    """The check passes, and the frames its PIO read are the ones on the pad."""
+    """The check passes, and the frames its PIO read match the ones on the pad."""
     await reset(dut)
     board = ttboard_fake.Board(Rtl(dut))
     loaded = board.install()
@@ -94,8 +94,8 @@ async def test_bringup_check(dut):
 
 @cocotb.test()
 async def test_fastest_sck(dut):
-    """SCK at the limit, an eighth of the clock, on both boards' pin maps: a full program
-    load and every read back intact."""
+    """SCK at the limit (clock / 8) on both boards' pin maps: a full program load must read
+    back intact."""
     for kind in ("dbv3", "tt06"):
         await reset(dut)
         board = ttboard_fake.Board(Rtl(dut), kind=kind)

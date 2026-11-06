@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-"""A remote lab job on the RTL at 48 MHz, as Pico A runs python/demo_lab.py on the bench:
-LAB_FIRMWARE is generate.exe lab's firmware.json, and LAB_OUT gets lab.sr, OUT0 on D4 as
-analyser A samples it, and lab.log, the script's log, the names demo/lab.py reads back
-from a bench run. test_outside's reset and sampling, without its part models."""
+"""Runs a remote lab job on the RTL at 48 MHz, the way Pico A runs python/demo_lab.py.
+LAB_FIRMWARE is generate.exe lab's firmware.json. LAB_OUT receives lab.sr (OUT0 on D4, as
+analyser A samples it) and lab.log (the script's log). demo/lab.py reads both back from a
+bench run. Same reset and sampling as test_outside, without its part models."""
 
 import json
 import math
@@ -21,7 +21,7 @@ import demo_lab
 sys.path.insert(0, "../demo")
 import sigrok  # noqa: E402
 
-# 48 MHz, as the Icepi's PLL makes it
+# 48 MHz, what the Icepi's PLL produces
 CLOCK_PS = 20834
 RATE = int(float(os.environ.get("LAB_RATE", 24e6)))
 MS = 48_000

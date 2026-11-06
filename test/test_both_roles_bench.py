@@ -1,14 +1,14 @@
 # SPDX-License-Identifier: Apache-2.0
-"""demo_both_roles.py and demo_rates.py on the RTL at the bench's 48 MHz, run blocking in a
-thread as Pico A runs them, against a cocotbext-i2c memory at 0x50 for the 24LC256. The
-pins are sampled as the analysers sample them and decoded as demo/rates.sh decodes the
-bench's captures."""
+"""Runs demo_both_roles.py and demo_rates.py on the RTL at the bench's 48 MHz, blocking in
+a thread like Pico A, against a cocotbext-i2c memory at 0x50 standing in for the 24LC256.
+Pins are sampled the way the analysers sample them and decoded the way demo/rates.sh
+decodes the bench captures."""
 
 import cocotb
 from cocotb.task import bridge, resume
 from cocotb.utils import get_sim_time
 
-# test_outside puts ../python on the path, through test
+# test_outside puts ../python on the path
 from test_outside import Analyser, Memory, acted, bit, decode, reset
 import both_roles_firmware
 import demo_both_roles
@@ -26,8 +26,8 @@ def eeprom(dut):
 
 @cocotb.test()
 async def test_both_roles(dut):
-    """Every case, on wires no pin shows, beside a memory at 0x50 on the bench's bus that
-    has to stay untouched."""
+    """Runs every case on internal wires, next to a memory at 0x50 on the bench's bus that
+    must stay untouched."""
     await reset(dut)
     memory = eeprom(dut)
     before = memory.read_mem(0, 16)
@@ -39,7 +39,7 @@ async def test_both_roles(dut):
 
 
 def setups(analyser):
-    """Each START's setup and hold and each STOP's setup, in ns, from the bus's edges."""
+    """Each START's setup and hold and each STOP's setup, in ns, from the bus edges."""
     sda, scl = analyser.levels(6), analyser.levels(7)
 
     def level(edges, at):
@@ -62,9 +62,9 @@ def setups(analyser):
 
 @cocotb.test()
 async def test_rates_i2c(dut):
-    """The EEPROM demo in Standard-mode then Fast-mode. Each START's setup and hold and
-    each STOP's setup, from the pins as they are with no rise time, clear UM10204's least
-    for the mode's rows by the rise it allows: 1000 ns and 300 ns."""
+    """The EEPROM demo in Standard-mode, then Fast-mode. The pins have no rise time, so each
+    START's setup and hold and each STOP's setup must clear the UM10204 minimum for the
+    mode by the rise it allows (1000 ns and 300 ns)."""
     await reset(dut)
     memory = eeprom(dut)
     analyser = i2c_analyser(dut)
@@ -82,7 +82,7 @@ async def test_rates_i2c(dut):
     least_hold = min(hold for _, hold in starts if hold)
     cocotb.log.info("least START setup %d ns, hold %d ns, least STOP setup %d ns",
                     least_setup, least_hold, min(stops))
-    # the least over both modes is Fast-mode's: 600 ns, and the rise where a release
+    # the minimum over both modes is Fast-mode's 600 ns, plus the rise where a release
     # starts the width
     assert least_setup >= 900 and least_hold >= 600 and min(stops) >= 900
     decoded = decode(analyser, "rates_i2c", [
@@ -92,8 +92,8 @@ async def test_rates_i2c(dut):
 
 @cocotb.test()
 async def test_rates_uart(dut):
-    """The two fastest rates on OUT0, each decoded by sigrok's uart decoder at its rate;
-    the slower ones take the same words and only longer."""
+    """The two fastest rates on OUT0, each decoded by sigrok's uart decoder. The slower
+    rates send the same words, just slower."""
     await reset(dut)
     for baud in (115200, 230400):
         analyser = Analyser({4: bit(dut.uo_out, 1)})

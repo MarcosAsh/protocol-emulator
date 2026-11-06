@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""A control transfer through the chip: a USB host on D+ and D-, the board's Python on SPI."""
+"""A control transfer through the chip, with a USB host on D+ and D- and the board's Python on SPI."""
 
 import cocotb
 from cocotb.triggers import ClockCycles
@@ -39,7 +39,7 @@ def data_packet(pid, payload):
 
 
 def encode(packet):
-    """Line states a bit at a time: SYNC, NRZI with stuffing, EOP."""
+    """Encode a packet as line states, one per bit: SYNC, NRZI with stuffing, EOP."""
     lines, state, ones = [], J, 0
     for bit in bits_of([0x80] + packet):
         if not bit:
@@ -54,7 +54,7 @@ def encode(packet):
 
 
 class Wire:
-    """D+ is uio[0] and D- is uio[1]; the device wins where it drives."""
+    """D+ is uio[0] and D- is uio[1]. The device wins wherever it drives."""
 
     def __init__(self, dut):
         self.dut = dut
@@ -74,7 +74,7 @@ class Wire:
         return (int(out[-1]), int(out[-2]))
 
     async def listen(self, timeout=200):
-        """The device's next packet, bytes after SYNC, or None."""
+        """Return the device's next packet (the bytes after SYNC), or None."""
         self.dut.uio_in.value = 2
         for _ in range(timeout * BIT):
             await ClockCycles(self.dut.clk, 1)
@@ -115,7 +115,7 @@ async def load(host, address):
 
 
 async def serve(dut, host, board, faults, loads):
-    """usb_board.service with awaits, at MicroPython's pace."""
+    """usb_board.service with awaits, at MicroPython speed."""
     while True:
         await ClockCycles(dut.clk, 5000)
         status = (await host.read(STATUS))[0]

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# A UDP datagram from python/ethernet.py through the data memory, read back off TD+ and
-# TD- (IO0, IO1) at four cycles a bit, with the FCS the chip's CRC unit appends checked
+# Sends a UDP datagram from python/ethernet.py through data memory and reads it back off
+# TD+ and TD- (IO0, IO1) at 4 cycles per bit. The FCS from the chip's CRC unit is checked
 # against zlib's CRC-32.
 
 import zlib
@@ -21,17 +21,17 @@ async def test_udp_datagram(dut):
         await host.write(reg, [word])
     await host.write(PROGRAM_ADDR, [0])
     await host.write(PROGRAM, padded(assembled("ethernet")))
-    # under the board's link interval, which the host then loads: the core faults on any
-    # other at its first use
+    # certify under the board's link interval and load that same one, or the core faults
+    # on first use
     await host.certify_firmware("ethernet")
     frame = ethernet.udp(b"hello from the chip")
     data = ethernet.wire(frame)
     for reg, values in ethernet.writes(frame):
         await host.write(reg, values)
 
-    # the frame goes at the first tenth of the interval, after the start's few cycles
+    # the frame goes out a tenth of the interval in, a few cycles after the start
     await ClockCycles(dut.clk, ethernet.LINK_TENTH - 100)
-    # +1 while TD+ is high, -1 while TD- is, from the first cycle the line leaves idle
+    # +1 while TD+ is high, -1 while TD- is, starting when the line leaves idle
     levels = []
     for _ in range(300 + 32 * len(data) + 100):
         await ClockCycles(dut.clk, 1)
@@ -42,7 +42,7 @@ async def test_udp_datagram(dut):
         elif levels:
             break
 
-    # each bit is its complement for two cycles and itself for two
+    # each bit is its complement for 2 cycles, then itself for 2
     bits = []
     for k in range(0, len(levels) - 3, 4):
         a, a2, b, b2 = levels[k:k + 4]

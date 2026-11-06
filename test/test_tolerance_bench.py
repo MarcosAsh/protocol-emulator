@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
-"""demo_tolerance.py on the RTL at the bench's 48 MHz, run blocking in a thread as Pico A
-runs it, shortened to simulate: a half period of 26 cycles, four bytes, and a step at
-each bound the receiver's certificate gives there and either side well past them."""
+"""Runs demo_tolerance.py on the RTL at the bench's 48 MHz, blocking in a thread like Pico
+A. Shortened to simulate: half period 26 cycles, four bytes, a step at each certificate
+bound and one well outside each."""
 
 import cocotb
 from cocotb.task import bridge
 
-# test_outside puts ../python on the path, through test
+# test_outside puts ../python on the path
 from test_outside import acted, reset
 import demo_tolerance
 import tolerance_firmware as tf
@@ -14,16 +14,16 @@ import tolerance_firmware as tf
 HALF = tf.SHORT_HALF
 UNIT = 65536
 NOMINAL = 2 * HALF * UNIT
-# test/tolerance.ml's bounds at this half period: the arm 19 halves and 2 cycles after
-# the start edge before the next start bit, the stop bit's middle after its own start
+# bounds from test/tolerance.ml at this half period: the arm is 19 halves + 2 cycles after
+# the start edge (before the next start bit), and the stop bit's middle after its start
 LEAST = -(-UNIT * (19 * HALF + 3) // 10)
 MOST = UNIT * 19 * HALF // 9
 
 
 @cocotb.test()
 async def test_tolerance(dut):
-    """Every frame through at the nominal rate and at both bounds, lost 10% either side,
-    and one step past the fast bound the single edge's fault, each as predicted."""
+    """Frames must pass at the nominal rate and both bounds, and be lost at +-10% and one
+    step past the fast bound (the single-edge fault), exactly as predicted."""
     await reset(dut)
     tf.HALF = HALF
     tf.BYTES = tf.SHORT_BYTES
@@ -31,7 +31,7 @@ async def test_tolerance(dut):
     tf.RECEIVER = dict(tf.RECEIVER, **tf.SHORT_RECEIVER)
     tf.FAULT = tf.SHORT_FAULT
     tf.LEAST, tf.MOST = LEAST, MOST
-    # test/tolerance.ml's faults at this half period and these bytes
+    # faults from test/tolerance.ml for this half period and these bytes
     tf.FAULTS = [LEAST - 1]
     tf.STEPS = [(NOMINAL, True), (LEAST, True), (MOST, True),
                 (NOMINAL * 9 // 10, False), (NOMINAL * 11 // 10, False), (LEAST - 1, False)]

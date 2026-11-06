@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# Evidence that outlives CI's 90 days: release assets pinned by test/evidence.sha256, the
-# board ledgers inside them and the gds runs they keep. Each asset is downloaded once into
-# the cache and checked against its pin every time it is read. Needs gh.
-# EVIDENCE_CACHE moves the cache from ~/.cache/protocol-emulator.
+# Evidence that outlives CI's 90 days: release assets pinned in test/evidence.sha256, the
+# board ledgers inside them and the gds runs they keep. Each asset is downloaded once and
+# checked against its pin on every read. Needs gh.
+# EVIDENCE_CACHE overrides the cache dir (default ~/.cache/protocol-emulator).
 import csv
 import hashlib
 import io
@@ -21,12 +21,12 @@ REPO = "MarcosAsh/protocol-emulator"
 
 
 class Unverifiable(Exception):
-    """Evidence that is not pinned, cannot be fetched, or does not match its pin."""
+    """Evidence that is unpinned, can't be fetched, or doesn't match its pin."""
 
 
 @cache
 def pins():
-    """{(release tag, asset name): sha256}, as test/evidence.sha256 has them."""
+    """{(release tag, asset name): sha256} from test/evidence.sha256."""
     found = {}
     for line in PINS.read_text().splitlines():
         if line.strip() and not line.startswith("#"):
@@ -50,7 +50,7 @@ def release_url(tag):
 
 @cache
 def asset(tag, name):
-    """The pinned asset on disk, downloaded once and checked against its pin."""
+    """Path of the pinned asset, downloaded once and checked against its pin."""
     want = pins().get((tag, name))
     if want is None:
         raise Unverifiable(f"{tag}/{name} is not pinned in test/evidence.sha256")
@@ -70,7 +70,7 @@ def asset(tag, name):
 
 @cache
 def unpacked(tag, name):
-    """The pinned tarball unpacked, every file its own SHA256SUMS lists checked once."""
+    """Unpack the pinned tarball, checking each file in its SHA256SUMS once."""
     tarball = asset(tag, name)
     out = CACHE / "unpacked" / pins()[tag, name]
     if not (out / ".checked").exists():
@@ -89,8 +89,8 @@ def unpacked(tag, name):
 
 @cache
 def ledger():
-    """Each demo run the pinned board evidence holds: its ledger.txt fields, the python/
-    scripts run.txt shows it running, where it is, and the release that keeps it."""
+    """Every demo run in the pinned board evidence: its ledger.txt fields, the python/
+    scripts run.txt shows it running, its location, and the release that holds it."""
     entries = []
     for tag, name in sorted(pins()):
         if not name.startswith("board-evidence-"):
@@ -107,23 +107,23 @@ def ledger():
 
 
 def passes(demo):
-    """The ledger's passes of [demo], a name such as self_timing or a script such as
-    python/demo_self_timing.py, newest first."""
+    """The ledger's passes of demo (a name like self_timing or a script like
+    python/demo_self_timing.py), newest first."""
     found = [e for e in ledger() if e.get("result") == "PASS"
              and (e.get("demo") == demo or demo in e["scripts"])]
     return sorted(found, key=lambda e: e.get("time", ""), reverse=True)
 
 
 def edges(entry):
-    """[(label, edges, all on time)] from a timing demo's log, one per capture: the edges
-    of each measured row, and whether every row says ok."""
+    """[(label, edges, all on time)] from a timing demo's log, one per capture. Holds the
+    edges of each measured row and whether every row says ok."""
     log = entry["dir"] / f"{entry['demo']}.log"
     if not log.exists():
         return []
     found = []
     for label, body in re.findall(r"^(\w+), \d+ SPI frames:\n(.*?)(?=^\w+, \d+ SPI|\Z)",
                                   log.read_text(), re.M | re.S):
-        # a byte's predicted row, then its measured row
+        # each byte has a predicted row followed by a measured row
         lines = body.splitlines()
         rows = [lines[i + 1] for i, r in enumerate(lines[:-1]) if re.match(r"'.' 0x\w\w ", r)]
         on_time = bool(rows) and all(r.rstrip().endswith(" ok") for r in rows)
@@ -133,8 +133,8 @@ def edges(entry):
 
 @cache
 def gds_kept(run_id):
-    """The metrics.csv row of a gds run a pinned release keeps, with that release, or
-    None when no pinned asset is named for the run."""
+    """The metrics.csv row of a gds run kept by a pinned release, with that release. None
+    if no pinned asset is named for the run."""
     for tag, name in sorted(pins()):
         if not re.fullmatch(rf"gds-[\w.-]*-run{run_id}\.tar\.gz", name):
             continue

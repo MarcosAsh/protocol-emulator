@@ -1,7 +1,7 @@
 #!/bin/sh
-# Runs the inline tests a partition at a time, as dune runtest does, with Hardcaml's
-# cyclesim coverage on, and keeps each partition's report as coverage/PARTITION.txt.
-# Fails if a test does: coverage counts only on a passing suite.
+# Runs the inline tests one partition at a time, like dune runtest, with Hardcaml cyclesim
+# coverage on. Each report lands in coverage/PARTITION.txt. Fails if any test fails, since
+# coverage only counts on a passing suite.
 # Usage: test/coverage.sh RUNNER, from the test directory in _build
 set -eu
 runner=$1

@@ -1,14 +1,15 @@
 # SPDX-License-Identifier: Apache-2.0
-# Replays test/traces (from test/pin_trace.ml) and compares every output bit every cycle.
-# Cycle 0 is the first rising edge after RESET_CYCLES of reset, which clears every
-# register with a clear; nothing is masked, so an X is a mismatch.
-# Unwritten storage is X here but zero in OCaml: test/uart.ml's uart_rx scenario avoids
-# the one known case, an rx read that empties the fifo. Inputs change on the falling
-# edge; outputs are sampled on the next falling edge.
-# REPLAY_TRACES gives other globs under test/; REPLAY_RECORD a folder where each trace is
-# written again with the outputs the netlist drove, an x or z as 0, for demo/decode.py.
-# A trace that differs still runs to its end and is written, then fails. One whose header
-# says "# engines N" is skipped where REPLAY_ENGINES, the netlist's engines, is fewer.
+# Replays test/traces (from test/pin_trace.ml) and compares every output bit on every
+# cycle. Cycle 0 is the first rising edge after RESET_CYCLES of reset, which clears every
+# register that has a clear. Nothing is masked, so an X counts as a mismatch.
+# Unwritten storage is X here but 0 in OCaml. test/uart.ml's uart_rx scenario avoids the
+# one known case, an rx read that empties the fifo. Inputs change on the falling edge and
+# outputs are sampled on the next falling edge.
+# REPLAY_TRACES takes other globs under test/. REPLAY_RECORD names a folder where each
+# trace is rewritten with the outputs the netlist drove (x or z as 0), for demo/decode.py.
+# A trace that differs still runs to the end and is written, then fails. A trace whose
+# header says "# engines N" is skipped if REPLAY_ENGINES (the netlist's engine count) is
+# smaller.
 
 import os
 from pathlib import Path
@@ -54,7 +55,7 @@ def first_difference(name, expected, actual):
 
 
 def record(path, cycles):
-    """The trace's header, then one line per run of cycles with the same pins."""
+    """Write the trace's header, then one line per run of cycles with the same pins."""
     lines = [line for line in path.read_text().splitlines() if line.startswith("#")]
     lines.insert(1, "# replayed by test/test_replay.py: the outputs are the netlist's")
     runs = []

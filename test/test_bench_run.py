@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-"""demo/bench_run.py against stand-ins for openFPGALoader, mpremote, sigrok-cli and dune, so
-no board: the result folder, the row with its protocol, and the reset and retry."""
+"""Runs demo/bench_run.py against stand-ins for openFPGALoader, mpremote, sigrok-cli and
+dune, so no board is needed. Checks the result folder, the row with its protocol, and the
+reset and retry."""
 
 import csv
 import os
@@ -16,7 +17,7 @@ import ledger  # noqa: E402
 import sigrok  # noqa: E402
 import traffic  # noqa: E402
 
-# a load that fails once, then works, is HANG_ONCE: a file the stand-in removes
+# HANG_ONCE is a file the stand-in removes, making one load fail and the retry work
 STANDINS = {
     "openFPGALoader": 'echo "$*" >> "$TMP/loads"\n'
                       '[ "$1 $2 $3" = "-b icepi-zero -r" ] && exit 0\n'
@@ -101,7 +102,7 @@ class BenchRun(unittest.TestCase):
         self.assertEqual(row["bitstream_sha256"], "flash")
 
     def test_measured_is_what_the_limits_said(self):
-        """measure.exe's own outcome, whatever else made the verdict."""
+        """The row reports measure.exe's own outcome, whatever else decided the verdict."""
         self.run_bench("--from-flash", "--measure", "sk6812", "--probe", "IO0=D4",
                        VERDICT="FAIL")
         self.run_bench("--from-flash", "--measure", "sk6812", "--probe", "IO0=D4",

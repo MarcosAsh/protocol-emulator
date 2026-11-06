@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# Frames into the chip's 10BASE-T receiver and through test/ethernet_rx.asm to the host: a
-# sender's on IO0 at 10 Mb/s, off the clock's grid, and the chip's own off its TD+ pad.
-# The gate level runs the first alone, as gl_test has little of its six hours to spare.
+# Feeds frames into the chip's 10BASE-T receiver and through test/ethernet_rx.asm to the
+# host: one from a sender on IO0 at 10 Mb/s (off the clock grid), one the chip sends
+# itself, taken off its TD+ pad. Gate level runs only the first, since gl_test has little
+# of its six hours to spare.
 
 import os
 import zlib
@@ -18,16 +19,17 @@ from protocol_emulator import (
 import ethernet
 
 IO0 = 12
-# where the frames land, past where the chip's own frame sits
+# where the frames land, above the chip's own frame
 RX_BASE = 64
 RX_CONFIG = dict(DEFAULT_CONFIG, autopull=1, autopull_data=1, pull_threshold=16)
 GATES = os.environ.get("GATES") == "yes"
 
 
 async def send(dut, levels, ppm):
-    """levels a half bit each onto IO0, the sender's 100 ns bit ppm long. Each edge lands
-    midway between a rising and a falling clock edge, the nearest to where it falls, so
-    the gate-level run with delays sees no setup or hold violation: 5 ns of jitter."""
+    """Drive levels onto IO0, a half bit each, with the sender's 100 ns bit stretched by
+    ppm. Each edge is moved to midway between a rising and a falling clock edge (the
+    nearest pair), so gate-level runs with delays see no setup or hold violation. That
+    adds 5 ns of jitter."""
     await RisingEdge(dut.clk)
     t0 = get_sim_time(unit="ps")
     now = t0
@@ -40,11 +42,11 @@ async def send(dut, levels, ppm):
 
 
 async def receive(dut, data, ppm):
-    """data behind the preamble into the receiver; the frame's status and the bytes handed
-    over."""
+    """Send data (after the preamble) into the receiver. Returns the frame's status and the
+    bytes handed over."""
     host = AsyncHost(Pins(dut).transfer)
     await load_receiver(host)
-    # sampling for 50 MHz, the words in engine 0's turns
+    # sample for 50 MHz, with the words in engine 0's turns
     for reg, words in arm_frame_writes(IO0, base=RX_BASE, fifty=True, owner=0):
         await host.write(reg, words)
     await host.write(TX, [RX_BASE])
@@ -63,8 +65,8 @@ async def load_receiver(host):
 
 
 async def handed(host, count):
-    """The receiver's status once it has the frame, and count bytes from the selected
-    engine, which runs ethernet_rx."""
+    """Wait for the frame, then return the receiver's status and count bytes from the
+    selected engine (which runs ethernet_rx)."""
     status = frame_fields((await host.read(FRAME_STATUS))[0])
     while not status["finished"]:
         status = frame_fields((await host.read(FRAME_STATUS))[0])
@@ -79,7 +81,7 @@ async def handed(host, count):
 
 @cocotb.test()
 async def test_frame_received(dut):
-    """A UDP datagram with its FCS from a sender 100 ppm slow lands whole, judged good."""
+    """A UDP datagram with its FCS from a sender 100 ppm slow lands whole and is judged good."""
     await reset(dut)
     data = ethernet.wire(ethernet.udp(b"hello from the pins"))[len(ethernet.PREAMBLE):]
     status, got = await receive(dut, data, ppm=100)
@@ -91,8 +93,8 @@ async def test_frame_received(dut):
 
 @cocotb.test(skip=GATES)
 async def test_bad_fcs_received(dut):
-    """An odd number of bytes, the FCS's last bit flipped, from a sender 100 ppm fast:
-    landed all the same, its last word a byte, and judged bad."""
+    """An odd number of bytes with the FCS's last bit flipped, from a sender 100 ppm fast.
+    It still lands, its last word is a single byte, and it is judged bad."""
     await reset(dut)
     frame = list(range(1, 46)) + [0x5A] * 16
     data = frame + list((zlib.crc32(bytes(frame)) ^ 0x80000000).to_bytes(4, "little"))
@@ -104,9 +106,9 @@ async def test_bad_fcs_received(dut):
 
 @cocotb.test(skip=GATES)
 async def test_own_frame_received(dut):
-    """The chip hears itself: engine 0 sends a datagram on TD+, which the receiver takes
-    back off the pad as the Icepi's does, and engine 1 hands it over with the FCS engine
-    0's CRC unit made, judged good. Four cycles a bit is 8 samples at any clock."""
+    """The chip hears itself. Engine 0 sends a datagram on TD+, the receiver takes it back
+    off the pad as on the Icepi, and engine 1 hands it over with the FCS from engine 0's
+    CRC unit, judged good. 4 cycles per bit is 8 samples at any clock."""
     await reset(dut)
 
     async def pad():
@@ -128,7 +130,7 @@ async def test_own_frame_received(dut):
     await host.write(PROGRAM_ADDR, [0])
     await host.write(PROGRAM, padded(assembled("ethernet")))
     await host.certify_firmware("ethernet")
-    # the data memory takes writes only while both cores are halted
+    # data memory accepts writes only while both cores are halted
     await host.write(DATA_ADDR, [0])
     await host.write(DATA, ethernet.words(ethernet.PREAMBLE + frame))
     for reg, words in arm_frame_writes(IO0, base=RX_BASE, fifty=False, owner=1):

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-"""test/corpus.py on a two-protocol fixture: a failed limit and a missing source are shown,
-nothing is hand-written per protocol, a board witness counts as a run once, and the
+"""Runs test/corpus.py on a two-protocol fixture. A failed limit and a missing source must
+show up, nothing is hand-written per protocol, a board witness counts as one run, and the
 manifest catches an edited page."""
 
 import json

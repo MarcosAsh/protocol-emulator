@@ -1,10 +1,9 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
-# The inline tests of some files of test/ alone, four at a time, in minutes where dune's
-# runtest takes them all, then a diff of each whose output changed. -library adds every
-# test that reads Library, which a new protocol's lines show up in. -promote puts the new
-# output in place, as dune promote would: rerun after a fix before promoting, or the old
-# run's output goes over it.
+# Runs the inline tests of just the named test/ files, four at a time, and diffs any whose
+# output changed. -library adds every test that reads Library (a new protocol shows up in
+# those). -promote copies the new output into place like dune promote, so rerun after a
+# fix before promoting or the stale output goes in.
 # Usage: test/only.sh [-promote] [-library] test_uart.ml...   from the repository's root
 set -e
 promote=
@@ -22,7 +21,7 @@ files=$*
 files=$(for f in $files; do basename "$f"; done | sort -u)
 [ -n "$files" ] || { echo "usage: $0 [-promote] [-library] test_FILE.ml..." >&2; exit 1; }
 runner=.protocol_emulator_test.inline-tests/inline-test-runner.exe
-# the runner, and the files its tests read, as test/dune lists them
+# the runner plus the files its tests read (as listed in test/dune)
 deps=$(ls test/*.asm test/*.hex test/assemble/*.asm test/diagrams/*.json formal/Makefile \
     src/protocol_emulator.v python/demo_board.py icepi/Makefile | sed 's|^|_build/default/|')
 # shellcheck disable=SC2086

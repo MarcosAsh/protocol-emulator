@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-"""icepi/carrier_check.v, the bench carrier's self-test bitstream, run by
-python/carrier_pins.py's own frames in a thread, each an SPI transfer at Pico A's 1 MHz:
-the signature, what a frame drives and reads, a slot's timing to the microsecond, a
-presence pulse read back, and the button putting the idle back. `make carrier_check`."""
+"""Runs icepi/carrier_check.v (the bench carrier's self-test bitstream) with
+python/carrier_pins.py's own frames in a thread, each an SPI transfer at Pico A's 1 MHz.
+Checks the signature, what a frame drives and reads, slot timing to the microsecond, a
+presence pulse read back, and the button restoring idle. `make carrier_check`."""
 
 import sys
 
@@ -52,7 +52,7 @@ def pins(dut):
 
 
 def drive(dut, header, level):
-    """The far end of a header pin: 0 or 1, or None to let the pulls have it."""
+    """Drive the far end of a header pin to 0 or 1, or None to leave it to the pulls."""
     mask = 1 << PIN[header]
     oe, out = int(dut.ext_oe.value), int(dut.ext_out.value)
     dut.ext_oe.value = oe | mask if level is not None else oe & ~mask
@@ -67,7 +67,7 @@ async def test_frames(dut):
     def run():
         assert p.signature() == b"pin"
         idle = p.apply({})
-        # header 10 and 28 driven high, the pull-ups high, the rest pulled down
+        # headers 10 and 28 are driven high, the pull-ups are high, the rest pull down
         high = {10, 28, 33, 35, 36, 37}
         assert idle == sum(1 << PIN[h] for h in high), hex(idle)
         assert bit(p.apply({8: 1, 33: 0}), 8) == 1
@@ -82,14 +82,14 @@ async def test_frames(dut):
         assert bit(levels, header) == 1, header
         assert levels & ~(1 << PIN[header]) == await bridge(p.apply)({}) & ~(1 << PIN[header])
         drive(dut, header, None)
-        # a write lands at the end of the step, after the next drive's read
+        # a write lands at the end of the step, after the next drive reads
         await Timer(1, "us")
 
 
 @cocotb.test()
 async def test_slots(dut):
-    """A reset slot is low 480 us and samples at 550; a presence pulse from 510 to 630 is
-    read as 0. A 5 us pull from a pull-up reads 1 at 30 us, from a pull-down 0."""
+    """A reset slot is low for 480 us and samples at 550, and a presence pulse from 510 to
+    630 reads as 0. A 5 us pull reads 1 at 30 us from a pull-up and 0 from a pull-down."""
     await start(dut)
     p = pins(dut)
     dq = dut.dq
@@ -116,13 +116,13 @@ async def test_slots(dut):
     assert await bridge(p.slot)(33, 0, 5, 30) == 1
     assert await bridge(p.slot)(7, 0, 5, 30) == 0
     assert await bridge(p.slot)(7, 1, 50, 20) == 1
-    # no answer: the pull-up holds through the sample
+    # no answer: the pull-up holds the line high through the sample
     assert not await bridge(p.one_wire_reset)()
 
 
 @cocotb.test()
 async def test_button(dut):
-    """The button lets every pin go but the idle's two."""
+    """The button releases every pin except the two idle ones."""
     await start(dut)
     p = pins(dut)
     await bridge(p.apply)({8: 1, 10: 0, 28: None})
