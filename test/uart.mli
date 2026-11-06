@@ -16,11 +16,6 @@ val tx_stamped : period:int -> string
 (** [tx] with the bit period from the host, as its first word. *)
 val tx_host_rate : string
 
-(** [tx] with no wait on the host: frames back to back from one anchor, a byte a frame by
-    autopull in the low half of each host word. The host has to keep up; a byte that is
-    late sets the underflow fault and the line sends what [osr] holds instead. *)
-val tx_stream : period:int -> string
-
 val stream_config : Program_config.t
 
 (** [rx] on another line, which the configuration has to name as well: [in_base],
@@ -37,11 +32,8 @@ val rx_host_rate_on : pin:int -> string
 val rx_host_rate : string
 
 (** 9600 to 230400 baud, each on the bench as [tx_host_rate] at OUT0, uart_tx_<baud>, held
-    to [limits_at]. *)
+    to 2% of the baud rate. *)
 val bauds : int list
-
-(** A bit within 2% of [baud] (Maxim AN2141), on [firmware]'s line. *)
-val limits_at : baud:int -> string -> Datasheet.t list
 
 (** [tx_stamped], whose proof adds that the stamp in each frame is the cycle its start bit
     shows. Kept out of [protocol] until the kernel's tests take it in. *)

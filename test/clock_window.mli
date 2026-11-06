@@ -38,9 +38,6 @@ val of_tolerance : Tolerance.Bounds.t -> rate:int -> End.t * End.t
     [Can_node.Receiver.longest_loop]. *)
 val can_receiver : unit -> t
 
-(** A WaveDrom diagram's limits, its steps' cycles at [Bench.clock_hz]. *)
-val of_diagram : name:string -> Protocol_emulator.Wavedrom.t -> t
-
 (** Each diagram in [dir], test/diagrams, with a limit, as ["diagram ws2812"]. *)
 val diagrams : dir:string -> t list
 

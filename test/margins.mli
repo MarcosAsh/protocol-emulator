@@ -81,11 +81,10 @@ module Sk6812 : sig
   val sweeps : unit -> Sweep.t list
 end
 
-(** Host words after the quarter as [I2c.word]: an address probe, then a random read of
-    [read_count] bytes from [page]. *)
+(** Host words after the quarter as [I2c.word]: an address probe, then a random read of 8
+    bytes from [page]. *)
 module Eeprom : sig
   val page : int
-  val read_count : int
   val words : device:int -> int list
   val sweeps : unit -> Sweep.t list
 end

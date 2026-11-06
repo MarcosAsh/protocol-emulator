@@ -42,12 +42,7 @@ module Class : sig
     | Nop
     | Halt
   [@@deriving sexp_of, compare, enumerate, equal]
-
-  val of_instruction : Isa.t -> t
 end
-
-(** The instructions a program of the bound is made of. *)
-val alphabet : Bound.t -> Isa.t list
 
 (** Pcs a run can reach from 0, by the words alone; past the program is [jmp 0]. *)
 val reachable : Isa.t array -> bool array
@@ -55,8 +50,7 @@ val reachable : Isa.t array -> bool array
 (** Every reachable [jmp x--] is reached only after a [set x] on every way in. *)
 val sets_x_first : Isa.t array -> bool
 
-(** Every program of the bound once, by index: words no run reaches are [alphabet]'s
-    first. *)
+(** Every program of the bound once, by index: words no run reaches are [nop]s. *)
 val programs : Bound.t -> (int * Isa.t array) Sequence.t
 
 module Truth : sig
@@ -67,8 +61,6 @@ module Truth : sig
     (** A deadline wait reached before any [mov t, now]: late for some start [t]. *)
     | Undecided (** No state repeated within the horizon. *)
   [@@deriving sexp_of, compare, equal]
-
-  val is_safe : t -> bool
 end
 
 (** [horizon] in cycles, 4M by default. Raises unless [sets_x_first]. *)
@@ -116,11 +108,6 @@ end
     [(k, n)] takes the indices [k] modulo [n]. *)
 val run : ?horizon:int -> ?check_every:int -> ?shard:int * int -> Bound.t -> Report.t
 
-(** A table [Kernel.check] passes exists, by [Table_query.witness]: if so the refusal is
-    the analyser's, else the kernel's rows cannot say it. Raises if the check refuses the
-    witness. *)
-val table_exists : Isa.t array -> bool
-
 (** Counts, precision, the classes and the [top] refusal groups, 10 by default, those
-    whose run waits first, each with [table_exists] of its example if [witness]. *)
+    whose run waits first, each with whether a table exists for its example if [witness]. *)
 val print : ?top:int -> ?witness:bool -> Report.t -> unit

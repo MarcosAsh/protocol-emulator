@@ -81,9 +81,6 @@ type t =
 (** Every entry stays in state 0 and drives 0. *)
 val off : t
 
-(** [f s] is state [s]'s entries for input 0 and input 1. *)
-val of_states : ?modes:Modes.t -> (int -> Entry.t * Entry.t) -> t
-
 (** The words the host writes from 0, the modes last. *)
 val words : t -> int list
 

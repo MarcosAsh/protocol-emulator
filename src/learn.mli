@@ -125,9 +125,6 @@ val field_value : t -> Field.t -> bool array -> int
 (** [bits] with every check of the kind filled in. *)
 val with_checks : t -> kind:int -> bool array -> bool array
 
-(** [bits] with the field set to [value] and every check of its kind filled in. *)
-val with_field : t -> Field.t -> bool array -> int -> bool array
-
 (** A frame never recorded: the field with the most values seen set to the least value it
     never took, in the commonest kind that has one, checks filled in. *)
 val new_message : ?value:int -> t -> (Field.t * Frame.t) Or_error.t

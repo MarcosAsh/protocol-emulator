@@ -32,7 +32,6 @@ val last : int
 val shortest_half : int
 
 val shortest_setup : int
-val longest_setup : int
 val shortest_hold : int
 val longest_hold : int
 

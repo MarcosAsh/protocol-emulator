@@ -10,10 +10,6 @@
 open! Core
 open! Hardcaml
 
-(** Cycles from the walk choosing a data address to taking its word: one for [data_read]'s
-    register, then two for either engine's turn. *)
-val data_wait : int
-
 val aborted : int
 val out_of_order : int
 val left_over : int

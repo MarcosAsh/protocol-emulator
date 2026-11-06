@@ -40,8 +40,6 @@ module Run : sig
   [@@deriving sexp_of]
 end
 
-val run_model : base:int -> edges:int array -> Wave.t -> Run.t
-
 (** The rtl's irq at the end, and whether it held in lockstep with the model. *)
 val run_rtl : base:int -> edges:int array -> Wave.t -> bool * bool
 

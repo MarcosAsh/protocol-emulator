@@ -16,9 +16,6 @@ open Protocol_emulator
 (** The line the firmware drives. *)
 val pin : int
 
-(** 422 cycles at 48 MHz: a 37.9 kHz carrier. *)
-val standard_third : int
-
 (** The least third [firmware] takes: the kernel accepts the analyser's rows at every load
     of it or more. *)
 val shortest_third : int

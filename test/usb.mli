@@ -11,7 +11,6 @@ open Protocol_emulator
     period once, then per packet SYNC, PID, data bytes less one, the data. *)
 val tx : Timed_program.t
 
-val scratch_pin : int
 val dp_pin : int
 val dm_pin : int
 val config : Program_config.t
@@ -41,7 +40,6 @@ val device : address:int -> half_period:int -> string
 
 val device_dp_pin : int
 val device_dm_pin : int
-val device_flag_pin : int
 val device_config : Program_config.t
 
 module Request : sig

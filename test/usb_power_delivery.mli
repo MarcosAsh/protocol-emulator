@@ -24,12 +24,6 @@ module Message : sig
     }
   [@@deriving sexp_of, compare, equal]
 
-  (** From a Revision 3.x Source and DFP. *)
-  val source_capabilities : message_id:int -> int list -> t
-
-  (** A Fixed Supply PDO. *)
-  val fixed_5v_3a : int
-
   val crc : t -> int
 
   (** The bits after the preamble, in the order on the line. *)

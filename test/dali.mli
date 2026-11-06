@@ -9,9 +9,6 @@ open Protocol_emulator
 (** The line the firmware drives. *)
 val pin : int
 
-(** 20000 cycles at the bench's 48 MHz. *)
-val half_bit : int
-
 val config : Program_config.t
 
 (** Checked by the kernel when this file compiles. *)

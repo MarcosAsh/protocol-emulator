@@ -11,8 +11,6 @@ val clock_hz : int
     where the example fixes it. [Translate.Setup.default] for any other program. *)
 val setup : Pioasm.Program.t -> period:int -> Translate.Setup.t
 
-val sm_hz : Pioasm.Program.t -> float option
-
 module Verdict : sig
   type t =
     | Certified of

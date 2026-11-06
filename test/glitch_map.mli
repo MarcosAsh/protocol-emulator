@@ -73,5 +73,3 @@ val rtl : Image.t -> Outcome.t * System_lockstep.Mismatch.t option
 
 (** The receiver's words and the generator's, as the board loads them. *)
 val receiver_config : Program_config.t
-
-val generator_config : Program_config.t

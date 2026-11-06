@@ -13,7 +13,6 @@ module Wire_spi : sig
   val controller : Spi_cs.Mode.t -> string
   val controller_config : Program_config.t
   val target : Spi_cs.Mode.t -> string
-  val target_config : Program_config.t
 end
 
 (** One engine's firmware, and the host words it gets: a fifo's worth before the start,

@@ -9,9 +9,6 @@ open Protocol_emulator
 val dp_pin : int
 
 val dm_pin : int
-val finished_pin : int
-val good_pin : int
-val receiving_pin : int
 
 (** Out through the line table's NRZI on D+, D- its complement; set on both, so SE0 and J
     go out as they are. *)
