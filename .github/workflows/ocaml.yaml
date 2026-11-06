@@ -62,8 +62,13 @@ jobs:
         with:
           ocaml-compiler: ocaml-variants.5.2.0+ox
           opam-repositories: |
-            ox: git+https://github.com/oxcaml/opam-repository.git#a70ed316f02290fa267f9105f30cf21e3c7f5f05
+            ox: https://github.com/oxcaml/opam-repository.git
             default: https://opam.ocaml.org
+
+      # oxcaml.latest needs the 5.4 compiler after their 5.4.0-ox9 merge; pinning here
+      # rather than in opam-repositories keeps setup-ocaml's cache key
+      - name: Pin the oxcaml opam repository
+        run: opam repo set-url ox git+https://github.com/oxcaml/opam-repository.git#a70ed316f02290fa267f9105f30cf21e3c7f5f05
 
       # the switch as the lock built it; on a hit the install below has nothing to do
       - name: Cache the switch
@@ -193,8 +198,13 @@ jobs:
         with:
           ocaml-compiler: ocaml-variants.5.2.0+ox
           opam-repositories: |
-            ox: git+https://github.com/oxcaml/opam-repository.git#a70ed316f02290fa267f9105f30cf21e3c7f5f05
+            ox: https://github.com/oxcaml/opam-repository.git
             default: https://opam.ocaml.org
+
+      # oxcaml.latest needs the 5.4 compiler after their 5.4.0-ox9 merge; pinning here
+      # rather than in opam-repositories keeps setup-ocaml's cache key
+      - name: Pin the oxcaml opam repository
+        run: opam repo set-url ox git+https://github.com/oxcaml/opam-repository.git#a70ed316f02290fa267f9105f30cf21e3c7f5f05
 
       - name: Cache the switch
         uses: actions/cache@v4
@@ -303,8 +313,13 @@ jobs:
         with:
           ocaml-compiler: ocaml-variants.5.2.0+ox
           opam-repositories: |
-            ox: git+https://github.com/oxcaml/opam-repository.git#a70ed316f02290fa267f9105f30cf21e3c7f5f05
+            ox: https://github.com/oxcaml/opam-repository.git
             default: https://opam.ocaml.org
+
+      # oxcaml.latest needs the 5.4 compiler after their 5.4.0-ox9 merge; pinning here
+      # rather than in opam-repositories keeps setup-ocaml's cache key
+      - name: Pin the oxcaml opam repository
+        run: opam repo set-url ox git+https://github.com/oxcaml/opam-repository.git#a70ed316f02290fa267f9105f30cf21e3c7f5f05
 
       - name: Cache the switch
         uses: actions/cache@v4
@@ -426,8 +441,13 @@ jobs:
         with:
           ocaml-compiler: ocaml-variants.5.2.0+ox
           opam-repositories: |
-            ox: git+https://github.com/oxcaml/opam-repository.git#a70ed316f02290fa267f9105f30cf21e3c7f5f05
+            ox: https://github.com/oxcaml/opam-repository.git
             default: https://opam.ocaml.org
+
+      # oxcaml.latest needs the 5.4 compiler after their 5.4.0-ox9 merge; pinning here
+      # rather than in opam-repositories keeps setup-ocaml's cache key
+      - name: Pin the oxcaml opam repository
+        run: opam repo set-url ox git+https://github.com/oxcaml/opam-repository.git#a70ed316f02290fa267f9105f30cf21e3c7f5f05
 
       - name: Cache the switch
         uses: actions/cache@v4
