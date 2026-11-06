@@ -86,7 +86,7 @@ let%expect_test "the core sends every frame, at the standard tick and the shorte
     |}]
 ;;
 
-(* The third frame's words come 15,000 cycles in, 5,000 after the second frame ends; at
+(* The third frame's words come 15,000 cycles in, 5,000 after the second frame ends. At
    30,000 the pause is past 768 ticks. *)
 let%expect_test "a late frame lengthens the pause before it" =
   print_run ~late:15_000 ~tick:shortest_tick ~cycles:30_000 ();
@@ -106,8 +106,8 @@ let%expect_test "a late frame lengthens the pause before it" =
     |}]
 ;;
 
-(* The third frame's words arriving at every other cycle from a tick before the second
-   frame's pause falls to 14 ticks after: the pause before it, and any run that fails. *)
+(* The third frame's words arrive every other cycle from a tick before the second frame's
+   pause falls to 14 ticks. This covers the pause before it and any run that fails. *)
 let%expect_test "a frame arriving anywhere in the pause leaves 12 ticks or more" =
   let tick = shortest_tick in
   let falls levels =
@@ -155,12 +155,12 @@ let%expect_test "the decoder refuses a fall a tick late and a short low" =
       ~f:(fun i -> levels.(i - 1) && not levels.(i))
   in
   let edit ~f = Array.to_list (Array.mapi levels ~f) in
-  (* the third fall a tick late, so the status is one more and data 1 one less *)
+  (* The third fall a tick late, so the status is one more and data 1 one less. *)
   let third = List.nth_exn falls 2 in
   let late =
     edit ~f:(fun i level -> level || (i >= third && i < third + standard_tick))
   in
-  (* its low cut to 3 ticks *)
+  (* Its low cut to 3 ticks. *)
   let second = List.nth_exn falls 1 in
   let short =
     edit ~f:(fun i level ->
@@ -179,7 +179,7 @@ let%expect_test "the decoder refuses a fall a tick late and a short low" =
     |}]
 ;;
 
-(* One frame drawn from its pulses, as ticks and ticks low, with the pause closed by the
+(* One frame drawn from its pulses as ticks and ticks low, with the pause closed by the
    next sync's fall. *)
 let%expect_test "the decoder's bounds on the pause and on every low" =
   let tick = 4 in
@@ -217,8 +217,8 @@ let%expect_test "the decoder's bounds on the pause and on every low" =
     |}]
 ;;
 
-(* Two frames at a tick of 64 cycles then [next], or the second its sync alone, closed by
-   a last fall: J2716 lets successive syncs differ by 1/64 at most. *)
+(* Two frames at a tick of 64 cycles, then [next], or the second frame its sync alone,
+   closed by a last fall. J2716 lets successive syncs differ by 1/64 at most. *)
 let%expect_test "the decoder refuses a sync more than 1/64 from the last" =
   let decoded ?(cut = false) next =
     let frame tick =
@@ -318,8 +318,8 @@ let table source ~floor =
     |> Kernel.Table.of_analyser )
 ;;
 
-(* The host picks the tick, so the analyser's rows are for every load of the floor or more
-   and the kernel accepts them at each, by checked SAT; at one less it refuses. *)
+(* The host picks the tick, so the analyser's rows hold for every load of the floor or
+   more, and the kernel accepts them at each by checked SAT. One below the floor it refuses. *)
 let%expect_test "the kernel accepts every tick from the shortest up" =
   let check ~floor =
     let config, words, table = table firmware ~floor in
@@ -355,9 +355,10 @@ let%expect_test "the kernel accepts every tick from the shortest up" =
     |}]
 ;;
 
-(* Each version before the last, rebuilt from the one after it, with what the assembler,
-   the analyser and the kernel said of it at the standard tick and from the shortest, and
-   what a run at the standard tick shows: the decoded frames and the fault register. *)
+(* Each version before the last, rebuilt from the one after it. For each we record what
+   the assembler, the analyser and the kernel said at the standard tick and from the
+   shortest, and what a run at the standard tick shows: the decoded frames and the fault
+   register. *)
 let replace source changes =
   List.fold changes ~init:source ~f:(fun source (pattern, with_) ->
     if not (String.is_substring source ~substring:pattern)
@@ -365,8 +366,8 @@ let replace source changes =
     String.substr_replace_first source ~pattern ~with_)
 ;;
 
-(* The fourth: the sync's loop moved [t] 51 ticks on with no wait, which the rows bound at
-   one tick but not from a floor. *)
+(* The fourth: the sync's loop moved [t] on by 51 ticks with no wait, which the rows bound
+   at one tick but not from a floor. *)
 let fourth =
   replace
     firmware
@@ -380,8 +381,8 @@ let fourth =
    not bound an [x] shifted from the data, so the phase after it had no floor. *)
 let third = replace fourth [ "length:\n    wait t+\n", "length:\n    add t, p\n" ]
 
-(* The second: the pause waited on its end, and the next sync on it again, late in every
-   frame; and [x] came from the isr, which bounds it no better. *)
+(* The second: the pause waited on its end and the next sync waited on it again, late in
+   every frame, and [x] came from the isr, which bounds it no better. *)
 let second =
   replace
     third
@@ -403,7 +404,7 @@ let second =
     ]
 ;;
 
-(* The first: 51 is past a [set]'s five bits. *)
+(* The first: 51 is past what a [set] holds in five bits. *)
 let first =
   replace
     second

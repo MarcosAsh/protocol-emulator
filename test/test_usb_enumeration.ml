@@ -157,7 +157,7 @@ let%expect_test "a host enumerates the keyboard and mouse and reads reports" =
     report_descriptor;
   let poll () = interrupt_in t ~endpoint:1 in
   print_s [%message "nothing to report" ~_:(poll () : int list option)];
-  (* the letter h down, then up, then the mouse five right and three up *)
+  (* The letter h down, then up, then the mouse five right and three up. *)
   List.iter
     [ [ 1; 0; 0x0b; 0; 0; 0; 0; 0 ]; [ 1; 0; 0; 0; 0; 0; 0; 0 ]; [ 2; 0; 5; 0xfd ] ]
     ~f:(fun payload ->
@@ -169,7 +169,7 @@ let%expect_test "a host enumerates the keyboard and mouse and reads reports" =
         | None -> []
       in
       print_s [%message "report" ~_:(until_data 20 : int list)]);
-  (* a report pending when a control transfer starts is dropped; the board requeues it *)
+  (* A report pending when a control transfer starts is dropped, and the board requeues it. *)
   report t [ 2; 1; 0; 0 ];
   read
     "device descriptor with a report in the way"
@@ -182,7 +182,7 @@ let%expect_test "a host enumerates the keyboard and mouse and reads reports" =
     | None -> []
   in
   print_s [%message "the report afterwards" ~_:(until_data 20 : int list)];
-  (* after a bus reset the device is back at address 0 *)
+  (* After a bus reset the device is back at address 0. *)
   reset t;
   read
     "device descriptor at address 0 after a reset"
@@ -218,7 +218,7 @@ let%expect_test "a bus reset with a report still queued" =
   reset t;
   control_out t (Request.set_address 7);
   control_out t (Request.set_configuration 1);
-  (* nobody polls, so the report is in the tx fifo when the reset ends *)
+  (* Nobody polls, so the report is in the tx fifo when the reset ends. *)
   report t [ 1; 0; 0x0b; 0; 0; 0; 0; 0 ];
   reset t;
   let bytes = control_in t (Request.get_descriptor ~kind:1 ~length:18 ()) in
@@ -260,7 +260,7 @@ let conversation () =
 
 (* Every load replayed in the lockstep harness: the Hardcaml core must match the model's
    state after every edge. The host keeps to the single-edge premise the certificate rests
-   on: no arm finds D+ already high or sees it fall again before the wait. *)
+   on: no arm finds D+ already high, and none sees it fall again before the wait. *)
 let%expect_test "the enumeration in lockstep with the hardware" =
   let t, report = conversation () in
   print_s [%message (report : int list)];
@@ -301,13 +301,13 @@ let%expect_test "the enumeration in lockstep with the hardware" =
 ;;
 
 (* Every load against the analyser, assuming [single_capture_edge] as the published
-   certificate does (a standard host gives it); every issue must fall inside the analysis. *)
+   certificate does (a standard host gives it). Every issue must fall inside the analysis. *)
 let%expect_test "the enumeration stays inside the analysis of the device" =
   let t, (_ : int list) = conversation () in
   List.iter (recording t) ~f:(fun (address, cycles) ->
     let cycles = Array.of_list cycles in
     let words = Firmware.assemble (Usb.device ~address ~half_period:(bit_period / 2)) in
-    (* as in the lockstep harness: push after an edge, pop before one *)
+    (* As in the lockstep harness: push after an edge, pop before one. *)
     let host n m =
       let m =
         if n = 0

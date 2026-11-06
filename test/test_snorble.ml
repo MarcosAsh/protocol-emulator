@@ -1,13 +1,13 @@
 open! Core
 open Protocol_emulator
 
-(* what the analyser and the kernel make of the firmware, which compiling it checked *)
+(* What the analyser and the kernel make of the firmware, which compiling it checked. *)
 let%expect_test "the firmware's verdict" =
   print_endline (Analyser.Verdict.to_string (Timed_program.verdict Snorble.firmware));
   [%expect {| 84 words, 5 deadline waits, worst slack 0 |}]
 ;;
 
-(* SIG each cycle, the host writing every byte before the start *)
+(* SIG each cycle, with the host writing every byte before the start. *)
 let levels ~cycles bytes =
   let machine =
     Machine.create
@@ -31,8 +31,8 @@ let runs levels =
   |> List.map ~f:(fun run -> List.hd_exn run, List.length run)
 ;;
 
-(* The example of section 6, p.2: 0xa5 has four ones, so parity 1, and the lows are 1, 0,
-   1, 0, 0, 1, 0, 1 and 1 after a sync of 8.0 us, every gap 2.0 us. *)
+(* The example from section 6, p.2: 0xa5 has four ones, so parity 1, and the lows are 1,
+   0, 1, 0, 0, 1, 0, 1 and 1 after a sync of 8.0 us, every gap 2.0 us. *)
 let%expect_test "the line for 0xa5, as section 6 draws it" =
   let _, levels = levels ~cycles:11_000 [ 0xa5 ] in
   let frame =
@@ -65,7 +65,7 @@ let%expect_test "the line for 0xa5, as section 6 draws it" =
     |}]
 ;;
 
-(* a receiver's view of the line: the bytes, each with odd parity, and the fault bits *)
+(* A receiver's view of the line: the bytes, each with odd parity, and the fault bits. *)
 let%expect_test "a receiver reads every byte" =
   let machine, levels = levels ~cycles:60_000 Snorble.bytes in
   let decoded = Snorble.decode ~clock_hz:Bench.clock_hz (runs levels) in

@@ -2,9 +2,9 @@ open! Core
 open Protocol_emulator
 open Tables
 
-(* A host that keeps the tx fifo from running dry and takes every rx word as it comes: the
-   RTL and the model in lockstep, the model's pins after every cycle and every word it
-   pushed. *)
+(* A host that keeps the tx fifo from running dry and takes every rx word as it comes. The
+   RTL and the model run in lockstep, and we compare the model's pins after every cycle
+   and every word it pushed. *)
 let run ?(data = []) ?(react = ignore) ~cycles ~config ~program ~inputs ~host_words () =
   let preload = List.take host_words 8 in
   let rest = ref (List.drop host_words 8) in
@@ -54,7 +54,7 @@ let image wiring =
   | Error r -> raise_s [%message "refused" (r.error : Error.t)]
 ;;
 
-(* One raw entry a table index, outside [Tables.words]: the reference reads these. *)
+(* One raw entry per table index, outside [Tables.words]: the reference reads these. *)
 module Entry = struct
   type t =
     { outputs : int
@@ -66,10 +66,10 @@ module Entry = struct
   let to_words t = [ t.hold; t.outputs lor (Kind.code t.kind lsl 6) lor (t.next lsl 10) ]
 end
 
-(* The class's timing, read off the interpreter's listing and written out here on its own:
-   R is a step's release, A the cycle the step re-anchors at. Outputs show at R + 2;
-   inputs are sampled once a step, at [sample]; the next release comes [hold + added]
-   after R, or after A for a re-anchoring kind. *)
+(* The class's timing, read off the interpreter's listing and written out here on its
+   own. R is a step's release and A is the cycle the step re-anchors at. Outputs show at
+   R + 2. Inputs are sampled once per step, at [sample]. The next release comes
+   [hold + added] after R, or after A for a re-anchoring kind. *)
 let reference
   ~first_release
   ~(wiring : Wiring.t)
@@ -203,13 +203,13 @@ let random_inputs rand ~cycles =
   fun c -> levels.(c)
 ;;
 
-(* host words whose low four bits ask at most 12 bits of a burst *)
+(* Host words whose low four bits ask for at most 12 bits of a burst. *)
 let random_host_words rand ~n =
   List.init n ~f:(fun _ ->
     (Random.State.int rand 0x1000 lsl 4) lor Random.State.int rand burst_bits)
 ;;
 
-(* the pins read are never ones the core drives, which would read back what it drives *)
+(* The pins read are never ones the core drives, which would read back what it drives. *)
 let wirings =
   List.concat_map (List.range 1 7) ~f:(fun inputs ->
     [ { Wiring.default with
@@ -299,7 +299,7 @@ let%expect_test "the kernel accepts the interpreter at every wiring, with data m
             ~open_drain:(wiring.open_drain : bool)
             ~verdict:(Timed_program.verdict t : Analyser.Verdict.t)]
     | Error r -> print_s [%message "refused" (wiring : Wiring.t) (r.error : Error.t)]);
-  (* teeth: any one path's [add t] a cycle short is refused *)
+  (* Teeth: any one path's [add t] a cycle short is refused. *)
   let source = interpreter Wiring.default in
   List.iter
     (List.dedup_and_sort ~compare (List.map Kind.all ~f:Kind.added))
@@ -486,7 +486,7 @@ let%expect_test "every row of the interpreter, k = 1" =
     |}]
 ;;
 
-(* every change of the watched pins: cycle, pin, level *)
+(* Every change of the watched pins: cycle, pin, level. *)
 let edges ~watch pins =
   List.concat_mapi (Array.to_list pins) ~f:(fun c p ->
     List.filter_map watch ~f:(fun pin ->
@@ -501,8 +501,8 @@ let table_image t =
   config, program, words t |> ok_exn
 ;;
 
-(* each frame from its start edge after an idle high: the edges inside 10 bits, and the
-   byte read mid bit *)
+(* Each frame from its start edge after an idle high: the edges inside 10 bits, and the
+   byte read mid-bit. *)
 let uart_frames ~pin ~bit pins =
   let rec frames acc = function
     | [] -> List.rev acc
@@ -586,7 +586,7 @@ let%expect_test "uart rx by awaiting the start edge, against the library's" =
   let bit = 31 in
   let rand = Random.State.make [| 3 |] in
   let bytes = List.init 12 ~f:(fun _ -> Random.State.int rand 256) in
-  (* each frame after two bits of idle *)
+  (* Each frame after two bits of idle. *)
   let line =
     List.concat_map bytes ~f:(fun b ->
       [ 1; 1; 0 ] @ List.init 8 ~f:(fun i -> (b lsr i) land 1) @ [ 1 ])
@@ -634,7 +634,7 @@ let%expect_test "spi master, full duplex, against the library's" =
   let sent = [ 0xa5; 0x3c; 0x01 ] in
   let slave = [ 0x96; 0xf0; 0x80 ] in
   let cycles = 2500 in
-  (* a mode 0 slave: MISO shows the next bit after each falling SCK *)
+  (* A mode 0 slave: MISO shows the next bit after each falling SCK. *)
   let peer () =
     let bits =
       List.concat_map slave ~f:(fun b -> List.init 8 ~f:(fun i -> (b lsr (7 - i)) land 1))
@@ -652,7 +652,7 @@ let%expect_test "spi master, full duplex, against the library's" =
     in
     inputs, react
   in
-  (* SCK's rises from the first of each byte, and MOSI at each *)
+  (* SCK's rises from the first of each byte, and MOSI at each. *)
   let observe pins =
     let rises =
       edges ~watch:[ Spi.sck_pin ] pins |> List.filter ~f:(fun (_, _, l) -> l = 1)
@@ -720,7 +720,7 @@ let%expect_test "dshot600 from host frames, against the library's" =
   let model, pins, _ =
     run ~data ~cycles ~config ~program ~inputs:(Fn.const 0) ~host_words:frames ()
   in
-  (* each frame's edges from its first rise *)
+  (* Each frame's edges from its first rise. *)
   let per_frame pins =
     edges ~watch:[ Dshot.pin ] pins
     |> List.group ~break:(fun (a, _, _) (b, _, _) -> b - a > 200)
@@ -778,7 +778,7 @@ let%expect_test "i2c slave by the second await pin, against the library's" =
     let master = ref (Peer.create ~quarter ops) in
     let dir = ref 0 in
     let bus_sda = ref 1 in
-    (* the bus idles while both cores start *)
+    (* The bus idles while both cores start. *)
     let lead = 100 in
     let inputs c =
       let sda, scl = if c < lead then 1, 1 else Peer.sda !master, Peer.scl !master in
@@ -846,7 +846,7 @@ module Counter = struct
   type t = int [@@deriving equal, sexp_of]
 end
 
-(* a ring of [states] plain steps, with one entry changed by [edit] *)
+(* A ring of [states] plain steps, with one entry changed by [edit]. *)
 let ring ?(wiring = Wiring.default) ?(edit = Fn.id) states =
   { name = "ring"
   ; wiring
@@ -927,8 +927,8 @@ let%expect_test "the compiler takes a table inside the class and refuses one out
     |}]
 ;;
 
-(* The I2C master writing [ops] to a slave on the model alone, the host topping up the tx
-   fifo from [host_words]: the bytes the slave pushed and what the master saw. *)
+(* The I2C master writing [ops] to a slave on the model alone, with the host topping up
+   the tx fifo from [host_words]. Returns the bytes the slave pushed and what the master saw. *)
 let i2c_model ~quarter ~config ~program ~data ~host_words ops =
   let module Peer = Protocol_models.I2c_peer in
   let machine = Machine.create ~config ~program |> ok_exn in
@@ -959,15 +959,15 @@ let i2c_model ~quarter ~config ~program ~data ~host_words ops =
       in
       go m master pending received (n - 1))
   in
-  (* the bus idles while the core starts *)
+  (* The bus idles while the core starts. *)
   let rec idle m n =
     if n = 0 then m else idle (Machine.step m ~inputs:(3 lsl I2c.sda)) (n - 1)
   in
   go (idle machine 100) (Peer.create ~quarter ops) host_words [] (quarter * 4 * 9 * 12)
 ;;
 
-(* The least quarter period, from [quarters], at which the table's slave still takes every
-   byte the library's does and the master sees the same acks. *)
+(* The smallest quarter period from [quarters] at which the table's slave still takes
+   every byte the library's does and the master sees the same acks. *)
 let i2c_slave_least_quarter quarters =
   let ops : Protocol_models.I2c_peer.Op.t list =
     [ Start; Write 0xa0; Write 3; Write 0xaa; Stop; Start; Write 0xa0; Write 0x55; Stop ]
@@ -1008,7 +1008,7 @@ let%expect_test "which library protocols fit the class, how fast, and why not" =
     else sprintf "%.0f k%s" (hz /. 1e3) unit
   in
   let fits table = Result.is_ok (words table) in
-  (* each built limit, with one cycle less refused *)
+  (* Each built limit, with one cycle less refused. *)
   let limit name ~at ~fits:holds =
     if holds at && not (holds (at - 1))
     then ()

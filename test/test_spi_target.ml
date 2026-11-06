@@ -4,7 +4,7 @@ open Both_roles
 
 let spi_case = List.find_exn Case.all ~f:(fun c -> String.is_prefix c.name ~prefix:"SPI")
 
-(* what every mode pushes at the cases' half period *)
+(* What every mode pushes at the cases' half period. *)
 let spi_expected =
   model
     ~cycles:spi_case.cycles
@@ -13,7 +13,7 @@ let spi_expected =
     ()
 ;;
 
-(* each target, its source and config on any pins, and the least half period it claims *)
+(* Each target with its source and config on any pins, and the smallest half period it claims. *)
 let targets =
   [ "firmware", Spi_target.firmware, Spi_target.config, Spi_target.shortest_half
   ; "fast", Spi_target.fast, Spi_target.fast_config, Spi_target.fast_shortest_half
@@ -50,7 +50,7 @@ let spi_ok ~source ~config ~mode ~half_period ~hold ~deselect =
   && [%equal: int list] outcome.target expected.target
 ;;
 
-(* Every half period up to the master's 31, with CS held and kept high as briefly and as
+(* Every half period up to the master's 31, with CS held and kept high for as short and as
    long as the master allows. *)
 let%expect_test "the target keeps up from its shortest half period" =
   List.iter targets ~f:(fun (name, source, config, shortest) ->
@@ -98,10 +98,11 @@ let%expect_test "the kernel accepts the fast target in every mode" =
     |}]
 ;;
 
-(* A controller on a clock of its own, across the pads, in ns: each pin reaches the core
-   through the top's two flops, and MISO is read [delay] after the chip's edge that drives
-   it, the pad, the board and the controller's setup together. CS falls and rises a half
-   period from SCK and stays high two half periods, and 10 cycles at least. *)
+(* A controller on its own clock, across the pads, in ns. Each pin reaches the core
+   through the top's two flops. MISO is read [delay] after the chip's edge that drives it,
+   which covers the pad, the board and the controller's setup together. CS falls and
+   rises a half period from SCK, and stays high for two half periods or 10 cycles,
+   whichever is longer. *)
 module Over_pads = struct
   let cycle = 1000. /. 48.
   let flops = 2
@@ -115,10 +116,10 @@ module Over_pads = struct
   let sent = List.concat frames
   let replies = [ 0x12; 0xed; 0x34; 0xcb; 0x80; 0x01; 0xfe; 0x7f; 0x99; 0x66; 0x3a; 0xc5 ]
 
-  (* where the controller's first edge falls against the chip's clock, in cycles *)
+  (* Where the controller's first edge falls against the chip's clock, in cycles. *)
   let phases = [ 0.; 0.13; 0.37; 0.5; 0.71; 0.93 ]
 
-  (* each move as time, pin and level, in time order, and where MISO is read *)
+  (* Each move as time, pin and level in time order, and where MISO is read. *)
   type plan =
     { moves : (float * int * int) list
     ; samples : float list
@@ -139,7 +140,7 @@ module Over_pads = struct
         List.concat_mapi bits ~f:(fun k bit ->
           let leading = first +. (2. *. Float.of_int k *. half) in
           let trailing = leading +. half in
-          (* CPHA 0 shows the bit before its leading edge, the first as CS falls *)
+          (* CPHA 0 shows the bit before its leading edge, the first as CS falls. *)
           let shown =
             if mode.cpha then leading else if k = 0 then select else leading -. half
           in
@@ -164,7 +165,7 @@ module Over_pads = struct
     }
   ;;
 
-  (* the pins as the core reads them each cycle, [flops] cycles late *)
+  (* The pins as the core reads them each cycle, [flops] cycles late. *)
   let inputs plan ~(mode : Spi_cs.Mode.t) ~cycles =
     let idle = (1 lsl pins.cs) lor (Bool.to_int mode.cpol lsl pins.sck) in
     let levels = Array.create ~len:cycles idle in
@@ -186,7 +187,7 @@ module Over_pads = struct
   ;;
 
   (* The bytes the target pushed and the replies the controller read, run on the model, or
-     on the RTL beside it when [rtl]: [None] if the two part. *)
+     on the RTL beside it when [rtl] is set. [None] if the two disagree. *)
   let run ?(rtl = false) ~(timed : Timed_program.t) ~mode ~half ~phase () =
     let plan = plan ~mode ~half:(half *. cycle) ~phase in
     let cycles = Float.iround_up_exn (plan.finish /. cycle) + 40 in
@@ -239,7 +240,7 @@ module Over_pads = struct
       | None -> false)
   ;;
 
-  (* down from [most] a quarter cycle at a time, to the last before a failure *)
+  (* Walks down from [most] a quarter cycle at a time to the last value before a failure. *)
   let most = 16.
 
   let least ~timed ~mode =
@@ -251,8 +252,8 @@ module Over_pads = struct
   ;;
 end
 
-(* The least half period, in quarter cycles, from which every one up to 16 passes in every
-   phase on the model, and on the RTL at that least; SCK in MHz at 48 MHz. *)
+(* The smallest half period, in quarter cycles, from which every one up to 16 passes in
+   every phase on the model, and on the RTL at that value. SCK is in MHz at 48 MHz. *)
 let%expect_test "the least half period over the pads" =
   List.iter targets ~f:(fun (name, source, config, _) ->
     List.iter Spi_cs.Mode.all ~f:(fun mode ->
@@ -308,7 +309,7 @@ let%expect_test "a frame cut short inside a byte loses that byte and no more" =
     let received = Queue.create () in
     let half = 20 in
     let idle = Bool.to_int mode.cpol in
-    (* [n] cycles at these levels, then MISO as they left it *)
+    (* [n] cycles at these levels, then MISO as they left it. *)
     let hold ?(cs = 0) ?(sck = idle) ?(mosi = 0) n =
       let inputs = (mosi lsl pins.mosi) lor (sck lsl pins.sck) lor (cs lsl pins.cs) in
       for _ = 1 to n do
@@ -319,8 +320,8 @@ let%expect_test "a frame cut short inside a byte loses that byte and no more" =
       done;
       (!target.pin_out lsr pins.miso) land 1
     in
-    (* MOSI holds from the edge before the one the target samples on, and MISO is read at
-       the end of the first half: the leading edge in CPHA 0, the trailing one in CPHA 1 *)
+    (* MOSI holds from the edge before the one the target samples on. MISO is read at the
+       end of the first half: the leading edge in CPHA 0, the trailing one in CPHA 1. *)
     let bit mosi =
       let first = hold ~sck:(if mode.cpha then 1 - idle else idle) ~mosi half in
       let (_ : int) = hold ~sck:(if mode.cpha then idle else 1 - idle) ~mosi half in

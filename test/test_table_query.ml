@@ -1,6 +1,6 @@
 open! Core
 
-(* The one variant of the reject split's sample no table passes. *)
+(* The one variant in the reject split's sample that no table passes. *)
 let no_table =
   List.find_exn
     (Reject_split.variants (Library.find_certified_exn "uart_tx_host_rate"))

@@ -2,8 +2,8 @@ open! Core
 open! Hardcaml
 open Protocol_emulator
 
-(* Cyclesim black-boxes the macro and the test/models SRAM reads neither DLY nor the BIST
-   port, so the ties are checked in the verilog: DLY high, BIST idle. *)
+(* Cyclesim black-boxes the macro, and the SRAM model in test/models reads neither DLY nor
+   the BIST port, so the ties are checked in the verilog: DLY high, BIST idle. *)
 let%expect_test "the macro's port map" =
   let module C = Circuit.With_interface (Program_memory.I) (Program_memory.O) in
   let scope = Scope.create ~auto_label_hierarchical_ports:true () in

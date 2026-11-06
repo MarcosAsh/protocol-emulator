@@ -64,9 +64,9 @@ let%expect_test "uart tx at 115200 baud from a 50 MHz clock" =
     |}]
 ;;
 
-(* 48 MHz / 115200 is 416 2/3 cycles a bit. Each edge's error from n * 416 2/3: with the
-   fraction it stays in a band under a cycle (two thirds early, from the start bit's
-   [add t, p]); a whole period drifts every bit. *)
+(* 48 MHz / 115200 is 416 2/3 cycles per bit. This is each edge's error from n * 416 2/3.
+   With the fraction it stays in a band under a cycle (two thirds early, from the start
+   bit's [add t, p]). A whole period drifts every bit. *)
 let fractional = { Program_config.default with period_fraction = 43691 }
 
 let%expect_test "uart tx at 115200 baud from a 48 MHz clock" =
@@ -215,7 +215,7 @@ let%expect_test "uart tx at 115200 baud in lockstep" =
   [%expect {| ("lockstep held" (cycles 10416)) |}]
 ;;
 
-(* with the premise the certificate rests on watched at every arm *)
+(* With the premise the certificate rests on watched at every arm. *)
 let%expect_test "uart rx in lockstep" =
   let period = 16 in
   let levels =

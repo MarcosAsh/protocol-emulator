@@ -11,8 +11,8 @@ module Harness = Hardcaml_test_harness.Lws_harness.Make (Contract.I) (Contract.O
 
 let ( <--. ) = Bits.( <--. )
 
-(* The first cycle with a break and the cycle the irq is due by, as the reference lists
-   them and as the circuit says them, a cycle later. *)
+(* The first cycle with a break and the cycle the irq is due by, once as the reference
+   lists them and once as the circuit does, a cycle later. *)
 module Answer = struct
   type t =
     { first : int option
@@ -31,8 +31,8 @@ module Answer = struct
   ;;
 end
 
-(* How many named waves had a break, an irq due, and a break the contract lets go, and the
-   first where the circuit and the reference differ. *)
+(* Counts the named waves with a break, an irq due, and a break the contract lets go, and
+   the first wave where the circuit and the reference differ. *)
 let differ cases =
   Harness.run
     ~random_initial_state:`All
@@ -50,7 +50,7 @@ let differ cases =
          inputs.least <--. edges.(m - 1);
          let first = ref None in
          let due = ref None in
-         (* past the wave the line idles high, a frame on from its last start *)
+         (* Past the wave the line idles high, a frame on from its last start. *)
          for n = 0 to Bytes.length w + edges.(m - 1) + 32 do
            inputs.line
            := Bits.of_bool (n >= Bytes.length w || Char.to_int (Bytes.get w n) = 1);
@@ -103,9 +103,9 @@ let%expect_test "the circuit is the reference on the fuzzer's cases" =
     {| ((cases 1540) (tally ((break 1315) (due 1300) ("let go" 15))) (differ 0)) |}]
 ;;
 
-(* The blind cases by name: a lone pulse before the least with the next frame 2^16 on, and
-   a fall at [watch_from] with a pulse in the first frame 2^16 on, each a cycle either
-   side too. *)
+(* The blind cases by name: a lone pulse before the minimum with the next frame 2^16
+   cycles on, and a fall at [watch_from] with a pulse in the first frame 2^16 on, each
+   also a cycle to either side. *)
 let%expect_test "the circuit is the reference where the checker is blind" =
   let near = [ -1; 0; 1 ] in
   let least =
@@ -146,9 +146,9 @@ let%expect_test "the circuit is the reference where the checker is blind" =
   [%expect {| ((cases 15) (tally ((break 11) (due 8) ("let go" 3))) (differ 0)) |}]
 ;;
 
-(* Frames of 6 to 30 cycles with up to nine edges, which the rows refuse but the contract
-   takes, so breaks near the least, at the last edge and between back to back frames are
-   common; random levels before the first and a few flipped runs anywhere. *)
+(* Frames of 6 to 30 cycles with up to nine edges. The rows refuse these but the contract
+   takes them, so breaks near the minimum, at the last edge and between back-to-back frames
+   are common. Levels before the first edge are random, and a few runs are flipped anywhere. *)
 let small rs n =
   let rand lo hi = lo + Random.State.int rs (hi - lo + 1) in
   let least = rand 6 30 in

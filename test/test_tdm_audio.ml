@@ -1,13 +1,13 @@
 open! Core
 open Protocol_emulator
 
-(* what the analyser and the kernel make of the firmware, which compiling it checked *)
+(* What the analyser and the kernel make of the firmware, which compiling it checked. *)
 let%expect_test "the firmware's verdict" =
   print_endline (Analyser.Verdict.to_string (Timed_program.verdict Tdm_audio.firmware));
   [%expect {| 117 words, 0 deadline waits |}]
 ;;
 
-(* SCLK, level by level with the cycles each lasted, for one host word. *)
+(* SCLK level by level with the cycles each lasted, for one host word. *)
 let%expect_test "SCLK for one host word" =
   let machine =
     Machine.create
@@ -50,8 +50,8 @@ let%expect_test "SCLK for one host word" =
 ;;
 
 (* A converter in the clock slave format (AN301 p.3, Figures 4 and 6). It reads SDATA and
-   FSYNC as SCLK rises. FSYNC seen rising marks that bit the last of the frame, and the
-   frame's bits are eight 32-bit blocks of which it keeps the top 24, ignoring the pad. *)
+   FSYNC as SCLK rises. FSYNC seen rising marks that bit as the last of the frame. A frame
+   is eight 32-bit blocks, of which it keeps the top 24 and ignores the pad. *)
 module Converter = struct
   type t =
     { cycle : int
@@ -138,7 +138,7 @@ module Converter = struct
   ;;
 end
 
-(* two frames of samples, then one of silence *)
+(* Two frames of samples, then one of silence. *)
 let samples = Tdm_audio.samples @ List.map Tdm_audio.samples ~f:(fun s -> 0xffff - s)
 
 (* The host writes every sample as the fifo has room. *)

@@ -4,8 +4,8 @@ open Ws2812
 
 let pixel red green blue = { Pixel.red; green; blue }
 
-(* six pixels are twelve words, more than the fifo holds, so the host tops it up; the
-   second frame follows the latch *)
+(* Six pixels are twelve words, more than the fifo holds, so the host tops it up. The
+   second frame follows the latch. *)
 let first_frame =
   [ pixel 0xff 0x00 0x00
   ; pixel 0x00 0xff 0x00
@@ -25,7 +25,7 @@ let schedule =
   |> List.mapi ~f:(fun i word -> (if i < 12 then 0 else second_frame_cycle), word)
 ;;
 
-(* the word the host writes in cycle [n], if it is due and there is room *)
+(* The word the host writes in cycle [n], if it is due and there is room. *)
 let due schedule ~n ~tx_level =
   match schedule with
   | (cycle, word) :: rest when cycle <= n && tx_level < Machine.fifo_depth ->
@@ -142,7 +142,7 @@ let%expect_test "the shortest bit the structure can make" =
     |}]
 ;;
 
-(* one cycle less and the thirteen cycles round a word's end no longer fit *)
+(* One cycle less and the thirteen cycles around a word's end no longer fit. *)
 let%expect_test "a bit too short for the end of a word" =
   let source = firmware ~third:6 ~tail:6 in
   Timing_report.print ~config source;
@@ -165,8 +165,8 @@ let%expect_test "a bit too short for the end of a word" =
     |}]
 ;;
 
-(* the firmware keeps every deadline, but a zero of 604 ns reads as a one, and too short a
-   one: the string says so *)
+(* The firmware keeps every deadline, but a zero of 604 ns reads as a one, and a one that
+   is too short does too. The string says so. *)
 let%expect_test "a third of 29 cycles is out of tolerance" =
   let strip, fault = run (firmware ~third:29 ~tail:0) in
   print_strip strip fault;

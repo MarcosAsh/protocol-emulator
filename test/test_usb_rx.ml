@@ -14,9 +14,9 @@ let pins : Usb_ls.Line.t -> int * int = function
   | Se0 -> 0, 0
 ;;
 
-(* Packets on D+ and D- from J, [gap] bits of J around each, the sender's bit [ppm] long.
-   Each change of line state moves by up to [jitter] ns, and D- follows D+ by [skew] ns.
-   [corrupt] edits a packet's states, for a stuffing error. *)
+(* Packets on D+ and D- from J, with [gap] bits of J around each and the sender's bit
+   [ppm] long. Each change of line state moves by up to [jitter] ns, and D- follows D+ by
+   [skew] ns. [corrupt] edits a packet's states to give a stuffing error. *)
 let line ?(corrupt = Fn.id) ~random ~ppm ~jitter ~skew ~gap packets =
   let idle = List.init gap ~f:(fun _ -> Usb_ls.Line.J) in
   let states =
@@ -45,8 +45,8 @@ let line ?(corrupt = Fn.id) ~random ~ppm ~jitter ~skew ~gap packets =
   , 200. +. (Float.of_int (List.length states) *. length) )
 ;;
 
-(* D+ and D- sampled [per_bit] times a bit from a random phase, [per_cycle] to a cycle,
-   earliest first *)
+(* D+ and D- sampled [per_bit] times per bit from a random phase, [per_cycle] to a cycle,
+   earliest first. *)
 let sample ~random ~per_bit ~per_cycle (edges, stop) =
   let period = bit_ns /. Float.of_int per_bit in
   let first = Random.State.float random period in
@@ -68,7 +68,7 @@ let sample ~random ~per_bit ~per_cycle (edges, stop) =
     catch_up ();
     !dp, !dm
   in
-  (* in time order, as [at] carries the levels on *)
+  (* In time order, as [at] carries the levels on. *)
   let cycles = Queue.create () in
   for cycle = 0 to count - 1 do
     let samples = Queue.create () in
@@ -104,7 +104,7 @@ module Run (Config : Usb_rx.Config) = struct
   module Rx = Usb_rx.Make (Config)
   module Harness = Hardcaml_test_harness.Lws_harness.Make (Rx.I) (Rx.O)
 
-  (* the packets the receiver ends, in order *)
+  (* The packets the receiver ends, in order. *)
   let run ?(random_initial_state = false) cycles =
     let results = ref [] in
     Harness.run
@@ -156,15 +156,15 @@ let intact ~per_bit ~per_cycle ~run ~ppm ~jitter ~skew ~seed =
     |> run
   in
   let want = List.map packets ~f:Result.of_packet in
-  (* a lost packet shifts the rest, so match each packet against all the results *)
+  (* A lost packet shifts the rest, so match each packet against all the results. *)
   List.count want ~f:(fun w -> List.mem got w ~equal:Result.equal)
 ;;
 
-(* Forty DATA0 packets of 32 bytes, half of them 0xff so a stuffed 0 comes every few
-   bytes, back to back with three bits of J between, the sender 0.25% fast and slow (the
-   standard's limit). Jitter is uniform and independent per line-state change, so two
-   edges in a row are up to twice it apart from their spacing: 9.25 ns is the standard's
-   18.5 ns to the next transition. Each cell: packets intact of 40. *)
+(* Forty DATA0 packets of 32 bytes, half of them 0xff so that a stuffed 0 comes every few
+   bytes, back to back with three bits of J between. The sender is 0.25% fast and slow
+   (the standard's limit). Jitter is uniform and independent per line-state change, so
+   two edges in a row can be up to twice it away from their spacing: 9.25 ns is the
+   standard's 18.5 ns to the next transition. Each cell is packets intact out of 40. *)
 let%expect_test "packets intact under jitter, both edges against one" =
   let jitters = [ 0.; 2.; 5.; 9.25; 12.; 15.; 18. ] in
   printf "%-12s %6s" "sampling" "ppm";
@@ -194,9 +194,9 @@ let%expect_test "packets intact under jitter, both edges against one" =
     |}]
 ;;
 
-(* The margin on rate: past the standard's 0.25% at 2 ns of jitter. Seven bits at most
-   between edges, the last centre half a bit and a sample from the next edge, gives about
-   5%. *)
+(* The margin on rate: past the standard's 0.25% at 2 ns of jitter. With at most seven
+   bits between edges, and the last centre half a bit plus a sample from the next edge,
+   this gives about 5%. *)
 let%expect_test "packets intact off rate" =
   List.iter [ 10000.; 20000.; 40000.; 50000.; 60000. ] ~f:(fun ppm ->
     printf "%4.0f%%" (ppm /. 1e4);
@@ -224,9 +224,9 @@ let%expect_test "packets intact off rate" =
     |}]
 ;;
 
-(* D- late on D+ by [skew], at 2 ns of jitter and 0.25% slow: SE0 and SE1 glitches at
-   every J/K change, which only the centre sample has to miss. The centre is 42 to 52 ns
-   after the D+ edge it counts from, so D- may lead by about 30 ns and lag by 40. *)
+(* D- late on D+ by [skew], at 2 ns of jitter and 0.25% slow. SE0 and SE1 glitches appear
+   at every J/K change, and only the centre sample has to miss them. The centre is 42 to
+   52 ns after the D+ edge it counts from, so D- may lead by about 30 ns and lag by 40. *)
 let%expect_test "packets intact with D- skewed against D+" =
   List.iter [ 0.; 10.; 20.; 30.; -10.; -20.; -30. ] ~f:(fun skew ->
     printf
@@ -253,8 +253,8 @@ let%expect_test "packets intact with D- skewed against D+" =
 ;;
 
 (* A token, a data packet with a stuffed run and an odd length, and the data packet again
-   with seven 1s on the line, from a random power-up state: words, CRCs and the stuffing
-   error as the data memory and the status would see them. *)
+   with seven 1s on the line, from a random power-up state. We check the words, CRCs and
+   stuffing error as the data memory and the status would see them. *)
 let%expect_test "a token, a stuffed data packet and a stuffing error into the data memory"
   =
   let module Harness =
@@ -262,7 +262,7 @@ let%expect_test "a token, a stuffed data packet and a stuffing error into the da
   in
   let token = Usb.token ~address:5 ~pid:in_ ~endpoint:1 in
   let data = Usb.data ~pid:Usb.data1 [ 0xff; 0xff; 0x3c; 0x7e; 0x01 ] in
-  (* the first stuffed 0 held at J: the line stays put a seventh bit *)
+  (* The first stuffed 0 is held at J: the line stays put for a seventh bit. *)
   let seventh_one states =
     let rec go ~ones ~before = function
       | [] -> []
@@ -387,8 +387,8 @@ let%expect_test "good follows the packet's type" =
     |}]
 ;;
 
-(* A data packet of 1100 bytes from 0x40, past the data memory's end, then a token: the
-   words past the end are dropped and still counted, and the token's count starts again. *)
+(* A data packet of 1100 bytes from 0x40, past the data memory's end, then a token. The
+   words past the end are dropped but still counted, and the token's count starts again. *)
 let%expect_test "a packet past the data memory's end, then a token" =
   let module Harness =
     Hardcaml_test_harness.Lws_harness.Make (Usb_frame_rx.I) (Usb_frame_rx.O)
@@ -442,8 +442,8 @@ let%expect_test "a packet past the data memory's end, then a token" =
 ;;
 
 (* A SETUP, its DATA0 and an IN three bits apart, as a host sends a control read, armed
-   once: with [rearm] each lands from the base as it ends, and finished falls at the next
-   SYNC; without it the first alone lands. *)
+   once. With [rearm] each lands from the base as it ends and finished falls at the next
+   SYNC. Without it only the first lands. *)
 let%expect_test "re-armed, packets three bits apart each land from the base" =
   let module Harness =
     Hardcaml_test_harness.Lws_harness.Make (Usb_frame_rx.I) (Usb_frame_rx.O)
@@ -613,9 +613,9 @@ let%expect_test "the residues are the CRCs of a good packet" =
 ;;
 
 (* Full speed transmit, a bit every four cycles: the 10BASE-T sender's loop with the line
-   table's NRZI on D+ and D-, the bits from the data memory and stuffed beforehand, as
-   [jmp stuff] would cost the loop two cycles more. The pins, sampled twice a cycle, go
-   back through the receiver. *)
+   table's NRZI on D+ and D-. The bits come from the data memory, stuffed beforehand,
+   since [jmp stuff] would cost the loop two more cycles. The pins, sampled twice a cycle,
+   go back through the receiver. *)
 let fs_transmitter =
   {|
     set pins, 1              ; J
@@ -750,8 +750,8 @@ let streaming =
 ;;
 
 (* Both engines stream their own eight words in lockstep with [System] while a data packet
-   lands at 24 between turns they keep their words. Engine 1 then hands the packet's words
-   to its host. *)
+   lands at 24, and between turns they keep their words. Engine 1 then hands the packet's
+   words to its host. *)
 let%expect_test "a packet on the chip, beside two engines streaming data" =
   let random = Random.State.make [| 5 |] in
   let packet =
@@ -804,8 +804,8 @@ let%expect_test "a packet on the chip, beside two engines streaming data" =
          |> ok_exn
        in
        let model = ref (System.create (List.map programs ~f:machine)) in
-       (* a start pulse, a cycle for the fetch, then the cores as [Machine.create] has
-          them *)
+        (* A start pulse, a cycle for the fetch, then the cores as [Machine.create] has
+           them. *)
        List.iter [ 0; 1 ] ~f:(fun n -> (port n).start := Bits.vdd);
        cycle ();
        List.iter [ 0; 1 ] ~f:(fun n -> (port n).start := Bits.gnd);
@@ -836,7 +836,7 @@ let%expect_test "a packet on the chip, beside two engines streaming data" =
          step ()
        done;
        let s = Usb_frame_rx.Status.map o.usb ~f:int in
-       (* engine 1 hands the packet over *)
+        (* Engine 1 hands the packet over. *)
        let p = port 1 in
        p.stop := Bits.vdd;
        cycle ();
@@ -877,7 +877,7 @@ let%expect_test "a packet on the chip, beside two engines streaming data" =
     |}]
 ;;
 
-(* Engine 0 streams its words and reads the status pins every eight; engine 1, the
+(* Engine 0 streams its words and reads the status pins every eight. Engine 1, the
    receivers' owner, waits on the finished pin, then hands over the pins and the packet. *)
 let watch =
   {|
@@ -911,9 +911,10 @@ loop:
 |}]
 ;;
 
-(* Both engines against [System] every cycle, the status pins the chip shows given to the
-   model's owner and the packet's words to its memory once they are in. The owner sees
-   finished and good as it leaves the wait; engine 0 reads 0 on every status pin. *)
+(* Both engines against [System] every cycle, with the status pins the chip shows given to
+   the model's owner and the packet's words given to its memory once they are in. The
+   owner sees finished and good as it leaves the wait, and engine 0 reads 0 on every
+   status pin. *)
 let%expect_test "the receivers' owner waits on its status pin for a packet" =
   let random = Random.State.make [| 7 |] in
   let packet =
@@ -975,7 +976,7 @@ let%expect_test "the receivers' owner waits on its status pin for a packet" =
        cycle ();
        List.iter [ 0; 1 ] ~f:(fun n -> (port n).start := Bits.gnd);
        cycle ();
-       (* finished, good, receiving and error, as the owner reads them this cycle *)
+        (* Finished, good, receiving and error, as the owner reads them this cycle. *)
        let status () =
          let u = Usb_frame_rx.Status.map o.usb ~f:int in
          u.finished

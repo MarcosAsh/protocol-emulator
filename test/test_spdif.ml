@@ -1,16 +1,17 @@
 open! Core
 open Protocol_emulator
 
-(* what the analyser and the kernel make of the firmware, which compiling it checked *)
+(* What the analyser and the kernel make of the firmware, which compiling it checked. *)
 let%expect_test "the firmware's verdict" =
   print_endline (Analyser.Verdict.to_string (Timed_program.verdict Spdif.firmware));
   [%expect {| 108 words, 40 deadline waits, worst slack 2 |}]
 ;;
 
-(* The far end, fed the line every cycle. Each pulse is the whole half slots nearest its
-   length, at 128 a frame of 44.1 kHz; a preamble is the only pulse of three, and sigrok's
-   B, M and W are 3113, 3311 and 3212. A subframe's 28 bits after it have even parity, the
-   16-bit sample in bits 8 to 23, LSB first, and the rest 0. *)
+(* The far end, fed the line every cycle. Each pulse is rounded to the nearest whole number
+   of half slots, at 128 cycles per 44.1 kHz frame. A preamble is the only pulse of three
+   half slots, and sigrok's B, M and W are 3113, 3311 and 3212. The 28 bits of a subframe
+   after the preamble have even parity, the 16-bit sample in bits 8 to 23 (LSB first), and
+   the rest 0. *)
 module Receiver = struct
   module Preamble = struct
     type t =
@@ -95,7 +96,7 @@ module Receiver = struct
       | _ -> error t (sprintf !"%{sexp:Preamble.t} out of turn" preamble))
   ;;
 
-  (* a frame starts at its B or M: the time since the last one, and the frames since B *)
+  (* A frame starts at its B or M: the time since the last one, and the frames since B. *)
   let frame_start t (preamble : Preamble.t) ~start =
     let t =
       match t.last_start with
@@ -162,7 +163,7 @@ module Receiver = struct
        | _ -> error t (sprintf "pulse of %d halves in a bit" halves))
   ;;
 
-  (* the run before the first edge is idle, not a pulse *)
+  (* The run before the first edge is idle, not a pulse. *)
   let step t ~level =
     let t =
       match t.level with
@@ -207,7 +208,7 @@ let run ?frames ~words ~cycles () =
   print_s [%message "" ~fault:(machine.fault : Machine.Fault.t)]
 ;;
 
-(* Three stereo frames, then silence as the fifo runs dry *)
+(* Three stereo frames, then silence as the fifo runs dry. *)
 let%expect_test "stereo 16-bit samples at 44.1 kHz" =
   run ~words:[ 0x1234; 0xfedc; 0x8001; 0x7ffe; 0x00ff; 0xa5a5 ] ~cycles:(6 * 1089) ();
   [%expect
@@ -226,7 +227,7 @@ let%expect_test "stereo 16-bit samples at 44.1 kHz" =
     |}]
 ;;
 
-(* B every 192 frames, M between: a block, and the frame periods in it *)
+(* B every 192 frames with M between: a block, and the frame periods in it. *)
 let%expect_test "a block of 192 frames" =
   run
     ~frames:(fun frames -> List.take frames 2)

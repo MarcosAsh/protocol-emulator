@@ -4,8 +4,8 @@ open Tolerance
 
 let percent ppm = sprintf "%d.%03d%%" (ppm / 10_000) (ppm % 10_000 / 10)
 
-(* The bounds, then the model at each bound for a few phases, and one step past each at
-   the phase the bound says fails there. *)
+(* The bounds, then the model at each bound for a few phases, and one step past each bound
+   at the phase where the bound says it fails. *)
 let show name (r : Receiver.t) =
   let b = bounds r in
   let fast, slow = Bounds.ppm b ~nominal:r.nominal in
@@ -50,8 +50,8 @@ let%expect_test "each receiver's tolerance, from its certificate" =
     |}]
 ;;
 
-(* The CAN receiver's window with its own ACK back on CRX [echo] cycles later, the
-   transceiver's loop and the synchroniser *)
+(* The CAN receiver's window with its own ACK coming back on CRX [echo] cycles later,
+   through the transceiver's loop and the synchroniser. *)
 let%expect_test "the CAN receiver's window by the transceiver's loop" =
   let longest = Can_node.Receiver.longest_loop in
   List.iter
@@ -87,8 +87,8 @@ let%expect_test "the CAN receiver's window by the transceiver's loop" =
     |}]
 ;;
 
-(* As the chip runs it, watching the premises the certificate was checked under: the
-   phases, of 64, at which a frame is lost or a premise fails at each end of the window *)
+(* As the chip runs it, watching the premises the certificate was checked under. Counts
+   the phases (of 64) at which a frame is lost or a premise fails at each end of the window. *)
 let%expect_test "the CAN receiver's window with its premises watched" =
   let r = Receiver.can_rx ~period:96 ~sample:72 () in
   let b = bounds r in
@@ -107,9 +107,10 @@ let%expect_test "the CAN receiver's window with its premises watched" =
   [%expect {| ((at_fast_end 0) (at_slow_end 0)) |}]
 ;;
 
-(* The UART receivers as the chip runs them, the single edge watched: a frame lost one
-   step past the fast bound is the next start edge before the arm, which faults the
-   premise, and the fault stops the core before the deadline the stale capture misses *)
+(* The UART receivers as the chip runs them, watching the single edge. One step past the
+   fast bound a frame is lost because the next start edge comes before the arm. That
+   faults the premise, and the fault stops the core before the deadline the stale capture
+   misses. *)
 let%expect_test "the UART receivers past the fast bound, premises watched" =
   List.iter
     [ "uart_rx", Receiver.uart_rx ~period:16 ()
@@ -136,8 +137,8 @@ let%expect_test "the UART receivers past the fast bound, premises watched" =
     |}]
 ;;
 
-(* usb_rx as the chip runs it, its certificate's premises watched: from every phase at the
-   nominal rate the run ends clean *)
+(* usb_rx as the chip runs it, watching its certificate's premises. From every phase at
+   the nominal rate the run ends clean. *)
 let%expect_test "usb_rx at the nominal rate, premises watched" =
   let r = Receiver.usb_rx () in
   let phases = List.init 16 ~f:(fun i -> i * unit / 16) in
@@ -162,10 +163,10 @@ let%expect_test "usb_rx at the nominal rate, premises watched" =
     |}]
 ;;
 
-(* the CAN frames hold the longest runs: ten bits between falling edges inside a frame,
-   five dominant and five recessive, and from the CRC's last fall to the next SOF *)
-(* Not certified: where the formula does not apply, the model from 16 phases, walked out
-   from the nominal rate in steps of 1/8%, to the first step that loses a frame. *)
+(* The CAN frames hold the longest runs: ten bits between falling edges inside a frame
+   (five dominant, five recessive), and from the CRC's last fall to the next SOF. *)
+(* Not certified: where the formula does not apply we walk the model out from the nominal
+   rate in steps of 1/8%, from 16 phases, to the first step that loses a frame. *)
 let%expect_test "usb_rx by model search, not certified" =
   let r = Receiver.usb_rx () in
   let nominal = r.nominal * unit in
@@ -207,8 +208,9 @@ let%expect_test "the CAN receiver's frames" =
 ;;
 
 (* The fast bound is the arm after the stop bit's middle, 19 half periods and 2 cycles
-   from the start edge, before the next start bit ten bits in; the slow, the stop bit's
-   middle at 19 half periods, after its start nine bits in. *)
+   from the start edge, which must come before the next start bit ten bits in. The slow
+   bound is the stop bit's middle at 19 half periods, which must come after its start
+   nine bits in. *)
 let%expect_test "uart_rx_host_rate by its half period" =
   let bytes = [ 0x55; 0xaa; 0x00; 0xff; 0x0f; 0xf0 ] in
   List.iter [ 4; 8; 13; 26; 52; 104; 208; 2500 ] ~f:(fun half ->
@@ -236,8 +238,8 @@ let%expect_test "uart_rx_host_rate by its half period" =
     |}]
 ;;
 
-(* what the bench sweep rests on: [predicts] and [faults] against the model, from phase 0,
-   near each bound and every half percent out to 7% *)
+(* What the bench sweep rests on: [predicts] and [faults] against the model, from phase 0,
+   near each bound and every half percent out to 7%. *)
 let%expect_test "predicts matches the model" =
   let r = Receiver.uart_rx_host_rate ~bytes:(List.init 64 ~f:Fn.id) ~half:16 () in
   let b = bounds r in

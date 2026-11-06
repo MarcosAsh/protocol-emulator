@@ -7,8 +7,7 @@ let variant name =
     String.equal v.name name)
 ;;
 
-(* Every 250th variant, with the full run's runs, and the one uart_tx_host_rate variant
-   the full run finds no table for. *)
+(* Every 250th variant, plus the one uart_tx_host_rate variant the full run finds no table for. *)
 let%expect_test "the reject split, on a sample" =
   let every = List.concat_map Reject_split.firmware ~f:Reject_split.variants in
   let sample = List.filteri every ~f:(fun i _ -> i % 250 = 0) in
@@ -30,7 +29,7 @@ let%expect_test "the reject split, on a sample" =
 ;;
 
 (* Teeth for [Accepted_but_missed]: a host writing random words from the start breaks the
-   period premise, and accepted firmware misses. *)
+   period premise, so accepted firmware misses. *)
 let%expect_test "a run that breaks the period premise misses deadlines the kernel says \
                  it meets"
   =
@@ -47,7 +46,7 @@ let%expect_test "a run that breaks the period premise misses deadlines the kerne
     |}]
 ;;
 
-(* Teeth for [Witness_refused], which the full split did not reach: on accepted variants
+(* Teeth for [Witness_refused], which the full split did not reach. On accepted variants
    SAT finds a table, and it passes [Kernel.check] unless every row past pc 0 is emptied. *)
 let%expect_test "a table SAT finds passes Kernel.check" =
   List.iter

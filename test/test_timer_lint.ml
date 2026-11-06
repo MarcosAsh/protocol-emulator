@@ -112,7 +112,7 @@ let%expect_test "every compare of timer values in the core and the kernel's step
 ;;
 
 (* The timer compares the kernel has used for the count since [capture_arm], and other
-   shapes a compare takes. *)
+   shapes a compare can take. *)
 module Shapes = struct
   module I = struct
     type 'a t =

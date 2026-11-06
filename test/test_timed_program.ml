@@ -19,7 +19,7 @@ let refusal source =
 ;;
 
 let%expect_test "a refusal names its lines, and the verdict if the analyser passed" =
-  (* the analyser refuses a loop that falls further behind on every pass *)
+  (* The analyser refuses a loop that falls further behind on every pass. *)
   refusal
     {|
     set p, 4
@@ -30,7 +30,7 @@ loop:
     out pins, 1 [5]
     jmp loop
 |};
-  (* the analyser passes this one and the kernel refuses it *)
+  (* The analyser passes this one and the kernel refuses it. *)
   refusal (In_channel.read_all "assemble/gap_adding_x.asm");
   [%expect
     {|
@@ -49,7 +49,7 @@ loop:
 
 let%expect_test "a late wait counts its loop's cycles only where nothing else in it waits"
   =
-  (* a pass is the out, the wait and the jmp: 14 + 1 + 2 cycles against 16 *)
+  (* A pass is the out, the wait and the jmp: 14 + 1 + 2 cycles against 16. *)
   refusal
     {|
     set p, 16
@@ -61,7 +61,7 @@ bit:
     jmp x--, bit
     halt
 |};
-  (* with a second wait in the loop no pass is counted, though here every one is 25 cycles *)
+  (* With a second wait in the loop no pass is counted, though here every one takes 25 cycles. *)
   refusal
     {|
     set p, 8
@@ -104,8 +104,8 @@ loop:
     jmp idle
 |}]
   in
-  (* at 0 [jmp x--] never jumps back, and the wait is late after the untimed [wait tx]; at
-     3 the loop falls behind as well *)
+  (* At 0, [jmp x--] never jumps back and the wait is late after the untimed [wait tx]. At
+     3 the loop falls behind as well. *)
   refusal (program ~x:0);
   refusal (program ~x:3);
   [%expect
@@ -149,7 +149,7 @@ let%expect_test "lines count from 1, and each error comes at its own" =
   lines
     ".side_set 1\nstart:\n    set p, 4 side 0 ; comment\n\n    jmp start\nend: nop side 1";
   lines "    set p, 4\n    frob pins, 1\n    nop\n    jmp nowhere";
-  (* the second pass, which would refuse [jmp nowhere], waits on a first with no faults *)
+  (* The second pass, which would refuse [jmp nowhere], waits on a first with no faults. *)
   lines ".wrap\nloop:\n    nop\n.wrap_targt\nloop:\n    jmp nowhere";
   [%expect
     {|
@@ -165,8 +165,8 @@ let%expect_test "lines count from 1, and each error comes at its own" =
 ;;
 
 let%expect_test "a deadline past half the timer is refused" =
-  (* 160 adds of 65535 put [t] past 2^23 ahead, which the wait's signed compare reads as
-     passed, so the model misses it *)
+  (* 160 adds of 65535 put [t] more than 2^23 ahead, which the wait's signed compare reads
+     as already passed, so the model misses it. *)
   let source =
     {|
     mov p, !null
@@ -197,7 +197,7 @@ loop:
    | Ok _ -> print_s [%message "accepted"]
    | Error { faults; verdict = _; error = _ } ->
      print_s [%message "" (faults : Timed_program.Fault.t list)]);
-  (* the kernel, on the analyser's rows alone, refuses it too *)
+  (* The kernel, on the analyser's rows alone, refuses it too. *)
   let rows = Analyser.analyse ~period:65535 ~config:configured ahead.instructions in
   print_s
     [%message
@@ -227,7 +227,7 @@ let refused_with ?period ~config source =
   | Error { error; _ } -> print_s [%sexp (error : Error.t)]
 ;;
 
-(* the chip's registers would hold these truncated, so [Machine.create] refuses them too *)
+(* The chip's registers would hold these truncated, so [Machine.create] refuses them too. *)
 let%expect_test "a config the chip cannot hold is refused" =
   let source = In_channel.read_all "uart_tx.asm" in
   refused_with ~config:{ config with pull_threshold = 40; set_base = 99 } source;

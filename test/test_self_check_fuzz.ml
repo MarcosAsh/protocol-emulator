@@ -1,8 +1,8 @@
 open! Core
 open Self_check_monitor
 
-(* A case, what the contract says of it, and what the model's checker did; with [rtl], the
-   rtl's irq too, which holds in lockstep with the model. *)
+(* A case, what the contract says about it, and what the model's checker did. With [rtl]
+   it also has the rtl's irq, which holds in lockstep with the model. *)
 let show ?(rtl = false) name (c : Case.t) =
   let verdict, reference, run = check c in
   let reference = List.take reference 2 in
@@ -24,8 +24,8 @@ let show ?(rtl = false) name (c : Case.t) =
 
 let four = [| 500; 1000; 1500; 2000 |]
 
-(* A fall just after a check that moved nothing, of a low pulse of any width, is seen, as
-   is a high pulse's fall just before a check: the stamp is the edge's own cycle. *)
+(* A fall just after a check that moved nothing is seen for a low pulse of any width, and
+   so is a high pulse's fall just before a check, because the stamp is the edge's own cycle. *)
 let%expect_test "a fall just after or just before a check" =
   let e = 100 + 1000 in
   show
@@ -69,8 +69,8 @@ let%expect_test "a fall just after or just before a check" =
     |}]
 ;;
 
-(* A next frame starting within about 22 cycles of the least is anchored on time: the
-   checker waits for it from the least itself. *)
+(* A next frame starting within about 22 cycles of the minimum is anchored on time, since
+   the checker waits for it from the minimum itself. *)
 let%expect_test "the span between a frame's least and the next frame" =
   let edges = [| 300; 600 |] in
   let levels = [| 0; 1 |] in
@@ -166,7 +166,7 @@ let%expect_test "a glitch after the least" =
     |}]
 ;;
 
-(* Back to back frames whose first check is the least its rows took raise no false alarm. *)
+(* Back-to-back frames whose first check is the minimum their rows allow raise no false alarm. *)
 let%expect_test "back to back frames at the least first edge" =
   show "first 32, back to back" (Case.frames [| 32; 61; 90 |] [| 0; 1; 1 |] ~idle:[ 0 ]);
   let alarms =
@@ -208,9 +208,9 @@ let%expect_test "a frame that ends low" =
     |}]
 ;;
 
-(* The one blind case: a one-cycle low pulse in the cycle before the least stamps the
+(* The one blind case: a one-cycle low pulse in the cycle before the minimum stamps the
    capture, and a next frame whose first edge comes a multiple of 2^16 cycles later reads
-   as fresh in the 16 bits the checker compares. A cycle either side is caught. *)
+   as fresh in the 16 bits the checker compares. A cycle to either side is caught. *)
 let%expect_test "the blind case" =
   let edges = [| 300; 600 |] in
   List.iter [ -1; 0; 1 ] ~f:(fun by ->
@@ -235,8 +235,8 @@ let%expect_test "the blind case" =
     |}]
 ;;
 
-(* The first frame is the first fall after the checker sees the line high, here a cycle
-   and five after the line comes up at 50, clean and with a pulse. *)
+(* The first frame is the first fall after the checker sees the line high. Here it comes
+   1 and 5 cycles after the line goes high at 50, clean and with a pulse. *)
 let%expect_test "the first frame" =
   List.iter [ 1; 5 ] ~f:(fun d ->
     let c =
@@ -266,7 +266,8 @@ let%expect_test "the first frame" =
 ;;
 
 (* A fall in the first cycle the checker reads takes the capture. The stale stamp stands
-   for the first frame's, blind to a fall 2^16 cycles on; a cycle either side is caught. *)
+   in for the first frame's, so a fall 2^16 cycles on goes unseen. A cycle to either side
+   is caught. *)
 let%expect_test "a fall before the line is first high" =
   let stale = [ Case.Pulse { at = watch_from; width = 1 } ] in
   show
@@ -304,8 +305,8 @@ let%expect_test "a fall before the line is first high" =
     |}]
 ;;
 
-(* Random certified frames with pulses, moved, missing and added edges, against the
-   contract; [long] reaches frames near 2^14 cycles and idle gaps near 2^16. *)
+(* Random certified frames with pulses and with moved, missing and added edges, checked
+   against the contract. [long] reaches frames near 2^14 cycles and idle gaps near 2^16. *)
 let fuzz ~seed ~cases ~long =
   let rs = Random.State.make [| seed |] in
   let counts = Hashtbl.create (module String) in

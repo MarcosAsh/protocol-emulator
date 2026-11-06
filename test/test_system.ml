@@ -4,7 +4,7 @@ open Firmware
 
 let period = 16
 
-(* a transmitter on one engine and a receiver on the other, with nothing outside the chip *)
+(* A transmitter on one engine and a receiver on the other, with nothing outside the chip. *)
 let cross_wired ~line ~transmitter =
   let rx_config =
     { Uart.rx_config with in_base = line; jmp_pin = line; capture_pin = line }
@@ -72,7 +72,7 @@ let%expect_test "uart from one engine to the other over a wire" =
     |}]
 ;;
 
-(* random programs, pads and host traffic on both engines: chip and model agree *)
+(* Random programs, pads and host traffic on both engines: chip and model agree. *)
 let%expect_test "random programs on two engines in lockstep" =
   let random = Splittable_random.of_int 5 in
   let int hi = Splittable_random.int random ~lo:0 ~hi in
@@ -114,10 +114,10 @@ let%expect_test "random programs on two engines in lockstep" =
   [%expect {| (failed ()) |}]
 ;;
 
-(* Engine 0 sends two bytes at 115200 baud over a wire and engine 1 stamps every edge; the
+(* Engine 0 sends two bytes at 115200 baud over a wire and engine 1 stamps every edge. The
    host pops the stamps whenever it likes. The certificate puts each edge a whole number
    of bit periods after its start bit. The one unbounded edge is the line going idle,
-   before any deadline. *)
+   which comes before any deadline. *)
 let%expect_test "one engine times the other's uart edges" =
   let line = Isa.num_pins in
   let period = 434 in
@@ -153,7 +153,7 @@ let%expect_test "one engine times the other's uart edges" =
         }
       ]
   in
-  (* the first stamp is the line going idle; then each frame, start bit first *)
+  (* The first stamp is the line going idle, then each frame, start bit first. *)
   let frame byte =
     let levels = (0 :: List.init 8 ~f:(fun i -> (byte lsr i) land 1)) @ [ 1 ] in
     List.filter_mapi levels ~f:(fun bit level ->
@@ -206,9 +206,9 @@ let%expect_test "one engine times the other's uart edges" =
     |}]
 ;;
 
-(* Engine 0's pushes go to engine 1's tx fifo, waiting while it is full; engine 1 copies
-   each word to its own rx fifo more slowly, which the host empties now and then. Nothing
-   is lost or faults. *)
+(* Engine 0's pushes go to engine 1's tx fifo, waiting while it is full. Engine 1 copies
+   each word to its own rx fifo more slowly, and the host empties that now and then.
+   Nothing is lost and nothing faults. *)
 let%expect_test "a routed engine feeds the other with no host between" =
   let random = Splittable_random.of_int 3 in
   let popped = ref [] in
@@ -278,8 +278,8 @@ loop:
     |}]
 ;;
 
-(* As above, with routing, line tables, premises and the start of every engine at once
-   drawn at random too; the host writes no tx fifo another engine feeds. *)
+(* As above, but routing, line tables, premises and the start of every engine are drawn at
+   random too. The host writes no tx fifo another engine feeds. *)
 let%expect_test "random programs on two engines with the add-ons in lockstep" =
   let random = Splittable_random.of_int 8 in
   let int hi = Splittable_random.int random ~lo:0 ~hi in
@@ -351,8 +351,8 @@ let%expect_test "random programs on two engines with the add-ons in lockstep" =
 ;;
 
 (* Engine 0 drives pin 12 and OUT0, then pulls from its empty fifo, while engine 1 toggles
-   pin 13. From the edge the underflow shows the chip drives none of engine 0's pins, the
-   word after the pull included, and an edge later engine 0 halts. *)
+   pin 13. From the edge where the underflow shows, the chip drives none of engine 0's
+   pins (including the word after the pull), and an edge later engine 0 halts. *)
 let%expect_test "a faulted engine stops and lets go of its pins" =
   let pin = Isa.first_bidir_pin in
   let rows = Queue.create () in
@@ -432,8 +432,8 @@ module Two = Engines.Make (struct
 
 module Harness = Hardcaml_test_harness.Lws_harness.Make (Two.I) (Two.O)
 
-(* the host starts engine 0, which underflows, then starts it again; ungated, as the fault
-   alone must hold it *)
+(* The host starts engine 0, which underflows, then starts it again. This is ungated, so
+   the fault alone must hold it. *)
 let%expect_test "a start does nothing while a fault is held" =
   Harness.run
     ~random_initial_state:`All
@@ -492,13 +492,14 @@ let%expect_test "a start does nothing while a fault is held" =
     |}]
 ;;
 
-(* The checker serving one engine a turn: engine 0's check, asked at the clear, aborted at
-   the last pcs by the host writing the certificate under it, engine 1's accepted on its
-   turn, then each refused on a corrupted certificate, and twice on one whose first entry
-   is out of order, under both premises and then neither. Each verdict stays its engine's
-   through the other's turn, the premises are each check's own, and engine 0's start
-   between its checks is refused, uncertified, until its next check begins. Last, engine
-   1's start after its refusals is refused, until a check on the certificate accepts it. *)
+(* The checker serves one engine per turn. Engine 0's check is asked at the clear, and
+   aborted at the last pcs by the host writing the certificate under it. Engine 1's is
+   accepted on its turn. Then each is refused on a corrupted certificate, and twice on one
+   whose first entry is out of order, under both premises and then neither. Each verdict
+   stays with its engine through the other's turn, the premises are each check's own, and
+   engine 0's start between its checks is refused as uncertified until its next check
+   begins. Last, engine 1's start after its refusals is refused until a check on the
+   certificate accepts it. *)
 let%expect_test "each engine's check is its own, kept through the other's turn" =
   let case =
     List.find_exn Firmware_inventory.all ~f:(fun c -> String.equal c.name "uart_tx")
@@ -560,7 +561,7 @@ let%expect_test "each engine's check is its own, kept through the other's turn" 
            cycle ());
          port.valid := Bits.gnd
        in
-       (* a value no check reads with no loaded period valid, all ones then all zeros *)
+        (* A value no check reads with no loaded period valid: all ones, then all zeros. *)
        let loaded value = Bits.(i.check_setup.loaded.value <--. value) in
        Bits.(i.check_setup.base <--. 0);
        i.check_setup.floor := Bits.of_bool case.floor;
@@ -570,7 +571,7 @@ let%expect_test "each engine's check is its own, kept through the other's turn" 
        pulse i.clocking.clear;
        cycle ();
        (host 0).check := Bits.gnd;
-       (* the walk over the empty memories takes 8182 cycles: write near its end *)
+        (* The walk over the empty memories takes 8182 cycles, so write near its end. *)
        cycle ~n:8_170 ();
        write_data certified;
        List.iter [ 0; 1 ] ~f:(fun n ->
@@ -654,8 +655,8 @@ let%expect_test "each engine's check is its own, kept through the other's turn" 
 ;;
 
 (* A host writes data word 500, outside engine 0's certificate, while engine 0's walk
-   runs: engine 1's host's write is dropped and the walk runs on and accepts, while engine
-   0's own host's, which takes the walk's data turn, ends it. *)
+   runs. Engine 1's host write is dropped and the walk runs on and accepts. Engine 0's own
+   host write takes the walk's data turn and ends it. *)
 let%expect_test "another engine's host's data write leaves a walk running" =
   let case =
     List.find_exn Firmware_inventory.all ~f:(fun c -> String.equal c.name "uart_tx")
@@ -710,8 +711,8 @@ let%expect_test "another engine's host's data write leaves a walk running" =
          ~f:( := );
        write (host 0).program_write (List.mapi words ~f:Tuple2.create);
        let verdict = List.hd_exn o.check.verdicts in
-       (* host [n] writes 3,000 cycles into engine 0's walk, which begins at engine 0's
-          next turn *)
+        (* Host [n] writes 3,000 cycles into engine 0's walk, which begins at engine 0's
+           next turn. *)
        let check_beside n =
          pulse (host 0).check;
          let turns = 2 * Two.turn_cycles in

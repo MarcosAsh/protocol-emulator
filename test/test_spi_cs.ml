@@ -4,8 +4,8 @@ open Spi_cs
 
 let bit v i = (v lsr i) land 1
 
-(* the core, its host keeping up but for the [late] word's index held back to a cycle,
-   against a [Device] *)
+(* The core against a [Device]. The host keeps up, except that the [late] word is held
+   back by a cycle. *)
 let run ?(cycles = 2000) ?late ~mode ~half_period ~setup ~hold frames =
   let program =
     Timed_program.of_source_exn
@@ -57,7 +57,7 @@ let run ?(cycles = 2000) ?late ~mode ~half_period ~setup ~hold frames =
 
 let frames = [ [ 0x9f; 0x00; 0x00; 0x00 ]; [ 0xa5 ]; [ 0x3c; 0xc3 ] ]
 
-(* the flash act's: 3 MHz at the bench's 48 *)
+(* The flash demo's rate: 3 MHz at the bench's 48 MHz. *)
 let half_period = 8
 let setup = 4
 let hold = 8
@@ -115,8 +115,8 @@ let%expect_test "each mode against a slave of that mode" =
     |}]
 ;;
 
-(* 0xa5 with 0x5a back, as each pin's runs of a level from the start, MISO as the core
-   sees it *)
+(* 0xa5 with 0x5a back, as each pin's runs of a level from the start, with MISO as the
+   core sees it. *)
 let%expect_test "the four modes' waveforms" =
   List.iter Mode.all ~f:(fun mode ->
     let _, _, _, trace = run ~cycles:170 ~mode ~half_period ~setup ~hold [ [ 0xa5 ] ] in
@@ -230,8 +230,9 @@ let%expect_test "the kernel accepts each mode at the flash act's parameters" =
     |}]
 ;;
 
-(* SCK is pin a and CS pin b: SCK holds each level [half_period], its edges come [setup]
-   after CS falls, CS rises [hold] after SCK's last edge and stays high [deselect]. *)
+(* SCK is pin a and CS is pin b. SCK holds each level for [half_period], its edges come
+   [setup] after CS falls, CS rises [hold] after SCK's last edge and stays high for
+   [deselect]. *)
 let spacing ~half_period ~setup ~hold ~deselect =
   { Kernel.Spacing.Spec.a = sck_pin
   ; b = cs_pin
@@ -260,8 +261,8 @@ let spaced ~mode spec =
   Kernel.check ~spacing:spec ~config ~words table
 ;;
 
-(* What the kernel proves of every run, whatever the host does, and each bound one cycle
-   more refused. *)
+(* What the kernel proves for every run whatever the host does, and that each bound is
+   refused one cycle further on. *)
 let%expect_test "the kernel proves the chip select's setup, hold and deselect" =
   let deselect = 9 in
   List.iter Mode.all ~f:(fun mode ->

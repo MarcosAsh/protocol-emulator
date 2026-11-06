@@ -13,9 +13,9 @@ let uart_tx ~period =
   }
 ;;
 
-(* The bit loop takes four cycles, so a bit of three falls a cycle further behind on each
-   pass and the wait at its head is entered late; four is the least the kernel accepts.
-   The core's own missed-deadline fault agrees. *)
+(* The bit loop takes four cycles, so a 3-cycle bit falls a cycle further behind on each
+   pass and the wait at the top of the loop starts late. Four is the smallest the kernel
+   accepts. The core's own missed-deadline fault agrees. *)
 let%expect_test "uart tx a cycle short of its loop is refused, and four is not" =
   let refused = uart_tx ~period:3 in
   let pc = Option.value_exn (Refusal_wave.late_wait refused) in

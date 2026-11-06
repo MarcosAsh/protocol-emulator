@@ -2,13 +2,13 @@ open! Core
 open Protocol_emulator
 open Swd_blind
 
-(* what the analyser and the kernel make of the firmware, which compiling it checked *)
+(* What the analyser and the kernel make of the firmware, which compiling it checked. *)
 let%expect_test "the firmware's verdict" =
   print_endline (Analyser.Verdict.to_string (Timed_program.verdict firmware));
   [%expect {| 22 words, 2 deadline waits, worst slack 1 |}]
 ;;
 
-(* the host's clocks through the core and the target, read back from the pushed words *)
+(* The host's clocks through the core and the target, read back from the pushed words. *)
 let run ?(half = standard_half) clocks =
   let scenario =
     { scenario with
@@ -65,7 +65,7 @@ let%expect_test "a line reset, the DPIDR, then an AP read" =
     |}]
 ;;
 
-(* the AP read posts CSW, which RDBUFF returns; the write is 46 clocks and 8 idle *)
+(* The AP read posts CSW, which RDBUFF returns. The write is 46 clocks and 8 idle. *)
 let%expect_test "a write to the AP, then two reads" =
   let first = 64 + 48 + 54 in
   let pushed, target =
@@ -100,7 +100,7 @@ let%expect_test "a write to the AP, then two reads" =
     |}]
 ;;
 
-(* driving the turnaround, a header with bad parity, and a header before two idle cycles *)
+(* Cases: driving the turnaround, a header with bad parity, and a header before two idle cycles. *)
 let%expect_test "what the target refuses" =
   let show ?(first = 64) name clocks =
     let pushed, target = run clocks in
@@ -136,7 +136,7 @@ let%expect_test "what the target refuses" =
     |}]
 ;;
 
-(* SWCLK, and SWDIO with who drives it, a level per cycle for a DPIDR read *)
+(* SWCLK, and SWDIO with who drives it: a level per cycle for a DPIDR read. *)
 let%expect_test "the line for a DPIDR read" =
   let machine =
     Machine.create

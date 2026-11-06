@@ -50,7 +50,7 @@ let%expect_test "spi master exchanges bytes with a mode 0 slave" =
     |}]
 ;;
 
-(* one reply more than bytes, or the last edge pulls from an empty fifo *)
+(* One more reply than bytes, or the last edge pulls from an empty fifo. *)
 let run_spi_slave ~half_period ?gap ~replies bytes =
   let t =
     Machine.create ~config:Spi.slave_config ~program:(Timed_program.words Spi.slave)

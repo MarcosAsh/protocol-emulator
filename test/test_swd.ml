@@ -40,7 +40,7 @@ let dp ?ap_latency ?memory ?corrupt_parity ?corrupt_acks targetid =
     ()
 ;;
 
-(* the core, fed and emptied each cycle as a host keeping up would, on [bus] *)
+(* The core on [bus], fed and emptied each cycle as a host that keeps up would. *)
 let run ~cycles ~bus items =
   let t =
     Machine.create
@@ -70,7 +70,7 @@ let run ~cycles ~bus items =
   loop t bus (words items) [] 0
 ;;
 
-(* the first word pushed is SWDIO's level before the core drove it *)
+(* The first word pushed is SWDIO's level from before the core drove it. *)
 let print ~(machine : Machine.t) ~bus ~pushed items =
   let let_go, pushed = List.hd_exn pushed, List.tl_exn pushed in
   print_s [%message (let_go : int)];
@@ -99,9 +99,9 @@ let print ~(machine : Machine.t) ~bus ~pushed items =
 let read ?(ap = false) address = Item.Transfer (Read { ap; address })
 let write ?(ap = false) address value = Item.Transfer (Write { ap; address; value })
 
-(* The RP2040's bring-up, its debug domain powered and AP 0's IDR read, then each ACK:
-   WAIT from an AP still busy, FAULT once a read outside memory has set STICKYERR, and
-   none once TARGETSEL has let both DPs go. A refused write's data words are dropped. *)
+(* The RP2040's bring-up: debug domain powered, AP 0's IDR read, then each ACK. WAIT comes
+   from an AP that is still busy, FAULT once a read outside memory has set STICKYERR, and
+   no ACK once TARGETSEL has let both DPs go. A refused write's data words are dropped. *)
 let%expect_test "an RP2040's two DPs, woken from dormant and selected in turn" =
   let memory = [ 0x4000_0000, 0x2000_2927 ] in
   let bus =
@@ -260,10 +260,10 @@ let%expect_test "a read whose parity is wrong" =
     |}]
 ;;
 
-(* A DP whose first two OK ACKs the wire garbles goes on with the data phase: RDATA for
-   the read, which the core lets be, and WDATA for the write, which the core does not
-   send, so the DP takes the pull-up's ones, whose parity fails: WDATAERR, until ABORT
-   clears it after a line reset. *)
+(* A DP whose first two OK ACKs the wire garbles carries on with the data phase. For the
+   read it sends RDATA, which the core ignores. For the write the core sends no WDATA, so
+   the DP sees the pull-up's ones, whose parity fails: WDATAERR, until ABORT clears it
+   after a line reset. *)
 let%expect_test "ACKs the wire garbled" =
   let bus = Bus.create [ dp ~corrupt_acks:2 rp2040_core0 ] in
   let items =
@@ -353,9 +353,9 @@ let%expect_test "a line nobody pulls up" =
     |}]
 ;;
 
-(* The requests of Figures B4-8 and B4-9, as they go on the wire, and the selection alert
-   from the LFSR of Figure B5-10, its taps numbered from the input end: a zero, then the
-   register's bit 0 each cycle. *)
+(* The requests of Figures B4-8 and B4-9 as they go on the wire, and the selection alert
+   from the LFSR of Figure B5-10, with its taps numbered from the input end: a zero, then
+   the register's bit 0 each cycle. *)
 let%expect_test "the spec's requests and selection alert" =
   let wire byte =
     String.init 8 ~f:(fun i -> if (byte lsr i) land 1 = 1 then '1' else '0')

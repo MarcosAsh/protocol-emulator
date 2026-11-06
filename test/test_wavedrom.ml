@@ -5,8 +5,8 @@ let diagram name =
   In_channel.read_all [%string "diagrams/%{name}.json"] |> Wavedrom.of_string |> ok_exn
 ;;
 
-(* The RTL and the model in lockstep, the host keeping the tx fifo topped up and taking
-   every word pushed: the pins each cycle and the words taken. *)
+(* The RTL and the model in lockstep, with the host keeping the tx fifo topped up and
+   taking every word pushed. We compare the pins each cycle and the words taken. *)
 let run ?(react = ignore) ~cycles ~inputs (config, program, data) host_words =
   let rest = ref (List.drop host_words Machine.fifo_depth) in
   let last = ref None in
@@ -59,7 +59,7 @@ let edges pins =
     if c > 0 && p <> pins.(c - 1) then n + 1 else n)
 ;;
 
-(* the diagram's table and the hand-written one, run on the same host words *)
+(* The diagram's table and the hand-written one, run on the same host words. *)
 let against ?(peer = fun () -> Fn.const 0, ignore) ~cycles name hand ~host_words =
   let t = diagram name in
   let from_diagram = Wavedrom.image t |> ok_exn in
@@ -121,7 +121,7 @@ let%expect_test "uart tx, dshot and spi master from diagrams, against the hand t
           (Dshot.decode Dshot.Rate.dshot600 ~clock_hz:Bench.clock_hz levels
            |> Or_error.map ~f:fst
            : (int * bool) list Or_error.t)];
-  (* a mode 0 slave: MISO shows the next bit after each falling SCK *)
+  (* A mode 0 slave: MISO shows the next bit after each falling SCK. *)
   let slave = [ 0x96; 0xf0; 0x80 ] in
   let peer () =
     let bits =
@@ -236,7 +236,7 @@ let%expect_test "ws2812 from a diagram: passes of 12 bits while the host's flag 
 let%expect_test "uart rx from a diagram: the start bit's edge, against the hand table" =
   let bit = 31 in
   let bytes = [ 0xa3; 0x00; 0xff; 0x5c; 0x81 ] in
-  (* each frame after two bits of idle *)
+  (* Each frame after two bits of idle. *)
   let line =
     List.concat_map bytes ~f:(fun b ->
       [ 1; 1; 0 ] @ List.init 8 ~f:(fun i -> (b lsr i) land 1) @ [ 1 ])
@@ -259,7 +259,7 @@ let%expect_test "uart rx from a diagram: the start bit's edge, against the hand 
   let byte bits =
     List.foldi bits ~init:0 ~f:(fun i acc b -> acc lor (Bool.to_int b lsl i))
   in
-  (* the same bytes on the line the diagram draws, a frame after each idle bit *)
+  (* The same bytes on the line the diagram draws, a frame after each idle bit. *)
   let drawn =
     Wavedrom.line
       t

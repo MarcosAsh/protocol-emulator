@@ -4,7 +4,7 @@ open Firmware
 open Protocol_models
 
 let%expect_test "usb low speed packets survive the wire" =
-  (* the SETUP token to address 0, endpoint 0, and a DATA0 packet with its crc *)
+  (* The SETUP token to address 0, endpoint 0, and a DATA0 packet with its crc. *)
   let setup = [ 0x2d; 0x00; 0x10 ] in
   let data = [ 0x80; 0x06; 0x00; 0x01; 0x00; 0x00; 0x40; 0x00 ] in
   let crc = Usb_ls.crc16 (Usb_ls.bits_of_bytes data) in
@@ -62,7 +62,7 @@ let%expect_test "usb sniffer drops a packet that is not stuffed" =
     |> Usb_ls.Sniffer.packets
   in
   let packet = [ 0xc3; 0xff; 0xff ] in
-  (* NRZI with no stuff bits: a one holds the line, a zero toggles it *)
+  (* NRZI with no stuff bits: a one holds the line, a zero toggles it. *)
   let _, unstuffed =
     List.fold_map
       (Usb_ls.bits_of_bytes (0x80 :: packet))
@@ -124,9 +124,9 @@ let%expect_test "usb tx builds the crc and stuffs the get descriptor packet" =
     |}]
 ;;
 
-(* Every change of the line, the EOP's SE0 and the J after it too, lands on the bit grid
-   the SYNC's first edge sets. USB 2.0 table 7-10 allows the EOP -40 to +100 ns (TLDEOP),
-   under two cycles early at 48 MHz. *)
+(* Every change of the line, including the EOP's SE0 and the J after it, lands on the bit
+   grid the SYNC's first edge sets. USB 2.0 table 7-10 allows the EOP -40 to +100 ns
+   (TLDEOP), which is under two cycles early at 48 MHz. *)
 let%expect_test "usb tx keeps every line change on the bit grid, the eop's too" =
   let bit_period = 32 in
   let data = [ 0x80; 0x06; 0x00; 0x01; 0x00; 0x00; 0x40; 0x00 ] in
@@ -306,11 +306,12 @@ let%expect_test "usb rx in lockstep" =
     |}]
 ;;
 
-(* A sender off in rate, its bit [num / den] of the receiver's, each bit starting on the
-   first cycle at or after it is due. USB allows a low speed sender 1.5% off. The receiver
-   re-anchors on every J-to-K edge, at most fourteen bits apart once stuffed, so the drift
-   it has to ride out is that of fourteen bits and not of a whole packet. Every byte in
-   eight-byte DATA0 packets, then packets of all ones, the longest gaps between edges. *)
+(* A sender off in rate, with its bit [num / den] of the receiver's, each bit starting on
+   the first cycle at or after it is due. USB allows a low speed sender to be 1.5% off.
+   The receiver re-anchors on every J-to-K edge, at most fourteen bits apart once stuffed,
+   so the drift it has to ride out is that of fourteen bits, not a whole packet. Every
+   byte in eight-byte DATA0 packets, then packets of all ones, which have the longest gaps
+   between edges. *)
 let%expect_test "usb rx follows a sender off in rate" =
   let bit_period = 32 in
   let level (line : Usb_ls.Line.t) =
@@ -392,7 +393,7 @@ let%expect_test "usb rx follows a sender off in rate" =
     |}]
 ;;
 
-(* D+ and D- as a wire: the device wins where it drives, the host's level otherwise *)
+(* D+ and D- as a wire: the device wins where it drives, otherwise the host's level. *)
 let usb_bus (t : Machine.t) ~host =
   let pin n = if (t.pin_dir lsr n) land 1 = 1 then (t.pin_out lsr n) land 1 else host n in
   pin Usb.device_dp_pin, pin Usb.device_dm_pin
@@ -427,7 +428,7 @@ let run_usb_device ?(queue = []) ~address packets ~idle =
       in
       List.init bit_period ~f:(fun _ -> level))
   in
-  (* reply delay per spec: host SE0 end to device's first K, 2 to 6.5 bit times *)
+  (* Reply delay per spec: host SE0 end to device's first K, 2 to 6.5 bit times. *)
   let host_se0_ends = ref 0 in
   let replied = ref true in
   let reply_delays = ref [] in
@@ -464,7 +465,7 @@ let run_usb_device ?(queue = []) ~address packets ~idle =
     List.rev_map !reply_delays ~f:(fun cycles ->
       Float.of_int cycles /. Float.of_int bit_period)
   in
-  (* the first bit received is the top bit of a word *)
+  (* The first bit received is the top bit of a word. *)
   let reverse byte =
     List.init 8 ~f:(fun i -> ((byte lsr i) land 1) lsl (7 - i))
     |> List.sum (module Int) ~f:Fn.id
@@ -581,7 +582,7 @@ let%expect_test "usb device in lockstep" =
   [%expect {| ("lockstep held" (cycles 5312)) |}]
 ;;
 
-(* a data packet: PID, payload, CRC-16 low byte first *)
+(* A data packet: PID, payload, CRC-16 low byte first. *)
 let usb_data ~pid payload =
   let crc = Usb_ls.crc16 (Usb_ls.bits_of_bytes payload) in
   (pid :: payload) @ [ crc land 0xff; crc lsr 8 ]
@@ -687,8 +688,8 @@ let%expect_test "usb device takes a SETUP in lockstep" =
     |}]
 ;;
 
-(* an IN reply: endpoint and PID, data bits and words, then data two bytes a word, first
-   byte low *)
+(* An IN reply: endpoint and PID, data bits and words, then the data two bytes per word,
+   first byte low. *)
 let usb_reply ?(endpoint = 0) ~pid payload =
   let rec words = function
     | [] -> []

@@ -1,13 +1,13 @@
 open! Core
 open Protocol_emulator
 
-(* what the analyser and the kernel make of the firmware, which compiling it checked *)
+(* What the analyser and the kernel make of the firmware, which compiling it checked. *)
 let%expect_test "the firmware's verdict" =
   print_endline (Analyser.Verdict.to_string (Timed_program.verdict Xy2_100.firmware));
   [%expect {| 35 words, 10 deadline waits, worst slack 2 |}]
 ;;
 
-(* The line, level by level with the cycles each lasted, for one host word. *)
+(* The line level by level with the cycles each lasted, for one host word. *)
 let%expect_test "SENDCK for one host word" =
   let machine =
     Machine.create
@@ -37,9 +37,9 @@ let%expect_test "SENDCK for one host word" =
     |}]
 ;;
 
-(* The deflection system: SENDCK rises and the data bit changes, SENDCK falls and the bit
-   is sampled, while SYNC is high and on the bit it falls with. It checks the parity, and
-   measures how long DATA is steady either side of the sample. *)
+(* The deflection system. SENDCK rises and the data bit changes, SENDCK falls and the bit
+   is sampled, all while SYNC is high and on the bit it falls with. It checks the parity
+   and measures how long DATA is steady on either side of the sample. *)
 module Deflection = struct
   type t =
     { cycle : int

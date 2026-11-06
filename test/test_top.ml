@@ -8,8 +8,8 @@ open Protocol_models
 module Harness = Hardcaml_test_harness.Lws_harness.Make (Top.I) (Top.O)
 module Reg = Host_port.Reg
 
-(* Cyclesim does not model the asynchronous reset, so registers start at zero, as [rst_n]
-   low leaves the reset synchroniser, and only the memories start random. *)
+(* Cyclesim does not model the asynchronous reset, so registers start at zero, as with
+   [rst_n] low in the reset synchroniser, and only the memories start random. *)
 
 let%expect_test "the host loads and runs the uart transmitter over spi" =
   let period = 16 in
@@ -69,7 +69,7 @@ let%expect_test "the host loads and runs the uart transmitter over spi" =
     |}]
 ;;
 
-(* self-test: a transmitter on engine 0 and a receiver on engine 1 over a wire *)
+(* Self-test: a transmitter on engine 0 and a receiver on engine 1 over a wire. *)
 let%expect_test "two engines talk over a wire and the host reads the result" =
   let period = 16 in
   let wire = Isa.num_pins in
@@ -137,9 +137,9 @@ let%expect_test "two engines talk over a wire and the host reads the result" =
   [%expect {| ((sender (0)) (receiver (2048)) (received (85 163)) (pins 0)) |}]
 ;;
 
-(* a core echoes its input pins to the outputs, each pin through the two synchroniser
-   flops on the way in; then [rst_n] falls again and the chip comes back halted. Cyclesim
-   has no asynchronous reset, so [Cyclesim.reset] stands in for its fall. *)
+(* A core echoes its input pins to the outputs, each pin going through the two
+   synchroniser flops on the way in. Then [rst_n] falls again and the chip comes back
+   halted. Cyclesim has no asynchronous reset, so [Cyclesim.reset] stands in for the fall. *)
 let%expect_test "every input pin reaches a core, and a second reset clears the chip" =
   Harness.run_advanced
     ~random_initial_state:`Mems
@@ -176,7 +176,7 @@ let%expect_test "every input pin reaches a core, and a second reset clears the c
        inputs.ena := Bits.vdd;
        reset ();
        let m = Spi_master.create ~sck ~mosi ~cs_n ~miso ~half:4 in
-       (* from pin [in_base] to the outputs from pin 5, which are [uo_out] from bit 1 *)
+       (* From pin [in_base] to the outputs from pin 5, which are [uo_out] from bit 1. *)
        let echo ~in_base ~count =
          Spi_master.write m ~watch Reg.control [ 4 ];
          let config =
@@ -206,7 +206,7 @@ loop:
            ~config
            program;
          Spi_master.write m ~watch Reg.control [ 1 ];
-         (* pins 0 to 4 are [ui_in]'s top five bits, pins 12 to 19 [uio_in] *)
+         (* Pins 0 to 4 are [ui_in]'s top five bits, pins 12 to 19 are [uio_in]. *)
          let input k = if in_base + k < 5 then in_base + k else in_base + k - 7 in
          List.init count ~f:(fun k ->
            pins := 1 lsl input k;
@@ -231,9 +231,9 @@ loop:
     {| ((ui_in (1 2 4 8 16)) (uio_in (1 2 4 8 16 32 64 64)) (status (1)) (pc (0))) |}]
 ;;
 
-(* The frame receiver listens on the pin the host names: a two-byte frame on an input pin
-   lands as one word, and on pins 5 to 11, the outputs, nothing comes in and it stays
-   armed. So too past the last pin, with nothing driven. *)
+(* The frame receiver listens on the pin the host names. A two-byte frame on an input pin
+   lands as one word. On pins 5 to 11, the outputs, nothing comes in and it stays armed.
+   The same holds past the last pin, with nothing driven. *)
 let%expect_test "the frame receiver takes the pin the host names" =
   let random = Random.State.make [| 7 |] in
   let samples =
@@ -272,7 +272,7 @@ let%expect_test "the frame receiver takes the pin the host names" =
        let frames =
          List.init (1 lsl Frame_rx.pin_bits) ~f:(fun pin ->
            Spi_master.write m ~watch Reg.frame_control [ (pin lsl 2) lor 1 ];
-           (* the line on the named pin, or on pin 0 for an output *)
+           (* The line on the named pin, or on pin 0 for an output. *)
            let line = if pin >= 5 && pin < 12 then 0 else pin in
            List.iter samples ~f:(fun sample ->
              pins := if pin < Isa.num_pins then List.hd_exn sample lsl line else 0;
@@ -376,7 +376,7 @@ let%expect_test "the chip's clock pins" =
   Design_rule_checks.verify_clock_pins circuit ~expected_clock_pins:[ "clk" ]
 ;;
 
-(* [Circuit_utilization] raises on the host port's [cases], so the core alone is sized. *)
+(* [Circuit_utilization] raises on the host port's [cases], so we size the core alone. *)
 let%expect_test "the core's area" =
   let module C = Circuit.With_interface (Engine.I) (Engine.O) in
   let scope = Scope.create ~flatten_design:true () in

@@ -7,12 +7,12 @@ let sender = Asm.assemble Uart.tx_host_rate |> ok_exn
 let sender_config = { Program_config.default with set_base = wire; out_base = wire }
 let checker ?(base = 0) ~pin () = Asm.assemble (Self_check.checker ~pin ~base) |> ok_exn
 
-(* the start bit's write and the stop bit's *)
+(* The writes for the start bit and the stop bit. *)
 let frame = Self_check.edges ~period ~config:sender_config sender ~first:8 ~last:14
 let rows ~base = Or_error.bind frame ~f:(Self_check.rows ~base) |> ok_exn
 
-(* what engine 0 might keep under rows at [base]: read as rows, the sender's first data
-   edge falls between two checks *)
+(* What engine 0 might keep below the rows at [base]. Read as rows, the sender's first
+   data edge falls between two checks. *)
 let under ~base = List.init base ~f:(fun _ -> 0x0101)
 
 let machine ~config program ~data =
@@ -23,9 +23,9 @@ let machine ~config program ~data =
   Machine.load_data m data |> ok_exn
 ;;
 
-(* Engine 0 sends [bytes] at the bit period the host gives it, engine 1 checks it against
-   [rows] read from [base], with [under] below them; the checker's irq, which it raises
-   only with a halt. *)
+(* Engine 0 sends [bytes] at the bit period the host gives it, and engine 1 checks them
+   against [rows] read from [base], with [under] below them. Returns the checker's irq,
+   which it only raises together with a halt. *)
 let caught ?(sender = sender) ?(host_period = period) ?(base = 0) ~rows bytes =
   let system =
     System.create
@@ -51,11 +51,11 @@ let bytes = [ 0x55; 0xa3; 0x00; 0xff ]
 
 module G = Hardcaml_verify.Comb_gates
 
-(* Each edge loads p from its row, so the analyser's table is for every load of min_gap or
-   more, and the kernel accepts it at each, by checked SAT. phase_step.sv's load is free
-   at each entry, and every frame is anchored on [now] after a wait on the pin, so no
-   deadline is missed whatever the line does, with nothing assumed of the capture. At one
-   less the kernel refuses. *)
+(* Each edge loads p from its row, so the analyser's table holds for every load of
+   min_gap or more, and the kernel accepts it at each by checked SAT. The load in
+   phase_step.sv is free at each entry, and every frame is anchored on [now] after a wait
+   on the pin, so no deadline is missed whatever the line does, with nothing assumed about
+   the capture. One below min_gap the kernel refuses. *)
 let%expect_test "the kernel accepts the checker at every load from min_gap" =
   let checker = checker ~pin:wire () in
   let checker_config = Self_check.checker_config ~pin:wire in
@@ -87,7 +87,7 @@ let%expect_test "the kernel accepts the checker at every load from min_gap" =
     [%string "checker: every load of %{floor#Int} or more"]
     ~cases:[ G.vdd ]
     ~claim:(loads_from floor);
-  (* the tooth: one less than the table allows *)
+  (* The tooth: one less than the table allows. *)
   Checked_unsat.prove
     ~show:[ "loaded" ]
     [%string "checker: every load of %{floor - 1#Int} or more"]
@@ -106,7 +106,7 @@ let%expect_test "the kernel accepts the checker at every load from min_gap" =
     |}]
 ;;
 
-(* the word after the rows loads its base above the data memory, which seek wraps *)
+(* The word after the rows loads its base above the data memory, which seek wraps. *)
 let%expect_test "every p the rows load is at least min_gap" =
   let loads rows =
     let last = List.length rows - 1 in
@@ -156,17 +156,17 @@ let%expect_test "frames the checker cannot take are refused" =
         (Self_check.edges ~period ~config:sender_config sender ~first ~last
          : int list Or_error.t)]
   in
-  (* the idle line's write, before a wait on the host *)
+  (* The idle line's write, before a wait on the host. *)
   edges ~first:3 ~last:14;
-  (* a frame cut inside its bit loop *)
+  (* A frame cut inside its bit loop. *)
   edges ~first:8 ~last:11;
   let rows ~base edges =
     print_s [%sexp (Self_check.rows ~base edges : int list Or_error.t)]
   in
-  (* the least first edge, gap and gap to the least, then each a cycle short *)
+  (* The minimum first edge, gap and gap to the minimum, then each a cycle short. *)
   rows ~base:0 [ 29; 46; 66 ];
   rows ~base:0 [ 28; 45; 64 ];
-  (* four words, the last at 511 *)
+  (* Four words, the last at 511. *)
   rows ~base:508 [ 29; 46; 66 ];
   rows ~base:509 [ 29; 46; 66 ];
   [%expect
@@ -180,8 +180,8 @@ let%expect_test "frames the checker cannot take are refused" =
     |}]
 ;;
 
-(* The checker takes a frame's first edge for a fall, so one that starts with a rise is
-   refused. *)
+(* The checker takes a frame's first edge to be a fall, so a frame that starts with a
+   rise is refused. *)
 let%expect_test "a frame that starts with a rise is refused" =
   let edges source =
     let program = Asm.assemble source |> ok_exn in
@@ -212,8 +212,8 @@ top:
     |}]
 ;;
 
-(* With side-set on pin directions a side value says whether the pin drives, not its
-   level, so the first edge's level is not known. *)
+(* With side-set on pin directions a side value says whether the pin drives, not what
+   level it has, so the first edge's level is unknown. *)
 let%expect_test "a side-set direction leaves the first edge's level unknown" =
   let config =
     { Program_config.default with
@@ -244,7 +244,7 @@ top:
     print_s
       [%sexp (Self_check.edges ~config program ~first:4 ~last:7 : int list Or_error.t)]
   in
-  (* driven low first, then let go; and the other way round *)
+  (* Driven low first then released, and the other way round. *)
   edges ~idle:0 ~frame:1;
   edges ~idle:1 ~frame:0;
   [%expect
@@ -257,8 +257,8 @@ top:
 let%expect_test "an edge a cycle early or late is caught" =
   let rows = rows ~base:0 in
   print_s [%message "on time" ~caught:(caught ~rows bytes : bool)];
-  (* a row's gap one cycle out moves the check by a cycle; the last row is the least to
-     the next frame, so later is allowed there *)
+  (* A row's gap one cycle out moves the check by a cycle. The last row is the minimum to
+     the next frame, so later is allowed there. *)
   let moved =
     List.init
       (List.length rows - 1)
@@ -302,15 +302,15 @@ let%expect_test "rows above what engine 0 keeps in the data memory" =
   let rows = rows ~base:256 in
   let from_256 = caught ~base:256 ~rows bytes in
   let late_from_256 = caught ~base:256 ~host_period:(period + 1) ~rows bytes in
-  (* the same memory, read from 0 *)
+  (* The same memory, read from 0. *)
   let from_0 = caught ~rows:(under ~base:256 @ rows) bytes in
   print_s [%message (from_256 : bool) (late_from_256 : bool) (from_0 : bool)];
   [%expect {| ((from_256 false) (late_from_256 true) (from_0 true)) |}]
 ;;
 
 (* A frame on an input pad: low from 0, high from 100, low from 200, high from 300, and
-   the next no sooner than 400. One cycle of the other level at [glitch] from a frame's
-   start, or the edge at 200 moved by [shift]. *)
+   the next no sooner than 400. Optionally one cycle of the other level at [glitch] from
+   the frame's start, or the edge at 200 moved by [shift]. *)
 let pad ?glitch ?(shift = 0) () =
   let pin = 0 in
   let start = 50 in
@@ -392,7 +392,7 @@ let%expect_test "the rtl checks as the model does, rows above other data" =
     |}]
 ;;
 
-(* The words [Self_check.rows] makes, with none of its refusals. *)
+(* The words [Self_check.rows] makes, without any of its refusals. *)
 let unchecked_rows edges =
   let gaps =
     List.map2_exn (List.drop_last_exn edges) (List.tl_exn edges) ~f:(fun a b -> b - a)
@@ -404,8 +404,8 @@ let unchecked_rows edges =
   @ [ 1 lsl Isa.data_addr_bits ]
 ;;
 
-(* Low for the first 100 cycles of each frame, then high, with checks at [edges]; the last
-   is the next frame. One cycle of the other level at [glitch]. *)
+(* Low for the first 100 cycles of each frame, then high, with checks at [edges]. The last
+   edge is the next frame. Optionally one cycle of the other level at [glitch]. *)
 let long_frame ?glitch ?every ~rtl edges =
   let pin = 0 in
   let start = 50 in
@@ -451,9 +451,9 @@ let long_frame ?glitch ?every ~rtl edges =
 ;;
 
 (* The checker compares 16 bits of the capture, so a glitch 2^14 cycles after the first
-   edge no longer stamps as that edge and goes unseen. It and one a cycle either side are
-   caught, on the model and the rtl, with the frame quiet without them. The next frame
-   comes late, as an idle line's would. *)
+   edge no longer stamps as that edge and goes unseen. That glitch and ones a cycle to
+   either side are caught, on the model and the rtl, and the frame is quiet without them.
+   The next frame comes late, as it would on an idle line. *)
 let%expect_test "a frame spanning the capture's 14 bits is refused" =
   let edges = [ 100; 8000; 16000; 16500; 16600 ] in
   let quiet = not (long_frame ~every:17000 ~rtl:false edges) in
@@ -469,7 +469,7 @@ let%expect_test "a frame spanning the capture's 14 bits is refused" =
   rows edges;
   rows [ 100; 16383 ];
   rows [ 100; 16384 ];
-  (* uart_tx_host_rate at 9600 baud *)
+  (* uart_tx_host_rate at 9600 baud. *)
   Or_error.bind
     (Self_check.edges ~period:5208 ~config:sender_config sender ~first:8 ~last:14)
     ~f:(Self_check.rows ~base:0)

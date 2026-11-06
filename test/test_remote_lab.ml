@@ -3,7 +3,7 @@ open Protocol_emulator
 
 let diagram name = In_channel.read_all [%string "diagrams/%{name}.json"]
 
-(* each diagram with the playground's first frame *)
+(* Each diagram, with the playground's first frame. *)
 let corpus =
   [ "uart_tx", "11000101\n00111010"
   ; "dshot", "1000001011000110"
@@ -13,7 +13,7 @@ let corpus =
   ]
 ;;
 
-(* through the job file's text, as the worker reads it *)
+(* Goes through the job file's text, as the worker reads it. *)
 let check ?(decode = Remote_lab.Decode.Off) ~frames diagram =
   Remote_lab.Job.to_string { diagram; frames; decode }
   |> Remote_lab.Job.of_string
@@ -150,7 +150,7 @@ let%expect_test "a refusal names the limit, and nothing goes to the bench" =
     |}]
 ;;
 
-(* as JSON quotes it, bytes past ASCII left as they are *)
+(* As JSON quotes it: bytes past ASCII are left as they are. *)
 let json_string s =
   "\""
   ^ String.concat_map s ~f:(function
@@ -216,7 +216,7 @@ let%expect_test "the bench takes only what the tx fifo holds before the start" =
       ~frames:(String.concat (List.init n ~f:(Fn.const "000100001111111100000000")))
       (diagram "ws2812")
   in
-  (* a frame a word, and a pixel two after the first *)
+  (* One word per frame, and a pixel two after the first. *)
   let frames = Machine.fifo_depth in
   let pixels_fit = (Machine.fifo_depth - 1) / 2 in
   List.iter
@@ -257,7 +257,7 @@ let%expect_test "the bench takes only what the tx fifo holds before the start" =
     |}]
 ;;
 
-(* 8N1 from the model's levels, 26 cycles a bit, each bit read at its middle *)
+(* 8N1 from the model's levels: 26 cycles per bit, each bit read in the middle. *)
 let uart_bytes (levels : int array) =
   let bit = 26 in
   let level c = if c < Array.length levels then levels.(c) land 1 else 1 in

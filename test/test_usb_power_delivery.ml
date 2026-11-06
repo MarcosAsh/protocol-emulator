@@ -2,14 +2,14 @@ open! Core
 open Protocol_emulator
 module Message = Usb_power_delivery.Message
 
-(* what the analyser and the kernel make of the firmware, which compiling it checked *)
+(* What the analyser and the kernel make of the firmware, which compiling it checked. *)
 let%expect_test "the firmware's verdict" =
   print_endline
     (Analyser.Verdict.to_string (Timed_program.verdict Usb_power_delivery.firmware));
   [%expect {| 113 words, 74 deadline waits, worst slack 13 |}]
 ;;
 
-(* The pin's levels and the cycles each lasted, [words] fed as the fifo has room. *)
+(* The pin's levels and the cycles each lasted, with [words] fed as the fifo has room. *)
 let run words ~cycles =
   let machine =
     Machine.create
@@ -40,8 +40,8 @@ let run words ~cycles =
 ;;
 
 (* The far end: a BMC receiver after 5.3.2 and 5.3.3, p.91-95, with its own copy of Table
-   5.2 p.89-90 and the CRC residual of 5.3.1.1.4 p.90. A half UI is 80 cycles; a low of 3
-   UI or more is idle. *)
+   5.2 p.89-90 and the CRC residual of 5.3.1.1.4 p.90. A half UI is 80 cycles, and a low
+   of 3 UI or more is idle. *)
 module Receiver = struct
   let half = Usb_power_delivery.bit_cycles / 2
 
@@ -69,7 +69,7 @@ module Receiver = struct
   let sync_2 = 0b10001
   let eop = 0b01101
 
-  (* the runs of each packet, between idle lows *)
+  (* The runs of each packet, between idle lows. *)
   let packets levels =
     let idle (high, n) = (not high) && n >= 6 * half in
     let _, packets =
@@ -81,7 +81,7 @@ module Receiver = struct
     List.rev packets
   ;;
 
-  (* a whole UI is a 0, two halves a 1 *)
+  (* A whole UI is a 0, two halves are a 1. *)
   let bits runs =
     let rec go bits = function
       | [] -> Ok (List.rev bits)
@@ -121,7 +121,7 @@ module Receiver = struct
     in
     let%bind symbols, after = symbols [] rest in
     let%bind () =
-      (* the trailing UI high after a low half, 5.3.4 rule 6, reads as a 0 *)
+      (* The trailing UI high after a low half (5.3.4 rule 6) reads as a 0. *)
       match after with
       | [] | [ 0 ] -> return ()
       | _ -> Or_error.error_s [%message "after the EOP" (after : int list)]
@@ -165,7 +165,7 @@ module Receiver = struct
 end
 
 (* The two Source_Capabilities of the bench's run, read back by the far end. Every level
-   in a packet is a half or a whole UI: 80 or 160 cycles, 300 kbps. *)
+   in a packet is a half or a whole UI: 80 or 160 cycles, at 300 kbps. *)
 let%expect_test "the far end reads back what the host sent" =
   let sent = Usb_power_delivery.sent in
   let levels =
@@ -193,7 +193,7 @@ let%expect_test "the far end reads back what the host sent" =
     |}]
 ;;
 
-(* What the host writes for the first, as python/demo_usb_power_delivery.py does *)
+(* What the host writes for the first packet, as python/demo_usb_power_delivery.py does. *)
 let%expect_test "the host's words" =
   let words = Message.words (List.hd_exn Usb_power_delivery.sent) in
   print_s [%message (words : Int.Hex.t list)];

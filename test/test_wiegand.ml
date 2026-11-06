@@ -1,14 +1,14 @@
 open! Core
 open Protocol_emulator
 
-(* what the analyser and the kernel make of the firmware, which compiling it checked *)
+(* What the analyser and the kernel make of the firmware, which compiling it checked. *)
 let%expect_test "the firmware's verdict" =
   print_endline (Analyser.Verdict.to_string (Timed_program.verdict Wiegand.firmware));
   [%expect {| 32 words, 4 deadline waits, worst slack 5 |}]
 ;;
 
-(* The far end: a panel that takes a bit at each fall of either line, a 0 on DATA0 and a 1
-   on DATA1, and keeps the cycles each pulse lasted and those between pulse starts. Both
+(* The far end: a panel that takes a bit at each fall of either line (a 0 on DATA0, a 1
+   on DATA1) and keeps the cycles each pulse lasted and those between pulse starts. Both
    lines low at once is a fault. It joins once both lines have been high. *)
 module Panel = struct
   type t =
@@ -95,7 +95,7 @@ let read words ~cycles =
   !panel
 ;;
 
-(* A 26-bit card read: facility 42, ID 4660, its parity bits checked as the format says *)
+(* A 26-bit card read: facility 42, ID 4660, with its parity bits checked as the format says. *)
 let%expect_test "a 26-bit card read on two wires" =
   let pulse = Wiegand.pulse
   and interval = Wiegand.interval in
@@ -128,7 +128,7 @@ let%expect_test "a 26-bit card read on two wires" =
     |}]
 ;;
 
-(* the host picks the timing: here the floor's 16-cycle pulses, 3 apart, and a 34-bit read *)
+(* The host picks the timing: here the floor's 16-cycle pulses, 3 apart, and a 34-bit read. *)
 let%expect_test "the shortest pulses, back to back" =
   let bits = 0x2_dead_beef in
   let words = [ 33; bits lsr 18; (bits lsr 2) land 0xffff; (bits land 3) lsl 14 ] in

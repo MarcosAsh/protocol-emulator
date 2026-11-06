@@ -12,8 +12,8 @@ module Two = Engines.Make (struct
 
 module Chip = Hardcaml_test_harness.Lws_harness.Make (Two.I) (Two.O)
 
-(* the analyser's verdict, the kernel's on its rows, and the certificate's length in data
-   memory words, which shares the data memory with the packets *)
+(* The analyser's verdict, the kernel's on its rows, and the certificate's length in data
+   memory words (it shares the data memory with the packets). *)
 let%expect_test "the firmware's verdict and certificate" =
   let program = Asm.assemble Usb_fs.device |> ok_exn in
   let config = Asm.Program.configure program Usb_fs.config in
@@ -36,10 +36,10 @@ let%expect_test "the firmware's verdict and certificate" =
     |}]
 ;;
 
-(* One data packet sent from its record, with the model and the RTL in lockstep: what the
-   pins carry is [Usb.data] of the payload, the reference's CRC-16 and stuffing, for any
-   PID and up to eight bytes, mostly of 0xff to stuff the most, and a STALL as it is.
-   Prints the most bits owed. *)
+(* One data packet sent from its record, with the model and the RTL in lockstep. The pins
+   must carry [Usb.data] of the payload (the reference's CRC-16 and stuffing) for any PID
+   and up to eight bytes, mostly 0xff to stuff the most, and a STALL as it is. Prints the
+   most bits owed. *)
 let%expect_test "every data packet the chip sends is the reference encoding" =
   let program =
     [ "    set pins, 1"; "    set pindirs, 0"; "    set x, 0"; "    mov t, now" ]
@@ -123,8 +123,8 @@ let data1 = 0x4b
 let ack = 0xd2
 let nak = 0x5a
 
-(* a control read's data stage, DATA1 first, each packet its PID and data: the chip adds
-   the CRC-16 *)
+(* A control read's data stage, DATA1 first, each packet as its PID and data. The chip
+   adds the CRC-16. *)
 let chunks payload =
   List.chunks_of payload ~length:8
   |> List.mapi ~f:(fun n chunk -> (if n % 2 = 0 then data1 else data0) :: chunk)
@@ -156,12 +156,12 @@ let pins_of : Line.t -> int * int = function
   | Se0 -> 0, 0
 ;;
 
-(* Engine 0 as the device, the receiver re-armed on its pins, a host that makes each
+(* Engine 0 as the device with the receiver re-armed on its pins, a host that makes each
    control read of [requests], and a board that queues each reply chunk as the last is
    acknowledged. Engine 0 runs beside [System] every cycle, given the status pins the chip
    shows it and each packet's words as the receiver ends it. Prints each transaction, the
-   device's turnarounds in bit times from the EOP's J to its SOP, and the first cycle the
-   model and the RTL part, if any. *)
+   device's turnarounds in bit times from the EOP's J to its SOP, and the first cycle where
+   the model and the RTL part, if any. *)
 let control_reads ?(board_latency = 100) ?(rearm = true) requests =
   let replies = List.concat_map requests ~f:(fun (_, payload) -> chunks payload) in
   let layout = Usb_fs.Layout.create (zero_length :: replies) in
@@ -191,7 +191,7 @@ let control_reads ?(board_latency = 100) ?(rearm = true) requests =
        let level () : Line.t =
          if bus.device_driving then bus.device_line else Option.value bus.host ~default:J
        in
-       (* finished, good, receiving and error, as engine 0 reads them this cycle *)
+        (* Finished, good, receiving and error, as engine 0 reads them this cycle. *)
        let status () =
          let u = Usb_frame_rx.Status.map o.usb ~f:int in
          u.finished
@@ -245,9 +245,9 @@ let control_reads ?(board_latency = 100) ?(rearm = true) requests =
               ~dp:((out lsr Usb_fs.dp_pin) land 1)
               ~dm:((out lsr Usb_fs.dm_pin) land 1);
          let dp, dm = pins_of (level ()) in
-         (* the sniffer reads low speed's pins, J on D- *)
+          (* The sniffer reads low speed's pins, J on D-. *)
          bus.sniffer <- Usb_ls.Sniffer.step bus.sniffer ~dp:dm ~dm:dp;
-         (* the packet the receiver just ended lands in the model's data memory too *)
+          (* The packet the receiver just ended lands in the model's data memory too. *)
          let now = int o.usb.receiving = 1 in
          if !receiving && not now
          then
@@ -306,8 +306,8 @@ let control_reads ?(board_latency = 100) ?(rearm = true) requests =
        i.frame.base <--. Usb_fs.rx_base;
        i.frame.fifty := Bits.of_bool rearm;
        pulse i.frame.arm;
-       (* a start pulse, a cycle for the fetch, then the cores as [Machine.create] has
-          them, the device with its first word in the tx fifo *)
+        (* A start pulse, a cycle for the fetch, then the cores as [Machine.create] has
+           them, with the device's first word in the tx fifo. *)
        pulse p.start;
        cycle ();
        let machine ~program ~config =
@@ -332,8 +332,8 @@ let control_reads ?(board_latency = 100) ?(rearm = true) requests =
            cycles 4);
          bus.host <- None
        in
-       (* the device's packet if it starts within 16 bit times of the host's EOP, and the
-          cycles from the EOP's J to its SOP *)
+        (* The device's packet if it starts within 16 bit times of the host's EOP, and the
+           cycles from the EOP's J to its SOP. *)
        let listen () =
          let seen = List.length (Usb_ls.Sniffer.packets bus.sniffer) in
          let sop = ref None in
@@ -403,7 +403,7 @@ let control_reads ?(board_latency = 100) ?(rearm = true) requests =
              | other -> Queue.enqueue log [%message "IN" (other : int list option)])
          in
          ins 0;
-         (* an IN on endpoint 1, for which nothing is queued *)
+          (* An IN on endpoint 1, for which nothing is queued. *)
          let reply = transaction [ Usb.token ~address ~pid:0x69 ~endpoint:1 ] in
          Queue.enqueue log [%message "IN 1" (reply : Int.Hex.t list option)];
          let reply =
@@ -429,8 +429,8 @@ let control_reads ?(board_latency = 100) ?(rearm = true) requests =
 ;;
 
 (* The device descriptor in three packets, then a string of 0xff bytes, whose packets the
-   record stuffs most, each IN NAKed until the board has queued its packet, and an IN on
-   endpoint 1 with nothing queued for it NAKed too. *)
+   record stuffs most. Each IN is NAKed until the board has queued its packet, and an IN
+   on endpoint 1 with nothing queued for it is NAKed too. *)
 let%expect_test "control reads on the chip, in lockstep with the model" =
   control_reads
     [ [ 0x80; 0x06; 0x00; 0x01; 0x00; 0x00; 0x40; 0x00 ], device_descriptor
@@ -464,8 +464,8 @@ let%expect_test "control reads on the chip, in lockstep with the model" =
     |}]
 ;;
 
-(* Without the re-arm the receiver takes the SETUP token and nothing after: the DATA0 is
-   never ACKed, so a host gets no further. *)
+(* Without the re-arm the receiver takes the SETUP token and nothing after it. The DATA0 is
+   never ACKed, so the host gets no further. *)
 let%expect_test "without the re-arm, the device answers nothing" =
   control_reads
     ~rearm:false

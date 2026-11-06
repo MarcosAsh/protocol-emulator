@@ -2,8 +2,8 @@ open! Core
 open Protocol_emulator
 open Ps2
 
-(* The core's host: answers 0xed with 0xfa as a keyboard does, and resends the last byte
-   on a dropped-frame interrupt (enough with one byte in flight). *)
+(* Host model for the core: answers 0xed with 0xfa like a keyboard, and resends the last
+   byte on a dropped-frame interrupt (one byte in flight is enough). *)
 module Driver = struct
   type t =
     { pending : int list
@@ -65,7 +65,7 @@ let print_run host (driver : Driver.t) (fault : Machine.Fault.t) =
         (fault : Machine.Fault.t)]
 ;;
 
-(* the host acts on the model as the last cycle left it, in the lockstep harness's order *)
+(* The host sees the model as the last cycle left it, in the lockstep harness's order. *)
 let run ?(script = []) ~quarter ~bytes ~cycles () =
   let rec loop (m : Machine.t) host driver n =
     if n = 0
@@ -137,8 +137,8 @@ let%expect_test "the host takes the clock in the middle of a frame" =
     |}]
 ;;
 
-(* a quarter of 40 cycles (a 2 MHz clock) keeps the simulation short. The host takes the
-   clock mid-answer, which must be resent. *)
+(* A quarter period of 40 cycles (a 2 MHz clock) keeps the simulation short. The host
+   takes the clock mid-answer, so the answer has to be resent. *)
 let%expect_test "ps2 in lockstep" =
   let host = ref (Host.create ~clock_hz:2_000_000 [ 2_080, Send 0xed; 5_000, Inhibit ]) in
   let driver = ref (Driver.create ~quarter:40 [ 0x1c ]) in
@@ -245,7 +245,7 @@ let%expect_test "a quarter of seven cycles is too short" =
     |}]
 ;;
 
-(* a 10 us quarter keeps every deadline but makes a 25 kHz clock the host rejects *)
+(* A 10 us quarter period keeps every deadline but gives a 25 kHz clock, which the host rejects. *)
 let%expect_test "a clock of 25 kHz is out of the standard" =
   run ~quarter:(Bench.cycles_in ~us:10) ~bytes:[ 0x1c ] ~cycles:26_000 ();
   [%expect
