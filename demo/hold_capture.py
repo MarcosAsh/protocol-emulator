@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
-# A capture of a bench copy held to its prediction: test/measure/predict.exe's run at the
-# chip's clock, with every edge each datasheet limit bounds. Aligns the capture's first edge
-# at or after --from on the first predicted edge of that pin and level, matches later edges
-# to the nearest of their level, then fits an offset and the analyser's drift. A line an
-# edge: predicted, measured, the error, and the margin to each limit it ends. A margin
-# within a sample either way can't tell. Exits 1 if a limit fails or an edge is missing or
-# off by more than --tolerance.
+# Holds a capture of a bench copy to its prediction, which is test/measure/predict.exe's run
+# at the chip's clock with every edge that each datasheet limit bounds. The capture's first
+# edge at or after --from is aligned to the first predicted edge of that pin and level, later
+# edges are matched to the nearest edge of the same level, and an offset and the analyser's
+# drift are fitted. Prints one line per edge: predicted, measured, the error, and the margin
+# to each limit it ends. A margin within one sample either way can't tell. Exits 1 if a
+# limit fails, or an edge is missing or off by more than --tolerance.
 # Usage: dune exec --root . test/measure/predict.exe -- i2c_standard > i2c.predicted
 #        python3 demo/hold_capture.py i2c.predicted CAPTURE.csv --rate 100M IO2=1 IO3=2 -o i2c.png
 #        python3 demo/hold_capture.py uart.predicted CAPTURE.sr OUT0=D4
@@ -28,8 +28,8 @@ class Edge:
 
 
 def read_prediction(path):
-    """The firmware, the clock, each pin's first level and edges, the limits as (side, ns,
-    parameter), and each limit's (edge, from) pairs as (pin, cycle)."""
+    """Parses the prediction: the firmware, the clock, each pin's first level and edges,
+    the limits as (side, ns, parameter), and each limit's (edge, from) pairs as (pin, cycle)."""
     p = {"lines": {}, "limits": [], "applies": []}
     for line in open(path):
         word, _, rest = line.strip().partition(" ")
@@ -55,7 +55,7 @@ def pin_name(pin):
 
 
 def channel(names, wanted):
-    """A capture channel by its name, or by its number from 1."""
+    """Finds a capture channel by name, or by number counting from 1."""
     by_name = {name: bit for bit, name in names.items()}
     if wanted in by_name:
         return by_name[wanted]
@@ -74,7 +74,7 @@ def predicted_edges(prediction):
 
 
 def measured_edges(samples, rate_hz, bits):
-    """Each probed pin's edges as (ns, level)."""
+    """Returns each probed pin's edges as (ns, level)."""
     out = {}
     for pin, bit in bits.items():
         at, level = sigrok.edges(samples, bit)
@@ -83,8 +83,8 @@ def measured_edges(samples, rate_hz, bits):
 
 
 def match(predicted, measured, start_ns, end_ns, window_ns=None):
-    """Aligns and matches in place; returns the anchor edge and the measured edges no
-    prediction took."""
+    """Aligns and matches the edges in place. Returns the anchor edge and the measured
+    edges that no prediction matched."""
     firsts = [(t[i], pin, lv[i]) for pin, (t, lv) in measured.items()
               for i in [bisect.bisect_left(t, start_ns)] if i < len(t)]
     if not firsts:
@@ -132,9 +132,9 @@ def match(predicted, measured, start_ns, end_ns, window_ns=None):
 
 
 def fit(predicted, tolerance_ns, drift=True):
-    """Fits measured - predicted as an offset and, with drift, a slope over the matched
-    edges, twice more without the edges off by more than tolerance_ns. Sets each edge's
-    error; returns the slope in ppm and where the fit puts a predicted ns in the capture."""
+    """Fits measured - predicted over the matched edges as an offset plus a drift slope,
+    then twice more without edges that are off by more than tolerance_ns. Sets each edge's
+    error. Returns the slope in ppm and a function mapping a predicted ns to the capture."""
     matched = [e for e in predicted if e.measured is not None]
     keep = matched
     t0 = matched[0].ns
@@ -158,15 +158,15 @@ def fit(predicted, tolerance_ns, drift=True):
 
 
 def verdict(margin, sample_ns):
-    """As test/measured_limits.ml: within a sample either way can't tell."""
+    """Same rule as test/measured_limits.ml: within one sample either way can't tell."""
     if margin >= sample_ns:
         return "pass"
     return "fail" if margin < -sample_ns else "can't tell"
 
 
 def margins(prediction, by_key, sample_ns):
-    """Each application as (limit, edge, from, predicted spacing, measured spacing or None,
-    margin or None, verdict)."""
+    """Returns each limit application as (limit, edge, from, predicted spacing, measured
+    spacing or None, margin or None, verdict)."""
     cycle_ns = 1e9 / prediction["rate"]
     out = []
     for k, edge_key, from_key in prediction["applies"]:
@@ -251,8 +251,8 @@ def report(prediction, predicted, applied, anchor, extra, ppm, rate_hz, toleranc
 
 
 def zoom(ax, prediction, anchor, samples, bits, rate_hz, to_capture, centre, half, title):
-    """The capture a step a sample around centre, ns, with the prediction where the fit
-    puts it."""
+    """Plots the capture as a step per sample around centre (ns), with the prediction
+    where the fit puts it."""
     import overlay
 
     sample_ns = 1e9 / rate_hz
@@ -289,8 +289,8 @@ def zoom(ax, prediction, anchor, samples, bits, rate_hz, to_capture, centre, hal
 
 def plot(path, prediction, predicted, applied, anchor, samples, bits, rate_hz, tolerance_ns,
          ppm, to_capture, name):
-    """The error of every edge, and below it the capture a step a sample against the
-    prediction at both ends of the spacing with the least margin."""
+    """Plots the error of every edge, and below it the capture against the prediction at
+    both ends of the spacing with the least margin."""
     import matplotlib.pyplot as plt
 
     import overlay

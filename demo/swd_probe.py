@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# Pico B's SWD port as a pyOCD debug probe, served over pyOCD's own remote probe protocol so
-# a stock pyOCD drives it with no plugin. Every SWD edge comes from the chip's SWD firmware,
-# which Pico A runs through python/bridge.py; the wiring is demo_swd.py's. No nRESET is
-# wired, so connect with -M attach.
+# Pico B's SWD port as a pyOCD debug probe, served over pyOCD's own remote probe protocol, so
+# stock pyOCD can drive it without a plugin. Every SWD edge comes from the chip's SWD
+# firmware, which Pico A runs through python/bridge.py. The wiring is demo_swd.py's. nRESET
+# isn't wired, so connect with -M attach.
 # Usage: PICO=id:<serial of Pico A> python3 demo/swd_probe.py [--port 5555] [--core 0]
 #        pyocd commander -u remote:localhost:5555 -t cortex_m -M attach
 import argparse
@@ -23,7 +23,7 @@ PYTHON = os.path.join(HERE, "..", "python")
 FILES = ["protocol_emulator.py", "pico_board.py", "bench.py", "bench_firmware.py",
          "demo_swd.py", "bridge.py"]
 
-# the Icepi's PLL, and Swd.shortest_half, the firmware's floor
+# the Icepi's PLL clock, and Swd.shortest_half (the firmware's minimum)
 CLOCK_HZ = 48_000_000
 SHORTEST_HALF = 10
 OK, WAIT, FAULT = 1, 2, 4
@@ -31,17 +31,17 @@ PARITY = 8
 # RP2040 datasheet 2.3.4
 TARGETS = [0x01002927, 0x11002927]
 RDBUFF = 0xC
-# ops on one line, so a reply stays well inside the bridge's line
+# ops per line, so a reply stays well within the bridge's line length
 CHUNK = 64
 
 
 def half_for(frequency):
-    """The half period in chip cycles for the fastest SWCLK at most frequency."""
+    """Returns the half period, in chip cycles, of the fastest SWCLK <= frequency."""
     return max(SHORTEST_HALF, math.ceil(CLOCK_HZ / (2 * frequency)))
 
 
 class SerialLink:
-    """python/bridge.py on Pico A, over its USB serial port's raw REPL."""
+    """Runs python/bridge.py on Pico A through the raw REPL on its USB serial port."""
 
     def __init__(self, pico):
         self.pico = pico
@@ -98,8 +98,8 @@ def check(status):
 
 
 class Probe(DebugProbe):
-    """No SWJ_SEQUENCE: pyOCD's own line reset would leave both RP2040 DPs answering, so
-    connect does the wake-up and TARGETSEL itself, as demo_swd.py does."""
+    """Has no SWJ_SEQUENCE: pyOCD's own line reset would leave both RP2040 DPs answering,
+    so connect() does the wake-up and TARGETSEL itself, like demo_swd.py."""
 
     def __init__(self, link, core=0):
         super().__init__()
@@ -149,7 +149,7 @@ class Probe(DebugProbe):
         self.link.close()
 
     def ops(self, ops):
-        """The replies to ops, a line at a time; the first not OK raises."""
+        """Runs ops a line at a time and returns the replies. Raises on the first non-OK."""
         replies = []
         self.transfers += sum(op[0] in "rw" for op in ops)
         for i in range(0, len(ops), CHUNK):
@@ -211,7 +211,7 @@ class Probe(DebugProbe):
         self.write_ap_multiple(addr, [data])
 
     def read_ap_multiple(self, addr, count=1, now=True):
-        """AP reads are posted, so each returns the one before and RDBUFF the last."""
+        """AP reads are posted: each returns the previous result, and RDBUFF the last."""
         ops = ["r 1 %x" % (addr & 0xC)] * count + ["r 0 %x" % RDBUFF]
         values = self.ops(ops)[1:]
         return values if now else (lambda: values)
@@ -225,7 +225,7 @@ def stopped(signum, frame):
 
 
 def serve(probe, port):
-    """Until Ctrl-C or SIGTERM: a shell's background job ignores SIGINT."""
+    """Serves until Ctrl-C or SIGTERM (a shell's background job ignores SIGINT)."""
     signal.signal(signal.SIGTERM, stopped)
     session = Session(probe=None, serve_local_only=True)
     server = DebugProbeServer(session, probe, port, serve_local_only=True)

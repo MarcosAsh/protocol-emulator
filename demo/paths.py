@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# The worst setup paths of a gds run's slow corner, with slack, each start, end and the
-# cells between named by the src line demo/die.py's sources gives them.
+# Lists the worst setup paths of a gds run's slow corner with their slack. The start, the end
+# and the cells between are named by the src lines that demo/die.py's sources give them.
 # Usage: source env.sh && demo/paths.py GDS --provenance JSON [-n 10]
 #        demo/paths.py --report max.rpt --cells cells.json --cut 1,6, as test/paths does
 import argparse
@@ -13,13 +13,13 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 CORNER = "nom_slow_1p08V_125C"
-# what the flow adds after synthesis, buffers and hold fixes, which no RTL made
+# cells the flow adds after synthesis (buffers, hold fixes); no RTL made them
 ADDED = re.compile(r"(?:fanout|hold|rebuffer|split|wire|max_cap|max_length|input|output)\d+$")
 
 
 def read_paths(text):
-    """[(slack, startpoint, endpoint, cells from the startpoint on, the path's text)] of an
-    OpenSTA report_checks, in its order."""
+    """Parses an OpenSTA report_checks into [(slack, startpoint, endpoint, cells from the
+    startpoint on, the path's text)], in report order."""
     paths = []
     for block in re.split(r"\n(?=Startpoint: )", text)[1:]:
         start = re.match(r"Startpoint: (\S+)", block).group(1)
@@ -29,16 +29,16 @@ def read_paths(text):
         for cell in re.findall(r"[v^] (\S+)/\S+ \(", block[: block.index("data arrival time")]):
             if cell not in cells[-1:]:
                 cells.append(cell)
-        # a path from an input pin starts at no cell
+        # a path from an input pin has no starting cell
         first = cells.index(start) if start in cells else 0
         paths.append((slack, start, end, cells[first:], block))
     return paths
 
 
 def describe(paths, lines):
-    """Each path as two lines: its rank, slack, start and end, then the src lines of the
-    cells between, a run of cells from one line counted once. [lines] maps a cell to its
-    line and whether its own name gave it."""
+    """Formats each path as two lines: rank, slack, start and end, then the src lines of
+    the cells between (a run of cells from one line counts once). [lines] maps a cell to
+    its line and whether its own name gave it."""
 
     def line(cell):
         source, own = lines.get(cell, (None, False))
@@ -72,7 +72,7 @@ def describe(paths, lines):
 
 
 def run_lines(gds, provenance):
-    """Each cell of a gds run's die -> its src line and whether its own name gave it."""
+    """Maps each cell of a gds run's die to its src line and whether its own name gave it."""
     sys.path[:0] = [HERE]
     import die
 
