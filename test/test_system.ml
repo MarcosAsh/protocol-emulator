@@ -561,7 +561,7 @@ let%expect_test "each engine's check is its own, kept through the other's turn" 
            cycle ());
          port.valid := Bits.gnd
        in
-        (* A value no check reads with no loaded period valid: all ones, then all zeros. *)
+       (* A value no check reads with no loaded period valid: all ones, then all zeros. *)
        let loaded value = Bits.(i.check_setup.loaded.value <--. value) in
        Bits.(i.check_setup.base <--. 0);
        i.check_setup.floor := Bits.of_bool case.floor;
@@ -571,7 +571,7 @@ let%expect_test "each engine's check is its own, kept through the other's turn" 
        pulse i.clocking.clear;
        cycle ();
        (host 0).check := Bits.gnd;
-        (* The walk over the empty memories takes 8182 cycles, so write near its end. *)
+       (* The walk over the empty memories takes 8182 cycles, so write near its end. *)
        cycle ~n:8_170 ();
        write_data certified;
        List.iter [ 0; 1 ] ~f:(fun n ->
@@ -711,8 +711,8 @@ let%expect_test "another engine's host's data write leaves a walk running" =
          ~f:( := );
        write (host 0).program_write (List.mapi words ~f:Tuple2.create);
        let verdict = List.hd_exn o.check.verdicts in
-        (* Host [n] writes 3,000 cycles into engine 0's walk, which begins at engine 0's
-           next turn. *)
+       (* Host [n] writes 3,000 cycles into engine 0's walk, which begins at engine 0's
+          next turn. *)
        let check_beside n =
          pulse (host 0).check;
          let turns = 2 * Two.turn_cycles in

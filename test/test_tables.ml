@@ -66,10 +66,10 @@ module Entry = struct
   let to_words t = [ t.hold; t.outputs lor (Kind.code t.kind lsl 6) lor (t.next lsl 10) ]
 end
 
-(* The class's timing, read off the interpreter's listing and written out here on its
-   own. R is a step's release and A is the cycle the step re-anchors at. Outputs show at
-   R + 2. Inputs are sampled once per step, at [sample]. The next release comes
-   [hold + added] after R, or after A for a re-anchoring kind. *)
+(* The class's timing, read off the interpreter's listing and written out here on its own.
+   R is a step's release and A is the cycle the step re-anchors at. Outputs show at R + 2.
+   Inputs are sampled once per step, at [sample]. The next release comes [hold + added]
+   after R, or after A for a re-anchoring kind. *)
 let reference
   ~first_release
   ~(wiring : Wiring.t)
@@ -928,7 +928,8 @@ let%expect_test "the compiler takes a table inside the class and refuses one out
 ;;
 
 (* The I2C master writing [ops] to a slave on the model alone, with the host topping up
-   the tx fifo from [host_words]. Returns the bytes the slave pushed and what the master saw. *)
+   the tx fifo from [host_words]. Returns the bytes the slave pushed and what the master
+   saw. *)
 let i2c_model ~quarter ~config ~program ~data ~host_words ops =
   let module Peer = Protocol_models.I2c_peer in
   let machine = Machine.create ~config ~program |> ok_exn in

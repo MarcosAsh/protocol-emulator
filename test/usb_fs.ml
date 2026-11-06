@@ -161,8 +161,8 @@ let pid_is v ~ignore =
 (* Registers: p is the IN token word for endpoint 0 at this address, y is the pending
    reply's (none is 1, which no token is), x is scratch. The receiver lands each packet
    from rx_base. The program waits on receiving then good, then anchors t and compares
-   word 0 in one jmp, so every reply's SYNC starts [turnaround] cycles after the anchor.
-   A bit takes four cycles, which leaves no room for [jmp stuff], so the line table's
+   word 0 in one jmp, so every reply's SYNC starts [turnaround] cycles after the anchor. A
+   bit takes four cycles, which leaves no room for [jmp stuff], so the line table's
    [tx_stuff] does the stuffing. *)
 let device =
   List.concat
@@ -316,7 +316,8 @@ let device =
   |> String.concat ~sep:"\n"
 ;;
 
-(* SYNC and the packet's bits, first bit first, with a 0 after every six 1s, for a handshake. *)
+(* SYNC and the packet's bits, first bit first, with a 0 after every six 1s, for a
+   handshake. *)
 let line_bits packet =
   Usb_ls.bits_of_bytes (0x80 :: packet)
   |> List.folding_map ~init:0 ~f:(fun ones bit ->

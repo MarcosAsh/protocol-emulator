@@ -88,7 +88,8 @@ let%expect_test "the CAN receiver's window by the transceiver's loop" =
 ;;
 
 (* As the chip runs it, watching the premises the certificate was checked under. Counts
-   the phases (of 64) at which a frame is lost or a premise fails at each end of the window. *)
+   the phases (of 64) at which a frame is lost or a premise fails at each end of the
+   window. *)
 let%expect_test "the CAN receiver's window with its premises watched" =
   let r = Receiver.can_rx ~period:96 ~sample:72 () in
   let b = bounds r in
@@ -209,8 +210,8 @@ let%expect_test "the CAN receiver's frames" =
 
 (* The fast bound is the arm after the stop bit's middle, 19 half periods and 2 cycles
    from the start edge, which must come before the next start bit ten bits in. The slow
-   bound is the stop bit's middle at 19 half periods, which must come after its start
-   nine bits in. *)
+   bound is the stop bit's middle at 19 half periods, which must come after its start nine
+   bits in. *)
 let%expect_test "uart_rx_host_rate by its half period" =
   let bytes = [ 0x55; 0xaa; 0x00; 0xff; 0x0f; 0xf0 ] in
   List.iter [ 4; 8; 13; 26; 52; 104; 208; 2500 ] ~f:(fun half ->

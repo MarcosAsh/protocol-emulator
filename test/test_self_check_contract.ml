@@ -147,8 +147,9 @@ let%expect_test "the circuit is the reference where the checker is blind" =
 ;;
 
 (* Frames of 6 to 30 cycles with up to nine edges. The rows refuse these but the contract
-   takes them, so breaks near the minimum, at the last edge and between back-to-back frames
-   are common. Levels before the first edge are random, and a few runs are flipped anywhere. *)
+   takes them, so breaks near the minimum, at the last edge and between back-to-back
+   frames are common. Levels before the first edge are random, and a few runs are flipped
+   anywhere. *)
 let small rs n =
   let rand lo hi = lo + Random.State.int rs (hi - lo + 1) in
   let least = rand 6 30 in

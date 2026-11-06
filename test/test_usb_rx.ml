@@ -162,9 +162,9 @@ let intact ~per_bit ~per_cycle ~run ~ppm ~jitter ~skew ~seed =
 
 (* Forty DATA0 packets of 32 bytes, half of them 0xff so that a stuffed 0 comes every few
    bytes, back to back with three bits of J between. The sender is 0.25% fast and slow
-   (the standard's limit). Jitter is uniform and independent per line-state change, so
-   two edges in a row can be up to twice it away from their spacing: 9.25 ns is the
-   standard's 18.5 ns to the next transition. Each cell is packets intact out of 40. *)
+   (the standard's limit). Jitter is uniform and independent per line-state change, so two
+   edges in a row can be up to twice it away from their spacing: 9.25 ns is the standard's
+   18.5 ns to the next transition. Each cell is packets intact out of 40. *)
 let%expect_test "packets intact under jitter, both edges against one" =
   let jitters = [ 0.; 2.; 5.; 9.25; 12.; 15.; 18. ] in
   printf "%-12s %6s" "sampling" "ppm";
@@ -804,8 +804,8 @@ let%expect_test "a packet on the chip, beside two engines streaming data" =
          |> ok_exn
        in
        let model = ref (System.create (List.map programs ~f:machine)) in
-        (* A start pulse, a cycle for the fetch, then the cores as [Machine.create] has
-           them. *)
+       (* A start pulse, a cycle for the fetch, then the cores as [Machine.create] has
+          them. *)
        List.iter [ 0; 1 ] ~f:(fun n -> (port n).start := Bits.vdd);
        cycle ();
        List.iter [ 0; 1 ] ~f:(fun n -> (port n).start := Bits.gnd);
@@ -836,7 +836,7 @@ let%expect_test "a packet on the chip, beside two engines streaming data" =
          step ()
        done;
        let s = Usb_frame_rx.Status.map o.usb ~f:int in
-        (* Engine 1 hands the packet over. *)
+       (* Engine 1 hands the packet over. *)
        let p = port 1 in
        p.stop := Bits.vdd;
        cycle ();
@@ -976,7 +976,7 @@ let%expect_test "the receivers' owner waits on its status pin for a packet" =
        cycle ();
        List.iter [ 0; 1 ] ~f:(fun n -> (port n).start := Bits.gnd);
        cycle ();
-        (* Finished, good, receiving and error, as the owner reads them this cycle. *)
+       (* Finished, good, receiving and error, as the owner reads them this cycle. *)
        let status () =
          let u = Usb_frame_rx.Status.map o.usb ~f:int in
          u.finished

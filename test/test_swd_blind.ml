@@ -100,7 +100,8 @@ let%expect_test "a write to the AP, then two reads" =
     |}]
 ;;
 
-(* Cases: driving the turnaround, a header with bad parity, and a header before two idle cycles. *)
+(* Cases: driving the turnaround, a header with bad parity, and a header before two idle
+   cycles. *)
 let%expect_test "what the target refuses" =
   let show ?(first = 64) name clocks =
     let pushed, target = run clocks in

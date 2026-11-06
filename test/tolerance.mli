@@ -87,9 +87,9 @@ end
 (** The reads of a run at [nominal], each checked against its row of the certificate. *)
 val reads : Receiver.t -> Read.t list
 
-(** An error for a receiver that re-anchors on every edge, and from [now] where it saw
-    one late, as [Usb.rx] does: an arm checked for an edge that came first at more than
-    one place. Reads timed from [now] follow no captured edge, so no bound from the rows
+(** An error for a receiver that re-anchors on every edge, and from [now] where it saw one
+    late, as [Usb.rx] does: an arm checked for an edge that came first at more than one
+    place. Reads timed from [now] follow no captured edge, so no bound from the rows
     holds. *)
 val applies : Receiver.t -> unit Or_error.t
 

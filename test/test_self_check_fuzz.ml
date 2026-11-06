@@ -25,7 +25,8 @@ let show ?(rtl = false) name (c : Case.t) =
 let four = [| 500; 1000; 1500; 2000 |]
 
 (* A fall just after a check that moved nothing is seen for a low pulse of any width, and
-   so is a high pulse's fall just before a check, because the stamp is the edge's own cycle. *)
+   so is a high pulse's fall just before a check, because the stamp is the edge's own
+   cycle. *)
 let%expect_test "a fall just after or just before a check" =
   let e = 100 + 1000 in
   show
@@ -166,7 +167,8 @@ let%expect_test "a glitch after the least" =
     |}]
 ;;
 
-(* Back-to-back frames whose first check is the minimum their rows allow raise no false alarm. *)
+(* Back-to-back frames whose first check is the minimum their rows allow raise no false
+   alarm. *)
 let%expect_test "back to back frames at the least first edge" =
   show "first 32, back to back" (Case.frames [| 32; 61; 90 |] [| 0; 1; 1 |] ~idle:[ 0 ]);
   let alarms =
@@ -235,8 +237,8 @@ let%expect_test "the blind case" =
     |}]
 ;;
 
-(* The first frame is the first fall after the checker sees the line high. Here it comes
-   1 and 5 cycles after the line goes high at 50, clean and with a pulse. *)
+(* The first frame is the first fall after the checker sees the line high. Here it comes 1
+   and 5 cycles after the line goes high at 50, clean and with a pulse. *)
 let%expect_test "the first frame" =
   List.iter [ 1; 5 ] ~f:(fun d ->
     let c =

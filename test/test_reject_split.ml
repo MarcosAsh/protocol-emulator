@@ -7,7 +7,8 @@ let variant name =
     String.equal v.name name)
 ;;
 
-(* Every 250th variant, plus the one uart_tx_host_rate variant the full run finds no table for. *)
+(* Every 250th variant, plus the one uart_tx_host_rate variant the full run finds no table
+   for. *)
 let%expect_test "the reject split, on a sample" =
   let every = List.concat_map Reject_split.firmware ~f:Reject_split.variants in
   let sample = List.filteri every ~f:(fun i _ -> i % 250 = 0) in

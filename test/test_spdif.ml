@@ -7,11 +7,11 @@ let%expect_test "the firmware's verdict" =
   [%expect {| 108 words, 40 deadline waits, worst slack 2 |}]
 ;;
 
-(* The far end, fed the line every cycle. Each pulse is rounded to the nearest whole number
-   of half slots, at 128 cycles per 44.1 kHz frame. A preamble is the only pulse of three
-   half slots, and sigrok's B, M and W are 3113, 3311 and 3212. The 28 bits of a subframe
-   after the preamble have even parity, the 16-bit sample in bits 8 to 23 (LSB first), and
-   the rest 0. *)
+(* The far end, fed the line every cycle. Each pulse is rounded to the nearest whole
+   number of half slots, at 128 cycles per 44.1 kHz frame. A preamble is the only pulse of
+   three half slots, and sigrok's B, M and W are 3113, 3311 and 3212. The 28 bits of a
+   subframe after the preamble have even parity, the 16-bit sample in bits 8 to 23 (LSB
+   first), and the rest 0. *)
 module Receiver = struct
   module Preamble = struct
     type t =

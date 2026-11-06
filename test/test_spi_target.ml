@@ -13,7 +13,8 @@ let spi_expected =
     ()
 ;;
 
-(* Each target with its source and config on any pins, and the smallest half period it claims. *)
+(* Each target with its source and config on any pins, and the smallest half period it
+   claims. *)
 let targets =
   [ "firmware", Spi_target.firmware, Spi_target.config, Spi_target.shortest_half
   ; "fast", Spi_target.fast, Spi_target.fast_config, Spi_target.fast_shortest_half
@@ -100,9 +101,9 @@ let%expect_test "the kernel accepts the fast target in every mode" =
 
 (* A controller on its own clock, across the pads, in ns. Each pin reaches the core
    through the top's two flops. MISO is read [delay] after the chip's edge that drives it,
-   which covers the pad, the board and the controller's setup together. CS falls and
-   rises a half period from SCK, and stays high for two half periods or 10 cycles,
-   whichever is longer. *)
+   which covers the pad, the board and the controller's setup together. CS falls and rises
+   a half period from SCK, and stays high for two half periods or 10 cycles, whichever is
+   longer. *)
 module Over_pads = struct
   let cycle = 1000. /. 48.
   let flops = 2

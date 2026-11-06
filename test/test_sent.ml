@@ -319,7 +319,8 @@ let table source ~floor =
 ;;
 
 (* The host picks the tick, so the analyser's rows hold for every load of the floor or
-   more, and the kernel accepts them at each by checked SAT. One below the floor it refuses. *)
+   more, and the kernel accepts them at each by checked SAT. One below the floor it
+   refuses. *)
 let%expect_test "the kernel accepts every tick from the shortest up" =
   let check ~floor =
     let config, words, table = table firmware ~floor in

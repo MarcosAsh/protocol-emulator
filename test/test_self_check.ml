@@ -51,11 +51,11 @@ let bytes = [ 0x55; 0xa3; 0x00; 0xff ]
 
 module G = Hardcaml_verify.Comb_gates
 
-(* Each edge loads p from its row, so the analyser's table holds for every load of
-   min_gap or more, and the kernel accepts it at each by checked SAT. The load in
-   phase_step.sv is free at each entry, and every frame is anchored on [now] after a wait
-   on the pin, so no deadline is missed whatever the line does, with nothing assumed about
-   the capture. One below min_gap the kernel refuses. *)
+(* Each edge loads p from its row, so the analyser's table holds for every load of min_gap
+   or more, and the kernel accepts it at each by checked SAT. The load in phase_step.sv is
+   free at each entry, and every frame is anchored on [now] after a wait on the pin, so no
+   deadline is missed whatever the line does, with nothing assumed about the capture. One
+   below min_gap the kernel refuses. *)
 let%expect_test "the kernel accepts the checker at every load from min_gap" =
   let checker = checker ~pin:wire () in
   let checker_config = Self_check.checker_config ~pin:wire in
@@ -180,8 +180,8 @@ let%expect_test "frames the checker cannot take are refused" =
     |}]
 ;;
 
-(* The checker takes a frame's first edge to be a fall, so a frame that starts with a
-   rise is refused. *)
+(* The checker takes a frame's first edge to be a fall, so a frame that starts with a rise
+   is refused. *)
 let%expect_test "a frame that starts with a rise is refused" =
   let edges source =
     let program = Asm.assemble source |> ok_exn in

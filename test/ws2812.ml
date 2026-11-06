@@ -5,8 +5,8 @@ let pin = 5
 
 (* y is the bits in the word less one: 15, then 7 per pixel. Both paths around a word's
    end take thirteen cycles, or fourteen with a tail over 7. The reset gap waits on every
-   pass of its loop rather than once after, so [t] is never more than five thirds ahead
-   of [now] and the kernel accepts the loop. y counts its turns before a frame takes it. *)
+   pass of its loop rather than once after, so [t] is never more than five thirds ahead of
+   [now] and the kernel accepts the loop. y counts its turns before a frame takes it. *)
 let latching ~gaps ~third ~tail =
   if gaps < 1 || gaps > 32 || tail < 0 || tail > 14
   then raise_s [%message "BUG: gaps or tail out of range" (gaps : int) (tail : int)];

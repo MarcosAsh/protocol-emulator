@@ -1,6 +1,5 @@
-(** A Wiegand card reader's output, DATA0 and DATA1, after Wikipedia's "Wiegand
-    interface" (oldid 1374164469), which gives the lines and the 26-bit format but no
-    timing. *)
+(** A Wiegand card reader's output, DATA0 and DATA1, after Wikipedia's "Wiegand interface"
+    (oldid 1374164469), which gives the lines and the 26-bit format but no timing. *)
 
 open! Core
 open Protocol_emulator

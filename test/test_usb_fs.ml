@@ -160,8 +160,8 @@ let pins_of : Line.t -> int * int = function
    control read of [requests], and a board that queues each reply chunk as the last is
    acknowledged. Engine 0 runs beside [System] every cycle, given the status pins the chip
    shows it and each packet's words as the receiver ends it. Prints each transaction, the
-   device's turnarounds in bit times from the EOP's J to its SOP, and the first cycle where
-   the model and the RTL part, if any. *)
+   device's turnarounds in bit times from the EOP's J to its SOP, and the first cycle
+   where the model and the RTL part, if any. *)
 let control_reads ?(board_latency = 100) ?(rearm = true) requests =
   let replies = List.concat_map requests ~f:(fun (_, payload) -> chunks payload) in
   let layout = Usb_fs.Layout.create (zero_length :: replies) in
@@ -191,7 +191,7 @@ let control_reads ?(board_latency = 100) ?(rearm = true) requests =
        let level () : Line.t =
          if bus.device_driving then bus.device_line else Option.value bus.host ~default:J
        in
-        (* Finished, good, receiving and error, as engine 0 reads them this cycle. *)
+       (* Finished, good, receiving and error, as engine 0 reads them this cycle. *)
        let status () =
          let u = Usb_frame_rx.Status.map o.usb ~f:int in
          u.finished
@@ -245,9 +245,9 @@ let control_reads ?(board_latency = 100) ?(rearm = true) requests =
               ~dp:((out lsr Usb_fs.dp_pin) land 1)
               ~dm:((out lsr Usb_fs.dm_pin) land 1);
          let dp, dm = pins_of (level ()) in
-          (* The sniffer reads low speed's pins, J on D-. *)
+         (* The sniffer reads low speed's pins, J on D-. *)
          bus.sniffer <- Usb_ls.Sniffer.step bus.sniffer ~dp:dm ~dm:dp;
-          (* The packet the receiver just ended lands in the model's data memory too. *)
+         (* The packet the receiver just ended lands in the model's data memory too. *)
          let now = int o.usb.receiving = 1 in
          if !receiving && not now
          then
@@ -306,8 +306,8 @@ let control_reads ?(board_latency = 100) ?(rearm = true) requests =
        i.frame.base <--. Usb_fs.rx_base;
        i.frame.fifty := Bits.of_bool rearm;
        pulse i.frame.arm;
-        (* A start pulse, a cycle for the fetch, then the cores as [Machine.create] has
-           them, with the device's first word in the tx fifo. *)
+       (* A start pulse, a cycle for the fetch, then the cores as [Machine.create] has
+          them, with the device's first word in the tx fifo. *)
        pulse p.start;
        cycle ();
        let machine ~program ~config =
@@ -332,8 +332,8 @@ let control_reads ?(board_latency = 100) ?(rearm = true) requests =
            cycles 4);
          bus.host <- None
        in
-        (* The device's packet if it starts within 16 bit times of the host's EOP, and the
-           cycles from the EOP's J to its SOP. *)
+       (* The device's packet if it starts within 16 bit times of the host's EOP, and the
+          cycles from the EOP's J to its SOP. *)
        let listen () =
          let seen = List.length (Usb_ls.Sniffer.packets bus.sniffer) in
          let sop = ref None in
@@ -403,7 +403,7 @@ let control_reads ?(board_latency = 100) ?(rearm = true) requests =
              | other -> Queue.enqueue log [%message "IN" (other : int list option)])
          in
          ins 0;
-          (* An IN on endpoint 1, for which nothing is queued. *)
+         (* An IN on endpoint 1, for which nothing is queued. *)
          let reply = transaction [ Usb.token ~address ~pid:0x69 ~endpoint:1 ] in
          Queue.enqueue log [%message "IN 1" (reply : Int.Hex.t list option)];
          let reply =
@@ -464,8 +464,8 @@ let%expect_test "control reads on the chip, in lockstep with the model" =
     |}]
 ;;
 
-(* Without the re-arm the receiver takes the SETUP token and nothing after it. The DATA0 is
-   never ACKed, so the host gets no further. *)
+(* Without the re-arm the receiver takes the SETUP token and nothing after it. The DATA0
+   is never ACKed, so the host gets no further. *)
 let%expect_test "without the re-arm, the device answers nothing" =
   control_reads
     ~rearm:false

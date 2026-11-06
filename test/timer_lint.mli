@@ -12,12 +12,12 @@
 
     A difference of two timer values is safe against a constant, since it wraps on
     purpose. A difference with a constant is a threshold on its other side and is judged
-    as that side would be, so [msb (x -:. limit)] tests [x] against [limit]. Anything
-    else is a count: a sum wide enough that its largest value does not carry out of its
-    width, which is one bit more than a timer value for two terms and two more for three
-    or four. A count compared as signed, or tested by its sign bit, needs one bit more
-    again to stay below the sign bit. A difference added into a count may be negative, so
-    it is flagged.
+    as that side would be, so [msb (x -:. limit)] tests [x] against [limit]. Anything else
+    is a count: a sum wide enough that its largest value does not carry out of its width,
+    which is one bit more than a timer value for two terms and two more for three or four.
+    A count compared as signed, or tested by its sign bit, needs one bit more again to
+    stay below the sign bit. A difference added into a count may be negative, so it is
+    flagged.
 
     A value's bound comes from its structure alone (constants, zero extension, muxes and
     nested sums). A sum that cannot wrap for a reason the graph does not show is flagged

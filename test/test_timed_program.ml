@@ -61,7 +61,8 @@ bit:
     jmp x--, bit
     halt
 |};
-  (* With a second wait in the loop no pass is counted, though here every one takes 25 cycles. *)
+  (* With a second wait in the loop no pass is counted, though here every one takes 25
+     cycles. *)
   refusal
     {|
     set p, 8

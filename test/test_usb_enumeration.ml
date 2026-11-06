@@ -169,7 +169,8 @@ let%expect_test "a host enumerates the keyboard and mouse and reads reports" =
         | None -> []
       in
       print_s [%message "report" ~_:(until_data 20 : int list)]);
-  (* A report pending when a control transfer starts is dropped, and the board requeues it. *)
+  (* A report pending when a control transfer starts is dropped, and the board requeues
+     it. *)
   report t [ 2; 1; 0; 0 ];
   read
     "device descriptor with a report in the way"

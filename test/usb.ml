@@ -297,10 +297,10 @@ end
 
 (* USB low speed device. [mov x, pins] reads J as 2, K as 1, SE0 as 0. The previous line
    state lives in the program counter (each sampling piece exists for J and for K), which
-   leaves y to count bits. Token address and endpoint are compared, CRC5 included,
-   against a constant for [address] endpoint 0, so the CRC unit stays on CRC-16. Endpoint
-   1 is the only other match. The first PID nibble is walked as a tree, so telling packets
-   apart costs no cycles. *)
+   leaves y to count bits. Token address and endpoint are compared, CRC5 included, against
+   a constant for [address] endpoint 0, so the CRC unit stays on CRC-16. Endpoint 1 is the
+   only other match. The first PID nibble is walked as a tree, so telling packets apart
+   costs no cycles. *)
 let device ~address ~half_period =
   let open Usb_line in
   let label name line = [%string "%{name}_%{suffix line}"] in
@@ -316,8 +316,8 @@ let device ~address ~half_period =
     in
     msb_first (bits @ bits_of crc5 ~count:5)
   in
-  (* A constant in isr, most significant chunk first. It goes in more than a bit at a time,
-     so the CRC and stuff counter do not see it. *)
+  (* A constant in isr, most significant chunk first. It goes in more than a bit at a
+     time, so the CRC and stuff counter do not see it. *)
   let load_isr ?(through = "y") value ~bits =
     let rec chunks left =
       if left = 0
@@ -706,7 +706,8 @@ module Request = struct
   ;;
 end
 
-(* The demo board (RP2040) side. [latency] models its slowness, and the core covers with NAKs. *)
+(* The demo board (RP2040) side. [latency] models its slowness, and the core covers with
+   NAKs. *)
 module Board = struct
   type parse =
     | Tag

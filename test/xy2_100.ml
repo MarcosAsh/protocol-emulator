@@ -6,9 +6,9 @@ module Reg = Host_port.Reg
 (* Newson rhothor X7 I/O configuration: XY2-100, datasheet revision 0703, p.1-2. A 20-bit
    word: C2-C0, then D15-D0, then even parity, at SENDCK 2 MHz (24 cycles of the 48 MHz
    clock, 12 per half). The host's word is the 16 data bits. The core sends control 001,
-   the motor setpoint, and the parity, which the CRC unit counts as a 1-bit CRC started
-   at 1 for the control's one. SENDCK starts with the first word and runs on without a
-   break, one word after another. Where the host has no next word the last is sent again. *)
+   the motor setpoint, and the parity, which the CRC unit counts as a 1-bit CRC started at
+   1 for the control's one. SENDCK starts with the first word and runs on without a break,
+   one word after another. Where the host has no next word the last is sent again. *)
 let clk_pin = 5
 let sync_pin = clk_pin + 1
 let data_pin = clk_pin + 2

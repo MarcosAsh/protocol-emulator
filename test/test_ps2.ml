@@ -245,7 +245,8 @@ let%expect_test "a quarter of seven cycles is too short" =
     |}]
 ;;
 
-(* A 10 us quarter period keeps every deadline but gives a 25 kHz clock, which the host rejects. *)
+(* A 10 us quarter period keeps every deadline but gives a 25 kHz clock, which the host
+   rejects. *)
 let%expect_test "a clock of 25 kHz is out of the standard" =
   run ~quarter:(Bench.cycles_in ~us:10) ~bytes:[ 0x1c ] ~cycles:26_000 ();
   [%expect
