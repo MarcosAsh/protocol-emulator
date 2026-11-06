@@ -15,8 +15,8 @@ module Hole = struct
   [@@deriving sexp_of]
 end
 
-(* A hole is the [?] at [column] of [line] (from 0 here). Its value is written in binary
-   with [binary] digits when the reference writes it so. *)
+(* A hole is the [?] at [column] of [line] (counting from 0 here). Its value is written
+   with [binary] digits if the reference writes it in binary. *)
 type spot =
   { line : int
   ; column : int
@@ -33,7 +33,7 @@ type t =
 
 let holes t = t.holes
 
-(* The part of a line pioasm reads, as [Pioasm.strip_comment] cuts it. *)
+(* The part of a line pioasm reads, cut like [Pioasm.strip_comment]. *)
 let code line =
   let cut line sep =
     match String.substr_index line ~pattern:sep with
@@ -92,7 +92,7 @@ let fill_spots lines spots values =
   String.concat_array ~sep:"\n" lines
 ;;
 
-(* A line whose holes all take the reference's values is the reference's line, as it was. *)
+(* A line whose holes all take the reference's values is copied from the reference. *)
 let fill t values =
   match t.reference with
   | None -> fill_spots t.lines t.spots values
@@ -115,8 +115,8 @@ let fill t values =
     fill_spots lines spots values
 ;;
 
-(* The value a reference line gives the hole, a number between [[ ]] or after a side
-   keyword, and the binary digits it is written with. *)
+(* The hole's value in a reference line (a number between [[ ]] or after a side keyword)
+   and the number of binary digits it is written with. *)
 let reference_value (kind : Hole.kind) ~line text =
   let code = code text in
   let number text =
@@ -190,8 +190,8 @@ let parse ?reference text =
         reference_value spot.kind ~line:spot.line reference.(spot.line))
       |> Or_error.all
   in
-  (* Every hole 0 must assemble; a value is in a hole's domain when pioasm takes it there
-     with every other hole 0. *)
+  (* With every hole at 0 the program must assemble. A value is in a hole's domain if
+     pioasm accepts it there while every other hole is 0. *)
   let reference_values = List.map references ~f:fst in
   let spots =
     List.map2_exn spots references ~f:(fun spot (_, binary) -> { spot with binary })
@@ -268,7 +268,7 @@ let solve ?(max_checks = 100_000) t ~passes =
     List.sum (module Int) choices ~f:(fun choices ->
       List.fold choices ~init:0 ~f:(fun most (_, cost) -> Int.max most cost))
   in
-  (* Every assignment of the remaining holes costing exactly [budget], made as needed. *)
+  (* Every assignment of the remaining holes that costs exactly [budget], built lazily. *)
   let rec assignments choices ~budget =
     match choices with
     | [] -> if budget = 0 then Sequence.singleton [] else Sequence.empty

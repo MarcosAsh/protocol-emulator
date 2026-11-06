@@ -169,10 +169,9 @@ module Clock = struct
     }
   [@@deriving sexp_of]
 
-  (* pico-sdk's pio_calculate_clkdiv8_from_float in single precision, with
-     PICO_CLKDIV_ROUND_NEAREST on (the default). An integer part of 0 is the hardware's
-
-     65536. *)
+  (* Same as pico-sdk's pio_calculate_clkdiv8_from_float in single precision with
+     PICO_CLKDIV_ROUND_NEAREST on (the default). The hardware reads an integer part of 0
+     as 65536. *)
   let effective_div { clkdiv; _ } =
     let single value = Int32.float_of_bits (Int32.bits_of_float value) in
     let div = single (single clkdiv +. (0.5 /. 256.)) in
@@ -182,8 +181,8 @@ module Clock = struct
     else whole +. (Float.round_down ((div -. whole) *. 256.) /. 256.)
   ;;
 
-  (* A fractional divider spaces ticks by the floor or the ceiling of the divider, so [n]
-     ticks span at least the floor of [n] times it. *)
+  (* A fractional divider spaces ticks by floor or ceiling of the divider, so [n] ticks
+     take at least floor (n * divider). *)
   let min_ns t cycles =
     Float.round_down (Float.of_int cycles *. effective_div t) *. 1e9 /. t.sys_hz
   ;;
@@ -207,7 +206,7 @@ module Exec_sequence = struct
   ;;
 
   let of_string program text =
-    (* the first colon that is not half of a [::] reverse *)
+    (* the first colon that isn't part of a [::] reverse *)
     let is_colon i = i >= 0 && i < String.length text && Char.equal text.[i] ':' in
     let colon =
       String.lfindi text ~f:(fun i _ ->
@@ -269,8 +268,8 @@ module Level = struct
   type t =
     | Low
     | High
-    | Released (** Let go by us, high once any other driver lets go too. *)
-    | Maybe_released (** Low, or [Released]: we do not know which. *)
+    | Released (** We let go. It reads high once any other driver lets go too. *)
+    | Maybe_released (** Either low or [Released], we can't tell which. *)
     | Unknown
   [@@deriving sexp_of, compare, equal, hash]
 
@@ -286,7 +285,7 @@ module Level = struct
   ;;
 end
 
-(* Cycles since something last happened; [None] when it never has on any path. *)
+(* Cycles since something last happened, [None] if it never has on any path. *)
 module Since = struct
   type t = Interval.t option [@@deriving sexp_of, compare, equal]
 
@@ -313,7 +312,7 @@ module Since = struct
     | _, t -> t
   ;;
 
-  (* The more recent of two. *)
+  (* the more recent of the two *)
   let min a b =
     match a, b with
     | None, t | t, None -> t
@@ -341,8 +340,8 @@ module Key = struct
     ; y : int option
     ; levels : Level.t list
     ; seen : bool list
-    (** Which of the phase and each pin's rise and fall have happened, so a path from
-        entry joins no path that has them. *)
+    (** Whether the phase and each pin's rise and fall have happened yet. This keeps a path
+        from entry from merging with a path where they have. *)
     }
   [@@deriving sexp_of, compare, hash]
 end
@@ -392,9 +391,9 @@ module Event = struct
     | Sample of
         { pin : string
         ; phase : Since.t
-        ; locks : bool (** A wait's own sample, which the receiver locks to. *)
+        ; locks : bool (** The wait's own sample, which the receiver locks to. *)
         ; own : (Since.t * Since.t) option
-        (** Cycles since the last rise and fall of an output of the same name. *)
+        (** Cycles since the last rise and fall of the output with the same name. *)
         }
     | Anchor
     | Seen of
@@ -531,9 +530,9 @@ module Report = struct
     |> String.rstrip
   ;;
 
-  (* A sample at phase [p] reads the pin [p, p + 1) ticks after its anchor's edge, which
-     [n] ticks of a fractional divider span to within its floor and ceiling; the
-     synchroniser delay cancels, and a system clock either way covers metastability. *)
+  (* A sample at phase [p] reads the pin [p, p + 1) ticks after its anchor's edge. [n] ticks
+     of a fractional divider are only known to within floor and ceiling. The synchroniser
+     delay cancels out, and one system clock either way covers metastability. *)
   let receiver t cell =
     let earliest, latest, armed, cell_length =
       match t.clock with
@@ -574,8 +573,8 @@ module Report = struct
         Option.some_if (k > 0) (earliest lo /. (Float.of_int k *. cell_length)))
       |> List.min_elt ~compare:Float.compare
     in
-    (* Back to back, the next frame's edge may come as soon as the last sampled cell ends,
-       and each locking wait must be armed by then, or it locks late. *)
+    (* Frames can run back to back, so the next frame's edge may arrive as soon as the last
+       sampled cell ends. Each locking wait must be armed by then or it locks late. *)
     let arms =
       List.concat_map t.rows ~f:(fun row ->
         if List.exists row.events ~f:(function
@@ -609,7 +608,7 @@ module Report = struct
         "FAIL, a sample straddles a cell boundary", false
       | None, None -> "no bounded samples", true
       | _ ->
-        (* No sample past the first cell leaves a slow sender unbounded. *)
+        (* With no sample past the first cell, a slow sender is unbounded. *)
         let ok =
           Option.for_all fast ~f:(fun fast -> Float.( <= ) fast 1.)
           && Option.for_all slow ~f:(fun slow -> Float.( >= ) slow 1.)
@@ -673,7 +672,7 @@ module Report = struct
 end
 
 (* What an instruction writes: a pin group position, whether it is the direction bit, and
-   the value when it is known. *)
+   the value if known. *)
 module Write = struct
   type t =
     { pin : Pin_ref.t
@@ -692,7 +691,7 @@ type context =
   ; sync : int (** Cycles before our own edge reaches our inputs. *)
   }
 
-(* Under js_of_ocaml an int is 32 bits, so a value with bit 31 set is negative there. *)
+(* An int is 32 bits under js_of_ocaml, so a value with bit 31 set is negative there. *)
 let cap value =
   Option.bind value ~f:(fun value -> Option.some_if (0 <= value && value <= 255) value)
 ;;
@@ -787,17 +786,18 @@ let level_of_write (pin : Pin.t) (write : Write.t) =
       | (Level | Dir | Dir_low | Input), _ -> None))
 ;;
 
-(* Side-set wins a GPIO that the same instruction's OUT, SET or MOV also writes (datasheet
-   3.5.6). The hardware decides level and direction apart, but a pin shows one level here,
-   and no other pin shares the bit, so dropping the data write for the pin is the same. *)
+(* Side-set wins when the same instruction's OUT, SET or MOV also writes the GPIO
+   (datasheet 3.5.6). The hardware decides level and direction separately, but a pin has
+   one level here and no other pin shares the bit, so dropping the data write is
+   equivalent. *)
 let side_set_wins ctx ~side (data : Write.t) =
   Array.exists ctx.outputs ~f:(fun pin ->
     Option.is_some (level_of_write pin data)
     && List.exists side ~f:(fun side -> Option.is_some (level_of_write pin side)))
 ;;
 
-(* Apply writes that land in the same cycle, report each edge with the width of the pulse
-   it ends, and check the rules against it. *)
+(* Applies writes that land in the same cycle, reports each edge with the width of the
+   pulse it ends, and checks the rules against it. *)
 let write ctx ~row writes ((key : Key.t), (timing : Timing.t)) =
   let levels = Array.of_list key.levels in
   let rise = Array.of_list timing.rise in
@@ -874,9 +874,9 @@ let sample ?(locks = false) ctx ~row (timing : Timing.t) pin_ref =
     ctx.emit row (Sample { pin; phase = timing.phase; locks; own }))
 ;;
 
-(* A wait that sees an open-drain pin of ours high shows we let it go and no other driver
+(* A wait that sees one of our open-drain pins high proves we let go and no other driver
    holds it, unless it read the pin within [sync] cycles of our last low, before that low
-   arrived. Seeing it low shows nothing: another driver may still hold it. *)
+   arrived. Seeing it low proves nothing, since another driver may still hold it. *)
 let see ctx ~row ~rising pin_ref (key : Key.t) (timing : Timing.t) =
   let levels =
     List.mapi key.levels ~f:(fun i (level : Level.t) ->
@@ -911,9 +911,9 @@ let see ctx ~row ~rising pin_ref (key : Key.t) (timing : Timing.t) =
   { key with levels }
 ;;
 
-(* How many cycles an instruction may stall: [None] if never, [Some None] without bound.
-   An autopull [out] stalls a cycle on an empty OSR even when the FIFO keeps up, as at
-   restart (datasheet 3.5.4.2). *)
+(* How many cycles an instruction may stall: [None] if never, [Some None] if unbounded.
+   An autopull [out] stalls for a cycle on an empty OSR even if the FIFO keeps up, for
+   example at restart (datasheet 3.5.4.2). *)
 let stall ctx (op : Pioasm.Op.t) =
   let fifo_ready = ctx.config.fifo_ready in
   match op with
@@ -930,8 +930,9 @@ type control =
   | Next
   | Jump of int
 
-(* Another driver may hold a low we released until a wait sees the pin high, so its rise
-   stays recent, through a stall too; a pin released while high has no rise to keep. *)
+(* Another driver may keep holding a low we released until a wait sees the pin high, so
+   its rise stays recent, even through a stall. A pin released while high has no rise to
+   keep. *)
 let advance (key : Key.t) timing cycles =
   let (timing : Timing.t) = Timing.shift timing cycles in
   { timing with
@@ -945,8 +946,8 @@ let advance (key : Key.t) timing cycles =
 ;;
 
 (* One instruction from issue to the next issue: side-set, stall, execute, delay. Side-set
-   lands on the first cycle and the data writes on the last (datasheet 3.2.4, 3.5.1), so
-   they coincide, side-set winning, unless the instruction stalls. *)
+   lands on the first cycle and data writes on the last (datasheet 3.2.4, 3.5.1). They
+   coincide, with side-set winning, unless the instruction stalls. *)
 let rec execute ctx ~row (instruction : Pioasm.Instruction.t) state =
   let key, (timing : Timing.t) = state in
   ctx.emit row (Phase timing.phase);
@@ -1062,13 +1063,13 @@ and finish_execute ctx ~row (instruction : Pioasm.Instruction.t) key (timing : T
   | Set { destination = Y; value } -> finish { key with y = Some value } timing Next
   | In _ | Push _ | Pull _ | Irq _ | Set _ -> finish key timing Next
 
-(* The executee runs on the next cycle; the delay of the [out] or [mov] is ignored. *)
+(* The executed instruction runs on the next cycle, and the [out] or [mov] delay is ignored. *)
 and exec ctx ~(row : Row_id.t) (key : Key.t) timing =
   let timing = advance key timing 1 in
   let sequences =
     List.map ctx.config.exec ~f:(fun sequence -> sequence.instructions) |> List.to_array
   in
-  (* The key the sequence starts from, with its guard assumed, if the guard may hold. *)
+  (* The key the sequence starts from, assuming its guard holds, if the guard may hold. *)
   let start (sequence : Exec_sequence.t) =
     let register (value : int option) expected =
       match value with

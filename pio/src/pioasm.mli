@@ -1,6 +1,6 @@
-(** RP2040 PIO programs as pioasm reads them from a [.pio] file: the nine instructions,
-    delay and side-set, [.wrap], [.define] and [.clock_div]. Addresses are relative to the
-    program. C blocks, [.lang_opt] and [.pio_version] are skipped. *)
+(** RP2040 PIO programs read from a [.pio] file like pioasm does. Handles the nine
+    instructions, delay and side-set, [.wrap], [.define] and [.clock_div]. Addresses are
+    relative to the program. C blocks, [.lang_opt] and [.pio_version] are skipped. *)
 
 open! Core
 
@@ -115,14 +115,14 @@ module Instruction : sig
     { op : Op.t
     ; delay : int
     ; side : int option
-    ; text : string (** The source text, comments and labels stripped. *)
+    ; text : string (** The source text without comments and labels. *)
     }
   [@@deriving sexp_of]
 end
 
 module Side_set : sig
   type t =
-    { count : int (** Pins, not counting the [opt] enable bit. *)
+    { count : int (** Number of pins, not counting the [opt] enable bit. *)
     ; optional : bool
     ; pindirs : bool
     }
@@ -142,9 +142,9 @@ module Program : sig
   [@@deriving sexp_of]
 end
 
-(** Every program in the file, in order. Errors name the line. Delays and side-set values
-    are checked against the five delay/side-set bits, as pioasm does. *)
+(** Every program in the file, in order. Errors name the line. As in pioasm, delays and
+    side-set values are checked against the 5 delay/side-set bits. *)
 val parse : string -> Program.t list Or_error.t
 
-(** One instruction line, labels resolved in [program] (for [out exec] tables). *)
+(** One instruction line, with labels resolved in [program]. Used for [out exec] tables. *)
 val parse_instruction : Program.t -> string -> Instruction.t Or_error.t

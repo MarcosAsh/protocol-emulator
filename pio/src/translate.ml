@@ -73,7 +73,7 @@ module Setup = struct
         | Out { destination = Pindirs; _ } | Mov { destination = Pindirs; _ } -> true
         | _ -> false)
     in
-    (* written by direction on IO pins, by level on OUT pins, read on IN pins *)
+    (* outputs by direction go on IO pins, by level on OUT pins, inputs on IN pins *)
     let next_out = ref Isa.first_output_pin
     and next_io = ref Isa.first_bidir_pin in
     let take ~dirs count =
@@ -149,7 +149,7 @@ type t =
   ; contract : string list
   }
 
-(* The features the core cannot keep, by instruction. *)
+(* The features the core can't do, per instruction. *)
 let refused ~(setup : Setup.t) ~in_exec (instruction : Pioasm.Instruction.t) =
   let width bits = sprintf "%d-bit shift" bits in
   match instruction.op with
@@ -194,7 +194,7 @@ let refused ~(setup : Setup.t) ~in_exec (instruction : Pioasm.Instruction.t) =
   | Irq { mode = Clear; _ } -> [ "irq clear" ]
 ;;
 
-(* the largest divisor of [threshold] no more than 16 that [counts] all divide *)
+(* the largest divisor of [threshold] that is <= 16 and divides all of [counts] *)
 let repack threshold ~counts =
   List.range ~stop:`inclusive 1 Isa.data_bits
   |> List.rev
@@ -202,7 +202,7 @@ let repack threshold ~counts =
     threshold % n = 0 && List.for_all counts ~f:(fun count -> n % count = 0))
 ;;
 
-(* Refusals of the program as a whole, the 16-bit thresholds, and the host contract. *)
+(* Refusals for the whole program, the 16-bit thresholds and the host contract. *)
 let program_level ~(setup : Setup.t) (program : Pioasm.Program.t) ~exec =
   let ops =
     Array.to_list program.instructions @ Array.to_list exec
@@ -219,7 +219,7 @@ let program_level ~(setup : Setup.t) (program : Pioasm.Program.t) ~exec =
       | Mov { source = Isr; _ } | In { source = Isr; _ } -> true
       | _ -> false)
   in
-  (* a whole value in isr is shifted unless a push takes it at once *)
+  (* a whole value in isr gets shifted unless a push takes it straight away *)
   let loads_isr =
     Array.existsi program.instructions ~f:(fun pc (i : Pioasm.Instruction.t) ->
       let pushed () =
@@ -473,7 +473,7 @@ let isa_mov_op (op : Pioasm.Mov_op.t) : Isa.Mov_op.Cases.t =
   | Reverse -> Reverse
 ;;
 
-(* The data part of an instruction run before the start, as pio_sm_exec does. *)
+(* The data part of an instruction run before the start, like pio_sm_exec. *)
 let init_op ~(setup : Setup.t) (instruction : Pioasm.Instruction.t) : Isa.Op.t option =
   let mask = (1 lsl setup.set_count) - 1 in
   match instruction.op with
@@ -557,7 +557,7 @@ let translate (setup : Setup.t) (program : Pioasm.Program.t) =
   let%bind exec =
     parse_all "exec" (List.map setup.exec ~f:(fun e -> e.Setup.Exec.instruction)) program
   in
-  (* pio_sm_exec runs an instruction with no side-set bits, which we leave out *)
+  (* pio_sm_exec runs instructions without side-set bits, so we drop them *)
   let%bind init =
     parse_all
       "init"
@@ -610,8 +610,8 @@ let translate (setup : Setup.t) (program : Pioasm.Program.t) =
     | [] -> Ok ()
     | refusals -> Error (List.dedup_and_sort refusals ~compare:Refusal.compare)
   in
-  (* Side-set on pins out or set also writes is written by [set] instead, as our side-set
-     comes on every word and would undo the data in between. *)
+  (* If side-set shares pins with out or set, we write it with [set] instead. Our side-set
+     goes on every word and would undo the data written in between. *)
   let side_by_set = side_by_set ~setup program ~exec in
   let%bind () =
     match side_by_set with
@@ -646,9 +646,9 @@ let translate (setup : Setup.t) (program : Pioasm.Program.t) =
       incr n;
       sprintf "l%d" !n
   in
-  (* A step's parts. A blocking one has [ready] jumps to its normal markers and a [stall]
-     copy, inlined at each normal way in so its marker is reached as soon as a normal one;
-     a stall copy's own way out is a plain jump, so the inlining stops there. *)
+  (* A step's parts. A blocking step has [ready] jumps to its normal markers plus a [stall]
+     copy. The copy is inlined at each normal way in, so its marker is reached as early as
+     a normal one. A stall copy leaves by a plain jump, which ends the inlining. *)
   let rec parts (key : Key.t) =
     let instruction = Relation.instruction program ~exec key.site in
     let id = Hashtbl.find_exn ids key in
@@ -673,7 +673,7 @@ let translate (setup : Setup.t) (program : Pioasm.Program.t) =
       ; Word (Op (Wait (Deadline { advance = true }), s), Some instruction.text)
       ]
     in
-    (* the rest of the step's waits: the first cycle's after its marker, then the delay *)
+    (* the remaining waits: the first cycle's, then the delay's *)
     let delays =
       List.init
         ((Relation.cycles instruction * setup.per_cycle) - 1)
@@ -687,11 +687,11 @@ let translate (setup : Setup.t) (program : Pioasm.Program.t) =
     let after : Relation.Site.t = Pc after_pc in
     let read_now = op (Mov { dest = T; op = Copy; source = Now }) in
     let add_period = op (Alu { dest = T; op = Add; operand = Reg P }) in
-    (* t from the cycle a wait released: that cycle less one, plus p *)
+    (* t = release cycle - 1 + p *)
     let reanchor =
       [ read_now; add_period; op (Alu { dest = T; op = Sub; operand = Imm 2 }) ]
     in
-    (* the side-set alone, the cycle after the marker *)
+    (* side-set only, one cycle after the marker *)
     let side_nop =
       match instruction.side with
       | Some v when side_by_set ->
@@ -705,8 +705,8 @@ let translate (setup : Setup.t) (program : Pioasm.Program.t) =
     in
     let side_first = if side_by_set then side_nop else [] in
     let normal = sprintf "m%d" id in
-    (* a blocking op: [ready] jumps past the stall; the stall waits, reads now and then
-       does the op, so the op's own cycle less one is the anchor *)
+    (* a blocking op: [ready] jumps past the stall, while the stall waits, reads now, then
+       does the op. The anchor is the op's own cycle - 1. *)
     let blocking ~(ready : Isa.Jmp_cond.Cases.t list) ~(wait : Isa.Fifo_wait.t) ~word =
       let stall suffix =
         marker ("s" ^ suffix)
@@ -751,7 +751,7 @@ let translate (setup : Setup.t) (program : Pioasm.Program.t) =
     | In { source; bits } ->
       simple (fun () -> [ op (In { source = isa_in_source source; count = bits }) ])
     | Out { destination = Exec; _ } ->
-      (* the stall copies jump into the one dispatch *)
+      (* every stall copy jumps into the same dispatch *)
       let dispatch = sprintf "d%d" id in
       let rec chain i =
         let allowed =
@@ -787,7 +787,7 @@ let translate (setup : Setup.t) (program : Pioasm.Program.t) =
         ( [ Isa.Jmp_cond.Cases.Osr_not_empty, normal; Tx_not_empty, normal ]
         , Some
             (fun suffix ->
-              (* the anchor is the out, and p must be read before x goes into it *)
+              (* the anchor is the out, and p has to be read before x overwrites it *)
               marker ("s" ^ suffix)
               @ side_first
               @ [ op (Wait (Fifo Tx_not_empty))
@@ -941,8 +941,8 @@ let translate (setup : Setup.t) (program : Pioasm.Program.t) =
           , None )
       ]
   in
-  (* Trace layout: a block goes where the first plain jump to it is, so that jump falls
-     through; the rest follow in the order they were first named. *)
+  (* Trace layout: put a block right after the first plain jump to it so that jump falls
+     through. The other blocks follow in the order they were first named. *)
   let placed = Hash_set.create (module Key) in
   let order = ref [] in
   let rec place key =

@@ -3,11 +3,11 @@ open Protocol_emulator
 
 let clock_hz = 48_000_000
 
-(* the core's pins: IN0 0, IO0 12 *)
+(* the core's pin numbers for IN0 and IO0 *)
 let in0 = 0
 let io0 = Isa.first_bidir_pin
 
-(* What each example's C code sets, from the % c-sdk block of its .pio file. *)
+(* What each example's C code sets, taken from the % c-sdk block of its .pio file. *)
 let configure (program : Pioasm.Program.t) (s : Translate.Setup.t) : Translate.Setup.t =
   let autopull ?(right = true) n =
     { s with autopull = true; pull_threshold = n; out_shift_right = right }
@@ -90,9 +90,9 @@ let configure (program : Pioasm.Program.t) (s : Translate.Setup.t) : Translate.S
     ; push_threshold = 8
     ; entry =
         Some "entry_point"
-        (* pio_i2c.c's START, RSTART and STOP: set_scl_sda's four and a clear of isr *)
+        (* START, RSTART and STOP from pio_i2c.c: the four set_scl_sda values and a clear of isr *)
     ; exec =
-        (* SCL low, SDA high comes only with SCL low already, as RSTART starts *)
+        (* SCL low, SDA high only happens with SCL already low, as at the start of RSTART *)
         List.map
           ~f:(fun (instruction, from_sides) ->
             { Translate.Setup.Exec.instruction; from_sides })
@@ -109,7 +109,7 @@ let configure (program : Pioasm.Program.t) (s : Translate.Setup.t) : Translate.S
 
 let setup program ~period = configure program (Translate.Setup.default program ~period)
 
-(* the state machine clock the example runs at, where it fixes one *)
+(* the state machine clock the example runs at, if it fixes one *)
 let sm_hz (program : Pioasm.Program.t) =
   match program.name with
   | "uart_tx" | "uart_rx" | "uart_rx_mini" -> Some (8. *. 115_200.)
@@ -130,7 +130,7 @@ module Verdict = struct
   [@@deriving sexp_of]
 end
 
-(* [k] as [per_cycle] waits of [p], [p] at most 31, in 65536ths *)
+(* [k] as [per_cycle] waits of [p] cycles (p <= 31) plus a fraction in 65536ths *)
 let scale k =
   let rec go per_cycle =
     if Float.( <= ) (k /. Float.of_int per_cycle) 31.
@@ -260,8 +260,8 @@ let limits (program : Pioasm.Program.t) timed =
   let config = Timed_program.config timed in
   match program.name with
   | "i2c" ->
-    (* pindirs, which pio_i2c.c inverts: SCL falling while SDA is held low, since SDA's
-       last edge *)
+    (* pindirs, which pio_i2c.c inverts: time from SDA's last edge to SCL falling while
+       SDA is held low *)
     [ { Limit.parameter = "tHD;STA"
       ; at_least_ns = 4_000
       ; sheet = "UM10204 Rev. 7.0, table 11, p.44, Standard-mode"

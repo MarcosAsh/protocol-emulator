@@ -1,9 +1,9 @@
-(** RP2040 and RP2350 PIO programs translated to the core's ISA in PIO time. A PIO cycle
-    is [k] cycles here, [per_cycle] [wait t+]s of [p] and [fraction] each, and a step's
-    pin write, sample or side-set issues the cycle after its first, so each pin edge shows
-    at [k] times its PIO cycle plus one latency. A wait or a stall re-anchors [t] at its
-    release. What the core cannot keep is refused by name; what it keeps only under a host
-    contract says so in [contract].
+(** Translates RP2040 and RP2350 PIO programs to the core's ISA, keeping PIO time. A PIO
+    cycle takes [k] cycles here, made of [per_cycle] [wait t+]s of [p] cycles plus
+    [fraction]. A step's pin write, sample or side-set happens one cycle after its first
+    cycle, so each pin edge shows up at [k] times its PIO cycle plus one latency. A wait
+    or a stall re-anchors [t] at its release. Anything the core can't do is refused by
+    name. Anything it only does under a host contract is listed in [contract].
 
     {v
     PIO                           here
@@ -30,8 +30,8 @@ open! Core
 open Protocol_emulator
 
 module Setup : sig
-  (** An instruction [out exec] may run, and the side-set values, as PIO writes them, it
-      may run from; empty for any. *)
+  (** An instruction that [out exec] may run, and the side-set values (as PIO writes them)
+      it may run from. An empty list means any. *)
   module Exec : sig
     type t =
       { instruction : string
@@ -43,8 +43,8 @@ module Setup : sig
   type t =
     { period : int (** [p], 2 to 31. *)
     ; fraction : int (** 65536ths of a cycle added to [p]. *)
-    ; per_cycle : int (** [wait t+]s a PIO cycle, so [k] is this times [p]. *)
-    ; side_set_base : int (** Pins are the core's. *)
+    ; per_cycle : int (** [wait t+]s per PIO cycle, so [k] is this times [p]. *)
+    ; side_set_base : int (** All the pin numbers are the core's. *)
     ; set_base : int
     ; set_count : int
     ; out_base : int
@@ -55,40 +55,40 @@ module Setup : sig
     ; out_shift_right : bool
     ; in_shift_right : bool
     ; autopull : bool
-    ; pull_threshold : int (** The PIO's, 1 to 32. *)
+    ; pull_threshold : int (** As on the PIO, 1 to 32. *)
     ; autopush : bool
     ; push_threshold : int
-    ; side_init : int (** The side-set pins before the first step. *)
+    ; side_init : int (** The side-set pins' value before the first step. *)
     ; dirs_inverted : bool
-    (** The C code inverts the pins' output enables, as pio_i2c.c does, so a set direction
-        bit releases the pin. *)
+    (** The C code inverts the pins' output enables, as pio_i2c.c does, so setting a
+        direction bit releases the pin. *)
     ; exec : Exec.t list (** What [out exec] may run, by index. *)
     ; init : string list (** What the C code execs before the start. *)
     ; entry : string option
     }
   [@@deriving sexp_of]
 
-  (** pico-sdk's defaults (shift right, thresholds 32, no autopull or autopush, entry 0)
-      and each pin group on pins of its own: outputs written by level on OUT pins, by
-      direction on IO pins, inputs on IN pins. *)
+  (** pico-sdk's defaults (shift right, thresholds 32, no autopull or autopush, entry 0).
+      Each pin group gets its own pins: OUT pins for outputs written by level, IO pins
+      for outputs written by direction, IN pins for inputs. *)
   val default : Pioasm.Program.t -> period:int -> t
 end
 
 module Refusal : sig
   type t =
-    { pc : int option (** [None] for the program as a whole, the exec table or init. *)
+    { pc : int option (** [None] when it applies to the whole program, the exec table or init. *)
     ; feature : string
     }
   [@@deriving sexp_of, compare]
 end
 
 type t =
-  { source : string (** Assembly, a comment with the PIO line on each step's marker. *)
+  { source : string (** Assembly, with a comment holding the PIO line on each step's marker. *)
   ; words : Isa.t list
   ; config : Program_config.t
   ; relation : Relation.t
   ; exec : Pioasm.Instruction.t array
-  ; contract : string list (** What the host keeps to, beyond pico-sdk's own use. *)
+  ; contract : string list (** What the host must do beyond normal pico-sdk use. *)
   }
 
 val translate : Setup.t -> Pioasm.Program.t -> (t, Refusal.t list) Result.t
@@ -96,5 +96,5 @@ val translate : Setup.t -> Pioasm.Program.t -> (t, Refusal.t list) Result.t
 (** [Relation.check] on a translation. *)
 val check_relation : Setup.t -> Pioasm.Program.t -> t -> unit Or_error.t
 
-(** The words the core takes in place of one PIO tx word, as [contract] says. *)
+(** The words the core takes in place of one PIO tx word, per [contract]. *)
 val tx_words : Setup.t -> t -> int -> int list

@@ -1,11 +1,12 @@
-(** How a translated program keeps a PIO program's time, and a checker of it that trusts
-    neither the translator nor its layout. Each PIO step has markers, [wait t+] words
-    whose release is the step's first PIO cycle. From every marker, every path must take
-    [per_cycle] [wait t+]s for each of the step's PIO cycles, make the step's pin write or
-    sample the cycle after the marker (a [jmp pin] after a side-set nop, the cycle after
-    that), and reach a marker of a step the PIO can go to next. A stall re-anchors [t] at
-    its release. So once the kernel certifies that every [wait t+] releases on time, a PIO
-    cycle takes [per_cycle] times [p] cycles here. *)
+(** How a translated program keeps a PIO program's timing, and a checker that trusts
+    neither the translator nor its layout. Each PIO step has markers, which are [wait t+]
+    words that release on the step's first PIO cycle. Every path from a marker must
+    - take [per_cycle] [wait t+]s for each PIO cycle of the step,
+    - write or sample the step's pins one cycle after the marker (two cycles for a
+      [jmp pin] after a side-set nop), and
+    - reach a marker of a step the PIO can go to next.
+    A stall re-anchors [t] at its release. So once the kernel certifies that every
+    [wait t+] releases on time, a PIO cycle takes [per_cycle] times [p] cycles here. *)
 
 open! Core
 open Protocol_emulator
@@ -14,8 +15,8 @@ module Site : sig
   type t =
     | Pc of int
     | Exec of
-        { entry : int (** In the exec table. *)
-        ; return : int (** Where the machine goes on after it. *)
+        { entry : int (** Index in the exec table. *)
+        ; return : int (** Where the machine goes afterwards. *)
         }
   [@@deriving sexp_of, compare, equal, hash]
 end
@@ -23,7 +24,7 @@ end
 module Step : sig
   type t =
     { site : Site.t
-    ; side : int (** The side-set pins' value on the way in, as PIO writes it. *)
+    ; side : int (** The side-set pin value on entry, as PIO writes it. *)
     ; markers : int list
     }
   [@@deriving sexp_of]
@@ -31,16 +32,16 @@ end
 
 type t =
   { period : int
-  ; per_cycle : int (** [wait t+]s a PIO cycle. *)
+  ; per_cycle : int (** [wait t+]s per PIO cycle. *)
   ; steps : Step.t list
   ; entry : Site.t
   ; side_init : int
   ; side_by_set : bool
-  (** Side-set comes by [set], as it shares pins with [out]; each a write of its own. *)
+  (** Side-set is done with [set] because it shares pins with [out], one write each. *)
   }
 [@@deriving sexp_of]
 
-(** The address after [pc], with [.wrap] taken as PIO takes it. *)
+(** The address after [pc], applying [.wrap] as PIO does. *)
 val following : Pioasm.Program.t -> int -> int
 
 val instruction
@@ -49,18 +50,18 @@ val instruction
   -> Site.t
   -> Pioasm.Instruction.t
 
-(** The PIO cycles a step takes when it does not stall. *)
+(** The PIO cycles a step takes when it doesn't stall. *)
 val cycles : Pioasm.Instruction.t -> int
 
-(** The sites a step can go to. *)
+(** The sites a step can go to next. *)
 val successors
   :  Pioasm.Program.t
   -> exec:Pioasm.Instruction.t array
   -> Site.t
   -> Site.t list
 
-(** Checks every path from every marker, and that the prologue reaches the entry step. A
-    direction bit is complemented when [dirs_inverted]. *)
+(** Checks every path from every marker, and that the prologue reaches the entry step.
+    Direction bits are inverted when [dirs_inverted]. *)
 val check
   :  Pioasm.Program.t
   -> exec:Pioasm.Instruction.t array

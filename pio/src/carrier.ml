@@ -13,7 +13,7 @@ let pin name =
     .pin
 ;;
 
-(* spi_cpha0_cs's side-set is SCK, then CSn *)
+(* spi_cpha0_cs side-sets SCK, then CSn *)
 let () =
   if pin "OUT6" <> pin "OUT5" + 1
   then raise_s [%message "BUG: the carrier's flash CS is not the pin after its CLK"]

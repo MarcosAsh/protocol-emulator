@@ -177,7 +177,7 @@ let strip_comment line =
 
 let keyword token = String.lowercase token
 
-(* Recursive descent over [+ - * /], parentheses and names. *)
+(* Recursive descent parser for [+ - * /], parentheses and names. *)
 let eval ~lookup tokens =
   let rec expr tokens =
     let%bind.Or_error value, rest = term tokens in
@@ -259,7 +259,7 @@ let split_modifiers tokens =
          ~equal:String.equal))
 ;;
 
-(* [side e] and [[e]] in either order. *)
+(* [side e] and [[e]], in either order *)
 let rec modifiers ~eval ~side ~delay = function
   | [] -> Ok (side, delay)
   | "[" :: rest ->
@@ -442,7 +442,7 @@ let instruction_of_tokens ~side_set ~eval ~label tokens =
   instruction
 ;;
 
-(* A line after comments are stripped, with any leading label split off. *)
+(* A line with comments stripped and any leading label split off. *)
 module Line = struct
   type t =
     { number : int
