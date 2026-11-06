@@ -4,7 +4,6 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.triggers import ClockCycles, FallingEdge, RisingEdge
 
-import random
 import sys
 
 sys.path.insert(0, "../python")
@@ -312,16 +311,6 @@ async def test_i2c_start_watch(dut):
     assert [v - s for s, v in zip(starts, verdicts)] == [pad_latency] * 2, (starts, verdicts)
     assert len(verdicts) == 2, verdicts
     assert (await host.read(STATUS))[0] & 0x3D == 0, "running, no fault"
-
-
-def quiet_runs(settings, seed, count=40):
-    """Seeded runs of the pin from min_run to about twice the window, a third of them as
-    short as allowed so some edges come just after another."""
-    rng = random.Random(seed)
-    shortest = settings["min_run"]
-    longest = 2 * (settings["latency"] + settings["jitter"] + PAD_DELAY)
-    return [rng.randint(shortest, shortest + 2) if rng.random() < 1 / 3
-            else rng.randint(shortest, longest) for _ in range(count)]
 
 
 async def refused_watch(dut, name, pc):

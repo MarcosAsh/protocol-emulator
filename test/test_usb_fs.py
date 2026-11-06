@@ -167,7 +167,7 @@ class Bus:
         await self.idle(100)
 
 
-async def control(bus, address, setup, out_data=False):
+async def control(bus, address, setup):
     """A control transfer, retrying each NAKed IN as a host does; the data read, or the
     PID the device ended it with."""
     reply = await bus.transaction(token(SETUP, address, 0), data_packet(DATA0, setup))
