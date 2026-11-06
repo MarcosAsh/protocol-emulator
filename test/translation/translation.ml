@@ -11,8 +11,8 @@ module Verilog = struct
     ; inits : (string * Jsonaf.t) list String.Map.t
     }
 
-  (* each module but a black box, with the [init] attribute Yosys gives a reg declared
-     with a value: a number, or bits when not 32 or fewer and all 0 or 1 *)
+  (* each module except black boxes, with the [init] attribute Yosys gives a reg declared
+     with a value: a number, or bits when it isn't 32 bits or fewer of all 0s and 1s *)
   let attributes json =
     let%map.Or_error json = Jsonaf.parse json in
     Jsonaf.member_exn "modules" json
@@ -91,7 +91,8 @@ let named signal name =
   signal
 ;;
 
-(* Yosys takes an asynchronous reset through inverters, as [x] low rather than [~x] high *)
+(* Yosys takes an asynchronous reset through inverters, so it appears as [x] low rather
+   than [~x] high *)
 let rec through_inverters (reset : Signal.t) (level : Level.t) =
   match reset with
   | Not { arg; _ } -> through_inverters arg (if Level.equal level High then Low else High)
@@ -99,8 +100,8 @@ let rec through_inverters (reset : Signal.t) (level : Level.t) =
   | _ -> reset, level
 ;;
 
-(* [circuit] rebuilt in the form [Translation] describes; [name] is a flop's or memory's
-   Verilog name *)
+(* Rebuilds [circuit] in the form the [Translation] interface describes. [name] gives a
+   flop's or memory's Verilog name. *)
 let flops circuit ~name =
   let built = Hashtbl.create (module Uid) in
   let memories = Hashtbl.create (module Uid) in
@@ -135,7 +136,7 @@ let flops circuit ~name =
       then raise_s [%message "undriven wire" (signal : Signal.t)];
       Signal.input (List.hd_exn (Signal.names signal)) (Signal.width signal)
     | Reg { register = { clock; reset; clear; enable; initialize_to }; d; _ } ->
-      (* the flop's output first: [d] may read it *)
+      (* make the flop's output first, since [d] may read it *)
       let q = Signal.wire (Signal.width signal) in
       Hashtbl.set built ~key:(Signal.uid signal) ~data:q;
       let enabled =
@@ -174,7 +175,7 @@ let flops circuit ~name =
         { instantiation = { circuit_name; instance_label; parameters; inputs; outputs; _ }
         ; _
         } ->
-      (* the instance first: a path may leave it and come back *)
+      (* make the instance first, since a path may leave it and come back *)
       let wires =
         List.map inputs ~f:(fun { name; input_signal } ->
           name, input_signal, Signal.wire (Signal.width input_signal))
@@ -241,8 +242,8 @@ let regs circuit =
   |> List.sort ~compare:(Comparable.lift Uid.compare ~f:Signal.uid)
 ;;
 
-(* a flop of Yosys's drives a wire with every name its net has; it takes the one the
-   Hardcaml side gave a flop, which must be exactly one *)
+(* A Yosys flop drives a wire with every name its net has. It takes the name the Hardcaml
+   side gave the flop, and there must be exactly one. *)
 let name_flops circuit ~flop_names =
   Circuit.signal_graph circuit
   |> Signal_graph.iter ~f:(fun (signal : Signal.t) ->

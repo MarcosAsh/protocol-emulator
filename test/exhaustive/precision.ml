@@ -1,9 +1,9 @@
 open! Core
 open Protocol_emulator_test
 
-(* [Exhaustive.run] at the bound on the command line, the laptop's by default: jobs, then
-   words, delays, alu steps and set values, each comma-separated. Each job forks and runs
-   a shard. *)
+(* Runs [Exhaustive.run] at the bound given on the command line (the laptop's by default):
+   jobs, then words, delays, alu steps and set values, each comma-separated. Each job
+   forks and runs one shard. *)
 let () =
   let ints s =
     String.split s ~on:','

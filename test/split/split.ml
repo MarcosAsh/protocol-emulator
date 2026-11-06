@@ -1,7 +1,8 @@
 open! Core
 open Protocol_emulator_test
 
-(* Every variant of the firmware named on the command line, or of the whole library. *)
+(* Prints every variant of the firmware named on the command line, or of the whole
+   library. *)
 let () =
   let names = List.tl_exn (Array.to_list (Sys.get_argv ())) in
   let firmware =

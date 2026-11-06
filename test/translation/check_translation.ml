@@ -3,7 +3,8 @@ open! Hardcaml
 open Protocol_emulator
 open Protocol_emulator_test
 
-(* Sec runs the solver it calls z3, from the path, with the DIMACS file last *)
+(* Sec runs a solver it calls z3, found on the PATH, with the DIMACS file as the last
+   argument *)
 let z3_command =
   Command.basic
     ~summary:"Answer as z3 -dimacs, from cadical, UNSAT only once cake_lpr checks it"
@@ -38,7 +39,7 @@ let checked_z3_on_path () =
   at_exit (fun () ->
     Core_unix.unlink z3;
     Core_unix.rmdir dir);
-  (* one domain, before anything reads the environment *)
+  (* single domain, and before anything reads the environment *)
   (Core_unix.putenv [@alert "-unsafe_multidomain"])
     ~key:"PATH"
     ~data:(dir ^ ":" ^ Sys.getenv_exn "PATH")

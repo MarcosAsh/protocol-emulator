@@ -1,12 +1,12 @@
-(** Each module of the circuit the tests simulate, checked equal to the same module of a
-    Verilog file as Yosys reads it, by [Hardcaml_verify.Sec].
+(** Checks each module of the circuit the tests simulate against the same module of a
+    Verilog file (as Yosys reads it) using [Hardcaml_verify.Sec].
 
-    Sec pairs state by name, so the Hardcaml side is rebuilt to the form Yosys gives:
-    clear and enable folded into a flop's [d] (clear first, as Cyclesim), a memory as a
-    flop per word named [mem[i]], an asynchronous reset taken through inverters, and each
-    flop named as the Verilog declares it. Instances pair by label with their ports
-    compared, so the modules compose to the chip. Sec ignores initial values, compared
-    here apart. *)
+    Sec pairs state by name, so the Hardcaml side is rebuilt into the form Yosys gives:
+    clear and enable are folded into a flop's [d] (clear first, as Cyclesim does), a
+    memory becomes one flop per word named [mem[i]], an asynchronous reset goes through
+    inverters, and each flop takes the name the Verilog declares. Instances pair by label
+    and their ports are compared, so the modules compose to the whole chip. Sec ignores
+    initial values, so they are compared separately. *)
 
 open! Core
 open! Hardcaml
@@ -14,11 +14,11 @@ open! Hardcaml
 module Verilog : sig
   type t
 
-  (** [files] through Yosys with [lib] as black boxes: [proc -norom] keeps case statements
-      as logic, [memory_map] makes each memory word a flop. *)
+  (** Reads [files] through Yosys with [lib] as black boxes. [proc -norom] keeps case
+      statements as logic, and [memory_map] turns each memory word into a flop. *)
   val read : files:string list -> lib:string list -> top:string -> t Or_error.t
 
-  (** Every module but the black boxes. *)
+  (** Every module except the black boxes. *)
   val modules : t -> string list
 end
 

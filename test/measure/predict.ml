@@ -1,8 +1,8 @@
 open! Core
 open Protocol_emulator_test
 
-(* A bench copy's run at its clock with every edge its datasheet limits bound, for
-   demo/margins.py to hold a capture of the bench against. *)
+(* Prints a bench copy's run at its clock, with every edge its datasheet limits bound.
+   demo/margins.py holds a bench capture against it. *)
 let () =
   match Sys.get_argv () with
   | [| _; name |] ->

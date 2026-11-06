@@ -2,8 +2,8 @@ open! Core
 open Hardcaml_verify
 open Protocol_emulator_test
 
-(* [Basic_gates] with each and and each not made once, across both graphs: what the mutant
-   shares with the original is then the same gates, and SAT sees only the cone the
+(* [Basic_gates] with each and and each not made only once across both graphs. What the
+   mutant shares with the original is then the same gates, so SAT only sees the cone the
    mutation reaches. *)
 module Gates = struct
   let ands = Hashtbl.create (module String)
@@ -25,8 +25,8 @@ module Gates = struct
   ;;
 end
 
-(* ASCII AIGER as src/aig.ml writes it: the ands in order, a bit [name[i]], or [name] when
-   one wide *)
+(* ASCII AIGER as src/aig.ml writes it: the ands in order, a bit as [name[i]], or [name]
+   when the port is one bit wide *)
 module Aiger = struct
   type t =
     { inputs : (int * string) list
@@ -75,8 +75,8 @@ let widths bits =
     Map.update widths name ~f:(fun w -> Int.max (index + 1) (Option.value w ~default:0)))
 ;;
 
-(* each port's bits msb first, and the gates of each output port; the inputs are made once
-   for both graphs, and a port of another width in one of them is refused *)
+(* each port's bits msb first, and the gates of each output port. The inputs are made once
+   for both graphs, and a port that has a different width in one of them is refused *)
 let inputs = Hashtbl.create (module String)
 
 let build (aiger : Aiger.t) =
@@ -112,9 +112,9 @@ let build (aiger : Aiger.t) =
         List.Assoc.find_exn outputs (key, data - 1 - k) ~equal:[%equal: string * int]))
 ;;
 
-(* [assume] over the inputs: (and f ..), (or f ..), (not f), (implies f g), or a compare
-   ([=] [<>] [<] [<=] [>] [>=], unsigned) of two ports, slices [(select port hi lo)] or
-   numbers, a number taking the other side's width *)
+(* [assume] over the inputs: (and f ..), (or f ..), (not f), (implies f g), or an unsigned
+   compare ([=] [<>] [<] [<=] [>] [>=]) of two ports, slices [(select port hi lo)] or
+   numbers. A number takes the other side's width. *)
 let rec formula (sexp : Sexp.t) =
   let open Comb_gates in
   let all ~f = function
@@ -154,7 +154,7 @@ let rec formula (sexp : Sexp.t) =
   | _ -> raise_s [%message "not a formula" (sexp : Sexp.t)]
 ;;
 
-(* a line each, for test/mutate.py's report *)
+(* one line each, for test/mutate.py's report *)
 let print_line sexp = print_endline (Sexp.to_string sexp)
 
 let answer name claim ~show =

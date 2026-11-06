@@ -270,8 +270,6 @@ module Rx = struct
     ({ clocking; enable = enable_top; config; rxd } : _ I.t)
     =
     let spec = Clocking.to_spec clocking in
-    (* Register a few times to clean up any possible metastability. *)
-    (* let%hw rxd = reg spec (reg spec (reg spec rxd)) in *)
     let%hw.Always.State_machine sm_top =
       Always.State_machine.create (module State_top) spec
     in

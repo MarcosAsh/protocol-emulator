@@ -1,10 +1,10 @@
 open! Core
 open Protocol_emulator_test
 
-(* A bench copy's datasheet limits measured on a capture's edges, as demo/edges.py writes
-   them, from stdin. Exits 1 if one fails. Every level on the line counts, the far end's
-   too, so the capture should be of the copy's own run, its [Bench.stimulus]: a host's
-   inhibit or the idle between bursts reads as a long low or high. *)
+(* Measures a bench copy's datasheet limits on a capture's edges, read from stdin in the
+   format demo/edges.py writes. Exits 1 if any limit fails. Every level on the line
+   counts, including the far end's, so capture the copy's own run ([Bench.stimulus]). A
+   host's inhibit or the idle between bursts would read as a long low or high. *)
 let () =
   match Sys.get_argv () with
   | [| _; name |] ->
