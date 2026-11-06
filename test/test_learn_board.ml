@@ -1,11 +1,11 @@
 open! Core
 open Protocol_emulator
 
-(* The OCaml half of each learn demo's witness in test/board/learn_*/,
-   demo/learn_witness.py the sigrok half: what the chip recorded is learned again here and
-   must give the firmware the board ran, and the analyser's and Pico B's edges of the
-   chip's speech must read back as the message sent. Each has teeth: the speech with two
-   edges taken out must read otherwise, and the recording a tenth slower must give other
+(* The OCaml half of each learn demo's witness in test/board/learn_*/
+   (demo/learn_witness.py is the sigrok half). What the chip recorded is learned again
+   here and must give the firmware the board ran. The analyser's and Pico B's edges of the
+   chip's speech must read back as the message sent. Each has teeth: with two edges taken
+   out the speech must read otherwise, and a recording a tenth slower must give other
    firmware. *)
 
 let read dir name = In_channel.read_all (dir ^/ name)
@@ -35,8 +35,8 @@ let read_back t edges =
   | Ok frames -> List.map frames ~f:(fun f -> bits_string f.bits)
 ;;
 
-(* Each chip edge less the analyser's same edge, after the offset and the two crystals'
-   ratio are fitted, in microseconds. *)
+(* Each chip edge minus the analyser's matching edge, in microseconds, once the offset and
+   the ratio between the two crystals are fitted. *)
 let referee (chip : Recording.t) (analyser : Recording.t) =
   List.map chip.lines ~f:(fun (line : Recording.Line.t) ->
     match Recording.find analyser line.name with
@@ -75,8 +75,8 @@ let referee (chip : Recording.t) (analyser : Recording.t) =
         ((ratio -. 1.) *. 1e6))
 ;;
 
-(* The learned line with the two edges from the i-th taken out, at i of n: a mark or space
-   gone, two bits run into one. *)
+(* The learned line with two edges removed starting at the i-th (i of n), which drops a
+   mark or space and merges two bits. *)
 let without_two (t : Learn.t) (r : Recording.t) ~at =
   { r with
     lines =
@@ -91,8 +91,8 @@ let without_two (t : Learn.t) (r : Recording.t) ~at =
   }
 ;;
 
-(* The recording a tenth slower: every time learned from it, so the firmware too, must
-   change. *)
+(* The recording a tenth slower: every time learned from it must change, and so must the
+   firmware. *)
 let slowed (r : Recording.t) =
   let later e = e + (e / 10) in
   { r with

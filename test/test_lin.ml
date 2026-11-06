@@ -1,14 +1,15 @@
 open! Core
 open Protocol_emulator
 
-(* what the analyser and the kernel make of the firmware, which compiling it checked *)
+(* The analyser and kernel verdicts on the firmware (it already compiles). *)
 let%expect_test "the firmware's verdict" =
   print_endline (Analyser.Verdict.to_string (Timed_program.verdict Lin.firmware));
   [%expect {| 60 words, 17 deadline waits, worst slack 13 |}]
 ;;
 
-(* Table 2.4 (p. 54): 0x16 is 0xD6, 0x3B 0xFB. Table 2.5 (p. 55): 0x4A, 0x55, 0x93, 0xE5
-   sum to 0x19, checksum 0xE6; the same with the first byte a PID. *)
+(* Table 2.4 (p. 54): 0x16 maps to 0xD6 and 0x3B to 0xFB. Table 2.5 (p. 55): 0x4A, 0x55,
+   0x93, 0xE5 sum to 0x19, so the checksum is 0xE6. Same again with the first byte as a
+   PID. *)
 let%expect_test "pid and enhanced checksum" =
   let pids = List.map [ 0x16; 0x3b ] ~f:Lin.pid in
   [%test_result: int list] pids ~expect:[ 0xd6; 0xfb ];
@@ -16,9 +17,9 @@ let%expect_test "pid and enhanced checksum" =
   [%expect {| |}]
 ;;
 
-(* The master against the slave model, a cycle at a time at [bit] cycles a bit and the
-   slave at [slave_bit], the host taking each word as it comes: what the slave read,
-   measured and found wrong. *)
+(* Runs the master against the slave model cycle by cycle, at [bit] cycles per bit and the
+   slave at [slave_bit], with the host taking each word as it comes. Returns what the
+   slave read, what it measured, and what it found wrong. *)
 let run ?(slave_bit = Fn.id) ~bit ~id ~data () =
   let pin = Lin.pin in
   let machine =

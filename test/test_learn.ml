@@ -11,8 +11,8 @@ let bits_string bits =
   |> String.of_char_list
 ;;
 
-(* What was learned, without the frames, then the new message and its firmware, run on the
-   model and read back. *)
+(* Prints what was learned (without the frames), then runs the new message and its
+   firmware on the model and reads it back. *)
 let show ?(speak = true) name =
   match Learn.learn (recording name) with
   | Error e -> print_s [%message (e : Error.t)]
@@ -294,7 +294,7 @@ let crc_rule random ~bits =
   |> fun rule -> Option.some_if (bits >= 24) rule
 ;;
 
-(* A protocol of [shape], eight frames of random bits under it, and its recording. *)
+(* A protocol of [shape], with eight frames of random bits and its recording. *)
 let synthetic random (shape : Shape.t) =
   let r lo hi = lo + Random.State.int random (hi - lo + 1) in
   let float lo hi = lo +. Random.State.float random (hi -. lo) in
@@ -321,8 +321,8 @@ let synthetic random (shape : Shape.t) =
       let hidden_half = Random.State.bool random in
       let bits = r 12 32 in
       ( Manchester
-          { (* the first bit is a 1, and after a leader's space a 1 that started idle
-               would read as a longer space and a hidden half, as RC-5's *)
+          { (* the first bit is a 1. After a leader's space, a 1 that started idle would
+               read as a longer space and a hidden half, as in RC-5 *)
             one_starts_active = not hidden_half
           ; wide = (if Random.State.bool random then Some (r 2 (bits - 2)) else None)
           ; hidden_half
@@ -396,8 +396,8 @@ let crc_poly (t : Learn.t) =
     | _ -> None)
 ;;
 
-(* The learned protocol's firmware, which the kernel must accept at the chip's clock, and
-   for a few, run on the model at 4 MHz to keep it short and read back. *)
+(* The learned protocol's firmware must pass the kernel at the chip's clock. A few are
+   also run on the model at 4 MHz (to keep it short) and read back. *)
 let speaks ~simulate (learned : Learn.t) frames =
   let pins =
     match learned.coding with
@@ -473,7 +473,7 @@ let%expect_test "random protocols of every shape, learned from their recordings"
     |}]
 ;;
 
-(* Recordings that hold no protocol, or too little to say, must be answered so. *)
+(* Recordings with no protocol, or too little to tell, must be answered as such. *)
 
 let%expect_test "noise, a square wave and a clock alone are unknown" =
   let random = Random.State.make [| 7 |] in

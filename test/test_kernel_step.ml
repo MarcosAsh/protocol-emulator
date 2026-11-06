@@ -35,7 +35,7 @@ let edge ~since ~fresh =
 ;;
 
 (* The step's capture state and the pair's edges from one word, at a phase of -100 and an
-   arm count of 10; what formal/edge_step.sv and phase_step.sv prove of the RTL. *)
+   arm count of 10. This is what formal/edge_step.sv and phase_step.sv prove of the RTL. *)
 let%expect_test "the step's capture and edge state" =
   let step ~source ~arm_known ~captured ~awaiting ~a ~b =
     let s =
@@ -137,8 +137,8 @@ let%expect_test "the step's capture and edge state" =
     |}]
 ;;
 
-(* An instruction's cycles, up to [1 lsl Isa.delay_bits], need 7 bits, and a pin's count
-   saturates at 16 bits however narrow the timer. *)
+(* An instruction's cycle count (up to [1 lsl Isa.delay_bits]) needs 7 bits, and a pin's
+   count saturates at 16 bits however narrow the timer is. *)
 let%expect_test "the narrowest timer the kernel takes" =
   List.iter [ 6; 7 ] ~f:(fun timer_bits ->
     let since =
@@ -189,9 +189,9 @@ let%expect_test "the narrowest timer the kernel takes" =
     |}]
 ;;
 
-(* Pin a after one word that would set it to 1, out and mov data being 1: only pins the
-   core can drive move, inputs never and directions only on bidirectionals, and a run of
-   pins wraps at the pin space. *)
+(* Pin a after one word that would set it to 1 (out and mov data are 1). Only pins the
+   core can drive move: inputs never do, directions only change on bidirectionals, and a
+   run of pins wraps at the pin space. *)
 let%expect_test "which pins a word writes" =
   let default = Program_config.default in
   List.iter

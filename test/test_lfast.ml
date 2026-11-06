@@ -1,14 +1,14 @@
 open! Core
 open Protocol_emulator
 
-(* what the analyser and the kernel make of the firmware, which compiling it checked *)
+(* The analyser and kernel verdicts on the firmware (it already compiles). *)
 let%expect_test "the firmware's verdict" =
   print_endline (Analyser.Verdict.to_string (Timed_program.verdict Lfast.firmware));
   [%expect {| 64 words, 27 deadline waits, worst slack 6 |}]
 ;;
 
-(* The line, level by level with the cycles each lasted, for one host word: what to hold
-   against the spec's frame in Figure 2. *)
+(* The line for one host word, as levels with the cycles each lasted. Compare it with the
+   spec's frame in Figure 2. *)
 let%expect_test "the line for one host word" =
   let machine =
     Machine.create
@@ -38,8 +38,7 @@ let%expect_test "the line for one host word" =
 ;;
 
 (* The far end: a receiver that finds each frame's first rising edge on the idle-low line
-   and samples every bit in the middle of its period, as the spec's receiver does from the
-   sync pattern. *)
+   and samples every bit mid-period, as the spec's receiver does from the sync pattern. *)
 module Far_end = struct
   type frame =
     { sync : int

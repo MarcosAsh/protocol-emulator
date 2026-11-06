@@ -49,10 +49,11 @@ module Walk = struct
   ;;
 end
 
-(* The checker over each walk's [words] and [certificate] in turn, one simulation, the
-   program memory answering a cycle after an address and the data memory two, the latest
-   either engine's turn gives. With [rewrite_at], the host writes a different setup that
-   many cycles into a walk; with a walk's [abort_at], it aborts it that many cycles in. *)
+(* Runs the checker over each walk's [words] and [certificate] in turn, in one simulation.
+   Program memory answers one cycle after an address and data memory two (the latest
+   either engine's turn gives). With [rewrite_at] the host writes a different setup that
+   many cycles into a walk, and with a walk's [abort_at] it aborts the walk that many
+   cycles in. *)
 let run_walks ?random_initial_state ?rewrite_at (walks : Walk.t list) =
   Harness.run
     ?random_initial_state
@@ -177,7 +178,7 @@ let show = function
   | `Rejected (pc, code) -> sprintf "refused at %d, reason %d" pc code
 ;;
 
-(* a firmware's walk, its table's rows changed by [edit] before the host certifies it *)
+(* a firmware's walk, with its table's rows changed by [edit] before the host certifies it *)
 let walk_of ?(edit = Fn.id) name =
   let case =
     List.find_exn Firmware_inventory.all ~f:(fun c -> String.equal c.name name)
@@ -202,7 +203,7 @@ let edit_row pc ~f (table : Kernel.Table.t) =
   table
 ;;
 
-(* the model's verdict on a walk; it has no abort *)
+(* the model's verdict on a walk (it has no abort) *)
 let walk_model (w : Walk.t) =
   let memory = Walk.memory w in
   Load_check.walk
@@ -217,7 +218,8 @@ let walk_model (w : Walk.t) =
   |> expected
 ;;
 
-(* each walk's verdict, one simulation, after a MISMATCH where the model's differs *)
+(* Prints each walk's verdict from one simulation, prefixed with MISMATCH where the
+   model's differs. *)
 let print_walks ?random_initial_state walks =
   List.iter2_exn walks (run_walks ?random_initial_state walks) ~f:(fun w (verdict, _) ->
     let model = walk_model w in
@@ -226,8 +228,8 @@ let print_walks ?random_initial_state walks =
     print_endline (show verdict))
 ;;
 
-(* The hardware against [Load_check.walk] on every firmware: the same verdict, at the same
-   pc, for the same conjunct. *)
+(* The hardware against [Load_check.walk] on every firmware: same verdict, same pc, same
+   conjunct. *)
 let%expect_test "the checker agrees with the model on every firmware" =
   printf "%-26s %7s  %s\n" "firmware" "cycles" "verdict";
   List.iter Firmware_inventory.all ~f:(fun case ->
@@ -381,9 +383,9 @@ let%expect_test "the checker agrees with the model on every firmware" =
     |}]
 ;;
 
-(* One word of the certificate or of the program changed at random, from a random initial
-   state: whatever the model makes of it, accepting or refusing where and why, so does the
-   checker. *)
+(* Change one random word of the certificate or program, from a random initial state. The
+   checker must accept or refuse exactly as the model does, at the same place and for the
+   same reason. *)
 let%expect_test "the checker agrees with the model on corrupted certificates" =
   let cases =
     List.filter Firmware_inventory.all ~f:(fun c ->
@@ -442,10 +444,10 @@ let%expect_test "the checker agrees with the model on corrupted certificates" =
 ;;
 
 (* A one-word corruption of a firmware for each reason a random search over six firmwares
-   found the model refusing for, under the setup given, then for the reasons it did not, a
-   row marked captured or awaiting where no way into it can be: all walked in one
-   simulation, each verdict as the model's, and each refusal's flags cleared by the walk
-   after it. *)
+   found the model refusing for, under the setup given. Then come the reasons the search
+   didn't find, such as a row marked captured or awaiting where no way into it can be. All
+   are walked in one simulation, each verdict must be the model's, and each refusal's
+   flags are cleared by the walk after it. *)
 let%expect_test "a refusal for every reason found, one walk after another" =
   let corruptions =
     (* firmware, in the program (or the certificate), at, value, loaded, floor, single
@@ -517,8 +519,8 @@ let%expect_test "a refusal for every reason found, one walk after another" =
     |}]
 ;;
 
-(* The setup is the one the host wrote before the check: writing another mid-walk, from
-   the first cycle to the last, leaves every verdict as it was. *)
+(* The setup is the one the host wrote before the check. Writing another mid-walk, at any
+   cycle from first to last, leaves every verdict unchanged. *)
 let%expect_test "a setup written during a walk does not reach it" =
   let cases =
     List.filter Firmware_inventory.all ~f:(fun c ->
@@ -564,13 +566,13 @@ let%expect_test "a setup written during a walk does not reach it" =
     |}]
 ;;
 
-(* Walks at the edges of what a host sets up, one simulation: a certificate at the top of
-   memory, wrapping to its bottom, then at 0; a side-set count of 3, which only the host
-   can write; a loaded period of 0x5a5; a row with an arm no way into it reaches, which
-   only a dictionary holds, and the same arm in a row only a jump reaches, so the walk
-   holds it; 170 jumps, each to the next, so the search and the entry pointer pass 128 and
-   the certificate fills all 512 words; and, after a refusal at a stored row, a program
-   wrapping at pc 0. *)
+(* Walks at the edges of what a host can set up, all in one simulation: a certificate at
+   the top of memory, wrapping to its bottom, then at 0. A side-set count of 3, which only
+   the host can write. A loaded period of 0x5a5. A row with an arm that no way into it
+   reaches (only a dictionary holds it), and the same arm in a row only a jump reaches (so
+   the walk holds it). 170 jumps, each to the next, so the search and the entry pointer
+   pass 128 and the certificate fills all 512 words. And, after a refusal at a stored row,
+   a program wrapping at pc 0. *)
 let%expect_test "walks at the edges of the setup" =
   let uart_tx = walk_of "uart_tx" in
   let host_rate = walk_of "uart_tx_host_rate" in
@@ -644,8 +646,9 @@ let%expect_test "walks at the edges of the setup" =
     |}]
 ;;
 
-(* An abort on each of a walk's first 200 cycles, so in every state it passes through,
-   refuses it as aborted at the pc it reached; the walk after them is as the model's. *)
+(* Abort a walk at each of its first 200 cycles. In every state it passes through, the
+   abort must refuse it as aborted at the pc it reached. The walk after each abort matches
+   the model. *)
 let%expect_test "an abort refuses a walk wherever it is" =
   let walk = walk_of "i2c_master" in
   let aborted = List.init 200 ~f:(fun n -> { walk with abort_at = Some (n + 1) }) in

@@ -15,7 +15,8 @@ let usb_reference bits =
     level, level)
 ;;
 
-(* CAN: the complement after five of a level, the stuffed bit counting toward the next *)
+(* CAN: after five bits of a level, the complement is stuffed and counts toward the next
+   run *)
 let can_reference bits =
   let rec stuff ~last ~run = function
     | [] -> []
@@ -28,8 +29,8 @@ let can_reference bits =
   stuff ~last:0 ~run:0 bits
 ;;
 
-(* The first pin a transmit table drives, with the firmware flipping it for the stuffed
-   bit where [flag] asks, and what a receive table makes of a line: [Machine]'s rules
+(* The first pin a transmit table drives (the firmware flips it for the stuffed bit where
+   [flag] asks), and what a receive table makes of a line. This is [Machine]'s rules
    written out for one pin. *)
 let transmitted (table : Line_code.t) bits =
   let level = ref 0 in
@@ -81,7 +82,7 @@ let%expect_test "the USB and CAN tables code as the standards do, and decode bac
   [%expect {| ((!stuffed_usb 59) (!stuffed_can 105)) |}]
 ;;
 
-(* one table, each side from its own start, codes as the two did apart *)
+(* one table, each side from its own start, coding as the two did separately *)
 let%expect_test "the combined tables code and decode as the separate ones" =
   let shifted_receive (table : Line_code.t) levels =
     let last = ref 0 in
@@ -151,7 +152,7 @@ let%expect_test "a table is sixteen words, a state's two entries in each, and th
 let dp = Isa.first_output_pin
 let line_in = 4
 
-(* D+ and D- from J, a bit every eight cycles; the stuffed zero flips the pair *)
+(* D+ and D- start from J, one bit every eight cycles. The stuffed zero flips the pair. *)
 let usb_transmitter =
   {|
     set pins, 2              ; J
@@ -272,7 +273,7 @@ let%expect_test "the receive table on the core takes the stuffed zeros out" =
 ;;
 
 (* Both sides on one engine with one table, as USB's turnaround needs: three bytes out on
-   D+ and D- (bidirectional pins), let go of the pair, then five bytes in from D+, a bit
+   D+ and D- (bidirectional pins), release the pair, then five bytes in from D+, one bit
    every ten cycles. *)
 let usb_both =
   {|
@@ -369,7 +370,7 @@ let%expect_test "one engine sends and receives USB through one table" =
     |}]
 ;;
 
-(* Random words, a third of them the ones the add-ons act on: single-bit [in pins] and
+(* Random words, a third of them ones the add-ons act on: single-bit [in pins] and
    [out pins], [jmp stuff], [stuff_reset], [capture_arm], waits on the capture pin, loads
    of [p] and its uses as a period. *)
 let program random ~(config : Program_config.t) =
@@ -399,8 +400,8 @@ let program random ~(config : Program_config.t) =
     else Random_program.word random ~side_set_count:config.side_set_count)
 ;;
 
-(* Random programs under random configurations, with the table on and random words in it,
-   and random premises: the core and the model stay together cycle by cycle. *)
+(* Random programs under random configurations, with the table on, random words in it and
+   random premises. The core and the model must agree every cycle. *)
 let%expect_test "random programs through random tables" =
   let random = Splittable_random.of_int 11 in
   let int hi = Splittable_random.int random ~lo:0 ~hi in
@@ -441,7 +442,7 @@ let%expect_test "random programs through random tables" =
         if m.line_tx <> 0 || m.line_rx <> 0 then saw_step := true;
         if m.line_flag then saw_flag := true
       in
-      (* the pins hold for a few cycles at a time, so edges and levels both last *)
+      (* hold the pins for a few cycles at a time, so edges and levels both last *)
       let pins = ref 0 in
       let inputs _ =
         if int 3 = 0 then pins := int ((1 lsl Isa.pin_space) - 1);

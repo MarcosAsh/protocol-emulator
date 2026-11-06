@@ -1,12 +1,12 @@
 open! Core
 open Protocol_emulator
 
-(* The library's firmware taken as what an unchecked generator wrote: a protocol file's
-   string, the ppx, the table compiler. Each deadline wait, given one cycle of [nop] more
-   than its slack, is reached late on its worst path, and the kernel has to refuse it, so
-   a slip in whatever wrote the firmware costs a refusal and never a late edge. Given its
-   slack exactly, the wait is still on time. A mutant past program memory never reaches
-   the check, so it is counted apart from the refusals. *)
+(* Treats the library's firmware as if an unchecked generator wrote it (a protocol file's
+   string, the ppx, the table compiler). Give each deadline wait one more [nop] than its
+   slack and it is reached late on its worst path, so the kernel has to refuse it. A slip
+   in whatever wrote the firmware then costs a refusal, never a late edge. With exactly
+   its slack the wait is still on time. A mutant past program memory never reaches the
+   check, so it is counted apart from the refusals. *)
 
 let accepted (c : Certified.t) source =
   let check ?period ?period_floor () =
@@ -23,7 +23,7 @@ let accepted (c : Certified.t) source =
     check ~period_floor:floor ())
 ;;
 
-(* each deadline wait's pc and its least slack, at the period the firmware is certified at *)
+(* each deadline wait's pc and smallest slack, at the period the firmware is certified for *)
 let waits (c : Certified.t) =
   Timed_program.of_source_exn
     ?period:c.period

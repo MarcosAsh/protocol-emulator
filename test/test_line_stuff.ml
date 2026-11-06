@@ -14,9 +14,9 @@ let reference bits =
   |> List.concat
 ;;
 
-(* [stream] through the stuffing with usb_transmit's table as its flag, then the finish
-   and the drain on junk bits, as the firmware runs them: the wire's bits, and each step's
-   count of bits owed *)
+(* Runs [stream] through the stuffing with usb_transmit's table as its flag, then the
+   finish and the drain on junk bits, as the firmware does. Returns the wire's bits and
+   each step's count of bits owed. *)
 let send (h @ local) ~(inputs : _ Line_stuff.I.t) ~outputs ~junk stream =
   (* [sent] as the step takes it, the registers as it leaves them *)
   let (o : _ Line_stuff.O.t) = Before_and_after_edge.before_edge outputs in
@@ -70,10 +70,10 @@ let%expect_test "eight 1s, a 0 and a 1: two bits owed after the stuffing, paid i
     |}]
 ;;
 
-(* Any stream of up to 96 bits, all 1s the most stuffed, from any power-up state once
-   cleared, and junk in the drain: the wire is the reference's stuffing, nothing owed at
-   the end. A second packet after the first starts as the first did. Ninety-six slots owe
-   at most thirteen bits, so the fifteen it can hold are room to spare. *)
+(* Any stream of up to 96 bits (all 1s is the most stuffed), from any power-up state once
+   cleared, with junk in the drain: the wire must match the reference stuffing and nothing
+   is owed at the end. A second packet after the first starts as the first did. 96 slots
+   owe at most 13 bits, so the 15 it can hold leave room to spare. *)
 let%expect_test "the wire is USB's stuffing of the stream, packet after packet" =
   let stream =
     let open Quickcheck.Generator.Let_syntax in

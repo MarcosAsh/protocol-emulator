@@ -12,7 +12,7 @@ let trace ?(cycles = 200) ?(tx = []) source =
   Machine_trace.run machine ~cycles ~tx ~inputs:[]
 ;;
 
-(* The level [to_string] prints for [pin] at each cycle, from its edge lines alone. *)
+(* The level [to_string] prints for [pin] each cycle, rebuilt from its edge lines alone. *)
 let printed_level text ~pin =
   let lines =
     String.split_lines text

@@ -30,8 +30,8 @@ let walk (case : Firmware_inventory.t) ~config ~words ~certificate =
 ;;
 
 (* Each firmware's certificate, as the host would write it, and the chip's verdict on it.
-   Where the walk accepts, the kernel accepts the rows it held, so the run is covered by
-   the kernel's theorem. *)
+   Where the walk accepts, the kernel accepts the rows it held, so the kernel's theorem
+   covers the run. *)
 let%expect_test "every firmware against the chip's walk" =
   printf "%-26s %5s  %5s  %s\n" "firmware" "words" "table" "walk";
   List.iter Firmware_inventory.all ~f:(fun case ->
@@ -198,8 +198,8 @@ let uart_tx =
   List.find_exn Firmware_inventory.all ~f:(fun c -> String.equal c.name "uart_tx")
 ;;
 
-(* What the chip reads is the program in its own memory: a certificate for one program
-   does not pass another, and a table out of order or short refuses. *)
+(* The chip checks the program in its own memory. A certificate for one program doesn't
+   pass another, and a table that's out of order or short is refused. *)
 let%expect_test "the walk refuses what it was not given" =
   let config, words, certificate = certify uart_tx in
   let show what result =
@@ -247,9 +247,9 @@ let%expect_test "the walk refuses what it was not given" =
     |}]
 ;;
 
-(* A floor lets the host load any period from it up, so a certificate made for the period
-   exactly fails under one where the rows hold it to a point, and passes again only where
-   the analyser widened them from the start. *)
+(* A floor lets the host load any period from it up. A certificate made for exactly that
+   period fails when the rows pin it to a point, and passes again only where the analyser
+   widened them from the start. *)
 let%expect_test "a floor certificate's rows, not an exact one's, hold every load above it"
   =
   let case =
@@ -278,9 +278,9 @@ let%expect_test "a floor certificate's rows, not an exact one's, hold every load
     |}]
 ;;
 
-(* USB's device address is in its words, patched at SET_ADDRESS. A certificate for address
-   0 with x and y left whole passes every address's program, so the chip checks a patch
-   against the certificate already in its data memory. *)
+(* USB's device address is in its words and gets patched at SET_ADDRESS. A certificate for
+   address 0, with x and y left whole, passes every address's program, so the chip checks
+   a patch against the certificate already in its data memory. *)
 let%expect_test "one usb certificate serves every address" =
   let config = Usb.device_config in
   let program address =
@@ -315,8 +315,8 @@ let%expect_test "one usb certificate serves every address" =
   [%expect {| (("List.length certificate" 483) (refused ())) |}]
 ;;
 
-(* A program of 510 jumps, each to one of [targets] places: the host refuses to make a
-   certificate longer than the data memory, which the chip would read wrapped. *)
+(* A program of 510 jumps, each to one of [targets] places. The host refuses to make a
+   certificate longer than the data memory, since the chip would read it wrapped. *)
 let%expect_test "a certificate past the data memory's end is refused" =
   List.iter [ 2; 250 ] ~f:(fun targets ->
     let source =

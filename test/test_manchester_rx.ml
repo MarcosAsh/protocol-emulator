@@ -6,7 +6,8 @@ open Expect_test_helpers_core
 open Protocol_emulator
 open Manchester_line
 
-(* The decoder, a cycle at a time, as the RTL has it: what it shows after the edge. *)
+(* Steps the decoder one cycle at a time, as the RTL does, and returns what it shows after
+   the edge. *)
 module Model (Config : Manchester_rx.Config) = struct
   module Rx = Manchester_rx.Make (Config)
 
@@ -153,9 +154,9 @@ let setups =
 ;;
 
 (* Frames of 64 random bytes through the model, at the jitter IEEE 802.3 asks a station to
-   accept (13.5 ns) and around it, the sender 100 ppm fast and slow (the standard allows
-   100). Each cell: intact frames of 40. Jitter is uniform and independent per edge, the
-   worst case for a loop that follows edges. *)
+   accept (13.5 ns) and around it, with the sender 100 ppm fast and slow (the standard
+   allows 100). Each cell counts intact frames out of 40. Jitter is uniform and
+   independent per edge, which is the worst case for a loop that follows edges. *)
 let%expect_test "frames intact under jitter, by sample rate and loop gain" =
   let jitters = [ 0.; 5.; 10.; 13.5; 15. ] in
   printf "%-18s %4s %5s" "sampling" "gain" "ppm";
@@ -203,7 +204,7 @@ let%expect_test "frames intact under jitter, by sample rate and loop gain" =
     |}]
 ;;
 
-(* The chip's: both edges, either clock, gain 1/8. *)
+(* The chip's setting: both edges, either clock, gain 1/8. *)
 let either_clock : (module Setup) =
   (module struct
     let name = "40 or 50 MHz both edges"
@@ -288,9 +289,9 @@ let%expect_test "the RTL follows the model" =
     |}]
 ;;
 
-(* At 40 MHz, the start of frame straight from idle (its first bit is a one, so its first
-   edge is a centre) and an odd byte, which comes out alone in a low half when the carrier
-   goes. The TP_IDL's fall after that is a first edge again, and times out. *)
+(* At 40 MHz: a start of frame straight from idle (its first bit is a one, so its first
+   edge is a centre), and an odd byte, which comes out alone in a low half when the
+   carrier goes. The TP_IDL's fall after that is a first edge again, and times out. *)
 let%expect_test "waveform of a short frame" =
   let module S = (val setup "40 MHz" ~per_bit:4 ~per_cycle:1 ~gain:0) in
   let module M = Model (S) in
@@ -371,7 +372,8 @@ let%expect_test "waveform of a short frame" =
     |}]
 ;;
 
-(* The functor refuses a config it cannot build, one bound at a time past each end. *)
+(* The functor refuses a config it can't build: we go past each end of each bound, one
+   bound at a time. *)
 let%expect_test "configs outside the receiver's range are refused" =
   let refused name ~per_bit ~per_cycle ~gain =
     let module S = struct
