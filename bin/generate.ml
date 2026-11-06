@@ -455,10 +455,17 @@ let set_fields config fields =
       | _ -> None
     in
     List.iter fields ~f:(fun (field, _) ->
-      if not (List.mem (List.filter_map pairs ~f:field_of) field ~equal:String.equal)
-      then raise_s [%message "no such field of the configuration" (field : string)];
       if List.mem from_source field ~equal:String.equal
       then raise_s [%message "the source file sets this field" (field : string)]);
+    let present = List.filter_map pairs ~f:field_of in
+    (* a [@sexp_drop_default] field at its default isn't in [pairs]; t_of_sexp still
+       rejects a name that isn't a field *)
+    let missing =
+      List.filter_map fields ~f:(fun (field, value) ->
+        Option.some_if
+          (not (List.mem present field ~equal:String.equal))
+          (Sexp.List [ Atom field; value ]))
+    in
     List
       (List.map pairs ~f:(fun pair ->
          match field_of pair with
@@ -466,7 +473,8 @@ let set_fields config fields =
          | Some field ->
            List.Assoc.find fields field ~equal:String.equal
            |> Option.value_map ~default:pair ~f:(fun value ->
-             Sexp.List [ Atom field; value ])))
+             Sexp.List [ Atom field; value ]))
+       @ missing)
     |> Program_config.t_of_sexp
 ;;
 
