@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
-# The parts' timing margins on the bench: every point test/python/write_margins.exe lists
-# run on Pico A by python/demo_margins.py while analyser B captures, each repeat judged by
-# what the part did, and the capture measured for what the chip drove and the part answered.
-# A point already in OUT is kept, so a stopped run resumes.
+# Measures the parts' timing margins on the bench. Pico A runs every point that
+# test/python/write_margins.exe lists (python/demo_margins.py) while analyser B captures.
+# Each repeat is judged by what the part did, and the capture is measured for what the chip
+# drove and the part answered. A point already in OUT is kept, so a stopped run can resume.
 # Usage:
 #   PICO=id:<Pico A> ANALYSER_B_PORT=<port> demo/margins.py run MARGINS.json OUT
 #       [--part P] [--parameter X] [--repeats N] [--cycles C,...]
@@ -29,23 +29,23 @@ FILES = ["protocol_emulator.py", "pico_board.py", "bench.py", "bench_firmware.py
 RESET = ["openFPGALoader", "-b", "icepi-zero", "-r"]
 # analyser B's channels, src/bench_wiring.ml
 CHANNEL = {"SK6812": 4, "DS18B20": 5, "SDA": 6, "SCL": 7}
-# A repeat passes when the step from its white frame's reading of ADC channel 3 to the
-# next frame's is within this share of the references' lit-to-dark step: the reading
-# drifts by about that much over a point, the same way for both frames.
+# A repeat passes when the step in ADC channel 3's reading from its white frame to the next
+# frame is within this share of the references' lit-to-dark step. The reading drifts by about
+# that much over a point, the same way for both frames.
 VSYS_SHARE = 0.3
-# below this step in volts the references cannot tell a lit pixel from a dark one
+# below this step (volts) the references can't tell a lit pixel from a dark one
 VSYS_LEAST_STEP = 0.0006
 PATTERNS = [(0x0F, 0xF0, 0x7F), (0xF0, 0x0F, 0x1F)]
 CONFIG_BITS = 0x60
-# python/demo_margins.py's run, milliseconds: START_MS, then a point's work and the
-# references, generous. The capture starts some 0.8 s after mpremote returns and covers
-# the first repeats.
+# python/demo_margins.py's run in ms: START_MS, then a point's work and the references, with
+# some slack. The capture starts about 0.8 s after mpremote returns and covers the first
+# repeats.
 START_MS = 1000
 CAPTURE_MS = 3000
 
 
 def kind(sweep):
-    """How demo_margins.py runs a sweep's points."""
+    """Describes how demo_margins.py runs a sweep's points."""
     part, parameter = sweep["part"], sweep["parameter"]
     if part == "SK6812":
         return "pair" if parameter == "reset" else "single"
@@ -57,7 +57,7 @@ def kind(sweep):
 
 
 def run_ms(sweep, repeats):
-    """The longest a point takes on Pico A from its start, generous."""
+    """Returns the longest a point takes on Pico A from its start, with slack."""
     part = sweep["part"]
     if part == "SK6812":
         return START_MS + 1500 + repeats * 120
@@ -101,8 +101,8 @@ def read_log(pico):
 
 
 def run_point(args, sweep, point, where):
-    """Runs one point under a capture, the chip reset and the point run again once if the
-    run stopped; returns the Pico's dict."""
+    """Runs one point under a capture. If the run stopped, resets the chip and runs the
+    point once more. Returns the Pico's dict."""
     where.mkdir(parents=True, exist_ok=True)
     sr = where / "capture.sr"
     env = dict(os.environ, ANALYSER="B", RATE="24M")
@@ -139,7 +139,7 @@ def crc8(data):
 
 
 def judge(sweep, out, repeats):
-    """Each repeat's pass, and a line on each, from the part's own answers."""
+    """Returns whether each repeat passed, and a line about each, from the part's own answers."""
     part = sweep["part"]
     if "error" in out:
         return [False] * repeats, ["stopped: %s" % out["error"]]
@@ -194,20 +194,20 @@ def judge(sweep, out, repeats):
 
 
 def runs(sr, channel):
-    """Each level the channel held from its first change to its last, as (level, samples)."""
+    """Returns each level the channel held from its first change to its last, as (level, samples)."""
     rate, _, samples = sigrok.read(str(sr))
     at, to = sigrok.edges(samples, channel)
     return rate, [(int(to[i]), int(at[i + 1] - at[i])) for i in range(len(at) - 1)]
 
 
 def near(widths, ns, rate, slack=1.5):
-    """The widths within slack samples of ns, in ns."""
+    """Returns the widths within `slack` samples of ns, in ns."""
     s = ns * rate / 1e9
     return [w * 1e9 / rate for w in widths if abs(w - s) <= slack]
 
 
-# A pulled-up line rises slowly past the analyser's threshold, so a low reads up to a few
-# hundred ns long: on DQ and the I2C pair a width is looked for this far either side.
+# A pulled-up line rises slowly past the analyser's threshold, so a low can read a few
+# hundred ns too long. On DQ and the I2C pair we look for a width this far either side.
 OPEN_DRAIN_SLACK = 12
 
 
@@ -218,8 +218,8 @@ def summary(values):
 
 
 def wire(sweep, point, sr):
-    """What the capture shows: the swept timing's widths near the design, and for the
-    DS18B20 its own presence pulses and held zeros."""
+    """Returns what the capture shows: the swept timing's widths near the design, and for
+    the DS18B20 its own presence pulses and held zeros."""
     part, parameter, ns = sweep["part"], sweep["parameter"], point["ns"]
     if not sr.exists():
         return {"capture": "missing"}
@@ -240,7 +240,7 @@ def wire(sweep, point, sr):
                      if levels[i][0] == 0]
             widths = [hi if parameter == "tREC" else lo + hi for lo, hi in pairs]
             found["on_wire"] = summary(near(widths, ns, rate, OPEN_DRAIN_SLACK))
-        # a presence: a low under 300 us that follows a high under 70 us after a low of
+        # a presence pulse: a low under 300 us, after a high under 70 us, after a low of
         # 400 us or more
         presence = [(levels[i + 1][1] * to_ns, levels[i + 2][1] * to_ns)
                     for i in range(len(levels) - 2)
@@ -249,8 +249,8 @@ def wire(sweep, point, sr):
         if presence:
             found["presence_after"] = summary([a for a, _ in presence])
             found["presence_low"] = summary([b for _, b in presence])
-        # a read zero: the master's 6 us low that the part holds on, in the sweeps whose
-        # lows are all the library's
+        # a read zero: the master's 6 us low that the part holds on, in sweeps where all the
+        # lows are the library's
         zeros = [w * to_ns for v, w in levels if v == 0 and 6_500 < w * to_ns < 55_000]
         if zeros and parameter in ("presence sample", "read sample"):
             found["read_zero_low"] = summary(zeros)
@@ -286,8 +286,8 @@ def decode(sweep, sr):
 
 
 def sigrok_says(sweep, text, out):
-    """What sigrok's decoder made of the capture, to set beside the Pico's view: the
-    colours it read, the EEPROM reads that returned the reference bytes, or its 1-Wire
+    """Returns what sigrok's decoder made of the capture, to compare with the Pico's view:
+    the colours it read, the EEPROM reads that returned the reference bytes, or its 1-Wire
     events by kind."""
     lines = [line.split(": ", 1)[1] for line in text.splitlines() if ": " in line]
     if sweep["part"] == "SK6812":
@@ -316,7 +316,7 @@ def run(args):
     for f in FILES:
         mpremote(args.pico, "cp", str(ROOT / "python" / f), ":")
     reset_chip()
-    # the first capture after the analyser takes its firmware can miss
+    # the first capture after the analyser loads its firmware can miss
     subprocess.run([str(ROOT / "demo/capture.sh"), str(out / "prime.sr"), "200"],
                    env=dict(os.environ, ANALYSER="B"), capture_output=True, timeout=120)
     cycles = args.cycles and {int(c) for c in args.cycles.split(",")}
@@ -349,8 +349,8 @@ def run(args):
 
 
 def analyse(args):
-    """Each run point's capture measured again and decoded by sigrok, which is too slow
-    to do between points."""
+    """Measures each run point's capture again and decodes it with sigrok, which is too
+    slow to do between points."""
     margins = json.loads(Path(args.margins).read_text())
     for sweep in margins["sweeps"]:
         if args.part and sweep["part"] != args.part:
@@ -383,8 +383,8 @@ def fmt_ns(ns):
 
 
 def table(args):
-    """Each sweep's points as run, and its working range: the points around the library's
-    timing that passed every repeat, with the first failure either side."""
+    """Returns each sweep's points as run, and its working range: the points around the
+    library's timing that passed every repeat, plus the first failure on either side."""
     margins = json.loads(Path(args.margins).read_text())
     out = Path(args.out)
     lines = []

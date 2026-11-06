@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
 # Draws every edge of a logic analyser capture against the interval the analyser proved for
-# it. Rows come from `generate.exe assemble -rows`. An edge's phase there is to the deadline
-# t, which moves only by p within a frame, so its offset from the frame's first edge is the
-# sum of those moves plus the two phases. Assumes an idle-high line whose frames start with
-# a falling edge, as a UART's do.
-# The clock mode is for a side-set clock, SWD's SWCLK: each high and low inside a transfer
-# against the half period the core waits, widths printed.
+# it. The rows come from `generate.exe assemble -rows`. An edge's phase there is relative to
+# the deadline t, which only moves by p within a frame, so an edge's offset from the frame's
+# first edge is the sum of those moves plus the two phases. Assumes an idle-high line whose
+# frames start with a falling edge, like a UART's.
+# The clock mode is for a side-set clock such as SWD's SWCLK: it compares each high and low
+# inside a transfer with the half period the core waits, and prints the widths.
 # Usage: uv run demo/overlay.py edges CAPTURE --rows ROWS --frame 6,9*8,12 -o out.png
 #        uv run demo/overlay.py histogram CAPTURE --rows ROWS --frame 6,9*8,12 -o out.png
 #        uv run demo/overlay.py compare CAPTURE --rows ROWS --frame 6,9*8,12 \
@@ -66,7 +66,7 @@ def parse_frame(text):
 
 
 def moves_t(instruction):
-    """How many periods an instruction moves the deadline by."""
+    """Returns how many periods an instruction moves the deadline by."""
     if instruction == "add t, p" or instruction.startswith("wait t+"):
         return 1
     if re.match(r"(mov|add|sub|set) t\b", instruction) or instruction.startswith("mov t,"):
@@ -75,8 +75,8 @@ def moves_t(instruction):
 
 
 def next_pc(rows, pc, want):
-    """Where control goes from pc on the way to want: a conditional jump back is taken
-    while want lies in the loop it closes."""
+    """Returns where control goes from pc on the way to want. A conditional jump back is
+    taken while want lies inside the loop that the jump closes."""
     m = re.match(r"jmp (?:(.*), )?(\d+)$", rows[pc][0])
     if not m:
         return pc + 1
@@ -87,7 +87,7 @@ def next_pc(rows, pc, want):
 
 
 def predicted(rows, frame, period):
-    """Each frame edge's offset from the first, as a cycle interval."""
+    """Returns each frame edge's offset from the first edge, as a cycle interval."""
     moved = [0]
     for a, b in zip(frame, frame[1:]):
         pc, n = a, 0
@@ -117,7 +117,7 @@ def period_of(rows):
 
 
 def residuals(path, channel, slots_ns):
-    """Per frame, each edge's slot and its distance from the slot's centre in ns."""
+    """Returns, per frame, each edge's slot and its distance from the slot's centre in ns."""
     rate, names, samples = sigrok.read(path)
     bit = {name: b for b, name in names.items()}[channel]
     at, level = sigrok.edges(samples, bit)
@@ -198,7 +198,7 @@ def describe(args, period, rate, frames):
 
 
 def cycles_axis(ax, cycle_ns, which="y"):
-    """The same axis in core cycles, on the far side."""
+    """Adds the same axis in core cycles on the opposite side."""
     convert = (lambda ns: ns / cycle_ns, lambda c: c * cycle_ns)
     if which == "y":
         extra = ax.secondary_yaxis("right", functions=convert)
@@ -290,7 +290,7 @@ def plot_histogram(args):
         "measured - proved edge time (ns), bins one analyser sample wide", color=MUTED, fontsize=14
     )
     ax.set_ylabel("edges", color=MUTED, fontsize=14)
-    # every slot's proved interval about its centre, as one band
+    # every slot's proved interval around its centre, drawn as one band
     half = max(hi - lo for lo, hi in slots_ns) / 2 + 0.02 * sample_ns
     ax.axvspan(-half, half, color=PROOF, alpha=0.9)
     most = int(np.max(counts))
@@ -315,8 +315,8 @@ def plot_compare(args):
         % sample_ns,
         rows=2,
     )
-    # the start edge is 0 by construction, so the data edges' spread is the jitter and their
-    # least offset is MicroPython's fixed call delay
+    # the start edge is 0 by construction, so the data edges' spread is the jitter and
+    # their smallest offset is MicroPython's fixed call delay
     pico_data = pico_off[pico_slot != 0]
     both = np.concatenate([off, pico_off]) / 1e3
     bins = bins_for(both * 1e3, sample_ns) / 1e3
@@ -367,9 +367,9 @@ def plot_compare(args):
 
 
 def plot_clock(args):
-    """Each SWCLK high and low shorter than four halves, so inside a transfer, less the half
-    period the core waits between side-set edges, which bounds every half from below; the
-    ones longer are where the core turns the line round or takes the next word."""
+    """Returns each SWCLK high and low shorter than four halves (so inside a transfer),
+    minus the half period the core waits between side-set edges, which is a lower bound on
+    every half. Longer ones are where the core turns the line around or takes the next word."""
     cycle_ns = 1e3 / args.clock_mhz
     half_ns = args.half * cycle_ns
     rate, names, samples = sigrok.read(args.capture)

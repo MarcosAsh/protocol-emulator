@@ -1,11 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
-# The standard rates the organisers named, on the bench: SPI modes 0 to 3 and I2C at 100 kHz
-# and 400 kHz, each from a fresh load of BITSTREAM. python/demo_rates.py runs one of them on
-# Pico A (the flash for SPI, the EEPROM for I2C) while analyser B captures, then the capture
-# is held to its protocol: SPI to its mode's sampling edge and the bytes sent, I2C to
-# UM10204's Table 11 (demo/i2c_timing.py) and the EEPROM's reads and writes. Each run keeps
-# its capture, Pico log, sigrok decode, verdict and SHA256SUMS in EVIDENCE/<date>/sweep-rates/
-# <run>/, and adds a line to demo/ledger.tsv. Pico B, if plugged in, runs MicroPython.
+# Runs the standard rates the organisers named, on the bench: SPI modes 0 to 3 and I2C at
+# 100 kHz and 400 kHz, each from a fresh load of BITSTREAM. python/demo_rates.py runs one
+# of them on Pico A (against the flash for SPI, the EEPROM for I2C) while analyser B
+# captures. The capture is then checked against its protocol: SPI against the mode's
+# sampling edge and the bytes sent, I2C against UM10204's Table 11 (demo/i2c_timing.py) and
+# the EEPROM's reads and writes. Each run saves its capture, Pico log, sigrok decode,
+# verdict and SHA256SUMS in EVIDENCE/<date>/sweep-rates/<run>/ and adds a line to
+# demo/ledger.tsv. Pico B, if plugged in, runs MicroPython.
 # Usage: PICO=id:<serial of Pico A> python3 demo/sweep_rates.py BITSTREAM [--only RUN]...
 #            [--rate 24M] [--dry-run]
 #        python3 demo/sweep_rates.py --self-check    judges synthetic captures, no hardware
@@ -29,16 +30,16 @@ import traffic
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "python"))
 import both_roles_firmware  # noqa: E402
 
-# the bench's 48 MHz, and test/bench.ml's spi_half: SCK is 3 MHz
+# the bench's 48 MHz clock; test/bench.ml's spi_half makes SCK 3 MHz
 CLOCK_HZ = 48_000_000
 SPI_HALF = 8
 # analyser B: SCK D0, MOSI D1, MISO D2, CS D3 for the flash; SDA D6, SCL D7 for the EEPROM
 SCK, MOSI, MISO, CS = 0, 1, 2, 3
-# the USB port analyser B sits on, unless the environment says otherwise
+# USB port of analyser B (the environment can override it)
 ANALYSER_B_PORT = "3-3.1.3.3"
-# the measured clock must be within this of what the firmware makes
+# how close the measured clock must be to what the firmware should produce
 RATE_TOLERANCE = 0.10
-# files Pico A needs, as demo/rates.sh copies them
+# files to copy to Pico A, same as demo/rates.sh
 FILES = ["python/protocol_emulator.py", "python/pico_board.py", "python/bench.py",
          "python/bench_firmware.py", "python/both_roles_firmware.py", "python/demo_eeprom.py",
          "python/demo_flash.py", "python/demo_rates.py"]
@@ -49,7 +50,7 @@ FLASH_ID = [0xEF, 0x40, 0x17]
 @dataclass(frozen=True)
 class Run:
     name: str
-    # spi: the mode as a number; i2c: both_roles_firmware's name and UM10204's mode
+    # spi: the mode number; i2c: both_roles_firmware's name and UM10204's mode
     protocol: str
     mode: int | str
     capture_ms: int
@@ -66,7 +67,7 @@ def bit(samples, channel):
 
 
 def changes(level):
-    """The index of every sample whose level differs from the one before."""
+    """Returns the index of every sample whose level differs from the previous one."""
     return np.flatnonzero(np.diff(level)) + 1
 
 
@@ -77,16 +78,17 @@ class Frame:
     bits: int
     setup: int
     hold: int
-    # the median samples between leading edges, each frame's
+    # median number of samples between each frame's leading edges
     period: float
     idle_ok: bool
     first_ok: bool
 
 
 def frames(samples, mode):
-    """Every CS-low frame of an SPI capture read at the mode's sampling edge: the bytes on
-    MOSI and MISO, the least samples MOSI sat steady before and after a sampling edge, the
-    samples of a clock period, and whether SCK idled at CPOL and left it first."""
+    """Reads every CS-low frame of an SPI capture at the mode's sampling edge. Returns the
+    bytes on MOSI and MISO, the fewest samples MOSI stayed steady before and after a
+    sampling edge, the samples in a clock period, and whether SCK idled at CPOL and left
+    it first."""
     cpol, cpha = mode >> 1, mode & 1
     clk, mosi, miso, cs = (bit(samples, c) for c in (SCK, MOSI, MISO, CS))
     moves = changes(mosi)
@@ -106,7 +108,7 @@ def frames(samples, mode):
                   for i in sample]
         after = [int(moves[moves > i].min() - i) if (moves > i).any() else 1 << 30
                  for i in sample]
-        # the median, as the firmware's pull between words stretches a few periods
+        # use the median, because the firmware's pause between words stretches a few periods
         leading = edges[::2]
         period = statistics.median(b - a for a, b in zip(leading, leading[1:])) if len(leading) > 1 else 0
         bytes_ = []
@@ -120,9 +122,9 @@ def frames(samples, mode):
 
 
 def spi_problems(path, mode, decode=""):
-    """What an SPI run's capture lacks: the clock's idle level and first edge, its rate, MOSI
-    steady a sample either side of the sampling edge, the JEDEC command sent, and in modes
-    0 and 3 the flash's ID answered."""
+    """Returns what an SPI run's capture lacks: the clock's idle level and first edge, its
+    rate, MOSI steady for a sample either side of the sampling edge, the JEDEC command sent,
+    and in modes 0 and 3 the flash's ID answer."""
     rate, _, samples = sigrok.read(path)
     found = frames(samples, mode)
     if not found:
@@ -171,9 +173,9 @@ def ledger_hex(data):
 
 
 def i2c_problems(path, mode, decode="", log=""):
-    """What an I2C run's capture lacks: every UM10204 limit (a result within a sample of its
-    limit is not a failure, but is reported), SCL near what the firmware's quarter makes,
-    and the EEPROM's reads and writes the Pico logged."""
+    """Returns what an I2C run's capture lacks: every UM10204 limit (a result within a
+    sample of its limit isn't a failure but is reported), SCL close to what the firmware's
+    quarter period gives, and the EEPROM reads and writes the Pico logged."""
     _, results, _ = i2c_timing.check(path, mode)
     problems = []
     if not results:
@@ -244,7 +246,7 @@ class Sweep:
                 ok = b.run(["demo/capture.sh", str(b.dir / sr), str(run.capture_ms),
                             "mpremote", "connect", self.ledger.pico, "exec", "--no-follow",
                             self.demo_call(run)], env=env) == 0
-            # the run ends inside the capture, and a second more lets the Pico write its log
+            # the run ends inside the capture; wait a second more so the Pico can write its log
             b.sleep(1)
             ok = b.run(["mpremote", "connect", self.ledger.pico, "cat", ":outside.log"],
                        out=run.name + ".log") == 0 and ok
@@ -293,8 +295,8 @@ class Sweep:
 
 
 def synthetic_spi(path, mode, rate=24_000_000):
-    """An SPI capture as the chip's masters make it: JEDEC in each mode, the flash answering
-    in modes 0 and 3, half a period of 4 samples at 24 MS/s."""
+    """Builds an SPI capture the way the chip's masters make it: JEDEC in each mode, the
+    flash answering in modes 0 and 3, half a period of 4 samples at 24 MS/s."""
     cpol, cpha = mode >> 1, mode & 1
     half = max(round(rate * SPI_HALF / CLOCK_HZ), 1)
     clk, mosi, miso, cs = [], [], [], []
@@ -307,8 +309,8 @@ def synthetic_spi(path, mode, rate=24_000_000):
     hold(cpol, 0, 0, 1, 8)
     flat = lambda data: [(b >> (7 - k)) & 1 for b in data for k in range(8)]  # noqa: E731
     out, back = flat(JEDEC), flat(answer if mode in (0, 3) else [0] * 4)
-    # each bit sits on MOSI a half period around its sampling edge: cpha 0 changes it before
-    # the leading edge, cpha 1 on the leading edge
+    # each bit sits on MOSI for a half period around its sampling edge: it changes before
+    # the leading edge for cpha 0, and on the leading edge for cpha 1
     hold(cpol, out[0] if not cpha else 0, back[0], 0, half)
     for n in range(len(out)):
         m, o = out[n], back[n]
@@ -327,8 +329,8 @@ def synthetic_spi(path, mode, rate=24_000_000):
 
 
 def synthetic_i2c(path, quarter, rate=24_000_000):
-    """START, address 0xA0, ACK, one data byte, STOP with SCL and SDA moving on quarters of
-    `quarter` samples."""
+    """Builds START, address 0xA0, ACK, one data byte and STOP, with SCL and SDA moving on
+    quarters of `quarter` samples."""
     scl, sda = [], []
 
     def put(c, d, n=1):
@@ -351,8 +353,8 @@ def synthetic_i2c(path, quarter, rate=24_000_000):
 
 
 def self_check():
-    """Judges synthetic captures: each right one passes, a wrong phase or a clock off by a
-    third fails."""
+    """Judges synthetic captures: the correct ones must pass, and a wrong phase or a clock
+    a third off must fail."""
     failed = []
 
     def expect(what, got, want):
@@ -368,7 +370,7 @@ def self_check():
             expect("spi mode %d, as the chip makes it" % mode, spi_problems(path, mode), False)
             expect("spi mode %d read as mode %d" % (mode, mode ^ 1),
                    spi_problems(path, mode ^ 1), True)
-        # the flash not answering in mode 0 is a failure
+        # the flash not answering in mode 0 must fail
         path = Path(d) / "silent.sr"
         synthetic_spi(path, 1)
         expect("spi mode 1 capture read for the ID in mode 0", spi_problems(path, 0), True)
@@ -378,11 +380,11 @@ def self_check():
             synthetic_i2c(path, samples)
             expect("i2c %s, as the firmware makes it" % mode,
                    i2c_problems(path, mode), False)
-        # an SCL a third too slow for its mode's quarter
+        # SCL a third too slow for its mode's quarter period
         path = Path(d) / "slow.sr"
         synthetic_i2c(path, round(24_000_000 * 121 / CLOCK_HZ * 1.4))
         expect("i2c standard 40% slow", i2c_problems(path, "standard"), True)
-        # 100 kHz firmware held to Fast-mode's tLOW would pass; 400 kHz under Standard's fails
+        # 100 kHz firmware would pass Fast-mode's tLOW, but 400 kHz fails Standard's
         path = Path(d) / "fast_as_standard.sr"
         synthetic_i2c(path, round(24_000_000 * 32 / CLOCK_HZ))
         expect("i2c 400 kHz held to Standard-mode", i2c_problems(path, "standard"), True)
@@ -392,8 +394,8 @@ def self_check():
 
 
 def older_than_sources(bitstream):
-    """Why a bitstream is older than the RTL and pins in its own checkout, or None. A
-    10-01 build met 10-10's firmware, which had moved SCL and SDA, and crossed them."""
+    """Says why a bitstream is older than the RTL and pins in its own checkout, or None.
+    (A 10-01 build once ran 10-10's firmware, which had moved SCL and SDA, so they crossed.)"""
     repo = Path(bitstream).resolve().parent
     last = subprocess.run(["git", "-C", str(repo), "log", "-1", "--format=%ct %h", "--",
                            ":/src/protocol_emulator.v", ":/icepi/"],
