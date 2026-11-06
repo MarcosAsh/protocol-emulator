@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
-# Every bench demo at BITSTREAM's clock in turn, each from a fresh load of it as its reset.
-# A demo keeps its capture, decode, Pico logs and a SHA256SUMS in EVIDENCE/<date>/ledger/<demo>/, beside
-# the day's other bench runs, and adds a line to demo/ledger.tsv. --keyboard adds the USB
-# keyboard demo, whose keys demo/keys.py grabs from the desktop under sudo and holds to the
-# text. PICO_B_SERIAL picks Pico B, as for demo/pico_b.sh.
+# Runs every bench demo in turn at BITSTREAM's clock, each from a fresh load of it (that is
+# the reset). Each demo saves its capture, decode, Pico logs and a SHA256SUMS in
+# EVIDENCE/<date>/ledger/<demo>/, next to the day's other bench runs, and adds a line to
+# demo/ledger.tsv. --keyboard adds the USB keyboard demo; demo/keys.py grabs its keys from
+# the desktop (under sudo) and checks them against the expected text. PICO_B_SERIAL picks
+# Pico B, as for demo/pico_b.sh.
 # Usage: PICO=id:<serial of Pico A> python3 demo/ledger.py BITSTREAM [--keyboard]
 #            [--only DEMO]... [--evidence DIR] [--results TSV] [--dry-run]
 
@@ -30,38 +31,38 @@ COLUMNS = ["date", "demo", "result", "expected", "commit", "bitstream_sha256",
            "capture_sha256", "sums_sha256", "evidence"]
 PICO_B_SERIAL = "e66548545740ad29"
 BASE = ["python/protocol_emulator.py", "python/pico_board.py"]
-# how long the analyser takes to start sampling once sigrok-cli is up
+# how long the analyser needs to start sampling after sigrok-cli is up
 ARM_S = 3
-# a demo that runs until reset is stopped after this
+# a demo that runs until reset gets stopped after this long
 KEYBOARD_S = 30
 TEXT = "hello jane street "
-# how long the keyboard waits past its attach to type, for demo/keys.py to grab it first
+# how long after attaching the keyboard waits to type, so demo/keys.py can grab it first
 SETTLE_MS = 3000
-# Pico A's GP8 to usb_detach, high: the USB port stays detached while a bitstream loads
+# Pico A's GP8 drives usb_detach high, which keeps the USB port detached while a bitstream loads
 DETACH = "from machine import Pin; Pin(8, Pin.OUT, value=1)"
 
 
 @dataclass(frozen=True)
 class Demo:
     name: str
-    # outside: demo/outside.sh's name for it; start_hold: demo/start_hold.sh's; pico: the
-    # ledger runs RUN (a script) or EXEC (a statement) on Pico A
+    # outside: the demo's name in demo/outside.sh. start_hold: its name in
+    # demo/start_hold.sh. pico: the ledger runs RUN (a script) or EXEC (a statement) on Pico A
     kind: str
     expect: str = "PASS"
-    # what Pico B must run, or None when it is not part of the demo
+    # what Pico B must run, or None if it isn't part of the demo
     pico_b: str | None = None
     files: tuple = ()
     run: str | None = None
     exec: str | None = None
-    # the baud pico_listener reads OUT0 at on Pico B
+    # baud rate at which pico_listener reads OUT0 on Pico B
     listen: int | None = None
-    # analyser A on D4 (OUT0) for this long, at RATE (or the environment's), and the decode
+    # capture analyser A on D4 (OUT0) for this long, at RATE (or the environment's), plus the decode
     capture_ms: int | None = None
     rate: str | None = None
     decode: str | None = None
     timeout_s: int | None = None
     why: str = ""
-    # the chip's clock the demo needs, which the bitstream's name gives
+    # the chip clock the demo needs, given by the bitstream's name
     mhz: int = 48
 
 
@@ -78,26 +79,26 @@ def outside(name, pico_b=None):
 
 DEMOS = [
     Demo("smoke", "pico", exec=SMOKE),
-    # 2 MS/s is plenty for 9600 and 115200 baud and keeps a 30 s capture at 60 MB
+    # 2 MS/s is plenty for 9600 and 115200 baud, and a 30 s capture stays at 60 MB
     Demo("self_timing", "pico", pico_b="micropython",
          files=("python/demo_self_timing.py", "test/uart_tx_host_rate.hex",
                 "test/uart_tx_host_rate.cert.hex", "test/edge_logger_echo.hex",
                 "test/edge_logger_echo.cert.hex"),
          run="python/demo_self_timing.py", listen=9600, capture_ms=8000, rate="2M",
          decode="-P uart:rx=D4:baudrate=9600 -A uart=rx-data"),
-    # OUT0 echoes wire 20 through every firmware, too many bauds for one decode
+    # OUT0 echoes wire 20 in every firmware, with too many bauds for one decode
     Demo("sweep", "pico",
          files=("python/demo_self_timing.py", "python/sweep_firmware.py",
                 "python/demo_sweep.py"),
-         # 12 MS/s: the analyser's USB falls behind at 24 before 8 s are in
+         # 12 MS/s, because at 24 the analyser's USB falls behind within 8 s
          run="python/demo_sweep.py", capture_ms=8000, rate="12M"),
-    # wire 20 never leaves the chip: nothing to capture
+    # wire 20 never leaves the chip, so there is nothing to capture
     Demo("self_check", "pico",
          files=("python/demo_self_check.py", "test/uart_tx_host_rate.hex",
                 "test/uart_tx_host_rate.cert.hex", "test/self_check_wire.hex",
                 "test/self_check_wire.cert.hex", "test/uart_tx_host_rate_rows.hex"),
          run="python/demo_self_check.py"),
-    # engine 1 sends each key the laptop took out of OUT0
+    # engine 1 sends each key the laptop received out of OUT0
     Demo("keyboard", "pico", pico_b="micropython",
          files=("python/usb_board.py", "python/usb_device_firmware.py", "python/demo_usb.py",
                 "test/uart_tx_host_rate.hex", "test/uart_tx_host_rate.cert.hex"),
@@ -111,7 +112,7 @@ DEMOS = [
     outside("neopixel"),
     outside("swd"),
     outside("referee"),
-    # Pico B idle, as its GP1 shares OUT0's net
+    # Pico B idle, because its GP1 shares OUT0's net
     outside("nec", pico_b="micropython"),
     # the protocols drawn at random (docs/flexibility.md); Pico B idle again where OUT0 is used
     outside("microwire"),
@@ -132,8 +133,8 @@ DEMOS = [
     outside("swd_blind"),
     outside("can", pico_b="can_node"),
     outside("can_node", pico_b="can_node"),
-    # 10BASE-T wants the 40 MHz build: the chip hears its own frames on TD+, then frames
-    # from a PIO on Pico A, which the analyser is too slow to follow
+    # 10BASE-T needs the 40 MHz build. The chip hears its own frames on TD+, then frames
+    # from a PIO on Pico A (the analyser is too slow to follow them)
     Demo("ethernet", "pico",
          files=("python/bench.py", "python/bench_firmware.py", "python/ethernet.py",
                 "python/demo_pi_ethernet.py", "test/ethernet_rx.hex",
@@ -151,20 +152,21 @@ NAMES = [d.name for d in DEMOS]
 
 
 def last_verdict(text):
-    """The last line that is PASS or FAIL alone, as bench.run and the demos end."""
+    """Returns the last line that is just PASS or FAIL, which is how bench.run and the demos end."""
     found = [line.strip() for line in text.splitlines() if line.strip() in ("PASS", "FAIL")]
     return found[-1] if found else None
 
 
 def hold_verdict(text):
-    """demo_start_hold's verdict on the chip's stamps, on the line that judges them."""
+    """Returns demo_start_hold's verdict on the chip's stamps, from the line that judges them."""
     found = re.findall(r"^host, against t_HD;STA .*?: (PASS|FAIL)", text, re.MULTILINE)
     return found[-1] if found else None
 
 
 def judged(ok, said, problems, expect):
-    """A run with a step missing is no evidence either way, nor is a capture without the
-    traffic of a demo expected to fail. Pico A's PASS on a capture without it is a FAIL."""
+    """A run with a missing step is no evidence either way, and neither is a capture without
+    the traffic of a demo that was expected to fail. Pico A's PASS on a capture without the
+    traffic counts as a FAIL."""
     if not (ok and said) or (problems and expect == "FAIL"):
         return "ERROR"
     return "FAIL" if problems else said
@@ -179,9 +181,9 @@ def sha256(path):
 
 
 def netlist(bitstream, bit_hash):
-    """The hash of the netlist the bitstream came from, as icepi/Makefile wrote it beside
-    the bitstream (its .sha256), which formal/icepi_equiv proves equal to the RTL; "-"
-    without one that names this bitstream."""
+    """Returns the hash of the netlist the bitstream came from, as icepi/Makefile wrote it
+    next to the bitstream (its .sha256). formal/icepi_equiv proves that netlist equal to the
+    RTL. Returns "-" if no hash names this bitstream."""
     sums = Path(bitstream).with_suffix(".sha256")
     lines = sums.read_text().split() if sums.is_file() else []
     pairs = dict(zip(lines[1::2], lines[0::2]))
@@ -191,8 +193,8 @@ def netlist(bitstream, bit_hash):
 
 
 def keep_bitstream(bitstream, runs, bit_hash):
-    """The bitstream itself in runs/bitstreams, so its hash can be checked once the build is
-    gone, and the sums that name its netlist."""
+    """Copies the bitstream into runs/bitstreams, so its hash can still be checked once the
+    build is gone, along with the sums that name its netlist."""
     kept = runs / "bitstreams" / (bit_hash[:16] + ".bit")
     kept.parent.mkdir(parents=True, exist_ok=True)
     if not kept.exists():
@@ -204,7 +206,7 @@ def keep_bitstream(bitstream, runs, bit_hash):
 def commit():
     head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True,
                           text=True).stdout.strip() or "unknown"
-    # the ledger's own lines do not count, nor the bench times demo/outside.sh marks
+    # don't count the ledger's own lines or the bench times that demo/outside.sh marks
     dirty = subprocess.run(["git", "status", "--porcelain", "--untracked-files=no", "--", ".",
                             ":!demo/ledger.tsv", ":!demo/speed.tsv"], cwd=ROOT,
                            capture_output=True,
@@ -213,7 +215,7 @@ def commit():
 
 
 def fresh(parent, name):
-    """parent/name, or name.2, .3 and on: evidence is never overwritten."""
+    """Returns parent/name, or name.2, name.3 and so on. Evidence is never overwritten."""
     path, n = parent / name, 1
     while path.exists():
         n += 1
@@ -222,15 +224,15 @@ def fresh(parent, name):
 
 
 def pico_b_tty(serial):
-    """Pico B's serial port: MicroPython names the serial in lower case, the SDK upper."""
+    """Returns Pico B's serial port (MicroPython names the serial in lower case, the SDK in upper)."""
     found = sorted(p for p in Path("/dev/serial/by-id").glob("*")
                    if p.name.lower().endswith("_%s-if00" % serial.lower()))
     return found[0] if found else None
 
 
 class Bench:
-    """Runs the commands of one demo from the repository root, logging each to run.txt, or
-    with dry_run only prints them."""
+    """Runs the commands of one demo from the repository root and logs each to run.txt.
+    With dry_run it only prints them."""
 
     def __init__(self, dry_run):
         self.dry_run = dry_run
@@ -265,7 +267,7 @@ class Bench:
         return open(self.dir / out, "w") if out else self.log
 
     def run(self, argv, out=None, env=None, timeout=None):
-        """The exit status, or None when it ran past timeout and was stopped."""
+        """Returns the exit status, or None if it overran the timeout and was stopped."""
         env = env or {}
         self._show(argv, env, out, "$")
         if self.dry_run:
@@ -291,7 +293,7 @@ class Bench:
                                 env=os.environ | {"PYTHONUNBUFFERED": "1"} | env)
 
     def wait(self, proc, seconds, kill=False):
-        """Waits up to seconds for proc, then stops it; kill stops it at once."""
+        """Waits up to `seconds` for proc, then stops it. With kill it stops it at once."""
         if self.dry_run or proc is None:
             return 0
         try:
@@ -326,14 +328,14 @@ class Ledger:
         return ["mpremote", "connect", pico or self.pico, *words]
 
     def reset(self):
-        """A fresh load of the bitstream, as faults hold until reset. Pico A holds the USB
-        port detached across it, or the host meets a device nothing serves yet and retries
-        it to error -71."""
+        """Loads the bitstream fresh, because faults stick until reset. Pico A keeps the USB
+        port detached during the load; otherwise the host sees a device nothing serves yet
+        and retries until it fails with error -71."""
         self.bench.run(self.mpremote("exec", DETACH))
         return self.bench.run(["openFPGALoader", "-b", "icepi-zero", self.args.bitstream]) == 0
 
     def load_pico_b(self, firmware):
-        """Pico B onto firmware unless it runs it already, which a run remembers."""
+        """Puts Pico B on the firmware unless it is already running it (a run remembers this)."""
         if firmware is None or firmware == self.pico_b:
             return True
         self.pico_b = None
@@ -347,12 +349,12 @@ class Ledger:
 
     def run_pico(self, demo):
         """Copies demo's files, starts Pico B's listener and the analyser, runs the demo on
-        Pico A, then decodes. The name of Pico A's log and whether every step ran."""
+        Pico A, then decodes. Returns the name of Pico A's log and whether every step ran."""
         b, d = self.bench, demo.name
         ok = b.run(self.mpremote("cp", *BASE, *demo.files, ":")) == 0
         listener = capture = grabber = None
         if ok and d == "keyboard":
-            # the keys go to demo/keys.py alone, which must be up before the first
+            # the keys go to demo/keys.py alone, which must be running before the first one
             grabber = b.start(["sudo", "-n", sys.executable, "demo/keys.py",
                                str(ARM_S + KEYBOARD_S + 15)], out="keyboard.keys")
             b.sleep(1)
@@ -360,7 +362,7 @@ class Ledger:
         if ok and demo.listen:
             pico_b = "id:" + self.serial
             ok = b.run(self.mpremote("cp", "python/pico_listener.py", ":", pico=pico_b)) == 0
-            # keys as text, the self-timing bytes in hex
+            # keys as text; the self-timing bytes in hex
             listen = "import pico_listener; pico_listener.listen(%d, %s)" % (
                 demo.listen, demo.name == "keyboard")
             listener = b.start(self.mpremote("exec", listen, pico=pico_b), out="pico_b.log")
@@ -376,19 +378,19 @@ class Ledger:
             script = ("run", demo.run) if demo.run else ("exec", demo.exec)
             status = b.run(self.mpremote(*script), out=d + ".log", timeout=demo.timeout_s)
         if grabber or (b.dry_run and d == "keyboard"):
-            # stopped and detached before the grab ends
+            # stop and detach before the grab ends
             b.run(self.mpremote("exec", DETACH))
             ok = b.wait(grabber, ARM_S + KEYBOARD_S + 20) == 0 and ok
         ok = ok and b.wait(capture, (demo.capture_ms or 0) / 1000 + 60) == 0
         b.wait(listener, 0, kill=True)
-        # the demo that runs until reset is stopped, which is how it ends
+        # a demo that runs until reset ends by being stopped
         ok = ok and (status == 0 or (status is None and demo.timeout_s is not None))
         sr = b.dir / ("%s.sr" % d)
         if demo.decode and (b.dry_run or sr.exists()):
             ok = b.run(["sigrok-cli", "-i", str(sr), *demo.decode.split()],
                        out=d + ".decode") == 0 and ok
         if d == "keyboard":
-            # the laptop's own account of the device it enumerated
+            # the laptop's own record of the device it enumerated
             b.run(["journalctl", "-k", "-o", "short-iso-precise", "--since", "@%d" % since,
                    "--grep", "usb|hid|input"], out="keyboard.kernel")
         return d + ".log", ok
@@ -414,7 +416,7 @@ class Ledger:
         env = {"CAPTURES": str(self.bench.dir), "PICO": self.pico,
                "PICO_B_SERIAL": self.serial}
         status = self.bench.run(["demo/start_hold.sh", how], env=env, out="start_hold.txt")
-        # demo/start_hold.sh reads Pico B's port once the master is in
+        # demo/start_hold.sh reads Pico B's port once the master is running
         self.pico_b = "start_hold_" + how if status == 0 else None
         return "start_hold.log", status == 0
 
@@ -456,7 +458,7 @@ class Ledger:
         return self.seal(demo, result, said, held, day, head, bit_hash)
 
     def seal(self, demo, result, said, held, day, head, bit_hash):
-        """ledger.txt and SHA256SUMS in the demo's directory, and its line for the TSV."""
+        """Writes ledger.txt and SHA256SUMS in the demo's directory and returns its TSV line."""
         d = self.bench.dir
         info = [("demo", demo.name), ("result", result), ("pico_a_says", said),
                 ("traffic", held),
@@ -491,7 +493,7 @@ def append(results, rows):
 
 
 def clock(bitstream):
-    """icepi/Makefile names a bitstream for another clock than 48 MHz, -40mhz.bit."""
+    """icepi/Makefile names a bitstream for a clock other than 48 MHz with a suffix like -40mhz.bit."""
     found = re.search(r"-(\d+)mhz\.bit$", str(bitstream))
     return int(found.group(1)) if found else 48
 
@@ -520,7 +522,7 @@ def main():
     p.add_argument("--results", type=Path, default=RESULTS)
     p.add_argument("--dry-run", action="store_true", help="print the plan and run nothing")
     args = p.parse_args()
-    # every command runs from the repository root
+    # run every command from the repository root
     args.bitstream = os.path.abspath(args.bitstream)
     args.evidence = args.evidence.resolve()
     if not args.dry_run:

@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
-# The remote lab's worker. A job is a WaveDrom diagram and its frames, never firmware:
-# generate.exe lab compiles it for the certified table interpreter and names a refusal
-# before anything reaches the chip. A job the bench takes runs on the backend (bench: Pico A
-# and analyser A, the Icepi reset before and after; rtl: the same script on the RTL in
-# cocotb; model: none), anything else gets the model's trace, labelled simulated. Results go
-# to RESULTS/<id>/, a bench run's also to EVIDENCE/<date>/lab/. Queues are polled files.
+# The remote lab's worker. A job is a WaveDrom diagram and its frames, never firmware.
+# generate.exe lab compiles it for the certified table interpreter, and reports a refusal
+# before anything reaches the chip. A job the bench can take runs on the chosen backend
+# (bench: Pico A and analyser A, with the Icepi reset before and after; rtl: the same script
+# on the RTL in cocotb; model: none). Any other job gets the model's trace, labelled
+# simulated. Results go to RESULTS/<id>/, and bench runs also to EVIDENCE/<date>/lab/.
+# Queues are polled files.
 # Usage: python3 demo/lab.py submit JOB --queue DIR [--as NAME]
 #        python3 demo/lab.py fake --queue DIR
 #        [PICO=id:<serial of Pico A>] python3 demo/lab.py work (--queue DIR | --issues FILE)
@@ -35,22 +36,22 @@ GENERATE = ROOT / "bin/generate.exe"
 PICO_FILES = ["python/protocol_emulator.py", "python/pico_board.py", "python/bench.py",
               "python/demo_lab.py"]
 FLASH = ["openFPGALoader", "-b", "icepi-zero", "-r"]
-# the analyser runs this long; the script waits bench.START_MS before it loads the chip
+# how long the analyser runs; the script waits bench.START_MS before it loads the chip
 CAPTURE_MS = 2000
 TIMEOUT = {"check": 30, "health": 20, "load": 120, "copy": 60, "capture": 120, "log": 30,
            "decode": 60, "rtl": 900}
-# per submitter, but all_bench_hour: bench runs an hour and a day, and jobs an hour
+# limits per submitter, except all_bench_hour: bench runs per hour and per day, jobs per hour
 LIMITS = {"bench_hour": 3, "bench_day": 10, "jobs_hour": 30, "all_bench_hour": 30}
-# jobs taken a poll, oldest first; the rest wait
+# jobs taken per poll, oldest first; the rest wait
 QUEUE_TAKE = 50
-# bench errors in a row before it counts as down, and for how long
+# how many bench errors in a row before the bench counts as down, and for how long
 DOWN_AFTER = 2
 DOWN_S = 1800
 SUBMITTER = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,38}")
-# what check.json may ask sigrok-cli for, word by word
+# the words check.json may pass to sigrok-cli
 DECODE_ARG = re.compile(r"-P|-A|uart:rx=D[0-7]:baudrate=\d{3,7}|uart=rx-data"
                         r"|rgb_led_ws281x:din=D[0-7]|rgb_led_ws281x=rgb:reset")
-# kept off a published result: local paths, Pico A's serial, the USB tree
+# stripped from a published result: local paths, Pico A's serial, the USB tree
 PRIVATE = {"run.txt", "make.txt", "scan.txt"}
 LABELS = {
     "bench": "captured on the bench, analyser A on OUT0",
@@ -69,8 +70,8 @@ def sha256_text(text):
 
 
 class Spool:
-    """A directory queue: inbox/*.json envelopes (submitter, received, job), oldest first,
-    each moved to done/ once answered."""
+    """A directory queue of inbox/*.json envelopes (submitter, received, job), taken oldest
+    first. Each is moved to done/ once answered."""
 
     def __init__(self, root):
         self.root = Path(root)
@@ -104,10 +105,11 @@ class Spool:
 
 
 class Issues:
-    """What `gh issue list --label lab --json number,author,createdAt,body` printed, saved
-    to FILE by whatever fetched it: a job is the body's first ```json block. Read only;
-    the issues answered are kept in RESULTS/issues_taken. Anyone can open an issue on a
-    public repo, so the fetch should take only a label the owner sets or authors they allow."""
+    """Reads the output of `gh issue list --label lab --json number,author,createdAt,body`,
+    saved to FILE by whatever fetched it. A job is the body's first ```json block. This is
+    read-only; answered issues are recorded in RESULTS/issues_taken. Anyone can open an
+    issue on a public repo, so the fetch should only take a label the owner sets or
+    authors they allow."""
 
     FENCE = re.compile(r"```json\s*\n(.*?)\n```", re.S)
 
@@ -137,7 +139,7 @@ class Issues:
 
 
 class Limits:
-    """RESULTS/admitted.tsv: time, submitter, job id, and the run it had."""
+    """Logs to RESULTS/admitted.tsv: time, submitter, job id, and the run it got."""
 
     def __init__(self, path, limits):
         self.path = Path(path)
@@ -158,14 +160,14 @@ class Limits:
                    and (not bench or run in ("bench", "rtl")))
 
     def jobs(self, who, now):
-        """Why the job is not checked at all, or None."""
+        """Returns why the job is not checked at all, or None."""
         n = self.count(now, 3600, who)
         if n >= self.limits["jobs_hour"]:
             return "rate limited: %d jobs from %s this hour" % (n, who)
         return None
 
     def bench(self, who, now):
-        """Why the job gets the model and not the bench, or None."""
+        """Returns why the job gets the model and not the bench, or None."""
         for seconds, key, who_ in ((3600, "bench_hour", who), (86400, "bench_day", who),
                                    (3600, "all_bench_hour", None)):
             n = self.count(now, seconds, who_, bench=True)
@@ -180,8 +182,8 @@ class Limits:
 
 
 class Stages(bench_run.Runner):
-    """bench_run's runner, logging to run.txt in a folder that already exists; with dry_run
-    it prints each stage and says it passed."""
+    """Returns bench_run's runner, logging to run.txt in a folder that already exists. With
+    dry_run it prints each stage and reports it as passed."""
 
     def open(self, directory):
         if not self.dry_run:
@@ -189,9 +191,9 @@ class Stages(bench_run.Runner):
 
 
 class Bench:
-    """Pico A and analyser A as demo/outside.sh drives them, the Icepi reset to its flash
-    (or BITSTREAM loaded) before and after every job, so faults never carry over and the
-    pins go back to idle."""
+    """Drives Pico A and analyser A the way demo/outside.sh does. The Icepi is reset to its
+    flash (or loaded with BITSTREAM) before and after every job, so faults never carry over
+    and the pins go back to idle."""
 
     name = "bench"
 
@@ -210,7 +212,7 @@ class Bench:
         return stage.status == 0
 
     def healthy(self, folder):
-        """Why the bench cannot take a job now, or None."""
+        """Returns why the bench cannot take a job now, or None."""
         r = self.runner
         r.open(folder)
         try:
@@ -225,7 +227,7 @@ class Bench:
             r.close()
 
     def run(self, folder, firmware):
-        """Whether every stage ran; the capture is folder/lab.sr, Pico A's log lab.log."""
+        """Returns whether every stage ran. The capture is folder/lab.sr and Pico A's log is lab.log."""
         r = self.runner
         r.open(folder)
         try:
@@ -246,13 +248,13 @@ class Bench:
                               out=folder / "lab.log").status == 0
             return ok
         finally:
-            # the pins back to idle whatever happened
+            # put the pins back to idle whatever happened
             self.reset()
             r.close()
 
 
 class Rtl:
-    """test/test_lab_rtl.py through make lab: the script Pico A runs, on the RTL."""
+    """Runs test/test_lab_rtl.py via make lab: the script Pico A would run, on the RTL."""
 
     name = "rtl"
     bitstream_sha256 = "-"
@@ -275,12 +277,12 @@ class Rtl:
 
 
 def changes(edges, ns_a_step):
-    """[t, level] pairs, the first the starting level, as (ns, level) of each change."""
+    """Converts [t, level] pairs (the first is the starting level) to (ns, level) per change."""
     return [(t * ns_a_step, level) for t, level in edges[1:]]
 
 
 def captured(sr, channel):
-    """The capture's rate, its starting level and each change on channel, (ns, level)."""
+    """Returns the capture's rate, its starting level and each change on channel as (ns, level)."""
     rate, names, samples = sigrok.read(sr)
     bit = {name: b for b, name in names.items()}[channel]
     at, levels = sigrok.edges(samples, bit)
@@ -289,9 +291,9 @@ def captured(sr, channel):
 
 
 def compare(model, capture, rate):
-    """The capture against the model's changes, aligned on whichever of the capture's first
-    64 changes lines the most of them up: each interval within two samples and 200 ppm, the
-    two crystals'."""
+    """Compares the capture with the model's changes. It aligns on whichever of the
+    capture's first 64 changes lines up the most model changes, where each interval must be
+    within two samples and 200 ppm (the two crystals' difference)."""
     if not model:
         return {"verdict": "matches the model" if not capture else "differs",
                 "why": "the model's lane never changes", "changes": len(capture)}
@@ -341,8 +343,8 @@ class Worker:
         self.errors, self.down_until = 0, 0.0
 
     def check(self, job_text, out):
-        """generate.exe lab's exit status and check.json, the binary called directly so no
-        dune runs beside anything else."""
+        """Returns generate.exe lab's exit status and check.json. The binary is called
+        directly so no dune runs alongside anything else."""
         job = out / "submitted.json"
         job.write_text(job_text)
         stage = self.runner.run("check", [str(self.args.generate), "lab", str(job), "-out",
@@ -353,7 +355,7 @@ class Worker:
         return stage.status, (json.loads(path.read_text()) if path.exists() else None)
 
     def choose(self, check, who, now, folder):
-        """The run, the backend's name or "model", and why it is not the backend."""
+        """Returns the run, the backend's name or "model", and why it is not the backend."""
         bench = check["bench"]
         if not bench["takes"]:
             return "model", "the bench declines it: " + bench["why"]
@@ -434,7 +436,7 @@ class Worker:
         return folder
 
     def finish(self, folder, result, run):
-        """The model's trace beside the capture, the two compared, and sigrok's decode."""
+        """Returns the model's trace next to the capture, the comparison, and sigrok's decode."""
         simulated = json.loads((folder / "simulated.json").read_text())
         result["simulated"] = simulated
         result["certificate"] = (folder / "certificate.txt").read_text()
@@ -460,7 +462,7 @@ class Worker:
         result["captured"] = {
             "rate": rate, "channel": bench["channel"], "pin": bench["pin"],
             "first": first, "capture_sha256": ledger.sha256(sr),
-            # from the change the model lines up with, at most the model's and a few more
+            # start at the change that lines up with the model; at most the model's count plus a few
             "changes": [[round(t, 1), level] for t, level in
                         capture[start:start + len(model) + 64]],
         }
@@ -487,7 +489,7 @@ def now_date(t):
 
 
 def seal(folder, result):
-    """result.json with every other file's hash in it, then SHA256SUMS over them all."""
+    """Writes result.json holding every other file's hash, then SHA256SUMS over all of them."""
     files = sorted(p for p in folder.rglob("*")
                    if p.is_file() and p.name not in ("result.json", "SHA256SUMS"))
     result["files"] = {str(p.relative_to(folder)): ledger.sha256(p) for p in files}
@@ -504,8 +506,9 @@ def append(path, row):
 
 
 def fake(queue):
-    """test/diagrams' host-fed diagrams with their playground frames, ws2812 with T1H drawn
-    too long, a receiver, a malformed job, and one submitter past the hourly cap."""
+    """Builds fake jobs: test/diagrams' host-fed diagrams with their playground frames,
+    ws2812 with T1H drawn too long, a receiver, a malformed job, and one submitter past
+    the hourly cap."""
     frames = {"uart_tx": "11000101\n00111010", "dshot": "1000001011000110",
               "ws2812": "000100001111111100000000", "uart_rx": "11000101\n00111010"}
     decode = {"uart_tx": "uart:1846154", "ws2812": "ws281x"}
@@ -575,7 +578,7 @@ def main():
     if not a.generate.exists():
         sys.exit("no %s: dune build --root . bin/generate.exe first" % a.generate)
     a.results.mkdir(parents=True, exist_ok=True)
-    # one worker a results folder, so two never drive the bench at once
+    # one worker per results folder, so two never drive the bench at once
     lock = open(a.results / "worker.lock", "w")
     try:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
