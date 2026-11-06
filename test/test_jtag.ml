@@ -4,8 +4,8 @@ open Jtag
 
 let half_period = 10
 
-(* reset, read the IDCODE, write the user register twice and read the first value back
-   through the second scan, then select BYPASS, which delays TDI by one clock *)
+(* reset, read the IDCODE, write the user register twice (reading the first value back
+   during the second scan), then select BYPASS, which delays TDI by one clock *)
 let scans =
   [ `Reset, reset
   ; `Dr "idcode", scan_dr ~bits:32 0
@@ -20,7 +20,7 @@ let scans =
 let clocks = List.concat_map scans ~f:snd
 let schedule = words clocks
 
-(* the value each data scan shifted out, found at its place in the whole sequence *)
+(* the value each data scan shifted out, at its place in the whole sequence *)
 let results ~pushed =
   List.fold scans ~init:(0, []) ~f:(fun (first, results) (kind, clocks) ->
     let results =

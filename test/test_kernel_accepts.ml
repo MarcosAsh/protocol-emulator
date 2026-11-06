@@ -6,7 +6,7 @@ module K = Kernel.Make (Bits)
 module Harness =
   Hardcaml_test_harness.Lws_harness.Make (Kernel.Accepts.I) (Kernel.Accepts.O)
 
-(* uart_tx's pin held a bit, 8 cycles, at each level; the next pin is left alone *)
+(* uart_tx's pin held for a bit (8 cycles) at each level, leaving the next pin alone *)
 let uart_bits =
   { Kernel.Spacing.Spec.a = Program_config.default.set_base
   ; b = Program_config.default.set_base + 1
@@ -18,7 +18,7 @@ let uart_bits =
   }
 ;;
 
-(* The analyser's table for [c], with the pair's edge bounds under [spacing]. *)
+(* The analyser's table for [c], plus the pair's edge bounds under [spacing]. *)
 let table ?spacing (c : Certified.t) =
   let program = Asm.assemble c.source |> ok_exn in
   let config = Asm.Program.configure program c.config in
@@ -45,8 +45,8 @@ let table ?spacing (c : Certified.t) =
 ;;
 
 (* formal/phase_table.sby and phase_spacing.sby read the kernel's check of a row off the
-   Accepts circuit, its rows packed: on every reached row of the library it agrees with
-   [K], at the row's lower bounds and with the phase one past its upper. *)
+   Accepts circuit (rows packed). On every reached row of the library it must agree with
+   [K], at the row's lower bounds and one phase past its upper. *)
 let%expect_test "the accepts circuit agrees with the kernel on the library's tables" =
   Harness.run ~create:Kernel.Accepts.hierarchical (fun (h @ local) ~inputs:i ~outputs ->
     let o = Before_and_after_edge.before_edge outputs in
@@ -190,8 +190,8 @@ let%expect_test "the accepts circuit agrees with the kernel on the library's tab
 ;;
 
 (* What [formal/pair_step.sby] proves on the RTL: a row's edge bounds carry to the rows
-   after it, so a bound one step tighter than every way in is refused at a row before it.
-   Each tamper is one bit's bound of one pin at one reached row of [c]'s table. *)
+   after it, so a bound tightened by one step is refused at an earlier row. Each tamper
+   changes one bit's bound of one pin at one reached row of [c]'s table. *)
 let tamper_edges ?(spacing = uart_bits) (c : Certified.t) =
   let config, words, table = table ~spacing c in
   let refused table =
@@ -199,7 +199,7 @@ let tamper_edges ?(spacing = uart_bits) (c : Certified.t) =
     |> List.exists ~f:(fun (r : Kernel.Rejection.t) ->
       List.exists r.fails ~f:(String.is_substring ~substring:"edge"))
   in
-  (* the highest mark a row may hold, which saturates *)
+  (* the highest mark a row can hold (it saturates) *)
   let mark_max =
     Bits.of_signed_int
       ~width:Kernel.Held.port_widths.mark
@@ -286,8 +286,8 @@ let program ?(config = Program_config.default) ?period name source =
   }
 ;;
 
-(* A mark follows a wait for a pin only as far as the phase does, it follows a step to the
-   timer's very ends, and after a captured edge the arm bounds the phase. *)
+(* A mark follows a wait for a pin only as far as the phase does. It follows a step to the
+   very ends of the timer, and after a captured edge the arm bounds the phase. *)
 let%expect_test "edge bounds past a pin wait, at the timer's ends and after a capture" =
   tamper_edges
     (program
@@ -359,7 +359,7 @@ let%expect_test "an offset or a slope the timer cannot hold is dropped" =
     |}]
 ;;
 
-(* An end the timer cannot hold makes the whole range, as the timer wraps; pc 0's row is
+(* An end the timer can't hold makes the whole range, since the timer wraps. pc 0's row is
    always the whole range, so these are pc 1's. *)
 let%expect_test "a phase or an arm count at the timer's ends" =
   let program = Asm.assemble "    halt\n" |> ok_exn in
@@ -406,7 +406,8 @@ let%expect_test "a phase or an arm count at the timer's ends" =
     |}]
 ;;
 
-(* The analyser's rows bound no pin, so only [Kernel.Table.with_edges]'s keep a spacing. *)
+(* The analyser's rows bound no pin, so only [Kernel.Table.with_edges] rows keep a
+   spacing. *)
 let%expect_test "a table with no edge bounds keeps no spacing" =
   let config, words, table = table (Library.find_certified_exn "uart_tx") in
   print_s
@@ -422,7 +423,7 @@ let%expect_test "a table with no edge bounds keeps no spacing" =
     |}]
 ;;
 
-(* beside test_kernel's: a pin past the pin space, and a slope with no offset *)
+(* alongside test_kernel's: a pin past the pin space, and a slope with no offset *)
 let%expect_test "a spacing is checked only for pins and tables it is proved for" =
   let c = Library.find_certified_exn "uart_tx" in
   let config, words, table = table ~spacing:uart_bits c in
@@ -446,7 +447,7 @@ let%expect_test "a spacing is checked only for pins and tables it is proved for"
     |}]
 ;;
 
-(* An unreached row holds nothing, so a step into one fails on every bound it can. *)
+(* An unreached row holds nothing, so a step into one fails every bound it can. *)
 let%expect_test "a row that steps into an unreached row is refused" =
   let config, words, table = table (Library.find_certified_exn "uart_tx") in
   let table = Array.copy table in
@@ -457,8 +458,8 @@ let%expect_test "a row that steps into an unreached row is refused" =
     {| (((pc 2) (fails ("next phase" "next period" "next x" "next y" "next arm")))) |}]
 ;;
 
-(* Whether the word at an entry writes [pin], side-set first, as [Pins.write] wraps runs;
-   followed apart from the kernel's [Watched]. *)
+(* Whether the word at an entry writes [pin], side-set first, as [Pins.write] wraps runs.
+   Tracked separately from the kernel's [Watched]. *)
 let writes (c : Program_config.t) (spec : Kernel.Spacing.Spec.t) ~pin (i : Isa.t) =
   let in_run ~base ~count =
     List.exists (List.range 0 count) ~f:(fun k -> (base + k) % Isa.pin_space = pin)
@@ -504,8 +505,8 @@ let phase (m : Machine.t) =
   if d >= half then d - (2 * half) else d
 ;;
 
-(* What formal/pair_step.sby proves, run on the model: at every entry the core's edge
-   state of each pin of the pair lies inside the row [Kernel.Table.with_edges] gives its
+(* What formal/pair_step.sby proves, run on the model: at every entry, the core's edge
+   state for each pin of the pair lies inside the row [Kernel.Table.with_edges] gives that
    pc, under random pins and host. *)
 let%expect_test "the core's edges stay inside the rows the table carries them to" =
   List.iter
@@ -617,9 +618,9 @@ let check ?(spacing = uart_bits) (c : Certified.t) =
         ~_:(Kernel.check ?period:c.period ~spacing ~config ~words table : unit Or_error.t)]
 ;;
 
-(* With_edges reads past the program as the core does, carries a fractional period's cycle
-   into a pin's count, here uart_tx's held 7 cycles, and saturates the count across a wait
-   of three 65535-cycle periods, which a hold of 65535 then needs. *)
+(* With_edges reads past the end of the program as the core does. It carries a fractional
+   period's cycle into a pin's count (here uart_tx's held 7 cycles). It saturates the
+   count across a wait of three 65535-cycle periods, which a hold of 65535 then needs. *)
 let%expect_test "the edge bounds of the table hold where they are hard to follow" =
   check (program "off_the_end" "    set pins, 1\n");
   check

@@ -3,10 +3,9 @@ open! Hardcaml
 open! Hardcaml_verify
 open Protocol_emulator
 
-(* [Comb_gates], with each product built once: the kernel's product of a slope and the
-   value [set x] loads and the proof's product of the same two vectors are then the same
-   gates. They are the same function either way, but SAT cannot see that two multipliers
-   agree. *)
+(* [Comb_gates] with each product built once, so the kernel's product of a slope and the
+   value [set x] loads shares gates with the proof's product of the same two vectors. SAT
+   can't see that two separate multipliers agree. *)
 module G = struct
   include Comb_gates
 
@@ -41,13 +40,13 @@ let all_but_offset_and_edges (h : _ Kernel.Holds.t) =
   all { h with offset = G.vdd; edge_a = G.vdd; edge_b = G.vdd }
 ;;
 
-(* That an accepted row maps into its successors and meets its deadline, as claims SAT
-   finds far easier apart: [bounds], that the conjuncts but the offset's and the edges'
-   keep the core inside every other bound of the row it steps to and a deadline wait in
-   time; [offset], that the offset conjuncts keep its offset inside that row's; and for
-   each pin of the pair, that an edge it may make is spaced. [accepts] implies each. Each
-   is proved one of [cases] at a time. That the edge bounds carry to the next row is too
-   much arithmetic for SAT; formal/pair_step.sby proves it on the RTL. *)
+(* Proves that an accepted row maps into its successors and meets its deadline, split into
+   claims that SAT finds much easier apart. [bounds]: the conjuncts other than the
+   offset's and the edges' keep the core inside every other bound of the row it steps to,
+   and a deadline wait in time. [offset]: the offset conjuncts keep its offset inside that
+   row's. For each pin of the pair: an edge it may make is spaced. [accepts] implies each,
+   and each is proved one of [cases] at a time. That the edge bounds carry to the next row
+   is too much arithmetic for SAT, so formal/pair_step.sby proves it on the RTL. *)
 type claims =
   { cases : G.t list
   ; bounds : G.t
@@ -68,9 +67,9 @@ let edge_input name =
     G.input (name ^ "_" ^ field) width)
 ;;
 
-(* The kernel accepts under the single-edge assumption as the input [single_edge] sets it,
-   and the step takes [step_edge] of that; it checks the spacing [check_spacing] makes of
-   the step's. *)
+(* The kernel accepts under the single-edge assumption that [single_edge] sets. The step
+   uses [step_edge] of that, and the kernel checks the spacing [check_spacing] makes of
+   the step's edge. *)
 let accepted_rows_hold ?(check_spacing = Fn.id) ~step_edge () =
   let side_set_count = G.input "side_set_count" 2 in
   let fraction = G.input "fraction" 1 in
@@ -127,8 +126,8 @@ let accepted_rows_hold ?(check_spacing = Fn.id) ~step_edge () =
   let d = Decoder.decode ~side_set_count word in
   let is op = Opcode.is d.opcode op in
   let deadline = G.(is Wait &: Wait_source.is d.wait_source Deadline) in
-  (* what the core holds at the next entry, by the step lemma; after [mov t, capture] that
-     is only a range, from a cycle past the instruction up to the step *)
+  (* what the core holds at the next entry, by the step lemma. After [mov t, capture]
+     that's only a range, from one cycle past the instruction up to the step *)
   let free_phase = any "phase" Isa.timer_bits in
   let cycles = G.(uresize d.delay ~width:Isa.timer_bits +:. 1) in
   let in_capture_range =
@@ -143,14 +142,14 @@ let accepted_rows_hold ?(check_spacing = Fn.id) ~step_edge () =
   in
   let known k v name = G.mux2 k v (any name Isa.data_bits) in
   let x' = known s.x_known s.next_x "x" in
-  (* SAT cannot follow a multiplication, so [offset], the core's [phase - row.slope * x]
-     modulo the timer, and [next_offset] and [target_offset], [phase' - slope * x'] under
-     each successor's slope, are free inputs, under axioms that hold of the true offsets
-     in that arithmetic: after [set x, v] the offset is [phase' - slope * v]; where x is
-     zero it is the phase; and with the slope the same, the offset moves as the phase does
-     where x stays, and a slope further where x is one less. The proof is sound only
-     because they hold, which formal/offset_axioms.smt2 proves. Each is stated only where
-     the kernel needs it, which leaves it true and SAT finds far easier. *)
+  (* SAT can't follow a multiplication, so [offset] (the core's [phase - row.slope * x]
+     modulo the timer) and [next_offset] and [target_offset] ([phase' - slope * x'] under
+     each successor's slope) are free inputs. We constrain them with axioms that hold of
+     the true offsets: after [set x, v] the offset is [phase' - slope * v]. Where x is
+     zero it's the phase. With the same slope the offset moves as the phase does where x
+     stays, and a slope further where x is one less. The proof is sound only because these
+     hold, which formal/offset_axioms.smt2 proves. Each is stated only where the kernel
+     needs it, which keeps it true and makes SAT's job far easier. *)
   let offset = G.input "offset" Isa.timer_bits in
   let next_offset = G.input "next_offset" Isa.timer_bits in
   let target_offset = G.input "target_offset" Isa.timer_bits in
@@ -229,14 +228,14 @@ let accepted_rows_hold ?(check_spacing = Fn.id) ~step_edge () =
       &: (side_set_count <=:. 2)
       &: (~:(s.capture_bounded) |: in_capture_range))
   in
-  (* a run-time write under a floor leaves at least the loaded period, as the core's guard
-     holds it at each use *)
+  (* a run-time write under a floor leaves at least the loaded period, since the core's
+     guard enforces it at each use *)
   let floored =
     G.(~:(~:(s.period_known) &: loaded.valid) |: (period' >=: loaded.value))
   in
   let hypothesis = G.(inside &: floored &: ~:(s.halts)) in
-  (* a jump one condition at a time and an ALU instruction one destination and operation
-     at a time *)
+  (* jumps one condition at a time, ALU instructions one destination and operation at a
+     time *)
   let cases =
     let values (field : Isa.Field.t) =
       List.init (1 lsl field.width) ~f:(fun v ->
@@ -295,10 +294,10 @@ let%expect_test "an accepted row maps into its successors and meets its deadline
     |}]
 ;;
 
-(* [fall_through] is the tightest row the kernel lets the next pc's be: from a row with no
-   slope and the offset full, as every row a chip holds is, on the way of falling through
-   to any row with the offset full and no spacing, each bound a chip keeps holds exactly
-   where the image lies inside it, and where that way is not asked every conjunct holds. *)
+(* [fall_through] is the tightest row the kernel allows for the next pc. Take a row with
+   no slope and a full offset, as every row on the chip is, falling through to any row
+   with a full offset and no spacing. Each bound the chip keeps holds exactly where the
+   image lies inside it, and where that way isn't asked every conjunct holds. *)
 let%expect_test "the fall-through image is the tightest next row" =
   let side_set_count = G.input "side_set_count" 2 in
   let fraction = G.input "fraction" 1 in
@@ -427,9 +426,9 @@ let%expect_test "the fall-through image is the tightest next row" =
     |}]
 ;;
 
-(* [one_way] is [conjuncts] on the way [taken] picks, the other way holding, and where
-   [taken] is low [fall_through] too: the load checker's one way at a time, the image
-   computed once, is the kernel's two. *)
+(* [one_way] is [conjuncts] on the way [taken] picks, with the other way holding, plus
+   [fall_through] where [taken] is low. The load checker does one way at a time with the
+   image computed once, which amounts to the kernel's two. *)
 let%expect_test "one way at a time is both ways" =
   let side_set_count = G.input "side_set_count" 2 in
   let fraction = G.input "fraction" 1 in
@@ -532,10 +531,10 @@ let%expect_test "one way at a time is both ways" =
     |}]
 ;;
 
-(* The load checker reads a successor with no stored row as the empty row, where the walk
-   later holds a row of its own. Holding into [stand_in] must then hold into any row the
-   walk can hold: no slope and the full offset. Gives the cases and the claims for the
-   next row and the target. *)
+(* The load checker reads a successor with no stored row as the empty row, though the walk
+   later holds a real one there. So holding into [stand_in] must imply holding into any
+   row the walk can hold (no slope, full offset). Gives the cases and claims for the next
+   row and the target. *)
 let holds_into_any_walked_row ~(stand_in : Bits.t Kernel.Row.t) =
   let side_set_count = G.input "side_set_count" 2 in
   let fraction = G.input "fraction" 1 in
@@ -602,7 +601,7 @@ let%expect_test "what holds into the empty row holds into any row the walk holds
     |}]
 ;;
 
-(* Teeth: the full row in its place, the row at pc 0, which bounds nothing. *)
+(* Teeth: swap in the row at pc 0, which bounds nothing. *)
 let%expect_test "what holds into the full row need not hold into a walked row" =
   let cases, _, target =
     holds_into_any_walked_row ~stand_in:(Kernel.Table.of_analyser []).(0)
@@ -619,9 +618,9 @@ let%expect_test "what holds into the full row need not hold into a walked row" =
     |}]
 ;;
 
-(* Teeth for the single-edge assumption: a row the kernel accepts under it need not hold a
-   core whose capture pin may make a second edge, which is the step without it. Any
-   counterexample has the kernel assuming one edge while the core awaits it. *)
+(* Teeth for the single-edge assumption. A row the kernel accepts under it need not hold
+   for a core whose capture pin may make a second edge (the step without the assumption).
+   Any counterexample has the kernel assuming one edge while the core awaits it. *)
 let%expect_test "the rows hold only under the single-edge assumption" =
   let { cases; bounds; _ } = accepted_rows_hold ~step_edge:(Fn.const G.gnd) () in
   Checked_unsat.prove
@@ -636,8 +635,7 @@ let%expect_test "the rows hold only under the single-edge assumption" =
     |}]
 ;;
 
-(* Teeth for the spacing: rows the kernel accepts with no spacing to keep need not keep
-   the step's. *)
+(* Teeth for the spacing: a row accepted with no spacing to keep need not keep the step's. *)
 let%expect_test "an edge is spaced only where the kernel checks the spacing" =
   let { cases; spaced_a; _ } =
     accepted_rows_hold ~check_spacing:(Fn.const K.no_spacing) ~step_edge:Fn.id ()
@@ -659,7 +657,7 @@ let assemble (c : Certified.t) =
   program, Asm.Program.configure program c.config
 ;;
 
-(* The kernel on the analyser's rows, with [at_pc_0] of the row it puts at pc 0 and, for a
+(* The kernel on the analyser's rows, using [at_pc_0] for the row at pc 0 and, given a
    [spacing], the edge bounds [Kernel.Table.with_edges] adds. *)
 let check ?(at_pc_0 = Fn.id) ?spacing (c : Certified.t) =
   let program, config = assemble c in
@@ -758,15 +756,16 @@ let%expect_test "the kernel on the firmware library, from the analyser's rows" =
     |}]
 ;;
 
-(* the least whole cycles at [clock_mhz] that last [ns] *)
+(* the fewest whole cycles at [clock_mhz] that last at least [ns] *)
 let cycles_at ~clock_mhz ns = ((ns * clock_mhz) + 999) / 1000
 let cycles = cycles_at ~clock_mhz:50
 
-(* UM10204's [timings] a master drives, in cycles at [clock_mhz], as a spacing of
-   i2c_master's pins: SCL is [a] and SDA [b], each its pindirs bit, where 1 pulls the line
-   low. tLOW and tHIGH hold SCL, and tBUF holds SDA high before any START, a repeated one
-   too, which UM10204 does not ask; tSU;DAT and tHD;STA part SCL's edges from SDA's, and
-   tSU;STA and tSU;STO SDA's from SCL's rise. fSCL, two edges back, is not a spacing. *)
+(* UM10204's master [timings] in cycles at [clock_mhz], as a spacing on i2c_master's pins.
+   SCL is [a] and SDA is [b], each as its pindirs bit (1 pulls the line low). tLOW and
+   tHIGH hold SCL. tBUF holds SDA high before any START, repeated ones too, which UM10204
+   doesn't require. tSU;DAT and tHD;STA keep SCL's edges apart from SDA's, and tSU;STA and
+   tSU;STO keep SDA's edges apart from SCL's rise. fSCL is two edges back, so it isn't a
+   spacing. *)
 let i2c_spacing ~clock_mhz timings =
   let limit name = cycles_at ~clock_mhz (I2c_timing.min_ns timings name) in
   { Kernel.Spacing.Spec.a = I2c.scl
@@ -783,9 +782,9 @@ let i2c_spacing ~clock_mhz timings =
 
 let fast_mode_plus = i2c_spacing ~clock_mhz:50 I2c_timing.fast_mode_plus
 
-(* The SCL low before a repeated START cut short, and the quarter one cycle short, which
-   holds SCL low 24 cycles to Fm+'s 25: each keeps every deadline, and the kernel refuses
-   each once it spaces the edges. *)
+(* Cut the SCL low before a repeated START short, or make the quarter one cycle short (SCL
+   low 24 cycles against Fm+'s 25). Each keeps every deadline, and the kernel refuses each
+   once it spaces the edges. *)
 let%expect_test "i2c_master keeps Fast-mode Plus spacing, and a short SCL low is refused" =
   let c = Library.find_certified_exn "i2c_master" in
   let short_low =
@@ -827,10 +826,11 @@ let%expect_test "i2c_master keeps Fast-mode Plus spacing, and a short SCL low is
     |}]
 ;;
 
-(* The bus clear's SCL low cut to a quarter keeps every deadline, and the kernel refuses
-   it once it spaces the edges. At 6 MHz a quarter of 29 (test_i2c.ml) is refused only at
-   pc 47: the SCL fall for a host word with no START, whose SDA edge before is a STOP
-   behind the host wait, past the kernel's bound. A quarter of 28 is short of tSU;STA too. *)
+(* Cutting the bus clear's SCL low to a quarter keeps every deadline, and the kernel
+   refuses it once it spaces the edges. At 6 MHz a quarter of 29 (test_i2c.ml) is refused
+   only at pc 47, the SCL fall for a host word with no START. The SDA edge before it is a
+   STOP behind the host wait, past the kernel's bound. A quarter of 28 also misses
+   tSU;STA. *)
 let%expect_test "i2c_master's bus clear is spaced, and a short pulse is refused" =
   let c = Library.find_certified_exn "i2c_master" in
   let short_pulse =
@@ -883,9 +883,9 @@ let%expect_test "i2c_master's bus clear is spaced, and a short pulse is refused"
     |}]
 ;;
 
-(* The kernel's bound is i2c_master's exact width: it holds SCL low two quarters, 26
-   cycles, and SCL high a quarter before SDA moves for a repeated START or a STOP, 13; a
-   cycle more of either is refused. *)
+(* The kernel's bound matches i2c_master's exact widths: SCL low for two quarters (26
+   cycles), and SCL high for a quarter (13) before SDA moves for a repeated START or a
+   STOP. One cycle more of either is refused. *)
 let%expect_test "the spacing i2c_master passes is its own, to the cycle" =
   let c = Library.find_certified_exn "i2c_master" in
   let low n =
@@ -920,14 +920,14 @@ let%expect_test "the spacing i2c_master passes is its own, to the cycle" =
     |}]
 ;;
 
-(* Library firmware whose host loads [period], named for it. *)
+(* Library firmware where the host loads [period], named after it. *)
 let at_period name period =
   let c = Library.find_certified_exn name in
   { c with name = [%string "%{name}_%{period#Int}"]; period = Some period }
 ;;
 
-(* A spacing that holds [pin] at least [at0] cycles at bit 0 and [at1] at bit 1, its
-   pindirs bit if [dirs]; [b] is the next pin, which the firmware leaves alone. *)
+(* A spacing that holds [pin] for at least [at0] cycles at bit 0 and [at1] at bit 1 (as
+   its pindirs bit if [dirs]). [b] is the next pin, which the firmware leaves alone. *)
 let holding ~pin ~dirs ~at0 ~at1 =
   { Kernel.Spacing.Spec.a = pin
   ; b = pin + 1
@@ -946,12 +946,13 @@ let uart_bits bit =
   holding ~pin:Program_config.default.set_base ~dirs:false ~at0:bit ~at1:bit
 ;;
 
-(* Bosch CAN 2.0: at 125 kbit/s, an oscillator 1.58% fast at most: bits of 393.8 cycles *)
+(* Bosch CAN 2.0: 125 kbit/s with an oscillator at most 1.58% fast, so bits of 393.8
+   cycles *)
 let can_bit = Float.iround_up_exn (400. /. 1.0158)
 let can_bits bit = holding ~pin:Can.tx_pin ~dirs:false ~at0:bit ~at1:bit
 
-(* IBM PS/2: CLK low 30 us or more (T4), DATA moving 5 us or more after CLK rises (T2) and
-   before it falls (T1). CLK high (T3) is left out: the kernel does not see how long the
+(* IBM PS/2: CLK low for 30 us or more (T4), DATA moving 5 us or more after CLK rises (T2)
+   and before it falls (T1). CLK high (T3) is left out: the kernel can't see how long the
    host holds CLK low to ask to send, and the first fall comes a quarter after. Each is
    the standard's unless given. *)
 let ps2 ?(clock_low = cycles 30_000) ?(t1 = cycles 5_000) ?(t2 = cycles 5_000) () =
@@ -965,21 +966,21 @@ let ps2 ?(clock_low = cycles 30_000) ?(t1 = cycles 5_000) ?(t2 = cycles 5_000) (
   }
 ;;
 
-(* DS18B20: a write-1 low (tLOW1) and the recovery high (tREC) each 1 us or more, unless
+(* DS18B20: a write-1 low (tLOW1) and the recovery high (tREC), each at least 1 us unless
    given *)
 let one_wire ?(low = cycles 1_000) ?(recovery = cycles 1_000) () =
   holding ~pin:One_wire.pin ~dirs:true ~at0:recovery ~at1:low
 ;;
 
 (* WS2812B: T0H 400 ns and T1L 450 ns, each +-150 ns, so highs of 250 ns or more and lows
-   of 300, unless given. T1H's 650 ns and T0L's 700 are left out: the spacing bounds every
-   high and low, not the bit it carries. *)
+   of 300, unless given. T1H's 650 ns and T0L's 700 are left out, since the spacing bounds
+   every high and low, not the bit it carries. *)
 let ws2812 ?(low = cycles 300) ?(high = cycles 250) () =
   holding ~pin:Ws2812.pin ~dirs:false ~at0:low ~at1:high
 ;;
 
-(* ws2812 with [third] cycles a third and [Ws2812.standard]'s tail. The standard's third
-   is 20; the library's is 6, a T0H of 120 ns, which no WS2812B takes. *)
+(* ws2812 with [third] cycles per third and [Ws2812.standard]'s tail. The standard's third
+   is 20. The library uses 6, a T0H of 120 ns, which no WS2812B accepts. *)
 let ws2812_at third =
   { (Library.find_certified_exn "ws2812") with
     name = [%string "ws2812_third_%{third#Int}"]
@@ -987,8 +988,8 @@ let ws2812_at third =
   }
 ;;
 
-(* Each at its standard's rate keeps the least widths taken above from its standard; one
-   cycle outside, it keeps every deadline and the kernel refuses it. *)
+(* At its standard's rate, each firmware keeps the minimum widths above. One cycle outside
+   them it still keeps every deadline, and the kernel refuses it. *)
 let%expect_test "a standard's least widths are kept, and one cycle outside is refused" =
   List.iter
     [ ( uart_bits midi_bit
@@ -1050,9 +1051,9 @@ let%expect_test "a standard's least widths are kept, and one cycle outside is re
     |}]
 ;;
 
-(* The most cycles the kernel takes for each width at the standard's rate: a cycle more is
-   refused. PS/2's T1 binds at the acknowledge, pc 24, a cycle under the 998 the emulator
-   measures between a sent bit and its fall. *)
+(* The most cycles the kernel accepts for each width at the standard's rate. One more is
+   refused. PS/2's T1 binds at the acknowledge (pc 24), one cycle under the 998 the
+   emulator measures between a sent bit and its fall. *)
 let%expect_test "the kernel's bound on each width, to the cycle" =
   List.concat_map
     [ "MIDI bit", at_period "uart_tx_host_rate" 1600, 1600, uart_bits
@@ -1119,8 +1120,8 @@ let%expect_test "the kernel's bound on each width, to the cycle" =
     |}]
 ;;
 
-(* Without its wait the stop bit lasts 7 cycles when the host has the next byte ready: the
-   the kernel takes a high of 7 and refuses 8, so MIDI's bit too. *)
+(* Without its wait the stop bit lasts 7 cycles when the host has the next byte ready. The
+   kernel takes a high of 7 and refuses 8, which also fails MIDI's bit. *)
 let%expect_test "a MIDI stop bit cut short is refused" =
   let c = at_period "uart_tx_host_rate" 1600 in
   let short_stop =
@@ -1152,8 +1153,8 @@ let%expect_test "a MIDI stop bit cut short is refused" =
     |}]
 ;;
 
-(* With a spacing a run starts with the pins at either level too, so the row at pc 0 must
-   bound neither. *)
+(* With a spacing a run can also start with the pins at either level, so the row at pc 0
+   must bound neither. *)
 let%expect_test "with a spacing, the row at pc 0 bounds no pin" =
   let at_pc_0 (r : _ Kernel.Row.t) =
     { r with a = { r.a with at1 = { r.a.at1 with may = Bits.gnd } } }
@@ -1165,10 +1166,10 @@ let%expect_test "with a spacing, the row at pc 0 bounds no pin" =
   [%expect {| (verdict (Error "the row at pc 0 must be the full range")) |}]
 ;;
 
-(* At reset the phase, the offset, every register and the capture state are anything, and
-   the proof of [accepts] takes the row at pc 0 to hold of them, so [Kernel.check] refuses
-   a table whose row there bounds any of them: here uart_tx's, which it accepts, with one
-   bound added at pc 0. *)
+(* At reset the phase, offset, every register and the capture state can be anything, and
+   the proof of [accepts] assumes the row at pc 0 holds for them. So [Kernel.check]
+   refuses a table whose pc 0 row bounds any of them. Here that is uart_tx's table
+   (accepted as is) with one bound added at pc 0. *)
 let%expect_test "the row at pc 0 bounds nothing" =
   let c = Library.find_certified_exn "uart_tx" in
   let signed n = Bits.of_signed_int ~width:Isa.timer_bits n in
@@ -1203,10 +1204,10 @@ let%expect_test "the row at pc 0 bounds nothing" =
     |}]
 ;;
 
-(* ws2812 with the wait of its reset gap after the loop rather than in it. Each pass moves
-   [t] 23 cycles further ahead of [now], so the loop head's row has no phase bound short
-   of the full range. Intervals alone cannot show the wait in time; the offset can, as the
-   phase less 23 times x holds still round the loop and x is zero at its exit. *)
+(* ws2812 with the reset gap's wait after the loop rather than in it. Each pass moves [t]
+   23 cycles further ahead of [now], so the loop head's row has no phase bound short of
+   the full range. Intervals can't show the wait is in time, but the offset can: phase
+   less 23 times x stays constant round the loop, and x is zero at its exit. *)
 let ws2812_waiting_after_gap =
   let c = Library.find_certified_exn "ws2812" in
   { c with
@@ -1219,9 +1220,9 @@ let ws2812_waiting_after_gap =
   }
 ;;
 
-(* [ws2812_waiting_after_gap] with the last [add t, p] of its gap loop made [add t, x]:
-   each pass moves [t] ahead by an amount that changes from pass to pass, so neither the
-   phase nor the phase less any multiple of x holds still round the loop. *)
+(* [ws2812_waiting_after_gap] with the last [add t, p] of its gap loop changed to
+   [add t, x]. Each pass moves [t] ahead by a different amount, so neither the phase nor
+   the phase less any multiple of x stays constant round the loop. *)
 let gap_adding_x =
   { ws2812_waiting_after_gap with
     name = "gap_adding_x"
@@ -1250,8 +1251,8 @@ let%expect_test "a rejection is the kernel's or the analyser's" =
   [%expect {| (gap_adding_x "no table passes") |}]
 ;;
 
-(* The analyser's rows are one table that passes, so the query must find some for the
-   firmware the kernel accepts: a receiver and a loaded period among them. *)
+(* The analyser's rows are one table that passes, so the query must find a table for
+   firmware the kernel accepts, including a receiver and a loaded period. *)
 let%expect_test "some table passes for firmware the kernel accepts" =
   List.iter [ "uart_tx"; "uart_rx"; "ethernet"; "jtag" ] ~f:(fun name ->
     let passes = Table_query.some_table_passes (Library.find_certified_exn name) in
@@ -1265,8 +1266,8 @@ let%expect_test "some table passes for firmware the kernel accepts" =
     |}]
 ;;
 
-(* Falling through [jmp x!=y] leaves x = y, so the wait timed by x after it is in time
-   although x comes from the isr. *)
+(* Falling through [jmp x!=y] leaves x = y, so a later wait timed by x is in time even
+   though x comes from the isr. *)
 let%expect_test "the way through jmp x!=y knows x is y" =
   let c =
     { Certified.name = "x_is_y"
@@ -1295,8 +1296,8 @@ let%expect_test "the way through jmp x!=y knows x is y" =
   [%expect {| ((verdict (Ok ())) (passes true)) |}]
 ;;
 
-(* The library's ws2812 waits inside its gap loop instead, which holds the line low for
-   the same 160 thirds and needs no offset. [accepted] is the kernel's verdict on the
+(* The library's ws2812 waits inside its gap loop instead, holding the line low for the
+   same 160 thirds with no need for the offset. [accepted] is the kernel's verdict on the
    analyser's rows. *)
 let%expect_test "ws2812's gap loop needs an offset, or its wait moved into the loop" =
   List.iter
@@ -1314,8 +1315,8 @@ let%expect_test "ws2812's gap loop needs an offset, or its wait moved into the l
 ;;
 
 (* spi_slave arming the capture once sck is high, so the falling edge it answers is the
-   captured one. The single-edge assumption asks that sck is still high when the arm
-   issues, two cycles after the wait for it to rise releases. *)
+   captured one. The single-edge assumption needs sck still high when the arm issues, two
+   cycles after the wait for it to rise releases. *)
 let spi_slave_captured =
   let c = Library.find_certified_exn "spi_slave" in
   { c with
@@ -1347,7 +1348,7 @@ module Reaction = struct
     }
   [@@deriving sexp_of]
 
-  (* the widest of [rows], as [table] holds them, that writes pins, has seen the captured
+  (* the widest of [rows] (as held in [table]) that writes pins, has seen the captured
      edge and bounds the arm *)
   let of_rows rows ~(table : Kernel.Table.t) =
     let module Kernel_bits = Kernel.Make (Bits) in
@@ -1376,8 +1377,8 @@ let reaction (c : Certified.t) =
 ;;
 
 (* Every row the analyser gives the library has no slope and the full offset, so each
-   table is one of the tables of intervals that formal/phase_table.sby covers, but for
-   ethernet's counted preamble loops, which formal/phase_table_affine.sby covers, and the
+   table is a table of intervals covered by formal/phase_table.sby. The exceptions are
+   ethernet's counted preamble loops (covered by formal/phase_table_affine.sby) and the
    old ws2812's gap loop. *)
 let%expect_test "the library's tables are rows of intervals" =
   let module Kernel_bits = Kernel.Make (Bits) in
@@ -1411,7 +1412,7 @@ let%expect_test "the library's tables are rows of intervals" =
 ;;
 
 (* [Kernel.check] spaces edges only where formal/phase_spacing.sby proves it: two pins, no
-   Manchester or line code and a table of intervals. *)
+   Manchester or line code, and a table of intervals. *)
 let%expect_test "a spacing is checked only where it is proved" =
   let i2c = Library.find_certified_exn "i2c_master" in
   List.iter
@@ -1443,21 +1444,20 @@ let%expect_test "a spacing is checked only where it is proved" =
     |}]
 ;;
 
-(* The kernel's row is the phase [now - t] an instruction enters at
-   ([formal/phase_step.sv]), and a pin edge shows the cycle after the entry of an
-   instruction that writes pins ([formal/edge_step.sv]): a set, out or mov to pins or
-   pindirs, any instruction with side-set, and the one that lands a Manchester bit's
-   second half, as the analyser's rows mark them. So the widest such row, in cycles,
-   bounds every edge's jitter against its deadline; its first pc is named. It is a bound,
-   not any one edge's jitter: side-set counts even where it drives the level the pins
-   already hold. A row left unbounded (before the first [mov t, now], after a wait on a
-   pin or the host, or in a loop as long as its data) has no deadline and is listed as
-   untimed.
+(* A row's phase is [now - t] at the instruction it enters at ([formal/phase_step.sv]). A
+   pin edge shows the cycle after the entry of an instruction that writes pins
+   ([formal/edge_step.sv]): a set, out or mov to pins or pindirs, any instruction with
+   side-set, and the one that lands a Manchester bit's second half, as the analyser's rows
+   mark them. So the widest such row, in cycles, bounds every edge's jitter against its
+   deadline, and its first pc is named. It's a bound, not any one edge's jitter: side-set
+   counts even where it drives the level the pins already hold. A row left unbounded
+   (before the first [mov t, now], after a wait on a pin or the host, or in a loop as long
+   as its data) has no deadline and is listed as untimed.
 
    Reaction: a row that writes pins, has seen the captured edge and bounds the arm enters
    under [arm_hi] cycles after the core samples the edge, as the arm takes effect a cycle
-   late ([formal/phase_step.sv]); its edge shows within [arm_hi]. Single-edge assumption;
-   [Top]'s synchroniser adds two. *)
+   late ([formal/phase_step.sv]), so its edge shows within [arm_hi]. This assumes a single
+   edge, and [Top]'s synchroniser adds two. *)
 let%expect_test "a bound on the jitter of every pin edge, in firmware the kernel accepts" =
   let module Kernel_bits = Kernel.Make (Bits) in
   List.iter (Library.certified @ [ spi_slave_captured ]) ~f:(fun (c : Certified.t) ->
@@ -1600,8 +1600,8 @@ let%expect_test "a bound on the jitter of every pin edge, in firmware the kernel
     |}]
 ;;
 
-(* Watches miso answer the falling edges of sck, every reply bit the other level to the
-   one before so that each answer moves miso: [worst] is the most cycles from the core
+(* Watches miso answer the falling edges of sck. Every reply bit is the opposite level to
+   the one before, so each answer moves miso. [worst] is the most cycles from the core
    first sampling sck low to miso changing. *)
 module Answers = struct
   type t =
@@ -1626,8 +1626,8 @@ module Answers = struct
     t.miso <- Some miso
   ;;
 
-  (* [c] in lockstep with the RTL, the master's pins as [sck] and [mosi] give them each
-     cycle and [step] told miso after it *)
+  (* [c] in lockstep with the RTL. [sck] and [mosi] give the master's pins each cycle, and
+     [step] is told miso after it *)
   let run t (c : Certified.t) ~premise ~cycles ~sck ~mosi ~step =
     let program, config = assemble c in
     let sampled = ref 0 in
@@ -1659,8 +1659,8 @@ let answering_later cycles =
   }
 ;;
 
-(* Each firmware against a mode 0 master over half periods and byte gaps, in lockstep with
-   the RTL. [worst] meets the bound. *)
+(* Runs each firmware against a mode 0 master over a range of half periods and byte gaps,
+   in lockstep with the RTL. [worst] must meet the bound. *)
 let%expect_test "every answer to a captured edge comes within the reaction bound" =
   let module Spi_peer = Protocol_models.Spi_peer in
   List.iter
@@ -1714,8 +1714,8 @@ let%expect_test "every answer to a captured edge comes within the reaction bound
     |}]
 ;;
 
-(* Teeth: sck high for one cycle only, so the arm finds it low already and the capture
-   misses the edge. The answer then comes later after the edge than the bound. *)
+(* Teeth: sck is high for one cycle only, so the arm finds it low already and the capture
+   misses the edge. The answer then comes later than the bound allows. *)
 let%expect_test "the reaction bound rests on the single-edge assumption" =
   let answers = Answers.create () in
   let premise = Premise.create () in
@@ -1744,8 +1744,8 @@ let%expect_test "the reaction bound rests on the single-edge assumption" =
 ;;
 
 (* [Kernel.Table.with_edges] stops following the marks round a loop once a pc has joined
-   [widen_after] times. For each firmware under its spacing, the fewest joins that lose
-   nothing, as every more lose nothing too. *)
+   [widen_after] times. For each firmware under its spacing, this finds the fewest joins
+   that lose nothing (more joins lose nothing either). *)
 let%expect_test "edge bounds are widened only where they have not settled by widen_after" =
   List.iter
     [ "i2c_master", Library.find_certified_exn "i2c_master", fast_mode_plus

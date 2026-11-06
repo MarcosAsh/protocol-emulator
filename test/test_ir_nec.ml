@@ -2,14 +2,14 @@ open! Core
 open Protocol_emulator
 open Ir_nec
 
-(* what the analyser and the kernel make of the firmware, which compiling it checked *)
+(* The analyser and kernel verdicts on the firmware (it already compiles). *)
 let%expect_test "the firmware's verdict" =
   print_endline (Analyser.Verdict.to_string (Timed_program.verdict Ir_nec.firmware));
   [%expect {| 107 words, 34 deadline waits, worst slack 3 |}]
 ;;
 
-(* [shortest_third] cycles a third, at the trace's clock: the frame and two repeat codes,
-   so both message periods show. *)
+(* The frame plus two repeat codes, at [shortest_third] cycles per third and the trace's
+   clock, so both message periods show. *)
 let third = shortest_third
 let clock_hz = trace_clock_hz
 let host_words = third :: List.concat_map sent ~f:words
@@ -28,7 +28,7 @@ let print_decoded levels =
   | Error error -> print_s [%message "refused" (error : Error.t)]
 ;;
 
-(* the firmware on the model, the host writing each word once the fifo has room *)
+(* the firmware on the model, with the host writing each word once the fifo has room *)
 let tx_levels source =
   let machine =
     Machine.create
@@ -65,7 +65,7 @@ let%expect_test "every carrier period, burst, space, bit and message period" =
     |}]
 ;;
 
-(* 18 rows of 18 carrier periods and a pulse, 8.54 ms, is 5.2% short. *)
+(* 18 rows of 18 carrier periods plus a pulse is 8.54 ms, 5.2% short. *)
 let%expect_test "the decoder refuses an AGC burst 18 periods short" =
   let source =
     Bench.patch
@@ -77,7 +77,7 @@ let%expect_test "the decoder refuses an AGC burst 18 periods short" =
   [%expect {| (refused (error ("out of spec" "AGC burst" (ns 8535088)))) |}]
 ;;
 
-(* A zero's space 8 thirds short: 121 thirds, 1.06 ms, is 5.6% short. *)
+(* A zero's space 8 thirds short is 121 thirds (1.06 ms), 5.6% short. *)
 let%expect_test "the decoder refuses a zero 8 thirds short" =
   let source =
     Bench.patch

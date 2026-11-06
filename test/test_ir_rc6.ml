@@ -2,14 +2,14 @@ open! Core
 open Protocol_emulator
 open Ir_rc6
 
-(* what the analyser and the kernel make of the firmware, which compiling it checked *)
+(* The analyser and kernel verdicts on the firmware (it already compiles). *)
 let%expect_test "the firmware's verdict" =
   print_endline (Analyser.Verdict.to_string (Timed_program.verdict Ir_rc6.firmware));
   [%expect {| 64 words, 22 deadline waits, worst slack 6 |}]
 ;;
 
-(* 200 cycles a unit, as a 450 kHz clock gives: three frames, the trailer bit low, high,
-   then low again, the last at the extremes of the address and the command. *)
+(* 200 cycles per unit, which a 450 kHz clock gives. Three frames: the trailer bit low,
+   high, then low again, the last with extreme address and command values. *)
 let unit = 200
 let clock_hz = 450_000
 
@@ -41,7 +41,7 @@ let print_decoded levels =
   | Error error -> print_s [%message "refused" (error : Error.t)]
 ;;
 
-(* the firmware on the model, the host writing each word once the fifo has room *)
+(* the firmware on the model, with the host writing each word once the fifo has room *)
 let tx_levels source =
   let machine =
     Machine.create
@@ -81,7 +81,7 @@ let%expect_test "every mark and space to the nominal, and the signal free time" 
     |}]
 ;;
 
-(* A leader a unit short, 5 units, is 17% off. *)
+(* A leader one unit short (5 units) is 17% off. *)
 let%expect_test "the decoder refuses a leader a unit short" =
   let source =
     Bench.patch
