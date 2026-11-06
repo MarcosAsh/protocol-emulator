@@ -1,13 +1,15 @@
-// frame_step.sv's frame lemma on the two-engine chip. For two programs whose footprints
-// share no pad, from the clear on: (a) each engine's pads show what it would drive alone,
-// and pads outside both footprints stay 0; (b) each engine reads what it would alone,
-// the frame receivers' status pins where it owns them, except where it hears the other;
-// (c) there it reads what the other drives. The
-// pads_shared task drops the disjoint-pads assumption, which only (a) needs. Assumes, as
-// frame_step.sv does, that each word a core runs writes no more than its program says.
+// frame_step.sv's frame lemma on the two-engine chip. Take two programs whose footprints
+// share no pad. From the clear on:
+//   (a) each engine's pads show what it would drive alone, and pads outside both
+//       footprints stay 0;
+//   (b) each engine reads what it would read alone (the frame receivers' status pins where
+//       it owns them), except where it hears the other;
+//   (c) there it reads what the other drives.
+// The pads_shared task drops the disjoint-pads assumption, which only (a) needs. Like
+// frame_step.sv, this assumes each word a core runs writes no more than its program says.
 // Wires are not pads: both engines may write one. An engine with a fault drives nothing.
-// Host fields, line tables, pads and clear are free every cycle; each config, line code
-// and route included, holds between clears.
+// Host fields, line tables, pads and clear are free every cycle, and each config (line
+// code and route included) holds between clears.
 
 module chip_frame (input clk);
   (* anyconst *) wire [1:0] side_set_count_0, side_set_count_1;
@@ -41,7 +43,7 @@ module chip_frame (input clk);
   (* anyseq *) wire [15:0] line_write_data_0, line_write_data_1;
   (* anyseq *) wire start_all, owner;
 
-  // the top clears both engines at power-on and whenever its reset comes again
+  // the top clears both engines at power-on and whenever reset comes again
   (* anyseq *) wire reset;
   reg clear = 1;
   always @(posedge clk) clear <= reset;
@@ -193,8 +195,8 @@ module chip_frame (input clk);
   wire [19:0] alone_oe_1 = OUTPUT_PADS | (live_dir_1[19:0] & BIDIR_PADS);
   wire [19:0] alone_level_1 = live_out_1[19:0] & alone_oe_1;
 
-  // what an engine reads alone: its own level where it drives (a lone engine always
-  // drives its wires), the pad elsewhere
+  // what an engine reads alone: its own level where it drives (a lone engine always drives
+  // its wires), and the pad elsewhere
   localparam [31:0] OWN = 32'h0ff00fe0;
   localparam [31:0] BIDIRS = 32'h000ff000;
   localparam [31:0] WIRES = 32'h0ff00000;
@@ -204,7 +206,7 @@ module chip_frame (input clk);
   wire [3:0] status_1 = owner ? frame_status : 4'd0;
   wire [31:0] alone_sample_0 = (pin_out_0 & own_0) | ({status_0, 8'd0, pads} & ~own_0);
   wire [31:0] alone_sample_1 = (pin_out_1 & own_1) | ({status_1, 8'd0, pads} & ~own_1);
-  // where an engine hears the other: its live level, on a wire ORed with the engine's own
+  // where an engine hears the other: the other's live level, ORed with the engine's own on a wire
   wire [31:0] hears_0 = (WIRES & moves_1) | (live_dir_1 & BIDIRS & ~pin_dir_0);
   wire [31:0] hears_1 = (WIRES & moves_0) | (live_dir_0 & BIDIRS & ~pin_dir_1);
   wire [31:0] heard_0 = live_out_1 | (pin_out_0 & WIRES);
@@ -218,7 +220,7 @@ module chip_frame (input clk);
   wire [31:0] apart_1 = ~hears_1;
 `endif
 
-  // tooth 2 keeps only engine 0's half of (a), where engine 1's stray drive shows
+  // tooth 2 only keeps engine 0's half of (a), which is where engine 1's stray drive shows
   always @(posedge clk)
     if (cleared) begin
       // the flop the chip gates on is the OR of the five
@@ -266,7 +268,7 @@ module chip_frame (input clk);
 endmodule
 
 // One engine as frame_step.sv takes it: the program's writes, the assumption that every
-// word keeps to them, and the footprint its pins are proved to keep to.
+// word keeps to them, and the footprint its pins are proved to stay within.
 module engine_frame #(parameter KEEPS_TO = 1) (
   input clk, input cleared,
   input [1:0] side_set_count, input [4:0] side_set_base, input side_set_pindirs,
@@ -336,7 +338,7 @@ module engine_frame #(parameter KEEPS_TO = 1) (
     | window(out_base, out_dirs_width, BIDIRS)
     | (movs_dirs ? window(out_base, out_count, BIDIRS) : 0);
 
-  // every tooth drops these, so that only the chip's claims can fail
+  // every tooth drops these, so only the chip's claims can fail
 `ifndef TEETH
   always @(posedge clk)
     if (cleared) begin

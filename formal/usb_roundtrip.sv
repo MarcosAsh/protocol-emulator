@@ -1,11 +1,11 @@
-// Round trip: a host sends one packet, any PID byte, from any sampling phase at exactly
-// 8 samples a bit, into usb_frame_rx with may_write free: data of up to BYTES bytes with
-// its CRC-16, a token with its CRC-5, or a handshake. Each word written is the bytes sent
-// as the receiver packs them, at base + its index; at finished the counts, half, aligned
-// and CRC are right. With SEVEN, any bits after SYNC with seven 1s end in stuff_error.
-// With TWICE, armed once with rearm held, a packet of its own follows the first once that
-// has landed: finished falls as it starts, its words land from base as the first's did,
-// and the checks hold of it.
+// Round trip: a host sends one packet (any PID byte) from any sampling phase, at exactly
+// 8 samples a bit, into usb_frame_rx with may_write free. The packet is data of up to BYTES
+// bytes with its CRC-16, a token with its CRC-5, or a handshake. Each word written is the
+// bytes sent as the receiver packs them, at base + its index. At finished, the counts,
+// half, aligned and CRC are right. With SEVEN, any bits after SYNC that contain seven 1s
+// end in stuff_error. With TWICE, the receiver is armed once with rearm held, and a packet
+// of its own follows the first once that has landed. finished falls as the second starts,
+// its words land from base as the first's did, and the same checks hold for it.
 
 `ifndef BYTES
 `define BYTES 8
@@ -68,8 +68,8 @@ module usb_roundtrip (input clk);
   always @(*) assume(gap == 0 && offset == 0 && kind_1 == HANDSHAKE && kind_2 == TOKEN);
 `endif
 `ifdef PINNED
-  // each cover from the bus idle as soon as may be, DATA0 with all 1s to stuff the most,
-  // so that the solver has only the kind and may_write to choose
+  // each cover starts from the bus idle as soon as it can, with DATA0 and all 1s to stuff
+  // the most, so the solver only has to choose the kind and may_write
   always @(*) begin
     assume(gap == 0 && offset == 0 && pid == 8'hc3);
     assume(payload == {8*N{1'b1}} && token == 11'h7ff);
@@ -87,8 +87,8 @@ module usb_roundtrip (input clk);
   wire clear = age == 0;
   wire arm = age == 1;
 
-  // the message after SYNC, first bit lowest: PID, then the payload and its CRC-16 or the
-  // address and endpoint and their CRC-5, each CRC complemented as USB sends it
+  // the message after SYNC, first bit lowest: the PID, then either the payload and its
+  // CRC-16, or the address, endpoint and their CRC-5. Each CRC is complemented as USB sends it.
   reg [15:0] crc16 = 16'hffff;
   reg [4:0] crc5 = 5'h1f;
 `ifdef CRC_RAW
@@ -108,7 +108,7 @@ module usb_roundtrip (input clk);
     : kind == TOKEN ? {{M-24{1'b0}}, crc5_sent, token, pid} : {{M-8{1'b0}}, pid};
 
   reg [2:0] state = GAP;
-  // cycles idle after the packet, while may_write comes
+  // cycles idle after the packet, until may_write comes
   reg [1:0] idle = 0;
   reg [9:0] count = 0;
   reg [2:0] ones = 0;
@@ -119,7 +119,7 @@ module usb_roundtrip (input clk);
 
   wire [M-1:0] message_at = message >> count;
 `ifdef SEVEN
-  // chosen a bit ahead, so it holds while on the wire
+  // chosen a bit ahead, so it holds while the bit is on the wire
   reg raw_bit = 0;
   always @(posedge clk) if (sub == 3 || sub == 4) raw_bit <= raw;
   wire data_bit = raw_bit;
@@ -198,8 +198,9 @@ module usb_roundtrip (input clk);
     endcase
   end
 
-  // The bit on the wire is decided at its centre, sample 4 of 8; line and the state are
-  // the encoder's as of the last bit decided. Two samples a cycle, sub the first's place.
+  // The bit on the wire is decided at its centre, sample 4 of 8. line and the state are
+  // the encoder's as of the last bit decided. There are two samples per cycle; sub is the
+  // place of the first.
   wire decide = sub == 3 || sub == 4;
   wire [1:0] first = sub <= 4 ? next_line : line;
   wire [1:0] second = sub == 5 || sub == 6 ? line : next_line;
@@ -251,7 +252,7 @@ module usb_roundtrip (input clk);
     .rx_word_bits(rx_word_bits), .pending(pending), .ended(ended), .pid_bits(pid_bits),
     .past_pid(past_pid), .frame_crc16(frame_crc16), .frame_crc5(frame_crc5));
 
-  // the message two bytes to a word, as the receiver packs it; past its end, 0
+  // the message packed two bytes to a word, as the receiver packs it; 0 past its end
   wire [9:0] expected_words = (message_bits + 10'd15) >> 4;
   wire [8:0] index = write_addr - base;
   wire [M+15:0] message_word = {16'd0, message} >> {index, 4'd0};
@@ -262,7 +263,7 @@ module usb_roundtrip (input clk);
     if (state == DONE && next_state == GAP && decide) wrote <= 0;
     else if (!clear && write_valid) wrote <= wrote + 10'd1;
 
-  // may_write comes once the line is idle, so the last word lands
+  // may_write only comes once the line is idle, so the last word lands
   always @(posedge clk)
     if (state != DONE || (decide && next_state != DONE)) idle <= 0;
     else if (idle != 3) idle <= idle + 2'd1;
@@ -290,13 +291,13 @@ module usb_roundtrip (input clk);
     if (round && state == MESSAGE && count != 0) assert(!finished);
 `endif
 `else
-    // seven 1s in a row: a stuffing error, never a good packet
+    // seven 1s in a row is a stuffing error, never a good packet
     if (finished && seven) assert(stuff_error);
     if (idle >= 2 && seven) assert(finished && stuff_error);
 `endif
   end
 
-  // the CRC register after n of the bits sent from its frozen value r
+  // the CRC register after n of the bits sent, starting from its frozen value r
   function [15:0] crc16_tail(input [15:0] r, input [15:0] sent, input [4:0] n);
     integer i;
     reg [15:0] c;
@@ -319,14 +320,14 @@ module usb_roundtrip (input clk);
   endfunction
 
   wire taking = sub == 5 || sub == 6;
-  // the second packet's count, until the frame takes its SYNC, is still the first's
+  // until the frame takes its SYNC, the second packet's count is still the first's
   wire stale = round && (state < MESSAGE || (state == MESSAGE && count == 0 && taking));
   wire heard = state > SYNC || (state == SYNC && (count != 0 || (sub >= 1 && sub <= 4)));
   wire [M+15:0] received = {message, 16'd0} >> count;
   wire [15:0] known = count >= 16 ? 16'hffff : ~(16'hffff >> count);
   wire [9:0] crc_bits = count - 10'd8 - covered;
 
-  // Lemmas, which make the above inductive. The receiver keeps step with the encoder: it
+  // Lemmas that make the above inductive. The receiver keeps step with the encoder: it
   // decides each bit in the cycle the encoder does, and the frame takes the receiver's
   // outputs the cycle after, while sub is 5 or 6.
 `ifndef NO_LEMMAS

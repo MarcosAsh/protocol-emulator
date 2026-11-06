@@ -1,8 +1,9 @@
-// Round trip: one 10BASE-T frame into frame_rx, may_write free. Any preamble length, any
-// whole bytes, TP_IDL 250 to 400 ns, any sampling phase. Each half bit is PER_BIT / 2
-// samples within DRIFT, chosen afresh, and each edge moves by up to JITTER on its own, both
-// in 1/4096 samples. Each word lands at base + its index as sent; at finished the count,
-// half and FCS verdict are right, two cycles after the line rests at the latest.
+// Round trip: one 10BASE-T frame into frame_rx, with may_write free. The preamble can be
+// any length, the frame any whole number of bytes, TP_IDL 250 to 400 ns, and the sampling
+// phase anything. Each half bit is PER_BIT / 2 samples, give or take DRIFT, chosen afresh,
+// and each edge moves by up to JITTER on its own; both are in 1/4096 samples. Each word
+// lands at base + its index as sent. At finished, the count, half and FCS verdict are
+// right, at the latest two cycles after the line rests.
 
 `ifndef PER_BIT
 `define PER_BIT 8
@@ -14,7 +15,7 @@
 `define JITTER 0
 `endif
 
-// One sample of the sender: where the next boundary falls, what the line shows.
+// One sample of the sender: where the next boundary falls and what the line shows.
 module sender_sample #(parameter W = 24) (
   input [2:0] state, input half, input bit_now, input [5:0] left, input [2:0] in_byte,
   input [3:0] tail, input signed [W-1:0] until, input signed [W-1:0] jit,
@@ -40,14 +41,14 @@ module sender_sample #(parameter W = 24) (
     centre = 0;
     data_centre = 0;
     sfd_centre = 0;
-    // the nominal centre, before this sample by this much
+    // the nominal centre, which falls this much before this sample
     centre_at = -until;
     if (boundary) begin
       until_out = until + half_bit;
       jit_out = jit_next;
       case (state)
         GAP: begin
-          // the preamble's first bit is a 1, its first half low like the line at rest
+          // the preamble's first bit is a 1, and its first half is low like the line at rest
           state_out = PREAMBLE;
           half_out = 0;
           bit_out = 1;
@@ -88,7 +89,7 @@ module sender_sample #(parameter W = 24) (
       IDLE: level = 1;
       default: level = 0;
     endcase
-    // at rest for good, the sender stops counting
+    // once at rest for good, the sender stops counting
     if (state_out != DONE) until_out = until_out - S;
   end
 endmodule
@@ -116,10 +117,10 @@ module frame_roundtrip (input clk);
     assume(drift1 >= -`DRIFT && drift1 <= `DRIFT);
     assume(jit0 >= -`JITTER && jit0 <= `JITTER);
     assume(jit1 >= -`JITTER && jit1 <= `JITTER);
-    // 802.3 has 56 bits before the start of frame, a repeater may eat some
+    // 802.3 has 56 bits before the start of frame, and a repeater may eat some
     assume(pairs <= 6'd28);
 `ifdef SHORT_IDLE
-    // a tooth: TP_IDL of 100 ns, which the receiver takes for a bit
+    // a tooth: TP_IDL of 100 ns, which the receiver mistakes for a bit
     assume(idle_halves == 4'd2);
 `else
     // TP_IDL, 250 to 400 ns
@@ -174,13 +175,13 @@ module frame_roundtrip (input clk);
     .level(level_b), .boundary(boundary_b), .centre(centre_b), .data_centre(data_b),
     .sfd_centre(sfd_b), .centre_at(at_b));
 
-  // a cycle's centre, at most one, and its bit
+  // a cycle's centre (at most one) and its bit
   wire centred = centre_a || centre_b;
   wire decided = data_a || data_b;
   wire decided_bit = data_a ? bit_a : bit_b;
   wire sfd_done = sfd_a || sfd_b;
   wire signed [W-1:0] since_next = centre_b ? at_b : centre_a ? at_a + S : since + 2 * S;
-  // the half bits since the last centre, which since and until share out between them
+  // the half bits since the last centre, which since and until share between them
   reg signed [W-1:0] ahead = 0;
   wire signed [W-1:0] ahead_next = boundary_a ? (centre_a ? 0 : ahead) + HALF + drift0
     : boundary_b ? (centre_b ? 0 : ahead) + HALF + drift1 : ahead;
@@ -200,13 +201,13 @@ module frame_roundtrip (input clk);
       jit <= jit_b;
       level <= level_b;
       if (state_b != DONE) ahead <= ahead_next;
-      // past the frame it stops counting, well past the receiver's timeout
+      // past the frame it stops counting, well beyond the receiver's timeout
       if (since_next < 16 * HALF) since <= since_next;
     end
   end
 
   // The bits after the start of frame as the receiver keeps them: a word filling from the
-  // top, and, a cycle later as the frame takes them, the CRC and the last two words.
+  // top, and a cycle later (as the frame takes them) the CRC and the last two words.
   reg [15:0] word = 0;
   reg [3:0] word_bits = 0;
   reg taken = 0, taken_bit = 0, sfd_taken = 0;
@@ -287,13 +288,13 @@ module frame_roundtrip (input clk);
     if (centred && state_b == PREAMBLE || sfd_done) heard <= {bit_b, heard[7:1]};
     if (sfd_taken) started <= 1;
   end
-  // may_write comes once the line is at rest for good, so the last word lands
+  // may_write only comes once the line is at rest for good, so the last word lands
   reg [1:0] idle = 0;
   always @(posedge clk) if (state == DONE && idle != 3) idle <= idle + 2'd1;
   always @(*) if (state == DONE) assume(may_write);
 `ifdef TEETH_PINNED
-  // a tooth's frame from the line at rest as soon as may be, every word landing, on the
-  // sampling grid, or for the jitter tooth half a sample off it, where jitter shows
+  // a tooth's frame starts from the line at rest as soon as it can, with every word landing
+  // on the sampling grid, or for the jitter tooth half a sample off it, where jitter shows
   always @(*) assume(pairs == 0 && may_write);
 `ifdef JITTER_TOOTH
   always @(*) assume(start == S / 2);
@@ -302,7 +303,7 @@ module frame_roundtrip (input clk);
 `endif
 `endif
 
-  // the words sent: every whole one, then the half
+  // the words sent: every whole one, then the half word
   wire [9:0] sent_words = words + (odd && state >= IDLE && words != 10'h3ff);
   wire [10:0] at = {2'd0, base} + {1'd0, sent_words} - 11'd1;
   wire [10:0] at_before = at - 11'd1;
@@ -323,7 +324,7 @@ module frame_roundtrip (input clk);
     if (idle >= 2) assert(finished);
   end
 
-  // Lemmas, which make the above inductive. The receiver sees each edge in the sample the
+  // Lemmas that make the above inductive. The receiver sees each edge in the sample the
   // sender makes it, so it takes each centre in the cycle the sender crosses it, and its
   // phase stays near the sender's last nominal centre.
   // the preamble's bits decided, 1010... from the first, latest at the top of heard
@@ -333,14 +334,14 @@ module frame_roundtrip (input clk);
   wire signed [W-1:0] phase_error =
     $signed({{(W-11){rx_count[10]}}, rx_count}) * 128 - since;
   // {v
-  //   at a centre, with x the error before it plus the drift's and q where the sample
+  //   at a centre, with x the error before it plus the drift's, and q where the sample
   //   that sees the edge falls after the true centre, in [-JITTER, JITTER + S):
   //   phase_error' = x - 128 * floor((x + q) / 1024), about 7/8 x - q/8
-  // v} so it stays in [-S - JITTER - 14 DRIFT, JITTER + 14 DRIFT + 1024], the last for the
-  // floors
+  // v} so it stays in [-S - JITTER - 14 DRIFT, JITTER + 14 DRIFT + 1024], the last bound
+  // allowing for the floors
   wire locked = phase_error >= -S - `JITTER - 14 * `DRIFT - 128
     && phase_error <= `JITTER + 14 * `DRIFT + 1024 + 128;
-  // past the first centre, before the receiver lets the frame go
+  // past the first centre, and before the receiver lets the frame go
   wire hearing = (state == PREAMBLE && (half || left != pairs + pairs + 6'd7))
     || state == DATA || (state >= IDLE && rx_sm == RX_FRAME);
 `ifndef NO_LEMMAS
@@ -373,7 +374,7 @@ module frame_roundtrip (input clk);
     assert(rx_word == word && rx_word_bits == word_bits);
     assert(rx_crc == crc && rx_byte_bit == byte_bit && rx_good == good);
     if (hearing) assert(locked);
-    // since and until run down together between boundaries
+    // since and until count down together between boundaries
     if (hearing && state <= DATA || state == IDLE) assert(since + until == ahead - S);
     if (hearing && state <= DATA)
       assert(ahead >= (half ? 1 : 2) * (HALF - `DRIFT)
@@ -396,7 +397,7 @@ module frame_roundtrip (input clk);
     assert(receiving == (started && !ended));
     assert(armed == !ended);
     if (state <= DATA || rx_sm == RX_FRAME) assert(!ended);
-    // the receiver says the carrier went the cycle after it lets the frame go
+    // the receiver reports the carrier gone the cycle after it lets the frame go
     if (state >= IDLE && rx_sm != RX_FRAME) assert(ended || was_frame);
     if (!started) assert(rx_words == 0 && !pending);
     if (!ended) assert(rx_words == words);
@@ -412,7 +413,7 @@ module frame_roundtrip (input clk);
 `endif
 
 `ifdef PINNED
-  // each cover from the line at rest as soon as may be
+  // each cover starts from the line at rest as soon as it can
   always @(*) assume(start == 0 && pairs == 0 && idle_halves == 5);
 `endif
   always @(*) if (!clear) begin
