@@ -1,12 +1,12 @@
 # The chip on an Icepi Zero (ECP5 LFE5U-25F): make [REV=v1.4] [USB=1] [SEEDS='1 2'], then
 # make prog to load it or make flash to keep it. USB=0 puts uio[1:0] on the header too.
-# The bitstream's .sha256 names it and the netlist it came from, which make equiv proves
-# equal to the RTL (formal/icepi_equiv).
-# FS=1 pulls D+ up for full speed USB in place of D-, and names its bitstream apart.
-# PROBE=1 puts D+ and D- on header 8 and 12 in place of OUT0 and OUT2, for an analyser.
-# MHZ=40 clocks the chip at 40 MHz for 10BASE-T, with USB=0 unless told, since low speed
-# USB needs 48, and names its bitstream apart. The SRAM macro is its IHP behavioural model,
-# which yosys maps to block RAM.
+# The .sha256 file lists the bitstream and the netlist it came from, and make equiv proves
+# that netlist equal to the RTL (formal/icepi_equiv).
+# FS=1 pulls D+ up for full speed USB instead of D-, and names the bitstream differently.
+# PROBE=1 puts D+ and D- on header 8 and 12 instead of OUT0 and OUT2, for an analyser.
+# MHZ=40 clocks the chip at 40 MHz for 10BASE-T. USB defaults to 0 then, since low speed
+# USB needs 48. The bitstream is named differently. The SRAM macro is its IHP behavioural
+# model, which yosys maps to block RAM.
 
 REV ?= v1.4
 MHZ ?= 48
@@ -17,10 +17,10 @@ USB ?= $(if $(filter 40,$(MHZ)),0,1)
 SEED ?= 1
 FS ?= 0
 PROBE ?= 0
-# 48 MHz is tight and placement moves with the seed, so the chip takes the first of these
-# whose clock reaches MARGIN MHz over MHZ; the same netlist always gets the same one. The
-# PLL's constraint comes from the clk port's in $(REV).lpf, and scaling it moves no seed's
-# placement, so the margin is a seed's, not a target's.
+# 48 MHz is tight and placement depends on the seed, so we take the first seed whose clock
+# reaches MARGIN MHz over MHZ (the same netlist always gets the same one). The PLL's
+# constraint comes from the clk port in $(REV).lpf. Scaling it doesn't move any seed's
+# placement, so the margin belongs to the seed, not the target.
 SEEDS ?= 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
 MARGIN ?= 1.6
 
@@ -60,14 +60,14 @@ equiv: $(JSON)
 	$(MAKE) -C ../formal icepi_equiv ICEPI_JSON=$(abspath $(JSON)) USB=$(USB) MHZ=$(MHZ) \
 	  FS=$(FS) PROBE=$(PROBE)
 
-# openFPGALoader knows the board: its FT231X's bit-banged JTAG
+# openFPGALoader knows the board (bit-banged JTAG over its FT231X)
 prog: $(BUILD)/$(NAME).bit
 	openFPGALoader -b icepi-zero $<
 
 flash: $(BUILD)/$(NAME).bit
 	openFPGALoader -b icepi-zero --write-flash $<
 
-# The bench carrier's self-test in place of the chip (carrier_check.v, demo/carrier_check.sh):
+# The bench carrier's self-test in place of the chip (carrier_check.v, demo/carrier_check.sh).
 # make check-prog loads it into SRAM only, so openFPGALoader -r brings the chip back.
 CHECK = $(BUILD)/$(REV)-carrier-check
 
@@ -89,7 +89,7 @@ check-prog: $(CHECK).bit
 	openFPGALoader -b icepi-zero $<
 
 # Usb_frame_rx alone on the first USB-C port at full speed (usb_fs_check.v,
-# demo/usb_fs_check.py): make usb-fs-prog loads it into SRAM only, like check-prog.
+# demo/usb_fs_check.py). make usb-fs-prog loads it into SRAM only, like check-prog.
 USB_FS = $(BUILD)/$(REV)-usb-fs-check
 
 usb-fs-check: $(USB_FS).bit

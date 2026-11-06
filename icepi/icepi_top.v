@@ -5,13 +5,13 @@
 
 `default_nettype none
 
-// The chip on an Icepi Zero: its 50 MHz oscillator through the PLL to MHZ, 48 or 40 for
-// 10BASE-T, whose bit is four cycles, the pins on the 40-pin header. With USB_UIO set,
-// uio[1:0] are D+/D- on the first USB-C port with the board's pull-up on D- for low
-// speed, or on D+ for full speed with FULL_SPEED, and their header pins mirror the bus so
-// a host can see a bus reset. USB_PROBE puts the bus on header 8 (D+) and 12 (D-) in
-// place of OUT0 and OUT2, where the bench carrier's analyser A reads D4 and D6. The button
-// is reset.
+// The chip on an Icepi Zero. The 50 MHz oscillator goes through the PLL to MHZ (48, or 40
+// for 10BASE-T, whose bit is four cycles) and the pins sit on the 40-pin header. With
+// USB_UIO set, uio[1:0] are D+/D- on the first USB-C port, with the board's pull-up on D-
+// for low speed or on D+ for full speed (FULL_SPEED). Their header pins mirror the bus so
+// a host can see a bus reset. USB_PROBE moves the bus to header 8 (D+) and 12 (D-), in
+// place of OUT0 and OUT2, where the bench carrier's analyser A reads D4 and D6. The
+// button is reset.
 module icepi_top #(
     parameter USB_UIO = 1,
     parameter MHZ = 48,
@@ -35,7 +35,7 @@ module icepi_top #(
   wire locked;
 
   // ecppll -i 50 -o 48 --highres: 50 / 5 = 10 MHz at the phase detector, VCO 480 MHz,
-  // which CLKOS divides by 10 for 48 MHz or 12 for 40.
+  // and CLKOS divides that by 10 for 48 MHz or 12 for 40.
   localparam CLKOS_MHZ = MHZ == 40 ? "40" : "48";
   (* FREQUENCY_PIN_CLKI = "50" *)
   (* FREQUENCY_PIN_CLKOS = CLKOS_MHZ *)
@@ -108,8 +108,8 @@ module icepi_top #(
 
   assign uio_in = USB_UIO ? {header_in[7:2], usb_in} : header_in;
 
-  // A pull pin driven high pulls its line up through a diode and 1.1 k; floating, it
-  // leaves the line alone. Driven low it would add a host's 15 k pull-down.
+  // A pull pin driven high pulls its line up through a diode and 1.1 k. Floating, it
+  // leaves the line alone. Driven low it would add a 15 k pull-down like the host's.
   OBZ pull_dp_pad (
       .I(1'b1),
       .T(!USB_UIO || !FULL_SPEED || usb_detach),
@@ -122,7 +122,7 @@ module icepi_top #(
       .O(usb_pull_dn)
   );
 
-  // The core synchronises reset and its inputs itself.
+  // no synchroniser here, the core does that itself
   assign uo = USB_PROBE ? {uo_out[7:4], usb_in[1], uo_out[2], usb_in[0], uo_out[0]} : uo_out;
 
   tt_um_marcosash_protocol_emulator chip (

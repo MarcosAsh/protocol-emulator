@@ -5,14 +5,15 @@
 
 `default_nettype none
 
-// The bench carrier's self-test on an Icepi Zero, in place of the chip: Pico A drives and
-// reads the other 21 header pins over the host port's four, SPI mode 0, an 11-byte frame
-// each way, MSB first (python/carrier_pins.py). In: oe, out, a slot byte (bit 6 on, bit 7
-// its level, bits 4:0 its pin), the slot's length and its sample time in us. Out: "pin",
-// the pins as CS fell, then the slot's sample in bit 0 and bit 1 once taken. A whole frame
-// takes effect as CS rises; its slot then drives its pin for its length, over oe and out,
-// and samples the pin at its time. Pins idle let go and pulled down, but OUT1 (CAN's D)
-// and OUT6 (the flash's CS) high. The button puts that back.
+// The bench carrier's self-test on an Icepi Zero, in place of the chip. Pico A drives and
+// reads the other 21 header pins over the host port's four, using SPI mode 0 with an
+// 11-byte frame each way, MSB first (python/carrier_pins.py).
+// In: oe, out, a slot byte (bit 6 on, bit 7 level, bits 4:0 pin), the slot's length and
+// its sample time in us.
+// Out: "pin", the pins as CS fell, then the slot's sample in bit 0 and bit 1 once taken.
+// A frame takes effect when CS rises. Its slot then drives its pin for its length, over
+// oe and out, and samples the pin at its time. Idle pins are released and pulled down,
+// except OUT1 (CAN's D) and OUT6 (the flash's CS), which are high. The button resets that.
 module carrier_check (
     input  wire       clk,
     input  wire       button_n,
@@ -32,8 +33,8 @@ module carrier_check (
   // the 50 MHz oscillator's cycles in a microsecond
   localparam US = 50;
 
-  // Every pad is an ECP5 BB: yosys reads an inout vector that mixes inputs and outputs
-  // as a constant. Pin n: IN0-IN4 (header 3 5 7 11 13), OUT0-OUT6 (8 10 12 18 22 26 28),
+  // Every pad is an ECP5 BB, because yosys reads an inout vector that mixes inputs and
+  // outputs as a constant. Pin n: IN0-IN4 (header 3 5 7 11 13), OUT0-OUT6 (8 10 12 18 22 26 28),
   // IO0-IO7 (29 31 35 33 37 36 38 40), then header 15.
   wire [20:0] pins;
   wire [20:0] drive_oe;

@@ -1,5 +1,5 @@
-# carrier_check.v's pulls on top of header.lpf: OUT0-OUT6 down like every other pin it
-# tests, so a pin nothing drives reads 0 and a pull-up reads 1.
+# carrier_check.v's pulls, on top of header.lpf. OUT0-OUT6 are pulled down like the other
+# pins it tests, so an undriven pin reads 0 and a pull-up reads 1.
 
 IOBUF PORT "uo[1]" IO_TYPE=LVCMOS33 PULLMODE=DOWN;
 IOBUF PORT "uo[2]" IO_TYPE=LVCMOS33 PULLMODE=DOWN;

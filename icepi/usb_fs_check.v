@@ -5,12 +5,12 @@
 
 `default_nettype none
 
-// Usb_frame_rx alone on an Icepi Zero, in place of the chip: D+ pulled up on the first
-// USB-C port, so the host that port is plugged into talks full speed to it. Each packet
-// lands in a 512-word ring, the receiver rearmed the cycle after, and goes out on OUT0
-// (header 8, Pico B GP1) at 1 Mbaud: 0xa5, flags, words, packets lost so far, then the
-// words low byte first. Flags, bit 0 up: crc5_ok crc16_ok half aligned stuff_error
-// dropped. Header 15 high detaches; the button resets.
+// Usb_frame_rx alone on an Icepi Zero, in place of the chip. D+ is pulled up on the first
+// USB-C port, so the host plugged into it talks full speed. Each packet lands in a
+// 512-word ring (the receiver rearms the cycle after) and goes out on OUT0 (header 8,
+// Pico B GP1) at 1 Mbaud: 0xa5, flags, words, packets lost so far, then the words low
+// byte first. Flags, from bit 0: crc5_ok crc16_ok half aligned stuff_error dropped.
+// Header 15 high detaches. The button resets.
 module usb_fs_check (
     input  wire       clk,
     input  wire       button_n,
@@ -87,7 +87,8 @@ module usb_fs_check (
       .O(usb_pull_dn)
   );
 
-  // Both_edges: two flops on each edge, the falling side onto the rising, earlier in bit 0
+  // Both_edges: two flops per edge, with the falling side moved onto the rising, earlier
+  // sample in bit 0
   reg [1:0] dp_rising, dm_rising, dp_falling, dm_falling;
   reg dp_fell, dm_fell;
   always @(posedge clk_48) begin
@@ -135,7 +136,7 @@ module usb_fs_check (
   reg [15:0] ring[0:511];
   always @(posedge clk_48) if (write_valid) ring[write_addr] <= write_data;
 
-  // Finished packets wait here for the UART: base, words and flags.
+  // finished packets wait here for the UART: base, words and flags
   localparam QUEUE_BITS = 4;
   reg [22:0] queue[0:(1<<QUEUE_BITS)-1];
   reg [QUEUE_BITS:0] queue_head, queue_tail;
@@ -190,7 +191,7 @@ module usb_fs_check (
     end
   end
 
-  // header bytes 0 to 3, then two a word
+  // bytes 0 to 3 are the header, then two bytes per word
   reg [22:0] packet;
   reg [8:0] read_addr;
   reg [8:0] byte_index;
@@ -228,7 +229,7 @@ module usb_fs_check (
     end
   end
 
-  // OUT0 the UART, OUT1 (CAN's D) and OUT6 (the flash's CS) high, the rest low
+  // OUT0 is the UART, OUT1 (CAN's D) and OUT6 (the flash's CS) are high, the rest low
   assign uo = {1'b1, 4'b0000, 1'b1, shift[0], 1'b0};
 
 endmodule

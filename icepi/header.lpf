@@ -1,5 +1,6 @@
-# Pins every revision shares. The header's balls only differ at pin 16, left unused. USB is
-# the first USB-C port (J3 on v1.4); G15/H14 are its pull pins from v1.2, unconnected before.
+# Pins every revision shares. The header's balls only differ at pin 16, which is unused.
+# USB is the first USB-C port (J3 on v1.4). G15/H14 are its pull pins from v1.2 and were
+# unconnected before that.
 
 LOCATE COMP "button_n" SITE "C4";
 IOBUF PORT "button_n" IO_TYPE=LVCMOS33 PULLMODE=UP;
@@ -40,8 +41,8 @@ LOCATE COMP "uio[0]" SITE "E1"; # header 29
 IOBUF PORT "uio[0]" IO_TYPE=LVCMOS33 PULLMODE=DOWN;
 LOCATE COMP "uio[1]" SITE "F3"; # header 31
 IOBUF PORT "uio[1]" IO_TYPE=LVCMOS33 PULLMODE=DOWN;
-# I2C is SCL on IO2 and SDA on IO3, as on Tiny Tapeout's I2C Pmod; the bench has SDA on
-# header 33 and SCL on 35, so the two cross here
+# I2C has SCL on IO2 and SDA on IO3, as on Tiny Tapeout's I2C Pmod. The bench wires SDA to
+# header 33 and SCL to 35, so the two cross here.
 LOCATE COMP "uio[2]" SITE "E4"; # header 35
 IOBUF PORT "uio[2]" IO_TYPE=LVCMOS33 PULLMODE=DOWN;
 LOCATE COMP "uio[3]" SITE "E3"; # header 33
