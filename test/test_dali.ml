@@ -8,8 +8,8 @@ let%expect_test "the firmware's verdict" =
   [%expect {| 34 words, 8 deadline waits, worst slack 1 |}]
 ;;
 
-(* 100 cycles a half bit, as a 240 kHz clock gives: a query and its answer, then a forward
-   frame of all ones and a backward frame of all zeros *)
+(* 100 cycles per half bit (a 240 kHz clock): a query and its answer, then a forward frame
+   of all ones and a backward frame of all zeros *)
 let clock_hz = trace_clock_hz
 let unit = trace_half_bit
 

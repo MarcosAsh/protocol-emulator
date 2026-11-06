@@ -188,10 +188,10 @@ let fetch_osr label =
 ;;
 
 (* Between bytes y holds MOSI, SCK and CS as they read with SCK idle, and the wrap polls
-   them every three cycles. A change other than MOSI alone is a leading edge, or CS
-   rising. The reply's first bit is shown by [mov pins, ::osr], so osr keeps the whole
-   reply for a select that does not clock it. Each later bit goes out once the controller
-   has sampled the one before, which leaves it a whole period to reach MISO. *)
+   them every three cycles. Any change other than MOSI alone is a leading edge or CS
+   rising. [mov pins, ::osr] shows the reply's first bit, so osr keeps the whole reply for
+   a select that doesn't clock it. Each later bit goes out once the controller has sampled
+   the previous one, which gives it a whole period to reach MISO. *)
 let fast ~(mode : Spi_cs.Mode.t) (pins : Pins.t) =
   let leading = Bool.to_int (not mode.cpol) in
   let trailing = 1 - leading in

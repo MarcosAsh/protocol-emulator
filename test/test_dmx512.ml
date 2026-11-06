@@ -7,9 +7,9 @@ let%expect_test "the firmware's verdict" =
   [%expect {| 51 words, 14 deadline waits, worst slack 182 |}]
 ;;
 
-(* The line, level by level with the cycles each lasted, for a start code's word: the
-   break, the mark after break and the start code 0x00, then the mark while the firmware
-   waits for the first channels. *)
+(* The line as (level, cycles) pairs for a start code's word: the break, the mark after
+   break and the start code 0x00, then the mark while the firmware waits for the first
+   channels. *)
 let%expect_test "the line for a start code" =
   let machine =
     Machine.create
@@ -32,10 +32,10 @@ let%expect_test "the line for a start code" =
   [%expect {| (runs ((true 7) (false 4800) (true 768) (false 1728) (true 697))) |}]
 ;;
 
-(* A receiver as the spec describes it (lines 291-297, 303-310): a low of at least 88 us
-   is a break, the mark after it at least 8 us, then slots of a start bit, 8 bits LSB
-   first and two stop bits, each bit sampled in its middle. A slot whose stop bits read
-   low is a framing error, unless that low goes on to be a break. *)
+(* A receiver as the spec describes it (lines 291-297, 303-310). A low of at least 88 us
+   is a break, and the mark after it lasts at least 8 us. Then come slots of a start bit,
+   8 bits LSB first and two stop bits, each bit sampled in its middle. A slot whose stop
+   bits read low is a framing error, unless that low goes on to be a break. *)
 module Receiver = struct
   let bit = Bench.clock_hz / 250_000
   let break_least = Measured.cycles ~clock_hz:Bench.clock_hz ~ns:88_000

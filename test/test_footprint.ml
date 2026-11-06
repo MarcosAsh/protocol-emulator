@@ -137,9 +137,9 @@ let footprint (t : Certified.t) =
   Footprint.of_program config program.instructions
 ;;
 
-(* The writes formal/frame_step.sv holds a word to, decoded as it decodes them: out, mov,
-   set are opcodes 3, 4, 5; pins is destination 0, pindirs 4 for out and 3 otherwise. An
-   out's width is its count, capped at what a data word covers. *)
+(* The writes formal/frame_step.sv holds a word to, decoded the way it decodes them: out,
+   mov and set are opcodes 3, 4 and 5; pins is destination 0 and pindirs is 4 for out, 3
+   otherwise. An out's width is its count, capped at what a data word covers. *)
 let frame_step_writes word =
   let opcode = (word lsr 13) land 0x7 in
   let dest = (word lsr 5) land 0x7 in
@@ -156,7 +156,7 @@ let frame_step_writes word =
 ;;
 
 (* The lemma assumes each word keeps to [Writes.of_program]. A word that writes more would
-   make the assumption rule out the firmware's own runs, and the lemma vacuous. *)
+   make the assumption rule out the firmware's own runs, leaving the lemma vacuous. *)
 let%expect_test "the frame lemma counts each word as the writer Writes counts it" =
   let fields writes =
     Footprint.Writes.(to_list (map2 port_names writes ~f:(fun name n -> name, n)))
