@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# The analyser's own reading of a start hold capture: for every START, SDA's fall while
-# SCL is high to SCL's next fall, to a sample. It shares nothing with pio_check's bound or
-# the chip's stamps. Falls only, so the pull-ups' slow rises do not enter it.
+# The analyser's own reading of a start hold capture: for every START, the time from SDA
+# falling while SCL is high to SCL's next fall, to the nearest sample. It shares nothing with
+# pio_check's bound or the chip's stamps. It only looks at falls, so the pull-ups' slow
+# rises don't matter.
 # Usage: python3 demo/start_hold.py CAPTURE.sr
 
 import bisect
@@ -12,18 +13,18 @@ import sigrok
 
 # UM10204 table 11, t_HD;STA in Standard-mode
 LIMIT_NS = 4000
-# the chip's clock, to set the reading beside its stamps
+# the chip's clock, so we can compare with its stamps
 MHZ = 48
 
 
 def falls(samples, bit):
-    """One channel's levels, a byte a sample, and the sample of each fall."""
+    """Returns one channel's levels (a byte per sample) and the sample of each fall."""
     levels = samples.translate(bytes((b >> bit) & 1 for b in range(256)))
     return levels, [m.start() + 1 for m in re.finditer(b"\x01\x00", levels)]
 
 
 def holds(path, sda=6, scl=7):
-    """Each START's hold in ns, and the ns a sample is."""
+    """Returns each START's hold in ns, and how many ns a sample is."""
     rate, _, samples = sigrok.read(path)
     _, sda_falls = falls(samples, sda)
     scl_levels, scl_falls = falls(samples, scl)

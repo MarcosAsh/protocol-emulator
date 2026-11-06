@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Plays a trace's host frames into the chip from Pico A (MicroPython), each after its gap,
-# from the frames.py demo/decode.py --host-frames writes. The trace starts from reset, so
-# first both engines are stopped and flushed, and engine 1 runs CLEAR: a stopped engine
-# keeps its pins, and the top ORs both engines' outputs.
+# using the frames.py that demo/decode.py --host-frames writes. The trace starts from reset,
+# so we first stop and flush both engines and run CLEAR on engine 1: a stopped engine keeps
+# its pins, and the top level ORs both engines' outputs.
 # Usage: demo/bench_decode.sh, which copies frames.py, protocol_emulator.py and
 #        pico_board.py over and runs this with mpremote run --no-follow
 
@@ -27,7 +27,7 @@ def main():
     host.select(1)
     host.configure(dict(DEFAULT_CONFIG, out_base=5, out_count=15))
     host.load(CLEAR)
-    # no jump and no wrap: the certificate is the empty table
+    # no jumps and no wrap, so the certificate is an empty table
     host.certify([0, 0])
     host.start()
     host.select(0)

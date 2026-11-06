@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# Reads and writes the CSV gusmanb's LogicAnalyzer firmware saves through TerminalCapture: a
-# header of channel names, then a row a sample of 0 or 1 a channel. It holds no sample
-# rate, so the capture's settings give it. The main turns one into a sigrok session file,
-# so edges.py, decode.py and the rest read it too.
+# Reads and writes the CSV that gusmanb's LogicAnalyzer firmware saves via TerminalCapture:
+# a header of channel names, then one row per sample with a 0 or 1 per channel. The CSV has
+# no sample rate, so you pass it in. Run as a script it converts a CSV to a sigrok session
+# file that edges.py, decode.py and the rest can read.
 # Usage: python3 demo/logic_analyzer.py CAPTURE.csv 100M OUT.sr
 
 import sys
@@ -11,8 +11,8 @@ import sigrok
 
 
 def read(path, rate_hz):
-    """As sigrok.read: the rate, the channel names by bit, the samples a byte each. Up to
-    eight channels, as the 8-channel capture mode takes."""
+    """Like sigrok.read: returns the rate, the channel names by bit and one byte per
+    sample. At most 8 channels, the limit of the 8-channel capture mode."""
     with open(path) as f:
         names = [name.strip() for name in f.readline().split(",")]
         if len(names) > 8:
@@ -26,7 +26,7 @@ def read(path, rate_hz):
 
 
 def write(path, names, samples):
-    """samples: a byte a sample, bit i the channel names[i]."""
+    """samples has one byte per sample; bit i is the channel names[i]."""
     with open(path, "w") as f:
         f.write(",".join(names) + "\n")
         for s in samples:
@@ -34,7 +34,7 @@ def write(path, names, samples):
 
 
 def read_any(path, rate_hz=None):
-    """A sigrok session file, or a LogicAnalyzer CSV at rate_hz."""
+    """Reads a sigrok session file, or a LogicAnalyzer CSV (at rate_hz)."""
     if path.endswith(".csv"):
         if not rate_hz:
             raise SystemExit("%s holds no sample rate: give it" % path)

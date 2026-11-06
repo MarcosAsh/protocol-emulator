@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
-# The sealed clock windows (python/clock_cliffs.py) against a clock sweep on the bench.
-# Stub: plan prints the clocks to run each firmware at, compare reads what the sweep saw.
-# Driving the clock and capturing the pins are not here yet.
-# A results file has a tab separated line per run:
+# Checks the sealed clock windows (python/clock_cliffs.py) against a clock sweep on the bench.
+# Only a stub so far: plan prints the clocks to run each firmware at, compare reads what the
+# sweep saw. Driving the clock and capturing the pins are not written yet.
+# A results file has one tab-separated line per run:
 #   firmware  clock_hz  words_md5  wire  device
-# clock_hz is as measured on the chip's clock pin. wire is pass, fail or within (demo/edges.py's
-# capture against test/measured_limits.ml). device is works, fails or - (no part).
+# clock_hz is measured on the chip's clock pin. wire is pass, fail or within (demo/edges.py's
+# capture checked against test/measured_limits.ml). device is works, fails or - (no part).
 # Usage: python3 demo/clock_sweep.py plan [--step PPM]
 #        python3 demo/clock_sweep.py compare RESULTS
 import argparse
@@ -17,7 +17,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def predictions(root=ROOT):
-    """python/clock_cliffs.py, refused unless it matches its pin in test/clock_cliffs.sha256."""
+    """Loads python/clock_cliffs.py, but only if it matches the pin in test/clock_cliffs.sha256."""
     path = os.path.join(root, "python", "clock_cliffs.py")
     with open(os.path.join(root, "test", "clock_cliffs.sha256")) as f:
         pinned = f.read().split()[0]
@@ -36,7 +36,7 @@ def inside(window, hz):
 
 
 def plan(windows, step_ppm):
-    """Each firmware at its shipped clock, at each end and a step past it."""
+    """Returns the clocks to run each firmware at: shipped, each end, and a step past each end."""
     for name, w in windows.items():
         clocks = {w["shipped_hz"]}
         for end, past in (("lowest_hz", -1), ("highest_hz", 1)):
@@ -47,8 +47,8 @@ def plan(windows, step_ppm):
 
 
 def outcome(window, hz, md5, wire, device):
-    """A word for the run: ok, cliff (seen outside), conservative (passes outside), or
-    UNSOUND (fails inside), and WRONG IMAGE where the run's image is not the one sealed."""
+    """Classifies a run as ok, cliff (fails outside the window), conservative (passes
+    outside it), UNSOUND (fails inside it) or WRONG IMAGE (not the sealed image)."""
     if window["words_md5"] is not None and md5 != window["words_md5"]:
         return "WRONG IMAGE"
     certified = inside(window, hz)

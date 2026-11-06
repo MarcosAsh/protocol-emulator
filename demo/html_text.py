@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# The visible text of an HTML page, a block a line, for demo/intake.sh's text kind.
+# Prints the visible text of an HTML page, one block per line (demo/intake.sh's text kind).
 # Usage: python3 demo/html_text.py PAGE.html > PAGE.txt
 import html.parser
 import re

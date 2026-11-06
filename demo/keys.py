@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
-# The keys a USB keyboard sends, as this machine's kernel takes them, kept from the
-# desktop: each input device with the keyboard's VID:PID is grabbed (EVIOCGRAB) as it
-# appears, so no window gets its keys or pointer; one that cannot be grabbed is unbound from
-# usbhid instead, so it types nowhere. Prints each grab and each key pressed with its time,
-# until SECONDS pass. Needs root for /dev/input and the unbind.
+# Records the keys a USB keyboard sends, as this machine's kernel sees them, without letting
+# the desktop have them. Every input device with the keyboard's VID:PID is grabbed
+# (EVIOCGRAB) as it appears, so no window gets its keys or pointer; if a grab fails the
+# device is unbound from usbhid instead, so it types nowhere. Prints each grab and each key
+# press with its time, until SECONDS pass. Needs root for /dev/input and the unbind.
 # Usage: sudo python3 demo/keys.py SECONDS [--id 1209:0001]
 
 import argparse
@@ -15,7 +15,7 @@ import struct
 import time
 from pathlib import Path
 
-# _IOW('E', 0x90, int)
+# EVIOCGRAB is _IOW('E', 0x90, int)
 EVIOCGRAB = 0x40044590
 # struct input_event: a timeval, then type, code and value
 EVENT = struct.Struct("llHHi")
@@ -26,7 +26,7 @@ INPUT = Path("/sys/class/input")
 
 
 def taken(text):
-    """The keys a run printed, in order."""
+    """Returns the keys a run printed, in order."""
     return "".join(re.findall(r"^key \S+ (.)$", text, re.MULTILINE))
 
 
@@ -40,15 +40,15 @@ def ours(event, vendor, product):
 
 
 def unbind(event):
-    """The event device's USB interface off usbhid, and its name."""
+    """Unbinds the event device's USB interface from usbhid and returns its name."""
     interface = (INPUT / event / "device" / "device").resolve().parent.name
     Path("/sys/bus/usb/drivers/usbhid/unbind").write_text(interface)
     return interface
 
 
 def grab(event):
-    """The event device opened and grabbed, waiting for its node, or None when it is gone
-    or would not be grabbed."""
+    """Opens and grabs the event device, waiting for its node to appear. Returns None if
+    the device is gone or can't be grabbed."""
     path = Path("/dev/input") / event
     for _ in range(1000):
         try:
@@ -75,7 +75,7 @@ def main():
     end = time.monotonic() + args.seconds
     seen, held = set(), {}
     while time.monotonic() < end:
-        # a name that goes and comes back is a new device, as after a replug
+        # a name that disappears and comes back is a new device (a replug)
         now = set(os.listdir(INPUT))
         seen &= now
         for event in sorted(now - seen):

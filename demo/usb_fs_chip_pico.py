@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
-# Pico A's half of demo/usb_fs_chip.py: holds the USB port detached (GP8, header 15) while
-# the laptop loads the chip for LOAD_MS, arms the chip's USB receiver on D+ = pad 12
-# (uio[0]), lets the port attach so the laptop enumerates it at full speed, and rearms
-# after each packet for SECONDS. Prints each frame status and USB flags seen, in hex, with
-# how many packets had them, then "done".
+# Pico A's half of demo/usb_fs_chip.py. Keeps the USB port detached (GP8, header 15) for
+# LOAD_MS while the laptop loads the chip, arms the chip's USB receiver on D+ = pad 12
+# (uio[0]), attaches the port so the laptop enumerates it at full speed, and rearms after
+# each packet for SECONDS. Prints each frame status and USB flags seen (hex) with how many
+# packets had them, then "done".
 # Usage: demo/usb_fs_chip.py, which copies protocol_emulator.py and pico_board.py over
 
 import time

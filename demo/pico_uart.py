@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# The comparison for the overlay: a UART bit-banged from MicroPython on Pico B's GP2, each
-# bit written once ticks_us passes its deadline from the start bit, so it never drifts and
-# only jitters. Not PIO, which would be as exact as the chip. GP2 is the carrier's SDA,
-# analyser B's D6, which the chip leaves alone from reset: capture with ANALYSER=B and
+# Comparison UART for the overlay, bit-banged from MicroPython on Pico B's GP2. Each bit is
+# written once ticks_us passes its deadline (counted from the start bit), so it jitters but
+# never drifts. It isn't PIO, which would be as exact as the chip. GP2 is the carrier's SDA,
+# analyser B's D6, and the chip leaves it alone after reset. Capture with ANALYSER=B and
 # compare with --against-channel D6.
 # Usage: mpremote connect id:<serial of Pico B> run --no-follow demo/pico_uart.py
 
@@ -32,7 +32,7 @@ def main():
     for _ in range(FRAMES):
         send(tx, levels, deadlines)
         time.sleep_us(300)
-    # SDA again, for the chip and the EEPROM
+    # give SDA back to the chip and the EEPROM
     Pin(2, Pin.IN)
 
 

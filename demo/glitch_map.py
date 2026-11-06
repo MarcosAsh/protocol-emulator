@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# The glitch map on the board. Runs every image from test/python/write_glitch_images.exe
-# on the chip through Pico A, in batches of python/demo_glitch_map.py, and holds each
-# frame's bytes and framing error to the receiver's rows. Both engines meet on wire 20, so
-# no pad is touched.
+# The glitch map on the board. Runs every image from test/python/write_glitch_images.exe on
+# the chip through Pico A, in batches of python/demo_glitch_map.py, and checks each frame's
+# bytes and framing error against the receiver's rows. Both engines meet on wire 20, so no
+# pad is touched.
 # Usage: PICO=id:<serial> python3 demo/glitch_map.py IMAGES --bitstream BIT --out DIR
 #            [--frames N] [--batch N]
 import argparse
@@ -15,7 +15,7 @@ import tempfile
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-# the assumption fault: the receiver refuses a second edge its certificate rules out
+# assumption fault: the receiver refuses a second edge that its certificate rules out
 ASSUMPTION = 0x4000
 
 
@@ -37,11 +37,11 @@ def load_bitstream(bitstream, log):
 
 
 def batch_script(head, batch, frames):
-    """The Pico side inline, so nothing is copied to the Pico's flash."""
+    """Returns the Pico-side script inline, so nothing is copied to the Pico's flash."""
     with open(os.path.join(HERE, "..", "python", "demo_glitch_map.py")) as f:
         source = f.read()
     images = [[i["k"], i["words"], i["config"], i["check"]] for i in batch]
-    # Python literals, as a check holds None and booleans
+    # as Python literals, since a check can hold None and booleans
     return source + (
         "\nimport pico_board\n"
         "spi = pico_board.PicoSpi()\n"
@@ -50,7 +50,7 @@ def batch_script(head, batch, frames):
 
 
 def parse(line):
-    """A RESULT line as a dict, or None."""
+    """Parses a RESULT line into a dict, or returns None."""
     fields = line.split()
     if not fields or fields[0] != "RESULT":
         return None
@@ -79,7 +79,7 @@ def show(words, framing_error, refused=False):
 
 
 def summary(images, results):
-    """Runs of k with one outcome, rows against board, and the counts."""
+    """Groups k into runs with one outcome, compares rows with the board and counts."""
     by_k = {}
     for r in results:
         by_k.setdefault(r["k"], []).append(r)
@@ -104,7 +104,7 @@ def summary(images, results):
     ks = len({r["k"] for r in results})
     lines.append("%d frames over %d of %d k: %d as the rows say, %d not" % (
         frames, ks, len(images), ok, frames - ok))
-    # each data bit: the k whose frames cleared it
+    # for each data bit, the k whose frames cleared it
     for bit in range(8):
         cleared = sorted({r["k"] for r in results
                           if r["words"] and not r["words"][0] >> bit & 1})
@@ -152,7 +152,7 @@ def main():
         with open(os.path.join(args.out, "results.jsonl"), "a") as f:
             for r in got:
                 f.write(json.dumps(r) + "\n")
-        # a fault holds until reset, so a k that faults has no later frame
+        # a fault sticks until reset, so a k that faults has no later frames
         done_ks = {r["k"] for r in got
                    if r["faults"] or sum(g["k"] == r["k"] for g in got) == args.frames}
         pending = [i for i in pending if i["k"] not in done_ks]
@@ -160,7 +160,7 @@ def main():
             empty = 0 if got else empty + 1
             if empty == 3:
                 sys.exit("no result from the Pico three times: see %s/board.log" % args.out)
-            # faults hold until reset
+            # faults stick until reset
             load_bitstream(args.bitstream, log)
     text = summary(images, results)
     with open(os.path.join(args.out, "summary.txt"), "w") as f:

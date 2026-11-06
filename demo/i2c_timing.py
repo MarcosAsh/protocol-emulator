@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-# Every UM10204 bus timing parameter of a capture's I2C, a line each: how many were
-# measured, the least, how many fail, pass or sit within a sample of the limit, then each
-# fail by its samples. The i2c_timing sigrok decoder makes the same checks for PulseView:
+# Checks a capture's I2C against every UM10204 bus timing parameter, one line each: how many
+# were measured, the least, how many fail, pass or sit within a sample of the limit, then
+# each failure in samples. The i2c_timing sigrok decoder does the same checks for PulseView:
 #   SIGROKDECODE_DIR=demo/decoders sigrok-cli -i CAPTURE.sr -P i2c_timing:scl=D7:sda=D6
 # Usage: python3 demo/i2c_timing.py [--mode fast] [--scl D7 --sda D6] CAPTURE.sr
 
@@ -26,8 +26,8 @@ def changes(level):
 
 
 def check(path, mode, scl="D7", sda="D6"):
-    """The capture's sample rate, every result in the order the checker made them, and the
-    SCL edges outside a transaction."""
+    """Returns the capture's sample rate, every result in checker order and the SCL edges
+    outside a transaction."""
     rate, channels, samples = sigrok.read(path)
     bit = {name: b for b, name in channels.items()}
     scl_level, sda_level = levels(samples, bit[scl]), levels(samples, bit[sda])

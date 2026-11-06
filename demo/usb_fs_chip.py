@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
-# The chip's own USB full speed receiver on the board against a real host: loads the
-# chip built with FS=1, whose D+ pull-up makes the laptop enumerate the first USB-C port
-# at full speed, and has Pico A (demo/usb_fs_chip_pico.py), holding the port detached as it
-# loads, arm the receiver over the host port and read its verdict on every packet. Tokens
-# (two words, one half) must carry a good CRC-5 and data packets a good CRC-16, with no
-# stuffing error and no word dropped. The chip never answers, so the host gives up;
-# openFPGALoader -r then brings back the flash.
+# Tests the chip's own USB full speed receiver on the board against a real host. Loads the
+# chip built with FS=1, whose D+ pull-up makes the laptop enumerate the first USB-C port at
+# full speed. Pico A (demo/usb_fs_chip_pico.py) holds the port detached during the load,
+# then arms the receiver over the host port and reads its verdict on every packet. Tokens
+# (two words, one half) need a good CRC-5 and data packets a good CRC-16, with no stuffing
+# error and no dropped word. The chip never answers, so the host gives up; openFPGALoader
+# -r then restores the chip from flash.
 # Usage: PICO_A=<serial of Pico A> [REV=v1.3] python3 demo/usb_fs_chip.py [--out DIR]
 
 import argparse
@@ -20,7 +20,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 
 def verdict(status, flags):
-    """A packet's shape and whether the chip found it good."""
+    """Describes a packet's shape and says whether the chip found it good."""
     words, half = status & 0x3FF, (status >> 12) & 1
     dropped = (status >> 13) & 1
     crc5, crc16, stuffed = flags & 1, (flags >> 1) & 1, (flags >> 2) & 1
@@ -45,8 +45,8 @@ def main():
         check=True,
         stdout=subprocess.DEVNULL,
     )
-    # Pico A holds the port detached while the chip loads, so the host sees it attach
-    # only once the receiver is armed
+    # Pico A keeps the port detached while the chip loads, so the host only sees it
+    # attach once the receiver is armed
     pico_run = subprocess.Popen(
         [*pico, "run", str(ROOT / "demo/usb_fs_chip_pico.py")],
         stdout=subprocess.PIPE,

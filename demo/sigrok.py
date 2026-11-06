@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Reads and writes sigrok session files (.sr): a zip of an INI metadata file and the raw
-# samples, one byte a sample for up to eight channels, in numbered chunks.
+# samples in numbered chunks, one byte per sample (up to 8 channels).
 
 import configparser
 import io
@@ -15,7 +15,7 @@ def _rate(text):
 
 
 def read(path):
-    """The sample rate in Hz, the channel names by bit, and the samples as bytes."""
+    """Returns the sample rate in Hz, the channel names by bit and the samples as bytes."""
     with zipfile.ZipFile(path) as z:
         meta = configparser.ConfigParser()
         meta.read_string(z.read("metadata").decode())
@@ -37,7 +37,7 @@ def read(path):
 
 
 def write(path, rate_hz, samples, channels=8, names=None):
-    """names: one a channel, D0 and up by default."""
+    """names has one entry per channel; the default is D0, D1, ..."""
     names = names or ["D%d" % i for i in range(channels)]
     meta = io.StringIO()
     meta.write("[global]\nsigrok version=0.5.2\n\n[device 1]\ncapturefile=logic-1\n")
@@ -55,7 +55,7 @@ def write(path, rate_hz, samples, channels=8, names=None):
 
 
 def edges(samples, bit):
-    """The sample index of every change on one channel, and the level it changes to."""
+    """Returns the sample index of every change on one channel, and the level it changes to."""
     import numpy as np
 
     levels = (np.frombuffer(samples, dtype=np.uint8) >> bit) & 1
@@ -64,13 +64,13 @@ def edges(samples, bit):
 
 
 def hz(rate):
-    """A sigrok-cli samplerate, 12M, 500k or 2000000, in Hz."""
+    """Converts a sigrok-cli samplerate (12M, 500k, 2000000) to Hz."""
     scale = {"k": 1e3, "M": 1e6, "G": 1e9}.get(rate[-1:], 1)
     return float(rate[:-1] if scale != 1 else rate) * scale
 
 
 if __name__ == "__main__":
-    # sigrok-cli's -O binary into a session file, D0 and up
+    # turn the output of sigrok-cli -O binary into a session file (channels D0, D1, ...)
     # Usage: python3 demo/sigrok.py RAW RATE OUT.sr
     import sys
 

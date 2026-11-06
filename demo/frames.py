@@ -1,15 +1,15 @@
 # SPDX-License-Identifier: Apache-2.0
-# python/demo_ethernet_rx.py's log, judged again from what it says was sent: each frame's
+# Re-judges python/demo_ethernet_rx.py's log from what it says was sent. Checks each frame's
 # FCS against zlib's CRC-32, the receiver's verdict and counts against that, and the bytes
-# the chip handed back against the bytes sent. The analyser cannot follow 10 Mb/s, so the
-# log is the run's only record; its teeth edit it.
+# the chip handed back against the bytes sent. The analyser can't follow 10 Mb/s, so the log
+# is the only record of the run. The teeth edit the log and check the judge refuses it.
 
 import re
 import zlib
 
-# the data memory's 512 words from where the demo lands frames, 16
+# bytes of data memory (512 words) left after word 16, where the demo puts frames
 ROOM = 2 * (512 - 16)
-# the rate steps a pass needs, as the demo has them
+# the rate steps a pass must cover, as in the demo
 CLAIMED = (-1, 0, 1)
 FRAME = re.compile(
     r"^frame (\d+) step (-?\d+)(?: divider \d+/256)? len (\d+) fcs (good|bad): words (\d+) "
@@ -17,7 +17,7 @@ FRAME = re.compile(
 
 
 def parse(log):
-    """Each frame's fields, with the bytes sent and handed back."""
+    """Returns each frame's fields, with the bytes sent and handed back."""
     lines = log.splitlines()
     out = []
     for n, line in enumerate(lines):
@@ -36,7 +36,7 @@ def parse(log):
 
 
 def wrong(f):
-    """Why the frame was not received whole, from its bytes alone; None when it was."""
+    """Says why the frame was not received whole, judging by its bytes alone, or None if it was."""
     sent, got = f["sent"], f["got"]
     if len(sent) != f["length"]:
         return "%d bytes listed as sent, not %d" % (len(sent), f["length"])
@@ -58,7 +58,7 @@ def wrong(f):
 
 
 def judge(log):
-    """The frames' tally and what is wrong with the log."""
+    """Returns the tally of frames and a list of what is wrong with the log."""
     frames = parse(log)
     problems = []
     for f in frames:
@@ -93,7 +93,7 @@ def judge(log):
 
 
 def teeth(log):
-    """Each tooth's description and why the judge refused it, or None when it did not."""
+    """Returns each tooth's description and why the judge refused it (None if it didn't)."""
     frames = parse(log)
     out = []
     first = next(f for f in frames if f["step"] == 0 and f["got"])

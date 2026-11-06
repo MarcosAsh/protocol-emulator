@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# Pico B's half of demo/usb_fs_check.py: icepi/usb_fs_check.v's packets arrive on GP1
-# (header 8) at 1 Mbaud and go to the laptop in hex, a line at a time, for SECONDS.
+# Pico B's half of demo/usb_fs_check.py. Takes icepi/usb_fs_check.v's packets on GP1
+# (header 8) at 1 Mbaud and sends them to the laptop as hex, one line each, for SECONDS.
 # Usage: mpremote connect id:<serial of Pico B> run demo/usb_fs_listen.py
 
 import time

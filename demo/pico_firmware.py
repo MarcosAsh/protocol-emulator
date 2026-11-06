@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-# python/bench_firmware.py cut to the entries the given demo scripts name, for Pico A. Its
-# MicroPython compiles the whole file at import, which with the 8x4 chip's certificates
-# takes long enough to push a demo's traffic past the end of its capture.
+# Cuts python/bench_firmware.py down to the entries the given demo scripts name, for Pico A.
+# MicroPython compiles the whole file on import, and with the 8x4 chip's certificates that
+# is slow enough to push a demo's traffic past the end of its capture.
 # Usage: python3 demo/pico_firmware.py OUT SCRIPT...
 
 import re
@@ -13,7 +13,7 @@ FIRMWARE = ROOT / "python/bench_firmware.py"
 
 
 def names(scripts):
-    """Every bench_firmware.NAME the scripts use."""
+    """Returns every bench_firmware.NAME the scripts use."""
     found = set()
     for script in scripts:
         text = Path(script).read_text()
@@ -34,7 +34,7 @@ def subset(wanted):
 
 def main():
     out, scripts = sys.argv[1], sys.argv[2:]
-    # a script that names its firmware at run time gets all of it
+    # a script that picks its firmware at run time gets all of it
     if any("getattr(bench_firmware" in Path(script).read_text() for script in scripts):
         Path(out).write_text(FIRMWARE.read_text())
     else:
