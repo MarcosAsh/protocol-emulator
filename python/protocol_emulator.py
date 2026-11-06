@@ -35,14 +35,14 @@ STAMP_TIME_HI = 0x4F
 STAMP_PINS_LO = 0x50
 STAMP_PINS_HI = 0x51
 
-# status bits of the faults: underflow, overflow, missed deadline, bad decode, broken
-# assumption
+# the fault bits of the status word: underflow, overflow, missed deadline, bad decode,
+# broken assumption
 FAULTS = 0x403C
 PROGRAM_WORDS = 512
 
 
 class Refused(Exception):
-    """The chip's load check refused the program: the pc and the reason it gives."""
+    """The chip's load check refused the program. Carries the pc and the reason."""
 
 # Engine.Config order, the nth at CONFIG + n. None is a reserved register, kept so later
 # fields stay where existing hosts write them.
@@ -103,37 +103,38 @@ class Host:
         return [(reply[i] << 8) | reply[i + 1] for i in range(0, 2 * count, 2)]
 
     def select(self, engine):
-        """Every call after this reaches that engine; a chip with one engine ignores it."""
+        """Route every later call to that engine. A chip with one engine ignores this."""
         self.write(SELECT, [engine])
 
     def configure(self, config):
-        """Only while the core is halted: a running core ignores it."""
+        """Write the config. A running core ignores it, so halt the core first."""
         for reg, word in config_writes(config):
             self.write(reg, [word])
 
     def load(self, words, address=0):
-        """Zeros fill the memory after the program: the kernel reads it as zero, and the
-        SRAM powers up with arbitrary contents."""
+        """Zero-fill the memory after the program, since the kernel reads it as zero and
+        the SRAM powers up with arbitrary contents."""
         self.write(PROGRAM_ADDR, [address])
         self.write(PROGRAM, list(words) + [0] * (PROGRAM_WORDS - address - len(words)))
 
     def load_data(self, words, address=0):
-        """Fill the shared data memory; words land only while every core is halted."""
+        """Write the shared data memory. Words only land while every core is halted."""
         self.write(DATA_ADDR, [address])
         self.write(DATA, words)
 
     def certify(self, certificate, base=0, loaded=None, single_edge=False, floor=False):
         """Write the selected engine's certificate at base and have the chip check its
-        program against it, as a start needs. Every core must be halted for the write;
-        certification lasts until the program or configuration changes. loaded is the
-        period every run-time load of p is assumed to carry, the least with floor. The
-        core then faults where p or the capture pin breaks what the check assumed."""
+        program against it, which a start requires. Every core must be halted for the
+        write, and the certification lasts until the program or configuration changes.
+        loaded is the period every run-time load of p is assumed to carry (with floor, it
+        is the minimum). The core then faults if p or the capture pin breaks what the check
+        assumed."""
         self.load_data(certificate, base)
         self.check(base, loaded, single_edge, floor)
 
     def check(self, base=0, loaded=None, single_edge=False, floor=False):
-        """certify against a certificate the data memory already holds, as after a patch
-        while another core runs and no data write lands."""
+        """Like certify, but against a certificate the data memory already holds, e.g. after
+        a patch while another core runs and no data write can land."""
         for reg, words in check_writes(base, loaded, single_edge, floor):
             self.write(reg, words)
         status = self.read(CHECK_STATUS)[0]
@@ -143,23 +144,24 @@ class Host:
             raise Refused(self.read(REJECT_PC)[0], self.read(REJECT_REASON)[0])
 
     def start(self):
-        """Run from address 0; ignored unless the core is halted. Counts only once the
-        program is certified; otherwise the core stays halted and check_status shows it
-        refused."""
+        """Run from address 0; ignored unless the core is halted. Only works once the
+        program is certified; otherwise the core stays halted and check_status shows the
+        refusal."""
         self.write(CONTROL, [1])
 
     def start_all(self):
-        """Every engine on the same cycle, whatever the select, only if all are halted and
-        certified."""
+        """Start every engine on the same cycle, whatever the select, but only if all are
+        halted and certified."""
         self.write(CONTROL, [0x20])
 
     def load_line_table(self, words):
-        """The selected engine's line code table, a word per state; only while halted."""
+        """Load the selected engine's line code table, one word per state. Only while
+        halted."""
         self.write(LINE_ADDR, [0])
         self.write(LINE, list(words))
 
     def stop(self):
-        """Halt the core, as program writes need. It resumes only from a start, at 0."""
+        """Halt the core, which program writes require. It only resumes from a start, at 0."""
         self.write(CONTROL, [4])
 
     def flush(self):
@@ -173,8 +175,8 @@ class Host:
         self.write(TX, words)
 
     def pop(self, count=1):
-        """count words, zeros past rx_level: an RX read of an empty fifo reads 0 and drops
-        a word the engine pushes during it, so none is made."""
+        """Pop count words, padding with zeros past rx_level. Reading RX on an empty fifo
+        returns 0 and drops any word the engine pushes meanwhile, so we never do that."""
         level = min(count, self.status()["rx_level"])
         return (self.read(RX, level) if level else []) + [0] * (count - level)
 
@@ -188,9 +190,9 @@ class Host:
         }
 
     def arm_frame(self, pin, base=0, fifty=True, owner=0):
-        """Take the next 10BASE-T frame on pin into the data memory from base, sampling
+        """Capture the next 10BASE-T frame on pin into the data memory from base, sampling
         for a 50 MHz clock (else 40 MHz). One frame per arm. Its words land in engine
-        owner's data turns, and that engine alone reads the status pins 28-31."""
+        owner's data turns, and only that engine reads the status pins 28-31."""
         for reg, words in arm_frame_writes(pin, base, fifty, owner):
             self.write(reg, words)
 
@@ -198,10 +200,11 @@ class Host:
         return frame_fields(self.read(FRAME_STATUS)[0])
 
     def arm_usb(self, dp_pin, base=0, owner=0, rearm=False):
-        """Take the next USB full speed packet into the data memory from base, D+ on
-        dp_pin and D- on the next. One packet per arm, or with rearm every packet from
-        base in turn; frame_status reports the last, its fcs_ok the CRC-16. Its words land
-        in engine owner's data turns, and that engine alone reads the status pins 28-31."""
+        """Capture the next USB full speed packet into the data memory from base, with D+ on
+        dp_pin and D- on the next pin. One packet per arm, or with rearm every packet from
+        base in turn. frame_status reports the last one, and its fcs_ok is the CRC-16. Its
+        words land in engine owner's data turns, and only that engine reads the status pins
+        28-31."""
         self.write(FRAME_BASE, [base])
         self.write(
             FRAME_CONTROL,
@@ -216,12 +219,13 @@ class Host:
         }
 
     def watch_edges(self, pins, engine=0):
-        """Stamp edges on the pins (a mask of 20) with engine's time; empties the queue."""
+        """Stamp edges on the pins (a mask of 20) with engine's time, and empty the queue."""
         self.write(STAMP_MASK, [pins & 0xFFFF])
         self.write(STAMP_CONTROL, [(engine << 4) | (pins >> 16)])
 
     def edge_stamps(self):
-        """Pop every queued stamp: (time, pads), and whether one was lost to a full queue."""
+        """Pop every queued stamp as (time, pads). Also returns whether one was lost to a
+        full queue."""
         stamps = []
         hi = self.read(STAMP_TIME_HI)[0]
         while (hi >> 8) & 7:
@@ -233,8 +237,8 @@ class Host:
         return stamps, bool(hi >> 15)
 
     def now(self):
-        """The halves come in separate frames, so the high one is read either side of the
-        low and the read retried if it moved."""
+        """The two halves arrive in separate frames, so read the high half before and after
+        the low half and retry if it moved."""
         hi = self.read(NOW_HI)[0]
         while True:
             lo = self.read(NOW_LO)[0]
@@ -245,7 +249,7 @@ class Host:
 
 
 def arm_frame_writes(pin, base=0, fifty=True, owner=0):
-    """Host.arm_frame's register writes, for a host that cannot call it."""
+    """Host.arm_frame's register writes, for a host that can't call it."""
     control = (owner << 8) | (pin << 2) | (int(fifty) << 1) | 1
     return [(FRAME_BASE, [base]), (FRAME_CONTROL, [control])]
 
@@ -260,5 +264,5 @@ def frame_fields(s):
 
 
 def hex_words(text):
-    """Words from the assembler's output, one hex word per line."""
+    """Parse the assembler's output: one hex word per line."""
     return [int(line, 16) for line in text.split() if line]

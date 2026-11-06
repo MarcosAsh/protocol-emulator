@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
-# MICROWIRE (AN-452), the controller's end (MicroPython, Pico A): CS on OUT6, the flash's
-# CS, analyser B's D3; SK on OUT5, the flash's CLK, B's D0; DI on OUT4, the flash's DI,
-# B's D1; DO on IN0, the flash's DO, B's D2. CS high deselects the flash. EWEN, READ 5,
-# WRITE 5 with its 25.94 ms CS low, READ 5: no bench part answers, so DO is not judged.
-# demo/outside.sh microwire runs it.
+# MICROWIRE (AN-452), the controller's end (MicroPython, Pico A). CS is on OUT6 (the
+# flash's CS, analyser B's D3), SK on OUT5 (the flash's CLK, B's D0), DI on OUT4 (the
+# flash's DI, B's D1) and DO on IN0 (the flash's DO, B's D2). CS high deselects the flash.
+# Sends EWEN, READ 5, WRITE 5 (CS low for 25.94 ms) and READ 5. No bench part answers, so
+# DO is not judged. demo/outside.sh microwire runs it.
 # outside: analyser=B ms=2000 decode=-P microwire:cs=D3:sk=D0:si=D1:so=D2 -A microwire=start-bit:si-bit
 
 import bench
@@ -16,7 +16,8 @@ def bits(value, width):
 
 
 def frame(frame_bits, erase_write=False):
-    """A header, bit 15 erase/write and the bits less one, then the bits MSB first."""
+    """A header (bit 15 is erase/write, the rest the bit count minus one), then the bits
+    MSB first."""
     words = [(0x8000 if erase_write else 0) | (len(frame_bits) - 1)]
     for i in range(0, len(frame_bits), 16):
         word = 0
@@ -27,19 +28,19 @@ def frame(frame_bits, erase_write=False):
 
 
 def instruction(op, field):
-    """p.6: the start bit, two opcode bits and six more."""
+    """p.6: the start bit, two opcode bits and six more bits."""
     return bits(0x100 | op << 6 | field, 9)
 
 
-# EWEN, READ 5, WRITE 5, READ 5: READ clocks 16 bits more for DO
+# EWEN, READ 5, WRITE 5, READ 5; READ clocks 16 more bits for DO
 FRAMES = [instruction(0b11, 0b000001), instruction(0b00, 5) + [0] * 16,
           instruction(0b10, 5) + bits(0xA5C3, 16), instruction(0b00, 5) + [0] * 16]
 ERASE_WRITE = 2
 
 
 def lines(frames):
-    """What sigrok's microwire prints of the frames' DI with outside:'s -A, in order: the
-    start bit, then each bit after it at SK's rise."""
+    """What sigrok's microwire decoder prints for the frames' DI, in order, with the -A
+    fields from the outside: line: the start bit, then each bit after it at SK's rise."""
     return ["microwire-1: " + text for f in frames
             for text in ["Start bit"] + ["SI bit: %d" % b for b in f[1:]]]
 

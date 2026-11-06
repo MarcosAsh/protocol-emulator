@@ -160,7 +160,7 @@ class Board:
                 self._send(0, [STALL])
         elif request_type & 0x80:
             self._send(0, [STALL])
-        elif request == 5:  # SET_ADDRESS, from the status stage's ACK on
+        elif request == 5:  # SET_ADDRESS takes effect from the status stage's ACK on
             self._send(0, data_packet(DATA1, []), [in_token(value, 0)])
             self.address = value
         else:
