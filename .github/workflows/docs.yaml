@@ -3,7 +3,7 @@ name: docs
 on:
   push:
     branches: ['**']
-  # a link dies, or a newer run makes a cited one stale, with no push
+  # weekly, since a link can die or a newer run can make a cited one stale without a push
   schedule:
     - cron: '0 6 * * 1'
   workflow_dispatch:
@@ -20,7 +20,7 @@ jobs:
       - name: Build docs
         uses: TinyTapeout/tt-gds-action/docs@ihp-cmos5l
 
-  # the site's pages, as pages.yaml builds them on main
+  # the site's pages, built the way pages.yaml builds them on main
   site:
     runs-on: ubuntu-24.04
     steps:
@@ -37,8 +37,8 @@ jobs:
           pip install -r docs/requirements.txt
           sphinx-build -W -b html docs docs/_build/html
 
-  # what README.md and the docs/ pages cite and quote, against the repo, its runs, the pinned
-  # evidence releases and the links' pages, then wrong copies of the README that have to
+  # checks what README.md and docs/ cite and quote against the repo, its runs, the pinned
+  # evidence releases and the linked pages, then checks that wrong copies of the README
   # fail (test/check_docs.py)
   check:
     runs-on: ubuntu-24.04
@@ -51,14 +51,14 @@ jobs:
         with:
           fetch-depth: 0 # the cited commits have to be ancestors of HEAD
 
-      # release assets test/evidence.sha256 pins, which never change
+      # the release assets pinned by test/evidence.sha256, which never change
       - name: Cache the evidence
         uses: actions/cache@v4
         with:
           path: ~/.cache/protocol-emulator/evidence
           key: evidence-${{ hashFiles('test/evidence.sha256') }}
 
-      # links that answered, asked again after a day
+      # links that answered are only asked again after a day
       - name: Cache the links
         uses: actions/cache@v4
         with:

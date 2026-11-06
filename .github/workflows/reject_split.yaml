@@ -24,7 +24,7 @@ jobs:
       - name: Pin the oxcaml opam repository
         run: opam repo set-url ox git+https://github.com/oxcaml/opam-repository.git#a70ed316f02290fa267f9105f30cf21e3c7f5f05
 
-      # the ocaml workflow's switch; on a hit the install below has nothing to do
+      # the ocaml workflow's switch; on a cache hit the install below does nothing
       - name: Cache the switch
         uses: actions/cache@v4
         with:
@@ -35,7 +35,7 @@ jobs:
         run: opam install . --deps-only --with-test --locked
 
       # cadical and cake_lpr check each UNSAT behind No_table (test/checked_unsat.ml), at
-      # the pins formal/Makefile names; keyed on those lines alone
+      # the pins in formal/Makefile (the cache key hashes only those lines)
       - name: Key the SAT tools
         id: sat_key
         run: echo "key=sat-tools-$(sed -n '/^CADICAL = /,/^$/p' formal/Makefile | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
@@ -52,7 +52,7 @@ jobs:
           [ "${{ steps.sat_tools.outputs.cache-hit }}" = true ] || make -C formal sat_tools
           echo "$PWD/formal/sat_tools/bin" >> "$GITHUB_PATH"
 
-      # every one-field variant of the library that is not a receiver
+      # every one-field variant of the library, except receivers
       - name: Split the kernel's verdicts
         run: opam exec -- dune exec -- test/split/split.exe | tee split.log
 
@@ -63,8 +63,8 @@ jobs:
           cat split.log >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
-      # a run that misses where the kernel accepts, or a table SAT finds that the kernel
-      # refuses, is a bug in one of them
+      # if a run misses where the kernel accepts, or SAT finds a table the kernel
+      # refuses, one of the two has a bug
       - name: Check
         run: |
           grep -q '((verdict Accepted_but_missed) (count 0))' split.log

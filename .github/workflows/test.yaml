@@ -1,12 +1,12 @@
 name: test
-# branches only: a tag names a commit a branch push has already run
+# branches only, since a tag points at a commit a branch push already ran
 on:
   push:
     branches: ['**']
   workflow_dispatch:
 jobs:
-  # the Python held to ruff's checks, pinned so a new ruff cannot fail an unchanged tree;
-  # ruff.toml waives what a sigrok decoder package needs
+  # ruff on the Python, pinned so a new ruff can't fail an unchanged tree. ruff.toml
+  # waives what a sigrok decoder package needs
   lint:
     runs-on: ubuntu-24.04
     steps:
@@ -24,7 +24,7 @@ jobs:
       - name: Run Ruff check
         run: ruff check python/ demo/ test/
 
-  # whether a branch's changes reach the cocotb tests (.github/changed.sh); a skip counts
+  # whether a branch's changes reach the cocotb tests (.github/changed.sh). A skip counts
   # as a pass
   changes:
     runs-on: ubuntu-24.04
@@ -69,7 +69,7 @@ jobs:
           cd test
           make clean
           make
-          # make succeeds even when a test fails, so check results.xml
+          # make succeeds even when a test fails, so we check results.xml
           ! grep failure results.xml
           make replay
           make carrier_check

@@ -1,9 +1,9 @@
 name: ocaml
-# branches only: a tag names a commit a branch push has already run
+# branches only, since a tag points at a commit a branch push already ran
 on:
   push:
     branches: ['**']
-  # phase_spacing, nine jobs of up to 3.5 h, runs nightly on main and on a dispatch only.
+  # phase_spacing (nine jobs of up to 3.5 h) only runs nightly on main and on a dispatch.
   # Before landing a branch: gh workflow run ocaml.yaml --ref BRANCH -f phase_spacing=true
   schedule:
     - cron: '0 1 * * *'
@@ -14,16 +14,16 @@ on:
         type: boolean
         default: false
 
-# a newer push cancels a branch's run; on main every run that starts finishes, and of the
-# ones waiting only the newest starts. The nightly and a dispatch wait apart from pushes,
-# so a push never drops them.
+# A newer push cancels a branch's run. On main every run that starts finishes, and of the
+# ones waiting only the newest starts. The nightly and a dispatch queue separately from
+# pushes, so a push never drops them.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}${{ github.event_name != 'push' && format('-{0}', github.event_name) || '' }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
-  # which jobs a branch's changes reach (.github/changed.sh); the rest skip, which counts
-  # as a pass
+  # works out which jobs a branch's changes reach (.github/changed.sh). The rest are
+  # skipped, which counts as a pass
   changes:
     runs-on: ubuntu-24.04
     outputs:
@@ -40,12 +40,12 @@ jobs:
         id: changed
         run: .github/changed.sh tests proofs fpga | tee -a "$GITHUB_OUTPUT"
 
-  # the Verilog and certificates the proof jobs read, so they start without the tests
+  # builds the Verilog and certificates the proof jobs read, so they don't wait for the tests
   generate:
     needs: changes
     if: needs.changes.outputs.proofs == 'true'
     runs-on: ubuntu-24.04
-    # id-token and attestations sign the provenance of the proof bundle below
+    # id-token and attestations are for signing the provenance of the proof bundle below
     permissions:
       contents: read
       id-token: write
@@ -70,7 +70,7 @@ jobs:
       - name: Pin the oxcaml opam repository
         run: opam repo set-url ox git+https://github.com/oxcaml/opam-repository.git#a70ed316f02290fa267f9105f30cf21e3c7f5f05
 
-      # the switch as the lock built it; on a hit the install below has nothing to do
+      # the switch as the lock built it; on a cache hit the install below does nothing
       - name: Cache the switch
         uses: actions/cache@v4
         with:
@@ -103,8 +103,8 @@ jobs:
           opam exec -- dune exec -- bin/generate.exe engines -engines 2 -sram > formal/engines_gated.v
           opam exec -- dune exec -- bin/generate.exe load-check-step > formal/load_check_step.v
 
-      # each inductive certificate, the stamped one and the ones with data claims too, is
-      # proved in a job of its own below
+      # every inductive certificate (the stamped one and the ones with data claims too) is
+      # proved in its own job below
       - name: Write the certificates
         id: certificates
         run: |
@@ -124,7 +124,7 @@ jobs:
         id: phase_spacing
         run: echo "parts=$(make -s -C formal phase_spacing_parts | jq -Rc 'split(" ")')" >> "$GITHUB_OUTPUT"
 
-      # a pushed main only, so a fork's pull request never signs
+      # only for a push to main, so a fork's pull request never signs
       - name: Attest the proof bundle
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/attest-build-provenance@v3.0.0
@@ -216,8 +216,8 @@ jobs:
       - name: Install dependencies
         run: opam install . --deps-only --with-test --locked
 
-      # cadical and cake_lpr for the checked QEDs (test/checked_unsat.ml), at the pins
-      # formal/Makefile names; keyed on those lines alone
+      # cadical and cake_lpr for the checked QEDs (test/checked_unsat.ml), at the pins in
+      # formal/Makefile (the cache key hashes only those lines)
       - name: Key the SAT tools
         id: sat_key
         run: echo "key=sat-tools-$(sed -n '/^CADICAL = /,/^$/p' formal/Makefile | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
@@ -234,7 +234,7 @@ jobs:
           [ "${{ steps.sat_tools.outputs.cache-hit }}" = true ] || make -C formal sat_tools
           echo "$PWD/formal/sat_tools/bin" >> "$GITHUB_PATH"
 
-      # the workflows that run the cocotb test have no assembler and read these
+      # the workflows that run the cocotb test have no assembler, so they read these
       - name: Check the committed firmware words are current
         run: |
           opam exec -- make -C test -f firmware.mk firmware
@@ -252,7 +252,7 @@ jobs:
       - name: Run tests
         run: opam exec -- dune build @runtest
 
-      # the chip is hardened from the committed file, not from the OCaml
+      # the chip is hardened from the committed Verilog, not from the OCaml
       - name: Check the committed Verilog is current
         run: |
           opam exec -- dune exec -- bin/generate.exe top -sram -engines 2 > src/protocol_emulator.v
@@ -297,9 +297,9 @@ jobs:
           opam exec -- dune build test/translation/check_translation.exe
           make -C formal issue_timing host_timing host_spacing late_host fifo_order unreachable phase_step fetch_step edge_step event_step frame_step value_step narrow_proof chip_frame fail_safe isolation_proof data_step teeth fsm_miter_proof verilog_in_proof sram_equiv_proof kernel_equiv_proof translation_proof frontend_equiv sync_rtl sync_rtl_teeth powerup offset_axioms gate certify usb_roundtrip_proof line_stuff_proof frame_roundtrip_proof
 
-  # Hardcaml's cyclesim coverage of src/ over every test, which reruns them, so it runs
-  # beside the test job. Each point the tests leave open is in test/coverage_triage.txt
-  # with its reason, and a new one fails (test/check_coverage.py).
+  # Hardcaml's cyclesim coverage of src/ over every test. It reruns them, so it runs
+  # beside the test job. Every point the tests leave open is listed with a reason in
+  # test/coverage_triage.txt, and a new one fails (test/check_coverage.py).
   coverage:
     needs: changes
     if: needs.changes.outputs.tests == 'true'
@@ -330,7 +330,7 @@ jobs:
       - name: Install dependencies
         run: opam install . --deps-only --with-test --locked
 
-      # the tests' checked QEDs need them, as in the test job
+      # the tests' checked QEDs need these, as in the test job
       - name: Key the SAT tools
         id: sat_key
         run: echo "key=sat-tools-$(sed -n '/^CADICAL = /,/^$/p' formal/Makefile | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
@@ -364,9 +364,9 @@ jobs:
             _build/default/test/coverage/
             coverage_check.txt
 
-  # the pin traces judged by sigrok's protocol decoders, which we did not write: at the
-  # chip's clock and as a 24 MHz analyser samples them, each with its teeth, and once
-  # through the bench's path. The test job's runtest checks the traces are current.
+  # judges the pin traces with sigrok's protocol decoders, which we didn't write. Each
+  # trace runs at the chip's clock and as a 24 MHz analyser samples it, with its teeth,
+  # and once through the bench's path. The test job's runtest checks the traces are current.
   decode:
     runs-on: ubuntu-24.04
     steps:
@@ -410,8 +410,8 @@ jobs:
       - name: Traffic checks, on made captures
         run: python3 test/test_traffic.py
 
-      # real bench captures, test/board: their hashes, sigrok's decode, the bytes, the
-      # datasheet windows, and each one's teeth
+      # the real bench captures in test/board: checks their hashes, sigrok's decode, the
+      # bytes, the datasheet windows and each capture's teeth
       - name: Board witnesses
         run: python3 demo/witness.py check test/board/*/
 
@@ -421,9 +421,9 @@ jobs:
       - name: Carrier self-test, on a model of the board
         run: python3 test/test_carrier_check.py
 
-  # the netlists of both boards, simulated; the firmware words they load are the committed
-  # ones, which the test job checks are current. The tests and the replays run apart, as
-  # on the 8x4 chip they took a runner past six hours together
+  # simulates the netlists of both boards. The firmware words they load are the committed
+  # ones, and the test job checks those are current. The tests and the replays run
+  # separately, because on the 8x4 chip together they took a runner past six hours
   fpga:
     needs: changes
     if: needs.changes.outputs.fpga == 'true'
@@ -463,11 +463,11 @@ jobs:
           curl -sL https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz | tar xz -C "$HOME"
           echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
 
-      # The kit's iCE40 UP5K held the chip at 85% of its cells before the load checker,
-      # which needs about 2k more, so the Icepi Zero below is the FPGA the chip runs on.
+      # The kit's iCE40 UP5K was at 85% of its cells before the load checker, which needs
+      # about 2k more, so the chip runs on the Icepi Zero below instead.
 
-      # the chip's own Verilog, two engines and all, on the Icepi Zero's ECP5 at 48 MHz;
-      # nextpnr fails the build if timing does
+      # the chip's own Verilog, both engines included, on the Icepi Zero's ECP5 at 48 MHz.
+      # nextpnr fails the build if timing fails
       - name: Build for the Icepi Zero and simulate the netlist
         run: |
           make -C icepi
@@ -481,9 +481,10 @@ jobs:
             make replay ICEPI=yes
           fi
 
-  # the Icepi Zero's build equals the RTL (formal/icepi_equiv): synth_ecp5's netlist for
-  # each bitstream the bench loads, and the teeth on the 48 MHz one; then the bitstream
-  # and its .sha256, which a board run's evidence quotes. About 10 min, 20 with the teeth
+  # proves the Icepi Zero's build equals the RTL (formal/icepi_equiv), using synth_ecp5's
+  # netlist for each bitstream the bench loads, plus the teeth on the 48 MHz one. Then it
+  # builds the bitstream and its .sha256, which a board run's evidence quotes. About 10 min,
+  # or 20 with the teeth
   icepi_equiv:
     needs: changes
     if: needs.changes.outputs.fpga == 'true' || needs.changes.outputs.proofs == 'true'
@@ -514,7 +515,7 @@ jobs:
           make -C icepi MHZ=${{ matrix.mhz }}
           cat icepi/build/*.sha256 >> "$GITHUB_STEP_SUMMARY"
 
-      # the bitstream the proof names, for a board run to load as it stands
+      # the bitstream the proof names, ready for a board run to load as is
       - name: Keep the bitstream
         uses: actions/upload-artifact@v7
         with:
@@ -546,7 +547,7 @@ jobs:
           curl -sL https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz | tar xz -C "$HOME"
           echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
 
-      # the invariant by induction, then the teeth runs, which have to fail
+      # proves the invariant by induction, then runs the teeth, which have to fail
       - name: Prove
         run: |
           case ${{ matrix.name }} in
@@ -555,7 +556,8 @@ jobs:
             *) make -C formal inductive_proof NAME=${{ matrix.name }} ;;
           esac
 
-  # the step lemma and the kernel's check in one run, and its teeth, which have to fail
+  # proves the step lemma and the kernel's check in one run, then runs the teeth, which have
+  # to fail
   phase_table:
     needs: generate
     runs-on: ubuntu-24.04
@@ -578,8 +580,8 @@ jobs:
       - name: Prove
         run: make -C formal phase_table_proof
 
-  # the same on each engine inside the two-engine chip, with the fail-safe as its corollary,
-  # and its teeth, which have to fail
+  # the same on each engine inside the two-engine chip, with the fail-safe as a corollary,
+  # plus the teeth, which have to fail
   fail_safe_table:
     needs: generate
     runs-on: ubuntu-24.04
@@ -602,7 +604,7 @@ jobs:
       - name: Prove
         run: make -C formal fail_safe_table_proof
 
-  # the same for rows that bound the offset too, on row_step's lemma, and its teeth
+  # the same for rows that bound the offset too, using row_step's lemma, plus the teeth
   phase_table_affine:
     needs: generate
     runs-on: ubuntu-24.04
@@ -625,8 +627,8 @@ jobs:
       - name: Prove
         run: make -C formal phase_table_affine_proof
 
-  # a watched pair's spacing on the one-run theorem, its cover and tooth, in the parts
-  # phase_spacing_parts lists, which together are phase_spacing_proof
+  # proves a watched pair's spacing from the one-run theorem, with its cover and tooth, in
+  # the parts phase_spacing_parts lists. Together they make phase_spacing_proof
   phase_spacing:
     needs: generate
     if: github.event_name == 'schedule' || inputs.phase_spacing
@@ -654,7 +656,7 @@ jobs:
       - name: Prove
         run: make -C formal phase_spacing_part PART=${{ matrix.part }}
 
-  # the step lemma on the narrow core, where a timer that stops at its top has to fail
+  # the step lemma on the narrow core, where a timer that stops at its top must fail
   saturating:
     needs: generate
     runs-on: ubuntu-24.04
@@ -677,8 +679,8 @@ jobs:
       - name: Prove
         run: make -C formal saturating_proof
 
-  # the self-check checker beside its contract from the clear, its covers and teeth, and
-  # by induction for all time until a break
+  # proves the self-check checker against its contract from the clear, with covers and
+  # teeth, and by induction for all time until a break
   self_check:
     needs: generate
     runs-on: ubuntu-24.04
@@ -701,8 +703,8 @@ jobs:
       - name: Prove
         run: make -C formal self_check_proof self_check_clean_proof
 
-  # the uart link between two engines and the bridge across both, by induction, with
-  # their covers and teeth
+  # proves the uart link between two engines and the bridge across both, by induction,
+  # with covers and teeth
   link:
     needs: generate
     runs-on: ubuntu-24.04
@@ -725,7 +727,8 @@ jobs:
       - name: Prove
         run: make -C formal link_proof bridge_proof
 
-  # the load checker's verdict is the load check's walk's, by induction, its covers and teeth
+  # proves by induction that the load checker's verdict is the load check's walk's, with
+  # covers and teeth
   complete:
     needs: generate
     runs-on: ubuntu-24.04
@@ -748,9 +751,9 @@ jobs:
       - name: Prove
         run: make -C formal complete_proof
 
-  # each step lemma's and the self-check's Certifaiger witness, every check's LRAT proof
-  # verified by cake_lpr, and its teeth, whose models have to fail; phase_table's outgrows a
-  # hosted runner
+  # builds each step lemma's and the self-check's Certifaiger witness, verifies every
+  # check's LRAT proof with cake_lpr, and runs the teeth, whose models must fail.
+  # phase_table's is too big for a hosted runner
   witness:
     needs: generate
     runs-on: ubuntu-24.04

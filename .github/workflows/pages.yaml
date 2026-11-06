@@ -1,8 +1,8 @@
 name: pages
 
-# The docs from docs/ as the site's root, the playground from main, the results page and the
-# live die, beside the 3D viewer of the last green gds run on main and the staged 8x4 chip, the
-# only workflow that deploys the site. Runs after gds and results.
+# Deploys the site, and is the only workflow that does. The docs/ pages are the root, with
+# the playground from main, the results page, the live die, the 3D viewer of main's last
+# green gds run and the staged 8x4 chip beside them. Runs after gds and results.
 # js_of_ocaml is never locked.
 on:
   push:
@@ -34,8 +34,8 @@ on:
     branches: [main, fill-8x4, failsafe-8x4, onchip-8x4]
   workflow_dispatch:
 
-# a run in progress finishes, so a burst of triggers cannot cancel every deploy; the
-# newest waits behind it
+# a running deploy finishes, so a burst of triggers can't cancel them all; only the
+# newest waiting run is kept
 concurrency:
   group: pages
   cancel-in-progress: false
@@ -44,7 +44,7 @@ permissions:
   actions: read
   contents: read
 
-# the staged 8x4 builds, in order; the first with a green gds run goes up at 8x4/
+# the staged 8x4 builds, in order; the first one with a green gds run goes up at 8x4/
 env:
   CHIP_8X4_BRANCHES: fill-8x4 failsafe-8x4 onchip-8x4
 
@@ -56,7 +56,7 @@ jobs:
         uses: actions/checkout@v6
 
       # the page as last built and checked against the cli from these inputs, so new
-      # results alone skip the switch
+      # results alone don't rebuild the switch
       - name: Cache the playground
         id: built
         uses: actions/cache@v4
@@ -82,8 +82,8 @@ jobs:
         if: steps.built.outputs.cache-hit != 'true'
         run: opam repo set-url ox git+https://github.com/oxcaml/opam-repository.git#a70ed316f02290fa267f9105f30cf21e3c7f5f05
 
-      # the ocaml workflow's switch, a superset of the locked one; not saved with
-      # js_of_ocaml in it, whose freed guards the locked install would put back
+      # the ocaml workflow's switch, a superset of the locked one. It isn't saved with
+      # js_of_ocaml in it, because the locked install would put the freed guards back
       - name: Restore the switch
         if: steps.built.outputs.cache-hit != 'true'
         uses: actions/cache/restore@v4
@@ -92,8 +92,8 @@ jobs:
           key: opam-${{ runner.os }}-${{ runner.arch }}-5.2.0+ox-test-${{ hashFiles('protocol_emulator.opam.locked') }}
 
       # js_of_ocaml alone would move dune off 3.22.2+ox and rebuild without hardcaml, so
-      # every locked package is held at its version. It and its sedlex and yojson are the
-      # oxcaml patched ones, whose -patches packages replace the four guards left free.
+      # every locked package is held at its version. js_of_ocaml, sedlex and yojson are the
+      # oxcaml patched ones, and their -patches packages replace the four guards left free.
       - name: Install dependencies
         if: steps.built.outputs.cache-hit != 'true'
         run: |
@@ -104,19 +104,19 @@ jobs:
             $(opam list --installed --short --color=never --columns=name,version \
               | awk '$1 !~ /^oxcaml-(js_of_ocaml|js_of_ocaml-compiler|sedlex|yojson)$/ { print $1 "." $2 }')
 
-      # the release profile links the whole program, 0.8 MB against 31 MB
+      # the release profile links the whole program: 0.8 MB against 31 MB
       - name: Build the playground
         if: steps.built.outputs.cache-hit != 'true'
         run: PLAYGROUND=yes opam exec -- dune build --profile release @playground/page @playground/lab
 
-      # the page is the cli: each library firmware through both, and each diagram at 48
-      # and 50 MHz through the page and a native build, byte for byte
+      # the page must match the cli byte for byte: every library firmware goes through
+      # both, and every diagram at 48 and 50 MHz goes through the page and a native build
       - name: Check the page against the cli
         if: steps.built.outputs.cache-hit != 'true'
         run: PLAYGROUND=yes opam exec -- dune build --profile release @playground/agree
 
-      # the page is only worth publishing if the kernel still refuses the example it
-      # shows refusing, and pio_check still fails #796
+      # only publish the page if the kernel still refuses the example it shows refusing
+      # and pio_check still fails #796
       - name: Check the examples' verdicts
         working-directory: _build/default/playground
         run: |
@@ -143,8 +143,8 @@ jobs:
             _build/default/playground/lab.html
             _build/default/playground/playground.bc.js
 
-  # test/corpus.py's pages from the library and the repo's data files; the site goes up
-  # without them rather than not at all. Same switch as the playground, without
+  # test/corpus.py's pages, built from the library and the repo's data files. The site
+  # goes up without them if this fails. Same switch as the playground, minus
   # js_of_ocaml.
   corpus:
     runs-on: ubuntu-24.04
@@ -175,14 +175,15 @@ jobs:
       - name: Install dependencies
         run: opam install . --deps-only --locked
 
-      # the firmware CI proves certificates of, as its inductive_certificate matrix is made
+      # the firmware CI proves certificates for, built the way its inductive_certificate
+      # matrix is
       - name: Write the library's data
         run: |
           opam exec -- dune build ./test/certify/write_corpus.exe ./test/certify/write_certificate.exe
           _build/default/test/certify/write_corpus.exe corpus-data
           _build/default/test/certify/write_certificate.exe -names > corpus-data/matrix
 
-      # the board ledgers are release assets, not downloaded here, so only the repo's own
+      # the board ledgers are release assets and aren't downloaded here, so only the repo's own
       - name: Write the corpus
         run: |
           set -- --data corpus-data --out corpus --matrix corpus-data/matrix \
@@ -199,7 +200,7 @@ jobs:
 
   deploy:
     needs: [playground, corpus]
-    # the corpus job may fail without stopping the site
+    # the site still goes up if the corpus job fails
     if: ${{ !cancelled() && needs.playground.result == 'success' }}
     runs-on: ubuntu-24.04
     permissions:
@@ -216,7 +217,7 @@ jobs:
           name: playground
           path: site/playground
 
-      # as committed: demo/live_die.py makes the die's data from one gds run, by hand
+      # used as committed: demo/live_die.py builds the die's data by hand from one gds run
       - name: Checkout the pages
         uses: actions/checkout@v6
         with:
@@ -225,7 +226,7 @@ jobs:
             docs
           path: repo
 
-      # docs/ in Sphinx, the site's root, which the pages below go up beside
+      # docs/ built with Sphinx is the site's root, and the pages below go up next to it
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -243,7 +244,7 @@ jobs:
           mkdir -p site/die
           cp repo/pages/die/index.html repo/pages/die/die.js repo/pages/die/die.bin site/die/
 
-      # test/corpus.py's pages from the corpus job; the site goes up without them
+      # test/corpus.py's pages from the corpus job (the site goes up without them)
       - name: Download the corpus
         continue-on-error: true
         uses: actions/download-artifact@v7
@@ -251,8 +252,8 @@ jobs:
           name: corpus
           path: site/corpus
 
-      # test/results.py's page from the last results run that passed; the site goes up
-      # without it rather than not at all
+      # test/results.py's page from the last passing results run (the site goes up
+      # without it)
       - name: Download the results
         env:
           GH_TOKEN: ${{ github.token }}
@@ -268,7 +269,7 @@ jobs:
             echo "::warning::no results page in results run $run"
           fi
 
-      # what TinyTapeout/tt-gds-action/viewer publishes, from the last run that passed
+      # what TinyTapeout/tt-gds-action/viewer publishes, from the last passing run
       - name: Download the chip
         id: chip
         env:
@@ -283,9 +284,9 @@ jobs:
           echo "pdk=$(jq -r .PDK chip/tt_submission/tt_submission/pdk.json)" >> "$GITHUB_OUTPUT"
           echo "chip from gds run $run" >> "$GITHUB_STEP_SUMMARY"
 
-      # what the newest green gds run of the first 8x4 branch to have one built; the site
-      # goes up without it rather than not at all. No die by module: demo/die.py needs the
-      # PDK's cell LEFs and the 400 MB run directory.
+      # what the newest green gds run of the first 8x4 branch that has one built (the site
+      # goes up without it). No die by module: demo/die.py needs the PDK's cell LEFs and
+      # the 400 MB run directory.
       - name: Add the 8x4 chip
         continue-on-error: true
         env:
@@ -341,7 +342,7 @@ jobs:
           echo "8x4 die by module left out, it needs the PDK's LEFs" >> "$GITHUB_STEP_SUMMARY"
 
       # the viewer's pdk as the gds run has it, and the results, corpus and 8x4 links only
-      # when their pages went up
+      # if their pages went up
       - name: Finish the landing page
         env:
           PDK: ${{ steps.chip.outputs.pdk }}

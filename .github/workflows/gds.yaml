@@ -1,10 +1,11 @@
 name: gds
 
-# Two hours a run, so only changes reaching the chip or its gate-level test start one.
-# OCaml reaches it through the committed Verilog, kept current by the ocaml workflow.
+# A run takes two hours, so only changes that reach the chip or its gate-level test start
+# one. OCaml changes get there through the committed Verilog, which the ocaml workflow
+# keeps current.
 on:
   push:
-    # a tag push ignores paths, so name branches to keep tags out
+    # a tag push ignores paths, so we name branches to keep tags out
     branches: ['**']
     paths:
       # the chip: its Verilog, macros, flow config and die art
@@ -22,9 +23,9 @@ on:
       - librelane_plugin_die_art.py
       - die_art.py
       - .github/workflows/gds.yaml
-      # what the gate-level jobs run: test/Makefile and the modules and models it builds
-      # for GATES=yes (GATE_TEST_MODULES, test_replay), the firmware they load, the traces
-      # they replay, the python/ modules they import, and the decoder the traces go through
+      # what the gate-level jobs use: test/Makefile and the modules and models it builds for
+      # GATES=yes (GATE_TEST_MODULES, test_replay), the firmware they load, the traces they
+      # replay, the python/ modules they import and the decoder the traces go through
       - test/Makefile
       - test/firmware.mk
       - test/requirements.txt
@@ -57,6 +58,7 @@ on:
   workflow_dispatch:
 
 # main queues its runs so each commit keeps a green run for the release; branches cancel
+# the older ones
 concurrency:
   group: gds-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
@@ -75,7 +77,7 @@ jobs:
         with:
           submodules: recursive
 
-      # inside the job's 6 h, so a router that never converges still leaves its logs
+      # stops inside the job's 6 h, so a router that never converges still leaves its logs
       - name: Build GDS
         timeout-minutes: 355
         uses: TinyTapeout/tt-gds-action@ihp-cmos5l
@@ -91,18 +93,18 @@ jobs:
             runs/wokwi/*-openroad-globalrouting*/
             runs/wokwi/*-openroad-detailedrouting*/
 
-      # the flow has no setup checker and goes green on negative slack
+      # the flow doesn't check setup, so it goes green on negative slack
       - name: Check timing and signoff
         run: python3 test/check_metrics.py runs/wokwi/final/metrics.json
 
-      # a pushed main only, so a fork's pull request never signs
+      # only for a push to main, so a fork's pull request never signs
       - name: Attest the GDS
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/attest-build-provenance@v3.0.0
         with:
           subject-path: runs/wokwi/final/gds/*.gds
 
-      # a failed check is when the numbers matter most
+      # the numbers matter most when a check fails
       - name: Log the metrics
         if: success() || failure()
         run: |
@@ -142,9 +144,9 @@ jobs:
       - name: GL test
         uses: TinyTapeout/tt-gds-action/gl_test@ihp-cmos5l
 
-  # the pin traces replayed on the gate level, in three jobs beside gl_test, as the action's
-  # tests take two and a half hours and the replays near four; each trace is written again
-  # with the outputs the gates drove, even one that differs from the RTL's
+  # replays the pin traces on the gate level, in three jobs beside gl_test (the action's
+  # tests take two and a half hours and the replays nearly four). Each trace is rewritten
+  # with the outputs the gates drove, even when they differ from the RTL's
   gl_replay:
     needs: gds
     runs-on: ubuntu-24.04
@@ -206,8 +208,8 @@ jobs:
         if: (success() || failure()) && steps.replay.outcome != 'skipped'
         run: sudo apt-get update && sudo apt-get install -y sigrok-cli && demo/pinned_decoders.sh
 
-      # what the gates drove, judged as the ocaml workflow's decode job judges the RTL's;
-      # after a failed replay this says which protocols the difference breaks
+      # judges what the gates drove the way the ocaml workflow's decode job judges the RTL.
+      # After a failed replay this shows which protocols the difference breaks
       - name: Decode the gate level's traces with sigrok
         if: (success() || failure()) && steps.replay.outcome != 'skipped'
         run: |
@@ -223,10 +225,11 @@ jobs:
           name: gl_traces_${{ matrix.part }}
           path: test/gl_traces
 
-  # the gate-level tests and replays again with the router's delays, one corner a job
-  # (test/Makefile sdf_*), beside gl_test so the run takes no longer
-  # each corner in sixteen groups of tests (test/Makefile's GROUP), as one corner's whole
-  # run on the 8x4 chip would take a runner past six hours, and a third of it past five
+  # reruns the gate-level tests and replays with the router's delays, one corner per job
+  # (test/Makefile sdf_*), beside gl_test so the run takes no longer.
+  # Each corner is split into sixteen groups of tests (test/Makefile's GROUP), because a
+  # whole corner on the 8x4 chip would take a runner past six hours, and a third of it
+  # still takes past five
   gl_sdf:
     needs: gds
     runs-on: ubuntu-24.04
@@ -294,8 +297,8 @@ jobs:
           name: gl_sdf_${{ matrix.corner }}_${{ matrix.group }}
           path: test/results_sdf_${{ matrix.corner }}_${{ matrix.group }}.xml
 
-  # the hardened netlist equals the RTL (formal/netlist_equiv); on IHP tt_submission
-  # carries the unpowered final/nl, so that is what this proves
+  # proves the hardened netlist equals the RTL (formal/netlist_equiv). On IHP,
+  # tt_submission carries the unpowered final/nl, so that is the netlist we prove
   netlist_equiv:
     needs: gds
     runs-on: ubuntu-24.04

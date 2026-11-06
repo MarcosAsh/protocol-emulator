@@ -1,7 +1,7 @@
 name: results
 
-# RESULTS.md and the results page from the last green runs on main, each time one of them
-# finishes. The pages workflow publishes the page.
+# Rebuilds RESULTS.md and the results page from main's last green runs whenever one of
+# them finishes. The pages workflow publishes the page.
 on:
   workflow_run:
     workflows: [ocaml, gds, test, mutation, reject split]

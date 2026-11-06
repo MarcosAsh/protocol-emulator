@@ -1,6 +1,6 @@
 name: mutation
 on:
-  # the engine scope's four files, its allowed survivors and the tool that mutates them
+  # the engine scope: its four files, its allowed survivors and the mutation tool
   push:
     branches: [main]
     paths:
@@ -41,7 +41,7 @@ on:
         type: number
         default: 6
 
-# the held-out sample is a function of this seed and the mutant, fixed before any run
+# the held-out sample depends only on this seed and the mutant, and is fixed before any run
 env:
   SCOPE: ${{ inputs.scope || 'engine' }}
   IDS: ${{ inputs.ids }}
@@ -49,7 +49,7 @@ env:
   PROOFS: ${{ inputs.proofs }}
   SEED: '20261002'
 
-# twelve shards a run, so a push a later push overtakes is cancelled; a weekly or
+# twelve shards a run. A push that a later push overtakes is cancelled, but a weekly or
 # dispatched run always finishes
 concurrency:
   group: mutation-${{ github.event_name }}
@@ -75,9 +75,10 @@ jobs:
           echo "count=$n" >> "$GITHUB_OUTPUT"
           echo "shards=$(seq 0 $((n - 1)) | jq -sc .)" >> "$GITHUB_OUTPUT"
 
-  # a mutant costs about nine runner-minutes, four at a time on four cores: engine's 114
-  # in twelve shards of about two hours, wide's thousand in twenty of about three and a half,
-  # kernel's 658 and their proofs in twenty, six shards at a time so the other branches keep the rest of the shared runners
+  # a mutant costs about nine runner-minutes, four at a time on four cores. Engine's 114
+  # take twelve shards of about two hours, wide's thousand take twenty of about three and
+  # a half, and kernel's 658 with their proofs take twenty. Six shards run at a time so the
+  # other branches keep the rest of the shared runners.
   mutate:
     needs: plan
     runs-on: ubuntu-24.04
@@ -90,7 +91,7 @@ jobs:
     env:
       SHARDS: ${{ needs.plan.outputs.count }}
     steps:
-      # four copies of the tree with their _build outgrow the runner's free 14 GB
+      # four copies of the tree with their _build don't fit in the runner's free 14 GB
       - name: Free disk space
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
@@ -112,7 +113,7 @@ jobs:
       - name: Pin the oxcaml opam repository
         run: opam repo set-url ox git+https://github.com/oxcaml/opam-repository.git#a70ed316f02290fa267f9105f30cf21e3c7f5f05
 
-      # the ocaml workflow's switch; on a hit the install below has nothing to do
+      # the ocaml workflow's switch; on a cache hit the install below does nothing
       - name: Cache the switch
         uses: actions/cache@v4
         with:
@@ -123,8 +124,8 @@ jobs:
       - name: Install dependencies
         run: opam install . --deps-only --with-test --locked
 
-      # cadical and cake_lpr for the checked QEDs (test/checked_unsat.ml), at the pins
-      # formal/Makefile names; keyed on those lines alone
+      # cadical and cake_lpr for the checked QEDs (test/checked_unsat.ml), at the pins in
+      # formal/Makefile (the cache key hashes only those lines)
       - name: Key the SAT tools
         id: sat_key
         run: echo "key=sat-tools-$(sed -n '/^CADICAL = /,/^$/p' formal/Makefile | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
@@ -141,20 +142,21 @@ jobs:
           [ "${{ steps.sat_tools.outputs.cache-hit }}" = true ] || make -C formal sat_tools
           echo "$PWD/formal/sat_tools/bin" >> "$GITHUB_PATH"
 
-      # wide and kernel take each survivor of the checker to the proofs (test/mutate.py's
-      # prove), and one that accepts more to sby
+      # for wide and kernel, every survivor of the checker goes on to the proofs
+      # (test/mutate.py's prove), and one that accepts more goes to sby
       - name: Install OSS CAD Suite
         if: env.SCOPE != 'engine'
         run: |
           curl -sL https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2026-09-16/oss-cad-suite-linux-x64-20260916.tgz | tar xz -C "$HOME"
           echo "$HOME/oss-cad-suite/bin" >> "$GITHUB_PATH"
 
-      # the shard's mutants and which are held out, logged before any is run
+      # log the shard's mutants, and which are held out, before running any
       - name: List the mutants
         run: opam exec -- python3 test/mutate.py --scope "$SCOPE" ${IDS:+--id $IDS} --shard "${{ matrix.shard }}/$SHARDS" --seed "$SEED" --list
 
-      # a suite that runs 45 minutes, about three times a mutant's, has hung; so has a proof
-      # past 90, but for a few mutants by id, where the slowest pair lemma tasks take 3.6 h
+      # a suite running 45 minutes (about three times a mutant's) has hung, and so has a
+      # proof past 90. A few mutants chosen by id get longer, since the slowest pair lemma
+      # tasks take 3.6 h
       - name: Mutate and run the tests on every mutant
         timeout-minutes: 330
         run: |
@@ -172,7 +174,8 @@ jobs:
           name: mutation-${{ matrix.shard }}
           path: shard_${{ matrix.shard }}.jsonl
 
-  # every shard's results in one score, in-sample and held out apart, and every survivor
+  # combines every shard's results into one score, with in-sample and held out kept apart,
+  # and lists every survivor
   score:
     needs: mutate
     if: always()
