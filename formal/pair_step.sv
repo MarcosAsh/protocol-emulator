@@ -1,6 +1,6 @@
 // The kernel's check of one step for a watched pair, as row_step.sv states it for the
-// offset: for any rows of intervals, word and state, an accepted row holding the core and
-// its pair maps them into the row it goes to, for any next state kernel_step allows, and
+// offset. For any rows of intervals, word and state, an accepted row holding the core and
+// its pair maps them into the row they go to, for any next state kernel_step allows, and
 // kernel_step spaces the pair's next edges. pair_step.sby proves it for every input;
 // phase_step.sv's SPACING table assumes it.
 
@@ -18,7 +18,7 @@ module pair_step (
   input [15:0] word,
   // rows of intervals, as phase_step.sv's SPACING table stores them
   input [367:0] row, next, target,
-  // the core and the pair at this entry, and at the next as far as kernel_step fixes it
+  // the core and the pair at this entry, and at the next one as far as kernel_step fixes it
   input [23:0] phase, arm,
   input [15:0] period, x, y,
   input arm_known, captured, awaiting,
@@ -26,7 +26,7 @@ module pair_step (
   input level_a, level_b, fresh_a, fresh_b, data_a, data_b,
   input [23:0] phase_after,
   input [15:0] period_after, x_after, y_after,
-  // the row holds the core and the pair and the kernel accepts it; and the lemma
+  // the row holds the core and the pair and the kernel accepts it, then the lemma
   output inside, holds
 );
   function [439:0] row_of(input [367:0] r);
@@ -71,7 +71,7 @@ module pair_step (
     .next_b$since(next_since_b), .next_b$level(next_level_b), .next_b$fresh(next_fresh_b),
     .wide_a(wide_a), .wide_b(wide_b), .halts(halts));
 
-  // with no slope and the full offset, any offset is inside the row's
+  // with no slope and the full offset, any offset lies inside the row's
 `define STEP_NOW \
     .a$since(since_a), .a$level(level_a), .a$fresh(fresh_a), .b$since(since_b), \
     .b$level(level_b), .b$fresh(fresh_b), .pc(9'd0), .word(word), .row(row_of(row)), \
@@ -82,7 +82,7 @@ module pair_step (
   kernel_accepts check (`STEP_CONFIG, .wrap_top(9'd0), .wrap_bottom(9'd0),
     `STEP_PAIR(spaced), `STEP_NOW, .accepts(accepts), .within(within));
 `ifdef UNSPACED
-  // the lemma's accepts checks no spacing
+  // the lemma's accepts doesn't check any spacing
   wire unspaced_accepts;
   kernel_accepts check_unspaced (`STEP_CONFIG, .wrap_top(9'd0), .wrap_bottom(9'd0),
     `STEP_PAIR(1'b0), `STEP_NOW, .accepts(unspaced_accepts), .within());
@@ -90,7 +90,8 @@ module pair_step (
 `else
   wire hypothesis = within && accepts && side_set_count <= 2;
 `endif
-  // the core and the pair after the step inside each successor, the kernel's own within
+  // the core and the pair after the step lie inside each successor, with the kernel's own
+  // inside it
 `define STEP_AFTER \
     .a$since(next_since_a), .a$level(next_level_a), .a$fresh(next_fresh_a), \
     .b$since(next_since_b), .b$level(next_level_b), .b$fresh(next_fresh_b), \
@@ -127,9 +128,9 @@ module pair_step (
 endmodule
 
 `ifdef PAIR_STEP
-// the lemma for every input, one opcode at a time, a wait one source at a time and the ALU
-// one destination at a time, t's one operation at a time, the slowest one side-set width
-// at a time; pair_step.sby's tasks between them take every word
+// the lemma for every input, one opcode at a time, a wait one source at a time, the ALU one
+// destination at a time, t one operation at a time, and the slowest one side-set width at a
+// time; pair_step.sby's tasks between them cover every word
 module pair_step_proof;
   (* anyconst *) wire [1:0] side_set_count;
   (* anyconst *) wire fraction, loads_period, floor_period, capture_rising, single_edge;

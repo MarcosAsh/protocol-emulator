@@ -1,8 +1,8 @@
-// The host side of the halted window: the host port moves an engine's config only after a
-// cycle with that engine halted and never the cycle after its start strobe, and writes no
+// The host side of the halted window. The host port only moves an engine's config after a
+// cycle with that engine halted, never in the cycle after its start strobe, and writes no
 // program or data word in the strobe's cycle or the next. The start's second cycle still
 // reads halted and prefetches under the config of the time (test_engine.ml), which
-// fetch_step.sv's teeth break. Pins and status are free, the clear after power-on's.
+// fetch_step.sv's teeth break. Pins and status are free; the clear is the one after power-on.
 
 `define CONFIG(n, v) \
   .engines$config$side_set_count_``n(v[140:139]), \
@@ -53,7 +53,7 @@ module host_spacing (input clk);
     .clock(clk), .clear(clear), .sck(sck), .mosi(mosi), .cs_n(cs_n), .miso(),
     `STATUS(0), `STATUS(1), `HOST(0), `HOST(1));
 
-  // the chip's reset at power-on, then free
+  // the chip's reset at power-on, free afterwards
   reg first = 1;
   always @(posedge clk) first <= 0;
   always @(*) if (first) assume(clear);
@@ -69,8 +69,8 @@ module host_spacing (input clk);
     last_config_0 <= config_0;
     last_config_1 <= config_1;
   end
-  // a config moved in this cycle was written in the last one, so a write in the start's
-  // second cycle moves it two cycles after the strobe
+  // a config that moved in this cycle was written in the last one, so a write in the
+  // start's second cycle moves it two cycles after the strobe
   wire [1:0] moved = {config_1 != last_config_1, config_0 != last_config_0};
 
   always @(posedge clk)
@@ -80,7 +80,7 @@ module host_spacing (input clk);
       words_apart: assert(((program_write | data_write) & (start | last_start)) == 0);
     end
 
-  // a start for engine 0, then its config written in a later frame
+  // start engine 0, then write its config in a later frame
   reg started_0 = 0;
   always @(posedge clk) if (clear) started_0 <= 0; else if (start[0]) started_0 <= 1;
   always @(posedge clk) begin

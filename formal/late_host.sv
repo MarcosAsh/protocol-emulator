@@ -1,11 +1,12 @@
-// A late message can make the core fault, never make it jitter. For a program with no fifo
-// wait and no jump on a fifo test, two runs from the same start whose host sends and reads
-// the same words at different times drive the same pins every cycle until one sets underflow
-// or overflow. This is host_timing's induction step under that restriction, fifo reports
-// free in each copy; the base is the shared reset. Pops are compared too, so the k-th pull
-// of each takes the k-th word sent (fifo_order), hence one shared pull port. With no pushes
-// (never_pushes) only underflow remains. Prior art: Kopetz's temporal firewall, Giotto's
-// logical execution time (Henzinger, Horowitz, Kirsch 2001).
+// A late message can make the core fault, but never makes it jitter. Take a program with no
+// fifo wait and no jump on a fifo test. Two runs from the same start, whose host sends and
+// reads the same words at different times, drive the same pins every cycle until one sets
+// underflow or overflow. This is host_timing's induction step under that restriction, with
+// the fifo reports free in each copy, and the base is the shared reset. Pops are compared
+// too, so the k-th pull of each takes the k-th word sent (fifo_order), which is why there
+// is one shared pull port. With no pushes (never_pushes) only underflow remains. Prior art:
+// Kopetz's temporal firewall, Giotto's logical execution time (Henzinger, Horowitz,
+// Kirsch 2001).
 module late_step (
   input clock, clear, start, stop, clear_irq,
   input [174:0] config_bits,
@@ -30,7 +31,7 @@ module late_step (
   wire [15:0] tx_head = tx_pop ? pulled : tx_idle_head;
 `endif
   wire tx_pop;
-  // a clear empties the fifo under the pop, so only a pop out of reset takes a word
+  // a clear empties the fifo under the pop, so only a pop after reset takes a word
   assign pops = tx_pop && !clear;
   wire [15:0] instruction;
   wire [7:0] opcode_onehot;
@@ -76,20 +77,20 @@ module late_step (
   always @(*) assume(opcode_onehot == 8'b1 << instruction[15:13]);
   always @(*) assume(wait_select == wait_pin);
 
-  // the program, as the time-triggered check admits: no fifo wait, no jump on a fifo test
+  // the program restriction the time-triggered check admits: no fifo wait, no jump on a fifo test
 `ifndef ADMIT_FIFO_WAIT
   always @(*) assume(!(instruction[15:13] == 1 && instruction[6:5] == 3));
 `endif
 `ifndef ADMIT_FIFO_JUMP
   always @(*) assume(!(instruction[15:13] == 0 && instruction[12:9] >= 8));
 `endif
-  // the never_pushes task: no push and no autopush, so the host's reads reach nothing
+  // the never_pushes task: no push and no autopush, so the host's reads never reach anything
 `ifdef NEVER_PUSHES
   always @(*) assume(!config_bits[49] && !(instruction[15:13] == 7 && instruction[3:0] == 3));
 `endif
 endmodule
 
-// From the same state the copies agree on every register, output and pop after the edge,
+// From the same state, the copies agree on every register, output and pop after the edge,
 // unless one is about to fault.
 module late_host;
   wire trigger;

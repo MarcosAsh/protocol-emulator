@@ -1,8 +1,8 @@
-// Line_stuff sends any bit stream as USB stuffs it: after six 1s on the wire a 0, and
-// every other wire bit the stream's next, each once and in order, until after finish the
-// drain ends with nothing owed. The stream is any run of up to N bits, N = 96 for SYNC,
-// PID, eight data bytes and the CRC-16, which owes at most 13 bits of the 15 it can; the
-// flag is usb_transmit's table, the wire's 1s since a 0. Each tooth must fail.
+// Line_stuff sends any bit stream the way USB stuffs it: a 0 after six 1s on the wire, and
+// otherwise the stream's next bit, each once and in order, until the drain ends after
+// finish with nothing owed. The stream is any run of up to N bits, with N = 96 for SYNC,
+// PID, eight data bytes and the CRC-16, which owes at most 13 bits of the 15 it can. The
+// flag is usb_transmit's table, the number of 1s on the wire since a 0. Each tooth must fail.
 
 `ifndef N
 `define N 96
@@ -13,10 +13,10 @@ module line_stuff_check (input clk);
   localparam RESET = 3'd0, PRE = 3'd1, DATA = 3'd2, FINISH = 3'd3, DRAIN = 3'd4, DONE = 3'd5;
 
   (* anyseq *) wire data;
-  // where the data ends, and whether a finish comes first, as after an earlier packet
+  // where the data ends, and whether a finish comes first (as after an earlier packet)
   (* anyseq *) wire stop;
   (* anyconst *) wire early;
-  // the stream bit followed onto the wire
+  // the stream bit we follow onto the wire
   (* anyconst *) wire [6:0] k;
 
   reg [2:0] phase = RESET;
@@ -41,10 +41,10 @@ module line_stuff_check (input clk);
     .stuffing(stuffing), .data(data), .finish(finish),
     .sent(sent), .owed(owed), .held(held), .count(count), .draining(draining));
 
-  // the stream's own stuffing, for the covers
+  // the stream's own stuffing, used by the covers
   wire [2:0] run_next = data ? run + 3'd1 : 3'd0;
 
-  // the followed bit, this cycle if it is taken now
+  // the followed bit, counting this cycle if it is taken now
   wire taken_now = phase == DATA && n == k;
   wire want = taken_now ? data : followed;
   wire [6:0] paid = phase == DATA ? n + 7'd1 : n;
@@ -76,7 +76,7 @@ module line_stuff_check (input clk);
   always @(*) begin
     if (step && stuffing) assert(!sent);
     if (step && !stuffing) begin
-      // no wire bit past the stream, and the followed one where it belongs
+      // no wire bit comes after the stream, and the followed one is where it belongs
       assert(j < paid);
       if (j == k) assert(sent == want);
     end

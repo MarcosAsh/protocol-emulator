@@ -1,8 +1,8 @@
-// P1: the gap between one issue and the next depends only on the word's delay field,
-// never on data, and a jump always takes two cycles, with the config and the start free
-// every cycle: a running core ignores a start. Each teeth task in issue_timing.sby gets
-// one part wrong, and the proof must then fail. Beside it, the program memory takes a
-// host's write only while the core is halted, so a run fetches the program it started with.
+// P1: the gap between one issue and the next depends only on the word's delay field, never
+// on data, and a jump always takes two cycles. The config and the start are free every
+// cycle (a running core ignores a start). Each teeth task in issue_timing.sby gets one
+// part wrong, and the proof must then fail. Alongside it, the program memory only takes a
+// host's write while the core is halted, so a run fetches the program it started with.
 module issue_timing (input clk);
   (* anyseq *) wire [1:0] side_set_count;
   (* anyseq *) wire [4:0] side_set_base, in_base, in_count, out_base, out_count, set_base;
@@ -81,7 +81,7 @@ module issue_timing (input clk);
     assert(!program_memory_write || halted);
   end
 
-  // the start the core takes, only while halted
+  // the start the core takes, which only happens while halted
   wire start_taken = start && halted;
   reg started = 0;
   always @(posedge clk) started <= start_taken;
@@ -107,7 +107,7 @@ module issue_timing (input clk);
   wire jump = opcode == 0 && instruction[12:9] < 12;
   wire sys = opcode == 7 && instruction[7:4] == 0 && instruction[3:0] < 10;
 
-  // what the core registers beside the instruction always agrees with it
+  // whatever the core registers beside the instruction always agrees with it
   always @(posedge clk)
     if (!clear) begin
       assert(decode_ok == (plain || jump || waits || sys));

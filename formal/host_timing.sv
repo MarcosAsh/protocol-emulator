@@ -1,8 +1,8 @@
-// P3: when the host talks to the core never reaches the pins. [step] is one core with
-// its fifos and memories pulled out; two copies share configuration, pins, the fetched
-// word, the data word and the pulled word, while what the fifos report is free in each.
-// The script makes every register an input and an output, so this is one induction step
-// from any state. Each teeth task in host_timing.sby removes one part, and must fail.
+// P3: when the host talks to the core never reaches the pins. [step] is one core with its
+// fifos and memories pulled out. Two copies share configuration, pins, the fetched word,
+// the data word and the pulled word, while what the fifos report is free in each. The
+// script makes every register an input and an output, so this is one induction step from
+// any state. Each teeth task in host_timing.sby removes one part and must fail.
 module step (
   input clock, clear, start, stop, clear_irq,
   input [174:0] config_bits,
@@ -18,7 +18,7 @@ module step (
   (* anyseq *) wire tx_full, tx_empty, rx_full, rx_empty;
   (* anyseq *) wire [3:0] tx_level, rx_level;
   (* anyseq *) wire [15:0] tx_idle_head, rx_head;
-  // a flush is the host at a fifo, so each copy has its own
+  // a flush is the host acting on a fifo, so each copy has its own
   (* anyseq *) wire flush;
 
   wire tx_pop;
@@ -67,7 +67,7 @@ module step (
     .rx_fifo_head(rx_head), .rx_fifo_level(rx_level), .rx_fifo_empty(rx_empty),
     .rx_fifo_full(rx_full));
 
-  // trusted from issue_timing: the registered opcode and wait pin agree with the word
+  // trusted from issue_timing: the registered opcode and wait pin match the word
   always @(*) assume(opcode_onehot == 8'b1 << instruction[15:13]);
   always @(*) assume(wait_select == wait_pin);
   assign fifo_wait = 0
@@ -80,7 +80,7 @@ module step (
     ;
 endmodule
 
-// From the same state the two copies agree on every register and output after the edge,
+// From the same state, the two copies agree on every register and output after the edge,
 // unless one is about to fault or the word is a fifo wait or a jump on a fifo test.
 module host_timing;
   wire trigger, fifo_wait;

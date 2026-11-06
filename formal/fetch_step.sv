@@ -1,14 +1,14 @@
-// Fetch lemma: at every issue the core runs the word its program memory holds at pc, for any
-// program and config written while halted but not in a start's second cycle, with no program
-// word written in a start's two cycles (both host_spacing.sv). That second cycle prefetches
-// the word after pc 0 under the config of the time, so the teeth, a config or a word
-// written then, break it (test_engine.ml shows the first). The memory is the flop stand-in
-// for the SRAM macro (sram_equiv), followed at one free address.
+// Fetch lemma: at every issue the core runs the word its program memory holds at pc, for
+// any program and config written while halted but not in a start's second cycle, with no
+// program word written in a start's two cycles (both host_spacing.sv). That second cycle
+// prefetches the word after pc 0 under the config of the time, so the teeth (a config or a
+// word written then) break it; test_engine.ml shows the first. The memory is the flop
+// stand-in for the SRAM macro (sram_equiv), followed at one free address.
 
 module fetch_step (input clk);
-  // The config, as the host port holds it: a write lands only while the core is halted,
-  // and not in a start's second cycle (host_spacing.sv). Free at the clear. Every field,
-  // in Engine.Config's order, first field highest.
+  // The config as the host port holds it. A write only lands while the core is halted and
+  // not in a start's second cycle (host_spacing.sv). Free at the clear. Every field is
+  // here, in Engine.Config's order, first field highest.
   (* anyseq *) wire config_write;
   (* anyseq *) wire [176:0] config_value;
   reg [176:0] config_bits;
@@ -46,7 +46,7 @@ module fetch_step (input clk);
   wire [15:0] crc_poly_high = config_bits[32:17];
   wire [15:0] crc_init_high = config_bits[16:1];
   wire crc_complement = config_bits[0];
-  // the load checker's read of the program memory, which the engine takes only while free
+  // the load checker's read of the program memory, which the engine only allows while free
   (* anyseq *) wire program_read_valid;
   (* anyseq *) wire [8:0] program_read_value;
   (* anyseq *) wire line_write_valid, premises_period_valid, premises_floor;
@@ -138,8 +138,8 @@ module fetch_step (input clk);
     : program_read_valid && free ? program_read_value : fetch_addr;
   reg [8:0] last_read;
   reg ready = 0;
-  // checked from the cycle after one with the clear low: the core's start flop powers up
-  // as anything, so before the clear has reached it free may be either
+  // checked from the cycle after one with the clear low. The core's start flop powers up
+  // as anything, so before the clear reaches it, free may be either
   always @(posedge clk) begin
     last_read <= read_addr;
     ready <= ready || !clear;
@@ -153,7 +153,7 @@ module fetch_step (input clk);
   always @(posedge clk)
     if (issue && pc == probe_addr) runs_memory: assert(instruction == probe_word);
 
-  // invariants for induction: the read the core made, and the word it holds
+  // invariants for induction: the read the core made and the word it holds
   always @(posedge clk)
     if (ready && !clear) begin
       if (last_read == probe_addr) assert(dout == probe_word);
@@ -165,7 +165,7 @@ module fetch_step (input clk);
       end
     end
 
-  // a run past a jump and a wrap, to a word written while halted
+  // a run that goes past a jump and a wrap, to a word written while halted
   reg jumped = 0, wrapped = 0;
   always @(posedge clk) begin
     if (clear || start) begin

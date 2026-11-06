@@ -1,9 +1,8 @@
-// The kernel's check of one step, as test_kernel.ml's SAT proof states it: for any rows,
+// The kernel's check of one step, as test_kernel.ml's SAT proof states it. For any rows,
 // word and state, an accepted row holding the core maps it into the row it goes to, for
-// any next state kernel_step allows. The offsets are free under axioms that hold of the
-// true phase - slope * x modulo 2^24, each guarded by the x it needs, as
-// offset_axioms.smt2 proves. row_step.sby proves it for every input; phase_step.sv's AFFINE
-// table assumes it.
+// any next state kernel_step allows. The offsets are free under axioms that hold for the
+// true phase - slope * x modulo 2^24, each guarded by the x it needs, as offset_axioms.smt2
+// proves. row_step.sby proves it for every input; phase_step.sv's AFFINE table assumes it.
 
 // no pair: the kernel spaces edges only for tables of intervals
 `define UNPAIRED \
@@ -30,7 +29,7 @@ module row_step (
   input capture_rising, single_edge,
   input [15:0] word,
   input [265:0] row, next, target,
-  // the core at this entry, and at the next as far as kernel_step fixes it
+  // the core at this entry, and at the next one as far as kernel_step fixes it
   input [23:0] phase, offset, arm,
   input [15:0] period, x, y,
   input arm_known, captured, awaiting,
@@ -77,7 +76,7 @@ module row_step (
     .phase(phase), .offset(offset), .period(period), .x(x), .y(y), .arm(arm),
     .arm_known(arm_known), .captured(captured), .awaiting(awaiting),
     .next_pc(), .target_pc(), .accepts(accepts), .within(within), .starts_open());
-  // the core after the step inside each successor, the kernel's own within
+  // the core after the step lies inside each successor, with the kernel's own inside it
   kernel_accepts at_next (
     .side_set_count(side_set_count), .fraction(fraction),
     .loaded$valid(loads_period), .loaded$value(loaded_period), .loaded$floor(floor_period),
@@ -112,7 +111,7 @@ module row_step (
   wire [23:0] cycles = delay + 24'd1;
 
   // the next state is one kernel_step allows; after [mov t, capture] the phase is only a
-  // range, from a cycle past the instruction up to the step
+  // range, from one cycle past the instruction up to the step
   wire lands =
     (!bounded || phase_after == next_phase
       || may_carry && phase_after == next_phase - 24'd1)
@@ -121,14 +120,14 @@ module row_step (
     // a run-time write under a floor leaves at least the loaded period
     && (period_known || !loads_period || period_after >= loaded_period)
 `ifdef X_UNFOLLOWED
-    // x after the step anything
+    // x can be anything after the step
     && (!y_known || y_after == next_y);
 `else
     && (!x_known || x_after == next_x) && (!y_known || y_after == next_y);
 `endif
 
-  // After [set x, v] the offset is the phase less the slope times v; with the slope the
-  // same, it moves as the phase does where x stays, and a slope further where x is one
+  // After [set x, v] the offset is the phase minus the slope times v. With the slope
+  // unchanged, it moves with the phase where x stays, and one slope further where x is one
   // less. The product is the kernel's, so the two are one multiplier.
   wire [23:0] slope = row[217:194];
   wire [23:0] moved = offset + (phase_after - phase);
@@ -161,8 +160,8 @@ module row_step (
 endmodule
 
 `ifdef ROW_STEP
-// the lemma for every input, one opcode at a time, and the ALU's one destination at a time;
-// row_step.sby's tasks between them take every word
+// the lemma for every input, one opcode at a time, and the ALU one destination at a time;
+// row_step.sby's tasks between them cover every word
 module row_step_proof;
   (* anyconst *) wire [1:0] side_set_count;
   (* anyconst *) wire fraction, loads_period, floor_period, capture_rising, single_edge;

@@ -1,8 +1,8 @@
-// The pin bits Hardcaml's coverage waives in src/engine.ml: no write reaches an input
-// pin's output bit, nor the direction of a pin that is not bidirectional, so after a
-// clear they stay zero for any config, program and inputs. Pins 0-4 are inputs, 5-11
-// outputs, 12-19 bidirectional, 20-27 the wires between the engines and 28-31 the status
-// pins, inputs again.
+// The pin bits that Hardcaml's coverage waives in src/engine.ml. No write reaches an input
+// pin's output bit, or the direction of a pin that isn't bidirectional, so after a clear
+// they stay zero for any config, program and inputs. Pins 0-4 are inputs, 5-11 outputs,
+// 12-19 bidirectional, 20-27 the wires between the engines, and 28-31 the status pins
+// (inputs again).
 module unreachable (input clk);
   (* anyseq *) wire [1:0] side_set_count;
   (* anyseq *) wire [4:0] side_set_base, in_base, in_count, out_base, out_count, set_base;
@@ -81,7 +81,7 @@ module unreachable (input clk);
       assert(pin_dir[31:20] == 0);
     end
 
-  // the neighbours of the waived bits do move
+  // the bits next to the waived ones do move
   always @(posedge clk)
     if (!clear) begin
       cover(pin_out[5]);

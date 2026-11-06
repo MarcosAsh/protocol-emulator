@@ -1,14 +1,14 @@
 // Event lemma: for any program and config written while halted (host_spacing.sv), a pin
-// wait at an issue releases in exactly the cycle whose sample shows its level, or for an
-// edge that level after the other, and a held wait issues again the next cycle, so no
-// event goes unseen and none is invented. A jmp on the pin goes where that cycle's sample
-// says, as a poll and a guard need. An input pin, and a bidirectional one not driven,
-// samples that cycle's input.
+// wait at an issue releases in exactly the cycle whose sample shows its level (for an
+// edge, that level after the other one), and a held wait issues again the next cycle, so
+// no event goes unseen and none is invented. A jmp on the pin goes where that cycle's
+// sample says, as a poll and a guard need. An input pin, or a bidirectional one that isn't
+// driven, samples that cycle's input.
 
 module event_step (input clk);
-  // The config, as the host port holds it: a write lands only while the core is halted,
-  // and not in a start's second cycle (host_spacing.sv). Free at the clear. Every field,
-  // in Engine.Config's order, first field highest.
+  // The config as the host port holds it. A write only lands while the core is halted and
+  // not in a start's second cycle (host_spacing.sv). Free at the clear. Every field is
+  // here, in Engine.Config's order, first field highest.
   (* anyseq *) wire config_write;
   (* anyseq *) wire [176:0] config_value;
   reg [176:0] config_bits;
@@ -51,7 +51,7 @@ module event_step (input clk);
   (* anyseq *) wire [15:0] program_write_data, tx_value;
   (* anyseq *) wire [31:0] inputs;
 
-  // the top clears the engine at power-on and whenever its reset comes again
+  // the top clears the engine at power-on and whenever reset comes again
   (* anyseq *) wire reset;
   reg clear = 1;
   always @(posedge clk) clear <= reset;
@@ -163,7 +163,7 @@ module event_step (input clk);
     end
   end
 
-  // a wait that holds issues again, unless the host stops the core; a start it ignores
+  // a wait that holds issues again unless the host stops the core; the core ignores a start
   reg held = 0, held_edge = 0;
   reg [8:0] held_pc = 0;
   always @(posedge clk) begin
@@ -177,7 +177,7 @@ module event_step (input clk);
   end
   always @(*) if (held && !clear) assert(issue && pc == held_pc);
 
-  // the jump lands where the sample says, unless the host stops the core
+  // the jump lands where the sample says unless the host stops the core
   reg jumped = 0, jump_taken = 0, jump_not_pin = 0, jump_at_wrap = 0;
   reg [8:0] jump_target = 0, jump_following = 0;
   always @(posedge clk) begin

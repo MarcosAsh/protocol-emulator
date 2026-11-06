@@ -1,5 +1,5 @@
-// The parts of a two-copy miter that pair one copy's macro, host fifo or load checker
-// with the other's.
+// The parts of a two-copy miter that pair one copy's macro, host fifo or load checker with
+// the other copy's.
 
 module sram_pair (
   input clk,
@@ -11,7 +11,7 @@ module sram_pair (
 );
   (* anyseq *) wire [15:0] shared, own_a, own_b;
 
-  // ports_* are men, wen, ren and whether addr, din and bm are the same in both copies
+  // ports_* hold men, wen, ren, and whether addr, din and bm are the same in both copies
   wire same = !first && ports_a == ports_b && &ports_a[2:0];
   always @(posedge clk) begin
     if (ports_a[5] && ports_a[3]) dout_a <= same ? shared : own_a;
@@ -19,9 +19,9 @@ module sram_pair (
   end
 endmodule
 
-// A host fifo, fields as flops.tcl gathers them, first field last. It holds used words:
-// the head, then used - 1 in words from the read address on, the first of those also in
-// the read buffer, or in written when it was pushed on the edge that read it.
+// A host fifo, with fields as flops.tcl gathers them, first field last. It holds used
+// words: the head, then used - 1 in words from the read address on. The first of those is
+// also in the read buffer, or in written if it was pushed on the edge that read it.
 typedef struct packed {
   logic full, nearly_full, not_empty, used_gt_one, used_is_one;
   logic [3:0] write_address, read_address;
@@ -35,9 +35,9 @@ typedef struct packed {
   counters_t counters;
 } fifo_t;
 
-// The two copies of a fifo laid out as fifo_t, of 2^ADDR words WORD wide, whose full
-// takes nearly_full at NEARLY, agree on their counters, which agree with used, and on the
-// words held; the rest, left from power-up, may differ.
+// The two copies of a fifo laid out as fifo_t (2^ADDR words, WORD wide, with full taking
+// nearly_full at NEARLY) agree on their counters, which agree with used, and on the words
+// held. The rest, left over from power-up, may differ.
 module fifo_pair #(parameter WORD = 16, ADDR = 4, USED = 5, NEARLY = 15) (
   input check,
   input [(2 ** ADDR + 3) * WORD + 6 + 2 * ADDR + 3 * USED - 1:0] a, b
@@ -54,11 +54,11 @@ module fifo_pair #(parameter WORD = 16, ADDR = 4, USED = 5, NEARLY = 15) (
   function [WORD - 1:0] field(input [(2 ** ADDR + 3) * WORD + C:0] f, input integer n);
     field = f[C + 1 + n * WORD +: WORD];
   endfunction
-  // head, read buffer, written, then the words from C + 1 + 3 WORD up
+  // head, read buffer, written, then the words from C + 1 + 3 WORD upwards
   wire collision_a = a[C], collision_b = b[C];
   wire [WORD - 1:0] buffer_a = collision_a ? field(a, 2) : field(a, 1);
   wire [WORD - 1:0] buffer_b = collision_b ? field(b, 2) : field(b, 1);
-  // where the next word past the head goes
+  // where the next word after the head goes
   wire [ADDR - 1:0] free = used == 0 ? read_address : read_address + used - 1'd1;
 
   always @* if (check) begin
@@ -83,8 +83,8 @@ module fifo_pair #(parameter WORD = 16, ADDR = 4, USED = 5, NEARLY = 15) (
   endgenerate
 endmodule
 
-// The load checker's state, then the words and rows it keeps without a clear, fields as
-// powerup.tcl gathers them.
+// The load checker's state, then the words and rows it keeps without a clear, with fields
+// as powerup.tcl gathers them.
 typedef struct packed {
   logic [241:0] row;
   logic [9:0] failed_target, failed_next;
@@ -95,15 +95,16 @@ typedef struct packed {
   logic [3:0] sm;
 } load_checker_t;
 
-// The two copies of the load checker agree on its state, and on each word and row from
-// the walk's write of it on: the row from the check's start, the program word and failed
-// conjuncts from the word's read, an entry or an interval a word at a time, k so far.
+// The two copies of the load checker agree on its state, and on each word and row from the
+// walk's write of it onwards. The row agrees from the check's start, the program word and
+// failed conjuncts from the word's read, and an entry or an interval a word at a time, k
+// words so far.
 module load_checker_pair (input check, input load_checker_t a, input load_checker_t b);
   localparam IDLE = 0, HEADER = 1, WORD = 2, ENTRY = 6, FIELD = 7, CHECK = 8;
   localparam DICTIONARY = 0;
   wire [3:0] sm = a.sm;
   wire [47:0] read_in = a.k == 0 ? 48'h0 : a.k == 1 ? 48'hffff : 48'hffff_ffff;
-  // a phase or an arm is three words, the rest two
+  // a phase or an arm takes three words, the rest take two
   wire [47:0] interval = a.field < 2 ? {48{1'b1}} : 48'hffff_ffff;
 
   always @* if (check) begin
