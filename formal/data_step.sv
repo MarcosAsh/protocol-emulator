@@ -1,15 +1,15 @@
-// Data lemma: which bits of which word an out sends. A ghost count of bits shifted out
-// since the osr last took a word (on past 16 to 32), and whether a pull or an autopull
-// took it, move as osr_step.v (the checker's own step) says. From the clear on, osr_count
-// is the count stopped at 16, the osr holds the word shifted by it, and each out whose
-// word was pulled sends bits [c, c + n) of it from the end the osr shifts from (c the
-// count, 0 after an autopull), or underflow is set by that out or before, unless a
-// sending CRC gives a single-bit out its own bit (value_step.sv). A take finds
-// no word from an empty fifo or a data pointer moved the cycle before; a mov to the osr
-// writes none. The word is the tx fifo's head (fifo_order.sv) or the data memory's word;
-// the value reaches the pins by edge_step.sv. Nothing is assumed of the host (stop, flush,
-// start, program writes, fifos, data word, clear all free); the config holds still with
-// side-set on at most 2 pins, as in phase_step.sv.
+// Data lemma: which bits of which word an out sends. A ghost count of the bits shifted out
+// since the osr last took a word (going on past 16 up to 32), and whether a pull or an
+// autopull took it, move as osr_step.v (the checker's own step) says. From the clear on,
+// osr_count is the count stopped at 16 and the osr holds the word shifted by it. Each out
+// whose word was pulled sends bits [c, c + n) of it from the end the osr shifts from (c is
+// the count, 0 after an autopull), or else underflow is set by that out or before, unless
+// a sending CRC gives a single-bit out its own bit (value_step.sv). A take finds no word
+// if the fifo is empty or a data pointer moved the cycle before; a mov to the osr writes
+// none. The word is the tx fifo's head (fifo_order.sv) or the data memory's word, and
+// edge_step.sv carries the value to the pins. Nothing is assumed of the host (stop, flush,
+// start, program writes, fifos, data word and clear are all free). The config holds still,
+// with side-set on at most 2 pins, as in phase_step.sv.
 
 module data_step (input clk);
   (* anyconst *) wire [1:0] side_set_count;
@@ -31,7 +31,7 @@ module data_step (input clk);
   (* anyseq *) wire [15:0] program_write_data, tx_value;
   (* anyseq *) wire [31:0] inputs;
 
-  // the top clears the engine at power-on and whenever its reset comes again
+  // the top clears the engine at power-on and whenever reset comes again
   (* anyseq *) wire reset;
   reg clear = 1;
   always @(posedge clk) clear <= reset;
@@ -48,7 +48,7 @@ module data_step (input clk);
   wire decode_ok;
   wire [7:0] opcode_onehot;
   wire [31:0] wait_select;
-  // the value an out shifts, the tx fifo's head, and the core's note of a data pointer
+  // the value an out shifts (the tx fifo's head), and the core's note of a data pointer
   // that moved the cycle before
   wire [15:0] out_value, tx_head;
   wire tx_empty, data_moved;
@@ -89,8 +89,8 @@ module data_step (input clk);
 
   always @(*) assume(side_set_count <= 2);
 
-  // an issue, as the model's step has it: running, the delay run out, no start in flight,
-  // which the core takes only while halted
+  // an issue, as the model's step has it: running, the delay run out, and no start in
+  // flight (the core only takes one while halted)
   reg started = 0;
   always @(posedge clk) started <= !clear && start && halted;
   wire issue = !clear && !halted && stall == 0 && !started;
@@ -111,8 +111,8 @@ module data_step (input clk);
     .word(instruction), .shifted(shifted), .pulled(pulled), .next_shifted(next_shifted),
     .next_pulled(next_pulled), .takes(takes));
 
-  // The word the osr last took, and whether the take found one: an autopull reads the data
-  // memory with autopull_data, and every other take the tx fifo.
+  // The word the osr last took, and whether the take found one. An autopull reads the data
+  // memory with autopull_data, and every other take reads the tx fifo.
   wire from_data = is_out && autopull_data;
   wire found = from_data ? !data_moved : !tx_empty;
   wire [15:0] found_word = from_data ? data_word : tx_head;
@@ -128,7 +128,7 @@ module data_step (input clk);
       pulled <= next_pulled;
       if (takes) begin
 `ifdef STALE_WORD
-        // a take that finds nothing keeps the word before it
+        // a take that finds nothing keeps the previous word
         holds_word <= holds_word || found;
 `else
         holds_word <= found;
@@ -137,7 +137,7 @@ module data_step (input clk);
       end else if (is_mov_osr) holds_word <= 0;
     end
 
-  // w shifted by c, which past 15 leaves nothing
+  // w shifted by c, which leaves nothing past 15
   function [15:0] shifted_by(input [15:0] w, input [5:0] c);
 `ifdef WRONG_WAY
     shifted_by = out_shift_right ? w << c : w >> c;

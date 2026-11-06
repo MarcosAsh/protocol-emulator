@@ -1,8 +1,8 @@
 // The fault fail-safe on the two-engine chip. From the clear on, an engine with a fault
-// latched drives no pin, from the edge the fault shows; it halts within two edges and stays
+// latched drives no pin, from the edge the fault shows. It halts within two edges and stays
 // halted with its pc held, whatever its host does, until the next clear. With no fault the
 // pins are the plain OR of both engines' drive. Host fields, line tables, the frame
-// receivers and their owner, pads and clear are free every cycle; each config holds
+// receivers and their owner, pads and clear are free every cycle, and each config holds
 // between clears.
 
 module fail_safe (input clk);
@@ -43,7 +43,7 @@ module fail_safe (input clk);
   (* anyseq *) wire [19:0] stamps_mask;
   (* anyseq *) wire stamps_engine, stamps_flush, stamps_pop;
 
-  // the top clears both engines at power-on and whenever its reset comes again
+  // the top clears both engines at power-on and whenever reset comes again
   (* anyseq *) wire reset;
   reg clear = 1;
   always @(posedge clk) clear <= reset;
@@ -168,7 +168,7 @@ module fail_safe (input clk);
   reg last_cleared = 0, last_clear = 1, last_faulted_0 = 0, last_faulted_1 = 0;
   reg last_halted_0 = 0, last_halted_1 = 0;
   reg [8:0] last_pc_0, last_pc_1;
-  // the fault showed the last two cycles with no clear, so no start was taken since
+  // the fault showed for the last two cycles with no clear, so no start has been taken since
   reg settled_0 = 0, settled_1 = 0;
   always @(posedge clk) begin
     last_cleared <= cleared;
@@ -227,7 +227,7 @@ module fail_safe (input clk);
 
   always @(posedge clk)
     if (went && !clear) begin
-      // a drive engine 0 had on a bidirectional pad, let go by its fault
+      // a drive engine 0 had on a bidirectional pad, which its fault lets go
       cover (faulted_0 && !last_faulted_0 && (pin_dir_0[19:12] & ~pin_dir_1[19:12]) != 0);
       // the same while engine 1 still drives a pad of its own
       cover (faulted_0 && !last_faulted_0 && (pin_dir_0[19:12] & ~pin_dir_1[19:12]) != 0

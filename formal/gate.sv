@@ -1,13 +1,16 @@
 // The start gate on the two-engine chip as it is built. From the clear on, for each
-// engine n: (a) a start reaches the core only while n is certified; (b) n is certified
-// only after a walk of n that began after the last program, configuration or line table
-// write to n, held n free throughout, saw no data write land in n's data turn, which
-// would take its read, nor at a word it had read (any word, watch), and finished
-// accepted; (c) a start never comes the cycle after the checker held n's ports; (d) the
-// frame receivers write only in their owner's data turn, while it is free, does not pull
-// data or keeps its word, and never beside a host write; (e) a walk of n checks under the
-// setup it began with, and n's core, while certified, watches the premises of that setup;
-// (f) a walk of n runs only in n's turn at the checker.
+// engine n:
+//   (a) a start reaches the core only while n is certified.
+//   (b) n is certified only after a walk of n that began after the last program,
+//       configuration or line table write to n, held n free throughout, saw no data write
+//       land in n's data turn (which would take its read) or at a word it had read (any
+//       word, watch), and finished accepted.
+//   (c) a start never comes the cycle after the checker held n's ports.
+//   (d) the frame receivers write only in their owner's data turn, while it is free, does
+//       not pull data or keeps its word, and never beside a host write.
+//   (e) a walk of n checks under the setup it began with, and n's core, while certified,
+//       watches the premises of that setup.
+//   (f) a walk of n runs only in n's turn at the checker.
 // Every host field is free every cycle, and so is each memory's output.
 
 module gate (input clk);
@@ -69,10 +72,12 @@ module gate (input clk);
     .premises_valid_1(premises_1[18]), .premises_value_1(premises_1[17:2]),
     .premises_floor_1(premises_1[1]), .premises_single_edge_1(premises_1[0]));
 
-  // what each walk of n saw: begun after n's last write (fresh), with n free and no data
-  // write in its turn or at watch once read (quiet), and whether it ended accepted with
-  // both (good); whether it has read watch (seen), and the other engine's host wrote data
-  // while it ran (beside)
+  // what each walk of n saw:
+  //   fresh   it began after n's last write
+  //   quiet   n stayed free, with no data write in its turn or at watch once read
+  //   good    it ended accepted with both of those
+  //   seen    it has read watch
+  //   beside  the other engine's host wrote data while it ran
   reg [1:0] fresh = 0, quiet = 0, good = 0, was_lent = 0, seen = 0, beside = 0;
   genvar n;
   generate
@@ -112,7 +117,7 @@ module gate (input clk);
         if (walking) assert (walk_setup == begun_with);
         if (certified[n] || walking) assert (premises[n] == begun_with);
 `ifndef NO_INVARIANT
-        // a walk of n runs fresh and quiet, as a write or n leaving free ends it, and
+        // a walk of n runs fresh and quiet (a write, or n leaving free, ends that) and
         // holds n uncertified and not yet good; a good walk leaves n fresh
         if (walking) assert (fresh[n] && quiet[n] && !certified[n] && !good[n]);
         // the checker's span covers what the walk has read
@@ -127,19 +132,19 @@ module gate (input clk);
     if (frame_write) assert (data_turn == owner && !host_writes);
     if (checking) assert (checked == chosen);
 `ifndef NO_INVARIANT
-    // a turn's last cycle aborts its walk, so each begins with the checker idle
+    // a turn's last cycle aborts its walk, so each walk begins with the checker idle
     if (turn_starts) assert (!checking);
 `endif
   end
 
-  // a walk of each engine begins and borrows its ports, and a start is refused; an
+  // a walk of each engine begins and borrows its ports, and a start is refused. An
   // accepted walk takes thousands of cycles, so certified starts are covered with the
   // walk ended at pc 1
   always @* if (cleared) begin
 `ifdef SHORT_WALK
     cover (started[0]);
     cover (started[0] && checking && checked == 1);
-    // engine 0 accepted with engine 1's host writing data through its walk
+    // engine 0 accepted while engine 1's host writes data throughout its walk
     cover (accepts && checked == 0 && beside[0]);
 `else
     cover (lent[0]);

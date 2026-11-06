@@ -1,11 +1,12 @@
 // Edge lemma, on phase_step.sv's cycles; an entry is the first issue after a start or a
 // completion. For any program and any config written while halted, pin_out and pin_dir
-// change only the cycle after an entry whose word writes them, and then to its writes in
+// only change the cycle after an entry whose word writes them, and then to its writes in
 // order: a Manchester second half owed by the word before, side-set, then set, out or mov.
-// A held wait reissues the same side-set and moves nothing. The second half shows (the out's
-// delay + 1) after the first, whatever the next word; a start or clear drops it, a stop
-// holds it until then. Only the config's halted window (host_spacing.sv) is assumed of the
-// host. Out and mov data is the core's value at issue; value_step.sv proves it the ISA's.
+// A held wait reissues the same side-set and moves nothing. The second half shows (the
+// out's delay + 1) after the first, whatever the next word is. A start or clear drops it,
+// and a stop holds it until then. The only thing assumed of the host is the config's
+// halted window (host_spacing.sv). Out and mov data is the core's value at issue;
+// value_step.sv proves that value is the ISA's.
 
 // the timer's width, narrower in the narrow tasks
 `ifndef TIMER_BITS
@@ -13,9 +14,9 @@
 `endif
 
 module edge_step (input clk);
-  // The config, as the host port holds it: a write lands only while the core is halted,
-  // and not in a start's second cycle (host_spacing.sv). Free at the clear. Every field,
-  // in Engine.Config's order, first field highest.
+  // The config as the host port holds it. A write only lands while the core is halted and
+  // not in a start's second cycle (host_spacing.sv). Free at the clear. Every field is
+  // here, in Engine.Config's order, first field highest.
   (* anyseq *) wire config_write;
   (* anyseq *) wire [176:0] config_value;
   reg [176:0] config_bits;
@@ -59,7 +60,7 @@ module edge_step (input clk);
   (* anyseq *) wire [15:0] program_write_data, tx_value;
   (* anyseq *) wire [31:0] inputs;
 
-  // the top clears the engine at power-on and whenever its reset comes again
+  // the top clears the engine at power-on and whenever reset comes again
   (* anyseq *) wire reset;
   reg clear = 1;
   always @(posedge clk) clear <= reset;
@@ -116,10 +117,10 @@ module edge_step (input clk);
     .flip_pending(flip_pending), .flip_bit(flip_bit),
     .eng_jmp_go(jmp_go), .eng_advance(advance), .eng_out_value(out_value),
     .eng_mov_value(mov_value), .eng_line_level(line_level));
-  // an instruction completes when a jump issues, or anything else issues and goes on
+  // an instruction completes when a jump issues, or when anything else issues and goes on
   wire completes = jmp_go || advance;
 
-  // an entry, as in phase_step.sv, after a start the core takes only while halted
+  // an entry, as in phase_step.sv, after a start (which the core only takes while halted)
   wire start_taken = start && halted;
   reg started = 0;
   always @(posedge clk) started <= start_taken;
@@ -132,7 +133,7 @@ module edge_step (input clk);
     else if (issue) fresh <= 0;
   wire entry = issue && fresh;
 
-  // the pin writers; a jump or an undecoded word writes nothing of its own
+  // the pin writers; a jump or an undecoded word writes nothing itself
   wire [2:0] opcode = instruction[15:13];
   wire [2:0] dest = instruction[7:5];
   wire [4:0] count = instruction[4:0];
@@ -146,7 +147,7 @@ module edge_step (input clk);
   wire mov_pins = runs && opcode == 4 && dest == 0;
   wire mov_dirs = runs && opcode == 4 && dest == 3;
   wire manchester_bit = out_pins && manchester && count == 1;
-  // a line-coded out drives the table's level and its complement on the pin above
+  // a line-coded out drives the table's level, and its complement on the pin above
   wire line_bit = out_pins && line_code && !manchester && count == 1;
   wire writes_out = side_pins || set_pins || out_pins || mov_pins;
   wire writes_dir = side_dirs || set_dirs || out_dirs || mov_dirs;
@@ -156,7 +157,7 @@ module edge_step (input clk);
   always @(posedge clk)
     if (clear || started) flip_owed <= 0;
     else if (entry) flip_owed <= manchester_bit;
-  // and the cycles since, beside the out's step, its delay plus one
+  // and the cycles since, next to the out's step (its delay plus one)
   wire [4:0] ds = instruction[12:8];
   wire [4:0] delay = side_set_count == 0 ? ds : side_set_count == 1 ? ds[3:0] : ds[2:0];
   reg [5:0] since_out = 0, out_step = 0;
@@ -167,7 +168,7 @@ module edge_step (input clk);
     end else if (since_out != 63) since_out <= since_out + 6'd1;
 
   // Pins.write: the low [n] bits of [v] from [base] up, wrapping at 32, on the pins that
-  // take them: 5 to 27 drive, 12 to 19 turn around
+  // take them (5 to 27 drive, 12 to 19 turn around)
   localparam [31:0] OUTPUTS = 32'h0fffffe0;
   localparam [31:0] BIDIRS = 32'h000ff000;
   function [31:0] place(input [15:0] v, input [4:0] base);
@@ -295,7 +296,7 @@ module edge_step (input clk);
       if (entry && flip_owed) assert(since_out == out_step);
     end
 `ifdef FLIP_OFF_ISSUE
-  // teeth: the second half by the clock, whether or not the core issues then
+  // teeth: the second half arrives by the clock, whether or not the core issues then
   reg [5:0] last_since_out = 0, last_out_step = 0;
   always @(posedge clk) begin
     last_since_out <= since_out;
@@ -325,7 +326,7 @@ module edge_step (input clk);
       end
     end
 
-  // each writer on its own moves a pin, so no part of the lemma is vacuous
+  // each writer moves a pin on its own, so no part of the lemma is vacuous
   wire flipless = !last_flip_owed;
   wire moved_out = pin_out != last_out;
   wire moved_dir = pin_dir != last_dir;

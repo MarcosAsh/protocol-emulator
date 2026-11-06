@@ -1,15 +1,18 @@
 // Frame lemma, beside edge_step.sv: from the clear on, a pin outside the engine's
 // footprint never moves in pin_out or pin_dir, whatever the host and the pins do. The
-// footprint is what the program's writers reach under the config, on the pins each write
-// takes (5 to 27 drive, 12 to 19 turn around), wrapping at 32 as Pins.write does:
-// side-set on every word but a jump (a count of 3 carries two bits, so its third pin only
-// gets 0); set; out to the widest out the program has (an out writes its own count,
-// whatever out_count is), two wide for a one-bit Manchester or line-coded out; mov to
-// out_count. The one assumption is that every word the core runs writes no more than
-// the program says; outs 16 wide with every writer used assume nothing. The host, fifos,
-// data word, inputs, line table, premises, next engine and clear are free every cycle,
-// and the chip has no debugger. The config holds between clears: a new one without a
-// clear leaves the last program's pins driven.
+// footprint is whatever the program's writers reach under the config, on the pins each
+// write takes (5 to 27 drive, 12 to 19 turn around), wrapping at 32 as Pins.write does:
+//   - side-set on every word except a jump (a count of 3 carries two bits, so its third
+//     pin only gets 0)
+//   - set
+//   - out, up to the widest out the program has (an out writes its own count, whatever
+//     out_count is), and two wide for a one-bit Manchester or line-coded out
+//   - mov, up to out_count
+// The one assumption is that every word the core runs writes no more than the program
+// says. Outs 16 wide with every writer used assume nothing. The host, fifos, data word,
+// inputs, line table, premises, next engine and clear are free every cycle, and the chip
+// has no debugger. The config holds between clears: a new one without a clear leaves the
+// last program's pins driven.
 
 // the timer's width, narrower in the narrow tasks
 `ifndef TIMER_BITS
@@ -46,7 +49,7 @@ module frame_step (input clk);
   (* anyseq *) wire premise_period_valid, premise_floor, premise_single_edge;
   (* anyseq *) wire [15:0] premise_period;
 
-  // the top clears the engine at power-on and whenever its reset comes again
+  // the top clears the engine at power-on and whenever reset comes again
   (* anyseq *) wire reset;
   reg clear = 1;
   always @(posedge clk) clear <= reset;
@@ -127,7 +130,7 @@ module frame_step (input clk);
     window = place(mask(n), base) & takes;
   endfunction
 
-  // the word the core runs; op_go excludes jumps and undecoded words
+  // the word the core runs; op_go leaves out jumps and undecoded words
   wire [2:0] opcode = instruction[15:13];
   wire [2:0] dest = instruction[7:5];
   wire [4:0] count = instruction[4:0];
@@ -197,7 +200,7 @@ module frame_step (input clk);
   wire [31:0] footprint_out = side_out | set_out | out_out | mov_out;
   wire [31:0] footprint_dir = side_dir | set_dir | out_dir | mov_dir;
 
-  // the lemma, in every cycle after the first clear
+  // the lemma, checked in every cycle after the first clear
   reg cleared = 0;
   always @(posedge clk) if (clear) cleared <= 1;
   always @(posedge clk)
