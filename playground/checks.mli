@@ -1,5 +1,5 @@
-(** What the page shows for a paste, apart from js_of_ocaml, so a native build can be
-    compared with the page's. *)
+(** What the page shows for a paste, kept apart from js_of_ocaml so a native build can be
+    compared with the page. *)
 
 open! Core
 open Protocol_emulator
@@ -13,8 +13,8 @@ module Report : sig
     }
 end
 
-(** [generate.exe assemble -listing] and [-rows], under [config] and its assumption flags,
-    naming whichever of the assembler, analyser and kernel refuses. *)
+(** Same as [generate.exe assemble -listing] and [-rows] with [config] and the assumption
+    flags. A refusal names whichever of the assembler, analyser or kernel refused. *)
 val check
   :  ?period:int
   -> ?period_floor:int
@@ -30,8 +30,8 @@ module Pio_report : sig
     }
 end
 
-(** [pio_check] on [source] with [spec]'s flags, one a line: "passed" where it exits 0,
-    "failed" on any FAIL or ERROR, refused where it gives a usage error. *)
+(** Runs [pio_check] on [source] with [spec]'s flags, one per line. The verdict is "passed"
+    if it exits 0, "failed" on any FAIL or ERROR, and refused on a usage error. *)
 val check_pio : source:string -> spec:string -> Pio_report.t
 
 module Diagram_report : sig
@@ -47,8 +47,8 @@ end
 
 val cycle_ns : clock_hz:int -> float
 
-(** The diagram compiled at [clock_hz], then the model of the core running it on [frames],
-    a line a frame of 0s and 1s. *)
+(** Compiles the diagram at [clock_hz], then runs it on the core model with [frames]. Each
+    line of [frames] is one frame of 0s and 1s. *)
 val run_diagram : source:string -> frames:string -> clock_hz:int -> Diagram_report.t
 
 module Sim_report : sig
@@ -57,17 +57,18 @@ module Sim_report : sig
     ; lanes : string list (** Pin names; bit [i] of a level is lane [i]. *)
     ; levels : int array (** Per cycle, the lanes' levels after that cycle's step. *)
     ; edges : int array
-    (** Five a pin edge: its cycle, the pc, the window's first and last cycle (-1 if
+    (** Five per pin edge: its cycle, the pc, the window's first and last cycle (-1 if
         unbounded), and 1 if the edge lies in it. *)
-    ; releases : int array (** Two a release of a deadline wait: its cycle and pc. *)
+    ; releases : int array (** Two per release of a deadline wait: its cycle and pc. *)
     ; waits : (int * string * string) list (** Each deadline wait's pc, text and slack. *)
     ; summary : string
     }
 end
 
-(** The model of the core run for [cycles] (at most 20000), the host writing [tx], a
-    comma-separated list of [WORD[@CYCLE]], and holding [inputs], of [PIN=LEVEL[@CYCLE]];
-    each pin edge the program makes is checked against the analyser's window for it. *)
+(** Runs the core model for [cycles] (at most 20000). The host writes [tx], a
+    comma-separated list of [WORD[@CYCLE]], and holds [inputs], a list of
+    [PIN=LEVEL[@CYCLE]]. Each pin edge the program makes is checked against the analyser's
+    window for it. *)
 val simulate
   :  ?period:int
   -> ?period_floor:int

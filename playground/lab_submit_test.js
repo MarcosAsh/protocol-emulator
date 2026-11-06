@@ -1,5 +1,5 @@
-// lab.html's submit block (between its lab-submit markers): the pre-filled link, the
-// result comment and the issue states, with a fake GitHub.
+// Tests lab.html's submit block (between the lab-submit markers) against a fake GitHub:
+// the pre-filled link, the result comment and the issue states.
 const fs = require("fs");
 const assert = require("assert");
 const html = fs.readFileSync(process.argv[2], "utf8");

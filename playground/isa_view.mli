@@ -1,5 +1,5 @@
-(** The instruction set as the page lays it out, read from [Isa] and nowhere else: the
-    field positions and the names of each field's values. *)
+(** The instruction set as the page lays it out. Field positions and value names come
+    only from [Isa]. *)
 
 open! Core
 
@@ -12,8 +12,8 @@ module Slot : sig
     }
 end
 
-(** Each opcode's number, name and fields, the opcode field first. [side_set_count] splits
-    the delay field into [side] and [delay]. *)
+(** Each opcode's number, name and fields, with the opcode field first. [side_set_count]
+    splits the delay field into [side] and [delay]. *)
 val opcodes : side_set_count:int -> (int * string * Slot.t list) list
 
 type decoded =

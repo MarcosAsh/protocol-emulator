@@ -1,5 +1,5 @@
-// Each of test/lab's jobs through the page's labCheck, file by file against the folder
-// generate.exe lab wrote beside it, so the page and the bench's worker check alike.
+// Runs each job in test/lab through the page's labCheck and compares every file with the
+// folder generate.exe lab wrote next to it, so the page and the bench worker agree.
 const fs = require("fs");
 const path = require("path");
 const [bundle, dir] = process.argv.slice(2);

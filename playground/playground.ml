@@ -24,7 +24,7 @@ let () =
       (Js.to_string source)
     |> report
   in
-  (* under a whole configuration, a sexp, as the library's firmware is checked *)
+  (* like [check], but takes the whole configuration as a sexp, as for library firmware *)
   let check_configured source config period period_floor single_capture_edge =
     Checks.check
       ?period:(Js.Opt.to_option period)
@@ -182,8 +182,8 @@ let () =
            )
         |]
   in
-  (* a lab job file through the worker's own check: the files its result folder starts
-     with, check.json first among them *)
+  (* runs a lab job through the worker's own check and returns the first files of its
+     result folder, check.json among them *)
   let lab_check text =
     let files =
       match

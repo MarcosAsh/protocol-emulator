@@ -1,6 +1,6 @@
-// Each library firmware through the page and generate.exe, each diagram through the page
-// and a native build, into native.txt and browser.txt to be diffed. A refusal never
-// matches, as the page gives its verdict and detail where the cli gives its stderr.
+// Runs every library firmware through the page and generate.exe, and every diagram through
+// the page and a native build. Writes native.txt and browser.txt to be diffed. A refusal
+// never matches: the page reports a verdict and detail where the cli prints to stderr.
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -9,7 +9,7 @@ const [bundle, generate, corpus] = process.argv.slice(2);
 const pe = require(path.resolve(bundle)).protocolEmulator;
 const { firmware, diagrams } = JSON.parse(fs.readFileSync(corpus, "utf8"));
 
-// the cli reads a file, and node's stdin for a child is a socket
+// the cli wants a file, since a child's stdin in node is a socket
 const sources = fs.mkdtempSync(path.join(os.tmpdir(), "agree-"));
 const native = firmware.map((f) => {
   const file = path.join(sources, `${f.name}.asm`);
@@ -32,7 +32,7 @@ const browser = firmware.map((f) => {
   return `== firmware ${f.name}\n${out}`;
 });
 
-// as reference.ml writes the native report
+// same format as the native report in reference.ml
 diagrams.forEach((d) => {
   const header = `== diagram ${d.name} at ${d.clockHz} Hz\n`;
   const r = pe.runDiagram(d.source, d.frames, d.clockHz);

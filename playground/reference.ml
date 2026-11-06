@@ -3,9 +3,8 @@ open Protocol_emulator
 open Protocol_emulator_test
 open Playground_checks
 
-(* As JSON on stdout, for agree.js: each library firmware with what it is checked under
-   and the flags that tell generate.exe the same, and each diagram given at each clock
-   with its report from a native build. *)
+(* Prints JSON for agree.js. Each library firmware comes with its check settings and the
+   matching generate.exe flags. Each diagram comes at each clock with a native report. *)
 
 let json_string s =
   String.concat_map s ~f:(function
@@ -26,10 +25,10 @@ let json_object fields =
 let json_array values = "[\n  " ^ String.concat values ~sep:"\n, " ^ "\n]"
 let json_int = Option.value_map ~default:"null" ~f:Int.to_string
 
-(* generate.exe takes these from the source, and refuses them as flags *)
+(* generate.exe reads these from the source and refuses them as flags *)
 let from_source = [ "side_set_count"; "wrap_bottom"; "wrap_top" ]
 
-(* [-config] for the fields that differ from the default *)
+(* [-config] flag for the fields that differ from the default *)
 let config_flags config =
   let fields sexp =
     match (sexp : Sexp.t) with
@@ -80,7 +79,7 @@ let firmware
     ]
 ;;
 
-(* a floor is checked alone, as [Timed_program.check] does *)
+(* a floor is checked on its own, like [Timed_program.check] does *)
 let certified kind (c : Certified.t) =
   firmware
     ~kind
@@ -110,7 +109,7 @@ let bench kind (b : Bench.t) =
     b.source
 ;;
 
-(* the page's report, a field a line, as agree.js writes the page's *)
+(* the native report, one field per line, in the format agree.js uses for the page *)
 let diagram_report (r : Checks.Diagram_report.t) ~clock_hz =
   String.concat
     [ "verdict: " ^ r.verdict ^ "\n"

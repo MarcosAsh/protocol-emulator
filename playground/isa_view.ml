@@ -28,7 +28,7 @@ let opcode_cases =
   cases Isa.Opcode.Cases.all ~to_int:Isa.Opcode.to_int ~sexp_of:Isa.Opcode.Cases.sexp_of_t
 ;;
 
-(* the side-set bits are the top of the delay field, the delay the rest *)
+(* side-set takes the top bits of the delay field and delay keeps the rest *)
 let delay_slots ~side_set_count =
   let field = Isa.Field.delay_side in
   let delay_width = field.width - side_set_count in

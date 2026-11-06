@@ -97,7 +97,7 @@ let fault_names { Machine.Fault.underflow; overflow; missed_deadline; decode; as
     ~f:(fun (name, set) -> Option.some_if set name)
 ;;
 
-(* [now - t] on entry, as the signed 24-bit number the deadline wait compares *)
+(* [now - t] as the signed 24-bit number the deadline wait compares *)
 let phase ~now ~t =
   let modulus = 1 lsl Isa.timer_bits in
   let d = (now - t) land (modulus - 1) in
@@ -111,7 +111,7 @@ let comma_list text parse =
   |> List.map ~f:parse
 ;;
 
-(* the host writes in order, stopping at the first word not yet due or with no room *)
+(* writes the host's words in order, stopping at the first one not yet due or without room *)
 let rec write_tx machine (tx : Machine_trace.Tx.t list) ~cycle =
   match tx with
   | word :: rest when word.cycle <= cycle ->
@@ -127,10 +127,10 @@ let rec drain_rx machine =
   | Some (_, machine) -> drain_rx machine
 ;;
 
-(* The model run as the host would drive it: [tx] words written as room allows, [inputs]
-   held from their cycle, the rx fifo emptied each cycle. Each instruction that makes a
-   pin edge is checked against the analyser's window for it, at the first issue of each
-   visit, and each deadline wait's releases are recorded. *)
+(* Runs the model the way the host would drive it: [tx] words go in as room allows, [inputs]
+   are held from their cycle and the rx fifo is emptied every cycle. Each instruction that
+   makes a pin edge is checked against the analyser's window for it (at its first issue
+   in each visit), and we record each deadline wait's releases. *)
 let simulate ?period ?period_floor ~single_capture_edge ~config ~tx ~inputs ~cycles source
   : Sim_report.t
   =
@@ -339,7 +339,7 @@ let step_listing (t : Wavedrom.t) =
   |> String.concat ~sep:"\n"
 ;;
 
-(* each line of [frames] a frame's bits, 0 and 1, blanks ignored *)
+(* each line of [frames] is one frame of 0s and 1s, blanks ignored *)
 let frame_bits frames =
   String.split_lines frames
   |> List.map ~f:(String.filter ~f:(Fn.non Char.is_whitespace))
@@ -382,7 +382,7 @@ let run_diagram ~source ~frames ~clock_hz : Diagram_report.t =
          then Ok []
          else List.map frames ~f:(Wavedrom.host_words t) |> Or_error.all >>| List.concat
        in
-       (* a receiver's frames are the peer's, on the line the diagram draws *)
+       (* for a receiver the frames are the peer's, sent on the line the diagram draws *)
        let%bind line = if t.starts_on_edge then Wavedrom.line t frames else Ok [||] in
        let%bind interpreter =
          Tables.check t.table.wiring

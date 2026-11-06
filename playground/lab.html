@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Remote Lab</title>
-<!-- Not published: the pages workflow uploads index.html and playground.bc.js alone until
-     the owner switches the lab on. Jobs go in through .github/ISSUE_TEMPLATE/lab.yml. -->
+<!-- Not published yet: until the lab is switched on, the pages workflow uploads only
+     index.html and playground.bc.js. Jobs come in through .github/ISSUE_TEMPLATE/lab.yml. -->
 <style>
   :root { --bg: #fff; --fg: #1a1a1a; --muted: #666; --code: #f4f4f4; --ok: #1a7f37; --bad: #c62828; --warn: #8a5a00; --model: #6b7bd6; }
   @media (prefers-color-scheme: dark) {
@@ -127,7 +127,7 @@ it to check each against the hashes result.json records.</p>
     return v;
   };
 
-  // lanes: { name, first, changes: [[ns, level]], colour }, drawn over [from, to] ns
+  // draws lanes ({ name, first, changes: [[ns, level]], colour }) over [from, to] ns
   const wave = (target, lanes, from, to) => {
     const width = 900, left = 150, rowH = 30;
     const x = (t) => left + ((t - from) / Math.max(1, to - from)) * (width - left - 10);
@@ -151,7 +151,7 @@ it to check each against the hashes result.json records.</p>
     }
     target.replaceChildren(root);
   };
-  // simulated.json's lane, changes by cycle, as ns
+  // converts a lane from simulated.json (changes by cycle) to ns
   const modelLane = (simulated, lane, name) => {
     const ns = 1e9 / simulated.clock_hz;
     return { name, first: lane.edges[0][1], changes: lane.edges.slice(1).map(([c, l]) => [c * ns, l]), colour: "var(--model)" };
@@ -161,14 +161,14 @@ it to check each against the hashes result.json records.</p>
   const REPO = "MarcosAsh/protocol-emulator";
   const MARKER = "<!-- lab-result v1 -->";
   const URL_MAX = 7000;
-  // the pre-filled issue form for a job, or null when the link would be too long
+  // the pre-filled issue form for a job, or null if the link would be too long
   const issueUrl = (name, jobText) => {
     const q = "template=lab.yml&title=" + encodeURIComponent("lab: " + name) + "&job=" + encodeURIComponent(jobText);
     const url = "https://github.com/" + REPO + "/issues/new?" + q;
     return url.length <= URL_MAX ? url : null;
   };
   const blankFormUrl = () => "https://github.com/" + REPO + "/issues/new?template=lab.yml";
-  // the sealed result in the first lab-result comment, or null while none has been posted
+  // the sealed result from the first lab-result comment, or null if there is none yet
   const resultOf = (comments) => {
     for (const c of comments) {
       const body = (c.body || "").replace(/\r\n/g, "\n");
@@ -290,7 +290,7 @@ it to check each against the hashes result.json records.</p>
       const lanes = [model];
       const c = result.captured;
       if (c && c.changes.length && model.changes.length) {
-        // the capture shifted onto the model at the change the worker lined up
+        // shift the capture so it lines up with the model at the change the worker matched
         const shift = model.changes[0][0] - c.changes[0][0];
         lanes.push({ name: result.run === "bench" ? "captured, " + c.channel : "RTL, " + c.channel,
           first: 1 - c.changes[0][1], changes: c.changes.map(([t, l]) => [t + shift, l]) });
@@ -347,7 +347,7 @@ it to check each against the hashes result.json records.</p>
       error: a.why,
     }[a.state], a.state === "queued" ? "warn" : "bad");
   };
-  // a result served beside the page: lab.html?result=RESULTS/ID/result.json#result
+  // a result served next to the page: lab.html?result=RESULTS/ID/result.json#result
   const served = new URLSearchParams(location.search).get("result");
   if (served) fetch(served).then((r) => r.json()).then((r) => show(r, {}));
 

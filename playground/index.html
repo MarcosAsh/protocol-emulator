@@ -266,7 +266,7 @@ certificate. The model of the core then runs the table on the frames below.</p>
   };
   $("simulate").onclick = simulate;
 
-  // each edit returns the new source and a one-line description, or null if the firmware has nothing to edit
+  // each edit returns the new source and a one-line description, or null if there is nothing to edit
   const lineIndex = (lines, re) => lines.findIndex((l) => re.test(l.split(";")[0]));
   const deadlineWait = /^\s*wait\s+t\+?(\s|$)/;
   const stretch = (k) => (source) => {
@@ -305,7 +305,7 @@ certificate. The model of the core then runs the table on the frames below.</p>
     ["Add a long loop", longLoop],
   ];
   let dareBase = "";
-  // the real tools on [source]: what the page's checker says, and what the model does
+  // runs the real tools on [source]: the page's checker verdict and the model's behaviour
   const judge = (source) => {
     const period = $("period").value === "" ? null : Number($("period").value);
     const pin = Number($("capture-pin").value) || 0;
