@@ -1,5 +1,5 @@
-// IHP's macro core, SRAM_1P_behavioral_bm_bist at 512 x 16, as a cut point: DP16KD.v's
-// instance of it on the netlist's side, the model's own on the RTL's (gold.ys).
+// IHP's macro core, SRAM_1P_behavioral_bm_bist at 512 x 16, as a cut point. DP16KD.v
+// instantiates it on the netlist's side, and the model's own is used on the RTL's (gold.ys).
 (* blackbox *)
 module sram_core (
   input [8:0] A_ADDR,

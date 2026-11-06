@@ -1,10 +1,10 @@
-// The ECP5 block RAM as the Icepi build uses it, after TN1264 (the ECP5 memory guide),
-// trusted: port A only, 1024 x 18 at ADA[13:4], no output register, write through,
-// INITVAL all 0, which is IHP's macro core (SRAM_1P_behavioral_bm_bist) on its 512 words
-// with MEN and REN at CEA, WEN at WEA and every bit written. The core is cut, as gold.ys
-// cuts the RTL's. Any other configuration stops the run. Port B, a reset, a chip select,
-// ADA13 or a write of less than both bytes (ADA[1:0]) leaves DOA free from then on, as do
-// DOA[17:16] always, so a build that uses one cannot pass.
+// The ECP5 block RAM as the Icepi build uses it, after TN1264 (the ECP5 memory guide), and
+// trusted: port A only, 1024 x 18 at ADA[13:4], no output register, write through, INITVAL
+// all 0. That is IHP's macro core (SRAM_1P_behavioral_bm_bist) on its 512 words, with MEN
+// and REN at CEA, WEN at WEA and every bit written. The core is cut, as gold.ys cuts the
+// RTL's. Any other configuration stops the run. Port B, a reset, a chip select, ADA13, or
+// a write of less than both bytes (ADA[1:0]) leaves DOA free from then on, and DOA[17:16]
+// are always free, so a build that uses any of these cannot pass.
 module DP16KD (
   input DIA17, DIA16, DIA15, DIA14, DIA13, DIA12, DIA11, DIA10, DIA9, DIA8, DIA7, DIA6,
   input DIA5, DIA4, DIA3, DIA2, DIA1, DIA0,
