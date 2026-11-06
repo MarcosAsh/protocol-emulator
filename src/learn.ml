@@ -241,9 +241,8 @@ let fraction l ~f =
 ;;
 
 (* The grid: the longest unit, from the shortest common run over 1 to 3, that puts every
-   active run of three frames in four, and most idle runs, on whole units. A UART's idle
-   runs between characters can be any length, and a receiver's glitches spoil a few
-   frames, so neither has to fit. *)
+   active run of three frames in four, and most idle runs, on whole units. UART idle runs
+   and receiver glitches mean neither has to fit. *)
 let fit frames =
   let frames =
     List.map frames ~f:(List.map ~f:(fun (active, n) -> active, Float.of_int n))

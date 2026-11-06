@@ -95,7 +95,7 @@ module Field : sig
 end
 
 type t =
-  { line : string (** The data line. *)
+  { line : string
   ; unit_s : float (** Seconds: a bit, a half bit for Manchester, a half clock. *)
   ; bias_s : float
   (** Seconds an active run reads longer than whole units, and an idle one shorter, as a

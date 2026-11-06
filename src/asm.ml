@@ -335,7 +335,6 @@ let assemble_with_lines source =
   , List.map parsed ~f:fst )
 ;;
 
-(* every error, as [Or_error.all] gives them *)
 let assemble source =
   assemble_with_lines source
   |> Result.map ~f:fst

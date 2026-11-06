@@ -643,11 +643,10 @@ let issue t ~sample =
      | op -> { (execute t op ~sample) with pc = pc_after t; stall = delay }, Some op)
 ;;
 
-(* The premises a certificate may rest on. The period: where the kernel takes [p] as a
-   period, at [wait t+] and [add t, p], a [p] last written other than by a set carries the
-   loaded period, or at least it with [floor]. Checked at the use rather than the write,
-   so firmware may keep other values in [p] between. The single edge, as
-   [formal/phase_step.sv] assumes it: the capture pin is at the other level when
+(* The premises a certificate may rest on. Period: at [wait t+] and [add t, p], a [p] last
+   written other than by a set carries the loaded period, or at least it with [floor].
+   Checked at the use, so firmware may keep other values in [p] between. Single edge, as
+   [formal/phase_step.sv] assumes: the capture pin is at the other level when
    [capture_arm] takes effect and, once at the captured level, stays there until a wait
    for it releases ([holding] from the arm to that release, [seen] once at the level). The
    fault rises the cycle a premise fails. *)

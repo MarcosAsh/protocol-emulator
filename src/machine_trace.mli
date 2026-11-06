@@ -42,7 +42,6 @@ type t
     [cycles] must be positive. *)
 val run : Machine.t -> cycles:int -> tx:Tx.t list -> inputs:Input.t list -> t
 
-(** True once any fault was set. *)
 val faulted : t -> bool
 
 (** A strip per pin that is ever high or is driven, then its edges with their cycles and

@@ -396,9 +396,9 @@ let step
      | Mov { dest = T; op = Copy; source = Now } ->
        after { s with phase = Interval.exactly 0; offset = Interval.top }
      | Mov { dest = T; op = Copy; source = Capture } ->
-       (* A capture since an arm in this run is at least a cycle old, as a register shows
-          the cycle after it is written, and a cycle younger than the arm. Any other, as
-          at power-up or from an earlier run, is of any age. *)
+       (* A capture since an arm in this run is at least a cycle old (a register shows the
+          cycle after it is written) and a cycle younger than the arm. Any other is of any
+          age. *)
        let phase =
          match s.since_arm with
          | Some { hi = Some hi; _ } when s.captured ->

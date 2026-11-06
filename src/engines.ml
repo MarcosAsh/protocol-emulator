@@ -86,11 +86,10 @@ module Make (Config : Config) = struct
     let spec = Clocking.to_spec i.clocking in
     let outs = List.init engines ~f:(fun _ -> Engine.O.Of_signal.wires ()) in
     let select_bits = Int.max 1 (Int.ceil_log2 engines) in
-    (* One checker serves every engine, a halted one at a time: it reads that engine's
-       program memory and takes its turn at the data memory. With more than one engine the
-       checker goes to each in turn for [turn_cycles], whoever asks: a check waits for its
-       engine's turn and a walk still going at the turn's end is aborted, so when an
-       engine's check begins and ends never depends on another's. *)
+    (* One checker serves every engine, a halted one at a time, reading its program memory
+       and taking its turn at the data memory. With several engines it visits each for
+       [turn_cycles] whoever asks and aborts a walk still going at the turn's end, so when
+       a check begins and ends never depends on another engine. *)
     let checker = Load_checker.O.Of_signal.wires () in
     let%hw checked = wire select_bits in
     let%hw checking = checker.busy in
