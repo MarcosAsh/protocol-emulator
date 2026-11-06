@@ -333,8 +333,9 @@ more:
     |}]
 ;;
 
-(* CRC-32/MPEG-2, MSB first and not complemented, sent by the CRC unit after its data; the
-   osr still shifts under it, so two words of padding keep autopull off an empty fifo *)
+(* CRC-32/MPEG-2, MSB first, not complemented, sent by the CRC unit after its data. The
+   osr keeps shifting underneath, so two words of padding stop autopull hitting an empty
+   fifo *)
 let%expect_test "crc_send sends the CRC after its data" =
   let data = String.to_list "123456789" |> List.map ~f:Char.to_int in
   let rec words = function
@@ -795,7 +796,8 @@ let%expect_test "every line table bit goes both ways" =
 ;;
 
 (* sets [now] in the simulator a few cycles short of each carry into its top six bits,
-   which a run takes 2^24 cycles to reach; every carry and the wrap are the counter's own *)
+   since a real run takes 2^24 cycles to reach them. Every carry and the wrap are the
+   counter's own *)
 let%expect_test "now and capture carry into their top bits" =
   Harness.run_advanced
     ~trace:`Everything

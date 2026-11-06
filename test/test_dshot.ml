@@ -148,8 +148,8 @@ let%expect_test "every edge is placed by a deadline" =
     |}]
 ;;
 
-(* Both rates as first written, but for the gap below and the anchor before the line is
-   first set, which only makes that edge's report exact: the kernel accepts the rows. *)
+(* Both rates as first written, except for the gap below and the anchor before the line is
+   first set, which only makes that edge's report exact. The kernel accepts the rows. *)
 let%expect_test "the kernel accepts both rates" =
   List.iter
     [ "dshot600", dshot600; "dshot1200", dshot1200 ]

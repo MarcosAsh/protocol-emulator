@@ -1,8 +1,8 @@
 open! Core
 
-(* A failure the tests print and do not raise, a lockstep's mismatch or a non-empty
-   [failed] list, can be promoted into an expect block and then passes. No block in test/
-   may hold one. *)
+(* A failure that tests print instead of raising (a lockstep mismatch or a non-empty
+   [failed] list) can get promoted into an expect block, and then it passes. No block in
+   test/ may hold one. *)
 
 let expect = "[%" ^ "expect"
 

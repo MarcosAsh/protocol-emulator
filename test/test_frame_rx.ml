@@ -88,10 +88,10 @@ let%expect_test "the FCS of a known frame, against zlib's check value" =
   [%expect {| ((check 0xcbf43926) (residue 0xdebb20e3)) |}]
 ;;
 
-(* Random frames at either clock, up to 10 ns of jitter on every edge and the sender 100
-   ppm off, some with a byte spoilt, some landing near the memory's end, some with the
-   memory busy now and then: every word lands where it should or is counted as dropped,
-   and the FCS verdict is right. *)
+(* Random frames at either clock, with up to 10 ns of jitter on every edge and the sender
+   100 ppm off. Some have a byte spoilt, some land near the memory's end, and some see the
+   memory busy now and then. Every word must land where it should or be counted as
+   dropped, and the FCS verdict must be right. *)
 let%expect_test "frames land in the data memory with their FCS judged" =
   let tally = Hashtbl.create (module String) in
   let count name = Hashtbl.incr tally name in
@@ -408,10 +408,10 @@ let on_chip ~early frame =
        })
 ;;
 
-(* A frame lands while engine 0 runs in lockstep with the model, then engine 1, whose
+(* A frame lands while engine 0 runs in lockstep with the model. Then engine 1, whose
    model starts from the memory the frame should have left, hands it to the host word for
-   word. With engine 1 pulling from the start, every word still lands, in turns where the
-   engine keeps its word, and the engines stay in lockstep. *)
+   word. With engine 1 pulling from the start, every word still lands (in turns, where the
+   engine keeps its word) and the engines stay in lockstep. *)
 let%expect_test "a frame on the chip, beside running engines in lockstep" =
   let frame = with_fcs (List.init 23 ~f:(fun n -> ((n * 37) + 5) land 0xff)) in
   let expected = words frame in

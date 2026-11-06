@@ -43,8 +43,8 @@ end
 let%expect_test "the queue follows the model" =
   let random = Random.State.make [| 5 |] in
   let int n = Random.State.int random n in
-  (* each run's clock from anywhere, so stamps carry every time bit; apart, so the draws
-     above stay as they were *)
+  (* each run's clock starts anywhere so stamps carry every time bit; kept apart so the
+     draws above stay as they were *)
   let starts = Random.State.make [| 6 |] in
   let pushed = ref 0 in
   let lost = ref 0 in
@@ -116,10 +116,10 @@ loop:
 |}
 ;;
 
-(* Pins 0, 1, 2, 4 and 16 watched, engine 0 and then engine 1 catching pin 0's rises with
-   its capture unit in lockstep with the model, the stamps on its clock, the host popping
-   each as it shows: every stamp is the model's time and pads at a watched edge, and pin
-   0's rises carry the engine's captures. *)
+(* Pins 0, 1, 2, 4 and 16 are watched. Engine 0, then engine 1, catches pin 0's rises with
+   its capture unit in lockstep with the model, while the host pops each stamp as it
+   shows. Every stamp is the model's time and pads at a watched edge, and pin 0's rises
+   carry the engine's captures. *)
 let%expect_test "stamps on the chip time edges as the engine's capture does" =
   let config = { Program_config.default with capture_pin = 0; capture_rising = true } in
   let program = Firmware.assemble catcher in
