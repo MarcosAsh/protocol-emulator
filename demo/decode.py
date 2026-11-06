@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# Judges pin traces from test/traces, or a bench capture, by sigrok's decoders. A trace's
-# "# sigrok" lines (test/pin_trace.ml) name the decoders, every line they must print and the
-# teeth, changes to the waveform they must refuse. Any error or warning annotation fails too.
+# Judges pin traces from test/traces, or a bench capture, with sigrok's decoders. A trace's
+# "# sigrok" lines (test/pin_trace.ml) name the decoders, every line they must print, and
+# the teeth: changes to the waveform that they must refuse. Any error or warning annotation
+# fails too.
 # Usage: python3 demo/decode.py test/traces/*.trace test/traces/sigrok/*.trace
 #        python3 demo/decode.py --rate 24 TRACE...            as a 24 MHz analyser sees it
 #        python3 demo/decode.py --capture can.sr TRACE        a capture from the bench
@@ -25,8 +26,9 @@ import sigrok
 os.environ.setdefault("SIGROKDECODE_DIR",
                       os.path.join(os.path.dirname(os.path.abspath(__file__)), "decoders"))
 
-# What each decoder reports a fault in. One with none judges nothing but the payload; one
-# not here, every class sigrok names a warning or an error.
+# The annotation classes in which each decoder reports a fault. A decoder with none is
+# judged on its payload only; a decoder not listed here fails on every class that sigrok
+# names a warning or an error.
 ERRORS = {
     "uart": [
         "rx-warnings", "tx-warnings", "rx-parity-err", "tx-parity-err", "rx-break", "tx-break"
@@ -46,9 +48,10 @@ ERRORS = {
     "swd": ["parity"],
 }
 
-# The carrier's analysers. A: the host's SCK, MOSI, MISO and CS_N, OUT0, then CAN board A's
-# R, which gives OUT1 back, SWCLK on OUT2 and SWDIO on IO5. B: the flash's SCK on OUT5, MOSI
-# on OUT4, MISO on IN0 and CS on OUT6, the NeoPixel's OUT3, DQ on IO4, SDA on IO3, SCL on IO2.
+# The carrier's analysers. A: the host's SCK, MOSI, MISO and CS_N, then OUT0, then CAN board
+# A's R (which gives OUT1 back), SWCLK on OUT2 and SWDIO on IO5. B: the flash's SCK on OUT5,
+# MOSI on OUT4, MISO on IN0 and CS on OUT6, then the NeoPixel's OUT3, DQ on IO4, SDA on IO3
+# and SCL on IO2.
 BENCH = {
     "A": {"SCK": "D0", "MOSI": "D1", "MISO": "D2", "CS_N": "D3", "OUT0": "D4", "OUT1": "D5",
           "OUT2": "D6", "IO5": "D7"},
@@ -60,8 +63,8 @@ PIN = re.compile(r"=((?:IN|OUT|IO)\d|SCK|MOSI|MISO|CS_N)\b")
 
 
 class Refusal:
-    """How the decoders misread a waveform: the first payload line that differs is line
-    at, where sigrok prints a line starting with reads."""
+    """Describes how the decoders misread a waveform: the first payload line that differs
+    is line `at`, where sigrok prints a line starting with `reads`."""
 
     def __init__(self, why, at, reads):
         self.why, self.at, self.reads = why, int(at), reads
@@ -113,9 +116,9 @@ class Trace:
         )
 
     def wire(self, name):
-        """One level a cycle. A trace line holds the outputs after its edge and the inputs
-        before it, so an input's level in a cycle is on the next line; a bidirectional pin
-        the core does not drive is whatever its peer made of the line."""
+        """Returns one level per cycle. A trace line holds the outputs after its edge and the
+        inputs before it, so an input's level in a cycle is on the next line. A bidirectional
+        pin that the core doesn't drive takes whatever its peer made of the line."""
         def later(levels):
             return levels[1:] + levels[-1:]
 
@@ -135,8 +138,8 @@ class Trace:
 
 
 def corrupt(levels, corruption):
-    """shift:PIN:EDGE:CYCLES moves an edge, counted from 0, later, or earlier if negative;
-    flip:PIN:EDGE:AFTER:CYCLES inverts the pin for CYCLES from AFTER past the edge."""
+    """shift:PIN:EDGE:CYCLES moves an edge (counted from 0) later, or earlier if negative.
+    flip:PIN:EDGE:AFTER:CYCLES inverts the pin for CYCLES starting AFTER the edge."""
     kind, _, edge, *numbers = corruption.split(":")
     at = [i for i in range(1, len(levels)) if levels[i] != levels[i - 1]][int(edge)]
     if kind == "shift":
@@ -152,7 +155,7 @@ def corrupt(levels, corruption):
 
 
 def pack(channels):
-    """One byte a cycle from one level list a channel, None for a channel left low."""
+    """Packs level lists into one byte per cycle, one bit per channel; None leaves a channel low."""
     length = max(len(c) for c in channels if c is not None)
     samples = bytearray(length)
     for bit, levels in enumerate(channels):
@@ -164,8 +167,9 @@ def pack(channels):
 
 
 def sample(cycles, clock, args):
-    """The cycles as an analyser at --rate sees them, its crystal off the chip's by up to
-    --ppm either way and at a random phase; at the chip's clock without --rate."""
+    """Returns the cycles as an analyser at --rate would see them, with its crystal off the
+    chip's by up to --ppm either way and a random phase. Without --rate it uses the chip's
+    clock."""
     if not args.rate:
         return clock, bytes(cycles)
     rng = random.Random(args.seed)
@@ -177,7 +181,7 @@ def sample(cycles, clock, args):
 
 
 def joined(samples, bit, count):
-    """The first sample after the channel has been high for count samples in a row."""
+    """Returns the first sample after the channel has been high for `count` samples in a row."""
     levels = bytes(samples).translate(bytes((b >> bit) & 1 for b in range(256)))
     at = levels.find(b"\x01" * count)
     if at < 0:
@@ -197,7 +201,7 @@ def sigrok_cli(capture, decoders, annotations):
 
 @functools.lru_cache
 def classes(decoder):
-    """Every annotation class sigrok names for the decoder."""
+    """Returns every annotation class that sigrok names for the decoder."""
     shown = subprocess.run(["sigrok-cli", "-P", decoder, "--show"], capture_output=True,
                            text=True)
     if shown.returncode:
@@ -208,16 +212,16 @@ def classes(decoder):
 
 @functools.lru_cache
 def errors(decoder):
-    """ERRORS' classes for the decoder, or for one it does not list, every class sigrok
-    names a warning or an error."""
+    """Returns ERRORS' classes for the decoder. For a decoder it doesn't list, that is every
+    class sigrok names a warning or an error."""
     if decoder in ERRORS:
         return ERRORS[decoder]
     return [c for c in classes(decoder) if "warn" in c or "err" in c]
 
 
 def faults(decoders, expect=()):
-    """The fault classes to report, but for those the trace expects lines of, which its
-    lines judge: lin's break is a uart break and frame error by design."""
+    """Returns the fault classes to report, except those the trace expects lines of, which
+    its lines judge: lin's break is a uart break and frame error by design."""
     named = {(d, c) for annotations, _ in expect for part in annotations.split(",")
              for d, _, cs in [part.partition("=")] for c in cs.split(":")}
     stacked = [d.split(":")[0] for stack in decoders for d in stack.split(",")]
@@ -226,8 +230,8 @@ def faults(decoders, expect=()):
 
 
 def judge(capture, decoders, expect):
-    """Every fault sigrok reports, and for each payload it reads otherwise, the classes,
-    the first line that differs, what sigrok prints there and what was expected."""
+    """Returns every fault sigrok reports. For each payload it reads differently, returns
+    the classes, the first line that differs, what sigrok prints there and what was expected."""
     reported = (sigrok_cli(capture, decoders, faults(decoders, expect))
                 if faults(decoders, expect) else [])
     mismatches = []
@@ -247,8 +251,8 @@ def describe(reported, mismatches):
 
 
 def captures(trace, args, scratch, tooth=()):
-    """The waveforms to judge, each with why it is refused if it is: the one from reset
-    and, for a line the decoders join once it idles, the one from there."""
+    """Returns the waveforms to judge, each with why it is refused (if it is): the one
+    from reset and, for a line the decoders join once it idles, the one from there."""
     if args.capture:
         mapping = dict(BENCH[args.analyser], **dict(args.probe))
         missing = [n for n in trace.pins() if n not in mapping]
@@ -285,8 +289,9 @@ def ocaml(text):
 
 
 def show(trace, args):
-    """Every line each decoder reads from the trace, a class at a time, then the classes
-    that read something, faults aside, as a scenario's Sigrok.expect to start from."""
+    """Returns every line each decoder reads from the trace, one class at a time, then the
+    classes that read something (faults aside), as a starting point for a scenario's
+    Sigrok.expect."""
     expect = []
     with tempfile.TemporaryDirectory() as scratch:
         _, capture, decoders, _ = captures(trace, args, scratch)[-1]
@@ -328,7 +333,7 @@ def check(path, args):
             reported, mismatches = judge(capture, decoders, trace.expect)
             wrong = describe(reported, mismatches)
             if rejected == "info":
-                # on the bench an earlier run may have left the line idle
+                # on the bench, an earlier run may have left the line idle
                 results.append(("INFO", what + (wrong[0] if wrong else "read as expected")))
             elif rejected and rejected.matches(mismatches):
                 results.append(("XFAIL", what + "%s (%s)" % (
@@ -351,7 +356,7 @@ def check(path, args):
 
 
 def write_capture(trace, args):
-    """The trace as the bench's analyser would capture it, on its channels."""
+    """Returns the trace as the bench's analyser would capture it, on its channels."""
     pins = {channel: pin
             for pin, channel in dict(BENCH[args.analyser], **dict(args.probe)).items()}
     channels = [pins.get("D%d" % i) for i in range(8)]
@@ -364,7 +369,7 @@ def write_capture(trace, args):
 
 
 def host_frames(trace, path, clock_mhz):
-    """The host's SPI frames, each with the gap before it, for demo/pico_replay.py."""
+    """Returns the host's SPI frames, each with the gap before it, for demo/pico_replay.py."""
     if trace.clock != clock_mhz * 1e6:
         raise SystemExit("%s runs at %g MHz and the bench at %g: its host words would be off"
                          % (trace.name, trace.clock / 1e6, clock_mhz))
@@ -392,12 +397,12 @@ def host_frames(trace, path, clock_mhz):
 
 
 def protocols(path):
-    """Each decoder stack's protocol, its first decoder."""
+    """Returns each decoder stack's protocol, which is its first decoder."""
     return [stack.split(",")[0].split(":")[0] for stack in Trace(path).decoders]
 
 
 def summary(what, results, args):
-    """A protocol is read when every trace it decodes passed."""
+    """A protocol counts as read when every trace it decodes passed."""
     read = {}
     for path, passed in results.items():
         for protocol in protocols(path):

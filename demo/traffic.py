@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# Whether a bench demo's capture holds the traffic the demo puts on the wire. Pico A's PASS
-# is only what the chip told it, and a bus nobody answers can still end in one. A check
-# reads DEMO.sr, sigrok's DEMO.decode (demo/outside.sh's arguments) and Pico A's DEMO.log,
-# which gives the run's own values where a demo has them.
+# Checks that a bench demo's capture holds the traffic the demo puts on the wire. Pico A's
+# PASS only reflects what the chip told it, and a bus nobody answers can still end in a PASS.
+# Each check reads DEMO.sr, sigrok's DEMO.decode (with demo/outside.sh's arguments) and
+# Pico A's DEMO.log, which has the run's own values for demos that have them.
 # Usage: python3 demo/traffic.py DEMO [DIR]   prints each thing missing and then FAIL
 
 import re
@@ -41,12 +41,12 @@ import pio_firmware  # noqa: E402
 
 
 def typed(text):
-    """What demo_usb says it typed, a key a line."""
+    """Returns what demo_usb says it typed, one key per line."""
     return "".join(re.findall(r"^typed (.)\r?$", text, re.MULTILINE))
 
 
 def line(samples, channel):
-    """One channel's edge count and its first and last level."""
+    """Returns one channel's edge count and its first and last level."""
     levels = samples.translate(bytes((b >> channel) & 1 for b in range(256)))
     if not levels:
         return 0, None, None
@@ -54,7 +54,7 @@ def line(samples, channel):
 
 
 def exactly(decoded, expected, what):
-    """The first line where decoded is not expected, or the count when one runs out."""
+    """Returns the first line where decoded differs from expected, or the count if one runs out first."""
     for n, (got, want) in enumerate(zip(decoded, expected)):
         if got != want:
             return ["%s: decode line %d reads %r, expected %r" % (what, n + 1, got, want)]
@@ -64,7 +64,7 @@ def exactly(decoded, expected, what):
 
 
 def crc15(bits):
-    """CAN's CRC-15, x^15 + x^14 + x^10 + x^8 + x^7 + x^4 + x^3 + 1, over SOF to the data."""
+    """Computes CAN's CRC-15 (x^15 + x^14 + x^10 + x^8 + x^7 + x^4 + x^3 + 1) from SOF to the data."""
     crc = 0
     for bit in bits:
         top = ((crc >> 14) & 1) ^ bit
@@ -79,9 +79,10 @@ def bits(value, width):
 
 
 def can_lines(ident, rtr, dlc, data, acked):
-    """sigrok's lines for a standard frame. sigrok 0.5.3 reads a remote frame's DLC of bytes
-    as data (test/traces/sigrok/can_remote.trace): the CRC, its delimiter and the ACK slot
-    with the recessive bits after it, so the frame's ACK lands in the CRC it reads."""
+    """Returns sigrok's lines for a standard frame. sigrok 0.5.3 reads a remote frame's DLC
+    worth of bytes as data (test/traces/sigrok/can_remote.trace): the CRC, its delimiter and
+    the ACK slot with the recessive bits after it, so the frame's ACK lands in the CRC it
+    reads."""
     fields = [0] + bits(ident, 11) + [rtr, 0, 0] + bits(dlc, 4)
     crc = crc15(fields + sum((bits(b, 8) for b in data), []))
     out = ["can-1: Identifier: %d (0x%x)" % (ident, ident), "can-1: Data length code: %d" % dlc]
@@ -96,7 +97,7 @@ def can_lines(ident, rtr, dlc, data, acked):
 
 
 def can_bus(levels, frames):
-    """frames as (id, rtr, dlc, data), each ACKed, and the bus idle recessive around them."""
+    """Builds frames as (id, rtr, dlc, data), each ACKed, with the bus idle recessive around them."""
     _, first, last = levels[5]
     problems = ["D5 (CAN R) is dominant at the capture's %s: the bus does not idle recessive" % at
                 for at, level in (("start", first), ("end", last)) if not level]
@@ -130,8 +131,8 @@ def neopixel(_levels):
 
 
 def referee(_levels):
-    """demo_referee.auto's frames when every cheat is caught: the score after each catch,
-    and a green sweep once the honest frames pass SWEEP_EVERY."""
+    """Returns demo_referee.auto's frames when every cheat is caught: the score after each
+    catch, and a green sweep once the honest frames pass SWEEP_EVERY."""
     r = demo_referee
     frames, honest = [], 0
     for caught in range(r.AUTO_CHEATS):
@@ -164,8 +165,8 @@ def flash(_levels):
 
 
 def eeprom(_levels):
-    """The reads and writes demo_eeprom logs, with the values it logs. sigrok warns of each
-    address-only probe and each NACK of the ACK polling, which are expected."""
+    """Returns the reads and writes that demo_eeprom logs, with the values it logs. sigrok
+    warns about each address-only probe and each NACK during ACK polling; both are expected."""
 
     def judge(decoded, log):
         byte = re.search(r"^byte write 0x(\w+): (\w\w) -> (\w\w)", log, re.M)
@@ -188,7 +189,7 @@ def eeprom(_levels):
 
 
 def in_order(decoded, expected, what):
-    """The first expected line the decode does not have after the one before it."""
+    """Returns the first expected line that the decode lacks after the previous one."""
     at = 0
     for want in expected:
         try:
@@ -200,8 +201,9 @@ def in_order(decoded, expected, what):
 
 
 def run_of(decoded, expected, what):
-    """The first line where the decode differs from expected, unless expected is in it as
-    one unbroken run; what a line idle from reset makes the decoder read before it aside."""
+    """Returns the first line where the decode differs from expected, unless expected
+    appears in it as one unbroken run. Ignores whatever the decoder reads before it because
+    a line idled from reset."""
     starts = [i for i, got in enumerate(decoded) if got == expected[0]]
     if any(decoded[i:i + len(expected)] == expected for i in starts):
         return []
@@ -211,9 +213,9 @@ def run_of(decoded, expected, what):
 
 
 def ds18b20(_levels):
-    """Pico A's readback, checked again from its log: both CRCs, the family, and a
-    temperature the part can read that is not its power-on 85 C. Then the same ROM and
-    scratchpad in the decode of DQ, behind READ ROM, CONVERT T and READ SCRATCHPAD."""
+    """Rechecks Pico A's readback from its log: both CRCs, the family, and a temperature
+    the part can read that isn't its power-on 85 C. Then checks the same ROM and scratchpad
+    appear in the decode of DQ, after READ ROM, CONVERT T and READ SCRATCHPAD."""
 
     def judge(decoded, log):
         t = demo_ds18b20
@@ -244,8 +246,8 @@ def ds18b20(_levels):
 
 
 def swd(_levels):
-    """Core 0's and core 1's DPIDR and AP 0's IDR, each read with an OK. sigrok's SWD
-    decoder misreads the dormant wake and TARGETSEL, so only reads are held to it."""
+    """Expects core 0's and core 1's DPIDR and AP 0's IDR, each read with an OK. sigrok's
+    SWD decoder misreads the dormant wake and TARGETSEL, so only reads are checked."""
 
     def judge(decoded, log):
         idr = re.search(r"^AP 0 IDR 0x(\w{8})", log, re.M)
@@ -334,7 +336,7 @@ def microwire(_levels):
 
 
 def xy2_100(_levels):
-    """The setpoints in order, then the last again, as SENDCK runs on until the halt."""
+    """Returns the setpoints in order, then the last one again, because SENDCK keeps running until the halt."""
     expected = demo_xy2_100.lines(demo_xy2_100.WORDS)
     last = demo_xy2_100.frame(demo_xy2_100.WORDS[-1])
 
@@ -361,7 +363,7 @@ def ir_rc6(_levels):
 
 
 def tdm_audio(_levels):
-    """The frame of samples, then silence a channel at a time until the halt."""
+    """Returns the frame of samples, then silence one channel at a time until the halt."""
     words = demo_tdm_audio.WORDS
 
     def judge(decoded, _log):
@@ -371,7 +373,7 @@ def tdm_audio(_levels):
     return judge
 
 
-# the held-out protocols (test/heldout.txt): each demo's own values as sigrok prints them
+# the held-out protocols (test/heldout.txt): each demo's own values, as sigrok prints them
 def dali(_levels):
     expected = demo_dali.lines(demo_dali.FRAMES)
     return lambda decoded, _log: exactly(decoded, expected, "the frames sent")
@@ -418,7 +420,7 @@ def sweep(levels):
     edges = levels[4][0]
 
     def judge(_decoded, log):
-        # firmware, watch, edges, exact, within, out, the faults of both engines, verdict
+        # the fields: firmware, watch, edges, exact, within, out, faults of both engines, verdict
         row = r"^\w+\s+\w+\s+(\d+)\s+\d+\s+\d+\s+\d+\s+\d+ \d+\s+(?:PASS|FAIL)$"
         rows = re.findall(row, log, re.M)
         if not rows:
@@ -432,10 +434,10 @@ def sweep(levels):
 
 CAN_R = {5: "CAN R, low is dominant"}
 I2C = {6: "SDA", 7: "SCL"}
-# the 74AHCT125's input, not DIN
+# the 74AHCT125's input, which is not DIN
 NEO = {4: "NEO_3V3"}
 OUT0 = {4: "OUT0"}
-# each demo's analyser channels on the bench, all of which must move, and its check
+# each demo's analyser channels on the bench (all must move), and its check
 CHECKS = {
     "can": (CAN_R, can),
     "can_node": (CAN_R, can_node),
@@ -471,16 +473,17 @@ CHECKS = {
 }
 
 
-# sigrok's spdif takes its clock from the first pulses it sees, and a line low from reset
-# until the firmware starts throws it off for good. So it decodes these as demo/decode.py
-# joins their traces: from once the channel has idled high for the trace's joins_after, in
-# 48 MHz cycles (test/traces/spdif.trace). Kept as DEMO.joined.decode.
+# sigrok's spdif takes its clock from the first pulses it sees, and a line that stays low
+# from reset until the firmware starts throws it off for good. So we decode these the way
+# demo/decode.py joins their traces: starting once the channel has idled high for the
+# trace's joins_after (in 48 MHz cycles, see test/traces/spdif.trace). Saved as
+# DEMO.joined.decode.
 JOINED = {"spdif": (4, 34)}
 
 
 def joined_decode(name, d, rate, samples):
-    """sigrok's decode, with the demo's outside: arguments, of the capture from once channel
-    JOINED[name] has idled high long enough."""
+    """Returns sigrok's decode of the capture, using the demo's outside: arguments, starting
+    once channel JOINED[name] has idled high long enough."""
     bit, cycles = JOINED[name]
     count = round(cycles * rate / 48e6)
     levels = samples.translate(bytes((b >> bit) & 1 for b in range(256)))
@@ -499,13 +502,13 @@ def joined_decode(name, d, rate, samples):
 
 
 def stem(demo):
-    """The name of a demo's files: both start hold demos write start_hold.*."""
+    """Returns the name of a demo's files (both start hold demos write start_hold.*)."""
     return "start_hold" if demo.startswith("start_hold") else demo
 
 
 def check(demo, directory):
-    """What the demo's capture in directory lacks, empty when it holds the demo's traffic or
-    the demo puts none on a wire the analyser sees."""
+    """Returns what the demo's capture in directory lacks. Empty if it holds the demo's
+    traffic, or if the demo puts none on a wire the analyser sees."""
     name = stem(demo)
     d = Path(directory)
     if name not in CHECKS:
@@ -526,15 +529,15 @@ def check(demo, directory):
 
 
 def lines(name, samples):
-    """line() of each of the demo's analyser channels."""
+    """Returns line() for each of the demo's analyser channels."""
     return {c: line(samples, c) for c in CHECKS[name][0]}
 
 
 def judge(name, levels, decoded, log):
-    """What the demo's traffic lacks, from its channels' lines(), sigrok's decode and Pico
-    A's log."""
+    """Returns what the demo's traffic lacks, judging by its channels' lines(), sigrok's
+    decode and Pico A's log."""
     channels, make = CHECKS[name]
-    # a line that never moves explains whatever the decode lacks
+    # a line that never moves explains everything the decode lacks
     stuck = ["D%d (%s) never changes in the capture: %s throughout" % (
         c, what, "no samples" if first is None else "high" if first else "low")
         for c, what in channels.items() for edges, first, _ in [levels[c]] if not edges]
