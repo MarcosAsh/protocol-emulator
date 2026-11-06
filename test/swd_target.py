@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 """An RP2040's SWD port for the cocotb tests: SW-DPs of SWD protocol version 2 (ARM IHI
-0031G, B4 and B5.3) on one line, as Swd.Dp and Swd.Bus in test/swd.ml model them."""
+0031G, B4 and B5.3) sharing one line. Mirrors Swd.Dp and Swd.Bus in test/swd.ml."""
 
 ALERT = 0x19BC0EA2E3DDAFE986852D956209F392
 # Table B5-2, the SW-DP activation code, MSB first
@@ -11,8 +11,8 @@ DPIDR = 0x0BC12477
 # the IDR of an Arm AHB MEM-AP: designer 0x23b (Arm), class 8 (MEM-AP), type 1
 AP_IDR = 0x04770031
 OK, WAIT, FAULT = 1, 2, 4
-# SWCLK high and low, and the host's setup and hold: half of a 24 MHz SWCLK, the most the
-# RP2040 datasheet recommends
+# minimum SWCLK high and low time and host setup and hold: half of a 24 MHz SWCLK, the
+# fastest the RP2040 datasheet recommends
 MINIMUM_PS = 21_000
 
 
@@ -21,9 +21,9 @@ def parity(value):
 
 
 class Dp:
-    """One SW-DP and its MEM-AP, busy ap_latency clocks after each access. corrupt_acks
-    garbles that many OK ACKs, the DP going on as if the host had seen OK. With a core
-    (Core) the AP is that core's instead of the memory dict's."""
+    """One SW-DP and its MEM-AP, busy for ap_latency clocks after each access. corrupt_acks
+    garbles that many OK ACKs while the DP carries on as if the host had seen OK. With a
+    core (Core), the AP belongs to that core instead of the memory dict."""
 
     def __init__(self, targetid, dpidr=DPIDR, ap_latency=0, memory=None, corrupt_acks=0,
                  cycle_ps=20834, core=None):
@@ -73,7 +73,7 @@ class Dp:
             self.violations.append("%s of %d ps" % (name, ps))
 
     def wake(self, b):
-        """The selection alert, four cycles ignored, then the activation code (B5.3.4)."""
+        """The selection alert, four ignored cycles, then the activation code (B5.3.4)."""
         if self.after_alert is None:
             self.seen = (self.seen + [b])[-128:]
             if self.seen == [(ALERT >> i) & 1 for i in range(128)]:
@@ -89,7 +89,7 @@ class Dp:
             self.seen = []
 
     def line_reset(self, b):
-        """50 cycles high and two idle (B4.3.3), seen while the DP does not drive."""
+        """50 cycles high then two idle (B4.3.3), seen while the DP is not driving."""
         if self.drive is not None:
             return
         if b:
@@ -127,10 +127,10 @@ class Dp:
         return 0
 
     def respond(self, ap, read, address):
-        """ACK on the three rises after the turnaround, then RDATA and parity and a
+        """ACK over the three rises after the turnaround, then either RDATA, parity and a
         turnaround, or a turnaround and WDATA (B4.2)."""
         name = "%s %s 0x%x" % ("R" if read else "W", "AP" if ap else "DP", address)
-        # B4.2.3, B4.2.4: never to a DPIDR or CTRL/STAT read, nor to an ABORT write
+        # B4.2.3, B4.2.4: never refuse a DPIDR or CTRL/STAT read, or an ABORT write
         may_refuse = ap or (read and address > 4) or (not read and address != 0)
         busy = self.busy and (ap or (read and address == 0xC))
         sticky = self.sticky_err or self.wdata_err
@@ -172,14 +172,14 @@ class Dp:
             and (request >> 7) & 1
         may_select, self.may_select = self.may_select, False
         if not fine:
-            # a line reset's ones look like a request too
+            # the ones of a line reset look like a request too
             if request != 0xFF:
                 self.log.append("protocol error")
             self.selected = False
         elif not ap and not read and address == 0xC:
             if not may_select:
                 self.violations.append("TARGETSEL not straight after a line reset")
-            # five cycles not driven (B4.3.4), then WDATA and parity
+            # five undriven cycles (B4.3.4), then WDATA and parity
             self.request = request
             self.actions = [("skip", None)] * 5 + [("sample", None)] * 33
         elif self.in_reset and not (read and not ap and address == 0):
@@ -190,8 +190,8 @@ class Dp:
             self.actions = self.respond(ap, read, address)
 
     def complete(self):
-        """WDATA as the line had it, whoever drove it, as silicon cannot tell: a host
-        backing off leaves the pull's level. A host driving part of it is a violation."""
+        """WDATA as the line had it, whoever drove it, because silicon can't tell. A host that
+        backs off leaves the pull's level. A host driving only part of it is a violation."""
         driven = sum(d for _, d in self.sampled)
         bits = [b for b, _ in self.sampled]
         value = sum(b << i for i, b in enumerate(bits[:32]))
@@ -275,12 +275,12 @@ class Dp:
             self.bits = [1]
 
     def step(self, swclk, host, line):
-        """One cycle: host is the level the host drives, None if it does not, line what
-        everyone sees."""
+        """One cycle. host is the level the host drives (None if it doesn't drive), line is
+        what everyone sees."""
         if host is not None and self.drive is not None:
             self.violations.append("contention: host and target both drive")
         if line != self.line and host is not None:
-            # hold counts only after a rise that took a bit from the host
+            # hold only counts after a rise that sampled a bit from the host
             if not self.held:
                 self.held = True
                 self.timed("hold", self.rose)
@@ -298,8 +298,8 @@ class Dp:
 
 
 class Bus:
-    """The host's pins and the RP2040's two core DPs on one line, at undriven when nobody
-    drives it: 1 for a pull-up."""
+    """The host's pins and the RP2040's two core DPs on one line. The line sits at undriven
+    when nobody drives it (1 for a pull-up)."""
 
     def __init__(self, dps=None, undriven=1):
         self.dps = dps or [Dp(CORE0), Dp(CORE1)]
@@ -323,8 +323,8 @@ class Bus:
         return self.line()
 
 
-# RP2040 datasheet 2.8.3: the bootrom's vector table, then 'M', 'u', 1 and the version, 3
-# on B2 silicon
+# RP2040 datasheet 2.8.3: the bootrom's vector table, then 'M', 'u', 1 and the version
+# (3 on B2 silicon)
 BOOTROM = {0x00: 0x20041F00, 0x04: 0x000000EF, 0x08: 0x00000035, 0x0C: 0x00000031,
            0x10: 0x0301754D}
 CPUID = 0x410CC601
@@ -336,10 +336,10 @@ COMPONENTS = {ROM_TABLE: (0xB105100D, 0x4000BB4C0), 0xE000E000: (0xB105E00D, 0x4
 
 
 class Core:
-    """A Cortex-M0+ behind an AHB-AP (ARMv6-M ARM C1, ADIv5 C2), as much as a debugger
-    reads to halt it, read its registers and memory and resume it: the bootrom's first
-    words, SRAM, the ROM table, the SCS debug registers, DWT and BPU. Accesses elsewhere
-    are bus errors."""
+    """A Cortex-M0+ behind an AHB-AP (ARMv6-M ARM C1, ADIv5 C2), modelled just far enough
+    for a debugger to halt it, read its registers and memory, and resume it. That covers
+    the bootrom's first words, SRAM, the ROM table, the SCS debug registers, DWT and BPU.
+    Accesses elsewhere are bus errors."""
 
     def __init__(self):
         self.csw = 0x03000042
@@ -410,12 +410,12 @@ class Core:
         return True
 
     def step(self):
-        """TAR on by the access size, if CSW's AddrInc says single increment."""
+        """Advance TAR by the access size if CSW's AddrInc says single increment."""
         if (self.csw >> 4) & 3 == 1:
             self.tar = (self.tar + (1 << (self.csw & 7))) & 0xFFFFFFFF
 
     def ap_read(self, select, address):
-        """The register at address in SELECT's AP and bank, None for a bus error."""
+        """The register at address in SELECT's AP and bank, or None for a bus error."""
         if select >> 24:
             return 0
         register = (select & 0xF0) | address
@@ -432,7 +432,7 @@ class Core:
         return {0xF8: ROM_TABLE | 3, 0xFC: AP_IDR}.get(register, 0)
 
     def ap_write(self, select, address, value):
-        """Whether the write took, False for a bus error."""
+        """True if the write took, False for a bus error."""
         if select >> 24:
             return True
         register = (select & 0xF0) | address

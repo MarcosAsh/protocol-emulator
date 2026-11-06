@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# UART transmitter on engine 0, receiver on engine 1, over wire 20.
+# UART transmitter on engine 0 and receiver on engine 1, connected by wire 20.
 
 import cocotb
 from cocotb.triggers import ClockCycles, FallingEdge
@@ -11,7 +11,7 @@ WIRE = 20
 
 
 async def load(host, engine, config, name):
-    """Loads and certifies; every engine has to be halted for the certificate's write."""
+    """Load and certify. Every engine must be halted for the certificate write."""
     await host.write(SELECT, [engine])
     for reg, word in config_writes(config):
         await host.write(reg, [word])
@@ -42,7 +42,7 @@ async def test_uart_between_engines(dut):
     for _ in range(400):
         await ClockCycles(dut.clk, 1)
         assert int(dut.uo_out.value) >> 1 == 0, "a wire reached a pin"
-    # both idle: the sender took its two words, and no fault or irq anywhere
+    # both idle: the sender took its two words and there is no fault or irq
     assert (await host.read(STATUS))[0] == 0
 
     await host.write(SELECT, [1])
@@ -53,8 +53,8 @@ async def test_uart_between_engines(dut):
 
 @cocotb.test()
 async def test_one_engine_times_the_other(dut):
-    """Engine 1 stamps engine 0's edges: each a whole number of bit periods after its
-    start bit, as the certificate says. When the host reads the stamps moves none."""
+    """Engine 1 stamps engine 0's edges. Each is a whole number of bit periods after its
+    start bit, as the certificate says. When the host reads the stamps doesn't move any."""
     await reset(dut)
     host = AsyncHost(Pins(dut).transfer)
     period = 434
@@ -84,12 +84,12 @@ async def test_one_engine_times_the_other(dut):
             break
         await ClockCycles(dut.clk, 100)
     assert len(stamps) == expected, f"{len(stamps)} edges seen, {expected} expected"
-    # both still running, with no irq and no fault
+    # both still running, no irq, no fault
     assert (await host.read(STATUS))[0] & 0x3F == 0
     await host.write(SELECT, [0])
     assert (await host.read(STATUS))[0] & 0x3F == 0
 
-    # the first stamp is the line going idle; then each frame, start bit first
+    # the first stamp is the line going idle, then come the frames, start bit first
     stamps = stamps[1:]
     for byte, edges in frames:
         measured, stamps = stamps[: len(edges)], stamps[len(edges):]
@@ -100,9 +100,9 @@ async def test_one_engine_times_the_other(dut):
 
 
 async def self_check(dut, period):
-    """Engine 1 checks engine 0's frames against the certificate's rows at 256 in the data
-    memory, above words another program could stream from 0, and says whether it raised its
-    irq, which it does only with a halt."""
+    """Engine 1 checks engine 0's frames against the certificate's rows at 256 in data
+    memory (above the words another program could stream from 0), and reports whether it
+    raised its irq. It only does that with a halt."""
     await reset(dut)
     host = AsyncHost(Pins(dut).transfer)
     checker = dict(
@@ -112,7 +112,7 @@ async def self_check(dut, period):
     await load(host, 1, checker, "self_check_wire")
     transmitter = dict(DEFAULT_CONFIG, set_base=WIRE, out_base=WIRE)
     await load(host, 0, transmitter, "uart_tx_host_rate")
-    # over the certificates, which hold once checked
+    # this overrides the certificates, which hold once checked
     await host.write(DATA_ADDR, [0])
     await host.write(DATA, [0x0101] * 16)
     await host.write(DATA_ADDR, [256])
@@ -138,7 +138,7 @@ async def test_the_chip_catches_a_bit_period_a_cycle_long(dut):
 
 
 def underflow_flop(dut):
-    """Engine 0's underflow flop in the RTL; None in a netlist, which has no hierarchy."""
+    """Engine 0's underflow flop in the RTL, or None in a netlist (no hierarchy)."""
     try:
         engine = dut.user_project.core.top.engines.engine_0
     except AttributeError:
@@ -148,9 +148,9 @@ def underflow_flop(dut):
 
 @cocotb.test()
 async def test_a_faulted_engine_lets_go_of_its_pins(dut):
-    """Engine 0 drives uio 0 and OUT0 until it underflows. From the edge the fault shows the
-    chip drives neither, and engine 0 stays halted through a start until a reset. Engine 1
-    toggles uio 1 throughout."""
+    """Engine 0 drives uio 0 and OUT0 until it underflows. From the edge where the fault
+    shows, the chip drives neither, and engine 0 stays halted through a start until a
+    reset. Engine 1 toggles uio 1 throughout."""
     await reset(dut)
     host = AsyncHost(Pins(dut).transfer)
     releaser = dict(DEFAULT_CONFIG, set_base=12, side_set_count=1, side_set_base=5)
@@ -176,7 +176,7 @@ async def test_a_faulted_engine_lets_go_of_its_pins(dut):
             samples.append((int(dut.uio_oe.value), int(dut.uio_out.value), fault))
 
     watcher = cocotb.start_soon(sample())
-    # one word for the first pull, none for the second
+    # one word for the first pull and none for the second
     await host.write(TX, [0])
     status = (await host.read(STATUS))[0]
     watcher.cancel()

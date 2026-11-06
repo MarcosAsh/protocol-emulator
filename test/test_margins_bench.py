@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
-"""demo_margins.py on the RTL as Pico A runs it, judged by demo/margins.py as the bench is,
-against models with thresholds of their own: a few points of each part's sweeps either
-side of a model's threshold, which the judgement has to find. MARGINS names the JSON
-test/python/write_margins.exe writes; VSYS settles in 2 ms, which the model needs no
-longer, and the EEPROM's bus guard is a tenth as long."""
+"""Runs demo_margins.py on the RTL like Pico A, judged by demo/margins.py like the bench,
+against models with their own thresholds. It tries a few points of each part's sweeps on
+either side of a model's threshold, and the judgement has to find it. MARGINS names the
+JSON that test/python/write_margins.exe writes. VSYS settles in 2 ms (all the model
+needs) and the EEPROM's bus guard is a tenth as long."""
 
 import json
 import os
@@ -13,7 +13,7 @@ from cocotb.task import bridge, resume
 from cocotb.triggers import ClockCycles, Timer
 from cocotb.utils import get_sim_time
 
-# test_outside puts ../python and ../demo on the path, through test
+# test_outside puts ../python and ../demo on the path
 from test_outside import MS, Ds18b20, Memory, SlowPins, acted, bit, reset, with_crc
 import demo_margins
 import margins
@@ -33,7 +33,7 @@ def point(part, parameter, cycles):
 
 
 def short(dut):
-    """pause_ms at a tenth of a millisecond a millisecond."""
+    """A pause_ms that sleeps a tenth of the requested time."""
     @resume
     async def pause_ms(n):
         await ClockCycles(dut.clk, n * MS // 10)
@@ -42,9 +42,9 @@ def short(dut):
 
 
 class Stick:
-    """SK6812s on OUT3 as a threshold reads them: a high under SHORT_NS is no bit, over
-    ONE_NS a one; a low of LATCH_NS latches, each pixel taking 24 bits and passing the
-    rest on. VSYS falls by DROP volts a full channel lit."""
+    """SK6812s on OUT3 as a threshold reads them. A high under SHORT_NS is not a bit and
+    one over ONE_NS is a one. A low of LATCH_NS latches, and each pixel takes 24 bits and
+    passes the rest on. VSYS falls by DROP volts per fully lit channel."""
 
     SHORT_NS = 100
     ONE_NS = 600
@@ -101,13 +101,13 @@ async def judged(dut, part, parameter, cycles, run):
 
 @cocotb.test()
 async def test_sk6812(dut):
-    """T0H either side of the model's 600 ns, and the gap either side of its 80 us latch."""
+    """T0H on both sides of the model's 600 ns, and the gap on both sides of its 80 us latch."""
     await reset(dut)
     demo_margins.REFERENCES = 1
     demo_margins.SETTLE_MS = 2
     stick = Stick(dut)
-    # Pico A's SPI at the neopixel demo's clock, which the references' frames need, and
-    # their pauses as long as the bench's
+    # Pico A's SPI at the neopixel demo's clock (the reference frames need it), with
+    # pauses as long as on the bench
     half = 48_000_000 // demo_margins.demo_neopixel.SPI_HZ // 2
     transfer, pause_ms, _, _ = acted(dut, SlowPins(dut, half, gap=3))
     host = demo_margins.pe.Host(transfer)
@@ -130,8 +130,8 @@ async def test_sk6812(dut):
 
 @cocotb.test()
 async def test_eeprom(dut):
-    """The library's rate and the least 1/fSCL the kernel takes: cocotbext-i2c's memory
-    has no timing of its own, so both read the page."""
+    """The library's rate and the smallest 1/fSCL the kernel accepts. cocotbext-i2c's
+    memory has no timing of its own, so both read the page."""
     await reset(dut)
     memory = Memory(sda=dut.sda, sda_o=dut.sda_o, scl=dut.scl, scl_o=dut.scl_o,
                     addr=demo_margins.EEPROM_DEVICE, size=32768)
@@ -150,7 +150,7 @@ async def test_eeprom(dut):
 
 
 class WritableDs18b20(Ds18b20):
-    """test_outside's model, which also takes WRITE SCRATCHPAD's three bytes."""
+    """test_outside's model, extended to accept the three bytes of WRITE SCRATCHPAD."""
 
     def __init__(self, dut, rom, scratchpad):
         super().__init__(dut, rom, scratchpad)
@@ -175,8 +175,8 @@ class WritableDs18b20(Ds18b20):
 
 @cocotb.test()
 async def test_ds18b20(dut):
-    """Either side of the model's own thresholds: a reset of 480 us, a presence 30 to
-    150 us after it, a write's low read as a zero from 15 us, a zero held 30 us."""
+    """Both sides of the model's own thresholds: a 480 us reset, a presence 30 to 150 us
+    after it, a write's low read as a zero from 15 us, and a zero held for 30 us."""
     await reset(dut)
     rom = with_crc([0x28, 0xD1, 0xC3, 0x5A, 0x0B, 0x00, 0x00])
     pad = with_crc([0x91, 0x01, 0x4B, 0x46, 0x7F, 0xFF, 0x0C, 0x10])
@@ -184,7 +184,7 @@ async def test_ds18b20(dut):
     transfer, _, _, _ = acted(dut)
     host = demo_margins.pe.Host(transfer)
     us = 48
-    # each point simulates some 50 ms, so the library's timing once and a failure a kind
+    # each point simulates about 50 ms, so run the library's timing once and one failure per kind
     for parameter, cycles, passes in [
         ("tRSTL", 504 * us, True), ("tRSTL", 400 * us, False),
         ("presence sample", 20 * us, False), ("tLOW0", 10 * us, False),

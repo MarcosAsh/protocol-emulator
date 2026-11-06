@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-"""demo/swd_probe.py under a stock pyOCD session, through python/bridge.py, against an
-RP2040's two DPs and core 0 (swd_target.py), in a second. The chip's SWD firmware is
-stood in for by Firmware, cycle for cycle as test/swd.mli describes it; test_pyocd.py runs
-the same on the RTL. Run from the repository root: python3 test/test_swd_probe.py"""
+"""Runs demo/swd_probe.py under a stock pyOCD session, through python/bridge.py, against
+an RP2040's two DPs and core 0 (swd_target.py). Takes about a second. Firmware stands in
+for the chip's SWD firmware, cycle for cycle as test/swd.mli describes it. test_pyocd.py
+does the same on the RTL. Run from the repository root: python3 test/test_swd_probe.py"""
 
 import os
 import shutil
@@ -20,14 +20,14 @@ import swd_target  # noqa: E402
 from pyocd.core.session import Session  # noqa: E402
 from pyocd.probe.tcp_probe_server import DebugProbeServer  # noqa: E402
 
-# chip cycles a half period: what the DP model times against its 21 ns floor
+# chip cycles per half period; the DP model times these against its 21 ns floor
 HALF_CYCLES = 2
 
 
 class Firmware(demo_swd.Swd):
-    """Swd.send as the SWD firmware answers it, on a swd_target.Bus: a sequence's driven
-    bits, or a transfer and its eight idle cycles, SWDIO moving and sampled as SWCLK
-    falls."""
+    """Swd.send as the SWD firmware answers it, on a swd_target.Bus. It handles either a
+    sequence's driven bits or a transfer plus its eight idle cycles. SWDIO moves and is
+    sampled as SWCLK falls."""
 
     def __init__(self, bus):
         super().__init__(host=None)
@@ -35,15 +35,15 @@ class Firmware(demo_swd.Swd):
         self.started = False
 
     def clock(self, bit=None):
-        """One SWCLK period, the host driving bit or not, and the line as it falls."""
+        """One SWCLK period, with the host driving bit or not. Returns the line as SWCLK falls."""
         for swclk in (0, 1):
             for _ in range(HALF_CYCLES):
                 line = self.bus.step(swclk, bit)
         return line
 
     def transfer(self, words):
-        """The request, ACK on the three rises after it, then RDATA, parity and a
-        turnaround, or two turnaround cycles and WDATA, which TARGETSEL's bit 8 sends
+        """The request, then ACK over the next three rises, then either RDATA, parity and a
+        turnaround, or two turnaround cycles and WDATA. TARGETSEL's bit 8 sends WDATA
         whatever the ACK."""
         request = words[0] & 0xFF
         for i in range(8):
@@ -96,7 +96,7 @@ class Host:
 
 
 class Local(bridge.Bridge):
-    """The bridge without Pico A: the line protocol straight to Firmware."""
+    """The bridge without Pico A, sending the line protocol straight to Firmware."""
 
     def __init__(self, bus):
         super().__init__(Host(), Firmware(bus))
@@ -119,8 +119,8 @@ class Local(bridge.Bridge):
 
 
 def clean(bus):
-    """No timing or protocol violation but pyOCD's own: its ABORT sets STKCMPCLR, which a
-    MINDP DP takes as SBZ, and which picoprobe and CMSIS-DAP send an RP2040 too."""
+    """No timing or protocol violation except pyOCD's own. Its ABORT sets STKCMPCLR, which
+    a MINDP DP treats as SBZ. Picoprobe and CMSIS-DAP send it to an RP2040 too."""
     for i, dp in enumerate(bus.dps):
         others = [v for v in dp.violations if v != "STKCMPCLR written to a MINDP DP"]
         assert others == [], (i, others)
@@ -172,7 +172,7 @@ def test_unpowered():
 
 
 def test_fault():
-    """A read outside the memory map: pyOCD sees the FAULT, clears it, and goes on."""
+    """A read outside the memory map. pyOCD sees the FAULT, clears it and carries on."""
     core = swd_target.Core()
     bus = swd_target.Bus([swd_target.Dp(swd_target.CORE0, core=core)])
     with session(swd_probe.Probe(Local(bus))) as s:
@@ -186,7 +186,7 @@ def test_fault():
 
 
 def test_stock_commander():
-    """pyocd commander, unchanged, over pyOCD's remote probe protocol, as on the bench."""
+    """The stock pyocd commander over pyOCD's remote probe protocol, as on the bench."""
     pyocd = shutil.which("pyocd")
     if pyocd is None:
         print("no pyocd on PATH: commander skipped")

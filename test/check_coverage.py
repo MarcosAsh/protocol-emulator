@@ -2,15 +2,16 @@
 # Checks Hardcaml's cyclesim coverage of src/ against test/coverage_triage.txt: every point
 # the tests leave open must be triaged there, and every triaged point must still be open.
 # Usage: python3 test/check_coverage.py test/coverage_triage.txt REPORT... [--holes]
-#   a REPORT is a coverage.txt the test runner writes with HARDCAML_CYCLESIM_COVERAGE_VERBOSE=1,
-#   or a directory of them (test/coverage.sh); all are merged as one
+#   a REPORT is a coverage.txt written by the test runner with
+#   HARDCAML_CYCLESIM_COVERAGE_VERBOSE=1, or a directory of them (test/coverage.sh).
+#   All reports are merged into one.
 #
-# Hardcaml merges only structurally equal circuits, so the engine in every test bench
-# counts apart. A point is a src/ signal: its module and local name, or, unnamed, the src/
-# frames of the stack that made it. Copies of a point in one circuit (loop iterations, a
-# second engine) are covered only when all are; a point is closed when some circuit covered
-# every copy. Signal waivers are already out of the report. Line numbers are for reading
-# only: a point is told by the text of its lines.
+# Hardcaml only merges structurally equal circuits, so the engine in each test bench is
+# counted separately. A point is a src/ signal, named by its module and local name or, if
+# unnamed, by the src/ frames of the stack that made it. Copies of a point in one circuit
+# (loop iterations, a second engine) count as covered only when all are covered. A point
+# is closed when some circuit covered every copy. Signal waivers are already out of the
+# report. Line numbers are only for reading; a point is identified by the text of its lines.
 import argparse
 import collections
 import hashlib
@@ -20,7 +21,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
-# instance names in the hierarchy, and the module each is an instance of
+# instance names in the hierarchy, mapped to the module each instantiates
 INSTANCES = {
     "data_memory": "data_memory",
     "edge_stamps": "edge_stamps",
@@ -46,11 +47,11 @@ INSTANCES = {
     "usb_rx": "usb_rx",
 }
 
-# the files of a module split in parts
+# modules that are split across several files
 PARTS = {"kernel_types": "kernel", "kernel_step": "kernel", "kernel_accepts": "kernel", "kernel_table": "kernel"}
 
 # [@@deriving hardcaml] code sits at the record's field lines and its frame loses the
-# caller: the engine's config registers are only ever made by the host port
+# caller. The engine's config registers are only ever made by the host port
 DERIVED_OWNER = {"Protocol_emulator__Engine.Config": "host_port"}
 
 FRAME = re.compile(r"^(\S+)\$(\S+):(\d+):(\d+)$")
@@ -65,7 +66,7 @@ def instance_module(segment):
 
 
 def split_name(name):
-    """[top$engines$engine_1$x_next] is the engine's [x_next]."""
+    """top$engines$engine_1$x_next is the engine's x_next."""
     segments = name.split("$")
     i = 0
     while i < len(segments) and instance_module(segments[i]) is None:
@@ -89,7 +90,7 @@ def source_line(file, line):
 
 
 def from_stack(frames):
-    """The module and the src/ frames, innermost first, up to the module's hierarchy."""
+    """The module and its src/ frames, innermost first, up to the module's hierarchy."""
     ours, module, derived = [], None, None
     for frame in frames:
         m = FRAME.match(frame)
@@ -119,7 +120,7 @@ def items(data, field):
 
 
 def cases(data, field):
-    """A switch's cases, states sharing a branch, printed (A | B), as one."""
+    """A switch's cases; states sharing a branch are printed (A | B) and count as one."""
     return re.findall(r"\([^)]*\)|\S+", " ".join(data.get(field, [])))
 
 
@@ -148,9 +149,9 @@ def parse_point(kind, lines):
         elif raw.startswith(" " * 8) and current:
             data[current].append(line)
         i += 1
-    # a state register's random power-up value is no state, so its switch takes the
-    # default, until the clear. Hardcaml skips the first sample's 0 -> 0, as it assumes
-    # a zero start; a random start S gives S -> S there instead
+    # a state register's random power-up value isn't a state, so its switch takes the
+    # default until the clear. Hardcaml skips the first sample's 0 -> 0 because it assumes
+    # a zero start, so a random start S gives S -> S there instead
     if any("driving (state variable)" in line for line in lines):
         unexpected = [u for u in unexpected if u != "!! unexpectedly saw: default"]
     if kind == "Always state":
@@ -162,7 +163,7 @@ def parse_point(kind, lines):
         module, anchor, where = from_stack(frames)
     if module is None:
         return None
-    # the size is in the point: a parameter that changes it makes another point
+    # the size is part of the point, so a parameter that changes it makes a different point
     if kind == "Mux":
         never = {"=" + v for v in items(data, "never saw")}
         width = str(len(items(data, "saw selector values of")) + len(never))
@@ -197,8 +198,8 @@ def parse(path):
 
 
 def read_triage(path):
-    """[point [k/n] class reason], or [module name max class reason] for a module whose open
-    points are only counted."""
+    """Returns (point [k/n] class reason), or (module name max class reason) for a module
+    whose open points are only counted."""
     points, modules = {}, {}
     for n, line in enumerate(Path(path).read_text().splitlines(), 1):
         line = line.split("#", 1)[0].strip()
@@ -240,7 +241,7 @@ def main():
             copies[point].append(never)
             if has_waiver:
                 waived.add(point)
-            # nor is a transition from it one of the design's
+            # and a transition out of it isn't one of the design's either
             unexpected += [(point, u) for u in unexp if "!unknown_state" not in u]
         for point, nevers in copies.items():
             union = set().union(*nevers)

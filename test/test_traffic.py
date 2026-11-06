@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-"""demo/traffic.py on made captures, decoded by sigrok-cli with demo/outside.sh's arguments:
-the CAN bus Pico B never answered, which Pico A passed on 2026-10-10, must fail."""
+"""Runs demo/traffic.py on made-up captures, decoded by sigrok-cli with demo/outside.sh's
+arguments. The CAN bus Pico B never answered (which Pico A passed on 2026-10-10) must
+fail."""
 
 import re
 import shutil
@@ -31,7 +32,7 @@ PASS
 
 
 def can_bits(ident, rtr, dlc, data, acked=True):
-    """A standard frame on the bus, stuffed, to the end of its intermission."""
+    """A stuffed standard frame on the bus, up to the end of its intermission."""
     fields = [0] + traffic.bits(ident, 11) + [rtr, 0, 0] + traffic.bits(dlc, 4)
     fields += sum((traffic.bits(b, 8) for b in data), [])
     fields += traffic.bits(traffic.crc15(fields), 15)
@@ -46,7 +47,7 @@ def can_bits(ident, rtr, dlc, data, acked=True):
 
 
 def capture(path, levels, channel=5):
-    """levels a bit on one channel, the others high."""
+    """Write levels (one per bit) on one channel, with the others high."""
     rest = 0xFF & ~(1 << channel)
     sigrok.write(path, RATE, b"".join(bytes([rest | (b << channel)]) * BIT for b in levels))
 
@@ -76,8 +77,8 @@ class Can(unittest.TestCase):
         return [1] * 20 + sum((can_bits(*f, **kw) + [1] * 20 for f in frames), []) + [1] * 40
 
     def test_stuck_dominant(self):
-        """Pico B in MicroPython: nothing on the bus, D5 low throughout, and sigrok reads a
-        frame of zeros after another. Pico A still says PASS."""
+        """Pico B in MicroPython: nothing on the bus, D5 low throughout, so sigrok reads
+        frame after frame of zeros. Pico A still says PASS."""
         problems = self.run_demo("can", [0] * 50_000)
         self.assertEqual(problems, ["D5 (CAN R, low is dominant) never changes in the capture: "
                                     "low throughout"])
@@ -93,7 +94,7 @@ class Can(unittest.TestCase):
         self.assertEqual(self.run_demo("can", self.frames(frames)), [])
 
     def test_can_node(self):
-        """Pico B's remote frame too, as sigrok misreads it."""
+        """Pico B's remote frame as well, which sigrok misreads."""
         node = traffic.demo_can_node
         frames = [(i, 0, len(d), d) for i, d in node.FRAMES] + node.REPLIES
         self.assertEqual(self.run_demo("can_node", self.frames(frames), log="PASS\n"), [])
@@ -117,7 +118,7 @@ class Can(unittest.TestCase):
 
 
 def nec_runs(keys, unit):
-    """demo_nec's keys as Nec.tx sends them, (level, samples) a run, low for a mark."""
+    """demo_nec's keys as Nec.tx sends them, as (level, samples) runs. Low is a mark."""
     runs = [(1, 100 * unit)]
     for address, command, repeats in keys:
         bits = [(b >> i) & 1 for b in (address, ~address, command, ~command) for i in range(8)]
@@ -130,8 +131,8 @@ def nec_runs(keys, unit):
 
 @unittest.skipUnless(shutil.which("sigrok-cli"), "needs sigrok-cli")
 class Nec(unittest.TestCase):
-    """demo_nec's keys on D4 at the analyser's rate, decoded with its script's outside:
-    line, as demo/outside.sh does."""
+    """demo_nec's keys on D4 at the analyser's rate, decoded with the arguments from the
+    outside: line of its script, as demo/outside.sh does."""
 
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp())
@@ -164,8 +165,8 @@ class Nec(unittest.TestCase):
 
 
 class Decodes(unittest.TestCase):
-    """The checks of the other demos, on decodes as sigrok prints them and a capture whose
-    channels all move."""
+    """The checks of the other demos, run on decodes as sigrok prints them and on a capture
+    where every channel moves."""
 
     def setUp(self):
         self.dir = Path(tempfile.mkdtemp())
@@ -218,15 +219,15 @@ class Decodes(unittest.TestCase):
             "Page write (addr=7FC0, 64 bytes): " + page,
             "Sequential random read (addr=7FC0, 64 bytes): " + page]]
         self.assertEqual(self.check("eeprom_stretch", decoded, log), [])
-        # SDA with no pull-up reads back zeros, which the decode shows
+        # SDA with no pull-up reads back zeros, and the decode shows it
         stuck = decoded[:-1] + [decoded[-1][:-len(page)] + " ".join(["00"] * 64)]
         self.assertEqual(len(self.check("eeprom", stuck, log)), 1)
         self.assertEqual(self.check("eeprom", decoded, "FAIL\n"), [
             "Pico A's log has no byte write and page write to hold the decode to"])
 
     def test_ds18b20(self):
-        """DQ is analyser B's D5 on the carrier: Pico A's readback is checked again, and
-        the decode must hold the same ROM and scratchpad."""
+        """DQ is analyser B's D5 on the carrier. Pico A's readback is checked again, and the
+        decode must hold the same ROM and scratchpad."""
         log = ("ROM 28 7d 50 63 79 25 0b 3e: family 28, CRC good\n"
                "scratchpad 68 01 4b 46 7f ff 0c 10 3e: CRC good, configuration 7f, "
                "360/16 = 22.5000 C\nPASS\n")
@@ -306,7 +307,7 @@ class Decodes(unittest.TestCase):
         ident = ["spiflash-1: Manufacturer ID: 0xef", "spiflash-1: Memory type: 0x40",
                  "spiflash-1: Device ID: 0x17"]
         self.assertEqual(self.check("pio_spi", ["spiflash-1: Command: Read JEDEC ID"] + ident), [])
-        # an empty socket reads zeros
+        # an empty socket reads as zeros
         self.assertEqual(self.check("pio_spi", [d[:-4] + "0x00" for d in ident]), [
             "a W25Q64JV's JEDEC ID: decode line 1 reads 'spiflash-1: Manufacturer ID: 0x00', "
             "expected 'spiflash-1: Manufacturer ID: 0xef'"])

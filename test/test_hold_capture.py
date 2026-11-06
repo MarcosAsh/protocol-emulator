@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
-# demo/hold_capture.py on captures made from test/measure's predictions at 100 MHz, 10 ns a
-# sample, in the CSV LogicAnalyzer's TerminalCapture saves: exact edges, edges a sample
-# either way at random, one edge 300 ns late that must fail its limit, a drifting
-# analyser clock, and the same read back from a sigrok session file. Then
-# python/demo_predicted.py's feed of a prediction's words, on a stand-in for the chip.
+# Runs demo/hold_capture.py on captures built from test/measure's predictions at 100 MHz
+# (10 ns per sample), in the CSV format LogicAnalyzer's TerminalCapture saves. Cases: exact
+# edges, edges randomly a sample early or late, one edge 300 ns late that must fail its
+# limit, a drifting analyser clock, and the same read back from a sigrok session file.
+# Then python/demo_predicted.py's feed of a prediction's words, on a stand-in chip.
 # Usage: python3 test/test_hold_capture.py
 
 import os
@@ -31,9 +31,9 @@ def prediction(name):
 
 
 def capture(path, predicted, channels, start, jitter=0, late=None, ppm=0.0, seed=0):
-    """The prediction's pins on channels from 1, the line held as it is before cycle
-    start, as on a bench whose line idled before the capture; 2 us of it first. late:
-    (pin, edge from start, samples) moves one edge later."""
+    """The prediction's pins on channels from 1. The line is held as it was before cycle
+    start (2 us of it first), like a bench line that idled before the capture. late is
+    (pin, edge index from start, samples) and moves one edge later."""
     p = hold_capture.read_prediction(predicted)
     rng = random.Random(seed)
     cycle_ns = 1e9 / p["rate"]
@@ -68,7 +68,7 @@ def run(*args):
 
 
 def summary(out):
-    """matched, expected, missing, extra, off; the ppm."""
+    """Returns (matched, expected, missing, extra, off) and the ppm."""
     m = re.search(r"edges: (\d+) of (\d+) matched, (\d+) missing, (\d+) extra, (\d+) off", out)
     ppm = float(re.search(r"clock ([-+][\d.]+) ppm", out).group(1))
     return tuple(map(int, m.groups())), ppm
@@ -83,7 +83,7 @@ failures = []
 
 
 class Chip:
-    """The host side of an engine that takes a word from its fifo at each status read."""
+    """The host side of an engine that takes one word from its fifo per status read."""
 
     def __init__(self):
         self.fifo, self.taken, self.most = [], [], 0
@@ -129,7 +129,7 @@ def check(what, ok, out):
 def main():
     uart = prediction("uart_tx_115200")
     i2c = prediction("i2c_standard")
-    # OUT0 is pin 5; SCL on IO2 is 14 and SDA on IO3 15
+    # OUT0 is pin 5, SCL on IO2 is 14, SDA on IO3 is 15
     i2c_start = min(at[0] for _, at in hold_capture.read_prediction(i2c)["lines"].values())
     with tempfile.TemporaryDirectory() as scratch:
         def path(name):
@@ -149,8 +149,8 @@ def main():
               status == 0 and matched == expected and off == 0
               and all(abs(e) <= 2 * SAMPLE_NS for e in errors(out)), out)
 
-        # the fourth edge from the start ends the second low bit: 300 ns later stretches it
-        # past 2% of the bit
+        # the fourth edge from the start ends the second low bit, and 300 ns late stretches
+        # it past 2% of the bit
         try:
             import matplotlib  # noqa: F401
             plot = ["-o", path("late.png")]

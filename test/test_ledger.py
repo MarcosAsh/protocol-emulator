@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-"""demo/ledger.py against stand-ins for openFPGALoader, mpremote and sigrok-cli, so no board:
-the rows it adds, the hashes it keeps, and evidence never overwritten."""
+"""Runs demo/ledger.py against stand-ins for openFPGALoader, mpremote and sigrok-cli, so no
+board is needed. Checks the rows it adds, the hashes it keeps, and that evidence is never
+overwritten."""
 
 import csv
 import os
@@ -16,8 +17,8 @@ import ledger  # noqa: E402
 import sigrok  # noqa: E402
 import traffic  # noqa: E402
 
-# what each stand-in does is in its own words; VERDICT is what Pico A says, CAPTURE what the
-# analyser takes and DECODE what sigrok reads from it
+# VERDICT is what Pico A reports, CAPTURE is what the analyser records and DECODE is what
+# sigrok reads from it
 STANDINS = {
     "openFPGALoader": 'exit "${LOAD:-0}"\n',
     "mpremote": """shift 2
@@ -50,13 +51,13 @@ class Ledger(unittest.TestCase):
             (bin / name).chmod(0o755)
         self.bit = self.tmp / "chip.bit"
         self.bit.write_bytes(b"bitstream")
-        # every channel moves once each way
+        # every channel goes high once and low once
         sigrok.write(self.tmp / "capture.sr", 12_000_000, bytes([0, 0xFF, 0]))
         p = traffic.demo_neopixel.PIXELS
         self.neopixel = self.tmp / "neopixel.decode"
         self.neopixel.write_text("".join(d + "\n" for d in traffic.stick([p, p[1:] + p[:1]])))
         self.env = {k: v for k, v in os.environ.items() if not k.startswith("ANALYSER")}
-        # no firmware for demo/pico_b.sh, so it stops before it looks for a Pico
+        # no firmware for demo/pico_b.sh, so it stops before looking for a Pico
         self.env.update(PATH="%s:%s" % (bin, os.environ["PATH"]), PICO="id:a",
                         PICO_B_SERIAL="nobody", MICROPYTHON_UF2="/nowhere",
                         CAPTURE=str(self.tmp / "capture.sr"),
@@ -87,7 +88,7 @@ class Ledger(unittest.TestCase):
         self.assertEqual(run.returncode, 1, run.stdout + run.stderr)
         rows = {r["demo"]: r for r in self.rows()}
         self.assertEqual(list(rows), ["smoke", "self_timing", "sweep", "neopixel"])
-        # Pico B is not on USB, so the demo that needs its listener never runs
+        # Pico B isn't on USB, so the demo that needs its listener never runs
         self.assertEqual({d: r["result"] for d, r in rows.items()},
                          {"smoke": "PASS", "self_timing": "ERROR", "sweep": "PASS",
                           "neopixel": "PASS"})
@@ -114,8 +115,8 @@ class Ledger(unittest.TestCase):
         self.assertEqual(kept.read_bytes(), self.bit.read_bytes())
 
     def test_netlist(self):
-        """The netlist's hash from the .sha256 icepi/Makefile writes beside the bitstream,
-        kept with it, and "-" when that file names another bitstream or is missing."""
+        """The netlist hash comes from the .sha256 icepi/Makefile writes next to the
+        bitstream. It is "-" when that file names another bitstream or is missing."""
         bit_hash = ledger.sha256(self.bit)
         self.assertEqual(ledger.netlist(self.bit, bit_hash), "-")
         sums = self.tmp / "chip.sha256"
@@ -139,7 +140,7 @@ class Ledger(unittest.TestCase):
         self.assertIn("result: PASS", (self.check_sums(first) / "ledger.txt").read_text())
 
     def test_capture_without_traffic(self):
-        """Pico A's PASS on a capture without the stick's two frames is a FAIL."""
+        """Pico A's PASS becomes a FAIL if the capture lacks the stick's two frames."""
         self.run_ledger("neopixel")
         (row,) = self.rows()
         self.assertEqual(row["result"], "FAIL")
@@ -164,7 +165,7 @@ class Ledger(unittest.TestCase):
             self.assertEqual("\n%s, expect" % demo.name in run.stdout, demo.mhz == 48)
         self.assertFalse((self.tmp / "evidence").exists())
         self.assertFalse((self.tmp / "ledger.tsv").exists())
-        # the 40 MHz build's demos alone
+        # only the 40 MHz build's demos
         run = subprocess.run(
             [sys.executable, str(ROOT / "demo/ledger.py"), "chip-40mhz.bit", "--dry-run",
              "--evidence", str(self.tmp / "evidence"), "--results", str(self.tmp / "ledger.tsv")],
@@ -191,7 +192,7 @@ class Ledger(unittest.TestCase):
         self.assertEqual(ledger.judged(True, "PASS", ["D5 never changes"], "PASS"), "FAIL")
         self.assertEqual(ledger.judged(True, "FAIL", ["D5 never changes"], "PASS"), "FAIL")
         self.assertEqual(ledger.judged(False, "PASS", [], "PASS"), "ERROR")
-        # a capture without the traffic is no evidence of the failure a demo should show
+        # a capture with no traffic is no evidence of the failure the demo should show
         self.assertEqual(ledger.judged(True, "FAIL", [], "FAIL"), "FAIL")
         self.assertEqual(ledger.judged(True, "FAIL", ["D6 never changes"], "FAIL"), "ERROR")
 

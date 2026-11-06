@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# DShot600, SENT and HDMI-CEC from the certified library on the chip, each line decoded
-# and timed here against its protocol's limits.
+# DShot600, SENT and HDMI-CEC from the certified library on the chip. Each line is decoded
+# here and timed against its protocol's limits.
 
 import cocotb
 from cocotb.triggers import ClockCycles
@@ -13,8 +13,8 @@ CYCLE_NS = 20
 
 
 async def start(dut, firmware, words, watch):
-    """Loads and starts the firmware, then writes its words, with [watch] run every cycle
-    from before the load."""
+    """Load and start the firmware, then write its words. watch runs every cycle, starting
+    before the load."""
     await reset(dut)
     host = AsyncHost(Pins(dut).transfer)
 
@@ -55,7 +55,7 @@ def dshot_frame(throttle, telemetry):
 
 
 def decode_dshot(levels):
-    """DShot600: T0H 625 ns, T1H 1250 ns, bit 1667 ns, each within 5%; a low of more than
+    """DShot600: T0H 625 ns, T1H 1250 ns, bit 1667 ns, each within 5%. A low longer than
     two bits ends a frame."""
     def within(ns, nominal, name):
         assert abs(ns - nominal) * 20 <= nominal, f"{name} of {ns} ns"
@@ -116,12 +116,12 @@ def sent_words(status, data):
 
 
 def decode_sent(levels):
-    """SAE J2716 pulses from their falling edges: sync 56 ticks and within 1/64 of the
-    last, every pulse low more than 4 ticks, nibbles 12 to 27 ticks and whole to an eighth
-    of a tick, a pause 12 to 768. A trailing frame cut short has its sync checked, as
-    test/sent.ml's decoder does, and does not count. Like that one, an oracle for this
-    transmitter: no check of J2716's 3 to 90 us tick, so the test runs short ticks, and a
-    pause after every frame."""
+    """SAE J2716 pulses from their falling edges. Sync is 56 ticks and within 1/64 of the
+    last, every pulse is low for more than 4 ticks, nibbles are 12 to 27 ticks and a whole
+    number of eighth-ticks, and a pause is 12 to 768. A trailing frame cut short has its
+    sync checked (as in test/sent.ml's decoder) but doesn't count. Like that decoder, this
+    is an oracle for this transmitter only: it doesn't check J2716's 3 to 90 us tick, so
+    the test runs short ticks, and it expects a pause after every frame."""
     falls = [i for i in range(1, len(levels)) if levels[i - 1] and not levels[i]]
     rises = [i for i in range(1, len(levels)) if not levels[i - 1] and levels[i]]
     pulses = []
@@ -156,7 +156,7 @@ def decode_sent(levels):
 
 @cocotb.test()
 async def test_sent(dut):
-    """At a tick of 24 cycles, 480 ns, so the frames are short."""
+    """A tick of 24 cycles (480 ns) keeps the frames short."""
     tick = 24
     sent = [(0x5, [1, 2, 3, 4, 5, 6]), (0xA, [0xC, 0xA, 0xF, 0xE, 0x0, 0x7])]
     words = [tick] + [w for frame in sent for w in sent_words(*frame)]
@@ -173,13 +173,13 @@ async def test_sent(dut):
 
 
 class CecFollower:
-    """A follower at logical address [address] that acknowledges every block sent to it and times
-    the initiator in units: start low 70 to 78 and 86 to 94 in all, a one low 8 to 16, a
-    zero 26 to 34, a bit 41 to 55 (CEC 1.4, in 50 us units). Before a frame the line is
-    free for 5 bit periods of 48 units if its initiator is new, 3 if it retries a frame
-    that failed, and 7 otherwise (CEC 9.1), checked at its EOM. A frame whose line stays
-    high past a bit's 55 units, or a start bit's 94, is given up, and failed: the next
-    may retry it if it begins with the blocks it got to."""
+    """A follower at logical address address that acknowledges every block sent to it and
+    times the initiator in units (CEC 1.4, 50 us each): a start bit is low 70 to 78 and
+    86 to 94 in all, a one is low 8 to 16, a zero 26 to 34, and a bit lasts 41 to 55. Before
+    a frame the line must be free for 5 bit periods of 48 units if the initiator is new,
+    3 if it retries a failed frame, and 7 otherwise (CEC 9.1), checked at the EOM. If the
+    line stays high past 55 units in a bit, or 94 in a start bit, the frame is given up and
+    failed. The next frame may retry it if it begins with the blocks it got to."""
 
     def __init__(self, unit, address=0):
         self.unit = unit
@@ -218,10 +218,10 @@ class CecFollower:
     def step(self, low):
         if low and not self.low:
             if self.fall is not None and self.kind is None:
-                # from the end of the last bit's period, or a start bit's given up
+                # counted from the end of the last bit's period, or from where a start bit was given up
                 period = 90 if self.fall_began_start else 48
                 self.free = self.cycle - self.fall - period * self.unit
-                # 3 bit periods at least, whatever the frame; which of 3, 5 or 7 at its EOM
+                # at least 3 bit periods whatever the frame; the exact 3, 5 or 7 is checked at its EOM
                 if self.previous is not None:
                     assert self.free >= 3 * 48 * self.unit, f"free of {self.free} cycles"
             if self.fall is not None and self.kind is not None:
@@ -262,7 +262,7 @@ class CecFollower:
                 self.within(width, *((8, 16) if one else (26, 34)), "one low" if one else "zero low")
                 self.bits.append(int(one))
                 self.kind = "bit"
-        # past a start bit's 94 units or a bit's 55 high, the initiator gave the frame up
+        # high for over 94 units in a start bit or 55 in a bit means the initiator gave up
         limit = 94 if self.kind == "start" else 55
         if self.kind is not None and not low and self.cycle - self.fall > limit * self.unit:
             if self.frame:
@@ -283,8 +283,8 @@ def cec_words(blocks):
 
 @cocotb.test()
 async def test_cec(dut):
-    """At a unit of 8 cycles: a poll of the TV, 0, which answers, and one of 5, which
-    does not; the initiator pushes the line it saw in each ACK slot."""
+    """A unit of 8 cycles. A poll of the TV (address 0) is answered and a poll of 5 is not.
+    The initiator pushes the line level it saw in each ACK slot."""
     unit = 8
     follower = CecFollower(unit)
     frames = [[0x40], [0x45]]
@@ -305,10 +305,10 @@ async def test_cec(dut):
 
 
 def cec_lows(sends, ack_units=12, cuts=None):
-    """An initiator's line in units, a cycle each: per frame the bit periods free before
-    it, its initiator, its destination and its data, each ACK slot [ack_units] low, and
-    the frame at each index in [cuts] cut to its first so many units, the initiator
-    giving it up."""
+    """An initiator's line in units, one cycle each. Each frame has the free bit periods
+    before it, its initiator, its destination and its data, with each ACK slot low for
+    ack_units. The frame at each index in cuts is truncated to that many units, as if the
+    initiator gave up."""
     def bit(one):
         return [i < (12 if one else 30) for i in range(48)]
 
@@ -328,9 +328,9 @@ def cec_lows(sends, ack_units=12, cuts=None):
 
 @cocotb.test()
 async def test_cec_follower_free_time(dut):
-    """The follower's CEC 9.1 cases on a drawn line: 4 polls 5, where no one answers, so a
-    retry of it may come 3 bit periods on, but a new frame of 4's owes 7 and one from a new
-    initiator, 3, owes 5."""
+    """The follower's CEC 9.1 cases on a drawn line. 4 polls 5 and nobody answers, so a
+    retry may come 3 bit periods later. A new frame from 4 owes 7, and a frame from a new
+    initiator (3) owes 5."""
     failed, ok = (0, 4, 5, []), (0, 4, 0, [])
     cases = [
         ([failed, (3, 4, 5, [])], True),
@@ -355,9 +355,9 @@ async def test_cec_follower_free_time(dut):
 
 
 def sent_levels(frames, low=5):
-    """A line drawn from (tick in cycles, status, data) frames, each pulse [low] ticks low,
-    a 12-tick pause after each, and a last fall to close the last pulse. A frame with no
-    data is its sync alone."""
+    """Draw a line from (tick in cycles, status, data) frames. Each pulse is low for low
+    ticks, each frame ends with a 12-tick pause, and a final fall closes the last pulse. A
+    frame with no data is just its sync."""
     levels = [True]
     for tick, status, data in frames:
         nibbles = [status] + data + [sent_crc(data)] if data else []
@@ -368,8 +368,9 @@ def sent_levels(frames, low=5):
 
 @cocotb.test()
 async def test_sent_decoder_sync_drift(dut):
-    """J2716 lets successive syncs differ by 1/64 at most, a trailing sync with no frame
-    after it too; a tick of 64 then 65 cycles is at the bound, 64 then 66 past it."""
+    """J2716 lets successive syncs differ by at most 1/64, and that includes a trailing sync
+    with no frame after it. Ticks of 64 then 65 cycles are at the bound, 64 then 66 are
+    past it."""
     data = [1, 2, 3, 4, 5, 6]
     assert decode_sent(sent_levels([(64, 5, data), (65, 5, data)])) == [(5, data)] * 2
     for frames in ([(64, 5, data), (66, 5, data)], [(64, 5, data), (66, 5, [])]):
@@ -384,7 +385,7 @@ async def test_sent_decoder_sync_drift(dut):
 
 @cocotb.test()
 async def test_sent_decoder_low(dut):
-    """J2716's lows are more than 4 ticks: 5 passes, 4 does not."""
+    """J2716 lows must be more than 4 ticks, so 5 passes and 4 doesn't."""
     frames = [(16, 5, [1, 2, 3, 4, 5, 6])]
     assert decode_sent(sent_levels(frames, low=5)) == [(5, [1, 2, 3, 4, 5, 6])]
     try:
@@ -407,8 +408,8 @@ def cec_followers_see(sends, addresses=(0,), ack_units=12, cuts=None):
 @cocotb.test()
 async def test_cec_follower_ack_slot(dut):
     """The ACK slot's low is a one's, or a zero's when a follower acknowledges, whoever
-    pulls it: 4 holding it 1.8 ms under 0's ACK is too long, and 5's ACK, seen by 0, is
-    not."""
+    pulls it. 4 holding it for 1.8 ms under 0's ACK is too long, and 5's ACK as seen by 0
+    is not."""
     try:
         cec_followers_see([(0, 4, 0, [])], ack_units=36)
     except AssertionError as e:
@@ -422,16 +423,16 @@ async def test_cec_follower_ack_slot(dut):
 @cocotb.test()
 async def test_cec_follower_cut_frame(dut):
     """The first frame stops after its start bit and 5 bits, so the next start bit comes
-    long after the last fall; the follower drops the frame and takes the next whole."""
+    long after the last fall. The follower drops that frame and takes the next whole."""
     [follower] = cec_followers_see([(0, 4, 0, [0x04]), (7, 4, 0, [])], cuts={0: 90 + 5 * 48})
     assert follower.frames == [([0x40], [1])], follower.frames
 
 
 @cocotb.test()
 async def test_cec_follower_retry_after_nack(dut):
-    """A frame given up after its header is still the frame before the next: 4's header to
-    5 goes unanswered and 4 stops there, as Linux does, so 4 may send it whole 3 bit
-    periods on."""
+    """A frame given up after its header still counts as the frame before the next. 4's
+    header to 5 goes unanswered and 4 stops there, as Linux does, so 4 may send it whole
+    3 bit periods later."""
     [follower] = cec_followers_see(
         [(0, 4, 0, []), (7, 4, 5, [0x04]), (3, 4, 5, [0x04])], cuts={1: 90 + 480})
     assert [frame for frame, _ in follower.frames] == [[0x40], [0x45, 0x04]]
@@ -439,8 +440,8 @@ async def test_cec_follower_retry_after_nack(dut):
 
 @cocotb.test()
 async def test_cec_follower_early_start(dut):
-    """No frame may start under 3 bit periods after the last, so a start that soon is
-    refused whether or not its frame reaches EOM: here 4 gives it up after the header."""
+    """No frame may start less than 3 bit periods after the last, so a start that soon is
+    refused whether or not its frame reaches EOM. Here 4 gives up after the header."""
     try:
         cec_followers_see([(0, 4, 0, []), (1, 4, 0, [0x04])], cuts={1: 90 + 480})
     except AssertionError as e:
@@ -451,8 +452,9 @@ async def test_cec_follower_early_start(dut):
 
 @cocotb.test()
 async def test_cec_follower_lone_start(dut):
-    """A start bit given up is the line's last use: the line is free from the end of its
-    90 units, here 1 bit period before the next frame, too soon after anything."""
+    """A start bit that is given up is the line's last use. The line is free from the end
+    of its 90 units, which here is 1 bit period before the next frame, too soon after
+    anything."""
     try:
         cec_followers_see(
             [(0, 4, 0, []), (20, 4, 0, []), (1, 4, 0, [0x04])], cuts={1: 90})

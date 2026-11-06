@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-"""A full speed host enumerating the chip as a USB device: D+ and D- at four cycles a bit,
-the board's Python (demo_usb_fs, usb_fs_board) on SPI as the Pico runs it."""
+"""A full speed host enumerates the chip as a USB device. D+ and D- run at 4 cycles per
+bit, and the board's Python (demo_usb_fs, usb_fs_board) talks SPI like the Pico does."""
 
 import sys
 
@@ -19,12 +19,12 @@ BIT = 4
 J, K, SE0 = (1, 0), (0, 1), (0, 0)
 IN, OUT, SETUP = 0x69, 0xE1, 0x2D
 DATA0, DATA1, ACK, NAK, STALL = 0xC3, 0x4B, 0xD2, 0x5A, 0x1E
-# a reset is SE0 for 10 ms; here a "millisecond" is 500 cycles
+# a reset is SE0 for 10 ms, and here a "millisecond" is 500 cycles
 CYCLES_MS = 500
 
 
 class Done(Exception):
-    """Ends `serve`, which runs until told."""
+    """Raised to end serve(), which otherwise runs forever."""
 
 
 def crc5(address, endpoint):
@@ -48,13 +48,13 @@ def crc16(data):
 
 
 def data_packet(pid, payload):
-    """A host's data packet, its bytes after SYNC, CRC-16 last."""
+    """A host data packet: the bytes after SYNC, with the CRC-16 last."""
     crc = crc16(payload)
     return [pid] + list(payload) + [crc & 0xFF, crc >> 8]
 
 
 def line_bits(packet):
-    """SYNC and the packet, first bit first, a 0 after every six 1s."""
+    """SYNC and the packet, first bit first, with a 0 stuffed after every six 1s."""
     bits, ones = [], 0
     for byte in [0x80] + list(packet):
         for i in range(8):
@@ -72,7 +72,7 @@ def token(pid, address, endpoint):
 
 
 def encode(packet):
-    """Line states a bit at a time: SYNC, NRZI with stuffing, EOP."""
+    """Encode a packet as line states, one per bit: SYNC, NRZI with stuffing, EOP."""
     lines, state = [], J
     for bit in line_bits(packet):
         if not bit:
@@ -82,8 +82,8 @@ def encode(packet):
 
 
 def decode(lines):
-    """The bytes after SYNC of the packet whose line states, a bit each, start at its SOP
-    and end at its EOP's SE0, or None where it breaks the rules."""
+    """Decode the packet in lines (one state per bit, from its SOP to its EOP's SE0) into
+    the bytes after SYNC, or None if it breaks the rules."""
     bits, previous, ones = [], J, 0
     for state in lines:
         bit = 1 if state == previous else 0
@@ -101,8 +101,8 @@ def decode(lines):
 
 
 class Bus:
-    """D+ is uio[0] and D- uio[1]: the device's levels where it drives both, else the
-    host's, else J from the pull-up. Every cycle's line is kept."""
+    """D+ is uio[0] and D- is uio[1]. The line takes the device's levels when it drives
+    both, else the host's, else J from the pull-up. Every cycle's line is kept."""
 
     def __init__(self, dut):
         self.dut = dut
@@ -135,9 +135,9 @@ class Bus:
         await ClockCycles(self.dut.clk, bits * BIT)
 
     async def listen(self):
-        """The device's packet, if it starts within 16 bit times of the host's EOP; its
-        turnaround, from the EOP's J to its SOP, goes in turnarounds."""
-        # the EOP's J started a bit ago
+        """Return the device's packet if it starts within 16 bit times of the host's EOP.
+        Its turnaround (from the EOP's J to its SOP) is added to turnarounds."""
+        # the EOP's J started one bit ago
         j = len(self.lines) - BIT
         for _ in range(16 * BIT):
             if self.driving() and self.lines[-1] == K:
@@ -168,8 +168,8 @@ class Bus:
 
 
 async def control(bus, address, setup):
-    """A control transfer, retrying each NAKed IN as a host does; the data read, or the
-    PID the device ended it with."""
+    """A control transfer, retrying each NAKed IN as a host does. Returns the data read,
+    or the PID the device ended it with."""
     reply = await bus.transaction(token(SETUP, address, 0), data_packet(DATA0, setup))
     assert reply == [ACK], f"SETUP {setup}: {reply}"
     length = setup[6] | (setup[7] << 8)
@@ -212,8 +212,9 @@ def get_descriptor(kind, index, length, request_type=0x80, language=0):
 
 @cocotb.test()
 async def test_enumeration(dut):
-    """Enumerated as Linux does a full speed HID device, each answer the descriptor it
-    asks for, an unknown descriptor stalled, and every reply inside 2 to 6.5 bit times."""
+    """Enumerate the way Linux does a full speed HID device. Each answer must be the
+    descriptor asked for, an unknown descriptor must stall, and every reply must come
+    within 2 to 6.5 bit times."""
     await reset(dut)
     bus = Bus(dut)
     cocotb.start_soon(bus.run())
@@ -262,7 +263,7 @@ async def test_enumeration(dut):
     report = await control(bus, 5, get_descriptor(0x22, 0, len(demo_usb_fs.REPORT), 0x81))
     assert report == demo_usb_fs.REPORT, report
     assert await bus.transaction(token(IN, 5, 1)) == [NAK]
-    # the device answers no other address
+    # the device ignores any other address
     assert await bus.transaction(token(IN, 0, 0)) is None
 
     stop[0] = True

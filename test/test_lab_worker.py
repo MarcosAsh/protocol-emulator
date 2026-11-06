@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-"""demo/lab.py against stand-ins for the checker (test/lab's examples), openFPGALoader,
-mpremote and sigrok-cli, so no board and no OCaml: what reaches the bench and what never
-does, the fallbacks to the model, the limits, the seal."""
+"""Runs demo/lab.py against stand-ins for the checker (test/lab's examples), openFPGALoader,
+mpremote and sigrok-cli, so neither a board nor OCaml is needed. Checks what reaches the
+bench and what doesn't, the fallbacks to the model, the limits and the seal."""
 
 import json
 import os
@@ -16,7 +16,7 @@ sys.path.insert(0, str(ROOT / "demo"))
 import lab  # noqa: E402
 
 EXAMPLES = ROOT / "test/lab"
-# the checker: an example's files for a job whose diagram is the example's, the job as sent
+# the checker stand-in: returns an example's files for a job whose diagram matches it
 GENERATE = """#!%s
 import json, os, shutil, sys
 from pathlib import Path
@@ -60,7 +60,7 @@ done
 
 def raw(stretch=0):
     """Analyser A's samples of OUT0 at 24 MS/s for the uart_tx example: idle, two glitches,
-    then the model's changes, the fifth interval stretch samples long."""
+    then the model's changes, with the fifth interval stretch samples longer."""
     simulated = json.loads((EXAMPLES / "uart_tx/simulated.json").read_text())
     edges = simulated["lanes"][0]["edges"]
     lead = 5000
@@ -126,7 +126,7 @@ class Worker(unittest.TestCase):
         self.assertEqual(r["decode"], "uart-1: A3\nuart-1: 5C\n")
         self.assertIn("PASS", r["pico_log"])
         self.assertEqual(r["bitstream_sha256"], "flash")
-        # reset before and after, and only lab.json and the scripts copied over
+        # reset before and after, and only lab.json and the scripts are copied over
         self.assertEqual(self.lines("loads"), ["-b icepi-zero -r"] * 2)
         copies = [line for line in self.lines("mpremote") if " cp " in line]
         self.assertEqual(copies[1].split()[-2:], [str(self.results / r["id"] / "firmware.json"),
