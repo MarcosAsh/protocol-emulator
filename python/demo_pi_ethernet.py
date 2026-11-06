@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
 # 10BASE-T from the Icepi into a Raspberry Pi 5 or a laptop's adapter (MicroPython, Pico A):
-# a UDP broadcast a second, with the firmware's link pulses between. TD+ on IO6, TD- on
-# IO7, through 47 R each to the Teensy kit's MagJack. The chip hears each frame too: its
-# receiver takes TD+ back off the pad and engine 1's ethernet_rx hands the frame to the
-# host, which holds it to what was sent, with the FCS engine 0's CRC unit made judged
-# good. A bit is four cycles, so this needs the Icepi's 40 MHz build, and the host SPI at
-# 5 MHz. Needs bench_firmware.py, ethernet.py, ethernet_rx.hex and ethernet_rx.cert.hex on
-# the Pico.
+# a UDP broadcast every second, with the firmware's link pulses in between. TD+ is on IO6
+# and TD- on IO7, each through 47 R to the Teensy kit's MagJack. The chip hears each frame
+# too: its receiver takes TD+ back off the pad and engine 1's ethernet_rx hands the frame
+# to the host, which checks it against what was sent and against engine 0's CRC unit's
+# verdict on the FCS. A bit is four cycles, so this needs the Icepi's 40 MHz build and the
+# host SPI at 5 MHz. Needs bench_firmware.py, ethernet.py, ethernet_rx.hex and
+# ethernet_rx.cert.hex on the Pico.
 
 import bench
 import bench_firmware
@@ -15,7 +15,7 @@ import protocol_emulator as pe
 
 SPI_HZ = 5_000_000
 TD_PLUS = 18
-# where the chip's own frames land, past the one it sends from 0
+# where the chip's own frames land, after the one it sends from address 0
 BASE = 256
 
 

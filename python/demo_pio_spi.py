@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-# Raspberry Pi's spi.pio, byte for byte, its spi_cpha0_cs reading a W25Q64's JEDEC ID
-# (MicroPython, Pico A): MOSI on OUT4, SCK and CSn on OUT5 and OUT6, MISO on IN0. Only with
-# U4 fitted. demo/outside.sh pio_spi runs it.
+# Raspberry Pi's spi.pio, byte for byte: its spi_cpha0_cs reads a W25Q64's JEDEC ID
+# (MicroPython, Pico A). MOSI is on OUT4, SCK and CSn on OUT5 and OUT6, MISO on IN0. Only
+# works with U4 fitted. demo/outside.sh pio_spi runs it.
 
 import bench
 import pio_firmware
@@ -10,14 +10,14 @@ import protocol_emulator as pe
 
 FIRMWARE = pio_firmware.SPI
 PARTS = {(0xEF, 0x40, 0x17): "W25Q64JV"}
-# A byte is 384 cycles at k = 12, 8 us, and Pico A's 6 MHz pushes a command's words in
-# well under that each, so CSn stays low through the command and rises when the fifo
-# empties, as spi_cpha0_cs does. W25Q64JV: 3 us from Release Power-down to the next.
+# A byte is 384 cycles at k = 12 (8 us), and Pico A's 6 MHz pushes each word of a command
+# in well under that. So CSn stays low through the command and rises when the fifo
+# empties, as spi_cpha0_cs does. W25Q64JV: 3 us from Release Power-down to the next command.
 WAKE_MS = 1
 
 
 def command(host, words, polls=10_000):
-    """What came back during words, a byte for each."""
+    """Return the bytes that came back while words went out, one per word."""
     host.push(words)
     for _ in range(polls):
         if bench.rx_level(host) >= len(words):

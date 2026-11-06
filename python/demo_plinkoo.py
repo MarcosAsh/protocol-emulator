@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
-# Plinkoo (PLK-2 rev. 1.3), the controller's end (MicroPython, Pico A): STB on OUT5, the
-# flash's CLK with its CS high, analyser B's D0; DAT on IO3, SDA with its 2k2 pull-up, B's
-# D6. Section 6's frame, then one of eight bytes, and the ack bit of each: no bench part
-# answers Plinkoo, so both read NACK there. demo/outside.sh plinkoo runs it.
+# Plinkoo (PLK-2 rev. 1.3), the controller's end (MicroPython, Pico A). STB is on OUT5
+# (the flash's CLK, with its CS high), seen by analyser B's D0. DAT is on IO3 (SDA, with
+# its 2k2 pull-up), seen by B's D6. Sends section 6's frame, then one of eight bytes, and
+# reads the ack bit of each. No bench part answers Plinkoo, so both read NACK.
+# demo/outside.sh plinkoo runs it.
 # outside: analyser=B ms=2000 decode=-P plinkoo:stb=D0:dat=D6 -A plinkoo=length:byte:checksum-ok:checksum-err:ack:nack
 
 import bench
@@ -13,7 +14,7 @@ FRAMES = [[0x12, 0x34, 0x56], [0x00, 0xFF, 0x80, 0x01, 0xA5, 0x5A, 0x7E, 0xC3]]
 
 
 def words(payload):
-    """L then each byte, each in a word's high byte."""
+    """L, then each byte, each in a word's high byte."""
     return [b << 8 for b in [len(payload)] + payload]
 
 

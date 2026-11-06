@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# NEC infrared from the library's transmitter (MicroPython, Pico A): OUT0 high for the on
-# third of the 38 kHz carrier, an LED's drive, which analyser A's D4 and Pico B's GP1 see.
-# A frame of the spec's example, address 0x59 command 0x16, then a repeat code.
+# NEC infrared from the library's transmitter (MicroPython, Pico A). OUT0 is high for the
+# on third of the 38 kHz carrier, like an LED's drive, and is seen by analyser A's D4 and
+# Pico B's GP1. Sends the spec's example frame (address 0x59, command 0x16), then a repeat
+# code.
 # outside: analyser=A ms=2000 decode=-P ir_nec:ir=D4:polarity=active-high:cd_freq=38000 -A ir_nec=addr:cmd:repeat-code
 
 import bench
@@ -12,12 +13,13 @@ import protocol_emulator as pe
 THIRD = 422
 # (address, command), as test/ir_nec.ml sends it
 ADDRESS, COMMAND = 0x59, 0x16
-# the firmware starts each message 110 ms or more after the one before (test/ir_nec.ml)
+# the firmware starts each message at least 110 ms after the previous one (test/ir_nec.ml)
 MESSAGE_MS = 120
 
 
 def frame(address, command):
-    """Ir_nec.words of a frame: 0, then the command high and the address low."""
+    """Ir_nec.words for a frame: 0, then the command in the high byte and the address in the
+    low byte."""
     return [0, (command << 8) | address]
 
 
@@ -25,7 +27,8 @@ REPEAT_CODE = [1]
 
 
 def lines():
-    """What sigrok's ir_nec prints with outside:'s -A, in order."""
+    """What sigrok's ir_nec decoder prints, in order, using the -A fields from the outside:
+    line."""
     return [
         "ir_nec-1: Address: 0x%02X" % ADDRESS,
         "ir_nec-1: Command: 0x%02X" % COMMAND,

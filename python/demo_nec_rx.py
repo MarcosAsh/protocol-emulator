@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-# NEC infrared into the library's receiver (MicroPython, Pico A): the chip reads IO3, where
-# Pico B's pico_nec_sender.py sends demo_nec's keys, and pushes two words a frame and 0xffff
-# a repeat code. demo/nec_rx.sh starts Pico B once this is listening.
+# NEC infrared into the library's receiver (MicroPython, Pico A). The chip reads IO3, where
+# Pico B's pico_nec_sender.py sends demo_nec's keys, and pushes two words per frame and
+# 0xffff per repeat code. demo/nec_rx.sh starts Pico B once this is listening.
 
 import time
 
@@ -13,13 +13,13 @@ import protocol_emulator as pe
 # Nec.standard_half: 281.25 us at 48 MHz
 HALF = 13500
 REPEAT = 0xFFFF
-# Pico B's keys take 540 ms from its first leader; it starts within a few seconds
+# Pico B's keys take 540 ms from its first leader and it starts within a few seconds
 LISTEN_MS = 8000
 
 
 def expected(keys=demo_nec.KEYS):
     """Nec.rx's words for the keys: address and command, each with its inverse above it,
-    then a word a repeat code."""
+    then one word per repeat code."""
     out = []
     for address, command, repeats in keys:
         out += demo_nec.words(address, command, 0)[1:] + [REPEAT] * repeats
