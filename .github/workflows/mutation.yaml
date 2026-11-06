@@ -104,7 +104,7 @@ jobs:
         with:
           ocaml-compiler: ocaml-variants.5.2.0+ox
           opam-repositories: |
-            ox: https://github.com/oxcaml/opam-repository.git
+            ox: git+https://github.com/oxcaml/opam-repository.git#a70ed316f02290fa267f9105f30cf21e3c7f5f05
             default: https://opam.ocaml.org
 
       # the ocaml workflow's switch; on a hit the install below has nothing to do
