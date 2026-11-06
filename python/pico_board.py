@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Transport for a bare Pico wired to the chip's host port (MicroPython). SPI0 in mode 0:
 # GP2 SCK -> ui[0], GP3 MOSI -> ui[1], GP4 MISO <- uo[0], GP5 CS_N -> ui[2]. SCK must stay
-# at most an eighth of the chip's clock: 6 MHz at 48 MHz.
+# <= clock / 8, i.e. 6 MHz at 48 MHz.
 
 import machine
 import micropython
@@ -9,7 +9,7 @@ from machine import Pin, SPI
 
 from protocol_emulator import PROGRAM_WORDS, RX, STATUS, Host
 
-# the longest rx read, a full level field's worth of words
+# the longest rx read: a full level field's worth of words
 RX_WORDS = 15
 
 
@@ -49,7 +49,7 @@ class PicoSpi:
     @micropython.native
     def drain(self, stamps, reads):
         """Host's rx poll without its lists: append the selected engine's waiting words to
-        stamps, then read each register in reads. Returns the frames sent."""
+        stamps, then read each register in reads. Returns the number of frames sent."""
         spi, cs_n, status = self.spi, self.cs_n, self.status
         cs_n(0)
         spi.write_readinto(self.reads[STATUS], status)
@@ -73,8 +73,8 @@ class PicoSpi:
 
     @micropython.native
     def drain_quiet(self, words, quiet, limit):
-        """Append the selected engine's rx words to words until quiet status reads in a row
-        find none, or limit are in. Returns the status word last read."""
+        """Append the selected engine's rx words to words until `quiet` status reads in a row
+        find none, or `limit` words are in. Returns the last status word read."""
         spi, cs_n, status, rx_in = self.spi, self.cs_n, self.status, self.rx_in
         read_status = self.reads[STATUS]
         idle = 0
@@ -102,13 +102,13 @@ class PicoHost(Host):
     def __init__(self, spi):
         super().__init__(spi.transfer)
         self.spi = spi
-        # the longest write, a full program load
+        # the longest write: a full program load
         self.out = bytearray(1 + 2 * PROGRAM_WORDS)
         self.drain_quiet = spi.drain_quiet
 
     @micropython.native
     def write(self, reg, words):
-        """Host.write without its list of bytes: a full load in 1.5 ms, not 21."""
+        """Host.write without building a list of bytes: a full load takes 1.5 ms, not 21."""
         n = len(words)
         if n > PROGRAM_WORDS:
             return Host.write(self, reg, words)

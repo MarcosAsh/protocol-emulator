@@ -1,14 +1,14 @@
 # SPDX-License-Identifier: Apache-2.0
 """The board's half of the full speed USB device.
 
-The chip takes in every packet itself, clock recovery, NRZI, unstuffing and both CRCs
-in Usb_frame_rx, and its engine answers inside the turnaround from records in the data
-memory: ACK and NAK at fixed places, and each reply's PID and data, which the chip sends
-with its CRC-16, bit stuffing and NRZI. The board does the rest: SETUPs, descriptors, data toggles, the address, which record answers the
-next IN on each endpoint.
+The chip receives every packet itself (clock recovery, NRZI, unstuffing and both CRCs in
+Usb_frame_rx), and its engine answers within the turnaround time from records in the data
+memory: ACK and NAK at fixed places, plus each reply's PID and data, which the chip sends
+with its CRC-16, bit stuffing and NRZI. The board does the rest: SETUPs, descriptors,
+data toggles, the address, and which record answers the next IN on each endpoint.
 
-`Board` does no I/O: `memory` is what to load into the data memory, `feed` takes the
-words the engine pushes and `out` holds the words for the tx fifo, each list whole and in
+`Board` does no I/O. `memory` is what to load into the data memory, `feed` takes the
+words the engine pushes, and `out` holds the words for the tx fifo, each list whole and in
 order. `load`, `restart` and `service` do the I/O over a `protocol_emulator.Host`.
 """
 
@@ -22,13 +22,13 @@ NAK = 0x5A
 STALL = 0x1E
 MAX_PACKET = 8
 
-# what the engine pushes, besides a SETUP's five words, the first holding a data PID
+# what the engine pushes besides a SETUP's five words, the first of which holds a data PID
 TAG_OUT = 2  # an OUT's data was acknowledged
 TAG_ACKED = 3  # the host acknowledged the record sent
 TAG_NOACK = 4  # the packet after the record sent was no ACK
 
-# the requests' lengths a record is made for in advance; another that cuts a descriptor
-# mid-packet is stalled
+# request lengths a record is prepared for in advance; any other length that cuts a
+# descriptor mid-packet is stalled
 LENGTHS = (2, 4, 8, 9, 18, 34, 64, 255)
 
 DEVICE, CONFIGURATION, STRING, REPORT = 1, 2, 3, 0x22
@@ -40,13 +40,13 @@ def data_packet(pid, payload):
 
 
 def handshake_record(pid):
-    """A handshake at a fixed place: its line bits less one, then SYNC and the PID."""
+    """A handshake at a fixed place: its line bits minus one, then SYNC and the PID."""
     return [15, 0x80 | (pid << 8)]
 
 
 def record(packet):
-    """A reply's record: its data bits plus one, or 0 for a handshake, SYNC and the PID,
-    then the data two bytes to a word, first lowest."""
+    """A reply's record: its data bits plus one (0 for a handshake), SYNC and the PID, then
+    the data, two bytes per word, first one lowest."""
     pid, data = packet[0], list(packet[1:])
     if pid & 3 == 2:
         return [0, 0x80 | (pid << 8)]
@@ -56,13 +56,13 @@ def record(packet):
 
 
 def in_token(address, endpoint):
-    """The word a reply for an IN to this address and endpoint waits behind."""
+    """The word that a reply for an IN to this address and endpoint waits behind."""
     return 0x69 | (address << 8) | ((endpoint & 1) << 15)
 
 
 def chunks(data, length):
-    """A control read's data packets for a request of length, DATA1 first, with an empty
-    one where a short answer ends on a full packet."""
+    """The data packets of a control read for a request of length, DATA1 first, with an
+    empty packet where a short answer ends on a full packet."""
     data = data[:length]
     out = [data[i:i + MAX_PACKET] for i in range(0, len(data), MAX_PACKET)]
     if len(data) < length and len(data) % MAX_PACKET == 0:
@@ -72,7 +72,7 @@ def chunks(data, length):
 
 class Board:
     def __init__(self, descriptors, reports=()):
-        """descriptors maps (type, index) to bytes; reports are payloads for endpoint 1,
+        """descriptors maps (type, index) to bytes. reports are payloads for endpoint 1,
         sent in turn once the host has read the report descriptor."""
         self.descriptors = descriptors
         packets = [data_packet(DATA1, []), data_packet(DATA0, []), [STALL]]
@@ -99,7 +99,7 @@ class Board:
         self.reset()
 
     def reset(self):
-        """A bus reset: address 0 again, unconfigured, nothing in flight."""
+        """A bus reset: back to address 0, unconfigured, nothing in flight."""
         self.address = 0
         self.configured = False
         self.described = False
@@ -176,8 +176,8 @@ class Board:
 
 
 def load(host, board):
-    """Every engine halted, engine 0 loaded with the device and checked against its
-    certificate, the receiver armed for good on D+ and D-, and engine 0 started."""
+    """Halt every engine, load engine 0 with the device and check it against its
+    certificate, arm the receiver permanently on D+ and D-, and start engine 0."""
     for engine in (1, 0):
         host.select(engine)
         host.stop()
@@ -192,8 +192,8 @@ def load(host, board):
 
 
 def restart(host, board):
-    """After a bus reset: engine 0 again from address 0, its program, certificate and the
-    data memory as they were, so the check still holds."""
+    """After a bus reset, restart engine 0 from address 0. Its program, certificate and the
+    data memory are as they were, so the check still holds."""
     host.stop()
     host.flush()
     board.reset()
@@ -202,8 +202,8 @@ def restart(host, board):
 
 
 def service(host, board, depth=15):
-    """One round: the engine's words to the board, then the board's to the tx fifo, a
-    list at a time as there is room. Returns the status word."""
+    """One round: pass the engine's words to the board, then the board's words to the tx
+    fifo, one list at a time as there is room. Returns the status word."""
     status = host.read(STATUS)[0]
     level = (status >> 10) & 15
     if level:

@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
-# The self-check unattended as Pico A's main.py, the chip booting from flash: quiet frames
-# for ever, and every GLITCH_S the restart a cycle long and a cycle short, each of which must
-# raise the alarm. A line a LOG_S to soak.log, rolled to soak.1.log past LOG_BYTES. The LED
-# blinks slowly while every check holds, fast once one has not.
+# The self-check unattended, as Pico A's main.py with the chip booting from flash. Sends
+# quiet frames forever and, every GLITCH_S, a restart one cycle long and one cycle short,
+# each of which must raise the alarm. Writes a line to soak.log every LOG_S, rolling to
+# soak.1.log past LOG_BYTES. The LED blinks slowly while every check holds and fast once
+# one fails.
 
 import time
 
@@ -17,17 +18,17 @@ OLD_LOG = "soak.1.log"
 LOG_BYTES = 32_768
 GLITCH_S = 3600
 LOG_S = 3600
-# restarts between looks at the clock
+# restarts between clock checks
 BATCH = 70
-# the chip's flash load and PLL lock, with margin
+# time for the chip's flash load and PLL lock, with some margin
 BOOT_MS = 3000
-# error and alarm lines logged an hour at most, so a stuck chip cannot rotate the hour's
+# cap on error and alarm lines logged per hour, so a stuck chip can't push the hour's
 # counts out of the log
 ERRORS_PER_LOG = 8
 
 
 def edges_per_frame(byte):
-    """The start bit's fall and each move after it."""
+    """Return the start bit's fall and every edge after it."""
     return 1 + len(sc.moves(byte, sc.PERIOD))
 
 
@@ -78,8 +79,8 @@ class Soak:
         _, _, self.track, self.edge_rows = sc.begin(host, log=lambda _: None)
 
     def quiet(self, host, first):
-        """BATCH restarts of seven frames; a restart that ends in an alarm or with the
-        checker off its wait counts, and the checker is armed again."""
+        """Do BATCH restarts of seven frames each. A restart that ends in an alarm, or with
+        the checker off its wait, counts as an error; then the checker is armed again."""
         sent, s, pc = sc.send(host, 7 * BATCH, self.track, first=first)
         for i in range(sent):
             self.edges += self.edge_table[(first + i) & 0xFF]
@@ -97,8 +98,8 @@ class Soak:
         return (first + sent) & 0xFF
 
     def inject(self, host):
-        """The restart a cycle long, then a cycle short: each must halt the checker with its
-        irq up. Then armed again on the high line."""
+        """Restart with the bit period one cycle long, then one cycle short. Each must halt
+        the checker with its irq up. Then arm it again on the high line."""
         got = []
         for period in sc.GLITCHES:
             s, pc = sc.glitch(host, period)

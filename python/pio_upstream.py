@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-# What the upstream PIO demos share (MicroPython and CPython): a pio_firmware.py entry's
-# provenance and the kernel's verdict in the log, and its host words fed only as fast as
-# the tx fifo makes room, since a push into a full fifo is dropped without a fault.
+# Shared by the upstream PIO demos (MicroPython and CPython): logging a pio_firmware.py
+# entry's provenance and the kernel's verdict, and feeding its host words only as fast as
+# the tx fifo has room, since a push into a full fifo is dropped without a fault.
 
 import bench
 import pio_firmware
@@ -27,7 +27,7 @@ def header(firmware, log):
 
 
 def feed(host, words, polls=100_000):
-    """words into the tx fifo, no more at a time than it has room for."""
+    """Push words into the tx fifo, never more at a time than it has room for."""
     sent = 0
     for _ in range(polls):
         if sent == len(words):
@@ -40,7 +40,7 @@ def feed(host, words, polls=100_000):
 
 
 def drain(host, polls=100_000):
-    """Until the firmware has taken every word."""
+    """Wait until the firmware has taken every word."""
     for _ in range(polls):
         if not tx_level(host):
             return

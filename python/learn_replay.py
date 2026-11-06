@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
-# Pico B plays a transmitter the chip was never told about (MicroPython): replay.json's
-# segments, each the lines pulled low and for how many microseconds, from a PIO machine at
-# 1 MHz on GP2 (IO3) and GP3 (IO2), open drain against the carrier's pull-ups as an IR
-# receiver module's output is. Segments come from public recordings (demo/learn_prepare.py).
+# Pico B plays a transmitter the chip was never told about (MicroPython). Plays replay.json's
+# segments, each giving which lines are pulled low and for how many microseconds, from a PIO
+# machine at 1 MHz on GP2 (IO3) and GP3 (IO2). The pins are open drain against the
+# carrier's pull-ups, like an IR receiver module's output. Segments come from public
+# recordings (demo/learn_prepare.py).
 
 import array
 import json
@@ -11,19 +12,19 @@ import time
 import rp2
 from machine import Pin
 
-# pull, out and out before the count's first pass, and the count's last pass
+# pull, out and out before the count's first pass, then the count's last pass
 OVERHEAD = 4
-# demo/capture.sh starts the analyser after mpremote returns, and it takes up to 3 s
+# demo/capture.sh starts the analyser after mpremote returns, and that takes up to 3 s
 START_MS = 3000
-# the lines stay at the recording's idle this long after it, past the chip's recording,
-# so a line that idles low is low at both of the recording's ends
+# the lines stay at the recording's idle level this long afterwards, past the end of the
+# chip's recording, so a line that idles low is low at both ends of the recording
 HOLD_MS = 5000
 
 
 @rp2.asm_pio(set_init=(rp2.PIO.IN_LOW,) * 2, out_init=(rp2.PIO.IN_LOW,) * 2,
              out_shiftdir=rp2.PIO.SHIFT_RIGHT)
 def segments():
-    # the pins' values low, so pulling a line low is its direction alone
+    # pin values stay low, so pulling a line low only changes its direction
     set(pins, 0)  # noqa: F821
     wrap_target()  # noqa: F821
     pull(block)  # noqa: F821

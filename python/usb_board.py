@@ -1,12 +1,13 @@
 # SPDX-License-Identifier: Apache-2.0
 """The demo board's half of the USB device.
 
-The core does what must meet the turnaround time (tokens, CRC, ACK, NAK); this does
-the rest: SETUPs, descriptors, data toggles, reloading on a new address.
+The core handles everything with a turnaround deadline (tokens, CRC, ACK, NAK). This
+handles the rest: SETUPs, descriptors, data toggles and reloading on a new address.
 
-`Board` does no I/O: `feed` takes the words the core pushed, `reload` is the address to
-load the core for (then call `flushed`), and each list in `replies` must be written to
-the tx fifo whole and in order. `service` is one round of that I/O over a `protocol_emulator.Host`.
+`Board` does no I/O. `feed` takes the words the core pushed, `reload` is the address to
+load the core for (then call `flushed`), and each list in `replies` must be written to the
+tx fifo whole and in order. `service` does one round of that I/O over a
+`protocol_emulator.Host`.
 """
 
 import gc
@@ -23,13 +24,14 @@ TAG_DATA1 = 2  # an OUT's data: only status packets are expected, two words
 TAG_ACK = 3  # the host acknowledged what we sent
 TAG_DROPPED = 4  # a reply was queued for the other endpoint and is gone
 
-# status reads in a row that must find the rx fifo empty before its words are fed, and
-# the most words one round pops, so a bus that never goes quiet still gets reset checks
+# number of status reads in a row that must find the rx fifo empty before its words are
+# fed, and the most words one round pops, so a bus that never goes quiet still gets reset
+# checks
 QUIET = 5
 DRAIN_LIMIT = 64
 
 
-# each byte bit reversed, a table as the per-bit sum took 2 ms a SETUP on the Pico
+# each byte bit-reversed, as a table because summing per bit took 2 ms per SETUP on the Pico
 _REVERSED = bytes(sum(((byte >> i) & 1) << (7 - i) for i in range(8)) for byte in range(256))
 
 
@@ -48,7 +50,7 @@ def reply(endpoint, pid, payload):
 class Board:
     def __init__(self, descriptors):
         self.descriptors = descriptors  # by descriptor type
-        # the address whose program the core holds, None until `service` first loads it
+        # address whose program the core holds; None until `service` first loads it
         self.loaded = None
         # SETUPs parsed so far
         self.setups = 0
@@ -58,7 +60,7 @@ class Board:
         """A bus reset: address 0 again, unconfigured, and nothing pending."""
         self.address = 0
         self.configured = False
-        # the laptop has asked for the report descriptor, as a HID driver does once bound
+        # the laptop has asked for the report descriptor, which a HID driver does once bound
         # and before it polls endpoint 1
         self.described = False
         self.expect = 0
@@ -68,7 +70,7 @@ class Board:
         self.toggle = DATA1
         self.report_toggle = DATA0
         self.replies = []
-        # (endpoint, words) of each reply queued, oldest first: the core answers each with
+        # (endpoint, words) of each queued reply, oldest first; the core answers each with
         # one ACK or DROPPED tag, in that order
         self.queued = []
         self.new_address = None
@@ -77,7 +79,7 @@ class Board:
         self.dropped = False
 
     def report(self, payload):
-        """A report for the interrupt endpoint; kept until the host has taken it."""
+        """Queue a report for the interrupt endpoint; it is kept until the host takes it."""
         self.pending_report = payload
         self._queue(1, self.report_toggle, payload)
 
@@ -99,7 +101,7 @@ class Board:
             if endpoint == 1:
                 self.dropped = True
             else:
-                # an IN on endpoint 1 found it first: it goes again, behind what the fifo holds
+                # an IN on endpoint 1 got there first, so send it again behind what the fifo holds
                 in_fifo = len(self.queued) - len(self.replies)
                 self.replies.insert(0, words)
                 self.queued.insert(in_fifo, (0, words))
@@ -123,7 +125,7 @@ class Board:
             self.described = self.described or value >> 8 == 0x22
             data = self.descriptors.get(value >> 8, [])[:length]
             self.chunks = [data[i:i + MAX_PACKET] for i in range(0, len(data), MAX_PACKET)]
-            # a short answer ending on a full packet needs an empty one
+            # a short answer that ends on a full packet needs an empty packet after it
             if len(data) < length and len(data) % MAX_PACKET == 0:
                 self.chunks.append([])
         else:
@@ -146,7 +148,7 @@ class Board:
             self.new_address = None
 
     def flushed(self):
-        """The core was reloaded: what it held was lost unanswered, a report put back."""
+        """The core was reloaded. What it held is lost unanswered, and a report is put back."""
         lost = len(self.queued) - len(self.replies)
         if any(endpoint == 1 for endpoint, _ in self.queued[:lost]):
             self.dropped = True
@@ -159,21 +161,21 @@ class Board:
             self._queue(1, self.report_toggle, self.pending_report)
 
 
-# where write_certificate puts the device's certificate, which serves every address
+# where write_certificate puts the device's certificate, which covers every address
 CERTIFICATE_BASE = 0
 
 
 def write_certificate(host):
-    """While every core is halted: the certificate load checks against, as no data write
-    lands once the other core runs."""
+    """Write the certificate that load checks against. Needs every core halted, since no
+    data write lands once the other core runs."""
     host.load_data(firmware.CERTIFICATE, CERTIFICATE_BASE)
 
 
 def load(host, address, loaded=None):
-    """Halt the core and start it again with the firmware for this address. When it holds
-    the program for `loaded`, only the words that differ are written: a full load takes
-    the core off the bus for 20 ms, past the 2 ms SET_ADDRESS allows."""
-    # worked out before the stop, as the core is off the bus from there to the start
+    """Halt the core and restart it with the firmware for this address. If it already holds
+    the program for `loaded`, only the words that differ are written, because a full load
+    takes the core off the bus for 20 ms and SET_ADDRESS allows 2 ms."""
+    # work this out before the stop, since the core is off the bus from there to the start
     first, words = 0, None
     if loaded is None:
         words = firmware.words(address)
@@ -191,16 +193,16 @@ def load(host, address, loaded=None):
     elif words is not None:
         host.write(PROGRAM_ADDR, [first])
         host.write(PROGRAM, words)
-    # against the certificate write_certificate left in the data memory
+    # checked against the certificate write_certificate left in the data memory
     host.check(CERTIFICATE_BASE, loaded=firmware.BIT_PERIOD, single_edge=True)
-    # the first instruction pulls the bit period, so it must be queued before start
+    # the first instruction pulls the bit period, so queue it before the start
     host.push([firmware.BIT_PERIOD])
     host.start()
 
 
 def drain(host, words):
     """Pop the core's words into words until QUIET status reads in a row find none, in one
-    native call where the host has one. Returns the status word last read."""
+    native call where the host has one. Returns the last status word read."""
     fast = getattr(host, "drain_quiet", None)
     if fast is not None:
         return fast(words, QUIET, DRAIN_LIMIT)
@@ -220,9 +222,9 @@ def service(host, board, fifo_depth=8):
     """One round: hand the core's words to the board, then do what the board wants.
     Returns the status word.
 
-    The laptop's ACK, status OUT and next SETUP come back to back, eleven words for an
-    eight word fifo, and feeding them one by one on the Pico is too slow to keep up: so
-    the fifo is drained until quiet, then fed."""
+    The laptop's ACK, status OUT and next SETUP arrive back to back, eleven words for an
+    eight word fifo, and feeding them one by one on the Pico is too slow to keep up. So we
+    drain the fifo until quiet, then feed."""
     words = []
     status = drain(host, words)
     setups = board.setups

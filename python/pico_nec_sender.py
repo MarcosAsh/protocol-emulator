@@ -1,27 +1,28 @@
 # SPDX-License-Identifier: Apache-2.0
-# A NEC remote for the chip's receiver (MicroPython, Pico B): GP2 pulled low for a mark,
-# open drain against the carrier's pull-up on IO3, as an IR receiver module's output. demo_nec's
-# keys, a frame or repeat code every 108 ms, from a PIO machine at 1 MHz so each mark and
-# space is its length to the microsecond.
+# A NEC remote for the chip's receiver (MicroPython, Pico B). GP2 is pulled low for a mark,
+# open drain against the carrier's pull-up on IO3, like an IR receiver module's output.
+# Sends demo_nec's keys, a frame or repeat code every 108 ms, from a PIO machine at 1 MHz
+# so each mark and space is exact to the microsecond.
 
 import rp2
 import time
 from machine import Pin
 
-# demo_nec's, which imports more than Pico B needs
+# same as demo_nec's; importing it would pull in more than Pico B needs
 KEYS = [(0x04, 0x08, 2), (0x00, 0x45, 0), (0xFF, 0x00, 0)]
 PERIOD_MS = 108
-# 562.5 us, a mark and a space rounded each way so a bit keeps its 1125 or 2250 us
+# 562.5 us; mark and space are rounded in opposite directions so a bit keeps its 1125 or
+# 2250 us
 MARK, ZERO, ONE = 563, 562, 1687
 LEADER, LEADER_SPACE, REPEAT_SPACE = 9000, 4500, 2250
 PERIOD_US = PERIOD_MS * 1000
-# pull, out and out before the count's first loop, and the loop's last pass
+# pull, out and out before the count's first loop, then the loop's last pass
 OVERHEAD = 4
 
 
 @rp2.asm_pio(set_init=rp2.PIO.IN_LOW, out_init=rp2.PIO.IN_LOW, out_shiftdir=rp2.PIO.SHIFT_RIGHT)
 def segments():
-    # the pin's value low, so a mark is its direction alone
+    # the pin value stays low, so a mark only changes its direction
     set(pins, 0)  # noqa: F821
     wrap_target()  # noqa: F821
     pull(block)  # noqa: F821
@@ -56,7 +57,7 @@ def send(keys=KEYS):
             start = time.ticks_us()
             for mark, us in segs:
                 sm.put(word(mark, us))
-            # the rest of the 108 ms released, from the frame's start
+            # release for the rest of the 108 ms, counted from the frame's start
             left = PERIOD_US - sum(us for _, us in segs)
             sm.put(word(False, left))
             while time.ticks_diff(time.ticks_us(), start) < PERIOD_US - 20_000:
@@ -68,6 +69,6 @@ def send(keys=KEYS):
 
 
 if __name__ == "__main__":
-    # demo/capture.sh starts the analyser after mpremote returns, as bench.START_MS
+    # demo/capture.sh starts the analyser after mpremote returns; same delay as bench.START_MS
     time.sleep_ms(1000)
     send()

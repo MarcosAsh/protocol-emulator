@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
-# The chip records a transmitter it was never told about (MicroPython, Pico A): each engine
-# runs the edge logger on its line and stamps every edge with its own 16-bit clock, and this
-# drains the stamps and reads the clock after each drain, which extends every stamp to whole
-# cycles; the Pico's microseconds count the clock's wraps between reads. A drain that finds
-# stamps more than 65536 cycles (1.4 ms at 48 MHz) after the last marks the recording
-# broken rather than guess. With two lines, engine 1 starts
-# first and stamps the wire engine 0 raises as it starts, which puts both on one clock.
-# record.json (demo/learn_prepare.py) has the loggers; record.edges and record.log are kept.
+# The chip records a transmitter it was never told about (MicroPython, Pico A). Each engine
+# runs the edge logger on its line and stamps every edge with its own 16-bit clock. This
+# script drains the stamps and reads the clock after each drain to extend every stamp to
+# whole cycles, using the Pico's microseconds to count the clock's wraps between reads.
+# If a drain finds stamps more than 65536 cycles (1.4 ms at 48 MHz) after the last, it marks
+# the recording broken rather than guess. With two lines, engine 1 starts first and stamps
+# the wire engine 0 raises as it starts, which puts both on one clock. record.json
+# (demo/learn_prepare.py) has the loggers; record.edges and record.log are kept.
 
 import array
 import gc
@@ -20,14 +20,14 @@ import pico_board
 import protocol_emulator as pe
 
 CLOCK_HZ = 48_000_000
-# cycles from engine 0's raise of the wire to engine 1's stamp of it, the same path an
-# edge on a pin takes less its two synchronizer flops
+# cycles from engine 0 raising the wire to engine 1 stamping it: the same path as an edge
+# on a pin, minus its two synchronizer flops
 SYNC_CYCLES = 2
 LATE_US = 1000
 
 
 def load(host, engine):
-    """The logger loaded and certified; every engine must be halted for the certificate."""
+    """Load and certify the logger. Every engine must be halted for the certificate."""
     host.select(engine["engine"])
     host.stop()
     host.flush()
@@ -37,19 +37,19 @@ def load(host, engine):
 
 
 SELECTS = [bytes((0x80 | pe.SELECT, 0, engine)) for engine in range(2)]
-# stamps an engine can hold, a recording's worth
+# stamps an engine can hold, enough for a recording
 MOST = 3000
 NOW = array.array("i", [0])
-# where a recording got to: the step of the loop, and the polls done
+# progress of a recording: the step of the loop, and the polls done
 AT = array.array("i", [0, 0])
 
 
 @micropython.native
 def poll(spi, engine, words, count):
-    """Selects engine, puts its waiting words in words from count, and returns how many
-    there are then; the low half of its clock, read after the drain, goes in NOW. Nothing
-    here allocates, as the heap is locked while recording."""
-    # one name a line: four names at once would build a tuple
+    """Select engine, put its waiting words in words from count, and return the new count.
+    The low half of its clock, read after the drain, goes in NOW. Nothing here allocates,
+    since the heap is locked while recording."""
+    # one name per line, since assigning four names at once would build a tuple
     cs_n = spi.cs_n
     bus = spi.spi
     status = spi.status
@@ -78,7 +78,7 @@ def poll(spi, engine, words, count):
 
 
 def record(spi, host, engines, ms):
-    # engine 1, if there are two, first: it waits for engine 0's wire
+    # start engine 1 first if there are two; it waits for engine 0's wire
     for e in sorted(engines, key=lambda e: -e["engine"]):
         load(host, e)
     n = len(engines)
@@ -89,17 +89,17 @@ def record(spi, host, engines, ms):
     last = [0] * n
     clock = [0] * n
     late = 0
-    # a collection mid-recording is what makes a poll late
+    # a collection mid-recording would make a poll late
     gc.collect()
-    # the clocks start here, so the first poll's wraps are counted from now, not from
-    # before the arrays were made
+    # the clocks start here, so the first poll's wraps count from now and not from before
+    # the arrays were made
     for e in sorted(engines, key=lambda e: -e["engine"]):
         host.select(e["engine"])
         host.start()
     then = [time.ticks_us()] * n
     start = time.ticks_ms()
     AT[0] = 0
-    # a locked heap raises MemoryError at the first allocation rather than running out
+    # a locked heap raises MemoryError at the first allocation instead of running out
     # seconds later
     micropython.heap_lock()
     try:
@@ -115,14 +115,15 @@ def record(spi, host, engines, ms):
                 gap = time.ticks_diff(t, then[k])
                 then[k] = t
                 AT[0] = 3
-                # whole 65536s of the clock from the Pico's microseconds, the rest from it
+                # the whole 65536s of the clock come from the Pico's microseconds, the rest
+                # from the clock itself
                 low = (now - last[k]) & 0xFFFF
                 wraps = (gap * (CLOCK_HZ // 1_000_000) - low + 32768) >> 16
                 clock[k] += low + (wraps << 16 if wraps > 0 else 0)
                 last[k] = now
                 AT[0] = 4
                 if count > before and gap > LATE_US:
-                    # a stamp could be a wrap older than it reads
+                    # a stamp could be one wrap older than it reads
                     late += 1
                 AT[0] = 5
                 for i in range(before, count):
@@ -141,7 +142,7 @@ def record(spi, host, engines, ms):
 
 
 def run(log=print):
-    # an earlier run's recording is not this one's
+    # drop any recording left by an earlier run
     try:
         os.remove("record.edges")
     except OSError:
@@ -154,7 +155,7 @@ def run(log=print):
     lines = []
     offset = 0
     for k, e in enumerate(engines):
-        # the sync stamp, then the line's level, then an edge a word
+        # the sync stamp, then the line's level, then one edge per word
         skip = 1 + (1 if e.get("sync") else 0)
         if e.get("sync"):
             offset = times[k][0] - SYNC_CYCLES

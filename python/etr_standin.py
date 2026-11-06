@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
-# The ttboard SDK calls demo_board.py makes, on a bare Pico wired as Pico A (BRINGUP.md):
-# GP2 SCK -> ui[0], GP3 MOSI -> ui[1], GP5 CS_N -> ui[2], GP4 MISO <- uo[0]. The chip keeps
-# its own clock and is reset by hand, and selecting another design powers nothing down.
-# demo/etr_standin.sh copies it as ttboard/demoboard.py and ttboard/mode.py, then runs main.
+# Stands in for the ttboard SDK calls demo_board.py makes, on a bare Pico wired as Pico A
+# (BRINGUP.md): GP2 SCK -> ui[0], GP3 MOSI -> ui[1], GP5 CS_N -> ui[2], GP4 MISO <- uo[0].
+# The chip keeps its own clock and is reset by hand, and selecting another design powers
+# nothing down. demo/etr_standin.sh copies it as ttboard/demoboard.py and ttboard/mode.py,
+# then runs main.
 
 import machine
 from machine import Pin
@@ -87,14 +88,16 @@ class DemoBoard:
 
     @mode.setter
     def mode(self, mode):
-        """No DIP switches here, so the host port's ui pins are outputs in RP control."""
+        """There are no DIP switches here, so the host port's ui pins are outputs in RP
+        control."""
         self._mode = mode
         for bit in range(3):
             pin = getattr(self.pins, "ui_in%d" % bit)
             pin.mode = Pin.OUT if mode == RPMode.ASIC_RP_CONTROL else Pin.IN
 
     def clock_project_PWM(self, hz):
-        """No clock pin: the system clock at twice it, as the SDK sets for the PWM."""
+        """No clock pin, so use the system clock at twice the rate, as the SDK sets for the
+        PWM."""
         machine.freq(2 * hz)
 
     def clock_project_stop(self):
@@ -105,8 +108,8 @@ class DemoBoard:
 
 
 def main(clock_hz=48_000_000, say=print):
-    """demo_board's transport at a sixteenth, a twelfth and an eighth of the clock, then a
-    reselect, which here only runs the reload path."""
+    """Run demo_board's transport at clock / 16, / 12 and / 8, then reselect (which here
+    only exercises the reload path)."""
     import demo_board
     import demo_board_check as check
     import protocol_emulator as pe

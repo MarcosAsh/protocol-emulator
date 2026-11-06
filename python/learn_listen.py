@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-# Pico B as the receiver of what the chip says (MicroPython): every edge on GP1, which is
-# OUT0 through 1k, timestamped in microseconds for LISTEN_MS, then written as listen.edges
-# for the host to read with what it learned.
+# Pico B as the receiver of what the chip says (MicroPython). Timestamps every edge on GP1
+# (OUT0 through 1k) in microseconds for LISTEN_MS, then writes them to listen.edges for the
+# host to read along with what it learned.
 
 import array
 import time

@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# The chip speaks what it learned (MicroPython, Pico A): send.json's firmware, written by
-# generate.exe learn and accepted by the kernel, into engine 0 with its certificate and the
-# period it was checked under (start, before the analyser runs), then each frame's words,
-# PAUSE_MS apart so a receiver sees separate presses.
+# The chip speaks what it learned (MicroPython, Pico A). Loads send.json's firmware
+# (written by generate.exe learn and accepted by the kernel) into engine 0 with its
+# certificate and the period it was checked under (done in start, before the analyser runs),
+# then sends each frame's words PAUSE_MS apart so a receiver sees separate presses.
 
 import json
 import time
@@ -12,13 +12,13 @@ import pico_board
 import protocol_emulator as pe
 
 PAUSE_MS = 150
-# sigrok-cli takes up to 3 s to start sampling once demo/capture.sh starts it
+# sigrok-cli can take up to 3 s to start sampling after demo/capture.sh starts it
 START_MS = 3000
 
 
 def start(transfer):
-    """Loads and starts the firmware, which sets the idle levels: run before the analyser
-    starts, so a clock's first move to idle is not read as a bit."""
+    """Load and start the firmware, which sets the idle levels. Run this before the
+    analyser starts so a clock's first move to idle isn't read as a bit."""
     send = json.load(open("send.json"))
     host = pe.Host(transfer)
     bench.load(host, send)
@@ -27,13 +27,13 @@ def start(transfer):
 
 
 def run(transfer, log):
-    """The frames, into the firmware start left running."""
+    """Send the frames to the firmware that start left running."""
     send = json.load(open("send.json"))
     host = pe.Host(transfer)
     time.sleep_ms(START_MS)
     for frame in send["frames"]:
         words = list(frame["words"])
-        # as the fifo has room; the firmware pulls a word no sooner than a unit apart
+        # push as the fifo has room; the firmware pulls words at least a unit apart
         while words:
             room = bench.DEPTH - host.status()["tx_level"]
             if room:
