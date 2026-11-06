@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# One outline per block of the hardened die, from pages/die/die.bin's cells, as a pen path
-# for python/demo_draw.py. Each block's cells are rasterised, blurred and traced, the traces
-# simplified together to a budget of segments. The SRAM macros and the tile are their own
-# rectangles. Deterministic for a die.bin.
+# Makes one outline per block of the hardened die from pages/die/die.bin's cells, as a pen
+# path for python/demo_draw.py. Each block's cells are rasterised, blurred and traced, then
+# all traces are simplified together to a budget of segments. The SRAM macros and the tile
+# are plain rectangles. The output is deterministic for a given die.bin.
 import gzip
 import json
 import os
@@ -10,13 +10,13 @@ import struct
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DIE_BIN = os.path.join(REPO, "pages", "die", "die.bin")
-# the blocks that get an outline; glue is a scatter of cells all over
+# blocks that get an outline (glue is scattered all over the die, so it doesn't)
 DRAWN = ["engine 0", "engine 1", "host FIFOs", "host port", "data memory"]
 SRAM = "SRAM macros"
-# a raster square's side in die.bin's steps (20 nm), the blur's radius in squares, the
-# blurred cell cover a square needs to be inside a block, the smallest piece of a block
-# drawn, as a share of its largest, and the least tolerance in squares, which takes the
-# stairs out of a trace
+# in order: a raster square's side in die.bin's steps (20 nm); the blur radius in squares;
+# the blurred cell cover a square needs to count as inside a block; the smallest piece of a
+# block we draw, as a share of its largest; and the minimum tolerance in squares, which
+# removes the stairs from a trace
 GRID = 100
 BLUR = 8
 COVER = 0.25
@@ -26,8 +26,8 @@ SEGMENTS = 1500
 
 
 def read(path=DIE_BIN):
-    """The die's size, its cells as (x, y, w, h, block) in steps from its corner, and each
-    block's colour."""
+    """Returns the die's size, its cells as (x, y, w, h, block) in steps from its corner,
+    and each block's colour."""
     blob = gzip.decompress(open(path, "rb").read())
     if blob[:4] != b"DIE1":
         raise ValueError("%s is not demo/live_die.py's output" % path)
@@ -45,9 +45,9 @@ def read(path=DIE_BIN):
 
 
 def raster(die, cells, grid=GRID, blur=BLUR, cover=COVER):
-    """Each square's block, or None: the drawn block with the most blurred cover there,
-    where every block's together reaches cover and a drawn one has some. Squares a macro
-    touches stay None."""
+    """Returns each square's block, or None. A square belongs to the drawn block with the
+    most blurred cover there, provided all blocks together reach `cover` and a drawn block
+    has some. Squares that a macro touches stay None."""
     columns, rows = -(-die[0] // grid), -(-die[1] // grid)
     area = {name: [[0.0] * columns for _ in range(rows)] for name in DRAWN + ["all"]}
     macro = set()
@@ -75,7 +75,7 @@ def raster(die, cells, grid=GRID, blur=BLUR, cover=COVER):
 
 
 def box_blur(a, r):
-    """Each entry the sum of the (2r + 1) square around it, the edges read as zero."""
+    """Replaces each entry with the sum of the (2r + 1) square around it; outside the edges counts as zero."""
     rows, columns = len(a), len(a[0])
     sums = [[0.0] * (columns + 1) for _ in range(rows + 1)]
     for j in range(rows):
@@ -92,8 +92,8 @@ def box_blur(a, r):
 
 
 def pieces(labels, name, piece=PIECE):
-    """name's 4-connected pieces, as sets of (i, j), the largest first, each at least piece
-    of the largest and with its holes filled."""
+    """Returns name's 4-connected pieces as sets of (i, j), largest first. Each piece is at
+    least `piece` of the largest and has its holes filled."""
     rows, columns = len(labels), len(labels[0])
     seen, found = set(), []
     for j in range(rows):
@@ -116,7 +116,7 @@ def pieces(labels, name, piece=PIECE):
 
 
 def fill(part):
-    """part with every square the outside cannot reach, 8-connected, added."""
+    """Returns part plus every square the outside cannot reach (8-connected)."""
     i0 = min(i for i, _ in part) - 1
     i1 = max(i for i, _ in part) + 1
     j0 = min(j for _, j in part) - 1
@@ -136,9 +136,9 @@ def fill(part):
 
 
 def trace(part):
-    """part's boundary as a closed list of corners, counterclockwise with y up, a corner
-    only where it turns. Where two squares touch at a corner it turns left, keeping them
-    apart as 4-connectivity does."""
+    """Returns part's boundary as a closed list of corners, counterclockwise with y up,
+    with a corner only where it turns. Where two squares touch at a corner it turns left,
+    which keeps them apart as 4-connectivity does."""
     edges = {}
     for i, j in part:
         corners = [(i, j), (i + 1, j), (i + 1, j + 1), (i, j + 1)]
@@ -173,7 +173,7 @@ def collinear(a, b, c):
 
 def simplify(ring, epsilon):
     """Douglas-Peucker on a closed ring, split at its first corner and the corner farthest
-    from it. At least three corners stay."""
+    from it. At least three corners are kept."""
     if len(ring) <= 3:
         return list(ring)
     far = max(range(len(ring)), key=lambda n: distance2(ring[0], ring[n]))
@@ -204,7 +204,7 @@ def distance2(a, b):
 
 
 def segment_distance(p, a, b):
-    """p's distance from the segment a b."""
+    """Returns the distance from p to the segment a b."""
     dx, dy = b[0] - a[0], b[1] - a[1]
     length2 = dx * dx + dy * dy
     t = 0.0 if length2 == 0 else ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / length2
@@ -217,8 +217,8 @@ def rectangle(x, y, w, h):
 
 
 def regions(die, cells, grid=GRID, blur=BLUR):
-    """(name, ring) for every drawn piece, unsimplified, in steps with y up: the tile, the
-    macros, then each block's pieces."""
+    """Returns (name, ring) for every drawn piece, unsimplified, in steps with y up: the
+    tile, the macros, then each block's pieces."""
     found = [("tile", rectangle(0, 0, *die))]
     macros = sorted((x, y, w, h) for x, y, w, h, block in cells if block == SRAM)
     found += [(SRAM, rectangle(*m)) for m in macros]
@@ -230,8 +230,8 @@ def regions(die, cells, grid=GRID, blur=BLUR):
 
 
 def outlines(found, segments=SEGMENTS, grid=GRID):
-    """found's traces simplified with the smallest tolerance from SMOOTH, to a hundredth of
-    a square, that leaves at most segments edges in all. The rectangles stay as they are."""
+    """Simplifies found's traces with the smallest tolerance (from SMOOTH, to a hundredth of
+    a square) that leaves at most `segments` edges in total. The rectangles are unchanged."""
     fixed = sum(len(ring) for name, ring in found if not traced(name))
     if fixed + 3 * sum(1 for name, _ in found if traced(name)) > segments:
         raise ValueError("%d segments cannot hold %d outlines" % (segments, len(found)))
@@ -262,9 +262,10 @@ def traced(name):
 
 
 def pen_path(rings, die, width):
-    """Closed polylines in screen pixels, x right and y down from the tile's top left
-    corner, the tile first from that corner, then always the nearest ring next, from its
-    nearest corner. Corners that round onto the one before are dropped."""
+    """Returns closed polylines in screen pixels, x right and y down from the tile's top
+    left corner. The tile comes first, starting at that corner, then always the nearest
+    ring next, starting at its nearest corner. Corners that round onto the previous one
+    are dropped."""
     scale = width / die[0]
 
     def screen(p):

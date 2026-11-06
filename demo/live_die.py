@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# Data for pages/die: every cell and wire of a hardened run, and which nets switch each cycle
-# of its netlist sending "Jane St!" (demo/live_die_stimulus.py). Fails unless the netlist's
-# pins equal the RTL's on every cycle. Cells are coloured and given src lines by demo/die.py.
+# Makes the data for pages/die: every cell and wire of a hardened run, and which nets switch
+# on each cycle while its netlist sends "Jane St!" (demo/live_die_stimulus.py). Fails unless
+# the netlist's pins match the RTL's on every cycle. demo/die.py colours the cells and gives
+# them src lines.
 # Usage: source env.sh && make -C pages/die, or
 #        demo/live_die.py GDS --provenance JSON -o pages/die/die.bin
 import argparse
@@ -21,7 +22,7 @@ sys.path[:0] = [HERE, os.path.join(REPO, "python")]
 import die  # noqa: E402
 import live_die_stimulus  # noqa: E402
 
-# Coordinates are kept in steps of 20 nm, which puts a 6 x 4 tile die in 16 bits.
+# coordinates are in steps of 20 nm, so a 6 x 4 tile die fits in 16 bits
 STEP = 20
 SRAM = "SRAM macros"
 LAYERS = ["Metal1", "Metal2", "Metal3", "Metal4", "Metal5", "TopMetal1", "TopMetal2"]
@@ -29,8 +30,8 @@ REGISTERS = {0: "control", 1: "status", 7: "tx", 9: "program address", 10: "prog
 
 
 def read_routes(path):
-    """Each net's use, pins and routed segments [(layer, x1, y1, x2, y2)], and each pin's
-    place, in DEF units. Vias and patches are left out."""
+    """Returns each net's use, pins and routed segments [(layer, x1, y1, x2, y2)], and each
+    pin's place, in DEF units. Vias and patches are left out."""
     text = open(path).read()
     section = text[text.index("\nNETS") : text.index("\nEND NETS")]
     nets = {}
@@ -68,7 +69,7 @@ def read_routes(path):
 
 
 def simulate(build, sources, defines, program, dump):
-    """Runs the stimulus and returns what it wrote: the pins at each falling edge."""
+    """Runs the stimulus and returns the pins at each falling edge."""
     from cocotb_tools.runner import get_runner
 
     runner = get_runner("icarus")
@@ -83,7 +84,7 @@ def simulate(build, sources, defines, program, dump):
     pins = os.path.join(build, "pins.json")
     os.environ["LIVE_DIE_PROGRAM"] = program
     os.environ["LIVE_DIE_PINS"] = pins
-    # waves only switches icarus from -none to -fst, and the testbench picks what to dump
+    # waves just switches icarus from -none to -fst; the testbench decides what to dump
     runner.test(
         hdl_toplevel="live_die_tb",
         test_module="live_die_stimulus",
@@ -96,9 +97,9 @@ def simulate(build, sources, defines, program, dump):
 
 
 def vcd_cycles(path):
-    """Yields, for each clock cycle, the bit names whose value at its end differs from
-    the end of the cycle before, and a function giving a bit's value then. A cycle
-    starts at a rising edge of clk. Values start unknown."""
+    """For each clock cycle, yields the bit names whose value at its end differs from the
+    end of the previous cycle, and a function giving a bit's value then. A cycle starts at
+    a rising edge of clk. Values start unknown."""
     vcd = subprocess.Popen(["fst2vcd", path], stdout=subprocess.PIPE, text=True)
     lines = iter(vcd.stdout)
     codes, where = {}, {}
@@ -156,12 +157,12 @@ def vcd_cycles(path):
 
 
 def number(bits):
-    """The unsigned value of bits MSB first, or None if any is unknown."""
+    """Returns the unsigned value of bits (MSB first), or None if any is unknown."""
     return int(bits, 2) if set(bits) <= {"0", "1"} else None
 
 
 def instructions(asm):
-    """The program's lines, one a word: labels and comments dropped."""
+    """Returns the program's lines, one word each, without labels and comments."""
     lines = []
     for line in open(asm):
         line = re.sub(r"^\w+:", "", line.split(";")[0]).strip()
@@ -171,7 +172,7 @@ def instructions(asm):
 
 
 def spi_frames(levels):
-    """[first cycle, last cycle, what] for each host frame, from (sck, mosi, cs_n)."""
+    """Returns [first cycle, last cycle, what] for each host frame, from (sck, mosi, cs_n)."""
     frames, frame = [], None
     for cycle, (sck, mosi, cs_n) in enumerate(levels):
         if not cs_n and frame is None:
@@ -196,7 +197,7 @@ def spi_frames(levels):
 
 
 def pin_labels(info):
-    """Each top-level port bit's name in info.yaml's pinout, like uo_out[1] OUT0."""
+    """Returns each top-level port bit's name in info.yaml's pinout, e.g. uo_out[1] is OUT0."""
     labels = {}
     for kind, n, label in re.findall(r'^\s+(ui|uo|uio)\[(\d)\]: "(.*)"', open(info).read(), re.M):
         for port in {"ui": ["ui_in"], "uo": ["uo_out"], "uio": ["uio_in", "uio_out", "uio_oe"]}[
@@ -238,7 +239,7 @@ def main():
     program = os.path.join(REPO, "test", "uart_tx.hex")
     build = os.path.abspath(args.build or tempfile.mkdtemp(prefix="live_die"))
 
-    # the RTL the run hardened, then its netlist, on the same stimulus
+    # run the RTL that was hardened, then its netlist, with the same stimulus
     rtl = simulate(
         os.path.join(build, "rtl"),
         [os.path.join(src, "project.v"), os.path.join(src, "protocol_emulator.v")] + models,
@@ -297,7 +298,7 @@ def main():
         die.from_instances(verilog),
     )
 
-    # cells by block, then row, so a cycle's toggles sit close together
+    # sort cells by block, then row, so one cycle's toggles are close together
     blocks = [name for name, _, _ in die.BLOCKS] + [SRAM]
     macros = sorted(c for c, t in kept.items() if lib[t]["class"] == "BLOCK")
     order = sorted(
@@ -308,8 +309,8 @@ def main():
     index = {c: n for n, c in enumerate(order)}
     masters = sorted({kept[c] for c in order})
 
-    # the nets a kept cell or a pin drives, clocks aside, as they change at both edges and
-    # so never between two rising ones
+    # nets driven by a kept cell or a pin, except clocks, which change on both edges and
+    # so never sit between two rising edges
     nets = []
     for name, net in routes.items():
         if net["use"] != "SIGNAL":
@@ -341,8 +342,8 @@ def main():
         )
     cells = bytes(blocks.index(labels.get(c, SRAM)) for c in order)
     cells += struct.pack("<%dH" % len(order), *(masters.index(kept[c]) for c in order))
-    # each cell's line as an index into the header's sources, the top bit set when it is
-    # only the nearest named cell's, and all ones when there is none
+    # each cell's line is an index into the header's sources. The top bit is set if the line
+    # is only the nearest named cell's; all ones means there is none
     sources = sorted(set(lines.values()))
     source_index = {s: n for n, s in enumerate(sources)}
     origins = struct.pack(
@@ -354,8 +355,8 @@ def main():
     )
     drivers = varints(b - a for a, b in zip([0] + [d for d, _, _ in nets], [d for d, _, _ in nets]))
     counts = varints(len(s) for _, _, s in nets)
-    # each segment as its layer, its first end from the last segment's and its second
-    # from its first, signed numbers zigzagged
+    # each segment is its layer, its first end relative to the previous segment's end, and
+    # its second end relative to its first; signed numbers are zigzag-encoded
     wires = bytearray()
     for _, _, segments in nets:
         x, y = 0, 0

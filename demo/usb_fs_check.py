@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
-# Usb_frame_rx on the board against a real host: loads icepi/usb_fs_check.v, whose D+
+# Tests Usb_frame_rx on the board against a real host. Loads icepi/usb_fs_check.v, whose D+
 # pull-up makes the laptop enumerate the first USB-C port at full speed, and reads back
-# every packet it took through Pico B (demo/usb_fs_listen.py). Each packet's CRC is
-# checked here too, and the SOFs' frame numbers must count up by one. The device never
-# answers, so the host gives up after a few seconds; openFPGALoader -r then brings the
-# chip back from flash.
+# every packet it received through Pico B (demo/usb_fs_listen.py). Each packet's CRC is
+# checked here as well, and the SOF frame numbers must count up by one. The device never
+# answers, so the host gives up after a few seconds; openFPGALoader -r then restores the
+# chip from flash.
 # Usage: PICO_B=<serial of Pico B> [REV=v1.3] python3 demo/usb_fs_check.py [--out DIR]
 
 import argparse
@@ -47,7 +47,7 @@ def crc16(data):
 
 
 def packets(stream):
-    """Split the UART's bytes into (flags, lost, packet bytes)."""
+    """Splits the UART's bytes into (flags, lost, packet bytes)."""
     i = 0
     while i + 4 <= len(stream):
         if stream[i] != 0xA5:
@@ -63,7 +63,7 @@ def packets(stream):
 
 
 def check(flags, body):
-    """The software's verdict on a packet, and its name."""
+    """Returns the software's verdict on a packet, and its name."""
     if not body or body[0] & 0xF != ~body[0] >> 4 & 0xF:
         return False, "bad pid"
     name = PIDS.get(body[0], f"pid {body[0]:02x}")
