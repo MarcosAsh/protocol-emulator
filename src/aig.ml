@@ -2,8 +2,8 @@ open! Core
 open! Hardcaml
 
 module Make () = struct
-  (* A literal is twice its node, plus one when inverted; node 0 is false. Only the
-     constant folding [Basic_gates] does is done here, so the graph keeps its shape. *)
+  (* A literal is twice its node, plus one when inverted; node 0 is false. We only do the
+     constant folding [Basic_gates] does, so the graph keeps its shape. *)
   module Literal = struct
     type t = int [@@deriving equal ~localize, sexp]
 
@@ -59,7 +59,7 @@ module Make () = struct
 
   include Bits_list.Make (Literal)
 
-  (* as yosys's write_aiger names them, msb first *)
+  (* named like yosys's write_aiger, msb first *)
   let bit_names name width =
     if width = 1
     then [ name ]

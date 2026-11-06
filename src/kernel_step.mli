@@ -1,5 +1,5 @@
-(** The core's step through one instruction, which [Kernel] documents, and what it reads
-    of a word, which [Kernel_accepts] reads too. *)
+(** The core's step through one instruction (documented in [Kernel]), and what it reads of
+    a word, which [Kernel_accepts] reads too. *)
 
 open! Core
 open! Hardcaml
@@ -9,7 +9,7 @@ module Make_timer (Timer : Engine.Timer) : sig
   open Kernel_types.Make_timer(Timer)
 
   module Make (Comb : Comb.S) : sig
-    (** The classes of word the analyser's transfer function tells apart. *)
+    (** The classes of word that the analyser's transfer function tells apart. *)
     module Class : sig
       type t =
         { cycles : Comb.t
@@ -69,7 +69,7 @@ module Make_timer (Timer : Engine.Timer) : sig
     (** A count of cycles, [Isa.data_bits] wide, at most [since_limit]. *)
     val saturate : Comb.t -> Comb.t
 
-    (** Past this, a count of cycles since the arm is taken as lost, so it never wraps. *)
+    (** Past this, a count of cycles since the arm counts as lost, so it never wraps. *)
     val arm_limit : int
 
     val step

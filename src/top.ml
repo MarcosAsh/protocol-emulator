@@ -33,7 +33,7 @@ let create ~memory ~engines (scope : Scope.t) (i : Signal.t I.t) =
   let%hw reset_meta = reg async vdd in
   let%hw reset_done = reg async reset_meta in
   (* Both_edges' falling pair clears from a flop of its own, a cycle behind reset_done,
-     not from the clear's tree, which a falling flop gives only half a cycle *)
+     because the clear's tree would give a falling flop only half a cycle *)
   let%hw reset_late = reg (Reg_spec.create ~clock:i.clk ()) reset_done in
   let clocking = { Clocking.clock = i.clk; clear = ~:reset_done } in
   let%hw ui_meta = Clocking.reg clocking i.ui_in.:[7, 3] in

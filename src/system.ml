@@ -30,7 +30,7 @@ let seen t n ~pads ~owner ~status =
 ;;
 
 (* Engine [n]'s routed pushes land in engine [n + 1]'s tx fifo after the step, judged full
-   by the level before it. A fault stops the engine an edge after it shows, as
+   by the level before it. A fault stops the engine an edge after it shows, like
    [Machine.stop] does for the host. *)
 let step ?(owner = 0) ?(status = 0) t ~pads =
   let count = List.length t.engines in

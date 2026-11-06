@@ -1,8 +1,8 @@
 (** Bit stuffing in the line path, for [Line_code.Modes.tx_stuff]. A stuffed bit takes a
-    bit time the firmware never spends: the out it lands on sends a 0 and keeps its own
-    bit owed, and every out after sends the oldest owed bit and keeps its own, so the
-    core's timing never depends on the data. After [finish] outs take no bits, only pay
-    what is owed, until an out finds nothing owed and no stuffing, which takes its bit
+    bit time the firmware never spends. The out it lands on sends a 0 and keeps its own
+    bit owed, and every out after that sends the oldest owed bit and keeps its own, so the
+    core's timing never depends on the data. After [finish], outs take no bits and only
+    pay what is owed, until an out finds nothing owed and no stuffing, which takes its bit
     again. *)
 
 open! Core

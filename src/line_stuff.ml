@@ -29,8 +29,8 @@ module O = struct
   [@@deriving hardcaml]
 end
 
-(* The owed bits are the latest [count] taken, so a shift register of the bits taken and a
-   count serve as the queue: the oldest owed bit is [held] at [count - 1]. *)
+(* The owed bits are the latest [count] taken, so a shift register of the bits taken plus
+   a count works as the queue: the oldest owed bit is [held] at [count - 1]. *)
 let create (scope : Scope.t) (i : Signal.t I.t) =
   let spec = Clocking.to_spec i.clocking in
   let%hw held = wire held_bits in

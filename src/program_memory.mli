@@ -1,5 +1,5 @@
-(** Flop stand-in for the IHP single port SRAM: registered read, write-through when [ren]
-    and [wen] are both set, [bm] masks writes. *)
+(** Flop stand-in for the IHP single-port SRAM: registered read, write-through when [ren]
+    and [wen] are both set, and [bm] masks writes. *)
 
 open! Core
 open! Hardcaml

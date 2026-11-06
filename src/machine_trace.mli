@@ -1,4 +1,4 @@
-(** Runs the model as a host and a peer would drive it, and records every pin on every
+(** Runs the model as a host and a peer would drive it and records every pin on every
     cycle, for [generate.exe run]. Cycle [c] shows the pins after the model's [c]th step,
     counted from 0. *)
 
@@ -44,8 +44,8 @@ val run : Machine.t -> cycles:int -> tx:Tx.t list -> inputs:Input.t list -> t
 
 val faulted : t -> bool
 
-(** A strip per pin that is ever high or is driven, then its edges with their cycles and
-    the cycles since the last, the rx words with the cycle each was pushed, and each fault
+(** A strip per pin that is ever high or driven, then its edges with their cycles and the
+    cycles since the last one, the rx words with the cycle each was pushed, and each fault
     with the cycle and pc that set it. *)
 val to_string : t -> string
 

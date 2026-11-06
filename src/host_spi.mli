@@ -1,5 +1,5 @@
 (** SPI slave byte layer, mode 0, MSB first, oversampled by the core clock. [sck] must be
-    at most an eighth of it for the register layer to answer in time. *)
+    <= clock / 8 for the register layer to answer in time. *)
 
 open! Core
 open! Hardcaml

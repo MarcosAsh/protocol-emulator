@@ -1,15 +1,16 @@
-(** USB full speed receive into the data memory, as [Frame_rx] does 10BASE-T: [Usb_rx] at
-    8 samples a bit on both clock edges, and the CRC-5 and CRC-16 after the PID, each
-    checked against its residue at the packet's end. A token is good if [crc5_ok], a data
-    packet if [crc16_ok].
+(** USB full speed receive into the data memory, like [Frame_rx] does for 10BASE-T:
+    [Usb_rx] at 8 samples a bit on both clock edges, then the CRC-5 and CRC-16 after the
+    PID, each checked against its residue at the packet's end. A token is good if
+    [crc5_ok], a data packet if [crc16_ok].
 
-    [arm] (re)starts it: the next packet's words land from [base] up, PID in the first low
-    half, and its end disarms it with [finished]. With [rearm] it stays armed, so each
-    packet lands from [base] in turn, with no host write between two a device must answer,
-    and [finished] holds from one's end to the next one's SYNC. A word lands only where
-    [may_write] lets it, and only below the data memory's end; otherwise it is counted and
-    [dropped] says so. A word waits for [may_write] until the next arrives, and [finished]
-    until the last lands. [half] marks a last word that holds one byte. *)
+    [arm] (re)starts it: the next packet's words land from [base] up, with the PID in the
+    first low half, and the packet's end disarms it with [finished]. With [rearm] it stays
+    armed, so each packet lands from [base] in turn, with no host write needed between two
+    a device must answer. Then [finished] holds from one packet's end until the next one's
+    SYNC. A word lands only where [may_write] lets it and only below the data memory's
+    end; otherwise it is counted and [dropped] says so. A word waits for [may_write] until
+    the next one arrives, and [finished] waits until the last one lands. [half] marks a
+    last word that holds one byte. *)
 
 open! Core
 open! Hardcaml
@@ -26,7 +27,7 @@ module Control : sig
   type 'a t =
     { arm : 'a
     ; base : 'a
-    ; rearm : 'a (** Each packet's end arms it again, for the next from [base] too. *)
+    ; rearm : 'a (** Each packet's end arms it again, for the next one from [base] too. *)
     }
   [@@deriving hardcaml]
 end
@@ -62,7 +63,7 @@ end
 module O : sig
   type 'a t =
     { write : 'a Engine.Program_write.t
-    ; ready : 'a (** A word waits that fits: [write.valid] is [ready &: may_write]. *)
+    ; ready : 'a (** A word is waiting and fits: [write.valid] is [ready &: may_write]. *)
     ; status : 'a Status.t
     }
   [@@deriving hardcaml]

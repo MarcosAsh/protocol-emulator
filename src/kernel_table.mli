@@ -1,5 +1,5 @@
 (** The table the kernel checks, built from the analyser's rows, and the check of every
-    row, which [Kernel] documents. *)
+    row (documented in [Kernel]). *)
 
 open! Core
 open! Hardcaml

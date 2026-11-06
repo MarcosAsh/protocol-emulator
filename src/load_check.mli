@@ -1,19 +1,19 @@
-(** The kernel as a chip runs it at load: the host writes a certificate to the data memory
-    and the chip walks the program in its own memory against it, refusing to start one
-    that fails. A certificate stores rows only at the wrap and jump targets; every other
-    row is the kernel's [fall_through] image of the row before it. Rows carry no Spacing
-    and no slope, so firmware that needs either is refused.
+(** The kernel as a chip runs it at load. The host writes a certificate to the data
+    memory, and the chip walks the program in its own memory against it, refusing to start
+    one that fails. A certificate stores rows only at the wrap and jump targets; every
+    other row is the kernel's [fall_through] image of the row before it. Rows carry no
+    Spacing and no slope, so firmware that needs either is refused.
 
-    Layout from [base]: the entry count and the wide count, each its low byte, then three
-    words an entry, sorted by pc, then the wide dictionary, three words an interval, then
-    the narrow one, two words an interval; addresses wrap at the memory's size. *)
+    Layout from [base]: the entry count and the wide count (each its low byte), then three
+    words per entry sorted by pc, then the wide dictionary (three words per interval),
+    then the narrow one (two words per interval). Addresses wrap at the memory's size. *)
 
 open! Core
 open! Hardcaml
 
-(** An entry, packed from the top of its three words with [pc] highest: the captured and
-    awaiting bits and indices into the dictionaries for the phase and arm (wide) and the
-    period, x and y (narrow), index 0 being the field's whole range. *)
+(** An entry, packed from the top of its three words with [pc] highest. It holds the
+    captured and awaiting bits, plus indices into the dictionaries for the phase and arm
+    (wide) and the period, x and y (narrow). Index 0 is the field's whole range. *)
 module Entry : sig
   type 'a t =
     { pc : 'a
@@ -33,10 +33,10 @@ val unused_bits : int
 
 type t [@@deriving sexp_of]
 
-(** The rows of [table] at the wrap and jump targets, the program being [words] under
+(** The rows of [table] at the wrap and jump targets, where the program is [words] under
     [config]. [registers_whole] stores x and y as their whole ranges, so one certificate
     serves programs that differ only in what they set them to. Fails if a dictionary
-    outgrows its indices, or the certificate the data memory. *)
+    outgrows its indices, or the certificate outgrows the data memory. *)
 val of_table
   :  ?registers_whole:bool
   -> config:Program_config.t
@@ -45,7 +45,7 @@ val of_table
   -> t Or_error.t
 
 (** [of_table] on the analyser's rows for [words] under the assumptions, as a host makes
-    the certificate for a program it holds only as words. *)
+    the certificate for a program it only has as words. *)
 val of_program
   :  ?registers_whole:bool
   -> ?period:int
@@ -58,7 +58,8 @@ val of_program
 (** The data memory's words, from [base]. *)
 val to_words : t -> int list
 
-(** A pc [walk] refuses and why: a conjunct, as [Kernel.check] names them, or the table. *)
+(** A pc that [walk] refuses, and why: a conjunct (named as [Kernel.check] names them) or
+    the table. *)
 module Rejection : sig
   type t =
     { pc : int
@@ -67,11 +68,11 @@ module Rejection : sig
   [@@deriving sexp_of]
 end
 
-(** [walk]'s step at a pc, over [Kernel.Make]: the row it holds next, which is the stored
-    entry's, [stored_row], where [stored], and whether a conjunct fails, [reason] the
-    first in [Kernel.Conjuncts.to_list] order, and each. [next] and [target] are the rows
-    looked up at the successors; [next] is unread where the pc falls through.
-    [formal/complete.sv] takes the circuit for the walk the load checker is proved to
+(** [walk]'s step at a pc, over [Kernel.Make]. Gives the row held next (the stored
+    entry's, [stored_row], where [stored]), whether a conjunct fails, [reason] (the first
+    in [Kernel.Conjuncts.to_list] order), and each conjunct. [next] and [target] are the
+    rows looked up at the successors; [next] is unread where the pc falls through.
+    [formal/complete.sv] takes the circuit for the walk that the load checker is proved to
     keep. *)
 module Step : sig
   module I : sig

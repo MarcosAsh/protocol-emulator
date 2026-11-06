@@ -23,7 +23,7 @@ module Make_timer (Timer : Engine.Timer) = struct
     (* the timer's signed values are [-half, half - 1] *)
     let half = 1 lsl (timer_bits - 1)
 
-    (* an offset, or a slope, that the timer's width cannot hold says nothing *)
+    (* an offset or slope that the timer's width can't hold says nothing *)
     let offset_bounds ~slope (offset : Interval.t) =
       let fits n = n >= -half && n < half in
       match offset.lo, offset.hi with
@@ -58,7 +58,7 @@ module Make_timer (Timer : Engine.Timer) = struct
           unsigned lo, unsigned hi
         | _ -> unsigned 0, Bits.ones timer_bits
       in
-      (* an open end, or one the timer's width cannot hold, is the whole range, since the
+      (* an open end, or one the timer's width can't hold, is the whole range, since the
          timer wraps *)
       let phase_lo, phase_hi =
         match phase.lo, phase.hi with
@@ -138,7 +138,7 @@ module Make_timer (Timer : Engine.Timer) = struct
     ;;
 
     (* Where either may be: the least of their counts and marks at each bit. A bit it may
-       not hold reads the top of both, so that joining comes to a fixed point. *)
+       not hold reads the top of both, so joins converge to a fixed point. *)
     let join (p : _ Pin.t) (q : _ Pin.t) =
       let held (h : _ Held.t) (g : _ Held.t) =
         let top = { Held.may = Bits.gnd; since = K.since_limit; mark = K.mark_max } in
@@ -351,8 +351,8 @@ module Make_timer (Timer : Engine.Timer) = struct
     ~words
     (table : Table.t)
     =
-    (* what formal/phase_spacing.sby proves the spacing for, judged first since a pin past
-       the pin space has no place in the kernel's fields *)
+    (* what formal/phase_spacing.sby proves the spacing for; judged first because a pin
+       past the pin space has no place in the kernel's fields *)
     let proved_spacing =
       Option.for_all spec ~f:(fun ({ a; b; _ } : Kernel_types.Spacing.Spec.t) ->
         a <> b

@@ -12,8 +12,8 @@ module Source = struct
   let to_string { file; line; named = _ } = [%string "%{file}:%{line#Int}"]
 end
 
-(* [Caller_id] has no getter, so put back the mode Hardcaml starts in: cyclesim coverage
-   keeps a trace per signal to name its holes *)
+(* [Caller_id] has no getter, so put back the mode Hardcaml starts in. Cyclesim coverage
+   keeps a trace per signal to name its holes. *)
 let traced f =
   let ambient : Caller_id.Mode.t =
     if Option.is_some (Sys.getenv "HARDCAML_CYCLESIM_COVERAGE")
@@ -25,9 +25,9 @@ let traced f =
   Exn.protect ~f ~finally:(fun () -> Caller_id.set_mode ambient)
 ;;
 
-(* [@@deriving hardcaml] code sits at the record field it maps, so a signal an interface's
-   [Of_always.reg] or [wires] made would claim a type's field. OxCaml names its frames
-   after any of the derived functions. *)
+(* [@@deriving hardcaml] code sits at the record field it maps, so a signal made by an
+   interface's [Of_always.reg] or [wires] would claim a type's field. OxCaml names its
+   frames after any of the derived functions. *)
 let derived =
   String.Set.of_list
     [ "ast"
@@ -48,8 +48,8 @@ let is_derived defname =
   |> Option.exists ~f:(fun (_, name) -> Set.mem derived name)
 ;;
 
-(* Core and Hardcaml keep their sources in a src/ too, so a frame is told ours by the
-   module dune wraps it in. Frames past Hardcaml's hierarchy are the parent's, where the
+(* Core and Hardcaml keep their sources in a src/ too, so we tell our frames by the module
+   dune wraps them in. Frames past Hardcaml's hierarchy belong to the parent, where the
    module was instantiated, so a signal whose own frames were inlined or cut has none. *)
 let made signal =
   Signal.Type.caller_id signal
@@ -70,7 +70,7 @@ let named signal ~index ~ours =
   | _ -> None
 ;;
 
-(* a wire with no line of its own, an output port say, has its driver's *)
+(* a wire with no line of its own (an output port, say) takes its driver's *)
 let rec source signal ~index ~ours =
   match Option.first_some (named signal ~index ~ours) (made signal) with
   | Some _ as found -> found
@@ -97,8 +97,8 @@ let of_rtl rtl =
     |> List.dedup_and_sort ~compare:(fun (a, _) (b, _) -> String.compare a b)
     |> List.map ~f:(fun (name, instance) -> name, names instance)
   in
-  (* a name's location counts only in a file some frame of ours is in. Constants share a
-     name, which takes the first one's line. *)
+  (* a name's location counts only in a file that some frame of ours is in. Constants
+     share a name, which takes the first one's line. *)
   let ours =
     List.concat_map modules ~f:(fun (_, names) ->
       List.filter_map names ~f:(fun (_, _, signal) ->

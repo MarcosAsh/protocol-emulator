@@ -79,7 +79,7 @@ module Make (Config : Config) = struct
       | Ihp_sram -> (Sram_macro.hierarchical scope memory_in).dout
     in
     (* A running engine keeps its word while its next address is the one it last read and
-       nothing has written there since: its last word is the word the read would give, so
+       nothing has written there since. Its last word is the word the read would give, so
        it skips the read and a write may take its turn. *)
     let%hw_list held =
       List.mapi i.reads ~f:(fun n read -> reg spec ~enable:(turn ==:. n &: ~:write) read)

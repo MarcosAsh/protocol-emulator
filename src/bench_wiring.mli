@@ -1,5 +1,5 @@
-(** Which logic analyser channel each chip pin of the bench's one permanent wiring (the
-    carrier PCB's) reaches, and what else hangs on that net. *)
+(** Which logic analyser channel each chip pin reaches on the bench's one permanent wiring
+    (the carrier PCB's), and what else hangs on that net. *)
 
 open! Core
 

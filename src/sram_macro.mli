@@ -1,5 +1,5 @@
 (** The IHP 512x16 macro behind the [Program_memory] interface. BIST is tied off and
-    [A_DLY] is tied high as the datasheet requires. *)
+    [A_DLY] is tied high, as the datasheet requires. *)
 
 open! Core
 open! Hardcaml

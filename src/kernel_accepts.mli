@@ -1,5 +1,5 @@
-(** The kernel's check of a row and the core's place inside one, which [Kernel] documents,
-    with the step it builds on. *)
+(** The kernel's check of a row and the core's place inside one (both documented in
+    [Kernel]), plus the step they build on. *)
 
 open! Core
 open! Hardcaml
@@ -54,9 +54,10 @@ module Make_timer (Timer : Engine.Timer) : sig
       -> target:Comb.t Row.t
       -> Comb.t
 
-    (** The tightest row [conjuncts] lets the next pc's be on the way of falling through,
-        with no spacing and the offset left full, and whether that way is asked: where it
-        is not, any row holds. [test/test_kernel.ml] proves it field by field. *)
+    (** The tightest row that [conjuncts] allows the next pc to have when falling through,
+        with no spacing and the offset left full. Also says whether that way is asked at
+        all, since any row holds where it isn't. [test/test_kernel.ml] proves it field by
+        field. *)
     val fall_through
       :  side_set_count:Comb.t
       -> fraction:Comb.t
@@ -66,11 +67,11 @@ module Make_timer (Timer : Engine.Timer) : sig
       -> row:Comb.t Row.t
       -> Comb.t Row.t * Comb.t
 
-    (** [conjuncts] with no spacing on one way out against [s], the jump's where [taken]
-        is high and falling through where it is low, the other way's holding; where
-        [taken] is low, [fall_through] too. A way's image is then computed once, for the
-        load checker, which checks one way at a time and registers the word's classes with
-        [stage]. [test/test_kernel.ml] proves it theirs. *)
+    (** [conjuncts] with no spacing, for one way out against [s]: the jump's where [taken]
+        is high, falling through where it is low, and the other way holds. Where [taken]
+        is low, [fall_through] holds too. This computes a way's image once for the load
+        checker, which checks one way at a time and registers the word's classes with
+        [stage]. [test/test_kernel.ml] proves it matches. *)
     val one_way
       :  ?stage:(Comb.t -> Comb.t)
       -> side_set_count:Comb.t
@@ -115,12 +116,12 @@ module Make_timer (Timer : Engine.Timer) : sig
 
     val starts_open : Comb.t Row.t -> spacing:Comb.t Spaced.t -> Comb.t
 
-    (** The row bounds no core, as at a pc never reached. *)
+    (** The row bounds no core, as at a pc that is never reached. *)
     val is_empty : Comb.t Row.t -> Comb.t
 
     val since_limit : Comb.t
 
-    (** A mark that bounds nothing, and the most a mark can bound. *)
+    (** A mark that bounds nothing, and the largest mark that can bound anything. *)
     val mark_none : Comb.t
 
     val mark_max : Comb.t

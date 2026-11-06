@@ -8,8 +8,8 @@ module type Config = sig
   val gain_shift : int
 end
 
-(* A first-order digital PLL on the transitions: see the .mli. IEEE 802.3-2008 14.3.1.3.1:
-   a station accepts 13.5 ns of jitter on its edges. *)
+(* A first-order digital PLL on the transitions; see the .mli. IEEE 802.3-2008 14.3.1.3.1
+   says a station accepts 13.5 ns of jitter on its edges. *)
 module Make (Config : Config) = struct
   open Config
 
@@ -65,7 +65,7 @@ module Make (Config : Config) = struct
     let spec = Clocking.to_spec i.clocking in
     let%hw.Always.State_machine sm = Always.State_machine.create (module State) spec in
     let constant n = of_signed_int ~width:count_bits n in
-    (* the rate's lengths; with one rate [rate] is ignored *)
+    (* the rate's lengths; with a single rate, [rate] is ignored *)
     let by_rate f =
       match samples_per_bit with
       | [ n ] -> constant (f n)
@@ -88,7 +88,7 @@ module Make (Config : Config) = struct
     let%hw_list centres =
       List.mapi edges ~f:(fun k edge -> mux2 (sm.is Idle) edge (edge &: (at k >=+ blank)))
     in
-    (* a cycle has room for one centre: two would need a half bit under a sample *)
+    (* a cycle has room for one centre; two would need a half bit under a sample *)
     let%hw_list taken =
       List.mapi centres ~f:(fun k centre ->
         List.fold (List.take centres k) ~init:centre ~f:(fun acc earlier ->
@@ -112,9 +112,9 @@ module Make (Config : Config) = struct
     in
     let%hw drifted = count +: constant (samples_per_cycle * one) in
     let%hw lost = ~:(sm.is Idle) &: ~:any &: (drifted >+ timeout) in
-    (* with no gain the correction is zero, so [count] is only ever [after k] or whole
-       samples more: a multiple of [one] and never negative. Coverage waives its fraction
-       and sign bits then; a random power-up value still clears. *)
+    (* with no gain the correction is zero, so [count] only ever moves to [after k] or by
+       whole samples: a multiple of [one], never negative. Coverage waives its fraction
+       and sign bits then, but a random power-up value still clears them. *)
     let never_set =
       if gain_shift = 0 then List.range 0 fraction_bits @ [ count_bits - 1 ] else []
     in

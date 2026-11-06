@@ -1,7 +1,7 @@
 (** USB full speed receive: NRZI with bit stuffing, clock recovered from every edge. Each
     D+ edge is a bit boundary and restarts the phase, so the bit is the sample half a bit
     later, then one a bit after that until the next edge. The line state there is J, K or
-    SE0 from D+ and D-; a K after a J starts a SYNC, and a 1 after at least three 0s ends
+    SE0 from D+ and D-. A K after a J starts a SYNC, and a 1 after at least three 0s ends
     it. A 0 after six 1s is dropped; a seventh 1 is a stuffing error, which ends the
     packet. SE0 ends it too.
 

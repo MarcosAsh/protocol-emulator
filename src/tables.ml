@@ -32,7 +32,7 @@ module Kind = struct
   let code t = List.findi_exn all ~f:(fun _ k -> equal k t) |> fst
 
   (* what a step adds to [t] beyond its hold: its path's cycles past the wait that
-     releases it, for the deadline at the end to have no slack at hold 0 *)
+     releases it, so the deadline at the end has no slack at hold 0 *)
   let added = function
     | Plain -> 19
     | Shift -> 26
@@ -106,11 +106,12 @@ let entries = 256
 let max_hold = (1 lsl Isa.data_bits) - 1
 let burst_bits = 12
 
-(* Two words an entry: its hold, then outputs (6 bits), kind (4) and next state (6), low
-   bits first. The entry is at [d << 7 | state << k | inputs], d the host bit p[15]. Kinds
-   are tried in [Kind.all]'s order by counting x down, the last taking every later code.
-   Each path adds its [Kind.added] to [t] before the paths join. A wait for the host or a
-   pin clears [t] first and re-anchors after, as its phase is unbounded. *)
+(* Two words per entry: its hold, then outputs (6 bits), kind (4) and next state (6), low
+   bits first. The entry is at [d << 7 | state << k | inputs], where d is the host bit
+   p[15]. Kinds are tried in [Kind.all]'s order by counting x down, and the last takes
+   every later code. Each path adds its [Kind.added] to [t] before the paths join. A wait
+   for the host or a pin clears [t] first and re-anchors after, since its phase is
+   unbounded. *)
 let interpreter (w : Wiring.t) =
   Wiring.validate w |> ok_exn;
   let drive = if w.open_drain then "pindirs" else "pins" in
@@ -338,7 +339,7 @@ let host_bits bits =
     word lor (Bool.to_int bit lsl (Isa.data_bits - 1 - i)))
 ;;
 
-(* a host word a [Burst] sends: 1 to 12 bits, the first first *)
+(* a host word a [Burst] sends: 1 to 12 bits, first bit first *)
 let burst_word bits =
   let n = List.length bits in
   if n < 1 || n > burst_bits then raise_s [%message "BUG: 1 to 12 bits a burst" (n : int)];
@@ -462,7 +463,7 @@ module Dshot_bits = struct
   [@@deriving equal, sexp_of]
 end
 
-(* each bit: high for [zero_high], the bit for [zero_high] more, low to [bit] *)
+(* each bit: high for [zero_high], the bit for [zero_high] more, then low to [bit] *)
 let dshot ~zero_high ~bit:cycles : Dshot_bits.t t =
   { name = "dshot"
   ; wiring = Wiring.default
@@ -508,9 +509,9 @@ end
 let marker = 0x0080
 
 (* Takes writes to [address]: SDA on [sda], SCL beside it, both open drain. Each byte goes
-   to the host as [0x8000 lor byte]; the host keeps a [marker] word queued for each, which
-   reaches p[15] as the eighth bit comes in. START and STOP are watched for on the first
-   bit of a byte, by polling while SCL is high, as [I2c.slave] does. *)
+   to the host as [0x8000 lor byte], and the host keeps a [marker] word queued for each,
+   which reaches p[15] as the eighth bit comes in. START and STOP are only watched for on
+   the first bit of a byte, by polling while SCL is high, like [I2c.slave]. *)
 let i2c_slave ~address ~sda : I2c_slave.t t =
   let scl = sda + 1 in
   let wiring =

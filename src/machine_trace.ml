@@ -102,7 +102,7 @@ let fault_names { Machine.Fault.underflow; overflow; missed_deadline; decode; as
     ~f:(fun (name, set) -> Option.some_if set name)
 ;;
 
-(* the host writes in order, stopping at the first word not yet due or with no room *)
+(* the host writes in order, stopping at the first word that isn't due yet or has no room *)
 let rec write_tx machine (tx : Tx.t list) ~cycle =
   match tx with
   | word :: rest when word.cycle <= cycle ->
@@ -266,7 +266,7 @@ let to_string t =
   |> String.concat_lines
 ;;
 
-(* info.yaml's clock, a cycle being 20833.3 ps, so each stamp rounds down *)
+(* info.yaml's clock; a cycle is 20833.3 ps, so each stamp rounds down *)
 let ps cycle = cycle * 1_000_000 / 48
 
 let to_vcd t =

@@ -39,8 +39,8 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let%hw selected_last = reg spec selected in
   let%hw frame_start = selected &: ~:selected_last in
   let%hw frame_end = ~:selected &: selected_last in
-  (* SPI mode 0: sample on [sck_rise], shift out on [sck_fall], reload [tx_byte] when the
-     count wraps at a byte boundary. *)
+  (* SPI mode 0: sample on [sck_rise], shift out on [sck_fall], and reload [tx_byte] when
+     the count wraps at a byte boundary *)
   let%hw count =
     reg_fb spec ~width:3 ~f:(fun d ->
       mux2 frame_start (zero 3) @@ mux2 sck_rise (d +:. 1) d)

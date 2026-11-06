@@ -79,14 +79,15 @@ end
 module Make_timer (Timer : Engine.Timer) = struct
   let timer_bits = Timer.timer_bits
 
-  (* an instruction's cycles, [1 lsl Isa.delay_bits] at most, stay below [arm_limit] *)
+  (* an instruction's cycles are at most [1 lsl Isa.delay_bits], which stays below
+     [arm_limit] *)
   let () =
     if timer_bits < Isa.delay_bits + 2
     then
       raise_s [%message "BUG: the timer is too narrow for the kernel" (timer_bits : int)]
   ;;
 
-  (* wide enough for a count of cycles, 16 bits, less a phase *)
+  (* wide enough for a count of cycles (16 bits) minus a phase *)
   let mark_bits = Int.max timer_bits (Isa.data_bits + 1) + 2
 
   module Held = struct

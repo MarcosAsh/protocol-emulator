@@ -33,9 +33,9 @@ end
 
 let cycles n = [%string "%{n#Int} %{if n = 1 then \"cycle\" else \"cycles\"}"]
 
-(* For a deadline wait that is the only wait in the innermost loop round it, a [jmp] or
-   [jmp x--] back over a straight run: the cycles a pass takes and what it adds to [t].
-   Once late the wait does not stall, so a pass that takes more than it adds leaves it
+(* For a deadline wait that is the only wait in the innermost loop around it ([jmp] or
+   [jmp x--] back over a straight run): the cycles a pass takes and what it adds to [t].
+   Once late, the wait doesn't stall, so a pass that takes more than it adds leaves it
    that much later each time round. *)
 let late_pass ~(config : Program_config.t) (rows : Analyser.Row.t list) ~pc =
   let open Option.Let_syntax in
@@ -54,7 +54,7 @@ let late_pass ~(config : Program_config.t) (rows : Analyser.Row.t list) ~pc =
       | Jmp _ | Op _ -> None)
   in
   let at = Map.of_alist_exn (module Int) (List.map rows ~f:(fun row -> row.pc, row)) in
-  (* a fractional period carries a cycle into some of the steps and not others *)
+  (* a fractional period carries an extra cycle into some steps but not others *)
   let p (row : Analyser.Row.t) =
     Option.bind (known row.period) ~f:(fun p ->
       Option.some_if (config.period_fraction = 0) p)
@@ -116,7 +116,7 @@ let analyser_reason ~config rows (row : Analyser.Row.t) =
          | _, Some hi when hi < 0 -> [%string "%{cycles (-hi)} or more late"]
          | _ -> "late, by more on each pass of a loop or after an untimed wait")
     in
-    (* a counted loop's slope is less the cycles it falls behind on each pass *)
+    (* a counted loop's slope is minus the cycles it falls behind on each pass *)
     let drift =
       if row.slope < 0
       then [%string ", as its loop falls %{cycles (-row.slope)} further behind each pass"]
@@ -129,7 +129,7 @@ let analyser_reason ~config rows (row : Analyser.Row.t) =
        pointer moving"]
 ;;
 
-(* the assembler tags an error with its line, which the fault has already *)
+(* the assembler tags an error with its line, which the fault already has *)
 let assembler_reason error =
   match Error.sexp_of_t error with
   | List [ List (Atom "line" :: _); Atom what ] -> what
@@ -159,13 +159,13 @@ let check ?period ?period_floor ?single_capture_edge ~config source =
            | errors -> Error.of_list (List.map errors ~f:snd))
       })
   in
-  (* past its end a program runs on through [jmp 0]s, from its last line *)
+  (* past its end a program runs on through [jmp 0]s, counting from its last line *)
   let fault pc reason =
     let line = Option.first_some (List.nth lines pc) (List.last lines) in
     { Fault.line = Option.value line ~default:1; pc = Some pc; reason }
   in
   let configured = Asm.Program.configure program config in
-  (* what the chip's registers would hold truncated, as [Machine.create] refuses it *)
+  (* what the chip's registers would hold, truncated; [Machine.create] refuses it *)
   let%bind () =
     Or_error.combine_errors_unit
       (Program_config.validate configured
@@ -208,8 +208,8 @@ let check ?period ?period_floor ?single_capture_edge ~config source =
       , error ))
   in
   (* A load enters [accepts] only as a value some row's period interval must hold, so the
-     loads it accepts are an interval, and a floor needs only its two ends;
-     test_self_check.ml proves every load between by checked SAT. *)
+     loads it accepts form an interval and a floor needs only its two ends.
+     test_self_check.ml proves every load in between by checked SAT. *)
   let%map () =
     (match period_floor with
      | None -> kernel period |> Result.map_error ~f:List.return

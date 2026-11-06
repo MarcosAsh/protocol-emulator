@@ -3,11 +3,11 @@ open! Hardcaml
 
 let clock_hz = Wavedrom.rated_hz
 
-(* OUT0, analyser A's D4. The interpreter holds the lanes it is not given low, and only
-   OUT0 is captured and wired to nothing that minds a toggle. *)
+(* OUT0, analyser A's D4. The interpreter holds the lanes it isn't given low, and only
+   OUT0 is captured, wired to nothing that minds a toggle. *)
 let bench_pins = [ Isa.first_output_pin ]
 
-(* the playground's cap on the model's run, 8.3 ms at 48 MHz *)
+(* the playground's cap on the model's run: 8.3 ms at 48 MHz *)
 let max_cycles = 400_000
 
 module Value = Wavejson.Value
@@ -28,7 +28,7 @@ let quote s =
   Buffer.contents b
 ;;
 
-(* compact, as Wavejson.Value.parse and every browser read it back *)
+(* compact; Wavejson.Value.parse and every browser read it back *)
 let rec json (v : Value.t) =
   match v with
   | Null -> "null"
@@ -95,7 +95,7 @@ module Job = struct
   let max_frames = 16
   let max_frame_bits = 256
 
-  (* a line a frame, blanks gone *)
+  (* one line per frame, blanks removed *)
   let tidy frames =
     String.split_lines frames
     |> List.map ~f:(String.filter ~f:(Fn.non Char.is_whitespace))
@@ -268,7 +268,7 @@ let bench_for (t : Wavedrom.t) (lanes : Lane.t list) ~host_words ~wanted =
        then declines [%string "it runs past %{max_cycles#Int} cycles"]
        else (
          let probe = Option.value_exn (List.hd_exn lanes).wiring in
-         (* whole milliseconds, and one more for the start *)
+         (* whole milliseconds, plus one for the start *)
          let run_ms = (((wanted * 1000) + clock_hz - 1) / clock_hz) + 1 in
          Takes { probe; run_ms }))
 ;;
@@ -356,7 +356,7 @@ let check (job : Job.t) =
       }
 ;;
 
-(* each change of [bit] of [levels], from cycle 0's level *)
+(* each change of [bit] of [levels], starting from cycle 0's level *)
 let edges levels ~bit =
   let level c = (levels.(c) lsr bit) land 1 in
   if Array.is_empty levels

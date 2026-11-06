@@ -1,13 +1,13 @@
-(** Firmware the proved kernel accepted, with the analyser's rows it accepted. Only
-    [check] makes one, so a loader that takes [t] loads nothing that can reach a deadline
-    wait late, under the assumptions [check] was given. *)
+(** Firmware that the proved kernel accepted, with the analyser's rows it accepted. Only
+    [check] makes one, so a loader that takes [t] can't load anything that reaches a
+    deadline wait late, under the assumptions [check] was given. *)
 
 open! Core
 
 type t [@@deriving sexp_of]
 
-(** A source line [check] refused, with the pc assembled from it, if it assembled, and
-    why, in a sentence for a reader. *)
+(** A source line that [check] refused, with the pc assembled from it (if it assembled)
+    and why, in a sentence for a reader. *)
 module Fault : sig
   type t =
     { line : int
@@ -17,7 +17,7 @@ module Fault : sig
   [@@deriving sexp_of]
 end
 
-(** Why [check] refused: the lines at fault, by pc, and the analyser's verdict if it
+(** Why [check] refused: the lines at fault by pc, and the analyser's verdict if it
     passed. *)
 module Refusal : sig
   type t =
@@ -28,11 +28,11 @@ module Refusal : sig
   [@@deriving sexp_of]
 end
 
-(** Assembles, then [Analyser.check] under its assumptions, then the kernel on the
-    analyser's rows, which are not trusted; the kernel covers less, so it can refuse what
+(** Assembles, then runs [Analyser.check] under its assumptions, then the kernel on the
+    analyser's rows (which aren't trusted). The kernel covers less, so it can refuse what
     the analyser passes. A [period_floor] is checked at its two ends, which covers every
-    load between. A config [Program_config.validate] refuses, or a period [p] cannot hold,
-    is refused. Lines count from 1. *)
+    load between. A config that [Program_config.validate] refuses, or a period [p] can't
+    hold, is refused. Lines count from 1. *)
 val check
   :  ?period:int
   -> ?period_floor:int

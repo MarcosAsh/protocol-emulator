@@ -106,7 +106,8 @@ let of_words words =
 
 let entry t ~state ~input = Entry.of_int ((t.words.(state) lsr (8 * input)) land 0xff)
 
-(* the receive table's states after the transmit table's [used], where its side starts *)
+(* the receive table's states come after the transmit table's [used], where its side
+   starts *)
 let combine ~transmit ~used ~receive =
   let room = states - used in
   let moved word =
@@ -140,7 +141,7 @@ let nrzi =
     { Entry.next = 0; out = 1; flag = false }, { Entry.next = 0; out = 0; flag = false })
 ;;
 
-(* state the ones since a zero; the sixth raises [flag] and counts the stuffed zero *)
+(* state counts the ones since a zero; the sixth raises [flag] and counts the stuffed zero *)
 let usb_transmit =
   of_states ~modes:flips (fun ones ->
     ( { Entry.next = 0; out = 1; flag = false }
@@ -149,16 +150,16 @@ let usb_transmit =
       else { Entry.next = ones + 1; out = 0; flag = false } ))
 ;;
 
-(* input whether D+ moved; state the ones since a zero *)
+(* input is whether D+ moved; state counts the ones since a zero *)
 let usb_receive =
   of_states ~modes:{ Modes.none with rx_relative = true } (fun ones ->
     ( { Entry.next = Int.min 6 (ones + 1); out = 1; flag = false }
     , { Entry.next = 0; out = 0; flag = ones >= 6 } ))
 ;;
 
-(* input whether the bit differs from the pin, which flips where it does; state the run so
-   far, 0 before the first bit; the fifth raises [flag] and the stuffed bit starts the
-   next run *)
+(* input is whether the bit differs from the pin, which flips where it does; state is the
+   run so far, 0 before the first bit. The fifth bit raises [flag] and the stuffed bit
+   starts the next run. *)
 let can_transmit =
   of_states ~modes:{ flips with tx_relative = true } (fun run ->
     let take ~differs =

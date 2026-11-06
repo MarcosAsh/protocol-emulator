@@ -22,8 +22,8 @@
     or [::] (reverse). Jump conditions: [x--], [y--], [x!=y], [pin], [!pin], [!osre],
     [stuff], [tx] (host wrote a word), [!tx], [rx] (room to push), [!rx]. Waits:
     [wait 0|1 pin N], [wait rise|fall pin N], [wait t], [wait t+], [wait tx], [wait rx].
-    ALU: [add], [sub], [xor] with a register or immediate. [;] comments, [label:], numbers
-    decimal, [0x] or [0b]. *)
+    ALU: [add], [sub], [xor] with a register or immediate. Comments start with [;], labels
+    end with [:], and numbers are decimal, [0x] or [0b]. *)
 
 open! Core
 
@@ -45,9 +45,9 @@ end
 (** Errors carry the line number and the offending line. *)
 val assemble : string -> Program.t Or_error.t
 
-(** [assemble], with the source line of each instruction by pc, and on error each fault's
-    line beside its error: every bad label, directive or line past the memory, or if there
-    are none, every instruction at fault. Lines count from 1. *)
+(** [assemble] plus the source line of each instruction by pc. On error, each fault's line
+    comes beside its error: every bad label, directive or line past the memory, or if
+    there are none, every instruction at fault. Lines count from 1. *)
 val assemble_with_lines : string -> (Program.t * int list, (int * Error.t) list) Result.t
 
 (** Inverse of [assemble] for one instruction, with a numeric jump target. *)

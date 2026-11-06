@@ -307,7 +307,7 @@ let assemble_with_lines source =
         | Ok first -> first, faults
         | Error fault -> first, fault :: faults)
   in
-  (* the second pass needs the first's labels and side-set *)
+  (* the second pass needs the first pass's labels and side-set *)
   let%bind () = if List.is_empty faults then Ok () else Error (List.rev faults) in
   let { First_pass.side_set_count; labels; address = length; wrap_bottom; wrap_top } =
     first
@@ -320,7 +320,7 @@ let assemble_with_lines source =
       | Directive _ | Label _ -> None)
   in
   let%map instructions = Result.combine_errors (List.map parsed ~f:snd) in
-  (* as in the PIO assembler, a loop that is opened and not closed ends with the program *)
+  (* as in the PIO assembler, a loop that is opened and never closed ends with the program *)
   let wrap_top =
     match wrap_top, wrap_bottom with
     | Some top, _ -> top

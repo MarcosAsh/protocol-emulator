@@ -21,7 +21,7 @@ let crc ~width ~poly ~init bits =
 let mask width = (1 lsl width) - 1
 
 (* Only catalogue entries whose init and final XOR read the same either way round, so the
-   name does not hang on how a reflected model states them. RevEng's catalogue. *)
+   name doesn't depend on how a reflected model states them. From RevEng's catalogue. *)
 let catalogue =
   [ "CRC-16/MODBUS", 16, 0x8005, 0xffff, true, 0
   ; "CRC-16/ARC", 16, 0x8005, 0, true, 0
@@ -208,7 +208,7 @@ let apply rules frame =
 
 let holds rules frame = Array.equal Bool.equal (apply rules frame) frame
 
-(* Rows reduced over GF(2), each a bool array: how many are independent. *)
+(* Rows reduced over GF(2), each a bool array; counts how many are independent. *)
 let rank rows =
   let rows = List.map rows ~f:Array.copy |> Array.of_list in
   let n = if Array.is_empty rows then 0 else Array.length rows.(0) in
@@ -237,7 +237,7 @@ let crc_widths = [ 16; 8 ]
 let crc_starts = [ 0; 8; 16 ]
 
 (* Every CRC the search tries, counted once whatever the frames, so the evidence asked of
-   a match does not shrink with the frames. *)
+   a match doesn't shrink with the frames. *)
 let crc_hypotheses =
   List.sum (module Int) crc_widths ~f:(fun w ->
     (1 lsl (w - 1)) * List.length crc_starts * 2)
@@ -248,8 +248,8 @@ let enough ~bits ~hypotheses =
   Float.( >= ) (Float.of_int bits) (log2 hypotheses +. Float.of_int margin)
 ;;
 
-(* Inverse pairs: a byte the other inverted in every frame, the source taking more than
-   one value so the pair is not two constants. *)
+(* Inverse pairs: a byte that is the other inverted in every frame, where the source takes
+   more than one value so the pair isn't two constants. *)
 let inverses frames =
   let b = List.map frames ~f:(bytes ~lsb_first:true) in
   let count = Array.length (List.hd_exn b) in
@@ -270,7 +270,7 @@ let inverses frames =
           (Rule.Inverse { source; target }, { Evidence.bits; hypotheses })))
 ;;
 
-(* The last byte from the ones before it, from byte 0 or 1. *)
+(* The last byte from the ones before it, starting from byte 0 or 1. *)
 let sums frames =
   let count = Array.length (List.hd_exn frames) / 8 in
   let candidates =
@@ -293,7 +293,7 @@ let sums frames =
 ;;
 
 let undo_zero_step ~width ~poly crc =
-  (* The register before a step that took a 0, for an odd polynomial: the low bit says
+  (* The register before a step that took a 0, for an odd polynomial. The low bit says
      whether the polynomial went in. *)
   let fed = crc land 1 = 1 in
   ((if fed then crc lxor poly else crc) lsr 1) lor (Bool.to_int fed lsl (width - 1))

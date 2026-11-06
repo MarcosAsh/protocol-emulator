@@ -38,7 +38,8 @@ let cycles_a_period (diagram : Wavejson.t) =
 ;;
 
 (* The refusal names the period it was drawn at: the edge counts level changes of the
-   first lane up to it, the cycle the periods before it, in a repeat's first pass. *)
+   first lane up to it, and the cycle counts the periods before it, in a repeat's first
+   pass. *)
 let edge_at (diagram : Wavejson.t) e =
   let open Option.Let_syntax in
   let text = Sexp.to_string (Error.sexp_of_t e) in
@@ -80,8 +81,8 @@ let faster (diagram : Wavejson.t) ~percent =
   then
     Or_error.error_s [%message "a mutation is a percentage in (0, 100)" (percent : float)]
   else (
-    (* a clock's period splits into two whole halves; a period never reaches 0, which the
-       format reads as special *)
+    (* a clock's period splits into two whole halves, and a period never reaches 0, which
+       the format reads as special *)
     let step = if clocked diagram then 2 else 1 in
     let cut c =
       if c <= 0 then c else Int.max step (c * (1000 - tenths) / 1000 / step * step)

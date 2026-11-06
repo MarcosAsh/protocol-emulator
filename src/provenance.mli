@@ -1,6 +1,6 @@
-(** The [src/] line each Verilog name of a design came from: the line that named it, else
-    the innermost [src/] frame of its own module past derived interface code, else its
-    driver's. Hardcaml's stack is cut at 16 frames and loses inlined ones. *)
+(** The [src/] line that each Verilog name of a design came from: the line that named it,
+    else the innermost [src/] frame of its own module past derived interface code, else
+    its driver's. Hardcaml's stack is cut at 16 frames and loses inlined ones. *)
 
 open! Core
 open! Hardcaml
@@ -25,5 +25,5 @@ val of_rtl
   :  Rtl.Hierarchical_circuits.t list
   -> (string * (string * Source.t option) list) list
 
-(** As JSON: modules to names to ["file:line"], or [null] when unresolved. *)
+(** As JSON: modules to names to [file:line], or [null] when unresolved. *)
 val to_json : (string * (string * Source.t option) list) list -> string

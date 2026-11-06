@@ -1,16 +1,16 @@
-(** The pins one engine can move. From the clear on, a pin outside it keeps 0 in [pin_out]
-    and [pin_dir] whatever the host and inputs do; [formal/frame_step.sv] proves this for
-    every config and every program whose words keep to its [Writes]. Side-set reaches at
-    most [Isa.max_side_set] pins whatever [side_set_count] says (a wider window writes 0
-    above them); [out] is as wide as the program's widest, plus one pin for Manchester,
-    and with a [Line_code] table at least [out_count] up to two; [mov] writes [out_count].
-    Holds only while the config holds between clears: a new config without a clear leaves
-    old pins driven. *)
+(** The pins one engine can move. From the clear on, a pin outside the footprint keeps 0
+    in [pin_out] and [pin_dir] whatever the host and inputs do. [formal/frame_step.sv]
+    proves this for every config and every program whose words keep to its [Writes].
+    Side-set reaches at most [Isa.max_side_set] pins whatever [side_set_count] says (a
+    wider window writes 0 above them). [out] is as wide as the program's widest, plus one
+    pin for Manchester, and with a [Line_code] table at least [out_count] up to two. [mov]
+    writes [out_count]. This only holds while the config holds between clears: a new
+    config without a clear leaves old pins driven. *)
 
 open! Core
 open! Hardcaml
 
-(** What a program writes: its widest [out] to pins and pindirs (0 for none) and whether
+(** What a program writes: its widest [out] to pins and pindirs (0 for none), and whether
     it sets or movs either. Side-set comes from the config alone. *)
 module Writes : sig
   type 'a t =
@@ -29,7 +29,7 @@ module Writes : sig
   val any : Bits.t t
 end
 
-(** Masks over [Isa.pin_space], pin 0 in the low bit. *)
+(** Masks over [Isa.pin_space], with pin 0 in the low bit. *)
 module Make (Comb : Comb.S) : sig
   val pin_out : Comb.t Engine.Config.t -> Comb.t Writes.t -> Comb.t
   val pin_dir : Comb.t Engine.Config.t -> Comb.t Writes.t -> Comb.t
@@ -47,7 +47,7 @@ val of_program : Program_config.t -> Isa.t list -> t
 (** The config's, under any program. *)
 val of_config : Program_config.t -> t
 
-(** Pins both can move. By the frame lemma each engine keeps 0 on pins only the other can
+(** Pins both can move. By the frame lemma, each engine keeps 0 on pins only the other can
     move, provided neither gets a new config without a clear. [formal/chip_frame.sv]
     re-proves it on the two-engine top. Shared wires take no pads. *)
 val shared : t -> t -> int list

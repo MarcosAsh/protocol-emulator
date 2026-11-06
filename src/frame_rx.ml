@@ -13,8 +13,8 @@ module Rx = Manchester_rx.Make (Rx_config)
 let word_count_bits = 10
 let pin_bits = Int.ceil_log2 Isa.num_pins
 
-(* CRC-32 as 802.3 sends it, first bit lowest: a good frame leaves this in the register
-   once its FCS has gone through *)
+(* CRC-32 as 802.3 sends it, first bit lowest. A good frame leaves this in the register
+   once its FCS has gone through. *)
 let poly = 0xedb88320
 let residue = 0xdebb20e3
 
@@ -80,8 +80,8 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
         (mux2 (i.control.arm |: starts) (zero word_count_bits)
          @@ mux2 (takes &: ~:full) (words +:. 1) words);
   let restart = i.control.arm |: starts in
-  (* A word waits here for a cycle [may_write] lets through, until the next comes, as
-     [Usb_frame_rx]'s does. *)
+  (* A word waits here until [may_write] lets it through or the next one arrives, like
+     [Usb_frame_rx] does. *)
   let%hw pending = wire 1 in
   let held = reg spec ~enable:takes in
   let%hw index = held words in
@@ -89,7 +89,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
     uresize i.control.base ~width:(word_count_bits + 1)
     +: uresize index ~width:(word_count_bits + 1)
   in
-  (* the data memory's end is the frame's, with no wrap *)
+  (* the data memory's end is the frame's end; no wrap *)
   let%hw fits = addr <:. 1 lsl Isa.data_addr_bits in
   let%hw leaves = pending &: i.may_write in
   let%hw ready = pending &: fits in
@@ -122,7 +122,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let%hw ended = latch vdd in
   let%hw finished = ended &: ~:pending in
   let%hw fcs_ok = latch good_so_far in
-  (* the last word holds one byte where the carrier went on a half word *)
+  (* the last word holds one byte where the carrier dropped on a half word *)
   let%hw half = latch rx.word.valid in
   { O.write =
       { valid = writes

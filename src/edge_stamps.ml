@@ -42,8 +42,8 @@ module O = struct
   [@@deriving hardcaml]
 end
 
-(* As [Host_fifo]: the showahead [Fifo] holds one more than its capacity, so a push beside
-   a pop when full lands. *)
+(* Same as [Host_fifo]: the showahead [Fifo] holds one more than its capacity, so a push
+   beside a pop when full lands. *)
 let create (scope : Scope.t) (i : Signal.t I.t) =
   let spec = Clocking.to_spec i.clocking in
   let%hw last = reg spec i.pads in

@@ -80,7 +80,7 @@ module Make (Config : Config) = struct
         at, at)
     in
     phase <-- reg spec (List.last_exn positions);
-    (* a bit is longer than a cycle, so a cycle has one centre at most *)
+    (* a bit is longer than a cycle, so a cycle has at most one centre *)
     let%hw_list centres = List.map positions ~f:(fun at -> at ==:. centre) in
     let%hw any = reduce ~f:( |: ) centres in
     let pick samples =
@@ -89,7 +89,7 @@ module Make (Config : Config) = struct
     in
     let%hw plus = pick dps in
     let%hw minus = pick dms in
-    (* D+ at the last centre, inverted so that a clear leaves J *)
+    (* D+ at the last centre, inverted so a clear leaves J *)
     let%hw was_low = reg spec ~enable:any ~:plus in
     let%hw se0 = ~:plus &: ~:minus in
     let%hw decoded = plus ^: was_low in

@@ -15,8 +15,9 @@ type t =
   ; net : string
   }
 
-(* Inputs are pins 0 to 4, OUT0 is [Isa.first_output_pin], IO0 [Isa.first_bidir_pin]. A's
-   D0 to D3 are Pico A's host SPI, not chip pins a protocol drives. *)
+(* Inputs are pins 0 to 4, OUT0 is [Isa.first_output_pin] and IO0 is
+   [Isa.first_bidir_pin]. A's D0 to D3 are Pico A's host SPI, not chip pins a protocol
+   drives. *)
 let all =
   let t pin name analyser channel net = { pin; name; analyser; channel; net } in
   [ t 0 "IN0" B 2 "flash DO"

@@ -8,7 +8,7 @@ let half = 1 lsl (timer_bits - 1)
 let timer_ones = (1 lsl timer_bits) - 1
 let data_ones = (1 lsl Isa.data_bits) - 1
 
-(* bounds as the bits the row holds them in, read unsigned *)
+(* bounds as the bits the row holds them in, read as unsigned *)
 let phase_whole = half, half - 1
 let arm_whole = 0, timer_ones
 let narrow_whole = 0, data_ones
@@ -46,7 +46,7 @@ let stored_pcs ~(config : Program_config.t) ~words =
   |> List.dedup_and_sort ~compare:Int.compare
 ;;
 
-(* an interval's index in a dictionary built as it goes, 0 for the whole range *)
+(* an interval's index in a dictionary built as we go; 0 for the whole range *)
 let intern dictionary ~whole interval =
   if [%equal: int * int] interval whole
   then 0
@@ -84,7 +84,7 @@ let of_table ?(registers_whole = false) ~config ~words (table : Kernel.Table.t) 
       })
   in
   let fits dictionary = List.length !dictionary < 1 lsl index_bits in
-  (* as [to_words] lays it out *)
+  (* matches the layout [to_words] writes *)
   let length =
     2 + (3 * List.length entries) + (3 * List.length !wide) + (2 * List.length !narrow)
   in
@@ -121,14 +121,14 @@ let of_program
   |> of_table ?registers_whole ~config ~words
 ;;
 
-(* 48 bits as three words, the top first *)
+(* 48 bits as three words, top first *)
 let split3 bits =
   [ (bits lsr 32) land 0xffff; (bits lsr 16) land 0xffff; bits land 0xffff ]
 ;;
 
 let join3 memory at = (memory at lsl 32) lor (memory (at + 1) lsl 16) lor memory (at + 2)
 
-(* an entry from the top of its three words, the first field highest *)
+(* an entry from the top of its three words, first field highest *)
 let pack (e : int Entry.t) =
   let bits =
     Entry.map2 Entry.port_widths e ~f:(fun width v -> Bits.of_unsigned_int ~width v)
@@ -229,7 +229,7 @@ module Step = struct
         Kernel.Row.map empty ~f:(fun bits -> Comb.of_constant (Bits.to_constant bits))
       in
       let open Comb in
-      (* one bit wider, so pc 511's way out never reads as falling through *)
+      (* one bit wider so pc 511's way out never looks like falling through *)
       let falls_to_next =
         uresize next_pc ~width:(Isa.pc_bits + 1)
         ==: uresize pc ~width:(Isa.pc_bits + 1) +:. 1
@@ -321,7 +321,7 @@ let walk
       ~width:Isa.data_bits
       (if pc < Array.length words then words.(pc) else 0)
   in
-  (* as the chip reads them: addresses wrap at the memory's size, counts are a byte *)
+  (* as the chip reads them: addresses wrap at the memory's size and counts are a byte *)
   let memory at = memory (at land ((1 lsl Isa.data_addr_bits) - 1)) in
   let count = memory base land 0xff in
   let wide_count = memory (base + 1) land 0xff in
@@ -368,7 +368,7 @@ let walk
     ; awaiting = Bits.of_unsigned_int ~width:1 e.awaiting
     }
   in
-  (* a target's row by binary search, empty where there is none *)
+  (* a target's row by binary search; empty where there is none *)
   let lookup pc =
     if pc = 0
     then full

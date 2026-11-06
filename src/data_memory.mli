@@ -1,10 +1,10 @@
 (** The one data memory every engine streams from. Engine [n] reads on cycles [n] modulo
-    the engine count and keeps its last word; [reads] is each pointer's next address,
-    [words] the word at it now. A moved pointer's word arrives within two cycles, hence
-    the data-pull refusal after a pull or seek. [writes] land only while all engines are
-    halted, and write [n] only while the checker walks no engine but [n]. [dma] lands
-    whenever valid, unless a host write takes the cycle, and takes that cycle's read: the
-    caller holds it off any read an engine or the checker needs, as [keeps] tells. At most
+    the engine count and keeps its last word. [reads] is each pointer's next address and
+    [words] the word at it now. A moved pointer's word arrives within two cycles, which is
+    why a data pull is refused after a pull or seek. [writes] land only while all engines
+    are halted, and write [n] only while the checker walks no engine but [n]. [dma] lands
+    whenever valid, unless a host write takes the cycle, and takes that cycle's read; the
+    caller keeps it off any read an engine or the checker needs, as [keeps] tells. At most
     two engines. *)
 
 open! Core
@@ -32,9 +32,9 @@ module Make (_ : Config) : sig
       { words : 'a list
       ; whose_turn : 'a (** Whose read this cycle is, unless a write takes it. *)
       ; keeps : 'a list
-      (** Engine [n] runs and its next address is the one it last read, unwritten since:
-          it skips the read, so a write may take its turn. *)
-      ; host_write : 'a (** A host write lands this cycle, which [dma] must stay off. *)
+      (** Engine [n] runs and its next address is the one it last read, unwritten since,
+          so it skips the read and a write may take its turn. *)
+      ; host_write : 'a (** A host write lands this cycle, so [dma] must stay off. *)
       ; written : 'a With_valid.t (** The address any write lands at this cycle. *)
       }
     [@@deriving hardcaml]

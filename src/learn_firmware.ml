@@ -35,7 +35,7 @@ module Writer = struct
     sprintf "%s%d" name t.labels
   ;;
 
-  (* [reg] to [n]: the top five bits by [set], then a doubling and maybe an add a bit. *)
+  (* [reg] to [n]: the top five bits by [set], then a doubling and maybe an add per bit *)
   let load t reg n =
     let bits = Int.max 5 (Int.ceil_log2 (n + 1)) in
     line t (sprintf "set %s, %d" reg (n lsr (bits - 5)));
@@ -45,8 +45,8 @@ module Writer = struct
     done
   ;;
 
-  (* [n] more deadlines with the pins held: inline, an [x] loop, or [y] round it, which
-     only runs outside a frame's bits where [y] is free. *)
+  (* [n] more deadlines with the pins held: inline, an [x] loop, or a [y] loop around it
+     (only outside a frame's bits, where [y] is free) *)
   let waits t n ~y_free =
     if n <= 3
     then
@@ -117,7 +117,7 @@ let source ~ticks ~deselect (learned : Learn.t) =
   let set_clock level =
     Writer.line w (sprintf "set pins, %d" (level_value level + if deselect then 2 else 0))
   in
-  (* a run: its level at a deadline, held [units] *)
+  (* a run: its level at a deadline, held for [units] *)
   let run ~y_free level units =
     Writer.line w "wait t+";
     set level;
@@ -207,7 +207,7 @@ let source ~ticks ~deselect (learned : Learn.t) =
        in
        List.iter segments ~f:(fun (count, width) ->
          let halves value =
-           (* the first half is active for a one that starts so *)
+           (* the first half is active for a one that starts that way *)
            let first = Bool.equal value one_starts_active in
            let level a = if a then active else learned.idle in
            run ~y_free:false (level first) width;
@@ -304,7 +304,7 @@ let words _t (learned : Learn.t) ~kind bits =
           | Some Even -> [ List.count data ~f:Fn.id % 2 = 1 ]
           | Some Odd -> [ List.count data ~f:Fn.id % 2 = 0 ]
         in
-        (* the levels sent: a 1 is the idle level *)
+        (* the levels sent; a 1 is the idle level *)
         List.map (data @ parity) ~f:(fun b -> Bool.equal b learned.idle)
         |> List.foldi ~init:0 ~f:(fun i acc b -> if b then acc lor (1 lsl i) else acc))
     | Pulse _ | Manchester _ | Clocked _ -> pack (Learn.with_checks learned ~kind bits)

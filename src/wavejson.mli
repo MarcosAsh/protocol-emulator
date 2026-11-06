@@ -32,7 +32,7 @@ module Lane : sig
 end
 
 module Cycles : sig
-  (** Cycles a period: the same for every period, or one for each drawn period. *)
+  (** Cycles per period: the same for every period, or one for each drawn period. *)
   type t =
     | Every of int
     | Each of int list
