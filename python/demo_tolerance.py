@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
-# The receiver's tolerance, measured (MicroPython, Pico A): engine 1 sends the same bytes
+# The receiver's tolerance, measured (MicroPython, Pico A). Engine 1 sends the same bytes
 # back to back from one anchor at each rate tolerance_firmware.py lists, in steps of 2^-16
-# of a cycle a bit, to engine 0's uart_rx_host_rate on a wire no pin shows. Each step is
-# held to what the model predicts. Just past the fast bound the receiver faults the
-# single edge its certificate assumes, which holds until reset, so only the nearest such
-# step runs, last.
+# of a cycle per bit, to engine 0's uart_rx_host_rate on a wire no pin shows. Each step is
+# checked against the model's prediction. Just past the fast bound the receiver faults the
+# single edge its certificate assumes, and that sticks until reset, so only the nearest
+# such step runs, and it goes last.
 # demo/tolerance.sh runs it.
 
 import gc
@@ -17,7 +17,7 @@ DEPTH = bench.DEPTH
 
 
 def levels(host):
-    """The selected engine's tx and rx fifo levels."""
+    """Return the selected engine's (tx, rx) fifo levels."""
     status = host.read(pe.STATUS)[0]
     return (status >> 6) & 15, (status >> 10) & 15
 
@@ -34,9 +34,9 @@ def certify(host, firmware):
 
 
 def load(host, m):
-    """Both engines stopped and flushed; engine 0 the receiver, engine 1 the sender at m,
-    the whole cycles of its period as its first host word and the rest as its fraction,
-    each certified."""
+    """Stop and flush both engines, then load and certify the receiver on engine 0 and the
+    sender at m on engine 1. The sender's first host word is the whole cycles of its
+    period and the rest is the fraction."""
     for engine in (1, 0):
         host.select(engine)
         found = bench.faults(host)
@@ -59,9 +59,9 @@ def load(host, m):
 
 
 def run_step(host, m, polls=20_000):
-    """The receiver started first, so it is armed, then the sender with its period and a
-    fifo's worth of bytes, the rest as it has room. Returns the bytes engine 0 pushed and
-    both status words."""
+    """Start the receiver first so it is armed, then the sender with its period and one
+    fifo's worth of bytes, and the rest as room appears. Returns the bytes engine 0 pushed
+    and both status words."""
     load(host, m)
     # a 5 to 11 ms collection mid-step would overflow engine 0's fifo
     gc.collect()
@@ -89,7 +89,7 @@ def run_step(host, m, polls=20_000):
             quiet = 0
         else:
             quiet += 1
-        # a lost frame leaves fewer words: done once the line has long gone quiet
+        # a lost frame leaves fewer words, so stop once the line has been quiet a long time
         if sent == len(words) and (len(got) >= len(tf.BYTES) or quiet > 2_000):
             break
     status = []
@@ -100,9 +100,9 @@ def run_step(host, m, polls=20_000):
 
 
 def run(transfer, log=print):
-    """Every step but those predicted to fault, then the one of those nearest a bound,
-    then the first failure either side against the bounds. Stops at any other fault, which
-    holds until reset; a framing error is only an irq and is cleared."""
+    """Run every step except those predicted to fault, then the faulting one nearest a
+    bound, then the first failure on either side against the bounds. Stops at any other
+    fault, which sticks until reset. A framing error is only an irq and gets cleared."""
     host = pe.Host(transfer)
     agree = True
     first_faster, first_slower = None, None

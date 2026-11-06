@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
 # I2C START hold times on a bus the chip only listens to (MicroPython, Pico A). Engine 1
-# runs I2c.start_hold on IO2 (SCL) and IO3 (SDA), driving neither, and pushes the
-# cycles from each START's SDA fall to its SCL fall. Pico B is the master, through
-# pico-examples' pio_i2c or its I2C block (demo/start_hold_master). The chip measures and
-# this script judges, against UM10204's Standard-mode 4.0 us, then engine 0 shows the
-# verdict on the NeoPixel stick on OUT3, wired as for demo_neopixel. demo/start_hold.sh
-# runs it once demo/pico_b.sh has put Pico B's master in.
+# runs I2c.start_hold on IO2 (SCL) and IO3 (SDA), driving neither, and pushes the cycles
+# from each START's SDA fall to its SCL fall. Pico B is the master, using pico-examples'
+# pio_i2c or its I2C block (demo/start_hold_master). The chip measures, this script judges
+# against UM10204's Standard-mode 4.0 us, and engine 0 then shows the verdict on the
+# NeoPixel stick on OUT3, wired as in demo_neopixel. demo/start_hold.sh runs it once
+# demo/pico_b.sh has loaded Pico B's master.
 
 import bench
 import bench_firmware
@@ -16,7 +16,7 @@ MHZ = 48
 # UM10204 table 11, t_HD;STA in Standard-mode: 192 cycles
 LIMIT_NS = 4000
 COUNT = 64
-# Pico B starts a read every 20 ms, two STARTs a read
+# Pico B starts a read every 20 ms, with two STARTs per read
 LIMIT_MS = 5000
 GREEN = (0x00, 0x20, 0x00)
 RED = (0x20, 0x00, 0x00)
@@ -32,7 +32,7 @@ def arm(host):
 
 
 def collect(host, pause_ms, count, limit_ms):
-    """Up to count holds, or what limit_ms of waits for them brought."""
+    """Collect up to count holds, or whatever arrives within limit_ms."""
     holds = []
     waited = 0
     while len(holds) < count and waited < limit_ms:
@@ -46,7 +46,7 @@ def collect(host, pause_ms, count, limit_ms):
 
 
 def judge(holds, log):
-    """Logs the chip's holds as a histogram, then the verdict; True if all meet it."""
+    """Log the chip's holds as a histogram, then the verdict. True if all meet it."""
     log("chip, engine 1: %d STARTs, SDA fall to SCL fall, %d MHz cycles" % (len(holds), MHZ))
     counts = {}
     for hold in holds:
@@ -58,7 +58,7 @@ def judge(holds, log):
     short = [h for h in holds if ns(h) < LIMIT_NS]
     least = min(holds)
     ok = not short
-    # a stamp is the true hold to within a cycle, so one at the limit may be just short
+    # a stamp is the true hold within a cycle, so one right at the limit may fall just short
     word = "FAIL" if short else "PASS" if ns(least - 1) >= LIMIT_NS else "PASS within a cycle of it"
     log("host, against t_HD;STA >= %d ns (%d cycles): %s, %d of %d short, least %d cycles (%d ns)" % (
         LIMIT_NS, LIMIT_NS * MHZ // 1000, word, len(short), len(holds), least, ns(least)))
@@ -66,7 +66,8 @@ def judge(holds, log):
 
 
 def measure(host, pause_ms, log=print, count=COUNT, limit_ms=LIMIT_MS):
-    """The verdict on count holds, or None if they did not come or the chip faulted."""
+    """Return the verdict on count holds, or None if they didn't arrive or the chip
+    faulted."""
     holds = collect(host, pause_ms, count, limit_ms)
     found = bench.faults(host)
     if found:
@@ -79,7 +80,7 @@ def measure(host, pause_ms, log=print, count=COUNT, limit_ms=LIMIT_MS):
 
 
 def light(host, ok, pause_ms):
-    """Engine 0 runs the library's SK6812 firmware and every pixel turns green or red.
+    """Run the library's SK6812 firmware on engine 0 and turn every pixel green or red.
     Loading it stops engine 1."""
     demo_neopixel.show(host, [[GREEN if ok else RED] * 8], pause_ms)
 

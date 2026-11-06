@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # SWD host at 1 MHz: SWCLK on OUT2, SWDIO on IO5, the carrier's SWD pins to the RP2040.
 # Wakes it from dormant, selects core 0 and reads its DPIDR; the RP2040 should answer
-# OK and 0x0bc12477. demo/outside.sh swd_blind runs it, reading the analyser, the
-# capture's length and sigrok's decoders from the next line.
+# OK and 0x0bc12477. demo/outside.sh swd_blind runs it and takes the analyser, capture
+# length and sigrok decoders from the next line.
 # outside: analyser=A ms=2000 decode=-P swd:swclk=D6:swdio=D7 -A swd=reset:read:ack:data
 
 import bench
@@ -13,7 +13,7 @@ HALF = 24  # cycles, 1 MHz at 48 MHz
 
 
 def clocks_of(bits):
-    """Driven clocks, one per bit."""
+    """One driven clock per bit."""
     return [(b, 1) for b in bits]
 
 
@@ -34,8 +34,8 @@ RELEASE = (1, 0)
 ALERT = [0x49CF9046, 0xA9B4A161, 0x97F5BBC7, 0x45703D98]
 TARGETSEL = 0x01002927  # RP2040 core 0
 
-# dormant to SWD (ADIv5 p.5-117), line reset and idle (p.4-104), TARGETSEL (Figure
-# 4-9), then a DPIDR read (Figure 4-2): ACK at clocks 8 to 10, data 11 to 42
+# dormant to SWD (ADIv5 p.5-117), line reset and idle (p.4-104), TARGETSEL (Figure 4-9),
+# then a DPIDR read (Figure 4-2): ACK at clocks 8 to 10, data at 11 to 42
 SETUP = (
     clocks_of([1] * 8)
     + clocks_of([b for w in ALERT for b in msb(w, 32)])
@@ -62,7 +62,8 @@ def words(clocks):
 
 
 def lines(dpidr):
-    """What sigrok's swd must print, in order, of the DPIDR read with outside:'s -A."""
+    """What sigrok's swd decoder must print for the DPIDR read, in order, with the -A fields
+    from the outside: line."""
     return ["swd-1: LINERESET", "swd-1: IDCODE", "swd-1: OK", "swd-1: 0x%08x" % dpidr]
 
 
@@ -70,7 +71,7 @@ def run(transfer, log=print):
     host = pe.Host(transfer)
     bench.load(host, bench_firmware.SWD_BLIND)
     host.start()
-    # the half period comes first and is not answered
+    # the half period goes first and gets no reply
     host.push([HALF])
     setup = words(SETUP)
     pushed = bench.exchange(host, setup + words(READ))[len(setup):]
