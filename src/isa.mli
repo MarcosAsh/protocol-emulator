@@ -1,11 +1,11 @@
-(** The core's instruction set: 16-bit words; registers [x], [y], [p] (16 bits), deadline
-    [t] and free-running [now] (24 bits), shift registers [osr] and [isr]. An instruction
-    takes [1 + delay] cycles plus any [wait] stall; a [jmp] always takes [jmp_cycles],
-    taken or not, so issue timing never depends on data. Firmware sets [t], waits on it
-    and advances it by [p], so pin edges are computable from the program alone. Pins are
-    one flat space: inputs, outputs, bidirectional, then [num_wires] wires ORed across
-    engines, then [num_status_pins] the chip's frame receivers raise, read like inputs.
-    Pin shifts start at a configured base pin, as in the RP2040 PIO. *)
+(** The core's instruction set. Words are 16 bits. Registers are [x], [y], [p] (16 bits),
+    the deadline [t] and free-running [now] (24 bits), and the shift registers [osr] and
+    [isr]. An instruction takes [1 + delay] cycles plus any [wait] stall. A [jmp] always
+    takes [jmp_cycles], taken or not, so issue timing never depends on data. Firmware sets
+    [t], waits on it and advances it by [p], so pin edges can be computed from the program
+    alone. Pins are one flat space: inputs, outputs, bidirectional, then [num_wires] wires
+    ORed across engines, then [num_status_pins] pins the chip's frame receivers raise,
+    read like inputs. Pin shifts start at a configured base pin, as in the RP2040 PIO. *)
 
 open! Core
 open! Hardcaml
@@ -22,7 +22,7 @@ val pc_bits : int
 (** Same 512-word macro as program memory. *)
 val data_addr_bits : int
 
-(** The engines time-share data memory: after a data autopull or [Seek], a data autopull
+(** The engines time-share data memory. After a data autopull or [Seek], a data autopull
     sooner than this many cycles is refused and sets [underflow]. *)
 val data_settle : int
 
@@ -32,8 +32,8 @@ val num_pins : int
 val num_wires : int
 val first_status_pin : int
 
-(** Finished, good, receiving and error, read by the receivers' owner and as 0 by the
-    others ([Engines]). *)
+(** Finished, good, receiving and error. The receivers' owner reads these, and every other
+    engine reads 0 ([Engines]). *)
 val num_status_pins : int
 
 (** Pins, wires and status pins. *)
@@ -59,8 +59,8 @@ module Field : sig
   val select : (module Comb.S with type t = 'a) -> t -> 'a -> 'a
   val op : t
 
-  (** Five bits: the configured number of top bits are side-set, the rest delay. Absent on
-      [jmp]. *)
+  (** Five bits. The configured number of top bits are side-set and the rest are delay.
+      Absent on [jmp]. *)
   val delay_side : t
 
   val jmp_cond : t
@@ -113,9 +113,9 @@ module Opcode : sig
   include Enum with module Cases := Cases
 end
 
-(** [X_dec]/[Y_dec] jump if non-zero and decrement either way: [n] runs a loop [n + 1]
+(** [X_dec]/[Y_dec] jump if non-zero and decrement either way, so [n] runs a loop [n + 1]
     times and ends at all ones. [Pin] tests the configured jump pin. The fifo tests
-    neither stall nor touch the fifo; with [wait fifo] they are the only way host timing
+    neither stall nor touch the fifo. With [wait fifo] they are the only way host timing
     can change what a program does. *)
 module Jmp_cond : sig
   module Cases : sig
@@ -215,7 +215,7 @@ module Mov_op : sig
   include Enum with module Cases := Cases
 end
 
-(** Writes to [t] are absolute ([mov t, now], [mov t, capture]); arithmetic on [t] goes
+(** Writes to [t] are absolute ([mov t, now], [mov t, capture]). Arithmetic on [t] goes
     through [alu]. *)
 module Mov_source : sig
   module Cases : sig
@@ -287,9 +287,10 @@ module Alu_reg : sig
   include Enum with module Cases := Cases
 end
 
-(** [Push] and [Pull] never stall, so the host cannot perturb pin timing; on a full or
-    empty fifo they set a fault bit. [Seek] points data autopull at [x]. After [Crc_send],
-    until [Crc_init], single-bit [out]s send the CRC's bits in place of the osr's. *)
+(** [Push] and [Pull] never stall, so the host can't disturb pin timing. On a full or
+    empty fifo they set a fault bit instead. [Seek] points data autopull at [x]. After
+    [Crc_send], and until [Crc_init], single-bit [out]s send the CRC's bits in place of
+    the osr's. *)
 module Sys_op : sig
   module Cases : sig
     type t =
@@ -371,7 +372,8 @@ module Op : sig
   [@@deriving sexp_of, compare, equal]
 end
 
-(** A [jmp] has no delay or side-set; elsewhere their widths follow [side_set_count]. *)
+(** A [jmp] has no delay or side-set. For other instructions their widths follow
+    [side_set_count]. *)
 type t =
   | Jmp of
       { cond : Jmp_cond.Cases.t
@@ -384,7 +386,7 @@ type t =
       }
 [@@deriving sexp_of, compare, equal]
 
-(** [side_set_count] is 0 to [max_side_set]. The codecs reject whatever would not
+(** [side_set_count] is 0 to [max_side_set]. The codecs reject anything that wouldn't
     round-trip: out-of-range fields, reserved codes, set reserved bits. *)
 val in_range : string -> int -> lo:int -> hi:int -> unit Or_error.t
 

@@ -308,12 +308,12 @@ let crc_out_bit t =
   Crc.out_bit ~width:t.config.crc_width ~reflect:t.config.crc_reflect t.crc
 ;;
 
-(* what a single-bit [out] sends: the osr's bit, or the CRC's while it sends *)
+(* what a single-bit [out] sends: the osr's bit, or the CRC's while it is sending *)
 let sent_bit t bit =
   if t.crc_sending then crc_out_bit t lxor Bool.to_int t.config.crc_complement else bit
 ;;
 
-(* The assist units see every bit that crosses a pin one at a time; a sending CRC shifts. *)
+(* The assist units see every bit that crosses a pin, one at a time; a sending CRC shifts. *)
 let bit_crosses t bit =
   let c = t.config in
   let crc =
@@ -354,7 +354,7 @@ let jmp_taken t (cond : Isa.Jmp_cond.Cases.t) ~sample =
   | Rx_full -> rx_full t, t
 ;;
 
-(* the part of the period below the cycle builds up under [t] and carries into it *)
+(* the part of the period below a cycle builds up under [t] and carries into it *)
 let advance_deadline t =
   let fraction = t.t_fraction + t.config.period_fraction in
   { t with
@@ -419,8 +419,8 @@ let in_source t (source : Isa.In_source.Cases.t) ~count ~sample =
 ;;
 
 (* [Line_stuff]: the bit the transmit table takes for an out of [bit], and what stays
-   owed. A flagged step's next out sends a 0; while bits are owed each out sends the
-   oldest; a drain takes no bits until an out finds nothing owed and no stuffing. *)
+   owed. A flagged step's next out sends a 0. While bits are owed, each out sends the
+   oldest. A drain takes no bits until an out finds nothing owed and no stuffing. *)
 let stuff t bit =
   if not t.line_table.modes.tx_stuff
   then t, bit
@@ -579,7 +579,7 @@ let execute t (op : Isa.Op.t) ~sample =
     let e = Line_code.entry t.line_table ~state:t.line_rx ~input in
     let value = if modes.rx_toggle then e.out lxor t.line_last else e.out in
     let t = { t with line_rx = e.next; line_flag = e.flag; line_last = pin } in
-    (* a dropped bit reaches nothing but the state *)
+    (* a dropped bit reaches only the state *)
     if e.flag
     then t
     else bit_crosses t value |> shift_in ~value ~count:1 |> autopush_after_in
@@ -718,7 +718,7 @@ let step ?(route_full = false) t ~inputs =
     }
   in
   let t, op =
-    (* a delay runs out whether or not the core has been halted in the meantime *)
+    (* a delay runs out even if the core halts in the meantime *)
     if t.stall > 0
     then { t with stall = t.stall - 1 }, None
     else if t.halted

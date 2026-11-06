@@ -15,7 +15,7 @@ let write_at (row : Analyser.Row.t) =
 ;;
 
 (* The level a row's pin write leaves on the first pin it writes, where the instruction
-   alone says. A side-set on pin directions says only whether the pin drives. *)
+   alone says. A side-set on pin directions only says whether the pin drives. *)
 let written_level ~(config : Program_config.t) (row : Analyser.Row.t) =
   match row.instruction, row.pin_event, row.side_event with
   | Op { op = Set { dest = Pins; value }; _ }, Some (Edge _), _ -> Some (value land 1)
@@ -141,8 +141,8 @@ let edges ?period ~config (program : Asm.Program.t) ~first ~last =
     | Some d -> Ok d
     | None -> refuse "no edge after the first" first
   in
-  (* From a wait on the world back to [first], each instruction at its least, the wait
-     releasing at once. *)
+  (* From a wait on the world back to [first], each instruction takes its least cycles and
+     the wait releases at once. *)
   let rec back pc cycles steps =
     if steps > max_steps
     then refuse "no way back to the first edge" first
@@ -179,9 +179,9 @@ let edges ?period ~config (program : Asm.Program.t) ~first ~last =
   later @ [ final + gap ]
 ;;
 
-(* [checker]'s wait for a check ends [lead] cycles before the edge, its wait for the least
-   [least_lead] before it. Each frame's [t] is anchored [anchor] cycles after its first
-   edge. *)
+(* [checker]'s wait for a check ends [lead] cycles before the edge, and its wait for the
+   least ends [least_lead] before it. Each frame's [t] is anchored [anchor] cycles after
+   its first edge. *)
 let lead = 2
 let least_lead = 5
 let anchor = 10
@@ -220,17 +220,17 @@ let rows ~base edges =
     else Ok ()
   in
   (* the first row is the first check's [p]; the rest carry theirs above whether another
-     edge follows; the word after them is the base, which [seek] wraps, above the data
-     memory so no load of [p] is under [min_gap] *)
+     edge follows. The word after them is the base, which [seek] wraps, above the data
+     memory so no load of [p] is under [min_gap]. *)
   let last = List.length loaded - 1 in
   List.mapi loaded ~f:(fun n p ->
     if n = 0 then p else (p lsl 1) lor Bool.to_int (n < last))
   @ [ base + data_words ]
 ;;
 
-(* One loop per level after the last edge. High, x is the last fall's stamp, so a capture
-   that differs means a fall, which must stamp the edge's own cycle. Low, the line cannot
-   fall without rising, so it is read in the cycle before the edge and at the edge. The
+(* One loop per level after the last edge. High: x is the last fall's stamp, so a capture
+   that differs means a fall, which must stamp the edge's own cycle. Low: the line can't
+   fall without rising, so we read it in the cycle before the edge and at the edge. The
    next frame's wait starts at the least, and its stamp must be the cycle it released on. *)
 let checker ~pin ~base =
   if base < 0 || base >= data_words

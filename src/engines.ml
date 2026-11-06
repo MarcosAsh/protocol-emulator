@@ -60,14 +60,14 @@ module Make (Config : Config) = struct
   let turn_cycles = 1 lsl turn_bits
   let any (outs : Signal.t Engine.O.t list) ~f = List.map outs ~f |> reduce ~f:( |: )
 
-  (* what an engine drives: nothing once it has faulted, as at reset, until the clear *)
+  (* what an engine drives: nothing once it has faulted (as at reset), until the clear *)
   let driving (e : Signal.t Engine.O.t) ~faulted =
     let keep s = mux2 faulted (zero (width s)) s in
     { e with pin_out = keep e.pin_out; pin_dir = keep e.pin_dir }
   ;;
 
-  (* The pads, except bidirectional pins another engine drives, on wires what the others
-     drive, and [status] on the status pins. An engine reads its own outputs back itself.
+  (* The pads, except bidirectional pins another engine drives; on wires, what the others
+     drive; and [status] on the status pins. An engine reads its own outputs back itself.
      Only a bidirectional pin has a direction bit. *)
   let seen ~pads ~status ~(others : Signal.t Engine.O.t list) =
     let pads = concat_msb [ status; zero Isa.num_wires; pads ] in
@@ -101,7 +101,8 @@ module Make (Config : Config) = struct
         mux2 (owner ==:. engines - 1) (zero select_bits) (owner +:. 1))
     in
     let%hw turn_starts = if engines = 1 then ~:checking else turn_cycle ==:. 0 in
-    (* a check asked between its engine's turns waits for the next, while it stays halted *)
+    (* a check asked between its engine's turns waits for the next turn, while the engine
+       stays halted *)
     let%hw_list waiting = List.init engines ~f:(fun _ -> wire 1) in
     let%hw_list asks =
       List.map3_exn i.hosts outs waiting ~f:(fun (h : _ Engine.Host.t) e waiting ->
@@ -114,7 +115,7 @@ module Make (Config : Config) = struct
     checked <-- reg spec ~enable:go chosen;
     let pick values = mux checked values in
     let%hw accepts = checker.finished &: checker.accepted in
-    (* a start counts only for a program the checker accepted, under the configuration it
+    (* a start only counts for a program the checker accepted, under the configuration it
        was checked with *)
     let%hw_list certified =
       List.mapi i.hosts ~f:(fun n (h : _ Engine.Host.t) ->
@@ -136,9 +137,9 @@ module Make (Config : Config) = struct
           ~enable:(checks_begin n)
           { period = s.loaded; floor = s.floor; single_edge = s.single_edge })
     in
-    (* A start of every engine on the same cycle, so their programs' phases are fixed to
-       each other: only with all halted and none faulted, and on the gated chip all
-       certified, or none. *)
+    (* Start every engine on the same cycle, so their programs' phases are fixed relative
+       to each other. This only happens with all engines halted and none faulted, and on
+       the gated chip with all certified or none. *)
     let%hw_list faulted = List.map outs ~f:(fun e -> e.faulted) in
     let%hw all_ready =
       List.map3_exn outs certified faulted ~f:(fun e certified faulted ->
@@ -166,10 +167,11 @@ module Make (Config : Config) = struct
     let%hw frame_could_write = wire 1 in
     let owns n = if engines = 1 then vdd else i.frame_owner ==:. n in
     let data_turn = Data_memory.O.Of_signal.wires () in
-    (* What the walk reads written, or maybe written, under it, or its engine leaving
+    (* What the walk reads gets written (or maybe written) under it, or its engine leaves
        halted. Only its own host's data words land while it walks, and its own receivers'
-       land in its turn, so either may take its read; another engine's receivers' land in
-       their own turn, and end the walk only where it has read (Load_checker). *)
+       words land in its turn, so either may take its read. Another engine's receivers'
+       words land in their own turn and end the walk only where it has read
+       (Load_checker). *)
     let%hw abort =
       checking
       &: (pick
@@ -185,10 +187,10 @@ module Make (Config : Config) = struct
     (* A received frame takes the data memory's port only in its owner's turn, and only
        where no read the owner needs is lost: no host write, and the owner halted and not
        starting, not pulling from data, or keeping its word. A halted engine's word is
-       refetched from its start on. So when words land, and so when the owner's status
-       pins move, never depends on another engine. The owner's walk is aborted wherever a
-       word could land, whether or not the owner's read lets it, which keeps the owner's
-       fetch off the abort's path. *)
+       refetched from its start. So when words land, and so when the owner's status pins
+       move, never depends on another engine. The owner's walk is aborted wherever a word
+       could land, whether or not the owner's read lets it, which keeps the owner's fetch
+       off the abort's path. *)
     let%hw host_writes = data_turn.host_write in
     let%hw_list turn_spared =
       List.map3_exn outs i.hosts data_turn.keeps ~f:(fun e (h : _ Engine.Host.t) keeps ->
@@ -229,7 +231,7 @@ module Make (Config : Config) = struct
     in
     let%hw frame_writes = dma_write.valid in
     let dma_write = { dma_write with valid = frame_writes } in
-    (* finished, good, receiving and error, for the owner alone *)
+    (* finished, good, receiving and error, visible to the owner only *)
     let%hw frame_status =
       let f = frame.status in
       let u = usb.status in
@@ -278,8 +280,8 @@ module Make (Config : Config) = struct
       ; data_word = pick data.words
       }
     |> Load_checker.O.Of_signal.assign checker;
-    (* Engine n's pushes, routed, go to engine n + 1's tx fifo in place of its host's. The
-       full flag is the registered level's, so it holds through a pop that cycle. *)
+    (* Engine n's routed pushes go to engine n + 1's tx fifo instead of its host's. The
+       full flag is the registered level, so it holds through a pop in the same cycle. *)
     let next n = (n + 1) % engines in
     let feeder n = (n + engines - 1) % engines in
     let%hw_list route_full =
@@ -326,7 +328,7 @@ module Make (Config : Config) = struct
           ; route_full = List.nth_exn route_full n
           }
         |> Engine.O.Of_signal.assign out);
-    (* a bidirectional pin's level shows only where an engine drives it, one or more *)
+    (* a bidirectional pin's level shows only where at least one engine drives it *)
     let pin_out =
       let output_only =
         concat_msb
@@ -339,8 +341,8 @@ module Make (Config : Config) = struct
     ; pin_dir = sel_bottom (any drives ~f:(fun e -> e.pin_dir)) ~width:Isa.num_pins
     ; check =
         { verdicts =
-            (* each engine's last, kept while the checker serves the others, and busy from
-               its ask until it is kept *)
+            (* each engine's last verdict, kept while the checker serves the others, and
+               busy from its ask until it is kept *)
             List.mapi waiting ~f:(fun n waiting ->
               let ends = checker.finished &: (checked ==:. n) in
               let keep = reg spec ~enable:ends in

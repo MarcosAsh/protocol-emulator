@@ -164,9 +164,9 @@ module Make_timer (Timer : Engine.Timer) = struct
       ;;
     end
 
-    (* Whether [pin] is in the run of [count] pins from [base], wrapping at the pin space
-       as [Pins.write] does, and the bit of [value] it takes there. The pin space is all
-       of a pin's five bits, so the offset wraps with it. *)
+    (* Whether [pin] is in the run of [count] pins from [base] (wrapping at the pin space
+       like [Pins.write]), and the bit of [value] it takes there. The pin space is a pin's
+       full five bits, so the offset wraps with it. *)
     let in_run ~pin ~base ~count ~value =
       let six x = uresize x ~width:6 in
       let offset = six (pin -: base) in
@@ -174,9 +174,9 @@ module Make_timer (Timer : Engine.Timer) = struct
       , mux offset (bits_lsb (uresize value ~width:Isa.data_bits)) )
     ;;
 
-    (* What the word does to the watched bit of [pin], as the core's pin writes do:
-       side-set, then a set, out or mov, where the pin takes that register. [data]: out or
-       mov data writes it. *)
+    (* What the word does to the watched bit of [pin], like the core's pin writes:
+       side-set, then a set, out or mov, wherever the pin takes that register. [data]: out
+       or mov data writes it. *)
     module Watched = struct
       type t =
         { written : Comb.t
@@ -235,13 +235,13 @@ module Make_timer (Timer : Engine.Timer) = struct
     ;;
 
     (* A pin's edge state after the word, [duration] or more cycles on, where out or mov
-       data puts [data] on it: the cycles since its last edge count on, or restart where
-       it moves. A first write in a run is not an edge. *)
+       data puts [data] on it. The cycles since its last edge keep counting, or restart
+       where it moves. A first write in a run isn't an edge. *)
     let edge_after (w : Watched.t) (e : _ Edge.t) ~data ~duration =
       let level = mux2 w.data data @@ mux2 w.written w.bit e.level in
       let changes = level <>: e.level in
       let counted = changes &: ~:(e.fresh) in
-      (* as wide as a count and as the duration, whichever is wider *)
+      (* as wide as a count and the duration, whichever is wider *)
       let width = Int.max (width duration) (Isa.data_bits + 1) in
       ( changes
       , counted
@@ -254,8 +254,8 @@ module Make_timer (Timer : Engine.Timer) = struct
         } )
     ;;
 
-    (* A counted edge of [own] keeps the spacing its bit and [other]'s before it pick;
-       [other] moving with it is no time apart. *)
+    (* A counted edge of [own] keeps the spacing that its bit and [other]'s before it
+       pick. [other] moving with it counts as no time apart. *)
     let spaced
       ~(spacing : _ Spaced.t)
       ~hold
@@ -311,7 +311,7 @@ module Make_timer (Timer : Engine.Timer) = struct
           ~other_changes:a_changes )
     ;;
 
-    (* Past this, a count of cycles since the arm is taken as lost, so it never wraps. *)
+    (* Past this, a count of cycles since the arm counts as lost, so it never wraps. *)
     let arm_limit = 1 lsl (timer_bits - 1)
 
     let step
@@ -339,8 +339,8 @@ module Make_timer (Timer : Engine.Timer) = struct
       let capturing = c.capturing &: awaiting in
       let other_wait = c.pin_or_fifo_wait &: ~:capturing in
       let released = mux2 (msb phase) (zero timer_bits) phase in
-      (* two bits wider, so the count, a stall and the cycles, each under the timer's
-         range, cannot wrap *)
+      (* two bits wider, so the count, a stall and the cycles (each under the timer's
+         range) can't wrap *)
       let wide_arm =
         let wide x = uresize x ~width:(timer_bits + 2) in
         mux2 c.arm (wide c.cycles)
@@ -348,7 +348,7 @@ module Make_timer (Timer : Engine.Timer) = struct
         @@ (wide arm +: wide c.cycles)
       in
       let next_arm = sel_bottom wide_arm ~width:timer_bits in
-      (* the cycles to the next entry, at least *)
+      (* the least cycles to the next entry *)
       let duration =
         let wide x = uresize x ~width:(timer_bits + 2) in
         mux2 c.deadline (wide (released -: phase) +: wide c.cycles) (wide c.cycles)

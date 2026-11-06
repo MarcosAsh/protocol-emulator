@@ -1,11 +1,11 @@
-(** Simulates a circuit one cycle at a time on bits that are 0, 1, a bit of one data word
+(** Simulates a circuit one cycle at a time on bits that are 0, 1, a bit of one data word,
     or unknown. A known result holds for every value of the unknown bits and every data
     word, so what it shows of a circuit, it shows for all of them.
 
-    Logic and muxes keep data bits; arithmetic and compares need known operands, else
-    their result is unknown, but for an [==] that some known bit already decides. A mux
-    whose select is unknown keeps the bits on which its cases agree. Registers take reset,
-    then clear, then enable, as Cyclesim does, and start at [initialize_to] or unknown.
+    Logic and muxes keep data bits. Arithmetic and compares need known operands, or their
+    result is unknown, except for an [==] that some known bit already decides. A mux whose
+    select is unknown keeps the bits on which its cases agree. Registers take reset, then
+    clear, then enable (as Cyclesim does), and start at [initialize_to] or unknown.
     Memories, instances, falling edges and a second clock are refused. *)
 
 open! Core
@@ -47,8 +47,8 @@ end
 type t
 
 (** [describe] names a signal in refusals, by its Verilog name and line when there is one.
-    [initial] is a register's value at the start where [initialize_to] does not give it,
-    as a Verilog [reg r = 0] does. *)
+    [initial] is a register's value at the start where [initialize_to] doesn't give one,
+    like a Verilog [reg r = 0]. *)
 val create
   :  ?describe:(Signal.t -> string)
   -> ?initial:(Signal.t -> Bits.t option)
@@ -67,8 +67,8 @@ module State : sig
   val find : t -> Signal.t -> Value.t
   val set : t -> Signal.t -> Value.t -> t
 
-  (** Each register's bits where both agree, the rest unknown: a state within it holds
-      what holds of both. *)
+  (** Each register's bits where both agree, the rest unknown. A state within it holds
+      whatever holds of both. *)
   val merge : t -> t -> t
 
   (** Every register within the other's. *)
@@ -78,13 +78,13 @@ end
 val initial : t -> State.t
 
 (** The outputs during a cycle with these inputs, and the state after it. An input the
-    function does not know is unknown. *)
+    function doesn't know is unknown. *)
 val step
   :  t
   -> State.t
   -> inputs:(string -> Value.t option)
   -> (string * Value.t) list * State.t
 
-(** What an output or register reads, from the inputs and registers it depends on in one
-    cycle: the registers and inputs in its combinational cone. *)
+(** What an output or register reads: the registers and inputs in its combinational cone,
+    from the inputs and registers it depends on in one cycle. *)
 val cone : t -> Signal.t -> Signal.t list

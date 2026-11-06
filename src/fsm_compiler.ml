@@ -70,7 +70,7 @@ module Term = struct
     | _ -> false
   ;;
 
-  (* Constant folding, and the identities [Always.compile] leaves behind. *)
+  (* Constant folding, plus the identities [Always.compile] leaves behind. *)
   let simplify t =
     match t with
     | Op2 (op, Const a, Const b) -> Const (fold op a b)
@@ -259,7 +259,7 @@ module Tick = struct
     ; period : int
     }
 
-  (* A register counting up to a constant and back to zero. *)
+  (* A register that counts up to a constant and back to zero. *)
   let of_term ~counter (term : Term.t) =
     match term with
     | Mux
@@ -300,7 +300,7 @@ end
 
 (* Splits a next value into what it waits for and what it becomes. *)
 let strip ~(tick : Tick.t) ~hold term =
-  (* folding turned a one bit [mux c [0; 1]] into [c]; put it back *)
+  (* folding turned a one-bit [mux c [0; 1]] into [c]; put it back *)
   let term : Term.t =
     match (term : Term.t) with
     | (Input _ | Op2 (Eq, _, _)) when Term.is_bit 0 hold ->
@@ -353,8 +353,8 @@ let rec reads (term : Term.t) =
   | Mux (c, ts) -> List.concat_map (c :: ts) ~f:reads
 ;;
 
-(* With the constants folded, a register neither the pin nor the state reads in any state
-   cannot move the pin, so it is left out. *)
+(* Once constants are folded, a register that neither the pin nor the state reads in any
+   state can't move the pin, so we leave it out. *)
 let keep_live c =
   let next_values (s : Signal.t) =
     List.map c.states ~f:(fun (state, _) -> next_value c ~state s)
@@ -373,8 +373,8 @@ let keep_live c =
   { c with regs = List.filter c.regs ~f:(fun r -> Set.mem live r.name) }
 ;;
 
-(* The states the clear value reaches, by the constants a next state can take. A next
-   state that is not a mux of constants may be any state. *)
+(* The states the clear value reaches, found from the constants a next state can take. A
+   next state that isn't a mux of constants may be any state. *)
 let reachable c =
   let rec targets (term : Term.t) =
     match term with
@@ -655,7 +655,7 @@ let emit c (roles : Roles.t) ~label_of ~after (s : State.t) =
   return (waits @ anchored @ leaving, paths)
 ;;
 
-(* [set] takes five bits; longer periods come from the host, which the analyser bounds *)
+(* [set] takes five bits; longer periods come from the host, and the analyser bounds them *)
 let period_from_host period = period >= 1 lsl Isa.Field.set_value.width
 
 let set_period period =

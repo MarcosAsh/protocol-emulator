@@ -63,7 +63,7 @@ module Make (Comb : Comb.S) = struct
   module Alu_dest = Isa.Alu_dest.Make_comb (Comb)
   module Sys_op = Isa.Sys_op.Make_comb (Comb)
 
-  (* wide enough for a sum and a count on top *)
+  (* wide enough for a sum with a count on top *)
   let wide_bits = sum_bits + 1
   let wide x = uresize x ~width:wide_bits
   let max a b = mux2 (a >: b) a b
@@ -162,7 +162,7 @@ module Make (Comb : Comb.S) = struct
     let x_hi = wide x_hi in
     let sum_lo = wide row.sum_lo in
     let sum_hi = wide row.sum_hi in
-    (* shifted is the sum less x *)
+    (* shifted is the sum minus x *)
     let shifted_lo =
       max (wide row.shifted_lo) (mux2 (sum_lo >=: x_hi) (sum_lo -: x_hi) (zero wide_bits))
     in
@@ -171,7 +171,7 @@ module Make (Comb : Comb.S) = struct
         (wide row.shifted_hi)
         (mux2 (sum_hi >=: x_lo) (sum_hi -: x_lo) (wide row.shifted_hi))
     in
-    (* and falling through [jmp x--] leaves x at zero, where shifted is the sum *)
+    (* and falling through [jmp x--] leaves x at zero, where shifted equals the sum *)
     let shifted_lo, shifted_hi =
       if taken
       then shifted_lo, shifted_hi
@@ -191,8 +191,8 @@ module Make (Comb : Comb.S) = struct
       mux2 c.out (saturate (mux2 surely (zero wide_bits) shifted_hi +: n))
       @@ mux2 resets (zero wide_bits) shifted_hi
     in
-    (* An out that keeps its word adds n to the sum, but where the count stops at the
-       limit the sum is the limit and x. One that autopulls starts it again at x and n. *)
+    (* An out that keeps its word adds n to the sum, but once the count stops at the limit
+       the sum is the limit plus x. One that autopulls starts again at x plus n. *)
     let kept_lo =
       min (of_unsigned_int ~width:wide_bits shift_limit +: x_lo) (sum_lo +: n)
     in
@@ -201,7 +201,7 @@ module Make (Comb : Comb.S) = struct
     let fresh_hi = x_hi +: n in
     let out_lo = mux2 surely fresh_lo @@ mux2 never kept_lo (min kept_lo fresh_lo) in
     let out_hi = mux2 surely fresh_hi @@ mux2 never kept_hi (max kept_hi fresh_hi) in
-    (* [jmp x--] takes one from x either way, from zero to 0xffff falling through *)
+    (* [jmp x--] takes one from x either way, wrapping zero to 0xffff when falling through *)
     let dec_lo, dec_hi =
       if taken
       then max sum_lo (one wide_bits) -:. 1, sum_hi -:. 1
@@ -242,7 +242,7 @@ module Make (Comb : Comb.S) = struct
     { Ways.next = asks &: (~:(c.jump) |: may_fall); target = asks &: c.jump &: may_take }
   ;;
 
-  (* a full sum in the image asks the row for a full sum *)
+  (* a full sum in the image requires a full sum in the row *)
   let holds (s : _ Row.t) (image : _ Row.t) =
     { Holds.shifted =
         s.shifted_lo <=: image.shifted_lo &: (image.shifted_hi <=: s.shifted_hi)
@@ -298,7 +298,7 @@ end
 
 module M = Make (Bits)
 
-(* The configuration and the program as the checker and the proposer read them. *)
+(* The configuration and program as the checker and proposer read them. *)
 module Program = struct
   type t =
     { side_set_count : Bits.t
