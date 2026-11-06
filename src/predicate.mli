@@ -1,7 +1,7 @@
 (** Compiles a predicate over input pin events to firmware that pulses a verdict pin a
     certified number of cycles after each match. A deadline wait pads each match to the
-    latency, so the kernel's acceptance fixes it and a latency the code cannot meet is
-    refused, short by the wait's lateness. [formal/event_step.sby] proves the event wait
+    latency, so the kernel's acceptance fixes it, and a latency the code can't meet is
+    refused (short by the wait's lateness). [formal/event_step.sby] proves the event wait
     releases, and a poll or guard jump goes, by the sample of the cycle it issues in. *)
 
 open! Core
@@ -39,7 +39,7 @@ val to_string : t -> string
 (** The inverse of [to_string], words separated by any number of spaces. *)
 val of_string : string -> t Or_error.t
 
-(** How the firmware sees events. [Waits]: in the cycle they are sampled, but for
+(** How the firmware sees events. [Waits]: in the cycle they are sampled, except for
     [blind_after_match] or [blind_after_reject] cycles after one. [Polls]: an edge shows
     up to [min_run - 1] cycles late, and a run of the pin shorter than [min_run], or an
     edge in the last [unseen_before_verdict] cycles before a verdict, may go unseen. *)
@@ -80,13 +80,13 @@ module Firmware : sig
     }
 end
 
-(** [verdict_pin] is an output pin, OUT0 by default: the firmware sets no directions. The
+(** [verdict_pin] is an output pin, OUT0 by default; the firmware sets no directions. The
     pins watched must be inputs, bidirectional pins or wires. *)
 val compile : ?verdict_pin:int -> latency:int -> t -> Firmware.t Or_error.t
 
 module For_testing : sig
-  (** Refuses with [BUG] a quiet pin's firmware where a way into an anchor is not a sample
-      of [pin] [to_anchor] cycles before at the level of that anchor's half. *)
+  (** Refuses with [BUG] a quiet pin's firmware when a way into an anchor isn't a sample
+      of [pin] [to_anchor] cycles earlier at the level of that anchor's half. *)
   val quiet_layout
     :  Program_config.t
     -> pin:int

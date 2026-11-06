@@ -1,11 +1,11 @@
-(** The check a recorded protocol puts in its frames, found from the frames alone: a byte
-    sent again inverted, an XOR or sum of the bytes, or a CRC, whose width, polynomial,
-    init and final XOR are searched the way CRC RevEng does. A rule is taken only when the
-    frames hold more evidence than the search could match by chance, so a few frames, or
-    frames that differ in too few places, give no rule rather than a guess.
+(** Finds the check a recorded protocol puts in its frames, from the frames alone: a byte
+    sent again inverted, an XOR or sum of the bytes, or a CRC. The CRC's width,
+    polynomial, init and final XOR are searched the way CRC RevEng does. A rule is only
+    taken when the frames hold more evidence than the search could match by chance, so a
+    few frames, or frames that differ in too few places, give no rule rather than a guess.
 
     Bits are in the order they were sent. A CRC runs over them in that order with the
-    register shifting left, which is how a receiver checks any CRC bit by bit; a reflected
+    register shifting left, which is how a receiver checks any CRC bit by bit. A reflected
     CRC over LSB-first bytes is the same thing with its constants reversed. *)
 
 open! Core
@@ -20,8 +20,8 @@ module Crc_model : sig
     (** The first bit covered; the check is the frame's last [width] bits. *)
     ; check_lsb_first : bool (** The check sent from its low bit. *)
     ; init_known : bool
-    (** Frames of more than one length tell [init] from [xorout]; frames of one length
-        only fix the pair, and [init] is then the one that goes with [xorout] = 0 or a
+    (** Frames of more than one length tell [init] from [xorout]. Frames of one length
+        only fix the pair, and then [init] is the one that goes with [xorout] = 0 or a
         catalogue pair. *)
     }
   [@@deriving sexp_of, equal]
@@ -46,16 +46,16 @@ module Rule : sig
     | Crc of Crc_model.t
   [@@deriving sexp_of, equal]
 
-  (** As a person would write it, with byte values read [lsb_first], and for a CRC the
-      catalogue name if one matches. *)
+  (** The rule as a person would write it, with byte values read as [lsb_first]; for a
+      CRC, also the catalogue name if one matches. *)
   val to_string : lsb_first:bool -> t -> string
 
   (** The bits it writes. *)
   val targets : t -> frame_bits:int -> int list
 end
 
-(** Bits the search weighed against how many ways it could have matched by chance, both as
-    powers of two. *)
+(** Bits of evidence the search found against how many ways it could have matched by
+    chance, both as powers of two. *)
 module Evidence : sig
   type t =
     { bits : int
@@ -64,8 +64,8 @@ module Evidence : sig
   [@@deriving sexp_of]
 end
 
-(** Every rule the frames, all [frame_bits] long, support, and for each its evidence.
-    [lsb_first] is how bytes are read, for sums and catalogue names only. *)
+(** Every rule that the frames (all [frame_bits] long) support, each with its evidence.
+    [lsb_first] says how bytes are read, for sums and catalogue names only. *)
 val find : lsb_first:bool -> bool array list -> (Rule.t * Evidence.t) list
 
 (** The frame with each rule's target bits filled in, in order. *)
@@ -77,6 +77,6 @@ val holds : Rule.t list -> bool array -> bool
 (** The serial CRC of [bits] from [init], shifting left. *)
 val crc : width:int -> poly:int -> init:int -> bool array -> int
 
-(** Bytes of the frame, 8 bits each from bit 0, read LSB or MSB first; a short tail is
+(** Bytes of the frame, 8 bits each from bit 0, read LSB or MSB first. A short tail is
     dropped. *)
 val bytes : lsb_first:bool -> bool array -> int array

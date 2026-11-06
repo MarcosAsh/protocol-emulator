@@ -1,12 +1,12 @@
 (** A remote lab job: a WaveDrom diagram and its frames, never firmware. The diagram is
-    compiled at the rated clock to a table for the certified interpreter, so the only
-    program the chip runs is the one the kernel certified once; a job brings data words
-    and nothing else. A refusal names the limit before anything reaches the bench.
+    compiled at the rated clock to a table for the certified interpreter. The only program
+    the chip runs is the one the kernel certified once, and a job brings data words and
+    nothing else. A refusal names the limit before anything reaches the bench.
 
-    The bench takes a certified job only when every output lane lands on OUT0, the one pin
-    analyser A captures, and nothing is read, and everything the host sends fits the tx
-    fifo before the start, so the host's own timing cannot shape the waveform. Anything
-    else is run on the model alone and labelled simulated. *)
+    The bench takes a certified job only when every output lane lands on OUT0 (the one pin
+    analyser A captures), nothing is read, and everything the host sends fits the tx fifo
+    before the start, so the host's own timing can't shape the waveform. Any other job
+    runs on the model alone and is labelled simulated. *)
 
 open! Core
 
@@ -41,12 +41,12 @@ module Job : sig
   val max_bytes : int
   val max_frames : int
 
-  (** A job file: [{"lab": 1, "diagram": ..., "frames": ..., "decode": ...}], [decode]
-      optional, other keys refused. Printable ASCII only, at most [max_bytes]. *)
+  (** A job file: [{lab: 1, diagram: ..., frames: ..., decode: ...}], where [decode] is
+      optional and other keys are refused. Printable ASCII only, at most [max_bytes]. *)
   val of_string : string -> t Or_error.t
 
-  (** The job file with its frames tidied, the same text for the same job, which the
-      worker names the job by the hash of. *)
+  (** The job file with its frames tidied, giving the same text for the same job. The
+      worker names the job by the hash of that text. *)
   val to_string : t -> string
 end
 
@@ -84,14 +84,15 @@ type t =
       ; bench : Bench.t
       }
 
-(** An error is a malformed job, as frames that do not fit the diagram, not a refusal. *)
+(** An error means a malformed job (for example frames that don't fit the diagram), not a
+    refusal. *)
 val check : Job.t -> t Or_error.t
 
-(** The result folder's files from the check, name and contents: [job.json],
-    [certificate.txt] and [check.json], when certified [simulated.json] (each lane's
-    edges, by cycle), and when the bench takes it [firmware.json] (the config, the
-    interpreter's words, the table, the tx words, [run_ms] and the faults expected, for
-    python/demo_lab.py). *)
+(** The result folder's files from the check, as name and contents: [job.json],
+    [certificate.txt] and [check.json]. A certified job also gets [simulated.json] (each
+    lane's edges, by cycle). If the bench takes it, there is also [firmware.json] (the
+    config, the interpreter's words, the table, the tx words, [run_ms] and the expected
+    faults, for python/demo_lab.py). *)
 val files : t -> (string * string) list
 
 (** [check.json] for a job that never reached [check], saying why. *)

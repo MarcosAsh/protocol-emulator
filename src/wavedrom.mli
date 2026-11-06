@@ -1,11 +1,11 @@
-(** A WaveDrom diagram compiled to a [Tables] table, so it runs under the interpreter's
-    certificate as it stands. Each period, or half period of a clock, is a step of
-    [table.cycles] cycles. With data, the first period is the idle shown while the host's
-    word is awaited; without, the diagram loops. Lanes: 0 1 h l levels, p n clocks, [=] a
-    host bit, [.] [|] go on; an [input: true] lane's [=] cells are bits read by Shift. An
-    input lane that leaves its first level before its first cell, and no output lane,
-    makes a frame that starts on that edge: an Await, a read at each cell's middle, a
-    Push. *)
+(** Compiles a WaveDrom diagram to a [Tables] table, so it runs under the interpreter's
+    certificate as it stands. Each period (or half period of a clock) is a step of
+    [table.cycles] cycles. With data, the first period is the idle shown while we wait for
+    the host's word. Without data, the diagram loops. Lanes: 0 1 h l are levels, p n are
+    clocks, [=] is a host bit, [.] and [|] continue. An [input: true] lane's [=] cells are
+    bits read by Shift. A frame starts on an edge when an input lane leaves its first
+    level before its first cell and there are no output lanes. That compiles to an Await,
+    a read at each cell's middle, and a Push. *)
 
 open! Core
 
@@ -27,9 +27,9 @@ module Step : sig
   [@@deriving sexp_of]
 end
 
-(** An [edge] whose label has a limit, as [>= 250ns], [<= 1.2us], [= 26 cycles] or
-    [250ns..550ns], checked on the steps' [cycles], exact at any clock, as [ns] at the
-    clock compiled for. *)
+(** An [edge] whose label has a limit, such as [>= 250ns], [<= 1.2us], [= 26 cycles] or
+    [250ns..550ns]. The limit is checked on the steps' [cycles], exactly, at any clock;
+    [ns] means the clock compiled for. *)
 module Limit : sig
   type t =
     { edge : string
@@ -64,30 +64,31 @@ type t =
   ; diagram : Wavejson.t (** as compiled *)
   }
 
-(** The table, or why the diagram is outside the class, its limits checked at [clock_hz],
-    [rated_hz] unless given. The steps are cycles and the same at any clock. *)
+(** The table, or why the diagram is outside the class. Limits are checked at [clock_hz]
+    (default [rated_hz]). The steps are in cycles and don't depend on the clock. *)
 val compile : ?clock_hz:int -> Wavejson.t -> t Or_error.t
 
 val of_string : ?clock_hz:int -> string -> t Or_error.t
 
-(** One frame's host words: [bits] bits, first sent first; with [while_host] any number of
-    passes of [bits], each a word whose first bit says a pass follows, then a word of 0. *)
+(** One frame's host words: [bits] bits, first sent first. With [while_host] it is any
+    number of passes of [bits]; each pass is a word whose first bit says another pass
+    follows, then a word of 0. *)
 val host_words : t -> bool list -> int list Or_error.t
 
 (** The bits a pushed word holds, first read first. *)
 val read_bits : t -> int -> bool list
 
 (** The input lane's level each cycle as a peer sends [frames] of [read] bits, each drawn
-    as the diagram draws its frame after the idle period, and one more idle at the end.
-    Only for a frame an input's edge starts. *)
+    as the diagram draws its frame after the idle period, then one more idle at the end.
+    Only for a frame that an input's edge starts. *)
 val line : t -> bool list list -> bool array Or_error.t
 
 (** The certified interpreter's config and program, and the table's data words. *)
 val image : t -> (Program_config.t * int list * int list) Or_error.t
 
-(** The model of the core run [cycles] cycles from [image], the host writing [host_words]
-    as the fifo has room and taking every word pushed: the output lanes' levels each
-    cycle, out_base lowest, the words taken, and the faults. *)
+(** Runs the model of the core for [cycles] cycles from [image], with the host writing
+    [host_words] as the fifo has room and taking every pushed word. Returns the output
+    lanes' levels each cycle (out_base lowest), the words taken, and the faults. *)
 val simulate
   :  t
   -> host_words:int list

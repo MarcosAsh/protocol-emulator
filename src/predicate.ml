@@ -141,8 +141,8 @@ let pulses ~verdict_pin ~latency ~jitter =
       "pin %{verdict_pin#Int} pulses %{latency#Int} to %{latency + jitter#Int} cycles on"]
 ;;
 
-(* [set] takes five bits; a longer budget comes from the host, which the analyser and the
-   kernel take as the value every load of p carries *)
+(* [set] takes five bits; a longer budget comes from the host, and the analyser and kernel
+   take it as the value every load of p carries *)
 let from_host budget = budget >= 1 lsl Isa.Field.set_value.width
 
 let set_budget budget =
@@ -183,8 +183,8 @@ let event_source ~(edge : Edge.t) ~(guard : Level.t option) ~header ~budget =
   |> String.concat_lines
 ;;
 
-(* A half per level of the pin: it anchors, polls in a counted loop, pads to the latency,
-   polls once more and pulses the verdict, then waits for the level to change. *)
+(* One half per level of the pin: anchor, poll in a counted loop, pad to the latency, poll
+   once more and pulse the verdict, then wait for the level to change. *)
 let quiet_source ~pin ~header ~budget ~loops ~stretch =
   let half ~name ~other ~high =
     let leave = [%string "jmp %{if high then \"!pin\" else \"pin\"}, %{other}"] in
@@ -280,8 +280,8 @@ let fits_budget ~latency budget =
   else Ok ()
 ;;
 
-(* A pad wait entered late is refused: the latency is short by the lateness, and by the
-   budget below zero. Gives the kernel's table, and the verdicts' phase in it. *)
+(* A pad wait entered late is refused: the latency falls short by the lateness, and by the
+   budget below zero. Gives the kernel's table and the verdicts' phase in it. *)
 let certify t ~config ~latency ~budget (program : Asm.Program.t) =
   let open Or_error.Let_syntax in
   let period = Option.some_if (from_host budget) budget in
@@ -315,7 +315,7 @@ let certify t ~config ~latency ~budget (program : Asm.Program.t) =
 ;;
 
 (* The verdict issues [to_anchor] after the event's sample, plus the [p] that [add t, p]
-   adds, plus its phase: all but [to_anchor] from the kernel's table. *)
+   adds, plus its phase. All but [to_anchor] come from the kernel's table. *)
 let check_latency table ~anchor ~to_anchor ~verdict_phase ~latency =
   let open Or_error.Let_syntax in
   let%bind period = certified_period table ~pc:(anchor + 1) in
@@ -343,12 +343,12 @@ let compile_event ~config ~verdict_pin ~latency t ~edge ~guard =
     in
     instructions, event_pc, first is_anchor, first is_verdict
   in
-  (* the cycles from the event to the anchor do not depend on the budget, so a probe at
-     zero counts them; a budget from the host moves every pc *)
+  (* the cycles from the event to the anchor don't depend on the budget, so we probe at 0
+     to count them; a budget from the host moves every pc *)
   let%bind _, probe = assemble ~budget:0 in
   let instructions, event_pc, anchor_pc, _ = layout probe in
   let to_anchor = cycles_between instructions ~first:event_pc ~last:anchor_pc in
-  (* released at the deadline, the verdict issues the cycle after *)
+  (* released at the deadline, so the verdict issues the cycle after *)
   let budget = latency - to_anchor - 1 in
   let%bind () = fits_budget ~latency budget in
   let%bind source, program = assemble ~budget:(Int.max 0 budget) in
@@ -387,7 +387,7 @@ let following (config : Program_config.t) pc =
   if pc = config.wrap_top then config.wrap_bottom else pc + 1
 ;;
 
-(* Where [pc] may go next: its fall through, across the wrap, and a jump's target. *)
+(* Where [pc] may go next: its fall-through, across the wrap, and a jump's target. *)
 let successors config (instructions : Isa.t array) pc =
   let following =
     List.filter [ following config pc ] ~f:(fun pc -> pc < Array.length instructions)
@@ -414,8 +414,8 @@ let seen_level (config : Program_config.t) ~pin (instructions : Isa.t array) pc 
   | _ -> None
 ;;
 
-(* Every way into an anchor is a sample of [pin] [to_anchor] cycles before, at the one
-   level of that anchor's half. Each half's polls stay at its level and its level wait
+(* Every way into an anchor is a sample of [pin] [to_anchor] cycles earlier, at the one
+   level of that anchor's half. Each half's polls stay at its level, and its level wait
    leaves for the other. *)
 let quiet_layout config ~pin (instructions : Isa.t array) ~to_anchor =
   let open Or_error.Let_syntax in
@@ -471,10 +471,10 @@ module For_testing = struct
   let quiet_layout = quiet_layout
 end
 
-(* A half's samples of the pin in cycles from its deadline, all read from the kernel's
-   table: its loop's polls [-slope] apart down to the offset, the poll after the pad and
-   the level wait from its issue on. Gives the longest gap between samples, counting from
-   the one that anchored the half, and the cycles from the last poll to the verdict. *)
+(* A half's samples of the pin, in cycles from its deadline, all read from the kernel's
+   table: its loop's polls [-slope] apart down to the offset, the poll after the pad, and
+   the level wait from its issue on. Gives the longest gap between samples (counting from
+   the one that anchored the half) and the cycles from the last poll to the verdict. *)
 let polled_half config table (instructions : Isa.t array) ~anchor ~to_anchor =
   let open Or_error.Let_syntax in
   let poll = anchor + 3 in
@@ -536,8 +536,8 @@ let compile_quiet ~config ~verdict_pin ~latency t ~pin =
     let%map program = Asm.assemble source in
     source, program
   in
-  (* the distances between pcs do not depend on the budget or the count, so a probe at
-     zero finds them; a budget from the host moves every pc *)
+  (* the distances between pcs don't depend on the budget or the count, so we probe at 0
+     to find them; a budget from the host moves every pc *)
   let probe stretch =
     let%bind _, probe = assemble ~header:"" ~budget:0 ~loops:0 ~stretch in
     let instructions = Array.of_list probe.instructions in
@@ -600,7 +600,7 @@ let compile_quiet ~config ~verdict_pin ~latency t ~pin =
       Int.max run run', Int.max unseen unseen')
   in
   let jitter = min_run - 1 in
-  (* the header is a comment, so the source assembles to [program] *)
+  (* the header is a comment, so the source still assembles to [program] *)
   let header = [%string "; %{to_string t}: %{pulses ~verdict_pin ~latency ~jitter}"] in
   return
     { Firmware.source =

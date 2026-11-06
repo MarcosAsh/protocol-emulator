@@ -1,7 +1,7 @@
-(** Protocols as tables: one interpreter firmware, certified once with the data memory
+(** Protocols as tables. One interpreter firmware, certified once with the data memory
     left free, runs any Mealy machine written as 256 entries in data memory. Every step of
-    every table is timed exactly, so no table can make the core miss a deadline. Cycles
-    below count from when a step's outputs show on the pins. *)
+    every table is timed exactly, so no table can make the core miss a deadline. Cycle
+    counts below start from when a step's outputs show on the pins. *)
 
 open! Core
 
@@ -22,7 +22,7 @@ module Kind : sig
     | Stamp (** the host <- the low 16 bits of the cycle at 13; [hold + 31] *)
     | Burst
     (** Waits for a host word w, then sends bits 4 to [4 + w[3:0]] of it on out_base, each
-        [hold + 6] cycles; the next outputs show [hold + 22] after the last bit. *)
+        taking [hold + 6] cycles. The next outputs show [hold + 22] after the last bit. *)
     | Await_host (** waits for a host word into p; [hold + 16] from the wait *)
     | Await of
         { pin : Pin.t
@@ -42,9 +42,9 @@ module Kind : sig
   val least : t -> int
 end
 
-(** Where the interpreter's pins are: [inputs] (1 to 6) pins from [in_base], the first of
-    them the one [Shift] reads, and 6 outputs from [out_base], driven, or with
-    [open_drain] on the bidirectional pins, where a 1 pulls the line low. *)
+(** Where the interpreter's pins are: [inputs] (1 to 6) pins from [in_base], the first
+    being the one [Shift] reads, and 6 outputs from [out_base]. Outputs are driven, or
+    with [open_drain] on the bidirectional pins, where a 1 pulls the line low. *)
 module Wiring : sig
   type t =
     { inputs : int
@@ -77,8 +77,8 @@ module type State = sig
   type t [@@deriving equal, sexp_of]
 end
 
-(** An entry. [cycles] is the step's length as [Kind] times it, the hold plus
-    [Kind.added], or a burst's bit: from [Kind.least kind] to 65535 more. *)
+(** An entry. [cycles] is the step's length as [Kind] times it: the hold plus
+    [Kind.added], or for a burst bit anything from [Kind.least kind] to 65535 more. *)
 module Step : sig
   type 'state t =
     { outputs : int
@@ -90,7 +90,7 @@ module Step : sig
 end
 
 (** A protocol as a table. [step] gives each state's entry for the host bit p[15] and the
-    inputs, both as the step before left them; the first step is the first state's entry
+    inputs, both as the previous step left them. The first step is the first state's entry
     for host bit false and inputs 0. *)
 type 'state t =
   { name : string
@@ -113,37 +113,37 @@ module Spi_master : State
 module Dshot_bits : State
 module I2c_slave : State
 
-(** UART 8N1 on out_base, a bit at a time: each host word is [uart_word byte], whose bits
-    the table reads as the host bit and shifts on. A bit is [bit] cycles, at least
+(** UART 8N1 on out_base, one bit at a time. Each host word is [uart_word byte], whose
+    bits the table reads as the host bit and shifts on. A bit takes [bit] cycles, at least
     [Kind.least Shift]. *)
 val uart_tx : bit:int -> Uart_tx.t t
 
 val uart_word : int -> int
 
-(** UART 8N1 from in_base: [Await] on the start bit's edge, then a [Shift] in the middle
-    of each bit, then a [Push] of the byte, first bit highest. A bit is [bit] cycles, from
-    [Kind.least Shift]; frames need about a bit and a half of idle between them. *)
+(** UART 8N1 from in_base: [Await] on the start bit's edge, a [Shift] in the middle of
+    each bit, then a [Push] of the byte, first bit highest. A bit takes [bit] cycles, at
+    least [Kind.least Shift]. Frames need about a bit and a half of idle between them. *)
 val uart_rx : bit:int -> Uart_rx.t t
 
-(** The same by burst: each host word is a whole frame, [uart_frame byte]. A bit is [bit]
-    cycles, at least [Kind.burst_bit]. *)
+(** The same by burst: each host word is a whole frame, [uart_frame byte]. A bit takes
+    [bit] cycles, at least [Kind.burst_bit]. *)
 val uart_tx_burst : bit:int -> Uart_burst.t t
 
 val uart_frame : int -> int
 
 (** SPI mode 0, full duplex: MOSI on out_base, SCK on the next pin, MISO on in_base. Each
-    host word is a byte in its high 8 bits, and the byte read comes back in the low 8 bits
-    of a pushed word. SCK is low for [half] cycles and high for [half]. *)
+    host word carries a byte in its high 8 bits, and the byte read comes back in the low 8
+    bits of a pushed word. SCK is low for [half] cycles and high for [half]. *)
 val spi_master : half:int -> Spi_master.t t
 
 (** DShot from host frame words, MSB first, on out_base. *)
 val dshot : zero_high:int -> bit:int -> Dshot_bits.t t
 
-(** Takes writes to [address] on SDA [sda] and SCL [sda + 1], open drain, and acks the
+(** Takes writes to [address] on SDA [sda] and SCL [sda + 1] (open drain), and acks the
     address and each byte. Each byte goes to the host as [0x8000 lor byte]. The host keeps
-    a [marker] word queued for every byte: it reaches the host bit as the eighth bit comes
-    in. START and STOP are watched for on the first bit of a byte only, as [I2c.slave]
-    does. *)
+    a [marker] word queued for every byte, and it reaches the host bit as the eighth bit
+    comes in. START and STOP are only watched for on the first bit of a byte, like
+    [I2c.slave]. *)
 val i2c_slave : address:int -> sda:int -> I2c_slave.t t
 
 val marker : int

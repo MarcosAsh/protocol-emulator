@@ -1,21 +1,22 @@
-(** A protocol learned from a recording of a transmitter nobody described: its timing
-    table, line coding, frame shapes and checks, from edge times alone. It answers [Error]
-    where the recording does not settle the question rather than guess.
+(** Learns a protocol from a recording of a transmitter nobody described: its timing
+    table, line coding, frame shapes and checks, all from edge times alone. It returns
+    [Error] when the recording doesn't settle the question, rather than guessing.
 
     Every run on the line is taken as a whole number of one unit, found by fitting the
-    runs inside frames; frames are split at idle runs far longer than any inside one. The
+    runs inside frames. Frames are split at idle runs far longer than any inside one. The
     codings tried, in order:
 
-    - Manchester: runs of one or two half-bit units after a leader, a bit's first half the
-      complement of its second; one bit may be twice as wide, as RC-6's trailer. A one is
-      whichever way round makes the first bit 1, as RC-5 and RC-6 both start.
-    - Pulse: each bit a mark and a space, two kinds of pair, the shorter a 0 (NEC and
-      Samsung by the space, SIRC by the mark, PT2262 by both).
-    - UART: a start bit, data LSB first, maybe parity, a stop bit at idle, read at the
-      middle of each bit from the start edge, so idle between characters can be any
+    - Manchester: runs of one or two half-bit units after a leader, with a bit's first
+      half the complement of its second. One bit may be twice as wide, like RC-6's
+      trailer. A one is whichever way round makes the first bit 1, since RC-5 and RC-6
+      both start that way.
+    - Pulse: each bit is a mark and a space, in two kinds of pair, and the shorter is a 0
+      (NEC and Samsung by the space, SIRC by the mark, PT2262 by both).
+    - UART: a start bit, data LSB first, maybe parity, and a stop bit at idle. Each bit is
+      read at its middle from the start edge, so idle between characters can be any
       length.
-    - Clocked, from two or three lines: the line whose runs are all one unit is the clock,
-      data is read at the clock edge it never changes near, and a line that only moves
+    - Clocked, from two or three lines: the line whose runs are all one unit is the clock.
+      Data is read at the clock edge it never changes near, and a line that only moves
       between bursts frames them as a chip select. *)
 
 open! Core
@@ -34,13 +35,13 @@ module Coding : sig
         ; wide : int option (** A bit twice as long, by its index in the frame. *)
         ; hidden_half : bool
         (** The first bit's first half is at the idle level, so the frame shows from its
-            middle, as RC-5's. *)
+            middle (RC-5 does this). *)
         }
     | Pulse of
         { zero : int * int (** Mark, then space, in units. *)
         ; one : int * int
         ; last_is_bit : bool
-        (** The frame's last mark is a bit whose space is the gap, as SIRC's. *)
+        (** The frame's last mark is a bit whose space is the gap (SIRC does this). *)
         }
     | Uart of
         { data_bits : int
@@ -64,7 +65,7 @@ module Run : sig
   [@@deriving sexp_of, compare, equal]
 end
 
-(** A shape of frame: what comes before and after its bits, and how many there are. *)
+(** A frame shape: what comes before and after its bits, and how many bits there are. *)
 module Kind : sig
   type t =
     { leader : Run.t list
@@ -83,7 +84,7 @@ module Frame : sig
   [@@deriving sexp_of]
 end
 
-(** A run of bits that differs between frames of a kind and no check writes. *)
+(** A run of bits that differs between frames of a kind and that no check writes. *)
 module Field : sig
   type t =
     { kind : int
@@ -98,8 +99,8 @@ type t =
   { line : string
   ; unit_s : float (** Seconds: a bit, a half bit for Manchester, a half clock. *)
   ; bias_s : float
-  (** Seconds an active run reads longer than whole units, and an idle one shorter, as a
-      receiver module stretches or shrinks its marks. *)
+  (** Seconds an active run reads longer than whole units, and an idle one shorter,
+      because a receiver module stretches or shrinks its marks. *)
   ; idle : bool (** The data line's level between frames. *)
   ; coding : Coding.t
   ; lsb_first : bool (** How bits are read as values; the line cannot say. *)
@@ -125,21 +126,21 @@ val field_value : t -> Field.t -> bool array -> int
 (** [bits] with every check of the kind filled in. *)
 val with_checks : t -> kind:int -> bool array -> bool array
 
-(** A frame never recorded: the field with the most values seen set to the least value it
-    never took, in the commonest kind that has one, checks filled in. *)
+(** A frame never recorded: the field with the most values seen, set to the least value it
+    never took, in the commonest kind that has one, with checks filled in. *)
 val new_message : ?value:int -> t -> (Field.t * Frame.t) Or_error.t
 
-(** A single-line frame as runs from its first edge to its last, its checks filled in,
-    with the UART's parity and stop bits. Not for clocked protocols. *)
+(** A single-line frame as runs from its first edge to its last, with checks filled in and
+    the UART's parity and stop bits. Not for clocked protocols. *)
 val runs : t -> kind:int -> bool array -> Run.t list
 
-(** Frames of a recording read with what was learned: kind, bits and when. A recording of
-    one line is read as the learned line, whatever its name. *)
+(** The frames of a recording, read with what was learned: kind, bits and time. A
+    recording of one line is read as the learned line, whatever its name. *)
 val decode : t -> Recording.t -> Frame.t list Or_error.t
 
 (** A recording of [frames] sent as [runs] says, each after [gap] idle units, sampled at
-    [rate_hz] with every run [jitter] of a unit long or short at random, from [seed], and
-    active runs [skew] of a unit longer and idle ones shorter. *)
+    [rate_hz]. Every run is randomly [jitter] of a unit too long or short (from [seed]),
+    and active runs are [skew] of a unit longer and idle ones shorter. *)
 val synthesize
   :  ?jitter:float
   -> ?skew:float

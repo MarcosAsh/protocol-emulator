@@ -92,7 +92,7 @@ module Value = struct
     | Data of int
 end
 
-(* one step of the diagram before it has a kind *)
+(* one step of the diagram, before it has a kind *)
 module Draft = struct
   type t =
     { name : string
@@ -185,7 +185,7 @@ let output_lane (lane : Wavejson.Lane.t) periods =
   go [] ~previous:None ~bits:0 periods
 ;;
 
-(* each period's cell of an input lane, if it is one the table reads *)
+(* each period's cell of an input lane, if the table reads it *)
 let input_lane (lane : Wavejson.Lane.t) periods =
   let open Or_error.Let_syntax in
   let%map () = lane_shape lane in
@@ -258,7 +258,7 @@ let slices ~periods ~cycles_of ~outputs ~input =
   |> Or_error.map ~f:List.concat
 ;;
 
-(* consecutive slices with no new cell are one step; a loop's body starts and ends one *)
+(* consecutive slices with no new cell make one step; a loop's body starts and ends one *)
 let drafts slices ~while_host =
   let finish (first : Slice.t) rest ~time =
     let cycles = List.sum (module Int) (first :: rest) ~f:(fun s -> s.cycles) in
@@ -294,14 +294,15 @@ let cells (slices : Slice.t list) =
     Int.min lo a, Int.max hi b)
 ;;
 
-(* when a Shift reads in_base: 7 cycles after its outputs show *)
+(* a Shift reads in_base 7 cycles after its outputs show *)
 let sample_after = 7
 let least = Tables.Kind.least
 let kind_name (kind : Tables.Kind.t) = Sexp.to_string (Tables.Kind.sexp_of_t kind)
 
-(* For each bit, the first step that may move the host bit on and is long enough: from the
-   last showing the bit to before the first showing the next, reading inside the bit's
-   input cell. The last bit of a word but the frame's last pulls the next word. *)
+(* For each bit, find the first step that may move the host bit on and is long enough:
+   from the last step showing the bit to before the first step showing the next, reading
+   inside the bit's input cell. The last bit of a word (except the frame's last) pulls the
+   next word. *)
 let place_shifts
   (drafts : Draft.t array)
   ~bits
@@ -431,7 +432,7 @@ let split_unit token =
   number, String.drop_prefix token (String.length number)
 ;;
 
-(* "400ns", "0.4us" or "20cycles", in ns; [unit] where the token has none *)
+(* parses 400ns, 0.4us or 20cycles into ns; [unit] applies where the token has none *)
 let quantity ?(unit = "") ~clock_hz token =
   let number, given = split_unit token in
   let%bind.Option n = Float.of_string_opt number in
@@ -442,7 +443,7 @@ let quantity ?(unit = "") ~clock_hz token =
   | _ -> None
 ;;
 
-(* the bounds a label sets, if any: a number and its unit may stand apart *)
+(* the bounds a label sets, if any; a number and its unit may be separated *)
 let bounds ~clock_hz label =
   let rec join = function
     | n :: unit :: rest
@@ -478,8 +479,8 @@ let bounds ~clock_hz label =
   String.split label ~on:' ' |> List.filter ~f:(Fn.non String.is_empty) |> join |> go
 ;;
 
-(* The time between two nodes is the drawn periods' cycles between them, as every step is
-   exact; one at the idle, or a pair across a whole repeat, has no such time. *)
+(* The time between two nodes is the cycles of the drawn periods between them, since every
+   step is exact. Nodes at the idle, or a pair across a whole repeat, have no such time. *)
 let limits
   ~clock_hz
   (lanes : Wavejson.Lane.t list)
@@ -563,8 +564,8 @@ let check_steps steps =
   else check_cycles steps
 ;;
 
-(* A pass's last step goes back to its head, which on the host's flag of 0 is the step
-   after the pass; -1 for neither. *)
+(* A pass's last step goes back to its head, which is the step after the pass when the
+   host's flag is 0; -1 for neither. *)
 let table_of (steps : Step.t array) ~head ~tail =
   let count = Array.length steps in
   let entry state ~host_bit =
@@ -648,7 +649,7 @@ let compile_on_host
     |> List.max_elt ~compare
     |> Option.value_map ~default:0 ~f:succ
   in
-  (* with data, the first period is the idle shown while the host's word is awaited *)
+  (* with data, the first period is the idle shown while we wait for the host's word *)
   let%bind idle, slices =
     if bits = 0 && read = 0
     then Ok (None, slices)
@@ -769,7 +770,7 @@ let level_char = function
 ;;
 
 (* An input lane that starts at a level and leaves it before its first cell starts each
-   frame on that edge: the period of the change, and the level after it. *)
+   frame on that edge. Gives the period of the change and the level after it. *)
 let input_edge (lane : Wavejson.Lane.t) =
   let%bind.Option first_cell =
     String.lfindi lane.wave ~f:(fun _ c ->
@@ -785,11 +786,11 @@ let input_edge (lane : Wavejson.Lane.t) =
 ;;
 
 (* An Await's cycles count from 2 after the pin's edge: Tables.uart_rx's [3 * bit / 2 - 9]
-   puts its first read at the middle of bit 0 so. *)
+   puts its first read at the middle of bit 0 that way. *)
 let edge_seen = 2
 
-(* A frame an input's edge starts: an Await for the edge, a Shift at the middle of each
-   cell, the last held a cell's length, then a Push and back to the Await. *)
+(* A frame that an input's edge starts: an Await for the edge, a Shift at the middle of
+   each cell (the last held a cell's length), then a Push and back to the Await. *)
 let compile_on_edge
   ~clock_hz
   (diagram : Wavejson.t)

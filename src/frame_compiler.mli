@@ -1,26 +1,27 @@
 (** Compiles a one-pin transmitter into firmware for one engine by the frame it sends, not
-    by its states: [Bit_sim] runs the netlist with the byte as unknown bits, so the coding
-    style (counter shapes, indexed or shifted data, one or two processes) does not matter.
+    by its states. [Bit_sim] runs the netlist with the byte as unknown bits, so the coding
+    style (counter shapes, indexed or shifted data, one or two processes) doesn't matter.
     Anything else is refused, naming the register or cycle at fault:
 
-    - From reset, with [valid] low, the circuit settles in a state that holds, and again
-      after a frame: the idle state is what the two share. One that keeps moving, like a
-      free-running baud tick, is refused.
+    - From reset with [valid] low, the circuit must settle in a state that holds, and
+      again after a frame. The idle state is what the two share. A circuit that keeps
+      moving, like a free-running baud tick, is refused.
     - A take is [valid] high in the idle state, with [data] read then and unknown after.
       [valid] is unknown for the rest of the frame, so a circuit that reads it while busy
       is refused, as is one whose control reads the data.
-    - In every cycle the pin is 0, 1 or a bit of the data, data bits in rising order (LSB
-      first, gaps allowed) and not inverted, and the frame ends back in the idle state.
+    - In every cycle the pin is 0, 1 or a bit of the data. Data bits come in rising order
+      (LSB first, gaps allowed) and not inverted, and the frame ends back in the idle
+      state.
     - The data is at most 16 bits, the tx fifo's word. Inputs other than reset, valid,
       data and [tied] are unknown.
 
-    An unknown pin is refused with each input and idle-state register that made known
-    alone makes it known.
+    An unknown pin is refused along with each input and idle-state register that, made
+    known alone, makes it known.
 
-    Every run of the pin starts at a deadline: [wait t+] on [p], the commonest run length,
-    then [set pins] or [out pins, 1], then [add t] or extra waits for a run of another
-    length. Consecutive data runs of length [p] share a [jmp x--] loop. So every edge is
-    at a fixed lag behind the circuit's, whatever the data. *)
+    Every run of the pin starts at a deadline: [wait t+] on [p] (the commonest run
+    length), then [set pins] or [out pins, 1], then [add t] or extra waits for a run of
+    another length. Consecutive data runs of length [p] share a [jmp x--] loop. So every
+    edge sits at a fixed lag behind the circuit's, whatever the data. *)
 
 open! Core
 open! Hardcaml
@@ -64,17 +65,18 @@ val read : ?limit:int -> Bit_sim.t -> ports:Ports.t -> Frame.t Or_error.t
 
 module Timing : sig
   (** In cycles of a harness that clears the engine in cycle 0, starts it in cycle 1 and
-      has it running from cycle 3, with the circuit's reset in cycle 0, as
-      write_certificate.exe's do. *)
+      has it running from cycle 3, with the circuit's reset in cycle 0, like
+      write_certificate.exe's. *)
   type t =
     { lag : int (** The engine's pin is the circuit's [lag] cycles before. *)
     ; first_take : int (** The first cycle a take may come in. *)
     ; gap : int
-    (** The fewest cycles from one take to the next, at least [length] and [settled]. *)
+    (** The fewest cycles from one take to the next; at least [length] and [settled]. *)
     ; shortest : int
-    (** The fewest the engine follows the circuit at in simulation. [gap] may exceed it. *)
+    (** The fewest cycles between takes at which the engine follows the circuit in
+        simulation. [gap] may exceed it. *)
     ; settled : int
-    (** Cycles after a take by which both are back where they wait, and stay. *)
+    (** Cycles after a take by which both are back where they wait, and stay there. *)
     }
   [@@deriving sexp_of]
 end
@@ -88,8 +90,9 @@ type t =
 (** [limit] bounds the warm-up and the frame, 65536 cycles by default. *)
 val compile : ?limit:int -> Bit_sim.t -> ports:Ports.t -> t Or_error.t
 
-(** The engine's state after [n] steps from the start, for a take in each of [takes], as
-    the harness above counts cycles: [run t ~takes ~cycles] has an entry per cycle from 3. *)
+(** The engine's state after [n] steps from the start, for a take in each of [takes],
+    counting cycles as the harness above does. [run t ~takes ~cycles] has one entry per
+    cycle from 3. *)
 val engine_states
   :  Fsm_compiler.Firmware.t
   -> takes:(int * int) list

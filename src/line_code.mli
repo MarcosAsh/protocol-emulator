@@ -1,23 +1,27 @@
-(** A loaded Mealy table on the serial bit, after NXP FlexIO's state mode (AN5239): line
-    codes as data rather than gates. With [Program_config.line_code] on, every 1-bit
-    [out pins] and [in pins] steps the engine's table, the transmit side from one state
-    register and the receive side from another, both 0 after a start.
+(** A loaded Mealy table on the serial bit, after NXP FlexIO's state mode (AN5239). It
+    makes line codes data instead of gates. With [Program_config.line_code] on, every
+    1-bit [out pins] and [in pins] steps the engine's table: the transmit side from one
+    state register and the receive side from another, both 0 after a start.
 
     Word [s] (0 to 15) holds state [s]'s two 6-bit entries [{flag, out, next}], for input
-    0 in the low byte and input 1 in the high; word 16 holds the [Modes]. The transmit
-    state starts at 0 and the receive state at [rx_start], so one table can hold both
-    sides of a code. An [out]'s input is the bit the osr gives, or with [tx_relative]
-    whether it differs from the pin at [out_base]. It drives [out] on that pin, or with
-    [tx_toggle] flips the pin where [out] is set, and with [out_count] 2 or more drives
-    the next pin as the complement. An [in]'s input is the pin at [in_base], or with
-    [rx_relative] whether it moved since the last [in]. It shifts in [out], flipped with
-    [rx_toggle] where the pin was high at the last [in]; with [flag] it shifts nothing:
-    the bit is dropped, past the CRC and the stuff counter too. Either way the state moves
-    to [next], and [flag] is what [jmp stuff] reads until [stuff_reset] or the next step.
-    [stuff_reset] leaves the states, so a table that stuffs moves to the state after the
-    stuffed bit, which the firmware drives, as it raises [flag].
+    0 in the low byte and input 1 in the high byte. Word 16 holds the [Modes]. The
+    transmit state starts at 0 and the receive state at [rx_start], so one table can hold
+    both sides of a code.
 
-    With [tx_stuff] the core sends the stuffed bit itself ([Line_stuff]): the out after a
+    An [out]'s input is the bit the osr gives, or with [tx_relative] whether it differs
+    from the pin at [out_base]. It drives [out] on that pin, or with [tx_toggle] flips the
+    pin where [out] is set. With [out_count] 2 or more it drives the next pin as the
+    complement.
+
+    An [in]'s input is the pin at [in_base], or with [rx_relative] whether it moved since
+    the last [in]. It shifts in [out], flipped with [rx_toggle] where the pin was high at
+    the last [in]. With [flag] it shifts nothing: the bit is dropped, past the CRC and the
+    stuff counter too. Either way the state moves to [next], and [flag] is what
+    [jmp stuff] reads until [stuff_reset] or the next step. [stuff_reset] leaves the
+    states alone, so a table that stuffs moves to the state after the stuffed bit, which
+    the firmware drives as it raises [flag].
+
+    With [tx_stuff] the core sends the stuffed bit itself ([Line_stuff]). The out after a
     flagged step sends a 0 and keeps its own bit owed, [stuff_reset] ends the data and
     leaves [flag], and [jmp stuff] reads whether a bit is owed. *)
 
@@ -46,7 +50,7 @@ val tx_stuff_bit : int
 
 val modes_bits : int
 
-(** The most bits [tx_stuff] keeps owed; past it the oldest is lost. *)
+(** The most bits [tx_stuff] keeps owed; past that the oldest is lost. *)
 val owed_max : int
 
 module Entry : sig
@@ -94,23 +98,23 @@ val combine : transmit:t -> used:int -> receive:t -> t
 (** NRZI: a 0 flips the line, a 1 holds it. *)
 val nrzi : t
 
-(** USB transmit: NRZI on D+ (and D- with [out_count] 2), and [flag] at the sixth one,
+(** USB transmit: NRZI on D+ (and D- with [out_count] 2), with [flag] at the sixth one,
     where the firmware flips the pair for the stuffed zero. *)
 val usb_transmit : t
 
-(** [usb_transmit] with [tx_stuff]: the core stuffs at full speed, with no firmware time
-    to spare between bits. *)
+(** [usb_transmit] with [tx_stuff]: the core stuffs at full speed, where the firmware has
+    no time to spare between bits. *)
 val usb_stuffing : t
 
-(** USB receive from D+: a 1 where the line held and a 0 where it moved, and the zero
-    after six ones dropped. *)
+(** USB receive from D+: a 1 where the line held, a 0 where it moved, and the zero after
+    six ones dropped. *)
 val usb_receive : t
 
-(** CAN transmit: the pin follows the bit, and [flag] at the fifth of a level, where the
+(** CAN transmit: the pin follows the bit, with [flag] at the fifth of a level, where the
     firmware flips the pin for the stuffed bit. *)
 val can_transmit : t
 
-(** CAN receive: the level, and the bit after five of a level dropped. *)
+(** CAN receive: the level, with the bit after five of a level dropped. *)
 val can_receive : t
 
 (** [usb_transmit] and [usb_receive] in one table, 13 states. *)

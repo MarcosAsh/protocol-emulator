@@ -38,27 +38,29 @@ type t =
   ; stuff_level : bool (** The level whose runs count. *)
   ; wrap_bottom : int
   ; wrap_top : int
-  (** After [wrap_top], unless a jump is taken, go to [wrap_bottom] in zero cycles. The
-      defaults, last address and 0, change nothing. *)
+  (** After [wrap_top], go to [wrap_bottom] in zero cycles unless a jump is taken. The
+      defaults (last address and 0) change nothing. *)
   ; period_fraction : int
-  (** 65536ths of a cycle added to [t] at each [wait t+]: edges average [p + f / 65536]
-      apart, each within a cycle. Any other write to [t] clears the fraction. *)
+  (** Fraction of a cycle, in 65536ths, added to [t] at each [wait t+]. Edges land
+      [p + f / 65536] apart on average, each within a cycle. Any other write to [t] clears
+      the fraction. *)
   ; autopull_data : bool
   (** Autopull reads data memory instead of the tx fifo; [pull] still reads the fifo. *)
   ; manchester : bool
-  (** [out pins, 1] drives a Manchester pair: [out_base] the complement, [out_base + 1]
-      the bit, both flipping at the next issue. The [out]'s length is the first half. *)
+  (** [out pins, 1] drives a Manchester pair: [out_base] gets the complement and
+      [out_base + 1] the bit, both flipping at the next issue. The [out]'s length is the
+      first half. *)
   ; line_code : bool
   (** Single-bit [out pins] and [in pins] go through the engine's [Line_code] table, and
       [jmp stuff] reads its flag. Manchester takes an [out] first. *)
   ; route : bool
-  (** Pushes go to the next engine's tx fifo instead of this one's rx fifo, which the rx
-      conditions and the overflow fault then judge by. *)
+  (** Pushes go to the next engine's tx fifo instead of this one's rx fifo, and the rx
+      conditions and the overflow fault then judge by that fifo. *)
   }
 [@@deriving sexp, compare, equal]
 
-(** One output at OUT0, shift right, no side-set or autopush/pull, stuffing off, whole
-    cycle period. CRC is CRC-16/USB (0x8005 reflected as 0xa001, init 0xffff, sent
+(** One output at OUT0, shift right, no side-set or autopush/pull, stuffing off,
+    whole-cycle period. CRC is CRC-16/USB (0x8005 reflected as 0xa001, init 0xffff, sent
     complemented). *)
 val default : t
 

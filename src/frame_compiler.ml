@@ -47,7 +47,7 @@ end
 
 let refuse fmt = Printf.ksprintf (fun s -> Or_error.error_string s) fmt
 
-(* [set] takes five bits; a longer period is the host's first word *)
+(* [set] takes five bits, so a longer period is the host's first word *)
 let period_from_host period = period >= 1 lsl Isa.Field.set_value.width
 
 let names sim signals =
@@ -71,8 +71,8 @@ let pin_of ~(ports : Ports.t) outputs =
 ;;
 
 (* What leaves the pin unknown in cycle [cycle] of a run from [start]: each input, and
-   each register unknown at the start, that made known alone makes the pin known. [why]
-   says how each comes to be unknown. *)
+   each register unknown at the start, that makes the pin known when made known alone.
+   [why] says how each becomes unknown. *)
 let blame sim ~ports ~start ~inputs ~cycle ~why =
   let pin_known ~start ~inputs =
     let rec go state k =
@@ -185,7 +185,7 @@ let read ?(limit = 1 lsl 16) sim ~(ports : Ports.t) =
   in
   let busy = inputs ~reset:false ~valid:(Bit_sim.Value.unknown ~width:1) ~data:no_data in
   let pin_of = pin_of ~ports in
-  (* from [start], [inputs] in each cycle, until a cycle changes nothing *)
+  (* from [start], with [inputs] each cycle, until a cycle changes nothing *)
   let settle ~start ~inputs ~from =
     let rec go states state cycle =
       let _, next = Bit_sim.step sim state ~inputs:(inputs cycle) in
@@ -232,7 +232,8 @@ let read ?(limit = 1 lsl 16) sim ~(ports : Ports.t) =
             r)} after a frame"]
        | _ -> [%string "%{Bit_sim.describe sim r}, which reset leaves unknown"])
   in
-  (* blamed from reset, so a register is one reset leaves unknown, not one that came to be *)
+  (* blamed from reset, so a register counts only if reset leaves it unknown, not if it
+     became unknown later *)
   let blame_from_reset ~after ~cycle () =
     blame
       sim
@@ -286,7 +287,7 @@ let read ?(limit = 1 lsl 16) sim ~(ports : Ports.t) =
   in
   (* the take, then valid unknown until the circuit is back in the idle state *)
   let frame_inputs cycle = if cycle = 0 then take else busy in
-  (* a cycle after the take that reads valid as a take would, and is not idle *)
+  (* a cycle after the take that reads valid like a take would and isn't idle *)
   let waits_elsewhere ~idle states =
     List.find_mapi states ~f:(fun cycle state ->
       let next ~valid =
@@ -328,7 +329,7 @@ let read ?(limit = 1 lsl 16) sim ~(ports : Ports.t) =
     in
     run [] [] idle 0
   in
-  (* the idle state is what every state it waits for valid in shares *)
+  (* the idle state is what all the states that wait for valid have in common *)
   let widenings = 4 in
   let%bind idle, states, pins =
     let rec widen idle tries =
@@ -409,7 +410,7 @@ module Item = struct
         }
 end
 
-(* the commonest run length, the shorter of a tie *)
+(* the commonest run length (the shorter on a tie) *)
 let commonest lengths =
   List.sort_and_group lengths ~compare:Int.compare
   |> List.max_elt ~compare:(fun a b ->
@@ -624,7 +625,7 @@ let engine_pin (firmware : Fsm_compiler.Firmware.t) (m : Machine.t) =
   (m.pin_out lsr firmware.config.out_base) land 1 = 1
 ;;
 
-(* the circuit's pin in each cycle for these takes, [None] before it is known *)
+(* the circuit's pin in each cycle for these takes; [None] until it is known *)
 let circuit_pins (frame : Frame.t) ~takes ~cycles =
   let warm_up = Array.length frame.warm_up - 1 in
   Array.init cycles ~f:(fun cycle ->
@@ -645,7 +646,7 @@ let bytes width =
   List.map [ 0x5555; 0xaaaa; 0x0f0f; 0xf0f0; 0x3c3c; 0; 0xffff ] ~f:(fun b -> b land mask)
 ;;
 
-(* the engine's pin is the circuit's [lag] cycles before, from [from] to the end *)
+(* the engine's pin is the circuit's pin [lag] cycles earlier, from [from] to the end *)
 let follows ~lag ~from engine circuit =
   Array.for_alli engine ~f:(fun cycle e ->
     cycle < from
@@ -765,7 +766,7 @@ let compile ?limit sim ~ports =
   let%bind (_ : string) =
     source ~ports ~period ~first_deadline:1 ~pin_idle:frame.pin_idle runs
   in
-  (* the earliest first deadline the code before it reaches in time *)
+  (* the earliest first deadline that the preceding code reaches in time *)
   let%bind firmware =
     match List.find_map (List.range 1 64) ~f:(fun d -> Result.ok (assemble d)) with
     | Some firmware -> Ok firmware
