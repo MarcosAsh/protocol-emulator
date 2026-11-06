@@ -1,8 +1,8 @@
-(** Asks SAT whether any table passes the kernel, pc 0 held full as [Kernel.check] holds
-    it and every other row free, so [None] is a limit of the kernel's rows, not the
-    analyser's, and an UNSAT cake_lpr checks ([Checked_unsat]). Like [Kernel.check] it
-    checks every pc, reads words past the program as zero and takes [period] as what every
-    run-time load of [p] carries. *)
+(** Asks SAT whether any table passes the kernel, with pc 0 held full as [Kernel.check]
+    holds it and every other row free. So [None] means a limit of the kernel's rows, not
+    the analyser's, and cake_lpr checks the UNSAT ([Checked_unsat]). Like [Kernel.check]
+    it checks every pc, reads words past the program as zero and takes [period] as the
+    value every run-time load of [p] carries. *)
 
 open! Core
 open Protocol_emulator

@@ -18,5 +18,5 @@ type t =
 (** The firmware's line on the wire. *)
 val line : Program_config.t -> Program_config.t
 
-(** A burst a character. *)
+(** One burst per character. *)
 val bytes : string -> int list list

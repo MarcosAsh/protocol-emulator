@@ -1,7 +1,7 @@
 (** A TDM audio transmitter as Cirrus Logic's AN301 REV1 gives it: SCLK, FSYNC and SDATA,
-    eight 32-bit channel blocks a frame, FSYNC one SCLK before channel 1. The host writes
-    a 16-bit sample a channel, the top of the 24-bit audio word; with none the block is 0.
-    SCLK starts with the first sample and runs on without a break. *)
+    eight 32-bit channel blocks per frame, FSYNC one SCLK before channel 1. The host
+    writes one 16-bit sample per channel (the top of the 24-bit audio word); with none,
+    the block is 0. SCLK starts with the first sample and then runs without a break. *)
 
 open! Core
 open Protocol_emulator

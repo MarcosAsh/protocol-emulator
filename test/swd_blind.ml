@@ -28,9 +28,10 @@ let config =
 ;;
 
 (* A word is eight clocks, two bits each from bit 0: the level, then 1 to drive it or 0 to
-   let go. The level and direction move after a fall, the target takes the bit on the rise
-   and we take the target's on the next fall. A release is at once, a drive two cycles
-   later, so the line is let go for a period and two cycles at least. *)
+   let go. The level and direction change after a fall, the target takes the bit on the
+   rise, and we take the target's bit on the next fall. A release happens at once and a
+   drive two cycles later, so the line stays released for at least a period plus two
+   cycles. *)
 let firmware =
   [%firmware
     {|
@@ -272,7 +273,7 @@ module Target = struct
       note t (sprintf "write %s: 0x%08x" (name ~ap ~addr) data))
   ;;
 
-  (* the host's bit, or with no one driving the pull-up's *)
+  (* the host's bit, or the pull-up's if nobody drives *)
   let sample t bit =
     let reset = bit = 0 && t.high_run >= 50 in
     let t = { t with high_run = (if bit = 1 then t.high_run + 1 else 0) } in
@@ -341,8 +342,8 @@ let peer () =
   }
 ;;
 
-(* the line reset and its idle cycles, eight words, then a DPIDR read and an AP read of
-   CSW, six words each, the last with eight idle cycles to end on, p.4-89 *)
+(* line reset and idle cycles (eight words), then a DPIDR read and an AP read of CSW (six
+   words each, the last ending with eight idle cycles), p.4-89 *)
 let dpidr_first = 64
 let ap_first = dpidr_first + 48
 
@@ -358,9 +359,9 @@ let send words =
 ;;
 
 (* sigrok's swd takes our bits on rises and the target's on falls, skipping a fall for the
-   first turnaround and a rise for the last. SWDIO's edge 8 is ACK's second bit falling, 9
-   RDATA's bit 0 rising: the teeth bring ACK half a clock early, so OK reads 000, and
-   invert RDATA's bit 0. *)
+   first turnaround and a rise for the last. SWDIO edge 8 is ACK's second bit falling and
+   edge 9 is RDATA's bit 0 rising. The teeth move ACK half a clock early, so OK reads 000,
+   and invert RDATA's bit 0. *)
 let sigrok =
   { Sigrok.clock_hz = Bench.clock_hz
   ; decoders = [ Sigrok.decoder "swd" ~pins:[ "swclk", swclk_pin; "swdio", swdio_pin ] ]
@@ -403,11 +404,11 @@ let scenario =
   }
 ;;
 
-(* The bench's run, every select sequence of chapter 5 and the RP2040's connection: from
-   JTAG to SWD (p.5-111), a DPIDR read, SWD to dormant (p.5-116), dormant to SWD with the
-   SW-DP's activation code (p.5-117, Table 5-1), TARGETSEL for core 0 (Figure 4-9), the
-   DPIDR and an AP read, then SWD to JTAG (p.5-111) and JTAG to dormant (p.5-115). The
-   rows' highs and lows are labelled. *)
+(* The bench's run: every select sequence of chapter 5 and the RP2040's connection. In
+   order: JTAG to SWD (p.5-111), a DPIDR read, SWD to dormant (p.5-116), dormant to SWD
+   with the SW-DP's activation code (p.5-117, Table 5-1), TARGETSEL for core 0 (Figure
+   4-9), the DPIDR and an AP read, then SWD to JTAG (p.5-111) and JTAG to dormant
+   (p.5-115). The rows' highs and lows are labelled. *)
 let bench_segments =
   let alert =
     List.concat_map
@@ -436,8 +437,8 @@ let bench_segments =
 
 let bench_clocks = List.concat_map bench_segments ~f:snd
 
-(* The line's runs as the clocks make them, the pull-up's before the first word and on a
-   released clock, and the run each label's last clock is in *)
+(* The line's runs as the clocks make them (the pull-up's level before the first word and
+   while the clock is released), and the run each label's last clock falls in *)
 let bench_runs =
   let level : Clock.t -> bool = function
     | Drive level -> level
@@ -481,9 +482,10 @@ let bench =
 ;;
 
 (* The spec counts SWCLK cycles; at the bench's 1 MHz a cycle is 1 us. Trn: the host lets
-   go for a data period at least, the kernel's bound on SWDIO's direction. An analyser
-   sees SWDIO's level, where a driven 1 looks the same, so a measured Trn reads 48, a bit.
-   The rest are the bench run's labelled runs of SWDIO. *)
+   go for at least a data period, which is the kernel's bound on SWDIO's direction. An
+   analyser only sees SWDIO's level, and a driven 1 looks the same as a release, so a
+   measured Trn reads 48, a bit. The rest are the labelled runs of SWDIO from the bench
+   run. *)
 let limits =
   let us = 1_000. in
   let sheet page =

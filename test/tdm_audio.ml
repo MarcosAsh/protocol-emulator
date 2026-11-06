@@ -3,13 +3,13 @@ open Protocol_emulator
 open Pin_trace
 module Reg = Host_port.Reg
 
-(* Cirrus Logic AN301 REV1 (Sep 2006), the TDM tutorial: no timing table, the format is
-   pp.2-3 and Figures 2-6. Eight 32-bit channel blocks a frame, the 24-bit audio word MSB
-   first then an 8-bit zero pad (Figure 3). FSYNC rises one SCLK before channel 1, so the
-   last bit of channel 8 is within it (p.3, Figure 4), and is high for one SCLK, the least
-   p.3 allows. SCLK is 8 MHz (6 cycles of the 48 MHz clock, 3 a half), a 31.25 kHz frame:
-   p.2 gives 12.288 MHz only as the example for 48 kHz, and 4 cycles a bit leaves no room
-   for a jmp. *)
+(* Cirrus Logic AN301 REV1 (Sep 2006), the TDM tutorial. It has no timing table; the
+   format is on pp.2-3 and Figures 2-6. A frame is eight 32-bit channel blocks, each a
+   24-bit audio word MSB first plus an 8-bit zero pad (Figure 3). FSYNC rises one SCLK
+   before channel 1, so the last bit of channel 8 falls inside it (p.3, Figure 4), and it
+   is high for one SCLK, the minimum p.3 allows. SCLK is 8 MHz (6 cycles of the 48 MHz
+   clock, 3 per half), giving a 31.25 kHz frame. p.2 gives 12.288 MHz only as the example
+   for 48 kHz, and 4 cycles per bit leaves no room for a jmp. *)
 let clk_pin = 5
 let sync_pin = clk_pin + 1
 let data_pin = clk_pin + 2
@@ -37,8 +37,9 @@ let config =
 ;;
 
 (* Side-set is SCLK in bit 0 and FSYNC in bit 1. Every half bit is 3 cycles of
-   instructions, no waits: data and FSYNC change as SCLK falls, the far end reads them as
-   it rises. A block's last bit asks for the next sample; with none the block is silence. *)
+   instructions with no waits. Data and FSYNC change as SCLK falls and the far end reads
+   them as it rises. A block's last bit asks for the next sample, and with none the block
+   is silence. *)
 let firmware =
   [%firmware
     {|
@@ -190,8 +191,8 @@ word8:
 
 let certified = [ Certified.of_firmware "tdm_audio" firmware ]
 
-(* a frame of samples, channel 1 first; the bench copy has no run as there is no limit for
-   one to bound *)
+(* a frame of samples, channel 1 first; the bench copy has no run, since there is no limit
+   for one to bound *)
 let samples = [ 0x8000; 0x7fff; 0x1234; 0xa5a5; 0x0001; 0xffff; 0x5555; 0xc3c3 ]
 
 (* The bench's OUT1 reaches no analyser channel, so all three go to analyser B: SCLK and
@@ -213,10 +214,10 @@ let bench =
 
 let limits : Datasheet.t list = []
 
-(* sigrok's tdm_audio reads a whole block a channel, pad and all, at the rise of its last
-   bit, and starts a frame at the bit after FSYNC is seen high: the frame of samples, then
-   the frame of silence. The teeth flip channel 1's MSB, and bring the second FSYNC a bit
-   early so channel 8 is cut short and never read. *)
+(* sigrok's tdm_audio reads each channel's whole block, pad included, at the rise of its
+   last bit, and starts a frame on the bit after it sees FSYNC high. Here that gives the
+   frame of samples, then the frame of silence. The teeth flip channel 1's MSB, and bring
+   the second FSYNC a bit early so channel 8 is cut short and never read. *)
 let sigrok =
   let frame samples =
     List.mapi samples ~f:(fun i sample ->

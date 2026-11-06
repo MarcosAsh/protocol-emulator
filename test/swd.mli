@@ -1,7 +1,7 @@
-(** SWD host (ARM IHI 0031G, B4): SWCLK on OUT2 by side-set, SWDIO on IO5. SWDIO moves and
-    is sampled as SWCLK falls, half a period from the target's rise; SWCLK idles high from
-    the first command until [release]. Overrun detection is not supported, so a WAIT or
-    FAULT has no data phase. *)
+(** SWD host (ARM IHI 0031G, B4): SWCLK on OUT2 by side-set, SWDIO on IO5. SWDIO changes
+    and is sampled as SWCLK falls, half a period after the target's rise. SWCLK idles high
+    from the first command until [release]. Overrun detection isn't supported, so a WAIT
+    or FAULT has no data phase. *)
 
 open! Core
 open Protocol_emulator
@@ -14,15 +14,15 @@ val standard_half : int
 
 val shortest_half : int
 
-(** Lets SWDIO go with SWCLK low on every start, takes the half period and answers with
-    SWDIO's level 32 half periods on, then [sequence], [Transfer.words] or [release].
-    Eight idle cycles end each transfer. *)
+(** On every start it releases SWDIO with SWCLK low, takes the half period and answers
+    with SWDIO's level 32 half periods later. After that come [sequence], [Transfer.words]
+    or [release]. Each transfer ends with eight idle cycles. *)
 val firmware : Timed_program.t
 
 val config : Program_config.t
 
-(** As the core pushes it, OK being 1. After none of OK, WAIT or FAULT the core lets the
-    line be for a data phase and turnaround too, as CMSIS-DAP does. *)
+(** As the core pushes it, with OK being 1. If the ACK is none of OK, WAIT or FAULT, the
+    core also leaves the line alone for a data phase and turnaround, as CMSIS-DAP does. *)
 module Ack : sig
   type t =
     | Ok
@@ -125,8 +125,8 @@ module Dp : sig
   val violations : t -> string list
 end
 
-(** The host's pins and a multi-drop bus of DPs, at [undriven] when nobody drives it: 1, a
-    pull-up, unless said. *)
+(** The host's pins and a multi-drop bus of DPs. The line sits at [undriven] when nobody
+    drives it (1, a pull-up, unless said otherwise). *)
 module Bus : sig
   type t
 

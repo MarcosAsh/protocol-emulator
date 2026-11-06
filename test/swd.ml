@@ -20,9 +20,9 @@ let config =
   }
 ;;
 
-(* Each edge is the instruction after a wait, which carries the level SWCLK already has,
-   and SWDIO is never taken back on the cycle SWCLK rises. y keeps RnW, then the ACK; the
-   CRC unit, one bit wide, is the parity of every bit shifted since crc_init. *)
+(* Each edge is the instruction after a wait, and the wait keeps SWCLK at its current
+   level. SWDIO is never taken back on the cycle SWCLK rises. y keeps RnW, then the ACK.
+   The CRC unit, one bit wide, computes the parity of every bit shifted since crc_init. *)
 let firmware =
   [%firmware
     {|
@@ -669,10 +669,10 @@ module Dp = struct
   let drive_bits value count = List.init count ~f:(fun i -> Action.Drive (bit value i))
   let ack_actions ack = drive_bits (Ack.to_bits ack) 3
 
-  (* B4.2: ACK on the three rises after the turnaround; RDATA and its parity straight
-     after a read's, then the target lets go and a turnaround follows; a write's WDATA
-     after a turnaround. A corrupt ACK goes on as OK, as a target whose ACK the wire
-     garbled would. *)
+  (* B4.2: ACK on the three rises after the turnaround. After a read's ACK come RDATA and
+     its parity straight away, then the target lets go and a turnaround follows. A write's
+     WDATA comes after a turnaround. A corrupt ACK carries on as OK, like a target whose
+     ACK got garbled on the wire. *)
   let respond t request =
     let ap, read, address = fields request in
     let name = describe request in
@@ -761,8 +761,8 @@ module Dp = struct
       { t with phase = Respond { actions; sampled = []; request } })
   ;;
 
-  (* WDATA as the line had it, whoever drove it, as silicon cannot tell: a host backing
-     off leaves the pull's level. A host driving part of it is a violation. *)
+  (* WDATA as the line had it, whoever drove it, since silicon can't tell. A host that
+     backs off leaves the pull-up's level. A host driving only part of it is a violation. *)
   let complete t ~request ~sampled =
     let driven = List.count sampled ~f:snd in
     let sampled = List.rev_map sampled ~f:fst in
@@ -965,9 +965,9 @@ let limits =
 open Pin_trace
 module Reg = Host_port.Reg
 
-(* An RP2040's two DPs woken from dormant and core 0 selected, then SWCLK held for 200 us
-   before its DPIDR read, ABORT, CTRL/STAT powered up and read back, and its AP's IDR read
-   through RDBUFF, which the AP is still busy for once, at 1 MHz. Each step waits for the
+(* An RP2040's two DPs woken from dormant with core 0 selected, then SWCLK held for 200 us
+   before the DPIDR read, ABORT, CTRL/STAT power-up and read-back, and the AP's IDR read
+   through RDBUFF (the AP is still busy for it once), at 1 MHz. Each step waits for the
    core, which holds SWCLK high between host words. *)
 let scenario =
   let half = standard_half in
