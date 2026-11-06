@@ -1,5 +1,6 @@
-(** Snorble, SNB-1 Snorble Sensor Beacon Rev. C: one byte a frame on SIG, a sync, eight
-    bits MSB first and odd parity, each a low whose width is the bit. *)
+(** Snorble (SNB-1 Snorble Sensor Beacon Rev. C): one byte per frame on SIG, sent as a
+    sync, eight bits MSB first and odd parity. Each bit is a low whose width gives its
+    value. *)
 
 open! Core
 open Protocol_emulator

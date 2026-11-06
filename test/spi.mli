@@ -1,5 +1,6 @@
-(** SPI mode 0 without chip select: a master at a half period fixed at assembly, the same
-    from one anchor, and a slave. [Spi_cs] has the four modes with a chip select. *)
+(** SPI mode 0 without chip select: a master with the half period fixed at assembly, a
+    variant of it timed from one anchor, and a slave. [Spi_cs] has all four modes with a
+    chip select. *)
 
 open! Core
 open Protocol_emulator

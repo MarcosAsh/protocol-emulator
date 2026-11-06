@@ -5,8 +5,8 @@ let pin = 5
 let standard_tick = 150
 let shortest_tick = 21
 
-(* [t] is the next fall on entry to [pulse], and [x] the nibble. Every loop that moves [t]
-   waits on each pass, so [t] is at most seven ticks ahead whatever the tick. *)
+(* On entry to [pulse], [t] is the next fall and [x] is the nibble. Every loop that moves
+   [t] waits on each pass, so [t] is at most seven ticks ahead for any tick length. *)
 let firmware =
   {|
     wait tx
@@ -115,8 +115,9 @@ let config =
   }
 ;;
 
-(* x^4 + x^3 + x^2 + 1 from seed 0101. The table method takes each nibble a nibble late,
-   so the core's shift register starts from the seed moved on by one, table.(5), 3. *)
+(* x^4 + x^3 + x^2 + 1 from seed 0101. The table method consumes each nibble one nibble
+   late, so the core's shift register starts from the seed advanced one step:
+   table.(5), 3. *)
 let crc4 nibbles =
   let table = [| 0; 13; 7; 10; 14; 3; 9; 4; 1; 12; 6; 11; 15; 2; 8; 5 |] in
   table.(List.fold nibbles ~init:5 ~f:(fun crc nibble -> table.(crc) lxor nibble))
@@ -162,7 +163,7 @@ let decode ~clock_hz levels =
     then return n
     else Or_error.error_s [%message "not whole ticks" (cycles : int) (sync : int)]
   in
-  (* J2716: every pulse, the sync and the pause too, is low for more than 4 ticks *)
+  (* J2716: every pulse, including sync and pause, is low for more than 4 ticks *)
   let low_enough ~sync ~name low =
     if 56 * low > 4 * sync
     then return ()

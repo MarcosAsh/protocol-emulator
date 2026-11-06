@@ -24,10 +24,10 @@ let longest_setup = 30
 let shortest_hold = 7
 let longest_hold = 36
 
-(* Side-set is SCK in bit 0 and CS in bit 1. Each wait carries the levels the pins already
-   have, so every edge is the instruction after a wait. CPHA 0 puts a byte's first bit on
-   MOSI before its leading edge, and its last trailing edge leaves MOSI be. The eighth
-   [in] autopushes. *)
+(* Side-set is SCK in bit 0 and CS in bit 1. Each wait keeps the pins at their current
+   levels, so every edge comes from the instruction after a wait. With CPHA 0 a byte's
+   first bit goes on MOSI before its leading edge, and the last trailing edge leaves MOSI
+   alone. The eighth [in] autopushes. *)
 let master ~(mode : Mode.t) ~half_period ~setup ~hold ~deselect =
   if setup < shortest_setup || setup > longest_setup
   then raise_s [%message "BUG: setup out of range" (setup : int)];
@@ -37,8 +37,9 @@ let master ~(mode : Mode.t) ~half_period ~setup ~hold ~deselect =
   let idle = Bool.to_int mode.cpol in
   let active = 1 - idle in
   let deselected = 2 lor idle in
-  (* CS high [deselect] cycles from its rise, when the 9 back to idle are short: no loop,
-     which would hide the time from the kernel's spacing, but adds of up to 31 through x *)
+  (* CS stays high for [deselect] cycles from its rise. The 9 cycles back to idle count
+     towards it; any shortfall is made up with adds of up to 31 through x, not a loop,
+     which would hide the time from the kernel's spacing *)
   let rest_while_deselected =
     if deselect <= 9
     then ""
@@ -250,8 +251,8 @@ let bench mode =
   }
 ;;
 
-(* W25Q64JV: CLK high and low are 45% of the 20 ns of 03h's 50 MHz, the strictest reading;
-   CS high is tRES1's 3 us, which a read after ABh needs and every frame keeps *)
+(* W25Q64JV: CLK high and low are each 45% of 20 ns (03h at 50 MHz), the strictest
+   reading. CS high is tRES1's 3 us, which a read after ABh needs and every frame keeps *)
 let limits firmware =
   let sheet page =
     { Datasheet.Sheet.part = "W25Q64JV"; document = "Winbond Rev. M"; page }
@@ -289,9 +290,9 @@ let limits firmware =
 open Pin_trace
 module Reg = Protocol_emulator.Host_port.Reg
 
-(* The bench's chip-select master in [mode], at 3 MHz on its pins, against a slave of that
-   mode, three frames: sigrok frames each transfer by CS. The decoders join once CS has
-   been high a while. *)
+(* The bench's chip-select master in [mode] at 3 MHz on its own pins, against a slave of
+   that mode, for three frames. sigrok frames each transfer by CS, and its decoders only
+   join once CS has been high a while. *)
 let scenario mode =
   let bench = bench mode in
   let half_period = Bench.spi_half

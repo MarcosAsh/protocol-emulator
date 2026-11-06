@@ -29,8 +29,8 @@ bit:
 |}]
 ;;
 
-(* Time-triggered: SCK runs from one anchor, a byte every eight bits with no gap, by
-   autopull on falling edges and autopush on rising ones. *)
+(* Time-triggered: SCK runs from one anchor with no gap between bytes, using autopull on
+   falling edges and autopush on rising ones. *)
 let master_stream ~half_period =
   [%string
     {|

@@ -1,6 +1,6 @@
-(** What a host does over SPI before it starts an engine: writes the certificate for the
-    selected engine's program to the data memory, while every engine is halted, sets the
-    check's registers and waits for its verdict. *)
+(** What a host does over SPI before starting an engine: with every engine halted, it
+    writes the selected engine's certificate to the data memory, sets the check's
+    registers and waits for the verdict. *)
 
 open! Core
 open Protocol_emulator

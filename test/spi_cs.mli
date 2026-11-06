@@ -35,12 +35,12 @@ val shortest_setup : int
 val shortest_hold : int
 val longest_hold : int
 
-(** A host word is a byte in bits 7 to 0, and [last] to end the frame, and the core pushes
-    the byte it read. CS falls [setup] cycles before the first SCK edge and rises [hold]
-    after the last, and stays high [deselect] cycles at least, and never under 9, which a
-    flash's wake from power down needs. Between bytes of a frame it stays low, SCK idle,
-    for as long as the host is slow. Raises if [setup], [hold] or [deselect], up to 248
-    cycles, is out of its range. *)
+(** A host word is a byte in bits 7 to 0, plus [last] to end the frame; the core pushes
+    the byte it read. CS falls [setup] cycles before the first SCK edge, rises [hold]
+    cycles after the last, and stays high for at least [deselect] cycles, never fewer than
+    9 (a flash waking from power down needs that). Between bytes of a frame CS stays low
+    and SCK idles for as long as the host is slow. Raises if [setup], [hold] or [deselect]
+    is out of range (up to 248 cycles). *)
 val master
   :  mode:Mode.t
   -> half_period:int
@@ -52,10 +52,10 @@ val master
 (** One frame's host words. *)
 val words : int list -> int list
 
-(** A slave on the pins in [mode], from the mode's definition rather than the firmware.
-    Each frame it answers [first], then the complement of each byte it took. It measures
-    CS's setup and hold, its high and low times and SCK's half periods in cycles, and
-    calls an SCK edge with CS high, or CS rising inside a byte, a violation. *)
+(** A slave on the pins in [mode], written from the mode's definition, not from the
+    firmware. In each frame it answers [first], then the complement of each byte it took.
+    It measures CS setup and hold, CS high and low times and SCK half periods in cycles,
+    and counts an SCK edge with CS high, or CS rising inside a byte, as a violation. *)
 module Device : sig
   type t
 

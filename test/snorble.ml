@@ -5,8 +5,8 @@ module Reg = Host_port.Reg
 
 (* SNB-1 Snorble Sensor Beacon, Rev. C preliminary: section 4's timing (p.1) and notes 1-3
    (p.2). At 48 MHz: sync 384 cycles (8.0 us), a zero's low 58 (1.208 us), a one's 144
-   (3.0 us), every high gap 96 (2.0 us), and 8448 idle after the parity's rise, which
-   keeps frames 214 us apart at least, under section 1's 5 kframes/s. *)
+   (3.0 us), every high gap 96 (2.0 us), and 8448 idle cycles after the parity's rise, so
+   frames are at least 214 us apart, within section 1's 5 kframes/s. *)
 
 let pin = 5
 
@@ -25,10 +25,10 @@ let config =
   }
 ;;
 
-(* The low byte of each host word, MSB first, then odd parity from the CRC, built in isr
-   MSB-aligned for osr. p is 24 cycles, half a microsecond: the analyser knows only
-   constants [set] makes, so every width is adds of p and of immediates. [t] is the next
-   fall on entry to [bit]. *)
+(* Sends the low byte of each host word MSB first, then odd parity from the CRC; isr is
+   built MSB-aligned for osr. p is 24 cycles (half a microsecond). The analyser only knows
+   constants that [set] makes, so every width is built from adds of p and immediates. On
+   entry to [bit], [t] is the next fall. *)
 let firmware =
   [%firmware
     {|
@@ -148,9 +148,10 @@ let bench =
   }
 ;;
 
-(* Each low in a run is a sync past 5 us, between tL1's max and tSYN's min, else a bit, a
-   one past 2.1 us, between tL0's max and tL1's min, as a receiver tells them. The highs
-   inside a frame are those between two bits, which note 1 bounds above. *)
+(* A low longer than 5 us (between tL1's max and tSYN's min) is a sync, otherwise a bit; a
+   bit longer than 2.1 us (between tL0's max and tL1's min) is a one. That is how a
+   receiver tells them apart. The highs inside a frame are the ones between two bits,
+   which note 1 bounds above. *)
 let limits =
   let sheet page =
     { Datasheet.Sheet.part = "Snorble"
@@ -238,8 +239,8 @@ let limits =
   ]
 ;;
 
-(* Snorble frames back from the pin's levels: a sync, then nine lows, each a one past 2.1
-   us, then a high of 20 us at least. The byte, and whether its parity is odd. *)
+(* Rebuilds Snorble frames from the pin's levels: a sync, nine lows (a low past 2.1 us is
+   a one), then a high of at least 20 us. Gives the byte and whether its parity is odd. *)
 let decode ~clock_hz (levels : (bool * int) list) =
   let sync n = n >= Datasheet.cycles ~clock_hz 5_000. in
   let rec frames acc = function

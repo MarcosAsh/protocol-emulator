@@ -1,8 +1,8 @@
-(** SPI target in any of the four modes, MSB first. It shifts only while CS is low, lets
-    MISO go to 0 while CS is high, and pushes each byte it takes; CS rising inside a byte
-    drops that byte's bits and its reply. Replies are host words [byte lsl 8], taken a
-    byte ahead: the reply for a byte is fetched as the byte before it ends, or at the
-    start, and one the frame does not clock keeps for the next frame's first byte. With
+(** SPI target in any of the four modes, MSB first. It shifts only while CS is low, drives
+    MISO to 0 while CS is high, and pushes each byte it takes. CS rising inside a byte
+    drops that byte's bits and its reply. Replies are host words [byte lsl 8], fetched a
+    byte ahead: the reply for a byte is fetched as the previous byte ends (or at the
+    start). A reply the frame never clocks is kept for the next frame's first byte. With
     none queued the reply is 0xff. *)
 
 open! Core
@@ -25,13 +25,13 @@ val pads : Pins.t
 val config : Pins.t -> Program_config.t
 val firmware : mode:Spi_cs.Mode.t -> Pins.t -> string
 
-(** SCK's least half period: the poll of SCK and CS before each bit takes up to this, less
-    the cycle each way the pins are registered. *)
+(** Smallest SCK half period. The poll of SCK and CS before each bit takes up to this many
+    cycles, less one cycle each way for the pin registers. *)
 val shortest_half : int
 
-(** [firmware], faster: each MISO bit goes out as soon as the controller has sampled the
-    one before, and between bytes a three cycle poll of MOSI, SCK and CS replaces the poll
-    of [firmware]. The same bytes, replies and frames; CS has to be [mosi + 2]. *)
+(** A faster [firmware]: each MISO bit goes out as soon as the controller has sampled the
+    one before, and between bytes a three-cycle poll of MOSI, SCK and CS replaces
+    [firmware]'s poll. Same bytes, replies and frames. CS has to be [mosi + 2]. *)
 val fast : mode:Spi_cs.Mode.t -> Pins.t -> string
 
 val fast_config : Pins.t -> Program_config.t
