@@ -6,8 +6,8 @@ let wire = Isa.num_pins
 let sck_pin = Spi.sck_pin
 let mosi_pin = Spi.mosi_pin
 
-(* [Uart.rx_on ~pin:0 ~period:10] with its push removed. A good stop bit sends [isr] on the
-   wire like [Uart.tx] sends a host word, both at [p] cycles a bit *)
+(* [Uart.rx_on ~pin:0 ~period:10] with its push removed. A good stop bit sends [isr] on
+   the wire like [Uart.tx] sends a host word, both at [p] cycles a bit *)
 let relay_source =
   {|
     set p, 10
@@ -151,9 +151,9 @@ module Outcome = struct
   [@@deriving sexp_of]
 end
 
-(* The pins after each cycle's edge, seen from the next cycle (IN0's level shows in its own
-   cycle). The wire is as engine 0 drives it, SCK and MOSI as the chip does. A frame is the
-   wire's falls, then SCK's rises and falls, eight of each. *)
+(* The pins after each cycle's edge, seen from the next cycle (IN0's level shows in its
+   own cycle). The wire is as engine 0 drives it, SCK and MOSI as the chip does. A frame
+   is the wire's falls, then SCK's rises and falls, eight of each. *)
 module Watch = struct
   type t =
     { mutable cycle : int

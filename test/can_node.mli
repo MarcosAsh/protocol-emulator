@@ -10,19 +10,19 @@ val rx_pin : int
 
 (** CAN 2.0A frames off CRX, resynced on every falling edge, ACKed on CTX when the CRC
     holds. The ACK delimiter and EOF are not checked. Each frame pushes [words]. An error
-    pushes its [Error_code] and [irq], then waits for a host word, and first for a dominant
-    bit, since the error may leave the capture armed. If the ACK is not back on CRX by the
-    slot's sample, it assumes a transceiver in standby. *)
+    pushes its [Error_code] and [irq], then waits for a host word, and first for a
+    dominant bit, since the error may leave the capture armed. If the ACK is not back on
+    CRX by the slot's sample, it assumes a transceiver in standby. *)
 module Receiver : sig
   (** 500 kbit/s at 48 MHz, sampled at 75%. *)
   val period : int
 
   val sample : int
 
-(** The shortest period the kernel accepts for the firmware sampling three quarters in. *)
+  (** The shortest period the kernel accepts for the firmware sampling three quarters in. *)
   val shortest_period : int
 
-(** The most cycles CRX may take to show CTX (transceiver loop plus synchroniser) at
+  (** The most cycles CRX may take to show CTX (transceiver loop plus synchroniser) at
       [sample]. The single edge assumption holds up to this delay, or if CRX never shows
       CTX. *)
   val longest_loop : int

@@ -85,8 +85,8 @@ module Report : sig
     ; programs : int
     ; out_of_scope : int (** May count [x] down before setting it. *)
     ; checked : int
-(** Verdicts [Kernel.check] itself confirmed: every program a figure below names, and a
-        sample. *)
+    (** Verdicts [Kernel.check] itself confirmed: every program a figure below names, and
+        a sample. *)
     ; truths : (string * int) list
     ; safe : int * int (** Safe programs, and how many of them are admitted. *)
     ; waiting : int * int (** The same, of those whose run releases a deadline wait. *)

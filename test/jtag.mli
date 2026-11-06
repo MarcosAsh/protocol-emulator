@@ -27,8 +27,8 @@ module Clock : sig
   [@@deriving sexp_of]
 end
 
-(** Five clocks with TMS high reach Test-Logic-Reset from anywhere; one low then goes on to
-    Run-Test/Idle. *)
+(** Five clocks with TMS high reach Test-Logic-Reset from anywhere; one low then goes on
+    to Run-Test/Idle. *)
 val reset : Clock.t list
 
 (** From Run-Test/Idle, shift [bits] of [value] into the instruction or data register, the

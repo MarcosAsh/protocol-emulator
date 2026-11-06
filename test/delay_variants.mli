@@ -42,8 +42,8 @@ type t =
   (** The firmware's own edges on the model, each run's in cycles from its first. *)
   }
 
-(** [k] cycles as source lines of [nop]s with the side-set [side], using as few lines as the
-    delay field allows. *)
+(** [k] cycles as source lines of [nop]s with the side-set [side], using as few lines as
+    the delay field allows. *)
 val nops : side_set_count:int -> side:int -> int -> string list
 
 (** [certified]'s source with [k] cycles of [nop] in front of the deadline wait at

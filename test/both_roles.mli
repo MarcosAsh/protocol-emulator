@@ -35,8 +35,8 @@ module Outcome : sig
 end
 
 (** [controller] on engine 0 and [target] on engine 1, started together, on the [System]
-    model alone. The pads read [pads] (0 by default). Each engine watches its certificate's
-    premises, as the chip does. *)
+    model alone. The pads read [pads] (0 by default). Each engine watches its
+    certificate's premises, as the chip does. *)
 val model
   :  ?pads:int
   -> cycles:int

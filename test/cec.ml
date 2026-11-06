@@ -138,7 +138,7 @@ module Follower = struct
     [@@deriving sexp_of]
   end
 
-(* the last frame, to its EOM or as far as it got before its initiator gave up *)
+  (* the last frame, to its EOM or as far as it got before its initiator gave up *)
   module Previous = struct
     type t =
       { initiator : int option
@@ -159,8 +159,8 @@ module Follower = struct
     ; acks : bool list
     ; in_frame : bool
     ; free : (int * int) option
-(* before this frame, checked at its EOM: cycles since the last fall, and the ns of its
-           nominal period within them *)
+        (* before this frame, checked at its EOM: cycles since the last fall, and the ns
+           of its nominal period within them *)
     ; previous : Previous.t option
     ; driving_until : int option
     ; frames : (Frame.t * bool list) list
@@ -241,8 +241,9 @@ module Follower = struct
           ~lo:(205 * ms / 100)
           ~hi:(275 * ms / 100)
       | Some (fall, bit) ->
-(* free from the end of the last bit's nominal period, or from a start bit given up: at
-           least 3 bit periods for any frame; which of 3, 5 or 7 applies is decided at its EOM *)
+        (* free from the end of the last bit's nominal period, or from a start bit given
+           up: at least 3 bit periods for any frame; which of 3, 5 or 7 applies is decided
+           at its EOM *)
         let period =
           match bit with
           | Data -> 24 * ms / 10
@@ -265,8 +266,8 @@ module Follower = struct
     { t with fall = Some (t.now, if t.in_frame then Data else Start); driving_until }
   ;;
 
-(* CEC 9.1's signal free time, in nominal bit periods of 2.4 ms. A retry is the same frame
-     again, as Linux's cec-adap.c treats it *)
+  (* CEC 9.1's signal free time, in nominal bit periods of 2.4 ms. A retry is the same
+     frame again, as Linux's cec-adap.c treats it *)
   let check_free t (frame : Frame.t) =
     match t.free, t.previous with
     | Some (cycles, period), Some previous ->
@@ -350,8 +351,8 @@ module Follower = struct
       { t with bits = one :: t.bits })
   ;;
 
-(* a start bit lasts at most 4.7 ms and a bit 2.75; the line staying high longer inside a
-     frame means the initiator gave up *)
+  (* a start bit lasts at most 4.7 ms and a bit 2.75; the line staying high longer inside
+     a frame means the initiator gave up *)
   let aborted t ~low =
     match t.fall with
     | Some (fall, bit) when t.in_frame && not low ->
@@ -505,8 +506,8 @@ let bench =
   }
 ;;
 
-(* HDMI 1.3a's bit timings, with the line low wherever anyone pulls it. A low under 1 ms is
-   a one, up to 2.5 ms a zero, and longer a start bit. A bit runs from its fall to the
+(* HDMI 1.3a's bit timings, with the line low wherever anyone pulls it. A low under 1 ms
+   is a one, up to 2.5 ms a zero, and longer a start bit. A bit runs from its fall to the
    next, and a frame's last bit, whose high runs on past 2.75 ms, has none. All of these
    are the run's: the kernel's least low counts one pass of each wait loop, two units. *)
 let limits =

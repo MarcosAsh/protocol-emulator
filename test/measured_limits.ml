@@ -282,9 +282,9 @@ let to_string (capture : Capture.t) ts =
   |> String.concat ~sep:"\n"
 ;;
 
-(* Where each of a run bound's widths lies on its pin: the levels that one more cycle would
-   change. A width is placed only on whole levels after the first that sum to it, so it is
-   never placed wrong, though one may go unplaced. *)
+(* Where each of a run bound's widths lies on its pin: the levels that one more cycle
+   would change. A width is placed only on whole levels after the first that sum to it, so
+   it is never placed wrong, though one may go unplaced. *)
 let placed (capture : Capture.t) ~pin widths =
   let { Capture.Line.first; edges } = Capture.line capture pin in
   let edges = Array.of_list edges in

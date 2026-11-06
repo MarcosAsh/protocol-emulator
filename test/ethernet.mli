@@ -9,8 +9,7 @@
     (its second), so the loops need no deadline. A loop's last bit is unrolled so that two
     cycles of other work are its second half: a [crc_init] after the start of frame, a
     [crc_send] after the frame, whose outs then send the FCS from the CRC unit. After the
-    FCS the line stays high for 275 ns (the TP_IDL the standard asks for), then goes
-    idle. *)
+    FCS the line stays high for 275 ns (the TP_IDL the standard asks for), then goes idle. *)
 
 open! Core
 open Protocol_emulator

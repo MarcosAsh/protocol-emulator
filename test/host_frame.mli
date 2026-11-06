@@ -1,7 +1,7 @@
-(** One chip select low period. [bits] is how many clock edges the host gets through before
-    it lets go: fewer than all when it gives up part way, with the clock left high if
-    [release_high]. [stray] clock pulses come first, with chip select high. [half] is the
-    clock's half period (4 is the clk/8 that host_spi.mli allows). [lead], [trail] and
+(** One chip select low period. [bits] is how many clock edges the host gets through
+    before it lets go: fewer than all when it gives up part way, with the clock left high
+    if [release_high]. [stray] clock pulses come first, with chip select high. [half] is
+    the clock's half period (4 is the clk/8 that host_spi.mli allows). [lead], [trail] and
     [gap] are the cycles around the chip select edges. *)
 
 open! Core

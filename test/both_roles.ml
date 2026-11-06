@@ -255,8 +255,8 @@ module Case = struct
 
   let address = 0x42
 
-(* write two bytes, read two after a repeated start, then call 0x77, which nothing on the
-     wires or the bench bus answers *)
+  (* write two bytes, read two after a repeated start, then call 0x77, which nothing on
+     the wires or the bench bus answers *)
   let i2c_words quarter =
     let word = I2c.word in
     quarter
@@ -303,7 +303,7 @@ module Case = struct
 
   let uart_bytes = [ 0x55; 0xa3; 0x00; 0xff ]
 
-(* the receiver gets half the bit period, the transmitter all of it *)
+  (* the receiver gets half the bit period, the transmitter all of it *)
   let uart_half baud = ((Bench.clock_hz / baud) + 1) / 2
 
   let uart baud =

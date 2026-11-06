@@ -1,5 +1,5 @@
-(** A UART to SPI bridge across both engines. Engine 0 receives on IN0 and resends each byte
-    on a wire as UART. Engine 1 receives it there and clocks it out MSB first on OUT0
+(** A UART to SPI bridge across both engines. Engine 0 receives on IN0 and resends each
+    byte on a wire as UART. Engine 1 receives it there and clocks it out MSB first on OUT0
     (MOSI) and OUT1 (SCK), mode 0, no chip select. Each firmware is [Uart.rx_on] whose
     good frame runs a library transmitter from [isr] instead of pushing. *)
 

@@ -29,8 +29,8 @@ type t =
   }
 
 (* The Icepi's USB build takes IO0 and IO1, so I2C is on IO2 (SCL) and IO3, 1-Wire on IO4,
-   10BASE-T on IO6 and IO7. CAN TX is OUT1, SWD is OUT2 and IO5, the SK6812 is OUT3, and the
-   SPI masters use MOSI OUT4, SCK OUT5, CS OUT6. CAN RX is IN1. Bench_wiring has the
+   10BASE-T on IO6 and IO7. CAN TX is OUT1, SWD is OUT2 and IO5, the SK6812 is OUT3, and
+   the SPI masters use MOSI OUT4, SCK OUT5, CS OUT6. CAN RX is IN1. Bench_wiring has the
    analyser channels. *)
 let neopixel = 8
 let mosi = 9

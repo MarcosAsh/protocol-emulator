@@ -8,7 +8,7 @@ type t =
   ; entry : Datasheet.t
   ; verdict : Datasheet.Verdict.t
   ; edge : int option
-(** Counted from 1 over the edges of the pins drawn; [None] if the run never breaks the
+  (** Counted from 1 over the edges of the pins drawn; [None] if the run never breaks the
       limit and only the kernel's bound does. *)
   ; cycle : int (** The run's cycle of that edge. *)
   ; measured : int option (** In cycles. *)

@@ -1,6 +1,6 @@
-(** The library firmware that the outside-chip demos in BRINGUP.md load, with the parameters
-    the bench clock needs, the assumption the analyser and kernel check each under, and the
-    bench's pins and clock. *)
+(** The library firmware that the outside-chip demos in BRINGUP.md load, with the
+    parameters the bench clock needs, the assumption the analyser and kernel check each
+    under, and the bench's pins and clock. *)
 
 open! Core
 open Protocol_emulator
@@ -13,8 +13,8 @@ module Assumption : sig
     | Receiver of int (** The period, and one edge before the capture. *)
 end
 
-(** What the host gets after [load]: bursts of words. Each goes in once the previous one is
-    in the core, its fifo is empty and the pin has been quiet for [quiet] cycles. *)
+(** What the host gets after [load]: bursts of words. Each goes in once the previous one
+    is in the core, its fifo is empty and the pin has been quiet for [quiet] cycles. *)
 module Stimulus : sig
   type t =
     { bursts : int list list
@@ -31,10 +31,10 @@ type t =
   ; assumption : Assumption.t
   ; clock_hz : int
   ; load : int option
-(** The period a demo loads, for firmware that takes it from the host, given the rate wanted
-      at [clock_hz]. *)
+  (** The period a demo loads, for firmware that takes it from the host, given the rate
+      wanted at [clock_hz]. *)
   ; stimulus : Stimulus.t option
-(** For limits that a run bounds ([Datasheet.Bound.Run]); the host is on time. *)
+  (** For limits that a run bounds ([Datasheet.Bound.Run]); the host is on time. *)
   }
 
 (** The bench's pins, wired once for every demo. *)
@@ -69,8 +69,8 @@ val patch : string -> pattern:string -> with_:string -> string
 (** The period the kernel checks the limits at: the assumption's, else the one loaded. *)
 val period : t -> int option
 
-(** A time or rate from cycles at [clock_hz] (48 MHz by default), which is where every label
-    here comes from. *)
+(** A time or rate from cycles at [clock_hz] (48 MHz by default), which is where every
+    label here comes from. *)
 val time : ?clock_hz:int -> int -> string
 
 val rate : ?clock_hz:int -> ?unit:string -> int -> string

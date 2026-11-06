@@ -200,8 +200,8 @@ let scl_rise ?(stuck = "stuck") label =
 ;;
 
 (* This is [master_loading] with a wait on SCL after each release. The bus clear reads SDA
-   with [mov y, pins], so the jump pin can be SCL, and it does not wait on SCL. Its STOP is
-   the plain master's, so a bus held low from reset answers nothing until a word comes. *)
+   with [mov y, pins], so the jump pin can be SCL, and it does not wait on SCL. Its STOP
+   is the plain master's, so a bus held low from reset answers nothing until a word comes. *)
 let master_stretch_loading ~load =
   let bus_clear =
     bus_clear_testing
@@ -634,9 +634,9 @@ let bench =
   ]
 ;;
 
-(* The kernel times the master's pins, so a width from a release to the next edge loses the
-   line's rise, which [rise] gives. [times] holds each parameter's least in ns, where the
-   sheet gives one. *)
+(* The kernel times the master's pins, so a width from a release to the next edge loses
+   the line's rise, which [rise] gives. [times] holds each parameter's least in ns, where
+   the sheet gives one. *)
 let limits_with ~sheet ~rise ~times firmware =
   let scl = Datasheet.side_pin
   and sda = Datasheet.set_pin in
@@ -810,8 +810,9 @@ let standard_and_fast =
       })
 ;;
 
-(* On wires, whose OR carries each line's pull: the master without its bus clear (its START
-   then STOP is read by [slave] as an address bit), and nothing outside can hold a wire *)
+(* On wires, whose OR carries each line's pull: the master without its bus clear (its
+   START then STOP is read by [slave] as an address bit), and nothing outside can hold a
+   wire *)
 let wire_sda = Isa.num_pins
 let wire_scl = Isa.num_pins + 1
 let wire_pins = [ sda, wire_sda; scl, wire_scl ]

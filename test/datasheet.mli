@@ -1,7 +1,7 @@
-(** Datasheet limits on the bench firmware's pins, each with the sheet it comes from and the
-    firmware's bound at its shipped clock. The bound is the kernel's on the analyser's rows
-    or, for a width the pin's levels can't tell apart, an exact run of the words with the
-    host on time. A bound has to clear its limit by the margin, not just meet it. *)
+(** Datasheet limits on the bench firmware's pins, each with the sheet it comes from and
+    the firmware's bound at its shipped clock. The bound is the kernel's on the analyser's
+    rows or, for a width the pin's levels can't tell apart, an exact run of the words with
+    the host on time. A bound has to clear its limit by the margin, not just meet it. *)
 
 open! Core
 open Protocol_emulator
@@ -121,8 +121,8 @@ val verdict : t -> clock_hz:int -> bound:int option -> Verdict.t
 val check : ?clock_hz:int -> t list -> Bench.t -> (t * Verdict.t) list
 
 (** The clocks, in Hz, at which a bound clears its limit: a least in ns holds [Up_to] a
-    highest clock, a most [From] a lowest, and a least of 0 at every clock [Always]. Exact:
-    [verdict] holds there and fails a hertz past. *)
+    highest clock, a most [From] a lowest, and a least of 0 at every clock [Always].
+    Exact: [verdict] holds there and fails a hertz past. *)
 module Cliff : sig
   type t =
     | Never

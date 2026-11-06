@@ -83,8 +83,8 @@ module Bound = struct
     }
 end
 
-(* An instruction's bus edges, given SCL before it and after it. Edges show the cycle after
-   issue. *)
+(* An instruction's bus edges, given SCL before it and after it. Edges show the cycle
+   after issue. *)
 let bus_edges (instruction : Isa.t) ~scl =
   match instruction with
   | Jmp _ -> [], scl

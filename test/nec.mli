@@ -27,11 +27,11 @@ val config : Program_config.t
     next key's leader no sooner. *)
 val tx : Timed_program.t
 
-(** A receiver on [pin], at the half unit the host loads, for a line low in a mark, as from
-    a receiver module. It pushes a frame's 32 bits as two words (the address with its
-    inverse in the high byte, then the command's), and 0xffff for a repeat code. A mark too
-    short for a leader is ignored. Nothing checks a frame's bits, so one cut short leaves
-    the receiver waiting for the rest. *)
+(** A receiver on [pin], at the half unit the host loads, for a line low in a mark, as
+    from a receiver module. It pushes a frame's 32 bits as two words (the address with its
+    inverse in the high byte, then the command's), and 0xffff for a repeat code. A mark
+    too short for a leader is ignored. Nothing checks a frame's bits, so one cut short
+    leaves the receiver waiting for the rest. *)
 val rx_on : pin:int -> string
 
 val rx_config : pin:int -> Program_config.t
@@ -59,8 +59,8 @@ end
 val words : address:int -> command:int -> repeats:int -> int list
 
 (** Decodes one level per cycle, low a mark. Every mark and space must be within 5% of its
-    nominal and each frame's inverses must hold. From one leader or repeat to the next must
-    be at least 95% of 108 ms. *)
+    nominal and each frame's inverses must hold. From one leader or repeat to the next
+    must be at least 95% of 108 ms. *)
 val decode : clock_hz:int -> bool list -> (Message.t list * Measured.t) Or_error.t
 
 val protocol : Protocol.t

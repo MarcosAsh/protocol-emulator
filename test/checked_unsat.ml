@@ -135,8 +135,8 @@ let solve ~bad_proof ~bad_model ~dimacs_in ~result_out () =
       let%bind.Or_error () =
         cadical ~binary:(not bad_proof) ~dimacs:dimacs_in ~proof ~result:result_out ()
       in
-(* SAT needs its model to hold and UNSAT its proof; any other answer is refused, so nothing
-         reads unchecked *)
+      (* SAT needs its model to hold and UNSAT its proof; any other answer is refused, so
+         nothing reads unchecked *)
       match In_channel.read_lines result_out with
       | "s SATISFIABLE" :: _ as model ->
         if bad_model then Out_channel.write_lines result_out (negate_first_value model);

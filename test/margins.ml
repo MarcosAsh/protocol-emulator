@@ -328,9 +328,9 @@ module Sk6812 = struct
   (* [p], the longest [set] takes *)
   let unit = 31
 
-(* A frame is one pixel: 24 bits, three host words of a byte each, MSB first by autopull.
-     Every edge is the instruction after a deadline wait, and [y] is free as a counter
-     within each level. The line is low for [gap] between frames. *)
+  (* A frame is one pixel: 24 bits, three host words of a byte each, MSB first by
+     autopull. Every edge is the instruction after a deadline wait, and [y] is free as a
+     counter within each level. The line is low for [gap] between frames. *)
   let firmware (timing : Timing.t) =
     let fresh = labels "a" in
     let advance = advance ~fresh ~unit ~counter:"y" in
@@ -634,7 +634,7 @@ module Eeprom = struct
   let setup_overhead = 1
   let free_overhead = 6
 
-(* [I2c.master_host_rate] without its bus clear, with each START's and repeated START's
+  (* [I2c.master_host_rate] without its bus clear, with each START's and repeated START's
      hold, the data setup before SCL rises, and the bus free time from a STOP to the next
      START moved to where [timing] says. *)
   let firmware (timing : Timing.t) =
@@ -900,9 +900,9 @@ module Ds18b20 = struct
     }
   ;;
 
-(* Events of a slot from its fall, in order, with the actions of one instant together and
-     a sample after a release. The bits are in [osr] inverted, so [out pindirs, 1] lets a
-     one go. *)
+  (* Events of a slot from its fall, in order, with the actions of one instant together
+     and a sample after a release. The bits are in [osr] inverted, so [out pindirs, 1]
+     lets a one go. *)
   let slot_events (t : Timing.t) =
     if t.low1 > t.low0
     then raise_s [%message "BUG: a one let go after a zero" (t.low1 : int) (t.low0 : int)];
@@ -957,7 +957,7 @@ reset_%{name}:
 |}]
   ;;
 
-(* Host words after the unit: reset[0], swept[1], byte[9:2]. Each word is answered like
+  (* Host words after the unit: reset[0], swept[1], byte[9:2]. Each word is answered like
      the library's: the byte as sampled, or 0 for a presence. [swept] picks the second
      timing for that word. *)
   let firmware ~swept =

@@ -3,11 +3,11 @@ open Protocol_emulator
 open Pin_trace
 module Reg = Host_port.Reg
 
-(* Chinese Scales (no revision), page 1, "Chinese Scale Protocol", spec lines 51-84. A frame
-   is 48 bits: two 24-bit position words, LSB first, clocked at about 90 kHz. The clock
-   idles high and pauses before, between and after the words. This is the scale's end: data
-   moves just after each rise, so it is stable at the fall the receiver samples. The host
-   feeds the frames, so it sets the 300 ms and 20 ms update periods. *)
+(* Chinese Scales (no revision), page 1, "Chinese Scale Protocol", spec lines 51-84. A
+   frame is 48 bits: two 24-bit position words, LSB first, clocked at about 90 kHz. The
+   clock idles high and pauses before, between and after the words. This is the scale's
+   end: data moves just after each rise, so it is stable at the fall the receiver samples.
+   The host feeds the frames, so it sets the 300 ms and 20 ms update periods. *)
 
 (* the clock is OUT0 and the data OUT1 *)
 let pin = 5
@@ -26,8 +26,8 @@ let config =
 ;;
 
 (* The host's first word is the half period in cycles. Then four words per frame: each
-   24-bit position as 16 bits and 8 bits. Pauses are counts of half periods: ten before the
-   first fall, twenty between the words, ten after the last rise. *)
+   24-bit position as 16 bits and 8 bits. Pauses are counts of half periods: ten before
+   the first fall, twenty between the words, ten after the last rise. *)
 let firmware =
   [%firmware
     {|

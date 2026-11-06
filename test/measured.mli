@@ -11,8 +11,8 @@ val add : t -> name:string -> ns:int -> t
 (** [cycles] at [clock_hz] in ns, to the nearest, as a reading. *)
 val ns : clock_hz:int -> int -> int
 
-(** Whether [cycles] at [clock_hz] last at least, or at most, [ns]: exact, unlike a reading
-    rounded to the nearest ns. *)
+(** Whether [cycles] at [clock_hz] last at least, or at most, [ns]: exact, unlike a
+    reading rounded to the nearest ns. *)
 val at_least : clock_hz:int -> int -> ns:int -> bool
 
 val at_most : clock_hz:int -> int -> ns:int -> bool

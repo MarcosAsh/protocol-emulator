@@ -43,8 +43,8 @@ val words : Message.t -> int list
 val sent : Message.t list
 
 (** Decodes one level per cycle (high is carrier on). Every carrier period, burst, space,
-    bit and message period must be within 5% of its nominal (sigrok's tolerance), and every
-    byte must be followed by its inverse. *)
+    bit and message period must be within 5% of its nominal (sigrok's tolerance), and
+    every byte must be followed by its inverse. *)
 val decode : clock_hz:int -> bool list -> (Message.t list * Measured.t) Or_error.t
 
 (** [shortest_third] cycles a third of 38 kHz. *)

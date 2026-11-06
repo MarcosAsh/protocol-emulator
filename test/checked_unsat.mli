@@ -44,9 +44,9 @@ val negate_first_value : string list -> string list
     counterexample that rests on that bit must then fail [check_model]. *)
 val solver_with_a_bad_model : Solver.run_solver
 
-(** Prints QED when every case holds [claim] and the cases cover every input. Cases run one
-    query at a time, which SAT finds far easier than all at once. A counterexample prints
-    the inputs in [show], or all of them. *)
+(** Prints QED when every case holds [claim] and the cases cover every input. Cases run
+    one query at a time, which SAT finds far easier than all at once. A counterexample
+    prints the inputs in [show], or all of them. *)
 val prove
   :  ?show:string list
   -> string

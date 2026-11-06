@@ -8,19 +8,19 @@ open Protocol_emulator
 val sda : int
 val scl : int
 
-(** Master with an SCL quarter period of [quarter] cycles. It first clears the bus (UM10204
-    3.1.16): up to nine SCL pulses while SDA reads low, then a START and a STOP. *)
+(** Master with an SCL quarter period of [quarter] cycles. It first clears the bus
+    (UM10204 3.1.16): up to nine SCL pulses while SDA reads low, then a START and a STOP. *)
 val master : quarter:int -> string
 
 (** The master without the bus clear, as the bench's marked copy runs it. *)
 val master_without_bus_clear : quarter:int -> string
 
-(** [master] with the quarter period from the host as its first word, for buses slower than
-    a 31-cycle quarter (the longest [set] can make). *)
+(** [master] with the quarter period from the host as its first word, for buses slower
+    than a 31-cycle quarter (the longest [set] can make). *)
 val master_host_rate : string
 
-(** [master_host_rate] without the bus clear. Its START then STOP is read by [slave] as the
-    first bit of an address, so use it on a bus no outside slave can hold. *)
+(** [master_host_rate] without the bus clear. Its START then STOP is read by [slave] as
+    the first bit of an address, so use it on a bus no outside slave can hold. *)
 val master_host_rate_without_bus_clear : string
 
 (** [master_host_rate] with each START held, and each repeated START and STOP set up, for
@@ -28,8 +28,7 @@ val master_host_rate_without_bus_clear : string
     need that at its clock: Standard-mode 3, Fast-mode 2. Without [clear_bus] it starts at
     [idle]. [high] and [low] are instructions, each ending in a newline and carrying the
     side-set of its level. They run after every data bit's or ack's SCL going high, or
-    going low before a bit or ack, to cut the high or the low short: [sub t] by 7 at
-    most. *)
+    going low before a bit or ack, to cut the high or the low short: [sub t] by 7 at most. *)
 val master_host_rate_held
   :  ?clear_bus:bool
   -> ?high:string
@@ -74,8 +73,8 @@ val start_hold_config : scl:int -> Program_config.t
 (** A host word for [master]: start[15] read[14] data[13:6] stop[5]. *)
 val word : ?start:bool -> ?read:bool -> ?stop:bool -> int -> int
 
-(** The quarters for Standard-mode (121, 99.2 kHz) and Fast-mode (32, 375 kHz): the fastest
-    UM10204's limits allow at 48 MHz with an even clock. *)
+(** The quarters for Standard-mode (121, 99.2 kHz) and Fast-mode (32, 375 kHz): the
+    fastest UM10204's limits allow at 48 MHz with an even clock. *)
 val standard_quarter : int
 
 val fast_quarter : int

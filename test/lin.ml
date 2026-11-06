@@ -322,10 +322,10 @@ let bench =
 ;;
 
 (* The header's timing at the pin, every row the run's: the break is a loop of waits, so
-   the kernel counts one pass of it. A header runs from the break's fall to the PID's start
-   bit (the seventh fall) and its ten bits after (2.3.1, 2.3.2). Single bits, the levels
-   under a bit and a half, carry the bit rate. Slave-side, wake up, sleep and transport
-   layer rows don't apply to this firmware. *)
+   the kernel counts one pass of it. A header runs from the break's fall to the PID's
+   start bit (the seventh fall) and its ten bits after (2.3.1, 2.3.2). Single bits, the
+   levels under a bit and a half, carry the bit rate. Slave-side, wake up, sleep and
+   transport layer rows don't apply to this firmware. *)
 let limits =
   let sheet page =
     { Datasheet.Sheet.part = "LIN master"

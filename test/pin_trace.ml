@@ -146,8 +146,8 @@ module Scenario = struct
       (Engine.Config.to_list (Engine.Config.map fields ~f:Bits.to_unsigned_int))
       ~f:(fun reg v -> Step.Write (reg, [ v ]))
     @ [ Write (Reg.program_addr, [ 0 ])
-(* zeros past the program, as the host protocol loads them, since the checker walks every
-           word and the SRAM powers up with anything in it *)
+        (* zeros past the program, as the host protocol loads them, since the checker
+           walks every word and the SRAM powers up with anything in it *)
       ; Write
           ( Reg.program
           , program

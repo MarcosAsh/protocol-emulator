@@ -17,8 +17,8 @@ module Measured : sig
   val to_alist : t -> (string * (int * int)) list
 end
 
-(** The core from reset with every line pulled up and nothing else driving, each word going
-    in as soon as the fifo has room. Raises if it faults. *)
+(** The core from reset with every line pulled up and nothing else driving, each word
+    going in as soon as the fifo has room. Raises if it faults. *)
 module Run : sig
   type t =
     { pins : int array (** Every pin, a word a cycle. *)

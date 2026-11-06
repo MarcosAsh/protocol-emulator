@@ -28,12 +28,12 @@ let config =
 ;;
 
 (* The host writes L then L bytes, each in a word's high byte. The firmware takes L, waits
-   160 us for the rest to land in the fifo, sends sync, L, the bytes and the checksum, then
-   the ack bit, and pushes DAT as it sampled it: 0 acknowledged, 1 not. osr holds each byte
-   inverted, since a direction bit of 1 pulls DAT low; y is the negated sum, x the payload
-   bytes still to load after the next. Each byte's loop loads the next byte while STB is
-   low after its last bit. [t] is the next fall on entry to a loop, and each [wait t+]
-   moves it 8 on. *)
+   160 us for the rest to land in the fifo, sends sync, L, the bytes and the checksum,
+   then the ack bit, and pushes DAT as it sampled it: 0 acknowledged, 1 not. osr holds
+   each byte inverted, since a direction bit of 1 pulls DAT low; y is the negated sum, x
+   the payload bytes still to load after the next. Each byte's loop loads the next byte
+   while STB is low after its last bit. [t] is the next fall on entry to a loop, and each
+   [wait t+] moves it 8 on. *)
 let firmware =
   [%firmware
     {|
@@ -147,8 +147,8 @@ let words payload = List.map (List.length payload :: payload) ~f:(fun b -> b lsl
 let frames = [ [ 0x12; 0x34; 0x56 ]; [ 0x00; 0xff; 0x80; 0x01; 0xa5; 0x5a; 0x7e; 0xc3 ] ]
 let cycles_a_frame = 9_600
 
-(* A peripheral that takes DAT at each rise of STB after a sync (a low past 1 us). Once the
-   checksum is in and right, with L from 1 to 8, it pulls DAT low 5 cycles after that
+(* A peripheral that takes DAT at each rise of STB after a sync (a low past 1 us). Once
+   the checksum is in and right, with L from 1 to 8, it pulls DAT low 5 cycles after that
    rise, past tREL, until 5 after the ack bit's rise. *)
 module Peripheral = struct
   type t =

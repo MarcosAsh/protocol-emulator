@@ -78,8 +78,8 @@ end
 
 let rows = Array.of_list (Timed_program.rows receiver)
 
-(* The kernel's step on [mov t, capture] from its row's count since the arm: the next phase
-   is the largest [now - capture] it allows at the next entry. *)
+(* The kernel's step on [mov t, capture] from its row's count since the arm: the next
+   phase is the largest [now - capture] it allows at the next entry. *)
 let kernel_after ~mov_pc =
   let open Hardcaml in
   let module K = Kernel.Make (Bits) in

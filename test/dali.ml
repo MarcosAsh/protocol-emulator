@@ -196,8 +196,8 @@ let rec gaps = function
   | [] | [ _ ] -> []
 ;;
 
-(* QUERY ACTUAL LEVEL (line 247) to short address 1, with its S bit set for a command (line
-   207), and the answer, full brightness (line 202) *)
+(* QUERY ACTUAL LEVEL (line 247) to short address 1, with its S bit set for a command
+   (line 207), and the answer, full brightness (line 202) *)
 let query = Frame.Forward { address = (1 lsl 1) lor 1; opcode = 0xa0 }
 let answer = Frame.Backward 254
 
@@ -282,8 +282,8 @@ let sigrok =
       ]
   ; joins_after = None
   ; rejected = None
-  ; (* edge 0 is the line's rise to idle and edge 3 starts the low half of the first data bit,
-       a zero. Held high instead, three half bits high read as the stop *)
+  ; (* edge 0 is the line's rise to idle and edge 3 starts the low half of the first data
+       bit, a zero. Held high instead, three half bits high read as the stop *)
     teeth = [ [ Flip { pin; edge = 3; after = 0; cycles = trace_half_bit } ] ]
   }
 ;;

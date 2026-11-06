@@ -129,9 +129,9 @@ let bench =
   }
 ;;
 
-(* Bits of the line in the run. No slot is low longer than a start bit plus eight zeros, so
-   a longer low is a break. A low short enough to pass for a slot leaves no break, so the
-   row has no bound. Packet time, about 23 ms (line 312), is typical, so no row. *)
+(* Bits of the line in the run. No slot is low longer than a start bit plus eight zeros,
+   so a longer low is a break. A low short enough to pass for a slot leaves no break, so
+   the row has no bound. Packet time, about 23 ms (line 312), is typical, so no row. *)
 let limits =
   let sheet line =
     { Datasheet.Sheet.part = "DMX512"
