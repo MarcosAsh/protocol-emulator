@@ -1,12 +1,12 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
-# A protocol from a recording, on the board. Pico B replays a transmitter the chip was never
-# told about onto IO3 (and IO2 for a clocked bus); the chip's own edge loggers record it,
-# analyser B watching as referee; generate.exe learn reads the protocol from the chip's
-# recording and writes firmware the kernel accepts for a message never sent; the chip sends
-# it on OUT0 (OUT5 and OUT4 for a clocked bus), analyser A or B captures it, sigrok decodes
-# it and Pico B, listening on OUT0, reads it back. Faults hold until reset, so the bitstream
-# is loaded first.
+# Learns a protocol from a recording, on the board. Pico B replays a transmitter the chip
+# knows nothing about onto IO3 (and IO2 for a clocked bus). The chip's own edge loggers
+# record it, with analyser B watching as referee. generate.exe learn reads the protocol
+# from that recording and writes firmware the kernel accepts, for a message never sent.
+# The chip then sends the message on OUT0 (OUT5 and OUT4 for a clocked bus). Analyser A or B
+# captures it, sigrok decodes it, and Pico B, listening on OUT0, reads it back. Loads the
+# bitstream first, because faults stick until reset.
 # Usage: PICO=id:<Pico A> BIT=<bitstream> demo/learn_board.sh OUT line|clocked
 #            [RECORDING.edges... [--scale S] [--until SECONDS]]
 set -eu
@@ -29,7 +29,7 @@ else
     probes="IO3=D6"
 fi
 seconds=$(sed 's/.*, \([0-9.]*\) s/\1/' "$out/prep/replay.txt")
-# Pico B starts 3 s after its mpremote returns, two seconds after Pico A's
+# Pico B starts 3 s after its mpremote returns, 2 s after Pico A
 record_ms=$(python3 -c "print(int(($seconds + 7.5) * 1000))")
 capture_ms=$(python3 -c "print(int(($seconds + 4.5) * 1000))")
 python3 demo/learn_prepare.py logger "$out/prep" "$gen" $lines --ms "$record_ms" 2> "$out/logger.txt"
@@ -39,8 +39,8 @@ mpremote connect "$pico_b" cp python/learn_replay.py python/learn_listen.py \
     "$out/prep/replay.json" : > /dev/null
 started=$(date +%s)
 mpremote connect "$PICO" run --no-follow python/learn_record.py
-# the loggers loaded, certified and started before Pico B sets the line's idle, which a
-# line idling low would otherwise show the chip as no edge at all
+# load, certify and start the loggers before Pico B sets the line's idle level; a line
+# that idles low would otherwise look to the chip like no edge at all
 sleep 1
 ANALYSER=B RATE=$rate demo/capture.sh "$out/recorded.sr" "$capture_ms" \
     mpremote connect "$pico_b" run --no-follow python/learn_replay.py
@@ -64,15 +64,15 @@ fi
 "$gen" learn "$out/chip.edges" -out "$out/learned" $pins > "$out/learn.txt" 2>&1 || true
 cat "$out/learn.txt" | grep -v " s  kind " || true
 "$gen" learn "$out/analyser_recorded.edges" > "$out/referee_learn.txt" 2>&1 || true
-# a UART's decode at the baud learned, as nobody said what it was
+# decode a UART at the learned baud, since nobody told sigrok what it was
 baud=$(sed -n 's/^uart, \([0-9]*\)\.[0-9]* baud.*/\1/p' "$out/learn.txt")
 decode=$(echo "$decode" | sed "s/BAUD/${baud:-0}/")
 [ -f "$out/learned/send.json" ] || { echo "nothing learned to send"; exit 1; }
-# a fresh load, as faults from the recording would hold
+# fresh load, because faults from the recording would stick
 openFPGALoader -b icepi-zero "$BIT" > "$out/load_speak.txt" 2>&1
 mpremote connect "$PICO" cp "$out/learned/send.json" : > /dev/null
-# the firmware running, so its idle levels are set, before the analyser samples; the
-# frames follow on resume, as a soft reset would float the host port's CS_N under it
+# start the firmware so its idle levels are set before the analyser samples; the frames
+# follow on resume, because a soft reset would float the host port's CS_N
 mpremote connect "$PICO" exec "import learn_send, pico_board; learn_send.start(pico_board.PicoSpi().transfer)"
 [ "$kind" = clocked ] || mpremote connect "$pico_b" run --no-follow python/learn_listen.py
 ANALYSER=$analyser RATE=$rate demo/capture.sh "$out/spoken.sr" 6000 \

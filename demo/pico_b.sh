@@ -1,14 +1,14 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
-# Puts a demo's firmware on Pico B, which stays wired for every demo: MicroPython for the
-# listener, demo/can_node for can and can_node, demo/start_hold_master's pio or hw build
-# for start_hold. Pico B reaches its bootloader through mpremote from MicroPython, and from
-# the C builds through picotool or, without it, a 1200 baud open of their serial port. The
-# UF2 goes in by picotool or onto the RPI-RP2 drive, mounted by udisksctl if need be.
+# Puts a demo's firmware on Pico B, which stays wired up for every demo: MicroPython for the
+# listener, demo/can_node for can and can_node, demo/start_hold_master (pio or hw build) for
+# start_hold. To reach the bootloader we use mpremote from MicroPython, and for the C
+# builds picotool or, without it, a 1200 baud open of the serial port. The UF2 goes in via
+# picotool or onto the RPI-RP2 drive (mounted with udisksctl if needed).
 # Usage: [PICO_B_SERIAL=<serial>] demo/pico_b.sh micropython|can_node|start_hold_pio|start_hold_hw
 set -e
 serial=${PICO_B_SERIAL:-e66548545740ad29}
-# kept out of ~/.cache, which a cleanup emptied once
+# not in ~/.cache, which a cleanup emptied once
 uf2s=$HOME/.local/share/protocol-emulator/uf2
 case $1 in
 micropython) uf2=${MICROPYTHON_UF2:-$uf2s/RPI_PICO-v1.29.0.uf2} ;;
@@ -21,12 +21,12 @@ start_hold_pio | start_hold_hw) uf2=${START_HOLD_DIR:-$uf2s}/$1.uf2 ;;
 esac
 [ -f "$uf2" ] || { echo "no $uf2" >&2; exit 1; }
 
-# Pico B's serial port, as MicroPython names it in lower case and the SDK in upper
+# Pico B's serial port; MicroPython spells the serial lower case, the SDK upper case
 port() {
     ls /dev/serial/by-id/ 2>/dev/null | grep -i "_${serial}-if00" | head -n 1
 }
 
-# the RPI-RP2 partition, refused if more than one Pico is in its bootloader
+# the RPI-RP2 partition; fails if more than one Pico is in its bootloader
 drive() {
     found=$(lsblk -rno NAME,LABEL | awk '$2 == "RPI-RP2" { print $1 }')
     [ "$(echo "$found" | grep -c .)" -le 1 ] || { echo "more than one RPI-RP2 drive" >&2; exit 1; }
@@ -52,11 +52,11 @@ elif [ -z "$name" ]; then
 elif echo "$name" | grep -q MicroPython; then
     mpremote connect "id:$serial" bootloader || true
 elif command -v picotool >/dev/null; then
-    # reboot's own flags before the device's, and the serial in the SDK's upper case
+    # reboot's flags go before the device's; the serial is upper case, as the SDK has it
     picotool reboot -u -f --ser "$(echo "$name" | sed 's/.*_\([0-9A-Fa-f]*\)-if00$/\1/')"
 else
-    # the SDK's USB serial port reboots to the bootloader when opened at 1200 baud; a
-    # firmware that never reads its port leaves stty stuck in set_termios, hence the timeout
+    # the SDK's USB serial port reboots to the bootloader when opened at 1200 baud. stty
+    # hangs in set_termios if the firmware never reads the port, hence the timeout
     timeout -s KILL 10 stty -F "/dev/serial/by-id/$name" 1200 || true
 fi
 wait_for drive || { echo "Pico B never showed its RPI-RP2 drive" >&2; exit 1; }

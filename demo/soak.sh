@@ -1,16 +1,17 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
-# The overnight self-check soak (python/soak.py) on the bench carrier: Pico A (J13) drives
-# the chip's host port, the Icepi boots the chip from its flash. install puts it on Pico A
-# as main.py, collect copies the logs into DIR and removes main.py, test runs it here for
-# MINUTES with a glitch every two minutes. Each resets the Icepi first and checks its status.
+# The overnight self-check soak (python/soak.py) on the bench carrier. Pico A (J13) drives
+# the chip's host port and the Icepi boots the chip from flash. install: copy the soak to
+# Pico A as main.py. collect: copy the logs into DIR and remove main.py. test: run it from
+# here for MINUTES, with a glitch every two minutes. Each one resets the Icepi first and
+# then checks its status.
 # Usage: PICO=id:<pico a> demo/soak.sh install|collect DIR|test MINUTES
 set -e
 cd "$(dirname "$0")/.."
 pico="mpremote connect ${PICO:?PICO=id:<pico a>}"
 files="python/protocol_emulator.py python/pico_board.py python/demo_self_check.py python/soak.py
     test/uart_tx_host_rate.hex test/uart_tx_host_rate_rows.hex test/self_check_wire.hex"
-# the chip again, from the flash, and its status: halted, no faults
+# back to the chip in flash; its status should be halted with no faults
 from_flash() {
     openFPGALoader -b icepi-zero -r
     sleep 2
@@ -40,7 +41,7 @@ print('main.py runs the soak from the next power-up')"
 collect)
     dir=${2:?collect DIR}
     mkdir -p "$dir"
-    # entering the raw repl stops the soak, and with main.py gone it stays stopped
+    # entering the raw REPL stops the soak; with main.py gone it stays stopped
     $pico rm :main.py
     $pico cp :soak.log "$dir/soak.log"
     $pico exec "import os; print(os.listdir())" | grep -q "soak.1.log" &&

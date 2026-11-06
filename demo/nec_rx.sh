@@ -1,8 +1,8 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
-# NEC infrared into the chip: Pico A loads the library's receiver and listens, Pico B's
-# pico_nec_sender.py sends demo_nec's keys on IO3 while analyser B captures D6, and Pico A
-# judges the words the chip pushed. Each run from BITSTREAM, as faults hold until reset.
+# NEC infrared into the chip: Pico A loads the library's receiver and listens, Pico B
+# (pico_nec_sender.py) sends demo_nec's keys on IO3 while analyser B captures D6, and Pico A
+# checks the words the chip pushed. Loads BITSTREAM first, because faults stick until reset.
 # Usage: PICO=id:<serial of Pico A> [PICO_B_SERIAL=<serial>] demo/nec_rx.sh BITSTREAM [DIR]
 set -e
 bitstream=$1
@@ -14,11 +14,11 @@ mpremote connect "$PICO" cp python/protocol_emulator.py python/pico_board.py pyt
     python/bench_firmware.py python/demo_nec.py python/demo_nec_rx.py :
 mpremote connect "$pico_b" cp python/pico_nec_sender.py :
 mpremote connect "$PICO" run --no-follow python/demo_nec_rx.py
-# Pico A's START_MS, so the receiver listens before the first leader
+# Pico A's START_MS, so the receiver is listening before the first leader
 sleep 2
 ANALYSER=B demo/capture.sh "$out/nec_rx.sr" 3000 \
     mpremote connect "$pico_b" run --no-follow python/pico_nec_sender.py
-# demo_nec_rx.LISTEN_MS from its start
+# demo_nec_rx.LISTEN_MS
 sleep 7
 mpremote connect "$PICO" cat :outside.log > "$out/nec_rx.log"
 sigrok-cli -i "$out/nec_rx.sr" -P ir_nec:ir=D6 -A ir_nec=addr:addr-inv:cmd:cmd-inv:repeat-code \

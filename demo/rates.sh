@@ -1,12 +1,13 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
-# The standard settings on the bench's parts, python/demo_rates.py on Pico A, each demo
-# captured and decoded as demo/outside.sh does its own:
+# Runs python/demo_rates.py on Pico A with the standard settings for the bench's parts,
+# capturing and decoding each demo the way demo/outside.sh does:
 #   i2c   the EEPROM in Standard-mode then Fast-mode, analyser B on IO2 and IO3
 #   spi   the flash in modes 0 to 3, analyser B, decoded once in each mode
 #   uart  OUT0 at each common rate to Pico B's UART0 and analyser A
-# Needs Pico B in MicroPython (demo/pico_b.sh micropython), the I2C pull-ups for i2c, and
-# a chip reset before each demo, as faults hold until reset. Each run is kept in EVIDENCE.
+# Needs Pico B running MicroPython (demo/pico_b.sh micropython), the I2C pull-ups for i2c,
+# and a chip reset before each demo, because faults stick until reset. Runs are saved in
+# EVIDENCE.
 # Usage: PICO=id:<A> [PICO_B=id:<B>] demo/rates.sh i2c|spi|uart
 set -e
 demo=$1
@@ -49,7 +50,7 @@ spi)
 uart)
     : "${PICO_B:?PICO_B=id:<serial of Pico B>}"
     for baud in 9600 19200 38400 57600 115200 230400; do
-        # Pico B listens three seconds, from before the capture starts its sender
+        # Pico B listens for three seconds, starting before the capture
         mpremote connect "$PICO_B" exec "from machine import Pin, UART
 import time
 port = UART(0, baudrate=$baud, tx=Pin(0), rx=Pin(1))

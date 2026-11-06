@@ -1,10 +1,10 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
-# The bench carrier's self-test: loads icepi/carrier_check.v into the Icepi's SRAM, runs
-# demo/carrier_check.py on both Picos, then reboots the Icepi from its flash, which holds the
-# chip, and reads the chip's status through Pico A. Needs both Picos on MicroPython and env.sh
-# sourced. Log, captures, commit and bitstream hash go in EVIDENCE. Flags pass to
-# carrier_check.py: --analysers, --no-button.
+# Self-test for the bench carrier. Loads icepi/carrier_check.v into the Icepi's SRAM, runs
+# demo/carrier_check.py on both Picos, reboots the Icepi from flash (which holds the chip)
+# and reads the chip's status through Pico A. Both Picos need MicroPython and env.sh must be
+# sourced. The log, captures, commit and bitstream hash go in EVIDENCE. Flags are passed on
+# to carrier_check.py: --analysers, --no-button.
 # Usage: PICO=id:<serial of Pico A> [PICO_B_SERIAL=<serial>] [REV=v1.3] demo/carrier_check.sh [FLAGS]
 set -e
 : "${PICO:?PICO=id:<serial of Pico A>}"
@@ -14,13 +14,13 @@ mkdir -p "$evidence"
 make -C icepi REV="$rev" check-prog
 git rev-parse HEAD > "$evidence/commit"
 sha256sum "icepi/build/$rev-carrier-check.bit" > "$evidence/bitstream.sha256"
-# set -e would leave the group at a failing check, before its status is kept
+# no set -e here: a failing check must not skip saving its status
 {
     status=0
     python3 demo/carrier_check.py --evidence "$evidence" "$@" || status=$?
     echo "$status" > "$evidence/status"
 } 2>&1 | tee "$evidence/carrier_check.log"
-# the chip again, from the flash, and its status: halted, no faults
+# back to the chip in flash; its status should be halted with no faults
 openFPGALoader -b icepi-zero -r
 sleep 2
 mpremote connect "$PICO" cp python/protocol_emulator.py python/pico_board.py :

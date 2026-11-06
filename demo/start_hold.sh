@@ -1,10 +1,10 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
-# The start hold demo: Pico B masters the EEPROM bus through pico-examples' pio_i2c (pio) or
-# its I2C block (hw), the chip stamps every START, Pico A judges the stamps against
-# Standard-mode's 4.0 us. Before it, demo/pico_b.sh puts the master on Pico B, then
-# pio_check's static bound on i2c.pio and, with PICO_B set to Pico B's tty, the clocks
-# Pico B reports; after it, the analyser's own reading.
+# The start hold demo. Pico B is the EEPROM bus master, through pico-examples' pio_i2c (pio)
+# or its I2C block (hw). The chip stamps every START and Pico A checks the stamps against
+# Standard-mode's 4.0 us. Before that, this runs demo/pico_b.sh to put the master on Pico B,
+# pio_check's static bound on i2c.pio and, if PICO_B is Pico B's tty, the clocks Pico B
+# reports. Afterwards it prints the analyser's own reading.
 # Usage: PICO=id:<serial of Pico A> [PICO_B=/dev/ttyACM0] demo/start_hold.sh pio|hw
 set -e
 case $1 in
@@ -32,14 +32,14 @@ hw)
     exit 1
     ;;
 esac
-# a tty only, as demo/rates.sh takes PICO_B as mpremote's id:<serial>
+# here PICO_B is a tty; demo/rates.sh takes mpremote's id:<serial> instead
 case $PICO_B in
 /dev/*)
     stty -F "$PICO_B" raw -echo
     timeout 3 grep -a -m 1 "sys" "$PICO_B" || echo "Pico B printed nothing in 3 s" >&2
     ;;
 esac
-# the decode lists every START, so runs of them are counted
+# the decode lists every START, so count them
 out=$(mktemp)
 trap 'rm -f "$out"' EXIT
 status=0
