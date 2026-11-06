@@ -85,7 +85,7 @@ type t =
   }
 [@@deriving sexp_of]
 
-(* A frame on one line: the sample of each edge, the first to the active level. *)
+(* A frame on one line: the sample of each edge, from the first to the active level. *)
 module Edges = struct
   type t = int array
 
@@ -107,8 +107,8 @@ let idle_level (line : Recording.Line.t) =
     |> Option.value_map ~default:line.first ~f:fst
 ;;
 
-(* Where frames might end: past each jump of four times or more between idle runs in order
-   of length, ignoring the shortest quarter, where glitches are. None when no idle run
+(* Where frames might end: after each jump of 4x or more between idle runs sorted by
+   length, ignoring the shortest quarter (where glitches live). None when no idle run
    stands out, as in one long frame. *)
 let gap_thresholds ~idle runs =
   let idles =
@@ -161,7 +161,7 @@ let split_frames (line : Recording.Line.t) ~idle ~threshold =
   |> List.filter ~f:(fun frame -> Array.length frame >= 2)
 ;;
 
-(* Clusters of lengths in order, a new one wherever a length is 30% past the last. *)
+(* Clusters of lengths in order; a new one starts wherever a length is 30% past the last. *)
 let clusters lengths =
   List.sort lengths ~compare:Float.compare
   |> List.fold ~init:[] ~f:(fun acc d ->
@@ -179,8 +179,8 @@ let median l =
 
 let tolerance ~unit d = Float.max (0.3 *. unit) (0.08 *. d)
 
-(* A unit, and how much longer than whole units an active run reads, and an idle one
-   shorter, as a receiver module stretches its marks. Both in samples. *)
+(* A unit, plus how much longer than whole units an active run reads and how much shorter
+   an idle one does (a receiver module stretches its marks). Both in samples. *)
 module Grid = struct
   type t =
     { unit : float
@@ -201,7 +201,7 @@ module Grid = struct
   ;;
 
   (* Least squares of each length as [k * unit + bias] or [k * unit - bias], rounding
-     again each time; the bias is kept under half a unit. *)
+     again each time. The bias stays under half a unit. *)
   let refine t runs =
     Fn.apply_n_times
       ~n:6
@@ -305,8 +305,8 @@ let halves runs =
   List.concat_map runs ~f:(fun (r : Run.t) -> List.init r.units ~f:(fun _ -> r.active))
 ;;
 
-(* The bits as first-half-active, or None; the last bit's trailing idle halves may be
-   missing, as they run into the gap. *)
+(* The bits as first-half-active, or None. The last bit's trailing idle halves may be
+   missing because they run into the gap. *)
 let manchester_bits (shape : Manchester_shape.t) (runs : Run.t list) =
   if List.length runs <= shape.leader
   then None
@@ -342,7 +342,7 @@ let manchester frames =
           (None :: List.init (Int.min 64 (max_bits / 2)) ~f:Option.some)
           ~f:(fun wide -> { Manchester_shape.leader; hidden_half; wide })))
   in
-  (* frames weighed by their runs, so short frames cannot carry a reading of long ones *)
+  (* frames weighed by their runs, so short frames can't outvote long ones *)
   let scored =
     List.map shapes ~f:(fun shape ->
       ( shape
@@ -391,7 +391,7 @@ let pulse_alphabet frames =
   | _ -> None
 ;;
 
-(* The longest stretch of data pairs, with what is before and after it. *)
+(* The longest stretch of data pairs, with what comes before and after it. *)
 let pulse_frame ~zero ~one (runs : Run.t list) =
   let ps, last = pairs runs in
   let is_bit p = [%equal: int * int] p zero || [%equal: int * int] p one in
@@ -519,7 +519,7 @@ let fields_of t =
         else if varying i
         then (
           let j = ref i in
-          (* fields of whole bytes do not run across a byte's end *)
+          (* fields of whole bytes don't run across a byte's end *)
           let bytes = k.bits % 8 = 0 in
           while !j < k.bits && varying !j && not (bytes && !j > i && !j % 8 = 0) do
             incr j
@@ -536,7 +536,8 @@ let fields_of t =
         }))
 ;;
 
-(* Kinds seen once among four or more frames, where another is seen again, are outliers. *)
+(* Outliers are kinds seen once among four or more frames, where another kind is seen
+   again. *)
 let assign_kinds (decoded : (Kind.t * bool array * float) list) =
   let counts =
     List.sort_and_group decoded ~compare:(fun (a, _, _) (b, _, _) -> Kind.compare a b)
@@ -642,7 +643,7 @@ let learn_split ~rate ~idle ~threshold (line : Recording.Line.t) =
                   f, leader, bits))
             in
             let firsts = List.map decoded ~f:(fun (_, _, bits) -> List.hd_exn bits) in
-            (* one is whichever way round makes most frames start with 1 *)
+            (* a one is whichever way round makes most frames start with 1 *)
             let one_starts_active =
               List.count firsts ~f:Fn.id * 2 >= List.length firsts
             in
@@ -732,7 +733,7 @@ let learn_split ~rate ~idle ~threshold (line : Recording.Line.t) =
         then None
         else (
           let chars = List.concat_map read ~f:(fun (_, r) -> Option.value_exn r) in
-          (* a carrier or a clock reads as one character over and over *)
+          (* a carrier or clock reads as the same character over and over *)
           let commonest =
             List.sort_and_group chars ~compare:[%compare: bool list]
             |> List.fold ~init:0 ~f:(fun m g -> Int.max m (List.length g))
@@ -783,9 +784,10 @@ let learn_split ~rate ~idle ~threshold (line : Recording.Line.t) =
              ~frames:(List.length frames : int)])
 ;;
 
-(* Frames split at each place they might end, the reading with the fewest shapes, then the
-   fewest frames dropped, then the shortest gap. A long leader space looks like a gap
-   until the frames it would cut read as two shapes that always come together. *)
+(* Split the frames at each place they might end and keep the reading with the fewest
+   shapes, then the fewest dropped frames, then the shortest gap. A long leader space
+   looks like a gap until the frames it would cut turn out to be two shapes that always
+   come together. *)
 let learn_line ~rate (line : Recording.Line.t) =
   let idle = idle_level line in
   let tried =
@@ -804,7 +806,7 @@ let learn_line ~rate (line : Recording.Line.t) =
        |> Option.value_exn)
 ;;
 
-(* Bursts of the clock: edge spans with no run past four half periods. *)
+(* Bursts of the clock: edge spans with no run longer than four half periods. *)
 let bursts ~half (clock : Recording.Line.t) =
   let threshold = Float.to_int (4. *. half) in
   Array.to_list clock.edges
@@ -824,7 +826,7 @@ let selects ~(clock : Recording.Line.t) (line : Recording.Line.t) =
   Array.for_all levels ~f:(Bool.equal levels.(0))
 ;;
 
-(* The clock's edges in each span the select is active, as bursts. *)
+(* The clock's edges in each span where the select is active, as bursts. *)
 let selected ~(clock : Recording.Line.t) (select : Recording.Line.t) =
   let active = Recording.Line.level_at select clock.edges.(0) in
   let starts =
@@ -1022,7 +1024,7 @@ let runs t ~kind bits =
            @ [ run false stop_bits ]))
     | Clocked _ -> raise_s [%message "a clocked protocol has no single line of runs"]
   in
-  (* merge equal neighbours, drop the idle ends *)
+  (* merge equal neighbours and drop the idle ends *)
   let merged =
     List.fold
       (k.leader @ body @ k.trailer)
@@ -1072,7 +1074,7 @@ let synthesize ?(jitter = 0.) ?(skew = 0.) ?(seed = 0) ~rate_hz t frames =
       let bits = Learn_check.apply (rules_of t ~kind) bits in
       if Option.is_some select then Queue.enqueue select_edges !time;
       time := !time + (2 * half);
-      (* the launch edge and the data, then the sampling edge half a period on *)
+      (* the launch edge and the data, then the sampling edge half a period later *)
       Array.iter bits ~f:(fun b ->
         change clock_level clock_edges (not sample_rising);
         change data_level data_edges b;
@@ -1140,7 +1142,7 @@ let decode t (recording : Recording.t) =
     in
     clocked_frames ~rate ~clock ~data ~sample_rising bursts |> List.filter_map ~f:frame
   | Pulse _ | Manchester _ | Uart _ ->
-    (* a recording of one line is the line, whatever pin it was taken from *)
+    (* a recording of one line is that line, whatever pin it came from *)
     let%map.Or_error line =
       match recording.lines with
       | [ only ] -> Ok only

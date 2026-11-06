@@ -15,7 +15,7 @@ module Make_timer (Timer : Engine.Timer) = struct
     let wide x = sresize x ~width:wide_bits
     let wide_data x = uresize x ~width:wide_bits
 
-    (* wide enough again for an offset less a slope times what [set x] loads *)
+    (* wide enough again for an offset minus a slope times what [set x] loads *)
     let offset_bits = wide_bits + Isa.Field.set_value.width
     let timer_min = of_signed_int ~width:wide_bits (-(1 lsl (timer_bits - 1)))
     let timer_max = of_signed_int ~width:wide_bits ((1 lsl (timer_bits - 1)) - 1)
@@ -43,14 +43,15 @@ module Make_timer (Timer : Engine.Timer) = struct
     let is_all lo hi = lo ==:. 0 &: (hi ==: data_max)
 
     (* An unsigned interval that a register's image must fall in, or [any] for a write the
-       kernel does not follow. *)
+       kernel doesn't follow. *)
     let contains ~lo ~hi ~any ~image_lo ~image_hi =
       mux2 any (is_all lo hi) (lo <=: image_lo &: (image_hi <=: hi))
     ;;
 
     (* A row bounds a pin at each bit it may hold by the least cycles since its last edge
-       and by [mark], those cycles less the phase, which jitter leaves alone. [mark_none]
-       bounds nothing; a mark above [mark_max] only a saturated count keeps. *)
+       and by [mark], those cycles minus the phase. Jitter leaves the mark alone.
+       [mark_none] bounds nothing, and a mark above [mark_max] only survives a saturated
+       count. *)
     let mark_none = of_signed_int ~width:mark_bits (-(1 lsl (mark_bits - 1)))
     let mark_max = of_signed_int ~width:mark_bits ((1 lsl (timer_bits - 1)) + 0xffff)
     let mark_wide x = sresize x ~width:(mark_bits + 2)
@@ -70,7 +71,7 @@ module Make_timer (Timer : Engine.Timer) = struct
       mux2 (by_mark >: h.since) by_mark h.since
     ;;
 
-    (* The least of [cases] that apply, each a bound the pin may land in. *)
+    (* The least of the [cases] that apply, each a bound the pin may land in. *)
     let join_held cases =
       let applies (enable, (h : _ Held.t)) = enable &: h.may in
       let least ~lt ~top ~f =
@@ -84,9 +85,9 @@ module Make_timer (Timer : Engine.Timer) = struct
       }
     ;;
 
-    (* A pin's bounds after the word: at the bit it keeps, the counts go on by the least
-       [duration] and the mark by the least move of [t], if known; at the bit it moves to,
-       they restart. Where the next phase is [next_phase_hi] or less, the count less that
+    (* A pin's bounds after the word. At the bit it keeps, the counts go on by the least
+       [duration] and the mark by the least move of [t], if known. At the bit it moves to,
+       they restart. Where the next phase is [next_phase_hi] or less, the count minus that
        bounds the mark too. *)
     let pin_image
       (w : Watched.t)
@@ -109,7 +110,7 @@ module Make_timer (Timer : Engine.Timer) = struct
               mark_none
         }
       in
-      (* a first write is no edge, so a pin not yet written counts on *)
+      (* a first write is no edge, so a pin that isn't written yet keeps counting *)
       let moved (h : _ Held.t) =
         let kept = kept h in
         { h with
@@ -134,7 +135,7 @@ module Make_timer (Timer : Engine.Timer) = struct
     ;;
 
     (* Every counted edge [own] may make keeps the spacing at each pair of bits the two
-       may hold before it. *)
+       pins may hold before it. *)
     let row_spaced
       ~(spacing : _ Spaced.t)
       ~hold
@@ -180,7 +181,7 @@ module Make_timer (Timer : Engine.Timer) = struct
       let by_register ~p ~x ~y ~otherwise =
         mux2 (c.advance |: c.add_p) p @@ mux2 c.add_x x @@ mux2 c.add_y y @@ otherwise
       in
-      (* what the step adds to the phase, on top of where it starts from *)
+      (* what the step adds to the phase on top of where it starts *)
       let delta_lo, delta_hi =
         let fixed = mux2 c.add_imm imm @@ mux2 c.sub_imm (negate imm) (zero wide_bits) in
         let less_lo =
@@ -216,15 +217,15 @@ module Make_timer (Timer : Engine.Timer) = struct
       image, delta_lo, delta_hi
     ;;
 
-    (* whether the next phase is bounded and does not wrap, and its upper end *)
+    (* whether the next phase is bounded and doesn't wrap, and its upper end *)
     let phase_fits ~fraction ~(c : Class.t) ~(row : _ Row.t) ~capture_bounded =
       let image, _, _ = phase_image ~fraction ~c ~row ~capture_bounded in
       let image_lo, image_hi = image ~lo:(wide row.phase_lo) ~hi:(wide row.phase_hi) in
       c.bounded &: (image_lo >=+ timer_min) &: (image_hi <=+ timer_max), image_hi
     ;;
 
-    (* Both pins' bounds after the word from the row's, and whether each keeps its
-       spacing: the least duration is the cycles and a deadline wait's least stall, and
+    (* Both pins' bounds after the word, from the row's, and whether each keeps its
+       spacing. The least duration is the cycles plus a deadline wait's least stall, and
        [t] moves by the analyser's classes. A mark follows only where [phase_fits]. *)
     let row_edges
       ~side_set_count
@@ -297,7 +298,7 @@ module Make_timer (Timer : Engine.Timer) = struct
       a, b
     ;;
 
-    (* A row's bounds hold of the bounds [image], bit by bit. *)
+    (* True if a row's bounds hold of the bounds [image], bit by bit. *)
     let pin_holds (s : _ Pin.t) (image : _ Pin.t) =
       let held (s : _ Held.t) (i : _ Held.t) =
         ~:(i.may) |: (s.may &: (s.since <=: i.since) &: (s.mark <=+ i.mark))
@@ -305,7 +306,7 @@ module Make_timer (Timer : Engine.Timer) = struct
       held s.at0 image.at0 &: held s.at1 image.at1 &: (~:(s.fresh) |: image.fresh)
     ;;
 
-    (* The core's edge state inside a row's bounds, at a phase of [phase]; a saturated
+    (* The core's edge state inside a row's bounds at a phase of [phase]. A saturated
        count keeps any mark. *)
     let pin_within (r : _ Pin.t) (e : _ Edge.t) ~phase =
       let inside (h : _ Held.t) =
@@ -320,8 +321,8 @@ module Make_timer (Timer : Engine.Timer) = struct
     ;;
 
     (* [conjuncts] on both ways out, or on the one [taken] picks with the image computed
-       once, and the tightest row [next] can be for its way of falling through to hold and
-       whether that way is asked; [stage] takes each of the word's classes *)
+       once. Also gives the tightest row [next] can be for its way of falling through to
+       hold, and whether that way is asked. [stage] takes each of the word's classes. *)
     let ways
       ~stage
       ~side_set_count
@@ -350,7 +351,8 @@ module Make_timer (Timer : Engine.Timer) = struct
       (* falling through [jmp x--] leaves x = 0, where the phase lies in the offset too *)
       let clamped_lo = mux2 (lo >+ offset_lo) lo offset_lo in
       let clamped_hi = mux2 (hi <+ offset_hi) hi offset_hi in
-      (* the cycles since the arm; a deadline wait adds its stall, a capturing wait not *)
+      (* the cycles since the arm; a deadline wait adds its stall, a capturing wait
+         doesn't *)
       let arm_lo, arm_hi =
         let from ~stall a =
           mux2 c.arm cycles
@@ -373,7 +375,7 @@ module Make_timer (Timer : Engine.Timer) = struct
       in
       let captured_image = mux2 c.arm gnd (row.captured |: (capturing &: arm_known)) in
       let awaiting_image = mux2 c.arm vdd (row.awaiting &: ~:(c.capturing)) in
-      (* a run-time write leaves the loaded period, or with [floor] at least it *)
+      (* a run-time write leaves the loaded period, or with [floor] at least that *)
       let period_image ~at v = mux2 c.set_p c.set_value @@ mux2 c.writes_p at v in
       let period_lo = period_image ~at:loaded.value row.period_lo in
       let period_hi =
@@ -381,7 +383,7 @@ module Make_timer (Timer : Engine.Timer) = struct
       in
       let common_lo = mux2 (row.x_lo >: row.y_lo) row.x_lo row.y_lo in
       let common_hi = mux2 (row.x_hi <: row.y_hi) row.x_hi row.y_hi in
-      (* a register's image on one way out: a counted jump decrements it on both, and
+      (* a register's image on one way out. A counted jump decrements it on both ways, and
          falling through [jmp x!=y] leaves x = y, so each lies in both intervals *)
       let counter ~set ~dec ~taken lo hi =
         let taken_lo = mux2 (lo ==:. 0) (zero Isa.data_bits) (lo -:. 1) in
@@ -392,7 +394,7 @@ module Make_timer (Timer : Engine.Timer) = struct
         , mux2 set c.set_value @@ mux2 dec dec_hi (mux2 equal common_hi hi) )
       in
       let phase_known = c.bounded |: capture_bounded in
-      (* a step that adds to the phase moves the offset by as much *)
+      (* a step that adds to the phase moves the offset by the same amount *)
       let adds = c.bounded &: ~:(c.anchor) &: ~:(c.deadline) in
       let moved_lo = offset_lo +: delta_lo in
       let moved_hi = offset_hi +: delta_hi in
@@ -401,14 +403,14 @@ module Make_timer (Timer : Engine.Timer) = struct
           (sel_bottom c.set_value ~width:Isa.Field.set_value.width)
           ~width:(Isa.Field.set_value.width + 1)
       in
-      (* [image] is the phase's on the way [taken] picks *)
+      (* [image] is the phase's image on the way [taken] picks *)
       let holds ~taken ~image:(image_lo, image_hi) (s : _ Row.t) =
         let x_lo, x_hi = counter ~set:c.set_x ~dec:c.x_dec ~taken row.x_lo row.x_hi in
         let y_lo, y_hi = counter ~set:c.set_y ~dec:c.y_dec ~taken row.y_lo row.y_hi in
         let fits = image_lo >=+ timer_min &: (image_hi <=+ timer_max) in
-        (* The offset's image, where [s.slope * x] is known on this way out: after
-           [set x], from the phase's image; with the slope and x the same, or x one less
-           on a counted jump's way, from this row's offset. *)
+        (* The offset's image, where [s.slope * x] is known on this way out. After
+           [set x], it comes from the phase's image. With the slope and x unchanged, or x
+           one less on a counted jump's way, it comes from this row's offset. *)
         let offset_known, offset_image_lo, offset_image_hi =
           let wider x = sresize x ~width:offset_bits in
           let product = wider (s.slope *+ small_value) in
@@ -467,11 +469,12 @@ module Make_timer (Timer : Engine.Timer) = struct
         @@ mux2 c.y_dec (row.y_lo ==:. 0)
         @@ mux2 c.x_ne_y (row.x_lo <=: row.y_hi &: (row.y_lo <=: row.x_hi)) vdd
       in
-      (* an empty row or a halt asks nothing; each conjunct holds or does not apply *)
+      (* an empty row or a halt asks nothing; each conjunct holds or doesn't apply *)
       let asks = ~:(is_empty row) &: ~:(c.halts) in
       let only_if needed holds = Holds.map holds ~f:(fun h -> ~:needed |: h) in
-      (* [holds ~taken:false s] field by field is this row inside [s], an unknown bound
-         being the whole range; the offset is left full and the pins as they are *)
+      (* [holds ~taken:false s] field by field is this row inside [s], with an unknown
+         bound meaning the whole range. The offset stays full and the pins stay as they
+         are. *)
       let fallen ~taken ~image:(image_lo, image_hi) : _ Row.t =
         let x_lo, x_hi = counter ~set:c.set_x ~dec:c.x_dec ~taken row.x_lo row.x_hi in
         let y_lo, y_hi = counter ~set:c.set_y ~dec:c.y_dec ~taken row.y_lo row.y_hi in

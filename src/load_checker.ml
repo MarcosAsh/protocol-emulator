@@ -76,7 +76,7 @@ module State = struct
   [@@deriving sexp_of, compare ~localize, enumerate]
 end
 
-(* why a row is being read, which says where the walk goes once it has it *)
+(* why a row is being read; this decides where the walk goes next *)
 module Purpose = struct
   type t =
     | Target
@@ -87,8 +87,8 @@ module Purpose = struct
   [@@deriving sexp_of, compare ~localize, enumerate]
 end
 
-(* where a checked row's fields come from: the dictionaries, the empty row, or the fall
-   through image *)
+(* where a checked row's fields come from: the dictionaries, the empty row, or the
+   fall-through image *)
 module Source = struct
   type t =
     | Dictionary
@@ -100,11 +100,12 @@ end
 let constant_row bits = Kernel.Row.map bits ~f:of_bits
 
 let create (scope : Scope.t) (i : Signal.t I.t) =
-  (* the clear resets the flops too, as synthesis may fold a synchronous clear into the
-     next-state logic, where a gate-level X from an unclear flop outlives it *)
+  (* the clear resets the flops too: synthesis may fold a synchronous clear into the
+     next-state logic, and then a gate-level X from an unclear flop outlives it *)
   let spec = Reg_spec.override (Clocking.to_spec i.clocking) ~reset:i.clocking.clear in
-  (* the rows and words a walk writes before it reads them need no clear in the next-state
-     logic, but take it as the flop's own reset, so any power-up state ends at the clear *)
+  (* rows and words a walk writes before it reads them need no clear in the next-state
+     logic, but they take it as the flop's own reset so any power-up state ends at the
+     clear *)
   let datapath = Reg_spec.create ~clock:i.clocking.clock ~reset:i.clocking.clear () in
   let full = constant_row (Kernel.Table.of_analyser []).(0) in
   let empty = constant_row (Kernel.Table.of_analyser []).(1) in
@@ -113,7 +114,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
     Always.State_machine.create (module Purpose) spec
   in
   let%hw.Always.State_machine source = Always.State_machine.create (module Source) spec in
-  (* taken as the check begins, so a host writing it mid-walk cannot mix two *)
+  (* latched when the check begins, so a host write mid-walk can't mix two values *)
   let%hw.Setup.Of_signal setup =
     Setup.Of_signal.reg spec ~enable:(sm.is Idle &: i.check) i.setup
   in
@@ -131,7 +132,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let%hw_var acc = Always.Variable.reg datapath ~width:48 in
   let%hw_var k = Always.Variable.reg spec ~width:2 in
   let%hw_var field = Always.Variable.reg spec ~width:3 in
-  (* not [wait], a Verilog keyword the netlist would rename *)
+  (* not [wait], which is a Verilog keyword the netlist would rename *)
   let%hw_var read_wait = Always.Variable.reg spec ~width:2 in
   let%hw_var finished = Always.Variable.reg spec ~width:1 in
   let%hw_var accepted = Always.Variable.reg spec ~width:1 in
@@ -139,11 +140,12 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let%hw_var reason = Always.Variable.reg spec ~width:reason_bits in
   let%hw_var data_addr = Always.Variable.wire ~default:(zero Isa.data_addr_bits) () in
   let%hw_var reading = Always.Variable.wire ~default:gnd () in
-  (* registered, so the walk's address arithmetic ends at a flop and not at the memory *)
+  (* registered so the walk's address arithmetic ends at a flop, not at the memory *)
   let%hw read_valid = reg spec reading.value in
   let%hw read_at = reg spec data_addr.value in
-  (* How far from [base] the walk has read: a write below that may change a word it has
-     read, and ends it. A word written before the walk reads it is read as written. *)
+  (* How far from [base] the walk has read. A write below that may change a word it has
+     already read, and ends the walk. A word written before the walk reads it counts as
+     written. *)
   let offset addr = uresize (addr -: setup.base) ~width:(Isa.data_addr_bits + 1) in
   let%hw reach = offset read_at +:. 1 in
   let%hw span =
@@ -152,8 +154,8 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
       @@ mux2 (read_valid &: (reach >: span)) reach span)
   in
   let%hw overwritten = i.written.valid &: (offset i.written.value <: span) in
-  (* the row at [pc]; a successor's or a target's is checked a field at a time as it is
-     read, and the conjuncts each way fails kept *)
+  (* the row at [pc]. A successor's or a target's is checked a field at a time as it is
+     read, and we keep the conjuncts that fail each way *)
   let row = Kernel.Row.Of_always.reg datapath in
   Kernel.Row.Of_always.apply_names ~prefix:"row$" ~naming_op:(Scope.naming scope) row;
   let failed_next = Kernel.Holds.Of_always.reg datapath in
@@ -183,18 +185,18 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
       ~pc:pc.value
       ~word:word.value
   in
-  (* one bit wider, so pc 511's way out never reads as falling through *)
+  (* one bit wider so pc 511's way out never looks like falling through *)
   let%hw next_pc = uresize pc.value ~width:(Isa.pc_bits + 1) +:. 1 in
   let%hw falls_to_next = uresize following ~width:(Isa.pc_bits + 1) ==: next_pc in
   let%hw is_jump = Opcode.is (Decoder.decode ~side_set_count word.value).opcode Jmp in
-  (* the field being read: phase and arm are wide, the period, x and y narrow *)
+  (* the field being read; phase and arm are wide, the period, x and y narrow *)
   let unpack_entry bits =
     Load_check.Entry.Of_signal.unpack
       ~rev:true
       (drop_bottom bits ~width:Load_check.unused_bits)
   in
   let%hw.Load_check.Entry.Of_signal held = unpack_entry entry.value in
-  (* a row's field as the dictionaries hold it, the low bound above the high *)
+  (* a row's field as the dictionaries hold it, with the low bound above the high *)
   let field_bits (r : _ Kernel.Row.t) =
     mux
       field.value
@@ -205,11 +207,11 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
       ; uresize (r.y_lo @: r.y_hi) ~width:48
       ]
   in
-  (* the next row's marks where it falls through, set below from [one_way] *)
+  (* the next row's marks where it falls through; set below from [one_way] *)
   let fell_captured = wire 1 in
   let fell_awaiting = wire 1 in
-  (* the field checked, [acc], in every field of a row: a conjunct reads its own fields
-     alone, and the offset and slope are the full row's, as in every row the walk holds *)
+  (* the field checked, [acc], in every field of a row. A conjunct reads only its own
+     fields, and the offset and slope are the full row's, as in every row the walk holds *)
   let checked =
     let wide_lo = acc.value.:[47, 24] in
     let wide_hi = acc.value.:[23, 0] in
@@ -235,8 +237,8 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
     ; awaiting = checked_awaiting
     }
   in
-  (* the word's classes registered, so the kernel's arithmetic starts at a flop: [Head]
-     takes a cycle at least, so they have settled on the word before any check reads them *)
+  (* the word's classes, registered so the kernel's arithmetic starts at a flop. [Head]
+     takes at least a cycle, so they've settled on the word before any check reads them *)
   let conjuncts, fallen, falls =
     K.one_way
       ~stage:(fun x -> Scope.naming scope (reg datapath x) "word_class")
@@ -253,11 +255,11 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
       ~taken:(purpose.is Target)
       checked
   in
-  (* the row the next pc's is where it falls through with none stored *)
+  (* the next pc's row where it falls through with none stored *)
   let%hw.Kernel.Row.Of_signal fell = Kernel.Row.map2 fallen empty ~f:(mux2 falls) in
   fell_captured <-- fell.captured;
   fell_awaiting <-- fell.awaiting;
-  (* the way being checked; the other way holds *)
+  (* the way being checked; the other way always holds *)
   let%hw.Kernel.Holds.Of_signal way =
     Kernel.Holds.map2 conjuncts.next conjuncts.target ~f:( &: )
   in
@@ -268,8 +270,8 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
          { With_valid.valid = ~:h; value = of_unsigned_int ~width:reason_bits index }))
       ~default:(zero reason_bits)
   in
-  (* the conjuncts as checked, split into those on the next row and those on the target,
-     each kept at its place in the list so the indices stay [Conjuncts.to_list]'s *)
+  (* the conjuncts as checked, split into those on the next row and those on the target.
+     Each stays at its place in the list so the indices match [Conjuncts.to_list] *)
   let indexed (c : Signal.t Kernel.Conjuncts.t) =
     List.mapi (Kernel.Conjuncts.to_list c) ~f:(fun n h -> n, h)
   in
@@ -295,13 +297,14 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let%hw next_reason = first_failing in_time_and_next in
   let%hw target_fails = ~:(List.map target_holds ~f:snd |> List.reduce_exn ~f:( &: )) in
   let%hw target_reason = first_failing target_holds in
-  (* the field's value from a source other than the dictionaries, or the whole range for
-     an index of 0 *)
+  (* the field's value from somewhere other than the dictionaries, or the whole range for
+     index 0 *)
   let%hw stand_in =
     mux2 (source.is Dictionary) (field_bits full)
     @@ mux2 (source.is Fallen) (field_bits fell) (field_bits empty)
   in
-  (* the certificate's layout from [base]: two header words, the entries, the dictionaries *)
+  (* the certificate's layout from [base]: two header words, the entries, then the
+     dictionaries *)
   let address offset = uresize offset ~width:Isa.data_addr_bits in
   let times3 x =
     let x = address x in
@@ -353,7 +356,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
         ; of_unsigned_int ~width:3 4, [ row.y_lo <-- narrow_lo; row.y_hi <-- narrow_hi ]
         ])
   in
-  (* the field just checked, and with the last field the conjuncts on no interval *)
+  (* the field just checked; with the last field, the conjuncts that use no interval *)
   let record (failed : Always.Variable.t Kernel.Holds.t) =
     let fails = Kernel.Holds.map2 failed way ~f:(fun f h -> Always.(f <-- ~:h)) in
     Always.(
@@ -376,7 +379,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
   let check_fields ~from =
     Always.[ source.set_next from; field <-- zero 3; k <-- zero 2; sm.set_next Field ]
   in
-  (* every conjunct holds into the full row at pc 0, so it goes straight on to [then_]:
+  (* every conjunct holds into the full row at pc 0, so we go straight on to [then_];
      [purpose] is set in the same cycle *)
   let start_lookup target ~then_ =
     Always.
@@ -426,8 +429,8 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
       ; finished <-- gnd
       ; sm.switch
           [ ( Idle
-            , [ (* nothing the last walk left, whichever engine's, but the words and rows
-                   a walk writes before it reads them *)
+            , [ (* nothing the last walk left, from either engine, except the words and
+                   rows a walk writes before it reads them *)
                 when_
                   i.check
                   [ pc <-- zero Isa.pc_bits
@@ -603,7 +606,7 @@ let create (scope : Scope.t) (i : Signal.t I.t) =
                      (of_unsigned_int ~width:reason_bits left_over))
               ] )
           ]
-        (* last, so it wins over the state's own assignments *)
+        (* last, so it overrides the state's own assignments *)
       ; when_
           (i.abort |: overwritten &: ~:(sm.is Idle))
           (reject
