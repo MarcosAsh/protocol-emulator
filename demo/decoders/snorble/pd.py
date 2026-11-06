@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# SNB-1 Snorble Sensor Beacon Rev. C, section 4 (p.1) and notes 1 and 3 (p.2). A low past
-# 5 us is a sync, between tL1's max and tSYN's min; a bit is a one past 2.1 us, between
-# tL0's max and tL1's min. A width outside its limit by more than a sample is a warning.
+# SNB-1 Snorble Sensor Beacon Rev. C, section 4 (p.1) and notes 1 and 3 (p.2). A low longer
+# than 5 us is a sync (between tL1's max and tSYN's min). A bit is a one if longer than
+# 2.1 us (between tL0's max and tL1's min). A width more than a sample outside its limit
+# is a warning.
 
 import sigrokdecode as srd
 

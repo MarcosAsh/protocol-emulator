@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# I2C bus timing against UM10204, from the edges of a logic capture. Times are taken where
-# the analyser's one threshold is crossed, not at 0.3 and 0.7 VDD, so tr and tf cannot be
-# measured. Each edge is late by under a sample, so a time is good to +-1 sample: it fails
-# only if it fails with that slack, and passes only if it passes with it.
+# Checks I2C bus timing against UM10204, from the edges of a logic capture. Times are taken
+# where the analyser's single threshold is crossed, not at 0.3 and 0.7 VDD, so tr and tf
+# can't be measured. Each edge is late by under a sample, so a time is good to +-1 sample.
+# It fails only if it fails even with that slack, and passes only if it passes even with it.
 
 import collections
 from fractions import Fraction
@@ -11,7 +11,7 @@ SHEET = "UM10204 Rev. 7.0, 1 October 2021, Table 11, p. 44"
 MODES = ("standard", "fast", "fastplus")
 
 # (parameter, kind, Standard-mode, Fast-mode, Fast-mode Plus), in kHz for fSCL and ns for
-# the rest. tHD;DAT's least is the I2C-bus devices' row, not CBUS's.
+# the rest. tHD;DAT's minimum is the I2C-bus devices' row, not CBUS's.
 LIMITS = [
     ("fSCL", "at_most", 100, 400, 1_000),
     ("tHD;STA", "at_least", 4_000, 600, 260),
@@ -26,8 +26,8 @@ LIMITS = [
     ("tBUF", "at_least", 4_700, 1_300, 500),
 ]
 
-# What one threshold cannot measure: both cross it once, wherever it sits between 0.3 and
-# 0.7 VDD.
+# Not measurable with one threshold: both edges cross it once, wherever it sits between 0.3
+# and 0.7 VDD.
 UNMEASURED = ("tr", "tf")
 
 VERDICTS = ("pass", "fail", "unsure")
@@ -37,7 +37,7 @@ Result = collections.namedtuple("Result", "parameter ss es verdict value text")
 
 
 def limit(parameter, mode):
-    """The limit's kind and its value in [mode], in the table's unit."""
+    """Returns the limit's kind and its value for [mode], in the table's unit."""
     for name, kind, *ns in LIMITS:
         if name == parameter:
             return kind, ns[MODES.index(mode)]
@@ -45,9 +45,9 @@ def limit(parameter, mode):
 
 
 class Checker:
-    """Fed every change of SCL and SDA in order, it returns the parameters each completes.
-    Nothing is judged outside START to STOP, so a capture may begin mid-transaction; [stray]
-    counts the SCL edges there, which a stuck SDA leaves."""
+    """Feed it every change of SCL and SDA in order; it returns the parameters each one
+    completes. Nothing is judged outside START..STOP, so a capture may begin mid-transaction.
+    [stray] counts the SCL edges outside, which a stuck SDA leaves behind."""
 
     def __init__(self, rate_hz, mode):
         self.ns = Fraction(10**9) / Fraction(rate_hz)
@@ -78,8 +78,8 @@ class Checker:
         return Result(parameter, ss, es, verdict, ns, text)
 
     def clock(self):
-        """fSCL on the transaction's SCL falls: a fail on the run of periods that is most
-        provably fast, else a pass if their mean is provably slow enough."""
+        """Checks fSCL over the transaction's SCL falls. Fails if some run of periods is
+        provably too fast, otherwise passes if their mean is provably slow enough."""
         falls, self.falls = self.falls, []
         if len(falls) < 2:
             return []
@@ -108,8 +108,8 @@ class Checker:
         return [Result("fSCL", a, b, verdict, mean, text)]
 
     def edge(self, at, scl, sda):
-        """The levels from sample [at] on. When both change in one sample, the SDA change
-        is taken as data, not as a START or STOP."""
+        """Takes the levels from sample [at] on. If both lines change in the same sample,
+        the SDA change counts as data, not as a START or STOP."""
         if self.scl is None:
             self.scl, self.sda = scl, sda
             return []
@@ -123,7 +123,7 @@ class Checker:
         return out
 
     def finish(self):
-        """What the end of the capture leaves: fSCL of a transaction with no STOP."""
+        """Finishes the capture: checks fSCL of a transaction that never saw a STOP."""
         return self.clock()
 
     def _sda(self, at, sda):

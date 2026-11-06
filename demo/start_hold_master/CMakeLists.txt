@@ -1,7 +1,7 @@
-# Pico B as the bus master for the start hold demo, in two builds: start_hold_pio through
-# pico-examples' pio_i2c at a pinned commit (BSD-3-Clause, fetched at configure time, not
-# kept here, built unmodified), start_hold_hw through the RP2040's I2C block. Needs
-# pico-sdk 2.x and arm-none-eabi-gcc:
+# Pico B as the bus master for the start hold demo, in two builds. start_hold_pio uses
+# pico-examples' pio_i2c, unmodified, at a pinned commit (BSD-3-Clause; fetched at configure
+# time, not kept here). start_hold_hw uses the RP2040's I2C block. Needs pico-sdk 2.x and
+# arm-none-eabi-gcc:
 #   cmake -S demo/start_hold_master -B build/start_hold_master -D PICO_SDK_PATH=<pico-sdk> -D PICO_BOARD=pico
 #   make -C build/start_hold_master
 cmake_minimum_required(VERSION 3.13)
@@ -12,7 +12,7 @@ include(FetchContent)
 project(start_hold_master C CXX ASM)
 pico_sdk_init()
 
-# only the sources are wanted, so no subdirectory is added
+# we only want the sources, so don't add the subdirectory
 FetchContent_Declare(pico_examples
   GIT_REPOSITORY https://github.com/raspberrypi/pico-examples.git
   GIT_TAG 0d62f75bafc2c8120d3276c3343d1a9195e909e9

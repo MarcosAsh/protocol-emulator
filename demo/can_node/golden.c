@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
-// can2040's own frame encoder run on the host, for test/test_can_node.ml's golden lines:
-// can2040_transmit stuffs each frame into its transmit queue, printed from SOF to the
-// CRC delimiter. Built against the can2040 commit demo/can_node/CMakeLists.txt pins, with
-// SDK=<pico-sdk>/src and the include paths -I <can2040>/src -I $SDK/rp2040/hardware_regs/include
+// Runs can2040's own frame encoder on the host to produce test/test_can_node.ml's golden
+// lines: can2040_transmit stuffs each frame into its transmit queue, and we print it from
+// SOF to the CRC delimiter. Build against the can2040 commit pinned in
+// demo/can_node/CMakeLists.txt, with SDK=<pico-sdk>/src and the include paths
+// -I <can2040>/src -I $SDK/rp2040/hardware_regs/include
 // -I $SDK/rp2040/hardware_structs/include -I $SDK/rp2_common/hardware_base/include.
 
 #include <stdint.h>
@@ -10,8 +11,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-// the SDK's register types without its platform headers, nothing mapped: its own
-// address_mapped.h is found but skipped
+// the SDK's register types without its platform headers (nothing is mapped); defining the
+// guard skips the SDK's own address_mapped.h
 #define _HARDWARE_ADDRESS_MAPPED_H
 #include "hardware/regs/addressmap.h"
 typedef volatile uint32_t io_rw_32;
@@ -29,14 +30,14 @@ static inline void hw_clear_bits(io_rw_32 *addr, uint32_t mask) { *addr &= ~mask
 static inline void hw_write_masked(io_rw_32 *addr, uint32_t values, uint32_t mask) {
   *addr = (*addr & ~mask) | (values & mask);
 }
-// can2040's barriers are ARM instructions
+// can2040's barriers are ARM instructions, so drop them
 #define __asm__
 #define __volatile__(...)
 #include "can2040.c"
 
 static uint8_t pio[sizeof(pio_hw_t)];
 
-// can2040_transmit's own steps again, for the length its queue does not keep
+// redoes can2040_transmit's steps to get the length, which its queue doesn't keep
 static uint32_t length(struct can2040_msg *msg) {
   uint32_t buf[5] = {0}, crc = 0;
   struct bitstuffer_s bs = {1, 0, buf};

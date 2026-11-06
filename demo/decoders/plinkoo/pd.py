@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-# PLK-2 Plinkoo Two-Wire Packet Bus revision 1.3, sections 4 and 5 and notes 1 and 3. A
-# low of STB past 1 us is a sync; DAT is taken at each rise after it. A bit period off
-# tSYN/16 by more than 6 %, or DAT moving inside tDS or tDH of a rise, is a warning.
+# PLK-2 Plinkoo Two-Wire Packet Bus revision 1.3, sections 4 and 5 and notes 1 and 3. STB
+# low for more than 1 us is a sync, and DAT is sampled at each rise after it. A bit period
+# more than 6 % off tSYN/16, or DAT moving within tDS or tDH of a rise, is a warning.
 
 import sigrokdecode as srd
 

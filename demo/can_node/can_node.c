@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
-// Pico B as a CAN node at 500 kbit/s for the CAN demos: Kevin O'Connor's can2040 on PIO 0,
-// RX on GP6 from the transceiver's R, TX on GP7 to its D. It ACKs and prints every whole
-// frame and the parse errors it counts. ID REQUEST is answered after REPLY_DELAY_MS with
-// REPLIES, REPLY_GAP_MS apart, each printed once ACKed: can2040 resends until one is.
+// Pico B as a 500 kbit/s CAN node for the CAN demos, using Kevin O'Connor's can2040 on PIO 0.
+// RX is GP6 from the transceiver's R, TX is GP7 to its D. It ACKs and prints every complete
+// frame, and counts parse errors. A frame with ID REQUEST is answered after REPLY_DELAY_MS
+// with REPLIES, REPLY_GAP_MS apart. Each reply is printed once ACKed (can2040 resends until
+// then).
 
 #include <stdio.h>
 
@@ -16,11 +17,11 @@
 #define GPIO_TX 7
 #define BITRATE 500000
 #define REQUEST 0x7e0
-// longer than Pico A takes to load the receiver into engine 0
+// Pico A needs less than this to load the receiver into engine 0
 #define REPLY_DELAY_MS 300
 #define REPLY_GAP_MS 50
 
-// python/demo_can_node.py's REPLIES, and lines demo/can_node/golden.c prints
+// same as python/demo_can_node.py's REPLIES and the lines demo/can_node/golden.c prints
 static const struct can2040_msg replies[] = {
     {.id = 0x0a1, .dlc = 3, .data = {0x01, 0x02, 0x03}},
     {.id = 0x0a2 | CAN2040_ID_RTR, .dlc = 2},
@@ -31,8 +32,8 @@ static const struct can2040_msg replies[] = {
 
 static struct can2040 bus;
 
-// written by the PIO interrupt and read by the loop: the demo sends a frame every 2 ms,
-// which the loop prints long before the next
+// written by the PIO interrupt, read by the main loop. The demo sends a frame every 2 ms,
+// and the loop prints each one long before the next arrives
 static volatile struct can2040_msg last;
 static volatile uint32_t received;
 static volatile uint32_t overflows;
@@ -68,7 +69,7 @@ int main(void) {
   can2040_start(&bus, clock_get_hz(clk_sys), BITRATE, GPIO_RX, GPIO_TX);
 
   uint32_t printed = 0, parse_errors = 0, overflowed = 0;
-  // the next reply, REPLIES when none is due, and whether it is with can2040
+  // next is the next reply (REPLIES when none is due); sending means can2040 has it
   uint32_t next = REPLIES, sending = 0, acked = 0, attempts = 0;
   absolute_time_t due = nil_time;
   for (;;) {

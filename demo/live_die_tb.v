@@ -1,8 +1,8 @@
 `default_nettype none
 `timescale 1ns / 1ps
 
-// The chip alone for demo/live_die_stimulus.py. With +dump=FILE the nets of the top
-// module go to a VCD, which on the gate level are every cell's output.
+// The chip on its own, for demo/live_die_stimulus.py. +dump=FILE writes the top module's
+// nets to a VCD; on the gate level that is every cell's output.
 module live_die_tb ();
 
   reg clk;

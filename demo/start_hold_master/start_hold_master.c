@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
-// Pico B as the bus master for the start hold demo: every 20 ms the same 24LC256 read, a
-// write of the address, then a read of four bytes, so two STARTs, SDA on GP2 and SCL on
-// GP3 at 100 kHz. start_hold_pio calls pico-examples' pio_i2c as shipped, start_hold_hw
-// the RP2040's I2C block. Once a second it prints its clocks and the hold they predict.
+// Pico B as the bus master for the start hold demo. Every 20 ms it does the same 24LC256
+// read: write the address, then read four bytes, so two STARTs. SDA is GP2, SCL is GP3, at
+// 100 kHz. start_hold_pio uses pico-examples' pio_i2c as shipped; start_hold_hw uses the
+// RP2040's I2C block. Once a second it prints its clocks and the hold they predict.
 
 #include <stdio.h>
 
@@ -38,7 +38,7 @@ static int bus_read(uint8_t device, uint8_t *data, uint len) {
   return pio_i2c_read_blocking(pio, sm, device, data, len);
 }
 
-// pio_i2c_start runs SC1_SD0 [7], jmp x--, out exec, then SC0_SD0: SCL falls 10 PIO
+// pio_i2c_start runs SC1_SD0 [7], jmp x--, out exec, then SC0_SD0, so SCL falls 10 PIO
 // cycles after SDA
 static void report(void) {
   uint32_t sys = clock_get_hz(clk_sys);
@@ -67,7 +67,7 @@ static int bus_read(uint8_t device, uint8_t *data, uint len) {
   return i2c_read_blocking(i2c1, device, data, len, false);
 }
 
-// the RP2040 datasheet's SCL high time is HCNT + SPKLEN + 7 cycles
+// per the RP2040 datasheet, SCL high time = HCNT + SPKLEN + 7 cycles
 static void report(void) {
   uint32_t sys = clock_get_hz(clk_sys);
   uint32_t hcnt = i2c1->hw->fs_scl_hcnt, spklen = i2c1->hw->fs_spklen;
@@ -83,7 +83,7 @@ static void report(void) {
 int main(void) {
   stdio_init_all();
   setup();
-  // the module answers at one of 0x50 to 0x57; the STARTs come whether it does or not
+  // the module answers at one of 0x50..0x57; we get the STARTs whether it answers or not
   uint8_t device = 0x50, byte;
   for (uint8_t probe = 0x50; probe < 0x58; probe++) {
     if (bus_read(probe, &byte, 1) >= 0) {

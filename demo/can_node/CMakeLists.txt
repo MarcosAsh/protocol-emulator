@@ -1,5 +1,5 @@
-# Pico B's CAN node for the CAN demo, on can2040 at a pinned commit (GPL-3.0, fetched at
-# configure time, not kept here). Needs pico-sdk 2.x and arm-none-eabi-gcc:
+# Pico B's CAN node for the CAN demo, built on can2040 at a pinned commit (GPL-3.0; fetched
+# at configure time, not kept here). Needs pico-sdk 2.x and arm-none-eabi-gcc:
 #   cmake -S demo/can_node -B build/can_node -D PICO_SDK_PATH=<pico-sdk> -D PICO_BOARD=pico
 #   make -C build/can_node
 cmake_minimum_required(VERSION 3.13)
@@ -17,7 +17,7 @@ FetchContent_MakeAvailable(can2040)
 
 add_executable(can_node can_node.c ${can2040_SOURCE_DIR}/src/can2040.c)
 target_include_directories(can_node PRIVATE ${can2040_SOURCE_DIR}/src)
-# can2040 misses bits when it waits on flash, so everything runs from RAM
+# can2040 misses bits when it stalls on flash, so run everything from RAM
 pico_set_binary_type(can_node copy_to_ram)
 target_link_libraries(can_node pico_stdlib)
 pico_enable_stdio_usb(can_node 1)
