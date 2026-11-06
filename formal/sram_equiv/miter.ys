@@ -1,5 +1,5 @@
 # One step of each side, from the same state and inputs. The ports must match, so each
-# word and the output register pair with one of the other side's. An x made free is an
+# word and the output register pair with one on the other side. An x made free becomes an
 # input of the AIG.
 
 design -copy-from flops -as flops memory_top

@@ -25,7 +25,7 @@ sys prove
 unspaced teeth
 
 [options]
-# the lemma is combinational over constants, so step 0 is every input
+# the lemma is combinational over constants, so step 0 covers every input
 prove: mode bmc
 prove: depth 1
 teeth: mode bmc

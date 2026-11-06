@@ -1,7 +1,7 @@
-# A teeth mutant: a flop with no reset that holds its power-up value, ORed into the net
-# named by -v net. From all flops 0 it never changes the net, so netlist_equiv still
-# proves the copy equal to the RTL; from any state it does. Every statement in a netlist
-# ends in a semicolon, so records split there. Fails when no cell drives the net.
+# Teeth mutant: OR a flop with no reset, holding its power-up value, into the net named by
+# -v net. From all flops 0 it never changes the net, so netlist_equiv still proves the copy
+# equal to the RTL; from any other state it does change it. Every statement in a netlist
+# ends in a semicolon, so records split there. Fails if no cell drives the net.
 
 function splice(s, from, to,    i) {
   i = index(s, from)

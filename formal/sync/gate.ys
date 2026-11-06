@@ -1,6 +1,6 @@
-# The hardened netlist, netlist.v in the Makefile's work directory, through the IHP cell
-# models as netlist_equiv/gate.ys reads them, with the macros black boxes, through
-# check.tcl. Every cell stays, the ones driving nothing included.
+# The hardened netlist (netlist.v in the Makefile's work directory), read through the IHP
+# cell models as netlist_equiv/gate.ys reads them, with the macros as black boxes, and
+# then check.tcl. Every cell stays, even the ones driving nothing.
 
 read_verilog -noblackbox ../netlist_equiv/primitives.v ../sync/latch.v cells.v
 read_verilog -lib ../../src/RM_IHPSG13_1P_512x16_c2_bm_bist.v

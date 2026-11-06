@@ -1,10 +1,11 @@
-# A miter of fine.ys from any state: every flop starts free, an input of its own in the
-# first cycle. The reset input -v reset is asserted then (-v high=1 if active high) and
-# free after; the trigger counts from the second cycle. With -v fifos=1 the words and read
-# buffers of the host fifos and the edge stamps, which have no reset, load a free value at
-# the first edge, one per name on both sides (powerup's havoc task proves the RTL with
-# them free); finding none fails. Asynchronous resets act in their cycle, as in aig.ys.
-# Read the file twice, awk -f anystate.awk m.il m.il: the first pass finds the flops and
+# Builds a miter of fine.ys that starts from any state. Every flop starts free, with its
+# own input in the first cycle. The reset input -v reset is asserted then (-v high=1 if
+# active high) and free afterwards. The trigger counts from the second cycle. With -v
+# fifos=1, the words and read buffers of the host fifos and edge stamps (which have no
+# reset) load a free value at the first edge, one per name on both sides; powerup's havoc
+# task proves the RTL with them free. It fails if it finds none. Asynchronous resets act
+# in their own cycle, as in aig.ys.
+# Reads the file twice, awk -f anystate.awk m.il m.il. The first pass finds the flops and
 # their nets' names.
 
 # side.name [bit], or for the netlist's one-bit nets side.name[bit], as name|bit
@@ -67,8 +68,8 @@ FNR == 1 {
     }
   }
   for (name in seen) if (seen[name] ~ /gold/ && seen[name] ~ /gate/) shared++
-  # a bit the netlist keeps no flop for, as synthesis found it always 0 (the stamps' pads
-  # tied low), loads 0 on the RTL side, a value powerup's havoc task allows
+  # synthesis found this bit always 0 (the stamps' pads are tied low), so the netlist has
+  # no flop for it. Load 0 on the RTL side, which powerup's havoc task allows.
   for (k = 1; k <= ffs; k++) {
     if (!(k in loads)) continue
     name = loads[k]
@@ -137,7 +138,7 @@ n && $1 == "end" {
   if (type[n] == "$_DFF_P_") {
     printf "  connect %s %s\n", q[n], from
   } else {
-    # the reset wins over the start value and the next value alike
+    # reset wins over both the start value and the next value
     value = substr(type[n], 9, 1) == "1" ? "1'1" : "1'0"
     low = substr(type[n], 8, 1) == "N"
     mux("reset_q", low ? value : from, low ? from : value, arst[n], q[n])

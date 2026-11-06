@@ -18,7 +18,7 @@ prove_drift: mode prove
 prove_drift: depth 8
 covers: mode cover
 covers: depth 190
-# each tooth fails a claim, not a lemma, within a frame or two of bytes
+# each tooth fails a claim (not a lemma) within a frame or two of bytes
 teeth: mode bmc
 teeth: depth 110
 teeth: expect fail
@@ -53,14 +53,13 @@ rename frame_rx.pending pending
 rename frame_rx.ended ended
 rename frame_rx.index rx_index
 cd ..
-# the chip at 40 MHz: 3.1 ns of jitter, each half bit within 0.2%
+# chip at 40 MHz: 3.1 ns jitter, each half bit within 0.2%
 prove: read -define PER_BIT=8 JITTER=1024 DRIFT=32
-# at 50 MHz: 5 ns, within 0.16%
+# 50 MHz: 5 ns jitter, within 0.16%
 prove_fifty: read -define PER_BIT=10 JITTER=2048 DRIFT=32
-# at 40 MHz with no jitter, each half bit within 1%
+# 40 MHz, no jitter, each half bit within 1%
 prove_drift: read -define PER_BIT=8 JITTER=0 DRIFT=164
-# a tooth or a cover needs no more freedom than it takes to fail or be reached, which
-# keeps each to minutes
+# a tooth or cover only needs enough freedom to fail or be reached, which keeps each to minutes
 covers: read -define PER_BIT=8 PINNED
 blank_half: read -define PER_BIT=8
 inverted: read -define PER_BIT=8

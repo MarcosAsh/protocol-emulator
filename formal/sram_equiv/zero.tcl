@@ -1,5 +1,5 @@
-# The two memories from all flops 0, for the scrambled tooth: it passes here, where only
-# zero contents are asked about, and fails step.tcl. Writes zero.aig for ABC.
+# The two memories from all flops 0, for the scrambled tooth. It passes here, where only
+# zero contents matter, and fails in step.tcl. Writes zero.aig for ABC.
 
 yosys -import
 

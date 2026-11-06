@@ -1,6 +1,6 @@
-# A teeth mutant: the capture register stamped a cycle early, so the capture is two cycles
-# old at mov t, capture. The RTL is read twice, awk -f capture_early.awk engine.v engine.v:
-# the first pass finds the register behind capture, the second moves its stamp.
+# Teeth mutant: stamp the capture register one cycle early, so the capture is two cycles
+# old at mov t, capture. Reads the RTL twice, awk -f capture_early.awk engine.v engine.v.
+# The first pass finds the register behind capture, the second moves its stamp.
 
 NR == FNR {
   if ($1 == "assign" && $2 == "capture_0") {

@@ -1,5 +1,6 @@
-# The lemma as SBY's aiger engines see it: read.ys is the task's [script] from its .sby,
-# then SBY's own base, prep and aiger steps, unchanged but for one line (marked below).
+# The lemma as SBY's aiger engines see it. read.ys is the task's [script] from its .sby,
+# followed by SBY's own base, prep and aiger steps, unchanged except for one line (marked
+# below).
 script read.ys
 hierarchy -smtcheck
 rename -witness
@@ -34,9 +35,9 @@ simplemap
 dffunmap
 aigmap
 opt_clean
-# techmap leaves an x bit where an index can pass a vector's end, as phase_step's
-# sample[seen_pin] can for values it never takes, and write_aiger refuses x: each becomes a
-# free input, which only adds behaviours (this line is not SBY's)
+# techmap leaves an x bit where an index can run past a vector's end, as phase_step's
+# sample[seen_pin] can for values it never takes, and write_aiger refuses x. Each becomes
+# a free input, which only adds behaviours (this line is not SBY's).
 setundef -anyseq
 stat
 write_aiger -I -B -zinit -no-startoffset model.aig

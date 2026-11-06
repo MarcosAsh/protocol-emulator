@@ -1,7 +1,7 @@
 [tasks]
 prove
-# teeth, each run from the clear with the coupling invariants left out, so what fails is
-# the pin claim: a byte a cycle sooner, the pin a cycle early, the compiler a bit short
+# teeth: each runs from the clear without the coupling invariants, so the pin claim is what
+# fails. They are a byte one cycle early, the pin one cycle early, and the compiler one bit short.
 short_gap
 early
 mutant
@@ -56,7 +56,7 @@ short_gap: read_verilog -formal -sv -DCLAIM_ONLY -DSHORT_GAP fsm_miter.sv
 early: read_verilog -formal -sv -DCLAIM_ONLY -DEARLY fsm_miter.sv
 mutant: read_verilog -formal -sv -DCLAIM_ONLY fsm_miter_mutant.sv
 prep -top certificate
-# as a memory, the harness rom is state induction starts anywhere; as logic it is fixed
+# as a memory the harness rom is state, so induction can start anywhere; as logic it is fixed
 memory_map
 
 [files]

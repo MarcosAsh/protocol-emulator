@@ -1,6 +1,6 @@
-# A teeth mutant: the fix for an empty rx fifo's stale head reverted, rx_head the fifo's
-# head again. The RTL is read twice, awk -f powerup_stale.awk rtl.v rtl.v: the first pass
-# finds the head behind the fix's mux, the second puts it back. Fails when there is no fix.
+# Teeth mutant: revert the fix for an empty rx fifo's stale head, so rx_head is the fifo's
+# head again. Reads the RTL twice, awk -f powerup_stale.awk rtl.v rtl.v. The first pass
+# finds the head behind the fix's mux, the second puts it back. Fails if there is no fix.
 
 NR == FNR {
   if ($1 == "assign" && $2 == "rx_head_0") head = $NF

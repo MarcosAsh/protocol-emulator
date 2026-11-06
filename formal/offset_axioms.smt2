@@ -1,10 +1,11 @@
-; The axioms row_step.sv, phase_step.sv's AFFINE run and test_kernel.ml put on the free
-; offsets hold of the true ones, phase - slope * x modulo 2^24 with x unsigned: each
-; check is unsat. x-- goes in two steps, the 16-bit decrement as a 24-bit one where x is
-; not 0, then the ring identity, which z3 normalises as a polynomial. Each check starts
-; afresh, as z3 solves incremental queries without its bit-vector preprocessing.
+; Checks that the axioms row_step.sv, phase_step.sv's AFFINE run and test_kernel.ml put on
+; the free offsets also hold for the true ones, phase - slope * x modulo 2^24 with x
+; unsigned. Each check is unsat. x-- goes in two steps: the 16-bit decrement becomes a
+; 24-bit one where x is not 0, then the ring identity, which z3 normalises as a polynomial.
+; Each check starts afresh, because z3 solves incremental queries without its bit-vector
+; preprocessing.
 
-; after set x, v: phase' less the product row_step takes, slope * {1'b0, v} in 30 bits
+; after set x, v: phase' minus the product row_step takes, slope * {1'b0, v} in 30 bits
 (set-logic QF_BV)
 (declare-const slope (_ BitVec 24))
 (declare-const set_value (_ BitVec 5))
@@ -14,7 +15,7 @@
 (check-sat)
 (reset)
 
-; x and the slope the same: the offset moves as the phase does
+; with x and the slope unchanged, the offset moves with the phase
 (set-logic QF_BV)
 (declare-const slope (_ BitVec 24))
 (declare-const x (_ BitVec 16))
@@ -35,7 +36,7 @@
 (check-sat)
 (reset)
 
-; and then the offset moves a slope further, for any x of 24 bits
+; and then the offset moves one slope further, for any 24-bit x
 (set-logic QF_BV)
 (declare-const slope (_ BitVec 24))
 (declare-const x (_ BitVec 24))

@@ -1,14 +1,14 @@
-# The kernel's Verilog, which the RTL proofs read, equals the gates its SAT proofs build
+# The kernel's Verilog (which the RTL proofs read) equals the gates its SAT proofs build
 # (generate.exe kernel-gates: Kernel.Make over Bits_list, the construction Comb_gates
-# uses), every output for every input. The Makefile copies in rtl.v and gates.aag, for
-# the step or the check of a row. Trusted: yosys's frontend, proc, aigmap; ABC.
+# uses), for every output and every input. The Makefile copies in rtl.v and gates.aag, for
+# either the step or the check of a row. Trusted: yosys's frontend, proc, aigmap; ABC.
 
 read_verilog rtl.v
 hierarchy -check -auto-top
 proc
 flatten
 opt_clean
-# an x in the Verilog would be free here, and there is none
+# an x in the Verilog would be free here, but there isn't one
 setundef -anyseq
 select -assert-none t:$anyseq
 check -assert

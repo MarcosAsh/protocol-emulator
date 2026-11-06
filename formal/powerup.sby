@@ -2,8 +2,8 @@
 prove written
 no_reset written teeth shallow
 unreset teeth shallow
-# with the stale head's fix reverted the invariant must not prove; the host read that
-# shows the word (HOST_SCRIPT, 126 cycles in) is past smtbmc in half-cycle steps
+# with the stale head fix reverted the invariant must not prove. The host read that shows
+# the word (HOST_SCRIPT, 126 cycles in) is too deep for smtbmc in half-cycle steps.
 stale
 havoc havoc_rtl
 havoc_unreset havoc_unreset_rtl teeth shallow
@@ -11,11 +11,11 @@ cold havoc_rtl cold_rtl
 cold_unreset havoc_unreset_rtl cold_rtl teeth shallow
 
 [options]
-# Both_edges' falling flops: each edge is a step, so a cycle is two
+# Both_edges has falling flops: each edge is a step, so a cycle is two steps
 multiclock on
 ~teeth: mode prove
 ~teeth: depth 4
-# cold's invariant needs main's four cycles, which are eight half-cycle steps
+# cold's invariant needs main's four cycles, which is eight half-cycle steps
 cold_rtl: depth 8
 teeth: mode bmc
 shallow: depth 8
@@ -63,7 +63,7 @@ rename core.top.engines.data_memory.sram_macro.sram.A_BM m2_bm
 rename core.top.engines.data_memory.sram_macro.sram.A_BIST_EN m2_bist_en
 rename core.top.engines.data_memory.sram_macro.sram.A_DOUT m2_dout
 cd ..
-# no flop or fifo word starts at a known value, the RTL's declared ones included
+# no flop or fifo word starts at a known value, even ones the RTL declares
 setattr -unset init tt_um_marcosash_protocol_emulator/w:*
 memory_map tt_um_marcosash_protocol_emulator
 tcl powerup.tcl

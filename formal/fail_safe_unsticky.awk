@@ -1,8 +1,8 @@
-# A teeth mutant: the fault flop, the register an engine's faulted reads, holds only the
-# cycle after its condition, so it is no longer sticky. The RTL is read twice, awk -f
-# fail_safe_unsticky.awk rtl.v rtl.v: the first pass finds the register and its module, the
-# second loads it with its condition every cycle, a line held back so the if can go. Fails
-# when the register is not set that way.
+# Teeth mutant: the fault flop (the register an engine's faulted reads) only holds for the
+# cycle after its condition, so it is no longer sticky. Reads the RTL twice, awk -f
+# fail_safe_unsticky.awk rtl.v rtl.v. The first pass finds the register and its module. The
+# second loads it with its condition every cycle, holding a line back so the if can go.
+# Fails if the register isn't set that way.
 
 $1 == "module" { module = $2 }
 

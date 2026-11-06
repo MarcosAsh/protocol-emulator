@@ -1,10 +1,15 @@
-# Engine 0's flops as ports for isolation.sv's invariant, on the flattened engines_top: its
-# fifos as rx_0 and tx_0 (flops.tcl); every other flop of engine 0 but the ones the script
-# brought out already, the data memory's turn, the checker's turn and engine 0's ask
-# waiting for it, engine 0's premises, certificate and verdict, as state_0, whose width
-# goes to isolation.sv as STATE_BITS; the frame receivers' flops as receivers,
-# RECEIVER_BITS wide; the load checker as powerup.tcl has it, load_checker and word_class,
-# and its other flops as checker_flops, CHECKER_BITS wide; and the wires isolation.sv names.
+# Turns engine 0's flops into ports for isolation.sv's invariant, on the flattened
+# engines_top. The ports are:
+#   rx_0, tx_0       the fifos (flops.tcl)
+#   state_0          every other engine 0 flop not already brought out, plus the data
+#                    memory's turn, the checker's turn, engine 0's pending ask, and its
+#                    premises, certificate and verdict; the width goes to isolation.sv
+#                    as STATE_BITS
+#   receivers        the frame receivers' flops, RECEIVER_BITS wide
+#   load_checker, word_class
+#                    the load checker, as in powerup.tcl
+#   checker_flops    the load checker's other flops, CHECKER_BITS wide
+# It also brings out the wires isolation.sv names.
 
 source flops.tcl
 yosys cd engines_top
@@ -28,14 +33,14 @@ gather_fifo engines.engine_0.tx tx_0
 
 set flops [list w:engines.engine_0.*]
 foreach wire [aliases engines.data_memory.turn] { lappend flops w:$wire %u }
-# the checker's turn, the flops themselves, and engine 0's ask waiting for it
+# the checker's turn (the flops themselves) and engine 0's pending ask
 lappend flops w:engines.turn_cycle %u w:engines.chosen %u
 foreach wire [aliases {engines.waiting$0}] { lappend flops w:$wire %u }
-# engine 0's certificate, refusal and verdict, kept beside the engines
+# engine 0's certificate, refusal and verdict, which sit beside the engines
 foreach reg {certified$0 refused$0 verdict$0$accepted verdict$0$reject_pc verdict$0$reason} {
   foreach wire [concat engines.$reg [aliases engines.$reg]] { lappend flops w:$wire %u }
 }
-# and the premises engine 0's check was taken under, held beside the engines
+# and the premises engine 0's check ran under, also beside the engines
 foreach port {
   premises$period$valid premises$period$value premises$floor premises$single_edge
 } {

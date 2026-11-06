@@ -24,13 +24,13 @@ cover: depth 16
 teeth: mode bmc
 teeth: depth 16
 teeth: expect fail
-# a frame takes hundreds of cycles to land a word, past any BMC, so this tooth keeps the
-# invariant and fails its induction from a state past it
+# a frame needs hundreds of cycles to land a word, which is past any BMC, so this tooth
+# keeps the invariant and fails the induction from a state beyond it
 frame_in_region: mode prove
 frame_in_region: depth 3
 frame_in_region: expect fail,unknown
-# so does a word waiting to land, engine 0 owning the receivers after engine 1, and a word
-# of engine 1's receivers landing where engine 0's walk has read
+# the same goes for a word waiting to land, engine 0 owning the receivers after engine 1,
+# and a word from engine 1's receivers landing where engine 0's walk has already read
 load_pending: mode prove
 load_pending: depth 3
 load_pending: expect fail,unknown

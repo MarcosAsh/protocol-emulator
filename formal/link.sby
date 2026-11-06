@@ -11,8 +11,8 @@ prove: mode prove
 prove: depth 4
 cover: mode cover
 cover: depth 115
-# from reset, so what fails is a run. No push comes before step 99, so the two that need
-# one check from step 90 on
+# from reset, so each has to fail. No push comes before step 99, so the two that need
+# one check from step 90 on.
 teeth: mode bmc
 teeth: depth 130
 teeth: expect fail
@@ -69,7 +69,7 @@ next_bit: read_verilog -formal -sv -DNEXT_BIT link.sv
 wider: read_verilog -formal -sv -DWIDER link.sv
 baud: read_verilog -formal -sv link_baud.sv
 prep -top link
-# as memories, the rom and the tables are state induction starts anywhere; as logic, fixed
+# as memories the rom and tables are state, so induction can start anywhere; as logic they are fixed
 memory_map
 
 [files]

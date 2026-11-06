@@ -1,10 +1,10 @@
-# A teeth mutant: the first flop whose RESET_B is the net the buffer on rst_n drives loses
-# its reset, the pin tied high. That flop is one of the reset synchroniser's two, so the
-# copy parts from the RTL only around a reset, which it enters a cycle late or leaves a
-# cycle early, and ABC has to find a trace of many cycles. The netlist is read twice,
-# awk -f unreset.awk n.v n.v: the first pass finds the buffer, the second edits. Every
-# statement in a netlist ends in a semicolon, so records split there. Fails when no flop
-# takes its reset from a buffer on rst_n, since the copy would then be no mutant.
+# Teeth mutant: the first flop whose RESET_B is the net the rst_n buffer drives loses its
+# reset (the pin is tied high). That flop is one of the reset synchroniser's two, so the
+# copy only differs from the RTL around a reset, which it enters a cycle late or leaves a
+# cycle early, and ABC has to find a trace of many cycles. Reads the netlist twice,
+# awk -f unreset.awk n.v n.v. The first pass finds the buffer, the second edits. Every
+# statement in a netlist ends in a semicolon, so records split there. Fails if no flop
+# takes its reset from a buffer on rst_n, because the copy would not be a mutant.
 
 function splice(s, from, to,    i) {
   i = index(s, from)

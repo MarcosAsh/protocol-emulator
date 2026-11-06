@@ -1,7 +1,7 @@
 # The hardened netlist equals the RTL as written for all time. From all flops 0, for every
 # input sequence on the pins and the three macros' outputs, the 24 outputs and the 276
 # macro inputs agree every cycle. The RTL is written.v, the copy of src/protocol_emulator.v
-# the Makefile makes, so a tooth can mutate this side alone.
+# that the Makefile makes so a tooth can mutate this side alone.
 #
 # The Makefile checks the first cycle by BMC and every later one from each state the first
 # reaches (tempor), with ABC scorr + dprove, which match flops by function, not name. Each
@@ -23,9 +23,9 @@ read_verilog -lib ../../src/RM_IHPSG13_1P_512x16_c2_bm_bist.v
 hierarchy -check -top tt_um_marcosash_protocol_emulator
 proc
 
-# memories to flops, and the three macros cut so their inputs are outputs to compare and
-# their outputs inputs both sides share. The x's left, on the address and data of disabled
-# memory writes, write nothing, so folding them with -mux_undef is safe.
+# memories become flops, and the three macros are cut so their inputs are outputs to compare
+# and their outputs are inputs both sides share. The x's left, on the address and data of
+# disabled memory writes, write nothing, so folding them with -mux_undef is safe.
 flatten
 memory_collect
 memory_map
@@ -38,10 +38,10 @@ expose -evert t:RM_IHPSG13_1P_512x16_c2_bm_bist
 select -assert-count 51 o:*
 select -assert-count 8 i:*
 
-# one clock: every flop takes the rising edge of clk, but the falling pairs of both
-# Both_edges, the frame pad's and D-'s, which take its falling edge; in the AIG both sides'
-# pairs step with the others, so they are compared as flops of the one clock, as gate.ys
-# has them behind inverters
+# one clock: every flop takes the rising edge of clk, except the falling pairs of both
+# Both_edges (the frame pad's and D-'s), which take its falling edge. In the AIG both
+# sides' pairs step with the others, so they are compared as flops of the one clock, as
+# gate.ys has them behind inverters.
 select -assert-none t:$*latch* t:$sr %u
 select -assert-none t:$*ff* w:clk %co:+[CLK] %d
 select -set falling w:core.top.both_edges.signal_reg w:core.top.both_edges.signal_reg_1 \
@@ -65,7 +65,7 @@ miter -equiv -flatten written gate miter
 hierarchy -top miter
 delete t:$scopeinfo
 script ../netlist_equiv/aig.ys
-# the RTL has no x left after -mux_undef and the netlist none at all, so the only inputs
-# are the ports and the macros' outputs, never an x made free
+# the RTL has no x left after -mux_undef and the netlist has none, so the only inputs are
+# the ports and the macros' outputs, never an x made free
 select -assert-none t:$anyseq t:$anyconst %u
 write_aiger miter.aig

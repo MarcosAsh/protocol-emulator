@@ -1,14 +1,14 @@
-# The flop program memory the lemmas are proved on is IHP's behavioural model of the
-# 512x16 macro, step for step: from the same state, any contents and any dout, and the
-# same inputs, both show the same dout and step to the same state. So they agree for all
-# time from any equal start. Writes step.aig for ABC; env: FLOPS, MACRO, MODEL, CORE.
+# The flop program memory the lemmas are proved on matches IHP's behavioural model of the
+# 512x16 macro step for step. From the same state (any contents, any dout) and the same
+# inputs, both show the same dout and step to the same state, so they agree for all time
+# from any equal start. Writes step.aig for ABC. Env: FLOPS, MACRO, MODEL, CORE.
 #
-# Premise: the model is the macro's function. Its FUNCTIONAL branch is read; the other
+# Premise: the model is the macro's function. We read its FUNCTIONAL branch; the other
 # only adds timing checks. Trusted: yosys's frontend, proc, memory_map, aigmap; ABC.
 
 yosys -import
 
-# One side as a function of its state, each word of the array named mem_i.
+# One side as a function of its state, with each word of the array named mem_i.
 proc side {name files array} {
   design -reset
   read_verilog -DFUNCTIONAL {*}$files

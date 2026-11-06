@@ -1,5 +1,5 @@
-# The miter of miter.ys, the chip as written against gate.il, for anystate.awk to start
-# from any state, which names the written side gold.
+# The miter of miter.ys (the chip as written against gate.il), for anystate.awk to start
+# from any state. It names the written side gold.
 
 read_rtlil written.il
 rename written gold

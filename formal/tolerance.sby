@@ -12,7 +12,7 @@ moved_slower teeth
 [options]
 mode bmc
 teeth: expect fail
-# tolerance_proof sets the depth to what write_tolerance.exe -depth gives
+# tolerance_proof sets the depth from write_tolerance.exe -depth
 depth 400
 
 [engines]
@@ -41,7 +41,7 @@ moved_slower: read_verilog -formal -sv -DSLOWER tolerance_moved.sv
 moved_own: read_verilog -formal -sv -DOWN tolerance_moved.sv
 prep -top tolerance
 memory_map
-# abc takes no x: each a free value, which holds whatever the silicon makes of it
+# abc takes no x, so make each one a free value; the proof then holds for whatever the silicon does
 setundef -undriven -anyseq
 
 [files]

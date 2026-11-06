@@ -1,7 +1,7 @@
-# The miter of miter.ys from the Icepi's configured state: the netlist's flops at their
-# REGSET values and its RAMs at INITVAL, as the bitstream loads them, against the RTL from
-# all 0 (its initial values dropped). The PLL holds LOCK low, so rst_n too, until the
-# first edge of CLKOS has passed, and the trigger counts from the second cycle.
+# The miter of miter.ys, started from the Icepi's configured state. The netlist's flops
+# start at their REGSET values and its RAMs at INITVAL, as the bitstream loads them. The
+# RTL starts from all 0 (its initial values dropped). The PLL holds LOCK low, and so rst_n,
+# until the first CLKOS edge has passed. The trigger counts from the second cycle.
 
 function cell(type, name, a, b, y) {
   printf "  cell %s %s\n", type, name
@@ -10,7 +10,7 @@ function cell(type, name, a, b, y) {
   printf "    connect \\A %s\n    connect \\B %s\n    connect \\Y %s\n  end\n", a, b, y
 }
 
-# the RTL's initial values go; an attribute line waits for the wire or cell it is on
+# drop the RTL's initial values; an attribute line waits for the wire or cell it is on
 /^ *attribute / {
   held = held $0 "\n"
   next

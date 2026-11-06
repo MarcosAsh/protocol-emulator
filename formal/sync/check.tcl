@@ -1,21 +1,23 @@
-# One clock, and every pin but clk read by one two-flop synchroniser, on the flattened
-# design rtl.ys or gate.ys leaves; the frame pad and the pad after it, D-, each picked
-# among the pads by a flop's mux, by one on each edge, each Both_edges' falling pair a
-# falling flop in the RTL and a rising one behind an inverter in the netlist. So a late pad edge can unsettle only the first
-# stage, which nothing but the second reads, and it settles to a value the pad held
-# steady would give: one the proofs' free pins already take. rst_n's release, read the
-# same way, only moves by a cycle.
+# Checks that the chip has one clock and that every pin except clk goes through exactly
+# one two-flop synchroniser, on the flattened design that rtl.ys or gate.ys leaves. The
+# frame pad and the pad after it, D-, are each picked among the pads by a flop's mux,
+# one on each edge. Each is a Both_edges falling pair: a falling flop in the RTL, a rising
+# one behind an inverter in the netlist. So a late pad edge can only unsettle the first
+# stage, which nothing but the second reads, and it settles to a value the pad would give
+# if held steady, which the proofs' free pins already take. rst_n's release is read the
+# same way and only moves by a cycle.
 #
-# Premises: a flop settles within a clock period; rst_n stays low for two edges, as its
-# assertion reaches the cleared flops' D mid-cycle, which can also garble a macro write in
-# flight, so reset only at power-on. A failed check is the last named in the log.
+# Premises: a flop settles within a clock period. rst_n stays low for two edges, because
+# its assertion reaches the cleared flops' D mid-cycle, which can also garble a macro
+# write in flight, so reset only at power-on. A failed check is the last one named in the
+# log.
 
 yosys -import
 
 techmap
 splitnets -ports -format __
 
-# a check: the selection holds count cells and wires
+# a check that the selection holds count cells and wires
 proc require {what count selection} {
   log "sync: $what"
   select -assert-count $count {*}$selection
@@ -63,7 +65,7 @@ require "the macro test clocks are tied off" 0 \
 
 require "ena reaches nothing" 0 {w:ena %coe* %co @seq %i w:ena %coe* o:* %i %u}
 
-# rst_n clears two flops at once and lets them go one edge apart; the second is the
+# rst_n clears two flops at once and releases them one edge apart; the second is the
 # clear everything else takes on a clock edge
 name reset_cone {w:rst_n %coe*}
 name reset_flops {@reset_cone %co @seq %i}
@@ -81,14 +83,14 @@ require "the first reaches the second alone" 1 \
   {@reset_first_q %co @seq %i @reset_flops @reset_first %d %i}
 require "and only its D" 0 \
   {@reset_first_q %co @seq %i @reset_flops @reset_first %d %d @reset_first_q %co:-[D] @seq %i %u}
-# other flops may take the second as an asynchronous reset too, which lets them go on the
-# edge the clear does
+# other flops may also take the second as an asynchronous reset, which releases them on
+# the same edge as the clear
 name reset_second {@reset_flops @reset_first %d}
 name other_reset {t:$_DFF_P* %ci:+[R] @seq %d @reset_cone %d %cie*}
 require "no pin reaches another flop by its asynchronous reset" 0 {@other_reset i:* %i}
 require "nor any flop but the second" 0 {@other_reset %ci @seq %i @reset_second %d}
 
-# the two picks' first flops, which every pad they pick from reaches
+# the first flops of the two picks, which every pad they pick from reaches
 name frame_first {w:ui_in_3_ %coe* %co @seq %i w:uio_in_0_ %coe* %co @seq %i %i}
 require "the frame and D- picks reach four first flops" 4 {@frame_first}
 require "the frame pick's one on the falling edge" 1 {@frame_first @falling_frame %i}

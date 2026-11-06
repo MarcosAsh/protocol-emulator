@@ -8,8 +8,8 @@ late teeth
 [options]
 prove: mode prove
 prove: depth 4
-# from reset, so what fails is a run; the first sample is near step 35, the wire's fall
-# near 115, SCK's first rise near 235
+# from reset, so each has to fail. The first sample is near step 35, the wire falls near
+# 115 and SCK first rises near 235.
 teeth: mode bmc
 teeth: expect fail
 next_bit: depth 125
@@ -56,7 +56,7 @@ wider: read_verilog -formal -sv -DWIDER bridge.sv
 early: read_verilog -formal -sv -DEARLY bridge.sv
 late: read_verilog -formal -sv -DLATE bridge.sv
 prep -top bridge
-# as memories, the roms are state induction starts anywhere; as logic, fixed
+# as memories the roms are state, so induction can start anywhere; as logic they are fixed
 memory_map
 
 [files]

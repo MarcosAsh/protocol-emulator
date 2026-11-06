@@ -1,16 +1,17 @@
 [tasks]
 prove
-# every task but prove is bmc from reset, so what fails is a run
+# every task except prove is bmc from reset, and has to fail
 teeth from_reset shallow
-# only for a certificate written with -stamped, whose departure times they break;
-# next_bit also for one written with -data. A stamp's bits follow a byte, 90 cycles in
+# These only apply to a certificate written with -stamped (they break its departure
+# times). next_bit also applies to one written with -data. A stamp's bits follow a byte,
+# 90 cycles in.
 off_by_one from_reset shallow
 next_bit from_reset
-# only for a certificate that takes the period or the single-edge assumption, with the
-# period, or the line's level at the arm, left free
+# Only for a certificate that assumes the period or a single edge. Each leaves the period
+# or the line's level at the arm free.
 no_period from_reset shallow
 level_at_arm from_reset shallow
-# a row's phase moved a cycle either way, and a receiver's capture a cycle older or younger
+# move a row's phase one cycle either way, or a receiver's capture one cycle older or younger
 row_early from_reset shallow
 row_late from_reset shallow
 capture_older from_reset shallow
@@ -35,9 +36,9 @@ proc
 flatten
 expose -evert -sep __ engine_top/t:RM_IHPSG13_1P_512x16_c2_bm_bist
 cd engine_top
-# induction starts from no history, so it needs the core's own issue and jump
+# induction starts with no history, so it needs the core's issue and jump
 expose w:solo.engine.issue w:solo.engine.jmp_go w:solo.engine.tx.head w:solo.engine.tx.empty
-# and, for the single-edge assumption, the level the core sees and a wait's release
+# and for the single-edge assumption, the level the core sees and when a wait releases
 expose w:solo.engine.advance w:solo.engine.sample
 rename solo.engine.issue eng_issue
 rename solo.engine.jmp_go eng_jmp_go
@@ -60,7 +61,7 @@ row_late: read_verilog -formal -sv -DROW_LATE certificate.sv
 capture_older: read_verilog -formal -sv -DCAPTURE_OLDER certificate.sv
 capture_younger: read_verilog -formal -sv -DCAPTURE_YOUNGER certificate.sv
 prep -top certificate
-# as a memory, the harness rom is state induction starts anywhere; as logic it is fixed
+# as a memory the harness rom is state, so induction can start anywhere; as logic it is fixed
 memory_map
 
 [files]

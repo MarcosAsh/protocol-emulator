@@ -49,7 +49,7 @@ read_verilog kernel_step.v
 read_verilog kernel_accepts.v
 read_verilog -formal -sv phase_step.sv
 prep -flatten -top phase_step
-# a tooth has to fail on a missed deadline, so every other claim is dropped
+# a tooth has to fail on a missed deadline, so drop every other claim
 teeth: chformal -assert -remove c:* c:deadline %d
 
 [files]

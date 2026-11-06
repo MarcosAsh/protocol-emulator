@@ -1,4 +1,4 @@
-; offset_axioms.smt2's checks with one part wrong: each is sat.
+; offset_axioms.smt2's checks, each with one part wrong, so each is sat.
 
 ; set x, v with v read as signed
 (set-logic QF_BV)
@@ -27,7 +27,7 @@
 (check-sat)
 (reset)
 
-; x-- a slope back instead of further
+; x-- moves a slope back instead of further
 (set-logic QF_BV)
 (declare-const slope (_ BitVec 24))
 (declare-const x (_ BitVec 24))

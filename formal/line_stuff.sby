@@ -6,7 +6,7 @@ oldest_off mutant
 drain_takes mutant
 
 [options]
-# every stream from the clear, whose drain has ended by 140 cycles, in about a minute
+# every stream from the clear; the drain ends by 140 cycles, and the run takes about a minute
 prove: mode bmc
 prove: depth 140
 cover: mode cover

@@ -1,8 +1,8 @@
 [tasks]
 prove
 cover
-# teeth: the config written in a start's second cycle, as the host port's gate alone
-# allows, and a program word written in a start's two cycles
+# teeth: write the config in a start's second cycle (all the host port's gate blocks), and
+# write a program word in a start's two cycles
 config_at_start teeth
 program_at_start teeth
 
@@ -38,7 +38,7 @@ config_at_start: read -define CONFIG_AT_START
 program_at_start: read -define PROGRAM_AT_START
 read_verilog -formal -sv fetch_step.sv
 prep -top fetch_step
-# a tooth has to fail on the lemma, so every other claim is dropped
+# a tooth has to fail on the lemma, so drop every other claim
 teeth: chformal -assert -remove c:* c:runs_memory %d
 
 [files]

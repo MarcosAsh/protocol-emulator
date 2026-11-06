@@ -1,8 +1,8 @@
-# The pair's spacing for any program and any table of intervals the kernel accepts with a
-# spacing. It assumes what phase_step.sby (the step lemma, the pair's ghost),
-# phase_table.sby (the one-run theorem, as a table accepted with a spacing is accepted
-# without it) and pair_step.sby (the rows carry the pair) prove; left is that the core's
-# edges stay in the rows' bounds, and so each counted edge is spaced.
+# Proves the pair's spacing for any program and any interval table the kernel accepts with
+# a spacing. It relies on three other proofs: phase_step.sby (the step lemma and the pair's
+# ghost), phase_table.sby (a table accepted with a spacing is also accepted without it) and
+# pair_step.sby (the rows carry the pair). What is left to show here is that the core's
+# edges stay within the rows' bounds, so every counted edge is spaced.
 [tasks]
 prove
 cover
@@ -47,7 +47,7 @@ read_verilog -formal -sv pair_step.sv
 read_verilog -formal -sv phase_step.sv
 prep -flatten -top phase_step
 chformal -assert2assume c:* c:edges_* c:spacing_* %u %d
-# the tooth has to space an edge short
+# the tooth has to space an edge too short
 teeth: chformal -assert -remove c:edges_*
 
 [files]

@@ -1,9 +1,10 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
-# Puts what check.sh runs in tools/, as the repo's CI pins it: OSS CAD Suite's 2026-09-16
-# build for this machine (yosys, aigsplit, aigtocnf, aigsim), and cadical (rel-3.0.1),
-# cake_lpr and Certifaiger on the aiger library, from source at the commits below.
-# Needs curl, make, cc and a C++23 c++. About 2 min, mostly the 0.5 GB download.
+# Installs what check.sh runs into tools/, at the versions the repo's CI pins. That is OSS
+# CAD Suite's 2026-09-16 build for this machine (yosys, aigsplit, aigtocnf, aigsim), plus
+# cadical (rel-3.0.1), cake_lpr and Certifaiger on the aiger library, built from source at
+# the commits below. Needs curl, make, cc and a C++23 c++. Takes about 2 min, mostly the
+# 0.5 GB download.
 set -e
 cadical=@CADICAL@
 cake_lpr=@CAKE_LPR@

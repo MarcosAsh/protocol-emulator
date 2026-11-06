@@ -14,7 +14,7 @@ stale_ahead: expect fail
 [engines]
 prove: abc pdr
 cover: smtbmc boolector
-# abc pdr reports ERROR for a counterexample it cannot replay, bmc reports FAIL
+# abc pdr reports ERROR for a counterexample it can't replay; bmc reports FAIL
 stale_ahead: smtbmc boolector
 
 [script]

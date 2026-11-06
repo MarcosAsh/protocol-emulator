@@ -1,7 +1,7 @@
-# The words and read buffers of the host fifos and the edge stamps, which have no reset,
-# take any value while the fifo is cleared, a free one per edge, as anystate.awk lets them
-# at the netlist's first edge. Reads the RTL, awk -f powerup_havoc.awk rtl.v; the havoc
-# task proves powerup on the copy. Fails when it finds no fifo memory to scramble.
+# The host fifos and edge stamps have no reset on their words and read buffers. This lets
+# them take any value, a free one per edge, while the fifo is cleared, like anystate.awk
+# does at the netlist's first edge. Reads the RTL, awk -f powerup_havoc.awk rtl.v. The
+# havoc task proves powerup on the copy. Fails if it finds no fifo memory to scramble.
 
 $1 == "module" { fifo = $2 == "host_fifo" || $2 == "edge_stamps" }
 
@@ -20,7 +20,7 @@ fifo && $2 == "<=" && $1 == "data_before_collision" { sub(/<= /, "<= clear ? hav
 fifo && $2 == "<=" && $1 == "ram_rbw_data" { sub(/<= /, "<= clear ? havoc_read : ") }
 fifo && $2 == "<=" && $1 == "collision" { sub(/<= /, "<= clear ? havoc_collision : ") }
 
-# the write's if, held back a line to see whether the memory is what it writes
+# hold the write's if back a line to see whether it writes the memory
 fifo && held != "" && $1 ~ /^signal_multiport_mem\[/ && $2 == "<=" {
   indent = substr(held, 1, match(held, /[^ ]/) - 1)
   print indent "if (clear) begin"

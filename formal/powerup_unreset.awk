@@ -1,7 +1,7 @@
-# A teeth mutant: the engines' pin register, the one pin_out_0 reads, loses its clear. The
-# RTL is read twice, awk -f powerup_unreset.awk rtl.v rtl.v: the first pass finds the
-# register and its module, the second drops the if and else of its reset branch, a line
-# held back so the if can go. Fails when there is no such branch.
+# Teeth mutant: the engines' pin register (the one pin_out_0 reads) loses its clear. Reads
+# the RTL twice, awk -f powerup_unreset.awk rtl.v rtl.v. The first pass finds the register
+# and its module, the second drops the if and else of its reset branch, holding a line
+# back so the if can go. Fails if there is no such branch.
 
 $1 == "module" { module = $2 }
 

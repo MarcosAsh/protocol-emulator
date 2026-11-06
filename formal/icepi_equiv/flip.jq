@@ -1,5 +1,5 @@
-# A teeth mutant of the netlist: the one LUT4 driving pad $pad's I pin turns into its
-# inverse. Fails when no single LUT4 drives it, since the copy would then be no mutant.
+# Teeth mutant of the netlist: invert the one LUT4 driving pad $pad's I pin. Fails if no
+# single LUT4 drives it, because the copy would not be a mutant.
 .modules.icepi_top.cells[$pad].connections.I[0] as $net
 | [.modules.icepi_top.cells | to_entries[]
    | select(.value.type == "LUT4" and .value.connections.Z[0] == $net) | .key] as $luts

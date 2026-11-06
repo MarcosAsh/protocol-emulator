@@ -1,5 +1,6 @@
-# one side as the other will meet it: memories as flops, an asynchronous reset acting in
-# the cycle it is asserted, the three macros' inputs outputs and their outputs inputs
+# one side as the miter will see it: memories as flops, an asynchronous reset acting in
+# the cycle it is asserted, and the three macros' inputs turned into outputs and their
+# outputs into inputs
 memory_map
 async2sync
 select -assert-count 3 t:RM_IHPSG13_1P_512x16_c2_bm_bist

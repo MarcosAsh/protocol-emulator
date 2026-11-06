@@ -18,25 +18,25 @@ unrestarted mutant rearm_teeth
 [options]
 prove: mode prove
 prove: depth 8
-# the longest full speed bulk packet, about 10 min
+# the longest full speed bulk packet; takes about 10 min
 prove_64: mode prove
 prove_64: depth 8
 seven: mode prove
 seven: depth 8
 covers: mode cover
 cover: depth 160
-# the longest packet's last word lands by 480 cycles, from the bus idle
+# the longest packet's last word lands by 480 cycles after the bus goes idle
 cover_long: depth 480
 cover_seven: depth 120
-# each tooth fails a claim, not a lemma, within a short packet
+# each tooth fails a claim (not a lemma) within a short packet
 teeth: mode bmc
 teeth: depth 170
 teeth: expect fail
 twice: mode prove
 twice: depth 8
-# two packets of up to a byte of data, the second's last word in by 440 cycles from idle
+# two packets of up to a byte of data each; the second's last word lands by 440 cycles from idle
 cover_twice: depth 440
-# each fails by a handshake and the next token's SYNC
+# each one fails by the handshake and the next token's SYNC
 rearm_teeth: mode bmc
 rearm_teeth: depth 160
 rearm_teeth: expect fail

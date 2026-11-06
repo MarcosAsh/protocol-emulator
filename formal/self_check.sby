@@ -1,9 +1,9 @@
 [tasks]
 bmc
 cover
-# teeth: a checker that takes a fall's stamp a cycle off, one that takes the next frame's
-# first edge a cycle off, one that halts without its irq, and one that raises it a cycle
-# late, have to fail from the clear
+# teeth, all of which have to fail from the clear: a checker that takes a fall's stamp a
+# cycle off, one that takes the next frame's first edge a cycle off, one that halts without
+# its irq, and one that raises it a cycle late
 stamp teeth
 least teeth
 silent teeth
@@ -41,7 +41,7 @@ least: read_verilog -formal -sv self_check_least.sv
 silent: read_verilog -formal -sv self_check_silent.sv
 slow: read_verilog -formal -sv self_check_slow.sv
 prep -top self_check
-# as memories, the roms are state; as logic, fixed
+# as memories the roms are state; as logic they are fixed
 memory_map
 
 [files]

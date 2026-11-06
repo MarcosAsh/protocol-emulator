@@ -1,5 +1,5 @@
-# One memory_top as step.tcl reads it, down to 513 flops on one rising clock and logic;
-# an x becomes free, on each side on its own.
+# One memory_top as step.tcl reads it, down to 513 flops on one rising clock plus logic.
+# An x becomes free, on each side on its own.
 
 hierarchy -check -top memory_top
 proc
