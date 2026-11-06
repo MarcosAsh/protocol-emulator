@@ -888,8 +888,8 @@ let%expect_test "a jump on registers the analysis knows goes one way" =
     |}]
 ;;
 
-(* Random programs rarely do this: [set pins] and side-set share a pin, the set wins, and
-   the next [side 0] moves it back. *)
+(* Random programs rarely hit this: [set pins] and side-set share a pin, so the set wins,
+   and the next [side 0] moves it back. *)
 let%expect_test "side-set moves a pin back after a write to it" =
   let config =
     { Program_config.default with
@@ -932,8 +932,8 @@ loop:
     |}]
 ;;
 
-(* A Manchester bit drives [out_base] and the pin beside it, here side-set's, in its first
-   half on the out and its second on the jmp, which drives no side-set. *)
+(* A Manchester bit drives [out_base] and the pin beside it (here side-set's). The first
+   half comes from the out and the second from the jmp, which drives no side-set. *)
 let%expect_test "a Manchester bit moves a side-set pin beside out_base" =
   let config =
     { Program_config.default with
@@ -1223,8 +1223,8 @@ let%expect_test "only a wait for the captured edge on the capture pin sees it" =
     |}]
 ;;
 
-(* The slope is the cycles a pass falls behind: what each instruction adds to the phase,
-   and none for a loop with a jump that stays inside it. *)
+(* The slope is the cycles a pass falls behind: what each instruction adds to the phase. A
+   jump that stays inside a loop adds nothing. *)
 let%expect_test "counted loops of every shape" =
   let source =
     {|
@@ -1557,9 +1557,9 @@ let%expect_test "an analysis widens only what has not settled by max_passes" =
     |}]
 ;;
 
-(* A bound widening drops on the cycles since the data pointer moved is no bound, so the
-   data pull it guards may underrun; settled, the loop's own delay and the seek's keep
-   every pull clear. *)
+(* A bound that widening drops on the cycles since the data pointer moved is no bound, so
+   the data pull it guards may underrun. Once settled, the loop's own delay and the seek's
+   keep every pull clear. *)
 let%expect_test "a data pull may underrun once widening drops its settle bound" =
   let config =
     { Program_config.default with

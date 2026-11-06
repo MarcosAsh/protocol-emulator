@@ -65,10 +65,10 @@ let%expect_test "any bytes, any gaps" =
   [%expect {| ("Hash_set.to_list latencies" ((9 129 279))) |}]
 ;;
 
-(* Frames [spacing] apart all come out. A cycle closer, the wire's next start bit falls
-   before engine 1 arms its capture, which breaks the premise its certificate rests on: it
-   misses a deadline and halts. Closer still it takes a data bit's fall for the start bit
-   and clocks out wrong bytes, with no irq. *)
+(* Frames [spacing] apart all come out. One cycle closer, the wire's next start bit falls
+   before engine 1 arms its capture. That breaks the premise its certificate rests on, so
+   it misses a deadline and halts. Closer still, it takes a data bit's fall for the start
+   bit and clocks out wrong bytes with no irq. *)
 let%expect_test "as close as the bridge keeps up" =
   let bytes = [ 0xa5; 0x00; 0xff; 0x81; 0x7e; 0x55 ] in
   List.iter

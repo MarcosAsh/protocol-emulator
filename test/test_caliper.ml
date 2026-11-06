@@ -8,8 +8,8 @@ let%expect_test "the firmware's verdict" =
 ;;
 
 (* The far end: a receiver that samples the data on every fall of the clock, as the spec
-   advises, and checks it is also what the data holds at the next rise, which is where
-   sigrok's decoder reads it. It keeps the cycles of each run of the clock. *)
+   advises, and checks the data still holds that value at the next rise, where sigrok's
+   decoder reads it. It records the length in cycles of each run of the clock. *)
 module Receiver = struct
   type t =
     { clock : bool

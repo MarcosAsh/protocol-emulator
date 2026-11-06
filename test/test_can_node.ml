@@ -113,9 +113,10 @@ let%expect_test "the host's words for a frame, and the error codes" =
     |}]
 ;;
 
-(* A node that sends lines from SOF to the CRC delimiter, a bit every [period_milli]
-   thousandths of a cycle, the first SOF at [start] and each next [gap] bits after the ACK
-   slot, 11 by default, and lets go for every ACK slot, which it reads three quarters in. *)
+(* A node that sends lines from SOF to the CRC delimiter, one bit every [period_milli]
+   thousandths of a cycle. The first SOF is at [start] and each next one [gap] bits after
+   the ACK slot (11 by default). It lets go of the bus for every ACK slot and reads it
+   three quarters in. *)
 module Node = struct
   type t =
     { bits : bool array
@@ -157,10 +158,10 @@ module Run = struct
   [@@deriving sexp_of]
 end
 
-(* The receiver on a bus with [node], CRX [delay] cycles behind the bus for the
-   transceiver and the synchroniser, and CTX on the bus unless [ctx_on_bus] is false, as a
-   transceiver in standby has it. The host drains the rx fifo every cycle, and after each
-   irq clears it and writes a word, as the receiver asks. *)
+(* The receiver on a bus with [node]. CRX lags the bus by [delay] cycles (transceiver plus
+   synchroniser). CTX is on the bus unless [ctx_on_bus] is false, as with a transceiver in
+   standby. The host drains the rx fifo every cycle, and after each irq it clears it and
+   writes a word, as the receiver asks. *)
 let receive
   ?(delay = 3)
   ?(ctx_on_bus = true)
@@ -297,9 +298,9 @@ let%expect_test "the receiver keeps its certificate's premises through its own A
 ;;
 
 (* Back to back, each SOF in the third bit of the intermission, from a sender whose clock
-   is off by up to 1%: from the CRC's last falling edge to the next SOF is up to 23 bits
-   with none to resynchronise on, and the quarter bit after the sample has to cover it.
-   Alone, with idle between, 1.5% either way. *)
+   is off by up to 1%. From the CRC's last falling edge to the next SOF is up to 23 bits
+   with no edge to resynchronise on, and the quarter bit after the sample has to cover
+   that. Alone, with idle between, the tolerance is 1.5% either way. *)
 let%expect_test "frames from a node whose clock is off" =
   let trial ~off frames =
     let open Quickcheck.Generator.Let_syntax in
@@ -443,9 +444,9 @@ let%expect_test "frames it refuses, and the one after" =
 let watched = System_lockstep.Assumptions.(premises (of_timed Receiver.firmware))
 let can2040_lines = List.map can2040 ~f:(fun (_, _, line) -> bits_of_string line)
 
-(* As the chip watches it: the frames that end with the capture armed, after a recessive
-   bit, then a frame it takes. The bus falls again before long, for another node's ACK or
-   the frame going on, and rises after. *)
+(* As the chip watches it: frames that end with the capture armed after a recessive bit,
+   then a frame it takes. The bus soon falls again, for another node's ACK or because the
+   frame carries on, and rises afterwards. *)
 let%expect_test "no frame leaves the capture armed" =
   let good = to_delimiter (Can.Frame.data ~id:0x123 [ 0xde; 0xad ]) in
   let extended id =
@@ -509,9 +510,9 @@ let%expect_test "no frame leaves the capture armed" =
     |}]
 ;;
 
-(* CRX [delay] cycles behind CTX: the ACK's length, and the fastest sender back to back,
-   in steps of 0.05% from 1.5% fast, that every frame gets through from with the premises
-   watched *)
+(* CRX [delay] cycles behind CTX. Checks the ACK's length and the fastest back-to-back
+   sender (in steps of 0.05% from 1.5% fast) that gets every frame through with the
+   premises watched *)
 let%expect_test "the ACK and the fastest sender by the transceiver's loop" =
   List.iter (List.range 1 11) ~f:(fun delay ->
     let run = receive ~delay ~premises:watched (Node.create can2040_lines) in
@@ -636,9 +637,10 @@ let%expect_test "every sample and the ACK's edges are placed by a deadline" =
 
 module G = Hardcaml_verify.Comb_gates
 
-(* The firmware is made for its period, with the sample three quarters in. The phase a
-   resynchronisation leaves is as wide as a bit, the capture could be anywhere since the
-   arm, so the quarter after the sample has to hold the longest way to the next sample. *)
+(* The firmware is made for its period, with the sample three quarters in. A
+   resynchronisation can leave the phase anywhere in a bit (the capture could be anywhere
+   since the arm), so the quarter after the sample has to hold the longest way to the next
+   sample. *)
 let%expect_test "the kernel accepts the receiver from its shortest period up" =
   let check period =
     match Receiver.check ~period ~sample:(3 * period / 4) with

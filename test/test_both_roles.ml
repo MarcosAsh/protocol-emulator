@@ -7,9 +7,9 @@ let ok (outcome : Outcome.t) =
   && Option.is_none outcome.mismatch
 ;;
 
-(* Every case on the RTL beside the model, each engine's pushes as the host pops them: the
-   controller's acks (0 for an ACK) and read bytes or MISO bytes, the target's address and
-   written bytes, MOSI bytes or received bytes. *)
+(* Runs every case on the RTL beside the model and compares each engine's pushes as the
+   host pops them: the controller's acks (0 for an ACK) and read or MISO bytes, and the
+   target's address and written, MOSI or received bytes. *)
 let%expect_test "both roles on one chip, on the rtl" =
   List.iter Case.all ~f:(fun (c : Case.t) ->
     let outcome =
@@ -153,8 +153,8 @@ let%expect_test "the target's reads and drives on wires" =
 ;;
 
 (* The tooth: the library's open drain firmware moved to wires unchanged drives them by
-   [pindirs], which a wire ignores, so the wires stay 0: the controller reads an ACK and 0
-   bits from nobody, and the target a bus held low, and takes nothing. *)
+   [pindirs], which a wire ignores, so the wires stay 0. The controller then reads an ACK
+   and 0 bits from nobody, and the target sees a bus held low and takes nothing. *)
 let%expect_test "the library's firmware on wires without the rewrite" =
   let pins = [ I2c.sda, I2c.wire_sda; I2c.scl, I2c.wire_scl ] in
   let unrewritten ?period_floor source config =
