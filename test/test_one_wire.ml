@@ -184,7 +184,7 @@ let%expect_test "a unit of four cycles is too short" =
 ;;
 
 (* at 8 us the master's timing is legal, but it samples at 16 us, after the slave lets go
-   of a zero at 15: the rom reads as ones *)
+   of a zero at 15 us, so the rom reads as ones *)
 let%expect_test "a sample after 15 us misses the zeros" =
   run
     ~words:[ reset; byte 0x33; byte 0xff; byte 0xff ]

@@ -2,8 +2,8 @@ open! Core
 open! Hardcaml
 open Protocol_emulator
 
-(* Each bounded row of the library's tables moved a cycle earlier and later: its phase,
-   and where a capture is armed or taken, its age. The kernel refuses every one. *)
+(* Move each bounded row of the library's tables one cycle earlier and one later: its
+   phase, and its age where a capture is armed or taken. The kernel must refuse every one. *)
 let%expect_test "the kernel refuses each row moved by a cycle" =
   let move by b = Bits.(b +: of_signed_int ~width:(width b) by) in
   List.iter Library.certified ~f:(fun (c : Certified.t) ->

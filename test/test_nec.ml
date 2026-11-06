@@ -2,8 +2,8 @@ open! Core
 open Protocol_emulator
 open Nec
 
-(* 18 cycles a unit, as a 32 kHz clock gives: a key held for two repeat codes, then two
-   keys tapped, the second at the extremes of the address and the command. *)
+(* 18 cycles per unit, which a 32 kHz clock gives. A key held for two repeat codes, then
+   two keys tapped, the second with extreme address and command values. *)
 let unit = 18
 let clock_hz = 32_000
 let keys = [ 0x04, 0x08, 2; 0x00, 0x45, 0; 0xff, 0x00, 0 ]
@@ -19,17 +19,17 @@ let sent =
     Message.Frame { address; command } :: List.init repeats ~f:(fun _ -> Message.Repeat))
 ;;
 
-(* what the receiver pushes for them: a frame's two words, then 0xffff a repeat code *)
+(* what the receiver pushes for them: two words per frame, and 0xffff for a repeat code *)
 let pushed =
   List.concat_map keys ~f:(fun (address, command, repeats) ->
     List.drop (words ~address ~command ~repeats) 1
     @ List.init repeats ~f:(fun _ -> 0xffff))
 ;;
 
-(* the keys' six periods, and a few cycles before the first *)
+(* the keys' six periods, plus a few cycles before the first *)
 let cycles = (6 * 192 * unit) + 100
 
-(* the line from its first rise, as the firmware leaves reset's low *)
+(* the line from its first rise, after the firmware leaves its reset low *)
 let print_decoded levels =
   match decode ~clock_hz (List.drop_while levels ~f:not) with
   | Ok (messages, measured) ->
@@ -44,7 +44,7 @@ let print_decoded levels =
 
 let line (m : Machine.t) = (m.pin_out lsr pin) land 1 = 1
 
-(* the transmitter on the model, the host writing each word once the fifo has room *)
+(* the transmitter on the model, with the host writing each word once the fifo has room *)
 let tx_levels source =
   let machine =
     Machine.create ~config:(Timed_program.config tx) ~program:(Firmware.assemble source)
@@ -80,7 +80,7 @@ let%expect_test "every mark and space to the nominal, and 108 ms a key" =
     |}]
 ;;
 
-(* A leader one unit short, 8.44 ms, is 6% off. *)
+(* A leader one unit short (8.44 ms) is 6% off. *)
 let%expect_test "the decoder refuses a leader a unit short" =
   let source =
     Bench.patch
@@ -199,9 +199,9 @@ let remote ~remote (address, command) =
   level true 4 @ padded frame @ padded repeat
 ;;
 
-(* The receiver at 100 cycles a half unit against remotes from 25% fast to 25% slow, in
+(* The receiver at 100 cycles per half unit against remotes from 25% fast to 25% slow, in
    steps of 2.5%. The repeat code's final mark, 4 to 5 units past the leader's end, has to
-   cover the sample at 4.5: under 10% fast, to 12.5% slow. *)
+   cover the sample at 4.5, which works from under 10% fast to 12.5% slow. *)
 let%expect_test "the units the receiver reads a remote at" =
   let half = 100 in
   let reads remote_unit =
@@ -268,8 +268,8 @@ let%expect_test "every edge and every sample is placed by a deadline" =
 
 module G = Hardcaml_verify.Comb_gates
 
-(* The host picks the unit, so the analyser's rows are for every load of the floor or
-   more, and the kernel accepts them at each, by checked SAT; at one less it refuses. *)
+(* The host picks the unit, so the analyser's rows cover every load at or above the floor,
+   and the kernel accepts them at each one (by checked SAT). At one less it refuses. *)
 let%expect_test "the kernel accepts every unit from the shortest up" =
   let accepts name timed ~floor ~single_capture_edge =
     let program = Timed_program.program timed in
@@ -319,8 +319,11 @@ let%expect_test "the kernel accepts every unit from the shortest up" =
     |}]
 ;;
 
-(* The receiver anchors each bit on a capture, which the analyser bounds at one load at a
-   time: the least half unit the kernel accepts, and every one from it to 200. *)
+(* The receiver anchors each bit on a capture, which the analyser bounds one load at a
+   time. This finds the smallest half unit the kernel accepts, and checks every one from
+   it up to
+
+   200. *)
 let%expect_test "the least half unit the receiver keeps up with" =
   let accepts half =
     Result.is_ok

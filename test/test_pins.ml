@@ -5,7 +5,7 @@ open Protocol_emulator
 module G = Comb_gates
 module Pins = Pins.Make (G)
 
-(* The run of pins, one pin at a time: what [Pins] has to agree with. *)
+(* A run of pins handled one pin at a time. [Pins] has to agree with this. *)
 module Reference = struct
   open G
 

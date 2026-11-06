@@ -85,8 +85,8 @@ let%expect_test "the head of a trace file" =
     |}]
 ;;
 
-(* A program write takes the memory's address for a cycle, so a running core ignores it:
-   its pins show nothing. *)
+(* A program write takes over the memory's address for a cycle, so a running core ignores
+   it and its pins show nothing. *)
 let%expect_test "the host writes program memory while the core runs" =
   let loop =
     List.find_exn Pin_scenarios.all ~f:(fun s -> String.equal s.name "wrapped_loop")

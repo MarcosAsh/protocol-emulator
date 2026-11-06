@@ -1,10 +1,10 @@
 open! Core
 
-(* Each bench copy's limits, measured on its own run as the bench's analyser would capture
-   it, at 24 MHz, beside the bound [Datasheet.check] holds it to. A kernel bound is the
-   least of every run, so a run at the chip's clock never shows less, and a run bound is
-   that run's, so it shows the same. Each capture is also read back as demo/edges.py
-   writes one from the bench. *)
+(* Measures each bench copy's limits on its own run, as the bench's analyser would capture
+   it at 24 MHz, next to the bound [Datasheet.check] holds it to. A kernel bound is the
+   minimum over every run, so a run at the chip's clock never shows less. A run bound is
+   that run's own, so it shows the same. Each capture is also read back the way
+   demo/edges.py writes one from the bench. *)
 let%expect_test "the datasheet limits, measured on the bench copies' runs" =
   List.iter (Library.bench @ [ Uart.log ]) ~f:(fun (bench : Bench.t) ->
     match bench.stimulus with
@@ -240,10 +240,10 @@ let%expect_test "the datasheet limits, measured on the bench copies' runs" =
     |}]
 ;;
 
-(* The prediction demo/hold_capture.py holds a capture to: on each bench copy's own run,
-   the least spacing over a limit's pairs of edges, or the most for [At_most], is what
-   [measure] finds there, so the width that decides is placed. Two are not: sk6812's reset
-   and can's idle, each the run's first level, which no edge begins. *)
+(* The prediction demo/hold_capture.py holds a capture to. On each bench copy's own run,
+   the smallest spacing over a limit's pairs of edges (the largest for [At_most]) must be
+   what [measure] finds there, so the deciding width is placed. Two aren't: sk6812's reset
+   and can's idle, which are each the run's first level, with no edge beginning them. *)
 let%expect_test "every limit's pairs of edges in the prediction" =
   List.iter Library.bench ~f:(fun (bench : Bench.t) ->
     match bench.stimulus with

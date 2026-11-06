@@ -1,15 +1,15 @@
 open! Core
 open Protocol_emulator
 
-(* what the analyser and the kernel make of the firmware, which compiling it checked *)
+(* The analyser and kernel verdicts on the firmware (it already compiles). *)
 let%expect_test "the firmware's verdict" =
   print_endline (Analyser.Verdict.to_string (Timed_program.verdict Microwire.firmware));
   [%expect {| 69 words, 7 deadline waits, worst slack 13 |}]
 ;;
 
 (* The bench's run against the NM93C06A model, fed the pins every cycle: enable, read
-   register 5, write it with the 25.94 ms CS low after, read it back. The host keeps the
-   fifo topped up and reads a word a frame. *)
+   register 5, write it (CS stays low for 25.94 ms after), read it back. The host keeps
+   the fifo topped up and reads one word per frame. *)
 let%expect_test "an EEPROM reads back what the host wrote" =
   let machine =
     Machine.create

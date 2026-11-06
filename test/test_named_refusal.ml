@@ -121,8 +121,8 @@ let%expect_test "a high longer than T1H's most is bracketed too" =
     |}]
 ;;
 
-(* The kernel's bound breaks the limit but the run shows no edge that does: the line and
-   the picture say the bound only. *)
+(* The kernel's bound breaks the limit but the run has no edge that does, so the line and
+   the picture say only that the bound does. *)
 let%expect_test "a refusal with no edge on the run names the kernel's bound" =
   let bench = Library.find_bench_exn "i2c_standard" in
   let entry =

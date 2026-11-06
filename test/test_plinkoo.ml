@@ -1,7 +1,7 @@
 open! Core
 open Protocol_emulator
 
-(* what the analyser and the kernel make of the firmware, which compiling it checked *)
+(* The analyser and kernel verdicts on the firmware (it already compiles). *)
 let%expect_test "the firmware's verdict" =
   print_endline (Analyser.Verdict.to_string (Timed_program.verdict Plinkoo.firmware));
   [%expect {| 90 words, 15 deadline waits, worst slack 0 |}]
@@ -12,8 +12,8 @@ let%expect_test "section 6's checksum" =
   [%expect {| 0x61 |}]
 ;;
 
-(* The firmware against a peripheral, or with none, DAT pulled up: the frames it took and
-   the acks the host reads back. *)
+(* Runs the firmware against a peripheral, or with none and DAT pulled up. Returns the
+   frames it took and the acks the host reads back. *)
 let run ?(peripheral = true) ~cycles payloads =
   let machine =
     Machine.create
@@ -114,8 +114,8 @@ let%expect_test "the bench's run against section 4's limits" =
     |}]
 ;;
 
-(* tDS, tDH and tREL are DAT against STB, two pins, so no single-pin limit bounds them:
-   the bench's run does, rise by rise, at the same one-cycle margin. *)
+(* tDS, tDH and tREL relate DAT to STB (two pins), so no single-pin limit bounds them. The
+   bench's run does, rise by rise, with the same one-cycle margin. *)
 let%expect_test "DAT against STB on the bench's run" =
   let stimulus = Option.value_exn Plinkoo.bench.stimulus in
   let pins = Datasheet.run_pins Plinkoo.bench ~quiet_pin:Plinkoo.stb stimulus in

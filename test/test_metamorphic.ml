@@ -2,9 +2,9 @@ open! Core
 open Protocol_emulator
 
 (* Metamorphic tests of the analyser and the kernel (Chen, Cheung and Yiu 1998), with dead
-   code changed as in EMI (Le, Afshari and Su, PLDI 2014): each changes a program in a way
-   whose effect on every row and verdict is known in advance, on the library and on random
-   programs. A violation prints the program, the change and the row. *)
+   code changed as in EMI (Le, Afshari and Su, PLDI 2014). Each test changes a program in
+   a way whose effect on every row and verdict is known in advance, on the library and on
+   random programs. A violation prints the program, the change and the row. *)
 
 let memory = 1 lsl Isa.pc_bits
 let max_delay ~side_set_count = (1 lsl (Isa.delay_bits - side_set_count)) - 1
@@ -35,9 +35,9 @@ let library =
       })
 ;;
 
-(* A loop after [set p] and a deadline a few cycles ahead, of straight runs, deadline
-   waits, counted loops, jumps over one word and pin waits that take a new deadline, with
-   mostly short delays, so that many meet their deadlines. *)
+(* Random programs: a loop after [set p] and a deadline a few cycles ahead, made of
+   straight runs, deadline waits, counted loops, jumps over one word and pin waits that
+   take a new deadline. Delays are mostly short, so many programs meet their deadlines. *)
 let random_subject seed =
   let random = Splittable_random.of_int seed in
   let int lo hi = Splittable_random.int random ~lo ~hi in
@@ -109,8 +109,8 @@ let random_subject seed =
 
 let random_subjects = List.init 100 ~f:random_subject
 
-(* The analyser's rows, the pcs it refuses and, if run, the pcs the kernel rejects on
-   them, at each end of a floor, with pc 0 as ["open"] if that is what fails. *)
+(* The analyser's rows, the pcs it refuses and (if run) the pcs the kernel rejects on
+   those rows, at each end of a floor. pc 0 is reported as ["open"] if that's what fails. *)
 module Outcome = struct
   type t =
     { rows : Analyser.Row.t list
@@ -125,7 +125,8 @@ end
 
 module K = Kernel.Make (Hardcaml.Bits)
 
-(* [Kernel.check] without spacing is [rejections] and an open row at pc 0. *)
+(* Without spacing, [Kernel.check] amounts to [rejections] plus a check that pc 0's row is
+   open. *)
 let outcome ?(kernel = true) (s : Subject.t) =
   let { Subject.period; period_floor; single_capture_edge; _ } = s in
   let config = Asm.Program.configure s.program s.config in
@@ -169,9 +170,9 @@ let retarget (t : Isa.t) ~f : Isa.t =
   | Op _ -> t
 ;;
 
-(* [inserted] put before pc [at], with the pcs the rest moves to. Jumps to [at] land on it
-   if [entered]; a wrap after [at - 1] runs on into it if [continues]. None if it does not
-   fit, past the program reading [jmp 0] as before. *)
+(* Puts [inserted] before pc [at] and returns the pcs the rest moves to. Jumps to [at]
+   land on it if [entered], and a wrap after [at - 1] runs on into it if [continues].
+   Returns None if it doesn't fit. Memory past the end of the program still reads [jmp 0]. *)
 let insert (p : Asm.Program.t) ~at ~entered ~continues inserted =
   let m = List.length inserted in
   let move pc = if pc < at then pc else pc + m in
@@ -200,8 +201,8 @@ let insert (p : Asm.Program.t) ~at ~entered ~continues inserted =
     (program, move)
 ;;
 
-(* The whole memory turned round by [by], jumps and wrap with it: the core starts at the
-   [jmp] the word past the program's end becomes. *)
+(* Rotates the whole memory by [by], with jumps and the wrap rotated too. The core starts
+   at the [jmp] that the word past the program's end becomes. *)
 let rotate (p : Asm.Program.t) ~by =
   let move pc = (pc + by) % memory in
   let image = Array.create ~len:memory (Isa.Jmp { cond = Always; target = 0 }) in
@@ -268,7 +269,7 @@ let moved ~move (r : Analyser.Row.t) =
   { r with pc = move r.pc; gaps = from r.gaps; since_edge = from r.since_edge }
 ;;
 
-(* the whole row but its pc and word, leaving out ways in from [added] pcs *)
+(* the whole row except its pc and word, ignoring ways in from [added] pcs *)
 let whole ~added (r : Analyser.Row.t) =
   let from ways =
     List.filter ways ~f:(fun (pc, _) -> not (List.mem added pc ~equal:Int.equal))
@@ -283,8 +284,8 @@ let whole ~added (r : Analyser.Row.t) =
     }
 ;;
 
-(* Every row of [before] reads [expect] of it at its moved pc in [after], and [after]
-   reaches no other pc but [added]. *)
+(* Every row of [before] must satisfy [expect] against its row at the moved pc in [after],
+   and [after] must reach no pcs other than [added]. *)
 let rows_moved ~move ?(added = []) ~expect ~view (before : Outcome.t) (after : Outcome.t) =
   let reached = List.map before.rows ~f:(fun r -> move r.pc) @ added |> Int.Set.of_list in
   List.filter_map before.rows ~f:(fun r ->
@@ -327,7 +328,7 @@ module Tally = struct
     }
   ;;
 
-  (* The kernel takes one variant in [kernel_every], the analyser every one. *)
+  (* The kernel runs on one variant in [kernel_every], the analyser on every one. *)
   let kernel_every = 5
 
   let turn t =
@@ -397,7 +398,8 @@ let print_tallies (library, random) =
   Tally.print random
 ;;
 
-(* The reachable deadline waits a delay can go in front of, with their least slack. *)
+(* The reachable deadline waits that a delay can be put in front of, with their smallest
+   slack. *)
 let waits (before : Outcome.t) =
   List.filter_map before.rows ~f:(fun r ->
     match r.slack with
@@ -412,9 +414,9 @@ let in_time (after : Outcome.t) pc =
       p = pc && List.mem fails "in time" ~equal:String.equal))
 ;;
 
-(* [n] more cycles on every way into the wait at [w] with least slack [s]: accepted with
-   its slack [n] less and every other row as it was while [n <= s], refused at the wait
-   after. *)
+(* Add [n] cycles on every way into the wait at [w], which has smallest slack [s]. While
+   [n <= s] it must still be accepted with its slack [n] less and every other row
+   unchanged. Beyond that it must be refused at the wait. *)
 let check_delay (before : Outcome.t) (after : Outcome.t) ~move ~added ~w ~s ~n =
   if n <= s
   then (
@@ -819,9 +821,9 @@ let%expect_test "a nop between set x and its counted loop keeps the loop's exit 
     |}]
 ;;
 
-(* [wait t] is [alu t, sub a; wait t; alu t, add a; wait t]: the first wait has [a + 1]
-   less slack, the second [a - 2] exactly, and the rest is as it was, while [a] is below
-   the slack; at the slack the first wait is refused. *)
+(* [wait t] is equivalent to [alu t, sub a; wait t; alu t, add a; wait t]. While [a] is
+   below the slack, the first wait has [a + 1] less slack, the second has [a - 2] exactly,
+   and the rest is unchanged. At the slack the first wait is refused. *)
 let%expect_test "a deadline wait split at an earlier deadline changes nothing after it" =
   let split = tallies "deadline wait split in two" in
   List.iter subjects ~f:(fun (seed, (s : Subject.t), before) ->

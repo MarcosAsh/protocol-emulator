@@ -28,10 +28,11 @@ let lies_in (r : _ Osr_kernel.Row.t) ~shifted ~x ~pulled =
 
 let all (h : _ Osr_kernel.Holds.t) = Osr_kernel.Holds.to_list h |> G.reduce ~f:G.( &: )
 
-(* An accepted row maps into the row the core steps to. x and the way out are the kernel's
-   step (phase_step.sv), and x on the way in lies in the kernel's row, which the kernel's
-   proof gives for a program it accepts. [with_kernel] false drops that. A write to x the
-   kernel does not follow asks for a full sum, so the x the core arrives with is free. *)
+(* An accepted row maps into the row the core steps to. x and the way out come from the
+   kernel's step (phase_step.sv), and x on the way in lies in the kernel's row, which the
+   kernel's proof gives for a program it accepts. [with_kernel] false drops that. A write
+   to x that the kernel doesn't follow asks for a full sum, so the x the core arrives with
+   is free. *)
 let accepted_rows_hold ~with_kernel =
   let side_set_count = G.input "side_set_count" 2 in
   let autopull = G.input "autopull" 1 in
@@ -176,9 +177,10 @@ let rows (c : Certified.t) =
   program, config, words, kernel, Osr_kernel.Table.propose ~config ~words kernel
 ;;
 
-(* What each out to the pins sends, by its row: bit [sum - x] and the n - 1 after it, from
-   the end the osr shifts from, where the sum is one value; else the first bit's range. An
-   osr that may hold something other than a pulled word sends nothing named. *)
+(* What each out to the pins sends, by its row: bit [sum - x] and the n - 1 bits after it,
+   from the end the osr shifts from, where the sum is a single value, and otherwise the
+   first bit's range. An osr that may hold something other than a pulled word sends
+   nothing named. *)
 let sends (c : Certified.t) =
   let program, _, _, _, table = rows c in
   List.filter_mapi program.instructions ~f:(fun pc instruction ->
@@ -335,8 +337,9 @@ let%expect_test "what each out sends, in the firmware library" =
     |}]
 ;;
 
-(* A row that leaves out the last count the loop reaches is refused: uart_tx's, with the
-   count at its out one short of 7, which the wait before it steps past. *)
+(* A row that leaves out the last count the loop reaches is refused. Here that's
+   uart_tx's, with the count at its out one short of 7, which the wait before it steps
+   past. *)
 let%expect_test "the check refuses a row one short" =
   let c = Library.find_certified_exn "uart_tx" in
   let _, config, words, kernel, table = rows c in
@@ -351,8 +354,9 @@ let%expect_test "the check refuses a row one short" =
     |}]
 ;;
 
-(* [accepts] is every conjunct: on uart_tx's rows, with each reached row whose count may
-   vary one short at the top in turn, it fails at exactly the pcs where a conjunct does. *)
+(* [accepts] is every conjunct. On uart_tx's rows, taking each reached row whose count may
+   vary and cutting it one short at the top, it fails at exactly the pcs where a conjunct
+   does. *)
 let%expect_test "accepts is every conjunct" =
   let module O = Osr_kernel.Make (Bits) in
   let module K = Kernel.Make (Bits) in
@@ -436,7 +440,7 @@ let%expect_test "accepts is every conjunct" =
   [%expect {| ((tampered 7) (refused 6) (disagree ())) |}]
 ;;
 
-(* A sum still moving after 64 joins at a pc is given up as full: x falls through to all
+(* A sum still moving after 64 joins at a pc is given up as full. x falls through to all
    ones before the pull, so the sum at the counted loop would take 65535 joins to settle. *)
 let%expect_test "a sum that has not settled is widened" =
   let source = {|
@@ -497,10 +501,10 @@ let assembled source =
 ;;
 
 (* Brute force: for a word that leaves x alone or counts it down, on each way out, the
-   image's shifted bounds are exactly the least and greatest counts the core steps to from
-   a state the row and x's bounds allow. [jmp x--] is taken only from x at 1 or more and
-   falls through only from 0. The sum bounds are exact where every sum in the row's is
-   reached. *)
+   image's shifted bounds are exactly the smallest and largest counts the core steps to
+   from any state the row and x's bounds allow. [jmp x--] is taken only from x >= 1 and
+   falls through only from 0. The sum bounds are exact where every sum in the row's range
+   is reached. *)
 let%expect_test "an image's bounds are the hull of the states the core reaches" =
   let module O = Osr_kernel.Make (Bits) in
   let side_set_count = Bits.zero 2 in
@@ -684,10 +688,10 @@ let%expect_test "an autopulling out's image holds the counts the core reaches" =
   [%expect {| ((exact 1013) (sound 414)) |}]
 ;;
 
-(* [ways] against the ISA, for x anywhere in the kernel's bounds: a word leaves by the
-   next pc unless it is no instruction, halts or always jumps, and by its target if it
-   jumps, [jmp x--] only from x at 1 or more and falling through only from 0. A row empty
-   in either bound is never reached and leaves by neither. *)
+(* [ways] checked against the ISA, for x anywhere in the kernel's bounds. A word leaves by
+   the next pc unless it's not an instruction, halts or always jumps, and by its target if
+   it jumps ([jmp x--] only from x >= 1, falling through only from 0). A row empty in
+   either bound is never reached and leaves by neither. *)
 let%expect_test "a row asks of the ways out the core may take" =
   let module O = Osr_kernel.Make (Bits) in
   let width = Osr_kernel.Row.port_widths in
@@ -748,8 +752,8 @@ let%expect_test "a row asks of the ways out the core may take" =
   [%expect {| agrees |}]
 ;;
 
-(* The core starts at pc 0 with the osr anything, so the check asks pc 0's row to bound
-   nothing; narrowing it at any one bound is refused. *)
+(* The core starts at pc 0 with any osr, so the check requires pc 0's row to bound
+   nothing. Narrowing it at any one bound is refused. *)
 let%expect_test "the check refuses a row at pc 0 narrower than the full range" =
   let c = Library.find_certified_exn "uart_tx" in
   let _, config, words, kernel, table = rows c in
@@ -786,9 +790,9 @@ let%expect_test "the check refuses a row at pc 0 narrower than the full range" =
     |}]
 ;;
 
-(* [step]'s pulled against the ISA: a pull, or an out that autopulls at the threshold,
-   takes a word; a mov to the osr replaces it with one not pulled; anything else keeps
-   what it was. *)
+(* [step]'s pulled flag against the ISA. A pull, or an out that autopulls at the
+   threshold, takes a word. A mov to the osr replaces it with one that wasn't pulled.
+   Anything else keeps it as it was. *)
 let%expect_test "a step's pulled follows the instruction" =
   let module O = Osr_kernel.Make (Bits) in
   Quickcheck.test
