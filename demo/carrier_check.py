@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
-# The bench carrier v1.2's self-test, with icepi/carrier_check.v in the Icepi and MicroPython
-# on both Picos: a line per net of demo/carrier_netlist.csv, or group, with its pads. PASS or
-# FAIL where a pin reaches it, SKIP where none does. Both Picos run python/carrier_pins.py.
-# --analysers pulses every analysed net a count of its own while each analyser captures,
-# which finds a probe on the wrong pin. A flash JEDEC ID of all 00 or ff is a SKIP.
-# --button-only checks SW1 alone, which waits for a press.
+# Self-test for the bench carrier v1.2, with icepi/carrier_check.v in the Icepi and
+# MicroPython on both Picos. Prints one line per net (or group) of demo/carrier_netlist.csv,
+# with its pads: PASS or FAIL if a pin reaches it, SKIP if none does. Both Picos run
+# python/carrier_pins.py. --analysers pulses every analysed net a different number of times
+# while each analyser captures, which finds a probe on the wrong pin. A flash JEDEC ID of
+# all 00 or ff is a SKIP. --button-only checks SW1 alone and waits for a press.
 # demo/carrier_check.sh loads the bitstream, runs this, and puts the chip back.
 # Usage: PICO=id:<serial of Pico A> [PICO_B_SERIAL=<serial>] python3 demo/carrier_check.py
 #            [--analysers] [--no-button | --button-only] [--evidence DIR]
@@ -34,17 +34,17 @@ from carrier_pins import HEADER, bit  # noqa: E402
 
 NETLIST = ROOT / "demo/carrier_netlist.csv"
 PICO_B_SERIAL = "e66548545740ad29"
-# Pico GPn's physical pin, and the sockets of each Pico's pins 1-20 and 40-21
+# Pico GPn's physical pin number, and the sockets for each Pico's pins 1-20 and 40-21
 GP_PIN = {0: 1, 1: 2, 2: 4, 3: 5, 4: 6, 5: 7, 6: 9, 7: 10, 8: 11, 9: 12}
 SOCKETS = {"A": ("J13", "J14"), "B": ("J15", "J16")}
-# header pins carrier_check.v holds high, and those that read high let go: the pull-ups and
-# CAN board A's R
+# header pins that carrier_check.v holds high, plus those that read high when released (the
+# pull-ups and CAN board A's R)
 DRIVEN_HIGH = {10, 28}
 IDLE_HIGH = {5, 10, 28, 33, 35, 36, 37}
-# not driven against what drives them: CAN board A's R, and the flash's CS, which would
-# select it
+# pins we must not drive against whatever drives them: CAN board A's R, and the flash's CS
+# (driving it would select the flash)
 LISTEN_ONLY = {5, 28}
-# what driving a pin moves elsewhere through the carrier: R14-R16-R15, and CAN board A
+# what else moves when a pin is driven, through the carrier: R14-R16-R15, and CAN board A
 COUPLED = {38: {40}, 40: {38}, 10: {5}}
 PULL_UPS = [
     (33, ["I2C_SDA"], "R5 2k2 to 3V3_A"),
@@ -53,24 +53,24 @@ PULL_UPS = [
     (28, ["FLASH_CS_N"], "R2 10k to 3V3_A"),
     (36, ["SWDIO", "SWDIO_PICO"], "R12 220R and R13 4k7 to 3V3_B"),
 ]
-# each analysed net's pulses: the header pin that makes them and the level they go to.
+# the pulses on each analysed net: the header pin that makes them and the level they go to.
 # Header 10 reaches analyser A's D5 through CAN board A, as CAN_RX.
 PULSED = [(8, 1), (10, 0), (12, 1), (36, 0), (26, 1), (22, 1), (3, 1), (28, 0), (18, 1),
           (37, 0), (33, 0), (35, 0)]
 ANALYSERS = {"A": "J2", "B": "J3"}
-# The analysers often stop within half a second, so Pico A repeats the pulses past the
-# capture and the check reads one whole train from the middle. A train takes some 90 ms.
+# The analysers often stop within half a second, so Pico A keeps repeating the pulses past
+# the capture and the check reads one whole train from the middle. A train takes ~90 ms.
 TRAINS, TRAIN_GAP_US, SPLIT_S = 60, 30_000, 0.015
 CAPTURE_MS = 8000
 BUTTON_MS = 120_000
-# the longest a call on a Pico may take: the wait for a press, then some
+# the longest a call on a Pico may take: the wait for a button press, plus some margin
 CALL_S = BUTTON_MS // 1000 + 15
-# Pico A's VSYS from USB: VBUS less its Schottky diode
+# Pico A's VSYS when on USB: VBUS minus the Schottky diode drop
 VSYS = (4.3, 5.5)
 
 
 def netlist(path=NETLIST):
-    """Each net's pads, and each pad's net."""
+    """Returns each net's pads, and each pad's net."""
     with open(path) as f:
         nets = {row["net"]: row["pads"].split() for row in csv.DictReader(f)}
     return nets, {pad: net for net, pads in nets.items() for pad in pads}
@@ -87,7 +87,7 @@ class Bench:
     pins: object
     a: object
     b: object
-    # capture(analyser, action): its samples while action runs
+    # capture(analyser, action) returns the samples taken while action runs
     capture: Callable
     say: Callable = print
 
@@ -130,8 +130,8 @@ def host_port(bench, r):
 
 
 def shorts(bench, r, names):
-    """Every pin let go at its idle level, then each driven the other way alone: nothing else
-    may move but what COUPLED lets."""
+    """Releases every pin at its idle level, then drives each one the other way on its own.
+    Nothing may move except what COUPLED allows."""
     pins = bench.pins
     base = pins.idle()
     stuck = [h for h in HEADER if bit(base, h) != (h in IDLE_HIGH)]
@@ -173,7 +173,7 @@ def pull_ups(bench, r):
 
 
 def replug(bench, r):
-    """SW1 on Pico A's GP9, which only a press shows."""
+    """Checks SW1 on Pico A's GP9, which only shows up when pressed."""
     a = bench.a
     if a.pressed(9, 0):
         r.line("FAIL", ["REPLUG"], "GP9 is low before any press: SW1 shorted")
@@ -215,7 +215,7 @@ def pico_b(bench, r):
     b, pins = bench.b, bench.pins
     for gp in (1, 2, 3, 6):
         b.let_go(gp)
-    # CAN board B's D, recessive throughout but where the check drives it
+    # CAN board B's D is recessive throughout, except where the check drives it
     b.drive(7, 1)
     to_b, to_fpga = [], []
     for v in (1, 0):
@@ -229,7 +229,7 @@ def pico_b(bench, r):
     r.check(to_b == [1, 0] and to_fpga == [1, 0], ["UART_B", "UART_B_PICO"],
             "header 8 and Pico B GP1 reach each other through R8",
             "GP1 read %s for header 8 at 1 then 0, header 8 read %s back" % (to_b, to_fpga))
-    # each line pulled low alone, from either end
+    # pull each line low on its own, from either end
     to_b, to_fpga = [], []
     for h in (33, 35):
         pins.apply({h: 0})
@@ -342,7 +342,7 @@ def ethernet(bench, r):
 
 
 def edges(samples, channel):
-    """The sample index of each change on one channel."""
+    """Returns the sample index of each change on one channel."""
     levels = samples.translate(bytes((b >> channel) & 1 for b in range(256)))
     found = []
     for pattern in (b"\x00\x01", b"\x01\x00"):
@@ -354,8 +354,8 @@ def edges(samples, channel):
 
 
 def trains(rate, changes):
-    """The spans of the pulse trains in a capture, whole ones only: the first and last
-    may be cut by its ends."""
+    """Returns the spans of the pulse trains in a capture, whole trains only (the first
+    and last may be cut off by the capture's ends)."""
     every = sorted(p for c in changes for p in c)
     if not every:
         return []
@@ -369,9 +369,9 @@ def trains(rate, changes):
 
 
 def analysers(bench, r, nets, pads):
-    """Each pulsed net gets count pulses, its place in PULSED; each channel must see its
-    net's in one train. Analyser A's D0 to D3 are the host port's SPI, which only has to
-    move."""
+    """Each pulsed net gets `count` pulses (its index in PULSED), and each channel must see
+    its net's count in a single train. Analyser A's D0..D3 are the host port's SPI, which
+    only has to move."""
     count = {}
     for i, (h, _) in enumerate(PULSED):
         count["CAN_RX" if h == 10 else pads["J1.%d" % h]] = i + 1
@@ -406,7 +406,7 @@ def analysers(bench, r, nets, pads):
 
 
 def run(bench, nets, button=True, with_analysers=False):
-    """Every check, PASS when none fails."""
+    """Runs every check; the result is PASS if none fails."""
     pads = {pad: net for net, ps in nets.items() for pad in ps}
     names = {h: pads["J1.%d" % h] for h in HEADER}
     r = Report(nets, bench.say)
@@ -436,7 +436,7 @@ def run(bench, nets, button=True, with_analysers=False):
                 "reaches the carrier" % volts,
                 "Pico A's VSYS reads %.2f V, outside %.1f to %.1f V: its USB supply" % (
                     volts, VSYS[0], VSYS[1]))
-        # last, as it waits for a press
+        # run it last, because it waits for a button press
         if button:
             replug(bench, r)
         else:
@@ -454,7 +454,7 @@ def run(bench, nets, button=True, with_analysers=False):
 
 
 class Repl:
-    """A Pico's raw REPL over its USB serial port."""
+    """Talks to a Pico's raw REPL over its USB serial port."""
 
     def __init__(self, serial):
         import serial as pyserial
@@ -497,7 +497,7 @@ class Repl:
 
 
 class Remote:
-    """An object on a Pico, its methods called through the REPL."""
+    """Wraps an object on a Pico; its methods are called through the REPL."""
 
     def __init__(self, repl, name):
         self.repl, self.name = repl, name
@@ -513,7 +513,7 @@ class Remote:
 
 def capture_with(evidence):
     def capture(analyser, action):
-        """demo/capture.sh once, kept however short, while action runs."""
+        """Runs demo/capture.sh once while action runs, and keeps the capture however short."""
         path = evidence / ("analyser_%s.sr" % analyser)
         env = dict(os.environ, ANALYSER=analyser, RATE="1M", TRIES="1")
         done = subprocess.Popen(["demo/capture.sh", str(path), str(CAPTURE_MS)], cwd=ROOT,

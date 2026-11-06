@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
-# One bench demo, unattended: loads the chip, runs demo/outside.sh, measures the capture
-# against the datasheet limits, marks demo/speed.tsv, keeps EVIDENCE/<date>/<protocol>/<demo>/
-# and adds a line to demo/runs.tsv. A timeout or a missing step resets the Icepi and runs
-# once more (attempt1/, attempt2/). A FAIL verdict is not retried.
+# Runs one bench demo unattended. Loads the chip, runs demo/outside.sh, measures the capture
+# against the datasheet limits, marks demo/speed.tsv, saves everything in
+# EVIDENCE/<date>/<protocol>/<demo>/ and adds a line to demo/runs.tsv. After a timeout or a
+# missing step it resets the Icepi and tries once more (attempt1/, attempt2/). A FAIL
+# verdict is not retried.
 # Usage: PICO=id:<serial of Pico A> python3 demo/bench_run.py DEMO [--bitstream FILE |
 #            --from-flash] [--measure FIRMWARE --probe PIN=Dn...] [--dry-run]
 
@@ -27,22 +28,22 @@ EVIDENCE = ledger.EVIDENCE
 RESULTS = ROOT / "demo/runs.tsv"
 COLUMNS = ["date", "protocol", "demo", "result", "attempts", "commit", "bitstream_sha256",
            "capture_sha256", "measured", "evidence"]
-# the protocol a demo belongs to, as test/corpus.py names it
+# which protocol each demo belongs to, named as in test/corpus.py
 PROTOCOL = {
     "swd": "swd", "neopixel": "ws2812", "referee": "ws2812", "eeprom": "i2c",
     "eeprom_stretch": "i2c", "start_hold": "i2c", "flash": "spi", "ds18b20": "one_wire",
     "can": "can", "can_node": "can_node",
 }
-# the demos Pico B has a firmware for
+# demos that have a firmware for Pico B
 PICO_B = {"can": "can_node", "can_node": "can_node"}
-# a demo's datasheet limits: the library's firmware, and the engine pins on the analyser
+# a demo's datasheet limits: the library's firmware, and which engine pins the analyser sees
 MEASURE = {
     "eeprom": ("i2c_master", ["IO2=D7", "IO3=D6"]),
     "eeprom_stretch": ("i2c_master_stretch", ["IO2=D7", "IO3=D6"]),
 }
 FLASH = ["openFPGALoader", "-b", "icepi-zero", "-r"]
 LIMITS = ["dune", "exec", "--root", ".", "test/measure/measure.exe", "--"]
-# seconds a stage may take
+# seconds each stage may take
 TIMEOUT = {"load": 120, "pico_b": 300, "run": 240, "measure": 180}
 
 
@@ -53,8 +54,8 @@ class Stage:
 
 
 class Runner:
-    """Runs commands from the repository root in their own process groups, logging to
-    run.txt. With dry_run only prints them."""
+    """Runs commands from the repository root, each in its own process group, and logs
+    them to run.txt. With dry_run it only prints them."""
 
     def __init__(self, dry_run):
         self.dry_run = dry_run
@@ -99,7 +100,7 @@ class Runner:
             pass
 
     def run(self, name, argv, timeout, **kw):
-        """The stage's exit status, or None when it ran past timeout and was stopped."""
+        """Returns the stage's exit status, or None if it overran the timeout and was stopped."""
         proc = self.start(argv, **kw)
         if proc is None:
             return Stage(name, 0)
@@ -130,7 +131,7 @@ class Job:
                                   if k.startswith("t_") and v}
 
     def load(self, recovery):
-        """The chip from a bitstream, or from its flash, which is also the recovery."""
+        """Loads the chip from a bitstream, or from its flash (which is also how we recover)."""
         r = self.runner
         if recovery or not self.args.bitstream:
             stage = r.run("load", FLASH, self.timeout["load"])
@@ -140,7 +141,7 @@ class Job:
                      self.timeout["load"])
 
     def attempt(self, directory, recovery):
-        """The stages' outcomes and the verdict of one pass, in directory."""
+        """Runs one pass in directory and returns the stages' outcomes and the verdict."""
         r = self.runner
         r.open(directory)
         stages, verdict, notes = [], "ERROR", []
@@ -162,7 +163,7 @@ class Job:
         return stages, verdict, notes
 
     def judge(self, directory, stages, notes):
-        """Pico A's PASS held to the capture's traffic and the datasheet limits."""
+        """Checks Pico A's PASS against the capture's traffic and the datasheet limits."""
         r = self.runner
         if r.dry_run:
             self.measure(directory, stages, notes)
@@ -180,8 +181,8 @@ class Job:
         return verdict
 
     def measure(self, directory, stages, notes):
-        """True when a datasheet limit fails, False when all hold or none names the demo,
-        None when the tooling broke."""
+        """Returns True if a datasheet limit fails, False if all hold or no limit names the
+        demo, and None if the tooling broke."""
         r = self.runner
         if not self.firmware:
             notes.append("measured: no datasheet limits wired for %s" % self.demo)
@@ -199,7 +200,7 @@ class Job:
         return m.status == 1
 
     def measured(self, stages):
-        """measure.exe's own outcome in the last attempt, whatever else made its verdict."""
+        """Returns measure.exe's own outcome in the last attempt, whatever decided the verdict."""
         if not self.firmware:
             return "-"
         status = {s.name: s.status for s in stages}
@@ -208,8 +209,8 @@ class Job:
         return "error"
 
     def seal(self, folder, attempts, day, head, bit_hash):
-        """result.txt and SHA256SUMS in folder, the last attempt's files copied up, and the
-        row for the TSV."""
+        """Writes result.txt and SHA256SUMS into folder, copies up the last attempt's files
+        and returns the row for the TSV."""
         stages, verdict, notes = attempts[-1]
         final = folder / ("attempt%d" % len(attempts))
         for p in sorted(final.iterdir()):
